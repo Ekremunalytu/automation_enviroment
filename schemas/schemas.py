@@ -31,3 +31,11 @@ class ExtensionSchema(BaseModel):
     # Bu ayar sayesinde package.json'daki fazlalık alanları görmezden gelir
     class Config:
         extra = "ignore"
+        from_attributes = True # fastapi verisini otomatik bir şekilde jsona dönüştürmek için eklendi. 
+
+class scanRequest(BaseModel):
+    name: str
+
+class searchRequest(BaseModel):
+    name: str
+
