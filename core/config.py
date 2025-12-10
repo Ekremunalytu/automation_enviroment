@@ -1,12 +1,14 @@
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import PostgresDsn
 
 class Settings(BaseSettings):
-    PROJECT_NAME: str = "TESTZONE"
-    ENV : str = "dev"
-    DATABASE_URL: str = "postgresql://postgres:1234@localhost:5433/postgres"
+    PROJECT_NAME: str = "ExTrace API"
+    ENV: str = "dev"
+    DATABASE_URL: PostgresDsn
 
-    class Config:
-        env_file = ".env"
-        extra = "ignore"
+    model_config = SettingsConfigDict(env_file=".env", case_sensitive=True, extra="ignore")
+
+settings = Settings()
+
 
 
