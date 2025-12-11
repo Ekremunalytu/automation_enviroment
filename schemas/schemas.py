@@ -1,8 +1,12 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional, List, Union, Dict, Any
 
 
 class ExtensionSchema(BaseModel):
+    """Extension bilgilerini temsil eden Pydantic modeli."""
+    
+    model_config = ConfigDict(from_attributes=True, extra="ignore")
+    
     # Zorunlu alanlar
     name: str
     publisher: str
@@ -28,14 +32,35 @@ class ExtensionSchema(BaseModel):
     main: Optional[str] = None
     web: Optional[str] = None
 
-    # Bu ayar sayesinde package.json'daki fazlalık alanları görmezden gelir
-    class Config:
-        extra = "ignore"
-        from_attributes = True # fastapi verisini otomatik bir şekilde jsona dönüştürmek için eklendi. 
 
-class scanRequest(BaseModel):
-    name: str
+class ScanRequest(BaseModel):
+    """Extension oluşturma isteği için şema."""
+    name: str = Field(..., min_length=1, description="Extension name to create")
 
-class searchRequest(BaseModel):
+
+class SearchRequest(BaseModel):
+    """Extension arama isteği için şema."""
+    name: str = Field(..., min_length=1, description="Extension name to search")
+
+
+class SearchAllExtensionsInfo(BaseModel):
+    """Tüm extensionlar ile ilgili sınırlı bilgileri döndürür."""
+    
+    model_config = ConfigDict(from_attributes=True, extra="ignore")
+    
+    id: int
     name: str
+    publisher: str
+    description: Optional[str] = None
+    icon: Optional[str] = None
+
+
+class SearchAllExtensionsAllInfo(ExtensionSchema):
+    """Extension'ın tüm bilgilerini ID ile birlikte döndürür."""
+    
+    model_config = ConfigDict(from_attributes=True)
+    
+    id: int
+
+
 

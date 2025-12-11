@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 
-from schemas.schemas import ExtensionSchema, scanRequest, searchRequest
+from schemas.schemas import ExtensionSchema, ScanRequest, SearchRequest
 from core.deps import get_db
 from scanner import service
 
@@ -24,9 +24,12 @@ def health_check():
     return {"status": "OK","service": "Extrace API"}
 
 @router.get("/searchExtension", response_model=ExtensionSchema)
-def search_extension(name: str, db: Session = Depends(get_db)):
+def search_extension(
+    params: SearchRequest = Depends(),
+    db: Session = Depends(get_db)
+):
     try:
-        result = service.search_extension_by_name(db=db, extension_name=name)
+        result = service.search_extension_by_name(db=db, extension_name=params.name)
         if result is None:
             raise HTTPException(status_code=404, detail="Extension not found")
         return result
@@ -37,7 +40,7 @@ def search_extension(name: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
 
 @router.post("/createExtension", response_model=ExtensionSchema)
-def create_extension(request: scanRequest, db: Session = Depends(get_db)):
+def create_extension(request: ScanRequest, db: Session = Depends(get_db)):
     try:
         result = service.create_extension_by_name(db, request.name)
         if result is None:

@@ -1,7 +1,7 @@
-from typing import Optional
+from typing import Optional, List
 
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, load_only
 from models.models import Extension
 from schemas.schemas import ExtensionSchema
 
@@ -26,3 +26,10 @@ def create_extension(db: Session, extension: ExtensionSchema) -> Extension:
         db.rollback()
         print("database commit error: ", e)
         raise e
+# burada tüm extensionların tüm bilgileri getiriliyor
+def get_extensions_all_info(db: Session) -> List[Extension]:
+    return db.query(Extension).all()
+
+def get_extensions_base_info(db: Session) -> List[Extension]:
+    return db.query(Extension).options(load_only(Extension.id,Extension.name, Extension.publisher, Extension.description,Extension.icon)).all()
+

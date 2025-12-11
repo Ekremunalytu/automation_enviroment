@@ -6,6 +6,17 @@ from schemas.schemas import ExtensionSchema
 from crud.crud import create_extension as create_db_extension
 from crud.crud import search_extension_by_name as search_db_extension
 from .json_parser import search_extension as find_json_in_dir
+from crud.crud import get_extensions_all_info
+from crud.crud import get_extensions_base_info
+
+
+def get_all_extensions_basic(db: Session):
+    all_extensions_basic_information = get_extensions_base_info(db)
+    return all_extensions_basic_information
+
+def get_all_extensions_all(db: Session):
+    all_extensions_all_information = get_extensions_all_info(db)
+    return all_extensions_all_information
 
 
 def search_extension_by_name(db: Session, extension_name: str):
@@ -28,3 +39,4 @@ def create_extension_by_name(db: Session, extension_name: str):
         return create_db_extension(db, package_schema)
 
     return None
+
