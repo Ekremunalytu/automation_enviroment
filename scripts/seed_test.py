@@ -117,54 +117,23 @@ def seed_test_data():
         # Sample VS Code extension data with all fields populated
         # Based on real Microsoft Python extension manifest
         test_extension = Extension(
-            
-            # ---------------------------------------------------------
-            # Required Fields
-            # These must be present in every extension's package.json
-            # ---------------------------------------------------------
-            
+            # Required fields
             name="python",
-            """Extension identifier (unique per publisher)"""
-            
             publisher="ms-python",
-            """Publisher account name"""
-            
             engines={"vscode": "^1.95.0"},
-            """
-            VS Code version requirements.
-            ^1.95.0 means version 1.95.0 or any compatible higher version.
-            """
-            
-            # ---------------------------------------------------------
-            # Optional Fields - All Populated for Testing
-            # These fields demonstrate all model capabilities
-            # ---------------------------------------------------------
-            
+
+            # Optional fields
             license="MIT",
-            """SPDX license identifier"""
-            
             displayName="Python",
-            """Human-readable name shown in VS Code UI"""
-            
             description="IntelliSense, linting, debugging, code navigation, "
                        "code formatting, refactoring, and more for Python.",
-            """Extension description for marketplace listing"""
-            
             categories=["Programming Languages", "Linters", "Debuggers", "Formatters"],
-            """Marketplace category tags (PostgreSQL ARRAY)"""
-            
             keywords=["python", "django", "flask", "pylint", "autopep8"],
-            """Search keywords for marketplace discovery (PostgreSQL ARRAY)"""
-            
             galleryBanner={
                 "color": "#1e415e",
                 "theme": "dark"
             },
-            """Marketplace banner styling (PostgreSQL JSONB)"""
-            
             preview=False,
-            """Not a preview/beta release"""
-            
             badges=[
                 {
                     "url": "https://img.shields.io/badge/build-passing-brightgreen",
@@ -172,33 +141,15 @@ def seed_test_data():
                     "description": "Build Status"
                 }
             ],
-            """Status badges displayed on marketplace page (PostgreSQL JSONB)"""
-            
             markdown="github",
-            """Use GitHub Flavored Markdown for rendering"""
-            
             qna="marketplace",
-            """
-            Q&A configuration - uses marketplace Q&A system.
-            Can also be: False (disabled), URL string, or config object.
-            """
-            
             sponsor={
                 "url": "https://github.com/sponsors/microsoft"
             },
-            """Sponsor/donation link configuration (PostgreSQL JSONB)"""
-            
             icon="https://ms-python.gallerycdn.vsassets.io/extensions/ms-python/python/icon.png",
-            """URL to extension icon"""
-            
             pricing="Free",
-            """Pricing tier: Free, Trial, or Paid"""
-            
             main="./dist/extension.js",
-            """Desktop extension entry point (Node.js)"""
-            
             web="./dist/web-extension.js",
-            """Web extension entry point (browser/vscode.dev)"""
         )
         
         # =================================================================

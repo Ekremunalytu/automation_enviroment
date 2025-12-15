@@ -34,13 +34,13 @@ Table Overview:
     ┌─────────────────────────────────────────────────────────────┐
     │                        extensions                           │
     ├─────────────────────────────────────────────────────────────┤
-    │ PK  │ id          │ Serial integer primary key             │
-    │ IDX │ name        │ Extension identifier (indexed)         │
-    │ IDX │ publisher   │ Publisher name (indexed)               │
-    │     │ engines     │ VS Code version requirements (JSONB)   │
-    │     │ ...         │ Additional metadata fields             │
-    │ TS  │ created_at  │ Record creation timestamp              │
-    │ TS  │ updated_at  │ Last update timestamp                  │
+    │ PK  │ id          │ Serial integer primary key              │
+    │ IDX │ name        │ Extension identifier (indexed)          │
+    │ IDX │ publisher   │ Publisher name (indexed)                │
+    │     │ engines     │ VS Code version requirements (JSONB)    │
+    │     │ ...         │ Additional metadata fields              │
+    │ TS  │ created_at  │ Record creation timestamp               │
+    │ TS  │ updated_at  │ Last update timestamp                   │
     ├─────────────────────────────────────────────────────────────┤
     │ UNIQUE CONSTRAINT: (publisher, name) - No duplicate extensions
     └─────────────────────────────────────────────────────────────┘

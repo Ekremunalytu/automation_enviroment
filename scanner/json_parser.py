@@ -52,10 +52,12 @@ Security Considerations:
 
 import json
 from pathlib import Path
+from typing import Any, Dict, Optional
+
 from core.config import settings
 
 
-def parse_json_file(json_path: Path) -> dict | None:
+def parse_json_file(json_path: Path) -> Optional[Dict[str, Any]]:
     """
     Parse a JSON file and return its contents as a dictionary.
     
@@ -99,7 +101,7 @@ def parse_json_file(json_path: Path) -> dict | None:
         return None
 
 
-def get_package_json(extension_dir: Path) -> dict | None:
+def get_package_json(extension_dir: Path) -> Optional[Dict[str, Any]]:
     """
     Retrieve package.json from an extension directory.
     
@@ -137,7 +139,7 @@ def get_package_json(extension_dir: Path) -> dict | None:
     return None
 
 
-def search_extension(extension_name_field: str) -> dict | None:
+def search_extension(extension_name_field: str) -> Optional[Dict[str, Any]]:
     """
     Search for an extension by name across all extension directories.
     
@@ -194,6 +196,10 @@ def search_extension(extension_name_field: str) -> dict | None:
     # Convert configured extension directory to Path object
     # This enables cross-platform path handling
     extension_path = Path(settings.EXTENSION_DIR)
+
+    # Gracefully handle missing or non-directory paths
+    if not extension_path.exists() or not extension_path.is_dir():
+        return None
 
     # List only directories (skip files in extensions/ root)
     # Each directory should contain an unpacked VS Code extension

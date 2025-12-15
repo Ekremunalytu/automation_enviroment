@@ -238,7 +238,7 @@ def get_extensions_base_info(db: Session) -> List[Extension]:
 
 
 # =============================================================================
-# TODO: CRUD Operations to Implement
+# TODO: CRUD Operations to Implement ( update is not necessary for Extension Table beacuse extension data should not be changed )
 # =============================================================================
 
 # def update_extension(db: Session, extension_id: int, update_data: dict) -> Optional[Extension]:
