@@ -1,0 +1,158 @@
+[project]
+name = "extrace"
+version = "1.0.0"
+description = "A Secure VS Code Extension Analysis Platform"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "ExTrace Team" }]
+keywords = ["vscode", "extension", "security", "analysis"]
+
+dependencies = [
+    "fastapi>=0.100.0,<1.0.0",
+    "uvicorn[standard]>=0.20.0,<1.0.0",
+    "sqlalchemy>=2.0.0,<3.0.0",
+    "alembic>=1.10.0,<2.0.0",
+    "psycopg2-binary>=2.9.0,<3.0.0",
+    "pydantic>=2.0.0,<3.0.0",
+    "pydantic-settings>=2.0.0,<3.0.0",
+    "python-dotenv>=1.0.0,<2.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.8.0",
+    "mypy>=1.13.0",
+    "pytest>=8.0.0",
+    "pytest-cov>=6.0.0",
+    "pytest-asyncio>=0.24.0",
+    "httpx>=0.28.0",
+    "pre-commit>=4.0.0",
+    "bandit>=1.8.0",
+    "types-python-dotenv>=1.0.0",
+]
+
+# ============================================================
+# RUFF CONFIGURATION
+# Modern Python linter + formatter (replaces black, isort, flake8)
+# ============================================================
+[tool.ruff]
+target-version = "py311"
+line-length = 88
+exclude = [
+    ".git",
+    ".venv",
+    "__pycache__",
+    "alembic/versions",
+    "extensions",
+    ".mypy_cache",
+    ".ruff_cache",
+]
+
+[tool.ruff.lint]
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # Pyflakes
+    "I",      # isort
+    "N",      # pep8-naming
+    "UP",     # pyupgrade
+    "B",      # flake8-bugbear
+    "C4",     # flake8-comprehensions
+    "SIM",    # flake8-simplify
+    "S",      # flake8-bandit (security)
+    "A",      # flake8-builtins
+    "T20",    # flake8-print
+    "RUF",    # Ruff-specific rules
+]
+ignore = [
+    "S101",   # assert kullanımına izin ver (testler için)
+    "B008",   # FastAPI Depends için fonksiyon çağrısı
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101", "T20"]
+"alembic/*" = ["T20"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["core", "crud", "database", "models", "routers", "scanner", "schemas"]
+
+# ============================================================
+# MYPY CONFIGURATION
+# Static type checker for Python
+# ============================================================
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_return_any = true
+warn_unused_ignores = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+no_implicit_optional = true
+show_error_codes = true
+show_column_numbers = true
+
+# SQLAlchemy ve FastAPI için özel ayarlar
+plugins = []
+
+[[tool.mypy.overrides]]
+module = [
+    "sqlalchemy.*",
+    "alembic.*",
+    "uvicorn.*",
+]
+ignore_missing_imports = true
+
+# ============================================================
+# PYTEST CONFIGURATION
+# Testing framework
+# ============================================================
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_functions = ["test_*"]
+addopts = [
+    "-v",
+    "--tb=short",
+    "--strict-markers",
+    "-ra",
+]
+markers = [
+    "slow: marks tests as slow",
+    "integration: marks tests as integration tests",
+]
+asyncio_mode = "auto"
+
+# ============================================================
+# COVERAGE CONFIGURATION
+# Code coverage reporting
+# ============================================================
+[tool.coverage.run]
+source = ["core", "crud", "database", "models", "routers", "scanner", "schemas"]
+branch = true
+omit = [
+    "*/tests/*",
+    "*/__pycache__/*",
+    "alembic/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+    "if __name__ == .__main__.:",
+]
+show_missing = true
+skip_covered = true
+fail_under = 0
+
+# ============================================================
+# BANDIT CONFIGURATION
+# Security linter for Python
+# ============================================================
+[tool.bandit]
+exclude_dirs = ["tests", "alembic", "extensions", ".venv"]
+skips = ["B101"]  # assert kullanımına izin ver

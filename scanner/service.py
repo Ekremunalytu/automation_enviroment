@@ -38,19 +38,15 @@ Future Enhancements:
     - Batch processing operations
 """
 
-from fastapi import HTTPException
 from sqlalchemy.orm import Session
-from typing import Optional
-
-from schemas.schemas import ExtensionSchema
 
 # Aliased imports to avoid naming conflicts between service and CRUD functions
 # This is a common pattern when service methods wrap CRUD operations
 from crud.crud import create_extension as create_db_extension
-from crud.crud import search_extension_by_name as search_db_extension
 from crud.crud import delete_extension as delete_db_extension
-from crud.crud import get_extensions_all_info
-from crud.crud import get_extensions_base_info
+from crud.crud import get_extensions_all_info, get_extensions_base_info
+from crud.crud import search_extension_by_name as search_db_extension
+from schemas.schemas import ExtensionSchema
 
 # File system operations for scanning extensions directory
 from .json_parser import search_extension as find_json_in_dir
@@ -59,21 +55,21 @@ from .json_parser import search_extension as find_json_in_dir
 def get_all_extensions_basic(db: Session):
     """
     Retrieve all extensions with basic information only.
-    
+
     This is a pass-through to CRUD for simple listing operations.
     Returns optimized payload suitable for gallery/grid displays.
-    
+
     Args:
         db: SQLAlchemy database session from dependency injection
-    
+
     Returns:
         List of Extension objects with only id, name, version, publisher,
         description, and icon fields loaded
-    
+
     Example:
         >>> extensions = get_all_extensions_basic(db)
         >>> # Returns lightweight objects for listing
-    
+
     Use Cases:
         - Extension gallery/marketplace view
         - Search results listing
@@ -86,20 +82,20 @@ def get_all_extensions_basic(db: Session):
 def get_all_extensions_all(db: Session):
     """
     Retrieve all extensions with complete information.
-    
+
     Returns full extension data including all metadata fields.
     Use sparingly due to larger payload size.
-    
+
     Args:
         db: SQLAlchemy database session from dependency injection
-    
+
     Returns:
         List of Extension objects with all columns loaded
-    
+
     Example:
         >>> extensions = get_all_extensions_all(db)
         >>> # Returns complete objects for detailed analysis
-    
+
     Use Cases:
         - Data export functionality
         - Detailed comparison views
@@ -109,26 +105,28 @@ def get_all_extensions_all(db: Session):
     return all_extensions_all_information
 
 
-def search_extension_by_name(db: Session, extension_name: str, extension_version: Optional[str] = None):
+def search_extension_by_name(
+    db: Session, extension_name: str, extension_version: str | None = None
+):
     """
     Search for an extension by name in the database.
-    
+
     Performs an exact-match database lookup. The result is returned
     directly as FastAPI's response_model handles Pydantic conversion.
-    
+
     Args:
         db: SQLAlchemy database session from dependency injection
         extension_name: Exact name of extension to find
         extension_version: Optional version filter
-    
+
     Returns:
         Extension ORM object if found, None otherwise
-    
+
     Note:
         FastAPI's response_model automatically converts the SQLAlchemy
         Extension object to ExtensionSchema for the JSON response.
         No manual conversion needed in the service layer.
-    
+
     Example:
         >>> result = search_extension_by_name(db, "python")
         >>> if result:
@@ -137,28 +135,30 @@ def search_extension_by_name(db: Session, extension_name: str, extension_version
         ... else:
         ...     # Not found, router should return 404
         ...     raise HTTPException(404)
-    
+
     Search Strategy:
         Currently: Exact match only (case-sensitive)
         Future: Could add fuzzy search, LIKE queries, or full-text search
     """
     # Delegate to CRUD layer for database query
     extension = search_db_extension(db, extension_name, extension_version)
-    
+
     # Return as-is; FastAPI's response_model handles serialization
     # from SQLAlchemy ORM object to Pydantic schema automatically
     return extension
 
 
-def delete_extension_by_name(db: Session, extension_name: str, extension_version: Optional[str] = None):
+def delete_extension_by_name(
+    db: Session, extension_name: str, extension_version: str | None = None
+):
     """
     Delete an extension by name from the database.
-    
+
     Args:
         db: SQLAlchemy database session
         extension_name: Name of extension to delete
         extension_version: Optional version filter
-        
+
     Returns:
         True if deleted, False if not found
     """
@@ -168,26 +168,26 @@ def delete_extension_by_name(db: Session, extension_name: str, extension_version
 def create_extension_by_name(db: Session, extension_name: str):
     """
     Create a new extension by scanning for it in the filesystem.
-    
+
     This is the main "scan and store" workflow:
     1. Search the extensions/ directory for matching package.json
     2. Validate the package.json data against Pydantic schema
     3. Persist the validated data to the PostgreSQL database
-    
+
     This function bridges the gap between filesystem scanning and
     database persistence, implementing the core scanning logic.
-    
+
     Args:
         db: SQLAlchemy database session from dependency injection
         extension_name: Name to search for in package.json files
-    
+
     Returns:
         Extension ORM object if successfully created, None if not found
-    
+
     Raises:
         ValueError: If extension already exists (from CRUD layer)
         ValidationError: If package.json fails Pydantic validation
-    
+
     Workflow:
         ┌─────────────────┐
         │ Extension Name  │
@@ -211,14 +211,14 @@ def create_extension_by_name(db: Session, extension_name: str):
         ┌─────────────────┐
         │ Extension ORM   │
         └─────────────────┘
-    
+
     Example:
         >>> result = create_extension_by_name(db, "python")
         >>> if result:
         ...     print(f"Created extension with ID: {result.id}")
         ... else:
         ...     print("Extension not found in filesystem")
-    
+
     Error Handling:
         - Package.json not found → Returns None
         - Validation failure → Pydantic ValidationError propagates

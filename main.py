@@ -34,10 +34,10 @@ Factory Pattern:
 Running the Application:
     Development (with auto-reload):
         uvicorn main:app --reload --host 0.0.0.0 --port 8000
-    
+
     Production (with workers):
         uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
-    
+
     Or directly (development only):
         python main.py
 
@@ -49,38 +49,39 @@ API Documentation:
 """
 
 from fastapi import FastAPI
-from routers.core import router as core_router
+
 from core.config import settings
+from routers.core import router as core_router
 
 
 def create_app() -> FastAPI:
     """
     Application factory function - creates and configures FastAPI instance.
-    
+
     This function follows the Factory Pattern, which allows:
     - Creating multiple app instances (useful for testing)
     - Configuring the app based on environment
     - Adding middleware and routers in a controlled manner
-    
+
     Returns:
         FastAPI: Fully configured application instance
-    
+
     Configuration Applied:
         - title: Project name from settings (shown in docs)
         - description: API description for documentation
         - version: Semantic version string
         - routers: All API route handlers attached
-    
+
     Example Usage:
         # Standard usage
         app = create_app()
-        
+
         # For testing with different settings
         def create_test_app():
             app = create_app()
             # Override dependencies for testing
             return app
-    
+
     Future Enhancements:
         - Add CORS middleware for frontend integration
         - Add request logging middleware
@@ -92,7 +93,7 @@ def create_app() -> FastAPI:
     application = FastAPI(
         title=settings.PROJECT_NAME,
         description="VS Code Extension Malware Scanner",
-        version="1.0.0"
+        version="1.0.0",
     )
 
     # Register API routers
@@ -100,7 +101,7 @@ def create_app() -> FastAPI:
     # Prefix and tags can be added here for organization:
     # application.include_router(core_router, prefix="/api/v1", tags=["extensions"])
     application.include_router(core_router)
-    
+
     return application
 
 
@@ -130,24 +131,24 @@ The instance is created at module import time, which means:
 if __name__ == "__main__":
     """
     Direct execution entry point for development.
-    
+
     This block only runs when the file is executed directly:
         python main.py
-    
+
     For production, use uvicorn/gunicorn directly:
         uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
-    
+
     Development usage:
         python main.py
         # Server starts at http://0.0.0.0:8000
         # Docs at http://0.0.0.0:8000/docs
     """
     import uvicorn
-    
+
     # Start development server
     # Note: No --reload here, use uvicorn CLI for auto-reload
     uvicorn.run(
         app,
         host="0.0.0.0",  # Listen on all interfaces (accessible from Docker/network)
-        port=8000        # Default FastAPI port
+        port=8000,  # Default FastAPI port
     )

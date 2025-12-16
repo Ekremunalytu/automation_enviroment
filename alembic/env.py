@@ -1,14 +1,15 @@
+import os
+import sys
 from logging.config import fileConfig
 
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
+from dotenv import load_dotenv
+from sqlalchemy import engine_from_config, pool
 
 from alembic import context
-import sys
-import os
-from dotenv import load_dotenv
-sys.path.insert(0, os.path.realpath(os.path.join(os.path.dirname(__file__), '..')))
+
+sys.path.insert(0, os.path.realpath(os.path.join(os.path.dirname(__file__), "..")))
 from models.models import Base
+
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
@@ -16,9 +17,11 @@ config = context.config
 # Load .env so DATABASE_URL is available when running Alembic directly
 load_dotenv()
 
+
 # Resolve database URL with a safe fallback to alembic.ini if env/.env not set
 def get_database_url() -> str:
     return os.getenv("DATABASE_URL") or config.get_main_option("sqlalchemy.url")
+
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
@@ -78,9 +81,7 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
-        context.configure(
-            connection=connection, target_metadata=target_metadata
-        )
+        context.configure(connection=connection, target_metadata=target_metadata)
 
         with context.begin_transaction():
             context.run_migrations()

@@ -28,7 +28,7 @@ Common Dependencies in This Project:
 Usage in Routes:
     from core.deps import get_db
     from fastapi import Depends
-    
+
     @router.get("/items")
     def get_items(db: Session = Depends(get_db)):
         # db session is automatically created and cleaned up
@@ -43,48 +43,49 @@ Database Session Lifecycle:
     6. Session is returned to connection pool
 """
 
-from typing import Generator
+from collections.abc import Generator
+
 from database.session import SessionLocal
 
 
 def get_db() -> Generator:
     """
     Create and yield a database session for request handling.
-    
+
     This is a generator-based dependency that implements the
     "context manager" pattern for database session management.
-    
+
     The session lifecycle:
         1. Session is created from SessionLocal factory
         2. Session is yielded to the route handler
         3. After request completes, finally block ensures cleanup
         4. Session is closed, returning connection to pool
-    
+
     Yields:
         Session: SQLAlchemy session bound to PostgreSQL
-    
+
     Usage:
         @router.get("/example")
         def example_route(db: Session = Depends(get_db)):
             # db is available and will be automatically closed
             items = db.query(MyModel).all()
             return items
-    
+
     Why Generator Pattern?
         - Ensures cleanup even if route handler raises exception
         - FastAPI recognizes yield-based deps for lifecycle management
         - Connection is always returned to pool (no leaks)
-    
+
     Transaction Behavior:
         - autocommit=False: Changes require explicit commit()
         - autoflush=False: Changes not flushed until commit
         - Each request gets an isolated transaction
-    
+
     Error Handling:
         - Exceptions in route handler: Session still closed
         - Connection errors: SQLAlchemy handles reconnection
         - Rollback should be done in route/service layer
-    
+
     Example with Transaction:
         @router.post("/create")
         def create_item(item: ItemCreate, db: Session = Depends(get_db)):
@@ -97,7 +98,7 @@ def get_db() -> Generator:
             except IntegrityError:
                 db.rollback()
                 raise HTTPException(409, "Duplicate item")
-    
+
     Performance Note:
         Sessions use connection pooling under the hood.
         Creating a session doesn't open a new TCP connection;
@@ -106,11 +107,11 @@ def get_db() -> Generator:
     try:
         # Create new session from factory
         db = SessionLocal()
-        
+
         # Yield session to route handler
         # Execution pauses here until request is complete
         yield db
-        
+
     finally:
         # Always close session, even if exception occurred
         # This returns the connection to the pool
@@ -127,14 +128,14 @@ def get_db() -> Generator:
 # ) -> User:
 #     """
 #     Authenticate and return current user from JWT token.
-#     
+#
 #     Args:
 #         token: JWT bearer token from Authorization header
 #         db: Database session for user lookup
-#     
+#
 #     Returns:
 #         User object for authenticated user
-#     
+#
 #     Raises:
 #         HTTPException 401: Invalid or expired token
 #     """
@@ -144,7 +145,7 @@ def get_db() -> Generator:
 # def get_redis() -> Generator:
 #     """
 #     Provide Redis connection for caching.
-#     
+#
 #     Yields:
 #         Redis client connection
 #     """

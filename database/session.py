@@ -32,7 +32,7 @@ Connection Pooling:
 
 Usage:
     from database.session import SessionLocal
-    
+
     # Create a session
     db = SessionLocal()
     try:
@@ -40,15 +40,15 @@ Usage:
         result = db.query(MyModel).all()
     finally:
         db.close()
-    
+
     # Or use the dependency injection in FastAPI (preferred)
     from core.deps import get_db
 """
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from core.config import settings
 
+from core.config import settings
 
 # =============================================================================
 # Database Engine Configuration
@@ -65,12 +65,12 @@ SQLAlchemy Engine - The core database connection manager.
 Parameters:
     DATABASE_URL: Connection string from settings
                   Format: postgresql://user:pass@host:port/dbname
-    
+
     echo: SQL query logging
           - False: Quiet mode (production)
           - True: Print all SQL queries to stdout (debugging)
           Tip: Set True temporarily to debug query issues
-    
+
     future: SQLAlchemy 2.0 compatibility mode
             Enables new-style query patterns and behaviors
 
@@ -98,12 +98,7 @@ For production, consider customizing:
 # Session Factory Configuration
 # =============================================================================
 
-SessionLocal = sessionmaker(
-    autocommit=False,
-    autoflush=False,
-    bind=engine,
-    future=True
-)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine, future=True)
 """
 Session Factory - Creates database sessions for request handling.
 
@@ -115,14 +110,14 @@ Parameters:
                 - False: Explicit commit() required (recommended)
                 - True: Each query auto-commits (not recommended)
                 We use False for proper transaction control.
-    
+
     autoflush: Automatic flushing before queries
                - False: No auto-flush (explicit flush/commit needed)
                - True: Flush pending changes before each query
                We use False for predictable behavior.
-    
+
     bind: The engine to use for connections
-    
+
     future: SQLAlchemy 2.0 session behavior
 
 Transaction Behavior:

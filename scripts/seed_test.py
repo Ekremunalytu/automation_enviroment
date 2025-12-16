@@ -18,7 +18,7 @@ Purpose:
 Usage:
     From project root:
         python scripts/seed_test.py
-    
+
     Or with Docker:
         docker-compose exec api python scripts/seed_test.py
 
@@ -42,8 +42,8 @@ Future Enhancements:
     - Add random data generation for stress testing
 """
 
-import sys
 import os
+import sys
 
 # =============================================================================
 # Path Configuration
@@ -52,7 +52,7 @@ import os
 # Add project root to Python path
 # This is necessary because we're running from scripts/ subdirectory
 # but need to import from project root modules
-sys.path.insert(0, os.path.realpath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.insert(0, os.path.realpath(os.path.join(os.path.dirname(__file__), "..")))
 
 from database.session import SessionLocal
 from models.models import Extension
@@ -61,11 +61,11 @@ from models.models import Extension
 def seed_test_data():
     """
     Insert a sample VS Code extension into the database.
-    
+
     Creates a comprehensive test record with all model fields populated.
     This demonstrates the full capability of the Extension model and
     provides known data for API testing.
-    
+
     Process:
         1. Create database session
         2. Create Extension ORM object with test data
@@ -73,47 +73,47 @@ def seed_test_data():
         4. Refresh to get auto-generated fields (id, created_at)
         5. Print success/failure message
         6. Clean up session
-    
+
     Test Data Details:
         The sample is based on Microsoft's Python extension, which is
         one of the most popular VS Code extensions. Fields are:
-        
+
         Required:
             - name: "python"
             - publisher: "ms-python"
             - engines: {"vscode": "^1.95.0"}
-        
+
         Optional (all populated):
             - license, displayName, description
             - categories, keywords (arrays)
             - galleryBanner, badges, sponsor (JSONB)
             - preview (boolean)
             - markdown, qna, icon, pricing, main, web (strings)
-    
+
     Error Handling:
         - IntegrityError (duplicate): Caught, rolled back, logged
         - Other exceptions: Caught, rolled back, logged
         - Session always closed in finally block
-    
+
     Returns:
         None: Prints status messages to stdout
-    
+
     Example Output:
         ✅ Test record added! ID: 1
            Name: python
            Publisher: ms-python
-    
+
         OR on duplicate:
         ❌ Error: UNIQUE constraint failed: extensions.publisher, extensions.name
     """
     # Create a new database session
     db = SessionLocal()
-    
+
     try:
         # =================================================================
         # Create Sample Extension Object
         # =================================================================
-        
+
         # Sample VS Code extension data with all fields populated
         # Based on real Microsoft Python extension manifest
         test_extension = Extension(
@@ -121,60 +121,50 @@ def seed_test_data():
             name="python",
             publisher="ms-python",
             engines={"vscode": "^1.95.0"},
-
             # Optional fields
             license="MIT",
             displayName="Python",
             description="IntelliSense, linting, debugging, code navigation, "
-                       "code formatting, refactoring, and more for Python.",
+            "code formatting, refactoring, and more for Python.",
             categories=["Programming Languages", "Linters", "Debuggers", "Formatters"],
             keywords=["python", "django", "flask", "pylint", "autopep8"],
-            galleryBanner={
-                "color": "#1e415e",
-                "theme": "dark"
-            },
+            galleryBanner={"color": "#1e415e", "theme": "dark"},
             preview=False,
             badges=[
                 {
                     "url": "https://img.shields.io/badge/build-passing-brightgreen",
                     "href": "https://github.com/microsoft/vscode-python",
-                    "description": "Build Status"
+                    "description": "Build Status",
                 }
             ],
             markdown="github",
             qna="marketplace",
-            sponsor={
-                "url": "https://github.com/sponsors/microsoft"
-            },
+            sponsor={"url": "https://github.com/sponsors/microsoft"},
             icon="https://ms-python.gallerycdn.vsassets.io/extensions/ms-python/python/icon.png",
             pricing="Free",
             main="./dist/extension.js",
             web="./dist/web-extension.js",
         )
-        
+
         # =================================================================
         # Database Operations
         # =================================================================
-        
+
         # Stage the extension for insertion
         db.add(test_extension)
-        
+
         # Commit the transaction (writes to database)
         db.commit()
-        
+
         # Refresh to load auto-generated values (id, created_at)
         db.refresh(test_extension)
-        
+
         # Success output
-        print(f"✅ Test record added! ID: {test_extension.id}")
-        print(f"   Name: {test_extension.name}")
-        print(f"   Publisher: {test_extension.publisher}")
-        
-    except Exception as e:
+
+    except Exception:
         # Handle any errors (duplicate entry, connection issues, etc.)
         db.rollback()  # Discard pending changes
-        print(f"❌ Error: {e}")
-        
+
     finally:
         # Always close the session to return connection to pool
         db.close()
@@ -187,10 +177,10 @@ def seed_test_data():
 if __name__ == "__main__":
     """
     Script entry point when run directly.
-    
+
     Usage:
         python scripts/seed_test.py
-    
+
     This block only executes when the script is run directly,
     not when imported as a module.
     """

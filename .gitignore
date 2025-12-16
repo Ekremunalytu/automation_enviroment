@@ -35,3 +35,13 @@ ms-python.python-*/
 output/
 
 extensions/*
+
+# Linting & Type Checking
+.mypy_cache/
+.ruff_cache/
+
+# Logs
+*.log
+
+# Security Reports
+bandit-report.json
