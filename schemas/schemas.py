@@ -83,6 +83,8 @@ class ExtensionSchema(BaseModel):
     
     publisher: str
     """Publisher account name on VS Code Marketplace."""
+
+
     
     engines: Dict[str, Any]
     """

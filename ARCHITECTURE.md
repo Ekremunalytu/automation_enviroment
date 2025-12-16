@@ -1,0 +1,859 @@
+<div align="center">
+
+# 🔮 ExTrace Architecture
+
+<br>
+
+**A Secure VS Code Extension Analysis Platform**
+
+<br>
+
+[![Python](https://img.shields.io/badge/Python-3.11-9b59b6?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-00d4aa?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-3498db?style=for-the-badge&logo=postgresql&logoColor=white)](https://postgresql.org)
+[![Docker](https://img.shields.io/badge/Docker-Compose-e74c3c?style=for-the-badge&logo=docker&logoColor=white)](https://docker.com)
+
+<br>
+
+---
+
+`Last Updated: 2025-12-16` • `Version: 1.0.0` • `Status: Development`
+
+---
+
+</div>
+
+<br>
+
+## 📑 Table of Contents
+
+<details>
+<summary><strong>🗂️ Click to expand navigation</strong></summary>
+
+<br>
+
+| Section | Description |
+|:--------|:------------|
+| [🌐 System Overview](#-system-overview) | High-level system components and connections |
+| [🏛️ High-Level Architecture](#️-high-level-architecture) | Layer-based architecture overview |
+| [📊 Layered Architecture](#-layered-architecture) | Detailed layer breakdown |
+| [🔗 Module Dependencies](#-module-dependencies) | Inter-module relationships |
+| [🔄 Request Flow](#-request-flow) | API request lifecycle diagrams |
+| [🗃️ Database Schema](#️-database-schema) | Data model and constraints |
+| [🐳 Docker Infrastructure](#-docker-infrastructure) | Container setup and networking |
+| [⚙️ Configuration Flow](#️-configuration-flow) | Settings management |
+| [📁 File Structure](#-file-structure) | Project directory layout |
+| [📜 Architectural Rules](#-architectural-rules) | Design principles and constraints |
+| [🔮 Future Architecture](#-future-architecture) | Planned enhancements |
+| [📋 Quick Reference](#-quick-reference) | Endpoints and tech stack summary |
+
+</details>
+
+<br>
+
+---
+
+<br>
+
+## 🌐 System Overview
+
+> [!NOTE]
+> The system operates within a **Docker-based environment** with isolated containers for the API and database, ensuring security and reproducibility.
+
+<br>
+
+```mermaid
+%%{init: {'theme': 'dark', 'themeVariables': { 'background': '#0d1117', 'primaryColor': '#7c3aed', 'primaryTextColor': '#e6edf3', 'primaryBorderColor': '#a855f7', 'lineColor': '#f472b6', 'secondaryColor': '#1f2937', 'tertiaryColor': '#374151', 'mainBkg': '#161b22', 'nodeBkg': '#21262d', 'clusterBkg': '#161b22', 'titleColor': '#e6edf3', 'edgeLabelBackground': '#21262d', 'fontFamily': 'ui-monospace, monospace', 'fontSize': '14px'}}}%%
+flowchart TB
+    subgraph External["🌐 EXTERNAL"]
+        Client[("👤 Client<br/><small>Browser / API Consumer</small>")]
+    end
+    
+    subgraph Docker["🐳 DOCKER ENVIRONMENT"]
+        subgraph API["⚡ API Container"]
+            FastAPI["FastAPI<br/><small>Uvicorn ASGI</small>"]
+        end
+        
+        subgraph DB["🗄️ Database Container"]
+            PostgreSQL[("PostgreSQL<br/><small>v16 Alpine</small>")]
+        end
+    end
+    
+    subgraph Storage["💾 PERSISTENT STORAGE"]
+        Extensions["📦 extensions/<br/><small>VS Code Packages</small>"]
+        Volumes["🔒 postgres_data<br/><small>Docker Volume</small>"]
+    end
+    
+    Client <-->|"🔌 HTTP :8000"| FastAPI
+    FastAPI <-->|"🔌 SQL :5432"| PostgreSQL
+    FastAPI -->|"📖 Read"| Extensions
+    PostgreSQL -->|"💿 Persist"| Volumes
+
+    style External fill:#7c3aed,stroke:#a855f7,stroke-width:3px,color:#fff
+    style Docker fill:#be185d,stroke:#ec4899,stroke-width:3px,color:#fff
+    style API fill:#0891b2,stroke:#22d3ee,stroke-width:2px,color:#fff
+    style DB fill:#059669,stroke:#34d399,stroke-width:2px,color:#fff
+    style Storage fill:#b45309,stroke:#fbbf24,stroke-width:3px,color:#fff
+```
+
+<br>
+
+---
+
+<br>
+
+## 🏛️ High-Level Architecture
+
+> [!IMPORTANT]
+> ExTrace follows a **strict layered architecture** ensuring separation of concerns and maintainability.
+
+<br>
+
+```mermaid
+%%{init: {'theme': 'dark', 'themeVariables': { 'background': '#0d1117', 'primaryColor': '#a855f7', 'primaryTextColor': '#e6edf3', 'lineColor': '#22d3ee', 'mainBkg': '#161b22', 'nodeBkg': '#21262d', 'clusterBkg': '#161b22'}}}%%
+flowchart LR
+    subgraph Presentation["📡 PRESENTATION LAYER"]
+        R[("🌐 Router<br/><small>HTTP Interface</small>")]
+    end
+    
+    subgraph Business["🧠 BUSINESS LAYER"]
+        S[("⚙️ Service<br/><small>Business Logic</small>")]
+    end
+    
+    subgraph Data["💾 DATA LAYER"]
+        C[("📊 CRUD<br/><small>Data Access</small>")]
+        P[("📄 Parser<br/><small>File I/O</small>")]
+    end
+    
+    subgraph Infrastructure["🏗️ INFRASTRUCTURE"]
+        M[("📋 Model<br/><small>ORM</small>")]
+        DB[("🐘 PostgreSQL")]
+        FS[("📁 Filesystem")]
+    end
+    
+    R -->|"Request"| S
+    S -->|"DB Ops"| C
+    S -->|"File Ops"| P
+    C --> M
+    M --> DB
+    P --> FS
+    
+    S -->|"Response"| R
+
+    style Presentation fill:#7c3aed,stroke:#a855f7,stroke-width:3px,color:#fff
+    style Business fill:#be185d,stroke:#ec4899,stroke-width:3px,color:#fff
+    style Data fill:#0891b2,stroke:#22d3ee,stroke-width:3px,color:#fff
+    style Infrastructure fill:#059669,stroke:#34d399,stroke-width:3px,color:#fff
+```
+
+<br>
+
+---
+
+<br>
+
+## 📊 Layered Architecture
+
+<br>
+
+```mermaid
+%%{init: {'theme': 'dark', 'themeVariables': { 'background': '#0d1117', 'primaryColor': '#8b5cf6', 'primaryTextColor': '#e6edf3', 'lineColor': '#f472b6', 'mainBkg': '#161b22', 'nodeBkg': '#21262d', 'clusterBkg': '#161b22'}}}%%
+flowchart TB
+    subgraph Layer1["⬆️ LAYER 1: HTTP / API"]
+        direction LR
+        main["📄 main.py<br/><small>App Factory</small>"]
+        router["🔀 routers/core.py<br/><small>Endpoints</small>"]
+        schemas["📝 schemas/schemas.py<br/><small>Validation</small>"]
+    end
+    
+    subgraph Layer2["⬆️ LAYER 2: BUSINESS LOGIC"]
+        direction LR
+        service["⚙️ scanner/service.py<br/><small>Orchestration</small>"]
+    end
+    
+    subgraph Layer3["⬆️ LAYER 3: DATA ACCESS"]
+        direction LR
+        crud["💾 crud/crud.py<br/><small>DB Operations</small>"]
+        parser["📄 scanner/json_parser.py<br/><small>File Operations</small>"]
+    end
+    
+    subgraph Layer4["⬆️ LAYER 4: INFRASTRUCTURE"]
+        direction LR
+        models["📋 models/models.py<br/><small>ORM Entities</small>"]
+        session["🔌 database/session.py<br/><small>DB Connection</small>"]
+        config["⚡ core/config.py<br/><small>Settings</small>"]
+    end
+    
+    subgraph Layer5["⬆️ LAYER 5: EXTERNAL"]
+        direction LR
+        postgres[("🐘 PostgreSQL")]
+        filesystem[("📁 Filesystem")]
+    end
+    
+    Layer1 --> Layer2
+    Layer2 --> Layer3
+    Layer3 --> Layer4
+    Layer4 --> Layer5
+
+    style Layer1 fill:#be185d,stroke:#ec4899,stroke-width:3px,color:#fff
+    style Layer2 fill:#7c3aed,stroke:#a855f7,stroke-width:3px,color:#fff
+    style Layer3 fill:#4f46e5,stroke:#818cf8,stroke-width:3px,color:#fff
+    style Layer4 fill:#0284c7,stroke:#38bdf8,stroke-width:3px,color:#fff
+    style Layer5 fill:#0d9488,stroke:#2dd4bf,stroke-width:3px,color:#fff
+```
+
+<br>
+
+---
+
+<br>
+
+## 🔗 Module Dependencies
+
+<br>
+
+```mermaid
+%%{init: {'theme': 'dark', 'themeVariables': { 'background': '#0d1117', 'primaryColor': '#06b6d4', 'primaryTextColor': '#e6edf3', 'lineColor': '#a78bfa', 'mainBkg': '#161b22', 'nodeBkg': '#21262d', 'clusterBkg': '#161b22'}}}%%
+flowchart TD
+    subgraph Entry["🚀 ENTRY POINT"]
+        main["main.py"]
+    end
+    
+    subgraph Routers["🌐 ROUTERS"]
+        core["routers/core.py"]
+    end
+    
+    subgraph Schemas["📝 SCHEMAS"]
+        schemas["schemas/schemas.py"]
+    end
+    
+    subgraph Services["⚙️ SERVICES"]
+        service["scanner/service.py"]
+        parser["scanner/json_parser.py"]
+    end
+    
+    subgraph DataAccess["💾 DATA ACCESS"]
+        crud["crud/crud.py"]
+    end
+    
+    subgraph Models["📋 MODELS"]
+        models["models/models.py"]
+    end
+    
+    subgraph Database["🔌 DATABASE"]
+        session["database/session.py"]
+        deps["core/deps.py"]
+    end
+    
+    subgraph Config["⚡ CONFIG"]
+        config["core/config.py"]
+    end
+    
+    main --> core
+    main --> config
+    
+    core --> schemas
+    core --> service
+    core --> deps
+    
+    service --> crud
+    service --> parser
+    service --> schemas
+    
+    crud --> models
+    crud --> schemas
+    
+    parser --> config
+    
+    deps --> session
+    session --> config
+    
+    models -.->|"inherits"| Base["DeclarativeBase"]
+
+    style Entry fill:#b45309,stroke:#fbbf24,stroke-width:3px,color:#fff
+    style Routers fill:#dc2626,stroke:#f87171,stroke-width:2px,color:#fff
+    style Schemas fill:#7c3aed,stroke:#a855f7,stroke-width:2px,color:#fff
+    style Services fill:#be185d,stroke:#ec4899,stroke-width:2px,color:#fff
+    style DataAccess fill:#0891b2,stroke:#22d3ee,stroke-width:2px,color:#fff
+    style Models fill:#059669,stroke:#34d399,stroke-width:2px,color:#fff
+    style Database fill:#1d4ed8,stroke:#60a5fa,stroke-width:2px,color:#fff
+    style Config fill:#c2410c,stroke:#fb923c,stroke-width:2px,color:#fff
+```
+
+<br>
+
+---
+
+<br>
+
+## 🔄 Request Flow
+
+<br>
+
+### 📤 Create Extension Flow
+
+<details>
+<summary><strong>🔽 Click to expand sequence diagram</strong></summary>
+
+<br>
+
+```mermaid
+%%{init: {'theme': 'dark', 'themeVariables': { 'background': '#0d1117', 'primaryColor': '#a855f7', 'primaryTextColor': '#e6edf3', 'actorTextColor': '#e6edf3', 'actorBkg': '#7c3aed', 'actorBorder': '#a855f7', 'actorLineColor': '#c084fc', 'signalColor': '#22d3ee', 'signalTextColor': '#e6edf3', 'sequenceNumberColor': '#0d1117', 'noteBkgColor': '#be185d', 'noteTextColor': '#e6edf3', 'noteBorderColor': '#ec4899', 'activationBkgColor': '#4f46e5', 'activationBorderColor': '#818cf8', 'labelBoxBkgColor': '#161b22'}}}%%
+sequenceDiagram
+    autonumber
+    participant C as 👤 Client
+    participant R as 🌐 Router
+    participant S as ⚙️ Service
+    participant P as 📄 Parser
+    participant CR as 💾 CRUD
+    participant DB as 🐘 PostgreSQL
+    
+    C->>R: POST /createExtension {"name": "python"}
+    R->>R: Validate ScanRequest
+    R->>S: create_extension_by_name(db, "python")
+    
+    S->>P: search_extension("python")
+    P->>P: Scan extensions/ directory
+    P->>P: Parse package.json
+    P-->>S: Return package data
+    
+    S->>S: ExtensionSchema(**package_json)
+    S->>CR: create_extension(db, schema)
+    
+    CR->>CR: Extension(**schema.model_dump())
+    CR->>DB: INSERT INTO extensions
+    DB-->>CR: Return with ID
+    CR->>CR: db.commit() + db.refresh()
+    CR-->>S: Return Extension ORM
+    
+    S-->>R: Return Extension
+    R-->>C: 200 OK + ExtensionSchema JSON
+```
+
+</details>
+
+<br>
+
+### 🔍 Search Extension Flow
+
+<details>
+<summary><strong>🔽 Click to expand sequence diagram</strong></summary>
+
+<br>
+
+```mermaid
+%%{init: {'theme': 'dark', 'themeVariables': { 'background': '#0d1117', 'primaryColor': '#06b6d4', 'primaryTextColor': '#e6edf3', 'actorTextColor': '#e6edf3', 'actorBkg': '#0891b2', 'actorBorder': '#22d3ee', 'actorLineColor': '#67e8f9', 'signalColor': '#a78bfa', 'signalTextColor': '#e6edf3', 'sequenceNumberColor': '#0d1117', 'noteBkgColor': '#0d9488', 'noteTextColor': '#e6edf3', 'noteBorderColor': '#2dd4bf', 'activationBkgColor': '#0284c7', 'activationBorderColor': '#38bdf8', 'labelBoxBkgColor': '#161b22'}}}%%
+sequenceDiagram
+    autonumber
+    participant C as 👤 Client
+    participant R as 🌐 Router
+    participant S as ⚙️ Service
+    participant CR as 💾 CRUD
+    participant DB as 🐘 PostgreSQL
+    
+    C->>R: GET /searchExtension?name=python
+    R->>R: Validate SearchRequest
+    R->>S: search_extension_by_name(db, "python")
+    
+    S->>CR: search_extension_by_name(db, "python")
+    CR->>DB: SELECT * FROM extensions WHERE name = 'python'
+    DB-->>CR: Return row
+    CR-->>S: Return Extension ORM
+    
+    S-->>R: Return Extension
+    R-->>C: 200 OK + ExtensionSchema JSON
+```
+
+</details>
+
+<br>
+
+### 🗑️ Delete Extension Flow
+
+<details>
+<summary><strong>🔽 Click to expand sequence diagram</strong></summary>
+
+<br>
+
+```mermaid
+%%{init: {'theme': 'dark', 'themeVariables': { 'background': '#0d1117', 'primaryColor': '#ef4444', 'primaryTextColor': '#e6edf3', 'actorTextColor': '#e6edf3', 'actorBkg': '#dc2626', 'actorBorder': '#f87171', 'actorLineColor': '#fca5a5', 'signalColor': '#fb923c', 'signalTextColor': '#e6edf3', 'sequenceNumberColor': '#0d1117', 'noteBkgColor': '#b45309', 'noteTextColor': '#e6edf3', 'noteBorderColor': '#fbbf24', 'activationBkgColor': '#c2410c', 'activationBorderColor': '#fb923c', 'labelBoxBkgColor': '#161b22'}}}%%
+sequenceDiagram
+    autonumber
+    participant C as 👤 Client
+    participant R as 🌐 Router
+    participant S as ⚙️ Service
+    participant CR as 💾 CRUD
+    participant DB as 🐘 PostgreSQL
+    
+    C->>R: DELETE /deleteExtension?name=python
+    R->>R: Validate SearchRequest
+    R->>S: delete_extension_by_name(db, "python")
+    
+    S->>CR: delete_extension(db, "python")
+    CR->>DB: SELECT * FROM extensions WHERE name = 'python'
+    DB-->>CR: Return row
+    CR->>DB: DELETE FROM extensions WHERE name = 'python'
+    CR->>CR: db.commit()
+    CR-->>S: Return True
+    
+    S-->>R: Return True
+    R-->>C: 200 OK {"message": "deleted"}
+```
+
+</details>
+
+<br>
+
+---
+
+<br>
+
+## 🗃️ Database Schema
+
+<br>
+
+```mermaid
+%%{init: {'theme': 'dark', 'themeVariables': { 'background': '#0d1117', 'primaryColor': '#3b82f6', 'primaryTextColor': '#e6edf3', 'lineColor': '#818cf8', 'tertiaryColor': '#4f46e5', 'attributeBackgroundColorEven': '#161b22', 'attributeBackgroundColorOdd': '#21262d'}}}%%
+erDiagram
+    EXTENSIONS {
+        int id PK "🔑 Auto-increment"
+        string name "📇 Indexed, NOT NULL"
+        string publisher "📇 Indexed, NOT NULL"
+        jsonb engines "⚙️ NOT NULL"
+        string license "📜 Optional"
+        string displayName "🏷️ Optional"
+        text description "📝 Optional"
+        array categories "📂 String Array"
+        array keywords "🏷️ String Array"
+        jsonb galleryBanner "🎨 Optional"
+        boolean preview "👁️ Optional"
+        jsonb badges "🏅 Optional"
+        text markdown "📖 Optional"
+        jsonb qna "❓ Optional"
+        jsonb sponsor "💰 Optional"
+        string icon "🖼️ Optional"
+        string pricing "💵 Optional"
+        string main "📄 Entry Point"
+        string web "🌐 Optional"
+        timestamp created_at "📅 Auto-set"
+        timestamp updated_at "🔄 Auto-update"
+    }
+```
+
+<br>
+
+### 🔒 Constraints & Indexes
+
+<br>
+
+```mermaid
+%%{init: {'theme': 'dark', 'themeVariables': { 'background': '#0d1117', 'primaryColor': '#ec4899', 'primaryTextColor': '#e6edf3', 'lineColor': '#f472b6', 'mainBkg': '#161b22', 'nodeBkg': '#21262d', 'clusterBkg': '#161b22'}}}%%
+flowchart LR
+    subgraph Constraints["🔒 CONSTRAINTS"]
+        PK["🔑 PRIMARY KEY: id"]
+        UQ["🔗 UNIQUE: (publisher, name)"]
+    end
+    
+    subgraph Indexes["⚡ INDEXES"]
+        IDX1["📇 INDEX: name"]
+        IDX2["📇 INDEX: publisher"]
+    end
+    
+    subgraph Table["📋 extensions"]
+        T["Extensions Table"]
+    end
+    
+    Constraints --> Table
+    Indexes --> Table
+
+    style Constraints fill:#dc2626,stroke:#f87171,stroke-width:3px,color:#fff
+    style Indexes fill:#b45309,stroke:#fbbf24,stroke-width:3px,color:#fff
+    style Table fill:#7c3aed,stroke:#a855f7,stroke-width:3px,color:#fff
+```
+
+<br>
+
+---
+
+<br>
+
+## 🐳 Docker Infrastructure
+
+<br>
+
+```mermaid
+%%{init: {'theme': 'dark', 'themeVariables': { 'background': '#0d1117', 'primaryColor': '#0ea5e9', 'primaryTextColor': '#e6edf3', 'lineColor': '#38bdf8', 'mainBkg': '#161b22', 'nodeBkg': '#21262d', 'clusterBkg': '#161b22'}}}%%
+flowchart TB
+    subgraph Host["🖥️ HOST MACHINE"]
+        subgraph DockerCompose["🐳 Docker Compose"]
+            subgraph APIContainer["📦 api container"]
+                direction TB
+                Python["🐍 Python 3.11-slim"]
+                Uvicorn["⚡ Uvicorn Server"]
+                AppCode["📄 Application Code"]
+                Python --> Uvicorn
+                Uvicorn --> AppCode
+            end
+            
+            subgraph DBContainer["📦 postgres container"]
+                direction TB
+                PG["🐘 PostgreSQL 16-alpine"]
+                Data["💿 Data Directory"]
+                PG --> Data
+            end
+        end
+        
+        subgraph Volumes["💾 VOLUMES"]
+            PGData["🔒 postgres_data"]
+            AppMount["📁 /app (bind mount)"]
+        end
+        
+        subgraph Ports["🔌 PORTS"]
+            P8000["🌐 localhost:8000"]
+            P5433["🗄️ localhost:5433"]
+        end
+    end
+    
+    APIContainer <-->|":5432"| DBContainer
+    DBContainer --> PGData
+    APIContainer --> AppMount
+    P8000 --> APIContainer
+    P5433 --> DBContainer
+
+    style Host fill:#1e293b,stroke:#475569,stroke-width:3px,color:#e6edf3
+    style DockerCompose fill:#0891b2,stroke:#22d3ee,stroke-width:3px,color:#fff
+    style APIContainer fill:#7c3aed,stroke:#a855f7,stroke-width:2px,color:#fff
+    style DBContainer fill:#059669,stroke:#34d399,stroke-width:2px,color:#fff
+    style Volumes fill:#b45309,stroke:#fbbf24,stroke-width:2px,color:#fff
+    style Ports fill:#be185d,stroke:#ec4899,stroke-width:2px,color:#fff
+```
+
+<br>
+
+### 📦 Container Details
+
+<br>
+
+<table>
+<tr>
+<td width="50%">
+
+#### 🔮 API Container
+
+| Property | Value |
+|:---------|:------|
+| **Base Image** | `python:3.11-slim-bookworm` |
+| **User** | `appuser` (non-root) |
+| **Port** | `8000` |
+| **Command** | `uvicorn main:app` |
+
+</td>
+<td width="50%">
+
+#### 🐘 Database Container
+
+| Property | Value |
+|:---------|:------|
+| **Base Image** | `postgres:16-alpine` |
+| **Port** | `5432 → 5433` |
+| **Healthcheck** | `pg_isready` |
+| **Volume** | `postgres_data` |
+
+</td>
+</tr>
+</table>
+
+<br>
+
+---
+
+<br>
+
+## ⚙️ Configuration Flow
+
+<br>
+
+```mermaid
+%%{init: {'theme': 'dark', 'themeVariables': { 'background': '#0d1117', 'primaryColor': '#f97316', 'primaryTextColor': '#e6edf3', 'lineColor': '#fb923c', 'mainBkg': '#161b22', 'nodeBkg': '#21262d', 'clusterBkg': '#161b22'}}}%%
+flowchart TB
+    subgraph Sources["📥 CONFIGURATION SOURCES"]
+        ENV["🔐 Environment Variables<br/><small>(Highest Priority)</small>"]
+        DOTENV["📄 .env File<br/><small>(Development)</small>"]
+        DEFAULT["⚙️ Default Values<br/><small>(Lowest Priority)</small>"]
+    end
+    
+    subgraph Settings["⚙️ PYDANTIC SETTINGS"]
+        Config["core/config.py<br/><small>Settings Class</small>"]
+    end
+    
+    subgraph Values["📋 CONFIGURATION VALUES"]
+        DB_URL["🔗 DATABASE_URL<br/><small>PostgresDsn (Required)</small>"]
+        PROJECT["📛 PROJECT_NAME<br/><small>str = 'ExTrace API'</small>"]
+        ENVMODE["🌍 ENV<br/><small>str = 'dev'</small>"]
+        EXTDIR["📁 EXTENSION_DIR<br/><small>str = 'extensions'</small>"]
+    end
+    
+    subgraph Consumers["👥 CONSUMERS"]
+        Session["database/session.py"]
+        Parser["scanner/json_parser.py"]
+        Main["main.py"]
+    end
+    
+    ENV --> Config
+    DOTENV --> Config
+    DEFAULT --> Config
+    
+    Config --> DB_URL
+    Config --> PROJECT
+    Config --> ENVMODE
+    Config --> EXTDIR
+    
+    DB_URL --> Session
+    EXTDIR --> Parser
+    PROJECT --> Main
+
+    style Sources fill:#dc2626,stroke:#f87171,stroke-width:3px,color:#fff
+    style Settings fill:#7c3aed,stroke:#a855f7,stroke-width:3px,color:#fff
+    style Values fill:#0891b2,stroke:#22d3ee,stroke-width:2px,color:#fff
+    style Consumers fill:#059669,stroke:#34d399,stroke-width:2px,color:#fff
+```
+
+<br>
+
+---
+
+<br>
+
+## 📁 File Structure
+
+<br>
+
+```
+📂 automation_enviroment/
+│
+├── 📄 main.py                    # 🚀 Application entry point
+├── 🐳 docker-compose.yml         # 📦 Container orchestration
+├── 📋 alembic.ini                # 🔄 Migration configuration
+├── 🔐 .env                       # 🔒 Environment variables
+│
+├── 📁 core/                      # ⚡ Core configuration
+│   ├── ⚙️ config.py              # Settings management
+│   └── 💉 deps.py                # Dependency injection
+│
+├── 📁 database/                  # 🔌 Database layer
+│   └── 🔗 session.py             # Session factory
+│
+├── 📁 models/                    # 📋 ORM models
+│   └── 🗃️ models.py              # SQLAlchemy entities
+│
+├── 📁 schemas/                   # 📝 Pydantic schemas
+│   └── ✅ schemas.py             # Request/Response validation
+│
+├── 📁 crud/                      # 💾 Data access
+│   └── 🔍 crud.py                # CRUD operations
+│
+├── 📁 routers/                   # 🌐 API routes
+│   ├── 🛤️ core.py                # Main endpoints
+│   ├── 🐳 Dockerfile             # API container config
+│   └── 📦 requirements.txt       # Python dependencies
+│
+├── 📁 scanner/                   # ⚙️ Business logic
+│   ├── 🎯 service.py             # Service orchestration
+│   └── 📄 json_parser.py         # File parsing utilities
+│
+├── 📁 alembic/                   # 🔄 Migrations
+│   ├── 🌍 env.py                 # Migration environment
+│   └── 📁 versions/              # Migration scripts
+│
+└── 📁 extensions/                # 📦 Extension storage
+    └── 📂 publisher.ext-1.0.0/   # Unpacked extensions
+```
+
+<br>
+
+---
+
+<br>
+
+## 📜 Architectural Rules
+
+<br>
+
+### ✅ Allowed Dependencies
+
+<br>
+
+```mermaid
+%%{init: {'theme': 'dark', 'themeVariables': { 'background': '#0d1117', 'primaryColor': '#22c55e', 'primaryTextColor': '#e6edf3', 'lineColor': '#4ade80', 'mainBkg': '#161b22', 'nodeBkg': '#21262d', 'clusterBkg': '#161b22'}}}%%
+flowchart TD
+    R["🌐 Router"] -->|"✅ can call"| S["⚙️ Service"]
+    S -->|"✅ can call"| C["💾 CRUD"]
+    S -->|"✅ can call"| P["📄 Parser"]
+    C -->|"✅ can use"| M["📋 Model"]
+    
+    style R fill:#15803d,stroke:#22c55e,stroke-width:3px,color:#fff
+    style S fill:#059669,stroke:#10b981,stroke-width:3px,color:#fff
+    style C fill:#0d9488,stroke:#14b8a6,stroke-width:3px,color:#fff
+    style P fill:#0891b2,stroke:#06b6d4,stroke-width:3px,color:#fff
+    style M fill:#0284c7,stroke:#0ea5e9,stroke-width:3px,color:#fff
+```
+
+<br>
+
+### ❌ Forbidden Dependencies
+
+> [!CAUTION]
+> The following dependencies are **strictly prohibited** to maintain clean architecture.
+
+<br>
+
+```mermaid
+%%{init: {'theme': 'dark', 'themeVariables': { 'background': '#0d1117', 'primaryColor': '#ef4444', 'primaryTextColor': '#e6edf3', 'lineColor': '#f87171', 'mainBkg': '#161b22', 'nodeBkg': '#21262d', 'clusterBkg': '#161b22'}}}%%
+flowchart TD
+    R["🌐 Router"] -.->|"❌ direct DB call"| C["💾 CRUD"]
+    R -.->|"❌ file operations"| P["📄 Parser"]
+    C -.->|"❌ business logic"| S["⚙️ Service"]
+    M["📋 Model"] -.->|"❌ API calls"| R
+    
+    style R fill:#b91c1c,stroke:#ef4444,stroke-width:3px,color:#fff
+    style S fill:#c2410c,stroke:#f97316,stroke-width:3px,color:#fff
+    style C fill:#b45309,stroke:#f59e0b,stroke-width:3px,color:#fff
+    style P fill:#a16207,stroke:#eab308,stroke-width:3px,color:#fff
+    style M fill:#854d0e,stroke:#facc15,stroke-width:3px,color:#fff
+```
+
+<br>
+
+### 📊 Responsibility Matrix
+
+<br>
+
+| Component | HTTP | Business Logic | DB Operations | File I/O | Validation |
+|:----------|:----:|:--------------:|:-------------:|:--------:|:----------:|
+| **🌐 Router** | ✅ | ❌ | ❌ | ❌ | ✅ `request` |
+| **⚙️ Service** | ❌ | ✅ | ❌ `via CRUD` | ❌ `via Parser` | ✅ `business` |
+| **💾 CRUD** | ❌ | ❌ | ✅ | ❌ | ❌ |
+| **📄 Parser** | ❌ | ❌ | ❌ | ✅ | ❌ |
+| **📋 Model** | ❌ | ❌ | ✅ `schema` | ❌ | ❌ |
+
+<br>
+
+---
+
+<br>
+
+## 🔮 Future Architecture
+
+> [!TIP]
+> Planned enhancements for the ExTrace security analysis platform.
+
+<br>
+
+```mermaid
+%%{init: {'theme': 'dark', 'themeVariables': { 'background': '#0d1117', 'primaryColor': '#8b5cf6', 'primaryTextColor': '#e6edf3', 'lineColor': '#a78bfa', 'mainBkg': '#161b22', 'nodeBkg': '#21262d', 'clusterBkg': '#161b22'}}}%%
+flowchart TB
+    subgraph Current["🟢 CURRENT IMPLEMENTATION"]
+        R1["🌐 Router"]
+        S1["⚙️ Service"]
+        C1["💾 CRUD"]
+        P1["📄 JSON Parser"]
+    end
+    
+    subgraph Future["🔮 PLANNED ADDITIONS"]
+        subgraph Analyzers["🔍 ANALYZERS"]
+            PA["🔐 Permission Analyzer"]
+            CA["💻 Code Analyzer"]
+            RC["⚠️ Risk Calculator"]
+        end
+        
+        subgraph Reporters["📊 REPORTERS"]
+            JR["📄 JSON Reporter"]
+            HR["🌐 HTML Reporter"]
+        end
+        
+        subgraph Executor["⚡ EXECUTOR"]
+            SB["🏖️ Sandbox Runner"]
+            DC["🐳 Docker Controller"]
+        end
+    end
+    
+    S1 --> Analyzers
+    Analyzers --> RC
+    RC --> Reporters
+    S1 --> Executor
+
+    style Current fill:#15803d,stroke:#22c55e,stroke-width:3px,color:#fff
+    style Future fill:#7c3aed,stroke:#a855f7,stroke-width:3px,color:#fff
+    style Analyzers fill:#be185d,stroke:#ec4899,stroke-width:2px,color:#fff
+    style Reporters fill:#0891b2,stroke:#22d3ee,stroke-width:2px,color:#fff
+    style Executor fill:#b45309,stroke:#fbbf24,stroke-width:2px,color:#fff
+```
+
+<br>
+
+---
+
+<br>
+
+## 📋 Quick Reference
+
+<br>
+
+### 🌐 Endpoint Summary
+
+<br>
+
+| Method | Endpoint | Handler | Service Function |
+|:------:|:---------|:--------|:-----------------|
+| 🟢 `GET` | `/` | `read_root()` | — |
+| 🟢 `GET` | `/health` | `health_check()` | — |
+| 🔵 `GET` | `/searchExtension` | `search_extension()` | `search_extension_by_name()` |
+| 🔵 `GET` | `/getExtensionsBaseInfo` | `get_extensions_base_info()` | `get_all_extensions_basic()` |
+| 🔵 `GET` | `/getExtensionsAllInfo` | `get_extensions_all_info()` | `get_all_extensions_all()` |
+| 🟣 `POST` | `/createExtension` | `create_extension()` | `create_extension_by_name()` |
+| 🔴 `DELETE` | `/deleteExtension` | `delete_extension()` | `delete_extension_by_name()` |
+
+<br>
+
+### 🛠️ Technology Stack
+
+<br>
+
+| Component | Technology | Version | Status |
+|:----------|:-----------|:-------:|:------:|
+| **⚡ Framework** | FastAPI | `≥0.100.0` | 🟢 Active |
+| **🚀 Server** | Uvicorn | `≥0.20.0` | 🟢 Active |
+| **🗃️ ORM** | SQLAlchemy | `≥2.0.0` | 🟢 Active |
+| **🔄 Migrations** | Alembic | `≥1.10.0` | 🟢 Active |
+| **✅ Validation** | Pydantic | `≥2.0.0` | 🟢 Active |
+| **🐘 Database** | PostgreSQL | `16` | 🟢 Active |
+| **🐳 Container** | Docker Compose | `—` | 🟢 Active |
+| **🐍 Python** | CPython | `3.11` | 🟢 Active |
+
+<br>
+
+---
+
+<br>
+
+<div align="center">
+
+### 📝 Documentation Notice
+
+<br>
+
+> *This document should be updated when significant architectural changes are made.*
+
+<br>
+
+**Made with 💜 for VS Code Extension Security**
+
+<br>
+
+![Python](https://img.shields.io/badge/-Python-3776AB?style=flat-square&logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/-FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/-PostgreSQL-336791?style=flat-square&logo=postgresql&logoColor=white)
+![Docker](https://img.shields.io/badge/-Docker-2496ED?style=flat-square&logo=docker&logoColor=white)
+![SQLAlchemy](https://img.shields.io/badge/-SQLAlchemy-D71F00?style=flat-square&logo=sqlalchemy&logoColor=white)
+
+</div>
