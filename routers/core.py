@@ -153,12 +153,13 @@ def search_extension(params: SearchRequest = Depends(), db: Session = Depends(ge
     Returns complete extension details if found.
 
     Args:
-        params: Query parameters containing extension name
+        params: Query parameters containing extension name, publisher, and version
                 Provided via FastAPI Depends() for validation
         db: Database session provided by dependency injection
 
     Query Parameters:
         name (str): Exact extension name to search for
+        publisher (str, optional): Publisher name to filter on (recommended)
         version (str, optional): Specific extension version to search for
 
     Returns:
@@ -170,7 +171,7 @@ def search_extension(params: SearchRequest = Depends(), db: Session = Depends(ge
         HTTPException 500: Internal server error
 
     Example Request:
-        GET /searchExtension?name=python
+        GET /searchExtension?name=python&publisher=ms-python&version=2024.0.1
 
     Example Response:
         {
@@ -182,13 +183,17 @@ def search_extension(params: SearchRequest = Depends(), db: Session = Depends(ge
         }
 
     Note:
-        This is an exact-match search. For partial/fuzzy search,
-        a future endpoint with different semantics would be needed.
+        This is an exact-match search. The unique constraint is
+        (publisher, name, version). For unambiguous results, provide
+        all three parameters.
     """
     try:
         # Delegate to service layer for business logic
         result = service.search_extension_by_name(
-            db=db, extension_name=params.name, extension_version=params.version
+            db=db,
+            extension_name=params.name,
+            extension_publisher=params.publisher,
+            extension_version=params.version,
         )
 
         if result is None:
@@ -390,7 +395,7 @@ def create_extension(request: ScanRequest, db: Session = Depends(get_db)):
 
     Error Scenarios:
         - Extension name not found → 404
-        - Duplicate publisher+name → 409
+        - Duplicate publisher+name+version → 409
         - Invalid package.json → 500 (validation error)
         - Database connection error → 500
     """
@@ -422,8 +427,13 @@ def delete_extension(params: SearchRequest = Depends(), db: Session = Depends(ge
     Delete an extension from the database.
 
     Args:
-        params: Query parameters containing extension name (and optional version)
+        params: Query parameters containing extension name, publisher, and version
         db: Database session
+
+    Query Parameters:
+        name (str): Extension name to delete
+        publisher (str, optional): Publisher name to filter on (recommended)
+        version (str, optional): Specific version to delete
 
     Returns:
         dict: Success message
@@ -431,9 +441,15 @@ def delete_extension(params: SearchRequest = Depends(), db: Session = Depends(ge
     Raises:
         HTTPException 404: Extension not found
         HTTPException 500: Internal server error
+
+    Note:
+        The unique constraint is (publisher, name, version). For unambiguous
+        deletion, provide all three parameters.
     """
     try:
-        deleted = service.delete_extension_by_name(db, params.name, params.version)
+        deleted = service.delete_extension_by_name(
+            db, params.name, params.publisher, params.version
+        )
 
         if not deleted:
             raise HTTPException(status_code=404, detail="Extension not found")
@@ -443,6 +459,8 @@ def delete_extension(params: SearchRequest = Depends(), db: Session = Depends(ge
     except HTTPException as http_exc:
         # Let expected HTTP errors (e.g., 404) propagate without masking them
         raise http_exc
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Internal Server Error: {e!s}"

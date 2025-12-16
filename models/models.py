@@ -36,13 +36,14 @@ Table Overview:
     ├─────────────────────────────────────────────────────────────┤
     │ PK  │ id          │ Serial integer primary key              │
     │ IDX │ name        │ Extension identifier (indexed)          │
+    │ IDX │ version     │ Extension version (indexed)             │
     │ IDX │ publisher   │ Publisher name (indexed)                │
     │     │ engines     │ VS Code version requirements (JSONB)    │
     │     │ ...         │ Additional metadata fields              │
     │ TS  │ created_at  │ Record creation timestamp               │
     │ TS  │ updated_at  │ Last update timestamp                   │
     ├─────────────────────────────────────────────────────────────┤
-    │ UNIQUE CONSTRAINT: (publisher, name) - No duplicate extensions
+    │ UNIQUE CONSTRAINT: (publisher, name, version) - No duplicate extensions
     └─────────────────────────────────────────────────────────────┘
 
 Migrations:
@@ -53,10 +54,13 @@ Migrations:
     3. Run: alembic upgrade head
 """
 
+from __future__ import annotations
+
 from sqlalchemy import (
     Boolean,
     Column,
     DateTime,
+    ForeignKey,
     Integer,
     String,
     Text,
@@ -144,7 +148,7 @@ class Extension(Base):
     Examples: "python", "prettier-vscode", "gitlens"
 
     Index: Created for fast name-based lookups
-    Constraint: Part of unique (publisher, name) constraint
+    Constraint: Part of unique (publisher, name, version) constraint
     """
 
     version = Column(String, nullable=False, index=True)
@@ -154,7 +158,7 @@ class Extension(Base):
     This is the unique identifier within a publisher's namespace.
     Examples: '2.5.6'
     Index: Created for fast version-based lookups
-    Constraint: Part of unique (publisher, name) constraint
+    Constraint: Part of unique (publisher, name, version) constraint
     """
 
     publisher = Column(String, nullable=False, index=True)
@@ -165,7 +169,7 @@ class Extension(Base):
     Examples: "ms-python", "esbenp", "eamodio"
 
     Index: Created for publisher-based filtering
-    Constraint: Part of unique (publisher, name) constraint
+    Constraint: Part of unique (publisher, name, version) constraint
     """
 
     engines = Column(JSONB, nullable=False)
@@ -314,18 +318,74 @@ class Extension(Base):
     # =========================================================================
 
     __table_args__ = (
-        UniqueConstraint("publisher", "name", "version", name="uix_publisher_name"),
+        UniqueConstraint(
+            "publisher", "name", "version", name="uix_publisher_name_version"
+        ),
     )
     """
     Table-level constraints.
 
-    UniqueConstraint('publisher', 'name'):
-        - Prevents duplicate extensions from same publisher
-        - publisher + name combination must be unique
+    UniqueConstraint('publisher', 'name', 'version'):
+        - Prevents duplicate extensions from same publisher with same version
+        - publisher + name + version combination must be unique
         - Raises IntegrityError if violated (caught in CRUD layer)
 
     Example:
-        ✅ ("ms-python", "python") - First insertion OK
-        ❌ ("ms-python", "python") - Duplicate, blocked!
-        ✅ ("other-pub", "python") - Different publisher, OK
+        ✅ ("ms-python", "python", "1.0.0") - First insertion OK
+        ❌ ("ms-python", "python", "1.0.0") - Duplicate, blocked!
+        ✅ ("ms-python", "python", "2.0.0") - Different version, OK
+        ✅ ("other-pub", "python", "1.0.0") - Different publisher, OK
+    """
+
+
+class ExtensionCommand(Base):
+    """
+    Extension Commands defined in package.json (contributes.commands).
+
+    This table stores the commands that an extension exposes to the VS Code
+    Command Palette or other extensions.
+
+    Table Name: extension_commands
+
+    Relationship:
+        - Many-to-One with Extension table (One extension has Many commands)
+        - On Delete: CASCADE (Deleting extension deletes all its commands)
+    """
+
+    __tablename__ = "extension_commands"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    """Primary Key"""
+
+    extension_id = Column(
+        Integer,
+        ForeignKey("extensions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    """Foreign Key linking to the parent Extension"""
+
+    command_id = Column(String, nullable=False)
+    """
+    The identifier of the command (e.g., 'extension.helloWorld').
+    Required field in package.json.
+    """
+
+    title = Column(String, nullable=False)
+    """
+    Title of the command, like 'Hello World'.
+    Shown in the Command Palette.
+    """
+
+    category = Column(String, nullable=True)
+    """
+    Category for grouping commands in the Palette (e.g., 'Git', 'File').
+    Optional.
+    """
+
+    icon = Column(JSONB, nullable=True)
+    """
+    Icon for the command.
+    Can be a string (path) or object ({dark: ..., light: ...}).
+    Using JSONB to support both formats.
     """

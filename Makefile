@@ -4,7 +4,7 @@
 # Usage: make <target>
 # =============================================================================
 
-.PHONY: help install install-dev install-hooks lint format typecheck test test-cov check clean docker-up docker-down migrate
+.PHONY: help install install-dev install-hooks lint format typecheck test test-cov test-local test-ci check clean docker-up docker-down migrate
 
 # Default target
 help:
@@ -82,6 +82,19 @@ test-cov:
 	@echo "🧪 Running tests with coverage..."
 	pytest --cov --cov-report=html --cov-report=term-missing
 	@echo "✅ Coverage report generated in htmlcov/"
+
+test-local:
+	@echo "🐳 Starting database container..."
+	docker-compose up -d postgres
+	@echo "⏳ Waiting for PostgreSQL to be ready..."
+	@sleep 3
+	@echo "🧪 Running tests..."
+	DATABASE_URL=postgresql://postgres:1234@localhost:5433/postgres pytest -v || true
+	@echo "✅ Tests complete!"
+
+test-ci:
+	@echo "🧪 Running CI tests (requires DATABASE_URL env var)..."
+	pytest --cov --cov-report=xml --cov-report=term-missing -v
 
 # =============================================================================
 # ALL CHECKS

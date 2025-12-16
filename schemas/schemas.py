@@ -7,21 +7,9 @@ Pydantic Schema Definitions for ExTrace API
 
 This module contains all Pydantic models (schemas) used for data validation,
 serialization, and API documentation in the ExTrace VS Code Extension Scanner.
-
-Pydantic schemas serve three primary purposes:
-1. **Request Validation**: Validates incoming API request payloads
-2. **Response Serialization**: Converts SQLAlchemy models to JSON responses
-3. **API Documentation**: Auto-generates OpenAPI/Swagger documentation
-
-Schema Design Philosophy:
-- ExtensionSchema mirrors the database model for full data transfer
-- Request schemas (ScanRequest, SearchRequest) are minimal for input validation
-- Response schemas provide filtered views of extension data
-
-Note on ConfigDict:
-- `from_attributes=True`: Enables ORM mode for SQLAlchemy model conversion
-- `extra="ignore"`: Silently ignores extra fields not defined in schema
 """
+
+from __future__ import annotations
 
 from typing import Any
 
@@ -43,6 +31,7 @@ class ExtensionSchema(BaseModel):
     Attributes:
         name: Unique extension identifier (e.g., 'python', 'prettier-vscode')
         publisher: Publisher/vendor name (e.g., 'ms-python', 'esbenp')
+        version: Extension version (e.g., '1.95.0')
         engines: VS Code version compatibility (e.g., {'vscode': '^1.95.0'})
         license: SPDX license identifier (e.g., 'MIT', 'Apache-2.0')
         displayName: Human-readable extension name shown in marketplace
@@ -64,6 +53,7 @@ class ExtensionSchema(BaseModel):
         >>> extension = ExtensionSchema(
         ...     name="python",
         ...     publisher="ms-python",
+        ...     version="1.95.0",
         ...     engines={"vscode": "^1.95.0"},
         ...     description="Python language support"
         ... )
@@ -217,19 +207,25 @@ class SearchRequest(BaseModel):
     """
     Request schema for searching extensions in the database.
 
-    Used by GET /searchExtension endpoint as query parameters.
-    FastAPI's Depends() converts query params to this model.
+    Used by GET /searchExtension and DELETE /deleteExtension endpoints
+    as query parameters. FastAPI's Depends() converts query params to this model.
 
     Attributes:
         name: Extension name to search for in database
+        publisher: Optional publisher to filter on (recommended for uniqueness)
         version: Optional specific version to filter on
 
     Example:
-        GET /searchExtension?name=python
+        GET /searchExtension?name=python&publisher=ms-python&version=2024.0.1
     """
 
     name: str = Field(
         ..., min_length=1, description="Extension name to search for in the database."
+    )
+
+    publisher: str | None = Field(
+        default=None,
+        description="Publisher name to filter on (recommended for precise matching).",
     )
 
     version: str | None = Field(
@@ -276,8 +272,8 @@ class SearchAllExtensionsInfo(BaseModel):
     description: str | None = None
     """Short description for list display."""
 
-    version: str | None = None
-    """Extension version."""
+    version: str
+    """Extension version (required, matches DB NOT NULL constraint)."""
 
     icon: str | None = None
     """Icon URL for thumbnail rendering."""

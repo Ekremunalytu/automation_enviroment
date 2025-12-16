@@ -24,7 +24,7 @@ Current Implementation Status:
     ✅ Read All - Full (get_extensions_all_info)
     ✅ Read All - Partial (get_extensions_base_info)
     ⏳ Update (TODO: update_extension)
-    ⏳ Delete (TODO: delete_extension)
+    ✅ Delete (delete_extension)
 
 Usage Example:
     from crud.crud import create_extension, get_extension_by_id
@@ -38,6 +38,8 @@ Usage Example:
     finally:
         db.close()
 """
+
+from __future__ import annotations
 
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session, load_only
@@ -72,37 +74,55 @@ def get_extension_by_id(db: Session, extension_id: int) -> Extension | None:
 
 
 def search_extension_by_name(
-    db: Session, name: str, version: str | None = None
+    db: Session, name: str, publisher: str | None = None, version: str | None = None
 ) -> Extension | None:
     """
     Search for an extension by its exact name.
 
-    Uses the indexed 'name' column for efficient lookups.
+    Optionally filters by publisher and version.
+    Uses indexed columns for efficient lookups.
     Note: This is an exact match search, not a partial/fuzzy search.
 
     Args:
         db: SQLAlchemy database session
         name: Exact extension name to search for (case-sensitive)
+        publisher: Publisher name to filter on (recommended for precise matching)
         version: Specific version to search for (optional)
 
     Returns:
         Extension object if found, None otherwise
 
+    Raises:
+        ValueError: If multiple records match the given filters (ambiguous)
+
     Example:
-        >>> extension = search_extension_by_name(db, "python", "1.0.0")
+        >>> extension = search_extension_by_name(db, "python", "ms-python", "1.0.0")
         >>> if extension:
         ...     print(f"Publisher: {extension.publisher}")
 
     Note:
-        For partial matching, consider implementing:
+        The unique constraint is (publisher, name, version). For unambiguous results,
+        provide all three parameters. For partial matching, consider implementing:
         - ILIKE for case-insensitive search
         - Full-text search with PostgreSQL tsvector
         - Trigram similarity for fuzzy matching
     """
     query = db.query(Extension).filter(Extension.name == name)
+    if publisher:
+        query = query.filter(Extension.publisher == publisher)
     if version:
         query = query.filter(Extension.version == version)
-    return query.first()
+
+    results = query.all()
+    if not results:
+        return None
+    if len(results) > 1:
+        # Avoid returning an arbitrary record when filters are insufficient
+        raise ValueError(
+            "Multiple extensions match this name. "
+            "Specify publisher and version for an exact match."
+        )
+    return results[0]
 
 
 def create_extension(db: Session, extension: ExtensionSchema) -> Extension:
@@ -120,7 +140,7 @@ def create_extension(db: Session, extension: ExtensionSchema) -> Extension:
         The created Extension ORM object with populated ID
 
     Raises:
-        ValueError: If extension with same publisher+name already exists
+        ValueError: If extension with same publisher+name+version already exists
         SQLAlchemyError: For other database errors (connection, etc.)
 
     Example:
@@ -136,7 +156,7 @@ def create_extension(db: Session, extension: ExtensionSchema) -> Extension:
 
     Database Behavior:
         - Uses transaction with automatic rollback on error
-        - Unique constraint (publisher, name) prevents duplicates
+        - Unique constraint (publisher, name, version) prevents duplicates
         - Auto-generates ID and created_at timestamp
     """
     # Convert Pydantic model to dict, then to SQLAlchemy model
@@ -150,7 +170,7 @@ def create_extension(db: Session, extension: ExtensionSchema) -> Extension:
         return db_extension
 
     except IntegrityError:
-        # Unique constraint violation - duplicate publisher+name
+        # Unique constraint violation - duplicate publisher+name+version
         db.rollback()
         # Re-raise as ValueError for router to return 409 Conflict
         raise ValueError("Extension already exists") from None
@@ -249,24 +269,43 @@ def get_extensions_base_info(db: Session) -> list[Extension]:
     )
 
 
-def delete_extension(db: Session, name: str, version: str | None = None) -> bool:
+def delete_extension(
+    db: Session, name: str, publisher: str | None = None, version: str | None = None
+) -> bool:
     """
-    Delete an extension by its name.
+    Delete an extension by its name, optionally filtering by publisher and version.
 
     Args:
         db: SQLAlchemy database session
         name: Name of extension to delete
+        publisher: Publisher name to filter on (recommended for precise matching)
         version: Specific version to delete (optional)
 
     Returns:
         True if deleted, False if not found
+
+    Raises:
+        ValueError: If multiple records match the given filters (ambiguous)
+
+    Note:
+        The unique constraint is (publisher, name, version). For unambiguous deletion,
+        provide all three parameters to avoid accidentally deleting the wrong extension.
     """
     query = db.query(Extension).filter(Extension.name == name)
+    if publisher:
+        query = query.filter(Extension.publisher == publisher)
     if version:
         query = query.filter(Extension.version == version)
-    extension = query.first()
-    if extension:
-        db.delete(extension)
-        db.commit()
-        return True
-    return False
+
+    results = query.all()
+    if not results:
+        return False
+    if len(results) > 1:
+        raise ValueError(
+            "Multiple extensions match this name. "
+            "Specify publisher and version to delete the correct one."
+        )
+
+    db.delete(results[0])
+    db.commit()
+    return True

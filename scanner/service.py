@@ -38,6 +38,8 @@ Future Enhancements:
     - Batch processing operations
 """
 
+from __future__ import annotations
+
 from sqlalchemy.orm import Session
 
 # Aliased imports to avoid naming conflicts between service and CRUD functions
@@ -46,13 +48,14 @@ from crud.crud import create_extension as create_db_extension
 from crud.crud import delete_extension as delete_db_extension
 from crud.crud import get_extensions_all_info, get_extensions_base_info
 from crud.crud import search_extension_by_name as search_db_extension
+from models.models import Extension
 from schemas.schemas import ExtensionSchema
 
 # File system operations for scanning extensions directory
 from .json_parser import search_extension as find_json_in_dir
 
 
-def get_all_extensions_basic(db: Session):
+def get_all_extensions_basic(db: Session) -> list[Extension]:
     """
     Retrieve all extensions with basic information only.
 
@@ -79,7 +82,7 @@ def get_all_extensions_basic(db: Session):
     return all_extensions_basic_information
 
 
-def get_all_extensions_all(db: Session):
+def get_all_extensions_all(db: Session) -> list[Extension]:
     """
     Retrieve all extensions with complete information.
 
@@ -106,8 +109,11 @@ def get_all_extensions_all(db: Session):
 
 
 def search_extension_by_name(
-    db: Session, extension_name: str, extension_version: str | None = None
-):
+    db: Session,
+    extension_name: str,
+    extension_publisher: str | None = None,
+    extension_version: str | None = None,
+) -> Extension | None:
     """
     Search for an extension by name in the database.
 
@@ -117,6 +123,7 @@ def search_extension_by_name(
     Args:
         db: SQLAlchemy database session from dependency injection
         extension_name: Exact name of extension to find
+        extension_publisher: Optional publisher filter (recommended for uniqueness)
         extension_version: Optional version filter
 
     Returns:
@@ -127,8 +134,12 @@ def search_extension_by_name(
         Extension object to ExtensionSchema for the JSON response.
         No manual conversion needed in the service layer.
 
+        The unique constraint is (publisher, name, version). For unambiguous
+        results, provide all three parameters.
+
     Example:
-        >>> result = search_extension_by_name(db, "python")
+
+        >>> result = search_extension_by_name(db, "python", "ms-python", "1.0.0")
         >>> if result:
         ...     # Extension found, will be serialized by FastAPI
         ...     return result
@@ -136,12 +147,15 @@ def search_extension_by_name(
         ...     # Not found, router should return 404
         ...     raise HTTPException(404)
 
+
     Search Strategy:
         Currently: Exact match only (case-sensitive)
         Future: Could add fuzzy search, LIKE queries, or full-text search
     """
     # Delegate to CRUD layer for database query
-    extension = search_db_extension(db, extension_name, extension_version)
+    extension = search_db_extension(
+        db, extension_name, extension_publisher, extension_version
+    )
 
     # Return as-is; FastAPI's response_model handles serialization
     # from SQLAlchemy ORM object to Pydantic schema automatically
@@ -149,23 +163,33 @@ def search_extension_by_name(
 
 
 def delete_extension_by_name(
-    db: Session, extension_name: str, extension_version: str | None = None
-):
+    db: Session,
+    extension_name: str,
+    extension_publisher: str | None = None,
+    extension_version: str | None = None,
+) -> bool:
     """
     Delete an extension by name from the database.
 
     Args:
         db: SQLAlchemy database session
         extension_name: Name of extension to delete
+        extension_publisher: Optional publisher filter (recommended for uniqueness)
         extension_version: Optional version filter
 
     Returns:
         True if deleted, False if not found
+
+    Note:
+        The unique constraint is (publisher, name, version). For unambiguous
+        deletion, provide all three parameters.
     """
-    return delete_db_extension(db, extension_name, extension_version)
+    return delete_db_extension(
+        db, extension_name, extension_publisher, extension_version
+    )
 
 
-def create_extension_by_name(db: Session, extension_name: str):
+def create_extension_by_name(db: Session, extension_name: str) -> Extension | None:
     """
     Create a new extension by scanning for it in the filesystem.
 

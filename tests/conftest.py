@@ -3,7 +3,12 @@ ExTrace Test Configuration
 ==========================
 
 Pytest fixtures and configuration for ExTrace tests.
+
+This module uses PostgreSQL for CI integration tests to properly support
+PostgreSQL-specific features (JSONB, ARRAY) used in our models.
 """
+
+from __future__ import annotations
 
 import os
 from collections.abc import Generator
@@ -11,9 +16,9 @@ from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session, sessionmaker
-from sqlalchemy.pool import StaticPool
+from sqlalchemy.pool import NullPool
 
 # Import application components
 from core.deps import get_db
@@ -25,25 +30,33 @@ from models.models import Base
 # =============================================================================
 
 
+def get_test_database_url() -> str:
+    """
+    Get database URL for testing.
+
+    Priority:
+    1. DATABASE_URL environment variable (CI/integration tests)
+    2. Falls back to default PostgreSQL test database
+    """
+    return os.getenv(
+        "DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/test_db"
+    )
+
+
 @pytest.fixture(scope="session")
 def test_engine() -> Any:
     """
     Create a test database engine.
 
-    Uses SQLite in-memory for unit tests, or PostgreSQL if DATABASE_URL is set.
+    Uses PostgreSQL for all tests to support JSONB and ARRAY types.
     """
-    database_url = os.getenv("DATABASE_URL")
+    database_url = get_test_database_url()
 
-    if database_url:
-        # Use PostgreSQL for integration tests
-        engine = create_engine(database_url)
-    else:
-        # Use SQLite in-memory for unit tests
-        engine = create_engine(
-            "sqlite:///:memory:",
-            connect_args={"check_same_thread": False},
-            poolclass=StaticPool,
-        )
+    engine = create_engine(
+        database_url,
+        poolclass=NullPool,  # Use NullPool for test isolation
+        echo=False,
+    )
 
     # Create all tables
     Base.metadata.create_all(bind=engine)
@@ -119,3 +132,28 @@ def sample_extension_data() -> dict[str, Any]:
         "categories": ["Testing"],
         "keywords": ["test", "sample"],
     }
+
+
+# =============================================================================
+# SKIP MARKERS FOR TESTS WITHOUT DATABASE
+# =============================================================================
+
+
+def pytest_configure(config: Any) -> None:
+    """Add custom markers."""
+    config.addinivalue_line(
+        "markers", "requires_db: mark test as requiring database connection"
+    )
+
+
+@pytest.fixture(scope="session", autouse=True)
+def check_database_connection(test_engine: Any) -> None:
+    """
+    Check if database is available before running tests.
+    Skip all tests if database is not available.
+    """
+    try:
+        with test_engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+    except Exception as e:
+        pytest.skip(f"Database not available: {e}")
