@@ -263,20 +263,20 @@ def get_extensions_base_info(db: Session) -> List[Extension]:
 #     return extension
 
 
-# def delete_extension(db: Session, extension_id: int) -> bool:
-#     """
-#     Delete an extension by ID.
-#     
-#     Args:
-#         db: SQLAlchemy database session
-#         extension_id: ID of extension to delete
-#     
-#     Returns:
-#         True if deleted, False if not found
-#     """
-#     extension = db.query(Extension).filter(Extension.id == extension_id).first()
-#     if extension:
-#         db.delete(extension)
-#         db.commit()
-#         return True
-#     return False
+def delete_extension(db: Session, name: str) -> bool:
+    """
+    Delete an extension by its name.
+    
+    Args:
+        db: SQLAlchemy database session
+        name: Name of extension to delete
+    
+    Returns:
+        True if deleted, False if not found
+    """
+    extension = db.query(Extension).filter(Extension.name == name).first()
+    if extension:
+        db.delete(extension)
+        db.commit()
+        return True
+    return False

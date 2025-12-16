@@ -43,7 +43,7 @@ automation_enviroment/
 │   ├── config.py         ✅ Pydantic settings
 │   └── deps.py           ✅ Dependency injection
 ├── crud/
-│   └── crud.py           ✅ Basic CRUD (update/delete missing)
+│   └── crud.py           ✅ Full CRUD (create, read, delete)
 ├── database/
 │   └── session.py        ✅ SQLAlchemy session
 ├── executor/             📦 Empty (future sprint)
@@ -82,13 +82,13 @@ automation_enviroment/
 
 ### To Do
 
-| # | Task | Priority |
-|---|------|----------|
-| 1 | Add `update_extension` function to CRUD | 🔴 High |
-| 2 | Add `delete_extension` function to CRUD | 🔴 High |
-| 3 | Router endpoint for `get_extension_by_id` | 🟡 Medium |
-| 4 | Bulk insert function | 🟡 Medium |
-| 5 | Additional fields in model (activationEvents, version, etc.) | 🟡 Medium |
+| # | Task | Priority | Status |
+|---|------|----------|--------|
+| 1 | ~~Add `update_extension` function to CRUD~~ | � Low | ⏭️ Skipped (not needed - extension data is immutable) |
+| 2 | ~~Add `delete_extension` function to CRUD~~ | 🔴 High | ✅ Completed |
+| 3 | Router endpoint for `get_extension_by_id` | 🟡 Medium | ⏳ Pending |
+| 4 | Bulk insert function | 🟡 Medium | ⏳ Pending |
+| 5 | Additional fields in model (activationEvents, version, etc.) | 🟡 Medium | ⏳ Pending |
 
 ---
 
@@ -141,33 +141,36 @@ automation_enviroment/
 ### Files to Delete
 - `config/main.py` - Unnecessary PyCharm template
 
-### Quick Additions
+### Recently Implemented
 
-**Update Function:**
+**✅ Delete Function (Implemented):**
 ```python
-# Add to crud/crud.py
-def update_extension(db: Session, extension_id: int, update_data: dict) -> Optional[Extension]:
-    extension = db.query(Extension).filter(Extension.id == extension_id).first()
-    if extension:
-        for key, value in update_data.items():
-            if hasattr(extension, key):
-                setattr(extension, key, value)
-        db.commit()
-        db.refresh(extension)
-    return extension
-```
-
-**Delete Function:**
-```python
-# Add to crud/crud.py
-def delete_extension(db: Session, extension_id: int) -> bool:
-    extension = db.query(Extension).filter(Extension.id == extension_id).first()
+# crud/crud.py
+def delete_extension(db: Session, name: str) -> bool:
+    extension = db.query(Extension).filter(Extension.name == name).first()
     if extension:
         db.delete(extension)
         db.commit()
         return True
     return False
 ```
+
+**✅ Delete Endpoint (Implemented):**
+```python
+# routers/core.py
+@router.delete("/deleteExtension", response_model=dict)
+def delete_extension(
+    params: SearchRequest = Depends(),
+    db: Session = Depends(get_db)
+):
+    # DELETE /deleteExtension?name=extension-name
+    ...
+```
+
+**⏭️ Update Function (Skipped):**
+> Not implemented - Extension data is immutable. Once scanned and stored,
+> extension metadata should not change. If an extension needs to be updated,
+> delete and re-scan is the recommended approach.
 
 ---
 

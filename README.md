@@ -167,6 +167,7 @@ docker-compose exec api alembic upgrade head
 | `GET` | `/getExtensionsBaseInfo` | List all extensions (minimal) |
 | `GET` | `/getExtensionsAllInfo` | List all extensions (full) |
 | `POST` | `/createExtension` | Scan and create extension |
+| `DELETE` | `/deleteExtension?name=...` | Delete extension by name |
 
 ### Detailed API
 
@@ -204,6 +205,23 @@ Content-Type: application/json
 - `200` - Success
 - `404` - Extension not found in filesystem
 - `409` - Extension already exists (duplicate)
+
+#### Delete Extension
+```http
+DELETE /deleteExtension?name=python
+```
+
+**Response:**
+```json
+{
+  "message": "Extension 'python' deleted successfully"
+}
+```
+
+**Status Codes:**
+- `200` - Successfully deleted
+- `404` - Extension not found
+- `500` - Internal server error
 
 ---
 
@@ -366,9 +384,10 @@ python scripts/seed_test.py
 - [x] PostgreSQL + Docker setup
 - [x] SQLAlchemy models
 - [x] Alembic migrations
-- [x] Basic CRUD operations
+- [x] Full CRUD operations (Create, Read, Delete)
 - [x] Pydantic v2 schemas
 - [x] FastAPI router structure
+- [x] Delete extension endpoint
 
 ### Next Sprint: Scanner Core
 - [ ] Detailed manifest parsing

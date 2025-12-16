@@ -411,3 +411,38 @@ def create_extension(request: ScanRequest, db: Session = Depends(get_db)):
         # Log and wrap unexpected errors
         print(f"Error in create_extension: {e}")
         raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
+
+
+@router.delete("/deleteExtension", response_model=dict)
+def delete_extension(
+    params: SearchRequest = Depends(),
+    db: Session = Depends(get_db)
+):
+    """
+    Delete an extension from the database.
+    
+    Args:
+        params: Query parameters containing extension name
+        db: Database session
+        
+    Returns:
+        dict: Success message
+        
+    Raises:
+        HTTPException 404: Extension not found
+        HTTPException 500: Internal server error
+    """
+    try:
+        deleted = service.delete_extension_by_name(db, params.name)
+        
+        if not deleted:
+            raise HTTPException(status_code=404, detail="Extension not found")
+            
+        return {"message": f"Extension '{params.name}' deleted successfully"}
+    
+    except HTTPException as http_exc:
+        # Let expected HTTP errors (e.g., 404) propagate without masking them
+        raise http_exc
+    except Exception as e:
+        print(f"Error in delete_extension: {e}")
+        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")

@@ -47,6 +47,7 @@ from schemas.schemas import ExtensionSchema
 # This is a common pattern when service methods wrap CRUD operations
 from crud.crud import create_extension as create_db_extension
 from crud.crud import search_extension_by_name as search_db_extension
+from crud.crud import delete_extension as delete_db_extension
 from crud.crud import get_extensions_all_info
 from crud.crud import get_extensions_base_info
 
@@ -145,6 +146,20 @@ def search_extension_by_name(db: Session, extension_name: str):
     # Return as-is; FastAPI's response_model handles serialization
     # from SQLAlchemy ORM object to Pydantic schema automatically
     return extension
+
+
+def delete_extension_by_name(db: Session, extension_name: str):
+    """
+    Delete an extension by name from the database.
+    
+    Args:
+        db: SQLAlchemy database session
+        extension_name: Name of extension to delete
+        
+    Returns:
+        True if deleted, False if not found
+    """
+    return delete_db_extension(db, extension_name)
 
 
 def create_extension_by_name(db: Session, extension_name: str):
