@@ -202,6 +202,9 @@ def search_extension(params: SearchRequest = Depends(), db: Session = Depends(ge
 
         return result
 
+    except HTTPException as http_exc:
+        raise http_exc
+
     except ValueError as e:
         # Business logic validation error
         raise HTTPException(status_code=400, detail=str(e)) from e
@@ -408,6 +411,9 @@ def create_extension(request: ScanRequest, db: Session = Depends(get_db)):
             raise HTTPException(status_code=404, detail="Extension not found")
 
         return result
+
+    except HTTPException as http_exc:
+        raise http_exc
 
     except ValueError as e:
         # Duplicate extension - unique constraint violation

@@ -39,7 +39,7 @@ def get_test_database_url() -> str:
     2. Falls back to default PostgreSQL test database
     """
     return os.getenv(
-        "DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/test_db"
+        "DATABASE_URL", "postgresql://postgres:postgres@localhost:5434/test_db"
     )
 
 

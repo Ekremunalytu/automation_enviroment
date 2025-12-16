@@ -369,6 +369,35 @@ python scripts/seed_test.py
 
 ---
 
+## 🧪 Testing
+
+ExTrace has a comprehensive test suite with PostgreSQL-based integration tests.
+
+| Category | Description |
+|----------|-------------|
+| **CRUD Tests** | Database operations (create, search, delete) |
+| **Router Tests** | API endpoint testing with mocking |
+| **Schema Tests** | Pydantic validation testing |
+| **Parser Tests** | JSON parser with filesystem mocking |
+| **Health Tests** | Smoke tests for API availability |
+
+### Quick Commands
+
+```bash
+# Run all tests
+pytest
+
+# Run with coverage
+pytest --cov --cov-report=html
+
+# Run specific test file
+pytest tests/crud/test_crud.py -v
+```
+
+> 📘 For detailed testing documentation, see [TESTING.md](TESTING.md)
+
+---
+
 ## 📊 Performance Optimizations
 
 - **Indexed Columns**: `name` and `publisher` for fast lookups
@@ -397,7 +426,7 @@ python scripts/seed_test.py
 
 ### Future Sprints
 - [ ] Structured logging
-- [ ] Test infrastructure
+- [x] Test infrastructure ✅
 - [ ] CLI interface
 - [ ] Web dashboard
 

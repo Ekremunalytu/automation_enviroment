@@ -4,7 +4,10 @@
 # Usage: make <target>
 # =============================================================================
 
-.PHONY: help install install-dev install-hooks lint format typecheck test test-cov test-local test-ci check clean docker-up docker-down migrate
+# Virtual environment path - all tools run from here
+VENV := .venv/bin
+
+.PHONY: help install install-dev install-hooks lint lint-check format typecheck test test-cov test-local test-ci check check-all all clean docker-up docker-down migrate venv-check
 
 # Default target
 help:
@@ -22,7 +25,10 @@ help:
 	@echo "║  test           │ Run pytest                                      ║"
 	@echo "║  test-cov       │ Run pytest with coverage                        ║"
 	@echo "║  check          │ Run all checks (lint, type, test)               ║"
+	@echo "║  check-all      │ Run all checks + security                        ║"
+	@echo "║  all            │ Format, lint, type, test (one command)          ║"
 	@echo "╠═══════════════════════════════════════════════════════════════════╣"
+	@echo "║  venv-check     │ Verify virtual environment exists               ║"
 	@echo "║  docker-up      │ Start Docker containers                         ║"
 	@echo "║  docker-down    │ Stop Docker containers                          ║"
 	@echo "║  migrate        │ Run Alembic migrations                          ║"
@@ -30,19 +36,33 @@ help:
 	@echo "╚═══════════════════════════════════════════════════════════════════╝"
 
 # =============================================================================
+# VIRTUAL ENVIRONMENT CHECK
+# =============================================================================
+
+venv-check:
+	@if [ ! -d ".venv" ]; then \
+		echo "❌ Virtual environment not found!"; \
+		echo "   Run: python -m venv .venv"; \
+		echo "   Then: source .venv/bin/activate && pip install -r requirements-dev.txt"; \
+		exit 1; \
+	else \
+		echo "✅ Virtual environment found at .venv/"; \
+	fi
+
+# =============================================================================
 # INSTALLATION
 # =============================================================================
 
 install:
-	pip install -r routers/requirements.txt
+	$(VENV)/pip install -r routers/requirements.txt
 
 install-dev:
-	pip install -r routers/requirements.txt
-	pip install -r requirements-dev.txt
+	$(VENV)/pip install -r routers/requirements.txt
+	$(VENV)/pip install -r requirements-dev.txt
 
 install-hooks: install-dev
-	pre-commit install
-	pre-commit install --hook-type commit-msg
+	$(VENV)/pre-commit install
+	$(VENV)/pre-commit install --hook-type commit-msg
 	@echo "✅ Pre-commit hooks installed!"
 
 # =============================================================================
@@ -50,23 +70,28 @@ install-hooks: install-dev
 # =============================================================================
 
 lint:
-	@echo "🔍 Running Ruff linter..."
-	ruff check . --fix
+	@echo "🔍 Running Ruff linter (with auto-fix)..."
+	$(VENV)/ruff check . --fix
 	@echo "✅ Linting complete!"
+
+lint-check:
+	@echo "🔍 Running Ruff linter (check only, no fix)..."
+	$(VENV)/ruff check .
+	@echo "✅ Lint check complete!"
 
 format:
 	@echo "🎨 Formatting code with Ruff..."
-	ruff format .
+	$(VENV)/ruff format .
 	@echo "✅ Formatting complete!"
 
 typecheck:
 	@echo "🔬 Running mypy type checker..."
-	mypy . --config-file=pyproject.toml --ignore-missing-imports
+	$(VENV)/mypy . --config-file=pyproject.toml --ignore-missing-imports
 	@echo "✅ Type checking complete!"
 
 security:
 	@echo "🔐 Running Bandit security check..."
-	bandit -c pyproject.toml -r . -ll
+	$(VENV)/bandit -c pyproject.toml -r . -ll
 	@echo "✅ Security check complete!"
 
 # =============================================================================
@@ -75,26 +100,26 @@ security:
 
 test:
 	@echo "🧪 Running tests..."
-	pytest -v
+	$(VENV)/pytest -v
 	@echo "✅ Tests complete!"
 
 test-cov:
 	@echo "🧪 Running tests with coverage..."
-	pytest --cov --cov-report=html --cov-report=term-missing
+	$(VENV)/pytest --cov --cov-report=html --cov-report=term-missing
 	@echo "✅ Coverage report generated in htmlcov/"
 
 test-local:
-	@echo "🐳 Starting database container..."
-	docker-compose up -d postgres
-	@echo "⏳ Waiting for PostgreSQL to be ready..."
+	@echo "🐳 Starting test database container..."
+	docker-compose up -d postgres_test
+	@echo "⏳ Waiting for Test PostgreSQL to be ready..."
 	@sleep 3
 	@echo "🧪 Running tests..."
-	DATABASE_URL=postgresql://postgres:1234@localhost:5433/postgres pytest -v || true
+	DATABASE_URL=postgresql://postgres:postgres@localhost:5434/test_db $(VENV)/pytest -v || true
 	@echo "✅ Tests complete!"
 
 test-ci:
 	@echo "🧪 Running CI tests (requires DATABASE_URL env var)..."
-	pytest --cov --cov-report=xml --cov-report=term-missing -v
+	$(VENV)/pytest --cov --cov-report=xml --cov-report=term-missing -v
 
 # =============================================================================
 # ALL CHECKS
@@ -110,6 +135,12 @@ check-all: lint typecheck security test
 	@echo ""
 	@echo "═══════════════════════════════════════════════════════════════"
 	@echo "✅ All checks (including security) passed!"
+	@echo "═══════════════════════════════════════════════════════════════"
+
+all: format lint typecheck test
+	@echo ""
+	@echo "═══════════════════════════════════════════════════════════════"
+	@echo "🚀 All tasks completed successfully!"
 	@echo "═══════════════════════════════════════════════════════════════"
 
 # =============================================================================
@@ -131,12 +162,12 @@ docker-logs:
 
 migrate:
 	@echo "🔄 Running Alembic migrations..."
-	alembic upgrade head
+	$(VENV)/alembic upgrade head
 	@echo "✅ Migrations complete!"
 
 migrate-create:
 	@read -p "Enter migration message: " msg; \
-	alembic revision --autogenerate -m "$$msg"
+	$(VENV)/alembic revision --autogenerate -m "$$msg"
 
 # =============================================================================
 # CLEANUP
@@ -159,7 +190,7 @@ clean:
 # =============================================================================
 
 dev:
-	uvicorn main:app --reload --host 0.0.0.0 --port 8000
+	$(VENV)/uvicorn main:app --reload --host 0.0.0.0 --port 8000
 
 run:
-	uvicorn main:app --host 0.0.0.0 --port 8000
+	$(VENV)/uvicorn main:app --host 0.0.0.0 --port 8000
