@@ -34,10 +34,11 @@ help:
 # =============================================================================
 
 install:
-	pip install -e .
+	pip install -r routers/requirements.txt
 
 install-dev:
-	pip install -e ".[dev]"
+	pip install -r routers/requirements.txt
+	pip install -r requirements-dev.txt
 
 install-hooks: install-dev
 	pre-commit install

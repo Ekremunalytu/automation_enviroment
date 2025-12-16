@@ -203,7 +203,7 @@ class Extension(Base):
     - Same storage efficiency in PostgreSQL
     """
 
-    categories = Column(ARRAY(String), nullable=True)
+    categories: Column[list[str] | None] = Column(ARRAY(String), nullable=True)
     """
     Marketplace category tags.
 
@@ -215,7 +215,7 @@ class Extension(Base):
     - Debuggers, Formatters, Keymaps, SCM Providers
     """
 
-    keywords = Column(ARRAY(String), nullable=True)
+    keywords: Column[list[str] | None] = Column(ARRAY(String), nullable=True)
     """
     Search keywords for marketplace discovery.
     Example: ["python", "django", "flask", "pylint"]

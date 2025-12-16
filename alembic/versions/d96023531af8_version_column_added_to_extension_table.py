@@ -22,13 +22,13 @@ def upgrade() -> None:
     """Upgrade schema."""
     # Step 1: Add column as nullable first (to handle existing rows)
     op.add_column('extensions', sa.Column('version', sa.String(), nullable=True))
-    
+
     # Step 2: Set default value for existing rows
     op.execute("UPDATE extensions SET version = '0.0.0' WHERE version IS NULL")
-    
+
     # Step 3: Make the column NOT NULL now that all rows have values
     op.alter_column('extensions', 'version', nullable=False)
-    
+
     # Step 4: Update constraints and indexes
     op.drop_constraint(op.f('uix_publisher_name'), 'extensions', type_='unique')
     op.create_unique_constraint('uix_publisher_name', 'extensions', ['publisher', 'name', 'version'])

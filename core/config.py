@@ -152,7 +152,7 @@ class Settings(BaseSettings):
 # Global Settings Instance
 # =============================================================================
 
-settings = Settings()
+settings = Settings()  # type: ignore[call-arg]
 """
 Singleton settings instance for application-wide use.
 

@@ -22,4 +22,3 @@ USER appuser
 
 # Use list syntax for CMD and remove --reload for production
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
-

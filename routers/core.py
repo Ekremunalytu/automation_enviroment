@@ -199,11 +199,13 @@ def search_extension(params: SearchRequest = Depends(), db: Session = Depends(ge
 
     except ValueError as e:
         # Business logic validation error
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
     except Exception as e:
         # Log unexpected errors for debugging
-        raise HTTPException(status_code=500, detail=f"Internal Server Error: {e!s}")
+        raise HTTPException(
+            status_code=500, detail=f"Internal Server Error: {e!s}"
+        ) from e
 
 
 @router.get("/getExtensionsBaseInfo", response_model=list[SearchAllExtensionsInfo])
@@ -261,10 +263,12 @@ def get_extensions_base_info(db: Session = Depends(get_db)):
         return result
 
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Internal Server Error: {e!s}")
+        raise HTTPException(
+            status_code=500, detail=f"Internal Server Error: {e!s}"
+        ) from e
 
 
 @router.get("/getExtensionsAllInfo", response_model=list[SearchAllExtensionsAllInfo])
@@ -328,10 +332,12 @@ def get_extensions_all_info(db: Session = Depends(get_db)):
         return result
 
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Internal Server Error: {e!s}")
+        raise HTTPException(
+            status_code=500, detail=f"Internal Server Error: {e!s}"
+        ) from e
 
 
 # =============================================================================
@@ -401,11 +407,13 @@ def create_extension(request: ScanRequest, db: Session = Depends(get_db)):
     except ValueError as e:
         # Duplicate extension - unique constraint violation
         # Re-raised as 409 Conflict per HTTP semantics
-        raise HTTPException(status_code=409, detail=str(e))
+        raise HTTPException(status_code=409, detail=str(e)) from e
 
     except Exception as e:
         # Log and wrap unexpected errors
-        raise HTTPException(status_code=500, detail=f"Internal Server Error: {e!s}")
+        raise HTTPException(
+            status_code=500, detail=f"Internal Server Error: {e!s}"
+        ) from e
 
 
 @router.delete("/deleteExtension", response_model=dict)
@@ -436,4 +444,6 @@ def delete_extension(params: SearchRequest = Depends(), db: Session = Depends(ge
         # Let expected HTTP errors (e.g., 404) propagate without masking them
         raise http_exc
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Internal Server Error: {e!s}")
+        raise HTTPException(
+            status_code=500, detail=f"Internal Server Error: {e!s}"
+        ) from e

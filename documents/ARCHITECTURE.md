@@ -68,22 +68,22 @@ flowchart TB
     subgraph External["🌐 EXTERNAL"]
         Client[("👤 Client<br/><small>Browser / API Consumer</small>")]
     end
-    
+
     subgraph Docker["🐳 DOCKER ENVIRONMENT"]
         subgraph API["⚡ API Container"]
             FastAPI["FastAPI<br/><small>Uvicorn ASGI</small>"]
         end
-        
+
         subgraph DB["🗄️ Database Container"]
             PostgreSQL[("PostgreSQL<br/><small>v16 Alpine</small>")]
         end
     end
-    
+
     subgraph Storage["💾 PERSISTENT STORAGE"]
         Extensions["📦 extensions/<br/><small>VS Code Packages</small>"]
         Volumes["🔒 postgres_data<br/><small>Docker Volume</small>"]
     end
-    
+
     Client <-->|"🔌 HTTP :8000"| FastAPI
     FastAPI <-->|"🔌 SQL :5432"| PostgreSQL
     FastAPI -->|"📖 Read"| Extensions
@@ -115,29 +115,29 @@ flowchart LR
     subgraph Presentation["📡 PRESENTATION LAYER"]
         R[("🌐 Router<br/><small>HTTP Interface</small>")]
     end
-    
+
     subgraph Business["🧠 BUSINESS LAYER"]
         S[("⚙️ Service<br/><small>Business Logic</small>")]
     end
-    
+
     subgraph Data["💾 DATA LAYER"]
         C[("📊 CRUD<br/><small>Data Access</small>")]
         P[("📄 Parser<br/><small>File I/O</small>")]
     end
-    
+
     subgraph Infrastructure["🏗️ INFRASTRUCTURE"]
         M[("📋 Model<br/><small>ORM</small>")]
         DB[("🐘 PostgreSQL")]
         FS[("📁 Filesystem")]
     end
-    
+
     R -->|"Request"| S
     S -->|"DB Ops"| C
     S -->|"File Ops"| P
     C --> M
     M --> DB
     P --> FS
-    
+
     S -->|"Response"| R
 
     style Presentation fill:#7c3aed,stroke:#a855f7,stroke-width:3px,color:#fff
@@ -165,31 +165,31 @@ flowchart TB
         router["🔀 routers/core.py<br/><small>Endpoints</small>"]
         schemas["📝 schemas/schemas.py<br/><small>Validation</small>"]
     end
-    
+
     subgraph Layer2["⬆️ LAYER 2: BUSINESS LOGIC"]
         direction LR
         service["⚙️ scanner/service.py<br/><small>Orchestration</small>"]
     end
-    
+
     subgraph Layer3["⬆️ LAYER 3: DATA ACCESS"]
         direction LR
         crud["💾 crud/crud.py<br/><small>DB Operations</small>"]
         parser["📄 scanner/json_parser.py<br/><small>File Operations</small>"]
     end
-    
+
     subgraph Layer4["⬆️ LAYER 4: INFRASTRUCTURE"]
         direction LR
         models["📋 models/models.py<br/><small>ORM Entities</small>"]
         session["🔌 database/session.py<br/><small>DB Connection</small>"]
         config["⚡ core/config.py<br/><small>Settings</small>"]
     end
-    
+
     subgraph Layer5["⬆️ LAYER 5: EXTERNAL"]
         direction LR
         postgres[("🐘 PostgreSQL")]
         filesystem[("📁 Filesystem")]
     end
-    
+
     Layer1 --> Layer2
     Layer2 --> Layer3
     Layer3 --> Layer4
@@ -218,56 +218,56 @@ flowchart TD
     subgraph Entry["🚀 ENTRY POINT"]
         main["main.py"]
     end
-    
+
     subgraph Routers["🌐 ROUTERS"]
         core["routers/core.py"]
     end
-    
+
     subgraph Schemas["📝 SCHEMAS"]
         schemas["schemas/schemas.py"]
     end
-    
+
     subgraph Services["⚙️ SERVICES"]
         service["scanner/service.py"]
         parser["scanner/json_parser.py"]
     end
-    
+
     subgraph DataAccess["💾 DATA ACCESS"]
         crud["crud/crud.py"]
     end
-    
+
     subgraph Models["📋 MODELS"]
         models["models/models.py"]
     end
-    
+
     subgraph Database["🔌 DATABASE"]
         session["database/session.py"]
         deps["core/deps.py"]
     end
-    
+
     subgraph Config["⚡ CONFIG"]
         config["core/config.py"]
     end
-    
+
     main --> core
     main --> config
-    
+
     core --> schemas
     core --> service
     core --> deps
-    
+
     service --> crud
     service --> parser
     service --> schemas
-    
+
     crud --> models
     crud --> schemas
-    
+
     parser --> config
-    
+
     deps --> session
     session --> config
-    
+
     models -.->|"inherits"| Base["DeclarativeBase"]
 
     style Entry fill:#b45309,stroke:#fbbf24,stroke-width:3px,color:#fff
@@ -307,25 +307,25 @@ sequenceDiagram
     participant P as 📄 Parser
     participant CR as 💾 CRUD
     participant DB as 🐘 PostgreSQL
-    
+
     C->>R: POST /createExtension {"name": "python"}
     R->>R: Validate ScanRequest
     R->>S: create_extension_by_name(db, "python")
-    
+
     S->>P: search_extension("python")
     P->>P: Scan extensions/ directory
     P->>P: Parse package.json
     P-->>S: Return package data
-    
+
     S->>S: ExtensionSchema(**package_json)
     S->>CR: create_extension(db, schema)
-    
+
     CR->>CR: Extension(**schema.model_dump())
     CR->>DB: INSERT INTO extensions
     DB-->>CR: Return with ID
     CR->>CR: db.commit() + db.refresh()
     CR-->>S: Return Extension ORM
-    
+
     S-->>R: Return Extension
     R-->>C: 200 OK + ExtensionSchema JSON
 ```
@@ -350,16 +350,16 @@ sequenceDiagram
     participant S as ⚙️ Service
     participant CR as 💾 CRUD
     participant DB as 🐘 PostgreSQL
-    
+
     C->>R: GET /searchExtension?name=python
     R->>R: Validate SearchRequest
     R->>S: search_extension_by_name(db, "python")
-    
+
     S->>CR: search_extension_by_name(db, "python")
     CR->>DB: SELECT * FROM extensions WHERE name = 'python'
     DB-->>CR: Return row
     CR-->>S: Return Extension ORM
-    
+
     S-->>R: Return Extension
     R-->>C: 200 OK + ExtensionSchema JSON
 ```
@@ -384,18 +384,18 @@ sequenceDiagram
     participant S as ⚙️ Service
     participant CR as 💾 CRUD
     participant DB as 🐘 PostgreSQL
-    
+
     C->>R: DELETE /deleteExtension?name=python
     R->>R: Validate SearchRequest
     R->>S: delete_extension_by_name(db, "python")
-    
+
     S->>CR: delete_extension(db, "python")
     CR->>DB: SELECT * FROM extensions WHERE name = 'python'
     DB-->>CR: Return row
     CR->>DB: DELETE FROM extensions WHERE name = 'python'
     CR->>CR: db.commit()
     CR-->>S: Return True
-    
+
     S-->>R: Return True
     R-->>C: 200 OK {"message": "deleted"}
 ```
@@ -454,17 +454,17 @@ flowchart LR
         PK["🔑 PRIMARY KEY: id"]
         UQ["🔗 UNIQUE: (publisher, name, version)"]
     end
-    
+
     subgraph Indexes["⚡ INDEXES"]
         IDX1["📇 INDEX: name"]
         IDX2["📇 INDEX: publisher"]
         IDX3["📇 INDEX: version"]
     end
-    
+
     subgraph Table["📋 extensions"]
         T["Extensions Table"]
     end
-    
+
     Constraints --> Table
     Indexes --> Table
 
@@ -496,7 +496,7 @@ flowchart TB
                 Python --> Uvicorn
                 Uvicorn --> AppCode
             end
-            
+
             subgraph DBContainer["📦 postgres container"]
                 direction TB
                 PG["🐘 PostgreSQL 16-alpine"]
@@ -504,18 +504,18 @@ flowchart TB
                 PG --> Data
             end
         end
-        
+
         subgraph Volumes["💾 VOLUMES"]
             PGData["🔒 postgres_data"]
             AppMount["📁 /app (bind mount)"]
         end
-        
+
         subgraph Ports["🔌 PORTS"]
             P8000["🌐 localhost:8000"]
             P5433["🗄️ localhost:5433"]
         end
     end
-    
+
     APIContainer <-->|":5432"| DBContainer
     DBContainer --> PGData
     APIContainer --> AppMount
@@ -583,33 +583,33 @@ flowchart TB
         DOTENV["📄 .env File<br/><small>(Development)</small>"]
         DEFAULT["⚙️ Default Values<br/><small>(Lowest Priority)</small>"]
     end
-    
+
     subgraph Settings["⚙️ PYDANTIC SETTINGS"]
         Config["core/config.py<br/><small>Settings Class</small>"]
     end
-    
+
     subgraph Values["📋 CONFIGURATION VALUES"]
         DB_URL["🔗 DATABASE_URL<br/><small>PostgresDsn (Required)</small>"]
         PROJECT["📛 PROJECT_NAME<br/><small>str = 'ExTrace API'</small>"]
         ENVMODE["🌍 ENV<br/><small>str = 'dev'</small>"]
         EXTDIR["📁 EXTENSION_DIR<br/><small>str = 'extensions'</small>"]
     end
-    
+
     subgraph Consumers["👥 CONSUMERS"]
         Session["database/session.py"]
         Parser["scanner/json_parser.py"]
         Main["main.py"]
     end
-    
+
     ENV --> Config
     DOTENV --> Config
     DEFAULT --> Config
-    
+
     Config --> DB_URL
     Config --> PROJECT
     Config --> ENVMODE
     Config --> EXTDIR
-    
+
     DB_URL --> Session
     EXTDIR --> Parser
     PROJECT --> Main
@@ -692,7 +692,7 @@ flowchart TD
     S -->|"✅ can call"| C["💾 CRUD"]
     S -->|"✅ can call"| P["📄 Parser"]
     C -->|"✅ can use"| M["📋 Model"]
-    
+
     style R fill:#15803d,stroke:#22c55e,stroke-width:3px,color:#fff
     style S fill:#059669,stroke:#10b981,stroke-width:3px,color:#fff
     style C fill:#0d9488,stroke:#14b8a6,stroke-width:3px,color:#fff
@@ -716,7 +716,7 @@ flowchart TD
     R -.->|"❌ file operations"| P["📄 Parser"]
     C -.->|"❌ business logic"| S["⚙️ Service"]
     M["📋 Model"] -.->|"❌ API calls"| R
-    
+
     style R fill:#b91c1c,stroke:#ef4444,stroke-width:3px,color:#fff
     style S fill:#c2410c,stroke:#f97316,stroke-width:3px,color:#fff
     style C fill:#b45309,stroke:#f59e0b,stroke-width:3px,color:#fff
@@ -760,25 +760,25 @@ flowchart TB
         C1["💾 CRUD"]
         P1["📄 JSON Parser"]
     end
-    
+
     subgraph Future["🔮 PLANNED ADDITIONS"]
         subgraph Analyzers["🔍 ANALYZERS"]
             PA["🔐 Permission Analyzer"]
             CA["💻 Code Analyzer"]
             RC["⚠️ Risk Calculator"]
         end
-        
+
         subgraph Reporters["📊 REPORTERS"]
             JR["📄 JSON Reporter"]
             HR["🌐 HTML Reporter"]
         end
-        
+
         subgraph Executor["⚡ EXECUTOR"]
             SB["🏖️ Sandbox Runner"]
             DC["🐳 Docker Controller"]
         end
     end
-    
+
     S1 --> Analyzers
     Analyzers --> RC
     RC --> Reporters

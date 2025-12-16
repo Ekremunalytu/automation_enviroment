@@ -50,9 +50,9 @@ repos:
           - pydantic-settings>=2.0.0
           - sqlalchemy>=2.0.0
           - fastapi>=0.100.0
-          - types-python-dotenv
         args: [--config-file=pyproject.toml]
-        exclude: ^(extensions/|alembic/versions/)
+        exclude: ^(extensions/|alembic/versions/|config/)
+
 
   # ============================================================
   # SECURITY
@@ -66,19 +66,19 @@ repos:
         exclude: ^(tests/|extensions/)
 
   # ============================================================
-  # DOCKERFILE LINTING
+  # DOCKERFILE LINTING (Requires Docker - optional)
   # ============================================================
-  - repo: https://github.com/hadolint/hadolint
-    rev: v2.13.1-beta
-    hooks:
-      - id: hadolint-docker
-        name: Lint Dockerfiles
-        entry: hadolint
-        language: docker_image
-        types: [dockerfile]
+  # Uncomment if you have Docker installed:
+  # - repo: https://github.com/hadolint/hadolint
+  #   rev: v2.13.1-beta
+  #   hooks:
+  #     - id: hadolint-docker
+  #       name: Lint Dockerfiles
+  #       entry: hadolint
+  #       language: docker_image
+  #       types: [dockerfile]
 
 # CI için paralel çalıştırma
 ci:
   autofix_prs: true
   autoupdate_schedule: weekly
-  skip: [hadolint-docker]  # CI'da Docker image çekmek zaman alabilir

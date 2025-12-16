@@ -46,7 +46,7 @@ from models.models import Extension
 from schemas.schemas import ExtensionSchema
 
 
-def get_extension_by_id(db: Session, id: int) -> Extension | None:
+def get_extension_by_id(db: Session, extension_id: int) -> Extension | None:
     """
     Retrieve a single extension by its database ID.
 
@@ -55,7 +55,7 @@ def get_extension_by_id(db: Session, id: int) -> Extension | None:
 
     Args:
         db: SQLAlchemy database session
-        id: Primary key ID of the extension to retrieve
+        extension_id: Primary key ID of the extension to retrieve
 
     Returns:
         Extension object if found, None otherwise
@@ -68,7 +68,7 @@ def get_extension_by_id(db: Session, id: int) -> Extension | None:
     Performance:
         O(1) - Direct index lookup on primary key
     """
-    return db.query(Extension).filter(Extension.id == id).first()
+    return db.query(Extension).filter(Extension.id == extension_id).first()
 
 
 def search_extension_by_name(
@@ -124,7 +124,10 @@ def create_extension(db: Session, extension: ExtensionSchema) -> Extension:
         SQLAlchemyError: For other database errors (connection, etc.)
 
     Example:
-        >>> schema = ExtensionSchema(name="test", publisher="dev",version="2.3.4", engines={"vscode": "^1.0.0"})
+        >>> schema = ExtensionSchema(
+        ...     name="test", publisher="dev", version="2.3.4",
+        ...     engines={"vscode": "^1.0.0"}
+        ... )
         >>> try:
         ...     new_ext = create_extension(db, schema)
         ...     print(f"Created with ID: {new_ext.id}")
@@ -150,7 +153,7 @@ def create_extension(db: Session, extension: ExtensionSchema) -> Extension:
         # Unique constraint violation - duplicate publisher+name
         db.rollback()
         # Re-raise as ValueError for router to return 409 Conflict
-        raise ValueError("Extension already exists")
+        raise ValueError("Extension already exists") from None
 
     except SQLAlchemyError as e:
         # Other database errors (connection issues, etc.)

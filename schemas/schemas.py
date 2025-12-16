@@ -80,7 +80,10 @@ class ExtensionSchema(BaseModel):
     # =========================================================================
 
     name: str
-    """Extension identifier. Must be unique per publisher. Used in extension ID: publisher.name"""
+    """
+    Extension identifier. Must be unique per publisher.
+    Used in extension ID: publisher.name
+    """
 
     publisher: str
     """Publisher account name on VS Code Marketplace."""
@@ -107,7 +110,10 @@ class ExtensionSchema(BaseModel):
     """Human-friendly name shown in Marketplace (can include spaces/special chars)"""
 
     description: str | None = None
-    """Brief description shown in search results. Keep under 200 chars for best display."""
+    """
+    Brief description shown in search results.
+    Keep under 200 chars for best display.
+    """
 
     categories: list[str] | None = None
     """
@@ -133,7 +139,7 @@ class ExtensionSchema(BaseModel):
     badges: list[dict[str, Any]] | None = None
     """
     Status badges displayed on Marketplace page.
-    Each badge: {'url': 'badge-image-url', 'href': 'link-url', 'description': 'alt-text'}
+    Each badge: {'url': 'image-url', 'href': 'link-url', 'description': 'alt'}
     Example: Build status, test coverage, download count badges.
     """
 
@@ -203,7 +209,7 @@ class ScanRequest(BaseModel):
     name: str = Field(
         ...,  # Ellipsis means required field
         min_length=1,
-        description="Extension name to create/scan. Must match package.json name field.",
+        description="Extension name to create/scan.",
     )
 
 
@@ -228,7 +234,7 @@ class SearchRequest(BaseModel):
 
     version: str | None = Field(
         default=None,
-        description="Specific extension version to target; if omitted, matches by name regardless of version.",
+        description="Specific extension version to target.",
     )
 
 

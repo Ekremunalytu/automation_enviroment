@@ -1,7 +1,7 @@
 """extension table initialization
 
 Revision ID: d3762e149486
-Revises: 
+Revises:
 Create Date: 2025-12-09 21:39:45.219457
 
 """
