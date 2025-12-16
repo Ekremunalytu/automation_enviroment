@@ -40,6 +40,7 @@ Future Enhancements:
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
+from typing import Optional
 
 from schemas.schemas import ExtensionSchema
 
@@ -66,7 +67,7 @@ def get_all_extensions_basic(db: Session):
         db: SQLAlchemy database session from dependency injection
     
     Returns:
-        List of Extension objects with only id, name, publisher,
+        List of Extension objects with only id, name, version, publisher,
         description, and icon fields loaded
     
     Example:
@@ -108,7 +109,7 @@ def get_all_extensions_all(db: Session):
     return all_extensions_all_information
 
 
-def search_extension_by_name(db: Session, extension_name: str):
+def search_extension_by_name(db: Session, extension_name: str, extension_version: Optional[str] = None):
     """
     Search for an extension by name in the database.
     
@@ -118,6 +119,7 @@ def search_extension_by_name(db: Session, extension_name: str):
     Args:
         db: SQLAlchemy database session from dependency injection
         extension_name: Exact name of extension to find
+        extension_version: Optional version filter
     
     Returns:
         Extension ORM object if found, None otherwise
@@ -141,25 +143,26 @@ def search_extension_by_name(db: Session, extension_name: str):
         Future: Could add fuzzy search, LIKE queries, or full-text search
     """
     # Delegate to CRUD layer for database query
-    extension = search_db_extension(db, extension_name)
+    extension = search_db_extension(db, extension_name, extension_version)
     
     # Return as-is; FastAPI's response_model handles serialization
     # from SQLAlchemy ORM object to Pydantic schema automatically
     return extension
 
 
-def delete_extension_by_name(db: Session, extension_name: str):
+def delete_extension_by_name(db: Session, extension_name: str, extension_version: Optional[str] = None):
     """
     Delete an extension by name from the database.
     
     Args:
         db: SQLAlchemy database session
         extension_name: Name of extension to delete
+        extension_version: Optional version filter
         
     Returns:
         True if deleted, False if not found
     """
-    return delete_db_extension(db, extension_name)
+    return delete_db_extension(db, extension_name, extension_version)
 
 
 def create_extension_by_name(db: Session, extension_name: str):

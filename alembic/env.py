@@ -17,7 +17,7 @@ config = context.config
 load_dotenv()
 
 # Resolve database URL with a safe fallback to alembic.ini if env/.env not set
-def whaget_database_url() -> str:
+def get_database_url() -> str:
     return os.getenv("DATABASE_URL") or config.get_main_option("sqlalchemy.url")
 
 # Interpret the config file for Python logging.

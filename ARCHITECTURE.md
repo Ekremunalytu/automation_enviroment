@@ -418,6 +418,7 @@ erDiagram
     EXTENSIONS {
         int id PK "🔑 Auto-increment"
         string name "📇 Indexed, NOT NULL"
+        string version "🏷️ Indexed, NOT NULL"
         string publisher "📇 Indexed, NOT NULL"
         jsonb engines "⚙️ NOT NULL"
         string license "📜 Optional"
@@ -451,12 +452,13 @@ erDiagram
 flowchart LR
     subgraph Constraints["🔒 CONSTRAINTS"]
         PK["🔑 PRIMARY KEY: id"]
-        UQ["🔗 UNIQUE: (publisher, name)"]
+        UQ["🔗 UNIQUE: (publisher, name, version)"]
     end
     
     subgraph Indexes["⚡ INDEXES"]
         IDX1["📇 INDEX: name"]
         IDX2["📇 INDEX: publisher"]
+        IDX3["📇 INDEX: version"]
     end
     
     subgraph Table["📋 extensions"]
@@ -803,15 +805,15 @@ flowchart TB
 
 <br>
 
-| Method | Endpoint | Handler | Service Function |
-|:------:|:---------|:--------|:-----------------|
-| 🟢 `GET` | `/` | `read_root()` | — |
-| 🟢 `GET` | `/health` | `health_check()` | — |
-| 🔵 `GET` | `/searchExtension` | `search_extension()` | `search_extension_by_name()` |
-| 🔵 `GET` | `/getExtensionsBaseInfo` | `get_extensions_base_info()` | `get_all_extensions_basic()` |
-| 🔵 `GET` | `/getExtensionsAllInfo` | `get_extensions_all_info()` | `get_all_extensions_all()` |
-| 🟣 `POST` | `/createExtension` | `create_extension()` | `create_extension_by_name()` |
-| 🔴 `DELETE` | `/deleteExtension` | `delete_extension()` | `delete_extension_by_name()` |
+| Method | Endpoint | Query Params | Handler | Service Function |
+|:------:|:---------|:-------------|:--------|:-----------------|
+| 🟢 `GET` | `/` | — | `read_root()` | — |
+| 🟢 `GET` | `/health` | — | `health_check()` | — |
+| 🔵 `GET` | `/searchExtension` | `name`, `version?` | `search_extension()` | `search_extension_by_name()` |
+| 🔵 `GET` | `/getExtensionsBaseInfo` | — | `get_extensions_base_info()` | `get_all_extensions_basic()` |
+| 🔵 `GET` | `/getExtensionsAllInfo` | — | `get_extensions_all_info()` | `get_all_extensions_all()` |
+| 🟣 `POST` | `/createExtension` | — | `create_extension()` | `create_extension_by_name()` |
+| 🔴 `DELETE` | `/deleteExtension` | `name`, `version?` | `delete_extension()` | `delete_extension_by_name()` |
 
 <br>
 

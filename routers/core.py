@@ -32,8 +32,8 @@ Endpoints Summary:
     │ GET    │ /getExtensionsBaseInfo│ List extensions (minimal)     │
     │ GET    │ /getExtensionsAllInfo │ List extensions (full data)   │
     │ POST   │ /createExtension      │ Scan and create extension     │
+    │ DELETE │ /deleteExtension      │ Delete an extension by name   │
     └─────────────────────────────────────────────────────────────────┘
-
 Error Handling Strategy:
     - 400 Bad Request: Validation errors (ValueError)
     - 404 Not Found: Extension not found in DB or filesystem
@@ -165,6 +165,7 @@ def search_extension(
     
     Query Parameters:
         name (str): Exact extension name to search for
+        version (str, optional): Specific extension version to search for
     
     Returns:
         ExtensionSchema: Complete extension data
@@ -192,7 +193,11 @@ def search_extension(
     """
     try:
         # Delegate to service layer for business logic
-        result = service.search_extension_by_name(db=db, extension_name=params.name)
+        result = service.search_extension_by_name(
+            db=db,
+            extension_name=params.name,
+            extension_version=params.version
+        )
         
         if result is None:
             # Extension not found in database
@@ -221,6 +226,7 @@ def get_extensions_base_info(db: Session = Depends(get_db)):
     Only includes essential fields:
         - id: Database reference
         - name: Extension identifier
+        - version: Extension version
         - publisher: Publisher name
         - description: Brief description
         - icon: Icon URL for thumbnails
@@ -422,7 +428,7 @@ def delete_extension(
     Delete an extension from the database.
     
     Args:
-        params: Query parameters containing extension name
+        params: Query parameters containing extension name (and optional version)
         db: Database session
         
     Returns:
@@ -433,7 +439,7 @@ def delete_extension(
         HTTPException 500: Internal server error
     """
     try:
-        deleted = service.delete_extension_by_name(db, params.name)
+        deleted = service.delete_extension_by_name(db, params.name, params.version)
         
         if not deleted:
             raise HTTPException(status_code=404, detail="Extension not found")

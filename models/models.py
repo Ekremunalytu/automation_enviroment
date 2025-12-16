@@ -137,6 +137,16 @@ class Extension(Base):
     Index: Created for fast name-based lookups
     Constraint: Part of unique (publisher, name) constraint
     """
+
+    version = Column(String, nullable=False, index=True)
+    """
+    Extension version from pacakge.json "version" field.
+    
+    This is the unique identifier within a publisher's namespace.
+    Examples: '2.5.6'
+    Index: Created for fast version-based lookups
+    Constraint: Part of unique (publisher, name) constraint
+    """
     
     publisher = Column(String, nullable=False, index=True)
     """
@@ -295,7 +305,7 @@ class Extension(Base):
     # =========================================================================
     
     __table_args__ = (
-        UniqueConstraint('publisher', 'name', name='uix_publisher_name'),
+        UniqueConstraint('publisher', 'name', 'version', name='uix_publisher_name'),
     )
     """
     Table-level constraints.

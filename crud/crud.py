@@ -73,7 +73,7 @@ def get_extension_by_id(db: Session, id: int) -> Optional[Extension]:
     return db.query(Extension).filter(Extension.id == id).first()
 
 
-def search_extension_by_name(db: Session, name: str) -> Optional[Extension]:
+def search_extension_by_name(db: Session, name: str, version: Optional[str] = None) -> Optional[Extension]:
     """
     Search for an extension by its exact name.
     
@@ -83,12 +83,13 @@ def search_extension_by_name(db: Session, name: str) -> Optional[Extension]:
     Args:
         db: SQLAlchemy database session
         name: Exact extension name to search for (case-sensitive)
+        version: Specific version to search for (optional)
     
     Returns:
         Extension object if found, None otherwise
     
     Example:
-        >>> extension = search_extension_by_name(db, "python")
+        >>> extension = search_extension_by_name(db, "python", "1.0.0")
         >>> if extension:
         ...     print(f"Publisher: {extension.publisher}")
     
@@ -98,7 +99,10 @@ def search_extension_by_name(db: Session, name: str) -> Optional[Extension]:
         - Full-text search with PostgreSQL tsvector
         - Trigram similarity for fuzzy matching
     """
-    return db.query(Extension).filter(Extension.name == name).first()
+    query = db.query(Extension).filter(Extension.name == name)
+    if version:
+        query = query.filter(Extension.version == version)
+    return query.first()
 
 
 def create_extension(db: Session, extension: ExtensionSchema) -> Extension:
@@ -120,7 +124,7 @@ def create_extension(db: Session, extension: ExtensionSchema) -> Extension:
         SQLAlchemyError: For other database errors (connection, etc.)
     
     Example:
-        >>> schema = ExtensionSchema(name="test", publisher="dev", engines={"vscode": "^1.0.0"})
+        >>> schema = ExtensionSchema(name="test", publisher="dev",version="2.3.4", engines={"vscode": "^1.0.0"})
         >>> try:
         ...     new_ext = create_extension(db, schema)
         ...     print(f"Created with ID: {new_ext.id}")
@@ -199,6 +203,7 @@ def get_extensions_base_info(db: Session) -> List[Extension]:
     Selected Fields:
         - id: For linking to detail views
         - name: Extension identifier
+        - version: Extension version
         - publisher: Publisher name
         - description: Brief text for display
         - icon: Thumbnail image URL
@@ -230,6 +235,7 @@ def get_extensions_base_info(db: Session) -> List[Extension]:
         load_only(
             Extension.id,
             Extension.name,
+            Extension.version,
             Extension.publisher,
             Extension.description,
             Extension.icon
@@ -237,44 +243,22 @@ def get_extensions_base_info(db: Session) -> List[Extension]:
     ).all()
 
 
-# =============================================================================
-# TODO: CRUD Operations to Implement ( update is not necessary for Extension Table beacuse extension data should not be changed )
-# =============================================================================
-
-# def update_extension(db: Session, extension_id: int, update_data: dict) -> Optional[Extension]:
-#     """
-#     Update an existing extension's fields.
-#     
-#     Args:
-#         db: SQLAlchemy database session
-#         extension_id: ID of extension to update
-#         update_data: Dictionary of field names and new values
-#     
-#     Returns:
-#         Updated Extension object or None if not found
-#     """
-#     extension = db.query(Extension).filter(Extension.id == extension_id).first()
-#     if extension:
-#         for key, value in update_data.items():
-#             if hasattr(extension, key):
-#                 setattr(extension, key, value)
-#         db.commit()
-#         db.refresh(extension)
-#     return extension
-
-
-def delete_extension(db: Session, name: str) -> bool:
+def delete_extension(db: Session, name: str, version: Optional[str] = None) -> bool:
     """
     Delete an extension by its name.
     
     Args:
         db: SQLAlchemy database session
         name: Name of extension to delete
+        version: Specific version to delete (optional)
     
     Returns:
         True if deleted, False if not found
     """
-    extension = db.query(Extension).filter(Extension.name == name).first()
+    query = db.query(Extension).filter(Extension.name == name)
+    if version:
+        query = query.filter(Extension.version == version)
+    extension = query.first()
     if extension:
         db.delete(extension)
         db.commit()

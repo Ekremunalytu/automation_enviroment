@@ -84,7 +84,8 @@ class ExtensionSchema(BaseModel):
     publisher: str
     """Publisher account name on VS Code Marketplace."""
 
-
+    version: str
+    """ Extension version"""
     
     engines: Dict[str, Any]
     """
@@ -213,6 +214,7 @@ class SearchRequest(BaseModel):
     
     Attributes:
         name: Extension name to search for in database
+        version: Optional specific version to filter on
     
     Example:
         GET /searchExtension?name=python
@@ -221,6 +223,11 @@ class SearchRequest(BaseModel):
         ...,
         min_length=1,
         description="Extension name to search for in the database."
+    )
+
+    version: Optional[str] = Field(
+        default=None,
+        description="Specific extension version to target; if omitted, matches by name regardless of version."
     )
 
 
@@ -261,6 +268,9 @@ class SearchAllExtensionsInfo(BaseModel):
     
     description: Optional[str] = None
     """Short description for list display."""
+    
+    version: Optional[str] = None
+    """Extension version."""
     
     icon: Optional[str] = None
     """Icon URL for thumbnail rendering."""
