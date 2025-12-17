@@ -196,7 +196,7 @@ def search_extension(extension_name_field: str) -> dict[str, Any] | None:
     """
     # Convert configured extension directory to Path object
     # This enables cross-platform path handling
-    extension_path = Path(settings.EXTENSION_DIR)
+    extension_path = Path(settings.project.EXTENSION_DIR)
 
     # Gracefully handle missing or non-directory paths
     if not extension_path.exists() or not extension_path.is_dir():

@@ -91,9 +91,9 @@ def create_app() -> FastAPI:
     """
     # Create FastAPI instance with metadata
     application = FastAPI(
-        title=settings.PROJECT_NAME,
-        description="VS Code Extension Malware Scanner",
-        version="1.0.0",
+        title=settings.project.NAME,
+        description=settings.project.DESCRIPTION,
+        version=settings.project.VERSION,
     )
 
     # Register API routers
@@ -149,6 +149,6 @@ if __name__ == "__main__":
     # Note: No --reload here, use uvicorn CLI for auto-reload
     uvicorn.run(
         app,
-        host="0.0.0.0",  # Listen on all interfaces (accessible from Docker/network)
-        port=8000,  # Default FastAPI port
+        host=settings.api.HOST,  # Listen on configured interface
+        port=settings.api.PORT,  # Listen on configured port
     )

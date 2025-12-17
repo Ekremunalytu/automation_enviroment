@@ -1,105 +1,117 @@
-# ExTrace - Current Development Priorities
+<div align="center">
 
-> **Document Type:** Development Roadmap  
-> **Last Updated:** 2025-12-11  
-> **Status:** Active Development
+# 🎯 ExTrace - Development Priorities
+
+<br>
+
+**Roadmap & Implementation Strategy**
+
+<br>
+
+[![Document Type](https://img.shields.io/badge/Type-Roadmap-7c3aed?style=for-the-badge&logo=readthedocs&logoColor=white)](https://github.com/yourusername/extrace)
+[![Last Updated](https://img.shields.io/badge/Updated-2025--12--11-059669?style=for-the-badge&logo=calendar&logoColor=white)](https://github.com/yourusername/extrace)
+[![Status](https://img.shields.io/badge/Status-Active_Development-0891b2?style=for-the-badge&logo=activity&logoColor=white)](https://github.com/yourusername/extrace)
+
+<br>
 
 ---
 
-## 🎯 Current Sprint: Extension Identity & Deep Parsing
-
-The immediate priority is building comprehensive parsers to extract the complete identity and behavioral fingerprint of VS Code extensions. Analysis and risk scoring will follow in subsequent sprints.
+`Current Sprint: Identity & Deep Parsing` • `Next: Risk Analysis`
 
 ---
 
-## Phase 1: Deep Parsing (Current Focus)
+</div>
+
+<br>
+
+## 📌 Current Focus: Extension Identity
+
+> [!IMPORTANT]
+> The immediate priority is building **comprehensive parsers** to extract the complete identity and behavioral fingerprint of VS Code extensions. Analysis and risk scoring will follow in subsequent sprints.
+
+<br>
+
+---
+
+<br>
+
+## 🚀 Phase 1: Deep Parsing
 
 ### 1.1 Manifest Parser Enhancement
 
 **Goal:** Extract every field from `package.json` that reveals extension behavior.
 
 | Field Category | Fields to Parse | Purpose |
-|---------------|-----------------|---------|
-| **Identity** | name, publisher, version, displayName | Unique extension identification |
-| **Permissions** | activationEvents, contributes | What triggers the extension |
-| **Entry Points** | main, browser, web | Code execution locations |
-| **Dependencies** | dependencies, devDependencies, extensionDependencies | Supply chain mapping |
-| **Capabilities** | capabilities, extensionKind | Extension type classification |
-| **Repository** | repository, homepage, bugs | Source verification |
+|:---------------|:----------------|:--------|
+| **Identity** | `name`, `publisher`, `version`, `displayName` | Unique extension identification |
+| **Permissions** | `activationEvents`, `contributes` | What triggers the extension |
+| **Entry Points** | `main`, `browser`, `web` | Code execution locations |
+| **Dependencies** | `dependencies`, `devDependencies`, `extensionDependencies` | Supply chain mapping |
+| **Capabilities** | `capabilities`, `extensionKind` | Extension type classification |
+| **Repository** | `repository`, `homepage`, `bugs` | Source verification |
 
-**New Database Tables Required:**
+<br>
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                    extension_activation_events                       │
-├─────────────────────────────────────────────────────────────────────┤
-│ id              │ SERIAL PRIMARY KEY                                │
-│ extension_id    │ FK → extensions.id                                │
-│ event_type      │ VARCHAR (onCommand, onLanguage, onUri, etc.)      │
-│ event_value     │ VARCHAR (specific trigger value)                  │
-│ is_star         │ BOOLEAN (true if '*' = always active)             │
-└─────────────────────────────────────────────────────────────────────┘
+### 1.2 Database Schema Expansion
 
-┌─────────────────────────────────────────────────────────────────────┐
-│                    extension_commands                                │
-├─────────────────────────────────────────────────────────────────────┤
-│ id              │ SERIAL PRIMARY KEY                                │
-│ extension_id    │ FK → extensions.id                                │
-│ command_id      │ VARCHAR (e.g., "extension.helloWorld")            │
-│ title           │ VARCHAR (display name in command palette)         │
-│ category        │ VARCHAR (optional grouping)                       │
-│ icon            │ VARCHAR (optional icon path)                      │
-└─────────────────────────────────────────────────────────────────────┘
+```mermaid
+%%{init: {'theme': 'dark', 'themeVariables': { 'background': '#0d1117', 'primaryColor': '#7c3aed', 'primaryTextColor': '#e6edf3', 'lineColor': '#22d3ee', 'mainBkg': '#161b22', 'nodeBkg': '#21262d', 'clusterBkg': '#161b22'}}}%%
+erDiagram
+    EXTENSIONS ||--o{ COMMANDS : has
+    EXTENSIONS ||--o{ EVENTS : triggers
+    EXTENSIONS ||--o{ CONTRIBS : provides
+    EXTENSIONS ||--o{ DEPS : depends_on
 
-┌─────────────────────────────────────────────────────────────────────┐
-│                    extension_contributions                           │
-├─────────────────────────────────────────────────────────────────────┤
-│ id              │ SERIAL PRIMARY KEY                                │
-│ extension_id    │ FK → extensions.id                                │
-│ contrib_type    │ VARCHAR (commands, languages, views, etc.)        │
-│ contrib_data    │ JSONB (full contribution object)                  │
-└─────────────────────────────────────────────────────────────────────┘
+    EXTENSIONS {
+        int id PK
+        string name
+    }
 
-┌─────────────────────────────────────────────────────────────────────┐
-│                    extension_dependencies                            │
-├─────────────────────────────────────────────────────────────────────┤
-│ id              │ SERIAL PRIMARY KEY                                │
-│ extension_id    │ FK → extensions.id                                │
-│ dep_type        │ VARCHAR (npm, extension, dev)                     │
-│ dep_name        │ VARCHAR (package/extension name)                  │
-│ dep_version     │ VARCHAR (version constraint)                      │
-└─────────────────────────────────────────────────────────────────────┘
+    COMMANDS {
+        string command_id
+        string title
+    }
+
+    EVENTS {
+        string event_type
+        string event_value
+    }
+
+    CONTRIBS {
+        string type
+        jsonb data
+    }
+
+    DEPS {
+        string dep_name
+        string version
+    }
 ```
 
-### 1.2 Command Detection
-
-**Goal:** Identify every command an extension registers and can execute.
-
-**Data to Collect:**
-- Command identifiers (`contributes.commands`)
-- Keybindings (`contributes.keybindings`)
-- Menu items (`contributes.menus`)
-- Context menu entries
-- Command palette entries
+<br>
 
 ### 1.3 Activation Event Analysis
 
 **Goal:** Understand when and why an extension activates.
 
 | Event Type | Risk Level | Description |
-|------------|------------|-------------|
-| `*` | 🔴 High | Always active (potential performance/security impact) |
-| `onStartupFinished` | 🟡 Medium | Runs at VS Code startup |
-| `onCommand:*` | 🟢 Low | Only on explicit user action |
-| `onLanguage:*` | 🟢 Low | When opening specific file types |
-| `onUri` | 🟡 Medium | Can be triggered externally |
-| `onFileSystem:*` | 🟡 Medium | File access triggers |
+|:-----------|:-----------|:------------|
+| `*` | 🔴 **High** | Always active (potential performance/security impact) |
+| `onStartupFinished` | 🟡 **Medium** | Runs at VS Code startup |
+| `onUri` | 🟡 **Medium** | Can be triggered externally |
+| `onFileSystem:*` | 🟡 **Medium** | File access triggers |
+| `onCommand:*` | 🟢 **Low** | Only on explicit user action |
+| `onLanguage:*` | 🟢 **Low** | When opening specific file types |
+
+<br>
 
 ### 1.4 Contribution Point Mapping
 
 **Goal:** Map all extension contributions to understand capabilities.
 
-**Contribution Types to Track:**
+<details>
+<summary><strong>📋 View Contribution Types</strong></summary>
+
 - `languages` - Language support declarations
 - `grammars` - Syntax highlighting
 - `themes` - Color themes
@@ -115,33 +127,42 @@ The immediate priority is building comprehensive parsers to extract the complete
 - `terminal` - Terminal profiles
 - `walkthroughs` - Onboarding flows
 
----
+</details>
 
-## Phase 2: Analysis (Future Sprint)
-
-> ⚠️ **Note:** This phase begins AFTER Phase 1 completion.
-
-### 2.1 Risk Scoring Engine
-- Pattern-based risk detection
-- Permission analysis
-- Behavioral classification
-
-### 2.2 Code Analysis
-- JavaScript/TypeScript static analysis
-- API call detection
-- Network request patterns
-- File system access patterns
-
-### 2.3 Comparison & Diff
-- Version comparison
-- Change detection
-- Regression identification
+<br>
 
 ---
 
-## Implementation Tasks
+<br>
 
-### Database Tasks
+## 🔮 Phase 2: Analysis (Future)
+
+> [!WARNING]
+> This phase begins **AFTER** Phase 1 completion.
+
+1.  **Risk Scoring Engine**
+    *   Pattern-based risk detection
+    *   Permission analysis
+    *   Behavioral classification
+
+2.  **Code Analysis**
+    *   JavaScript/TypeScript static analysis
+    *   API call detection
+    *   Network request patterns
+
+3.  **Comparison & Diff**
+    *   Version comparison
+    *   Regression identification
+
+<br>
+
+---
+
+<br>
+
+## 📋 Implementation Tasks
+
+### 🗄️ Database Tasks
 - [ ] Create `extension_activation_events` table
 - [ ] Create `extension_commands` table
 - [ ] Create `extension_contributions` table
@@ -149,36 +170,47 @@ The immediate priority is building comprehensive parsers to extract the complete
 - [ ] Generate Alembic migrations
 - [ ] Update SQLAlchemy models
 
-### Parser Tasks
+### ⚙️ Parser Tasks
 - [ ] Create `manifest_parser.py` - Full package.json parsing
 - [ ] Create `activation_parser.py` - Activation event extraction
 - [ ] Create `command_parser.py` - Command detection
 - [ ] Create `contribution_parser.py` - Contribution point mapping
 - [ ] Create `dependency_parser.py` - Dependency analysis
 
-### Service Tasks
+### 🔄 Service & Schema Tasks
 - [ ] Update `service.py` with new parsers
 - [ ] Create CRUD functions for new tables
 - [ ] Add API endpoints for querying parsed data
-
-### Schema Tasks
 - [ ] Create Pydantic schemas for new data structures
-- [ ] Add response models for API endpoints
+
+<br>
 
 ---
 
-## Priority Order
+<br>
 
+## 🚦 Implementation Order
+
+```mermaid
+%%{init: {'theme': 'dark', 'themeVariables': { 'background': '#0d1117', 'primaryColor': '#be185d', 'primaryTextColor': '#e6edf3', 'lineColor': '#f472b6', 'mainBkg': '#161b22', 'nodeBkg': '#21262d', 'clusterBkg': '#161b22'}}}%%
+graph LR
+    C[("1. Commands\n(High Priority)")] --> E[("2. Events\n(Trigger Analysis)")]
+    E --> CT[("3. Contributions\n(Capability Mapping)")]
+    CT --> D[("4. Dependencies\n(Supply Chain)")]
+
+    style C fill:#be185d,stroke:#ec4899,stroke-width:2px,color:#fff
+    style E fill:#7c3aed,stroke:#a855f7,stroke-width:2px,color:#fff
+    style CT fill:#0891b2,stroke:#22d3ee,stroke-width:2px,color:#fff
+    style D fill:#059669,stroke:#34d399,stroke-width:2px,color:#fff
 ```
-1. extension_commands        ← First (most security-relevant)
-2. extension_activation_events  ← Second (trigger analysis)
-3. extension_contributions   ← Third (capability mapping)
-4. extension_dependencies    ← Fourth (supply chain)
-```
+
+<br>
 
 ---
 
-## Success Criteria
+<br>
+
+## ✅ Success Criteria
 
 Phase 1 is complete when:
 - ✅ All new database tables created and migrated
@@ -186,3 +218,7 @@ Phase 1 is complete when:
 - ✅ API endpoints expose parsed data
 - ✅ Test coverage for all parsers
 - ✅ Sample extensions fully parsed and stored
+
+<div align="center">
+  <strong>Phase 1 Target: Q1 2026</strong>
+</div>

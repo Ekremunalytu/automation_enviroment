@@ -37,10 +37,23 @@ def get_test_database_url() -> str:
     Priority:
     1. DATABASE_URL environment variable (CI/integration tests)
     2. Falls back to default PostgreSQL test database
+
+    Note:
+        Fallback uses POSTGRES_TEST_PORT (default: 5434) from docker-compose.yml
+        For local development, run: docker-compose up -d postgres_test
     """
-    return os.getenv(
-        "DATABASE_URL", "postgresql://postgres:postgres@localhost:5434/test_db"
-    )
+    # Build URL from individual env vars if DATABASE_URL not set
+    if os.getenv("DATABASE_URL"):
+        return os.getenv("DATABASE_URL", "")
+
+    # Fallback: construct from test database settings
+    user = os.getenv("POSTGRES_USER", "postgres")
+    password = os.getenv("POSTGRES_PASSWORD", "postgres")
+    host = os.getenv("POSTGRES_HOST", "localhost")
+    port = os.getenv("POSTGRES_TEST_PORT", "5434")
+    db = "test_db"
+
+    return f"postgresql://{user}:{password}@{host}:{port}/{db}"
 
 
 @pytest.fixture(scope="session")

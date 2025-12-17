@@ -55,7 +55,7 @@ from core.config import settings
 # =============================================================================
 
 engine = create_engine(
-    str(settings.DATABASE_URL),
+    str(settings.db.url),
     echo=False,
     future=True,
 )

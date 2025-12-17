@@ -29,6 +29,8 @@ help:
 	@echo "║  all            │ Format, lint, type, test (one command)          ║"
 	@echo "╠═══════════════════════════════════════════════════════════════════╣"
 	@echo "║  venv-check     │ Verify virtual environment exists               ║"
+	@echo "║  docker-build   │ Build Docker images                             ║"
+	@echo "║  docker-rebuild │ Rebuild Docker images (no cache)                ║"
 	@echo "║  docker-up      │ Start Docker containers                         ║"
 	@echo "║  docker-down    │ Stop Docker containers                          ║"
 	@echo "║  migrate        │ Run Alembic migrations                          ║"
@@ -98,6 +100,20 @@ security:
 # TESTING
 # =============================================================================
 
+# =============================================================================
+# DEV SERVER
+# =============================================================================
+
+dev:
+	$(VENV)/uvicorn main:app --reload
+
+run:
+	$(VENV)/uvicorn main:app
+
+# =============================================================================
+# TESTING
+# =============================================================================
+
 test:
 	@echo "🧪 Running tests..."
 	$(VENV)/pytest -v
@@ -114,7 +130,8 @@ test-local:
 	@echo "⏳ Waiting for Test PostgreSQL to be ready..."
 	@sleep 3
 	@echo "🧪 Running tests..."
-	DATABASE_URL=postgresql://postgres:postgres@localhost:5434/test_db $(VENV)/pytest -v || true
+	# Rely on pytest.ini/conftest to load settings from env or .env
+	$(VENV)/pytest -v || true
 	@echo "✅ Tests complete!"
 
 test-ci:
@@ -147,18 +164,33 @@ all: format lint typecheck test
 # DOCKER & DATABASE
 # =============================================================================
 
+docker-build:
+	@echo "🐳 Building Docker images..."
+	@docker-compose build
+	@sleep 6
+	@echo "✅ Build complete!"
+
+docker-rebuild:
+	@echo "🐳 Rebuilding Docker images (no cache)..."
+	@docker-compose build --no-cache
+	@sleep 2
+	@echo "✅ Rebuild complete!"
+
 docker-up:
 	@echo "🐳 Starting Docker containers..."
-	docker-compose up -d
+	@docker-compose up -d --quiet-pull 2>/dev/null || docker-compose up -d
+	@sleep 6
 	@echo "✅ Containers started!"
+	@docker-compose ps --format "table {{.Name}}\t{{.Status}}" 2>/dev/null || docker-compose ps
 
 docker-down:
 	@echo "🐳 Stopping Docker containers..."
-	docker-compose down
+	@docker-compose down --remove-orphans 2>/dev/null || docker-compose down
+	@sleep 1
 	@echo "✅ Containers stopped!"
 
 docker-logs:
-	docker-compose logs -f
+	docker-compose logs -f --tail=100
 
 migrate:
 	@echo "🔄 Running Alembic migrations..."
@@ -184,13 +216,3 @@ clean:
 	find . -type f -name ".coverage" -delete 2>/dev/null || true
 	find . -type f -name "coverage.xml" -delete 2>/dev/null || true
 	@echo "✅ Cleanup complete!"
-
-# =============================================================================
-# DEV SERVER
-# =============================================================================
-
-dev:
-	$(VENV)/uvicorn main:app --reload --host 0.0.0.0 --port 8000
-
-run:
-	$(VENV)/uvicorn main:app --host 0.0.0.0 --port 8000

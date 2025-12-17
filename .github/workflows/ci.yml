@@ -192,5 +192,7 @@ jobs:
         run: python -m py_compile main.py
 
       - name: 📋 Check imports
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
         run: |
           python -c "from main import app; print('✅ Application imports successfully')"

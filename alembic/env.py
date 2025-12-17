@@ -8,19 +8,26 @@ from sqlalchemy import engine_from_config, pool
 from alembic import context  # type: ignore[attr-defined]
 
 sys.path.insert(0, os.path.realpath(os.path.join(os.path.dirname(__file__), "..")))
+from core.config import settings
 from models.models import Base
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
 
-# Load .env so DATABASE_URL is available when running Alembic directly
+# Load .env so environment variables are available when running Alembic directly
 load_dotenv()
 
 
-# Resolve database URL with a safe fallback to alembic.ini if env/.env not set
 def get_database_url() -> str:
-    return os.getenv("DATABASE_URL") or config.get_main_option("sqlalchemy.url")
+    """
+    Get database URL for Alembic migrations.
+
+    Priority:
+    1. DATABASE_URL environment variable (for CI/Docker override)
+    2. Constructed URL from core.config.settings (default)
+    """
+    return os.getenv("DATABASE_URL") or str(settings.db.url)
 
 
 # Interpret the config file for Python logging.

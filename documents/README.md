@@ -1,38 +1,83 @@
-# ExTrace - VS Code Extension Security Scanner
+# 🔮 ExTrace - VS Code Extension Security
 
 <div align="center">
 
-![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-green.svg)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15+-blue.svg)
-![Docker](https://img.shields.io/badge/Docker-Compose-blue.svg)
-![License](https://img.shields.io/badge/License-MIT-yellow.svg)
+<br>
 
-**A security-focused REST API for scanning and cataloging VS Code extensions**
+**A Secure VS Code Extension Analysis Platform**
 
-[Features](#-features) • [Architecture](#-architecture) • [Quick Start](#-quick-start) • [API Reference](#-api-reference) • [Project Structure](#-project-structure)
+<br>
+
+[![Python](https://img.shields.io/badge/Python-3.11-9b59b6?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-00d4aa?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-3498db?style=for-the-badge&logo=postgresql&logoColor=white)](https://postgresql.org)
+[![Docker](https://img.shields.io/badge/Docker-Compose-e74c3c?style=for-the-badge&logo=docker&logoColor=white)](https://docker.com)
+[![License](https://img.shields.io/badge/License-MIT-f1c40f?style=for-the-badge&logo=open-source-initiative&logoColor=white)](LICENSE)
+
+<br>
+
+---
+
+`Last Updated: 2025-12-16` • `Version: 1.0.0` • `Status: Active`
+
+---
 
 </div>
 
+<br>
+
+## 📑 Table of Contents
+
+<details>
+<summary><strong>🗂️ Click to expand navigation</strong></summary>
+
+<br>
+
+| Section | Description |
+|:--------|:------------|
+| [📋 Overview](#-overview) | Project goals and functionality |
+| [✨ Features](#-features) | Key capabilities and tech highlights |
+| [🏗️ Architecture](#️-architecture) | System design and component diagrams |
+| [🚀 Quick Start](#-quick-start) | Setup and installation guide |
+| [📡 API Reference](#-api-reference) | Endpoint documentation and examples |
+| [📁 Project Structure](#-project-structure) | File layout and organization |
+| [🗄️ Database Schema](#️-database-schema) | Data models and storage |
+| [🔧 Development](#-development) | Local dev and testing capability |
+
+</details>
+
+<br>
+
 ---
+
+<br>
 
 ## 📋 Overview
 
-ExTrace is a backend API service designed to scan, validate, and store metadata from VS Code extensions. It's built for security researchers and developers who need to analyze extension manifests at scale.
+> [!NOTE]
+> ExTrace is a backend API service designed to **scan**, **validate**, and **store** metadata from VS Code extensions. It's built for security researchers and developers who need to analyze extension manifests at scale.
 
-### What It Does
+<br>
 
-1. **Scans** extension directories for `package.json` files
-2. **Validates** manifest data against strict Pydantic schemas
-3. **Stores** extension metadata in PostgreSQL for querying
-4. **Serves** data via RESTful API endpoints
+### 🎯 Core Capabilities
+
+1.  **🔍 Scan**: Recursively scans extension directories for `package.json` files.
+2.  **✅ Validate**: Enforces strict Pydantic schemas on manifest data.
+3.  **💾 Store**: Persists extension metadata in PostgreSQL with JSONB support.
+4.  **📡 Serve**: Provides a high-performance RESTful API for querying data.
+
+<br>
 
 ---
 
+<br>
+
 ## ✨ Features
 
+<br>
+
 | Feature | Description |
-|---------|-------------|
+|:--------|:------------|
 | 🔍 **Extension Scanning** | Parse and validate VS Code extension manifests |
 | 🗄️ **PostgreSQL Storage** | Persistent storage with JSONB support for complex data |
 | 📡 **REST API** | FastAPI-powered endpoints with automatic OpenAPI docs |
@@ -40,67 +85,86 @@ ExTrace is a backend API service designed to scan, validate, and store metadata 
 | 🔒 **Security First** | Non-root containers, input validation, SQL injection prevention |
 | 📊 **Optimized Queries** | Indexed fields, partial column loading for performance |
 
+<br>
+
 ---
+
+<br>
 
 ## 🏗️ Architecture
 
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                           ExTrace Architecture                          │
-├─────────────────────────────────────────────────────────────────────────┤
-│                                                                         │
-│  ┌──────────────┐     ┌──────────────┐     ┌──────────────────────┐     │
-│  │   Client     │────▶│   FastAPI    │────▶│   PostgreSQL DB      │     │
-│  │  (Browser)   │◀────│   (Uvicorn)  │◀────│   (Docker)           │     │
-│  └──────────────┘     └──────────────┘     └──────────────────────┘     │
-│                              ▼                                          │
-│                       ┌──────────────┐                                  │
-│                       │  extensions/ │                                  │
-│                       │  (Filesystem)│                                  │
-│                       └──────────────┘                                  │
-│                                                                         │
-└─────────────────────────────────────────────────────────────────────────┘
+<br>
+
+```mermaid
+%%{init: {'theme': 'dark', 'themeVariables': { 'background': '#0d1117', 'primaryColor': '#7c3aed', 'primaryTextColor': '#e6edf3', 'lineColor': '#22d3ee', 'mainBkg': '#161b22', 'nodeBkg': '#21262d', 'clusterBkg': '#161b22'}}}%%
+flowchart LR
+    subgraph ClientLayer["👤 CLIENT LAYER"]
+        Client[("Browser / API Client")]
+    end
+
+    subgraph ServiceLayer["☁️ SERVICE LAYER"]
+        FastAPI["⚡ FastAPI (Uvicorn)"]
+    end
+
+    subgraph DataLayer["🗄️ DATA LAYER"]
+        PG[("🐘 PostgreSQL")]
+        FS[("📁 extensions/")]
+    end
+
+    ClientLayer <-->|"HTTP/REST"| ServiceLayer
+    ServiceLayer <-->|"SQL (SQLAlchemy)"| PG
+    ServiceLayer -->|"File I/O"| FS
+
+    style ClientLayer fill:#7c3aed,stroke:#a855f7,stroke-width:3px,color:#fff
+    style ServiceLayer fill:#0891b2,stroke:#22d3ee,stroke-width:3px,color:#fff
+    style DataLayer fill:#059669,stroke:#34d399,stroke-width:3px,color:#fff
 ```
 
-### Layered Architecture
+<br>
 
+### 📚 Layered Design
+
+```mermaid
+%%{init: {'theme': 'dark', 'themeVariables': { 'background': '#0d1117', 'primaryColor': '#be185d', 'primaryTextColor': '#e6edf3', 'lineColor': '#f472b6', 'mainBkg': '#161b22', 'nodeBkg': '#21262d', 'clusterBkg': '#161b22'}}}%%
+flowchart TD
+    Router["🌐 Routers (HTTP)"]
+    Schema["📝 Schemas (Validation)"]
+    Service["⚙️ Service (Logic)"]
+    CRUD["💾 CRUD (DB Access)"]
+    Model["📋 Models (ORM)"]
+    DB[("🐘 Database")]
+
+    Router --> Schema
+    Router --> Service
+    Service --> CRUD
+    CRUD --> Model
+    Model --> DB
+
+    style Router fill:#be185d,stroke:#ec4899,stroke-width:2px,color:#fff
+    style Schema fill:#7c3aed,stroke:#a855f7,stroke-width:2px,color:#fff
+    style Service fill:#0891b2,stroke:#22d3ee,stroke-width:2px,color:#fff
+    style CRUD fill:#059669,stroke:#34d399,stroke-width:2px,color:#fff
+    style Model fill:#b45309,stroke:#fbbf24,stroke-width:2px,color:#fff
+    style DB fill:#1d4ed8,stroke:#60a5fa,stroke-width:2px,color:#fff
 ```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                              Routers (HTTP Layer)                       │
-│                         routers/core.py                                 │
-│                    Handles HTTP requests/responses                      │
-├─────────────────────────────────────────────────────────────────────────┤
-│                              Schemas (Validation)                       │
-│                         schemas/schemas.py                              │
-│                    Pydantic models for validation                       │
-├─────────────────────────────────────────────────────────────────────────┤
-│                              Service (Business Logic)                   │
-│                         scanner/service.py                              │
-│                    Orchestrates operations                              │
-├─────────────────────────────────────────────────────────────────────────┤
-│                              CRUD (Data Access)                         │
-│                         crud/crud.py                                    │
-│                    Database operations                                  │
-├─────────────────────────────────────────────────────────────────────────┤
-│                              Models (ORM)                               │
-│                         models/models.py                                │
-│                    SQLAlchemy table definitions                         │
-├─────────────────────────────────────────────────────────────────────────┤
-│                              Database                                   │
-│                         PostgreSQL                                      │
-│                    Persistent storage                                   │
-└─────────────────────────────────────────────────────────────────────────┘
-```
+
+<br>
 
 ---
 
+<br>
+
 ## 🚀 Quick Start
+
+<br>
 
 ### Prerequisites
 
-- Docker & Docker Compose
-- Python 3.11+ (for local development)
-- Git
+- 🐳 Docker & Docker Compose
+- 🐍 Python 3.11+ (for local development)
+- 🐙 Git
+
+<br>
 
 ### 1. Clone the Repository
 
@@ -114,12 +178,12 @@ cd extrace
 ```bash
 # Copy example environment file
 cp .env.example .env
-
-# Edit with your settings
-nano .env
 ```
 
-**.env file:**
+> [!TIP]
+> Edit `.env` to match your local configuration if needed.
+
+**Default `.env`:**
 ```env
 DATABASE_URL=postgresql://postgres:password@postgres:5432/extrace
 PROJECT_NAME=ExTrace API
@@ -135,48 +199,55 @@ docker-compose up -d
 
 # Check status
 docker-compose ps
-
-# View logs
-docker-compose logs -f api
 ```
 
 ### 4. Run Database Migrations
 
 ```bash
-# Apply migrations
+# Apply migrations inside the container
 docker-compose exec api alembic upgrade head
 ```
 
 ### 5. Access the API
 
-- **API Root:** http://localhost:8000
-- **Swagger UI:** http://localhost:8000/docs
-- **ReDoc:** http://localhost:8000/redoc
+- **🌐 API Root:** `http://localhost:8000`
+- **📄 Swagger UI:** `http://localhost:8000/docs`
+- **📚 ReDoc:** `http://localhost:8000/redoc`
+
+<br>
 
 ---
 
+<br>
+
 ## 📡 API Reference
+
+<br>
 
 ### Endpoints Overview
 
 | Method | Endpoint | Description |
-|--------|----------|-------------|
+|:-------|:---------|:------------|
 | `GET` | `/` | API information |
 | `GET` | `/health` | Health check |
-| `GET` | `/searchExtension?name=...` | Search extension by name |
+| `GET` | `/searchExtension` | Search by `name`, `publisher`, `version` |
 | `GET` | `/getExtensionsBaseInfo` | List all extensions (minimal) |
 | `GET` | `/getExtensionsAllInfo` | List all extensions (full) |
 | `POST` | `/createExtension` | Scan and create extension |
-| `DELETE` | `/deleteExtension?name=...` | Delete extension by name |
+| `DELETE` | `/deleteExtension` | Delete by `name`, `publisher`, `version` |
 
-### Detailed API
+<br>
+
+### 📝 Example Usage
 
 #### Search Extension
 ```http
 GET /searchExtension?name=python
 ```
 
-**Response:**
+<details>
+<summary><strong>See Response</strong></summary>
+
 ```json
 {
   "name": "python",
@@ -188,6 +259,7 @@ GET /searchExtension?name=python
   "icon": "https://..."
 }
 ```
+</details>
 
 #### Create Extension
 ```http
@@ -199,117 +271,102 @@ Content-Type: application/json
 }
 ```
 
-**Response:** Created extension object
-
-**Status Codes:**
-- `200` - Success
-- `404` - Extension not found in filesystem
-- `409` - Extension already exists (duplicate)
-
 #### Delete Extension
 ```http
 DELETE /deleteExtension?name=python
 ```
 
-**Response:**
-```json
-{
-  "message": "Extension 'python' deleted successfully"
-}
-```
-
-**Status Codes:**
-- `200` - Successfully deleted
-- `404` - Extension not found
-- `500` - Internal server error
+<br>
 
 ---
 
+<br>
+
 ## 📁 Project Structure
+
+<br>
 
 ```
 extrace/
-├── main.py                 # Application entry point
-├── docker-compose.yml      # Multi-service Docker setup
-├── alembic.ini             # Alembic configuration
-├── .env.example            # Environment template
+├── main.py                 # 🚀 Application entry point
+├── docker-compose.yml      # 🐳 Multi-service Docker setup
+├── alembic.ini             # 🔄 Alembic configuration
+├── .env.example            # 🔐 Environment template
 │
-├── core/                   # Core configuration
+├── core/                   # ⚡ Core configuration
 │   ├── config.py           # Pydantic Settings
 │   └── deps.py             # Dependency injection
 │
-├── database/               # Database configuration
+├── database/               # 🔌 Database layer
 │   └── session.py          # SQLAlchemy engine/session
 │
-├── models/                 # ORM models
+├── models/                 # 📋 ORM models
 │   └── models.py           # Extension table definition
 │
-├── schemas/                # Pydantic schemas
+├── schemas/                # 📝 Pydantic schemas
 │   └── schemas.py          # Request/response models
 │
-├── crud/                   # Data access layer
+├── crud/                   # 💾 Data access layer
 │   └── crud.py             # CRUD operations
 │
-├── routers/                # API routes
+├── routers/                # 🌐 API routes
 │   ├── core.py             # Main endpoints
 │   ├── Dockerfile          # API container
 │   └── requirements.txt    # Python dependencies
 │
-├── scanner/                # Extension scanning
+├── scanner/                # ⚙️ Business logic
 │   ├── service.py          # Business logic
 │   └── json_parser.py      # Filesystem operations
 │
-├── scripts/                # Utility scripts
+├── scripts/                # 🛠️ Utility scripts
 │   └── seed_test.py        # Database seeding
 │
-├── alembic/                # Database migrations
+├── alembic/                # 🔄 Database migrations
 │   ├── env.py              # Migration configuration
 │   └── versions/           # Migration files
 │
-└── extensions/             # VS Code extensions directory
-    └── publisher.ext-1.0/  # Extracted extensions
-        └── package.json
+└── extensions/             # 📦 VS Code extensions directory
+    └── ...
 ```
+
+<br>
 
 ---
 
+<br>
+
 ## 🗄️ Database Schema
+
+<br>
 
 ### Extensions Table
 
 | Column | Type | Description |
-|--------|------|-------------|
-| `id` | SERIAL | Primary key |
-| `name` | VARCHAR | Extension identifier (indexed) |
-| `publisher` | VARCHAR | Publisher name (indexed) |
-| `engines` | JSONB | VS Code version requirements |
-| `license` | VARCHAR | SPDX license |
-| `displayName` | VARCHAR | Human-readable name |
-| `description` | TEXT | Extension description |
-| `categories` | ARRAY | Marketplace categories |
-| `keywords` | ARRAY | Search keywords |
-| `galleryBanner` | JSONB | Banner styling |
-| `preview` | BOOLEAN | Preview flag |
-| `badges` | JSONB | Status badges |
-| `markdown` | TEXT | Markdown preference |
-| `qna` | JSONB | Q&A configuration |
-| `sponsor` | JSONB | Sponsor info |
-| `icon` | VARCHAR | Icon URL |
-| `pricing` | VARCHAR | Pricing tier |
-| `main` | VARCHAR | Desktop entry point |
-| `web` | VARCHAR | Web entry point |
-| `created_at` | TIMESTAMP | Record creation time |
-| `updated_at` | TIMESTAMP | Last update time |
+|:-------|:-----|:------------|
+| `id` | `SERIAL` | **PK**: Primary key |
+| `name` | `VARCHAR` | **Indexed** |
+| `version` | `VARCHAR` | **Indexed** |
+| `publisher` | `VARCHAR` | **Indexed** |
+| `engines` | `JSONB` | VS Code requirements |
+| `license` | `VARCHAR` | SPDX license |
+| `displayName` | `VARCHAR` | Human-readable name |
+| `keywords` | `ARRAY` | Search keywords |
+| `categories` | `ARRAY` | Marketplace categories |
 
-**Constraints:**
-- Unique: (`publisher`, `name`)
-- Indexes: `name`, `publisher`
+> [!IMPORTANT]
+> A **Unique Constraint** applies to `(publisher, name, version)` to prevent duplicate entries.
+
+<br>
 
 ---
 
+<br>
+
 ## 🔧 Development
 
-### Local Setup (without Docker)
+<br>
+
+### Local Setup (No Docker)
 
 ```bash
 # Create virtual environment
@@ -326,7 +383,7 @@ alembic upgrade head
 uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-### Run Tests
+### Testing
 
 ```bash
 # Run all tests
@@ -336,127 +393,38 @@ pytest
 pytest --cov=. --cov-report=html
 ```
 
-### Database Migrations
+> 📘 For detailed testing guidelines, see [TESTING.md](TESTING.md).
 
-```bash
-# Create new migration
-alembic revision --autogenerate -m "description"
-
-# Apply migrations
-alembic upgrade head
-
-# Rollback one step
-alembic downgrade -1
-```
-
-### Seed Test Data
-
-```bash
-python scripts/seed_test.py
-```
+<br>
 
 ---
 
-## 🔒 Security Features
-
-| Feature | Implementation |
-|---------|---------------|
-| **Input Validation** | Pydantic schemas with type checking |
-| **SQL Injection Prevention** | SQLAlchemy ORM with parameterized queries |
-| **Non-root Container** | Docker runs as `appuser` |
-| **Unique Constraints** | Prevents duplicate entries |
-| **Error Handling** | Structured error responses |
-
----
-
-## 🧪 Testing
-
-ExTrace has a comprehensive test suite with PostgreSQL-based integration tests.
-
-| Category | Description |
-|----------|-------------|
-| **CRUD Tests** | Database operations (create, search, delete) |
-| **Router Tests** | API endpoint testing with mocking |
-| **Schema Tests** | Pydantic validation testing |
-| **Parser Tests** | JSON parser with filesystem mocking |
-| **Health Tests** | Smoke tests for API availability |
-
-### Quick Commands
-
-```bash
-# Run all tests
-pytest
-
-# Run with coverage
-pytest --cov --cov-report=html
-
-# Run specific test file
-pytest tests/crud/test_crud.py -v
-```
-
-> 📘 For detailed testing documentation, see [TESTING.md](TESTING.md)
-
----
-
-## 📊 Performance Optimizations
-
-- **Indexed Columns**: `name` and `publisher` for fast lookups
-- **Partial Loading**: `load_only()` for lightweight queries
-- **Connection Pooling**: SQLAlchemy manages connection reuse
-- **JSONB Storage**: Efficient querying of nested data
-
----
+<br>
 
 ## 🗺️ Roadmap
 
-### Current Sprint: Database Foundation ✅
-- [x] PostgreSQL + Docker setup
-- [x] SQLAlchemy models
-- [x] Alembic migrations
-- [x] Full CRUD operations (Create, Read, Delete)
-- [x] Pydantic v2 schemas
-- [x] FastAPI router structure
-- [x] Delete extension endpoint
+### ✅ Completed
+- [x] PostgreSQL + Docker Setup
+- [x] SQLAlchemy Models & Alembic Migrations
+- [x] CRUD Operations
+- [x] **Test Infrastructure**
 
-### Next Sprint: Scanner Core
+### 🚧 In Progress
 - [ ] Detailed manifest parsing
-- [ ] Dangerous pattern detection
+- [ ] Risk scoring engine
 - [ ] Permission analysis
-- [ ] Risk scoring
 
-### Future Sprints
-- [ ] Structured logging
-- [x] Test infrastructure ✅
-- [ ] CLI interface
-- [ ] Web dashboard
+### 🔮 Future
+- [ ] Web Dashboard
+- [ ] CLI Interface
+- [ ] Structured Logging
 
----
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing`)
-3. Commit changes (`git commit -m 'Add amazing feature'`)
-4. Push to branch (`git push origin feature/amazing`)
-5. Open a Pull Request
-
----
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
-
-## 🙏 Acknowledgments
-
-- [FastAPI](https://fastapi.tiangolo.com/) - Modern Python web framework
-- [SQLAlchemy](https://www.sqlalchemy.org/) - Python SQL toolkit
-- [Pydantic](https://docs.pydantic.dev/) - Data validation library
-- [VS Code Extension API](https://code.visualstudio.com/api) - Extension manifest reference
+<br>
 
 ---
 
 <div align="center">
-  <strong>Built with ❤️ for extension security</strong>
+
+**Built with ❤️ for extension security**
+
 </div>
