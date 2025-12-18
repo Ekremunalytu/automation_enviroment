@@ -26,6 +26,12 @@ Current Implementation Status:
     ⏳ Update (TODO: update_extension)
     ✅ Delete (delete_extension)
 
+SQLAlchemy 2.0 Style:
+    This module uses the new SQLAlchemy 2.0 Query API:
+    - select() instead of query()
+    - scalars() for single-column results
+    - where() instead of filter()
+
 Usage Example:
     from crud.crud import create_extension, get_extension_by_id
     from database.session import SessionLocal
@@ -41,6 +47,7 @@ Usage Example:
 
 from __future__ import annotations
 
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session, joinedload, load_only
 
@@ -70,7 +77,8 @@ def get_extension_by_id(db: Session, extension_id: int) -> Extension | None:
     Performance:
         O(1) - Direct index lookup on primary key
     """
-    return db.query(Extension).filter(Extension.id == extension_id).first()
+    stmt = select(Extension).where(Extension.id == extension_id)
+    return db.scalars(stmt).first()
 
 
 def search_extension_by_name(
@@ -107,17 +115,17 @@ def search_extension_by_name(
         - Full-text search with PostgreSQL tsvector
         - Trigram similarity for fuzzy matching
     """
-    query = (
-        db.query(Extension)
+    stmt = (
+        select(Extension)
         .options(joinedload(Extension.capabilities))
-        .filter(Extension.name == name)
+        .where(Extension.name == name)
     )
     if publisher:
-        query = query.filter(Extension.publisher == publisher)
+        stmt = stmt.where(Extension.publisher == publisher)
     if version:
-        query = query.filter(Extension.version == version)
+        stmt = stmt.where(Extension.version == version)
 
-    results = query.all()
+    results = db.scalars(stmt).unique().all()
     if not results:
         return None
     if len(results) > 1:
@@ -230,7 +238,8 @@ def get_extensions_all_info(db: Session) -> list[Extension]:
         - Administrative dashboards
         - Full-text search preprocessing
     """
-    return db.query(Extension).options(joinedload(Extension.capabilities)).all()
+    stmt = select(Extension).options(joinedload(Extension.capabilities))
+    return list(db.scalars(stmt).unique().all())
 
 
 def get_extensions_base_info(db: Session) -> list[Extension]:
@@ -271,20 +280,17 @@ def get_extensions_base_info(db: Session) -> list[Extension]:
         If you need more fields, add them to load_only() or use
         get_extensions_all_info() instead.
     """
-    return (
-        db.query(Extension)
-        .options(
-            load_only(
-                Extension.id,
-                Extension.name,
-                Extension.version,
-                Extension.publisher,
-                Extension.description,
-                Extension.icon,
-            )
+    stmt = select(Extension).options(
+        load_only(
+            Extension.id,
+            Extension.name,
+            Extension.version,
+            Extension.publisher,
+            Extension.description,
+            Extension.icon,
         )
-        .all()
     )
+    return list(db.scalars(stmt).all())
 
 
 def delete_extension(
@@ -309,13 +315,13 @@ def delete_extension(
         The unique constraint is (publisher, name, version). For unambiguous deletion,
         provide all three parameters to avoid accidentally deleting the wrong extension.
     """
-    query = db.query(Extension).filter(Extension.name == name)
+    stmt = select(Extension).where(Extension.name == name)
     if publisher:
-        query = query.filter(Extension.publisher == publisher)
+        stmt = stmt.where(Extension.publisher == publisher)
     if version:
-        query = query.filter(Extension.version == version)
+        stmt = stmt.where(Extension.version == version)
 
-    results = query.all()
+    results = db.scalars(stmt).all()
     if not results:
         return False
     if len(results) > 1:

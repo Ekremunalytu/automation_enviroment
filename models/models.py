@@ -56,19 +56,19 @@ Migrations:
 
 from __future__ import annotations
 
+from datetime import datetime
+from typing import Any
+
 from sqlalchemy import (
-    Boolean,
-    Column,
     DateTime,
     Enum,
     ForeignKey,
-    Integer,
     String,
     Text,
     UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
-from sqlalchemy.orm import DeclarativeBase, relationship
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
 
@@ -137,7 +137,7 @@ class Extension(Base):
     # PRIMARY KEY
     # =========================================================================
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     """
     Auto-incrementing primary key.
     PostgreSQL SERIAL type - automatically generated on INSERT.
@@ -149,7 +149,7 @@ class Extension(Base):
     # These fields must be present in every extension's package.json
     # =========================================================================
 
-    name = Column(String, nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String, nullable=False, index=True)
     """
     Extension identifier from package.json "name" field.
 
@@ -160,9 +160,9 @@ class Extension(Base):
     Constraint: Part of unique (publisher, name, version) constraint
     """
 
-    version = Column(String, nullable=False, index=True)
+    version: Mapped[str] = mapped_column(String, nullable=False, index=True)
     """
-    Extension version from pacakge.json "version" field.
+    Extension version from package.json "version" field.
 
     This is the unique identifier within a publisher's namespace.
     Examples: '2.5.6'
@@ -170,7 +170,7 @@ class Extension(Base):
     Constraint: Part of unique (publisher, name, version) constraint
     """
 
-    publisher = Column(String, nullable=False, index=True)
+    publisher: Mapped[str] = mapped_column(String, nullable=False, index=True)
     """
     Publisher account name from package.json "publisher" field.
 
@@ -181,7 +181,7 @@ class Extension(Base):
     Constraint: Part of unique (publisher, name, version) constraint
     """
 
-    engines = Column(JSONB, nullable=False)
+    engines: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
     """
     VS Code version compatibility requirements.
 
@@ -200,13 +200,13 @@ class Extension(Base):
     # These fields may or may not be present in package.json
     # =========================================================================
 
-    license = Column(String, nullable=True)
+    license: Mapped[str | None] = mapped_column(String, nullable=True)
     """SPDX license identifier (MIT, Apache-2.0, etc.)"""
 
-    displayName = Column(String, nullable=True)
+    displayName: Mapped[str | None] = mapped_column(String, nullable=True)
     """Human-readable name with spaces/special characters."""
 
-    description = Column(Text, nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
     """
     Extension description for marketplace display.
 
@@ -216,7 +216,7 @@ class Extension(Base):
     - Same storage efficiency in PostgreSQL
     """
 
-    categories: Column[list[str] | None] = Column(ARRAY(String), nullable=True)
+    categories: Mapped[list[str] | None] = mapped_column(ARRAY(String), nullable=True)
     """
     Marketplace category tags.
 
@@ -228,22 +228,22 @@ class Extension(Base):
     - Debuggers, Formatters, Keymaps, SCM Providers
     """
 
-    keywords: Column[list[str] | None] = Column(ARRAY(String), nullable=True)
+    keywords: Mapped[list[str] | None] = mapped_column(ARRAY(String), nullable=True)
     """
     Search keywords for marketplace discovery.
     Example: ["python", "django", "flask", "pylint"]
     """
 
-    galleryBanner = Column(JSONB, nullable=True)
+    galleryBanner: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
     """
     Marketplace banner styling configuration.
     Example: {"color": "#1e415e", "theme": "dark"}
     """
 
-    preview = Column(Boolean, nullable=True)
+    preview: Mapped[bool | None] = mapped_column(nullable=True)
     """Flag indicating if extension is in preview/beta state."""
 
-    badges = Column(JSONB, nullable=True)
+    badges: Mapped[list[dict[str, Any]] | None] = mapped_column(JSONB, nullable=True)
     """
     Status badges for marketplace display.
 
@@ -257,7 +257,7 @@ class Extension(Base):
     ]
     """
 
-    markdown = Column(Text, nullable=True)
+    markdown: Mapped[str | None] = mapped_column(Text, nullable=True)
     """
     Markdown engine preference: "github" or "standard".
 
@@ -265,7 +265,7 @@ class Extension(Base):
     actual markdown content (README). TEXT has no length limit.
     """
 
-    qna = Column(JSONB, nullable=True)
+    qna: Mapped[Any | None] = mapped_column(JSONB, nullable=True)
     """
     Q&A configuration - flexible type handling.
 
@@ -277,16 +277,16 @@ class Extension(Base):
     JSONB handles all these variants elegantly.
     """
 
-    sponsor = Column(JSONB, nullable=True)
+    sponsor: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
     """Sponsor/donation link configuration. Example: {"url": "..."}"""
 
-    icon = Column(String, nullable=True)
+    icon: Mapped[str | None] = mapped_column(String, nullable=True)
     """Path or URL to extension icon (128x128 PNG recommended)."""
 
-    pricing = Column(String, nullable=True)
+    pricing: Mapped[str | None] = mapped_column(String, nullable=True)
     """Pricing model: "Free", "Trial", or "Paid"."""
 
-    main = Column(String, nullable=True)
+    main: Mapped[str | None] = mapped_column(String, nullable=True)
     """
     Desktop extension entry point (Node.js host).
     Relative path to main JavaScript file.
@@ -294,7 +294,7 @@ class Extension(Base):
     This file is very important for malicious analysis.
     """
 
-    web = Column(String, nullable=True)
+    web: Mapped[str | None] = mapped_column(String, nullable=True)
     """
     Web extension entry point (browser host).
     Required for vscode.dev and github.dev compatibility.
@@ -305,7 +305,9 @@ class Extension(Base):
     # TIMESTAMP FIELDS (AUTO-MANAGED)
     # =========================================================================
 
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
     """
     Record creation timestamp (auto-set by database).
 
@@ -314,7 +316,9 @@ class Extension(Base):
     Timezone-aware (WITH TIME ZONE in PostgreSQL).
     """
 
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    updated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), onupdate=func.now()
+    )
     """
     Last update timestamp (auto-set on updates).
 
@@ -327,14 +331,18 @@ class Extension(Base):
     # RELATIONSHIPS
     # =========================================================================
 
-    capabilities = relationship(
-        "ExtensionCapabilities",
+    capabilities: Mapped[ExtensionCapabilities | None] = relationship(
         back_populates="extension",
         uselist=False,
         cascade="all, delete-orphan",
         single_parent=True,
     )
 
+    scripts: Mapped[list[ExtensionScripts]] = relationship(
+        back_populates="extension",
+        cascade="all, delete-orphan",
+        single_parent=True,
+    )
     # =========================================================================
     # TABLE CONSTRAINTS
     # =========================================================================
@@ -380,11 +388,9 @@ class ExtensionCapabilities(Base):
     # =========================================================================
     # PRIMARY KEY (Shared with Extension)
     # =========================================================================
-    extension_id = Column(
-        Integer,
+    extension_id: Mapped[int] = mapped_column(
         ForeignKey("extensions.id", ondelete="CASCADE"),
         primary_key=True,  # Hem PK hem FK olmasi 1:1 iliskiyi garantiler
-        nullable=False,
     )
 
     # =========================================================================
@@ -392,18 +398,18 @@ class ExtensionCapabilities(Base):
     # =========================================================================
     # Security Critical: Determines if extension runs in Restricted Mode.
 
-    untrusted_supported: Column[str | None] = Column(
+    untrusted_supported: Mapped[str | None] = mapped_column(
         capability_support_enum, nullable=True
     )
     """
-    Values: 'true', 'false', 'limited', or NULL.
+    Values: 'supported', 'not_supported', 'limited', or NULL.
     Note: Converted from boolean/string in package.json to standardized enum.
     """
 
-    untrusted_description = Column(Text, nullable=True)
+    untrusted_description: Mapped[str | None] = mapped_column(Text, nullable=True)
     """Explanation provided by the author specifically for trust issues."""
 
-    untrusted_restricted_configurations: Column[list[str] | None] = Column(
+    untrusted_restricted_configurations: Mapped[list[str] | None] = mapped_column(
         ARRAY(String), nullable=True
     )
     """
@@ -417,18 +423,18 @@ class ExtensionCapabilities(Base):
     # =========================================================================
     # Determines if extension runs in vscode.dev / GitHub Codespaces
 
-    virtual_supported: Column[str | None] = Column(
+    virtual_supported: Mapped[str | None] = mapped_column(
         capability_support_enum, nullable=True
     )
-    """Values: 'true', 'false', 'limited', or NULL."""
+    """Values: 'supported', 'not_supported', 'limited', or NULL."""
 
-    virtual_description = Column(Text, nullable=True)
+    virtual_description: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # =========================================================================
     # RELATIONSHIPS
     # =========================================================================
 
-    extension = relationship("Extension", back_populates="capabilities")
+    extension: Mapped[Extension] = relationship(back_populates="capabilities")
 
 
 class ExtensionCommand(Base):
@@ -447,45 +453,61 @@ class ExtensionCommand(Base):
 
     __tablename__ = "extension_commands"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     """Primary Key"""
 
-    extension_id = Column(
-        Integer,
+    extension_id: Mapped[int] = mapped_column(
         ForeignKey("extensions.id", ondelete="CASCADE"),
-        nullable=False,
         index=True,
     )
     """Foreign Key linking to the parent Extension"""
 
-    command_id = Column(String, nullable=False)
+    command_id: Mapped[str] = mapped_column(String)
     """
     The identifier of the command (e.g., 'extension.helloWorld').
     Required field in package.json.
     """
 
-    title = Column(String, nullable=False)
+    title: Mapped[str] = mapped_column(String)
     """
     Title of the command, like 'Hello World'.
     Shown in the Command Palette.
     """
 
-    category = Column(String, nullable=True)
+    category: Mapped[str | None] = mapped_column(String, nullable=True)
     """
     Category for grouping commands in the Palette (e.g., 'Git', 'File').
     Optional.
     """
 
-    icon = Column(JSONB, nullable=True)
+    icon: Mapped[dict[str, Any] | str | None] = mapped_column(JSONB, nullable=True)
     """
     Icon for the command.
     Can be a string (path) or object ({dark: ..., light: ...}).
     Using JSONB to support both formats.
     """
 
-    when = Column(JSONB, nullable=True)
+    when: Mapped[dict[str, Any] | str | None] = mapped_column(JSONB, nullable=True)
     """
     When condition for the command.
     Can be a string (e.g., 'editorTextFocus') or object ({resource: ...}).
     Using JSONB to support both formats.
     """
+
+
+class ExtensionScripts(Base):
+    __tablename__ = "extension_scripts"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+
+    extension_id: Mapped[int] = mapped_column(
+        ForeignKey("extensions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    script_name: Mapped[str] = mapped_column(String, nullable=False)
+
+    script_command: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+
+    extension: Mapped[Extension] = relationship(back_populates="scripts")

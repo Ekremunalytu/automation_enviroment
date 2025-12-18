@@ -32,12 +32,13 @@ Connection Pooling:
 
 Usage:
     from database.session import SessionLocal
+    from sqlalchemy import select
 
     # Create a session
     db = SessionLocal()
     try:
-        # Use the session
-        result = db.query(MyModel).all()
+        # Use the session with SQLAlchemy 2.0 style
+        result = db.scalars(select(MyModel)).all()
     finally:
         db.close()
 

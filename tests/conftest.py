@@ -91,7 +91,7 @@ def db_session(test_engine: Any) -> Generator[Session, None, None]:
     connection = test_engine.connect()
     transaction = connection.begin()
 
-    session_factory = sessionmaker(bind=connection)
+    session_factory = sessionmaker(bind=connection, future=True)
     session = session_factory()
 
     yield session
