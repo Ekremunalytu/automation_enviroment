@@ -315,3 +315,58 @@ def parse_capabilities(package_json: dict[str, Any]) -> dict[str, Any] | None:
         "virtual_supported": virtual_supported,
         "virtual_description": virtual_description,
     }
+
+
+def parse_scripts(package_json: dict[str, Any]) -> list[dict[str, Any]] | None:
+    """
+    Parse scripts from package.json into a list of structured dictionaries.
+
+    Each script entry in package.json is converted to a dictionary with
+    script_name and script_command fields matching the database schema.
+
+    Args:
+        package_json: Complete package.json dictionary
+
+    Returns:
+        List of dictionaries with parsed scripts ready for schema conversion,
+        or None if no scripts field exists.
+
+    Example Input:
+        {
+            "scripts": {
+                "compile": "tsc -p ./",
+                "watch": "tsc -watch -p ./",
+                "test": "npm run compile && node ./out/test/runTest.js"
+            }
+        }
+
+    Example Output:
+        [
+            {"script_name": "compile", "script_command": {"command": "tsc -p ./"}},
+            {"script_name": "watch", "script_command": {"command": "tsc -watch"}},
+            {"script_name": "test", "script_command": {"command": "npm run compile"}}
+        ]
+    """
+    scripts = package_json.get("scripts")
+    if not scripts or not isinstance(scripts, dict):
+        return None
+
+    parsed_scripts = []
+    for script_name, script_command in scripts.items():
+        # Convert string command to dict format for JSONB storage
+        if isinstance(script_command, str):
+            command_data = {"command": script_command}
+        elif isinstance(script_command, dict):
+            command_data = script_command
+        else:
+            # Skip invalid script entries
+            continue
+
+        parsed_scripts.append(
+            {
+                "script_name": script_name,
+                "script_command": command_data,
+            }
+        )
+
+    return parsed_scripts if parsed_scripts else None

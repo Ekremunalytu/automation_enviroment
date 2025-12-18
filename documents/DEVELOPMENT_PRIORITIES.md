@@ -48,6 +48,7 @@
 | **Entry Points** | `main`, `browser`, `web` | Code execution locations | ✅ Done |
 | **Dependencies** | `dependencies`, `devDependencies`, `extensionDependencies` | Supply chain mapping | ⏳ Pending |
 | **Capabilities** | `capabilities`, `extensionKind` | Extension type classification | ✅ Done |
+| **Scripts** | `scripts` | npm scripts parsing | ✅ Done |
 | **Repository** | `repository`, `homepage`, `bugs` | Source verification | ⏳ Pending |
 
 <br>
@@ -62,6 +63,7 @@ erDiagram
     EXTENSIONS ||--o{ EVENTS : triggers
     EXTENSIONS ||--o{ CONTRIBS : provides
     EXTENSIONS ||--o{ DEPS : depends_on
+    EXTENSIONS ||--o{ SCRIPTS : contains
 
     EXTENSIONS {
         int id PK
@@ -92,6 +94,11 @@ erDiagram
     DEPS {
         string dep_name
         string version
+    }
+
+    SCRIPTS {
+        string script_name
+        jsonb script_command
     }
 ```
 

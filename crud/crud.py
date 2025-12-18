@@ -51,8 +51,12 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session, joinedload, load_only
 
-from models.models import Extension, ExtensionCapabilities
-from schemas.schemas import ExtensionCapabilitiesSchema, ExtensionSchema
+from models.models import Extension, ExtensionCapabilities, ExtensionScripts
+from schemas.schemas import (
+    ExtensionCapabilitiesSchema,
+    ExtensionSchema,
+    ExtensionScriptsSchema,
+)
 
 
 def get_extension_by_id(db: Session, extension_id: int) -> Extension | None:
@@ -117,7 +121,10 @@ def search_extension_by_name(
     """
     stmt = (
         select(Extension)
-        .options(joinedload(Extension.capabilities))
+        .options(
+            joinedload(Extension.capabilities),
+            joinedload(Extension.scripts),
+        )
         .where(Extension.name == name)
     )
     if publisher:
@@ -141,6 +148,7 @@ def create_extension(
     db: Session,
     extension: ExtensionSchema,
     capabilities: ExtensionCapabilitiesSchema | None = None,
+    scripts: list[ExtensionScriptsSchema] | None = None,
 ) -> Extension:
     """
     Create a new extension record in the database.
@@ -152,6 +160,7 @@ def create_extension(
         db: SQLAlchemy database session
         extension: Pydantic schema containing extension data
         capabilities: Optional Pydantic schema for extension capabilities
+        scripts: Optional list of Pydantic schemas for extension scripts
 
     Returns:
         The created Extension ORM object with populated ID
@@ -190,6 +199,15 @@ def create_extension(
                 **capabilities.model_dump(),
             )
             db.add(db_capabilities)
+
+        # Create scripts records if provided
+        if scripts:
+            for script in scripts:
+                db_script = ExtensionScripts(
+                    extension_id=db_extension.id,
+                    **script.model_dump(),
+                )
+                db.add(db_script)
 
         db.commit()
         db.refresh(db_extension)
@@ -238,7 +256,10 @@ def get_extensions_all_info(db: Session) -> list[Extension]:
         - Administrative dashboards
         - Full-text search preprocessing
     """
-    stmt = select(Extension).options(joinedload(Extension.capabilities))
+    stmt = select(Extension).options(
+        joinedload(Extension.capabilities),
+        joinedload(Extension.scripts),
+    )
     return list(db.scalars(stmt).unique().all())
 
 

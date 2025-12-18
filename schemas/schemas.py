@@ -65,6 +65,23 @@ class ExtensionCapabilitiesSchema(BaseModel):
     """Author's explanation for virtual workspace limitations."""
 
 
+class ExtensionScriptsSchema(BaseModel):
+    """
+    Schema for Extension Scripts.
+
+    Represents the 'scripts' field from package.json.
+    Contains npm scripts defined for the extension.
+    """
+
+    model_config = ConfigDict(from_attributes=True, extra="ignore")
+
+    script_name: str
+    """Name of the script (e.g., 'compile', 'watch', 'test')."""
+
+    script_command: dict[str, Any]
+    """Script command or command details."""
+
+
 # =============================================================================
 # Extension Schemas
 # =============================================================================
@@ -356,3 +373,6 @@ class ExtensionDetailSchema(ExtensionSchema):
 
     capabilities: ExtensionCapabilitiesSchema | None = None
     """Extension capabilities (workspace trust, virtual workspaces)."""
+
+    scripts: list[ExtensionScriptsSchema] = []
+    """Extension scripts (npm scripts from package.json)."""

@@ -1,7 +1,7 @@
 # ExTrace API - Project Review Report
 
 > **Project:** VS Code Extension Security Scanner (ExTrace)  
-> **Review Date:** 2025-12-16  
+> **Review Date:** 2025-12-18  
 > **Environment:** Single user, isolated sandbox, single pipeline  
 > **Repo Type:** Test/POC Repository
 
@@ -173,6 +173,19 @@ def delete_extension(
 > Not implemented - Extension data is immutable. Once scanned and stored,
 > extension metadata should not change. If an extension needs to be updated,
 > delete and re-scan is the recommended approach.
+
+**✅ Scripts Parsing (Implemented - 2025-12-18):**
+```python
+# scanner/json_parser.py
+def parse_scripts(package_json: dict) -> list[dict] | None:
+    scripts = package_json.get("scripts")
+    # Returns list of {script_name, script_command} dicts
+```
+
+**✅ SQLAlchemy 2.0 Migration (Completed - 2025-12-18):**
+- All models migrated to `mapped_column()` and `Mapped[]` annotations
+- CRUD operations use new `select()` statement API
+- Query syntax updated: `scalars()` instead of `query()`
 
 ---
 

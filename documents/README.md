@@ -18,7 +18,7 @@
 
 ---
 
-`Last Updated: 2025-12-16` • `Version: 1.0.0` • `Status: Active`
+`Last Updated: 2025-12-18` • `Version: 1.1.0` • `Status: Active`
 
 ---
 
@@ -359,6 +359,15 @@ extrace/
 
 <br>
 
+### Related Tables
+
+| Table | Relationship | Description |
+|:------|:-------------|:------------|
+| `extension_capabilities` | 1:1 | Workspace trust & virtual workspace settings |
+| `extension_scripts` | 1:N | npm scripts from package.json |
+
+<br>
+
 ---
 
 <br>
@@ -406,13 +415,13 @@ pytest --cov=. --cov-report=html
 
 ### ✅ Completed
 - [x] PostgreSQL + Docker Setup
-- [x] SQLAlchemy Models & Alembic Migrations
+- [x] SQLAlchemy 2.0 Models & Alembic Migrations
 - [x] CRUD Operations
 - [x] **Capabilities Parsing** (Workspace Trust & Virtual Workspaces)
+- [x] **Scripts Parsing** (npm scripts from package.json)
 
 ### 🚧 In Progress
 - [ ] Detailed manifest parsing (Commands, Events)
-- [ ] Detailed manifest parsing
 - [ ] Risk scoring engine
 - [ ] Permission analysis
 

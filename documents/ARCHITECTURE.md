@@ -17,7 +17,7 @@
 
 ---
 
-`Last Updated: 2025-12-16` • `Version: 1.0.0` • `Status: Development`
+`Last Updated: 2025-12-18` • `Version: 1.1.0` • `Status: Development`
 
 ---
 
@@ -314,18 +314,26 @@ sequenceDiagram
 
     S->>P: search_extension("python")
     P->>P: Scan extensions/ directory
-    P->>P: Parse package.json + capabilities
-    P-->>S: Return package data + capabilities
+    P->>P: Parse package.json
+    P-->>S: Return package data
+
+    S->>P: parse_capabilities(package_json)
+    P-->>S: Return capabilities data
+    S->>P: parse_scripts(package_json)
+    P-->>S: Return scripts data
 
     S->>S: ExtensionSchema(**package_json)
     S->>S: ExtensionCapabilitiesSchema(**caps)
-    S->>CR: create_extension(db, schema, caps)
+    S->>S: ExtensionScriptsSchema(**scripts)
+    S->>CR: create_extension(db, schema, caps, scripts)
 
     CR->>CR: Extension(**schema.model_dump())
     CR->>DB: INSERT INTO extensions
     DB-->>CR: Return with ID
     CR->>CR: ExtensionCapabilities(ext_id, **caps)
     CR->>DB: INSERT INTO extension_capabilities
+    CR->>CR: ExtensionScripts(ext_id, **script)
+    CR->>DB: INSERT INTO extension_scripts (for each)
     CR->>CR: db.commit() + db.refresh()
     CR-->>S: Return Extension ORM
 
@@ -421,6 +429,7 @@ sequenceDiagram
 erDiagram
     EXTENSIONS ||--|| EXTENSION_CAPABILITIES : "has (1:1)"
     EXTENSIONS ||--o{ EXTENSION_COMMANDS : "defines (1:N)"
+    EXTENSIONS ||--o{ EXTENSION_SCRIPTS : "contains (1:N)"
 
     EXTENSIONS {
         int id PK "🔑 Auto-increment"
@@ -464,6 +473,13 @@ erDiagram
         string category "📂 Grouping"
         jsonb icon "🖼️ Icon Path"
         jsonb when "❓ Condition"
+    }
+
+    EXTENSION_SCRIPTS {
+        int id PK "🔑 Auto-increment"
+        int extension_id FK "🔗 Foreign Key"
+        string script_name "📛 Script Name"
+        jsonb script_command "⚡ Command Details"
     }
 ```
 
