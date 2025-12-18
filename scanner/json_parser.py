@@ -219,3 +219,99 @@ def search_extension(extension_name_field: str) -> dict[str, Any] | None:
 
     # No matching extension found in any directory
     return None
+
+
+def parse_capabilities(package_json: dict[str, Any]) -> dict[str, Any] | None:
+    """
+    Parse capabilities from package.json into a structured dictionary.
+
+    Handles the polymorphic nature of capabilities fields in package.json:
+    - untrustedWorkspaces.supported can be: true, false, "limited"
+    - virtualWorkspaces.supported can be: true, false, "limited"
+
+    This function converts package.json boolean/string values to standardized
+    enum string values that match the database schema.
+
+    Args:
+        package_json: Complete package.json dictionary
+
+    Returns:
+        Dictionary with parsed capabilities ready for schema conversion,
+        or None if no capabilities field exists.
+
+    Value Mapping:
+        - true  → "supported"
+        - false → "not_supported"
+        - "limited" → "limited"
+
+    Example Input:
+        {
+            "capabilities": {
+                "untrustedWorkspaces": {
+                    "supported": "limited",
+                    "description": "Some features disabled...",
+                    "restrictedConfigurations": ["python.defaultInterpreterPath"]
+                },
+                "virtualWorkspaces": {
+                    "supported": false,
+                    "description": "Requires filesystem access"
+                }
+            }
+        }
+
+    Example Output:
+        {
+            "untrusted_supported": "limited",
+            "untrusted_description": "Some features disabled...",
+            "untrusted_restricted_configurations": ["python.defaultInterpreterPath"],
+            "virtual_supported": "not_supported",
+            "virtual_description": "Requires filesystem access"
+        }
+    """
+    capabilities = package_json.get("capabilities")
+    if not capabilities:
+        return None
+
+    def _convert_support_value(value: Any) -> str | None:
+        """Convert package.json support value to database enum string."""
+        if value is True:
+            return "supported"
+        elif value is False:
+            return "not_supported"
+        elif value == "limited":
+            return "limited"
+        return None
+
+    # Parse untrustedWorkspaces
+    untrusted = capabilities.get("untrustedWorkspaces", {})
+    untrusted_supported = None
+    untrusted_description = None
+    untrusted_restricted = None
+
+    if isinstance(untrusted, dict):
+        untrusted_supported = _convert_support_value(untrusted.get("supported"))
+        untrusted_description = untrusted.get("description")
+        untrusted_restricted = untrusted.get("restrictedConfigurations")
+    elif isinstance(untrusted, bool):
+        # Simple boolean format: {"untrustedWorkspaces": true}
+        untrusted_supported = _convert_support_value(untrusted)
+
+    # Parse virtualWorkspaces
+    virtual = capabilities.get("virtualWorkspaces", {})
+    virtual_supported = None
+    virtual_description = None
+
+    if isinstance(virtual, dict):
+        virtual_supported = _convert_support_value(virtual.get("supported"))
+        virtual_description = virtual.get("description")
+    elif isinstance(virtual, bool):
+        # Simple boolean format: {"virtualWorkspaces": false}
+        virtual_supported = _convert_support_value(virtual)
+
+    return {
+        "untrusted_supported": untrusted_supported,
+        "untrusted_description": untrusted_description,
+        "untrusted_restricted_configurations": untrusted_restricted,
+        "virtual_supported": virtual_supported,
+        "virtual_description": virtual_description,
+    }

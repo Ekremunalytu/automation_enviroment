@@ -49,9 +49,10 @@ from crud.crud import delete_extension as delete_db_extension
 from crud.crud import get_extensions_all_info, get_extensions_base_info
 from crud.crud import search_extension_by_name as search_db_extension
 from models.models import Extension
-from schemas.schemas import ExtensionSchema
+from schemas.schemas import ExtensionCapabilitiesSchema, ExtensionSchema
 
 # File system operations for scanning extensions directory
+from .json_parser import parse_capabilities
 from .json_parser import search_extension as find_json_in_dir
 
 
@@ -260,12 +261,20 @@ def create_extension_by_name(db: Session, extension_name: str) -> Extension | No
         # The `extra="ignore"` config silently drops unknown fields.
         package_schema = ExtensionSchema(**package_json)
 
+        # Step 2.5: Parse capabilities from package.json
+        capabilities_data = parse_capabilities(package_json)
+        capabilities_schema = (
+            ExtensionCapabilitiesSchema(**capabilities_data)
+            if capabilities_data
+            else None
+        )
+
         # Step 3: Persist to database via CRUD layer
         # create_db_extension handles:
         # - ORM model creation
         # - Transaction commit
         # - Duplicate detection (raises ValueError)
-        return create_db_extension(db, package_schema)
+        return create_db_extension(db, package_schema, capabilities_schema)
 
     # Extension not found in filesystem
     return None

@@ -41,14 +41,14 @@
 
 **Goal:** Extract every field from `package.json` that reveals extension behavior.
 
-| Field Category | Fields to Parse | Purpose |
-|:---------------|:----------------|:--------|
-| **Identity** | `name`, `publisher`, `version`, `displayName` | Unique extension identification |
-| **Permissions** | `activationEvents`, `contributes` | What triggers the extension |
-| **Entry Points** | `main`, `browser`, `web` | Code execution locations |
-| **Dependencies** | `dependencies`, `devDependencies`, `extensionDependencies` | Supply chain mapping |
-| **Capabilities** | `capabilities`, `extensionKind` | Extension type classification |
-| **Repository** | `repository`, `homepage`, `bugs` | Source verification |
+| Field Category | Fields to Parse | Purpose | Status |
+|:---------------|:----------------|:--------|:-------|
+| **Identity** | `name`, `publisher`, `version`, `displayName` | Unique extension identification | ✅ Done |
+| **Permissions** | `activationEvents`, `contributes` | What triggers the extension | 🚧 In Progress |
+| **Entry Points** | `main`, `browser`, `web` | Code execution locations | ✅ Done |
+| **Dependencies** | `dependencies`, `devDependencies`, `extensionDependencies` | Supply chain mapping | ⏳ Pending |
+| **Capabilities** | `capabilities`, `extensionKind` | Extension type classification | ✅ Done |
+| **Repository** | `repository`, `homepage`, `bugs` | Source verification | ⏳ Pending |
 
 <br>
 
@@ -58,6 +58,7 @@
 %%{init: {'theme': 'dark', 'themeVariables': { 'background': '#0d1117', 'primaryColor': '#7c3aed', 'primaryTextColor': '#e6edf3', 'lineColor': '#22d3ee', 'mainBkg': '#161b22', 'nodeBkg': '#21262d', 'clusterBkg': '#161b22'}}}%%
 erDiagram
     EXTENSIONS ||--o{ COMMANDS : has
+    EXTENSIONS ||--|| CAPABILITIES : has
     EXTENSIONS ||--o{ EVENTS : triggers
     EXTENSIONS ||--o{ CONTRIBS : provides
     EXTENSIONS ||--o{ DEPS : depends_on
@@ -67,9 +68,15 @@ erDiagram
         string name
     }
 
+    CAPABILITIES {
+        enum untrusted_supported
+        enum virtual_supported
+    }
+
     COMMANDS {
         string command_id
         string title
+        jsonb when
     }
 
     EVENTS {

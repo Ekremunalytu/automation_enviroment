@@ -11,9 +11,63 @@ serialization, and API documentation in the ExTrace VS Code Extension Scanner.
 
 from __future__ import annotations
 
+from enum import Enum
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
+
+# =============================================================================
+# Enums
+# =============================================================================
+
+
+class CapabilitySupportState(str, Enum):
+    """
+    Enum for capability support states.
+
+    Maps to the PostgreSQL enum 'capability_support_state'.
+    Used for untrustedWorkspaces and virtualWorkspaces support levels.
+    """
+
+    SUPPORTED = "supported"
+    NOT_SUPPORTED = "not_supported"
+    LIMITED = "limited"
+
+
+# =============================================================================
+# Capabilities Schema
+# =============================================================================
+
+
+class ExtensionCapabilitiesSchema(BaseModel):
+    """
+    Schema for Extension Capabilities.
+
+    Represents the 'capabilities' field from package.json.
+    Used for workspace trust and virtual workspace support configuration.
+    """
+
+    model_config = ConfigDict(from_attributes=True, extra="ignore")
+
+    untrusted_supported: CapabilitySupportState | None = None
+    """Support level for untrusted workspaces."""
+
+    untrusted_description: str | None = None
+    """Author's explanation for workspace trust limitations."""
+
+    untrusted_restricted_configurations: list[str] | None = None
+    """List of configuration IDs disabled in Restricted Mode."""
+
+    virtual_supported: CapabilitySupportState | None = None
+    """Support level for virtual workspaces."""
+
+    virtual_description: str | None = None
+    """Author's explanation for virtual workspace limitations."""
+
+
+# =============================================================================
+# Extension Schemas
+# =============================================================================
 
 
 class ExtensionSchema(BaseModel):
@@ -279,27 +333,26 @@ class SearchAllExtensionsInfo(BaseModel):
     """Icon URL for thumbnail rendering."""
 
 
-class SearchAllExtensionsAllInfo(ExtensionSchema):
+class ExtensionDetailSchema(ExtensionSchema):
     """
-    Complete extension listing schema with database ID.
+    Complete extension schema with database fields for API responses.
 
-    Extends ExtensionSchema to include the database ID.
-    Used by GET /getExtensionsAllInfo for full data export.
+    Extends ExtensionSchema to include:
+    - Database ID for reference
+    - Capabilities (workspace trust, virtual workspaces)
 
-    Inherits all fields from ExtensionSchema plus:
-        id: Database primary key for reference
+    Used by:
+    - GET /searchExtension (single extension detail)
+    - POST /createExtension (response after creation)
+    - GET /getExtensionsAllInfo (full data export)
 
-    Use Cases:
-        - Full data export/backup
-        - Detailed extension comparison
-        - Administrative views
-
-    Note:
-        This returns significantly more data than SearchAllExtensionsInfo.
-        Use sparingly for large datasets to avoid performance issues.
+    This schema is for OUTPUT only, not for input validation.
     """
 
     model_config = ConfigDict(from_attributes=True)
 
     id: int
     """Database auto-generated primary key."""
+
+    capabilities: ExtensionCapabilitiesSchema | None = None
+    """Extension capabilities (workspace trust, virtual workspaces)."""

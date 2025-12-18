@@ -21,8 +21,10 @@ Usage:
     # Access config
     print(settings.project.NAME)
     print(settings.api.PORT)
-    print(settings.db.URL)
+    print(settings.db.url)
 """
+
+import os
 
 from pydantic import PostgresDsn, computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -67,6 +69,10 @@ class DatabaseSettings(BaseSettings):
     """
     Database connection configuration.
     Prefix: POSTGRES_
+
+    Priority:
+    1. DATABASE_URL environment variable (for Docker/CI)
+    2. Constructed URL from POSTGRES_* variables (for local dev)
     """
 
     USER: str = "postgres"
@@ -77,17 +83,24 @@ class DatabaseSettings(BaseSettings):
 
     @computed_field  # type: ignore[prop-decorator]
     @property
-    def url(self) -> PostgresDsn:
+    def url(self) -> str:
         """
-        Constructs the PostgreSQL DSN from individual components.
+        Returns database URL.
+        Priority: DATABASE_URL env var > constructed from components.
         """
-        return PostgresDsn.build(
-            scheme="postgresql",
-            username=self.USER,
-            password=self.PASSWORD,
-            host=self.HOST,
-            port=self.PORT,
-            path=self.DB,
+        # Check for DATABASE_URL first (Docker/CI override)
+        database_url = os.getenv("DATABASE_URL")
+        if database_url:
+            return database_url
+        return str(
+            PostgresDsn.build(
+                scheme="postgresql",
+                username=self.USER,
+                password=self.PASSWORD,
+                host=self.HOST,
+                port=self.PORT,
+                path=self.DB,
+            )
         )
 
     model_config = SettingsConfigDict(

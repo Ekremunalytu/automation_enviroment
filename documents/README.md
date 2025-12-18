@@ -78,12 +78,13 @@
 
 | Feature | Description |
 |:--------|:------------|
-| 🔍 **Extension Scanning** | Parse and validate VS Code extension manifests |
+| 🔍 **Extension Scanning** | Parse and validate VS Code extension manifests (including capabilities) |
 | 🗄️ **PostgreSQL Storage** | Persistent storage with JSONB support for complex data |
 | 📡 **REST API** | FastAPI-powered endpoints with automatic OpenAPI docs |
 | 🐳 **Docker Ready** | Multi-service Docker Compose setup |
 | 🔒 **Security First** | Non-root containers, input validation, SQL injection prevention |
 | 📊 **Optimized Queries** | Indexed fields, partial column loading for performance |
+| 🛡️ **Trust Analysis** | Parses `untrustedWorkspaces` and `virtualWorkspaces` capabilities |
 
 <br>
 
@@ -407,9 +408,10 @@ pytest --cov=. --cov-report=html
 - [x] PostgreSQL + Docker Setup
 - [x] SQLAlchemy Models & Alembic Migrations
 - [x] CRUD Operations
-- [x] **Test Infrastructure**
+- [x] **Capabilities Parsing** (Workspace Trust & Virtual Workspaces)
 
 ### 🚧 In Progress
+- [ ] Detailed manifest parsing (Commands, Events)
 - [ ] Detailed manifest parsing
 - [ ] Risk scoring engine
 - [ ] Permission analysis

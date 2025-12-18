@@ -55,9 +55,8 @@ from sqlalchemy.orm import Session
 from core.deps import get_db
 from scanner import service
 from schemas.schemas import (
-    ExtensionSchema,
+    ExtensionDetailSchema,
     ScanRequest,
-    SearchAllExtensionsAllInfo,
     SearchAllExtensionsInfo,
     SearchRequest,
 )
@@ -144,7 +143,7 @@ def health_check():
 # =============================================================================
 
 
-@router.get("/searchExtension", response_model=ExtensionSchema)
+@router.get("/searchExtension", response_model=ExtensionDetailSchema)
 def search_extension(params: SearchRequest = Depends(), db: Session = Depends(get_db)):
     """
     Search for a single extension by exact name.
@@ -279,7 +278,7 @@ def get_extensions_base_info(db: Session = Depends(get_db)):
         ) from e
 
 
-@router.get("/getExtensionsAllInfo", response_model=list[SearchAllExtensionsAllInfo])
+@router.get("/getExtensionsAllInfo", response_model=list[ExtensionDetailSchema])
 def get_extensions_all_info(db: Session = Depends(get_db)):
     """
     List all extensions with complete information.
@@ -289,12 +288,13 @@ def get_extensions_all_info(db: Session = Depends(get_db)):
 
     Includes all ExtensionSchema fields plus:
         - id: Database primary key
+        - capabilities: Extension capabilities data
 
     Args:
         db: Database session from dependency injection
 
     Returns:
-        List[SearchAllExtensionsAllInfo]: Array of complete extension data
+        List[ExtensionDetailSchema]: Array of complete extension data
 
     Raises:
         HTTPException 400: Invalid request parameters
@@ -353,7 +353,7 @@ def get_extensions_all_info(db: Session = Depends(get_db)):
 # =============================================================================
 
 
-@router.post("/createExtension", response_model=ExtensionSchema)
+@router.post("/createExtension", response_model=ExtensionDetailSchema)
 def create_extension(request: ScanRequest, db: Session = Depends(get_db)):
     """
     Scan and create a new extension in the database.

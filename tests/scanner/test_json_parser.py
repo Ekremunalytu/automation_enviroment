@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 from unittest.mock import MagicMock, mock_open, patch
 
-from scanner.json_parser import get_package_json, search_extension
+from scanner.json_parser import get_package_json, parse_capabilities, search_extension
 
 # Sample package.json content for testing
 SAMPLE_PACKAGE_JSON = {
@@ -87,3 +87,117 @@ def test_search_extension_dir_not_found(mock_path_cls):
 
     result = search_extension("any-ext")
     assert result is None
+
+
+# =============================================================================
+# Capabilities Parsing Tests
+# =============================================================================
+
+
+class TestParseCapabilities:
+    """Tests for parse_capabilities function."""
+
+    def test_no_capabilities_returns_none(self):
+        """Test that missing capabilities field returns None."""
+        package_json = {"name": "test", "version": "1.0.0"}
+        result = parse_capabilities(package_json)
+        assert result is None
+
+    def test_empty_capabilities_returns_none(self):
+        """Test that empty capabilities object returns None.
+
+        An empty capabilities: {} block is treated as "no capabilities"
+        since there's no useful data to store. This avoids creating
+        database rows with all NULL values.
+        """
+        package_json = {"name": "test", "capabilities": {}}
+        result = parse_capabilities(package_json)
+        assert result is None
+
+    def test_untrusted_workspaces_supported_true(self):
+        """Test parsing untrustedWorkspaces with supported=true."""
+        package_json = {"capabilities": {"untrustedWorkspaces": {"supported": True}}}
+        result = parse_capabilities(package_json)
+        assert result["untrusted_supported"] == "supported"
+
+    def test_untrusted_workspaces_supported_false(self):
+        """Test parsing untrustedWorkspaces with supported=false."""
+        package_json = {"capabilities": {"untrustedWorkspaces": {"supported": False}}}
+        result = parse_capabilities(package_json)
+        assert result["untrusted_supported"] == "not_supported"
+
+    def test_untrusted_workspaces_supported_limited(self):
+        """Test parsing untrustedWorkspaces with supported='limited'."""
+        package_json = {
+            "capabilities": {
+                "untrustedWorkspaces": {
+                    "supported": "limited",
+                    "description": "Some features disabled",
+                    "restrictedConfigurations": ["python.path"],
+                }
+            }
+        }
+        result = parse_capabilities(package_json)
+        assert result["untrusted_supported"] == "limited"
+        assert result["untrusted_description"] == "Some features disabled"
+        assert result["untrusted_restricted_configurations"] == ["python.path"]
+
+    def test_untrusted_workspaces_boolean_shorthand(self):
+        """Test parsing untrustedWorkspaces as simple boolean."""
+        package_json = {"capabilities": {"untrustedWorkspaces": True}}
+        result = parse_capabilities(package_json)
+        assert result["untrusted_supported"] == "supported"
+
+    def test_virtual_workspaces_supported_false(self):
+        """Test parsing virtualWorkspaces with supported=false."""
+        package_json = {
+            "capabilities": {
+                "virtualWorkspaces": {
+                    "supported": False,
+                    "description": "Needs filesystem",
+                }
+            }
+        }
+        result = parse_capabilities(package_json)
+        assert result["virtual_supported"] == "not_supported"
+        assert result["virtual_description"] == "Needs filesystem"
+
+    def test_virtual_workspaces_boolean_shorthand(self):
+        """Test parsing virtualWorkspaces as simple boolean."""
+        package_json = {"capabilities": {"virtualWorkspaces": False}}
+        result = parse_capabilities(package_json)
+        assert result["virtual_supported"] == "not_supported"
+
+    def test_full_capabilities_object(self):
+        """Test parsing complete capabilities object."""
+        package_json = {
+            "capabilities": {
+                "untrustedWorkspaces": {
+                    "supported": "limited",
+                    "description": "Limited in restricted mode",
+                    "restrictedConfigurations": [
+                        "python.defaultInterpreterPath",
+                        "python.condaPath",
+                    ],
+                },
+                "virtualWorkspaces": {
+                    "supported": True,
+                    "description": "Works in virtual workspaces",
+                },
+            }
+        }
+        result = parse_capabilities(package_json)
+
+        assert result["untrusted_supported"] == "limited"
+        assert result["untrusted_description"] == "Limited in restricted mode"
+        assert len(result["untrusted_restricted_configurations"]) == 2
+        assert result["virtual_supported"] == "supported"
+        assert result["virtual_description"] == "Works in virtual workspaces"
+
+    def test_invalid_support_value_returns_none(self):
+        """Test that invalid support values return None."""
+        package_json = {
+            "capabilities": {"untrustedWorkspaces": {"supported": "invalid_value"}}
+        }
+        result = parse_capabilities(package_json)
+        assert result["untrusted_supported"] is None

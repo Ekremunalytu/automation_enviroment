@@ -314,20 +314,23 @@ sequenceDiagram
 
     S->>P: search_extension("python")
     P->>P: Scan extensions/ directory
-    P->>P: Parse package.json
-    P-->>S: Return package data
+    P->>P: Parse package.json + capabilities
+    P-->>S: Return package data + capabilities
 
     S->>S: ExtensionSchema(**package_json)
-    S->>CR: create_extension(db, schema)
+    S->>S: ExtensionCapabilitiesSchema(**caps)
+    S->>CR: create_extension(db, schema, caps)
 
     CR->>CR: Extension(**schema.model_dump())
     CR->>DB: INSERT INTO extensions
     DB-->>CR: Return with ID
+    CR->>CR: ExtensionCapabilities(ext_id, **caps)
+    CR->>DB: INSERT INTO extension_capabilities
     CR->>CR: db.commit() + db.refresh()
     CR-->>S: Return Extension ORM
 
-    S-->>R: Return Extension
-    R-->>C: 200 OK + ExtensionSchema JSON
+    S-->>R: Return ExtensionDetailSchema
+    R-->>C: 200 OK + ExtensionDetailSchema JSON
 ```
 
 </details>
@@ -356,12 +359,12 @@ sequenceDiagram
     R->>S: search_extension_by_name(db, "python")
 
     S->>CR: search_extension_by_name(db, "python")
-    CR->>DB: SELECT * FROM extensions WHERE name = 'python'
-    DB-->>CR: Return row
+    CR->>DB: SELECT * FROM extensions JOIN capabilities
+    DB-->>CR: Return row + capabilities
     CR-->>S: Return Extension ORM
 
     S-->>R: Return Extension
-    R-->>C: 200 OK + ExtensionSchema JSON
+    R-->>C: 200 OK + ExtensionDetailSchema JSON
 ```
 
 </details>
@@ -393,6 +396,7 @@ sequenceDiagram
     CR->>DB: SELECT * FROM extensions WHERE name = 'python'
     DB-->>CR: Return row
     CR->>DB: DELETE FROM extensions WHERE name = 'python'
+    DB-->>CR: Confirm Delete (Cascade to Capabilities)
     CR->>CR: db.commit()
     CR-->>S: Return True
 
@@ -415,6 +419,9 @@ sequenceDiagram
 ```mermaid
 %%{init: {'theme': 'dark', 'themeVariables': { 'background': '#0d1117', 'primaryColor': '#3b82f6', 'primaryTextColor': '#e6edf3', 'lineColor': '#818cf8', 'tertiaryColor': '#4f46e5', 'attributeBackgroundColorEven': '#161b22', 'attributeBackgroundColorOdd': '#21262d'}}}%%
 erDiagram
+    EXTENSIONS ||--|| EXTENSION_CAPABILITIES : "has (1:1)"
+    EXTENSIONS ||--o{ EXTENSION_COMMANDS : "defines (1:N)"
+
     EXTENSIONS {
         int id PK "🔑 Auto-increment"
         string name "📇 Indexed, NOT NULL"
@@ -438,6 +445,25 @@ erDiagram
         string web "🌐 Optional"
         timestamp created_at "📅 Auto-set"
         timestamp updated_at "🔄 Auto-update"
+    }
+
+    EXTENSION_CAPABILITIES {
+        int extension_id PK,FK "🔑 Foreign Key"
+        enum untrusted_supported "🔒 Security"
+        text untrusted_description "📝 Explanation"
+        array untrusted_restricted_configurations "🚫 Disabled Settings"
+        enum virtual_supported "☁️ Virtual"
+        text virtual_description "📝 Explanation"
+    }
+
+    EXTENSION_COMMANDS {
+        int id PK "🔑 Auto-increment"
+        int extension_id FK "🔗 Foreign Key"
+        string command_id "🆔 Command ID"
+        string title "🏷️ Display Title"
+        string category "📂 Grouping"
+        jsonb icon "🖼️ Icon Path"
+        jsonb when "❓ Condition"
     }
 ```
 

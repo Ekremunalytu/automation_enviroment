@@ -60,6 +60,7 @@ from sqlalchemy import (
     Boolean,
     Column,
     DateTime,
+    Enum,
     ForeignKey,
     Integer,
     String,
@@ -67,7 +68,7 @@ from sqlalchemy import (
     UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
-from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.orm import DeclarativeBase, relationship
 from sqlalchemy.sql import func
 
 
@@ -87,6 +88,14 @@ class Base(DeclarativeBase):
     """
 
     pass
+
+
+capability_support_enum = Enum(
+    "supported",
+    "not_supported",
+    "limited",
+    name="capability_support_state",
+)
 
 
 class Extension(Base):
@@ -282,6 +291,7 @@ class Extension(Base):
     Desktop extension entry point (Node.js host).
     Relative path to main JavaScript file.
     Example: "./dist/extension.js"
+    This file is very important for malicious analysis.
     """
 
     web = Column(String, nullable=True)
@@ -314,6 +324,18 @@ class Extension(Base):
     """
 
     # =========================================================================
+    # RELATIONSHIPS
+    # =========================================================================
+
+    capabilities = relationship(
+        "ExtensionCapabilities",
+        back_populates="extension",
+        uselist=False,
+        cascade="all, delete-orphan",
+        single_parent=True,
+    )
+
+    # =========================================================================
     # TABLE CONSTRAINTS
     # =========================================================================
 
@@ -336,6 +358,77 @@ class Extension(Base):
         ✅ ("ms-python", "python", "2.0.0") - Different version, OK
         ✅ ("other-pub", "python", "1.0.0") - Different publisher, OK
     """
+
+
+class ExtensionCapabilities(Base):
+    """
+    Extension Capabilities (Normalized).
+
+    Parses and stores contents of 'capabilities' from package.json into
+    structured columns for easier SQL querying and security analysis.
+
+    Source: package.json -> capabilities (top-level)
+
+    Design:
+        - Strict 1:1 relationship with Extension (shares Primary Key).
+        - Flattens polymorphic JSON fields into structured columns.
+        - Original package.json remains in filesystem if raw data needed.
+    """
+
+    __tablename__ = "extension_capabilities"
+
+    # =========================================================================
+    # PRIMARY KEY (Shared with Extension)
+    # =========================================================================
+    extension_id = Column(
+        Integer,
+        ForeignKey("extensions.id", ondelete="CASCADE"),
+        primary_key=True,  # Hem PK hem FK olmasi 1:1 iliskiyi garantiler
+        nullable=False,
+    )
+
+    # =========================================================================
+    # WORKSPACE TRUST (Untrusted Workspaces)
+    # =========================================================================
+    # Security Critical: Determines if extension runs in Restricted Mode.
+
+    untrusted_supported: Column[str | None] = Column(
+        capability_support_enum, nullable=True
+    )
+    """
+    Values: 'true', 'false', 'limited', or NULL.
+    Note: Converted from boolean/string in package.json to standardized enum.
+    """
+
+    untrusted_description = Column(Text, nullable=True)
+    """Explanation provided by the author specifically for trust issues."""
+
+    untrusted_restricted_configurations: Column[list[str] | None] = Column(
+        ARRAY(String), nullable=True
+    )
+    """
+    List of configuration IDs (settings) that are disabled in Restricted Mode.
+    Example: ['python.defaultInterpreterPath', 'git.path']
+    Great for analysis: "Which extensions try to hide settings?"
+    """
+
+    # =========================================================================
+    # VIRTUAL WORKSPACES
+    # =========================================================================
+    # Determines if extension runs in vscode.dev / GitHub Codespaces
+
+    virtual_supported: Column[str | None] = Column(
+        capability_support_enum, nullable=True
+    )
+    """Values: 'true', 'false', 'limited', or NULL."""
+
+    virtual_description = Column(Text, nullable=True)
+
+    # =========================================================================
+    # RELATIONSHIPS
+    # =========================================================================
+
+    extension = relationship("Extension", back_populates="capabilities")
 
 
 class ExtensionCommand(Base):
@@ -387,5 +480,12 @@ class ExtensionCommand(Base):
     """
     Icon for the command.
     Can be a string (path) or object ({dark: ..., light: ...}).
+    Using JSONB to support both formats.
+    """
+
+    when = Column(JSONB, nullable=True)
+    """
+    When condition for the command.
+    Can be a string (e.g., 'editorTextFocus') or object ({resource: ...}).
     Using JSONB to support both formats.
     """

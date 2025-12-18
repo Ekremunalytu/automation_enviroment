@@ -42,10 +42,10 @@ Usage Example:
 from __future__ import annotations
 
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
-from sqlalchemy.orm import Session, load_only
+from sqlalchemy.orm import Session, joinedload, load_only
 
-from models.models import Extension
-from schemas.schemas import ExtensionSchema
+from models.models import Extension, ExtensionCapabilities
+from schemas.schemas import ExtensionCapabilitiesSchema, ExtensionSchema
 
 
 def get_extension_by_id(db: Session, extension_id: int) -> Extension | None:
@@ -107,7 +107,11 @@ def search_extension_by_name(
         - Full-text search with PostgreSQL tsvector
         - Trigram similarity for fuzzy matching
     """
-    query = db.query(Extension).filter(Extension.name == name)
+    query = (
+        db.query(Extension)
+        .options(joinedload(Extension.capabilities))
+        .filter(Extension.name == name)
+    )
     if publisher:
         query = query.filter(Extension.publisher == publisher)
     if version:
@@ -125,7 +129,11 @@ def search_extension_by_name(
     return results[0]
 
 
-def create_extension(db: Session, extension: ExtensionSchema) -> Extension:
+def create_extension(
+    db: Session,
+    extension: ExtensionSchema,
+    capabilities: ExtensionCapabilitiesSchema | None = None,
+) -> Extension:
     """
     Create a new extension record in the database.
 
@@ -135,6 +143,7 @@ def create_extension(db: Session, extension: ExtensionSchema) -> Extension:
     Args:
         db: SQLAlchemy database session
         extension: Pydantic schema containing extension data
+        capabilities: Optional Pydantic schema for extension capabilities
 
     Returns:
         The created Extension ORM object with populated ID
@@ -160,13 +169,22 @@ def create_extension(db: Session, extension: ExtensionSchema) -> Extension:
         - Auto-generates ID and created_at timestamp
     """
     # Convert Pydantic model to dict, then to SQLAlchemy model
-    # model_dump() replaces deprecated dict() in Pydantic v2
     db_extension = Extension(**extension.model_dump())
 
     try:
-        db.add(db_extension)  # Stage the object for insertion
-        db.commit()  # Write to database
-        db.refresh(db_extension)  # Reload to get auto-generated fields (id, created_at)
+        db.add(db_extension)
+        db.flush()  # Get the ID without committing
+
+        # Create capabilities record if provided
+        if capabilities:
+            db_capabilities = ExtensionCapabilities(
+                extension_id=db_extension.id,
+                **capabilities.model_dump(),
+            )
+            db.add(db_capabilities)
+
+        db.commit()
+        db.refresh(db_extension)
         return db_extension
 
     except IntegrityError:
@@ -212,7 +230,7 @@ def get_extensions_all_info(db: Session) -> list[Extension]:
         - Administrative dashboards
         - Full-text search preprocessing
     """
-    return db.query(Extension).all()
+    return db.query(Extension).options(joinedload(Extension.capabilities)).all()
 
 
 def get_extensions_base_info(db: Session) -> list[Extension]:

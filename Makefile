@@ -173,7 +173,7 @@ docker-build:
 docker-rebuild:
 	@echo "🐳 Rebuilding Docker images (no cache)..."
 	@docker-compose build --no-cache
-	@sleep 2
+	@sleep 5
 	@echo "✅ Rebuild complete!"
 
 docker-up:
@@ -186,7 +186,7 @@ docker-up:
 docker-down:
 	@echo "🐳 Stopping Docker containers..."
 	@docker-compose down --remove-orphans 2>/dev/null || docker-compose down
-	@sleep 1
+	@sleep 5
 	@echo "✅ Containers stopped!"
 
 docker-logs:

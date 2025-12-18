@@ -83,6 +83,7 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["S101", "T20"]
 "alembic/*" = ["T20"]
+"core/config.py" = ["S105"]  # Development default passwords in settings
 
 [tool.ruff.lint.isort]
 known-first-party = ["core", "crud", "database", "models", "routers", "scanner", "schemas"]
