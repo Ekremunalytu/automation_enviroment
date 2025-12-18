@@ -1,4 +1,4 @@
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
@@ -61,21 +61,39 @@ def test_delete_extension_endpoint(client: TestClient, db_session: Session):
 
 def test_create_extension_endpoint(client: TestClient, db_session: Session):
     """Test POST /createExtension with mocked service"""
-    mock_ext = ExtensionSchema(
-        name="new-ext",
-        publisher="new-pub",
-        version="2.0.0",
-        engines={"vscode": "^1.0.0"},
-    )
+    # Create a mock Extension ORM object (not schema)
+    mock_ext = MagicMock()
+    mock_ext.id = 1
+    mock_ext.name = "new-ext"
+    mock_ext.publisher = "new-pub"
+    mock_ext.version = "2.0.0"
+    mock_ext.engines = {"vscode": "^1.0.0"}
+    mock_ext.license = None
+    mock_ext.displayName = None
+    mock_ext.description = None
+    mock_ext.categories = None
+    mock_ext.keywords = None
+    mock_ext.galleryBanner = None
+    mock_ext.preview = None
+    mock_ext.badges = None
+    mock_ext.markdown = None
+    mock_ext.qna = None
+    mock_ext.sponsor = None
+    mock_ext.icon = None
+    mock_ext.pricing = None
+    mock_ext.main = None
+    mock_ext.web = None
+    mock_ext.capabilities = None
 
     # Mock the service method to avoid filesystem scan
-    with patch("scanner.service.create_extension_by_name") as mock_create:
+    with patch("routers.core.service.create_extension_by_name") as mock_create:
         mock_create.return_value = mock_ext
 
         response = client.post("/createExtension", json={"name": "new-ext"})
 
         assert response.status_code == 200
         assert response.json()["name"] == "new-ext"
+        assert response.json()["id"] == 1
         mock_create.assert_called_once()
 
 
