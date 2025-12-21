@@ -59,6 +59,11 @@ engine = create_engine(
     str(settings.db.url),
     echo=False,
     future=True,
+    pool_size=20,
+    max_overflow=40,
+    pool_timeout=30,
+    pool_recycle=3600,
+    pool_pre_ping=True,
 )
 """
 SQLAlchemy Engine - The core database connection manager.
@@ -75,23 +80,19 @@ Parameters:
     future: SQLAlchemy 2.0 compatibility mode
             Enables new-style query patterns and behaviors
 
-Connection Pool (Default Settings):
-    - pool_size: 5 connections
-    - max_overflow: 10 additional connections beyond pool_size
+Connection Pool (Optimized Settings):
+    - pool_size: 20 connections (increased from default 5)
+    - max_overflow: 40 additional connections beyond pool_size
     - pool_timeout: 30 seconds wait for available connection
-    - pool_recycle: -1 (disabled, connections live forever)
+    - pool_recycle: 3600 seconds (1 hour) - recycle connections to prevent stale
+      connections
+    - pool_pre_ping: True - verify connections before use (prevents "connection
+      lost" errors)
 
-For production, consider customizing:
-    engine = create_engine(
-        str(settings.DATABASE_URL),
-        echo=False,
-        future=True,
-        pool_size=10,          # Increase for high concurrency
-        max_overflow=20,       # Allow more burst connections
-        pool_timeout=30,       # How long to wait for connection
-        pool_recycle=3600,     # Recycle connections after 1 hour
-        pool_pre_ping=True,    # Verify connections before use
-    )
+Performance Benefits:
+    - Higher pool_size handles concurrent requests better
+    - pool_pre_ping prevents failed queries from stale connections
+    - pool_recycle ensures fresh connections periodically
 """
 
 

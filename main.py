@@ -99,7 +99,9 @@ def create_app() -> FastAPI:
     )
 
     # Add middleware
-    application.add_middleware(GZipMiddleware, minimum_size=1000)
+    # GZip compression for large responses (minimum 2KB to avoid overhead on
+    # small responses)
+    application.add_middleware(GZipMiddleware, minimum_size=2000)
     application.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],
