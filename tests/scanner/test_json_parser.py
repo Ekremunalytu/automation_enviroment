@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, mock_open, patch
 from scanner.json_parser import (
     get_package_json,
     parse_capabilities,
+    parse_contributes,
     parse_scripts,
     search_extension,
 )
@@ -465,3 +466,94 @@ class TestParseActivationEvents:
         assert len(result) == 1
         assert result[0]["event_type"] == "onUri"
         assert result[0]["event_value"] == "vscode://ext/path:with:colons"
+
+
+# =============================================================================
+# Contributes Parsing Tests
+# =============================================================================
+
+
+class TestParseContributes:
+    """Tests for parse_contributes function."""
+
+    def test_no_contributes_returns_none(self):
+        """Test that missing contributes field returns None."""
+        package_json = {"name": "test", "version": "1.0.0"}
+        result = parse_contributes(package_json)
+        assert result is None
+
+    def test_contributes_not_dict_returns_none(self):
+        """Test that non-dict contributes value returns None."""
+        package_json = {"contributes": ["invalid"]}
+        result = parse_contributes(package_json)
+        assert result is None
+
+    def test_parse_contributes_children_and_jsonb_fields(self):
+        """Test parsing contributes child arrays and JSONB fields."""
+        package_json = {
+            "contributes": {
+                "keybindings": [
+                    {
+                        "key": "ctrl+k",
+                        "command": "ext.hello",
+                        "when": "editorTextFocus",
+                    },
+                    {"key": "ctrl+x"},
+                ],
+                "commands": [
+                    {
+                        "command": "ext.hello",
+                        "title": "Hello",
+                        "when": "editorTextFocus",
+                    },
+                    {"command": "ext.invalid"},
+                ],
+                "menus": {
+                    "editor/context": [{"command": "ext.hello", "group": "navigation"}]
+                },
+                "authentication": [
+                    {"id": "github", "label": "GitHub"},
+                    {"id": "invalid"},
+                ],
+                "terminal": {
+                    "profiles": [
+                        {"id": "ext.term", "title": "Ext Terminal", "icon": "zap"},
+                        {"id": "missing-title"},
+                    ]
+                },
+                "configuration": {"title": "Test Config"},
+                "snippets": [{"language": "python"}],
+            }
+        }
+
+        result = parse_contributes(package_json)
+
+        assert result is not None
+        assert result["configuration"] == {"title": "Test Config"}
+        assert result["snippets"] == [{"language": "python"}]
+
+        assert len(result["keybindings"]) == 1
+        keybinding = result["keybindings"][0]
+        assert keybinding["key"] == "ctrl+k"
+        assert keybinding["command"] == "ext.hello"
+        assert keybinding["when"] == "editorTextFocus"
+
+        assert len(result["commands"]) == 1
+        command = result["commands"][0]
+        assert command["command_id"] == "ext.hello"
+        assert command["title"] == "Hello"
+
+        assert len(result["menus"]) == 1
+        menu = result["menus"][0]
+        assert menu["menu_location"] == "editor/context"
+        assert menu["command"] == "ext.hello"
+
+        assert len(result["authentication"]) == 1
+        auth = result["authentication"][0]
+        assert auth["auth_id"] == "github"
+        assert auth["label"] == "GitHub"
+
+        assert len(result["terminal"]) == 1
+        terminal = result["terminal"][0]
+        assert terminal["profile_id"] == "ext.term"
+        assert terminal["title"] == "Ext Terminal"

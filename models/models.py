@@ -371,6 +371,13 @@ class Extension(Base):
         single_parent=True,
     )
 
+    contributes: Mapped[ExtensionContributes | None] = relationship(
+        back_populates="extension",
+        uselist=False,
+        cascade="all, delete-orphan",
+        single_parent=True,
+    )
+
     # =========================================================================
     # TABLE CONSTRAINTS
     # =========================================================================
@@ -465,38 +472,44 @@ class ExtensionCapabilities(Base):
     extension: Mapped[Extension] = relationship(back_populates="capabilities")
 
 
-class ExtensionCommand(Base):
+class ExtensionContributesCommands(Base):
     """
     Extension Commands defined in package.json (contributes.commands).
 
     This table stores the commands that an extension exposes to the VS Code
     Command Palette or other extensions.
 
-    Table Name: extension_commands
+    SECURITY IMPORTANT: Commands are entry points for extension functionality.
+    Analyzing command names and their conditions helps identify potentially
+    dangerous operations.
 
-    Relationship:
-        - Many-to-One with Extension table (One extension has Many commands)
-        - On Delete: CASCADE (Deleting extension deletes all its commands)
+    Source: package.json -> contributes.commands (array)
+
+    Design:
+        - Many-to-One with ExtensionContributes
+        - Stores command ID, title, category, icon, and when clause
+        - On Delete: CASCADE
     """
 
-    __tablename__ = "extension_commands"
+    __tablename__ = "extension_contributes_commands"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     """Primary Key"""
 
-    extension_id: Mapped[int] = mapped_column(
-        ForeignKey("extensions.id", ondelete="CASCADE"),
+    contributes_id: Mapped[int] = mapped_column(
+        ForeignKey("extension_contributes.extension_id", ondelete="CASCADE"),
+        nullable=False,
         index=True,
     )
-    """Foreign Key linking to the parent Extension"""
+    """Foreign Key linking to the parent ExtensionContributes"""
 
-    command_id: Mapped[str] = mapped_column(String)
+    command_id: Mapped[str] = mapped_column(String, nullable=False)
     """
     The identifier of the command (e.g., 'extension.helloWorld').
     Required field in package.json.
     """
 
-    title: Mapped[str] = mapped_column(String)
+    title: Mapped[str] = mapped_column(String, nullable=False)
     """
     Title of the command, like 'Hello World'.
     Shown in the Command Palette.
@@ -515,12 +528,13 @@ class ExtensionCommand(Base):
     Using JSONB to support both formats.
     """
 
-    when: Mapped[dict[str, Any] | str | None] = mapped_column(JSONB, nullable=True)
+    when: Mapped[str | None] = mapped_column(Text, nullable=True)
     """
-    When condition for the command.
-    Can be a string (e.g., 'editorTextFocus') or object ({resource: ...}).
-    Using JSONB to support both formats.
+    When condition for the command visibility.
+    Example: 'editorTextFocus', 'resourceScheme == file'
     """
+
+    contributes: Mapped[ExtensionContributes] = relationship(back_populates="commands")
 
 
 class ExtensionScripts(Base):
@@ -636,3 +650,315 @@ class ExtensionActivationEvents(Base):
     """
 
     extension: Mapped[Extension] = relationship(back_populates="activation_events")
+
+
+class ExtensionContributes(Base):
+    """
+    VS Code Extension Contribution Points container.
+
+    This table stores the `contributes` section from package.json.
+    It has a 1:1 relationship with Extension and acts as a parent
+    for all contribution-related child tables.
+
+    Source: package.json -> contributes (object)
+
+    Design:
+        - Strict 1:1 relationship with Extension (shares Primary Key)
+        - JSONB columns for complex/deep structures that don't need querying
+        - Child tables for frequently queried contribution types
+        - On Delete: CASCADE (deleting extension deletes all contributes data)
+
+    Reference: https://code.visualstudio.com/api/references/contribution-points
+    """
+
+    __tablename__ = "extension_contributes"
+
+    # Shared PK with Extension (1:1)
+    extension_id: Mapped[int] = mapped_column(
+        ForeignKey("extensions.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+
+    # =========================================================================
+    # JSONB COLUMNS (Complex structures, sorgulama gerekmeyenler)
+    # =========================================================================
+
+    configuration: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    """Extension configuration/settings schema. Very deep nested structure."""
+
+    debuggers: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    """Debugger adapter contributions. Complex with configurationAttributes."""
+
+    walkthroughs: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    """Interactive walkthrough contributions with steps and media."""
+
+    grammars: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    """TextMate grammar contributions for syntax highlighting."""
+
+    colors: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    """Custom color contributions with dark/light/highContrast variants."""
+
+    icons: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    """Custom icon definitions."""
+
+    snippets: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    """Code snippet contributions."""
+
+    views: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    """View contributions (sidebar panels, explorer views)."""
+
+    viewsContainers: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    """View container contributions (activity bar items)."""
+
+    languages: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    """Language contributions (language identifiers, extensions, aliases)."""
+
+    themes: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    """Color theme contributions."""
+
+    iconThemes: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    """File icon theme contributions."""
+
+    productIconThemes: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    """Product icon theme contributions."""
+
+    jsonValidation: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    """JSON schema validation contributions."""
+
+    problemMatchers: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    """Problem matcher contributions for task output parsing."""
+
+    problemPatterns: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    """Problem pattern contributions."""
+
+    taskDefinitions: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    """Task definition contributions."""
+
+    customEditors: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    """Custom editor contributions. SECURITY: Can handle arbitrary file types."""
+
+    submenus: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    """Submenu contributions."""
+
+    viewsWelcome: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    """View welcome content contributions."""
+
+    breakpoints: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    """Breakpoint contributions for debugging."""
+
+    configurationDefaults: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    """Default configuration value overrides."""
+
+    typescriptServerPlugins: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    """
+    TypeScript server plugin contributions.
+    SECURITY: Can inject code into TS server.
+    """
+
+    # =========================================================================
+    # RELATIONSHIPS
+    # =========================================================================
+
+    extension: Mapped[Extension] = relationship(back_populates="contributes")
+
+    keybindings: Mapped[list[ExtensionContributesKeybindings]] = relationship(
+        back_populates="contributes",
+        cascade="all, delete-orphan",
+        single_parent=True,
+    )
+
+    menus: Mapped[list[ExtensionContributesMenus]] = relationship(
+        back_populates="contributes",
+        cascade="all, delete-orphan",
+        single_parent=True,
+    )
+
+    authentication: Mapped[list[ExtensionContributesAuthentication]] = relationship(
+        back_populates="contributes",
+        cascade="all, delete-orphan",
+        single_parent=True,
+    )
+
+    terminal: Mapped[list[ExtensionContributesTerminal]] = relationship(
+        back_populates="contributes",
+        cascade="all, delete-orphan",
+        single_parent=True,
+    )
+
+    commands: Mapped[list[ExtensionContributesCommands]] = relationship(
+        back_populates="contributes",
+        cascade="all, delete-orphan",
+        single_parent=True,
+    )
+
+
+class ExtensionContributesKeybindings(Base):
+    """
+    Extension Keybinding contributions from package.json.
+
+    This table stores keyboard shortcuts that an extension defines.
+    Important for security analysis: which keys does the extension override?
+
+    Source: package.json -> contributes.keybindings (array)
+
+    Design:
+        - Many-to-One with ExtensionContributes
+        - Separate columns for different platform overrides
+        - On Delete: CASCADE
+    """
+
+    __tablename__ = "extension_contributes_keybindings"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+
+    contributes_id: Mapped[int] = mapped_column(
+        ForeignKey("extension_contributes.extension_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    key: Mapped[str] = mapped_column(String, nullable=False)
+    """Default key combination (e.g., 'ctrl+shift+p', 'cmd+k cmd+s')."""
+
+    command: Mapped[str] = mapped_column(String, nullable=False)
+    """Command to invoke when key is pressed."""
+
+    when: Mapped[str | None] = mapped_column(Text, nullable=True)
+    """When clause condition (e.g., 'editorTextFocus', 'inDebugMode')."""
+
+    mac: Mapped[str | None] = mapped_column(String, nullable=True)
+    """macOS key override (e.g., 'cmd+shift+p')."""
+
+    linux: Mapped[str | None] = mapped_column(String, nullable=True)
+    """Linux key override."""
+
+    win: Mapped[str | None] = mapped_column(String, nullable=True)
+    """Windows key override."""
+
+    args: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    """Additional arguments passed to the command."""
+
+    contributes: Mapped[ExtensionContributes] = relationship(
+        back_populates="keybindings"
+    )
+
+
+class ExtensionContributesMenus(Base):
+    """
+    Extension Menu contributions from package.json.
+
+    This table stores menu items that an extension adds to VS Code.
+    Important for security: where does the extension inject UI elements?
+
+    Source: package.json -> contributes.menus (object with arrays)
+
+    Design:
+        - Many-to-One with ExtensionContributes
+        - menu_location stores the menu key (editor/context, explorer/context, etc.)
+        - On Delete: CASCADE
+    """
+
+    __tablename__ = "extension_contributes_menus"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+
+    contributes_id: Mapped[int] = mapped_column(
+        ForeignKey("extension_contributes.extension_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    menu_location: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    """
+    Menu location identifier.
+    Examples: editor/context, explorer/context, commandPalette, view/title, etc.
+    """
+
+    command: Mapped[str | None] = mapped_column(String, nullable=True)
+    """Command to invoke when menu item is selected."""
+
+    submenu: Mapped[str | None] = mapped_column(String, nullable=True)
+    """Submenu ID to render at this location."""
+
+    when: Mapped[str | None] = mapped_column(Text, nullable=True)
+    """When clause condition for visibility."""
+
+    group: Mapped[str | None] = mapped_column(String, nullable=True)
+    """Menu group for sorting (e.g., 'navigation', '1_modification')."""
+
+    alt: Mapped[str | None] = mapped_column(String, nullable=True)
+    """Alternative command when Alt/Shift is held."""
+
+    contributes: Mapped[ExtensionContributes] = relationship(back_populates="menus")
+
+
+class ExtensionContributesAuthentication(Base):
+    """
+    Extension Authentication Provider contributions from package.json.
+
+    SECURITY CRITICAL: Extensions that provide authentication can access credentials.
+
+    Source: package.json -> contributes.authentication (array)
+
+    Design:
+        - Many-to-One with ExtensionContributes
+        - Simple structure: just id and label
+        - On Delete: CASCADE
+    """
+
+    __tablename__ = "extension_contributes_authentication"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+
+    contributes_id: Mapped[int] = mapped_column(
+        ForeignKey("extension_contributes.extension_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    auth_id: Mapped[str] = mapped_column(String, nullable=False)
+    """Authentication provider ID (e.g., 'github', 'azuredevops')."""
+
+    label: Mapped[str] = mapped_column(String, nullable=False)
+    """Display label for the authentication provider."""
+
+    contributes: Mapped[ExtensionContributes] = relationship(
+        back_populates="authentication"
+    )
+
+
+class ExtensionContributesTerminal(Base):
+    """
+    Extension Terminal Profile contributions from package.json.
+
+    SECURITY CRITICAL: Extensions can define terminal profiles that may
+    execute arbitrary shell commands.
+
+    Source: package.json -> contributes.terminal.profiles (array)
+
+    Design:
+        - Many-to-One with ExtensionContributes
+        - Stores terminal profile definitions
+        - On Delete: CASCADE
+    """
+
+    __tablename__ = "extension_contributes_terminal"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+
+    contributes_id: Mapped[int] = mapped_column(
+        ForeignKey("extension_contributes.extension_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    profile_id: Mapped[str] = mapped_column(String, nullable=False)
+    """Terminal profile ID (e.g., 'my-ext.terminal-profile')."""
+
+    title: Mapped[str] = mapped_column(String, nullable=False)
+    """Display title for the terminal profile."""
+
+    icon: Mapped[str | None] = mapped_column(String, nullable=True)
+    """Icon for the terminal profile."""
+
+    contributes: Mapped[ExtensionContributes] = relationship(back_populates="terminal")

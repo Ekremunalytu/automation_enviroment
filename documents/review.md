@@ -213,6 +213,9 @@ class ExtensionActivationEvents(Base):
 - Added `ExtensionActivationEventsSchema` in `schemas.py`
 - Updated `create_extension()` in `crud.py` to handle activation events
 - Added comprehensive unit tests for activation events
+- Added `ExtensionContributes` tables (Commands, Keybindings, Menus, etc.)
+- Updated parser and CRUD to handle full contribution points
+- Optimized API performance with pagination and deferred loading
 
 ---
 

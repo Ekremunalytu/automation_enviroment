@@ -49,6 +49,8 @@ API Documentation:
 """
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 
 from core.config import settings
 from routers.core import router as core_router
@@ -94,6 +96,16 @@ def create_app() -> FastAPI:
         title=settings.project.NAME,
         description=settings.project.DESCRIPTION,
         version=settings.project.VERSION,
+    )
+
+    # Add middleware
+    application.add_middleware(GZipMiddleware, minimum_size=1000)
+    application.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
     )
 
     # Register API routers

@@ -462,3 +462,195 @@ def parse_activation_events(
             )
 
     return parsed_events if parsed_events else None
+
+
+def parse_contributes(package_json: dict[str, Any]) -> dict[str, Any] | None:
+    """
+    Parse contributes from package.json into a structured dictionary.
+
+    Extracts contribution points from package.json and structures them for
+    database storage. Child arrays (keybindings, menus, authentication, terminal)
+    are parsed into lists of dictionaries. Complex structures are kept as-is
+    for JSONB storage.
+
+    Args:
+        package_json: Complete package.json dictionary
+
+    Returns:
+        Dictionary with parsed contributes ready for schema conversion,
+        or None if no contributes field exists.
+
+    Reference: https://code.visualstudio.com/api/references/contribution-points
+
+    Example Input:
+        {
+            "contributes": {
+                "keybindings": [
+                    {"key": "ctrl+shift+p", "command": "workbench.action.showCommands"}
+                ],
+                "menus": {
+                    "editor/context": [
+                        {"command": "extension.sayHello", "group": "navigation"}
+                    ]
+                },
+                "authentication": [
+                    {"id": "github", "label": "GitHub"}
+                ],
+                "terminal": {
+                    "profiles": [
+                        {"id": "my-profile", "title": "My Terminal"}
+                    ]
+                },
+                "configuration": {...}
+            }
+        }
+
+    Example Output:
+        {
+            "keybindings": [
+                {"key": "ctrl+shift+p", "command": "workbench.action.showCommands", ...}
+            ],
+            "menus": [
+                {"menu_location": "editor/context",
+                 "command": "extension.sayHello", ...}
+            ],
+            "authentication": [
+                {"auth_id": "github", "label": "GitHub"}
+            ],
+            "terminal": [
+                {"profile_id": "my-profile", "title": "My Terminal"}
+            ],
+            "configuration": {...},
+            ...
+        }
+    """
+    contributes = package_json.get("contributes")
+    if not contributes or not isinstance(contributes, dict):
+        return None
+
+    result: dict[str, Any] = {}
+
+    # Parse keybindings (array of objects)
+    keybindings = contributes.get("keybindings")
+    if keybindings and isinstance(keybindings, list):
+        parsed_keybindings = []
+        for kb in keybindings:
+            if isinstance(kb, dict) and "key" in kb and "command" in kb:
+                parsed_keybindings.append(
+                    {
+                        "key": kb.get("key"),
+                        "command": kb.get("command"),
+                        "when": kb.get("when"),
+                        "mac": kb.get("mac"),
+                        "linux": kb.get("linux"),
+                        "win": kb.get("win"),
+                        "args": kb.get("args"),
+                    }
+                )
+        if parsed_keybindings:
+            result["keybindings"] = parsed_keybindings
+
+    # Parse commands (array of objects)
+    commands = contributes.get("commands")
+    if commands and isinstance(commands, list):
+        parsed_commands = []
+        for cmd in commands:
+            if isinstance(cmd, dict) and "command" in cmd and "title" in cmd:
+                parsed_commands.append(
+                    {
+                        "command_id": cmd.get("command"),
+                        "title": cmd.get("title"),
+                        "category": cmd.get("category"),
+                        "icon": cmd.get("icon"),
+                        "when": cmd.get("when"),
+                    }
+                )
+        if parsed_commands:
+            result["commands"] = parsed_commands
+
+    # Parse menus (object with arrays - flatten to list with menu_location)
+    menus = contributes.get("menus")
+    if menus and isinstance(menus, dict):
+        parsed_menus = []
+        for menu_location, menu_items in menus.items():
+            if isinstance(menu_items, list):
+                for item in menu_items:
+                    if isinstance(item, dict):
+                        parsed_menus.append(
+                            {
+                                "menu_location": menu_location,
+                                "command": item.get("command"),
+                                "submenu": item.get("submenu"),
+                                "when": item.get("when"),
+                                "group": item.get("group"),
+                                "alt": item.get("alt"),
+                            }
+                        )
+        if parsed_menus:
+            result["menus"] = parsed_menus
+
+    # Parse authentication (array of objects)
+    authentication = contributes.get("authentication")
+    if authentication and isinstance(authentication, list):
+        parsed_auth = []
+        for auth in authentication:
+            if isinstance(auth, dict) and "id" in auth and "label" in auth:
+                parsed_auth.append(
+                    {
+                        "auth_id": auth.get("id"),
+                        "label": auth.get("label"),
+                    }
+                )
+        if parsed_auth:
+            result["authentication"] = parsed_auth
+
+    # Parse terminal profiles (nested in terminal.profiles)
+    terminal = contributes.get("terminal")
+    if terminal and isinstance(terminal, dict):
+        profiles = terminal.get("profiles")
+        if profiles and isinstance(profiles, list):
+            parsed_terminal = []
+            for profile in profiles:
+                if isinstance(profile, dict) and "id" in profile and "title" in profile:
+                    parsed_terminal.append(
+                        {
+                            "profile_id": profile.get("id"),
+                            "title": profile.get("title"),
+                            "icon": profile.get("icon"),
+                        }
+                    )
+            if parsed_terminal:
+                result["terminal"] = parsed_terminal
+
+    jsonb_fields = [
+        "configuration",
+        "debuggers",
+        "walkthroughs",
+        "grammars",
+        "colors",
+        "icons",
+        "snippets",
+        "views",
+        "viewsContainers",
+        "languages",
+        "themes",
+        "iconThemes",
+        "productIconThemes",
+        "jsonValidation",
+        "problemMatchers",
+        "problemPatterns",
+        "taskDefinitions",
+        "customEditors",
+        "submenus",
+        "viewsWelcome",
+        "breakpoints",
+        "configurationDefaults",
+        "typescriptServerPlugins",
+    ]
+
+    for field in jsonb_fields:
+        value = contributes.get(field)
+        if value is not None:
+            result[field] = value
+
+    return result if result else None

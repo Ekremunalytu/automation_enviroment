@@ -369,9 +369,14 @@ extrace/
 | Table | Relationship | Description |
 |:------|:-------------|:------------|
 | `extension_capabilities` | 1:1 | Workspace trust & virtual workspace settings |
-| `extension_commands` | 1:N | Command palette entries from contributes.commands |
 | `extension_scripts` | 1:N | npm scripts from package.json |
 | `extension_activation_events` | 1:N | Activation events (onLanguage, onCommand, etc.) |
+| `extension_contributes` | 1:1 | Parent table for contribution points |
+| `extension_contributes_commands` | 1:N | Commands from contributes.commands |
+| `extension_contributes_keybindings` | 1:N | Keybindings from contributes.keybindings |
+| `extension_contributes_menus` | 1:N | Menu items from contributes.menus |
+| `extension_contributes_authentication`| 1:N | Auth providers from contributes.authentication|
+| `extension_contributes_terminal` | 1:N | Terminal profiles from contributes.terminal |
 
 <br>
 
@@ -427,6 +432,8 @@ pytest --cov=. --cov-report=html
 - [x] **Capabilities Parsing** (Workspace Trust & Virtual Workspaces)
 - [x] **Scripts Parsing** (npm scripts from package.json)
 - [x] **Activation Events Parsing** (onLanguage, onCommand, etc.)
+- [x] **Contribution Points Parsing** (Commands, Keybindings, Menus, etc.)
+- [x] **Optimized Query Performance** (Pagination, Deferred Loading)
 
 ### 🚧 In Progress
 - [ ] Detailed manifest parsing (Commands)

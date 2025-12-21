@@ -48,17 +48,24 @@ from __future__ import annotations
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
-from sqlalchemy.orm import Session, joinedload, load_only
+from sqlalchemy.orm import Session, defer, joinedload, load_only, selectinload
 
 from models.models import (
     Extension,
     ExtensionActivationEvents,
     ExtensionCapabilities,
+    ExtensionContributes,
+    ExtensionContributesAuthentication,
+    ExtensionContributesCommands,
+    ExtensionContributesKeybindings,
+    ExtensionContributesMenus,
+    ExtensionContributesTerminal,
     ExtensionScripts,
 )
 from schemas.schemas import (
     ExtensionActivationEventsSchema,
     ExtensionCapabilitiesSchema,
+    ExtensionContributesSchema,
     ExtensionSchema,
     ExtensionScriptsSchema,
 )
@@ -128,8 +135,15 @@ def search_extension_by_name(
         select(Extension)
         .options(
             joinedload(Extension.capabilities),
-            joinedload(Extension.scripts),
-            joinedload(Extension.activation_events),
+            selectinload(Extension.scripts),
+            selectinload(Extension.activation_events),
+            joinedload(Extension.contributes).options(
+                selectinload(ExtensionContributes.keybindings),
+                selectinload(ExtensionContributes.menus),
+                selectinload(ExtensionContributes.authentication),
+                selectinload(ExtensionContributes.terminal),
+                selectinload(ExtensionContributes.commands),
+            ),
         )
         .where(Extension.name == name)
     )
@@ -156,6 +170,7 @@ def create_extension(
     capabilities: ExtensionCapabilitiesSchema | None = None,
     scripts: list[ExtensionScriptsSchema] | None = None,
     activation_events: list[ExtensionActivationEventsSchema] | None = None,
+    contributes: ExtensionContributesSchema | None = None,
 ) -> Extension:
     """
     Create a new extension record in the database.
@@ -226,6 +241,72 @@ def create_extension(
                 )
                 db.add(db_event)
 
+        # Create contributes record if provided
+        if contributes:
+            # Extract child relationships before creating parent
+            keybindings_data = contributes.keybindings
+            menus_data = contributes.menus
+            authentication_data = contributes.authentication
+            terminal_data = contributes.terminal
+            commands_data = contributes.commands
+
+            # Create parent contributes record (without child data)
+            contributes_dict = contributes.model_dump(
+                exclude={
+                    "keybindings",
+                    "menus",
+                    "authentication",
+                    "terminal",
+                    "commands",
+                }
+            )
+            db_contributes = ExtensionContributes(
+                extension_id=db_extension.id,
+                **contributes_dict,
+            )
+            db.add(db_contributes)
+            db.flush()
+
+            # Create keybindings records
+            for kb in keybindings_data:
+                db_kb = ExtensionContributesKeybindings(
+                    contributes_id=db_extension.id,
+                    **kb.model_dump(),
+                )
+                db.add(db_kb)
+
+            # Create menus records
+            for menu in menus_data:
+                db_menu = ExtensionContributesMenus(
+                    contributes_id=db_extension.id,
+                    **menu.model_dump(),
+                )
+                db.add(db_menu)
+
+            # Create authentication records
+            for auth in authentication_data:
+                db_auth = ExtensionContributesAuthentication(
+                    contributes_id=db_extension.id,
+                    **auth.model_dump(),
+                )
+                db.add(db_auth)
+
+            # Create terminal records
+            for term in terminal_data:
+                db_term = ExtensionContributesTerminal(
+                    contributes_id=db_extension.id,
+                    **term.model_dump(),
+                )
+                db.add(db_term)
+
+            # Create commands records
+            for cmd in commands_data:
+                db_cmd = ExtensionContributesCommands(
+                    contributes_id=db_extension.id,
+                    **cmd.model_dump(),
+                )
+                db.add(db_cmd)
+
         db.commit()
         db.refresh(db_extension)
         return db_extension
@@ -242,7 +323,9 @@ def create_extension(
         raise e
 
 
-def get_extensions_all_info(db: Session) -> list[Extension]:
+def get_extensions_all_info(
+    db: Session, skip: int = 0, limit: int | None = None
+) -> list[Extension]:
     """
     Retrieve all extensions with complete information.
 
@@ -251,17 +334,19 @@ def get_extensions_all_info(db: Session) -> list[Extension]:
 
     Args:
         db: SQLAlchemy database session
+        skip: Number of records to skip (offset)
+        limit: Maximum number of records to return
 
     Returns:
         List of all Extension objects with full data
 
     Example:
-        >>> all_extensions = get_extensions_all_info(db)
+        >>> all_extensions = get_extensions_all_info(db, skip=0, limit=50)
         >>> for ext in all_extensions:
         ...     print(f"{ext.publisher}.{ext.name}: {ext.description}")
 
     Performance Considerations:
-        - No pagination: Returns entire table
+        - Pagination: Returns records based on skip/limit
         - No lazy loading: All columns fetched immediately
         - For large datasets (>1000 records), consider:
             * Implementing pagination (LIMIT/OFFSET)
@@ -274,10 +359,24 @@ def get_extensions_all_info(db: Session) -> list[Extension]:
         - Full-text search preprocessing
     """
     stmt = select(Extension).options(
+        defer(Extension.markdown),
         joinedload(Extension.capabilities),
-        joinedload(Extension.scripts),
-        joinedload(Extension.activation_events),
+        selectinload(Extension.scripts),
+        selectinload(Extension.activation_events),
+        joinedload(Extension.contributes).options(
+            selectinload(ExtensionContributes.keybindings),
+            selectinload(ExtensionContributes.menus),
+            selectinload(ExtensionContributes.authentication),
+            selectinload(ExtensionContributes.terminal),
+            selectinload(ExtensionContributes.commands),
+        ),
     )
+
+    if skip > 0:
+        stmt = stmt.offset(skip)
+    if limit is not None:
+        stmt = stmt.limit(limit)
+
     return list(db.scalars(stmt).unique().all())
 
 

@@ -279,60 +279,25 @@ def get_extensions_base_info(db: Session = Depends(get_db)):
 
 
 @router.get("/getExtensionsAllInfo", response_model=list[ExtensionDetailSchema])
-def get_extensions_all_info(db: Session = Depends(get_db)):
+def get_extensions_all_info(
+    skip: int = 0, limit: int | None = None, db: Session = Depends(get_db)
+):
     """
     List all extensions with complete information.
 
     Returns full details for all extensions in the database.
     Use sparingly for large datasets due to payload size.
 
-    Includes all ExtensionSchema fields plus:
-        - id: Database primary key
-        - capabilities: Extension capabilities data
-
     Args:
+        skip (int): Number of records to skip (default: 0)
+        limit (int, optional): Max records to return (default: None/All)
         db: Database session from dependency injection
 
     Returns:
         List[ExtensionDetailSchema]: Array of complete extension data
-
-    Raises:
-        HTTPException 400: Invalid request parameters
-        HTTPException 404: No extensions found
-        HTTPException 500: Internal server error
-
-    Example Request:
-        GET /getExtensionsAllInfo
-
-    Example Response:
-        [
-            {
-                "id": 1,
-                "name": "python",
-                "publisher": "ms-python",
-                "engines": {"vscode": "^1.95.0"},
-                "license": "MIT",
-                "displayName": "Python",
-                "description": "...",
-                "categories": [...],
-                ...
-            },
-            ...
-        ]
-
-    Use Cases:
-        - Data export/backup
-        - Full comparison analysis
-        - Administrative reporting
-
-    Warning:
-        Returns large payloads. For production, consider:
-        - Pagination implementation
-        - Field selection parameters
-        - Caching layer
     """
     try:
-        result = service.get_all_extensions_all(db)
+        result = service.get_all_extensions_all(db, skip=skip, limit=limit)
 
         if result is None:
             raise HTTPException(status_code=404, detail="Extension not found")

@@ -105,6 +105,147 @@ class ExtensionActivationEventsSchema(BaseModel):
     """Activation event value/parameter (e.g., 'python' for onLanguage:python)."""
 
 
+class ExtensionContributesKeybindingsSchema(BaseModel):
+    """Schema for Extension Keybinding contributions."""
+
+    model_config = ConfigDict(from_attributes=True, extra="ignore")
+
+    key: str
+    """Default key combination."""
+
+    command: str
+    """Command to invoke."""
+
+    when: str | None = None
+    """When clause condition."""
+
+    mac: str | None = None
+    """macOS key override."""
+
+    linux: str | None = None
+    """Linux key override."""
+
+    win: str | None = None
+    """Windows key override."""
+
+    args: dict[str, Any] | None = None
+    """Additional command arguments."""
+
+
+class ExtensionContributesMenusSchema(BaseModel):
+    """Schema for Extension Menu contributions."""
+
+    model_config = ConfigDict(from_attributes=True, extra="ignore")
+
+    menu_location: str
+    """Menu location identifier."""
+
+    command: str | None = None
+    """Command to invoke."""
+
+    submenu: str | None = None
+    """Submenu ID."""
+
+    when: str | None = None
+    """When clause condition."""
+
+    group: str | None = None
+    """Menu group for sorting."""
+
+    alt: str | None = None
+    """Alternative command."""
+
+
+class ExtensionContributesAuthenticationSchema(BaseModel):
+    """Schema for Extension Authentication Provider contributions."""
+
+    model_config = ConfigDict(from_attributes=True, extra="ignore")
+
+    auth_id: str
+    """Authentication provider ID."""
+
+    label: str
+    """Display label."""
+
+
+class ExtensionContributesTerminalSchema(BaseModel):
+    """Schema for Extension Terminal Profile contributions."""
+
+    model_config = ConfigDict(from_attributes=True, extra="ignore")
+
+    profile_id: str
+    """Terminal profile ID."""
+
+    title: str
+    """Display title."""
+
+    icon: str | None = None
+    """Profile icon."""
+
+
+class ExtensionContributesCommandsSchema(BaseModel):
+    """Schema for Extension Command contributions."""
+
+    model_config = ConfigDict(from_attributes=True, extra="ignore")
+
+    command_id: str
+    """Command identifier (e.g., 'extension.helloWorld')."""
+
+    title: str
+    """Command title shown in Command Palette."""
+
+    category: str | None = None
+    """Category for command grouping."""
+
+    icon: dict[str, Any] | str | None = None
+    """Command icon."""
+
+    when: str | None = None
+    """When clause condition."""
+
+
+class ExtensionContributesSchema(BaseModel):
+    """Schema for Extension Contribution Points container."""
+
+    model_config = ConfigDict(from_attributes=True, extra="ignore")
+
+    # JSONB columns
+    configuration: dict | None = None
+    debuggers: list | None = None
+    walkthroughs: list | None = None
+    grammars: list | None = None
+    colors: list | None = None
+    icons: dict | None = None
+    snippets: list | None = None
+    views: dict | None = None
+    viewsContainers: dict | None = None
+    languages: list | None = None
+    themes: list | None = None
+    iconThemes: list | None = None
+    productIconThemes: list | None = None
+    jsonValidation: list | None = None
+    problemMatchers: list | None = None
+    problemPatterns: list | None = None
+    taskDefinitions: list | None = None
+    customEditors: list | None = None
+    submenus: list | None = None
+    viewsWelcome: list | None = None
+    breakpoints: list | None = None
+    configurationDefaults: dict | None = None
+    typescriptServerPlugins: list | None = None
+
+    # Child relationships
+    keybindings: list[ExtensionContributesKeybindingsSchema] = Field(
+        default_factory=list
+    )
+    menus: list[ExtensionContributesMenusSchema] = Field(default_factory=list)
+    authentication: list[ExtensionContributesAuthenticationSchema] = Field(
+        default_factory=list
+    )
+    terminal: list[ExtensionContributesTerminalSchema] = Field(default_factory=list)
+    commands: list[ExtensionContributesCommandsSchema] = Field(default_factory=list)
+
+
 # =============================================================================
 # Extension Schemas
 # =============================================================================
@@ -412,8 +553,13 @@ class ExtensionDetailSchema(ExtensionSchema):
     capabilities: ExtensionCapabilitiesSchema | None = None
     """Extension capabilities (workspace trust, virtual workspaces)."""
 
-    scripts: list[ExtensionScriptsSchema] = []
+    scripts: list[ExtensionScriptsSchema] = Field(default_factory=list)
     """Extension scripts (npm scripts from package.json)."""
 
-    activation_events: list[ExtensionActivationEventsSchema] = []
+    activation_events: list[ExtensionActivationEventsSchema] = Field(
+        default_factory=list
+    )
     """Activation events that trigger extension activation."""
+
+    contributes: ExtensionContributesSchema | None = None
+    """Extension contribution points (keybindings, menus, etc.)."""

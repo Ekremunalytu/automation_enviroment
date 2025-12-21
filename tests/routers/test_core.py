@@ -91,7 +91,9 @@ def test_create_extension_endpoint(client: TestClient, db_session: Session):
     mock_ext.dependencies = None
     mock_ext.devDependencies = None
     mock_ext.capabilities = None
+    mock_ext.activation_events = []
     mock_ext.scripts = []
+    mock_ext.contributes = None
 
     # Mock the service method to avoid filesystem scan
     with patch("routers.core.service.create_extension_by_name") as mock_create:
@@ -103,6 +105,20 @@ def test_create_extension_endpoint(client: TestClient, db_session: Session):
         assert response.json()["name"] == "new-ext"
         assert response.json()["id"] == 1
         mock_create.assert_called_once()
+
+
+def test_get_extensions_all_info_with_pagination(client: TestClient):
+    """Test GET /getExtensionsAllInfo with pagination params."""
+    with patch("routers.core.service.get_all_extensions_all") as mock_get:
+        mock_get.return_value = []
+
+        response = client.get("/getExtensionsAllInfo?skip=5&limit=10")
+
+        assert response.status_code == 200
+        assert response.json() == []
+        _, kwargs = mock_get.call_args
+        assert kwargs["skip"] == 5
+        assert kwargs["limit"] == 10
 
 
 def test_create_extension_not_found(client: TestClient):

@@ -323,12 +323,15 @@ sequenceDiagram
     P-->>S: Return scripts data
     S->>P: parse_activation_events(package_json)
     P-->>S: Return activation events data
+    S->>P: parse_contributes(package_json)
+    P-->>S: Return contributes data
 
     S->>S: ExtensionSchema(**package_json)
     S->>S: ExtensionCapabilitiesSchema(**caps)
     S->>S: ExtensionScriptsSchema(**scripts)
     S->>S: ExtensionActivationEventsSchema(**events)
-    S->>CR: create_extension(db, schema, caps, scripts, events)
+    S->>S: ExtensionContributesSchema(**contribs)
+    S->>CR: create_extension(db, schema, caps, scripts, events, contribs)
 
     CR->>CR: Extension(**schema.model_dump())
     CR->>DB: INSERT INTO extensions
@@ -339,6 +342,9 @@ sequenceDiagram
     CR->>DB: INSERT INTO extension_scripts (for each)
     CR->>CR: ExtensionActivationEvents(ext_id, **event)
     CR->>DB: INSERT INTO extension_activation_events (for each)
+    CR->>CR: ExtensionContributes(ext_id, **contribs)
+    CR->>DB: INSERT INTO extension_contributes
+    CR->>DB: INSERT INTO extension_contributes_commands... (child tables)
     CR->>CR: db.commit() + db.refresh()
     CR-->>S: Return Extension ORM
 
@@ -372,7 +378,7 @@ sequenceDiagram
     R->>S: search_extension_by_name(db, "python")
 
     S->>CR: search_extension_by_name(db, "python")
-    CR->>DB: SELECT * FROM extensions<br/>JOIN capabilities, scripts, activation_events
+    CR->>DB: SELECT * FROM extensions<br/>JOIN capabilities, scripts, events, contributes (lazy/eager)
     DB-->>CR: Return row + related data
     CR-->>S: Return Extension ORM (with relationships)
 
@@ -433,7 +439,7 @@ sequenceDiagram
 %%{init: {'theme': 'dark', 'themeVariables': { 'background': '#0d1117', 'primaryColor': '#3b82f6', 'primaryTextColor': '#e6edf3', 'lineColor': '#818cf8', 'tertiaryColor': '#4f46e5', 'attributeBackgroundColorEven': '#161b22', 'attributeBackgroundColorOdd': '#21262d'}}}%%
 erDiagram
     EXTENSIONS ||--|| EXTENSION_CAPABILITIES : "has (1:1)"
-    EXTENSIONS ||--o{ EXTENSION_COMMANDS : "defines (1:N)"
+    EXTENSIONS ||--|| EXTENSION_CONTRIBUTES : "has (1:1)"
     EXTENSIONS ||--o{ EXTENSION_SCRIPTS : "contains (1:N)"
     EXTENSIONS ||--o{ EXTENSION_ACTIVATION_EVENTS : "triggers (1:N)"
 
@@ -476,14 +482,42 @@ erDiagram
         text virtual_description "📝 Explanation"
     }
 
-    EXTENSION_COMMANDS {
-        int id PK "🔑 Auto-increment"
-        int extension_id FK "🔗 Foreign Key"
+    EXTENSION_CONTRIBUTES {
+        int extension_id PK,FK "🔑 Foreign Key"
+        jsonb configuration "⚙️ Settings Schema"
+        jsonb debuggers "🐛 Debug Config"
+        jsonb languages "🗣️ Language Defs"
+        jsonb grammars "📝 TextMate"
+        jsonb ... "➕ Many JSONB Fields"
+    }
+
+    EXTENSION_CONTRIBUTES ||--o{ EXTENSION_CONTRIBUTES_COMMANDS : "has (1:N)"
+    EXTENSION_CONTRIBUTES ||--o{ EXTENSION_CONTRIBUTES_KEYBINDINGS : "has (1:N)"
+    EXTENSION_CONTRIBUTES ||--o{ EXTENSION_CONTRIBUTES_MENUS : "has (1:N)"
+
+    EXTENSION_CONTRIBUTES_COMMANDS {
+        int id PK
+        int contributes_id FK
         string command_id "🆔 Command ID"
         string title "🏷️ Display Title"
         string category "📂 Grouping"
         jsonb icon "🖼️ Icon Path"
         jsonb when "❓ Condition"
+    }
+
+    EXTENSION_CONTRIBUTES_KEYBINDINGS {
+        int id PK
+        int contributes_id FK
+        string key "🎹 Key Combo"
+        string command "⚡ Trigger Command"
+        string when "❓ Condition"
+    }
+
+    EXTENSION_CONTRIBUTES_MENUS {
+        int id PK
+        int contributes_id FK
+        string menu_location "📍 Location ID"
+        string command "⚡ Command"
     }
 
     EXTENSION_SCRIPTS {

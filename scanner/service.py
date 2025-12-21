@@ -52,12 +52,23 @@ from models.models import Extension
 from schemas.schemas import (
     ExtensionActivationEventsSchema,
     ExtensionCapabilitiesSchema,
+    ExtensionContributesAuthenticationSchema,
+    ExtensionContributesCommandsSchema,
+    ExtensionContributesKeybindingsSchema,
+    ExtensionContributesMenusSchema,
+    ExtensionContributesSchema,
+    ExtensionContributesTerminalSchema,
     ExtensionSchema,
     ExtensionScriptsSchema,
 )
 
 # File system operations for scanning extensions directory
-from .json_parser import parse_activation_events, parse_capabilities, parse_scripts
+from .json_parser import (
+    parse_activation_events,
+    parse_capabilities,
+    parse_contributes,
+    parse_scripts,
+)
 from .json_parser import search_extension as find_json_in_dir
 
 
@@ -88,15 +99,19 @@ def get_all_extensions_basic(db: Session) -> list[Extension]:
     return all_extensions_basic_information
 
 
-def get_all_extensions_all(db: Session) -> list[Extension]:
+def get_all_extensions_all(
+    db: Session, skip: int = 0, limit: int | None = None
+) -> list[Extension]:
     """
-    Retrieve all extensions with complete information.
+    Retrieve all extensions with complete information from the database.
 
     Returns full extension data including all metadata fields.
     Use sparingly due to larger payload size.
 
     Args:
         db: SQLAlchemy database session from dependency injection
+        skip: Number of records to skip (for pagination)
+        limit: Maximum number of records to return (for pagination)
 
     Returns:
         List of Extension objects with all columns loaded
@@ -110,8 +125,7 @@ def get_all_extensions_all(db: Session) -> list[Extension]:
         - Detailed comparison views
         - Administrative reports
     """
-    all_extensions_all_information = get_extensions_all_info(db)
-    return all_extensions_all_information
+    return get_extensions_all_info(db, skip=skip, limit=limit)
 
 
 def search_extension_by_name(
@@ -293,6 +307,41 @@ def create_extension_by_name(db: Session, extension_name: str) -> Extension | No
             else None
         )
 
+        # Step 2.8: Parse contributes from package.json
+        contributes_data = parse_contributes(package_json)
+        contributes_schema = None
+        if contributes_data:
+            # Build child schemas from parsed data
+            keybindings = [
+                ExtensionContributesKeybindingsSchema(**kb)
+                for kb in contributes_data.pop("keybindings", [])
+            ]
+            menus = [
+                ExtensionContributesMenusSchema(**menu)
+                for menu in contributes_data.pop("menus", [])
+            ]
+            authentication = [
+                ExtensionContributesAuthenticationSchema(**auth)
+                for auth in contributes_data.pop("authentication", [])
+            ]
+            terminal = [
+                ExtensionContributesTerminalSchema(**term)
+                for term in contributes_data.pop("terminal", [])
+            ]
+            commands = [
+                ExtensionContributesCommandsSchema(**cmd)
+                for cmd in contributes_data.pop("commands", [])
+            ]
+
+            contributes_schema = ExtensionContributesSchema(
+                **contributes_data,
+                keybindings=keybindings,
+                menus=menus,
+                authentication=authentication,
+                terminal=terminal,
+                commands=commands,
+            )
+
         # Step 3: Persist to database via CRUD layer
         # create_db_extension handles:
         # - ORM model creation
@@ -304,6 +353,7 @@ def create_extension_by_name(db: Session, extension_name: str) -> Extension | No
             capabilities_schema,
             scripts_schema,
             activation_events_schema,
+            contributes_schema,
         )
 
     # Extension not found in filesystem

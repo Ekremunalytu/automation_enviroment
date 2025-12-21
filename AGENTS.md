@@ -88,6 +88,12 @@
 - `extension_capabilities` - 1:1 workspace trust settings
 - `extension_scripts` - 1:N npm scripts from package.json
 - `extension_activation_events` - 1:N activation events (onLanguage, onCommand, etc.)
+- `extension_contributes` - 1:1 contribution points container (JSONB fields for complex data)
+- `extension_contributes_commands` - N:1 command contributions
+- `extension_contributes_keybindings` - N:1 keybinding contributions
+- `extension_contributes_menus` - N:1 menu contributions
+- `extension_contributes_authentication` - N:1 authentication provider contributions
+- `extension_contributes_terminal` - N:1 terminal profile contributions
 
 ## Useful Commands
 - `make check-all` - Run all linters and tests

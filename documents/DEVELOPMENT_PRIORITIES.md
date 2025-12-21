@@ -45,9 +45,9 @@
 |:---------------|:----------------|:--------|:-------|
 | **Identity** | `name`, `publisher`, `version`, `displayName` | Unique extension identification | ✅ Done |
 | **Commands** | `contributes.commands` | Command palette entries | ✅ Model Done |
-| **Permissions** | `activationEvents`, `contributes` | What triggers the extension | ⏳ Parser Pending |
+| **Permissions** | `activationEvents`, `contributes` | What triggers the extension | ✅ Done |
 | **Entry Points** | `main`, `browser`, `web` | Code execution locations | ✅ Done |
-| **Dependencies** | `dependencies`, `devDependencies`, `extensionDependencies` | Supply chain mapping | ⏳ Pending |
+| **Dependencies** | `dependencies`, `devDependencies`, `extensionDependencies` | Supply chain mapping | ✅ Done |
 | **Capabilities** | `capabilities`, `extensionKind` | Extension type classification | ✅ Done |
 | **Scripts** | `scripts` | npm scripts parsing | ✅ Done |
 | **Repository** | `repository`, `homepage`, `bugs` | Source verification | ⏳ Pending |
@@ -178,25 +178,25 @@ erDiagram
 ## 📋 Implementation Tasks
 
 ### 🗄️ Database Tasks
-- [ ] Create `extension_activation_events` table
-- [x] Create `extension_commands` table ✅ (Model exists: `ExtensionCommand`)
-- [ ] Create `extension_contributions` table
-- [ ] Create `extension_dependencies` table
-- [ ] Generate Alembic migrations for new tables
-- [x] Update SQLAlchemy models ✅ (Commands model added)
+- [x] Create `extension_activation_events` table ✅
+- [x] Create `extension_commands` table ✅ (Mapped via `extension_contributes_commands`)
+- [x] Create `extension_contributes` table ✅
+- [x] Create `extension_dependencies` table ✅ (Stored as JSONB/Array in `Extension`)
+- [x] Generate Alembic migrations for new tables ✅
+- [x] Update SQLAlchemy models ✅
 
 ### ⚙️ Parser Tasks
-- [ ] Create `manifest_parser.py` - Full package.json parsing
-- [ ] Create `activation_parser.py` - Activation event extraction
-- [ ] Create `command_parser.py` - Command detection
-- [ ] Create `contribution_parser.py` - Contribution point mapping
-- [ ] Create `dependency_parser.py` - Dependency analysis
+- [x] Create `manifest_parser.py` - Full package.json parsing ✅ (Implemented in `json_parser.py`)
+- [x] Create `activation_parser.py` - Activation event extraction ✅ (Implemented in `json_parser.py`)
+- [x] Create `command_parser.py` - Command detection ✅ (Implemented in `json_parser.py`)
+- [x] Create `contribution_parser.py` - Contribution point mapping ✅ (Implemented in `json_parser.py`)
+- [x] Create `dependency_parser.py` - Dependency analysis ✅ (Implemented in `json_parser.py` & models)
 
 ### 🔄 Service & Schema Tasks
-- [ ] Update `service.py` with new parsers
-- [ ] Create CRUD functions for new tables
-- [ ] Add API endpoints for querying parsed data
-- [ ] Create Pydantic schemas for new data structures
+- [x] Update `service.py` with new parsers ✅
+- [x] Create CRUD functions for new tables ✅
+- [x] Add API endpoints for querying parsed data ✅
+- [x] Create Pydantic schemas for new data structures ✅
 
 <br>
 

@@ -6,7 +6,15 @@ from crud.crud import (
     delete_extension,
     search_extension_by_name,
 )
-from schemas.schemas import ExtensionSchema
+from schemas.schemas import (
+    ExtensionContributesAuthenticationSchema,
+    ExtensionContributesCommandsSchema,
+    ExtensionContributesKeybindingsSchema,
+    ExtensionContributesMenusSchema,
+    ExtensionContributesSchema,
+    ExtensionContributesTerminalSchema,
+    ExtensionSchema,
+)
 
 
 def test_create_extension(db_session: Session):
@@ -214,3 +222,61 @@ def test_create_extension_with_scripts(db_session: Session):
     assert ext.id is not None
     assert ext.name == "scripts-ext"
     assert len(ext.scripts) == 2
+
+
+def test_create_extension_with_contributes(db_session: Session):
+    """
+    Test creating extension with contributes data.
+
+    Verifies contributes and child tables are persisted and retrieved.
+    """
+    schema = ExtensionSchema(
+        name="contrib-ext",
+        publisher="contrib-pub",
+        version="1.0.0",
+        engines={"vscode": "^1.0.0"},
+        description="Extension with contributes",
+    )
+    contributes = ExtensionContributesSchema(
+        configuration={"title": "Config"},
+        keybindings=[
+            ExtensionContributesKeybindingsSchema(
+                key="ctrl+k", command="ext.hello", when="editorTextFocus"
+            )
+        ],
+        menus=[
+            ExtensionContributesMenusSchema(
+                menu_location="editor/context", command="ext.hello"
+            )
+        ],
+        authentication=[
+            ExtensionContributesAuthenticationSchema(auth_id="github", label="GitHub")
+        ],
+        terminal=[
+            ExtensionContributesTerminalSchema(
+                profile_id="ext.term", title="Ext Terminal", icon="zap"
+            )
+        ],
+        commands=[
+            ExtensionContributesCommandsSchema(
+                command_id="ext.hello", title="Hello", when="editorTextFocus"
+            )
+        ],
+    )
+
+    create_extension(db_session, schema, contributes=contributes)
+
+    result = search_extension_by_name(db_session, "contrib-ext")
+    assert result is not None
+    assert result.contributes is not None
+    assert result.contributes.configuration == {"title": "Config"}
+    assert len(result.contributes.keybindings) == 1
+    assert result.contributes.keybindings[0].command == "ext.hello"
+    assert len(result.contributes.menus) == 1
+    assert result.contributes.menus[0].menu_location == "editor/context"
+    assert len(result.contributes.authentication) == 1
+    assert result.contributes.authentication[0].auth_id == "github"
+    assert len(result.contributes.terminal) == 1
+    assert result.contributes.terminal[0].profile_id == "ext.term"
+    assert len(result.contributes.commands) == 1
+    assert result.contributes.commands[0].command_id == "ext.hello"

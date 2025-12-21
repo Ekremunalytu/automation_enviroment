@@ -1,7 +1,10 @@
 import pytest
 from pydantic import ValidationError
 
-from schemas.schemas import ExtensionSchema
+from schemas.schemas import (
+    ExtensionContributesSchema,
+    ExtensionSchema,
+)
 
 
 def test_extension_schema_valid():
@@ -128,3 +131,36 @@ def test_extension_schema_with_null_extension_fields():
     assert schema.extensionPack is None
     assert schema.extensionDependencies is None
     assert schema.extensionKind is None
+
+
+def test_extension_contributes_schema_defaults():
+    """Test ExtensionContributesSchema default values."""
+    schema = ExtensionContributesSchema()
+    assert schema.configuration is None
+    assert schema.keybindings == []
+    assert schema.menus == []
+    assert schema.authentication == []
+    assert schema.terminal == []
+    assert schema.commands == []
+
+
+def test_extension_contributes_schema_with_children():
+    """Test ExtensionContributesSchema with child contribution data."""
+    data = {
+        "configuration": {"title": "Config"},
+        "keybindings": [
+            {"key": "ctrl+k", "command": "ext.hello", "when": "editorTextFocus"}
+        ],
+        "commands": [{"command_id": "ext.hello", "title": "Hello"}],
+        "menus": [{"menu_location": "editor/context", "command": "ext.hello"}],
+        "authentication": [{"auth_id": "github", "label": "GitHub"}],
+        "terminal": [{"profile_id": "ext.term", "title": "Ext Terminal"}],
+    }
+    schema = ExtensionContributesSchema(**data)
+
+    assert schema.configuration == {"title": "Config"}
+    assert schema.keybindings[0].command == "ext.hello"
+    assert schema.commands[0].command_id == "ext.hello"
+    assert schema.menus[0].menu_location == "editor/context"
+    assert schema.authentication[0].auth_id == "github"
+    assert schema.terminal[0].profile_id == "ext.term"
