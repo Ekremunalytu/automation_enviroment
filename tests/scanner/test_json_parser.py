@@ -309,3 +309,159 @@ class TestParseScripts:
         }
         result = parse_scripts(package_json)
         assert result is None
+
+
+# =============================================================================
+# Activation Events Parsing Tests
+# =============================================================================
+
+
+class TestParseActivationEvents:
+    """Tests for parse_activation_events function."""
+
+    def test_no_activation_events_returns_none(self):
+        """Test that missing activationEvents field returns None."""
+        from scanner.json_parser import parse_activation_events
+
+        package_json = {"name": "test", "version": "1.0.0"}
+        result = parse_activation_events(package_json)
+        assert result is None
+
+    def test_empty_activation_events_returns_none(self):
+        """Test that empty activationEvents array returns None."""
+        from scanner.json_parser import parse_activation_events
+
+        package_json = {"name": "test", "activationEvents": []}
+        result = parse_activation_events(package_json)
+        assert result is None
+
+    def test_activation_events_not_list_returns_none(self):
+        """Test that non-list activationEvents value returns None."""
+        from scanner.json_parser import parse_activation_events
+
+        package_json = {"name": "test", "activationEvents": "invalid"}
+        result = parse_activation_events(package_json)
+        assert result is None
+
+    def test_parse_on_language_event(self):
+        """Test parsing onLanguage activation event."""
+        from scanner.json_parser import parse_activation_events
+
+        package_json = {"activationEvents": ["onLanguage:python"]}
+        result = parse_activation_events(package_json)
+
+        assert result is not None
+        assert len(result) == 1
+        assert result[0]["event_type"] == "onLanguage"
+        assert result[0]["event_value"] == "python"
+
+    def test_parse_on_command_event(self):
+        """Test parsing onCommand activation event."""
+        from scanner.json_parser import parse_activation_events
+
+        package_json = {"activationEvents": ["onCommand:extension.activate"]}
+        result = parse_activation_events(package_json)
+
+        assert result is not None
+        assert len(result) == 1
+        assert result[0]["event_type"] == "onCommand"
+        assert result[0]["event_value"] == "extension.activate"
+
+    def test_parse_star_event(self):
+        """Test parsing * (startup) activation event."""
+        from scanner.json_parser import parse_activation_events
+
+        package_json = {"activationEvents": ["*"]}
+        result = parse_activation_events(package_json)
+
+        assert result is not None
+        assert len(result) == 1
+        assert result[0]["event_type"] == "*"
+        assert result[0]["event_value"] is None
+
+    def test_parse_on_startup_finished(self):
+        """Test parsing onStartupFinished activation event (no value)."""
+        from scanner.json_parser import parse_activation_events
+
+        package_json = {"activationEvents": ["onStartupFinished"]}
+        result = parse_activation_events(package_json)
+
+        assert result is not None
+        assert len(result) == 1
+        assert result[0]["event_type"] == "onStartupFinished"
+        assert result[0]["event_value"] is None
+
+    def test_parse_workspace_contains_glob(self):
+        """Test parsing workspaceContains with glob pattern."""
+        from scanner.json_parser import parse_activation_events
+
+        package_json = {"activationEvents": ["workspaceContains:**/.gitignore"]}
+        result = parse_activation_events(package_json)
+
+        assert result is not None
+        assert len(result) == 1
+        assert result[0]["event_type"] == "workspaceContains"
+        assert result[0]["event_value"] == "**/.gitignore"
+
+    def test_parse_multiple_events(self):
+        """Test parsing multiple activation events."""
+        from scanner.json_parser import parse_activation_events
+
+        package_json = {
+            "activationEvents": [
+                "onLanguage:python",
+                "onLanguage:javascript",
+                "onCommand:extension.run",
+                "*",
+            ]
+        }
+        result = parse_activation_events(package_json)
+
+        assert result is not None
+        assert len(result) == 4
+
+        event_types = [e["event_type"] for e in result]
+        assert event_types.count("onLanguage") == 2
+        assert "onCommand" in event_types
+        assert "*" in event_types
+
+    def test_skip_invalid_event_entries(self):
+        """Test that non-string activation events are skipped."""
+        from scanner.json_parser import parse_activation_events
+
+        package_json = {
+            "activationEvents": [
+                "onLanguage:python",
+                123,  # Invalid
+                {"type": "onCommand"},  # Invalid
+                "onCommand:test",
+            ]
+        }
+        result = parse_activation_events(package_json)
+
+        assert result is not None
+        assert len(result) == 2
+        event_types = [e["event_type"] for e in result]
+        assert "onLanguage" in event_types
+        assert "onCommand" in event_types
+
+    def test_all_invalid_events_returns_none(self):
+        """Test that if all events are invalid, returns None."""
+        from scanner.json_parser import parse_activation_events
+
+        package_json = {"activationEvents": [123, None, {"invalid": True}]}
+        result = parse_activation_events(package_json)
+        assert result is None
+
+    def test_event_with_multiple_colons(self):
+        """Test that events with multiple colons are parsed correctly."""
+        from scanner.json_parser import parse_activation_events
+
+        # The value part may contain colons (e.g., onUri)
+        package_json = {"activationEvents": ["onUri:vscode://ext/path:with:colons"]}
+        result = parse_activation_events(package_json)
+
+        assert result is not None
+        assert len(result) == 1
+        assert result[0]["event_type"] == "onUri"
+        assert result[0]["event_value"] == "vscode://ext/path:with:colons"
