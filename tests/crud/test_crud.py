@@ -10,6 +10,7 @@ from schemas.schemas import ExtensionSchema
 
 
 def test_create_extension(db_session: Session):
+    """Test successful creation of a new extension."""
     schema = ExtensionSchema(
         name="test-ext",
         publisher="test-pub",
@@ -23,6 +24,7 @@ def test_create_extension(db_session: Session):
 
 
 def test_create_duplicate_extension(db_session: Session):
+    """Test that creating a duplicate extension raises ValueError."""
     schema = ExtensionSchema(
         name="test-ext",
         publisher="test-pub",
@@ -36,6 +38,7 @@ def test_create_duplicate_extension(db_session: Session):
 
 
 def test_search_extension_by_name(db_session: Session):
+    """Test searching for an extension by its name."""
     # Setup
     schema = ExtensionSchema(
         name="search-me",
@@ -55,6 +58,7 @@ def test_search_extension_by_name(db_session: Session):
 
 
 def test_delete_extension(db_session: Session):
+    """Test deleting an extension and verifying it's gone."""
     # Setup
     schema = ExtensionSchema(
         name="delete-me",

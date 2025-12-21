@@ -8,18 +8,21 @@ from schemas.schemas import ExtensionSchema
 
 
 def test_read_root(client: TestClient):
+    """Test the root endpoint returns project info."""
     response = client.get("/")
     assert response.status_code == 200
     assert response.json()["Project"] == "Extrace"
 
 
 def test_health_check(client: TestClient):
+    """Test the health check endpoint."""
     response = client.get("/health")
     assert response.status_code == 200
     assert response.json()["status"] == "OK"
 
 
 def test_search_extension_endpoint(client: TestClient, db_session: Session):
+    """Test searching for an existing extension."""
     # Setup
     schema = ExtensionSchema(
         name="api-test",
@@ -36,11 +39,13 @@ def test_search_extension_endpoint(client: TestClient, db_session: Session):
 
 
 def test_search_extension_not_found(client: TestClient):
+    """Test searching for a non-existent extension returns 404."""
     response = client.get("/searchExtension?name=ghost")
     assert response.status_code == 404
 
 
 def test_delete_extension_endpoint(client: TestClient, db_session: Session):
+    """Test deleting an extension via API."""
     # Setup
     schema = ExtensionSchema(
         name="delete-api",

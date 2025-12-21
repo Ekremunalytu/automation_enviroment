@@ -150,7 +150,7 @@ class ExtensionSchema(BaseModel):
     """Publisher account name on VS Code Marketplace."""
 
     version: str
-    """ Extension version"""
+    """Extension version."""
 
     engines: dict[str, Any]
     """

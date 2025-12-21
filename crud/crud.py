@@ -326,7 +326,8 @@ def delete_extension(
         version: Specific version to delete (optional)
 
     Returns:
-        True if deleted, False if not found
+        True if the extension was found and deleted
+        False if the extension was not found
 
     Raises:
         ValueError: If multiple records match the given filters (ambiguous)

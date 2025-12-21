@@ -38,7 +38,7 @@ The project has a clean structure and establishes a good starting point. The Fas
 ```
 automation_enviroment/
 ├── alembic/              ✅ Migration infrastructure
-├── config/main.py        ⚠️ Unnecessary PyCharm template
+
 ├── core/
 │   ├── config.py         ✅ Pydantic settings
 │   └── deps.py           ✅ Dependency injection

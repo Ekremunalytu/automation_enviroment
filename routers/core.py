@@ -436,11 +436,6 @@ def delete_extension(params: SearchRequest = Depends(), db: Session = Depends(ge
         params: Query parameters containing extension name, publisher, and version
         db: Database session
 
-    Query Parameters:
-        name (str): Extension name to delete
-        publisher (str, optional): Publisher name to filter on (recommended)
-        version (str, optional): Specific version to delete
-
     Returns:
         dict: Success message
 

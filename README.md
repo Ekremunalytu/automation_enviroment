@@ -409,7 +409,7 @@ pytest
 pytest --cov=. --cov-report=html
 ```
 
-> 📘 For detailed testing guidelines, see [TESTING.md](TESTING.md).
+> 📘 For detailed testing guidelines, see [TESTING.md](documents/TESTING.md).
 
 <br>
 
