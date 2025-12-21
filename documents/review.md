@@ -89,6 +89,7 @@ automation_enviroment/
 | 3 | Router endpoint for `get_extension_by_id` | 🟡 Medium | ⏳ Pending |
 | 4 | Bulk insert function | 🟡 Medium | ⏳ Pending |
 | 5 | Additional fields in model (dependencies, devDependencies) | 🟡 Medium | ✅ Completed |
+| 6 | New fields (extensionPack, extensionDependencies, extensionKind) | 🟡 Medium | ✅ Completed |
 
 ---
 
@@ -193,6 +194,10 @@ def parse_scripts(package_json: dict) -> list[dict] | None:
 - All models migrated to `mapped_column()` and `Mapped[]` annotations
 - CRUD operations use new `select()` statement API
 - Query syntax updated: `scalars()` instead of `query()`
+
+**✅ Extension Pack Support (Implemented):**
+- Added `extensionPack`, `extensionDependencies`, `extensionKind` to `Extension` model.
+- Updated Pydantic schemas and `README`/`ARCHITECTURE` docs.
 
 ---
 

@@ -17,6 +17,9 @@ SAMPLE_PACKAGE_JSON = {
     "engines": {"vscode": "^1.0.0"},
     "dependencies": {"axios": "^1.0.0"},
     "devDependencies": {"typescript": "^5.0.0"},
+    "extensionPack": ["ms-python.python", "ms-python.vscode-pylance"],
+    "extensionDependencies": ["ms-vscode.cpptools"],
+    "extensionKind": ["workspace"],
 }
 
 

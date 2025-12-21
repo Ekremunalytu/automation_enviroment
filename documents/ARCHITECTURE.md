@@ -456,6 +456,9 @@ erDiagram
         jsonb devDependencies "🛠️ Optional"
         timestamp created_at "📅 Auto-set"
         timestamp updated_at "🔄 Auto-update"
+        array extensionPack "📦 Pack IDs"
+        array extensionDependencies "🔗 Dep IDs"
+        array extensionKind "🏷️ UI/Workspace"
     }
 
     EXTENSION_CAPABILITIES {

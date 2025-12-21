@@ -55,3 +55,76 @@ def test_extension_schema_with_null_dependencies():
     schema = ExtensionSchema(**data)
     assert schema.dependencies is None
     assert schema.devDependencies is None
+
+
+def test_extension_schema_with_extension_pack():
+    """Test ExtensionSchema with extensionPack field."""
+    data = {
+        "name": "pack-ext",
+        "publisher": "pack-pub",
+        "version": "1.0.0",
+        "engines": {"vscode": "^1.0.0"},
+        "extensionPack": ["ms-python.python", "ms-python.vscode-pylance"],
+    }
+    schema = ExtensionSchema(**data)
+    assert schema.extensionPack == ["ms-python.python", "ms-python.vscode-pylance"]
+
+
+def test_extension_schema_with_extension_dependencies():
+    """Test ExtensionSchema with extensionDependencies field."""
+    data = {
+        "name": "deps-ext",
+        "publisher": "deps-pub",
+        "version": "1.0.0",
+        "engines": {"vscode": "^1.0.0"},
+        "extensionDependencies": ["ms-vscode.cpptools", "vscjava.vscode-java-pack"],
+    }
+    schema = ExtensionSchema(**data)
+    assert schema.extensionDependencies == [
+        "ms-vscode.cpptools",
+        "vscjava.vscode-java-pack",
+    ]
+
+
+def test_extension_schema_with_extension_kind():
+    """Test ExtensionSchema with extensionKind field."""
+    data = {
+        "name": "kind-ext",
+        "publisher": "kind-pub",
+        "version": "1.0.0",
+        "engines": {"vscode": "^1.0.0"},
+        "extensionKind": ["ui", "workspace"],
+    }
+    schema = ExtensionSchema(**data)
+    assert schema.extensionKind == ["ui", "workspace"]
+
+
+def test_extension_schema_with_all_extension_fields():
+    """Test ExtensionSchema with all new extension fields populated."""
+    data = {
+        "name": "full-ext",
+        "publisher": "full-pub",
+        "version": "1.0.0",
+        "engines": {"vscode": "^1.0.0"},
+        "extensionPack": ["bundle.ext1", "bundle.ext2"],
+        "extensionDependencies": ["required.ext"],
+        "extensionKind": ["workspace"],
+    }
+    schema = ExtensionSchema(**data)
+    assert schema.extensionPack == ["bundle.ext1", "bundle.ext2"]
+    assert schema.extensionDependencies == ["required.ext"]
+    assert schema.extensionKind == ["workspace"]
+
+
+def test_extension_schema_with_null_extension_fields():
+    """Test ExtensionSchema with null/missing extension fields."""
+    data = {
+        "name": "null-ext",
+        "publisher": "null-pub",
+        "version": "1.0.0",
+        "engines": {"vscode": "^1.0.0"},
+    }
+    schema = ExtensionSchema(**data)
+    assert schema.extensionPack is None
+    assert schema.extensionDependencies is None
+    assert schema.extensionKind is None

@@ -252,6 +252,15 @@ class ExtensionSchema(BaseModel):
     devDependencies: dict[str, Any] | None = None
     """NPM development dependencies for the extension."""
 
+    extensionPack: list[str] | None = None
+    """List of extension IDs bundled in this extension pack."""
+
+    extensionDependencies: list[str] | None = None
+    """List of extension IDs that this extension depends on."""
+
+    extensionKind: list[str] | None = None
+    """Where the extension should run: ['ui'], ['workspace'], or both."""
+
 
 class ScanRequest(BaseModel):
     """

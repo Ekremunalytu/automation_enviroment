@@ -307,6 +307,21 @@ class Extension(Base):
     devDependencies: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
     """NPM development dependencies from package.json."""
 
+    extensionPack: Mapped[list[str] | None] = mapped_column(
+        ARRAY(String), nullable=True
+    )
+    """List of extension IDs bundled in this extension pack."""
+
+    extensionDependencies: Mapped[list[str] | None] = mapped_column(
+        ARRAY(String), nullable=True
+    )
+    """List of extension IDs that this extension depends on."""
+
+    extensionKind: Mapped[list[str] | None] = mapped_column(
+        ARRAY(String), nullable=True
+    )
+    """Where the extension should run: ['ui'], ['workspace'], or both."""
+
     # =========================================================================
     # TIMESTAMP FIELDS (AUTO-MANAGED)
     # =========================================================================

@@ -355,6 +355,9 @@ extrace/
 | `categories` | `ARRAY` | Marketplace categories |
 | `dependencies` | `JSONB` | Runtime dependencies |
 | `devDependencies` | `JSONB` | Dev dependencies |
+| `extensionPack` | `ARRAY` | Bundled extension IDs |
+| `extensionDependencies` | `ARRAY` | Dependent extension IDs |
+| `extensionKind` | `ARRAY` | UI/Workspace kind |
 
 > [!IMPORTANT]
 > A **Unique Constraint** applies to `(publisher, name, version)` to prevent duplicate entries.
