@@ -17,7 +17,7 @@
 
 ---
 
-`Last Updated: 2025-12-20` • `Version: 1.0.0` • `Status: Development`
+`Last Updated: 2025-12-21` • `Version: 1.0.0` • `Status: Development`
 
 ---
 
@@ -321,11 +321,14 @@ sequenceDiagram
     P-->>S: Return capabilities data
     S->>P: parse_scripts(package_json)
     P-->>S: Return scripts data
+    S->>P: parse_activation_events(package_json)
+    P-->>S: Return activation events data
 
     S->>S: ExtensionSchema(**package_json)
     S->>S: ExtensionCapabilitiesSchema(**caps)
     S->>S: ExtensionScriptsSchema(**scripts)
-    S->>CR: create_extension(db, schema, caps, scripts)
+    S->>S: ExtensionActivationEventsSchema(**events)
+    S->>CR: create_extension(db, schema, caps, scripts, events)
 
     CR->>CR: Extension(**schema.model_dump())
     CR->>DB: INSERT INTO extensions
@@ -334,6 +337,8 @@ sequenceDiagram
     CR->>DB: INSERT INTO extension_capabilities
     CR->>CR: ExtensionScripts(ext_id, **script)
     CR->>DB: INSERT INTO extension_scripts (for each)
+    CR->>CR: ExtensionActivationEvents(ext_id, **event)
+    CR->>DB: INSERT INTO extension_activation_events (for each)
     CR->>CR: db.commit() + db.refresh()
     CR-->>S: Return Extension ORM
 
@@ -367,9 +372,9 @@ sequenceDiagram
     R->>S: search_extension_by_name(db, "python")
 
     S->>CR: search_extension_by_name(db, "python")
-    CR->>DB: SELECT * FROM extensions JOIN capabilities
-    DB-->>CR: Return row + capabilities
-    CR-->>S: Return Extension ORM
+    CR->>DB: SELECT * FROM extensions<br/>JOIN capabilities, scripts, activation_events
+    DB-->>CR: Return row + related data
+    CR-->>S: Return Extension ORM (with relationships)
 
     S-->>R: Return Extension
     R-->>C: 200 OK + ExtensionDetailSchema JSON
@@ -404,7 +409,7 @@ sequenceDiagram
     CR->>DB: SELECT * FROM extensions WHERE name = 'python'
     DB-->>CR: Return row
     CR->>DB: DELETE FROM extensions WHERE name = 'python'
-    DB-->>CR: Confirm Delete (Cascade to Capabilities)
+    DB-->>CR: Confirm Delete (Cascade to all related tables)
     CR->>CR: db.commit()
     CR-->>S: Return True
 
@@ -430,6 +435,7 @@ erDiagram
     EXTENSIONS ||--|| EXTENSION_CAPABILITIES : "has (1:1)"
     EXTENSIONS ||--o{ EXTENSION_COMMANDS : "defines (1:N)"
     EXTENSIONS ||--o{ EXTENSION_SCRIPTS : "contains (1:N)"
+    EXTENSIONS ||--o{ EXTENSION_ACTIVATION_EVENTS : "triggers (1:N)"
 
     EXTENSIONS {
         int id PK "🔑 Auto-increment"
@@ -485,6 +491,13 @@ erDiagram
         int extension_id FK "🔗 Foreign Key"
         string script_name "📛 Script Name"
         jsonb script_command "⚡ Command Details"
+    }
+
+    EXTENSION_ACTIVATION_EVENTS {
+        int id PK "🔑 Auto-increment"
+        int extension_id FK "🔗 Foreign Key"
+        string event_type "🎯 Event Type (indexed)"
+        string event_value "📋 Event Value (nullable)"
     }
 ```
 

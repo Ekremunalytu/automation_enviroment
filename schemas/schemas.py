@@ -82,6 +82,29 @@ class ExtensionScriptsSchema(BaseModel):
     """Script command or command details."""
 
 
+class ExtensionActivationEventsSchema(BaseModel):
+    """
+    Schema for Extension Activation Events.
+
+    Represents individual activation events from package.json.
+    Each event is parsed into event_type and event_value.
+
+    Reference: https://code.visualstudio.com/api/references/activation-events
+
+    Example:
+        "onLanguage:python" -> event_type="onLanguage", event_value="python"
+        "*" -> event_type="*", event_value=None
+    """
+
+    model_config = ConfigDict(from_attributes=True, extra="ignore")
+
+    event_type: str
+    """Activation event type (e.g., 'onLanguage', 'onCommand', '*')."""
+
+    event_value: str | None = None
+    """Activation event value/parameter (e.g., 'python' for onLanguage:python)."""
+
+
 # =============================================================================
 # Extension Schemas
 # =============================================================================
@@ -391,3 +414,6 @@ class ExtensionDetailSchema(ExtensionSchema):
 
     scripts: list[ExtensionScriptsSchema] = []
     """Extension scripts (npm scripts from package.json)."""
+
+    activation_events: list[ExtensionActivationEventsSchema] = []
+    """Activation events that trigger extension activation."""

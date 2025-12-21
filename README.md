@@ -18,7 +18,7 @@
 
 ---
 
-`Last Updated: 2025-12-20` • `Version: 1.0.0` • `Status: Active`
+`Last Updated: 2025-12-21` • `Version: 1.0.0` • `Status: Active`
 
 ---
 
@@ -371,6 +371,7 @@ extrace/
 | `extension_capabilities` | 1:1 | Workspace trust & virtual workspace settings |
 | `extension_commands` | 1:N | Command palette entries from contributes.commands |
 | `extension_scripts` | 1:N | npm scripts from package.json |
+| `extension_activation_events` | 1:N | Activation events (onLanguage, onCommand, etc.) |
 
 <br>
 
@@ -425,9 +426,10 @@ pytest --cov=. --cov-report=html
 - [x] CRUD Operations
 - [x] **Capabilities Parsing** (Workspace Trust & Virtual Workspaces)
 - [x] **Scripts Parsing** (npm scripts from package.json)
+- [x] **Activation Events Parsing** (onLanguage, onCommand, etc.)
 
 ### 🚧 In Progress
-- [ ] Detailed manifest parsing (Commands, Events)
+- [ ] Detailed manifest parsing (Commands)
 - [ ] Risk scoring engine
 - [ ] Permission analysis
 

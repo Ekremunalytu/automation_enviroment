@@ -1,7 +1,7 @@
 # ExTrace API - Project Review Report
 
 > **Project:** VS Code Extension Security Scanner (ExTrace)  
-> **Review Date:** 2025-12-20  
+> **Review Date:** 2025-12-21  
 > **Environment:** Single user, isolated sandbox, single pipeline  
 > **Repo Type:** Test/POC Repository
 
@@ -198,6 +198,21 @@ def parse_scripts(package_json: dict) -> list[dict] | None:
 **✅ Extension Pack Support (Implemented):**
 - Added `extensionPack`, `extensionDependencies`, `extensionKind` to `Extension` model.
 - Updated Pydantic schemas and `README`/`ARCHITECTURE` docs.
+
+**✅ Activation Events Support (Implemented - 2025-12-21):**
+```python
+# models/models.py
+class ExtensionActivationEvents(Base):
+    __tablename__ = "extension_activation_events"
+    # Stores parsed activation events: onLanguage, onCommand, *, etc.
+    event_type: Mapped[str]  # e.g., "onLanguage", "onCommand", "*"
+    event_value: Mapped[str | None]  # e.g., "python", "extension.activate"
+```
+- Added `ExtensionActivationEvents` table with 1:N relationship to `Extension`
+- Added `parse_activation_events()` function in `json_parser.py`
+- Added `ExtensionActivationEventsSchema` in `schemas.py`
+- Updated `create_extension()` in `crud.py` to handle activation events
+- Added comprehensive unit tests for activation events
 
 ---
 

@@ -364,6 +364,13 @@ class Extension(Base):
         cascade="all, delete-orphan",
         single_parent=True,
     )
+
+    activation_events: Mapped[list[ExtensionActivationEvents]] = relationship(
+        back_populates="extension",
+        cascade="all, delete-orphan",
+        single_parent=True,
+    )
+
     # =========================================================================
     # TABLE CONSTRAINTS
     # =========================================================================
@@ -517,6 +524,41 @@ class ExtensionCommand(Base):
 
 
 class ExtensionScripts(Base):
+    """
+    Extension Scripts from package.json.
+
+    This table stores npm scripts defined in the extension's package.json.
+    Each script entry is stored as a separate row for easy querying and analysis.
+
+    Source: package.json -> scripts (object)
+
+    Design:
+        - Many-to-One with Extension (one extension can have many scripts)
+        - Script commands stored as JSONB for flexibility
+        - On Delete: CASCADE (deleting extension deletes all its scripts)
+
+    Example package.json:
+        "scripts": {
+            "compile": "tsc -p ./",
+            "watch": "tsc -watch -p ./",
+            "test": "npm run compile && node ./out/test/runTest.js"
+        }
+
+    Resulting rows:
+        | script_name | script_command                        |
+        |-------------|---------------------------------------|
+        | compile     | {"command": "tsc -p ./"}              |
+        | watch       | {"command": "tsc -watch -p ./"}       |
+        | test        | {"command": "npm run compile && ..."}|
+
+    Security Note:
+        Script commands may contain potentially dangerous operations.
+        This data is valuable for security analysis to detect:
+        - Pre/post-install hooks that run arbitrary code
+        - External network calls in scripts
+        - File system modifications
+    """
+
     __tablename__ = "extension_scripts"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
@@ -532,3 +574,65 @@ class ExtensionScripts(Base):
     script_command: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
 
     extension: Mapped[Extension] = relationship(back_populates="scripts")
+
+
+class ExtensionActivationEvents(Base):
+    """
+    Extension Activation Events from package.json.
+
+    This table stores activation events that determine when a VS Code extension
+    is activated. Each event is stored as a separate row for easy querying.
+
+    Source: package.json -> activationEvents (array of strings)
+    Reference: https://code.visualstudio.com/api/references/activation-events
+
+    Design:
+        - Many-to-One with Extension (one extension can have many events)
+        - Event string is parsed into event_type and event_value
+        - Format: "eventType:eventValue" or just "eventType" (e.g., "*")
+
+    Example package.json:
+        "activationEvents": [
+            "onLanguage:python",
+            "onCommand:extension.activate",
+            "workspaceContains:**/.gitignore",
+            "*"
+        ]
+
+    Resulting rows:
+        | event_type        | event_value       |
+        |-------------------|-------------------|
+        | onLanguage        | python            |
+        | onCommand         | extension.activate|
+        | workspaceContains | **/.gitignore     |
+        | *                 | NULL              |
+    """
+
+    __tablename__ = "extension_activation_events"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    """Primary Key"""
+
+    extension_id: Mapped[int] = mapped_column(
+        ForeignKey("extensions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    """Foreign Key linking to the parent Extension"""
+
+    event_type: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    """
+    The activation event type.
+    Examples: onLanguage, onCommand, workspaceContains, onFileSystem,
+              onView, onUri, onWebviewPanel, onCustomEditor, onStartupFinished,
+              onAuthenticationRequest, onTaskType, onNotebook, onTerminal, *
+    """
+
+    event_value: Mapped[str | None] = mapped_column(String, nullable=True)
+    """
+    The activation event value/parameter.
+    Examples: python (for onLanguage:python), extension.activate (for onCommand)
+    NULL for events without parameters like "*" or "onStartupFinished"
+    """
+
+    extension: Mapped[Extension] = relationship(back_populates="activation_events")

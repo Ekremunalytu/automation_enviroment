@@ -50,13 +50,14 @@ from crud.crud import get_extensions_all_info, get_extensions_base_info
 from crud.crud import search_extension_by_name as search_db_extension
 from models.models import Extension
 from schemas.schemas import (
+    ExtensionActivationEventsSchema,
     ExtensionCapabilitiesSchema,
     ExtensionSchema,
     ExtensionScriptsSchema,
 )
 
 # File system operations for scanning extensions directory
-from .json_parser import parse_capabilities, parse_scripts
+from .json_parser import parse_activation_events, parse_capabilities, parse_scripts
 from .json_parser import search_extension as find_json_in_dir
 
 
@@ -281,13 +282,28 @@ def create_extension_by_name(db: Session, extension_name: str) -> Extension | No
             else None
         )
 
+        # Step 2.7: Parse activation events from package.json
+        activation_events_data = parse_activation_events(package_json)
+        activation_events_schema = (
+            [
+                ExtensionActivationEventsSchema(**event)
+                for event in activation_events_data
+            ]
+            if activation_events_data
+            else None
+        )
+
         # Step 3: Persist to database via CRUD layer
         # create_db_extension handles:
         # - ORM model creation
         # - Transaction commit
         # - Duplicate detection (raises ValueError)
         return create_db_extension(
-            db, package_schema, capabilities_schema, scripts_schema
+            db,
+            package_schema,
+            capabilities_schema,
+            scripts_schema,
+            activation_events_schema,
         )
 
     # Extension not found in filesystem

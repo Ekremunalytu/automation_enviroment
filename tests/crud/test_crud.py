@@ -118,3 +118,99 @@ def test_search_extension_with_new_fields(db_session: Session):
     assert result.extensionPack == ["bundle.ext1"]
     assert result.extensionDependencies == ["required.ext"]
     assert result.extensionKind == ["ui", "workspace"]
+
+
+def test_create_extension_with_activation_events(db_session: Session):
+    """
+    Test creating extension with activation events.
+
+    Verifies that activation events are correctly parsed, stored,
+    and retrieved with the extension.
+    """
+    from schemas.schemas import ExtensionActivationEventsSchema
+
+    schema = ExtensionSchema(
+        name="event-ext",
+        publisher="event-pub",
+        version="1.0.0",
+        engines={"vscode": "^1.0.0"},
+        description="Extension with activation events",
+    )
+    events = [
+        ExtensionActivationEventsSchema(event_type="onLanguage", event_value="python"),
+        ExtensionActivationEventsSchema(
+            event_type="onCommand", event_value="extension.activate"
+        ),
+        ExtensionActivationEventsSchema(event_type="*", event_value=None),
+    ]
+
+    ext = create_extension(db_session, schema, activation_events=events)
+
+    assert ext.id is not None
+    assert ext.name == "event-ext"
+    assert len(ext.activation_events) == 3
+
+
+def test_search_extension_with_activation_events(db_session: Session):
+    """
+    Test searching extension returns activation events correctly.
+
+    Ensures that the joinedload properly fetches related activation events.
+    """
+    from schemas.schemas import ExtensionActivationEventsSchema
+
+    schema = ExtensionSchema(
+        name="search-events",
+        publisher="search-pub",
+        version="1.0.0",
+        engines={"vscode": "^1.0.0"},
+    )
+    events = [
+        ExtensionActivationEventsSchema(
+            event_type="onLanguage", event_value="typescript"
+        ),
+        ExtensionActivationEventsSchema(
+            event_type="workspaceContains", event_value="**/.gitignore"
+        ),
+    ]
+    create_extension(db_session, schema, activation_events=events)
+
+    result = search_extension_by_name(db_session, "search-events")
+
+    assert result is not None
+    assert len(result.activation_events) == 2
+    event_types = [e.event_type for e in result.activation_events]
+    assert "onLanguage" in event_types
+    assert "workspaceContains" in event_types
+
+
+def test_create_extension_with_scripts(db_session: Session):
+    """
+    Test creating extension with scripts.
+
+    Verifies that scripts are correctly parsed, stored,
+    and retrieved with the extension.
+    """
+    from schemas.schemas import ExtensionScriptsSchema
+
+    schema = ExtensionSchema(
+        name="scripts-ext",
+        publisher="scripts-pub",
+        version="1.0.0",
+        engines={"vscode": "^1.0.0"},
+        description="Extension with scripts",
+    )
+    scripts = [
+        ExtensionScriptsSchema(
+            script_name="compile", script_command={"command": "tsc -p ./"}
+        ),
+        ExtensionScriptsSchema(
+            script_name="watch", script_command={"command": "tsc -watch"}
+        ),
+    ]
+
+    ext = create_extension(db_session, schema, scripts=scripts)
+
+    assert ext.id is not None
+    assert ext.name == "scripts-ext"
+    assert len(ext.scripts) == 2

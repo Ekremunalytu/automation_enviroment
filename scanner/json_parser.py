@@ -370,3 +370,95 @@ def parse_scripts(package_json: dict[str, Any]) -> list[dict[str, Any]] | None:
         )
 
     return parsed_scripts if parsed_scripts else None
+
+
+def parse_activation_events(
+    package_json: dict[str, Any],
+) -> list[dict[str, Any]] | None:
+    """
+    Parse activationEvents from package.json into a list of structured dictionaries.
+
+    Each activation event string is parsed into event_type and event_value components.
+    Format: "eventType:eventValue" or just "eventType" (e.g., "*", "onStartupFinished")
+
+    Args:
+        package_json: Complete package.json dictionary
+
+    Returns:
+        List of dictionaries with parsed activation events ready for schema conversion,
+        or None if no activationEvents field exists.
+
+    Reference: https://code.visualstudio.com/api/references/activation-events
+
+    Supported Event Types:
+        - onLanguage:languageId (e.g., onLanguage:python)
+        - onCommand:commandId (e.g., onCommand:extension.sayHello)
+        - workspaceContains:globPattern (e.g., workspaceContains:**/.gitignore)
+        - onFileSystem:scheme (e.g., onFileSystem:sftp)
+        - onView:viewId (e.g., onView:nodeDependencies)
+        - onUri (no value)
+        - onWebviewPanel:viewType (e.g., onWebviewPanel:catCoding)
+        - onCustomEditor:viewType (e.g., onCustomEditor:catCustoms.pawDraw)
+        - onAuthenticationRequest:providerId (e.g., onAuthenticationRequest:github)
+        - onStartupFinished (no value)
+        - onTaskType:taskType (e.g., onTaskType:npm)
+        - onNotebook:notebookType (e.g., onNotebook:jupyter-notebook)
+        - onTerminal:shellType (e.g., onTerminal:bash)
+        - onTerminalProfile:profileId
+        - onWalkthrough:walkthroughId
+        - onChatParticipant:participantId
+        - onLanguageModelTool:toolId
+        - * (startup - no value)
+
+    Example Input:
+        {
+            "activationEvents": [
+                "onLanguage:python",
+                "onCommand:extension.activate",
+                "workspaceContains:**/.gitignore",
+                "*"
+            ]
+        }
+
+    Example Output:
+        [
+            {"event_type": "onLanguage", "event_value": "python"},
+            {"event_type": "onCommand", "event_value": "extension.activate"},
+            {"event_type": "workspaceContains", "event_value": "**/.gitignore"},
+            {"event_type": "*", "event_value": None}
+        ]
+    """
+    activation_events = package_json.get("activationEvents")
+    if not activation_events or not isinstance(activation_events, list):
+        return None
+
+    parsed_events = []
+    for event in activation_events:
+        if not isinstance(event, str):
+            # Skip invalid entries
+            continue
+
+        # Handle events without value (e.g., "*", "onStartupFinished", "onUri")
+        if ":" not in event:
+            parsed_events.append(
+                {
+                    "event_type": event,
+                    "event_value": None,
+                }
+            )
+        else:
+            # Split on first colon only (value may contain additional colons)
+            # e.g., "onUri" has no colon, "onCommand:ext.cmd" splits to
+            # ["onCommand", "ext.cmd"]
+            parts = event.split(":", 1)
+            event_type = parts[0]
+            event_value = parts[1] if len(parts) > 1 else None
+
+            parsed_events.append(
+                {
+                    "event_type": event_type,
+                    "event_value": event_value,
+                }
+            )
+
+    return parsed_events if parsed_events else None
