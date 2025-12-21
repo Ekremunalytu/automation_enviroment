@@ -18,7 +18,7 @@
 
 ---
 
-`Last Updated: 2025-12-18` • `Version: 1.1.0` • `Status: Active`
+`Last Updated: 2025-12-20` • `Version: 1.0.0` • `Status: Active`
 
 ---
 
@@ -364,6 +364,7 @@ extrace/
 | Table | Relationship | Description |
 |:------|:-------------|:------------|
 | `extension_capabilities` | 1:1 | Workspace trust & virtual workspace settings |
+| `extension_commands` | 1:N | Command palette entries from contributes.commands |
 | `extension_scripts` | 1:N | npm scripts from package.json |
 
 <br>

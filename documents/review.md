@@ -1,7 +1,7 @@
 # ExTrace API - Project Review Report
 
 > **Project:** VS Code Extension Security Scanner (ExTrace)  
-> **Review Date:** 2025-12-18  
+> **Review Date:** 2025-12-20  
 > **Environment:** Single user, isolated sandbox, single pipeline  
 > **Repo Type:** Test/POC Repository
 
@@ -27,7 +27,7 @@ The project has a clean structure and establishes a good starting point. The Fas
 3. **Docker multi-service**: PostgreSQL and API in separate containers
 4. **Non-root Docker user**: `appuser` used for security
 5. **Alembic migrations**: Database versioning is in place
-6. **Unique constraint**: Publisher + Name combination is protected
+6. **Unique constraint**: Publisher + Name + Version combination is protected
 7. **Index usage**: `name` and `publisher` fields are indexed
 8. **Env-based config**: `.env` management with `pydantic-settings`
 
@@ -145,11 +145,18 @@ automation_enviroment/
 
 ### Recently Implemented
 
-**✅ Delete Function (Implemented):**
+**✅ Delete Function (Implemented - SQLAlchemy 2.0):**
 ```python
 # crud/crud.py
-def delete_extension(db: Session, name: str) -> bool:
-    extension = db.query(Extension).filter(Extension.name == name).first()
+def delete_extension(
+    db: Session, name: str, publisher: str | None = None, version: str | None = None
+) -> bool:
+    stmt = select(Extension).where(Extension.name == name)
+    if publisher:
+        stmt = stmt.where(Extension.publisher == publisher)
+    if version:
+        stmt = stmt.where(Extension.version == version)
+    extension = db.scalars(stmt).first()
     if extension:
         db.delete(extension)
         db.commit()

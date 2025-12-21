@@ -17,7 +17,7 @@
 
 ---
 
-`Last Updated: 2025-12-18` • `Version: 1.1.0` • `Status: Development`
+`Last Updated: 2025-12-20` • `Version: 1.0.0` • `Status: Development`
 
 ---
 
@@ -631,10 +631,20 @@ flowchart TB
     end
 
     subgraph Values["📋 CONFIGURATION VALUES"]
-        DB_URL["🔗 DATABASE_URL<br/><small>PostgresDsn (Required)</small>"]
-        PROJECT["📛 PROJECT_NAME<br/><small>str = 'ExTrace API'</small>"]
-        ENVMODE["🌍 ENV<br/><small>str = 'dev'</small>"]
-        EXTDIR["📁 EXTENSION_DIR<br/><small>str = 'extensions'</small>"]
+        subgraph ProjectVals["📁 Project"]
+            PROJECT["📛 PROJECT_NAME<br/><small>'ExTrace API'</small>"]
+            ENVMODE["🌍 PROJECT_ENV<br/><small>'dev'</small>"]
+            EXTDIR["📁 PROJECT_EXTENSION_DIR<br/><small>'extensions'</small>"]
+        end
+        subgraph APIVals["🌐 API"]
+            API_HOST["🖥️ API_HOST<br/><small>'0.0.0.0'</small>"]
+            API_PORT["🔌 API_PORT<br/><small>8000</small>"]
+        end
+        subgraph DBVals["🐘 Database"]
+            DB_URL["🔗 DATABASE_URL<br/><small>(Override)</small>"]
+            PG_HOST["🖥️ POSTGRES_HOST<br/><small>'localhost'</small>"]
+            PG_PORT["🔌 POSTGRES_PORT<br/><small>5432</small>"]
+        end
     end
 
     subgraph Consumers["👥 CONSUMERS"]
@@ -647,14 +657,15 @@ flowchart TB
     DOTENV --> Config
     DEFAULT --> Config
 
-    Config --> DB_URL
-    Config --> PROJECT
-    Config --> ENVMODE
-    Config --> EXTDIR
+    Config --> ProjectVals
+    Config --> APIVals
+    Config --> DBVals
 
     DB_URL --> Session
+    PG_HOST --> Session
     EXTDIR --> Parser
     PROJECT --> Main
+    API_PORT --> Main
 
     style Sources fill:#dc2626,stroke:#f87171,stroke-width:3px,color:#fff
     style Settings fill:#7c3aed,stroke:#a855f7,stroke-width:3px,color:#fff

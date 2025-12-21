@@ -16,7 +16,7 @@
 
 ---
 
-`Current Sprint: Identity & Deep Parsing` • `Next: Risk Analysis`
+`Current Sprint: Identity & Deep Parsing` • `Next: Risk Analysis` • `Updated: 2025-12-20`
 
 ---
 
@@ -44,7 +44,8 @@
 | Field Category | Fields to Parse | Purpose | Status |
 |:---------------|:----------------|:--------|:-------|
 | **Identity** | `name`, `publisher`, `version`, `displayName` | Unique extension identification | ✅ Done |
-| **Permissions** | `activationEvents`, `contributes` | What triggers the extension | 🚧 In Progress |
+| **Commands** | `contributes.commands` | Command palette entries | ✅ Model Done |
+| **Permissions** | `activationEvents`, `contributes` | What triggers the extension | ⏳ Parser Pending |
 | **Entry Points** | `main`, `browser`, `web` | Code execution locations | ✅ Done |
 | **Dependencies** | `dependencies`, `devDependencies`, `extensionDependencies` | Supply chain mapping | ⏳ Pending |
 | **Capabilities** | `capabilities`, `extensionKind` | Extension type classification | ✅ Done |
@@ -178,11 +179,11 @@ erDiagram
 
 ### 🗄️ Database Tasks
 - [ ] Create `extension_activation_events` table
-- [ ] Create `extension_commands` table
+- [x] Create `extension_commands` table ✅ (Model exists: `ExtensionCommand`)
 - [ ] Create `extension_contributions` table
 - [ ] Create `extension_dependencies` table
-- [ ] Generate Alembic migrations
-- [ ] Update SQLAlchemy models
+- [ ] Generate Alembic migrations for new tables
+- [x] Update SQLAlchemy models ✅ (Commands model added)
 
 ### ⚙️ Parser Tasks
 - [ ] Create `manifest_parser.py` - Full package.json parsing
