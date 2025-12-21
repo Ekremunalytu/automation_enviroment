@@ -353,6 +353,8 @@ extrace/
 | `displayName` | `VARCHAR` | Human-readable name |
 | `keywords` | `ARRAY` | Search keywords |
 | `categories` | `ARRAY` | Marketplace categories |
+| `dependencies` | `JSONB` | Runtime dependencies |
+| `devDependencies` | `JSONB` | Dev dependencies |
 
 > [!IMPORTANT]
 > A **Unique Constraint** applies to `(publisher, name, version)` to prevent duplicate entries.

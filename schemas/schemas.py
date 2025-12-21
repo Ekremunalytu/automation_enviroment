@@ -246,6 +246,12 @@ class ExtensionSchema(BaseModel):
     Example: './dist/web-extension.js'
     """
 
+    dependencies: dict[str, Any] | None = None
+    """NPM dependencies for the extension."""
+
+    devDependencies: dict[str, Any] | None = None
+    """NPM development dependencies for the extension."""
+
 
 class ScanRequest(BaseModel):
     """

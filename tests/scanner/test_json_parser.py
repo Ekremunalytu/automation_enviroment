@@ -2,7 +2,12 @@ import json
 from pathlib import Path
 from unittest.mock import MagicMock, mock_open, patch
 
-from scanner.json_parser import get_package_json, parse_capabilities, search_extension
+from scanner.json_parser import (
+    get_package_json,
+    parse_capabilities,
+    parse_scripts,
+    search_extension,
+)
 
 # Sample package.json content for testing
 SAMPLE_PACKAGE_JSON = {
@@ -10,6 +15,8 @@ SAMPLE_PACKAGE_JSON = {
     "publisher": "test-pub",
     "version": "1.0.0",
     "engines": {"vscode": "^1.0.0"},
+    "dependencies": {"axios": "^1.0.0"},
+    "devDependencies": {"typescript": "^5.0.0"},
 }
 
 
@@ -201,3 +208,101 @@ class TestParseCapabilities:
         }
         result = parse_capabilities(package_json)
         assert result["untrusted_supported"] is None
+
+
+# =============================================================================
+# Scripts Parsing Tests
+# =============================================================================
+
+
+class TestParseScripts:
+    """Tests for parse_scripts function."""
+
+    def test_no_scripts_returns_none(self):
+        """Test that missing scripts field returns None."""
+        package_json = {"name": "test", "version": "1.0.0"}
+        result = parse_scripts(package_json)
+        assert result is None
+
+    def test_empty_scripts_returns_none(self):
+        """Test that empty scripts object returns None."""
+        package_json = {"name": "test", "scripts": {}}
+        result = parse_scripts(package_json)
+        assert result is None
+
+    def test_scripts_not_dict_returns_none(self):
+        """Test that non-dict scripts value returns None."""
+        package_json = {"name": "test", "scripts": "invalid"}
+        result = parse_scripts(package_json)
+        assert result is None
+
+    def test_parse_string_commands(self):
+        """Test parsing scripts with string commands."""
+        package_json = {
+            "scripts": {
+                "compile": "tsc -p ./",
+                "watch": "tsc -watch -p ./",
+                "test": "npm test",
+            }
+        }
+        result = parse_scripts(package_json)
+
+        assert result is not None
+        assert len(result) == 3
+
+        # Check first script
+        compile_script = next(s for s in result if s["script_name"] == "compile")
+        assert compile_script["script_command"] == {"command": "tsc -p ./"}
+
+        # Check watch script
+        watch_script = next(s for s in result if s["script_name"] == "watch")
+        assert watch_script["script_command"] == {"command": "tsc -watch -p ./"}
+
+    def test_parse_dict_commands(self):
+        """Test parsing scripts with dict commands (complex format)."""
+        package_json = {
+            "scripts": {
+                "build": {"command": "webpack", "args": ["--mode", "production"]},
+            }
+        }
+        result = parse_scripts(package_json)
+
+        assert result is not None
+        assert len(result) == 1
+        assert result[0]["script_name"] == "build"
+        assert result[0]["script_command"] == {
+            "command": "webpack",
+            "args": ["--mode", "production"],
+        }
+
+    def test_skip_invalid_script_entries(self):
+        """Test that invalid script entries (not str or dict) are skipped."""
+        package_json = {
+            "scripts": {
+                "valid": "npm run valid",
+                "invalid_int": 123,
+                "invalid_list": ["a", "b"],
+                "also_valid": "npm run also",
+            }
+        }
+        result = parse_scripts(package_json)
+
+        assert result is not None
+        assert len(result) == 2
+        script_names = [s["script_name"] for s in result]
+        assert "valid" in script_names
+        assert "also_valid" in script_names
+        assert "invalid_int" not in script_names
+        assert "invalid_list" not in script_names
+
+    def test_all_invalid_scripts_returns_none(self):
+        """Test that if all scripts are invalid, returns None."""
+        package_json = {
+            "scripts": {
+                "invalid1": 123,
+                "invalid2": ["list"],
+                "invalid3": None,
+            }
+        }
+        result = parse_scripts(package_json)
+        assert result is None

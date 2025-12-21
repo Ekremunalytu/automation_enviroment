@@ -452,6 +452,8 @@ erDiagram
         string pricing "💵 Optional"
         string main "📄 Entry Point"
         string web "🌐 Optional"
+        jsonb dependencies "📦 Optional"
+        jsonb devDependencies "🛠️ Optional"
         timestamp created_at "📅 Auto-set"
         timestamp updated_at "🔄 Auto-update"
     }

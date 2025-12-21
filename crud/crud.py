@@ -23,7 +23,6 @@ Current Implementation Status:
     ✅ Read by Name (search_extension_by_name)
     ✅ Read All - Full (get_extensions_all_info)
     ✅ Read All - Partial (get_extensions_base_info)
-    ⏳ Update (TODO: update_extension)
     ✅ Delete (delete_extension)
 
 SQLAlchemy 2.0 Style:

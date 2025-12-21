@@ -301,6 +301,12 @@ class Extension(Base):
     Example: "./dist/web-extension.js"
     """
 
+    dependencies: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    """NPM dependencies from package.json."""
+
+    devDependencies: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    """NPM development dependencies from package.json."""
+
     # =========================================================================
     # TIMESTAMP FIELDS (AUTO-MANAGED)
     # =========================================================================

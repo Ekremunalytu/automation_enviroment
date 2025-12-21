@@ -83,7 +83,10 @@ def test_create_extension_endpoint(client: TestClient, db_session: Session):
     mock_ext.pricing = None
     mock_ext.main = None
     mock_ext.web = None
+    mock_ext.dependencies = None
+    mock_ext.devDependencies = None
     mock_ext.capabilities = None
+    mock_ext.scripts = []
 
     # Mock the service method to avoid filesystem scan
     with patch("routers.core.service.create_extension_by_name") as mock_create:

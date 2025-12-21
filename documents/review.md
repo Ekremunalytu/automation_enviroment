@@ -88,7 +88,7 @@ automation_enviroment/
 | 2 | ~~Add `delete_extension` function to CRUD~~ | 🔴 High | ✅ Completed |
 | 3 | Router endpoint for `get_extension_by_id` | 🟡 Medium | ⏳ Pending |
 | 4 | Bulk insert function | 🟡 Medium | ⏳ Pending |
-| 5 | Additional fields in model (activationEvents, version, etc.) | 🟡 Medium | ⏳ Pending |
+| 5 | Additional fields in model (dependencies, devDependencies) | 🟡 Medium | ✅ Completed |
 
 ---
 

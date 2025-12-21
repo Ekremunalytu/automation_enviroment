@@ -144,6 +144,8 @@ def sample_extension_data() -> dict[str, Any]:
         "description": "A test extension for unit testing",
         "categories": ["Testing"],
         "keywords": ["test", "sample"],
+        "dependencies": {"vscode-languageclient": "^8.0.0"},
+        "devDependencies": {"@types/vscode": "^1.80.0", "typescript": "^5.0.0"},
     }
 
 
