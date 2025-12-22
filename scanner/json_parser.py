@@ -654,3 +654,153 @@ def parse_contributes(package_json: dict[str, Any]) -> dict[str, Any] | None:
             result[field] = value
 
     return result if result else None
+
+
+# =============================================================================
+# Common field sets used by parse_npm_fields and parse_extra_fields
+# =============================================================================
+
+# Fields stored in dedicated database columns
+_DB_STORED_FIELDS = {
+    # Required fields
+    "name",
+    "version",
+    "publisher",
+    "engines",
+    # Optional metadata
+    "license",
+    "displayName",
+    "description",
+    "categories",
+    "keywords",
+    "galleryBanner",
+    "preview",
+    "badges",
+    "markdown",
+    "qna",
+    "sponsor",
+    "icon",
+    "pricing",
+    "main",
+    "browser",
+    # Dependencies
+    "dependencies",
+    "devDependencies",
+    # Extension relationships
+    "extensionPack",
+    "extensionDependencies",
+    "extensionKind",
+}
+
+# Fields parsed into separate tables
+_PARSED_FIELDS = {
+    "capabilities",
+    "scripts",
+    "activationEvents",
+    "contributes",
+}
+
+# Standard npm package.json fields (not VS Code specific)
+_NPM_FIELDS = {
+    "repository",
+    "bugs",
+    "homepage",
+    "author",
+    "contributors",
+    "funding",
+    "private",
+    "type",
+    "exports",
+    "imports",
+    "workspaces",
+    "bin",
+    "files",
+    "typings",
+    "types",
+    "module",
+    "sideEffects",
+    "browserslist",
+    "eslintConfig",
+    "prettier",
+    "jest",
+    "husky",
+    "lint-staged",
+    "config",
+    "publishConfig",
+    "packageManager",
+    "directories",
+    "man",
+    "cpu",
+    "os",
+}
+
+# VS Code specific fields handled elsewhere
+_VSCODE_FIELDS = {
+    "l10n",
+    "enabledApiProposals",
+    "enableProposedApi",
+}
+
+
+def parse_npm_fields(package_json: dict[str, Any]) -> dict[str, Any] | None:
+    """
+    Extract standard npm package.json fields.
+
+    Returns npm fields that are not specific to VS Code extensions,
+    such as repository, author, bugs, homepage, etc.
+
+    Args:
+        package_json: Complete package.json dictionary
+
+    Returns:
+        Dictionary with npm fields, or None if none are present.
+
+    Example Input:
+        {
+            "name": "my-extension",
+            "repository": {"type": "git", "url": "https://github.com/..."},
+            "author": {"name": "John Doe", "email": "john@example.com"},
+            "bugs": {"url": "https://github.com/.../issues"}
+        }
+
+    Example Output:
+        {
+            "repository": {"type": "git", "url": "https://github.com/..."},
+            "author": {"name": "John Doe", "email": "john@example.com"},
+            "bugs": {"url": "https://github.com/.../issues"}
+        }
+    """
+    npm = {k: v for k, v in package_json.items() if k in _NPM_FIELDS}
+    return npm if npm else None
+
+
+def parse_extra_fields(package_json: dict[str, Any]) -> dict[str, Any] | None:
+    """
+    Extract unknown/custom fields from package.json.
+
+    Returns all fields that are not part of any standard specification
+    (not VS Code manifest, not npm, not parsed into separate tables).
+
+    Args:
+        package_json: Complete package.json dictionary
+
+    Returns:
+        Dictionary with truly unknown fields, or None if all fields are known.
+
+    Example Input:
+        {
+            "name": "my-extension",
+            "version": "1.0.0",
+            "customSetting": true,
+            "x-build-config": {"minify": true}
+        }
+
+    Example Output:
+        {
+            "customSetting": true,
+            "x-build-config": {"minify": true}
+        }
+    """
+    all_known = _DB_STORED_FIELDS | _PARSED_FIELDS | _NPM_FIELDS
+    extra = {k: v for k, v in package_json.items() if k not in all_known}
+    return extra if extra else None

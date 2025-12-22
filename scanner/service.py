@@ -67,6 +67,8 @@ from .json_parser import (
     parse_activation_events,
     parse_capabilities,
     parse_contributes,
+    parse_extra_fields,
+    parse_npm_fields,
     parse_scripts,
 )
 from .json_parser import search_extension as find_json_in_dir
@@ -278,7 +280,12 @@ def create_extension_by_name(db: Session, extension_name: str) -> Extension | No
         # This performs full validation of the package.json data
         # against ExtensionSchema. Invalid data raises ValidationError.
         # The `extra="ignore"` config silently drops unknown fields.
-        package_schema = ExtensionSchema(**package_json)
+        # npm_fields and extra_fields are extracted separately and stored in JSONB.
+        npm_fields_data = parse_npm_fields(package_json)
+        extra_fields_data = parse_extra_fields(package_json)
+        package_schema = ExtensionSchema(
+            **package_json, npm_fields=npm_fields_data, extra_fields=extra_fields_data
+        )
 
         # Step 2.5: Parse capabilities from package.json
         capabilities_data = parse_capabilities(package_json)

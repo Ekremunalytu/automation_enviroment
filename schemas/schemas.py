@@ -403,7 +403,7 @@ class ExtensionSchema(BaseModel):
     Example: './dist/extension.js'
     """
 
-    web: str | None = None
+    browser: str | None = None
     """
     Entry point for web extension host (browser).
     Required for extensions running in vscode.dev or github.dev.
@@ -424,6 +424,12 @@ class ExtensionSchema(BaseModel):
 
     extensionKind: list[str] | None = None
     """Where the extension should run: ['ui'], ['workspace'], or both."""
+
+    npm_fields: dict[str, Any] | None = None
+    """Standard npm package.json fields not stored in dedicated columns."""
+
+    extra_fields: dict[str, Any] | None = None
+    """Dynamic/custom fields from package.json not part of any standard schema."""
 
 
 class ScanRequest(BaseModel):

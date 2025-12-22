@@ -295,10 +295,10 @@ class Extension(Base):
     This file is very important for malicious analysis.
     """
 
-    web: Mapped[str | None] = mapped_column(String, nullable=True)
+    browser: Mapped[str | None] = mapped_column(String, nullable=True)
     """
     Web extension entry point (browser host).
-    Required for vscode.dev and github.dev compatibility.
+    Required for extensions running in vscode.dev or github.dev.
     Example: "./dist/web-extension.js"
     """
 
@@ -322,6 +322,24 @@ class Extension(Base):
         ARRAY(String), nullable=True
     )
     """Where the extension should run: ['ui'], ['workspace'], or both."""
+
+    npm_fields: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    """
+    Standard npm package.json fields not stored in dedicated columns.
+
+    Includes common npm fields like repository, author, bugs, homepage,
+    contributors, funding, etc. These are standard npm fields but not
+    specific to VS Code extensions.
+    """
+
+    extra_fields: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    """
+    Dynamic/custom fields from package.json not part of any standard schema.
+
+    Stores truly unknown fields that publishers may add to their package.json.
+    Examples include custom metadata, build configuration, or publisher-specific
+    fields that aren't part of npm or VS Code extension specifications.
+    """
 
     # =========================================================================
     # TIMESTAMP FIELDS (AUTO-MANAGED)

@@ -87,7 +87,7 @@ def test_create_extension_endpoint(client: TestClient, db_session: Session):
     mock_ext.icon = None
     mock_ext.pricing = None
     mock_ext.main = None
-    mock_ext.web = None
+    mock_ext.browser = None
     mock_ext.dependencies = None
     mock_ext.devDependencies = None
     mock_ext.capabilities = None
