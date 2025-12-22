@@ -296,6 +296,7 @@ def sample_extension_data() -> dict:
 | `test_create_duplicate_extension` | Verifies `ValueError` on duplicate publisher+name+version |
 | `test_search_extension_by_name` | Tests search functionality and not-found case |
 | `test_delete_extension` | Tests deletion and subsequent search returns None |
+| `test_create_extension_with_extra_info` | Tests persistence of `npm_fields` and `extra_fields` |
 
 </details>
 
@@ -341,6 +342,8 @@ def sample_extension_data() -> dict:
 | `test_get_package_json_invalid_json` | Tests handling of malformed JSON |
 | `test_search_extension_found` | Tests extension search with mocked filesystem |
 | `test_search_extension_dir_not_found` | Tests when extensions directory is missing |
+| `TestParseNpmFields` | Tests extraction of standard npm fields |
+| `TestParseExtraFields` | Tests extraction of custom/unknown fields |
 
 </details>
 

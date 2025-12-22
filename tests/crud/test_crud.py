@@ -280,3 +280,36 @@ def test_create_extension_with_contributes(db_session: Session):
     assert result.contributes.terminal[0].profile_id == "ext.term"
     assert len(result.contributes.commands) == 1
     assert result.contributes.commands[0].command_id == "ext.hello"
+
+
+def test_create_extension_with_extra_info(db_session: Session):
+    """
+    Test creating extension with npm_fields and extra_fields.
+
+    Verifies that flexible JSONB fields are correctly parsed, stored,
+    and retrieved.
+    """
+    schema = ExtensionSchema(
+        name="extra-ext",
+        publisher="extra-pub",
+        version="1.0.0",
+        engines={"vscode": "^1.0.0"},
+        description="Extension with extra fields",
+        npm_fields={
+            "repository": {"type": "git", "url": "https://github.com/test/repo"},
+            "author": {"name": "Test Author"},
+        },
+        extra_fields={
+            "customConfig": {"enabled": True},
+            "unknownField": "some-value",
+        },
+    )
+
+    ext = create_extension(db_session, schema)
+
+    assert ext.id is not None
+    assert ext.name == "extra-ext"
+    assert ext.npm_fields["repository"]["url"] == "https://github.com/test/repo"
+    assert ext.npm_fields["author"]["name"] == "Test Author"
+    assert ext.extra_fields["customConfig"]["enabled"] is True
+    assert ext.extra_fields["unknownField"] == "some-value"

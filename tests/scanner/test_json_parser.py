@@ -6,6 +6,8 @@ from scanner.json_parser import (
     get_package_json,
     parse_capabilities,
     parse_contributes,
+    parse_extra_fields,
+    parse_npm_fields,
     parse_scripts,
     search_extension,
 )
@@ -557,3 +559,93 @@ class TestParseContributes:
         terminal = result["terminal"][0]
         assert terminal["profile_id"] == "ext.term"
         assert terminal["title"] == "Ext Terminal"
+
+
+# =============================================================================
+# NPM Fields Parsing Tests
+# =============================================================================
+
+
+class TestParseNpmFields:
+    """Tests for parse_npm_fields function."""
+
+    def test_parse_standard_npm_fields(self):
+        """Test parsing standard npm fields."""
+        package_json = {
+            "name": "test",
+            "repository": {"type": "git", "url": "git+https://github.com/a/b"},
+            "author": "Me",
+            "bugs": "https://bugs.com",
+            "homepage": "https://home.com",
+            # Unknown field
+            "unknown": "value",
+        }
+        result = parse_npm_fields(package_json)
+
+        assert result is not None
+        assert result["repository"]["url"] == "git+https://github.com/a/b"
+        assert result["author"] == "Me"
+        assert result["bugs"] == "https://bugs.com"
+        assert result["homepage"] == "https://home.com"
+        assert "unknown" not in result
+        assert "name" not in result  # processed separately
+
+    def test_no_npm_fields_returns_none(self):
+        """Test that missing npm fields returns None."""
+        package_json = {
+            "name": "test",
+            "version": "1.0.0",
+            # name/version are "known" db fields, not generic npm fields for this parser
+        }
+        result = parse_npm_fields(package_json)
+        assert result is None
+
+
+# =============================================================================
+# Extra Fields Parsing Tests
+# =============================================================================
+
+
+class TestParseExtraFields:
+    """Tests for parse_extra_fields function."""
+
+    def test_parse_truly_extra_fields(self):
+        """Test parsing fields that are neither standard npm nor vs code structure."""
+        package_json = {
+            "name": "test",
+            "version": "1.0.0",
+            # Standard fields (ignored)
+            "repository": "repo",
+            "scripts": {},
+            # Extra fields (collected)
+            "myCustomConfig": {"a": 1},
+            "__metadata": "xyz",
+        }
+        result = parse_extra_fields(package_json)
+
+        assert result is not None
+        assert "myCustomConfig" in result
+        assert result["myCustomConfig"] == {"a": 1}
+        assert "__metadata" in result
+        assert result["__metadata"] == "xyz"
+
+        # Check ignored fields
+        assert "name" not in result
+        assert "version" not in result
+        assert "repository" not in result
+        assert "scripts" not in result
+
+    def test_no_extra_fields_returns_none(self):
+        """Test that having only known fields returns None."""
+        package_json = {
+            "name": "test",
+            "version": "1.0.0",
+            "publisher": "pub",
+            "engines": {},
+            "scripts": {},
+            "activationEvents": [],
+            "contributes": {},
+            "repository": "repo",
+        }
+        result = parse_extra_fields(package_json)
+        assert result is None

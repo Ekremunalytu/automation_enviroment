@@ -50,7 +50,7 @@
 | **Dependencies** | `dependencies`, `devDependencies`, `extensionDependencies` | Supply chain mapping | ✅ Done |
 | **Capabilities** | `capabilities`, `extensionKind` | Extension type classification | ✅ Done |
 | **Scripts** | `scripts` | npm scripts parsing | ✅ Done |
-| **Repository** | `repository`, `homepage`, `bugs` | Source verification | ⏳ Pending |
+| **Repository** | `repository`, `homepage`, `bugs` | Source verification | ✅ Done |
 
 <br>
 
@@ -69,6 +69,8 @@ erDiagram
     EXTENSIONS {
         int id PK
         string name
+        jsonb npm_fields
+        jsonb extra_fields
     }
 
     CAPABILITIES {

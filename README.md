@@ -358,6 +358,8 @@ extrace/
 | `extensionPack` | `ARRAY` | Bundled extension IDs |
 | `extensionDependencies` | `ARRAY` | Dependent extension IDs |
 | `extensionKind` | `ARRAY` | UI/Workspace kind |
+| `npm_fields` | `JSONB` | Standard npm fields (repo, author, etc.) |
+| `extra_fields` | `JSONB` | Unknown/Custom fields from package.json |
 
 > [!IMPORTANT]
 > A **Unique Constraint** applies to `(publisher, name, version)` to prevent duplicate entries.

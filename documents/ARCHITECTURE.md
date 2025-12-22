@@ -498,6 +498,8 @@ erDiagram
         array extensionPack "📦 Pack IDs"
         array extensionDependencies "🔗 Dep IDs"
         array extensionKind "🏷️ UI/Workspace"
+        jsonb npm_fields "📦 Standard npm"
+        jsonb extra_fields "➕ Custom/Unknown"
     }
 
     EXTENSION_CAPABILITIES {
