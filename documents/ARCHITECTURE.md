@@ -102,6 +102,33 @@ flowchart TB
 
 <br>
 
+## 🎯 Design Philosophy & Constraints
+
+> [!IMPORTANT]
+> The architectural decisions in ExTrace are driven by specific operational requirements. Understanding these constraints is crucial for maintaining the "robustness" of the system.
+
+### 1. Robustness over Scalability
+**Decision:** The system prioritizes data integrity, type safety, and transactional consistency over high-concurrency throughput.
+**Reasoning:** As a security analysis tool, partial or corrupted data is unacceptable. We use strict foreign keys, complex Pydantic validation, and synchronous processing to ensure every scanned extension is recorded perfectly.
+
+### 2. Internal Security Tooling
+**Decision:** No complex authentication or role-based access control (RBAC).
+**Reasoning:** ExTrace is designed to run in an isolated, secure environment (e.g., local Docker, air-gapped network) accessible only by security engineers. Adding auth layers would introduce unnecessary complexity without adding value to the core mission.
+
+### 3. Targeted Single-Scan Workflow
+**Decision:** Filesystem scanning is linear and synchronous.
+**Reasoning:** The intended workflow is to analyze specific, high-risk extensions one by one or in small batches. The classic "O(N) scanning problem" is mitigated by the operational usage pattern (targeted audits vs. bulk ingestion).
+
+### 4. Phase 1: Metadata Inventory First
+**Decision:** Separation of Data Collection (Phase 1) and Analysis (Phase 2).
+**Reasoning:** A robust, queryable inventory of extension metadata is the prerequisite for any advanced static analysis. Phase 1 focuses solely on creating this perfect dataset.
+
+<br>
+
+---
+
+<br>
+
 ## 🏛️ High-Level Architecture
 
 > [!IMPORTANT]
@@ -488,7 +515,7 @@ erDiagram
         jsonb debuggers "🐛 Debug Config"
         jsonb languages "🗣️ Language Defs"
         jsonb grammars "📝 TextMate"
-        jsonb ... "➕ Many JSONB Fields"
+        jsonb other_fields "➕ Many JSONB Fields"
     }
 
     EXTENSION_CONTRIBUTES ||--o{ EXTENSION_CONTRIBUTES_COMMANDS : "has (1:N)"
