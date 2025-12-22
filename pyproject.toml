@@ -180,5 +180,5 @@ fail_under = 0
 # BANDIT CONFIGURATION
 # ============================================================
 [tool.bandit]
-exclude_dirs = ["tests", "alembic", "extensions", ".venv"]
+exclude_dirs = ["tests", "alembic", "extensions", ".venv", "extrace.egg-info"]
 skips = ["B101"]
