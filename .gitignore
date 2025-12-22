@@ -33,6 +33,7 @@ coverage.xml
 # Project Specific
 ms-python.python-*/
 output/
+extensions/
 
 extensions/*
 
