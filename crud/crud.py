@@ -22,7 +22,7 @@ Current Implementation Status:
     ✅ Read by ID (get_extension_by_id)
     ✅ Read by Name (search_extension_by_name)
     ✅ Read All - Full (get_extensions_all_info)
-    ✅ Read All - Partial (get_extensions_base_info)
+    ✅ Read All - Partial (get_db_extensions_base_info)
     ✅ Delete (delete_extension)
 
 SQLAlchemy 2.0 Style:
@@ -380,7 +380,7 @@ def get_extensions_all_info(
     return list(db.scalars(stmt).unique().all())
 
 
-def get_extensions_base_info(db: Session) -> list[Extension]:
+def get_db_extensions_base_info(db: Session) -> list[Extension]:
     """
     Retrieve all extensions with only essential fields (optimized query).
 
@@ -402,7 +402,7 @@ def get_extensions_base_info(db: Session) -> list[Extension]:
         List of Extension objects with only selected columns loaded
 
     Example:
-        >>> extensions = get_extensions_base_info(db)
+        >>> extensions = get_db_extensions_base_info(db)
         >>> for ext in extensions:
         ...     # Only these fields are loaded from DB
         ...     print(f"{ext.name} by {ext.publisher}")
@@ -472,3 +472,177 @@ def delete_extension(
     db.delete(results[0])
     db.commit()
     return True
+
+
+def get_extension_scripts(
+    db: Session, name: str, publisher: str | None = None, version: str | None = None
+) -> list[ExtensionScripts] | None:
+    """
+    Retrieve scripts for a specific extension.
+
+    Args:
+        db: SQLAlchemy database session
+        name: Extension name
+        publisher: Publisher name (optional)
+        version: Extension version (optional)
+
+    Returns:
+        List of ExtensionScripts if extension found, None otherwise
+    """
+    stmt = (
+        select(Extension)
+        .where(Extension.name == name)
+        .options(selectinload(Extension.scripts))
+    )
+    if publisher:
+        stmt = stmt.where(Extension.publisher == publisher)
+    if version:
+        stmt = stmt.where(Extension.version == version)
+
+    extension = db.scalars(stmt).first()
+    if extension is None:
+        return None
+    return list(extension.scripts)
+
+
+def get_extension_activation_events(
+    db: Session,
+    extension_name: str,
+    extension_publisher: str | None = None,
+    extension_version: str | None = None,
+) -> list[ExtensionActivationEvents] | None:
+    """
+    Retrieve activation events for a specific extension.
+
+    Uses selectinload to eagerly fetch related activation_events
+    in a separate query, avoiding N+1 query issues.
+
+    Args:
+        db: SQLAlchemy database session
+        extension_name: Extension name to search for
+        extension_publisher: Publisher name (optional)
+        extension_version: Extension version (optional)
+
+    Returns:
+        List of ExtensionActivationEvents if extension found,
+        None if extension not found
+    """
+    stmt = (
+        select(Extension)
+        .where(Extension.name == extension_name)
+        .options(selectinload(Extension.activation_events))
+    )
+    if extension_publisher:
+        stmt = stmt.where(Extension.publisher == extension_publisher)
+    if extension_version:
+        stmt = stmt.where(Extension.version == extension_version)
+
+    extension_activation_events = db.scalars(stmt).first()
+    if extension_activation_events is None:
+        return None
+    return list(extension_activation_events.activation_events)
+
+
+def get_extension_capabilities(
+    db: Session,
+    extension_name: str,
+    extension_publisher: str | None = None,
+    extension_version: str | None = None,
+) -> ExtensionCapabilities | None:
+    """
+    Retrieve capability declarations for a specific extension.
+
+    Uses joinedload to eagerly fetch the one-to-one capabilities
+    relationship in a single JOIN query.
+
+    Args:
+        db: SQLAlchemy database session
+        extension_name: Extension name to search for
+        extension_publisher: Publisher name (optional)
+        extension_version: Extension version (optional)
+
+    Returns:
+        ExtensionCapabilities object if extension found and has capabilities,
+        None if extension not found or has no capabilities
+    """
+    stmt = (
+        select(Extension)
+        .where(Extension.name == extension_name)
+        .options(joinedload(Extension.capabilities))
+    )
+
+    if extension_publisher:
+        stmt = stmt.where(Extension.publisher == extension_publisher)
+    if extension_version:
+        stmt = stmt.where(Extension.version == extension_version)
+
+    extension = db.scalars(stmt).first()
+    if extension is None:
+        return None
+    return extension.capabilities
+
+
+def get_extension_contributes_all(
+    db: Session,
+    extension_name: str,
+    extension_publisher: str | None = None,
+    extension_version: str | None = None,
+) -> ExtensionContributes | None:
+    """
+    Retrieve contribution points for a specific extension.
+
+    Uses joinedload to eagerly fetch the one-to-one contributes
+    relationship with all child relationships.
+    """
+    stmt = (
+        select(Extension)
+        .where(Extension.name == extension_name)
+        .options(
+            joinedload(Extension.contributes).options(
+                selectinload(ExtensionContributes.keybindings),
+                selectinload(ExtensionContributes.menus),
+                selectinload(ExtensionContributes.authentication),
+                selectinload(ExtensionContributes.terminal),
+                selectinload(ExtensionContributes.commands),
+            )
+        )
+    )
+
+    if extension_publisher:
+        stmt = stmt.where(Extension.publisher == extension_publisher)
+    if extension_version:
+        stmt = stmt.where(Extension.version == extension_version)
+
+    extension = db.scalars(stmt).first()
+    if extension is None:
+        return None
+    return extension.contributes
+
+
+def get_extension_contributes_commands(
+    db: Session,
+    extension_name: str,
+    extension_publisher: str | None = None,
+    extension_version: str | None = None,
+) -> list[ExtensionContributesCommands] | None:
+    stmt = (
+        select(Extension)
+        .where(Extension.name == extension_name)
+        .options(
+            joinedload(Extension.contributes).options(
+                selectinload(ExtensionContributes.commands),
+            )
+        )
+    )
+
+    if extension_publisher:
+        stmt = stmt.where(Extension.publisher == extension_publisher)
+    if extension_version:
+        stmt = stmt.where(Extension.version == extension_version)
+
+    extension = db.scalars(stmt).first()
+    if extension is None:
+        return None
+    if extension.contributes is None:
+        return []
+    return extension.contributes.commands

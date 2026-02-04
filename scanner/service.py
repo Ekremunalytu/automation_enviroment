@@ -30,9 +30,14 @@ Current Functions:
     - get_all_extensions_all: List extensions with full data
     - search_extension_by_name: Find extension in database
     - create_extension_by_name: Scan filesystem and persist to database
+    - delete_extension_by_name: Remove extension from database
+    - get_extension_scripts: Retrieve npm scripts for an extension
+    - get_extension_activation_events: Retrieve activation events
+    - get_extension_capabilites: Retrieve capability declarations
+    - get_extension_contributes_all: Retrieve contributes container
+    - get_extension_contributes_commands: Retrieve command contributions
 
 Future Enhancements:
-    - Risk score calculation
     - Malware pattern detection
     - Caching layer integration
     - Batch processing operations
@@ -46,9 +51,25 @@ from sqlalchemy.orm import Session
 # This is a common pattern when service methods wrap CRUD operations
 from crud.crud import create_extension as create_db_extension
 from crud.crud import delete_extension as delete_db_extension
-from crud.crud import get_extensions_all_info, get_extensions_base_info
+from crud.crud import get_db_extensions_base_info, get_extensions_all_info
+from crud.crud import (
+    get_extension_activation_events as get_db_extension_activation_events,
+)
+from crud.crud import get_extension_capabilities as get_db_extension_capabilities
+from crud.crud import get_extension_contributes_all as get_db_extension_contributes
+from crud.crud import (
+    get_extension_contributes_commands as get_db_extension_contributes_commands,
+)
+from crud.crud import get_extension_scripts as get_db_extension_scripts
 from crud.crud import search_extension_by_name as search_db_extension
-from models.models import Extension
+from models.models import (
+    Extension,
+    ExtensionActivationEvents,
+    ExtensionCapabilities,
+    ExtensionContributes,
+    ExtensionContributesCommands,
+    ExtensionScripts,
+)
 from schemas.schemas import (
     ExtensionActivationEventsSchema,
     ExtensionCapabilitiesSchema,
@@ -97,7 +118,7 @@ def get_all_extensions_basic(db: Session) -> list[Extension]:
         - Search results listing
         - Extension selector dropdowns
     """
-    all_extensions_basic_information = get_extensions_base_info(db)
+    all_extensions_basic_information = get_db_extensions_base_info(db)
     return all_extensions_basic_information
 
 
@@ -365,3 +386,81 @@ def create_extension_by_name(db: Session, extension_name: str) -> Extension | No
 
     # Extension not found in filesystem
     return None
+
+
+def get_extension_scripts(
+    db: Session,
+    extension_name: str,
+    extension_publisher: str | None = None,
+    extension_version: str | None = None,
+) -> list[ExtensionScripts] | None:
+    """
+    Retrieve all scripts defined in an extension's package.json.
+
+    Scripts are npm-style commands defined in the "scripts" section
+    of package.json (e.g., build, test, lint commands).
+    """
+    extension_scripts = get_db_extension_scripts(
+        db, extension_name, extension_publisher, extension_version
+    )
+    return extension_scripts
+
+
+def get_extension_activation_events(
+    db: Session,
+    extension_name: str,
+    extension_publisher: str | None = None,
+    extension_version: str | None = None,
+) -> list[ExtensionActivationEvents] | None:
+    """
+    Retrieve all activation events for a specific extension.
+
+    Activation events define when a VS Code extension becomes active.
+    """
+    extension_activation_events = get_db_extension_activation_events(
+        db, extension_name, extension_publisher, extension_version
+    )
+    return extension_activation_events
+
+
+def get_extension_capabilites(
+    db: Session,
+    extension_name: str,
+    extension_publisher: str | None = None,
+    extension_version: str | None = None,
+) -> ExtensionCapabilities | None:
+    """
+    Retrieve capability declarations for a specific extension.
+
+    Capabilities define how an extension behaves in restricted environments:
+        - untrustedWorkspaces
+        - virtualWorkspaces
+    """
+    extension_capabilites = get_db_extension_capabilities(
+        db, extension_name, extension_publisher, extension_version
+    )
+    return extension_capabilites
+
+
+def get_extension_contributes_all(
+    db: Session,
+    extension_name: str,
+    extension_publisher: str | None = None,
+    extension_version: str | None = None,
+) -> ExtensionContributes | None:
+    extension_contributes = get_db_extension_contributes(
+        db, extension_name, extension_publisher, extension_version
+    )
+    return extension_contributes
+
+
+def get_extension_contributes_commands(
+    db: Session,
+    extension_name: str,
+    extension_publisher: str | None = None,
+    extension_version: str | None = None,
+) -> list[ExtensionContributesCommands] | None:
+    """Retrieve command contributions for a specific extension."""
+    return get_db_extension_contributes_commands(
+        db, extension_name, extension_publisher, extension_version
+    )

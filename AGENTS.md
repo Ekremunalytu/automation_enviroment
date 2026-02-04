@@ -48,6 +48,11 @@
 - `GET /getExtensionsAllInfo` - list extensions (full data)
 - `POST /createExtension` - body: `{ "name": "extension-name" }`
 - `DELETE /deleteExtension` - query: `name` (required), `publisher`/`version` (optional)
+- `GET /getExtensionScripts` - query: `name` (required), `publisher`/`version` (optional)
+- `GET /getExtensionActivationEvents` - query: `name` (required), `publisher`/`version` (optional)
+- `GET /getExtensionCapabilities` - query: `name` (required), `publisher`/`version` (optional)
+- `GET /getExtensionContributesAll` - query: `name` (required), `publisher`/`version` (optional)
+- `GET /getExtensionContributesCommands` - query: `name` (required), `publisher`/`version` (optional)
 
 ## Agent Notes (Important)
 - Unique constraint is `(publisher, name, version)` in the DB.

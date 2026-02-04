@@ -146,3 +146,297 @@ def test_create_extension_conflict(client: TestClient):
 
         assert response.status_code == 409
         assert "already exists" in response.json()["detail"]
+
+
+def test_get_extension_scripts(client: TestClient):
+    """Test GET /getExtensionScripts"""
+    mock_scripts = [{"script_name": "test", "script_command": {"command": "echo test"}}]
+    with patch("routers.core.service.get_extension_scripts") as mock_get:
+        mock_get.return_value = mock_scripts
+
+        response = client.get("/getExtensionScripts?name=test-ext")
+
+        assert response.status_code == 200
+        assert len(response.json()) == 1
+        assert response.json()[0]["script_name"] == "test"
+        mock_get.assert_called_once()
+
+
+def test_get_extension_activation_events(client: TestClient):
+    """Test GET /getExtensionActivationEvents"""
+    mock_events = [{"event_type": "onLanguage", "event_value": "python"}]
+    with patch("routers.core.service.get_extension_activation_events") as mock_get:
+        mock_get.return_value = mock_events
+
+        response = client.get("/getExtensionActivationEvents?name=test-ext")
+
+        assert response.status_code == 200
+        assert len(response.json()) == 1
+        assert response.json()[0]["event_type"] == "onLanguage"
+        mock_get.assert_called_once()
+
+
+def test_get_extension_scripts_not_found(client: TestClient):
+    """Test GET /getExtensionScripts returns 404 when not found"""
+    with patch("routers.core.service.get_extension_scripts") as mock_get:
+        mock_get.return_value = None
+
+        response = client.get("/getExtensionScripts?name=ghost-ext")
+
+        assert response.status_code == 404
+        assert "not found" in response.json()["detail"]
+
+
+def test_get_extension_activation_events_not_found(client: TestClient):
+    """Test GET /getExtensionActivationEvents returns 404 when not found"""
+    with patch("routers.core.service.get_extension_activation_events") as mock_get:
+        mock_get.return_value = None
+
+        response = client.get("/getExtensionActivationEvents?name=ghost-ext")
+
+        assert response.status_code == 404
+        assert "not found" in response.json()["detail"]
+
+
+def test_get_extension_capabilities(client: TestClient):
+    """Test GET /getExtensionCapabilities success case."""
+    mock_caps = {
+        "untrusted_supported": "limited",
+        "virtual_supported": "not_supported",
+    }
+    with patch("routers.core.service.get_extension_capabilites") as mock_get:
+        mock_get.return_value = mock_caps
+
+        response = client.get("/getExtensionCapabilities?name=test-ext")
+
+        assert response.status_code == 200
+        assert response.json()["untrusted_supported"] == "limited"
+        mock_get.assert_called_once()
+
+
+def test_get_extension_capabilities_not_found(client: TestClient):
+    """Test GET /getExtensionCapabilities returns 404 when not found."""
+    with patch("routers.core.service.get_extension_capabilites") as mock_get:
+        mock_get.return_value = None
+
+        response = client.get("/getExtensionCapabilities?name=ghost-ext")
+
+        assert response.status_code == 404
+        assert "not found" in response.json()["detail"]
+
+
+# =============================================================================
+# Exception / Error Handling Tests
+# =============================================================================
+
+
+def test_search_extension_error_handling(client: TestClient):
+    """Test search endpoint exception handling."""
+    with patch(
+        "routers.core.service.search_extension_by_name",
+        side_effect=Exception("DB Error"),
+    ):
+        response = client.get("/searchExtension?name=boom")
+        assert response.status_code == 500
+        assert "Internal Server Error" in response.json()["detail"]
+
+
+def test_create_extension_validation_error(client: TestClient):
+    """Test create endpoint validation error (ValueError)."""
+    with patch(
+        "routers.core.service.create_extension_by_name",
+        side_effect=ValueError("Invalid Data"),
+    ):
+        response = client.post("/createExtension", json={"name": "bad-ext"})
+        assert response.status_code == 409  # ValueError maps to 409 in create
+        assert "Invalid Data" in response.json()["detail"]
+
+
+def test_create_extension_unexpected_error(client: TestClient):
+    """Test create endpoint unexpected error."""
+    with patch(
+        "routers.core.service.create_extension_by_name", side_effect=Exception("Boom")
+    ):
+        response = client.post("/createExtension", json={"name": "boom"})
+        assert response.status_code == 500
+        assert "Internal Server Error" in response.json()["detail"]
+
+
+def test_delete_extension_validation_error(client: TestClient):
+    """Test delete endpoint validation error."""
+    with patch(
+        "routers.core.service.delete_extension_by_name",
+        side_effect=ValueError("Cannot delete"),
+    ):
+        response = client.delete("/deleteExtension?name=bad-ext")
+        assert response.status_code == 400
+        assert "Cannot delete" in response.json()["detail"]
+
+
+def test_delete_extension_unexpected_error(client: TestClient):
+    """Test delete endpoint unexpected error."""
+    with patch(
+        "routers.core.service.delete_extension_by_name", side_effect=Exception("Boom")
+    ):
+        response = client.delete("/deleteExtension?name=boom")
+        assert response.status_code == 500
+
+
+def test_get_base_info_value_error(client: TestClient):
+    """Test get base info validation error."""
+    with patch(
+        "routers.core.service.get_all_extensions_basic", side_effect=ValueError("Bad")
+    ):
+        response = client.get("/getExtensionsBaseInfo")
+        assert response.status_code == 400
+        assert "Bad" in response.json()["detail"]
+
+
+def test_get_base_info_unexpected_error(client: TestClient):
+    """Test get base info unexpected error."""
+    with patch(
+        "routers.core.service.get_all_extensions_basic", side_effect=Exception("Boom")
+    ):
+        response = client.get("/getExtensionsBaseInfo")
+        assert response.status_code == 500
+
+
+def test_get_all_info_value_error(client: TestClient):
+    """Test get all info validation error."""
+    with patch(
+        "routers.core.service.get_all_extensions_all", side_effect=ValueError("Bad")
+    ):
+        response = client.get("/getExtensionsAllInfo")
+        assert response.status_code == 400
+
+
+def test_get_all_info_unexpected_error(client: TestClient):
+    """Test get all info unexpected error."""
+    with patch(
+        "routers.core.service.get_all_extensions_all", side_effect=Exception("Boom")
+    ):
+        response = client.get("/getExtensionsAllInfo")
+        assert response.status_code == 500
+
+
+def test_extension_scripts_value_error(client: TestClient):
+    """Test get scripts validation error."""
+    with patch(
+        "routers.core.service.get_extension_scripts", side_effect=ValueError("Bad")
+    ):
+        response = client.get("/getExtensionScripts?name=bad")
+        assert response.status_code == 400
+
+
+def test_activation_events_value_error(client: TestClient):
+    """Test get activation events validation error."""
+    with patch(
+        "routers.core.service.get_extension_activation_events",
+        side_effect=ValueError("Bad"),
+    ):
+        response = client.get("/getExtensionActivationEvents?name=bad")
+        assert response.status_code == 400
+
+
+def test_extension_capabilities_value_error(client: TestClient):
+    """Test get capabilities validation error."""
+    with patch(
+        "routers.core.service.get_extension_capabilites", side_effect=ValueError("Bad")
+    ):
+        response = client.get("/getExtensionCapabilities?name=bad")
+        assert response.status_code == 400
+
+
+# =============================================================================
+# Extension Contributes Tests
+# =============================================================================
+
+
+def test_get_extension_contributes_all(client: TestClient):
+    """Test GET /getExtensionContributesAll success case."""
+    mock_contributes = {
+        "configuration": {"title": "Test Config"},
+        "commands": [],
+        "keybindings": [],
+        "menus": [],
+        "authentication": [],
+        "terminal": [],
+    }
+    with patch("routers.core.service.get_extension_contributes_all") as mock_get:
+        mock_get.return_value = mock_contributes
+
+        response = client.get("/getExtensionContributesAll?name=test-ext")
+
+        assert response.status_code == 200
+        assert response.json()["configuration"] == {"title": "Test Config"}
+        mock_get.assert_called_once()
+
+
+def test_get_extension_contributes_all_not_found(client: TestClient):
+    """Test GET /getExtensionContributesAll returns 404 when not found."""
+    with patch("routers.core.service.get_extension_contributes_all") as mock_get:
+        mock_get.return_value = None
+
+        response = client.get("/getExtensionContributesAll?name=ghost-ext")
+
+        assert response.status_code == 404
+        assert "not found" in response.json()["detail"]
+
+
+def test_get_extension_contributes_all_value_error(client: TestClient):
+    """Test GET /getExtensionContributesAll validation error."""
+    with patch(
+        "routers.core.service.get_extension_contributes_all",
+        side_effect=ValueError("Bad"),
+    ):
+        response = client.get("/getExtensionContributesAll?name=bad")
+        assert response.status_code == 400
+
+
+def test_get_extension_contributes_commands(client: TestClient):
+    """Test GET /getExtensionContributesCommands success case."""
+    mock_commands = [
+        {"command_id": "ext.hello", "title": "Hello World"},
+        {"command_id": "ext.goodbye", "title": "Goodbye World"},
+    ]
+    with patch("routers.core.service.get_extension_contributes_commands") as mock_get:
+        mock_get.return_value = mock_commands
+
+        response = client.get("/getExtensionContributesCommands?name=test-ext")
+
+        assert response.status_code == 200
+        assert len(response.json()) == 2
+        assert response.json()[0]["command_id"] == "ext.hello"
+        mock_get.assert_called_once()
+
+
+def test_get_extension_contributes_commands_not_found(client: TestClient):
+    """Test GET /getExtensionContributesCommands returns 404 when not found."""
+    with patch("routers.core.service.get_extension_contributes_commands") as mock_get:
+        mock_get.return_value = None
+
+        response = client.get("/getExtensionContributesCommands?name=ghost-ext")
+
+        assert response.status_code == 404
+        assert "not found" in response.json()["detail"]
+
+
+def test_get_extension_contributes_commands_empty(client: TestClient):
+    """Test GET /getExtensionContributesCommands returns empty list."""
+    with patch("routers.core.service.get_extension_contributes_commands") as mock_get:
+        mock_get.return_value = []
+
+        response = client.get("/getExtensionContributesCommands?name=no-commands")
+
+        assert response.status_code == 200
+        assert response.json() == []
+
+
+def test_get_extension_contributes_commands_value_error(client: TestClient):
+    """Test GET /getExtensionContributesCommands validation error."""
+    with patch(
+        "routers.core.service.get_extension_contributes_commands",
+        side_effect=ValueError("Bad"),
+    ):
+        response = client.get("/getExtensionContributesCommands?name=bad")
+        assert response.status_code == 400

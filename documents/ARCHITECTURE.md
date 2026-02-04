@@ -943,11 +943,16 @@ flowchart TB
 |:------:|:---------|:-------------|:--------|:-----------------|
 | 🟢 `GET` | `/` | — | `read_root()` | — |
 | 🟢 `GET` | `/health` | — | `health_check()` | — |
-| 🔵 `GET` | `/searchExtension` | `name`, `version?` | `search_extension()` | `search_extension_by_name()` |
+| 🔵 `GET` | `/searchExtension` | `name`, `publisher?`, `version?` | `search_extension()` | `search_extension_by_name()` |
 | 🔵 `GET` | `/getExtensionsBaseInfo` | — | `get_extensions_base_info()` | `get_all_extensions_basic()` |
-| 🔵 `GET` | `/getExtensionsAllInfo` | — | `get_extensions_all_info()` | `get_all_extensions_all()` |
+| 🔵 `GET` | `/getExtensionsAllInfo` | `skip?`, `limit?` | `get_extensions_all_info()` | `get_all_extensions_all()` |
 | 🟣 `POST` | `/createExtension` | — | `create_extension()` | `create_extension_by_name()` |
-| 🔴 `DELETE` | `/deleteExtension` | `name`, `version?` | `delete_extension()` | `delete_extension_by_name()` |
+| 🔴 `DELETE` | `/deleteExtension` | `name`, `publisher?`, `version?` | `delete_extension()` | `delete_extension_by_name()` |
+| 🔵 `GET` | `/getExtensionScripts` | `name`, `publisher?`, `version?` | `get_extension_scripts()` | `get_extension_scripts()` |
+| 🔵 `GET` | `/getExtensionActivationEvents` | `name`, `publisher?`, `version?` | `get_extension_activation_events()` | `get_extension_activation_events()` |
+| 🔵 `GET` | `/getExtensionCapabilities` | `name`, `publisher?`, `version?` | `get_extension_capabilities()` | `get_extension_capabilites()` |
+| 🔵 `GET` | `/getExtensionContributesAll` | `name`, `publisher?`, `version?` | `get_extension_contributes_all()` | `get_extension_contributes_all()` |
+| 🔵 `GET` | `/getExtensionContributesCommands` | `name`, `publisher?`, `version?` | `get_extension_contributes_commands()` | `get_extension_contributes_commands()` |
 
 <br>
 

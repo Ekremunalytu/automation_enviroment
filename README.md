@@ -236,6 +236,11 @@ docker-compose exec api alembic upgrade head
 | `GET` | `/getExtensionsAllInfo` | List all extensions (full) |
 | `POST` | `/createExtension` | Scan and create extension |
 | `DELETE` | `/deleteExtension` | Delete by `name`, `publisher`, `version` |
+| `GET` | `/getExtensionScripts` | List extension npm scripts |
+| `GET` | `/getExtensionActivationEvents` | List activation events |
+| `GET` | `/getExtensionCapabilities` | Get capability declarations |
+| `GET` | `/getExtensionContributesAll` | Get contributes container |
+| `GET` | `/getExtensionContributesCommands` | Get contributes commands |
 
 <br>
 

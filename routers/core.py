@@ -23,17 +23,22 @@ API Design:
     for specific operations like scanning.
 
 Endpoints Summary:
-    ┌─────────────────────────────────────────────────────────────────┐
-    │ Method │ Endpoint              │ Description                   │
-    ├────────┼───────────────────────┼───────────────────────────────┤
-    │ GET    │ /                     │ API info and health check     │
-    │ GET    │ /health               │ Service health status         │
-    │ GET    │ /searchExtension      │ Find extension by name        │
-    │ GET    │ /getExtensionsBaseInfo│ List extensions (minimal)     │
-    │ GET    │ /getExtensionsAllInfo │ List extensions (full data)   │
-    │ POST   │ /createExtension      │ Scan and create extension     │
-    │ DELETE │ /deleteExtension      │ Delete an extension by name   │
-    └─────────────────────────────────────────────────────────────────┘
+    ┌────────────────────────────────────────────────────────────────────────┐
+    │ Method │ Endpoint                        │ Description                │
+    ├────────┼─────────────────────────────────┼────────────────────────────┤
+    │ GET    │ /                               │ API info and health check  │
+    │ GET    │ /health                         │ Service health status      │
+    │ GET    │ /searchExtension                │ Find extension by name     │
+    │ GET    │ /getExtensionsBaseInfo          │ List extensions (minimal)  │
+    │ GET    │ /getExtensionsAllInfo           │ List extensions (full)     │
+    │ POST   │ /createExtension                │ Scan and create extension  │
+    │ DELETE │ /deleteExtension                │ Delete an extension        │
+    │ GET    │ /getExtensionScripts            │ List npm scripts           │
+    │ GET    │ /getExtensionActivationEvents   │ List activation events     │
+    │ GET    │ /getExtensionCapabilities       │ Get capability declarations│
+    │ GET    │ /getExtensionContributesAll     │ Get contributes container  │
+    │ GET    │ /getExtensionContributesCommands│ Get contributes commands   │
+    └────────────────────────────────────────────────────────────────────────┘
 Error Handling Strategy:
     - 400 Bad Request: Validation errors (ValueError)
     - 404 Not Found: Extension not found in DB or filesystem
@@ -55,7 +60,12 @@ from sqlalchemy.orm import Session
 from core.deps import get_db
 from scanner import service
 from schemas.schemas import (
+    ExtensionActivationEventsSchema,
+    ExtensionCapabilitiesSchema,
+    ExtensionContributesCommandsSchema,
+    ExtensionContributesSchema,
     ExtensionDetailSchema,
+    ExtensionScriptsSchema,
     ScanRequest,
     SearchAllExtensionsInfo,
     SearchRequest,
@@ -431,3 +441,123 @@ def delete_extension(params: SearchRequest = Depends(), db: Session = Depends(ge
         raise HTTPException(
             status_code=500, detail=f"Internal Server Error: {e!s}"
         ) from e
+
+
+@router.get("/getExtensionScripts", response_model=list[ExtensionScriptsSchema])
+def get_extension_scripts(
+    params: SearchRequest = Depends(), db: Session = Depends(get_db)
+):
+    """
+    Retrieve npm scripts defined in an extension's package.json.
+    """
+    try:
+        result = service.get_extension_scripts(
+            db,
+            extension_name=params.name,
+            extension_publisher=params.publisher,
+            extension_version=params.version,
+        )
+        if result is None:
+            raise HTTPException(status_code=404, detail="Extension not found")
+
+        return result
+    except HTTPException as http_exc:
+        raise http_exc
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+
+@router.get(
+    "/getExtensionActivationEvents",
+    response_model=list[ExtensionActivationEventsSchema],
+)
+def get_extension_activation_events(
+    params: SearchRequest = Depends(), db: Session = Depends(get_db)
+):
+    """
+    Retrieve activation events for an extension.
+    """
+    try:
+        result = service.get_extension_activation_events(
+            db,
+            extension_name=params.name,
+            extension_publisher=params.publisher,
+            extension_version=params.version,
+        )
+        if result is None:
+            raise HTTPException(status_code=404, detail="Extension not found")
+        return result
+
+    except HTTPException as http_exc:
+        raise http_exc
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+
+@router.get(
+    "/getExtensionCapabilities",
+    response_model=ExtensionCapabilitiesSchema,
+)
+def get_extension_capabilities(
+    params: SearchRequest = Depends(), db: Session = Depends(get_db)
+):
+    """
+    Retrieve capability declarations for an extension.
+    """
+    try:
+        result = service.get_extension_capabilites(
+            db,
+            extension_name=params.name,
+            extension_publisher=params.publisher,
+            extension_version=params.version,
+        )
+        if result is None:
+            raise HTTPException(status_code=404, detail="Extension not found")
+        return result
+    except HTTPException as http_exc:
+        raise http_exc
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+
+@router.get("/getExtensionContributesAll", response_model=ExtensionContributesSchema)
+def get_extension_contributes_all(
+    params: SearchRequest = Depends(), db: Session = Depends(get_db)
+):
+    try:
+        result = service.get_extension_contributes_all(
+            db,
+            extension_name=params.name,
+            extension_publisher=params.publisher,
+            extension_version=params.version,
+        )
+        if result is None:
+            raise HTTPException(status_code=404, detail="Extension not found")
+        return result
+    except HTTPException as http_exc:
+        raise http_exc
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+
+@router.get(
+    "/getExtensionContributesCommands",
+    response_model=list[ExtensionContributesCommandsSchema],
+)
+def get_extension_contributes_commands(
+    params: SearchRequest = Depends(), db: Session = Depends(get_db)
+):
+    try:
+        result = service.get_extension_contributes_commands(
+            db,
+            extension_name=params.name,
+            extension_publisher=params.publisher,
+            extension_version=params.version,
+        )
+        if result is None:
+            raise HTTPException(status_code=404, detail="Extension not found")
+        return result
+    except HTTPException as http_exc:
+        raise http_exc
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
