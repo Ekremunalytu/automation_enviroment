@@ -314,7 +314,7 @@ def health_check(db: Session = Depends(get_db)):
 
 #### 1. Sandbox Isolation Not Yet Implemented
 
-The project goal mentions "isolated sandbox environment" but the current codebase only scans static `package.json` files. For dynamic analysis:
+As the project shifts to dynamic analysis, ensure the sandboxing layer is hardened:
 
 > [!IMPORTANT]
 > When implementing Docker-based sandboxing, ensure:

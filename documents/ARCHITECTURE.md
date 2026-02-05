@@ -17,7 +17,7 @@
 
 ---
 
-`Last Updated: 2025-12-21` • `Version: 1.0.0` • `Status: Development`
+`Last Updated: 2026-02-05` • `Version: 1.0.0` • `Status: Development`
 
 ---
 
@@ -119,9 +119,9 @@ flowchart TB
 **Decision:** Filesystem scanning is linear and synchronous.
 **Reasoning:** The intended workflow is to analyze specific, high-risk extensions one by one or in small batches. The classic "O(N) scanning problem" is mitigated by the operational usage pattern (targeted audits vs. bulk ingestion).
 
-### 4. Phase 1: Metadata Inventory First
-**Decision:** Separation of Data Collection (Phase 1) and Analysis (Phase 2).
-**Reasoning:** A robust, queryable inventory of extension metadata is the prerequisite for any advanced static analysis. Phase 1 focuses solely on creating this perfect dataset.
+### 4. Phase 1: Dynamic Execution First
+**Decision:** Separate safe execution orchestration (Phase 1) from higher-level analysis (Phase 2).
+**Reasoning:** Reliable, repeatable dynamic runs and telemetry capture are the foundation for behavior-based analysis and automation.
 
 <br>
 
@@ -633,17 +633,17 @@ flowchart TB
             AppMount["📁 /app (bind mount)"]
         end
 
-        subgraph Ports["🔌 PORTS"]
-            P8000["🌐 localhost:8000"]
-            P5433["🗄️ localhost:5433"]
-        end
+    subgraph Ports["🔌 PORTS"]
+        P8000["🌐 localhost:8000 (default)"]
+        P5432["🗄️ localhost:5432 (default)"]
+    end
     end
 
     APIContainer <-->|":5432"| DBContainer
     DBContainer --> PGData
     APIContainer --> AppMount
     P8000 --> APIContainer
-    P5433 --> DBContainer
+    P5432 --> DBContainer
 
     style Host fill:#1e293b,stroke:#475569,stroke-width:3px,color:#e6edf3
     style DockerCompose fill:#0891b2,stroke:#22d3ee,stroke-width:3px,color:#fff
@@ -669,7 +669,7 @@ flowchart TB
 |:---------|:------|
 | **Base Image** | `python:3.11-slim-bookworm` |
 | **User** | `appuser` (non-root) |
-| **Port** | `8000` |
+| **Port** | `8000 (default, override with API_PORT)` |
 | **Command** | `uvicorn main:app` |
 
 </td>
@@ -680,7 +680,7 @@ flowchart TB
 | Property | Value |
 |:---------|:------|
 | **Base Image** | `postgres:16-alpine` |
-| **Port** | `5432 → 5433` |
+| **Port** | `5432 → 5432 (default, override with POSTGRES_PORT)` |
 | **Healthcheck** | `pg_isready` |
 | **Volume** | `postgres_data` |
 
@@ -769,6 +769,7 @@ flowchart TB
 │
 ├── 📄 main.py                    # 🚀 Application entry point
 ├── 🐳 docker-compose.yml         # 📦 Container orchestration
+├── 🧰 Makefile                   # Dev/test/lint commands
 ├── 📋 alembic.ini                # 🔄 Migration configuration
 ├── 🔐 .env                       # 🔒 Environment variables
 │
@@ -800,6 +801,9 @@ flowchart TB
 ├── 📁 alembic/                   # 🔄 Migrations
 │   ├── 🌍 env.py                 # Migration environment
 │   └── 📁 versions/              # Migration scripts
+│
+├── 📁 documents/                 # 📚 Architecture, testing, reviews
+│   └── ...
 │
 └── 📁 extensions/                # 📦 Extension storage
     └── 📂 publisher.ext-1.0.0/   # Unpacked extensions

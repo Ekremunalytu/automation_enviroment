@@ -16,7 +16,7 @@
 
 ---
 
-`Last Updated: 2025-12-20` • `Version: 1.0.0` • `Status: Active`
+`Last Updated: 2026-02-05` • `Version: 1.0.0` • `Status: Active`
 
 ---
 
@@ -397,8 +397,19 @@ pytest --cov --cov-report=xml
 ### Test Database Setup (Local)
 
 > [!TIP]
-> The test database runs on port **5434** to avoid conflicts with the development database on port 5433.
+> The test database runs on port **5434** by default to avoid conflicts with the development database
+> (default **5432**, override via `POSTGRES_PORT`).
 
+**Option A: docker-compose (recommended)**
+```bash
+# Start the test DB service
+docker-compose up -d postgres_test
+
+# Run tests (uses POSTGRES_TEST_PORT, default 5434)
+make test-local
+```
+
+**Option B: standalone docker run**
 ```bash
 # Start test database container
 docker run -d \

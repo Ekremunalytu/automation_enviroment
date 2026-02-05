@@ -159,15 +159,9 @@ erDiagram
 
 1.  **Risk Scoring Engine**
     *   Pattern-based risk detection
-    *   Permission analysis
     *   Behavioral classification
 
-2.  **Code Analysis**
-    *   JavaScript/TypeScript static analysis
-    *   API call detection
-    *   Network request patterns
-
-3.  **Comparison & Diff**
+2.  **Comparison & Diff**
     *   Version comparison
     *   Regression identification
 

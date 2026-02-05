@@ -95,10 +95,10 @@ automation_enviroment/
 
 ## 📅 Sprint Plan
 
-### Sprint +1: Scanner Core
-- `manifest_parser.py` - Detailed package.json parsing
-- `code_analyzer.py` - JS/TS dangerous pattern search
-- `permission_checker.py` - Capabilities analysis
+### Sprint +1: Dynamic Analysis Core
+- Runner orchestration (sandbox/container execution)
+- Interaction automation baseline (deterministic flows)
+- Safety policy enforcement (no credentials/downloads)
 - Risk score calculation algorithm
 
 ### Sprint +2: Logging & Observability
@@ -134,7 +134,6 @@ automation_enviroment/
 - [ ] Signature-based malware detection
 - [ ] YARA rules integration
 - [ ] Web UI dashboard
-- [ ] Extension diff analysis
 - [ ] CVE database integration
 
 ---

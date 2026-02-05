@@ -18,7 +18,7 @@
 
 ---
 
-`Last Updated: 2025-12-21` • `Version: 1.0.0` • `Status: Active`
+`Last Updated: 2026-02-05` • `Version: 1.0.0` • `Status: Active`
 
 ---
 
@@ -84,7 +84,7 @@
 | 🐳 **Docker Ready** | Multi-service Docker Compose setup |
 | 🔒 **Security First** | Non-root containers, input validation, SQL injection prevention |
 | 📊 **Optimized Queries** | Indexed fields, partial column loading for performance |
-| 🛡️ **Trust Analysis** | Parses `untrustedWorkspaces` and `virtualWorkspaces` capabilities |
+| 🤖 **Automation-Ready** | Foundations for dynamic analysis and interaction workflows |
 
 <br>
 
@@ -184,13 +184,33 @@ cp .env.example .env
 > [!TIP]
 > Edit `.env` to match your local configuration if needed.
 
-**Default `.env`:**
+**Default `.env` (recommended for local dev):**
 ```env
-DATABASE_URL=postgresql://postgres:password@postgres:5432/extrace
-PROJECT_NAME=ExTrace API
-ENV=dev
-EXTENSION_DIR=extensions
+# Database (used for local dev / docker-compose)
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=postgres
+POSTGRES_HOST=localhost
+POSTGRES_PORT=5432
+POSTGRES_DB=extrace
+
+# Optional override (Docker/CI)
+# DATABASE_URL=postgresql://postgres:postgres@postgres:5432/extrace
+
+# API
+API_HOST=0.0.0.0
+API_PORT=8000
+API_WORKERS=1
+API_DEBUG=true
+
+# Project
+PROJECT_NAME="ExTrace API"
+PROJECT_ENV=dev
+PROJECT_VERSION=1.0.0
+PROJECT_EXTENSION_DIR=extensions
 ```
+
+> [!NOTE]
+> `DATABASE_URL` (if set) overrides `POSTGRES_*` values. See `.env.example` for the full template.
 
 ### 3. Start with Docker Compose
 
@@ -244,6 +264,21 @@ docker-compose exec api alembic upgrade head
 
 <br>
 
+**Query Parameters**
+
+| Endpoint | Parameters |
+|:---------|:-----------|
+| `/searchExtension` | `name` (required), `publisher` (optional), `version` (optional) |
+| `/deleteExtension` | `name` (required), `publisher` (optional), `version` (optional) |
+| `/getExtensionScripts` | `name` (required), `publisher` (optional), `version` (optional) |
+| `/getExtensionActivationEvents` | `name` (required), `publisher` (optional), `version` (optional) |
+| `/getExtensionCapabilities` | `name` (required), `publisher` (optional), `version` (optional) |
+| `/getExtensionContributesAll` | `name` (required), `publisher` (optional), `version` (optional) |
+| `/getExtensionContributesCommands` | `name` (required), `publisher` (optional), `version` (optional) |
+| `/getExtensionsAllInfo` | `skip` (optional), `limit` (optional) |
+
+<br>
+
 ### 📝 Example Usage
 
 #### Search Extension
@@ -282,6 +317,14 @@ Content-Type: application/json
 DELETE /deleteExtension?name=python
 ```
 
+> [!TIP]
+> All search/delete endpoints require `name`. For unambiguous results, also pass
+> `publisher` and `version` because the unique constraint is `(publisher, name, version)`.
+
+> [!IMPORTANT]
+> `/createExtension` performs an exact match on the `package.json` `"name"` field
+> under `PROJECT_EXTENSION_DIR`. The folder name is not used for matching.
+
 <br>
 
 ---
@@ -294,9 +337,11 @@ DELETE /deleteExtension?name=python
 
 ```
 extrace/
+├── documents/              # 📚 Architecture, testing, reviews
 ├── main.py                 # 🚀 Application entry point
 ├── docker-compose.yml      # 🐳 Multi-service Docker setup
 ├── alembic.ini             # 🔄 Alembic configuration
+├── Makefile                # 🧰 Dev / test / lint commands
 ├── .env.example            # 🔐 Environment template
 │
 ├── core/                   # ⚡ Core configuration
@@ -423,6 +468,55 @@ pytest --cov=. --cov-report=html
 ```
 
 > 📘 For detailed testing guidelines, see [TESTING.md](documents/TESTING.md).
+> For local DB-backed tests, you can also run `make test-local` which boots `postgres_test`.
+
+<br>
+
+---
+
+<br>
+
+## 🧰 Common Commands
+
+```bash
+# Format + lint + typecheck + test
+make check-all
+
+# Start docker services
+make docker-up
+
+# Stop docker services
+make docker-down
+
+# Run migrations
+make migrate
+```
+
+<br>
+
+---
+
+<br>
+
+## ⚙️ Configuration
+
+Key environment variables (see `.env.example` for the full list):
+
+| Prefix | Variables | Purpose |
+|:------:|:----------|:--------|
+| `POSTGRES_` | `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_DB`, `POSTGRES_TEST_PORT` | Database connectivity (dev + test) |
+| `API_` | `API_HOST`, `API_PORT`, `API_WORKERS`, `API_DEBUG` | API server configuration |
+| `PROJECT_` | `PROJECT_NAME`, `PROJECT_ENV`, `PROJECT_VERSION`, `PROJECT_EXTENSION_DIR` | Project metadata and scan directory |
+| (optional) | `DATABASE_URL` | Overrides `POSTGRES_*` when set (Docker/CI) |
+
+<br>
+
+## 📚 Additional Docs
+
+- [Architecture Overview](documents/ARCHITECTURE.md)
+- [Testing Guide](documents/TESTING.md)
+- [Development Priorities](documents/DEVELOPMENT_PRIORITIES.md)
+- [Architecture Audit](documents/ARCHITECTURE_AUDIT.md)
 
 <br>
 
@@ -436,18 +530,15 @@ pytest --cov=. --cov-report=html
 - [x] PostgreSQL + Docker Setup
 - [x] SQLAlchemy 2.0 Models & Alembic Migrations
 - [x] CRUD Operations
-- [x] **Capabilities Parsing** (Workspace Trust & Virtual Workspaces)
-- [x] **Scripts Parsing** (npm scripts from package.json)
-- [x] **Activation Events Parsing** (onLanguage, onCommand, etc.)
-- [x] **Contribution Points Parsing** (Commands, Keybindings, Menus, etc.)
-- [x] **Optimized Query Performance** (Pagination, Deferred Loading)
 
 ### 🚧 In Progress
-- [ ] Detailed manifest parsing (Commands)
+- [ ] Dynamic execution sandbox (isolated runner)
+- [ ] Interaction automation (persona-based flows)
 - [ ] Risk scoring engine
-- [ ] Permission analysis
 
 ### 🔮 Future
+- [ ] Telemetry capture (network/process/artifacts)
+- [ ] Behavior-based reporting
 - [ ] Web Dashboard
 - [ ] CLI Interface
 - [ ] Structured Logging

@@ -6,8 +6,8 @@ FastAPI Application Entry Point
 --------------------------------
 
 This is the main entry point for the ExTrace VS Code Extension Security
-Scanner API. It initializes the FastAPI application and configures all
-components.
+Analysis & Automation API. It initializes the FastAPI application and
+configures all components.
 
 Application Architecture:
     ┌─────────────────────────────────────────────────────────────────┐

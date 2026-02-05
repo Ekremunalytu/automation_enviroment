@@ -37,7 +37,7 @@ class ProjectSettings(BaseSettings):
 
     NAME: str = "ExTrace API"
     VERSION: str = "1.0.0"
-    DESCRIPTION: str = "VS Code Extension Malware Scanner"
+    DESCRIPTION: str = "VS Code Extension Dynamic Analysis & Automation Platform"
     ENV: str = "dev"
     EXTENSION_DIR: str = "extensions"
 
