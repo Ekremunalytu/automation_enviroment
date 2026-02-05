@@ -526,22 +526,46 @@ Key environment variables (see `.env.example` for the full list):
 
 ## 🗺️ Roadmap
 
-### ✅ Completed
+### ✅ Phase 0: Static Analysis (Completed)
 - [x] PostgreSQL + Docker Setup
 - [x] SQLAlchemy 2.0 Models & Alembic Migrations
 - [x] CRUD Operations
+- [x] Extension metadata parsing (`package.json`)
+- [x] Activation events, capabilities, contributes extraction
+- [x] REST API endpoints
 
-### 🚧 In Progress
-- [ ] Dynamic execution sandbox (isolated runner)
-- [ ] Interaction automation (persona-based flows)
+### 🚧 Phase 1: CLI-Based Dynamic Analysis (In Progress)
+> **No Xvfb required** | Coverage: ~60-70% extensions
+
+- [ ] Docker executor image (`code` CLI)
+- [ ] Extension install/uninstall automation
+- [ ] Activation trigger engine (`onLanguage`, `onCommand`, `*`, `onStartupFinished`)
+- [ ] Network monitoring (tcpdump/tshark)
+- [ ] Process monitoring
+- [ ] Filesystem monitoring (inotifywait)
+- [ ] Analysis results database schema
 - [ ] Risk scoring engine
+- [ ] Analysis API endpoints
 
-### 🔮 Future
-- [ ] Telemetry capture (network/process/artifacts)
-- [ ] Behavior-based reporting
+### 🔮 Phase 2: GUI-Based Dynamic Analysis (Future)
+> **Xvfb required** | Coverage: 100% extensions
+
+- [ ] Xvfb Docker environment
+- [ ] UI triggers (`onView`, `onWebviewPanel`, `onCustomEditor`)
+- [ ] xdotool/xte automation
+- [ ] Persona-based simulation (Curious, Cautious, Impatient, Normal)
+- [ ] Screenshot/screen recording capture
+- [ ] Anti-fingerprinting measures
+- [ ] Behavioral realism (human-like interactions)
+
+### 📊 Phase 3: Reporting & Visualization (Future)
 - [ ] Web Dashboard
+- [ ] Risk report generation
+- [ ] Domain relationship graphs
+- [ ] Action → consequence timeline
 - [ ] CLI Interface
-- [ ] Structured Logging
+
+> **See:** [Dynamic Analysis TODO](documents/automation_todo.md) for detailed tasks
 
 <br>
 
