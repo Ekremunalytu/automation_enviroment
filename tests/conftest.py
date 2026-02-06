@@ -51,7 +51,7 @@ def get_test_database_url() -> str:
     password = os.getenv("POSTGRES_PASSWORD", "postgres")
     host = os.getenv("POSTGRES_HOST", "localhost")
     port = os.getenv("POSTGRES_TEST_PORT", "5434")
-    db = "test_db"
+    db = os.getenv("POSTGRES_TEST_DB", "test_db")
 
     return f"postgresql://{user}:{password}@{host}:{port}/{db}"
 

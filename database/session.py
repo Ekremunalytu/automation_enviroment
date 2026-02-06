@@ -57,13 +57,13 @@ from core.config import settings
 
 engine = create_engine(
     str(settings.db.url),
-    echo=False,
+    echo=settings.db.ECHO,
     future=True,
-    pool_size=20,
-    max_overflow=40,
-    pool_timeout=30,
-    pool_recycle=3600,
-    pool_pre_ping=True,
+    pool_size=settings.db.POOL_SIZE,
+    max_overflow=settings.db.POOL_MAX_OVERFLOW,
+    pool_timeout=settings.db.POOL_TIMEOUT,
+    pool_recycle=settings.db.POOL_RECYCLE,
+    pool_pre_ping=settings.db.POOL_PRE_PING,
 )
 """
 SQLAlchemy Engine - The core database connection manager.
@@ -81,13 +81,11 @@ Parameters:
             Enables new-style query patterns and behaviors
 
 Connection Pool (Optimized Settings):
-    - pool_size: 20 connections (increased from default 5)
-    - max_overflow: 40 additional connections beyond pool_size
-    - pool_timeout: 30 seconds wait for available connection
-    - pool_recycle: 3600 seconds (1 hour) - recycle connections to prevent stale
-      connections
-    - pool_pre_ping: True - verify connections before use (prevents "connection
-      lost" errors)
+    - pool_size: POSTGRES_POOL_SIZE
+    - max_overflow: POSTGRES_POOL_MAX_OVERFLOW
+    - pool_timeout: POSTGRES_POOL_TIMEOUT (seconds)
+    - pool_recycle: POSTGRES_POOL_RECYCLE (seconds)
+    - pool_pre_ping: POSTGRES_POOL_PRE_PING
 
 Performance Benefits:
     - Higher pool_size handles concurrent requests better

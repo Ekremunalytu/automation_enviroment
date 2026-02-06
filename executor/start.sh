@@ -4,25 +4,34 @@
 # Starts Xvfb + Openbox + x11vnc + noVNC, then keeps container alive
 # =============================================================================
 
-# Start virtual display (1920x1080, 24-bit color)
-Xvfb :99 -screen 0 1920x1080x24 -ac &
-sleep 1
+set -euo pipefail
+
+DISPLAY_VALUE="${EXECUTOR_DISPLAY:-${DISPLAY:-:99}}"
+SCREEN_VALUE="${EXECUTOR_SCREEN:-1920x1080x24}"
+VNC_HOST_VALUE="${EXECUTOR_VNC_HOST:-localhost}"
+VNC_PORT_VALUE="${EXECUTOR_VNC_PORT:-5900}"
+NOVNC_PORT_VALUE="${EXECUTOR_NOVNC_PORT:-6080}"
+STARTUP_SLEEP_SECONDS="${EXECUTOR_STARTUP_SLEEP_SECONDS:-1}"
+
+# Start virtual display
+Xvfb "${DISPLAY_VALUE}" -screen 0 "${SCREEN_VALUE}" -ac &
+sleep "${STARTUP_SLEEP_SECONDS}"
 
 # Start window manager
 openbox &
-sleep 1
+sleep "${STARTUP_SLEEP_SECONDS}"
 
-# Start VNC server (no password, listening on port 5900)
-x11vnc -display :99 -forever -nopw -rfbport 5900 -shared -quiet &
-sleep 1
+# Start VNC server
+x11vnc -display "${DISPLAY_VALUE}" -forever -nopw -rfbport "${VNC_PORT_VALUE}" -shared -quiet &
+sleep "${STARTUP_SLEEP_SECONDS}"
 
-# Start noVNC web client (browser access on port 6080)
-/usr/share/novnc/utils/launch.sh --vnc localhost:5900 --listen 6080 &
+# Start noVNC web client
+/usr/share/novnc/utils/launch.sh --vnc "${VNC_HOST_VALUE}:${VNC_PORT_VALUE}" --listen "${NOVNC_PORT_VALUE}" &
 
 echo "================================================"
 echo " ExTrace Executor Ready"
-echo " noVNC: http://localhost:6080/vnc.html"
-echo " Display: :99 (1920x1080)"
+echo " noVNC: http://${VNC_HOST_VALUE}:${NOVNC_PORT_VALUE}/vnc.html"
+echo " Display: ${DISPLAY_VALUE} (${SCREEN_VALUE})"
 echo "================================================"
 
 # Keep container running

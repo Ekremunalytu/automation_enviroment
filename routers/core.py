@@ -57,6 +57,7 @@ Rate Limiting:
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from core.config import settings
 from core.deps import get_db
 from scanner import service
 from schemas.schemas import (
@@ -111,10 +112,10 @@ def read_root():
         - Checking current version deployment
     """
     return {
-        "Project": "Extrace",
-        "Version": "0.1",
-        "Status": "Active",
-        "Docs": "/docs",  # Points to auto-generated Swagger UI
+        "Project": settings.project.NAME,
+        "Version": settings.project.VERSION,
+        "Status": settings.project.STATUS,
+        "Docs": settings.api.DOCS_URL,
     }
 
 
@@ -145,7 +146,7 @@ def health_check():
         - Add memory/CPU metrics
         - Add dependency status (PostgreSQL, etc.)
     """
-    return {"status": "OK", "service": "Extrace API"}
+    return {"status": settings.api.HEALTH_STATUS, "service": settings.project.NAME}
 
 
 # =============================================================================

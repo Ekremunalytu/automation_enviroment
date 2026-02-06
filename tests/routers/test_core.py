@@ -3,6 +3,7 @@ from unittest.mock import MagicMock, patch
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
+from core.config import settings
 from crud.crud import create_extension
 from schemas.schemas import ExtensionSchema
 
@@ -11,14 +12,16 @@ def test_read_root(client: TestClient):
     """Test the root endpoint returns project info."""
     response = client.get("/")
     assert response.status_code == 200
-    assert response.json()["Project"] == "Extrace"
+    payload = response.json()
+    assert payload["Project"] == settings.project.NAME
+    assert payload["Version"] == settings.project.VERSION
 
 
 def test_health_check(client: TestClient):
     """Test the health check endpoint."""
     response = client.get("/health")
     assert response.status_code == 200
-    assert response.json()["status"] == "OK"
+    assert response.json()["status"] == settings.api.HEALTH_STATUS
 
 
 def test_search_extension_endpoint(client: TestClient, db_session: Session):

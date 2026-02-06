@@ -3,7 +3,10 @@ FROM python:3.11-slim-bookworm
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    API_HOST=0.0.0.0 \
+    API_PORT=8000 \
+    API_WORKERS=1
 
 # Create a non-root user
 RUN useradd -m appuser
@@ -20,5 +23,5 @@ COPY . .
 # Switch to non-root user
 USER appuser
 
-# Use list syntax for CMD and remove --reload for production
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Runtime configuration is driven via API_* environment variables
+CMD ["sh", "-c", "uvicorn main:app --host ${API_HOST:-0.0.0.0} --port ${API_PORT:-8000} --workers ${API_WORKERS:-1}"]

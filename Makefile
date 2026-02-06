@@ -6,6 +6,12 @@
 
 # Virtual environment path - all tools run from here
 VENV := .venv/bin
+TEST_DB_WAIT_SECONDS ?= 3
+
+ifneq (,$(wildcard .env))
+include .env
+export
+endif
 
 .PHONY: help install install-dev install-hooks lint lint-check format typecheck test test-cov test-local test-ci check check-all all clean docker-up docker-down migrate venv-check executor-build executor-up executor-down executor-shell executor-test
 
@@ -134,7 +140,7 @@ test-local:
 	@echo "🐳 Starting test database container..."
 	docker-compose up -d postgres_test
 	@echo "⏳ Waiting for Test PostgreSQL to be ready..."
-	@sleep 3
+	@sleep $(TEST_DB_WAIT_SECONDS)
 	@echo "🧪 Running tests..."
 	# Rely on pytest.ini/conftest to load settings from env or .env
 	$(VENV)/pytest -v || true

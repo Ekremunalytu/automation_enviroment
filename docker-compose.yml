@@ -3,19 +3,20 @@ services:
     image: postgres:16-alpine
     container_name: automation_db
     restart: unless-stopped
+    command: [ "postgres", "-p", "${POSTGRES_DOCKER_PORT:-5432}" ]
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "${POSTGRES_PORT:-5432}:${POSTGRES_DOCKER_PORT:-5432}"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER}" ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -p ${POSTGRES_DOCKER_PORT:-5432}" ]
+      interval: ${POSTGRES_HEALTHCHECK_INTERVAL:-10s}
+      timeout: ${POSTGRES_HEALTHCHECK_TIMEOUT:-5s}
+      retries: ${POSTGRES_HEALTHCHECK_RETRIES:-5}
 
   api:
     build:
@@ -26,9 +27,20 @@ services:
     ports:
       - "${API_PORT:-8000}:${API_PORT:-8000}"
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
-      API_HOST: 0.0.0.0
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_DOCKER_HOST:-postgres}:${POSTGRES_DOCKER_PORT:-5432}/${POSTGRES_DB}
+      API_HOST: ${API_HOST:-0.0.0.0}
       API_PORT: ${API_PORT:-8000}
+      API_WORKERS: ${API_WORKERS:-1}
+      API_DEBUG: ${API_DEBUG:-false}
+      API_HEALTH_STATUS: ${API_HEALTH_STATUS:-OK}
+      API_DOCS_URL: ${API_DOCS_URL:-/docs}
+      API_REDOC_URL: ${API_REDOC_URL:-/redoc}
+      API_OPENAPI_URL: ${API_OPENAPI_URL:-/openapi.json}
+      API_GZIP_MINIMUM_SIZE: ${API_GZIP_MINIMUM_SIZE:-2000}
+      API_CORS_ALLOW_ORIGINS: ${API_CORS_ALLOW_ORIGINS:-*}
+      API_CORS_ALLOW_METHODS: ${API_CORS_ALLOW_METHODS:-*}
+      API_CORS_ALLOW_HEADERS: ${API_CORS_ALLOW_HEADERS:-*}
+      API_CORS_ALLOW_CREDENTIALS: ${API_CORS_ALLOW_CREDENTIALS:-true}
     depends_on:
       postgres:
         condition: service_healthy
@@ -39,34 +51,48 @@ services:
     build:
       context: .
       dockerfile: executor/Dockerfile
+      args:
+        EXECUTOR_NODE_MAJOR: ${EXECUTOR_NODE_MAJOR:-20}
+        EXECUTOR_VSCODE_CHANNEL: ${EXECUTOR_VSCODE_CHANNEL:-stable}
+        EXECUTOR_DEFAULT_DISPLAY: ${EXECUTOR_DISPLAY:-:99}
+        EXECUTOR_DEFAULT_NOVNC_PORT: ${EXECUTOR_NOVNC_PORT:-6080}
     container_name: automation_executor
     restart: unless-stopped
     ports:
-      - "${EXECUTOR_VNC_PORT:-6080}:6080"
+      - "${EXECUTOR_NOVNC_PORT:-6080}:${EXECUTOR_NOVNC_PORT:-6080}"
+    environment:
+      DISPLAY: ${EXECUTOR_DISPLAY:-:99}
+      EXECUTOR_DISPLAY: ${EXECUTOR_DISPLAY:-:99}
+      EXECUTOR_SCREEN: ${EXECUTOR_SCREEN:-1920x1080x24}
+      EXECUTOR_VNC_HOST: ${EXECUTOR_VNC_HOST:-localhost}
+      EXECUTOR_VNC_PORT: ${EXECUTOR_VNC_PORT:-5900}
+      EXECUTOR_NOVNC_PORT: ${EXECUTOR_NOVNC_PORT:-6080}
+      EXECUTOR_STARTUP_SLEEP_SECONDS: ${EXECUTOR_STARTUP_SLEEP_SECONDS:-1}
     volumes:
-      - ./extensions:/extensions-input:ro
-      - ./output:/results
+      - ${EXECUTOR_EXTENSIONS_HOST_PATH:-./extensions}:${EXECUTOR_EXTENSIONS_CONTAINER_PATH:-/extensions-input}:ro
+      - ${EXECUTOR_OUTPUT_HOST_PATH:-./output}:${EXECUTOR_OUTPUT_CONTAINER_PATH:-/results}
     cap_add:
       - NET_RAW
       - SYS_PTRACE
-    mem_limit: 2g
-    cpus: 2.0
+    mem_limit: ${EXECUTOR_MEM_LIMIT:-2g}
+    cpus: ${EXECUTOR_CPUS:-2.0}
 
   postgres_test:
     image: postgres:16-alpine
     container_name: automation_db_test
     restart: unless-stopped
+    command: [ "postgres", "-p", "${POSTGRES_TEST_DOCKER_PORT:-5432}" ]
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: test_db
+      POSTGRES_DB: ${POSTGRES_TEST_DB:-test_db}
     ports:
-      - "${POSTGRES_TEST_PORT:-5434}:5432"
+      - "${POSTGRES_TEST_PORT:-5434}:${POSTGRES_TEST_DOCKER_PORT:-5432}"
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER}" ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -p ${POSTGRES_TEST_DOCKER_PORT:-5432}" ]
+      interval: ${POSTGRES_TEST_HEALTHCHECK_INTERVAL:-10s}
+      timeout: ${POSTGRES_TEST_HEALTHCHECK_TIMEOUT:-5s}
+      retries: ${POSTGRES_TEST_HEALTHCHECK_RETRIES:-5}
 
 volumes:
   postgres_data:

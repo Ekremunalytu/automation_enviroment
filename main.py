@@ -96,18 +96,25 @@ def create_app() -> FastAPI:
         title=settings.project.NAME,
         description=settings.project.DESCRIPTION,
         version=settings.project.VERSION,
+        debug=settings.api.DEBUG,
+        docs_url=settings.api.DOCS_URL,
+        redoc_url=settings.api.REDOC_URL,
+        openapi_url=settings.api.OPENAPI_URL,
     )
 
     # Add middleware
     # GZip compression for large responses (minimum 2KB to avoid overhead on
     # small responses)
-    application.add_middleware(GZipMiddleware, minimum_size=2000)
+    application.add_middleware(
+        GZipMiddleware,
+        minimum_size=settings.api.GZIP_MINIMUM_SIZE,
+    )
     application.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
+        allow_origins=settings.api.cors_allow_origins,
+        allow_credentials=settings.api.CORS_ALLOW_CREDENTIALS,
+        allow_methods=settings.api.cors_allow_methods,
+        allow_headers=settings.api.cors_allow_headers,
     )
 
     # Register API routers
@@ -160,9 +167,10 @@ if __name__ == "__main__":
     import uvicorn
 
     # Start development server
-    # Note: No --reload here, use uvicorn CLI for auto-reload
     uvicorn.run(
-        app,
+        "main:app",
         host=settings.api.HOST,  # Listen on configured interface
         port=settings.api.PORT,  # Listen on configured port
+        workers=1 if settings.api.DEBUG else settings.api.WORKERS,
+        reload=settings.api.DEBUG,
     )

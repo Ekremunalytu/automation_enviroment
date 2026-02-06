@@ -7,6 +7,8 @@ Basic smoke tests to verify API availability.
 
 from fastapi.testclient import TestClient
 
+from core.config import settings
+
 
 class TestHealthCheck:
     """Health check and basic API tests."""
@@ -19,12 +21,12 @@ class TestHealthCheck:
 
     def test_docs_endpoint(self, client: TestClient) -> None:
         """Test that the OpenAPI docs endpoint is accessible."""
-        response = client.get("/docs")
+        response = client.get(settings.api.DOCS_URL)
         assert response.status_code == 200
 
     def test_openapi_schema(self, client: TestClient) -> None:
         """Test that the OpenAPI schema is accessible."""
-        response = client.get("/openapi.json")
+        response = client.get(settings.api.OPENAPI_URL)
         assert response.status_code == 200
         data = response.json()
         assert "openapi" in data

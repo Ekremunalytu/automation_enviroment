@@ -39,6 +39,7 @@ class ProjectSettings(BaseSettings):
     VERSION: str = "1.0.0"
     DESCRIPTION: str = "VS Code Extension Dynamic Analysis & Automation Platform"
     ENV: str = "dev"
+    STATUS: str = "Active"
     EXTENSION_DIR: str = "extensions"
 
     model_config = SettingsConfigDict(
@@ -59,6 +60,34 @@ class APISettings(BaseSettings):
     PORT: int = 8000
     WORKERS: int = 1
     DEBUG: bool = False
+    HEALTH_STATUS: str = "OK"
+    DOCS_URL: str = "/docs"
+    REDOC_URL: str = "/redoc"
+    OPENAPI_URL: str = "/openapi.json"
+    GZIP_MINIMUM_SIZE: int = 2000
+    CORS_ALLOW_ORIGINS: str = "*"
+    CORS_ALLOW_METHODS: str = "*"
+    CORS_ALLOW_HEADERS: str = "*"
+    CORS_ALLOW_CREDENTIALS: bool = True
+
+    @staticmethod
+    def _split_csv(value: str) -> list[str]:
+        """Split comma-separated config values into trimmed list items."""
+        raw_values = [item.strip() for item in value.split(",")]
+        parsed_values = [item for item in raw_values if item]
+        return parsed_values
+
+    @property
+    def cors_allow_origins(self) -> list[str]:
+        return self._split_csv(self.CORS_ALLOW_ORIGINS)
+
+    @property
+    def cors_allow_methods(self) -> list[str]:
+        return self._split_csv(self.CORS_ALLOW_METHODS)
+
+    @property
+    def cors_allow_headers(self) -> list[str]:
+        return self._split_csv(self.CORS_ALLOW_HEADERS)
 
     model_config = SettingsConfigDict(
         env_file=".env", env_prefix="API_", env_file_encoding="utf-8", extra="ignore"
@@ -80,6 +109,12 @@ class DatabaseSettings(BaseSettings):
     HOST: str = "localhost"
     PORT: int = 5432
     DB: str = "extrace"
+    ECHO: bool = False
+    POOL_SIZE: int = 20
+    POOL_MAX_OVERFLOW: int = 40
+    POOL_TIMEOUT: int = 30
+    POOL_RECYCLE: int = 3600
+    POOL_PRE_PING: bool = True
 
     @computed_field  # type: ignore[prop-decorator]
     @property
