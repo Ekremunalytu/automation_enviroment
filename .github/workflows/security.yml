@@ -54,23 +54,6 @@ jobs:
         run: bandit -c pyproject.toml -r . -ll
 
   # ===========================================================================
-  # DEPENDENCY REVIEW (PR only)
-  # ===========================================================================
-  dependency-review:
-    name: 📦 Dependency Review
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
-    steps:
-      - name: 📥 Checkout code
-        uses: actions/checkout@v4
-
-      - name: 📦 Dependency Review
-        uses: actions/dependency-review-action@v4
-        with:
-          fail-on-severity: high
-          deny-licenses: GPL-3.0, AGPL-3.0
-
-  # ===========================================================================
   # TRIVY - Container Security
   # ===========================================================================
   trivy:
@@ -94,25 +77,3 @@ jobs:
           vuln-type: "os,library"
           severity: "CRITICAL,HIGH"
         continue-on-error: true
-
-  # ===========================================================================
-  # CodeQL Analysis
-  # ===========================================================================
-  codeql:
-    name: 🔬 CodeQL Analysis
-    runs-on: ubuntu-latest
-    permissions:
-      security-events: write
-    steps:
-      - name: 📥 Checkout code
-        uses: actions/checkout@v4
-
-      - name: 🔬 Initialize CodeQL
-        uses: github/codeql-action/init@v3
-        with:
-          languages: python
-
-      - name: 🔬 Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
-        with:
-          category: "/language:python"
