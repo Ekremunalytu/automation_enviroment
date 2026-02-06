@@ -7,7 +7,7 @@
 # Virtual environment path - all tools run from here
 VENV := .venv/bin
 
-.PHONY: help install install-dev install-hooks lint lint-check format typecheck test test-cov test-local test-ci check check-all all clean docker-up docker-down migrate venv-check
+.PHONY: help install install-dev install-hooks lint lint-check format typecheck test test-cov test-local test-ci check check-all all clean docker-up docker-down migrate venv-check executor-build executor-up executor-down executor-shell executor-test
 
 # Default target
 help:
@@ -35,6 +35,12 @@ help:
 	@echo "║  docker-down    │ Stop Docker containers                          ║"
 	@echo "║  migrate        │ Run Alembic migrations                          ║"
 	@echo "║  clean          │ Clean cache and build files                     ║"
+	@echo "╠═══════════════════════════════════════════════════════════════════╣"
+	@echo "║  executor-build │ Build executor Docker image                   ║"
+	@echo "║  executor-up    │ Start executor container                      ║"
+	@echo "║  executor-down  │ Stop executor container                       ║"
+	@echo "║  executor-shell │ Shell into running executor                   ║"
+	@echo "║  executor-test  │ Verify VS Code CLI in executor                ║"
 	@echo "╚═══════════════════════════════════════════════════════════════════╝"
 
 # =============================================================================
@@ -165,29 +171,25 @@ all: format lint typecheck test
 # =============================================================================
 
 docker-build:
-	@echo "🐳 Building Docker images..."
-	@docker-compose build
-	@sleep 6
-	@echo "✅ Build complete!"
+	@echo "Building Docker images..."
+	@BUILDKIT_PROGRESS=plain docker-compose build 2>&1
+	@echo "Build complete!"
 
 docker-rebuild:
-	@echo "🐳 Rebuilding Docker images (no cache)..."
-	@docker-compose build --no-cache
-	@sleep 5
-	@echo "✅ Rebuild complete!"
+	@echo "Rebuilding Docker images (no cache)..."
+	@BUILDKIT_PROGRESS=plain docker-compose build --no-cache 2>&1
+	@echo "Rebuild complete!"
 
 docker-up:
-	@echo "🐳 Starting Docker containers..."
-	@docker-compose up -d --quiet-pull 2>/dev/null || docker-compose up -d
-	@sleep 6
-	@echo "✅ Containers started!"
-	@docker-compose ps --format "table {{.Name}}\t{{.Status}}" 2>/dev/null || docker-compose ps
+	@echo "Starting Docker containers..."
+	@docker-compose up -d
+	@docker-compose ps
+	@echo "Containers started!"
 
 docker-down:
-	@echo "🐳 Stopping Docker containers..."
-	@docker-compose down --remove-orphans 2>/dev/null || docker-compose down
-	@sleep 5
-	@echo "✅ Containers stopped!"
+	@echo "Stopping Docker containers..."
+	@docker-compose down --remove-orphans
+	@echo "Containers stopped!"
 
 docker-logs:
 	docker-compose logs -f --tail=100
@@ -200,6 +202,40 @@ migrate:
 migrate-create:
 	@read -p "Enter migration message: " msg; \
 	$(VENV)/alembic revision --autogenerate -m "$$msg"
+
+# =============================================================================
+# EXECUTOR (Dynamic Analysis Container)
+# =============================================================================
+
+executor-build:
+	@echo "Building executor image..."
+	docker-compose build executor
+	@echo "Executor image built!"
+
+executor-up:
+	@echo "Starting executor container..."
+	docker-compose up -d executor
+	@echo "Executor container started!"
+
+executor-down:
+	@echo "Stopping executor container..."
+	docker-compose stop executor
+	docker-compose rm -f executor
+	@echo "Executor container stopped!"
+
+executor-shell:
+	docker exec -it automation_executor /bin/bash
+
+executor-test:
+	@echo "Verifying executor tools..."
+	docker exec automation_executor code --version --no-sandbox
+	docker exec automation_executor node --version
+	docker exec automation_executor which tcpdump
+	docker exec automation_executor which inotifywait
+	docker exec automation_executor which strace
+	docker exec automation_executor which Xvfb
+	docker exec automation_executor which xdotool
+	@echo "All executor tools verified!"
 
 # =============================================================================
 # CLEANUP

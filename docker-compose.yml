@@ -35,6 +35,23 @@ services:
     volumes:
       - .:/app
 
+  executor:
+    build:
+      context: .
+      dockerfile: executor/Dockerfile
+    container_name: automation_executor
+    restart: unless-stopped
+    ports:
+      - "${EXECUTOR_VNC_PORT:-6080}:6080"
+    volumes:
+      - ./extensions:/extensions-input:ro
+      - ./output:/results
+    cap_add:
+      - NET_RAW
+      - SYS_PTRACE
+    mem_limit: 2g
+    cpus: 2.0
+
   postgres_test:
     image: postgres:16-alpine
     container_name: automation_db_test

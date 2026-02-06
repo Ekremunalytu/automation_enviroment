@@ -17,7 +17,7 @@
 
 ---
 
-`Last Updated: 2026-02-05` • `Version: 1.0.0` • `Status: Development`
+`Last Updated: 2026-02-06` • `Version: 1.0.0` • `Status: Development`
 
 ---
 
@@ -77,22 +77,31 @@ flowchart TB
         subgraph DB["🗄️ Database Container"]
             PostgreSQL[("PostgreSQL<br/><small>v16 Alpine</small>")]
         end
+
+        subgraph Executor["🔬 Executor Container"]
+            VSCode["VS Code + Xvfb<br/><small>noVNC :6080</small>"]
+        end
     end
 
     subgraph Storage["💾 PERSISTENT STORAGE"]
         Extensions["📦 extensions/<br/><small>VS Code Packages</small>"]
         Volumes["🔒 postgres_data<br/><small>Docker Volume</small>"]
+        Output["📁 output/<br/><small>Analysis Results</small>"]
     end
 
     Client <-->|"🔌 HTTP :8000"| FastAPI
+    Client <-->|"🖥️ VNC :6080"| VSCode
     FastAPI <-->|"🔌 SQL :5432"| PostgreSQL
     FastAPI -->|"📖 Read"| Extensions
+    VSCode -->|"📖 Read"| Extensions
+    VSCode -->|"📝 Write"| Output
     PostgreSQL -->|"💿 Persist"| Volumes
 
     style External fill:#7c3aed,stroke:#a855f7,stroke-width:3px,color:#fff
     style Docker fill:#be185d,stroke:#ec4899,stroke-width:3px,color:#fff
     style API fill:#0891b2,stroke:#22d3ee,stroke-width:2px,color:#fff
     style DB fill:#059669,stroke:#34d399,stroke-width:2px,color:#fff
+    style Executor fill:#b91c1c,stroke:#f87171,stroke-width:2px,color:#fff
     style Storage fill:#b45309,stroke:#fbbf24,stroke-width:3px,color:#fff
 ```
 
@@ -119,9 +128,9 @@ flowchart TB
 **Decision:** Filesystem scanning is linear and synchronous.
 **Reasoning:** The intended workflow is to analyze specific, high-risk extensions one by one or in small batches. The classic "O(N) scanning problem" is mitigated by the operational usage pattern (targeted audits vs. bulk ingestion).
 
-### 4. Phase 1: Dynamic Execution First
-**Decision:** Separate safe execution orchestration (Phase 1) from higher-level analysis (Phase 2).
-**Reasoning:** Reliable, repeatable dynamic runs and telemetry capture are the foundation for behavior-based analysis and automation.
+### 4. Xvfb-First Dynamic Analysis
+**Decision:** Use Xvfb (virtual display) for all dynamic analysis instead of a CLI/GUI phased approach.
+**Reasoning:** VS Code extensions require a running Extension Host process to activate, which needs a full GUI instance. Xvfb provides this with zero overhead and 100% activation event coverage. A CLI-only approach was evaluated and rejected because it cannot trigger UI-dependent activation events (`onView`, `onWebviewPanel`, etc.).
 
 <br>
 
@@ -626,29 +635,47 @@ flowchart TB
                 Data["💿 Data Directory"]
                 PG --> Data
             end
+
+            subgraph ExecutorContainer["📦 executor container"]
+                direction TB
+                Xvfb["🖥️ Xvfb :99"]
+                VSCode["💻 VS Code GUI"]
+                Monitor["📡 tcpdump / inotify / strace"]
+                NoVNC["🌐 noVNC :6080"]
+                Xvfb --> VSCode
+                VSCode --> Monitor
+                Xvfb --> NoVNC
+            end
         end
 
         subgraph Volumes["💾 VOLUMES"]
             PGData["🔒 postgres_data"]
             AppMount["📁 /app (bind mount)"]
+            ExtMount["📦 /extensions-input (read-only)"]
+            ResultMount["📁 /results (output)"]
         end
 
     subgraph Ports["🔌 PORTS"]
-        P8000["🌐 localhost:8000 (default)"]
-        P5432["🗄️ localhost:5432 (default)"]
+        P8000["🌐 localhost:8000 (API)"]
+        P5432["🗄️ localhost:5432 (DB)"]
+        P6080["🖥️ localhost:6080 (noVNC)"]
     end
     end
 
     APIContainer <-->|":5432"| DBContainer
     DBContainer --> PGData
     APIContainer --> AppMount
+    ExecutorContainer --> ExtMount
+    ExecutorContainer --> ResultMount
     P8000 --> APIContainer
     P5432 --> DBContainer
+    P6080 --> ExecutorContainer
 
     style Host fill:#1e293b,stroke:#475569,stroke-width:3px,color:#e6edf3
     style DockerCompose fill:#0891b2,stroke:#22d3ee,stroke-width:3px,color:#fff
     style APIContainer fill:#7c3aed,stroke:#a855f7,stroke-width:2px,color:#fff
     style DBContainer fill:#059669,stroke:#34d399,stroke-width:2px,color:#fff
+    style ExecutorContainer fill:#b91c1c,stroke:#f87171,stroke-width:2px,color:#fff
     style Volumes fill:#b45309,stroke:#fbbf24,stroke-width:2px,color:#fff
     style Ports fill:#be185d,stroke:#ec4899,stroke-width:2px,color:#fff
 ```
@@ -683,6 +710,27 @@ flowchart TB
 | **Port** | `5432 → 5432 (default, override with POSTGRES_PORT)` |
 | **Healthcheck** | `pg_isready` |
 | **Volume** | `postgres_data` |
+
+</td>
+</tr>
+<tr>
+<td colspan="2">
+
+#### 🔬 Executor Container
+
+| Property | Value |
+|:---------|:------|
+| **Base Image** | `ubuntu:22.04` |
+| **User** | `executor` (non-root) |
+| **Port** | `6080 (noVNC, override with EXECUTOR_VNC_PORT)` |
+| **Display** | `Xvfb :99 (1920x1080x24)` |
+| **Window Manager** | `openbox` |
+| **VNC** | `x11vnc → noVNC (browser access)` |
+| **VS Code** | Full GUI, `--no-sandbox --disable-gpu` |
+| **Monitoring** | `tcpdump`, `tshark`, `inotifywait`, `strace` |
+| **Capabilities** | `NET_RAW`, `SYS_PTRACE` |
+| **Resources** | 2GB RAM, 2 CPUs |
+| **Volumes** | `./extensions:/extensions-input:ro`, `./output:/results` |
 
 </td>
 </tr>
@@ -802,11 +850,18 @@ flowchart TB
 │   ├── 🌍 env.py                 # Migration environment
 │   └── 📁 versions/              # Migration scripts
 │
+├── 📁 executor/                  # 🔬 Dynamic analysis
+│   ├── 🐳 Dockerfile             # Ubuntu 22.04 + VS Code + Xvfb + monitoring
+│   ├── 🚀 start.sh              # Entrypoint: Xvfb, openbox, VNC, noVNC
+│   └── 📄 __init__.py           # Package init
+│
 ├── 📁 documents/                 # 📚 Architecture, testing, reviews
 │   └── ...
 │
-└── 📁 extensions/                # 📦 Extension storage
-    └── 📂 publisher.ext-1.0.0/   # Unpacked extensions
+├── 📁 extensions/                # 📦 Extension storage (mounted read-only in executor)
+│   └── 📂 publisher.ext-1.0.0/   # Unpacked extensions
+│
+└── 📁 output/                    # 📁 Analysis results (mounted in executor as /results)
 ```
 
 <br>
@@ -912,8 +967,9 @@ flowchart TB
         end
 
         subgraph Executor["⚡ EXECUTOR"]
-            SB["🏖️ Sandbox Runner"]
+            SB["🖥️ Xvfb + VS Code GUI"]
             DC["🐳 Docker Controller"]
+            MN["📡 Monitors (net/fs/proc)"]
         end
     end
 

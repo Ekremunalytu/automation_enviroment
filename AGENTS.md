@@ -24,6 +24,11 @@
 - `models/` - SQLAlchemy ORM models.
 - `database/` - Engine/session configuration.
 - `alembic/` - Database migrations.
+- `executor/` - [In Progress] Dynamic analysis orchestration (Docker, Xvfb, VS Code GUI).
+  - `executor/Dockerfile` - Ubuntu 22.04 + VS Code + Xvfb + noVNC + monitoring tools.
+  - `executor/start.sh` - Entrypoint: starts Xvfb :99, openbox, x11vnc, noVNC (port 6080).
+  - `executor/__init__.py` - Python package init.
+- `reporter/` - [Planned] Risk reporting and visualization logic.
 - `extensions/` - Input data directory (unpacked extensions).
 - `tests/` - Pytest suites.
 
@@ -33,12 +38,18 @@
 - **SQLAlchemy:** 2.0 syntax only - use `session.execute(select(Model))`, NEVER use `session.query()`
 - **Pydantic:** V2 syntax required - use `model_dump()`, `model_validate()`, NEVER use `.dict()` or `.parse_obj()`
 - **Alembic:** All schema changes require migration files
+- **Docker:** Required for isolated extension execution (Phase 1+).
+- **Executor Stack:** Xvfb + openbox + x11vnc + noVNC for full GUI analysis in container.
 
 ## Core Data Flow
-- `POST /createExtension` -> `scanner/service.py:create_extension_by_name`
-- `scanner/json_parser.py` reads package.json from `PROJECT_EXTENSION_DIR`
-- `schemas/schemas.py` validates
-- `crud/crud.py` writes to DB using `models/models.py`
+- **Static Analysis:** `POST /createExtension` -> `scanner/service.py` -> `crud/` -> `DB`.
+- **Dynamic Analysis (Planned):** `POST /analyze/{id}` -> `executor/` -> `Docker Container` -> `Telemetry Capture` -> `DB`.
+
+## Roadmap & Current Focus
+- **Phase 0 (Done):** Static analysis of `package.json`.
+- **Phase 1 (Active):** Dynamic analysis via Docker + Xvfb. Full GUI VS Code in container with monitoring (tcpdump, inotifywait, strace). Accessible via noVNC at `localhost:6080`.
+- **Phase 2 (Future):** Automated GUI interaction (xdotool, Puppeteer), persona-based simulation, anti-detection measures.
+- **Reference:** See `documents/automation_todo.md` for detailed tasks.
 
 ## API Endpoints (Core)
 - `GET /` - API info
@@ -59,6 +70,7 @@
 - Filesystem scan is exact-match on `package.json` `"name"` only; no fuzzy search.
 - List endpoints are unpaginated; responses can grow large.
 - Pydantic schemas use `extra="ignore"` for unknown fields in package.json.
+- **Dynamic Analysis:** Always check `automation_todo.md` before implementing executor logic.
 
 ## Review Priorities
 - Do not change the overall architecture radically.
@@ -66,6 +78,7 @@
 - Prefer simple, explicit code over clever abstractions.
 - Maintain backward compatibility unless explicitly stated otherwise.
 - Prioritize code quality and maintainability in all changes.
+- **Security:** Ensure extension execution is strictly isolated via Docker.
 
 ## Configuration
 - `core/config.py` loads settings using prefixes:
@@ -77,6 +90,7 @@
 ## Testing
 - Tests use PostgreSQL (JSONB/ARRAY types). See `tests/conftest.py`.
 - Typical flow: start DB (docker-compose), run `pytest`.
+- **New Tests:** Always add unit tests for new `executor` or `scanner` logic.
 
 ## Working Conventions (To Avoid Re-Scanning)
 - Do not scan the full repo or list all files unless explicitly asked.
@@ -87,6 +101,7 @@
 ## Common Change Map
 - New/updated endpoint: `routers/` + `schemas/` + `scanner/service.py` + `crud/` + `models/` + `alembic/` + `tests/`.
 - New parsed package.json field: `scanner/json_parser.py` + `schemas/` + `models/` + `alembic/` + `tests/`.
+- New dynamic analysis feature: `executor/` + `schemas/` + `models/` + `alembic/` + `tests/`.
 
 ## Database Tables (Summary)
 - `extensions` - Main extension metadata (unique: publisher, name, version)
@@ -99,11 +114,14 @@
 - `extension_contributes_menus` - N:1 menu contributions
 - `extension_contributes_authentication` - N:1 authentication provider contributions
 - `extension_contributes_terminal` - N:1 terminal profile contributions
+- **Planned:** `analysis_runs`, `analysis_network_events`, `analysis_process_events`, `analysis_fs_events`.
 
 ## Useful Commands
 - `make check-all` - Run all linters and tests
 - `make format` - Auto-format code with Ruff
-- `docker-compose up -d` - Start PostgreSQL services
+- `docker-compose up -d` - Start all services (PostgreSQL, API, Executor)
+- `make executor-shell` - Shell into running executor container
+- `make executor-test` - Verify VS Code and monitoring tools in executor
 - `alembic upgrade head` - Apply database migrations
 - `pytest` - Run test suite
 
