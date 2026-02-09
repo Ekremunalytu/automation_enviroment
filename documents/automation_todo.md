@@ -8,11 +8,11 @@ This document outlines the phased approach for building VS Code extension dynami
 
 | Phase | Approach | Coverage | Status |
 |-------|----------|----------|--------|
-| **Phase 0** | Static analysis of `package.json` | Metadata only | Done |
+| **Phase 0** | Metadata parsing from `package.json` | Metadata only | Done |
 | **Phase 1** | Docker + Xvfb full GUI analysis | 100% activation events | Active |
 | **Phase 2** | Automated GUI interaction + persona simulation | Behavioral analysis | Future |
 
-**Key decision:** CLI-only analysis was dropped because VS Code extensions require a running Extension Host process to activate, which needs a full VS Code GUI instance. Xvfb provides this with zero overhead compared to a real display.
+**Key approach:** VS Code extensions require a running Extension Host process to activate, which needs a full GUI instance. Xvfb provides this with zero overhead compared to a real display, enabling full activation event coverage.
 
 ---
 
@@ -292,7 +292,7 @@ noVNC                      ->  Browser access (port 6080)
 
 ## Design Principles
 
-1. **Single Stack**: Xvfb covers all extension types (no CLI/GUI split)
+1. **Single Stack**: Xvfb + full GUI covers all extension types
 2. **Full Activation**: Every activation event can be triggered
 3. **Audit Everything**: Every action produces evidence
 4. **Fail Safe**: Sandbox isolation, resource limits, timeouts

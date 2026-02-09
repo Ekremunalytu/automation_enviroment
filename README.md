@@ -526,7 +526,7 @@ Key environment variables (see `.env.example` for the full list):
 
 ## 🗺️ Roadmap
 
-### ✅ Phase 0: Static Analysis (Completed)
+### ✅ Phase 0: Metadata Parsing (Completed)
 - [x] PostgreSQL + Docker Setup
 - [x] SQLAlchemy 2.0 Models & Alembic Migrations
 - [x] CRUD Operations
@@ -534,12 +534,16 @@ Key environment variables (see `.env.example` for the full list):
 - [x] Activation events, capabilities, contributes extraction
 - [x] REST API endpoints
 
-### 🚧 Phase 1: CLI-Based Dynamic Analysis (In Progress)
-> **No Xvfb required** | Coverage: ~60-70% extensions
+### 🚧 Phase 1: Xvfb Dynamic Analysis (In Progress)
+> **Full GUI execution via Xvfb** | Coverage: 100% activation events
 
-- [ ] Docker executor image (`code` CLI)
+- [x] Docker executor image (Ubuntu 22.04 + Xvfb + VS Code)
+- [x] Playwright UI automation helpers (CDP-based)
+- [x] Honeypot developer environment (fake credentials, secrets)
+- [x] VS Code auto-configuration (trust/telemetry disabled)
+- [x] noVNC browser access for debugging
 - [ ] Extension install/uninstall automation
-- [ ] Activation trigger engine (`onLanguage`, `onCommand`, `*`, `onStartupFinished`)
+- [ ] Activation trigger engine (onLanguage, onCommand, onView, etc.)
 - [ ] Network monitoring (tcpdump/tshark)
 - [ ] Process monitoring
 - [ ] Filesystem monitoring (inotifywait)
@@ -547,23 +551,20 @@ Key environment variables (see `.env.example` for the full list):
 - [ ] Risk scoring engine
 - [ ] Analysis API endpoints
 
-### 🔮 Phase 2: GUI-Based Dynamic Analysis (Future)
-> **Xvfb required** | Coverage: 100% extensions
+### 🔮 Phase 2: Persona Simulation & Advanced Analysis (Future)
+> **Prerequisite:** Phase 1 complete
 
-- [ ] Xvfb Docker environment
-- [ ] UI triggers (`onView`, `onWebviewPanel`, `onCustomEditor`)
-- [ ] xdotool/xte automation
 - [ ] Persona-based simulation (Curious, Cautious, Impatient, Normal)
 - [ ] Screenshot/screen recording capture
 - [ ] Anti-fingerprinting measures
 - [ ] Behavioral realism (human-like interactions)
+- [ ] WebView interaction
 
 ### 📊 Phase 3: Reporting & Visualization (Future)
 - [ ] Web Dashboard
 - [ ] Risk report generation
 - [ ] Domain relationship graphs
 - [ ] Action → consequence timeline
-- [ ] CLI Interface
 
 > **See:** [Dynamic Analysis TODO](documents/automation_todo.md) for detailed tasks
 

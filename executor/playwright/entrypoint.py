@@ -25,60 +25,60 @@ from playwright.sync_api import sync_playwright  # noqa: E402 — pip package
 def main() -> None:
     with sync_playwright() as pw:
         # --- Connect ---
-        print("[*] VS Code'a baglaniliyor...")
+        print("[*] Connecting to VS Code...")
         browser, page = vscode.connect(pw)
-        print(f"[+] Baglanti kuruldu - sayfa: {page.title()}")
+        print(f"[+] Connected - page: {page.title()}")
 
-        print("[*] VS Code hazir olana kadar bekleniyor...")
+        print("[*] Waiting for VS Code to be ready...")
         vscode.wait_until_ready(page)
-        print("[+] VS Code hazir")
+        print("[+] VS Code is ready")
 
         # --- Sidebar demo ---
-        print("[*] Explorer aciliyor...")
+        print("[*] Opening Explorer...")
         sidebar.open_explorer(page)
         page.wait_for_timeout(500)
 
-        print("[*] Extensions view aciliyor...")
+        print("[*] Opening Extensions view...")
         sidebar.open_extensions_view(page)
         page.wait_for_timeout(500)
 
         # --- Editor demo ---
-        print("[*] Yeni dosya olusturuluyor...")
+        print("[*] Creating new file...")
         editor.new_untitled_file(page)
         editor.type_in_editor(page, "# Playwright demo")
         page.wait_for_timeout(300)
 
-        print("[*] Dosya kaydediliyor...")
+        print("[*] Saving file...")
         editor.save_file_as(page, "demo.py")
         page.wait_for_timeout(500)
 
-        print("[*] hello.py aciliyor...")
+        print("[*] Opening hello.py...")
         editor.open_file_by_name(page, "hello.py")
         page.wait_for_timeout(500)
 
         # --- Terminal demo ---
-        print("[*] Terminal aciliyor...")
+        print("[*] Opening terminal...")
         terminal.new_terminal(page)
         terminal.type_in_terminal(page, "echo 'hello from playwright'")
         page.wait_for_timeout(1000)
 
         # --- Panel demo ---
-        print("[*] Problems paneli aciliyor...")
+        print("[*] Opening Problems panel...")
         panel.open_problems(page)
         page.wait_for_timeout(500)
 
         # --- Command demo ---
-        print("[*] Ornek komut calistiriliyor...")
+        print("[*] Running sample command...")
         commands.run_command(page, "Developer: Toggle Developer Tools")
         page.wait_for_timeout(1000)
 
-        # --- Gozlem icin bekle ---
-        print("[*] 10 saniye bekleniyor - noVNC'den kontrol edin...")
+        # --- Wait for observation ---
+        print("[*] Waiting 10 seconds - check via noVNC...")
         page.wait_for_timeout(10_000)
 
         # --- Disconnect ---
         vscode.disconnect(browser)
-        print("[+] Tamamlandi")
+        print("[+] Completed")
 
 
 if __name__ == "__main__":

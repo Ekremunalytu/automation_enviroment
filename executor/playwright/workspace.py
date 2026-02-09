@@ -662,6 +662,6 @@ def setup_dev_environment() -> None:
 
 
 if __name__ == "__main__":
-    print("[*] Gelistirici ortami kuruluyor...")
+    print("[*] Setting up developer environment...")
     setup_dev_environment()
-    print("[+] Ortam hazir: .env, SSH keys, AWS creds, kaynak kod, vs.")
+    print("[+] Environment ready: .env, SSH keys, AWS creds, source code, etc.")

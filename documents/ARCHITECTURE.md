@@ -130,8 +130,8 @@ flowchart TB
 **Reasoning:** The intended workflow is to analyze specific, high-risk extensions one by one or in small batches. The classic "O(N) scanning problem" is mitigated by the operational usage pattern (targeted audits vs. bulk ingestion).
 
 ### 4. Xvfb-First Dynamic Analysis
-**Decision:** Use Xvfb (virtual display) for all dynamic analysis instead of a CLI/GUI phased approach.
-**Reasoning:** VS Code extensions require a running Extension Host process to activate, which needs a full GUI instance. Xvfb provides this with zero overhead and 100% activation event coverage. A CLI-only approach was evaluated and rejected because it cannot trigger UI-dependent activation events (`onView`, `onWebviewPanel`, etc.).
+**Decision:** Use Xvfb (virtual display) for all dynamic analysis — full GUI execution only.
+**Reasoning:** VS Code extensions require a running Extension Host process to activate, which needs a full GUI instance. Xvfb provides this with zero overhead and 100% activation event coverage. This approach ensures all activation events (`onView`, `onWebviewPanel`, `onCommand`, etc.) can be properly triggered.
 
 <br>
 

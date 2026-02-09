@@ -79,7 +79,7 @@ repos:
   #       language: docker_image
   #       types: [dockerfile]
 
-# CI için paralel çalıştırma
+# CI parallel execution settings
 ci:
   autofix_prs: true
   autoupdate_schedule: weekly
