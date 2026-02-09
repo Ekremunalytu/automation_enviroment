@@ -68,6 +68,9 @@ RUN mkdir -p /workspace /results /extensions-input \
 RUN mkdir -p /home/executor/.vscode \
     && chown -R executor:executor /home/executor/.vscode
 
+# Create index.html symlink for noVNC
+RUN ln -s /usr/share/novnc/vnc.html /usr/share/novnc/index.html
+
 # Copy startup script
 COPY executor/start.sh /usr/local/bin/start.sh
 RUN chmod +x /usr/local/bin/start.sh

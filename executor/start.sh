@@ -13,24 +13,34 @@ VNC_PORT_VALUE="${EXECUTOR_VNC_PORT:-5900}"
 NOVNC_PORT_VALUE="${EXECUTOR_NOVNC_PORT:-6080}"
 STARTUP_SLEEP_SECONDS="${EXECUTOR_STARTUP_SLEEP_SECONDS:-1}"
 
-# Start virtual display
+echo "Starting Xvfb on ${DISPLAY_VALUE} with screen ${SCREEN_VALUE}..."
 Xvfb "${DISPLAY_VALUE}" -screen 0 "${SCREEN_VALUE}" -ac &
-sleep "${STARTUP_SLEEP_SECONDS}"
+XVFB_PID=$!
 
-# Start window manager
+# Wait for Xvfb to be ready
+echo "Waiting for Xvfb to be ready..."
+timeout 10s bash -c "until xdpyinfo -display ${DISPLAY_VALUE} &>/dev/null; do sleep 0.5; done" || {
+    echo "Xvfb failed to start"
+    exit 1
+}
+
+echo "Starting Openbox..."
 openbox &
-sleep "${STARTUP_SLEEP_SECONDS}"
 
-# Start VNC server
-x11vnc -display "${DISPLAY_VALUE}" -forever -nopw -rfbport "${VNC_PORT_VALUE}" -shared -quiet &
-sleep "${STARTUP_SLEEP_SECONDS}"
+echo "Starting x11vnc on port ${VNC_PORT_VALUE}..."
+# Removed -quiet to see VNC logs
+x11vnc -display "${DISPLAY_VALUE}" -forever -nopw -rfbport "${VNC_PORT_VALUE}" -shared &
 
-# Start noVNC web client
+echo "Starting VS Code..."
+# Start VS Code in the background
+code --no-sandbox --user-data-dir /home/executor/.vscode &
+
+echo "Starting noVNC on port ${NOVNC_PORT_VALUE}..."
 /usr/share/novnc/utils/launch.sh --vnc "${VNC_HOST_VALUE}:${VNC_PORT_VALUE}" --listen "${NOVNC_PORT_VALUE}" &
 
 echo "================================================"
 echo " ExTrace Executor Ready"
-echo " noVNC: http://${VNC_HOST_VALUE}:${NOVNC_PORT_VALUE}/vnc.html"
+echo " noVNC: http://localhost:${NOVNC_PORT_VALUE}/vnc.html"
 echo " Display: ${DISPLAY_VALUE} (${SCREEN_VALUE})"
 echo "================================================"
 
