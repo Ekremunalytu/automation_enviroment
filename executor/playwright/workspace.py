@@ -10,6 +10,8 @@ import shutil
 import stat
 from pathlib import Path
 
+from language_samples import _LANGUAGE_SAMPLE_FILES, _WORKSPACE_PATTERN_FILES
+
 WORKSPACE_DIR = Path("/workspace")
 HOME_DIR = Path("/home/executor")
 
@@ -632,8 +634,14 @@ def setup_dev_environment() -> None:
     # --- Workspace files (project directory) ---
     create_workspace_structure(_WORKSPACE_FILES)
 
+    # --- Multi-language sample files (for onLanguage:* activation) ---
+    create_workspace_structure(_LANGUAGE_SAMPLE_FILES)
+
+    # --- Workspace pattern files (for workspaceContains:* activation) ---
+    create_workspace_structure(_WORKSPACE_PATTERN_FILES)
+
     # Make scripts executable
-    for script in ["scripts/deploy.sh", "scripts/backup.sh"]:
+    for script in ["scripts/deploy.sh", "scripts/backup.sh", "scripts/migrate.rb"]:
         path = WORKSPACE_DIR / script
         if path.exists():
             path.chmod(path.stat().st_mode | stat.S_IEXEC)
