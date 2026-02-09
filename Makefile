@@ -13,7 +13,7 @@ include .env
 export
 endif
 
-.PHONY: help install install-dev install-hooks lint lint-check format typecheck test test-cov test-local test-ci check check-all all clean docker-up docker-down migrate venv-check executor-build executor-up executor-down executor-shell executor-test
+.PHONY: help install install-dev install-hooks lint lint-check format typecheck test test-cov test-local test-ci check check-all all clean docker-up docker-down migrate venv-check executor-build executor-up executor-down executor-shell executor-test executor-playwright
 
 # Default target
 help:
@@ -47,6 +47,7 @@ help:
 	@echo "║  executor-down  │ Stop executor container                       ║"
 	@echo "║  executor-shell │ Shell into running executor                   ║"
 	@echo "║  executor-test  │ Verify VS Code CLI in executor                ║"
+	@echo "║  executor-playwright │ Run Playwright entrypoint in executor   ║"
 	@echo "╚═══════════════════════════════════════════════════════════════════╝"
 
 # =============================================================================
@@ -236,12 +237,17 @@ executor-test:
 	@echo "Verifying executor tools..."
 	docker exec automation_executor code --version --no-sandbox
 	docker exec automation_executor node --version
+	docker exec automation_executor python3 --version
+	docker exec automation_executor pip3 show playwright | grep Version
 	docker exec automation_executor which tcpdump
 	docker exec automation_executor which inotifywait
 	docker exec automation_executor which strace
 	docker exec automation_executor which Xvfb
 	docker exec automation_executor which xdotool
 	@echo "All executor tools verified!"
+
+executor-playwright:
+	docker exec -it automation_executor python3 /home/executor/playwright/entrypoint.py
 
 # =============================================================================
 # CLEANUP

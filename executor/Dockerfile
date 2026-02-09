@@ -11,7 +11,7 @@ ARG EXECUTOR_VSCODE_CHANNEL=stable
 ARG EXECUTOR_DEFAULT_DISPLAY=:99
 ARG EXECUTOR_DEFAULT_NOVNC_PORT=6080
 
-# Install monitoring tools, X11/Xvfb stack, and utilities
+# Install monitoring tools, X11/Xvfb stack, Python3, and utilities
 RUN apt-get update && apt-get install -y --no-install-recommends \
     # Monitoring
     tcpdump \
@@ -28,6 +28,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     xdotool \
     x11-utils \
     xterm \
+    # Python3 (for Playwright automation)
+    python3 \
+    python3-pip \
     # Utilities
     curl \
     wget \
@@ -52,6 +55,12 @@ RUN ARCH=$(dpkg --print-architecture) \
     && rm /tmp/vscode.deb \
     && rm -rf /var/lib/apt/lists/*
 
+# Install Playwright Python package and its system dependencies
+COPY executor/requirements.txt /tmp/executor-requirements.txt
+RUN pip3 install --no-cache-dir -r /tmp/executor-requirements.txt \
+    && playwright install-deps chromium \
+    && rm /tmp/executor-requirements.txt
+
 # Grant capture capabilities to non-root users
 RUN setcap cap_net_raw+eip /usr/bin/tcpdump \
     && setcap cap_net_raw+eip /usr/bin/dumpcap
@@ -74,6 +83,9 @@ RUN ln -s /usr/share/novnc/vnc.html /usr/share/novnc/index.html
 # Copy startup script
 COPY executor/start.sh /usr/local/bin/start.sh
 RUN chmod +x /usr/local/bin/start.sh
+
+# Copy Playwright automation scripts
+COPY --chown=executor:executor executor/playwright /home/executor/playwright
 
 USER executor
 WORKDIR /workspace

@@ -11,6 +11,7 @@ SCREEN_VALUE="${EXECUTOR_SCREEN:-1920x1080x24}"
 VNC_HOST_VALUE="${EXECUTOR_VNC_HOST:-localhost}"
 VNC_PORT_VALUE="${EXECUTOR_VNC_PORT:-5900}"
 NOVNC_PORT_VALUE="${EXECUTOR_NOVNC_PORT:-6080}"
+CDP_PORT="${EXECUTOR_CDP_PORT:-9222}"
 STARTUP_SLEEP_SECONDS="${EXECUTOR_STARTUP_SLEEP_SECONDS:-1}"
 
 echo "Starting Xvfb on ${DISPLAY_VALUE} with screen ${SCREEN_VALUE}..."
@@ -31,9 +32,8 @@ echo "Starting x11vnc on port ${VNC_PORT_VALUE}..."
 # Removed -quiet to see VNC logs
 x11vnc -display "${DISPLAY_VALUE}" -forever -nopw -rfbport "${VNC_PORT_VALUE}" -shared &
 
-echo "Starting VS Code..."
-# Start VS Code in the background
-code --no-sandbox --user-data-dir /home/executor/.vscode &
+echo "Starting VS Code (CDP on localhost:${CDP_PORT})..."
+code --no-sandbox --user-data-dir /home/executor/.vscode --remote-debugging-port="${CDP_PORT}" &
 
 echo "Starting noVNC on port ${NOVNC_PORT_VALUE}..."
 /usr/share/novnc/utils/launch.sh --vnc "${VNC_HOST_VALUE}:${VNC_PORT_VALUE}" --listen "${NOVNC_PORT_VALUE}" &
