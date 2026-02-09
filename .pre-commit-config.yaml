@@ -20,6 +20,7 @@ repos:
         args: [--maxkb=1000]
       - id: check-merge-conflict
       - id: detect-private-key
+        exclude: ^executor/playwright/workspace\.py$  # Intentional fake keys for honeypot
       - id: check-case-conflict
 
   # ============================================================

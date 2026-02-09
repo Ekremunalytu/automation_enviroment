@@ -83,7 +83,7 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["S101", "T20"]
 "alembic/*" = ["T20"]
-"executor/*" = ["T20"]
+"executor/*" = ["T20", "S603", "S607", "E501"]  # Subprocess calls intentional, long strings for fake creds
 "core/config.py" = ["S105"]  # Development default passwords in settings
 
 [tool.ruff.lint.isort]
@@ -181,5 +181,5 @@ fail_under = 0
 # BANDIT CONFIGURATION
 # ============================================================
 [tool.bandit]
-exclude_dirs = ["tests", "alembic", "extensions", ".venv", "extrace.egg-info"]
+exclude_dirs = ["tests", "alembic", "extensions", ".venv", "extrace.egg-info", "executor"]
 skips = ["B101"]

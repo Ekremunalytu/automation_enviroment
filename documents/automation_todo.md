@@ -20,18 +20,18 @@ This document outlines the phased approach for building VS Code extension dynami
 
 All activation events are supported via Xvfb + full VS Code GUI:
 
-| Activation Event | Supported | Trigger Method |
-|------------------|-----------|----------------|
-| `*` | Yes | VS Code startup |
-| `onStartupFinished` | Yes | VS Code startup |
-| `onLanguage:*` | Yes | Open file with matching language |
-| `onCommand:*` | Yes | Command palette or xdotool |
-| `workspaceContains:*` | Yes | Open folder with matching files |
-| `onFileSystem:*` | Yes | FileSystem provider |
-| `onView:*` | Yes | Sidebar navigation via xdotool |
-| `onWebviewPanel:*` | Yes | WebView panel open |
-| `onCustomEditor:*` | Yes | Custom editor open |
-| `onUri` | Yes | URI handler |
+| Activation Event | Supported | Trigger Method | Implementing Module |
+|------------------|-----------|----------------|---------------------|
+| `*` | Yes | VS Code startup | — (automatic) |
+| `onStartupFinished` | Yes | VS Code startup | — (automatic) |
+| `onLanguage:*` | Yes | Open file with matching language | `workspace.py` + `editor.py` |
+| `onCommand:*` | Yes | Command Palette via Playwright CDP | `commands.py` |
+| `workspaceContains:*` | Yes | Honeypot workspace at container start | `workspace.py` (via `start.sh`) |
+| `onFileSystem:*` | Yes | FileSystem provider | — |
+| `onView:*` | Yes | Sidebar keyboard shortcuts via CDP | `sidebar.py` |
+| `onWebviewPanel:*` | Yes | Command Palette via CDP | `commands.py` |
+| `onCustomEditor:*` | Yes | Open matching file via CDP | `editor.py` |
+| `onUri` | Yes | URI handler | — |
 
 ---
 
@@ -62,43 +62,69 @@ All activation events are supported via Xvfb + full VS Code GUI:
 Xvfb :99 (1920x1080x24)  ->  Virtual display
 openbox                    ->  Window manager
 x11vnc                     ->  VNC server (port 5900)
+workspace.py               ->  Honeypot dev environment setup
+VS Code settings.json      ->  Trust/telemetry disabled
+VS Code /workspace         ->  Full GUI instance (CDP port 9222)
 noVNC                      ->  Browser access (port 6080)
-VS Code                    ->  Full GUI instance
 ```
 
 ### Access:
 - **noVNC:** `http://localhost:6080/vnc.html` (browser-based VNC)
 - **Shell:** `make executor-shell`
-- **VS Code launch:** `docker exec -d automation_executor bash -c "code --no-sandbox --disable-gpu /workspace"`
+- **Playwright:** `make executor-playwright`
 
-## 1.2 Extension Loading & Activation
+### Done: VS Code Auto-Configuration
+- [x] Workspace Trust dialog auto-disabled (`security.workspace.trust.enabled: false`)
+- [x] Welcome tab suppressed (`workbench.startupEditor: none`)
+- [x] Telemetry and auto-update disabled
+- [x] VS Code opens `/workspace` folder automatically on startup
+- [x] Settings written by `start.sh` before VS Code launch
 
-### Extension Installer Module
+## 1.2 Playwright UI Automation (NEW)
+
+> **Full documentation:** [`documents/EXECUTOR_PLAYWRIGHT.md`](EXECUTOR_PLAYWRIGHT.md)
+
+### Done: Playwright Helper Modules
+- [x] Create `executor/playwright/keyboard.py` — all VS Code shortcuts as constants
+- [x] Create `executor/playwright/vscode.py` — CDP connect, ready wait, disconnect
+- [x] Create `executor/playwright/commands.py` — Command Palette open/run/quick-open (with close-wait)
+- [x] Create `executor/playwright/editor.py` — new file, save (xdotool for native dialog), close, type, open
+- [x] Create `executor/playwright/sidebar.py` — Explorer, Search, SCM, Debug, Extensions, custom views
+- [x] Create `executor/playwright/terminal.py` — toggle, new, type (with auto-Enter)
+- [x] Create `executor/playwright/panel.py` — Problems, Output, Debug Console
+- [x] Create `executor/playwright/workspace.py` — filesystem helpers + honeypot environment
+- [x] Create `executor/playwright/entrypoint.py` — demo using all modules
+- [x] Makefile target: `make executor-playwright`
+
+### Done: Honeypot Developer Environment
+- [x] Fake `.env`, `.env.production`, `.env.local` with realistic API keys
+- [x] Fake SSH keys with correct permissions (600/700) in `~/.ssh/`
+- [x] Fake AWS credentials (`~/.aws/credentials`, `~/.aws/config`)
+- [x] Fake Kubernetes config (`~/.kube/config`)
+- [x] Fake Docker registry auth (`~/.docker/config.json`)
+- [x] Fake GCP/Firebase service accounts in `credentials/`
+- [x] Fake `.npmrc`, `.gitconfig`, `.git-credentials`
+- [x] Realistic `.bash_history` and `.python_history`
+- [x] Python source code with hardcoded secrets (`src/`)
+- [x] Deploy/backup scripts with embedded credentials
+- [x] Terraform vars, docker-compose, Dockerfile with passwords
+- [x] Crypto wallet keystore (`.wallet/`)
+- [x] Environment auto-setup via `start.sh` (before VS Code starts)
+
+### TODO: Extension Installer Module
 - [ ] Create `executor/extension_manager.py`
 - [ ] Implement `install_extension(path: Path) -> bool` using `code --install-extension`
 - [ ] Implement `uninstall_extension(extension_id: str) -> bool`
 - [ ] Handle installation errors and timeouts
 
-### Activation Trigger Engine
+### TODO: Activation Trigger Engine
 - [ ] Create `executor/triggers.py`
-- [ ] Implement trigger strategies based on activation events:
-  ```python
-  class TriggerStrategy(Protocol):
-      def trigger(self, extension: Extension) -> TriggerResult: ...
-
-  class OnLanguageTrigger(TriggerStrategy):
-      # Open a file with matching language via xdotool
-
-  class OnCommandTrigger(TriggerStrategy):
-      # Execute command via command palette (Ctrl+Shift+P)
-
-  class OnStartupTrigger(TriggerStrategy):
-      # VS Code startup automatically triggers
-
-  class OnViewTrigger(TriggerStrategy):
-      # Navigate to sidebar view via xdotool
-  ```
 - [ ] Implement trigger selection based on `activationEvents` from DB
+- [ ] Use Playwright helpers for each trigger type:
+  - `onCommand:*` → `commands.run_command()`
+  - `onLanguage:*` → `workspace.create_language_file()` + `editor.open_file_by_name()`
+  - `onView:*` → `sidebar.open_view_by_command()`
+  - `workspaceContains:*` → `workspace.create_workspace_file()` (auto at startup)
 - [ ] Add timeout handling (max 60s per trigger)
 
 ## 1.3 Monitoring & Telemetry
@@ -169,19 +195,19 @@ VS Code                    ->  Full GUI instance
 
 ## 2.1 GUI Automation
 
-### VS Code Window Control
-- [ ] Create `executor/gui_executor.py`
-- [ ] Implement window focus/maximize with `xdotool`
-- [ ] Add startup wait for VS Code ready state
+### VS Code Window Control (Partially done via Playwright)
+- [x] CDP connection to VS Code via Playwright (`vscode.py`)
+- [x] Startup wait for VS Code ready state (`wait_until_ready`)
+- [ ] Window focus/maximize with `xdotool` (for edge cases)
 
-### UI Interaction Engine
-- [ ] Create `executor/interactions/`
-- [ ] Implement mouse actions: `click(x, y)`, `double_click(x, y)`, `right_click(x, y)`
-- [ ] Implement keyboard actions: `type_text(text)`, `press_key(key)`, `hotkey(keys)`
-- [ ] Implement navigation:
-  - `open_command_palette()` (Ctrl+Shift+P)
-  - `open_sidebar(name)` (View shortcuts)
-  - `open_extension_view()`
+### UI Interaction Engine (Partially done via Playwright)
+- [x] Keyboard actions via Playwright CDP: `type_text`, `press_key`, `hotkey` (`keyboard.py` + all modules)
+- [x] Command Palette navigation (`commands.py`)
+- [x] Sidebar navigation (`sidebar.py`)
+- [x] Editor interaction (`editor.py`)
+- [x] Terminal interaction (`terminal.py`)
+- [x] Native dialog interaction via `xdotool` (`editor.save_file_as`)
+- [ ] Mouse actions: `click(x, y)`, `double_click(x, y)`, `right_click(x, y)`
 
 ### WebView Interaction
 - [ ] Detect WebView panels
@@ -279,15 +305,17 @@ VS Code                    ->  Full GUI instance
 
 ### Phase 1 Complete When:
 - [ ] Can install/uninstall extensions via CLI inside Xvfb container
-- [ ] Can trigger all activation events (VS Code GUI running on Xvfb)
+- [x] Can trigger activation events via Playwright UI helpers (commands, editor, sidebar, terminal, panel)
+- [x] Honeypot developer environment auto-deployed at container start
+- [x] VS Code auto-configured (trust disabled, workspace opened)
+- [x] noVNC access verified for debugging
 - [ ] Network/process/filesystem monitoring works
 - [ ] Results stored in database
 - [ ] Basic risk scoring functional
 - [ ] API endpoints working
-- [ ] noVNC access verified for debugging
 
 ### Phase 2 Complete When:
-- [ ] Automated xdotool/Puppeteer interaction working
+- [x] Automated Playwright CDP interaction working (replaces xdotool/Puppeteer for most cases)
 - [ ] Persona-based simulation working
 - [ ] Screenshot/recording capture working
 - [ ] Anti-detection measures in place

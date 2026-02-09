@@ -1,42 +1,83 @@
-import os
-import time
+"""Demo entrypoint showing Playwright UI helper usage.
 
-from playwright.sync_api import sync_playwright
+Run inside the executor container:
+    python3 /home/executor/playwright/entrypoint.py
+"""
 
-CDP_URL = f"http://localhost:{os.environ.get('EXECUTOR_CDP_PORT', '9222')}"
+import sys
+from pathlib import Path
+
+# Bootstrap: add parent dir so `import playwright_helpers` style won't conflict
+# with the pip `playwright` package. We import siblings via their module names.
+_pkg_dir = str(Path(__file__).resolve().parent)
+if _pkg_dir not in sys.path:
+    sys.path.insert(0, _pkg_dir)
+
+import commands  # noqa: E402
+import editor  # noqa: E402
+import panel  # noqa: E402
+import sidebar  # noqa: E402
+import terminal  # noqa: E402
+import vscode  # noqa: E402
+from playwright.sync_api import sync_playwright  # noqa: E402 — pip package
 
 
-def main():
-    with sync_playwright() as p:
-        print(f"[*] VS Code'a baglaniliyor ({CDP_URL})...")
-        browser = p.chromium.connect_over_cdp(CDP_URL)
-
-        # VS Code'un ana penceresi
-        context = browser.contexts[0]
-        page = context.pages[0]
+def main() -> None:
+    with sync_playwright() as pw:
+        # --- Connect ---
+        print("[*] VS Code'a baglaniliyor...")
+        browser, page = vscode.connect(pw)
         print(f"[+] Baglanti kuruldu - sayfa: {page.title()}")
 
-        # VS Code UI tam yuklenene kadar bekle
-        time.sleep(2)
+        print("[*] VS Code hazir olana kadar bekleniyor...")
+        vscode.wait_until_ready(page)
+        print("[+] VS Code hazir")
 
-        # Command Palette ac (Ctrl+Shift+P)
-        print("[*] Command Palette aciliyor...")
-        page.keyboard.press("Control+Shift+KeyP")
-        time.sleep(1)
+        # --- Sidebar demo ---
+        print("[*] Explorer aciliyor...")
+        sidebar.open_explorer(page)
+        page.wait_for_timeout(500)
 
-        # Terminal ac komutu yaz
-        page.keyboard.type("Terminal: Create New Terminal", delay=80)
-        time.sleep(1)
+        print("[*] Extensions view aciliyor...")
+        sidebar.open_extensions_view(page)
+        page.wait_for_timeout(500)
 
-        # Enter ile calistir
-        page.keyboard.press("Enter")
-        print("[+] Komut gonderildi: Terminal: Create New Terminal")
+        # --- Editor demo ---
+        print("[*] Yeni dosya olusturuluyor...")
+        editor.new_untitled_file(page)
+        editor.type_in_editor(page, "# Playwright demo")
+        page.wait_for_timeout(300)
 
-        # noVNC'den gorebilmek icin bekle
+        print("[*] Dosya kaydediliyor...")
+        editor.save_file_as(page, "demo.py")
+        page.wait_for_timeout(500)
+
+        print("[*] hello.py aciliyor...")
+        editor.open_file_by_name(page, "hello.py")
+        page.wait_for_timeout(500)
+
+        # --- Terminal demo ---
+        print("[*] Terminal aciliyor...")
+        terminal.new_terminal(page)
+        terminal.type_in_terminal(page, "echo 'hello from playwright'")
+        page.wait_for_timeout(1000)
+
+        # --- Panel demo ---
+        print("[*] Problems paneli aciliyor...")
+        panel.open_problems(page)
+        page.wait_for_timeout(500)
+
+        # --- Command demo ---
+        print("[*] Ornek komut calistiriliyor...")
+        commands.run_command(page, "Developer: Toggle Developer Tools")
+        page.wait_for_timeout(1000)
+
+        # --- Gozlem icin bekle ---
         print("[*] 10 saniye bekleniyor - noVNC'den kontrol edin...")
-        time.sleep(10)
+        page.wait_for_timeout(10_000)
 
-        browser.close()
+        # --- Disconnect ---
+        vscode.disconnect(browser)
         print("[+] Tamamlandi")
 
 

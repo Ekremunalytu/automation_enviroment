@@ -17,7 +17,7 @@
 
 ---
 
-`Last Updated: 2026-02-06` • `Version: 1.0.0` • `Status: Development`
+`Last Updated: 2026-02-09` • `Version: 1.1.0` • `Status: Development`
 
 ---
 
@@ -44,6 +44,7 @@
 | [⚙️ Configuration Flow](#️-configuration-flow) | Settings management |
 | [📁 File Structure](#-file-structure) | Project directory layout |
 | [📜 Architectural Rules](#-architectural-rules) | Design principles and constraints |
+| [🎭 Executor: Playwright UI Automation](#-executor-playwright-ui-automation) | Dynamic analysis automation & honeypot |
 | [🔮 Future Architecture](#-future-architecture) | Planned enhancements |
 | [📋 Quick Reference](#-quick-reference) | Endpoints and tech stack summary |
 
@@ -1030,6 +1031,95 @@ flowchart TB
 | **🐘 Database** | PostgreSQL | `16` | 🟢 Active |
 | **🐳 Container** | Docker Compose | `—` | 🟢 Active |
 | **🐍 Python** | CPython | `3.11` | 🟢 Active |
+| **🎭 Playwright** | Playwright for Python | `latest` | 🟢 Active |
+| **🖥️ Xvfb** | Virtual Framebuffer | `—` | 🟢 Active |
+| **🔌 noVNC** | Browser VNC Client | `—` | 🟢 Active |
+
+<br>
+
+---
+
+<br>
+
+## 🎭 Executor: Playwright UI Automation
+
+> [!NOTE]
+> Full documentation: [`documents/EXECUTOR_PLAYWRIGHT.md`](EXECUTOR_PLAYWRIGHT.md)
+
+The executor container runs VS Code with a virtual display (Xvfb) and provides Playwright-based UI automation for triggering extension activation events.
+
+<br>
+
+### Container Startup Flow
+
+```mermaid
+%%{init: {'theme': 'dark'}}%%
+sequenceDiagram
+    participant S as start.sh
+    participant X as Xvfb
+    participant W as workspace.py
+    participant V as VS Code
+    participant N as noVNC
+
+    S->>X: Start virtual display :99
+    S->>S: Start Openbox + x11vnc
+    S->>W: Setup honeypot environment
+    W->>W: Create /workspace files (.env, src/, credentials/)
+    W->>W: Create ~/.ssh, ~/.aws, ~/.kube, ~/.docker
+    S->>S: Write VS Code settings (trust=off)
+    S->>V: Launch VS Code /workspace (CDP:9222)
+    S->>N: Start noVNC (port 6080)
+```
+
+<br>
+
+### Playwright Module Architecture
+
+```mermaid
+%%{init: {'theme': 'dark'}}%%
+graph TD
+    EP[entrypoint.py] --> VS[vscode.py<br/>CDP Connection]
+    EP --> CMD[commands.py<br/>Command Palette]
+    EP --> ED[editor.py<br/>Editor Ops]
+    EP --> SB[sidebar.py<br/>Activity Bar]
+    EP --> TM[terminal.py<br/>Terminal]
+    EP --> PN[panel.py<br/>Bottom Panel]
+
+    CMD --> KB[keyboard.py<br/>Shortcut Constants]
+    ED --> KB
+    ED --> CMD
+    SB --> KB
+    SB --> CMD
+    TM --> KB
+    TM --> CMD
+    PN --> KB
+    PN --> CMD
+
+    WS[workspace.py<br/>Honeypot + FS] -.->|start.sh| VS
+
+    style KB fill:#7c3aed,color:#fff
+    style WS fill:#059669,color:#fff
+    style VS fill:#2563eb,color:#fff
+```
+
+<br>
+
+### Honeypot Coverage
+
+| Target | Location | Files |
+|:-------|:---------|:------|
+| **Environment** | `/workspace/` | `.env`, `.env.production`, `.env.local` |
+| **SSH** | `~/.ssh/` | `id_rsa` (600), `id_rsa.pub`, `config` |
+| **AWS** | `~/.aws/` | `credentials`, `config` |
+| **Kubernetes** | `~/.kube/` | `config` (cluster token) |
+| **Docker** | `~/.docker/` | `config.json` (registry auth) |
+| **GCP/Firebase** | `/workspace/credentials/` | Service account JSONs |
+| **Git** | `~/` | `.gitconfig`, `.git-credentials` |
+| **NPM** | `~/` | `.npmrc` (auth tokens) |
+| **Source Code** | `/workspace/src/` | Hardcoded secrets in Python |
+| **Infra** | `/workspace/infra/` | Terraform vars, docker-compose |
+| **Shell History** | `~/` | `.bash_history`, `.python_history` |
+| **Crypto** | `/workspace/.wallet/` | Ethereum keystore |
 
 <br>
 

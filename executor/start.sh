@@ -32,8 +32,23 @@ echo "Starting x11vnc on port ${VNC_PORT_VALUE}..."
 # Removed -quiet to see VNC logs
 x11vnc -display "${DISPLAY_VALUE}" -forever -nopw -rfbport "${VNC_PORT_VALUE}" -shared &
 
+echo "Setting up developer honeypot environment..."
+python3 /home/executor/playwright/workspace.py
+
+# Pre-configure VS Code: disable workspace trust, welcome tab, telemetry
+VSCODE_SETTINGS_DIR="/home/executor/.vscode/User"
+mkdir -p "${VSCODE_SETTINGS_DIR}"
+cat > "${VSCODE_SETTINGS_DIR}/settings.json" <<'SETTINGS'
+{
+  "security.workspace.trust.enabled": false,
+  "workbench.startupEditor": "none",
+  "telemetry.telemetryLevel": "off",
+  "update.mode": "none"
+}
+SETTINGS
+
 echo "Starting VS Code (CDP on localhost:${CDP_PORT})..."
-code --no-sandbox --user-data-dir /home/executor/.vscode --remote-debugging-port="${CDP_PORT}" &
+code --no-sandbox --user-data-dir /home/executor/.vscode --remote-debugging-port="${CDP_PORT}" /workspace &
 
 echo "Starting noVNC on port ${NOVNC_PORT_VALUE}..."
 /usr/share/novnc/utils/launch.sh --vnc "${VNC_HOST_VALUE}:${VNC_PORT_VALUE}" --listen "${NOVNC_PORT_VALUE}" &
