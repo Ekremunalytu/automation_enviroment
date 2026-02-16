@@ -8,6 +8,7 @@ import subprocess
 import keyboard
 from commands import quick_open, run_command
 from playwright.sync_api import Page
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
 
 def new_untitled_file(page: Page) -> None:
@@ -68,9 +69,12 @@ def format_document(page: Page) -> None:
     """Format the active document (Ctrl+Shift+I).
 
     Triggers formatter extensions (e.g. Prettier, Black).
+    If no formatter is installed, VS Code shows a notification dialog
+    ("No formatter for X files installed") which we dismiss.
     """
     page.keyboard.press(keyboard.FORMAT_DOCUMENT)
     page.wait_for_timeout(1000)
+    _dismiss_notification(page)
 
 
 def go_to_definition(page: Page) -> None:
@@ -112,4 +116,48 @@ def rename_symbol(page: Page, new_name: str) -> None:
 def select_all(page: Page) -> None:
     """Select all text in the active editor (Ctrl+A)."""
     page.keyboard.press(keyboard.SELECT_ALL)
+    page.wait_for_timeout(200)
+
+
+# ---------------------------------------------------------------------------
+# Internal helpers
+# ---------------------------------------------------------------------------
+
+_NOTIFICATION_SELECTORS = [
+    ".notification-toast",
+    ".notifications-toasts .notification-toast",
+]
+
+
+def _dismiss_notification(page: Page) -> None:
+    """Dismiss any visible VS Code notification toast.
+
+    VS Code shows notification dialogs (e.g. 'No formatter installed',
+    'Install Extension') as toast elements. These block subsequent
+    operations if not dismissed.  We try clicking the close button
+    first; if that fails we press Escape.
+    """
+    for selector in _NOTIFICATION_SELECTORS:
+        try:
+            toast = page.wait_for_selector(selector, state="visible", timeout=800)
+            if toast is None:
+                continue
+            # Try clicking the dismiss/close button on the toast
+            close_btn = toast.query_selector(
+                ".codicon-notifications-clear, .codicon-close"
+            )
+            if close_btn:
+                close_btn.click()
+                page.wait_for_timeout(300)
+                return
+            # Fallback: click Cancel button if present
+            cancel_btn = toast.query_selector("a.action-label[title='Cancel']")
+            if cancel_btn:
+                cancel_btn.click()
+                page.wait_for_timeout(300)
+                return
+        except PlaywrightTimeoutError:
+            continue
+    # Last resort: Escape to dismiss anything lingering
+    page.keyboard.press("Escape")
     page.wait_for_timeout(200)

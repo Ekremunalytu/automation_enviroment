@@ -624,13 +624,13 @@ class ExtensionMonitor:
         try:
             _log("Strategy 2: Scraping Running Extensions UI...")
             self.report.running_extensions = get_running_extensions(self.page)
-        except PlaywrightError as exc:
+        except Exception as exc:
             _log(f"Strategy 2 failed: {exc}")
-            # Dismiss any stuck dialogs
+            # Dismiss any stuck dialogs (may also fail if VS Code crashed)
             try:
                 self.page.keyboard.press("Escape")
                 self.page.wait_for_timeout(300)
-            except PlaywrightError as esc_exc:
+            except Exception as esc_exc:
                 _log(f"Strategy 2 recovery failed: {esc_exc}")
 
         # Strategy 3: Extension Host output from log files

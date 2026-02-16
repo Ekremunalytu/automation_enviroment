@@ -1,6 +1,6 @@
 # Executor: Playwright UI Automation & Honeypot Environment
 
-`Last Updated: 2026-02-16` | `Status: Active Development`
+`Last Updated: 2026-02-16 (v2)` | `Status: Active Development`
 
 ---
 
@@ -25,7 +25,7 @@ executor/
     ├── keyboard.py            # VS Code shortcut constants (single source of truth)
     ├── vscode.py              # CDP connection, ready wait
     ├── commands.py            # Command Palette operations
-    ├── editor.py              # Editor: open/save/close/type + language server actions
+    ├── editor.py              # Editor: open/save/close/type + notification dismiss
     ├── sidebar.py             # Activity Bar and sidebar views
     ├── terminal.py            # Integrated terminal
     ├── panel.py               # Bottom panel: problems, output, debug console
@@ -148,7 +148,7 @@ _QUICK_INPUT_VISIBLE = ".quick-input-widget:not([style*='display: none'])"
 
 ### editor.py — Editor Operations
 
-Opening, writing, saving, and closing files.
+Opening, writing, saving, and closing files. Also provides notification toast dismiss helper.
 
 | Function | Description |
 |----------|-------------|
@@ -159,11 +159,14 @@ Opening, writing, saving, and closing files.
 | `type_in_editor(page, text)` | Types text into editor |
 | `open_file_by_name(page, filename)` | Opens file via Quick Open |
 | `close_all_editors(page)` | Closes all tabs (Command Palette) |
-| `format_document(page)` | Format document (Ctrl+Shift+I) — triggers formatters |
+| `format_document(page)` | Format document (Ctrl+Shift+I) — auto-dismisses "No formatter" popup |
 | `go_to_definition(page)` | Go to definition (F12) — triggers language servers |
 | `trigger_suggest(page)` | IntelliSense suggestions (Ctrl+Space) — triggers completion |
 | `rename_symbol(page, new_name)` | Rename symbol (F2) — triggers rename providers |
 | `select_all(page)` | Select all text (Ctrl+A) |
+| `_dismiss_notification(page)` | Dismisses VS Code notification toasts (close button or Escape) |
+
+**Notification Toast Handling:** VS Code shows notification dialogs ("No formatter installed", "Find Python extension", etc.) as `.notification-toast` elements. `_dismiss_notification()` tries the close button first, then Cancel, then falls back to Escape. Used by `format_document()`, `_recover_ui_state()`, and `_cleanup_between_scenarios()`.
 
 **Native Dialog Issue:** The `save_file_as` function opens a GTK native file dialog via `Ctrl+Shift+S`. This dialog is outside Playwright's DOM — it's not in the Chromium web page. Therefore `xdotool` is used:
 
@@ -244,9 +247,12 @@ Opening/closing left sidebar views.
 | `open_settings(page)` | Open Settings UI (Ctrl+,) |
 | `open_settings_json(page)` | Open settings.json via Command Palette |
 | `search_setting(page, query)` | Search in Settings UI |
-| `change_theme(page, theme_name)` | Change color theme (opens picker, selects, dismisses) |
-| `toggle_setting_via_json(page, key, value)` | Insert key-value into settings.json and save |
+| `change_theme(page, theme_name)` | Change color theme — waits for quick-input close with timeout fallback |
+| `toggle_setting_via_json(page, key, value)` | Insert key-value into settings.json, save, and close file |
+| `write_settings_batch(page, settings)` | Write multiple settings in one operation (open once, save once) |
 | `toggle_fullscreen(page)` | Toggle fullscreen/zen mode (F11) |
+
+`write_settings_batch()` is more reliable than calling `toggle_setting_via_json()` multiple times — it opens settings.json once, navigates to end for each setting, and saves once.
 
 **Covers:** `onConfiguration:*`, layout change events
 
@@ -302,16 +308,16 @@ report.save("/results/activation_report.json")
 
 | Scenario | Triggers | Status |
 |----------|----------|--------|
-| `coding_session` | onLanguage, completionProvider, formatterProvider, definitionProvider | Tested OK |
-| `debug_session` | onDebug, onDebugResolve, onDebugAdapterProtocol | Tested OK |
-| `terminal_usage` | onTerminalCreate, shell integration | Tested OK |
-| `git_workflow` | onView:scm, git provider | Tested OK |
-| `extension_browsing` | onView:extensions | Tested OK |
-| `settings_modification` | onConfiguration, layout events | **Has bugs** (see Known Bugs) |
-| `project_exploration` | onLanguage (15 file types) | Tested OK (with memory fix) |
-| `search_workflow` | onView:search, search providers | Tested OK (single scenario) |
-| `diagnostics_check` | diagnostics, linters | Tested OK (single scenario) |
-| `refactor_workflow` | renameProvider, codeActionProvider | Tested OK (single scenario) |
+| `coding_session` | onLanguage, completionProvider, formatterProvider, definitionProvider | ✅ Tested OK |
+| `debug_session` | onDebug, onDebugResolve, onDebugAdapterProtocol | ✅ Tested OK |
+| `terminal_usage` | onTerminalCreate, shell integration | ✅ Tested OK |
+| `git_workflow` | onView:scm, git provider | ✅ Tested OK |
+| `extension_browsing` | onView:extensions | ✅ Tested OK |
+| `settings_modification` | onConfiguration, layout events | ✅ Tested OK |
+| `project_exploration` | onLanguage (15 file types) | ✅ Tested OK |
+| `search_workflow` | onView:search, search providers | ✅ Tested OK |
+| `diagnostics_check` | diagnostics, linters | ✅ Tested OK |
+| `refactor_workflow` | renameProvider, codeActionProvider | ✅ Tested OK |
 
 | Function | Description |
 |----------|-------------|
@@ -319,7 +325,7 @@ report.save("/results/activation_report.json")
 | `run_scenario(page, name, **kwargs)` | Run single scenario by name |
 | `list_scenarios()` | Return available scenario names |
 
-After a scenario failure, `_recover_ui_state(page)` dismisses stuck dialogs with multiple Escape presses.
+**Error recovery:** After any scenario failure, `_recover_ui_state(page)` dismisses stuck dialogs (3x Escape + notification toast dismiss). Between every scenario, `_cleanup_between_scenarios(page)` closes all editors (Ctrl+K Ctrl+W chord), kills all terminals, closes bottom panel, and dismisses notifications.
 
 ---
 
@@ -447,22 +453,51 @@ if _pkg_dir not in sys.path:
 
 ---
 
-## Activation Event Coverage Table
+## Activation Event Coverage
+
+### Covered Events ✅ (12/25)
 
 | Activation Event | Triggering Module | Method |
 |-----------------|-------------------|--------|
-| `*` | — | VS Code startup |
-| `onStartupFinished` | — | VS Code startup |
-| `onLanguage:*` | `workspace.py` + `editor.py` + `automation.py` | Create language file + open (15 languages) |
-| `onCommand:*` | `commands.py` | Run command via Command Palette |
-| `workspaceContains:*` | `workspace.py` | Create file when container starts |
-| `onView:*` | `sidebar.py` + `automation.py` | Keyboard shortcut or Command Palette |
-| `onCustomEditor:*` | `editor.py` | Open matching file type |
-| `onWebviewPanel:*` | `commands.py` | Run related command |
+| `*` | — | VS Code startup (extensions with wildcard always activate) |
+| `onStartupFinished` | — | VS Code startup (lazy extensions post-ready) |
+| `onLanguage:*` | `workspace.py` + `editor.py` + `automation.py` | Opens 20+ language files from honeypot |
+| `onCommand:*` | `commands.py` | Every Command Palette action across all scenarios |
+| `workspaceContains:*` | `workspace.py` | Honeypot creates `package.json`, `Makefile`, `.git`, etc. |
+| `onView:*` | `sidebar.py` + `automation.py` | Explorer, SCM, Debug, Extensions, Search sidebar views |
 | `onDebug:*` | `debug.py` + `automation.py` | Start/stop debug session (F5/Shift+F5) |
 | `onDebugResolve:*` | `debug.py` | Create launch.json, start debug |
-| `onConfiguration:*` | `settings.py` + `automation.py` | Change theme, edit settings.json |
+| `onDebugInitialConfigurations` | `debug.py` | Debug session launch prompts initial config |
+| `onConfiguration:*` | `settings.py` + `automation.py` | Writes 4 real settings to settings.json + theme change |
+| `onTerminalShellIntegration:*` | `terminal.py` + `automation.py` | Opens terminal, runs commands |
 | `onAuthenticationRequest:*` | — | Automatic (VS Code built-in GitHub auth) |
+
+### Not Covered ❌ — Gap Analysis (13/25)
+
+| Activation Event | Description | Difficulty | Recommendation |
+|-----------------|-------------|------------|----------------|
+| `onFileSystem:*` | Open via custom FS scheme (ftp://, ssh://) | 🔴 Hard | Requires extension or mock filesystem |
+| `onUri` | Open `vscode://extension-id/path` URI | 🟡 Medium | `xdg-open vscode://...` from terminal |
+| `onWebviewPanel:*` | Restore a webview panel | 🔴 Hard | Requires webview state from extension |
+| `onCustomEditor:*` | Open file with custom editor | 🔴 Hard | Requires extension contribution point |
+| `onNotebook` | Open a notebook file | 🟢 Easy | Add `.ipynb` file to honeypot |
+| `onSearch` | Custom search provider | 🟡 Medium | Use search sidebar (partially done) |
+| `onTaskType` | Run a VS Code task (npm, gulp) | 🟢 Easy | `Terminal > Run Task` via Command Palette |
+| `onWalkthrough` | Open an extension walkthrough | 🟢 Easy | Command Palette search |
+| `onEditSession` | Edit session continuation | 🔴 Hard | VS Code-specific feature |
+| `onChatParticipant` | Chat participant activation | 🔴 Hard | Requires Copilot integration |
+| `onDebugDynamicConfigurations` | Dynamic debug config provider | 🟡 Medium | Trigger via debug dropdown |
+| `onDebugAdapterProtocolTracker` | DAP tracker activation | 🟡 Medium | Start specific debug type |
+| `onLanguageModelTool` | Language model tool activation | 🔴 Hard | Requires AI/Copilot features |
+
+### Coverage Summary
+
+- **Covered:** 12/25 activation events (~48%)
+- **Easy to add:** 3 events (`onNotebook`, `onTaskType`, `onWalkthrough`)
+- **Medium effort:** 4 events (require specific VS Code interactions)
+- **Hard / Extension-specific:** 6 events (require contribution points or external services)
+
+> **Security note:** The 12 covered events represent the **most commonly used** activation triggers. Malicious extensions almost always use `*`, `onStartupFinished`, `onLanguage`, or `onCommand` — all of which are fully covered. The uncovered events (`onFileSystem`, `onWebviewPanel`, `onCustomEditor`, etc.) require extensions to register specific contribution points, making them rare in malware.
 
 ---
 
@@ -561,107 +596,73 @@ When `--monitor` is used, a JSON report is saved to `/results/activation_report.
 | Native dialogs | GTK file picker not in Playwright DOM | Interact via `xdotool` |
 | Package name conflict | `playwright/` directory conflicts with pip package | `sys.path` bootstrap + direct imports |
 | Quick Input widget | VS Code doesn't remove from DOM, sets `display:none` | Custom CSS selector |
-| Container memory | 2GB limit can cause VS Code crash under heavy load | Close editors periodically, reduce open tabs |
+| Container memory | 4GB limit needed for full 10-scenario run | Inter-scenario cleanup kills terminals + closes editors |
 | CDP single connection | Only one Playwright connection at a time; orphaned processes block new ones | Kill orphaned processes before reconnecting |
+| Keyboard chords | Playwright can't handle space-separated key combos | Split into sequential `press()` calls |
 
 ---
 
-## Known Bugs (as of 2026-02-16)
+## Resolved Bugs (2026-02-16)
 
-These were discovered during live testing and need to be fixed in the next session:
+All previously identified bugs have been fixed and verified:
 
-### BUG-1: `settings_modification` scenario — quick-input timeout
-
-**Symptom:** `Page.wait_for_selector: Timeout 5000ms exceeded` when `change_theme()` runs.
-
-**Root cause:** `commands.run_command()` expects the quick-input widget to close after Enter. But the Color Theme picker in VS Code stays open for live preview even after pressing Enter. The `_wait_quick_input_close()` times out.
-
-**Current state:** Partially fixed — `change_theme()` was rewritten to use `open_command_palette()` directly instead of `run_command()`, with an Escape at the end. However the settings scenario still calls `search_setting()` which opens the Settings UI, and the `open_settings` calls inside also seem to leave state that conflicts with the theme picker.
-
-**Fix needed:** The `settings_modification` scenario needs restructuring. The `search_setting()` function repeatedly opens Settings UI, and between that and `change_theme()`, the quick-input state gets confused. Consider: (1) closing Settings editor tab before calling `change_theme()`, (2) using a dedicated settings scenario that doesn't mix UI Settings with Command Palette theme picker.
-
-**Impact:** `_recover_ui_state()` catches the error and subsequent scenarios continue.
-
-### BUG-2: VS Code crash (Target crashed) under full automation
-
-**Symptom:** `Keyboard.press: Target crashed` — VS Code renderer process crashes, all subsequent Playwright operations fail.
-
-**Root cause:** Container has `mem_limit: 2g`. Running all 10 scenarios sequentially (especially `project_exploration` which opens many files + language servers) causes VS Code to exceed memory.
-
-**Current state:** Partially fixed — `project_exploration` was changed to close editors every 5 files. However when preceded by 6 other scenarios that each open files/terminals, cumulative memory can still exceed the limit.
-
-**Fix needed:** Options: (1) increase `mem_limit` in docker-compose.yml to 4g, (2) add `editor.close_all_editors()` cleanup between ALL scenarios in `run_all_scenarios()`, (3) reduce scenario scope, (4) add memory monitoring to abort before crash.
-
-**Impact:** When VS Code crashes, Playwright loses the CDP connection. The `monitor.stop()` Strategy 2 (UI scraping) also fails since it needs a live page. Strategy 1 (log parsing) still works since it reads files.
-
-### BUG-3: `monitor.stop()` not crash-resilient enough
-
-**Symptom:** When VS Code has crashed (Target crashed), `monitor.stop()` → Strategy 2 (`get_running_extensions`) tries to open Command Palette and throws an unhandled exception, causing the entire entrypoint to fail with a traceback.
-
-**Root cause:** The try-except in `stop()` catches the exception for Strategy 2, but the `Keyboard.press: Target crashed` exception propagates past the inner `commands.run_command()` call before hitting the outer try-except. The issue is the exception happens during `page.keyboard.press()` inside `commands.open_command_palette()`.
-
-**Fix needed:** The try-except in `stop()` for Strategy 2 should already catch this. Verify the exception is actually being caught — the traceback in the test output suggests it isn't. May need to make `get_running_extensions()` itself internally catch all exceptions and return an empty list on failure.
+| Bug | Issue | Fix Applied |
+|-----|-------|-------------|
+| BUG-1 | `settings_modification` timeout on `change_theme()` | Rewrote scenario: JSON edits first via `write_settings_batch()`, then theme change with quick-input wait |
+| BUG-2 | VS Code crash at 2GB memory | Increased to 4GB + cleanup kills terminals + closes editors between scenarios |
+| BUG-3 | `monitor.stop()` crash on Strategy 2 | Broadened exception catch from `PlaywrightError` to `Exception` |
+| NEW-1 | `format_document()` "No formatter" popup blocks UI | Added `_dismiss_notification()` helper in `editor.py` |
+| NEW-2 | `toggle_setting_via_json` "Go to End of File" matched wrong command | Replaced with `Ctrl+End` keyboard shortcut |
+| NEW-3 | `git diff` opens pager, blocks terminal | Changed to `git --no-pager diff` |
+| NEW-4 | Debug "Find Python extension" popup blocks UI | Added `_dismiss_notification()` after debug start/stop |
+| NEW-5 | Keyboard chord `Ctrl+K Ctrl+W` Playwright error | Split into two sequential `press()` calls |
 
 ---
 
-## Test Results (2026-02-16)
+## Test Results (2026-02-16 v2)
 
-### Single scenario test: `project_exploration` with `--monitor`
+### Full automation: all 10 scenarios with `--monitor`
 
-**Result: PASS**
+**Result: ✅ PASS — 10/10 scenarios, 0 failures**
 
 ```
-Monitoring duration : 48.0s
-Activations found   : 15
-Unique extensions   : 15
-Running extensions  : 12
+Monitoring duration : 275.7s
+Activations found   : 11
+Unique extensions   : 11
+Running extensions  : 8
 ```
-
-All three monitoring strategies worked:
-- Strategy 1 (log parsing): 15 activations parsed from exthost.log
-- Strategy 2 (UI scraping): 12 running extensions found with correct IDs and timing
-- Strategy 3 (log reading): 1,339,836 chars read from Extension Host log
-
-Detected activation events:
-- `onAuthenticationRequest:github` → vscode.github-authentication
-- `onLanguage` → vscode.emmet
-- `*` → vscode.git-base, vscode.git, vscode.github
-- `workspaceContains:package.json` → vscode.npm
-- `onStartupFinished` → vscode.debug-auto-launch, vscode.merge-conflict
-- `onLanguage:json` → vscode.configuration-editing, vscode.extension-editing, vscode.json-language-features
-- `onLanguage:javascript` → vscode.typescript-language-features
-- `onLanguage:php` → vscode.php-language-features
-- `onLanguage:html` → vscode.html-language-features
-- `onLanguage:css` → vscode.css-language-features
-
-### Full automation test: all 10 scenarios with `--monitor`
-
-**Result: PARTIAL — 5/10 scenarios passed before VS Code crashed**
 
 | Scenario | Result |
 |----------|--------|
-| coding_session | PASS |
-| debug_session | PASS |
-| terminal_usage | PASS |
-| git_workflow | PASS |
-| extension_browsing | PASS |
-| settings_modification | FAIL (quick-input timeout, BUG-1) |
-| project_exploration | FAIL (Target crashed, BUG-2) |
-| search_workflow | FAIL (Target crashed, BUG-2) |
-| diagnostics_check | FAIL (Target crashed, BUG-2) |
-| refactor_workflow | FAIL (Target crashed, BUG-2) |
+| coding_session | ✅ PASS |
+| debug_session | ✅ PASS |
+| terminal_usage | ✅ PASS |
+| git_workflow | ✅ PASS |
+| extension_browsing | ✅ PASS |
+| settings_modification | ✅ PASS |
+| project_exploration | ✅ PASS |
+| search_workflow | ✅ PASS |
+| diagnostics_check | ✅ PASS |
+| refactor_workflow | ✅ PASS |
 
-The VS Code crash at `project_exploration` was caused by cumulative memory pressure from the 6 preceding scenarios. After the crash, all subsequent scenarios and monitoring Strategy 2 also failed (BUG-3).
-
-Strategy 1 (log parsing) still succeeded: parsed 14 activations from log files.
+Detected activation events (from log + UI):
+- `onTerminalShellIntegration:*` → vscode.terminal-suggest
+- `onLanguage:markdown` → vscode.markdown-language-features
+- `onLanguage:jsonc` → vscode.typescript-language-features
+- `onLanguage:php` → vscode.php-language-features
+- `onLanguage:html` → vscode.html-language-features
+- `onLanguage:css` → vscode.css-language-features
+- `onDebugResolve` → vscode.debug-server-ready
+- `api` → vscode.markdown-math
+- Via UI: vscode.github, vscode.git, vscode.json-language-features + 5 more
 
 ---
 
 ## Next Steps
 
-- [ ] Fix BUG-1: Restructure `settings_modification` scenario
-- [ ] Fix BUG-2: Add inter-scenario cleanup + increase memory limit
-- [ ] Fix BUG-3: Make `monitor.stop()` fully crash-resilient
+- [ ] Add `onNotebook` coverage (`.ipynb` file in honeypot) — Easy
+- [ ] Add `onTaskType` coverage (`Terminal > Run Task`) — Easy
+- [ ] Add `onWalkthrough` coverage (Command Palette) — Easy
 - [ ] Extension install/uninstall automation (`code --install-extension`)
 - [ ] Network/filesystem/process monitoring integration (tcpdump, inotifywait, strace)
 - [ ] Automatic trigger selection based on `activationEvents` from DB

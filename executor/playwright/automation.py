@@ -139,6 +139,10 @@ def scenario_debug_session(page: Page) -> None:
     debug.start_debug(page)
     page.wait_for_timeout(3000)
 
+    # Dismiss any popups like "Find Python extension" dialog
+    editor._dismiss_notification(page)
+    page.wait_for_timeout(300)
+
     # Step through if debug started
     debug.step_over(page)
     page.wait_for_timeout(500)
@@ -153,7 +157,8 @@ def scenario_debug_session(page: Page) -> None:
     debug.stop_debug(page)
     page.wait_for_timeout(500)
 
-    # Dismiss any dialogs
+    # Dismiss any lingering dialogs
+    editor._dismiss_notification(page)
     page.keyboard.press("Escape")
     page.wait_for_timeout(300)
 
@@ -230,7 +235,7 @@ def scenario_git_workflow(page: Page) -> None:
     # Use terminal for git commands
     terminal.toggle_terminal(page)
     page.wait_for_timeout(500)
-    terminal.type_in_terminal(page, "git diff")
+    terminal.type_in_terminal(page, "git --no-pager diff")
     page.wait_for_timeout(1000)
     terminal.type_in_terminal(page, "git add -A")
     page.wait_for_timeout(500)
@@ -282,29 +287,35 @@ def scenario_extension_browsing(page: Page) -> None:
 def scenario_settings_modification(page: Page) -> None:
     """Simulate modifying VS Code settings.
 
-    Opens settings, changes theme, modifies editor settings. Extensions
-    listening to onConfiguration events will fire.
+    Writes real values into settings.json to trigger onConfiguration:* events,
+    changes the color theme, and browses the Settings UI.
     """
     _log("Settings modification")
 
-    # Open Settings UI and browse
-    settings.open_settings(page)
-    page.wait_for_timeout(1000)
+    # --- Phase 1: Modify settings via settings.json (triggers onConfiguration:*) ---
+    setting_changes = [
+        ("editor.fontSize", "16"),
+        ("editor.formatOnSave", "true"),
+        ("editor.wordWrap", '"on"'),
+        ("editor.minimap.enabled", "false"),
+    ]
+    settings.write_settings_batch(page, setting_changes)
+    page.wait_for_timeout(500)
 
-    # Search for some common settings
-    for query in ["font size", "theme", "format on save", "auto save"]:
-        settings.search_setting(page, query)
-        page.wait_for_timeout(800)
-
-    # Close settings tab
-    editor.close_active_editor(page)
-    page.wait_for_timeout(300)
-
-    # Change color theme
+    # --- Phase 2: Change color theme (separate from JSON edits) ---
     settings.change_theme(page, "Default Light Modern")
     page.wait_for_timeout(1000)
     settings.change_theme(page, "Default Dark Modern")
     page.wait_for_timeout(500)
+
+    # --- Phase 3: Browse Settings UI (visual interaction) ---
+    settings.open_settings(page)
+    page.wait_for_timeout(1000)
+    for query in ["font size", "format on save"]:
+        settings.search_setting(page, query)
+        page.wait_for_timeout(800)
+    editor.close_active_editor(page)
+    page.wait_for_timeout(300)
 
     # Toggle fullscreen (layout change event)
     settings.toggle_fullscreen(page)
@@ -556,6 +567,8 @@ def _recover_ui_state(page: Page) -> None:
         for _ in range(3):
             page.keyboard.press("Escape")
             page.wait_for_timeout(200)
+        # Dismiss any VS Code notification toasts (e.g. formatter, extension)
+        editor._dismiss_notification(page)
         # Focus back to editor
         page.keyboard.press(keyboard.FOCUS_EDITOR)
         page.wait_for_timeout(300)
@@ -566,13 +579,32 @@ def _recover_ui_state(page: Page) -> None:
 def _cleanup_between_scenarios(page: Page) -> None:
     """Release UI/editor state between scenarios to reduce memory pressure."""
     try:
-        editor.close_all_editors(page)
-        page.wait_for_timeout(300)
+        # Close all editors using Ctrl+K, Ctrl+W chord (two sequential presses)
+        page.keyboard.press("Control+KeyK")
+        page.wait_for_timeout(100)
+        page.keyboard.press("Control+KeyW")
+        page.wait_for_timeout(500)
+        # Kill all terminal instances to free memory
+        _kill_all_terminals(page)
+        # Close bottom panel (terminal, output, etc.)
+        page.keyboard.press(keyboard.TOGGLE_PANEL)
+        page.wait_for_timeout(200)
+        # Dismiss any lingering notifications
+        editor._dismiss_notification(page)
         page.keyboard.press("Escape")
         page.keyboard.press(keyboard.FOCUS_EDITOR)
         page.wait_for_timeout(200)
     except PlaywrightError as exc:
         _log(f"Inter-scenario cleanup failed: {exc}")
+
+
+def _kill_all_terminals(page: Page) -> None:
+    """Kill all terminal instances via Command Palette."""
+    try:
+        commands.run_command(page, "Terminal: Kill All Terminals")
+        page.wait_for_timeout(500)
+    except PlaywrightError:
+        pass  # No terminals open — fine
 
 
 def _log(msg: str, detail: str = "") -> None:

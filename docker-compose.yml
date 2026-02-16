@@ -74,7 +74,7 @@ services:
     cap_add:
       - NET_RAW
       - SYS_PTRACE
-    mem_limit: ${EXECUTOR_MEM_LIMIT:-2g}
+    mem_limit: ${EXECUTOR_MEM_LIMIT:-4g}
     cpus: ${EXECUTOR_CPUS:-2.0}
 
   postgres_test:

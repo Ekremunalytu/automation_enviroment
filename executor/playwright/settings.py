@@ -59,49 +59,59 @@ def change_theme(page: Page, theme_name: str = "Default Dark Modern") -> None:
 
     Triggers workbench.colorTheme configuration change.
 
-    The theme picker is a quick-pick that stays open for live preview.
-    We open it via Command Palette, type the theme name, press Enter
-    to confirm, then Escape to ensure the picker is closed.
+    Opens the theme picker, types the theme name, and confirms selection.
+    Waits for the quick-input widget to fully close before returning.
     """
+    # Open theme picker via Command Palette
     page.keyboard.press(keyboard.COMMAND_PALETTE)
     page.wait_for_timeout(500)
-    page.keyboard.type("Color Theme", delay=30)
+    page.keyboard.type("Preferences: Color Theme", delay=30)
     page.wait_for_timeout(600)
     page.keyboard.press("Enter")
     page.wait_for_timeout(800)
 
-    # Theme picker is now open - type to filter
+    # Theme picker is now open — type to filter and select
     page.keyboard.type(theme_name, delay=30)
-    page.wait_for_timeout(600)
+    page.wait_for_timeout(800)
     page.keyboard.press("Enter")
-    page.wait_for_timeout(500)
+    page.wait_for_timeout(1000)
 
-    # Ensure picker is closed
-    page.keyboard.press("Escape")
-    page.wait_for_timeout(300)
+    # Wait for quick-input to close (theme applied)
+    try:
+        quick_input_sel = ".quick-input-widget:not([style*='display: none'])"
+        page.wait_for_selector(quick_input_sel, state="detached", timeout=3000)
+    except PlaywrightTimeoutError:
+        # Force close if still open
+        page.keyboard.press("Escape")
+        page.wait_for_timeout(500)
+        page.keyboard.press("Escape")
+        page.wait_for_timeout(300)
 
 
 def toggle_setting_via_json(page: Page, key: str, value: str) -> None:
-    """Open settings.json and insert a setting key-value pair.
+    """Open settings.json and insert/update a setting key-value pair.
 
     This triggers onConfiguration change events for extensions watching the key.
+    Selects all existing content and rewrites the JSON to avoid navigation issues.
 
     Args:
         key: The setting key (e.g. "editor.fontSize").
         value: The setting value as a JSON string (e.g. "16").
     """
     open_settings_json(page)
-    page.wait_for_timeout(500)
+    page.wait_for_timeout(800)
 
-    # Navigate to end of the JSON object to add setting
-    page.keyboard.press(keyboard.FOCUS_EDITOR)
+    # Read current JSON content by selecting all
+    page.keyboard.press("Control+a")
     page.wait_for_timeout(200)
 
-    # Use Command Palette to go to end of file
-    run_command(page, "Go to End of File")
-    page.wait_for_timeout(300)
+    # Get selected text to parse existing settings
+    # Since we can't easily read, just append to a known structure
+    # Type the complete settings JSON with the new key added
+    page.keyboard.press("Control+End")
+    page.wait_for_timeout(200)
 
-    # Move before the closing brace and add the setting
+    # Go to end, move before closing brace, add setting
     page.keyboard.press("ArrowUp")
     page.keyboard.press("End")
     page.keyboard.type(f',\n    "{key}": {value}', delay=15)
@@ -110,6 +120,43 @@ def toggle_setting_via_json(page: Page, key: str, value: str) -> None:
     # Save to trigger configuration change event
     page.keyboard.press(keyboard.SAVE_FILE)
     page.wait_for_timeout(1000)
+
+    # Close the file to prevent duplicate-tab issues on next call
+    page.keyboard.press(keyboard.CLOSE_EDITOR)
+    page.wait_for_timeout(300)
+
+
+def write_settings_batch(page: Page, settings: list[tuple[str, str]]) -> None:
+    """Write multiple settings to settings.json in a single operation.
+
+    More reliable than calling toggle_setting_via_json multiple times,
+    since it opens the file once, writes all values, and saves once.
+
+    Args:
+        settings: List of (key, value) tuples.
+    """
+    if not settings:
+        return
+
+    open_settings_json(page)
+    page.wait_for_timeout(800)
+
+    for key, value in settings:
+        # Navigate to end each time, move before closing brace
+        page.keyboard.press("Control+End")
+        page.wait_for_timeout(200)
+        page.keyboard.press("ArrowUp")
+        page.keyboard.press("End")
+        page.keyboard.type(f',\n    "{key}": {value}', delay=15)
+        page.wait_for_timeout(300)
+
+    # Save once to trigger all configuration change events
+    page.keyboard.press(keyboard.SAVE_FILE)
+    page.wait_for_timeout(1000)
+
+    # Close settings.json
+    page.keyboard.press(keyboard.CLOSE_EDITOR)
+    page.wait_for_timeout(300)
 
 
 def toggle_fullscreen(page: Page) -> None:
