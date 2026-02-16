@@ -1,50 +1,67 @@
-# Son Degisiklik Analizi - Hata ve Eksikler
+# Proje Analizi - Hata ve Eksikler
 
 ## Bulgular (oncelik sirasiyla)
 
-1. Yuksek: Aktivasyon raporu gecmis oturumlarla karisiyor (false positive riski).
-   - `executor/playwright/monitor.py:577` icindeki `parse_all_exthost_logs()` cagrisi, `executor/playwright/monitor.py:268` ve `executor/playwright/monitor.py:191` uzerinden tum `~/.vscode/logs` gecmisini okuyor.
-   - `monitoring_start` (`executor/playwright/monitor.py:556`) filtrelemede kullanilmadigi icin, eski run'lardan aktivasyonlar yeni rapora girebiliyor.
+1. Yuksek: Test altyapisinda "DB yoksa skip" akis calismiyor.
+   - `tests/conftest.py:75` satirinda `Base.metadata.create_all(bind=engine)` DB baglantisi olmadan once calisiyor.
+   - `tests/conftest.py:167` altindaki skip kontrolu bu asamadan sonra geldiginden etkisiz kaliyor.
+   - Sonuc: DB bagimsiz testler bile setup asamasinda fail oluyor.
 
-2. Yuksek: Senaryo hatalari "basarisiz run" olarak disari yansimiyor.
-   - `executor/playwright/automation.py:487` tum senaryo hatalarini yakalayip devam ediyor (`executor/playwright/automation.py:480`).
-   - `entrypoint.py` tarafinda da bu durum exit code'a tasinmiyor (`executor/playwright/entrypoint.py:121`), bu da CI/otomasyon tarafinda basarisizligi gizleyebilir.
+2. Yuksek: `createExtension` akisinda extension secimi belirsiz (yanlis kaydi secme riski).
+   - `schemas/schemas.py:455` ve `scanner/service.py:235` sadece `name` kabul ediyor.
+   - `scanner/json_parser.py:207` ve `scanner/json_parser.py:216` ilk eslesen dizini donduruyor.
+   - Ayni `name` farkli `publisher/version` ile varsa sonuc deterministik degil.
 
-3. Yuksek: Proje kurali ihlali var (`except Exception` kullanimi).
-   - AGENTS.md'deki "generic `try/except Exception` ekleme" yasagina ragmen yeni kodda var:
-   - `executor/playwright/automation.py:487`
-   - `executor/playwright/automation.py:529`
-   - `executor/playwright/monitor.py:314`
-   - `executor/playwright/monitor.py:581`
-   - `executor/playwright/monitor.py:588`
-   - `executor/playwright/monitor.py:594`
-   - `executor/playwright/monitor.py:601`
+3. Yuksek: Bazi okuma endpointlerinde coklu eslesme kontrolu yok.
+   - `crud/crud.py:477`, `crud/crud.py:508`, `crud/crud.py:546`, `crud/crud.py:585`, `crud/crud.py:622` akislari `.first()` kullaniyor.
+   - Sadece `name` ile cagrida yanlis extension verisi donebilir.
 
-4. Orta: `settings.search_setting` akisi kirilgan; mevcut timeout bug'ini tetiklemeye acik.
-   - `executor/playwright/settings.py:30` her aramada `Ctrl+,` basiyor; bu, arama kutusunu dogrudan hedeflemek yerine gorunumu yeniden tetikledigi icin state'i bozabiliyor (dokumana yazilan BUG-1 ile uyumlu).
+4. Orta: `get_db` icinde `SessionLocal()` hata verirse `db.close()` ikinci bir hata uretebilir.
+   - `core/deps.py:107`, `core/deps.py:118`
+   - `db` degiskeni olusmadan `finally` bloguna dusulurse `UnboundLocalError` riski var.
 
-5. Orta: Lint kapisi su an kirik (degisikliklerle birlikte).
-   - `ruff check` sonucu 12 hata verdi.
-   - Ornekler:
-   - `executor/playwright/entrypoint.py:24` (unused import)
-   - `executor/playwright/entrypoint.py:28` (unused import)
-   - `executor/playwright/settings.py:8` (unused import)
-   - `executor/playwright/automation.py:17` (import order)
-   - `executor/playwright/monitor.py:340` (ambiguous variable)
-   - `executor/playwright/keyboard.py:55` (RUF003)
+5. Orta: API 500 cevaplarinda ic exception mesaji disariya siziyor.
+   - `routers/core.py:225`, `routers/core.py:288`, `routers/core.py:323`, `routers/core.py:402`, `routers/core.py:443`
+   - Hata detaylarinin client'a acik verilmesi bilgi sizintisi riski olusturuyor.
 
-6. Orta: Yeni `executor/playwright` akisi icin test kapsami yok.
-   - `tests/` icinde `executor/playwright` veya `monitor/automation` hedefli test bulunmuyor; yeni eklenen kritik runtime akislar testsiz.
+6. Orta: `IntegrityError` durumlarinin tamami duplicate gibi map ediliyor.
+   - `crud/crud.py:314`, `crud/crud.py:318`
+   - Duplicate disi integrity problemleri de "Extension already exists" olarak donebilir.
 
-## Acik Sorular / Varsayimlar
+7. Orta: Pagination parametrelerinde negatif deger validasyonu yok.
+   - `routers/core.py:294`
+   - `skip=-1` veya `limit=-1` gibi istekler DB seviyesinde hata uretip 500'e dusebilir.
 
-1. Senaryo hatalarinda "devam et" davranisi bilincli mi, yoksa run sonunda non-zero exit isteniyor mu?
-2. Monitoring raporu sadece mevcut run'i mi olcmeli (onerilen), yoksa tarihsel birlestirme mi hedefleniyor?
+8. Dusuk: `_VSCODE_FIELDS` tanimli ama `parse_extra_fields` icinde kullanilmiyor.
+   - `scanner/json_parser.py:737`, `scanner/json_parser.py:804`
+   - Bazi VS Code alanlari `extra_fields` icine yanlis siniflanabilir.
 
-## Kisa Durum Ozeti
+9. Dusuk: JSON parse katmaninda genis `except Exception` ve sessiz swallow var.
+   - `scanner/json_parser.py:99`
+   - Hata gozlemlenebilirligi dusuyor.
 
-- Kapsam: staged + unstaged son degisiklikler incelendi (ozellikle `executor/playwright/*`, `executor/start.sh`, ilgili dokumanlar).
-- Calistirilan kontroller:
-  - `ruff check` (basarisiz, 12 hata)
-  - `python3 -m py_compile executor/playwright/*.py` (basarili)
-- Kod degisikligi yapilmadi (analiz asamasinda).
+## Eksik Parcalar (Roadmap'e Gore)
+
+1. Dynamic analysis tarafinda planlanan kritik moduller henuz yok:
+   - `documents/automation_todo.md:141` (extension installer)
+   - `documents/automation_todo.md:147` (trigger engine)
+   - `documents/automation_todo.md:159` (process/network/fs monitor moduleri)
+   - Kodda `executor/extension_manager.py`, `executor/triggers.py`, `executor/monitors/*` bulunmuyor.
+
+2. Analysis sonuclarini saklayacak DB yapilari henuz yok:
+   - `documents/automation_todo.md:186`
+   - Kodda `analysis_runs`, `analysis_network_events`, `analysis_process_events`, `analysis_fs_events` tablolari yok.
+
+3. Analyze API endpointleri henuz yok:
+   - `documents/automation_todo.md:211`
+   - `routers/` altinda `/analyze/...` endpointi bulunmuyor.
+
+4. Dokumanda acik gorunen bug maddeleri henuz acik:
+   - `documents/automation_todo.md:121`
+
+## Calistirilan Kontroller
+
+1. `ruff check .` -> basarili.
+2. `pytest -q tests/executor` -> 3/3 basarili.
+3. `pytest -q` -> DB erisimi olmadigi icin setup asamasinda hata verdi.
+4. `pytest -q tests/scanner/test_json_parser.py::TestParseNpmFields::test_parse_standard_npm_fields` -> ayni sebeple setup asamasinda hata verdi.
