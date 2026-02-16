@@ -18,7 +18,7 @@
 
 ---
 
-`Last Updated: 2026-02-05` • `Version: 1.0.0` • `Status: Active`
+`Last Updated: 2026-02-16` • `Version: 1.0.0` • `Status: Active`
 
 ---
 
@@ -542,8 +542,10 @@ Key environment variables (see `.env.example` for the full list):
 - [x] Honeypot developer environment (fake credentials, secrets)
 - [x] VS Code auto-configuration (trust/telemetry disabled)
 - [x] noVNC browser access for debugging
+- [x] 10 user behavior simulation scenarios (all passing)
+- [x] Extension Host activation monitoring (log parsing + UI scraping)
+- [x] Multi-language sample files for activation coverage (20+ languages)
 - [ ] Extension install/uninstall automation
-- [ ] Activation trigger engine (onLanguage, onCommand, onView, etc.)
 - [ ] Network monitoring (tcpdump/tshark)
 - [ ] Process monitoring
 - [ ] Filesystem monitoring (inotifywait)

@@ -17,7 +17,7 @@
 
 ---
 
-`Last Updated: 2026-02-09` • `Version: 1.1.0` • `Status: Development`
+`Last Updated: 2026-02-16` • `Version: 1.1.1` • `Status: Development`
 
 ---
 
@@ -730,7 +730,7 @@ flowchart TB
 | **VS Code** | Full GUI, `--no-sandbox --disable-gpu` |
 | **Monitoring** | `tcpdump`, `tshark`, `inotifywait`, `strace` |
 | **Capabilities** | `NET_RAW`, `SYS_PTRACE` |
-| **Resources** | 2GB RAM, 2 CPUs |
+| **Resources** | 4GB RAM, 2 CPUs |
 | **Volumes** | `./extensions:/extensions-input:ro`, `./output:/results` |
 
 </td>

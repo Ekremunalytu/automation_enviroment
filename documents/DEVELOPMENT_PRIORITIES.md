@@ -9,14 +9,14 @@
 <br>
 
 [![Document Type](https://img.shields.io/badge/Type-Roadmap-7c3aed?style=for-the-badge&logo=readthedocs&logoColor=white)](https://github.com/yourusername/extrace)
-[![Last Updated](https://img.shields.io/badge/Updated-2025--12--11-059669?style=for-the-badge&logo=calendar&logoColor=white)](https://github.com/yourusername/extrace)
+[![Last Updated](https://img.shields.io/badge/Updated-2026--02--16-059669?style=for-the-badge&logo=calendar&logoColor=white)](https://github.com/yourusername/extrace)
 [![Status](https://img.shields.io/badge/Status-Active_Development-0891b2?style=for-the-badge&logo=activity&logoColor=white)](https://github.com/yourusername/extrace)
 
 <br>
 
 ---
 
-`Current Sprint: Identity & Deep Parsing` • `Next: Risk Analysis` • `Updated: 2025-12-20`
+`Current Sprint: Dynamic Analysis & Monitoring` • `Next: Risk Scoring & Analysis API` • `Updated: 2026-02-16`
 
 ---
 
@@ -24,10 +24,10 @@
 
 <br>
 
-## 📌 Current Focus: Extension Identity
+## 📌 Current Focus: Dynamic Analysis & Monitoring
 
 > [!IMPORTANT]
-> The immediate priority is building **comprehensive parsers** to extract the complete identity and behavioral fingerprint of VS Code extensions. Analysis and risk scoring will follow in subsequent sprints.
+> Deep parsing (Phase 1) is **complete** — all parsers, schemas, CRUD, and API endpoints are done. The current priority is building **monitoring modules** (network, filesystem, process) and the **analysis results storage** layer to support dynamic extension analysis in the executor container.
 
 <br>
 
@@ -35,7 +35,7 @@
 
 <br>
 
-## 🚀 Phase 1: Deep Parsing
+## ✅ Phase 1: Deep Parsing (Completed)
 
 ### 1.1 Manifest Parser Enhancement
 
@@ -152,10 +152,10 @@ erDiagram
 
 <br>
 
-## 🔮 Phase 2: Analysis (Future)
+## 🚀 Phase 2: Dynamic Analysis & Risk Scoring (Active)
 
-> [!WARNING]
-> This phase begins **AFTER** Phase 1 completion.
+> [!IMPORTANT]
+> Phase 1 parsing is complete. This phase covers monitoring, storage, and risk scoring.
 
 1.  **Risk Scoring Engine**
     *   Pattern-based risk detection
@@ -231,5 +231,5 @@ Phase 1 is complete when:
 - ✅ Sample extensions fully parsed and stored
 
 <div align="center">
-  <strong>Phase 1 Target: Q1 2026</strong>
+  <strong>Phase 1 ✅ Completed (Q1 2026)</strong> · <strong>Phase 2 Target: Q2 2026</strong>
 </div>

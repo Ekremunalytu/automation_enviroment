@@ -1,67 +1,67 @@
-# Proje Analizi - Hata ve Eksikler
+# Project Analysis - Bugs & Missing Pieces
 
-## Bulgular (oncelik sirasiyla)
+## Findings (by priority)
 
-1. Yuksek: Test altyapisinda "DB yoksa skip" akis calismiyor.
-   - `tests/conftest.py:75` satirinda `Base.metadata.create_all(bind=engine)` DB baglantisi olmadan once calisiyor.
-   - `tests/conftest.py:167` altindaki skip kontrolu bu asamadan sonra geldiginden etkisiz kaliyor.
-   - Sonuc: DB bagimsiz testler bile setup asamasinda fail oluyor.
+1. High: Test infrastructure "skip if no DB" flow is broken.
+   - `tests/conftest.py:75` runs `Base.metadata.create_all(bind=engine)` before DB connection is checked.
+   - `tests/conftest.py:167` skip control comes after this step, making it ineffective.
+   - Result: Even DB-independent tests fail during setup.
 
-2. Yuksek: `createExtension` akisinda extension secimi belirsiz (yanlis kaydi secme riski).
-   - `schemas/schemas.py:455` ve `scanner/service.py:235` sadece `name` kabul ediyor.
-   - `scanner/json_parser.py:207` ve `scanner/json_parser.py:216` ilk eslesen dizini donduruyor.
-   - Ayni `name` farkli `publisher/version` ile varsa sonuc deterministik degil.
+2. High: `createExtension` flow has ambiguous extension selection (risk of selecting wrong record).
+   - `schemas/schemas.py:455` and `scanner/service.py:235` accept only `name`.
+   - `scanner/json_parser.py:207` and `scanner/json_parser.py:216` return the first matching directory.
+   - If the same `name` exists with different `publisher/version`, the result is non-deterministic.
 
-3. Yuksek: Bazi okuma endpointlerinde coklu eslesme kontrolu yok.
-   - `crud/crud.py:477`, `crud/crud.py:508`, `crud/crud.py:546`, `crud/crud.py:585`, `crud/crud.py:622` akislari `.first()` kullaniyor.
-   - Sadece `name` ile cagrida yanlis extension verisi donebilir.
+3. High: Some read endpoints lack multi-match validation.
+   - `crud/crud.py:477`, `crud/crud.py:508`, `crud/crud.py:546`, `crud/crud.py:585`, `crud/crud.py:622` use `.first()`.
+   - When called with only `name`, incorrect extension data may be returned.
 
-4. Orta: `get_db` icinde `SessionLocal()` hata verirse `db.close()` ikinci bir hata uretebilir.
+4. Medium: `get_db` may raise `UnboundLocalError` if `SessionLocal()` fails.
    - `core/deps.py:107`, `core/deps.py:118`
-   - `db` degiskeni olusmadan `finally` bloguna dusulurse `UnboundLocalError` riski var.
+   - If `db` variable is not created before `finally` block, `db.close()` raises a second error.
 
-5. Orta: API 500 cevaplarinda ic exception mesaji disariya siziyor.
+5. Medium: API 500 responses leak internal exception messages.
    - `routers/core.py:225`, `routers/core.py:288`, `routers/core.py:323`, `routers/core.py:402`, `routers/core.py:443`
-   - Hata detaylarinin client'a acik verilmesi bilgi sizintisi riski olusturuyor.
+   - Exposing error details to client creates an information disclosure risk.
 
-6. Orta: `IntegrityError` durumlarinin tamami duplicate gibi map ediliyor.
+6. Medium: All `IntegrityError` cases are mapped as duplicates.
    - `crud/crud.py:314`, `crud/crud.py:318`
-   - Duplicate disi integrity problemleri de "Extension already exists" olarak donebilir.
+   - Non-duplicate integrity problems may also return "Extension already exists".
 
-7. Orta: Pagination parametrelerinde negatif deger validasyonu yok.
+7. Medium: Pagination parameters lack negative value validation.
    - `routers/core.py:294`
-   - `skip=-1` veya `limit=-1` gibi istekler DB seviyesinde hata uretip 500'e dusebilir.
+   - `skip=-1` or `limit=-1` requests can produce DB-level errors resulting in 500s.
 
-8. Dusuk: `_VSCODE_FIELDS` tanimli ama `parse_extra_fields` icinde kullanilmiyor.
+8. Low: `_VSCODE_FIELDS` is defined but not used in `parse_extra_fields`.
    - `scanner/json_parser.py:737`, `scanner/json_parser.py:804`
-   - Bazi VS Code alanlari `extra_fields` icine yanlis siniflanabilir.
+   - Some VS Code fields may be incorrectly classified into `extra_fields`.
 
-9. Dusuk: JSON parse katmaninda genis `except Exception` ve sessiz swallow var.
+9. Low: JSON parse layer has broad `except Exception` with silent swallow.
    - `scanner/json_parser.py:99`
-   - Hata gozlemlenebilirligi dusuyor.
+   - Reduces error observability.
 
-## Eksik Parcalar (Roadmap'e Gore)
+## Missing Pieces (per Roadmap)
 
-1. Dynamic analysis tarafinda planlanan kritik moduller henuz yok:
+1. Critical planned modules for dynamic analysis are not implemented yet:
    - `documents/automation_todo.md:141` (extension installer)
    - `documents/automation_todo.md:147` (trigger engine)
-   - `documents/automation_todo.md:159` (process/network/fs monitor moduleri)
-   - Kodda `executor/extension_manager.py`, `executor/triggers.py`, `executor/monitors/*` bulunmuyor.
+   - `documents/automation_todo.md:159` (process/network/fs monitor modules)
+   - Files `executor/extension_manager.py`, `executor/triggers.py`, `executor/monitors/*` do not exist.
 
-2. Analysis sonuclarini saklayacak DB yapilari henuz yok:
+2. DB structures for storing analysis results are not created yet:
    - `documents/automation_todo.md:186`
-   - Kodda `analysis_runs`, `analysis_network_events`, `analysis_process_events`, `analysis_fs_events` tablolari yok.
+   - Tables `analysis_runs`, `analysis_network_events`, `analysis_process_events`, `analysis_fs_events` do not exist.
 
-3. Analyze API endpointleri henuz yok:
+3. Analyze API endpoints are not implemented yet:
    - `documents/automation_todo.md:211`
-   - `routers/` altinda `/analyze/...` endpointi bulunmuyor.
+   - No `/analyze/...` endpoints found under `routers/`.
 
-4. Dokumanda acik gorunen bug maddeleri henuz acik:
+4. Bug items listed in documentation are still open:
    - `documents/automation_todo.md:121`
 
-## Calistirilan Kontroller
+## Checks Performed
 
-1. `ruff check .` -> basarili.
-2. `pytest -q tests/executor` -> 3/3 basarili.
-3. `pytest -q` -> DB erisimi olmadigi icin setup asamasinda hata verdi.
-4. `pytest -q tests/scanner/test_json_parser.py::TestParseNpmFields::test_parse_standard_npm_fields` -> ayni sebeple setup asamasinda hata verdi.
+1. `ruff check .` -> passed.
+2. `pytest -q tests/executor` -> 3/3 passed.
+3. `pytest -q` -> failed at setup due to no DB access.
+4. `pytest -q tests/scanner/test_json_parser.py::TestParseNpmFields::test_parse_standard_npm_fields` -> failed at setup for the same reason.

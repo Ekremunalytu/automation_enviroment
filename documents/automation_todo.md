@@ -52,7 +52,7 @@ All activation events are supported via Xvfb + full VS Code GUI:
 - [x] Add to `docker-compose.yml` as `executor` service
 - [x] Port 6080 exposed for noVNC browser access
 - [x] Volume mounts: `./extensions:/extensions-input:ro`, `./output:/results`
-- [x] Resource limits: 2GB RAM, 2 CPUs
+- [x] Resource limits: 4GB RAM, 2 CPUs
 - [x] `cap_add: NET_RAW, SYS_PTRACE` for monitoring tools
 - [x] `setcap` on tcpdump/dumpcap for non-root capture
 - [x] Makefile targets: `executor-build`, `executor-up`, `executor-down`, `executor-shell`, `executor-test`
@@ -118,10 +118,10 @@ noVNC                      ->  Browser access (port 6080)
 - [x] JSON report generation with `ActivationReport.save(path)`
 - [x] Human-readable summary via `ActivationReport.print_summary()`
 
-### Bugs to Fix (2026-02-16)
-- [ ] BUG-1: `settings_modification` scenario — quick-input timeout on theme picker
-- [ ] BUG-2: VS Code crashes (Target crashed) under full 10-scenario run (2GB memory limit)
-- [ ] BUG-3: `monitor.stop()` Strategy 2 not fully crash-resilient when VS Code is dead
+### Resolved Bugs (2026-02-16)
+- [x] BUG-1: `settings_modification` scenario — quick-input timeout on theme picker (Fixed: JSON edits first, theme change with timeout fallback)
+- [x] BUG-2: VS Code crashes (Target crashed) under full 10-scenario run (Fixed: increased to 4GB + inter-scenario cleanup)
+- [x] BUG-3: `monitor.stop()` Strategy 2 not fully crash-resilient when VS Code is dead (Fixed: broadened exception catch)
 
 ### Done: Honeypot Developer Environment
 - [x] Fake `.env`, `.env.production`, `.env.local` with realistic API keys

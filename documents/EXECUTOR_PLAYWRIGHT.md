@@ -40,6 +40,139 @@ executor/
 
 ---
 
+---
+
+## Architecture Diagrams
+
+### 1. Automation Sequence
+
+High-level execution flow when `entrypoint.py` runs:
+
+```mermaid
+%%{init: {'theme': 'dark', 'themeVariables': { 'background': '#0d1117', 'primaryColor': '#22c55e', 'primaryTextColor': '#e6edf3', 'lineColor': '#4ade80', 'mainBkg': '#161b22', 'nodeBkg': '#21262d', 'clusterBkg': '#161b22'}}}%%
+sequenceDiagram
+    participant CLI as entrypoint.py
+    participant VS as vscode.py
+    participant MON as monitor.py
+    participant AUTO as automation.py
+    participant REP as ActivationReport
+
+    CLI->>VS: connect()
+    VS-->>CLI: browser, page
+    CLI->>VS: wait_until_ready()
+
+    rect rgb(30, 40, 50)
+        Note over CLI, MON: Optional Monitoring
+        CLI->>MON: ExtensionMonitor(page).start()
+    end
+
+    CLI->>AUTO: run_all_scenarios(page)
+    loop Every Scenario
+        AUTO->>AUTO: run_scenario()
+        AUTO->>AUTO: _cleanup_between_scenarios()
+    end
+
+    rect rgb(30, 40, 50)
+        Note over CLI, MON: Collection Phase
+        CLI->>MON: stop()
+        MON->>MON: Parse Logs (Strategy 1)
+        MON->>MON: Scrape UI (Strategy 2)
+        MON->>MON: Read Output (Strategy 3)
+        MON-->>CLI: report
+        CLI->>REP: save(json_path)
+    end
+
+    CLI->>VS: disconnect()
+```
+
+### 2. Module Dependencies
+
+Functional dependency graph of the `executor/playwright/` package:
+
+```mermaid
+%%{init: {'theme': 'dark', 'themeVariables': { 'background': '#0d1117', 'primaryColor': '#3b82f6', 'primaryTextColor': '#e6edf3', 'lineColor': '#60a5fa', 'mainBkg': '#161b22', 'nodeBkg': '#21262d', 'clusterBkg': '#161b22'}}}%%
+graph TD
+    Entry[entrypoint.py] --> Auto[automation.py]
+    Entry --> Mon[monitor.py]
+
+    Auto --> Ed[editor.py]
+    Auto --> Sb[sidebar.py]
+    Auto --> Tm[terminal.py]
+    Auto --> Db[debug.py]
+    Auto --> St[settings.py]
+    Auto --> Pn[panel.py]
+    Auto --> Cmd[commands.py]
+
+    subgraph Helpers
+        Ed --> Cmd
+        Sb --> Cmd
+        Tm --> Cmd
+        Pn --> Cmd
+        Db --> Cmd
+        St --> Cmd
+    end
+
+    subgraph Core
+        Cmd --> Kb[keyboard.py]
+        Ed --> Kb
+        Sb --> Kb
+    end
+
+    Mon --> Cmd
+    Entry --> Vs[vscode.py]
+
+    style Entry fill:#ea580c,stroke:#f97316,stroke-width:2px
+    style Auto fill:#16a34a,stroke:#22c55e,stroke-width:2px
+    style Mon fill:#9333ea,stroke:#a855f7,stroke-width:2px
+    style Vs fill:#2563eb,stroke:#3b82f6
+```
+
+### 3. Monitoring Strategies
+
+The 3-pronged approach to sensing extension activation:
+
+```mermaid
+
+%%{init: {'theme': 'dark', 'themeVariables': { 'background': '#0d1117', 'primaryColor': '#be185d', 'primaryTextColor': '#e6edf3', 'lineColor': '#f472b6', 'mainBkg': '#161b22', 'nodeBkg': '#21262d', 'clusterBkg': '#161b22'}}}%%
+flowchart LR
+    Start(["monitor.stop()"])
+
+    subgraph S1 [Strategy 1: Log Parsing]
+        direction TB
+        L1["Find .vscode/logs/**/exthost.log"]
+        L2["Regex Parse: 'ActivationEvent'"]
+        L3["Extract Timestamp & Duration"]
+        L1 --> L2 --> L3
+    end
+
+    subgraph S2 [Strategy 2: UI Scraping]
+        direction TB
+        U1["Command: 'Show Running Extensions'"]
+        U2["Query DOM: .monaco-list-row"]
+        U3["Parse: Name + Activation Time"]
+        U1 --> U2 --> U3
+    end
+
+    subgraph S3 [Strategy 3: Output Channel]
+        direction TB
+        O1["Read 'Log (Extension Host)'"]
+        O2["Backup: Read raw log file"]
+    end
+
+    Start --> L1
+    Start --> U1
+    Start --> O1
+    Start --> O2
+
+    L3 --> M["Merge & Deduplicate"]
+    U3 --> M
+    O1 --> M
+    O2 --> M
+    M --> JSON["ActivationReport.json"]
+```
+
+---
+
 ## Container Startup Flow
 
 When `start.sh` runs, the following sequence executes:

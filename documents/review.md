@@ -1,7 +1,7 @@
 # ExTrace API - Project Review Report
 
 > **Project:** VS Code Extension Security Scanner (ExTrace)  
-> **Review Date:** 2025-12-21  
+> **Review Date:** 2025-12-21 (Updated: 2026-02-16)  
 > **Environment:** Single user, isolated sandbox, single pipeline  
 > **Repo Type:** Test/POC Repository
 
@@ -46,11 +46,11 @@ automation_enviroment/
 │   └── crud.py           ✅ Full CRUD (create, read, delete)
 ├── database/
 │   └── session.py        ✅ SQLAlchemy session
-├── executor/             📦 Empty (future sprint)
+├── executor/             ✅ Dynamic analysis (Playwright, honeypot, monitoring)
 ├── extensions/           📦 Test data
 ├── models/
 │   └── models.py         ✅ Extension model
-├── output/               📦 Empty (for reports)
+├── output/               📦 Analysis results
 ├── reporter/             📦 Empty (future sprint)
 ├── routers/
 │   ├── core.py           ✅ API endpoints
@@ -86,8 +86,8 @@ automation_enviroment/
 |---|------|----------|--------|
 | 1 | ~~Add `update_extension` function to CRUD~~ | � Low | ⏭️ Skipped (not needed - extension data is immutable) |
 | 2 | ~~Add `delete_extension` function to CRUD~~ | 🔴 High | ✅ Completed |
-| 3 | Router endpoint for `get_extension_by_id` | 🟡 Medium | ⏳ Pending |
-| 4 | Bulk insert function | 🟡 Medium | ⏳ Pending |
+| 3 | ~~Router endpoint for `get_extension_by_id`~~ | 🟡 Medium | ⏭️ Skipped (search by name/publisher/version sufficient) |
+| 4 | ~~Bulk insert function~~ | 🟡 Medium | ⏭️ Skipped (scan-based ingestion handles this) |
 | 5 | Additional fields in model (dependencies, devDependencies) | 🟡 Medium | ✅ Completed |
 | 6 | New fields (extensionPack, extensionDependencies, extensionKind) | 🟡 Medium | ✅ Completed |
 
@@ -95,11 +95,11 @@ automation_enviroment/
 
 ## 📅 Sprint Plan
 
-### Sprint +1: Dynamic Analysis Core
-- Runner orchestration (sandbox/container execution)
-- Interaction automation baseline (deterministic flows)
-- Safety policy enforcement (no credentials/downloads)
-- Risk score calculation algorithm
+### Sprint +1: Dynamic Analysis Core ✅ (PARTIALLY COMPLETED)
+- ✅ Runner orchestration (Docker + Xvfb sandbox execution)
+- ✅ Interaction automation baseline (10 Playwright scenarios)
+- ✅ Honeypot environment (fake credentials/secrets)
+- ⏳ Risk score calculation algorithm
 
 ### Sprint +2: Logging & Observability
 - Structured logging setup
@@ -115,15 +115,15 @@ automation_enviroment/
 - ✅ Comprehensive TESTING.md documentation
 
 ### Sprint +4: Pipeline & Automation
-- CLI interface (`click` or `typer`)
+- ~~CLI interface (`click` or `typer`)~~ (out of scope — API-first approach)
 - Batch processing
 - Report generation (JSON/HTML)
 
-### Sprint +5: Production Readiness
-- Environment-based config (dev/staging/prod)
-- Docker secrets
-- Enhanced health check
-- README.md documentation
+### Sprint +5: Production Readiness ✅ (COMPLETED)
+- ✅ Environment-based config (dev/staging/prod)
+- ✅ Docker secrets (via .env)
+- ✅ Enhanced health check
+- ✅ README.md documentation
 
 ---
 
@@ -220,4 +220,4 @@ class ExtensionActivationEvents(Base):
 
 ## 🎯 Conclusion
 
-The project is built on a solid foundation. The DB structure is well-designed, and the layered architecture is correctly implemented. After completing the CRUD additions in the current sprint, development can proceed to the scanner core.
+The project is built on a solid foundation. The DB structure is well-designed, and the layered architecture is correctly implemented. Phase 0 (metadata parsing) and the core infrastructure from Sprint +3 and +5 are complete. The executor system is actively being developed with Playwright automation and monitoring capabilities.

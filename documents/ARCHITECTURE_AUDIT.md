@@ -1,8 +1,8 @@
 # 🔍 ExTrace: Comprehensive Architectural Audit & Code Review
 
 > **Senior Principal Software Architect & Cybersecurity Engineering Assessment**  
-> **Date**: 2025-12-20  
-> **Scope**: VS Code Extension Security Scanner
+> **Date**: 2025-12-20 (Updated: 2026-02-16)  
+> **Scope**: VS Code Extension Security Scanner + Dynamic Analysis Engine
 
 ---
 
@@ -21,7 +21,7 @@
 **The codebase is well-architected and demonstrates mature engineering practices.** The project shows excellent adherence to SOLID principles, clean layered architecture, and professional documentation. The concerns about "spaghetti code" are **unfounded** — the current structure is maintainable and scalable.
 
 > [!TIP]
-> The project is in excellent shape for its current scope. The recommendations below are for hardening as you scale toward production dynamic analysis features.
+> Since this audit (Dec 2025), the executor system has been significantly developed: 15+ Playwright automation modules, 10 user behavior simulation scenarios, Extension Host monitoring, and a comprehensive honeypot environment are now operational. The recommendations below are partially addressed — logging and error handling improvements remain outstanding.
 
 ---
 
@@ -379,10 +379,10 @@ class ScanRequest(BaseModel):
 - [ ] Implement pagination for list endpoints
 
 ### Long-Term (For Dynamic Analysis Phase)
-- [ ] Design Docker sandbox orchestration layer
-- [ ] Implement network traffic capture
-- [ ] Add filesystem monitoring hooks
-- [ ] Create behavior analysis pipeline
+- [x] Design Docker sandbox orchestration layer (executor/Dockerfile + start.sh)
+- [ ] Implement network traffic capture (tcpdump wrapper planned)
+- [ ] Add filesystem monitoring hooks (inotifywait wrapper planned)
+- [x] Create behavior analysis pipeline (Playwright automation + Extension Host monitoring)
 - [ ] Implement malware signature detection
 
 ---
@@ -415,5 +415,7 @@ class ScanRequest(BaseModel):
 | [database/session.py](file:///Volumes/Crucial/ExtensionSecurity/automation_enviroment/database/session.py) | 154 | Proper pool configuration |
 | [tests/conftest.py](file:///Volumes/Crucial/ExtensionSecurity/automation_enviroment/tests/conftest.py) | 173 | Good PostgreSQL test isolation |
 | [pyproject.toml](file:///Volumes/Crucial/ExtensionSecurity/automation_enviroment/pyproject.toml) | 184 | Modern Python tooling |
-| [docker-compose.yml](file:///Volumes/Crucial/ExtensionSecurity/automation_enviroment/docker-compose.yml) | 56 | Clean, env-var driven |
+| [docker-compose.yml](file:///Volumes/Crucial/ExtensionSecurity/automation_enviroment/docker-compose.yml) | 99 | Clean, env-var driven, 4 services |
 | [Makefile](file:///Volumes/Crucial/ExtensionSecurity/automation_enviroment/Makefile) | 219 | Excellent DX commands |
+| [executor/Dockerfile](file:///Volumes/Crucial/ExtensionSecurity/automation_enviroment/executor/Dockerfile) | ~90 | Ubuntu 22.04 + VS Code + Xvfb (added Feb 2026) |
+| [executor/playwright/*](file:///Volumes/Crucial/ExtensionSecurity/automation_enviroment/executor/playwright) | ~1500 | 15+ modular automation helpers (added Feb 2026) |
