@@ -96,6 +96,33 @@ noVNC                      ->  Browser access (port 6080)
 - [x] Create `executor/playwright/entrypoint.py` — demo using all modules
 - [x] Makefile target: `make executor-playwright`
 
+### Done: Extended Modules (2026-02-16)
+- [x] `keyboard.py` — Added activation trigger shortcuts: debug (F5/Shift+F5/F10/F11), settings (Ctrl+,), output/problems focus, format/definition/suggest/rename, fullscreen, new terminal
+- [x] `editor.py` — Added: `format_document()`, `go_to_definition()`, `trigger_suggest()`, `rename_symbol()`, `select_all()`
+- [x] `panel.py` — Added: `focus_problems()`, `focus_output()` (direct keyboard shortcuts)
+- [x] `terminal.py` — `new_terminal()` now uses keyboard shortcut, old version as `new_terminal_via_command()`
+- [x] Create `executor/playwright/debug.py` — Debug lifecycle: start/stop/step_over/step_into/breakpoint/launch.json
+- [x] Create `executor/playwright/settings.py` — Settings UI, settings.json, theme change, fullscreen
+- [x] Create `executor/playwright/automation.py` — 10 user behavior simulation scenarios
+- [x] Create `executor/playwright/monitor.py` — Extension Host activation monitoring (3 strategies)
+- [x] `entrypoint.py` — CLI: `--monitor`, `--scenario`, `--list`, `--shuffle`, `--report-path`, `--demo`
+- [x] `start.sh` — Added `--log trace` to VS Code launch, log dir symlink
+
+### Done: Extension Host Monitoring (2026-02-16)
+- [x] VS Code started with `--log trace` for verbose Extension Host logging
+- [x] Log file discovery and parsing (regex patterns for multiple VS Code versions)
+- [x] Running Extensions UI scraping via Playwright (`aria-label` for extension IDs)
+- [x] Extension Host log file reading for full post-hoc analysis
+- [x] Real-time log watching via `inotifywait` (with polling fallback)
+- [x] `ExtensionMonitor` context manager wrapping scenarios
+- [x] JSON report generation with `ActivationReport.save(path)`
+- [x] Human-readable summary via `ActivationReport.print_summary()`
+
+### Bugs to Fix (2026-02-16)
+- [ ] BUG-1: `settings_modification` scenario — quick-input timeout on theme picker
+- [ ] BUG-2: VS Code crashes (Target crashed) under full 10-scenario run (2GB memory limit)
+- [ ] BUG-3: `monitor.stop()` Strategy 2 not fully crash-resilient when VS Code is dead
+
 ### Done: Honeypot Developer Environment
 - [x] Fake `.env`, `.env.production`, `.env.local` with realistic API keys
 - [x] Fake SSH keys with correct permissions (600/700) in `~/.ssh/`
@@ -306,8 +333,10 @@ noVNC                      ->  Browser access (port 6080)
 ### Phase 1 Complete When:
 - [ ] Can install/uninstall extensions via CLI inside Xvfb container
 - [x] Can trigger activation events via Playwright UI helpers (commands, editor, sidebar, terminal, panel)
+- [x] Can trigger ALL activation event types (debug, settings, language server, etc.) via 10 automation scenarios
+- [x] Extension Host activation monitoring working (log parsing + UI scraping + log reading)
 - [x] Honeypot developer environment auto-deployed at container start
-- [x] VS Code auto-configured (trust disabled, workspace opened)
+- [x] VS Code auto-configured (trust disabled, workspace opened, --log trace)
 - [x] noVNC access verified for debugging
 - [ ] Network/process/filesystem monitoring works
 - [ ] Results stored in database

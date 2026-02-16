@@ -47,8 +47,23 @@ cat > "${VSCODE_SETTINGS_DIR}/settings.json" <<'SETTINGS'
 }
 SETTINGS
 
-echo "Starting VS Code (CDP on localhost:${CDP_PORT})..."
-code --no-sandbox --user-data-dir /home/executor/.vscode --remote-debugging-port="${CDP_PORT}" /workspace &
+VSCODE_LOG_LEVEL="${EXECUTOR_VSCODE_LOG_LEVEL:-trace}"
+echo "Starting VS Code (CDP on localhost:${CDP_PORT}, log level: ${VSCODE_LOG_LEVEL})..."
+code --no-sandbox \
+    --user-data-dir /home/executor/.vscode \
+    --remote-debugging-port="${CDP_PORT}" \
+    --log "${VSCODE_LOG_LEVEL}" \
+    /workspace &
+
+# Create a convenience symlink for the latest log directory
+(
+    sleep 5  # wait for VS Code to create log directory
+    LATEST_LOG=$(find /home/executor/.vscode/logs -maxdepth 1 -type d | sort | tail -1)
+    if [ -n "${LATEST_LOG}" ] && [ -d "${LATEST_LOG}" ]; then
+        ln -sfn "${LATEST_LOG}" /home/executor/.vscode/logs/latest
+        echo "VS Code log dir symlinked: ${LATEST_LOG} -> /home/executor/.vscode/logs/latest"
+    fi
+) &
 
 echo "Starting noVNC on port ${NOVNC_PORT_VALUE}..."
 /usr/share/novnc/utils/launch.sh --vnc "${VNC_HOST_VALUE}:${VNC_PORT_VALUE}" --listen "${NOVNC_PORT_VALUE}" &

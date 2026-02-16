@@ -29,3 +29,40 @@ TOGGLE_PANEL = "Control+KeyJ"
 
 # Navigation
 FOCUS_EDITOR = "Escape"
+
+
+# === Activation triggers ===
+
+# Output panel (extension log monitoring)
+FOCUS_OUTPUT = "Control+Shift+KeyU"
+
+# Problems panel (diagnostics)
+FOCUS_PROBLEMS = "Control+Shift+KeyM"
+
+# Debug lifecycle
+START_DEBUG = "F5"
+STOP_DEBUG = "Shift+F5"
+STEP_OVER = "F10"
+STEP_INTO = "F11"
+
+# Settings (onConfiguration events)
+OPEN_SETTINGS = "Control+Comma"
+OPEN_SETTINGS_JSON = ""  # command palette fallback
+
+# Notebook (onNotebook triggers)
+# No direct shortcut; use command palette fallback.
+
+# Zen mode / layout (some extensions listen to layout events)
+TOGGLE_FULLSCREEN = "F11"
+
+# Editor actions
+FORMAT_DOCUMENT = "Control+Shift+KeyI"  # triggers formatter extensions
+GO_TO_DEFINITION = "F12"  # triggers language server extensions
+TRIGGER_SUGGEST = "Control+Space"  # triggers completion providers
+RENAME_SYMBOL = "F2"  # triggers rename providers
+
+# Multi-cursor / selection (rare activation trigger, but some extensions listen)
+SELECT_ALL = "Control+KeyA"
+
+# Integrated terminal
+NEW_TERMINAL = "Control+Shift+Backquote"

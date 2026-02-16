@@ -12,7 +12,13 @@ def toggle_terminal(page: Page) -> None:
 
 
 def new_terminal(page: Page) -> None:
-    """Create a new terminal instance via Command Palette."""
+    """Create a new terminal instance via keyboard shortcut."""
+    page.keyboard.press(keyboard.NEW_TERMINAL)
+    page.wait_for_timeout(1000)
+
+
+def new_terminal_via_command(page: Page) -> None:
+    """Create a new terminal instance via Command Palette (fallback)."""
     run_command(page, "Terminal: Create New Terminal")
     page.wait_for_timeout(1000)
 

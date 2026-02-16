@@ -62,3 +62,54 @@ def close_all_editors(page: Page) -> None:
     """Close all open editor tabs via chord shortcut."""
     run_command(page, "View: Close All Editors")
     page.wait_for_timeout(300)
+
+
+def format_document(page: Page) -> None:
+    """Format the active document (Ctrl+Shift+I).
+
+    Triggers formatter extensions (e.g. Prettier, Black).
+    """
+    page.keyboard.press(keyboard.FORMAT_DOCUMENT)
+    page.wait_for_timeout(1000)
+
+
+def go_to_definition(page: Page) -> None:
+    """Go to definition of symbol under cursor (F12).
+
+    Triggers language server / definition provider extensions.
+    """
+    page.keyboard.press(keyboard.GO_TO_DEFINITION)
+    page.wait_for_timeout(1000)
+
+
+def trigger_suggest(page: Page) -> None:
+    """Trigger IntelliSense suggestions (Ctrl+Space).
+
+    Triggers completion provider extensions.
+    """
+    page.keyboard.press(keyboard.TRIGGER_SUGGEST)
+    page.wait_for_timeout(1000)
+
+
+def rename_symbol(page: Page, new_name: str) -> None:
+    """Rename the symbol under cursor (F2).
+
+    Triggers rename provider extensions.
+
+    Args:
+        new_name: The new name for the symbol.
+    """
+    page.keyboard.press(keyboard.RENAME_SYMBOL)
+    page.wait_for_timeout(500)
+    # Clear existing name and type new one
+    page.keyboard.press(keyboard.SELECT_ALL)
+    page.keyboard.type(new_name, delay=20)
+    page.wait_for_timeout(300)
+    page.keyboard.press("Enter")
+    page.wait_for_timeout(1000)
+
+
+def select_all(page: Page) -> None:
+    """Select all text in the active editor (Ctrl+A)."""
+    page.keyboard.press(keyboard.SELECT_ALL)
+    page.wait_for_timeout(200)

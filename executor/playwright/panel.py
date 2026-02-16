@@ -11,14 +11,26 @@ def toggle_panel(page: Page) -> None:
     page.wait_for_timeout(300)
 
 
+def focus_problems(page: Page) -> None:
+    """Focus the Problems tab via keyboard shortcut (Ctrl+Shift+M)."""
+    page.keyboard.press(keyboard.FOCUS_PROBLEMS)
+    page.wait_for_timeout(300)
+
+
+def focus_output(page: Page) -> None:
+    """Focus the Output tab via keyboard shortcut (Ctrl+Shift+U)."""
+    page.keyboard.press(keyboard.FOCUS_OUTPUT)
+    page.wait_for_timeout(300)
+
+
 def open_problems(page: Page) -> None:
-    """Open the Problems tab in the bottom panel."""
+    """Open the Problems tab via Command Palette."""
     run_command(page, "View: Toggle Problems")
     page.wait_for_timeout(300)
 
 
 def open_output(page: Page) -> None:
-    """Open the Output tab in the bottom panel."""
+    """Open the Output tab via Command Palette."""
     run_command(page, "View: Toggle Output")
     page.wait_for_timeout(300)
 
