@@ -39,13 +39,13 @@ graph LR
 ```
 
 Each layer has a clear, focused responsibility:
-- [routers/core.py](file:///Volumes/Crucial/ExtensionSecurity/automation_enviroment/routers/core.py): HTTP handling, request validation, error codes
-- [scanner/service.py](file:///Volumes/Crucial/ExtensionSecurity/automation_enviroment/scanner/service.py): Business orchestration, workflow coordination
-- [crud/crud.py](file:///Volumes/Crucial/ExtensionSecurity/automation_enviroment/crud/crud.py): Pure data access, no business logic
-- [scanner/json_parser.py](file:///Volumes/Crucial/ExtensionSecurity/automation_enviroment/scanner/json_parser.py): File I/O operations
+- [routers/core.py](routers/core.py): HTTP handling, request validation, error codes
+- [scanner/service.py](scanner/service.py): Business orchestration, workflow coordination
+- [crud/crud.py](crud/crud.py): Pure data access, no business logic
+- [scanner/json_parser.py](scanner/json_parser.py): File I/O operations
 
 #### Open/Closed Principle (OCP) - **GOOD**
-The configuration system in [core/config.py](file:///Volumes/Crucial/ExtensionSecurity/automation_enviroment/core/config.py) is extensible:
+The configuration system in [core/config.py](core/config.py) is extensible:
 ```python
 class Settings(BaseSettings):
     project: ProjectSettings = ProjectSettings()
@@ -55,7 +55,7 @@ class Settings(BaseSettings):
 ```
 
 #### Dependency Inversion Principle (DIP) - **EXCELLENT**
-The [core/deps.py](file:///Volumes/Crucial/ExtensionSecurity/automation_enviroment/core/deps.py) provides proper DI for database sessions:
+The [core/deps.py](core/deps.py) provides proper DI for database sessions:
 ```python
 def get_db() -> Generator:
     db = SessionLocal()
@@ -128,7 +128,7 @@ The service layer directly imports CRUD functions. Consider injecting them for b
 
 #### 1. Generic Exception Handling in Router
 
-**Location**: [routers/core.py](file:///Volumes/Crucial/ExtensionSecurity/automation_enviroment/routers/core.py) (lines 211-215, 275-278)
+**Location**: [routers/core.py](routers/core.py) (lines 211-215, 275-278)
 
 **Issue**: Catching bare `Exception` masks specific error types.
 
@@ -154,7 +154,7 @@ except Exception as e:
 
 #### 2. Silent Error Swallowing in JSON Parser
 
-**Location**: [scanner/json_parser.py:96-102](file:///Volumes/Crucial/ExtensionSecurity/automation_enviroment/scanner/json_parser.py#L96-L102)
+**Location**: [scanner/json_parser.py:96-102](scanner/json_parser.py#L96-L102)
 
 **Issue**: All exceptions silently return `None`, making debugging difficult.
 
@@ -190,7 +190,7 @@ def parse_json_file(json_path: Path) -> dict[str, Any] | None:
 
 #### 3. Magic String in Router
 
-**Location**: [routers/core.py:103-108](file:///Volumes/Crucial/ExtensionSecurity/automation_enviroment/routers/core.py#L103-L108)
+**Location**: [routers/core.py:103-108](routers/core.py#L103-L108)
 
 **Issue**: Hardcoded project metadata not synced with `settings`.
 
@@ -262,11 +262,11 @@ def setup_logging(log_level: str = "INFO"):
 
 ### ✅ Resource Management - GOOD
 
-Database sessions properly managed via generator pattern in `get_db()`. Connection pooling configured in [database/session.py](file:///Volumes/Crucial/ExtensionSecurity/automation_enviroment/database/session.py).
+Database sessions properly managed via generator pattern in `get_db()`. Connection pooling configured in [database/session.py](database/session.py).
 
 ### ⚠️ Missing Health Check Depth
 
-**Location**: [routers/core.py:111-138](file:///Volumes/Crucial/ExtensionSecurity/automation_enviroment/routers/core.py#L111-L138)
+**Location**: [routers/core.py:111-138](routers/core.py#L111-L138)
 
 **Current**:
 ```python
@@ -403,19 +403,19 @@ class ScanRequest(BaseModel):
 
 | File | Lines | Assessment |
 |------|-------|------------|
-| [main.py](file:///Volumes/Crucial/ExtensionSecurity/automation_enviroment/main.py) | 155 | Excellent factory pattern |
-| [core/config.py](file:///Volumes/Crucial/ExtensionSecurity/automation_enviroment/core/config.py) | 137 | Well-modularized settings |
-| [core/deps.py](file:///Volumes/Crucial/ExtensionSecurity/automation_enviroment/core/deps.py) | 153 | Proper DI implementation |
-| [crud/crud.py](file:///Volumes/Crucial/ExtensionSecurity/automation_enviroment/crud/crud.py) | 357 | Clean SQLAlchemy 2.0 queries |
-| [scanner/service.py](file:///Volumes/Crucial/ExtensionSecurity/automation_enviroment/scanner/service.py) | 295 | Good orchestration layer |
-| [scanner/json_parser.py](file:///Volumes/Crucial/ExtensionSecurity/automation_enviroment/scanner/json_parser.py) | 373 | Needs logging improvements |
-| [models/models.py](file:///Volumes/Crucial/ExtensionSecurity/automation_enviroment/models/models.py) | 514 | Excellent SQLAlchemy 2.0 migration |
-| [schemas/schemas.py](file:///Volumes/Crucial/ExtensionSecurity/automation_enviroment/schemas/schemas.py) | 379 | Comprehensive Pydantic v2 usage |
-| [routers/core.py](file:///Volumes/Crucial/ExtensionSecurity/automation_enviroment/routers/core.py) | 474 | Good, needs exception refinement |
-| [database/session.py](file:///Volumes/Crucial/ExtensionSecurity/automation_enviroment/database/session.py) | 154 | Proper pool configuration |
-| [tests/conftest.py](file:///Volumes/Crucial/ExtensionSecurity/automation_enviroment/tests/conftest.py) | 173 | Good PostgreSQL test isolation |
-| [pyproject.toml](file:///Volumes/Crucial/ExtensionSecurity/automation_enviroment/pyproject.toml) | 184 | Modern Python tooling |
-| [docker-compose.yml](file:///Volumes/Crucial/ExtensionSecurity/automation_enviroment/docker-compose.yml) | 99 | Clean, env-var driven, 4 services |
-| [Makefile](file:///Volumes/Crucial/ExtensionSecurity/automation_enviroment/Makefile) | 219 | Excellent DX commands |
-| [executor/Dockerfile](file:///Volumes/Crucial/ExtensionSecurity/automation_enviroment/executor/Dockerfile) | ~90 | Ubuntu 22.04 + VS Code + Xvfb (added Feb 2026) |
-| [executor/playwright/*](file:///Volumes/Crucial/ExtensionSecurity/automation_enviroment/executor/playwright) | ~1500 | 15+ modular automation helpers (added Feb 2026) |
+| [main.py](main.py) | 155 | Excellent factory pattern |
+| [core/config.py](core/config.py) | 137 | Well-modularized settings |
+| [core/deps.py](core/deps.py) | 153 | Proper DI implementation |
+| [crud/crud.py](crud/crud.py) | 357 | Clean SQLAlchemy 2.0 queries |
+| [scanner/service.py](scanner/service.py) | 295 | Good orchestration layer |
+| [scanner/json_parser.py](scanner/json_parser.py) | 373 | Needs logging improvements |
+| [models/models.py](models/models.py) | 514 | Excellent SQLAlchemy 2.0 migration |
+| [schemas/schemas.py](schemas/schemas.py) | 379 | Comprehensive Pydantic v2 usage |
+| [routers/core.py](routers/core.py) | 474 | Good, needs exception refinement |
+| [database/session.py](database/session.py) | 154 | Proper pool configuration |
+| [tests/conftest.py](tests/conftest.py) | 173 | Good PostgreSQL test isolation |
+| [pyproject.toml](pyproject.toml) | 184 | Modern Python tooling |
+| [docker-compose.yml](docker-compose.yml) | 99 | Clean, env-var driven, 4 services |
+| [Makefile](Makefile) | 219 | Excellent DX commands |
+| [executor/Dockerfile](executor/Dockerfile) | ~90 | Ubuntu 22.04 + VS Code + Xvfb (added Feb 2026) |
+| [executor/playwright/*](executor/playwright) | ~1500 | 15+ modular automation helpers (added Feb 2026) |

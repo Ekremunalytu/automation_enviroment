@@ -40,6 +40,15 @@
    - `scanner/json_parser.py:99`
    - Reduces error observability.
 
+10. Medium: Race conditions in dynamic analysis startup.
+   - VS Code takes variable time to initialize in Xvfb.
+   - Playwright scripts may attempt to connect to CDP before the remote debugging port is open.
+   - Result: Intermittent test/analysis failures.
+
+11. Low: Telemetry log parsing is manual and decoupled from the DB.
+   - `output/` files are produced but not automatically ingested.
+   - Requires manual oversight to link PCAP/FS logs to specific extension runs.
+
 ## Missing Pieces (per Roadmap)
 
 1. Critical planned modules for dynamic analysis are not implemented yet:

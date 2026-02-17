@@ -122,8 +122,46 @@ flowchart TB
 **Reasoning:** As a security analysis tool, partial or corrupted data is unacceptable. We use strict foreign keys, complex Pydantic validation, and synchronous processing to ensure every scanned extension is recorded perfectly.
 
 ### 2. Internal Security Tooling
-**Decision:** No complex authentication or role-based access control (RBAC).
-**Reasoning:** ExTrace is designed to run in an isolated, secure environment (e.g., local Docker, air-gapped network) accessible only by security engineers. Adding auth layers would introduce unnecessary complexity without adding value to the core mission.
+**Decision:** No built-in authentication or role-based access control (RBAC).
+**Reasoning:** ExTrace is designed to run in an isolated, secure environment (e.g., local Docker, air-gapped network) accessible only by security engineers. Security is enforced at the network/infrastructure level rather than the application level.
+
+<br>
+
+---
+
+<br>
+
+## 📡 Telemetry Data Flow (Planned)
+
+> [!NOTE]
+> While raw telemetry is captured to the `output/` directory, the following flow describes the planned integration for automated analysis.
+
+```mermaid
+flowchart LR
+    subgraph ExecutorContainer["🔬 EXECUTOR"]
+        VSC["VS Code"] -->|"Net"| TD["tcpdump"]
+        VSC -->|"FS"| IN["inotifywait"]
+        VSC -->|"Proc"| ST["strace"]
+    end
+
+    subgraph APIContainer["⚡ API"]
+        LogP["Log Processors"]
+    end
+
+    subgraph DB["🐘 DB"]
+        Events[("Analysis Events")]
+    end
+
+    TD -->|".pcap"| LogP
+    IN -->|".log"| LogP
+    ST -->|".log"| LogP
+    LogP -->|"Insert"| Events
+```
+
+1.  **Capture:** Raw events are streamed to the `/results` volume.
+2.  **Ingest:** The API service monitors the output directory for completed analysis runs.
+3.  **Process:** Log processors parse raw output (PCAP, text) into structured behavioral events.
+4.  **Store:** Events are persisted in PostgreSQL, linked to the `analysis_runs` table.
 
 ### 3. Targeted Single-Scan Workflow
 **Decision:** Filesystem scanning is linear and synchronous.
@@ -131,7 +169,7 @@ flowchart TB
 
 ### 4. Xvfb-First Dynamic Analysis
 **Decision:** Use Xvfb (virtual display) for all dynamic analysis — full GUI execution only.
-**Reasoning:** VS Code extensions require a running Extension Host process to activate, which needs a full GUI instance. Xvfb provides this with zero overhead and 100% activation event coverage. This approach ensures all activation events (`onView`, `onWebviewPanel`, `onCommand`, etc.) can be properly triggered.
+**Reasoning:** VS Code extensions require a running Extension Host process to activate, which needs a full GUI instance. Xvfb provides this with low overhead and a single stack for broad activation-event testing. The current Playwright baseline focuses on common/high-value events and is extended incrementally.
 
 <br>
 
@@ -723,11 +761,11 @@ flowchart TB
 |:---------|:------|
 | **Base Image** | `ubuntu:22.04` |
 | **User** | `executor` (non-root) |
-| **Port** | `6080 (noVNC, override with EXECUTOR_VNC_PORT)` |
+| **Port** | `6080 (noVNC, override with EXECUTOR_NOVNC_PORT)` |
 | **Display** | `Xvfb :99 (1920x1080x24)` |
 | **Window Manager** | `openbox` |
 | **VNC** | `x11vnc → noVNC (browser access)` |
-| **VS Code** | Full GUI, `--no-sandbox --disable-gpu` |
+| **VS Code** | Full GUI, `--no-sandbox` + CDP (`--remote-debugging-port`) |
 | **Monitoring** | `tcpdump`, `tshark`, `inotifywait`, `strace` |
 | **Capabilities** | `NET_RAW`, `SYS_PTRACE` |
 | **Resources** | 4GB RAM, 2 CPUs |

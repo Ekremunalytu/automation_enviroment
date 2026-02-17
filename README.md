@@ -54,8 +54,10 @@
 
 ## 📋 Overview
 
-> [!NOTE]
-> ExTrace is a backend API service designed to **scan**, **validate**, and **store** metadata from VS Code extensions. It's built for security researchers and developers who need to analyze extension manifests at scale.
+> [!CAUTION]
+> **Internal Use Only**: ExTrace is designed for isolated security research environments. It does not include built-in authentication or rate-limiting, assuming it runs within a trusted, firewalled network or a local containerized environment.
+
+ExTrace is a backend API service designed to **scan**, **validate**, and **store** metadata from VS Code extensions. It's built for security researchers and developers who need to analyze extension manifests and runtime behavior at scale.
 
 <br>
 
@@ -535,7 +537,7 @@ Key environment variables (see `.env.example` for the full list):
 - [x] REST API endpoints
 
 ### 🚧 Phase 1: Xvfb Dynamic Analysis (In Progress)
-> **Full GUI execution via Xvfb** | Coverage: 100% activation events
+> **Full GUI execution via Xvfb** | Current automated coverage: 12/25 activation events (~48%)
 
 - [x] Docker executor image (Ubuntu 22.04 + Xvfb + VS Code)
 - [x] Playwright UI automation helpers (CDP-based)
@@ -545,13 +547,13 @@ Key environment variables (see `.env.example` for the full list):
 - [x] 10 user behavior simulation scenarios (all passing)
 - [x] Extension Host activation monitoring (log parsing + UI scraping)
 - [x] Multi-language sample files for activation coverage (20+ languages)
-- [ ] Extension install/uninstall automation
-- [ ] Network monitoring (tcpdump/tshark)
-- [ ] Process monitoring
-- [ ] Filesystem monitoring (inotifywait)
-- [ ] Analysis results database schema
-- [ ] Risk scoring engine
-- [ ] Analysis API endpoints
+- [x] Preliminary capture of network (`.pcap`) and filesystem (`inotify`) events
+- [ ] Automated extension install/uninstall lifecycle
+- [ ] Production-ready Network monitoring (tshark integration)
+- [ ] Production-ready Process monitoring (strace integration)
+- [ ] Analysis results database schema & persistence
+- [ ] Risk scoring engine logic
+- [ ] Analysis API endpoints (`/analyze`)
 
 ### 🔮 Phase 2: Persona Simulation & Advanced Analysis (Future)
 > **Prerequisite:** Phase 1 complete

@@ -72,8 +72,8 @@ The project follows a **layered architecture** with a specialized execution engi
 ## Roadmap Status
 
 *   **Phase 0 (Completed):** Metadata ingestion system (DB, CRUD, Parsing, API).
-*   **Phase 1 (Active):** Dynamic Analysis Core. Full GUI VS Code execution in Docker via Xvfb with comprehensive telemetry capture.
-*   **Phase 2 (Future):** Automated GUI interaction (xdotool), persona-based simulation, and risk scoring engine.
+*   **Phase 1 (Active):** Dynamic Analysis Core. Full GUI VS Code execution in Docker via Xvfb. Honeypot environment and Playwright automation are functional. Telemetry capture (network/fs) is in prototype stage.
+*   **Phase 2 (Future):** Automated lifecycle (install/uninstall), persona-based simulation, and risk scoring engine.
 
 ## Development Conventions
 

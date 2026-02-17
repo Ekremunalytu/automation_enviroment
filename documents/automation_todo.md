@@ -9,29 +9,31 @@ This document outlines the phased approach for building VS Code extension dynami
 | Phase | Approach | Coverage | Status |
 |-------|----------|----------|--------|
 | **Phase 0** | Metadata parsing from `package.json` | Metadata only | Done |
-| **Phase 1** | Docker + Xvfb full GUI analysis | 100% activation events | Active |
+| **Phase 1** | Docker + Xvfb full GUI analysis | Current automation: 12/25 events (~48%) | Active |
 | **Phase 2** | Automated GUI interaction + persona simulation | Behavioral analysis | Future |
 
-**Key approach:** VS Code extensions require a running Extension Host process to activate, which needs a full GUI instance. Xvfb provides this with zero overhead compared to a real display, enabling full activation event coverage.
+**Key approach:** VS Code extensions require a running Extension Host process to activate, which needs a full GUI instance. Xvfb provides this with low overhead compared to a real display and enables broad activation-event testing in a single stack.
 
 ---
 
 ## Activation Event Support Matrix
 
-All activation events are supported via Xvfb + full VS Code GUI:
+Current Playwright baseline covers the most common activation events. For the detailed gap analysis and next candidates, see `documents/EXECUTOR_PLAYWRIGHT.md`.
 
-| Activation Event | Supported | Trigger Method | Implementing Module |
+| Activation Event | Automated | Trigger Method | Implementing Module |
 |------------------|-----------|----------------|---------------------|
 | `*` | Yes | VS Code startup | — (automatic) |
 | `onStartupFinished` | Yes | VS Code startup | — (automatic) |
-| `onLanguage:*` | Yes | Open file with matching language | `workspace.py` + `editor.py` |
+| `onLanguage:*` | Yes | Open file with matching language | `workspace.py` + `editor.py` + `automation.py` |
 | `onCommand:*` | Yes | Command Palette via Playwright CDP | `commands.py` |
 | `workspaceContains:*` | Yes | Honeypot workspace at container start | `workspace.py` (via `start.sh`) |
-| `onFileSystem:*` | Yes | FileSystem provider | — |
-| `onView:*` | Yes | Sidebar keyboard shortcuts via CDP | `sidebar.py` |
-| `onWebviewPanel:*` | Yes | Command Palette via CDP | `commands.py` |
-| `onCustomEditor:*` | Yes | Open matching file via CDP | `editor.py` |
-| `onUri` | Yes | URI handler | — |
+| `onView:*` | Yes | Sidebar keyboard shortcuts via CDP | `sidebar.py` + `automation.py` |
+| `onDebug:*` | Yes | Debug lifecycle shortcuts/actions | `debug.py` + `automation.py` |
+| `onDebugResolve:*` | Yes | Launch config + debug start | `debug.py` |
+| `onDebugInitialConfigurations` | Yes | Initial debug configuration flow | `debug.py` |
+| `onConfiguration:*` | Yes | Settings JSON/UI interactions | `settings.py` + `automation.py` |
+| `onTerminalShellIntegration:*` | Yes | Integrated terminal usage | `terminal.py` + `automation.py` |
+| `onAuthenticationRequest:*` | Yes | Built-in auth flow | — (automatic) |
 
 ---
 
@@ -333,7 +335,7 @@ noVNC                      ->  Browser access (port 6080)
 ### Phase 1 Complete When:
 - [ ] Can install/uninstall extensions via CLI inside Xvfb container
 - [x] Can trigger activation events via Playwright UI helpers (commands, editor, sidebar, terminal, panel)
-- [x] Can trigger ALL activation event types (debug, settings, language server, etc.) via 10 automation scenarios
+- [ ] Can trigger ALL activation event types (current baseline: 12/25 via 10 automation scenarios)
 - [x] Extension Host activation monitoring working (log parsing + UI scraping + log reading)
 - [x] Honeypot developer environment auto-deployed at container start
 - [x] VS Code auto-configured (trust disabled, workspace opened, --log trace)

@@ -27,7 +27,7 @@
 ## 📌 Current Focus: Dynamic Analysis & Monitoring
 
 > [!IMPORTANT]
-> Deep parsing (Phase 1) is **complete** — all parsers, schemas, CRUD, and API endpoints are done. The current priority is building **monitoring modules** (network, filesystem, process) and the **analysis results storage** layer to support dynamic extension analysis in the executor container.
+> Static/deep parsing baseline is **complete** — all parsers, schemas, CRUD, and API endpoints are done. The current priority is building **monitoring modules** (network, filesystem, process) and the **analysis results storage** layer to support dynamic extension analysis in the executor container.
 
 <br>
 
@@ -35,7 +35,7 @@
 
 <br>
 
-## ✅ Phase 1: Deep Parsing (Completed)
+## ✅ Static Parsing Baseline (Completed)
 
 ### 1.1 Manifest Parser Enhancement
 
@@ -152,10 +152,10 @@ erDiagram
 
 <br>
 
-## 🚀 Phase 2: Dynamic Analysis & Risk Scoring (Active)
+## 🚀 Dynamic Analysis & Risk Scoring (Active)
 
 > [!IMPORTANT]
-> Phase 1 parsing is complete. This phase covers monitoring, storage, and risk scoring.
+> Parsing baseline is complete. This phase covers monitoring, storage, and risk scoring.
 
 1.  **Risk Scoring Engine**
     *   Pattern-based risk detection
@@ -223,7 +223,7 @@ graph LR
 
 ## ✅ Success Criteria
 
-Phase 1 is complete when:
+This milestone is complete when:
 - ✅ All new database tables created and migrated
 - ✅ Parsers extract all specified data from package.json
 - ✅ API endpoints expose parsed data
@@ -231,5 +231,5 @@ Phase 1 is complete when:
 - ✅ Sample extensions fully parsed and stored
 
 <div align="center">
-  <strong>Phase 1 ✅ Completed (Q1 2026)</strong> · <strong>Phase 2 Target: Q2 2026</strong>
+  <strong>Static Parsing ✅ Completed (Q1 2026)</strong> · <strong>Dynamic Analysis Target: Q2 2026</strong>
 </div>

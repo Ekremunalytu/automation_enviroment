@@ -43,12 +43,12 @@
 
 ## Core Data Flow
 - **Static Analysis:** `POST /createExtension` -> `scanner/service.py` -> `crud/` -> `DB`.
-- **Dynamic Analysis (Planned):** `POST /analyze/{id}` -> `executor/` -> `Docker Container` -> `Telemetry Capture` -> `DB`.
+- **Dynamic Analysis (Planned):** `POST /api/v1/analyze/{extension_id}` -> `executor/` -> `Docker Container` -> `Telemetry Capture` -> `DB`.
 
 ## Roadmap & Current Focus
 - **Phase 0 (Done):** Static analysis of `package.json`.
 - **Phase 1 (Active):** Dynamic analysis via Docker + Xvfb. Full GUI VS Code in container with monitoring (tcpdump, inotifywait, strace). Accessible via noVNC at `localhost:6080`.
-- **Phase 2 (Future):** Automated GUI interaction (xdotool, Puppeteer), persona-based simulation, anti-detection measures.
+- **Phase 2 (Future):** Advanced Playwright-based interaction + persona simulation + anti-detection measures (with xdotool only for native-dialog edge cases).
 - **Reference:** See `documents/automation_todo.md` for detailed tasks.
 
 ## API Endpoints (Core)
@@ -68,7 +68,7 @@
 ## Agent Notes (Important)
 - Unique constraint is `(publisher, name, version)` in the DB.
 - Filesystem scan is exact-match on `package.json` `"name"` only; no fuzzy search.
-- List endpoints are unpaginated; responses can grow large.
+- Most list endpoints are unpaginated and can grow large; `/getExtensionsAllInfo` supports `skip`/`limit`.
 - Pydantic schemas use `extra="ignore"` for unknown fields in package.json.
 - **Dynamic Analysis:** Always check `automation_todo.md` before implementing executor logic.
 
