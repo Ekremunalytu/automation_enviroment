@@ -136,7 +136,8 @@ sequenceDiagram
 │
 ├── 📁 routers/                 # API endpoint tests
 │   ├── 📄 __init__.py
-│   └── 🧪 test_core.py         # All router endpoints
+│   ├── 🧪 test_core.py         # Core extension metadata endpoints
+│   └── 🧪 test_activations.py  # Activation report API endpoints
 │
 ├── 📁 schemas/                 # Pydantic validation tests
 │   ├── 📄 __init__.py
@@ -277,6 +278,7 @@ def sample_extension_data() -> dict:
 |:-------|:----------|:-----------|:---------------|
 | `crud/crud.py` | `test_crud.py` | 4 | create, search, delete, duplicate handling |
 | `routers/core.py` | `test_core.py` | 8 | All endpoints, error handling, mocking |
+| `routers/activations.py` | `test_activations.py` | 8 | List/latest/named reports, path traversal, corrupt JSON |
 | `schemas/schemas.py` | `test_schemas.py` | 2 | Validation, required fields |
 | `scanner/json_parser.py` | `test_json_parser.py` | 4 | File I/O, error handling, mocking |
 | Health endpoints | `test_health.py` | 5 | Root, docs, OpenAPI, list endpoints |
@@ -315,6 +317,24 @@ def sample_extension_data() -> dict:
 | `test_create_extension_endpoint` | Tests `POST /createExtension` with mocked service |
 | `test_create_extension_not_found` | Tests 404 when extension not on disk |
 | `test_create_extension_conflict` | Tests 409 on duplicate extension |
+
+</details>
+
+<details>
+<summary><strong>⚡ Activation Router Tests (test_activations.py)</strong></summary>
+
+<br>
+
+| Test | Description |
+|:-----|:------------|
+| `test_list_activations_empty` | Verifies empty report directory returns `[]` |
+| `test_list_activations_sorted` | Ensures report list is sorted by newest `mtime` |
+| `test_get_latest_activation` | Returns the newest report and injects `_metadata.filename` |
+| `test_get_latest_activation_404` | Verifies `404` when no report exists |
+| `test_get_activation_by_name` | Returns specific report by filename |
+| `test_get_activation_by_name_404` | Verifies `404` for missing report file |
+| `test_get_activation_security_traversal` | Blocks invalid filenames / traversal attempts |
+| `test_read_report_corrupt_json` | Verifies `500` for malformed report JSON |
 
 </details>
 
@@ -371,6 +391,9 @@ pytest tests/crud/test_crud.py
 
 # Run specific test function
 pytest tests/crud/test_crud.py::test_create_extension
+
+# Run activation router tests
+pytest tests/routers/test_activations.py
 
 # Run tests matching pattern
 pytest -k "search"

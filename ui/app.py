@@ -1,16 +1,14 @@
 """
-ExTrace UI — Extension Activation Dashboard
-=============================================
+ExTrace Intelligence Suite
+==========================
 
-Streamlit dashboard for visualizing VS Code extension activation events
-captured during dynamic analysis in the executor container.
-
-Data source: FastAPI activation reports API (/api/activations)
+Advanced Analytics Dashboard for VS Code Extension Security.
 """
 
 import os
 from datetime import datetime
 
+import altair as alt
 import pandas as pd
 import requests
 import streamlit as st
@@ -22,98 +20,224 @@ import streamlit as st
 API_BASE_URL = os.getenv("API_BASE_URL", "http://api:8000")
 API_ACTIVATIONS_URL = f"{API_BASE_URL}/api/activations"
 
-# ---------------------------------------------------------------------------
-# Page Config
-# ---------------------------------------------------------------------------
-
 st.set_page_config(
-    page_title="ExTrace — Activation Dashboard",
-    page_icon="🔮",
+    page_title="ExTrace Intelligence",
+    page_icon="⚡",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
 # ---------------------------------------------------------------------------
-# Custom CSS
+# Advanced Theme & CSS (Cyber-Minimalist Aesthetic)
 # ---------------------------------------------------------------------------
 
 st.markdown(
     """
 <style>
-    /* Global */
+    /* -----------------------------------------------------------------------
+       FONTS & VARIABLES
+    ----------------------------------------------------------------------- */
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@300;400;600;800&family=Outfit:wght@400;600;800&display=swap');
+
+    :root {
+        --bg-color: #050505;
+        --card-bg: rgba(255, 255, 255, 0.03);
+        --card-border: rgba(255, 255, 255, 0.06);
+        --accent-primary: #8b5cf6; /* Violet */
+        --accent-secondary: #06b6d4; /* Cyan */
+        --accent-glow: rgba(139, 92, 246, 0.5);
+        --text-primary: #f4f4f5;
+        --text-secondary: #a1a1aa;
+        --success: #10b981;
+        --warning: #f59e0b;
+        --danger: #ef4444;
+    }
+
+    /* -----------------------------------------------------------------------
+       GLOBAL RESETS
+    ----------------------------------------------------------------------- */
     .stApp {
-        background: linear-gradient(135deg, #0d1117 0%, #161b22 100%);
+        background-color: var(--bg-color);
+        background-image:
+            radial-gradient(circle at 10% 20%, rgba(139, 92, 246, 0.08), transparent 40%),
+            radial-gradient(circle at 90% 80%, rgba(6, 182, 212, 0.06), transparent 40%);
+        font-family: 'Inter', sans-serif;
     }
 
-    /* Metric cards */
-    div[data-testid="stMetric"] {
-        background: linear-gradient(135deg, #21262d 0%, #161b22 100%);
-        border: 1px solid #30363d;
-        border-radius: 12px;
-        padding: 16px 20px;
-        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
-    }
-    div[data-testid="stMetric"] label {
-        color: #8b949e !important;
-        font-size: 0.85rem !important;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-    }
-    div[data-testid="stMetric"] div[data-testid="stMetricValue"] {
-        color: #e6edf3 !important;
-        font-weight: 700 !important;
+    h1, h2, h3, h4 {
+        font-family: 'Outfit', sans-serif;
+        color: var(--text-primary) !important;
+        letter-spacing: -0.02em;
     }
 
-    /* Dataframe styling */
-    .stDataFrame {
-        border-radius: 12px;
-        overflow: hidden;
+    code {
+        font-family: 'JetBrains Mono', monospace !important;
     }
 
-    /* Sidebar */
+    /* -----------------------------------------------------------------------
+       SIDEBAR
+    ----------------------------------------------------------------------- */
     section[data-testid="stSidebar"] {
-        background: #0d1117;
-        border-right: 1px solid #21262d;
+        background-color: rgba(10, 10, 10, 0.8);
+        border-right: 1px solid var(--card-border);
+        backdrop-filter: blur(20px);
     }
 
-    /* Headers */
-    h1, h2, h3 {
-        color: #e6edf3 !important;
+    section[data-testid="stSidebar"] .block-container {
+        padding-top: 2rem;
     }
 
-    /* Status badges */
-    .status-active {
-        background: #238636;
-        color: white;
-        padding: 2px 10px;
-        border-radius: 12px;
+    /* -----------------------------------------------------------------------
+       GLASS CARDS
+    ----------------------------------------------------------------------- */
+    .glass-card {
+        background: linear-gradient(145deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid var(--card-border);
+        border-radius: 16px;
+        padding: 24px;
+        position: relative;
+        overflow: hidden;
+        transition: all 0.3s ease;
+    }
+
+    .glass-card:hover {
+        border-color: rgba(255, 255, 255, 0.12);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        transform: translateY(-2px);
+    }
+
+    .glass-card::before {
+        content: "";
+        position: absolute;
+        top: 0; left: 0; right: 0; height: 1px;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+    }
+
+    .kpi-value {
+        font-family: 'Outfit', sans-serif;
+        font-size: 2.5rem;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        background: linear-gradient(180deg, #fff, #9ca3af);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin: 10px 0;
+    }
+
+    .kpi-label {
+        font-family: 'Inter', sans-serif;
         font-size: 0.8rem;
         font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--text-secondary);
+        display: flex;
+        align-items: center;
+        gap: 8px;
     }
-    .status-inactive {
-        background: #6e7681;
+
+    .kpi-icon {
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 8px;
+        background: rgba(255,255,255,0.05);
+        color: var(--text-primary);
+        font-size: 1.1rem;
+        border: 1px solid rgba(255,255,255,0.05);
+    }
+
+    /* -----------------------------------------------------------------------
+       TABS & COMPONENTS
+    ----------------------------------------------------------------------- */
+    .stTabs [data-baseweb="tab-list"] {
+        background-color: transparent;
+        gap: 20px;
+        border-bottom: 1px solid var(--card-border);
+        padding-bottom: 10px;
+    }
+
+    .stTabs [data-baseweb="tab"] {
+        height: 48px;
+        background-color: transparent;
+        border: none;
+        color: var(--text-secondary);
+        font-family: 'Outfit', sans-serif;
+        font-weight: 600;
+        font-size: 1rem;
+    }
+
+    .stTabs [data-baseweb="tab"]:hover {
         color: white;
-        padding: 2px 10px;
+    }
+
+    .stTabs [data-baseweb="tab"][aria-selected="true"] {
+        color: var(--accent-primary);
+        background-color: transparent;
+        position: relative;
+    }
+
+    .stTabs [data-baseweb="tab"][aria-selected="true"]::after {
+        content: "";
+        position: absolute;
+        bottom: -11px;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: var(--accent-primary);
+        box-shadow: 0 -2px 10px var(--accent-glow);
+    }
+
+    /* Button Styling */
+    .stButton > button {
+        background: rgba(255,255,255,0.05);
+        border: 1px solid var(--card-border);
+        color: var(--text-primary);
+        border-radius: 8px;
+        transition: all 0.2s;
+        font-family: 'Inter', sans-serif;
+        font-weight: 600;
+    }
+
+    .stButton > button:hover {
+        background: rgba(255,255,255,0.1);
+        border-color: var(--text-primary);
+    }
+
+    /* DataFrame Table Styling */
+    div[data-testid="stDataFrame"] {
+        background: transparent;
+        border: 1px solid var(--card-border);
         border-radius: 12px;
-        font-size: 0.8rem;
     }
 
-    /* Info boxes */
-    .ext-card {
-        background: #21262d;
-        border: 1px solid #30363d;
-        border-radius: 10px;
-        padding: 16px;
-        margin-bottom: 8px;
+    /* Header Gradient Text */
+    .gradient-text {
+        background: linear-gradient(135deg, #a78bfa 0%, #22d3ee 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        filter: drop-shadow(0 0 20px rgba(139, 92, 246, 0.3));
     }
 
-    /* Purple accent */
-    .stSelectbox label, .stRadio label {
-        color: #c9d1d9 !important;
+    /* System Status Pulse */
+    .status-dot {
+        height: 8px;
+        width: 8px;
+        background-color: var(--success);
+        border-radius: 50%;
+        display: inline-block;
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+        animation: pulse-green 2s infinite;
     }
 
-    div[data-testid="stMetricDelta"] svg {
-        display: none;
+    @keyframes pulse-green {
+        0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+        70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+        100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
     }
 </style>
 """,
@@ -121,295 +245,501 @@ st.markdown(
 )
 
 # ---------------------------------------------------------------------------
-# API Client
+# Helpers & Data
 # ---------------------------------------------------------------------------
 
 
-@st.cache_data(ttl=10)
+@st.cache_data(ttl=5)
 def fetch_report_list() -> list[dict]:
-    """Fetch available activation reports from the API."""
     try:
-        resp = requests.get(API_ACTIVATIONS_URL, timeout=5)
+        resp = requests.get(API_ACTIVATIONS_URL, timeout=2)
         resp.raise_for_status()
         return resp.json()
-    except requests.RequestException as e:
-        st.error(f"API connection error: {e}")
+    except Exception:
         return []
 
 
-@st.cache_data(ttl=10)
-def fetch_report(filename: str) -> dict | None:
-    """Fetch a specific activation report by filename."""
+@st.cache_data(ttl=15)
+def fetch_report(filename: str) -> dict:
+    url = (
+        f"{API_ACTIVATIONS_URL}/latest"
+        if filename == "latest"
+        else f"{API_ACTIVATIONS_URL}/{filename}"
+    )
     try:
-        resp = requests.get(f"{API_ACTIVATIONS_URL}/{filename}", timeout=10)
+        resp = requests.get(url, timeout=5)
         resp.raise_for_status()
         return resp.json()
-    except requests.RequestException as e:
-        st.error(f"Failed to load report ({filename}): {e}")
-        return None
+    except Exception as e:
+        st.error(f"Error loading report: {e}")
+        return {}
 
 
-@st.cache_data(ttl=10)
-def fetch_latest_report() -> dict | None:
-    """Fetch the latest activation report."""
-    try:
-        resp = requests.get(f"{API_ACTIVATIONS_URL}/latest", timeout=10)
-        resp.raise_for_status()
-        return resp.json()
-    except requests.RequestException as e:
-        st.error(f"Failed to load latest report: {e}")
-        return None
+def process_data(data: dict) -> pd.DataFrame:
+    activated = data.get("activated", [])
+    if not activated:
+        return pd.DataFrame()
+
+    df = pd.DataFrame(activated)
+
+    # Convert timestamps
+    if "timestamp" in df.columns:
+        # Handle both ISO format strings and UNIX timestamps
+        df["dt"] = pd.to_datetime(df["timestamp"], errors="coerce")
+
+        # If all are NaT, it might be that they were UNIX timestamps treated as nanoseconds
+        # But getting UNIX timestamps as "seconds" is common.
+        # If we want to support UNIX seconds, we might need a check.
+        # However, the current data is clearly ISO string.
+        # If we want to be safe for UNIX seconds as well:
+        mask_nat = df["dt"].isna() & df["timestamp"].notna() & (df["timestamp"] != "")
+        if mask_nat.any():
+            # Try parsing as numeric seconds for failed ones
+            numeric_ts = pd.to_numeric(df.loc[mask_nat, "timestamp"], errors="coerce")
+            df.loc[mask_nat, "dt"] = pd.to_datetime(numeric_ts, unit="s")
+
+    # Calculate relative timing
+    if "dt" in df.columns and not df.empty:
+        start_time = df["dt"].min()
+        df["rel_start"] = (df["dt"] - start_time).dt.total_seconds()
+        df["duration_ms"] = df.get("duration_ms", 0).fillna(50)
+        df["rel_end"] = df["rel_start"] + (df["duration_ms"] / 1000)
+
+        # Categorize durations
+        df["performance"] = pd.cut(
+            df["duration_ms"],
+            bins=[-1, 50, 200, 1000, 999999],
+            labels=["⚡ Instant", "✅ Fast", "⚠️ Slow", "🔥 Critical"],
+        )
+
+    return df
 
 
 # ---------------------------------------------------------------------------
-# Sidebar
+# Sidebar Navigation
 # ---------------------------------------------------------------------------
 
 with st.sidebar:
-    st.markdown("## 🔮 ExTrace")
-    st.markdown("**Extension Activation Dashboard**")
-    st.divider()
+    st.markdown(
+        """
+        <div style="margin-bottom: 20px;">
+            <h2 style="margin:0; font-size: 1.4rem;">⚡ ExTrace</h2>
+            <div style="font-size: 0.8rem; color: #a1a1aa; letter-spacing: 0.05em;">INTELLIGENCE SUITE</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
-    # Report selector
     reports = fetch_report_list()
 
     if reports:
-        report_names = [r["filename"] for r in reports]
+        report_map = {r["filename"]: r for r in reports}
+        opts = ["(Latest Report)", *list(report_map.keys())]
+        selection = st.selectbox("Select Analysis Session", opts)
 
-        selected_report = st.selectbox(
-            "📄 Select Report",
-            options=["(Latest Report)", *report_names],
-            index=0,
-        )
+        if selection == "(Latest Report)":
+            target = "latest"
+            meta = reports[0]
+        else:
+            target = selection
+            meta = report_map[selection]
 
-        st.divider()
-        st.markdown("### 📂 Available Reports")
-        for r in reports:
-            size_kb = r["size_bytes"] / 1024
-            mod_time = datetime.fromtimestamp(r["modified"]).strftime("%Y-%m-%d %H:%M")
-            st.markdown(
-                f"- **{r['filename']}**  \n" f"  `{size_kb:.1f} KB` · `{mod_time}`"
-            )
-    else:
-        selected_report = None
-        st.warning("No reports found yet.")
+        # Metadata Card
         st.markdown(
-            "Run automation in the executor container to generate reports:\n"
-            "```bash\n"
-            "make exec-run\n"
-            "```"
+            f"""
+            <div style="
+                background: rgba(255,255,255,0.03);
+                border: 1px solid rgba(255,255,255,0.06);
+                border-radius: 12px;
+                padding: 16px;
+                margin-top: 16px;
+            ">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                    <span style="color: #a1a1aa; font-size: 0.8rem;">Date</span>
+                    <span style="color: #fff; font-weight: 600; font-size: 0.8rem;">
+                        {datetime.fromtimestamp(meta.get("modified", 0)).strftime("%Y-%m-%d %H:%M")}
+                    </span>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                    <span style="color: #a1a1aa; font-size: 0.8rem;">Size</span>
+                    <span style="color: #fff; font-weight: 600; font-size: 0.8rem;">
+                        {meta.get("size_bytes", 0) / 1024:.1f} KB
+                    </span>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
         )
 
-    st.divider()
-    if st.button("🔄 Refresh", use_container_width=True):
+    else:
+        st.warning("No reports found.")
+        target = None
+
+    st.markdown("### View Options")
+    chart_theme = st.select_slider(
+        "Color Palette", options=["turbo", "plasma", "inferno", "magma"], value="plasma"
+    )
+
+    st.markdown("---")
+    if st.button("🔄 System Refresh", use_container_width=True):
         st.cache_data.clear()
         st.rerun()
 
-# ---------------------------------------------------------------------------
-# Main Content
-# ---------------------------------------------------------------------------
-
-st.markdown("# 🔮 ExTrace — Activation Dashboard")
-st.markdown("Visualize Extension Host process activation events")
-
-if not reports:
-    st.info(
-        "📭 No activation reports found. "
-        "Run automation with `--monitor` flag in the executor container "
-        "to generate reports."
+    st.markdown(
+        """
+        <div style="position: fixed; bottom: 20px; font-size: 0.7rem; color: #52525b;">
+            v2.1.0 • SYSTEM ONLINE
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
-    st.code(
-        "docker exec -e PYTHONUNBUFFERED=1 automation_executor "
-        "python3 /home/executor/playwright/entrypoint.py --monitor",
-        language="bash",
+
+# ---------------------------------------------------------------------------
+# Main Logic
+# ---------------------------------------------------------------------------
+
+if not target:
+    st.markdown(
+        "<div style='text-align: center; margin-top: 20vh; color: #52525b;'>Waiting for analysis data...</div>",
+        unsafe_allow_html=True,
     )
     st.stop()
 
-# Load report data
-if selected_report == "(Latest Report)":
-    report = fetch_latest_report()
-else:
-    report = fetch_report(selected_report) if selected_report else None
-
-if not report:
-    st.error("Failed to load report.")
+raw_data = fetch_report(target)
+if not raw_data:
+    st.error("Failed to load report data.")
     st.stop()
 
-summary = report.get("summary", {})
-activated = report.get("activated", [])
-running = report.get("running_extensions", [])
-metadata = report.get("_metadata", {})
+df = process_data(raw_data)
+summary = raw_data.get("summary", {})
+running = raw_data.get("running_extensions", [])
 
 # ---------------------------------------------------------------------------
-# Summary Metrics
+# Dashboard Header
 # ---------------------------------------------------------------------------
 
-st.markdown("---")
-st.markdown("### 📊 Summary")
+col_header, col_status = st.columns([3, 1])
 
-col1, col2, col3, col4 = st.columns(4)
-
-with col1:
-    st.metric(
-        label="Total Activations",
-        value=summary.get("total_activated", len(activated)),
+with col_header:
+    st.markdown(
+        f"""
+        <h1 style="font-size: 2.5rem; margin-bottom: 0;">
+            Analysis <span class="gradient-text">Dashboard</span>
+        </h1>
+        <p style="color: #a1a1aa; margin-top: 4px;">
+            Target: <code style="background:transparent; color: #8b5cf6;">{raw_data.get('_metadata', {}).get('filename', 'Unknown')}</code>
+        </p>
+        """,
+        unsafe_allow_html=True,
     )
 
-with col2:
-    st.metric(
-        label="Unique Extensions",
-        value=summary.get("unique_extensions", 0),
+with col_status:
+    st.markdown(
+        """
+        <div style="
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            height: 100%;
+            gap: 10px;
+        ">
+            <span style="color: #10b981; font-weight: 600; font-size: 0.9rem; letter-spacing: 0.05em;">LIVE MONITORING</span>
+            <div class="status-dot"></div>
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
 
-with col3:
-    st.metric(
-        label="Running Extensions",
-        value=summary.get("running_extensions", len(running)),
+st.markdown("<div style='height: 32px'></div>", unsafe_allow_html=True)
+
+# ---------------------------------------------------------------------------
+# KPI Cards Grid
+# ---------------------------------------------------------------------------
+
+k1, k2, k3, k4 = st.columns(4)
+
+
+def metric_card(icon, label, value, color):
+    return f"""
+    <div class="glass-card">
+        <div class="kpi-label">
+            <div class="kpi-icon" style="color: {color}; border-color: {color}20; background: {color}10;">{icon}</div>
+            {label}
+        </div>
+        <div class="kpi-value">{value}</div>
+    </div>
+    """
+
+
+with k1:
+    st.markdown(
+        metric_card("⚡", "Total Events", f"{len(df):,}", "#8b5cf6"),
+        unsafe_allow_html=True,
+    )
+with k2:
+    st.markdown(
+        metric_card(
+            "📦", "Extensions", str(summary.get("unique_extensions", 0)), "#06b6d4"
+        ),
+        unsafe_allow_html=True,
+    )
+with k3:
+    st.markdown(
+        metric_card("🚀", "Active Processes", str(len(running)), "#10b981"),
+        unsafe_allow_html=True,
+    )
+with k4:
+    dur = summary.get("monitoring_duration_s", 0)
+    st.markdown(
+        metric_card("⏱️", "Duration", f"{dur:.1f}s", "#f59e0b"), unsafe_allow_html=True
     )
 
-with col4:
-    duration = summary.get("monitoring_duration_s", 0)
-    if duration:
-        mins = int(duration // 60)
-        secs = int(duration % 60)
-        st.metric(
-            label="Monitoring Duration",
-            value=f"{mins}m {secs}s",
+st.markdown("<div style='height: 48px'></div>", unsafe_allow_html=True)
+
+# ---------------------------------------------------------------------------
+# Deep Dive Analysis
+# ---------------------------------------------------------------------------
+
+tab_viz, tab_perf, tab_grid, tab_raw = st.tabs(
+    [
+        "📊 Visual Intelligence",
+        "⚡ Performance Matrix",
+        "💾 Data Grid",
+        "🔍 Raw Inspector",
+    ]
+)
+
+# --- Tab 1: Visual Intelligence ---
+with tab_viz:
+    if not df.empty:
+        c1, c2 = st.columns([2, 1])
+
+        with c1:
+            st.markdown("### Activity Pulse")
+
+            # Interactive Brush
+            brush = alt.selection_interval(encodings=["x"])
+
+            # Main Scatter Plot
+            chart = (
+                alt.Chart(df)
+                .mark_circle(size=80, opacity=0.8)
+                .encode(
+                    x=alt.X(
+                        "rel_start",
+                        title="Timeline (seconds)",
+                        axis=alt.Axis(gridColor="#333"),
+                    ),
+                    y=alt.Y(
+                        "extension_id",
+                        title=None,
+                        axis=alt.Axis(labelLimit=200, gridColor="#333"),
+                    ),
+                    color=alt.Color(
+                        "activation_event",
+                        scale=alt.Scale(scheme=chart_theme),
+                        legend=None,
+                    ),
+                    size=alt.Size(
+                        "duration_ms", scale=alt.Scale(range=[50, 500]), legend=None
+                    ),
+                    tooltip=[
+                        "extension_id",
+                        "activation_event",
+                        "duration_ms",
+                        "rel_start",
+                    ],
+                )
+                .properties(height=400, width="container")
+                .add_params(brush)
+            )
+
+            # Density Area Chart
+            hist = (
+                alt.Chart(df)
+                .mark_area(
+                    interpolate="monotone",
+                    fillOpacity=0.5,
+                    line=dict(color="#06b6d4"),
+                    color=alt.Gradient(
+                        gradient="linear",
+                        stops=[
+                            alt.GradientStop(color="#06b6d4", offset=0),
+                            alt.GradientStop(color="rgba(6, 182, 212, 0.1)", offset=1),
+                        ],
+                        x1=1,
+                        x2=1,
+                        y1=1,
+                        y2=0,
+                    ),
+                )
+                .encode(
+                    x=alt.X(
+                        "rel_start", bin=alt.Bin(maxbins=50), title=None, axis=None
+                    ),
+                    y=alt.Y("count()", title=None, axis=None),
+                )
+                .properties(height=60, width="container")
+                .transform_filter(brush)
+            )
+
+            st.altair_chart(chart & hist, use_container_width=True, theme="streamlit")
+
+        with c2:
+            st.markdown("### Distribution")
+
+            pie = (
+                alt.Chart(df)
+                .mark_arc(
+                    innerRadius=80, cornerRadius=6, stroke="#050505", strokeWidth=2
+                )
+                .encode(
+                    theta=alt.Theta("count()"),
+                    color=alt.Color(
+                        "activation_event",
+                        scale=alt.Scale(scheme=chart_theme),
+                        legend=alt.Legend(
+                            orient="bottom", columns=1, labelColor="#a1a1aa"
+                        ),
+                    ),
+                    order=alt.Order("count()", sort="descending"),
+                    tooltip=["activation_event", "count()"],
+                )
+                .properties(height=480)
+            )
+
+            st.altair_chart(pie, use_container_width=True, theme="streamlit")
+    else:
+        st.info("No activation data to visualize.")
+
+# --- Tab 2: Performance Matrix ---
+with tab_perf:
+    p1, p2 = st.columns(2)
+
+    with p1:
+        st.markdown("### Latency Distribution")
+        if not df.empty:
+            box = (
+                alt.Chart(df)
+                .mark_boxplot(extent="min-max", color="#8b5cf6", ticks=True)
+                .encode(
+                    x=alt.X(
+                        "duration_ms",
+                        scale=alt.Scale(type="log"),
+                        title="Duration (ms, log scale)",
+                        axis=alt.Axis(gridColor="#333"),
+                    ),
+                    y=alt.Y(
+                        "activation_event", title=None, axis=alt.Axis(labelLimit=200)
+                    ),
+                    color=alt.Color(
+                        "performance", scale=alt.Scale(scheme="spectral"), legend=None
+                    ),
+                    tooltip=["activation_event", "duration_ms"],
+                )
+                .properties(height=400)
+            )
+            st.altair_chart(box, use_container_width=True, theme="streamlit")
+
+    with p2:
+        st.markdown("### Startup Overheads")
+        if running:
+            df_run = pd.DataFrame(running)
+            if "activation_time_ms" in df_run.columns:
+                df_run = df_run.sort_values("activation_time_ms", ascending=False).head(
+                    15
+                )
+
+                bar = (
+                    alt.Chart(df_run)
+                    .mark_bar(cornerRadiusEnd=4, color="#f43f5e")
+                    .encode(
+                        x=alt.X(
+                            "activation_time_ms",
+                            title="Load Time (ms)",
+                            axis=alt.Axis(gridColor="#333"),
+                        ),
+                        y=alt.Y(
+                            "extension_id",
+                            sort="-x",
+                            title=None,
+                            axis=alt.Axis(labelLimit=200),
+                        ),
+                        color=alt.Color(
+                            "activation_time_ms",
+                            scale=alt.Scale(scheme="magma"),
+                            legend=None,
+                        ),
+                        tooltip=["extension_id", "activation_time_ms"],
+                    )
+                    .properties(height=400)
+                )
+                st.altair_chart(bar, use_container_width=True, theme="streamlit")
+        else:
+            st.warning("No running extension metrics found.")
+
+# --- Tab 3: Data Grid ---
+with tab_grid:
+    if not df.empty:
+        c_filter, c_export = st.columns([4, 1])
+
+        with c_filter:
+            search_txt = st.text_input(
+                "Search",
+                placeholder="Filter by ID, Event, or Source...",
+                label_visibility="collapsed",
+            )
+
+        df_view = df.copy()
+        if search_txt:
+            mask = df_view["extension_id"].str.contains(
+                search_txt, case=False, na=False
+            ) | df_view["activation_event"].str.contains(
+                search_txt, case=False, na=False
+            )
+            df_view = df_view[mask]
+
+        with c_export:
+            st.download_button(
+                "📥 Export CSV",
+                df_view.to_csv(index=False).encode("utf-8"),
+                "extrace_analysis.csv",
+                "text/csv",
+                key="download-csv",
+                use_container_width=True,
+            )
+
+        st.dataframe(
+            df_view[
+                [
+                    "dt",
+                    "extension_id",
+                    "activation_event",
+                    "duration_ms",
+                    "performance",
+                    "source",
+                ]
+            ],
+            column_config={
+                "dt": st.column_config.DatetimeColumn(
+                    "Timestamp", format="HH:mm:ss.SS"
+                ),
+                "extension_id": st.column_config.TextColumn("Extension", width="large"),
+                "activation_event": st.column_config.TextColumn("Event Type"),
+                "duration_ms": st.column_config.ProgressColumn(
+                    "Duration", format="%d ms", min_value=0, max_value=1000
+                ),
+                "performance": st.column_config.TextColumn("Status"),
+                "source": st.column_config.TextColumn("Source"),
+            },
+            use_container_width=True,
+            height=600,
+            hide_index=True,
         )
     else:
-        st.metric(label="Monitoring Duration", value="—")
+        st.info("No table data available.")
 
-# Report file info
-if metadata.get("filename"):
-    st.caption(f"📄 Report: `{metadata['filename']}`")
-
-# ---------------------------------------------------------------------------
-# Activated Extensions
-# ---------------------------------------------------------------------------
-
-st.markdown("---")
-st.markdown("### ⚡ Activated Extensions")
-
-if activated:
-    df_activated = pd.DataFrame(activated)
-
-    # Column renaming for display
-    column_map = {
-        "extension_id": "Extension ID",
-        "activation_event": "Activation Event",
-        "timestamp": "Timestamp",
-        "duration_ms": "Duration (ms)",
-        "source": "Source",
-    }
-    display_cols = [c for c in column_map if c in df_activated.columns]
-    df_display = df_activated[display_cols].rename(columns=column_map)
-
-    st.dataframe(
-        df_display,
-        use_container_width=True,
-        hide_index=True,
-        column_config={
-            "Extension ID": st.column_config.TextColumn("Extension ID", width="large"),
-            "Activation Event": st.column_config.TextColumn(
-                "Activation Event", width="medium"
-            ),
-            "Duration (ms)": st.column_config.NumberColumn(
-                "Duration (ms)", format="%d"
-            ),
-            "Source": st.column_config.TextColumn("Source", width="small"),
-        },
-    )
-
-    # Activation event distribution
-    st.markdown("#### 🎯 Activation Event Distribution")
-    if "activation_event" in df_activated.columns:
-        event_counts = df_activated["activation_event"].value_counts().reset_index()
-        event_counts.columns = ["Activation Event", "Count"]
-        st.bar_chart(
-            event_counts.set_index("Activation Event"),
-            color="#a855f7",
-        )
-
-    # Source distribution
-    if "source" in df_activated.columns:
-        col_src1, col_src2 = st.columns(2)
-        with col_src1:
-            st.markdown("#### 📡 Source Distribution")
-            source_counts = df_activated["source"].value_counts().reset_index()
-            source_counts.columns = ["Source", "Count"]
-            st.dataframe(source_counts, use_container_width=True, hide_index=True)
-
-        with col_src2:
-            st.markdown("#### 🆔 Extension ID List")
-            ext_ids = sorted(df_activated["extension_id"].unique().tolist())
-            for ext_id in ext_ids:
-                st.markdown(f"- `{ext_id}`")
-else:
-    st.info("No activated extensions found in this report.")
-
-# ---------------------------------------------------------------------------
-# Running Extensions
-# ---------------------------------------------------------------------------
-
-st.markdown("---")
-st.markdown("### 🏃 Running Extensions")
-
-if running:
-    df_running = pd.DataFrame(running)
-
-    column_map_running = {
-        "extension_id": "Extension ID",
-        "name": "Name",
-        "activation_time_ms": "Activation Time (ms)",
-        "status": "Status",
-    }
-    display_cols_running = [c for c in column_map_running if c in df_running.columns]
-    df_running_display = df_running[display_cols_running].rename(
-        columns=column_map_running
-    )
-
-    st.dataframe(
-        df_running_display,
-        use_container_width=True,
-        hide_index=True,
-        column_config={
-            "Extension ID": st.column_config.TextColumn("Extension ID", width="large"),
-            "Name": st.column_config.TextColumn("Name", width="medium"),
-            "Activation Time (ms)": st.column_config.NumberColumn(
-                "Activation Time (ms)", format="%d ms"
-            ),
-        },
-    )
-
-    # Performance chart
-    if "activation_time_ms" in df_running.columns:
-        st.markdown("#### ⏱️ Activation Times")
-        perf_data = df_running[["extension_id", "activation_time_ms"]].copy()
-        perf_data = perf_data.dropna(subset=["activation_time_ms"])
-        perf_data = perf_data.sort_values("activation_time_ms", ascending=False)
-        if not perf_data.empty:
-            st.bar_chart(
-                perf_data.set_index("extension_id"),
-                color="#22c55e",
-            )
-else:
-    st.info("No running extension data found in this report.")
-
-# ---------------------------------------------------------------------------
-# Extension IDs (from summary)
-# ---------------------------------------------------------------------------
-
-extension_ids = summary.get("extension_ids", [])
-if extension_ids:
-    st.markdown("---")
-    with st.expander(f"📦 All Extension IDs ({len(extension_ids)})", expanded=False):
-        for ext_id in sorted(extension_ids):
-            st.code(ext_id, language=None)
-
-# ---------------------------------------------------------------------------
-# Raw JSON
-# ---------------------------------------------------------------------------
-
-st.markdown("---")
-with st.expander("🔍 Raw JSON Data", expanded=False):
-    st.json(report)
+# --- Tab 4: Raw Inspector ---
+with tab_raw:
+    st.markdown("### JSON Structure")
+    st.json(raw_data, expanded=False)

@@ -18,7 +18,7 @@
 
 ---
 
-`Last Updated: 2026-02-16` • `Version: 1.0.0` • `Status: Active`
+`Last Updated: 2026-02-19` • `Version: 1.0.0` • `Status: Active`
 
 ---
 
@@ -57,7 +57,7 @@
 > [!CAUTION]
 > **Internal Use Only**: ExTrace is designed for isolated security research environments. It does not include built-in authentication or rate-limiting, assuming it runs within a trusted, firewalled network or a local containerized environment.
 
-ExTrace is a backend API service designed to **scan**, **validate**, and **store** metadata from VS Code extensions. It's built for security researchers and developers who need to analyze extension manifests and runtime behavior at scale.
+ExTrace is a security analysis platform with a FastAPI backend and a Streamlit dashboard for activation intelligence. It is designed to **scan**, **validate**, and **store** VS Code extension metadata, then visualize dynamic activation behavior for research workflows.
 
 <br>
 
@@ -67,6 +67,7 @@ ExTrace is a backend API service designed to **scan**, **validate**, and **store
 2.  **✅ Validate**: Enforces strict Pydantic schemas on manifest data.
 3.  **💾 Store**: Persists extension metadata in PostgreSQL with JSONB support.
 4.  **📡 Serve**: Provides a high-performance RESTful API for querying data.
+5.  **🖥️ Visualize**: Provides an activation intelligence dashboard backed by `/api/activations`.
 
 <br>
 
@@ -87,6 +88,7 @@ ExTrace is a backend API service designed to **scan**, **validate**, and **store
 | 🔒 **Security First** | Non-root containers, input validation, SQL injection prevention |
 | 📊 **Optimized Queries** | Indexed fields, partial column loading for performance |
 | 🤖 **Automation-Ready** | Foundations for dynamic analysis and interaction workflows |
+| 🖥️ **Intelligence Dashboard** | Streamlit UI for activation timelines, latency analysis, and raw report inspection |
 
 <br>
 
@@ -231,11 +233,23 @@ docker-compose ps
 docker-compose exec api alembic upgrade head
 ```
 
-### 5. Access the API
+### 5. Access Services
 
 - **🌐 API Root:** `http://localhost:8000`
 - **📄 Swagger UI:** `http://localhost:8000/docs`
 - **📚 ReDoc:** `http://localhost:8000/redoc`
+- **🖥️ Streamlit Dashboard:** `http://localhost:3000`
+- **🌐 noVNC (Executor GUI):** `http://localhost:6080/vnc.html`
+
+### 6. Generate Activation Reports (Optional)
+
+```bash
+# Run executor automation and generate activation report JSON in output/
+make exec-run
+
+# Start only the Streamlit UI service (if needed)
+make ui-up
+```
 
 <br>
 
@@ -263,6 +277,9 @@ docker-compose exec api alembic upgrade head
 | `GET` | `/getExtensionCapabilities` | Get capability declarations |
 | `GET` | `/getExtensionContributesAll` | Get contributes container |
 | `GET` | `/getExtensionContributesCommands` | Get contributes commands |
+| `GET` | `/api/activations` | List activation report files (newest first) |
+| `GET` | `/api/activations/latest` | Get the most recent activation report |
+| `GET` | `/api/activations/{name}` | Get a specific activation report by filename |
 
 <br>
 
@@ -278,6 +295,7 @@ docker-compose exec api alembic upgrade head
 | `/getExtensionContributesAll` | `name` (required), `publisher` (optional), `version` (optional) |
 | `/getExtensionContributesCommands` | `name` (required), `publisher` (optional), `version` (optional) |
 | `/getExtensionsAllInfo` | `skip` (optional), `limit` (optional) |
+| `/api/activations/{name}` | `name` (required path parameter, filename only) |
 
 <br>
 
@@ -327,6 +345,16 @@ DELETE /deleteExtension?name=python
 > `/createExtension` performs an exact match on the `package.json` `"name"` field
 > under `PROJECT_EXTENSION_DIR`. The folder name is not used for matching.
 
+> [!NOTE]
+> `/api/activations/{name}` rejects traversal patterns (`..`, `/`, `\`) and returns `400` for invalid filenames.
+
+### 📊 Activation Dashboard Data Source
+
+- The UI reads report metadata from `GET /api/activations`.
+- The "latest session" view reads from `GET /api/activations/latest`.
+- Session-specific view reads from `GET /api/activations/{name}`.
+- Latest and named report responses include `_metadata.filename`.
+
 <br>
 
 ---
@@ -364,12 +392,22 @@ extrace/
 │
 ├── routers/                # 🌐 API routes
 │   ├── core.py             # Main endpoints
+│   ├── activations.py      # Activation reports endpoints
 │   ├── Dockerfile          # API container
 │   └── requirements.txt    # Python dependencies
 │
 ├── scanner/                # ⚙️ Business logic
 │   ├── service.py          # Business logic
 │   └── json_parser.py      # Filesystem operations
+│
+├── executor/               # 🎭 Dynamic analysis runtime (Docker + Xvfb)
+│   ├── Dockerfile          # Executor container image
+│   └── start.sh            # Xvfb/openbox/x11vnc/noVNC startup
+│
+├── ui/                     # 🖥️ Streamlit intelligence dashboard
+│   ├── app.py              # Dashboard application
+│   ├── Dockerfile          # UI container
+│   └── .streamlit/config.toml
 │
 ├── scripts/                # 🛠️ Utility scripts
 │   └── seed_test.py        # Database seeding
@@ -378,8 +416,10 @@ extrace/
 │   ├── env.py              # Migration configuration
 │   └── versions/           # Migration files
 │
-└── extensions/             # 📦 VS Code extensions directory
-    └── ...
+├── output/                 # 📄 Activation report JSON artifacts
+├── extensions/             # 📦 VS Code extensions directory
+│   └── ...
+└── tests/                  # 🧪 Pytest suite
 ```
 
 <br>
@@ -485,10 +525,16 @@ pytest --cov=. --cov-report=html
 make check-all
 
 # Start docker services
-make docker-up
+make up
 
 # Stop docker services
-make docker-down
+make down
+
+# Run dynamic analysis and generate activation report
+make exec-run
+
+# Start dashboard service
+make ui-up
 
 # Run migrations
 make migrate
@@ -508,7 +554,9 @@ Key environment variables (see `.env.example` for the full list):
 |:------:|:----------|:--------|
 | `POSTGRES_` | `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_DB`, `POSTGRES_TEST_PORT` | Database connectivity (dev + test) |
 | `API_` | `API_HOST`, `API_PORT`, `API_WORKERS`, `API_DEBUG` | API server configuration |
+| `EXECUTOR_` | `EXECUTOR_DISPLAY`, `EXECUTOR_NOVNC_PORT`, `EXECUTOR_OUTPUT_HOST_PATH` | Executor runtime and output/report paths |
 | `PROJECT_` | `PROJECT_NAME`, `PROJECT_ENV`, `PROJECT_VERSION`, `PROJECT_EXTENSION_DIR` | Project metadata and scan directory |
+| `UI_` | `UI_PORT` | Streamlit dashboard service port |
 | (optional) | `DATABASE_URL` | Overrides `POSTGRES_*` when set (Docker/CI) |
 
 <br>
@@ -519,6 +567,8 @@ Key environment variables (see `.env.example` for the full list):
 - [Testing Guide](documents/TESTING.md)
 - [Development Priorities](documents/DEVELOPMENT_PRIORITIES.md)
 - [Architecture Audit](documents/ARCHITECTURE_AUDIT.md)
+- [Dynamic Analysis TODO](documents/automation_todo.md)
+- [Executor Playwright Guide](documents/EXECUTOR_PLAYWRIGHT.md)
 
 <br>
 
@@ -564,8 +614,8 @@ Key environment variables (see `.env.example` for the full list):
 - [ ] Behavioral realism (human-like interactions)
 - [ ] WebView interaction
 
-### 📊 Phase 3: Reporting & Visualization (Future)
-- [ ] Web Dashboard
+### 📊 Phase 3: Reporting & Visualization (Started)
+- [x] Activation Intelligence Dashboard (Streamlit)
 - [ ] Risk report generation
 - [ ] Domain relationship graphs
 - [ ] Action → consequence timeline

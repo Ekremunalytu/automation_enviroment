@@ -133,7 +133,7 @@ automation_enviroment/
 - [ ] Automatic download from Marketplace
 - [ ] Signature-based malware detection
 - [ ] YARA rules integration
-- [ ] Web UI dashboard
+- [x] Activation dashboard (Streamlit)
 - [ ] CVE database integration
 
 ---
