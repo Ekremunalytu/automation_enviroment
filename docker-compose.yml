@@ -77,6 +77,20 @@ services:
     mem_limit: ${EXECUTOR_MEM_LIMIT:-4g}
     cpus: ${EXECUTOR_CPUS:-2.0}
 
+  ui:
+    build:
+      context: .
+      dockerfile: ui/Dockerfile
+    container_name: automation_ui
+    restart: unless-stopped
+    ports:
+      - "${UI_PORT:-3000}:${UI_PORT:-3000}"
+    environment:
+      UI_PORT: ${UI_PORT:-3000}
+      API_BASE_URL: http://api:${API_PORT:-8000}
+    depends_on:
+      - api
+
   postgres_test:
     image: postgres:16-alpine
     container_name: automation_db_test

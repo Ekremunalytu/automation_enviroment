@@ -53,6 +53,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 
 from core.config import settings
+from routers.activations import router as activations_router
 from routers.core import router as core_router
 
 
@@ -122,6 +123,7 @@ def create_app() -> FastAPI:
     # Prefix and tags can be added here for organization:
     # application.include_router(core_router, prefix="/api/v1", tags=["extensions"])
     application.include_router(core_router)
+    application.include_router(activations_router)
 
     return application
 

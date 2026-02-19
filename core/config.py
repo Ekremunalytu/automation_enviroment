@@ -41,6 +41,7 @@ class ProjectSettings(BaseSettings):
     ENV: str = "dev"
     STATUS: str = "Active"
     EXTENSION_DIR: str = "extensions"
+    OUTPUT_DIR: str = "output"
 
     model_config = SettingsConfigDict(
         env_file=".env",

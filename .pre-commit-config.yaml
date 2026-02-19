@@ -52,7 +52,7 @@ repos:
           - sqlalchemy>=2.0.0
           - fastapi>=0.100.0
         args: [--config-file=pyproject.toml]
-        exclude: ^(extensions/|alembic/versions/|config/)
+        exclude: ^(extensions/|alembic/versions/|config/|ui/)
 
 
   # ============================================================

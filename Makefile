@@ -1,10 +1,8 @@
 # =============================================================================
 # ExTrace Makefile
-# Centralized development commands for quality control
 # Usage: make <target>
 # =============================================================================
 
-# Virtual environment path - all tools run from here
 VENV := .venv/bin
 TEST_DB_WAIT_SECONDS ?= 3
 
@@ -13,45 +11,69 @@ include .env
 export
 endif
 
-.PHONY: help install install-dev install-hooks lint lint-check format typecheck test test-cov test-local test-ci check check-all all clean docker-up docker-down migrate venv-check executor-build executor-up executor-down executor-shell executor-test executor-playwright
+.PHONY: help install install-dev install-hooks lint lint-check format typecheck \
+        security test test-cov test-local test-ci check check-all all clean \
+        dev run build rebuild up down logs ps restart status \
+        migrate migrate-create venv-check \
+        exec-build exec-up exec-down exec-shell exec-test exec-run \
+        ui-build ui-up ui-down
 
-# Default target
+# =============================================================================
+# HELP
+# =============================================================================
+
 help:
 	@echo "╔═══════════════════════════════════════════════════════════════════╗"
 	@echo "║                    🔮 ExTrace Development Commands                 ║"
 	@echo "╠═══════════════════════════════════════════════════════════════════╣"
+	@echo "║                         📦 Setup                                   ║"
 	@echo "║  install        │ Install production dependencies                 ║"
-	@echo "║  install-dev    │ Install development dependencies                ║"
+	@echo "║  install-dev    │ Install dev dependencies                        ║"
 	@echo "║  install-hooks  │ Install pre-commit hooks                        ║"
 	@echo "╠═══════════════════════════════════════════════════════════════════╣"
-	@echo "║  lint           │ Run Ruff linter                                 ║"
-	@echo "║  format         │ Format code with Ruff                           ║"
-	@echo "║  typecheck      │ Run mypy type checker                           ║"
-	@echo "║  security       │ Run Bandit security check                       ║"
+	@echo "║                       🔍 Code Quality                              ║"
+	@echo "║  lint           │ Ruff linter (auto-fix)                          ║"
+	@echo "║  format         │ Format code                                     ║"
+	@echo "║  typecheck      │ mypy type checker                               ║"
+	@echo "║  security       │ Bandit security check                           ║"
 	@echo "║  test           │ Run pytest                                      ║"
-	@echo "║  test-cov       │ Run pytest with coverage                        ║"
-	@echo "║  check          │ Run all checks (lint, type, test)               ║"
-	@echo "║  check-all      │ Run all checks + security                        ║"
-	@echo "║  all            │ Format, lint, type, test (one command)          ║"
+	@echo "║  test-cov       │ pytest + coverage                               ║"
+	@echo "║  check          │ lint + type + test                              ║"
+	@echo "║  all            │ format + lint + type + test                     ║"
 	@echo "╠═══════════════════════════════════════════════════════════════════╣"
-	@echo "║  venv-check     │ Verify virtual environment exists               ║"
-	@echo "║  docker-build   │ Build Docker images                             ║"
-	@echo "║  docker-rebuild │ Rebuild Docker images (no cache)                ║"
-	@echo "║  docker-up      │ Start Docker containers                         ║"
-	@echo "║  docker-down    │ Stop Docker containers                          ║"
+	@echo "║                       🐳 Docker (Short)                            ║"
+	@echo "║  build          │ Build all images                                ║"
+	@echo "║  rebuild        │ Rebuild all (no cache)                          ║"
+	@echo "║  up             │ Start all containers                            ║"
+	@echo "║  down           │ Stop all containers                             ║"
+	@echo "║  restart        │ Rebuild + restart all                           ║"
+	@echo "║  logs           │ Tail container logs                             ║"
+	@echo "║  ps             │ Show container status                           ║"
+	@echo "║  status         │ ps alias                                        ║"
+	@echo "╠═══════════════════════════════════════════════════════════════════╣"
+	@echo "║                     🔬 Executor                                    ║"
+	@echo "║  exec-build     │ Build executor image                            ║"
+	@echo "║  exec-up        │ Start executor                                  ║"
+	@echo "║  exec-down      │ Stop executor                                   ║"
+	@echo "║  exec-shell     │ Shell into executor                             ║"
+	@echo "║  exec-test      │ Verify executor tools                           ║"
+	@echo "║  exec-run       │ Run Playwright automation                       ║"
+	@echo "╠═══════════════════════════════════════════════════════════════════╣"
+	@echo "║                     🖥️  UI Dashboard                               ║"
+	@echo "║  ui-build       │ Build UI image                                  ║"
+	@echo "║  ui-up          │ Start UI container                              ║"
+	@echo "║  ui-down        │ Stop UI container                               ║"
+	@echo "╠═══════════════════════════════════════════════════════════════════╣"
+	@echo "║                     🗄️  Database                                   ║"
 	@echo "║  migrate        │ Run Alembic migrations                          ║"
-	@echo "║  clean          │ Clean cache and build files                     ║"
+	@echo "║  migrate-create │ Create new migration                            ║"
 	@echo "╠═══════════════════════════════════════════════════════════════════╣"
-	@echo "║  executor-build │ Build executor Docker image                   ║"
-	@echo "║  executor-up    │ Start executor container                      ║"
-	@echo "║  executor-down  │ Stop executor container                       ║"
-	@echo "║  executor-shell │ Shell into running executor                   ║"
-	@echo "║  executor-test  │ Verify VS Code CLI in executor                ║"
-	@echo "║  executor-playwright │ Run Playwright entrypoint in executor   ║"
+	@echo "║  dev            │ Local dev server (uvicorn --reload)             ║"
+	@echo "║  clean          │ Clean cache / build files                       ║"
 	@echo "╚═══════════════════════════════════════════════════════════════════╝"
 
 # =============================================================================
-# VIRTUAL ENVIRONMENT CHECK
+# VIRTUAL ENVIRONMENT
 # =============================================================================
 
 venv-check:
@@ -110,10 +132,6 @@ security:
 	@echo "✅ Security check complete!"
 
 # =============================================================================
-# TESTING
-# =============================================================================
-
-# =============================================================================
 # DEV SERVER
 # =============================================================================
 
@@ -143,7 +161,6 @@ test-local:
 	@echo "⏳ Waiting for Test PostgreSQL to be ready..."
 	@sleep $(TEST_DB_WAIT_SECONDS)
 	@echo "🧪 Running tests..."
-	# Rely on pytest.ini/conftest to load settings from env or .env
 	$(VENV)/pytest -v || true
 	@echo "✅ Tests complete!"
 
@@ -174,32 +191,44 @@ all: format lint typecheck test
 	@echo "═══════════════════════════════════════════════════════════════"
 
 # =============================================================================
-# DOCKER & DATABASE
+# DOCKER — Short Commands
 # =============================================================================
 
-docker-build:
-	@echo "Building Docker images..."
+build:
+	@echo "🔨 Building all Docker images..."
 	@BUILDKIT_PROGRESS=plain docker-compose build 2>&1
-	@echo "Build complete!"
+	@echo "✅ Build complete!"
 
-docker-rebuild:
-	@echo "Rebuilding Docker images (no cache)..."
+rebuild:
+	@echo "🔨 Rebuilding all Docker images (no cache)..."
 	@BUILDKIT_PROGRESS=plain docker-compose build --no-cache 2>&1
-	@echo "Rebuild complete!"
+	@echo "✅ Rebuild complete!"
 
-docker-up:
-	@echo "Starting Docker containers..."
+up:
+	@echo "🚀 Starting all containers..."
 	@docker-compose up -d
 	@docker-compose ps
-	@echo "Containers started!"
+	@echo "✅ All containers running!"
 
-docker-down:
-	@echo "Stopping Docker containers..."
+down:
+	@echo "🛑 Stopping all containers..."
 	@docker-compose down --remove-orphans
-	@echo "Containers stopped!"
+	@echo "✅ All containers stopped!"
 
-docker-logs:
+restart: build up
+	@echo "🔄 Restart complete!"
+
+logs:
 	docker-compose logs -f --tail=100
+
+ps:
+	@docker-compose ps
+
+status: ps
+
+# =============================================================================
+# DATABASE
+# =============================================================================
 
 migrate:
 	@echo "🔄 Running Alembic migrations..."
@@ -211,30 +240,30 @@ migrate-create:
 	$(VENV)/alembic revision --autogenerate -m "$$msg"
 
 # =============================================================================
-# EXECUTOR (Dynamic Analysis Container)
+# EXECUTOR
 # =============================================================================
 
-executor-build:
-	@echo "Building executor image..."
+exec-build:
+	@echo "🔬 Building executor image..."
 	docker-compose build executor
-	@echo "Executor image built!"
+	@echo "✅ Executor image built!"
 
-executor-up:
-	@echo "Starting executor container..."
+exec-up:
+	@echo "🔬 Starting executor..."
 	docker-compose up -d executor
-	@echo "Executor container started!"
+	@echo "✅ Executor started!"
 
-executor-down:
-	@echo "Stopping executor container..."
+exec-down:
+	@echo "🔬 Stopping executor..."
 	docker-compose stop executor
 	docker-compose rm -f executor
-	@echo "Executor container stopped!"
+	@echo "✅ Executor stopped!"
 
-executor-shell:
+exec-shell:
 	docker exec -it automation_executor /bin/bash
 
-executor-test:
-	@echo "Verifying executor tools..."
+exec-test:
+	@echo "🔬 Verifying executor tools..."
 	docker exec automation_executor code --version --no-sandbox
 	docker exec automation_executor node --version
 	docker exec automation_executor python3 --version
@@ -244,10 +273,30 @@ executor-test:
 	docker exec automation_executor which strace
 	docker exec automation_executor which Xvfb
 	docker exec automation_executor which xdotool
-	@echo "All executor tools verified!"
+	@echo "✅ All executor tools verified!"
 
-executor-playwright:
-	docker exec -it automation_executor python3 /home/executor/playwright/entrypoint.py
+exec-run:
+	docker exec -e PYTHONUNBUFFERED=1 -it automation_executor python3 /home/executor/playwright/entrypoint.py --monitor
+
+# =============================================================================
+# UI DASHBOARD
+# =============================================================================
+
+ui-build:
+	@echo "🖥️ Building UI image..."
+	docker-compose build ui
+	@echo "✅ UI image built!"
+
+ui-up:
+	@echo "🖥️ Starting UI container..."
+	docker-compose up -d ui
+	@echo "✅ UI started!"
+
+ui-down:
+	@echo "🖥️ Stopping UI container..."
+	docker-compose stop ui
+	docker-compose rm -f ui
+	@echo "✅ UI stopped!"
 
 # =============================================================================
 # CLEANUP

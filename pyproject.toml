@@ -38,7 +38,7 @@ dev = [
 # Explicitly define packages to avoid auto-discovery issues
 [tool.setuptools.packages.find]
 include = ["core*", "crud*", "database*", "models*", "routers*", "scanner*", "schemas*"]
-exclude = ["tests*", "extensions*", "alembic*", "output*", "reporter*", "executor*", "documents*", "config*"]
+exclude = ["tests*", "extensions*", "alembic*", "output*", "reporter*", "executor*", "documents*", "config*", "ui*"]
 
 # ============================================================
 # RUFF CONFIGURATION
@@ -112,6 +112,7 @@ exclude = [
     "^\\.venv/",
     "^extrace\\.egg-info/",
     "^config/",
+    "^ui/",
 ]
 
 [[tool.mypy.overrides]]
