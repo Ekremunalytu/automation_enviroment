@@ -1,6 +1,6 @@
 # Executor Risk Assessment
 
-Date: 2026-02-09
+Date: 2026-02-19
 
 ## Scope Clarifications
 
@@ -24,11 +24,13 @@ File: `executor/playwright/vscode.py`
 The current connection flow directly accesses `browser.contexts[0]` and `context.pages[0]`.  
 In startup race conditions, this can fail and make behavior simulation flaky.
 
-### P2 - Missing Executor Test Coverage
+### P2 - Limited Executor Integration Coverage
 
-Files: `executor/playwright/*.py` (new runtime flow), `tests/` (no executor-targeted tests)
+Files: `executor/playwright/*.py`, `tests/executor/*`
 
-There is no dedicated test layer for the critical flow:
+Executor now has dedicated unit tests (`tests/executor/test_playwright_automation.py` and
+`tests/executor/test_playwright_monitor.py`), but end-to-end integration coverage is still
+missing for the full flow:
 `extension installed -> trigger commands/actions -> behavior simulation/collection`.
 
 ## Closed / Accepted Items

@@ -30,17 +30,17 @@ make test-local    # Starts postgres_test container, then runs tests
 .venv/bin/pytest tests/path/test_file.py::test_function -v
 
 # Database
-make docker-up     # Start all containers (PostgreSQL + API + Executor)
-make docker-down   # Stop containers
+make up            # Start all containers (PostgreSQL + API + Executor)
+make down          # Stop containers
 make migrate       # Run alembic upgrade head
 make migrate-create  # Create new migration (interactive prompt)
 
 # Executor (Dynamic Analysis)
-make executor-build  # Build executor image
-make executor-up     # Start executor container only
-make executor-down   # Stop executor container
-make executor-shell  # Shell into running executor
-make executor-test   # Verify VS Code CLI and tools inside executor
+make exec-build    # Build executor image
+make exec-up       # Start executor container only
+make exec-down     # Stop executor container
+make exec-shell    # Shell into running executor
+make exec-test     # Verify VS Code CLI and tools inside executor
 
 # Install
 make install-dev   # Install prod + dev dependencies

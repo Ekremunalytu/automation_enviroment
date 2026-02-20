@@ -1,6 +1,6 @@
 # Executor: Playwright UI Automation & Honeypot Environment
 
-`Last Updated: 2026-02-16 (v2)` | `Status: Active Development`
+`Last Updated: 2026-02-19 (v3)` | `Status: Active Development`
 
 ---
 
@@ -14,7 +14,7 @@ Additionally, a realistic **honeypot developer environment** is automatically se
 
 ## File Structure
 
-```
+```text
 executor/
 ├── Dockerfile                # Ubuntu 22.04 + VS Code + monitoring tools
 ├── start.sh                  # Container entrypoint (Xvfb, VNC, VS Code, honeypot)
@@ -177,7 +177,7 @@ flowchart LR
 
 When `start.sh` runs, the following sequence executes:
 
-```
+```text
 1. Xvfb :99 (1920x1080x24)     -> Virtual display
 2. Openbox                       -> Window manager
 3. x11vnc (port 5900)           -> VNC server
@@ -205,6 +205,7 @@ for activation monitoring. Log level is configurable via `EXECUTOR_VSCODE_LOG_LE
 ```
 
 This ensures:
+
 - **Workspace Trust dialog** does not appear
 - **Welcome tab** does not open
 - **Telemetry** is disabled
@@ -396,16 +397,19 @@ Opening/closing left sidebar views.
 Three strategies to verify extension activations:
 
 **Strategy 1: VS Code log file parsing** (most reliable)
+
 - Finds Extension Host log files under `/home/executor/.vscode/logs/`
 - Parses activation events using regex patterns compatible with multiple VS Code versions
 - Extracts: extension ID, activation event, timestamp, duration
 
 **Strategy 2: Running Extensions UI snapshot** (via Playwright)
+
 - Opens `Developer: Show Running Extensions` command
 - Scrapes the list of active extensions from DOM (`aria-label` for ID, inner text for timing)
 - Returns extension ID, display name, and activation time in ms
 
 **Strategy 3: Extension Host log file reading**
+
 - Reads the raw Extension Host log file content
 - Provides the full log for detailed post-hoc analysis
 
@@ -422,6 +426,7 @@ Three strategies to verify extension activations:
 | `ActivationReport` | Data class with `.save(path)`, `.print_summary()` |
 
 Usage:
+
 ```python
 import monitor, automation
 
@@ -576,11 +581,11 @@ The `executor/playwright/` directory creates a naming conflict with the pip `pla
 2. **pip `playwright`** package continues to work: `from playwright.sync_api import Page`
 3. **`entrypoint.py`** bootstraps by adding its directory to `sys.path`:
 
-```python
-_pkg_dir = str(Path(__file__).resolve().parent)
-if _pkg_dir not in sys.path:
-    sys.path.insert(0, _pkg_dir)
-```
+   ```python
+   _pkg_dir = str(Path(__file__).resolve().parent)
+   if _pkg_dir not in sys.path:
+       sys.path.insert(0, _pkg_dir)
+   ```
 
 4. **`workspace.py`** has no Playwright dependency — run directly by `start.sh` as `python3 /path/to/workspace.py`.
 
@@ -637,15 +642,16 @@ if _pkg_dir not in sys.path:
 ## Usage
 
 ### Starting the Container
+
 ```bash
-make executor-build     # Build image
-make executor-up        # Start container (honeypot + VS Code automatic)
+make exec-build         # Build image
+make exec-up            # Start container (honeypot + VS Code automatic)
 ```
 
 ### Running Automation
 
 ```bash
-# Inside the container (docker exec or make executor-shell):
+# Inside the container (docker exec or make exec-shell):
 
 # Run all 10 scenarios
 python3 /home/executor/playwright/entrypoint.py
@@ -673,18 +679,21 @@ python3 /home/executor/playwright/entrypoint.py --demo
 ```
 
 **Important:** Use `PYTHONUNBUFFERED=1` when running via `docker exec` for real-time output:
+
 ```bash
 docker exec -e PYTHONUNBUFFERED=1 automation_executor python3 /home/executor/playwright/entrypoint.py --monitor
 ```
 
 ### Observing via noVNC
-```
+
+```text
 http://localhost:6080/vnc.html
 ```
 
 ### Container Shell
+
 ```bash
-make executor-shell
+make exec-shell
 ```
 
 ### Monitoring Report Output
@@ -758,7 +767,7 @@ All previously identified bugs have been fixed and verified:
 
 **Result: ✅ PASS — 10/10 scenarios, 0 failures**
 
-```
+```text
 Monitoring duration : 275.7s
 Activations found   : 11
 Unique extensions   : 11
@@ -779,6 +788,7 @@ Running extensions  : 8
 | refactor_workflow | ✅ PASS |
 
 Detected activation events (from log + UI):
+
 - `onTerminalShellIntegration:*` → vscode.terminal-suggest
 - `onLanguage:markdown` → vscode.markdown-language-features
 - `onLanguage:jsonc` → vscode.typescript-language-features

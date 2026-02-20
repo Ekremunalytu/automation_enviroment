@@ -11,19 +11,25 @@ on:
     branches: [main, master, develop, "feature/**"]
     paths:
       - "**.py"
+      - "**.md"
       - "pyproject.toml"
       - "requirements-dev.txt"
       - "routers/requirements.txt"
       - ".pre-commit-config.yaml"
-      - ".github/workflows/ci.yml"
+      - ".markdownlint.json"
+      - ".mlc_config.json"
+      - ".github/workflows/**"
   pull_request:
     branches: [main, master, develop]
     paths:
       - "**.py"
+      - "**.md"
       - "pyproject.toml"
       - "requirements-dev.txt"
       - "routers/requirements.txt"
       - ".pre-commit-config.yaml"
+      - ".markdownlint.json"
+      - ".mlc_config.json"
   workflow_dispatch:  # Manual trigger
 
 concurrency:

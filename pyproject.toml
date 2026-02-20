@@ -84,6 +84,7 @@ ignore = [
 "tests/*" = ["S101", "T20"]
 "alembic/*" = ["T20"]
 "executor/*" = ["T20", "S603", "S607", "E501"]  # Subprocess calls intentional, long strings for fake creds
+"ui/*" = ["E501"]  # HTML/CSS inline strings are naturally long
 "core/config.py" = ["S105"]  # Development default passwords in settings
 
 [tool.ruff.lint.isort]

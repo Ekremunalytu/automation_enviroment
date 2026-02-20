@@ -8,15 +8,15 @@
 
 <br>
 
-[![Document Type](https://img.shields.io/badge/Type-Roadmap-7c3aed?style=for-the-badge&logo=readthedocs&logoColor=white)](https://github.com/yourusername/extrace)
-[![Last Updated](https://img.shields.io/badge/Updated-2026--02--16-059669?style=for-the-badge&logo=calendar&logoColor=white)](https://github.com/yourusername/extrace)
-[![Status](https://img.shields.io/badge/Status-Active_Development-0891b2?style=for-the-badge&logo=activity&logoColor=white)](https://github.com/yourusername/extrace)
+[![Document Type](https://img.shields.io/badge/Type-Roadmap-7c3aed?style=for-the-badge&logo=readthedocs&logoColor=white)](https://github.com/Ekremunalytu/automation_enviroment)
+[![Last Updated](https://img.shields.io/badge/Updated-2026--02--19-059669?style=for-the-badge&logo=calendar&logoColor=white)](https://github.com/Ekremunalytu/automation_enviroment)
+[![Status](https://img.shields.io/badge/Status-Active_Development-0891b2?style=for-the-badge&logo=activity&logoColor=white)](https://github.com/Ekremunalytu/automation_enviroment)
 
 <br>
 
 ---
 
-`Current Sprint: Dynamic Analysis & Monitoring` • `Next: Risk Scoring & Analysis API` • `Updated: 2026-02-16`
+`Current Sprint: Dynamic Analysis & Monitoring` • `Next: Risk Scoring & Analysis API` • `Updated: 2026-02-19`
 
 ---
 
@@ -157,13 +157,13 @@ erDiagram
 > [!IMPORTANT]
 > Parsing baseline is complete. This phase covers monitoring, storage, and risk scoring.
 
-1.  **Risk Scoring Engine**
-    *   Pattern-based risk detection
-    *   Behavioral classification
+1. **Risk Scoring Engine**
+    - Pattern-based risk detection
+    - Behavioral classification
 
-2.  **Comparison & Diff**
-    *   Version comparison
-    *   Regression identification
+2. **Comparison & Diff**
+    - Version comparison
+    - Regression identification
 
 <br>
 
@@ -174,6 +174,7 @@ erDiagram
 ## 📋 Implementation Tasks
 
 ### 🗄️ Database Tasks
+
 - [x] Create `extension_activation_events` table ✅
 - [x] Create `extension_commands` table ✅ (Mapped via `extension_contributes_commands`)
 - [x] Create `extension_contributes` table ✅
@@ -182,6 +183,7 @@ erDiagram
 - [x] Update SQLAlchemy models ✅
 
 ### ⚙️ Parser Tasks
+
 - [x] Create `manifest_parser.py` - Full package.json parsing ✅ (Implemented in `json_parser.py`)
 - [x] Create `activation_parser.py` - Activation event extraction ✅ (Implemented in `json_parser.py`)
 - [x] Create `command_parser.py` - Command detection ✅ (Implemented in `json_parser.py`)
@@ -189,6 +191,7 @@ erDiagram
 - [x] Create `dependency_parser.py` - Dependency analysis ✅ (Implemented in `json_parser.py` & models)
 
 ### 🔄 Service & Schema Tasks
+
 - [x] Update `service.py` with new parsers ✅
 - [x] Create CRUD functions for new tables ✅
 - [x] Add API endpoints for querying parsed data ✅
@@ -224,6 +227,7 @@ graph LR
 ## ✅ Success Criteria
 
 This milestone is complete when:
+
 - ✅ All new database tables created and migrated
 - ✅ Parsers extract all specified data from package.json
 - ✅ API endpoints expose parsed data

@@ -16,7 +16,7 @@
 
 ---
 
-`Last Updated: 2026-02-05` • `Version: 1.0.0` • `Status: Active`
+`Last Updated: 2026-02-19` • `Version: 1.0.0` • `Status: Active`
 
 ---
 
@@ -123,16 +123,19 @@ sequenceDiagram
 
 <br>
 
-```
+```text
 📂 tests/
 │
 ├── 📄 __init__.py              # Test package marker
 ├── ⚙️ conftest.py              # Fixtures and configuration
 ├── 🏥 test_health.py           # Health check and smoke tests
+├── 📁 core/                    # Dependency/infra behavior tests
+│   ├── 📄 __init__.py
+│   └── 🧪 test_deps.py         # get_db lifecycle tests
 │
 ├── 📁 crud/                    # CRUD operation tests
 │   ├── 📄 __init__.py
-│   └── 🧪 test_crud.py         # create, search, delete tests
+│   └── 🧪 test_crud.py         # full CRUD + relations + filters + rollback
 │
 ├── 📁 routers/                 # API endpoint tests
 │   ├── 📄 __init__.py
@@ -143,9 +146,15 @@ sequenceDiagram
 │   ├── 📄 __init__.py
 │   └── 🧪 test_schemas.py      # Schema validation tests
 │
-└── 📁 scanner/                 # Scanner module tests
-    ├── 📄 __init__.py
-    └── 🧪 test_json_parser.py  # Parser tests with mocking
+├── 📁 scanner/                 # Scanner module tests
+│   ├── 📄 __init__.py
+│   ├── 🧪 test_json_parser.py  # Parser behavior + field extraction coverage
+│   └── 🧪 test_service.py      # Service layer orchestration/passthrough tests
+│
+└── 📁 executor/                # Playwright runtime unit tests
+    ├── 📄 conftest.py
+    ├── 🧪 test_playwright_automation.py
+    └── 🧪 test_playwright_monitor.py
 ```
 
 <br>
@@ -276,16 +285,26 @@ def sample_extension_data() -> dict:
 
 | Module | Test File | Test Count | Coverage Areas |
 |:-------|:----------|:-----------|:---------------|
-| `crud/crud.py` | `test_crud.py` | 4 | create, search, delete, duplicate handling |
-| `routers/core.py` | `test_core.py` | 8 | All endpoints, error handling, mocking |
+| `crud/crud.py` | `test_crud.py` | 23 | create/search/delete, duplicate handling, related records, rollback paths |
+| `routers/core.py` | `test_core.py` | 34 | Core endpoints, contributes endpoints, error handling, pagination forwarding |
 | `routers/activations.py` | `test_activations.py` | 8 | List/latest/named reports, path traversal, corrupt JSON |
-| `schemas/schemas.py` | `test_schemas.py` | 2 | Validation, required fields |
-| `scanner/json_parser.py` | `test_json_parser.py` | 4 | File I/O, error handling, mocking |
+| `schemas/schemas.py` | `test_schemas.py` | 11 | Validation for required + optional extension schema fields |
+| `scanner/json_parser.py` | `test_json_parser.py` | 41 | File I/O and comprehensive parsing branches (capabilities/scripts/events/etc.) |
+| `scanner/service.py` | `test_service.py` | 12 | Service orchestration and CRUD/parser passthrough behaviors |
+| `core/deps.py` | `test_deps.py` | 2 | Dependency session lifecycle and cleanup |
+| `executor/playwright/automation.py` | `test_playwright_automation.py` | 5 | Scenario runner behavior, failure handling |
+| `executor/playwright/monitor.py` | `test_playwright_monitor.py` | 7 | Activation parsing and monitor merge logic |
 | Health endpoints | `test_health.py` | 5 | Root, docs, OpenAPI, list endpoints |
+
+> [!NOTE]
+> Current suite size (2026-02-19): **148 tests collected** (`pytest --collect-only -q tests`).
 
 <br>
 
 ### Detailed Test Descriptions
+
+> [!NOTE]
+> Tables below show representative test cases for each file. Full lists are in the linked test files.
 
 <details>
 <summary><strong>💾 CRUD Tests (test_crud.py)</strong></summary>
@@ -367,6 +386,48 @@ def sample_extension_data() -> dict:
 
 </details>
 
+<details>
+<summary><strong>⚙️ Service Tests (test_service.py)</strong></summary>
+
+<br>
+
+| Test | Description |
+|:-----|:------------|
+| `test_create_extension_by_name_success` | Validates orchestration from parser output to DB create call |
+| `test_create_extension_by_name_not_found` | Verifies `None` when extension is not found on disk |
+| `test_get_all_extensions_basic` | Confirms passthrough to CRUD basic list function |
+| `test_get_all_extensions_all` | Confirms pagination passthrough to CRUD full list function |
+| `test_get_extension_contributes_commands` | Confirms contributes-commands passthrough behavior |
+
+</details>
+
+<details>
+<summary><strong>🔌 Dependency Tests (test_deps.py)</strong></summary>
+
+<br>
+
+| Test | Description |
+|:-----|:------------|
+| `test_get_db_yields_session_and_closes_on_completion` | Confirms session yield + close behavior on normal completion |
+| `test_get_db_closes_session_when_exception_is_thrown` | Confirms close behavior still runs when caller raises |
+
+</details>
+
+<details>
+<summary><strong>🎭 Executor Unit Tests (test_playwright_*.py)</strong></summary>
+
+<br>
+
+| Test | Description |
+|:-----|:------------|
+| `test_run_all_scenarios_returns_failed_names` | Verifies scenario-runner returns failures and recovers UI state |
+| `test_run_scenario_raises_for_unknown_name` | Guards invalid scenario selection |
+| `test_parse_activations_from_log_respects_start_offset` | Verifies log parser respects incremental offsets |
+| `test_extension_monitor_stop_merges_new_ui_entries` | Verifies monitor merges log/UI activations correctly |
+| `test_check_extension_activated_uses_logs_then_ui` | Verifies fallback order across signal sources |
+
+</details>
+
 <br>
 
 ---
@@ -424,6 +485,7 @@ pytest --cov --cov-report=xml
 > (default **5432**, override via `POSTGRES_PORT`).
 
 **Option A: docker-compose (recommended)**
+
 ```bash
 # Start the test DB service
 docker-compose up -d postgres_test
@@ -433,6 +495,7 @@ make test-local
 ```
 
 **Option B: standalone docker run**
+
 ```bash
 # Start test database container
 docker run -d \
@@ -614,6 +677,7 @@ def test_full_workflow():
 ```
 
 Run specific markers:
+
 ```bash
 pytest -m "not slow"      # Skip slow tests
 pytest -m integration     # Run only integration tests

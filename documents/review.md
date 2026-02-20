@@ -35,7 +35,7 @@ The project has a clean structure and establishes a good starting point. The Fas
 
 ## 📁 Current File Structure
 
-```
+```text
 automation_enviroment/
 ├── alembic/              ✅ Migration infrastructure
 
@@ -73,6 +73,7 @@ automation_enviroment/
 ## 🔧 Current Sprint: DB Structure
 
 ### Completed
+
 - [x] PostgreSQL + Docker Compose setup
 - [x] SQLAlchemy model definitions (`Extension`)
 - [x] Alembic migration infrastructure
@@ -96,18 +97,21 @@ automation_enviroment/
 ## 📅 Sprint Plan
 
 ### Sprint +1: Dynamic Analysis Core ✅ (PARTIALLY COMPLETED)
+
 - ✅ Runner orchestration (Docker + Xvfb sandbox execution)
 - ✅ Interaction automation baseline (10 Playwright scenarios)
 - ✅ Honeypot environment (fake credentials/secrets)
 - ⏳ Risk score calculation algorithm
 
 ### Sprint +2: Logging & Observability
+
 - Structured logging setup
 - `print()` → `logger.info()` conversion
 - JSON format log output
 - Request/Response logging middleware
 
 ### Sprint +3: Test Infrastructure ✅ (COMPLETED)
+
 - ✅ pytest setup with PostgreSQL integration
 - ✅ Test database fixture with transaction rollback
 - ✅ CRUD/Router/Schema/Scanner tests
@@ -115,11 +119,13 @@ automation_enviroment/
 - ✅ Comprehensive TESTING.md documentation
 
 ### Sprint +4: Pipeline & Automation
+
 - ~~CLI interface (`click` or `typer`)~~ (out of scope — API-first approach)
 - Batch processing
 - Report generation (JSON/HTML)
 
 ### Sprint +5: Production Readiness ✅ (COMPLETED)
+
 - ✅ Environment-based config (dev/staging/prod)
 - ✅ Docker secrets (via .env)
 - ✅ Enhanced health check
@@ -141,11 +147,13 @@ automation_enviroment/
 ## 📝 Minor Improvements
 
 ### Files to Delete
+
 - `config/main.py` - Unnecessary PyCharm template
 
 ### Recently Implemented
 
 **✅ Delete Function (Implemented - SQLAlchemy 2.0):**
+
 ```python
 # crud/crud.py
 def delete_extension(
@@ -165,6 +173,7 @@ def delete_extension(
 ```
 
 **✅ Delete Endpoint (Implemented):**
+
 ```python
 # routers/core.py
 @router.delete("/deleteExtension", response_model=dict)
@@ -182,6 +191,7 @@ def delete_extension(
 > delete and re-scan is the recommended approach.
 
 **✅ Scripts Parsing (Implemented - 2025-12-18):**
+
 ```python
 # scanner/json_parser.py
 def parse_scripts(package_json: dict) -> list[dict] | None:
@@ -190,15 +200,18 @@ def parse_scripts(package_json: dict) -> list[dict] | None:
 ```
 
 **✅ SQLAlchemy 2.0 Migration (Completed - 2025-12-18):**
+
 - All models migrated to `mapped_column()` and `Mapped[]` annotations
 - CRUD operations use new `select()` statement API
 - Query syntax updated: `scalars()` instead of `query()`
 
 **✅ Extension Pack Support (Implemented):**
+
 - Added `extensionPack`, `extensionDependencies`, `extensionKind` to `Extension` model.
 - Updated Pydantic schemas and `README`/`ARCHITECTURE` docs.
 
 **✅ Activation Events Support (Implemented - 2025-12-21):**
+
 ```python
 # models/models.py
 class ExtensionActivationEvents(Base):
@@ -207,6 +220,7 @@ class ExtensionActivationEvents(Base):
     event_type: Mapped[str]  # e.g., "onLanguage", "onCommand", "*"
     event_value: Mapped[str | None]  # e.g., "python", "extension.activate"
 ```
+
 - Added `ExtensionActivationEvents` table with 1:N relationship to `Extension`
 - Added `parse_activation_events()` function in `json_parser.py`
 - Added `ExtensionActivationEventsSchema` in `schemas.py`

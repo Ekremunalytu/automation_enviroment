@@ -1,0 +1,24 @@
+{
+  "ignorePatterns": [
+    {
+      "pattern": "^http://localhost"
+    },
+    {
+      "pattern": "^https://img.shields.io"
+    },
+    {
+      "pattern": "^https://github.com/Ekremunalytu"
+    },
+    {
+      "pattern": "^#"
+    },
+    {
+      "pattern": "LICENSE"
+    }
+  ],
+  "timeout": "10s",
+  "retryOn429": true,
+  "retryCount": 2,
+  "fallbackToGet": true,
+  "aliveStatusCodes": [200, 206]
+}

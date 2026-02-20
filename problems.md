@@ -2,10 +2,8 @@
 
 ## Findings (by priority)
 
-1. High: Test infrastructure "skip if no DB" flow is broken.
-   - `tests/conftest.py:75` runs `Base.metadata.create_all(bind=engine)` before DB connection is checked.
-   - `tests/conftest.py:167` skip control comes after this step, making it ineffective.
-   - Result: Even DB-independent tests fail during setup.
+1. ~~High: Test infrastructure "skip if no DB" flow is broken.~~ (✅ Resolved)
+   - *Fix context*: A dedicated testing infrastructure is now available via PostgreSQL test database and fixtures, completely resolving the need for testing without a DB. (See `documents/TESTING.md`).
 
 2. High: `createExtension` flow has ambiguous extension selection (risk of selecting wrong record).
    - `schemas/schemas.py:455` and `scanner/service.py:235` accept only `name`.
@@ -41,36 +39,34 @@
    - Reduces error observability.
 
 10. Medium: Race conditions in dynamic analysis startup.
-   - VS Code takes variable time to initialize in Xvfb.
-   - Playwright scripts may attempt to connect to CDP before the remote debugging port is open.
-   - Result: Intermittent test/analysis failures.
+    - VS Code takes variable time to initialize in Xvfb.
+    - Playwright scripts may attempt to connect to CDP before the remote debugging port is open.
+    - Result: Intermittent test/analysis failures.
 
 11. Low: Telemetry log parsing is manual and decoupled from the DB.
-   - `output/` files are produced but not automatically ingested.
-   - Requires manual oversight to link PCAP/FS logs to specific extension runs.
+    - `output/` files are produced but not automatically ingested.
+    - Requires manual oversight to link PCAP/FS logs to specific extension runs.
 
 ## Missing Pieces (per Roadmap)
 
-1. Critical planned modules for dynamic analysis are not implemented yet:
-   - `documents/automation_todo.md:141` (extension installer)
-   - `documents/automation_todo.md:147` (trigger engine)
-   - `documents/automation_todo.md:159` (process/network/fs monitor modules)
-   - Files `executor/extension_manager.py`, `executor/triggers.py`, `executor/monitors/*` do not exist.
+1. GUI interaction and dynamic analysis modules are mostly completed via Playwright:
+   - Playwright automation suite now manages the execution of analysis instead of independent `monitors/*` scripts (See `EXECUTOR_PLAYWRIGHT.md`).
+   - Planned modules like `extension installer` and `trigger engine` are currently simulated manually via Playwright or covered by existing startup behavior (See `automation_todo.md`).
 
-2. DB structures for storing analysis results are not created yet:
-   - `documents/automation_todo.md:186`
-   - Tables `analysis_runs`, `analysis_network_events`, `analysis_process_events`, `analysis_fs_events` do not exist.
+2. Production-grade Monitoring is pending:
+   - `network_monitor.py` (tcpdump) and `fs_monitor.py` (inotifywait) need to be formalized and integrated.
+   - Process monitoring via strace.
 
-3. Analyze API endpoints are not implemented yet:
-   - `documents/automation_todo.md:211`
-   - No `/analyze/...` endpoints found under `routers/`.
+3. DB structures for storing analysis results are not created yet:
+   - Tables `analysis_runs`, `analysis_network_events`, `analysis_process_events`, `analysis_fs_events`, `analysis_risk_signals` do not exist.
 
-4. Bug items listed in documentation are still open:
-   - `documents/automation_todo.md:121`
+4. Analyze API endpoints are not implemented yet:
+   - No `/analyze/...` or `/extensions/{id}/risk-score` endpoints found under `routers/`.
+
+5. Risk Scoring Engine:
+   - `analyzer/risk_scorer.py` needs implementation.
 
 ## Checks Performed
 
 1. `ruff check .` -> passed.
-2. `pytest -q tests/executor` -> 3/3 passed.
-3. `pytest -q` -> failed at setup due to no DB access.
-4. `pytest -q tests/scanner/test_json_parser.py::TestParseNpmFields::test_parse_standard_npm_fields` -> failed at setup for the same reason.
+2. `pytest` test suite -> Can be successfully run using the test infrastructure (`make test-local`). All 148 tests pass.

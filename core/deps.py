@@ -32,7 +32,7 @@ Usage in Routes:
     @router.get("/items")
     def get_items(db: Session = Depends(get_db)):
         # db session is automatically created and cleaned up
-        return db.query(Item).all()
+        return db.execute(select(Item)).scalars().all()
 
 Database Session Lifecycle:
     1. Request arrives at endpoint
@@ -68,7 +68,7 @@ def get_db() -> Generator:
         @router.get("/example")
         def example_route(db: Session = Depends(get_db)):
             # db is available and will be automatically closed
-            items = db.query(MyModel).all()
+            items = db.execute(select(MyModel)).scalars().all()
             return items
 
     Why Generator Pattern?
@@ -90,7 +90,7 @@ def get_db() -> Generator:
         @router.post("/create")
         def create_item(item: ItemCreate, db: Session = Depends(get_db)):
             try:
-                new_item = Item(**item.dict())
+                new_item = Item(**item.model_dump())
                 db.add(new_item)
                 db.commit()
                 db.refresh(new_item)

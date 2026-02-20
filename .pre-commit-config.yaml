@@ -79,6 +79,23 @@ repos:
   #       language: docker_image
   #       types: [dockerfile]
 
+  # ============================================================
+  # DOCUMENTATION
+  # ============================================================
+  - repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: v0.41.0
+    hooks:
+      - id: markdownlint
+        args: ["--config", ".markdownlint.json", "--fix"]
+        exclude: ^(extensions/|alembic/README)
+
+  - repo: https://github.com/tcort/markdown-link-check
+    rev: v3.12.2
+    hooks:
+      - id: markdown-link-check
+        args: ["--quiet", "--config", ".mlc_config.json"]
+        exclude: ^(extensions/)
+
 # CI parallel execution settings
 ci:
   autofix_prs: true

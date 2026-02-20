@@ -59,8 +59,16 @@ st.markdown(
     .stApp {
         background-color: var(--bg-color);
         background-image:
-            radial-gradient(circle at 10% 20%, rgba(139, 92, 246, 0.08), transparent 40%),
-            radial-gradient(circle at 90% 80%, rgba(6, 182, 212, 0.06), transparent 40%);
+            radial-gradient(
+                circle at 10% 20%,
+                rgba(139, 92, 246, 0.08),
+                transparent 40%
+            ),
+            radial-gradient(
+                circle at 90% 80%,
+                rgba(6, 182, 212, 0.06),
+                transparent 40%
+            );
         font-family: 'Inter', sans-serif;
     }
 
@@ -91,7 +99,11 @@ st.markdown(
        GLASS CARDS
     ----------------------------------------------------------------------- */
     .glass-card {
-        background: linear-gradient(145deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%);
+        background: linear-gradient(
+            145deg,
+            rgba(255, 255, 255, 0.03) 0%,
+            rgba(255, 255, 255, 0.01) 100%
+        );
         backdrop-filter: blur(12px);
         -webkit-backdrop-filter: blur(12px);
         border: 1px solid var(--card-border);
@@ -427,7 +439,7 @@ with col_header:
             Analysis <span class="gradient-text">Dashboard</span>
         </h1>
         <p style="color: #a1a1aa; margin-top: 4px;">
-            Target: <code style="background:transparent; color: #8b5cf6;">{raw_data.get('_metadata', {}).get('filename', 'Unknown')}</code>
+            Target: <code style="background:transparent; color: #8b5cf6;">{raw_data.get("_metadata", {}).get("filename", "Unknown")}</code>
         </p>
         """,
         unsafe_allow_html=True,
@@ -560,7 +572,7 @@ with tab_viz:
                 .mark_area(
                     interpolate="monotone",
                     fillOpacity=0.5,
-                    line=dict(color="#06b6d4"),
+                    line={"color": "#06b6d4"},
                     color=alt.Gradient(
                         gradient="linear",
                         stops=[

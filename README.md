@@ -52,22 +52,20 @@
 
 <br>
 
-## 📋 Overview
+### 📋 Overview
 
-> [!CAUTION]
-> **Internal Use Only**: ExTrace is designed for isolated security research environments. It does not include built-in authentication or rate-limiting, assuming it runs within a trusted, firewalled network or a local containerized environment.
-
-ExTrace is a security analysis platform with a FastAPI backend and a Streamlit dashboard for activation intelligence. It is designed to **scan**, **validate**, and **store** VS Code extension metadata, then visualize dynamic activation behavior for research workflows.
+ExTrace is a security analysis platform with a FastAPI backend and a Streamlit dashboard for activation intelligence.
+ It is designed to **scan**, **validate**, and **store** VS Code extension metadata, then visualize dynamic activation behavior for research workflows.
 
 <br>
 
 ### 🎯 Core Capabilities
 
-1.  **🔍 Scan**: Recursively scans extension directories for `package.json` files.
-2.  **✅ Validate**: Enforces strict Pydantic schemas on manifest data.
-3.  **💾 Store**: Persists extension metadata in PostgreSQL with JSONB support.
-4.  **📡 Serve**: Provides a high-performance RESTful API for querying data.
-5.  **🖥️ Visualize**: Provides an activation intelligence dashboard backed by `/api/activations`.
+1. **🔍 Scan**: Scans first-level extension directories for `package.json` files and matches by exact `name`.
+2. **✅ Validate**: Enforces strict Pydantic schemas on manifest data.
+3. **💾 Store**: Persists extension metadata in PostgreSQL with JSONB support.
+4. **📡 Serve**: Provides a high-performance RESTful API for querying data.
+5. **🖥️ Visualize**: Provides an activation intelligence dashboard backed by `/api/activations`.
 
 <br>
 
@@ -174,8 +172,8 @@ flowchart TD
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/yourusername/extrace.git
-cd extrace
+git clone https://github.com/Ekremunalytu/automation_enviroment.git
+cd automation_enviroment
 ```
 
 ### 2. Configure Environment
@@ -189,6 +187,7 @@ cp .env.example .env
 > Edit `.env` to match your local configuration if needed.
 
 **Default `.env` (recommended for local dev):**
+
 ```env
 # Database (used for local dev / docker-compose)
 POSTGRES_USER=postgres
@@ -302,6 +301,7 @@ make ui-up
 ### 📝 Example Usage
 
 #### Search Extension
+
 ```http
 GET /searchExtension?name=python
 ```
@@ -320,9 +320,11 @@ GET /searchExtension?name=python
   "icon": "https://..."
 }
 ```
+
 </details>
 
 #### Create Extension
+
 ```http
 POST /createExtension
 Content-Type: application/json
@@ -333,6 +335,7 @@ Content-Type: application/json
 ```
 
 #### Delete Extension
+
 ```http
 DELETE /deleteExtension?name=python
 ```
@@ -365,7 +368,7 @@ DELETE /deleteExtension?name=python
 
 <br>
 
-```
+```text
 extrace/
 ├── documents/              # 📚 Architecture, testing, reviews
 ├── main.py                 # 🚀 Application entry point
@@ -579,6 +582,7 @@ Key environment variables (see `.env.example` for the full list):
 ## 🗺️ Roadmap
 
 ### ✅ Phase 0: Metadata Parsing (Completed)
+
 - [x] PostgreSQL + Docker Setup
 - [x] SQLAlchemy 2.0 Models & Alembic Migrations
 - [x] CRUD Operations
@@ -587,6 +591,7 @@ Key environment variables (see `.env.example` for the full list):
 - [x] REST API endpoints
 
 ### 🚧 Phase 1: Xvfb Dynamic Analysis (In Progress)
+>
 > **Full GUI execution via Xvfb** | Current automated coverage: 12/25 activation events (~48%)
 
 - [x] Docker executor image (Ubuntu 22.04 + Xvfb + VS Code)
@@ -606,6 +611,7 @@ Key environment variables (see `.env.example` for the full list):
 - [ ] Analysis API endpoints (`/analyze`)
 
 ### 🔮 Phase 2: Persona Simulation & Advanced Analysis (Future)
+>
 > **Prerequisite:** Phase 1 complete
 
 - [ ] Persona-based simulation (Curious, Cautious, Impatient, Normal)
@@ -615,6 +621,7 @@ Key environment variables (see `.env.example` for the full list):
 - [ ] WebView interaction
 
 ### 📊 Phase 3: Reporting & Visualization (Started)
+
 - [x] Activation Intelligence Dashboard (Streamlit)
 - [ ] Risk report generation
 - [ ] Domain relationship graphs

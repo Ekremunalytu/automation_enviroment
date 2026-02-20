@@ -17,7 +17,7 @@
 
 ---
 
-`Last Updated: 2026-02-16` • `Version: 1.1.1` • `Status: Development`
+`Last Updated: 2026-02-19` • `Version: 1.0.0` • `Status: Development`
 
 ---
 
@@ -118,10 +118,12 @@ flowchart TB
 > The architectural decisions in ExTrace are driven by specific operational requirements. Understanding these constraints is crucial for maintaining the "robustness" of the system.
 
 ### 1. Robustness over Scalability
+
 **Decision:** The system prioritizes data integrity, type safety, and transactional consistency over high-concurrency throughput.
 **Reasoning:** As a security analysis tool, partial or corrupted data is unacceptable. We use strict foreign keys, complex Pydantic validation, and synchronous processing to ensure every scanned extension is recorded perfectly.
 
 ### 2. Internal Security Tooling
+
 **Decision:** No built-in authentication or role-based access control (RBAC).
 **Reasoning:** ExTrace is designed to run in an isolated, secure environment (e.g., local Docker, air-gapped network) accessible only by security engineers. Security is enforced at the network/infrastructure level rather than the application level.
 
@@ -158,16 +160,18 @@ flowchart LR
     LogP -->|"Insert"| Events
 ```
 
-1.  **Capture:** Raw events are streamed to the `/results` volume.
-2.  **Ingest:** The API service monitors the output directory for completed analysis runs.
-3.  **Process:** Log processors parse raw output (PCAP, text) into structured behavioral events.
-4.  **Store:** Events are persisted in PostgreSQL, linked to the `analysis_runs` table.
+1. **Capture:** Raw events are streamed to the `/results` volume.
+2. **Ingest:** The API service monitors the output directory for completed analysis runs.
+3. **Process:** Log processors parse raw output (PCAP, text) into structured behavioral events.
+4. **Store:** Events are persisted in PostgreSQL, linked to the `analysis_runs` table.
 
 ### 3. Targeted Single-Scan Workflow
+
 **Decision:** Filesystem scanning is linear and synchronous.
 **Reasoning:** The intended workflow is to analyze specific, high-risk extensions one by one or in small batches. The classic "O(N) scanning problem" is mitigated by the operational usage pattern (targeted audits vs. bulk ingestion).
 
 ### 4. Xvfb-First Dynamic Analysis
+
 **Decision:** Use Xvfb (virtual display) for all dynamic analysis — full GUI execution only.
 **Reasoning:** VS Code extensions require a running Extension Host process to activate, which needs a full GUI instance. Xvfb provides this with low overhead and a single stack for broad activation-event testing. The current Playwright baseline focuses on common/high-value events and is extended incrementally.
 
@@ -851,7 +855,7 @@ flowchart TB
 
 <br>
 
-```
+```text
 📂 automation_enviroment/
 │
 ├── 📄 main.py                    # 🚀 Application entry point

@@ -37,13 +37,14 @@ Current Playwright baseline covers the most common activation events. For the de
 
 ---
 
-# Phase 1: Docker + Xvfb Dynamic Analysis (Active)
+## Phase 1: Docker + Xvfb Dynamic Analysis (Active)
 
 > **Goal:** Full VS Code GUI running in Docker with virtual display, monitored by network/filesystem/process tools.
 
 ## 1.1 Docker Environment Setup
 
 ### Done: Base Docker Image
+
 - [x] Create `executor/Dockerfile` (Ubuntu 22.04)
 - [x] Install VS Code (auto-detects arm64/x64 architecture)
 - [x] Install Xvfb, openbox, x11vnc, noVNC, xdotool
@@ -57,10 +58,11 @@ Current Playwright baseline covers the most common activation events. For the de
 - [x] Resource limits: 4GB RAM, 2 CPUs
 - [x] `cap_add: NET_RAW, SYS_PTRACE` for monitoring tools
 - [x] `setcap` on tcpdump/dumpcap for non-root capture
-- [x] Makefile targets: `executor-build`, `executor-up`, `executor-down`, `executor-shell`, `executor-test`
+- [x] Makefile targets: `exec-build`, `exec-up`, `exec-down`, `exec-shell`, `exec-test`
 
-### Current container stack:
-```
+### Current container stack
+
+```text
 Xvfb :99 (1920x1080x24)  ->  Virtual display
 openbox                    ->  Window manager
 x11vnc                     ->  VNC server (port 5900)
@@ -70,12 +72,14 @@ VS Code /workspace         ->  Full GUI instance (CDP port 9222)
 noVNC                      ->  Browser access (port 6080)
 ```
 
-### Access:
+### Access
+
 - **noVNC:** `http://localhost:6080/vnc.html` (browser-based VNC)
-- **Shell:** `make executor-shell`
-- **Playwright:** `make executor-playwright`
+- **Shell:** `make exec-shell`
+- **Playwright:** `make exec-run`
 
 ### Done: VS Code Auto-Configuration
+
 - [x] Workspace Trust dialog auto-disabled (`security.workspace.trust.enabled: false`)
 - [x] Welcome tab suppressed (`workbench.startupEditor: none`)
 - [x] Telemetry and auto-update disabled
@@ -87,6 +91,7 @@ noVNC                      ->  Browser access (port 6080)
 > **Full documentation:** [`documents/EXECUTOR_PLAYWRIGHT.md`](EXECUTOR_PLAYWRIGHT.md)
 
 ### Done: Playwright Helper Modules
+
 - [x] Create `executor/playwright/keyboard.py` — all VS Code shortcuts as constants
 - [x] Create `executor/playwright/vscode.py` — CDP connect, ready wait, disconnect
 - [x] Create `executor/playwright/commands.py` — Command Palette open/run/quick-open (with close-wait)
@@ -96,9 +101,10 @@ noVNC                      ->  Browser access (port 6080)
 - [x] Create `executor/playwright/panel.py` — Problems, Output, Debug Console
 - [x] Create `executor/playwright/workspace.py` — filesystem helpers + honeypot environment
 - [x] Create `executor/playwright/entrypoint.py` — demo using all modules
-- [x] Makefile target: `make executor-playwright`
+- [x] Makefile target: `make exec-run`
 
 ### Done: Extended Modules (2026-02-16)
+
 - [x] `keyboard.py` — Added activation trigger shortcuts: debug (F5/Shift+F5/F10/F11), settings (Ctrl+,), output/problems focus, format/definition/suggest/rename, fullscreen, new terminal
 - [x] `editor.py` — Added: `format_document()`, `go_to_definition()`, `trigger_suggest()`, `rename_symbol()`, `select_all()`
 - [x] `panel.py` — Added: `focus_problems()`, `focus_output()` (direct keyboard shortcuts)
@@ -111,6 +117,7 @@ noVNC                      ->  Browser access (port 6080)
 - [x] `start.sh` — Added `--log trace` to VS Code launch, log dir symlink
 
 ### Done: Extension Host Monitoring (2026-02-16)
+
 - [x] VS Code started with `--log trace` for verbose Extension Host logging
 - [x] Log file discovery and parsing (regex patterns for multiple VS Code versions)
 - [x] Running Extensions UI scraping via Playwright (`aria-label` for extension IDs)
@@ -121,11 +128,13 @@ noVNC                      ->  Browser access (port 6080)
 - [x] Human-readable summary via `ActivationReport.print_summary()`
 
 ### Resolved Bugs (2026-02-16)
+
 - [x] BUG-1: `settings_modification` scenario — quick-input timeout on theme picker (Fixed: JSON edits first, theme change with timeout fallback)
 - [x] BUG-2: VS Code crashes (Target crashed) under full 10-scenario run (Fixed: increased to 4GB + inter-scenario cleanup)
 - [x] BUG-3: `monitor.stop()` Strategy 2 not fully crash-resilient when VS Code is dead (Fixed: broadened exception catch)
 
 ### Done: Honeypot Developer Environment
+
 - [x] Fake `.env`, `.env.production`, `.env.local` with realistic API keys
 - [x] Fake SSH keys with correct permissions (600/700) in `~/.ssh/`
 - [x] Fake AWS credentials (`~/.aws/credentials`, `~/.aws/config`)
@@ -141,12 +150,14 @@ noVNC                      ->  Browser access (port 6080)
 - [x] Environment auto-setup via `start.sh` (before VS Code starts)
 
 ### TODO: Extension Installer Module
+
 - [ ] Create `executor/extension_manager.py`
 - [ ] Implement `install_extension(path: Path) -> bool` using `code --install-extension`
 - [ ] Implement `uninstall_extension(extension_id: str) -> bool`
 - [ ] Handle installation errors and timeouts
 
 ### TODO: Activation Trigger Engine
+
 - [ ] Create `executor/triggers.py`
 - [ ] Implement trigger selection based on `activationEvents` from DB
 - [ ] Use Playwright helpers for each trigger type:
@@ -156,15 +167,31 @@ noVNC                      ->  Browser access (port 6080)
   - `workspaceContains:*` → `workspace.create_workspace_file()` (auto at startup)
 - [ ] Add timeout handling (max 60s per trigger)
 
-## 1.3 Monitoring & Telemetry
+## 1.3 Infrastructure & Observability (Next Sprint)
+
+> **Goal:** Transition from basic print/log statements to a production-grade monitoring and logging architecture.
+
+- [ ] **Structured JSON Logging:**
+  - [ ] Implement a centralized logging module (`core/logging.py`).
+  - [ ] Add request/response logging middleware for the API.
+  - [ ] Implement log rotation and correlation IDs (API <-> Executor).
+- [ ] **Error Handling Refinement:**
+  - [ ] Replace generic `except Exception` blocks with specific exception types.
+  - [ ] Standardize API error responses.
+- [ ] **Deep Health Checks:**
+  - [ ] Expand `/health` to verify DB, Filesystem, and Executor container availability.
+
+## 1.4 Monitoring & Telemetry
 
 ### Process Monitoring
+
 - [ ] Create `executor/monitors/process_monitor.py`
 - [ ] Capture spawned child processes
 - [ ] Monitor CPU/memory usage
 - [ ] Detect unusual process behavior (crypto mining, etc.)
 
 ### Network Monitoring
+
 - [ ] Create `executor/monitors/network_monitor.py`
 - [ ] Implement tcpdump/tshark wrapper
 - [ ] Capture DNS queries, HTTP(S) requests
@@ -172,12 +199,14 @@ noVNC                      ->  Browser access (port 6080)
 - [ ] Log external domain connections
 
 ### Filesystem Monitoring
+
 - [ ] Create `executor/monitors/fs_monitor.py`
 - [ ] Use `inotifywait` for file events
 - [ ] Track file creation/modification/deletion
 - [ ] Detect suspicious paths (credentials, SSH keys, etc.)
 
 ### Environment Variable Access
+
 - [ ] Monitor `process.env` access patterns
 - [ ] Detect credential harvesting attempts
 - [ ] Log accessed environment variables
@@ -185,19 +214,25 @@ noVNC                      ->  Browser access (port 6080)
 ## 1.4 Results Storage
 
 ### Analysis Results Schema
+
 - [ ] Create migration: `analysis_runs` table
+
   ```sql
   id, extension_id, started_at, completed_at, status
   ```
+
 - [ ] Create migration: `analysis_network_events` table
+
   ```sql
   id, run_id, timestamp, event_type, source, destination, payload_hash
   ```
+
 - [ ] Create migration: `analysis_process_events` table
 - [ ] Create migration: `analysis_fs_events` table
 - [ ] Create migration: `analysis_risk_signals` table
 
 ### Risk Scoring Engine
+
 - [ ] Create `analyzer/risk_scorer.py`
 - [ ] Define risk indicators and weights:
   - Network to unknown domains: +20
@@ -210,6 +245,7 @@ noVNC                      ->  Browser access (port 6080)
 ## 1.5 API Endpoints
 
 ### Analysis Endpoints
+
 - [ ] `POST /api/v1/analyze/{extension_id}` - Start analysis
 - [ ] `GET /api/v1/analyze/{run_id}/status` - Get status
 - [ ] `GET /api/v1/analyze/{run_id}/results` - Get results
@@ -217,7 +253,7 @@ noVNC                      ->  Browser access (port 6080)
 
 ---
 
-# Phase 2: Automated GUI Interaction & Persona Simulation (Future)
+## Phase 2: Automated GUI Interaction & Persona Simulation (Future)
 
 > **Goal:** Automated interaction with VS Code GUI for behavioral analysis.
 > **Prerequisite:** Phase 1 completed.
@@ -225,11 +261,13 @@ noVNC                      ->  Browser access (port 6080)
 ## 2.1 GUI Automation
 
 ### VS Code Window Control (Partially done via Playwright)
+
 - [x] CDP connection to VS Code via Playwright (`vscode.py`)
 - [x] Startup wait for VS Code ready state (`wait_until_ready`)
 - [ ] Window focus/maximize with `xdotool` (for edge cases)
 
 ### UI Interaction Engine (Partially done via Playwright)
+
 - [x] Keyboard actions via Playwright CDP: `type_text`, `press_key`, `hotkey` (`keyboard.py` + all modules)
 - [x] Command Palette navigation (`commands.py`)
 - [x] Sidebar navigation (`sidebar.py`)
@@ -239,6 +277,7 @@ noVNC                      ->  Browser access (port 6080)
 - [ ] Mouse actions: `click(x, y)`, `double_click(x, y)`, `right_click(x, y)`
 
 ### WebView Interaction
+
 - [ ] Detect WebView panels
 - [ ] Capture WebView content
 - [ ] Interact with WebView elements (if possible)
@@ -246,12 +285,14 @@ noVNC                      ->  Browser access (port 6080)
 ## 2.2 Persona-Based Simulation
 
 ### Define User Personas
+
 - [ ] **Curious User** - Explores multiple features, opens settings, long session
 - [ ] **Cautious User** - Checks permissions first, minimal interaction
 - [ ] **Impatient User** - Fast clicks, skips dialogs, short session
 - [ ] **Normal User** - Balanced behavior, typical workflow
 
 ### Randomized Execution
+
 - [ ] Generate seed per run for reproducibility
 - [ ] Randomize: click timing, scroll depth, navigation order
 - [ ] Log seed for replay capability
@@ -259,12 +300,14 @@ noVNC                      ->  Browser access (port 6080)
 ## 2.3 Anti-Detection Measures
 
 ### Fingerprinting Resistance
+
 - [ ] Rotate browser fingerprints
 - [ ] Randomize window size
 - [ ] Vary user agent strings
 - [ ] Disable automation indicators
 
 ### Behavioral Realism
+
 - [ ] Add human-like mouse movements (Bezier curves)
 - [ ] Implement realistic typing speed
 - [ ] Add natural pauses between actions
@@ -272,26 +315,30 @@ noVNC                      ->  Browser access (port 6080)
 ## 2.4 Evidence Collection
 
 ### Screenshot Capture
+
 - [ ] Capture before/after each action
 - [ ] Store in organized directory structure
 - [ ] Compress and hash for integrity
 
 ### Screen Recording
+
 - [ ] Record entire session (ffmpeg + x11grab)
 - [ ] Compress with reasonable quality
 - [ ] Link recordings to analysis runs
 
 ### Interaction Timeline
+
 - [ ] Log every action with timestamp
 - [ ] Map actions to consequences (Action -> Network request, DOM change, Process spawn)
 
 ---
 
-# Cross-Phase Components
+## Cross-Phase Components
 
 ## Output & Reporting
 
 ### Structured Output Schema
+
 ```json
 {
   "run_id": "uuid",
@@ -308,11 +355,13 @@ noVNC                      ->  Browser access (port 6080)
 ```
 
 ### Explainability Layer
+
 - [ ] Generate "Why suspicious" summary
 - [ ] Evidence-backed reasoning
 - [ ] Highlight interaction-gated findings
 
 ### Visualization (Future)
+
 - [ ] Timeline view of events
 - [ ] Domain relationship graph
 - [ ] Action -> consequence graph
@@ -332,7 +381,8 @@ noVNC                      ->  Browser access (port 6080)
 
 ## Success Criteria
 
-### Phase 1 Complete When:
+### Phase 1 Complete When
+
 - [ ] Can install/uninstall extensions via CLI inside Xvfb container
 - [x] Can trigger activation events via Playwright UI helpers (commands, editor, sidebar, terminal, panel)
 - [ ] Can trigger ALL activation event types (current baseline: 12/25 via 10 automation scenarios)
@@ -345,7 +395,8 @@ noVNC                      ->  Browser access (port 6080)
 - [ ] Basic risk scoring functional
 - [ ] API endpoints working
 
-### Phase 2 Complete When:
+### Phase 2 Complete When
+
 - [x] Automated Playwright CDP interaction working (replaces xdotool/Puppeteer for most cases)
 - [ ] Persona-based simulation working
 - [ ] Screenshot/recording capture working
