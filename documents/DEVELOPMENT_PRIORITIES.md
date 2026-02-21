@@ -63,12 +63,13 @@ erDiagram
     EXTENSIONS ||--|| CAPABILITIES : has
     EXTENSIONS ||--o{ EVENTS : triggers
     EXTENSIONS ||--o{ CONTRIBS : provides
-    EXTENSIONS ||--o{ DEPS : depends_on
     EXTENSIONS ||--o{ SCRIPTS : contains
 
     EXTENSIONS {
         int id PK
         string name
+        jsonb dependencies "JSONB field on extensions table"
+        jsonb devDependencies "JSONB field on extensions table"
         jsonb npm_fields
         jsonb extra_fields
     }
@@ -92,11 +93,6 @@ erDiagram
     CONTRIBS {
         string type
         jsonb data
-    }
-
-    DEPS {
-        string dep_name
-        string version
     }
 
     SCRIPTS {

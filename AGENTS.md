@@ -22,7 +22,11 @@
 ## Architecture Map (Key Paths)
 
 - `routers/` - HTTP endpoints and request/response handling.
+  - `routers/core.py` - Main CRUD and query endpoints (no prefix).
+  - `routers/activations.py` - Activation report endpoints (`/api` prefix).
 - `scanner/` - Filesystem scan and package.json parsing.
+  - `scanner/service.py` - Business logic connecting parsing to CRUD.
+  - `scanner/json_parser.py` - Reads and parses `package.json` files from `extensions/` directory.
 - `schemas/` - Pydantic models for validation/serialization.
 - `crud/` - Database access layer.
 - `models/` - SQLAlchemy ORM models.
@@ -32,7 +36,8 @@
   - `executor/Dockerfile` - Ubuntu 22.04 + VS Code + Xvfb + noVNC + monitoring tools.
   - `executor/start.sh` - Entrypoint: starts Xvfb :99, openbox, x11vnc, noVNC (port 6080).
   - `executor/__init__.py` - Python package init.
-- `reporter/` - [Planned] Risk reporting and visualization logic.
+- `reporter/` - [Placeholder] Originally planned for reporting logic; actual reporting is handled by the Streamlit UI.
+- `ui/` - Streamlit intelligence dashboard (activation timelines, latency analysis). Accessible at `localhost:3000`.
 - `extensions/` - Input data directory (unpacked extensions).
 - `tests/` - Pytest suites.
 
@@ -72,6 +77,12 @@
 - `GET /getExtensionCapabilities` - query: `name` (required), `publisher`/`version` (optional)
 - `GET /getExtensionContributesAll` - query: `name` (required), `publisher`/`version` (optional)
 - `GET /getExtensionContributesCommands` - query: `name` (required), `publisher`/`version` (optional)
+
+## API Endpoints (Activations — prefix `/api`)
+
+- `GET /api/activations` - List all available activation reports (newest first)
+- `GET /api/activations/latest` - Get the most recent activation report
+- `GET /api/activations/{name}` - Get a specific activation report by filename
 
 ## Agent Notes (Important)
 
@@ -116,6 +127,7 @@
 - New/updated endpoint: `routers/` + `schemas/` + `scanner/service.py` + `crud/` + `models/` + `alembic/` + `tests/`.
 - New parsed package.json field: `scanner/json_parser.py` + `schemas/` + `models/` + `alembic/` + `tests/`.
 - New dynamic analysis feature: `executor/` + `schemas/` + `models/` + `alembic/` + `tests/`.
+- New activation/report feature: `routers/activations.py` + `core/config.py` (for `OUTPUT_DIR`) + `tests/`.
 
 ## Database Tables (Summary)
 

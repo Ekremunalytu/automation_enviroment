@@ -56,6 +56,7 @@ make install-hooks # Install pre-commit hooks
 - `core/deps.py` — `get_db()` dependency yielding SQLAlchemy sessions
 - `database/session.py` — Engine and `SessionLocal` factory
 - `routers/core.py` — All HTTP endpoints (no prefix)
+- `routers/activations.py` — Activation report endpoints (`/api` prefix)
 - `scanner/service.py` — Business logic connecting parsing to CRUD
 - `scanner/json_parser.py` — Reads `package.json` files from `extensions/` directory
 - `crud/crud.py` — All database operations (no direct SQL elsewhere)
@@ -66,7 +67,8 @@ make install-hooks # Install pre-commit hooks
   - `executor/Dockerfile` — Ubuntu 22.04 image with VS Code, Xvfb, noVNC, monitoring tools
   - `executor/start.sh` — Container entrypoint: starts Xvfb, openbox, x11vnc, noVNC
   - `executor/__init__.py` — Package init
-- `reporter/` — [Planned] Risk reporting
+- `reporter/` — [Placeholder] Originally planned for reporting logic; actual reporting is handled by the Streamlit UI
+- `ui/` — Streamlit intelligence dashboard (activation timelines, latency analysis). Accessible at `localhost:3000`
 
 **Data flow for static analysis:**
 `POST /createExtension` → `scanner/service.py` scans `extensions/` dir for matching `package.json` by `name` field (exact match) → validates with Pydantic → `crud/crud.py` inserts → PostgreSQL
@@ -91,6 +93,7 @@ Tests require a running PostgreSQL instance (JSONB/ARRAY types). The test DB run
 - **New endpoint:** `routers/` + `schemas/` + `scanner/service.py` + `crud/` + `models/` + `alembic/` + `tests/`
 - **New package.json field:** `scanner/json_parser.py` + `schemas/` + `models/` + `alembic/` + `tests/`
 - **New dynamic analysis feature:** `executor/` + `schemas/` + `models/` + `alembic/` + `tests/` (may also require `executor/Dockerfile` or `executor/start.sh` changes)
+- **New activation/report feature:** `routers/activations.py` + `core/config.py` (for `OUTPUT_DIR`) + `tests/`
 
 ## Roadmap Context
 

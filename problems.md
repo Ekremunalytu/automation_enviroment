@@ -11,7 +11,7 @@
    - If the same `name` exists with different `publisher/version`, the result is non-deterministic.
 
 3. High: Some read endpoints lack multi-match validation.
-   - `crud/crud.py:477`, `crud/crud.py:508`, `crud/crud.py:546`, `crud/crud.py:585`, `crud/crud.py:622` use `.first()`.
+   - `crud/crud.py:502`, `crud/crud.py:540`, `crud/crud.py:579`, `crud/crud.py:616`, `crud/crud.py:643` use `.first()`.
    - When called with only `name`, incorrect extension data may be returned.
 
 4. Medium: `get_db` may raise `UnboundLocalError` if `SessionLocal()` fails.
@@ -31,7 +31,7 @@
    - `skip=-1` or `limit=-1` requests can produce DB-level errors resulting in 500s.
 
 8. Low: `_VSCODE_FIELDS` is defined but not used in `parse_extra_fields`.
-   - `scanner/json_parser.py:737`, `scanner/json_parser.py:804`
+   - `scanner/json_parser.py:738`, `scanner/json_parser.py:804`
    - Some VS Code fields may be incorrectly classified into `extra_fields`.
 
 9. Low: JSON parse layer has broad `except Exception` with silent swallow.

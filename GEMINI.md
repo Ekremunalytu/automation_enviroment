@@ -17,7 +17,7 @@ ExTrace is a security analysis platform designed to **dynamically analyze** and 
 * **Language:** Python 3.11+
 * **Framework:** FastAPI (with Uvicorn)
 * **Database:** PostgreSQL 16
-* **ORM:** SQLAlchemy 2.0 (Async-ready)
+* **ORM:** SQLAlchemy 2.0 (Sync)
 * **Infrastructure:** Docker & Docker Compose
 * **Dynamic Analysis:**
   * **OS:** Ubuntu 22.04 (in Docker)
@@ -32,6 +32,7 @@ The project follows a **layered architecture** with a specialized execution engi
 1. **Presentation Layer (`routers/`)**: FastAPI endpoints for management and analysis control.
 2. **Business Layer (`scanner/`, `executor/`)**:
     * `scanner/service.py`: Metadata ingestion and database orchestration.
+    * `scanner/json_parser.py`: Reads and parses `package.json` files from `extensions/` directory.
     * `executor/`: Logic for managing the dynamic analysis lifecycle (Planned).
 3. **Data Access Layer (`crud/`)**: SQLAlchemy-based database interactions.
 4. **Infrastructure Layer (`models/`, `database/`)**: Database schemas and connection management.
@@ -75,7 +76,7 @@ The project follows a **layered architecture** with a specialized execution engi
 
 * **Phase 0 (Completed):** Metadata ingestion system (DB, CRUD, Parsing, API).
 * **Phase 1 (Active):** Dynamic Analysis Core. Full GUI VS Code execution in Docker via Xvfb. Honeypot environment and Playwright automation are functional. Telemetry capture (network/fs) is in prototype stage.
-* **Phase 2 (Future):** Automated lifecycle (install/uninstall), persona-based simulation, and risk scoring engine.
+* **Phase 2 (Future):** Persona-based simulation, screenshot/screen recording capture, anti-fingerprinting measures, and risk scoring engine.
 
 ## Development Conventions
 

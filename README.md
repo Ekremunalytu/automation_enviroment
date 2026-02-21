@@ -405,7 +405,22 @@ extrace/
 │
 ├── executor/               # 🎭 Dynamic analysis runtime (Docker + Xvfb)
 │   ├── Dockerfile          # Executor container image
-│   └── start.sh            # Xvfb/openbox/x11vnc/noVNC startup
+│   ├── start.sh            # Xvfb/openbox/x11vnc/noVNC startup
+│   └── playwright/         # Playwright automation modules
+│       ├── entrypoint.py   # Main orchestration entry point
+│       ├── automation.py   # Core automation helpers
+│       ├── commands.py     # VS Code command palette interactions
+│       ├── debug.py        # Debug session simulation
+│       ├── editor.py       # Editor tab/file interactions
+│       ├── keyboard.py     # Keyboard shortcut simulation
+│       ├── language_samples.py # Multi-language sample file generation
+│       ├── monitor.py      # Extension Host activation monitoring
+│       ├── panel.py        # Panel (terminal, output) interactions
+│       ├── settings.py     # VS Code settings management
+│       ├── sidebar.py      # Sidebar navigation simulation
+│       ├── terminal.py     # Integrated terminal interactions
+│       ├── vscode.py       # VS Code lifecycle management (CDP)
+│       └── workspace.py    # Honeypot workspace setup
 │
 ├── ui/                     # 🖥️ Streamlit intelligence dashboard
 │   ├── app.py              # Dashboard application

@@ -282,7 +282,7 @@ class ExtensionSchema(BaseModel):
         icon: Path or URL to extension icon
         pricing: Pricing tier ('Free', 'Trial', 'Paid')
         main: Entry point for Node.js extension host
-        web: Entry point for web extension host
+        browser: Entry point for web extension host (browser)
 
     Example:
         >>> extension = ExtensionSchema(
