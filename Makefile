@@ -59,6 +59,12 @@ help:
 	@echo "║  exec-test      │ Verify executor tools                           ║"
 	@echo "║  exec-run       │ Run Playwright automation                       ║"
 	@echo "╠═══════════════════════════════════════════════════════════════════╣"
+	@echo "║                     🤖 Simulations & Automation                    ║"
+	@echo "║  sim-all        │ Start executor & run all scenarios (monitor)    ║"
+	@echo "║  sim-demo       │ Start executor & run quick Playwright demo      ║"
+	@echo "║  sim-list       │ List available scenarios                        ║"
+	@echo "║  sim-run        │ Run specific scenario (use SCENARIO=name)       ║"
+	@echo "╠═══════════════════════════════════════════════════════════════════╣"
 	@echo "║                     🖥️  UI Dashboard                               ║"
 	@echo "║  ui-build       │ Build UI image                                  ║"
 	@echo "║  ui-up          │ Start UI container                              ║"
@@ -277,6 +283,30 @@ exec-test:
 
 exec-run:
 	docker exec -e PYTHONUNBUFFERED=1 -it automation_executor python3 /home/executor/playwright/entrypoint.py --monitor
+
+# =============================================================================
+# SIMULATION / AUTOMATION
+# =============================================================================
+
+sim-all: exec-up
+	@echo "🤖 Starting all simulations with monitoring..."
+	docker exec -e PYTHONUNBUFFERED=1 -it automation_executor python3 /home/executor/playwright/entrypoint.py --monitor
+
+sim-demo: exec-up
+	@echo "🤖 Running quick demo scenario..."
+	docker exec -e PYTHONUNBUFFERED=1 -it automation_executor python3 /home/executor/playwright/entrypoint.py --demo
+
+sim-list:
+	@echo "🤖 Listing available scenarios..."
+	docker exec -e PYTHONUNBUFFERED=1 -it automation_executor python3 /home/executor/playwright/entrypoint.py --list
+
+sim-run: exec-up
+	@if [ -z "$(SCENARIO)" ]; then \
+		echo "❌ Please provide a SCENARIO. Usage: make sim-run SCENARIO=coding_session"; \
+		exit 1; \
+	fi
+	@echo "🤖 Running scenario: $(SCENARIO)..."
+	docker exec -e PYTHONUNBUFFERED=1 -it automation_executor python3 /home/executor/playwright/entrypoint.py --monitor --scenario $(SCENARIO)
 
 # =============================================================================
 # UI DASHBOARD

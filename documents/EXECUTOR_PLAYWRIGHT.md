@@ -650,38 +650,33 @@ make exec-up            # Start container (honeypot + VS Code automatic)
 
 ### Running Automation
 
+The `Makefile` at the root of the project provides convenient commands to start the executor container and run Playwright simulations in one step:
+
 ```bash
-# Inside the container (docker exec or make exec-shell):
+# Run all scenarios + monitor activation (most common)
+make sim-all
 
-# Run all 10 scenarios
-python3 /home/executor/playwright/entrypoint.py
+# Run a single specific scenario
+make sim-run SCENARIO=coding_session
 
-# Run all scenarios + activation monitoring (generates JSON report)
-python3 /home/executor/playwright/entrypoint.py --monitor
+# Run the quick Playwright demo
+make sim-demo
 
-# Run single scenario
-python3 /home/executor/playwright/entrypoint.py --scenario coding_session
-
-# Single scenario + monitoring
-python3 /home/executor/playwright/entrypoint.py --monitor --scenario debug_session
-
-# List available scenarios
-python3 /home/executor/playwright/entrypoint.py --list
-
-# Randomize scenario order
-python3 /home/executor/playwright/entrypoint.py --shuffle
-
-# Custom report output path
-python3 /home/executor/playwright/entrypoint.py --monitor --report-path /results/my_report.json
-
-# Legacy quick demo
-python3 /home/executor/playwright/entrypoint.py --demo
+# List all available scenarios
+make sim-list
 ```
 
-**Important:** Use `PYTHONUNBUFFERED=1` when running via `docker exec` for real-time output:
+#### Advanced/Manual Execution
+
+If you need full control or want to use advanced flags (like `--shuffle` or `--report-path`), you can run the script manually inside the container. Wait for `make exec-up` to be ready first, then:
 
 ```bash
-docker exec -e PYTHONUNBUFFERED=1 automation_executor python3 /home/executor/playwright/entrypoint.py --monitor
+# Inside the container (docker exec or make exec-shell)
+# use PYTHONUNBUFFERED=1 for real-time output:
+docker exec -e PYTHONUNBUFFERED=1 -it automation_executor python3 /home/executor/playwright/entrypoint.py [OPTIONS]
+
+# Example: Randomize scenario order and change report path
+docker exec -e PYTHONUNBUFFERED=1 -it automation_executor python3 /home/executor/playwright/entrypoint.py --shuffle --monitor --report-path /results/custom.json
 ```
 
 ### Observing via noVNC
