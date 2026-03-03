@@ -46,13 +46,8 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint('id'),
         sa.UniqueConstraint('publisher', 'name', name='uix_publisher_name')
     )
-    # Create indexes explicitly (in case index=True in Column doesn't work in all Alembic versions)
-    op.create_index('ix_extensions_name', 'extensions', ['name'])
-    op.create_index('ix_extensions_publisher', 'extensions', ['publisher'])
 
 
 def downgrade() -> None:
     """Downgrade schema."""
-    op.drop_index('ix_extensions_publisher', table_name='extensions')
-    op.drop_index('ix_extensions_name', table_name='extensions')
     op.drop_table('extensions')

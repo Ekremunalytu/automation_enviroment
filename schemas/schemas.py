@@ -569,3 +569,64 @@ class ExtensionDetailSchema(ExtensionSchema):
 
     contributes: ExtensionContributesSchema | None = None
     """Extension contribution points (keybindings, menus, etc.)."""
+
+
+# =============================================================================
+# Marketplace Schemas
+# =============================================================================
+
+
+class MarketplaceExtension(BaseModel):
+    """Represents a single extension returned by the Marketplace search API."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    publisher: str
+    name: str
+    version: str
+    displayName: str
+    description: str
+    installs: int
+    rating: float
+
+
+class MarketplaceDownloadRequest(BaseModel):
+    """Request body for downloading a Marketplace extension."""
+
+    publisher: str = Field(..., min_length=1)
+    name: str = Field(..., min_length=1)
+    version: str = Field(..., min_length=1)
+
+
+class MarketplaceDownloadResponse(BaseModel):
+    """Response after a Marketplace extension download and DB registration."""
+
+    status: str
+    publisher: str
+    name: str
+    version: str
+    extension_dir: str
+    db_id: int | None = None
+    message: str
+
+
+class AnalyzeRequest(BaseModel):
+    """Request body for triggering sandbox analysis of a downloaded extension."""
+
+    publisher: str = Field(..., min_length=1)
+    name: str = Field(..., min_length=1)
+    version: str = Field(..., min_length=1)
+    scenario: str | None = None
+
+
+class AnalyzeResponse(BaseModel):
+    """Response after sandbox installation and automation run."""
+
+    status: str
+    publisher: str
+    name: str
+    version: str
+    message: str
+    install_output: str | None = None
+    automation_output: str | None = None
+    report_path: str | None = None

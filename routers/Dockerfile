@@ -8,8 +8,23 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     API_PORT=8000 \
     API_WORKERS=1
 
-# Create a non-root user
-RUN useradd -m appuser
+# Install Docker CLI from official Docker repo (debian docker.io is too old)
+# and gosu for dropping privileges at runtime.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates curl gnupg gosu \
+    && install -m 0755 -d /etc/apt/keyrings \
+    && curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg \
+    && chmod a+r /etc/apt/keyrings/docker.gpg \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
+       https://download.docker.com/linux/debian bookworm stable" > /etc/apt/sources.list.d/docker.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends docker-ce-cli \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create a non-root user and add to docker group
+RUN useradd -m appuser \
+    && groupadd -f docker \
+    && usermod -aG docker appuser
 
 WORKDIR /app
 
@@ -20,8 +35,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . .
 
-# Switch to non-root user
-USER appuser
+# Copy entrypoint script
+COPY routers/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
-# Runtime configuration is driven via API_* environment variables
-CMD ["sh", "-c", "uvicorn main:app --host ${API_HOST:-0.0.0.0} --port ${API_PORT:-8000} --workers ${API_WORKERS:-1}"]
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]

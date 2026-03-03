@@ -51,13 +51,19 @@ def _read_report(path: Path) -> dict[str, Any]:
     """Read and parse a JSON report file."""
     try:
         with open(path, encoding="utf-8") as f:
-            data: dict[str, Any] = json.load(f)
-        return data
+            data = json.load(f)
     except (json.JSONDecodeError, OSError) as e:
         raise HTTPException(
             status_code=500,
             detail=f"Failed to read report file: {path.name} — {e}",
         ) from e
+
+    if not isinstance(data, dict):
+        raise HTTPException(
+            status_code=500,
+            detail=f"Report file must contain a JSON object: {path.name}",
+        )
+    return data
 
 
 # =============================================================================
@@ -101,9 +107,20 @@ def get_latest_activation() -> dict[str, Any]:
             status_code=404,
             detail="No activation reports found in output directory.",
         )
-    report = _read_report(files[0])
-    report["_metadata"] = {"filename": files[0].name}
-    return report
+    # The newest file can be partially written while executor is updating it.
+    # Fall back to the next-most-recent valid JSON object report.
+    for report_file in files:
+        try:
+            report = _read_report(report_file)
+        except HTTPException:
+            continue
+        report["_metadata"] = {"filename": report_file.name}
+        return report
+
+    raise HTTPException(
+        status_code=404,
+        detail="No valid activation reports found in output directory.",
+    )
 
 
 @router.get("/activations/{name}")

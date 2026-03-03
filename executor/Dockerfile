@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1.7
+
 # =============================================================================
 # ExTrace Executor
 # Dynamic analysis of VS Code extensions with full GUI via Xvfb + noVNC
@@ -12,7 +14,12 @@ ARG EXECUTOR_DEFAULT_DISPLAY=:99
 ARG EXECUTOR_DEFAULT_NOVNC_PORT=6080
 
 # Install monitoring tools, X11/Xvfb stack, Python3, and utilities
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# Cache apt indexes/packages between builds to reduce rebuild time.
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
+    echo "wireshark-common wireshark-common/install-setuid boolean false" | debconf-set-selections \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends \
     # Monitoring
     tcpdump \
     tshark \
@@ -36,24 +43,26 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
     gnupg \
     ca-certificates \
-    sudo \
-    && rm -rf /var/lib/apt/lists/*
+    sudo
 
 # Install Node.js (required for VS Code extensions runtime)
-RUN curl -fsSL https://deb.nodesource.com/setup_${EXECUTOR_NODE_MAJOR}.x | bash - \
-    && apt-get install -y --no-install-recommends nodejs \
-    && rm -rf /var/lib/apt/lists/*
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
+    curl -fsSL https://deb.nodesource.com/setup_${EXECUTOR_NODE_MAJOR}.x | bash - \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends nodejs
 
 # Install VS Code via direct .deb download
 # Detect architecture: arm64 -> linux-deb-arm64, amd64 -> linux-deb-x64
-RUN ARCH=$(dpkg --print-architecture) \
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
+    ARCH=$(dpkg --print-architecture) \
     && if [ "$ARCH" = "arm64" ]; then VSCODE_ARCH="linux-deb-arm64"; else VSCODE_ARCH="linux-deb-x64"; fi \
     && curl -fsSL -o /tmp/vscode.deb "https://update.code.visualstudio.com/latest/${VSCODE_ARCH}/${EXECUTOR_VSCODE_CHANNEL}" \
     && dpkg -i /tmp/vscode.deb || true \
     && apt-get update \
     && apt-get install -f -y --no-install-recommends \
-    && rm /tmp/vscode.deb \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -f /tmp/vscode.deb
 
 # Install Playwright Python package and its system dependencies
 COPY executor/requirements.txt /tmp/executor-requirements.txt

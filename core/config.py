@@ -147,6 +147,25 @@ class DatabaseSettings(BaseSettings):
     )
 
 
+class ExecutorSettings(BaseSettings):
+    """
+    Executor container configuration.
+    Prefix: EXECUTOR_
+    """
+
+    CONTAINER_NAME: str = "automation_executor"
+    EXTENSIONS_CONTAINER_PATH: str = "/extensions-input"
+    ENTRYPOINT_PATH: str = "/home/executor/playwright/entrypoint.py"
+    DOCKER_EXEC_TIMEOUT: int = 300
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_prefix="EXECUTOR_",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+
 class Settings(BaseSettings):
     """
     Main entry point for application settings.
@@ -156,6 +175,7 @@ class Settings(BaseSettings):
     project: ProjectSettings = ProjectSettings()
     api: APISettings = APISettings()
     db: DatabaseSettings = DatabaseSettings()
+    executor: ExecutorSettings = ExecutorSettings()
 
 
 # =============================================================================

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
 
@@ -21,6 +22,24 @@ def test_parse_activations_from_log_respects_start_offset(tmp_path: Path) -> Non
 
     assert [entry.extension_id for entry in entries] == ["new.publisher"]
     assert entries[0].activation_event == "onCommand:test"
+
+
+def test_activation_report_save_is_atomic(tmp_path: Path) -> None:
+    report = monitor.ActivationReport(
+        activated=[monitor.ActivationEntry(extension_id="sample.ext", source="log")],
+        monitoring_start=0.0,
+        monitoring_end=1.2,
+    )
+    output_path = tmp_path / "activation_report.json"
+    output_path.write_text("stale-content")
+
+    saved_path = report.save(output_path)
+
+    assert saved_path == output_path
+    payload = json.loads(output_path.read_text(encoding="utf-8"))
+    assert payload["summary"]["total_activated"] == 1
+    assert payload["activated"][0]["extension_id"] == "sample.ext"
+    assert not (tmp_path / ".activation_report.json.tmp").exists()
 
 
 def test_parse_all_exthost_logs_uses_per_file_offsets(

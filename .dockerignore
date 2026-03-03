@@ -1,0 +1,43 @@
+# Keep Docker build context small for all services.
+
+# VCS and editor metadata
+.git
+.github/
+.idea/
+.vscode/
+.DS_Store
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+
+# Python virtualenv and caches
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+
+# Test and coverage artifacts
+.coverage
+coverage.xml
+htmlcov/
+
+# Packaging/build artifacts
+build/
+dist/
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
+
+# Local runtime/generated data
+extensions/
+output/
+
+# Logs and temp files
+*.log
+*.tmp
+tmp/

@@ -64,46 +64,38 @@
 <br>
 
 ```mermaid
-%%{init: {'theme': 'dark', 'themeVariables': { 'background': '#0d1117', 'primaryColor': '#7c3aed', 'primaryTextColor': '#e6edf3', 'primaryBorderColor': '#a855f7', 'lineColor': '#f472b6', 'secondaryColor': '#1f2937', 'tertiaryColor': '#374151', 'mainBkg': '#161b22', 'nodeBkg': '#21262d', 'clusterBkg': '#161b22', 'titleColor': '#e6edf3', 'edgeLabelBackground': '#21262d', 'fontFamily': 'ui-monospace, monospace', 'fontSize': '14px'}}}%%
-flowchart TB
-    subgraph External["🌐 EXTERNAL"]
-        Client[("👤 Client<br/><small>Browser / API Consumer</small>")]
+graph TB
+    subgraph External
+        Client["Client - Browser/API Consumer"]
     end
 
-    subgraph Docker["🐳 DOCKER ENVIRONMENT"]
-        subgraph API["⚡ API Container"]
-            FastAPI["FastAPI<br/><small>Uvicorn ASGI</small>"]
+    subgraph Docker_Environment
+        subgraph API_Container
+            FastAPI["FastAPI - Uvicorn ASGI"]
         end
 
-        subgraph DB["🗄️ Database Container"]
-            PostgreSQL[("PostgreSQL<br/><small>v16 Alpine</small>")]
+        subgraph DB_Container
+            PostgreSQL["PostgreSQL - v16 Alpine"]
         end
 
-        subgraph Executor["🔬 Executor Container"]
-            VSCode["VS Code + Xvfb<br/><small>noVNC :6080</small>"]
+        subgraph Executor_Container
+            VSCode["VS Code + Xvfb - noVNC 6080"]
         end
     end
 
-    subgraph Storage["💾 PERSISTENT STORAGE"]
-        Extensions["📦 extensions/<br/><small>VS Code Packages</small>"]
-        Volumes["🔒 postgres_data<br/><small>Docker Volume</small>"]
-        Output["📁 output/<br/><small>Analysis Results</small>"]
+    subgraph Persistent_Storage
+        Extensions["extensions - VS Code Packages"]
+        Volumes["postgres_data - Docker Volume"]
+        Output["output - Analysis Results"]
     end
 
-    Client <-->|"🔌 HTTP :8000"| FastAPI
-    Client <-->|"🖥️ VNC :6080"| VSCode
-    FastAPI <-->|"🔌 SQL :5432"| PostgreSQL
-    FastAPI -->|"📖 Read"| Extensions
-    VSCode -->|"📖 Read"| Extensions
-    VSCode -->|"📝 Write"| Output
-    PostgreSQL -->|"💿 Persist"| Volumes
-
-    style External fill:#7c3aed,stroke:#a855f7,stroke-width:3px,color:#fff
-    style Docker fill:#be185d,stroke:#ec4899,stroke-width:3px,color:#fff
-    style API fill:#0891b2,stroke:#22d3ee,stroke-width:2px,color:#fff
-    style DB fill:#059669,stroke:#34d399,stroke-width:2px,color:#fff
-    style Executor fill:#b91c1c,stroke:#f87171,stroke-width:2px,color:#fff
-    style Storage fill:#b45309,stroke:#fbbf24,stroke-width:3px,color:#fff
+    Client -->|HTTP 8000| FastAPI
+    Client -->|VNC 6080| VSCode
+    FastAPI -->|SQL 5432| PostgreSQL
+    FastAPI -->|Read| Extensions
+    VSCode -->|Read| Extensions
+    VSCode -->|Write| Output
+    PostgreSQL -->|Persist| Volumes
 ```
 
 <br>

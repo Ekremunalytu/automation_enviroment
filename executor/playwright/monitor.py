@@ -122,7 +122,10 @@ class ActivationReport:
             "extension_host_output_lines": self.extension_host_output.count("\n"),
             "log_file": self.log_file_path,
         }
-        out.write_text(json.dumps(data, indent=2, ensure_ascii=False))
+        serialized = json.dumps(data, indent=2, ensure_ascii=False)
+        temp_out = out.parent / f".{out.name}.tmp"
+        temp_out.write_text(serialized, encoding="utf-8")
+        temp_out.replace(out)
         _log(f"Report saved to {out}")
         return out
 

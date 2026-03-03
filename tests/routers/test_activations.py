@@ -86,6 +86,38 @@ def test_get_latest_activation(client: TestClient, mock_output_dir: Path):
     assert data["_metadata"]["filename"] == "second.json"
 
 
+def test_get_latest_activation_skips_corrupt_newest(
+    client: TestClient, mock_output_dir: Path
+):
+    """Test latest endpoint falls back when newest JSON is corrupt."""
+    create_report(mock_output_dir, "good.json", {"data": "good"})
+    time.sleep(0.01)
+    with open(mock_output_dir / "broken.json", "w") as f:
+        f.write("{ invalid json }")
+
+    response = client.get("/api/activations/latest")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["data"] == "good"
+    assert data["_metadata"]["filename"] == "good.json"
+
+
+def test_get_latest_activation_skips_non_object_newest(
+    client: TestClient, mock_output_dir: Path
+):
+    """Test latest endpoint falls back when newest JSON is not an object."""
+    create_report(mock_output_dir, "good.json", {"data": "good"})
+    time.sleep(0.01)
+    with open(mock_output_dir / "array.json", "w") as f:
+        json.dump([{"data": "array"}], f)
+
+    response = client.get("/api/activations/latest")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["data"] == "good"
+    assert data["_metadata"]["filename"] == "good.json"
+
+
 def test_get_latest_activation_404(client: TestClient, mock_output_dir: Path):
     """Test 404 when fetching latest report from empty directory."""
     response = client.get("/api/activations/latest")

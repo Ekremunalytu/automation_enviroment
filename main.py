@@ -55,6 +55,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from core.config import settings
 from routers.activations import router as activations_router
 from routers.core import router as core_router
+from routers.marketplace import router as marketplace_router
 
 
 def create_app() -> FastAPI:
@@ -124,6 +125,7 @@ def create_app() -> FastAPI:
     # application.include_router(core_router, prefix="/api/v1", tags=["extensions"])
     application.include_router(core_router)
     application.include_router(activations_router)
+    application.include_router(marketplace_router)
 
     return application
 

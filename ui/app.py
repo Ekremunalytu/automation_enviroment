@@ -19,6 +19,9 @@ import streamlit as st
 
 API_BASE_URL = os.getenv("API_BASE_URL", "http://api:8000")
 API_ACTIVATIONS_URL = f"{API_BASE_URL}/api/activations"
+API_MARKETPLACE_SEARCH_URL = f"{API_BASE_URL}/api/marketplace/search"
+API_MARKETPLACE_DOWNLOAD_URL = f"{API_BASE_URL}/api/marketplace/download"
+API_MARKETPLACE_ANALYZE_URL = f"{API_BASE_URL}/api/marketplace/analyze"
 
 st.set_page_config(
     page_title="ExTrace Intelligence",
@@ -294,42 +297,212 @@ def process_data(data: dict) -> pd.DataFrame:
 
     df = pd.DataFrame(activated)
 
+    # Ensure duration_ms exists and fill missing values
+    if "duration_ms" not in df.columns:
+        df["duration_ms"] = 50
+    df["duration_ms"] = pd.to_numeric(df["duration_ms"], errors="coerce").fillna(50)
+
     # Convert timestamps
+    has_valid_timestamps = False
     if "timestamp" in df.columns:
-        # Handle both ISO format strings and UNIX timestamps
         df["dt"] = pd.to_datetime(df["timestamp"], errors="coerce")
 
-        # If all are NaT, it might be that they were UNIX timestamps treated as nanoseconds
-        # But getting UNIX timestamps as "seconds" is common.
-        # If we want to support UNIX seconds, we might need a check.
-        # However, the current data is clearly ISO string.
-        # If we want to be safe for UNIX seconds as well:
+        # Retry NaT values as UNIX seconds (for non-empty strings that failed ISO parse)
         mask_nat = df["dt"].isna() & df["timestamp"].notna() & (df["timestamp"] != "")
         if mask_nat.any():
-            # Try parsing as numeric seconds for failed ones
             numeric_ts = pd.to_numeric(df.loc[mask_nat, "timestamp"], errors="coerce")
             df.loc[mask_nat, "dt"] = pd.to_datetime(numeric_ts, unit="s")
 
+        has_valid_timestamps = df["dt"].notna().any()
+
     # Calculate relative timing
-    if "dt" in df.columns and not df.empty:
+    if has_valid_timestamps:
         start_time = df["dt"].min()
         df["rel_start"] = (df["dt"] - start_time).dt.total_seconds()
-        df["duration_ms"] = df.get("duration_ms", 0).fillna(50)
-        df["rel_end"] = df["rel_start"] + (df["duration_ms"] / 1000)
+    else:
+        # No valid timestamps: build a synthetic timeline from cumulative durations
+        df["dt"] = pd.Timestamp.now()
+        cumulative = df["duration_ms"].cumsum().shift(fill_value=0)
+        df["rel_start"] = cumulative / 1000.0
 
-        # Categorize durations
-        df["performance"] = pd.cut(
-            df["duration_ms"],
-            bins=[-1, 50, 200, 1000, 999999],
-            labels=["⚡ Instant", "✅ Fast", "⚠️ Slow", "🔥 Critical"],
-        )
+    df["rel_end"] = df["rel_start"] + (df["duration_ms"] / 1000)
+
+    # Categorize durations
+    df["performance"] = pd.cut(
+        df["duration_ms"],
+        bins=[-1, 50, 200, 1000, 999999],
+        labels=["⚡ Instant", "✅ Fast", "⚠️ Slow", "🔥 Critical"],
+    )
+
+    # Ensure 'source' column exists for the data grid
+    if "source" not in df.columns:
+        df["source"] = ""
 
     return df
 
 
 # ---------------------------------------------------------------------------
+# Marketplace Helpers
+# ---------------------------------------------------------------------------
+
+
+def search_marketplace(query: str) -> list[dict]:
+    try:
+        resp = requests.get(
+            API_MARKETPLACE_SEARCH_URL, params={"query": query}, timeout=15
+        )
+        resp.raise_for_status()
+        return resp.json()
+    except Exception as e:
+        st.error(f"Search error: {e}")
+        return []
+
+
+def download_extension(publisher: str, name: str, version: str) -> dict | None:
+    try:
+        resp = requests.post(
+            API_MARKETPLACE_DOWNLOAD_URL,
+            json={"publisher": publisher, "name": name, "version": version},
+            timeout=180,
+        )
+        resp.raise_for_status()
+        return resp.json()
+    except requests.HTTPError as e:
+        if e.response is not None and e.response.status_code == 409:
+            # Extension already registered — treat as successful download
+            st.info("Extension already downloaded and registered.")
+            return {"status": "already_exists"}
+        st.error(f"Download error: {e}")
+        return None
+    except Exception as e:
+        st.error(f"Download error: {e}")
+        return None
+
+
+def analyze_extension(publisher: str, name: str, version: str) -> dict | None:
+    try:
+        resp = requests.post(
+            API_MARKETPLACE_ANALYZE_URL,
+            json={"publisher": publisher, "name": name, "version": version},
+            timeout=600,
+        )
+        resp.raise_for_status()
+        return resp.json()
+    except Exception as e:
+        st.error(f"Analysis error: {e}")
+        return None
+
+
+# ---------------------------------------------------------------------------
+# Marketplace Page Renderer
+# ---------------------------------------------------------------------------
+
+
+def render_marketplace_page() -> None:
+    st.markdown(
+        """
+        <h1 style="font-size: 2.5rem; margin-bottom: 0;">
+            VS Code <span class="gradient-text">Marketplace</span>
+        </h1>
+        <p style="color: #a1a1aa; margin-top: 4px;">
+            Search, download, and statically analyze extensions from the Marketplace.
+        </p>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.markdown("<div style='height: 24px'></div>", unsafe_allow_html=True)
+
+    # Search form — prevents re-run on every keystroke
+    with st.form("marketplace_search_form"):
+        col_q, col_btn = st.columns([4, 1])
+        with col_q:
+            query = st.text_input(
+                "Search",
+                placeholder="e.g. python, prettier, eslint",
+                label_visibility="collapsed",
+            )
+        with col_btn:
+            submitted = st.form_submit_button("Search", use_container_width=True)
+
+    if submitted and query.strip():
+        with st.spinner("Searching Marketplace..."):
+            results = search_marketplace(query.strip())
+        st.session_state["marketplace_results"] = results
+
+    results: list[dict] = st.session_state.get("marketplace_results", [])
+
+    if not results:
+        if submitted:
+            st.info("No results found.")
+        return
+
+    st.markdown(f"### Results ({len(results)})")
+
+    for ext in results:
+        pub = ext.get("publisher", "")
+        ext_name = ext.get("name", "")
+        ver = ext.get("version", "")
+        display = ext.get("displayName", ext_name)
+        desc = ext.get("description", "")
+        installs = ext.get("installs", 0)
+        rating = ext.get("rating", 0.0)
+
+        c_info, c_btn = st.columns([5, 1])
+        with c_info:
+            st.markdown(
+                f"""
+                <div class="glass-card" style="margin-bottom: 8px;">
+                    <div style="font-size: 1.05rem; font-weight: 700; color: #f4f4f5;">
+                        {display}
+                    </div>
+                    <div style="font-size: 0.78rem; color: #a1a1aa; margin: 4px 0;">
+                        <code style="color: #8b5cf6;">{pub}.{ext_name}</code>
+                        &nbsp;·&nbsp; v{ver}
+                        &nbsp;·&nbsp; ⬇ {installs:,}
+                        &nbsp;·&nbsp; ★ {rating:.1f}
+                    </div>
+                    <div style="font-size: 0.85rem; color: #71717a;">{desc}</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+        with c_btn:
+            ext_key = f"{pub}_{ext_name}_{ver}"
+            downloaded = st.session_state.get(f"downloaded_{ext_key}", False)
+
+            if not downloaded:
+                btn_key = f"dl_{ext_key}"
+                if st.button("Download", key=btn_key, use_container_width=True):
+                    with st.spinner(f"Downloading {ext_name}..."):
+                        result = download_extension(pub, ext_name, ver)
+                    if result:
+                        st.session_state[f"downloaded_{ext_key}"] = True
+                        if result.get("status") == "already_exists":
+                            st.success("Ready to analyze!")
+                        else:
+                            st.success(f"Downloaded! DB ID: {result.get('db_id')}")
+                        st.rerun()
+            else:
+                analyze_key = f"az_{ext_key}"
+                if st.button("Analyze", key=analyze_key, use_container_width=True):
+                    with st.spinner(f"Analyzing {ext_name} in sandbox..."):
+                        az_result = analyze_extension(pub, ext_name, ver)
+                    if az_result:
+                        report_file = az_result.get("report_path", "")
+                        st.success(f"Analysis complete! Report: {report_file}")
+                        # Clear all caches and switch to Dashboard
+                        st.cache_data.clear()
+                        st.session_state["pending_report"] = report_file
+                        st.rerun()
+
+
+# ---------------------------------------------------------------------------
 # Sidebar Navigation
 # ---------------------------------------------------------------------------
+
+# Defaults (overridden inside sidebar when page == "Dashboard")
+target = None
+chart_theme = "plasma"
 
 with st.sidebar:
     st.markdown(
@@ -342,73 +515,100 @@ with st.sidebar:
         unsafe_allow_html=True,
     )
 
-    reports = fetch_report_list()
+    # Auto-switch to Dashboard after a successful analysis
+    default_page_idx = 0
+    if st.session_state.get("pending_report"):
+        default_page_idx = 0  # Dashboard
 
-    if reports:
-        report_map = {r["filename"]: r for r in reports}
-        opts = ["(Latest Report)", *list(report_map.keys())]
-        selection = st.selectbox("Select Analysis Session", opts)
+    page = st.radio(
+        "Navigation",
+        ["Dashboard", "Marketplace"],
+        index=default_page_idx,
+        label_visibility="collapsed",
+    )
 
-        if selection == "(Latest Report)":
-            target = "latest"
-            meta = reports[0]
+    st.markdown("---")
+
+    if page == "Dashboard":
+        reports = fetch_report_list()
+
+        if reports:
+            report_map = {r["filename"]: r for r in reports}
+            opts = ["(Latest Report)", *list(report_map.keys())]
+
+            # If we just finished an analysis, auto-select that report
+            pending = st.session_state.pop("pending_report", None)
+            default_idx = 0
+            if pending and pending in report_map:
+                default_idx = opts.index(pending)
+
+            selection = st.selectbox("Select Analysis Session", opts, index=default_idx)
+
+            if selection == "(Latest Report)":
+                target = "latest"
+                meta = reports[0]
+            else:
+                target = selection
+                meta = report_map[selection]
+
+            # Metadata Card
+            st.markdown(
+                f"""
+                <div style="
+                    background: rgba(255,255,255,0.03);
+                    border: 1px solid rgba(255,255,255,0.06);
+                    border-radius: 12px;
+                    padding: 16px;
+                    margin-top: 16px;
+                ">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                        <span style="color: #a1a1aa; font-size: 0.8rem;">Date</span>
+                        <span style="color: #fff; font-weight: 600; font-size: 0.8rem;">
+                            {datetime.fromtimestamp(meta.get("modified", 0)).strftime("%Y-%m-%d %H:%M")}
+                        </span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                        <span style="color: #a1a1aa; font-size: 0.8rem;">Size</span>
+                        <span style="color: #fff; font-weight: 600; font-size: 0.8rem;">
+                            {meta.get("size_bytes", 0) / 1024:.1f} KB
+                        </span>
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
         else:
-            target = selection
-            meta = report_map[selection]
+            st.warning("No reports found.")
 
-        # Metadata Card
+        st.markdown("### View Options")
+        chart_theme = st.select_slider(
+            "Color Palette",
+            options=["turbo", "plasma", "inferno", "magma"],
+            value="plasma",
+        )
+
+        st.markdown("---")
+        if st.button("🔄 System Refresh", use_container_width=True):
+            st.cache_data.clear()
+            st.rerun()
+
         st.markdown(
-            f"""
-            <div style="
-                background: rgba(255,255,255,0.03);
-                border: 1px solid rgba(255,255,255,0.06);
-                border-radius: 12px;
-                padding: 16px;
-                margin-top: 16px;
-            ">
-                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                    <span style="color: #a1a1aa; font-size: 0.8rem;">Date</span>
-                    <span style="color: #fff; font-weight: 600; font-size: 0.8rem;">
-                        {datetime.fromtimestamp(meta.get("modified", 0)).strftime("%Y-%m-%d %H:%M")}
-                    </span>
-                </div>
-                <div style="display: flex; justify-content: space-between;">
-                    <span style="color: #a1a1aa; font-size: 0.8rem;">Size</span>
-                    <span style="color: #fff; font-weight: 600; font-size: 0.8rem;">
-                        {meta.get("size_bytes", 0) / 1024:.1f} KB
-                    </span>
-                </div>
+            """
+            <div style="position: fixed; bottom: 20px; font-size: 0.7rem; color: #52525b;">
+                v2.1.0 • SYSTEM ONLINE
             </div>
             """,
             unsafe_allow_html=True,
         )
 
-    else:
-        st.warning("No reports found.")
-        target = None
-
-    st.markdown("### View Options")
-    chart_theme = st.select_slider(
-        "Color Palette", options=["turbo", "plasma", "inferno", "magma"], value="plasma"
-    )
-
-    st.markdown("---")
-    if st.button("🔄 System Refresh", use_container_width=True):
-        st.cache_data.clear()
-        st.rerun()
-
-    st.markdown(
-        """
-        <div style="position: fixed; bottom: 20px; font-size: 0.7rem; color: #52525b;">
-            v2.1.0 • SYSTEM ONLINE
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
 # ---------------------------------------------------------------------------
 # Main Logic
 # ---------------------------------------------------------------------------
+
+if page == "Marketplace":
+    render_marketplace_page()
+    st.stop()
 
 if not target:
     st.markdown(
