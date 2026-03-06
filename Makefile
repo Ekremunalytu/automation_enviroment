@@ -282,7 +282,7 @@ exec-test:
 	@echo "✅ All executor tools verified!"
 
 exec-run:
-	docker exec -e PYTHONUNBUFFERED=1 -it automation_executor python3 /home/executor/playwright/entrypoint.py --monitor
+	docker exec -e PYTHONUNBUFFERED=1 -it automation_executor python3 /home/executor/flows/playwright/entrypoint.py --monitor
 
 # =============================================================================
 # SIMULATION / AUTOMATION
@@ -290,15 +290,15 @@ exec-run:
 
 sim-all: exec-up
 	@echo "🤖 Starting all simulations with monitoring..."
-	docker exec -e PYTHONUNBUFFERED=1 -it automation_executor python3 /home/executor/playwright/entrypoint.py --monitor
+	docker exec -e PYTHONUNBUFFERED=1 -it automation_executor python3 /home/executor/flows/playwright/entrypoint.py --monitor
 
 sim-demo: exec-up
 	@echo "🤖 Running quick demo scenario..."
-	docker exec -e PYTHONUNBUFFERED=1 -it automation_executor python3 /home/executor/playwright/entrypoint.py --demo
+	docker exec -e PYTHONUNBUFFERED=1 -it automation_executor python3 /home/executor/flows/playwright/entrypoint.py --demo
 
 sim-list:
 	@echo "🤖 Listing available scenarios..."
-	docker exec -e PYTHONUNBUFFERED=1 -it automation_executor python3 /home/executor/playwright/entrypoint.py --list
+	docker exec -e PYTHONUNBUFFERED=1 -it automation_executor python3 /home/executor/flows/playwright/entrypoint.py --list
 
 sim-run: exec-up
 	@if [ -z "$(SCENARIO)" ]; then \
@@ -306,7 +306,7 @@ sim-run: exec-up
 		exit 1; \
 	fi
 	@echo "🤖 Running scenario: $(SCENARIO)..."
-	docker exec -e PYTHONUNBUFFERED=1 -it automation_executor python3 /home/executor/playwright/entrypoint.py --monitor --scenario $(SCENARIO)
+	docker exec -e PYTHONUNBUFFERED=1 -it automation_executor python3 /home/executor/flows/playwright/entrypoint.py --monitor --scenario $(SCENARIO)
 
 # =============================================================================
 # UI DASHBOARD

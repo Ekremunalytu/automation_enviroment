@@ -7,7 +7,7 @@ Basic smoke tests to verify API availability.
 
 from fastapi.testclient import TestClient
 
-from core.config import settings
+from appcore.api.config import settings
 
 
 class TestHealthCheck:

@@ -54,7 +54,7 @@ services:
   executor:
     build:
       context: .
-      dockerfile: executor/Dockerfile
+      dockerfile: executor/container/Dockerfile
       args:
         EXECUTOR_NODE_MAJOR: ${EXECUTOR_NODE_MAJOR:-20}
         EXECUTOR_VSCODE_CHANNEL: ${EXECUTOR_VSCODE_CHANNEL:-stable}

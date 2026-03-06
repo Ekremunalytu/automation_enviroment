@@ -1,0 +1,165 @@
+"""Activation reports workflow router."""
+
+import json
+import time
+from pathlib import Path
+from typing import Any
+
+from fastapi import APIRouter, HTTPException
+
+from appcore.api.config import settings
+
+router = APIRouter(prefix="/api", tags=["activations"])
+_REPORT_PATTERNS = ("activation_report*.json",)
+
+
+def _get_output_dir() -> Path:
+    """Return the output directory path from settings."""
+    return Path(settings.project.OUTPUT_DIR)
+
+
+def _list_report_files() -> list[Path]:
+    """
+    List all JSON report files in the output directory, sorted by
+    modification time (newest first).
+    """
+    output_dir = _get_output_dir()
+    if not output_dir.exists():
+        return []
+    files: list[Path] = []
+    seen: set[Path] = set()
+    for pattern in _REPORT_PATTERNS:
+        for file_path in output_dir.glob(pattern):
+            resolved = file_path.resolve()
+            if resolved in seen:
+                continue
+            seen.add(resolved)
+            files.append(file_path)
+    return sorted(files, key=lambda f: f.stat().st_mtime, reverse=True)
+
+
+def _read_report(path: Path, *, _retries: int = 3) -> dict[str, Any]:
+    """Read and parse a JSON report file.
+
+    Retries on transient OSError (e.g. Errno 35 on macOS Docker VirtioFS).
+    """
+    last_err: Exception | None = None
+    for attempt in range(_retries):
+        try:
+            with open(path, encoding="utf-8") as f:
+                data = json.load(f)
+            break
+        except json.JSONDecodeError as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to read report file: {path.name} — {e}",
+            ) from e
+        except OSError as e:
+            last_err = e
+            if attempt < _retries - 1:
+                time.sleep(0.3)
+    else:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to read report file: {path.name} — {last_err}",
+        ) from last_err
+
+    if not isinstance(data, dict):
+        raise HTTPException(
+            status_code=500,
+            detail=f"Report file must contain a JSON object: {path.name}",
+        )
+    return data
+
+
+# =============================================================================
+# Endpoints
+# =============================================================================
+
+
+@router.get("/activations")
+def list_activations() -> list[dict[str, Any]]:
+    """
+    List all available activation report files.
+
+    Returns metadata for each report file (filename, size, modified date).
+    Reports are sorted by modification time, newest first.
+    """
+    files = _list_report_files()
+    results: list[dict[str, Any]] = []
+    for f in files:
+        stat = f.stat()
+        results.append(
+            {
+                "filename": f.name,
+                "size_bytes": stat.st_size,
+                "modified": stat.st_mtime,
+            }
+        )
+    return results
+
+
+@router.get("/activations/latest")
+def get_latest_activation() -> dict[str, Any]:
+    """
+    Get the most recent activation report.
+
+    Returns the full contents of the newest JSON report file.
+    Raises 404 if no reports exist.
+    """
+    files = _list_report_files()
+    if not files:
+        raise HTTPException(
+            status_code=404,
+            detail="No activation reports found in output directory.",
+        )
+    # The newest file can be partially written while executor is updating it.
+    # Fall back to the next-most-recent valid JSON object report.
+    last_error: HTTPException | None = None
+    for report_file in files:
+        try:
+            report = _read_report(report_file)
+        except HTTPException as exc:
+            last_error = exc
+            continue
+        report["_metadata"] = {"filename": report_file.name}
+        return report
+
+    if last_error is not None:
+        raise last_error
+
+    raise HTTPException(
+        status_code=404,
+        detail="No valid activation reports found in output directory.",
+    )
+
+
+@router.get("/activations/{name}")
+def get_activation_by_name(name: str) -> dict[str, Any]:
+    """
+    Get a specific activation report by filename.
+
+    Args:
+        name: The filename of the report (e.g., "activation_report.json")
+
+    Returns:
+        Full contents of the requested report file.
+
+    Raises:
+        404: If the specified report file does not exist.
+    """
+    # Prevent directory traversal
+    if ".." in name or "/" in name or "\\" in name:
+        raise HTTPException(status_code=400, detail="Invalid filename.")
+    if not name.startswith("activation_report") or not name.endswith(".json"):
+        raise HTTPException(status_code=400, detail="Invalid activation report name.")
+
+    path = _get_output_dir() / name
+    if not path.exists() or not path.is_file():
+        raise HTTPException(
+            status_code=404,
+            detail=f"Report not found: {name}",
+        )
+    report = _read_report(path)
+    report["_metadata"] = {"filename": name}
+    return report

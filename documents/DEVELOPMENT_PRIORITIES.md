@@ -1,235 +1,59 @@
-<div align="center">
+# Development Priorities
 
-# 🎯 ExTrace - Development Priorities
+`Last Updated: 2026-03-06`
 
-<br>
+The architecture refactor is in place. Current priorities should now focus on making the new workflow layout operationally complete.
 
-**Roadmap & Implementation Strategy**
+## Priority 1: Dynamic Analysis Robustness
 
-<br>
+The marketplace workflow now exposes sandbox execution directly. That makes reliability issues higher priority than additional feature breadth.
 
-[![Document Type](https://img.shields.io/badge/Type-Roadmap-7c3aed?style=for-the-badge&logo=readthedocs&logoColor=white)](https://github.com/Ekremunalytu/automation_enviroment)
-[![Last Updated](https://img.shields.io/badge/Updated-2026--02--19-059669?style=for-the-badge&logo=calendar&logoColor=white)](https://github.com/Ekremunalytu/automation_enviroment)
-[![Status](https://img.shields.io/badge/Status-Active_Development-0891b2?style=for-the-badge&logo=activity&logoColor=white)](https://github.com/Ekremunalytu/automation_enviroment)
+Focus areas:
 
-<br>
+- executor reload correctness after extension install
+- trigger generation error visibility
+- deterministic workspace setup for trigger files
+- better failure reporting from async analysis jobs
 
----
+## Priority 2: Structured Persistence for Dynamic Analysis
 
-`Current Sprint: Dynamic Analysis & Monitoring` • `Next: Risk Scoring & Analysis API` • `Updated: 2026-02-19`
+The API can already start analysis, but results are still filesystem-centric.
 
----
+Required next step:
 
-</div>
+- introduce Alembic migrations and models for run-level analysis state
+- define schemas in `appcore/contracts/`
+- persist through `appcore/storage/crud`
 
-<br>
+## Priority 3: Workflow Test Depth
 
-## 📌 Current Focus: Dynamic Analysis & Monitoring
+The test layout is better, but the most valuable additions now are integration-style tests around:
 
-> [!IMPORTANT]
-> Static/deep parsing baseline is **complete** — all parsers, schemas, CRUD, and API endpoints are done. The current priority is building **monitoring modules** (network, filesystem, process) and the **analysis results storage** layer to support dynamic extension analysis in the executor container.
+- `POST /api/marketplace/download`
+- `POST /api/marketplace/analyze`
+- `POST /api/marketplace/analyze/start`
+- `GET /api/marketplace/analyze/{job_id}`
 
-<br>
+## Priority 4: UI/Data Convergence
 
----
+The UI currently combines file-backed report browsing with live job polling. After DB-backed run persistence lands, the next goal should be to unify those experiences around a stable run model.
 
-<br>
+## Priority 5: Wrapper Retirement Plan
 
-## ✅ Static Parsing Baseline (Completed)
+Compatibility wrappers are useful, but they should be considered transitional.
 
-### 1.1 Manifest Parser Enhancement
+Short-term:
 
-**Goal:** Extract every field from `package.json` that reveals extension behavior.
+- keep them thin
+- keep them tested
 
-| Field Category | Fields to Parse | Purpose | Status |
-|:---------------|:----------------|:--------|:-------|
-| **Identity** | `name`, `publisher`, `version`, `displayName` | Unique extension identification | ✅ Done |
-| **Commands** | `contributes.commands` | Command palette entries | ✅ Model Done |
-| **Permissions** | `activationEvents`, `contributes` | What triggers the extension | ✅ Done |
-| **Entry Points** | `main`, `browser`, `web` | Code execution locations | ✅ Done |
-| **Dependencies** | `dependencies`, `devDependencies`, `extensionDependencies` | Supply chain mapping | ✅ Done |
-| **Capabilities** | `capabilities`, `extensionKind` | Extension type classification | ✅ Done |
-| **Scripts** | `scripts` | npm scripts parsing | ✅ Done |
-| **Repository** | `repository`, `homepage`, `bugs` | Source verification | ✅ Done |
+Long-term:
 
-<br>
+- migrate callers to canonical imports
+- eventually remove legacy surfaces
 
-### 1.2 Database Schema Expansion
+## Explicit Non-Priorities
 
-```mermaid
-%%{init: {'theme': 'dark', 'themeVariables': { 'background': '#0d1117', 'primaryColor': '#7c3aed', 'primaryTextColor': '#e6edf3', 'lineColor': '#22d3ee', 'mainBkg': '#161b22', 'nodeBkg': '#21262d', 'clusterBkg': '#161b22'}}}%%
-erDiagram
-    EXTENSIONS ||--o{ COMMANDS : has
-    EXTENSIONS ||--|| CAPABILITIES : has
-    EXTENSIONS ||--o{ EVENTS : triggers
-    EXTENSIONS ||--o{ CONTRIBS : provides
-    EXTENSIONS ||--o{ SCRIPTS : contains
-
-    EXTENSIONS {
-        int id PK
-        string name
-        jsonb dependencies "JSONB field on extensions table"
-        jsonb devDependencies "JSONB field on extensions table"
-        jsonb npm_fields
-        jsonb extra_fields
-    }
-
-    CAPABILITIES {
-        enum untrusted_supported
-        enum virtual_supported
-    }
-
-    COMMANDS {
-        string command_id
-        string title
-        jsonb when
-    }
-
-    EVENTS {
-        string event_type
-        string event_value
-    }
-
-    CONTRIBS {
-        string type
-        jsonb data
-    }
-
-    SCRIPTS {
-        string script_name
-        jsonb script_command
-    }
-```
-
-<br>
-
-### 1.3 Activation Event Analysis
-
-**Goal:** Understand when and why an extension activates.
-
-| Event Type | Risk Level | Description |
-|:-----------|:-----------|:------------|
-| `*` | 🔴 **High** | Always active (potential performance/security impact) |
-| `onStartupFinished` | 🟡 **Medium** | Runs at VS Code startup |
-| `onUri` | 🟡 **Medium** | Can be triggered externally |
-| `onFileSystem:*` | 🟡 **Medium** | File access triggers |
-| `onCommand:*` | 🟢 **Low** | Only on explicit user action |
-| `onLanguage:*` | 🟢 **Low** | When opening specific file types |
-
-<br>
-
-### 1.4 Contribution Point Mapping
-
-**Goal:** Map all extension contributions to understand capabilities.
-
-<details>
-<summary><strong>📋 View Contribution Types</strong></summary>
-
-- `languages` - Language support declarations
-- `grammars` - Syntax highlighting
-- `themes` - Color themes
-- `snippets` - Code snippets
-- `views` - Custom views/panels
-- `viewsContainers` - View containers
-- `configuration` - Settings contributions
-- `configurationDefaults` - Default settings
-- `taskDefinitions` - Task types
-- `problemMatchers` - Error patterns
-- `debuggers` - Debug adapters
-- `breakpoints` - Breakpoint types
-- `terminal` - Terminal profiles
-- `walkthroughs` - Onboarding flows
-
-</details>
-
-<br>
-
----
-
-<br>
-
-## 🚀 Dynamic Analysis & Risk Scoring (Active)
-
-> [!IMPORTANT]
-> Parsing baseline is complete. This phase covers monitoring, storage, and risk scoring.
-
-1. **Risk Scoring Engine**
-    - Pattern-based risk detection
-    - Behavioral classification
-
-2. **Comparison & Diff**
-    - Version comparison
-    - Regression identification
-
-<br>
-
----
-
-<br>
-
-## 📋 Implementation Tasks
-
-### 🗄️ Database Tasks
-
-- [x] Create `extension_activation_events` table ✅
-- [x] Create `extension_commands` table ✅ (Mapped via `extension_contributes_commands`)
-- [x] Create `extension_contributes` table ✅
-- [x] Create `extension_dependencies` table ✅ (Stored as JSONB/Array in `Extension`)
-- [x] Generate Alembic migrations for new tables ✅
-- [x] Update SQLAlchemy models ✅
-
-### ⚙️ Parser Tasks
-
-- [x] Create `manifest_parser.py` - Full package.json parsing ✅ (Implemented in `json_parser.py`)
-- [x] Create `activation_parser.py` - Activation event extraction ✅ (Implemented in `json_parser.py`)
-- [x] Create `command_parser.py` - Command detection ✅ (Implemented in `json_parser.py`)
-- [x] Create `contribution_parser.py` - Contribution point mapping ✅ (Implemented in `json_parser.py`)
-- [x] Create `dependency_parser.py` - Dependency analysis ✅ (Implemented in `json_parser.py` & models)
-
-### 🔄 Service & Schema Tasks
-
-- [x] Update `service.py` with new parsers ✅
-- [x] Create CRUD functions for new tables ✅
-- [x] Add API endpoints for querying parsed data ✅
-- [x] Create Pydantic schemas for new data structures ✅
-
-<br>
-
----
-
-<br>
-
-## 🚦 Implementation Order
-
-```mermaid
-%%{init: {'theme': 'dark', 'themeVariables': { 'background': '#0d1117', 'primaryColor': '#be185d', 'primaryTextColor': '#e6edf3', 'lineColor': '#f472b6', 'mainBkg': '#161b22', 'nodeBkg': '#21262d', 'clusterBkg': '#161b22'}}}%%
-graph LR
-    C[("1. Commands\n(High Priority)")] --> E[("2. Events\n(Trigger Analysis)")]
-    E --> CT[("3. Contributions\n(Capability Mapping)")]
-    CT --> D[("4. Dependencies\n(Supply Chain)")]
-
-    style C fill:#be185d,stroke:#ec4899,stroke-width:2px,color:#fff
-    style E fill:#7c3aed,stroke:#a855f7,stroke-width:2px,color:#fff
-    style CT fill:#0891b2,stroke:#22d3ee,stroke-width:2px,color:#fff
-    style D fill:#059669,stroke:#34d399,stroke-width:2px,color:#fff
-```
-
-<br>
-
----
-
-<br>
-
-## ✅ Success Criteria
-
-This milestone is complete when:
-
-- ✅ All new database tables created and migrated
-- ✅ Parsers extract all specified data from package.json
-- ✅ API endpoints expose parsed data
-- ✅ Test coverage for all parsers
-- ✅ Sample extensions fully parsed and stored
-
-<div align="center">
-  <strong>Static Parsing ✅ Completed (Q1 2026)</strong> · <strong>Dynamic Analysis Target: Q2 2026</strong>
-</div>
+- broad cross-layer rewrites
+- new dependencies without a strong need
+- speculative abstractions before dynamic-analysis persistence is in place

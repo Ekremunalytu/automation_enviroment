@@ -3,7 +3,9 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-PLAYWRIGHT_DIR = Path(__file__).resolve().parents[2] / "executor" / "playwright"
+PLAYWRIGHT_DIR = (
+    Path(__file__).resolve().parents[2] / "executor" / "flows" / "playwright"
+)
 if str(PLAYWRIGHT_DIR) not in sys.path:
     sys.path.insert(0, str(PLAYWRIGHT_DIR))
 

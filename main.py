@@ -4,9 +4,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 
-from core.config import settings
-from routers.activations import router as activations_router
-from routers.core import router as core_router
+from appcore.api.config import settings
+from routers.activations import router as activation_reports_router
+from routers.core import router as extension_catalog_router
 from routers.marketplace import router as marketplace_router
 
 
@@ -36,8 +36,8 @@ def create_app() -> FastAPI:
     )
 
     # Routers
-    application.include_router(core_router)
-    application.include_router(activations_router)
+    application.include_router(extension_catalog_router)
+    application.include_router(activation_reports_router)
     application.include_router(marketplace_router)
 
     return application

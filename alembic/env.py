@@ -8,8 +8,8 @@ from sqlalchemy import engine_from_config, pool
 from alembic import context  # type: ignore[attr-defined]
 
 sys.path.insert(0, os.path.realpath(os.path.join(os.path.dirname(__file__), "..")))
-from core.config import settings
-from models.models import Base
+from appcore.api.config import settings
+from appcore.storage.models import Base
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

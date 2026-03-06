@@ -21,9 +21,9 @@ from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import NullPool
 
 # Import application components
-from core.deps import get_db
+from appcore.api.deps import get_db
 from main import app
-from models.models import Base
+from appcore.storage.models import Base
 
 # =============================================================================
 # DATABASE FIXTURES

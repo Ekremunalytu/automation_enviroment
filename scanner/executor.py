@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import subprocess
 
-from core.config import settings
+from appcore.api.config import settings
 
 
 class ExecutorError(Exception):
@@ -154,14 +154,8 @@ def install_extension_in_executor(publisher: str, name: str, version: str) -> st
     return result.stdout
 
 
-_RELOAD_SCRIPT_PATH = "/home/executor/playwright/reload_vscode.py"
-"""Path to the container-side reload script."""
-
 _RELOAD_TIMEOUT = 60
 """Seconds to allow for the VS Code window reload."""
-
-_RESET_SCRIPT_PATH = "/home/executor/playwright/reset_state.py"
-"""Path to the container-side sandbox reset script."""
 
 _RESET_TIMEOUT = 90
 """Seconds to allow for sandbox reset before a new analysis run."""
@@ -182,7 +176,7 @@ def reload_vscode_window() -> str:
         ExecutorError: If the reload command fails or times out.
     """
     result = _docker_exec(
-        ["python3", _RELOAD_SCRIPT_PATH],
+        ["python3", settings.executor.RELOAD_SCRIPT_PATH],
         timeout=_RELOAD_TIMEOUT,
     )
     return result.stdout
@@ -207,7 +201,7 @@ def reset_executor_sandbox_state(reload_window: bool = True) -> str:
         ExecutorError: If the reset or reload command fails.
     """
     reset_result = _docker_exec(
-        ["python3", _RESET_SCRIPT_PATH],
+        ["python3", settings.executor.RESET_SCRIPT_PATH],
         timeout=_RESET_TIMEOUT,
     )
     outputs = [reset_result.stdout.strip()]

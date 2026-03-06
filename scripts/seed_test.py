@@ -54,8 +54,8 @@ import sys
 # but need to import from project root modules
 sys.path.insert(0, os.path.realpath(os.path.join(os.path.dirname(__file__), "..")))
 
-from database.session import SessionLocal
-from models.models import Extension
+from appcore.db.session import SessionLocal
+from appcore.storage.models import Extension
 
 
 def seed_test_data():

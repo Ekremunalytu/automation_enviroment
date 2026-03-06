@@ -37,8 +37,19 @@ dev = [
 
 # Explicitly define packages to avoid auto-discovery issues
 [tool.setuptools.packages.find]
-include = ["core*", "crud*", "database*", "models*", "routers*", "scanner*", "schemas*"]
-exclude = ["tests*", "extensions*", "alembic*", "output*", "reporter*", "executor*", "documents*", "config*", "ui*"]
+include = [
+    "appcore*",
+    "executor*",
+    "workflows*",
+    "core*",
+    "crud*",
+    "database*",
+    "models*",
+    "routers*",
+    "scanner*",
+    "schemas*",
+]
+exclude = ["tests*", "extensions*", "alembic*", "output*", "reporter*", "documents*", "config*", "ui*"]
 
 # ============================================================
 # RUFF CONFIGURATION
@@ -81,14 +92,27 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = ["S101", "T20"]
+"tests/*.py" = ["S101", "T20", "E501", "I001", "SIM117"]
+"tests/**/*.py" = ["S101", "T20", "E501", "I001", "SIM117"]
 "alembic/*" = ["T20"]
-"executor/*" = ["T20", "S603", "S607", "E501"]  # Subprocess calls intentional, long strings for fake creds
-"ui/*" = ["E501"]  # HTML/CSS inline strings are naturally long
-"core/config.py" = ["S105"]  # Development default passwords in settings
+"executor/*.py" = ["T20", "S603", "S607", "E501"]  # Subprocess calls intentional, long strings for fake creds
+"executor/**/*.py" = ["T20", "S603", "S607", "E501"]
+"ui/*.py" = ["E501"]  # HTML/CSS inline strings are naturally long
+"ui/**/*.py" = ["E501"]
+"appcore/api/config.py" = ["S105"]  # Development default passwords in settings
 
 [tool.ruff.lint.isort]
-known-first-party = ["core", "crud", "database", "models", "routers", "scanner", "schemas"]
+known-first-party = [
+    "appcore",
+    "workflows",
+    "core",
+    "crud",
+    "database",
+    "models",
+    "routers",
+    "scanner",
+    "schemas",
+]
 
 # ============================================================
 # MYPY CONFIGURATION
@@ -141,12 +165,14 @@ ignore_errors = true
 # ============================================================
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["."]
 python_files = ["test_*.py", "*_test.py"]
 python_functions = ["test_*"]
 addopts = [
     "-v",
     "--tb=short",
     "--strict-markers",
+    "--import-mode=importlib",
     "-ra",
 ]
 markers = [
@@ -159,7 +185,17 @@ asyncio_mode = "auto"
 # COVERAGE CONFIGURATION
 # ============================================================
 [tool.coverage.run]
-source = ["core", "crud", "database", "models", "routers", "scanner", "schemas"]
+source = [
+    "appcore",
+    "workflows",
+    "core",
+    "crud",
+    "database",
+    "models",
+    "routers",
+    "scanner",
+    "schemas",
+]
 branch = true
 omit = [
     "*/tests/*",

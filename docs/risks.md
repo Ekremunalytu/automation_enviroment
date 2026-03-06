@@ -1,44 +1,89 @@
-# Executor Risk Assessment
+# Risk Register
 
-Date: 2026-02-19
+`Last Updated: 2026-03-06`
 
-## Scope Clarifications
-
-- noVNC will not be exposed for remote/public access.
-- CodeQL is intentionally out of scope.
-- Executor modules are in active scope and will be used to simulate behavior after extension installation.
+This register reflects the post-refactor architecture.
 
 ## Active Risks
 
-### P1 - Process Supervision Gap
+### P1 - Analysis success can outreport real executor failure
 
-File: `executor/start.sh`
+Files:
 
-Critical processes (`Xvfb`, `openbox`, `x11vnc`, VS Code, noVNC) are started in the background, but the container is kept alive with `tail -f /dev/null`.  
-If one of the critical processes exits, the container may still look healthy while analysis is effectively broken.
+- `workflows/marketplace/router.py`
+- `scanner/executor.py`
 
-### P1 - Flaky Playwright Connection Sequence
+Why it matters:
 
-File: `executor/playwright/vscode.py`
+- The marketplace workflow depends on install, reset, reload, trigger generation, and Playwright execution all behaving correctly.
+- If reload or follow-up executor steps are treated as soft failures, analysis may complete with a misleading report.
 
-The current connection flow directly accesses `browser.contexts[0]` and `context.pages[0]`.  
-In startup race conditions, this can fail and make behavior simulation flaky.
+### P1 - Dynamic-analysis state is still file-backed
 
-### P2 - Limited Executor Integration Coverage
+Files:
 
-Files: `executor/playwright/*.py`, `tests/executor/*`
+- `workflows/activation_reports/router.py`
+- `workflows/marketplace/router.py`
+- `output/`
 
-Executor now has dedicated unit tests (`tests/executor/test_playwright_automation.py` and
-`tests/executor/test_playwright_monitor.py`), but end-to-end integration coverage is still
-missing for the full flow:
-`extension installed -> trigger commands/actions -> behavior simulation/collection`.
+Why it matters:
 
-## Closed / Accepted Items
+- Activation reports and job snapshots are not persisted as first-class DB records.
+- This limits queryability, retention discipline, and historical comparison.
 
-### Closed - noVNC Remote Exposure Risk
+### P2 - Trigger generation and workspace alignment remain fragile
 
-Accepted context: access is local only, not remote.
+Files:
 
-### Closed - CodeQL Removal Concern
+- `workflows/marketplace/router.py`
+- `executor/flows/playwright/workspace.py`
+- `executor/flows/playwright/entrypoint.py`
 
-Accepted context: CodeQL is intentionally outside current scope.
+Why it matters:
+
+- If generated trigger files do not land in the actual mounted workspace, some activation scenarios will silently fail to execute.
+
+### P2 - Compatibility wrappers can drift from canonical code
+
+Files:
+
+- `routers/`
+- `scanner/`
+- `core/`
+- `database/`
+- `crud/`
+- `models/`
+- `schemas/`
+
+Why it matters:
+
+- The wrappers are safe only while they remain thin and well-tested.
+- Any accidental logic added there would recreate architectural duplication.
+
+### P2 - End-to-end executor coverage is still limited
+
+Files:
+
+- `tests/executor/`
+- `tests/workflows/marketplace/`
+
+Why it matters:
+
+- Unit coverage is present, but the most failure-prone path is the integrated flow from API request to sandbox output.
+
+## Accepted Risks
+
+### Local noVNC exposure
+
+- noVNC is intended for local operator access, not public deployment.
+
+### Compatibility wrappers during migration
+
+- The wrappers are intentional for now and are covered by tests.
+
+## Priority Mitigations
+
+- Introduce DB-backed `analysis_runs`
+- Make executor failures explicit in marketplace responses
+- Expand workflow tests for background analysis jobs
+- Continue migrating callers to canonical imports

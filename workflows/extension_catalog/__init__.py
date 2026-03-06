@@ -1,0 +1,1 @@
+"""Extension catalog workflow."""
