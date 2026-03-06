@@ -245,11 +245,15 @@ def main() -> None:
                 print("[*] Starting Extension Host monitoring...")
                 mon = monitor.ExtensionMonitor(page, report_path=args.report_path)
                 mon.start()
+                automation.set_scenario_event_reporter(mon.record_scenario_event)
 
             if args.reload_before_run:
                 page = _reload_window_under_monitoring(browser, page)
                 if mon is not None:
                     mon.page = page
+
+            if mon is not None:
+                mon.attach_runtime_tracers()
 
             executed_scenarios: list[str] = []
 
@@ -296,6 +300,7 @@ def main() -> None:
                 report.print_summary()
                 report.save(args.report_path)
         finally:
+            automation.set_scenario_event_reporter(None)
             vscode.disconnect(browser)
             print("[+] Completed")
 

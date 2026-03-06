@@ -29,6 +29,9 @@ from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import Page
 
 ScenarioFn = Callable[[Page], None]
+ScenarioEventReporter = Callable[[str, str, str], None]
+
+_SCENARIO_EVENT_REPORTER: ScenarioEventReporter | None = None
 
 # ---------------------------------------------------------------------------
 # Scenario 1: Developer coding session
@@ -562,12 +565,15 @@ def run_all_scenarios(page: Page, shuffle: bool = False) -> list[str]:
         random.shuffle(scenarios)
 
     for name, fn in scenarios:
+        _emit_scenario_event("start", name)
         try:
             fn(page)
             _log(f"DONE: {name}")
+            _emit_scenario_event("end", name, "completed")
         except (PlaywrightError, RuntimeError, ValueError) as exc:
             _log(f"FAIL: {name} -> {exc}")
             failed_scenarios.append(name)
+            _emit_scenario_event("end", name, "failed")
             # Cleanup: dismiss any stuck dialogs/menus after failure
             _recover_ui_state(page)
         _cleanup_between_scenarios(page)
@@ -588,7 +594,13 @@ def run_scenario(page: Page, name: str) -> None:
     fn = scenario_map.get(name)
     if fn is None:
         raise ValueError(f"Unknown scenario: {name!r}. Available: {list(scenario_map)}")
-    fn(page)
+    _emit_scenario_event("start", name)
+    try:
+        fn(page)
+    except (PlaywrightError, RuntimeError, ValueError):
+        _emit_scenario_event("end", name, "failed")
+        raise
+    _emit_scenario_event("end", name, "completed")
 
 
 def run_selected_scenarios(
@@ -611,12 +623,15 @@ def run_selected_scenarios(
 
     failed: list[str] = []
     for name, fn in selected:
+        _emit_scenario_event("start", name)
         try:
             fn(page)
             _log(f"DONE: {name}")
+            _emit_scenario_event("end", name, "completed")
         except (PlaywrightError, RuntimeError, ValueError) as exc:
             _log(f"FAIL: {name} -> {exc}")
             failed.append(name)
+            _emit_scenario_event("end", name, "failed")
             _recover_ui_state(page)
         _cleanup_between_scenarios(page)
         page.wait_for_timeout(1000)
@@ -627,6 +642,12 @@ def run_selected_scenarios(
 def list_scenarios() -> list[str]:
     """Return available scenario names."""
     return [name for name, _ in _ALL_SCENARIOS]
+
+
+def set_scenario_event_reporter(reporter: ScenarioEventReporter | None) -> None:
+    """Register an optional callback for scenario lifecycle events."""
+    global _SCENARIO_EVENT_REPORTER
+    _SCENARIO_EVENT_REPORTER = reporter
 
 
 # ---------------------------------------------------------------------------
@@ -684,3 +705,9 @@ def _kill_all_terminals(page: Page) -> None:
 def _log(msg: str, detail: str = "") -> None:
     suffix = f" ({detail})" if detail else ""
     print(f"[automation] {msg}{suffix}")
+
+
+def _emit_scenario_event(action: str, name: str, status: str = "") -> None:
+    if _SCENARIO_EVENT_REPORTER is None:
+        return
+    _SCENARIO_EVENT_REPORTER(action, name, status)

@@ -57,6 +57,37 @@ VSCODE_USER_DATA = Path("/home/executor/.vscode")
 VSCODE_LOGS_DIR = VSCODE_USER_DATA / "logs"
 RESULTS_DIR = Path("/results")
 
+_FILE_WATCH_PATHS = [
+    Path("/workspace"),
+    Path("/home/executor/.ssh"),
+    Path("/home/executor/.aws"),
+    Path("/home/executor/.kube"),
+    Path("/home/executor/.docker"),
+    Path("/home/executor/.config/gcloud"),
+    Path("/home/executor/credentials"),
+    Path("/home/executor/.wallet"),
+]
+_SENSITIVE_PATH_PREFIXES = (
+    "/workspace/.env",
+    "/workspace/credentials",
+    "/workspace/.wallet",
+    "/home/executor/.ssh",
+    "/home/executor/.aws",
+    "/home/executor/.kube",
+    "/home/executor/.docker",
+    "/home/executor/.config/gcloud",
+    "/home/executor/.npmrc",
+    "/home/executor/.git-credentials",
+)
+_NOISY_PATH_PREFIXES = (
+    "/proc/",
+    "/dev/",
+    "/sys/",
+    "/usr/",
+    "/etc/",
+    "/home/executor/.vscode/logs/",
+)
+
 # ---------------------------------------------------------------------------
 # Data classes
 # ---------------------------------------------------------------------------
@@ -101,13 +132,45 @@ class NetworkEvent:
 
 
 @dataclass
+class FileEvent:
+    """A single observed file-system event."""
+
+    timestamp: str = ""
+    rel_time_s: float | None = None
+    operation: str = ""
+    path: str = ""
+    secondary_path: str = ""
+    source: str = ""  # "extension", "automation", "system"
+    observer: str = ""  # "strace", "inotify"
+    scenario_name: str = ""
+    related_extension_id: str = ""
+    related_activation_event: str = ""
+    flags: str = ""
+    sensitive: bool = False
+    summary: str = ""
+
+
+@dataclass
+class ScenarioTrace:
+    """Lifecycle timing for an executed automation scenario."""
+
+    name: str
+    started_at: float
+    ended_at: float = 0.0
+    status: str = "running"
+
+
+@dataclass
 class ActivationReport:
     """Aggregated monitoring results."""
 
     activated: list[ActivationEntry] = field(default_factory=list)
     running_extensions: list[RunningExtension] = field(default_factory=list)
     network_events: list[NetworkEvent] = field(default_factory=list)
+    file_events: list[FileEvent] = field(default_factory=list)
+    scenario_traces: list[ScenarioTrace] = field(default_factory=list)
     network_capture_error: str = ""
+    file_capture_error: str = ""
     extension_host_output: str = ""
     log_file_path: str = ""
     monitoring_start: float = 0.0
@@ -136,6 +199,10 @@ class ActivationReport:
         return hosts
 
     @property
+    def sensitive_file_events(self) -> list[FileEvent]:
+        return [entry for entry in self.file_events if entry.sensitive]
+
+    @property
     def summary(self) -> dict:
         unique_ids = self.activated_ids | self.runtime_ids
         return {
@@ -150,6 +217,8 @@ class ActivationReport:
             "scenarios_run": self.scenarios_run,
             "network_events": len(self.network_events),
             "network_hosts": len(self.network_hosts),
+            "file_events": len(self.file_events),
+            "sensitive_file_events": len(self.sensitive_file_events),
         }
 
     @property
@@ -168,6 +237,22 @@ class ActivationReport:
             "capture_error": self.network_capture_error,
         }
 
+    @property
+    def file_summary(self) -> dict:
+        sources: dict[str, int] = {}
+        operations: dict[str, int] = {}
+        for event in self.file_events:
+            sources[event.source] = sources.get(event.source, 0) + 1
+            operations[event.operation] = operations.get(event.operation, 0) + 1
+
+        return {
+            "total_events": len(self.file_events),
+            "sensitive_events": len(self.sensitive_file_events),
+            "sources": sources,
+            "operations": operations,
+            "capture_error": self.file_capture_error,
+        }
+
     def save(self, path: str | Path, announce: bool = True) -> Path:
         """Save full report as JSON."""
         out = Path(path)
@@ -183,7 +268,10 @@ class ActivationReport:
             "activated": [asdict(e) for e in self.activated],
             "running_extensions": [asdict(e) for e in self.running_extensions],
             "network_events": [asdict(e) for e in self.network_events],
+            "file_events": [asdict(e) for e in self.file_events],
+            "scenario_traces": [asdict(e) for e in self.scenario_traces],
             "network_summary": self.network_summary,
+            "file_summary": self.file_summary,
             "extension_host_output_lines": self.extension_host_output.count("\n"),
             "extension_host_output": eh_text,
             "log_file": self.log_file_path,
@@ -207,6 +295,8 @@ class ActivationReport:
         print(f"  Running extensions  : {len(self.running_extensions)}")
         print(f"  Network events      : {len(self.network_events)}")
         print(f"  Network hosts       : {len(self.network_hosts)}")
+        print(f"  File events         : {len(self.file_events)}")
+        print(f"  Sensitive file I/O  : {len(self.sensitive_file_events)}")
         if self.activated:
             print("\n  Activated extensions:")
             for entry in self.activated:
@@ -243,6 +333,16 @@ class ActivationReport:
                     f"{network_event.event_type or network_event.protocol}"
                     f"{host}{port}{rel}"
                 )
+        if self.file_events:
+            print("\n  File activity:")
+            for file_event in self.file_events[:10]:
+                rel = (
+                    f" @{file_event.rel_time_s:.3f}s"
+                    if file_event.rel_time_s is not None
+                    else ""
+                )
+                source = f" [{file_event.source}]" if file_event.source else ""
+                print(f"    - {file_event.operation}{source} {file_event.path}{rel}")
         print("=" * 60 + "\n")
 
 
@@ -740,7 +840,311 @@ class NetworkCapture:
 
 
 # ---------------------------------------------------------------------------
-# Strategy 5: Log file watching (real-time via inotifywait)
+# Strategy 5: File I/O monitoring
+# ---------------------------------------------------------------------------
+
+_STRACE_CALL_RE = re.compile(
+    r"^(?:\[pid\s+(?P<pid>\d+)\]\s+)?(?P<ts>\d+\.\d+)\s+"
+    r"(?P<call>\w+)\((?P<args>.*)\)\s+=\s+(?P<result>.+)$"
+)
+
+
+def parse_strace_file_event_line(
+    line: str,
+    monitoring_start: float = 0.0,
+) -> FileEvent | None:
+    """Parse a single strace line from the Extension Host process."""
+    match = _STRACE_CALL_RE.match(line.strip())
+    if match is None:
+        return None
+
+    try:
+        timestamp_epoch = float(match.group("ts"))
+    except ValueError:
+        return None
+
+    call = match.group("call")
+    args = match.group("args")
+    quoted_paths = re.findall(r'"([^"]+)"', args)
+    if not quoted_paths:
+        return None
+
+    primary_path = quoted_paths[0]
+    secondary_path = quoted_paths[1] if len(quoted_paths) > 1 else ""
+    if not _is_relevant_file_path(primary_path):
+        return None
+
+    operation = _normalize_strace_operation(call, args)
+    if not operation:
+        return None
+
+    rel_time_s = None
+    if monitoring_start > 0:
+        rel_time_s = round(max(timestamp_epoch - monitoring_start, 0.0), 3)
+
+    timestamp = datetime.fromtimestamp(timestamp_epoch).isoformat(
+        timespec="milliseconds"
+    )
+    summary = operation
+    if secondary_path:
+        summary = f"{operation}: {primary_path} -> {secondary_path}"
+    else:
+        summary = f"{operation}: {primary_path}"
+
+    return FileEvent(
+        timestamp=timestamp,
+        rel_time_s=rel_time_s,
+        operation=operation,
+        path=primary_path,
+        secondary_path=secondary_path,
+        source="extension",
+        observer="strace",
+        flags=args,
+        sensitive=_is_sensitive_path(primary_path),
+        summary=summary,
+    )
+
+
+def parse_inotify_file_event_line(
+    line: str,
+    monitoring_start: float = 0.0,
+    event_time: float | None = None,
+) -> FileEvent | None:
+    """Parse a single inotifywait output line."""
+    stripped = line.strip()
+    if not stripped:
+        return None
+
+    parts = stripped.split("\t")
+    if len(parts) < 2:
+        return None
+
+    path = parts[0].strip()
+    raw_events = parts[1].strip()
+    if not _is_relevant_file_path(path):
+        return None
+
+    operation = _normalize_inotify_operation(raw_events)
+    if not operation:
+        return None
+
+    observed_at = event_time if event_time is not None else time.time()
+    rel_time_s = None
+    if monitoring_start > 0:
+        rel_time_s = round(max(observed_at - monitoring_start, 0.0), 3)
+
+    timestamp = datetime.fromtimestamp(observed_at).isoformat(timespec="milliseconds")
+    return FileEvent(
+        timestamp=timestamp,
+        rel_time_s=rel_time_s,
+        operation=operation,
+        path=path,
+        source="automation",
+        observer="inotify",
+        sensitive=_is_sensitive_path(path),
+        summary=f"{operation}: {path}",
+    )
+
+
+class FileSystemCapture:
+    """Watch selected filesystem roots via inotifywait."""
+
+    def __init__(
+        self,
+        monitoring_start: float,
+        on_event: Callable[[FileEvent], None] | None = None,
+    ) -> None:
+        self.monitoring_start = monitoring_start
+        self.on_event = on_event
+        self.events: list[FileEvent] = []
+        self.start_error = ""
+        self._proc: subprocess.Popen[str] | None = None
+        self._reader: threading.Thread | None = None
+
+    def start(self) -> None:
+        watch_paths = [str(path) for path in _FILE_WATCH_PATHS if path.exists()]
+        if not watch_paths:
+            self.start_error = (
+                "No filesystem watch paths available in executor container."
+            )
+            _log(self.start_error)
+            return
+
+        cmd = [
+            "inotifywait",
+            "-m",
+            "-r",
+            "--format",
+            "%w%f\t%e",
+            "-e",
+            "create",
+            "-e",
+            "modify",
+            "-e",
+            "delete",
+            "-e",
+            "move",
+            "-e",
+            "attrib",
+            "-e",
+            "open",
+            "-e",
+            "close_write",
+            *watch_paths,
+        ]
+        try:
+            self._proc = subprocess.Popen(  # nosec B603,B607
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
+                text=True,
+                bufsize=1,
+            )
+        except FileNotFoundError:
+            self.start_error = "inotifywait binary not available in executor container."
+            _log(self.start_error)
+            return
+        except OSError as exc:
+            self.start_error = f"inotifywait start failed: {exc}"
+            _log(self.start_error)
+            return
+
+        self._reader = threading.Thread(target=self._consume_stdout, daemon=True)
+        self._reader.start()
+        _log("Filesystem capture started")
+
+    def stop(self) -> list[FileEvent]:
+        if self._proc is None:
+            return list(self.events)
+
+        if self._proc.poll() is None:
+            self._proc.terminate()
+            try:
+                self._proc.wait(timeout=3)
+            except subprocess.TimeoutExpired:
+                self._proc.kill()
+                self._proc.wait(timeout=3)
+
+        if self._reader is not None:
+            self._reader.join(timeout=3)
+
+        _log(f"Filesystem capture stopped with {len(self.events)} event(s)")
+        return list(self.events)
+
+    def _consume_stdout(self) -> None:
+        if self._proc is None or self._proc.stdout is None:
+            return
+
+        for line in self._proc.stdout:
+            event = parse_inotify_file_event_line(
+                line,
+                monitoring_start=self.monitoring_start,
+                event_time=time.time(),
+            )
+            if event is None:
+                continue
+            self.events.append(event)
+            if self.on_event is not None:
+                self.on_event(event)
+
+
+class ExtensionHostFileCapture:
+    """Attach strace to the current Extension Host process."""
+
+    def __init__(
+        self,
+        monitoring_start: float,
+        on_event: Callable[[FileEvent], None] | None = None,
+    ) -> None:
+        self.monitoring_start = monitoring_start
+        self.on_event = on_event
+        self.events: list[FileEvent] = []
+        self.start_error = ""
+        self._proc: subprocess.Popen[str] | None = None
+        self._reader: threading.Thread | None = None
+        self._pid: int | None = None
+
+    def start(self) -> None:
+        pid = _find_extension_host_pid()
+        if pid is None:
+            self.start_error = (
+                "Extension Host PID not found; file attribution unavailable."
+            )
+            _log(self.start_error)
+            return
+
+        self._pid = pid
+        cmd = [
+            "strace",
+            "-f",
+            "-ttt",
+            "-s",
+            "256",
+            "-e",
+            (
+                "trace=open,openat,creat,unlink,unlinkat,rename,renameat,"
+                "renameat2,mkdir,rmdir,newfstatat,readlink"
+            ),
+            "-p",
+            str(pid),
+        ]
+        try:
+            self._proc = subprocess.Popen(  # nosec B603,B607
+                cmd,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.PIPE,
+                text=True,
+                bufsize=1,
+            )
+        except FileNotFoundError:
+            self.start_error = "strace binary not available in executor container."
+            _log(self.start_error)
+            return
+        except OSError as exc:
+            self.start_error = f"strace start failed: {exc}"
+            _log(self.start_error)
+            return
+
+        self._reader = threading.Thread(target=self._consume_stderr, daemon=True)
+        self._reader.start()
+        _log(f"Extension Host file capture attached to pid {pid}")
+
+    def stop(self) -> list[FileEvent]:
+        if self._proc is None:
+            return list(self.events)
+
+        if self._proc.poll() is None:
+            self._proc.terminate()
+            try:
+                self._proc.wait(timeout=3)
+            except subprocess.TimeoutExpired:
+                self._proc.kill()
+                self._proc.wait(timeout=3)
+
+        if self._reader is not None:
+            self._reader.join(timeout=3)
+
+        _log(f"Extension Host file capture stopped with {len(self.events)} event(s)")
+        return list(self.events)
+
+    def _consume_stderr(self) -> None:
+        if self._proc is None or self._proc.stderr is None:
+            return
+
+        for line in self._proc.stderr:
+            event = parse_strace_file_event_line(
+                line,
+                monitoring_start=self.monitoring_start,
+            )
+            if event is None:
+                continue
+            self.events.append(event)
+            if self.on_event is not None:
+                self.on_event(event)
+
+
+# ---------------------------------------------------------------------------
+# Strategy 6: Log file watching (real-time via inotifywait)
 # ---------------------------------------------------------------------------
 
 
@@ -882,6 +1286,9 @@ class ExtensionMonitor:
         self._started = False
         self._log_offsets: dict[str, int] = {}
         self._network_capture: NetworkCapture | None = None
+        self._file_capture: FileSystemCapture | None = None
+        self._extension_file_capture: ExtensionHostFileCapture | None = None
+        self._active_scenarios: dict[str, ScenarioTrace] = {}
         self._last_persist_at = 0.0
 
     def start(self) -> None:
@@ -895,9 +1302,33 @@ class ExtensionMonitor:
         self._network_capture.start()
         if self._network_capture.start_error:
             self.report.network_capture_error = self._network_capture.start_error
+        self._file_capture = FileSystemCapture(
+            monitoring_start=self.report.monitoring_start,
+            on_event=self._handle_file_event,
+        )
+        self._file_capture.start()
+        if self._file_capture.start_error:
+            self.report.file_capture_error = self._file_capture.start_error
         self._started = True
         self._persist_report(force=True)
         _log("Monitoring started")
+
+    def attach_runtime_tracers(self) -> None:
+        """Attach runtime tracers that depend on a stable Extension Host PID."""
+        if self._extension_file_capture is not None:
+            return
+
+        self._extension_file_capture = ExtensionHostFileCapture(
+            monitoring_start=self.report.monitoring_start,
+            on_event=self._handle_file_event,
+        )
+        self._extension_file_capture.start()
+        if (
+            self._extension_file_capture.start_error
+            and not self.report.file_capture_error
+        ):
+            self.report.file_capture_error = self._extension_file_capture.start_error
+        self._persist_report(force=True)
 
     def stop(self) -> ActivationReport:
         """Collect all monitoring data and build the report.
@@ -914,8 +1345,23 @@ class ExtensionMonitor:
             self.report.network_events = self._network_capture.stop()
             if self._network_capture.start_error:
                 self.report.network_capture_error = self._network_capture.start_error
+        if self._file_capture is not None:
+            self.report.file_events = self._file_capture.stop()
+            if self._file_capture.start_error and not self.report.file_capture_error:
+                self.report.file_capture_error = self._file_capture.start_error
+        if self._extension_file_capture is not None:
+            extension_events = self._extension_file_capture.stop()
+            if (
+                self._extension_file_capture.start_error
+                and not self.report.file_capture_error
+            ):
+                self.report.file_capture_error = (
+                    self._extension_file_capture.start_error
+                )
+            self.report.file_events.extend(extension_events)
 
         self.report.monitoring_end = time.time()
+        self._finalize_running_scenarios()
         _log(f"Monitoring stopped ({self.report.duration_s:.1f}s elapsed)")
         self._persist_report(force=True)
 
@@ -952,6 +1398,11 @@ class ExtensionMonitor:
             self.report.extension_host_output = read_extension_host_output()
         except OSError as exc:
             _log(f"Strategy 3 failed: {exc}")
+        self.report.file_events = _annotate_file_events(
+            self.report.file_events,
+            self.report.activated,
+            self.report.scenario_traces,
+        )
         self._persist_report(force=True)
 
         return self.report
@@ -973,14 +1424,49 @@ class ExtensionMonitor:
         self.report.network_events.append(event)
         self._persist_report(force=False)
 
+    def _handle_file_event(self, event: FileEvent) -> None:
+        self.report.file_events.append(event)
+        self._persist_report(force=False)
+
+    def record_scenario_event(self, action: str, name: str, status: str = "") -> None:
+        now = time.time()
+        if action == "start":
+            started_trace = ScenarioTrace(name=name, started_at=now)
+            self._active_scenarios[name] = started_trace
+            self.report.scenario_traces.append(started_trace)
+        elif action == "end":
+            finished_trace: ScenarioTrace | None = (
+                self._active_scenarios.pop(name)
+                if name in self._active_scenarios
+                else None
+            )
+            if finished_trace is None:
+                finished_trace = ScenarioTrace(name=name, started_at=now)
+                self.report.scenario_traces.append(finished_trace)
+            finished_trace.ended_at = now
+            finished_trace.status = status or "completed"
+        self._persist_report(force=False)
+
+    def _finalize_running_scenarios(self) -> None:
+        ended_at = self.report.monitoring_end or time.time()
+        for trace in self._active_scenarios.values():
+            trace.ended_at = ended_at
+            if trace.status == "running":
+                trace.status = "completed"
+        self._active_scenarios.clear()
+
     def _persist_report(self, force: bool) -> None:
         if self.report_path is None:
             return
 
         now = time.time()
+        file_count = len(self.report.file_events)
+        scenario_count = len(self.report.scenario_traces)
         if (
             not force
             and (len(self.report.network_events) % 5 != 0)
+            and (file_count % 5 != 0)
+            and (scenario_count % 2 != 0)
             and (now - self._last_persist_at < 1.0)
         ):
             return
@@ -1031,6 +1517,207 @@ def _first_non_empty(*values: str) -> str:
         if item:
             return item
     return ""
+
+
+def _is_sensitive_path(path: str) -> bool:
+    normalized = path.strip()
+    return any(normalized.startswith(prefix) for prefix in _SENSITIVE_PATH_PREFIXES)
+
+
+def _is_relevant_file_path(path: str) -> bool:
+    normalized = path.strip()
+    if not normalized or normalized in {".", ".."}:
+        return False
+    if any(normalized.startswith(prefix) for prefix in _NOISY_PATH_PREFIXES):
+        return False
+    return normalized.startswith("/workspace") or normalized.startswith(
+        "/home/executor"
+    )
+
+
+def _normalize_inotify_operation(raw_events: str) -> str:
+    events = raw_events.upper()
+    if "CREATE" in events:
+        return "create"
+    if "CLOSE_WRITE" in events or "MODIFY" in events:
+        return "write"
+    if "DELETE" in events:
+        return "delete"
+    if "MOVE" in events:
+        return "move"
+    if "ATTRIB" in events:
+        return "metadata"
+    if "OPEN" in events:
+        return "read"
+    return ""
+
+
+def _normalize_strace_operation(call: str, args: str) -> str:
+    if call in {"unlink", "unlinkat", "rmdir"}:
+        return "delete"
+    if call in {"rename", "renameat", "renameat2"}:
+        return "move"
+    if call == "mkdir":
+        return "create"
+    if call in {"readlink", "newfstatat"}:
+        return "metadata"
+    if call in {"creat", "open", "openat"}:
+        if any(flag in args for flag in ["O_WRONLY", "O_RDWR", "O_CREAT", "O_TRUNC"]):
+            return "write"
+        return "read"
+    return ""
+
+
+def _find_extension_host_pid() -> int | None:
+    try:
+        result = subprocess.run(  # nosec B603
+            ["ps", "-eo", "pid=,args="],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+    except (subprocess.CalledProcessError, OSError) as exc:
+        _log(f"Failed to inspect process table: {exc}")
+        return None
+
+    candidates: list[int] = []
+    for line in result.stdout.splitlines():
+        if "extensionHost" not in line:
+            continue
+        parts = line.strip().split(maxsplit=1)
+        if not parts:
+            continue
+        try:
+            candidates.append(int(parts[0]))
+        except ValueError:
+            continue
+
+    return max(candidates) if candidates else None
+
+
+def _parse_iso_timestamp(timestamp: str) -> float | None:
+    if not timestamp:
+        return None
+    try:
+        return datetime.fromisoformat(timestamp).timestamp()
+    except ValueError:
+        pass
+    try:
+        return datetime.strptime(timestamp, "%Y-%m-%d %H:%M:%S.%f").timestamp()
+    except ValueError:
+        return None
+
+
+def _annotate_file_events(
+    file_events: list[FileEvent],
+    activations: list[ActivationEntry],
+    scenario_traces: list[ScenarioTrace],
+) -> list[FileEvent]:
+    annotated: list[FileEvent] = []
+    activation_times: list[tuple[float, str, str]] = []
+    extension_signatures: list[tuple[str, str, float | None]] = []
+    for activation in activations:
+        event_time = _parse_iso_timestamp(activation.timestamp)
+        if event_time is None:
+            continue
+        activation_times.append(
+            (
+                event_time,
+                activation.extension_id,
+                activation.activation_event,
+            )
+        )
+
+    for file_event in file_events:
+        if file_event.observer == "strace":
+            extension_signatures.append(
+                (file_event.path, file_event.operation, file_event.rel_time_s)
+            )
+
+    for file_event in sorted(
+        file_events,
+        key=lambda entry: (
+            entry.rel_time_s is None,
+            entry.rel_time_s if entry.rel_time_s is not None else 0.0,
+            entry.path,
+        ),
+    ):
+        if file_event.observer == "inotify" and _matches_extension_signature(
+            file_event,
+            extension_signatures,
+        ):
+            continue
+
+        scenario_name = file_event.scenario_name
+        event_epoch = _parse_iso_timestamp(file_event.timestamp)
+
+        if event_epoch is not None and not scenario_name:
+            for trace in scenario_traces:
+                if (
+                    trace.started_at
+                    <= event_epoch
+                    <= (trace.ended_at or trace.started_at)
+                ):
+                    scenario_name = trace.name
+                    break
+
+        related_extension_id = file_event.related_extension_id
+        related_activation_event = file_event.related_activation_event
+        if event_epoch is not None:
+            nearest_delta = 5.0
+            for activation_time, extension_id, activation_event in activation_times:
+                delta = abs(event_epoch - activation_time)
+                if delta > nearest_delta:
+                    continue
+                nearest_delta = delta
+                related_extension_id = extension_id
+                related_activation_event = activation_event
+
+        source = file_event.source
+        if file_event.observer == "inotify" and scenario_name:
+            source = "automation"
+        elif file_event.observer == "inotify" and related_extension_id:
+            source = "extension"
+        elif file_event.observer == "inotify":
+            source = "system"
+
+        summary = file_event.summary
+        if scenario_name:
+            summary = f"{summary} [{scenario_name}]"
+
+        annotated.append(
+            FileEvent(
+                timestamp=file_event.timestamp,
+                rel_time_s=file_event.rel_time_s,
+                operation=file_event.operation,
+                path=file_event.path,
+                secondary_path=file_event.secondary_path,
+                source=source,
+                observer=file_event.observer,
+                scenario_name=scenario_name,
+                related_extension_id=related_extension_id,
+                related_activation_event=related_activation_event,
+                flags=file_event.flags,
+                sensitive=file_event.sensitive,
+                summary=summary,
+            )
+        )
+
+    return annotated
+
+
+def _matches_extension_signature(
+    file_event: FileEvent,
+    extension_signatures: list[tuple[str, str, float | None]],
+) -> bool:
+    for path, operation, rel_time in extension_signatures:
+        if path != file_event.path or operation != file_event.operation:
+            continue
+        if rel_time is None or file_event.rel_time_s is None:
+            return True
+        if abs(rel_time - file_event.rel_time_s) <= 1.0:
+            return True
+    return False
 
 
 def _snapshot_log_offsets() -> dict[str, int]:

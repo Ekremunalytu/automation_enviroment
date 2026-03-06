@@ -114,3 +114,26 @@ def test_list_scenarios_returns_scenario_names(monkeypatch) -> None:
     )
 
     assert automation.list_scenarios() == ["first", "second"]
+
+
+def test_run_scenario_reports_lifecycle_events(monkeypatch) -> None:
+    events: list[tuple[str, str, str]] = []
+
+    monkeypatch.setattr(
+        automation,
+        "_ALL_SCENARIOS",
+        [("named", lambda page: None)],
+    )
+    automation.set_scenario_event_reporter(
+        lambda action, name, status: events.append((action, name, status))
+    )
+
+    try:
+        automation.run_scenario(DummyPage(), "named")
+    finally:
+        automation.set_scenario_event_reporter(None)
+
+    assert events == [
+        ("start", "named", ""),
+        ("end", "named", "completed"),
+    ]

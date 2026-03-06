@@ -73,6 +73,35 @@ def test_parse_tshark_event_line_extracts_http_fields() -> None:
     assert event.rel_time_s == 0.25
 
 
+def test_parse_strace_file_event_line_extracts_extension_io() -> None:
+    line = (
+        '1700000000.750 openat(AT_FDCWD, "/workspace/.env", ' "O_RDONLY|O_CLOEXEC) = 42"
+    )
+
+    event = monitor.parse_strace_file_event_line(line, monitoring_start=1700000000.0)
+
+    assert event is not None
+    assert event.operation == "read"
+    assert event.path == "/workspace/.env"
+    assert event.source == "extension"
+    assert event.sensitive is True
+    assert event.rel_time_s == 0.75
+
+
+def test_parse_inotify_file_event_line_extracts_automation_io() -> None:
+    event = monitor.parse_inotify_file_event_line(
+        "/workspace/src/app.py\tCLOSE_WRITE,CLOSE\n",
+        monitoring_start=1700000000.0,
+        event_time=1700000001.5,
+    )
+
+    assert event is not None
+    assert event.operation == "write"
+    assert event.path == "/workspace/src/app.py"
+    assert event.source == "automation"
+    assert event.rel_time_s == 1.5
+
+
 def test_parse_all_exthost_logs_uses_per_file_offsets(
     monkeypatch,
     tmp_path: Path,
@@ -219,6 +248,24 @@ def test_extension_monitor_stop_keeps_runtime_snapshot_separate(
             [],
         ),
     )
+    monkeypatch.setattr(
+        monitor,
+        "FileSystemCapture",
+        lambda monitoring_start, on_event=None: _FakeFileCapture(
+            monitoring_start,
+            on_event,
+            [],
+        ),
+    )
+    monkeypatch.setattr(
+        monitor,
+        "ExtensionHostFileCapture",
+        lambda monitoring_start, on_event=None: _FakeFileCapture(
+            monitoring_start,
+            on_event,
+            [],
+        ),
+    )
 
     mon = monitor.ExtensionMonitor(DummyPage())
     mon.start()
@@ -272,6 +319,24 @@ def test_extension_monitor_persists_live_report_with_network_events(
             [network_event],
         ),
     )
+    monkeypatch.setattr(
+        monitor,
+        "FileSystemCapture",
+        lambda monitoring_start, on_event=None: _FakeFileCapture(
+            monitoring_start,
+            on_event,
+            [],
+        ),
+    )
+    monkeypatch.setattr(
+        monitor,
+        "ExtensionHostFileCapture",
+        lambda monitoring_start, on_event=None: _FakeFileCapture(
+            monitoring_start,
+            on_event,
+            [],
+        ),
+    )
 
     report_path = tmp_path / "live_report.json"
     mon = monitor.ExtensionMonitor(DummyPage(), report_path=report_path)
@@ -286,6 +351,63 @@ def test_extension_monitor_persists_live_report_with_network_events(
     assert final_report.network_events[0].host == "github.com"
     assert final_payload["network_summary"]["total_events"] == 1
     assert final_payload["summary"]["network_hosts"] == 1
+
+
+def test_annotate_file_events_prefers_extension_trace_over_inotify_shadow() -> None:
+    file_events = [
+        monitor.FileEvent(
+            timestamp="2026-01-01T10:00:00.500",
+            rel_time_s=0.5,
+            operation="read",
+            path="/workspace/.env",
+            source="automation",
+            observer="inotify",
+            summary="read: /workspace/.env",
+        ),
+        monitor.FileEvent(
+            timestamp="2026-01-01T10:00:00.600",
+            rel_time_s=0.6,
+            operation="read",
+            path="/workspace/.env",
+            source="extension",
+            observer="strace",
+            summary="read: /workspace/.env",
+        ),
+        monitor.FileEvent(
+            timestamp="2026-01-01T10:00:01.200",
+            rel_time_s=1.2,
+            operation="write",
+            path="/workspace/src/app.py",
+            source="automation",
+            observer="inotify",
+            scenario_name="coding_session",
+            summary="write: /workspace/src/app.py",
+        ),
+    ]
+    activations = [
+        monitor.ActivationEntry(
+            extension_id="ms-python.python",
+            activation_event="onLanguage:python",
+            timestamp="2026-01-01 10:00:00.650",
+            source="log",
+        )
+    ]
+    traces = [
+        monitor.ScenarioTrace(
+            name="coding_session",
+            started_at=1767261600.0,
+            ended_at=1767261602.0,
+            status="completed",
+        )
+    ]
+
+    annotated = monitor._annotate_file_events(file_events, activations, traces)
+
+    assert len(annotated) == 2
+    assert annotated[0].source == "extension"
+    assert annotated[0].related_extension_id == "ms-python.python"
+    assert annotated[1].source == "automation"
+    assert annotated[1].scenario_name == "coding_session"
 
 
 def test_check_extension_activated_uses_logs_then_ui(monkeypatch) -> None:
@@ -323,4 +445,25 @@ class _FakeNetworkCapture:
                 self.on_event(event)
 
     def stop(self) -> list[monitor.NetworkEvent]:
+        return list(self.events)
+
+
+class _FakeFileCapture:
+    def __init__(
+        self,
+        monitoring_start: float,
+        on_event,
+        events: list[monitor.FileEvent],
+    ) -> None:
+        self.monitoring_start = monitoring_start
+        self.on_event = on_event
+        self.events = events
+        self.start_error = ""
+
+    def start(self) -> None:
+        if self.on_event is not None:
+            for event in self.events:
+                self.on_event(event)
+
+    def stop(self) -> list[monitor.FileEvent]:
         return list(self.events)

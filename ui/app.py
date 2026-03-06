@@ -484,6 +484,79 @@ def build_network_log(network_df: pd.DataFrame, limit: int = 400) -> str:
     return "\n".join(lines)
 
 
+def process_file_data(data: dict) -> pd.DataFrame:
+    events = data.get("file_events", [])
+    if not events:
+        return pd.DataFrame()
+
+    df = pd.DataFrame(events)
+    for column in [
+        "timestamp",
+        "rel_time_s",
+        "operation",
+        "path",
+        "secondary_path",
+        "source",
+        "observer",
+        "scenario_name",
+        "related_extension_id",
+        "related_activation_event",
+        "flags",
+        "sensitive",
+        "summary",
+    ]:
+        if column not in df.columns:
+            df[column] = ""
+
+    df["dt"] = pd.to_datetime(df["timestamp"], errors="coerce")
+    df["rel_time_s"] = pd.to_numeric(df["rel_time_s"], errors="coerce")
+    df["source"] = df["source"].fillna("").replace("", "unknown")
+    df["observer"] = df["observer"].fillna("").replace("", "unknown")
+    df["operation"] = df["operation"].fillna("").replace("", "io")
+    df["sensitive"] = df["sensitive"].fillna(False).astype(bool)
+    df["path_short"] = (
+        df["path"]
+        .fillna("")
+        .map(lambda value: value if len(value) <= 72 else f"...{value[-69:]}")
+    )
+    df["activation_label"] = (
+        df["related_extension_id"].fillna("").replace("", "(unlinked)")
+        + " · "
+        + df["related_activation_event"].fillna("").replace("", "no activation link")
+    )
+    df["scenario_label"] = df["scenario_name"].fillna("").replace("", "(no scenario)")
+    df["operation_label"] = df["operation"].str.title()
+    df["source_label"] = df["source"].str.replace("_", " ").str.title()
+    df["lane"] = df["path_short"] + " · " + df["operation_label"]
+    return df.sort_values(
+        by=["rel_time_s", "path"],
+        ascending=[True, True],
+        na_position="last",
+    )
+
+
+def build_file_log(file_df: pd.DataFrame, limit: int = 400) -> str:
+    if file_df.empty:
+        return ""
+
+    lines: list[str] = []
+    recent = file_df.tail(limit)
+    for row in recent.itertuples(index=False):
+        rel = f"{row.rel_time_s:8.3f}s" if pd.notna(row.rel_time_s) else "   --.--s"
+        sensitive = " SENSITIVE" if row.sensitive else ""
+        activation = (
+            f" [{row.related_extension_id}:{row.related_activation_event}]"
+            if row.related_extension_id or row.related_activation_event
+            else ""
+        )
+        scenario = f" [{row.scenario_name}]" if row.scenario_name else ""
+        lines.append(
+            f"[{rel}] {row.source_label:<10} {row.operation_label:<8} "
+            f"{row.path}{sensitive}{scenario}{activation}"
+        )
+    return "\n".join(lines)
+
+
 # ---------------------------------------------------------------------------
 # Marketplace Helpers
 # ---------------------------------------------------------------------------
@@ -940,8 +1013,10 @@ if not raw_data:
 
 df = process_data(raw_data)
 network_df = process_network_data(raw_data)
+file_df = process_file_data(raw_data)
 summary = raw_data.get("summary", {})
 network_summary = raw_data.get("network_summary", {})
+file_summary = raw_data.get("file_summary", {})
 running = raw_data.get("running_extensions", [])
 
 chart_theme = st.session_state.get("chart_theme", "plasma")
@@ -1071,10 +1146,11 @@ st.markdown("<div style='height: 48px'></div>", unsafe_allow_html=True)
 # Deep Dive Analysis
 # ---------------------------------------------------------------------------
 
-tab_viz, tab_network, tab_perf, tab_grid, tab_raw, tab_host_logs = st.tabs(
+tab_viz, tab_network, tab_file, tab_perf, tab_grid, tab_raw, tab_host_logs = st.tabs(
     [
         "📊 Visual Intelligence",
         "🌐 Network Telemetry",
+        "🗂️ File I/O Intelligence",
         "⚡ Performance Matrix",
         "💾 Data Grid",
         "🔍 Raw Inspector",
@@ -1382,7 +1458,316 @@ with tab_network:
         else:
             st.info("No network telemetry captured in this report yet.")
 
-# --- Tab 3: Performance Matrix ---
+# --- Tab 3: File I/O Intelligence ---
+with tab_file:
+    if not file_df.empty:
+        f1, f2, f3, f4 = st.columns(4)
+        with f1:
+            st.markdown(
+                metric_card(
+                    "🗂️",
+                    "File Events",
+                    str(file_summary.get("total_events", len(file_df))),
+                    "#22d3ee",
+                ),
+                unsafe_allow_html=True,
+            )
+        with f2:
+            st.markdown(
+                metric_card(
+                    "🛡️",
+                    "Sensitive Hits",
+                    str(
+                        file_summary.get(
+                            "sensitive_events",
+                            int(file_df["sensitive"].sum()),
+                        )
+                    ),
+                    "#f43f5e",
+                ),
+                unsafe_allow_html=True,
+            )
+        with f3:
+            st.markdown(
+                metric_card(
+                    "🧭",
+                    "Automation I/O",
+                    str((file_df["source"] == "automation").sum()),
+                    "#8b5cf6",
+                ),
+                unsafe_allow_html=True,
+            )
+        with f4:
+            st.markdown(
+                metric_card(
+                    "🧩",
+                    "Extension I/O",
+                    str((file_df["source"] == "extension").sum()),
+                    "#f59e0b",
+                ),
+                unsafe_allow_html=True,
+            )
+
+        st.markdown("<div style='height: 24px'></div>", unsafe_allow_html=True)
+        c1, c2 = st.columns([2, 1])
+
+        with c1:
+            st.markdown("### File Access Timeline")
+            lane_count = file_df["lane"].nunique()
+            chart_height = max(360, lane_count * 22)
+            file_timeline = (
+                alt.Chart(file_df)
+                .mark_circle(size=95, opacity=0.85)
+                .encode(
+                    x=alt.X(
+                        "rel_time_s",
+                        title="Timeline (seconds)",
+                        axis=alt.Axis(gridColor="#333"),
+                    ),
+                    y=alt.Y(
+                        "lane",
+                        title=None,
+                        axis=alt.Axis(labelLimit=220, gridColor="#333"),
+                    ),
+                    color=alt.Color(
+                        "source_label",
+                        scale=alt.Scale(
+                            domain=["Automation", "Extension", "System", "Unknown"],
+                            range=["#8b5cf6", "#f59e0b", "#64748b", "#22d3ee"],
+                        ),
+                        legend=alt.Legend(orient="bottom", labelColor="#a1a1aa"),
+                    ),
+                    shape=alt.Shape(
+                        "operation_label",
+                        legend=alt.Legend(orient="bottom", labelColor="#a1a1aa"),
+                    ),
+                    tooltip=[
+                        alt.Tooltip("dt:T", title="Timestamp"),
+                        alt.Tooltip("source_label:N", title="Source"),
+                        alt.Tooltip("operation_label:N", title="Operation"),
+                        alt.Tooltip("path:N", title="Path"),
+                        alt.Tooltip("scenario_label:N", title="Scenario"),
+                        alt.Tooltip("activation_label:N", title="Activation Link"),
+                    ],
+                )
+                .properties(height=chart_height, width="container")
+            )
+            st.altair_chart(file_timeline, theme="streamlit")
+
+        with c2:
+            st.markdown("### Attribution Mix")
+            source_mix = (
+                alt.Chart(file_df)
+                .mark_arc(
+                    innerRadius=80, cornerRadius=6, stroke="#050505", strokeWidth=2
+                )
+                .encode(
+                    theta=alt.Theta("count()"),
+                    color=alt.Color(
+                        "source_label",
+                        scale=alt.Scale(
+                            domain=["Automation", "Extension", "System", "Unknown"],
+                            range=["#8b5cf6", "#f59e0b", "#64748b", "#22d3ee"],
+                        ),
+                        legend=alt.Legend(orient="bottom", labelColor="#a1a1aa"),
+                    ),
+                    tooltip=["source_label", "count()"],
+                )
+                .properties(height=260)
+            )
+            st.altair_chart(source_mix, theme="streamlit")
+
+            op_counts = (
+                file_df.groupby(["operation_label", "source_label"], dropna=False)
+                .size()
+                .reset_index(name="events")
+            )
+            matrix = (
+                alt.Chart(op_counts)
+                .mark_bar(cornerRadiusEnd=4)
+                .encode(
+                    x=alt.X(
+                        "events:Q",
+                        title="Events",
+                        axis=alt.Axis(gridColor="#333"),
+                    ),
+                    y=alt.Y(
+                        "operation_label:N",
+                        sort="-x",
+                        title=None,
+                        axis=alt.Axis(labelLimit=160),
+                    ),
+                    color=alt.Color(
+                        "source_label:N",
+                        scale=alt.Scale(
+                            domain=["Automation", "Extension", "System", "Unknown"],
+                            range=["#8b5cf6", "#f59e0b", "#64748b", "#22d3ee"],
+                        ),
+                        legend=None,
+                    ),
+                    tooltip=["operation_label", "source_label", "events"],
+                )
+                .properties(height=260)
+            )
+            st.altair_chart(matrix, theme="streamlit")
+
+        d1, d2 = st.columns(2)
+        with d1:
+            st.markdown("### Sensitive Access Map")
+            sensitive_df = file_df[file_df["sensitive"]].copy()
+            if not sensitive_df.empty:
+                sensitive_chart = (
+                    alt.Chart(
+                        sensitive_df.groupby(
+                            ["path_short", "source_label"], dropna=False
+                        )
+                        .size()
+                        .reset_index(name="events")
+                        .head(12)
+                    )
+                    .mark_bar(cornerRadiusEnd=4)
+                    .encode(
+                        x=alt.X(
+                            "events:Q", title="Events", axis=alt.Axis(gridColor="#333")
+                        ),
+                        y=alt.Y(
+                            "path_short:N",
+                            sort="-x",
+                            title=None,
+                            axis=alt.Axis(labelLimit=220),
+                        ),
+                        color=alt.Color(
+                            "source_label:N",
+                            scale=alt.Scale(
+                                domain=["Automation", "Extension", "System", "Unknown"],
+                                range=["#8b5cf6", "#f59e0b", "#64748b", "#22d3ee"],
+                            ),
+                            legend=None,
+                        ),
+                        tooltip=["path_short", "source_label", "events"],
+                    )
+                    .properties(height=300)
+                )
+                st.altair_chart(sensitive_chart, theme="streamlit")
+            else:
+                st.info("No sensitive file access observed in this report.")
+
+        with d2:
+            st.markdown("### Activation Correlation")
+            linked_df = file_df[
+                file_df["related_extension_id"].fillna("").ne("")
+                | file_df["related_activation_event"].fillna("").ne("")
+            ].copy()
+            if not linked_df.empty:
+                correlation = (
+                    alt.Chart(
+                        linked_df.groupby(
+                            ["activation_label", "source_label"],
+                            dropna=False,
+                        )
+                        .size()
+                        .reset_index(name="events")
+                        .sort_values("events", ascending=False)
+                        .head(12)
+                    )
+                    .mark_bar(cornerRadiusEnd=4)
+                    .encode(
+                        x=alt.X(
+                            "events:Q", title="Events", axis=alt.Axis(gridColor="#333")
+                        ),
+                        y=alt.Y(
+                            "activation_label:N",
+                            sort="-x",
+                            title=None,
+                            axis=alt.Axis(labelLimit=240),
+                        ),
+                        color=alt.Color(
+                            "source_label:N",
+                            scale=alt.Scale(
+                                domain=["Automation", "Extension", "System", "Unknown"],
+                                range=["#8b5cf6", "#f59e0b", "#64748b", "#22d3ee"],
+                            ),
+                            legend=None,
+                        ),
+                        tooltip=["activation_label", "source_label", "events"],
+                    )
+                    .properties(height=300)
+                )
+                st.altair_chart(correlation, theme="streamlit")
+            else:
+                st.info("No file events could be linked to activation records yet.")
+
+        st.markdown("### File Event Log")
+        file_log = build_file_log(file_df)
+        with st.container(height=260):
+            st.code(file_log or "(no file events yet)", language="log")
+
+        st.markdown("### File I/O Grid")
+        file_search = st.text_input(
+            "File search",
+            placeholder="Filter by path, source, scenario, activation, or summary...",
+            label_visibility="collapsed",
+        )
+        file_view = file_df.copy()
+        if file_search:
+            mask = (
+                file_view["path"].str.contains(file_search, case=False, na=False)
+                | file_view["source_label"].str.contains(
+                    file_search, case=False, na=False
+                )
+                | file_view["scenario_label"].str.contains(
+                    file_search, case=False, na=False
+                )
+                | file_view["activation_label"].str.contains(
+                    file_search, case=False, na=False
+                )
+                | file_view["summary"].str.contains(file_search, case=False, na=False)
+            )
+            file_view = file_view[mask]
+
+        st.dataframe(
+            file_view[
+                [
+                    "dt",
+                    "source_label",
+                    "operation_label",
+                    "path",
+                    "scenario_label",
+                    "activation_label",
+                    "observer",
+                    "sensitive",
+                    "summary",
+                ]
+            ],
+            column_config={
+                "dt": st.column_config.DatetimeColumn(
+                    "Timestamp", format="HH:mm:ss.SS"
+                ),
+                "source_label": st.column_config.TextColumn("Source"),
+                "operation_label": st.column_config.TextColumn("Operation"),
+                "path": st.column_config.TextColumn("Path", width="large"),
+                "scenario_label": st.column_config.TextColumn("Scenario"),
+                "activation_label": st.column_config.TextColumn(
+                    "Activation Link", width="large"
+                ),
+                "observer": st.column_config.TextColumn("Observer"),
+                "sensitive": st.column_config.CheckboxColumn("Sensitive"),
+                "summary": st.column_config.TextColumn("Summary", width="large"),
+            },
+            height=460,
+            hide_index=True,
+        )
+
+        if file_summary.get("capture_error"):
+            st.warning(file_summary["capture_error"])
+    else:
+        capture_error = file_summary.get("capture_error")
+        if capture_error:
+            st.warning(capture_error)
+        else:
+            st.info("No file telemetry captured in this report yet.")
+
+# --- Tab 4: Performance Matrix ---
 with tab_perf:
     p1, p2 = st.columns(2)
 
