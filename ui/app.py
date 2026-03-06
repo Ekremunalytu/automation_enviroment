@@ -6,6 +6,7 @@ Advanced Analytics Dashboard for VS Code Extension Security.
 """
 
 import os
+import time
 from datetime import datetime
 
 import altair as alt
@@ -22,6 +23,7 @@ API_ACTIVATIONS_URL = f"{API_BASE_URL}/api/activations"
 API_MARKETPLACE_SEARCH_URL = f"{API_BASE_URL}/api/marketplace/search"
 API_MARKETPLACE_DOWNLOAD_URL = f"{API_BASE_URL}/api/marketplace/download"
 API_MARKETPLACE_ANALYZE_URL = f"{API_BASE_URL}/api/marketplace/analyze"
+API_MARKETPLACE_ANALYZE_START_URL = f"{API_MARKETPLACE_ANALYZE_URL}/start"
 
 st.set_page_config(
     page_title="ExTrace Intelligence",
@@ -265,29 +267,73 @@ st.markdown(
 
 
 @st.cache_data(ttl=5)
-def fetch_report_list() -> list[dict]:
+def _fetch_report_list_cached() -> list[dict]:
+    resp = requests.get(API_ACTIVATIONS_URL, timeout=2)
+    resp.raise_for_status()
+    return resp.json()
+
+
+def fetch_report_list() -> tuple[list[dict], str | None]:
     try:
-        resp = requests.get(API_ACTIVATIONS_URL, timeout=2)
-        resp.raise_for_status()
-        return resp.json()
-    except Exception:
-        return []
+        return _fetch_report_list_cached(), None
+    except requests.RequestException as exc:
+        return [], f"Report list unavailable: {exc}"
 
 
 @st.cache_data(ttl=15)
-def fetch_report(filename: str) -> dict:
+def _fetch_report_cached(filename: str) -> dict:
     url = (
         f"{API_ACTIVATIONS_URL}/latest"
         if filename == "latest"
         else f"{API_ACTIVATIONS_URL}/{filename}"
     )
+    resp = requests.get(url, timeout=5)
+    resp.raise_for_status()
+    return resp.json()
+
+
+def is_valid_activation_report(data: dict) -> bool:
+    return (
+        isinstance(data, dict)
+        and isinstance(data.get("summary"), dict)
+        and isinstance(data.get("activated"), list)
+    )
+
+
+def fetch_report(filename: str) -> tuple[dict, str | None]:
     try:
-        resp = requests.get(url, timeout=5)
+        payload = _fetch_report_cached(filename)
+    except requests.RequestException as exc:
+        return {}, f"Error loading report: {exc}"
+
+    if not is_valid_activation_report(payload):
+        return {}, "Selected file is not a valid activation report."
+
+    return payload, None
+
+
+def start_analysis_job(publisher: str, name: str, version: str) -> dict | None:
+    try:
+        resp = requests.post(
+            API_MARKETPLACE_ANALYZE_START_URL,
+            json={"publisher": publisher, "name": name, "version": version},
+            timeout=30,
+        )
         resp.raise_for_status()
         return resp.json()
-    except Exception as e:
-        st.error(f"Error loading report: {e}")
-        return {}
+    except requests.RequestException as exc:
+        st.error(f"Analysis start error: {exc}")
+        return None
+
+
+def fetch_analysis_job(job_id: str) -> dict | None:
+    try:
+        resp = requests.get(f"{API_MARKETPLACE_ANALYZE_URL}/{job_id}", timeout=5)
+        resp.raise_for_status()
+        return resp.json()
+    except requests.RequestException as exc:
+        st.error(f"Analysis status error: {exc}")
+        return None
 
 
 def process_data(data: dict) -> pd.DataFrame:
@@ -296,6 +342,11 @@ def process_data(data: dict) -> pd.DataFrame:
         return pd.DataFrame()
 
     df = pd.DataFrame(activated)
+    if "activation_event" not in df.columns:
+        df["activation_event"] = "(unknown trigger)"
+    df["activation_event"] = (
+        df["activation_event"].fillna("").replace("", "(unknown trigger)")
+    )
 
     # Ensure duration_ms exists and fill missing values
     if "duration_ms" not in df.columns:
@@ -315,14 +366,29 @@ def process_data(data: dict) -> pd.DataFrame:
 
         has_valid_timestamps = df["dt"].notna().any()
 
-    # Calculate relative timing
+    monitoring_start = pd.to_datetime(
+        data.get("summary", {}).get("monitoring_started_at"),
+        unit="s",
+        errors="coerce",
+    )
+    if pd.isna(monitoring_start):
+        monitoring_start = pd.Timestamp.now()
+
     if has_valid_timestamps:
-        start_time = df["dt"].min()
+        start_time = df["dt"].dropna().min()
+        missing_mask = df["dt"].isna()
+        if missing_mask.any():
+            synthetic = (
+                df.loc[missing_mask, "duration_ms"].cumsum().shift(fill_value=0)
+                / 1000.0
+            )
+            df.loc[missing_mask, "dt"] = start_time + pd.to_timedelta(
+                synthetic, unit="s"
+            )
         df["rel_start"] = (df["dt"] - start_time).dt.total_seconds()
     else:
-        # No valid timestamps: build a synthetic timeline from cumulative durations
-        df["dt"] = pd.Timestamp.now()
         cumulative = df["duration_ms"].cumsum().shift(fill_value=0)
+        df["dt"] = monitoring_start + pd.to_timedelta(cumulative, unit="ms")
         df["rel_start"] = cumulative / 1000.0
 
     df["rel_end"] = df["rel_start"] + (df["duration_ms"] / 1000)
@@ -337,6 +403,14 @@ def process_data(data: dict) -> pd.DataFrame:
     # Ensure 'source' column exists for the data grid
     if "source" not in df.columns:
         df["source"] = ""
+
+    df["lane_base"] = (
+        df["extension_id"].fillna("unknown.extension") + " · " + df["activation_event"]
+    )
+    lane_index = df.groupby("lane_base").cumcount()
+    df["lane"] = df["lane_base"] + lane_index.map(
+        lambda idx: "" if idx == 0 else f" · #{idx + 1}"
+    )
 
     return df
 
@@ -447,21 +521,41 @@ def render_marketplace_page() -> None:
         installs = ext.get("installs", 0)
         rating = ext.get("rating", 0.0)
 
-        c_info, c_btn = st.columns([5, 1])
+        c_info, c_btn = st.columns([5, 1.2], vertical_alignment="center")
         with c_info:
+            action_state = (
+                "Ready to analyze"
+                if st.session_state.get(f"downloaded_{pub}_{ext_name}_{ver}", False)
+                else "Marketplace"
+            )
             st.markdown(
                 f"""
-                <div class="glass-card" style="margin-bottom: 8px;">
-                    <div style="font-size: 1.05rem; font-weight: 700; color: #f4f4f5;">
-                        {display}
+                <div class="glass-card" style="margin-bottom: 12px; min-height: 152px; display: flex; flex-direction: column; justify-content: space-between;">
+                    <div>
+                        <div style="display: flex; justify-content: space-between; gap: 12px; align-items: flex-start;">
+                            <div style="font-size: 1.1rem; font-weight: 700; color: #f4f4f5;">
+                                {display}
+                            </div>
+                            <div style="padding: 4px 10px; border-radius: 999px; border: 1px solid rgba(34, 211, 238, 0.25); color: #22d3ee; background: rgba(34, 211, 238, 0.08); font-size: 0.72rem; letter-spacing: 0.05em; text-transform: uppercase;">
+                                {action_state}
+                            </div>
+                        </div>
+                        <div style="font-size: 0.78rem; color: #a1a1aa; margin: 8px 0 10px 0;">
+                            <code style="color: #8b5cf6;">{pub}.{ext_name}</code>
+                        </div>
+                        <div style="font-size: 0.9rem; color: #d4d4d8; line-height: 1.5;">{desc}</div>
                     </div>
-                    <div style="font-size: 0.78rem; color: #a1a1aa; margin: 4px 0;">
-                        <code style="color: #8b5cf6;">{pub}.{ext_name}</code>
-                        &nbsp;·&nbsp; v{ver}
-                        &nbsp;·&nbsp; ⬇ {installs:,}
-                        &nbsp;·&nbsp; ★ {rating:.1f}
+                    <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px;">
+                        <div style="padding: 5px 10px; border-radius: 999px; background: rgba(139, 92, 246, 0.12); border: 1px solid rgba(139, 92, 246, 0.25); color: #c4b5fd; font-size: 0.76rem;">
+                            v{ver}
+                        </div>
+                        <div style="padding: 5px 10px; border-radius: 999px; background: rgba(6, 182, 212, 0.12); border: 1px solid rgba(6, 182, 212, 0.25); color: #67e8f9; font-size: 0.76rem;">
+                            ⬇ {installs:,}
+                        </div>
+                        <div style="padding: 5px 10px; border-radius: 999px; background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.25); color: #fcd34d; font-size: 0.76rem;">
+                            ★ {rating:.1f}
+                        </div>
                     </div>
-                    <div style="font-size: 0.85rem; color: #71717a;">{desc}</div>
                 </div>
                 """,
                 unsafe_allow_html=True,
@@ -501,6 +595,65 @@ def render_marketplace_page() -> None:
                 )
 
 
+def render_scan_status(scan_job: dict) -> None:
+    step_titles = {
+        "install_extension": "Installing extension in sandbox",
+        "build_triggers": "Resolving trigger coverage",
+        "run_monitoring": "Running Playwright automation",
+        "finalize_report": "Collecting report output",
+    }
+    state_map = {
+        "queued": "running",
+        "running": "running",
+        "completed": "complete",
+        "failed": "error",
+    }
+    ext_id = (
+        f"{scan_job.get('publisher', 'unknown')}.{scan_job.get('name', 'unknown')}"
+        f"@{scan_job.get('version', 'unknown')}"
+    )
+
+    with st.status(
+        f"Sandbox analysis — {ext_id}",
+        state=state_map.get(scan_job.get("status", "queued"), "running"),
+        expanded=True,
+    ):
+        st.caption(scan_job.get("message", "Waiting for sandbox analysis status."))
+        for idx, step in enumerate(scan_job.get("steps", []), start=1):
+            title = step_titles.get(step.get("name", ""), step.get("name", "Step"))
+            status = step.get("status", "pending")
+            prefix = {
+                "completed": "✓",
+                "failed": "✕",
+                "running": "•",
+                "pending": "…",
+                "skipped": "○",
+            }.get(status, "…")
+            st.write(f"**{idx}/4** — {prefix} {title}")
+            st.caption(step.get("message", ""))
+
+        if scan_job.get("error_detail"):
+            st.error(scan_job["error_detail"])
+        elif scan_job.get("report_path"):
+            st.success(f"Report ready: `{scan_job['report_path']}`")
+
+        if scan_job.get("install_output") or scan_job.get("automation_output"):
+            with st.expander("Execution Logs", expanded=False):
+                col_install, col_auto = st.columns(2)
+                with col_install:
+                    st.caption("Install Output")
+                    st.code(
+                        scan_job.get("install_output") or "(no output)",
+                        language="text",
+                    )
+                with col_auto:
+                    st.caption("Automation Output")
+                    st.code(
+                        scan_job.get("automation_output") or "(no output)",
+                        language="text",
+                    )
+
+
 # ---------------------------------------------------------------------------
 # Sidebar Navigation
 # ---------------------------------------------------------------------------
@@ -530,19 +683,27 @@ with st.sidebar:
     st.markdown("---")
 
     if page == "Dashboard":
-        reports = fetch_report_list()
+        reports, report_list_error = fetch_report_list()
+
+        if report_list_error:
+            st.error(report_list_error)
 
         if reports:
             report_map = {r["filename"]: r for r in reports}
             opts = ["(Latest Report)", *list(report_map.keys())]
 
-            # If we just finished an analysis, auto-select that report
-            pending = st.session_state.pop("pending_report", None)
-            default_idx = 0
+            pending = st.session_state.get("pending_report")
             if pending and pending in report_map:
-                default_idx = opts.index(pending)
+                st.session_state["selected_report"] = pending
+                st.session_state.pop("pending_report", None)
+            elif st.session_state.get("selected_report") not in opts:
+                st.session_state["selected_report"] = "(Latest Report)"
 
-            selection = st.selectbox("Select Analysis Session", opts, index=default_idx)
+            selection = st.selectbox(
+                "Select Analysis Session",
+                opts,
+                key="selected_report",
+            )
 
             if selection == "(Latest Report)":
                 target = "latest"
@@ -635,60 +796,51 @@ if page == "Theme":
 
 scan_req = st.session_state.pop("scan_request", None)
 if scan_req:
-    _pub = scan_req["publisher"]
-    _name = scan_req["name"]
-    _ver = scan_req["version"]
-    _ext_id = f"{_pub}.{_name}@{_ver}"
+    job = start_analysis_job(
+        scan_req["publisher"],
+        scan_req["name"],
+        scan_req["version"],
+    )
+    if job:
+        st.session_state["active_scan_job_id"] = job["job_id"]
+        st.session_state["last_scan_status"] = job
+        st.cache_data.clear()
+        st.rerun()
 
-    with st.status(f"Scanning {_ext_id}...", expanded=True) as scan_status:
-        scan_status.update(label=f"Scanning {_ext_id}...", state="running")
+current_scan_job = st.session_state.get("last_scan_status")
+active_scan_job_id = st.session_state.get("active_scan_job_id")
+scan_transition = False
+poll_again = False
 
-        st.write("**1/3** — Installing extension in sandbox...")
-        st.caption("Running `code --install-extension` inside executor container")
-
-        st.write("**2/3** — Running Playwright automation...")
-        st.caption("Executing scenarios, monitoring activations & network traffic")
-
-        az_result = analyze_extension(_pub, _name, _ver)
-
-        if az_result:
-            st.write("**3/3** — Collecting results...")
-            report_file = az_result.get("report_path", "")
-            scan_status.update(label=f"Scan complete — {_ext_id}", state="complete")
-            st.session_state["last_scan_logs"] = {
-                "install_output": az_result.get("install_output", ""),
-                "automation_output": az_result.get("automation_output", ""),
-                "extension": f"{_pub}.{_name}",
-            }
-            st.cache_data.clear()
-            # Force the sidebar to pick up the new report on next rerun
-            st.session_state["pending_report"] = report_file
-            st.rerun()
+if active_scan_job_id:
+    live_job = fetch_analysis_job(active_scan_job_id)
+    if live_job:
+        current_scan_job = live_job
+        st.session_state["last_scan_status"] = live_job
+        if live_job.get("status") in {"completed", "failed"}:
+            st.session_state.pop("active_scan_job_id", None)
+            scan_transition = True
+            if live_job.get("status") == "completed" and live_job.get("report_path"):
+                st.cache_data.clear()
+                st.session_state["pending_report"] = live_job["report_path"]
+                st.session_state["selected_report"] = live_job["report_path"]
         else:
-            scan_status.update(label=f"Scan failed — {_ext_id}", state="error")
-            st.stop()
+            poll_again = True
 
-# Show last scan logs on Dashboard if available
-_scan_logs = st.session_state.get("last_scan_logs")
-if _scan_logs:
-    with st.expander(f"Last Scan Logs — `{_scan_logs['extension']}`", expanded=False):
-        col_a, col_b = st.columns(2)
-        with col_a:
-            st.caption("Install Output")
-            st.code(
-                _scan_logs.get("install_output") or "(no output)",
-                language="text",
-            )
-        with col_b:
-            st.caption("Automation Output")
-            st.code(
-                _scan_logs.get("automation_output") or "(no output)",
-                language="text",
-            )
-    if st.button("Clear logs", key="clear_scan_logs"):
-        st.session_state.pop("last_scan_logs", None)
+if current_scan_job:
+    render_scan_status(current_scan_job)
+    if st.button("Clear scan state", key="clear_scan_state"):
+        st.session_state.pop("last_scan_status", None)
+        st.session_state.pop("active_scan_job_id", None)
         st.rerun()
     st.markdown("<div style='height: 16px'></div>", unsafe_allow_html=True)
+
+if scan_transition:
+    st.rerun()
+
+if poll_again:
+    time.sleep(2)
+    st.rerun()
 
 if not target:
     st.markdown(
@@ -698,7 +850,11 @@ if not target:
     )
     st.stop()
 
-raw_data = fetch_report(target)
+raw_data, report_error = fetch_report(target)
+if report_error:
+    st.error(report_error)
+    st.stop()
+
 if not raw_data:
     st.error("Failed to load report data.")
     st.stop()
@@ -836,8 +992,8 @@ with tab_viz:
             brush = alt.selection_interval(encodings=["x"])
 
             # Dynamically calculate height based on number of unique extensions
-            unique_ext_count = df["extension_id"].nunique() if not df.empty else 10
-            chart_height = max(400, unique_ext_count * 25)
+            lane_count = df["lane"].nunique() if not df.empty else 10
+            chart_height = max(400, lane_count * 24)
 
             # Main Scatter Plot
             chart = (
@@ -850,7 +1006,7 @@ with tab_viz:
                         axis=alt.Axis(gridColor="#333"),
                     ),
                     y=alt.Y(
-                        "extension_id",
+                        "lane",
                         title=None,
                         axis=alt.Axis(labelLimit=200, gridColor="#333"),
                     ),
@@ -867,6 +1023,7 @@ with tab_viz:
                         "activation_event",
                         "duration_ms",
                         "rel_start",
+                        "source",
                     ],
                 )
                 .properties(height=chart_height, width="container")
@@ -938,8 +1095,8 @@ with tab_perf:
     with p1:
         st.markdown("### Latency Distribution")
         if not df.empty:
-            unique_ext_count = df["extension_id"].nunique()
-            box_height = max(400, unique_ext_count * 25)
+            lane_count = df["lane"].nunique()
+            box_height = max(400, lane_count * 24)
 
             box = (
                 alt.Chart(df)
@@ -951,9 +1108,7 @@ with tab_perf:
                         title="Duration (ms, log scale)",
                         axis=alt.Axis(gridColor="#333"),
                     ),
-                    y=alt.Y(
-                        "activation_event", title=None, axis=alt.Axis(labelLimit=200)
-                    ),
+                    y=alt.Y("lane", title=None, axis=alt.Axis(labelLimit=200)),
                     color=alt.Color(
                         "performance", scale=alt.Scale(scheme="spectral"), legend=None
                     ),
@@ -1014,10 +1169,12 @@ with tab_grid:
 
         df_view = df.copy()
         if search_txt:
-            mask = df_view["extension_id"].str.contains(
-                search_txt, case=False, na=False
-            ) | df_view["activation_event"].str.contains(
-                search_txt, case=False, na=False
+            mask = (
+                df_view["extension_id"].str.contains(search_txt, case=False, na=False)
+                | df_view["activation_event"].str.contains(
+                    search_txt, case=False, na=False
+                )
+                | df_view["source"].str.contains(search_txt, case=False, na=False)
             )
             df_view = df_view[mask]
 
@@ -1039,6 +1196,7 @@ with tab_grid:
                     "duration_ms",
                     "performance",
                     "source",
+                    "lane",
                 ]
             ],
             column_config={
@@ -1052,6 +1210,7 @@ with tab_grid:
                 ),
                 "performance": st.column_config.TextColumn("Status"),
                 "source": st.column_config.TextColumn("Source"),
+                "lane": st.column_config.TextColumn("Lane", width="large"),
             },
             height=600,
             hide_index=True,

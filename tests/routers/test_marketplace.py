@@ -342,10 +342,6 @@ def test_analyze_success(client: TestClient) -> None:
             return_value="Extension installed successfully.",
         ),
         patch(
-            "routers.marketplace.reload_vscode_window",
-            return_value="[reload] Done",
-        ),
-        patch(
             "routers.marketplace.run_playwright_automation",
             return_value="Automation completed.",
         ),
@@ -402,10 +398,6 @@ def test_analyze_automation_failure_502(client: TestClient) -> None:
             return_value="ok",
         ),
         patch(
-            "routers.marketplace.reload_vscode_window",
-            return_value="[reload] Done",
-        ),
-        patch(
             "routers.marketplace.run_playwright_automation",
             side_effect=ExecutorError("Automation crashed", returncode=1, output="err"),
         ),
@@ -413,7 +405,44 @@ def test_analyze_automation_failure_502(client: TestClient) -> None:
         response = client.post("/api/marketplace/analyze", json=ANALYZE_PAYLOAD)
 
     assert response.status_code == 502
-    assert "Automation failed" in response.json()["detail"]
+    assert "Automation crashed" in response.json()["detail"]
+
+
+def test_analyze_start_returns_job_snapshot(client: TestClient) -> None:
+    """Async analyze start returns a queued job payload."""
+    with (
+        patch(
+            "scanner.marketplace.get_vsix_path",
+            return_value=_vsix_path_exists(True),
+        ),
+        patch("routers.marketplace.threading.Thread") as mock_thread,
+    ):
+        response = client.post("/api/marketplace/analyze/start", json=ANALYZE_PAYLOAD)
+
+    assert response.status_code == 202
+    payload = response.json()
+    assert payload["status"] == "queued"
+    assert payload["publisher"] == ANALYZE_PAYLOAD["publisher"]
+    assert len(payload["steps"]) == 4
+    mock_thread.return_value.start.assert_called_once()
+
+
+def test_analyze_start_missing_vsix_404(client: TestClient) -> None:
+    """Async analyze start validates the VSIX before queueing a job."""
+    with patch(
+        "scanner.marketplace.get_vsix_path",
+        return_value=_vsix_path_exists(False),
+    ):
+        response = client.post("/api/marketplace/analyze/start", json=ANALYZE_PAYLOAD)
+
+    assert response.status_code == 404
+    assert "VSIX file not found" in response.json()["detail"]
+
+
+def test_get_analysis_job_status_404(client: TestClient) -> None:
+    """Unknown analysis jobs return 404."""
+    response = client.get("/api/marketplace/analyze/missing-job")
+    assert response.status_code == 404
 
 
 def test_analyze_missing_publisher_422(client: TestClient) -> None:

@@ -25,6 +25,7 @@ from fastapi import APIRouter, HTTPException
 from core.config import settings
 
 router = APIRouter(prefix="/api", tags=["activations"])
+_REPORT_PATTERNS = ("activation_report*.json",)
 
 
 def _get_output_dir() -> Path:
@@ -40,12 +41,16 @@ def _list_report_files() -> list[Path]:
     output_dir = _get_output_dir()
     if not output_dir.exists():
         return []
-    files = sorted(
-        output_dir.glob("*.json"),
-        key=lambda f: f.stat().st_mtime,
-        reverse=True,
-    )
-    return files
+    files: list[Path] = []
+    seen: set[Path] = set()
+    for pattern in _REPORT_PATTERNS:
+        for file_path in output_dir.glob(pattern):
+            resolved = file_path.resolve()
+            if resolved in seen:
+                continue
+            seen.add(resolved)
+            files.append(file_path)
+    return sorted(files, key=lambda f: f.stat().st_mtime, reverse=True)
 
 
 def _read_report(path: Path, *, _retries: int = 3) -> dict[str, Any]:
@@ -156,6 +161,8 @@ def get_activation_by_name(name: str) -> dict[str, Any]:
     # Prevent directory traversal
     if ".." in name or "/" in name or "\\" in name:
         raise HTTPException(status_code=400, detail="Invalid filename.")
+    if not name.startswith("activation_report") or not name.endswith(".json"):
+        raise HTTPException(status_code=400, detail="Invalid activation report name.")
 
     path = _get_output_dir() / name
     if not path.exists() or not path.is_file():

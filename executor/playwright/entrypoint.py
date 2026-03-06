@@ -14,6 +14,9 @@ import argparse
 import sys
 from pathlib import Path
 
+from playwright.sync_api import Browser, Page, sync_playwright
+from playwright.sync_api import Error as PlaywrightError
+
 # Bootstrap: add parent dir so sibling imports don't conflict with pip `playwright`.
 _pkg_dir = str(Path(__file__).resolve().parent)
 if _pkg_dir not in sys.path:
@@ -28,7 +31,6 @@ import sidebar  # noqa: E402
 import terminal  # noqa: E402
 import triggers as trigger_loader  # noqa: E402
 import vscode  # noqa: E402
-from playwright.sync_api import Page, sync_playwright  # noqa: E402 — pip package
 
 
 def run_demo(page: Page) -> None:
@@ -148,6 +150,29 @@ def _run_extra_triggers(page: Page, payload: trigger_loader.TriggerPayload) -> N
                 page.wait_for_timeout(300)
 
 
+def _reload_window_under_monitoring(browser: Browser, page: Page) -> Page:
+    """Reload the current VS Code window after monitoring has started."""
+    print("[*] Reloading VS Code window under monitoring...")
+    commands.run_command(page, "Developer: Reload Window")
+    page.wait_for_timeout(3000)
+
+    try:
+        vscode.wait_until_ready(page, timeout_ms=30_000)
+        print("[+] VS Code reloaded successfully")
+        return page
+    except PlaywrightError as exc:
+        print(f"[!] Primary page lost during reload ({exc}), trying fallback...")
+
+    contexts = browser.contexts
+    if contexts and contexts[0].pages:
+        reloaded_page = contexts[0].pages[0]
+        vscode.wait_until_ready(reloaded_page, timeout_ms=30_000)
+        print("[+] VS Code reloaded successfully (fallback)")
+        return reloaded_page
+
+    raise PlaywrightError("Unable to reconnect to VS Code window after reload")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="VS Code automation via Playwright")
     group = parser.add_mutually_exclusive_group()
@@ -173,6 +198,11 @@ def main() -> None:
         type=str,
         default=None,
         help="Path to trigger payload JSON (written by host-side scanner.triggers)",
+    )
+    parser.add_argument(
+        "--reload-before-run",
+        action="store_true",
+        help="Reload the VS Code window after monitoring starts.",
     )
     args = parser.parse_args()
 
@@ -215,6 +245,11 @@ def main() -> None:
                 print("[*] Starting Extension Host monitoring...")
                 mon = monitor.ExtensionMonitor(page)
                 mon.start()
+
+            if args.reload_before_run:
+                page = _reload_window_under_monitoring(browser, page)
+                if mon is not None:
+                    mon.page = page
 
             executed_scenarios: list[str] = []
 

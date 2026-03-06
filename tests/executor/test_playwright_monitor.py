@@ -66,7 +66,7 @@ def test_parse_all_exthost_logs_uses_per_file_offsets(
     assert [entry.extension_id for entry in entries] == ["first.new", "second.ext"]
 
 
-def test_parse_activations_from_log_deduplicates_and_parses_timestamp(
+def test_parse_activations_from_log_preserves_distinct_events_and_parses_timestamp(
     tmp_path: Path,
 ) -> None:
     log_file = tmp_path / "exthost.log"
@@ -80,10 +80,15 @@ def test_parse_activations_from_log_deduplicates_and_parses_timestamp(
     )
 
     entries = monitor.parse_activations_from_log(log_file, start_offset=-10)
-    assert [entry.extension_id for entry in entries] == ["dup.ext", "other.ext"]
+    assert [entry.extension_id for entry in entries] == [
+        "dup.ext",
+        "dup.ext",
+        "other.ext",
+    ]
     assert entries[0].activation_event == "onLanguage:python"
     assert entries[0].timestamp == "2026-01-01 10:00:00.123"
-    assert entries[1].activation_event == "onStartupFinished"
+    assert entries[1].activation_event == "onCommand:test"
+    assert entries[2].activation_event == "onStartupFinished"
     assert all(entry.source == "log" for entry in entries)
 
     beyond_eof_entries = monitor.parse_activations_from_log(
@@ -139,7 +144,7 @@ def test_read_extension_host_output_falls_back_to_exthost_rglob(
     assert "ms-python.python" in output
 
 
-def test_extension_monitor_stop_merges_new_ui_entries(
+def test_extension_monitor_stop_keeps_runtime_snapshot_separate(
     monkeypatch,
     tmp_path: Path,
 ) -> None:
@@ -182,12 +187,12 @@ def test_extension_monitor_stop_merges_new_ui_entries(
     assert captured_offsets == expected_offsets
     assert report.log_file_path == str(log_file)
     assert report.extension_host_output == "output-lines"
-    assert [entry.extension_id for entry in report.activated] == [
+    assert [entry.extension_id for entry in report.activated] == ["already.active"]
+    assert [ext.extension_id for ext in report.running_extensions] == [
         "already.active",
         "new.ui",
     ]
-    assert report.activated[1].source == "ui"
-    assert report.activated[1].duration_ms == 21
+    assert report.running_extensions[1].activation_time_ms == 21
 
 
 def test_check_extension_activated_uses_logs_then_ui(monkeypatch) -> None:

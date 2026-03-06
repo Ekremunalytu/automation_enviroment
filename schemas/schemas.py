@@ -616,3 +616,33 @@ class AnalyzeResponse(BaseModel):
     install_output: str | None = None
     automation_output: str | None = None
     report_path: str | None = None
+
+
+class AnalyzeJobStep(BaseModel):
+    """A single progress step for asynchronous sandbox analysis."""
+
+    name: str
+    status: str
+    message: str
+
+
+class AnalyzeJobStatusResponse(BaseModel):
+    """Status snapshot for an asynchronous sandbox analysis job."""
+
+    job_id: str
+    status: str
+    publisher: str
+    name: str
+    version: str
+    scenario: str | None = None
+    current_step: str | None = None
+    message: str
+    steps: list[AnalyzeJobStep] = Field(default_factory=list)
+    report_path: str | None = None
+    install_output: str | None = None
+    automation_output: str | None = None
+    error_detail: str | None = None
+    created_at: float
+    started_at: float | None = None
+    finished_at: float | None = None
+    updated_at: float

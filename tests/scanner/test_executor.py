@@ -159,6 +159,19 @@ def test_run_automation_all_scenarios(mock_exec: MagicMock) -> None:
 
 
 @patch("scanner.executor._docker_exec_allow_partial")
+def test_run_automation_with_reload_before_run(mock_exec: MagicMock) -> None:
+    """Reload flag is forwarded to the executor entrypoint."""
+    mock_exec.return_value = subprocess.CompletedProcess(
+        args=[], returncode=0, stdout="done", stderr=""
+    )
+
+    run_playwright_automation("/results/r.json", reload_before_run=True)
+
+    call_cmd = mock_exec.call_args[0][0]
+    assert "--reload-before-run" in call_cmd
+
+
+@patch("scanner.executor._docker_exec_allow_partial")
 def test_run_automation_partial_failure(mock_exec: MagicMock) -> None:
     """Non-zero exit code is tolerated (report may still be written)."""
     mock_exec.return_value = subprocess.CompletedProcess(

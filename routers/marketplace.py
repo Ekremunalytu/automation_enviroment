@@ -11,25 +11,33 @@ Endpoints:
 """
 
 import logging
+import threading
+import time
+from collections.abc import Callable
+from copy import deepcopy
 from pathlib import Path
+from typing import Any
+from uuid import uuid4
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from core.config import settings
 from core.deps import get_db
 from crud.crud import get_extension_activation_events, get_extension_contributes_all
+from database.session import SessionLocal
 from scanner import marketplace as marketplace_scanner
 from scanner.executor import (
     ExecutorError,
     install_extension_in_executor,
-    reload_vscode_window,
     run_playwright_automation,
 )
 from scanner.service import create_extension_by_name
 from scanner.triggers import select_scenarios, write_trigger_file
 from schemas.schemas import (
+    AnalyzeJobStatusResponse,
     AnalyzeRequest,
     AnalyzeResponse,
     MarketplaceDownloadRequest,
@@ -40,6 +48,346 @@ from schemas.schemas import (
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api", tags=["marketplace"])
+_JOB_LOCK = threading.Lock()
+_ANALYSIS_JOBS: dict[str, dict[str, Any]] = {}
+
+
+def _now() -> float:
+    return time.time()
+
+
+def _empty_job_steps() -> list[dict[str, str]]:
+    return [
+        {"name": "install_extension", "status": "pending", "message": "Queued."},
+        {
+            "name": "build_triggers",
+            "status": "pending",
+            "message": "Waiting for activation metadata.",
+        },
+        {
+            "name": "run_monitoring",
+            "status": "pending",
+            "message": "Waiting for sandbox automation.",
+        },
+        {
+            "name": "finalize_report",
+            "status": "pending",
+            "message": "Waiting for report export.",
+        },
+    ]
+
+
+def _create_job_snapshot(request: AnalyzeRequest) -> dict[str, Any]:
+    created_at = _now()
+    return {
+        "job_id": uuid4().hex,
+        "status": "queued",
+        "publisher": request.publisher,
+        "name": request.name,
+        "version": request.version,
+        "scenario": request.scenario,
+        "current_step": None,
+        "message": "Queued for sandbox analysis.",
+        "steps": _empty_job_steps(),
+        "report_path": None,
+        "install_output": None,
+        "automation_output": None,
+        "error_detail": None,
+        "created_at": created_at,
+        "started_at": None,
+        "finished_at": None,
+        "updated_at": created_at,
+    }
+
+
+def _store_job(job: dict[str, Any]) -> None:
+    with _JOB_LOCK:
+        _ANALYSIS_JOBS[job["job_id"]] = job
+
+
+def _get_job_snapshot(job_id: str) -> dict[str, Any]:
+    with _JOB_LOCK:
+        job = _ANALYSIS_JOBS.get(job_id)
+        if job is None:
+            raise KeyError(job_id)
+        return deepcopy(job)
+
+
+def _update_job(job_id: str, **updates: Any) -> None:
+    with _JOB_LOCK:
+        job = _ANALYSIS_JOBS[job_id]
+        job.update(updates)
+        job["updated_at"] = _now()
+
+
+def _update_job_step(job_id: str, step_name: str, status: str, message: str) -> None:
+    with _JOB_LOCK:
+        job = _ANALYSIS_JOBS[job_id]
+        for step in job["steps"]:
+            if step["name"] == step_name:
+                step["status"] = status
+                step["message"] = message
+                break
+        job["current_step"] = step_name if status == "running" else job["current_step"]
+        if status in {"completed", "skipped"} and job["current_step"] == step_name:
+            job["current_step"] = None
+        if status == "failed":
+            job["current_step"] = step_name
+        job["updated_at"] = _now()
+
+
+def _fail_job(job_id: str, detail: str) -> None:
+    with _JOB_LOCK:
+        job = _ANALYSIS_JOBS[job_id]
+        current_step = job.get("current_step")
+        if current_step:
+            for step in job["steps"]:
+                if step["name"] == current_step:
+                    step["status"] = "failed"
+                    step["message"] = detail
+                    break
+        job.update(
+            status="failed",
+            message=detail,
+            error_detail=detail,
+            finished_at=_now(),
+            updated_at=_now(),
+        )
+
+
+def _ensure_vsix_exists(request: AnalyzeRequest) -> Path:
+    vsix_path = marketplace_scanner.get_vsix_path(
+        request.publisher,
+        request.name,
+        request.version,
+    )
+    if not vsix_path.exists():
+        raise FileNotFoundError(
+            f"VSIX file not found: {vsix_path.name}. "
+            "Download the extension first via /api/marketplace/download."
+        )
+    return vsix_path
+
+
+def _build_trigger_payload(
+    db: Session,
+    request: AnalyzeRequest,
+) -> tuple[str | None, list[str], str]:
+    if request.scenario:
+        return None, [], "Explicit scenario selected; smart trigger selection skipped."
+
+    activation_events = get_extension_activation_events(
+        db,
+        extension_name=request.name,
+        extension_publisher=request.publisher,
+        extension_version=request.version,
+    )
+    contributes = get_extension_contributes_all(
+        db,
+        extension_name=request.name,
+        extension_publisher=request.publisher,
+        extension_version=request.version,
+    )
+
+    if not activation_events:
+        return (
+            None,
+            [],
+            "No stored activation events found; using default sandbox flow.",
+        )
+
+    events_data = [
+        {"event_type": event.event_type, "event_value": event.event_value}
+        for event in activation_events
+    ]
+    custom_editors = contributes.customEditors if contributes else None
+    publisher_name = f"{request.publisher}.{request.name}"
+
+    commands_data = None
+    if contributes and contributes.commands:
+        commands_data = [
+            {"title": command.title, "command_id": command.command_id}
+            for command in contributes.commands
+        ]
+
+    payload = select_scenarios(
+        events_data,
+        custom_editors,
+        publisher_name,
+        contributes_commands=commands_data,
+    )
+    trigger_container_path = write_trigger_file(
+        request.publisher,
+        request.name,
+        request.version,
+        payload,
+        output_dir=settings.project.OUTPUT_DIR,
+    )
+    logger.info(
+        "Smart triggers: %d scenarios for %s.%s",
+        len(payload.selected_scenarios),
+        request.publisher,
+        request.name,
+    )
+    return (
+        trigger_container_path,
+        payload.selected_scenarios,
+        (
+            f"Selected {len(payload.selected_scenarios)} scenario(s) "
+            "from activation metadata."
+        ),
+    )
+
+
+def _execute_analysis_request(
+    request: AnalyzeRequest,
+    db: Session,
+    progress_callback: Callable[[str, str, str], None] | None = None,
+) -> AnalyzeResponse:
+    def report(step_name: str, status: str, message: str) -> None:
+        if progress_callback is not None:
+            progress_callback(step_name, status, message)
+
+    _ensure_vsix_exists(request)
+
+    report(
+        "install_extension",
+        "running",
+        "Installing extension in the executor sandbox.",
+    )
+    try:
+        install_output = install_extension_in_executor(
+            request.publisher,
+            request.name,
+            request.version,
+        )
+    except ExecutorError:
+        report(
+            "install_extension",
+            "failed",
+            "Extension installation failed inside the sandbox.",
+        )
+        raise
+    report(
+        "install_extension",
+        "completed",
+        "Extension installed in sandbox.",
+    )
+
+    trigger_container_path: str | None = None
+    trigger_message = "Using default sandbox flow."
+    report(
+        "build_triggers",
+        "running",
+        "Resolving activation events and contribution metadata.",
+    )
+    try:
+        trigger_container_path, _, trigger_message = _build_trigger_payload(db, request)
+        report("build_triggers", "completed", trigger_message)
+    except (SQLAlchemyError, OSError, ValueError, TypeError, AttributeError) as exc:
+        trigger_message = (
+            "Trigger selection unavailable; continuing with default sandbox flow."
+        )
+        logger.warning(
+            "Failed to build trigger payload for %s.%s: %s",
+            request.publisher,
+            request.name,
+            exc,
+        )
+        report("build_triggers", "completed", trigger_message)
+
+    report(
+        "run_monitoring",
+        "running",
+        "Reloading VS Code under monitoring and executing automation scenarios.",
+    )
+    report_name = (
+        f"activation_report_{request.publisher}.{request.name}-{request.version}.json"
+    )
+    report_container_path = f"/results/{report_name}"
+    try:
+        automation_output = run_playwright_automation(
+            report_path=report_container_path,
+            scenario=request.scenario,
+            trigger_container_path=trigger_container_path,
+            reload_before_run=True,
+        )
+    except ExecutorError:
+        report(
+            "run_monitoring",
+            "failed",
+            "Sandbox automation failed before the report could be finalized.",
+        )
+        raise
+    report(
+        "run_monitoring",
+        "completed",
+        "Sandbox automation finished.",
+    )
+    report(
+        "finalize_report",
+        "completed",
+        f"Report exported to {report_name}.",
+    )
+
+    return AnalyzeResponse(
+        status="success",
+        publisher=request.publisher,
+        name=request.name,
+        version=request.version,
+        message=(
+            f"Extension {request.publisher}.{request.name}@{request.version} "
+            "installed and analyzed successfully."
+        ),
+        install_output=install_output,
+        automation_output=automation_output,
+        report_path=report_name,
+    )
+
+
+def _run_analysis_job(job_id: str, request_data: dict[str, Any]) -> None:
+    request = AnalyzeRequest.model_validate(request_data)
+    _update_job(
+        job_id,
+        status="running",
+        message="Starting sandbox analysis.",
+        started_at=_now(),
+    )
+
+    db = SessionLocal()
+    try:
+        result = _execute_analysis_request(
+            request,
+            db,
+            progress_callback=lambda step, status, message: _update_job_step(
+                job_id,
+                step,
+                status,
+                message,
+            ),
+        )
+    except FileNotFoundError as exc:
+        _fail_job(job_id, str(exc))
+        return
+    except ExecutorError as exc:
+        _fail_job(job_id, str(exc))
+        return
+    except OSError as exc:
+        _fail_job(job_id, str(exc))
+        return
+    finally:
+        db.close()
+
+    _update_job(
+        job_id,
+        status="completed",
+        current_step=None,
+        message=result.message,
+        report_path=result.report_path,
+        install_output=result.install_output,
+        automation_output=result.automation_output,
+        finished_at=_now(),
+    )
 
 
 @router.get("/marketplace/search", response_model=list[MarketplaceExtension])
@@ -138,6 +486,45 @@ def download_marketplace_extension(
     )
 
 
+@router.post(
+    "/marketplace/analyze/start",
+    response_model=AnalyzeJobStatusResponse,
+    status_code=202,
+)
+def start_analysis_job(request: AnalyzeRequest) -> dict[str, Any]:
+    """Queue a sandbox analysis job and return its initial status."""
+    try:
+        _ensure_vsix_exists(request)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    job = _create_job_snapshot(request)
+    _store_job(job)
+
+    worker = threading.Thread(
+        target=_run_analysis_job,
+        args=(job["job_id"], request.model_dump()),
+        daemon=True,
+    )
+    worker.start()
+    return _get_job_snapshot(job["job_id"])
+
+
+@router.get(
+    "/marketplace/analyze/{job_id}",
+    response_model=AnalyzeJobStatusResponse,
+)
+def get_analysis_job(job_id: str) -> dict[str, Any]:
+    """Return the latest status snapshot for an analysis job."""
+    try:
+        return _get_job_snapshot(job_id)
+    except KeyError as exc:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Analysis job not found: {job_id}",
+        ) from exc
+
+
 @router.post("/marketplace/analyze", response_model=AnalyzeResponse)
 def analyze_extension(
     request: AnalyzeRequest,
@@ -166,127 +553,12 @@ def analyze_extension(
         404: .vsix file not found (extension not downloaded yet).
         502: Executor command failed.
     """
-    vsix_path = marketplace_scanner.get_vsix_path(
-        request.publisher, request.name, request.version
-    )
-
-    if not vsix_path.exists():
-        raise HTTPException(
-            status_code=404,
-            detail=(
-                f"VSIX file not found: {vsix_path.name}. "
-                "Download the extension first via /api/marketplace/download."
-            ),
-        )
-
-    # Step 1: Install extension in executor container
     try:
-        install_output = install_extension_in_executor(
-            request.publisher, request.name, request.version
-        )
+        return _execute_analysis_request(request, db)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ExecutorError as exc:
-        logger.error("Extension install failed: %s", exc)
-        raise HTTPException(
-            status_code=502,
-            detail=f"Failed to install extension in executor: {exc}",
-        ) from exc
-
-    # Step 1.5: Reload VS Code so the newly installed extension activates
-    try:
-        reload_output = reload_vscode_window()
-        logger.info("VS Code reloaded: %s", reload_output.strip())
-    except ExecutorError as exc:
-        logger.warning("VS Code reload failed (non-fatal): %s", exc)
-
-    # Step 2: Build trigger payload from DB data (best-effort)
-    trigger_container_path: str | None = None
-    if not request.scenario:
-        try:
-            activation_events = get_extension_activation_events(
-                db,
-                extension_name=request.name,
-                extension_publisher=request.publisher,
-                extension_version=request.version,
-            )
-            contributes = get_extension_contributes_all(
-                db,
-                extension_name=request.name,
-                extension_publisher=request.publisher,
-                extension_version=request.version,
-            )
-
-            if activation_events:
-                events_data = [
-                    {"event_type": e.event_type, "event_value": e.event_value}
-                    for e in activation_events
-                ]
-                custom_editors = contributes.customEditors if contributes else None
-                publisher_name = f"{request.publisher}.{request.name}"
-
-                # Gather contributes.commands for dynamic invocation
-                commands_data = None
-                if contributes and contributes.commands:
-                    commands_data = [
-                        {"title": c.title, "command_id": c.command_id}
-                        for c in contributes.commands
-                    ]
-
-                payload = select_scenarios(
-                    events_data,
-                    custom_editors,
-                    publisher_name,
-                    contributes_commands=commands_data,
-                )
-                trigger_container_path = write_trigger_file(
-                    request.publisher,
-                    request.name,
-                    request.version,
-                    payload,
-                    output_dir=settings.project.OUTPUT_DIR,
-                )
-                logger.info(
-                    "Smart triggers: %d scenarios for %s.%s",
-                    len(payload.selected_scenarios),
-                    request.publisher,
-                    request.name,
-                )
-        except Exception:
-            logger.warning(
-                "Failed to build trigger payload for %s.%s, falling back to default",
-                request.publisher,
-                request.name,
-                exc_info=True,
-            )
-
-    # Step 3: Run Playwright automation
-    report_name = (
-        f"activation_report_{request.publisher}.{request.name}-{request.version}.json"
-    )
-    report_container_path = f"/results/{report_name}"
-
-    try:
-        automation_output = run_playwright_automation(
-            report_path=report_container_path,
-            scenario=request.scenario,
-            trigger_container_path=trigger_container_path,
-        )
-    except ExecutorError as exc:
-        logger.error("Playwright automation failed: %s", exc)
         raise HTTPException(
             status_code=502,
             detail=f"Automation failed: {exc}",
         ) from exc
-
-    return AnalyzeResponse(
-        status="success",
-        publisher=request.publisher,
-        name=request.name,
-        version=request.version,
-        message=(
-            f"Extension {request.publisher}.{request.name}@{request.version} "
-            "installed and analyzed successfully."
-        ),
-        install_output=install_output,
-        automation_output=automation_output,
-        report_path=report_name,
-    )

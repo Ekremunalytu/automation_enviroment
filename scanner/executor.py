@@ -189,6 +189,7 @@ def run_playwright_automation(
     report_path: str,
     scenario: str | None = None,
     trigger_container_path: str | None = None,
+    reload_before_run: bool = False,
 ) -> str:
     """
     Run the Playwright automation entrypoint inside the executor container.
@@ -201,6 +202,8 @@ def run_playwright_automation(
         trigger_container_path: Optional path to trigger payload JSON inside
             the container. When provided, the entrypoint uses smart scenario
             selection based on the extension's activation events.
+        reload_before_run: Reload the VS Code window after monitoring starts
+            so startup activations are captured in the generated report.
 
     Returns:
         stdout from the automation run.
@@ -215,6 +218,9 @@ def run_playwright_automation(
         "--report-path",
         report_path,
     ]
+
+    if reload_before_run:
+        cmd.append("--reload-before-run")
 
     # When triggers are provided, let the entrypoint handle scenario selection
     if trigger_container_path:

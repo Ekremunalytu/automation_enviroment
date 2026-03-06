@@ -2,6 +2,9 @@
 # Install: pre-commit install
 # Run all: pre-commit run --all-files
 
+default_language_version:
+  python: python3.12
+
 repos:
   # ============================================================
   # GENERAL HOOKS
@@ -43,15 +46,16 @@ repos:
   # MYPY - Type Checking
   # ============================================================
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.13.0
+    rev: v1.19.1
     hooks:
       - id: mypy
+        language_version: python3.12
         additional_dependencies:
-          - pydantic>=2.0.0
-          - pydantic-settings>=2.0.0
-          - sqlalchemy>=2.0.0
-          - fastapi>=0.100.0
-        args: [--config-file=pyproject.toml]
+          - fastapi==0.135.1
+          - pydantic==2.12.5
+          - pydantic-settings==2.13.1
+          - sqlalchemy==2.0.48
+        args: [--config-file=pyproject.toml, --cache-dir=.mypy_cache/pre-commit]
         exclude: ^(extensions/|alembic/versions/|config/|ui/)
 
 

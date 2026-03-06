@@ -103,13 +103,21 @@ class ActivationReport:
         return {e.extension_id for e in self.activated}
 
     @property
+    def runtime_ids(self) -> set[str]:
+        return {ext.extension_id for ext in self.running_extensions}
+
+    @property
     def summary(self) -> dict:
+        unique_ids = self.activated_ids | self.runtime_ids
         return {
             "total_activated": len(self.activated),
-            "unique_extensions": len(self.activated_ids),
+            "unique_extensions": len(unique_ids),
+            "unique_event_extensions": len(self.activated_ids),
             "running_extensions": len(self.running_extensions),
             "monitoring_duration_s": round(self.duration_s, 1),
-            "extension_ids": sorted(self.activated_ids),
+            "monitoring_started_at": self.monitoring_start,
+            "monitoring_ended_at": self.monitoring_end,
+            "extension_ids": sorted(unique_ids),
             "scenarios_run": self.scenarios_run,
         }
 
@@ -248,7 +256,7 @@ def parse_activations_from_log(
 
     content = raw[start_offset:].decode("utf-8", errors="replace")
     entries: list[ActivationEntry] = []
-    seen: set[str] = set()
+    seen: set[tuple[str, str, str, int | None]] = set()
 
     for line in content.splitlines():
         # Skip empty or irrelevant lines early
@@ -260,12 +268,6 @@ def parse_activations_from_log(
             m = pattern.search(line)
             if m:
                 ext_id = m.group("id")
-                # Deduplicate by extension ID (keep first occurrence)
-                dedup_key = ext_id
-                if dedup_key in seen:
-                    break
-                seen.add(dedup_key)
-
                 event = m.groupdict().get("event", "") or ""
                 ms_str = m.groupdict().get("ms")
                 duration_ms = int(ms_str) if ms_str else None
@@ -273,6 +275,10 @@ def parse_activations_from_log(
                 # Extract timestamp
                 ts_match = _TIMESTAMP_RE.match(line)
                 timestamp = ts_match.group(1) if ts_match else ""
+                dedup_key = (ext_id, event, timestamp, duration_ms)
+                if dedup_key in seen:
+                    break
+                seen.add(dedup_key)
 
                 entries.append(
                     ActivationEntry(
@@ -299,15 +305,23 @@ def parse_all_exthost_logs(
             If provided, only content appended after the given offset is parsed.
     """
     all_entries: list[ActivationEntry] = []
-    seen_ids: set[str] = set()
+    seen_entries: set[tuple[str, str, str, int | None, str]] = set()
     offsets = start_offsets or {}
 
     for log_path in find_exthost_logs():
         start_offset = offsets.get(str(log_path.resolve()), 0)
         for entry in parse_activations_from_log(log_path, start_offset=start_offset):
-            if entry.extension_id not in seen_ids:
-                seen_ids.add(entry.extension_id)
-                all_entries.append(entry)
+            dedup_key = (
+                entry.extension_id,
+                entry.activation_event,
+                entry.timestamp,
+                entry.duration_ms,
+                entry.source,
+            )
+            if dedup_key in seen_entries:
+                continue
+            seen_entries.add(dedup_key)
+            all_entries.append(entry)
 
     return all_entries
 
@@ -651,18 +665,6 @@ class ExtensionMonitor:
             self.report.extension_host_output = read_extension_host_output()
         except OSError as exc:
             _log(f"Strategy 3 failed: {exc}")
-
-        # Merge UI results into activated list if they have new IDs
-        log_ids = {e.extension_id for e in self.report.activated}
-        for ext in self.report.running_extensions:
-            if ext.extension_id not in log_ids:
-                self.report.activated.append(
-                    ActivationEntry(
-                        extension_id=ext.extension_id,
-                        duration_ms=ext.activation_time_ms,
-                        source="ui",
-                    )
-                )
 
         return self.report
 
