@@ -36,9 +36,11 @@ from __future__ import annotations
 import json
 import re
 import subprocess
+import threading
 import time
 from collections.abc import Callable, Mapping
 from dataclasses import asdict, dataclass, field
+from datetime import datetime
 from pathlib import Path
 from types import TracebackType
 
@@ -83,11 +85,29 @@ class RunningExtension:
 
 
 @dataclass
+class NetworkEvent:
+    """A single observed network event from tshark."""
+
+    timestamp: str = ""
+    rel_time_s: float | None = None
+    protocol: str = ""
+    event_type: str = ""
+    source_ip: str = ""
+    destination_ip: str = ""
+    destination_port: int | None = None
+    host: str = ""
+    path: str = ""
+    summary: str = ""
+
+
+@dataclass
 class ActivationReport:
     """Aggregated monitoring results."""
 
     activated: list[ActivationEntry] = field(default_factory=list)
     running_extensions: list[RunningExtension] = field(default_factory=list)
+    network_events: list[NetworkEvent] = field(default_factory=list)
+    network_capture_error: str = ""
     extension_host_output: str = ""
     log_file_path: str = ""
     monitoring_start: float = 0.0
@@ -107,6 +127,15 @@ class ActivationReport:
         return {ext.extension_id for ext in self.running_extensions}
 
     @property
+    def network_hosts(self) -> set[str]:
+        hosts: set[str] = set()
+        for entry in self.network_events:
+            host = entry.host or entry.destination_ip
+            if host:
+                hosts.add(host)
+        return hosts
+
+    @property
     def summary(self) -> dict:
         unique_ids = self.activated_ids | self.runtime_ids
         return {
@@ -119,9 +148,27 @@ class ActivationReport:
             "monitoring_ended_at": self.monitoring_end,
             "extension_ids": sorted(unique_ids),
             "scenarios_run": self.scenarios_run,
+            "network_events": len(self.network_events),
+            "network_hosts": len(self.network_hosts),
         }
 
-    def save(self, path: str | Path) -> Path:
+    @property
+    def network_summary(self) -> dict:
+        protocols = sorted(
+            {event.protocol for event in self.network_events if event.protocol}
+        )
+        event_types = sorted(
+            {event.event_type for event in self.network_events if event.event_type}
+        )
+        return {
+            "total_events": len(self.network_events),
+            "unique_hosts": len(self.network_hosts),
+            "protocols": protocols,
+            "event_types": event_types,
+            "capture_error": self.network_capture_error,
+        }
+
+    def save(self, path: str | Path, announce: bool = True) -> Path:
         """Save full report as JSON."""
         out = Path(path)
         out.parent.mkdir(parents=True, exist_ok=True)
@@ -135,6 +182,8 @@ class ActivationReport:
             "summary": self.summary,
             "activated": [asdict(e) for e in self.activated],
             "running_extensions": [asdict(e) for e in self.running_extensions],
+            "network_events": [asdict(e) for e in self.network_events],
+            "network_summary": self.network_summary,
             "extension_host_output_lines": self.extension_host_output.count("\n"),
             "extension_host_output": eh_text,
             "log_file": self.log_file_path,
@@ -143,7 +192,8 @@ class ActivationReport:
         temp_out = out.parent / f".{out.name}.tmp"
         temp_out.write_text(serialized, encoding="utf-8")
         temp_out.replace(out)
-        _log(f"Report saved to {out}")
+        if announce:
+            _log(f"Report saved to {out}")
         return out
 
     def print_summary(self) -> None:
@@ -155,13 +205,17 @@ class ActivationReport:
         print(f"  Activations found   : {len(self.activated)}")
         print(f"  Unique extensions   : {len(self.activated_ids)}")
         print(f"  Running extensions  : {len(self.running_extensions)}")
+        print(f"  Network events      : {len(self.network_events)}")
+        print(f"  Network hosts       : {len(self.network_hosts)}")
         if self.activated:
             print("\n  Activated extensions:")
             for entry in self.activated:
-                event = f" [{entry.activation_event}]" if entry.activation_event else ""
+                event_label = (
+                    f" [{entry.activation_event}]" if entry.activation_event else ""
+                )
                 timing = f" ({entry.duration_ms}ms)" if entry.duration_ms else ""
                 src = f" via {entry.source}" if entry.source else ""
-                print(f"    - {entry.extension_id}{event}{timing}{src}")
+                print(f"    - {entry.extension_id}{event_label}{timing}{src}")
         if self.running_extensions:
             print("\n  Running extensions (from UI):")
             for ext in self.running_extensions:
@@ -170,6 +224,25 @@ class ActivationReport:
                     f" {ext.activation_time_ms}ms" if ext.activation_time_ms else ""
                 )
                 print(f"    - {ext.extension_id}{name}{timing}")
+        if self.network_events:
+            print("\n  Network activity:")
+            for network_event in self.network_events[:10]:
+                host = f" {network_event.host}" if network_event.host else ""
+                port = (
+                    f":{network_event.destination_port}"
+                    if network_event.destination_port is not None
+                    else ""
+                )
+                rel = (
+                    f" @{network_event.rel_time_s:.3f}s"
+                    if network_event.rel_time_s is not None
+                    else ""
+                )
+                print(
+                    "    - "
+                    f"{network_event.event_type or network_event.protocol}"
+                    f"{host}{port}{rel}"
+                )
         print("=" * 60 + "\n")
 
 
@@ -472,7 +545,202 @@ def read_extension_host_output(page: Page | None = None) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Strategy 4: Log file watching (real-time via inotifywait)
+# Strategy 4: Network monitoring (real-time via tshark)
+# ---------------------------------------------------------------------------
+
+_NETWORK_CAPTURE_FILTER = (
+    "dns or http.request or tls.handshake.type == 1 or "
+    "(tcp.flags.syn == 1 and tcp.flags.ack == 0)"
+)
+
+
+def parse_tshark_event_line(
+    line: str,
+    monitoring_start: float = 0.0,
+) -> NetworkEvent | None:
+    """Parse a single tshark TSV line into a structured network event."""
+    if not line.strip():
+        return None
+
+    parts = line.rstrip("\n").split("\t")
+    if len(parts) < 13:
+        parts.extend([""] * (13 - len(parts)))
+
+    timestamp_raw = parts[0].strip()
+    try:
+        timestamp_epoch = float(timestamp_raw)
+    except ValueError:
+        return None
+
+    source_ip = _first_non_empty(parts[1], parts[2])
+    destination_ip = _first_non_empty(parts[3], parts[4])
+    destination_port_raw = _first_non_empty(parts[5], parts[6])
+    dns_query = parts[7].strip()
+    http_host = parts[8].strip()
+    http_uri = parts[9].strip()
+    tls_sni = parts[10].strip()
+    protocol = parts[11].strip().lower()
+    info = parts[12].strip()
+
+    destination_port = None
+    if destination_port_raw:
+        try:
+            destination_port = int(destination_port_raw)
+        except ValueError:
+            destination_port = None
+
+    host = _first_non_empty(http_host, tls_sni, dns_query)
+    if http_host and http_uri:
+        event_type = "http_request"
+    elif dns_query:
+        event_type = "dns_query"
+    elif tls_sni:
+        event_type = "tls_client_hello"
+    else:
+        event_type = "tcp_connect"
+
+    timestamp = datetime.fromtimestamp(timestamp_epoch).isoformat(
+        timespec="milliseconds"
+    )
+    rel_time_s = None
+    if monitoring_start > 0:
+        rel_time_s = round(max(timestamp_epoch - monitoring_start, 0.0), 3)
+
+    summary = info or " ".join(
+        part for part in [event_type, host or destination_ip, http_uri] if part
+    )
+
+    if not any([source_ip, destination_ip, host, summary]):
+        return None
+
+    return NetworkEvent(
+        timestamp=timestamp,
+        rel_time_s=rel_time_s,
+        protocol=protocol or event_type.replace("_", ""),
+        event_type=event_type,
+        source_ip=source_ip,
+        destination_ip=destination_ip,
+        destination_port=destination_port,
+        host=host,
+        path=http_uri,
+        summary=summary,
+    )
+
+
+class NetworkCapture:
+    """Capture network events from inside the executor container using tshark."""
+
+    def __init__(
+        self,
+        monitoring_start: float,
+        on_event: Callable[[NetworkEvent], None] | None = None,
+    ) -> None:
+        self.monitoring_start = monitoring_start
+        self.on_event = on_event
+        self.events: list[NetworkEvent] = []
+        self.start_error = ""
+        self._proc: subprocess.Popen[str] | None = None
+        self._reader: threading.Thread | None = None
+
+    def start(self) -> None:
+        """Start background tshark capture."""
+        cmd = [
+            "tshark",
+            "-l",
+            "-n",
+            "-Q",
+            "-i",
+            "any",
+            "-T",
+            "fields",
+            "-E",
+            "separator=\t",
+            "-E",
+            "occurrence=f",
+            "-e",
+            "frame.time_epoch",
+            "-e",
+            "ip.src",
+            "-e",
+            "ipv6.src",
+            "-e",
+            "ip.dst",
+            "-e",
+            "ipv6.dst",
+            "-e",
+            "tcp.dstport",
+            "-e",
+            "udp.dstport",
+            "-e",
+            "dns.qry.name",
+            "-e",
+            "http.host",
+            "-e",
+            "http.request.uri",
+            "-e",
+            "tls.handshake.extensions_server_name",
+            "-e",
+            "_ws.col.Protocol",
+            "-e",
+            "_ws.col.Info",
+            "-Y",
+            _NETWORK_CAPTURE_FILTER,
+        ]
+        try:
+            self._proc = subprocess.Popen(  # nosec B603,B607
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
+                text=True,
+                bufsize=1,
+            )
+        except FileNotFoundError:
+            self.start_error = "tshark binary not available in executor container."
+            _log(self.start_error)
+            return
+        except OSError as exc:
+            self.start_error = f"tshark start failed: {exc}"
+            _log(self.start_error)
+            return
+
+        self._reader = threading.Thread(target=self._consume_stdout, daemon=True)
+        self._reader.start()
+        _log("Network capture started")
+
+    def stop(self) -> list[NetworkEvent]:
+        """Stop capture and return all collected events."""
+        if self._proc is None:
+            return list(self.events)
+
+        if self._proc.poll() is None:
+            self._proc.terminate()
+            try:
+                self._proc.wait(timeout=3)
+            except subprocess.TimeoutExpired:
+                self._proc.kill()
+                self._proc.wait(timeout=3)
+
+        if self._reader is not None:
+            self._reader.join(timeout=3)
+
+        _log(f"Network capture stopped with {len(self.events)} event(s)")
+        return list(self.events)
+
+    def _consume_stdout(self) -> None:
+        if self._proc is None or self._proc.stdout is None:
+            return
+
+        for line in self._proc.stdout:
+            event = parse_tshark_event_line(line, self.monitoring_start)
+            if event is None:
+                continue
+            self.events.append(event)
+            if self.on_event is not None:
+                self.on_event(event)
+
+
+# ---------------------------------------------------------------------------
+# Strategy 5: Log file watching (real-time via inotifywait)
 # ---------------------------------------------------------------------------
 
 
@@ -607,17 +875,28 @@ class ExtensionMonitor:
         mon.report.print_summary()
     """
 
-    def __init__(self, page: Page) -> None:
+    def __init__(self, page: Page, report_path: str | Path | None = None) -> None:
         self.page = page
+        self.report_path = Path(report_path) if report_path is not None else None
         self.report = ActivationReport()
         self._started = False
         self._log_offsets: dict[str, int] = {}
+        self._network_capture: NetworkCapture | None = None
+        self._last_persist_at = 0.0
 
     def start(self) -> None:
         """Record the monitoring start time."""
         self.report.monitoring_start = time.time()
         self._log_offsets = _snapshot_log_offsets()
+        self._network_capture = NetworkCapture(
+            monitoring_start=self.report.monitoring_start,
+            on_event=self._handle_network_event,
+        )
+        self._network_capture.start()
+        if self._network_capture.start_error:
+            self.report.network_capture_error = self._network_capture.start_error
         self._started = True
+        self._persist_report(force=True)
         _log("Monitoring started")
 
     def stop(self) -> ActivationReport:
@@ -631,8 +910,14 @@ class ExtensionMonitor:
             _log("Warning: stop() called without start()")
             self.report.monitoring_start = time.time()
 
+        if self._network_capture is not None:
+            self.report.network_events = self._network_capture.stop()
+            if self._network_capture.start_error:
+                self.report.network_capture_error = self._network_capture.start_error
+
         self.report.monitoring_end = time.time()
         _log(f"Monitoring stopped ({self.report.duration_s:.1f}s elapsed)")
+        self._persist_report(force=True)
 
         # Strategy 1: Parse Extension Host log files
         try:
@@ -645,19 +930,21 @@ class ExtensionMonitor:
                 self.report.log_file_path = str(log_files[0]) if log_files else ""
         except (OSError, ValueError) as exc:
             _log(f"Strategy 1 failed: {exc}")
+        self._persist_report(force=True)
 
         # Strategy 2: Running Extensions UI snapshot
         try:
             _log("Strategy 2: Scraping Running Extensions UI...")
             self.report.running_extensions = get_running_extensions(self.page)
-        except Exception as exc:
+        except (PlaywrightError, OSError, ValueError) as exc:
             _log(f"Strategy 2 failed: {exc}")
             # Dismiss any stuck dialogs (may also fail if VS Code crashed)
             try:
                 self.page.keyboard.press("Escape")
                 self.page.wait_for_timeout(300)
-            except Exception as esc_exc:
+            except PlaywrightError as esc_exc:
                 _log(f"Strategy 2 recovery failed: {esc_exc}")
+        self._persist_report(force=True)
 
         # Strategy 3: Extension Host output from log files
         try:
@@ -665,6 +952,7 @@ class ExtensionMonitor:
             self.report.extension_host_output = read_extension_host_output()
         except OSError as exc:
             _log(f"Strategy 3 failed: {exc}")
+        self._persist_report(force=True)
 
         return self.report
 
@@ -680,6 +968,28 @@ class ExtensionMonitor:
     ) -> None:
         _ = (exc_type, exc, tb)
         self.stop()
+
+    def _handle_network_event(self, event: NetworkEvent) -> None:
+        self.report.network_events.append(event)
+        self._persist_report(force=False)
+
+    def _persist_report(self, force: bool) -> None:
+        if self.report_path is None:
+            return
+
+        now = time.time()
+        if (
+            not force
+            and (len(self.report.network_events) % 5 != 0)
+            and (now - self._last_persist_at < 1.0)
+        ):
+            return
+
+        try:
+            self.report.save(self.report_path, announce=False)
+            self._last_persist_at = now
+        except OSError as exc:
+            _log(f"Live report persistence failed: {exc}")
 
 
 # ---------------------------------------------------------------------------
@@ -713,6 +1023,14 @@ def check_extension_activated(extension_id: str, page: Page | None = None) -> bo
 
 def _log(msg: str) -> None:
     print(f"[monitor] {msg}")
+
+
+def _first_non_empty(*values: str) -> str:
+    for value in values:
+        item = value.strip()
+        if item:
+            return item
+    return ""
 
 
 def _snapshot_log_offsets() -> dict[str, int]:

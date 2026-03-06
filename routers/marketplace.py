@@ -347,10 +347,14 @@ def _execute_analysis_request(
 
 def _run_analysis_job(job_id: str, request_data: dict[str, Any]) -> None:
     request = AnalyzeRequest.model_validate(request_data)
+    report_name = (
+        f"activation_report_{request.publisher}.{request.name}-{request.version}.json"
+    )
     _update_job(
         job_id,
         status="running",
         message="Starting sandbox analysis.",
+        report_path=report_name,
         started_at=_now(),
     )
 

@@ -243,7 +243,7 @@ def main() -> None:
         try:
             if args.monitor:
                 print("[*] Starting Extension Host monitoring...")
-                mon = monitor.ExtensionMonitor(page)
+                mon = monitor.ExtensionMonitor(page, report_path=args.report_path)
                 mon.start()
 
             if args.reload_before_run:

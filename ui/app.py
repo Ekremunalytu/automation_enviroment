@@ -8,10 +8,11 @@ Advanced Analytics Dashboard for VS Code Extension Security.
 import os
 import time
 from datetime import datetime
+from typing import cast
 
 import altair as alt
 import pandas as pd
-import requests
+import requests  # type: ignore[import-untyped]
 import streamlit as st
 
 # ---------------------------------------------------------------------------
@@ -266,7 +267,7 @@ st.markdown(
 # ---------------------------------------------------------------------------
 
 
-@st.cache_data(ttl=5)
+@st.cache_data(ttl=2)
 def _fetch_report_list_cached() -> list[dict]:
     resp = requests.get(API_ACTIVATIONS_URL, timeout=2)
     resp.raise_for_status()
@@ -280,7 +281,7 @@ def fetch_report_list() -> tuple[list[dict], str | None]:
         return [], f"Report list unavailable: {exc}"
 
 
-@st.cache_data(ttl=15)
+@st.cache_data(ttl=2)
 def _fetch_report_cached(filename: str) -> dict:
     url = (
         f"{API_ACTIVATIONS_URL}/latest"
@@ -415,6 +416,74 @@ def process_data(data: dict) -> pd.DataFrame:
     return df
 
 
+def process_network_data(data: dict) -> pd.DataFrame:
+    events = data.get("network_events", [])
+    if not events:
+        return pd.DataFrame()
+
+    df = pd.DataFrame(events)
+    for column in [
+        "timestamp",
+        "rel_time_s",
+        "protocol",
+        "event_type",
+        "source_ip",
+        "destination_ip",
+        "destination_port",
+        "host",
+        "path",
+        "summary",
+    ]:
+        if column not in df.columns:
+            df[column] = ""
+
+    df["dt"] = pd.to_datetime(df["timestamp"], errors="coerce")
+    df["rel_time_s"] = pd.to_numeric(df["rel_time_s"], errors="coerce")
+    if df["rel_time_s"].isna().all() and df["dt"].notna().any():
+        start_time = df["dt"].dropna().min()
+        df["rel_time_s"] = (df["dt"] - start_time).dt.total_seconds()
+
+    df["destination_port"] = pd.to_numeric(
+        df["destination_port"], errors="coerce"
+    ).astype("Int64")
+    df["protocol"] = df["protocol"].fillna("").replace("", "unknown")
+    df["event_type"] = df["event_type"].fillna("").replace("", "network_event")
+    df["host_display"] = (
+        df["host"]
+        .fillna("")
+        .replace("", pd.NA)
+        .fillna(df["destination_ip"].fillna("").replace("", pd.NA))
+        .fillna("(unknown host)")
+    )
+    df["event_label"] = df["event_type"].str.replace("_", " ").str.title()
+    df["protocol_label"] = df["protocol"].str.upper()
+    df["lane"] = df["host_display"] + " · " + df["event_label"]
+    return df.sort_values(
+        by=["rel_time_s", "host_display"],
+        ascending=[True, True],
+        na_position="last",
+    )
+
+
+def build_network_log(network_df: pd.DataFrame, limit: int = 400) -> str:
+    if network_df.empty:
+        return ""
+
+    lines: list[str] = []
+    recent = network_df.tail(limit)
+    for row in recent.itertuples(index=False):
+        rel = f"{row.rel_time_s:8.3f}s" if pd.notna(row.rel_time_s) else "   --.--s"
+        host = row.host_display if row.host_display else "(unknown host)"
+        port = f":{int(row.destination_port)}" if pd.notna(row.destination_port) else ""
+        path = f" {row.path}" if row.path else ""
+        src = f"{row.source_ip} -> " if row.source_ip else ""
+        lines.append(
+            f"[{rel}] {row.protocol_label:<6} {row.event_label:<18} "
+            f"{src}{host}{port}{path}"
+        )
+    return "\n".join(lines)
+
+
 # ---------------------------------------------------------------------------
 # Marketplace Helpers
 # ---------------------------------------------------------------------------
@@ -500,8 +569,8 @@ def render_marketplace_page() -> None:
 
     if submitted and query.strip():
         with st.spinner("Searching Marketplace..."):
-            results = search_marketplace(query.strip())
-        st.session_state["marketplace_results"] = results
+            marketplace_results = search_marketplace(query.strip())
+        st.session_state["marketplace_results"] = marketplace_results
 
     results: list[dict] = st.session_state.get("marketplace_results", [])
 
@@ -634,6 +703,8 @@ def render_scan_status(scan_job: dict) -> None:
 
         if scan_job.get("error_detail"):
             st.error(scan_job["error_detail"])
+        elif scan_job.get("status") == "running" and scan_job.get("report_path"):
+            st.info(f"Live report is updating: `{scan_job['report_path']}`")
         elif scan_job.get("report_path"):
             st.success(f"Report ready: `{scan_job['report_path']}`")
 
@@ -842,6 +913,9 @@ if poll_again:
     time.sleep(2)
     st.rerun()
 
+if target is None and current_scan_job and current_scan_job.get("report_path"):
+    target = current_scan_job["report_path"]
+
 if not target:
     st.markdown(
         "<div style='text-align: center; margin-top: 20vh; color: #52525b;'>"
@@ -850,8 +924,13 @@ if not target:
     )
     st.stop()
 
-raw_data, report_error = fetch_report(target)
+resolved_target = cast(str, target)
+raw_data, report_error = fetch_report(resolved_target)
 if report_error:
+    if current_scan_job and current_scan_job.get("status") == "running":
+        st.info("Waiting for the live report file to receive telemetry...")
+        time.sleep(2)
+        st.rerun()
     st.error(report_error)
     st.stop()
 
@@ -860,7 +939,9 @@ if not raw_data:
     st.stop()
 
 df = process_data(raw_data)
+network_df = process_network_data(raw_data)
 summary = raw_data.get("summary", {})
+network_summary = raw_data.get("network_summary", {})
 running = raw_data.get("running_extensions", [])
 
 chart_theme = st.session_state.get("chart_theme", "plasma")
@@ -926,7 +1007,7 @@ st.markdown("<div style='height: 32px'></div>", unsafe_allow_html=True)
 # KPI Cards Grid
 # ---------------------------------------------------------------------------
 
-k1, k2, k3, k4 = st.columns(4)
+k1, k2, k3, k4, k5 = st.columns(5)
 
 
 def metric_card(icon, label, value, color):
@@ -955,10 +1036,30 @@ with k2:
     )
 with k3:
     st.markdown(
-        metric_card("🚀", "Active Processes", str(len(running)), "#10b981"),
+        metric_card(
+            "🌐",
+            "Network Events",
+            str(network_summary.get("total_events", len(network_df))),
+            "#10b981",
+        ),
         unsafe_allow_html=True,
     )
 with k4:
+    st.markdown(
+        metric_card(
+            "🛰️",
+            "Network Hosts",
+            str(
+                network_summary.get(
+                    "unique_hosts",
+                    network_df["host_display"].nunique() if not network_df.empty else 0,
+                )
+            ),
+            "#f97316",
+        ),
+        unsafe_allow_html=True,
+    )
+with k5:
     dur = summary.get("monitoring_duration_s", 0)
     st.markdown(
         metric_card("⏱️", "Duration", f"{dur:.1f}s", "#f59e0b"), unsafe_allow_html=True
@@ -970,9 +1071,10 @@ st.markdown("<div style='height: 48px'></div>", unsafe_allow_html=True)
 # Deep Dive Analysis
 # ---------------------------------------------------------------------------
 
-tab_viz, tab_perf, tab_grid, tab_raw, tab_host_logs = st.tabs(
+tab_viz, tab_network, tab_perf, tab_grid, tab_raw, tab_host_logs = st.tabs(
     [
         "📊 Visual Intelligence",
+        "🌐 Network Telemetry",
         "⚡ Performance Matrix",
         "💾 Data Grid",
         "🔍 Raw Inspector",
@@ -1088,7 +1190,199 @@ with tab_viz:
     else:
         st.info("No activation data to visualize.")
 
-# --- Tab 2: Performance Matrix ---
+# --- Tab 2: Network Telemetry ---
+with tab_network:
+    if not network_df.empty:
+        n1, n2 = st.columns([2, 1])
+
+        with n1:
+            st.markdown("### Live Network Timeline")
+            lane_count = network_df["lane"].nunique()
+            chart_height = max(360, lane_count * 22)
+
+            timeline = (
+                alt.Chart(network_df)
+                .mark_circle(size=90, opacity=0.85)
+                .encode(
+                    x=alt.X(
+                        "rel_time_s",
+                        title="Timeline (seconds)",
+                        axis=alt.Axis(gridColor="#333"),
+                    ),
+                    y=alt.Y(
+                        "lane",
+                        title=None,
+                        axis=alt.Axis(labelLimit=220, gridColor="#333"),
+                    ),
+                    color=alt.Color(
+                        "event_label",
+                        scale=alt.Scale(scheme=chart_theme),
+                        legend=None,
+                    ),
+                    tooltip=[
+                        alt.Tooltip("dt:T", title="Timestamp"),
+                        alt.Tooltip("protocol_label:N", title="Protocol"),
+                        alt.Tooltip("event_label:N", title="Event"),
+                        alt.Tooltip("host_display:N", title="Host"),
+                        alt.Tooltip("destination_port:Q", title="Port"),
+                        alt.Tooltip("summary:N", title="Summary"),
+                    ],
+                )
+                .properties(height=chart_height, width="container")
+            )
+
+            density = (
+                alt.Chart(network_df)
+                .mark_area(
+                    interpolate="monotone",
+                    fillOpacity=0.45,
+                    line={"color": "#22d3ee"},
+                    color=alt.Gradient(
+                        gradient="linear",
+                        stops=[
+                            alt.GradientStop(color="#22d3ee", offset=0),
+                            alt.GradientStop(
+                                color="rgba(34, 211, 238, 0.08)", offset=1
+                            ),
+                        ],
+                        x1=1,
+                        x2=1,
+                        y1=1,
+                        y2=0,
+                    ),
+                )
+                .encode(
+                    x=alt.X(
+                        "rel_time_s", bin=alt.Bin(maxbins=40), title=None, axis=None
+                    ),
+                    y=alt.Y("count()", title=None, axis=None),
+                )
+                .properties(height=60, width="container")
+            )
+
+            st.altair_chart(timeline & density, theme="streamlit")
+
+        with n2:
+            st.markdown("### Traffic Breakdown")
+            distribution = (
+                alt.Chart(network_df)
+                .mark_arc(
+                    innerRadius=80, cornerRadius=6, stroke="#050505", strokeWidth=2
+                )
+                .encode(
+                    theta=alt.Theta("count()"),
+                    color=alt.Color(
+                        "event_label",
+                        scale=alt.Scale(scheme=chart_theme),
+                        legend=alt.Legend(
+                            orient="bottom", columns=1, labelColor="#a1a1aa"
+                        ),
+                    ),
+                    tooltip=["event_label", "count()"],
+                )
+                .properties(height=420)
+            )
+            st.altair_chart(distribution, theme="streamlit")
+
+            top_hosts = (
+                network_df.groupby("host_display", dropna=False)
+                .size()
+                .reset_index(name="events")
+                .sort_values("events", ascending=False)
+                .head(8)
+            )
+            host_bar = (
+                alt.Chart(top_hosts)
+                .mark_bar(cornerRadiusEnd=4, color="#06b6d4")
+                .encode(
+                    x=alt.X(
+                        "events:Q", title="Events", axis=alt.Axis(gridColor="#333")
+                    ),
+                    y=alt.Y(
+                        "host_display:N",
+                        sort="-x",
+                        title=None,
+                        axis=alt.Axis(labelLimit=180),
+                    ),
+                    tooltip=["host_display", "events"],
+                )
+                .properties(height=240)
+            )
+            st.altair_chart(host_bar, theme="streamlit")
+
+        st.markdown("### Network Event Log")
+        network_log = build_network_log(network_df)
+        with st.container(height=260):
+            st.code(network_log or "(no live events yet)", language="log")
+
+        st.markdown("### Network Grid")
+        network_search = st.text_input(
+            "Network search",
+            placeholder="Filter by host, protocol, summary, or IP...",
+            label_visibility="collapsed",
+        )
+        network_view = network_df.copy()
+        if network_search:
+            mask = (
+                network_view["host_display"].str.contains(
+                    network_search, case=False, na=False
+                )
+                | network_view["protocol_label"].str.contains(
+                    network_search, case=False, na=False
+                )
+                | network_view["summary"].str.contains(
+                    network_search, case=False, na=False
+                )
+                | network_view["source_ip"].str.contains(
+                    network_search, case=False, na=False
+                )
+                | network_view["destination_ip"].str.contains(
+                    network_search, case=False, na=False
+                )
+            )
+            network_view = network_view[mask]
+
+        st.dataframe(
+            network_view[
+                [
+                    "dt",
+                    "protocol_label",
+                    "event_label",
+                    "host_display",
+                    "source_ip",
+                    "destination_ip",
+                    "destination_port",
+                    "summary",
+                ]
+            ],
+            column_config={
+                "dt": st.column_config.DatetimeColumn(
+                    "Timestamp", format="HH:mm:ss.SS"
+                ),
+                "protocol_label": st.column_config.TextColumn("Protocol"),
+                "event_label": st.column_config.TextColumn("Event"),
+                "host_display": st.column_config.TextColumn("Host", width="medium"),
+                "source_ip": st.column_config.TextColumn("Source IP", width="medium"),
+                "destination_ip": st.column_config.TextColumn(
+                    "Destination IP", width="medium"
+                ),
+                "destination_port": st.column_config.NumberColumn("Port", format="%d"),
+                "summary": st.column_config.TextColumn("Summary", width="large"),
+            },
+            height=440,
+            hide_index=True,
+        )
+
+        if network_summary.get("capture_error"):
+            st.warning(network_summary["capture_error"])
+    else:
+        capture_error = network_summary.get("capture_error")
+        if capture_error:
+            st.warning(capture_error)
+        else:
+            st.info("No network telemetry captured in this report yet.")
+
+# --- Tab 3: Performance Matrix ---
 with tab_perf:
     p1, p2 = st.columns(2)
 
@@ -1155,7 +1449,7 @@ with tab_perf:
         else:
             st.warning("No running extension metrics found.")
 
-# --- Tab 3: Data Grid ---
+# --- Tab 4: Data Grid ---
 with tab_grid:
     if not df.empty:
         c_filter, c_export = st.columns([4, 1])
@@ -1218,12 +1512,12 @@ with tab_grid:
     else:
         st.info("No table data available.")
 
-# --- Tab 4: Raw Inspector ---
+# --- Tab 5: Raw Inspector ---
 with tab_raw:
     st.markdown("### JSON Structure")
     st.json(raw_data, expanded=False)
 
-# --- Tab 5: Extension Host Logs ---
+# --- Tab 6: Extension Host Logs ---
 with tab_host_logs:
     st.markdown("### Extension Host Output")
     eh_output = raw_data.get("extension_host_output", "")

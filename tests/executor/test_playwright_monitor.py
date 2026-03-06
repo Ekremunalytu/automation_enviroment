@@ -27,6 +27,17 @@ def test_parse_activations_from_log_respects_start_offset(tmp_path: Path) -> Non
 def test_activation_report_save_is_atomic(tmp_path: Path) -> None:
     report = monitor.ActivationReport(
         activated=[monitor.ActivationEntry(extension_id="sample.ext", source="log")],
+        network_events=[
+            monitor.NetworkEvent(
+                timestamp="2026-01-01T10:00:00.000",
+                rel_time_s=0.25,
+                protocol="http",
+                event_type="http_request",
+                host="api.example.com",
+                destination_port=443,
+                summary="GET /api/health",
+            )
+        ],
         monitoring_start=0.0,
         monitoring_end=1.2,
     )
@@ -38,8 +49,28 @@ def test_activation_report_save_is_atomic(tmp_path: Path) -> None:
     assert saved_path == output_path
     payload = json.loads(output_path.read_text(encoding="utf-8"))
     assert payload["summary"]["total_activated"] == 1
+    assert payload["summary"]["network_events"] == 1
     assert payload["activated"][0]["extension_id"] == "sample.ext"
+    assert payload["network_events"][0]["host"] == "api.example.com"
+    assert payload["network_summary"]["unique_hosts"] == 1
     assert not (tmp_path / ".activation_report.json.tmp").exists()
+
+
+def test_parse_tshark_event_line_extracts_http_fields() -> None:
+    line = (
+        "1700000000.250\t10.0.0.2\t\t93.184.216.34\t\t443\t\t\t"
+        "api.example.com\t/api/health\t\tHTTP\tGET /api/health HTTP/1.1"
+    )
+
+    event = monitor.parse_tshark_event_line(line, monitoring_start=1700000000.0)
+
+    assert event is not None
+    assert event.event_type == "http_request"
+    assert event.protocol == "http"
+    assert event.host == "api.example.com"
+    assert event.destination_ip == "93.184.216.34"
+    assert event.destination_port == 443
+    assert event.rel_time_s == 0.25
 
 
 def test_parse_all_exthost_logs_uses_per_file_offsets(
@@ -179,6 +210,15 @@ def test_extension_monitor_stop_keeps_runtime_snapshot_separate(
     monkeypatch.setattr(
         monitor, "read_extension_host_output", lambda page=None: "output-lines"
     )
+    monkeypatch.setattr(
+        monitor,
+        "NetworkCapture",
+        lambda monitoring_start, on_event=None: _FakeNetworkCapture(
+            monitoring_start,
+            on_event,
+            [],
+        ),
+    )
 
     mon = monitor.ExtensionMonitor(DummyPage())
     mon.start()
@@ -193,6 +233,59 @@ def test_extension_monitor_stop_keeps_runtime_snapshot_separate(
         "new.ui",
     ]
     assert report.running_extensions[1].activation_time_ms == 21
+
+
+def test_extension_monitor_persists_live_report_with_network_events(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    class DummyPage:
+        pass
+
+    network_event = monitor.NetworkEvent(
+        timestamp="2026-01-01T10:00:00.000",
+        rel_time_s=0.5,
+        protocol="tls",
+        event_type="tls_client_hello",
+        source_ip="10.0.0.2",
+        destination_ip="140.82.112.3",
+        destination_port=443,
+        host="github.com",
+        summary="Client Hello",
+    )
+
+    monkeypatch.setattr(monitor, "_snapshot_log_offsets", lambda: {})
+    monkeypatch.setattr(
+        monitor,
+        "parse_all_exthost_logs",
+        lambda start_offsets=None: [],
+    )
+    monkeypatch.setattr(monitor, "find_exthost_logs", lambda: [])
+    monkeypatch.setattr(monitor, "get_running_extensions", lambda page: [])
+    monkeypatch.setattr(monitor, "read_extension_host_output", lambda page=None: "")
+    monkeypatch.setattr(
+        monitor,
+        "NetworkCapture",
+        lambda monitoring_start, on_event=None: _FakeNetworkCapture(
+            monitoring_start,
+            on_event,
+            [network_event],
+        ),
+    )
+
+    report_path = tmp_path / "live_report.json"
+    mon = monitor.ExtensionMonitor(DummyPage(), report_path=report_path)
+    mon.start()
+
+    initial_payload = json.loads(report_path.read_text(encoding="utf-8"))
+    assert initial_payload["network_events"][0]["host"] == "github.com"
+
+    final_report = mon.stop()
+    final_payload = json.loads(report_path.read_text(encoding="utf-8"))
+
+    assert final_report.network_events[0].host == "github.com"
+    assert final_payload["network_summary"]["total_events"] == 1
+    assert final_payload["summary"]["network_hosts"] == 1
 
 
 def test_check_extension_activated_uses_logs_then_ui(monkeypatch) -> None:
@@ -210,3 +303,24 @@ def test_check_extension_activated_uses_logs_then_ui(monkeypatch) -> None:
     assert monitor.check_extension_activated("from.log") is True
     assert monitor.check_extension_activated("from.ui", page=object()) is True
     assert monitor.check_extension_activated("missing", page=object()) is False
+
+
+class _FakeNetworkCapture:
+    def __init__(
+        self,
+        monitoring_start: float,
+        on_event,
+        events: list[monitor.NetworkEvent],
+    ) -> None:
+        self.monitoring_start = monitoring_start
+        self.on_event = on_event
+        self.events = events
+        self.start_error = ""
+
+    def start(self) -> None:
+        if self.on_event is not None:
+            for event in self.events:
+                self.on_event(event)
+
+    def stop(self) -> list[monitor.NetworkEvent]:
+        return list(self.events)
