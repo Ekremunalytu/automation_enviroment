@@ -484,34 +484,21 @@ def render_marketplace_page() -> None:
                         st.rerun()
             else:
                 analyze_key = f"az_{ext_key}"
-                if st.button("Analyze", key=analyze_key, use_container_width=True):
-                    with st.spinner(f"Analyzing {ext_name} in sandbox..."):
-                        az_result = analyze_extension(pub, ext_name, ver)
-                    if az_result:
-                        report_file = az_result.get("report_path", "")
-                        st.success(f"Analysis complete! Report: {report_file}")
-                        st.cache_data.clear()
-                        st.session_state["pending_report"] = report_file
-                        st.session_state["analysis_logs"] = {
-                            "install_output": az_result.get("install_output", ""),
-                            "automation_output": az_result.get("automation_output", ""),
-                            "extension": f"{pub}.{ext_name}",
-                        }
 
-    # Display analysis logs if available
-    logs = st.session_state.get("analysis_logs")
-    if logs:
-        st.markdown("---")
-        st.markdown(
-            f"### Analysis Logs — `{logs['extension']}`",
-        )
-        with st.expander("Install Output", expanded=False):
-            st.code(logs.get("install_output") or "(no output)", language="text")
-        with st.expander("Automation / Sandbox Output", expanded=True):
-            st.code(logs.get("automation_output") or "(no output)", language="text")
-        if st.button("View Dashboard →", use_container_width=True):
-            st.session_state.pop("analysis_logs", None)
-            st.rerun()
+                def _start_scan(p=pub, n=ext_name, v=ver):
+                    st.session_state["scan_request"] = {
+                        "publisher": p,
+                        "name": n,
+                        "version": v,
+                    }
+                    st.session_state["nav_page"] = "Dashboard"
+
+                st.button(
+                    "Analyze",
+                    key=analyze_key,
+                    use_container_width=True,
+                    on_click=_start_scan,
+                )
 
 
 # ---------------------------------------------------------------------------
@@ -533,15 +520,10 @@ with st.sidebar:
         unsafe_allow_html=True,
     )
 
-    # Auto-switch to Dashboard after a successful analysis
-    default_page_idx = 0
-    if st.session_state.get("pending_report"):
-        default_page_idx = 0  # Dashboard
-
     page = st.radio(
         "Navigation",
         ["Dashboard", "Marketplace", "Theme"],
-        index=default_page_idx,
+        key="nav_page",
         label_visibility="collapsed",
     )
 
@@ -647,9 +629,71 @@ if page == "Theme":
     st.info("Additional theme settings will go here in the future.")
     st.stop()
 
+# ---------------------------------------------------------------------------
+# Live Scan Execution (triggered from Marketplace → Analyze)
+# ---------------------------------------------------------------------------
+
+scan_req = st.session_state.pop("scan_request", None)
+if scan_req:
+    _pub = scan_req["publisher"]
+    _name = scan_req["name"]
+    _ver = scan_req["version"]
+    _ext_id = f"{_pub}.{_name}@{_ver}"
+
+    with st.status(f"Scanning {_ext_id}...", expanded=True) as scan_status:
+        scan_status.update(label=f"Scanning {_ext_id}...", state="running")
+
+        st.write("**1/3** — Installing extension in sandbox...")
+        st.caption("Running `code --install-extension` inside executor container")
+
+        st.write("**2/3** — Running Playwright automation...")
+        st.caption("Executing scenarios, monitoring activations & network traffic")
+
+        az_result = analyze_extension(_pub, _name, _ver)
+
+        if az_result:
+            st.write("**3/3** — Collecting results...")
+            report_file = az_result.get("report_path", "")
+            scan_status.update(label=f"Scan complete — {_ext_id}", state="complete")
+            st.session_state["last_scan_logs"] = {
+                "install_output": az_result.get("install_output", ""),
+                "automation_output": az_result.get("automation_output", ""),
+                "extension": f"{_pub}.{_name}",
+            }
+            st.cache_data.clear()
+            # Force the sidebar to pick up the new report on next rerun
+            st.session_state["pending_report"] = report_file
+            st.rerun()
+        else:
+            scan_status.update(label=f"Scan failed — {_ext_id}", state="error")
+            st.stop()
+
+# Show last scan logs on Dashboard if available
+_scan_logs = st.session_state.get("last_scan_logs")
+if _scan_logs:
+    with st.expander(f"Last Scan Logs — `{_scan_logs['extension']}`", expanded=False):
+        col_a, col_b = st.columns(2)
+        with col_a:
+            st.caption("Install Output")
+            st.code(
+                _scan_logs.get("install_output") or "(no output)",
+                language="text",
+            )
+        with col_b:
+            st.caption("Automation Output")
+            st.code(
+                _scan_logs.get("automation_output") or "(no output)",
+                language="text",
+            )
+    if st.button("Clear logs", key="clear_scan_logs"):
+        st.session_state.pop("last_scan_logs", None)
+        st.rerun()
+    st.markdown("<div style='height: 16px'></div>", unsafe_allow_html=True)
+
 if not target:
     st.markdown(
-        "<div style='text-align: center; margin-top: 20vh; color: #52525b;'>Waiting for analysis data...</div>",
+        "<div style='text-align: center; margin-top: 20vh; color: #52525b;'>"
+        "Waiting for analysis data...</div>",
         unsafe_allow_html=True,
     )
     st.stop()
