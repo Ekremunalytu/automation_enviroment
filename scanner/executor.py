@@ -160,6 +160,12 @@ _RELOAD_SCRIPT_PATH = "/home/executor/playwright/reload_vscode.py"
 _RELOAD_TIMEOUT = 60
 """Seconds to allow for the VS Code window reload."""
 
+_RESET_SCRIPT_PATH = "/home/executor/playwright/reset_state.py"
+"""Path to the container-side sandbox reset script."""
+
+_RESET_TIMEOUT = 90
+"""Seconds to allow for sandbox reset before a new analysis run."""
+
 
 def reload_vscode_window() -> str:
     """
@@ -180,6 +186,36 @@ def reload_vscode_window() -> str:
         timeout=_RELOAD_TIMEOUT,
     )
     return result.stdout
+
+
+def reset_executor_sandbox_state(reload_window: bool = True) -> str:
+    """
+    Reset the executor sandbox before starting a new analysis.
+
+    This removes previously installed user extensions, clears VS Code logs,
+    and restores the honeypot workspace so each analysis starts from a clean
+    baseline. Optionally reloads the VS Code window so stale extensions from
+    the previous session are fully unloaded before the next install.
+
+    Args:
+        reload_window: Whether to reload the VS Code window after reset.
+
+    Returns:
+        Combined stdout from the reset and optional reload commands.
+
+    Raises:
+        ExecutorError: If the reset or reload command fails.
+    """
+    reset_result = _docker_exec(
+        ["python3", _RESET_SCRIPT_PATH],
+        timeout=_RESET_TIMEOUT,
+    )
+    outputs = [reset_result.stdout.strip()]
+
+    if reload_window:
+        outputs.append(reload_vscode_window().strip())
+
+    return "\n".join(output for output in outputs if output)
 
 
 _DEFAULT_SCENARIO = "coding_session"

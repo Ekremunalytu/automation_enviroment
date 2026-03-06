@@ -25,6 +25,17 @@ API_MARKETPLACE_SEARCH_URL = f"{API_BASE_URL}/api/marketplace/search"
 API_MARKETPLACE_DOWNLOAD_URL = f"{API_BASE_URL}/api/marketplace/download"
 API_MARKETPLACE_ANALYZE_URL = f"{API_BASE_URL}/api/marketplace/analyze"
 API_MARKETPLACE_ANALYZE_START_URL = f"{API_MARKETPLACE_ANALYZE_URL}/start"
+_FRAGMENT_DECORATOR = getattr(
+    st, "fragment", getattr(st, "experimental_fragment", None)
+)
+
+
+def _auto_refresh_fragment(run_every: int | float | str | None):
+    """Return a fragment decorator when supported, otherwise a no-op decorator."""
+    if _FRAGMENT_DECORATOR is None:
+        return lambda func: func
+    return _FRAGMENT_DECORATOR(run_every=run_every)
+
 
 st.set_page_config(
     page_title="ExTrace Intelligence",
@@ -335,6 +346,39 @@ def fetch_analysis_job(job_id: str) -> dict | None:
     except requests.RequestException as exc:
         st.error(f"Analysis status error: {exc}")
         return None
+
+
+def sync_active_scan_job() -> tuple[dict | None, bool]:
+    """Refresh the active sandbox job snapshot from the API."""
+    current_scan_job = st.session_state.get("last_scan_status")
+    active_scan_job_id = st.session_state.get("active_scan_job_id")
+    if not active_scan_job_id:
+        return current_scan_job, False
+
+    live_job = fetch_analysis_job(active_scan_job_id)
+    if live_job is None:
+        return current_scan_job, False
+
+    current_scan_job = live_job
+    st.session_state["last_scan_status"] = live_job
+
+    if live_job.get("status") in {"completed", "failed"}:
+        st.session_state.pop("active_scan_job_id", None)
+        if live_job.get("status") == "completed" and live_job.get("report_path"):
+            st.cache_data.clear()
+            st.session_state["pending_report"] = live_job["report_path"]
+        return current_scan_job, True
+
+    return current_scan_job, False
+
+
+def load_scan_report(scan_job: dict | None) -> tuple[dict | None, str | None]:
+    """Load the activation report associated with the current scan job."""
+    if not scan_job or not scan_job.get("report_path"):
+        return None, None
+
+    report, report_error = fetch_report(scan_job["report_path"])
+    return (report or None), report_error
 
 
 def process_data(data: dict) -> pd.DataFrame:
@@ -727,7 +771,7 @@ def render_marketplace_page() -> None:
                         "name": n,
                         "version": v,
                     }
-                    st.session_state["nav_page"] = "Dashboard"
+                    st.session_state["pending_nav_page"] = "Simulation"
 
                 st.button(
                     "Analyze",
@@ -739,6 +783,7 @@ def render_marketplace_page() -> None:
 
 def render_scan_status(scan_job: dict) -> None:
     step_titles = {
+        "reset_sandbox": "Resetting sandbox state",
         "install_extension": "Installing extension in sandbox",
         "build_triggers": "Resolving trigger coverage",
         "run_monitoring": "Running Playwright automation",
@@ -761,6 +806,7 @@ def render_scan_status(scan_job: dict) -> None:
         expanded=True,
     ):
         st.caption(scan_job.get("message", "Waiting for sandbox analysis status."))
+        total_steps = max(len(scan_job.get("steps", [])), 1)
         for idx, step in enumerate(scan_job.get("steps", []), start=1):
             title = step_titles.get(step.get("name", ""), step.get("name", "Step"))
             status = step.get("status", "pending")
@@ -771,7 +817,7 @@ def render_scan_status(scan_job: dict) -> None:
                 "pending": "…",
                 "skipped": "○",
             }.get(status, "…")
-            st.write(f"**{idx}/4** — {prefix} {title}")
+            st.write(f"**{idx}/{total_steps}** — {prefix} {title}")
             st.caption(step.get("message", ""))
 
         if scan_job.get("error_detail"):
@@ -798,6 +844,219 @@ def render_scan_status(scan_job: dict) -> None:
                     )
 
 
+def metric_card(icon: str, label: str, value: str, color: str) -> str:
+    return f"""
+    <div class="glass-card">
+        <div class="kpi-label">
+            <div class="kpi-icon" style="color: {color}; border-color: {color}20; background: {color}10;">{icon}</div>
+            {label}
+        </div>
+        <div class="kpi-value">{value}</div>
+    </div>
+    """
+
+
+def get_active_scenario_name(report: dict) -> str | None:
+    traces = report.get("scenario_traces", [])
+    if not isinstance(traces, list):
+        return None
+
+    for trace in reversed(traces):
+        if trace.get("status") == "running":
+            return trace.get("name")
+    return None
+
+
+def render_simulation_page(scan_job: dict | None, live_report: dict | None) -> None:
+    st.markdown(
+        """
+        <h1 style="font-size: 2.5rem; margin-bottom: 0;">
+            Live <span class="gradient-text">Simulation</span>
+        </h1>
+        <p style="color: #a1a1aa; margin-top: 4px;">
+            Monitor sandbox execution, active automations, and incoming telemetry in real time.
+        </p>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.markdown("<div style='height: 24px'></div>", unsafe_allow_html=True)
+
+    if not scan_job:
+        st.info("No active simulation. Start an analysis from Marketplace.")
+        return
+
+    ext_id = (
+        f"{scan_job.get('publisher', 'unknown')}.{scan_job.get('name', 'unknown')}"
+        f"@{scan_job.get('version', 'unknown')}"
+    )
+    active_scenario = get_active_scenario_name(live_report or {})
+    summary = (live_report or {}).get("summary", {})
+    network_summary = (live_report or {}).get("network_summary", {})
+    file_summary = (live_report or {}).get("file_summary", {})
+
+    hero_left, hero_right = st.columns([3, 1])
+    with hero_left:
+        scenario_label = active_scenario or "Waiting for scenario telemetry"
+        st.markdown(
+            f"""
+            <div class="glass-card" style="min-height: 150px;">
+                <div class="kpi-label">Sandbox Target</div>
+                <div style="font-size: 1.5rem; font-weight: 700; color: #f4f4f5; margin: 12px 0 18px 0;">{ext_id}</div>
+                <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                    <div style="padding: 8px 12px; border-radius: 999px; background: rgba(16,185,129,0.12); border: 1px solid rgba(16,185,129,0.28); color: #6ee7b7; font-size: 0.85rem;">
+                        Active Automation: <strong>{scenario_label}</strong>
+                    </div>
+                    <div style="padding: 8px 12px; border-radius: 999px; background: rgba(6,182,212,0.12); border: 1px solid rgba(6,182,212,0.28); color: #67e8f9; font-size: 0.85rem;">
+                        Status: <strong>{scan_job.get('status', 'queued').title()}</strong>
+                    </div>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    with hero_right:
+        st.markdown(
+            metric_card(
+                "🧪",
+                "Telemetry Events",
+                str(
+                    summary.get("total_activated", 0)
+                    + network_summary.get("total_events", 0)
+                    + file_summary.get("total_events", 0)
+                ),
+                "#8b5cf6",
+            ),
+            unsafe_allow_html=True,
+        )
+
+    st.markdown("<div style='height: 24px'></div>", unsafe_allow_html=True)
+    stat1, stat2, stat3, stat4 = st.columns(4)
+    with stat1:
+        st.markdown(
+            metric_card(
+                "⚡",
+                "Activations",
+                str(summary.get("total_activated", 0)),
+                "#8b5cf6",
+            ),
+            unsafe_allow_html=True,
+        )
+    with stat2:
+        st.markdown(
+            metric_card(
+                "🌐",
+                "Network",
+                str(network_summary.get("total_events", 0)),
+                "#10b981",
+            ),
+            unsafe_allow_html=True,
+        )
+    with stat3:
+        st.markdown(
+            metric_card(
+                "🗂️",
+                "File I/O",
+                str(file_summary.get("total_events", 0)),
+                "#22d3ee",
+            ),
+            unsafe_allow_html=True,
+        )
+    with stat4:
+        st.markdown(
+            metric_card(
+                "🛡️",
+                "Sensitive Hits",
+                str(file_summary.get("sensitive_events", 0)),
+                "#f43f5e",
+            ),
+            unsafe_allow_html=True,
+        )
+
+    st.markdown("<div style='height: 24px'></div>", unsafe_allow_html=True)
+    render_scan_status(scan_job)
+
+    sim_tabs = st.tabs(
+        [
+            "🔴 Live Pulse",
+            "🌐 Network Stream",
+            "🗂️ File Stream",
+        ]
+    )
+
+    with sim_tabs[0]:
+        if live_report:
+            traces = pd.DataFrame(live_report.get("scenario_traces", []))
+            if not traces.empty:
+                traces["status_label"] = traces["status"].fillna("running").str.title()
+                st.dataframe(
+                    traces[["name", "status_label", "started_at", "ended_at"]],
+                    column_config={
+                        "name": st.column_config.TextColumn("Automation"),
+                        "status_label": st.column_config.TextColumn("Status"),
+                        "started_at": st.column_config.NumberColumn("Started At"),
+                        "ended_at": st.column_config.NumberColumn("Ended At"),
+                    },
+                    hide_index=True,
+                    height=240,
+                )
+            else:
+                st.info("Scenario timeline has not started streaming yet.")
+        else:
+            st.info("Waiting for live report telemetry...")
+
+    with sim_tabs[1]:
+        network_df = process_network_data(live_report or {})
+        if not network_df.empty:
+            with st.container(height=320):
+                st.code(build_network_log(network_df), language="log")
+        else:
+            st.info("No network telemetry yet.")
+
+    with sim_tabs[2]:
+        file_df = process_file_data(live_report or {})
+        if not file_df.empty:
+            with st.container(height=320):
+                st.code(build_file_log(file_df), language="log")
+        else:
+            st.info("No file telemetry yet.")
+
+    if st.button("Clear simulation state", key="clear_scan_state"):
+        st.session_state.pop("last_scan_status", None)
+        st.session_state.pop("active_scan_job_id", None)
+        st.session_state.pop("pending_report", None)
+        st.session_state["pending_nav_page"] = "Dashboard"
+        st.rerun()
+
+
+@_auto_refresh_fragment(run_every=2)
+def render_live_simulation_fragment() -> None:
+    """Render the live Simulation page with isolated periodic refresh."""
+    current_scan_job, scan_finished = sync_active_scan_job()
+    live_report, report_error = load_scan_report(current_scan_job)
+
+    if (
+        report_error
+        and current_scan_job
+        and current_scan_job.get("status") in {"running", "completed"}
+    ):
+        st.info("Preparing live simulation report...")
+
+    if (
+        _FRAGMENT_DECORATOR is None
+        and current_scan_job
+        and current_scan_job.get("status") == "running"
+    ):
+        st.caption(
+            "Automatic live refresh requires Streamlit fragment support. "
+            "Use System Refresh while the analysis is running."
+        )
+
+    render_simulation_page(current_scan_job, live_report)
+
+    if scan_finished:
+        st.rerun()
+
+
 # ---------------------------------------------------------------------------
 # Sidebar Navigation
 # ---------------------------------------------------------------------------
@@ -805,6 +1064,10 @@ def render_scan_status(scan_job: dict) -> None:
 # Defaults (overridden inside sidebar when page == "Dashboard")
 target = None
 chart_theme = "plasma"
+
+pending_nav_page = st.session_state.pop("pending_nav_page", None)
+if pending_nav_page:
+    st.session_state["nav_page"] = pending_nav_page
 
 with st.sidebar:
     st.markdown(
@@ -819,7 +1082,7 @@ with st.sidebar:
 
     page = st.radio(
         "Navigation",
-        ["Dashboard", "Marketplace", "Theme"],
+        ["Dashboard", "Simulation", "Marketplace", "Theme"],
         key="nav_page",
         label_visibility="collapsed",
     )
@@ -834,9 +1097,13 @@ with st.sidebar:
 
         if reports:
             report_map = {r["filename"]: r for r in reports}
-            opts = ["(Latest Report)", *list(report_map.keys())]
-
             pending = st.session_state.get("pending_report")
+            report_names = list(report_map.keys())
+            if pending and pending not in report_map:
+                report_names = [pending, *report_names]
+
+            opts = ["(Latest Report)", *report_names]
+
             if pending and pending in report_map:
                 st.session_state["selected_report"] = pending
                 st.session_state.pop("pending_report", None)
@@ -854,7 +1121,13 @@ with st.sidebar:
                 meta = reports[0]
             else:
                 target = selection
-                meta = report_map[selection]
+                meta = report_map.get(
+                    selection,
+                    {
+                        "modified": time.time(),
+                        "size_bytes": 0,
+                    },
+                )
 
             # Metadata Card
             st.markdown(
@@ -886,19 +1159,68 @@ with st.sidebar:
         else:
             st.warning("No reports found.")
 
-        st.markdown("---")
-        if st.button("🔄 System Refresh", use_container_width=True):
-            st.cache_data.clear()
-            st.rerun()
+    if page == "Simulation":
+        current_job = st.session_state.get("last_scan_status")
+        if current_job:
+            st.markdown(
+                f"""
+                <div style="
+                    background: rgba(255,255,255,0.03);
+                    border: 1px solid rgba(255,255,255,0.06);
+                    border-radius: 12px;
+                    padding: 16px;
+                    margin-top: 16px;
+                ">
+                    <div style="color: #a1a1aa; font-size: 0.78rem; margin-bottom: 8px;">Live Sandbox</div>
+                    <div style="color: #fff; font-weight: 700; font-size: 0.95rem; line-height: 1.5;">
+                        {current_job.get("publisher", "unknown")}.{current_job.get("name", "unknown")}@{current_job.get("version", "unknown")}
+                    </div>
+                    <div style="margin-top: 10px; color: #67e8f9; font-size: 0.8rem;">
+                        Status: {current_job.get("status", "queued").title()}
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+        else:
+            st.info("No active simulation.")
 
-        st.markdown(
-            """
-            <div style="position: fixed; bottom: 20px; font-size: 0.7rem; color: #52525b;">
-                v2.1.0 • SYSTEM ONLINE
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+    st.markdown("---")
+    if st.button("🔄 System Refresh", use_container_width=True):
+        st.cache_data.clear()
+        st.rerun()
+
+    st.markdown(
+        """
+        <div style="position: fixed; bottom: 20px; font-size: 0.7rem; color: #52525b;">
+            v2.1.0 • SYSTEM ONLINE
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+# ---------------------------------------------------------------------------
+# Live Scan Execution (triggered from Marketplace → Analyze)
+# ---------------------------------------------------------------------------
+
+scan_req = st.session_state.pop("scan_request", None)
+if scan_req:
+    job = start_analysis_job(
+        scan_req["publisher"],
+        scan_req["name"],
+        scan_req["version"],
+    )
+    if job:
+        st.session_state["active_scan_job_id"] = job["job_id"]
+        st.session_state["last_scan_status"] = job
+        st.cache_data.clear()
+        st.rerun()
+
+current_scan_job = st.session_state.get("last_scan_status")
+
+if page == "Simulation":
+    render_live_simulation_fragment()
+    st.stop()
 
 # ---------------------------------------------------------------------------
 # Main Logic
@@ -934,65 +1256,10 @@ if page == "Theme":
     st.info("Additional theme settings will go here in the future.")
     st.stop()
 
-# ---------------------------------------------------------------------------
-# Live Scan Execution (triggered from Marketplace → Analyze)
-# ---------------------------------------------------------------------------
-
-scan_req = st.session_state.pop("scan_request", None)
-if scan_req:
-    job = start_analysis_job(
-        scan_req["publisher"],
-        scan_req["name"],
-        scan_req["version"],
-    )
-    if job:
-        st.session_state["active_scan_job_id"] = job["job_id"]
-        st.session_state["last_scan_status"] = job
-        st.cache_data.clear()
-        st.rerun()
-
-current_scan_job = st.session_state.get("last_scan_status")
-active_scan_job_id = st.session_state.get("active_scan_job_id")
-scan_transition = False
-poll_again = False
-
-if active_scan_job_id:
-    live_job = fetch_analysis_job(active_scan_job_id)
-    if live_job:
-        current_scan_job = live_job
-        st.session_state["last_scan_status"] = live_job
-        if live_job.get("status") in {"completed", "failed"}:
-            st.session_state.pop("active_scan_job_id", None)
-            scan_transition = True
-            if live_job.get("status") == "completed" and live_job.get("report_path"):
-                st.cache_data.clear()
-                st.session_state["pending_report"] = live_job["report_path"]
-                st.session_state["selected_report"] = live_job["report_path"]
-        else:
-            poll_again = True
-
-if current_scan_job:
-    render_scan_status(current_scan_job)
-    if st.button("Clear scan state", key="clear_scan_state"):
-        st.session_state.pop("last_scan_status", None)
-        st.session_state.pop("active_scan_job_id", None)
-        st.rerun()
-    st.markdown("<div style='height: 16px'></div>", unsafe_allow_html=True)
-
-if scan_transition:
-    st.rerun()
-
-if poll_again:
-    time.sleep(2)
-    st.rerun()
-
-if target is None and current_scan_job and current_scan_job.get("report_path"):
-    target = current_scan_job["report_path"]
-
 if not target:
     st.markdown(
         "<div style='text-align: center; margin-top: 20vh; color: #52525b;'>"
-        "Waiting for analysis data...</div>",
+        "Select a completed analysis report from the sidebar.</div>",
         unsafe_allow_html=True,
     )
     st.stop()
@@ -1000,8 +1267,8 @@ if not target:
 resolved_target = cast(str, target)
 raw_data, report_error = fetch_report(resolved_target)
 if report_error:
-    if current_scan_job and current_scan_job.get("status") == "running":
-        st.info("Waiting for the live report file to receive telemetry...")
+    if st.session_state.get("pending_report") == resolved_target:
+        st.info("Finalizing completed report...")
         time.sleep(2)
         st.rerun()
     st.error(report_error)
@@ -1083,18 +1350,6 @@ st.markdown("<div style='height: 32px'></div>", unsafe_allow_html=True)
 # ---------------------------------------------------------------------------
 
 k1, k2, k3, k4, k5 = st.columns(5)
-
-
-def metric_card(icon, label, value, color):
-    return f"""
-    <div class="glass-card">
-        <div class="kpi-label">
-            <div class="kpi-icon" style="color: {color}; border-color: {color}20; background: {color}10;">{icon}</div>
-            {label}
-        </div>
-        <div class="kpi-value">{value}</div>
-    </div>
-    """
 
 
 with k1:

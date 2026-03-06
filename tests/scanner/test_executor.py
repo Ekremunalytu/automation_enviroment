@@ -19,6 +19,7 @@ from scanner.executor import (
     _docker_exec_allow_partial,
     install_extension_in_executor,
     reload_vscode_window,
+    reset_executor_sandbox_state,
     run_playwright_automation,
 )
 
@@ -249,3 +250,53 @@ def test_reload_vscode_window_timeout(mock_exec: MagicMock) -> None:
 
     with pytest.raises(ExecutorError):
         reload_vscode_window()
+
+
+# ---------------------------------------------------------------------------
+# reset_executor_sandbox_state
+# ---------------------------------------------------------------------------
+
+
+@patch("scanner.executor.reload_vscode_window")
+@patch("scanner.executor._docker_exec")
+def test_reset_executor_sandbox_state_with_reload(
+    mock_exec: MagicMock,
+    mock_reload: MagicMock,
+) -> None:
+    """Reset clears sandbox state and reloads VS Code by default."""
+    mock_exec.return_value = subprocess.CompletedProcess(
+        args=[],
+        returncode=0,
+        stdout="[reset] sandbox ready",
+        stderr="",
+    )
+    mock_reload.return_value = "[reload] Done"
+
+    output = reset_executor_sandbox_state()
+
+    assert "[reset] sandbox ready" in output
+    assert "[reload] Done" in output
+    call_cmd = mock_exec.call_args[0][0]
+    assert call_cmd[0] == "python3"
+    assert "reset_state.py" in call_cmd[-1]
+    mock_reload.assert_called_once_with()
+
+
+@patch("scanner.executor.reload_vscode_window")
+@patch("scanner.executor._docker_exec")
+def test_reset_executor_sandbox_state_without_reload(
+    mock_exec: MagicMock,
+    mock_reload: MagicMock,
+) -> None:
+    """Reset can skip the VS Code reload when requested."""
+    mock_exec.return_value = subprocess.CompletedProcess(
+        args=[],
+        returncode=0,
+        stdout="[reset] sandbox ready",
+        stderr="",
+    )
+
+    output = reset_executor_sandbox_state(reload_window=False)
+
+    assert output == "[reset] sandbox ready"
+    mock_reload.assert_not_called()

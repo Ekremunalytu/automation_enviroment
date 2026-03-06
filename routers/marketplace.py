@@ -32,6 +32,7 @@ from scanner import marketplace as marketplace_scanner
 from scanner.executor import (
     ExecutorError,
     install_extension_in_executor,
+    reset_executor_sandbox_state,
     run_playwright_automation,
 )
 from scanner.service import create_extension_by_name
@@ -58,6 +59,11 @@ def _now() -> float:
 
 def _empty_job_steps() -> list[dict[str, str]]:
     return [
+        {
+            "name": "reset_sandbox",
+            "status": "pending",
+            "message": "Waiting for sandbox cleanup.",
+        },
         {"name": "install_extension", "status": "pending", "message": "Queued."},
         {
             "name": "build_triggers",
@@ -77,10 +83,19 @@ def _empty_job_steps() -> list[dict[str, str]]:
     ]
 
 
+def _build_report_name(request: AnalyzeRequest, run_id: str) -> str:
+    """Build a unique activation report filename for a single analysis run."""
+    return (
+        f"activation_report_{request.publisher}.{request.name}-"
+        f"{request.version}-{run_id[:12]}.json"
+    )
+
+
 def _create_job_snapshot(request: AnalyzeRequest) -> dict[str, Any]:
     created_at = _now()
+    job_id = uuid4().hex
     return {
-        "job_id": uuid4().hex,
+        "job_id": job_id,
         "status": "queued",
         "publisher": request.publisher,
         "name": request.name,
@@ -89,7 +104,7 @@ def _create_job_snapshot(request: AnalyzeRequest) -> dict[str, Any]:
         "current_step": None,
         "message": "Queued for sandbox analysis.",
         "steps": _empty_job_steps(),
-        "report_path": None,
+        "report_path": _build_report_name(request, job_id),
         "install_output": None,
         "automation_output": None,
         "error_detail": None,
@@ -243,12 +258,33 @@ def _execute_analysis_request(
     request: AnalyzeRequest,
     db: Session,
     progress_callback: Callable[[str, str, str], None] | None = None,
+    report_name: str | None = None,
 ) -> AnalyzeResponse:
     def report(step_name: str, status: str, message: str) -> None:
         if progress_callback is not None:
             progress_callback(step_name, status, message)
 
     _ensure_vsix_exists(request)
+
+    report(
+        "reset_sandbox",
+        "running",
+        "Resetting executor sandbox to a clean baseline.",
+    )
+    try:
+        reset_executor_sandbox_state()
+    except ExecutorError:
+        report(
+            "reset_sandbox",
+            "failed",
+            "Sandbox reset failed before extension installation.",
+        )
+        raise
+    report(
+        "reset_sandbox",
+        "completed",
+        "Sandbox reset completed.",
+    )
 
     report(
         "install_extension",
@@ -301,9 +337,7 @@ def _execute_analysis_request(
         "running",
         "Reloading VS Code under monitoring and executing automation scenarios.",
     )
-    report_name = (
-        f"activation_report_{request.publisher}.{request.name}-{request.version}.json"
-    )
+    report_name = report_name or _build_report_name(request, uuid4().hex)
     report_container_path = f"/results/{report_name}"
     try:
         automation_output = run_playwright_automation(
@@ -347,8 +381,9 @@ def _execute_analysis_request(
 
 def _run_analysis_job(job_id: str, request_data: dict[str, Any]) -> None:
     request = AnalyzeRequest.model_validate(request_data)
-    report_name = (
-        f"activation_report_{request.publisher}.{request.name}-{request.version}.json"
+    report_name = _get_job_snapshot(job_id)["report_path"] or _build_report_name(
+        request,
+        job_id,
     )
     _update_job(
         job_id,
@@ -369,6 +404,7 @@ def _run_analysis_job(job_id: str, request_data: dict[str, Any]) -> None:
                 status,
                 message,
             ),
+            report_name=report_name,
         )
     except FileNotFoundError as exc:
         _fail_job(job_id, str(exc))

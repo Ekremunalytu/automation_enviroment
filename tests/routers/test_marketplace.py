@@ -338,6 +338,10 @@ def test_analyze_success(client: TestClient) -> None:
             return_value=_vsix_path_exists(True),
         ),
         patch(
+            "routers.marketplace.reset_executor_sandbox_state",
+            return_value="Sandbox reset.",
+        ),
+        patch(
             "routers.marketplace.install_extension_in_executor",
             return_value="Extension installed successfully.",
         ),
@@ -353,7 +357,10 @@ def test_analyze_success(client: TestClient) -> None:
     assert data["status"] == "success"
     assert data["install_output"] == "Extension installed successfully."
     assert data["automation_output"] == "Automation completed."
-    assert "activation_report_" in data["report_path"]
+    assert data["report_path"].startswith(
+        "activation_report_ms-python.python-2025.0.0-"
+    )
+    assert data["report_path"].endswith(".json")
 
 
 def test_analyze_vsix_not_found_404(client: TestClient) -> None:
@@ -376,6 +383,10 @@ def test_analyze_install_failure_502(client: TestClient) -> None:
             return_value=_vsix_path_exists(True),
         ),
         patch(
+            "routers.marketplace.reset_executor_sandbox_state",
+            return_value="Sandbox reset.",
+        ),
+        patch(
             "routers.marketplace.install_extension_in_executor",
             side_effect=ExecutorError("Install failed", returncode=1, output="error"),
         ),
@@ -392,6 +403,10 @@ def test_analyze_automation_failure_502(client: TestClient) -> None:
         patch(
             "scanner.marketplace.get_vsix_path",
             return_value=_vsix_path_exists(True),
+        ),
+        patch(
+            "routers.marketplace.reset_executor_sandbox_state",
+            return_value="Sandbox reset.",
         ),
         patch(
             "routers.marketplace.install_extension_in_executor",
@@ -423,7 +438,10 @@ def test_analyze_start_returns_job_snapshot(client: TestClient) -> None:
     payload = response.json()
     assert payload["status"] == "queued"
     assert payload["publisher"] == ANALYZE_PAYLOAD["publisher"]
-    assert len(payload["steps"]) == 4
+    assert len(payload["steps"]) == 5
+    assert payload["report_path"].startswith(
+        "activation_report_ms-python.python-2025.0.0-"
+    )
     mock_thread.return_value.start.assert_called_once()
 
 
