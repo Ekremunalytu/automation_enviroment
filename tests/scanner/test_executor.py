@@ -18,6 +18,7 @@ from scanner.executor import (
     _docker_exec,
     _docker_exec_allow_partial,
     install_extension_in_executor,
+    reload_vscode_window,
     run_playwright_automation,
 )
 
@@ -39,6 +40,9 @@ def test_docker_exec_success(mock_run: MagicMock) -> None:
     mock_run.assert_called_once()
     call_args = mock_run.call_args[0][0]
     assert call_args[0:2] == ["docker", "exec"]
+    # PYTHONUNBUFFERED=1 should be passed as env flag
+    assert "-e" in call_args
+    assert "PYTHONUNBUFFERED=1" in call_args
     assert "echo" in call_args
     assert "hello" in call_args
 
@@ -201,3 +205,34 @@ def test_docker_exec_allow_partial_timeout(mock_run: MagicMock) -> None:
 
     with pytest.raises(ExecutorError):
         _docker_exec_allow_partial(["slow-cmd"], timeout=10)
+
+
+# ---------------------------------------------------------------------------
+# reload_vscode_window
+# ---------------------------------------------------------------------------
+
+
+@patch("scanner.executor._docker_exec")
+def test_reload_vscode_window_success(mock_exec: MagicMock) -> None:
+    """Successful reload returns stdout."""
+    mock_exec.return_value = subprocess.CompletedProcess(
+        args=[], returncode=0, stdout="[reload] Done\n", stderr=""
+    )
+
+    output = reload_vscode_window()
+
+    assert "Done" in output
+    call_cmd = mock_exec.call_args[0][0]
+    assert "python3" in call_cmd
+    assert "reload_vscode.py" in call_cmd[-1]
+
+
+@patch("scanner.executor._docker_exec")
+def test_reload_vscode_window_timeout(mock_exec: MagicMock) -> None:
+    """Timeout during reload raises ExecutorError."""
+    mock_exec.side_effect = ExecutorError(
+        "Command timed out after 60s", returncode=None, output=""
+    )
+
+    with pytest.raises(ExecutorError):
+        reload_vscode_window()

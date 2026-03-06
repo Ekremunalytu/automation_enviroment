@@ -241,7 +241,7 @@ def test_search_extension_error_handling(client: TestClient):
     ):
         response = client.get("/searchExtension?name=boom")
         assert response.status_code == 500
-        assert "Internal Server Error" in response.json()["detail"]
+        assert "Internal server error" in response.json()["detail"]
 
 
 def test_create_extension_validation_error(client: TestClient):
@@ -262,7 +262,7 @@ def test_create_extension_unexpected_error(client: TestClient):
     ):
         response = client.post("/createExtension", json={"name": "boom"})
         assert response.status_code == 500
-        assert "Internal Server Error" in response.json()["detail"]
+        assert "Internal server error" in response.json()["detail"]
 
 
 def test_delete_extension_validation_error(client: TestClient):

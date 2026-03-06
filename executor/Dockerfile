@@ -91,7 +91,7 @@ RUN ln -s /usr/share/novnc/vnc.html /usr/share/novnc/index.html
 
 # Copy startup script
 COPY executor/start.sh /usr/local/bin/start.sh
-RUN chmod +x /usr/local/bin/start.sh
+RUN chmod 755 /usr/local/bin/start.sh
 
 # Copy Playwright automation scripts
 COPY --chown=executor:executor executor/playwright /home/executor/playwright

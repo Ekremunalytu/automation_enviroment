@@ -21,7 +21,7 @@ services:
   api:
     build:
       context: .
-      dockerfile: routers/Dockerfile
+      dockerfile: docker/api/Dockerfile
     container_name: automation_api
     restart: unless-stopped
     ports:
@@ -41,12 +41,14 @@ services:
       API_CORS_ALLOW_ORIGINS: ${API_CORS_ALLOW_ORIGINS:-*}
       API_CORS_ALLOW_METHODS: ${API_CORS_ALLOW_METHODS:-*}
       API_CORS_ALLOW_HEADERS: ${API_CORS_ALLOW_HEADERS:-*}
-      API_CORS_ALLOW_CREDENTIALS: ${API_CORS_ALLOW_CREDENTIALS:-true}
+      API_CORS_ALLOW_CREDENTIALS: ${API_CORS_ALLOW_CREDENTIALS:-false}
     depends_on:
       postgres:
         condition: service_healthy
     volumes:
-      - .:/app
+      - ./extensions:/app/extensions
+      - ./output:/app/output
+      - ./.env:/app/.env
       - /var/run/docker.sock:/var/run/docker.sock
 
   executor:
@@ -62,6 +64,7 @@ services:
     restart: unless-stopped
     ports:
       - "${EXECUTOR_NOVNC_PORT:-6080}:${EXECUTOR_NOVNC_PORT:-6080}"
+      - "${EXECUTOR_CDP_PORT:-9222}:${EXECUTOR_CDP_PORT:-9222}"
     environment:
       DISPLAY: ${EXECUTOR_DISPLAY:-:99}
       EXECUTOR_DISPLAY: ${EXECUTOR_DISPLAY:-:99}
@@ -69,7 +72,9 @@ services:
       EXECUTOR_VNC_HOST: ${EXECUTOR_VNC_HOST:-localhost}
       EXECUTOR_VNC_PORT: ${EXECUTOR_VNC_PORT:-5900}
       EXECUTOR_NOVNC_PORT: ${EXECUTOR_NOVNC_PORT:-6080}
+      EXECUTOR_CDP_PORT: ${EXECUTOR_CDP_PORT:-9222}
       EXECUTOR_STARTUP_SLEEP_SECONDS: ${EXECUTOR_STARTUP_SLEEP_SECONDS:-1}
+      EXECUTOR_VSCODE_LOG_LEVEL: ${EXECUTOR_VSCODE_LOG_LEVEL:-trace}
     volumes:
       - ${EXECUTOR_EXTENSIONS_HOST_PATH:-./extensions}:${EXECUTOR_EXTENSIONS_CONTAINER_PATH:-/extensions-input}:ro
       - ${EXECUTOR_OUTPUT_HOST_PATH:-./output}:${EXECUTOR_OUTPUT_CONTAINER_PATH:-/results}
@@ -78,6 +83,13 @@ services:
       - SYS_PTRACE
     mem_limit: ${EXECUTOR_MEM_LIMIT:-4g}
     cpus: ${EXECUTOR_CPUS:-2.0}
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:${EXECUTOR_NOVNC_PORT:-6080}/ || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    stop_grace_period: 10s
 
   ui:
     build:

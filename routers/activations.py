@@ -16,6 +16,7 @@ Endpoints:
 """
 
 import json
+import time
 from pathlib import Path
 from typing import Any
 
@@ -47,16 +48,31 @@ def _list_report_files() -> list[Path]:
     return files
 
 
-def _read_report(path: Path) -> dict[str, Any]:
-    """Read and parse a JSON report file."""
-    try:
-        with open(path, encoding="utf-8") as f:
-            data = json.load(f)
-    except (json.JSONDecodeError, OSError) as e:
+def _read_report(path: Path, *, _retries: int = 3) -> dict[str, Any]:
+    """Read and parse a JSON report file.
+
+    Retries on transient OSError (e.g. Errno 35 on macOS Docker VirtioFS).
+    """
+    last_err: Exception | None = None
+    for attempt in range(_retries):
+        try:
+            with open(path, encoding="utf-8") as f:
+                data = json.load(f)
+            break
+        except json.JSONDecodeError as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to read report file: {path.name} — {e}",
+            ) from e
+        except OSError as e:
+            last_err = e
+            if attempt < _retries - 1:
+                time.sleep(0.3)
+    else:
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to read report file: {path.name} — {e}",
-        ) from e
+            detail=f"Failed to read report file: {path.name} — {last_err}",
+        ) from last_err
 
     if not isinstance(data, dict):
         raise HTTPException(

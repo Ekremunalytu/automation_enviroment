@@ -1,60 +1,6 @@
-"""
-routers/core.py
-===============
+"""Core API router — extension CRUD and query endpoints."""
 
-Core API Router - Main HTTP Endpoints
---------------------------------------
-
-This module defines the primary REST API endpoints for the ExTrace
-VS Code Extension Security Scanner. It serves as the HTTP interface
-layer, handling all incoming requests and responses.
-
-Architecture Position:
-    **Router (HTTP/REST)** → Service Layer → CRUD → Database
-
-    Routers handle:
-    - HTTP request parsing and validation
-    - Dependency injection (database sessions)
-    - Response serialization (via Pydantic models)
-    - HTTP error code mapping
-
-API Design:
-    This API follows RESTful conventions with some RPC-style endpoints
-    for specific operations like scanning.
-
-Endpoints Summary:
-    ┌────────────────────────────────────────────────────────────────────────┐
-    │ Method │ Endpoint                        │ Description                │
-    ├────────┼─────────────────────────────────┼────────────────────────────┤
-    │ GET    │ /                               │ API info and health check  │
-    │ GET    │ /health                         │ Service health status      │
-    │ GET    │ /searchExtension                │ Find extension by name     │
-    │ GET    │ /getExtensionsBaseInfo          │ List extensions (minimal)  │
-    │ GET    │ /getExtensionsAllInfo           │ List extensions (full)     │
-    │ POST   │ /createExtension                │ Scan and create extension  │
-    │ DELETE │ /deleteExtension                │ Delete an extension        │
-    │ GET    │ /getExtensionScripts            │ List npm scripts           │
-    │ GET    │ /getExtensionActivationEvents   │ List activation events     │
-    │ GET    │ /getExtensionCapabilities       │ Get capability declarations│
-    │ GET    │ /getExtensionContributesAll     │ Get contributes container  │
-    │ GET    │ /getExtensionContributesCommands│ Get contributes commands   │
-    └────────────────────────────────────────────────────────────────────────┘
-Error Handling Strategy:
-    - 400 Bad Request: Validation errors (ValueError)
-    - 404 Not Found: Extension not found in DB or filesystem
-    - 409 Conflict: Duplicate extension (unique constraint)
-    - 500 Internal Server Error: Unexpected errors
-
-Authentication:
-    Currently: None (single-user isolated sandbox)
-    Future: API key or OAuth2 for production deployment
-
-Rate Limiting:
-    Currently: None
-    Future: Consider implementing for external access
-"""
-
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from core.config import settings
@@ -76,41 +22,12 @@ from schemas.schemas import (
 # Router Configuration
 # =============================================================================
 
-router = APIRouter(
-    tags=["core"]  # Groups endpoints under "core" in Swagger UI
-    # prefix="/api/v1"  # Uncomment for API versioning
-)
-
-
-# =============================================================================
-# Health & Info Endpoints
-# =============================================================================
+router = APIRouter(tags=["core"])
 
 
 @router.get("/")
 def read_root():
-    """
-    API Root - Returns basic project information.
-
-    This endpoint serves as the API landing page and provides
-    basic information about the service for developers.
-
-    Returns:
-        dict: Project metadata including name, version, and doc links
-
-    Response Example:
-        {
-            "Project": "Extrace",
-            "Version": "0.1",
-            "Status": "Active",
-            "Docs": "/docs"
-        }
-
-    Use Cases:
-        - Quick verification that API is reachable
-        - Discovering API documentation location
-        - Checking current version deployment
-    """
+    """API root — returns project info and doc links."""
     return {
         "Project": settings.project.NAME,
         "Version": settings.project.VERSION,
@@ -121,31 +38,7 @@ def read_root():
 
 @router.get("/health")
 def health_check():
-    """
-    Health Check Endpoint for monitoring systems.
-
-    Returns a simple OK status indicating the service is running.
-    Used by container orchestrators, load balancers, and monitoring
-    systems to verify service availability.
-
-    Returns:
-        dict: Health status with service name
-
-    Response Example:
-        {"status": "OK", "service": "Extrace API"}
-
-    Monitoring Integration:
-        - Docker HEALTHCHECK instruction
-        - Kubernetes liveness/readiness probes
-        - Load balancer health checks
-        - Uptime monitoring services
-
-    Future Improvements:
-        - Add database connectivity check
-        - Add filesystem accessibility check
-        - Add memory/CPU metrics
-        - Add dependency status (PostgreSQL, etc.)
-    """
+    """Health check for monitoring and orchestrators."""
     return {"status": settings.api.HEALTH_STATUS, "service": settings.project.NAME}
 
 
@@ -156,49 +49,8 @@ def health_check():
 
 @router.get("/searchExtension", response_model=ExtensionDetailSchema)
 def search_extension(params: SearchRequest = Depends(), db: Session = Depends(get_db)):
-    """
-    Search for a single extension by exact name.
-
-    Looks up an extension in the database by its exact name field.
-    Returns complete extension details if found.
-
-    Args:
-        params: Query parameters containing extension name, publisher, and version
-                Provided via FastAPI Depends() for validation
-        db: Database session provided by dependency injection
-
-    Query Parameters:
-        name (str): Exact extension name to search for
-        publisher (str, optional): Publisher name to filter on (recommended)
-        version (str, optional): Specific extension version to search for
-
-    Returns:
-        ExtensionSchema: Complete extension data
-
-    Raises:
-        HTTPException 400: Invalid search parameters
-        HTTPException 404: Extension not found
-        HTTPException 500: Internal server error
-
-    Example Request:
-        GET /searchExtension?name=python&publisher=ms-python&version=2024.0.1
-
-    Example Response:
-        {
-            "name": "python",
-            "publisher": "ms-python",
-            "engines": {"vscode": "^1.95.0"},
-            "description": "Python language support...",
-            ...
-        }
-
-    Note:
-        This is an exact-match search. The unique constraint is
-        (publisher, name, version). For unambiguous results, provide
-        all three parameters.
-    """
+    """Search for a single extension by exact name (+ optional publisher/version)."""
     try:
-        # Delegate to service layer for business logic
         result = service.search_extension_by_name(
             db=db,
             extension_name=params.name,
@@ -207,7 +59,6 @@ def search_extension(params: SearchRequest = Depends(), db: Session = Depends(ge
         )
 
         if result is None:
-            # Extension not found in database
             raise HTTPException(status_code=404, detail="Extension not found")
 
         return result
@@ -216,62 +67,15 @@ def search_extension(params: SearchRequest = Depends(), db: Session = Depends(ge
         raise http_exc
 
     except ValueError as e:
-        # Business logic validation error
         raise HTTPException(status_code=400, detail=str(e)) from e
 
-    except Exception as e:
-        # Log unexpected errors for debugging
-        raise HTTPException(
-            status_code=500, detail=f"Internal Server Error: {e!s}"
-        ) from e
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error") from None
 
 
 @router.get("/getExtensionsBaseInfo", response_model=list[SearchAllExtensionsInfo])
 def get_extensions_base_info(db: Session = Depends(get_db)):
-    """
-    List all extensions with minimal information.
-
-    Returns a lightweight list of all extensions suitable for
-    gallery views, search results, or selection dropdowns.
-
-    Only includes essential fields:
-        - id: Database reference
-        - name: Extension identifier
-        - version: Extension version
-        - publisher: Publisher name
-        - description: Brief description
-        - icon: Icon URL for thumbnails
-
-    Args:
-        db: Database session from dependency injection
-
-    Returns:
-        List[SearchAllExtensionsInfo]: Array of extension summaries
-
-    Raises:
-        HTTPException 400: Invalid request parameters
-        HTTPException 404: No extensions found (empty database)
-        HTTPException 500: Internal server error
-
-    Example Request:
-        GET /getExtensionsBaseInfo
-
-    Example Response:
-        [
-            {
-                "id": 1,
-                "name": "python",
-                "publisher": "ms-python",
-                "description": "Python support...",
-                "icon": "https://..."
-            },
-            ...
-        ]
-
-    Performance:
-        Optimized for large datasets by excluding heavy fields
-        like engines, badges, and markdown content.
-    """
+    """List all extensions with minimal fields (id, name, publisher, etc.)."""
     try:
         result = service.get_all_extensions_basic(db)
 
@@ -283,30 +87,17 @@ def get_extensions_base_info(db: Session = Depends(get_db)):
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
-    except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Internal Server Error: {e!s}"
-        ) from e
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error") from None
 
 
 @router.get("/getExtensionsAllInfo", response_model=list[ExtensionDetailSchema])
 def get_extensions_all_info(
-    skip: int = 0, limit: int | None = None, db: Session = Depends(get_db)
+    skip: int = Query(default=0, ge=0, description="Number of records to skip"),
+    limit: int | None = Query(default=None, ge=1, description="Max records to return"),
+    db: Session = Depends(get_db),
 ):
-    """
-    List all extensions with complete information.
-
-    Returns full details for all extensions in the database.
-    Use sparingly for large datasets due to payload size.
-
-    Args:
-        skip (int): Number of records to skip (default: 0)
-        limit (int, optional): Max records to return (default: None/All)
-        db: Database session from dependency injection
-
-    Returns:
-        List[ExtensionDetailSchema]: Array of complete extension data
-    """
+    """List all extensions with full detail. Supports skip/limit pagination."""
     try:
         result = service.get_all_extensions_all(db, skip=skip, limit=limit)
 
@@ -318,72 +109,17 @@ def get_extensions_all_info(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
-    except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Internal Server Error: {e!s}"
-        ) from e
-
-
-# =============================================================================
-# Extension Creation Endpoints
-# =============================================================================
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error") from None
 
 
 @router.post("/createExtension", response_model=ExtensionDetailSchema)
 def create_extension(request: ScanRequest, db: Session = Depends(get_db)):
-    """
-    Scan and create a new extension in the database.
-
-    This is the main "ingestion" endpoint that:
-    1. Searches the extensions/ directory for the named extension
-    2. Parses and validates its package.json
-    3. Persists the metadata to the PostgreSQL database
-
-    Args:
-        request: Request body containing extension name to scan
-        db: Database session from dependency injection
-
-    Request Body:
-        {
-            "name": "extension-name"
-        }
-
-    Returns:
-        ExtensionSchema: Created extension data with all fields
-
-    Raises:
-        HTTPException 404: Extension not found in filesystem
-        HTTPException 409: Extension already exists in database
-        HTTPException 500: Internal server error
-
-    Example Request:
-        POST /createExtension
-        Content-Type: application/json
-        {"name": "python"}
-
-    Example Response:
-        {
-            "name": "python",
-            "publisher": "ms-python",
-            "engines": {"vscode": "^1.95.0"},
-            ...
-        }
-
-    Workflow:
-        Request → Scan extensions/ → Parse JSON → Validate → Insert DB
-
-    Error Scenarios:
-        - Extension name not found → 404
-        - Duplicate publisher+name+version → 409
-        - Invalid package.json → 500 (validation error)
-        - Database connection error → 500
-    """
+    """Scan extensions/ for matching name, parse package.json, persist to DB."""
     try:
-        # Service layer handles filesystem scan + validation + DB insert
         result = service.create_extension_by_name(db, request.name)
 
         if result is None:
-            # Extension not found in extensions/ directory
             raise HTTPException(status_code=404, detail="Extension not found")
 
         return result
@@ -392,37 +128,15 @@ def create_extension(request: ScanRequest, db: Session = Depends(get_db)):
         raise http_exc
 
     except ValueError as e:
-        # Duplicate extension - unique constraint violation
-        # Re-raised as 409 Conflict per HTTP semantics
         raise HTTPException(status_code=409, detail=str(e)) from e
 
-    except Exception as e:
-        # Log and wrap unexpected errors
-        raise HTTPException(
-            status_code=500, detail=f"Internal Server Error: {e!s}"
-        ) from e
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error") from None
 
 
 @router.delete("/deleteExtension", response_model=dict)
 def delete_extension(params: SearchRequest = Depends(), db: Session = Depends(get_db)):
-    """
-    Delete an extension from the database.
-
-    Args:
-        params: Query parameters containing extension name, publisher, and version
-        db: Database session
-
-    Returns:
-        dict: Success message
-
-    Raises:
-        HTTPException 404: Extension not found
-        HTTPException 500: Internal server error
-
-    Note:
-        The unique constraint is (publisher, name, version). For unambiguous
-        deletion, provide all three parameters.
-    """
+    """Delete an extension. Provide publisher+version for unambiguous deletion."""
     try:
         deleted = service.delete_extension_by_name(
             db, params.name, params.publisher, params.version
@@ -434,23 +148,18 @@ def delete_extension(params: SearchRequest = Depends(), db: Session = Depends(ge
         return {"message": f"Extension '{params.name}' deleted successfully"}
 
     except HTTPException as http_exc:
-        # Let expected HTTP errors (e.g., 404) propagate without masking them
         raise http_exc
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
-    except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Internal Server Error: {e!s}"
-        ) from e
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error") from None
 
 
 @router.get("/getExtensionScripts", response_model=list[ExtensionScriptsSchema])
 def get_extension_scripts(
     params: SearchRequest = Depends(), db: Session = Depends(get_db)
 ):
-    """
-    Retrieve npm scripts defined in an extension's package.json.
-    """
+    """Retrieve npm scripts defined in an extension's package.json."""
     try:
         result = service.get_extension_scripts(
             db,
@@ -475,9 +184,7 @@ def get_extension_scripts(
 def get_extension_activation_events(
     params: SearchRequest = Depends(), db: Session = Depends(get_db)
 ):
-    """
-    Retrieve activation events for an extension.
-    """
+    """Retrieve activation events for an extension."""
     try:
         result = service.get_extension_activation_events(
             db,
@@ -502,9 +209,7 @@ def get_extension_activation_events(
 def get_extension_capabilities(
     params: SearchRequest = Depends(), db: Session = Depends(get_db)
 ):
-    """
-    Retrieve capability declarations for an extension.
-    """
+    """Retrieve capability declarations for an extension."""
     try:
         result = service.get_extension_capabilites(
             db,

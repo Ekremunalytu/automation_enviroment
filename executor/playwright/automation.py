@@ -488,6 +488,46 @@ def scenario_refactor_workflow(page: Page) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Scenario 11: Notebook session
+# Triggers: onNotebook:*, notebook-related extensions (Jupyter, etc.)
+# ---------------------------------------------------------------------------
+
+
+def scenario_notebook_session(page: Page) -> None:
+    """Simulate opening and interacting with a Jupyter notebook.
+
+    Opens a .ipynb file to trigger onNotebook activation events.
+    """
+    _log("Notebook session")
+
+    editor.open_file_by_name(page, "notebooks/analysis.ipynb")
+    page.wait_for_timeout(3000)  # notebooks take longer to render
+
+    # Dismiss any "install Jupyter extension" or kernel prompts
+    editor._dismiss_notification(page)
+    page.wait_for_timeout(500)
+
+    # Try clicking into first cell
+    try:
+        cell = page.locator(".cell-editor-container").first
+        if cell.is_visible(timeout=2000):
+            cell.click()
+            page.wait_for_timeout(500)
+    except PlaywrightError:
+        pass  # No notebook UI rendered — extension may not support it
+
+    # Navigate with keyboard
+    page.keyboard.press("Escape")  # ensure command mode
+    page.wait_for_timeout(200)
+    page.keyboard.press("ArrowDown")
+    page.wait_for_timeout(300)
+
+    # Close notebook
+    editor.close_active_editor(page)
+    page.wait_for_timeout(500)
+
+
+# ---------------------------------------------------------------------------
 # Master orchestrator
 # ---------------------------------------------------------------------------
 
@@ -502,6 +542,7 @@ _ALL_SCENARIOS: list[tuple[str, ScenarioFn]] = [
     ("search_workflow", scenario_search_workflow),
     ("diagnostics_check", scenario_diagnostics_check),
     ("refactor_workflow", scenario_refactor_workflow),
+    ("notebook_session", scenario_notebook_session),
 ]
 
 
@@ -548,6 +589,39 @@ def run_scenario(page: Page, name: str) -> None:
     if fn is None:
         raise ValueError(f"Unknown scenario: {name!r}. Available: {list(scenario_map)}")
     fn(page)
+
+
+def run_selected_scenarios(
+    page: Page, names: list[str], shuffle: bool = False
+) -> list[str]:
+    """Run a subset of scenarios by name.
+
+    Args:
+        page: Playwright Page connected to VS Code.
+        names: Scenario names to run.
+        shuffle: If True, randomize order.
+
+    Returns:
+        List of scenario names that failed.
+    """
+    scenario_map = dict(_ALL_SCENARIOS)
+    selected = [(n, scenario_map[n]) for n in names if n in scenario_map]
+    if shuffle:
+        random.shuffle(selected)
+
+    failed: list[str] = []
+    for name, fn in selected:
+        try:
+            fn(page)
+            _log(f"DONE: {name}")
+        except (PlaywrightError, RuntimeError, ValueError) as exc:
+            _log(f"FAIL: {name} -> {exc}")
+            failed.append(name)
+            _recover_ui_state(page)
+        _cleanup_between_scenarios(page)
+        page.wait_for_timeout(1000)
+
+    return failed
 
 
 def list_scenarios() -> list[str]:

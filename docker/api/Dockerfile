@@ -29,14 +29,14 @@ RUN useradd -m appuser \
 WORKDIR /app
 
 # Install dependencies first (Caching layer)
-COPY routers/requirements.txt .
+COPY docker/api/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY . .
 
 # Copy entrypoint script
-COPY routers/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+COPY docker/api/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]

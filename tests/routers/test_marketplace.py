@@ -169,7 +169,7 @@ def test_download_success(client: TestClient) -> None:
             return_value=ext_path,
         ),
         patch(
-            "scanner.service.create_extension_by_name",
+            "routers.marketplace.create_extension_by_name",
             return_value=_mock_extension(42),
         ),
     ):
@@ -201,7 +201,7 @@ def test_download_duplicate_409(client: TestClient) -> None:
             return_value=ext_path,
         ),
         patch(
-            "scanner.service.create_extension_by_name",
+            "routers.marketplace.create_extension_by_name",
             side_effect=ValueError("Duplicate entry"),
         ),
     ):
@@ -228,7 +228,7 @@ def test_download_none_from_service_500(client: TestClient) -> None:
             return_value=ext_path,
         ),
         patch(
-            "scanner.service.create_extension_by_name",
+            "routers.marketplace.create_extension_by_name",
             return_value=None,
         ),
     ):
@@ -342,6 +342,10 @@ def test_analyze_success(client: TestClient) -> None:
             return_value="Extension installed successfully.",
         ),
         patch(
+            "routers.marketplace.reload_vscode_window",
+            return_value="[reload] Done",
+        ),
+        patch(
             "routers.marketplace.run_playwright_automation",
             return_value="Automation completed.",
         ),
@@ -396,6 +400,10 @@ def test_analyze_automation_failure_502(client: TestClient) -> None:
         patch(
             "routers.marketplace.install_extension_in_executor",
             return_value="ok",
+        ),
+        patch(
+            "routers.marketplace.reload_vscode_window",
+            return_value="[reload] Done",
         ),
         patch(
             "routers.marketplace.run_playwright_automation",

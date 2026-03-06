@@ -31,11 +31,8 @@ coverage.xml
 *.swo
 
 # Project Specific
-ms-python.python-*/
 output/
 extensions/
-
-extensions/*
 
 # Linting & Type Checking
 .mypy_cache/

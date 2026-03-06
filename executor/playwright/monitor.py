@@ -92,6 +92,7 @@ class ActivationReport:
     log_file_path: str = ""
     monitoring_start: float = 0.0
     monitoring_end: float = 0.0
+    scenarios_run: list[str] = field(default_factory=list)
 
     @property
     def duration_s(self) -> float:
@@ -109,17 +110,25 @@ class ActivationReport:
             "running_extensions": len(self.running_extensions),
             "monitoring_duration_s": round(self.duration_s, 1),
             "extension_ids": sorted(self.activated_ids),
+            "scenarios_run": self.scenarios_run,
         }
 
     def save(self, path: str | Path) -> Path:
         """Save full report as JSON."""
         out = Path(path)
         out.parent.mkdir(parents=True, exist_ok=True)
+        # Truncate extension host output to last 500 lines to avoid huge files
+        eh_lines = self.extension_host_output.splitlines()
+        if len(eh_lines) > 500:
+            eh_text = "\n".join(eh_lines[-500:])
+        else:
+            eh_text = self.extension_host_output
         data = {
             "summary": self.summary,
             "activated": [asdict(e) for e in self.activated],
             "running_extensions": [asdict(e) for e in self.running_extensions],
             "extension_host_output_lines": self.extension_host_output.count("\n"),
+            "extension_host_output": eh_text,
             "log_file": self.log_file_path,
         }
         serialized = json.dumps(data, indent=2, ensure_ascii=False)

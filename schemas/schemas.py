@@ -1,17 +1,8 @@
-"""
-schemas/schemas.py
-==================
-
-Pydantic Schema Definitions for ExTrace API
---------------------------------------------
-
-This module contains all Pydantic models (schemas) used for data validation,
-serialization, and API documentation in the ExTrace VS Code Extension Scanner.
-"""
+"""Pydantic schema definitions for ExTrace API."""
 
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -21,13 +12,8 @@ from pydantic import BaseModel, ConfigDict, Field
 # =============================================================================
 
 
-class CapabilitySupportState(str, Enum):
-    """
-    Enum for capability support states.
-
-    Maps to the PostgreSQL enum 'capability_support_state'.
-    Used for untrustedWorkspaces and virtualWorkspaces support levels.
-    """
+class CapabilitySupportState(StrEnum):
+    """Maps to the PostgreSQL enum 'capability_support_state'."""
 
     SUPPORTED = "supported"
     NOT_SUPPORTED = "not_supported"

@@ -490,10 +490,28 @@ def render_marketplace_page() -> None:
                     if az_result:
                         report_file = az_result.get("report_path", "")
                         st.success(f"Analysis complete! Report: {report_file}")
-                        # Clear all caches and switch to Dashboard
                         st.cache_data.clear()
                         st.session_state["pending_report"] = report_file
-                        st.rerun()
+                        st.session_state["analysis_logs"] = {
+                            "install_output": az_result.get("install_output", ""),
+                            "automation_output": az_result.get("automation_output", ""),
+                            "extension": f"{pub}.{ext_name}",
+                        }
+
+    # Display analysis logs if available
+    logs = st.session_state.get("analysis_logs")
+    if logs:
+        st.markdown("---")
+        st.markdown(
+            f"### Analysis Logs — `{logs['extension']}`",
+        )
+        with st.expander("Install Output", expanded=False):
+            st.code(logs.get("install_output") or "(no output)", language="text")
+        with st.expander("Automation / Sandbox Output", expanded=True):
+            st.code(logs.get("automation_output") or "(no output)", language="text")
+        if st.button("View Dashboard →", use_container_width=True):
+            st.session_state.pop("analysis_logs", None)
+            st.rerun()
 
 
 # ---------------------------------------------------------------------------
@@ -522,7 +540,7 @@ with st.sidebar:
 
     page = st.radio(
         "Navigation",
-        ["Dashboard", "Marketplace"],
+        ["Dashboard", "Marketplace", "Theme"],
         index=default_page_idx,
         label_visibility="collapsed",
     )
@@ -581,13 +599,6 @@ with st.sidebar:
         else:
             st.warning("No reports found.")
 
-        st.markdown("### View Options")
-        chart_theme = st.select_slider(
-            "Color Palette",
-            options=["turbo", "plasma", "inferno", "magma"],
-            value="plasma",
-        )
-
         st.markdown("---")
         if st.button("🔄 System Refresh", use_container_width=True):
             st.cache_data.clear()
@@ -610,6 +621,32 @@ if page == "Marketplace":
     render_marketplace_page()
     st.stop()
 
+if page == "Theme":
+    st.markdown(
+        """
+        <h1 style="font-size: 2.5rem; margin-bottom: 0;">
+            Visual <span class="gradient-text">Theme</span>
+        </h1>
+        <p style="color: #a1a1aa; margin-top: 4px;">
+            Customize the look and feel of your analysis dashboard.
+        </p>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.markdown("<div style='height: 24px'></div>", unsafe_allow_html=True)
+
+    selected_theme = st.select_slider(
+        "Chart Color Palette",
+        options=["turbo", "plasma", "inferno", "magma"],
+        value=st.session_state.get("chart_theme", "plasma"),
+    )
+    if selected_theme != st.session_state.get("chart_theme"):
+        st.session_state["chart_theme"] = selected_theme
+        st.rerun()
+
+    st.info("Additional theme settings will go here in the future.")
+    st.stop()
+
 if not target:
     st.markdown(
         "<div style='text-align: center; margin-top: 20vh; color: #52525b;'>Waiting for analysis data...</div>",
@@ -626,6 +663,8 @@ df = process_data(raw_data)
 summary = raw_data.get("summary", {})
 running = raw_data.get("running_extensions", [])
 
+chart_theme = st.session_state.get("chart_theme", "plasma")
+
 # ---------------------------------------------------------------------------
 # Dashboard Header
 # ---------------------------------------------------------------------------
@@ -633,15 +672,34 @@ running = raw_data.get("running_extensions", [])
 col_header, col_status = st.columns([3, 1])
 
 with col_header:
+    target_ext = raw_data.get("_metadata", {}).get("filename", "Unknown")
+    scenarios = summary.get("scenarios_run", [])
+    scenarios_badges = (
+        " ".join(
+            [
+                f'<span style="background: rgba(139, 92, 246, 0.2); padding: 2px 8px; border-radius: 4px; font-size: 0.8rem; margin-right: 4px; border: 1px solid rgba(139, 92, 246, 0.4);">{s}</span>'
+                for s in scenarios
+            ]
+        )
+        if scenarios
+        else ""
+    )
+
     st.markdown(
         f"""
         <h1 style="font-size: 2.5rem; margin-bottom: 0;">
             Analysis <span class="gradient-text">Dashboard</span>
         </h1>
-        <p style="color: #a1a1aa; margin-top: 4px;">
-            Target: <code style="background:transparent; color: #8b5cf6;">{raw_data.get("_metadata", {}).get("filename", "Unknown")}</code>
-        </p>
-        """,
+        <div style="margin-top: 12px; margin-bottom: 12px; display: inline-block; padding: 6px 12px; background: rgba(34, 211, 238, 0.1); border: 1px solid rgba(34, 211, 238, 0.3); border-radius: 8px;">
+            <span style="color: #a1a1aa; font-size: 0.9rem;">Target Extension: </span>
+            <strong style="color: #22d3ee; font-size: 1.1rem; letter-spacing: 0.02em;">{target_ext}</strong>
+        </div>
+        """
+        + (
+            f"""<div style="margin-bottom: 8px;"><span style="color: #a1a1aa; font-size: 0.85rem; margin-right: 8px;">Automations Run:</span>{scenarios_badges}</div>"""
+            if scenarios_badges
+            else ""
+        ),
         unsafe_allow_html=True,
     )
 
@@ -712,12 +770,13 @@ st.markdown("<div style='height: 48px'></div>", unsafe_allow_html=True)
 # Deep Dive Analysis
 # ---------------------------------------------------------------------------
 
-tab_viz, tab_perf, tab_grid, tab_raw = st.tabs(
+tab_viz, tab_perf, tab_grid, tab_raw, tab_host_logs = st.tabs(
     [
         "📊 Visual Intelligence",
         "⚡ Performance Matrix",
         "💾 Data Grid",
         "🔍 Raw Inspector",
+        "📝 Extension Host Logs",
     ]
 )
 
@@ -731,6 +790,10 @@ with tab_viz:
 
             # Interactive Brush
             brush = alt.selection_interval(encodings=["x"])
+
+            # Dynamically calculate height based on number of unique extensions
+            unique_ext_count = df["extension_id"].nunique() if not df.empty else 10
+            chart_height = max(400, unique_ext_count * 25)
 
             # Main Scatter Plot
             chart = (
@@ -762,7 +825,7 @@ with tab_viz:
                         "rel_start",
                     ],
                 )
-                .properties(height=400, width="container")
+                .properties(height=chart_height, width="container")
                 .add_params(brush)
             )
 
@@ -795,7 +858,7 @@ with tab_viz:
                 .transform_filter(brush)
             )
 
-            st.altair_chart(chart & hist, use_container_width=True, theme="streamlit")
+            st.altair_chart(chart & hist, theme="streamlit")
 
         with c2:
             st.markdown("### Distribution")
@@ -820,7 +883,7 @@ with tab_viz:
                 .properties(height=480)
             )
 
-            st.altair_chart(pie, use_container_width=True, theme="streamlit")
+            st.altair_chart(pie, theme="streamlit")
     else:
         st.info("No activation data to visualize.")
 
@@ -831,6 +894,9 @@ with tab_perf:
     with p1:
         st.markdown("### Latency Distribution")
         if not df.empty:
+            unique_ext_count = df["extension_id"].nunique()
+            box_height = max(400, unique_ext_count * 25)
+
             box = (
                 alt.Chart(df)
                 .mark_boxplot(extent="min-max", color="#8b5cf6", ticks=True)
@@ -849,9 +915,9 @@ with tab_perf:
                     ),
                     tooltip=["activation_event", "duration_ms"],
                 )
-                .properties(height=400)
+                .properties(height=box_height)
             )
-            st.altair_chart(box, use_container_width=True, theme="streamlit")
+            st.altair_chart(box, theme="streamlit")
 
     with p2:
         st.markdown("### Startup Overheads")
@@ -886,7 +952,7 @@ with tab_perf:
                     )
                     .properties(height=400)
                 )
-                st.altair_chart(bar, use_container_width=True, theme="streamlit")
+                st.altair_chart(bar, theme="streamlit")
         else:
             st.warning("No running extension metrics found.")
 
@@ -918,7 +984,6 @@ with tab_grid:
                 "extrace_analysis.csv",
                 "text/csv",
                 key="download-csv",
-                use_container_width=True,
             )
 
         st.dataframe(
@@ -937,14 +1002,13 @@ with tab_grid:
                     "Timestamp", format="HH:mm:ss.SS"
                 ),
                 "extension_id": st.column_config.TextColumn("Extension", width="large"),
-                "activation_event": st.column_config.TextColumn("Event Type"),
+                "activation_event": st.column_config.TextColumn("Trigger Flow (Event)"),
                 "duration_ms": st.column_config.ProgressColumn(
                     "Duration", format="%d ms", min_value=0, max_value=1000
                 ),
                 "performance": st.column_config.TextColumn("Status"),
                 "source": st.column_config.TextColumn("Source"),
             },
-            use_container_width=True,
             height=600,
             hide_index=True,
         )
@@ -955,3 +1019,18 @@ with tab_grid:
 with tab_raw:
     st.markdown("### JSON Structure")
     st.json(raw_data, expanded=False)
+
+# --- Tab 5: Extension Host Logs ---
+with tab_host_logs:
+    st.markdown("### Extension Host Output")
+    eh_output = raw_data.get("extension_host_output", "")
+    eh_lines = raw_data.get("extension_host_output_lines", 0)
+    if eh_output:
+        st.caption(f"{eh_lines} total lines (showing up to last 500)")
+        with st.container(height=600):
+            st.code(eh_output, language="log")
+    else:
+        st.info(
+            "No Extension Host logs available in this report. "
+            "Re-run the analysis to capture logs."
+        )

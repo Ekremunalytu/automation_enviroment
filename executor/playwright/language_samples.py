@@ -260,6 +260,47 @@ body {
     </database>
 </settings>
 """,
+    # --- Jupyter Notebook (nbformat 4) ---
+    "notebooks/analysis.ipynb": """\
+{
+ "cells": [
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "import os\\n",
+    "\\n",
+    "data = list(range(100))\\n",
+    "total = sum(data)\\n",
+    "print(f\\"Total: {total}\\")"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# Analysis Notebook\\n",
+    "Sample notebook for extension activation testing."
+   ]
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": "Python 3",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "name": "python",
+   "version": "3.11.0"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 5
+}
+""",
 }
 
 # ---------------------------------------------------------------------------

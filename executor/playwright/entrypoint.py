@@ -26,6 +26,7 @@ import monitor  # noqa: E402
 import panel  # noqa: E402
 import sidebar  # noqa: E402
 import terminal  # noqa: E402
+import triggers as trigger_loader  # noqa: E402
 import vscode  # noqa: E402
 from playwright.sync_api import Page, sync_playwright  # noqa: E402 — pip package
 
@@ -70,6 +71,83 @@ def run_demo(page: Page) -> None:
     page.wait_for_timeout(10_000)
 
 
+def _create_bait_files(filenames: list[str]) -> None:
+    """Create empty bait files in the workspace for custom editor activation."""
+    workspace = Path("/home/executor/workspace")
+    for name in filenames:
+        bait_path = workspace / name
+        bait_path.parent.mkdir(parents=True, exist_ok=True)
+        if not bait_path.exists():
+            bait_path.write_text("")
+            print(f"[+] Created bait file: {bait_path}")
+
+
+def _run_extra_triggers(page: Page, payload: trigger_loader.TriggerPayload) -> None:
+    """Run additional activation triggers beyond the standard scenarios."""
+    from playwright.sync_api import Error as PlaywrightError
+
+    # Open custom editor bait files
+    for filename in payload.extra_custom_editor_files:
+        try:
+            print(f"[*] Opening custom editor bait file: {filename}")
+            editor.open_file_by_name(page, filename)
+            page.wait_for_timeout(2000)
+            editor.close_active_editor(page)
+            page.wait_for_timeout(500)
+        except PlaywrightError as exc:
+            print(f"[!] Custom editor trigger failed for {filename}: {exc}")
+
+    # Trigger onUri via terminal xdg-open
+    if payload.uri_trigger:
+        try:
+            print(f"[*] Triggering URI: {payload.uri_trigger}")
+            terminal.new_terminal(page)
+            page.wait_for_timeout(500)
+            terminal.type_in_terminal(page, f"xdg-open '{payload.uri_trigger}'")
+            page.wait_for_timeout(2000)
+        except PlaywrightError as exc:
+            print(f"[!] URI trigger failed: {exc}")
+
+    # Trigger onTaskType via Command Palette
+    if payload.run_task_trigger:
+        try:
+            print("[*] Running task trigger via Command Palette...")
+            commands.run_command(page, "Tasks: Run Task")
+            page.wait_for_timeout(1500)
+            page.keyboard.press("Escape")
+            page.wait_for_timeout(500)
+        except PlaywrightError as exc:
+            print(f"[!] Task trigger failed: {exc}")
+
+    # Trigger onWalkthrough via Command Palette
+    if payload.run_walkthrough_trigger:
+        try:
+            print("[*] Running walkthrough trigger via Command Palette...")
+            commands.run_command(page, "Welcome: Open Walkthrough")
+            page.wait_for_timeout(2000)
+            editor.close_active_editor(page)
+            page.wait_for_timeout(500)
+        except PlaywrightError as exc:
+            print(f"[!] Walkthrough trigger failed: {exc}")
+
+    # Trigger extension-specific commands via Command Palette
+    if payload.extra_commands:
+        print(f"[*] Invoking {len(payload.extra_commands)} extension commands...")
+        for cmd_title in payload.extra_commands:
+            try:
+                print(f"[*] Running command: {cmd_title}")
+                commands.run_command(page, cmd_title)
+                page.wait_for_timeout(1500)
+                # Dismiss any notifications/dialogs the command may trigger
+                editor._dismiss_notification(page)
+                page.wait_for_timeout(300)
+            except PlaywrightError as exc:
+                print(f"[!] Command '{cmd_title}' failed: {exc}")
+                # Recover UI state so subsequent commands can run
+                page.keyboard.press("Escape")
+                page.wait_for_timeout(300)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="VS Code automation via Playwright")
     group = parser.add_mutually_exclusive_group()
@@ -90,6 +168,12 @@ def main() -> None:
         default="/results/activation_report.json",
         help="Path for the monitoring report (default: /results/activation_report.json)",
     )
+    parser.add_argument(
+        "--triggers",
+        type=str,
+        default=None,
+        help="Path to trigger payload JSON (written by host-side scanner.triggers)",
+    )
     args = parser.parse_args()
 
     if args.list:
@@ -109,6 +193,22 @@ def main() -> None:
         vscode.wait_until_ready(page)
         print("[+] VS Code is ready")
 
+        # Load trigger payload if provided
+        trigger_payload: trigger_loader.TriggerPayload | None = None
+        if args.triggers:
+            print(f"[*] Loading trigger payload from {args.triggers}...")
+            trigger_payload = trigger_loader.load_trigger_file(args.triggers)
+            if trigger_payload:
+                print(
+                    f"[+] Trigger payload loaded: {len(trigger_payload.selected_scenarios)} scenarios"
+                )
+            else:
+                print("[!] Trigger file not found or invalid, using defaults")
+
+        # Create custom editor bait files in the workspace if needed
+        if trigger_payload and trigger_payload.extra_custom_editor_files:
+            _create_bait_files(trigger_payload.extra_custom_editor_files)
+
         mon = None
         try:
             if args.monitor:
@@ -116,24 +216,47 @@ def main() -> None:
                 mon = monitor.ExtensionMonitor(page)
                 mon.start()
 
+            executed_scenarios: list[str] = []
+
             if args.demo:
                 run_demo(page)
+                executed_scenarios.append("demo")
             elif args.scenario:
                 print(f"[*] Running scenario: {args.scenario}")
                 automation.run_scenario(page, args.scenario)
+                executed_scenarios.append(args.scenario)
+            elif trigger_payload and trigger_payload.selected_scenarios:
+                print(
+                    f"[*] Running selected scenarios: {trigger_payload.selected_scenarios}"
+                )
+                failed_scenarios = automation.run_selected_scenarios(
+                    page, trigger_payload.selected_scenarios, shuffle=args.shuffle
+                )
+                executed_scenarios.extend(trigger_payload.selected_scenarios)
+                if failed_scenarios:
+                    print("[!] Failed scenarios:")
+                    for name in failed_scenarios:
+                        print(f"  - {name}")
+                    exit_code = 1
             else:
                 print("[*] Running all automation scenarios...")
                 failed_scenarios = automation.run_all_scenarios(
                     page, shuffle=args.shuffle
                 )
+                executed_scenarios.extend(automation.list_scenarios())
                 if failed_scenarios:
                     print("[!] Failed scenarios:")
                     for name in failed_scenarios:
                         print(f"  - {name}")
                     exit_code = 1
 
+            # Run extra triggers from the payload
+            if trigger_payload:
+                _run_extra_triggers(page, trigger_payload)
+
             if mon is not None:
                 print("[*] Collecting monitoring data...")
+                mon.report.scenarios_run = executed_scenarios
                 report = mon.stop()
                 report.print_summary()
                 report.save(args.report_path)

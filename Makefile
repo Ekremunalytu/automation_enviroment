@@ -97,10 +97,10 @@ venv-check:
 # =============================================================================
 
 install:
-	$(VENV)/pip install -r routers/requirements.txt
+	$(VENV)/pip install -r docker/api/requirements.txt
 
 install-dev:
-	$(VENV)/pip install -r routers/requirements.txt
+	$(VENV)/pip install -r docker/api/requirements.txt
 	$(VENV)/pip install -r requirements-dev.txt
 
 install-hooks: install-dev

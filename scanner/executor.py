@@ -47,7 +47,14 @@ def _docker_exec(
     container = settings.executor.CONTAINER_NAME
     timeout = timeout or settings.executor.DOCKER_EXEC_TIMEOUT
 
-    full_cmd = ["docker", "exec", container, *cmd]
+    full_cmd = [
+        "docker",
+        "exec",
+        "-e",
+        "PYTHONUNBUFFERED=1",
+        container,
+        *cmd,
+    ]
 
     try:
         result = subprocess.run(  # noqa: S603
@@ -88,7 +95,14 @@ def _docker_exec_allow_partial(
     container = settings.executor.CONTAINER_NAME
     timeout = timeout or settings.executor.DOCKER_EXEC_TIMEOUT
 
-    full_cmd = ["docker", "exec", container, *cmd]
+    full_cmd = [
+        "docker",
+        "exec",
+        "-e",
+        "PYTHONUNBUFFERED=1",
+        container,
+        *cmd,
+    ]
 
     try:
         result = subprocess.run(  # noqa: S603
@@ -140,12 +154,41 @@ def install_extension_in_executor(publisher: str, name: str, version: str) -> st
     return result.stdout
 
 
+_RELOAD_SCRIPT_PATH = "/home/executor/playwright/reload_vscode.py"
+"""Path to the container-side reload script."""
+
+_RELOAD_TIMEOUT = 60
+"""Seconds to allow for the VS Code window reload."""
+
+
+def reload_vscode_window() -> str:
+    """
+    Reload the VS Code window inside the executor container.
+
+    Must be called **after** ``install_extension_in_executor`` so that
+    VS Code picks up the newly installed extension.  Without a reload,
+    the extension never activates.
+
+    Returns:
+        stdout from the reload script.
+
+    Raises:
+        ExecutorError: If the reload command fails or times out.
+    """
+    result = _docker_exec(
+        ["python3", _RELOAD_SCRIPT_PATH],
+        timeout=_RELOAD_TIMEOUT,
+    )
+    return result.stdout
+
+
 _DEFAULT_SCENARIO = "coding_session"
 
 
 def run_playwright_automation(
     report_path: str,
     scenario: str | None = None,
+    trigger_container_path: str | None = None,
 ) -> str:
     """
     Run the Playwright automation entrypoint inside the executor container.
@@ -155,6 +198,9 @@ def run_playwright_automation(
         scenario: Optional scenario name to pass to entrypoint.
             Defaults to ``coding_session`` for fast analysis (~15s).
             Pass ``"all"`` to run every scenario (~3-5 min).
+        trigger_container_path: Optional path to trigger payload JSON inside
+            the container. When provided, the entrypoint uses smart scenario
+            selection based on the extension's activation events.
 
     Returns:
         stdout from the automation run.
@@ -170,11 +216,14 @@ def run_playwright_automation(
         report_path,
     ]
 
-    effective_scenario = scenario or _DEFAULT_SCENARIO
-
-    # "all" means run every scenario (no --scenario flag)
-    if effective_scenario != "all":
-        cmd.extend(["--scenario", effective_scenario])
+    # When triggers are provided, let the entrypoint handle scenario selection
+    if trigger_container_path:
+        cmd.extend(["--triggers", trigger_container_path])
+    else:
+        effective_scenario = scenario or _DEFAULT_SCENARIO
+        # "all" means run every scenario (no --scenario flag)
+        if effective_scenario != "all":
+            cmd.extend(["--scenario", effective_scenario])
 
     # Use partial mode: some scenarios may fail (exit code 1) but the
     # activation report is still written to disk.  Only a timeout is fatal.

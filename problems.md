@@ -1,5 +1,35 @@
 # Project Analysis - Bugs & Missing Pieces
 
+## Current General Issues (2026-03-05)
+
+1. High: VS Code reload failure is treated as non-fatal during analyze flow.
+   - `routers/marketplace.py:195-200` catches `ExecutorError` and continues.
+   - `scanner/executor.py:162-164` states reload is required for activation.
+   - Risk: false negatives in dynamic analysis when extension never activates.
+
+2. High: Custom editor bait files are created under the wrong workspace path.
+   - `executor/playwright/entrypoint.py:76` writes to `/home/executor/workspace`.
+   - Actual opened workspace is `/workspace` (`executor/start.sh:94`, `executor/playwright/workspace.py:15`).
+   - Risk: `onCustomEditor` triggers may never fire.
+
+3. Medium: Broad `except Exception` usage in new trigger-building path.
+   - `routers/marketplace.py:255-261` swallows all errors and silently falls back.
+   - Risk: hidden integration failures and reduced observability.
+
+4. Medium: Test coverage gap for trigger-integrated analyze flow.
+   - Missing endpoint-level tests validating trigger payload creation and passing `--triggers`.
+   - Related code: `routers/marketplace.py:203-274`, `scanner/executor.py:213-220`.
+   - Existing tests cover base analyze flow but not trigger branch (`tests/routers/test_marketplace.py`).
+
+5. Low/Medium: API container no longer bind-mounts full project source.
+   - `docker-compose.yml:48-52` now mounts only `extensions`, `output`, `.env`.
+   - If hot-reload/dev iteration was expected from container, behavior regresses.
+   - If this is intentional hardening/isolation, keep as-is and document explicitly.
+
+6. Environment blocker (local verification): current venv cannot import FastAPI correctly.
+   - `fastapi` import fails because `annotated_doc` package appears broken in `.venv`.
+   - Impact: local pytest execution cannot be trusted until environment is repaired.
+
 ## Findings (by priority)
 
 1. ~~High: Test infrastructure "skip if no DB" flow is broken.~~ (✅ Resolved)

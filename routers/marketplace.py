@@ -17,14 +17,18 @@ import httpx
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from core.config import settings
 from core.deps import get_db
+from crud.crud import get_extension_activation_events, get_extension_contributes_all
 from scanner import marketplace as marketplace_scanner
 from scanner.executor import (
     ExecutorError,
     install_extension_in_executor,
+    reload_vscode_window,
     run_playwright_automation,
 )
 from scanner.service import create_extension_by_name
+from scanner.triggers import select_scenarios, write_trigger_file
 from schemas.schemas import (
     AnalyzeRequest,
     AnalyzeResponse,
@@ -135,19 +139,25 @@ def download_marketplace_extension(
 
 
 @router.post("/marketplace/analyze", response_model=AnalyzeResponse)
-def analyze_extension(request: AnalyzeRequest) -> AnalyzeResponse:
+def analyze_extension(
+    request: AnalyzeRequest,
+    db: Session = Depends(get_db),
+) -> AnalyzeResponse:
     """
     Install a downloaded extension in the executor sandbox
-    and run Playwright automation.
+    and run Playwright automation with smart trigger selection.
 
     Flow:
         1. Verify that the .vsix file exists on disk.
         2. Install the extension in the executor container via
            ``code --install-extension``.
-        3. Run the Playwright automation entrypoint.
+        3. Fetch activation events and contributes from DB to select
+           relevant scenarios.
+        4. Run the Playwright automation entrypoint with trigger data.
 
     Args:
         request: Publisher, name, version, and optional scenario.
+        db: Database session (injected).
 
     Returns:
         Analysis status with install/automation output and report path.
@@ -181,7 +191,74 @@ def analyze_extension(request: AnalyzeRequest) -> AnalyzeResponse:
             detail=f"Failed to install extension in executor: {exc}",
         ) from exc
 
-    # Step 2: Run Playwright automation
+    # Step 1.5: Reload VS Code so the newly installed extension activates
+    try:
+        reload_output = reload_vscode_window()
+        logger.info("VS Code reloaded: %s", reload_output.strip())
+    except ExecutorError as exc:
+        logger.warning("VS Code reload failed (non-fatal): %s", exc)
+
+    # Step 2: Build trigger payload from DB data (best-effort)
+    trigger_container_path: str | None = None
+    if not request.scenario:
+        try:
+            activation_events = get_extension_activation_events(
+                db,
+                extension_name=request.name,
+                extension_publisher=request.publisher,
+                extension_version=request.version,
+            )
+            contributes = get_extension_contributes_all(
+                db,
+                extension_name=request.name,
+                extension_publisher=request.publisher,
+                extension_version=request.version,
+            )
+
+            if activation_events:
+                events_data = [
+                    {"event_type": e.event_type, "event_value": e.event_value}
+                    for e in activation_events
+                ]
+                custom_editors = contributes.customEditors if contributes else None
+                publisher_name = f"{request.publisher}.{request.name}"
+
+                # Gather contributes.commands for dynamic invocation
+                commands_data = None
+                if contributes and contributes.commands:
+                    commands_data = [
+                        {"title": c.title, "command_id": c.command_id}
+                        for c in contributes.commands
+                    ]
+
+                payload = select_scenarios(
+                    events_data,
+                    custom_editors,
+                    publisher_name,
+                    contributes_commands=commands_data,
+                )
+                trigger_container_path = write_trigger_file(
+                    request.publisher,
+                    request.name,
+                    request.version,
+                    payload,
+                    output_dir=settings.project.OUTPUT_DIR,
+                )
+                logger.info(
+                    "Smart triggers: %d scenarios for %s.%s",
+                    len(payload.selected_scenarios),
+                    request.publisher,
+                    request.name,
+                )
+        except Exception:
+            logger.warning(
+                "Failed to build trigger payload for %s.%s, falling back to default",
+                request.publisher,
+                request.name,
+                exc_info=True,
+            )
+
+    # Step 3: Run Playwright automation
     report_name = (
         f"activation_report_{request.publisher}.{request.name}-{request.version}.json"
     )
@@ -191,6 +268,7 @@ def analyze_extension(request: AnalyzeRequest) -> AnalyzeResponse:
         automation_output = run_playwright_automation(
             report_path=report_container_path,
             scenario=request.scenario,
+            trigger_container_path=trigger_container_path,
         )
     except ExecutorError as exc:
         logger.error("Playwright automation failed: %s", exc)
