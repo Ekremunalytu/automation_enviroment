@@ -24,7 +24,7 @@ tests/
       test_schemas.py
     storage/
       test_crud.py
-    test_compat_wrappers.py
+    test_canonical_imports.py
   workflows/
     activation_reports/
       test_router.py
@@ -43,6 +43,7 @@ tests/
 - Tests use PostgreSQL, not SQLite.
 - Default local test database:
   - `postgresql://postgres:postgres@localhost:5434/test_db`
+- Start `postgres_test` via `make test-local` before running the full suite locally.
 - `tests/conftest.py` creates all tables once per session and rolls back each test transaction.
 
 ## Main Fixtures
@@ -69,7 +70,7 @@ Useful single-file examples:
 
 ```bash
 .venv/bin/pytest tests/workflows/marketplace/test_router.py -v
-.venv/bin/pytest tests/platform/test_compat_wrappers.py -v
+.venv/bin/pytest tests/platform/test_canonical_imports.py -v
 ```
 
 ## Coverage Focus
@@ -80,7 +81,7 @@ Useful single-file examples:
 - `appcore.api.deps`
 - `appcore.contracts.schemas`
 - `appcore.storage.crud`
-- compatibility wrappers in legacy import paths
+- canonical import surfaces
 
 ### Workflows
 

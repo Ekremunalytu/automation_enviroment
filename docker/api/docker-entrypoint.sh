@@ -14,5 +14,8 @@ if [ -S /var/run/docker.sock ]; then
     fi
 fi
 
+# Apply schema migrations before starting the API.
+gosu appuser alembic upgrade head
+
 # Drop to appuser and exec the CMD
 exec gosu appuser "$@"

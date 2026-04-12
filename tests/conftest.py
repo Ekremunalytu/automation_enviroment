@@ -17,6 +17,7 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, text
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import NullPool
 
@@ -71,8 +72,14 @@ def test_engine() -> Any:
         echo=False,
     )
 
-    # Create all tables
-    Base.metadata.create_all(bind=engine)
+    try:
+        Base.metadata.create_all(bind=engine)
+    except OperationalError as exc:
+        engine.dispose()
+        raise pytest.UsageError(
+            "Test database is unavailable. Start the postgres_test container "
+            "before running pytest."
+        ) from exc
 
     yield engine
 
@@ -98,7 +105,8 @@ def db_session(test_engine: Any) -> Generator[Session, None, None]:
 
     # Rollback and cleanup
     session.close()
-    transaction.rollback()
+    if transaction.is_active:
+        transaction.rollback()
     connection.close()
 
 
@@ -170,8 +178,5 @@ def check_database_connection(test_engine: Any) -> None:
     Check if database is available before running tests.
     Skip all tests if database is not available.
     """
-    try:
-        with test_engine.connect() as conn:
-            conn.execute(text("SELECT 1"))
-    except Exception as e:
-        pytest.skip(f"Database not available: {e}")
+    with test_engine.connect() as conn:
+        conn.execute(text("SELECT 1"))

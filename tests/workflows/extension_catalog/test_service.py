@@ -244,12 +244,12 @@ def test_get_extension_activation_events(db_session: Session):
         mock_get.assert_called_once()
 
 
-def test_get_extension_capabilites(db_session: Session):
+def test_get_extension_capabilities(db_session: Session):
     """Test capability retrieval passthrough."""
     with patch(
         "workflows.extension_catalog.service.get_db_extension_capabilities"
     ) as mock_get:
-        service.get_extension_capabilites(db_session, "ext")
+        service.get_extension_capabilities(db_session, "ext")
         mock_get.assert_called_once()
 
 

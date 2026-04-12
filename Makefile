@@ -164,10 +164,20 @@ test-cov:
 test-local:
 	@echo "🐳 Starting test database container..."
 	docker-compose up -d postgres_test
-	@echo "⏳ Waiting for Test PostgreSQL to be ready..."
-	@sleep $(TEST_DB_WAIT_SECONDS)
+	@echo "⏳ Waiting for Test PostgreSQL to be healthy..."
+	@for i in $$(seq 1 30); do \
+		status=$$(docker inspect --format='{{if .State.Health}}{{.State.Health.Status}}{{else}}unknown{{end}}' automation_db_test 2>/dev/null || echo "missing"); \
+		if [ "$$status" = "healthy" ]; then \
+			break; \
+		fi; \
+		if [ "$$i" -eq 30 ]; then \
+			echo "❌ postgres_test did not become healthy"; \
+			exit 1; \
+		fi; \
+		sleep 1; \
+	done
 	@echo "🧪 Running tests..."
-	$(VENV)/pytest -v || true
+	$(VENV)/pytest -v
 	@echo "✅ Tests complete!"
 
 test-ci:

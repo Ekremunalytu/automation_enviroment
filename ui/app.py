@@ -18,7 +18,6 @@ from styles import apply_global_styles, configure_page  # noqa: E402
 from views.dashboard import render_dashboard_page  # noqa: E402
 from views.marketplace import render_marketplace_page  # noqa: E402
 from views.simulation import render_live_simulation_fragment  # noqa: E402
-from views.theme import render_theme_page  # noqa: E402
 
 configure_page()
 apply_global_styles()
@@ -35,10 +34,6 @@ if page == "Simulation":
 
 if page == "Marketplace":
     render_marketplace_page()
-    st.stop()
-
-if page == "Theme":
-    render_theme_page()
     st.stop()
 
 render_dashboard_page(target)

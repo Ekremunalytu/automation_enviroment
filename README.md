@@ -30,10 +30,11 @@ The refactor introduced a canonical split between shared platform code and workf
 - `ui/`
   - Streamlit dashboard with `Dashboard`, `Simulation`, `Marketplace`, and `Theme` views.
 
-Legacy imports still exist for backward compatibility:
+The repository now uses canonical imports only:
 
-- `routers/`, `scanner/`, `core/`, `database/`, `crud/`, `models/`, `schemas/`
-- These modules re-export the new canonical packages and should not receive new code.
+- Shared platform modules live under `appcore/`
+- Workflow code lives under `workflows/`
+- Host-side executor control lives under `executor/host.py`
 
 ## Request Flows
 
@@ -61,7 +62,7 @@ Legacy imports still exist for backward compatibility:
 `POST /api/marketplace/analyze` or `POST /api/marketplace/analyze/start`
 
 1. `workflows.marketplace.router`
-2. `scanner.executor` compatibility wrapper around Docker exec
+2. `executor.host` Docker exec wrapper
 3. `executor/flows/playwright/entrypoint.py`
 4. Reports written under `output/`
 5. Job snapshots persisted under `output/analysis_jobs/`

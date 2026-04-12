@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import Any
+from urllib.parse import urlparse, urlunparse
 
 import requests
 import streamlit as st
@@ -15,11 +16,66 @@ from config import (
 )
 
 
+def _build_url_with_host(url: str, host: str) -> str:
+    parsed = urlparse(url)
+    netloc = host
+    if parsed.port is not None:
+        netloc = f"{host}:{parsed.port}"
+    return urlunparse(parsed._replace(netloc=netloc))
+
+
+def _candidate_urls(url: str) -> list[str]:
+    parsed = urlparse(url)
+    if parsed.hostname is None:
+        return [url]
+
+    candidates = [url]
+    fallback_hosts = {
+        "api": ["localhost", "127.0.0.1", "host.docker.internal"],
+        "localhost": ["127.0.0.1"],
+    }
+    for host in fallback_hosts.get(parsed.hostname, []):
+        candidates.append(_build_url_with_host(url, host))
+
+    return candidates
+
+
+def _request_json(
+    method: str,
+    url: str,
+    *,
+    timeout: int,
+    params: dict[str, Any] | None = None,
+    json: dict[str, Any] | None = None,
+) -> Any:
+    last_error: requests.RequestException | None = None
+
+    for candidate_url in _candidate_urls(url):
+        try:
+            response = requests.request(
+                method,
+                candidate_url,
+                params=params,
+                json=json,
+                timeout=timeout,
+            )
+            response.raise_for_status()
+            return response.json()
+        except (requests.ConnectionError, requests.Timeout) as exc:
+            last_error = exc
+            continue
+        except requests.HTTPError:
+            raise
+
+    if last_error is not None:
+        raise last_error
+
+    raise requests.RequestException(f"API request failed for {url}")
+
+
 @st.cache_data(ttl=2)
 def _fetch_report_list_cached() -> list[dict[str, Any]]:
-    response = requests.get(API_ACTIVATIONS_URL, timeout=2)
-    response.raise_for_status()
-    return response.json()
+    return _request_json("GET", API_ACTIVATIONS_URL, timeout=2)
 
 
 def fetch_report_list() -> tuple[list[dict[str, Any]], str | None]:
@@ -36,9 +92,7 @@ def _fetch_report_cached(filename: str) -> dict[str, Any]:
         if filename == "latest"
         else f"{API_ACTIVATIONS_URL}/{filename}"
     )
-    response = requests.get(url, timeout=5)
-    response.raise_for_status()
-    return response.json()
+    return _request_json("GET", url, timeout=5)
 
 
 def is_valid_activation_report(data: dict[str, Any]) -> bool:
@@ -63,13 +117,13 @@ def fetch_report(filename: str) -> tuple[dict[str, Any], str | None]:
 
 def search_marketplace(query: str) -> tuple[list[dict[str, Any]], str | None]:
     try:
-        response = requests.get(
+        payload = _request_json(
+            "GET",
             API_MARKETPLACE_SEARCH_URL,
             params={"query": query},
             timeout=15,
         )
-        response.raise_for_status()
-        return response.json(), None
+        return payload, None
     except requests.RequestException as exc:
         return [], f"Search error: {exc}"
 
@@ -80,13 +134,13 @@ def download_extension(
     version: str,
 ) -> tuple[dict[str, Any] | None, str | None]:
     try:
-        response = requests.post(
+        payload = _request_json(
+            "POST",
             API_MARKETPLACE_DOWNLOAD_URL,
             json={"publisher": publisher, "name": name, "version": version},
             timeout=180,
         )
-        response.raise_for_status()
-        return response.json(), None
+        return payload, None
     except requests.HTTPError as exc:
         if exc.response is not None and exc.response.status_code == 409:
             return {"status": "already_exists"}, None
@@ -101,21 +155,24 @@ def start_analysis_job(
     version: str,
 ) -> tuple[dict[str, Any] | None, str | None]:
     try:
-        response = requests.post(
+        payload = _request_json(
+            "POST",
             API_MARKETPLACE_ANALYZE_START_URL,
             json={"publisher": publisher, "name": name, "version": version},
             timeout=30,
         )
-        response.raise_for_status()
-        return response.json(), None
+        return payload, None
     except requests.RequestException as exc:
         return None, f"Analysis start error: {exc}"
 
 
 def fetch_analysis_job(job_id: str) -> tuple[dict[str, Any] | None, str | None]:
     try:
-        response = requests.get(f"{API_MARKETPLACE_ANALYZE_URL}/{job_id}", timeout=5)
-        response.raise_for_status()
-        return response.json(), None
+        payload = _request_json(
+            "GET",
+            f"{API_MARKETPLACE_ANALYZE_URL}/{job_id}",
+            timeout=5,
+        )
+        return payload, None
     except requests.RequestException as exc:
         return None, f"Analysis status error: {exc}"

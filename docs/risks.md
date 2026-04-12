@@ -11,7 +11,7 @@ This register reflects the post-refactor architecture.
 Files:
 
 - `workflows/marketplace/router.py`
-- `scanner/executor.py`
+- `executor/host.py`
 
 Why it matters:
 
@@ -43,23 +43,6 @@ Why it matters:
 
 - If generated trigger files do not land in the actual mounted workspace, some activation scenarios will silently fail to execute.
 
-### P2 - Compatibility wrappers can drift from canonical code
-
-Files:
-
-- `routers/`
-- `scanner/`
-- `core/`
-- `database/`
-- `crud/`
-- `models/`
-- `schemas/`
-
-Why it matters:
-
-- The wrappers are safe only while they remain thin and well-tested.
-- Any accidental logic added there would recreate architectural duplication.
-
 ### P2 - End-to-end executor coverage is still limited
 
 Files:
@@ -77,13 +60,9 @@ Why it matters:
 
 - noVNC is intended for local operator access, not public deployment.
 
-### Compatibility wrappers during migration
-
-- The wrappers are intentional for now and are covered by tests.
-
 ## Priority Mitigations
 
 - Introduce DB-backed `analysis_runs`
 - Make executor failures explicit in marketplace responses
 - Expand workflow tests for background analysis jobs
-- Continue migrating callers to canonical imports
+- Keep all internal callers on canonical imports

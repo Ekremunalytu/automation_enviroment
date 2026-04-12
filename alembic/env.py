@@ -25,7 +25,7 @@ def get_database_url() -> str:
 
     Priority:
     1. DATABASE_URL environment variable (for CI/Docker override)
-    2. Constructed URL from core.config.settings (default)
+    2. Constructed URL from appcore.api.config.settings (default)
     """
     return os.getenv("DATABASE_URL") or str(settings.db.url)
 

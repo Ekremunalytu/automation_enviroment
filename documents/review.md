@@ -9,7 +9,7 @@ The refactor significantly improved maintainability. The codebase now has a cred
 ## What Looks Good
 
 - Canonical architecture is clearer and easier to extend.
-- Compatibility wrappers are explicit and covered by tests.
+- Canonical imports are explicit and covered by tests.
 - Marketplace analysis is now a proper workflow instead of scattered logic.
 - UI decomposition is much stronger than before.
 
@@ -24,6 +24,6 @@ The refactor significantly improved maintainability. The codebase now has a cred
 1. `workflows/`
 2. `appcore/`
 3. `executor/`
-4. compatibility wrappers
+4. canonical import surfaces
 
 That order matches the current architecture and reduces the chance of reviewing legacy surfaces before canonical ones.

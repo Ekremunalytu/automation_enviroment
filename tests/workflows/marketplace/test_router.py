@@ -14,7 +14,7 @@ import httpx
 import pytest
 from fastapi.testclient import TestClient
 
-from scanner.executor import ExecutorError
+from executor.host import ExecutorError
 from workflows.marketplace import router as marketplace_router
 
 # ---------------------------------------------------------------------------
@@ -83,7 +83,7 @@ def test_search_whitespace_query(client: TestClient) -> None:
 
 
 def test_search_upstream_error(client: TestClient) -> None:
-    """httpx.HTTPError from scanner results in 502."""
+    """httpx.HTTPError from marketplace client results in 502."""
     with patch(
         "workflows.marketplace.client.search_marketplace",
         side_effect=httpx.HTTPStatusError(
@@ -97,7 +97,7 @@ def test_search_upstream_error(client: TestClient) -> None:
 
 
 def test_search_network_error(client: TestClient) -> None:
-    """httpx.ConnectError (subclass of HTTPError) from scanner results in 502."""
+    """httpx.ConnectError (subclass of HTTPError) from marketplace client results in 502."""
     with patch(
         "workflows.marketplace.client.search_marketplace",
         side_effect=httpx.ConnectError("Connection refused"),
@@ -379,19 +379,19 @@ def test_analyze_success(client: TestClient) -> None:
     """Successful analyze returns 200 with install and automation output."""
     with (
         patch(
-            "workflows.marketplace.client.get_vsix_path",
+            "workflows.marketplace.analysis_service.marketplace_client.get_vsix_path",
             return_value=_vsix_path_exists(True),
         ),
         patch(
-            "workflows.marketplace.router.reset_executor_sandbox_state",
+            "workflows.marketplace.analysis_service.reset_executor_sandbox_state",
             return_value="Sandbox reset.",
         ),
         patch(
-            "workflows.marketplace.router.install_extension_in_executor",
+            "workflows.marketplace.analysis_service.install_extension_in_executor",
             return_value="Extension installed successfully.",
         ),
         patch(
-            "workflows.marketplace.router.run_playwright_automation",
+            "workflows.marketplace.analysis_service.run_playwright_automation",
             return_value="Automation completed.",
         ),
     ):
@@ -532,11 +532,11 @@ def test_build_trigger_payload_returns_default_when_no_activation_events() -> No
 
     with (
         patch(
-            "workflows.marketplace.router.get_extension_activation_events",
+            "workflows.marketplace.trigger_service.get_extension_activation_events",
             return_value=[],
         ),
         patch(
-            "workflows.marketplace.router.get_extension_contributes_all",
+            "workflows.marketplace.trigger_service.get_extension_contributes_all",
             return_value=None,
         ),
     ):
@@ -567,19 +567,19 @@ def test_build_trigger_payload_passes_commands_and_custom_editors(
 
     with (
         patch(
-            "workflows.marketplace.router.get_extension_activation_events",
+            "workflows.marketplace.trigger_service.get_extension_activation_events",
             return_value=activation_events,
         ),
         patch(
-            "workflows.marketplace.router.get_extension_contributes_all",
+            "workflows.marketplace.trigger_service.get_extension_contributes_all",
             return_value=contributes,
         ),
         patch(
-            "workflows.marketplace.router.select_scenarios",
+            "workflows.marketplace.trigger_service.select_scenarios",
             return_value=payload,
         ) as mock_select,
         patch(
-            "workflows.marketplace.router.write_trigger_file",
+            "workflows.marketplace.trigger_service.write_trigger_file",
             return_value="/results/triggers.json",
         ) as mock_write,
     ):
@@ -606,21 +606,21 @@ def test_execute_analysis_request_falls_back_when_trigger_build_fails() -> None:
     progress_events: list[tuple[str, str, str]] = []
 
     with (
-        patch("workflows.marketplace.router._ensure_vsix_exists"),
+        patch("workflows.marketplace.analysis_service.ensure_vsix_exists"),
         patch(
-            "workflows.marketplace.router.reset_executor_sandbox_state",
+            "workflows.marketplace.analysis_service.reset_executor_sandbox_state",
             return_value="reset",
         ),
         patch(
-            "workflows.marketplace.router.install_extension_in_executor",
+            "workflows.marketplace.analysis_service.install_extension_in_executor",
             return_value="install",
         ),
         patch(
-            "workflows.marketplace.router._build_trigger_payload",
+            "workflows.marketplace.analysis_service.build_trigger_payload",
             side_effect=ValueError("bad trigger"),
         ),
         patch(
-            "workflows.marketplace.router.run_playwright_automation",
+            "workflows.marketplace.analysis_service.run_playwright_automation",
             return_value="automation",
         ) as mock_run,
     ):
@@ -650,9 +650,9 @@ def test_execute_analysis_request_reports_reset_failure() -> None:
     progress_events: list[tuple[str, str, str]] = []
 
     with (
-        patch("workflows.marketplace.router._ensure_vsix_exists"),
+        patch("workflows.marketplace.analysis_service.ensure_vsix_exists"),
         patch(
-            "workflows.marketplace.router.reset_executor_sandbox_state",
+            "workflows.marketplace.analysis_service.reset_executor_sandbox_state",
             side_effect=ExecutorError("reset failed", returncode=1, output="boom"),
         ),
         pytest.raises(ExecutorError),
@@ -678,21 +678,21 @@ def test_execute_analysis_request_reports_automation_failure() -> None:
     progress_events: list[tuple[str, str, str]] = []
 
     with (
-        patch("workflows.marketplace.router._ensure_vsix_exists"),
+        patch("workflows.marketplace.analysis_service.ensure_vsix_exists"),
         patch(
-            "workflows.marketplace.router.reset_executor_sandbox_state",
+            "workflows.marketplace.analysis_service.reset_executor_sandbox_state",
             return_value="reset",
         ),
         patch(
-            "workflows.marketplace.router.install_extension_in_executor",
+            "workflows.marketplace.analysis_service.install_extension_in_executor",
             return_value="install",
         ),
         patch(
-            "workflows.marketplace.router._build_trigger_payload",
+            "workflows.marketplace.analysis_service.build_trigger_payload",
             return_value=("/results/triggers.json", ["scenario"], "selected"),
         ),
         patch(
-            "workflows.marketplace.router.run_playwright_automation",
+            "workflows.marketplace.analysis_service.run_playwright_automation",
             side_effect=ExecutorError("automation failed", returncode=1, output="boom"),
         ),
         pytest.raises(ExecutorError),
@@ -721,9 +721,11 @@ def test_run_analysis_job_marks_failure_and_closes_session(tmp_path: Path) -> No
 
     session = MagicMock()
     with (
-        patch("workflows.marketplace.router.SessionLocal", return_value=session),
         patch(
-            "workflows.marketplace.router._execute_analysis_request",
+            "workflows.marketplace.analysis_service.SessionLocal", return_value=session
+        ),
+        patch(
+            "workflows.marketplace.analysis_service.execute_analysis_request",
             side_effect=FileNotFoundError("missing report"),
         ),
     ):
@@ -754,9 +756,11 @@ def test_run_analysis_job_marks_completion_and_closes_session(tmp_path: Path) ->
         report_path="activation_report.json",
     )
     with (
-        patch("workflows.marketplace.router.SessionLocal", return_value=session),
         patch(
-            "workflows.marketplace.router._execute_analysis_request",
+            "workflows.marketplace.analysis_service.SessionLocal", return_value=session
+        ),
+        patch(
+            "workflows.marketplace.analysis_service.execute_analysis_request",
             return_value=response,
         ),
     ):
@@ -778,9 +782,11 @@ def test_run_analysis_job_marks_value_error_failure(tmp_path: Path) -> None:
 
     session = MagicMock()
     with (
-        patch("workflows.marketplace.router.SessionLocal", return_value=session),
         patch(
-            "workflows.marketplace.router._execute_analysis_request",
+            "workflows.marketplace.analysis_service.SessionLocal", return_value=session
+        ),
+        patch(
+            "workflows.marketplace.analysis_service.execute_analysis_request",
             side_effect=ValueError("bad trigger payload"),
         ),
     ):
@@ -809,7 +815,7 @@ def test_map_executor_error_for_install_branch() -> None:
 def test_analyze_vsix_not_found_404(client: TestClient) -> None:
     """Missing .vsix file returns 404."""
     with patch(
-        "workflows.marketplace.client.get_vsix_path",
+        "workflows.marketplace.analysis_service.marketplace_client.get_vsix_path",
         return_value=_vsix_path_exists(False),
     ):
         response = client.post("/api/marketplace/analyze", json=ANALYZE_PAYLOAD)
@@ -822,15 +828,15 @@ def test_analyze_install_failure_502(client: TestClient) -> None:
     """ExecutorError during install returns 502."""
     with (
         patch(
-            "workflows.marketplace.client.get_vsix_path",
+            "workflows.marketplace.analysis_service.marketplace_client.get_vsix_path",
             return_value=_vsix_path_exists(True),
         ),
         patch(
-            "workflows.marketplace.router.reset_executor_sandbox_state",
+            "workflows.marketplace.analysis_service.reset_executor_sandbox_state",
             return_value="Sandbox reset.",
         ),
         patch(
-            "workflows.marketplace.router.install_extension_in_executor",
+            "workflows.marketplace.analysis_service.install_extension_in_executor",
             side_effect=ExecutorError("Install failed", returncode=1, output="error"),
         ),
     ):
@@ -844,19 +850,19 @@ def test_analyze_automation_failure_502(client: TestClient) -> None:
     """ExecutorError during automation returns 502."""
     with (
         patch(
-            "workflows.marketplace.client.get_vsix_path",
+            "workflows.marketplace.analysis_service.marketplace_client.get_vsix_path",
             return_value=_vsix_path_exists(True),
         ),
         patch(
-            "workflows.marketplace.router.reset_executor_sandbox_state",
+            "workflows.marketplace.analysis_service.reset_executor_sandbox_state",
             return_value="Sandbox reset.",
         ),
         patch(
-            "workflows.marketplace.router.install_extension_in_executor",
+            "workflows.marketplace.analysis_service.install_extension_in_executor",
             return_value="ok",
         ),
         patch(
-            "workflows.marketplace.router.run_playwright_automation",
+            "workflows.marketplace.analysis_service.run_playwright_automation",
             side_effect=ExecutorError("Automation crashed", returncode=1, output="err"),
         ),
     ):
@@ -870,7 +876,7 @@ def test_analyze_start_returns_job_snapshot(client: TestClient) -> None:
     """Async analyze start returns a queued job payload."""
     with (
         patch(
-            "workflows.marketplace.client.get_vsix_path",
+            "workflows.marketplace.analysis_service.marketplace_client.get_vsix_path",
             return_value=_vsix_path_exists(True),
         ),
         patch("workflows.marketplace.router.threading.Thread") as mock_thread,
@@ -891,7 +897,7 @@ def test_analyze_start_returns_job_snapshot(client: TestClient) -> None:
 def test_analyze_start_missing_vsix_404(client: TestClient) -> None:
     """Async analyze start validates the VSIX before queueing a job."""
     with patch(
-        "workflows.marketplace.client.get_vsix_path",
+        "workflows.marketplace.analysis_service.marketplace_client.get_vsix_path",
         return_value=_vsix_path_exists(False),
     ):
         response = client.post("/api/marketplace/analyze/start", json=ANALYZE_PAYLOAD)

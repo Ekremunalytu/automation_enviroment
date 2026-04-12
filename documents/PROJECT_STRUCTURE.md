@@ -37,7 +37,7 @@ docs/
 - Put dashboard-only code into `ui/`.
 - Put tests beside the corresponding architecture slice under `tests/`.
 
-## Canonical vs Compatibility Paths
+## Canonical Paths
 
 ### Canonical
 
@@ -48,18 +48,7 @@ docs/
 - `appcore/storage/crud.py`
 - `appcore/contracts/schemas.py`
 - `workflows/*`
-
-### Compatibility only
-
-- `routers/`
-- `scanner/`
-- `core/`
-- `database/`
-- `crud/`
-- `models/`
-- `schemas/`
-
-Compatibility modules exist for import stability and current tests. Do not place new business logic there.
+- `executor/host.py`
 
 ## UI Layout
 
@@ -118,7 +107,7 @@ tests/
     api/
     contracts/
     storage/
-    test_compat_wrappers.py
+    test_canonical_imports.py
   workflows/
     activation_reports/
     extension_catalog/

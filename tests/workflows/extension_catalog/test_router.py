@@ -234,7 +234,7 @@ def test_get_extension_capabilities(client: TestClient):
         "virtual_supported": "not_supported",
     }
     with patch(
-        "workflows.extension_catalog.router.service.get_extension_capabilites"
+        "workflows.extension_catalog.router.service.get_extension_capabilities"
     ) as mock_get:
         mock_get.return_value = mock_caps
 
@@ -248,7 +248,7 @@ def test_get_extension_capabilities(client: TestClient):
 def test_get_extension_capabilities_not_found(client: TestClient):
     """Test GET /getExtensionCapabilities returns 404 when not found."""
     with patch(
-        "workflows.extension_catalog.router.service.get_extension_capabilites"
+        "workflows.extension_catalog.router.service.get_extension_capabilities"
     ) as mock_get:
         mock_get.return_value = None
 
@@ -384,7 +384,7 @@ def test_activation_events_value_error(client: TestClient):
 def test_extension_capabilities_value_error(client: TestClient):
     """Test get capabilities validation error."""
     with patch(
-        "workflows.extension_catalog.router.service.get_extension_capabilites",
+        "workflows.extension_catalog.router.service.get_extension_capabilities",
         side_effect=ValueError("Bad"),
     ):
         response = client.get("/getExtensionCapabilities?name=bad")

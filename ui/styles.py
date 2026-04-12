@@ -58,6 +58,13 @@ GLOBAL_STYLES = """
         padding-top: 2rem;
     }
 
+    header[data-testid="stHeader"],
+    [data-testid="stToolbar"],
+    .stAppDeployButton,
+    [data-testid="stDecoration"] {
+        display: none !important;
+    }
+
     .glass-card {
         background: linear-gradient(
             145deg,

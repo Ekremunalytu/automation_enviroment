@@ -1,10 +1,4 @@
-"""
-Tests for scanner/executor.py
-==============================
-
-Unit tests for Docker exec wrapper functions.
-All subprocess calls are mocked — no Docker daemon required.
-"""
+"""Unit tests for executor/host.py."""
 
 from __future__ import annotations
 
@@ -13,7 +7,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from scanner.executor import (
+from executor.host import (
     ExecutorError,
     _docker_exec,
     _docker_exec_allow_partial,
@@ -28,7 +22,7 @@ from scanner.executor import (
 # ---------------------------------------------------------------------------
 
 
-@patch("scanner.executor.subprocess.run")
+@patch("executor.host.subprocess.run")
 def test_docker_exec_success(mock_run: MagicMock) -> None:
     """Successful command returns CompletedProcess."""
     mock_run.return_value = subprocess.CompletedProcess(
@@ -48,7 +42,7 @@ def test_docker_exec_success(mock_run: MagicMock) -> None:
     assert "hello" in call_args
 
 
-@patch("scanner.executor.subprocess.run")
+@patch("executor.host.subprocess.run")
 def test_docker_exec_nonzero_exit(mock_run: MagicMock) -> None:
     """Non-zero exit code raises ExecutorError."""
     mock_run.return_value = subprocess.CompletedProcess(
@@ -62,7 +56,7 @@ def test_docker_exec_nonzero_exit(mock_run: MagicMock) -> None:
     assert "command not found" in exc_info.value.output
 
 
-@patch("scanner.executor.subprocess.run")
+@patch("executor.host.subprocess.run")
 def test_docker_exec_timeout(mock_run: MagicMock) -> None:
     """Timeout raises ExecutorError."""
     mock_run.side_effect = subprocess.TimeoutExpired(cmd="docker", timeout=10)
@@ -79,7 +73,7 @@ def test_docker_exec_timeout(mock_run: MagicMock) -> None:
 # ---------------------------------------------------------------------------
 
 
-@patch("scanner.executor._docker_exec")
+@patch("executor.host._docker_exec")
 def test_install_extension_success(mock_exec: MagicMock) -> None:
     """Successful install returns stdout."""
     mock_exec.return_value = subprocess.CompletedProcess(
@@ -98,7 +92,7 @@ def test_install_extension_success(mock_exec: MagicMock) -> None:
     assert any("pub.ext-1.0.0.vsix" in arg for arg in call_cmd)
 
 
-@patch("scanner.executor._docker_exec")
+@patch("executor.host._docker_exec")
 def test_install_extension_failure(mock_exec: MagicMock) -> None:
     """ExecutorError propagates from _docker_exec."""
     mock_exec.side_effect = ExecutorError("Install failed", returncode=1, output="err")
@@ -112,7 +106,7 @@ def test_install_extension_failure(mock_exec: MagicMock) -> None:
 # ---------------------------------------------------------------------------
 
 
-@patch("scanner.executor._docker_exec_allow_partial")
+@patch("executor.host._docker_exec_allow_partial")
 def test_run_automation_success(mock_exec: MagicMock) -> None:
     """Successful automation returns stdout; default scenario is coding_session."""
     mock_exec.return_value = subprocess.CompletedProcess(
@@ -132,7 +126,7 @@ def test_run_automation_success(mock_exec: MagicMock) -> None:
     assert "coding_session" in call_cmd
 
 
-@patch("scanner.executor._docker_exec_allow_partial")
+@patch("executor.host._docker_exec_allow_partial")
 def test_run_automation_with_scenario(mock_exec: MagicMock) -> None:
     """Explicit scenario argument is passed to entrypoint."""
     mock_exec.return_value = subprocess.CompletedProcess(
@@ -146,7 +140,7 @@ def test_run_automation_with_scenario(mock_exec: MagicMock) -> None:
     assert "basic" in call_cmd
 
 
-@patch("scanner.executor._docker_exec_allow_partial")
+@patch("executor.host._docker_exec_allow_partial")
 def test_run_automation_all_scenarios(mock_exec: MagicMock) -> None:
     """Passing scenario='all' runs every scenario (no --scenario flag)."""
     mock_exec.return_value = subprocess.CompletedProcess(
@@ -159,7 +153,7 @@ def test_run_automation_all_scenarios(mock_exec: MagicMock) -> None:
     assert "--scenario" not in call_cmd
 
 
-@patch("scanner.executor._docker_exec_allow_partial")
+@patch("executor.host._docker_exec_allow_partial")
 def test_run_automation_with_reload_before_run(mock_exec: MagicMock) -> None:
     """Reload flag is forwarded to the executor entrypoint."""
     mock_exec.return_value = subprocess.CompletedProcess(
@@ -172,7 +166,7 @@ def test_run_automation_with_reload_before_run(mock_exec: MagicMock) -> None:
     assert "--reload-before-run" in call_cmd
 
 
-@patch("scanner.executor._docker_exec_allow_partial")
+@patch("executor.host._docker_exec_allow_partial")
 def test_run_automation_with_trigger_payload(mock_exec: MagicMock) -> None:
     """Trigger payload uses --triggers and skips explicit scenario selection."""
     mock_exec.return_value = subprocess.CompletedProcess(
@@ -191,7 +185,7 @@ def test_run_automation_with_trigger_payload(mock_exec: MagicMock) -> None:
     assert "--scenario" not in call_cmd
 
 
-@patch("scanner.executor._docker_exec_allow_partial")
+@patch("executor.host._docker_exec_allow_partial")
 def test_run_automation_partial_failure(mock_exec: MagicMock) -> None:
     """Non-zero exit code is tolerated (report may still be written)."""
     mock_exec.return_value = subprocess.CompletedProcess(
@@ -205,7 +199,7 @@ def test_run_automation_partial_failure(mock_exec: MagicMock) -> None:
     assert "Report written" in output
 
 
-@patch("scanner.executor._docker_exec_allow_partial")
+@patch("executor.host._docker_exec_allow_partial")
 def test_run_automation_timeout(mock_exec: MagicMock) -> None:
     """Timeout still raises ExecutorError."""
     mock_exec.side_effect = ExecutorError("Timed out", returncode=None, output="")
@@ -219,7 +213,7 @@ def test_run_automation_timeout(mock_exec: MagicMock) -> None:
 # ---------------------------------------------------------------------------
 
 
-@patch("scanner.executor.subprocess.run")
+@patch("executor.host.subprocess.run")
 def test_docker_exec_allow_partial_nonzero(mock_run: MagicMock) -> None:
     """Non-zero exit code does NOT raise ExecutorError."""
     mock_run.return_value = subprocess.CompletedProcess(
@@ -231,7 +225,7 @@ def test_docker_exec_allow_partial_nonzero(mock_run: MagicMock) -> None:
     assert result.stdout == "partial"
 
 
-@patch("scanner.executor.subprocess.run")
+@patch("executor.host.subprocess.run")
 def test_docker_exec_allow_partial_timeout(mock_run: MagicMock) -> None:
     """Timeout raises ExecutorError even in partial mode."""
     mock_run.side_effect = subprocess.TimeoutExpired(cmd="docker", timeout=10)
@@ -245,7 +239,7 @@ def test_docker_exec_allow_partial_timeout(mock_run: MagicMock) -> None:
 # ---------------------------------------------------------------------------
 
 
-@patch("scanner.executor._docker_exec")
+@patch("executor.host._docker_exec")
 def test_reload_vscode_window_success(mock_exec: MagicMock) -> None:
     """Successful reload returns stdout."""
     mock_exec.return_value = subprocess.CompletedProcess(
@@ -260,7 +254,7 @@ def test_reload_vscode_window_success(mock_exec: MagicMock) -> None:
     assert "reload_vscode.py" in call_cmd[-1]
 
 
-@patch("scanner.executor._docker_exec")
+@patch("executor.host._docker_exec")
 def test_reload_vscode_window_timeout(mock_exec: MagicMock) -> None:
     """Timeout during reload raises ExecutorError."""
     mock_exec.side_effect = ExecutorError(
@@ -276,8 +270,8 @@ def test_reload_vscode_window_timeout(mock_exec: MagicMock) -> None:
 # ---------------------------------------------------------------------------
 
 
-@patch("scanner.executor.reload_vscode_window")
-@patch("scanner.executor._docker_exec")
+@patch("executor.host.reload_vscode_window")
+@patch("executor.host._docker_exec")
 def test_reset_executor_sandbox_state_with_reload(
     mock_exec: MagicMock,
     mock_reload: MagicMock,
@@ -301,8 +295,8 @@ def test_reset_executor_sandbox_state_with_reload(
     mock_reload.assert_called_once_with()
 
 
-@patch("scanner.executor.reload_vscode_window")
-@patch("scanner.executor._docker_exec")
+@patch("executor.host.reload_vscode_window")
+@patch("executor.host._docker_exec")
 def test_reset_executor_sandbox_state_without_reload(
     mock_exec: MagicMock,
     mock_reload: MagicMock,

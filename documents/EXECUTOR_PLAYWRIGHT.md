@@ -48,7 +48,7 @@ The sandbox is intended to be isolated. Extension code should execute only insid
 
 ## Control Surface
 
-The API does not call Playwright modules directly. It goes through `scanner/executor.py`, which is now a compatibility wrapper around Docker exec commands configured from `appcore.api.config.settings.executor`.
+The API does not call Playwright modules directly. It goes through `executor/host.py`, which provides the Docker exec control surface configured from `appcore.api.config.settings.executor`.
 
 Available high-level operations:
 

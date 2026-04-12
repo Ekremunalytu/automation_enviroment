@@ -64,18 +64,13 @@ Streamlit dashboard modules.
 - `ui/navigation.py`: page routing
 - `ui/views/`: `dashboard`, `simulation`, `marketplace`, `theme`
 
-## Compatibility Layer
+## Canonical Imports
 
-The old module names are still present to avoid breaking imports:
+The codebase now imports only from canonical packages:
 
-- `routers/` re-exports `workflows/*/router.py`
-- `scanner/` re-exports workflow parser/service/executor helpers
-- `core/`, `database/`, `crud/`, `models/`, `schemas/` re-export `appcore/*`
-
-Rule:
-
-- New code goes into canonical packages only.
-- Compatibility modules stay thin and should not accumulate logic.
+- `appcore/*` for shared platform code
+- `workflows/*` for business workflows
+- `executor/host.py` for host-side executor control
 
 ## Request Flows
 
@@ -131,7 +126,7 @@ sequenceDiagram
     participant Router as workflows.marketplace.router
     participant Client as workflows.marketplace.client
     participant Service as workflows.extension_catalog.service
-    participant Exec as scanner.executor
+    participant Exec as executor.host
     participant Sandbox as executor container
     participant Output as output/
 
@@ -175,7 +170,7 @@ Notes:
 The test suite mirrors the new architecture:
 
 - `tests/platform/`
-  - `api/`, `contracts/`, `storage/`, compatibility wrapper tests
+  - `api/`, `contracts/`, `storage/`, canonical import tests
 - `tests/workflows/`
   - `activation_reports/`, `extension_catalog/`, `marketplace/`
 - `tests/executor/`
@@ -185,7 +180,6 @@ The test suite mirrors the new architecture:
 
 - Put shared code in `appcore/` only when at least two workflows need it.
 - Put workflow-specific logic next to its router/service/parser.
-- Keep compatibility wrappers thin.
 - Use SQLAlchemy 2.0 style only.
 - Use Pydantic v2 APIs only.
 - Keep sandbox execution isolated in Docker.

@@ -26,9 +26,9 @@ The main architectural risk is no longer layering. The main risk is that dynamic
 
 This is a meaningful improvement over the older `routers/scanner/core/crud/models/schemas` concentration.
 
-### Backward compatibility handled explicitly
+### Canonical imports enforced
 
-Legacy imports are preserved through thin wrappers, and `tests/platform/test_compat_wrappers.py` verifies that they still re-export canonical modules. That gives the refactor a controlled migration path instead of an abrupt break.
+Legacy wrapper modules have been removed, and `tests/platform/test_canonical_imports.py` verifies the supported import surface directly.
 
 ### Marketplace workflow is now a first-class slice
 
@@ -56,10 +56,6 @@ Activation reports and background job snapshots live under `output/`, not in Pos
 
 The API now exposes executor-backed analysis flows, but the durability guarantees are limited by Docker exec success, VS Code reload behavior, and filesystem snapshots.
 
-### Compatibility wrapper drift
-
-The wrappers are useful today, but they will become a maintenance cost if new code continues to target them. The codebase should keep converging on canonical imports.
-
 ## Recommendations
 
 ### Near-term
@@ -76,7 +72,7 @@ The wrappers are useful today, but they will become a maintenance cost if new co
 
 ### Long-term
 
-- Retire compatibility wrappers once downstream imports are migrated
+- Keep downstream code on canonical imports only
 - Separate raw artifact retention from structured result persistence
 
 ## Verdict

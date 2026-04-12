@@ -11,7 +11,7 @@ flowchart LR
     UI["Streamlit UI"] --> API["FastAPI marketplace workflow"]
     API --> Download["Marketplace download/extract"]
     API --> DB["Extension metadata in PostgreSQL"]
-    API --> Exec["scanner.executor docker exec wrapper"]
+    API --> Exec["executor.host docker exec wrapper"]
     Exec --> Sandbox["executor/flows/playwright/entrypoint.py"]
     Sandbox --> Reports["output/activation_report_*.json"]
     Sandbox --> Jobs["output/analysis_jobs/*.json"]

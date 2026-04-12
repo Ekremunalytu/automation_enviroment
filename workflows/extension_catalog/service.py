@@ -19,12 +19,16 @@ from appcore.contracts.schemas import (
     ExtensionSchema,
     ExtensionScriptsSchema,
 )
-
-# Aliased imports to avoid naming conflicts between service and CRUD functions
-# This is a common pattern when service methods wrap CRUD operations
-from appcore.storage.crud import create_extension as create_db_extension
-from appcore.storage.crud import delete_extension as delete_db_extension
-from appcore.storage.crud import get_db_extensions_base_info, get_extensions_all_info
+from appcore.storage.crud import (
+    create_extension as create_db_extension,
+)
+from appcore.storage.crud import (
+    delete_extension as delete_db_extension,
+)
+from appcore.storage.crud import (
+    get_db_extensions_base_info,
+    get_extensions_all_info,
+)
 from appcore.storage.crud import (
     get_extension_activation_events as get_db_extension_activation_events,
 )
@@ -37,8 +41,12 @@ from appcore.storage.crud import (
 from appcore.storage.crud import (
     get_extension_contributes_commands as get_db_extension_contributes_commands,
 )
-from appcore.storage.crud import get_extension_scripts as get_db_extension_scripts
-from appcore.storage.crud import search_extension_by_name as search_db_extension
+from appcore.storage.crud import (
+    get_extension_scripts as get_db_extension_scripts,
+)
+from appcore.storage.crud import (
+    search_extension_by_name as search_db_extension,
+)
 from appcore.storage.models import (
     Extension,
     ExtensionActivationEvents,
@@ -48,9 +56,7 @@ from appcore.storage.models import (
     ExtensionScripts,
 )
 
-# File system operations for scanning extensions directory
-from .package_parser import (
-    get_package_json,
+from .manifest_parser import (
     parse_activation_events,
     parse_capabilities,
     parse_contributes,
@@ -58,7 +64,8 @@ from .package_parser import (
     parse_npm_fields,
     parse_scripts,
 )
-from .package_parser import search_extension as find_json_in_dir
+from .manifest_reader import get_package_json
+from .manifest_reader import search_extension as find_json_in_dir
 
 
 class ExtensionManifestMismatchError(ValueError):
@@ -427,7 +434,7 @@ def get_extension_activation_events(
     return extension_activation_events
 
 
-def get_extension_capabilites(
+def get_extension_capabilities(
     db: Session,
     extension_name: str,
     extension_publisher: str | None = None,
@@ -440,10 +447,10 @@ def get_extension_capabilites(
         - untrustedWorkspaces
         - virtualWorkspaces
     """
-    extension_capabilites = get_db_extension_capabilities(
+    extension_capabilities = get_db_extension_capabilities(
         db, extension_name, extension_publisher, extension_version
     )
-    return extension_capabilites
+    return extension_capabilities
 
 
 def get_extension_contributes_all(

@@ -18,7 +18,7 @@ This roadmap tracks the current state of the post-refactor dynamic-analysis stac
 - Persisted background job snapshots under `output/analysis_jobs/`
 - Activation report browsing via `GET /api/activations*`
 - Streamlit pages for `Dashboard`, `Simulation`, `Marketplace`, `Theme`
-- Compatibility wrapper coverage in `tests/platform/test_compat_wrappers.py`
+- Canonical import coverage in `tests/platform/test_canonical_imports.py`
 
 ### Partially Delivered
 

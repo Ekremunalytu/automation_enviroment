@@ -1,31 +1,21 @@
-"""Public manifest parsing facade for the extension catalog workflow."""
+"""Filesystem helpers for extension manifests."""
 
+from __future__ import annotations
+
+import json
 from pathlib import Path
 from typing import Any
 
 from appcore.api.config import settings
-from workflows.extension_catalog.manifest_parser import (
-    parse_activation_events,
-    parse_capabilities,
-    parse_contributes,
-    parse_extra_fields,
-    parse_npm_fields,
-    parse_scripts,
-)
-from workflows.extension_catalog.manifest_reader import parse_json_file
 
-__all__ = [
-    "Path",
-    "get_package_json",
-    "parse_activation_events",
-    "parse_capabilities",
-    "parse_contributes",
-    "parse_extra_fields",
-    "parse_json_file",
-    "parse_npm_fields",
-    "parse_scripts",
-    "search_extension",
-]
+
+def parse_json_file(json_path: Path) -> dict[str, Any] | None:
+    """Parse a JSON file and return its contents, or None on expected I/O errors."""
+    try:
+        with open(json_path, encoding="utf-8") as file:
+            return json.load(file)
+    except (json.JSONDecodeError, OSError):
+        return None
 
 
 def get_package_json(extension_dir: Path) -> dict[str, Any] | None:
@@ -48,3 +38,6 @@ def search_extension(extension_name_field: str) -> dict[str, Any] | None:
             return package_data
 
     return None
+
+
+__all__ = ["get_package_json", "parse_json_file", "search_extension"]

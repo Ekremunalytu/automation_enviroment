@@ -220,7 +220,7 @@ def get_extension_capabilities(
 ):
     """Retrieve capability declarations for an extension."""
     try:
-        result = service.get_extension_capabilites(
+        result = service.get_extension_capabilities(
             db,
             extension_name=params.name,
             extension_publisher=params.publisher,

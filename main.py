@@ -5,9 +5,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 
 from appcore.api.config import settings
-from routers.activations import router as activation_reports_router
-from routers.core import router as extension_catalog_router
-from routers.marketplace import router as marketplace_router
+from workflows.activation_reports.router import router as activation_reports_router
+from workflows.extension_catalog.router import router as extension_catalog_router
+from workflows.marketplace.router import router as marketplace_router
 
 
 def create_app() -> FastAPI:

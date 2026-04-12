@@ -41,13 +41,6 @@ include = [
     "appcore*",
     "executor*",
     "workflows*",
-    "core*",
-    "crud*",
-    "database*",
-    "models*",
-    "routers*",
-    "scanner*",
-    "schemas*",
 ]
 exclude = ["tests*", "extensions*", "alembic*", "output*", "reporter*", "documents*", "config*", "ui*"]
 
@@ -105,13 +98,7 @@ ignore = [
 known-first-party = [
     "appcore",
     "workflows",
-    "core",
-    "crud",
-    "database",
-    "models",
-    "routers",
-    "scanner",
-    "schemas",
+    "executor",
 ]
 
 # ============================================================
@@ -156,7 +143,6 @@ module = [
     "alembic.*",
     "alembic.env",
     "scripts.*",
-    "crud.*",
 ]
 ignore_errors = true
 
@@ -188,13 +174,7 @@ asyncio_mode = "auto"
 source = [
     "appcore",
     "workflows",
-    "core",
-    "crud",
-    "database",
-    "models",
-    "routers",
-    "scanner",
-    "schemas",
+    "executor",
 ]
 branch = true
 omit = [
