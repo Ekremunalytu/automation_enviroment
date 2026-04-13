@@ -29,6 +29,9 @@ def test_parse_activations_from_log_respects_start_offset(tmp_path: Path) -> Non
 def test_activation_report_save_is_atomic(tmp_path: Path) -> None:
     report = monitor.ActivationReport(
         activated=[monitor.ActivationEntry(extension_id="sample.ext", source="log")],
+        target_extension_id="sample.ext",
+        trigger_plan_requested=True,
+        trigger_plan_applied=True,
         network_events=[
             monitor.NetworkEvent(
                 timestamp="2026-01-01T10:00:00.000",
@@ -55,6 +58,9 @@ def test_activation_report_save_is_atomic(tmp_path: Path) -> None:
     assert payload["summary"]["network_events"] == 1
     assert payload["activated"][0]["extension_id"] == "sample.ext"
     assert payload["network_events"][0]["host"] == "api.example.com"
+    assert payload["target_extension_expected"] == "sample.ext"
+    assert payload["target_extension_observed"] is True
+    assert payload["run_quality"] == "high"
     assert payload["evidence_events"][0]["event_id"].startswith("activation-")
     assert payload["evidence_events"][1]["event_id"].startswith("network-")
     assert payload["evidence_links"] == []
@@ -323,6 +329,8 @@ def test_extension_monitor_stop_keeps_runtime_snapshot_separate(
         report.log_streams["other_extension_host"][0].extension_id == "other.extension"
     )
     assert report.log_streams["automation"][0].kind == "scenario"
+    assert report.target_extension_observed is True
+    assert report.run_quality in {"medium", "high"}
 
 
 def test_extension_monitor_persists_live_report_with_network_events(
@@ -714,6 +722,78 @@ def test_verdict_stays_bounded_when_only_correlative_sensitive_activity_exists()
     assert verdict["level"] in {"needs_review", "suspicious"}
     assert verdict["level"] != "likely_malicious"
     assert verdict["reasons"]
+
+
+def test_inconclusive_run_never_returns_benign() -> None:
+    report = monitor.ActivationReport(
+        activated=[],
+        target_extension_id="publisher.tool",
+        trigger_plan_requested=True,
+        trigger_plan_applied=False,
+    )
+
+    verdict = monitor._build_verdict(report)
+
+    assert report.run_quality == "inconclusive"
+    assert verdict["level"] == "needs_review"
+    assert "inconclusive" in verdict["note"].lower()
+
+
+def test_risk_signals_capture_sensitive_file_and_network_combo() -> None:
+    report = monitor.ActivationReport(
+        activated=[
+            monitor.ActivationEntry(
+                extension_id="publisher.tool",
+                activation_event="onStartupFinished",
+                timestamp="2026-01-01 10:00:00.000",
+                source="log",
+            )
+        ],
+        file_events=[
+            monitor.FileEvent(
+                timestamp="2026-01-01T10:00:00.500",
+                rel_time_s=0.5,
+                operation="read",
+                path="/workspace/.env",
+                observer="strace",
+                related_extension_id="publisher.tool",
+                related_activation_event="onStartupFinished",
+                attribution_status="target_attributed",
+                attribution_basis="strong attribution",
+                attribution_confidence=0.93,
+                is_target_extension_event=True,
+                sensitive=True,
+                summary="read: /workspace/.env",
+            )
+        ],
+        network_events=[
+            monitor.NetworkEvent(
+                timestamp="2026-01-01T10:00:00.700",
+                rel_time_s=0.7,
+                protocol="https",
+                event_type="http_request",
+                destination_ip="93.184.216.34",
+                destination_port=443,
+                host="api.example.com",
+                related_extension_id="publisher.tool",
+                related_activation_event="onStartupFinished",
+                attribution_status="target_attributed",
+                attribution_basis="strong attribution",
+                attribution_confidence=0.89,
+                is_target_extension_event=True,
+                summary="GET /collect",
+            )
+        ],
+        target_extension_id="publisher.tool",
+    )
+
+    signals = report.risk_signals
+    summary = report.risk_summary
+
+    assert any(
+        signal.category == "sensitive_file_and_network_combo" for signal in signals
+    )
+    assert summary["total_signals"] >= 2
 
 
 def test_check_extension_activated_uses_logs_then_ui(monkeypatch) -> None:

@@ -124,6 +124,34 @@ export interface CoverageCapabilityDto {
   verified?: boolean;
 }
 
+export interface AttributionSummaryDto {
+  target_activation_count?: number;
+  strong_target_file_event_count?: number;
+  strong_target_network_event_count?: number;
+  correlated_only_event_count?: number;
+  background_activation_count?: number;
+  competing_candidate_count?: number;
+  ui_blocker_count?: number;
+}
+
+export interface RiskSignalDto {
+  signal_id?: string;
+  category?: string;
+  severity?: string;
+  confidence?: number;
+  evidence_event_ids?: string[];
+  summary?: string;
+}
+
+export interface RiskSummaryDto {
+  total_signals?: number;
+  critical?: number;
+  high?: number;
+  medium?: number;
+  low?: number;
+  categories?: string[];
+}
+
 export interface LogStreamEntryDto {
   timestamp?: string;
   rel_time_s?: number | null;
@@ -139,6 +167,14 @@ export interface LogStreamEntryDto {
 
 export interface ActivationReportDto {
   report_version?: number;
+  target_extension_expected?: string;
+  target_extension_observed?: boolean;
+  trigger_plan_applied?: boolean;
+  verification_gap?: number;
+  run_quality?: string;
+  attribution_summary?: AttributionSummaryDto;
+  risk_signals?: RiskSignalDto[];
+  risk_summary?: RiskSummaryDto;
   _metadata?: {
     filename?: string;
   };

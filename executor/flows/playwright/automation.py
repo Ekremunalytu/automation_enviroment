@@ -548,6 +548,56 @@ def scenario_notebook_session(page: Page) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Scenario 12: Authentication probe
+# Triggers: onAuthenticationRequest:*
+# ---------------------------------------------------------------------------
+
+
+def scenario_authentication_probe(page: Page) -> None:
+    """Exercise VS Code account and sign-in flows."""
+    _log("Authentication probe")
+
+    commands.run_command(page, "Accounts: Sign In")
+    page.wait_for_timeout(1500)
+
+    # Sign-in surfaces vary between VS Code builds. Dismiss whatever opened.
+    editor._dismiss_notification(page)
+    page.keyboard.press("Escape")
+    page.wait_for_timeout(500)
+    page.keyboard.press("Escape")
+    page.wait_for_timeout(300)
+
+
+# ---------------------------------------------------------------------------
+# Scenario 13: Webview probe
+# Triggers: onWebviewPanel:*
+# ---------------------------------------------------------------------------
+
+
+def scenario_webview_probe(page: Page) -> None:
+    """Exercise a built-in preview surface backed by a webview."""
+    _log("Webview probe")
+
+    editor.open_file_by_name(page, "README.md")
+    page.wait_for_timeout(1000)
+    commands.run_command(page, "Markdown: Open Preview")
+    page.wait_for_timeout(1500)
+
+    try:
+        webview_frame = page.locator("iframe.webview, .webview, .webview-element").first
+        if webview_frame.is_visible(timeout=1000):
+            webview_frame.click()
+            page.wait_for_timeout(300)
+    except PlaywrightError:
+        pass
+
+    editor.close_active_editor(page)
+    page.wait_for_timeout(400)
+    editor.close_active_editor(page)
+    page.wait_for_timeout(300)
+
+
+# ---------------------------------------------------------------------------
 # Master orchestrator
 # ---------------------------------------------------------------------------
 
@@ -648,6 +698,22 @@ _ALL_SCENARIOS: list[ScenarioSpec] = [
         activation_events=("onNotebook",),
         api_capabilities=("window_ui", "notebooks", "workspace_fs"),
         success_signals=("notebook open", "cell focus"),
+    ),
+    ScenarioSpec(
+        name="authentication_probe",
+        handler=scenario_authentication_probe,
+        intent="Exercise account and sign-in surfaces that trigger authentication flows.",
+        activation_events=("onAuthenticationRequest",),
+        api_capabilities=("commands", "window_ui", "authentication"),
+        success_signals=("accounts menu", "sign in prompt"),
+    ),
+    ScenarioSpec(
+        name="webview_probe",
+        handler=scenario_webview_probe,
+        intent="Open preview surfaces backed by a VS Code webview panel.",
+        activation_events=("onWebviewPanel",),
+        api_capabilities=("commands", "window_ui", "webview"),
+        success_signals=("preview open", "webview surface"),
     ),
 ]
 

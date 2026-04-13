@@ -6,6 +6,7 @@ import { EvidenceTimelineChart } from "../../components/evidence/EvidenceTimelin
 import { FilterRail, type EvidenceFilterState } from "../../components/evidence/FilterRail";
 import { Inspector } from "../../components/evidence/Inspector";
 import { LogStreamsPanel } from "../../components/evidence/LogStreamsPanel";
+import { RiskOverviewPanel } from "../../components/evidence/RiskOverviewPanel";
 import { RunActivityRail } from "../../components/simulation/RunActivityRail";
 import { EmptyState } from "../../components/ui/EmptyState";
 import { Panel, PanelHeader } from "../../components/ui/Panel";
@@ -256,6 +257,17 @@ export function SimulationPage() {
           </div>
           <div className="px-5 py-5">{job && model ? <RunActivityRail job={job} model={model} /> : <EmptyState body="Job metadata is still loading." eyebrow="Warmup" title="Fetching job snapshot" />}</div>
         </Panel>
+
+        {report ? (
+          <RiskOverviewPanel
+            attributionSummary={report.attributionSummary}
+            onSelectEvent={setSelectedEvent}
+            riskSignals={report.riskSignals}
+            summary={report.summary}
+            title="Live detection posture"
+            description="Use this strip to see whether the target was observed and whether the current run is conclusive before drilling into raw evidence."
+          />
+        ) : null}
 
         {tab === "status" ? (
           <Panel className="overflow-hidden p-0">

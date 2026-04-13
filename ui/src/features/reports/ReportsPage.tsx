@@ -6,6 +6,7 @@ import { EvidenceTimelineChart } from "../../components/evidence/EvidenceTimelin
 import { FilterRail, type EvidenceFilterState } from "../../components/evidence/FilterRail";
 import { Inspector } from "../../components/evidence/Inspector";
 import { LogStreamsPanel } from "../../components/evidence/LogStreamsPanel";
+import { RiskOverviewPanel } from "../../components/evidence/RiskOverviewPanel";
 import { EmptyState } from "../../components/ui/EmptyState";
 import { Panel, PanelHeader } from "../../components/ui/Panel";
 import { SegmentedTabs } from "../../components/ui/SegmentedTabs";
@@ -344,7 +345,7 @@ export function ReportsPage() {
       ) : reportQuery.isError ? (
         <EmptyState eyebrow="Error" body={String(reportQuery.error)} title="Report could not be loaded" />
       ) : !report ? null : selectedTab === "dashboard" ? (
-        <DashboardScore report={report} />
+        <DashboardScore report={report} onSelectEvent={setSelectedEvent} />
       ) : selectedTab === "logs" ? (
         <LogStreamsPanel
           coverageMatrix={report.coverageMatrix}
@@ -395,39 +396,56 @@ export function ReportsPage() {
   );
 }
 
-function DashboardScore({ report }: { report: NonNullable<ReturnType<typeof adaptReport>> }) {
+function DashboardScore({
+  report,
+  onSelectEvent,
+}: {
+  report: NonNullable<ReturnType<typeof adaptReport>>;
+  onSelectEvent: (eventId: string) => void;
+}) {
   const risk = computeRiskScore(report);
   const toneClass = risk.score >= 75 ? "text-danger" : risk.score >= 45 ? "text-warning" : "text-accent";
 
   return (
-    <section className="score-surface">
-      <div className="eyebrow">Dashboard</div>
-      <div className="mt-6 grid gap-8 lg:grid-cols-[260px_minmax(0,1fr)] lg:items-center">
-        <div className="flex h-[220px] w-[220px] items-center justify-center rounded-full border border-lineStrong bg-panelAlt">
-          <div className="text-center">
-            <div className={`font-display text-[82px] font-semibold tracking-[-0.06em] ${toneClass}`}>{risk.score}</div>
-            <div className="mt-2 text-sm font-medium text-inkSoft">General score</div>
+    <div className="space-y-6">
+      <section className="score-surface">
+        <div className="eyebrow">Dashboard</div>
+        <div className="mt-6 grid gap-8 lg:grid-cols-[260px_minmax(0,1fr)] lg:items-center">
+          <div className="flex h-[220px] w-[220px] items-center justify-center rounded-full border border-lineStrong bg-panelAlt">
+            <div className="text-center">
+              <div className={`font-display text-[82px] font-semibold tracking-[-0.06em] ${toneClass}`}>{risk.score}</div>
+              <div className="mt-2 text-sm font-medium text-inkSoft">General score</div>
+            </div>
           </div>
-        </div>
 
-        <div className="space-y-4">
-          <div>
-            <div className="text-[30px] font-semibold tracking-[-0.04em] text-ink">{risk.label}</div>
-            <p className="mt-3 max-w-2xl text-base leading-8 text-mute">{risk.note}</p>
-            {risk.reasons.length ? (
-              <div className="mt-4 space-y-2 text-sm leading-6 text-mute">
-                {risk.reasons.slice(0, 4).map((reason) => (
-                  <div key={reason}>{reason}</div>
-                ))}
-              </div>
-            ) : null}
-          </div>
-          <div className="h-2 overflow-hidden rounded-full bg-panelAlt">
-            <div className="h-full rounded-full bg-accent" style={{ width: `${risk.score}%` }} />
+          <div className="space-y-4">
+            <div>
+              <div className="text-[30px] font-semibold tracking-[-0.04em] text-ink">{risk.label}</div>
+              <p className="mt-3 max-w-2xl text-base leading-8 text-mute">{risk.note}</p>
+              {risk.reasons.length ? (
+                <div className="mt-4 space-y-2 text-sm leading-6 text-mute">
+                  {risk.reasons.slice(0, 4).map((reason) => (
+                    <div key={reason}>{reason}</div>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+            <div className="h-2 overflow-hidden rounded-full bg-panelAlt">
+              <div className="h-full rounded-full bg-accent" style={{ width: `${risk.score}%` }} />
+            </div>
           </div>
         </div>
-      </div>
-    </section>
+      </section>
+
+      <RiskOverviewPanel
+        attributionSummary={report.attributionSummary}
+        onSelectEvent={onSelectEvent}
+        riskSignals={report.riskSignals}
+        summary={report.summary}
+        title="Detection signals"
+        description="Target observation, run quality, attribution strength, and evidence-linked risk signals stay separate from the raw evidence tabs."
+      />
+    </div>
   );
 }
 

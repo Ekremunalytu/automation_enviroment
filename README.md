@@ -157,6 +157,7 @@ docs/                       Targeted risk notes
 ## Documentation Index
 
 - `documents/ARCHITECTURE.md`: canonical architecture and boundaries
+- `documents/DETECTION_SEMANTICS.md`: meaning and calculation rules for Detection MVP report fields
 - `documents/PROJECT_STRUCTURE.md`: placement rules after the refactor
 - `documents/TESTING.md`: current test layout and commands
 - `documents/EXECUTOR_PLAYWRIGHT.md`: sandbox and Playwright details

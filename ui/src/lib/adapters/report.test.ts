@@ -5,6 +5,35 @@ describe("adaptReport", () => {
   it("prefers canonical evidence events and links", () => {
     const dto: ActivationReportDto = {
       report_version: 2,
+      target_extension_expected: "ms.test",
+      target_extension_observed: true,
+      trigger_plan_applied: true,
+      verification_gap: 1,
+      run_quality: "medium",
+      attribution_summary: {
+        target_activation_count: 1,
+        strong_target_file_event_count: 0,
+        strong_target_network_event_count: 1,
+        correlated_only_event_count: 0,
+      },
+      risk_signals: [
+        {
+          signal_id: "background_outbound_network",
+          category: "background_outbound_network",
+          severity: "high",
+          confidence: 0.84,
+          evidence_event_ids: ["network-1"],
+          summary: "Network activity followed a startup activation.",
+        },
+      ],
+      risk_summary: {
+        total_signals: 1,
+        high: 1,
+        medium: 0,
+        low: 0,
+        critical: 0,
+        categories: ["background_outbound_network"],
+      },
       _metadata: { filename: "activation_report_demo.json" },
       summary: {
         total_activated: 1,
@@ -94,6 +123,10 @@ describe("adaptReport", () => {
     expect(report.coverageMatrix[0]?.capability).toBe("commands");
     expect(report.logStreams.targetExtensionHost[0]?.extensionId).toBe("ms.test");
     expect(report.logStreams.automation[0]?.kind).toBe("scenario");
+    expect(report.summary.targetExtensionObserved).toBe(true);
+    expect(report.summary.runQuality).toBe("medium");
+    expect(report.riskSignals[0]?.category).toBe("background_outbound_network");
+    expect(report.riskSummary.totalSignals).toBe(1);
   });
 
   it("falls back to legacy activation/file/scenario arrays", () => {

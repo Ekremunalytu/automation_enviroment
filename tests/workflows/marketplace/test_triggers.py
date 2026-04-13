@@ -95,6 +95,18 @@ class TestSelectScenarios:
         payload = select_scenarios(events)
         assert "settings_modification" in payload.selected_scenarios
 
+    def test_on_authentication_request_selects_authentication_probe(self) -> None:
+        events = [{"event_type": "onAuthenticationRequest", "event_value": "github"}]
+        payload = select_scenarios(events)
+        assert "authentication_probe" in payload.selected_scenarios
+        assert payload.auth_provider_ids == ["github"]
+
+    def test_on_webview_panel_selects_webview_probe(self) -> None:
+        events = [{"event_type": "onWebviewPanel", "event_value": "sampleView"}]
+        payload = select_scenarios(events)
+        assert "webview_probe" in payload.selected_scenarios
+        assert payload.webview_view_ids == ["sampleView"]
+
     def test_workspace_contains_selects_exploration(self) -> None:
         events = [{"event_type": "workspaceContains", "event_value": "**/.gitignore"}]
         payload = select_scenarios(events)
@@ -148,6 +160,27 @@ class TestSelectScenarios:
         )
         assert commands["status"] == "covered"
         assert missing["status"] == "missing"
+
+    def test_authentication_and_webview_are_reported_as_covered_when_selected(
+        self,
+    ) -> None:
+        payload = select_scenarios(
+            [
+                {"event_type": "onAuthenticationRequest", "event_value": "github"},
+                {"event_type": "onWebviewPanel", "event_value": "sampleView"},
+            ]
+        )
+
+        authentication = next(
+            item
+            for item in payload.coverage_matrix
+            if item["capability"] == "authentication"
+        )
+        webview = next(
+            item for item in payload.coverage_matrix if item["capability"] == "webview"
+        )
+        assert authentication["status"] == "covered"
+        assert webview["status"] == "covered"
 
     def test_static_coverage_audit_exposes_missing_capabilities(self) -> None:
         audit = build_static_coverage_audit()

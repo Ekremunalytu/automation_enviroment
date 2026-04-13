@@ -1,6 +1,7 @@
 import type {
   ActivationEntryDto,
   ActivationReportDto,
+  AttributionSummaryDto,
   CoverageCapabilityDto,
   CoverageSummaryDto,
   EvidenceEventDto,
@@ -8,10 +9,13 @@ import type {
   FileEventDto,
   LogStreamEntryDto,
   NetworkEventDto,
+  RiskSignalDto,
+  RiskSummaryDto,
   ScenarioTraceDto,
 } from "../types/contracts";
 import type {
   ActivationReportView,
+  AttributionSummaryView,
   CoverageCapabilityView,
   CoverageSummaryView,
   EvidenceEventView,
@@ -19,6 +23,8 @@ import type {
   EvidenceLinkView,
   LogEntryView,
   LogStreamsView,
+  RiskSignalView,
+  RiskSummaryView,
   ReportSummaryView,
 } from "../types/view-models";
 
@@ -58,6 +64,15 @@ function parseRelTime(value?: number | null) {
 function parseAttributionConfidence(value?: number | null) {
   if (typeof value !== "number" || Number.isNaN(value)) return 0;
   return Number(value.toFixed(2));
+}
+
+function normalizeRunQuality(value: unknown): ReportSummaryView["runQuality"] {
+  return value === "high" ||
+    value === "medium" ||
+    value === "low" ||
+    value === "inconclusive"
+    ? value
+    : "inconclusive";
 }
 
 function fromCanonicalEvent(event: EvidenceEventDto, index: number): EvidenceEventView {
@@ -298,6 +313,19 @@ function buildSummary(report: ActivationReportDto, events: EvidenceEventView[]):
       ? summary.verified_capabilities.map(String)
       : [],
     uiBlockerCount: Number(summary.ui_blocker_count ?? report.log_streams?.ui_blockers?.length ?? 0),
+    targetExtensionExpected: String(
+      summary.target_extension_expected ?? report.target_extension_expected ?? "",
+    ),
+    targetExtensionObserved: Boolean(
+      summary.target_extension_observed ?? report.target_extension_observed ?? false,
+    ),
+    triggerPlanApplied: Boolean(
+      summary.trigger_plan_applied ?? report.trigger_plan_applied ?? false,
+    ),
+    verificationGap: Number(
+      summary.verification_gap ?? report.verification_gap ?? 0,
+    ),
+    runQuality: normalizeRunQuality(summary.run_quality ?? report.run_quality),
     verdictLevel:
       verdictLevel === "benign" ||
       verdictLevel === "needs_review" ||
@@ -308,6 +336,20 @@ function buildSummary(report: ActivationReportDto, events: EvidenceEventView[]):
     verdictScore: Number(verdict.score ?? 0),
     verdictReasons: Array.isArray(verdict.reasons) ? verdict.reasons.map(String) : [],
     verdictNote: typeof verdict.note === "string" ? verdict.note : "",
+  };
+}
+
+function buildAttributionSummary(
+  summary?: AttributionSummaryDto | null,
+): AttributionSummaryView {
+  return {
+    targetActivationCount: Number(summary?.target_activation_count ?? 0),
+    strongTargetFileEventCount: Number(summary?.strong_target_file_event_count ?? 0),
+    strongTargetNetworkEventCount: Number(summary?.strong_target_network_event_count ?? 0),
+    correlatedOnlyEventCount: Number(summary?.correlated_only_event_count ?? 0),
+    backgroundActivationCount: Number(summary?.background_activation_count ?? 0),
+    competingCandidateCount: Number(summary?.competing_candidate_count ?? 0),
+    uiBlockerCount: Number(summary?.ui_blocker_count ?? 0),
   };
 }
 
@@ -368,6 +410,32 @@ function fromLogEntry(entry: LogStreamEntryDto): LogEntryView {
   };
 }
 
+function fromRiskSignal(entry: RiskSignalDto, index: number): RiskSignalView {
+  const confidence = parseAttributionConfidence(entry.confidence);
+  return {
+    signalId: entry.signal_id || `signal-${index + 1}`,
+    category: entry.category || "risk_signal",
+    categoryLabel: labelize(entry.category || "risk_signal", "Risk Signal"),
+    severity: entry.severity || "medium",
+    severityLabel: labelize(entry.severity || "medium", "Medium"),
+    confidence,
+    confidencePct: Math.round(confidence * 100),
+    evidenceEventIds: Array.isArray(entry.evidence_event_ids) ? entry.evidence_event_ids.map(String) : [],
+    summary: entry.summary || "",
+  };
+}
+
+function buildRiskSummary(summary?: RiskSummaryDto | null): RiskSummaryView {
+  return {
+    totalSignals: Number(summary?.total_signals ?? 0),
+    critical: Number(summary?.critical ?? 0),
+    high: Number(summary?.high ?? 0),
+    medium: Number(summary?.medium ?? 0),
+    low: Number(summary?.low ?? 0),
+    categories: Array.isArray(summary?.categories) ? summary?.categories.map(String) : [],
+  };
+}
+
 function buildLogStreams(dto: ActivationReportDto): LogStreamsView {
   return {
     targetExtensionHost: (dto.log_streams?.target_extension_host || []).map(fromLogEntry),
@@ -378,6 +446,7 @@ function buildLogStreams(dto: ActivationReportDto): LogStreamsView {
 }
 
 export function adaptReport(dto: ActivationReportDto, reportId: string): ActivationReportView {
+  const summary = dto.summary || {};
   const evidence =
     dto.evidence_events?.length
       ? dto.evidence_events.map(fromCanonicalEvent)
@@ -399,6 +468,19 @@ export function adaptReport(dto: ActivationReportDto, reportId: string): Activat
     reportId,
     reportVersion: dto.report_version || 1,
     summary: buildSummary(dto, evidence),
+    attributionSummary: buildAttributionSummary(
+      dto.attribution_summary ||
+        (typeof summary["attribution_summary"] === "object"
+          ? (summary["attribution_summary"] as AttributionSummaryDto)
+          : undefined),
+    ),
+    riskSignals: (dto.risk_signals || []).map(fromRiskSignal),
+    riskSummary: buildRiskSummary(
+      dto.risk_summary ||
+        (typeof summary["risk_summary"] === "object"
+          ? (summary["risk_summary"] as RiskSummaryDto)
+          : undefined),
+    ),
     coverageSummary: buildCoverageSummary(dto.coverage_summary, dto.coverage_matrix || []),
     coverageMatrix: (dto.coverage_matrix || []).map(fromCoverageCapability),
     logStreams: buildLogStreams(dto),

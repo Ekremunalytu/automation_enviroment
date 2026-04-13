@@ -49,6 +49,13 @@ def build_trigger_payload(
         for event in activation_events
     ]
     custom_editors = contributes.customEditors if contributes else None
+    authentication_data = None
+    if contributes and contributes.authentication:
+        authentication_data = [
+            {"auth_id": item.auth_id, "label": item.label}
+            for item in contributes.authentication
+        ]
+    views = contributes.views if contributes else None
     publisher_name = f"{request.publisher}.{request.name}"
     commands_data = None
     if contributes and contributes.commands:
@@ -62,6 +69,8 @@ def build_trigger_payload(
         custom_editors,
         publisher_name,
         contributes_commands=commands_data,
+        contributes_authentication=authentication_data,
+        contributes_views=views,
     )
     trigger_container_path = write_trigger_file(
         request.publisher,

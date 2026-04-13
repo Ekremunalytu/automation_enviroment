@@ -49,6 +49,37 @@ function renderPage(entry: string) {
 
 const latestReport = {
   report_version: 2,
+  target_extension_expected: "publisher.tool",
+  target_extension_observed: true,
+  trigger_plan_applied: true,
+  verification_gap: 1,
+  run_quality: "medium",
+  attribution_summary: {
+    target_activation_count: 1,
+    strong_target_file_event_count: 1,
+    strong_target_network_event_count: 1,
+    correlated_only_event_count: 0,
+    background_activation_count: 1,
+    ui_blocker_count: 0,
+  },
+  risk_signals: [
+    {
+      signal_id: "credential_or_secret_access",
+      category: "credential_or_secret_access",
+      severity: "high",
+      confidence: 0.88,
+      evidence_event_ids: ["file-1"],
+      summary: "The target extension accessed a secret-bearing path.",
+    },
+  ],
+  risk_summary: {
+    total_signals: 1,
+    high: 1,
+    medium: 0,
+    low: 0,
+    critical: 0,
+    categories: ["credential_or_secret_access"],
+  },
   _metadata: { filename: "activation_report_demo.json" },
   summary: {
     total_activated: 1,
@@ -57,6 +88,12 @@ const latestReport = {
     network_events: 1,
     file_events: 1,
     sensitive_file_events: 1,
+    verdict: {
+      level: "suspicious",
+      score: 72,
+      reasons: ["Sensitive file access was followed by outbound traffic."],
+      note: "Sensitive file access was followed by outbound traffic.",
+    },
   },
   evidence_events: [
     {
@@ -167,6 +204,9 @@ describe("ReportsPage", () => {
 
     expect(await screen.findByText("Security report")).toBeInTheDocument();
     expect(await screen.findByText("General score")).toBeInTheDocument();
+    expect(await screen.findByText("Detection signals")).toBeInTheDocument();
+    expect(screen.getByText("Run quality")).toBeInTheDocument();
+    expect(screen.getByText("The target extension accessed a secret-bearing path.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "File I/O" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Network" }));

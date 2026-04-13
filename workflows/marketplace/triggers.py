@@ -41,11 +41,11 @@ _GLOBAL_CAPABILITY_SUPPORT: dict[str, str] = {
     "notebooks": "covered",
     "custom_editors": "partial",
     "uri_walkthrough": "partial",
-    "authentication": "missing",
+    "authentication": "covered",
     "chat": "missing",
     "comments": "missing",
     "testing": "missing",
-    "webview": "missing",
+    "webview": "covered",
     "workspace_trust": "missing",
 }
 
@@ -58,11 +58,18 @@ _GLOBAL_CAPABILITY_NOTES: dict[str, str] = {
     "uri_walkthrough": (
         "URI and walkthrough triggers are exercised through generic launch flows only."
     ),
-    "authentication": "No authentication provider or session automation exists yet.",
+    "authentication": (
+        "Authentication coverage exercises provider and account flows, but still "
+        "depends on generic VS Code account surfaces rather than provider-specific "
+        "consent automation."
+    ),
     "chat": "Chat participant and chat UI automation do not exist yet.",
     "comments": "Comments panel and thread interactions are not automated yet.",
     "testing": "Testing API and test explorer workflows are not automated yet.",
-    "webview": "Webview-specific validation and interaction are not automated yet.",
+    "webview": (
+        "Webview coverage exercises preview and panel surfaces, but target-specific "
+        "DOM assertions remain best-effort."
+    ),
     "workspace_trust": (
         "Workspace trust prompts and trust-state transitions are not covered."
     ),
@@ -213,6 +220,26 @@ SCENARIO_REGISTRY: tuple[ScenarioDefinition, ...] = (
         success_signals=("notebook open", "cell focus"),
         risk_of_noise="medium",
     ),
+    ScenarioDefinition(
+        name="authentication_probe",
+        intent="Open account and sign-in surfaces to trigger authentication flows.",
+        activation_events=("onAuthenticationRequest",),
+        contributes_signals=("authentication", "commands", "menus"),
+        api_capabilities=("commands", "window_ui", "authentication"),
+        prerequisites=("accounts integration available",),
+        success_signals=("accounts menu", "sign in prompt"),
+        risk_of_noise="medium",
+    ),
+    ScenarioDefinition(
+        name="webview_probe",
+        intent="Open preview and panel flows that rely on VS Code webview surfaces.",
+        activation_events=("onWebviewPanel",),
+        contributes_signals=("commands", "views", "viewsWelcome"),
+        api_capabilities=("commands", "window_ui", "webview"),
+        prerequisites=("previewable workspace file available",),
+        success_signals=("preview open", "webview surface"),
+        risk_of_noise="medium",
+    ),
 )
 
 _SCENARIO_BY_NAME = {scenario.name: scenario for scenario in SCENARIO_REGISTRY}
@@ -232,6 +259,8 @@ class TriggerPayload:
     extra_notebook_files: list[str] = field(default_factory=list)
     extra_custom_editor_files: list[str] = field(default_factory=list)
     extra_commands: list[str] = field(default_factory=list)
+    auth_provider_ids: list[str] = field(default_factory=list)
+    webview_view_ids: list[str] = field(default_factory=list)
     uri_trigger: str | None = None
     run_task_trigger: bool = False
     run_walkthrough_trigger: bool = False
@@ -253,6 +282,8 @@ EVENT_TYPE_TO_SCENARIOS: dict[str, list[str]] = {
     "onNotebook": ["notebook_session"],
     "onTaskType": ["terminal_usage"],
     "onTerminalProfile": ["terminal_usage"],
+    "onAuthenticationRequest": ["authentication_probe"],
+    "onWebviewPanel": ["webview_probe"],
     "onWalkthrough": [],
     "onUri": [],
     "onCustomEditor": [],
@@ -269,6 +300,8 @@ def select_scenarios(
     contributes_custom_editors: list[dict] | None = None,
     publisher_name: str | None = None,
     contributes_commands: list[dict] | None = None,
+    contributes_authentication: list[dict] | None = None,
+    contributes_views: dict[str, Any] | None = None,
 ) -> TriggerPayload:
     """Select automation scenarios based on an extension's activation events."""
     selected: set[str] = set()
@@ -331,6 +364,22 @@ def select_scenarios(
             payload.extra_notebook_files.append("notebooks/analysis.ipynb")
         if event_type == "onTaskType":
             payload.run_task_trigger = True
+        if event_type == "onAuthenticationRequest":
+            mark_scenario(
+                "authentication_probe",
+                reason=f"activation {event_label}",
+                score=940,
+            )
+            if event_value:
+                payload.auth_provider_ids.append(str(event_value))
+        if event_type == "onWebviewPanel":
+            mark_scenario(
+                "webview_probe",
+                reason=f"activation {event_label}",
+                score=930,
+            )
+            if event_value:
+                payload.webview_view_ids.append(str(event_value))
         if event_type == "onWalkthrough":
             payload.run_walkthrough_trigger = True
         if event_type == "onUri" and publisher_name:
@@ -353,6 +402,34 @@ def select_scenarios(
             if title:
                 payload.extra_commands.append(title)
 
+    if contributes_authentication:
+        mark_scenario(
+            "authentication_probe",
+            reason="contributes.authentication advertised provider metadata",
+            score=520,
+        )
+        for provider in contributes_authentication:
+            provider_id = provider.get("auth_id") or provider.get("id") or ""
+            if provider_id:
+                payload.auth_provider_ids.append(str(provider_id))
+
+    if contributes_views:
+        if any(str(key).startswith("webview") for key in contributes_views):
+            mark_scenario(
+                "webview_probe",
+                reason="contributes.views exposed a webview-oriented surface",
+                score=510,
+            )
+        for _location, views in contributes_views.items():
+            if not isinstance(views, list):
+                continue
+            for view in views:
+                if not isinstance(view, dict):
+                    continue
+                view_id = view.get("id") or ""
+                if view_id and "webview" in str(view_id).lower():
+                    payload.webview_view_ids.append(str(view_id))
+
     if not selected:
         mark_scenario(
             "coding_session",
@@ -364,6 +441,8 @@ def select_scenarios(
         )
 
     payload.extra_commands = payload.extra_commands[:_MAX_EXTRA_COMMANDS]
+    payload.auth_provider_ids = sorted(set(payload.auth_provider_ids))
+    payload.webview_view_ids = sorted(set(payload.webview_view_ids))
     payload.selected_scenarios = _order_scenarios(selected, scenario_scores)
     payload.selection_reasons = {
         scenario_name: sorted(scenario_reasons.get(scenario_name, set()))
@@ -485,6 +564,13 @@ def _collect_active_capabilities(payload: TriggerPayload) -> set[str]:
         capabilities.add("terminal_tasks")
     if payload.run_walkthrough_trigger or payload.uri_trigger:
         capabilities.add("uri_walkthrough")
+    if (
+        payload.auth_provider_ids
+        or "authentication_probe" in payload.selected_scenarios
+    ):
+        capabilities.add("authentication")
+    if payload.webview_view_ids or "webview_probe" in payload.selected_scenarios:
+        capabilities.add("webview")
     return capabilities
 
 

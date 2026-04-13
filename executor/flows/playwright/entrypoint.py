@@ -375,6 +375,7 @@ def main() -> None:
 
         # Load trigger payload if provided
         trigger_payload: trigger_loader.TriggerPayload | None = None
+        trigger_plan_requested = bool(args.triggers)
         if args.triggers:
             print(f"[*] Loading trigger payload from {args.triggers}...")
             trigger_payload = trigger_loader.load_trigger_file(args.triggers)
@@ -400,8 +401,18 @@ def main() -> None:
                 )
                 mon.start()
                 automation.set_scenario_event_reporter(mon.record_scenario_event)
+                mon.report.trigger_plan_requested = trigger_plan_requested
                 if trigger_payload is not None:
                     mon.apply_trigger_payload(trigger_payload)
+                elif trigger_plan_requested:
+                    mon.record_automation_event(
+                        "trigger_plan",
+                        (
+                            "Trigger payload could not be loaded inside the executor; "
+                            "continuing with degraded reliability."
+                        ),
+                        status="failed",
+                    )
 
             if args.reload_before_run:
                 page = _reload_window_under_monitoring(browser, page)

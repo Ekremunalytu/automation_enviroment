@@ -59,10 +59,46 @@ export interface ReportSummaryView {
   attemptedCapabilities: string[];
   verifiedCapabilities: string[];
   uiBlockerCount: number;
+  targetExtensionExpected: string;
+  targetExtensionObserved: boolean;
+  triggerPlanApplied: boolean;
+  verificationGap: number;
+  runQuality: "high" | "medium" | "low" | "inconclusive";
   verdictLevel: "benign" | "needs_review" | "suspicious" | "likely_malicious";
   verdictScore: number;
   verdictReasons: string[];
   verdictNote: string;
+}
+
+export interface AttributionSummaryView {
+  targetActivationCount: number;
+  strongTargetFileEventCount: number;
+  strongTargetNetworkEventCount: number;
+  correlatedOnlyEventCount: number;
+  backgroundActivationCount: number;
+  competingCandidateCount: number;
+  uiBlockerCount: number;
+}
+
+export interface RiskSignalView {
+  signalId: string;
+  category: string;
+  categoryLabel: string;
+  severity: string;
+  severityLabel: string;
+  confidence: number;
+  confidencePct: number;
+  evidenceEventIds: string[];
+  summary: string;
+}
+
+export interface RiskSummaryView {
+  totalSignals: number;
+  critical: number;
+  high: number;
+  medium: number;
+  low: number;
+  categories: string[];
 }
 
 export interface CoverageSummaryView {
@@ -119,6 +155,9 @@ export interface ActivationReportView {
   reportId: string;
   reportVersion: number;
   summary: ReportSummaryView;
+  attributionSummary: AttributionSummaryView;
+  riskSignals: RiskSignalView[];
+  riskSummary: RiskSummaryView;
   coverageSummary: CoverageSummaryView;
   coverageMatrix: CoverageCapabilityView[];
   logStreams: LogStreamsView;

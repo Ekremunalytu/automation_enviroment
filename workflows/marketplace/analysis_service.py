@@ -114,7 +114,10 @@ def execute_analysis_request(
         report(
             "build_triggers",
             "completed",
-            "Trigger selection unavailable; continuing with default sandbox flow.",
+            (
+                "Trigger selection failed; continuing with degraded reliability "
+                "and default sandbox flow."
+            ),
         )
 
     report(

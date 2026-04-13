@@ -95,6 +95,37 @@ describe("SimulationPage", () => {
     });
     vi.mocked(apiClient.getReportByName).mockResolvedValueOnce({
       report_version: 2,
+      target_extension_expected: "ms.lint",
+      target_extension_observed: false,
+      trigger_plan_applied: false,
+      verification_gap: 2,
+      run_quality: "inconclusive",
+      attribution_summary: {
+        target_activation_count: 1,
+        strong_target_file_event_count: 0,
+        strong_target_network_event_count: 0,
+        correlated_only_event_count: 1,
+        background_activation_count: 1,
+        ui_blocker_count: 0,
+      },
+      risk_signals: [
+        {
+          signal_id: "correlative_suspicious_activity",
+          category: "correlative_suspicious_activity",
+          severity: "medium",
+          confidence: 0.45,
+          evidence_event_ids: ["network-1"],
+          summary: "Suspicious telemetry was only correlative in this run.",
+        },
+      ],
+      risk_summary: {
+        total_signals: 1,
+        critical: 0,
+        high: 0,
+        medium: 1,
+        low: 0,
+        categories: ["correlative_suspicious_activity"],
+      },
       evidence_events: [
         {
           event_id: "activation-1",
@@ -154,6 +185,12 @@ describe("SimulationPage", () => {
       },
       summary: {
         network_events: 1,
+        verdict: {
+          level: "needs_review",
+          score: 34,
+          reasons: ["The target extension was not observed with enough confidence."],
+          note: "The target extension was not observed with enough confidence.",
+        },
       },
     });
 
@@ -162,6 +199,8 @@ describe("SimulationPage", () => {
     await waitFor(() => {
       expect(screen.getAllByText("Live Event Stream").length).toBeGreaterThan(0);
     });
+    expect(screen.getByText("Live detection posture")).toBeInTheDocument();
+    expect(screen.getByText("This run is inconclusive because the target extension was not observed with enough confidence.")).toBeInTheDocument();
     expect(screen.getByText("Status")).toBeInTheDocument();
     expect(screen.getByText("Progress")).toBeInTheDocument();
     expect(screen.getByTestId("chart")).toBeInTheDocument();

@@ -609,6 +609,8 @@ def test_build_trigger_payload_passes_commands_and_custom_editors(
     ]
     contributes = SimpleNamespace(
         customEditors=[{"viewType": "custom.editor"}],
+        authentication=[{"auth_id": "github", "label": "GitHub"}],
+        views={"explorer": [{"id": "webview.sample"}]},
         commands=[SimpleNamespace(title="Run", command_id="extension.run")],
     )
     payload = SimpleNamespace(selected_scenarios=["command_palette"])
@@ -644,6 +646,8 @@ def test_build_trigger_payload_passes_commands_and_custom_editors(
         [{"viewType": "custom.editor"}],
         "ms-python.python",
         contributes_commands=[{"title": "Run", "command_id": "extension.run"}],
+        contributes_authentication=[{"auth_id": "github", "label": "GitHub"}],
+        contributes_views={"explorer": [{"id": "webview.sample"}]},
     )
     mock_write.assert_called_once()
 
@@ -686,7 +690,7 @@ def test_execute_analysis_request_falls_back_when_trigger_build_fails() -> None:
     assert any(
         step == "build_triggers"
         and status == "completed"
-        and "trigger selection unavailable" in message.lower()
+        and "degraded reliability" in message.lower()
         for step, status, message in progress_events
     )
     assert mock_run.call_args.kwargs["trigger_container_path"] is None

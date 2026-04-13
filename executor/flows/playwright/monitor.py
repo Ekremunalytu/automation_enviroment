@@ -235,6 +235,18 @@ class LogStreamEntry:
 
 
 @dataclass
+class RiskSignal:
+    """Normalized risk signal derived from report evidence."""
+
+    signal_id: str
+    category: str
+    severity: str
+    confidence: float
+    evidence_event_ids: list[str] = field(default_factory=list)
+    summary: str = ""
+
+
+@dataclass
 class ActivationReport:
     """Aggregated monitoring results."""
 
@@ -251,6 +263,8 @@ class ActivationReport:
     attempted_capabilities: list[str] = field(default_factory=list)
     verified_capabilities: list[str] = field(default_factory=list)
     verdict: dict[str, Any] = field(default_factory=dict)
+    trigger_plan_requested: bool = False
+    trigger_plan_applied: bool = False
     network_capture_error: str = ""
     file_capture_error: str = ""
     extension_host_output: str = ""
@@ -300,6 +314,84 @@ class ActivationReport:
         return [entry for entry in self.log_entries if entry.stream == "ui_blockers"]
 
     @property
+    def target_extension_observed(self) -> bool:
+        if not self.target_extension_id:
+            return False
+        return bool(
+            any(
+                entry.extension_id == self.target_extension_id
+                for entry in self.activated
+            )
+            or any(
+                entry.extension_id == self.target_extension_id
+                for entry in self.running_extensions
+            )
+            or self.target_file_events
+            or self.target_network_events
+        )
+
+    @property
+    def verification_gap(self) -> int:
+        attempted = len(set(self.attempted_capabilities))
+        verified = len(set(self.verified_capabilities))
+        return max(attempted - verified, 0)
+
+    @property
+    def attribution_summary(self) -> dict[str, Any]:
+        strong_target_files = [
+            event
+            for event in self.target_file_events
+            if event.attribution_status == "target_attributed"
+        ]
+        strong_target_networks = [
+            event
+            for event in self.target_network_events
+            if event.attribution_status == "target_attributed"
+        ]
+        correlated_only = [
+            event
+            for event in [*self.file_events, *self.network_events]
+            if getattr(event, "attribution_status", "")
+            in {"near_target_activation", "competing_candidate"}
+        ]
+        background_activations = [
+            event
+            for event in self.activated
+            if event.extension_id == self.target_extension_id
+            and _is_background_activation(event.activation_event)
+        ]
+        competing_candidates = [
+            event
+            for event in [*self.file_events, *self.network_events]
+            if getattr(event, "attribution_status", "") == "competing_candidate"
+        ]
+        return {
+            "target_activation_count": _count_target_activations(
+                self.activated,
+                self.target_extension_id,
+            ),
+            "strong_target_file_event_count": len(strong_target_files),
+            "strong_target_network_event_count": len(strong_target_networks),
+            "correlated_only_event_count": len(correlated_only),
+            "background_activation_count": len(background_activations),
+            "competing_candidate_count": len(competing_candidates),
+            "ui_blocker_count": len(self.ui_blocker_entries),
+        }
+
+    @property
+    def run_quality(self) -> str:
+        quality, _ = _build_run_quality(self)
+        return quality
+
+    @property
+    def risk_signals(self) -> list[RiskSignal]:
+        return _build_risk_signals(self)
+
+    @property
+    def risk_summary(self) -> dict[str, Any]:
+        return _build_risk_summary(self.risk_signals)
+
+    @property
     def summary(self) -> dict:
         unique_ids = self.activated_ids | self.runtime_ids
         return {
@@ -321,6 +413,14 @@ class ActivationReport:
             "attempted_capabilities": self.attempted_capabilities,
             "verified_capabilities": self.verified_capabilities,
             "ui_blocker_count": len(self.ui_blocker_entries),
+            "target_extension_expected": self.target_extension_id,
+            "target_extension_observed": self.target_extension_observed,
+            "trigger_plan_applied": self.trigger_plan_applied
+            or not self.trigger_plan_requested,
+            "verification_gap": self.verification_gap,
+            "run_quality": self.run_quality,
+            "attribution_summary": self.attribution_summary,
+            "risk_summary": self.risk_summary,
             "verdict": self.verdict,
         }
 
@@ -404,6 +504,15 @@ class ActivationReport:
         evidence_events, evidence_links = _build_evidence_bundle(self)
         data = {
             "report_version": self.report_version,
+            "target_extension_expected": self.target_extension_id,
+            "target_extension_observed": self.target_extension_observed,
+            "trigger_plan_applied": self.trigger_plan_applied
+            or not self.trigger_plan_requested,
+            "verification_gap": self.verification_gap,
+            "run_quality": self.run_quality,
+            "attribution_summary": self.attribution_summary,
+            "risk_signals": [asdict(signal) for signal in self.risk_signals],
+            "risk_summary": self.risk_summary,
             "summary": self.summary,
             "activated": [asdict(e) for e in self.activated],
             "running_extensions": [asdict(e) for e in self.running_extensions],
@@ -445,6 +554,9 @@ class ActivationReport:
         print(f"  Network hosts       : {len(self.network_hosts)}")
         print(f"  File events         : {len(self.file_events)}")
         print(f"  Sensitive file I/O  : {len(self.sensitive_file_events)}")
+        print(f"  Target observed     : {self.target_extension_observed}")
+        print(f"  Run quality         : {self.run_quality}")
+        print(f"  Verification gap    : {self.verification_gap}")
         if self.activated:
             print("\n  Activated extensions:")
             for entry in self.activated:
@@ -1446,6 +1558,8 @@ class ExtensionMonitor:
 
     def apply_trigger_payload(self, payload: Any) -> None:
         """Attach trigger-selection metadata to the in-progress report."""
+        self.report.trigger_plan_requested = True
+        self.report.trigger_plan_applied = True
         self.report.coverage_summary = dict(getattr(payload, "coverage_summary", {}))
         self.report.coverage_matrix = list(getattr(payload, "coverage_matrix", []))
         self.report.attempted_capabilities = _extract_attempted_capabilities(payload)
@@ -2894,6 +3008,16 @@ def _derive_verified_capabilities(report: ActivationReport) -> list[str]:
         for activation in target_activations
     ):
         verified.add("uri_walkthrough")
+    if any(
+        activation.activation_event.startswith("onAuthenticationRequest")
+        for activation in target_activations
+    ):
+        verified.add("authentication")
+    if any(
+        activation.activation_event.startswith("onWebviewPanel")
+        for activation in target_activations
+    ):
+        verified.add("webview")
     if target_network_events and "workspace_fs" in verified:
         verified.add("commands")
 
@@ -2938,6 +3062,28 @@ def _reconcile_coverage_verification(
     return summary, matrix
 
 
+def _build_run_quality(report: ActivationReport) -> tuple[str, list[str]]:
+    reasons: list[str] = []
+    if not report.target_extension_id:
+        reasons.append("Target extension context was missing.")
+        return "inconclusive", reasons
+    if report.trigger_plan_requested and not report.trigger_plan_applied:
+        reasons.append("The executor did not apply the trigger plan.")
+    if not report.target_extension_observed:
+        reasons.append("The target extension was not observed during this run.")
+        return "inconclusive", reasons
+    if report.ui_blocker_entries:
+        reasons.append("UI blockers interrupted part of the automation flow.")
+    if report.verification_gap >= 3:
+        reasons.append("Multiple attempted capabilities could not be verified.")
+        return "low", reasons
+    if report.trigger_plan_requested and not report.trigger_plan_applied:
+        return "low", reasons
+    if report.verification_gap > 0 or report.ui_blocker_entries:
+        return "medium", reasons
+    return "high", reasons
+
+
 def _is_background_activation(activation_event: str) -> bool:
     if not activation_event:
         return False
@@ -2951,6 +3097,234 @@ def _is_background_activation(activation_event: str) -> bool:
     } or activation_event.startswith("onLanguage")
 
 
+def _indexed_target_activations(
+    report: ActivationReport,
+) -> list[tuple[str, ActivationEntry]]:
+    if not report.target_extension_id:
+        return []
+    return [
+        (f"activation-{index:04d}", entry)
+        for index, entry in enumerate(report.activated, start=1)
+        if entry.extension_id == report.target_extension_id
+    ]
+
+
+def _indexed_target_file_events(
+    report: ActivationReport,
+) -> list[tuple[str, FileEvent]]:
+    return [
+        (f"file-{index:04d}", entry)
+        for index, entry in enumerate(report.file_events, start=1)
+        if entry.is_target_extension_event
+    ]
+
+
+def _indexed_target_network_events(
+    report: ActivationReport,
+) -> list[tuple[str, NetworkEvent]]:
+    return [
+        (f"network-{index:04d}", entry)
+        for index, entry in enumerate(report.network_events, start=1)
+        if entry.is_target_extension_event
+    ]
+
+
+def _indexed_ui_blockers(report: ActivationReport) -> list[tuple[str, LogStreamEntry]]:
+    return [
+        (f"ui-blocker-{index:04d}", entry)
+        for index, entry in enumerate(report.ui_blocker_entries, start=1)
+    ]
+
+
+def _build_risk_signals(report: ActivationReport) -> list[RiskSignal]:
+    signals: list[RiskSignal] = []
+    indexed_target_activations = _indexed_target_activations(report)
+    background_activation_ids = [
+        event_id
+        for event_id, activation in indexed_target_activations
+        if _is_background_activation(activation.activation_event)
+    ]
+    strong_target_files = [
+        (event_id, event)
+        for event_id, event in _indexed_target_file_events(report)
+        if event.attribution_status == "target_attributed"
+    ]
+    strong_target_networks = [
+        (event_id, event)
+        for event_id, event in _indexed_target_network_events(report)
+        if event.attribution_status == "target_attributed"
+    ]
+    sensitive_target_files = [
+        (event_id, event) for event_id, event in strong_target_files if event.sensitive
+    ]
+    correlated_events: list[tuple[str, float, str]] = []
+    for index, file_event in enumerate(report.file_events, start=1):
+        if (
+            file_event.attribution_status
+            in {"near_target_activation", "competing_candidate"}
+            and file_event.sensitive
+        ):
+            correlated_events.append(
+                (
+                    f"file-{index:04d}",
+                    file_event.attribution_confidence,
+                    file_event.summary,
+                )
+            )
+    for index, network_event in enumerate(report.network_events, start=1):
+        if network_event.attribution_status in {
+            "near_target_activation",
+            "competing_candidate",
+        }:
+            correlated_events.append(
+                (
+                    f"network-{index:04d}",
+                    network_event.attribution_confidence,
+                    network_event.summary,
+                )
+            )
+
+    if background_activation_ids and sensitive_target_files:
+        signals.append(
+            RiskSignal(
+                signal_id="background_sensitive_file_access",
+                category="background_sensitive_file_access",
+                severity="high",
+                confidence=max(
+                    0.82,
+                    max(
+                        event.attribution_confidence
+                        for _, event in sensitive_target_files
+                    ),
+                ),
+                evidence_event_ids=background_activation_ids
+                + [event_id for event_id, _ in sensitive_target_files],
+                summary=(
+                    "The target extension touched sensitive files after a startup or "
+                    "background activation."
+                ),
+            )
+        )
+    if background_activation_ids and strong_target_networks:
+        signals.append(
+            RiskSignal(
+                signal_id="background_outbound_network",
+                category="background_outbound_network",
+                severity="high",
+                confidence=max(
+                    0.78,
+                    max(
+                        event.attribution_confidence
+                        for _, event in strong_target_networks
+                    ),
+                ),
+                evidence_event_ids=background_activation_ids
+                + [event_id for event_id, _ in strong_target_networks],
+                summary=(
+                    "Outbound network activity followed a startup or background target "
+                    "activation."
+                ),
+            )
+        )
+    if sensitive_target_files:
+        signals.append(
+            RiskSignal(
+                signal_id="credential_or_secret_access",
+                category="credential_or_secret_access",
+                severity="high",
+                confidence=max(
+                    0.84,
+                    max(
+                        event.attribution_confidence
+                        for _, event in sensitive_target_files
+                    ),
+                ),
+                evidence_event_ids=[event_id for event_id, _ in sensitive_target_files],
+                summary=(
+                    "The target extension accessed credential or secret-bearing paths "
+                    "with strong attribution."
+                ),
+            )
+        )
+    if len({event.path for _, event in sensitive_target_files}) >= 2:
+        signals.append(
+            RiskSignal(
+                signal_id="multiple_sensitive_artifacts",
+                category="multiple_sensitive_artifacts",
+                severity="high",
+                confidence=0.9,
+                evidence_event_ids=[event_id for event_id, _ in sensitive_target_files],
+                summary=(
+                    "Multiple distinct sensitive artifacts were touched by the target "
+                    "extension."
+                ),
+            )
+        )
+    if sensitive_target_files and strong_target_networks:
+        signals.append(
+            RiskSignal(
+                signal_id="sensitive_file_and_network_combo",
+                category="sensitive_file_and_network_combo",
+                severity="critical",
+                confidence=0.94,
+                evidence_event_ids=[event_id for event_id, _ in sensitive_target_files]
+                + [event_id for event_id, _ in strong_target_networks],
+                summary=(
+                    "Sensitive local access and outbound network activity were both "
+                    "strongly attributed to the target extension."
+                ),
+            )
+        )
+    if correlated_events:
+        signals.append(
+            RiskSignal(
+                signal_id="correlative_suspicious_activity",
+                category="correlative_suspicious_activity",
+                severity="medium",
+                confidence=max(
+                    0.35,
+                    max(confidence for _, confidence, _ in correlated_events),
+                ),
+                evidence_event_ids=[event_id for event_id, _, _ in correlated_events],
+                summary=(
+                    "Suspicious telemetry was observed near target activations, but the "
+                    "evidence remains correlative."
+                ),
+            )
+        )
+    if report.ui_blocker_entries:
+        signals.append(
+            RiskSignal(
+                signal_id="ui_blocker_verification_gap",
+                category="ui_blocker_verification_gap",
+                severity="medium",
+                confidence=1.0,
+                evidence_event_ids=[
+                    event_id for event_id, _ in _indexed_ui_blockers(report)
+                ],
+                summary=(
+                    "UI blockers interrupted the run and reduced verification certainty."
+                ),
+            )
+        )
+    return signals
+
+
+def _build_risk_summary(signals: list[RiskSignal]) -> dict[str, Any]:
+    severities = {"critical": 0, "high": 0, "medium": 0, "low": 0}
+    for signal in signals:
+        if signal.severity in severities:
+            severities[signal.severity] += 1
+    return {
+        "total_signals": len(signals),
+        "critical": severities["critical"],
+        "high": severities["high"],
+        "medium": severities["medium"],
+        "low": severities["low"],
+        "categories": [signal.category for signal in signals],
+    }
+
+
 def _build_verdict(report: ActivationReport) -> dict[str, Any]:
     target_id = report.target_extension_id
     if not target_id:
@@ -2961,6 +3335,19 @@ def _build_verdict(report: ActivationReport) -> dict[str, Any]:
                 "Target extension context was missing, so ownership could not be evaluated."
             ],
             "note": "Target extension context was missing, so the run can only be reviewed manually.",
+        }
+
+    run_quality, quality_reasons = _build_run_quality(report)
+    if not report.target_extension_observed or run_quality == "inconclusive":
+        inconclusive_reasons = [
+            "The target extension was not observed, so the run remains inconclusive."
+        ]
+        inconclusive_reasons.extend(quality_reasons)
+        return {
+            "level": "needs_review",
+            "score": 30,
+            "reasons": inconclusive_reasons[:5],
+            "note": inconclusive_reasons[0],
         }
 
     target_activations = [
@@ -3038,6 +3425,16 @@ def _build_verdict(report: ActivationReport) -> dict[str, Any]:
         reasons.append(
             "UI blockers were detected, which reduced verification certainty for parts of the run."
         )
+    if report.trigger_plan_requested and not report.trigger_plan_applied:
+        score += 8
+        reasons.append(
+            "The trigger plan was not applied inside the executor, which reduced run reliability."
+        )
+    if run_quality == "low":
+        score += 6
+        reasons.append(
+            "Run quality was low, so suspicious telemetry is weighted conservatively but not dismissed."
+        )
 
     score = max(8, min(96, score))
     strong_attribution = bool(sensitive_target_files or strong_target_networks)
@@ -3052,7 +3449,7 @@ def _build_verdict(report: ActivationReport) -> dict[str, Any]:
         level = "likely_malicious"
     elif score >= 48:
         level = "suspicious"
-    elif reasons:
+    elif reasons or run_quality in {"low", "medium"}:
         level = "needs_review"
     else:
         level = "benign"
@@ -3060,6 +3457,8 @@ def _build_verdict(report: ActivationReport) -> dict[str, Any]:
     if not strong_attribution and level == "likely_malicious":
         level = "suspicious"
     if not strong_attribution and level == "suspicious" and score < 60:
+        level = "needs_review"
+    if run_quality in {"low", "medium"} and level == "benign":
         level = "needs_review"
 
     note = (
