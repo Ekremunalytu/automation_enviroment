@@ -50,10 +50,14 @@ def test_activation_report_save_is_atomic(tmp_path: Path) -> None:
 
     assert saved_path == output_path
     payload = json.loads(output_path.read_text(encoding="utf-8"))
+    assert payload["report_version"] == 2
     assert payload["summary"]["total_activated"] == 1
     assert payload["summary"]["network_events"] == 1
     assert payload["activated"][0]["extension_id"] == "sample.ext"
     assert payload["network_events"][0]["host"] == "api.example.com"
+    assert payload["evidence_events"][0]["event_id"].startswith("activation-")
+    assert payload["evidence_events"][1]["event_id"].startswith("network-")
+    assert payload["evidence_links"] == []
     assert payload["network_summary"]["unique_hosts"] == 1
     assert not (tmp_path / ".activation_report.json.tmp").exists()
 
@@ -355,7 +359,7 @@ def test_extension_monitor_persists_live_report_with_network_events(
     assert final_payload["summary"]["network_hosts"] == 1
 
 
-def test_annotate_file_events_prefers_extension_trace_over_inotify_shadow() -> None:
+def test_annotate_file_events_preserves_duplicate_observers_and_emits_links() -> None:
     file_events = [
         monitor.FileEvent(
             timestamp="2026-01-01T10:00:00.500",
@@ -397,19 +401,77 @@ def test_annotate_file_events_prefers_extension_trace_over_inotify_shadow() -> N
     traces = [
         monitor.ScenarioTrace(
             name="coding_session",
-            started_at=1767261600.0,
-            ended_at=1767261602.0,
+            started_at=monitor._parse_iso_timestamp("2026-01-01T10:00:00.000") or 0.0,
+            ended_at=monitor._parse_iso_timestamp("2026-01-01T10:00:02.000") or 0.0,
             status="completed",
         )
     ]
 
     annotated = monitor._annotate_file_events(file_events, activations, traces)
 
-    assert len(annotated) == 2
-    assert annotated[0].source == "extension"
-    assert annotated[0].related_extension_id == "ms-python.python"
-    assert annotated[1].source == "automation"
-    assert annotated[1].scenario_name == "coding_session"
+    assert len(annotated) == 3
+    assert annotated[0].source == "automation"
+    assert annotated[1].source == "extension"
+    assert annotated[2].source == "automation"
+    assert annotated[2].scenario_name == "coding_session"
+
+    report = monitor.ActivationReport(
+        activated=activations,
+        file_events=annotated,
+        scenario_traces=traces,
+        monitoring_start=monitor._parse_iso_timestamp("2026-01-01T10:00:00.000") or 0.0,
+        monitoring_end=monitor._parse_iso_timestamp("2026-01-01T10:00:02.000") or 0.0,
+    )
+    links = report.canonical_evidence_links
+
+    assert any(
+        link.link_type == "duplicate_signal"
+        and {link.from_event_id, link.to_event_id} == {"file-0001", "file-0002"}
+        for link in links
+    )
+    assert any(
+        link.link_type == "occurred_in_scenario"
+        and link.from_event_id == "file-0003"
+        and link.to_event_id == "scenario-0001"
+        for link in links
+    )
+    assert any(link.link_type == "candidate_owner" for link in links)
+
+
+def test_canonical_evidence_links_mark_temporal_neighbors_low_confidence() -> None:
+    report = monitor.ActivationReport(
+        activated=[
+            monitor.ActivationEntry(
+                extension_id="ms-python.python",
+                activation_event="onLanguage:python",
+                timestamp="2026-01-01 10:00:00.000",
+                source="log",
+            )
+        ],
+        network_events=[
+            monitor.NetworkEvent(
+                timestamp="2026-01-01T10:00:04.500",
+                rel_time_s=4.5,
+                protocol="https",
+                event_type="http_request",
+                destination_ip="93.184.216.34",
+                destination_port=443,
+                host="api.example.com",
+                summary="GET /telemetry",
+            )
+        ],
+        monitoring_start=1767261600.0,
+        monitoring_end=1767261605.0,
+    )
+
+    links = report.canonical_evidence_links
+
+    temporal_link = next(
+        link for link in links if link.link_type == "temporal_neighbor"
+    )
+    assert temporal_link.from_event_id == "network-0001"
+    assert temporal_link.to_event_id == "activation-0001"
+    assert temporal_link.confidence < 0.5
 
 
 def test_check_extension_activated_uses_logs_then_ui(monkeypatch) -> None:

@@ -79,13 +79,25 @@ def test_get_latest_activation(client: TestClient, mock_output_dir: Path):
     """Test fetching the latest activation report."""
     create_report(mock_output_dir, "activation_report_first.json", {"data": "first"})
     time.sleep(0.01)
-    create_report(mock_output_dir, "activation_report_second.json", {"data": "second"})
+    create_report(
+        mock_output_dir,
+        "activation_report_second.json",
+        {
+            "data": "second",
+            "report_version": 2,
+            "evidence_events": [{"event_id": "activation-0001", "kind": "activation"}],
+            "evidence_links": [],
+        },
+    )
 
     response = client.get("/api/activations/latest")
     assert response.status_code == 200
     data = response.json()
 
     assert data["data"] == "second"
+    assert data["report_version"] == 2
+    assert data["evidence_events"][0]["event_id"] == "activation-0001"
+    assert data["evidence_links"] == []
     assert data["_metadata"]["filename"] == "activation_report_second.json"
 
 
@@ -147,11 +159,20 @@ def test_get_latest_activation_404(client: TestClient, mock_output_dir: Path):
 
 def test_get_activation_by_name(client: TestClient, mock_output_dir: Path):
     """Test fetching a specific report by name."""
-    create_report(mock_output_dir, "activation_report_target.json", {"target": True})
+    create_report(
+        mock_output_dir,
+        "activation_report_target.json",
+        {
+            "target": True,
+            "report_version": 1,
+            "activated": [],
+        },
+    )
 
     response = client.get("/api/activations/activation_report_target.json")
     assert response.status_code == 200
     assert response.json()["target"] is True
+    assert response.json()["report_version"] == 1
     assert response.json()["_metadata"]["filename"] == "activation_report_target.json"
 
 

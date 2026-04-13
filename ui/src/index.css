@@ -1,0 +1,204 @@
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Manrope:wght@400;500;600;700;800&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: dark;
+    font-family: "Manrope", sans-serif;
+    background: #101416;
+  }
+
+  * {
+    @apply border-line;
+    box-sizing: border-box;
+  }
+
+  html,
+  body,
+  #root {
+    min-height: 100%;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-canvas font-body text-ink antialiased;
+    background-color: #101416;
+    background-image:
+      radial-gradient(circle at top center, rgba(158, 198, 179, 0.07), transparent 20%),
+      linear-gradient(180deg, #101416 0%, #0b0e10 100%);
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
+
+  button,
+  [role="button"] {
+    cursor: pointer;
+  }
+
+  a,
+  button,
+  input,
+  select,
+  textarea,
+  [tabindex]:not([tabindex="-1"]) {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/80 focus-visible:ring-offset-2 focus-visible:ring-offset-canvas;
+  }
+
+  ::selection {
+    background: rgba(103, 164, 255, 0.38);
+    color: #ffffff;
+  }
+}
+
+@layer components {
+  .panel {
+    @apply rounded-[20px] border border-line bg-panel shadow-soft backdrop-blur-sm;
+  }
+
+  .panel-alt {
+    @apply rounded-[16px] border border-lineSoft bg-panelAlt;
+  }
+
+  .micro-label {
+    @apply text-[11px] font-semibold uppercase tracking-data text-mute;
+  }
+
+  .eyebrow {
+    @apply text-[11px] font-semibold uppercase tracking-data text-accentSoft;
+  }
+
+  .field-control {
+    @apply w-full rounded-[16px] border border-line bg-canvas px-4 py-3 text-sm text-ink shadow-inset placeholder:text-mute transition placeholder:font-normal hover:border-lineStrong focus:border-accent;
+  }
+
+  .ghost-button {
+    @apply inline-flex items-center justify-center gap-2 rounded-[16px] border border-line bg-panelAlt px-4 py-3 text-sm font-medium text-ink transition duration-200 hover:border-lineStrong hover:bg-surface;
+  }
+
+  .solid-button {
+    @apply inline-flex items-center justify-center gap-2 rounded-[16px] bg-accent px-4 py-3 text-sm font-semibold text-canvasDeep transition duration-200 hover:bg-accentStrong;
+  }
+
+  .subtle-button {
+    @apply inline-flex items-center justify-center gap-2 rounded-[16px] border border-accent bg-accent px-4 py-3 text-sm font-medium text-canvasDeep transition duration-200 hover:bg-accentStrong;
+  }
+
+  .nav-button {
+    @apply inline-flex items-center gap-2 rounded-full border border-transparent px-3.5 py-2.5 text-sm font-medium text-mute transition duration-200 hover:bg-panelAlt hover:text-ink;
+  }
+
+  .nav-button-active {
+    @apply border-line bg-panelAlt text-ink shadow-inset;
+  }
+
+  .info-chip {
+    @apply inline-flex items-center gap-2 rounded-full border border-line bg-canvas px-3 py-1.5 text-xs font-medium text-inkSoft;
+  }
+
+  .metric-tile {
+    @apply rounded-[14px] border border-lineSoft bg-panelAlt px-4 py-4 shadow-inset;
+  }
+
+  .shell-frame {
+    @apply mx-auto w-full max-w-[1680px] px-4 sm:px-6 lg:px-8;
+  }
+
+  .page-header {
+    @apply flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between;
+  }
+
+  .page-title {
+    @apply text-balance font-display text-[40px] font-semibold tracking-[-0.035em] text-ink;
+  }
+
+  .toolbar-surface {
+    @apply rounded-[18px] border border-line bg-panel px-4 py-4 shadow-soft;
+  }
+
+  .section-tabs {
+    @apply inline-flex flex-wrap items-center gap-2;
+  }
+
+  .section-tab {
+    @apply rounded-full border border-transparent px-4 py-2.5 text-sm font-medium text-mute transition hover:bg-panelAlt hover:text-ink;
+  }
+
+  .section-tab-active {
+    @apply border-line bg-panelAlt text-ink;
+  }
+
+  .score-surface {
+    @apply rounded-[22px] border border-line bg-panel px-6 py-8 shadow-soft;
+  }
+
+  .workspace-divider {
+    @apply border-t border-lineSoft;
+  }
+
+  .scroll-thin {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(141, 156, 175, 0.32) transparent;
+  }
+
+  .scroll-thin::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .scroll-thin::-webkit-scrollbar-thumb {
+    background: rgba(141, 156, 175, 0.28);
+    border-radius: 999px;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .page-reveal {
+    animation: page-reveal 360ms ease-out both;
+  }
+}
+
+@keyframes page-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}

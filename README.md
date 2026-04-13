@@ -1,12 +1,12 @@
 # ExTrace
 
-`Last Updated: 2026-03-06`
+`Last Updated: 2026-04-13`
 
 ExTrace is a VS Code extension analysis platform built around three runtime surfaces:
 
 - A FastAPI API for catalog ingestion, activation report access, marketplace download, and sandbox analysis.
 - A Dockerized executor that runs full VS Code GUI sessions under Xvfb and drives them with Playwright.
-- A Streamlit UI that consumes the API and visualizes activation reports and live simulation jobs.
+- A Vite + React + Tailwind analyst console that consumes the API and visualizes activation reports and live simulation jobs.
 
 ## Current Architecture
 
@@ -28,7 +28,9 @@ The refactor introduced a canonical split between shared platform code and workf
   - `container/`: Docker image, entrypoint, VS Code/Xvfb/noVNC boot logic.
   - `flows/playwright/`: Playwright automation helpers and entrypoint.
 - `ui/`
-  - Streamlit dashboard with `Dashboard`, `Simulation`, `Marketplace`, and `Theme` views.
+  - React SPA with `Reports`, `Simulation`, and `Marketplace` routes.
+- `legacy_ui/`
+  - Previous Streamlit implementation retained as a compatibility snapshot during migration.
 
 The repository now uses canonical imports only:
 
@@ -105,6 +107,7 @@ The repository now uses canonical imports only:
 - Python 3.11+
 - Docker / Docker Compose
 - PostgreSQL 16 compatible runtime
+- Node 20+ for local UI development
 
 ### Common Commands
 
@@ -118,13 +121,14 @@ make check-all
 make exec-up
 make exec-run
 make ui-up
+cd ui && npm run dev
 ```
 
 ### Service Endpoints
 
 - API: `http://localhost:8000`
 - Swagger: `http://localhost:8000/docs`
-- Streamlit UI: `http://localhost:3000`
+- Web UI: `http://localhost:3000`
 - noVNC executor view: `http://localhost:6080/vnc.html`
 
 ## Project Layout
@@ -135,7 +139,8 @@ workflows/                  Canonical business workflows
 executor/
   container/               Sandbox image and startup scripts
   flows/playwright/        VS Code GUI automation
-ui/                         Streamlit dashboard
+ui/                         React + Vite analyst console
+legacy_ui/                  Previous Streamlit UI snapshot
 tests/
   platform/                Shared platform tests
   workflows/               Workflow tests

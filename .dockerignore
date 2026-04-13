@@ -32,6 +32,8 @@ dist/
 *.egg-info/
 .eggs/
 pip-wheel-metadata/
+ui/node_modules/
+ui/dist/
 
 # Local runtime/generated data
 extensions/

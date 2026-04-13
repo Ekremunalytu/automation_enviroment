@@ -1,17 +1,24 @@
-FROM python:3.11-slim-bookworm
+FROM node:20-alpine AS builder
 
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+WORKDIR /app/ui
 
-RUN useradd -m appuser
+COPY ui/package.json ui/package-lock.json ./
+RUN npm ci
 
-WORKDIR /app
+COPY ui/ ./
+RUN npm run build
 
-COPY ui/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+FROM nginx:1.27-alpine
 
-COPY ui/ .
+ENV UI_PORT=3000
+ENV API_BASE_URL=""
+ENV API_PROXY_PASS=http://api:8000
+ENV NGINX_ENVSUBST_FILTER="UI_PORT|API_PROXY_PASS"
 
-USER appuser
+COPY ui/nginx/default.conf.template /etc/nginx/templates/default.conf.template
+COPY ui/docker/40-write-env.sh /docker-entrypoint.d/40-write-env.sh
+COPY --from=builder /app/ui/dist /usr/share/nginx/html
 
-CMD ["sh", "-c", "streamlit run app.py --server.port=${UI_PORT:-3000} --server.address=0.0.0.0 --server.headless=true --browser.gatherUsageStats=false"]
+RUN chmod +x /docker-entrypoint.d/40-write-env.sh
+
+EXPOSE 3000

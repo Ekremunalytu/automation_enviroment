@@ -319,7 +319,7 @@ sim-run: exec-up
 	docker exec -e PYTHONUNBUFFERED=1 -it automation_executor python3 /home/executor/flows/playwright/entrypoint.py --monitor --scenario $(SCENARIO)
 
 # =============================================================================
-# UI DASHBOARD
+# UI WEB CONSOLE
 # =============================================================================
 
 ui-build:

@@ -2,16 +2,21 @@
 
 from __future__ import annotations
 
-import pandas as pd
 import streamlit as st
-from components import metric_card, render_page_hero, render_spacer
-from data_processing import (
-    build_file_log,
-    build_network_log,
-    process_file_data,
-    process_network_data,
+from components import (
+    metric_card,
+    render_page_hero,
+    render_section_intro,
+    render_spacer,
 )
+from data_processing import prepare_report_context
 from state import load_scan_report, sync_active_scan_job
+from views.dashboard_tabs import (
+    render_dashboard_focus_bar,
+    render_evidence_timeline_tab,
+    render_provenance_tab,
+    render_rule_workbench_tab,
+)
 
 _FRAGMENT_DECORATOR = getattr(
     st, "fragment", getattr(st, "experimental_fragment", None)
@@ -70,32 +75,6 @@ def render_scan_status(scan_job: dict) -> None:
         elif scan_job.get("report_path"):
             st.success(f"Report ready: `{scan_job['report_path']}`")
 
-        if scan_job.get("install_output") or scan_job.get("automation_output"):
-            with st.expander("Execution Logs", expanded=False):
-                col_install, col_auto = st.columns(2)
-                with col_install:
-                    st.caption("Install Output")
-                    st.code(
-                        scan_job.get("install_output") or "(no output)", language="text"
-                    )
-                with col_auto:
-                    st.caption("Automation Output")
-                    st.code(
-                        scan_job.get("automation_output") or "(no output)",
-                        language="text",
-                    )
-
-
-def get_active_scenario_name(report: dict) -> str | None:
-    traces = report.get("scenario_traces", [])
-    if not isinstance(traces, list):
-        return None
-
-    for trace in reversed(traces):
-        if trace.get("status") == "running":
-            return trace.get("name")
-    return None
-
 
 def render_simulation_page(
     scan_job: dict | None,
@@ -106,7 +85,7 @@ def render_simulation_page(
     render_page_hero(
         "Live",
         "Simulation",
-        "Monitor sandbox execution, active automations, and incoming telemetry in real time.",
+        "Monitor sandbox execution, unified evidence telemetry and provenance while a run is active.",
     )
     render_spacer()
 
@@ -117,30 +96,25 @@ def render_simulation_page(
         st.info("No active simulation. Start an analysis from Marketplace.")
         return
 
+    context = prepare_report_context(live_report or {})
     extension_id = (
         f"{scan_job.get('publisher', 'unknown')}.{scan_job.get('name', 'unknown')}"
         f"@{scan_job.get('version', 'unknown')}"
     )
-    active_scenario = get_active_scenario_name(live_report or {})
-    summary = (live_report or {}).get("summary", {})
-    network_summary = (live_report or {}).get("network_summary", {})
-    file_summary = (live_report or {}).get("file_summary", {})
 
-    hero_left, hero_right = st.columns([3, 1])
+    hero_left, hero_right = st.columns([2.5, 1], gap="large")
     with hero_left:
-        scenario_label = active_scenario or "Waiting for scenario telemetry"
         st.markdown(
             f"""
-            <div class="glass-card" style="min-height: 150px;">
-                <div class="kpi-label">Sandbox Target</div>
-                <div style="font-size: 1.5rem; font-weight: 700; color: #f4f4f5; margin: 12px 0 18px 0;">{extension_id}</div>
-                <div style="display: flex; flex-wrap: wrap; gap: 10px;">
-                    <div style="padding: 8px 12px; border-radius: 999px; background: rgba(16,185,129,0.12); border: 1px solid rgba(16,185,129,0.28); color: #6ee7b7; font-size: 0.85rem;">
-                        Active Automation: <strong>{scenario_label}</strong>
-                    </div>
-                    <div style="padding: 8px 12px; border-radius: 999px; background: rgba(6,182,212,0.12); border: 1px solid rgba(6,182,212,0.28); color: #67e8f9; font-size: 0.85rem;">
-                        Status: <strong>{scan_job.get('status', 'queued').title()}</strong>
-                    </div>
+            <div class="hero-panel compact">
+                <div>
+                    <div class="eyebrow">Sandbox Target</div>
+                    <h1>{extension_id}</h1>
+                    <p>Status and live evidence update from the same report stream.</p>
+                </div>
+                <div class="hero-meta">
+                    <div class="hero-chip"><span>Status</span><strong>{scan_job.get('status', 'queued').title()}</strong></div>
+                    <div class="hero-chip"><span>Report</span><strong>{scan_job.get('report_path') or 'pending'}</strong></div>
                 </div>
             </div>
             """,
@@ -149,13 +123,8 @@ def render_simulation_page(
     with hero_right:
         st.markdown(
             metric_card(
-                "🧪",
-                "Telemetry Events",
-                str(
-                    summary.get("total_activated", 0)
-                    + network_summary.get("total_events", 0)
-                    + file_summary.get("total_events", 0)
-                ),
+                "Live Evidence",
+                str(len(context.evidence)),
                 "#8b5cf6",
             ),
             unsafe_allow_html=True,
@@ -166,30 +135,31 @@ def render_simulation_page(
     with stat1:
         st.markdown(
             metric_card(
-                "⚡", "Activations", str(summary.get("total_activated", 0)), "#8b5cf6"
+                "Activations", str(context.summary.get("total_activated", 0)), "#8b5cf6"
             ),
             unsafe_allow_html=True,
         )
     with stat2:
         st.markdown(
             metric_card(
-                "🌐", "Network", str(network_summary.get("total_events", 0)), "#10b981"
+                "Network",
+                str(context.network_summary.get("total_events", 0)),
+                "#10b981",
             ),
             unsafe_allow_html=True,
         )
     with stat3:
         st.markdown(
             metric_card(
-                "🗂️", "File I/O", str(file_summary.get("total_events", 0)), "#22d3ee"
+                "File I/O", str(context.file_summary.get("total_events", 0)), "#22d3ee"
             ),
             unsafe_allow_html=True,
         )
     with stat4:
         st.markdown(
             metric_card(
-                "🛡️",
-                "Sensitive Hits",
-                str(file_summary.get("sensitive_events", 0)),
+                "Sensitive",
+                str(context.file_summary.get("sensitive_events", 0)),
                 "#f43f5e",
             ),
             unsafe_allow_html=True,
@@ -199,48 +169,68 @@ def render_simulation_page(
     render_scan_status(scan_job)
 
     if report_error and scan_job.get("status") not in {"completed", "failed"}:
-        st.info("Preparing live simulation report...")
+        st.info("Preparing live simulation report…")
     elif report_error:
         st.warning(report_error)
 
-    sim_tabs = st.tabs(["🔴 Live Pulse", "🌐 Network Stream", "🗂️ File Stream"])
-
-    with sim_tabs[0]:
-        if live_report:
-            traces = pd.DataFrame(live_report.get("scenario_traces", []))
-            if traces.empty:
-                st.info("Scenario timeline has not started streaming yet.")
-            else:
-                traces["status_label"] = traces["status"].fillna("running").str.title()
-                st.dataframe(
-                    traces[["name", "status_label", "started_at", "ended_at"]],
-                    column_config={
-                        "name": st.column_config.TextColumn("Automation"),
-                        "status_label": st.column_config.TextColumn("Status"),
-                        "started_at": st.column_config.NumberColumn("Started At"),
-                        "ended_at": st.column_config.NumberColumn("Ended At"),
-                    },
-                    hide_index=True,
-                    height=240,
-                )
+    render_dashboard_focus_bar(context, key_prefix="simulation")
+    tabs = st.tabs(["Live Evidence", "Run Status", "Provenance", "Rule Workbench"])
+    with tabs[0]:
+        render_evidence_timeline_tab(context, "plasma", key_prefix="simulation")
+    with tabs[1]:
+        render_section_intro(
+            "Scenario Progress",
+            "Executed sandbox scenarios and runtime status for the current job.",
+        )
+        if context.scenarios.empty:
+            st.info("No scenario telemetry has been emitted yet.")
         else:
-            st.info("Waiting for live report telemetry...")
+            st.dataframe(
+                context.scenarios[
+                    ["name", "status", "started_at", "ended_at", "duration_s"]
+                ],
+                column_config={
+                    "name": st.column_config.TextColumn("Scenario"),
+                    "status": st.column_config.TextColumn("Status"),
+                    "started_at": st.column_config.NumberColumn(
+                        "Started At", format="%.3f"
+                    ),
+                    "ended_at": st.column_config.NumberColumn(
+                        "Ended At", format="%.3f"
+                    ),
+                    "duration_s": st.column_config.NumberColumn(
+                        "Duration (s)", format="%.3f"
+                    ),
+                },
+                hide_index=True,
+                height=260,
+            )
 
-    with sim_tabs[1]:
-        network_df = process_network_data(live_report or {})
-        if network_df.empty:
-            st.info("No network telemetry yet.")
-        else:
-            with st.container(height=320):
-                st.code(build_network_log(network_df), language="log")
-
-    with sim_tabs[2]:
-        file_df = process_file_data(live_report or {})
-        if file_df.empty:
-            st.info("No file telemetry yet.")
-        else:
-            with st.container(height=320):
-                st.code(build_file_log(file_df), language="log")
+            if scan_job.get("install_output") or scan_job.get("automation_output"):
+                col_install, col_auto = st.columns(2, gap="large")
+                with col_install:
+                    render_section_intro(
+                        "Install Output", "Sandbox extension installation logs."
+                    )
+                    with st.container(height=220):
+                        st.code(
+                            scan_job.get("install_output") or "(no output)",
+                            language="text",
+                        )
+                with col_auto:
+                    render_section_intro(
+                        "Automation Output",
+                        "Playwright automation logs from the executor.",
+                    )
+                    with st.container(height=220):
+                        st.code(
+                            scan_job.get("automation_output") or "(no output)",
+                            language="text",
+                        )
+    with tabs[2]:
+        render_provenance_tab(context, key_prefix="simulation")
+    with tabs[3]:
+        render_rule_workbench_tab(context, key_prefix="simulation")
 
     if st.button("Clear simulation state", key="clear_scan_state"):
         st.session_state.pop("last_scan_status", None)
