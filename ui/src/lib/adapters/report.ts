@@ -1,17 +1,24 @@
 import type {
   ActivationEntryDto,
   ActivationReportDto,
+  CoverageCapabilityDto,
+  CoverageSummaryDto,
   EvidenceEventDto,
   EvidenceLinkDto,
   FileEventDto,
+  LogStreamEntryDto,
   NetworkEventDto,
   ScenarioTraceDto,
 } from "../types/contracts";
 import type {
   ActivationReportView,
+  CoverageCapabilityView,
+  CoverageSummaryView,
   EvidenceEventView,
   EvidenceInspectorView,
   EvidenceLinkView,
+  LogEntryView,
+  LogStreamsView,
   ReportSummaryView,
 } from "../types/view-models";
 
@@ -48,11 +55,18 @@ function parseRelTime(value?: number | null) {
   return value;
 }
 
+function parseAttributionConfidence(value?: number | null) {
+  if (typeof value !== "number" || Number.isNaN(value)) return 0;
+  return Number(value.toFixed(2));
+}
+
 function fromCanonicalEvent(event: EvidenceEventDto, index: number): EvidenceEventView {
   const artifact =
     event.path || event.host || event.destination_ip || event.extension_id || event.summary || "(no artifact)";
   const detail =
     event.activation_event || event.operation || event.protocol || event.collector || "(n/a)";
+  const attributionStatus = event.attribution_status || "unattributed";
+  const attributionConfidence = parseAttributionConfidence(event.attribution_confidence);
   return {
     eventId: event.event_id || `event-${index + 1}`,
     kind: event.kind || "event",
@@ -73,6 +87,14 @@ function fromCanonicalEvent(event: EvidenceEventDto, index: number): EvidenceEve
     path: event.path || "",
     destinationIp: event.destination_ip || "",
     destinationPort: typeof event.destination_port === "number" ? event.destination_port : null,
+    attributionStatus,
+    attributionStatusLabel: labelize(attributionStatus, "Unattributed"),
+    attributionBasis: event.attribution_basis || "",
+    attributionConfidence,
+    attributionConfidencePct: Math.round(attributionConfidence * 100),
+    isTargetExtensionEvent: Boolean(event.is_target_extension_event),
+    noiseReason: event.noise_reason || "",
+    artifactClass: event.artifact_class || "",
     sensitive: Boolean(event.sensitive),
     summary: event.summary || "",
     summaryDisplay: event.summary || "(no summary)",
@@ -118,6 +140,13 @@ function fromNetwork(entry: NetworkEventDto, index: number): EvidenceEventView {
       path: entry.path || "",
       destination_ip: entry.destination_ip || "",
       destination_port: entry.destination_port ?? null,
+      extension_id: entry.related_extension_id || "",
+      activation_event: entry.related_activation_event || "",
+      attribution_status: entry.attribution_status || "unattributed",
+      attribution_basis: entry.attribution_basis || "",
+      attribution_confidence: entry.attribution_confidence ?? 0,
+      is_target_extension_event: entry.is_target_extension_event ?? false,
+      noise_reason: entry.noise_reason || "",
       summary: entry.summary || "",
       raw_context: {
         event_type: entry.event_type || "",
@@ -142,6 +171,12 @@ function fromFile(entry: FileEventDto, index: number): EvidenceEventView {
       activation_event: entry.related_activation_event || "",
       operation: entry.operation || "",
       path: entry.path || "",
+      attribution_status: entry.attribution_status || "unattributed",
+      attribution_basis: entry.attribution_basis || "",
+      attribution_confidence: entry.attribution_confidence ?? 0,
+      is_target_extension_event: entry.is_target_extension_event ?? false,
+      noise_reason: entry.noise_reason || "",
+      artifact_class: entry.artifact_class || "",
       sensitive: Boolean(entry.sensitive),
       summary: entry.summary || "",
       raw_context: {
@@ -235,6 +270,11 @@ function buildLegacyLinks(events: EvidenceEventView[]) {
 
 function buildSummary(report: ActivationReportDto, events: EvidenceEventView[]): ReportSummaryView {
   const summary = report.summary || {};
+  const verdict =
+    typeof summary.verdict === "object" && summary.verdict
+      ? (summary.verdict as Record<string, unknown>)
+      : {};
+  const verdictLevel = typeof verdict.level === "string" ? verdict.level : "needs_review";
   return {
     totalEvents: events.length,
     totalActivated: Number(summary.total_activated ?? events.filter((event) => event.kind === "activation").length),
@@ -251,6 +291,89 @@ function buildSummary(report: ActivationReportDto, events: EvidenceEventView[]):
     sensitiveEvents: Number(
       summary.sensitive_file_events ?? events.filter((event) => event.sensitive).length,
     ),
+    attemptedCapabilities: Array.isArray(summary.attempted_capabilities)
+      ? summary.attempted_capabilities.map(String)
+      : [],
+    verifiedCapabilities: Array.isArray(summary.verified_capabilities)
+      ? summary.verified_capabilities.map(String)
+      : [],
+    uiBlockerCount: Number(summary.ui_blocker_count ?? report.log_streams?.ui_blockers?.length ?? 0),
+    verdictLevel:
+      verdictLevel === "benign" ||
+      verdictLevel === "needs_review" ||
+      verdictLevel === "suspicious" ||
+      verdictLevel === "likely_malicious"
+        ? verdictLevel
+        : "needs_review",
+    verdictScore: Number(verdict.score ?? 0),
+    verdictReasons: Array.isArray(verdict.reasons) ? verdict.reasons.map(String) : [],
+    verdictNote: typeof verdict.note === "string" ? verdict.note : "",
+  };
+}
+
+function buildCoverageSummary(
+  summary?: CoverageSummaryDto | null,
+  matrix: CoverageCapabilityDto[] = [],
+): CoverageSummaryView {
+  const fallbackMissing = matrix.filter((entry) => entry.status === "missing").map((entry) => entry.capability);
+  return {
+    covered: Number(summary?.covered ?? matrix.filter((entry) => entry.status === "covered").length),
+    partial: Number(summary?.partial ?? matrix.filter((entry) => entry.status === "partial").length),
+    missing: Number(summary?.missing ?? fallbackMissing.length),
+    attempted: Number(summary?.attempted ?? 0),
+    verified: Number(summary?.verified ?? 0),
+    missingCapabilities: Array.isArray(summary?.missing_capabilities) ? summary?.missing_capabilities.map(String) : fallbackMissing,
+    attemptedCapabilities: Array.isArray(summary?.attempted_capabilities) ? summary?.attempted_capabilities.map(String) : [],
+    verifiedCapabilities: Array.isArray(summary?.verified_capabilities) ? summary?.verified_capabilities.map(String) : [],
+  };
+}
+
+function fromCoverageCapability(entry: CoverageCapabilityDto): CoverageCapabilityView {
+  const supportStatus = entry.support_status || entry.status || "unknown";
+  const verificationStatus =
+    entry.verification_status ||
+    (entry.verified ? "verified" : entry.attempted ? "attempted_only" : "not_attempted");
+  return {
+    capability: entry.capability,
+    capabilityLabel: labelize(entry.capability, "Capability"),
+    status: verificationStatus,
+    statusLabel: labelize(verificationStatus, "Unknown"),
+    supportStatus,
+    supportStatusLabel: labelize(supportStatus, "Unknown"),
+    verificationStatus,
+    verificationStatusLabel: labelize(verificationStatus, "Unknown"),
+    selectedScenarios: Array.isArray(entry.selected_scenarios) ? entry.selected_scenarios.map(String) : [],
+    supportedScenarios: Array.isArray(entry.supported_scenarios) ? entry.supported_scenarios.map(String) : [],
+    notes: entry.notes || "",
+    attempted: Boolean(entry.attempted),
+    verified: Boolean(entry.verified),
+  };
+}
+
+function fromLogEntry(entry: LogStreamEntryDto): LogEntryView {
+  return {
+    timestamp: entry.timestamp || "",
+    timestampDisplay: formatTimestamp(entry.timestamp || ""),
+    relTimeS: parseRelTime(entry.rel_time_s),
+    stream: entry.stream || "unknown",
+    kind: entry.kind || "log",
+    kindLabel: labelize(entry.kind || "log", "Log"),
+    message: entry.message || "",
+    extensionId: entry.extension_id || "",
+    activationEvent: entry.activation_event || "",
+    scenarioName: entry.scenario_name || "",
+    status: entry.status || "",
+    statusLabel: labelize(entry.status || "unknown", "Unknown"),
+    isTargetExtension: Boolean(entry.is_target_extension),
+  };
+}
+
+function buildLogStreams(dto: ActivationReportDto): LogStreamsView {
+  return {
+    targetExtensionHost: (dto.log_streams?.target_extension_host || []).map(fromLogEntry),
+    otherExtensionHost: (dto.log_streams?.other_extension_host || []).map(fromLogEntry),
+    automation: (dto.log_streams?.automation || []).map(fromLogEntry),
+    uiBlockers: (dto.log_streams?.ui_blockers || []).map(fromLogEntry),
   };
 }
 
@@ -276,6 +399,9 @@ export function adaptReport(dto: ActivationReportDto, reportId: string): Activat
     reportId,
     reportVersion: dto.report_version || 1,
     summary: buildSummary(dto, evidence),
+    coverageSummary: buildCoverageSummary(dto.coverage_summary, dto.coverage_matrix || []),
+    coverageMatrix: (dto.coverage_matrix || []).map(fromCoverageCapability),
+    logStreams: buildLogStreams(dto),
     evidence,
     evidenceLinks,
     hostOutput: dto.extension_host_output || "",

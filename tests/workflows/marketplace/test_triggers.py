@@ -4,8 +4,10 @@ import json
 from pathlib import Path
 
 from workflows.marketplace.triggers import (
+    CAPABILITY_TAXONOMY,
     TriggerPayload,
     _glob_to_bait_filename,
+    build_static_coverage_audit,
     select_scenarios,
     write_trigger_file,
 )
@@ -22,20 +24,23 @@ class TestSelectScenarios:
         events = [{"event_type": "*", "event_value": None}]
         payload = select_scenarios(events)
         assert "coding_session" in payload.selected_scenarios
-        assert "debug_session" in payload.selected_scenarios
-        assert "notebook_session" in payload.selected_scenarios
-        assert len(payload.selected_scenarios) >= 10
+        assert "project_exploration" in payload.selected_scenarios
+        assert "diagnostics_check" in payload.selected_scenarios
+        assert len(payload.selected_scenarios) == 5
 
     def test_on_startup_finished_selects_all(self) -> None:
         events = [{"event_type": "onStartupFinished", "event_value": None}]
         payload = select_scenarios(events)
-        assert len(payload.selected_scenarios) >= 10
+        assert len(payload.selected_scenarios) == 5
 
     def test_on_language_selects_coding_and_exploration(self) -> None:
         events = [{"event_type": "onLanguage", "event_value": "python"}]
         payload = select_scenarios(events)
         assert "coding_session" in payload.selected_scenarios
         assert "project_exploration" in payload.selected_scenarios
+        assert payload.selection_reasons["coding_session"] == [
+            "activation onLanguage:python"
+        ]
 
     def test_on_debug_selects_debug_session(self) -> None:
         events = [{"event_type": "onDebug", "event_value": "python"}]
@@ -78,6 +83,7 @@ class TestSelectScenarios:
         events = [{"event_type": "onUri", "event_value": None}]
         payload = select_scenarios(events, publisher_name="pub.ext")
         assert payload.uri_trigger == "vscode://pub.ext/activate"
+        assert payload.target_extension_id == "pub.ext"
 
     def test_on_uri_without_publisher_no_trigger(self) -> None:
         events = [{"event_type": "onUri", "event_value": None}]
@@ -97,6 +103,7 @@ class TestSelectScenarios:
     def test_empty_events_falls_back_to_coding_session(self) -> None:
         payload = select_scenarios([])
         assert payload.selected_scenarios == ["coding_session"]
+        assert payload.coverage_summary["covered"] >= 1
 
     def test_unknown_event_type_falls_back(self) -> None:
         events = [{"event_type": "onSomethingNew", "event_value": None}]
@@ -121,7 +128,36 @@ class TestSelectScenarios:
             {"event_type": "onLanguage", "event_value": "python"},
         ]
         payload = select_scenarios(events)
-        assert payload.selected_scenarios == sorted(payload.selected_scenarios)
+        assert payload.selected_scenarios == [
+            "coding_session",
+            "debug_session",
+            "project_exploration",
+        ]
+
+    def test_payload_contains_coverage_matrix_for_all_capabilities(self) -> None:
+        payload = select_scenarios(
+            [{"event_type": "onLanguage", "event_value": "python"}]
+        )
+
+        assert len(payload.coverage_matrix) == len(CAPABILITY_TAXONOMY)
+        commands = next(
+            item for item in payload.coverage_matrix if item["capability"] == "commands"
+        )
+        missing = next(
+            item for item in payload.coverage_matrix if item["capability"] == "chat"
+        )
+        assert commands["status"] == "covered"
+        assert missing["status"] == "missing"
+
+    def test_static_coverage_audit_exposes_missing_capabilities(self) -> None:
+        audit = build_static_coverage_audit()
+
+        assert audit["summary"]["missing"] >= 1
+        assert "chat" in audit["summary"]["missing_capabilities"]
+        assert any(
+            entry["capability"] == "commands" and entry["status"] == "covered"
+            for entry in audit["matrix"]
+        )
 
     def test_custom_editors_creates_bait_files(self) -> None:
         events = [{"event_type": "onCustomEditor", "event_value": "myEditor"}]
@@ -154,6 +190,16 @@ class TestSelectScenarios:
         assert "Say Hello" in payload.extra_commands
         assert "Run Analysis" in payload.extra_commands
         assert len(payload.extra_commands) == 2
+
+    def test_contributes_commands_are_capped(self) -> None:
+        commands = [
+            {"title": f"Command {index}", "command_id": f"ext.command{index}"}
+            for index in range(8)
+        ]
+        payload = select_scenarios([], contributes_commands=commands)
+        assert len(payload.extra_commands) == 6
+        assert payload.extra_commands[0] == "Command 0"
+        assert payload.extra_commands[-1] == "Command 5"
 
     def test_no_contributes_commands_leaves_empty(self) -> None:
         events = [{"event_type": "onLanguage", "event_value": "python"}]
@@ -189,6 +235,8 @@ class TestWriteTriggerFile:
         assert data["uri_trigger"] == "vscode://pub.ext/activate"
         assert data["run_task_trigger"] is True
         assert data["run_walkthrough_trigger"] is False
+        assert "coverage_summary" in data
+        assert "coverage_matrix" in data
 
     def test_creates_output_dir_if_missing(self, tmp_path: Path) -> None:
         output_dir = tmp_path / "nested" / "output"

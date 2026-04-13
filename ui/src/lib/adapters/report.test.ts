@@ -40,6 +40,47 @@ describe("adaptReport", () => {
           reason: "Observed during sandbox analysis.",
         },
       ],
+      coverage_summary: {
+        covered: 4,
+        partial: 2,
+        missing: 1,
+        missing_capabilities: ["chat"],
+      },
+      coverage_matrix: [
+        {
+          capability: "commands",
+          status: "covered",
+          selected_scenarios: ["coding_session"],
+          supported_scenarios: ["coding_session", "refactor_workflow"],
+        },
+      ],
+      log_streams: {
+        target_extension_host: [
+          {
+            timestamp: "2026-04-13T10:00:01Z",
+            rel_time_s: 1,
+            stream: "target_extension_host",
+            kind: "activation",
+            message: "Activated ms.test via onCommand:test",
+            extension_id: "ms.test",
+            activation_event: "onCommand:test",
+            scenario_name: "sandbox analysis",
+            status: "completed",
+            is_target_extension: true,
+          },
+        ],
+        automation: [
+          {
+            timestamp: "2026-04-13T10:00:00Z",
+            rel_time_s: 0.1,
+            stream: "automation",
+            kind: "scenario",
+            message: "Started scenario coding session",
+            scenario_name: "coding_session",
+            status: "running",
+          },
+        ],
+      },
     };
 
     const report = adaptReport(dto, "latest");
@@ -49,6 +90,10 @@ describe("adaptReport", () => {
     expect(report.evidence).toHaveLength(1);
     expect(report.evidence[0]?.artifact).toBe("/collect");
     expect(report.evidenceLinks[0]?.linkType).toBe("occurred_in_scenario");
+    expect(report.coverageSummary.missingCapabilities).toEqual(["chat"]);
+    expect(report.coverageMatrix[0]?.capability).toBe("commands");
+    expect(report.logStreams.targetExtensionHost[0]?.extensionId).toBe("ms.test");
+    expect(report.logStreams.automation[0]?.kind).toBe("scenario");
   });
 
   it("falls back to legacy activation/file/scenario arrays", () => {

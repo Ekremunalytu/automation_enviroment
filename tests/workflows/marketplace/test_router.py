@@ -201,8 +201,8 @@ def test_download_success(client: TestClient) -> None:
     )
 
 
-def test_download_duplicate_409(client: TestClient) -> None:
-    """ValueError from create_extension_from_directory → 409 Conflict."""
+def test_download_duplicate_returns_existing_extension(client: TestClient) -> None:
+    """Duplicate catalog insert should still return a usable download response."""
     ext_path = Path("/app/extensions/ms-python.python-2025.0.0")
 
     with (
@@ -213,6 +213,52 @@ def test_download_duplicate_409(client: TestClient) -> None:
         patch(
             "workflows.marketplace.router.create_extension_from_directory",
             side_effect=ValueError("Duplicate entry"),
+        ),
+        patch(
+            "workflows.marketplace.router.search_extension_by_name",
+            return_value=_mock_extension(42),
+        ) as mock_search,
+    ):
+        response = client.post(
+            "/api/marketplace/download",
+            json={
+                "publisher": "ms-python",
+                "name": "python",
+                "version": "2025.0.0",
+            },
+        )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "success"
+    assert data["db_id"] == 42
+    assert "already downloaded" in data["message"]
+    mock_search.assert_called_once_with(
+        ANY,
+        "python",
+        extension_publisher="ms-python",
+        extension_version="2025.0.0",
+    )
+
+
+def test_download_duplicate_without_existing_record_returns_409(
+    client: TestClient,
+) -> None:
+    """Keep the conflict response if the duplicate cannot be resolved to a stored extension."""
+    ext_path = Path("/app/extensions/ms-python.python-2025.0.0")
+
+    with (
+        patch(
+            "workflows.marketplace.client.download_and_extract_vsix",
+            return_value=ext_path,
+        ),
+        patch(
+            "workflows.marketplace.router.create_extension_from_directory",
+            side_effect=ValueError("Duplicate entry"),
+        ),
+        patch(
+            "workflows.marketplace.router.search_extension_by_name",
+            return_value=None,
         ),
     ):
         response = client.post(
@@ -510,6 +556,8 @@ def test_fail_job_marks_current_step_failed(tmp_path: Path) -> None:
     assert snapshot["error_detail"] == "monitor crashed"
     assert snapshot["current_step"] == "run_monitoring"
     assert snapshot["steps"][3]["status"] == "failed"
+    assert snapshot["steps"][4]["status"] == "skipped"
+    assert "run monitoring failed" in snapshot["steps"][4]["message"].lower()
 
 
 def test_build_trigger_payload_skips_when_explicit_scenario_is_set() -> None:
@@ -590,7 +638,7 @@ def test_build_trigger_payload_passes_commands_and_custom_editors(
 
     assert trigger_path == "/results/triggers.json"
     assert scenarios == ["command_palette"]
-    assert "selected 1 scenario" in message.lower()
+    assert "selected 1 prioritized scenario" in message.lower()
     mock_select.assert_called_once_with(
         [{"event_type": "onCommand", "event_value": "extension.run"}],
         [{"viewType": "custom.editor"}],

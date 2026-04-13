@@ -14,6 +14,7 @@ export function buildRuleDraft(inspector: EvidenceInspectorView | null): RuleDra
     kind: event.kind,
     actor: event.actor,
     collector: event.collector,
+    attribution_status: event.attributionStatus,
   };
 
   if (event.extensionId) {
@@ -53,21 +54,41 @@ export function buildRuleDraft(inspector: EvidenceInspectorView | null): RuleDra
   if (related.length) {
     scope.evidence_links = [...new Set(related.map((link) => link.linkType))];
   }
+  if (event.attributionBasis) scope.attribution_basis = event.attributionBasis;
+  if (event.attributionConfidence) scope.attribution_confidence = event.attributionConfidence;
+  if (event.artifactClass) scope.artifact_class = event.artifactClass;
 
-  return {
-    title: `${event.kindLabel} Watch: ${event.artifactShort}`,
-    severity: event.sensitive || topConfidence >= 0.8 ? "high" : event.kind === "scenario" ? "low" : "medium",
-    confidence: Number(topConfidence.toFixed(2)),
-    scope,
-    conditions,
-    rationale: [event.summaryDisplay, ...related.slice(0, 3).map((link) => link.reason)].join(" "),
-    labels: [
+  const labels = [...new Set(
+    [
       event.kind,
       event.actor,
       event.collector,
       ...(event.sensitive ? ["sensitive-path"] : []),
+      event.attributionStatus,
       ...related.map((link) => link.linkType),
     ].filter(Boolean),
+  )];
+
+  const suspiciousReasons = [
+    event.attributionBasis,
+    event.noiseReason,
+    ...related.slice(0, 3).map((link) => link.reason),
+  ].filter(Boolean);
+
+  return {
+    title: `${event.kindLabel} Watch: ${event.artifactShort}`,
+    severity:
+      event.isTargetExtensionEvent && (event.sensitive || topConfidence >= 0.8)
+        ? "high"
+        : event.kind === "scenario"
+          ? "low"
+          : "medium",
+    confidence: Number(topConfidence.toFixed(2)),
+    scope,
+    conditions,
+    rationale: [event.summaryDisplay, ...related.slice(0, 3).map((link) => link.reason)].join(" "),
+    labels,
+    suspiciousReasons,
   };
 }
 

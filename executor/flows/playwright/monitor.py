@@ -43,6 +43,7 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
 from types import TracebackType
+from typing import Any
 
 import commands
 import keyboard
@@ -129,6 +130,13 @@ class NetworkEvent:
     destination_port: int | None = None
     host: str = ""
     path: str = ""
+    related_extension_id: str = ""
+    related_activation_event: str = ""
+    attribution_status: str = "unattributed"
+    attribution_basis: str = ""
+    attribution_confidence: float = 0.0
+    is_target_extension_event: bool = False
+    noise_reason: str = ""
     summary: str = ""
 
 
@@ -146,6 +154,12 @@ class FileEvent:
     scenario_name: str = ""
     related_extension_id: str = ""
     related_activation_event: str = ""
+    attribution_status: str = "unattributed"
+    attribution_basis: str = ""
+    attribution_confidence: float = 0.0
+    is_target_extension_event: bool = False
+    noise_reason: str = ""
+    artifact_class: str = ""
     flags: str = ""
     sensitive: bool = False
     summary: str = ""
@@ -180,6 +194,12 @@ class EvidenceEvent:
     path: str = ""
     destination_ip: str = ""
     destination_port: int | None = None
+    attribution_status: str = ""
+    attribution_basis: str = ""
+    attribution_confidence: float = 0.0
+    is_target_extension_event: bool = False
+    noise_reason: str = ""
+    artifact_class: str = ""
     sensitive: bool = False
     summary: str = ""
     raw_context: dict[str, str | int | float | bool | None] = field(
@@ -199,6 +219,22 @@ class EvidenceLink:
 
 
 @dataclass
+class LogStreamEntry:
+    """Normalized log line for split-stream report rendering."""
+
+    timestamp: str = ""
+    rel_time_s: float | None = None
+    stream: str = ""
+    kind: str = ""
+    message: str = ""
+    extension_id: str = ""
+    activation_event: str = ""
+    scenario_name: str = ""
+    status: str = ""
+    is_target_extension: bool = False
+
+
+@dataclass
 class ActivationReport:
     """Aggregated monitoring results."""
 
@@ -209,10 +245,17 @@ class ActivationReport:
     file_events: list[FileEvent] = field(default_factory=list)
     scenario_traces: list[ScenarioTrace] = field(default_factory=list)
     evidence_links: list[EvidenceLink] = field(default_factory=list)
+    log_entries: list[LogStreamEntry] = field(default_factory=list)
+    coverage_summary: dict[str, Any] = field(default_factory=dict)
+    coverage_matrix: list[dict[str, Any]] = field(default_factory=list)
+    attempted_capabilities: list[str] = field(default_factory=list)
+    verified_capabilities: list[str] = field(default_factory=list)
+    verdict: dict[str, Any] = field(default_factory=dict)
     network_capture_error: str = ""
     file_capture_error: str = ""
     extension_host_output: str = ""
     log_file_path: str = ""
+    target_extension_id: str = ""
     monitoring_start: float = 0.0
     monitoring_end: float = 0.0
     scenarios_run: list[str] = field(default_factory=list)
@@ -243,6 +286,20 @@ class ActivationReport:
         return [entry for entry in self.file_events if entry.sensitive]
 
     @property
+    def target_file_events(self) -> list[FileEvent]:
+        return [entry for entry in self.file_events if entry.is_target_extension_event]
+
+    @property
+    def target_network_events(self) -> list[NetworkEvent]:
+        return [
+            entry for entry in self.network_events if entry.is_target_extension_event
+        ]
+
+    @property
+    def ui_blocker_entries(self) -> list[LogStreamEntry]:
+        return [entry for entry in self.log_entries if entry.stream == "ui_blockers"]
+
+    @property
     def summary(self) -> dict:
         unique_ids = self.activated_ids | self.runtime_ids
         return {
@@ -259,6 +316,12 @@ class ActivationReport:
             "network_hosts": len(self.network_hosts),
             "file_events": len(self.file_events),
             "sensitive_file_events": len(self.sensitive_file_events),
+            "target_file_events": len(self.target_file_events),
+            "target_network_events": len(self.target_network_events),
+            "attempted_capabilities": self.attempted_capabilities,
+            "verified_capabilities": self.verified_capabilities,
+            "ui_blocker_count": len(self.ui_blocker_entries),
+            "verdict": self.verdict,
         }
 
     @property
@@ -281,15 +344,20 @@ class ActivationReport:
     def file_summary(self) -> dict:
         sources: dict[str, int] = {}
         operations: dict[str, int] = {}
+        attribution_statuses: dict[str, int] = {}
         for event in self.file_events:
             sources[event.source] = sources.get(event.source, 0) + 1
             operations[event.operation] = operations.get(event.operation, 0) + 1
+            attribution_statuses[event.attribution_status] = (
+                attribution_statuses.get(event.attribution_status, 0) + 1
+            )
 
         return {
             "total_events": len(self.file_events),
             "sensitive_events": len(self.sensitive_file_events),
             "sources": sources,
             "operations": operations,
+            "attribution_statuses": attribution_statuses,
             "capture_error": self.file_capture_error,
         }
 
@@ -302,6 +370,26 @@ class ActivationReport:
     def canonical_evidence_links(self) -> list[EvidenceLink]:
         _, links = _build_evidence_bundle(self)
         return links
+
+    @property
+    def log_streams(self) -> dict[str, list[LogStreamEntry]]:
+        grouped: dict[str, list[LogStreamEntry]] = {
+            "target_extension_host": [],
+            "other_extension_host": [],
+            "automation": [],
+            "ui_blockers": [],
+        }
+        for entry in sorted(
+            self.log_entries,
+            key=lambda item: (
+                item.rel_time_s is None,
+                item.rel_time_s if item.rel_time_s is not None else 0.0,
+                item.timestamp,
+                item.message,
+            ),
+        ):
+            grouped.setdefault(entry.stream, []).append(entry)
+        return grouped
 
     def save(self, path: str | Path, announce: bool = True) -> Path:
         """Save full report as JSON."""
@@ -326,6 +414,12 @@ class ActivationReport:
             "evidence_links": [asdict(e) for e in evidence_links],
             "network_summary": self.network_summary,
             "file_summary": self.file_summary,
+            "coverage_summary": self.coverage_summary,
+            "coverage_matrix": self.coverage_matrix,
+            "log_streams": {
+                stream: [asdict(entry) for entry in entries]
+                for stream, entries in self.log_streams.items()
+            },
             "extension_host_output_lines": self.extension_host_output.count("\n"),
             "extension_host_output": eh_text,
             "log_file": self.log_file_path,
@@ -1333,10 +1427,15 @@ class ExtensionMonitor:
         mon.report.print_summary()
     """
 
-    def __init__(self, page: Page, report_path: str | Path | None = None) -> None:
+    def __init__(
+        self,
+        page: Page,
+        report_path: str | Path | None = None,
+        target_extension_id: str = "",
+    ) -> None:
         self.page = page
         self.report_path = Path(report_path) if report_path is not None else None
-        self.report = ActivationReport()
+        self.report = ActivationReport(target_extension_id=target_extension_id)
         self._started = False
         self._log_offsets: dict[str, int] = {}
         self._network_capture: NetworkCapture | None = None
@@ -1344,6 +1443,16 @@ class ExtensionMonitor:
         self._extension_file_capture: ExtensionHostFileCapture | None = None
         self._active_scenarios: dict[str, ScenarioTrace] = {}
         self._last_persist_at = 0.0
+
+    def apply_trigger_payload(self, payload: Any) -> None:
+        """Attach trigger-selection metadata to the in-progress report."""
+        self.report.coverage_summary = dict(getattr(payload, "coverage_summary", {}))
+        self.report.coverage_matrix = list(getattr(payload, "coverage_matrix", []))
+        self.report.attempted_capabilities = _extract_attempted_capabilities(payload)
+        payload_target = getattr(payload, "target_extension_id", None)
+        if payload_target and not self.report.target_extension_id:
+            self.report.target_extension_id = payload_target
+        self._persist_report(force=True)
 
     def start(self) -> None:
         """Record the monitoring start time."""
@@ -1452,11 +1561,27 @@ class ExtensionMonitor:
             self.report.extension_host_output = read_extension_host_output()
         except OSError as exc:
             _log(f"Strategy 3 failed: {exc}")
+        self._append_activation_log_entries()
+        self.report.network_events = _annotate_network_events(
+            self.report.network_events,
+            self.report.activated,
+            self.report.scenario_traces,
+            self.report.target_extension_id,
+        )
         self.report.file_events = _annotate_file_events(
             self.report.file_events,
             self.report.activated,
             self.report.scenario_traces,
+            self.report.target_extension_id,
         )
+        self.report.verified_capabilities = sorted(
+            set(self.report.verified_capabilities)
+            | set(_derive_verified_capabilities(self.report))
+        )
+        self.report.coverage_summary, self.report.coverage_matrix = (
+            _reconcile_coverage_verification(self.report)
+        )
+        self.report.verdict = _build_verdict(self.report)
         self.report.evidence_links = self.report.canonical_evidence_links
         self._persist_report(force=True)
 
@@ -1483,7 +1608,13 @@ class ExtensionMonitor:
         self.report.file_events.append(event)
         self._persist_report(force=False)
 
-    def record_scenario_event(self, action: str, name: str, status: str = "") -> None:
+    def record_scenario_event(
+        self,
+        action: str,
+        name: str,
+        status: str = "",
+        metadata: dict[str, Any] | None = None,
+    ) -> None:
         now = time.time()
         if action == "start":
             started_trace = ScenarioTrace(name=name, started_at=now)
@@ -1500,7 +1631,162 @@ class ExtensionMonitor:
                 self.report.scenario_traces.append(finished_trace)
             finished_trace.ended_at = now
             finished_trace.status = status or "completed"
+        message = _build_scenario_log_message(action, name, status, metadata)
+        self.report.log_entries.append(
+            LogStreamEntry(
+                timestamp=_format_epoch_timestamp(now),
+                rel_time_s=_relative_time(now, self.report.monitoring_start),
+                stream="automation",
+                kind="scenario",
+                message=message,
+                scenario_name=name,
+                status=status or ("running" if action == "start" else "completed"),
+            )
+        )
         self._persist_report(force=False)
+
+    def _append_activation_log_entries(self) -> None:
+        existing_keys = {
+            (
+                entry.stream,
+                entry.kind,
+                entry.extension_id,
+                entry.activation_event,
+                entry.timestamp,
+                entry.message,
+            )
+            for entry in self.report.log_entries
+        }
+        for entry in self.report.activated:
+            rel_time = _relative_time(
+                _parse_iso_timestamp(entry.timestamp),
+                self.report.monitoring_start,
+            )
+            scenario_name = _scenario_name_for_timestamp(
+                entry.timestamp,
+                rel_time,
+                self.report.scenario_traces,
+                self.report.monitoring_start,
+            )
+            is_target = bool(
+                self.report.target_extension_id
+                and entry.extension_id == self.report.target_extension_id
+            )
+            message = _build_activation_log_message(entry)
+            key = (
+                "target_extension_host" if is_target else "other_extension_host",
+                "activation",
+                entry.extension_id,
+                entry.activation_event,
+                entry.timestamp,
+                message,
+            )
+            if key in existing_keys:
+                continue
+            existing_keys.add(key)
+            self.report.log_entries.append(
+                LogStreamEntry(
+                    timestamp=entry.timestamp,
+                    rel_time_s=rel_time,
+                    stream="target_extension_host"
+                    if is_target
+                    else "other_extension_host",
+                    kind="activation",
+                    message=message,
+                    extension_id=entry.extension_id,
+                    activation_event=entry.activation_event,
+                    scenario_name=scenario_name,
+                    status="completed" if entry.success else "failed",
+                    is_target_extension=is_target,
+                )
+            )
+
+    def record_automation_event(
+        self,
+        kind: str,
+        message: str,
+        status: str = "",
+        scenario_name: str = "",
+        activation_event: str = "",
+    ) -> None:
+        now = time.time()
+        stream = "ui_blockers" if kind.startswith("ui_blocker") else "automation"
+        self.report.log_entries.append(
+            LogStreamEntry(
+                timestamp=_format_epoch_timestamp(now),
+                rel_time_s=_relative_time(now, self.report.monitoring_start),
+                stream=stream,
+                kind=kind,
+                message=message,
+                scenario_name=scenario_name,
+                activation_event=activation_event,
+                status=status,
+            )
+        )
+        self._persist_report(force=False)
+
+    def capture_runtime_snapshot(self) -> dict[str, int | bool]:
+        target_activations = _count_target_activations(
+            parse_all_exthost_logs(start_offsets=self._log_offsets),
+            self.report.target_extension_id,
+        )
+        target_running = any(
+            entry.extension_id == self.report.target_extension_id
+            for entry in get_running_extensions(self.page)
+        )
+        return {
+            "target_activations": target_activations,
+            "target_running": target_running,
+            "file_events": len(self.report.file_events),
+            "network_events": len(self.report.network_events),
+            "ui_blockers": len(self.report.ui_blocker_entries),
+        }
+
+    def verify_target_reaction(
+        self,
+        baseline: dict[str, int | bool],
+        *,
+        capability: str,
+        trigger_label: str,
+        activation_event: str = "",
+    ) -> bool:
+        current_target_activations = _count_target_activations(
+            parse_all_exthost_logs(start_offsets=self._log_offsets),
+            self.report.target_extension_id,
+        )
+        target_running = any(
+            entry.extension_id == self.report.target_extension_id
+            for entry in get_running_extensions(self.page)
+        )
+        new_activity = len(self.report.file_events) > int(
+            baseline.get("file_events", 0)
+        ) or len(self.report.network_events) > int(baseline.get("network_events", 0))
+        ui_blocked = len(self.report.ui_blocker_entries) > int(
+            baseline.get("ui_blockers", 0)
+        )
+        activation_seen = current_target_activations > int(
+            baseline.get("target_activations", 0)
+        )
+        verified = activation_seen or target_running or new_activity
+        if verified and capability not in self.report.verified_capabilities:
+            self.report.verified_capabilities.append(capability)
+        if capability not in self.report.attempted_capabilities:
+            self.report.attempted_capabilities.append(capability)
+        status = "completed" if verified else "failed"
+        message = (
+            f"Verified {capability} trigger {trigger_label}"
+            if verified
+            else f"Trigger {trigger_label} did not produce a verified target reaction"
+        )
+        if ui_blocked and not verified:
+            message += " because a UI blocker interrupted the flow"
+        self.record_automation_event(
+            "command_verification",
+            message,
+            status=status,
+            activation_event=activation_event,
+        )
+        return verified
 
     def _finalize_running_scenarios(self) -> None:
         ended_at = self.report.monitoring_end or time.time()
@@ -1669,6 +1955,15 @@ def _format_epoch_timestamp(epoch: float | None) -> str:
     return datetime.fromtimestamp(epoch).isoformat(timespec="milliseconds")
 
 
+def _relative_time(
+    event_epoch: float | None,
+    monitoring_start: float,
+) -> float | None:
+    if event_epoch is None or monitoring_start <= 0:
+        return None
+    return round(max(event_epoch - monitoring_start, 0.0), 3)
+
+
 def _resolve_event_epoch(
     timestamp: str, rel_time_s: float | None, base_time: float
 ) -> float | None:
@@ -1686,10 +1981,332 @@ def _actor_from_file_source(source: str) -> str:
     return "unknown"
 
 
+def _actor_from_network_event(event: NetworkEvent) -> str:
+    if event.is_target_extension_event:
+        return "extension"
+    if event.attribution_status == "near_target_activation":
+        return "unknown"
+    return "unknown"
+
+
+def _build_scenario_log_message(
+    action: str,
+    name: str,
+    status: str,
+    metadata: dict[str, Any] | None,
+) -> str:
+    label = name.replace("_", " ")
+    intent = ""
+    if metadata is not None:
+        intent = str(metadata.get("intent", "")).strip()
+    if action == "start":
+        return f"Started scenario {label}" + (f": {intent}" if intent else "")
+    if action == "end":
+        verb = "Completed" if status != "failed" else "Failed"
+        return f"{verb} scenario {label}" + (f": {intent}" if intent else "")
+    return f"Scenario {label}"
+
+
+def _build_activation_log_message(entry: ActivationEntry) -> str:
+    parts = [f"Activated {entry.extension_id}"]
+    if entry.activation_event:
+        parts.append(f"via {entry.activation_event}")
+    if entry.duration_ms is not None:
+        parts.append(f"in {entry.duration_ms}ms")
+    return " ".join(parts)
+
+
+def _scenario_name_for_timestamp(
+    timestamp: str,
+    rel_time_s: float | None,
+    scenario_traces: list[ScenarioTrace],
+    monitoring_start: float,
+) -> str:
+    event_epoch = _resolve_event_epoch(timestamp, rel_time_s, monitoring_start)
+    if event_epoch is None:
+        return ""
+    for trace in scenario_traces:
+        if trace.started_at <= event_epoch <= (trace.ended_at or event_epoch):
+            return trace.name
+    return ""
+
+
+def _extract_attempted_capabilities(payload: Any) -> list[str]:
+    attempted: set[str] = set()
+    for entry in getattr(payload, "coverage_matrix", []) or []:
+        capability = str(entry.get("capability", "")).strip()
+        if capability and (entry.get("is_active") or entry.get("selected")):
+            attempted.add(capability)
+    for capability in getattr(payload, "attempted_capabilities", []) or []:
+        cap = str(capability).strip()
+        if cap:
+            attempted.add(cap)
+    return sorted(attempted)
+
+
+def _artifact_class_for_path(path: str) -> str:
+    normalized = path.strip()
+    if not normalized.endswith("/package.json"):
+        return ""
+    if normalized.startswith("/workspace/"):
+        return "workspace_runtime"
+    return "manifest_ingestion"
+
+
+def _nearest_activation_matches(
+    event_epoch: float | None,
+    activations: list[ActivationEntry],
+    target_extension_id: str,
+) -> tuple[tuple[ActivationEntry, float] | None, tuple[ActivationEntry, float] | None]:
+    if event_epoch is None:
+        return None, None
+
+    target_match: tuple[ActivationEntry, float] | None = None
+    competitor_match: tuple[ActivationEntry, float] | None = None
+    for activation in activations:
+        activation_epoch = _parse_iso_timestamp(activation.timestamp)
+        if activation_epoch is None:
+            continue
+        delta = abs(event_epoch - activation_epoch)
+        if delta > 5.0:
+            continue
+        candidate = (activation, delta)
+        if activation.extension_id == target_extension_id:
+            if target_match is None or delta < target_match[1]:
+                target_match = candidate
+            continue
+        if competitor_match is None or delta < competitor_match[1]:
+            competitor_match = candidate
+    return target_match, competitor_match
+
+
+def _classify_event_attribution(
+    event_epoch: float | None,
+    activations: list[ActivationEntry],
+    target_extension_id: str,
+    *,
+    observer: str,
+) -> tuple[str, str, float, str, str, bool, str]:
+    if observer == "inotify":
+        return (
+            "automation_noise",
+            "inotify captures workspace automation and system activity, not extension-host ownership",
+            0.0,
+            "",
+            "",
+            False,
+            "ownership is intentionally suppressed for inotify telemetry",
+        )
+
+    if not target_extension_id or event_epoch is None:
+        return (
+            "unattributed",
+            "target extension context was unavailable for ownership analysis",
+            0.0,
+            "",
+            "",
+            False,
+            "",
+        )
+
+    target_match, competitor_match = _nearest_activation_matches(
+        event_epoch,
+        activations,
+        target_extension_id,
+    )
+    if target_match is None:
+        if competitor_match is not None and competitor_match[1] <= 1.25:
+            competitor_id = competitor_match[0].extension_id
+            return (
+                "competing_candidate",
+                f"nearest activation belonged to competing extension {competitor_id}",
+                0.35,
+                target_extension_id,
+                "",
+                False,
+                "a different extension activated closer to this event",
+            )
+        return (
+            "unattributed",
+            "no target activation was close enough to support ownership",
+            0.0,
+            "",
+            "",
+            False,
+            "",
+        )
+
+    target_activation, target_delta = target_match
+    competitor_delta = competitor_match[1] if competitor_match is not None else None
+    if (
+        competitor_match is not None
+        and competitor_delta is not None
+        and competitor_delta <= min(1.25, target_delta + 0.35)
+    ):
+        return (
+            "competing_candidate",
+            "target activation overlapped with another extension activation in the same window",
+            0.45,
+            target_extension_id,
+            target_activation.activation_event,
+            False,
+            f"competing activation {competitor_match[0].extension_id} was too close",
+        )
+
+    if observer == "strace":
+        if target_delta <= 1.25:
+            confidence = (
+                0.93 if target_delta <= 0.35 else 0.84 if target_delta <= 0.75 else 0.72
+            )
+            return (
+                "target_attributed",
+                "strace event aligned tightly with the target extension activation window",
+                confidence,
+                target_extension_id,
+                target_activation.activation_event,
+                True,
+                "",
+            )
+        return (
+            "unattributed",
+            "strace observed extension-host I/O but the target activation was not close enough",
+            0.0,
+            "",
+            "",
+            False,
+            "",
+        )
+
+    if target_delta <= 0.75:
+        confidence = 0.78 if target_delta <= 0.35 else 0.66
+        return (
+            "target_attributed",
+            "network event happened immediately after a target activation without a competing activation",
+            confidence,
+            target_extension_id,
+            target_activation.activation_event,
+            True,
+            "",
+        )
+    if target_delta <= 5.0:
+        confidence = max(0.28, round(0.58 - min(target_delta, 5.0) * 0.06, 2))
+        return (
+            "near_target_activation",
+            "network event was only temporally close to the target activation",
+            confidence,
+            target_extension_id,
+            target_activation.activation_event,
+            False,
+            "temporal proximity alone is not treated as ownership",
+        )
+    return (
+        "unattributed",
+        "no attribution rule matched this event",
+        0.0,
+        "",
+        "",
+        False,
+        "",
+    )
+
+
+def _upgrade_inotify_correlations(file_events: list[FileEvent]) -> list[FileEvent]:
+    strace_events = [event for event in file_events if event.observer == "strace"]
+    for event in file_events:
+        if (
+            event.observer != "inotify"
+            or event.attribution_status != "automation_noise"
+        ):
+            continue
+        event_epoch = _parse_iso_timestamp(event.timestamp)
+        if event_epoch is None:
+            continue
+        for strace_event in strace_events:
+            strace_epoch = _parse_iso_timestamp(strace_event.timestamp)
+            if strace_epoch is None:
+                continue
+            if (
+                event.path != strace_event.path
+                or event.operation != strace_event.operation
+            ):
+                continue
+            if abs(event_epoch - strace_epoch) > 1.0:
+                continue
+            event.attribution_status = "corroboration"
+            event.attribution_basis = "inotify duplicated a matching extension-host file event and is retained as corroboration only"
+            event.attribution_confidence = 0.25
+            event.noise_reason = (
+                "duplicate workspace observation; ownership remains anchored to strace"
+            )
+            break
+    return file_events
+
+
+def _annotate_network_events(
+    network_events: list[NetworkEvent],
+    activations: list[ActivationEntry],
+    scenario_traces: list[ScenarioTrace],
+    target_extension_id: str,
+) -> list[NetworkEvent]:
+    annotated: list[NetworkEvent] = []
+    for network_event in network_events:
+        event_epoch = _resolve_event_epoch(
+            network_event.timestamp,
+            network_event.rel_time_s,
+            0.0,
+        )
+        scenario_name = _scenario_name_for_timestamp(
+            network_event.timestamp,
+            network_event.rel_time_s,
+            scenario_traces,
+            0.0,
+        )
+        (
+            attribution_status,
+            attribution_basis,
+            attribution_confidence,
+            related_extension_id,
+            related_activation_event,
+            is_target_extension_event,
+            noise_reason,
+        ) = _classify_event_attribution(
+            event_epoch,
+            activations,
+            target_extension_id,
+            observer="network",
+        )
+        summary = network_event.summary
+        if scenario_name:
+            summary = f"{summary} [{scenario_name}]"
+        annotated.append(
+            NetworkEvent(
+                timestamp=network_event.timestamp,
+                rel_time_s=network_event.rel_time_s,
+                protocol=network_event.protocol,
+                event_type=network_event.event_type,
+                source_ip=network_event.source_ip,
+                destination_ip=network_event.destination_ip,
+                destination_port=network_event.destination_port,
+                host=network_event.host,
+                path=network_event.path,
+                related_extension_id=related_extension_id,
+                related_activation_event=related_activation_event,
+                attribution_status=attribution_status,
+                attribution_basis=attribution_basis,
+                attribution_confidence=attribution_confidence,
+                is_target_extension_event=is_target_extension_event,
+                noise_reason=noise_reason,
+                summary=summary,
+            )
+        )
+    return annotated
+
+
 def _annotate_file_events(
     file_events: list[FileEvent],
     activations: list[ActivationEntry],
     scenario_traces: list[ScenarioTrace],
+    target_extension_id: str,
 ) -> list[FileEvent]:
     annotated: list[FileEvent] = []
     for file_event in sorted(
@@ -1713,9 +2330,6 @@ def _annotate_file_events(
                     scenario_name = trace.name
                     break
 
-        related_extension_id = file_event.related_extension_id
-        related_activation_event = file_event.related_activation_event
-
         source = file_event.source
         if file_event.observer == "strace":
             source = "extension"
@@ -1727,6 +2341,20 @@ def _annotate_file_events(
         summary = file_event.summary
         if scenario_name:
             summary = f"{summary} [{scenario_name}]"
+        (
+            attribution_status,
+            attribution_basis,
+            attribution_confidence,
+            related_extension_id,
+            related_activation_event,
+            is_target_extension_event,
+            noise_reason,
+        ) = _classify_event_attribution(
+            event_epoch,
+            activations,
+            target_extension_id,
+            observer=file_event.observer,
+        )
 
         annotated.append(
             FileEvent(
@@ -1740,13 +2368,19 @@ def _annotate_file_events(
                 scenario_name=scenario_name,
                 related_extension_id=related_extension_id,
                 related_activation_event=related_activation_event,
+                attribution_status=attribution_status,
+                attribution_basis=attribution_basis,
+                attribution_confidence=attribution_confidence,
+                is_target_extension_event=is_target_extension_event,
+                noise_reason=noise_reason,
+                artifact_class=_artifact_class_for_path(file_event.path),
                 flags=file_event.flags,
                 sensitive=file_event.sensitive,
                 summary=summary,
             )
         )
 
-    return annotated
+    return _upgrade_inotify_correlations(annotated)
 
 
 def _build_evidence_bundle(
@@ -1760,6 +2394,7 @@ def _build_evidence_bundle(
     activation_entries: list[tuple[str, ActivationEntry, float | None]] = []
     network_entries: list[tuple[str, NetworkEvent, float | None]] = []
     file_entries: list[tuple[str, FileEvent, float | None]] = []
+    blocker_entries: list[tuple[str, LogStreamEntry, float | None]] = []
 
     for index, trace in enumerate(
         sorted(report.scenario_traces, key=lambda item: item.started_at),
@@ -1826,6 +2461,37 @@ def _build_evidence_bundle(
             )
         )
 
+    ui_blockers = [
+        entry for entry in report.log_entries if entry.stream == "ui_blockers"
+    ]
+    for index, blocker in enumerate(ui_blockers, start=1):
+        event_id = f"ui-blocker-{index:04d}"
+        event_epoch = _resolve_event_epoch(
+            blocker.timestamp,
+            blocker.rel_time_s,
+            monitoring_start,
+        )
+        blocker_entries.append((event_id, blocker, event_epoch))
+        events.append(
+            EvidenceEvent(
+                event_id=event_id,
+                kind="ui_blocker",
+                timestamp=blocker.timestamp
+                if blocker.timestamp
+                else _format_epoch_timestamp(event_epoch),
+                rel_time_s=blocker.rel_time_s,
+                collector=blocker.stream,
+                actor="automation",
+                scenario_name=blocker.scenario_name,
+                activation_event=blocker.activation_event,
+                summary=blocker.message,
+                raw_context={
+                    "status": blocker.status,
+                    "stream": blocker.stream,
+                },
+            )
+        )
+
     for index, network_event in enumerate(report.network_events, start=1):
         event_id = f"network-{index:04d}"
         event_epoch = _resolve_event_epoch(
@@ -1843,11 +2509,24 @@ def _build_evidence_bundle(
                 else _format_epoch_timestamp(event_epoch),
                 rel_time_s=network_event.rel_time_s,
                 collector="tshark",
-                actor="unknown",
+                actor=_actor_from_network_event(network_event),
+                scenario_name=_scenario_name_for_timestamp(
+                    network_event.timestamp,
+                    network_event.rel_time_s,
+                    report.scenario_traces,
+                    monitoring_start,
+                ),
+                extension_id=network_event.related_extension_id,
+                activation_event=network_event.related_activation_event,
                 protocol=network_event.protocol,
                 host=network_event.host,
                 destination_ip=network_event.destination_ip,
                 destination_port=network_event.destination_port,
+                attribution_status=network_event.attribution_status,
+                attribution_basis=network_event.attribution_basis,
+                attribution_confidence=network_event.attribution_confidence,
+                is_target_extension_event=network_event.is_target_extension_event,
+                noise_reason=network_event.noise_reason,
                 summary=network_event.summary,
                 raw_context={
                     "event_type": network_event.event_type,
@@ -1880,6 +2559,12 @@ def _build_evidence_bundle(
                 activation_event=file_event.related_activation_event,
                 operation=file_event.operation,
                 path=file_event.path,
+                attribution_status=file_event.attribution_status,
+                attribution_basis=file_event.attribution_basis,
+                attribution_confidence=file_event.attribution_confidence,
+                is_target_extension_event=file_event.is_target_extension_event,
+                noise_reason=file_event.noise_reason,
+                artifact_class=file_event.artifact_class,
                 sensitive=file_event.sensitive,
                 summary=file_event.summary,
                 raw_context={
@@ -1893,13 +2578,18 @@ def _build_evidence_bundle(
 
     links.extend(
         _build_scenario_links(
-            scenario_entries, activation_entries, network_entries, file_entries
+            scenario_entries,
+            activation_entries,
+            network_entries,
+            file_entries,
+            blocker_entries,
         )
     )
     links.extend(
         _build_temporal_links(activation_entries, network_entries, file_entries)
     )
     links.extend(_build_duplicate_file_links(file_entries))
+    links.extend(_build_noise_links(scenario_entries, file_entries, blocker_entries))
     return events, _dedupe_evidence_links(links)
 
 
@@ -1908,6 +2598,7 @@ def _build_scenario_links(
     activation_entries: list[tuple[str, ActivationEntry, float | None]],
     network_entries: list[tuple[str, NetworkEvent, float | None]],
     file_entries: list[tuple[str, FileEvent, float | None]],
+    blocker_entries: list[tuple[str, LogStreamEntry, float | None]],
 ) -> list[EvidenceLink]:
     links: list[EvidenceLink] = []
     for scenario_event_id, trace in scenario_entries:
@@ -1918,6 +2609,7 @@ def _build_scenario_links(
             *activation_entries,
             *network_entries,
             *file_entries,
+            *blocker_entries,
         ]:
             if event_epoch is None:
                 continue
@@ -1946,19 +2638,34 @@ def _build_temporal_links(
         activation_match = _nearest_activation(activation_entries, event_epoch)
         if activation_match is None:
             continue
-        activation_event_id, activation_entry, delta = activation_match
-        links.append(
-            EvidenceLink(
-                from_event_id=event_id,
-                to_event_id=activation_event_id,
-                link_type="candidate_owner",
-                confidence=_temporal_confidence(delta),
-                reason=(
-                    "File activity occurred close to activation "
-                    f"{activation_entry.extension_id} ({delta:.3f}s delta)."
-                ),
+        activation_event_id, _activation_entry, delta = activation_match
+        if file_event.is_target_extension_event:
+            links.append(
+                EvidenceLink(
+                    from_event_id=event_id,
+                    to_event_id=activation_event_id,
+                    link_type="caused_by_target_extension",
+                    confidence=file_event.attribution_confidence
+                    or _temporal_confidence(delta),
+                    reason=(
+                        "File activity is attributed to the target extension because the "
+                        "extension-host event aligned with its activation window."
+                    ),
+                )
             )
-        )
+        elif file_event.attribution_status in {"competing_candidate", "unattributed"}:
+            links.append(
+                EvidenceLink(
+                    from_event_id=event_id,
+                    to_event_id=activation_event_id,
+                    link_type="near_target_activation",
+                    confidence=_temporal_confidence(delta),
+                    reason=(
+                        "File activity happened near the target activation but ownership "
+                        f"remains unconfirmed ({delta:.3f}s delta)."
+                    ),
+                )
+            )
 
     for event_id, network_event, event_epoch in network_entries:
         if event_epoch is None:
@@ -1966,19 +2673,37 @@ def _build_temporal_links(
         activation_match = _nearest_activation(activation_entries, event_epoch)
         if activation_match is None:
             continue
-        activation_event_id, activation_entry, delta = activation_match
-        links.append(
-            EvidenceLink(
-                from_event_id=event_id,
-                to_event_id=activation_event_id,
-                link_type="temporal_neighbor",
-                confidence=_temporal_confidence(delta),
-                reason=(
-                    "Network activity happened near activation "
-                    f"{activation_entry.extension_id} ({delta:.3f}s delta)."
-                ),
+        activation_event_id, _activation_entry, delta = activation_match
+        if network_event.is_target_extension_event:
+            links.append(
+                EvidenceLink(
+                    from_event_id=event_id,
+                    to_event_id=activation_event_id,
+                    link_type="caused_by_target_extension",
+                    confidence=network_event.attribution_confidence
+                    or _temporal_confidence(delta),
+                    reason=(
+                        "Network activity is attributed to the target extension because it "
+                        "followed a target activation without a competing activation."
+                    ),
+                )
             )
-        )
+        elif network_event.attribution_status in {
+            "near_target_activation",
+            "competing_candidate",
+        }:
+            links.append(
+                EvidenceLink(
+                    from_event_id=event_id,
+                    to_event_id=activation_event_id,
+                    link_type="near_target_activation",
+                    confidence=_temporal_confidence(delta),
+                    reason=(
+                        "Network activity happened near the target activation but remains "
+                        f"correlative only ({delta:.3f}s delta)."
+                    ),
+                )
+            )
     return links
 
 
@@ -2019,6 +2744,46 @@ def _build_duplicate_file_links(
     return links
 
 
+def _build_noise_links(
+    scenario_entries: list[tuple[str, ScenarioTrace]],
+    file_entries: list[tuple[str, FileEvent, float | None]],
+    blocker_entries: list[tuple[str, LogStreamEntry, float | None]],
+) -> list[EvidenceLink]:
+    scenario_ids = {trace.name: event_id for event_id, trace in scenario_entries}
+    links: list[EvidenceLink] = []
+    for event_id, file_event, _ in file_entries:
+        scenario_event_id = scenario_ids.get(file_event.scenario_name)
+        if scenario_event_id is None:
+            continue
+        if file_event.attribution_status == "automation_noise":
+            links.append(
+                EvidenceLink(
+                    from_event_id=event_id,
+                    to_event_id=scenario_event_id,
+                    link_type="automation_noise",
+                    confidence=1.0,
+                    reason=(
+                        "This inotify file event belongs to the automation scenario rather "
+                        "than extension-host ownership."
+                    ),
+                )
+            )
+    for event_id, blocker_entry, _ in blocker_entries:
+        scenario_event_id = scenario_ids.get(blocker_entry.scenario_name)
+        if scenario_event_id is None:
+            continue
+        links.append(
+            EvidenceLink(
+                from_event_id=event_id,
+                to_event_id=scenario_event_id,
+                link_type="blocked_by_ui",
+                confidence=1.0,
+                reason="A VS Code popup or modal interfered with the active automation flow.",
+            )
+        )
+    return links
+
+
 def _nearest_activation(
     activation_entries: list[tuple[str, ActivationEntry, float | None]],
     event_epoch: float,
@@ -2054,6 +2819,260 @@ def _dedupe_evidence_links(links: list[EvidenceLink]) -> list[EvidenceLink]:
         seen.add(key)
         deduped.append(link)
     return deduped
+
+
+def _derive_verified_capabilities(report: ActivationReport) -> list[str]:
+    target_id = report.target_extension_id
+    if not target_id:
+        return []
+
+    target_activations = [
+        entry for entry in report.activated if entry.extension_id == target_id
+    ]
+    target_running = any(
+        entry.extension_id == target_id for entry in report.running_extensions
+    )
+    target_file_events = report.target_file_events
+    target_network_events = report.target_network_events
+    verified: set[str] = set()
+
+    if target_running or target_activations:
+        verified.add("window_ui")
+    if any(
+        activation.activation_event.startswith("onCommand")
+        for activation in target_activations
+    ):
+        verified.add("commands")
+    if any(
+        activation.activation_event.startswith("onLanguage")
+        for activation in target_activations
+    ) or any(
+        event.scenario_name
+        in {"coding_session", "project_exploration", "refactor_workflow"}
+        for event in target_file_events
+    ):
+        verified.add("languages_editor")
+    if target_file_events:
+        verified.add("workspace_fs")
+    if any(
+        activation.activation_event.startswith(("onDebug", "onDebugResolve"))
+        for activation in target_activations
+    ) or any(event.scenario_name == "debug_session" for event in target_file_events):
+        verified.add("debug")
+    if any(
+        activation.activation_event in {"onTaskType", "onTerminalProfile"}
+        for activation in target_activations
+    ) or any(event.scenario_name == "terminal_usage" for event in target_file_events):
+        verified.add("terminal_tasks")
+    if any(
+        activation.activation_event == "onView:scm" for activation in target_activations
+    ):
+        verified.add("scm")
+    if any(
+        activation.activation_event == "onView:search"
+        for activation in target_activations
+    ):
+        verified.add("search_views")
+    if any(
+        activation.activation_event == "onConfiguration"
+        for activation in target_activations
+    ) or any(
+        event.scenario_name == "settings_modification" for event in target_file_events
+    ):
+        verified.add("settings")
+    if any(
+        activation.activation_event == "onNotebook" for activation in target_activations
+    ):
+        verified.add("notebooks")
+    if any(
+        activation.activation_event == "onCustomEditor"
+        for activation in target_activations
+    ):
+        verified.add("custom_editors")
+    if any(
+        activation.activation_event in {"onUri", "onWalkthrough"}
+        for activation in target_activations
+    ):
+        verified.add("uri_walkthrough")
+    if target_network_events and "workspace_fs" in verified:
+        verified.add("commands")
+
+    return sorted(verified)
+
+
+def _count_target_activations(
+    activations: list[ActivationEntry],
+    target_extension_id: str,
+) -> int:
+    if not target_extension_id:
+        return 0
+    return sum(1 for entry in activations if entry.extension_id == target_extension_id)
+
+
+def _reconcile_coverage_verification(
+    report: ActivationReport,
+) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    attempted = set(report.attempted_capabilities)
+    verified = set(report.verified_capabilities)
+    matrix: list[dict[str, Any]] = []
+    for entry in report.coverage_matrix:
+        capability = str(entry.get("capability", "")).strip()
+        next_entry = dict(entry)
+        next_entry["support_status"] = entry.get("status", "unknown")
+        if capability in verified:
+            verification_status = "verified"
+        elif capability in attempted:
+            verification_status = "attempted_only"
+        else:
+            verification_status = "not_attempted"
+        next_entry["verification_status"] = verification_status
+        next_entry["attempted"] = capability in attempted
+        next_entry["verified"] = capability in verified
+        matrix.append(next_entry)
+
+    summary = dict(report.coverage_summary)
+    summary["attempted"] = len(attempted)
+    summary["verified"] = len(verified)
+    summary["attempted_capabilities"] = sorted(attempted)
+    summary["verified_capabilities"] = sorted(verified)
+    return summary, matrix
+
+
+def _is_background_activation(activation_event: str) -> bool:
+    if not activation_event:
+        return False
+    return activation_event in {
+        "*",
+        "onStartupFinished",
+        "workspaceContains",
+        "onView:explorer",
+        "onView:search",
+        "onView:output",
+    } or activation_event.startswith("onLanguage")
+
+
+def _build_verdict(report: ActivationReport) -> dict[str, Any]:
+    target_id = report.target_extension_id
+    if not target_id:
+        return {
+            "level": "needs_review",
+            "score": 25,
+            "reasons": [
+                "Target extension context was missing, so ownership could not be evaluated."
+            ],
+            "note": "Target extension context was missing, so the run can only be reviewed manually.",
+        }
+
+    target_activations = [
+        entry for entry in report.activated if entry.extension_id == target_id
+    ]
+    startup_target = any(
+        _is_background_activation(entry.activation_event)
+        for entry in target_activations
+    )
+    strong_target_files = [
+        event
+        for event in report.target_file_events
+        if event.attribution_status == "target_attributed"
+    ]
+    strong_target_networks = [
+        event
+        for event in report.target_network_events
+        if event.attribution_status == "target_attributed"
+    ]
+    sensitive_target_files = [event for event in strong_target_files if event.sensitive]
+    correlated_sensitive_files = [
+        event
+        for event in report.file_events
+        if event.sensitive
+        and event.attribution_status
+        in {"near_target_activation", "competing_candidate"}
+    ]
+    reasons: list[str] = []
+    score = 8
+
+    if startup_target and sensitive_target_files:
+        score += 28
+        reasons.append(
+            "The target extension activated in a background/startup path and then touched sensitive files."
+        )
+    if startup_target and strong_target_networks:
+        score += 20
+        reasons.append(
+            "The target extension emitted network activity after a background or eager activation."
+        )
+    if any(
+        event.scenario_name in {"settings_modification", "project_exploration"}
+        and event.sensitive
+        for event in sensitive_target_files
+    ):
+        score += 18
+        reasons.append(
+            "Sensitive file access happened while scanning workspace/settings-oriented scenarios."
+        )
+    if any(
+        event.scenario_name in {"terminal_usage", "debug_session"} and event.sensitive
+        for event in sensitive_target_files
+    ):
+        score += 18
+        reasons.append(
+            "Credential or secret paths were accessed during terminal/debug-oriented hooks."
+        )
+    if len({event.path for event in sensitive_target_files}) >= 2:
+        score += 22
+        reasons.append(
+            "Multiple distinct sensitive artifacts were touched with strong target attribution."
+        )
+    if sensitive_target_files and strong_target_networks:
+        score += 22
+        reasons.append(
+            "Sensitive local access and outbound network activity both belong to the target extension."
+        )
+    if correlated_sensitive_files and not sensitive_target_files:
+        score += 14
+        reasons.append(
+            "Sensitive file activity exists near target activations, but attribution is only correlative."
+        )
+    if report.ui_blocker_entries:
+        score += 5
+        reasons.append(
+            "UI blockers were detected, which reduced verification certainty for parts of the run."
+        )
+
+    score = max(8, min(96, score))
+    strong_attribution = bool(sensitive_target_files or strong_target_networks)
+    if (
+        strong_attribution
+        and score >= 70
+        and (
+            strong_target_networks
+            or len({event.path for event in sensitive_target_files}) >= 2
+        )
+    ):
+        level = "likely_malicious"
+    elif score >= 48:
+        level = "suspicious"
+    elif reasons:
+        level = "needs_review"
+    else:
+        level = "benign"
+
+    if not strong_attribution and level == "likely_malicious":
+        level = "suspicious"
+    if not strong_attribution and level == "suspicious" and score < 60:
+        level = "needs_review"
+
+    note = (
+        reasons[0]
+        if reasons
+        else "The run did not produce strongly attributed high-risk behavior from the target extension."
+    )
+    return {
+        "level": level,
+        "score": score,
+        "reasons": reasons[:5],
+        "note": note,
+    }
 
 
 def _matches_extension_signature(

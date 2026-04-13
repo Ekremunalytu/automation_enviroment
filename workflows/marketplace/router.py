@@ -24,6 +24,7 @@ from executor.host import ExecutorError
 from workflows.extension_catalog.service import (
     ExtensionManifestMismatchError,
     create_extension_from_directory,
+    search_extension_by_name,
 )
 from workflows.marketplace import client as marketplace_client
 from workflows.marketplace.analysis_service import (
@@ -103,10 +104,30 @@ def download_marketplace_extension(
     except ExtensionManifestMismatchError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
     except ValueError as exc:
-        raise HTTPException(
-            status_code=409,
-            detail=f"Extension already registered: {exc}",
-        ) from exc
+        existing_extension = search_extension_by_name(
+            db,
+            request.name,
+            extension_publisher=request.publisher,
+            extension_version=request.version,
+        )
+        if existing_extension is None:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Extension already registered: {exc}",
+            ) from exc
+
+        return MarketplaceDownloadResponse(
+            status="success",
+            publisher=request.publisher,
+            name=request.name,
+            version=request.version,
+            extension_dir=str(ext_dir),
+            db_id=existing_extension.id,
+            message=(
+                f"Extension {request.publisher}.{request.name}@{request.version} "
+                "is already downloaded and ready to analyze."
+            ),
+        )
 
     if extension is None:
         raise HTTPException(

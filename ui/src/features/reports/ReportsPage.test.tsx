@@ -110,6 +110,47 @@ const latestReport = {
       reason: "Temporal proximity to extension activation.",
     },
   ],
+  coverage_summary: {
+    covered: 6,
+    partial: 2,
+    missing: 3,
+    missing_capabilities: ["chat", "comments", "webview"],
+  },
+  coverage_matrix: [
+    {
+      capability: "commands",
+      status: "covered",
+      selected_scenarios: ["coding_session"],
+      supported_scenarios: ["coding_session", "refactor_workflow"],
+    },
+  ],
+  log_streams: {
+    target_extension_host: [
+      {
+        timestamp: "2026-04-13T10:00:00Z",
+        rel_time_s: 1,
+        stream: "target_extension_host",
+        kind: "activation",
+        message: "Activated publisher.tool via onStartupFinished",
+        extension_id: "publisher.tool",
+        activation_event: "onStartupFinished",
+        scenario_name: "credential probe",
+        status: "completed",
+        is_target_extension: true,
+      },
+    ],
+    automation: [
+      {
+        timestamp: "2026-04-13T09:59:59Z",
+        rel_time_s: 0.2,
+        stream: "automation",
+        kind: "scenario",
+        message: "Started scenario credential probe",
+        scenario_name: "credential probe",
+        status: "running",
+      },
+    ],
+  },
 };
 
 describe("ReportsPage", () => {
@@ -138,6 +179,11 @@ describe("ReportsPage", () => {
     await waitFor(() => {
       expect(screen.queryByText("Evidence filters")).not.toBeInTheDocument();
     });
+
+    fireEvent.click(screen.getByRole("button", { name: "Logs" }));
+    expect(await screen.findByText("Coverage audit")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Target Triggers" })).toBeInTheDocument();
+    expect(screen.getByText("Activated publisher.tool via onStartupFinished")).toBeInTheDocument();
   });
 
   it("keeps tab and inspector state in the URL while updating inspector content from table selection", async () => {
@@ -152,13 +198,16 @@ describe("ReportsPage", () => {
 
     fireEvent.click(screen.getAllByText("/workspace/.env")[0]);
 
+    expect(screen.getByText("/workspace/.env")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Analysis" }));
     await waitFor(() => {
-      expect(screen.getAllByText("/workspace/.env").length).toBeGreaterThan(1);
+      expect(screen.getByTestId("location-search").textContent).toContain("workspace=analysis");
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Rule Draft" }));
+    fireEvent.click(screen.getByRole("button", { name: "Rules" }));
     await waitFor(() => {
-      expect(screen.getByTestId("location-search").textContent).toContain("inspector=rule");
+      expect(screen.getByTestId("location-search").textContent).toContain("inspector=rules");
     });
   });
 });

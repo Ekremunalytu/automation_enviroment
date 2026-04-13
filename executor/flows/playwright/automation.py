@@ -16,6 +16,8 @@ Usage:
 
 import random
 from collections.abc import Callable
+from dataclasses import dataclass
+from typing import Any
 
 import commands
 import debug
@@ -30,7 +32,21 @@ from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import Page
 
 ScenarioFn = Callable[[Page], None]
-ScenarioEventReporter = Callable[[str, str, str], None]
+ScenarioEventReporter = Callable[[str, str, str, dict[str, Any] | None], None]
+
+
+@dataclass(frozen=True)
+class ScenarioSpec:
+    """Execution handler plus metadata for a supported scenario."""
+
+    name: str
+    handler: ScenarioFn
+    intent: str
+    activation_events: tuple[str, ...]
+    api_capabilities: tuple[str, ...]
+    success_signals: tuple[str, ...]
+    risk_of_noise: str = "medium"
+
 
 _SCENARIO_EVENT_REPORTER: ScenarioEventReporter | None = None
 
@@ -535,18 +551,104 @@ def scenario_notebook_session(page: Page) -> None:
 # Master orchestrator
 # ---------------------------------------------------------------------------
 
-_ALL_SCENARIOS: list[tuple[str, ScenarioFn]] = [
-    ("coding_session", scenario_coding_session),
-    ("debug_session", scenario_debug_session),
-    ("terminal_usage", scenario_terminal_usage),
-    ("git_workflow", scenario_git_workflow),
-    ("extension_browsing", scenario_extension_browsing),
-    ("settings_modification", scenario_settings_modification),
-    ("project_exploration", scenario_project_exploration),
-    ("search_workflow", scenario_search_workflow),
-    ("diagnostics_check", scenario_diagnostics_check),
-    ("refactor_workflow", scenario_refactor_workflow),
-    ("notebook_session", scenario_notebook_session),
+_ALL_SCENARIOS: list[ScenarioSpec] = [
+    ScenarioSpec(
+        name="coding_session",
+        handler=scenario_coding_session,
+        intent="Exercise language tooling, commands, formatting, and save flows.",
+        activation_events=("onLanguage", "onCommand"),
+        api_capabilities=("commands", "window_ui", "workspace_fs", "languages_editor"),
+        success_signals=("file open", "suggest widget", "format action", "save action"),
+    ),
+    ScenarioSpec(
+        name="debug_session",
+        handler=scenario_debug_session,
+        intent="Drive debug views, breakpoints, and debug lifecycle transitions.",
+        activation_events=(
+            "onDebug",
+            "onDebugResolve",
+            "onDebugAdapterProtocolTracker",
+        ),
+        api_capabilities=("commands", "window_ui", "debug", "workspace_fs"),
+        success_signals=("breakpoint toggle", "debug start", "debug console"),
+        risk_of_noise="high",
+    ),
+    ScenarioSpec(
+        name="terminal_usage",
+        handler=scenario_terminal_usage,
+        intent="Use integrated terminals and task-adjacent shell flows.",
+        activation_events=("onTaskType", "onTerminalProfile"),
+        api_capabilities=("commands", "terminal_tasks", "workspace_fs"),
+        success_signals=("terminal open", "command execution"),
+        risk_of_noise="high",
+    ),
+    ScenarioSpec(
+        name="git_workflow",
+        handler=scenario_git_workflow,
+        intent="Exercise Source Control UI and git-oriented workspace changes.",
+        activation_events=("onView:scm",),
+        api_capabilities=("commands", "window_ui", "scm", "workspace_fs"),
+        success_signals=("scm focus", "git diff", "git status"),
+        risk_of_noise="high",
+    ),
+    ScenarioSpec(
+        name="extension_browsing",
+        handler=scenario_extension_browsing,
+        intent="Drive Extensions view browsing and marketplace search.",
+        activation_events=("onView:extensions",),
+        api_capabilities=("window_ui",),
+        success_signals=("extensions focus", "search query changes"),
+        risk_of_noise="low",
+    ),
+    ScenarioSpec(
+        name="settings_modification",
+        handler=scenario_settings_modification,
+        intent="Modify settings and browse configuration UI surfaces.",
+        activation_events=("onConfiguration",),
+        api_capabilities=("commands", "window_ui", "settings", "workspace_fs"),
+        success_signals=("settings write", "theme change", "settings search"),
+    ),
+    ScenarioSpec(
+        name="project_exploration",
+        handler=scenario_project_exploration,
+        intent="Open multiple file types to trigger broad workspace and language activation.",
+        activation_events=("workspaceContains", "onView:explorer", "onLanguage"),
+        api_capabilities=("window_ui", "workspace_fs", "languages_editor"),
+        success_signals=("explorer focus", "multi-file open"),
+    ),
+    ScenarioSpec(
+        name="search_workflow",
+        handler=scenario_search_workflow,
+        intent="Drive search sidebar queries across the workspace.",
+        activation_events=("onView:search",),
+        api_capabilities=("window_ui", "search_views"),
+        success_signals=("search focus", "query updates"),
+        risk_of_noise="low",
+    ),
+    ScenarioSpec(
+        name="diagnostics_check",
+        handler=scenario_diagnostics_check,
+        intent="Inspect problems and output views where diagnostics surface.",
+        activation_events=("onView:output",),
+        api_capabilities=("window_ui", "workspace_fs"),
+        success_signals=("problems focus", "output focus"),
+    ),
+    ScenarioSpec(
+        name="refactor_workflow",
+        handler=scenario_refactor_workflow,
+        intent="Trigger rename and refactor actions in the editor.",
+        activation_events=("onCommand", "onLanguage"),
+        api_capabilities=("commands", "languages_editor", "workspace_fs"),
+        success_signals=("find widget", "rename widget"),
+    ),
+    ScenarioSpec(
+        name="notebook_session",
+        handler=scenario_notebook_session,
+        intent="Open notebook content and interact with notebook UI.",
+        activation_events=("onNotebook",),
+        api_capabilities=("window_ui", "notebooks", "workspace_fs"),
+        success_signals=("notebook open", "cell focus"),
+    ),
 ]
 
 
@@ -565,16 +667,28 @@ def run_all_scenarios(page: Page, shuffle: bool = False) -> list[str]:
     if shuffle:
         random.shuffle(scenarios)
 
-    for name, fn in scenarios:
-        _emit_scenario_event("start", name)
+    for scenario in scenarios:
+        _emit_scenario_event(
+            "start", scenario.name, metadata=_scenario_metadata(scenario)
+        )
         try:
-            fn(page)
-            _log(f"DONE: {name}")
-            _emit_scenario_event("end", name, "completed")
+            scenario.handler(page)
+            _log(f"DONE: {scenario.name}")
+            _emit_scenario_event(
+                "end",
+                scenario.name,
+                "completed",
+                metadata=_scenario_metadata(scenario),
+            )
         except (PlaywrightError, RuntimeError, ValueError) as exc:
-            _log(f"FAIL: {name} -> {exc}")
-            failed_scenarios.append(name)
-            _emit_scenario_event("end", name, "failed")
+            _log(f"FAIL: {scenario.name} -> {exc}")
+            failed_scenarios.append(scenario.name)
+            _emit_scenario_event(
+                "end",
+                scenario.name,
+                "failed",
+                metadata=_scenario_metadata(scenario, error=str(exc)),
+            )
             # Cleanup: dismiss any stuck dialogs/menus after failure
             _recover_ui_state(page)
         _cleanup_between_scenarios(page)
@@ -591,17 +705,27 @@ def run_scenario(page: Page, name: str) -> None:
         page: Playwright Page connected to VS Code.
         name: Scenario name (e.g. "coding_session", "debug_session").
     """
-    scenario_map = dict(_ALL_SCENARIOS)
-    fn = scenario_map.get(name)
-    if fn is None:
+    scenario_map = _scenario_map()
+    scenario = scenario_map.get(name)
+    if scenario is None:
         raise ValueError(f"Unknown scenario: {name!r}. Available: {list(scenario_map)}")
-    _emit_scenario_event("start", name)
+    _emit_scenario_event("start", name, metadata=_scenario_metadata(scenario))
     try:
-        fn(page)
-    except (PlaywrightError, RuntimeError, ValueError):
-        _emit_scenario_event("end", name, "failed")
+        scenario.handler(page)
+    except (PlaywrightError, RuntimeError, ValueError) as exc:
+        _emit_scenario_event(
+            "end",
+            name,
+            "failed",
+            metadata=_scenario_metadata(scenario, error=str(exc)),
+        )
         raise
-    _emit_scenario_event("end", name, "completed")
+    _emit_scenario_event(
+        "end",
+        name,
+        "completed",
+        metadata=_scenario_metadata(scenario),
+    )
 
 
 def run_selected_scenarios(
@@ -617,22 +741,34 @@ def run_selected_scenarios(
     Returns:
         List of scenario names that failed.
     """
-    scenario_map = dict(_ALL_SCENARIOS)
-    selected = [(n, scenario_map[n]) for n in names if n in scenario_map]
+    scenario_map = _scenario_map()
+    selected = [scenario_map[name] for name in names if name in scenario_map]
     if shuffle:
         random.shuffle(selected)
 
     failed: list[str] = []
-    for name, fn in selected:
-        _emit_scenario_event("start", name)
+    for scenario in selected:
+        _emit_scenario_event(
+            "start", scenario.name, metadata=_scenario_metadata(scenario)
+        )
         try:
-            fn(page)
-            _log(f"DONE: {name}")
-            _emit_scenario_event("end", name, "completed")
+            scenario.handler(page)
+            _log(f"DONE: {scenario.name}")
+            _emit_scenario_event(
+                "end",
+                scenario.name,
+                "completed",
+                metadata=_scenario_metadata(scenario),
+            )
         except (PlaywrightError, RuntimeError, ValueError) as exc:
-            _log(f"FAIL: {name} -> {exc}")
-            failed.append(name)
-            _emit_scenario_event("end", name, "failed")
+            _log(f"FAIL: {scenario.name} -> {exc}")
+            failed.append(scenario.name)
+            _emit_scenario_event(
+                "end",
+                scenario.name,
+                "failed",
+                metadata=_scenario_metadata(scenario, error=str(exc)),
+            )
             _recover_ui_state(page)
         _cleanup_between_scenarios(page)
         page.wait_for_timeout(1000)
@@ -642,7 +778,12 @@ def run_selected_scenarios(
 
 def list_scenarios() -> list[str]:
     """Return available scenario names."""
-    return [name for name, _ in _ALL_SCENARIOS]
+    return [scenario.name for scenario in _ALL_SCENARIOS]
+
+
+def get_scenario_registry() -> list[dict[str, Any]]:
+    """Return scenario metadata without handlers for reporting/auditing."""
+    return [_scenario_metadata(scenario) for scenario in _ALL_SCENARIOS]
 
 
 def set_scenario_event_reporter(reporter: ScenarioEventReporter | None) -> None:
@@ -708,7 +849,34 @@ def _log(msg: str, detail: str = "") -> None:
     print(f"[automation] {msg}{suffix}")
 
 
-def _emit_scenario_event(action: str, name: str, status: str = "") -> None:
+def _emit_scenario_event(
+    action: str,
+    name: str,
+    status: str = "",
+    metadata: dict[str, Any] | None = None,
+) -> None:
     if _SCENARIO_EVENT_REPORTER is None:
         return
-    _SCENARIO_EVENT_REPORTER(action, name, status)
+    _SCENARIO_EVENT_REPORTER(action, name, status, metadata)
+
+
+def _scenario_map() -> dict[str, ScenarioSpec]:
+    return {scenario.name: scenario for scenario in _ALL_SCENARIOS}
+
+
+def _scenario_metadata(
+    scenario: ScenarioSpec,
+    *,
+    error: str = "",
+) -> dict[str, Any]:
+    metadata: dict[str, Any] = {
+        "name": scenario.name,
+        "intent": scenario.intent,
+        "activation_events": list(scenario.activation_events),
+        "api_capabilities": list(scenario.api_capabilities),
+        "success_signals": list(scenario.success_signals),
+        "risk_of_noise": scenario.risk_of_noise,
+    }
+    if error:
+        metadata["error"] = error
+    return metadata

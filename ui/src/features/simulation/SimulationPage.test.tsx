@@ -120,6 +120,38 @@ describe("SimulationPage", () => {
         },
       ],
       evidence_links: [],
+      coverage_summary: {
+        covered: 5,
+        partial: 2,
+        missing: 2,
+        missing_capabilities: ["chat", "webview"],
+      },
+      log_streams: {
+        target_extension_host: [
+          {
+            timestamp: "2026-04-13T10:00:00Z",
+            rel_time_s: 1,
+            stream: "target_extension_host",
+            kind: "activation",
+            message: "Activated ms.lint via onStartupFinished",
+            extension_id: "ms.lint",
+            activation_event: "onStartupFinished",
+            status: "completed",
+            is_target_extension: true,
+          },
+        ],
+        automation: [
+          {
+            timestamp: "2026-04-13T09:59:59Z",
+            rel_time_s: 0.2,
+            stream: "automation",
+            kind: "scenario",
+            message: "Started scenario coding session",
+            scenario_name: "coding_session",
+            status: "running",
+          },
+        ],
+      },
       summary: {
         network_events: 1,
       },
@@ -143,9 +175,30 @@ describe("SimulationPage", () => {
       expect(screen.getByTestId("location-search").textContent).toContain("tab=status");
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Rule Draft" }));
+    fireEvent.click(screen.getByRole("button", { name: "Live Evidence" }));
     await waitFor(() => {
-      expect(screen.getByTestId("location-search").textContent).toContain("inspector=rule");
+      expect(screen.getByText("Simulation evidence")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Analysis" }));
+    await waitFor(() => {
+      expect(screen.getByTestId("location-search").textContent).toContain("workspace=analysis");
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Logs" }));
+    await waitFor(() => {
+      expect(screen.getByText("Coverage audit")).toBeInTheDocument();
+    });
+    expect(screen.getByText("Activated ms.lint via onStartupFinished")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Analysis" }));
+    await waitFor(() => {
+      expect(screen.getByTestId("location-search").textContent).toContain("workspace=analysis");
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Rules" }));
+    await waitFor(() => {
+      expect(screen.getByTestId("location-search").textContent).toContain("inspector=rules");
     });
   });
 });

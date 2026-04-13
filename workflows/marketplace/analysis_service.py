@@ -130,6 +130,7 @@ def execute_analysis_request(
             scenario=request.scenario,
             trigger_container_path=trigger_container_path,
             reload_before_run=True,
+            target_extension_id=f"{request.publisher}.{request.name}",
         )
     except ExecutorError:
         report(

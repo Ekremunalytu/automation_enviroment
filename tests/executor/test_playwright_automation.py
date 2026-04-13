@@ -33,7 +33,24 @@ def test_run_all_scenarios_returns_failed_names(monkeypatch) -> None:
     monkeypatch.setattr(
         automation,
         "_ALL_SCENARIOS",
-        [("scenario_ok", scenario_ok), ("scenario_fail", scenario_fail)],
+        [
+            automation.ScenarioSpec(
+                name="scenario_ok",
+                handler=scenario_ok,
+                intent="ok",
+                activation_events=("onCommand",),
+                api_capabilities=("commands",),
+                success_signals=("done",),
+            ),
+            automation.ScenarioSpec(
+                name="scenario_fail",
+                handler=scenario_fail,
+                intent="fail",
+                activation_events=("onCommand",),
+                api_capabilities=("commands",),
+                success_signals=("done",),
+            ),
+        ],
     )
     monkeypatch.setattr(
         automation,
@@ -67,7 +84,24 @@ def test_run_all_scenarios_without_failures_does_not_recover(monkeypatch) -> Non
     monkeypatch.setattr(
         automation,
         "_ALL_SCENARIOS",
-        [("scenario_one", scenario_one), ("scenario_two", scenario_two)],
+        [
+            automation.ScenarioSpec(
+                name="scenario_one",
+                handler=scenario_one,
+                intent="one",
+                activation_events=("onCommand",),
+                api_capabilities=("commands",),
+                success_signals=("done",),
+            ),
+            automation.ScenarioSpec(
+                name="scenario_two",
+                handler=scenario_two,
+                intent="two",
+                activation_events=("onCommand",),
+                api_capabilities=("commands",),
+                success_signals=("done",),
+            ),
+        ],
     )
     monkeypatch.setattr(
         automation,
@@ -93,7 +127,20 @@ def test_run_scenario_executes_named_scenario(monkeypatch) -> None:
     def named(page) -> None:
         seen_pages.append(page)
 
-    monkeypatch.setattr(automation, "_ALL_SCENARIOS", [("named", named)])
+    monkeypatch.setattr(
+        automation,
+        "_ALL_SCENARIOS",
+        [
+            automation.ScenarioSpec(
+                name="named",
+                handler=named,
+                intent="named",
+                activation_events=("onCommand",),
+                api_capabilities=("commands",),
+                success_signals=("done",),
+            )
+        ],
+    )
     page = DummyPage()
 
     automation.run_scenario(page, "named")
@@ -102,7 +149,20 @@ def test_run_scenario_executes_named_scenario(monkeypatch) -> None:
 
 
 def test_run_scenario_raises_for_unknown_name(monkeypatch) -> None:
-    monkeypatch.setattr(automation, "_ALL_SCENARIOS", [("known", lambda page: None)])
+    monkeypatch.setattr(
+        automation,
+        "_ALL_SCENARIOS",
+        [
+            automation.ScenarioSpec(
+                name="known",
+                handler=lambda page: None,
+                intent="known",
+                activation_events=("onCommand",),
+                api_capabilities=("commands",),
+                success_signals=("done",),
+            )
+        ],
+    )
 
     with pytest.raises(ValueError, match="Unknown scenario"):
         automation.run_scenario(DummyPage(), "unknown")
@@ -112,22 +172,50 @@ def test_list_scenarios_returns_scenario_names(monkeypatch) -> None:
     monkeypatch.setattr(
         automation,
         "_ALL_SCENARIOS",
-        [("first", lambda page: None), ("second", lambda page: None)],
+        [
+            automation.ScenarioSpec(
+                name="first",
+                handler=lambda page: None,
+                intent="first",
+                activation_events=("onCommand",),
+                api_capabilities=("commands",),
+                success_signals=("done",),
+            ),
+            automation.ScenarioSpec(
+                name="second",
+                handler=lambda page: None,
+                intent="second",
+                activation_events=("onCommand",),
+                api_capabilities=("commands",),
+                success_signals=("done",),
+            ),
+        ],
     )
 
     assert automation.list_scenarios() == ["first", "second"]
 
 
 def test_run_scenario_reports_lifecycle_events(monkeypatch) -> None:
-    events: list[tuple[str, str, str]] = []
+    events: list[tuple[str, str, str, dict[str, object] | None]] = []
 
     monkeypatch.setattr(
         automation,
         "_ALL_SCENARIOS",
-        [("named", lambda page: None)],
+        [
+            automation.ScenarioSpec(
+                name="named",
+                handler=lambda page: None,
+                intent="exercise named scenario",
+                activation_events=("onCommand",),
+                api_capabilities=("commands",),
+                success_signals=("done",),
+            )
+        ],
     )
     automation.set_scenario_event_reporter(
-        lambda action, name, status: events.append((action, name, status))
+        lambda action, name, status, metadata: events.append(
+            (action, name, status, metadata)
+        )
     )
 
     try:
@@ -135,7 +223,38 @@ def test_run_scenario_reports_lifecycle_events(monkeypatch) -> None:
     finally:
         automation.set_scenario_event_reporter(None)
 
-    assert events == [
-        ("start", "named", ""),
-        ("end", "named", "completed"),
+    assert events[0][:3] == ("start", "named", "")
+    assert events[0][3] is not None
+    assert events[0][3]["intent"] == "exercise named scenario"
+    assert events[1][:3] == ("end", "named", "completed")
+
+
+def test_get_scenario_registry_exposes_metadata(monkeypatch) -> None:
+    monkeypatch.setattr(
+        automation,
+        "_ALL_SCENARIOS",
+        [
+            automation.ScenarioSpec(
+                name="registry_case",
+                handler=lambda page: None,
+                intent="registry metadata",
+                activation_events=("onView:search",),
+                api_capabilities=("search_views",),
+                success_signals=("search focus",),
+                risk_of_noise="low",
+            )
+        ],
+    )
+
+    registry = automation.get_scenario_registry()
+
+    assert registry == [
+        {
+            "name": "registry_case",
+            "intent": "registry metadata",
+            "activation_events": ["onView:search"],
+            "api_capabilities": ["search_views"],
+            "success_signals": ["search focus"],
+            "risk_of_noise": "low",
+        }
     ]

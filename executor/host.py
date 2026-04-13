@@ -90,6 +90,7 @@ def install_extension_in_executor(publisher: str, name: str, version: str) -> st
 
 _RELOAD_TIMEOUT = 60
 _RESET_TIMEOUT = 90
+_AUTOMATION_TIMEOUT = 600
 _DEFAULT_SCENARIO = "coding_session"
 
 
@@ -117,6 +118,7 @@ def run_playwright_automation(
     scenario: str | None = None,
     trigger_container_path: str | None = None,
     reload_before_run: bool = False,
+    target_extension_id: str | None = None,
 ) -> str:
     cmd = [
         "python3",
@@ -127,6 +129,8 @@ def run_playwright_automation(
     ]
     if reload_before_run:
         cmd.append("--reload-before-run")
+    if target_extension_id:
+        cmd.extend(["--target-extension-id", target_extension_id])
     if trigger_container_path:
         cmd.extend(["--triggers", trigger_container_path])
     else:
@@ -134,7 +138,7 @@ def run_playwright_automation(
         if effective_scenario != "all":
             cmd.extend(["--scenario", effective_scenario])
 
-    result = _docker_exec_allow_partial(cmd)
+    result = _docker_exec_allow_partial(cmd, timeout=_AUTOMATION_TIMEOUT)
     return result.stdout
 
 

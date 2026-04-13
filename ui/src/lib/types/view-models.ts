@@ -18,6 +18,14 @@ export interface EvidenceEventView {
   path: string;
   destinationIp: string;
   destinationPort: number | null;
+  attributionStatus: string;
+  attributionStatusLabel: string;
+  attributionBasis: string;
+  attributionConfidence: number;
+  attributionConfidencePct: number;
+  isTargetExtensionEvent: boolean;
+  noiseReason: string;
+  artifactClass: string;
   sensitive: boolean;
   summary: string;
   summaryDisplay: string;
@@ -48,12 +56,72 @@ export interface ReportSummaryView {
   networkEvents: number;
   fileEvents: number;
   sensitiveEvents: number;
+  attemptedCapabilities: string[];
+  verifiedCapabilities: string[];
+  uiBlockerCount: number;
+  verdictLevel: "benign" | "needs_review" | "suspicious" | "likely_malicious";
+  verdictScore: number;
+  verdictReasons: string[];
+  verdictNote: string;
+}
+
+export interface CoverageSummaryView {
+  covered: number;
+  partial: number;
+  missing: number;
+  attempted: number;
+  verified: number;
+  missingCapabilities: string[];
+  attemptedCapabilities: string[];
+  verifiedCapabilities: string[];
+}
+
+export interface CoverageCapabilityView {
+  capability: string;
+  capabilityLabel: string;
+  status: string;
+  statusLabel: string;
+  supportStatus: string;
+  supportStatusLabel: string;
+  verificationStatus: string;
+  verificationStatusLabel: string;
+  selectedScenarios: string[];
+  supportedScenarios: string[];
+  notes: string;
+  attempted: boolean;
+  verified: boolean;
+}
+
+export interface LogEntryView {
+  timestamp: string;
+  timestampDisplay: string;
+  relTimeS: number | null;
+  stream: string;
+  kind: string;
+  kindLabel: string;
+  message: string;
+  extensionId: string;
+  activationEvent: string;
+  scenarioName: string;
+  status: string;
+  statusLabel: string;
+  isTargetExtension: boolean;
+}
+
+export interface LogStreamsView {
+  targetExtensionHost: LogEntryView[];
+  otherExtensionHost: LogEntryView[];
+  automation: LogEntryView[];
+  uiBlockers: LogEntryView[];
 }
 
 export interface ActivationReportView {
   reportId: string;
   reportVersion: number;
   summary: ReportSummaryView;
+  coverageSummary: CoverageSummaryView;
+  coverageMatrix: CoverageCapabilityView[];
+  logStreams: LogStreamsView;
   evidence: EvidenceEventView[];
   evidenceLinks: EvidenceLinkView[];
   hostOutput: string;
@@ -76,6 +144,7 @@ export interface RuleDraftView {
   conditions: Array<{ field: string; operator: string; value: unknown }>;
   rationale: string;
   labels: string[];
+  suspiciousReasons: string[];
 }
 
 export interface SimulationViewModel {

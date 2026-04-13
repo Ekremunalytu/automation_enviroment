@@ -27,6 +27,14 @@ const inspector: EvidenceInspectorView = {
     path: "/workspace/.env",
     destinationIp: "",
     destinationPort: null,
+    attributionStatus: "near_target_activation",
+    attributionStatusLabel: "Correlated Only",
+    attributionBasis: "file activity happened near the target activation but ownership remains unconfirmed",
+    attributionConfidence: 0.61,
+    attributionConfidencePct: 61,
+    isTargetExtensionEvent: false,
+    noiseReason: "temporal proximity alone is not treated as ownership",
+    artifactClass: "workspace_runtime",
     sensitive: true,
     summary: "Sensitive file read",
     summaryDisplay: "Sensitive file read",
@@ -69,6 +77,14 @@ const inspector: EvidenceInspectorView = {
         path: "",
         destinationIp: "",
         destinationPort: null,
+        attributionStatus: "",
+        attributionStatusLabel: "",
+        attributionBasis: "",
+        attributionConfidence: 0,
+        attributionConfidencePct: 0,
+        isTargetExtensionEvent: false,
+        noiseReason: "",
+        artifactClass: "",
         sensitive: false,
         summary: "Extension activated",
         summaryDisplay: "Extension activated",
@@ -90,6 +106,7 @@ const ruleDraft: RuleDraftView = {
   conditions: [{ field: "path", operator: "contains", value: "/workspace/.env" }],
   rationale: "Sensitive file read",
   labels: ["file", "strace"],
+  suspiciousReasons: ["file activity happened near the target activation but ownership remains unconfirmed"],
 };
 
 describe("Inspector", () => {
@@ -103,10 +120,11 @@ describe("Inspector", () => {
       />,
     );
 
-    expect(screen.getByRole("heading", { name: "Provenance" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Analysis workspace" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Focused event context" })).toBeInTheDocument();
     expect(screen.getByText("Sensitive file read")).toBeInTheDocument();
     expect(screen.getByText("Link Status")).toBeInTheDocument();
-    expect(screen.getByText(/Relations tab/u)).toBeInTheDocument();
+    expect(screen.getByText(/Relations view/u)).toBeInTheDocument();
   });
 
   it("renders the relations graph tab", () => {
@@ -119,7 +137,7 @@ describe("Inspector", () => {
       />,
     );
 
-    expect(screen.getByRole("heading", { name: "Relations" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Interaction graph" })).toBeInTheDocument();
     expect(screen.getByText("Connection Summary")).toBeInTheDocument();
     expect(screen.getByTestId("chart")).toBeInTheDocument();
   });

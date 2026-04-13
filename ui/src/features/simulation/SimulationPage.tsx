@@ -5,6 +5,7 @@ import { EvidenceTable } from "../../components/evidence/EvidenceTable";
 import { EvidenceTimelineChart } from "../../components/evidence/EvidenceTimelineChart";
 import { FilterRail, type EvidenceFilterState } from "../../components/evidence/FilterRail";
 import { Inspector } from "../../components/evidence/Inspector";
+import { LogStreamsPanel } from "../../components/evidence/LogStreamsPanel";
 import { RunActivityRail } from "../../components/simulation/RunActivityRail";
 import { EmptyState } from "../../components/ui/EmptyState";
 import { Panel, PanelHeader } from "../../components/ui/Panel";
@@ -16,6 +17,7 @@ import { adaptReport, getInspectorView } from "../../lib/adapters/report";
 import { buildRuleDraft } from "../../lib/rules/draft";
 
 const LAST_JOB_KEY = "extrace:lastJobId";
+type WorkspaceTab = "evidence" | "analysis" | "logs";
 
 function getStoredJobId() {
   if (typeof window === "undefined") return null;
@@ -76,13 +78,24 @@ function getExpectedTelemetry(status?: string, hasEvidence?: boolean) {
   return "Report output will populate when the executor finalizes the run.";
 }
 
+function normalizeWorkspaceTab(raw: string | null): WorkspaceTab {
+  if (raw === "analysis" || raw === "logs") return raw;
+  return "evidence";
+}
+
 export function SimulationPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [filtersOpen, setFiltersOpen] = useState(false);
   const jobId = searchParams.get("job");
   const tab = searchParams.get("tab") || "live";
+  const workspaceTab = normalizeWorkspaceTab(searchParams.get("workspace"));
   const eventId = searchParams.get("event");
-  const inspectorTab = (searchParams.get("inspector") as "provenance" | "relations" | "rule" | null) || "provenance";
+  const inspectorTab =
+    searchParams.get("inspector") === "relations"
+      ? "relations"
+      : searchParams.get("inspector") === "rules" || searchParams.get("inspector") === "rule"
+        ? "rules"
+        : "provenance";
   const filters = parseFilters(searchParams);
   const deferredSearch = useDeferredValue(filters.search);
 
@@ -233,90 +246,140 @@ export function SimulationPage() {
         </div>
       </section>
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_390px]">
-        <div className="space-y-5">
+      <div className="space-y-5">
+        <Panel className="overflow-hidden p-0">
+          <div className="border-b border-line px-5 py-5">
+            <PanelHeader
+              description="Step-by-step executor progress with enough detail to understand where the sandbox run is spending time."
+              title="Run Activity"
+            />
+          </div>
+          <div className="px-5 py-5">{job && model ? <RunActivityRail job={job} model={model} /> : <EmptyState body="Job metadata is still loading." eyebrow="Warmup" title="Fetching job snapshot" />}</div>
+        </Panel>
+
+        {tab === "status" ? (
           <Panel className="overflow-hidden p-0">
             <div className="border-b border-line px-5 py-5">
               <PanelHeader
-                description="Step-by-step executor progress with enough detail to understand where the sandbox run is spending time."
-                title="Run Activity"
+                description="Short operational guidance while the run is queued, warming up, or already streaming evidence."
+                title="Run Status"
               />
             </div>
-            <div className="px-5 py-5">{job && model ? <RunActivityRail job={job} model={model} /> : <EmptyState body="Job metadata is still loading." eyebrow="Warmup" title="Fetching job snapshot" />}</div>
+            <div className="grid gap-4 px-5 py-5 lg:grid-cols-3">
+              <StatusCard body={model?.currentStepLabel || "Queued"} title="Current step" />
+              <StatusCard body={getExpectedTelemetry(job?.status, Boolean(report?.evidence.length))} title="Next expected telemetry" />
+              <StatusCard
+                body={(model?.recentMessages || ["Waiting for job metadata."]).join("\n")}
+                preformatted
+                title="Recent messages"
+              />
+            </div>
           </Panel>
+        ) : (
+          <div className="space-y-4">
+            <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+              <div>
+                <div className="eyebrow">Workspace</div>
+                <h2 className="mt-3 text-[32px] font-semibold tracking-[-0.04em] text-ink">Simulation evidence</h2>
+                <p className="mt-3 max-w-3xl text-sm leading-7 text-mute sm:text-base">
+                  Switch between the raw live stream and the analysis surface without compressing the inspector into a narrow right rail.
+                </p>
+              </div>
 
-          {tab === "status" ? (
-            <Panel className="overflow-hidden p-0">
-              <div className="border-b border-line px-5 py-5">
-                <PanelHeader
-                  description="Short operational guidance while the run is queued, warming up, or already streaming evidence."
-                  title="Run Status"
-                />
-              </div>
-              <div className="grid gap-4 px-5 py-5 lg:grid-cols-3">
-                <StatusCard body={model?.currentStepLabel || "Queued"} title="Current step" />
-                <StatusCard body={getExpectedTelemetry(job?.status, Boolean(report?.evidence.length))} title="Next expected telemetry" />
-                <StatusCard
-                  body={(model?.recentMessages || ["Waiting for job metadata."]).join("\n")}
-                  preformatted
-                  title="Recent messages"
-                />
-              </div>
-            </Panel>
-          ) : report && filteredEvents.length ? (
-            <Panel className="overflow-hidden p-0">
-              <div className="border-b border-line px-5 py-5">
-                <PanelHeader
-                  description="Live Event Stream"
-                  title="Evidence"
-                />
-              </div>
-              <div className="space-y-5 px-5 py-5">
-                <div className="rounded-[22px] border border-line bg-canvas/55 px-4 py-4">
-                  <div className="micro-label">Mini Timeline</div>
-                  <div className="mt-3">
-                    <EvidenceTimelineChart className="h-[210px] w-full" compact events={filteredEvents} onSelect={setSelectedEvent} />
+              <SegmentedTabs
+                onChange={(next) => {
+                  const params = new URLSearchParams(searchParams);
+                  params.set("workspace", next);
+                  setSearchParams(params, { replace: true });
+                }}
+                options={[
+                  { value: "evidence", label: "Evidence" },
+                  { value: "analysis", label: "Analysis" },
+                  { value: "logs", label: "Logs" },
+                ]}
+                value={workspaceTab}
+              />
+            </div>
+
+            {workspaceTab === "analysis" ? (
+              <Inspector
+                activeTab={inspectorTab}
+                inspector={inspector}
+                onTabChange={(next) => {
+                  const params = new URLSearchParams(searchParams);
+                  params.set("inspector", next);
+                  setSearchParams(params, { replace: true });
+                }}
+                ruleDraft={ruleDraft}
+              />
+            ) : workspaceTab === "logs" ? (
+              <LogStreamsPanel
+                coverageMatrix={report?.coverageMatrix || []}
+                coverageSummary={
+                  report?.coverageSummary || {
+                    covered: 0,
+                    partial: 0,
+                    missing: 0,
+                    attempted: 0,
+                    verified: 0,
+                    missingCapabilities: [],
+                    attemptedCapabilities: [],
+                    verifiedCapabilities: [],
+                  }
+                }
+                logStreams={
+                  report?.logStreams || {
+                    targetExtensionHost: [],
+                    otherExtensionHost: [],
+                    automation: [],
+                    uiBlockers: [],
+                  }
+                }
+              />
+            ) : report && filteredEvents.length ? (
+              <Panel className="overflow-hidden p-0">
+                <div className="border-b border-line px-5 py-5">
+                  <PanelHeader
+                    description="Live Event Stream"
+                    title="Evidence"
+                  />
+                </div>
+                <div className="space-y-5 px-5 py-5">
+                  <div className="rounded-[22px] border border-line bg-canvas/55 px-4 py-4">
+                    <div className="micro-label">Mini Timeline</div>
+                    <div className="mt-3">
+                      <EvidenceTimelineChart className="h-[210px] w-full" compact events={filteredEvents} onSelect={setSelectedEvent} />
+                    </div>
+                  </div>
+                  <div>
+                    <div className="micro-label">Live Event Stream</div>
+                    <div className="mt-3">
+                      <EvidenceTable events={filteredEvents} onSelect={setSelectedEvent} selectedEventId={eventId || undefined} />
+                    </div>
                   </div>
                 </div>
-                <div>
-                  <div className="micro-label">Live Event Stream</div>
-                  <div className="mt-3">
-                    <EvidenceTable events={filteredEvents} onSelect={setSelectedEvent} selectedEventId={eventId || undefined} />
-                  </div>
+              </Panel>
+            ) : (
+              <Panel className="overflow-hidden p-0">
+                <div className="border-b border-line px-5 py-5">
+                  <PanelHeader
+                    description="Compact guidance cards keep the workspace readable until the first event lands."
+                    title="Run Is Warming Up"
+                  />
                 </div>
-              </div>
-            </Panel>
-          ) : (
-            <Panel className="overflow-hidden p-0">
-              <div className="border-b border-line px-5 py-5">
-                <PanelHeader
-                  description="Compact guidance cards keep the workspace readable until the first event lands."
-                  title="Run Is Warming Up"
-                />
-              </div>
-              <div className="grid gap-4 px-5 py-5 lg:grid-cols-3">
-                <StatusCard body={model?.currentStepLabel || "Queued"} title="Current step" />
-                <StatusCard body={getExpectedTelemetry(job?.status, false)} title="Next expected telemetry" />
-                <StatusCard
-                  body={(model?.recentMessages || ["Waiting for the sandbox run to emit telemetry."]).join("\n")}
-                  preformatted
-                  title="Recent messages"
-                />
-              </div>
-            </Panel>
-          )}
-        </div>
-
-        <Inspector
-          activeTab={inspectorTab}
-          inspector={inspector}
-          onTabChange={(next) => {
-            const params = new URLSearchParams(searchParams);
-            params.set("inspector", next);
-            setSearchParams(params, { replace: true });
-          }}
-          ruleDraft={ruleDraft}
-        />
+                <div className="grid gap-4 px-5 py-5 lg:grid-cols-3">
+                  <StatusCard body={model?.currentStepLabel || "Queued"} title="Current step" />
+                  <StatusCard body={getExpectedTelemetry(job?.status, false)} title="Next expected telemetry" />
+                  <StatusCard
+                    body={(model?.recentMessages || ["Waiting for the sandbox run to emit telemetry."]).join("\n")}
+                    preformatted
+                    title="Recent messages"
+                  />
+                </div>
+              </Panel>
+            )}
+          </div>
+        )}
       </div>
 
       <SlideOverDrawer

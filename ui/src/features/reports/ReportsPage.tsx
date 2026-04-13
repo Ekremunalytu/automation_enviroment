@@ -1,18 +1,22 @@
-import { startTransition, useDeferredValue, useEffect, useState, type ReactNode } from "react";
+import { startTransition, useDeferredValue, useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import { EvidenceTable } from "../../components/evidence/EvidenceTable";
 import { EvidenceTimelineChart } from "../../components/evidence/EvidenceTimelineChart";
 import { FilterRail, type EvidenceFilterState } from "../../components/evidence/FilterRail";
 import { Inspector } from "../../components/evidence/Inspector";
+import { LogStreamsPanel } from "../../components/evidence/LogStreamsPanel";
 import { EmptyState } from "../../components/ui/EmptyState";
 import { Panel, PanelHeader } from "../../components/ui/Panel";
+import { SegmentedTabs } from "../../components/ui/SegmentedTabs";
 import { SlideOverDrawer } from "../../components/ui/SlideOverDrawer";
 import { apiClient } from "../../lib/api/client";
 import { adaptReport, getInspectorView } from "../../lib/adapters/report";
 import { buildRuleDraft } from "../../lib/rules/draft";
 
-type ReportTab = "dashboard" | "activation" | "file" | "network" | "scenario" | "evidence";
+type ReportTab = "dashboard" | "activation" | "file" | "network" | "scenario" | "evidence" | "logs";
+type InspectorTab = "provenance" | "relations" | "rules";
+type WorkspaceTab = "evidence" | "analysis";
 
 const REPORT_TABS: Array<{ value: ReportTab; label: string }> = [
   { value: "dashboard", label: "Dashboard" },
@@ -21,6 +25,7 @@ const REPORT_TABS: Array<{ value: ReportTab; label: string }> = [
   { value: "network", label: "Network" },
   { value: "scenario", label: "Scenario" },
   { value: "evidence", label: "All Events" },
+  { value: "logs", label: "Logs" },
 ];
 
 const TAB_META: Record<Exclude<ReportTab, "dashboard">, { title: string; description: string; emptyTitle: string }> = {
@@ -49,12 +54,27 @@ const TAB_META: Record<Exclude<ReportTab, "dashboard">, { title: string; descrip
     description: "Full evidence view across all event kinds, with the timeline and the table kept as the dominant working surface.",
     emptyTitle: "No evidence matches this slice",
   },
+  logs: {
+    title: "Split-stream logs",
+    description: "Target extension triggers, other extensions, and automation trace are kept in separate streams.",
+    emptyTitle: "No logs are available for this report",
+  },
 };
 
 function normalizeTab(raw: string | null): ReportTab {
   if (!raw || raw === "overview") return "dashboard";
   if (raw === "evidence") return "evidence";
   return REPORT_TABS.some((tab) => tab.value === raw) ? (raw as ReportTab) : "dashboard";
+}
+
+function normalizeInspectorTab(raw: string | null): InspectorTab {
+  if (raw === "relations" || raw === "rules") return raw;
+  if (raw === "rule") return "rules";
+  return "provenance";
+}
+
+function normalizeWorkspaceTab(raw: string | null): WorkspaceTab {
+  return raw === "analysis" ? "analysis" : "evidence";
 }
 
 function parseFilters(searchParams: URLSearchParams): EvidenceFilterState {
@@ -111,23 +131,21 @@ function formatNumber(value: number) {
 }
 
 function computeRiskScore(report: NonNullable<ReturnType<typeof adaptReport>>) {
-  const total = Math.max(report.summary.totalEvents, 1);
-  const weightedScore =
-    Math.min(48, (report.summary.sensitiveEvents / total) * 180) +
-    Math.min(22, (report.summary.networkEvents / total) * 80) +
-    Math.min(18, (report.summary.fileEvents / total) * 60) +
-    Math.min(12, report.summary.scenariosRun.length * 4);
-  const score = Math.max(8, Math.min(96, Math.round(weightedScore)));
+  const score = Math.max(8, Math.min(96, Math.round(report.summary.verdictScore || 0)));
+  const labelByLevel = {
+    benign: "Benign",
+    needs_review: "Needs review",
+    suspicious: "Suspicious",
+    likely_malicious: "Likely malicious",
+  } as const;
 
   return {
     score,
-    label: score >= 75 ? "High exposure" : score >= 45 ? "Moderate exposure" : "Low exposure",
+    label: labelByLevel[report.summary.verdictLevel] || "Needs review",
     note:
-      score >= 75
-        ? "Sensitive file and network activity are dominant in this report."
-        : score >= 45
-          ? "Mixed evidence types are present, but sensitive activity is still material."
-          : "This report is relatively quiet and low-volume across risky evidence classes.",
+      report.summary.verdictNote ||
+      "This report did not include a computed verdict note.",
+    reasons: report.summary.verdictReasons,
   };
 }
 
@@ -146,7 +164,8 @@ export function ReportsPage() {
   const reportParam = searchParams.get("report") || "latest";
   const selectedTab = normalizeTab(searchParams.get("tab"));
   const eventId = searchParams.get("event");
-  const inspectorTab = (searchParams.get("inspector") as "provenance" | "relations" | "rule" | null) || "provenance";
+  const inspectorTab = normalizeInspectorTab(searchParams.get("inspector"));
+  const workspaceTab = normalizeWorkspaceTab(searchParams.get("workspace"));
   const filters = parseFilters(searchParams);
   const deferredSearch = useDeferredValue(filters.search);
 
@@ -191,7 +210,7 @@ export function ReportsPage() {
   const scopedEvents = scopeEventsForTab(selectedTab, filteredEvents);
 
   useEffect(() => {
-    if (selectedTab === "dashboard") return;
+    if (selectedTab === "dashboard" || selectedTab === "logs") return;
     if (!scopedEvents.length) return;
 
     const candidate = scopedEvents[0]?.eventId;
@@ -326,26 +345,34 @@ export function ReportsPage() {
         <EmptyState eyebrow="Error" body={String(reportQuery.error)} title="Report could not be loaded" />
       ) : !report ? null : selectedTab === "dashboard" ? (
         <DashboardScore report={report} />
+      ) : selectedTab === "logs" ? (
+        <LogStreamsPanel
+          coverageMatrix={report.coverageMatrix}
+          coverageSummary={report.coverageSummary}
+          logStreams={report.logStreams}
+        />
       ) : (
         <CategoryWorkspace
           emptyTitle={TAB_META[selectedTab].emptyTitle}
           events={scopedEvents}
-          inspector={
-            <Inspector
-              activeTab={inspectorTab}
-              inspector={inspector}
-              onTabChange={(next) => {
-                const params = new URLSearchParams(searchParams);
-                params.set("inspector", next);
-                setSearchParams(params, { replace: true });
-              }}
-              ruleDraft={ruleDraft}
-            />
-          }
+          inspector={inspector}
+          inspectorTab={inspectorTab}
+          onInspectorTabChange={(next) => {
+            const params = new URLSearchParams(searchParams);
+            params.set("inspector", next);
+            setSearchParams(params, { replace: true });
+          }}
+          onWorkspaceTabChange={(next) => {
+            const params = new URLSearchParams(searchParams);
+            params.set("workspace", next);
+            setSearchParams(params, { replace: true });
+          }}
           onSelectEvent={setSelectedEvent}
           selectedEventId={eventId || undefined}
+          ruleDraft={ruleDraft}
           title={TAB_META[selectedTab].title}
           description={TAB_META[selectedTab].description}
+          workspaceTab={workspaceTab}
         />
       )}
 
@@ -387,6 +414,13 @@ function DashboardScore({ report }: { report: NonNullable<ReturnType<typeof adap
           <div>
             <div className="text-[30px] font-semibold tracking-[-0.04em] text-ink">{risk.label}</div>
             <p className="mt-3 max-w-2xl text-base leading-8 text-mute">{risk.note}</p>
+            {risk.reasons.length ? (
+              <div className="mt-4 space-y-2 text-sm leading-6 text-mute">
+                {risk.reasons.slice(0, 4).map((reason) => (
+                  <div key={reason}>{reason}</div>
+                ))}
+              </div>
+            ) : null}
           </div>
           <div className="h-2 overflow-hidden rounded-full bg-panelAlt">
             <div className="h-full rounded-full bg-accent" style={{ width: `${risk.score}%` }} />
@@ -404,29 +438,53 @@ function CategoryWorkspace({
   selectedEventId,
   onSelectEvent,
   inspector,
+  inspectorTab,
+  onInspectorTabChange,
+  onWorkspaceTabChange,
   emptyTitle,
+  ruleDraft,
+  workspaceTab,
 }: {
   title: string;
   description: string;
   events: NonNullable<ReturnType<typeof adaptReport>>["evidence"];
   selectedEventId?: string;
   onSelectEvent: (eventId: string) => void;
-  inspector: ReactNode;
+  inspector: ReturnType<typeof getInspectorView>;
+  inspectorTab: InspectorTab;
+  onInspectorTabChange: (next: InspectorTab) => void;
+  onWorkspaceTabChange: (next: WorkspaceTab) => void;
   emptyTitle: string;
+  ruleDraft: ReturnType<typeof buildRuleDraft>;
+  workspaceTab: WorkspaceTab;
 }) {
   if (!events.length) {
     return <EmptyState eyebrow="Filtered Out" body="The active filters and report slice produced no matching events." title={emptyTitle} />;
   }
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
+    <div className="space-y-6">
       <section className="space-y-4">
-        <div>
-          <div className="eyebrow">Evidence class</div>
-          <h2 className="mt-3 text-[32px] font-semibold tracking-[-0.04em] text-ink">{title}</h2>
-          <p className="mt-3 max-w-3xl text-sm leading-7 text-mute sm:text-base">{description}</p>
-        </div>
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+          <div>
+            <div className="eyebrow">Evidence class</div>
+            <h2 className="mt-3 text-[32px] font-semibold tracking-[-0.04em] text-ink">{title}</h2>
+            <p className="mt-3 max-w-3xl text-sm leading-7 text-mute sm:text-base">{description}</p>
+          </div>
 
+          <SegmentedTabs
+            onChange={(next) => onWorkspaceTabChange(next as WorkspaceTab)}
+            options={[
+              { value: "evidence", label: "Evidence" },
+              { value: "analysis", label: "Analysis" },
+            ]}
+            value={workspaceTab}
+          />
+        </div>
+      </section>
+
+      {workspaceTab === "evidence" ? (
+        <section className="space-y-4">
         <Panel className="overflow-hidden p-0">
           <div className="border-b border-line px-5 py-5">
             <PanelHeader
@@ -450,9 +508,10 @@ function CategoryWorkspace({
             <EvidenceTable events={events} onSelect={onSelectEvent} selectedEventId={selectedEventId} />
           </div>
         </Panel>
-      </section>
-
-      {inspector}
+        </section>
+      ) : (
+        <Inspector activeTab={inspectorTab} inspector={inspector} onTabChange={onInspectorTabChange} ruleDraft={ruleDraft} />
+      )}
     </div>
   );
 }

@@ -1,6 +1,14 @@
 import type { EvidenceEventView } from "../../lib/types/view-models";
 import { Badge } from "../ui/Badge";
 
+function attributionTone(status: string) {
+  if (status === "target_attributed") return "success";
+  if (status === "near_target_activation" || status === "competing_candidate") return "warning";
+  if (status === "automation_noise") return "danger";
+  if (status === "corroboration") return "accent";
+  return "default";
+}
+
 export function EvidenceTable({
   events,
   selectedEventId,
@@ -51,7 +59,16 @@ export function EvidenceTable({
                   </td>
                   <td className="px-4 py-3">
                     <div className="font-medium text-ink">{event.artifactShort}</div>
-                    <div className="mt-1 text-xs text-mute">{event.detail}</div>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <Badge tone={attributionTone(event.attributionStatus)}>{event.attributionStatusLabel}</Badge>
+                      {event.attributionConfidencePct ? (
+                        <Badge tone={event.attributionConfidencePct >= 80 ? "success" : event.attributionConfidencePct >= 50 ? "warning" : "default"}>
+                          {event.attributionConfidencePct}%
+                        </Badge>
+                      ) : null}
+                      {event.artifactClass ? <Badge tone="amber">{event.artifactClass.replaceAll("_", " ")}</Badge> : null}
+                    </div>
+                    <div className="mt-2 text-xs text-mute">{event.detail}</div>
                   </td>
                   <td className="px-4 py-3">
                     <div className="text-sm leading-6 text-ink">{event.summaryDisplay}</div>
@@ -59,6 +76,13 @@ export function EvidenceTable({
                       {event.collectorLabel} / {event.actorLabel}
                       {event.scenarioName ? ` · ${event.scenarioName}` : ""}
                     </div>
+                    {event.attributionStatus !== "target_attributed" && (event.kind === "file" || event.kind === "network") ? (
+                      <div className="mt-2 text-xs text-warning">
+                        {event.attributionStatus === "near_target_activation" || event.attributionStatus === "competing_candidate"
+                          ? "Correlated only: ownership is not confirmed."
+                          : event.noiseReason || "Ownership is not confirmed for this event."}
+                      </div>
+                    ) : null}
                   </td>
                 </tr>
               );

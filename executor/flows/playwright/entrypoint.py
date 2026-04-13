@@ -12,6 +12,7 @@ Run inside the executor container:
 
 import argparse
 import sys
+from collections.abc import Callable
 from pathlib import Path
 
 from playwright.sync_api import Browser, Page, sync_playwright
@@ -80,70 +81,217 @@ def _create_bait_files(filenames: list[str]) -> None:
         print(f"[+] Created bait file: {bait_path}")
 
 
-def _run_extra_triggers(page: Page, payload: trigger_loader.TriggerPayload) -> None:
+def _run_extra_triggers(
+    page: Page,
+    payload: trigger_loader.TriggerPayload,
+    automation_event_recorder: Callable[[str, str, str, str, str], None] | None = None,
+    verification_monitor: monitor.ExtensionMonitor | None = None,
+) -> None:
     """Run additional activation triggers beyond the standard scenarios."""
     from playwright.sync_api import Error as PlaywrightError
 
+    def emit(
+        kind: str,
+        message: str,
+        status: str,
+        scenario_name: str = "",
+        activation_event: str = "",
+    ) -> None:
+        if automation_event_recorder is None:
+            return
+        automation_event_recorder(
+            kind,
+            message,
+            status,
+            scenario_name,
+            activation_event,
+        )
+
+    def dismiss_ui_blocker(context: str, activation_event: str) -> bool:
+        blocker_text = editor._dismiss_notification(page)
+        if not blocker_text:
+            return False
+        emit(
+            "ui_blocker_detected",
+            f"Detected UI blocker during {context}: {blocker_text}",
+            "running",
+            activation_event=activation_event,
+        )
+        emit(
+            "ui_blocker_dismissed",
+            f"Dismissed UI blocker during {context}: {blocker_text}",
+            "completed",
+            activation_event=activation_event,
+        )
+        return True
+
     # Open custom editor bait files
     for filename in payload.extra_custom_editor_files:
+        emit(
+            "extra_trigger",
+            f"Opening custom editor bait file {filename}",
+            "running",
+            activation_event="onCustomEditor",
+        )
         try:
             print(f"[*] Opening custom editor bait file: {filename}")
             editor.open_file_by_name(page, filename)
             page.wait_for_timeout(2000)
             editor.close_active_editor(page)
             page.wait_for_timeout(500)
+            emit(
+                "extra_trigger",
+                f"Opened custom editor bait file {filename}",
+                "completed",
+                activation_event="onCustomEditor",
+            )
         except PlaywrightError as exc:
             print(f"[!] Custom editor trigger failed for {filename}: {exc}")
+            emit(
+                "extra_trigger",
+                f"Custom editor trigger failed for {filename}: {exc}",
+                "failed",
+                activation_event="onCustomEditor",
+            )
 
     # Trigger onUri via terminal xdg-open
     if payload.uri_trigger:
+        emit(
+            "extra_trigger",
+            f"Triggering URI {payload.uri_trigger}",
+            "running",
+            activation_event="onUri",
+        )
         try:
             print(f"[*] Triggering URI: {payload.uri_trigger}")
             terminal.new_terminal(page)
             page.wait_for_timeout(500)
             terminal.type_in_terminal(page, f"xdg-open '{payload.uri_trigger}'")
             page.wait_for_timeout(2000)
+            emit(
+                "extra_trigger",
+                f"Triggered URI {payload.uri_trigger}",
+                "completed",
+                activation_event="onUri",
+            )
         except PlaywrightError as exc:
             print(f"[!] URI trigger failed: {exc}")
+            emit(
+                "extra_trigger",
+                f"URI trigger failed: {exc}",
+                "failed",
+                activation_event="onUri",
+            )
 
     # Trigger onTaskType via Command Palette
     if payload.run_task_trigger:
+        emit(
+            "extra_trigger",
+            "Running task trigger via Command Palette",
+            "running",
+            activation_event="onTaskType",
+        )
         try:
             print("[*] Running task trigger via Command Palette...")
             commands.run_command(page, "Tasks: Run Task")
             page.wait_for_timeout(1500)
             page.keyboard.press("Escape")
             page.wait_for_timeout(500)
+            emit(
+                "extra_trigger",
+                "Completed task trigger via Command Palette",
+                "completed",
+                activation_event="onTaskType",
+            )
         except PlaywrightError as exc:
             print(f"[!] Task trigger failed: {exc}")
+            emit(
+                "extra_trigger",
+                f"Task trigger failed: {exc}",
+                "failed",
+                activation_event="onTaskType",
+            )
 
     # Trigger onWalkthrough via Command Palette
     if payload.run_walkthrough_trigger:
+        emit(
+            "extra_trigger",
+            "Opening walkthrough via Command Palette",
+            "running",
+            activation_event="onWalkthrough",
+        )
         try:
             print("[*] Running walkthrough trigger via Command Palette...")
             commands.run_command(page, "Welcome: Open Walkthrough")
             page.wait_for_timeout(2000)
             editor.close_active_editor(page)
             page.wait_for_timeout(500)
+            emit(
+                "extra_trigger",
+                "Completed walkthrough trigger via Command Palette",
+                "completed",
+                activation_event="onWalkthrough",
+            )
         except PlaywrightError as exc:
             print(f"[!] Walkthrough trigger failed: {exc}")
+            emit(
+                "extra_trigger",
+                f"Walkthrough trigger failed: {exc}",
+                "failed",
+                activation_event="onWalkthrough",
+            )
 
     # Trigger extension-specific commands via Command Palette
     if payload.extra_commands:
         print(f"[*] Invoking {len(payload.extra_commands)} extension commands...")
         for cmd_title in payload.extra_commands:
+            emit(
+                "command",
+                f"Running command {cmd_title}",
+                "running",
+                activation_event="onCommand",
+            )
             try:
                 print(f"[*] Running command: {cmd_title}")
+                baseline = (
+                    verification_monitor.capture_runtime_snapshot()
+                    if verification_monitor is not None
+                    else None
+                )
                 commands.run_command(page, cmd_title)
                 page.wait_for_timeout(1500)
-                # Dismiss any notifications/dialogs the command may trigger
-                editor._dismiss_notification(page)
+                dismiss_ui_blocker(f"command {cmd_title}", "onCommand")
                 page.wait_for_timeout(300)
+                if verification_monitor is not None and baseline is not None:
+                    verification_monitor.verify_target_reaction(
+                        baseline,
+                        capability="commands",
+                        trigger_label=cmd_title,
+                        activation_event="onCommand",
+                    )
+                emit(
+                    "command",
+                    f"Completed command {cmd_title}",
+                    "completed",
+                    activation_event="onCommand",
+                )
             except PlaywrightError as exc:
                 print(f"[!] Command '{cmd_title}' failed: {exc}")
                 # Recover UI state so subsequent commands can run
                 page.keyboard.press("Escape")
                 page.wait_for_timeout(300)
+                emit(
+                    "ui_blocker_unresolved",
+                    f"Command {cmd_title} left the UI in a blocked state: {exc}",
+                    "failed",
+                    activation_event="onCommand",
+                )
+                emit(
+                    "command",
+                    f"Command {cmd_title} failed: {exc}",
+                    "failed",
+                    activation_event="onCommand",
+                )
 
 
 def _reload_window_under_monitoring(browser: Browser, page: Page) -> Page:
@@ -200,6 +348,12 @@ def main() -> None:
         action="store_true",
         help="Reload the VS Code window after monitoring starts.",
     )
+    parser.add_argument(
+        "--target-extension-id",
+        type=str,
+        default="",
+        help="Publisher.name identifier for the extension under analysis.",
+    )
     args = parser.parse_args()
 
     if args.list:
@@ -239,9 +393,15 @@ def main() -> None:
         try:
             if args.monitor:
                 print("[*] Starting Extension Host monitoring...")
-                mon = monitor.ExtensionMonitor(page, report_path=args.report_path)
+                mon = monitor.ExtensionMonitor(
+                    page,
+                    report_path=args.report_path,
+                    target_extension_id=args.target_extension_id,
+                )
                 mon.start()
                 automation.set_scenario_event_reporter(mon.record_scenario_event)
+                if trigger_payload is not None:
+                    mon.apply_trigger_payload(trigger_payload)
 
             if args.reload_before_run:
                 page = _reload_window_under_monitoring(browser, page)
@@ -287,7 +447,14 @@ def main() -> None:
 
             # Run extra triggers from the payload
             if trigger_payload:
-                _run_extra_triggers(page, trigger_payload)
+                _run_extra_triggers(
+                    page,
+                    trigger_payload,
+                    automation_event_recorder=(
+                        mon.record_automation_event if mon is not None else None
+                    ),
+                    verification_monitor=mon,
+                )
 
             if mon is not None:
                 print("[*] Collecting monitoring data...")

@@ -223,7 +223,20 @@ def test_extension_monitor_stop_keeps_runtime_snapshot_separate(
     def fake_parse_all_exthost_logs(start_offsets=None):
         nonlocal captured_offsets
         captured_offsets = start_offsets
-        return [monitor.ActivationEntry(extension_id="already.active", source="log")]
+        return [
+            monitor.ActivationEntry(
+                extension_id="already.active",
+                activation_event="onStartupFinished",
+                timestamp="2026-01-01 10:00:00.500",
+                source="log",
+            ),
+            monitor.ActivationEntry(
+                extension_id="other.extension",
+                activation_event="onCommand:test",
+                timestamp="2026-01-01 10:00:01.500",
+                source="log",
+            ),
+        ]
 
     log_file = tmp_path / "exthost.log"
     log_file.write_text("content")
@@ -273,19 +286,43 @@ def test_extension_monitor_stop_keeps_runtime_snapshot_separate(
         ),
     )
 
-    mon = monitor.ExtensionMonitor(DummyPage())
+    mon = monitor.ExtensionMonitor(
+        DummyPage(),
+        target_extension_id="already.active",
+    )
     mon.start()
+    mon.record_scenario_event(
+        "start",
+        "coding_session",
+        metadata={"intent": "exercise editor workflows"},
+    )
+    mon.record_scenario_event(
+        "end",
+        "coding_session",
+        "completed",
+        metadata={"intent": "exercise editor workflows"},
+    )
     report = mon.stop()
 
     assert captured_offsets == expected_offsets
     assert report.log_file_path == str(log_file)
     assert report.extension_host_output == "output-lines"
-    assert [entry.extension_id for entry in report.activated] == ["already.active"]
+    assert [entry.extension_id for entry in report.activated] == [
+        "already.active",
+        "other.extension",
+    ]
     assert [ext.extension_id for ext in report.running_extensions] == [
         "already.active",
         "new.ui",
     ]
     assert report.running_extensions[1].activation_time_ms == 21
+    assert (
+        report.log_streams["target_extension_host"][0].extension_id == "already.active"
+    )
+    assert (
+        report.log_streams["other_extension_host"][0].extension_id == "other.extension"
+    )
+    assert report.log_streams["automation"][0].kind == "scenario"
 
 
 def test_extension_monitor_persists_live_report_with_network_events(
@@ -347,6 +384,12 @@ def test_extension_monitor_persists_live_report_with_network_events(
     report_path = tmp_path / "live_report.json"
     mon = monitor.ExtensionMonitor(DummyPage(), report_path=report_path)
     mon.start()
+    mon.record_automation_event(
+        "command",
+        "Running command Analyze Workspace",
+        "completed",
+        activation_event="onCommand",
+    )
 
     initial_payload = json.loads(report_path.read_text(encoding="utf-8"))
     assert initial_payload["network_events"][0]["host"] == "github.com"
@@ -357,6 +400,11 @@ def test_extension_monitor_persists_live_report_with_network_events(
     assert final_report.network_events[0].host == "github.com"
     assert final_payload["network_summary"]["total_events"] == 1
     assert final_payload["summary"]["network_hosts"] == 1
+    assert final_payload["log_streams"]["automation"][0]["kind"] == "command"
+    assert (
+        final_payload["log_streams"]["automation"][0]["message"]
+        == "Running command Analyze Workspace"
+    )
 
 
 def test_annotate_file_events_preserves_duplicate_observers_and_emits_links() -> None:
@@ -407,18 +455,27 @@ def test_annotate_file_events_preserves_duplicate_observers_and_emits_links() ->
         )
     ]
 
-    annotated = monitor._annotate_file_events(file_events, activations, traces)
+    annotated = monitor._annotate_file_events(
+        file_events,
+        activations,
+        traces,
+        "ms-python.python",
+    )
 
     assert len(annotated) == 3
     assert annotated[0].source == "automation"
+    assert annotated[0].attribution_status == "corroboration"
     assert annotated[1].source == "extension"
+    assert annotated[1].attribution_status == "target_attributed"
     assert annotated[2].source == "automation"
     assert annotated[2].scenario_name == "coding_session"
+    assert annotated[2].attribution_status == "automation_noise"
 
     report = monitor.ActivationReport(
         activated=activations,
         file_events=annotated,
         scenario_traces=traces,
+        target_extension_id="ms-python.python",
         monitoring_start=monitor._parse_iso_timestamp("2026-01-01T10:00:00.000") or 0.0,
         monitoring_end=monitor._parse_iso_timestamp("2026-01-01T10:00:02.000") or 0.0,
     )
@@ -435,7 +492,8 @@ def test_annotate_file_events_preserves_duplicate_observers_and_emits_links() ->
         and link.to_event_id == "scenario-0001"
         for link in links
     )
-    assert any(link.link_type == "candidate_owner" for link in links)
+    assert any(link.link_type == "caused_by_target_extension" for link in links)
+    assert any(link.link_type == "automation_noise" for link in links)
 
 
 def test_canonical_evidence_links_mark_temporal_neighbors_low_confidence() -> None:
@@ -457,9 +515,15 @@ def test_canonical_evidence_links_mark_temporal_neighbors_low_confidence() -> No
                 destination_ip="93.184.216.34",
                 destination_port=443,
                 host="api.example.com",
+                related_extension_id="ms-python.python",
+                related_activation_event="onLanguage:python",
+                attribution_status="near_target_activation",
+                attribution_basis="network event was only temporally close to the target activation",
+                attribution_confidence=0.31,
                 summary="GET /telemetry",
             )
         ],
+        target_extension_id="ms-python.python",
         monitoring_start=1767261600.0,
         monitoring_end=1767261605.0,
     )
@@ -467,11 +531,189 @@ def test_canonical_evidence_links_mark_temporal_neighbors_low_confidence() -> No
     links = report.canonical_evidence_links
 
     temporal_link = next(
-        link for link in links if link.link_type == "temporal_neighbor"
+        link for link in links if link.link_type == "near_target_activation"
     )
     assert temporal_link.from_event_id == "network-0001"
     assert temporal_link.to_event_id == "activation-0001"
     assert temporal_link.confidence < 0.5
+
+
+def test_inotify_events_never_claim_target_ownership() -> None:
+    activations = [
+        monitor.ActivationEntry(
+            extension_id="publisher.tool",
+            activation_event="onCommand:run",
+            timestamp="2026-01-01 10:00:00.400",
+            source="log",
+        )
+    ]
+    traces = [
+        monitor.ScenarioTrace(
+            name="coding_session",
+            started_at=monitor._parse_iso_timestamp("2026-01-01T10:00:00.000") or 0.0,
+            ended_at=monitor._parse_iso_timestamp("2026-01-01T10:00:02.000") or 0.0,
+            status="completed",
+        )
+    ]
+    file_events = [
+        monitor.FileEvent(
+            timestamp="2026-01-01T10:00:00.500",
+            rel_time_s=0.5,
+            operation="read",
+            path="/workspace/package.json",
+            source="automation",
+            observer="inotify",
+            summary="read: /workspace/package.json",
+        )
+    ]
+
+    annotated = monitor._annotate_file_events(
+        file_events,
+        activations,
+        traces,
+        "publisher.tool",
+    )
+
+    assert annotated[0].attribution_status == "automation_noise"
+    assert annotated[0].is_target_extension_event is False
+    assert annotated[0].noise_reason
+    assert annotated[0].artifact_class == "workspace_runtime"
+
+
+def test_strace_event_with_competing_activation_is_not_owned_by_target() -> None:
+    activations = [
+        monitor.ActivationEntry(
+            extension_id="publisher.tool",
+            activation_event="onStartupFinished",
+            timestamp="2026-01-01 10:00:00.500",
+            source="log",
+        ),
+        monitor.ActivationEntry(
+            extension_id="other.extension",
+            activation_event="onCommand:other",
+            timestamp="2026-01-01 10:00:00.600",
+            source="log",
+        ),
+    ]
+    traces: list[monitor.ScenarioTrace] = []
+    file_events = [
+        monitor.FileEvent(
+            timestamp="2026-01-01T10:00:00.650",
+            rel_time_s=0.65,
+            operation="read",
+            path="/home/executor/.ssh/config",
+            source="extension",
+            observer="strace",
+            summary="read: /home/executor/.ssh/config",
+            sensitive=True,
+        )
+    ]
+
+    annotated = monitor._annotate_file_events(
+        file_events,
+        activations,
+        traces,
+        "publisher.tool",
+    )
+
+    assert annotated[0].attribution_status == "competing_candidate"
+    assert annotated[0].is_target_extension_event is False
+    assert "competing" in annotated[0].noise_reason
+
+
+def test_network_events_without_target_activation_stay_unattributed() -> None:
+    network_events = [
+        monitor.NetworkEvent(
+            timestamp="2026-01-01T10:00:03.000",
+            rel_time_s=3.0,
+            protocol="https",
+            event_type="http_request",
+            destination_ip="93.184.216.34",
+            destination_port=443,
+            host="api.example.com",
+            summary="GET /collect",
+        )
+    ]
+    activations = [
+        monitor.ActivationEntry(
+            extension_id="other.extension",
+            activation_event="onCommand:other",
+            timestamp="2026-01-01 10:00:00.000",
+            source="log",
+        )
+    ]
+
+    annotated = monitor._annotate_network_events(
+        network_events,
+        activations,
+        [],
+        "publisher.tool",
+    )
+
+    assert annotated[0].attribution_status == "unattributed"
+    assert annotated[0].is_target_extension_event is False
+    assert annotated[0].related_extension_id == ""
+
+
+def test_reconcile_coverage_marks_attempted_only_when_not_verified() -> None:
+    report = monitor.ActivationReport(
+        coverage_summary={"covered": 2, "partial": 0, "missing": 1},
+        coverage_matrix=[
+            {"capability": "commands", "status": "covered"},
+            {"capability": "workspace_fs", "status": "covered"},
+            {"capability": "chat", "status": "missing"},
+        ],
+        attempted_capabilities=["commands", "workspace_fs"],
+        verified_capabilities=["workspace_fs"],
+    )
+
+    summary, matrix = monitor._reconcile_coverage_verification(report)
+
+    assert summary["attempted"] == 2
+    assert summary["verified"] == 1
+    commands_entry = next(item for item in matrix if item["capability"] == "commands")
+    workspace_entry = next(
+        item for item in matrix if item["capability"] == "workspace_fs"
+    )
+    assert commands_entry["verification_status"] == "attempted_only"
+    assert workspace_entry["verification_status"] == "verified"
+
+
+def test_verdict_stays_bounded_when_only_correlative_sensitive_activity_exists() -> (
+    None
+):
+    report = monitor.ActivationReport(
+        activated=[
+            monitor.ActivationEntry(
+                extension_id="publisher.tool",
+                activation_event="onStartupFinished",
+                timestamp="2026-01-01 10:00:00.000",
+                source="log",
+            )
+        ],
+        file_events=[
+            monitor.FileEvent(
+                timestamp="2026-01-01T10:00:00.900",
+                rel_time_s=0.9,
+                operation="read",
+                path="/workspace/.env",
+                observer="strace",
+                scenario_name="project_exploration",
+                attribution_status="near_target_activation",
+                attribution_basis="correlative only",
+                attribution_confidence=0.41,
+                sensitive=True,
+                summary="read: /workspace/.env",
+            )
+        ],
+        target_extension_id="publisher.tool",
+    )
+
+    verdict = monitor._build_verdict(report)
+
+    assert verdict["level"] in {"needs_review", "suspicious"}
+    assert verdict["level"] != "likely_malicious"
+    assert verdict["reasons"]
 
 
 def test_check_extension_activated_uses_logs_then_ui(monkeypatch) -> None:

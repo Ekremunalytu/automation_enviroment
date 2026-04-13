@@ -80,7 +80,7 @@ def build_trigger_payload(
         trigger_container_path,
         payload.selected_scenarios,
         (
-            f"Selected {len(payload.selected_scenarios)} scenario(s) "
+            f"Selected {len(payload.selected_scenarios)} prioritized scenario(s) "
             "from activation metadata."
         ),
     )

@@ -5,6 +5,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { MarketplaceResultCard } from "../../components/marketplace/MarketplaceResultCard";
 import { EmptyState } from "../../components/ui/EmptyState";
 import { Panel, PanelHeader } from "../../components/ui/Panel";
+import { ApiError } from "../../lib/api/http";
 import { apiClient } from "../../lib/api/client";
 
 const LAST_JOB_KEY = "extrace:lastJobId";
@@ -23,6 +24,7 @@ export function MarketplacePage() {
   const queryParam = searchParams.get("q") || "";
   const [query, setQuery] = useState(queryParam);
   const [ready, setReady] = useState<Record<string, boolean>>({});
+  const [actionError, setActionError] = useState<string | null>(null);
 
   useEffect(() => {
     setQuery(queryParam);
@@ -38,10 +40,14 @@ export function MarketplacePage() {
     mutationFn: ({ publisher, name, version }: { publisher: string; name: string; version: string }) =>
       apiClient.downloadMarketplaceExtension(publisher, name, version),
     onSuccess: (result) => {
+      setActionError(null);
       setReady((current) => ({
         ...current,
         [`${result.publisher}.${result.name}@${result.version}`]: true,
       }));
+    },
+    onError: (error) => {
+      setActionError(error instanceof ApiError ? error.message : "Download failed.");
     },
   });
 
@@ -49,13 +55,18 @@ export function MarketplacePage() {
     mutationFn: ({ publisher, name, version }: { publisher: string; name: string; version: string }) =>
       apiClient.startAnalysisJob(publisher, name, version),
     onSuccess: (job) => {
+      setActionError(null);
       rememberJobId(job.job_id);
       navigate(`/simulation?job=${job.job_id}&tab=live`);
+    },
+    onError: (error) => {
+      setActionError(error instanceof ApiError ? error.message : "Analysis could not be started.");
     },
   });
 
   const onSubmit = (event: FormEvent) => {
     event.preventDefault();
+    setActionError(null);
     const next = new URLSearchParams(searchParams);
     if (query.trim()) next.set("q", query.trim());
     else next.delete("q");
@@ -101,6 +112,12 @@ export function MarketplacePage() {
           <SignalTile body={`Results for “${queryParam}”`} title="Search state" />
           <SignalTile body={searchQuery.isLoading ? "Searching…" : `${searchQuery.data?.length || 0} results`} title="Result count" />
           <SignalTile body="Download first, then run only the extension you actually want to inspect." title="Workflow" />
+        </div>
+      ) : null}
+
+      {actionError ? (
+        <div className="rounded-[16px] border border-danger/30 bg-danger/10 px-4 py-4 text-sm leading-6 text-danger">
+          {actionError}
         </div>
       ) : null}
 

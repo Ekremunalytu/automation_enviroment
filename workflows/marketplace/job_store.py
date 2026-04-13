@@ -163,12 +163,23 @@ def fail_job(job_id: str, detail: str) -> None:
             _ANALYSIS_JOBS[job_id] = job
 
         current_step = job.get("current_step")
+        failed_index: int | None = None
         if current_step:
-            for step in job["steps"]:
+            for index, step in enumerate(job["steps"]):
                 if step["name"] == current_step:
                     step["status"] = "failed"
                     step["message"] = detail
+                    failed_index = index
                     break
+
+        if failed_index is not None:
+            current_step_name = str(current_step)
+            for step in job["steps"][failed_index + 1 :]:
+                if step["status"] == "pending":
+                    step["status"] = "skipped"
+                    step["message"] = (
+                        f"Skipped because {current_step_name.replace('_', ' ')} failed."
+                    )
 
         job.update(
             status="failed",

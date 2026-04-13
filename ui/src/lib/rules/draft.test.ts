@@ -22,6 +22,14 @@ const inspector: EvidenceInspectorView = {
     path: "/collect",
     destinationIp: "1.2.3.4",
     destinationPort: 443,
+    attributionStatus: "near_target_activation",
+    attributionStatusLabel: "Correlated Only",
+    attributionBasis: "network event was only temporally close to the target activation",
+    attributionConfidence: 0.61,
+    attributionConfidencePct: 61,
+    isTargetExtensionEvent: false,
+    noiseReason: "temporal proximity alone is not treated as ownership",
+    artifactClass: "",
     sensitive: false,
     summary: "Outbound request",
     summaryDisplay: "Outbound request",
@@ -45,6 +53,17 @@ const inspector: EvidenceInspectorView = {
       reason: "Observed during sandbox analysis.",
       direction: "outgoing",
     },
+    {
+      fromEventId: "network-1",
+      toEventId: "scenario-2",
+      linkType: "occurred_in_scenario",
+      linkLabel: "Occurred In Scenario",
+      confidence: 0.88,
+      confidencePct: 88,
+      confidenceLabel: "High",
+      reason: "Observed during follow-up automation.",
+      direction: "outgoing",
+    },
   ],
 };
 
@@ -64,10 +83,24 @@ describe("buildRuleDraft", () => {
       kind: "network",
       actor: "extension",
       collector: "tshark",
+      attribution_status: "near_target_activation",
       extension_id: "publisher.tool",
       scenario_name: "sandbox analysis",
     });
     expect(toRuleJson(rule!)).toContain("\"title\"");
     expect(toRuleYaml(rule!)).toContain("severity:");
+    expect(rule?.labels).toEqual([
+      "network",
+      "extension",
+      "tshark",
+      "near_target_activation",
+      "occurred_in_scenario",
+    ]);
+    expect(rule?.suspiciousReasons).toEqual(
+      expect.arrayContaining([
+        "network event was only temporally close to the target activation",
+        "temporal proximity alone is not treated as ownership",
+      ]),
+    );
   });
 });

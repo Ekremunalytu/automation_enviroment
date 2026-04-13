@@ -130,7 +130,7 @@ _NOTIFICATION_SELECTORS = [
 ]
 
 
-def _dismiss_notification(page: Page) -> None:
+def _dismiss_notification(page: Page) -> str:
     """Dismiss any visible VS Code notification toast.
 
     VS Code shows notification dialogs (e.g. 'No formatter installed',
@@ -143,6 +143,7 @@ def _dismiss_notification(page: Page) -> None:
             toast = page.wait_for_selector(selector, state="visible", timeout=800)
             if toast is None:
                 continue
+            toast_text = toast.inner_text().strip()
             # Try clicking the dismiss/close button on the toast
             close_btn = toast.query_selector(
                 ".codicon-notifications-clear, .codicon-close"
@@ -150,15 +151,16 @@ def _dismiss_notification(page: Page) -> None:
             if close_btn:
                 close_btn.click()
                 page.wait_for_timeout(300)
-                return
+                return toast_text or "notification toast"
             # Fallback: click Cancel button if present
             cancel_btn = toast.query_selector("a.action-label[title='Cancel']")
             if cancel_btn:
                 cancel_btn.click()
                 page.wait_for_timeout(300)
-                return
+                return toast_text or "notification toast"
         except PlaywrightTimeoutError:
             continue
     # Last resort: Escape to dismiss anything lingering
     page.keyboard.press("Escape")
     page.wait_for_timeout(200)
+    return ""
