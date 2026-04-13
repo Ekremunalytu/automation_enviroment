@@ -10,6 +10,24 @@ describe("adaptReport", () => {
       trigger_plan_applied: true,
       verification_gap: 1,
       run_quality: "medium",
+      automation_health: {
+        status: "degraded",
+        reasons: ["verification_gap_present"],
+        trigger_requested: true,
+        trigger_loaded: true,
+        trigger_applied: true,
+        extension_host_log_present: true,
+        extension_host_output_present: true,
+        target_stream_present: true,
+        target_activation_count: 1,
+        failed_scenarios: [],
+      },
+      log_health: {
+        extension_host_log_found: true,
+        extension_host_output_present: true,
+        target_extension_log_entries: 1,
+        total_activation_entries: 1,
+      },
       attribution_summary: {
         target_activation_count: 1,
         strong_target_file_event_count: 0,
@@ -125,6 +143,8 @@ describe("adaptReport", () => {
     expect(report.logStreams.automation[0]?.kind).toBe("scenario");
     expect(report.summary.targetExtensionObserved).toBe(true);
     expect(report.summary.runQuality).toBe("medium");
+    expect(report.summary.automationHealthStatus).toBe("degraded");
+    expect(report.summary.triggerLoaded).toBe(true);
     expect(report.riskSignals[0]?.category).toBe("background_outbound_network");
     expect(report.riskSummary.totalSignals).toBe(1);
   });
@@ -175,6 +195,10 @@ describe("adaptReport", () => {
       "file-0001",
       "activation-0001",
       "scenario-0001",
+    ]);
+    expect(report.summary.automationHealthStatus).toBe("inconclusive");
+    expect(report.summary.automationHealthReasons).toEqual([
+      "legacy_report_missing_health_block",
     ]);
     expect(report.evidenceLinks.map((link) => link.linkType)).toEqual(
       expect.arrayContaining(["occurred_in_scenario", "candidate_owner"]),

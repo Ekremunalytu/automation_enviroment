@@ -164,6 +164,7 @@ addopts = [
 markers = [
     "slow: marks tests as slow",
     "integration: marks tests as integration tests",
+    "smoke: marks end-to-end smoke acceptance tests",
 ]
 asyncio_mode = "auto"
 

@@ -75,10 +75,25 @@ def run_demo(page: Page) -> None:
     page.wait_for_timeout(10_000)
 
 
-def _create_bait_files(filenames: list[str]) -> None:
+def _create_bait_files(filenames: list[str]) -> list[str]:
     """Create empty bait files in the workspace for custom editor activation."""
+    created: list[str] = []
     for bait_path in workspace.create_bait_files(filenames):
         print(f"[+] Created bait file: {bait_path}")
+        created.append(str(bait_path))
+    return created
+
+
+def _resolve_execution_plan(
+    scenario: str | None,
+    trigger_payload: trigger_loader.TriggerPayload | None,
+) -> tuple[str, list[str]]:
+    """Pick selected trigger scenarios first, then explicit fallback, else run all."""
+    if trigger_payload and trigger_payload.selected_scenarios:
+        return "selected", list(trigger_payload.selected_scenarios)
+    if scenario:
+        return "single", [scenario]
+    return "all", []
 
 
 def _run_extra_triggers(
@@ -86,9 +101,11 @@ def _run_extra_triggers(
     payload: trigger_loader.TriggerPayload,
     automation_event_recorder: Callable[[str, str, str, str, str], None] | None = None,
     verification_monitor: monitor.ExtensionMonitor | None = None,
-) -> None:
+) -> list[str]:
     """Run additional activation triggers beyond the standard scenarios."""
     from playwright.sync_api import Error as PlaywrightError
+
+    failed_triggers: list[str] = []
 
     def emit(
         kind: str,
@@ -153,6 +170,7 @@ def _run_extra_triggers(
                 "failed",
                 activation_event="onCustomEditor",
             )
+            failed_triggers.append(f"custom_editor:{filename}")
 
     # Trigger onUri via terminal xdg-open
     if payload.uri_trigger:
@@ -182,6 +200,7 @@ def _run_extra_triggers(
                 "failed",
                 activation_event="onUri",
             )
+            failed_triggers.append("uri_trigger")
 
     # Trigger onTaskType via Command Palette
     if payload.run_task_trigger:
@@ -211,6 +230,7 @@ def _run_extra_triggers(
                 "failed",
                 activation_event="onTaskType",
             )
+            failed_triggers.append("task_trigger")
 
     # Trigger onWalkthrough via Command Palette
     if payload.run_walkthrough_trigger:
@@ -240,6 +260,7 @@ def _run_extra_triggers(
                 "failed",
                 activation_event="onWalkthrough",
             )
+            failed_triggers.append("walkthrough_trigger")
 
     # Trigger extension-specific commands via Command Palette
     if payload.extra_commands:
@@ -292,6 +313,9 @@ def _run_extra_triggers(
                     "failed",
                     activation_event="onCommand",
                 )
+                failed_triggers.append(f"command:{cmd_title}")
+
+    return failed_triggers
 
 
 def _reload_window_under_monitoring(browser: Browser, page: Page) -> Page:
@@ -387,8 +411,11 @@ def main() -> None:
                 print("[!] Trigger file not found or invalid, using defaults")
 
         # Create custom editor bait files in the workspace if needed
+        bait_files_created: list[str] = []
         if trigger_payload and trigger_payload.extra_custom_editor_files:
-            _create_bait_files(trigger_payload.extra_custom_editor_files)
+            bait_files_created = _create_bait_files(
+                trigger_payload.extra_custom_editor_files
+            )
 
         mon = None
         try:
@@ -402,16 +429,35 @@ def main() -> None:
                 mon.start()
                 automation.set_scenario_event_reporter(mon.record_scenario_event)
                 mon.report.trigger_plan_requested = trigger_plan_requested
+                mon.report.trigger_plan_path = args.triggers or ""
                 if trigger_payload is not None:
                     mon.apply_trigger_payload(trigger_payload)
-                elif trigger_plan_requested:
                     mon.record_automation_event(
-                        "trigger_plan",
+                        "trigger_plan_loaded",
+                        (
+                            "Trigger payload loaded inside the executor: "
+                            f"{len(trigger_payload.selected_scenarios)} selected scenario(s)."
+                        ),
+                        status="completed",
+                    )
+                elif trigger_plan_requested:
+                    mon.mark_trigger_plan_missing(args.triggers or "")
+                    mon.record_automation_event(
+                        "trigger_plan_missing",
                         (
                             "Trigger payload could not be loaded inside the executor; "
                             "continuing with degraded reliability."
                         ),
                         status="failed",
+                    )
+                if bait_files_created:
+                    mon.record_automation_event(
+                        "trigger_bait_files",
+                        (
+                            "Created bait files for trigger coverage: "
+                            + ", ".join(bait_files_created)
+                        ),
+                        status="completed",
                     )
 
             if args.reload_before_run:
@@ -423,27 +469,46 @@ def main() -> None:
                 mon.attach_runtime_tracers()
 
             executed_scenarios: list[str] = []
+            failed_scenarios: list[str] = []
+            execution_plan, planned_scenarios = _resolve_execution_plan(
+                args.scenario,
+                trigger_payload,
+            )
 
             if args.demo:
                 run_demo(page)
                 executed_scenarios.append("demo")
-            elif args.scenario:
-                print(f"[*] Running scenario: {args.scenario}")
-                automation.run_scenario(page, args.scenario)
-                executed_scenarios.append(args.scenario)
-            elif trigger_payload and trigger_payload.selected_scenarios:
-                print(
-                    f"[*] Running selected scenarios: {trigger_payload.selected_scenarios}"
-                )
+            elif execution_plan == "selected":
+                print(f"[*] Running selected scenarios: {planned_scenarios}")
                 failed_scenarios = automation.run_selected_scenarios(
-                    page, trigger_payload.selected_scenarios, shuffle=args.shuffle
+                    page,
+                    planned_scenarios,
+                    shuffle=args.shuffle,
                 )
-                executed_scenarios.extend(trigger_payload.selected_scenarios)
+                executed_scenarios.extend(planned_scenarios)
+                if mon is not None:
+                    mon.mark_trigger_plan_applied(
+                        scenarios=planned_scenarios,
+                        trigger_path=args.triggers,
+                    )
+                    mon.record_automation_event(
+                        "trigger_plan_applied",
+                        (
+                            "Trigger plan selected scenarios for execution: "
+                            + ", ".join(planned_scenarios)
+                        ),
+                        status="completed",
+                    )
                 if failed_scenarios:
                     print("[!] Failed scenarios:")
                     for name in failed_scenarios:
                         print(f"  - {name}")
                     exit_code = 1
+            elif execution_plan == "single":
+                scenario_name = planned_scenarios[0]
+                print(f"[*] Running scenario: {scenario_name}")
+                automation.run_scenario(page, scenario_name)
+                executed_scenarios.append(scenario_name)
             else:
                 print("[*] Running all automation scenarios...")
                 failed_scenarios = automation.run_all_scenarios(
@@ -457,8 +522,19 @@ def main() -> None:
                     exit_code = 1
 
             # Run extra triggers from the payload
+            extra_trigger_failures: list[str] = []
             if trigger_payload:
-                _run_extra_triggers(
+                if mon is not None and not mon.report.trigger_plan_applied:
+                    mon.mark_trigger_plan_applied(
+                        scenarios=trigger_payload.selected_scenarios,
+                        trigger_path=args.triggers,
+                    )
+                    mon.record_automation_event(
+                        "trigger_plan_applied",
+                        "Trigger plan was applied through executor-side payload actions.",
+                        status="completed",
+                    )
+                extra_trigger_failures = _run_extra_triggers(
                     page,
                     trigger_payload,
                     automation_event_recorder=(
@@ -470,6 +546,8 @@ def main() -> None:
             if mon is not None:
                 print("[*] Collecting monitoring data...")
                 mon.report.scenarios_run = executed_scenarios
+                mon.record_failed_scenarios(failed_scenarios)
+                mon.report.extra_trigger_failures = extra_trigger_failures
                 report = mon.stop()
                 report.print_summary()
                 report.save(args.report_path)

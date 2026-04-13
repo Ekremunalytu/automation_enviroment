@@ -408,6 +408,15 @@ function DashboardScore({
 
   return (
     <div className="space-y-6">
+      <RiskOverviewPanel
+        attributionSummary={report.attributionSummary}
+        onSelectEvent={onSelectEvent}
+        riskSignals={report.riskSignals}
+        summary={report.summary}
+        title="Automation health"
+        description="Target observation and run reliability are shown ahead of risk scoring so degraded or inconclusive runs are visible immediately."
+      />
+
       <section className="score-surface">
         <div className="eyebrow">Dashboard</div>
         <div className="mt-6 grid gap-8 lg:grid-cols-[260px_minmax(0,1fr)] lg:items-center">
@@ -436,15 +445,6 @@ function DashboardScore({
           </div>
         </div>
       </section>
-
-      <RiskOverviewPanel
-        attributionSummary={report.attributionSummary}
-        onSelectEvent={onSelectEvent}
-        riskSignals={report.riskSignals}
-        summary={report.summary}
-        title="Detection signals"
-        description="Target observation, run quality, attribution strength, and evidence-linked risk signals stay separate from the raw evidence tabs."
-      />
     </div>
   );
 }

@@ -60,12 +60,21 @@ def test_activation_report_save_is_atomic(tmp_path: Path) -> None:
     assert payload["network_events"][0]["host"] == "api.example.com"
     assert payload["target_extension_expected"] == "sample.ext"
     assert payload["target_extension_observed"] is True
-    assert payload["run_quality"] == "high"
+    assert payload["run_quality"] == "inconclusive"
+    assert payload["verdict"] == {}
+    assert payload["automation_health"]["status"] == "inconclusive"
+    assert "target_stream_missing" in payload["automation_health"]["reasons"]
+    assert payload["log_health"]["extension_host_log_found"] is False
+    assert payload["trigger_plan_requested"] is True
+    assert payload["trigger_plan_loaded"] is False
+    assert payload["trigger_plan_applied"] is True
     assert payload["evidence_events"][0]["event_id"].startswith("activation-")
     assert payload["evidence_events"][1]["event_id"].startswith("network-")
     assert payload["evidence_links"] == []
     assert payload["network_summary"]["unique_hosts"] == 1
-    assert not (tmp_path / ".activation_report.json.tmp").exists()
+    assert payload["attempted_capabilities"] == []
+    assert payload["verified_capabilities"] == []
+    assert not list(tmp_path.glob(".activation_report.json.*.tmp"))
 
 
 def test_parse_tshark_event_line_extracts_http_fields() -> None:
@@ -86,9 +95,7 @@ def test_parse_tshark_event_line_extracts_http_fields() -> None:
 
 
 def test_parse_strace_file_event_line_extracts_extension_io() -> None:
-    line = (
-        '1700000000.750 openat(AT_FDCWD, "/workspace/.env", ' "O_RDONLY|O_CLOEXEC) = 42"
-    )
+    line = '1700000000.750 openat(AT_FDCWD, "/workspace/.env", O_RDONLY|O_CLOEXEC) = 42'
 
     event = monitor.parse_strace_file_event_line(line, monitoring_start=1700000000.0)
 
@@ -737,6 +744,108 @@ def test_inconclusive_run_never_returns_benign() -> None:
     assert report.run_quality == "inconclusive"
     assert verdict["level"] == "needs_review"
     assert "inconclusive" in verdict["note"].lower()
+
+
+def test_trigger_requested_but_not_loaded_is_degraded() -> None:
+    report = monitor.ActivationReport(
+        activated=[
+            monitor.ActivationEntry(
+                extension_id="publisher.tool",
+                activation_event="onCommand:test",
+                timestamp="2026-01-01 10:00:00.000",
+                source="log",
+            )
+        ],
+        extension_host_output="extension output",
+        log_file_path="/workspace/exthost.log",
+        target_extension_id="publisher.tool",
+        trigger_plan_requested=True,
+        trigger_plan_loaded=False,
+        trigger_plan_applied=False,
+    )
+    report.log_entries.append(
+        monitor.LogStreamEntry(
+            timestamp="2026-01-01T10:00:00.000",
+            stream="target_extension_host",
+            kind="activation",
+            extension_id="publisher.tool",
+            message="Activated publisher.tool via onCommand:test",
+            status="completed",
+            is_target_extension=True,
+        )
+    )
+
+    health = report.automation_health
+
+    assert health["status"] == "degraded"
+    assert "trigger_plan_not_loaded" in health["reasons"]
+    assert "trigger_plan_not_applied" in health["reasons"]
+    assert monitor._build_verdict(report)["level"] != "benign"
+
+
+def test_empty_extension_host_output_degrades_run_health() -> None:
+    report = monitor.ActivationReport(
+        activated=[
+            monitor.ActivationEntry(
+                extension_id="publisher.tool",
+                activation_event="onCommand:test",
+                timestamp="2026-01-01 10:00:00.000",
+                source="log",
+            )
+        ],
+        target_extension_id="publisher.tool",
+        log_file_path="/workspace/exthost.log",
+    )
+    report.log_entries.append(
+        monitor.LogStreamEntry(
+            timestamp="2026-01-01T10:00:00.000",
+            stream="target_extension_host",
+            kind="activation",
+            extension_id="publisher.tool",
+            message="Activated publisher.tool via onCommand:test",
+            status="completed",
+            is_target_extension=True,
+        )
+    )
+
+    health = report.automation_health
+
+    assert health["status"] == "degraded"
+    assert "extension_host_output_missing" in health["reasons"]
+
+
+def test_failed_scenarios_degrade_run_health() -> None:
+    report = monitor.ActivationReport(
+        activated=[
+            monitor.ActivationEntry(
+                extension_id="publisher.tool",
+                activation_event="onCommand:test",
+                timestamp="2026-01-01 10:00:00.000",
+                source="log",
+            )
+        ],
+        target_extension_id="publisher.tool",
+        extension_host_output="extension output",
+        log_file_path="/workspace/exthost.log",
+        failed_scenarios=["coding_session"],
+    )
+    report.log_entries.append(
+        monitor.LogStreamEntry(
+            timestamp="2026-01-01T10:00:00.000",
+            stream="target_extension_host",
+            kind="activation",
+            extension_id="publisher.tool",
+            message="Activated publisher.tool via onCommand:test",
+            status="completed",
+            is_target_extension=True,
+        )
+    )
+
+    health = report.automation_health
+
+    assert health["status"] == "degraded"
+    assert health["failed_scenarios"] == ["coding_session"]
+    assert "scenario_failures_present" in health["reasons"]
 
 
 def test_risk_signals_capture_sensitive_file_and_network_combo() -> None:

@@ -120,6 +120,7 @@ def run_playwright_automation(
     reload_before_run: bool = False,
     target_extension_id: str | None = None,
 ) -> str:
+    effective_scenario = scenario or _DEFAULT_SCENARIO
     cmd = [
         "python3",
         settings.executor.ENTRYPOINT_PATH,
@@ -133,8 +134,9 @@ def run_playwright_automation(
         cmd.extend(["--target-extension-id", target_extension_id])
     if trigger_container_path:
         cmd.extend(["--triggers", trigger_container_path])
+        if effective_scenario != "all":
+            cmd.extend(["--scenario", effective_scenario])
     else:
-        effective_scenario = scenario or _DEFAULT_SCENARIO
         if effective_scenario != "all":
             cmd.extend(["--scenario", effective_scenario])
 

@@ -53,9 +53,17 @@ def pill_row(items: list[str], tone: str = "default") -> str:
 
 def metric_card(label: str, value: str, color: str, icon: str | None = None) -> str:
     icon_markup = (
-        f'<div class="kpi-icon" style="color: {color}; border-color: {color}20; background: {color}10;">{icon}</div>'
+        (
+            '<div class="kpi-icon" '
+            f'style="color: {color}; border-color: {color}20; '
+            f'background: {color}10;">{icon}</div>'
+        )
         if icon
-        else f'<div class="kpi-accent" style="background: linear-gradient(180deg, {color}, transparent);"></div>'
+        else (
+            '<div class="kpi-accent" '
+            f'style="background: linear-gradient(180deg, '
+            f'{color}, transparent);"></div>'
+        )
     )
     return f"""
     <div class="glass-card">

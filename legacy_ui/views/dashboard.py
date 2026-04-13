@@ -51,12 +51,21 @@ def render_dashboard_page(target: str | None) -> None:
             <div>
                 <div class="eyebrow">Analyst Console</div>
                 <h1>Evidence-Centric Investigation</h1>
-                <p>Single-run provenance, collector attribution and rule drafting for extension telemetry.</p>
+                <p>
+                    Single-run provenance, collector attribution and rule
+                    drafting for extension telemetry.
+                </p>
             </div>
             <div class="hero-meta">
-                <div class="hero-chip"><span>Report</span><strong>{target_extension}</strong></div>
-                <div class="hero-chip"><span>Events</span><strong>{len(context.evidence):,}</strong></div>
-                <div class="hero-chip"><span>Scenarios</span><strong>{len(scenarios)}</strong></div>
+                <div class="hero-chip">
+                    <span>Report</span><strong>{target_extension}</strong>
+                </div>
+                <div class="hero-chip">
+                    <span>Events</span><strong>{len(context.evidence):,}</strong>
+                </div>
+                <div class="hero-chip">
+                    <span>Scenarios</span><strong>{len(scenarios)}</strong>
+                </div>
             </div>
         </div>
         """,

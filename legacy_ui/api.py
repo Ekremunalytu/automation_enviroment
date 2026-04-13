@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 from urllib.parse import urlparse, urlunparse
 
-import requests
+import requests  # type: ignore[import-untyped]
 import streamlit as st
 from config import (
     API_ACTIVATIONS_URL,

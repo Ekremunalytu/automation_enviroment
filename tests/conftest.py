@@ -170,6 +170,9 @@ def pytest_configure(config: Any) -> None:
     config.addinivalue_line(
         "markers", "requires_db: mark test as requiring database connection"
     )
+    config.addinivalue_line(
+        "markers", "smoke: mark test as blocking smoke acceptance coverage"
+    )
 
 
 @pytest.fixture(scope="session", autouse=True)

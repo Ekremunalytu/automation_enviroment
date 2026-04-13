@@ -139,11 +139,11 @@ jobs:
             sleep 2
           done
 
-      - name: 🧪 Run tests with coverage
+      - name: 🧪 Run tests with coverage and smoke acceptance
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
         run: |
-          pytest --cov --cov-report=xml --cov-report=term-missing -v
+          make test-ci
 
       - name: 📊 Upload coverage to Codecov
         uses: codecov/codecov-action@v4

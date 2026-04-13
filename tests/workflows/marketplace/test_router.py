@@ -640,7 +640,8 @@ def test_build_trigger_payload_passes_commands_and_custom_editors(
 
     assert trigger_path == "/results/triggers.json"
     assert scenarios == ["command_palette"]
-    assert "selected 1 prioritized scenario" in message.lower()
+    assert "trigger requested for ms-python.python" in message.lower()
+    assert "/results/triggers.json" in message
     mock_select.assert_called_once_with(
         [{"event_type": "onCommand", "event_value": "extension.run"}],
         [{"viewType": "custom.editor"}],
@@ -761,6 +762,74 @@ def test_execute_analysis_request_reports_automation_failure() -> None:
         "run_monitoring",
         "failed",
         "Sandbox automation failed before the report could be finalized.",
+    )
+
+
+def test_execute_analysis_request_reports_healthful_monitoring_summary(
+    tmp_path: Path,
+) -> None:
+    request = marketplace_router.AnalyzeRequest(**ANALYZE_PAYLOAD)
+    progress_events: list[tuple[str, str, str]] = []
+    marketplace_router.settings.project.OUTPUT_DIR = str(tmp_path)
+    report_name = "activation_report.json"
+    (tmp_path / report_name).write_text(
+        """
+        {
+          "automation_health": {
+            "status": "degraded",
+            "trigger_requested": true,
+            "trigger_loaded": false,
+            "trigger_applied": false,
+            "target_activation_count": 1,
+            "failed_scenarios": ["coding_session"]
+          },
+          "summary": {
+            "scenarios_run": ["coding_session"]
+          }
+        }
+        """,
+        encoding="utf-8",
+    )
+
+    with (
+        patch("workflows.marketplace.analysis_service.ensure_vsix_exists"),
+        patch(
+            "workflows.marketplace.analysis_service.reset_executor_sandbox_state",
+            return_value="reset",
+        ),
+        patch(
+            "workflows.marketplace.analysis_service.install_extension_in_executor",
+            return_value="install",
+        ),
+        patch(
+            "workflows.marketplace.analysis_service.build_trigger_payload",
+            return_value=("/results/triggers.json", ["coding_session"], "selected"),
+        ),
+        patch(
+            "workflows.marketplace.analysis_service.run_playwright_automation",
+            return_value="automation",
+        ),
+    ):
+        response = marketplace_router._execute_analysis_request(
+            request,
+            db=MagicMock(),
+            progress_callback=lambda step, status, message: progress_events.append(
+                (step, status, message)
+            ),
+            report_name=report_name,
+        )
+
+    assert response.status == "success"
+    assert any(
+        step == "run_monitoring"
+        and "trigger requested=true, loaded=false, applied=false" in message.lower()
+        for step, _, message in progress_events
+    )
+    assert any(
+        step == "finalize_report"
+        and "health=degraded" in message.lower()
+        and "failed scenarios=1" in message.lower()
+        for step, _, message in progress_events
     )
 
 

@@ -172,7 +172,11 @@ GLOBAL_STYLES = """
         border: 1px solid var(--card-border);
         background:
             linear-gradient(140deg, rgba(139, 92, 246, 0.12), transparent 42%),
-            linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.015));
+            linear-gradient(
+                180deg,
+                rgba(255, 255, 255, 0.03),
+                rgba(255, 255, 255, 0.015)
+            );
         margin-bottom: 28px;
     }
 
@@ -253,9 +257,18 @@ GLOBAL_STYLES = """
     }
 
     .tone-default { border-color: rgba(255, 255, 255, 0.08); }
-    .tone-alert { border-color: rgba(244, 63, 94, 0.28); background: rgba(244, 63, 94, 0.07); }
-    .tone-accent { border-color: rgba(34, 211, 238, 0.22); background: rgba(34, 211, 238, 0.06); }
-    .tone-warn { border-color: rgba(245, 158, 11, 0.24); background: rgba(245, 158, 11, 0.06); }
+    .tone-alert {
+        border-color: rgba(244, 63, 94, 0.28);
+        background: rgba(244, 63, 94, 0.07);
+    }
+    .tone-accent {
+        border-color: rgba(34, 211, 238, 0.22);
+        background: rgba(34, 211, 238, 0.06);
+    }
+    .tone-warn {
+        border-color: rgba(245, 158, 11, 0.24);
+        background: rgba(245, 158, 11, 0.06);
+    }
 
     .pill-row {
         display: flex;

@@ -52,7 +52,18 @@ def build_trigger_payload(
     authentication_data = None
     if contributes and contributes.authentication:
         authentication_data = [
-            {"auth_id": item.auth_id, "label": item.label}
+            {
+                "auth_id": (
+                    item.get("auth_id", "")
+                    if isinstance(item, dict)
+                    else getattr(item, "auth_id", "")
+                ),
+                "label": (
+                    item.get("label", "")
+                    if isinstance(item, dict)
+                    else getattr(item, "label", "")
+                ),
+            }
             for item in contributes.authentication
         ]
     views = contributes.views if contributes else None
@@ -89,8 +100,10 @@ def build_trigger_payload(
         trigger_container_path,
         payload.selected_scenarios,
         (
-            f"Selected {len(payload.selected_scenarios)} prioritized scenario(s) "
-            "from activation metadata."
+            "Trigger requested for "
+            f"{publisher_name}: selected {len(payload.selected_scenarios)} "
+            f"scenario(s) [{', '.join(payload.selected_scenarios) or 'none'}]; "
+            f"payload written to {trigger_container_path}."
         ),
     )
 

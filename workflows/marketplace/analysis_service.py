@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 from collections.abc import Callable
 from pathlib import Path
@@ -11,6 +12,7 @@ from fastapi import HTTPException
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+from appcore.api.config import settings
 from appcore.contracts.schemas import AnalyzeRequest, AnalyzeResponse
 from appcore.db.session import SessionLocal
 from executor.host import (
@@ -31,6 +33,59 @@ from workflows.marketplace.job_store import (
 from workflows.marketplace.trigger_service import build_trigger_payload
 
 logger = logging.getLogger(__name__)
+
+
+def _load_report_payload(report_name: str) -> dict[str, object] | None:
+    report_path = Path(settings.project.OUTPUT_DIR) / report_name
+    if not report_path.exists():
+        return None
+    try:
+        payload = json.loads(report_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError, TypeError):
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
+def _build_report_messages(report_name: str) -> tuple[str, str]:
+    payload = _load_report_payload(report_name)
+    if payload is None:
+        return (
+            "Sandbox automation finished, but report health details were unavailable.",
+            f"Report exported to {report_name}.",
+        )
+
+    automation_health = payload.get("automation_health")
+    if not isinstance(automation_health, dict):
+        return (
+            "Sandbox automation finished, but the report did not contain "
+            "automation health metadata.",
+            f"Report exported to {report_name}.",
+        )
+
+    status = str(automation_health.get("status", "unknown"))
+    trigger_requested = bool(automation_health.get("trigger_requested", False))
+    trigger_loaded = bool(automation_health.get("trigger_loaded", False))
+    trigger_applied = bool(automation_health.get("trigger_applied", False))
+    target_count = int(automation_health.get("target_activation_count", 0) or 0)
+    failed_scenarios = automation_health.get("failed_scenarios", [])
+    failed_count = len(failed_scenarios) if isinstance(failed_scenarios, list) else 0
+    summary = payload.get("summary")
+    scenarios_run = []
+    if isinstance(summary, dict) and isinstance(summary.get("scenarios_run"), list):
+        scenarios_run = [str(item) for item in summary["scenarios_run"]]
+
+    monitoring_message = (
+        f"Sandbox automation finished with {status} health; "
+        "trigger requested="
+        f"{trigger_requested}, loaded={trigger_loaded}, "
+        f"applied={trigger_applied}; "
+        f"executed scenarios=[{', '.join(scenarios_run) or 'none'}]."
+    )
+    finalize_message = (
+        f"Report exported to {report_name}; health={status}; "
+        f"target activations={target_count}; failed scenarios={failed_count}."
+    )
+    return monitoring_message, finalize_message
 
 
 def ensure_vsix_exists(request: AnalyzeRequest) -> Path:
@@ -96,6 +151,7 @@ def execute_analysis_request(
     report("install_extension", "completed", "Extension installed in sandbox.")
 
     trigger_container_path: str | None = None
+    trigger_message = "No trigger payload requested; default sandbox flow will run."
     report(
         "build_triggers",
         "running",
@@ -142,8 +198,9 @@ def execute_analysis_request(
             "Sandbox automation failed before the report could be finalized.",
         )
         raise
-    report("run_monitoring", "completed", "Sandbox automation finished.")
-    report("finalize_report", "completed", f"Report exported to {report_name}.")
+    monitoring_message, finalize_message = _build_report_messages(report_name)
+    report("run_monitoring", "completed", monitoring_message)
+    report("finalize_report", "completed", finalize_message)
 
     return AnalyzeResponse(
         status="success",
@@ -152,7 +209,7 @@ def execute_analysis_request(
         version=request.version,
         message=(
             f"Extension {request.publisher}.{request.name}@{request.version} "
-            "installed and analyzed successfully."
+            f"installed and analyzed successfully. {finalize_message}"
         ),
         install_output=install_output,
         automation_output=automation_output,

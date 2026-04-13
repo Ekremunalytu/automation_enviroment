@@ -87,10 +87,14 @@ def _render_link_cards(related: pd.DataFrame) -> None:
             <div class="chain-card">
                 <div class="chain-header">
                     <div>
-                        <div class="chain-title">{row.link_label} → {row.peer_kind}</div>
+                        <div class="chain-title">
+                            {row.link_label} → {row.peer_kind}
+                        </div>
                         <div class="chain-subtitle">{row.peer_summary}</div>
                     </div>
-                    <div class="chain-score">{row.confidence_pct}% · {row.confidence_label}</div>
+                    <div class="chain-score">
+                        {row.confidence_pct}% · {row.confidence_label}
+                    </div>
                 </div>
                 <div class="chain-reason">{row.reason}</div>
             </div>
@@ -176,12 +180,14 @@ def _render_event_context(event_record: pd.Series, related: pd.DataFrame) -> Non
     with col_right:
         render_section_intro(
             "Reason Chain",
-            "Explicit links that explain scenario membership, candidate ownership and duplicate observations.",
+            "Explicit links that explain scenario membership, candidate "
+            "ownership and duplicate observations.",
         )
         _render_link_cards(related)
         if not related.empty and float(related["confidence"].max()) < 0.5:
             st.warning(
-                "Ownership evidence is low-confidence. Use this as a lead, not as a final attribution."
+                "Ownership evidence is low-confidence. Use this as a lead, "
+                "not as a final attribution."
             )
 
 
@@ -434,7 +440,8 @@ def render_evidence_timeline_tab(
     with col_results:
         render_section_intro(
             "Evidence Timeline",
-            "Use the filters to isolate a behavior cluster, then select an event for provenance review.",
+            "Use the filters to isolate a behavior cluster, then select an "
+            "event for provenance review.",
         )
         if filtered.empty:
             st.warning("No evidence matched the current filters.")
@@ -548,7 +555,8 @@ def render_provenance_tab(context: ReportContext, key_prefix: str) -> None:
 
     render_section_intro(
         "Why This Event Exists",
-        "Collector, actor, scenario, artifact and link chain for the currently focused evidence event.",
+        "Collector, actor, scenario, artifact and link chain for the "
+        "currently focused evidence event.",
     )
     _render_event_identity(event_record)
     st.markdown("<div style='height: 16px'></div>", unsafe_allow_html=True)
@@ -596,7 +604,8 @@ def render_rule_workbench_tab(context: ReportContext, key_prefix: str) -> None:
 
     render_section_intro(
         "Rule Workbench",
-        "Draft a portable detection rule from the focused evidence event. Nothing is persisted server-side.",
+        "Draft a portable detection rule from the focused evidence event. "
+        "Nothing is persisted server-side.",
     )
 
     rule_draft = build_rule_draft(event_record, related)

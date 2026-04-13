@@ -165,6 +165,26 @@ export interface LogStreamEntryDto {
   is_target_extension?: boolean;
 }
 
+export interface AutomationHealthDto {
+  status?: "healthy" | "degraded" | "inconclusive";
+  reasons?: string[];
+  trigger_requested?: boolean;
+  trigger_loaded?: boolean;
+  trigger_applied?: boolean;
+  extension_host_log_present?: boolean;
+  extension_host_output_present?: boolean;
+  target_stream_present?: boolean;
+  target_activation_count?: number;
+  failed_scenarios?: string[];
+}
+
+export interface LogHealthDto {
+  extension_host_log_found?: boolean;
+  extension_host_output_present?: boolean;
+  target_extension_log_entries?: number;
+  total_activation_entries?: number;
+}
+
 export interface ActivationReportDto {
   report_version?: number;
   target_extension_expected?: string;
@@ -172,6 +192,8 @@ export interface ActivationReportDto {
   trigger_plan_applied?: boolean;
   verification_gap?: number;
   run_quality?: string;
+  automation_health?: AutomationHealthDto;
+  log_health?: LogHealthDto;
   attribution_summary?: AttributionSummaryDto;
   risk_signals?: RiskSignalDto[];
   risk_summary?: RiskSummaryDto;

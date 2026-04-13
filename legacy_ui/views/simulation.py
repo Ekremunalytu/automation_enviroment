@@ -85,7 +85,8 @@ def render_simulation_page(
     render_page_hero(
         "Live",
         "Simulation",
-        "Monitor sandbox execution, unified evidence telemetry and provenance while a run is active.",
+        "Monitor sandbox execution, unified evidence telemetry and "
+        "provenance while a run is active.",
     )
     render_spacer()
 
@@ -113,8 +114,14 @@ def render_simulation_page(
                     <p>Status and live evidence update from the same report stream.</p>
                 </div>
                 <div class="hero-meta">
-                    <div class="hero-chip"><span>Status</span><strong>{scan_job.get('status', 'queued').title()}</strong></div>
-                    <div class="hero-chip"><span>Report</span><strong>{scan_job.get('report_path') or 'pending'}</strong></div>
+                    <div class="hero-chip">
+                        <span>Status</span>
+                        <strong>{scan_job.get("status", "queued").title()}</strong>
+                    </div>
+                    <div class="hero-chip">
+                        <span>Report</span>
+                        <strong>{scan_job.get("report_path") or "pending"}</strong>
+                    </div>
                 </div>
             </div>
             """,

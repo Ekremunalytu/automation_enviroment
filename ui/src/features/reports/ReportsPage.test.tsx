@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { ReportsPage } from "./ReportsPage";
 import { apiClient } from "../../lib/api/client";
+import type { ActivationReportDto } from "../../lib/types/contracts";
 
 vi.mock("../../lib/api/client", () => ({
   apiClient: {
@@ -47,13 +48,31 @@ function renderPage(entry: string) {
   );
 }
 
-const latestReport = {
+const latestReport: ActivationReportDto = {
   report_version: 2,
   target_extension_expected: "publisher.tool",
   target_extension_observed: true,
   trigger_plan_applied: true,
   verification_gap: 1,
   run_quality: "medium",
+  automation_health: {
+    status: "healthy",
+    reasons: [],
+    trigger_requested: true,
+    trigger_loaded: true,
+    trigger_applied: true,
+    extension_host_log_present: true,
+    extension_host_output_present: true,
+    target_stream_present: true,
+    target_activation_count: 1,
+    failed_scenarios: [],
+  },
+  log_health: {
+    extension_host_log_found: true,
+    extension_host_output_present: true,
+    target_extension_log_entries: 1,
+    total_activation_entries: 1,
+  },
   attribution_summary: {
     target_activation_count: 1,
     strong_target_file_event_count: 1,
@@ -203,9 +222,9 @@ describe("ReportsPage", () => {
     renderPage("/reports?report=latest&tab=overview");
 
     expect(await screen.findByText("Security report")).toBeInTheDocument();
+    expect((await screen.findAllByText("Automation health")).length).toBeGreaterThan(0);
     expect(await screen.findByText("General score")).toBeInTheDocument();
-    expect(await screen.findByText("Detection signals")).toBeInTheDocument();
-    expect(screen.getByText("Run quality")).toBeInTheDocument();
+    expect(screen.getByText("Target stream")).toBeInTheDocument();
     expect(screen.getByText("The target extension accessed a secret-bearing path.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "File I/O" })).toBeInTheDocument();
 

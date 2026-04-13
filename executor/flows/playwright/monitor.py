@@ -33,13 +33,12 @@ Usage::
 
 from __future__ import annotations
 
-import json
 import re
 import subprocess
 import threading
 import time
 from collections.abc import Callable, Mapping
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from types import TracebackType
@@ -47,6 +46,19 @@ from typing import Any
 
 import commands
 import keyboard
+from annotation import build_attribution_summary
+from capture import summarize_extension_host_logs
+from health import (
+    build_automation_health,
+    build_log_health,
+    build_run_quality,
+    count_target_activations,
+    derive_verified_capabilities,
+    is_background_activation,
+    reconcile_coverage_verification,
+)
+from report_builder import build_report_data, build_summary, save_report_payload
+from signals import build_risk_signals, build_risk_summary, build_verdict
 
 from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import Page
@@ -264,11 +276,17 @@ class ActivationReport:
     verified_capabilities: list[str] = field(default_factory=list)
     verdict: dict[str, Any] = field(default_factory=dict)
     trigger_plan_requested: bool = False
+    trigger_plan_loaded: bool = False
     trigger_plan_applied: bool = False
+    trigger_plan_path: str = ""
+    requested_scenarios: list[str] = field(default_factory=list)
+    failed_scenarios: list[str] = field(default_factory=list)
+    extra_trigger_failures: list[str] = field(default_factory=list)
     network_capture_error: str = ""
     file_capture_error: str = ""
     extension_host_output: str = ""
     log_file_path: str = ""
+    log_offsets_snapshot: dict[str, int] = field(default_factory=dict, repr=False)
     target_extension_id: str = ""
     monitoring_start: float = 0.0
     monitoring_end: float = 0.0
@@ -338,91 +356,66 @@ class ActivationReport:
 
     @property
     def attribution_summary(self) -> dict[str, Any]:
-        strong_target_files = [
-            event
-            for event in self.target_file_events
-            if event.attribution_status == "target_attributed"
-        ]
-        strong_target_networks = [
-            event
-            for event in self.target_network_events
-            if event.attribution_status == "target_attributed"
-        ]
-        correlated_only = [
-            event
-            for event in [*self.file_events, *self.network_events]
-            if getattr(event, "attribution_status", "")
-            in {"near_target_activation", "competing_candidate"}
-        ]
-        background_activations = [
-            event
-            for event in self.activated
-            if event.extension_id == self.target_extension_id
-            and _is_background_activation(event.activation_event)
-        ]
-        competing_candidates = [
-            event
-            for event in [*self.file_events, *self.network_events]
-            if getattr(event, "attribution_status", "") == "competing_candidate"
-        ]
-        return {
-            "target_activation_count": _count_target_activations(
-                self.activated,
-                self.target_extension_id,
+        return build_attribution_summary(
+            self,
+            count_target_activations=count_target_activations,
+            is_background_activation=is_background_activation,
+        )
+
+    @property
+    def _log_capture_health(self) -> dict[str, Any]:
+        log_paths = find_exthost_logs()
+        return summarize_extension_host_logs(self.log_offsets_snapshot, log_paths)
+
+    @property
+    def log_health(self) -> dict[str, Any]:
+        capture_health = self._log_capture_health
+        return build_log_health(
+            self,
+            extension_host_log_found=bool(
+                capture_health.get("extension_host_log_found", False)
             ),
-            "strong_target_file_event_count": len(strong_target_files),
-            "strong_target_network_event_count": len(strong_target_networks),
-            "correlated_only_event_count": len(correlated_only),
-            "background_activation_count": len(background_activations),
-            "competing_candidate_count": len(competing_candidates),
-            "ui_blocker_count": len(self.ui_blocker_entries),
-        }
+            extension_host_log_present=bool(
+                capture_health.get("extension_host_log_present", False)
+            ),
+        )
+
+    @property
+    def automation_health(self) -> dict[str, Any]:
+        capture_health = self._log_capture_health
+        return build_automation_health(
+            self,
+            extension_host_log_found=bool(
+                capture_health.get("extension_host_log_found", False)
+            ),
+            extension_host_log_present=bool(
+                capture_health.get("extension_host_log_present", False)
+            ),
+        )
 
     @property
     def run_quality(self) -> str:
-        quality, _ = _build_run_quality(self)
+        quality, _ = build_run_quality(self, self.automation_health)
         return quality
 
     @property
     def risk_signals(self) -> list[RiskSignal]:
-        return _build_risk_signals(self)
+        return build_risk_signals(self, RiskSignal)
 
     @property
     def risk_summary(self) -> dict[str, Any]:
-        return _build_risk_summary(self.risk_signals)
+        return build_risk_summary(self.risk_signals)
 
     @property
     def summary(self) -> dict:
-        unique_ids = self.activated_ids | self.runtime_ids
-        return {
-            "total_activated": len(self.activated),
-            "unique_extensions": len(unique_ids),
-            "unique_event_extensions": len(self.activated_ids),
-            "running_extensions": len(self.running_extensions),
-            "monitoring_duration_s": round(self.duration_s, 1),
-            "monitoring_started_at": self.monitoring_start,
-            "monitoring_ended_at": self.monitoring_end,
-            "extension_ids": sorted(unique_ids),
-            "scenarios_run": self.scenarios_run,
-            "network_events": len(self.network_events),
-            "network_hosts": len(self.network_hosts),
-            "file_events": len(self.file_events),
-            "sensitive_file_events": len(self.sensitive_file_events),
-            "target_file_events": len(self.target_file_events),
-            "target_network_events": len(self.target_network_events),
-            "attempted_capabilities": self.attempted_capabilities,
-            "verified_capabilities": self.verified_capabilities,
-            "ui_blocker_count": len(self.ui_blocker_entries),
-            "target_extension_expected": self.target_extension_id,
-            "target_extension_observed": self.target_extension_observed,
-            "trigger_plan_applied": self.trigger_plan_applied
-            or not self.trigger_plan_requested,
-            "verification_gap": self.verification_gap,
-            "run_quality": self.run_quality,
-            "attribution_summary": self.attribution_summary,
-            "risk_summary": self.risk_summary,
-            "verdict": self.verdict,
-        }
+        return build_summary(
+            self,
+            run_quality=self.run_quality,
+            automation_health=self.automation_health,
+            log_health=self.log_health,
+            attribution_summary=self.attribution_summary,
+            risk_summary=self.risk_summary,
+        )
 
     @property
     def network_summary(self) -> dict:
@@ -493,53 +486,20 @@ class ActivationReport:
 
     def save(self, path: str | Path, announce: bool = True) -> Path:
         """Save full report as JSON."""
-        out = Path(path)
-        out.parent.mkdir(parents=True, exist_ok=True)
-        # Truncate extension host output to last 500 lines to avoid huge files
-        eh_lines = self.extension_host_output.splitlines()
-        if len(eh_lines) > 500:
-            eh_text = "\n".join(eh_lines[-500:])
-        else:
-            eh_text = self.extension_host_output
         evidence_events, evidence_links = _build_evidence_bundle(self)
-        data = {
-            "report_version": self.report_version,
-            "target_extension_expected": self.target_extension_id,
-            "target_extension_observed": self.target_extension_observed,
-            "trigger_plan_applied": self.trigger_plan_applied
-            or not self.trigger_plan_requested,
-            "verification_gap": self.verification_gap,
-            "run_quality": self.run_quality,
-            "attribution_summary": self.attribution_summary,
-            "risk_signals": [asdict(signal) for signal in self.risk_signals],
-            "risk_summary": self.risk_summary,
-            "summary": self.summary,
-            "activated": [asdict(e) for e in self.activated],
-            "running_extensions": [asdict(e) for e in self.running_extensions],
-            "network_events": [asdict(e) for e in self.network_events],
-            "file_events": [asdict(e) for e in self.file_events],
-            "scenario_traces": [asdict(e) for e in self.scenario_traces],
-            "evidence_events": [asdict(e) for e in evidence_events],
-            "evidence_links": [asdict(e) for e in evidence_links],
-            "network_summary": self.network_summary,
-            "file_summary": self.file_summary,
-            "coverage_summary": self.coverage_summary,
-            "coverage_matrix": self.coverage_matrix,
-            "log_streams": {
-                stream: [asdict(entry) for entry in entries]
-                for stream, entries in self.log_streams.items()
-            },
-            "extension_host_output_lines": self.extension_host_output.count("\n"),
-            "extension_host_output": eh_text,
-            "log_file": self.log_file_path,
-        }
-        serialized = json.dumps(data, indent=2, ensure_ascii=False)
-        temp_out = out.parent / f".{out.name}.tmp"
-        temp_out.write_text(serialized, encoding="utf-8")
-        temp_out.replace(out)
-        if announce:
-            _log(f"Report saved to {out}")
-        return out
+        data = build_report_data(
+            self,
+            evidence_events=evidence_events,
+            evidence_links=evidence_links,
+            risk_signals=self.risk_signals,
+            risk_summary=self.risk_summary,
+            run_quality=self.run_quality,
+            automation_health=self.automation_health,
+            log_health=self.log_health,
+            attribution_summary=self.attribution_summary,
+            summary=self.summary,
+        )
+        return save_report_payload(path, data, announce=announce, logger=_log)
 
     def print_summary(self) -> None:
         """Print a human-readable summary to stdout."""
@@ -555,6 +515,7 @@ class ActivationReport:
         print(f"  File events         : {len(self.file_events)}")
         print(f"  Sensitive file I/O  : {len(self.sensitive_file_events)}")
         print(f"  Target observed     : {self.target_extension_observed}")
+        print(f"  Automation health   : {self.automation_health['status']}")
         print(f"  Run quality         : {self.run_quality}")
         print(f"  Verification gap    : {self.verification_gap}")
         if self.activated:
@@ -1559,10 +1520,13 @@ class ExtensionMonitor:
     def apply_trigger_payload(self, payload: Any) -> None:
         """Attach trigger-selection metadata to the in-progress report."""
         self.report.trigger_plan_requested = True
-        self.report.trigger_plan_applied = True
+        self.report.trigger_plan_loaded = True
         self.report.coverage_summary = dict(getattr(payload, "coverage_summary", {}))
         self.report.coverage_matrix = list(getattr(payload, "coverage_matrix", []))
         self.report.attempted_capabilities = _extract_attempted_capabilities(payload)
+        self.report.requested_scenarios = list(
+            getattr(payload, "selected_scenarios", []) or []
+        )
         payload_target = getattr(payload, "target_extension_id", None)
         if payload_target and not self.report.target_extension_id:
             self.report.target_extension_id = payload_target
@@ -1572,6 +1536,7 @@ class ExtensionMonitor:
         """Record the monitoring start time."""
         self.report.monitoring_start = time.time()
         self._log_offsets = _snapshot_log_offsets()
+        self.report.log_offsets_snapshot = dict(self._log_offsets)
         self._network_capture = NetworkCapture(
             monitoring_start=self.report.monitoring_start,
             on_event=self._handle_network_event,
@@ -1690,12 +1655,19 @@ class ExtensionMonitor:
         )
         self.report.verified_capabilities = sorted(
             set(self.report.verified_capabilities)
-            | set(_derive_verified_capabilities(self.report))
+            | set(derive_verified_capabilities(self.report))
         )
         self.report.coverage_summary, self.report.coverage_matrix = (
-            _reconcile_coverage_verification(self.report)
+            reconcile_coverage_verification(self.report)
         )
-        self.report.verdict = _build_verdict(self.report)
+        self.report.verdict = build_verdict(
+            self.report,
+            automation_health=self.report.automation_health,
+            run_quality=build_run_quality(
+                self.report,
+                self.report.automation_health,
+            ),
+        )
         self.report.evidence_links = self.report.canonical_evidence_links
         self._persist_report(force=True)
 
@@ -1716,6 +1688,30 @@ class ExtensionMonitor:
 
     def _handle_network_event(self, event: NetworkEvent) -> None:
         self.report.network_events.append(event)
+        self._persist_report(force=False)
+
+    def mark_trigger_plan_applied(
+        self,
+        *,
+        scenarios: list[str] | None = None,
+        trigger_path: str | None = None,
+    ) -> None:
+        self.report.trigger_plan_applied = True
+        if scenarios:
+            self.report.requested_scenarios = list(scenarios)
+        if trigger_path:
+            self.report.trigger_plan_path = trigger_path
+        self._persist_report(force=False)
+
+    def mark_trigger_plan_missing(self, trigger_path: str = "") -> None:
+        self.report.trigger_plan_requested = True
+        self.report.trigger_plan_loaded = False
+        if trigger_path:
+            self.report.trigger_plan_path = trigger_path
+        self._persist_report(force=False)
+
+    def record_failed_scenarios(self, failed_scenarios: list[str]) -> None:
+        self.report.failed_scenarios = sorted(set(failed_scenarios))
         self._persist_report(force=False)
 
     def _handle_file_event(self, event: FileEvent) -> None:
@@ -2936,165 +2932,28 @@ def _dedupe_evidence_links(links: list[EvidenceLink]) -> list[EvidenceLink]:
 
 
 def _derive_verified_capabilities(report: ActivationReport) -> list[str]:
-    target_id = report.target_extension_id
-    if not target_id:
-        return []
-
-    target_activations = [
-        entry for entry in report.activated if entry.extension_id == target_id
-    ]
-    target_running = any(
-        entry.extension_id == target_id for entry in report.running_extensions
-    )
-    target_file_events = report.target_file_events
-    target_network_events = report.target_network_events
-    verified: set[str] = set()
-
-    if target_running or target_activations:
-        verified.add("window_ui")
-    if any(
-        activation.activation_event.startswith("onCommand")
-        for activation in target_activations
-    ):
-        verified.add("commands")
-    if any(
-        activation.activation_event.startswith("onLanguage")
-        for activation in target_activations
-    ) or any(
-        event.scenario_name
-        in {"coding_session", "project_exploration", "refactor_workflow"}
-        for event in target_file_events
-    ):
-        verified.add("languages_editor")
-    if target_file_events:
-        verified.add("workspace_fs")
-    if any(
-        activation.activation_event.startswith(("onDebug", "onDebugResolve"))
-        for activation in target_activations
-    ) or any(event.scenario_name == "debug_session" for event in target_file_events):
-        verified.add("debug")
-    if any(
-        activation.activation_event in {"onTaskType", "onTerminalProfile"}
-        for activation in target_activations
-    ) or any(event.scenario_name == "terminal_usage" for event in target_file_events):
-        verified.add("terminal_tasks")
-    if any(
-        activation.activation_event == "onView:scm" for activation in target_activations
-    ):
-        verified.add("scm")
-    if any(
-        activation.activation_event == "onView:search"
-        for activation in target_activations
-    ):
-        verified.add("search_views")
-    if any(
-        activation.activation_event == "onConfiguration"
-        for activation in target_activations
-    ) or any(
-        event.scenario_name == "settings_modification" for event in target_file_events
-    ):
-        verified.add("settings")
-    if any(
-        activation.activation_event == "onNotebook" for activation in target_activations
-    ):
-        verified.add("notebooks")
-    if any(
-        activation.activation_event == "onCustomEditor"
-        for activation in target_activations
-    ):
-        verified.add("custom_editors")
-    if any(
-        activation.activation_event in {"onUri", "onWalkthrough"}
-        for activation in target_activations
-    ):
-        verified.add("uri_walkthrough")
-    if any(
-        activation.activation_event.startswith("onAuthenticationRequest")
-        for activation in target_activations
-    ):
-        verified.add("authentication")
-    if any(
-        activation.activation_event.startswith("onWebviewPanel")
-        for activation in target_activations
-    ):
-        verified.add("webview")
-    if target_network_events and "workspace_fs" in verified:
-        verified.add("commands")
-
-    return sorted(verified)
+    return derive_verified_capabilities(report)
 
 
 def _count_target_activations(
     activations: list[ActivationEntry],
     target_extension_id: str,
 ) -> int:
-    if not target_extension_id:
-        return 0
-    return sum(1 for entry in activations if entry.extension_id == target_extension_id)
+    return count_target_activations(activations, target_extension_id)
 
 
 def _reconcile_coverage_verification(
     report: ActivationReport,
 ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
-    attempted = set(report.attempted_capabilities)
-    verified = set(report.verified_capabilities)
-    matrix: list[dict[str, Any]] = []
-    for entry in report.coverage_matrix:
-        capability = str(entry.get("capability", "")).strip()
-        next_entry = dict(entry)
-        next_entry["support_status"] = entry.get("status", "unknown")
-        if capability in verified:
-            verification_status = "verified"
-        elif capability in attempted:
-            verification_status = "attempted_only"
-        else:
-            verification_status = "not_attempted"
-        next_entry["verification_status"] = verification_status
-        next_entry["attempted"] = capability in attempted
-        next_entry["verified"] = capability in verified
-        matrix.append(next_entry)
-
-    summary = dict(report.coverage_summary)
-    summary["attempted"] = len(attempted)
-    summary["verified"] = len(verified)
-    summary["attempted_capabilities"] = sorted(attempted)
-    summary["verified_capabilities"] = sorted(verified)
-    return summary, matrix
+    return reconcile_coverage_verification(report)
 
 
 def _build_run_quality(report: ActivationReport) -> tuple[str, list[str]]:
-    reasons: list[str] = []
-    if not report.target_extension_id:
-        reasons.append("Target extension context was missing.")
-        return "inconclusive", reasons
-    if report.trigger_plan_requested and not report.trigger_plan_applied:
-        reasons.append("The executor did not apply the trigger plan.")
-    if not report.target_extension_observed:
-        reasons.append("The target extension was not observed during this run.")
-        return "inconclusive", reasons
-    if report.ui_blocker_entries:
-        reasons.append("UI blockers interrupted part of the automation flow.")
-    if report.verification_gap >= 3:
-        reasons.append("Multiple attempted capabilities could not be verified.")
-        return "low", reasons
-    if report.trigger_plan_requested and not report.trigger_plan_applied:
-        return "low", reasons
-    if report.verification_gap > 0 or report.ui_blocker_entries:
-        return "medium", reasons
-    return "high", reasons
+    return build_run_quality(report, report.automation_health)
 
 
 def _is_background_activation(activation_event: str) -> bool:
-    if not activation_event:
-        return False
-    return activation_event in {
-        "*",
-        "onStartupFinished",
-        "workspaceContains",
-        "onView:explorer",
-        "onView:search",
-        "onView:output",
-    } or activation_event.startswith("onLanguage")
+    return is_background_activation(activation_event)
 
 
 def _indexed_target_activations(
@@ -3137,341 +2996,19 @@ def _indexed_ui_blockers(report: ActivationReport) -> list[tuple[str, LogStreamE
 
 
 def _build_risk_signals(report: ActivationReport) -> list[RiskSignal]:
-    signals: list[RiskSignal] = []
-    indexed_target_activations = _indexed_target_activations(report)
-    background_activation_ids = [
-        event_id
-        for event_id, activation in indexed_target_activations
-        if _is_background_activation(activation.activation_event)
-    ]
-    strong_target_files = [
-        (event_id, event)
-        for event_id, event in _indexed_target_file_events(report)
-        if event.attribution_status == "target_attributed"
-    ]
-    strong_target_networks = [
-        (event_id, event)
-        for event_id, event in _indexed_target_network_events(report)
-        if event.attribution_status == "target_attributed"
-    ]
-    sensitive_target_files = [
-        (event_id, event) for event_id, event in strong_target_files if event.sensitive
-    ]
-    correlated_events: list[tuple[str, float, str]] = []
-    for index, file_event in enumerate(report.file_events, start=1):
-        if (
-            file_event.attribution_status
-            in {"near_target_activation", "competing_candidate"}
-            and file_event.sensitive
-        ):
-            correlated_events.append(
-                (
-                    f"file-{index:04d}",
-                    file_event.attribution_confidence,
-                    file_event.summary,
-                )
-            )
-    for index, network_event in enumerate(report.network_events, start=1):
-        if network_event.attribution_status in {
-            "near_target_activation",
-            "competing_candidate",
-        }:
-            correlated_events.append(
-                (
-                    f"network-{index:04d}",
-                    network_event.attribution_confidence,
-                    network_event.summary,
-                )
-            )
-
-    if background_activation_ids and sensitive_target_files:
-        signals.append(
-            RiskSignal(
-                signal_id="background_sensitive_file_access",
-                category="background_sensitive_file_access",
-                severity="high",
-                confidence=max(
-                    0.82,
-                    max(
-                        event.attribution_confidence
-                        for _, event in sensitive_target_files
-                    ),
-                ),
-                evidence_event_ids=background_activation_ids
-                + [event_id for event_id, _ in sensitive_target_files],
-                summary=(
-                    "The target extension touched sensitive files after a startup or "
-                    "background activation."
-                ),
-            )
-        )
-    if background_activation_ids and strong_target_networks:
-        signals.append(
-            RiskSignal(
-                signal_id="background_outbound_network",
-                category="background_outbound_network",
-                severity="high",
-                confidence=max(
-                    0.78,
-                    max(
-                        event.attribution_confidence
-                        for _, event in strong_target_networks
-                    ),
-                ),
-                evidence_event_ids=background_activation_ids
-                + [event_id for event_id, _ in strong_target_networks],
-                summary=(
-                    "Outbound network activity followed a startup or background target "
-                    "activation."
-                ),
-            )
-        )
-    if sensitive_target_files:
-        signals.append(
-            RiskSignal(
-                signal_id="credential_or_secret_access",
-                category="credential_or_secret_access",
-                severity="high",
-                confidence=max(
-                    0.84,
-                    max(
-                        event.attribution_confidence
-                        for _, event in sensitive_target_files
-                    ),
-                ),
-                evidence_event_ids=[event_id for event_id, _ in sensitive_target_files],
-                summary=(
-                    "The target extension accessed credential or secret-bearing paths "
-                    "with strong attribution."
-                ),
-            )
-        )
-    if len({event.path for _, event in sensitive_target_files}) >= 2:
-        signals.append(
-            RiskSignal(
-                signal_id="multiple_sensitive_artifacts",
-                category="multiple_sensitive_artifacts",
-                severity="high",
-                confidence=0.9,
-                evidence_event_ids=[event_id for event_id, _ in sensitive_target_files],
-                summary=(
-                    "Multiple distinct sensitive artifacts were touched by the target "
-                    "extension."
-                ),
-            )
-        )
-    if sensitive_target_files and strong_target_networks:
-        signals.append(
-            RiskSignal(
-                signal_id="sensitive_file_and_network_combo",
-                category="sensitive_file_and_network_combo",
-                severity="critical",
-                confidence=0.94,
-                evidence_event_ids=[event_id for event_id, _ in sensitive_target_files]
-                + [event_id for event_id, _ in strong_target_networks],
-                summary=(
-                    "Sensitive local access and outbound network activity were both "
-                    "strongly attributed to the target extension."
-                ),
-            )
-        )
-    if correlated_events:
-        signals.append(
-            RiskSignal(
-                signal_id="correlative_suspicious_activity",
-                category="correlative_suspicious_activity",
-                severity="medium",
-                confidence=max(
-                    0.35,
-                    max(confidence for _, confidence, _ in correlated_events),
-                ),
-                evidence_event_ids=[event_id for event_id, _, _ in correlated_events],
-                summary=(
-                    "Suspicious telemetry was observed near target activations, but the "
-                    "evidence remains correlative."
-                ),
-            )
-        )
-    if report.ui_blocker_entries:
-        signals.append(
-            RiskSignal(
-                signal_id="ui_blocker_verification_gap",
-                category="ui_blocker_verification_gap",
-                severity="medium",
-                confidence=1.0,
-                evidence_event_ids=[
-                    event_id for event_id, _ in _indexed_ui_blockers(report)
-                ],
-                summary=(
-                    "UI blockers interrupted the run and reduced verification certainty."
-                ),
-            )
-        )
-    return signals
+    return build_risk_signals(report, RiskSignal)
 
 
 def _build_risk_summary(signals: list[RiskSignal]) -> dict[str, Any]:
-    severities = {"critical": 0, "high": 0, "medium": 0, "low": 0}
-    for signal in signals:
-        if signal.severity in severities:
-            severities[signal.severity] += 1
-    return {
-        "total_signals": len(signals),
-        "critical": severities["critical"],
-        "high": severities["high"],
-        "medium": severities["medium"],
-        "low": severities["low"],
-        "categories": [signal.category for signal in signals],
-    }
+    return build_risk_summary(signals)
 
 
 def _build_verdict(report: ActivationReport) -> dict[str, Any]:
-    target_id = report.target_extension_id
-    if not target_id:
-        return {
-            "level": "needs_review",
-            "score": 25,
-            "reasons": [
-                "Target extension context was missing, so ownership could not be evaluated."
-            ],
-            "note": "Target extension context was missing, so the run can only be reviewed manually.",
-        }
-
-    run_quality, quality_reasons = _build_run_quality(report)
-    if not report.target_extension_observed or run_quality == "inconclusive":
-        inconclusive_reasons = [
-            "The target extension was not observed, so the run remains inconclusive."
-        ]
-        inconclusive_reasons.extend(quality_reasons)
-        return {
-            "level": "needs_review",
-            "score": 30,
-            "reasons": inconclusive_reasons[:5],
-            "note": inconclusive_reasons[0],
-        }
-
-    target_activations = [
-        entry for entry in report.activated if entry.extension_id == target_id
-    ]
-    startup_target = any(
-        _is_background_activation(entry.activation_event)
-        for entry in target_activations
+    return build_verdict(
+        report,
+        automation_health=report.automation_health,
+        run_quality=build_run_quality(report, report.automation_health),
     )
-    strong_target_files = [
-        event
-        for event in report.target_file_events
-        if event.attribution_status == "target_attributed"
-    ]
-    strong_target_networks = [
-        event
-        for event in report.target_network_events
-        if event.attribution_status == "target_attributed"
-    ]
-    sensitive_target_files = [event for event in strong_target_files if event.sensitive]
-    correlated_sensitive_files = [
-        event
-        for event in report.file_events
-        if event.sensitive
-        and event.attribution_status
-        in {"near_target_activation", "competing_candidate"}
-    ]
-    reasons: list[str] = []
-    score = 8
-
-    if startup_target and sensitive_target_files:
-        score += 28
-        reasons.append(
-            "The target extension activated in a background/startup path and then touched sensitive files."
-        )
-    if startup_target and strong_target_networks:
-        score += 20
-        reasons.append(
-            "The target extension emitted network activity after a background or eager activation."
-        )
-    if any(
-        event.scenario_name in {"settings_modification", "project_exploration"}
-        and event.sensitive
-        for event in sensitive_target_files
-    ):
-        score += 18
-        reasons.append(
-            "Sensitive file access happened while scanning workspace/settings-oriented scenarios."
-        )
-    if any(
-        event.scenario_name in {"terminal_usage", "debug_session"} and event.sensitive
-        for event in sensitive_target_files
-    ):
-        score += 18
-        reasons.append(
-            "Credential or secret paths were accessed during terminal/debug-oriented hooks."
-        )
-    if len({event.path for event in sensitive_target_files}) >= 2:
-        score += 22
-        reasons.append(
-            "Multiple distinct sensitive artifacts were touched with strong target attribution."
-        )
-    if sensitive_target_files and strong_target_networks:
-        score += 22
-        reasons.append(
-            "Sensitive local access and outbound network activity both belong to the target extension."
-        )
-    if correlated_sensitive_files and not sensitive_target_files:
-        score += 14
-        reasons.append(
-            "Sensitive file activity exists near target activations, but attribution is only correlative."
-        )
-    if report.ui_blocker_entries:
-        score += 5
-        reasons.append(
-            "UI blockers were detected, which reduced verification certainty for parts of the run."
-        )
-    if report.trigger_plan_requested and not report.trigger_plan_applied:
-        score += 8
-        reasons.append(
-            "The trigger plan was not applied inside the executor, which reduced run reliability."
-        )
-    if run_quality == "low":
-        score += 6
-        reasons.append(
-            "Run quality was low, so suspicious telemetry is weighted conservatively but not dismissed."
-        )
-
-    score = max(8, min(96, score))
-    strong_attribution = bool(sensitive_target_files or strong_target_networks)
-    if (
-        strong_attribution
-        and score >= 70
-        and (
-            strong_target_networks
-            or len({event.path for event in sensitive_target_files}) >= 2
-        )
-    ):
-        level = "likely_malicious"
-    elif score >= 48:
-        level = "suspicious"
-    elif reasons or run_quality in {"low", "medium"}:
-        level = "needs_review"
-    else:
-        level = "benign"
-
-    if not strong_attribution and level == "likely_malicious":
-        level = "suspicious"
-    if not strong_attribution and level == "suspicious" and score < 60:
-        level = "needs_review"
-    if run_quality in {"low", "medium"} and level == "benign":
-        level = "needs_review"
-
-    note = (
-        reasons[0]
-        if reasons
-        else "The run did not produce strongly attributed high-risk behavior from the target extension."
-    )
-    return {
-        "level": level,
-        "score": score,
-        "reasons": reasons[:5],
-        "note": note,
-    }
 
 
 def _matches_extension_signature(

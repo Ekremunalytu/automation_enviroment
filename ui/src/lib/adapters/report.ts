@@ -1,5 +1,6 @@
 import type {
   ActivationEntryDto,
+  AutomationHealthDto,
   ActivationReportDto,
   AttributionSummaryDto,
   CoverageCapabilityDto,
@@ -7,6 +8,7 @@ import type {
   EvidenceEventDto,
   EvidenceLinkDto,
   FileEventDto,
+  LogHealthDto,
   LogStreamEntryDto,
   NetworkEventDto,
   RiskSignalDto,
@@ -73,6 +75,89 @@ function normalizeRunQuality(value: unknown): ReportSummaryView["runQuality"] {
     value === "inconclusive"
     ? value
     : "inconclusive";
+}
+
+function normalizeAutomationHealthStatus(
+  value: unknown,
+): ReportSummaryView["automationHealthStatus"] {
+  return value === "healthy" || value === "degraded" || value === "inconclusive"
+    ? value
+    : "inconclusive";
+}
+
+function buildAutomationHealth(
+  dto?: AutomationHealthDto | null,
+  summary?: Record<string, unknown>,
+): {
+  status: ReportSummaryView["automationHealthStatus"];
+  reasons: string[];
+  triggerRequested: boolean;
+  triggerLoaded: boolean;
+  triggerApplied: boolean;
+  extensionHostLogPresent: boolean;
+  extensionHostOutputPresent: boolean;
+  targetStreamPresent: boolean;
+  targetActivationCount: number;
+  failedScenarios: string[];
+  legacyHealthFallback: boolean;
+} {
+  const legacySummary =
+    typeof summary?.automation_health === "object" && summary.automation_health
+      ? (summary.automation_health as AutomationHealthDto)
+      : undefined;
+  const source = dto || legacySummary;
+  if (!source) {
+    return {
+      status: "inconclusive",
+      reasons: ["legacy_report_missing_health_block"],
+      triggerRequested: false,
+      triggerLoaded: false,
+      triggerApplied: false,
+      extensionHostLogPresent: false,
+      extensionHostOutputPresent: false,
+      targetStreamPresent: false,
+      targetActivationCount: 0,
+      failedScenarios: [],
+      legacyHealthFallback: true,
+    };
+  }
+  return {
+    status: normalizeAutomationHealthStatus(source.status),
+    reasons: Array.isArray(source.reasons) ? source.reasons.map(String) : [],
+    triggerRequested: Boolean(source.trigger_requested),
+    triggerLoaded: Boolean(source.trigger_loaded),
+    triggerApplied: Boolean(source.trigger_applied),
+    extensionHostLogPresent: Boolean(source.extension_host_log_present),
+    extensionHostOutputPresent: Boolean(source.extension_host_output_present),
+    targetStreamPresent: Boolean(source.target_stream_present),
+    targetActivationCount: Number(source.target_activation_count ?? 0),
+    failedScenarios: Array.isArray(source.failed_scenarios)
+      ? source.failed_scenarios.map(String)
+      : [],
+    legacyHealthFallback: false,
+  };
+}
+
+function buildLogHealth(
+  dto?: LogHealthDto | null,
+  summary?: Record<string, unknown>,
+): {
+  extensionHostLogFound: boolean;
+  extensionHostOutputPresent: boolean;
+  targetExtensionLogEntries: number;
+  totalActivationEntries: number;
+} {
+  const legacySummary =
+    typeof summary?.log_health === "object" && summary.log_health
+      ? (summary.log_health as LogHealthDto)
+      : undefined;
+  const source = dto || legacySummary;
+  return {
+    extensionHostLogFound: Boolean(source?.extension_host_log_found),
+    extensionHostOutputPresent: Boolean(source?.extension_host_output_present),
+    targetExtensionLogEntries: Number(source?.target_extension_log_entries ?? 0),
+    totalActivationEntries: Number(source?.total_activation_entries ?? 0),
+  };
 }
 
 function fromCanonicalEvent(event: EvidenceEventDto, index: number): EvidenceEventView {
@@ -285,6 +370,8 @@ function buildLegacyLinks(events: EvidenceEventView[]) {
 
 function buildSummary(report: ActivationReportDto, events: EvidenceEventView[]): ReportSummaryView {
   const summary = report.summary || {};
+  const automationHealth = buildAutomationHealth(report.automation_health, summary);
+  const logHealth = buildLogHealth(report.log_health, summary);
   const verdict =
     typeof summary.verdict === "object" && summary.verdict
       ? (summary.verdict as Record<string, unknown>)
@@ -322,10 +409,21 @@ function buildSummary(report: ActivationReportDto, events: EvidenceEventView[]):
     triggerPlanApplied: Boolean(
       summary.trigger_plan_applied ?? report.trigger_plan_applied ?? false,
     ),
+    triggerRequested: automationHealth.triggerRequested,
+    triggerLoaded: automationHealth.triggerLoaded,
     verificationGap: Number(
       summary.verification_gap ?? report.verification_gap ?? 0,
     ),
     runQuality: normalizeRunQuality(summary.run_quality ?? report.run_quality),
+    automationHealthStatus: automationHealth.status,
+    automationHealthReasons: automationHealth.reasons,
+    failedScenarios: automationHealth.failedScenarios,
+    extensionHostLogPresent: automationHealth.extensionHostLogPresent,
+    extensionHostLogFound: logHealth.extensionHostLogFound,
+    extensionHostOutputPresent: automationHealth.extensionHostOutputPresent,
+    targetStreamPresent: automationHealth.targetStreamPresent,
+    targetActivationCount: automationHealth.targetActivationCount,
+    legacyHealthFallback: automationHealth.legacyHealthFallback,
     verdictLevel:
       verdictLevel === "benign" ||
       verdictLevel === "needs_review" ||

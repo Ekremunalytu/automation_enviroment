@@ -107,8 +107,8 @@ def _ensure_columns(frame: pd.DataFrame, columns: list[str]) -> pd.DataFrame:
     return frame
 
 
-def _format_epoch(epoch: float | int | None) -> str:
-    if epoch in (None, "", 0):
+def _format_epoch(epoch: float | int | str | None) -> str:
+    if epoch is None or epoch == "" or epoch == 0:
         return ""
     try:
         return datetime.fromtimestamp(float(epoch)).isoformat(timespec="milliseconds")
@@ -137,7 +137,7 @@ def _humanize(value: str | None, fallback: str = "Unknown") -> str:
 def _truncate(value: str, width: int = 72) -> str:
     if len(value) <= width:
         return value
-    return f"...{value[-(width - 3):]}"
+    return f"...{value[-(width - 3) :]}"
 
 
 def process_activation_data(data: dict[str, Any]) -> pd.DataFrame:
@@ -478,7 +478,7 @@ def process_evidence_data(data: dict[str, Any]) -> pd.DataFrame:
         asdict(event) for event in _legacy_evidence_events(data)
     ]
     if not records:
-        return _empty_frame(CANONICAL_EVENT_COLUMNS + ["dt", "kind_label"])
+        return _empty_frame([*CANONICAL_EVENT_COLUMNS, "dt", "kind_label"])
 
     df = pd.DataFrame(records)
     _ensure_columns(df, CANONICAL_EVENT_COLUMNS)
@@ -568,7 +568,9 @@ def _legacy_evidence_links(
                     to_event_id=scenario_map[row.scenario_name],
                     link_type="occurred_in_scenario",
                     confidence=1.0,
-                    reason=f"Legacy report tagged event with scenario {row.scenario_name}.",
+                    reason=(
+                        f"Legacy report tagged event with scenario {row.scenario_name}."
+                    ),
                 )
             )
         if (
@@ -582,7 +584,9 @@ def _legacy_evidence_links(
                     to_event_id=activation_map[row.extension_id],
                     link_type="candidate_owner",
                     confidence=0.6,
-                    reason="Legacy report linked file activity to an activation record.",
+                    reason=(
+                        "Legacy report linked file activity to an activation record."
+                    ),
                 )
             )
     return links
@@ -596,8 +600,8 @@ def process_evidence_links(
     ]
     if not records:
         return _empty_frame(
-            CANONICAL_LINK_COLUMNS
-            + [
+            [
+                *CANONICAL_LINK_COLUMNS,
                 "link_label",
                 "confidence_pct",
                 "confidence_label",
@@ -619,19 +623,25 @@ def process_evidence_links(
     if not evidence_df.empty:
         event_index = evidence_df.set_index("event_id")
         df["from_kind"] = df["from_event_id"].map(
-            lambda event_id: event_index.at[event_id, "kind"]
-            if event_id in event_index.index
-            else ""
+            lambda event_id: (
+                event_index.at[event_id, "kind"]
+                if event_id in event_index.index
+                else ""
+            )
         )
         df["to_kind"] = df["to_event_id"].map(
-            lambda event_id: event_index.at[event_id, "kind"]
-            if event_id in event_index.index
-            else ""
+            lambda event_id: (
+                event_index.at[event_id, "kind"]
+                if event_id in event_index.index
+                else ""
+            )
         )
         df["to_summary"] = df["to_event_id"].map(
-            lambda event_id: event_index.at[event_id, "summary_display"]
-            if event_id in event_index.index
-            else ""
+            lambda event_id: (
+                event_index.at[event_id, "summary_display"]
+                if event_id in event_index.index
+                else ""
+            )
         )
     else:
         df["from_kind"] = ""
@@ -756,7 +766,7 @@ def get_provenance_records(
     event_record = get_event_record(evidence_df, event_id)
     if event_record is None or links_df.empty:
         return event_record, _empty_frame(
-            list(links_df.columns) + ["peer_event_id", "peer_kind", "peer_summary"]
+            [*links_df.columns, "peer_event_id", "peer_kind", "peer_summary"]
         )
 
     event_index = evidence_df.set_index("event_id")
@@ -773,14 +783,18 @@ def get_provenance_records(
         return event_record, related
 
     related["peer_kind"] = related["peer_event_id"].map(
-        lambda linked_id: event_index.at[linked_id, "kind_label"]
-        if linked_id in event_index.index
-        else "Unknown"
+        lambda linked_id: (
+            event_index.at[linked_id, "kind_label"]
+            if linked_id in event_index.index
+            else "Unknown"
+        )
     )
     related["peer_summary"] = related["peer_event_id"].map(
-        lambda linked_id: event_index.at[linked_id, "summary_display"]
-        if linked_id in event_index.index
-        else ""
+        lambda linked_id: (
+            event_index.at[linked_id, "summary_display"]
+            if linked_id in event_index.index
+            else ""
+        )
     )
     return event_record, related.sort_values(
         by=["confidence", "link_type"],
@@ -933,7 +947,7 @@ def _yaml_scalar(value: Any) -> str:
         return "true" if value else "false"
     if value is None:
         return "null"
-    if isinstance(value, (int, float)):
+    if isinstance(value, int | float):
         return str(value)
     text = str(value).replace('"', '\\"')
     return f'"{text}"'
@@ -944,7 +958,7 @@ def _to_yaml(value: Any, indent: int = 0) -> str:
     if isinstance(value, dict):
         lines: list[str] = []
         for key, item in value.items():
-            if isinstance(item, (dict, list)):
+            if isinstance(item, dict | list):
                 lines.append(f"{prefix}{key}:")
                 lines.append(_to_yaml(item, indent + 2))
             else:
@@ -953,7 +967,7 @@ def _to_yaml(value: Any, indent: int = 0) -> str:
     if isinstance(value, list):
         lines = []
         for item in value:
-            if isinstance(item, (dict, list)):
+            if isinstance(item, dict | list):
                 lines.append(f"{prefix}-")
                 lines.append(_to_yaml(item, indent + 2))
             else:

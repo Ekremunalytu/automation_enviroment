@@ -168,21 +168,22 @@ def test_run_automation_with_reload_before_run(mock_exec: MagicMock) -> None:
 
 @patch("executor.host._docker_exec_allow_partial")
 def test_run_automation_with_trigger_payload(mock_exec: MagicMock) -> None:
-    """Trigger payload uses --triggers and skips explicit scenario selection."""
+    """Trigger payload keeps a single-scenario fallback for missing payload files."""
     mock_exec.return_value = subprocess.CompletedProcess(
         args=[], returncode=0, stdout="done", stderr=""
     )
 
     run_playwright_automation(
         "/results/r.json",
-        scenario="ignored",
+        scenario="coding_session",
         trigger_container_path="/results/triggers.json",
     )
 
     call_cmd = mock_exec.call_args[0][0]
     assert "--triggers" in call_cmd
     assert "/results/triggers.json" in call_cmd
-    assert "--scenario" not in call_cmd
+    assert "--scenario" in call_cmd
+    assert "coding_session" in call_cmd
 
 
 @patch("executor.host._docker_exec_allow_partial")

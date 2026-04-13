@@ -181,7 +181,21 @@ test-local:
 	@echo "✅ Tests complete!"
 
 test-ci:
-	@echo "🧪 Running CI tests (requires DATABASE_URL env var)..."
+	@echo "🧪 Running CI tests with blocking smoke acceptance..."
+	@echo "🐳 Building and starting executor container for smoke tests..."
+	docker-compose up -d --build executor
+	@echo "⏳ Waiting for executor to become healthy..."
+	@for i in $$(seq 1 60); do \
+		status=$$(docker inspect --format='{{if .State.Health}}{{.State.Health.Status}}{{else}}unknown{{end}}' automation_executor 2>/dev/null || echo "missing"); \
+		if [ "$$status" = "healthy" ]; then \
+			break; \
+		fi; \
+		if [ "$$i" -eq 60 ]; then \
+			echo "❌ executor did not become healthy"; \
+			exit 1; \
+		fi; \
+		sleep 2; \
+	done
 	$(VENV)/pytest --cov --cov-report=xml --cov-report=term-missing -v
 
 # =============================================================================
