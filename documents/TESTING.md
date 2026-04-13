@@ -4,6 +4,8 @@
 
 The test suite now mirrors the refactored architecture. Platform tests validate shared modules in `appcore/`, workflow tests cover the canonical business packages, and executor tests cover Playwright sandbox helpers.
 
+The default test workflow is optimized for fast local iteration in a single-user sandbox project, not for full end-to-end smoke execution on every run.
+
 ## Test Layout
 
 ```text
@@ -64,12 +66,20 @@ make test
 make test-cov
 make test-local
 make test-ci
+.venv/bin/pytest
+.venv/bin/pytest -m smoke
+.venv/bin/pytest tests/workflows/marketplace/test_router.py -v
 cd ui && npm run test
 ```
 
-Blocking smoke acceptance now lives in `tests/smoke/test_marketplace_analysis_smoke.py`.
+Default `pytest` excludes the smoke suite through `pyproject.toml`.
+
+Smoke acceptance lives in `tests/smoke/test_marketplace_analysis_smoke.py`.
 Those tests use the pinned local `ms-python.python` VSIX fixture under `extensions/`
 and require the `automation_executor` container to be running and healthy.
+Run smoke explicitly when you need end-to-end confidence across API, Docker exec,
+Playwright automation, and report generation.
+
 When executor Python code changes, rebuild that container first so smoke runs against
 the current Playwright monitor implementation:
 
@@ -77,11 +87,11 @@ the current Playwright monitor implementation:
 docker-compose up -d --build executor
 ```
 
-Useful single-file examples:
+Useful examples:
 
 ```bash
-.venv/bin/pytest tests/workflows/marketplace/test_router.py -v
 .venv/bin/pytest tests/platform/test_canonical_imports.py -v
+.venv/bin/pytest tests/workflows/marketplace/test_router.py -v
 .venv/bin/pytest tests/smoke/test_marketplace_analysis_smoke.py -v
 ```
 
@@ -106,7 +116,7 @@ Useful single-file examples:
 - Playwright orchestration helpers
 - Monitor/report assembly
 - Workspace and reset behavior
-- Blocking smoke acceptance for `download -> analyze/start -> executor -> report`
+- Explicit smoke acceptance for `download -> analyze/start -> executor -> report`
   - Baseline `ms-python.python` smoke run now pins the executor to `coding_session`
     so local acceptance stays fast while still exercising the end-to-end path.
 
@@ -121,6 +131,7 @@ Useful single-file examples:
 - Smoke coverage is currently mandatory only for the pinned `ms-python.python` fixture.
 - Additional real-fixture coverage for `ms-vscode.cpptools` and `ms-toolsai.jupyter` is still pending.
 - Activation report ingestion remains filesystem-driven, so those tests focus on JSON files rather than DB fixtures.
+- Some executor-facing tests can still be slower than typical unit tests because they preserve sandbox-oriented behavior.
 
 ## Expectations for New Work
 

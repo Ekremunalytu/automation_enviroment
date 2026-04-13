@@ -4,6 +4,13 @@
 
 The executor is the dynamic-analysis sandbox. It runs a full VS Code GUI session inside Docker and drives that GUI with Playwright over CDP.
 
+This subsystem is built for a single active analyst workflow:
+
+- one operator
+- one sandbox host
+- one active analysis at a time
+- restart and rerun is acceptable recovery behavior
+
 ## Runtime Layout
 
 ```text
@@ -91,6 +98,12 @@ Background job state is persisted to:
 output/analysis_jobs/<job_id>.json
 ```
 
+Behavior notes:
+
+- The marketplace background endpoint is intended for a single active job.
+- If the API process restarts during an active run, the persisted job is marked failed on the next read.
+- This is an accepted tradeoff for the current sandbox deployment model.
+
 Activation reports are written as:
 
 ```text
@@ -128,3 +141,4 @@ make sim-run SCENARIO=<name>
 - Dynamic analysis results are file-backed; there is no DB schema yet for analysis runs or telemetry events.
 - The marketplace workflow depends on executor/container availability and Docker exec success.
 - Full end-to-end reliability still depends on VS Code startup timing and reload behavior.
+- This is not a queue-backed distributed worker system and should not be documented or operated as one.

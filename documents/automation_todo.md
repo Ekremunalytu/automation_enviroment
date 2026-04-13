@@ -4,6 +4,13 @@
 
 This roadmap tracks the current state of the post-refactor dynamic-analysis stack.
 
+It assumes the current product shape stays the same:
+
+- single analyst
+- same-device or same-host deployment
+- one active sandbox analysis at a time
+- file-backed reports remain acceptable operator artifacts
+
 ## Current State
 
 ### Delivered
@@ -28,10 +35,9 @@ This roadmap tracks the current state of the post-refactor dynamic-analysis stac
 
 ### Not Delivered Yet
 
-- Database schema for dynamic-analysis runs and telemetry events
 - Risk scoring engine
-- Automated ingestion of analysis reports into PostgreSQL
-- End-to-end orchestration beyond file-backed activation reports
+- Stronger report truthfulness around degraded runs
+- Better operator guidance around interrupted or failed analyses
 
 ## Active Priorities
 
@@ -44,32 +50,20 @@ This roadmap tracks the current state of the post-refactor dynamic-analysis stac
 
 ### 2. Results Persistence
 
-Add Alembic-backed tables for:
+Keep persistence intentionally light:
 
-- `analysis_runs`
-- `analysis_network_events`
-- `analysis_process_events`
-- `analysis_fs_events`
-- `analysis_risk_signals`
-
-Rule:
-
-- Keep all writes inside `appcore.storage.crud`
-- Validate new payloads with Pydantic before insertion
+- preserve clear JSON report artifacts in `output/`
+- preserve job snapshots in `output/analysis_jobs/`
+- only add DB persistence if the product needs cross-run history badly enough to justify it
 
 ### 3. Telemetry Ingestion
 
-Move from file-only output to a dual model:
-
-- filesystem artifacts remain the raw source of truth
-- structured summaries are persisted to PostgreSQL
-
-Planned ingestion stages:
+Continue normalizing report data for the UI and risk engine without assuming DB-backed storage:
 
 1. parse activation report JSON
-2. parse monitor output
-3. normalize to appcore contracts
-4. persist with CRUD
+2. normalize to appcore-compatible contracts where helpful
+3. adapt for UI review surfaces
+4. keep the raw JSON artifact as the source of operational truth
 
 ### 4. Risk Scoring
 
@@ -85,9 +79,9 @@ Implement a first-pass scorer for:
 
 ### Milestone A: Durable Analysis Runs
 
-- Add DB tables and schemas for analysis runs
-- Persist run metadata from marketplace analysis endpoints
-- Link report files to a stable run record
+- Make interrupted runs explicit in job snapshots
+- Keep one-analysis-at-a-time behavior obvious in the UI
+- Improve operator-facing retry guidance when a run is interrupted
 
 ### Milestone B: Telemetry Parsers
 
@@ -96,8 +90,8 @@ Implement a first-pass scorer for:
 
 ### Milestone C: UI Enrichment
 
-- Show run history, not only live file-backed reports
-- Add per-run risk summary and drill-downs
+- Add stronger per-run risk summary and drill-downs
+- Keep live simulation and final report views consistent
 - Keep route state URL-driven so drill-down views remain shareable
 
 ## Architectural Guardrails

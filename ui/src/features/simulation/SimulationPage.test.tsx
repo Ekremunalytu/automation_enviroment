@@ -224,36 +224,38 @@ describe("SimulationPage", () => {
     expect(screen.getByTestId("chart")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Filters" }));
-    expect(screen.getByText("Simulation filters")).toBeInTheDocument();
+    expect(
+      screen.getByRole("dialog", { name: "Simulation filters" }),
+    ).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Close" }));
 
-    fireEvent.click(screen.getByRole("button", { name: "Run Status" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Run Status" }));
     await waitFor(() => {
       expect(screen.getByTestId("location-search").textContent).toContain("tab=status");
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Live Evidence" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Live Evidence" }));
     await waitFor(() => {
       expect(screen.getByText("Simulation evidence")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Analysis" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Analysis" }));
     await waitFor(() => {
       expect(screen.getByTestId("location-search").textContent).toContain("workspace=analysis");
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Logs" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Logs" }));
     await waitFor(() => {
       expect(screen.getByText("Coverage audit")).toBeInTheDocument();
     });
     expect(screen.getByText("Activated ms.lint via onStartupFinished")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Analysis" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Analysis" }));
     await waitFor(() => {
       expect(screen.getByTestId("location-search").textContent).toContain("workspace=analysis");
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Rules" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Rules" }));
     await waitFor(() => {
       expect(screen.getByTestId("location-search").textContent).toContain("inspector=rules");
     });

@@ -37,6 +37,7 @@ from workflows.marketplace.job_store import (
     _ANALYSIS_JOBS,
     create_job_snapshot,
     fail_job,
+    get_active_job_snapshot,
     get_job_snapshot,
     load_persisted_job,
     store_job,
@@ -48,6 +49,7 @@ from workflows.marketplace.trigger_service import build_trigger_payload
 _ANALYSIS_JOBS = _ANALYSIS_JOBS
 _build_trigger_payload = build_trigger_payload
 _create_job_snapshot = create_job_snapshot
+_get_active_job_snapshot = get_active_job_snapshot
 _ensure_vsix_exists = ensure_vsix_exists
 _execute_analysis_request = execute_analysis_request
 _fail_job = fail_job
@@ -163,12 +165,24 @@ def start_analysis_job(request: AnalyzeRequest) -> dict[str, Any]:
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
+    active_job = get_active_job_snapshot()
+    if active_job is not None:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Another sandbox analysis is already in progress. "
+                "Wait for job "
+                f"{active_job['job_id']} to finish before starting a new run."
+            ),
+        )
+
     job = create_job_snapshot(request)
     store_job(job)
     worker = threading.Thread(
+        daemon=False,
+        name=f"analysis-{job['job_id'][:8]}",
         target=run_analysis_job,
         args=(job["job_id"], request.model_copy(deep=True)),
-        daemon=True,
     )
     worker.start()
     return get_job_snapshot(job["job_id"])

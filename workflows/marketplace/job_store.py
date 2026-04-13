@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import threading
 import time
 from copy import deepcopy
@@ -15,6 +16,8 @@ from appcore.contracts.schemas import AnalyzeRequest
 
 _JOB_LOCK = threading.Lock()
 _ANALYSIS_JOBS: dict[str, dict[str, Any]] = {}
+_ACTIVE_JOB_STATUSES = frozenset({"queued", "running"})
+_PROCESS_BOOT_ID = uuid4().hex
 
 
 def now() -> float:
@@ -38,12 +41,61 @@ def persist_job(job: dict[str, Any]) -> None:
     temp_file.replace(job_file)
 
 
+def _is_active_job(job: dict[str, Any]) -> bool:
+    return str(job.get("status")) in _ACTIVE_JOB_STATUSES
+
+
+def _belongs_to_current_process(job: dict[str, Any]) -> bool:
+    return job.get("owner_boot_id") == _PROCESS_BOOT_ID
+
+
+def _interrupt_job(job: dict[str, Any], detail: str) -> dict[str, Any]:
+    current_step = job.get("current_step")
+    failed_index: int | None = None
+    if current_step:
+        for index, step in enumerate(job.get("steps", [])):
+            if step.get("name") == current_step:
+                step["status"] = "failed"
+                step["message"] = detail
+                failed_index = index
+                break
+
+    if failed_index is not None:
+        current_step_name = str(current_step)
+        for step in job["steps"][failed_index + 1 :]:
+            if step.get("status") == "pending":
+                step["status"] = "skipped"
+                step["message"] = (
+                    "Skipped because "
+                    f"{current_step_name.replace('_', ' ')} was interrupted."
+                )
+
+    job.update(
+        status="failed",
+        message=detail,
+        error_detail=detail,
+        finished_at=now(),
+        updated_at=now(),
+    )
+    return job
+
+
+def _normalize_loaded_job(job: dict[str, Any]) -> dict[str, Any]:
+    if _is_active_job(job) and not _belongs_to_current_process(job):
+        _interrupt_job(
+            job,
+            "Analysis job was interrupted by an API restart. Start a new run.",
+        )
+        persist_job(job)
+    return job
+
+
 def load_persisted_job(job_id: str) -> dict[str, Any]:
     with open(get_job_file(job_id), encoding="utf-8") as handle:
         job = json.load(handle)
     if not isinstance(job, dict):
         raise KeyError(job_id)
-    return job
+    return _normalize_loaded_job(job)
 
 
 def empty_job_steps() -> list[dict[str, str]]:
@@ -84,6 +136,8 @@ def create_job_snapshot(request: AnalyzeRequest) -> dict[str, Any]:
     job_id = uuid4().hex
     return {
         "job_id": job_id,
+        "owner_boot_id": _PROCESS_BOOT_ID,
+        "owner_pid": os.getpid(),
         "status": "queued",
         "publisher": request.publisher,
         "name": request.name,
@@ -119,6 +173,29 @@ def get_job_snapshot(job_id: str) -> dict[str, Any]:
         return load_persisted_job(job_id)
     except FileNotFoundError as exc:
         raise KeyError(job_id) from exc
+
+
+def get_active_job_snapshot() -> dict[str, Any] | None:
+    with _JOB_LOCK:
+        for job in _ANALYSIS_JOBS.values():
+            if _is_active_job(job):
+                return deepcopy(job)
+
+        jobs_dir = get_jobs_dir()
+        if not jobs_dir.exists():
+            return None
+
+        for job_file in jobs_dir.glob("*.json"):
+            try:
+                job = load_persisted_job(job_file.stem)
+            except (FileNotFoundError, KeyError, OSError, ValueError):
+                continue
+
+            if _is_active_job(job) and _belongs_to_current_process(job):
+                _ANALYSIS_JOBS[job["job_id"]] = job
+                return deepcopy(job)
+
+    return None
 
 
 def update_job(job_id: str, **updates: Any) -> None:
@@ -203,6 +280,7 @@ __all__ = [
     "create_job_snapshot",
     "empty_job_steps",
     "fail_job",
+    "get_active_job_snapshot",
     "get_job_file",
     "get_job_snapshot",
     "get_jobs_dir",

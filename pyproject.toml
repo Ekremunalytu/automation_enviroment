@@ -159,6 +159,8 @@ addopts = [
     "--tb=short",
     "--strict-markers",
     "--import-mode=importlib",
+    "-m",
+    "not smoke",
     "-ra",
 ]
 markers = [

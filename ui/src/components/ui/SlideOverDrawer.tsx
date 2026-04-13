@@ -1,5 +1,5 @@
 import type { PropsWithChildren } from "react";
-import { useEffect } from "react";
+import { useEffect, useId, useRef } from "react";
 
 export function SlideOverDrawer({
   open,
@@ -13,11 +13,18 @@ export function SlideOverDrawer({
   description?: string;
   onClose: () => void;
 }>) {
+  const titleId = useId();
+  const descriptionId = useId();
+  const closeButtonRef = useRef<HTMLButtonElement | null>(null);
+
   useEffect(() => {
     if (!open) return;
 
     const previousOverflow = document.body.style.overflow;
+    const previousActiveElement =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
     document.body.style.overflow = "hidden";
+    closeButtonRef.current?.focus();
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -29,6 +36,7 @@ export function SlideOverDrawer({
     return () => {
       document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", onKeyDown);
+      previousActiveElement?.focus();
     };
   }, [open, onClose]);
 
@@ -43,6 +51,8 @@ export function SlideOverDrawer({
         type="button"
       />
       <aside
+        aria-describedby={description ? descriptionId : undefined}
+        aria-labelledby={titleId}
         aria-modal="true"
         className="h-full w-full max-w-[440px] border-l border-line bg-panel shadow-soft"
         role="dialog"
@@ -52,10 +62,16 @@ export function SlideOverDrawer({
             <div className="flex items-start justify-between gap-4">
               <div className="space-y-2">
                 <div className="eyebrow">Filters</div>
-                <h2 className="font-display text-xl font-semibold tracking-tight text-ink">{title}</h2>
-                {description ? <p className="text-sm leading-6 text-mute sm:text-[15px]">{description}</p> : null}
+                <h2 className="font-display text-xl font-semibold tracking-tight text-ink" id={titleId}>
+                  {title}
+                </h2>
+                {description ? (
+                  <p className="text-sm leading-6 text-mute sm:text-[15px]" id={descriptionId}>
+                    {description}
+                  </p>
+                ) : null}
               </div>
-              <button className="ghost-button px-2.5 py-2" onClick={onClose} type="button">
+              <button className="ghost-button px-2.5 py-2" onClick={onClose} ref={closeButtonRef} type="button">
                 Close
               </button>
             </div>

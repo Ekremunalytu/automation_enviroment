@@ -4,6 +4,8 @@
 
 This is the canonical project layout after the architecture refactor.
 
+The structure supports a single-user sandbox product. It should stay simple unless the product assumptions change.
+
 ## Top-Level Layout
 
 ```text
@@ -38,6 +40,8 @@ docs/
 - Put current analyst console code into `ui/`.
 - Treat `legacy_ui/` as archive-only unless a migration needs to reference it.
 - Put tests beside the corresponding architecture slice under `tests/`.
+- Prefer file-backed artifacts in `output/` when they are sufficient for the single-user workflow.
+- Do not introduce multi-tenant or distributed job infrastructure into the structure without a real product need.
 
 ## Canonical Paths
 
@@ -80,7 +84,6 @@ ui/
   Dockerfile
   vite.config.ts
   tailwind.config.js
-  vitest.config.ts
   README.md
 legacy_ui/
   app.py

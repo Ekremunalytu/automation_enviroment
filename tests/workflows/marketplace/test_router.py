@@ -491,6 +491,26 @@ def test_get_job_snapshot_missing_job_raises_keyerror(tmp_path: Path) -> None:
         marketplace_router._get_job_snapshot("missing")
 
 
+def test_get_job_snapshot_marks_stale_active_job_failed(tmp_path: Path) -> None:
+    """Jobs from an older API process should not stay queued forever after restart."""
+    _reset_job_state(tmp_path)
+    request = marketplace_router.AnalyzeRequest(**ANALYZE_PAYLOAD)
+    job = marketplace_router._create_job_snapshot(request)
+    job["status"] = "running"
+    job["current_step"] = "run_monitoring"
+    job["steps"][3]["status"] = "running"
+    job["steps"][3]["message"] = "Monitoring"
+    job["owner_boot_id"] = "previous-process"
+    marketplace_router._store_job(job)
+    marketplace_router._ANALYSIS_JOBS.clear()
+
+    snapshot = marketplace_router._get_job_snapshot(job["job_id"])
+
+    assert snapshot["status"] == "failed"
+    assert "interrupted by an api restart" in snapshot["error_detail"].lower()
+    assert snapshot["steps"][3]["status"] == "failed"
+
+
 def test_update_job_loads_persisted_snapshot_when_memory_is_empty(
     tmp_path: Path,
 ) -> None:
@@ -1013,6 +1033,30 @@ def test_analyze_start_returns_job_snapshot(client: TestClient) -> None:
         "activation_report_ms-python.python-2025.0.0-"
     )
     mock_thread.return_value.start.assert_called_once()
+
+
+def test_analyze_start_rejects_second_active_job(
+    client: TestClient, tmp_path: Path
+) -> None:
+    """Single-sandbox mode should reject overlapping analysis jobs."""
+    _reset_job_state(tmp_path)
+    request = marketplace_router.AnalyzeRequest(**ANALYZE_PAYLOAD)
+    job = marketplace_router._create_job_snapshot(request)
+    job["status"] = "running"
+    marketplace_router._store_job(job)
+
+    with (
+        patch(
+            "workflows.marketplace.analysis_service.marketplace_client.get_vsix_path",
+            return_value=_vsix_path_exists(True),
+        ),
+        patch("workflows.marketplace.router.threading.Thread") as mock_thread,
+    ):
+        response = client.post("/api/marketplace/analyze/start", json=ANALYZE_PAYLOAD)
+
+    assert response.status_code == 409
+    assert "already in progress" in response.json()["detail"].lower()
+    mock_thread.return_value.start.assert_not_called()
 
 
 def test_analyze_start_missing_vsix_404(client: TestClient) -> None:

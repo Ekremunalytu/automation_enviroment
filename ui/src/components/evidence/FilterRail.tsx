@@ -1,5 +1,3 @@
-import { useDeferredValue } from "react";
-
 export interface EvidenceFilterState {
   kinds: string[];
   actors: string[];
@@ -29,7 +27,6 @@ export function FilterRail({
   description?: string;
   showSearch?: boolean;
 }) {
-  const deferredSearch = useDeferredValue(filters.search);
   const updateList = (key: keyof Pick<EvidenceFilterState, "kinds" | "actors" | "collectors" | "scenarios">, raw: string) => {
     onChange({
       ...filters,
@@ -144,7 +141,7 @@ export function FilterRail({
               className="field-control"
               onChange={(event) => onChange({ ...filters, search: event.target.value })}
               placeholder="host, path, extension, summary…"
-              value={deferredSearch}
+              value={filters.search}
             />
           </label>
         ) : null}

@@ -8,6 +8,16 @@ ExTrace is a VS Code extension analysis platform built around three runtime surf
 - A Dockerized executor that runs full VS Code GUI sessions under Xvfb and drives them with Playwright.
 - A Vite + React + Tailwind analyst console that consumes the API and visualizes activation reports and live simulation jobs.
 
+## Operating Model
+
+ExTrace is intentionally designed as a single-user sandbox appliance, not a multi-tenant web platform.
+
+- Backend, UI, PostgreSQL, and executor are expected to run on the same machine or inside the same Docker host.
+- The primary deployment shape is a local or lab sandbox where one analyst inspects one extension at a time.
+- Background analysis is intentionally limited to one active job at a time.
+- Reports and job snapshots are file-backed on purpose; they are operator artifacts, not shared tenant data.
+- If the API process restarts during an active analysis, that job is marked failed and should be rerun.
+
 ## Current Architecture
 
 The refactor introduced a canonical split between shared platform code and workflow code:
@@ -72,6 +82,12 @@ The repository now uses canonical imports only:
 4. Reports written under `output/`
 5. Job snapshots persisted under `output/analysis_jobs/`
 
+Notes:
+
+- `POST /api/marketplace/analyze` is the direct request/response path.
+- `POST /api/marketplace/analyze/start` is the background path used by the React UI.
+- Only one background analysis should run at a time in the intended sandbox deployment.
+
 ## API Surface
 
 ### Extension Catalog
@@ -126,6 +142,8 @@ make exec-run
 make ui-up
 cd ui && npm run dev
 cd ui && npm run test
+.venv/bin/pytest
+.venv/bin/pytest -m smoke
 ```
 
 ### Service Endpoints
@@ -161,5 +179,7 @@ docs/                       Targeted risk notes
 - `documents/PROJECT_STRUCTURE.md`: placement rules after the refactor
 - `documents/TESTING.md`: current test layout and commands
 - `documents/EXECUTOR_PLAYWRIGHT.md`: sandbox and Playwright details
-- `documents/automation_todo.md`: active roadmap
+- `documents/DEVELOPMENT_PRIORITIES.md`: near-term priorities for the sandbox product
+- `documents/PIPELINE_ROADMAP.md`: pipeline direction without multi-tenant assumptions
+- `documents/automation_todo.md`: active task backlog
 - `docs/risks.md`: current risk register

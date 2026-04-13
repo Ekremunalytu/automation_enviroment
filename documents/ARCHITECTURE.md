@@ -4,6 +4,16 @@
 
 This document describes the post-refactor architecture. The canonical code paths are `appcore/`, `workflows/`, `executor/`, and `ui/`.
 
+## Product Assumptions
+
+ExTrace is not being optimized as a large shared app.
+
+- Single analyst
+- Same-device or same-host deployment
+- One sandbox analysis at a time
+- Docker-isolated execution for extension code
+- File-backed reports and job snapshots are acceptable for the current product shape
+
 ## Architecture Summary
 
 ```mermaid
@@ -151,7 +161,9 @@ Notes:
 
 - Synchronous analysis is available at `POST /api/marketplace/analyze`.
 - Background job mode is available at `POST /api/marketplace/analyze/start`.
-- Job state is persisted under `output/analysis_jobs/` so reads survive worker boundaries.
+- Job state is persisted under `output/analysis_jobs/`.
+- The current deployment model expects one active background analysis at a time.
+- If the API process restarts mid-run, the persisted job is marked failed on the next read.
 - The SPA surfaces marketplace analysis from `/marketplace` and live job state from `/simulation`.
 
 ## Data Boundaries
@@ -168,11 +180,11 @@ Notes:
 - Activation report JSON files under `output/`
 - Background analysis job snapshots under `output/analysis_jobs/`
 
-### Not Yet Persisted to DB
+Why this is acceptable right now:
 
-- Dynamic analysis run history
-- Network/process/filesystem telemetry tables
-- Risk scores
+- The product is operated as a single-user sandbox.
+- Reports are analyst artifacts rather than shared application records.
+- Restart recovery only needs to preserve enough state to explain interruption and allow rerun.
 
 ## Testing Structure
 
@@ -197,3 +209,4 @@ The test suite mirrors the new architecture:
 - Use SQLAlchemy 2.0 style only.
 - Use Pydantic v2 APIs only.
 - Keep sandbox execution isolated in Docker.
+- Avoid adding infrastructure meant for multi-user SaaS behavior unless the product assumptions change.

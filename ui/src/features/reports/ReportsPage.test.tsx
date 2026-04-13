@@ -233,7 +233,9 @@ describe("ReportsPage", () => {
     expect(await screen.findAllByTestId("chart")).toHaveLength(1);
 
     fireEvent.click(screen.getByRole("button", { name: "Filters" }));
-    expect(screen.getByText("Evidence filters")).toBeInTheDocument();
+    expect(
+      screen.getByRole("dialog", { name: "Evidence filters" }),
+    ).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Close" }));
     await waitFor(() => {
       expect(screen.queryByText("Evidence filters")).not.toBeInTheDocument();
@@ -241,7 +243,7 @@ describe("ReportsPage", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Logs" }));
     expect(await screen.findByText("Coverage audit")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Target Triggers" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Target Triggers" })).toBeInTheDocument();
     expect(screen.getByText("Activated publisher.tool via onStartupFinished")).toBeInTheDocument();
   });
 
@@ -259,12 +261,12 @@ describe("ReportsPage", () => {
 
     expect(screen.getByText("/workspace/.env")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Analysis" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Analysis" }));
     await waitFor(() => {
       expect(screen.getByTestId("location-search").textContent).toContain("workspace=analysis");
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Rules" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Rules" }));
     await waitFor(() => {
       expect(screen.getByTestId("location-search").textContent).toContain("inspector=rules");
     });

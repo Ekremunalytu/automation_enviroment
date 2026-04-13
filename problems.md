@@ -9,7 +9,7 @@ This file tracks known issues against the refactored architecture.
 1. Analysis reliability still depends on executor reload correctness.
    - Relevant paths:
      - `workflows/marketplace/router.py`
-     - `scanner/executor.py`
+     - `executor/host.py`
    - Risk:
      - a run can appear successful even if the installed extension never reached a clean activation state.
 
@@ -21,13 +21,13 @@ This file tracks known issues against the refactored architecture.
    - Risk:
      - trigger bait files may not land where VS Code is actually operating.
 
-3. Dynamic-analysis results are not yet modeled in PostgreSQL.
+3. Dynamic-analysis artifacts are still file-backed.
    - Relevant paths:
      - `workflows/marketplace/router.py`
      - `workflows/activation_reports/router.py`
-     - `appcore/storage/models.py`
+     - `output/`
    - Risk:
-     - no durable run history, weak queryability, and limited comparisons across versions.
+     - weaker queryability and comparisons across versions, although this is currently acceptable for the single-user sandbox model.
 
 ## Medium Priority
 
@@ -62,7 +62,7 @@ This file tracks known issues against the refactored architecture.
    - Relevant path:
      - `output/`
 
-2. The UI is still split between file-backed reports and live job polling instead of a unified run model.
+2. The UI is still split between file-backed reports and live job polling instead of a tighter single-run review loop.
    - Relevant paths:
      - `ui/src/lib/api/client.ts`
      - `ui/src/features/reports/ReportsPage.tsx`
@@ -72,3 +72,4 @@ This file tracks known issues against the refactored architecture.
 
 - The architecture references in this file use canonical paths introduced by the refactor.
 - Compatibility wrappers remain intentional for now and are tested.
+- This file assumes a single-user sandbox deployment, not a shared SaaS app.

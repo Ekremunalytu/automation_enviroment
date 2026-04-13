@@ -15,9 +15,9 @@ The refactor significantly improved maintainability. The codebase now has a cred
 
 ## Main Follow-Up Areas
 
-- Persist dynamic-analysis runs and telemetry in PostgreSQL instead of relying only on `output/`.
 - Tighten executor failure handling so analysis outcomes remain trustworthy.
 - Deepen integration coverage for `POST /api/marketplace/analyze/start` and related job polling.
+- Keep the UI optimized for the single-operator sandbox loop rather than a generalized shared dashboard.
 
 ## Recommended Review Order for Future Changes
 
