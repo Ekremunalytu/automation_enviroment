@@ -82,7 +82,7 @@ export function SimulationPage() {
   const jobId = searchParams.get("job");
   const tab = searchParams.get("tab") || "live";
   const eventId = searchParams.get("event");
-  const inspectorTab = (searchParams.get("inspector") as "provenance" | "rule" | null) || "provenance";
+  const inspectorTab = (searchParams.get("inspector") as "provenance" | "relations" | "rule" | null) || "provenance";
   const filters = parseFilters(searchParams);
   const deferredSearch = useDeferredValue(filters.search);
 

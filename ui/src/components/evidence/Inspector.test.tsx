@@ -2,6 +2,10 @@ import { render, screen } from "@testing-library/react";
 import { Inspector } from "./Inspector";
 import type { EvidenceInspectorView, RuleDraftView } from "../../lib/types/view-models";
 
+vi.mock("../../lib/charts/core", () => ({
+  ReactECharts: () => <div data-testid="chart" />,
+}));
+
 const inspector: EvidenceInspectorView = {
   event: {
     eventId: "file-1",
@@ -89,7 +93,7 @@ const ruleDraft: RuleDraftView = {
 };
 
 describe("Inspector", () => {
-  it("renders provenance link chain and confidence", () => {
+  it("renders provenance metadata without the repeated reason chain", () => {
     render(
       <Inspector
         activeTab="provenance"
@@ -101,7 +105,22 @@ describe("Inspector", () => {
 
     expect(screen.getByRole("heading", { name: "Provenance" })).toBeInTheDocument();
     expect(screen.getByText("Sensitive file read")).toBeInTheDocument();
-    expect(screen.getByText("Candidate Owner → Activation")).toBeInTheDocument();
-    expect(screen.getByText("61%")).toBeInTheDocument();
+    expect(screen.getByText("Link Status")).toBeInTheDocument();
+    expect(screen.getByText(/Relations tab/u)).toBeInTheDocument();
+  });
+
+  it("renders the relations graph tab", () => {
+    render(
+      <Inspector
+        activeTab="relations"
+        inspector={inspector}
+        onTabChange={() => undefined}
+        ruleDraft={ruleDraft}
+      />,
+    );
+
+    expect(screen.getByRole("heading", { name: "Relations" })).toBeInTheDocument();
+    expect(screen.getByText("Connection Summary")).toBeInTheDocument();
+    expect(screen.getByTestId("chart")).toBeInTheDocument();
   });
 });

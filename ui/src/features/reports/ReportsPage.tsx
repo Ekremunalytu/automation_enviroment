@@ -146,7 +146,7 @@ export function ReportsPage() {
   const reportParam = searchParams.get("report") || "latest";
   const selectedTab = normalizeTab(searchParams.get("tab"));
   const eventId = searchParams.get("event");
-  const inspectorTab = (searchParams.get("inspector") as "provenance" | "rule" | null) || "provenance";
+  const inspectorTab = (searchParams.get("inspector") as "provenance" | "relations" | "rule" | null) || "provenance";
   const filters = parseFilters(searchParams);
   const deferredSearch = useDeferredValue(filters.search);
 
