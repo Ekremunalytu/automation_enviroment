@@ -1,6 +1,6 @@
 # Risk Register
 
-`Last Updated: 2026-03-06`
+`Last Updated: 2026-04-13`
 
 This register reflects the post-refactor architecture.
 

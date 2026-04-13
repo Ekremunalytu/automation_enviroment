@@ -1,6 +1,6 @@
 # Pipeline Roadmap
 
-`Last Updated: 2026-03-06`
+`Last Updated: 2026-04-13`
 
 This roadmap reflects the current executor pipeline after the refactor. The older controller-centric plan has been replaced by workflow orchestration in `workflows/marketplace/` plus sandbox execution in `executor/flows/playwright/`.
 
@@ -8,7 +8,7 @@ This roadmap reflects the current executor pipeline after the refactor. The olde
 
 ```mermaid
 flowchart LR
-    UI["Streamlit UI"] --> API["FastAPI marketplace workflow"]
+    UI["Vite + React + Tailwind UI"] --> API["FastAPI marketplace workflow"]
     API --> Download["Marketplace download/extract"]
     API --> DB["Extension metadata in PostgreSQL"]
     API --> Exec["executor.host docker exec wrapper"]
@@ -40,7 +40,7 @@ flowchart LR
 ## Phase D: Risk and Triage
 
 - Add rule-based risk scoring
-- Show risk summaries in the Streamlit dashboard
+- Show risk summaries in the React reports experience
 - Support historical comparisons across versions of the same extension
 
 ## Design Constraints

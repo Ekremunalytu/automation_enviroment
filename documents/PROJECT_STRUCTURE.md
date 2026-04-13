@@ -1,6 +1,6 @@
 # Project Structure
 
-`Last Updated: 2026-03-06`
+`Last Updated: 2026-04-13`
 
 This is the canonical project layout after the architecture refactor.
 
@@ -20,7 +20,8 @@ executor/
   container/
   flows/playwright/
 ui/
-  views/
+  src/
+legacy_ui/
 tests/
   executor/
   platform/
@@ -34,7 +35,8 @@ docs/
 - Put new shared infrastructure into `appcore/`.
 - Put workflow-specific routers, services, parsers, and helpers into the matching `workflows/<name>/` package.
 - Put sandbox runtime code into `executor/`.
-- Put dashboard-only code into `ui/`.
+- Put current analyst console code into `ui/`.
+- Treat `legacy_ui/` as archive-only unless a migration needs to reference it.
 - Put tests beside the corresponding architecture slice under `tests/`.
 
 ## Canonical Paths
@@ -54,20 +56,37 @@ docs/
 
 ```text
 ui/
+  src/
+    app/
+      App.tsx
+      layout/
+    components/
+      evidence/
+      marketplace/
+      simulation/
+      ui/
+    features/
+      marketplace/
+      reports/
+      simulation/
+    lib/
+      adapters/
+      api/
+      charts/
+      rules/
+      types/
+    main.tsx
+    index.css
+  Dockerfile
+  vite.config.ts
+  tailwind.config.js
+  vitest.config.ts
+  README.md
+legacy_ui/
   app.py
-  api.py
-  components.py
-  config.py
-  data_processing.py
-  navigation.py
-  state.py
-  styles.py
   views/
-    dashboard.py
-    dashboard_tabs.py
-    marketplace.py
-    simulation.py
-    theme.py
+  api.py
+  navigation.py
 ```
 
 ## Executor Layout
@@ -122,4 +141,6 @@ tests/
 - New activation report behavior: `workflows/activation_reports/`
 - New marketplace or analysis behavior: `workflows/marketplace/`
 - New sandbox capability: `executor/container/` or `executor/flows/playwright/`
-- New dashboard view: `ui/views/`
+- New UI feature page or route: `ui/src/features/`
+- New shared UI primitive: `ui/src/components/ui/`
+- New UI data adapter or HTTP client logic: `ui/src/lib/`

@@ -42,7 +42,9 @@
 - `executor/flows/playwright/`
   - Playwright-based VS Code automation and monitoring helpers.
 - `ui/`
-  - Streamlit dashboard.
+  - Vite + React + Tailwind analyst console.
+- `legacy_ui/`
+  - Archived Streamlit implementation kept only as a migration snapshot.
 
 ## Data Flows
 
@@ -87,6 +89,8 @@
   - `workflows/activation_reports/` + `tests/workflows/activation_reports/`
 - Marketplace or analysis feature:
   - `workflows/marketplace/`, optionally `executor/`, and matching tests
+- Web UI feature:
+  - `ui/src/` and UI tests in `ui/src/**/*.test.ts(x)`
 
 ## Required Self-Review
 

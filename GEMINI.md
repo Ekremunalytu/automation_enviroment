@@ -7,7 +7,8 @@ ExTrace is a refactored VS Code extension analysis platform with:
 - `appcore/` for shared platform concerns
 - `workflows/` for business workflows
 - `executor/` for sandboxed VS Code automation
-- `ui/` for the Streamlit dashboard
+- `ui/` for the Vite + React + Tailwind analyst console
+- `legacy_ui/` for the archived Streamlit snapshot
 
 Legacy module names still exist as compatibility wrappers, but canonical development should target the new packages.
 

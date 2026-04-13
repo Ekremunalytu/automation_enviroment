@@ -1,6 +1,6 @@
 # Development Priorities
 
-`Last Updated: 2026-03-06`
+`Last Updated: 2026-04-13`
 
 The architecture refactor is in place. Current priorities should now focus on making the new workflow layout operationally complete.
 
@@ -36,7 +36,7 @@ The test layout is better, but the most valuable additions now are integration-s
 
 ## Priority 4: UI/Data Convergence
 
-The UI currently combines file-backed report browsing with live job polling. After DB-backed run persistence lands, the next goal should be to unify those experiences around a stable run model.
+The React SPA currently combines file-backed report browsing with live job polling. After DB-backed run persistence lands, the next goal should be to unify those experiences around a stable run model.
 
 ## Priority 5: Wrapper Retirement Plan
 

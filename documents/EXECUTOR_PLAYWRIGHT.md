@@ -1,6 +1,6 @@
 # Executor Playwright Architecture
 
-`Last Updated: 2026-03-06`
+`Last Updated: 2026-04-13`
 
 The executor is the dynamic-analysis sandbox. It runs a full VS Code GUI session inside Docker and drives that GUI with Playwright over CDP.
 
@@ -99,11 +99,17 @@ output/activation_report_<publisher>.<name>-<version>-<runid>.json
 
 ## UI Integration
 
-The Streamlit UI uses:
+The Vite + React + Tailwind UI uses:
 
-- `Marketplace` page to search/download/start analysis
-- `Simulation` page to poll job status and surface step-level progress
-- `Dashboard` page to inspect generated activation reports
+- `/marketplace` to search, download, and start analysis
+- `/simulation` to poll job status and surface step-level progress
+- `/reports` to inspect generated activation reports
+
+Relevant frontend paths:
+
+- `ui/src/features/marketplace/MarketplacePage.tsx`
+- `ui/src/features/simulation/SimulationPage.tsx`
+- `ui/src/features/reports/ReportsPage.tsx`
 
 ## Supported Operational Commands
 

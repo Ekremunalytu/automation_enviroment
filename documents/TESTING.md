@@ -1,6 +1,6 @@
 # Testing Guide
 
-`Last Updated: 2026-03-06`
+`Last Updated: 2026-04-13`
 
 The test suite now mirrors the refactored architecture. Platform tests validate shared modules in `appcore/`, workflow tests cover the canonical business packages, and executor tests cover Playwright sandbox helpers.
 
@@ -64,6 +64,7 @@ make test
 make test-cov
 make test-local
 make test-ci
+cd ui && npm run test
 ```
 
 Useful single-file examples:
@@ -94,6 +95,12 @@ Useful single-file examples:
 - Playwright orchestration helpers
 - Monitor/report assembly
 - Workspace and reset behavior
+
+### UI
+
+- `ui/src/features/**/*.test.tsx`
+- `ui/src/components/**/*.test.tsx`
+- `ui/src/lib/**/*.test.ts`
 
 ## Current Gaps
 

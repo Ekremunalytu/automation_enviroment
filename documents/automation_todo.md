@@ -1,6 +1,6 @@
 # Dynamic Analysis Roadmap
 
-`Last Updated: 2026-03-06`
+`Last Updated: 2026-04-13`
 
 This roadmap tracks the current state of the post-refactor dynamic-analysis stack.
 
@@ -17,7 +17,7 @@ This roadmap tracks the current state of the post-refactor dynamic-analysis stac
 - Background analysis endpoint: `POST /api/marketplace/analyze/start`
 - Persisted background job snapshots under `output/analysis_jobs/`
 - Activation report browsing via `GET /api/activations*`
-- Streamlit pages for `Dashboard`, `Simulation`, `Marketplace`, `Theme`
+- React SPA routes for `Reports`, `Simulation`, and `Marketplace`
 - Canonical import coverage in `tests/platform/test_canonical_imports.py`
 
 ### Partially Delivered
@@ -98,6 +98,7 @@ Implement a first-pass scorer for:
 
 - Show run history, not only live file-backed reports
 - Add per-run risk summary and drill-downs
+- Keep route state URL-driven so drill-down views remain shareable
 
 ## Architectural Guardrails
 

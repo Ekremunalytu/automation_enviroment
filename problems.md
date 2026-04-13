@@ -1,6 +1,6 @@
 # Project Analysis - Current Issues
 
-`Last Updated: 2026-03-06`
+`Last Updated: 2026-04-13`
 
 This file tracks known issues against the refactored architecture.
 
@@ -64,9 +64,9 @@ This file tracks known issues against the refactored architecture.
 
 2. The UI is still split between file-backed reports and live job polling instead of a unified run model.
    - Relevant paths:
-     - `ui/api.py`
-     - `ui/views/dashboard.py`
-     - `ui/views/simulation.py`
+     - `ui/src/lib/api/client.ts`
+     - `ui/src/features/reports/ReportsPage.tsx`
+     - `ui/src/features/simulation/SimulationPage.tsx`
 
 ## Validation Notes
 

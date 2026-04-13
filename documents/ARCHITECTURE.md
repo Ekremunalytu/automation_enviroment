@@ -1,6 +1,6 @@
 # ExTrace Architecture
 
-`Last Updated: 2026-03-06`
+`Last Updated: 2026-04-13`
 
 This document describes the post-refactor architecture. The canonical code paths are `appcore/`, `workflows/`, `executor/`, and `ui/`.
 
@@ -8,7 +8,7 @@ This document describes the post-refactor architecture. The canonical code paths
 
 ```mermaid
 flowchart LR
-    Client["Browser / API Client / Streamlit"] --> API["FastAPI app (main.py)"]
+    Client["Browser / API Client / React SPA"] --> API["FastAPI app (main.py)"]
     API --> Workflows["workflows/*"]
     Workflows --> Appcore["appcore/*"]
     Appcore --> DB[("PostgreSQL")]
@@ -57,12 +57,19 @@ Sandbox runtime for dynamic analysis.
 
 ### `ui/`
 
-Streamlit dashboard modules.
+Primary Vite + React + Tailwind analyst console.
 
-- `ui/app.py`: entrypoint
-- `ui/api.py`: API client helpers
-- `ui/navigation.py`: page routing
-- `ui/views/`: `dashboard`, `simulation`, `marketplace`, `theme`
+- `ui/src/main.tsx`: browser entrypoint
+- `ui/src/app/App.tsx`: route composition
+- `ui/src/app/layout/`: shell and navigation chrome
+- `ui/src/features/`: `reports`, `simulation`, `marketplace`
+- `ui/src/lib/api/`: runtime config, HTTP helpers, query client
+- `ui/src/components/`: shared presentation and evidence widgets
+
+### `legacy_ui/`
+
+Archived Streamlit implementation retained as a migration snapshot. It is no
+longer the primary frontend surface.
 
 ## Canonical Imports
 
@@ -117,6 +124,7 @@ Notes:
 
 - Reports are filesystem-backed, not database-backed.
 - Router logic retries transient `OSError` reads.
+- The React SPA consumes these endpoints through `ui/src/lib/api/`.
 
 ### 3. Marketplace Analysis Flow
 
@@ -144,6 +152,7 @@ Notes:
 - Synchronous analysis is available at `POST /api/marketplace/analyze`.
 - Background job mode is available at `POST /api/marketplace/analyze/start`.
 - Job state is persisted under `output/analysis_jobs/` so reads survive worker boundaries.
+- The SPA surfaces marketplace analysis from `/marketplace` and live job state from `/simulation`.
 
 ## Data Boundaries
 
@@ -175,6 +184,11 @@ The test suite mirrors the new architecture:
   - `activation_reports/`, `extension_catalog/`, `marketplace/`
 - `tests/executor/`
   - Playwright helper and workspace tests
+
+### UI Tests
+
+- `ui/src/**/*.test.tsx`
+  - React Testing Library and Vitest coverage for route-level pages and shared components.
 
 ## Architectural Rules
 

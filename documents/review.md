@@ -1,6 +1,6 @@
 # Repository Review Snapshot
 
-`Last Updated: 2026-03-06`
+`Last Updated: 2026-04-13`
 
 ## Overall Assessment
 
@@ -11,7 +11,7 @@ The refactor significantly improved maintainability. The codebase now has a cred
 - Canonical architecture is clearer and easier to extend.
 - Canonical imports are explicit and covered by tests.
 - Marketplace analysis is now a proper workflow instead of scattered logic.
-- UI decomposition is much stronger than before.
+- The React SPA decomposition into app shell, feature routes, and shared components is much stronger than before.
 
 ## Main Follow-Up Areas
 

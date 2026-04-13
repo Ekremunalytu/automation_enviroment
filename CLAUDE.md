@@ -10,7 +10,7 @@ ExTrace catalogs VS Code extensions, downloads Marketplace artifacts, and runs e
 - shared platform modules in `appcore/`
 - business workflows in `workflows/`
 - sandbox runtime in `executor/`
-- Streamlit UI in `ui/`
+- Vite + React + Tailwind UI in `ui/`
 
 ## Commands
 
@@ -39,7 +39,9 @@ make ui-up
 - `workflows/marketplace/`
 - `executor/container/`
 - `executor/flows/playwright/`
-- `ui/views/`
+- `ui/src/app/`
+- `ui/src/features/`
+- `ui/src/lib/`
 
 ## Compatibility Paths
 

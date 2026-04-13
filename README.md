@@ -28,9 +28,12 @@ The refactor introduced a canonical split between shared platform code and workf
   - `container/`: Docker image, entrypoint, VS Code/Xvfb/noVNC boot logic.
   - `flows/playwright/`: Playwright automation helpers and entrypoint.
 - `ui/`
-  - React SPA with `Reports`, `Simulation`, and `Marketplace` routes.
+  - Primary analyst-facing React SPA built with Vite and Tailwind.
+  - `src/app/`: shell and route composition.
+  - `src/features/`: `reports`, `simulation`, `marketplace`.
+  - `src/lib/`: API client, adapters, chart helpers, and shared types.
 - `legacy_ui/`
-  - Previous Streamlit implementation retained as a compatibility snapshot during migration.
+  - Previous Streamlit implementation retained as an archival compatibility snapshot.
 
 The repository now uses canonical imports only:
 
@@ -122,6 +125,7 @@ make exec-up
 make exec-run
 make ui-up
 cd ui && npm run dev
+cd ui && npm run test
 ```
 
 ### Service Endpoints
@@ -145,6 +149,7 @@ tests/
   platform/                Shared platform tests
   workflows/               Workflow tests
   executor/                Playwright runtime tests
+  ui tests live under ui/src/**/*.test.ts(x)
 documents/                  Architecture, roadmap, and testing notes
 docs/                       Targeted risk notes
 ```

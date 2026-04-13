@@ -29,10 +29,15 @@ coverage.xml
 .vscode/
 *.swp
 *.swo
+.DS_Store
+.claude/
 
 # Project Specific
 output/
 extensions/
+.env
+!.env.example
+node_modules/
 
 # Linting & Type Checking
 .mypy_cache/

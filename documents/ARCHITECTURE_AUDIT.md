@@ -1,6 +1,6 @@
 # Architecture Audit
 
-`Last Updated: 2026-03-06`
+`Last Updated: 2026-04-13`
 
 This is the post-refactor architecture audit. It evaluates the current codebase as it exists after the move to `appcore/` and `workflows/`.
 
@@ -11,7 +11,7 @@ The refactor materially improved structure:
 - shared infrastructure is now isolated in `appcore/`
 - business behavior is grouped by workflow in `workflows/`
 - the executor runtime is split into `container/` and `flows/playwright/`
-- the UI has been decomposed into reusable modules and page renderers
+- the UI has been decomposed into route features, shared components, and API helpers
 
 The main architectural risk is no longer layering. The main risk is that dynamic-analysis state is still mostly file-backed while the API surface has grown to include background analysis jobs and sandbox orchestration.
 
@@ -21,7 +21,7 @@ The main architectural risk is no longer layering. The main risk is that dynamic
 
 - `appcore/` owns settings, DB setup, schemas, models, and CRUD
 - `workflows/` owns routers and workflow-specific business logic
-- `ui/` owns dashboard concerns
+- `ui/` owns the primary analyst-facing SPA
 - `executor/` owns sandbox runtime concerns
 
 This is a meaningful improvement over the older `routers/scanner/core/crud/models/schemas` concentration.
@@ -40,7 +40,7 @@ Marketplace search, download, and analysis are no longer scattered implementatio
 - Shared settings are centralized in `appcore/api/config.py`.
 - CRUD remains the single write boundary.
 - Tests now mirror the real architecture, which reduces cognitive overhead.
-- UI is modular enough to evolve without turning `ui/app.py` into a monolith.
+- UI is modular enough to evolve without collapsing `ui/src/app/` and `ui/src/features/` into a monolith.
 
 ## Current Risks
 
