@@ -89,12 +89,16 @@ def _resolve_execution_plan(
     scenario: str | None,
     trigger_payload: trigger_loader.TriggerPayload | None,
 ) -> tuple[str, list[str]]:
-    """Pick selected trigger scenarios first, then explicit fallback, else run all."""
+    """Resolve executor mode for trigger payloads and explicit scenarios."""
+    if trigger_payload and trigger_payload.stimulus_passes and not scenario:
+        return "layered_passes", list(trigger_payload.selected_scenarios)
     if trigger_payload and trigger_payload.selected_scenarios:
-        return "selected", list(trigger_payload.selected_scenarios)
+        if scenario:
+            return "selected_scenarios", [scenario]
+        return "selected_scenarios", list(trigger_payload.selected_scenarios)
     if scenario:
-        return "single", [scenario]
-    return "all", []
+        return "single_scenario", [scenario]
+    return "all_scenarios", []
 
 
 def _run_extra_triggers(
@@ -468,74 +472,83 @@ def main() -> None:
 
             executed_scenarios: list[str] = []
             failed_scenarios: list[str] = []
-            execution_plan, planned_scenarios = _resolve_execution_plan(
+            execution_mode, planned_scenarios = _resolve_execution_plan(
                 args.scenario,
                 trigger_payload,
             )
+            if mon is not None:
+                mon.set_trigger_execution_mode(execution_mode)
+                mon.record_automation_event(
+                    "trigger_execution_mode",
+                    (
+                        f"Resolved trigger execution mode: {execution_mode}"
+                        + (
+                            f" ({', '.join(planned_scenarios)})"
+                            if planned_scenarios
+                            else ""
+                        )
+                    ),
+                    status="completed",
+                )
 
             if args.demo:
                 run_demo(page)
                 executed_scenarios.append("demo")
-            elif execution_plan == "selected":
-                if (
-                    trigger_payload is not None
-                    and trigger_payload.stimulus_passes
-                    and not args.scenario
-                ):
-                    print("[*] Running layered stimulus plan...")
-                    layered = stimulus.run_stimulus_plan(
-                        page,
-                        trigger_payload,
-                        monitor=mon,
+            elif execution_mode == "layered_passes":
+                print("[*] Running layered stimulus plan...")
+                layered = stimulus.run_stimulus_plan(
+                    page,
+                    trigger_payload,
+                    monitor=mon,
+                )
+                executed_scenarios.extend(layered.executed_scenarios)
+                failed_scenarios = layered.failed_scenarios
+                if mon is not None and trigger_payload is not None:
+                    mon.mark_trigger_plan_applied(
+                        scenarios=planned_scenarios,
+                        trigger_path=args.triggers,
                     )
-                    executed_scenarios.extend(layered.executed_scenarios)
-                    failed_scenarios = layered.failed_scenarios
-                    if mon is not None:
-                        mon.mark_trigger_plan_applied(
-                            scenarios=planned_scenarios,
-                            trigger_path=args.triggers,
-                        )
-                        mon.record_automation_event(
-                            "trigger_plan_applied",
-                            (
-                                "Trigger plan applied as layered passes with "
-                                f"{len(trigger_payload.event_attempts)} event target(s)."
-                            ),
-                            status="completed",
-                        )
-                    extra_trigger_failures = layered.extra_trigger_failures
-                    if extra_trigger_failures:
-                        print("[!] Layered extra trigger failures:")
-                        for item in extra_trigger_failures:
-                            print(f"  - {item}")
-                        exit_code = 1
-                else:
-                    print(f"[*] Running selected scenarios: {planned_scenarios}")
-                    failed_scenarios = automation.run_selected_scenarios(
-                        page,
-                        planned_scenarios,
-                        shuffle=args.shuffle,
+                    mon.record_automation_event(
+                        "trigger_plan_applied",
+                        (
+                            "Trigger plan applied as layered passes with "
+                            f"{len(trigger_payload.event_attempts)} event target(s)."
+                        ),
+                        status="completed",
                     )
-                    executed_scenarios.extend(planned_scenarios)
-                    if mon is not None:
-                        mon.mark_trigger_plan_applied(
-                            scenarios=planned_scenarios,
-                            trigger_path=args.triggers,
-                        )
-                        mon.record_automation_event(
-                            "trigger_plan_applied",
-                            (
-                                "Trigger plan selected scenarios for execution: "
-                                + ", ".join(planned_scenarios)
-                            ),
-                            status="completed",
-                        )
-                    if failed_scenarios:
-                        print("[!] Failed scenarios:")
-                        for name in failed_scenarios:
-                            print(f"  - {name}")
-                        exit_code = 1
-            elif execution_plan == "single":
+                extra_trigger_failures = layered.extra_trigger_failures
+                if extra_trigger_failures:
+                    print("[!] Layered extra trigger failures:")
+                    for item in extra_trigger_failures:
+                        print(f"  - {item}")
+                    exit_code = 1
+            elif execution_mode == "selected_scenarios":
+                print(f"[*] Running selected scenarios: {planned_scenarios}")
+                failed_scenarios = automation.run_selected_scenarios(
+                    page,
+                    planned_scenarios,
+                    shuffle=args.shuffle,
+                )
+                executed_scenarios.extend(planned_scenarios)
+                if mon is not None:
+                    mon.mark_trigger_plan_applied(
+                        scenarios=planned_scenarios,
+                        trigger_path=args.triggers,
+                    )
+                    mon.record_automation_event(
+                        "trigger_plan_applied",
+                        (
+                            "Trigger plan selected scenarios for execution: "
+                            + ", ".join(planned_scenarios)
+                        ),
+                        status="completed",
+                    )
+                if failed_scenarios:
+                    print("[!] Failed scenarios:")
+                    for name in failed_scenarios:
+                        print(f"  - {name}")
+                    exit_code = 1
+            elif execution_mode == "single_scenario":
                 scenario_name = planned_scenarios[0]
                 print(f"[*] Running scenario: {scenario_name}")
                 automation.run_scenario(page, scenario_name)

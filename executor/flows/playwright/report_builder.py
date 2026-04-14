@@ -8,6 +8,44 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
+_EXECUTION_MODES = {
+    "layered_passes",
+    "selected_scenarios",
+    "single_scenario",
+    "all_scenarios",
+}
+
+
+def _resolve_trigger_execution_mode(report: Any) -> str:
+    explicit_mode = str(getattr(report, "trigger_execution_mode", "")).strip()
+    if explicit_mode in _EXECUTION_MODES:
+        return explicit_mode
+
+    stimulus_passes = getattr(report, "stimulus_passes", []) or []
+    if getattr(report, "trigger_plan_requested", False) and stimulus_passes:
+        finalized: set[str] = set()
+        for item in stimulus_passes:
+            if hasattr(item, "status"):
+                finalized.add(str(getattr(item, "status", "")).strip())
+            elif isinstance(item, dict):
+                finalized.add(str(item.get("status", "")).strip())
+        if finalized & {"completed", "failed", "running"}:
+            return "layered_passes"
+
+    requested_scenarios = list(getattr(report, "requested_scenarios", []) or [])
+    if getattr(report, "trigger_plan_requested", False) and requested_scenarios:
+        return "selected_scenarios"
+
+    scenarios_run = list(getattr(report, "scenarios_run", []) or [])
+    if len(scenarios_run) == 1:
+        return "single_scenario"
+    return "all_scenarios"
+
+
+def _run_quality_reasons(report: Any) -> list[str]:
+    reasons = getattr(report, "run_quality_reasons", [])
+    return [str(reason) for reason in reasons if str(reason).strip()]
+
 
 def build_summary(
     report: Any,
@@ -21,6 +59,7 @@ def build_summary(
     unique_ids = getattr(report, "activated_ids", set()) | getattr(
         report, "runtime_ids", set()
     )
+    execution_mode = _resolve_trigger_execution_mode(report)
     return {
         "total_activated": len(getattr(report, "activated", [])),
         "unique_extensions": len(unique_ids),
@@ -39,12 +78,12 @@ def build_summary(
         "target_file_events": len(getattr(report, "target_file_events", [])),
         "target_network_events": len(getattr(report, "target_network_events", [])),
         "attempted_capabilities": getattr(
-            report, "official_attempted_capabilities", []
+            report, "runtime_official_attempted_capabilities", []
         ),
         "verified_capabilities": getattr(report, "official_verified_capabilities", []),
         "official_attempted_capabilities": getattr(
             report,
-            "official_attempted_capabilities",
+            "runtime_official_attempted_capabilities",
             [],
         ),
         "official_verified_capabilities": getattr(
@@ -54,12 +93,12 @@ def build_summary(
         ),
         "heuristic_attempted_capabilities": getattr(
             report,
-            "heuristic_attempted_capabilities",
+            "runtime_heuristic_attempted_capabilities",
             [],
         ),
         "heuristic_verified_capabilities": getattr(
             report,
-            "heuristic_verified_capabilities",
+            "supported_heuristic_verified_capabilities",
             [],
         ),
         "ui_blocker_count": len(getattr(report, "ui_blocker_entries", [])),
@@ -73,6 +112,7 @@ def build_summary(
             "heuristic_workflow_coverage",
             {},
         ),
+        "trigger_execution_mode": execution_mode,
         "trigger_plan_applied": bool(getattr(report, "trigger_plan_applied", False))
         or not bool(getattr(report, "trigger_plan_requested", False)),
         "verification_gap": getattr(report, "verification_gap", 0),
@@ -104,6 +144,7 @@ def build_report_data(
         eh_text = "\n".join(eh_lines[-500:])
     else:
         eh_text = str(getattr(report, "extension_host_output", ""))
+    execution_mode = _resolve_trigger_execution_mode(report)
 
     return {
         "report_version": getattr(report, "report_version", 2),
@@ -118,12 +159,14 @@ def build_report_data(
         "trigger_plan_applied": bool(getattr(report, "trigger_plan_applied", False))
         or not bool(getattr(report, "trigger_plan_requested", False)),
         "trigger_plan_path": getattr(report, "trigger_plan_path", ""),
+        "trigger_execution_mode": execution_mode,
         "requested_scenarios": getattr(report, "requested_scenarios", []),
         "failed_scenarios": getattr(report, "failed_scenarios", []),
         "extra_trigger_failures": getattr(report, "extra_trigger_failures", []),
         "verification_gap": getattr(report, "verification_gap", 0),
         "heuristic_verification_gap": getattr(report, "heuristic_verification_gap", 0),
         "run_quality": run_quality,
+        "run_quality_reasons": _run_quality_reasons(report),
         "automation_health": automation_health,
         "log_health": log_health,
         "attribution_summary": attribution_summary,
@@ -132,12 +175,12 @@ def build_report_data(
         "verdict": getattr(report, "verdict", {}),
         "summary": summary,
         "attempted_capabilities": getattr(
-            report, "official_attempted_capabilities", []
+            report, "runtime_official_attempted_capabilities", []
         ),
         "verified_capabilities": getattr(report, "official_verified_capabilities", []),
         "official_attempted_capabilities": getattr(
             report,
-            "official_attempted_capabilities",
+            "runtime_official_attempted_capabilities",
             [],
         ),
         "official_verified_capabilities": getattr(
@@ -147,16 +190,17 @@ def build_report_data(
         ),
         "heuristic_attempted_capabilities": getattr(
             report,
-            "heuristic_attempted_capabilities",
+            "runtime_heuristic_attempted_capabilities",
             [],
         ),
         "heuristic_verified_capabilities": getattr(
             report,
-            "heuristic_verified_capabilities",
+            "supported_heuristic_verified_capabilities",
             [],
         ),
         "network_capture_error": getattr(report, "network_capture_error", ""),
         "file_capture_error": getattr(report, "file_capture_error", ""),
+        "file_capture_diagnostics": getattr(report, "file_capture_diagnostics", {}),
         "activated": [asdict(e) for e in getattr(report, "activated", [])],
         "running_extensions": [
             asdict(e) for e in getattr(report, "running_extensions", [])

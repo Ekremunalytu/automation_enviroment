@@ -190,10 +190,7 @@ def reconcile_event_attempts(report: Any) -> list[Any]:
         for entry in target_activations
         if str(getattr(entry, "activation_event", "")).strip()
     ]
-    strong_target_activity = bool(
-        getattr(report, "target_file_events", [])
-        or getattr(report, "target_network_events", [])
-    )
+    derived_verified_capabilities = set(derive_verified_capabilities(report))
 
     for attempt in attempts:
         activation_event = str(getattr(attempt, "activation_event", "")).strip()
@@ -217,19 +214,45 @@ def reconcile_event_attempts(report: Any) -> list[Any]:
                 attempt.evidence.append(activation_event)
             continue
 
-        if getattr(attempt, "status", "") in {"running", "planned"}:
-            attempt.status = (
-                "attempted_only"
-                if getattr(attempt, "attempted_passes", [])
-                else "failed"
+        attempted_passes = list(getattr(attempt, "attempted_passes", []) or [])
+        capability_tags = {
+            str(tag).strip()
+            for tag in getattr(attempt, "capability_tags", []) or []
+            if str(tag).strip()
+        }
+        if attempted_passes and capability_tags & derived_verified_capabilities:
+            attempt.status = "verified"
+            attempt.verification_status = "verified"
+            capability_evidence = sorted(
+                capability_tags & derived_verified_capabilities
             )
-        if (
-            strong_target_activity
-            and getattr(attempt, "status", "") == "attempted_only"
-        ) or getattr(attempt, "status", "") == "attempted_only":
-            attempt.verification_status = "attempted_only"
-        elif getattr(attempt, "status", "") == "failed":
-            attempt.verification_status = "failed"
+            if capability_evidence:
+                attempt.evidence.extend(
+                    item
+                    for item in [
+                        f"capability:{capability}" for capability in capability_evidence
+                    ]
+                    if item not in attempt.evidence
+                )
+            continue
+
+        if getattr(attempt, "status", "") in {"running", "planned", "attempted_only"}:
+            if attempted_passes:
+                attempt.status = "attempted_only"
+                attempt.verification_status = "attempted_only"
+                if (
+                    str(getattr(attempt, "executor_action", "")).startswith("harness:")
+                    and not str(getattr(attempt, "failure_reason_code", "")).strip()
+                ):
+                    attempt.failure_reason_code = "harness_verification_unconfirmed"
+                    if not str(getattr(attempt, "result_details", "")).strip():
+                        attempt.result_details = "Harness stimulus executed but target verification remained unresolved."
+            elif getattr(attempt, "blocked_reason_code", ""):
+                attempt.status = "blocked"
+                attempt.verification_status = "blocked"
+            else:
+                attempt.status = "failed"
+                attempt.verification_status = "failed"
     return attempts
 
 
@@ -333,6 +356,22 @@ def _reconcile_track(
     attempted: set[str],
     verified: set[str],
 ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    supported_capabilities = {
+        str(entry.get("capability", "")).strip()
+        for entry in matrix_entries
+        if str(entry.get("support_status", entry.get("status", "unknown"))).strip()
+        == "covered"
+    }
+    attempted = {
+        capability
+        for capability in attempted
+        if not supported_capabilities or capability in supported_capabilities
+    }
+    verified = {
+        capability
+        for capability in verified
+        if not supported_capabilities or capability in supported_capabilities
+    }
     matrix: list[dict[str, Any]] = []
     for entry in matrix_entries:
         capability = str(entry.get("capability", "")).strip()
@@ -341,15 +380,16 @@ def _reconcile_track(
             "support_status",
             entry.get("status", "unknown"),
         )
-        if capability in verified:
+        supported = next_entry["support_status"] == "covered"
+        if capability in verified and supported:
             verification_status = "verified"
-        elif capability in attempted:
+        elif capability in attempted and supported:
             verification_status = "attempted_only"
         else:
             verification_status = "not_attempted"
         next_entry["verification_status"] = verification_status
-        next_entry["attempted"] = capability in attempted
-        next_entry["verified"] = capability in verified
+        next_entry["attempted"] = supported and capability in attempted
+        next_entry["verified"] = supported and capability in verified
         matrix.append(next_entry)
 
     next_summary = dict(summary)

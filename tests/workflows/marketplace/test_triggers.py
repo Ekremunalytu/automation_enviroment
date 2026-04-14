@@ -55,6 +55,12 @@ class TestSelectScenarios:
         events = [{"event_type": "onDebug", "event_value": "python"}]
         payload = select_scenarios(events)
         assert "debug_session" in payload.selected_scenarios
+        attempt = next(
+            item
+            for item in payload.event_attempts
+            if item["activation_event"] == "onDebug:python"
+        )
+        assert attempt["executor_action"] == "extra:debug_lifecycle"
 
     def test_on_view_scm_selects_git_workflow(self) -> None:
         events = [{"event_type": "onView", "event_value": "scm"}]
@@ -213,6 +219,21 @@ class TestSelectScenarios:
         )
         assert authentication["status"] == "covered"
         assert webview["status"] == "covered"
+
+    def test_unsupported_official_capabilities_stay_out_of_attempted_list(self) -> None:
+        payload = select_scenarios(
+            [
+                {"event_type": "onLanguageModelTool", "event_value": "tool.sample"},
+            ],
+            capability_metadata={"untrusted_supported": False},
+        )
+
+        assert "chat" not in payload.official_attempted_capabilities
+        missing = next(
+            item for item in payload.coverage_matrix if item["capability"] == "chat"
+        )
+        assert missing["support_status"] == "missing"
+        assert missing["status"] == "missing"
 
     def test_builtin_views_only_contribute_to_heuristic_track(self) -> None:
         payload = select_scenarios([{"event_type": "onView", "event_value": "search"}])

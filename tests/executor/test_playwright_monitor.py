@@ -32,6 +32,7 @@ def test_activation_report_save_is_atomic(tmp_path: Path) -> None:
         target_extension_id="sample.ext",
         trigger_plan_requested=True,
         trigger_plan_applied=True,
+        trigger_execution_mode="layered_passes",
         network_events=[
             monitor.NetworkEvent(
                 timestamp="2026-01-01T10:00:00.000",
@@ -68,6 +69,9 @@ def test_activation_report_save_is_atomic(tmp_path: Path) -> None:
     assert payload["trigger_plan_requested"] is True
     assert payload["trigger_plan_loaded"] is False
     assert payload["trigger_plan_applied"] is True
+    assert payload["trigger_execution_mode"] == "layered_passes"
+    assert payload["summary"]["trigger_execution_mode"] == "layered_passes"
+    assert payload["run_quality_reasons"]
     assert payload["evidence_events"][0]["event_id"].startswith("activation-")
     assert payload["evidence_events"][1]["event_id"].startswith("network-")
     assert payload["evidence_links"] == []
@@ -710,6 +714,278 @@ def test_reconcile_coverage_marks_attempted_only_when_not_verified() -> None:
     assert coverage_tracks["heuristic"]["summary"]["attempted"] == 1
 
 
+def test_verification_gap_ignores_unsupported_capabilities() -> None:
+    report = monitor.ActivationReport(
+        coverage_tracks={
+            "official": {
+                "summary": {"covered": 1, "partial": 0, "missing": 1},
+                "matrix": [
+                    {
+                        "capability": "commands",
+                        "status": "covered",
+                        "support_status": "covered",
+                    },
+                    {
+                        "capability": "chat",
+                        "status": "missing",
+                        "support_status": "missing",
+                    },
+                ],
+            }
+        },
+        coverage_matrix=[
+            {
+                "capability": "commands",
+                "status": "covered",
+                "support_status": "covered",
+            },
+            {"capability": "chat", "status": "missing", "support_status": "missing"},
+        ],
+        attempted_capabilities=["commands", "chat"],
+        verified_capabilities=[],
+    )
+
+    assert report.official_attempted_capabilities == ["commands"]
+    assert report.verification_gap == 1
+
+
+def test_runtime_attempted_capabilities_ignore_static_payload_bloat() -> None:
+    report = monitor.ActivationReport(
+        coverage_tracks={
+            "official": {
+                "summary": {"covered": 3, "partial": 0, "missing": 0},
+                "matrix": [
+                    {
+                        "capability": "commands",
+                        "status": "covered",
+                        "support_status": "covered",
+                    },
+                    {
+                        "capability": "languages_editor",
+                        "status": "covered",
+                        "support_status": "covered",
+                    },
+                    {
+                        "capability": "debug",
+                        "status": "covered",
+                        "support_status": "covered",
+                    },
+                ],
+            }
+        },
+        coverage_matrix=[
+            {
+                "capability": "commands",
+                "status": "covered",
+                "support_status": "covered",
+            },
+            {
+                "capability": "languages_editor",
+                "status": "covered",
+                "support_status": "covered",
+            },
+            {"capability": "debug", "status": "covered", "support_status": "covered"},
+        ],
+        attempted_capabilities=["commands", "languages_editor", "debug"],
+        verified_capabilities=["commands"],
+        event_attempts=[
+            monitor.EventAttemptRecord(
+                attempt_id="cmd",
+                declared_event="onCommand:run",
+                activation_event="onCommand:run",
+                event_family="onCommand",
+                track="official",
+                capability_tags=["commands"],
+                attempted_passes=["ui_first_user_session"],
+                status="attempted_only",
+            ),
+            monitor.EventAttemptRecord(
+                attempt_id="blocked",
+                declared_event="onDebugResolve:python",
+                activation_event="onDebugResolve:python",
+                event_family="onDebugResolve",
+                track="official",
+                capability_tags=["debug"],
+                status="blocked",
+            ),
+        ],
+    )
+
+    assert report.official_attempted_capabilities == [
+        "commands",
+        "debug",
+        "languages_editor",
+    ]
+    assert report.runtime_official_attempted_capabilities == ["commands"]
+    assert report.official_verified_capabilities == []
+    assert report.verification_gap == 1
+
+
+def test_runtime_verified_capabilities_drive_quality_gap() -> None:
+    report = monitor.ActivationReport(
+        coverage_tracks={
+            "official": {
+                "summary": {"covered": 3, "partial": 0, "missing": 0},
+                "matrix": [
+                    {
+                        "capability": "commands",
+                        "status": "covered",
+                        "support_status": "covered",
+                    },
+                    {
+                        "capability": "languages_editor",
+                        "status": "covered",
+                        "support_status": "covered",
+                    },
+                    {
+                        "capability": "debug",
+                        "status": "covered",
+                        "support_status": "covered",
+                    },
+                ],
+            }
+        },
+        coverage_matrix=[
+            {
+                "capability": "commands",
+                "status": "covered",
+                "support_status": "covered",
+            },
+            {
+                "capability": "languages_editor",
+                "status": "covered",
+                "support_status": "covered",
+            },
+            {"capability": "debug", "status": "covered", "support_status": "covered"},
+        ],
+        attempted_capabilities=["commands", "languages_editor", "debug"],
+        verified_capabilities=["window_ui"],
+        event_attempts=[
+            monitor.EventAttemptRecord(
+                attempt_id="cmd",
+                declared_event="onCommand:run",
+                activation_event="onCommand:run",
+                event_family="onCommand",
+                track="official",
+                capability_tags=["commands"],
+                attempted_passes=["ui_first_user_session"],
+                status="verified",
+            ),
+            monitor.EventAttemptRecord(
+                attempt_id="lang",
+                declared_event="workspaceContains:app.py",
+                activation_event="workspaceContains:app.py",
+                event_family="workspaceContains",
+                track="official",
+                capability_tags=["languages_editor"],
+                attempted_passes=["workspace_bootstrap"],
+                status="verified",
+            ),
+            monitor.EventAttemptRecord(
+                attempt_id="debug",
+                declared_event="onDebugResolve:python",
+                activation_event="onDebugResolve:python",
+                event_family="onDebugResolve",
+                track="official",
+                capability_tags=["debug"],
+                attempted_passes=["target_specific_activation"],
+                status="attempted_only",
+            ),
+        ],
+    )
+
+    assert report.runtime_official_attempted_capabilities == [
+        "commands",
+        "debug",
+        "languages_editor",
+    ]
+    assert report.official_verified_capabilities == ["commands", "languages_editor"]
+    assert report.verification_gap == 1
+
+    quality, _ = monitor.build_run_quality(
+        report,
+        automation_health={
+            "status": "degraded",
+            "reasons": ["verification_gap_present"],
+        },
+    )
+
+    assert quality == "medium"
+
+
+def test_reconcile_event_attempts_respects_attempted_blocked_and_verified_states() -> (
+    None
+):
+    report = monitor.ActivationReport(
+        activated=[
+            monitor.ActivationEntry(
+                extension_id="publisher.tool",
+                activation_event="onCommand:run",
+                timestamp="2026-01-01 10:00:00.000",
+                source="log",
+            )
+        ],
+        target_extension_id="publisher.tool",
+        event_attempts=[
+            monitor.EventAttemptRecord(
+                attempt_id="attempted",
+                declared_event="onLanguage:python",
+                activation_event="onLanguage:python",
+                event_family="onLanguage",
+                capability_tags=["languages_editor"],
+                attempted_passes=["ui_first_user_session"],
+            ),
+            monitor.EventAttemptRecord(
+                attempt_id="blocked",
+                declared_event="onUri",
+                activation_event="onUri",
+                event_family="onUri",
+                blocked_reason_code="missing_uri_target",
+            ),
+            monitor.EventAttemptRecord(
+                attempt_id="verified",
+                declared_event="onCommand:run",
+                activation_event="onCommand:run",
+                event_family="onCommand",
+                attempted_passes=["ui_first_user_session"],
+                capability_tags=["commands"],
+            ),
+        ],
+    )
+
+    attempts = monitor.reconcile_event_attempts(report)
+
+    assert attempts[0].status == "attempted_only"
+    assert attempts[0].verification_status == "attempted_only"
+    assert attempts[1].status == "blocked"
+    assert attempts[1].verification_status == "blocked"
+    assert attempts[2].status == "verified"
+    assert attempts[2].verification_status == "verified"
+
+
+def test_reconcile_event_attempts_marks_unverified_harness_attempts() -> None:
+    report = monitor.ActivationReport(
+        target_extension_id="publisher.tool",
+        event_attempts=[
+            monitor.EventAttemptRecord(
+                attempt_id="harness",
+                declared_event="onLanguageModelTool:test",
+                activation_event="onLanguageModelTool:test",
+                event_family="onLanguageModelTool",
+                executor_action="harness:run_current_stimulus",
+                attempted_passes=["target_specific_activation"],
+                capability_tags=["chat"],
+            )
+        ],
+    )
+
+    attempts = monitor.reconcile_event_attempts(report)
+
+    assert attempts[0].status == "attempted_only"
+    assert attempts[0].failure_reason_code == "harness_verification_unconfirmed"
+    assert "Harness stimulus executed" in attempts[0].result_details
+
+
 def test_verdict_stays_bounded_when_only_correlative_sensitive_activity_exists() -> (
     None
 ):
@@ -983,6 +1259,94 @@ def test_risk_signals_capture_sensitive_file_and_network_combo() -> None:
         signal.category == "sensitive_file_and_network_combo" for signal in signals
     )
     assert summary["total_signals"] >= 2
+
+
+def test_select_extension_host_pid_prefers_legacy_extension_host() -> None:
+    entries = monitor._parse_process_table(
+        "101 1 /usr/share/code/code --user-data-dir=/tmp/profile\n"
+        "202 101 /usr/share/code/code --type=utility extensionHost --user-data-dir=/tmp/profile\n"
+        "203 101 /usr/share/code/code --type=utility --utility-sub-type=node.mojom.NodeService --user-data-dir=/tmp/profile\n"
+    )
+
+    assert monitor._select_extension_host_pid(entries) == 202
+
+
+def test_select_extension_host_pid_uses_modern_node_service_candidates() -> None:
+    entries = monitor._parse_process_table(
+        "100 1 /usr/share/code/code --user-data-dir=/tmp/profile\n"
+        "1184 100 /usr/share/code/code --type=utility --utility-sub-type=node.mojom.NodeService --user-data-dir=/tmp/profile --inspect-port=0\n"
+        "1200 100 /usr/share/code/code --type=utility --utility-sub-type=node.mojom.NodeService --user-data-dir=/tmp/profile /extensions/ms-python/server.bundle.js --clientProcessId=1184\n"
+        "1201 100 /usr/share/code/code --type=utility --utility-sub-type=node.mojom.NodeService --user-data-dir=/tmp/profile /extensions/json/jsonServerMain --clientProcessId=1184\n"
+        "1300 1184 pylance --clientProcessId=1184\n"
+    )
+
+    assert monitor._select_extension_host_pid(entries) == 1184
+
+
+def test_select_extension_host_pid_returns_none_for_only_excluded_candidates() -> None:
+    entries = monitor._parse_process_table(
+        "100 1 /usr/share/code/code --user-data-dir=/tmp/profile\n"
+        "1200 100 /usr/share/code/code --type=utility --utility-sub-type=node.mojom.NodeService --user-data-dir=/tmp/profile /extensions/ms-python/server.bundle.js\n"
+        "1201 100 /usr/share/code/code --type=utility --utility-sub-type=node.mojom.NodeService --user-data-dir=/tmp/profile /extensions/typescript/tsserver.js\n"
+    )
+
+    assert monitor._select_extension_host_pid(entries) is None
+
+
+def test_wait_for_extension_host_pid_retries_until_candidate_appears(
+    monkeypatch,
+) -> None:
+    seen = {"count": 0}
+
+    def fake_find_pid() -> int | None:
+        seen["count"] += 1
+        return 1184 if seen["count"] >= 3 else None
+
+    monkeypatch.setattr(monitor, "_find_extension_host_pid", fake_find_pid)
+    monkeypatch.setattr(monitor.time, "sleep", lambda _: None)
+
+    pid, diagnostics = monitor._wait_for_extension_host_pid(
+        timeout_s=1.0, poll_interval_s=0.01
+    )
+
+    assert pid == 1184
+    assert diagnostics["attempts"] == 3
+
+
+def test_attach_runtime_tracers_records_failure_without_crashing(monkeypatch) -> None:
+    class DummyPage:
+        pass
+
+    class FailingCapture:
+        def __init__(self, monitoring_start: float, on_event=None) -> None:
+            self.monitoring_start = monitoring_start
+            self.on_event = on_event
+            self.start_error = (
+                "Extension Host PID not found; file attribution unavailable."
+            )
+            self.attach_attempts = 4
+            self.diagnostics = {
+                "attempts": 4,
+                "selected_pid": None,
+                "status": "failed",
+            }
+            self.pid = None
+
+        def start(self) -> None:
+            return None
+
+    monkeypatch.setattr(monitor, "ExtensionHostFileCapture", FailingCapture)
+
+    mon = monitor.ExtensionMonitor(DummyPage(), target_extension_id="publisher.tool")
+    mon.report.monitoring_start = 0.0
+    mon.attach_runtime_tracers()
+
+    assert mon.report.file_capture_error
+    assert mon.report.file_capture_diagnostics["attempts"] == 4
+    assert any(
+        entry.kind == "runtime_tracer_attach" and entry.status == "failed"
+        for entry in mon.report.log_entries
+    )
 
 
 def test_check_extension_activated_uses_logs_then_ui(monkeypatch) -> None:

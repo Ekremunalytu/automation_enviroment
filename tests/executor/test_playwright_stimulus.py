@@ -1,0 +1,393 @@
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+from types import SimpleNamespace
+
+PLAYWRIGHT_DIR = (
+    Path(__file__).resolve().parents[2] / "executor" / "flows" / "playwright"
+)
+if str(PLAYWRIGHT_DIR) not in sys.path:
+    sys.path.insert(0, str(PLAYWRIGHT_DIR))
+
+import stimulus  # noqa: E402
+
+
+class _FakeMonitor:
+    def __init__(self) -> None:
+        self.results: list[dict[str, object]] = []
+        self.pass_events: list[dict[str, object]] = []
+        self.attempt_starts: list[dict[str, object]] = []
+        self.attempt_ends: list[dict[str, object]] = []
+
+    def record_prerequisite_result(
+        self,
+        prerequisite_id: str,
+        *,
+        status: str,
+        detail: str = "",
+        reason_code: str = "",
+        resolved_targets: dict[str, object] | None = None,
+    ) -> None:
+        self.results.append(
+            {
+                "prerequisite_id": prerequisite_id,
+                "status": status,
+                "detail": detail,
+                "reason_code": reason_code,
+                "resolved_targets": resolved_targets or {},
+            }
+        )
+
+    def record_stimulus_pass_event(
+        self,
+        action: str,
+        pass_id: str,
+        *,
+        label: str = "",
+        order: int = 0,
+        trigger_method: str = "",
+        status: str = "",
+    ) -> None:
+        self.pass_events.append(
+            {
+                "action": action,
+                "pass_id": pass_id,
+                "label": label,
+                "order": order,
+                "trigger_method": trigger_method,
+                "status": status,
+            }
+        )
+
+    def record_event_attempt_start(
+        self,
+        attempt_id: str,
+        *,
+        pass_name: str = "",
+    ) -> None:
+        self.attempt_starts.append(
+            {
+                "attempt_id": attempt_id,
+                "pass_name": pass_name,
+            }
+        )
+
+    def record_event_attempt_end(
+        self,
+        attempt_id: str,
+        *,
+        status: str,
+        pass_name: str = "",
+        trigger_method_used: str = "",
+        result_details: str = "",
+        blocked_reason_code: str = "",
+        failure_reason_code: str = "",
+    ) -> None:
+        self.attempt_ends.append(
+            {
+                "attempt_id": attempt_id,
+                "status": status,
+                "pass_name": pass_name,
+                "trigger_method_used": trigger_method_used,
+                "result_details": result_details,
+                "blocked_reason_code": blocked_reason_code,
+                "failure_reason_code": failure_reason_code,
+            }
+        )
+
+
+def _payload(**overrides: object) -> SimpleNamespace:
+    baseline = {
+        "command_targets": {},
+        "extra_commands": [],
+        "auth_provider_ids": [],
+        "webview_view_ids": [],
+        "view_targets": {},
+        "uri_trigger": None,
+        "run_walkthrough_trigger": False,
+        "extra_custom_editor_files": [],
+        "extra_notebook_files": [],
+        "event_attempts": [],
+        "stimulus_passes": [],
+        "prerequisite_results": [],
+    }
+    baseline.update(overrides)
+    return SimpleNamespace(**baseline)
+
+
+def test_workspace_contains_fixture_creates_requested_patterns(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setattr(stimulus.workspace, "WORKSPACE_DIR", tmp_path)
+    monitor = _FakeMonitor()
+    prerequisite = {
+        "prerequisite_id": "prep-workspace-contains",
+        "key": "workspace_contains_fixture",
+        "attempt_ids": ["a", "b"],
+    }
+    attempts_by_id = {
+        "a": {
+            "attempt_id": "a",
+            "event_value": "app.py",
+            "activation_event": "workspaceContains:app.py",
+        },
+        "b": {
+            "attempt_id": "b",
+            "event_value": "**/pylock.*.toml",
+            "activation_event": "workspaceContains:**/pylock.*.toml",
+        },
+    }
+
+    result = stimulus._materialize_prerequisite(
+        prerequisite,
+        payload=_payload(),
+        attempts_by_id=attempts_by_id,
+        monitor=monitor,
+    )
+
+    assert result.status == "completed"
+    assert (tmp_path / "app.py").exists()
+    assert (tmp_path / "nested" / "pylock.dev.toml").exists()
+    assert monitor.results[0]["status"] == "completed"
+
+
+def test_command_target_without_metadata_is_blocked() -> None:
+    monitor = _FakeMonitor()
+    prerequisite = {
+        "prerequisite_id": "prep-command",
+        "key": "command_target",
+        "attempt_ids": ["a"],
+    }
+    attempts_by_id = {
+        "a": {
+            "attempt_id": "a",
+            "event_family": "onCommand",
+            "activation_event": "onCommand",
+            "event_value": "",
+        }
+    }
+
+    result = stimulus._materialize_prerequisite(
+        prerequisite,
+        payload=_payload(),
+        attempts_by_id=attempts_by_id,
+        monitor=monitor,
+    )
+
+    assert result.status == "blocked"
+    assert result.reason_code == "missing_command_target"
+    assert monitor.results[0]["status"] == "blocked"
+
+
+def test_unknown_language_fixture_is_blocked() -> None:
+    result = stimulus._materialize_prerequisite(
+        {
+            "prerequisite_id": "prep-language",
+            "key": "language_fixture",
+            "attempt_ids": ["a"],
+        },
+        payload=_payload(),
+        attempts_by_id={
+            "a": {
+                "attempt_id": "a",
+                "event_family": "onLanguage",
+                "activation_event": "onLanguage:unknownlang",
+                "event_value": "unknownlang",
+            }
+        },
+        monitor=None,
+    )
+
+    assert result.status == "blocked"
+    assert result.reason_code == "unknown_language_fixture"
+
+
+def test_run_stimulus_plan_dedupes_repeat_scenarios_within_pass(
+    monkeypatch,
+) -> None:
+    executed: list[str] = []
+
+    def fake_run_scenario(_page, name: str) -> None:
+        executed.append(name)
+
+    monkeypatch.setattr(stimulus.automation, "run_scenario", fake_run_scenario)
+
+    payload = _payload(
+        event_attempts=[
+            {
+                "attempt_id": "a1",
+                "activation_event": "workspaceContains:app.py",
+                "event_value": "app.py",
+                "executor_action": "scenario:project_exploration",
+                "trigger_method": "ui_simulation",
+            },
+            {
+                "attempt_id": "a2",
+                "activation_event": "workspaceContains:requirements.txt",
+                "event_value": "requirements.txt",
+                "executor_action": "scenario:project_exploration",
+                "trigger_method": "ui_simulation",
+            },
+        ],
+        stimulus_passes=[
+            {
+                "pass_id": "workspace_bootstrap",
+                "label": "workspace/bootstrap pass",
+                "order": 1,
+                "attempt_ids": ["a1", "a2"],
+                "prerequisite_keys": [],
+            }
+        ],
+    )
+    monitor = _FakeMonitor()
+
+    result = stimulus.run_stimulus_plan(object(), payload, monitor=monitor)
+
+    assert executed == ["project_exploration"]
+    assert result.executed_scenarios == ["project_exploration"]
+    assert [item["status"] for item in monitor.attempt_ends] == [
+        "attempted_only",
+        "attempted_only",
+    ]
+    assert (
+        "Reused prior scenario:project_exploration result"
+        in monitor.attempt_ends[1]["result_details"]
+    )
+
+
+def test_run_stimulus_plan_keeps_distinct_language_coding_sessions(
+    monkeypatch,
+) -> None:
+    executed: list[str] = []
+
+    def fake_coding_session(_page, *, language: str) -> None:
+        executed.append(language)
+
+    monkeypatch.setattr(
+        stimulus.automation,
+        "scenario_coding_session",
+        fake_coding_session,
+    )
+
+    payload = _payload(
+        event_attempts=[
+            {
+                "attempt_id": "py",
+                "activation_event": "onLanguage:python",
+                "event_family": "onLanguage",
+                "event_value": "python",
+                "executor_action": "scenario:coding_session",
+                "trigger_method": "ui_simulation",
+            },
+            {
+                "attempt_id": "ts",
+                "activation_event": "onLanguage:typescript",
+                "event_family": "onLanguage",
+                "event_value": "typescript",
+                "executor_action": "scenario:coding_session",
+                "trigger_method": "ui_simulation",
+            },
+        ],
+        stimulus_passes=[
+            {
+                "pass_id": "ui_first_user_session",
+                "label": "UI-first user session pass",
+                "order": 2,
+                "attempt_ids": ["py", "ts"],
+                "prerequisite_keys": [],
+            }
+        ],
+    )
+
+    result = stimulus.run_stimulus_plan(object(), payload, monitor=None)
+
+    assert executed == ["python", "typescript"]
+    assert result.executed_scenarios == ["coding_session", "coding_session"]
+
+
+def test_run_stimulus_plan_uses_lightweight_debug_action(
+    monkeypatch,
+) -> None:
+    debug_events: list[str] = []
+    command_calls: list[str] = []
+
+    monkeypatch.setattr(
+        stimulus.editor,
+        "open_file_by_name",
+        lambda _page, filename: debug_events.append(f"open:{filename}"),
+    )
+    monkeypatch.setattr(
+        stimulus.editor,
+        "_dismiss_notification",
+        lambda _page: debug_events.append("dismiss"),
+    )
+    monkeypatch.setattr(
+        stimulus.debug,
+        "start_debug",
+        lambda _page: debug_events.append("start"),
+    )
+    monkeypatch.setattr(
+        stimulus.debug,
+        "stop_debug",
+        lambda _page: debug_events.append("stop"),
+    )
+    monkeypatch.setattr(
+        stimulus.commands,
+        "run_command",
+        lambda _page, *_args, **_kwargs: command_calls.append("run_command"),
+    )
+
+    class _Page:
+        def __init__(self) -> None:
+            self.keyboard = SimpleNamespace(
+                press=lambda key: debug_events.append(f"press:{key}")
+            )
+
+        def wait_for_timeout(self, ms: int) -> None:
+            debug_events.append(f"wait:{ms}")
+
+    payload = _payload(
+        event_attempts=[
+            {
+                "attempt_id": "d1",
+                "activation_event": "onDebugInitialConfigurations",
+                "event_family": "onDebugInitialConfigurations",
+                "executor_action": "extra:debug_lifecycle",
+                "trigger_method": "mixed",
+            },
+            {
+                "attempt_id": "d2",
+                "activation_event": "onDebugResolve:python",
+                "event_family": "onDebugResolve",
+                "executor_action": "extra:debug_lifecycle",
+                "trigger_method": "mixed",
+            },
+        ],
+        stimulus_passes=[
+            {
+                "pass_id": "target_specific_activation",
+                "label": "target-specific activation pass",
+                "order": 3,
+                "attempt_ids": ["d1", "d2"],
+                "prerequisite_keys": [],
+            }
+        ],
+    )
+    monitor = _FakeMonitor()
+
+    result = stimulus.run_stimulus_plan(_Page(), payload, monitor=monitor)
+
+    assert command_calls == []
+    assert result.executed_scenarios == []
+    assert debug_events.count("start") == 1
+    assert debug_events.count("stop") == 1
+    assert [item["status"] for item in monitor.attempt_ends] == [
+        "attempted_only",
+        "attempted_only",
+    ]
+    assert (
+        "Reused prior extra:debug_lifecycle result"
+        in monitor.attempt_ends[1]["result_details"]
+    )

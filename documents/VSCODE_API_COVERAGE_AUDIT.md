@@ -1,15 +1,25 @@
 # VS Code API Coverage Audit
 
-`Last Updated: 2026-04-13`
+`Last Updated: 2026-04-14`
 
-This document summarizes how ExTrace automation currently maps to the VS Code
-extension surface. The executor still selects scenarios from activation events
-and `contributes` metadata, but the coverage view below translates that
-behavior into a stable capability matrix.
+This document summarizes how ExTrace currently maps VS Code extension behavior
+into trigger planning and verification.
+
+The important distinction in the current implementation is:
+
+- global/scenario support
+  - what the trigger system knows how to stimulate at all
+- official activation-track verification
+  - what the coverage matrix can verify directly from declared activation
+    metadata
+
+These are not the same thing.
 
 ## Capability Status
 
-### Covered
+### Covered End-to-End
+
+The trigger system and coverage model both treat these capabilities as covered:
 
 - `commands`
 - `window_ui`
@@ -17,27 +27,32 @@ behavior into a stable capability matrix.
 - `languages_editor`
 - `debug`
 - `terminal_tasks`
-- `scm`
 - `search_views`
-- `settings`
 - `notebooks`
-
-### Partial
-
 - `custom_editors`
-  - Covered through bait-file opening only.
-  - Does not validate target-specific editor semantics deeply.
 - `uri_walkthrough`
-  - Covered through generic URI and walkthrough launch flows.
-  - Does not validate follow-up UI state beyond launch success.
+- `authentication`
+- `webview`
+
+### Supported, But With Verification Gaps
+
+These capabilities have scenario-level or heuristic support, but the official
+coverage track still marks them incomplete:
+
+- `scm`
+  - `git_workflow` exists, but official capability support is still marked
+    missing in `workflows/marketplace/triggers.py`.
+- `settings`
+  - `settings_modification` exists, but the official track still treats this as
+    missing for coverage accounting.
 
 ### Missing
 
-- `authentication`
+These remain explicitly missing in the current support matrix:
+
 - `chat`
 - `comments`
 - `testing`
-- `webview`
 - `workspace_trust`
 
 ## Scenario Registry
@@ -46,49 +61,15 @@ behavior into a stable capability matrix.
 
 - Intent: exercise editor commands, formatting, suggest, definition, and save.
 - Activation focus: `onLanguage`, `onCommand`
-- Capability coverage: `commands`, `window_ui`, `workspace_fs`, `languages_editor`
-
-### `debug_session`
-
-- Intent: drive debug sidebar, breakpoints, debug console, and stop/start flow.
-- Activation focus: `onDebug`, `onDebugResolve`, `onDebugAdapterProtocolTracker`
-- Capability coverage: `commands`, `window_ui`, `debug`, `workspace_fs`
-
-### `terminal_usage`
-
-- Intent: open integrated terminals and run task-adjacent shell commands.
-- Activation focus: `onTaskType`, `onTerminalProfile`
-- Capability coverage: `commands`, `terminal_tasks`, `workspace_fs`
-
-### `git_workflow`
-
-- Intent: drive Source Control view and git-oriented workspace activity.
-- Activation focus: `onView:scm`
-- Capability coverage: `commands`, `window_ui`, `scm`, `workspace_fs`
-
-### `extension_browsing`
-
-- Intent: browse the Extensions view and marketplace search.
-- Activation focus: `onView:extensions`
-- Capability coverage: `window_ui`
-
-### `settings_modification`
-
-- Intent: modify settings and browse configuration UI.
-- Activation focus: `onConfiguration`
-- Capability coverage: `commands`, `window_ui`, `settings`, `workspace_fs`
+- Capability coverage: `commands`, `window_ui`, `workspace_fs`,
+  `languages_editor`
 
 ### `project_exploration`
 
-- Intent: open multiple file types and explorer surfaces.
+- Intent: open multiple files and explorer surfaces to trigger broad language
+  activation.
 - Activation focus: `workspaceContains`, `onView:explorer`, `onLanguage`
 - Capability coverage: `window_ui`, `workspace_fs`, `languages_editor`
-
-### `search_workflow`
-
-- Intent: drive the search sidebar with workspace queries.
-- Activation focus: `onView:search`
-- Capability coverage: `window_ui`, `search_views`
 
 ### `diagnostics_check`
 
@@ -96,31 +77,91 @@ behavior into a stable capability matrix.
 - Activation focus: `onView:output`
 - Capability coverage: `window_ui`, `workspace_fs`
 
+### `search_workflow`
+
+- Intent: drive the search sidebar with workspace queries.
+- Activation focus: `onView:search`, `onSearch`
+- Capability coverage: `window_ui`, `search_views`
+
+### `settings_modification`
+
+- Intent: modify settings and browse configuration UI.
+- Activation focus: `onConfiguration`
+- Capability coverage: `commands`, `window_ui`, `settings`, `workspace_fs`
+- Current note: scenario exists, but official-track verification is still
+  incomplete
+
+### `debug_session`
+
+- Intent: drive debug tooling, breakpoints, and start/stop flows.
+- Activation focus: `onDebug`, `onDebugResolve`,
+  `onDebugAdapterProtocolTracker`, `onDebugDynamicConfigurations`,
+  `onDebugInitialConfigurations`
+- Capability coverage: `commands`, `window_ui`, `debug`, `workspace_fs`
+
+### `terminal_usage`
+
+- Intent: open terminals and task-adjacent shell commands.
+- Activation focus: `onTaskType`, `onTerminal`, `onTerminalProfile`,
+  `onTerminalShellIntegration`
+- Capability coverage: `commands`, `terminal_tasks`, `workspace_fs`
+
+### `git_workflow`
+
+- Intent: drive Source Control view and git-oriented workspace activity.
+- Activation focus: `onView:scm`
+- Capability coverage: `commands`, `window_ui`, `scm`, `workspace_fs`
+- Current note: scenario exists, but official-track verification is still
+  incomplete
+
+### `extension_browsing`
+
+- Intent: browse the Extensions view and marketplace search.
+- Activation focus: `onView:extensions`
+- Capability coverage: `window_ui`
+
 ### `refactor_workflow`
 
-- Intent: trigger rename/refactor actions in the editor.
+- Intent: trigger rename and refactor actions in the editor.
 - Activation focus: `onCommand`, `onLanguage`
 - Capability coverage: `commands`, `languages_editor`, `workspace_fs`
 
 ### `notebook_session`
 
 - Intent: open notebook content and interact with notebook UI.
-- Activation focus: `onNotebook`
+- Activation focus: `onNotebook`, `onRenderer`
 - Capability coverage: `window_ui`, `notebooks`, `workspace_fs`
+
+### `authentication_probe`
+
+- Intent: open account and sign-in surfaces to trigger authentication flows.
+- Activation focus: `onAuthenticationRequest`
+- Capability coverage: `commands`, `window_ui`, `authentication`
+
+### `webview_probe`
+
+- Intent: open preview and panel flows backed by a VS Code webview.
+- Activation focus: `onWebviewPanel`, `onView`
+- Capability coverage: `commands`, `window_ui`, `webview`
 
 ## Current Gaps
 
-- Extension-host logs previously mixed target extension activations with
-  automation noise; this now has a split-stream model in report payloads and UI.
-- Coverage is still activation-event driven; unsupported capabilities remain
-  explicitly marked missing instead of being inferred.
-- `contributes.commands` and extra triggers are now logged structurally, but
-  command result validation is still shallow and best-effort.
+- Official activation coverage and heuristic workflow coverage are both present,
+  but they can still drift if they are summarized as one flat capability list.
+- `chat`, `comments`, `testing`, and `workspace_trust` remain missing in the
+  support matrix even though the trigger taxonomy already names them.
+- Command and UI launch coverage is stronger than result verification; some
+  flows still prove stimulation better than they prove extension-specific
+  follow-through.
 
 ## Next Candidate Expansions
 
-- `webview`: target-specific webview open/load/assertion flows
-- `testing`: test explorer and run/debug test commands
-- `comments`: comment controller and thread interactions
-- `authentication`: provider session prompts and consent flows
-- `workspace_trust`: trust prompt detection and trust-state transition handling
+- `chat`
+  - local-only participant and language-model tool stimulation
+- `comments`
+  - comment controller/thread surfaces inside the sandbox
+- `testing`
+  - test explorer plus run/debug test flows
+- `workspace_trust`
+  - trust prompt detection and trust-state transitions
+- official-track closure for `scm` and `settings`

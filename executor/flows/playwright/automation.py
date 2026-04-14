@@ -557,7 +557,11 @@ def scenario_authentication_probe(page: Page) -> None:
     """Exercise VS Code account and sign-in flows."""
     _log("Authentication probe")
 
-    commands.run_command(page, "Accounts: Sign In")
+    commands.run_command(
+        page,
+        "Accounts: Sign In",
+        expect_followup_quick_input=True,
+    )
     page.wait_for_timeout(1500)
 
     # Sign-in surfaces vary between VS Code builds. Dismiss whatever opened.

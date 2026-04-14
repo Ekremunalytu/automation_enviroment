@@ -1,67 +1,76 @@
 # Development Priorities
 
-`Last Updated: 2026-04-13`
+`Last Updated: 2026-04-14`
 
-The architecture refactor is in place. Current priorities should now focus on making the new workflow layout operationally complete.
+The refactor and first-pass detection/reporting work are in place. Current
+priorities should focus on operational reliability, coverage fidelity, and
+keeping the analyst-facing contract honest.
 
-These priorities assume ExTrace remains a single-user sandbox product running on one machine or one Docker host.
+These priorities still assume ExTrace remains a single-user sandbox product on
+one machine or one Docker host.
 
-## Priority 1: Dynamic Analysis Robustness
+## Priority 1: Executor Reliability and Failure Honesty
 
-The marketplace workflow now exposes sandbox execution directly. That makes reliability issues higher priority than additional feature breadth.
+The most important work is still making sandbox outcomes truthful.
 
 Focus areas:
 
-- executor reload correctness after extension install
-- trigger generation error visibility
-- deterministic workspace setup for trigger files
-- better failure reporting from async analysis jobs
+- reset/install/reload failures must surface clearly in jobs and reports
+- trigger payload load/apply failures must not look like clean runs
+- interrupted async jobs must remain obvious after API restarts
+- executor timing brittleness should fail closed, not blur into success
 
-## Priority 2: Report Quality and Triage Signal Quality
+## Priority 2: Trigger Coverage Fidelity
 
-The next value is better sandbox output, not larger infrastructure.
+The layered trigger system is now richer than the old scenario-only model. The
+next priority is making its coverage claims precise.
 
-Required next step:
+Focus areas:
 
-- improve report health explanations
-- keep target-observed vs correlated-only semantics sharp
-- improve rule draft quality and evidence attribution views
+- keep official activation coverage separate from heuristic workflow coverage
+- close remaining support gaps for `chat`, `comments`, `testing`, and
+  `workspace_trust`
+- tighten `scm` and `settings` verification on the official track
+- keep per-event attempt ledgers readable for analysts and maintainers
 
-## Priority 3: Workflow Test Depth
+## Priority 3: Report Contract Stability and Signal Calibration
 
-The test layout is better, but the most valuable additions now are integration-style tests around:
+Risk signals and verdicts now exist; the next work is calibration, not merely
+adding more labels.
 
-- `POST /api/marketplace/download`
-- `POST /api/marketplace/analyze`
-- `POST /api/marketplace/analyze/start`
-- `GET /api/marketplace/analyze/{job_id}`
+Focus areas:
 
-## Priority 4: UI Clarity for the Analyst Loop
+- preserve sharp semantics for `degraded` vs `inconclusive`
+- keep attribution summary, risk signals, and verdict reasons aligned
+- avoid letting correlative activity overstate confidence
+- keep the JSON report contract stable enough for the UI to evolve safely
 
-The React SPA already covers the main analyst loop. The next goal is to keep that loop clear and predictable:
+## Priority 4: Test Depth Around the Real Risk Path
 
-- marketplace search -> download -> analyze
-- live simulation status and evidence
-- final report inspection and rule drafting
+The highest-value tests are still the ones that defend the marketplace to
+executor to report path.
 
-## Priority 5: Wrapper Retirement Plan
+Focus areas:
 
-Compatibility wrappers are useful, but they should be considered transitional.
+- background job lifecycle coverage
+- restart interruption coverage
+- smoke validation against pinned real fixtures
+- UI adapter coverage for live report and job payload changes
 
-Short-term:
+## Priority 5: Controlled Persistence and Retention
 
-- keep them thin
-- keep them tested
+Dynamic-analysis data is intentionally file-backed today. That is acceptable,
+but it needs operational discipline.
 
-Long-term:
+Focus areas:
 
-- migrate callers to canonical imports
-- eventually remove legacy surfaces
+- define retention expectations for reports and job snapshots
+- keep persistence lightweight unless cross-run queries become a real need
+- avoid speculative schema work for analysis history
 
 ## Explicit Non-Priorities
 
-- broad cross-layer rewrites
-- new dependencies without a strong need
 - queue-backed distributed workers
-- multi-tenant account/session features
-- speculative DB schemas for analysis history before the product actually needs them
+- multi-tenant accounts or session management
+- broad architectural rewrites without a concrete product problem
+- new dependencies without a strong and explicit need

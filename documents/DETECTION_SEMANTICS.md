@@ -1,136 +1,295 @@
 # Detection Semantics
 
-`Last Updated: 2026-04-13`
+`Last Updated: 2026-04-14`
 
-This document defines the meaning of the Detection MVP report fields. The goal
-is to keep report generation, UI rendering, and analyst interpretation aligned.
-Every field below answers four questions:
-
-- What does this field mean?
-- Which raw telemetry feeds it?
-- How is it calculated?
-- How should an analyst interpret it?
+This document defines the meaning of the current exported report contract.
+Its purpose is to keep report generation, API responses, UI adapters, and
+analyst interpretation aligned.
 
 ## Raw Evidence Sources
 
-The Detection MVP uses three primary telemetry sources plus one runtime-quality
-source:
+The current report is built from five evidence layers:
 
-- Activation events
-  - Parsed from Extension Host logs and Running Extensions UI snapshots.
-- File events
-  - Captured from `strace` and `inotify`, then attributed against activation
-    windows.
-- Network events
-  - Captured from `tshark`, then attributed against activation windows.
-- Automation quality signals
-  - Trigger payload application, scenario lifecycle, UI blockers, and capability
-    verification outcomes.
+- activation evidence
+  - parsed from Extension Host logs, output-channel text, and running-extension
+    snapshots
+- file evidence
+  - captured from filesystem monitors and annotated against activation windows
+- network evidence
+  - captured from network monitors and annotated against activation windows
+- trigger and execution ledger data
+  - selected scenarios, stimulus passes, event attempts, prerequisites, and
+    extra-trigger outcomes
+- runtime quality signals
+  - trigger-plan load/apply state, log presence, UI blockers, scenario failures,
+    and verification gaps
 
-These sources are normalized in
-`executor/flows/playwright/monitor.py`.
+These layers are assembled primarily in:
 
-## Core Run Fields
+- `executor/flows/playwright/monitor.py`
+- `executor/flows/playwright/health.py`
+- `executor/flows/playwright/signals.py`
+- `executor/flows/playwright/report_builder.py`
+
+## Core Contract Fields
+
+### `report_version`
+
+- Meaning:
+  - Contract version for the exported JSON report.
+- Current behavior:
+  - defaults to `2` in `report_builder.py`.
+- Analyst interpretation:
+  - Treat contract changes as additive unless explicitly documented otherwise.
 
 ### `target_extension_expected`
 
 - Meaning:
   - The `publisher.name` identifier of the extension under analysis.
 - Raw source:
-  - Marketplace analysis request and trigger payload target metadata.
+  - analysis request and trigger payload target metadata.
 - Calculation:
-  - Copy the explicit target ID passed into the executor.
+  - copied from the target identifier passed into the executor.
 - Analyst interpretation:
-  - Use this as the ownership anchor. If this is empty, attribution cannot be
-    trusted.
+  - This is the ownership anchor. If it is empty, attribution confidence is
+    fundamentally reduced.
 
 ### `target_extension_observed`
 
 - Meaning:
   - Whether the target extension was actually seen during the run.
 - Raw source:
-  - Activation events, running-extensions snapshot, strongly attributed file
-    events, strongly attributed network events.
+  - activation entries, running-extension snapshots, and strongly attributed
+    file/network events.
 - Calculation:
-  - `true` if any of the following are true:
-    - an activation event exists for `target_extension_expected`
-    - the extension appears in the running-extensions snapshot
-    - a file event has `is_target_extension_event=true`
-    - a network event has `is_target_extension_event=true`
-  - Otherwise `false`.
+  - `true` when the target appears in any of those sources.
 - Analyst interpretation:
-  - If this is `false`, the run is not conclusive enough to clear the extension
-    as benign.
+  - `false` means the run must not be treated as a clean clearance.
+
+### `trigger_plan_requested`
+
+- Meaning:
+  - Whether the analysis run expected a trigger payload.
+- Raw source:
+  - marketplace trigger planning.
+- Analyst interpretation:
+  - This distinguishes "no trigger plan was needed" from "a trigger plan was
+    requested but failed."
+
+### `trigger_plan_loaded`
+
+- Meaning:
+  - Whether the executor successfully loaded the trigger payload file.
+- Raw source:
+  - container-side trigger loader.
+- Analyst interpretation:
+  - `false` on a requested trigger plan is a hard reliability degradation.
 
 ### `trigger_plan_applied`
 
 - Meaning:
-  - Whether the executor successfully loaded and applied the smart trigger
-    payload.
+  - Whether the run successfully applied the trigger plan.
 - Raw source:
-  - Trigger payload load result inside the executor.
+  - executor runtime and report assembly.
 - Calculation:
-  - `true` when a requested trigger payload is loaded and attached to the live
-    report.
-  - Also treated as effectively `true` when no trigger payload was requested.
-  - `false` only when a trigger plan was expected but could not be applied.
+  - `true` when the requested plan was applied.
+  - also treated as effectively `true` when no trigger payload was requested.
 - Analyst interpretation:
-  - `false` means the run is degraded. Capability coverage and verdict confidence
-    should be read conservatively.
+  - `false` means the planned activation surface was not exercised as intended.
+
+### `automation_health`
+
+- Meaning:
+  - High-level operational truthfulness summary for the run.
+- Important fields:
+  - `status`
+  - `reasons`
+  - `trigger_requested`
+  - `trigger_loaded`
+  - `trigger_applied`
+  - `extension_host_log_present`
+  - `extension_host_output_present`
+  - `target_stream_present`
+  - `target_activation_count`
+  - `failed_scenarios`
+- Status meanings:
+  - `healthy`
+    - target was observed, trigger plan is complete when requested, logs are
+      present, and no major degraders remain
+  - `degraded`
+    - the run completed, but logs, UI flow, or verification quality are partial
+  - `inconclusive`
+    - target context or target observation is missing, or the trigger plan was
+      incomplete when required
+- Analyst interpretation:
+  - Read this before reading the verdict.
+
+### `log_health`
+
+- Meaning:
+  - Narrow summary of log presence and target log visibility.
+- Important fields:
+  - `extension_host_log_found`
+  - `extension_host_log_present`
+  - `extension_host_output_present`
+  - `target_extension_log_entries`
+  - `total_activation_entries`
+- Analyst interpretation:
+  - Use this to distinguish "the run was quiet" from "the logging surface
+    itself was weak."
+
+### `attempted_capabilities` and `verified_capabilities`
+
+- Meaning:
+  - Runtime capability truth derived from executed event attempts.
+- Raw source:
+  - `event_attempts` with populated `attempted_passes`, supported
+    `capability_tags`, and final statuses.
+- Calculation:
+  - `attempted_capabilities`
+    - includes supported capabilities from official event attempts whose status
+      is `verified`, `attempted_only`, or `failed`
+  - `verified_capabilities`
+    - includes supported capabilities from official event attempts whose status
+      is `verified`
+- Analyst interpretation:
+  - These fields answer "what did the executor actually try and verify during
+    this run?"
+  - They no longer mirror the full static trigger payload. For planned breadth,
+    read `coverage_tracks`, `coverage_matrix`, and `coverage_summary`.
 
 ### `verification_gap`
 
 - Meaning:
-  - The gap between attempted capability coverage and verified capability
-    coverage.
+  - Gap between officially attempted capabilities and officially verified
+    capabilities.
 - Raw source:
-  - Trigger payload coverage matrix
-  - Runtime target verification events
-  - Derived capability verification from observed target behavior
+  - runtime event-attempt reconciliation in `monitor.py` and health grading in
+    `health.py`.
 - Calculation:
-  - `max(len(attempted_capabilities) - len(verified_capabilities), 0)`
+  - `max(len(official_attempted_capabilities) - len(official_verified_capabilities), 0)`
 - Analyst interpretation:
-  - Higher values mean more of the intended test surface failed to produce a
-    confirmed target reaction.
+  - Higher values mean more of the runtime-attempted activation surface failed
+    to produce a verified target reaction.
+
+### `heuristic_verification_gap`
+
+- Meaning:
+  - Gap between heuristically attempted and heuristically verified capabilities.
+- Analyst interpretation:
+  - This is useful context, but the official gap carries more weight when
+    judging runtime coverage of declared activation events.
 
 ### `run_quality`
 
 - Meaning:
-  - The overall reliability of the run as evidence for this target extension.
-- Raw source:
-  - Target observation state
-  - Trigger plan application
-  - UI blocker presence
-  - Verification gap
-- Calculation:
-  - `inconclusive`
-    - target extension context is missing, or
-    - target extension was not observed
-  - `low`
-    - trigger plan was requested but not applied, or
-    - verification gap is high
-  - `medium`
-    - target observed, but UI blockers or partial verification remain
+  - Overall reliability grade used for analyst interpretation.
+- Allowed values:
   - `high`
-    - target observed, no major quality degraders, low verification gap
+  - `medium`
+  - `low`
+  - `inconclusive`
+- Calculation:
+  - derived from `automation_health.status`, trigger-plan completeness,
+    scenario/log degraders, and unresolved official coverage
 - Analyst interpretation:
-  - `high`: report can support a stronger decision
-  - `medium`: usable, but read risk signals with some caution
-  - `low`: suspicious behavior can still matter, but confidence is reduced
-  - `inconclusive`: do not treat a clean-looking run as proof of safety
+  - `high`: report can support stronger conclusions
+  - `medium`: usable, but read with caution
+  - `low`: suspicious output may matter, but verification strength is limited
+  - `inconclusive`: do not treat a quiet run as proof of safety
+
+## Coverage and Execution Ledger Fields
+
+### `official_event_coverage`
+
+- Meaning:
+  - Summary of coverage driven by declared activation events.
+- Important fields:
+  - `declared`
+  - `verified`
+  - `attempted_only`
+  - `failed`
+  - `blocked`
+  - `unresolved`
+  - `declared_events`
+- Analyst interpretation:
+  - This is the best summary of how well the declared activation contract was
+    exercised.
+
+### `heuristic_workflow_coverage`
+
+- Meaning:
+  - Summary of workflow coverage inferred from contributes metadata and broader
+    scenario planning.
+- Analyst interpretation:
+  - Useful for breadth, but weaker than the official activation track for
+    hard verification claims.
+
+### `coverage_tracks`
+
+- Meaning:
+  - Full per-track structure for `official` and `heuristic` coverage.
+- Track fields:
+  - `source`
+  - `selected_scenarios`
+  - `summary`
+  - `matrix`
+- Analyst interpretation:
+  - Use this when you need to explain why one capability is marked attempted,
+    verified, or unresolved in the plan, even if the runtime top-level
+    capability fields are narrower.
+
+### `event_attempts`
+
+- Meaning:
+  - Per-event execution ledger for target activation attempts.
+- Important fields:
+  - `activation_event`
+  - `track`
+  - `selected_by`
+  - `capability_tags`
+  - `status`
+  - `verification_status`
+  - `trigger_method_used`
+  - `failure_reason_code`
+  - `blocked_reason_code`
+  - `result_details`
+- Analyst interpretation:
+  - This is the lowest-friction explanation for "what did the executor actually
+    try for this declared event?"
+
+### `stimulus_passes`
+
+- Meaning:
+  - Timing and status for each layered execution pass.
+- Current pass family:
+  - workspace/bootstrap
+  - UI-first user session
+  - target-specific activation
+  - unresolved-event backfill
+  - post-run verification
+- Analyst interpretation:
+  - Use this to understand where the run spent time and where a failure
+    happened.
+
+### `prerequisite_results`
+
+- Meaning:
+  - Materialization state for prerequisites such as task configs, debug launch
+    configs, bait files, and harness context.
+- Analyst interpretation:
+  - Helpful when a scenario failed because the workspace could not be prepared
+    correctly.
 
 ## Attribution Fields
 
 ### Per-event attribution fields
 
-These fields already exist on file and network events and remain the basis for
-all higher-level detection output.
+These fields remain the basis for ownership and downstream risk scoring.
 
 #### `attribution_status`
 
-- Meaning:
-  - The ownership category assigned to the event.
-- Current categories:
+- Allowed values:
   - `target_attributed`
   - `near_target_activation`
   - `competing_candidate`
@@ -138,50 +297,38 @@ all higher-level detection output.
   - `automation_noise`
   - `corroboration`
 - Analyst interpretation:
-  - Only `target_attributed` should be treated as strong ownership.
+  - Only `target_attributed` is strong ownership.
   - `near_target_activation` is correlative, not definitive.
 
 #### `attribution_basis`
 
 - Meaning:
-  - The human-readable explanation for the attribution result.
-- Raw source:
-  - Attribution rule that matched during event annotation.
+  - Human-readable explanation for why the event received that attribution.
 - Analyst interpretation:
-  - This is the first field to inspect when an event looks suspicious but
-    ownership is unclear.
+  - Inspect this first when an event looks suspicious but ownership is unclear.
 
 #### `attribution_confidence`
 
 - Meaning:
-  - Confidence score for the event-level attribution, normalized to `0.0-1.0`.
-- Raw source:
-  - Temporal distance from target activation
-  - Presence of competing activation
-  - Observer type such as `strace` vs `network`
+  - Normalized confidence score from `0.0` to `1.0`.
 - Interpretation bands:
   - `>= 0.80`: strong attribution
   - `0.50 - 0.79`: moderate attribution
-  - `< 0.50`: correlative or weak attribution
+  - `< 0.50`: weak or correlative attribution
 
 #### `is_target_extension_event`
 
 - Meaning:
-  - Convenience boolean indicating whether the event is considered owned by the
-    target extension.
-- Calculation:
-  - `true` only for strong target attribution.
+  - Convenience boolean for strong target attribution.
 - Analyst interpretation:
-  - Treat this as a fast ownership filter, not as a replacement for reading the
-    basis/confidence fields.
+  - Fast filter only; do not use it as a substitute for reading the basis and
+    confidence fields.
 
 ### `attribution_summary`
 
 - Meaning:
-  - Aggregate ownership quality for the whole run.
-- Raw source:
-  - Annotated activation, file, and network events.
-- Fields:
+  - Aggregate ownership summary for the run.
+- Important fields:
   - `target_activation_count`
   - `strong_target_file_event_count`
   - `strong_target_network_event_count`
@@ -189,41 +336,16 @@ all higher-level detection output.
   - `background_activation_count`
   - `competing_candidate_count`
   - `ui_blocker_count`
-- Calculation rules:
-  - `target_activation_count`
-    - count of activation entries whose `extension_id` equals
-      `target_extension_expected`
-  - `strong_target_file_event_count`
-    - count of file events with `attribution_status=target_attributed`
-  - `strong_target_network_event_count`
-    - count of network events with `attribution_status=target_attributed`
-  - `correlated_only_event_count`
-    - count of file and network events with
-      `attribution_status in {near_target_activation, competing_candidate}`
-  - `background_activation_count`
-    - count of target activation events on startup/background paths such as
-      `*`, `onStartupFinished`, `workspaceContains`, `onView:*` explorer/search/output,
-      and `onLanguage*`
-  - `competing_candidate_count`
-    - count of file and network events explicitly marked as
-      `competing_candidate`
 - Analyst interpretation:
-  - This summary tells you whether the report is built on strong target
-    ownership or mostly on temporal correlation.
+  - This tells you whether the report rests on strong target ownership or
+    mostly on timing correlation.
 
 ## Risk Output
 
 ### `risk_signals[]`
 
 - Meaning:
-  - Explicit, evidence-linked suspicious behaviors derived from normalized
-    telemetry.
-- Raw source:
-  - Background activations
-  - Sensitive file events
-  - Strongly attributed network events
-  - Correlative suspicious events
-  - UI blocker events
+  - Explicit suspicious-behavior findings linked to evidence ids.
 - Required fields:
   - `signal_id`
   - `category`
@@ -232,44 +354,29 @@ all higher-level detection output.
   - `evidence_event_ids`
   - `summary`
 
-#### Current v1 categories
+#### Current categories
 
 - `background_sensitive_file_access`
-  - Target extension touched sensitive files after startup/background activation.
 - `background_outbound_network`
-  - Strong target network activity followed startup/background activation.
 - `credential_or_secret_access`
-  - Strongly attributed access to `.env`, credential, or secret-bearing paths.
 - `multiple_sensitive_artifacts`
-  - More than one distinct sensitive artifact was touched with strong
-    attribution.
 - `sensitive_file_and_network_combo`
-  - Sensitive file access and outbound network both strongly belong to the
-    target extension.
 - `correlative_suspicious_activity`
-  - Suspicious behavior exists, but only correlative attribution is available.
 - `ui_blocker_verification_gap`
-  - UI blockers reduced verification certainty during the run.
 
-#### Signal confidence guidance
+#### Confidence guidance
 
-- High confidence:
-  - Strong target attribution plus matching behavior pattern
-- Medium confidence:
-  - Strong suspicious pattern but partial runtime quality degradation
-- Low confidence:
-  - Correlative or weakly owned behavior
-
-- Analyst interpretation:
-  - `risk_signals` should answer “why is this run suspicious?” without requiring
-    the analyst to scan the full raw timeline first.
+- high confidence
+  - strong target attribution plus matching behavior pattern
+- medium confidence
+  - strong suspicious pattern with degraded verification quality
+- low confidence
+  - correlative or weak ownership
 
 ### `risk_summary`
 
 - Meaning:
-  - Small aggregate view of the `risk_signals` collection.
-- Raw source:
-  - Derived directly from `risk_signals[]`.
+  - Aggregate counts derived from `risk_signals[]`.
 - Fields:
   - `total_signals`
   - `critical`
@@ -277,10 +384,8 @@ all higher-level detection output.
   - `medium`
   - `low`
   - `categories`
-- Calculation:
-  - Count signals by severity and collect their categories.
 - Analyst interpretation:
-  - This is a triage shortcut, not the final decision.
+  - Triage shortcut only; not the final decision.
 
 ## Verdict Semantics
 
@@ -291,40 +396,30 @@ all higher-level detection output.
   - `needs_review`
   - `suspicious`
   - `likely_malicious`
-- Rules:
-  - `benign` is not allowed when:
-    - `target_extension_observed=false`, or
-    - `run_quality=inconclusive`
-  - `likely_malicious` requires strong attribution.
-  - Correlative-only suspicious activity may elevate to `needs_review` or
-    `suspicious`, but not `likely_malicious`.
-- Analyst interpretation:
-  - `benign` means “no strongly attributed high-risk behavior was observed in a
-    sufficiently reliable run,” not “this extension is proven safe.”
+- Current guardrails:
+  - `benign` is not appropriate when the target was not observed
+  - `benign` is not appropriate when the run is inconclusive
+  - `likely_malicious` requires strong attribution
+  - correlative suspicious activity can elevate to `needs_review` or
+    `suspicious`, but not `likely_malicious`
 
 ### `verdict.score`
 
 - Meaning:
-  - Heuristic risk score in the `8-96` range.
-- Raw source:
-  - Sensitive file access
-  - Strong target network activity
-  - Background activation context
-  - Multi-artifact access
-  - Combined file+network pattern
-  - UI blocker and quality degradation
-- Analyst interpretation:
-  - Compare this score only with the verdict reasons and risk signals. It should
-    not be used alone.
+  - Heuristic score currently normalized into the `8-96` range.
+- Main inputs:
+  - background activation context
+  - sensitive target file access
+  - strong target network activity
+  - combined file and network behavior
+  - degraded verification quality
 
 ### `verdict.reasons`
 
 - Meaning:
-  - Short, analyst-facing explanations for why the score and level were chosen.
-- Raw source:
-  - Matching verdict rules.
+  - Short analyst-facing explanations for the score and label.
 - Analyst interpretation:
-  - This is the summary bridge between raw evidence and the final label.
+  - This is the bridge between raw evidence and the top-level decision.
 
 ## Analyst Reading Order
 
@@ -332,13 +427,16 @@ When reviewing a report, use this order:
 
 1. `target_extension_expected`
 2. `target_extension_observed`
-3. `run_quality`
-4. `attribution_summary`
-5. `risk_signals`
-6. `verdict`
-7. raw evidence timeline and links
+3. `automation_health`
+4. `run_quality`
+5. `official_event_coverage`
+6. `heuristic_workflow_coverage`
+7. `attribution_summary`
+8. `risk_signals`
+9. `verdict`
+10. raw evidence, logs, and attempt ledgers
 
-This order prevents two common mistakes:
+This order prevents two recurring mistakes:
 
-- treating a clean-looking but inconclusive run as benign
-- over-trusting correlative suspicious telemetry as strong ownership
+- treating a quiet but inconclusive run as benign
+- over-trusting heuristic or correlative coverage as hard target verification

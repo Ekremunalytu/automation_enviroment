@@ -1,212 +1,235 @@
 # ExTrace Architecture
 
-`Last Updated: 2026-04-13`
+`Last Updated: 2026-04-14`
 
-This document describes the post-refactor architecture. The canonical code paths are `appcore/`, `workflows/`, `executor/`, and `ui/`.
+This document reflects the current codebase shape in `main.py`, `appcore/`,
+`workflows/`, `executor/`, and `ui/`.
 
 ## Product Assumptions
 
-ExTrace is not being optimized as a large shared app.
+ExTrace is still implemented as a single-operator sandbox appliance, not a
+multi-tenant platform.
 
-- Single analyst
-- Same-device or same-host deployment
-- One sandbox analysis at a time
-- Docker-isolated execution for extension code
-- File-backed reports and job snapshots are acceptable for the current product shape
+- one analyst
+- same machine or same Docker host deployment
+- one active background analysis job at a time
+- extension execution stays isolated in Docker
+- reports and job snapshots remain file-backed operator artifacts
 
-## Architecture Summary
+## Runtime Surfaces
 
 ```mermaid
 flowchart LR
-    Client["Browser / API Client / React SPA"] --> API["FastAPI app (main.py)"]
-    API --> Workflows["workflows/*"]
-    Workflows --> Appcore["appcore/*"]
-    Appcore --> DB[("PostgreSQL")]
-    Workflows --> Output["output/"]
-    Workflows --> Executor["executor container"]
-    Executor --> Output
+    UI["React analyst console (`ui/`)"] --> API["FastAPI app (`main.py`)"]
+    API --> WF["Workflow routers/services (`workflows/`)"]
+    WF --> CORE["Shared platform code (`appcore/`)"]
+    CORE --> DB[("PostgreSQL")]
+    WF --> HOST["Executor host wrapper (`executor/host.py`)"]
+    HOST --> EXEC["Executor container"]
+    EXEC --> OUT["`output/` reports + job snapshots"]
 ```
 
 ## Canonical Modules
 
 ### `appcore/`
 
-Shared platform code used by multiple workflows.
+Shared platform code used by more than one workflow.
 
 - `appcore/api/config.py`
-  - Pydantic settings sections for `project`, `api`, `db`, and `executor`.
+  - Pydantic settings for project, API, database, and executor runtime.
 - `appcore/api/deps.py`
   - FastAPI dependencies such as `get_db`.
 - `appcore/db/session.py`
   - SQLAlchemy engine and `SessionLocal`.
 - `appcore/storage/models.py`
-  - SQLAlchemy ORM models.
+  - ORM export surface.
 - `appcore/storage/crud.py`
-  - Canonical read/write access layer.
+  - Canonical CRUD facade; write entrypoint for persisted catalog data.
+- `appcore/storage/crud_ops/*`
+  - Read/write implementation split.
+- `appcore/contracts/schema_defs/*`
+  - Pydantic v2 request/response contracts.
 - `appcore/contracts/schemas.py`
-  - Shared request/response schemas.
+  - Public schema facade used by routers and services.
 
 ### `workflows/`
 
-Business logic organized per workflow.
+Business behavior organized by capability.
 
 - `workflows/extension_catalog/`
-  - Catalog router, manifest parser, and service orchestration.
+  - Manifest lookup, parsing, validation, persistence, and root catalog routes.
 - `workflows/activation_reports/`
-  - Reads activation report JSON files from `output/`.
+  - File-backed report listing and retrieval under `/api/activations`.
 - `workflows/marketplace/`
-  - Marketplace client, trigger selection, download, and analysis orchestration.
+  - Marketplace search/download, layered trigger planning, sync analysis,
+    async job orchestration, and job snapshot persistence.
 
 ### `executor/`
 
-Sandbox runtime for dynamic analysis.
+Sandbox control and runtime.
 
-- `executor/container/Dockerfile`
-- `executor/container/start.sh`
-- `executor/flows/playwright/*.py`
+- `executor/host.py`
+  - Docker exec control surface used by the API layer.
+- `executor/container/`
+  - Docker image, start script, and sandbox boot configuration.
+- `executor/flows/playwright/`
+  - VS Code automation, trigger loading, monitoring, report building, health
+    derivation, and risk/verdict helpers.
+- `executor/flows/harness_extension/`
+  - Local helper extension used by harness-assisted stimulus paths.
 
 ### `ui/`
 
-Primary Vite + React + Tailwind analyst console.
+Primary analyst-facing SPA.
 
-- `ui/src/main.tsx`: browser entrypoint
-- `ui/src/app/App.tsx`: route composition
-- `ui/src/app/layout/`: shell and navigation chrome
-- `ui/src/features/`: `reports`, `simulation`, `marketplace`
-- `ui/src/lib/api/`: runtime config, HTTP helpers, query client
-- `ui/src/components/`: shared presentation and evidence widgets
+- `ui/src/app/`
+  - Route shell and lazy route composition.
+- `ui/src/features/marketplace/`
+  - Search, download, and analysis job launch.
+- `ui/src/features/simulation/`
+  - Job polling, live evidence, log streams, and inspector surface.
+- `ui/src/features/reports/`
+  - Final report workspace with tabbed evidence slices.
+- `ui/src/lib/`
+  - API client, runtime config, adapters, rules, chart helpers, and shared
+    frontend contracts.
 
 ### `legacy_ui/`
 
-Archived Streamlit implementation retained as a migration snapshot. It is no
-longer the primary frontend surface.
+Archived Streamlit implementation kept as a migration snapshot. It is not the
+primary frontend and should not receive new feature work.
 
-## Canonical Imports
+## Canonical Boundaries
 
-The codebase now imports only from canonical packages:
-
-- `appcore/*` for shared platform code
-- `workflows/*` for business workflows
-- `executor/host.py` for host-side executor control
+- Shared reusable code belongs in `appcore/`.
+- Workflow-specific business logic belongs beside the owning workflow in
+  `workflows/`.
+- All catalog DB writes go through `appcore/storage/crud.py`.
+- Manifest data is validated with Pydantic before insertion.
+- The uniqueness constraint remains `(publisher, name, version)`.
+- Sandbox execution remains isolated in Docker and is invoked only through
+  `executor/host.py` from the API process.
 
 ## Request Flows
 
-### 1. Extension Catalog Flow
+### 1. Static Catalog Ingestion
 
-```mermaid
-sequenceDiagram
-    participant Client
-    participant Router as workflows.extension_catalog.router
-    participant Service as workflows.extension_catalog.service
-    participant Parser as workflows.extension_catalog.package_parser
-    participant CRUD as appcore.storage.crud
-    participant DB as PostgreSQL
+`POST /createExtension`
 
-    Client->>Router: POST /createExtension
-    Router->>Service: create_extension_by_name()
-    Service->>Parser: search_extension() / get_package_json()
-    Service->>CRUD: create_extension()
-    CRUD->>DB: INSERT validated records
-    DB-->>Client: persisted extension payload
-```
+1. `workflows.extension_catalog.router`
+2. `workflows.extension_catalog.service.create_extension_by_name`
+3. `workflows.extension_catalog.manifest_reader` +
+   `workflows.extension_catalog.manifest_parser`
+4. `appcore.contracts.schemas`
+5. `appcore.storage.crud`
+6. PostgreSQL
 
 Notes:
 
-- Validation happens with Pydantic v2 schemas before insertion.
-- The uniqueness rule remains `(publisher, name, version)`.
-- All writes still go through CRUD.
+- `ExtensionSchema` and related nested contracts are built before persistence.
+- Duplicate inserts fail closed on the `(publisher, name, version)` constraint.
 
-### 2. Activation Report Flow
+### 2. Marketplace Download
 
-```mermaid
-sequenceDiagram
-    participant UI
-    participant Router as workflows.activation_reports.router
-    participant FS as output/
+`POST /api/marketplace/download`
 
-    UI->>Router: GET /api/activations/latest
-    Router->>FS: activation_report*.json
-    FS-->>Router: newest valid JSON object
-    Router-->>UI: report + filename metadata
-```
+1. `workflows.marketplace.client.download_and_extract_vsix`
+2. `workflows.extension_catalog.service.create_extension_from_directory`
+3. `appcore.storage.crud`
 
 Notes:
 
-- Reports are filesystem-backed, not database-backed.
-- Router logic retries transient `OSError` reads.
-- The React SPA consumes these endpoints through `ui/src/lib/api/`.
+- Manifest identity is checked against the requested publisher/name/version.
+- Existing catalog entries return a usable success response with the existing DB
+  id instead of silently re-inserting.
 
-### 3. Marketplace Analysis Flow
+### 3. Sandbox Analysis
 
-```mermaid
-sequenceDiagram
-    participant UI
-    participant Router as workflows.marketplace.router
-    participant Client as workflows.marketplace.client
-    participant Service as workflows.extension_catalog.service
-    participant Exec as executor.host
-    participant Sandbox as executor container
-    participant Output as output/
+`POST /api/marketplace/analyze` or `POST /api/marketplace/analyze/start`
 
-    UI->>Router: POST /api/marketplace/download
-    Router->>Client: download_and_extract_vsix()
-    Router->>Service: create_extension_from_directory()
-    UI->>Router: POST /api/marketplace/analyze/start
-    Router->>Exec: docker exec wrapper
-    Exec->>Sandbox: entrypoint.py --monitor
-    Sandbox->>Output: activation_report_*.json + analysis_jobs/*.json
-```
+1. `workflows.marketplace.router`
+2. `workflows.marketplace.analysis_service`
+3. `workflows.marketplace.trigger_service`
+4. `executor.host`
+5. `executor/flows/playwright/entrypoint.py`
+6. `executor/flows/playwright/monitor.py`
+7. `executor/flows/playwright/report_builder.py`
+8. `output/activation_report_*.json`
+
+Async job mode also persists step-tracked snapshots to
+`output/analysis_jobs/<job_id>.json`.
 
 Notes:
 
-- Synchronous analysis is available at `POST /api/marketplace/analyze`.
-- Background job mode is available at `POST /api/marketplace/analyze/start`.
-- Job state is persisted under `output/analysis_jobs/`.
-- The current deployment model expects one active background analysis at a time.
-- If the API process restarts mid-run, the persisted job is marked failed on the next read.
-- The SPA surfaces marketplace analysis from `/marketplace` and live job state from `/simulation`.
+- The async endpoint serializes work to one active job.
+- Persisted jobs carry an `owner_boot_id`; if the API restarts mid-run, the job
+  is marked failed on the next load.
+- Trigger planning is skipped only when the caller explicitly supplies a
+  scenario.
+
+### 4. Activation Report Browsing
+
+`GET /api/activations`, `GET /api/activations/latest`, `GET /api/activations/{name}`
+
+1. `workflows.activation_reports.router`
+2. `output/activation_report*.json`
+
+Notes:
+
+- Report reads retry transient `OSError` failures.
+- Latest-report reads fall back to the next-most-recent valid JSON file if the
+  newest file is still being written.
+
+### 5. Analyst UI Loop
+
+1. `/marketplace`
+   - search results, download, then launch async analysis
+2. `/simulation`
+   - poll job state and load the in-progress report by `report_path`
+3. `/reports`
+   - inspect report slices, attribution, risk signals, and rule draft output
 
 ## Data Boundaries
 
-### Database-backed state
+### PostgreSQL-backed state
 
-- Extension metadata
-- Activation events parsed from `package.json`
-- Capabilities, scripts, and contributes data
+- extension metadata
+- activation events parsed from manifests
+- capabilities, scripts, and contributes metadata
 
 ### Filesystem-backed state
 
-- Extracted extensions under `extensions/`
-- Activation report JSON files under `output/`
-- Background analysis job snapshots under `output/analysis_jobs/`
+- extracted extensions under `extensions/`
+- activation reports under `output/`
+- background job snapshots under `output/analysis_jobs/`
 
-Why this is acceptable right now:
+### In-memory state
 
-- The product is operated as a single-user sandbox.
-- Reports are analyst artifacts rather than shared application records.
-- Restart recovery only needs to preserve enough state to explain interruption and allow rerun.
+- `_ANALYSIS_JOBS` cache in `workflows.marketplace.job_store`
+
+This split is still intentional for the current product shape. The database is
+used for extension catalog data; dynamic-analysis runs remain artifact-first.
 
 ## Testing Structure
 
-The test suite mirrors the new architecture:
-
 - `tests/platform/`
-  - `api/`, `contracts/`, `storage/`, canonical import tests
+  - shared platform contracts, config, storage, and canonical import checks
 - `tests/workflows/`
-  - `activation_reports/`, `extension_catalog/`, `marketplace/`
+  - activation reports, extension catalog, and marketplace behavior
 - `tests/executor/`
-  - Playwright helper and workspace tests
-
-### UI Tests
-
-- `ui/src/**/*.test.tsx`
-  - React Testing Library and Vitest coverage for route-level pages and shared components.
+  - Playwright helper and executor-host coverage
+- `tests/scanner/`
+  - focused unit coverage for the Docker exec wrapper surface
+- `tests/smoke/`
+  - end-to-end marketplace analysis acceptance against the executor container
+- `ui/src/**/*.test.ts(x)`
+  - Vitest + Testing Library coverage for the SPA
 
 ## Architectural Rules
 
-- Put shared code in `appcore/` only when at least two workflows need it.
-- Put workflow-specific logic next to its router/service/parser.
+- Prefer canonical imports from `appcore/`, `workflows/`, and `executor/`.
 - Use SQLAlchemy 2.0 style only.
 - Use Pydantic v2 APIs only.
-- Keep sandbox execution isolated in Docker.
-- Avoid adding infrastructure meant for multi-user SaaS behavior unless the product assumptions change.
+- Keep compatibility/historical surfaces thin and out of new feature work.
+- Do not introduce queue-backed or multi-tenant infrastructure unless the
+  product assumptions change first.

@@ -1,10 +1,11 @@
 # Testing Guide
 
-`Last Updated: 2026-04-13`
+`Last Updated: 2026-04-14`
 
-The test suite now mirrors the refactored architecture. Platform tests validate shared modules in `appcore/`, workflow tests cover the canonical business packages, and executor tests cover Playwright sandbox helpers.
-
-The default test workflow is optimized for fast local iteration in a single-user sandbox project, not for full end-to-end smoke execution on every run.
+The test suite mirrors the refactored architecture: platform tests validate
+shared `appcore/` code, workflow tests validate business slices, executor tests
+cover sandbox helpers, and smoke coverage exercises the full marketplace to
+report pipeline.
 
 ## Test Layout
 
@@ -15,6 +16,7 @@ tests/
   executor/
     conftest.py
     test_playwright_automation.py
+    test_playwright_entrypoint.py
     test_playwright_monitor.py
     test_reset_state.py
     test_workspace.py
@@ -27,6 +29,10 @@ tests/
     storage/
       test_crud.py
     test_canonical_imports.py
+  scanner/
+    test_executor.py
+  smoke/
+    test_marketplace_analysis_smoke.py
   workflows/
     activation_reports/
       test_router.py
@@ -40,24 +46,32 @@ tests/
       test_triggers.py
 ```
 
+UI tests live in:
+
+```text
+ui/src/**/*.test.ts(x)
+```
+
 ## Database Strategy
 
-- Tests use PostgreSQL, not SQLite.
-- Default local test database:
-  - `postgresql://postgres:postgres@localhost:5434/test_db`
-- Start `postgres_test` via `make test-local` before running the full suite locally.
-- `tests/conftest.py` creates all tables once per session and rolls back each test transaction.
+- Python tests use PostgreSQL, not SQLite.
+- `tests/conftest.py` builds the test URL from `DATABASE_URL` first, then falls
+  back to `postgresql://postgres:postgres@localhost:5434/test_db`.
+- The `test_engine` fixture creates tables once per test session and drops them
+  afterward.
+- The `db_session` fixture opens a transaction per test and rolls it back for
+  isolation.
 
 ## Main Fixtures
 
 - `test_engine`
-  - Session-scoped SQLAlchemy engine.
+  - session-scoped SQLAlchemy engine
 - `db_session`
-  - Function-scoped transactional session with rollback.
+  - per-test transactional session
 - `client`
-  - FastAPI `TestClient` with `get_db` override.
+  - FastAPI `TestClient` with `get_db` override
 - `sample_extension_data`
-  - Reusable extension payload for storage and API tests.
+  - reusable extension payload for storage and API tests
 
 ## Commands
 
@@ -67,76 +81,79 @@ make test-cov
 make test-local
 make test-ci
 .venv/bin/pytest
-.venv/bin/pytest -m smoke
 .venv/bin/pytest tests/workflows/marketplace/test_router.py -v
+.venv/bin/pytest tests/smoke/test_marketplace_analysis_smoke.py -v -m smoke
 cd ui && npm run test
+cd ui && npm run test:smoke
 ```
 
-Default `pytest` excludes the smoke suite through `pyproject.toml`.
+Notes:
 
-Smoke acceptance lives in `tests/smoke/test_marketplace_analysis_smoke.py`.
-Those tests use the pinned local `ms-python.python` VSIX fixture under `extensions/`
-and require the `automation_executor` container to be running and healthy.
-Run smoke explicitly when you need end-to-end confidence across API, Docker exec,
-Playwright automation, and report generation.
+- Default `pytest` excludes the smoke suite via `pyproject.toml`.
+- `make test-local` starts `postgres_test` and then runs the Python suite.
+- `make test-ci` also builds and waits for the executor container so the smoke
+  path can run.
 
-When executor Python code changes, rebuild that container first so smoke runs against
-the current Playwright monitor implementation:
+## Smoke Acceptance
 
-```bash
-docker-compose up -d --build executor
-```
+Smoke acceptance currently lives in
+`tests/smoke/test_marketplace_analysis_smoke.py`.
 
-Useful examples:
+It validates:
 
-```bash
-.venv/bin/pytest tests/platform/test_canonical_imports.py -v
-.venv/bin/pytest tests/workflows/marketplace/test_router.py -v
-.venv/bin/pytest tests/smoke/test_marketplace_analysis_smoke.py -v
-```
+- `/api/marketplace/download`
+- `/api/marketplace/analyze/start`
+- async job polling via `/api/marketplace/analyze/{job_id}`
+- report retrieval via `/api/activations/{name}`
+- target-observed and automation-health semantics in the exported report
+
+The smoke fixture is currently pinned to `ms-python.python` and uses the
+executor container directly.
 
 ## Coverage Focus
 
 ### Platform
 
-- `appcore.api.config`
-- `appcore.api.deps`
-- `appcore.contracts.schemas`
-- `appcore.storage.crud`
-- canonical import surfaces
+- settings and dependency injection
+- Pydantic contracts
+- storage CRUD behavior and uniqueness protection
+- canonical import surface
 
 ### Workflows
 
-- Extension catalog router, service, and parser
-- Activation report router and file reading behavior
-- Marketplace client, router, and trigger selection
+- extension catalog parsing and persistence orchestration
+- activation report file listing/reading behavior
+- marketplace search/download/analyze routes
+- trigger selection and failure handling
 
 ### Executor
 
-- Playwright orchestration helpers
-- Monitor/report assembly
-- Workspace and reset behavior
-- Explicit smoke acceptance for `download -> analyze/start -> executor -> report`
-  - Baseline `ms-python.python` smoke run now pins the executor to `coding_session`
-    so local acceptance stays fast while still exercising the end-to-end path.
+- Docker exec wrapper behavior
+- Playwright automation helpers
+- monitor/report generation and workspace reset
+- entrypoint flag behavior
 
 ### UI
 
-- `ui/src/features/**/*.test.tsx`
-- `ui/src/components/**/*.test.tsx`
-- `ui/src/lib/**/*.test.ts`
+- route pages under `ui/src/features/`
+- shared evidence and simulation widgets
+- adapters and rule-draft helpers under `ui/src/lib/`
 
 ## Current Gaps
 
-- Smoke coverage is currently mandatory only for the pinned `ms-python.python` fixture.
-- Additional real-fixture coverage for `ms-vscode.cpptools` and `ms-toolsai.jupyter` is still pending.
-- Activation report ingestion remains filesystem-driven, so those tests focus on JSON files rather than DB fixtures.
-- Some executor-facing tests can still be slower than typical unit tests because they preserve sandbox-oriented behavior.
+- Smoke coverage is still centered on the pinned `ms-python.python` fixture.
+- Executor reliability is the most failure-prone path, so unit coverage still
+  needs periodic backing from real-container smoke runs.
+- Dynamic-analysis runs are artifact-first and file-backed, so tests assert JSON
+  snapshots rather than DB-backed run history.
+- The SPA has route-level coverage, but API-contract drift still matters because
+  there is no generated client.
 
 ## Expectations for New Work
 
-- New shared module: add tests under `tests/platform/` if it lives in `appcore/`.
+- New shared module in `appcore/`: add or update tests under `tests/platform/`.
 - New workflow behavior: add tests under the matching `tests/workflows/<name>/`.
-- New sandbox helper: add or update tests under `tests/executor/`.
-- New end-to-end automation reliability behavior: add or update smoke coverage under `tests/smoke/`.
-- If a change alters the database schema, include an Alembic migration and update tests accordingly.
+- New executor helper: add or update `tests/executor/` and, when needed,
+  `tests/scanner/test_executor.py`.
+- New end-to-end analysis reliability behavior: extend `tests/smoke/`.
+- Database schema changes require an Alembic migration plus updated tests.

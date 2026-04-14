@@ -214,6 +214,8 @@ class PrerequisiteResult:
     pass_name: str = ""
     attempt_ids: list[str] = field(default_factory=list)
     detail: str = ""
+    reason_code: str = ""
+    resolved_targets: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -352,11 +354,13 @@ class ActivationReport:
     trigger_plan_loaded: bool = False
     trigger_plan_applied: bool = False
     trigger_plan_path: str = ""
+    trigger_execution_mode: str = ""
     requested_scenarios: list[str] = field(default_factory=list)
     failed_scenarios: list[str] = field(default_factory=list)
     extra_trigger_failures: list[str] = field(default_factory=list)
     network_capture_error: str = ""
     file_capture_error: str = ""
+    file_capture_diagnostics: dict[str, Any] = field(default_factory=dict)
     extension_host_output: str = ""
     log_file_path: str = ""
     log_offsets_snapshot: dict[str, int] = field(default_factory=dict, repr=False)
@@ -423,23 +427,50 @@ class ActivationReport:
 
     @property
     def verification_gap(self) -> int:
-        attempted = len(set(self.official_attempted_capabilities))
+        attempted = len(set(self.runtime_official_attempted_capabilities))
         verified = len(set(self.official_verified_capabilities))
         return max(attempted - verified, 0)
 
     @property
     def official_attempted_capabilities(self) -> list[str]:
-        return sorted(set(self.attempted_capabilities))
+        return _filter_supported_capabilities(
+            self.attempted_capabilities,
+            _matrix_entries_for_track(self, "official"),
+        )
 
     @property
     def official_verified_capabilities(self) -> list[str]:
-        return sorted(set(self.verified_capabilities))
+        return _derive_runtime_verified_capabilities(self, track="official")
+
+    @property
+    def runtime_official_attempted_capabilities(self) -> list[str]:
+        return _derive_runtime_attempted_capabilities(self, track="official")
 
     @property
     def heuristic_verification_gap(self) -> int:
-        attempted = len(set(self.heuristic_attempted_capabilities))
-        verified = len(set(self.heuristic_verified_capabilities))
+        attempted = len(set(self.runtime_heuristic_attempted_capabilities))
+        verified = len(set(self.supported_heuristic_verified_capabilities))
         return max(attempted - verified, 0)
+
+    @property
+    def run_quality_reasons(self) -> list[str]:
+        _, reasons = build_run_quality(self, self.automation_health)
+        return reasons
+
+    @property
+    def supported_heuristic_attempted_capabilities(self) -> list[str]:
+        return _filter_supported_capabilities(
+            self.heuristic_attempted_capabilities,
+            _matrix_entries_for_track(self, "heuristic"),
+        )
+
+    @property
+    def runtime_heuristic_attempted_capabilities(self) -> list[str]:
+        return _derive_runtime_attempted_capabilities(self, track="heuristic")
+
+    @property
+    def supported_heuristic_verified_capabilities(self) -> list[str]:
+        return _derive_runtime_verified_capabilities(self, track="heuristic")
 
     @property
     def attribution_summary(self) -> dict[str, Any]:
@@ -1371,17 +1402,35 @@ class ExtensionHostFileCapture:
         self._proc: subprocess.Popen[str] | None = None
         self._reader: threading.Thread | None = None
         self._pid: int | None = None
+        self.attach_attempts = 0
+        self.diagnostics: dict[str, Any] = {
+            "attempts": 0,
+            "selected_pid": None,
+            "status": "planned",
+            "poll_timeout_s": 10.0,
+            "poll_interval_s": 0.5,
+            "failure_reason": "",
+        }
+
+    @property
+    def pid(self) -> int | None:
+        return self._pid
 
     def start(self) -> None:
-        pid = _find_extension_host_pid()
+        pid, diagnostics = _wait_for_extension_host_pid()
+        self.attach_attempts = int(diagnostics.get("attempts", 0) or 0)
+        self.diagnostics = diagnostics
         if pid is None:
             self.start_error = (
                 "Extension Host PID not found; file attribution unavailable."
             )
+            self.diagnostics["status"] = "failed"
+            self.diagnostics["failure_reason"] = self.start_error
             _log(self.start_error)
             return
 
         self._pid = pid
+        self.diagnostics["selected_pid"] = pid
         cmd = [
             "strace",
             "-f",
@@ -1406,15 +1455,20 @@ class ExtensionHostFileCapture:
             )
         except FileNotFoundError:
             self.start_error = "strace binary not available in executor container."
+            self.diagnostics["status"] = "failed"
+            self.diagnostics["failure_reason"] = self.start_error
             _log(self.start_error)
             return
         except OSError as exc:
             self.start_error = f"strace start failed: {exc}"
+            self.diagnostics["status"] = "failed"
+            self.diagnostics["failure_reason"] = self.start_error
             _log(self.start_error)
             return
 
         self._reader = threading.Thread(target=self._consume_stderr, daemon=True)
         self._reader.start()
+        self.diagnostics["status"] = "attached"
         _log(f"Extension Host file capture attached to pid {pid}")
 
     def stop(self) -> list[FileEvent]:
@@ -1649,6 +1703,8 @@ class ExtensionMonitor:
                     if str(attempt_id).strip()
                 ],
                 detail=str(item.get("detail", "")),
+                reason_code=str(item.get("reason_code", "")),
+                resolved_targets=dict(item.get("resolved_targets", {}) or {}),
             )
             for item in getattr(payload, "prerequisite_results", []) or []
             if isinstance(item, Mapping)
@@ -1727,6 +1783,10 @@ class ExtensionMonitor:
             self.report.target_extension_id = payload_target
         self._persist_report(force=True)
 
+    def set_trigger_execution_mode(self, mode: str) -> None:
+        self.report.trigger_execution_mode = str(mode or "").strip()
+        self._persist_report(force=False)
+
     def start(self) -> None:
         """Record the monitoring start time."""
         self.report.monitoring_start = time.time()
@@ -1760,11 +1820,34 @@ class ExtensionMonitor:
             on_event=self._handle_file_event,
         )
         self._extension_file_capture.start()
+        self.report.file_capture_diagnostics = dict(
+            self._extension_file_capture.diagnostics
+        )
         if (
             self._extension_file_capture.start_error
             and not self.report.file_capture_error
         ):
             self.report.file_capture_error = self._extension_file_capture.start_error
+        if self._extension_file_capture.start_error:
+            self.record_automation_event(
+                "runtime_tracer_attach",
+                (
+                    "Extension Host file capture unavailable after "
+                    f"{self._extension_file_capture.attach_attempts} attempt(s): "
+                    f"{self._extension_file_capture.start_error}"
+                ),
+                status="failed",
+            )
+        else:
+            self.record_automation_event(
+                "runtime_tracer_attach",
+                (
+                    "Extension Host file capture attached to pid "
+                    f"{self._extension_file_capture.pid} after "
+                    f"{self._extension_file_capture.attach_attempts} attempt(s)."
+                ),
+                status="completed",
+            )
         self._persist_report(force=True)
 
     def stop(self) -> ActivationReport:
@@ -1991,6 +2074,8 @@ class ExtensionMonitor:
         *,
         status: str,
         detail: str = "",
+        reason_code: str = "",
+        resolved_targets: dict[str, Any] | None = None,
     ) -> None:
         existing = next(
             (
@@ -2010,9 +2095,13 @@ class ExtensionMonitor:
         existing.status = status
         if detail:
             existing.detail = detail
+        if reason_code:
+            existing.reason_code = reason_code
+        if resolved_targets:
+            existing.resolved_targets = dict(resolved_targets)
         self.record_automation_event(
             "prerequisite",
-            f"Prerequisite {existing.label or existing.key} {status}",
+            _build_prerequisite_log_message(existing),
             status=status,
         )
 
@@ -2062,8 +2151,10 @@ class ExtensionMonitor:
         if blocked_reason_code:
             attempt.blocked_reason_code = blocked_reason_code
         attempt.verification_status = (
-            "attempted_only"
-            if status in {"attempted_only", "verified"}
+            "verified"
+            if status == "verified"
+            else "attempted_only"
+            if status == "attempted_only"
             else "failed"
             if status == "failed"
             else "blocked"
@@ -2386,10 +2477,127 @@ def _normalize_strace_operation(call: str, args: str) -> str:
     return ""
 
 
+def _parse_process_table(output: str) -> list[_ProcessEntry]:
+    entries: list[_ProcessEntry] = []
+    for line in output.splitlines():
+        stripped = line.strip()
+        if not stripped:
+            continue
+        parts = stripped.split(maxsplit=2)
+        if len(parts) < 3:
+            continue
+        try:
+            pid = int(parts[0])
+            ppid = int(parts[1])
+        except ValueError:
+            continue
+        entries.append(_ProcessEntry(pid=pid, ppid=ppid, args=parts[2]))
+    return entries
+
+
+def _extract_user_data_dir(args: str) -> str:
+    match = re.search(r"--user-data-dir(?:=|\s+)(\S+)", args)
+    return match.group(1).strip() if match else ""
+
+
+def _is_excluded_extension_host_candidate(args: str) -> bool:
+    lowered = args.lower()
+    return any(
+        signature in lowered for signature in _EXCLUDED_EXTENSION_HOST_SIGNATURES
+    )
+
+
+def _find_vscode_main_pid(
+    entries: list[_ProcessEntry], user_data_dir: str
+) -> int | None:
+    candidates = [
+        entry
+        for entry in entries
+        if "/usr/share/code/code" in entry.args and "--type=" not in entry.args
+    ]
+    if user_data_dir:
+        narrowed = [
+            entry
+            for entry in candidates
+            if _extract_user_data_dir(entry.args) == user_data_dir
+        ]
+        if narrowed:
+            candidates = narrowed
+    if not candidates:
+        return None
+    return max(candidates, key=lambda entry: entry.pid).pid
+
+
+def _score_extension_host_candidate(
+    candidate: _ProcessEntry,
+    entries: list[_ProcessEntry],
+    vscode_main_pid: int | None,
+) -> tuple[int, int, int]:
+    child_score = (
+        4 if vscode_main_pid is not None and candidate.ppid == vscode_main_pid else 0
+    )
+    referenced_by_children = sum(
+        1 for entry in entries if f"--clientProcessId={candidate.pid}" in entry.args
+    )
+    inspector_score = (
+        1
+        if (
+            "--inspect-port" in candidate.args
+            or "--experimental-network-inspection" in candidate.args
+        )
+        else 0
+    )
+    return (
+        child_score + referenced_by_children + inspector_score,
+        referenced_by_children,
+        candidate.pid,
+    )
+
+
+def _select_extension_host_pid(entries: list[_ProcessEntry]) -> int | None:
+    legacy_candidates = [
+        entry for entry in entries if "extensionhost" in entry.args.lower()
+    ]
+    if legacy_candidates:
+        return max(legacy_candidates, key=lambda entry: entry.pid).pid
+
+    code_entries = [
+        entry
+        for entry in entries
+        if "--type=utility" in entry.args
+        and "--utility-sub-type=node.mojom.NodeService" in entry.args
+    ]
+    if not code_entries:
+        return None
+
+    user_data_dir = ""
+    for entry in code_entries:
+        user_data_dir = _extract_user_data_dir(entry.args)
+        if user_data_dir:
+            break
+    vscode_main_pid = _find_vscode_main_pid(entries, user_data_dir)
+    filtered = [
+        entry
+        for entry in code_entries
+        if (not user_data_dir or _extract_user_data_dir(entry.args) == user_data_dir)
+        and not _is_excluded_extension_host_candidate(entry.args)
+    ]
+    if not filtered:
+        return None
+    return max(
+        filtered,
+        key=lambda entry: _score_extension_host_candidate(
+            entry,
+            entries,
+            vscode_main_pid,
+        ),
+    ).pid
+
+
 def _find_extension_host_pid() -> int | None:
     try:
         result = subprocess.run(  # nosec B603
-            ["ps", "-eo", "pid=,args="],
+            ["ps", "-eo", "pid=,ppid=,args="],
             capture_output=True,
             text=True,
             check=True,
@@ -2398,19 +2606,44 @@ def _find_extension_host_pid() -> int | None:
         _log(f"Failed to inspect process table: {exc}")
         return None
 
-    candidates: list[int] = []
-    for line in result.stdout.splitlines():
-        if "extensionHost" not in line:
-            continue
-        parts = line.strip().split(maxsplit=1)
-        if not parts:
-            continue
-        try:
-            candidates.append(int(parts[0]))
-        except ValueError:
-            continue
+    return _select_extension_host_pid(_parse_process_table(result.stdout))
 
-    return max(candidates) if candidates else None
+
+def _wait_for_extension_host_pid(
+    *,
+    timeout_s: float = 10.0,
+    poll_interval_s: float = 0.5,
+) -> tuple[int | None, dict[str, Any]]:
+    deadline = time.time() + timeout_s
+    attempts = 0
+    while True:
+        attempts += 1
+        pid = _find_extension_host_pid()
+        if pid is not None:
+            return (
+                pid,
+                {
+                    "attempts": attempts,
+                    "selected_pid": pid,
+                    "status": "resolved",
+                    "poll_timeout_s": timeout_s,
+                    "poll_interval_s": poll_interval_s,
+                    "failure_reason": "",
+                },
+            )
+        if time.time() >= deadline:
+            return (
+                None,
+                {
+                    "attempts": attempts,
+                    "selected_pid": None,
+                    "status": "not_found",
+                    "poll_timeout_s": timeout_s,
+                    "poll_interval_s": poll_interval_s,
+                    "failure_reason": "Extension Host PID not found during attach window.",
+                },
+            )
+        time.sleep(poll_interval_s)
 
 
 def _parse_iso_timestamp(timestamp: str) -> float | None:
@@ -2493,6 +2726,13 @@ def _build_stimulus_pass_log_message(
     return f"{verb} {label} ({status})"
 
 
+def _build_prerequisite_log_message(result: PrerequisiteResult) -> str:
+    message = f"Prerequisite {result.label or result.key} {result.status}"
+    if result.reason_code:
+        message += f" ({result.reason_code})"
+    return message
+
+
 def _build_event_attempt_log_message(attempt: EventAttemptRecord) -> str:
     outcome = attempt.status or attempt.verification_status or "unknown"
     return (
@@ -2535,11 +2775,160 @@ def _find_event_attempt(
     return None
 
 
+@dataclass(frozen=True)
+class _ProcessEntry:
+    pid: int
+    ppid: int
+    args: str
+
+
+_EXCLUDED_EXTENSION_HOST_SIGNATURES = (
+    "server.bundle.js",
+    "jsonservermain",
+    "tsserver.js",
+    "typingsinstaller.js",
+    "htmlservermain",
+    "cssservermain",
+    "python-env-tools",
+    "shellintegration",
+)
+
+
+def _entry_is_supported(entry: Mapping[str, Any]) -> bool:
+    return (
+        str(entry.get("support_status", entry.get("status", "unknown"))).strip()
+        == "covered"
+    )
+
+
+def _matrix_entries_for_track(
+    report: ActivationReport, track: str
+) -> list[dict[str, Any]]:
+    coverage_tracks = getattr(report, "coverage_tracks", {}) or {}
+    if track == "official":
+        track_data = coverage_tracks.get("official", {})
+        if isinstance(track_data, Mapping) and isinstance(
+            track_data.get("matrix"), list
+        ):
+            return list(track_data["matrix"])
+        matrix = getattr(report, "coverage_matrix", [])
+        return list(matrix) if isinstance(matrix, list) else []
+    track_data = coverage_tracks.get(track, {})
+    if isinstance(track_data, Mapping) and isinstance(track_data.get("matrix"), list):
+        return list(track_data["matrix"])
+    return []
+
+
+def _filter_supported_capabilities(
+    capabilities: list[str],
+    matrix_entries: list[dict[str, Any]],
+) -> list[str]:
+    unique_caps = sorted({str(cap).strip() for cap in capabilities if str(cap).strip()})
+    if not matrix_entries:
+        return unique_caps
+    supported = {
+        str(entry.get("capability", "")).strip()
+        for entry in matrix_entries
+        if str(entry.get("capability", "")).strip() and _entry_is_supported(entry)
+    }
+    return sorted(capability for capability in unique_caps if capability in supported)
+
+
+def _derive_runtime_attempted_capabilities(
+    report: ActivationReport, *, track: str
+) -> list[str]:
+    matrix_entries = _matrix_entries_for_track(report, track)
+    supported = {
+        str(entry.get("capability", "")).strip()
+        for entry in matrix_entries
+        if str(entry.get("capability", "")).strip() and _entry_is_supported(entry)
+    }
+    derived: set[str] = set()
+    saw_runtime_attempt = False
+    for attempt in getattr(report, "event_attempts", []) or []:
+        if str(getattr(attempt, "track", "")).strip() != track:
+            continue
+        if str(getattr(attempt, "status", "")).strip() not in {
+            "verified",
+            "attempted_only",
+            "failed",
+        }:
+            continue
+        attempted_passes = [
+            str(pass_name).strip()
+            for pass_name in getattr(attempt, "attempted_passes", []) or []
+            if str(pass_name).strip()
+        ]
+        if not attempted_passes:
+            continue
+        saw_runtime_attempt = True
+        for capability in getattr(attempt, "capability_tags", []) or []:
+            cap = str(capability).strip()
+            if cap and (not supported or cap in supported):
+                derived.add(cap)
+
+    if saw_runtime_attempt:
+        return sorted(derived)
+    if getattr(report, "event_attempts", []):
+        return []
+    if track == "official":
+        return list(getattr(report, "official_attempted_capabilities", []))
+    return list(getattr(report, "supported_heuristic_attempted_capabilities", []))
+
+
+def _derive_runtime_verified_capabilities(
+    report: ActivationReport, *, track: str
+) -> list[str]:
+    matrix_entries = _matrix_entries_for_track(report, track)
+    supported = {
+        str(entry.get("capability", "")).strip()
+        for entry in matrix_entries
+        if str(entry.get("capability", "")).strip() and _entry_is_supported(entry)
+    }
+    derived: set[str] = set()
+    saw_runtime_verified = False
+    for attempt in getattr(report, "event_attempts", []) or []:
+        if str(getattr(attempt, "track", "")).strip() != track:
+            continue
+        if str(getattr(attempt, "status", "")).strip() != "verified":
+            continue
+        attempted_passes = [
+            str(pass_name).strip()
+            for pass_name in getattr(attempt, "attempted_passes", []) or []
+            if str(pass_name).strip()
+        ]
+        if not attempted_passes:
+            continue
+        saw_runtime_verified = True
+        for capability in getattr(attempt, "capability_tags", []) or []:
+            cap = str(capability).strip()
+            if cap and (not supported or cap in supported):
+                derived.add(cap)
+
+    if saw_runtime_verified:
+        return sorted(derived)
+    if getattr(report, "event_attempts", []):
+        return []
+    if track == "official":
+        return _filter_supported_capabilities(
+            getattr(report, "verified_capabilities", []),
+            matrix_entries,
+        )
+    return _filter_supported_capabilities(
+        getattr(report, "heuristic_verified_capabilities", []),
+        matrix_entries,
+    )
+
+
 def _extract_official_attempted_capabilities(payload: Any) -> list[str]:
     attempted: set[str] = set()
     for entry in getattr(payload, "coverage_matrix", []) or []:
         capability = str(entry.get("capability", "")).strip()
-        if capability and (entry.get("is_active") or entry.get("selected")):
+        if (
+            capability
+            and (entry.get("is_active") or entry.get("selected"))
+            and _entry_is_supported(entry)
+        ):
             attempted.add(capability)
     for capability in getattr(payload, "official_attempted_capabilities", []) or []:
         cap = str(capability).strip()
@@ -2556,7 +2945,11 @@ def _extract_heuristic_attempted_capabilities(payload: Any) -> list[str]:
         heuristic_track.get("matrix", []) if isinstance(heuristic_track, dict) else []
     ):
         capability = str(entry.get("capability", "")).strip()
-        if capability and (entry.get("is_active") or entry.get("selected")):
+        if (
+            capability
+            and (entry.get("is_active") or entry.get("selected"))
+            and _entry_is_supported(entry)
+        ):
             attempted.add(capability)
     for capability in getattr(payload, "heuristic_attempted_capabilities", []) or []:
         cap = str(capability).strip()

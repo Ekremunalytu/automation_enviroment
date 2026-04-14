@@ -1,80 +1,112 @@
 # Architecture Audit
 
-`Last Updated: 2026-04-13`
+`Last Updated: 2026-04-14`
 
-This is the post-refactor architecture audit. It evaluates the current codebase as it exists after the move to `appcore/` and `workflows/`.
+This audit reflects the repository as it exists today, not the initial
+post-refactor snapshot.
 
 ## Executive Summary
 
-The refactor materially improved structure:
+The architecture is materially better than the old router/core/scanner
+concentration:
 
-- shared infrastructure is now isolated in `appcore/`
-- business behavior is grouped by workflow in `workflows/`
-- the executor runtime is split into `container/` and `flows/playwright/`
-- the UI has been decomposed into route features, shared components, and API helpers
+- shared infrastructure is isolated in `appcore/`
+- business flows are grouped in `workflows/`
+- executor control is separated from executor runtime
+- the React UI is split by route and adapter surface
 
-The main architectural risk is no longer layering. The main risk is that dynamic-analysis state is still mostly file-backed while the API surface has grown to include background analysis jobs and sandbox orchestration.
+The main architectural risk is no longer module placement. It is operational
+truthfulness around sandbox execution, trigger coverage, and file-backed
+analysis state.
 
 ## What Improved
 
-### Clearer module boundaries
+### Shared vs workflow boundaries are now real
 
-- `appcore/` owns settings, DB setup, schemas, models, and CRUD
-- `workflows/` owns routers and workflow-specific business logic
-- `ui/` owns the primary analyst-facing SPA
-- `executor/` owns sandbox runtime concerns
+- `appcore/` owns settings, DB wiring, ORM models, CRUD, and contracts
+- `workflows/` owns routing and business orchestration
+- `executor/` owns Docker exec and Playwright sandbox mechanics
+- `ui/` owns the analyst-facing web console
 
-This is a meaningful improvement over the older `routers/scanner/core/crud/models/schemas` concentration.
+### Analysis orchestration is more explicit
 
-### Canonical imports enforced
+Marketplace analysis is no longer a single opaque path. It is split across:
 
-Legacy wrapper modules have been removed, and `tests/platform/test_canonical_imports.py` verifies the supported import surface directly.
+- `router.py` for API surface
+- `analysis_service.py` for step orchestration
+- `job_store.py` for snapshot persistence
+- `trigger_service.py` and `triggers.py` for layered stimulus planning
 
-### Marketplace workflow is now a first-class slice
+### Report semantics are now a first-class concern
 
-Marketplace search, download, and analysis are no longer scattered implementation details. They are modeled as a dedicated workflow with its own router, client, and trigger logic.
+The executor no longer emits only raw telemetry. It also produces:
+
+- automation and log health
+- attribution summaries
+- risk signals and verdicts
+- official vs heuristic capability coverage summaries
 
 ## Current Architectural Strengths
 
-- App factory in `main.py` is small and composes routers cleanly.
-- Shared settings are centralized in `appcore/api/config.py`.
-- CRUD remains the single write boundary.
-- Tests now mirror the real architecture, which reduces cognitive overhead.
-- UI is modular enough to evolve without collapsing `ui/src/app/` and `ui/src/features/` into a monolith.
+- `main.py` stays small and composes routers cleanly.
+- Catalog writes still funnel through `appcore.storage.crud`.
+- Pydantic validation occurs before persistence in the catalog flow.
+- Async analysis jobs expose named steps instead of a single opaque status.
+- The UI mirrors the backend flow cleanly: marketplace -> simulation -> reports.
 
 ## Current Risks
 
-### File-backed analysis state
+### Dynamic-analysis state is still artifact-first
 
-Activation reports and background job snapshots live under `output/`, not in PostgreSQL. That is acceptable for the current stage, but it creates operational gaps:
+Reports and job snapshots live in `output/`, not PostgreSQL.
 
-- run history is harder to query
-- retention and cleanup policy is implicit
-- correlations between extension metadata and dynamic-analysis output remain weaker than they should be
+That is acceptable for the current single-operator model, but it still means:
 
-### Reliability of analysis orchestration
+- retention is operational rather than schema-driven
+- cross-run querying is limited
+- report/job consistency depends on filesystem conventions
 
-The API now exposes executor-backed analysis flows, but the durability guarantees are limited by Docker exec success, VS Code reload behavior, and filesystem snapshots.
+### Executor reliability defines product truthfulness
+
+The highest-risk path still depends on:
+
+- Docker exec success
+- VS Code startup and reload behavior
+- trigger payload generation and loading
+- Playwright timing
+- monitor/report finalization after partial failures
+
+### Coverage can drift if docs are not kept aligned
+
+The trigger system now distinguishes official activation coverage from heuristic
+workflow coverage. That is stronger than the earlier model, but it also means
+documentation can become stale quickly if it collapses those tracks into a
+single yes/no matrix.
 
 ## Recommendations
 
 ### Near-term
 
-- Add persistent DB records for analysis runs
-- Make reload and trigger-generation failures observable and explicit
-- Expand workflow-level tests for async analysis paths
+- Keep executor failure states explicit in job snapshots and report health.
+- Expand tests around restart interruption and degraded-run semantics.
+- Keep documentation synchronized with the real trigger and report contract.
 
 ### Mid-term
 
-- Persist normalized telemetry summaries through `appcore.storage.crud`
-- Add a run-centric query surface for the UI
-- Reduce reliance on implicit filesystem conventions
+- Define retention/cleanup expectations for `output/activation_report_*.json`
+  and `output/analysis_jobs/*.json`.
+- Persist more structured run metadata only if analyst querying genuinely
+  becomes painful.
+- Keep compatibility or historical surfaces out of new implementation work.
 
 ### Long-term
 
-- Keep downstream code on canonical imports only
-- Separate raw artifact retention from structured result persistence
+- Version report contracts deliberately as evidence semantics evolve.
+- Retire dormant compatibility surfaces once callers are truly gone.
+- Revisit DB-backed run history only if the single-operator model changes.
 
 ## Verdict
 
-The refactor is directionally correct and significantly improves maintainability. The architecture is now coherent; the remaining work is mostly about operational maturity of the dynamic-analysis pipeline, not structural cleanup.
+The architecture is coherent and maintainable. The remaining hard problems are
+runtime reliability, evidence truthfulness, and documentation discipline, not
+another major package reshuffle.

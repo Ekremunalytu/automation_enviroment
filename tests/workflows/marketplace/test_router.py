@@ -669,6 +669,11 @@ def test_build_trigger_payload_passes_commands_and_custom_editors(
         contributes_commands=[{"title": "Run", "command_id": "extension.run"}],
         contributes_authentication=[{"auth_id": "github", "label": "GitHub"}],
         contributes_views={"explorer": [{"id": "webview.sample"}]},
+        contributes_debuggers=None,
+        contributes_walkthroughs=None,
+        contributes_task_definitions=None,
+        contributes_terminal_profiles=None,
+        capability_metadata=None,
     )
     mock_write.assert_called_once()
 
@@ -806,6 +811,7 @@ def test_execute_analysis_request_reports_healthful_monitoring_summary(
     (tmp_path / report_name).write_text(
         """
         {
+          "trigger_execution_mode": "layered_passes",
           "automation_health": {
             "status": "healthy",
             "trigger_requested": true,
@@ -814,8 +820,15 @@ def test_execute_analysis_request_reports_healthful_monitoring_summary(
             "target_activation_count": 1,
             "failed_scenarios": ["coding_session"]
           },
+          "stimulus_passes": [
+            {"pass_id": "workspace_bootstrap", "status": "completed"}
+          ],
+          "event_attempts": [
+            {"attempt_id": "official-onLanguage-python", "attempted_passes": ["workspace_bootstrap"]}
+          ],
           "summary": {
-            "scenarios_run": ["coding_session"]
+            "scenarios_run": ["coding_session"],
+            "trigger_execution_mode": "layered_passes"
           }
         }
         """,
@@ -922,6 +935,7 @@ def test_execute_analysis_request_fails_when_trigger_plan_not_applied(
     (tmp_path / report_name).write_text(
         """
         {
+          "trigger_execution_mode": "selected_scenarios",
           "automation_health": {
             "status": "inconclusive",
             "trigger_requested": true,
@@ -930,6 +944,73 @@ def test_execute_analysis_request_fails_when_trigger_plan_not_applied(
             "target_activation_count": 0,
             "failed_scenarios": []
           }
+        }
+        """,
+        encoding="utf-8",
+    )
+
+    with (
+        patch("workflows.marketplace.analysis_service.ensure_vsix_exists"),
+        patch(
+            "workflows.marketplace.analysis_service.reset_executor_sandbox_state",
+            return_value="reset",
+        ),
+        patch(
+            "workflows.marketplace.analysis_service.install_extension_in_executor",
+            return_value="install",
+        ),
+        patch(
+            "workflows.marketplace.analysis_service.build_trigger_payload",
+            return_value=("/results/triggers.json", ["coding_session"], "selected"),
+        ),
+        patch(
+            "workflows.marketplace.analysis_service.run_playwright_automation",
+            return_value="automation",
+        ),
+        pytest.raises(marketplace_router.TriggerPlanError) as exc_info,
+    ):
+        marketplace_router._execute_analysis_request(
+            request,
+            db=MagicMock(),
+            progress_callback=lambda step,
+            status,
+            message,
+            error_code=None: progress_events.append(
+                (step, status, message, error_code)
+            ),
+            report_name=report_name,
+        )
+
+    assert exc_info.value.error_code == "trigger_apply_failed"
+    assert progress_events[-1][0] == "run_monitoring"
+    assert progress_events[-1][3] == "trigger_apply_failed"
+
+
+def test_execute_analysis_request_fails_when_layered_evidence_is_missing(
+    tmp_path: Path,
+) -> None:
+    request = marketplace_router.AnalyzeRequest(**ANALYZE_PAYLOAD)
+    progress_events: list[tuple[str, str, str, str | None]] = []
+    marketplace_router.settings.project.OUTPUT_DIR = str(tmp_path)
+    report_name = "activation_report.json"
+    (tmp_path / report_name).write_text(
+        """
+        {
+          "trigger_execution_mode": "layered_passes",
+          "automation_health": {
+            "status": "degraded",
+            "trigger_requested": true,
+            "trigger_loaded": true,
+            "trigger_applied": true,
+            "target_activation_count": 0,
+            "failed_scenarios": []
+          },
+          "stimulus_passes": [
+            {"pass_id": "workspace_bootstrap", "status": "planned"}
+          ],
+          "event_attempts": [
+            {"attempt_id": "official-onLanguage-python", "attempted_passes": []}
+          ]
         }
         """,
         encoding="utf-8",

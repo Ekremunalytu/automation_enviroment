@@ -1259,6 +1259,11 @@ def _collect_active_capabilities(
     track: str,
     extra_capabilities: set[str] | None = None,
 ) -> list[str]:
+    support_map = (
+        _OFFICIAL_CAPABILITY_SUPPORT
+        if track == _OFFICIAL_TRACK
+        else _HEURISTIC_CAPABILITY_SUPPORT
+    )
     capabilities: set[str] = set()
     for scenario_name in selected_scenarios:
         capabilities.update(_SCENARIO_BY_NAME[scenario_name].api_capabilities)
@@ -1293,7 +1298,11 @@ def _collect_active_capabilities(
         capabilities.add("webview")
     if extra_capabilities:
         capabilities.update(extra_capabilities)
-    return sorted(capabilities)
+    return sorted(
+        capability
+        for capability in capabilities
+        if support_map.get(capability, "missing") == "covered"
+    )
 
 
 def _build_static_track_matrix(track: str) -> list[dict[str, Any]]:
@@ -1530,7 +1539,7 @@ def _resolve_executor_action(
         "onDebugInitialConfigurations",
         "onDebugResolve",
     }:
-        return "scenario:debug_session"
+        return "extra:debug_lifecycle"
     if family == "workspaceContains":
         return "scenario:project_exploration"
     if family in {"onNotebook", "onRenderer"}:

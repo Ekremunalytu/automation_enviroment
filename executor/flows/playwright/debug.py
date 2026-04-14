@@ -45,7 +45,11 @@ def create_launch_json(page: Page, debug_type: str = "node") -> None:
     Args:
         debug_type: The debug adapter type (e.g. "node", "python", "cppdbg").
     """
-    run_command(page, "Debug: Open launch.json")
+    run_command(
+        page,
+        "Debug: Open launch.json",
+        expect_followup_quick_input=True,
+    )
     page.wait_for_timeout(1000)
     # If quick-pick appears for selecting debug type, type and select
     page.keyboard.type(debug_type, delay=30)

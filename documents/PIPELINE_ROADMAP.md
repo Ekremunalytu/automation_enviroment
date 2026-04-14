@@ -1,54 +1,62 @@
 # Pipeline Roadmap
 
-`Last Updated: 2026-04-13`
+`Last Updated: 2026-04-14`
 
-This roadmap reflects the current executor pipeline after the refactor. The older controller-centric plan has been replaced by workflow orchestration in `workflows/marketplace/` plus sandbox execution in `executor/flows/playwright/`.
+This roadmap reflects the current pipeline after the refactor and the first
+pass of trigger planning, report health, risk signals, and verdict output.
 
-The roadmap assumes a single-user sandbox appliance, not a large shared app.
+The roadmap still assumes a single-user sandbox appliance, not a distributed
+analysis platform.
 
 ## Current Pipeline
 
 ```mermaid
 flowchart LR
-    UI["Vite + React + Tailwind UI"] --> API["FastAPI marketplace workflow"]
-    API --> Download["Marketplace download/extract"]
-    API --> DB["Extension metadata in PostgreSQL"]
-    API --> Exec["executor.host docker exec wrapper"]
-    Exec --> Sandbox["executor/flows/playwright/entrypoint.py"]
-    Sandbox --> Reports["output/activation_report_*.json"]
-    Sandbox --> Jobs["output/analysis_jobs/*.json"]
+    UI["React UI"] --> API["FastAPI marketplace workflow"]
+    API --> DL["Marketplace download/extract"]
+    DL --> DB["Validated catalog persistence"]
+    API --> JOB["Async job store (`output/analysis_jobs`)"]
+    API --> PLAN["Trigger planning"]
+    PLAN --> HOST["`executor.host`"]
+    HOST --> EXEC["Playwright entrypoint"]
+    EXEC --> MON["monitor + health + signals + report_builder"]
+    MON --> REPORT["`output/activation_report_*.json`"]
 ```
 
-## Phase A: Stabilize the Existing Pipeline
+## Phase A: Tighten Runtime Truthfulness
 
-- Make sandbox reset and reload behavior deterministic
-- Ensure trigger file generation matches the actual workspace mounted in the executor
-- Improve status reporting from background jobs
-- Add tests for job snapshot persistence, restart interruption, and failure states
+- keep reset/install/reload failures explicit
+- ensure missing or unapplied trigger payloads do not look benign
+- make interrupted jobs obvious after API restarts
+- define retention and cleanup expectations for job snapshots and reports
 
-## Phase B: Improve Report Truthfulness
+## Phase B: Close Coverage Gaps
 
-- Tighten automation health reporting
-- Make degraded vs healthy runs easier to distinguish
-- Preserve enough metadata in JSON artifacts for reliable analyst review
+- keep official activation coverage and heuristic workflow coverage separate
+- close missing support for `chat`, `comments`, `testing`, and
+  `workspace_trust`
+- improve official-track verification for `scm` and `settings`
+- keep per-event attempt ledgers readable for analysts
 
-## Phase C: Normalize Telemetry
+## Phase C: Stabilize the Report Contract
 
-- Parse network/process/filesystem artifacts
-- Convert them into Pydantic contracts
-- Expose read APIs and UI adapters where it materially improves analyst review
-- Keep persistence minimal unless the product assumptions change
+- preserve stable JSON fields for the React adapters
+- refine degraded vs inconclusive semantics
+- keep attribution summary, risk summary, and verdict reasons aligned
+- version the report contract deliberately as semantics evolve
 
-## Phase D: Risk and Triage
+## Phase D: Calibrate Analyst Signal Quality
 
-- Add rule-based risk scoring
-- Show risk summaries in the React reports experience
-- Improve comparison of extension versions only when it helps the single-operator workflow
+- tune risk scoring and verdict thresholds against real fixtures
+- improve operator guidance when a run is degraded or interrupted
+- keep live simulation and final report views consistent
 
 ## Design Constraints
 
-- Workflow orchestration belongs in `workflows/marketplace/`
-- Shared contracts and persistence belong in `appcore/`
-- Sandbox mechanics belong in `executor/`
-- Legacy wrapper paths are not the target for new pipeline code
-- Do not assume queue workers, tenancy, or distributed job ownership without a product change
+- workflow orchestration belongs in `workflows/marketplace/`
+- shared contracts and catalog persistence belong in `appcore/`
+- sandbox mechanics belong in `executor/`
+- dynamic-analysis persistence remains artifact-first unless product needs
+  justify more structure
+- do not assume queue workers, tenancy, or distributed ownership without an
+  explicit product change

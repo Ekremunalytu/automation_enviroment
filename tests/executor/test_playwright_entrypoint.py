@@ -13,7 +13,22 @@ import entrypoint  # noqa: E402
 import triggers as trigger_loader  # noqa: E402
 
 
-def test_resolve_execution_plan_prefers_loaded_trigger_scenarios() -> None:
+def test_resolve_execution_plan_prefers_layered_trigger_passes() -> None:
+    payload = trigger_loader.TriggerPayload(
+        selected_scenarios=["rename_symbol"],
+        stimulus_passes=[{"pass_id": "workspace_bootstrap", "status": "planned"}],
+    )
+
+    plan, scenarios = entrypoint._resolve_execution_plan(
+        None,
+        payload,
+    )
+
+    assert plan == "layered_passes"
+    assert scenarios == ["rename_symbol"]
+
+
+def test_resolve_execution_plan_uses_selected_scenarios_for_explicit_scenario() -> None:
     payload = trigger_loader.TriggerPayload(selected_scenarios=["rename_symbol"])
 
     plan, scenarios = entrypoint._resolve_execution_plan(
@@ -21,8 +36,8 @@ def test_resolve_execution_plan_prefers_loaded_trigger_scenarios() -> None:
         payload,
     )
 
-    assert plan == "selected"
-    assert scenarios == ["rename_symbol"]
+    assert plan == "selected_scenarios"
+    assert scenarios == ["coding_session"]
 
 
 def test_resolve_execution_plan_uses_single_scenario_fallback() -> None:
@@ -31,7 +46,7 @@ def test_resolve_execution_plan_uses_single_scenario_fallback() -> None:
         None,
     )
 
-    assert plan == "single"
+    assert plan == "single_scenario"
     assert scenarios == ["coding_session"]
 
 
@@ -41,5 +56,5 @@ def test_resolve_execution_plan_runs_all_without_payload_or_fallback() -> None:
         None,
     )
 
-    assert plan == "all"
+    assert plan == "all_scenarios"
     assert scenarios == []

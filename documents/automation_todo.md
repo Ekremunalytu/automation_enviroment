@@ -1,10 +1,11 @@
 # Dynamic Analysis Roadmap
 
-`Last Updated: 2026-04-13`
+`Last Updated: 2026-04-14`
 
-This roadmap tracks the current state of the post-refactor dynamic-analysis stack.
+This roadmap tracks the current state of the dynamic-analysis stack after the
+architecture split and layered trigger/report work.
 
-It assumes the current product shape stays the same:
+It still assumes:
 
 - single analyst
 - same-device or same-host deployment
@@ -15,88 +16,77 @@ It assumes the current product shape stays the same:
 
 ### Delivered
 
-- Canonical workflow split into `appcore/` and `workflows/`
-- Marketplace search endpoint and HTTP client
-- Marketplace download flow with `.vsix` extraction
-- Extension registration from downloaded directories
-- Executor container split into `executor/container/` and `executor/flows/playwright/`
-- Synchronous analysis endpoint: `POST /api/marketplace/analyze`
-- Background analysis endpoint: `POST /api/marketplace/analyze/start`
-- Persisted background job snapshots under `output/analysis_jobs/`
-- Activation report browsing via `GET /api/activations*`
-- React SPA routes for `Reports`, `Simulation`, and `Marketplace`
-- Canonical import coverage in `tests/platform/test_canonical_imports.py`
+- canonical split into `appcore/`, `workflows/`, `executor/`, and `ui/`
+- marketplace search, download, and validated catalog registration
+- synchronous analysis endpoint: `POST /api/marketplace/analyze`
+- background analysis endpoint: `POST /api/marketplace/analyze/start`
+- persisted background job snapshots under `output/analysis_jobs/`
+- layered trigger payload generation from stored activation/contributes metadata
+- container-side trigger loading and layered stimulus passes
+- report health, attribution summary, risk signals, and verdict output
+- activation report browsing under `/api/activations`
+- SPA routes for Marketplace, Simulation, and Reports
 
 ### Partially Delivered
 
-- Smart trigger selection based on stored activation events and contributes metadata
-- Sandbox reset and reload orchestration
-- Executor monitoring/report generation
+- official vs heuristic coverage separation
+- executor failure messaging and degraded-run guidance
+- retention and cleanup discipline for report/job artifacts
+- end-to-end smoke depth beyond the pinned `ms-python.python` fixture
 
 ### Not Delivered Yet
 
-- Risk scoring engine
-- Stronger report truthfulness around degraded runs
-- Better operator guidance around interrupted or failed analyses
+- first-class support for `chat`, `comments`, `testing`, and
+  `workspace_trust`
+- durable run-history querying beyond JSON artifacts
+- fully closed official-track verification for `scm` and `settings`
 
 ## Active Priorities
 
 ### 1. Analysis Reliability
 
-- Treat required VS Code reload failures as hard analysis failures where appropriate
-- Remove broad fallback paths that hide trigger-generation errors
-- Close workspace-path mismatches that can prevent some triggers from firing
-- Expand end-to-end tests around `POST /api/marketplace/analyze/start`
+- fail closed on reset/install/reload/trigger-load problems
+- keep interrupted jobs explicit after API restarts
+- expand coverage around async job lifecycle and degraded states
 
-### 2. Results Persistence
+### 2. Coverage Fidelity
 
-Keep persistence intentionally light:
+- keep official activation coverage separate from heuristic workflow coverage
+- improve per-event verification status truthfulness
+- close missing capability support without blurring the matrix
 
-- preserve clear JSON report artifacts in `output/`
-- preserve job snapshots in `output/analysis_jobs/`
-- only add DB persistence if the product needs cross-run history badly enough to justify it
+### 3. Report Contract Discipline
 
-### 3. Telemetry Ingestion
+- keep report JSON stable for the React UI
+- preserve sharp semantics for degraded vs inconclusive runs
+- keep risk signals and verdict reasons evidence-linked
 
-Continue normalizing report data for the UI and risk engine without assuming DB-backed storage:
+### 4. Operational Hygiene
 
-1. parse activation report JSON
-2. normalize to appcore-compatible contracts where helpful
-3. adapt for UI review surfaces
-4. keep the raw JSON artifact as the source of operational truth
-
-### 4. Risk Scoring
-
-Implement a first-pass scorer for:
-
-- unexpected outbound traffic
-- suspicious filesystem access
-- credential harvesting patterns
-- unexpected child processes
-- always-on or unusually broad activation profiles
+- define retention/cleanup behavior for `output/`
+- keep one-analysis-at-a-time behavior obvious to operators
+- avoid unnecessary persistence layers until query pain is real
 
 ## Suggested Next Milestones
 
-### Milestone A: Durable Analysis Runs
+### Milestone A: Honest Failure Surfaces
 
-- Make interrupted runs explicit in job snapshots
-- Keep one-analysis-at-a-time behavior obvious in the UI
-- Improve operator-facing retry guidance when a run is interrupted
+- make all executor failure paths visible in job steps and report health
+- keep missing trigger payloads from producing misleadingly clean outcomes
 
-### Milestone B: Telemetry Parsers
+### Milestone B: Coverage Closure
 
-- Promote monitor output parsing into canonical workflow code
-- Add tests for normalization of network/process/filesystem events
+- add support for missing capability families
+- tighten official-track verification for `scm` and `settings`
 
-### Milestone C: UI Enrichment
+### Milestone C: Artifact Operations
 
-- Add stronger per-run risk summary and drill-downs
-- Keep live simulation and final report views consistent
-- Keep route state URL-driven so drill-down views remain shareable
+- document retention expectations for reports and job snapshots
+- add lightweight cleanup tooling only if operators need it
 
 ## Architectural Guardrails
 
-- Keep executor-specific code under `executor/`
-- Keep workflow orchestration in `workflows/marketplace/`
-- Keep shared persistence and contracts in `appcore/`
-- Do not add new logic to legacy compatibility modules
+- keep executor-specific code under `executor/`
+- keep workflow orchestration in `workflows/marketplace/`
+- keep shared persistence and contracts in `appcore/`
+- do not add new feature logic to archival or historical surfaces

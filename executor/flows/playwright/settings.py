@@ -5,7 +5,7 @@ Modifying settings triggers configuration change events that some extensions lis
 """
 
 import keyboard
-from commands import run_command
+from commands import run_command, wait_for_quick_input_hidden
 
 from playwright.sync_api import Page
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
@@ -63,30 +63,18 @@ def change_theme(page: Page, theme_name: str = "Default Dark Modern") -> None:
     Opens the theme picker, types the theme name, and confirms selection.
     Waits for the quick-input widget to fully close before returning.
     """
-    # Open theme picker via Command Palette
-    page.keyboard.press(keyboard.COMMAND_PALETTE)
-    page.wait_for_timeout(500)
-    page.keyboard.type("Preferences: Color Theme", delay=30)
-    page.wait_for_timeout(600)
-    page.keyboard.press("Enter")
-    page.wait_for_timeout(800)
+    run_command(
+        page,
+        "Preferences: Color Theme",
+        expect_followup_quick_input=True,
+    )
 
     # Theme picker is now open — type to filter and select
     page.keyboard.type(theme_name, delay=30)
     page.wait_for_timeout(800)
     page.keyboard.press("Enter")
+    wait_for_quick_input_hidden(page, timeout_ms=3000)
     page.wait_for_timeout(1000)
-
-    # Wait for quick-input to close (theme applied)
-    try:
-        quick_input_sel = ".quick-input-widget:not([style*='display: none'])"
-        page.wait_for_selector(quick_input_sel, state="detached", timeout=3000)
-    except PlaywrightTimeoutError:
-        # Force close if still open
-        page.keyboard.press("Escape")
-        page.wait_for_timeout(500)
-        page.keyboard.press("Escape")
-        page.wait_for_timeout(300)
 
 
 def toggle_setting_via_json(page: Page, key: str, value: str) -> None:

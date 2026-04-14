@@ -131,6 +131,51 @@ def _validate_trigger_plan_report(
             "Executor did not apply the trigger payload during sandbox automation.",
         )
 
+    execution_mode = str(payload.get("trigger_execution_mode", "")).strip()
+    if execution_mode != "layered_passes":
+        raise TriggerPlanError(
+            "trigger_apply_failed",
+            (
+                "Executor loaded the trigger payload but did not run layered passes; "
+                f"execution mode was {execution_mode or 'unknown'}."
+            ),
+        )
+
+    stimulus_passes = payload.get("stimulus_passes")
+    finalized_stimulus_pass = False
+    if isinstance(stimulus_passes, list):
+        finalized_stimulus_pass = any(
+            isinstance(item, dict)
+            and str(item.get("status", "")).strip() in {"completed", "failed"}
+            for item in stimulus_passes
+        )
+    if not finalized_stimulus_pass:
+        raise TriggerPlanError(
+            "trigger_apply_failed",
+            (
+                "Executor loaded the trigger payload but did not finalize any "
+                "layered stimulus pass."
+            ),
+        )
+
+    event_attempts = payload.get("event_attempts")
+    attempted_pass_recorded = False
+    if isinstance(event_attempts, list):
+        attempted_pass_recorded = any(
+            isinstance(item, dict)
+            and isinstance(item.get("attempted_passes"), list)
+            and any(str(pass_name).strip() for pass_name in item["attempted_passes"])
+            for item in event_attempts
+        )
+    if not attempted_pass_recorded:
+        raise TriggerPlanError(
+            "trigger_apply_failed",
+            (
+                "Executor loaded the trigger payload but did not record any "
+                "attempted layered event pass."
+            ),
+        )
+
 
 def ensure_vsix_exists(request: AnalyzeRequest) -> Path:
     vsix_path = marketplace_client.get_vsix_path(

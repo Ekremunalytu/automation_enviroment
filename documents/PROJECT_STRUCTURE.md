@@ -1,60 +1,75 @@
 # Project Structure
 
-`Last Updated: 2026-04-13`
+`Last Updated: 2026-04-14`
 
-This is the canonical project layout after the architecture refactor.
-
-The structure supports a single-user sandbox product. It should stay simple unless the product assumptions change.
+This is the current top-level layout and placement guidance for the refactored
+repository.
 
 ## Top-Level Layout
 
 ```text
-appcore/
-  api/
-  contracts/
-  db/
-  storage/
-workflows/
-  activation_reports/
-  extension_catalog/
-  marketplace/
-executor/
-  container/
-  flows/playwright/
-ui/
-  src/
-legacy_ui/
-tests/
-  executor/
-  platform/
-  workflows/
-documents/
-docs/
+alembic/                   Schema migrations
+appcore/                   Shared platform code
+docker/                    API container build files
+docs/                      Narrow risk notes outside the main doc set
+documents/                 Canonical project documentation
+executor/                  Sandbox host wrapper + container runtime
+extensions/                Downloaded/extracted VSIX fixtures and samples
+legacy_ui/                 Archived Streamlit UI snapshot
+output/                    Generated reports and async job snapshots
+scripts/                   Small maintenance helpers
+tests/                     Python test suite
+ui/                        Primary React analyst console
+workflows/                 Canonical business workflows
 ```
 
 ## Placement Rules
 
-- Put new shared infrastructure into `appcore/`.
-- Put workflow-specific routers, services, parsers, and helpers into the matching `workflows/<name>/` package.
-- Put sandbox runtime code into `executor/`.
-- Put current analyst console code into `ui/`.
-- Treat `legacy_ui/` as archive-only unless a migration needs to reference it.
-- Put tests beside the corresponding architecture slice under `tests/`.
-- Prefer file-backed artifacts in `output/` when they are sufficient for the single-user workflow.
-- Do not introduce multi-tenant or distributed job infrastructure into the structure without a real product need.
+- Put reusable platform code in `appcore/`.
+- Put workflow-specific routers, services, parsers, and trigger logic in the
+  matching `workflows/<name>/` package.
+- Put sandbox runtime code in `executor/`.
+- Put analyst-facing frontend code in `ui/`.
+- Keep `legacy_ui/` archival unless a migration reference is required.
+- Keep generated artifacts in `output/`; do not treat them as source code.
+- Keep extension fixtures and downloaded VSIX artifacts in `extensions/`.
+- If a change affects persisted catalog schema, pair it with Alembic updates in
+  `alembic/versions/`.
 
 ## Canonical Paths
 
-### Canonical
-
+- `main.py`
 - `appcore/api/config.py`
 - `appcore/api/deps.py`
 - `appcore/db/session.py`
 - `appcore/storage/models.py`
 - `appcore/storage/crud.py`
 - `appcore/contracts/schemas.py`
-- `workflows/*`
+- `workflows/extension_catalog/`
+- `workflows/activation_reports/`
+- `workflows/marketplace/`
 - `executor/host.py`
+
+## Workflow Layout
+
+```text
+workflows/
+  activation_reports/
+    router.py
+  extension_catalog/
+    manifest_parser.py
+    manifest_reader.py
+    package_parser.py
+    router.py
+    service.py
+  marketplace/
+    analysis_service.py
+    client.py
+    job_store.py
+    router.py
+    trigger_service.py
+    triggers.py
+```
 
 ## UI Layout
 
@@ -81,41 +96,48 @@ ui/
       types/
     main.tsx
     index.css
+  smoke/
   Dockerfile
-  vite.config.ts
-  tailwind.config.js
   README.md
-legacy_ui/
-  app.py
-  views/
-  api.py
-  navigation.py
 ```
 
 ## Executor Layout
 
 ```text
 executor/
+  host.py
   container/
     Dockerfile
     requirements.txt
     start.sh
-  flows/playwright/
-    entrypoint.py
-    automation.py
-    monitor.py
-    workspace.py
-    reload_vscode.py
-    reset_state.py
-    commands.py
-    editor.py
-    panel.py
-    sidebar.py
-    terminal.py
-    settings.py
-    debug.py
-    triggers.py
-    vscode.py
+  flows/
+    harness_extension/
+      extension.js
+      package.json
+    playwright/
+      annotation.py
+      automation.py
+      capture.py
+      commands.py
+      debug.py
+      editor.py
+      entrypoint.py
+      health.py
+      keyboard.py
+      language_samples.py
+      monitor.py
+      panel.py
+      reload_vscode.py
+      report_builder.py
+      reset_state.py
+      settings.py
+      sidebar.py
+      signals.py
+      stimulus.py
+      terminal.py
+      triggers.py
+      vscode.py
+      workspace.py
 ```
 
 ## Test Layout
@@ -130,20 +152,39 @@ tests/
     contracts/
     storage/
     test_canonical_imports.py
+  scanner/
+    test_executor.py
+  smoke/
+    test_marketplace_analysis_smoke.py
   workflows/
     activation_reports/
     extension_catalog/
     marketplace/
 ```
 
+UI tests live under `ui/src/**/*.test.ts(x)`.
+
+## Generated and Reference Areas
+
+- `extensions/`
+  - downloaded VSIX artifacts, extracted extension directories, and pinned test
+    fixtures
+- `output/`
+  - activation reports and async analysis job JSON snapshots
+- `documents/`
+  - architecture, executor, testing, roadmap, and semantics notes
+- `docs/`
+  - narrower risk notes such as `docs/risks.md`
+
 ## Quick Change Map
 
-- New API setting or dependency: `appcore/api/`
-- New DB model or CRUD logic: `appcore/storage/` plus Alembic
-- New catalog feature: `workflows/extension_catalog/`
-- New activation report behavior: `workflows/activation_reports/`
-- New marketplace or analysis behavior: `workflows/marketplace/`
-- New sandbox capability: `executor/container/` or `executor/flows/playwright/`
-- New UI feature page or route: `ui/src/features/`
-- New shared UI primitive: `ui/src/components/ui/`
-- New UI data adapter or HTTP client logic: `ui/src/lib/`
+- Shared config or dependency injection: `appcore/api/`
+- Shared schema or model change: `appcore/contracts/`, `appcore/storage/`,
+  `alembic/versions/`, matching tests
+- Catalog feature: `workflows/extension_catalog/`
+- Activation report behavior: `workflows/activation_reports/`
+- Marketplace download/analysis feature: `workflows/marketplace/`
+- Sandbox runtime behavior: `executor/host.py` or `executor/flows/playwright/`
+- UI route or workspace behavior: `ui/src/features/`
+- UI shared primitive: `ui/src/components/`
+- UI API/adapters/rule logic: `ui/src/lib/`

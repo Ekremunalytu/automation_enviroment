@@ -1,29 +1,36 @@
 # Repository Review Snapshot
 
-`Last Updated: 2026-04-13`
+`Last Updated: 2026-04-14`
 
 ## Overall Assessment
 
-The refactor significantly improved maintainability. The codebase now has a credible separation between shared platform concerns (`appcore/`), business workflows (`workflows/`), sandbox execution (`executor/`), and UI (`ui/`).
+The repository now has a coherent split between shared platform code,
+workflow-specific orchestration, sandbox execution, and the analyst UI. The
+main review burden has shifted from architecture cleanup to runtime reliability
+and report truthfulness.
 
 ## What Looks Good
 
-- Canonical architecture is clearer and easier to extend.
-- Canonical imports are explicit and covered by tests.
-- Marketplace analysis is now a proper workflow instead of scattered logic.
-- The React SPA decomposition into app shell, feature routes, and shared components is much stronger than before.
+- `appcore/`, `workflows/`, `executor/`, and `ui/` have credible ownership
+  boundaries.
+- Catalog persistence still has a single write boundary through CRUD.
+- Marketplace analysis is decomposed into router, analysis service, trigger
+  planning, and job storage rather than one monolithic path.
+- The React SPA mirrors the analyst workflow cleanly.
 
 ## Main Follow-Up Areas
 
-- Tighten executor failure handling so analysis outcomes remain trustworthy.
-- Deepen integration coverage for `POST /api/marketplace/analyze/start` and related job polling.
-- Keep the UI optimized for the single-operator sandbox loop rather than a generalized shared dashboard.
+- Executor timing and reload behavior remain the biggest source of risk.
+- Trigger coverage and report semantics need to stay documented alongside code.
+- File-backed job/report artifacts need disciplined retention and testing.
 
 ## Recommended Review Order for Future Changes
 
-1. `workflows/`
-2. `appcore/`
-3. `executor/`
-4. canonical import surfaces
+1. `workflows/marketplace/`
+2. `executor/`
+3. `appcore/`
+4. `ui/`
+5. remaining workflow slices
 
-That order matches the current architecture and reduces the chance of reviewing legacy surfaces before canonical ones.
+That order follows the highest-risk path first: intake -> trigger planning ->
+sandbox execution -> report consumption.
