@@ -38,16 +38,45 @@ def build_summary(
         "sensitive_file_events": len(getattr(report, "sensitive_file_events", [])),
         "target_file_events": len(getattr(report, "target_file_events", [])),
         "target_network_events": len(getattr(report, "target_network_events", [])),
-        "attempted_capabilities": getattr(report, "attempted_capabilities", []),
-        "verified_capabilities": getattr(report, "verified_capabilities", []),
+        "attempted_capabilities": getattr(
+            report, "official_attempted_capabilities", []
+        ),
+        "verified_capabilities": getattr(report, "official_verified_capabilities", []),
+        "official_attempted_capabilities": getattr(
+            report,
+            "official_attempted_capabilities",
+            [],
+        ),
+        "official_verified_capabilities": getattr(
+            report,
+            "official_verified_capabilities",
+            [],
+        ),
+        "heuristic_attempted_capabilities": getattr(
+            report,
+            "heuristic_attempted_capabilities",
+            [],
+        ),
+        "heuristic_verified_capabilities": getattr(
+            report,
+            "heuristic_verified_capabilities",
+            [],
+        ),
         "ui_blocker_count": len(getattr(report, "ui_blocker_entries", [])),
         "target_extension_expected": getattr(report, "target_extension_id", ""),
         "target_extension_observed": getattr(
             report, "target_extension_observed", False
         ),
+        "official_event_coverage": getattr(report, "official_event_coverage", {}),
+        "heuristic_workflow_coverage": getattr(
+            report,
+            "heuristic_workflow_coverage",
+            {},
+        ),
         "trigger_plan_applied": bool(getattr(report, "trigger_plan_applied", False))
         or not bool(getattr(report, "trigger_plan_requested", False)),
         "verification_gap": getattr(report, "verification_gap", 0),
+        "heuristic_verification_gap": getattr(report, "heuristic_verification_gap", 0),
         "run_quality": run_quality,
         "automation_health": automation_health,
         "log_health": log_health,
@@ -93,6 +122,7 @@ def build_report_data(
         "failed_scenarios": getattr(report, "failed_scenarios", []),
         "extra_trigger_failures": getattr(report, "extra_trigger_failures", []),
         "verification_gap": getattr(report, "verification_gap", 0),
+        "heuristic_verification_gap": getattr(report, "heuristic_verification_gap", 0),
         "run_quality": run_quality,
         "automation_health": automation_health,
         "log_health": log_health,
@@ -101,8 +131,30 @@ def build_report_data(
         "risk_summary": risk_summary,
         "verdict": getattr(report, "verdict", {}),
         "summary": summary,
-        "attempted_capabilities": getattr(report, "attempted_capabilities", []),
-        "verified_capabilities": getattr(report, "verified_capabilities", []),
+        "attempted_capabilities": getattr(
+            report, "official_attempted_capabilities", []
+        ),
+        "verified_capabilities": getattr(report, "official_verified_capabilities", []),
+        "official_attempted_capabilities": getattr(
+            report,
+            "official_attempted_capabilities",
+            [],
+        ),
+        "official_verified_capabilities": getattr(
+            report,
+            "official_verified_capabilities",
+            [],
+        ),
+        "heuristic_attempted_capabilities": getattr(
+            report,
+            "heuristic_attempted_capabilities",
+            [],
+        ),
+        "heuristic_verified_capabilities": getattr(
+            report,
+            "heuristic_verified_capabilities",
+            [],
+        ),
         "network_capture_error": getattr(report, "network_capture_error", ""),
         "file_capture_error": getattr(report, "file_capture_error", ""),
         "activated": [asdict(e) for e in getattr(report, "activated", [])],
@@ -112,12 +164,24 @@ def build_report_data(
         "network_events": [asdict(e) for e in getattr(report, "network_events", [])],
         "file_events": [asdict(e) for e in getattr(report, "file_events", [])],
         "scenario_traces": [asdict(e) for e in getattr(report, "scenario_traces", [])],
+        "stimulus_passes": [asdict(e) for e in getattr(report, "stimulus_passes", [])],
+        "prerequisite_results": [
+            asdict(e) for e in getattr(report, "prerequisite_results", [])
+        ],
+        "event_attempts": [asdict(e) for e in getattr(report, "event_attempts", [])],
         "evidence_events": [asdict(e) for e in evidence_events],
         "evidence_links": [asdict(e) for e in evidence_links],
         "network_summary": getattr(report, "network_summary", {}),
         "file_summary": getattr(report, "file_summary", {}),
         "coverage_summary": getattr(report, "coverage_summary", {}),
         "coverage_matrix": getattr(report, "coverage_matrix", []),
+        "coverage_tracks": getattr(report, "coverage_tracks", {}),
+        "official_event_coverage": getattr(report, "official_event_coverage", {}),
+        "heuristic_workflow_coverage": getattr(
+            report,
+            "heuristic_workflow_coverage",
+            {},
+        ),
         "log_streams": {
             stream: [asdict(entry) for entry in entries]
             for stream, entries in getattr(report, "log_streams", {}).items()

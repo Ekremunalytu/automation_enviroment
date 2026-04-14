@@ -49,7 +49,12 @@ def _belongs_to_current_process(job: dict[str, Any]) -> bool:
     return job.get("owner_boot_id") == _PROCESS_BOOT_ID
 
 
-def _interrupt_job(job: dict[str, Any], detail: str) -> dict[str, Any]:
+def _interrupt_job(
+    job: dict[str, Any],
+    detail: str,
+    *,
+    error_code: str | None = None,
+) -> dict[str, Any]:
     current_step = job.get("current_step")
     failed_index: int | None = None
     if current_step:
@@ -57,6 +62,7 @@ def _interrupt_job(job: dict[str, Any], detail: str) -> dict[str, Any]:
             if step.get("name") == current_step:
                 step["status"] = "failed"
                 step["message"] = detail
+                step["error_code"] = error_code
                 failed_index = index
                 break
 
@@ -74,6 +80,7 @@ def _interrupt_job(job: dict[str, Any], detail: str) -> dict[str, Any]:
         status="failed",
         message=detail,
         error_detail=detail,
+        error_code=error_code,
         finished_at=now(),
         updated_at=now(),
     )
@@ -98,28 +105,37 @@ def load_persisted_job(job_id: str) -> dict[str, Any]:
     return _normalize_loaded_job(job)
 
 
-def empty_job_steps() -> list[dict[str, str]]:
+def empty_job_steps() -> list[dict[str, str | None]]:
     return [
         {
             "name": "reset_sandbox",
             "status": "pending",
             "message": "Waiting for sandbox cleanup.",
+            "error_code": None,
         },
-        {"name": "install_extension", "status": "pending", "message": "Queued."},
+        {
+            "name": "install_extension",
+            "status": "pending",
+            "message": "Queued.",
+            "error_code": None,
+        },
         {
             "name": "build_triggers",
             "status": "pending",
             "message": "Waiting for activation metadata.",
+            "error_code": None,
         },
         {
             "name": "run_monitoring",
             "status": "pending",
             "message": "Waiting for sandbox automation.",
+            "error_code": None,
         },
         {
             "name": "finalize_report",
             "status": "pending",
             "message": "Waiting for report export.",
+            "error_code": None,
         },
     ]
 
@@ -150,6 +166,7 @@ def create_job_snapshot(request: AnalyzeRequest) -> dict[str, Any]:
         "install_output": None,
         "automation_output": None,
         "error_detail": None,
+        "error_code": None,
         "created_at": created_at,
         "started_at": None,
         "finished_at": None,
@@ -209,7 +226,13 @@ def update_job(job_id: str, **updates: Any) -> None:
         persist_job(job)
 
 
-def update_job_step(job_id: str, step_name: str, status: str, message: str) -> None:
+def update_job_step(
+    job_id: str,
+    step_name: str,
+    status: str,
+    message: str,
+    error_code: str | None = None,
+) -> None:
     with _JOB_LOCK:
         job = _ANALYSIS_JOBS.get(job_id)
         if job is None:
@@ -220,6 +243,7 @@ def update_job_step(job_id: str, step_name: str, status: str, message: str) -> N
             if step["name"] == step_name:
                 step["status"] = status
                 step["message"] = message
+                step["error_code"] = error_code
                 break
 
         job["current_step"] = step_name if status == "running" else job["current_step"]
@@ -232,7 +256,7 @@ def update_job_step(job_id: str, step_name: str, status: str, message: str) -> N
         persist_job(job)
 
 
-def fail_job(job_id: str, detail: str) -> None:
+def fail_job(job_id: str, detail: str, *, error_code: str | None = None) -> None:
     with _JOB_LOCK:
         job = _ANALYSIS_JOBS.get(job_id)
         if job is None:
@@ -246,6 +270,7 @@ def fail_job(job_id: str, detail: str) -> None:
                 if step["name"] == current_step:
                     step["status"] = "failed"
                     step["message"] = detail
+                    step["error_code"] = error_code
                     failed_index = index
                     break
 
@@ -262,6 +287,7 @@ def fail_job(job_id: str, detail: str) -> None:
             status="failed",
             message=detail,
             error_detail=detail,
+            error_code=error_code,
             finished_at=now(),
             updated_at=now(),
         )

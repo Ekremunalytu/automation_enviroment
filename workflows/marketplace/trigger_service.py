@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 from sqlalchemy.orm import Session
 
@@ -10,11 +11,16 @@ from appcore.api.config import settings
 from appcore.contracts.schemas import AnalyzeRequest
 from appcore.storage.crud import (
     get_extension_activation_events,
+    get_extension_capabilities,
     get_extension_contributes_all,
 )
 from workflows.marketplace.triggers import select_scenarios, write_trigger_file
 
 logger = logging.getLogger(__name__)
+
+
+def _is_mock_like(value: object) -> bool:
+    return value.__class__.__module__.startswith("unittest.mock")
 
 
 def build_trigger_payload(
@@ -36,6 +42,12 @@ def build_trigger_payload(
         extension_publisher=request.publisher,
         extension_version=request.version,
     )
+    capabilities = get_extension_capabilities(
+        db,
+        extension_name=request.name,
+        extension_publisher=request.publisher,
+        extension_version=request.version,
+    )
 
     if not activation_events:
         return (
@@ -48,9 +60,11 @@ def build_trigger_payload(
         {"event_type": event.event_type, "event_value": event.event_value}
         for event in activation_events
     ]
-    custom_editors = contributes.customEditors if contributes else None
+    custom_editors = (
+        getattr(contributes, "customEditors", None) if contributes else None
+    )
     authentication_data = None
-    if contributes and contributes.authentication:
+    if contributes and getattr(contributes, "authentication", None):
         authentication_data = [
             {
                 "auth_id": (
@@ -64,16 +78,41 @@ def build_trigger_payload(
                     else getattr(item, "label", "")
                 ),
             }
-            for item in contributes.authentication
+            for item in getattr(contributes, "authentication", [])
         ]
-    views = contributes.views if contributes else None
+    views = getattr(contributes, "views", None) if contributes else None
+    debuggers = getattr(contributes, "debuggers", None) if contributes else None
+    walkthroughs = getattr(contributes, "walkthroughs", None) if contributes else None
+    task_definitions = (
+        getattr(contributes, "taskDefinitions", None) if contributes else None
+    )
+    terminal_profiles = getattr(contributes, "terminal", None) if contributes else None
     publisher_name = f"{request.publisher}.{request.name}"
     commands_data = None
-    if contributes and contributes.commands:
+    if contributes and getattr(contributes, "commands", None):
         commands_data = [
             {"title": command.title, "command_id": command.command_id}
-            for command in contributes.commands
+            for command in getattr(contributes, "commands", [])
         ]
+
+    capability_metadata: dict[str, Any] | None = None
+    if capabilities is not None and not _is_mock_like(capabilities):
+        capability_metadata = {
+            "untrusted_supported": getattr(capabilities, "untrusted_supported", None),
+            "untrusted_description": getattr(
+                capabilities,
+                "untrusted_description",
+                None,
+            ),
+            "virtual_supported": getattr(capabilities, "virtual_supported", None),
+            "virtual_description": getattr(
+                capabilities,
+                "virtual_description",
+                None,
+            ),
+        }
+        if not any(value is not None for value in capability_metadata.values()):
+            capability_metadata = None
 
     payload = select_scenarios(
         events_data,
@@ -82,6 +121,11 @@ def build_trigger_payload(
         contributes_commands=commands_data,
         contributes_authentication=authentication_data,
         contributes_views=views,
+        contributes_debuggers=debuggers,
+        contributes_walkthroughs=walkthroughs,
+        contributes_task_definitions=task_definitions,
+        contributes_terminal_profiles=terminal_profiles,
+        capability_metadata=capability_metadata,
     )
     trigger_container_path = write_trigger_file(
         request.publisher,
@@ -91,8 +135,9 @@ def build_trigger_payload(
         output_dir=settings.project.OUTPUT_DIR,
     )
     logger.info(
-        "Smart triggers: %d scenarios for %s.%s",
+        "Layered stimulus plan: %d scenarios, %d official events for %s.%s",
         len(payload.selected_scenarios),
+        getattr(payload, "official_event_coverage", {}).get("declared", 0),
         request.publisher,
         request.name,
     )
@@ -100,11 +145,32 @@ def build_trigger_payload(
         trigger_container_path,
         payload.selected_scenarios,
         (
-            "Trigger requested for "
-            f"{publisher_name}: selected {len(payload.selected_scenarios)} "
-            f"scenario(s) [{', '.join(payload.selected_scenarios) or 'none'}]; "
-            f"payload written to {trigger_container_path}."
+            _build_trigger_summary(
+                publisher_name,
+                payload.selected_scenarios,
+                getattr(payload, "official_event_coverage", {}).get("declared", 0),
+                len(getattr(payload, "stimulus_passes", [])),
+                trigger_container_path,
+            )
         ),
+    )
+
+
+def _build_trigger_summary(
+    publisher_name: str,
+    selected_scenarios: list[str],
+    official_event_count: object,
+    pass_count: int,
+    trigger_container_path: str,
+) -> str:
+    return (
+        "Trigger requested for "
+        f"{publisher_name}: selected {len(selected_scenarios)} "
+        "compatibility scenario(s) "
+        f"[{', '.join(selected_scenarios) or 'none'}]; "
+        f"compiled {official_event_count} official event target(s) "
+        f"across {pass_count} pass(es); "
+        f"payload written to {trigger_container_path}."
     )
 
 

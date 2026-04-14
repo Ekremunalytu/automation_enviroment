@@ -28,6 +28,7 @@ from workflows.extension_catalog.service import (
 )
 from workflows.marketplace import client as marketplace_client
 from workflows.marketplace.analysis_service import (
+    TriggerPlanError,
     ensure_vsix_exists,
     execute_analysis_request,
     map_executor_error,
@@ -208,5 +209,7 @@ def analyze_extension(
         return execute_analysis_request(request, db)
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except TriggerPlanError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
     except ExecutorError as exc:
         raise map_executor_error(exc) from exc

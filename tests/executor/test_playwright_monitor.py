@@ -672,6 +672,20 @@ def test_network_events_without_target_activation_stay_unattributed() -> None:
 
 def test_reconcile_coverage_marks_attempted_only_when_not_verified() -> None:
     report = monitor.ActivationReport(
+        coverage_tracks={
+            "official": {
+                "summary": {"covered": 2, "partial": 0, "missing": 1},
+                "matrix": [
+                    {"capability": "commands", "status": "covered"},
+                    {"capability": "workspace_fs", "status": "covered"},
+                    {"capability": "chat", "status": "missing"},
+                ],
+            },
+            "heuristic": {
+                "summary": {"covered": 1, "partial": 0, "missing": 0},
+                "matrix": [{"capability": "search_views", "status": "covered"}],
+            },
+        },
         coverage_summary={"covered": 2, "partial": 0, "missing": 1},
         coverage_matrix=[
             {"capability": "commands", "status": "covered"},
@@ -680,9 +694,10 @@ def test_reconcile_coverage_marks_attempted_only_when_not_verified() -> None:
         ],
         attempted_capabilities=["commands", "workspace_fs"],
         verified_capabilities=["workspace_fs"],
+        heuristic_attempted_capabilities=["search_views"],
     )
 
-    summary, matrix = monitor._reconcile_coverage_verification(report)
+    summary, matrix, coverage_tracks = monitor._reconcile_coverage_verification(report)
 
     assert summary["attempted"] == 2
     assert summary["verified"] == 1
@@ -692,6 +707,7 @@ def test_reconcile_coverage_marks_attempted_only_when_not_verified() -> None:
     )
     assert commands_entry["verification_status"] == "attempted_only"
     assert workspace_entry["verification_status"] == "verified"
+    assert coverage_tracks["heuristic"]["summary"]["attempted"] == 1
 
 
 def test_verdict_stays_bounded_when_only_correlative_sensitive_activity_exists() -> (
@@ -746,7 +762,7 @@ def test_inconclusive_run_never_returns_benign() -> None:
     assert "inconclusive" in verdict["note"].lower()
 
 
-def test_trigger_requested_but_not_loaded_is_degraded() -> None:
+def test_trigger_requested_but_not_loaded_is_inconclusive() -> None:
     report = monitor.ActivationReport(
         activated=[
             monitor.ActivationEntry(
@@ -777,10 +793,74 @@ def test_trigger_requested_but_not_loaded_is_degraded() -> None:
 
     health = report.automation_health
 
-    assert health["status"] == "degraded"
+    assert health["status"] == "inconclusive"
     assert "trigger_plan_not_loaded" in health["reasons"]
     assert "trigger_plan_not_applied" in health["reasons"]
     assert monitor._build_verdict(report)["level"] != "benign"
+
+
+def test_target_running_alone_does_not_verify_window_ui() -> None:
+    report = monitor.ActivationReport(
+        running_extensions=[
+            monitor.RunningExtension(
+                extension_id="publisher.tool", activation_time_ms=5
+            )
+        ],
+        target_extension_id="publisher.tool",
+    )
+
+    assert monitor._derive_verified_capabilities(report) == []
+
+
+def test_verify_target_reaction_requires_strong_target_activity(monkeypatch) -> None:
+    class DummyPage:
+        pass
+
+    mon = monitor.ExtensionMonitor(DummyPage(), target_extension_id="publisher.tool")
+    mon.report.monitoring_start = 0.0
+    mon.report.file_events.append(
+        monitor.FileEvent(
+            path="/workspace/package.json",
+            operation="read",
+            source="extension",
+            observer="strace",
+            attribution_status="near_target_activation",
+            is_target_extension_event=False,
+            summary="correlative read",
+        )
+    )
+    mon.report.attempted_capabilities = ["commands"]
+
+    monkeypatch.setattr(
+        monitor, "parse_all_exthost_logs", lambda start_offsets=None: []
+    )
+
+    verified = mon.verify_target_reaction(
+        {
+            "target_activations": 0,
+            "target_file_events": 0,
+            "target_network_events": 0,
+            "ui_blockers": 0,
+        },
+        capability="commands",
+        trigger_label="Run Analysis",
+        activation_event="onCommand",
+    )
+
+    assert verified is False
+    assert mon.report.verified_capabilities == []
+
+
+def test_heuristic_verification_gap_is_separate_from_official_gap() -> None:
+    report = monitor.ActivationReport(
+        attempted_capabilities=["commands"],
+        verified_capabilities=[],
+        heuristic_attempted_capabilities=["search_views", "settings"],
+        heuristic_verified_capabilities=["search_views"],
+    )
+
+    assert report.verification_gap == 1
+    assert report.heuristic_verification_gap == 1
 
 
 def test_empty_extension_host_output_degrades_run_health() -> None:

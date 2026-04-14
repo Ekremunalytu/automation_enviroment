@@ -1,8 +1,11 @@
 import { useMemo, useState } from "react";
 import type {
-  CoverageCapabilityView,
-  CoverageSummaryView,
+  CoverageTrackView,
+  CoverageTracksView,
+  EventAttemptView,
+  EventCoverageView,
   LogStreamsView,
+  StimulusPassView,
 } from "../../lib/types/view-models";
 import { Badge } from "../ui/Badge";
 import { EmptyState } from "../ui/EmptyState";
@@ -42,12 +45,18 @@ const STREAM_META: Record<
 };
 
 export function LogStreamsPanel({
-  coverageMatrix,
-  coverageSummary,
+  coverageTracks,
+  officialEventCoverage,
+  heuristicWorkflowCoverage,
+  eventAttempts,
+  stimulusPasses,
   logStreams,
 }: {
-  coverageMatrix: CoverageCapabilityView[];
-  coverageSummary: CoverageSummaryView;
+  coverageTracks: CoverageTracksView;
+  officialEventCoverage: EventCoverageView;
+  heuristicWorkflowCoverage: EventCoverageView;
+  eventAttempts: EventAttemptView[];
+  stimulusPasses: StimulusPassView[];
   logStreams: LogStreamsView;
 }) {
   const [activeTab, setActiveTab] = useState<LogStreamTab>("target");
@@ -58,64 +67,40 @@ export function LogStreamsPanel({
     return logStreams.targetExtensionHost;
   }, [activeTab, logStreams]);
 
-  const partialCapabilities = coverageMatrix.filter((item) => item.supportStatus === "partial");
-  const attemptedOnly = coverageMatrix.filter((item) => item.verificationStatus === "attempted_only");
-
   return (
     <div className="space-y-4">
       <Panel className="overflow-hidden p-0">
         <div className="border-b border-line px-5 py-5">
           <PanelHeader
-            description="The automation framework coverage is summarized here so missing VS Code API surfaces are visible next to the captured logs."
+            description="Official activation coverage and heuristic analyst-workflow coverage are separated here so coverage claims stay honest next to the captured logs."
             title="Coverage audit"
           />
         </div>
-        <div className="grid gap-4 px-5 py-5 lg:grid-cols-[repeat(3,minmax(0,1fr))]">
-          <MetricTile title="Covered" value={String(coverageSummary.covered)} />
-          <MetricTile title="Partial" value={String(coverageSummary.partial)} />
-          <MetricTile title="Missing" value={String(coverageSummary.missing)} />
-          <MetricTile title="Attempted" value={String(coverageSummary.attempted)} />
-          <MetricTile title="Verified" value={String(coverageSummary.verified)} />
-          <MetricTile title="Verification Gap" value={String(Math.max(coverageSummary.attempted - coverageSummary.verified, 0))} />
+        <div className="grid gap-4 px-5 py-5 lg:grid-cols-2">
+          <CoverageAuditCard
+            description="Coverage that maps to official VS Code activation semantics."
+            title="Official Coverage"
+            track={coverageTracks.official}
+          />
+          <CoverageAuditCard
+            description="Analyst workflow coverage that is useful operationally but is not an official activation claim."
+            title="Heuristic Workflow Coverage"
+            track={coverageTracks.heuristic}
+          />
         </div>
-        <div className="border-t border-line px-5 py-5">
-          <div className="micro-label">Missing capabilities</div>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {coverageSummary.missingCapabilities.length ? (
-              coverageSummary.missingCapabilities.map((item) => (
-                <Badge key={item} tone="danger">
-                  {item}
-                </Badge>
-              ))
-            ) : (
-              <span className="text-sm text-mute">No missing capabilities reported.</span>
-            )}
-          </div>
-          {partialCapabilities.length ? (
-            <div className="mt-4 text-sm leading-6 text-mute">
-              Partial support:{" "}
-              {partialCapabilities
-                .slice(0, 4)
-                .map((item) => item.capabilityLabel)
-                .join(", ")}
-              {partialCapabilities.length > 4 ? "..." : ""}
-            </div>
-          ) : null}
-          {coverageSummary.attemptedCapabilities.length ? (
-            <div className="mt-4 text-sm leading-6 text-mute">
-              Attempted: {coverageSummary.attemptedCapabilities.join(", ")}
-            </div>
-          ) : null}
-          {coverageSummary.verifiedCapabilities.length ? (
-            <div className="mt-2 text-sm leading-6 text-mute">
-              Verified: {coverageSummary.verifiedCapabilities.join(", ")}
-            </div>
-          ) : null}
-          {attemptedOnly.length ? (
-            <div className="mt-2 text-sm leading-6 text-warning">
-              Attempted but not verified: {attemptedOnly.map((item) => item.capabilityLabel).join(", ")}
-            </div>
-          ) : null}
+        <div className="grid gap-4 border-t border-line px-5 py-5 lg:grid-cols-2">
+          <EventCoverageCard
+            title="Official Event Ledger"
+            coverage={officialEventCoverage}
+            attempts={eventAttempts.filter((item) => item.track === "official")}
+            passes={stimulusPasses}
+          />
+          <EventCoverageCard
+            title="Heuristic Workflow Ledger"
+            coverage={heuristicWorkflowCoverage}
+            attempts={eventAttempts.filter((item) => item.track === "heuristic")}
+            passes={stimulusPasses}
+          />
         </div>
       </Panel>
 
@@ -181,6 +166,136 @@ function MetricTile({ title, value }: { title: string; value: string }) {
     <div className="metric-tile">
       <div className="micro-label">{title}</div>
       <div className="mt-3 text-2xl font-semibold tracking-tight text-ink">{value}</div>
+    </div>
+  );
+}
+
+function CoverageAuditCard({
+  title,
+  description,
+  track,
+}: {
+  title: string;
+  description: string;
+  track: CoverageTrackView;
+}) {
+  const partialCapabilities = track.matrix.filter((item) => item.supportStatus === "partial");
+  const attemptedOnly = track.matrix.filter((item) => item.verificationStatus === "attempted_only");
+
+  return (
+    <div className="rounded-[22px] border border-line bg-canvas/55 p-4">
+      <div className="micro-label">{title}</div>
+      <div className="mt-2 text-sm leading-6 text-mute">{description}</div>
+      <div className="mt-4 grid gap-3 md:grid-cols-[repeat(3,minmax(0,1fr))]">
+        <MetricTile title="Covered" value={String(track.summary.covered)} />
+        <MetricTile title="Partial" value={String(track.summary.partial)} />
+        <MetricTile title="Missing" value={String(track.summary.missing)} />
+        <MetricTile title="Attempted" value={String(track.summary.attempted)} />
+        <MetricTile title="Verified" value={String(track.summary.verified)} />
+        <MetricTile
+          title="Verification Gap"
+          value={String(Math.max(track.summary.attempted - track.summary.verified, 0))}
+        />
+      </div>
+      <div className="mt-4">
+        <div className="micro-label">Missing capabilities</div>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {track.summary.missingCapabilities.length ? (
+            track.summary.missingCapabilities.map((item) => (
+              <Badge key={`${title}-${item}`} tone="danger">
+                {item}
+              </Badge>
+            ))
+          ) : (
+            <span className="text-sm text-mute">No missing capabilities reported.</span>
+          )}
+        </div>
+        {partialCapabilities.length ? (
+          <div className="mt-4 text-sm leading-6 text-mute">
+            Partial support: {partialCapabilities.slice(0, 4).map((item) => item.capabilityLabel).join(", ")}
+            {partialCapabilities.length > 4 ? "..." : ""}
+          </div>
+        ) : null}
+        {track.summary.attemptedCapabilities.length ? (
+          <div className="mt-4 text-sm leading-6 text-mute">
+            Attempted: {track.summary.attemptedCapabilities.join(", ")}
+          </div>
+        ) : null}
+        {track.summary.verifiedCapabilities.length ? (
+          <div className="mt-2 text-sm leading-6 text-mute">
+            Verified: {track.summary.verifiedCapabilities.join(", ")}
+          </div>
+        ) : null}
+        {attemptedOnly.length ? (
+          <div className="mt-2 text-sm leading-6 text-warning">
+            Attempted but not verified: {attemptedOnly.map((item) => item.capabilityLabel).join(", ")}
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function EventCoverageCard({
+  title,
+  coverage,
+  attempts,
+  passes,
+}: {
+  title: string;
+  coverage: EventCoverageView;
+  attempts: EventAttemptView[];
+  passes: StimulusPassView[];
+}) {
+  const unresolved = attempts.filter((item) => item.status !== "verified").slice(0, 6);
+  const recentPasses = [...passes]
+    .sort((left, right) => left.order - right.order)
+    .slice(0, 5);
+
+  return (
+    <div className="rounded-[22px] border border-line bg-canvas/55 p-4">
+      <div className="micro-label">{title}</div>
+      <div className="mt-4 grid gap-3 md:grid-cols-[repeat(4,minmax(0,1fr))]">
+        <MetricTile title="Declared" value={String(coverage.declared)} />
+        <MetricTile title="Verified" value={String(coverage.verified)} />
+        <MetricTile title="Attempted Only" value={String(coverage.attemptedOnly)} />
+        <MetricTile title="Unresolved" value={String(coverage.unresolved)} />
+      </div>
+      <div className="mt-4">
+        <div className="micro-label">Pass timeline</div>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {recentPasses.length ? (
+            recentPasses.map((passItem) => (
+              <Badge key={`${title}-${passItem.passId}`} tone={passItem.status === "failed" ? "danger" : passItem.status === "completed" ? "success" : "warning"}>
+                {passItem.label}
+              </Badge>
+            ))
+          ) : (
+            <span className="text-sm text-mute">No pass data in this report.</span>
+          )}
+        </div>
+      </div>
+      <div className="mt-4">
+        <div className="micro-label">Per-event ledger</div>
+        <div className="mt-3 space-y-2 text-sm leading-6">
+          {unresolved.length ? (
+            unresolved.map((item) => (
+              <div className="rounded-[14px] border border-lineSoft bg-panelAlt/60 px-3 py-2" key={`${title}-${item.attemptId}`}>
+                <div className="flex flex-wrap gap-2">
+                  <Badge tone={item.status === "failed" ? "danger" : item.status === "blocked" ? "warning" : "default"}>
+                    {item.statusLabel}
+                  </Badge>
+                  <Badge tone="cyan">{item.activationEvent || item.eventFamily}</Badge>
+                  <Badge>{item.triggerMethodUsed || item.triggerMethod || "planned"}</Badge>
+                </div>
+                <div className="mt-2 text-ink">{item.resultDetails || item.selectionReasons[0] || "No additional detail."}</div>
+              </div>
+            ))
+          ) : (
+            <span className="text-sm text-mute">Every declared item in this track verified cleanly.</span>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

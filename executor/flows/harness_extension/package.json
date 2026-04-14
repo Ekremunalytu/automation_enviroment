@@ -1,0 +1,23 @@
+{
+  "name": "extrace-harness",
+  "displayName": "ExTrace Harness",
+  "description": "Local-only helper extension for deterministic sandbox stimulus backfill.",
+  "version": "0.0.1",
+  "publisher": "extrace",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "main": "./extension.js",
+  "activationEvents": [
+    "onStartupFinished",
+    "onCommand:extrace.harness.runCurrentStimulus"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "extrace.harness.runCurrentStimulus",
+        "title": "ExTrace Harness: Run Current Stimulus"
+      }
+    ]
+  }
+}

@@ -63,15 +63,11 @@ def derive_verified_capabilities(report: Any) -> list[str]:
         for entry in getattr(report, "activated", [])
         if getattr(entry, "extension_id", "") == target_id
     ]
-    target_running = any(
-        getattr(entry, "extension_id", "") == target_id
-        for entry in getattr(report, "running_extensions", [])
-    )
     target_file_events = getattr(report, "target_file_events", [])
     target_network_events = getattr(report, "target_network_events", [])
     verified: set[str] = set()
 
-    if target_running or target_activations:
+    if target_activations or target_file_events or target_network_events:
         verified.add("window_ui")
     if any(
         getattr(activation, "activation_event", "").startswith("onCommand")
@@ -153,22 +149,198 @@ def derive_verified_capabilities(report: Any) -> list[str]:
         for activation in target_activations
     ):
         verified.add("webview")
-    if target_network_events and "workspace_fs" in verified:
-        verified.add("commands")
+    if any(
+        getattr(activation, "activation_event", "").startswith("onChatParticipant")
+        or getattr(activation, "activation_event", "").startswith("onLanguageModelTool")
+        for activation in target_activations
+    ):
+        verified.add("chat")
+    if any(
+        getattr(activation, "activation_event", "") == "onIssueReporterOpened"
+        for activation in target_activations
+    ):
+        verified.add("window_ui")
+    if any(
+        getattr(activation, "activation_event", "").startswith("onSearch")
+        for activation in target_activations
+    ):
+        verified.add("search_views")
+    if any(
+        getattr(activation, "activation_event", "").startswith("onTerminal")
+        for activation in target_activations
+    ):
+        verified.add("terminal_tasks")
 
     return sorted(verified)
 
 
+def reconcile_event_attempts(report: Any) -> list[Any]:
+    attempts = list(getattr(report, "event_attempts", []))
+    if not attempts:
+        return attempts
+
+    target_id = getattr(report, "target_extension_id", "")
+    target_activations = [
+        entry
+        for entry in getattr(report, "activated", [])
+        if getattr(entry, "extension_id", "") == target_id
+    ]
+    target_activation_events = [
+        str(getattr(entry, "activation_event", "")).strip()
+        for entry in target_activations
+        if str(getattr(entry, "activation_event", "")).strip()
+    ]
+    strong_target_activity = bool(
+        getattr(report, "target_file_events", [])
+        or getattr(report, "target_network_events", [])
+    )
+
+    for attempt in attempts:
+        activation_event = str(getattr(attempt, "activation_event", "")).strip()
+        family = str(getattr(attempt, "event_family", "")).strip()
+        if getattr(attempt, "status", "") == "failed":
+            attempt.verification_status = "failed"
+            continue
+        if getattr(attempt, "status", "") == "blocked":
+            attempt.verification_status = "blocked"
+            continue
+
+        exact_match = activation_event in target_activation_events
+        family_prefix_match = any(
+            event == family or event.startswith(f"{family}:")
+            for event in target_activation_events
+        )
+        if exact_match or family_prefix_match:
+            attempt.status = "verified"
+            attempt.verification_status = "verified"
+            if activation_event and activation_event not in attempt.evidence:
+                attempt.evidence.append(activation_event)
+            continue
+
+        if getattr(attempt, "status", "") in {"running", "planned"}:
+            attempt.status = (
+                "attempted_only"
+                if getattr(attempt, "attempted_passes", [])
+                else "failed"
+            )
+        if (
+            strong_target_activity
+            and getattr(attempt, "status", "") == "attempted_only"
+        ) or getattr(attempt, "status", "") == "attempted_only":
+            attempt.verification_status = "attempted_only"
+        elif getattr(attempt, "status", "") == "failed":
+            attempt.verification_status = "failed"
+    return attempts
+
+
+def summarize_event_attempts_for_report(
+    report: Any,
+    *,
+    track: str,
+) -> dict[str, Any]:
+    attempts = [
+        attempt
+        for attempt in getattr(report, "event_attempts", [])
+        if getattr(attempt, "track", "") == track
+    ]
+    verified = [
+        attempt for attempt in attempts if getattr(attempt, "status", "") == "verified"
+    ]
+    attempted_only = [
+        attempt
+        for attempt in attempts
+        if getattr(attempt, "status", "") == "attempted_only"
+    ]
+    failed = [
+        attempt for attempt in attempts if getattr(attempt, "status", "") == "failed"
+    ]
+    blocked = [
+        attempt for attempt in attempts if getattr(attempt, "status", "") == "blocked"
+    ]
+    return {
+        "track": track,
+        "declared": len(attempts),
+        "verified": len(verified),
+        "attempted_only": len(attempted_only),
+        "failed": len(failed),
+        "blocked": len(blocked),
+        "unresolved": max(len(attempts) - len(verified), 0),
+        "declared_events": [
+            str(getattr(attempt, "activation_event", ""))
+            for attempt in attempts
+            if str(getattr(attempt, "activation_event", "")).strip()
+        ],
+    }
+
+
 def reconcile_coverage_verification(
     report: Any,
+) -> tuple[dict[str, Any], list[dict[str, Any]], dict[str, dict[str, Any]]]:
+    coverage_tracks = getattr(report, "coverage_tracks", {}) or {}
+    official_summary, official_matrix = _reconcile_track(
+        coverage_tracks.get("official", {}).get(
+            "summary",
+            getattr(report, "coverage_summary", {}),
+        ),
+        coverage_tracks.get("official", {}).get(
+            "matrix",
+            getattr(report, "coverage_matrix", []),
+        ),
+        set(getattr(report, "official_attempted_capabilities", [])),
+        set(getattr(report, "official_verified_capabilities", [])),
+    )
+    heuristic_summary, heuristic_matrix = _reconcile_track(
+        coverage_tracks.get("heuristic", {}).get("summary", {}),
+        coverage_tracks.get("heuristic", {}).get("matrix", []),
+        set(getattr(report, "heuristic_attempted_capabilities", [])),
+        set(getattr(report, "heuristic_verified_capabilities", [])),
+    )
+    return (
+        official_summary,
+        official_matrix,
+        {
+            "official": {
+                "source": coverage_tracks.get("official", {}).get(
+                    "source",
+                    "official_activation_track",
+                ),
+                "selected_scenarios": coverage_tracks.get("official", {}).get(
+                    "selected_scenarios",
+                    [],
+                ),
+                "summary": official_summary,
+                "matrix": official_matrix,
+            },
+            "heuristic": {
+                "source": coverage_tracks.get("heuristic", {}).get(
+                    "source",
+                    "heuristic_workflow_track",
+                ),
+                "selected_scenarios": coverage_tracks.get("heuristic", {}).get(
+                    "selected_scenarios",
+                    [],
+                ),
+                "summary": heuristic_summary,
+                "matrix": heuristic_matrix,
+            },
+        },
+    )
+
+
+def _reconcile_track(
+    summary: dict[str, Any],
+    matrix_entries: list[dict[str, Any]],
+    attempted: set[str],
+    verified: set[str],
 ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
-    attempted = set(getattr(report, "attempted_capabilities", []))
-    verified = set(getattr(report, "verified_capabilities", []))
     matrix: list[dict[str, Any]] = []
-    for entry in getattr(report, "coverage_matrix", []):
+    for entry in matrix_entries:
         capability = str(entry.get("capability", "")).strip()
         next_entry = dict(entry)
-        next_entry["support_status"] = entry.get("status", "unknown")
+        next_entry["support_status"] = entry.get(
+            "support_status",
+            entry.get("status", "unknown"),
+        )
         if capability in verified:
             verification_status = "verified"
         elif capability in attempted:
@@ -180,12 +352,12 @@ def reconcile_coverage_verification(
         next_entry["verified"] = capability in verified
         matrix.append(next_entry)
 
-    summary = dict(getattr(report, "coverage_summary", {}))
-    summary["attempted"] = len(attempted)
-    summary["verified"] = len(verified)
-    summary["attempted_capabilities"] = sorted(attempted)
-    summary["verified_capabilities"] = sorted(verified)
-    return summary, matrix
+    next_summary = dict(summary)
+    next_summary["attempted"] = len(attempted)
+    next_summary["verified"] = len(verified)
+    next_summary["attempted_capabilities"] = sorted(attempted)
+    next_summary["verified_capabilities"] = sorted(verified)
+    return next_summary, matrix
 
 
 def build_log_health(
@@ -257,22 +429,21 @@ def build_automation_health(
     ):
         reasons.append("strong_target_attribution_missing")
 
+    trigger_plan_incomplete = getattr(report, "trigger_plan_requested", False) and (
+        not getattr(report, "trigger_plan_loaded", False)
+        or not getattr(report, "trigger_plan_applied", False)
+    )
+
     if (
         not target_extension_id
+        or trigger_plan_incomplete
         or not getattr(report, "target_extension_observed", False)
         or target_activation_count <= 0
         or (not target_stream_present and not strong_target_attribution)
     ):
         status = "inconclusive"
     elif (
-        (
-            getattr(report, "trigger_plan_requested", False)
-            and (
-                not getattr(report, "trigger_plan_loaded", False)
-                or not getattr(report, "trigger_plan_applied", False)
-            )
-        )
-        or not extension_host_log_present
+        not extension_host_log_present
         or not output_present
         or not target_stream_present
         or failed_scenarios
@@ -310,6 +481,8 @@ def build_run_quality(
     )
     reasons = [automation_reason_to_text(code) for code in health.get("reasons", [])]
     status = health.get("status", "inconclusive")
+    official_event_coverage = getattr(report, "official_event_coverage", {}) or {}
+    official_unresolved = int(official_event_coverage.get("unresolved", 0) or 0)
 
     if status == "inconclusive":
         return "inconclusive", reasons
@@ -322,5 +495,7 @@ def build_run_quality(
             or getattr(report, "verification_gap", 0) >= 3
         ):
             return "low", reasons
+        return "medium", reasons
+    if official_unresolved > 0:
         return "medium", reasons
     return "high", reasons

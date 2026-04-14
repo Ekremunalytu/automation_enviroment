@@ -176,10 +176,62 @@ const latestReport: ActivationReportDto = {
     {
       capability: "commands",
       status: "covered",
+      track: "official",
+      source: "official_activation_track",
       selected_scenarios: ["coding_session"],
       supported_scenarios: ["coding_session", "refactor_workflow"],
     },
   ],
+  coverage_tracks: {
+    official: {
+      source: "official_activation_track",
+      selected_scenarios: ["coding_session"],
+      summary: {
+        covered: 6,
+        partial: 2,
+        missing: 3,
+        attempted: 2,
+        verified: 1,
+        missing_capabilities: ["chat", "comments", "webview"],
+        attempted_capabilities: ["commands", "workspace_fs"],
+        verified_capabilities: ["workspace_fs"],
+      },
+      matrix: [
+        {
+          capability: "commands",
+          status: "covered",
+          track: "official",
+          source: "official_activation_track",
+          selected_scenarios: ["coding_session"],
+          supported_scenarios: ["coding_session", "refactor_workflow"],
+        },
+      ],
+    },
+    heuristic: {
+      source: "heuristic_workflow_track",
+      selected_scenarios: ["search_workflow"],
+      summary: {
+        covered: 1,
+        partial: 0,
+        missing: 0,
+        attempted: 1,
+        verified: 0,
+        missing_capabilities: [],
+        attempted_capabilities: ["search_views"],
+        verified_capabilities: [],
+      },
+      matrix: [
+        {
+          capability: "search_views",
+          status: "covered",
+          track: "heuristic",
+          source: "heuristic_workflow_track",
+          selected_scenarios: ["search_workflow"],
+          supported_scenarios: ["search_workflow"],
+        },
+      ],
+    },
+  },
   log_streams: {
     target_extension_host: [
       {
@@ -243,6 +295,8 @@ describe("ReportsPage", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Logs" }));
     expect(await screen.findByText("Coverage audit")).toBeInTheDocument();
+    expect(screen.getByText("Official Coverage")).toBeInTheDocument();
+    expect(screen.getByText("Heuristic Workflow Coverage")).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Target Triggers" })).toBeInTheDocument();
     expect(screen.getByText("Activated publisher.tool via onStartupFinished")).toBeInTheDocument();
   });

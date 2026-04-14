@@ -27,17 +27,26 @@ class TestSelectScenarios:
         assert "project_exploration" in payload.selected_scenarios
         assert "diagnostics_check" in payload.selected_scenarios
         assert len(payload.selected_scenarios) == 5
+        assert payload.official_selected_scenarios == []
+        assert payload.official_attempted_capabilities == []
+        assert payload.heuristic_attempted_capabilities
 
     def test_on_startup_finished_selects_all(self) -> None:
         events = [{"event_type": "onStartupFinished", "event_value": None}]
         payload = select_scenarios(events)
         assert len(payload.selected_scenarios) == 5
+        assert payload.official_attempted_capabilities == []
 
     def test_on_language_selects_coding_and_exploration(self) -> None:
         events = [{"event_type": "onLanguage", "event_value": "python"}]
         payload = select_scenarios(events)
         assert "coding_session" in payload.selected_scenarios
         assert "project_exploration" in payload.selected_scenarios
+        assert payload.official_selected_scenarios == [
+            "coding_session",
+            "project_exploration",
+        ]
+        assert "commands" in payload.official_attempted_capabilities
         assert payload.selection_reasons["coding_session"] == [
             "activation onLanguage:python"
         ]
@@ -51,16 +60,21 @@ class TestSelectScenarios:
         events = [{"event_type": "onView", "event_value": "scm"}]
         payload = select_scenarios(events)
         assert "git_workflow" in payload.selected_scenarios
+        assert payload.official_selected_scenarios == []
+        assert "scm" in payload.heuristic_attempted_capabilities
+        assert payload.coverage_tracks["heuristic"]["matrix"]
 
     def test_on_view_extensions_selects_browsing(self) -> None:
         events = [{"event_type": "onView", "event_value": "extensions"}]
         payload = select_scenarios(events)
         assert "extension_browsing" in payload.selected_scenarios
+        assert payload.official_attempted_capabilities == []
 
     def test_on_view_unknown_falls_back_to_exploration(self) -> None:
         events = [{"event_type": "onView", "event_value": "customPanel"}]
         payload = select_scenarios(events)
         assert "project_exploration" in payload.selected_scenarios
+        assert payload.official_attempted_capabilities == []
 
     def test_on_notebook_adds_notebook_session_and_file(self) -> None:
         events = [{"event_type": "onNotebook", "event_value": "jupyter-notebook"}]
@@ -94,6 +108,8 @@ class TestSelectScenarios:
         events = [{"event_type": "onConfiguration", "event_value": "myext.setting"}]
         payload = select_scenarios(events)
         assert "settings_modification" in payload.selected_scenarios
+        assert payload.official_attempted_capabilities == []
+        assert "settings" in payload.heuristic_attempted_capabilities
 
     def test_on_authentication_request_selects_authentication_probe(self) -> None:
         events = [{"event_type": "onAuthenticationRequest", "event_value": "github"}]
@@ -106,6 +122,12 @@ class TestSelectScenarios:
         payload = select_scenarios(events)
         assert "webview_probe" in payload.selected_scenarios
         assert payload.webview_view_ids == ["sampleView"]
+        attempt = next(
+            item
+            for item in payload.event_attempts
+            if item["activation_event"] == "onWebviewPanel:sampleView"
+        )
+        assert attempt["executor_action"] == "harness:run_current_stimulus"
 
     def test_workspace_contains_selects_exploration(self) -> None:
         events = [{"event_type": "workspaceContains", "event_value": "**/.gitignore"}]
@@ -115,7 +137,14 @@ class TestSelectScenarios:
     def test_empty_events_falls_back_to_coding_session(self) -> None:
         payload = select_scenarios([])
         assert payload.selected_scenarios == ["coding_session"]
-        assert payload.coverage_summary["covered"] >= 1
+        assert payload.coverage_summary["covered"] == 0
+        assert payload.official_attempted_capabilities == []
+        assert payload.heuristic_attempted_capabilities == [
+            "commands",
+            "languages_editor",
+            "window_ui",
+            "workspace_fs",
+        ]
 
     def test_unknown_event_type_falls_back(self) -> None:
         events = [{"event_type": "onSomethingNew", "event_value": None}]
@@ -159,6 +188,9 @@ class TestSelectScenarios:
             item for item in payload.coverage_matrix if item["capability"] == "chat"
         )
         assert commands["status"] == "covered"
+        assert commands["track"] == "official"
+        assert commands["source"] == "official_activation_track"
+        assert commands["support_status"] == "covered"
         assert missing["status"] == "missing"
 
     def test_authentication_and_webview_are_reported_as_covered_when_selected(
@@ -181,6 +213,30 @@ class TestSelectScenarios:
         )
         assert authentication["status"] == "covered"
         assert webview["status"] == "covered"
+
+    def test_builtin_views_only_contribute_to_heuristic_track(self) -> None:
+        payload = select_scenarios([{"event_type": "onView", "event_value": "search"}])
+
+        assert payload.official_attempted_capabilities == []
+        assert "search_views" in payload.heuristic_attempted_capabilities
+        assert payload.coverage_tracks["official"]["selected_scenarios"] == []
+        assert payload.coverage_tracks["heuristic"]["selected_scenarios"] == [
+            "search_workflow"
+        ]
+
+    def test_contributed_webview_view_can_land_in_official_track(self) -> None:
+        payload = select_scenarios(
+            [{"event_type": "onView", "event_value": "webview.sample"}],
+            contributes_views={"explorer": [{"id": "webview.sample"}]},
+        )
+
+        assert payload.official_selected_scenarios == ["webview_probe"]
+        assert "webview" in payload.official_attempted_capabilities
+        assert payload.heuristic_attempted_capabilities == []
+        assert payload.view_targets["webview.sample"] == {
+            "container_id": "explorer",
+            "view_type": "",
+        }
 
     def test_static_coverage_audit_exposes_missing_capabilities(self) -> None:
         audit = build_static_coverage_audit()
@@ -223,6 +279,10 @@ class TestSelectScenarios:
         assert "Say Hello" in payload.extra_commands
         assert "Run Analysis" in payload.extra_commands
         assert len(payload.extra_commands) == 2
+        assert payload.command_targets == {
+            "myext.sayHello": "Say Hello",
+            "myext.runAnalysis": "Run Analysis",
+        }
 
     def test_contributes_commands_are_capped(self) -> None:
         commands = [

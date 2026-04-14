@@ -35,6 +35,14 @@ from workflows.marketplace.trigger_service import build_trigger_payload
 logger = logging.getLogger(__name__)
 
 
+class TriggerPlanError(RuntimeError):
+    """Raised when trigger planning fails closed."""
+
+    def __init__(self, error_code: str, message: str) -> None:
+        super().__init__(message)
+        self.error_code = error_code
+
+
 def _load_report_payload(report_name: str) -> dict[str, object] | None:
     report_path = Path(settings.project.OUTPUT_DIR) / report_name
     if not report_path.exists():
@@ -46,8 +54,11 @@ def _load_report_payload(report_name: str) -> dict[str, object] | None:
     return payload if isinstance(payload, dict) else None
 
 
-def _build_report_messages(report_name: str) -> tuple[str, str]:
-    payload = _load_report_payload(report_name)
+def _build_report_messages(
+    report_name: str,
+    payload: dict[str, object] | None = None,
+) -> tuple[str, str]:
+    payload = payload if payload is not None else _load_report_payload(report_name)
     if payload is None:
         return (
             "Sandbox automation finished, but report health details were unavailable.",
@@ -88,6 +99,39 @@ def _build_report_messages(report_name: str) -> tuple[str, str]:
     return monitoring_message, finalize_message
 
 
+def _validate_trigger_plan_report(
+    report_name: str,
+    payload: dict[str, object] | None,
+) -> None:
+    if payload is None:
+        raise TriggerPlanError(
+            "trigger_load_failed",
+            (
+                "Sandbox automation finished but trigger-plan health details were "
+                f"missing for {report_name}."
+            ),
+        )
+
+    automation_health = payload.get("automation_health")
+    if not isinstance(automation_health, dict):
+        raise TriggerPlanError(
+            "trigger_load_failed",
+            "Sandbox automation report did not contain trigger-plan health metadata.",
+        )
+
+    if not bool(automation_health.get("trigger_loaded", False)):
+        raise TriggerPlanError(
+            "trigger_load_failed",
+            "Executor could not load the trigger payload inside the sandbox.",
+        )
+
+    if not bool(automation_health.get("trigger_applied", False)):
+        raise TriggerPlanError(
+            "trigger_apply_failed",
+            "Executor did not apply the trigger payload during sandbox automation.",
+        )
+
+
 def ensure_vsix_exists(request: AnalyzeRequest) -> Path:
     vsix_path = marketplace_client.get_vsix_path(
         request.publisher,
@@ -105,12 +149,17 @@ def ensure_vsix_exists(request: AnalyzeRequest) -> Path:
 def execute_analysis_request(
     request: AnalyzeRequest,
     db: Session,
-    progress_callback: Callable[[str, str, str], None] | None = None,
+    progress_callback: Callable[[str, str, str, str | None], None] | None = None,
     report_name: str | None = None,
 ) -> AnalyzeResponse:
-    def report(step_name: str, status: str, message: str) -> None:
+    def report(
+        step_name: str,
+        status: str,
+        message: str,
+        error_code: str | None = None,
+    ) -> None:
         if progress_callback is not None:
-            progress_callback(step_name, status, message)
+            progress_callback(step_name, status, message, error_code)
 
     ensure_vsix_exists(request)
 
@@ -169,12 +218,14 @@ def execute_analysis_request(
         )
         report(
             "build_triggers",
-            "completed",
-            (
-                "Trigger selection failed; continuing with degraded reliability "
-                "and default sandbox flow."
-            ),
+            "failed",
+            "Trigger payload build failed before sandbox automation started.",
+            "trigger_build_failed",
         )
+        raise TriggerPlanError(
+            "trigger_build_failed",
+            f"Failed to build trigger payload: {exc}",
+        ) from exc
 
     report(
         "run_monitoring",
@@ -198,7 +249,22 @@ def execute_analysis_request(
             "Sandbox automation failed before the report could be finalized.",
         )
         raise
-    monitoring_message, finalize_message = _build_report_messages(report_name)
+    report_payload = _load_report_payload(report_name)
+    if trigger_container_path is not None:
+        try:
+            _validate_trigger_plan_report(report_name, report_payload)
+        except TriggerPlanError as exc:
+            report(
+                "run_monitoring",
+                "failed",
+                str(exc),
+                exc.error_code,
+            )
+            raise
+    monitoring_message, finalize_message = _build_report_messages(
+        report_name,
+        report_payload,
+    )
     report("run_monitoring", "completed", monitoring_message)
     report("finalize_report", "completed", finalize_message)
 
@@ -240,28 +306,39 @@ def run_analysis_job(job_id: str, request: AnalyzeRequest) -> None:
     )
 
     db = SessionLocal()
+
+    def progress_update(
+        step: str,
+        status: str,
+        message: str,
+        error_code: str | None = None,
+    ) -> None:
+        update_job_step(
+            job_id,
+            step,
+            status,
+            message,
+            error_code=error_code,
+        )
+
     try:
         result = execute_analysis_request(
             request,
             db,
-            progress_callback=lambda step, status, message: update_job_step(
-                job_id,
-                step,
-                status,
-                message,
-            ),
+            progress_callback=progress_update,
             report_name=report_name,
         )
     except (
         FileNotFoundError,
         ExecutorError,
+        TriggerPlanError,
         OSError,
         SQLAlchemyError,
         ValueError,
         TypeError,
         AttributeError,
     ) as exc:
-        fail_job(job_id, str(exc))
+        fail_job(job_id, str(exc), error_code=getattr(exc, "error_code", None))
         return
     finally:
         db.close()
@@ -279,6 +356,7 @@ def run_analysis_job(job_id: str, request: AnalyzeRequest) -> None:
 
 
 __all__ = [
+    "TriggerPlanError",
     "ensure_vsix_exists",
     "execute_analysis_request",
     "map_executor_error",

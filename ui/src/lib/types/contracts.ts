@@ -97,6 +97,71 @@ export interface ScenarioTraceDto {
   status?: string;
 }
 
+export interface StimulusPassDto {
+  pass_id?: string;
+  label?: string;
+  order?: number;
+  started_at?: number;
+  ended_at?: number;
+  status?: string;
+  trigger_method?: string;
+}
+
+export interface PrerequisiteResultDto {
+  prerequisite_id?: string;
+  key?: string;
+  label?: string;
+  status?: string;
+  materializer?: string;
+  pass_name?: string;
+  attempt_ids?: string[];
+  detail?: string;
+}
+
+export interface EventAttemptDto {
+  attempt_id?: string;
+  declared_event?: string;
+  activation_event?: string;
+  event_family?: string;
+  event_value?: string;
+  track?: string;
+  selected_by?: string;
+  selection_reasons?: string[];
+  pass_name?: string;
+  backfill_pass_name?: string;
+  prerequisite_keys?: string[];
+  verification_contract?: string[];
+  trigger_method?: string;
+  fallback_trigger_method?: string;
+  executor_action?: string;
+  backfill_executor_action?: string;
+  legacy_scenarios?: string[];
+  capability_tags?: string[];
+  status?: string;
+  trigger_method_used?: string;
+  attempted_passes?: string[];
+  evidence?: string[];
+  verification_status?: string;
+  failure_reason_code?: string;
+  blocked_reason_code?: string;
+  result_details?: string;
+  official?: boolean;
+  heuristic?: boolean;
+  ui_path?: string;
+  harness_fallback?: string;
+}
+
+export interface EventCoverageDto {
+  track?: string;
+  declared?: number;
+  verified?: number;
+  attempted_only?: number;
+  failed?: number;
+  blocked?: number;
+  unresolved?: number;
+  declared_events?: string[];
+}
+
 export interface CoverageSummaryDto {
   covered?: number;
   partial?: number;
@@ -113,6 +178,8 @@ export interface CoverageSummaryDto {
 export interface CoverageCapabilityDto {
   capability: string;
   status: string;
+  track?: string;
+  source?: string;
   support_status?: string;
   verification_status?: string;
   selected_scenarios?: string[];
@@ -122,6 +189,18 @@ export interface CoverageCapabilityDto {
   selected?: boolean;
   attempted?: boolean;
   verified?: boolean;
+}
+
+export interface CoverageTrackDto {
+  source?: string;
+  selected_scenarios?: string[];
+  summary?: CoverageSummaryDto;
+  matrix?: CoverageCapabilityDto[];
+}
+
+export interface CoverageTracksDto {
+  official?: CoverageTrackDto;
+  heuristic?: CoverageTrackDto;
 }
 
 export interface AttributionSummaryDto {
@@ -191,6 +270,7 @@ export interface ActivationReportDto {
   target_extension_observed?: boolean;
   trigger_plan_applied?: boolean;
   verification_gap?: number;
+  heuristic_verification_gap?: number;
   run_quality?: string;
   automation_health?: AutomationHealthDto;
   log_health?: LogHealthDto;
@@ -208,10 +288,22 @@ export interface ActivationReportDto {
   network_events?: NetworkEventDto[];
   file_events?: FileEventDto[];
   scenario_traces?: ScenarioTraceDto[];
+  stimulus_passes?: StimulusPassDto[];
+  prerequisite_results?: PrerequisiteResultDto[];
+  event_attempts?: EventAttemptDto[];
   evidence_events?: EvidenceEventDto[];
   evidence_links?: EvidenceLinkDto[];
+  coverage_tracks?: CoverageTracksDto;
   coverage_summary?: CoverageSummaryDto;
   coverage_matrix?: CoverageCapabilityDto[];
+  official_event_coverage?: EventCoverageDto;
+  heuristic_workflow_coverage?: EventCoverageDto;
+  attempted_capabilities?: string[];
+  verified_capabilities?: string[];
+  official_attempted_capabilities?: string[];
+  official_verified_capabilities?: string[];
+  heuristic_attempted_capabilities?: string[];
+  heuristic_verified_capabilities?: string[];
   log_streams?: {
     target_extension_host?: LogStreamEntryDto[];
     other_extension_host?: LogStreamEntryDto[];
@@ -247,6 +339,7 @@ export interface AnalyzeJobStepDto {
   name: string;
   status: string;
   message: string;
+  error_code?: string | null;
 }
 
 export interface AnalyzeJobStatusDto {
@@ -263,6 +356,7 @@ export interface AnalyzeJobStatusDto {
   install_output?: string | null;
   automation_output?: string | null;
   error_detail?: string | null;
+  error_code?: string | null;
   created_at: number;
   started_at?: number | null;
   finished_at?: number | null;

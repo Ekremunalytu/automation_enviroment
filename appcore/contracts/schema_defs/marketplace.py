@@ -38,6 +38,7 @@ class AnalyzeRequest(BaseModel):
     name: str = Field(..., min_length=1)
     version: str = Field(..., min_length=1)
     scenario: str | None = None
+    analysis_profile: str | None = Field(default=None, min_length=1)
 
 
 class AnalyzeResponse(BaseModel):
@@ -55,6 +56,7 @@ class AnalyzeJobStep(BaseModel):
     name: str
     status: str
     message: str
+    error_code: str | None = None
 
 
 class AnalyzeJobStatusResponse(BaseModel):
@@ -71,6 +73,7 @@ class AnalyzeJobStatusResponse(BaseModel):
     install_output: str | None = None
     automation_output: str | None = None
     error_detail: str | None = None
+    error_code: str | None = None
     created_at: float
     started_at: float | None = None
     finished_at: float | None = None

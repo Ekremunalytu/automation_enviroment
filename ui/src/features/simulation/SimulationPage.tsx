@@ -325,29 +325,76 @@ export function SimulationPage() {
                 ruleDraft={ruleDraft}
               />
             ) : workspaceTab === "logs" ? (
-              <LogStreamsPanel
-                coverageMatrix={report?.coverageMatrix || []}
-                coverageSummary={
-                  report?.coverageSummary || {
-                    covered: 0,
-                    partial: 0,
-                    missing: 0,
-                    attempted: 0,
-                    verified: 0,
-                    missingCapabilities: [],
-                    attemptedCapabilities: [],
-                    verifiedCapabilities: [],
+                <LogStreamsPanel
+                  eventAttempts={report?.eventAttempts || []}
+                  coverageTracks={
+                    report?.coverageTracks || {
+                      official: {
+                      source: "",
+                      selectedScenarios: [],
+                      summary: {
+                        covered: 0,
+                        partial: 0,
+                        missing: 0,
+                        attempted: 0,
+                        verified: 0,
+                        missingCapabilities: [],
+                        attemptedCapabilities: [],
+                        verifiedCapabilities: [],
+                      },
+                      matrix: [],
+                    },
+                    heuristic: {
+                      source: "",
+                      selectedScenarios: [],
+                      summary: {
+                        covered: 0,
+                        partial: 0,
+                        missing: 0,
+                        attempted: 0,
+                        verified: 0,
+                        missingCapabilities: [],
+                        attemptedCapabilities: [],
+                        verifiedCapabilities: [],
+                      },
+                      matrix: [],
+                      },
+                    }
                   }
-                }
-                logStreams={
-                  report?.logStreams || {
-                    targetExtensionHost: [],
+                  heuristicWorkflowCoverage={
+                    report?.heuristicWorkflowCoverage || {
+                      track: "heuristic",
+                      declared: 0,
+                      verified: 0,
+                      attemptedOnly: 0,
+                      failed: 0,
+                      blocked: 0,
+                      unresolved: 0,
+                      declaredEvents: [],
+                    }
+                  }
+                  logStreams={
+                    report?.logStreams || {
+                      targetExtensionHost: [],
                     otherExtensionHost: [],
                     automation: [],
-                    uiBlockers: [],
+                      uiBlockers: [],
+                    }
                   }
-                }
-              />
+                  officialEventCoverage={
+                    report?.officialEventCoverage || {
+                      track: "official",
+                      declared: 0,
+                      verified: 0,
+                      attemptedOnly: 0,
+                      failed: 0,
+                      blocked: 0,
+                      unresolved: 0,
+                      declaredEvents: [],
+                    }
+                  }
+                  stimulusPasses={report?.stimulusPasses || []}
+                />
             ) : report && filteredEvents.length ? (
               <Panel className="overflow-hidden p-0">
                 <div className="border-b border-line px-5 py-5">

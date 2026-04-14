@@ -5,29 +5,40 @@ import type {
   AttributionSummaryDto,
   CoverageCapabilityDto,
   CoverageSummaryDto,
+  CoverageTrackDto,
+  EventAttemptDto,
+  EventCoverageDto,
   EvidenceEventDto,
   EvidenceLinkDto,
   FileEventDto,
   LogHealthDto,
   LogStreamEntryDto,
+  PrerequisiteResultDto,
   NetworkEventDto,
   RiskSignalDto,
   RiskSummaryDto,
   ScenarioTraceDto,
+  StimulusPassDto,
 } from "../types/contracts";
 import type {
   ActivationReportView,
   AttributionSummaryView,
   CoverageCapabilityView,
   CoverageSummaryView,
+  CoverageTrackView,
+  CoverageTracksView,
+  EventAttemptView,
+  EventCoverageView,
   EvidenceEventView,
   EvidenceInspectorView,
   EvidenceLinkView,
   LogEntryView,
   LogStreamsView,
+  PrerequisiteResultView,
   RiskSignalView,
   RiskSummaryView,
   ReportSummaryView,
+  StimulusPassView,
 } from "../types/view-models";
 
 function labelize(value: string, fallback = "Unknown") {
@@ -377,6 +388,20 @@ function buildSummary(report: ActivationReportDto, events: EvidenceEventView[]):
       ? (summary.verdict as Record<string, unknown>)
       : {};
   const verdictLevel = typeof verdict.level === "string" ? verdict.level : "needs_review";
+  const officialAttempted = Array.isArray(summary.attempted_capabilities)
+    ? summary.attempted_capabilities.map(String)
+    : Array.isArray(report.official_attempted_capabilities)
+      ? report.official_attempted_capabilities.map(String)
+      : Array.isArray(report.attempted_capabilities)
+        ? report.attempted_capabilities.map(String)
+      : [];
+  const officialVerified = Array.isArray(summary.verified_capabilities)
+    ? summary.verified_capabilities.map(String)
+    : Array.isArray(report.official_verified_capabilities)
+      ? report.official_verified_capabilities.map(String)
+      : Array.isArray(report.verified_capabilities)
+        ? report.verified_capabilities.map(String)
+      : [];
   return {
     totalEvents: events.length,
     totalActivated: Number(summary.total_activated ?? events.filter((event) => event.kind === "activation").length),
@@ -393,12 +418,8 @@ function buildSummary(report: ActivationReportDto, events: EvidenceEventView[]):
     sensitiveEvents: Number(
       summary.sensitive_file_events ?? events.filter((event) => event.sensitive).length,
     ),
-    attemptedCapabilities: Array.isArray(summary.attempted_capabilities)
-      ? summary.attempted_capabilities.map(String)
-      : [],
-    verifiedCapabilities: Array.isArray(summary.verified_capabilities)
-      ? summary.verified_capabilities.map(String)
-      : [],
+    attemptedCapabilities: officialAttempted,
+    verifiedCapabilities: officialVerified,
     uiBlockerCount: Number(summary.ui_blocker_count ?? report.log_streams?.ui_blockers?.length ?? 0),
     targetExtensionExpected: String(
       summary.target_extension_expected ?? report.target_extension_expected ?? "",
@@ -478,6 +499,8 @@ function fromCoverageCapability(entry: CoverageCapabilityDto): CoverageCapabilit
     capabilityLabel: labelize(entry.capability, "Capability"),
     status: verificationStatus,
     statusLabel: labelize(verificationStatus, "Unknown"),
+    track: entry.track || "official",
+    source: entry.source || "",
     supportStatus,
     supportStatusLabel: labelize(supportStatus, "Unknown"),
     verificationStatus,
@@ -487,6 +510,33 @@ function fromCoverageCapability(entry: CoverageCapabilityDto): CoverageCapabilit
     notes: entry.notes || "",
     attempted: Boolean(entry.attempted),
     verified: Boolean(entry.verified),
+  };
+}
+
+function buildCoverageTrack(
+  track?: CoverageTrackDto | null,
+  fallbackSummary?: CoverageSummaryDto | null,
+  fallbackMatrix: CoverageCapabilityDto[] = [],
+): CoverageTrackView {
+  const matrix = Array.isArray(track?.matrix) ? track.matrix : fallbackMatrix;
+  return {
+    source: track?.source || "",
+    selectedScenarios: Array.isArray(track?.selected_scenarios)
+      ? track.selected_scenarios.map(String)
+      : [],
+    summary: buildCoverageSummary(track?.summary || fallbackSummary, matrix),
+    matrix: matrix.map(fromCoverageCapability),
+  };
+}
+
+function buildCoverageTracks(dto: ActivationReportDto): CoverageTracksView {
+  return {
+    official: buildCoverageTrack(
+      dto.coverage_tracks?.official,
+      dto.coverage_summary,
+      dto.coverage_matrix || [],
+    ),
+    heuristic: buildCoverageTrack(dto.coverage_tracks?.heuristic, undefined, []),
   };
 }
 
@@ -543,8 +593,86 @@ function buildLogStreams(dto: ActivationReportDto): LogStreamsView {
   };
 }
 
+function fromStimulusPass(entry: StimulusPassDto): StimulusPassView {
+  return {
+    passId: entry.pass_id || "",
+    label: entry.label || entry.pass_id || "",
+    order: Number(entry.order ?? 0),
+    startedAt: typeof entry.started_at === "number" ? entry.started_at : null,
+    endedAt: typeof entry.ended_at === "number" ? entry.ended_at : null,
+    status: entry.status || "planned",
+    triggerMethod: entry.trigger_method || "",
+  };
+}
+
+function fromPrerequisiteResult(entry: PrerequisiteResultDto): PrerequisiteResultView {
+  return {
+    prerequisiteId: entry.prerequisite_id || "",
+    key: entry.key || "",
+    label: entry.label || entry.key || "",
+    status: entry.status || "planned",
+    materializer: entry.materializer || "",
+    passName: entry.pass_name || "",
+    attemptIds: Array.isArray(entry.attempt_ids) ? entry.attempt_ids.map(String) : [],
+    detail: entry.detail || "",
+  };
+}
+
+function fromEventAttempt(entry: EventAttemptDto): EventAttemptView {
+  const status = entry.status || "planned";
+  const verificationStatus = entry.verification_status || "not_attempted";
+  return {
+    attemptId: entry.attempt_id || "",
+    declaredEvent: entry.declared_event || entry.activation_event || "",
+    activationEvent: entry.activation_event || "",
+    eventFamily: entry.event_family || "",
+    eventValue: entry.event_value || "",
+    track: entry.track || "official",
+    selectedBy: entry.selected_by || "",
+    selectionReasons: Array.isArray(entry.selection_reasons) ? entry.selection_reasons.map(String) : [],
+    passName: entry.pass_name || "",
+    backfillPassName: entry.backfill_pass_name || "",
+    prerequisiteKeys: Array.isArray(entry.prerequisite_keys) ? entry.prerequisite_keys.map(String) : [],
+    verificationContract: Array.isArray(entry.verification_contract) ? entry.verification_contract.map(String) : [],
+    triggerMethod: entry.trigger_method || "",
+    fallbackTriggerMethod: entry.fallback_trigger_method || "",
+    executorAction: entry.executor_action || "",
+    backfillExecutorAction: entry.backfill_executor_action || "",
+    legacyScenarios: Array.isArray(entry.legacy_scenarios) ? entry.legacy_scenarios.map(String) : [],
+    capabilityTags: Array.isArray(entry.capability_tags) ? entry.capability_tags.map(String) : [],
+    status,
+    statusLabel: labelize(status, "Planned"),
+    triggerMethodUsed: entry.trigger_method_used || "",
+    attemptedPasses: Array.isArray(entry.attempted_passes) ? entry.attempted_passes.map(String) : [],
+    evidence: Array.isArray(entry.evidence) ? entry.evidence.map(String) : [],
+    verificationStatus,
+    verificationStatusLabel: labelize(verificationStatus, "Not Attempted"),
+    failureReasonCode: entry.failure_reason_code || "",
+    blockedReasonCode: entry.blocked_reason_code || "",
+    resultDetails: entry.result_details || "",
+    official: Boolean(entry.official),
+    heuristic: Boolean(entry.heuristic),
+    uiPath: entry.ui_path || "",
+    harnessFallback: entry.harness_fallback || "",
+  };
+}
+
+function buildEventCoverage(summary?: EventCoverageDto | null): EventCoverageView {
+  return {
+    track: summary?.track || "official",
+    declared: Number(summary?.declared ?? 0),
+    verified: Number(summary?.verified ?? 0),
+    attemptedOnly: Number(summary?.attempted_only ?? 0),
+    failed: Number(summary?.failed ?? 0),
+    blocked: Number(summary?.blocked ?? 0),
+    unresolved: Number(summary?.unresolved ?? 0),
+    declaredEvents: Array.isArray(summary?.declared_events) ? summary?.declared_events.map(String) : [],
+  };
+}
+
 export function adaptReport(dto: ActivationReportDto, reportId: string): ActivationReportView {
   const summary = dto.summary || {};
+  const coverageTracks = buildCoverageTracks(dto);
   const evidence =
     dto.evidence_events?.length
       ? dto.evidence_events.map(fromCanonicalEvent)
@@ -579,8 +707,14 @@ export function adaptReport(dto: ActivationReportDto, reportId: string): Activat
           ? (summary["risk_summary"] as RiskSummaryDto)
           : undefined),
     ),
-    coverageSummary: buildCoverageSummary(dto.coverage_summary, dto.coverage_matrix || []),
-    coverageMatrix: (dto.coverage_matrix || []).map(fromCoverageCapability),
+    coverageSummary: coverageTracks.official.summary,
+    coverageMatrix: coverageTracks.official.matrix,
+    coverageTracks,
+    stimulusPasses: (dto.stimulus_passes || []).map(fromStimulusPass),
+    prerequisiteResults: (dto.prerequisite_results || []).map(fromPrerequisiteResult),
+    eventAttempts: (dto.event_attempts || []).map(fromEventAttempt),
+    officialEventCoverage: buildEventCoverage(dto.official_event_coverage),
+    heuristicWorkflowCoverage: buildEventCoverage(dto.heuristic_workflow_coverage),
     logStreams: buildLogStreams(dto),
     evidence,
     evidenceLinks,

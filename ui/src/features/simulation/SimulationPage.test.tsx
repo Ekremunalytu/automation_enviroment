@@ -175,6 +175,56 @@ describe("SimulationPage", () => {
         missing: 2,
         missing_capabilities: ["chat", "webview"],
       },
+      coverage_tracks: {
+        official: {
+          source: "official_activation_track",
+          selected_scenarios: ["coding_session"],
+          summary: {
+            covered: 5,
+            partial: 2,
+            missing: 2,
+            attempted: 2,
+            verified: 0,
+            missing_capabilities: ["chat", "webview"],
+            attempted_capabilities: ["commands", "workspace_fs"],
+            verified_capabilities: [],
+          },
+          matrix: [
+            {
+              capability: "commands",
+              status: "covered",
+              track: "official",
+              source: "official_activation_track",
+              selected_scenarios: ["coding_session"],
+              supported_scenarios: ["coding_session"],
+            },
+          ],
+        },
+        heuristic: {
+          source: "heuristic_workflow_track",
+          selected_scenarios: ["search_workflow"],
+          summary: {
+            covered: 1,
+            partial: 0,
+            missing: 0,
+            attempted: 1,
+            verified: 0,
+            missing_capabilities: [],
+            attempted_capabilities: ["search_views"],
+            verified_capabilities: [],
+          },
+          matrix: [
+            {
+              capability: "search_views",
+              status: "covered",
+              track: "heuristic",
+              source: "heuristic_workflow_track",
+              selected_scenarios: ["search_workflow"],
+              supported_scenarios: ["search_workflow"],
+            },
+          ],
+        },
+      },
       log_streams: {
         target_extension_host: [
           {
@@ -248,6 +298,8 @@ describe("SimulationPage", () => {
     await waitFor(() => {
       expect(screen.getByText("Coverage audit")).toBeInTheDocument();
     });
+    expect(screen.getByText("Official Coverage")).toBeInTheDocument();
+    expect(screen.getByText("Heuristic Workflow Coverage")).toBeInTheDocument();
     expect(screen.getByText("Activated ms.lint via onStartupFinished")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("tab", { name: "Analysis" }));

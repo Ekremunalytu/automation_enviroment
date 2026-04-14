@@ -97,10 +97,62 @@ describe("adaptReport", () => {
         {
           capability: "commands",
           status: "covered",
+          track: "official",
+          source: "official_activation_track",
           selected_scenarios: ["coding_session"],
           supported_scenarios: ["coding_session", "refactor_workflow"],
         },
       ],
+      coverage_tracks: {
+        official: {
+          source: "official_activation_track",
+          selected_scenarios: ["coding_session"],
+          summary: {
+            covered: 4,
+            partial: 2,
+            missing: 1,
+            attempted: 2,
+            verified: 1,
+            missing_capabilities: ["chat"],
+            attempted_capabilities: ["commands", "workspace_fs"],
+            verified_capabilities: ["workspace_fs"],
+          },
+          matrix: [
+            {
+              capability: "commands",
+              status: "covered",
+              track: "official",
+              source: "official_activation_track",
+              selected_scenarios: ["coding_session"],
+              supported_scenarios: ["coding_session", "refactor_workflow"],
+            },
+          ],
+        },
+        heuristic: {
+          source: "heuristic_workflow_track",
+          selected_scenarios: ["search_workflow"],
+          summary: {
+            covered: 1,
+            partial: 0,
+            missing: 0,
+            attempted: 1,
+            verified: 0,
+            missing_capabilities: [],
+            attempted_capabilities: ["search_views"],
+            verified_capabilities: [],
+          },
+          matrix: [
+            {
+              capability: "search_views",
+              status: "covered",
+              track: "heuristic",
+              source: "heuristic_workflow_track",
+              selected_scenarios: ["search_workflow"],
+              supported_scenarios: ["search_workflow"],
+            },
+          ],
+        },
+      },
       log_streams: {
         target_extension_host: [
           {
@@ -139,6 +191,10 @@ describe("adaptReport", () => {
     expect(report.evidenceLinks[0]?.linkType).toBe("occurred_in_scenario");
     expect(report.coverageSummary.missingCapabilities).toEqual(["chat"]);
     expect(report.coverageMatrix[0]?.capability).toBe("commands");
+    expect(report.coverageTracks.official.summary.attempted).toBe(2);
+    expect(report.coverageTracks.heuristic.summary.attemptedCapabilities).toEqual([
+      "search_views",
+    ]);
     expect(report.logStreams.targetExtensionHost[0]?.extensionId).toBe("ms.test");
     expect(report.logStreams.automation[0]?.kind).toBe("scenario");
     expect(report.summary.targetExtensionObserved).toBe(true);

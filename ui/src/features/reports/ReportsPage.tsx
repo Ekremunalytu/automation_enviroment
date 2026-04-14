@@ -347,11 +347,14 @@ export function ReportsPage() {
       ) : !report ? null : selectedTab === "dashboard" ? (
         <DashboardScore report={report} onSelectEvent={setSelectedEvent} />
       ) : selectedTab === "logs" ? (
-        <LogStreamsPanel
-          coverageMatrix={report.coverageMatrix}
-          coverageSummary={report.coverageSummary}
-          logStreams={report.logStreams}
-        />
+                <LogStreamsPanel
+                  eventAttempts={report.eventAttempts}
+                  coverageTracks={report.coverageTracks}
+                  heuristicWorkflowCoverage={report.heuristicWorkflowCoverage}
+                  logStreams={report.logStreams}
+                  officialEventCoverage={report.officialEventCoverage}
+                  stimulusPasses={report.stimulusPasses}
+                />
       ) : (
         <CategoryWorkspace
           emptyTitle={TAB_META[selectedTab].emptyTitle}

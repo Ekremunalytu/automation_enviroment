@@ -128,6 +128,8 @@ export interface CoverageCapabilityView {
   capabilityLabel: string;
   status: string;
   statusLabel: string;
+  track: string;
+  source: string;
   supportStatus: string;
   supportStatusLabel: string;
   verificationStatus: string;
@@ -137,6 +139,85 @@ export interface CoverageCapabilityView {
   notes: string;
   attempted: boolean;
   verified: boolean;
+}
+
+export interface CoverageTrackView {
+  source: string;
+  selectedScenarios: string[];
+  summary: CoverageSummaryView;
+  matrix: CoverageCapabilityView[];
+}
+
+export interface CoverageTracksView {
+  official: CoverageTrackView;
+  heuristic: CoverageTrackView;
+}
+
+export interface StimulusPassView {
+  passId: string;
+  label: string;
+  order: number;
+  startedAt: number | null;
+  endedAt: number | null;
+  status: string;
+  triggerMethod: string;
+}
+
+export interface PrerequisiteResultView {
+  prerequisiteId: string;
+  key: string;
+  label: string;
+  status: string;
+  materializer: string;
+  passName: string;
+  attemptIds: string[];
+  detail: string;
+}
+
+export interface EventAttemptView {
+  attemptId: string;
+  declaredEvent: string;
+  activationEvent: string;
+  eventFamily: string;
+  eventValue: string;
+  track: string;
+  selectedBy: string;
+  selectionReasons: string[];
+  passName: string;
+  backfillPassName: string;
+  prerequisiteKeys: string[];
+  verificationContract: string[];
+  triggerMethod: string;
+  fallbackTriggerMethod: string;
+  executorAction: string;
+  backfillExecutorAction: string;
+  legacyScenarios: string[];
+  capabilityTags: string[];
+  status: string;
+  statusLabel: string;
+  triggerMethodUsed: string;
+  attemptedPasses: string[];
+  evidence: string[];
+  verificationStatus: string;
+  verificationStatusLabel: string;
+  failureReasonCode: string;
+  blockedReasonCode: string;
+  resultDetails: string;
+  official: boolean;
+  heuristic: boolean;
+  uiPath: string;
+  harnessFallback: string;
+}
+
+export interface EventCoverageView {
+  track: string;
+  declared: number;
+  verified: number;
+  attemptedOnly: number;
+  failed: number;
+  blocked: number;
+  unresolved: number;
+  declaredEvents: string[];
 }
 
 export interface LogEntryView {
@@ -171,6 +252,12 @@ export interface ActivationReportView {
   riskSummary: RiskSummaryView;
   coverageSummary: CoverageSummaryView;
   coverageMatrix: CoverageCapabilityView[];
+  coverageTracks: CoverageTracksView;
+  stimulusPasses: StimulusPassView[];
+  prerequisiteResults: PrerequisiteResultView[];
+  eventAttempts: EventAttemptView[];
+  officialEventCoverage: EventCoverageView;
+  heuristicWorkflowCoverage: EventCoverageView;
   logStreams: LogStreamsView;
   evidence: EvidenceEventView[];
   evidenceLinks: EvidenceLinkView[];

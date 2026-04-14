@@ -89,6 +89,7 @@ VSCODE_LOG_LEVEL="${EXECUTOR_VSCODE_LOG_LEVEL:-trace}"
 echo "Starting VS Code (CDP on localhost:${CDP_PORT}, log level: ${VSCODE_LOG_LEVEL})..."
 code --no-sandbox \
     --user-data-dir /home/executor/.vscode \
+    --extensionDevelopmentPath=/home/executor/flows/harness_extension \
     --remote-debugging-port="${CDP_PORT}" \
     --log "${VSCODE_LOG_LEVEL}" \
     /workspace &

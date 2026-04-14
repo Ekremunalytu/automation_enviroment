@@ -56,6 +56,8 @@ from health import (
     derive_verified_capabilities,
     is_background_activation,
     reconcile_coverage_verification,
+    reconcile_event_attempts,
+    summarize_event_attempts_for_report,
 )
 from report_builder import build_report_data, build_summary, save_report_payload
 from signals import build_risk_signals, build_risk_summary, build_verdict
@@ -188,6 +190,69 @@ class ScenarioTrace:
 
 
 @dataclass
+class StimulusPassTrace:
+    """Lifecycle timing for a layered stimulus pass."""
+
+    pass_id: str
+    label: str
+    order: int
+    started_at: float
+    ended_at: float = 0.0
+    status: str = "running"
+    trigger_method: str = ""
+
+
+@dataclass
+class PrerequisiteResult:
+    """Materialization state for a prerequisite used by one or more attempts."""
+
+    prerequisite_id: str
+    key: str
+    label: str
+    status: str = "planned"
+    materializer: str = ""
+    pass_name: str = ""
+    attempt_ids: list[str] = field(default_factory=list)
+    detail: str = ""
+
+
+@dataclass
+class EventAttemptRecord:
+    """Per-event execution ledger entry."""
+
+    attempt_id: str
+    declared_event: str
+    activation_event: str
+    event_family: str
+    event_value: str = ""
+    track: str = "official"
+    selected_by: str = ""
+    selection_reasons: list[str] = field(default_factory=list)
+    pass_name: str = ""
+    backfill_pass_name: str = ""
+    prerequisite_keys: list[str] = field(default_factory=list)
+    verification_contract: list[str] = field(default_factory=list)
+    trigger_method: str = ""
+    fallback_trigger_method: str = ""
+    executor_action: str = ""
+    backfill_executor_action: str = ""
+    legacy_scenarios: list[str] = field(default_factory=list)
+    capability_tags: list[str] = field(default_factory=list)
+    status: str = "planned"
+    trigger_method_used: str = ""
+    attempted_passes: list[str] = field(default_factory=list)
+    evidence: list[str] = field(default_factory=list)
+    verification_status: str = "not_attempted"
+    failure_reason_code: str = ""
+    blocked_reason_code: str = ""
+    result_details: str = ""
+    official: bool = True
+    heuristic: bool = False
+    ui_path: str = ""
+    harness_fallback: str = ""
+
+
+@dataclass
 class EvidenceEvent:
     """Canonical evidence event shared across telemetry sources."""
 
@@ -268,12 +333,20 @@ class ActivationReport:
     network_events: list[NetworkEvent] = field(default_factory=list)
     file_events: list[FileEvent] = field(default_factory=list)
     scenario_traces: list[ScenarioTrace] = field(default_factory=list)
+    stimulus_passes: list[StimulusPassTrace] = field(default_factory=list)
+    prerequisite_results: list[PrerequisiteResult] = field(default_factory=list)
+    event_attempts: list[EventAttemptRecord] = field(default_factory=list)
     evidence_links: list[EvidenceLink] = field(default_factory=list)
     log_entries: list[LogStreamEntry] = field(default_factory=list)
+    coverage_tracks: dict[str, dict[str, Any]] = field(default_factory=dict)
     coverage_summary: dict[str, Any] = field(default_factory=dict)
     coverage_matrix: list[dict[str, Any]] = field(default_factory=list)
+    official_event_coverage: dict[str, Any] = field(default_factory=dict)
+    heuristic_workflow_coverage: dict[str, Any] = field(default_factory=dict)
     attempted_capabilities: list[str] = field(default_factory=list)
     verified_capabilities: list[str] = field(default_factory=list)
+    heuristic_attempted_capabilities: list[str] = field(default_factory=list)
+    heuristic_verified_capabilities: list[str] = field(default_factory=list)
     verdict: dict[str, Any] = field(default_factory=dict)
     trigger_plan_requested: bool = False
     trigger_plan_loaded: bool = False
@@ -350,8 +423,22 @@ class ActivationReport:
 
     @property
     def verification_gap(self) -> int:
-        attempted = len(set(self.attempted_capabilities))
-        verified = len(set(self.verified_capabilities))
+        attempted = len(set(self.official_attempted_capabilities))
+        verified = len(set(self.official_verified_capabilities))
+        return max(attempted - verified, 0)
+
+    @property
+    def official_attempted_capabilities(self) -> list[str]:
+        return sorted(set(self.attempted_capabilities))
+
+    @property
+    def official_verified_capabilities(self) -> list[str]:
+        return sorted(set(self.verified_capabilities))
+
+    @property
+    def heuristic_verification_gap(self) -> int:
+        attempted = len(set(self.heuristic_attempted_capabilities))
+        verified = len(set(self.heuristic_verified_capabilities))
         return max(attempted - verified, 0)
 
     @property
@@ -1521,9 +1608,117 @@ class ExtensionMonitor:
         """Attach trigger-selection metadata to the in-progress report."""
         self.report.trigger_plan_requested = True
         self.report.trigger_plan_loaded = True
+        self.report.coverage_tracks = dict(getattr(payload, "coverage_tracks", {}))
         self.report.coverage_summary = dict(getattr(payload, "coverage_summary", {}))
         self.report.coverage_matrix = list(getattr(payload, "coverage_matrix", []))
-        self.report.attempted_capabilities = _extract_attempted_capabilities(payload)
+        self.report.official_event_coverage = dict(
+            getattr(payload, "official_event_coverage", {})
+        )
+        self.report.heuristic_workflow_coverage = dict(
+            getattr(payload, "heuristic_workflow_coverage", {})
+        )
+        self.report.attempted_capabilities = _extract_official_attempted_capabilities(
+            payload
+        )
+        self.report.heuristic_attempted_capabilities = (
+            _extract_heuristic_attempted_capabilities(payload)
+        )
+        self.report.stimulus_passes = [
+            StimulusPassTrace(
+                pass_id=str(item.get("pass_id", "")),
+                label=str(item.get("label", "")),
+                order=int(item.get("order", 0) or 0),
+                started_at=0.0,
+                status=str(item.get("status", "planned")),
+                trigger_method=str(item.get("trigger_method", "")),
+            )
+            for item in getattr(payload, "stimulus_passes", []) or []
+            if isinstance(item, Mapping)
+        ]
+        self.report.prerequisite_results = [
+            PrerequisiteResult(
+                prerequisite_id=str(item.get("prerequisite_id", "")),
+                key=str(item.get("key", "")),
+                label=str(item.get("label", "")),
+                status=str(item.get("status", "planned")),
+                materializer=str(item.get("materializer", "")),
+                pass_name=str(item.get("pass_name", "")),
+                attempt_ids=[
+                    str(attempt_id)
+                    for attempt_id in item.get("attempt_ids", [])
+                    if str(attempt_id).strip()
+                ],
+                detail=str(item.get("detail", "")),
+            )
+            for item in getattr(payload, "prerequisite_results", []) or []
+            if isinstance(item, Mapping)
+        ]
+        self.report.event_attempts = [
+            EventAttemptRecord(
+                attempt_id=str(item.get("attempt_id", "")),
+                declared_event=str(item.get("declared_event", "")),
+                activation_event=str(item.get("activation_event", "")),
+                event_family=str(item.get("event_family", "")),
+                event_value=str(item.get("event_value", "")),
+                track=str(item.get("track", "official")),
+                selected_by=str(item.get("selected_by", "")),
+                selection_reasons=[
+                    str(reason)
+                    for reason in item.get("selection_reasons", [])
+                    if str(reason).strip()
+                ],
+                pass_name=str(item.get("pass_name", "")),
+                backfill_pass_name=str(item.get("backfill_pass_name", "")),
+                prerequisite_keys=[
+                    str(key)
+                    for key in item.get("prerequisite_keys", [])
+                    if str(key).strip()
+                ],
+                verification_contract=[
+                    str(contract)
+                    for contract in item.get("verification_contract", [])
+                    if str(contract).strip()
+                ],
+                trigger_method=str(item.get("trigger_method", "")),
+                fallback_trigger_method=str(item.get("fallback_trigger_method", "")),
+                executor_action=str(item.get("executor_action", "")),
+                backfill_executor_action=str(item.get("backfill_executor_action", "")),
+                legacy_scenarios=[
+                    str(name)
+                    for name in item.get("legacy_scenarios", [])
+                    if str(name).strip()
+                ],
+                capability_tags=[
+                    str(tag)
+                    for tag in item.get("capability_tags", [])
+                    if str(tag).strip()
+                ],
+                status=str(item.get("status", "planned")),
+                trigger_method_used=str(item.get("trigger_method_used", "")),
+                attempted_passes=[
+                    str(pass_name)
+                    for pass_name in item.get("attempted_passes", [])
+                    if str(pass_name).strip()
+                ],
+                evidence=[
+                    str(evidence)
+                    for evidence in item.get("evidence", [])
+                    if str(evidence).strip()
+                ],
+                verification_status=str(
+                    item.get("verification_status", "not_attempted")
+                ),
+                failure_reason_code=str(item.get("failure_reason_code", "")),
+                blocked_reason_code=str(item.get("blocked_reason_code", "")),
+                result_details=str(item.get("result_details", "")),
+                official=bool(item.get("official", True)),
+                heuristic=bool(item.get("heuristic", False)),
+                ui_path=str(item.get("ui_path", "")),
+                harness_fallback=str(item.get("harness_fallback", "")),
+            )
+            for item in getattr(payload, "event_attempts", []) or []
+            if isinstance(item, Mapping)
+        ]
         self.report.requested_scenarios = list(
             getattr(payload, "selected_scenarios", []) or []
         )
@@ -1653,13 +1848,29 @@ class ExtensionMonitor:
             self.report.scenario_traces,
             self.report.target_extension_id,
         )
+        derived_verified = set(derive_verified_capabilities(self.report))
         self.report.verified_capabilities = sorted(
             set(self.report.verified_capabilities)
-            | set(derive_verified_capabilities(self.report))
+            | (derived_verified & set(self.report.official_attempted_capabilities))
         )
-        self.report.coverage_summary, self.report.coverage_matrix = (
-            reconcile_coverage_verification(self.report)
+        self.report.heuristic_verified_capabilities = sorted(
+            set(self.report.heuristic_verified_capabilities)
+            | (derived_verified & set(self.report.heuristic_attempted_capabilities))
         )
+        self.report.event_attempts = reconcile_event_attempts(self.report)
+        self.report.official_event_coverage = summarize_event_attempts_for_report(
+            self.report,
+            track="official",
+        )
+        self.report.heuristic_workflow_coverage = summarize_event_attempts_for_report(
+            self.report,
+            track="heuristic",
+        )
+        (
+            self.report.coverage_summary,
+            self.report.coverage_matrix,
+            self.report.coverage_tracks,
+        ) = reconcile_coverage_verification(self.report)
         self.report.verdict = build_verdict(
             self.report,
             automation_health=self.report.automation_health,
@@ -1713,6 +1924,158 @@ class ExtensionMonitor:
     def record_failed_scenarios(self, failed_scenarios: list[str]) -> None:
         self.report.failed_scenarios = sorted(set(failed_scenarios))
         self._persist_report(force=False)
+
+    def record_stimulus_pass_event(
+        self,
+        action: str,
+        pass_id: str,
+        *,
+        label: str = "",
+        order: int = 0,
+        trigger_method: str = "",
+        status: str = "",
+    ) -> None:
+        now = time.time()
+        trace = next(
+            (item for item in self.report.stimulus_passes if item.pass_id == pass_id),
+            None,
+        )
+        if action == "start":
+            if trace is None:
+                trace = StimulusPassTrace(
+                    pass_id=pass_id,
+                    label=label or pass_id,
+                    order=order,
+                    started_at=now,
+                    status="running",
+                    trigger_method=trigger_method,
+                )
+                self.report.stimulus_passes.append(trace)
+            else:
+                trace.started_at = now
+                trace.status = "running"
+                if label:
+                    trace.label = label
+                if order:
+                    trace.order = order
+                if trigger_method:
+                    trace.trigger_method = trigger_method
+        else:
+            if trace is None:
+                trace = StimulusPassTrace(
+                    pass_id=pass_id,
+                    label=label or pass_id,
+                    order=order,
+                    started_at=now,
+                    ended_at=now,
+                    status=status or "completed",
+                    trigger_method=trigger_method,
+                )
+                self.report.stimulus_passes.append(trace)
+            else:
+                trace.ended_at = now
+                trace.status = status or "completed"
+        self.record_automation_event(
+            "stimulus_pass",
+            _build_stimulus_pass_log_message(
+                action,
+                label or pass_id,
+                status=status or ("running" if action == "start" else "completed"),
+            ),
+            status=status or ("running" if action == "start" else "completed"),
+        )
+
+    def record_prerequisite_result(
+        self,
+        prerequisite_id: str,
+        *,
+        status: str,
+        detail: str = "",
+    ) -> None:
+        existing = next(
+            (
+                item
+                for item in self.report.prerequisite_results
+                if item.prerequisite_id == prerequisite_id
+            ),
+            None,
+        )
+        if existing is None:
+            existing = PrerequisiteResult(
+                prerequisite_id=prerequisite_id,
+                key=prerequisite_id,
+                label=prerequisite_id,
+            )
+            self.report.prerequisite_results.append(existing)
+        existing.status = status
+        if detail:
+            existing.detail = detail
+        self.record_automation_event(
+            "prerequisite",
+            f"Prerequisite {existing.label or existing.key} {status}",
+            status=status,
+        )
+
+    def record_event_attempt_start(
+        self, attempt_id: str, *, pass_name: str = ""
+    ) -> None:
+        attempt = _find_event_attempt(self.report, attempt_id)
+        if attempt is None:
+            return
+        attempt.status = "running"
+        if pass_name:
+            attempt.attempted_passes = list(
+                dict.fromkeys([*attempt.attempted_passes, pass_name])
+            )
+        self.record_automation_event(
+            "event_attempt",
+            f"Starting event attempt {attempt.activation_event or attempt.event_family}",
+            status="running",
+            activation_event=attempt.activation_event,
+        )
+
+    def record_event_attempt_end(
+        self,
+        attempt_id: str,
+        *,
+        status: str,
+        pass_name: str = "",
+        trigger_method_used: str = "",
+        result_details: str = "",
+        failure_reason_code: str = "",
+        blocked_reason_code: str = "",
+    ) -> None:
+        attempt = _find_event_attempt(self.report, attempt_id)
+        if attempt is None:
+            return
+        attempt.status = status
+        if pass_name:
+            attempt.attempted_passes = list(
+                dict.fromkeys([*attempt.attempted_passes, pass_name])
+            )
+        if trigger_method_used:
+            attempt.trigger_method_used = trigger_method_used
+        if result_details:
+            attempt.result_details = result_details
+        if failure_reason_code:
+            attempt.failure_reason_code = failure_reason_code
+        if blocked_reason_code:
+            attempt.blocked_reason_code = blocked_reason_code
+        attempt.verification_status = (
+            "attempted_only"
+            if status in {"attempted_only", "verified"}
+            else "failed"
+            if status == "failed"
+            else "blocked"
+            if status == "blocked"
+            else attempt.verification_status
+        )
+        self.record_automation_event(
+            "event_attempt",
+            _build_event_attempt_log_message(attempt),
+            status=status,
+            activation_event=attempt.activation_event,
+        )
 
     def _handle_file_event(self, event: FileEvent) -> None:
         self.report.file_events.append(event)
@@ -1847,8 +2210,8 @@ class ExtensionMonitor:
         return {
             "target_activations": target_activations,
             "target_running": target_running,
-            "file_events": len(self.report.file_events),
-            "network_events": len(self.report.network_events),
+            "target_file_events": len(self.report.target_file_events),
+            "target_network_events": len(self.report.target_network_events),
             "ui_blockers": len(self.report.ui_blocker_entries),
         }
 
@@ -1859,29 +2222,33 @@ class ExtensionMonitor:
         capability: str,
         trigger_label: str,
         activation_event: str = "",
+        success_signal: bool = False,
     ) -> bool:
         current_target_activations = _count_target_activations(
             parse_all_exthost_logs(start_offsets=self._log_offsets),
             self.report.target_extension_id,
         )
-        target_running = any(
-            entry.extension_id == self.report.target_extension_id
-            for entry in get_running_extensions(self.page)
+        new_activity = len(self.report.target_file_events) > int(
+            baseline.get("target_file_events", 0)
+        ) or len(self.report.target_network_events) > int(
+            baseline.get("target_network_events", 0)
         )
-        new_activity = len(self.report.file_events) > int(
-            baseline.get("file_events", 0)
-        ) or len(self.report.network_events) > int(baseline.get("network_events", 0))
         ui_blocked = len(self.report.ui_blocker_entries) > int(
             baseline.get("ui_blockers", 0)
         )
         activation_seen = current_target_activations > int(
             baseline.get("target_activations", 0)
         )
-        verified = activation_seen or target_running or new_activity
-        if verified and capability not in self.report.verified_capabilities:
-            self.report.verified_capabilities.append(capability)
-        if capability not in self.report.attempted_capabilities:
-            self.report.attempted_capabilities.append(capability)
+        verified = activation_seen or new_activity or success_signal
+        if verified:
+            if capability in self.report.attempted_capabilities:
+                self.report.verified_capabilities = sorted(
+                    set(self.report.verified_capabilities) | {capability}
+                )
+            if capability in self.report.heuristic_attempted_capabilities:
+                self.report.heuristic_verified_capabilities = sorted(
+                    set(self.report.heuristic_verified_capabilities) | {capability}
+                )
         status = "completed" if verified else "failed"
         message = (
             f"Verified {capability} trigger {trigger_label}"
@@ -2117,6 +2484,23 @@ def _build_scenario_log_message(
     return f"Scenario {label}"
 
 
+def _build_stimulus_pass_log_message(
+    action: str,
+    label: str,
+    status: str,
+) -> str:
+    verb = "Started" if action == "start" else "Finished"
+    return f"{verb} {label} ({status})"
+
+
+def _build_event_attempt_log_message(attempt: EventAttemptRecord) -> str:
+    outcome = attempt.status or attempt.verification_status or "unknown"
+    return (
+        f"Event attempt {attempt.activation_event or attempt.event_family} "
+        f"finished as {outcome}"
+    )
+
+
 def _build_activation_log_message(entry: ActivationEntry) -> str:
     parts = [f"Activated {entry.extension_id}"]
     if entry.activation_event:
@@ -2141,13 +2525,40 @@ def _scenario_name_for_timestamp(
     return ""
 
 
-def _extract_attempted_capabilities(payload: Any) -> list[str]:
+def _find_event_attempt(
+    report: ActivationReport,
+    attempt_id: str,
+) -> EventAttemptRecord | None:
+    for attempt in report.event_attempts:
+        if attempt.attempt_id == attempt_id:
+            return attempt
+    return None
+
+
+def _extract_official_attempted_capabilities(payload: Any) -> list[str]:
     attempted: set[str] = set()
     for entry in getattr(payload, "coverage_matrix", []) or []:
         capability = str(entry.get("capability", "")).strip()
         if capability and (entry.get("is_active") or entry.get("selected")):
             attempted.add(capability)
-    for capability in getattr(payload, "attempted_capabilities", []) or []:
+    for capability in getattr(payload, "official_attempted_capabilities", []) or []:
+        cap = str(capability).strip()
+        if cap:
+            attempted.add(cap)
+    return sorted(attempted)
+
+
+def _extract_heuristic_attempted_capabilities(payload: Any) -> list[str]:
+    attempted: set[str] = set()
+    coverage_tracks = getattr(payload, "coverage_tracks", {}) or {}
+    heuristic_track = coverage_tracks.get("heuristic", {})
+    for entry in (
+        heuristic_track.get("matrix", []) if isinstance(heuristic_track, dict) else []
+    ):
+        capability = str(entry.get("capability", "")).strip()
+        if capability and (entry.get("is_active") or entry.get("selected")):
+            attempted.add(capability)
+    for capability in getattr(payload, "heuristic_attempted_capabilities", []) or []:
         cap = str(capability).strip()
         if cap:
             attempted.add(cap)
@@ -2944,7 +3355,7 @@ def _count_target_activations(
 
 def _reconcile_coverage_verification(
     report: ActivationReport,
-) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+) -> tuple[dict[str, Any], list[dict[str, Any]], dict[str, dict[str, Any]]]:
     return reconcile_coverage_verification(report)
 
 
