@@ -8,6 +8,8 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
+from packages.analysis_contracts import TriggerPayload
+
 CAPABILITY_TAXONOMY: list[str] = [
     "commands",
     "window_ui",
@@ -633,8 +635,8 @@ _SCENARIO_PRIORITY = [scenario.name for scenario in SCENARIO_REGISTRY]
 
 
 @dataclass
-class TriggerPayload:
-    """Data passed from host to container to guide layered stimulation."""
+class _TriggerPayloadDraft:
+    """Mutable planner state before the canonical trigger contract is finalized."""
 
     analysis_profile: str = "layered_deep"
     selected_scenarios: list[str] = field(default_factory=list)
@@ -710,7 +712,7 @@ HEURISTIC_EVENT_TYPE_TO_SCENARIOS: dict[str, list[str]] = {
 def _apply_activation_event(
     event: dict[str, str | None],
     *,
-    payload: TriggerPayload,
+    payload: _TriggerPayloadDraft,
     publisher_name: str | None,
     contributed_view_ids: set[str],
     official_extra_capabilities: set[str],
@@ -787,7 +789,7 @@ def _apply_view_trigger(
     *,
     event_value: str,
     contributed_view_ids: set[str],
-    payload: TriggerPayload,
+    payload: _TriggerPayloadDraft,
     mark_scenario: Callable[..., None],
     register_attempt: Callable[..., None],
     official_extra_capabilities: set[str],
@@ -859,7 +861,7 @@ def _apply_event_capability_metadata(
     event_type: str,
     event_value: str | None,
     publisher_name: str | None,
-    payload: TriggerPayload,
+    payload: _TriggerPayloadDraft,
     contributed_view_ids: set[str],
     official_extra_capabilities: set[str],
 ) -> None:
@@ -908,7 +910,7 @@ def _apply_event_capability_metadata(
 
 def _apply_contributes_metadata(
     *,
-    payload: TriggerPayload,
+    payload: _TriggerPayloadDraft,
     contributes_custom_editors: list[dict] | None,
     contributes_commands: list[dict] | None,
     contributes_authentication: list[dict] | None,
@@ -1063,7 +1065,7 @@ def _apply_default_fallback(
 
 def _finalize_payload(
     *,
-    payload: TriggerPayload,
+    payload: _TriggerPayloadDraft,
     selected_candidates: set[str],
     official_candidates: set[str],
     heuristic_candidates: set[str],
@@ -1149,7 +1151,7 @@ def _finalize_payload(
         payload.event_attempts,
         track=_HEURISTIC_TRACK,
     )
-    return payload
+    return TriggerPayload.model_validate(asdict(payload))
 
 
 def select_scenarios(
@@ -1174,7 +1176,7 @@ def select_scenarios(
     scenario_reasons: dict[str, set[str]] = {}
     official_extra_capabilities: set[str] = set()
     heuristic_extra_capabilities: set[str] = set()
-    payload = TriggerPayload(target_extension_id=publisher_name)
+    payload = _TriggerPayloadDraft(target_extension_id=publisher_name)
     contributed_view_ids = _collect_contributed_view_ids(contributes_views)
 
     def mark_scenario(
@@ -1268,7 +1270,7 @@ def select_scenarios(
 
 
 def build_coverage_matrix(
-    payload: TriggerPayload,
+    payload: TriggerPayload | _TriggerPayloadDraft,
     *,
     track: str = _OFFICIAL_TRACK,
 ) -> list[dict[str, Any]]:
@@ -1365,7 +1367,10 @@ def write_trigger_file(
     filename = f"triggers_{publisher}.{name}-{version}.json"
     host_path = Path(output_dir) / filename
     host_path.parent.mkdir(parents=True, exist_ok=True)
-    host_path.write_text(json.dumps(asdict(payload), indent=2), encoding="utf-8")
+    host_path.write_text(
+        json.dumps(payload.model_dump(mode="json"), indent=2),
+        encoding="utf-8",
+    )
     return f"/results/{filename}"
 
 
@@ -1380,7 +1385,7 @@ def _order_scenarios(selected: set[str], scores: dict[str, int]) -> list[str]:
 def _collect_active_capabilities(
     selected_scenarios: list[str],
     *,
-    payload: TriggerPayload,
+    payload: _TriggerPayloadDraft,
     track: str,
     extra_capabilities: set[str] | None = None,
 ) -> list[str]:
@@ -1893,7 +1898,6 @@ __all__ = [
     "OFFICIAL_EVENT_REGISTRY",
     "SCENARIO_REGISTRY",
     "ScenarioDefinition",
-    "TriggerPayload",
     "_glob_to_bait_filename",
     "build_coverage_matrix",
     "build_static_coverage_audit",

@@ -93,8 +93,9 @@ RUN ln -s /usr/share/novnc/vnc.html /usr/share/novnc/index.html
 COPY executor/container/start.sh /usr/local/bin/start.sh
 RUN chmod 755 /usr/local/bin/start.sh
 
-# Copy Playwright automation scripts
+# Copy Playwright automation scripts and shared contract package needed at runtime.
 COPY --chown=executor:executor executor/flows /home/executor/flows
+COPY --chown=executor:executor packages /home/packages
 
 USER executor
 WORKDIR /workspace

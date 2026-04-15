@@ -4,6 +4,8 @@ import sys
 from pathlib import Path
 from types import SimpleNamespace
 
+from packages.analysis_contracts import TriggerPayload
+
 PLAYWRIGHT_DIR = (
     Path(__file__).resolve().parents[2] / "executor" / "flows" / "playwright"
 )
@@ -305,6 +307,62 @@ def test_run_stimulus_plan_keeps_distinct_language_coding_sessions(
 
     assert executed == ["python", "typescript"]
     assert result.executed_scenarios == ["coding_session", "coding_session"]
+
+
+def test_run_stimulus_plan_accepts_contract_payload_nested_models(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    executed: list[str] = []
+
+    def fake_run_scenario(_page, name: str) -> None:
+        executed.append(name)
+
+    monkeypatch.setattr(stimulus.automation, "run_scenario", fake_run_scenario)
+    monkeypatch.setattr(stimulus.workspace, "WORKSPACE_DIR", tmp_path)
+
+    payload = TriggerPayload(
+        event_attempts=[
+            {
+                "attempt_id": "a1",
+                "declared_event": "workspaceContains:app.py",
+                "activation_event": "workspaceContains:app.py",
+                "event_family": "workspaceContains",
+                "event_value": "app.py",
+                "executor_action": "scenario:project_exploration",
+                "trigger_method": "ui_simulation",
+            }
+        ],
+        stimulus_passes=[
+            {
+                "pass_id": "workspace_bootstrap",
+                "label": "workspace/bootstrap pass",
+                "order": 1,
+                "attempt_ids": ["a1"],
+                "prerequisite_keys": ["workspace_contains_fixture"],
+            }
+        ],
+        prerequisite_results=[
+            {
+                "prerequisite_id": "prep-workspace",
+                "key": "workspace_contains_fixture",
+                "label": "workspace fixture",
+                "attempt_ids": ["a1"],
+            }
+        ],
+    )
+    monitor = _FakeMonitor()
+
+    result = stimulus.run_stimulus_plan(object(), payload, monitor=monitor)
+
+    assert executed == ["project_exploration"]
+    assert result.executed_scenarios == ["project_exploration"]
+    assert (tmp_path / "app.py").exists()
+    assert monitor.results[0]["status"] == "completed"
+    assert [item["status"] for item in monitor.attempt_ends] == ["attempted_only"]
+    assert [
+        item["status"] for item in monitor.pass_events if item["action"] == "end"
+    ] == ["completed"]
 
 
 def test_run_stimulus_plan_uses_lightweight_debug_action(

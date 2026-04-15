@@ -45,6 +45,24 @@ def create_report(directory: Path, filename: str, content: dict, delay: float = 
     return file_path
 
 
+def build_valid_report(**overrides: object) -> dict[str, object]:
+    report: dict[str, object] = {
+        "report_version": 2,
+        "target_extension_expected": "ms-python.python",
+        "target_extension_observed": False,
+        "automation_health": {"status": "ok", "reasons": []},
+        "verdict": {},
+        "summary": {"total_activated": 0},
+        "scenario_traces": [],
+        "evidence_events": [],
+        "network_events": [],
+        "file_events": [],
+        "log_streams": {"automation": []},
+    }
+    report.update(overrides)
+    return report
+
+
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
@@ -77,24 +95,28 @@ def test_list_activations_sorted(client: TestClient, mock_output_dir: Path):
 
 def test_get_latest_activation(client: TestClient, mock_output_dir: Path):
     """Test fetching the latest activation report."""
-    create_report(mock_output_dir, "activation_report_first.json", {"data": "first"})
+    create_report(
+        mock_output_dir,
+        "activation_report_first.json",
+        build_valid_report(target_extension_expected="first.publisher"),
+    )
     time.sleep(0.01)
     create_report(
         mock_output_dir,
         "activation_report_second.json",
-        {
-            "data": "second",
-            "report_version": 2,
-            "evidence_events": [{"event_id": "activation-0001", "kind": "activation"}],
-            "evidence_links": [],
-        },
+        build_valid_report(
+            target_extension_expected="second.publisher",
+            report_version=2,
+            evidence_events=[{"event_id": "activation-0001", "kind": "activation"}],
+            evidence_links=[],
+        ),
     )
 
     response = client.get("/api/activations/latest")
     assert response.status_code == 200
     data = response.json()
 
-    assert data["data"] == "second"
+    assert data["target_extension_expected"] == "second.publisher"
     assert data["report_version"] == 2
     assert data["evidence_events"][0]["event_id"] == "activation-0001"
     assert data["evidence_links"] == []
@@ -105,7 +127,11 @@ def test_get_latest_activation_skips_corrupt_newest(
     client: TestClient, mock_output_dir: Path
 ):
     """Test latest endpoint falls back when newest JSON is corrupt."""
-    create_report(mock_output_dir, "activation_report_good.json", {"data": "good"})
+    create_report(
+        mock_output_dir,
+        "activation_report_good.json",
+        build_valid_report(target_extension_expected="good.publisher"),
+    )
     time.sleep(0.01)
     with open(mock_output_dir / "activation_report_broken.json", "w") as f:
         f.write("{ invalid json }")
@@ -113,7 +139,7 @@ def test_get_latest_activation_skips_corrupt_newest(
     response = client.get("/api/activations/latest")
     assert response.status_code == 200
     data = response.json()
-    assert data["data"] == "good"
+    assert data["target_extension_expected"] == "good.publisher"
     assert data["_metadata"]["filename"] == "activation_report_good.json"
 
 
@@ -121,7 +147,11 @@ def test_get_latest_activation_skips_non_object_newest(
     client: TestClient, mock_output_dir: Path
 ):
     """Test latest endpoint falls back when newest JSON is not an object."""
-    create_report(mock_output_dir, "activation_report_good.json", {"data": "good"})
+    create_report(
+        mock_output_dir,
+        "activation_report_good.json",
+        build_valid_report(target_extension_expected="good.publisher"),
+    )
     time.sleep(0.01)
     with open(mock_output_dir / "activation_report_array.json", "w") as f:
         json.dump([{"data": "array"}], f)
@@ -129,8 +159,32 @@ def test_get_latest_activation_skips_non_object_newest(
     response = client.get("/api/activations/latest")
     assert response.status_code == 200
     data = response.json()
-    assert data["data"] == "good"
+    assert data["target_extension_expected"] == "good.publisher"
     assert data["_metadata"]["filename"] == "activation_report_good.json"
+
+
+def test_get_latest_activation_skips_schema_invalid_newest(
+    client: TestClient, mock_output_dir: Path
+):
+    """Schema-invalid newest reports should be skipped like other invalid files."""
+    create_report(
+        mock_output_dir,
+        "activation_report_valid.json",
+        build_valid_report(target_extension_expected="valid.publisher"),
+    )
+    time.sleep(0.01)
+    create_report(
+        mock_output_dir,
+        "activation_report_invalid.json",
+        {"report_version": 2, "unexpected": True},
+    )
+
+    response = client.get("/api/activations/latest")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["target_extension_expected"] == "valid.publisher"
+    assert data["_metadata"]["filename"] == "activation_report_valid.json"
 
 
 def test_get_latest_activation_returns_500_when_all_reports_are_invalid(
@@ -162,16 +216,15 @@ def test_get_activation_by_name(client: TestClient, mock_output_dir: Path):
     create_report(
         mock_output_dir,
         "activation_report_target.json",
-        {
-            "target": True,
-            "report_version": 1,
-            "activated": [],
-        },
+        build_valid_report(
+            report_version=1,
+            target_extension_expected="target.publisher",
+        ),
     )
 
     response = client.get("/api/activations/activation_report_target.json")
     assert response.status_code == 200
-    assert response.json()["target"] is True
+    assert response.json()["target_extension_expected"] == "target.publisher"
     assert response.json()["report_version"] == 1
     assert response.json()["_metadata"]["filename"] == "activation_report_target.json"
 
@@ -210,3 +263,19 @@ def test_read_report_corrupt_json(client: TestClient, mock_output_dir: Path):
     response = client.get("/api/activations/activation_report_bad.json")
     assert response.status_code == 500
     assert "Failed to read report file" in response.json()["detail"]
+
+
+def test_get_activation_by_name_returns_500_for_schema_invalid_report(
+    client: TestClient, mock_output_dir: Path
+):
+    """A schema-invalid JSON object should not pass activation report validation."""
+    create_report(
+        mock_output_dir,
+        "activation_report_invalid.json",
+        {"report_version": 2, "unexpected": True},
+    )
+
+    response = client.get("/api/activations/activation_report_invalid.json")
+
+    assert response.status_code == 500
+    assert "activation report contract validation" in response.json()["detail"]

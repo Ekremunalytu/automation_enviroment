@@ -3,9 +3,9 @@
 import json
 from pathlib import Path
 
+from packages.analysis_contracts import TriggerPayload
 from workflows.marketplace.triggers import (
     CAPABILITY_TAXONOMY,
-    TriggerPayload,
     _glob_to_bait_filename,
     build_static_coverage_audit,
     select_scenarios,
@@ -58,9 +58,9 @@ class TestSelectScenarios:
         attempt = next(
             item
             for item in payload.event_attempts
-            if item["activation_event"] == "onDebug:python"
+            if item.activation_event == "onDebug:python"
         )
-        assert attempt["executor_action"] == "extra:debug_lifecycle"
+        assert attempt.executor_action == "extra:debug_lifecycle"
 
     def test_on_view_scm_selects_git_workflow(self) -> None:
         events = [{"event_type": "onView", "event_value": "scm"}]
@@ -131,9 +131,9 @@ class TestSelectScenarios:
         attempt = next(
             item
             for item in payload.event_attempts
-            if item["activation_event"] == "onWebviewPanel:sampleView"
+            if item.activation_event == "onWebviewPanel:sampleView"
         )
-        assert attempt["executor_action"] == "harness:run_current_stimulus"
+        assert attempt.executor_action == "harness:run_current_stimulus"
 
     def test_workspace_contains_selects_exploration(self) -> None:
         events = [{"event_type": "workspaceContains", "event_value": "**/.gitignore"}]
@@ -345,12 +345,16 @@ class TestWriteTriggerFile:
         assert host_file.exists()
 
         data = json.loads(host_file.read_text())
+        validated = TriggerPayload.model_validate(data)
+
         assert data["selected_scenarios"] == ["coding_session", "debug_session"]
         assert data["uri_trigger"] == "vscode://pub.ext/activate"
         assert data["run_task_trigger"] is True
         assert data["run_walkthrough_trigger"] is False
         assert "coverage_summary" in data
         assert "coverage_matrix" in data
+        assert validated.selected_scenarios == ["coding_session", "debug_session"]
+        assert validated.uri_trigger == "vscode://pub.ext/activate"
 
     def test_creates_output_dir_if_missing(self, tmp_path: Path) -> None:
         output_dir = tmp_path / "nested" / "output"

@@ -4,6 +4,8 @@ import json
 import sys
 from pathlib import Path
 
+from packages.analysis_contracts import TriggerPayload
+
 PLAYWRIGHT_DIR = (
     Path(__file__).resolve().parents[2] / "executor" / "flows" / "playwright"
 )
@@ -424,6 +426,56 @@ def test_extension_monitor_persists_live_report_with_network_events(
         final_payload["log_streams"]["automation"][0]["message"]
         == "Running command Analyze Workspace"
     )
+
+
+def test_extension_monitor_apply_trigger_payload_accepts_contract_models() -> None:
+    payload = TriggerPayload(
+        target_extension_id="ms-python.python",
+        selected_scenarios=["project_exploration"],
+        event_attempts=[
+            {
+                "attempt_id": "a1",
+                "declared_event": "workspaceContains:app.py",
+                "activation_event": "workspaceContains:app.py",
+                "event_family": "workspaceContains",
+                "event_value": "app.py",
+                "executor_action": "scenario:project_exploration",
+                "trigger_method": "ui_simulation",
+            }
+        ],
+        stimulus_passes=[
+            {
+                "pass_id": "workspace_bootstrap",
+                "label": "workspace/bootstrap pass",
+                "order": 1,
+                "attempt_ids": ["a1"],
+                "prerequisite_keys": ["workspace_contains_fixture"],
+            }
+        ],
+        prerequisite_results=[
+            {
+                "prerequisite_id": "prep-workspace",
+                "key": "workspace_contains_fixture",
+                "label": "workspace fixture",
+                "attempt_ids": ["a1"],
+            }
+        ],
+    )
+
+    mon = monitor.ExtensionMonitor(object(), target_extension_id="")
+    mon.apply_trigger_payload(payload)
+
+    assert mon.report.trigger_plan_requested is True
+    assert mon.report.trigger_plan_loaded is True
+    assert mon.report.target_extension_id == "ms-python.python"
+    assert mon.report.requested_scenarios == ["project_exploration"]
+    assert [item.pass_id for item in mon.report.stimulus_passes] == [
+        "workspace_bootstrap"
+    ]
+    assert [item.key for item in mon.report.prerequisite_results] == [
+        "workspace_contains_fixture"
+    ]
+    assert [item.attempt_id for item in mon.report.event_attempts] == ["a1"]
 
 
 def test_annotate_file_events_preserves_duplicate_observers_and_emits_links() -> None:

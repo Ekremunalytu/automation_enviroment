@@ -221,7 +221,14 @@ def _configure_main_runtime(
 def test_resolve_execution_plan_prefers_layered_trigger_passes() -> None:
     payload = trigger_loader.TriggerPayload(
         selected_scenarios=["rename_symbol"],
-        stimulus_passes=[{"pass_id": "workspace_bootstrap", "status": "planned"}],
+        stimulus_passes=[
+            {
+                "pass_id": "workspace_bootstrap",
+                "label": "workspace/bootstrap pass",
+                "order": 1,
+                "status": "planned",
+            }
+        ],
     )
 
     plan, scenarios = entrypoint._resolve_execution_plan(
@@ -721,8 +728,22 @@ def test_main_layered_passes_updates_monitor_and_exits_on_extra_trigger_failures
     )
     payload = trigger_loader.TriggerPayload(
         selected_scenarios=["coding_session"],
-        stimulus_passes=[{"pass_id": "workspace_bootstrap", "status": "planned"}],
-        event_attempts=[{"attempt_id": "attempt-1"}],
+        stimulus_passes=[
+            {
+                "pass_id": "workspace_bootstrap",
+                "label": "workspace/bootstrap pass",
+                "order": 1,
+                "status": "planned",
+            }
+        ],
+        event_attempts=[
+            {
+                "attempt_id": "attempt-1",
+                "declared_event": "onCommand:extension.run",
+                "activation_event": "onCommand:extension.run",
+                "event_family": "onCommand",
+            }
+        ],
     )
 
     monkeypatch.setattr(entrypoint.monitor, "ExtensionMonitor", _FakeMonitor)

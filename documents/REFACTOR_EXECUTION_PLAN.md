@@ -92,6 +92,32 @@ Introduce backend-owned analysis contracts without changing endpoint paths.
 - sampled fixtures round-trip through the new contract layer
 - no endpoint path changes
 
+### Implementation Snapshot
+
+- `packages/analysis_contracts` now owns the authoritative Pydantic v2
+  contracts for `ActivationReport`, `TriggerPayload`, and their nested record
+  types.
+- `workflows/activation_reports/router.py` validates activation report JSON
+  objects through `ActivationReport.model_validate(...)` before returning them,
+  while keeping the existing `/api/activations` paths unchanged.
+- `workflows/marketplace/triggers.py` now finalizes planner output through the
+  backend-owned `TriggerPayload` contract instead of a workflow-local payload
+  class.
+- the Playwright executor path accepts contract-model payloads end to end:
+  `executor/flows/playwright/triggers.py` loads trigger files through
+  `TriggerPayload.model_validate(...)`, and the monitor/stimulus helpers now
+  tolerate nested Pydantic models instead of assuming raw dict payloads
+  everywhere.
+- the executor container now includes the shared `packages/` tree and
+  `pydantic` so the contract package is available inside Docker at runtime.
+- validation evidence for this week includes the fixture round-trip tests in
+  `tests/platform/contracts/test_analysis_fixture_baselines.py`, the API
+  boundary tests in `tests/workflows/activation_reports/test_router.py`, the
+  planner serialization tests in `tests/workflows/marketplace/test_triggers.py`,
+  the executor contract-consumption tests under `tests/executor/`, and a fresh
+  `ms-python.python` activation report produced after the change that validated
+  successfully through the same `ActivationReport` contract.
+
 ## Week 3
 
 ### Goal

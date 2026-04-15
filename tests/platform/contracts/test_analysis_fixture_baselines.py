@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from packages.analysis_contracts import ActivationReport, TriggerPayload
+
 
 def _load_fixture(path: Path) -> dict[str, object]:
     payload = json.loads(path.read_text(encoding="utf-8"))
@@ -45,6 +47,11 @@ def test_activation_report_fixture_exposes_minimum_shape() -> None:
     assert isinstance(report["log_streams"], dict)
     assert "automation" in report["log_streams"]
 
+    parsed = ActivationReport.model_validate(report)
+    round_tripped = parsed.model_dump(mode="json")
+
+    assert ActivationReport.model_validate(round_tripped) == parsed
+
 
 def test_trigger_payload_fixture_exposes_minimum_shape() -> None:
     fixture_path = (
@@ -76,3 +83,8 @@ def test_trigger_payload_fixture_exposes_minimum_shape() -> None:
     assert isinstance(payload["coverage_summary"], dict)
     assert isinstance(payload["event_attempts"], list)
     assert isinstance(payload["official_event_coverage"], dict)
+
+    parsed = TriggerPayload.model_validate(payload)
+    round_tripped = parsed.model_dump(mode="json")
+
+    assert TriggerPayload.model_validate(round_tripped) == parsed

@@ -27,6 +27,31 @@ Turn one of these notes into a committed plan only after:
 
 ## Candidate Expansion Topics
 
+### Executor Reporting Semantics Alignment
+
+- align layered-pass execution reporting so `stimulus_passes`,
+  `event_attempts`, `scenario_traces`, and `summary.scenarios_run` do not
+  describe overlapping runtime facts with different semantics
+- make layered stimulus execution emit canonical scenario lifecycle records
+  whenever it invokes scenario helpers directly instead of routing through the
+  higher-level scenario runner
+- keep requested scenarios from the trigger plan separate from scenarios
+  actually executed as automation flows
+- keep per-event attempts and per-pass execution truth separate from
+  higher-level scenario summaries
+- treat this as a post-Week-4 runtime observability and reporting correctness
+  item unless it starts blocking interpretation of baseline scan quality
+- the current layered executor path is operationally correct enough to keep the
+  Week 1-4 boundary refactor moving
+- the most reliable execution truth is already present in `stimulus_passes`
+  plus `event_attempts`
+- the remaining gap is consistency of reporting semantics rather than a core
+  planner or contract failure
+- a fresh post-Week-2 `ms-python.python` scan produced a contract-valid
+  activation report while still showing `summary.scenarios_run` entries that
+  were not mirrored in `scenario_traces`; keep treating this as deferred
+  reporting-semantics cleanup unless it starts confusing scan review
+
 ### Executor Control Boundary
 
 - replace API-side Docker host control with a narrower executor control

@@ -1677,6 +1677,12 @@ class ExtensionMonitor:
         self.report.heuristic_attempted_capabilities = (
             _extract_heuristic_attempted_capabilities(payload)
         )
+        stimulus_passes = [
+            item
+            for raw_item in getattr(payload, "stimulus_passes", []) or []
+            for item in [_trigger_item_as_dict(raw_item)]
+            if item is not None
+        ]
         self.report.stimulus_passes = [
             StimulusPassTrace(
                 pass_id=str(item.get("pass_id", "")),
@@ -1686,8 +1692,13 @@ class ExtensionMonitor:
                 status=str(item.get("status", "planned")),
                 trigger_method=str(item.get("trigger_method", "")),
             )
-            for item in getattr(payload, "stimulus_passes", []) or []
-            if isinstance(item, Mapping)
+            for item in stimulus_passes
+        ]
+        prerequisite_results = [
+            item
+            for raw_item in getattr(payload, "prerequisite_results", []) or []
+            for item in [_trigger_item_as_dict(raw_item)]
+            if item is not None
         ]
         self.report.prerequisite_results = [
             PrerequisiteResult(
@@ -1706,8 +1717,13 @@ class ExtensionMonitor:
                 reason_code=str(item.get("reason_code", "")),
                 resolved_targets=dict(item.get("resolved_targets", {}) or {}),
             )
-            for item in getattr(payload, "prerequisite_results", []) or []
-            if isinstance(item, Mapping)
+            for item in prerequisite_results
+        ]
+        event_attempts = [
+            item
+            for raw_item in getattr(payload, "event_attempts", []) or []
+            for item in [_trigger_item_as_dict(raw_item)]
+            if item is not None
         ]
         self.report.event_attempts = [
             EventAttemptRecord(
@@ -1772,8 +1788,7 @@ class ExtensionMonitor:
                 ui_path=str(item.get("ui_path", "")),
                 harness_fallback=str(item.get("harness_fallback", "")),
             )
-            for item in getattr(payload, "event_attempts", []) or []
-            if isinstance(item, Mapping)
+            for item in event_attempts
         ]
         self.report.requested_scenarios = list(
             getattr(payload, "selected_scenarios", []) or []
@@ -2418,6 +2433,25 @@ def check_extension_activated(extension_id: str, page: Page | None = None) -> bo
 
 def _log(msg: str) -> None:
     print(f"[monitor] {msg}")
+
+
+def _trigger_item_as_dict(item: Any) -> dict[str, Any] | None:
+    if isinstance(item, Mapping):
+        return dict(item)
+
+    model_dump = getattr(item, "model_dump", None)
+    if callable(model_dump):
+        dumped = model_dump(mode="python")
+        if isinstance(dumped, dict):
+            return dumped
+
+    dict_method = getattr(item, "dict", None)
+    if callable(dict_method):
+        dumped = dict_method()
+        if isinstance(dumped, dict):
+            return dumped
+
+    return None
 
 
 def _first_non_empty(*values: str) -> str:

@@ -584,6 +584,10 @@ def test_load_trigger_file_returns_payload_and_cleans_up(tmp_path: Path) -> None
                 "analysis_profile": "focused",
                 "selected_scenarios": ["terminal_usage"],
                 "official_selected_scenarios": ["terminal_usage"],
+                "coverage_tracks": {},
+                "coverage_summary": {},
+                "event_attempts": [],
+                "official_event_coverage": {},
                 "command_targets": {"Test: Command": "test.command"},
                 "extra_commands": ["workbench.action.tasks.runTask"],
                 "run_task_trigger": True,
@@ -601,6 +605,14 @@ def test_load_trigger_file_returns_payload_and_cleans_up(tmp_path: Path) -> None
     assert payload.extra_commands == ["workbench.action.tasks.runTask"]
     assert payload.run_task_trigger is True
     assert payload.heuristic_workflow_coverage == {"terminal_tasks": "covered"}
+    assert not trigger_path.exists()
+
+
+def test_load_trigger_file_rejects_schema_invalid_object(tmp_path: Path) -> None:
+    trigger_path = tmp_path / "invalid_object.json"
+    trigger_path.write_text(json.dumps({"selected_scenarios": "not-a-list"}))
+
+    assert triggers.load_trigger_file(str(trigger_path)) is None
     assert not trigger_path.exists()
 
 

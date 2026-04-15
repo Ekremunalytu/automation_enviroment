@@ -6,8 +6,10 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
+from pydantic import ValidationError
 
 from appcore.api.config import settings
+from packages.analysis_contracts import ActivationReport, ActivationReportFileSummary
 
 router = APIRouter(prefix="/api", tags=["activations"])
 _REPORT_PATTERNS = ("activation_report*.json",)
@@ -38,8 +40,8 @@ def _list_report_files() -> list[Path]:
     return sorted(files, key=lambda f: f.stat().st_mtime, reverse=True)
 
 
-def _read_report(path: Path, *, _retries: int = 3) -> dict[str, Any]:
-    """Read and parse a JSON report file.
+def _read_report_payload(path: Path, *, _retries: int = 3) -> dict[str, Any]:
+    """Read and parse a JSON report file payload.
 
     Retries on transient OSError (e.g. Errno 35 on macOS Docker VirtioFS).
     """
@@ -72,13 +74,48 @@ def _read_report(path: Path, *, _retries: int = 3) -> dict[str, Any]:
     return data
 
 
+def _format_contract_error(path: Path, exc: ValidationError) -> str:
+    """Build a compact validation detail for report contract failures."""
+    errors = exc.errors()
+    if not errors:
+        return (
+            "Report file failed activation report contract validation: "
+            f"{path.name} (invalid activation report payload)"
+        )
+
+    first_error = errors[0]
+    location = ".".join(str(part) for part in first_error["loc"])
+    message = str(first_error["msg"])
+    if location:
+        return (
+            "Report file failed activation report contract validation: "
+            f"{path.name} ({location}: {message})"
+        )
+    return (
+        "Report file failed activation report contract validation: "
+        f"{path.name} ({message})"
+    )
+
+
+def _read_report(path: Path, *, _retries: int = 3) -> ActivationReport:
+    """Read, parse, and validate an activation report."""
+    payload = _read_report_payload(path, _retries=_retries)
+    try:
+        return ActivationReport.model_validate(payload)
+    except ValidationError as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=_format_contract_error(path, exc),
+        ) from exc
+
+
 # =============================================================================
 # Endpoints
 # =============================================================================
 
 
-@router.get("/activations")
-def list_activations() -> list[dict[str, Any]]:
+@router.get("/activations", response_model=list[ActivationReportFileSummary])
+def list_activations() -> list[ActivationReportFileSummary]:
     """
     List all available activation report files.
 
@@ -86,15 +123,15 @@ def list_activations() -> list[dict[str, Any]]:
     Reports are sorted by modification time, newest first.
     """
     files = _list_report_files()
-    results: list[dict[str, Any]] = []
+    results: list[ActivationReportFileSummary] = []
     for f in files:
         stat = f.stat()
         results.append(
-            {
-                "filename": f.name,
-                "size_bytes": stat.st_size,
-                "modified": stat.st_mtime,
-            }
+            ActivationReportFileSummary(
+                filename=f.name,
+                size_bytes=stat.st_size,
+                modified=stat.st_mtime,
+            )
         )
     return results
 
@@ -122,8 +159,9 @@ def get_latest_activation() -> dict[str, Any]:
         except HTTPException as exc:
             last_error = exc
             continue
-        report["_metadata"] = {"filename": report_file.name}
-        return report
+        data = report.model_dump(mode="json")
+        data["_metadata"] = {"filename": report_file.name}
+        return data
 
     if last_error is not None:
         raise last_error
@@ -161,5 +199,6 @@ def get_activation_by_name(name: str) -> dict[str, Any]:
             detail=f"Report not found: {name}",
         )
     report = _read_report(path)
-    report["_metadata"] = {"filename": name}
-    return report
+    data = report.model_dump(mode="json")
+    data["_metadata"] = {"filename": name}
+    return data

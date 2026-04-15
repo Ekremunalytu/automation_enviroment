@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -57,13 +58,17 @@ def run_stimulus_plan(
 
     result = StimulusExecutionResult()
     attempts_by_id = {
-        str(attempt.get("attempt_id", "")): attempt
-        for attempt in getattr(payload, "event_attempts", []) or []
-        if isinstance(attempt, dict) and str(attempt.get("attempt_id", "")).strip()
+        attempt_id: attempt
+        for raw_attempt in getattr(payload, "event_attempts", []) or []
+        for attempt in [_trigger_item_as_dict(raw_attempt)]
+        if attempt is not None
+        for attempt_id in [str(attempt.get("attempt_id", "")).strip()]
+        if attempt_id
     }
 
-    for pass_data in getattr(payload, "stimulus_passes", []) or []:
-        if not isinstance(pass_data, dict):
+    for raw_pass_data in getattr(payload, "stimulus_passes", []) or []:
+        pass_data = _trigger_item_as_dict(raw_pass_data)
+        if pass_data is None:
             continue
         stage_id = str(pass_data.get("pass_id", "")).strip()
         if not stage_id:
@@ -361,12 +366,14 @@ def _prerequisites_for_pass(
     lookup = {
         str(item.get("prerequisite_id", "")): item
         for item in getattr(payload, "prerequisite_results", []) or []
-        if isinstance(item, dict)
+        for item in [_trigger_item_as_dict(item)]
+        if item is not None
     }
     by_key = {
         str(item.get("key", "")): item
         for item in getattr(payload, "prerequisite_results", []) or []
-        if isinstance(item, dict)
+        for item in [_trigger_item_as_dict(item)]
+        if item is not None
     }
     items: list[dict[str, Any]] = []
     for raw_key in pass_data.get("prerequisite_keys", []):
@@ -413,6 +420,25 @@ def _materialize_prerequisite(
             resolved_targets=result.resolved_targets,
         )
     return result
+
+
+def _trigger_item_as_dict(item: Any) -> dict[str, Any] | None:
+    if isinstance(item, Mapping):
+        return dict(item)
+
+    model_dump = getattr(item, "model_dump", None)
+    if callable(model_dump):
+        dumped = model_dump(mode="python")
+        if isinstance(dumped, dict):
+            return dumped
+
+    dict_method = getattr(item, "dict", None)
+    if callable(dict_method):
+        dumped = dict_method()
+        if isinstance(dumped, dict):
+            return dumped
+
+    return None
 
 
 def _resolve_prerequisite_materialization(
