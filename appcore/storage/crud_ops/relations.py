@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload, selectinload
+from sqlalchemy.orm.interfaces import ORMOption
 
 from appcore.storage.models import (
     Extension,
@@ -15,20 +16,43 @@ from appcore.storage.models import (
 )
 
 
-def get_extension_scripts(
-    db: Session, name: str, publisher: str | None = None, version: str | None = None
-) -> list[ExtensionScripts] | None:
-    stmt = (
-        select(Extension)
-        .where(Extension.name == name)
-        .options(selectinload(Extension.scripts))
-    )
+def _resolve_extension(
+    db: Session,
+    *,
+    name: str,
+    publisher: str | None = None,
+    version: str | None = None,
+    loader_options: tuple[ORMOption, ...] = (),
+) -> Extension | None:
+    stmt = select(Extension).where(Extension.name == name)
+    if loader_options:
+        stmt = stmt.options(*loader_options)
     if publisher:
         stmt = stmt.where(Extension.publisher == publisher)
     if version:
         stmt = stmt.where(Extension.version == version)
 
-    extension = db.scalars(stmt).first()
+    results = db.scalars(stmt).unique().all()
+    if not results:
+        return None
+    if len(results) > 1:
+        raise ValueError(
+            "Multiple extensions match this name. "
+            "Specify publisher and version for an exact match."
+        )
+    return results[0]
+
+
+def get_extension_scripts(
+    db: Session, name: str, publisher: str | None = None, version: str | None = None
+) -> list[ExtensionScripts] | None:
+    extension = _resolve_extension(
+        db,
+        name=name,
+        publisher=publisher,
+        version=version,
+        loader_options=(selectinload(Extension.scripts),),
+    )
     if extension is None:
         return None
     return list(extension.scripts)
@@ -40,17 +64,13 @@ def get_extension_activation_events(
     extension_publisher: str | None = None,
     extension_version: str | None = None,
 ) -> list[ExtensionActivationEvents] | None:
-    stmt = (
-        select(Extension)
-        .where(Extension.name == extension_name)
-        .options(selectinload(Extension.activation_events))
+    extension = _resolve_extension(
+        db,
+        name=extension_name,
+        publisher=extension_publisher,
+        version=extension_version,
+        loader_options=(selectinload(Extension.activation_events),),
     )
-    if extension_publisher:
-        stmt = stmt.where(Extension.publisher == extension_publisher)
-    if extension_version:
-        stmt = stmt.where(Extension.version == extension_version)
-
-    extension = db.scalars(stmt).first()
     if extension is None:
         return None
     return list(extension.activation_events)
@@ -62,17 +82,13 @@ def get_extension_capabilities(
     extension_publisher: str | None = None,
     extension_version: str | None = None,
 ) -> ExtensionCapabilities | None:
-    stmt = (
-        select(Extension)
-        .where(Extension.name == extension_name)
-        .options(joinedload(Extension.capabilities))
+    extension = _resolve_extension(
+        db,
+        name=extension_name,
+        publisher=extension_publisher,
+        version=extension_version,
+        loader_options=(joinedload(Extension.capabilities),),
     )
-    if extension_publisher:
-        stmt = stmt.where(Extension.publisher == extension_publisher)
-    if extension_version:
-        stmt = stmt.where(Extension.version == extension_version)
-
-    extension = db.scalars(stmt).first()
     if extension is None:
         return None
     return extension.capabilities
@@ -84,25 +100,21 @@ def get_extension_contributes_all(
     extension_publisher: str | None = None,
     extension_version: str | None = None,
 ) -> ExtensionContributes | None:
-    stmt = (
-        select(Extension)
-        .where(Extension.name == extension_name)
-        .options(
+    extension = _resolve_extension(
+        db,
+        name=extension_name,
+        publisher=extension_publisher,
+        version=extension_version,
+        loader_options=(
             joinedload(Extension.contributes).options(
                 selectinload(ExtensionContributes.keybindings),
                 selectinload(ExtensionContributes.menus),
                 selectinload(ExtensionContributes.authentication),
                 selectinload(ExtensionContributes.terminal),
                 selectinload(ExtensionContributes.commands),
-            )
-        )
+            ),
+        ),
     )
-    if extension_publisher:
-        stmt = stmt.where(Extension.publisher == extension_publisher)
-    if extension_version:
-        stmt = stmt.where(Extension.version == extension_version)
-
-    extension = db.scalars(stmt).first()
     if extension is None:
         return None
     return extension.contributes
@@ -114,21 +126,17 @@ def get_extension_contributes_commands(
     extension_publisher: str | None = None,
     extension_version: str | None = None,
 ) -> list[ExtensionContributesCommands] | None:
-    stmt = (
-        select(Extension)
-        .where(Extension.name == extension_name)
-        .options(
+    extension = _resolve_extension(
+        db,
+        name=extension_name,
+        publisher=extension_publisher,
+        version=extension_version,
+        loader_options=(
             joinedload(Extension.contributes).options(
                 selectinload(ExtensionContributes.commands),
-            )
-        )
+            ),
+        ),
     )
-    if extension_publisher:
-        stmt = stmt.where(Extension.publisher == extension_publisher)
-    if extension_version:
-        stmt = stmt.where(Extension.version == extension_version)
-
-    extension = db.scalars(stmt).first()
     if extension is None:
         return None
     if extension.contributes is None:

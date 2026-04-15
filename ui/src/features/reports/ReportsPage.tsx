@@ -11,12 +11,20 @@ import { EmptyState } from "../../components/ui/EmptyState";
 import { Panel, PanelHeader } from "../../components/ui/Panel";
 import { SegmentedTabs } from "../../components/ui/SegmentedTabs";
 import { SlideOverDrawer } from "../../components/ui/SlideOverDrawer";
+import {
+  applyEvidenceFilters,
+  buildEvidenceFilterOptions,
+  countEvidenceFilters,
+  filterEvidenceEvents,
+  type InspectorTab,
+  normalizeInspectorTab,
+  parseEvidenceFilters,
+} from "../evidence/queryState";
 import { apiClient } from "../../lib/api/client";
 import { adaptReport, getInspectorView } from "../../lib/adapters/report";
 import { buildRuleDraft } from "../../lib/rules/draft";
 
 type ReportTab = "dashboard" | "activation" | "file" | "network" | "scenario" | "evidence" | "logs";
-type InspectorTab = "provenance" | "relations" | "rules";
 type WorkspaceTab = "evidence" | "analysis";
 
 const REPORT_TABS: Array<{ value: ReportTab; label: string }> = [
@@ -68,41 +76,8 @@ function normalizeTab(raw: string | null): ReportTab {
   return REPORT_TABS.some((tab) => tab.value === raw) ? (raw as ReportTab) : "dashboard";
 }
 
-function normalizeInspectorTab(raw: string | null): InspectorTab {
-  if (raw === "relations" || raw === "rules") return raw;
-  if (raw === "rule") return "rules";
-  return "provenance";
-}
-
 function normalizeWorkspaceTab(raw: string | null): WorkspaceTab {
   return raw === "analysis" ? "analysis" : "evidence";
-}
-
-function parseFilters(searchParams: URLSearchParams): EvidenceFilterState {
-  return {
-    kinds: searchParams.get("kind") ? [searchParams.get("kind")!] : [],
-    actors: searchParams.get("actor") ? [searchParams.get("actor")!] : [],
-    collectors: searchParams.get("collector") ? [searchParams.get("collector")!] : [],
-    scenarios: searchParams.get("scenario") ? [searchParams.get("scenario")!] : [],
-    sensitiveOnly: searchParams.get("sensitive") === "true",
-    search: searchParams.get("search") || "",
-  };
-}
-
-function applyFilters(searchParams: URLSearchParams, filters: EvidenceFilterState) {
-  const next = new URLSearchParams(searchParams);
-  const assign = (key: string, value?: string) => {
-    if (value) next.set(key, value);
-    else next.delete(key);
-  };
-  assign("kind", filters.kinds[0]);
-  assign("actor", filters.actors[0]);
-  assign("collector", filters.collectors[0]);
-  assign("scenario", filters.scenarios[0]);
-  assign("search", filters.search || undefined);
-  if (filters.sensitiveOnly) next.set("sensitive", "true");
-  else next.delete("sensitive");
-  return next;
 }
 
 function formatModified(value?: number | null) {
@@ -114,17 +89,6 @@ function formatModified(value?: number | null) {
     hour: "2-digit",
     minute: "2-digit",
   });
-}
-
-function countActiveFilters(filters: EvidenceFilterState) {
-  return [
-    filters.kinds.length,
-    filters.actors.length,
-    filters.collectors.length,
-    filters.scenarios.length,
-    filters.sensitiveOnly ? 1 : 0,
-    filters.search ? 1 : 0,
-  ].reduce((sum, count) => sum + count, 0);
 }
 
 function formatNumber(value: number) {
@@ -167,7 +131,7 @@ export function ReportsPage() {
   const eventId = searchParams.get("event");
   const inspectorTab = normalizeInspectorTab(searchParams.get("inspector"));
   const workspaceTab = normalizeWorkspaceTab(searchParams.get("workspace"));
-  const filters = parseFilters(searchParams);
+  const filters = parseEvidenceFilters(searchParams);
   const deferredSearch = useDeferredValue(filters.search);
 
   const reportsQuery = useQuery({
@@ -185,28 +149,9 @@ export function ReportsPage() {
   });
 
   const report = reportQuery.data;
-  const filteredEvents =
-    report?.evidence.filter((event) => {
-      if (filters.kinds.length && !filters.kinds.includes(event.kindLabel)) return false;
-      if (filters.actors.length && !filters.actors.includes(event.actorLabel)) return false;
-      if (filters.collectors.length && !filters.collectors.includes(event.collectorLabel)) return false;
-      if (filters.scenarios.length && !filters.scenarios.includes(event.scenarioName)) return false;
-      if (filters.sensitiveOnly && !event.sensitive) return false;
-      if (deferredSearch) {
-        const haystack = [
-          event.artifact,
-          event.summaryDisplay,
-          event.extensionId,
-          event.host,
-          event.path,
-          event.scenarioName,
-        ]
-          .join(" ")
-          .toLowerCase();
-        if (!haystack.includes(deferredSearch.toLowerCase())) return false;
-      }
-      return true;
-    }) || [];
+  const filteredEvents = report
+    ? filterEvidenceEvents(report.evidence, filters, deferredSearch)
+    : [];
 
   const scopedEvents = scopeEventsForTab(selectedTab, filteredEvents);
 
@@ -226,13 +171,8 @@ export function ReportsPage() {
 
   const inspector = report ? getInspectorView(report, eventId) : null;
   const ruleDraft = buildRuleDraft(inspector);
-  const options = {
-    kinds: [...new Set(report?.evidence.map((event) => event.kindLabel) || [])],
-    actors: [...new Set(report?.evidence.map((event) => event.actorLabel) || [])],
-    collectors: [...new Set(report?.evidence.map((event) => event.collectorLabel) || [])],
-    scenarios: [...new Set(report?.evidence.map((event) => event.scenarioName).filter(Boolean) || [])],
-  };
-  const activeFilterCount = countActiveFilters(filters);
+  const options = buildEvidenceFilterOptions(report?.evidence || []);
+  const activeFilterCount = countEvidenceFilters(filters);
   const activeReport =
     reportParam === "latest"
       ? reportsQuery.data?.[0]
@@ -248,7 +188,7 @@ export function ReportsPage() {
 
   const updateFilters = (nextFilters: EvidenceFilterState) => {
     startTransition(() => {
-      setSearchParams(applyFilters(searchParams, nextFilters), { replace: true });
+      setSearchParams(applyEvidenceFilters(searchParams, nextFilters), { replace: true });
     });
   };
 

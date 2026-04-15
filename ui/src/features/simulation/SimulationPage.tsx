@@ -12,65 +12,21 @@ import { EmptyState } from "../../components/ui/EmptyState";
 import { Panel, PanelHeader } from "../../components/ui/Panel";
 import { SegmentedTabs } from "../../components/ui/SegmentedTabs";
 import { SlideOverDrawer } from "../../components/ui/SlideOverDrawer";
+import {
+  applyEvidenceFilters,
+  buildEvidenceFilterOptions,
+  countEvidenceFilters,
+  filterEvidenceEvents,
+  normalizeInspectorTab,
+  parseEvidenceFilters,
+} from "../evidence/queryState";
+import { getStoredJobId, rememberJobId } from "./jobStorage";
 import { apiClient } from "../../lib/api/client";
 import { adaptJob } from "../../lib/adapters/job";
 import { adaptReport, getInspectorView } from "../../lib/adapters/report";
 import { buildRuleDraft } from "../../lib/rules/draft";
 
-const LAST_JOB_KEY = "extrace:lastJobId";
 type WorkspaceTab = "evidence" | "analysis" | "logs";
-
-function getStoredJobId() {
-  if (typeof window === "undefined") return null;
-  const storage = window.localStorage;
-  return typeof storage?.getItem === "function" ? storage.getItem(LAST_JOB_KEY) : null;
-}
-
-function rememberJobId(jobId: string) {
-  if (typeof window === "undefined") return;
-  const storage = window.localStorage;
-  if (typeof storage?.setItem === "function") {
-    storage.setItem(LAST_JOB_KEY, jobId);
-  }
-}
-
-function parseFilters(searchParams: URLSearchParams): EvidenceFilterState {
-  return {
-    kinds: searchParams.get("kind") ? [searchParams.get("kind")!] : [],
-    actors: searchParams.get("actor") ? [searchParams.get("actor")!] : [],
-    collectors: searchParams.get("collector") ? [searchParams.get("collector")!] : [],
-    scenarios: searchParams.get("scenario") ? [searchParams.get("scenario")!] : [],
-    sensitiveOnly: searchParams.get("sensitive") === "true",
-    search: searchParams.get("search") || "",
-  };
-}
-
-function applyFilters(searchParams: URLSearchParams, filters: EvidenceFilterState) {
-  const params = new URLSearchParams(searchParams);
-  const assign = (key: string, value?: string) => {
-    if (value) params.set(key, value);
-    else params.delete(key);
-  };
-  assign("kind", filters.kinds[0]);
-  assign("actor", filters.actors[0]);
-  assign("collector", filters.collectors[0]);
-  assign("scenario", filters.scenarios[0]);
-  assign("search", filters.search || undefined);
-  if (filters.sensitiveOnly) params.set("sensitive", "true");
-  else params.delete("sensitive");
-  return params;
-}
-
-function countActiveFilters(filters: EvidenceFilterState) {
-  return [
-    filters.kinds.length,
-    filters.actors.length,
-    filters.collectors.length,
-    filters.scenarios.length,
-    filters.sensitiveOnly ? 1 : 0,
-    filters.search ? 1 : 0,
-  ].reduce((sum, count) => sum + count, 0);
-}
 
 function getExpectedTelemetry(status?: string, hasEvidence?: boolean) {
   if (hasEvidence) return "Evidence is streaming into the event table and inspector.";
@@ -91,13 +47,8 @@ export function SimulationPage() {
   const tab = searchParams.get("tab") || "live";
   const workspaceTab = normalizeWorkspaceTab(searchParams.get("workspace"));
   const eventId = searchParams.get("event");
-  const inspectorTab =
-    searchParams.get("inspector") === "relations"
-      ? "relations"
-      : searchParams.get("inspector") === "rules" || searchParams.get("inspector") === "rule"
-        ? "rules"
-        : "provenance";
-  const filters = parseFilters(searchParams);
+  const inspectorTab = normalizeInspectorTab(searchParams.get("inspector"));
+  const filters = parseEvidenceFilters(searchParams);
   const deferredSearch = useDeferredValue(filters.search);
 
   useEffect(() => {
@@ -141,19 +92,9 @@ export function SimulationPage() {
   const report = reportQuery.data;
   const model = job ? adaptJob(job) : null;
 
-  const filteredEvents =
-    report?.evidence.filter((event) => {
-      if (filters.kinds.length && !filters.kinds.includes(event.kindLabel)) return false;
-      if (filters.actors.length && !filters.actors.includes(event.actorLabel)) return false;
-      if (filters.collectors.length && !filters.collectors.includes(event.collectorLabel)) return false;
-      if (filters.scenarios.length && !filters.scenarios.includes(event.scenarioName)) return false;
-      if (filters.sensitiveOnly && !event.sensitive) return false;
-      if (deferredSearch) {
-        const haystack = [event.artifact, event.summaryDisplay, event.extensionId, event.host, event.path].join(" ").toLowerCase();
-        if (!haystack.includes(deferredSearch.toLowerCase())) return false;
-      }
-      return true;
-    }) || [];
+  const filteredEvents = report
+    ? filterEvidenceEvents(report.evidence, filters, deferredSearch)
+    : [];
 
   useEffect(() => {
     if (!report?.evidence.length) return;
@@ -176,13 +117,8 @@ export function SimulationPage() {
 
   const inspector = report ? getInspectorView(report, eventId) : null;
   const ruleDraft = buildRuleDraft(inspector);
-  const options = {
-    kinds: [...new Set(report?.evidence.map((event) => event.kindLabel) || [])],
-    actors: [...new Set(report?.evidence.map((event) => event.actorLabel) || [])],
-    collectors: [...new Set(report?.evidence.map((event) => event.collectorLabel) || [])],
-    scenarios: [...new Set(report?.evidence.map((event) => event.scenarioName).filter(Boolean) || [])],
-  };
-  const activeFilterCount = countActiveFilters(filters);
+  const options = buildEvidenceFilterOptions(report?.evidence || []);
+  const activeFilterCount = countEvidenceFilters(filters);
 
   const setSelectedEvent = (nextEventId: string) => {
     const next = new URLSearchParams(searchParams);
@@ -191,7 +127,7 @@ export function SimulationPage() {
   };
 
   const updateFilters = (nextFilters: EvidenceFilterState) => {
-    setSearchParams(applyFilters(searchParams, nextFilters), { replace: true });
+    setSearchParams(applyEvidenceFilters(searchParams, nextFilters), { replace: true });
   };
 
   if (!jobId && !getStoredJobId()) {

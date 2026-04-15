@@ -20,6 +20,14 @@ _ACTIVE_JOB_STATUSES = frozenset({"queued", "running"})
 _PROCESS_BOOT_ID = uuid4().hex
 
 
+class ActiveAnalysisJobError(RuntimeError):
+    """Raised when a new analysis job is requested while another job is active."""
+
+    def __init__(self, active_job: dict[str, Any]) -> None:
+        super().__init__("Another sandbox analysis is already in progress.")
+        self.active_job = deepcopy(active_job)
+
+
 def now() -> float:
     return time.time()
 
@@ -88,12 +96,6 @@ def _interrupt_job(
 
 
 def _normalize_loaded_job(job: dict[str, Any]) -> dict[str, Any]:
-    if _is_active_job(job) and not _belongs_to_current_process(job):
-        _interrupt_job(
-            job,
-            "Analysis job was interrupted by an API restart. Start a new run.",
-        )
-        persist_job(job)
     return job
 
 
@@ -174,10 +176,49 @@ def create_job_snapshot(request: AnalyzeRequest) -> dict[str, Any]:
     }
 
 
+def _iter_persisted_jobs() -> list[dict[str, Any]]:
+    jobs_dir = get_jobs_dir()
+    if not jobs_dir.exists():
+        return []
+
+    jobs: list[dict[str, Any]] = []
+    for job_file in jobs_dir.glob("*.json"):
+        try:
+            jobs.append(load_persisted_job(job_file.stem))
+        except (FileNotFoundError, KeyError, OSError, ValueError):
+            continue
+    return jobs
+
+
+def _get_active_job_locked() -> dict[str, Any] | None:
+    for job in _ANALYSIS_JOBS.values():
+        if _is_active_job(job):
+            return job
+
+    for job in _iter_persisted_jobs():
+        if _is_active_job(job):
+            _ANALYSIS_JOBS[job["job_id"]] = job
+            return job
+
+    return None
+
+
 def store_job(job: dict[str, Any]) -> None:
     with _JOB_LOCK:
         _ANALYSIS_JOBS[job["job_id"]] = job
         persist_job(job)
+
+
+def reserve_job(request: AnalyzeRequest) -> dict[str, Any]:
+    with _JOB_LOCK:
+        active_job = _get_active_job_locked()
+        if active_job is not None:
+            raise ActiveAnalysisJobError(active_job)
+
+        job = create_job_snapshot(request)
+        _ANALYSIS_JOBS[job["job_id"]] = job
+        persist_job(job)
+        return deepcopy(job)
 
 
 def get_job_snapshot(job_id: str) -> dict[str, Any]:
@@ -194,25 +235,8 @@ def get_job_snapshot(job_id: str) -> dict[str, Any]:
 
 def get_active_job_snapshot() -> dict[str, Any] | None:
     with _JOB_LOCK:
-        for job in _ANALYSIS_JOBS.values():
-            if _is_active_job(job):
-                return deepcopy(job)
-
-        jobs_dir = get_jobs_dir()
-        if not jobs_dir.exists():
-            return None
-
-        for job_file in jobs_dir.glob("*.json"):
-            try:
-                job = load_persisted_job(job_file.stem)
-            except (FileNotFoundError, KeyError, OSError, ValueError):
-                continue
-
-            if _is_active_job(job) and _belongs_to_current_process(job):
-                _ANALYSIS_JOBS[job["job_id"]] = job
-                return deepcopy(job)
-
-    return None
+        active_job = _get_active_job_locked()
+        return deepcopy(active_job) if active_job is not None else None
 
 
 def update_job(job_id: str, **updates: Any) -> None:
@@ -294,6 +318,21 @@ def fail_job(job_id: str, detail: str, *, error_code: str | None = None) -> None
         persist_job(job)
 
 
+def recover_interrupted_jobs() -> int:
+    recovered_jobs = 0
+    with _JOB_LOCK:
+        for job in _iter_persisted_jobs():
+            if _is_active_job(job) and not _belongs_to_current_process(job):
+                _interrupt_job(
+                    job,
+                    "Analysis job was interrupted by an API restart. Start a new run.",
+                )
+                persist_job(job)
+                _ANALYSIS_JOBS[job["job_id"]] = job
+                recovered_jobs += 1
+    return recovered_jobs
+
+
 def clear_job_cache() -> None:
     with _JOB_LOCK:
         _ANALYSIS_JOBS.clear()
@@ -301,6 +340,7 @@ def clear_job_cache() -> None:
 
 __all__ = [
     "_ANALYSIS_JOBS",
+    "ActiveAnalysisJobError",
     "build_report_name",
     "clear_job_cache",
     "create_job_snapshot",
@@ -313,6 +353,8 @@ __all__ = [
     "load_persisted_job",
     "now",
     "persist_job",
+    "recover_interrupted_jobs",
+    "reserve_job",
     "store_job",
     "update_job",
     "update_job_step",

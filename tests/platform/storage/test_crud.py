@@ -30,6 +30,8 @@ from appcore.contracts.schemas import (
     ExtensionScriptsSchema,
 )
 
+pytestmark = pytest.mark.requires_db
+
 
 def test_create_extension(db_session: Session):
     """Test successful creation of a new extension."""
@@ -533,6 +535,60 @@ def test_get_extension_scripts_with_filters_and_not_found(db_session: Session):
     assert len(scripts) == 1
     assert scripts[0].script_name == "test"
     assert get_extension_scripts(db_session, "ghost-ext") is None
+
+
+def test_relation_helpers_raise_for_ambiguous_extension_name(db_session: Session):
+    """Relation lookups should reject ambiguous name-only matches."""
+    create_extension(
+        db_session,
+        ExtensionSchema(
+            name="ambiguous-relations",
+            publisher="pub-a",
+            version="1.0.0",
+            engines={"vscode": "^1.0.0"},
+        ),
+        scripts=[
+            ExtensionScriptsSchema(
+                script_name="build",
+                script_command={"command": "npm run build"},
+            )
+        ],
+        activation_events=[
+            ExtensionActivationEventsSchema(
+                event_type="onLanguage",
+                event_value="python",
+            )
+        ],
+        capabilities=ExtensionCapabilitiesSchema(untrusted_supported="supported"),
+        contributes=ExtensionContributesSchema(
+            commands=[
+                ExtensionContributesCommandsSchema(
+                    command_id="ext.run",
+                    title="Run",
+                )
+            ]
+        ),
+    )
+    create_extension(
+        db_session,
+        ExtensionSchema(
+            name="ambiguous-relations",
+            publisher="pub-b",
+            version="2.0.0",
+            engines={"vscode": "^1.0.0"},
+        ),
+    )
+
+    with pytest.raises(ValueError, match="Multiple extensions match this name"):
+        get_extension_scripts(db_session, "ambiguous-relations")
+    with pytest.raises(ValueError, match="Multiple extensions match this name"):
+        get_extension_activation_events(db_session, "ambiguous-relations")
+    with pytest.raises(ValueError, match="Multiple extensions match this name"):
+        get_extension_capabilities(db_session, "ambiguous-relations")
+    with pytest.raises(ValueError, match="Multiple extensions match this name"):
+        get_extension_contributes_all(db_session, "ambiguous-relations")
+    with pytest.raises(ValueError, match="Multiple extensions match this name"):
+        get_extension_contributes_commands(db_session, "ambiguous-relations")
 
 
 def test_get_extension_activation_events_with_filters_and_not_found(

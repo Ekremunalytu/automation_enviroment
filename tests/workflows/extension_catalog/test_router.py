@@ -1,5 +1,6 @@
 from unittest.mock import MagicMock, patch
 
+import pytest
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
 from sqlalchemy.exc import SQLAlchemyError
@@ -34,7 +35,8 @@ def test_health_check(client: TestClient):
     assert response.json()["status"] == settings.api.HEALTH_STATUS
 
 
-def test_search_extension_endpoint(client: TestClient, db_session: Session):
+@pytest.mark.requires_db
+def test_search_extension_endpoint(db_client: TestClient, db_session: Session):
     """Test searching for an existing extension."""
     # Setup
     schema = ExtensionSchema(
@@ -46,18 +48,23 @@ def test_search_extension_endpoint(client: TestClient, db_session: Session):
     create_extension(db_session, schema)
 
     # Test
-    response = client.get("/searchExtension?name=api-test")
+    response = db_client.get("/searchExtension?name=api-test")
     assert response.status_code == 200
     assert response.json()["name"] == "api-test"
 
 
 def test_search_extension_not_found(client: TestClient):
     """Test searching for a non-existent extension returns 404."""
-    response = client.get("/searchExtension?name=ghost")
-    assert response.status_code == 404
+    with patch(
+        "workflows.extension_catalog.router.service.search_extension_by_name",
+        return_value=None,
+    ):
+        response = client.get("/searchExtension?name=ghost")
+        assert response.status_code == 404
 
 
-def test_delete_extension_endpoint(client: TestClient, db_session: Session):
+@pytest.mark.requires_db
+def test_delete_extension_endpoint(db_client: TestClient, db_session: Session):
     """Test deleting an extension via API."""
     # Setup
     schema = ExtensionSchema(
@@ -69,15 +76,15 @@ def test_delete_extension_endpoint(client: TestClient, db_session: Session):
     create_extension(db_session, schema)
 
     # Test
-    response = client.delete("/deleteExtension?name=delete-api")
+    response = db_client.delete("/deleteExtension?name=delete-api")
     assert response.status_code == 200
 
     # Verify deletion
-    response = client.get("/searchExtension?name=delete-api")
+    response = db_client.get("/searchExtension?name=delete-api")
     assert response.status_code == 404
 
 
-def test_create_extension_endpoint(client: TestClient, db_session: Session):
+def test_create_extension_endpoint(client: TestClient):
     """Test POST /createExtension with mocked service"""
     # Create a mock Extension ORM object (not schema)
     mock_ext = MagicMock()

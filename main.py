@@ -7,11 +7,22 @@ from fastapi.middleware.gzip import GZipMiddleware
 from appcore.api.config import settings
 from workflows.activation_reports.router import router as activation_reports_router
 from workflows.extension_catalog.router import router as extension_catalog_router
+from workflows.marketplace.job_store import recover_interrupted_jobs
 from workflows.marketplace.router import router as marketplace_router
+
+
+def validate_runtime_settings() -> None:
+    """Fail fast when runtime settings violate marketplace job guarantees."""
+    if settings.api.WORKERS != 1:
+        raise RuntimeError(
+            "ExTrace requires API_WORKERS=1 because marketplace analysis jobs "
+            "are managed as a single-worker sandbox queue."
+        )
 
 
 def create_app() -> FastAPI:
     """Application factory — creates and configures the FastAPI instance."""
+    validate_runtime_settings()
     application = FastAPI(
         title=settings.project.NAME,
         description=settings.project.DESCRIPTION,
@@ -40,6 +51,7 @@ def create_app() -> FastAPI:
     application.include_router(activation_reports_router)
     application.include_router(marketplace_router)
 
+    recover_interrupted_jobs()
     return application
 
 

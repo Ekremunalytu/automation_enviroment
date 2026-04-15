@@ -6,6 +6,7 @@ Tests for /api/marketplace/search and /api/marketplace/download endpoints.
 All external calls (HTTP + DB writes) are mocked via unittest.mock.patch.
 """
 
+import threading
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import ANY, MagicMock, patch
@@ -14,8 +15,14 @@ import httpx
 import pytest
 from fastapi.testclient import TestClient
 
+from appcore.contracts.schemas import AnalyzeRequest, AnalyzeResponse
 from executor.host import ExecutorError
-from workflows.marketplace import router as marketplace_router
+from workflows.marketplace import (
+    analysis_service,
+    job_store,
+    router as marketplace_router,
+    trigger_service,
+)
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -417,7 +424,7 @@ def _vsix_path_exists(exists: bool = True):
 
 def _reset_job_state(tmp_path: Path) -> None:
     """Keep persisted job snapshots isolated per test."""
-    marketplace_router._ANALYSIS_JOBS.clear()
+    job_store.clear_job_cache()
     marketplace_router.settings.project.OUTPUT_DIR = str(tmp_path)
 
 
@@ -457,13 +464,13 @@ def test_analyze_success(client: TestClient) -> None:
 def test_store_job_persists_snapshot(tmp_path: Path) -> None:
     """Queued jobs should be recoverable from persisted snapshots."""
     _reset_job_state(tmp_path)
-    request = marketplace_router.AnalyzeRequest(**ANALYZE_PAYLOAD)
-    job = marketplace_router._create_job_snapshot(request)
+    request = AnalyzeRequest(**ANALYZE_PAYLOAD)
+    job = job_store.create_job_snapshot(request)
 
-    marketplace_router._store_job(job)
-    marketplace_router._ANALYSIS_JOBS.clear()
+    job_store.store_job(job)
+    job_store.clear_job_cache()
 
-    snapshot = marketplace_router._get_job_snapshot(job["job_id"])
+    snapshot = job_store.get_job_snapshot(job["job_id"])
     persisted = (tmp_path / "analysis_jobs" / f"{job['job_id']}.json").read_text(
         encoding="utf-8"
     )
@@ -480,7 +487,7 @@ def test_load_persisted_job_rejects_non_dict_json(tmp_path: Path) -> None:
     (jobs_dir / "broken.json").write_text('["invalid"]', encoding="utf-8")
 
     with pytest.raises(KeyError):
-        marketplace_router._load_persisted_job("broken")
+        job_store.load_persisted_job("broken")
 
 
 def test_get_job_snapshot_missing_job_raises_keyerror(tmp_path: Path) -> None:
@@ -488,23 +495,44 @@ def test_get_job_snapshot_missing_job_raises_keyerror(tmp_path: Path) -> None:
     _reset_job_state(tmp_path)
 
     with pytest.raises(KeyError):
-        marketplace_router._get_job_snapshot("missing")
+        job_store.get_job_snapshot("missing")
 
 
-def test_get_job_snapshot_marks_stale_active_job_failed(tmp_path: Path) -> None:
-    """Jobs from an older API process should not stay queued forever after restart."""
+def test_load_persisted_job_does_not_mutate_stale_active_job(tmp_path: Path) -> None:
+    """Polling persisted jobs should not fail them as a side effect."""
     _reset_job_state(tmp_path)
-    request = marketplace_router.AnalyzeRequest(**ANALYZE_PAYLOAD)
-    job = marketplace_router._create_job_snapshot(request)
+    request = AnalyzeRequest(**ANALYZE_PAYLOAD)
+    job = job_store.create_job_snapshot(request)
     job["status"] = "running"
     job["current_step"] = "run_monitoring"
     job["steps"][3]["status"] = "running"
     job["steps"][3]["message"] = "Monitoring"
     job["owner_boot_id"] = "previous-process"
-    marketplace_router._store_job(job)
-    marketplace_router._ANALYSIS_JOBS.clear()
+    job_store.store_job(job)
+    job_store.clear_job_cache()
 
-    snapshot = marketplace_router._get_job_snapshot(job["job_id"])
+    snapshot = job_store.load_persisted_job(job["job_id"])
+
+    assert snapshot["status"] == "running"
+    assert snapshot["steps"][3]["status"] == "running"
+
+
+def test_recover_interrupted_jobs_marks_stale_active_job_failed(tmp_path: Path) -> None:
+    """Stale persisted jobs should be failed during startup recovery."""
+    _reset_job_state(tmp_path)
+    request = AnalyzeRequest(**ANALYZE_PAYLOAD)
+    job = job_store.create_job_snapshot(request)
+    job["status"] = "running"
+    job["current_step"] = "run_monitoring"
+    job["steps"][3]["status"] = "running"
+    job["steps"][3]["message"] = "Monitoring"
+    job["owner_boot_id"] = "previous-process"
+    job_store.store_job(job)
+    job_store.clear_job_cache()
+
+    assert job_store.recover_interrupted_jobs() == 1
+
+    snapshot = job_store.get_job_snapshot(job["job_id"])
 
     assert snapshot["status"] == "failed"
     assert "interrupted by an api restart" in snapshot["error_detail"].lower()
@@ -516,14 +544,14 @@ def test_update_job_loads_persisted_snapshot_when_memory_is_empty(
 ) -> None:
     """Job updates should work even after the in-memory cache is cleared."""
     _reset_job_state(tmp_path)
-    request = marketplace_router.AnalyzeRequest(**ANALYZE_PAYLOAD)
-    job = marketplace_router._create_job_snapshot(request)
-    marketplace_router._store_job(job)
-    marketplace_router._ANALYSIS_JOBS.clear()
+    request = AnalyzeRequest(**ANALYZE_PAYLOAD)
+    job = job_store.create_job_snapshot(request)
+    job_store.store_job(job)
+    job_store.clear_job_cache()
 
-    marketplace_router._update_job(job["job_id"], status="running", message="restored")
+    job_store.update_job(job["job_id"], status="running", message="restored")
 
-    snapshot = marketplace_router._get_job_snapshot(job["job_id"])
+    snapshot = job_store.get_job_snapshot(job["job_id"])
     assert snapshot["status"] == "running"
     assert snapshot["message"] == "restored"
 
@@ -531,25 +559,25 @@ def test_update_job_loads_persisted_snapshot_when_memory_is_empty(
 def test_update_job_step_transitions_current_step(tmp_path: Path) -> None:
     """Job step updates should set and clear the current step appropriately."""
     _reset_job_state(tmp_path)
-    request = marketplace_router.AnalyzeRequest(**ANALYZE_PAYLOAD)
-    job = marketplace_router._create_job_snapshot(request)
-    marketplace_router._store_job(job)
+    request = AnalyzeRequest(**ANALYZE_PAYLOAD)
+    job = job_store.create_job_snapshot(request)
+    job_store.store_job(job)
 
-    marketplace_router._update_job_step(
+    job_store.update_job_step(
         job["job_id"],
         "install_extension",
         "running",
         "Installing extension.",
     )
-    running_snapshot = marketplace_router._get_job_snapshot(job["job_id"])
+    running_snapshot = job_store.get_job_snapshot(job["job_id"])
 
-    marketplace_router._update_job_step(
+    job_store.update_job_step(
         job["job_id"],
         "install_extension",
         "completed",
         "Installed.",
     )
-    completed_snapshot = marketplace_router._get_job_snapshot(job["job_id"])
+    completed_snapshot = job_store.get_job_snapshot(job["job_id"])
 
     assert running_snapshot["current_step"] == "install_extension"
     assert completed_snapshot["current_step"] is None
@@ -559,19 +587,19 @@ def test_update_job_step_transitions_current_step(tmp_path: Path) -> None:
 def test_fail_job_marks_current_step_failed(tmp_path: Path) -> None:
     """Failing a job should mark the active step as failed and persist the detail."""
     _reset_job_state(tmp_path)
-    request = marketplace_router.AnalyzeRequest(**ANALYZE_PAYLOAD)
-    job = marketplace_router._create_job_snapshot(request)
-    marketplace_router._store_job(job)
-    marketplace_router._update_job_step(
+    request = AnalyzeRequest(**ANALYZE_PAYLOAD)
+    job = job_store.create_job_snapshot(request)
+    job_store.store_job(job)
+    job_store.update_job_step(
         job["job_id"],
         "run_monitoring",
         "running",
         "Running monitor.",
     )
 
-    marketplace_router._fail_job(job["job_id"], "monitor crashed")
+    job_store.fail_job(job["job_id"], "monitor crashed")
 
-    snapshot = marketplace_router._get_job_snapshot(job["job_id"])
+    snapshot = job_store.get_job_snapshot(job["job_id"])
     assert snapshot["status"] == "failed"
     assert snapshot["error_detail"] == "monitor crashed"
     assert snapshot["current_step"] == "run_monitoring"
@@ -580,11 +608,39 @@ def test_fail_job_marks_current_step_failed(tmp_path: Path) -> None:
     assert "run monitoring failed" in snapshot["steps"][4]["message"].lower()
 
 
+def test_reserve_job_allows_only_one_active_job(tmp_path: Path) -> None:
+    """Concurrent callers should not reserve more than one active sandbox job."""
+    _reset_job_state(tmp_path)
+    request = AnalyzeRequest(**ANALYZE_PAYLOAD)
+    barrier = threading.Barrier(2)
+    successes: list[str] = []
+    conflicts: list[str] = []
+
+    def worker() -> None:
+        barrier.wait()
+        try:
+            job = job_store.reserve_job(request)
+        except job_store.ActiveAnalysisJobError as exc:
+            conflicts.append(exc.active_job["job_id"])
+        else:
+            successes.append(job["job_id"])
+
+    threads = [threading.Thread(target=worker) for _ in range(2)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+
+    assert len(successes) == 1
+    assert len(conflicts) == 1
+    assert successes[0] == conflicts[0]
+
+
 def test_build_trigger_payload_skips_when_explicit_scenario_is_set() -> None:
     """Explicit scenarios should bypass smart trigger selection entirely."""
-    request = marketplace_router.AnalyzeRequest(**ANALYZE_PAYLOAD, scenario="demo")
+    request = AnalyzeRequest(**ANALYZE_PAYLOAD, scenario="demo")
 
-    trigger_path, scenarios, message = marketplace_router._build_trigger_payload(
+    trigger_path, scenarios, message = trigger_service.build_trigger_payload(
         db=MagicMock(),
         request=request,
     )
@@ -596,7 +652,7 @@ def test_build_trigger_payload_skips_when_explicit_scenario_is_set() -> None:
 
 def test_build_trigger_payload_returns_default_when_no_activation_events() -> None:
     """Missing activation metadata should fall back to the default flow."""
-    request = marketplace_router.AnalyzeRequest(**ANALYZE_PAYLOAD)
+    request = AnalyzeRequest(**ANALYZE_PAYLOAD)
 
     with (
         patch(
@@ -608,7 +664,7 @@ def test_build_trigger_payload_returns_default_when_no_activation_events() -> No
             return_value=None,
         ),
     ):
-        trigger_path, scenarios, message = marketplace_router._build_trigger_payload(
+        trigger_path, scenarios, message = trigger_service.build_trigger_payload(
             db=MagicMock(),
             request=request,
         )
@@ -623,7 +679,7 @@ def test_build_trigger_payload_passes_commands_and_custom_editors(
 ) -> None:
     """Smart trigger selection should receive parsed commands and custom editors."""
     _reset_job_state(tmp_path)
-    request = marketplace_router.AnalyzeRequest(**ANALYZE_PAYLOAD)
+    request = AnalyzeRequest(**ANALYZE_PAYLOAD)
     activation_events = [
         SimpleNamespace(event_type="onCommand", event_value="extension.run")
     ]
@@ -653,7 +709,7 @@ def test_build_trigger_payload_passes_commands_and_custom_editors(
             return_value="/results/triggers.json",
         ) as mock_write,
     ):
-        trigger_path, scenarios, message = marketplace_router._build_trigger_payload(
+        trigger_path, scenarios, message = trigger_service.build_trigger_payload(
             db=MagicMock(),
             request=request,
         )
@@ -680,7 +736,7 @@ def test_build_trigger_payload_passes_commands_and_custom_editors(
 
 def test_execute_analysis_request_fails_closed_when_trigger_build_fails() -> None:
     """Trigger payload failures should abort analysis before sandbox automation starts."""
-    request = marketplace_router.AnalyzeRequest(**ANALYZE_PAYLOAD)
+    request = AnalyzeRequest(**ANALYZE_PAYLOAD)
     progress_events: list[tuple[str, str, str, str | None]] = []
 
     with (
@@ -701,16 +757,13 @@ def test_execute_analysis_request_fails_closed_when_trigger_build_fails() -> Non
             "workflows.marketplace.analysis_service.run_playwright_automation",
             return_value="automation",
         ) as mock_run,
-        pytest.raises(marketplace_router.TriggerPlanError) as exc_info,
+        pytest.raises(analysis_service.TriggerPlanError) as exc_info,
     ):
-        marketplace_router._execute_analysis_request(
+        analysis_service.execute_analysis_request(
             request,
             db=MagicMock(),
-            progress_callback=lambda step,
-            status,
-            message,
-            error_code=None: progress_events.append(
-                (step, status, message, error_code)
+            progress_callback=lambda step, status, message, error_code=None: (
+                progress_events.append((step, status, message, error_code))
             ),
             report_name="activation_report.json",
         )
@@ -727,7 +780,7 @@ def test_execute_analysis_request_fails_closed_when_trigger_build_fails() -> Non
 
 def test_execute_analysis_request_reports_reset_failure() -> None:
     """Reset failures should be reported on the reset step before bubbling up."""
-    request = marketplace_router.AnalyzeRequest(**ANALYZE_PAYLOAD)
+    request = AnalyzeRequest(**ANALYZE_PAYLOAD)
     progress_events: list[tuple[str, str, str, str | None]] = []
 
     with (
@@ -738,14 +791,11 @@ def test_execute_analysis_request_reports_reset_failure() -> None:
         ),
         pytest.raises(ExecutorError),
     ):
-        marketplace_router._execute_analysis_request(
+        analysis_service.execute_analysis_request(
             request,
             db=MagicMock(),
-            progress_callback=lambda step,
-            status,
-            message,
-            error_code=None: progress_events.append(
-                (step, status, message, error_code)
+            progress_callback=lambda step, status, message, error_code=None: (
+                progress_events.append((step, status, message, error_code))
             ),
         )
 
@@ -759,7 +809,7 @@ def test_execute_analysis_request_reports_reset_failure() -> None:
 
 def test_execute_analysis_request_reports_automation_failure() -> None:
     """Automation failures should mark the monitoring step as failed."""
-    request = marketplace_router.AnalyzeRequest(**ANALYZE_PAYLOAD)
+    request = AnalyzeRequest(**ANALYZE_PAYLOAD)
     progress_events: list[tuple[str, str, str, str | None]] = []
 
     with (
@@ -782,14 +832,11 @@ def test_execute_analysis_request_reports_automation_failure() -> None:
         ),
         pytest.raises(ExecutorError),
     ):
-        marketplace_router._execute_analysis_request(
+        analysis_service.execute_analysis_request(
             request,
             db=MagicMock(),
-            progress_callback=lambda step,
-            status,
-            message,
-            error_code=None: progress_events.append(
-                (step, status, message, error_code)
+            progress_callback=lambda step, status, message, error_code=None: (
+                progress_events.append((step, status, message, error_code))
             ),
         )
 
@@ -804,7 +851,7 @@ def test_execute_analysis_request_reports_automation_failure() -> None:
 def test_execute_analysis_request_reports_healthful_monitoring_summary(
     tmp_path: Path,
 ) -> None:
-    request = marketplace_router.AnalyzeRequest(**ANALYZE_PAYLOAD)
+    request = AnalyzeRequest(**ANALYZE_PAYLOAD)
     progress_events: list[tuple[str, str, str, str | None]] = []
     marketplace_router.settings.project.OUTPUT_DIR = str(tmp_path)
     report_name = "activation_report.json"
@@ -854,14 +901,11 @@ def test_execute_analysis_request_reports_healthful_monitoring_summary(
             return_value="automation",
         ),
     ):
-        response = marketplace_router._execute_analysis_request(
+        response = analysis_service.execute_analysis_request(
             request,
             db=MagicMock(),
-            progress_callback=lambda step,
-            status,
-            message,
-            error_code=None: progress_events.append(
-                (step, status, message, error_code)
+            progress_callback=lambda step, status, message, error_code=None: (
+                progress_events.append((step, status, message, error_code))
             ),
             report_name=report_name,
         )
@@ -883,7 +927,7 @@ def test_execute_analysis_request_reports_healthful_monitoring_summary(
 def test_execute_analysis_request_fails_when_trigger_report_cannot_load(
     tmp_path: Path,
 ) -> None:
-    request = marketplace_router.AnalyzeRequest(**ANALYZE_PAYLOAD)
+    request = AnalyzeRequest(**ANALYZE_PAYLOAD)
     progress_events: list[tuple[str, str, str, str | None]] = []
     marketplace_router.settings.project.OUTPUT_DIR = str(tmp_path)
 
@@ -905,16 +949,13 @@ def test_execute_analysis_request_fails_when_trigger_report_cannot_load(
             "workflows.marketplace.analysis_service.run_playwright_automation",
             return_value="automation",
         ),
-        pytest.raises(marketplace_router.TriggerPlanError) as exc_info,
+        pytest.raises(analysis_service.TriggerPlanError) as exc_info,
     ):
-        marketplace_router._execute_analysis_request(
+        analysis_service.execute_analysis_request(
             request,
             db=MagicMock(),
-            progress_callback=lambda step,
-            status,
-            message,
-            error_code=None: progress_events.append(
-                (step, status, message, error_code)
+            progress_callback=lambda step, status, message, error_code=None: (
+                progress_events.append((step, status, message, error_code))
             ),
             report_name="missing_report.json",
         )
@@ -928,7 +969,7 @@ def test_execute_analysis_request_fails_when_trigger_report_cannot_load(
 def test_execute_analysis_request_fails_when_trigger_plan_not_applied(
     tmp_path: Path,
 ) -> None:
-    request = marketplace_router.AnalyzeRequest(**ANALYZE_PAYLOAD)
+    request = AnalyzeRequest(**ANALYZE_PAYLOAD)
     progress_events: list[tuple[str, str, str, str | None]] = []
     marketplace_router.settings.project.OUTPUT_DIR = str(tmp_path)
     report_name = "activation_report.json"
@@ -967,16 +1008,13 @@ def test_execute_analysis_request_fails_when_trigger_plan_not_applied(
             "workflows.marketplace.analysis_service.run_playwright_automation",
             return_value="automation",
         ),
-        pytest.raises(marketplace_router.TriggerPlanError) as exc_info,
+        pytest.raises(analysis_service.TriggerPlanError) as exc_info,
     ):
-        marketplace_router._execute_analysis_request(
+        analysis_service.execute_analysis_request(
             request,
             db=MagicMock(),
-            progress_callback=lambda step,
-            status,
-            message,
-            error_code=None: progress_events.append(
-                (step, status, message, error_code)
+            progress_callback=lambda step, status, message, error_code=None: (
+                progress_events.append((step, status, message, error_code))
             ),
             report_name=report_name,
         )
@@ -989,7 +1027,7 @@ def test_execute_analysis_request_fails_when_trigger_plan_not_applied(
 def test_execute_analysis_request_fails_when_layered_evidence_is_missing(
     tmp_path: Path,
 ) -> None:
-    request = marketplace_router.AnalyzeRequest(**ANALYZE_PAYLOAD)
+    request = AnalyzeRequest(**ANALYZE_PAYLOAD)
     progress_events: list[tuple[str, str, str, str | None]] = []
     marketplace_router.settings.project.OUTPUT_DIR = str(tmp_path)
     report_name = "activation_report.json"
@@ -1034,16 +1072,13 @@ def test_execute_analysis_request_fails_when_layered_evidence_is_missing(
             "workflows.marketplace.analysis_service.run_playwright_automation",
             return_value="automation",
         ),
-        pytest.raises(marketplace_router.TriggerPlanError) as exc_info,
+        pytest.raises(analysis_service.TriggerPlanError) as exc_info,
     ):
-        marketplace_router._execute_analysis_request(
+        analysis_service.execute_analysis_request(
             request,
             db=MagicMock(),
-            progress_callback=lambda step,
-            status,
-            message,
-            error_code=None: progress_events.append(
-                (step, status, message, error_code)
+            progress_callback=lambda step, status, message, error_code=None: (
+                progress_events.append((step, status, message, error_code))
             ),
             report_name=report_name,
         )
@@ -1056,9 +1091,9 @@ def test_execute_analysis_request_fails_when_layered_evidence_is_missing(
 def test_run_analysis_job_marks_failure_and_closes_session(tmp_path: Path) -> None:
     """Background jobs should persist failure details when execution aborts."""
     _reset_job_state(tmp_path)
-    request = marketplace_router.AnalyzeRequest(**ANALYZE_PAYLOAD)
-    job = marketplace_router._create_job_snapshot(request)
-    marketplace_router._store_job(job)
+    request = AnalyzeRequest(**ANALYZE_PAYLOAD)
+    job = job_store.create_job_snapshot(request)
+    job_store.store_job(job)
 
     session = MagicMock()
     with (
@@ -1070,9 +1105,9 @@ def test_run_analysis_job_marks_failure_and_closes_session(tmp_path: Path) -> No
             side_effect=FileNotFoundError("missing report"),
         ),
     ):
-        marketplace_router._run_analysis_job(job["job_id"], request)
+        analysis_service.run_analysis_job(job["job_id"], request)
 
-    snapshot = marketplace_router._get_job_snapshot(job["job_id"])
+    snapshot = job_store.get_job_snapshot(job["job_id"])
     assert snapshot["status"] == "failed"
     assert snapshot["error_detail"] == "missing report"
     session.close.assert_called_once_with()
@@ -1080,12 +1115,12 @@ def test_run_analysis_job_marks_failure_and_closes_session(tmp_path: Path) -> No
 
 def test_run_analysis_job_persists_trigger_error_code(tmp_path: Path) -> None:
     _reset_job_state(tmp_path)
-    request = marketplace_router.AnalyzeRequest(**ANALYZE_PAYLOAD)
-    job = marketplace_router._create_job_snapshot(request)
-    marketplace_router._store_job(job)
+    request = AnalyzeRequest(**ANALYZE_PAYLOAD)
+    job = job_store.create_job_snapshot(request)
+    job_store.store_job(job)
 
     session = MagicMock()
-    error = marketplace_router.TriggerPlanError(
+    error = analysis_service.TriggerPlanError(
         "trigger_apply_failed",
         "Executor did not apply the trigger payload during sandbox automation.",
     )
@@ -1098,9 +1133,9 @@ def test_run_analysis_job_persists_trigger_error_code(tmp_path: Path) -> None:
             side_effect=error,
         ),
     ):
-        marketplace_router._run_analysis_job(job["job_id"], request)
+        analysis_service.run_analysis_job(job["job_id"], request)
 
-    snapshot = marketplace_router._get_job_snapshot(job["job_id"])
+    snapshot = job_store.get_job_snapshot(job["job_id"])
     assert snapshot["status"] == "failed"
     assert snapshot["error_code"] == "trigger_apply_failed"
     assert snapshot["steps"][0]["error_code"] is None
@@ -1109,12 +1144,12 @@ def test_run_analysis_job_persists_trigger_error_code(tmp_path: Path) -> None:
 def test_run_analysis_job_marks_completion_and_closes_session(tmp_path: Path) -> None:
     """Background jobs should persist the final success payload."""
     _reset_job_state(tmp_path)
-    request = marketplace_router.AnalyzeRequest(**ANALYZE_PAYLOAD)
-    job = marketplace_router._create_job_snapshot(request)
-    marketplace_router._store_job(job)
+    request = AnalyzeRequest(**ANALYZE_PAYLOAD)
+    job = job_store.create_job_snapshot(request)
+    job_store.store_job(job)
 
     session = MagicMock()
-    response = marketplace_router.AnalyzeResponse(
+    response = AnalyzeResponse(
         status="success",
         publisher=request.publisher,
         name=request.name,
@@ -1133,9 +1168,9 @@ def test_run_analysis_job_marks_completion_and_closes_session(tmp_path: Path) ->
             return_value=response,
         ),
     ):
-        marketplace_router._run_analysis_job(job["job_id"], request)
+        analysis_service.run_analysis_job(job["job_id"], request)
 
-    snapshot = marketplace_router._get_job_snapshot(job["job_id"])
+    snapshot = job_store.get_job_snapshot(job["job_id"])
     assert snapshot["status"] == "completed"
     assert snapshot["message"] == "done"
     assert snapshot["report_path"] == "activation_report.json"
@@ -1145,9 +1180,9 @@ def test_run_analysis_job_marks_completion_and_closes_session(tmp_path: Path) ->
 def test_run_analysis_job_marks_value_error_failure(tmp_path: Path) -> None:
     """ValueError should fail background jobs instead of leaving them running."""
     _reset_job_state(tmp_path)
-    request = marketplace_router.AnalyzeRequest(**ANALYZE_PAYLOAD)
-    job = marketplace_router._create_job_snapshot(request)
-    marketplace_router._store_job(job)
+    request = AnalyzeRequest(**ANALYZE_PAYLOAD)
+    job = job_store.create_job_snapshot(request)
+    job_store.store_job(job)
 
     session = MagicMock()
     with (
@@ -1159,9 +1194,9 @@ def test_run_analysis_job_marks_value_error_failure(tmp_path: Path) -> None:
             side_effect=ValueError("bad trigger payload"),
         ),
     ):
-        marketplace_router._run_analysis_job(job["job_id"], request)
+        analysis_service.run_analysis_job(job["job_id"], request)
 
-    snapshot = marketplace_router._get_job_snapshot(job["job_id"])
+    snapshot = job_store.get_job_snapshot(job["job_id"])
     assert snapshot["status"] == "failed"
     assert snapshot["error_detail"] == "bad trigger payload"
     session.close.assert_called_once_with()
@@ -1169,13 +1204,13 @@ def test_run_analysis_job_marks_value_error_failure(tmp_path: Path) -> None:
 
 def test_map_executor_error_for_install_branch() -> None:
     """Install-related executor failures should get a specific HTTP detail."""
-    exc = marketplace_router.ExecutorError(
+    exc = analysis_service.ExecutorError(
         "Install failed",
         returncode=1,
         output="boom",
     )
 
-    mapped = marketplace_router._map_executor_error(exc)
+    mapped = analysis_service.map_executor_error(exc)
 
     assert mapped.status_code == 502
     assert "install extension" in mapped.detail.lower()
@@ -1249,7 +1284,7 @@ def test_analyze_trigger_plan_failure_502(client: TestClient) -> None:
         ),
         patch(
             "workflows.marketplace.router.execute_analysis_request",
-            side_effect=marketplace_router.TriggerPlanError(
+            side_effect=analysis_service.TriggerPlanError(
                 "trigger_apply_failed",
                 "Executor did not apply the trigger payload during sandbox automation.",
             ),
@@ -1288,10 +1323,10 @@ def test_analyze_start_rejects_second_active_job(
 ) -> None:
     """Single-sandbox mode should reject overlapping analysis jobs."""
     _reset_job_state(tmp_path)
-    request = marketplace_router.AnalyzeRequest(**ANALYZE_PAYLOAD)
-    job = marketplace_router._create_job_snapshot(request)
+    request = AnalyzeRequest(**ANALYZE_PAYLOAD)
+    job = job_store.create_job_snapshot(request)
     job["status"] = "running"
-    marketplace_router._store_job(job)
+    job_store.store_job(job)
 
     with (
         patch(

@@ -5,18 +5,9 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { MarketplaceResultCard } from "../../components/marketplace/MarketplaceResultCard";
 import { EmptyState } from "../../components/ui/EmptyState";
 import { Panel, PanelHeader } from "../../components/ui/Panel";
+import { rememberJobId } from "../simulation/jobStorage";
 import { ApiError } from "../../lib/api/http";
 import { apiClient } from "../../lib/api/client";
-
-const LAST_JOB_KEY = "extrace:lastJobId";
-
-function rememberJobId(jobId: string) {
-  if (typeof window === "undefined") return;
-  const storage = window.localStorage;
-  if (typeof storage?.setItem === "function") {
-    storage.setItem(LAST_JOB_KEY, jobId);
-  }
-}
 
 export function MarketplacePage() {
   const [searchParams, setSearchParams] = useSearchParams();

@@ -10,6 +10,8 @@ from appcore.contracts.schemas import (
 )
 from workflows.extension_catalog import service
 
+pytestmark = pytest.mark.requires_db
+
 
 def test_create_extension_by_name_success(db_session: Session):
     """Test successful creation of extension via service."""

@@ -70,8 +70,8 @@ def test_get_package_json_invalid_json():
         assert result is None
 
 
-@patch("workflows.extension_catalog.package_parser.Path")
-@patch("workflows.extension_catalog.package_parser.get_package_json")
+@patch("workflows.extension_catalog.manifest_reader.Path")
+@patch("workflows.extension_catalog.manifest_reader.get_package_json")
 def test_search_extension_found(mock_get_pkg, mock_path_cls):
     """Test successful extension search"""
     # Setup mock directory structure
@@ -91,7 +91,7 @@ def test_search_extension_found(mock_get_pkg, mock_path_cls):
     assert result == SAMPLE_PACKAGE_JSON
 
 
-@patch("workflows.extension_catalog.package_parser.Path")
+@patch("workflows.extension_catalog.manifest_reader.Path")
 def test_search_extension_dir_not_found(mock_path_cls):
     """Test behavior when extensions directory is missing"""
     mock_root = MagicMock(spec=Path)

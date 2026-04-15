@@ -13,18 +13,19 @@ from __future__ import annotations
 import os
 from collections.abc import Generator
 from typing import Any
+from unittest.mock import MagicMock
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import NullPool
 
 # Import application components
+from appcore.storage.models import Base
 from appcore.api.deps import get_db
 from main import app
-from appcore.storage.models import Base
 
 # =============================================================================
 # DATABASE FIXTURES
@@ -74,12 +75,12 @@ def test_engine() -> Any:
 
     try:
         Base.metadata.create_all(bind=engine)
-    except OperationalError as exc:
+    except OperationalError:
         engine.dispose()
-        raise pytest.UsageError(
+        pytest.skip(
             "Test database is unavailable. Start the postgres_test container "
-            "before running pytest."
-        ) from exc
+            "before running requires_db tests."
+        )
 
     yield engine
 
@@ -116,10 +117,25 @@ def db_session(test_engine: Any) -> Generator[Session, None, None]:
 
 
 @pytest.fixture(scope="function")
-def client(db_session: Session) -> Generator[TestClient, None, None]:
-    """
-    Create a FastAPI test client with database session override.
-    """
+def client() -> Generator[TestClient, None, None]:
+    """Create a FastAPI test client backed by a lightweight mocked DB session."""
+
+    fake_session = MagicMock(spec=Session)
+
+    def override_get_db() -> Generator[Session, None, None]:
+        yield fake_session
+
+    app.dependency_overrides[get_db] = override_get_db
+
+    with TestClient(app) as test_client:
+        yield test_client
+
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture(scope="function")
+def db_client(db_session: Session) -> Generator[TestClient, None, None]:
+    """Create a FastAPI test client backed by the real test PostgreSQL session."""
 
     def override_get_db() -> Generator[Session, None, None]:
         yield db_session
@@ -173,13 +189,3 @@ def pytest_configure(config: Any) -> None:
     config.addinivalue_line(
         "markers", "smoke: mark test as blocking smoke acceptance coverage"
     )
-
-
-@pytest.fixture(scope="session", autouse=True)
-def check_database_connection(test_engine: Any) -> None:
-    """
-    Check if database is available before running tests.
-    Skip all tests if database is not available.
-    """
-    with test_engine.connect() as conn:
-        conn.execute(text("SELECT 1"))

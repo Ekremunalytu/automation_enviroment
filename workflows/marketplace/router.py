@@ -35,33 +35,12 @@ from workflows.marketplace.analysis_service import (
     run_analysis_job,
 )
 from workflows.marketplace.job_store import (
-    _ANALYSIS_JOBS,
-    create_job_snapshot,
-    fail_job,
-    get_active_job_snapshot,
+    ActiveAnalysisJobError,
     get_job_snapshot,
-    load_persisted_job,
-    store_job,
-    update_job,
-    update_job_step,
+    reserve_job,
 )
-from workflows.marketplace.trigger_service import build_trigger_payload
 
-_ANALYSIS_JOBS = _ANALYSIS_JOBS
-_build_trigger_payload = build_trigger_payload
-_create_job_snapshot = create_job_snapshot
-_get_active_job_snapshot = get_active_job_snapshot
-_ensure_vsix_exists = ensure_vsix_exists
-_execute_analysis_request = execute_analysis_request
-_fail_job = fail_job
-_get_job_snapshot = get_job_snapshot
-_load_persisted_job = load_persisted_job
-_map_executor_error = map_executor_error
-_run_analysis_job = run_analysis_job
 settings = app_settings
-_store_job = store_job
-_update_job = update_job
-_update_job_step = update_job_step
 
 router = APIRouter(prefix="/api", tags=["marketplace"])
 
@@ -166,8 +145,10 @@ def start_analysis_job(request: AnalyzeRequest) -> dict[str, Any]:
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
-    active_job = get_active_job_snapshot()
-    if active_job is not None:
+    try:
+        job = reserve_job(request)
+    except ActiveAnalysisJobError as exc:
+        active_job = exc.active_job
         raise HTTPException(
             status_code=409,
             detail=(
@@ -175,10 +156,8 @@ def start_analysis_job(request: AnalyzeRequest) -> dict[str, Any]:
                 "Wait for job "
                 f"{active_job['job_id']} to finish before starting a new run."
             ),
-        )
+        ) from exc
 
-    job = create_job_snapshot(request)
-    store_job(job)
     worker = threading.Thread(
         daemon=False,
         name=f"analysis-{job['job_id'][:8]}",
