@@ -44,7 +44,8 @@ coverage track still marks them incomplete:
 
 - `scm`
   - `git_workflow` exists, but official capability support is still marked
-    missing in `workflows/marketplace/triggers.py`.
+    missing in the planner layer under `packages/analysis_planner`
+    (re-exported through `workflows/marketplace/triggers.py`).
 - `settings`
   - `settings_modification` exists, but the official track still treats this as
     missing for coverage accounting.
@@ -58,6 +59,9 @@ even though some of them now have partial scaffolding elsewhere in the repo:
   - trigger event strategies exist for `onChatParticipant` and
     `onLanguageModelTool`, and monitor-side verification can recognize chat
     activations, but the support matrix still marks chat as missing.
+  - Week 4A in `REFACTOR_EXECUTION_PLAN.md` now treats chat/tooling
+    verification closure as the near-term runtime cleanup bucket for this gap;
+    the capability stays `missing` here until that work lands.
 - `comments`
   - the harness extension exposes a local comment-controller surface, but
     trigger planning and coverage accounting do not yet treat comments as
@@ -170,11 +174,12 @@ even though some of them now have partial scaffolding elsewhere in the repo:
   flows still prove stimulation better than they prove extension-specific
   follow-through.
 
-## Next Candidate Expansions
+## Next Candidate Expansions After Week 4A
 
-- `chat`
-  - close the gap between existing chat event scaffolding and support-matrix
-    coverage
+Reporting-semantics cleanup and chat/tooling verification closure now live in
+Week 4A of `REFACTOR_EXECUTION_PLAN.md`. The remaining items below stay outside
+that phase.
+
 - `comments`
   - promote harness comment-thread support into trigger planning and report
     accounting

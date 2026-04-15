@@ -40,6 +40,7 @@ dev = [
 include = [
     "appcore*",
     "executor*",
+    "packages*",
     "workflows*",
 ]
 exclude = ["tests*", "extensions*", "alembic*", "output*", "reporter*", "documents*", "config*", "ui*"]
@@ -99,6 +100,7 @@ known-first-party = [
     "appcore",
     "workflows",
     "executor",
+    "packages",
 ]
 
 # ============================================================
@@ -179,6 +181,7 @@ source = [
     "appcore",
     "workflows",
     "executor",
+    "packages",
 ]
 branch = true
 omit = [

@@ -1,0 +1,120 @@
+{
+  "publisher_name": "ms-python.python",
+  "activation_events": [
+    {
+      "event_type": "onCommand",
+      "event_value": "python.copilotSetupTests"
+    },
+    {
+      "event_type": "onDebugInitialConfigurations",
+      "event_value": null
+    },
+    {
+      "event_type": "onDebugResolve",
+      "event_value": "python"
+    },
+    {
+      "event_type": "onLanguage",
+      "event_value": "python"
+    },
+    {
+      "event_type": "onLanguageModelTool",
+      "event_value": "configure_python_environment"
+    },
+    {
+      "event_type": "onLanguageModelTool",
+      "event_value": "create_virtual_environment"
+    },
+    {
+      "event_type": "onLanguageModelTool",
+      "event_value": "get_python_environment_details"
+    },
+    {
+      "event_type": "onLanguageModelTool",
+      "event_value": "get_python_executable_details"
+    },
+    {
+      "event_type": "onLanguageModelTool",
+      "event_value": "install_python_packages"
+    },
+    {
+      "event_type": "onTerminalShellIntegration",
+      "event_value": "python"
+    },
+    {
+      "event_type": "workspaceContains",
+      "event_value": "**/pylock.*.toml"
+    },
+    {
+      "event_type": "workspaceContains",
+      "event_value": ".conda"
+    },
+    {
+      "event_type": "workspaceContains",
+      "event_value": ".venv"
+    },
+    {
+      "event_type": "workspaceContains",
+      "event_value": "Pipfile"
+    },
+    {
+      "event_type": "workspaceContains",
+      "event_value": "app.py"
+    },
+    {
+      "event_type": "workspaceContains",
+      "event_value": "manage.py"
+    },
+    {
+      "event_type": "workspaceContains",
+      "event_value": "mspythonconfig.json"
+    },
+    {
+      "event_type": "workspaceContains",
+      "event_value": "pylock.toml"
+    },
+    {
+      "event_type": "workspaceContains",
+      "event_value": "pyproject.toml"
+    },
+    {
+      "event_type": "workspaceContains",
+      "event_value": "requirements.txt"
+    },
+    {
+      "event_type": "workspaceContains",
+      "event_value": "setup.py"
+    }
+  ],
+  "contributes_commands": [
+    {
+      "title": "%python.command.python.createNewFile.title%",
+      "command_id": "python.createNewFile"
+    },
+    {
+      "title": "%python.command.python.testing.copyTestId.title%",
+      "command_id": "python.copyTestId"
+    },
+    {
+      "title": "%python.command.python.analysis.restartLanguageServer.title%",
+      "command_id": "python.analysis.restartLanguageServer"
+    },
+    {
+      "title": "%python.command.python.clearCacheAndReload.title%",
+      "command_id": "python.clearCacheAndReload"
+    },
+    {
+      "title": "%python.command.python.clearWorkspaceInterpreter.title%",
+      "command_id": "python.clearWorkspaceInterpreter"
+    },
+    {
+      "title": "%python.command.python.configureTests.title%",
+      "command_id": "python.configureTests"
+    }
+  ],
+  "contributes_walkthroughs": [
+    {
+      "id": "python.gettingStarted"
+    }
+  ]
+}

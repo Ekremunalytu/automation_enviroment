@@ -8,6 +8,7 @@ import appcore.storage.crud as app_crud
 import appcore.storage.models as app_models
 import executor.host as executor_host
 import packages.analysis_contracts as analysis_contracts
+import packages.analysis_planner as analysis_planner
 import workflows.extension_catalog.package_parser as package_parser
 import workflows.extension_catalog.service as extension_service
 import workflows.marketplace.client as marketplace_client
@@ -27,4 +28,5 @@ def test_canonical_modules_export_expected_symbols() -> None:
     assert app_schemas.ExtensionSchema is not None
     assert analysis_contracts.ActivationReport is not None
     assert analysis_contracts.TriggerPayload is not None
+    assert callable(analysis_planner.select_scenarios)
     assert executor_host.ExecutorError is not None

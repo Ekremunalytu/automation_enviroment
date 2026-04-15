@@ -14,7 +14,7 @@ from appcore.storage.crud import (
     get_extension_capabilities,
     get_extension_contributes_all,
 )
-from workflows.marketplace.triggers import select_scenarios, write_trigger_file
+from packages.analysis_planner import select_scenarios, write_trigger_file
 
 logger = logging.getLogger(__name__)
 

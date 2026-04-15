@@ -19,38 +19,26 @@ are complete.
 
 Turn one of these notes into a committed plan only after:
 
-- Week 4 is implemented and stable
+- Week 4A and Week 4B are implemented and stable
 - the baseline fixtures still reflect reality
 - fast test lanes are healthy
 - there is a concrete product or operability reason to spend the extra risk
   budget
 
-## Candidate Expansion Topics
+## Promoted Into The Execution Plan
 
 ### Executor Reporting Semantics Alignment
 
-- align layered-pass execution reporting so `stimulus_passes`,
-  `event_attempts`, `scenario_traces`, and `summary.scenarios_run` do not
-  describe overlapping runtime facts with different semantics
-- make layered stimulus execution emit canonical scenario lifecycle records
-  whenever it invokes scenario helpers directly instead of routing through the
-  higher-level scenario runner
-- keep requested scenarios from the trigger plan separate from scenarios
-  actually executed as automation flows
-- keep per-event attempts and per-pass execution truth separate from
-  higher-level scenario summaries
-- treat this as a post-Week-4 runtime observability and reporting correctness
-  item unless it starts blocking interpretation of baseline scan quality
-- the current layered executor path is operationally correct enough to keep the
-  Week 1-4 boundary refactor moving
-- the most reliable execution truth is already present in `stimulus_passes`
-  plus `event_attempts`
-- the remaining gap is consistency of reporting semantics rather than a core
-  planner or contract failure
-- a fresh post-Week-2 `ms-python.python` scan produced a contract-valid
-  activation report while still showing `summary.scenarios_run` entries that
-  were not mirrored in `scenario_traces`; keep treating this as deferred
-  reporting-semantics cleanup unless it starts confusing scan review
+- this topic has been promoted into `Week 4A` of
+  `REFACTOR_EXECUTION_PLAN.md`
+- Week 4A now owns layered-pass reporting alignment, runtime verification
+  hardening for degraded and attempted-only runs, and chat/tooling verification
+  closure for `onChatParticipant` and `onLanguageModelTool`
+- keep this note only as historical context for why Week 4A exists; do not
+  treat it as a separate Week 5+ candidate unless it is explicitly descoped
+  from the execution plan
+
+## Candidate Expansion Topics
 
 ### Executor Control Boundary
 
@@ -85,6 +73,6 @@ Turn one of these notes into a committed plan only after:
 
 ## Operating Rule
 
-Do not treat these notes as an implied Week 5 commitment. Promote them into the
-execution plan only when Week 4 is done and the repo is ready for the extra
-change surface.
+Do not treat these remaining notes as an implied Week 5 commitment. Promote
+them into the execution plan only when Week 4A and Week 4B are done and the
+repo is ready for the extra change surface.

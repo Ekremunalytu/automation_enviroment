@@ -111,7 +111,9 @@ Async job steps currently tracked in `workflows.marketplace.job_store`:
 
 ## Trigger Payload Model
 
-Host-side trigger planning lives in `workflows/marketplace/triggers.py`.
+Host-side trigger planning is owned by `packages/analysis_planner` and is
+surfaced through the compatibility facade in
+`workflows/marketplace/triggers.py`.
 Container-side loading lives in `executor/flows/playwright/triggers.py`.
 
 The payload now carries more than a scenario list. Important fields include:

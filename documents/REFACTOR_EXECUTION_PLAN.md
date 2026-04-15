@@ -13,13 +13,14 @@ ideas into a separate note: `REFACTOR_EXPANSION_NOTES.md`.
 - The catalog/storage path is stable enough to avoid broad churn right now.
 - The dynamic-analysis path needs smaller boundaries before deeper runtime
   changes are safe.
-- This week is intentionally light: no runtime rewiring, no schema migration,
-  no API contract change.
+- Weeks 1-3 were intentionally light: no broad runtime rewiring, no schema
+  migration, and no API contract change.
 
 ## Locked Decisions
 
 - Keep the first four weeks as the binding execution plan.
-- Treat Week 5+ as non-binding expansion notes until Week 4 is complete.
+- Treat Week 5+ as non-binding expansion notes until Week 4A and Week 4B are
+  complete.
 - Store refactor planning docs under `documents/`.
 - Store ADRs under `documents/adrs/`.
 - Introduce target package/app directories as visible skeletons first, without
@@ -141,7 +142,65 @@ Split planner logic into smaller units without semantic redesign.
 - planner modules avoid web/runtime imports
 - existing planner behavior stays equivalent for the baseline fixture
 
-## Week 4
+### Implementation Snapshot
+
+- `packages/analysis_planner` now owns the planner-focused implementation split
+  across registry, selection, attempts, coverage, and serialization helpers.
+- `workflows/marketplace/triggers.py` is reduced to a compatibility facade that
+  re-exports the existing trigger-planner API without keeping planner logic in
+  the workflow module.
+- `workflows/marketplace/trigger_service.py` remains the thin orchestration
+  layer: it reads catalog metadata, builds planner inputs, calls the planner
+  package, and writes the trigger payload without taking on planner policy.
+- planner boundary tests now fail if `packages.analysis_planner` imports web,
+  DB, workflow, or executor modules.
+- the `ms-python.python` trigger payload fixture remains the primary Week 1-4
+  acceptance baseline; keep it frozen as the main broad-coverage reference, but
+  do not treat it as the only long-term representative fixture. Plan a second,
+  contrast-heavy fixture only after Week 4A and Week 4B are stable.
+
+## Week 4A
+
+### Goal
+
+Close the runtime and reporting correctness gaps that surfaced during Weeks 1-3
+without mixing that cleanup into storage or router-state work.
+
+### Scope
+
+- align layered execution reporting so `requested_scenarios`,
+  `summary.scenarios_run`, `scenario_traces`, `stimulus_passes`, and
+  `event_attempts` describe scenario truth without semantic contradiction
+- harden runtime verification semantics so `verification_gap`,
+  `automation_health`, attempted-only event attempts, and acceptance-style run
+  interpretation stay aligned
+- close the current chat/tooling verification gap for `onChatParticipant` and
+  `onLanguageModelTool`, including the unresolved
+  `harness_verification_unconfirmed` path
+- keep this phase focused on runtime/reporting correctness only; do not mix in
+  job persistence, migrations, or router/job-state source-of-truth work
+
+### Entry Criteria
+
+- Week 3 planner extraction is stable
+- the baseline activation report still reproduces the known reporting and
+  verification gaps clearly enough to validate corrections
+- executor reporting semantics and chat/tooling verification behavior are
+  documented well enough to update without redefining the trigger-planner
+  contract
+
+### Exit Criteria
+
+- layered-pass execution exports a consistent scenario lifecycle across
+  `requested_scenarios`, `summary.scenarios_run`, `scenario_traces`,
+  `stimulus_passes`, and `event_attempts`
+- degraded or attempted-only runs no longer read like clean acceptance runs
+  when `verification_gap` or related health degraders remain
+- `onChatParticipant` and `onLanguageModelTool` attempts have an explicit
+  verification closure path, and unresolved cases are reported without
+  overstating acceptance completeness
+
+## Week 4B
 
 ### Goal
 
@@ -154,10 +213,12 @@ job orchestration.
 - route all write behavior through the canonical storage layer
 - add an Alembic migration for the new job metadata tables
 - shrink router responsibility to request/response orchestration
+- keep this phase focused on persistence and control-plane cleanup rather than
+  runtime/reporting semantics
 
 ### Entry Criteria
 
-- Week 3 planner extraction is stable
+- Week 4A runtime/reporting correctness work is stable
 - storage write path design is agreed and testable
 
 ### Exit Criteria
@@ -169,5 +230,6 @@ job orchestration.
 ## Week 5+
 
 Week 5 and later are intentionally deferred. Use
-`REFACTOR_EXPANSION_NOTES.md` for candidate follow-on work after Week 4 is
-complete and stable.
+`REFACTOR_EXPANSION_NOTES.md` for candidate follow-on work after Week 4A and
+Week 4B are complete and stable. Items promoted into Week 4A are no longer
+treated as Week 5+ candidates.

@@ -1,6 +1,5 @@
 {
   "analysis_profile": "layered_deep",
-  "target_extension_id": "ms-python.python",
   "selected_scenarios": [
     "coding_session",
     "project_exploration",
@@ -90,6 +89,98 @@
         "activation workspaceContains:requirements.txt",
         "activation workspaceContains:setup.py"
       ]
+    },
+    {
+      "name": "debug_session",
+      "intent": "Open debug tooling, set breakpoints, and start/stop debug flows.",
+      "activation_events": [
+        "onDebug",
+        "onDebugResolve",
+        "onDebugAdapterProtocolTracker",
+        "onDebugDynamicConfigurations",
+        "onDebugInitialConfigurations"
+      ],
+      "contributes_signals": [
+        "debuggers",
+        "breakpoints"
+      ],
+      "api_capabilities": [
+        "commands",
+        "window_ui",
+        "debug",
+        "workspace_fs"
+      ],
+      "prerequisites": [
+        "debuggable workspace file"
+      ],
+      "success_signals": [
+        "breakpoint toggle",
+        "debug start",
+        "debug console"
+      ],
+      "risk_of_noise": "high",
+      "selection_reasons": [
+        "activation onDebugInitialConfigurations",
+        "activation onDebugResolve:python"
+      ]
+    },
+    {
+      "name": "terminal_usage",
+      "intent": "Open integrated terminals and run task-like commands.",
+      "activation_events": [
+        "onTaskType",
+        "onTerminal",
+        "onTerminalProfile",
+        "onTerminalShellIntegration"
+      ],
+      "contributes_signals": [
+        "terminal",
+        "taskDefinitions"
+      ],
+      "api_capabilities": [
+        "commands",
+        "terminal_tasks",
+        "workspace_fs"
+      ],
+      "prerequisites": [
+        "integrated terminal available"
+      ],
+      "success_signals": [
+        "terminal open",
+        "command execution"
+      ],
+      "risk_of_noise": "high",
+      "selection_reasons": [
+        "activation onTerminalShellIntegration:python"
+      ]
+    },
+    {
+      "name": "refactor_workflow",
+      "intent": "Trigger rename and refactor-related editor operations.",
+      "activation_events": [
+        "onCommand",
+        "onLanguage"
+      ],
+      "contributes_signals": [
+        "commands",
+        "menus"
+      ],
+      "api_capabilities": [
+        "commands",
+        "languages_editor",
+        "workspace_fs"
+      ],
+      "prerequisites": [
+        "workspace symbol available"
+      ],
+      "success_signals": [
+        "find widget",
+        "rename widget"
+      ],
+      "risk_of_noise": "medium",
+      "selection_reasons": [
+        "activation onCommand:python.copilotSetupTests"
+      ]
     }
   ],
   "selection_reasons": {
@@ -110,6 +201,16 @@
       "activation workspaceContains:pyproject.toml",
       "activation workspaceContains:requirements.txt",
       "activation workspaceContains:setup.py"
+    ],
+    "debug_session": [
+      "activation onDebugInitialConfigurations",
+      "activation onDebugResolve:python"
+    ],
+    "terminal_usage": [
+      "activation onTerminalShellIntegration:python"
+    ],
+    "refactor_workflow": [
+      "activation onCommand:python.copilotSetupTests"
     ]
   },
   "coverage_tracks": {
@@ -205,6 +306,242 @@
           "is_active": true,
           "notes": "",
           "selected": true
+        },
+        {
+          "capability": "workspace_fs",
+          "status": "covered",
+          "track": "official",
+          "source": "official_activation_track",
+          "support_status": "covered",
+          "selected_scenarios": [
+            "coding_session",
+            "project_exploration",
+            "debug_session",
+            "terminal_usage",
+            "refactor_workflow"
+          ],
+          "supported_scenarios": [
+            "coding_session",
+            "project_exploration",
+            "diagnostics_check",
+            "settings_modification",
+            "debug_session",
+            "terminal_usage",
+            "git_workflow",
+            "refactor_workflow",
+            "notebook_session"
+          ],
+          "is_active": true,
+          "notes": "",
+          "selected": true
+        },
+        {
+          "capability": "languages_editor",
+          "status": "covered",
+          "track": "official",
+          "source": "official_activation_track",
+          "support_status": "covered",
+          "selected_scenarios": [
+            "coding_session",
+            "project_exploration",
+            "refactor_workflow"
+          ],
+          "supported_scenarios": [
+            "coding_session",
+            "project_exploration",
+            "refactor_workflow"
+          ],
+          "is_active": true,
+          "notes": "",
+          "selected": true
+        },
+        {
+          "capability": "debug",
+          "status": "covered",
+          "track": "official",
+          "source": "official_activation_track",
+          "support_status": "covered",
+          "selected_scenarios": [
+            "debug_session"
+          ],
+          "supported_scenarios": [
+            "debug_session"
+          ],
+          "is_active": true,
+          "notes": "",
+          "selected": true
+        },
+        {
+          "capability": "terminal_tasks",
+          "status": "covered",
+          "track": "official",
+          "source": "official_activation_track",
+          "support_status": "covered",
+          "selected_scenarios": [
+            "terminal_usage"
+          ],
+          "supported_scenarios": [
+            "terminal_usage"
+          ],
+          "is_active": true,
+          "notes": "",
+          "selected": true
+        },
+        {
+          "capability": "scm",
+          "status": "missing",
+          "track": "official",
+          "source": "official_activation_track",
+          "support_status": "missing",
+          "selected_scenarios": [],
+          "supported_scenarios": [
+            "git_workflow"
+          ],
+          "is_active": false,
+          "notes": "",
+          "selected": false
+        },
+        {
+          "capability": "search_views",
+          "status": "partial",
+          "track": "official",
+          "source": "official_activation_track",
+          "support_status": "covered",
+          "selected_scenarios": [],
+          "supported_scenarios": [
+            "search_workflow"
+          ],
+          "is_active": false,
+          "notes": "",
+          "selected": false
+        },
+        {
+          "capability": "settings",
+          "status": "missing",
+          "track": "official",
+          "source": "official_activation_track",
+          "support_status": "missing",
+          "selected_scenarios": [],
+          "supported_scenarios": [
+            "settings_modification"
+          ],
+          "is_active": false,
+          "notes": "",
+          "selected": false
+        },
+        {
+          "capability": "notebooks",
+          "status": "partial",
+          "track": "official",
+          "source": "official_activation_track",
+          "support_status": "covered",
+          "selected_scenarios": [],
+          "supported_scenarios": [
+            "notebook_session"
+          ],
+          "is_active": false,
+          "notes": "",
+          "selected": false
+        },
+        {
+          "capability": "custom_editors",
+          "status": "partial",
+          "track": "official",
+          "source": "official_activation_track",
+          "support_status": "covered",
+          "selected_scenarios": [],
+          "supported_scenarios": [],
+          "is_active": false,
+          "notes": "Custom editor coverage uses bait files plus a post-open ledger so each attempt is visible even when the target editor fails to restore.",
+          "selected": false
+        },
+        {
+          "capability": "uri_walkthrough",
+          "status": "covered",
+          "track": "official",
+          "source": "official_activation_track",
+          "support_status": "covered",
+          "selected_scenarios": [],
+          "supported_scenarios": [],
+          "is_active": true,
+          "notes": "URI, walkthrough, and open-external flows are kept explicit in the ledger so UI-first vs harness-assisted attempts stay distinguishable.",
+          "selected": true
+        },
+        {
+          "capability": "authentication",
+          "status": "partial",
+          "track": "official",
+          "source": "official_activation_track",
+          "support_status": "covered",
+          "selected_scenarios": [],
+          "supported_scenarios": [
+            "authentication_probe"
+          ],
+          "is_active": false,
+          "notes": "Authentication coverage stays local-only and uses stub providers or target provider requests inside the sandbox.",
+          "selected": false
+        },
+        {
+          "capability": "chat",
+          "status": "missing",
+          "track": "official",
+          "source": "official_activation_track",
+          "support_status": "missing",
+          "selected_scenarios": [],
+          "supported_scenarios": [],
+          "is_active": false,
+          "notes": "Chat participant and language-model tool coverage remain local-only and must not call external services.",
+          "selected": false
+        },
+        {
+          "capability": "comments",
+          "status": "missing",
+          "track": "official",
+          "source": "official_activation_track",
+          "support_status": "missing",
+          "selected_scenarios": [],
+          "supported_scenarios": [],
+          "is_active": false,
+          "notes": "Comment thread coverage is provided through local harness surfaces so discussion flows stay inside the sandbox.",
+          "selected": false
+        },
+        {
+          "capability": "testing",
+          "status": "missing",
+          "track": "official",
+          "source": "official_activation_track",
+          "support_status": "missing",
+          "selected_scenarios": [],
+          "supported_scenarios": [],
+          "is_active": false,
+          "notes": "Testing coverage uses local controllers and run/debug flows without calling external test services.",
+          "selected": false
+        },
+        {
+          "capability": "webview",
+          "status": "partial",
+          "track": "official",
+          "source": "official_activation_track",
+          "support_status": "covered",
+          "selected_scenarios": [],
+          "supported_scenarios": [
+            "webview_probe"
+          ],
+          "is_active": false,
+          "notes": "",
+          "selected": false
+        },
+        {
+          "capability": "workspace_trust",
+          "status": "missing",
+          "track": "official",
+          "source": "official_activation_track",
+          "support_status": "missing",
+          "selected_scenarios": [],
+          "supported_scenarios": [],
+          "is_active": false,
+          "notes": "Workspace trust transitions are explicitly labeled when they require harness assistance instead of visible UI-only stimulation.",
+          "selected": false
         }
       ]
     },
@@ -283,6 +620,228 @@
           ],
           "is_active": false,
           "notes": "",
+          "selected": false
+        },
+        {
+          "capability": "workspace_fs",
+          "status": "partial",
+          "track": "heuristic",
+          "source": "heuristic_workflow_track",
+          "support_status": "covered",
+          "selected_scenarios": [],
+          "supported_scenarios": [
+            "coding_session",
+            "project_exploration",
+            "diagnostics_check",
+            "settings_modification",
+            "debug_session",
+            "terminal_usage",
+            "git_workflow",
+            "refactor_workflow",
+            "notebook_session"
+          ],
+          "is_active": false,
+          "notes": "",
+          "selected": false
+        },
+        {
+          "capability": "languages_editor",
+          "status": "partial",
+          "track": "heuristic",
+          "source": "heuristic_workflow_track",
+          "support_status": "covered",
+          "selected_scenarios": [],
+          "supported_scenarios": [
+            "coding_session",
+            "project_exploration",
+            "refactor_workflow"
+          ],
+          "is_active": false,
+          "notes": "",
+          "selected": false
+        },
+        {
+          "capability": "debug",
+          "status": "partial",
+          "track": "heuristic",
+          "source": "heuristic_workflow_track",
+          "support_status": "covered",
+          "selected_scenarios": [],
+          "supported_scenarios": [
+            "debug_session"
+          ],
+          "is_active": false,
+          "notes": "",
+          "selected": false
+        },
+        {
+          "capability": "terminal_tasks",
+          "status": "partial",
+          "track": "heuristic",
+          "source": "heuristic_workflow_track",
+          "support_status": "covered",
+          "selected_scenarios": [],
+          "supported_scenarios": [
+            "terminal_usage"
+          ],
+          "is_active": false,
+          "notes": "",
+          "selected": false
+        },
+        {
+          "capability": "scm",
+          "status": "partial",
+          "track": "heuristic",
+          "source": "heuristic_workflow_track",
+          "support_status": "covered",
+          "selected_scenarios": [],
+          "supported_scenarios": [
+            "git_workflow"
+          ],
+          "is_active": false,
+          "notes": "",
+          "selected": false
+        },
+        {
+          "capability": "search_views",
+          "status": "partial",
+          "track": "heuristic",
+          "source": "heuristic_workflow_track",
+          "support_status": "covered",
+          "selected_scenarios": [],
+          "supported_scenarios": [
+            "search_workflow"
+          ],
+          "is_active": false,
+          "notes": "",
+          "selected": false
+        },
+        {
+          "capability": "settings",
+          "status": "partial",
+          "track": "heuristic",
+          "source": "heuristic_workflow_track",
+          "support_status": "covered",
+          "selected_scenarios": [],
+          "supported_scenarios": [
+            "settings_modification"
+          ],
+          "is_active": false,
+          "notes": "",
+          "selected": false
+        },
+        {
+          "capability": "notebooks",
+          "status": "partial",
+          "track": "heuristic",
+          "source": "heuristic_workflow_track",
+          "support_status": "covered",
+          "selected_scenarios": [],
+          "supported_scenarios": [
+            "notebook_session"
+          ],
+          "is_active": false,
+          "notes": "",
+          "selected": false
+        },
+        {
+          "capability": "custom_editors",
+          "status": "partial",
+          "track": "heuristic",
+          "source": "heuristic_workflow_track",
+          "support_status": "covered",
+          "selected_scenarios": [],
+          "supported_scenarios": [],
+          "is_active": false,
+          "notes": "Custom editor coverage uses bait files plus a post-open ledger so each attempt is visible even when the target editor fails to restore.",
+          "selected": false
+        },
+        {
+          "capability": "uri_walkthrough",
+          "status": "partial",
+          "track": "heuristic",
+          "source": "heuristic_workflow_track",
+          "support_status": "covered",
+          "selected_scenarios": [],
+          "supported_scenarios": [],
+          "is_active": false,
+          "notes": "URI, walkthrough, and open-external flows are kept explicit in the ledger so UI-first vs harness-assisted attempts stay distinguishable.",
+          "selected": false
+        },
+        {
+          "capability": "authentication",
+          "status": "partial",
+          "track": "heuristic",
+          "source": "heuristic_workflow_track",
+          "support_status": "covered",
+          "selected_scenarios": [],
+          "supported_scenarios": [
+            "authentication_probe"
+          ],
+          "is_active": false,
+          "notes": "Authentication coverage stays local-only and uses stub providers or target provider requests inside the sandbox.",
+          "selected": false
+        },
+        {
+          "capability": "chat",
+          "status": "missing",
+          "track": "heuristic",
+          "source": "heuristic_workflow_track",
+          "support_status": "missing",
+          "selected_scenarios": [],
+          "supported_scenarios": [],
+          "is_active": false,
+          "notes": "Chat participant and language-model tool coverage remain local-only and must not call external services.",
+          "selected": false
+        },
+        {
+          "capability": "comments",
+          "status": "missing",
+          "track": "heuristic",
+          "source": "heuristic_workflow_track",
+          "support_status": "missing",
+          "selected_scenarios": [],
+          "supported_scenarios": [],
+          "is_active": false,
+          "notes": "Comment thread coverage is provided through local harness surfaces so discussion flows stay inside the sandbox.",
+          "selected": false
+        },
+        {
+          "capability": "testing",
+          "status": "missing",
+          "track": "heuristic",
+          "source": "heuristic_workflow_track",
+          "support_status": "missing",
+          "selected_scenarios": [],
+          "supported_scenarios": [],
+          "is_active": false,
+          "notes": "Testing coverage uses local controllers and run/debug flows without calling external test services.",
+          "selected": false
+        },
+        {
+          "capability": "webview",
+          "status": "partial",
+          "track": "heuristic",
+          "source": "heuristic_workflow_track",
+          "support_status": "covered",
+          "selected_scenarios": [],
+          "supported_scenarios": [
+            "webview_probe"
+          ],
+          "is_active": false,
+          "notes": "",
+          "selected": false
+        },
+        {
+          "capability": "workspace_trust",
+          "status": "missing",
+          "track": "heuristic",
+          "source": "heuristic_workflow_track",
+          "support_status": "missing",
+          "selected_scenarios": [],
+          "supported_scenarios": [],
+          "is_active": false,
+          "notes": "Workspace trust transitions are explicitly labeled when they require harness assistance instead of visible UI-only stimulation.",
           "selected": false
         }
       ]
@@ -419,6 +978,194 @@
       "is_active": true,
       "notes": "",
       "selected": true
+    },
+    {
+      "capability": "debug",
+      "status": "covered",
+      "track": "official",
+      "source": "official_activation_track",
+      "support_status": "covered",
+      "selected_scenarios": [
+        "debug_session"
+      ],
+      "supported_scenarios": [
+        "debug_session"
+      ],
+      "is_active": true,
+      "notes": "",
+      "selected": true
+    },
+    {
+      "capability": "terminal_tasks",
+      "status": "covered",
+      "track": "official",
+      "source": "official_activation_track",
+      "support_status": "covered",
+      "selected_scenarios": [
+        "terminal_usage"
+      ],
+      "supported_scenarios": [
+        "terminal_usage"
+      ],
+      "is_active": true,
+      "notes": "",
+      "selected": true
+    },
+    {
+      "capability": "scm",
+      "status": "missing",
+      "track": "official",
+      "source": "official_activation_track",
+      "support_status": "missing",
+      "selected_scenarios": [],
+      "supported_scenarios": [
+        "git_workflow"
+      ],
+      "is_active": false,
+      "notes": "",
+      "selected": false
+    },
+    {
+      "capability": "search_views",
+      "status": "partial",
+      "track": "official",
+      "source": "official_activation_track",
+      "support_status": "covered",
+      "selected_scenarios": [],
+      "supported_scenarios": [
+        "search_workflow"
+      ],
+      "is_active": false,
+      "notes": "",
+      "selected": false
+    },
+    {
+      "capability": "settings",
+      "status": "missing",
+      "track": "official",
+      "source": "official_activation_track",
+      "support_status": "missing",
+      "selected_scenarios": [],
+      "supported_scenarios": [
+        "settings_modification"
+      ],
+      "is_active": false,
+      "notes": "",
+      "selected": false
+    },
+    {
+      "capability": "notebooks",
+      "status": "partial",
+      "track": "official",
+      "source": "official_activation_track",
+      "support_status": "covered",
+      "selected_scenarios": [],
+      "supported_scenarios": [
+        "notebook_session"
+      ],
+      "is_active": false,
+      "notes": "",
+      "selected": false
+    },
+    {
+      "capability": "custom_editors",
+      "status": "partial",
+      "track": "official",
+      "source": "official_activation_track",
+      "support_status": "covered",
+      "selected_scenarios": [],
+      "supported_scenarios": [],
+      "is_active": false,
+      "notes": "Custom editor coverage uses bait files plus a post-open ledger so each attempt is visible even when the target editor fails to restore.",
+      "selected": false
+    },
+    {
+      "capability": "uri_walkthrough",
+      "status": "covered",
+      "track": "official",
+      "source": "official_activation_track",
+      "support_status": "covered",
+      "selected_scenarios": [],
+      "supported_scenarios": [],
+      "is_active": true,
+      "notes": "URI, walkthrough, and open-external flows are kept explicit in the ledger so UI-first vs harness-assisted attempts stay distinguishable.",
+      "selected": true
+    },
+    {
+      "capability": "authentication",
+      "status": "partial",
+      "track": "official",
+      "source": "official_activation_track",
+      "support_status": "covered",
+      "selected_scenarios": [],
+      "supported_scenarios": [
+        "authentication_probe"
+      ],
+      "is_active": false,
+      "notes": "Authentication coverage stays local-only and uses stub providers or target provider requests inside the sandbox.",
+      "selected": false
+    },
+    {
+      "capability": "chat",
+      "status": "missing",
+      "track": "official",
+      "source": "official_activation_track",
+      "support_status": "missing",
+      "selected_scenarios": [],
+      "supported_scenarios": [],
+      "is_active": false,
+      "notes": "Chat participant and language-model tool coverage remain local-only and must not call external services.",
+      "selected": false
+    },
+    {
+      "capability": "comments",
+      "status": "missing",
+      "track": "official",
+      "source": "official_activation_track",
+      "support_status": "missing",
+      "selected_scenarios": [],
+      "supported_scenarios": [],
+      "is_active": false,
+      "notes": "Comment thread coverage is provided through local harness surfaces so discussion flows stay inside the sandbox.",
+      "selected": false
+    },
+    {
+      "capability": "testing",
+      "status": "missing",
+      "track": "official",
+      "source": "official_activation_track",
+      "support_status": "missing",
+      "selected_scenarios": [],
+      "supported_scenarios": [],
+      "is_active": false,
+      "notes": "Testing coverage uses local controllers and run/debug flows without calling external test services.",
+      "selected": false
+    },
+    {
+      "capability": "webview",
+      "status": "partial",
+      "track": "official",
+      "source": "official_activation_track",
+      "support_status": "covered",
+      "selected_scenarios": [],
+      "supported_scenarios": [
+        "webview_probe"
+      ],
+      "is_active": false,
+      "notes": "",
+      "selected": false
+    },
+    {
+      "capability": "workspace_trust",
+      "status": "missing",
+      "track": "official",
+      "source": "official_activation_track",
+      "support_status": "missing",
+      "selected_scenarios": [],
+      "supported_scenarios": [],
+      "is_active": false,
+      "notes": "Workspace trust transitions are explicitly labeled when they require harness assistance instead of visible UI-only stimulation.",
+      "selected": false
     }
   ],
   "official_attempted_capabilities": [
@@ -431,6 +1178,7 @@
     "workspace_fs"
   ],
   "heuristic_attempted_capabilities": [],
+  "target_extension_id": "ms-python.python",
   "command_targets": {
     "python.createNewFile": "%python.command.python.createNewFile.title%",
     "python.copyTestId": "%python.command.python.testing.copyTestId.title%",
@@ -477,7 +1225,8 @@
       "prerequisite_keys": [
         "workspace_contains_fixture"
       ],
-      "status": "planned"
+      "status": "planned",
+      "trigger_method": ""
     },
     {
       "pass_id": "ui_first_user_session",
@@ -492,7 +1241,8 @@
         "command_target",
         "language_fixture"
       ],
-      "status": "planned"
+      "status": "planned",
+      "trigger_method": ""
     },
     {
       "pass_id": "target_specific_activation",
@@ -514,7 +1264,43 @@
         "language_model_tool_target",
         "terminal_shell_target"
       ],
-      "status": "planned"
+      "status": "planned",
+      "trigger_method": ""
+    },
+    {
+      "pass_id": "unresolved_event_backfill",
+      "label": "unresolved-event backfill pass",
+      "order": 4,
+      "description": "Retry events through deterministic harness paths when the visible UI cannot reach them reliably.",
+      "attempt_ids": [
+        "official-oncommand-python-copilotsetuptests",
+        "official-ondebuginitialconfigurations",
+        "official-ondebugresolve-python",
+        "official-onlanguagemodeltool-configure-python-environment",
+        "official-onlanguagemodeltool-create-virtual-environment",
+        "official-onlanguagemodeltool-get-python-environment-details",
+        "official-onlanguagemodeltool-get-python-executable-details",
+        "official-onlanguagemodeltool-install-python-packages",
+        "official-onterminalshellintegration-python"
+      ],
+      "prerequisite_keys": [
+        "command_target",
+        "debug_launch_config",
+        "language_model_tool_target",
+        "terminal_shell_target"
+      ],
+      "status": "planned",
+      "trigger_method": ""
+    },
+    {
+      "pass_id": "post_run_verification",
+      "label": "post-run verification pass",
+      "order": 5,
+      "description": "Reconcile activation evidence, target ownership, and per-event outcome status after execution finishes.",
+      "attempt_ids": [],
+      "prerequisite_keys": [],
+      "status": "planned",
+      "trigger_method": ""
     }
   ],
   "event_attempts": [
@@ -691,7 +1477,739 @@
       "result_details": "",
       "official": true,
       "heuristic": false,
-      "ui_path": "Open a file that resolves to the requested language",
+      "ui_path": "Open a file that resolves to the requested language id",
+      "harness_fallback": ""
+    },
+    {
+      "attempt_id": "official-onlanguagemodeltool-configure-python-environment",
+      "declared_event": "onLanguageModelTool:configure_python_environment",
+      "activation_event": "onLanguageModelTool:configure_python_environment",
+      "event_family": "onLanguageModelTool",
+      "event_value": "configure_python_environment",
+      "track": "official",
+      "selected_by": "activation_event",
+      "selection_reasons": [
+        "activation onLanguageModelTool:configure_python_environment"
+      ],
+      "pass_name": "target_specific_activation",
+      "backfill_pass_name": "unresolved_event_backfill",
+      "prerequisite_keys": [
+        "language_model_tool_target"
+      ],
+      "verification_contract": [
+        "activation_log_prefix",
+        "automation_trace"
+      ],
+      "trigger_method": "harness_api",
+      "fallback_trigger_method": "harness_api",
+      "executor_action": "harness:run_current_stimulus",
+      "backfill_executor_action": "harness:run_current_stimulus",
+      "legacy_scenarios": [],
+      "capability_tags": [
+        "chat"
+      ],
+      "status": "planned",
+      "trigger_method_used": "",
+      "attempted_passes": [],
+      "evidence": [],
+      "verification_status": "not_attempted",
+      "failure_reason_code": "",
+      "blocked_reason_code": "",
+      "result_details": "",
+      "official": true,
+      "heuristic": false,
+      "ui_path": "Invoke the tool from the chat/tooling surface",
+      "harness_fallback": "run_current_stimulus"
+    },
+    {
+      "attempt_id": "official-onlanguagemodeltool-create-virtual-environment",
+      "declared_event": "onLanguageModelTool:create_virtual_environment",
+      "activation_event": "onLanguageModelTool:create_virtual_environment",
+      "event_family": "onLanguageModelTool",
+      "event_value": "create_virtual_environment",
+      "track": "official",
+      "selected_by": "activation_event",
+      "selection_reasons": [
+        "activation onLanguageModelTool:create_virtual_environment"
+      ],
+      "pass_name": "target_specific_activation",
+      "backfill_pass_name": "unresolved_event_backfill",
+      "prerequisite_keys": [
+        "language_model_tool_target"
+      ],
+      "verification_contract": [
+        "activation_log_prefix",
+        "automation_trace"
+      ],
+      "trigger_method": "harness_api",
+      "fallback_trigger_method": "harness_api",
+      "executor_action": "harness:run_current_stimulus",
+      "backfill_executor_action": "harness:run_current_stimulus",
+      "legacy_scenarios": [],
+      "capability_tags": [
+        "chat"
+      ],
+      "status": "planned",
+      "trigger_method_used": "",
+      "attempted_passes": [],
+      "evidence": [],
+      "verification_status": "not_attempted",
+      "failure_reason_code": "",
+      "blocked_reason_code": "",
+      "result_details": "",
+      "official": true,
+      "heuristic": false,
+      "ui_path": "Invoke the tool from the chat/tooling surface",
+      "harness_fallback": "run_current_stimulus"
+    },
+    {
+      "attempt_id": "official-onlanguagemodeltool-get-python-environment-details",
+      "declared_event": "onLanguageModelTool:get_python_environment_details",
+      "activation_event": "onLanguageModelTool:get_python_environment_details",
+      "event_family": "onLanguageModelTool",
+      "event_value": "get_python_environment_details",
+      "track": "official",
+      "selected_by": "activation_event",
+      "selection_reasons": [
+        "activation onLanguageModelTool:get_python_environment_details"
+      ],
+      "pass_name": "target_specific_activation",
+      "backfill_pass_name": "unresolved_event_backfill",
+      "prerequisite_keys": [
+        "language_model_tool_target"
+      ],
+      "verification_contract": [
+        "activation_log_prefix",
+        "automation_trace"
+      ],
+      "trigger_method": "harness_api",
+      "fallback_trigger_method": "harness_api",
+      "executor_action": "harness:run_current_stimulus",
+      "backfill_executor_action": "harness:run_current_stimulus",
+      "legacy_scenarios": [],
+      "capability_tags": [
+        "chat"
+      ],
+      "status": "planned",
+      "trigger_method_used": "",
+      "attempted_passes": [],
+      "evidence": [],
+      "verification_status": "not_attempted",
+      "failure_reason_code": "",
+      "blocked_reason_code": "",
+      "result_details": "",
+      "official": true,
+      "heuristic": false,
+      "ui_path": "Invoke the tool from the chat/tooling surface",
+      "harness_fallback": "run_current_stimulus"
+    },
+    {
+      "attempt_id": "official-onlanguagemodeltool-get-python-executable-details",
+      "declared_event": "onLanguageModelTool:get_python_executable_details",
+      "activation_event": "onLanguageModelTool:get_python_executable_details",
+      "event_family": "onLanguageModelTool",
+      "event_value": "get_python_executable_details",
+      "track": "official",
+      "selected_by": "activation_event",
+      "selection_reasons": [
+        "activation onLanguageModelTool:get_python_executable_details"
+      ],
+      "pass_name": "target_specific_activation",
+      "backfill_pass_name": "unresolved_event_backfill",
+      "prerequisite_keys": [
+        "language_model_tool_target"
+      ],
+      "verification_contract": [
+        "activation_log_prefix",
+        "automation_trace"
+      ],
+      "trigger_method": "harness_api",
+      "fallback_trigger_method": "harness_api",
+      "executor_action": "harness:run_current_stimulus",
+      "backfill_executor_action": "harness:run_current_stimulus",
+      "legacy_scenarios": [],
+      "capability_tags": [
+        "chat"
+      ],
+      "status": "planned",
+      "trigger_method_used": "",
+      "attempted_passes": [],
+      "evidence": [],
+      "verification_status": "not_attempted",
+      "failure_reason_code": "",
+      "blocked_reason_code": "",
+      "result_details": "",
+      "official": true,
+      "heuristic": false,
+      "ui_path": "Invoke the tool from the chat/tooling surface",
+      "harness_fallback": "run_current_stimulus"
+    },
+    {
+      "attempt_id": "official-onlanguagemodeltool-install-python-packages",
+      "declared_event": "onLanguageModelTool:install_python_packages",
+      "activation_event": "onLanguageModelTool:install_python_packages",
+      "event_family": "onLanguageModelTool",
+      "event_value": "install_python_packages",
+      "track": "official",
+      "selected_by": "activation_event",
+      "selection_reasons": [
+        "activation onLanguageModelTool:install_python_packages"
+      ],
+      "pass_name": "target_specific_activation",
+      "backfill_pass_name": "unresolved_event_backfill",
+      "prerequisite_keys": [
+        "language_model_tool_target"
+      ],
+      "verification_contract": [
+        "activation_log_prefix",
+        "automation_trace"
+      ],
+      "trigger_method": "harness_api",
+      "fallback_trigger_method": "harness_api",
+      "executor_action": "harness:run_current_stimulus",
+      "backfill_executor_action": "harness:run_current_stimulus",
+      "legacy_scenarios": [],
+      "capability_tags": [
+        "chat"
+      ],
+      "status": "planned",
+      "trigger_method_used": "",
+      "attempted_passes": [],
+      "evidence": [],
+      "verification_status": "not_attempted",
+      "failure_reason_code": "",
+      "blocked_reason_code": "",
+      "result_details": "",
+      "official": true,
+      "heuristic": false,
+      "ui_path": "Invoke the tool from the chat/tooling surface",
+      "harness_fallback": "run_current_stimulus"
+    },
+    {
+      "attempt_id": "official-onterminalshellintegration-python",
+      "declared_event": "onTerminalShellIntegration:python",
+      "activation_event": "onTerminalShellIntegration:python",
+      "event_family": "onTerminalShellIntegration",
+      "event_value": "python",
+      "track": "official",
+      "selected_by": "activation_event",
+      "selection_reasons": [
+        "activation onTerminalShellIntegration:python"
+      ],
+      "pass_name": "target_specific_activation",
+      "backfill_pass_name": "unresolved_event_backfill",
+      "prerequisite_keys": [
+        "terminal_shell_target"
+      ],
+      "verification_contract": [
+        "activation_log_prefix",
+        "automation_trace"
+      ],
+      "trigger_method": "ui_simulation",
+      "fallback_trigger_method": "harness_api",
+      "executor_action": "scenario:terminal_usage",
+      "backfill_executor_action": "harness:run_current_stimulus",
+      "legacy_scenarios": [
+        "terminal_usage"
+      ],
+      "capability_tags": [
+        "terminal_tasks"
+      ],
+      "status": "planned",
+      "trigger_method_used": "",
+      "attempted_passes": [],
+      "evidence": [],
+      "verification_status": "not_attempted",
+      "failure_reason_code": "",
+      "blocked_reason_code": "",
+      "result_details": "",
+      "official": true,
+      "heuristic": false,
+      "ui_path": "Open a terminal and wait for shell integration",
+      "harness_fallback": "run_current_stimulus"
+    },
+    {
+      "attempt_id": "official-workspacecontains----pylock---toml",
+      "declared_event": "workspaceContains:**/pylock.*.toml",
+      "activation_event": "workspaceContains:**/pylock.*.toml",
+      "event_family": "workspaceContains",
+      "event_value": "**/pylock.*.toml",
+      "track": "official",
+      "selected_by": "activation_event",
+      "selection_reasons": [
+        "activation workspaceContains:**/pylock.*.toml"
+      ],
+      "pass_name": "workspace_bootstrap",
+      "backfill_pass_name": "",
+      "prerequisite_keys": [
+        "workspace_contains_fixture"
+      ],
+      "verification_contract": [
+        "activation_log_prefix",
+        "target_runtime_delta"
+      ],
+      "trigger_method": "mixed",
+      "fallback_trigger_method": "",
+      "executor_action": "scenario:project_exploration",
+      "backfill_executor_action": "",
+      "legacy_scenarios": [
+        "project_exploration"
+      ],
+      "capability_tags": [
+        "workspace_fs",
+        "languages_editor"
+      ],
+      "status": "planned",
+      "trigger_method_used": "",
+      "attempted_passes": [],
+      "evidence": [],
+      "verification_status": "not_attempted",
+      "failure_reason_code": "",
+      "blocked_reason_code": "",
+      "result_details": "",
+      "official": true,
+      "heuristic": false,
+      "ui_path": "Open a workspace that contains the requested glob",
+      "harness_fallback": ""
+    },
+    {
+      "attempt_id": "official-workspacecontains--conda",
+      "declared_event": "workspaceContains:.conda",
+      "activation_event": "workspaceContains:.conda",
+      "event_family": "workspaceContains",
+      "event_value": ".conda",
+      "track": "official",
+      "selected_by": "activation_event",
+      "selection_reasons": [
+        "activation workspaceContains:.conda"
+      ],
+      "pass_name": "workspace_bootstrap",
+      "backfill_pass_name": "",
+      "prerequisite_keys": [
+        "workspace_contains_fixture"
+      ],
+      "verification_contract": [
+        "activation_log_prefix",
+        "target_runtime_delta"
+      ],
+      "trigger_method": "mixed",
+      "fallback_trigger_method": "",
+      "executor_action": "scenario:project_exploration",
+      "backfill_executor_action": "",
+      "legacy_scenarios": [
+        "project_exploration"
+      ],
+      "capability_tags": [
+        "workspace_fs",
+        "languages_editor"
+      ],
+      "status": "planned",
+      "trigger_method_used": "",
+      "attempted_passes": [],
+      "evidence": [],
+      "verification_status": "not_attempted",
+      "failure_reason_code": "",
+      "blocked_reason_code": "",
+      "result_details": "",
+      "official": true,
+      "heuristic": false,
+      "ui_path": "Open a workspace that contains the requested glob",
+      "harness_fallback": ""
+    },
+    {
+      "attempt_id": "official-workspacecontains--venv",
+      "declared_event": "workspaceContains:.venv",
+      "activation_event": "workspaceContains:.venv",
+      "event_family": "workspaceContains",
+      "event_value": ".venv",
+      "track": "official",
+      "selected_by": "activation_event",
+      "selection_reasons": [
+        "activation workspaceContains:.venv"
+      ],
+      "pass_name": "workspace_bootstrap",
+      "backfill_pass_name": "",
+      "prerequisite_keys": [
+        "workspace_contains_fixture"
+      ],
+      "verification_contract": [
+        "activation_log_prefix",
+        "target_runtime_delta"
+      ],
+      "trigger_method": "mixed",
+      "fallback_trigger_method": "",
+      "executor_action": "scenario:project_exploration",
+      "backfill_executor_action": "",
+      "legacy_scenarios": [
+        "project_exploration"
+      ],
+      "capability_tags": [
+        "workspace_fs",
+        "languages_editor"
+      ],
+      "status": "planned",
+      "trigger_method_used": "",
+      "attempted_passes": [],
+      "evidence": [],
+      "verification_status": "not_attempted",
+      "failure_reason_code": "",
+      "blocked_reason_code": "",
+      "result_details": "",
+      "official": true,
+      "heuristic": false,
+      "ui_path": "Open a workspace that contains the requested glob",
+      "harness_fallback": ""
+    },
+    {
+      "attempt_id": "official-workspacecontains-pipfile",
+      "declared_event": "workspaceContains:Pipfile",
+      "activation_event": "workspaceContains:Pipfile",
+      "event_family": "workspaceContains",
+      "event_value": "Pipfile",
+      "track": "official",
+      "selected_by": "activation_event",
+      "selection_reasons": [
+        "activation workspaceContains:Pipfile"
+      ],
+      "pass_name": "workspace_bootstrap",
+      "backfill_pass_name": "",
+      "prerequisite_keys": [
+        "workspace_contains_fixture"
+      ],
+      "verification_contract": [
+        "activation_log_prefix",
+        "target_runtime_delta"
+      ],
+      "trigger_method": "mixed",
+      "fallback_trigger_method": "",
+      "executor_action": "scenario:project_exploration",
+      "backfill_executor_action": "",
+      "legacy_scenarios": [
+        "project_exploration"
+      ],
+      "capability_tags": [
+        "workspace_fs",
+        "languages_editor"
+      ],
+      "status": "planned",
+      "trigger_method_used": "",
+      "attempted_passes": [],
+      "evidence": [],
+      "verification_status": "not_attempted",
+      "failure_reason_code": "",
+      "blocked_reason_code": "",
+      "result_details": "",
+      "official": true,
+      "heuristic": false,
+      "ui_path": "Open a workspace that contains the requested glob",
+      "harness_fallback": ""
+    },
+    {
+      "attempt_id": "official-workspacecontains-app-py",
+      "declared_event": "workspaceContains:app.py",
+      "activation_event": "workspaceContains:app.py",
+      "event_family": "workspaceContains",
+      "event_value": "app.py",
+      "track": "official",
+      "selected_by": "activation_event",
+      "selection_reasons": [
+        "activation workspaceContains:app.py"
+      ],
+      "pass_name": "workspace_bootstrap",
+      "backfill_pass_name": "",
+      "prerequisite_keys": [
+        "workspace_contains_fixture"
+      ],
+      "verification_contract": [
+        "activation_log_prefix",
+        "target_runtime_delta"
+      ],
+      "trigger_method": "mixed",
+      "fallback_trigger_method": "",
+      "executor_action": "scenario:project_exploration",
+      "backfill_executor_action": "",
+      "legacy_scenarios": [
+        "project_exploration"
+      ],
+      "capability_tags": [
+        "workspace_fs",
+        "languages_editor"
+      ],
+      "status": "planned",
+      "trigger_method_used": "",
+      "attempted_passes": [],
+      "evidence": [],
+      "verification_status": "not_attempted",
+      "failure_reason_code": "",
+      "blocked_reason_code": "",
+      "result_details": "",
+      "official": true,
+      "heuristic": false,
+      "ui_path": "Open a workspace that contains the requested glob",
+      "harness_fallback": ""
+    },
+    {
+      "attempt_id": "official-workspacecontains-manage-py",
+      "declared_event": "workspaceContains:manage.py",
+      "activation_event": "workspaceContains:manage.py",
+      "event_family": "workspaceContains",
+      "event_value": "manage.py",
+      "track": "official",
+      "selected_by": "activation_event",
+      "selection_reasons": [
+        "activation workspaceContains:manage.py"
+      ],
+      "pass_name": "workspace_bootstrap",
+      "backfill_pass_name": "",
+      "prerequisite_keys": [
+        "workspace_contains_fixture"
+      ],
+      "verification_contract": [
+        "activation_log_prefix",
+        "target_runtime_delta"
+      ],
+      "trigger_method": "mixed",
+      "fallback_trigger_method": "",
+      "executor_action": "scenario:project_exploration",
+      "backfill_executor_action": "",
+      "legacy_scenarios": [
+        "project_exploration"
+      ],
+      "capability_tags": [
+        "workspace_fs",
+        "languages_editor"
+      ],
+      "status": "planned",
+      "trigger_method_used": "",
+      "attempted_passes": [],
+      "evidence": [],
+      "verification_status": "not_attempted",
+      "failure_reason_code": "",
+      "blocked_reason_code": "",
+      "result_details": "",
+      "official": true,
+      "heuristic": false,
+      "ui_path": "Open a workspace that contains the requested glob",
+      "harness_fallback": ""
+    },
+    {
+      "attempt_id": "official-workspacecontains-mspythonconfig-json",
+      "declared_event": "workspaceContains:mspythonconfig.json",
+      "activation_event": "workspaceContains:mspythonconfig.json",
+      "event_family": "workspaceContains",
+      "event_value": "mspythonconfig.json",
+      "track": "official",
+      "selected_by": "activation_event",
+      "selection_reasons": [
+        "activation workspaceContains:mspythonconfig.json"
+      ],
+      "pass_name": "workspace_bootstrap",
+      "backfill_pass_name": "",
+      "prerequisite_keys": [
+        "workspace_contains_fixture"
+      ],
+      "verification_contract": [
+        "activation_log_prefix",
+        "target_runtime_delta"
+      ],
+      "trigger_method": "mixed",
+      "fallback_trigger_method": "",
+      "executor_action": "scenario:project_exploration",
+      "backfill_executor_action": "",
+      "legacy_scenarios": [
+        "project_exploration"
+      ],
+      "capability_tags": [
+        "workspace_fs",
+        "languages_editor"
+      ],
+      "status": "planned",
+      "trigger_method_used": "",
+      "attempted_passes": [],
+      "evidence": [],
+      "verification_status": "not_attempted",
+      "failure_reason_code": "",
+      "blocked_reason_code": "",
+      "result_details": "",
+      "official": true,
+      "heuristic": false,
+      "ui_path": "Open a workspace that contains the requested glob",
+      "harness_fallback": ""
+    },
+    {
+      "attempt_id": "official-workspacecontains-pylock-toml",
+      "declared_event": "workspaceContains:pylock.toml",
+      "activation_event": "workspaceContains:pylock.toml",
+      "event_family": "workspaceContains",
+      "event_value": "pylock.toml",
+      "track": "official",
+      "selected_by": "activation_event",
+      "selection_reasons": [
+        "activation workspaceContains:pylock.toml"
+      ],
+      "pass_name": "workspace_bootstrap",
+      "backfill_pass_name": "",
+      "prerequisite_keys": [
+        "workspace_contains_fixture"
+      ],
+      "verification_contract": [
+        "activation_log_prefix",
+        "target_runtime_delta"
+      ],
+      "trigger_method": "mixed",
+      "fallback_trigger_method": "",
+      "executor_action": "scenario:project_exploration",
+      "backfill_executor_action": "",
+      "legacy_scenarios": [
+        "project_exploration"
+      ],
+      "capability_tags": [
+        "workspace_fs",
+        "languages_editor"
+      ],
+      "status": "planned",
+      "trigger_method_used": "",
+      "attempted_passes": [],
+      "evidence": [],
+      "verification_status": "not_attempted",
+      "failure_reason_code": "",
+      "blocked_reason_code": "",
+      "result_details": "",
+      "official": true,
+      "heuristic": false,
+      "ui_path": "Open a workspace that contains the requested glob",
+      "harness_fallback": ""
+    },
+    {
+      "attempt_id": "official-workspacecontains-pyproject-toml",
+      "declared_event": "workspaceContains:pyproject.toml",
+      "activation_event": "workspaceContains:pyproject.toml",
+      "event_family": "workspaceContains",
+      "event_value": "pyproject.toml",
+      "track": "official",
+      "selected_by": "activation_event",
+      "selection_reasons": [
+        "activation workspaceContains:pyproject.toml"
+      ],
+      "pass_name": "workspace_bootstrap",
+      "backfill_pass_name": "",
+      "prerequisite_keys": [
+        "workspace_contains_fixture"
+      ],
+      "verification_contract": [
+        "activation_log_prefix",
+        "target_runtime_delta"
+      ],
+      "trigger_method": "mixed",
+      "fallback_trigger_method": "",
+      "executor_action": "scenario:project_exploration",
+      "backfill_executor_action": "",
+      "legacy_scenarios": [
+        "project_exploration"
+      ],
+      "capability_tags": [
+        "workspace_fs",
+        "languages_editor"
+      ],
+      "status": "planned",
+      "trigger_method_used": "",
+      "attempted_passes": [],
+      "evidence": [],
+      "verification_status": "not_attempted",
+      "failure_reason_code": "",
+      "blocked_reason_code": "",
+      "result_details": "",
+      "official": true,
+      "heuristic": false,
+      "ui_path": "Open a workspace that contains the requested glob",
+      "harness_fallback": ""
+    },
+    {
+      "attempt_id": "official-workspacecontains-requirements-txt",
+      "declared_event": "workspaceContains:requirements.txt",
+      "activation_event": "workspaceContains:requirements.txt",
+      "event_family": "workspaceContains",
+      "event_value": "requirements.txt",
+      "track": "official",
+      "selected_by": "activation_event",
+      "selection_reasons": [
+        "activation workspaceContains:requirements.txt"
+      ],
+      "pass_name": "workspace_bootstrap",
+      "backfill_pass_name": "",
+      "prerequisite_keys": [
+        "workspace_contains_fixture"
+      ],
+      "verification_contract": [
+        "activation_log_prefix",
+        "target_runtime_delta"
+      ],
+      "trigger_method": "mixed",
+      "fallback_trigger_method": "",
+      "executor_action": "scenario:project_exploration",
+      "backfill_executor_action": "",
+      "legacy_scenarios": [
+        "project_exploration"
+      ],
+      "capability_tags": [
+        "workspace_fs",
+        "languages_editor"
+      ],
+      "status": "planned",
+      "trigger_method_used": "",
+      "attempted_passes": [],
+      "evidence": [],
+      "verification_status": "not_attempted",
+      "failure_reason_code": "",
+      "blocked_reason_code": "",
+      "result_details": "",
+      "official": true,
+      "heuristic": false,
+      "ui_path": "Open a workspace that contains the requested glob",
+      "harness_fallback": ""
+    },
+    {
+      "attempt_id": "official-workspacecontains-setup-py",
+      "declared_event": "workspaceContains:setup.py",
+      "activation_event": "workspaceContains:setup.py",
+      "event_family": "workspaceContains",
+      "event_value": "setup.py",
+      "track": "official",
+      "selected_by": "activation_event",
+      "selection_reasons": [
+        "activation workspaceContains:setup.py"
+      ],
+      "pass_name": "workspace_bootstrap",
+      "backfill_pass_name": "",
+      "prerequisite_keys": [
+        "workspace_contains_fixture"
+      ],
+      "verification_contract": [
+        "activation_log_prefix",
+        "target_runtime_delta"
+      ],
+      "trigger_method": "mixed",
+      "fallback_trigger_method": "",
+      "executor_action": "scenario:project_exploration",
+      "backfill_executor_action": "",
+      "legacy_scenarios": [
+        "project_exploration"
+      ],
+      "capability_tags": [
+        "workspace_fs",
+        "languages_editor"
+      ],
+      "status": "planned",
+      "trigger_method_used": "",
+      "attempted_passes": [],
+      "evidence": [],
+      "verification_status": "not_attempted",
+      "failure_reason_code": "",
+      "blocked_reason_code": "",
+      "result_details": "",
+      "official": true,
+      "heuristic": false,
+      "ui_path": "Open a workspace that contains the requested glob",
       "harness_fallback": ""
     }
   ],
@@ -706,7 +2224,9 @@
       "attempt_ids": [
         "official-oncommand-python-copilotsetuptests"
       ],
-      "detail": "Command title/id is resolved through contributes.commands when present."
+      "detail": "Command title/id is resolved through contributes.commands when present.",
+      "reason_code": "",
+      "resolved_targets": {}
     },
     {
       "prerequisite_id": "prep-debug-launch-config",
@@ -719,7 +2239,9 @@
         "official-ondebuginitialconfigurations",
         "official-ondebugresolve-python"
       ],
-      "detail": "Ensure launch.json and debuggable files exist before the debug flow."
+      "detail": "Ensure launch.json and debuggable files exist before the debug flow.",
+      "reason_code": "",
+      "resolved_targets": {}
     },
     {
       "prerequisite_id": "prep-language-fixture",
@@ -731,7 +2253,9 @@
       "attempt_ids": [
         "official-onlanguage-python"
       ],
-      "detail": "Prepare a file that resolves to the declared language id."
+      "detail": "Prepare a file that resolves to the declared language id.",
+      "reason_code": "",
+      "resolved_targets": {}
     },
     {
       "prerequisite_id": "prep-language-model-tool-target",
@@ -747,7 +2271,47 @@
         "official-onlanguagemodeltool-get-python-executable-details",
         "official-onlanguagemodeltool-install-python-packages"
       ],
-      "detail": "Language-model tool id is prepared for local-only invocation."
+      "detail": "Language-model tool id is prepared for local-only invocation.",
+      "reason_code": "",
+      "resolved_targets": {}
+    },
+    {
+      "prerequisite_id": "prep-terminal-shell-target",
+      "key": "terminal_shell_target",
+      "label": "terminal shell target",
+      "status": "planned",
+      "materializer": "harness_api",
+      "pass_name": "target_specific_activation",
+      "attempt_ids": [
+        "official-onterminalshellintegration-python"
+      ],
+      "detail": "Terminal shell type must be selected before the terminal opens.",
+      "reason_code": "",
+      "resolved_targets": {}
+    },
+    {
+      "prerequisite_id": "prep-workspace-contains-fixture",
+      "key": "workspace_contains_fixture",
+      "label": "workspace contains fixture",
+      "status": "planned",
+      "materializer": "workspace_fixture",
+      "pass_name": "workspace_bootstrap",
+      "attempt_ids": [
+        "official-workspacecontains----pylock---toml",
+        "official-workspacecontains--conda",
+        "official-workspacecontains--venv",
+        "official-workspacecontains-pipfile",
+        "official-workspacecontains-app-py",
+        "official-workspacecontains-manage-py",
+        "official-workspacecontains-mspythonconfig-json",
+        "official-workspacecontains-pylock-toml",
+        "official-workspacecontains-pyproject-toml",
+        "official-workspacecontains-requirements-txt",
+        "official-workspacecontains-setup-py"
+      ],
+      "detail": "Create the file pattern expected by workspaceContains.",
+      "reason_code": "",
+      "resolved_targets": {}
     }
   ],
   "official_event_coverage": {
