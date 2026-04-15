@@ -1204,6 +1204,65 @@ def test_failed_scenarios_degrade_run_health() -> None:
     assert "scenario_failures_present" in health["reasons"]
 
 
+def test_extra_trigger_failures_degrade_and_serialize_health(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    log_file = tmp_path / "exthost.log"
+    log_file.write_text("extension host output")
+    report = monitor.ActivationReport(
+        activated=[
+            monitor.ActivationEntry(
+                extension_id="publisher.tool",
+                activation_event="onCommand:test",
+                timestamp="2026-01-01 10:00:00.000",
+                source="log",
+            )
+        ],
+        target_extension_id="publisher.tool",
+        extension_host_output="extension output",
+        log_offsets_snapshot={str(log_file.resolve()): 0},
+        failed_scenarios=["coding_session"],
+        extra_trigger_failures=["uri_trigger", "command:Extension: Fail"],
+    )
+    report.log_entries.append(
+        monitor.LogStreamEntry(
+            timestamp="2026-01-01T10:00:00.000",
+            stream="target_extension_host",
+            kind="activation",
+            extension_id="publisher.tool",
+            message="Activated publisher.tool via onCommand:test",
+            status="completed",
+            is_target_extension=True,
+        )
+    )
+    monkeypatch.setattr(monitor, "find_exthost_logs", lambda: [log_file])
+
+    health = report.automation_health
+    output_path = tmp_path / "activation_report.json"
+    report.save(output_path, announce=False)
+    payload = json.loads(output_path.read_text(encoding="utf-8"))
+
+    assert health["status"] == "degraded"
+    assert "scenario_failures_present" in health["reasons"]
+    assert "extra_trigger_failures_present" in health["reasons"]
+    assert health["failed_scenarios"] == ["coding_session"]
+    assert health["extra_trigger_failures"] == [
+        "command:Extension: Fail",
+        "uri_trigger",
+    ]
+    assert health["extra_trigger_failure_count"] == 2
+    assert payload["extra_trigger_failures"] == [
+        "uri_trigger",
+        "command:Extension: Fail",
+    ]
+    assert payload["automation_health"]["extra_trigger_failures"] == [
+        "command:Extension: Fail",
+        "uri_trigger",
+    ]
+    assert payload["automation_health"]["extra_trigger_failure_count"] == 2
+
+
 def test_risk_signals_capture_sensitive_file_and_network_combo() -> None:
     report = monitor.ActivationReport(
         activated=[

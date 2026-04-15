@@ -10,10 +10,8 @@ from appcore.contracts.schemas import (
 )
 from workflows.extension_catalog import service
 
-pytestmark = pytest.mark.requires_db
 
-
-def test_create_extension_by_name_success(db_session: Session):
+def test_create_extension_by_name_success(mock_session: Session):
     """Test successful creation of extension via service."""
     mock_pkg_json = {
         "name": "test-ext",
@@ -55,7 +53,7 @@ def test_create_extension_by_name_success(db_session: Session):
         mock_ext.name = "test-ext"
         mock_create_db.return_value = mock_ext
 
-        result = service.create_extension_by_name(db_session, "test-ext")
+        result = service.create_extension_by_name(mock_session, "test-ext")
 
         assert result.name == "test-ext"
         mock_create_db.assert_called_once()
@@ -69,16 +67,16 @@ def test_create_extension_by_name_success(db_session: Session):
         assert isinstance(args[5], ExtensionContributesSchema)
 
 
-def test_create_extension_by_name_not_found(db_session: Session):
+def test_create_extension_by_name_not_found(mock_session: Session):
     """Test creation when extension not found in filesystem."""
     with patch(
         "workflows.extension_catalog.service.find_json_in_dir", return_value=None
     ):
-        result = service.create_extension_by_name(db_session, "ghost-ext")
+        result = service.create_extension_by_name(mock_session, "ghost-ext")
         assert result is None
 
 
-def test_create_extension_from_directory_success(db_session: Session):
+def test_create_extension_from_directory_success(mock_session: Session):
     """Specific directory registration should bypass name-only scanning."""
     extension_dir = MagicMock()
     mock_pkg_json = {
@@ -101,7 +99,7 @@ def test_create_extension_from_directory_success(db_session: Session):
         mock_create.return_value = mock_extension
 
         result = service.create_extension_from_directory(
-            db_session,
+            mock_session,
             extension_dir,
             expected_name="python",
             expected_publisher="ms-python",
@@ -109,11 +107,11 @@ def test_create_extension_from_directory_success(db_session: Session):
         )
 
     assert result is mock_extension
-    mock_create.assert_called_once_with(db_session, mock_pkg_json)
+    mock_create.assert_called_once_with(mock_session, mock_pkg_json)
 
 
 def test_create_extension_from_directory_rejects_manifest_mismatch(
-    db_session: Session,
+    mock_session: Session,
 ):
     """Downloaded manifest must match the requested publisher/name/version."""
     extension_dir = MagicMock()
@@ -132,7 +130,7 @@ def test_create_extension_from_directory_rejects_manifest_mismatch(
         pytest.raises(service.ExtensionManifestMismatchError, match="publisher"),
     ):
         service.create_extension_from_directory(
-            db_session,
+            mock_session,
             extension_dir,
             expected_name="python",
             expected_publisher="ms-python",
@@ -140,7 +138,7 @@ def test_create_extension_from_directory_rejects_manifest_mismatch(
         )
 
 
-def test_create_extension_by_name_no_extra_data(db_session: Session):
+def test_create_extension_by_name_no_extra_data(mock_session: Session):
     """Test creation with minimal data (no scripts, caps, etc)."""
     mock_pkg_json = {
         "name": "minimal-ext",
@@ -179,7 +177,7 @@ def test_create_extension_by_name_no_extra_data(db_session: Session):
         mock_ext.name = "minimal-ext"
         mock_create_db.return_value = mock_ext
 
-        result = service.create_extension_by_name(db_session, "minimal-ext")
+        result = service.create_extension_by_name(mock_session, "minimal-ext")
 
         assert result.name == "minimal-ext"
         mock_create_db.assert_called_once()
@@ -192,82 +190,82 @@ def test_create_extension_by_name_no_extra_data(db_session: Session):
         assert args[5] is None  # contributes
 
 
-def test_get_all_extensions_basic(db_session: Session):
+def test_get_all_extensions_basic(mock_session: Session):
     """Test passthrough to CRUD for basic info."""
     with patch(
         "workflows.extension_catalog.service.get_db_extensions_base_info"
     ) as mock_get:
-        service.get_all_extensions_basic(db_session)
-        mock_get.assert_called_once_with(db_session)
+        service.get_all_extensions_basic(mock_session)
+        mock_get.assert_called_once_with(mock_session)
 
 
-def test_get_all_extensions_all(db_session: Session):
+def test_get_all_extensions_all(mock_session: Session):
     """Test passthrough to CRUD for all info."""
     with patch(
         "workflows.extension_catalog.service.get_extensions_all_info"
     ) as mock_get:
-        service.get_all_extensions_all(db_session, skip=10, limit=20)
-        mock_get.assert_called_once_with(db_session, skip=10, limit=20)
+        service.get_all_extensions_all(mock_session, skip=10, limit=20)
+        mock_get.assert_called_once_with(mock_session, skip=10, limit=20)
 
 
-def test_search_extension_by_name(db_session: Session):
+def test_search_extension_by_name(mock_session: Session):
     """Test search passthrough."""
     with patch(
         "workflows.extension_catalog.service.search_db_extension"
     ) as mock_search:
-        service.search_extension_by_name(db_session, "ext", "pub", "1.0")
-        mock_search.assert_called_once_with(db_session, "ext", "pub", "1.0")
+        service.search_extension_by_name(mock_session, "ext", "pub", "1.0")
+        mock_search.assert_called_once_with(mock_session, "ext", "pub", "1.0")
 
 
-def test_delete_extension_by_name(db_session: Session):
+def test_delete_extension_by_name(mock_session: Session):
     """Test delete passthrough."""
     with patch(
         "workflows.extension_catalog.service.delete_db_extension"
     ) as mock_delete:
-        service.delete_extension_by_name(db_session, "ext", "pub", "1.0")
-        mock_delete.assert_called_once_with(db_session, "ext", "pub", "1.0")
+        service.delete_extension_by_name(mock_session, "ext", "pub", "1.0")
+        mock_delete.assert_called_once_with(mock_session, "ext", "pub", "1.0")
 
 
-def test_get_extension_scripts(db_session: Session):
+def test_get_extension_scripts(mock_session: Session):
     """Test script retrieval passthrough."""
     with patch(
         "workflows.extension_catalog.service.get_db_extension_scripts"
     ) as mock_get:
-        service.get_extension_scripts(db_session, "ext")
+        service.get_extension_scripts(mock_session, "ext")
         mock_get.assert_called_once()
 
 
-def test_get_extension_activation_events(db_session: Session):
+def test_get_extension_activation_events(mock_session: Session):
     """Test activation events retrieval passthrough."""
     with patch(
         "workflows.extension_catalog.service.get_db_extension_activation_events"
     ) as mock_get:
-        service.get_extension_activation_events(db_session, "ext")
+        service.get_extension_activation_events(mock_session, "ext")
         mock_get.assert_called_once()
 
 
-def test_get_extension_capabilities(db_session: Session):
+def test_get_extension_capabilities(mock_session: Session):
     """Test capability retrieval passthrough."""
     with patch(
         "workflows.extension_catalog.service.get_db_extension_capabilities"
     ) as mock_get:
-        service.get_extension_capabilities(db_session, "ext")
+        service.get_extension_capabilities(mock_session, "ext")
         mock_get.assert_called_once()
 
 
-def test_get_extension_contributes_all(db_session: Session):
+def test_get_extension_contributes_all(mock_session: Session):
     """Test contributes retrieval passthrough."""
     with patch(
         "workflows.extension_catalog.service.get_db_extension_contributes"
     ) as mock_get:
-        service.get_extension_contributes_all(db_session, "ext")
+        service.get_extension_contributes_all(mock_session, "ext")
         mock_get.assert_called_once()
 
 
-def test_get_extension_contributes_commands(db_session: Session):
+def test_get_extension_contributes_commands(mock_session: Session):
     """Test contributes commands retrieval passthrough."""
     with patch(
         "workflows.extension_catalog.service.get_db_extension_contributes_commands"
     ) as mock_get:
-        service.get_extension_contributes_commands(db_session, "ext")
+        service.get_extension_contributes_commands(mock_session, "ext")
         mock_get.assert_called_once()

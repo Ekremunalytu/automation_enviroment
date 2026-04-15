@@ -1,11 +1,8 @@
 """
-ExTrace Test Configuration
-==========================
+ExTrace test fixtures.
 
-Pytest fixtures and configuration for ExTrace tests.
-
-This module uses PostgreSQL for CI integration tests to properly support
-PostgreSQL-specific features (JSONB, ARRAY) used in our models.
+DB-backed fixtures stay opt-in so unit and mocked router tests do not
+initialize the test PostgreSQL engine unless they explicitly request it.
 """
 
 from __future__ import annotations
@@ -117,13 +114,17 @@ def db_session(test_engine: Any) -> Generator[Session, None, None]:
 
 
 @pytest.fixture(scope="function")
-def client() -> Generator[TestClient, None, None]:
+def mock_session() -> Session:
+    """Return a lightweight SQLAlchemy session double for DB-free tests."""
+    return MagicMock(spec=Session)
+
+
+@pytest.fixture(scope="function")
+def client(mock_session: Session) -> Generator[TestClient, None, None]:
     """Create a FastAPI test client backed by a lightweight mocked DB session."""
 
-    fake_session = MagicMock(spec=Session)
-
     def override_get_db() -> Generator[Session, None, None]:
-        yield fake_session
+        yield mock_session
 
     app.dependency_overrides[get_db] = override_get_db
 
@@ -174,18 +175,3 @@ def sample_extension_data() -> dict[str, Any]:
         "extensionDependencies": ["ms-vscode.cpptools"],
         "extensionKind": ["workspace"],
     }
-
-
-# =============================================================================
-# SKIP MARKERS FOR TESTS WITHOUT DATABASE
-# =============================================================================
-
-
-def pytest_configure(config: Any) -> None:
-    """Add custom markers."""
-    config.addinivalue_line(
-        "markers", "requires_db: mark test as requiring database connection"
-    )
-    config.addinivalue_line(
-        "markers", "smoke: mark test as blocking smoke acceptance coverage"
-    )

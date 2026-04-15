@@ -924,6 +924,118 @@ def test_execute_analysis_request_reports_healthful_monitoring_summary(
     )
 
 
+@pytest.mark.parametrize("status", ["degraded", "inconclusive"])
+def test_build_report_messages_include_extra_trigger_failures(
+    status: str,
+) -> None:
+    monitoring_message, finalize_message = analysis_service._build_report_messages(
+        "activation_report.json",
+        payload={
+            "automation_health": {
+                "status": status,
+                "trigger_requested": True,
+                "trigger_loaded": True,
+                "trigger_applied": False,
+                "target_activation_count": 0,
+                "failed_scenarios": ["coding_session"],
+            },
+            "summary": {
+                "scenarios_run": ["coding_session"],
+            },
+            "extra_trigger_failures": ["uri_trigger", "command:Extension: Fail"],
+        },
+    )
+
+    assert f"{status} health" in monitoring_message.lower()
+    assert "extra trigger failures=2" in monitoring_message.lower()
+    assert "failed scenarios=1" in finalize_message.lower()
+    assert "extra trigger failures=2" in finalize_message.lower()
+
+
+def test_execute_analysis_request_reports_degraded_monitoring_summary(
+    tmp_path: Path,
+) -> None:
+    request = AnalyzeRequest(**ANALYZE_PAYLOAD)
+    progress_events: list[tuple[str, str, str, str | None]] = []
+    marketplace_router.settings.project.OUTPUT_DIR = str(tmp_path)
+    report_name = "activation_report.json"
+    (tmp_path / report_name).write_text(
+        """
+        {
+          "trigger_execution_mode": "layered_passes",
+          "automation_health": {
+            "status": "degraded",
+            "trigger_requested": true,
+            "trigger_loaded": true,
+            "trigger_applied": true,
+            "target_activation_count": 1,
+            "failed_scenarios": ["coding_session"],
+            "extra_trigger_failures": ["uri_trigger", "command:Extension: Fail"],
+            "extra_trigger_failure_count": 2
+          },
+          "extra_trigger_failures": [
+            "uri_trigger",
+            "command:Extension: Fail"
+          ],
+          "stimulus_passes": [
+            {"pass_id": "workspace_bootstrap", "status": "completed"}
+          ],
+          "event_attempts": [
+            {"attempt_id": "official-onLanguage-python", "attempted_passes": ["workspace_bootstrap"]}
+          ],
+          "summary": {
+            "scenarios_run": ["coding_session"],
+            "trigger_execution_mode": "layered_passes"
+          }
+        }
+        """,
+        encoding="utf-8",
+    )
+
+    with (
+        patch("workflows.marketplace.analysis_service.ensure_vsix_exists"),
+        patch(
+            "workflows.marketplace.analysis_service.reset_executor_sandbox_state",
+            return_value="reset",
+        ),
+        patch(
+            "workflows.marketplace.analysis_service.install_extension_in_executor",
+            return_value="install",
+        ),
+        patch(
+            "workflows.marketplace.analysis_service.build_trigger_payload",
+            return_value=("/results/triggers.json", ["coding_session"], "selected"),
+        ),
+        patch(
+            "workflows.marketplace.analysis_service.run_playwright_automation",
+            return_value="automation",
+        ),
+    ):
+        response = analysis_service.execute_analysis_request(
+            request,
+            db=MagicMock(),
+            progress_callback=lambda step, status, message, error_code=None: (
+                progress_events.append((step, status, message, error_code))
+            ),
+            report_name=report_name,
+        )
+
+    assert response.status == "success"
+    assert "extra trigger failures=2" in response.message.lower()
+    assert any(
+        step == "run_monitoring"
+        and "degraded health" in message.lower()
+        and "extra trigger failures=2" in message.lower()
+        for step, _, message, _ in progress_events
+    )
+    assert any(
+        step == "finalize_report"
+        and "failed scenarios=1" in message.lower()
+        and "extra trigger failures=2" in message.lower()
+        for step, _, message, _ in progress_events
+    )
+
+
 def test_execute_analysis_request_fails_when_trigger_report_cannot_load(
     tmp_path: Path,
 ) -> None:

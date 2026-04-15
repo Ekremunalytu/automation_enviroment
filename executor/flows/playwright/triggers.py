@@ -62,6 +62,8 @@ def load_trigger_file(path: str) -> TriggerPayload | None:
 
     try:
         data = json.loads(p.read_text())
+        if not isinstance(data, dict):
+            return None
         payload = TriggerPayload(
             analysis_profile=str(data.get("analysis_profile", "layered_deep")),
             selected_scenarios=data.get("selected_scenarios", []),

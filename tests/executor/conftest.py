@@ -3,8 +3,6 @@ from __future__ import annotations
 import sys
 from types import ModuleType
 
-import pytest
-
 
 if "playwright.sync_api" not in sys.modules:
     playwright_module = ModuleType("playwright")
@@ -37,9 +35,3 @@ if "playwright.sync_api" not in sys.modules:
     playwright_module.sync_api = sync_api_module
     sys.modules["playwright"] = playwright_module
     sys.modules["playwright.sync_api"] = sync_api_module
-
-
-@pytest.fixture(scope="session", autouse=True)
-def check_database_connection() -> None:
-    """Override global DB gate for DB-independent executor unit tests."""
-    return None

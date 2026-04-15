@@ -62,11 +62,11 @@ ui/smoke/
 
 ## Database Strategy
 
-- Python tests use PostgreSQL, not SQLite.
+- DB-backed persistence tests use PostgreSQL; DB-free lanes use mocked sessions.
 - `tests/conftest.py` builds the test URL from `DATABASE_URL` first, then falls
   back to `postgresql://postgres:postgres@localhost:5434/test_db`.
 - The `test_engine` fixture creates tables once per test session and drops them
-  afterward.
+  afterward, but only when a test requests DB fixtures.
 - The `db_session` fixture opens a transaction per test and rolls it back for
   isolation.
 
@@ -78,6 +78,8 @@ ui/smoke/
   - per-test transactional session
 - `client`
   - FastAPI `TestClient` with `get_db` override
+- `mock_session`
+  - reusable `MagicMock(spec=Session)` for DB-free tests
 - `sample_extension_data`
   - reusable extension payload for storage and API tests
 
@@ -89,6 +91,8 @@ make test-cov
 make test-local
 make test-ci
 .venv/bin/pytest
+.venv/bin/pytest -m "not smoke and not requires_db"
+.venv/bin/pytest -m "requires_db"
 .venv/bin/pytest tests/workflows/marketplace/test_router.py -v
 .venv/bin/pytest tests/smoke/test_marketplace_analysis_smoke.py -v -m smoke
 cd ui && npm run test
@@ -98,7 +102,11 @@ cd ui && npm run test:smoke
 Notes:
 
 - Default `pytest` excludes the smoke suite via `pyproject.toml`.
-- `make test-local` starts `postgres_test` and then runs the Python suite.
+- Fast lane: `pytest -m "not smoke and not requires_db"`.
+- DB lane: `pytest -m "requires_db"`.
+- Smoke lane: `pytest -m "smoke"`.
+- `make test-local` starts `postgres_test` and then runs the default Python
+  suite (`not smoke`), which includes DB-backed tests.
 - `make test-ci` also builds and waits for the executor container so the smoke
   path can run.
 - `npm run test:smoke` maps to `ui/smoke/run-smoke.mjs`.

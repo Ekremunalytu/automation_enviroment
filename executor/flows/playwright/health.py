@@ -431,6 +431,7 @@ def build_automation_health(
     output_present = bool(str(getattr(report, "extension_host_output", "")).strip())
     target_stream_present = bool(target_stream_entries(report))
     failed_scenarios = sorted(set(getattr(report, "failed_scenarios", [])))
+    extra_trigger_failures = sorted(set(getattr(report, "extra_trigger_failures", [])))
     strong_target_attribution = has_strong_target_attribution(report)
     reasons: list[str] = []
 
@@ -456,7 +457,7 @@ def build_automation_health(
         reasons.append("target_stream_missing")
     if failed_scenarios:
         reasons.append("scenario_failures_present")
-    if getattr(report, "extra_trigger_failures", []):
+    if extra_trigger_failures:
         reasons.append("extra_trigger_failures_present")
     if getattr(report, "ui_blocker_entries", []):
         reasons.append("ui_blockers_present")
@@ -487,7 +488,7 @@ def build_automation_health(
         or not output_present
         or not target_stream_present
         or failed_scenarios
-        or getattr(report, "extra_trigger_failures", [])
+        or extra_trigger_failures
         or getattr(report, "ui_blocker_entries", [])
         or getattr(report, "verification_gap", 0) > 0
     ):
@@ -506,6 +507,8 @@ def build_automation_health(
         "target_stream_present": target_stream_present,
         "target_activation_count": target_activation_count,
         "failed_scenarios": failed_scenarios,
+        "extra_trigger_failures": extra_trigger_failures,
+        "extra_trigger_failure_count": len(extra_trigger_failures),
         "extension_host_log_found": extension_host_log_found,
     }
 

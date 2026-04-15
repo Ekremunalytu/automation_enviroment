@@ -143,6 +143,8 @@ make ui-up
 cd ui && npm run dev
 cd ui && npm run test
 .venv/bin/pytest
+.venv/bin/pytest -m "not smoke and not requires_db"
+.venv/bin/pytest -m "requires_db"
 .venv/bin/pytest -m smoke
 ```
 

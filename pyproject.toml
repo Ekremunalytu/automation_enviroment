@@ -166,6 +166,7 @@ addopts = [
 markers = [
     "slow: marks tests as slow",
     "integration: marks tests as integration tests",
+    "requires_db: marks tests that require the PostgreSQL test lane",
     "smoke: marks end-to-end smoke acceptance tests",
 ]
 asyncio_mode = "auto"
