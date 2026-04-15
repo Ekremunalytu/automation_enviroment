@@ -5,6 +5,7 @@ Covers activation events: onCommand:*
 
 import keyboard
 
+from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import Page
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
@@ -128,6 +129,17 @@ def run_command(
         _wait_quick_input_ready(page, timeout_ms=4000)
         return
     _wait_quick_input_hidden(page)
+
+
+def run_reload_window_command(page: Page) -> None:
+    """Dispatch the reload command without waiting for quick-input teardown."""
+    open_command_palette(page)
+    page.keyboard.type("Developer: Reload Window", delay=30)
+    page.wait_for_timeout(500)
+    try:
+        page.keyboard.press("Enter")
+    except PlaywrightError:
+        return
 
 
 def quick_open(page: Page, query: str) -> None:

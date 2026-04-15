@@ -506,27 +506,28 @@ def test_run_extra_triggers_recovers_from_command_failure(monkeypatch) -> None:
 def test_reload_window_under_monitoring_reuses_primary_page(monkeypatch) -> None:
     page = _FakePage()
     browser = _FakeBrowser([page])
-    run_commands: list[str] = []
-    wait_calls: list[tuple[_FakePage, int]] = []
+    reload_calls: list[_FakePage] = []
+    reconnect_calls: list[tuple[_FakeBrowser, _FakePage, int]] = []
 
     monkeypatch.setattr(
         entrypoint.commands,
-        "run_command",
-        lambda current_page, command_text: run_commands.append(command_text),
+        "run_reload_window_command",
+        lambda current_page: reload_calls.append(current_page),
     )
     monkeypatch.setattr(
         entrypoint.vscode,
-        "wait_until_ready",
-        lambda ready_page, timeout_ms=10_000: wait_calls.append(
-            (ready_page, timeout_ms)
+        "reconnect_to_workbench",
+        lambda current_browser, *, preferred_page, timeout_ms=30_000: (
+            reconnect_calls.append((current_browser, preferred_page, timeout_ms))
+            or preferred_page
         ),
     )
 
     reloaded = entrypoint._reload_window_under_monitoring(browser, page)
 
     assert reloaded is page
-    assert run_commands == ["Developer: Reload Window"]
-    assert wait_calls == [(page, 30_000)]
+    assert reload_calls == [page]
+    assert reconnect_calls == [(browser, page, 30_000)]
     assert page.waits == [3000]
 
 
@@ -534,24 +535,28 @@ def test_reload_window_under_monitoring_uses_fallback_page(monkeypatch) -> None:
     primary_page = _FakePage("primary")
     fallback_page = _FakePage("fallback")
     browser = _FakeBrowser([fallback_page])
-    wait_calls: list[tuple[_FakePage, int]] = []
-
-    def fake_wait(ready_page, timeout_ms=10_000) -> None:
-        wait_calls.append((ready_page, timeout_ms))
-        if ready_page is primary_page:
-            raise entrypoint.PlaywrightError("page detached")
+    reload_calls: list[_FakePage] = []
+    reconnect_calls: list[tuple[_FakeBrowser, _FakePage, int]] = []
 
     monkeypatch.setattr(
         entrypoint.commands,
-        "run_command",
-        lambda current_page, command_text: None,
+        "run_reload_window_command",
+        lambda current_page: reload_calls.append(current_page),
     )
-    monkeypatch.setattr(entrypoint.vscode, "wait_until_ready", fake_wait)
+    monkeypatch.setattr(
+        entrypoint.vscode,
+        "reconnect_to_workbench",
+        lambda current_browser, *, preferred_page, timeout_ms=30_000: (
+            reconnect_calls.append((current_browser, preferred_page, timeout_ms))
+            or fallback_page
+        ),
+    )
 
     reloaded = entrypoint._reload_window_under_monitoring(browser, primary_page)
 
     assert reloaded is fallback_page
-    assert wait_calls == [(primary_page, 30_000), (fallback_page, 30_000)]
+    assert reload_calls == [primary_page]
+    assert reconnect_calls == [(browser, primary_page, 30_000)]
 
 
 def test_reload_window_under_monitoring_raises_when_no_window_is_available(
@@ -559,22 +564,24 @@ def test_reload_window_under_monitoring_raises_when_no_window_is_available(
 ) -> None:
     page = _FakePage()
     browser = _FakeBrowser([])
+    reload_calls: list[_FakePage] = []
 
     monkeypatch.setattr(
         entrypoint.commands,
-        "run_command",
-        lambda current_page, command_text: None,
+        "run_reload_window_command",
+        lambda current_page: reload_calls.append(current_page),
     )
     monkeypatch.setattr(
         entrypoint.vscode,
-        "wait_until_ready",
-        lambda ready_page, timeout_ms=10_000: (_ for _ in ()).throw(
-            entrypoint.PlaywrightError("page detached")
-        ),
+        "reconnect_to_workbench",
+        lambda current_browser, *, preferred_page, timeout_ms=30_000: (
+            _ for _ in ()
+        ).throw(RuntimeError("Could not find a VS Code workbench page via CDP.")),
     )
 
     with pytest.raises(entrypoint.PlaywrightError, match="Unable to reconnect"):
         entrypoint._reload_window_under_monitoring(browser, page)
+    assert reload_calls == [page]
 
 
 def test_main_list_mode_prints_scenarios_without_connecting(

@@ -4,7 +4,10 @@ import json
 import sys
 from pathlib import Path
 
-from packages.analysis_contracts import TriggerPayload
+from packages.analysis_contracts import (
+    TriggerPayload,
+    activation_report_invariant_issues,
+)
 
 PLAYWRIGHT_DIR = (
     Path(__file__).resolve().parents[2] / "executor" / "flows" / "playwright"
@@ -81,6 +84,83 @@ def test_activation_report_save_is_atomic(tmp_path: Path) -> None:
     assert payload["attempted_capabilities"] == []
     assert payload["verified_capabilities"] == []
     assert not list(tmp_path.glob(".activation_report.json.*.tmp"))
+
+
+def test_activation_report_save_uses_scenario_traces_as_runtime_ledger(
+    tmp_path: Path,
+) -> None:
+    report = monitor.ActivationReport(
+        target_extension_id="sample.ext",
+        trigger_plan_requested=True,
+        trigger_plan_loaded=True,
+        trigger_plan_applied=True,
+        trigger_execution_mode="layered_passes",
+        requested_scenarios=["debug_session", "refactor_workflow"],
+        scenarios_run=["stale_scenario"],
+        failed_scenarios=["stale_scenario"],
+        scenario_traces=[
+            monitor.ScenarioTrace(
+                name="project_exploration",
+                started_at=10.0,
+                ended_at=20.0,
+                status="completed",
+            ),
+            monitor.ScenarioTrace(
+                name="coding_session",
+                started_at=21.0,
+                ended_at=32.0,
+                status="failed",
+            ),
+        ],
+        stimulus_passes=[
+            monitor.StimulusPassTrace(
+                pass_id="workspace_bootstrap",  # noqa: S106
+                label="workspace/bootstrap pass",
+                order=1,
+                started_at=10.0,
+                ended_at=12.0,
+                status="completed",
+                trigger_method="layered_deep",
+            )
+        ],
+        event_attempts=[
+            monitor.EventAttemptRecord(
+                attempt_id="attempt-1",
+                declared_event="workspaceContains:app.py",
+                activation_event="workspaceContains:app.py",
+                event_family="workspaceContains",
+                track="official",
+                attempted_passes=["workspace_bootstrap"],
+                status="attempted_only",
+            )
+        ],
+        official_event_coverage={
+            "track": "official",
+            "declared": 1,
+            "verified": 0,
+            "attempted_only": 1,
+            "failed": 0,
+            "blocked": 0,
+            "unresolved": 1,
+            "declared_events": ["workspaceContains:app.py"],
+        },
+        monitoring_start=10.0,
+        monitoring_end=40.0,
+    )
+    output_path = tmp_path / "aligned_report.json"
+
+    report.save(output_path, announce=False)
+
+    payload = json.loads(output_path.read_text(encoding="utf-8"))
+
+    assert payload["summary"]["scenarios_run"] == [
+        "project_exploration",
+        "coding_session",
+    ]
+    assert payload["requested_scenarios"] == ["debug_session", "refactor_workflow"]
+    assert payload["summary"]["failed_scenarios"] == ["coding_session"]
+    assert payload["failed_scenarios"] == ["coding_session"]
+    assert activation_report_invariant_issues(payload) == []
 
 
 def test_parse_tshark_event_line_extracts_http_fields() -> None:
@@ -1035,7 +1115,80 @@ def test_reconcile_event_attempts_marks_unverified_harness_attempts() -> None:
 
     assert attempts[0].status == "attempted_only"
     assert attempts[0].failure_reason_code == "harness_verification_unconfirmed"
-    assert "Harness stimulus executed" in attempts[0].result_details
+    assert "could not be confirmed" in attempts[0].result_details
+
+
+def test_reconcile_event_attempts_keeps_chat_tool_attempt_attempted_only_without_target_reaction() -> (
+    None
+):
+    report = monitor.ActivationReport(
+        target_extension_id="publisher.tool",
+        extension_host_output=(
+            '[extrace-harness] {"kind":"stimulus","phase":"complete",'
+            '"attempt_id":"harness","family":"onLanguageModelTool",'
+            '"activation_event":"onLanguageModelTool:test"}\n'
+        ),
+        event_attempts=[
+            monitor.EventAttemptRecord(
+                attempt_id="harness",
+                declared_event="onLanguageModelTool:test",
+                activation_event="onLanguageModelTool:test",
+                event_family="onLanguageModelTool",
+                executor_action="harness:run_current_stimulus",
+                attempted_passes=["target_specific_activation"],
+                capability_tags=["chat"],
+                verification_contract=["activation_log_prefix", "automation_trace"],
+            )
+        ],
+    )
+
+    attempts = monitor.reconcile_event_attempts(report)
+
+    assert attempts[0].status == "attempted_only"
+    assert attempts[0].failure_reason_code == "harness_verification_unconfirmed"
+    assert "target verification remained unresolved" in attempts[0].result_details
+
+
+def test_reconcile_event_attempts_verifies_chat_tool_with_marker_and_activation() -> (
+    None
+):
+    report = monitor.ActivationReport(
+        activated=[
+            monitor.ActivationEntry(
+                extension_id="publisher.tool",
+                activation_event="onLanguageModelTool:test",
+                timestamp="2026-01-01 10:00:00.000",
+                source="log",
+            )
+        ],
+        target_extension_id="publisher.tool",
+        extension_host_output=(
+            '[extrace-harness] {"kind":"stimulus","phase":"start",'
+            '"attempt_id":"harness","family":"onLanguageModelTool",'
+            '"activation_event":"onLanguageModelTool:test"}\n'
+            '[extrace-harness] {"kind":"stimulus","phase":"complete",'
+            '"attempt_id":"harness","family":"onLanguageModelTool",'
+            '"activation_event":"onLanguageModelTool:test"}\n'
+        ),
+        event_attempts=[
+            monitor.EventAttemptRecord(
+                attempt_id="harness",
+                declared_event="onLanguageModelTool:test",
+                activation_event="onLanguageModelTool:test",
+                event_family="onLanguageModelTool",
+                executor_action="harness:run_current_stimulus",
+                attempted_passes=["target_specific_activation"],
+                capability_tags=["chat"],
+                verification_contract=["activation_log_prefix", "automation_trace"],
+            )
+        ],
+    )
+
+    attempts = monitor.reconcile_event_attempts(report)
+
+    assert attempts[0].status == "verified"
+    assert "onLanguageModelTool:test" in attempts[0].evidence
+    assert "harness_trace:harness" in attempts[0].evidence
 
 
 def test_verdict_stays_bounded_when_only_correlative_sensitive_activity_exists() -> (
@@ -1220,6 +1373,53 @@ def test_empty_extension_host_output_degrades_run_health() -> None:
 
     assert health["status"] == "degraded"
     assert "extension_host_output_missing" in health["reasons"]
+
+
+def test_unresolved_official_chat_tool_attempt_caps_run_quality_low() -> None:
+    report = monitor.ActivationReport(
+        activated=[
+            monitor.ActivationEntry(
+                extension_id="publisher.tool",
+                activation_event="onCommand:test",
+                timestamp="2026-01-01 10:00:00.000",
+                source="log",
+            )
+        ],
+        target_extension_id="publisher.tool",
+        extension_host_output="extension output",
+        log_file_path="/workspace/exthost.log",
+        event_attempts=[
+            monitor.EventAttemptRecord(
+                attempt_id="chat",
+                declared_event="onLanguageModelTool:test",
+                activation_event="onLanguageModelTool:test",
+                event_family="onLanguageModelTool",
+                executor_action="harness:run_current_stimulus",
+                attempted_passes=["target_specific_activation"],
+                capability_tags=["chat"],
+                status="attempted_only",
+                official=True,
+                verification_contract=["activation_log_prefix", "automation_trace"],
+            )
+        ],
+    )
+    report.log_entries.append(
+        monitor.LogStreamEntry(
+            timestamp="2026-01-01T10:00:00.000",
+            stream="target_extension_host",
+            kind="activation",
+            extension_id="publisher.tool",
+            message="Activated publisher.tool via onCommand:test",
+            status="completed",
+            is_target_extension=True,
+        )
+    )
+
+    health = report.automation_health
+
+    assert health["status"] == "degraded"
+    assert "chat_tool_verification_incomplete" in health["reasons"]
+    assert report.run_quality == "low"
 
 
 def test_failed_scenarios_degrade_run_health() -> None:

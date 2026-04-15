@@ -21,6 +21,7 @@ class _FakeMonitor:
         self.pass_events: list[dict[str, object]] = []
         self.attempt_starts: list[dict[str, object]] = []
         self.attempt_ends: list[dict[str, object]] = []
+        self.scenario_events: list[dict[str, object]] = []
 
     def record_prerequisite_result(
         self,
@@ -95,6 +96,22 @@ class _FakeMonitor:
                 "result_details": result_details,
                 "blocked_reason_code": blocked_reason_code,
                 "failure_reason_code": failure_reason_code,
+            }
+        )
+
+    def record_scenario_event(
+        self,
+        action: str,
+        name: str,
+        status: str = "",
+        metadata: dict[str, object] | None = None,
+    ) -> None:
+        self.scenario_events.append(
+            {
+                "action": action,
+                "name": name,
+                "status": status,
+                "metadata": metadata or {},
             }
         )
 
@@ -253,6 +270,10 @@ def test_run_stimulus_plan_dedupes_repeat_scenarios_within_pass(
         "attempted_only",
         "attempted_only",
     ]
+    assert [(item["action"], item["name"]) for item in monitor.scenario_events] == [
+        ("start", "project_exploration"),
+        ("end", "project_exploration"),
+    ]
     assert (
         "Reused prior scenario:project_exploration result"
         in monitor.attempt_ends[1]["result_details"]
@@ -363,6 +384,105 @@ def test_run_stimulus_plan_accepts_contract_payload_nested_models(
     assert [
         item["status"] for item in monitor.pass_events if item["action"] == "end"
     ] == ["completed"]
+
+
+def test_run_stimulus_plan_records_language_coding_session_lifecycle(
+    monkeypatch,
+) -> None:
+    executed: list[str] = []
+
+    def fake_coding_session(_page, *, language: str) -> None:
+        executed.append(language)
+
+    monkeypatch.setattr(
+        stimulus.automation,
+        "scenario_coding_session",
+        fake_coding_session,
+    )
+
+    payload = _payload(
+        event_attempts=[
+            {
+                "attempt_id": "py",
+                "activation_event": "onLanguage:python",
+                "event_family": "onLanguage",
+                "event_value": "python",
+                "executor_action": "scenario:coding_session",
+                "trigger_method": "ui_simulation",
+            }
+        ],
+        stimulus_passes=[
+            {
+                "pass_id": "ui_first_user_session",
+                "label": "UI-first user session pass",
+                "order": 2,
+                "attempt_ids": ["py"],
+                "prerequisite_keys": [],
+            }
+        ],
+    )
+    monitor = _FakeMonitor()
+
+    result = stimulus.run_stimulus_plan(object(), payload, monitor=monitor)
+
+    assert executed == ["python"]
+    assert result.executed_scenarios == ["coding_session"]
+    assert result.failed_scenarios == []
+    assert [
+        (item["action"], item["name"], item["status"])
+        for item in monitor.scenario_events
+    ] == [
+        ("start", "coding_session", ""),
+        ("end", "coding_session", "completed"),
+    ]
+
+
+def test_run_stimulus_plan_records_failed_layered_scenarios(
+    monkeypatch,
+) -> None:
+    def fail_run_scenario(_page, _name: str) -> None:
+        raise RuntimeError("scenario failed")
+
+    monkeypatch.setattr(stimulus.automation, "run_scenario", fail_run_scenario)
+
+    payload = _payload(
+        event_attempts=[
+            {
+                "attempt_id": "a1",
+                "activation_event": "workspaceContains:app.py",
+                "event_value": "app.py",
+                "executor_action": "scenario:project_exploration",
+                "trigger_method": "ui_simulation",
+            }
+        ],
+        stimulus_passes=[
+            {
+                "pass_id": "workspace_bootstrap",
+                "label": "workspace/bootstrap pass",
+                "order": 1,
+                "attempt_ids": ["a1"],
+                "prerequisite_keys": [],
+            }
+        ],
+    )
+    monitor = _FakeMonitor()
+
+    result = stimulus.run_stimulus_plan(object(), payload, monitor=monitor)
+
+    assert result.executed_scenarios == []
+    assert result.failed_scenarios == ["project_exploration"]
+    assert [item["status"] for item in monitor.attempt_ends] == ["failed"]
+    assert monitor.attempt_ends[0]["failure_reason_code"] == "stimulus_execution_failed"
+    assert [
+        (item["action"], item["name"], item["status"])
+        for item in monitor.scenario_events
+    ] == [
+        ("start", "project_exploration", ""),
+        ("end", "project_exploration", "failed"),
+    ]
+    assert [
+        item["status"] for item in monitor.pass_events if item["action"] == "end"
+    ] == ["failed"]
 
 
 def test_run_stimulus_plan_uses_lightweight_debug_action(

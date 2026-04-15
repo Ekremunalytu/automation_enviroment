@@ -2021,6 +2021,7 @@ class ExtensionMonitor:
 
     def record_failed_scenarios(self, failed_scenarios: list[str]) -> None:
         self.report.failed_scenarios = sorted(set(failed_scenarios))
+        self._synchronize_scenario_truth()
         self._persist_report(force=False)
 
     def record_stimulus_pass_event(
@@ -2222,6 +2223,7 @@ class ExtensionMonitor:
                 status=status or ("running" if action == "start" else "completed"),
             )
         )
+        self._synchronize_scenario_truth()
         self._persist_report(force=False)
 
     def _append_activation_log_entries(self) -> None:
@@ -2378,6 +2380,24 @@ class ExtensionMonitor:
             if trace.status == "running":
                 trace.status = "completed"
         self._active_scenarios.clear()
+        self._synchronize_scenario_truth()
+
+    def _synchronize_scenario_truth(self) -> None:
+        if not self.report.scenario_traces:
+            return
+
+        self.report.scenarios_run = [
+            trace.name
+            for trace in self.report.scenario_traces
+            if str(trace.name).strip()
+        ]
+        self.report.failed_scenarios = list(
+            dict.fromkeys(
+                trace.name
+                for trace in self.report.scenario_traces
+                if str(trace.name).strip() and str(trace.status).strip() == "failed"
+            )
+        )
 
     def _persist_report(self, force: bool) -> None:
         if self.report_path is None:

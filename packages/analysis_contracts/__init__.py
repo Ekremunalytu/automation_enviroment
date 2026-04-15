@@ -19,6 +19,10 @@ from packages.analysis_contracts.contracts import (
     TriggerScenarioDetail,
     TriggerStimulusPass,
 )
+from packages.analysis_contracts.report_invariants import (
+    activation_report_invariant_issues,
+    scenario_trace_names,
+)
 
 __all__ = [
     "ActivationEntry",
@@ -38,4 +42,6 @@ __all__ = [
     "TriggerPayload",
     "TriggerScenarioDetail",
     "TriggerStimulusPass",
+    "activation_report_invariant_issues",
+    "scenario_trace_names",
 ]

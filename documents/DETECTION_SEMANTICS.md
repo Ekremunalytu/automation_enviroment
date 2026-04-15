@@ -100,6 +100,47 @@ These layers are assembled primarily in:
 - Analyst interpretation:
   - `false` means the planned activation surface was not exercised as intended.
 
+### `requested_scenarios`
+
+- Meaning:
+  - Planner-selected intent for the run.
+- Raw source:
+  - trigger payload selection in `packages/analysis_planner` and
+    `executor/flows/playwright/monitor.py`.
+- Calculation:
+  - copied from `payload.selected_scenarios` when the trigger plan is loaded or
+    applied.
+- Analyst interpretation:
+  - This is not the runtime execution ledger.
+  - Read it as "what the planner asked the executor to cover," not "what
+    definitely ran."
+
+### `summary.scenarios_run`
+
+- Meaning:
+  - Ordered runtime scenario ledger used by the exported report summary.
+- Raw source:
+  - scenario lifecycle events collected in `scenario_traces`.
+- Calculation:
+  - derived from the ordered `scenario_traces` list when traces exist.
+- Analyst interpretation:
+  - This is the authoritative answer to "which named scenarios actually started
+    and finished during this run?"
+
+### `scenario_traces`
+
+- Meaning:
+  - Per-scenario lifecycle records for runtime execution.
+- Important fields:
+  - `name`
+  - `started_at`
+  - `ended_at`
+  - `status`
+- Analyst interpretation:
+  - This is the source of truth for scenario execution.
+  - `summary.scenarios_run` is a compact projection of this ledger, not a
+    separate truth source.
+
 ### `automation_health`
 
 - Meaning:
@@ -124,6 +165,10 @@ These layers are assembled primarily in:
   - `inconclusive`
     - target context or target observation is missing, or the trigger plan was
       incomplete when required
+- Notable degrader:
+  - unresolved official `onChatParticipant` / `onLanguageModelTool` attempts
+    keep the run out of `healthy`, even when the rest of the runtime looks
+    complete
 - Analyst interpretation:
   - Read this before reading the verdict.
 
@@ -194,7 +239,8 @@ These layers are assembled primarily in:
   - `inconclusive`
 - Calculation:
   - derived from `automation_health.status`, trigger-plan completeness,
-    scenario/log degraders, and unresolved official coverage
+    scenario/log degraders, unresolved official coverage, and unresolved
+    official chat/tool attempts
 - Analyst interpretation:
   - `high`: report can support stronger conclusions
   - `medium`: usable, but read with caution
@@ -261,6 +307,21 @@ These layers are assembled primarily in:
   - This is the lowest-friction explanation for "what did the executor actually
     try for this declared event?"
 
+### `harness_verification_unconfirmed`
+
+- Meaning:
+  - The executor attempted a harness-driven event, but verification remained
+    open.
+- Current use:
+  - appears in `event_attempts[*].failure_reason_code` for unresolved harness
+    flows, especially official `onChatParticipant` and
+    `onLanguageModelTool` attempts
+- Interpretation:
+  - it does not mean the trigger was cleanly verified
+  - it does mean the report must not read like a clean acceptance run
+  - check `event_attempts`, `automation_health`, and `run_quality` together
+    before drawing conclusions
+
 ### `stimulus_passes`
 
 - Meaning:
@@ -274,6 +335,10 @@ These layers are assembled primarily in:
 - Analyst interpretation:
   - Use this to understand where the run spent time and where a failure
     happened.
+  - These passes are not a substitute for the scenario ledger.
+  - A completed pass means the executor finished that pass stage, not that each
+    planned scenario or event attempt inside it produced a verified target
+    reaction.
 
 ### `prerequisite_results`
 

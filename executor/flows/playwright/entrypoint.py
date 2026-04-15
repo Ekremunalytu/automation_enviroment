@@ -326,24 +326,24 @@ def _run_extra_triggers(
 def _reload_window_under_monitoring(browser: Browser, page: Page) -> Page:
     """Reload the current VS Code window after monitoring has started."""
     print("[*] Reloading VS Code window under monitoring...")
-    commands.run_command(page, "Developer: Reload Window")
+    commands.run_reload_window_command(page)
     page.wait_for_timeout(3000)
 
     try:
-        vscode.wait_until_ready(page, timeout_ms=30_000)
-        print("[+] VS Code reloaded successfully")
-        return page
-    except PlaywrightError as exc:
-        print(f"[!] Primary page lost during reload ({exc}), trying fallback...")
-
-    contexts = browser.contexts
-    if contexts and contexts[0].pages:
-        reloaded_page = contexts[0].pages[0]
-        vscode.wait_until_ready(reloaded_page, timeout_ms=30_000)
-        print("[+] VS Code reloaded successfully (fallback)")
+        reloaded_page = vscode.reconnect_to_workbench(
+            browser,
+            preferred_page=page,
+            timeout_ms=30_000,
+        )
+        if reloaded_page is page:
+            print("[+] VS Code reloaded successfully")
+        else:
+            print("[+] VS Code reloaded successfully (fallback)")
         return reloaded_page
-
-    raise PlaywrightError("Unable to reconnect to VS Code window after reload")
+    except RuntimeError as reconnect_error:
+        raise PlaywrightError(
+            "Unable to reconnect to VS Code window after reload"
+        ) from reconnect_error
 
 
 def main() -> None:

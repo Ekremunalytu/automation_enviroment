@@ -200,6 +200,29 @@ without mixing that cleanup into storage or router-state work.
   verification closure path, and unresolved cases are reported without
   overstating acceptance completeness
 
+### Status
+
+- Week 4A runtime/reporting work was implemented and revalidated on
+  `2026-04-15`.
+- layered-pass report invariants are now enforced in
+  `packages.analysis_contracts.report_invariants` and covered by
+  `tests/platform/contracts/test_analysis_fixture_baselines.py` and
+  `tests/executor/test_playwright_monitor.py`.
+- executor-side chat/tool verification closure now keeps unresolved official
+  `onChatParticipant` and `onLanguageModelTool` attempts out of healthy,
+  acceptance-style readings by degrading `automation_health`, capping
+  `run_quality`, and preserving the
+  `harness_verification_unconfirmed` path when target verification stays open.
+- VS Code reload/reconnect handling was hardened in
+  `executor/flows/playwright/vscode.py`,
+  `executor/flows/playwright/entrypoint.py`, and
+  `executor/flows/playwright/reload_vscode.py` so transient CDP states do not
+  incorrectly strand layered trigger plans in a not-applied state.
+- validation evidence on `2026-04-15` includes a passing `make test` run
+  (`422 passed, 3 deselected`) and a passing
+  `tests/smoke/test_marketplace_analysis_smoke.py::test_ms_python_layered_analysis_smoke_never_reads_as_clean_when_chat_tool_verification_is_open`
+  run after the reload/reconnect hardening.
+
 ## Week 4B
 
 ### Goal

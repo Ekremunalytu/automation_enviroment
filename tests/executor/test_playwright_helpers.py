@@ -16,6 +16,7 @@ if str(PLAYWRIGHT_DIR) not in sys.path:
 
 import automation  # noqa: E402
 import capture  # noqa: E402
+import commands  # noqa: E402
 import debug  # noqa: E402
 import editor  # noqa: E402
 import keyboard  # noqa: E402
@@ -61,9 +62,17 @@ class _FakeElement:
 
 
 class _FakePage:
-    def __init__(self, responses: list[object] | None = None) -> None:
+    def __init__(
+        self,
+        responses: list[object] | None = None,
+        *,
+        title: str = "[Extension Development Host] Running Extensions - workspace - Visual Studio Code",
+        url: str = "vscode-file://vscode-app/usr/share/code/resources/app/out/vs/code/electron-browser/workbench/workbench.html",
+    ) -> None:
         self.keyboard = _FakeKeyboard()
         self._responses = list(responses or [])
+        self._title = title
+        self.url = url
         self.selector_calls: list[tuple[str, str | None, int | None]] = []
         self.waits: list[int] = []
 
@@ -84,6 +93,9 @@ class _FakePage:
 
     def wait_for_timeout(self, ms: int) -> None:
         self.waits.append(ms)
+
+    def title(self) -> str:
+        return self._title
 
 
 @pytest.mark.parametrize(
@@ -526,6 +538,100 @@ def test_vscode_connect_wait_until_ready_and_disconnect() -> None:
     assert captured_urls == [vscode.CDP_URL]
     assert browser_page.selector_calls == [(".monaco-workbench", "visible", 4321)]
     assert browser.closed is True
+
+
+def test_vscode_connect_prefers_workbench_page_over_devtools() -> None:
+    devtools_page = _FakePage(title="DevTools", url="devtools://devtools/bundled/")
+    workbench_page = _FakePage()
+    browser = SimpleNamespace(
+        contexts=[SimpleNamespace(pages=[devtools_page, workbench_page])],
+    )
+
+    playwright = SimpleNamespace(
+        chromium=SimpleNamespace(connect_over_cdp=lambda _url: browser)
+    )
+
+    connected_browser, connected_page = vscode.connect(playwright)
+
+    assert connected_browser is browser
+    assert connected_page is workbench_page
+
+
+def test_vscode_connect_reports_discovered_pages_when_workbench_is_missing() -> None:
+    devtools_page = _FakePage(title="DevTools", url="devtools://devtools/bundled/")
+    browser = SimpleNamespace(
+        contexts=[SimpleNamespace(pages=[devtools_page])],
+    )
+
+    playwright = SimpleNamespace(
+        chromium=SimpleNamespace(connect_over_cdp=lambda _url: browser)
+    )
+
+    with pytest.raises(RuntimeError) as exc_info:
+        vscode.connect(playwright)
+
+    message = str(exc_info.value)
+    assert "Could not find a VS Code workbench page via CDP" in message
+    assert "DevTools" in message
+    assert "devtools://devtools/bundled/" in message
+
+
+def test_vscode_reconnect_to_workbench_retries_until_fallback_page_is_ready(
+    monkeypatch,
+) -> None:
+    primary_page = _FakePage(title="Primary", url="vscode-file://primary")
+    fallback_page = _FakePage()
+    browser = SimpleNamespace(contexts=[SimpleNamespace(pages=[fallback_page])])
+    wait_calls: list[tuple[object, int]] = []
+    sleep_calls: list[float] = []
+    attempts = {"count": 0}
+
+    def fake_wait_until_ready(page: object, timeout_ms: int = 10_000) -> None:
+        wait_calls.append((page, timeout_ms))
+        if page is primary_page:
+            raise vscode.PlaywrightError("page detached")
+        attempts["count"] += 1
+        if attempts["count"] == 1:
+            raise vscode.PlaywrightError("workbench not ready yet")
+
+    monkeypatch.setattr(vscode, "wait_until_ready", fake_wait_until_ready)
+    monkeypatch.setattr(
+        vscode.time, "sleep", lambda seconds: sleep_calls.append(seconds)
+    )
+
+    reloaded_page = vscode.reconnect_to_workbench(
+        browser,
+        preferred_page=primary_page,
+        timeout_ms=5_000,
+        probe_timeout_ms=250,
+        poll_interval_ms=100,
+    )
+
+    assert reloaded_page is fallback_page
+    assert wait_calls == [
+        (primary_page, 250),
+        (fallback_page, 250),
+        (primary_page, 250),
+        (fallback_page, 250),
+    ]
+    assert sleep_calls == [0.1]
+
+
+def test_run_reload_window_command_skips_quick_input_waits(monkeypatch) -> None:
+    opened: list[str] = []
+    page = _FakePage()
+
+    def fake_open_command_palette(target_page: object) -> None:
+        assert target_page is page
+        opened.append("opened")
+
+    monkeypatch.setattr(commands, "open_command_palette", fake_open_command_palette)
+    commands.run_reload_window_command(page)
+
+    assert opened == ["opened"]
+    assert page.keyboard.typed == [("Developer: Reload Window", 30)]
+    assert page.keyboard.presses == ["Enter"]
+    assert page.waits == [500]
 
 
 def test_summarize_extension_host_logs_counts_only_new_bytes(tmp_path: Path) -> None:

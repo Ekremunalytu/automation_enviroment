@@ -47,6 +47,37 @@ def _run_quality_reasons(report: Any) -> list[str]:
     return [str(reason) for reason in reasons if str(reason).strip()]
 
 
+def _scenario_trace_names(report: Any) -> list[str]:
+    traces = getattr(report, "scenario_traces", []) or []
+    names = [
+        str(trace.name) for trace in traces if str(getattr(trace, "name", "")).strip()
+    ]
+    if names:
+        return names
+    return [
+        str(name)
+        for name in getattr(report, "scenarios_run", []) or []
+        if str(name).strip()
+    ]
+
+
+def _failed_scenario_names(report: Any) -> list[str]:
+    traces = getattr(report, "scenario_traces", []) or []
+    failed = [
+        str(trace.name)
+        for trace in traces
+        if str(getattr(trace, "name", "")).strip()
+        and str(getattr(trace, "status", "")).strip() == "failed"
+    ]
+    if failed or traces:
+        return failed
+    return [
+        str(name)
+        for name in getattr(report, "failed_scenarios", []) or []
+        if str(name).strip()
+    ]
+
+
 def build_summary(
     report: Any,
     *,
@@ -60,6 +91,8 @@ def build_summary(
         report, "runtime_ids", set()
     )
     execution_mode = _resolve_trigger_execution_mode(report)
+    scenarios_run = _scenario_trace_names(report)
+    failed_scenarios = _failed_scenario_names(report)
     return {
         "total_activated": len(getattr(report, "activated", [])),
         "unique_extensions": len(unique_ids),
@@ -69,8 +102,8 @@ def build_summary(
         "monitoring_started_at": getattr(report, "monitoring_start", 0.0),
         "monitoring_ended_at": getattr(report, "monitoring_end", 0.0),
         "extension_ids": sorted(unique_ids),
-        "scenarios_run": getattr(report, "scenarios_run", []),
-        "failed_scenarios": getattr(report, "failed_scenarios", []),
+        "scenarios_run": scenarios_run,
+        "failed_scenarios": failed_scenarios,
         "network_events": len(getattr(report, "network_events", [])),
         "network_hosts": len(getattr(report, "network_hosts", set())),
         "file_events": len(getattr(report, "file_events", [])),
@@ -145,6 +178,7 @@ def build_report_data(
     else:
         eh_text = str(getattr(report, "extension_host_output", ""))
     execution_mode = _resolve_trigger_execution_mode(report)
+    failed_scenarios = _failed_scenario_names(report)
 
     return {
         "report_version": getattr(report, "report_version", 2),
@@ -161,7 +195,7 @@ def build_report_data(
         "trigger_plan_path": getattr(report, "trigger_plan_path", ""),
         "trigger_execution_mode": execution_mode,
         "requested_scenarios": getattr(report, "requested_scenarios", []),
-        "failed_scenarios": getattr(report, "failed_scenarios", []),
+        "failed_scenarios": failed_scenarios,
         "extra_trigger_failures": getattr(report, "extra_trigger_failures", []),
         "verification_gap": getattr(report, "verification_gap", 0),
         "heuristic_verification_gap": getattr(report, "heuristic_verification_gap", 0),

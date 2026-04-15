@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+import re
 from typing import Any
 
 from annotation import has_strong_target_attribution, target_stream_entries
@@ -19,8 +21,14 @@ _REASON_LABELS = {
     "extra_trigger_failures_present": "One or more extra trigger actions failed.",
     "ui_blockers_present": "UI blockers interrupted part of the run.",
     "verification_gap_present": "Some attempted capabilities could not be verified.",
+    "chat_tool_verification_incomplete": (
+        "Some official chat/tool attempts remained unresolved after harness verification."
+    ),
     "strong_target_attribution_missing": "No strong target-owned telemetry supported attribution.",
 }
+
+_HARNESS_MARKER_RE = re.compile(r"\[extrace-harness\]\s+(?P<payload>\{.*\})")
+_CHAT_TOOL_FAMILIES = {"onChatParticipant", "onLanguageModelTool"}
 
 
 def automation_reason_to_text(code: str) -> str:
@@ -174,6 +182,156 @@ def derive_verified_capabilities(report: Any) -> list[str]:
     return sorted(verified)
 
 
+def _harness_trace_records_by_attempt(
+    report: Any,
+) -> dict[str, list[dict[str, Any]]]:
+    raw_output = str(getattr(report, "extension_host_output", "") or "")
+    traces: dict[str, list[dict[str, Any]]] = {}
+    for line in raw_output.splitlines():
+        marker_match = _HARNESS_MARKER_RE.search(line)
+        if marker_match is None:
+            continue
+        try:
+            payload = json.loads(marker_match.group("payload"))
+        except ValueError:
+            continue
+        if not isinstance(payload, dict):
+            continue
+        attempt_id = str(payload.get("attempt_id", "")).strip()
+        if not attempt_id:
+            continue
+        traces.setdefault(attempt_id, []).append(payload)
+    return traces
+
+
+def _attempt_contracts(attempt: Any) -> set[str]:
+    return {
+        str(contract).strip()
+        for contract in getattr(attempt, "verification_contract", []) or []
+        if str(contract).strip()
+    }
+
+
+def _is_chat_tool_attempt(attempt: Any) -> bool:
+    return str(getattr(attempt, "event_family", "")).strip() in _CHAT_TOOL_FAMILIES
+
+
+def _is_harness_attempt(attempt: Any) -> bool:
+    return str(getattr(attempt, "executor_action", "")).startswith("harness:") or (
+        "automation_trace" in _attempt_contracts(attempt)
+    )
+
+
+def _official_unresolved_chat_tool_attempts(report: Any) -> list[Any]:
+    return [
+        attempt
+        for attempt in getattr(report, "event_attempts", []) or []
+        if getattr(attempt, "official", False)
+        and _is_chat_tool_attempt(attempt)
+        and str(getattr(attempt, "status", "")).strip() != "verified"
+    ]
+
+
+def _attempt_has_harness_completion_trace(
+    attempt: Any,
+    harness_traces: dict[str, list[dict[str, Any]]],
+) -> bool:
+    attempt_id = str(getattr(attempt, "attempt_id", "")).strip()
+    if not attempt_id:
+        return False
+    return any(
+        str(item.get("phase", "")).strip() in {"complete", "failed"}
+        for item in harness_traces.get(attempt_id, [])
+    )
+
+
+def _activation_exact_matches(
+    activation_event: str,
+    family: str,
+    target_activation_events: list[str],
+) -> list[str]:
+    if activation_event:
+        return [
+            event for event in target_activation_events if event == activation_event
+        ]
+    if family:
+        return [event for event in target_activation_events if event == family]
+    return []
+
+
+def _activation_prefix_matches(
+    activation_event: str,
+    family: str,
+    target_activation_events: list[str],
+) -> list[str]:
+    if activation_event:
+        return [
+            event
+            for event in target_activation_events
+            if event == activation_event or event.startswith(f"{activation_event}:")
+        ]
+    if family:
+        return [
+            event
+            for event in target_activation_events
+            if event == family or event.startswith(f"{family}:")
+        ]
+    return []
+
+
+def _unique_evidence_items(existing: list[str], additions: list[str]) -> list[str]:
+    return [item for item in additions if item and item not in existing]
+
+
+def _mark_unverified_harness_attempt(
+    attempt: Any,
+    *,
+    execution_closed: bool,
+) -> None:
+    attempt.status = "attempted_only"
+    attempt.verification_status = "attempted_only"
+    if execution_closed:
+        detail = (
+            "Harness stimulus executed but target verification remained unresolved."
+        )
+    else:
+        detail = "Harness stimulus execution could not be confirmed through extension-host markers."
+    if not str(getattr(attempt, "failure_reason_code", "")).strip():
+        attempt.failure_reason_code = "harness_verification_unconfirmed"
+    if not str(getattr(attempt, "result_details", "")).strip():
+        attempt.result_details = detail
+
+
+def _mark_attempt_verified(
+    attempt: Any,
+    *,
+    activation_matches: list[str],
+    runtime_capability_evidence: list[str],
+    execution_closed: bool,
+) -> None:
+    attempt.status = "verified"
+    attempt.verification_status = "verified"
+    if activation_matches:
+        attempt.evidence.extend(
+            _unique_evidence_items(attempt.evidence, activation_matches)
+        )
+    if runtime_capability_evidence:
+        attempt.evidence.extend(
+            _unique_evidence_items(
+                attempt.evidence,
+                [
+                    f"capability:{capability}"
+                    for capability in runtime_capability_evidence
+                ],
+            )
+        )
+    if execution_closed:
+        harness_item = f"harness_trace:{getattr(attempt, 'attempt_id', '')}"
+        attempt.evidence.extend(
+            _unique_evidence_items(attempt.evidence, [harness_item])
+        )
+
+
 def reconcile_event_attempts(report: Any) -> list[Any]:
     attempts = list(getattr(report, "event_attempts", []))
     if not attempts:
@@ -191,27 +349,17 @@ def reconcile_event_attempts(report: Any) -> list[Any]:
         if str(getattr(entry, "activation_event", "")).strip()
     ]
     derived_verified_capabilities = set(derive_verified_capabilities(report))
+    harness_traces = _harness_trace_records_by_attempt(report)
 
     for attempt in attempts:
         activation_event = str(getattr(attempt, "activation_event", "")).strip()
         family = str(getattr(attempt, "event_family", "")).strip()
+        contracts = _attempt_contracts(attempt)
         if getattr(attempt, "status", "") == "failed":
             attempt.verification_status = "failed"
             continue
         if getattr(attempt, "status", "") == "blocked":
             attempt.verification_status = "blocked"
-            continue
-
-        exact_match = activation_event in target_activation_events
-        family_prefix_match = any(
-            event == family or event.startswith(f"{family}:")
-            for event in target_activation_events
-        )
-        if exact_match or family_prefix_match:
-            attempt.status = "verified"
-            attempt.verification_status = "verified"
-            if activation_event and activation_event not in attempt.evidence:
-                attempt.evidence.append(activation_event)
             continue
 
         attempted_passes = list(getattr(attempt, "attempted_passes", []) or [])
@@ -220,33 +368,89 @@ def reconcile_event_attempts(report: Any) -> list[Any]:
             for tag in getattr(attempt, "capability_tags", []) or []
             if str(tag).strip()
         }
-        if attempted_passes and capability_tags & derived_verified_capabilities:
-            attempt.status = "verified"
-            attempt.verification_status = "verified"
-            capability_evidence = sorted(
-                capability_tags & derived_verified_capabilities
-            )
-            if capability_evidence:
-                attempt.evidence.extend(
-                    item
-                    for item in [
-                        f"capability:{capability}" for capability in capability_evidence
-                    ]
-                    if item not in attempt.evidence
+        exact_matches = _activation_exact_matches(
+            activation_event,
+            family,
+            target_activation_events,
+        )
+        prefix_matches = _activation_prefix_matches(
+            activation_event,
+            family,
+            target_activation_events,
+        )
+        runtime_capability_evidence = sorted(
+            capability_tags & derived_verified_capabilities
+        )
+        execution_closed = _attempt_has_harness_completion_trace(
+            attempt,
+            harness_traces,
+        )
+
+        if not contracts:
+            target_reaction_closed = bool(exact_matches or prefix_matches)
+            if not target_reaction_closed and attempted_passes:
+                target_reaction_closed = bool(runtime_capability_evidence)
+            if target_reaction_closed:
+                _mark_attempt_verified(
+                    attempt,
+                    activation_matches=exact_matches or prefix_matches,
+                    runtime_capability_evidence=runtime_capability_evidence,
+                    execution_closed=False,
                 )
-            continue
+                continue
+        else:
+            execution_required = "automation_trace" in contracts
+            target_reaction_required = bool(
+                contracts
+                & {
+                    "activation_log_exact",
+                    "activation_log_prefix",
+                    "target_runtime_delta",
+                }
+            )
+            target_reaction_closed = False
+            activation_matches: list[str] = []
+
+            if "activation_log_exact" in contracts and exact_matches:
+                activation_matches = exact_matches
+                target_reaction_closed = True
+            if (
+                not target_reaction_closed
+                and "activation_log_prefix" in contracts
+                and prefix_matches
+            ):
+                activation_matches = prefix_matches
+                target_reaction_closed = True
+            if (
+                not target_reaction_closed
+                and "target_runtime_delta" in contracts
+                and attempted_passes
+                and runtime_capability_evidence
+            ):
+                target_reaction_closed = True
+
+            if (not execution_required or execution_closed) and (
+                not target_reaction_required or target_reaction_closed
+            ):
+                _mark_attempt_verified(
+                    attempt,
+                    activation_matches=activation_matches,
+                    runtime_capability_evidence=runtime_capability_evidence,
+                    execution_closed=execution_required and execution_closed,
+                )
+                continue
 
         if getattr(attempt, "status", "") in {"running", "planned", "attempted_only"}:
-            if attempted_passes:
-                attempt.status = "attempted_only"
-                attempt.verification_status = "attempted_only"
-                if (
-                    str(getattr(attempt, "executor_action", "")).startswith("harness:")
-                    and not str(getattr(attempt, "failure_reason_code", "")).strip()
-                ):
-                    attempt.failure_reason_code = "harness_verification_unconfirmed"
-                    if not str(getattr(attempt, "result_details", "")).strip():
-                        attempt.result_details = "Harness stimulus executed but target verification remained unresolved."
+            attempted_evidence = bool(attempted_passes or execution_closed)
+            if attempted_evidence:
+                if _is_harness_attempt(attempt):
+                    _mark_unverified_harness_attempt(
+                        attempt,
+                        execution_closed=execution_closed,
+                    )
+                else:
+                    attempt.status = "attempted_only"
+                    attempt.verification_status = "attempted_only"
             elif getattr(attempt, "blocked_reason_code", ""):
                 attempt.status = "blocked"
                 attempt.verification_status = "blocked"
@@ -433,6 +637,7 @@ def build_automation_health(
     failed_scenarios = sorted(set(getattr(report, "failed_scenarios", [])))
     extra_trigger_failures = sorted(set(getattr(report, "extra_trigger_failures", [])))
     strong_target_attribution = has_strong_target_attribution(report)
+    unresolved_chat_tool_attempts = _official_unresolved_chat_tool_attempts(report)
     reasons: list[str] = []
 
     if not target_extension_id:
@@ -463,6 +668,8 @@ def build_automation_health(
         reasons.append("ui_blockers_present")
     if getattr(report, "verification_gap", 0) > 0:
         reasons.append("verification_gap_present")
+    if unresolved_chat_tool_attempts:
+        reasons.append("chat_tool_verification_incomplete")
     if (
         not target_stream_present
         and target_activation_count <= 0
@@ -491,6 +698,7 @@ def build_automation_health(
         or extra_trigger_failures
         or getattr(report, "ui_blocker_entries", [])
         or getattr(report, "verification_gap", 0) > 0
+        or unresolved_chat_tool_attempts
     ):
         status = "degraded"
     else:
@@ -526,12 +734,15 @@ def build_run_quality(
     status = health.get("status", "inconclusive")
     official_event_coverage = getattr(report, "official_event_coverage", {}) or {}
     official_unresolved = int(official_event_coverage.get("unresolved", 0) or 0)
+    unresolved_chat_tool_attempts = _official_unresolved_chat_tool_attempts(report)
 
     if status == "inconclusive":
         return "inconclusive", reasons
     if status == "degraded":
         if (
-            "trigger_plan_not_loaded" in health.get("reasons", [])
+            unresolved_chat_tool_attempts
+            or "chat_tool_verification_incomplete" in health.get("reasons", [])
+            or "trigger_plan_not_loaded" in health.get("reasons", [])
             or "trigger_plan_not_applied" in health.get("reasons", [])
             or "scenario_failures_present" in health.get("reasons", [])
             or "extension_host_log_missing" in health.get("reasons", [])

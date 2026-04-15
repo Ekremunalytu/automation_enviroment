@@ -10,6 +10,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from appcore.api.config import settings
+from packages.analysis_contracts import activation_report_invariant_issues
 
 _PUBLISHER = "ms-python"
 _NAME = "python"
@@ -115,7 +116,61 @@ def test_ms_python_analysis_smoke(client: TestClient) -> None:
         for entry in report.get("activated", [])
     )
     assert report["log_streams"]["target_extension_host"]
+    assert activation_report_invariant_issues(report) == []
     assert report["summary"]["scenarios_run"] == [_SMOKE_SCENARIO]
+
+
+@pytest.mark.smoke
+@pytest.mark.integration
+@pytest.mark.slow
+def test_ms_python_layered_analysis_smoke_never_reads_as_clean_when_chat_tool_verification_is_open(
+    client: TestClient,
+) -> None:
+    _require_executor_container()
+    version, _vsix_path, extracted_dir = _resolve_ms_python_fixture()
+    assert extracted_dir.exists()
+
+    download_response = client.post(
+        "/api/marketplace/download",
+        json={"publisher": _PUBLISHER, "name": _NAME, "version": version},
+    )
+    assert download_response.status_code == 200
+
+    start_response = client.post(
+        "/api/marketplace/analyze/start",
+        json={
+            "publisher": _PUBLISHER,
+            "name": _NAME,
+            "version": version,
+        },
+    )
+    assert start_response.status_code == 202
+    job = start_response.json()
+    completed_job = _poll_job(client, str(job["job_id"]))
+
+    assert completed_job["status"] == "completed", completed_job.get("error_detail")
+    report_name = str(completed_job["report_path"])
+    report_response = client.get(f"/api/activations/{report_name}")
+    assert report_response.status_code == 200
+    report = report_response.json()
+
+    assert report["trigger_execution_mode"] == "layered_passes"
+    assert activation_report_invariant_issues(report) == []
+
+    chat_tool_attempts = [
+        item
+        for item in report.get("event_attempts", [])
+        if item.get("official")
+        and item.get("event_family") in {"onChatParticipant", "onLanguageModelTool"}
+    ]
+    assert chat_tool_attempts
+
+    unresolved_chat_tool_attempts = [
+        item for item in chat_tool_attempts if item.get("status") != "verified"
+    ]
+    if unresolved_chat_tool_attempts:
+        assert report["automation_health"]["status"] != "healthy"
+        assert report["run_quality"] == "low"
 
 
 @pytest.mark.smoke

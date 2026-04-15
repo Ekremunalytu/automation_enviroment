@@ -34,6 +34,9 @@ Turn one of these notes into a committed plan only after:
 - Week 4A now owns layered-pass reporting alignment, runtime verification
   hardening for degraded and attempted-only runs, and chat/tooling verification
   closure for `onChatParticipant` and `onLanguageModelTool`
+- that Week 4A work was revalidated on `2026-04-15` with a passing fast test
+  lane and a passing `ms-python.python` layered smoke run after reload/reconnect
+  hardening in the executor
 - keep this note only as historical context for why Week 4A exists; do not
   treat it as a separate Week 5+ candidate unless it is explicitly descoped
   from the execution plan

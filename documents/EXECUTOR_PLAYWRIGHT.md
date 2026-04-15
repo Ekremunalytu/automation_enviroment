@@ -91,6 +91,14 @@ Current timeout model in `executor/host.py`:
 Non-zero automation exit codes are tolerated when a report may still have been
 written; install and reset failures are not.
 
+Container-side Playwright code is baked into the executor image via
+`executor/container/Dockerfile`. After changing `executor/flows/` or the
+container-visible `packages/` code copied into the image, rebuild with:
+
+```bash
+docker compose up -d --build executor
+```
+
 ## Analysis Execution Phases
 
 The marketplace workflow currently drives the executor in this order:
@@ -166,6 +174,19 @@ The executor deletes the trigger JSON after loading it.
   - focused UI interaction helpers
 - `reload_vscode.py`, `reset_state.py`
   - sandbox cleanup and reload scripts invoked from the host wrapper
+
+## Reload And Reconnect Behavior
+
+- `commands.run_reload_window_command()` dispatches `Developer: Reload Window`
+  without waiting for the original quick-input widget to finish tearing down.
+- `vscode.py` owns CDP page discovery and `reconnect_to_workbench()`, which
+  polls for a ready VS Code workbench page before and after reload.
+- the reconnect helper is designed to survive transient post-reload CDP states
+  such as detached pages, `chrome-error://chromewebdata/`, and temporary
+  DevTools-only page lists.
+- both `entrypoint.py` and `reload_vscode.py` use this reconnect path so
+  layered trigger runs do not fail closed just because the first post-reload
+  page snapshot is incomplete.
 
 ## Entrypoint Flags
 

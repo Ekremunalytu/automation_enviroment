@@ -59,9 +59,13 @@ even though some of them now have partial scaffolding elsewhere in the repo:
   - trigger event strategies exist for `onChatParticipant` and
     `onLanguageModelTool`, and monitor-side verification can recognize chat
     activations, but the support matrix still marks chat as missing.
-  - Week 4A in `REFACTOR_EXECUTION_PLAN.md` now treats chat/tooling
-    verification closure as the near-term runtime cleanup bucket for this gap;
-    the capability stays `missing` here until that work lands.
+  - Week 4A runtime/reporting work landed: unresolved official chat/tool
+    attempts now degrade `automation_health`, cap `run_quality` to `low`, and
+    preserve `harness_verification_unconfirmed` when harness execution closes
+    without target verification.
+  - the capability still stays `missing` here because planner/support-matrix
+    policy has not promoted chat into a covered official capability; runtime
+    verification closure alone does not change that matrix status.
 - `comments`
   - the harness extension exposes a local comment-controller surface, but
     trigger planning and coverage accounting do not yet treat comments as
@@ -176,9 +180,9 @@ even though some of them now have partial scaffolding elsewhere in the repo:
 
 ## Next Candidate Expansions After Week 4A
 
-Reporting-semantics cleanup and chat/tooling verification closure now live in
-Week 4A of `REFACTOR_EXECUTION_PLAN.md`. The remaining items below stay outside
-that phase.
+Reporting-semantics cleanup and chat/tooling runtime verification closure were
+completed in Week 4A of `REFACTOR_EXECUTION_PLAN.md`. The remaining items below
+stay outside that phase.
 
 - `comments`
   - promote harness comment-thread support into trigger planning and report

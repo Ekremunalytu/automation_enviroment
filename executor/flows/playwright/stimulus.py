@@ -163,6 +163,7 @@ def run_stimulus_plan(
                     action=action,
                     trigger_method=trigger_method,
                     result=result,
+                    monitor=monitor,
                 )
                 if execution_key:
                     execution_records[execution_key] = AttemptExecutionRecord(
@@ -217,18 +218,17 @@ def _execute_attempt(
     action: str,
     trigger_method: str,
     result: StimulusExecutionResult,
+    monitor: Any | None,
 ) -> None:
     if action.startswith("scenario:"):
         scenario_name = action.split(":", maxsplit=1)[1]
-        if scenario_name == "coding_session":
-            language_id = _resolve_language_id(attempt)
-            if language_id:
-                automation.scenario_coding_session(page, language=language_id)
-            else:
-                automation.run_scenario(page, scenario_name)
-        else:
-            automation.run_scenario(page, scenario_name)
-        result.executed_scenarios.append(scenario_name)
+        _run_layered_scenario(
+            page,
+            scenario_name,
+            attempt=attempt,
+            result=result,
+            monitor=monitor,
+        )
         return
     if action == "command:auto":
         command_text = _resolve_command_text(payload, attempt)
@@ -236,8 +236,13 @@ def _execute_attempt(
             commands.run_command(page, command_text)
             page.wait_for_timeout(1200)
             return
-        automation.run_scenario(page, "coding_session")
-        result.executed_scenarios.append("coding_session")
+        _run_layered_scenario(
+            page,
+            "coding_session",
+            attempt=attempt,
+            result=result,
+            monitor=monitor,
+        )
         return
     if action.startswith("command:"):
         commands.run_command(page, action.split(":", maxsplit=1)[1])
@@ -283,6 +288,76 @@ def _execute_attempt(
         page.wait_for_timeout(1500)
         return
     raise ValueError(f"Unsupported stimulus action: {action}")
+
+
+def _run_layered_scenario(
+    page: Page,
+    scenario_name: str,
+    *,
+    attempt: dict[str, Any],
+    result: StimulusExecutionResult,
+    monitor: Any | None,
+) -> None:
+    language_id = (
+        _resolve_language_id(attempt) if scenario_name == "coding_session" else ""
+    )
+    emits_through_automation = not (scenario_name == "coding_session" and language_id)
+    should_report_directly = monitor is not None and (
+        not emits_through_automation
+        or getattr(automation, "_SCENARIO_EVENT_REPORTER", None) is None
+    )
+
+    if should_report_directly and monitor is not None:
+        monitor.record_scenario_event(
+            "start",
+            scenario_name,
+            "",
+            _scenario_metadata_for_reporting(scenario_name),
+        )
+
+    try:
+        if scenario_name == "coding_session" and language_id:
+            automation.scenario_coding_session(page, language=language_id)
+        else:
+            automation.run_scenario(page, scenario_name)
+    except (PlaywrightError, RuntimeError, ValueError) as exc:
+        if scenario_name not in result.failed_scenarios:
+            result.failed_scenarios.append(scenario_name)
+        if should_report_directly and monitor is not None:
+            monitor.record_scenario_event(
+                "end",
+                scenario_name,
+                "failed",
+                _scenario_metadata_for_reporting(scenario_name, error=str(exc)),
+            )
+        raise
+
+    result.executed_scenarios.append(scenario_name)
+    if should_report_directly and monitor is not None:
+        monitor.record_scenario_event(
+            "end",
+            scenario_name,
+            "completed",
+            _scenario_metadata_for_reporting(scenario_name),
+        )
+
+
+def _scenario_metadata_for_reporting(
+    scenario_name: str,
+    *,
+    error: str = "",
+) -> dict[str, Any]:
+    metadata = next(
+        (
+            dict(item)
+            for item in automation.get_scenario_registry()
+            if str(item.get("name", "")).strip() == scenario_name
+        ),
+        {"name": scenario_name},
+    )
+    if error:
+        metadata["error"] = error
+    return metadata
 
 
 def _dedupe_execution_key(
@@ -980,6 +1055,7 @@ def _write_harness_context(
 ) -> None:
     _HARNESS_CONTEXT_DIR.mkdir(parents=True, exist_ok=True)
     data = {
+        "attempt_id": str(attempt.get("attempt_id", "")),
         "attempt": attempt,
         "trigger_method": trigger_method,
         "resolved_targets": _resolve_attempt_targets(payload, attempt),

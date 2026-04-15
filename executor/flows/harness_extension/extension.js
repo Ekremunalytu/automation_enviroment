@@ -90,9 +90,35 @@ function activate(context) {
       const payload = await readHarnessContext();
       const attempt = payload.attempt || {};
       const family = String(attempt.event_family || attempt.activation_event || "");
+      const attemptId = String(payload.attempt_id || attempt.attempt_id || "");
+
+      emitHarnessMarker("start", {
+        attempt_id: attemptId,
+        family,
+        activation_event: String(attempt.activation_event || ""),
+        event_value: String(attempt.event_value || ""),
+      });
       console.log(`[extrace-harness] running ${family}`);
-      await ensureCommentThread(commentController);
-      await dispatchStimulus(payload);
+      try {
+        await ensureCommentThread(commentController);
+        await dispatchStimulus(payload);
+        emitHarnessMarker("complete", {
+          attempt_id: attemptId,
+          family,
+          activation_event: String(attempt.activation_event || ""),
+          event_value: String(attempt.event_value || ""),
+        });
+      } catch (error) {
+        emitHarnessMarker("failed", {
+          attempt_id: attemptId,
+          family,
+          activation_event: String(attempt.activation_event || ""),
+          event_value: String(attempt.event_value || ""),
+          error:
+            error instanceof Error ? error.message : String(error || "unknown"),
+        });
+        throw error;
+      }
     }
   );
 
@@ -277,6 +303,16 @@ async function readHarnessContext() {
   } catch {
     return {};
   }
+}
+
+function emitHarnessMarker(phase, details) {
+  console.log(
+    `[extrace-harness] ${JSON.stringify({
+      kind: "stimulus",
+      phase,
+      ...details,
+    })}`
+  );
 }
 
 async function revealContributedView(payload, viewId) {
