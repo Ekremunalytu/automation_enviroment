@@ -1,10 +1,13 @@
 # Executor Playwright Architecture
 
-`Last Updated: 2026-04-14`
+`Last Updated: 2026-04-15`
 
 The executor is ExTrace's dynamic-analysis sandbox. It runs a full VS Code GUI
 session inside Docker, drives that session with Playwright, and exports
 artifact-first analysis results into `output/`.
+
+Open this only when changing executor/container/Playwright behavior or the API
+integration points that drive it.
 
 This runtime still assumes:
 

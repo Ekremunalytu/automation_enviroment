@@ -1,76 +1,85 @@
 # CLAUDE.md
 
-This repository now uses a canonical `appcore/` + `workflows/` architecture. Prefer those paths over the legacy compatibility wrappers.
+Read `AGENTS.md` first. It is the authoritative source for architecture and safety rules.
 
-## Summary
+## Scope First
 
-ExTrace catalogs VS Code extensions, downloads Marketplace artifacts, and runs executor-backed sandbox analysis. The main runtime surfaces are:
+- Do not load the whole repo.
+- Pick one lane and stay inside it until you have enough evidence.
+- Open the matching tests early.
+- Ignore `extensions/`, `output/`, `node_modules/`, `legacy_ui/`, and `__pycache__/` unless the task explicitly depends on them.
 
-- FastAPI API in `main.py`
-- shared platform modules in `appcore/`
-- business workflows in `workflows/`
-- sandbox runtime in `executor/`
-- Vite + React + Tailwind UI in `ui/`
+## Start Files By Task
 
-## Commands
+- Platform/config:
+  - `main.py`
+  - `appcore/api/config.py`
+  - `appcore/api/deps.py`
+  - `appcore/db/session.py`
+  - `tests/platform/`
+- Catalog/API:
+  - `workflows/extension_catalog/router.py`
+  - `workflows/extension_catalog/service.py`
+  - `appcore/contracts/schemas.py`
+  - `appcore/storage/crud.py`
+  - `tests/workflows/extension_catalog/`
+- Activation reports:
+  - `workflows/activation_reports/router.py`
+  - `tests/workflows/activation_reports/test_router.py`
+- Marketplace/analysis:
+  - `workflows/marketplace/router.py`
+  - `workflows/marketplace/client.py`
+  - `workflows/marketplace/analysis_service.py`
+  - `workflows/marketplace/trigger_service.py`
+  - `tests/workflows/marketplace/`
+- Executor:
+  - `executor/host.py`
+  - `executor/flows/playwright/`
+  - `tests/executor/`
+- UI:
+  - `ui/src/app/`
+  - relevant `ui/src/features/`
+  - `ui/src/lib/api/`
+  - colocated `*.test.ts(x)`
+
+## Canonical Layout
+
+- Shared platform: `appcore/`
+- Business workflows: `workflows/`
+- Sandbox runtime: `executor/`
+- Analyst UI: `ui/`
+- Tests: `tests/`
+
+Top-level legacy directories such as `routers/`, `scanner/`, `core/`, `database/`, `crud/`, `models/`, and `schemas/` are not the place for new logic.
+
+## Hard Rules
+
+- Preserve `(publisher, name, version)` uniqueness.
+- Route DB writes through `appcore/storage/crud.py`.
+- Validate with Pydantic before insert.
+- Use SQLAlchemy 2.0 and Pydantic v2 only.
+- Add Alembic migration for schema changes.
+- Keep sandbox execution inside Docker.
+- Do not add dependencies without explicit approval.
+
+## Verified Runtime Surfaces
+
+- `main.py` includes only:
+  - `workflows.extension_catalog.router`
+  - `workflows.activation_reports.router`
+  - `workflows.marketplace.router`
+- Root/catalog endpoints remain on root paths.
+- Activation reports live under `/api/activations`.
+- Marketplace endpoints live under `/api/marketplace`.
+
+## Useful Commands
 
 ```bash
-make install-dev
-make up
-make migrate
 make dev
 make test-local
 make check-all
+make migrate
 make exec-up
 make exec-run
 make ui-up
 ```
-
-## Canonical Paths
-
-- `appcore/api/config.py`
-- `appcore/api/deps.py`
-- `appcore/db/session.py`
-- `appcore/storage/models.py`
-- `appcore/storage/crud.py`
-- `appcore/contracts/schemas.py`
-- `workflows/extension_catalog/`
-- `workflows/activation_reports/`
-- `workflows/marketplace/`
-- `executor/container/`
-- `executor/flows/playwright/`
-- `ui/src/app/`
-- `ui/src/features/`
-- `ui/src/lib/`
-
-## Compatibility Paths
-
-These still exist but are transitional:
-
-- `routers/`
-- `scanner/`
-- `core/`
-- `database/`
-- `crud/`
-- `models/`
-- `schemas/`
-
-Do not add new business logic to those wrappers.
-
-## Key Rules
-
-- Preserve the `(publisher, name, version)` uniqueness rule.
-- Use SQLAlchemy 2.0 style only.
-- Use Pydantic v2 methods only.
-- Route all DB writes through CRUD.
-- Keep sandbox execution inside Docker.
-
-## Tests
-
-Test layout mirrors the refactor:
-
-- `tests/platform/`
-- `tests/workflows/`
-- `tests/executor/`
-
-Compatibility exports are verified by `tests/platform/test_compat_wrappers.py`.

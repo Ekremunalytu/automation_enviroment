@@ -1,6 +1,6 @@
 # Project Structure
 
-`Last Updated: 2026-04-14`
+`Last Updated: 2026-04-15`
 
 This is the current top-level layout and placement guidance for the refactored
 repository.
@@ -101,6 +101,13 @@ ui/
   README.md
 ```
 
+Notes:
+
+- The routed analyst surfaces are `/marketplace`, `/simulation`, and `/reports`.
+- Evidence, inspector, and rule-draft behavior is largely composed from
+  `ui/src/components/evidence/` plus adapters and draft helpers in
+  `ui/src/lib/`.
+
 ## Executor Layout
 
 ```text
@@ -147,6 +154,13 @@ tests/
   conftest.py
   test_health.py
   executor/
+    test_playwright_automation.py
+    test_playwright_commands.py
+    test_playwright_entrypoint.py
+    test_playwright_monitor.py
+    test_playwright_stimulus.py
+    test_reset_state.py
+    test_workspace.py
   platform/
     api/
     contracts/

@@ -1,12 +1,10 @@
 # Pipeline Roadmap
 
-`Last Updated: 2026-04-14`
+`Last Updated: 2026-04-15`
 
-This roadmap reflects the current pipeline after the refactor and the first
-pass of trigger planning, report health, risk signals, and verdict output.
-
-The roadmap still assumes a single-user sandbox appliance, not a distributed
-analysis platform.
+This is the short staged view of the analysis pipeline. For the current backlog,
+use `automation_todo.md`; for active priorities, use
+`DEVELOPMENT_PRIORITIES.md`.
 
 ## Current Pipeline
 
@@ -23,40 +21,30 @@ flowchart LR
     MON --> REPORT["`output/activation_report_*.json`"]
 ```
 
-## Phase A: Tighten Runtime Truthfulness
+## Next Phases
 
-- keep reset/install/reload failures explicit
-- ensure missing or unapplied trigger payloads do not look benign
-- make interrupted jobs obvious after API restarts
-- define retention and cleanup expectations for job snapshots and reports
+### Phase A: Runtime Truthfulness
 
-## Phase B: Close Coverage Gaps
+- keep failure states explicit
+- keep interrupted jobs obvious
+- keep artifact retention intentional
 
-- keep official activation coverage and heuristic workflow coverage separate
-- close missing support for `chat`, `comments`, `testing`, and
-  `workspace_trust`
-- improve official-track verification for `scm` and `settings`
-- keep per-event attempt ledgers readable for analysts
+### Phase B: Coverage Closure
 
-## Phase C: Stabilize the Report Contract
+- close official-track gaps for `scm` and `settings`
+- decide how partial scaffolding for `chat`, `comments`, `testing`, and
+  `workspace_trust` should evolve
 
-- preserve stable JSON fields for the React adapters
+### Phase C: Report Stability
+
+- keep JSON fields stable for the UI
 - refine degraded vs inconclusive semantics
-- keep attribution summary, risk summary, and verdict reasons aligned
-- version the report contract deliberately as semantics evolve
-
-## Phase D: Calibrate Analyst Signal Quality
-
-- tune risk scoring and verdict thresholds against real fixtures
-- improve operator guidance when a run is degraded or interrupted
-- keep live simulation and final report views consistent
+- keep verdict and attribution signals aligned
 
 ## Design Constraints
 
-- workflow orchestration belongs in `workflows/marketplace/`
-- shared contracts and catalog persistence belong in `appcore/`
-- sandbox mechanics belong in `executor/`
+- orchestration stays in `workflows/marketplace/`
+- shared contracts and persistence stay in `appcore/`
+- sandbox mechanics stay in `executor/`
 - dynamic-analysis persistence remains artifact-first unless product needs
-  justify more structure
-- do not assume queue workers, tenancy, or distributed ownership without an
-  explicit product change
+  change

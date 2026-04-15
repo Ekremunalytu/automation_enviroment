@@ -1,9 +1,12 @@
 # VS Code API Coverage Audit
 
-`Last Updated: 2026-04-14`
+`Last Updated: 2026-04-15`
 
 This document summarizes how ExTrace currently maps VS Code extension behavior
 into trigger planning and verification.
+
+Open this only when changing trigger selection, capability support, coverage
+matrix logic, or related report semantics.
 
 The important distinction in the current implementation is:
 
@@ -46,14 +49,26 @@ coverage track still marks them incomplete:
   - `settings_modification` exists, but the official track still treats this as
     missing for coverage accounting.
 
-### Missing
+### Still Marked Missing In The Support Matrix
 
-These remain explicitly missing in the current support matrix:
+These capabilities are still marked `missing` in the current support matrix,
+even though some of them now have partial scaffolding elsewhere in the repo:
 
 - `chat`
+  - trigger event strategies exist for `onChatParticipant` and
+    `onLanguageModelTool`, and monitor-side verification can recognize chat
+    activations, but the support matrix still marks chat as missing.
 - `comments`
+  - the harness extension exposes a local comment-controller surface, but
+    trigger planning and coverage accounting do not yet treat comments as
+    covered.
 - `testing`
+  - the harness extension exposes a local test controller, but trigger planning
+    and coverage accounting do not yet treat testing as covered.
 - `workspace_trust`
+  - capability metadata is ingested from manifests and can influence attempted
+    capability selection, but the support matrix still marks workspace trust as
+    missing.
 
 ## Scenario Registry
 
@@ -149,7 +164,8 @@ These remain explicitly missing in the current support matrix:
 - Official activation coverage and heuristic workflow coverage are both present,
   but they can still drift if they are summarized as one flat capability list.
 - `chat`, `comments`, `testing`, and `workspace_trust` remain missing in the
-  support matrix even though the trigger taxonomy already names them.
+  support matrix even though the repo now contains partial scaffolding for some
+  of them.
 - Command and UI launch coverage is stronger than result verification; some
   flows still prove stimulation better than they prove extension-specific
   follow-through.
@@ -157,11 +173,15 @@ These remain explicitly missing in the current support matrix:
 ## Next Candidate Expansions
 
 - `chat`
-  - local-only participant and language-model tool stimulation
+  - close the gap between existing chat event scaffolding and support-matrix
+    coverage
 - `comments`
-  - comment controller/thread surfaces inside the sandbox
+  - promote harness comment-thread support into trigger planning and report
+    accounting
 - `testing`
-  - test explorer plus run/debug test flows
+  - promote harness test-controller support into trigger planning and report
+    accounting
 - `workspace_trust`
-  - trust prompt detection and trust-state transitions
+  - promote manifest capability metadata into a real trust-state execution and
+    verification path
 - official-track closure for `scm` and `settings`

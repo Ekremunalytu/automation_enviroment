@@ -1,9 +1,13 @@
 # ExTrace Architecture
 
-`Last Updated: 2026-04-14`
+`Last Updated: 2026-04-15`
 
 This document reflects the current codebase shape in `main.py`, `appcore/`,
 `workflows/`, `executor/`, and `ui/`.
+
+Open this for system shape and request-flow questions. For placement rules use
+`PROJECT_STRUCTURE.md`; for executor or report internals, open the specialized
+docs only if the task reaches those layers.
 
 ## Product Assumptions
 

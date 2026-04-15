@@ -1,6 +1,6 @@
 # ExTrace
 
-`Last Updated: 2026-04-13`
+`Last Updated: 2026-04-15`
 
 ExTrace is a VS Code extension analysis platform built around three runtime surfaces:
 
@@ -59,7 +59,7 @@ The repository now uses canonical imports only:
 
 1. `workflows.extension_catalog.router`
 2. `workflows.extension_catalog.service`
-3. `workflows.extension_catalog.package_parser`
+3. `workflows.extension_catalog.manifest_reader` + `workflows.extension_catalog.manifest_parser`
 4. `appcore.contracts.schemas`
 5. `appcore.storage.crud`
 6. PostgreSQL
@@ -167,6 +167,8 @@ tests/
   platform/                Shared platform tests
   workflows/               Workflow tests
   executor/                Playwright runtime tests
+  scanner/                 Docker exec wrapper tests
+  smoke/                   End-to-end marketplace analysis tests
   ui tests live under ui/src/**/*.test.ts(x)
 documents/                  Architecture, roadmap, and testing notes
 docs/                       Targeted risk notes
@@ -174,6 +176,8 @@ docs/                       Targeted risk notes
 
 ## Documentation Index
 
+- `documents/AGENT_CONTEXT.md`: one-page thin-context map for coding agents after `AGENTS.md`
+- `documents/README.md`: context-light guide for choosing which project docs to load first
 - `documents/ARCHITECTURE.md`: canonical architecture and boundaries
 - `documents/DETECTION_SEMANTICS.md`: meaning and calculation rules for Detection MVP report fields
 - `documents/PROJECT_STRUCTURE.md`: placement rules after the refactor

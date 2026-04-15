@@ -1,6 +1,6 @@
 # Testing Guide
 
-`Last Updated: 2026-04-14`
+`Last Updated: 2026-04-15`
 
 The test suite mirrors the refactored architecture: platform tests validate
 shared `appcore/` code, workflow tests validate business slices, executor tests
@@ -16,8 +16,10 @@ tests/
   executor/
     conftest.py
     test_playwright_automation.py
+    test_playwright_commands.py
     test_playwright_entrypoint.py
     test_playwright_monitor.py
+    test_playwright_stimulus.py
     test_reset_state.py
     test_workspace.py
   platform/
@@ -50,6 +52,12 @@ UI tests live in:
 
 ```text
 ui/src/**/*.test.ts(x)
+```
+
+UI smoke coverage currently lives in:
+
+```text
+ui/smoke/
 ```
 
 ## Database Strategy
@@ -93,6 +101,7 @@ Notes:
 - `make test-local` starts `postgres_test` and then runs the Python suite.
 - `make test-ci` also builds and waits for the executor container so the smoke
   path can run.
+- `npm run test:smoke` maps to `ui/smoke/run-smoke.mjs`.
 
 ## Smoke Acceptance
 

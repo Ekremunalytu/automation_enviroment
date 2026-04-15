@@ -1,10 +1,13 @@
 # Detection Semantics
 
-`Last Updated: 2026-04-14`
+`Last Updated: 2026-04-15`
 
 This document defines the meaning of the current exported report contract.
 Its purpose is to keep report generation, API responses, UI adapters, and
 analyst interpretation aligned.
+
+Open this only when changing report JSON fields, UI report adapters, health or
+verdict logic, or exported evidence semantics.
 
 ## Raw Evidence Sources
 
