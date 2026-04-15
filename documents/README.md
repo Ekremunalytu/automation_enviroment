@@ -6,6 +6,10 @@ This folder is intentionally split into a small canonical core plus a few
 specialized reference docs. Do not preload the entire folder unless the task
 really spans multiple subsystems.
 
+If an older note conflicts with the current refactor direction, prefer
+`REFACTOR_EXECUTION_PLAN.md`. Use `REFACTOR_EXPANSION_NOTES.md` only as a
+deferred reference, not as a binding delivery plan.
+
 ## Agent Shortcut
 
 - `AGENT_CONTEXT.md`
@@ -41,6 +45,12 @@ These are intentionally short and should not replace the canonical docs above:
   - current product and engineering priorities
 - `PIPELINE_ROADMAP.md`
   - staged pipeline direction
+- `REFACTOR_EXECUTION_PLAN.md`
+  - binding Week 1-4 execution plan for the current refactor cycle
+- `REFACTOR_EXPANSION_NOTES.md`
+  - deferred Week 5+ candidates that are intentionally not committed yet
+- `adrs/0001-single-host-appliance.md`
+  - appliance-model decision that anchors the current refactor scope
 - `automation_todo.md`
   - actionable backlog snapshot
 - `ARCHITECTURE_AUDIT.md`

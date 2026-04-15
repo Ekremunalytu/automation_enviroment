@@ -5,11 +5,17 @@
 This is the thin-context project map for coding agents. Read root `AGENTS.md`
 for hard rules first; use this file for fast task routing.
 
+If older docs or task notes conflict with the active refactor direction, check
+`documents/REFACTOR_EXECUTION_PLAN.md` first and treat
+`documents/REFACTOR_EXPANSION_NOTES.md` as non-binding follow-on guidance.
+
 ## Read Path
 
 1. `AGENTS.md`
 2. this file
 3. only the subsystem docs the task actually touches
+4. `documents/REFACTOR_EXECUTION_PLAN.md` when the task touches ongoing
+   refactor work or document conflicts
 
 ## Core Shape
 

@@ -1,0 +1,795 @@
+{
+  "analysis_profile": "layered_deep",
+  "target_extension_id": "ms-python.python",
+  "selected_scenarios": [
+    "coding_session",
+    "project_exploration",
+    "debug_session",
+    "terminal_usage",
+    "refactor_workflow"
+  ],
+  "official_selected_scenarios": [
+    "coding_session",
+    "project_exploration",
+    "debug_session",
+    "terminal_usage",
+    "refactor_workflow"
+  ],
+  "heuristic_selected_scenarios": [],
+  "selected_scenario_details": [
+    {
+      "name": "coding_session",
+      "intent": "Exercise editor commands, language tooling, formatting, and command handlers.",
+      "activation_events": [
+        "onLanguage",
+        "onCommand"
+      ],
+      "contributes_signals": [
+        "commands",
+        "languages",
+        "keybindings",
+        "menus"
+      ],
+      "api_capabilities": [
+        "commands",
+        "window_ui",
+        "workspace_fs",
+        "languages_editor"
+      ],
+      "prerequisites": [
+        "workspace files available"
+      ],
+      "success_signals": [
+        "file open",
+        "suggest widget",
+        "format action",
+        "save action"
+      ],
+      "risk_of_noise": "medium",
+      "selection_reasons": [
+        "activation onCommand:python.copilotSetupTests",
+        "activation onLanguage:python"
+      ]
+    },
+    {
+      "name": "project_exploration",
+      "intent": "Open multiple workspace files and explorer surfaces to trigger broad language activation.",
+      "activation_events": [
+        "workspaceContains",
+        "onView:explorer",
+        "onLanguage"
+      ],
+      "contributes_signals": [
+        "languages",
+        "views"
+      ],
+      "api_capabilities": [
+        "window_ui",
+        "workspace_fs",
+        "languages_editor"
+      ],
+      "prerequisites": [
+        "workspace fixture tree available"
+      ],
+      "success_signals": [
+        "explorer focus",
+        "multi-file open"
+      ],
+      "risk_of_noise": "medium",
+      "selection_reasons": [
+        "activation onLanguage:python",
+        "activation workspaceContains:**/pylock.*.toml",
+        "activation workspaceContains:.conda",
+        "activation workspaceContains:.venv",
+        "activation workspaceContains:Pipfile",
+        "activation workspaceContains:app.py",
+        "activation workspaceContains:manage.py",
+        "activation workspaceContains:mspythonconfig.json",
+        "activation workspaceContains:pylock.toml",
+        "activation workspaceContains:pyproject.toml",
+        "activation workspaceContains:requirements.txt",
+        "activation workspaceContains:setup.py"
+      ]
+    }
+  ],
+  "selection_reasons": {
+    "coding_session": [
+      "activation onCommand:python.copilotSetupTests",
+      "activation onLanguage:python"
+    ],
+    "project_exploration": [
+      "activation onLanguage:python",
+      "activation workspaceContains:**/pylock.*.toml",
+      "activation workspaceContains:.conda",
+      "activation workspaceContains:.venv",
+      "activation workspaceContains:Pipfile",
+      "activation workspaceContains:app.py",
+      "activation workspaceContains:manage.py",
+      "activation workspaceContains:mspythonconfig.json",
+      "activation workspaceContains:pylock.toml",
+      "activation workspaceContains:pyproject.toml",
+      "activation workspaceContains:requirements.txt",
+      "activation workspaceContains:setup.py"
+    ]
+  },
+  "coverage_tracks": {
+    "official": {
+      "source": "official_activation_track",
+      "selected_scenarios": [
+        "coding_session",
+        "project_exploration",
+        "debug_session",
+        "terminal_usage",
+        "refactor_workflow"
+      ],
+      "summary": {
+        "covered": 7,
+        "partial": 5,
+        "missing": 6,
+        "covered_capabilities": [
+          "commands",
+          "window_ui",
+          "workspace_fs",
+          "languages_editor",
+          "debug",
+          "terminal_tasks",
+          "uri_walkthrough"
+        ],
+        "partial_capabilities": [
+          "search_views",
+          "notebooks",
+          "custom_editors",
+          "authentication",
+          "webview"
+        ],
+        "missing_capabilities": [
+          "scm",
+          "settings",
+          "chat",
+          "comments",
+          "testing",
+          "workspace_trust"
+        ]
+      },
+      "matrix": [
+        {
+          "capability": "commands",
+          "status": "covered",
+          "track": "official",
+          "source": "official_activation_track",
+          "support_status": "covered",
+          "selected_scenarios": [
+            "coding_session",
+            "debug_session",
+            "terminal_usage",
+            "refactor_workflow"
+          ],
+          "supported_scenarios": [
+            "coding_session",
+            "settings_modification",
+            "debug_session",
+            "terminal_usage",
+            "git_workflow",
+            "refactor_workflow",
+            "authentication_probe",
+            "webview_probe"
+          ],
+          "is_active": true,
+          "notes": "",
+          "selected": true
+        },
+        {
+          "capability": "window_ui",
+          "status": "covered",
+          "track": "official",
+          "source": "official_activation_track",
+          "support_status": "covered",
+          "selected_scenarios": [
+            "coding_session",
+            "project_exploration",
+            "debug_session"
+          ],
+          "supported_scenarios": [
+            "coding_session",
+            "project_exploration",
+            "diagnostics_check",
+            "search_workflow",
+            "settings_modification",
+            "debug_session",
+            "git_workflow",
+            "extension_browsing",
+            "notebook_session",
+            "authentication_probe",
+            "webview_probe"
+          ],
+          "is_active": true,
+          "notes": "",
+          "selected": true
+        }
+      ]
+    },
+    "heuristic": {
+      "source": "heuristic_workflow_track",
+      "selected_scenarios": [],
+      "summary": {
+        "covered": 0,
+        "partial": 14,
+        "missing": 4,
+        "covered_capabilities": [],
+        "partial_capabilities": [
+          "commands",
+          "window_ui",
+          "workspace_fs",
+          "languages_editor",
+          "debug",
+          "terminal_tasks",
+          "scm",
+          "search_views",
+          "settings",
+          "notebooks",
+          "custom_editors",
+          "uri_walkthrough",
+          "authentication",
+          "webview"
+        ],
+        "missing_capabilities": [
+          "chat",
+          "comments",
+          "testing",
+          "workspace_trust"
+        ]
+      },
+      "matrix": [
+        {
+          "capability": "commands",
+          "status": "partial",
+          "track": "heuristic",
+          "source": "heuristic_workflow_track",
+          "support_status": "covered",
+          "selected_scenarios": [],
+          "supported_scenarios": [
+            "coding_session",
+            "settings_modification",
+            "debug_session",
+            "terminal_usage",
+            "git_workflow",
+            "refactor_workflow",
+            "authentication_probe",
+            "webview_probe"
+          ],
+          "is_active": false,
+          "notes": "",
+          "selected": false
+        },
+        {
+          "capability": "window_ui",
+          "status": "partial",
+          "track": "heuristic",
+          "source": "heuristic_workflow_track",
+          "support_status": "covered",
+          "selected_scenarios": [],
+          "supported_scenarios": [
+            "coding_session",
+            "project_exploration",
+            "diagnostics_check",
+            "search_workflow",
+            "settings_modification",
+            "debug_session",
+            "git_workflow",
+            "extension_browsing",
+            "notebook_session",
+            "authentication_probe",
+            "webview_probe"
+          ],
+          "is_active": false,
+          "notes": "",
+          "selected": false
+        }
+      ]
+    }
+  },
+  "coverage_summary": {
+    "covered": 7,
+    "partial": 5,
+    "missing": 6,
+    "covered_capabilities": [
+      "commands",
+      "window_ui",
+      "workspace_fs",
+      "languages_editor",
+      "debug",
+      "terminal_tasks",
+      "uri_walkthrough"
+    ],
+    "partial_capabilities": [
+      "search_views",
+      "notebooks",
+      "custom_editors",
+      "authentication",
+      "webview"
+    ],
+    "missing_capabilities": [
+      "scm",
+      "settings",
+      "chat",
+      "comments",
+      "testing",
+      "workspace_trust"
+    ]
+  },
+  "coverage_matrix": [
+    {
+      "capability": "commands",
+      "status": "covered",
+      "track": "official",
+      "source": "official_activation_track",
+      "support_status": "covered",
+      "selected_scenarios": [
+        "coding_session",
+        "debug_session",
+        "terminal_usage",
+        "refactor_workflow"
+      ],
+      "supported_scenarios": [
+        "coding_session",
+        "settings_modification",
+        "debug_session",
+        "terminal_usage",
+        "git_workflow",
+        "refactor_workflow",
+        "authentication_probe",
+        "webview_probe"
+      ],
+      "is_active": true,
+      "notes": "",
+      "selected": true
+    },
+    {
+      "capability": "window_ui",
+      "status": "covered",
+      "track": "official",
+      "source": "official_activation_track",
+      "support_status": "covered",
+      "selected_scenarios": [
+        "coding_session",
+        "project_exploration",
+        "debug_session"
+      ],
+      "supported_scenarios": [
+        "coding_session",
+        "project_exploration",
+        "diagnostics_check",
+        "search_workflow",
+        "settings_modification",
+        "debug_session",
+        "git_workflow",
+        "extension_browsing",
+        "notebook_session",
+        "authentication_probe",
+        "webview_probe"
+      ],
+      "is_active": true,
+      "notes": "",
+      "selected": true
+    },
+    {
+      "capability": "workspace_fs",
+      "status": "covered",
+      "track": "official",
+      "source": "official_activation_track",
+      "support_status": "covered",
+      "selected_scenarios": [
+        "coding_session",
+        "project_exploration",
+        "debug_session",
+        "terminal_usage",
+        "refactor_workflow"
+      ],
+      "supported_scenarios": [
+        "coding_session",
+        "project_exploration",
+        "diagnostics_check",
+        "settings_modification",
+        "debug_session",
+        "terminal_usage",
+        "git_workflow",
+        "refactor_workflow",
+        "notebook_session"
+      ],
+      "is_active": true,
+      "notes": "",
+      "selected": true
+    },
+    {
+      "capability": "languages_editor",
+      "status": "covered",
+      "track": "official",
+      "source": "official_activation_track",
+      "support_status": "covered",
+      "selected_scenarios": [
+        "coding_session",
+        "project_exploration",
+        "refactor_workflow"
+      ],
+      "supported_scenarios": [
+        "coding_session",
+        "project_exploration",
+        "refactor_workflow"
+      ],
+      "is_active": true,
+      "notes": "",
+      "selected": true
+    }
+  ],
+  "official_attempted_capabilities": [
+    "commands",
+    "debug",
+    "languages_editor",
+    "terminal_tasks",
+    "uri_walkthrough",
+    "window_ui",
+    "workspace_fs"
+  ],
+  "heuristic_attempted_capabilities": [],
+  "command_targets": {
+    "python.createNewFile": "%python.command.python.createNewFile.title%",
+    "python.copyTestId": "%python.command.python.testing.copyTestId.title%",
+    "python.analysis.restartLanguageServer": "%python.command.python.analysis.restartLanguageServer.title%",
+    "python.clearCacheAndReload": "%python.command.python.clearCacheAndReload.title%",
+    "python.clearWorkspaceInterpreter": "%python.command.python.clearWorkspaceInterpreter.title%",
+    "python.configureTests": "%python.command.python.configureTests.title%"
+  },
+  "view_targets": {},
+  "extra_notebook_files": [],
+  "extra_custom_editor_files": [],
+  "extra_commands": [
+    "%python.command.python.createNewFile.title%",
+    "%python.command.python.testing.copyTestId.title%",
+    "%python.command.python.analysis.restartLanguageServer.title%",
+    "%python.command.python.clearCacheAndReload.title%",
+    "%python.command.python.clearWorkspaceInterpreter.title%",
+    "%python.command.python.configureTests.title%"
+  ],
+  "auth_provider_ids": [],
+  "webview_view_ids": [],
+  "uri_trigger": null,
+  "run_task_trigger": false,
+  "run_walkthrough_trigger": false,
+  "stimulus_passes": [
+    {
+      "pass_id": "workspace_bootstrap",
+      "label": "workspace/bootstrap pass",
+      "order": 1,
+      "description": "Materialize workspace fixtures, launch prerequisites, and startup-aligned stimuli before visible interaction begins.",
+      "attempt_ids": [
+        "official-workspacecontains----pylock---toml",
+        "official-workspacecontains--conda",
+        "official-workspacecontains--venv",
+        "official-workspacecontains-pipfile",
+        "official-workspacecontains-app-py",
+        "official-workspacecontains-manage-py",
+        "official-workspacecontains-mspythonconfig-json",
+        "official-workspacecontains-pylock-toml",
+        "official-workspacecontains-pyproject-toml",
+        "official-workspacecontains-requirements-txt",
+        "official-workspacecontains-setup-py"
+      ],
+      "prerequisite_keys": [
+        "workspace_contains_fixture"
+      ],
+      "status": "planned"
+    },
+    {
+      "pass_id": "ui_first_user_session",
+      "label": "UI-first user session pass",
+      "order": 2,
+      "description": "Drive visible VS Code workflows first so user-led evidence stays primary.",
+      "attempt_ids": [
+        "official-oncommand-python-copilotsetuptests",
+        "official-onlanguage-python"
+      ],
+      "prerequisite_keys": [
+        "command_target",
+        "language_fixture"
+      ],
+      "status": "planned"
+    },
+    {
+      "pass_id": "target_specific_activation",
+      "label": "target-specific activation pass",
+      "order": 3,
+      "description": "Run event-family-specific flows for the target extension's declared activation surface.",
+      "attempt_ids": [
+        "official-ondebuginitialconfigurations",
+        "official-ondebugresolve-python",
+        "official-onlanguagemodeltool-configure-python-environment",
+        "official-onlanguagemodeltool-create-virtual-environment",
+        "official-onlanguagemodeltool-get-python-environment-details",
+        "official-onlanguagemodeltool-get-python-executable-details",
+        "official-onlanguagemodeltool-install-python-packages",
+        "official-onterminalshellintegration-python"
+      ],
+      "prerequisite_keys": [
+        "debug_launch_config",
+        "language_model_tool_target",
+        "terminal_shell_target"
+      ],
+      "status": "planned"
+    }
+  ],
+  "event_attempts": [
+    {
+      "attempt_id": "official-oncommand-python-copilotsetuptests",
+      "declared_event": "onCommand:python.copilotSetupTests",
+      "activation_event": "onCommand:python.copilotSetupTests",
+      "event_family": "onCommand",
+      "event_value": "python.copilotSetupTests",
+      "track": "official",
+      "selected_by": "activation_event",
+      "selection_reasons": [
+        "activation onCommand:python.copilotSetupTests"
+      ],
+      "pass_name": "ui_first_user_session",
+      "backfill_pass_name": "unresolved_event_backfill",
+      "prerequisite_keys": [
+        "command_target"
+      ],
+      "verification_contract": [
+        "activation_log_prefix",
+        "target_runtime_delta"
+      ],
+      "trigger_method": "ui_simulation",
+      "fallback_trigger_method": "harness_api",
+      "executor_action": "command:auto",
+      "backfill_executor_action": "harness:run_current_stimulus",
+      "legacy_scenarios": [
+        "coding_session",
+        "refactor_workflow"
+      ],
+      "capability_tags": [
+        "commands",
+        "window_ui"
+      ],
+      "status": "planned",
+      "trigger_method_used": "",
+      "attempted_passes": [],
+      "evidence": [],
+      "verification_status": "not_attempted",
+      "failure_reason_code": "",
+      "blocked_reason_code": "",
+      "result_details": "",
+      "official": true,
+      "heuristic": false,
+      "ui_path": "Command Palette invocation",
+      "harness_fallback": "run_current_stimulus"
+    },
+    {
+      "attempt_id": "official-ondebuginitialconfigurations",
+      "declared_event": "onDebugInitialConfigurations",
+      "activation_event": "onDebugInitialConfigurations",
+      "event_family": "onDebugInitialConfigurations",
+      "event_value": "",
+      "track": "official",
+      "selected_by": "activation_event",
+      "selection_reasons": [
+        "activation onDebugInitialConfigurations"
+      ],
+      "pass_name": "target_specific_activation",
+      "backfill_pass_name": "unresolved_event_backfill",
+      "prerequisite_keys": [
+        "debug_launch_config"
+      ],
+      "verification_contract": [
+        "activation_log_prefix",
+        "automation_trace"
+      ],
+      "trigger_method": "mixed",
+      "fallback_trigger_method": "harness_api",
+      "executor_action": "extra:debug_lifecycle",
+      "backfill_executor_action": "harness:run_current_stimulus",
+      "legacy_scenarios": [
+        "debug_session"
+      ],
+      "capability_tags": [
+        "debug"
+      ],
+      "status": "planned",
+      "trigger_method_used": "",
+      "attempted_passes": [],
+      "evidence": [],
+      "verification_status": "not_attempted",
+      "failure_reason_code": "",
+      "blocked_reason_code": "",
+      "result_details": "",
+      "official": true,
+      "heuristic": false,
+      "ui_path": "Create launch.json through Run and Debug",
+      "harness_fallback": "run_current_stimulus"
+    },
+    {
+      "attempt_id": "official-ondebugresolve-python",
+      "declared_event": "onDebugResolve:python",
+      "activation_event": "onDebugResolve:python",
+      "event_family": "onDebugResolve",
+      "event_value": "python",
+      "track": "official",
+      "selected_by": "activation_event",
+      "selection_reasons": [
+        "activation onDebugResolve:python"
+      ],
+      "pass_name": "target_specific_activation",
+      "backfill_pass_name": "unresolved_event_backfill",
+      "prerequisite_keys": [
+        "debug_launch_config"
+      ],
+      "verification_contract": [
+        "activation_log_prefix",
+        "target_runtime_delta"
+      ],
+      "trigger_method": "mixed",
+      "fallback_trigger_method": "harness_api",
+      "executor_action": "extra:debug_lifecycle",
+      "backfill_executor_action": "harness:run_current_stimulus",
+      "legacy_scenarios": [
+        "debug_session"
+      ],
+      "capability_tags": [
+        "debug"
+      ],
+      "status": "planned",
+      "trigger_method_used": "",
+      "attempted_passes": [],
+      "evidence": [],
+      "verification_status": "not_attempted",
+      "failure_reason_code": "",
+      "blocked_reason_code": "",
+      "result_details": "",
+      "official": true,
+      "heuristic": false,
+      "ui_path": "Start a debug session with a matching debug type",
+      "harness_fallback": "run_current_stimulus"
+    },
+    {
+      "attempt_id": "official-onlanguage-python",
+      "declared_event": "onLanguage:python",
+      "activation_event": "onLanguage:python",
+      "event_family": "onLanguage",
+      "event_value": "python",
+      "track": "official",
+      "selected_by": "activation_event",
+      "selection_reasons": [
+        "activation onLanguage:python"
+      ],
+      "pass_name": "ui_first_user_session",
+      "backfill_pass_name": "",
+      "prerequisite_keys": [
+        "language_fixture"
+      ],
+      "verification_contract": [
+        "activation_log_prefix",
+        "target_runtime_delta"
+      ],
+      "trigger_method": "ui_simulation",
+      "fallback_trigger_method": "",
+      "executor_action": "scenario:coding_session",
+      "backfill_executor_action": "",
+      "legacy_scenarios": [
+        "coding_session",
+        "project_exploration"
+      ],
+      "capability_tags": [
+        "languages_editor",
+        "workspace_fs"
+      ],
+      "status": "planned",
+      "trigger_method_used": "",
+      "attempted_passes": [],
+      "evidence": [],
+      "verification_status": "not_attempted",
+      "failure_reason_code": "",
+      "blocked_reason_code": "",
+      "result_details": "",
+      "official": true,
+      "heuristic": false,
+      "ui_path": "Open a file that resolves to the requested language",
+      "harness_fallback": ""
+    }
+  ],
+  "prerequisite_results": [
+    {
+      "prerequisite_id": "prep-command-target",
+      "key": "command_target",
+      "label": "command target",
+      "status": "planned",
+      "materializer": "harness_api",
+      "pass_name": "ui_first_user_session",
+      "attempt_ids": [
+        "official-oncommand-python-copilotsetuptests"
+      ],
+      "detail": "Command title/id is resolved through contributes.commands when present."
+    },
+    {
+      "prerequisite_id": "prep-debug-launch-config",
+      "key": "debug_launch_config",
+      "label": "debug launch config",
+      "status": "planned",
+      "materializer": "workspace_fixture",
+      "pass_name": "target_specific_activation",
+      "attempt_ids": [
+        "official-ondebuginitialconfigurations",
+        "official-ondebugresolve-python"
+      ],
+      "detail": "Ensure launch.json and debuggable files exist before the debug flow."
+    },
+    {
+      "prerequisite_id": "prep-language-fixture",
+      "key": "language_fixture",
+      "label": "language fixture",
+      "status": "planned",
+      "materializer": "workspace_fixture",
+      "pass_name": "ui_first_user_session",
+      "attempt_ids": [
+        "official-onlanguage-python"
+      ],
+      "detail": "Prepare a file that resolves to the declared language id."
+    },
+    {
+      "prerequisite_id": "prep-language-model-tool-target",
+      "key": "language_model_tool_target",
+      "label": "language model tool target",
+      "status": "planned",
+      "materializer": "harness_api",
+      "pass_name": "target_specific_activation",
+      "attempt_ids": [
+        "official-onlanguagemodeltool-configure-python-environment",
+        "official-onlanguagemodeltool-create-virtual-environment",
+        "official-onlanguagemodeltool-get-python-environment-details",
+        "official-onlanguagemodeltool-get-python-executable-details",
+        "official-onlanguagemodeltool-install-python-packages"
+      ],
+      "detail": "Language-model tool id is prepared for local-only invocation."
+    }
+  ],
+  "official_event_coverage": {
+    "track": "official",
+    "declared": 21,
+    "verified": 0,
+    "attempted_only": 0,
+    "failed": 0,
+    "blocked": 0,
+    "unresolved": 21,
+    "declared_events": [
+      "onCommand:python.copilotSetupTests",
+      "onDebugInitialConfigurations",
+      "onDebugResolve:python",
+      "onLanguage:python",
+      "onLanguageModelTool:configure_python_environment",
+      "onLanguageModelTool:create_virtual_environment",
+      "onLanguageModelTool:get_python_environment_details",
+      "onLanguageModelTool:get_python_executable_details",
+      "onLanguageModelTool:install_python_packages",
+      "onTerminalShellIntegration:python",
+      "workspaceContains:**/pylock.*.toml",
+      "workspaceContains:.conda",
+      "workspaceContains:.venv",
+      "workspaceContains:Pipfile",
+      "workspaceContains:app.py",
+      "workspaceContains:manage.py",
+      "workspaceContains:mspythonconfig.json",
+      "workspaceContains:pylock.toml",
+      "workspaceContains:pyproject.toml",
+      "workspaceContains:requirements.txt",
+      "workspaceContains:setup.py"
+    ]
+  },
+  "heuristic_workflow_coverage": {
+    "track": "heuristic",
+    "declared": 0,
+    "verified": 0,
+    "attempted_only": 0,
+    "failed": 0,
+    "blocked": 0,
+    "unresolved": 0,
+    "declared_events": []
+  }
+}

@@ -1,0 +1,471 @@
+{
+  "report_version": 2,
+  "target_extension_expected": "ms-python.python",
+  "target_extension_observed": false,
+  "trigger_plan_requested": true,
+  "trigger_plan_loaded": false,
+  "trigger_plan_applied": false,
+  "trigger_plan_path": "/results/missing-trigger-payload.json",
+  "verification_gap": 0,
+  "run_quality": "inconclusive",
+  "automation_health": {
+    "status": "inconclusive",
+    "reasons": [
+      "trigger_plan_not_loaded",
+      "trigger_plan_not_applied",
+      "target_extension_not_observed",
+      "target_activation_missing",
+      "extension_host_log_missing",
+      "extension_host_output_missing",
+      "target_stream_missing",
+      "scenario_failures_present",
+      "strong_target_attribution_missing"
+    ],
+    "trigger_requested": true,
+    "trigger_loaded": false,
+    "trigger_applied": false,
+    "extension_host_log_present": false,
+    "extension_host_output_present": false,
+    "target_stream_present": false,
+    "target_activation_count": 0,
+    "failed_scenarios": [
+      "diagnostics_check",
+      "refactor_workflow",
+      "webview_probe"
+    ],
+    "extension_host_log_found": false
+  },
+  "log_health": {
+    "extension_host_log_found": false,
+    "extension_host_output_present": false,
+    "target_extension_log_entries": 0,
+    "total_activation_entries": 0,
+    "extension_host_log_present": false
+  },
+  "attribution_summary": {
+    "target_activation_count": 0,
+    "strong_target_file_event_count": 0,
+    "strong_target_network_event_count": 0,
+    "correlated_only_event_count": 0,
+    "background_activation_count": 0,
+    "competing_candidate_count": 0,
+    "ui_blocker_count": 0
+  },
+  "risk_summary": {
+    "total_signals": 0,
+    "critical": 0,
+    "high": 0,
+    "medium": 0,
+    "low": 0,
+    "categories": []
+  },
+  "verdict": {
+    "level": "needs_review",
+    "score": 30,
+    "reasons": [
+      "The target extension was not observed, so the run remains inconclusive.",
+      "The executor could not load the trigger payload.",
+      "The trigger plan was not applied during the run.",
+      "The target extension was not observed during this run.",
+      "The target extension did not produce an activation entry."
+    ],
+    "note": "The target extension was not observed, so the run remains inconclusive."
+  },
+  "summary": {
+    "total_activated": 0,
+    "unique_extensions": 8,
+    "unique_event_extensions": 0,
+    "running_extensions": 8,
+    "monitoring_duration_s": 423.1,
+    "monitoring_started_at": 1776103171.257218,
+    "monitoring_ended_at": 1776103594.3077278,
+    "extension_ids": [
+      "vscode.git",
+      "vscode.github",
+      "vscode.html-language-features",
+      "vscode.json-language-features",
+      "vscode.markdown-language-features",
+      "vscode.python",
+      "vscode.vscode-pylance",
+      "vscode.vscode-python-envs"
+    ],
+    "scenarios_run": [
+      "coding_session",
+      "debug_session",
+      "terminal_usage",
+      "git_workflow",
+      "extension_browsing",
+      "settings_modification",
+      "project_exploration",
+      "search_workflow",
+      "diagnostics_check",
+      "refactor_workflow",
+      "notebook_session",
+      "authentication_probe",
+      "webview_probe"
+    ],
+    "failed_scenarios": [
+      "diagnostics_check",
+      "refactor_workflow",
+      "webview_probe"
+    ],
+    "network_events": 538,
+    "network_hosts": 88,
+    "file_events": 2846,
+    "sensitive_file_events": 149,
+    "target_file_events": 0,
+    "target_network_events": 0,
+    "attempted_capabilities": [],
+    "verified_capabilities": [],
+    "ui_blocker_count": 0,
+    "target_extension_expected": "ms-python.python",
+    "target_extension_observed": false,
+    "trigger_plan_applied": false,
+    "verification_gap": 0,
+    "run_quality": "inconclusive",
+    "automation_health": {
+      "status": "inconclusive",
+      "reasons": [
+        "trigger_plan_not_loaded",
+        "trigger_plan_not_applied",
+        "target_extension_not_observed",
+        "target_activation_missing",
+        "extension_host_log_missing",
+        "extension_host_output_missing",
+        "target_stream_missing",
+        "scenario_failures_present",
+        "strong_target_attribution_missing"
+      ],
+      "trigger_requested": true,
+      "trigger_loaded": false,
+      "trigger_applied": false,
+      "extension_host_log_present": false,
+      "extension_host_output_present": false,
+      "target_stream_present": false,
+      "target_activation_count": 0,
+      "failed_scenarios": [
+        "diagnostics_check",
+        "refactor_workflow",
+        "webview_probe"
+      ],
+      "extension_host_log_found": false
+    },
+    "log_health": {
+      "extension_host_log_found": false,
+      "extension_host_output_present": false,
+      "target_extension_log_entries": 0,
+      "total_activation_entries": 0,
+      "extension_host_log_present": false
+    },
+    "attribution_summary": {
+      "target_activation_count": 0,
+      "strong_target_file_event_count": 0,
+      "strong_target_network_event_count": 0,
+      "correlated_only_event_count": 0,
+      "background_activation_count": 0,
+      "competing_candidate_count": 0,
+      "ui_blocker_count": 0
+    },
+    "risk_summary": {
+      "total_signals": 0,
+      "critical": 0,
+      "high": 0,
+      "medium": 0,
+      "low": 0,
+      "categories": []
+    },
+    "verdict": {
+      "level": "needs_review",
+      "score": 30,
+      "reasons": [
+        "The target extension was not observed, so the run remains inconclusive.",
+        "The executor could not load the trigger payload.",
+        "The trigger plan was not applied during the run.",
+        "The target extension was not observed during this run.",
+        "The target extension did not produce an activation entry."
+      ],
+      "note": "The target extension was not observed, so the run remains inconclusive."
+    }
+  },
+  "coverage_summary": {
+    "attempted": 0,
+    "verified": 0,
+    "attempted_capabilities": [],
+    "verified_capabilities": []
+  },
+  "coverage_matrix": [],
+  "verified_capabilities": [],
+  "requested_scenarios": [],
+  "failed_scenarios": [
+    "diagnostics_check",
+    "refactor_workflow",
+    "webview_probe"
+  ],
+  "extra_trigger_failures": [],
+  "risk_signals": [],
+  "activated": [],
+  "scenario_traces": [
+    {
+      "name": "coding_session",
+      "started_at": 1776103176.8344836,
+      "ended_at": 1776103194.7335103,
+      "status": "completed"
+    },
+    {
+      "name": "debug_session",
+      "started_at": 1776103201.3595498,
+      "ended_at": 1776103221.8781157,
+      "status": "completed"
+    }
+  ],
+  "evidence_events": [
+    {
+      "event_id": "scenario-0001",
+      "kind": "scenario",
+      "timestamp": "2026-04-13T17:59:36.834",
+      "rel_time_s": 5.577,
+      "collector": "automation",
+      "actor": "automation",
+      "scenario_name": "coding_session",
+      "extension_id": "",
+      "activation_event": "",
+      "operation": "",
+      "protocol": "",
+      "host": "",
+      "path": "",
+      "destination_ip": "",
+      "destination_port": null,
+      "attribution_status": "",
+      "attribution_basis": "",
+      "attribution_confidence": 0.0,
+      "is_target_extension_event": false,
+      "noise_reason": "",
+      "artifact_class": "",
+      "sensitive": false,
+      "summary": "Scenario coding_session completed",
+      "raw_context": {
+        "status": "completed",
+        "started_at": 1776103176.8344836,
+        "ended_at": 1776103194.7335103
+      }
+    },
+    {
+      "event_id": "scenario-0002",
+      "kind": "scenario",
+      "timestamp": "2026-04-13T18:00:01.359",
+      "rel_time_s": 30.102,
+      "collector": "automation",
+      "actor": "automation",
+      "scenario_name": "debug_session",
+      "extension_id": "",
+      "activation_event": "",
+      "operation": "",
+      "protocol": "",
+      "host": "",
+      "path": "",
+      "destination_ip": "",
+      "destination_port": null,
+      "attribution_status": "",
+      "attribution_basis": "",
+      "attribution_confidence": 0.0,
+      "is_target_extension_event": false,
+      "noise_reason": "",
+      "artifact_class": "",
+      "sensitive": false,
+      "summary": "Scenario debug_session completed",
+      "raw_context": {
+        "status": "completed",
+        "started_at": 1776103201.3595498,
+        "ended_at": 1776103221.8781157
+      }
+    }
+  ],
+  "evidence_links": [
+    {
+      "from_event_id": "network-0003",
+      "to_event_id": "scenario-0001",
+      "link_type": "occurred_in_scenario",
+      "confidence": 1.0,
+      "reason": "Event happened during scenario window coding_session."
+    },
+    {
+      "from_event_id": "network-0004",
+      "to_event_id": "scenario-0001",
+      "link_type": "occurred_in_scenario",
+      "confidence": 1.0,
+      "reason": "Event happened during scenario window coding_session."
+    }
+  ],
+  "network_summary": {
+    "total_events": 538,
+    "unique_hosts": 88,
+    "protocols": [
+      "dns",
+      "http",
+      "tcp",
+      "tlsv1",
+      "tlsv1.3"
+    ],
+    "event_types": [
+      "dns_query",
+      "http_request",
+      "tcp_connect",
+      "tls_client_hello"
+    ],
+    "capture_error": ""
+  },
+  "network_capture_error": "",
+  "network_events": [
+    {
+      "timestamp": "2026-04-13T17:59:32.589",
+      "rel_time_s": 1.332,
+      "protocol": "tcp",
+      "event_type": "tcp_connect",
+      "source_ip": "127.0.0.1",
+      "destination_ip": "127.0.0.1",
+      "destination_port": 6080,
+      "host": "",
+      "path": "",
+      "related_extension_id": "",
+      "related_activation_event": "",
+      "attribution_status": "unattributed",
+      "attribution_basis": "no target activation was close enough to support ownership",
+      "attribution_confidence": 0.0,
+      "is_target_extension_event": false,
+      "noise_reason": "",
+      "summary": "35054 → 6080 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=3374290387 TSecr=0 WS=128"
+    },
+    {
+      "timestamp": "2026-04-13T17:59:32.589",
+      "rel_time_s": 1.332,
+      "protocol": "http",
+      "event_type": "http_request",
+      "source_ip": "127.0.0.1",
+      "destination_ip": "127.0.0.1",
+      "destination_port": 6080,
+      "host": "localhost:6080",
+      "path": "/",
+      "related_extension_id": "",
+      "related_activation_event": "",
+      "attribution_status": "unattributed",
+      "attribution_basis": "no target activation was close enough to support ownership",
+      "attribution_confidence": 0.0,
+      "is_target_extension_event": false,
+      "noise_reason": "",
+      "summary": "GET / HTTP/1.1"
+    }
+  ],
+  "file_summary": {
+    "total_events": 2846,
+    "sensitive_events": 149,
+    "sources": {
+      "system": 609,
+      "automation": 2237
+    },
+    "operations": {
+      "read": 2636,
+      "write": 76,
+      "delete": 89,
+      "create": 40,
+      "metadata": 5
+    },
+    "attribution_statuses": {
+      "automation_noise": 2841,
+      "unattributed": 5
+    },
+    "capture_error": "Extension Host PID not found; file attribution unavailable."
+  },
+  "file_capture_error": "Extension Host PID not found; file attribution unavailable.",
+  "file_events": [
+    {
+      "timestamp": "2026-04-13T17:59:33.927",
+      "rel_time_s": 2.67,
+      "operation": "read",
+      "path": "/workspace/",
+      "secondary_path": "",
+      "source": "system",
+      "observer": "inotify",
+      "scenario_name": "",
+      "related_extension_id": "",
+      "related_activation_event": "",
+      "attribution_status": "automation_noise",
+      "attribution_basis": "inotify captures workspace automation and system activity, not extension-host ownership",
+      "attribution_confidence": 0.0,
+      "is_target_extension_event": false,
+      "noise_reason": "ownership is intentionally suppressed for inotify telemetry",
+      "artifact_class": "",
+      "flags": "",
+      "sensitive": false,
+      "summary": "read: /workspace/"
+    },
+    {
+      "timestamp": "2026-04-13T17:59:34.025",
+      "rel_time_s": 2.769,
+      "operation": "read",
+      "path": "/workspace/config",
+      "secondary_path": "",
+      "source": "system",
+      "observer": "inotify",
+      "scenario_name": "",
+      "related_extension_id": "",
+      "related_activation_event": "",
+      "attribution_status": "automation_noise",
+      "attribution_basis": "inotify captures workspace automation and system activity, not extension-host ownership",
+      "attribution_confidence": 0.0,
+      "is_target_extension_event": false,
+      "noise_reason": "ownership is intentionally suppressed for inotify telemetry",
+      "artifact_class": "",
+      "flags": "",
+      "sensitive": false,
+      "summary": "read: /workspace/config"
+    }
+  ],
+  "running_extensions": [
+    {
+      "extension_id": "vscode.vscode-pylance",
+      "name": "vscode-pylance",
+      "activation_time_ms": 520,
+      "status": "active"
+    },
+    {
+      "extension_id": "vscode.python",
+      "name": "Python",
+      "activation_time_ms": 249,
+      "status": "active"
+    }
+  ],
+  "log_streams": {
+    "target_extension_host": [],
+    "other_extension_host": [],
+    "automation": [
+      {
+        "timestamp": "2026-04-13T17:59:31.264",
+        "rel_time_s": 0.008,
+        "stream": "automation",
+        "kind": "trigger_plan_missing",
+        "message": "Trigger payload could not be loaded inside the executor; continuing with degraded reliability.",
+        "extension_id": "",
+        "activation_event": "",
+        "scenario_name": "",
+        "status": "failed",
+        "is_target_extension": false
+      },
+      {
+        "timestamp": "2026-04-13T17:59:36.834",
+        "rel_time_s": 5.577,
+        "stream": "automation",
+        "kind": "scenario",
+        "message": "Started scenario coding session: Exercise language tooling, commands, formatting, and save flows.",
+        "extension_id": "",
+        "activation_event": "",
+        "scenario_name": "coding_session",
+        "status": "running",
+        "is_target_extension": false
+      }
+    ],
+    "ui_blockers": []
+  },
+  "extension_host_output": "",
+  "extension_host_output_lines": 0,
+  "log_file": ""
+}

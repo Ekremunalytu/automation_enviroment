@@ -5,6 +5,10 @@
 This is the short priority list for current work. It assumes the project stays a
 single-user sandbox appliance on one machine or one Docker host.
 
+If any older planning note clashes with the active refactor track, follow
+`REFACTOR_EXECUTION_PLAN.md` first. Keep changes biased toward cleanliness,
+stability, and overall code quality.
+
 ## Current Priorities
 
 ### 1. Executor Failure Honesty

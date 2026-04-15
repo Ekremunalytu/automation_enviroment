@@ -9,6 +9,11 @@
 
 For a thinner repo map after reading these rules, use `documents/AGENT_CONTEXT.md`.
 
+If refactor sequencing or planning notes appear to conflict with older
+documentation, use `documents/REFACTOR_EXECUTION_PLAN.md` as the current
+refactor reference and `documents/REFACTOR_EXPANSION_NOTES.md` for deferred
+ideas. Priority stays on keeping the project clean, stable, and high quality.
+
 ## Non-Negotiable Rules
 
 - Preserve the unique constraint `(publisher, name, version)`.
