@@ -384,11 +384,9 @@ def create_extension_from_directory(
     expected_name: str | None = None,
     expected_publisher: str | None = None,
     expected_version: str | None = None,
-) -> Extension | None:
+) -> Extension:
     """Create an extension record from a specific extracted extension directory."""
     package_json = get_package_json(extension_dir)
-    if package_json is None:
-        return None
 
     _validate_manifest_identity(
         package_json,

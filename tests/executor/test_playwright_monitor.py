@@ -263,6 +263,26 @@ def test_parse_activations_from_log_preserves_distinct_events_and_parses_timesta
     assert beyond_eof_entries == []
 
 
+def test_parse_activations_from_output_filters_pre_start_entries() -> None:
+    output = (
+        "[2026-01-01 09:59:59.900] activating extension 'old.ext' because of "
+        "'onStartupFinished'\n"
+        "[2026-01-01 10:00:00.500] activating extension 'new.ext' because of "
+        "'onStartupFinished'\n"
+    )
+
+    monitoring_start = monitor._parse_iso_timestamp("2026-01-01 10:00:00.000")
+    assert monitoring_start is not None
+
+    entries = monitor.parse_activations_from_output(
+        output,
+        monitoring_start=monitoring_start,
+    )
+
+    assert [entry.extension_id for entry in entries] == ["new.ext"]
+    assert entries[0].source == "output"
+
+
 def test_parse_running_extension_row_handles_builtin_and_fallback_id() -> None:
     built_in = monitor._parse_running_extension_row(
         text="Git\n1.0.0\nStartup Activation: 39ms",
@@ -424,6 +444,90 @@ def test_extension_monitor_stop_keeps_runtime_snapshot_separate(
     assert report.log_streams["automation"][0].kind == "scenario"
     assert report.target_extension_observed is True
     assert report.run_quality in {"medium", "high"}
+
+
+def test_extension_monitor_stop_reconciles_startup_activation_from_output(
+    monkeypatch,
+) -> None:
+    class DummyPage:
+        pass
+
+    waited: list[float] = []
+
+    monkeypatch.setattr(monitor, "_snapshot_log_offsets", lambda: {})
+    monkeypatch.setattr(
+        monitor,
+        "parse_all_exthost_logs",
+        lambda start_offsets=None: [],
+    )
+    monkeypatch.setattr(monitor, "find_exthost_logs", lambda: [])
+    monkeypatch.setattr(monitor, "get_running_extensions", lambda page: [])
+    monkeypatch.setattr(
+        monitor,
+        "read_extension_host_output",
+        lambda page=None: (
+            "[2026-01-01 10:00:00.500] activating extension "
+            "'esbenp.prettier-vscode' because of 'onStartupFinished'\n"
+        ),
+    )
+    monkeypatch.setattr(monitor.time, "sleep", lambda seconds: waited.append(seconds))
+    monkeypatch.setattr(
+        monitor,
+        "NetworkCapture",
+        lambda monitoring_start, on_event=None: _FakeNetworkCapture(
+            monitoring_start,
+            on_event,
+            [],
+        ),
+    )
+    monkeypatch.setattr(
+        monitor,
+        "FileSystemCapture",
+        lambda monitoring_start, on_event=None: _FakeFileCapture(
+            monitoring_start,
+            on_event,
+            [],
+        ),
+    )
+    monkeypatch.setattr(
+        monitor,
+        "ExtensionHostFileCapture",
+        lambda monitoring_start, on_event=None: _FakeFileCapture(
+            monitoring_start,
+            on_event,
+            [],
+        ),
+    )
+
+    mon = monitor.ExtensionMonitor(
+        DummyPage(),
+        target_extension_id="esbenp.prettier-vscode",
+    )
+    mon.start()
+    mon.report.monitoring_start = monitor._parse_iso_timestamp(
+        "2026-01-01 10:00:00.000"
+    )
+    mon.report.event_attempts = [
+        monitor.EventAttemptRecord(
+            attempt_id="startup",
+            declared_event="onStartupFinished",
+            activation_event="onStartupFinished",
+            event_family="onStartupFinished",
+            track="official",
+        )
+    ]
+
+    report = mon.stop()
+
+    assert waited == [2.0]
+    assert [entry.extension_id for entry in report.activated] == [
+        "esbenp.prettier-vscode"
+    ]
+    assert report.activated[0].source == "output"
+    assert report.target_extension_observed is True
+    assert "target_extension_not_observed" not in report.automation_health["reasons"]
+    assert "target_activation_missing" not in report.automation_health["reasons"]
+    assert report.run_quality != "inconclusive"
 
 
 def test_extension_monitor_persists_live_report_with_network_events(

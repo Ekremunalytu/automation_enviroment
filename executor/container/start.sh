@@ -86,6 +86,11 @@ SETTINGS
 
 # --- VS Code ---
 VSCODE_LOG_LEVEL="${EXECUTOR_VSCODE_LOG_LEVEL:-trace}"
+if ! command -v code >/dev/null 2>&1; then
+    echo "ERROR: VS Code CLI binary 'code' is not installed in the executor image."
+    exit 1
+fi
+
 echo "Starting VS Code (CDP on localhost:${CDP_PORT}, log level: ${VSCODE_LOG_LEVEL})..."
 code --no-sandbox \
     --user-data-dir /home/executor/.vscode \

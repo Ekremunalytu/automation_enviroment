@@ -21,12 +21,14 @@ from appcore.contracts.schemas import (
     MarketplaceExtension,
 )
 from executor.host import ExecutorError
+from workflows.extension_catalog.manifest_reader import PackageJsonReadError
 from workflows.extension_catalog.service import (
     ExtensionManifestMismatchError,
     create_extension_from_directory,
     search_extension_by_name,
 )
 from workflows.marketplace import client as marketplace_client
+from workflows.marketplace import job_service
 from workflows.marketplace.analysis_service import (
     TriggerPlanError,
     ensure_vsix_exists,
@@ -34,15 +36,24 @@ from workflows.marketplace.analysis_service import (
     map_executor_error,
     run_analysis_job,
 )
-from workflows.marketplace.job_store import (
-    ActiveAnalysisJobError,
-    get_job_snapshot,
-    reserve_job,
-)
+from workflows.marketplace.job_service import ActiveAnalysisJobError
 
 settings = app_settings
 
 router = APIRouter(prefix="/api", tags=["marketplace"])
+
+
+def _package_json_error_detail(exc: PackageJsonReadError) -> str:
+    if exc.reason == "missing":
+        detail = f"Downloaded extension package.json is missing: {exc.path}"
+    elif exc.reason == "invalid_json":
+        detail = f"Downloaded extension package.json contains invalid JSON: {exc.path}"
+    else:
+        detail = f"Downloaded extension package.json could not be read: {exc.path}"
+
+    if exc.detail:
+        return f"{detail}: {exc.detail}"
+    return detail
 
 
 @router.get("/marketplace/search", response_model=list[MarketplaceExtension])
@@ -65,14 +76,20 @@ def download_marketplace_extension(
     request: MarketplaceDownloadRequest,
     db: Session = Depends(get_db),
 ) -> MarketplaceDownloadResponse:
+    ext_dir: Path | None = None
     try:
-        ext_dir: Path = marketplace_client.download_and_extract_vsix(
+        ext_dir = marketplace_client.download_and_extract_vsix(
             request.publisher, request.name, request.version
         )
     except httpx.HTTPError as exc:
         raise HTTPException(
             status_code=502,
             detail=f"Failed to download extension: {exc}",
+        ) from exc
+    except PackageJsonReadError as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=_package_json_error_detail(exc),
         ) from exc
 
     try:
@@ -85,6 +102,11 @@ def download_marketplace_extension(
         )
     except ExtensionManifestMismatchError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
+    except PackageJsonReadError as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=_package_json_error_detail(exc),
+        ) from exc
     except ValueError as exc:
         existing_extension = search_extension_by_name(
             db,
@@ -111,15 +133,6 @@ def download_marketplace_extension(
             ),
         )
 
-    if extension is None:
-        raise HTTPException(
-            status_code=500,
-            detail=(
-                f"Extension extracted to {ext_dir} but package.json "
-                "was not found or could not be parsed."
-            ),
-        )
-
     return MarketplaceDownloadResponse(
         status="success",
         publisher=request.publisher,
@@ -139,14 +152,17 @@ def download_marketplace_extension(
     response_model=AnalyzeJobStatusResponse,
     status_code=202,
 )
-def start_analysis_job(request: AnalyzeRequest) -> dict[str, Any]:
+def start_analysis_job(
+    request: AnalyzeRequest,
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
     try:
         ensure_vsix_exists(request)
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
     try:
-        job = reserve_job(request)
+        job = job_service.reserve_job(request, db=db)
     except ActiveAnalysisJobError as exc:
         active_job = exc.active_job
         raise HTTPException(
@@ -165,13 +181,16 @@ def start_analysis_job(request: AnalyzeRequest) -> dict[str, Any]:
         args=(job["job_id"], request.model_copy(deep=True)),
     )
     worker.start()
-    return get_job_snapshot(job["job_id"])
+    return job_service.get_job_snapshot(job["job_id"], db=db)
 
 
 @router.get("/marketplace/analyze/{job_id}", response_model=AnalyzeJobStatusResponse)
-def get_analysis_job(job_id: str) -> dict[str, Any]:
+def get_analysis_job(
+    job_id: str,
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
     try:
-        return get_job_snapshot(job_id)
+        return job_service.get_job_snapshot(job_id, db=db)
     except KeyError as exc:
         raise HTTPException(
             status_code=404,

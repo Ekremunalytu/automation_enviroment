@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { MarketplacePage } from "./MarketplacePage";
 import { apiClient } from "../../lib/api/client";
+import type { MarketplaceDownloadResponseDto } from "../../lib/types/contracts";
 
 vi.mock("../../lib/api/client", () => ({
   apiClient: {
@@ -95,5 +96,40 @@ describe("MarketplacePage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Analyze" }));
     expect(await screen.findByText("Simulation route")).toBeInTheDocument();
     expect(screen.getByTestId("location-path").textContent).toContain("/simulation?job=job-9&tab=live");
+  });
+
+  it("ignores a rapid second download click for the same artifact", async () => {
+    let resolveDownload: ((value: MarketplaceDownloadResponseDto) => void) | undefined;
+    vi.mocked(apiClient.downloadMarketplaceExtension).mockImplementation(
+      () =>
+        new Promise<MarketplaceDownloadResponseDto>((resolve) => {
+          resolveDownload = resolve;
+        }),
+    );
+
+    renderPage("/marketplace?q=python");
+
+    const downloadButton = await screen.findByRole("button", { name: "Download" });
+    fireEvent.click(downloadButton);
+    fireEvent.click(downloadButton);
+
+    expect(apiClient.downloadMarketplaceExtension).toHaveBeenCalledTimes(1);
+
+    if (!resolveDownload) {
+      throw new Error("Download resolver was not initialized.");
+    }
+
+    resolveDownload({
+      status: "success",
+      publisher: "ms",
+      name: "python",
+      version: "1.0.0",
+      extension_dir: "/tmp/ms.python",
+      message: "Downloaded",
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Analyze" })).toBeInTheDocument();
+    });
   });
 });

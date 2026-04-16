@@ -721,6 +721,45 @@ _ACTIVATION_PATTERNS = [
 _TIMESTAMP_RE = re.compile(r"^\[?(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}\.\d+)\]?")
 
 
+def _parse_activation_lines(lines: list[str], *, source: str) -> list[ActivationEntry]:
+    entries: list[ActivationEntry] = []
+    seen: set[tuple[str, str, str, int | None]] = set()
+
+    for line in lines:
+        if "activ" not in line.lower():
+            continue
+
+        for pattern in _ACTIVATION_PATTERNS:
+            match = pattern.search(line)
+            if match is None:
+                continue
+
+            ext_id = match.group("id")
+            event = match.groupdict().get("event", "") or ""
+            ms_str = match.groupdict().get("ms")
+            duration_ms = int(ms_str) if ms_str else None
+            ts_match = _TIMESTAMP_RE.match(line)
+            timestamp = ts_match.group(1) if ts_match else ""
+            dedup_key = (ext_id, event, timestamp, duration_ms)
+
+            if dedup_key in seen:
+                break
+
+            seen.add(dedup_key)
+            entries.append(
+                ActivationEntry(
+                    extension_id=ext_id,
+                    activation_event=event,
+                    duration_ms=duration_ms,
+                    timestamp=timestamp,
+                    source=source,
+                )
+            )
+            break
+
+    return entries
+
+
 def find_exthost_logs() -> list[Path]:
     """Find all Extension Host log files under the VS Code logs directory.
 
@@ -767,41 +806,7 @@ def parse_activations_from_log(
         start_offset = len(raw)
 
     content = raw[start_offset:].decode("utf-8", errors="replace")
-    entries: list[ActivationEntry] = []
-    seen: set[tuple[str, str, str, int | None]] = set()
-
-    for line in content.splitlines():
-        # Skip empty or irrelevant lines early
-        if "activ" not in line.lower():
-            continue
-
-        # Try each pattern
-        for pattern in _ACTIVATION_PATTERNS:
-            m = pattern.search(line)
-            if m:
-                ext_id = m.group("id")
-                event = m.groupdict().get("event", "") or ""
-                ms_str = m.groupdict().get("ms")
-                duration_ms = int(ms_str) if ms_str else None
-
-                # Extract timestamp
-                ts_match = _TIMESTAMP_RE.match(line)
-                timestamp = ts_match.group(1) if ts_match else ""
-                dedup_key = (ext_id, event, timestamp, duration_ms)
-                if dedup_key in seen:
-                    break
-                seen.add(dedup_key)
-
-                entries.append(
-                    ActivationEntry(
-                        extension_id=ext_id,
-                        activation_event=event,
-                        duration_ms=duration_ms,
-                        timestamp=timestamp,
-                        source="log",
-                    )
-                )
-                break
+    entries = _parse_activation_lines(content.splitlines(), source="log")
 
     _log(f"Parsed {len(entries)} activation(s) from {log_path.name}")
     return entries
@@ -981,6 +986,20 @@ def read_extension_host_output(page: Page | None = None) -> str:
 
     _log("No Extension Host log files found")
     return ""
+
+
+def parse_activations_from_output(
+    output: str,
+    *,
+    monitoring_start: float = 0.0,
+) -> list[ActivationEntry]:
+    """Parse activation entries from final Extension Host output."""
+    entries = _parse_activation_lines(output.splitlines(), source="output")
+    return [
+        entry
+        for entry in entries
+        if _activation_within_monitoring_window(entry, monitoring_start)
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -1895,6 +1914,10 @@ class ExtensionMonitor:
                 )
             self.report.file_events.extend(extension_events)
 
+        if _requires_startup_grace(self.report):
+            _log("Waiting 2.0s for startup-only activation evidence to flush...")
+            time.sleep(2.0)
+
         self.report.monitoring_end = time.time()
         self._finalize_running_scenarios()
         _log(f"Monitoring stopped ({self.report.duration_s:.1f}s elapsed)")
@@ -1931,53 +1954,17 @@ class ExtensionMonitor:
         try:
             _log("Strategy 3: Reading Extension Host output...")
             self.report.extension_host_output = read_extension_host_output()
+            self.report.activated = _merge_activation_entries(
+                self.report.activated,
+                parse_activations_from_output(
+                    self.report.extension_host_output,
+                    monitoring_start=self.report.monitoring_start,
+                ),
+            )
         except OSError as exc:
             _log(f"Strategy 3 failed: {exc}")
         self._append_activation_log_entries()
-        self.report.network_events = _annotate_network_events(
-            self.report.network_events,
-            self.report.activated,
-            self.report.scenario_traces,
-            self.report.target_extension_id,
-        )
-        self.report.file_events = _annotate_file_events(
-            self.report.file_events,
-            self.report.activated,
-            self.report.scenario_traces,
-            self.report.target_extension_id,
-        )
-        derived_verified = set(derive_verified_capabilities(self.report))
-        self.report.verified_capabilities = sorted(
-            set(self.report.verified_capabilities)
-            | (derived_verified & set(self.report.official_attempted_capabilities))
-        )
-        self.report.heuristic_verified_capabilities = sorted(
-            set(self.report.heuristic_verified_capabilities)
-            | (derived_verified & set(self.report.heuristic_attempted_capabilities))
-        )
-        self.report.event_attempts = reconcile_event_attempts(self.report)
-        self.report.official_event_coverage = summarize_event_attempts_for_report(
-            self.report,
-            track="official",
-        )
-        self.report.heuristic_workflow_coverage = summarize_event_attempts_for_report(
-            self.report,
-            track="heuristic",
-        )
-        (
-            self.report.coverage_summary,
-            self.report.coverage_matrix,
-            self.report.coverage_tracks,
-        ) = reconcile_coverage_verification(self.report)
-        self.report.verdict = build_verdict(
-            self.report,
-            automation_health=self.report.automation_health,
-            run_quality=build_run_quality(
-                self.report,
-                self.report.automation_health,
-            ),
-        )
-        self.report.evidence_links = self.report.canonical_evidence_links
+        self._refresh_derived_report_state()
         self._persist_report(force=True)
 
         return self.report
@@ -2399,6 +2386,52 @@ class ExtensionMonitor:
             )
         )
 
+    def _refresh_derived_report_state(self) -> None:
+        self.report.network_events = _annotate_network_events(
+            self.report.network_events,
+            self.report.activated,
+            self.report.scenario_traces,
+            self.report.target_extension_id,
+        )
+        self.report.file_events = _annotate_file_events(
+            self.report.file_events,
+            self.report.activated,
+            self.report.scenario_traces,
+            self.report.target_extension_id,
+        )
+        derived_verified = set(derive_verified_capabilities(self.report))
+        self.report.verified_capabilities = sorted(
+            set(self.report.verified_capabilities)
+            | (derived_verified & set(self.report.official_attempted_capabilities))
+        )
+        self.report.heuristic_verified_capabilities = sorted(
+            set(self.report.heuristic_verified_capabilities)
+            | (derived_verified & set(self.report.heuristic_attempted_capabilities))
+        )
+        self.report.event_attempts = reconcile_event_attempts(self.report)
+        self.report.official_event_coverage = summarize_event_attempts_for_report(
+            self.report,
+            track="official",
+        )
+        self.report.heuristic_workflow_coverage = summarize_event_attempts_for_report(
+            self.report,
+            track="heuristic",
+        )
+        (
+            self.report.coverage_summary,
+            self.report.coverage_matrix,
+            self.report.coverage_tracks,
+        ) = reconcile_coverage_verification(self.report)
+        self.report.verdict = build_verdict(
+            self.report,
+            automation_health=self.report.automation_health,
+            run_quality=build_run_quality(
+                self.report,
+                self.report.automation_health,
+            ),
+        )
+        self.report.evidence_links = self.report.canonical_evidence_links
+
     def _persist_report(self, force: bool) -> None:
         if self.report_path is None:
             return
@@ -2711,6 +2744,72 @@ def _parse_iso_timestamp(timestamp: str) -> float | None:
         return datetime.strptime(timestamp, "%Y-%m-%d %H:%M:%S.%f").timestamp()
     except ValueError:
         return None
+
+
+def _activation_within_monitoring_window(
+    entry: ActivationEntry,
+    monitoring_start: float,
+) -> bool:
+    if monitoring_start <= 0:
+        return True
+
+    event_epoch = _parse_iso_timestamp(entry.timestamp)
+    if event_epoch is None:
+        return True
+
+    return event_epoch >= monitoring_start
+
+
+def _merge_activation_entries(
+    existing: list[ActivationEntry],
+    new_entries: list[ActivationEntry],
+) -> list[ActivationEntry]:
+    merged = list(existing)
+    seen = {
+        (
+            entry.extension_id,
+            entry.activation_event,
+            entry.timestamp,
+            entry.duration_ms,
+        )
+        for entry in existing
+    }
+
+    for entry in new_entries:
+        dedup_key = (
+            entry.extension_id,
+            entry.activation_event,
+            entry.timestamp,
+            entry.duration_ms,
+        )
+        if dedup_key in seen:
+            continue
+        seen.add(dedup_key)
+        merged.append(entry)
+
+    return merged
+
+
+def _requires_startup_grace(report: ActivationReport) -> bool:
+    if not report.target_extension_id or report.target_extension_observed:
+        return False
+
+    for attempt in report.event_attempts:
+        is_official_track = str(getattr(attempt, "track", "official")) == "official"
+        is_official_flag = bool(getattr(attempt, "official", True))
+        is_heuristic = bool(getattr(attempt, "heuristic", False))
+        is_official = is_official_track or (is_official_flag and not is_heuristic)
+        if not is_official:
+            continue
+
+        activation_event = str(getattr(attempt, "activation_event", "")).strip()
+        declared_event = str(getattr(attempt, "declared_event", "")).strip()
+        if activation_event in {"onStartupFinished", "*"}:
+            return True
+        if declared_event in {"onStartupFinished", "*"}:
+            return True
+
+    return False
 
 
 def _format_epoch_timestamp(epoch: float | None) -> str:

@@ -1,5 +1,6 @@
 """Public ORM facade for ExTrace."""
 
+from appcore.storage.model_defs.analysis_job import AnalysisJob
 from appcore.storage.model_defs.base import Base, capability_support_enum
 from appcore.storage.model_defs.contributes import (
     ExtensionContributes,
@@ -17,6 +18,7 @@ from appcore.storage.model_defs.extension import (
 )
 
 __all__ = [
+    "AnalysisJob",
     "Base",
     "Extension",
     "ExtensionActivationEvents",

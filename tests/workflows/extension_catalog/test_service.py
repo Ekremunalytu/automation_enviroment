@@ -1,3 +1,4 @@
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -9,6 +10,7 @@ from appcore.contracts.schemas import (
     ExtensionSchema,
 )
 from workflows.extension_catalog import service
+from workflows.extension_catalog.manifest_reader import PackageJsonReadError
 
 
 def test_create_extension_by_name_success(mock_session: Session):
@@ -128,6 +130,30 @@ def test_create_extension_from_directory_rejects_manifest_mismatch(
             return_value=mock_pkg_json,
         ),
         pytest.raises(service.ExtensionManifestMismatchError, match="publisher"),
+    ):
+        service.create_extension_from_directory(
+            mock_session,
+            extension_dir,
+            expected_name="python",
+            expected_publisher="ms-python",
+            expected_version="2025.0.0",
+        )
+
+
+def test_create_extension_from_directory_propagates_manifest_read_errors(
+    mock_session: Session,
+):
+    """Manifest read failures should reach the caller with their reason intact."""
+    extension_dir = MagicMock()
+
+    with (
+        patch(
+            "workflows.extension_catalog.service.get_package_json",
+            side_effect=PackageJsonReadError.missing(
+                Path("extensions/test-ext/package.json")
+            ),
+        ),
+        pytest.raises(PackageJsonReadError, match="missing"),
     ):
         service.create_extension_from_directory(
             mock_session,

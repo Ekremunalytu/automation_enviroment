@@ -2,7 +2,10 @@ import json
 from pathlib import Path
 from unittest.mock import MagicMock, mock_open, patch
 
+import pytest
+
 from workflows.extension_catalog.package_parser import (
+    PackageJsonReadError,
     get_package_json,
     parse_capabilities,
     parse_contributes,
@@ -50,8 +53,8 @@ def test_get_package_json_not_found():
     mock_path.__truediv__.return_value = mock_package_path
     mock_package_path.exists.return_value = False
 
-    result = get_package_json(mock_path)
-    assert result is None
+    with pytest.raises(PackageJsonReadError, match="missing"):
+        get_package_json(mock_path)
 
 
 def test_get_package_json_invalid_json():
@@ -66,8 +69,8 @@ def test_get_package_json_invalid_json():
 
     # Mock open() to return INVALID JSON
     with patch("builtins.open", mock_open(read_data="{invalid-json")):
-        result = get_package_json(mock_path)
-        assert result is None
+        with pytest.raises(PackageJsonReadError, match="invalid_json"):
+            get_package_json(mock_path)
 
 
 @patch("workflows.extension_catalog.manifest_reader.Path")

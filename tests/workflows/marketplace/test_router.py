@@ -6,7 +6,6 @@ Tests for /api/marketplace/search and /api/marketplace/download endpoints.
 All external calls (HTTP + DB writes) are mocked via unittest.mock.patch.
 """
 
-import threading
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import ANY, MagicMock, patch
@@ -17,9 +16,9 @@ from fastapi.testclient import TestClient
 
 from appcore.contracts.schemas import AnalyzeRequest, AnalyzeResponse
 from executor.host import ExecutorError
+from workflows.extension_catalog.manifest_reader import PackageJsonReadError
 from workflows.marketplace import (
     analysis_service,
-    job_store,
     router as marketplace_router,
     trigger_service,
 )
@@ -281,8 +280,8 @@ def test_download_duplicate_without_existing_record_returns_409(
     assert "already registered" in response.json()["detail"]
 
 
-def test_download_none_from_service_500(client: TestClient) -> None:
-    """None from create_extension_from_directory (package.json missing) → 500."""
+def test_download_missing_manifest_returns_specific_500(client: TestClient) -> None:
+    """Missing package.json should surface a diagnostic 500 detail."""
     ext_path = Path("/app/extensions/ms-python.python-2025.0.0")
 
     with (
@@ -292,7 +291,7 @@ def test_download_none_from_service_500(client: TestClient) -> None:
         ),
         patch(
             "workflows.marketplace.router.create_extension_from_directory",
-            return_value=None,
+            side_effect=PackageJsonReadError.missing(ext_path / "package.json"),
         ),
     ):
         response = client.post(
@@ -305,7 +304,37 @@ def test_download_none_from_service_500(client: TestClient) -> None:
         )
 
     assert response.status_code == 500
-    assert "package.json" in response.json()["detail"]
+    assert "package.json is missing" in response.json()["detail"]
+
+
+def test_download_invalid_manifest_returns_specific_500(client: TestClient) -> None:
+    """Invalid package.json should surface a parse-specific 500 detail."""
+    ext_path = Path("/app/extensions/ms-python.python-2025.0.0")
+
+    with (
+        patch(
+            "workflows.marketplace.client.download_and_extract_vsix",
+            return_value=ext_path,
+        ),
+        patch(
+            "workflows.marketplace.router.create_extension_from_directory",
+            side_effect=PackageJsonReadError.invalid_json(
+                ext_path / "package.json",
+                "Expecting property name enclosed in double quotes",
+            ),
+        ),
+    ):
+        response = client.post(
+            "/api/marketplace/download",
+            json={
+                "publisher": "ms-python",
+                "name": "python",
+                "version": "2025.0.0",
+            },
+        )
+
+    assert response.status_code == 500
+    assert "contains invalid JSON" in response.json()["detail"]
 
 
 def test_download_manifest_mismatch_returns_502(client: TestClient) -> None:
@@ -422,12 +451,6 @@ def _vsix_path_exists(exists: bool = True):
     return mock_path
 
 
-def _reset_job_state(tmp_path: Path) -> None:
-    """Keep persisted job snapshots isolated per test."""
-    job_store.clear_job_cache()
-    marketplace_router.settings.project.OUTPUT_DIR = str(tmp_path)
-
-
 def test_analyze_success(client: TestClient) -> None:
     """Successful analyze returns 200 with install and automation output."""
     with (
@@ -459,181 +482,6 @@ def test_analyze_success(client: TestClient) -> None:
         "activation_report_ms-python.python-2025.0.0-"
     )
     assert data["report_path"].endswith(".json")
-
-
-def test_store_job_persists_snapshot(tmp_path: Path) -> None:
-    """Queued jobs should be recoverable from persisted snapshots."""
-    _reset_job_state(tmp_path)
-    request = AnalyzeRequest(**ANALYZE_PAYLOAD)
-    job = job_store.create_job_snapshot(request)
-
-    job_store.store_job(job)
-    job_store.clear_job_cache()
-
-    snapshot = job_store.get_job_snapshot(job["job_id"])
-    persisted = (tmp_path / "analysis_jobs" / f"{job['job_id']}.json").read_text(
-        encoding="utf-8"
-    )
-
-    assert snapshot["job_id"] == job["job_id"]
-    assert job["job_id"] in persisted
-
-
-def test_load_persisted_job_rejects_non_dict_json(tmp_path: Path) -> None:
-    """Persisted job snapshots must deserialize to a JSON object."""
-    _reset_job_state(tmp_path)
-    jobs_dir = tmp_path / "analysis_jobs"
-    jobs_dir.mkdir()
-    (jobs_dir / "broken.json").write_text('["invalid"]', encoding="utf-8")
-
-    with pytest.raises(KeyError):
-        job_store.load_persisted_job("broken")
-
-
-def test_get_job_snapshot_missing_job_raises_keyerror(tmp_path: Path) -> None:
-    """Missing jobs should surface as KeyError for the HTTP layer."""
-    _reset_job_state(tmp_path)
-
-    with pytest.raises(KeyError):
-        job_store.get_job_snapshot("missing")
-
-
-def test_load_persisted_job_does_not_mutate_stale_active_job(tmp_path: Path) -> None:
-    """Polling persisted jobs should not fail them as a side effect."""
-    _reset_job_state(tmp_path)
-    request = AnalyzeRequest(**ANALYZE_PAYLOAD)
-    job = job_store.create_job_snapshot(request)
-    job["status"] = "running"
-    job["current_step"] = "run_monitoring"
-    job["steps"][3]["status"] = "running"
-    job["steps"][3]["message"] = "Monitoring"
-    job["owner_boot_id"] = "previous-process"
-    job_store.store_job(job)
-    job_store.clear_job_cache()
-
-    snapshot = job_store.load_persisted_job(job["job_id"])
-
-    assert snapshot["status"] == "running"
-    assert snapshot["steps"][3]["status"] == "running"
-
-
-def test_recover_interrupted_jobs_marks_stale_active_job_failed(tmp_path: Path) -> None:
-    """Stale persisted jobs should be failed during startup recovery."""
-    _reset_job_state(tmp_path)
-    request = AnalyzeRequest(**ANALYZE_PAYLOAD)
-    job = job_store.create_job_snapshot(request)
-    job["status"] = "running"
-    job["current_step"] = "run_monitoring"
-    job["steps"][3]["status"] = "running"
-    job["steps"][3]["message"] = "Monitoring"
-    job["owner_boot_id"] = "previous-process"
-    job_store.store_job(job)
-    job_store.clear_job_cache()
-
-    assert job_store.recover_interrupted_jobs() == 1
-
-    snapshot = job_store.get_job_snapshot(job["job_id"])
-
-    assert snapshot["status"] == "failed"
-    assert "interrupted by an api restart" in snapshot["error_detail"].lower()
-    assert snapshot["steps"][3]["status"] == "failed"
-
-
-def test_update_job_loads_persisted_snapshot_when_memory_is_empty(
-    tmp_path: Path,
-) -> None:
-    """Job updates should work even after the in-memory cache is cleared."""
-    _reset_job_state(tmp_path)
-    request = AnalyzeRequest(**ANALYZE_PAYLOAD)
-    job = job_store.create_job_snapshot(request)
-    job_store.store_job(job)
-    job_store.clear_job_cache()
-
-    job_store.update_job(job["job_id"], status="running", message="restored")
-
-    snapshot = job_store.get_job_snapshot(job["job_id"])
-    assert snapshot["status"] == "running"
-    assert snapshot["message"] == "restored"
-
-
-def test_update_job_step_transitions_current_step(tmp_path: Path) -> None:
-    """Job step updates should set and clear the current step appropriately."""
-    _reset_job_state(tmp_path)
-    request = AnalyzeRequest(**ANALYZE_PAYLOAD)
-    job = job_store.create_job_snapshot(request)
-    job_store.store_job(job)
-
-    job_store.update_job_step(
-        job["job_id"],
-        "install_extension",
-        "running",
-        "Installing extension.",
-    )
-    running_snapshot = job_store.get_job_snapshot(job["job_id"])
-
-    job_store.update_job_step(
-        job["job_id"],
-        "install_extension",
-        "completed",
-        "Installed.",
-    )
-    completed_snapshot = job_store.get_job_snapshot(job["job_id"])
-
-    assert running_snapshot["current_step"] == "install_extension"
-    assert completed_snapshot["current_step"] is None
-    assert completed_snapshot["steps"][1]["status"] == "completed"
-
-
-def test_fail_job_marks_current_step_failed(tmp_path: Path) -> None:
-    """Failing a job should mark the active step as failed and persist the detail."""
-    _reset_job_state(tmp_path)
-    request = AnalyzeRequest(**ANALYZE_PAYLOAD)
-    job = job_store.create_job_snapshot(request)
-    job_store.store_job(job)
-    job_store.update_job_step(
-        job["job_id"],
-        "run_monitoring",
-        "running",
-        "Running monitor.",
-    )
-
-    job_store.fail_job(job["job_id"], "monitor crashed")
-
-    snapshot = job_store.get_job_snapshot(job["job_id"])
-    assert snapshot["status"] == "failed"
-    assert snapshot["error_detail"] == "monitor crashed"
-    assert snapshot["current_step"] == "run_monitoring"
-    assert snapshot["steps"][3]["status"] == "failed"
-    assert snapshot["steps"][4]["status"] == "skipped"
-    assert "run monitoring failed" in snapshot["steps"][4]["message"].lower()
-
-
-def test_reserve_job_allows_only_one_active_job(tmp_path: Path) -> None:
-    """Concurrent callers should not reserve more than one active sandbox job."""
-    _reset_job_state(tmp_path)
-    request = AnalyzeRequest(**ANALYZE_PAYLOAD)
-    barrier = threading.Barrier(2)
-    successes: list[str] = []
-    conflicts: list[str] = []
-
-    def worker() -> None:
-        barrier.wait()
-        try:
-            job = job_store.reserve_job(request)
-        except job_store.ActiveAnalysisJobError as exc:
-            conflicts.append(exc.active_job["job_id"])
-        else:
-            successes.append(job["job_id"])
-
-    threads = [threading.Thread(target=worker) for _ in range(2)]
-    for thread in threads:
-        thread.start()
-    for thread in threads:
-        thread.join()
-
-    assert len(successes) == 1
-    assert len(conflicts) == 1
-    assert successes[0] == conflicts[0]
 
 
 def test_build_trigger_payload_skips_when_explicit_scenario_is_set() -> None:
@@ -674,11 +522,8 @@ def test_build_trigger_payload_returns_default_when_no_activation_events() -> No
     assert "default sandbox flow" in message.lower()
 
 
-def test_build_trigger_payload_passes_commands_and_custom_editors(
-    tmp_path: Path,
-) -> None:
+def test_build_trigger_payload_passes_commands_and_custom_editors() -> None:
     """Smart trigger selection should receive parsed commands and custom editors."""
-    _reset_job_state(tmp_path)
     request = AnalyzeRequest(**ANALYZE_PAYLOAD)
     activation_events = [
         SimpleNamespace(event_type="onCommand", event_value="extension.run")
@@ -1200,37 +1045,35 @@ def test_execute_analysis_request_fails_when_layered_evidence_is_missing(
     assert progress_events[-1][3] == "trigger_apply_failed"
 
 
-def test_run_analysis_job_marks_failure_and_closes_session(tmp_path: Path) -> None:
+def test_run_analysis_job_marks_failure_and_closes_session() -> None:
     """Background jobs should persist failure details when execution aborts."""
-    _reset_job_state(tmp_path)
     request = AnalyzeRequest(**ANALYZE_PAYLOAD)
-    job = job_store.create_job_snapshot(request)
-    job_store.store_job(job)
-
     session = MagicMock()
     with (
         patch(
             "workflows.marketplace.analysis_service.SessionLocal", return_value=session
         ),
         patch(
+            "workflows.marketplace.analysis_service.job_service.get_job_snapshot",
+            return_value={"job_id": "job-1", "report_path": "saved-report.json"},
+        ),
+        patch("workflows.marketplace.analysis_service.job_service.update_job"),
+        patch(
+            "workflows.marketplace.analysis_service.job_service.fail_job"
+        ) as mock_fail,
+        patch(
             "workflows.marketplace.analysis_service.execute_analysis_request",
             side_effect=FileNotFoundError("missing report"),
         ),
     ):
-        analysis_service.run_analysis_job(job["job_id"], request)
+        analysis_service.run_analysis_job("job-1", request)
 
-    snapshot = job_store.get_job_snapshot(job["job_id"])
-    assert snapshot["status"] == "failed"
-    assert snapshot["error_detail"] == "missing report"
+    mock_fail.assert_called_once_with("job-1", "missing report", error_code=None)
     session.close.assert_called_once_with()
 
 
-def test_run_analysis_job_persists_trigger_error_code(tmp_path: Path) -> None:
-    _reset_job_state(tmp_path)
+def test_run_analysis_job_persists_trigger_error_code() -> None:
     request = AnalyzeRequest(**ANALYZE_PAYLOAD)
-    job = job_store.create_job_snapshot(request)
-    job_store.store_job(job)
-
     session = MagicMock()
     error = analysis_service.TriggerPlanError(
         "trigger_apply_failed",
@@ -1241,25 +1084,30 @@ def test_run_analysis_job_persists_trigger_error_code(tmp_path: Path) -> None:
             "workflows.marketplace.analysis_service.SessionLocal", return_value=session
         ),
         patch(
+            "workflows.marketplace.analysis_service.job_service.get_job_snapshot",
+            return_value={"job_id": "job-1", "report_path": "saved-report.json"},
+        ),
+        patch("workflows.marketplace.analysis_service.job_service.update_job"),
+        patch(
+            "workflows.marketplace.analysis_service.job_service.fail_job"
+        ) as mock_fail,
+        patch(
             "workflows.marketplace.analysis_service.execute_analysis_request",
             side_effect=error,
         ),
     ):
-        analysis_service.run_analysis_job(job["job_id"], request)
+        analysis_service.run_analysis_job("job-1", request)
 
-    snapshot = job_store.get_job_snapshot(job["job_id"])
-    assert snapshot["status"] == "failed"
-    assert snapshot["error_code"] == "trigger_apply_failed"
-    assert snapshot["steps"][0]["error_code"] is None
+    mock_fail.assert_called_once_with(
+        "job-1",
+        "Executor did not apply the trigger payload during sandbox automation.",
+        error_code="trigger_apply_failed",
+    )
 
 
-def test_run_analysis_job_marks_completion_and_closes_session(tmp_path: Path) -> None:
+def test_run_analysis_job_marks_completion_and_closes_session() -> None:
     """Background jobs should persist the final success payload."""
-    _reset_job_state(tmp_path)
     request = AnalyzeRequest(**ANALYZE_PAYLOAD)
-    job = job_store.create_job_snapshot(request)
-    job_store.store_job(job)
-
     session = MagicMock()
     response = AnalyzeResponse(
         status="success",
@@ -1276,41 +1124,52 @@ def test_run_analysis_job_marks_completion_and_closes_session(tmp_path: Path) ->
             "workflows.marketplace.analysis_service.SessionLocal", return_value=session
         ),
         patch(
+            "workflows.marketplace.analysis_service.job_service.get_job_snapshot",
+            return_value={"job_id": "job-1", "report_path": "saved-report.json"},
+        ),
+        patch("workflows.marketplace.analysis_service.job_service.update_job"),
+        patch(
+            "workflows.marketplace.analysis_service.job_service.complete_job"
+        ) as mock_complete,
+        patch(
             "workflows.marketplace.analysis_service.execute_analysis_request",
             return_value=response,
         ),
     ):
-        analysis_service.run_analysis_job(job["job_id"], request)
+        analysis_service.run_analysis_job("job-1", request)
 
-    snapshot = job_store.get_job_snapshot(job["job_id"])
-    assert snapshot["status"] == "completed"
-    assert snapshot["message"] == "done"
-    assert snapshot["report_path"] == "activation_report.json"
+    mock_complete.assert_called_once_with("job-1", response)
     session.close.assert_called_once_with()
 
 
-def test_run_analysis_job_marks_value_error_failure(tmp_path: Path) -> None:
+def test_run_analysis_job_marks_value_error_failure() -> None:
     """ValueError should fail background jobs instead of leaving them running."""
-    _reset_job_state(tmp_path)
     request = AnalyzeRequest(**ANALYZE_PAYLOAD)
-    job = job_store.create_job_snapshot(request)
-    job_store.store_job(job)
-
     session = MagicMock()
     with (
         patch(
             "workflows.marketplace.analysis_service.SessionLocal", return_value=session
         ),
         patch(
+            "workflows.marketplace.analysis_service.job_service.get_job_snapshot",
+            return_value={"job_id": "job-1", "report_path": "saved-report.json"},
+        ),
+        patch("workflows.marketplace.analysis_service.job_service.update_job"),
+        patch(
+            "workflows.marketplace.analysis_service.job_service.fail_job"
+        ) as mock_fail,
+        patch(
             "workflows.marketplace.analysis_service.execute_analysis_request",
             side_effect=ValueError("bad trigger payload"),
         ),
     ):
-        analysis_service.run_analysis_job(job["job_id"], request)
+        analysis_service.run_analysis_job("job-1", request)
 
-    snapshot = job_store.get_job_snapshot(job["job_id"])
-    assert snapshot["status"] == "failed"
-    assert snapshot["error_detail"] == "bad trigger payload"
+    mock_fail.assert_called_once_with(
+        "job-1",
+        "bad trigger payload",
+        error_code=None,
+    )
     session.close.assert_called_once_with()
 
 
@@ -1410,10 +1269,44 @@ def test_analyze_trigger_plan_failure_502(client: TestClient) -> None:
 
 def test_analyze_start_returns_job_snapshot(client: TestClient) -> None:
     """Async analyze start returns a queued job payload."""
+    job_snapshot = {
+        "job_id": "job-123",
+        "status": "queued",
+        "publisher": ANALYZE_PAYLOAD["publisher"],
+        "name": ANALYZE_PAYLOAD["name"],
+        "version": ANALYZE_PAYLOAD["version"],
+        "scenario": None,
+        "current_step": None,
+        "message": "Queued for sandbox analysis.",
+        "steps": [
+            {"name": "reset_sandbox", "status": "pending", "message": "Waiting"},
+            {"name": "install_extension", "status": "pending", "message": "Queued"},
+            {"name": "build_triggers", "status": "pending", "message": "Waiting"},
+            {"name": "run_monitoring", "status": "pending", "message": "Waiting"},
+            {"name": "finalize_report", "status": "pending", "message": "Waiting"},
+        ],
+        "report_path": "activation_report_ms-python.python-2025.0.0-job123.json",
+        "install_output": None,
+        "automation_output": None,
+        "error_detail": None,
+        "error_code": None,
+        "created_at": 1.0,
+        "started_at": None,
+        "finished_at": None,
+        "updated_at": 1.0,
+    }
     with (
         patch(
             "workflows.marketplace.analysis_service.marketplace_client.get_vsix_path",
             return_value=_vsix_path_exists(True),
+        ),
+        patch(
+            "workflows.marketplace.router.job_service.reserve_job",
+            return_value=job_snapshot,
+        ),
+        patch(
+            "workflows.marketplace.router.job_service.get_job_snapshot",
+            return_value=job_snapshot,
         ),
         patch("workflows.marketplace.router.threading.Thread") as mock_thread,
     ):
@@ -1430,20 +1323,19 @@ def test_analyze_start_returns_job_snapshot(client: TestClient) -> None:
     mock_thread.return_value.start.assert_called_once()
 
 
-def test_analyze_start_rejects_second_active_job(
-    client: TestClient, tmp_path: Path
-) -> None:
+def test_analyze_start_rejects_second_active_job(client: TestClient) -> None:
     """Single-sandbox mode should reject overlapping analysis jobs."""
-    _reset_job_state(tmp_path)
-    request = AnalyzeRequest(**ANALYZE_PAYLOAD)
-    job = job_store.create_job_snapshot(request)
-    job["status"] = "running"
-    job_store.store_job(job)
-
+    active_job = {"job_id": "running-job"}
     with (
         patch(
             "workflows.marketplace.analysis_service.marketplace_client.get_vsix_path",
             return_value=_vsix_path_exists(True),
+        ),
+        patch(
+            "workflows.marketplace.router.job_service.reserve_job",
+            side_effect=marketplace_router.job_service.ActiveAnalysisJobError(
+                active_job
+            ),
         ),
         patch("workflows.marketplace.router.threading.Thread") as mock_thread,
     ):
@@ -1468,7 +1360,11 @@ def test_analyze_start_missing_vsix_404(client: TestClient) -> None:
 
 def test_get_analysis_job_status_404(client: TestClient) -> None:
     """Unknown analysis jobs return 404."""
-    response = client.get("/api/marketplace/analyze/missing-job")
+    with patch(
+        "workflows.marketplace.router.job_service.get_job_snapshot",
+        side_effect=KeyError("missing-job"),
+    ):
+        response = client.get("/api/marketplace/analyze/missing-job")
     assert response.status_code == 404
 
 

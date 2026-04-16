@@ -109,7 +109,9 @@ The marketplace workflow currently drives the executor in this order:
 4. run `entrypoint.py --monitor`
 5. export the report and update async job state
 
-Async job steps currently tracked in `workflows.marketplace.job_store`:
+Async job steps are now persisted through
+`workflows.marketplace.job_service` into the Postgres-backed
+`analysis_jobs` table:
 
 - `reset_sandbox`
 - `install_extension`
@@ -223,10 +225,10 @@ Current executor-backed API surface:
 - `GET /api/marketplace/analyze/{job_id}`
   - async job status
 
-Persisted job state lives at:
+Persisted job state lives in:
 
 ```text
-output/analysis_jobs/<job_id>.json
+PostgreSQL analysis_jobs rows
 ```
 
 Reports are written to:

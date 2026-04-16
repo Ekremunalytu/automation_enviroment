@@ -13,6 +13,10 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from appcore.api.config import settings
+from appcore.contracts.schema_defs.analysis_jobs import (
+    AnalysisJobStepName,
+    AnalysisJobStepStatus,
+)
 from appcore.contracts.schemas import AnalyzeRequest, AnalyzeResponse
 from appcore.db.session import SessionLocal
 from executor.host import (
@@ -22,14 +26,7 @@ from executor.host import (
     run_playwright_automation,
 )
 from workflows.marketplace import client as marketplace_client
-from workflows.marketplace.job_store import (
-    build_report_name,
-    fail_job,
-    get_job_snapshot,
-    now,
-    update_job,
-    update_job_step,
-)
+from workflows.marketplace import job_service
 from workflows.marketplace.trigger_service import build_trigger_payload
 
 logger = logging.getLogger(__name__)
@@ -202,12 +199,16 @@ def ensure_vsix_exists(request: AnalyzeRequest) -> Path:
 def execute_analysis_request(
     request: AnalyzeRequest,
     db: Session,
-    progress_callback: Callable[[str, str, str, str | None], None] | None = None,
+    progress_callback: Callable[
+        [AnalysisJobStepName, AnalysisJobStepStatus, str, str | None],
+        None,
+    ]
+    | None = None,
     report_name: str | None = None,
 ) -> AnalyzeResponse:
     def report(
-        step_name: str,
-        status: str,
+        step_name: AnalysisJobStepName,
+        status: AnalysisJobStepStatus,
         message: str,
         error_code: str | None = None,
     ) -> None:
@@ -285,7 +286,7 @@ def execute_analysis_request(
         "running",
         "Reloading VS Code under monitoring and executing automation scenarios.",
     )
-    report_name = report_name or build_report_name(request, uuid4().hex)
+    report_name = report_name or job_service.build_report_name(request, uuid4().hex)
     report_container_path = f"/results/{report_name}"
     try:
         automation_output = run_playwright_automation(
@@ -346,27 +347,29 @@ def map_executor_error(exc: ExecutorError) -> HTTPException:
 
 
 def run_analysis_job(job_id: str, request: AnalyzeRequest) -> None:
-    report_name = get_job_snapshot(job_id)["report_path"] or build_report_name(
+    report_name = job_service.get_job_snapshot(job_id)[
+        "report_path"
+    ] or job_service.build_report_name(
         request,
         job_id,
     )
-    update_job(
+    job_service.update_job(
         job_id,
         status="running",
         message="Starting sandbox analysis.",
         report_path=report_name,
-        started_at=now(),
+        started_at=job_service.now(),
     )
 
     db = SessionLocal()
 
     def progress_update(
-        step: str,
-        status: str,
+        step: AnalysisJobStepName,
+        status: AnalysisJobStepStatus,
         message: str,
         error_code: str | None = None,
     ) -> None:
-        update_job_step(
+        job_service.update_job_step(
             job_id,
             step,
             status,
@@ -391,21 +394,16 @@ def run_analysis_job(job_id: str, request: AnalyzeRequest) -> None:
         TypeError,
         AttributeError,
     ) as exc:
-        fail_job(job_id, str(exc), error_code=getattr(exc, "error_code", None))
+        job_service.fail_job(
+            job_id,
+            str(exc),
+            error_code=getattr(exc, "error_code", None),
+        )
         return
     finally:
         db.close()
 
-    update_job(
-        job_id,
-        status="completed",
-        current_step=None,
-        message=result.message,
-        report_path=result.report_path,
-        install_output=result.install_output,
-        automation_output=result.automation_output,
-        finished_at=now(),
-    )
+    job_service.complete_job(job_id, result)
 
 
 __all__ = [

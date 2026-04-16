@@ -3,12 +3,19 @@
 from __future__ import annotations
 
 import io
+import os
+import shutil
 import zipfile
 from pathlib import Path
+from uuid import uuid4
 
 import httpx
 
 from appcore.api.config import settings
+from workflows.extension_catalog.manifest_reader import (
+    PackageJsonReadError,
+    get_package_json,
+)
 
 _MARKETPLACE_API = (
     "https://marketplace.visualstudio.com/_apis/public/gallery/extensionquery"
@@ -89,6 +96,107 @@ def get_vsix_path(publisher: str, name: str, version: str) -> Path:
     return Path(settings.project.EXTENSION_DIR) / f"{publisher}.{name}-{version}.vsix"
 
 
+def _artifact_name(publisher: str, name: str, version: str) -> str:
+    return f"{publisher}.{name}-{version}"
+
+
+def _extension_dir(publisher: str, name: str, version: str) -> Path:
+    return Path(settings.project.EXTENSION_DIR) / _artifact_name(
+        publisher, name, version
+    )
+
+
+def _partial_extract_dir(base_dir: Path, artifact_name: str) -> Path:
+    return base_dir / f".{artifact_name}.partial.{os.getpid()}.{uuid4().hex}"
+
+
+def _partial_vsix_path(base_dir: Path, artifact_name: str) -> Path:
+    return base_dir / f".{artifact_name}.vsix.partial.{os.getpid()}.{uuid4().hex}"
+
+
+def _cleanup_partial_dir(partial_dir: Path) -> None:
+    if partial_dir.exists():
+        shutil.rmtree(partial_dir)
+
+
+def _is_valid_extracted_extension(extension_dir: Path) -> bool:
+    try:
+        get_package_json(extension_dir)
+    except PackageJsonReadError:
+        return False
+    return True
+
+
+def _publish_vsix_file(vsix_file: Path, vsix_bytes: bytes, artifact_name: str) -> None:
+    if vsix_file.exists():
+        return
+
+    partial_vsix = _partial_vsix_path(vsix_file.parent, artifact_name)
+    partial_vsix.write_bytes(vsix_bytes)
+
+    try:
+        partial_vsix.replace(vsix_file)
+    except OSError:
+        partial_vsix.unlink(missing_ok=True)
+        raise
+
+
+def _extract_vsix_to_dir(vsix_bytes: bytes, destination_dir: Path) -> None:
+    with zipfile.ZipFile(io.BytesIO(vsix_bytes)) as zf:
+        for member in zf.namelist():
+            if not member.startswith("extension/"):
+                continue
+
+            parts = Path(member).parts
+            if ".." in parts:
+                continue
+
+            rel_parts = parts[1:]
+            if not rel_parts:
+                continue
+
+            rel_path = Path(*rel_parts)
+            target = destination_dir / rel_path
+
+            try:
+                target.resolve().relative_to(destination_dir.resolve())
+            except ValueError:
+                continue
+
+            if member.endswith("/"):
+                target.mkdir(parents=True, exist_ok=True)
+            else:
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(zf.read(member))
+
+
+def _publish_extracted_extension(partial_dir: Path, final_dir: Path) -> Path:
+    if final_dir.exists() and _is_valid_extracted_extension(final_dir):
+        _cleanup_partial_dir(partial_dir)
+        return final_dir
+
+    try:
+        if final_dir.exists():
+            _cleanup_partial_dir(final_dir)
+        partial_dir.rename(final_dir)
+    except FileExistsError:
+        if _is_valid_extracted_extension(final_dir):
+            _cleanup_partial_dir(partial_dir)
+            return final_dir
+        if final_dir.exists():
+            _cleanup_partial_dir(final_dir)
+        try:
+            partial_dir.rename(final_dir)
+        except OSError:
+            _cleanup_partial_dir(partial_dir)
+            raise
+    except OSError:
+        _cleanup_partial_dir(partial_dir)
+        raise
+
+    return final_dir
+
+
 def download_and_extract_vsix(publisher: str, name: str, version: str) -> Path:
     """
     Download and extract a VSIX extension package from the VS Code Marketplace.
@@ -111,14 +219,23 @@ def download_and_extract_vsix(publisher: str, name: str, version: str) -> Path:
     Raises:
         httpx.HTTPError: On network or upstream errors.
     """
-    ext_dir = Path(settings.project.EXTENSION_DIR) / f"{publisher}.{name}-{version}"
+    base_dir = Path(settings.project.EXTENSION_DIR)
+    artifact_name = _artifact_name(publisher, name, version)
+    ext_dir = _extension_dir(publisher, name, version)
     vsix_file = get_vsix_path(publisher, name, version)
+    base_dir.mkdir(parents=True, exist_ok=True)
 
-    # Idempotent: skip download if already extracted and .vsix exists
-    if ext_dir.exists() and (ext_dir / "package.json").exists() and vsix_file.exists():
+    manifest_ready = False
+    if ext_dir.exists():
+        try:
+            get_package_json(ext_dir)
+        except PackageJsonReadError:
+            manifest_ready = False
+        else:
+            manifest_ready = True
+
+    if manifest_ready and vsix_file.exists():
         return ext_dir
-
-    ext_dir.mkdir(parents=True, exist_ok=True)
 
     url = _VSIX_URL_TEMPLATE.format(publisher=publisher, name=name, version=version)
 
@@ -127,41 +244,19 @@ def download_and_extract_vsix(publisher: str, name: str, version: str) -> Path:
         resp.raise_for_status()
         vsix_bytes = resp.content
 
-    # Preserve the raw .vsix file (VS Code CLI requires it for installation)
-    if not vsix_file.exists():
-        vsix_file.write_bytes(vsix_bytes)
+    _publish_vsix_file(vsix_file, vsix_bytes, artifact_name)
 
-    with zipfile.ZipFile(io.BytesIO(vsix_bytes)) as zf:
-        for member in zf.namelist():
-            # Only extract files inside the extension/ subdirectory
-            if not member.startswith("extension/"):
-                continue
+    if manifest_ready:
+        return ext_dir
 
-            parts = Path(member).parts
+    partial_dir = _partial_extract_dir(base_dir, artifact_name)
+    partial_dir.mkdir(parents=False, exist_ok=False)
 
-            # Path traversal protection: reject any ".." components
-            if ".." in parts:
-                continue
+    try:
+        _extract_vsix_to_dir(vsix_bytes, partial_dir)
+        get_package_json(partial_dir)
+    except (OSError, PackageJsonReadError, zipfile.BadZipFile):
+        _cleanup_partial_dir(partial_dir)
+        raise
 
-            # Strip the leading "extension/" component
-            rel_parts = parts[1:]
-            if not rel_parts:
-                # Bare "extension/" directory entry — skip
-                continue
-
-            rel_path = Path(*rel_parts)
-            target = ext_dir / rel_path
-
-            # Security: ensure resolved target stays inside ext_dir
-            try:
-                target.resolve().relative_to(ext_dir.resolve())
-            except ValueError:
-                continue
-
-            if member.endswith("/"):
-                target.mkdir(parents=True, exist_ok=True)
-            else:
-                target.parent.mkdir(parents=True, exist_ok=True)
-                target.write_bytes(zf.read(member))
-
-    return ext_dir
+    return _publish_extracted_extension(partial_dir, ext_dir)

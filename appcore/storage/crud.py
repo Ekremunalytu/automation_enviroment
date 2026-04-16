@@ -1,5 +1,15 @@
 """Public CRUD facade for ExTrace storage."""
 
+from appcore.storage.crud_ops.analysis_jobs import (
+    complete_analysis_job,
+    create_analysis_job,
+    fail_analysis_job,
+    get_active_analysis_job,
+    get_analysis_job,
+    recover_interrupted_analysis_jobs,
+    update_analysis_job,
+    update_analysis_job_step,
+)
 from appcore.storage.crud_ops.reads import (
     get_db_extensions_base_info,
     get_extension_by_id,
@@ -16,8 +26,13 @@ from appcore.storage.crud_ops.relations import (
 from appcore.storage.crud_ops.writes import create_extension, delete_extension
 
 __all__ = [
+    "complete_analysis_job",
+    "create_analysis_job",
     "create_extension",
     "delete_extension",
+    "fail_analysis_job",
+    "get_active_analysis_job",
+    "get_analysis_job",
     "get_db_extensions_base_info",
     "get_extension_activation_events",
     "get_extension_by_id",
@@ -26,5 +41,8 @@ __all__ = [
     "get_extension_contributes_commands",
     "get_extension_scripts",
     "get_extensions_all_info",
+    "recover_interrupted_analysis_jobs",
     "search_extension_by_name",
+    "update_analysis_job",
+    "update_analysis_job_step",
 ]

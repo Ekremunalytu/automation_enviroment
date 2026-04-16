@@ -13,7 +13,7 @@ flowchart LR
     UI["React UI"] --> API["FastAPI marketplace workflow"]
     API --> DL["Marketplace download/extract"]
     DL --> DB["Validated catalog persistence"]
-    API --> JOB["Async job store (`output/analysis_jobs`)"]
+    API --> JOB["Async job metadata (`analysis_jobs` table)"]
     API --> PLAN["Trigger planning"]
     PLAN --> HOST["`executor.host`"]
     HOST --> EXEC["Playwright entrypoint"]

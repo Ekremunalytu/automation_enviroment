@@ -1,5 +1,5 @@
 import type { FormEvent } from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { MarketplaceResultCard } from "../../components/marketplace/MarketplaceResultCard";
@@ -9,13 +9,27 @@ import { rememberJobId } from "../simulation/jobStorage";
 import { ApiError } from "../../lib/api/http";
 import { apiClient } from "../../lib/api/client";
 
+function artifactKey({
+  publisher,
+  name,
+  version,
+}: {
+  publisher: string;
+  name: string;
+  version: string;
+}) {
+  return `${publisher}.${name}@${version}`;
+}
+
 export function MarketplacePage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const queryParam = searchParams.get("q") || "";
   const [query, setQuery] = useState(queryParam);
   const [ready, setReady] = useState<Record<string, boolean>>({});
+  const [downloadsInFlight, setDownloadsInFlight] = useState<Record<string, boolean>>({});
   const [actionError, setActionError] = useState<string | null>(null);
+  const downloadsInFlightRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     setQuery(queryParam);
@@ -30,16 +44,6 @@ export function MarketplacePage() {
   const downloadMutation = useMutation({
     mutationFn: ({ publisher, name, version }: { publisher: string; name: string; version: string }) =>
       apiClient.downloadMarketplaceExtension(publisher, name, version),
-    onSuccess: (result) => {
-      setActionError(null);
-      setReady((current) => ({
-        ...current,
-        [`${result.publisher}.${result.name}@${result.version}`]: true,
-      }));
-    },
-    onError: (error) => {
-      setActionError(error instanceof ApiError ? error.message : "Download failed.");
-    },
   });
 
   const analyzeMutation = useMutation({
@@ -63,6 +67,55 @@ export function MarketplacePage() {
     else next.delete("q");
     setSearchParams(next, { replace: true });
   };
+
+  const setDownloadPending = (key: string, pending: boolean) => {
+    if (pending) downloadsInFlightRef.current.add(key);
+    else downloadsInFlightRef.current.delete(key);
+
+    setDownloadsInFlight((current) => {
+      if (pending) {
+        return { ...current, [key]: true };
+      }
+
+      if (!current[key]) {
+        return current;
+      }
+
+      const next = { ...current };
+      delete next[key];
+      return next;
+    });
+  };
+
+  const onDownload = (publisher: string, name: string, version: string) => {
+    const key = artifactKey({ publisher, name, version });
+    if (downloadsInFlightRef.current.has(key)) {
+      return;
+    }
+
+    setActionError(null);
+    setDownloadPending(key, true);
+    downloadMutation.mutate(
+      { publisher, name, version },
+      {
+        onSuccess: (result) => {
+          setReady((current) => ({
+            ...current,
+            [artifactKey(result)]: true,
+          }));
+        },
+        onError: (error) => {
+          setActionError(error instanceof ApiError ? error.message : "Download failed.");
+        },
+        onSettled: () => {
+          setDownloadPending(key, false);
+        },
+      },
+    );
+  };
+
+  const activeAnalyzeKey =
+    analyzeMutation.isPending && analyzeMutation.variables ? artifactKey(analyzeMutation.variables) : null;
 
   return (
     <div className="space-y-6">
@@ -135,8 +188,8 @@ export function MarketplacePage() {
 
           <div className="divide-y divide-line px-5">
             {(searchQuery.data || []).map((extension) => {
-              const key = `${extension.publisher}.${extension.name}@${extension.version}`;
-              const busy = downloadMutation.isPending || analyzeMutation.isPending;
+              const key = artifactKey(extension);
+              const busy = Boolean(downloadsInFlight[key]) || activeAnalyzeKey === key;
               return (
                 <MarketplaceResultCard
                   busy={busy}
@@ -150,11 +203,7 @@ export function MarketplacePage() {
                     })
                   }
                   onDownload={() =>
-                    downloadMutation.mutate({
-                      publisher: extension.publisher,
-                      name: extension.name,
-                      version: extension.version,
-                    })
+                    onDownload(extension.publisher, extension.name, extension.version)
                   }
                   readyToAnalyze={ready[key] || false}
                 />

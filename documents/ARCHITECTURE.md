@@ -160,8 +160,9 @@ Notes:
 7. `executor/flows/playwright/report_builder.py`
 8. `output/activation_report_*.json`
 
-Async job mode also persists step-tracked snapshots to
-`output/analysis_jobs/<job_id>.json`.
+Async job mode now persists step-tracked analysis job metadata in the
+PostgreSQL `analysis_jobs` table through `appcore.storage.crud` and
+`workflows.marketplace.job_service`.
 
 Notes:
 
@@ -205,14 +206,15 @@ Notes:
 
 - extracted extensions under `extensions/`
 - activation reports under `output/`
-- background job snapshots under `output/analysis_jobs/`
 
 ### In-memory state
 
-- `_ANALYSIS_JOBS` cache in `workflows.marketplace.job_store`
+- no analysis-job cache is the source of truth; async job state is durable in
+  Postgres and loaded per request/job transition
 
 This split is still intentional for the current product shape. The database is
-used for extension catalog data; dynamic-analysis runs remain artifact-first.
+used for extension catalog data and durable async job metadata; dynamic-analysis
+artifacts such as reports still remain filesystem-first.
 
 ## Testing Structure
 

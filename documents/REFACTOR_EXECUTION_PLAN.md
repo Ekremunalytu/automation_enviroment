@@ -250,6 +250,17 @@ job orchestration.
 - single-active-job guarantees remain explicit
 - router no longer owns process-local job state as the source of truth
 
+### Status
+
+- Week 4B implementation is in progress and the core control-plane changes are
+  now present in the working tree: persisted `analysis_jobs` storage, CRUD
+  facade wiring, router/job orchestration separation, and an Alembic migration.
+- Treat Week 4B as `implemented, validation pending` until the targeted storage
+  and marketplace job test lanes are rerun successfully in the project venv.
+- Track the current post-review follow-ups in `documents/REFACTOR_OPTIMIZATION.md`,
+  especially the VSIX re-download correctness gap, startup DB failure
+  visibility, and the remaining doc-alignment cleanup.
+
 ## Week 5+
 
 Week 5 and later are intentionally deferred. Use

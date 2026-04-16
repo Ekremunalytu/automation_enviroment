@@ -52,16 +52,19 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     && apt-get update \
     && apt-get install -y --no-install-recommends nodejs
 
-# Install VS Code via direct .deb download
-# Detect architecture: arm64 -> linux-deb-arm64, amd64 -> linux-deb-x64
+# Install VS Code via direct .deb download.
+# Detect architecture: arm64 -> linux-deb-arm64, amd64 -> linux-deb-x64.
+# Use apt to install the local .deb so dependency resolution and archive
+# validation fail the build instead of silently continuing.
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
     ARCH=$(dpkg --print-architecture) \
     && if [ "$ARCH" = "arm64" ]; then VSCODE_ARCH="linux-deb-arm64"; else VSCODE_ARCH="linux-deb-x64"; fi \
-    && curl -fsSL -o /tmp/vscode.deb "https://update.code.visualstudio.com/latest/${VSCODE_ARCH}/${EXECUTOR_VSCODE_CHANNEL}" \
-    && dpkg -i /tmp/vscode.deb || true \
+    && curl --retry 5 --retry-all-errors --retry-delay 2 -fsSL -o /tmp/vscode.deb "https://update.code.visualstudio.com/latest/${VSCODE_ARCH}/${EXECUTOR_VSCODE_CHANNEL}" \
+    && dpkg-deb --info /tmp/vscode.deb >/dev/null \
     && apt-get update \
-    && apt-get install -f -y --no-install-recommends \
+    && apt-get install -y --no-install-recommends /tmp/vscode.deb \
+    && command -v code >/dev/null \
     && rm -f /tmp/vscode.deb
 
 # Install Playwright Python package and its system dependencies
