@@ -18,7 +18,6 @@ from appcore.contracts.schema_defs.analysis_jobs import (
     AnalysisJobStepStatus,
 )
 from appcore.contracts.schemas import AnalyzeRequest, AnalyzeResponse
-from appcore.db.session import SessionLocal
 from executor.host import (
     ExecutorError,
     install_extension_in_executor,
@@ -38,6 +37,12 @@ class TriggerPlanError(RuntimeError):
     def __init__(self, error_code: str, message: str) -> None:
         super().__init__(message)
         self.error_code = error_code
+
+
+def _open_job_session() -> Session:
+    from appcore.db.session import SessionLocal
+
+    return SessionLocal()
 
 
 def _load_report_payload(report_name: str) -> dict[str, object] | None:
@@ -263,7 +268,7 @@ def execute_analysis_request(
     try:
         trigger_container_path, _, trigger_message = build_trigger_payload(db, request)
         report("build_triggers", "completed", trigger_message)
-    except (SQLAlchemyError, OSError, ValueError, TypeError, AttributeError) as exc:
+    except (SQLAlchemyError, OSError, ValueError) as exc:
         logger.warning(
             "Failed to build trigger payload for %s.%s: %s",
             request.publisher,
@@ -361,7 +366,7 @@ def run_analysis_job(job_id: str, request: AnalyzeRequest) -> None:
         started_at=job_service.now(),
     )
 
-    db = SessionLocal()
+    db = _open_job_session()
 
     def progress_update(
         step: AnalysisJobStepName,
@@ -384,6 +389,13 @@ def run_analysis_job(job_id: str, request: AnalyzeRequest) -> None:
             progress_callback=progress_update,
             report_name=report_name,
         )
+    except (TypeError, AttributeError) as exc:
+        job_service.fail_job(
+            job_id,
+            str(exc),
+            error_code=getattr(exc, "error_code", None),
+        )
+        raise
     except (
         FileNotFoundError,
         ExecutorError,
@@ -391,8 +403,6 @@ def run_analysis_job(job_id: str, request: AnalyzeRequest) -> None:
         OSError,
         SQLAlchemyError,
         ValueError,
-        TypeError,
-        AttributeError,
     ) as exc:
         job_service.fail_job(
             job_id,

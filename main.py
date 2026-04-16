@@ -3,11 +3,12 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
+from sqlalchemy.exc import SQLAlchemyError
 
 from appcore.api.config import settings
 from workflows.activation_reports.router import router as activation_reports_router
 from workflows.extension_catalog.router import router as extension_catalog_router
-from workflows.marketplace.job_store import recover_interrupted_jobs
+from workflows.marketplace.job_service import recover_interrupted_jobs
 from workflows.marketplace.router import router as marketplace_router
 
 
@@ -51,7 +52,13 @@ def create_app() -> FastAPI:
     application.include_router(activation_reports_router)
     application.include_router(marketplace_router)
 
-    recover_interrupted_jobs()
+    try:
+        recover_interrupted_jobs()
+    except SQLAlchemyError as exc:
+        raise RuntimeError(
+            "Marketplace analysis job storage is unavailable; run migrations "
+            "and verify DB connectivity before starting the API."
+        ) from exc
     return application
 
 

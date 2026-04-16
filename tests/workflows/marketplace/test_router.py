@@ -1051,7 +1051,8 @@ def test_run_analysis_job_marks_failure_and_closes_session() -> None:
     session = MagicMock()
     with (
         patch(
-            "workflows.marketplace.analysis_service.SessionLocal", return_value=session
+            "workflows.marketplace.analysis_service._open_job_session",
+            return_value=session,
         ),
         patch(
             "workflows.marketplace.analysis_service.job_service.get_job_snapshot",
@@ -1081,7 +1082,8 @@ def test_run_analysis_job_persists_trigger_error_code() -> None:
     )
     with (
         patch(
-            "workflows.marketplace.analysis_service.SessionLocal", return_value=session
+            "workflows.marketplace.analysis_service._open_job_session",
+            return_value=session,
         ),
         patch(
             "workflows.marketplace.analysis_service.job_service.get_job_snapshot",
@@ -1121,7 +1123,8 @@ def test_run_analysis_job_marks_completion_and_closes_session() -> None:
     )
     with (
         patch(
-            "workflows.marketplace.analysis_service.SessionLocal", return_value=session
+            "workflows.marketplace.analysis_service._open_job_session",
+            return_value=session,
         ),
         patch(
             "workflows.marketplace.analysis_service.job_service.get_job_snapshot",
@@ -1148,7 +1151,8 @@ def test_run_analysis_job_marks_value_error_failure() -> None:
     session = MagicMock()
     with (
         patch(
-            "workflows.marketplace.analysis_service.SessionLocal", return_value=session
+            "workflows.marketplace.analysis_service._open_job_session",
+            return_value=session,
         ),
         patch(
             "workflows.marketplace.analysis_service.job_service.get_job_snapshot",
@@ -1168,6 +1172,39 @@ def test_run_analysis_job_marks_value_error_failure() -> None:
     mock_fail.assert_called_once_with(
         "job-1",
         "bad trigger payload",
+        error_code=None,
+    )
+    session.close.assert_called_once_with()
+
+
+def test_run_analysis_job_marks_type_error_failure_and_reraises() -> None:
+    """Unexpected worker bugs should fail the job before the thread crashes."""
+    request = AnalyzeRequest(**ANALYZE_PAYLOAD)
+    session = MagicMock()
+    with (
+        patch(
+            "workflows.marketplace.analysis_service._open_job_session",
+            return_value=session,
+        ),
+        patch(
+            "workflows.marketplace.analysis_service.job_service.get_job_snapshot",
+            return_value={"job_id": "job-1", "report_path": "saved-report.json"},
+        ),
+        patch("workflows.marketplace.analysis_service.job_service.update_job"),
+        patch(
+            "workflows.marketplace.analysis_service.job_service.fail_job"
+        ) as mock_fail,
+        patch(
+            "workflows.marketplace.analysis_service.execute_analysis_request",
+            side_effect=TypeError("planner wiring bug"),
+        ),
+        pytest.raises(TypeError, match="planner wiring bug"),
+    ):
+        analysis_service.run_analysis_job("job-1", request)
+
+    mock_fail.assert_called_once_with(
+        "job-1",
+        "planner wiring bug",
         error_code=None,
     )
     session.close.assert_called_once_with()

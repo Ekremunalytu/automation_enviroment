@@ -102,6 +102,27 @@ def test_install_extension_failure(mock_exec: MagicMock) -> None:
 
 
 # ---------------------------------------------------------------------------
+# reload_vscode_window
+# ---------------------------------------------------------------------------
+
+
+@patch("executor.host._docker_exec")
+def test_reload_vscode_window_uses_reload_timeout(mock_exec: MagicMock) -> None:
+    """Reload wrapper should allow enough time for VS Code teardown/reconnect."""
+    mock_exec.return_value = subprocess.CompletedProcess(
+        args=[],
+        returncode=0,
+        stdout="reloaded",
+        stderr="",
+    )
+
+    output = reload_vscode_window()
+
+    assert output == "reloaded"
+    assert mock_exec.call_args.kwargs["timeout"] == 90
+
+
+# ---------------------------------------------------------------------------
 # run_playwright_automation
 # ---------------------------------------------------------------------------
 

@@ -1,6 +1,6 @@
 # Project Structure
 
-`Last Updated: 2026-04-15`
+`Last Updated: 2026-04-16`
 
 This is the current top-level layout and placement guidance for the refactored
 repository.
@@ -16,7 +16,7 @@ documents/                 Canonical project documentation
 executor/                  Sandbox host wrapper + container runtime
 extensions/                Downloaded/extracted VSIX fixtures and samples
 legacy_ui/                 Archived Streamlit UI snapshot
-output/                    Generated reports and async job snapshots
+output/                    Generated reports and runtime artifacts
 scripts/                   Small maintenance helpers
 tests/                     Python test suite
 ui/                        Primary React analyst console
@@ -65,7 +65,7 @@ workflows/
   marketplace/
     analysis_service.py
     client.py
-    job_store.py
+    job_service.py
     router.py
     trigger_service.py
     triggers.py

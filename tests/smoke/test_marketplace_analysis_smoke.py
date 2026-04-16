@@ -74,18 +74,18 @@ def _poll_job(client: TestClient, job_id: str) -> dict[str, object]:
 @pytest.mark.smoke
 @pytest.mark.integration
 @pytest.mark.slow
-def test_ms_python_analysis_smoke(client: TestClient) -> None:
+def test_ms_python_analysis_smoke(runtime_client: TestClient) -> None:
     _require_executor_container()
     version, _vsix_path, extracted_dir = _resolve_ms_python_fixture()
     assert extracted_dir.exists()
 
-    download_response = client.post(
+    download_response = runtime_client.post(
         "/api/marketplace/download",
         json={"publisher": _PUBLISHER, "name": _NAME, "version": version},
     )
     assert download_response.status_code == 200
 
-    start_response = client.post(
+    start_response = runtime_client.post(
         "/api/marketplace/analyze/start",
         json={
             "publisher": _PUBLISHER,
@@ -96,11 +96,11 @@ def test_ms_python_analysis_smoke(client: TestClient) -> None:
     )
     assert start_response.status_code == 202
     job = start_response.json()
-    completed_job = _poll_job(client, str(job["job_id"]))
+    completed_job = _poll_job(runtime_client, str(job["job_id"]))
 
     assert completed_job["status"] == "completed", completed_job.get("error_detail")
     report_name = str(completed_job["report_path"])
-    report_response = client.get(f"/api/activations/{report_name}")
+    report_response = runtime_client.get(f"/api/activations/{report_name}")
     assert report_response.status_code == 200
     report = report_response.json()
 
@@ -124,19 +124,19 @@ def test_ms_python_analysis_smoke(client: TestClient) -> None:
 @pytest.mark.integration
 @pytest.mark.slow
 def test_ms_python_layered_analysis_smoke_never_reads_as_clean_when_chat_tool_verification_is_open(
-    client: TestClient,
+    runtime_client: TestClient,
 ) -> None:
     _require_executor_container()
     version, _vsix_path, extracted_dir = _resolve_ms_python_fixture()
     assert extracted_dir.exists()
 
-    download_response = client.post(
+    download_response = runtime_client.post(
         "/api/marketplace/download",
         json={"publisher": _PUBLISHER, "name": _NAME, "version": version},
     )
     assert download_response.status_code == 200
 
-    start_response = client.post(
+    start_response = runtime_client.post(
         "/api/marketplace/analyze/start",
         json={
             "publisher": _PUBLISHER,
@@ -146,11 +146,11 @@ def test_ms_python_layered_analysis_smoke_never_reads_as_clean_when_chat_tool_ve
     )
     assert start_response.status_code == 202
     job = start_response.json()
-    completed_job = _poll_job(client, str(job["job_id"]))
+    completed_job = _poll_job(runtime_client, str(job["job_id"]))
 
     assert completed_job["status"] == "completed", completed_job.get("error_detail")
     report_name = str(completed_job["report_path"])
-    report_response = client.get(f"/api/activations/{report_name}")
+    report_response = runtime_client.get(f"/api/activations/{report_name}")
     assert report_response.status_code == 200
     report = report_response.json()
 
@@ -176,7 +176,7 @@ def test_ms_python_layered_analysis_smoke_never_reads_as_clean_when_chat_tool_ve
 @pytest.mark.smoke
 @pytest.mark.integration
 @pytest.mark.slow
-def test_missing_trigger_payload_never_looks_benign(client: TestClient) -> None:
+def test_missing_trigger_payload_never_looks_benign(runtime_client: TestClient) -> None:
     _require_executor_container()
     version, _vsix_path, _extracted_dir = _resolve_ms_python_fixture()
 
@@ -188,17 +188,17 @@ def test_missing_trigger_payload_never_looks_benign(client: TestClient) -> None:
             "Trigger requested for ms-python.python with a missing payload.",
         ),
     ):
-        start_response = client.post(
+        start_response = runtime_client.post(
             "/api/marketplace/analyze/start",
             json={"publisher": _PUBLISHER, "name": _NAME, "version": version},
         )
         assert start_response.status_code == 202
         job = start_response.json()
-        completed_job = _poll_job(client, str(job["job_id"]))
+        completed_job = _poll_job(runtime_client, str(job["job_id"]))
 
     assert completed_job["status"] == "completed", completed_job.get("error_detail")
     report_name = str(completed_job["report_path"])
-    report_response = client.get(f"/api/activations/{report_name}")
+    report_response = runtime_client.get(f"/api/activations/{report_name}")
     assert report_response.status_code == 200
     report = report_response.json()
 

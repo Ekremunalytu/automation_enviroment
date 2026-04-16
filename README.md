@@ -1,6 +1,6 @@
 # ExTrace
 
-`Last Updated: 2026-04-15`
+`Last Updated: 2026-04-16`
 
 ExTrace is a VS Code extension analysis platform built around three runtime surfaces:
 
@@ -15,7 +15,7 @@ ExTrace is intentionally designed as a single-user sandbox appliance, not a mult
 - Backend, UI, PostgreSQL, and executor are expected to run on the same machine or inside the same Docker host.
 - The primary deployment shape is a local or lab sandbox where one analyst inspects one extension at a time.
 - Background analysis is intentionally limited to one active job at a time.
-- Reports and job snapshots are file-backed on purpose; they are operator artifacts, not shared tenant data.
+- Activation reports remain file-backed operator artifacts under `output/`, while async analysis job metadata is persisted in PostgreSQL.
 - If the API process restarts during an active analysis, that job is marked failed and should be rerun.
 
 ## Current Architecture
@@ -77,16 +77,19 @@ The repository now uses canonical imports only:
 `POST /api/marketplace/analyze` or `POST /api/marketplace/analyze/start`
 
 1. `workflows.marketplace.router`
-2. `executor.host` Docker exec wrapper
-3. `executor/flows/playwright/entrypoint.py`
-4. Reports written under `output/`
-5. Job snapshots persisted under `output/analysis_jobs/`
+2. `workflows.marketplace.analysis_service`
+3. `workflows.marketplace.job_service`
+4. `executor.host` Docker exec wrapper
+5. `executor/flows/playwright/entrypoint.py`
+6. Reports written under `output/`
+7. Async job metadata persisted in PostgreSQL `analysis_jobs`
 
 Notes:
 
 - `POST /api/marketplace/analyze` is the direct request/response path.
 - `POST /api/marketplace/analyze/start` is the background path used by the React UI.
 - Only one background analysis should run at a time in the intended sandbox deployment.
+- Startup fails fast if the `analysis_jobs` storage path is unavailable or the required migration has not been applied.
 
 ## API Surface
 

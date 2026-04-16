@@ -1,6 +1,6 @@
 # Refactor Execution Plan
 
-`Last Updated: 2026-04-15`
+`Last Updated: 2026-04-16`
 
 This is the canonical execution plan for the current refactor. It keeps the
 first four weeks decision-complete and intentionally defers heavier Week 5+
@@ -252,14 +252,41 @@ job orchestration.
 
 ### Status
 
-- Week 4B implementation is in progress and the core control-plane changes are
-  now present in the working tree: persisted `analysis_jobs` storage, CRUD
-  facade wiring, router/job orchestration separation, and an Alembic migration.
-- Treat Week 4B as `implemented, validation pending` until the targeted storage
-  and marketplace job test lanes are rerun successfully in the project venv.
-- Track the current post-review follow-ups in `documents/REFACTOR_OPTIMIZATION.md`,
-  especially the VSIX re-download correctness gap, startup DB failure
-  visibility, and the remaining doc-alignment cleanup.
+- Week 4B durable-job persistence is now wired through
+  `workflows.marketplace.job_service` and `appcore.storage.crud`; the legacy
+  `job_store` compatibility layer has been removed.
+- Startup now fails fast when `analysis_jobs` storage is unavailable or the
+  required migration has not been applied, instead of silently skipping job
+  recovery.
+- Targeted unit validation passed on `2026-04-16` for the startup/runtime seam
+  and marketplace job-worker lane:
+  `tests/platform/api/test_app_runtime.py` and the selected
+  `tests/workflows/marketplace/test_router.py` job tests.
+- DB-backed storage validation also passed on `2026-04-16`:
+  `tests/platform/storage/test_analysis_jobs.py`.
+- The smoke harness now binds both request-time DB sessions and background
+  worker sessions to the real test database via `tests/conftest.py`'s
+  `runtime_client` fixture, so `/api/marketplace/analyze/start` no longer
+  exercises the `analysis_jobs` path through a mocked `MagicMock` session.
+- Week 4B remains `validation pending` until all closure checks pass in an
+  environment with Postgres and the executor available.
+- Week 4B closure checklist:
+  - startup must fast-fail if job storage or migration state is unavailable
+  - `tests/platform/storage/test_analysis_jobs.py` must pass against Postgres
+  - Alembic upgrade -> downgrade -> upgrade must pass on the test DB
+  - `tests/smoke/test_marketplace_analysis_smoke.py::test_ms_python_analysis_smoke`
+    must pass with the executor container available
+- Current blocker on `2026-04-16`: the smoke acceptance lane reaches the real
+  persisted-job path but still fails inside the executor because
+  `python3 /home/executor/flows/playwright/reload_vscode.py` hangs during the
+  CDP reconnect/reload step and is eventually terminated by the host wrapper
+  timeout. Do not mark Week 4B closed until that executor-side smoke failure
+  and the Alembic cycle check are both resolved.
+- Once the remaining DB-backed and smoke validation is green, the next promoted
+  lane stays `Week 4C`; do not mix Week 4C scope into this closure pass.
+- Track the remaining post-review follow-ups in
+  `documents/REFACTOR_OPTIMIZATION.md`, especially the VSIX re-download
+  correctness gap and the broader Week 4C boundary/fixture work.
 
 ## Week 5+
 

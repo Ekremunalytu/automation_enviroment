@@ -7,10 +7,12 @@ initialize the test PostgreSQL engine unless they explicitly request it.
 
 from __future__ import annotations
 
+import importlib
 import os
+import sys
 from collections.abc import Generator
 from typing import Any
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -22,7 +24,6 @@ from sqlalchemy.pool import NullPool
 # Import application components
 from appcore.storage.models import Base
 from appcore.api.deps import get_db
-from main import app
 
 # =============================================================================
 # DATABASE FIXTURES
@@ -113,6 +114,24 @@ def db_session(test_engine: Any) -> Generator[Session, None, None]:
 # =============================================================================
 
 
+def load_test_app() -> Any:
+    """Import the FastAPI app without requiring live job-storage recovery."""
+    main_module = sys.modules.get("main")
+    if main_module is not None:
+        return main_module.app
+
+    from workflows.marketplace import job_service
+
+    with patch(
+        "workflows.marketplace.job_service.recover_interrupted_jobs",
+        return_value=0,
+    ):
+        main_module = importlib.import_module("main")
+
+    main_module.recover_interrupted_jobs = job_service.recover_interrupted_jobs
+    return main_module.app
+
+
 @pytest.fixture(scope="function")
 def mock_session() -> Session:
     """Return a lightweight SQLAlchemy session double for DB-free tests."""
@@ -122,6 +141,7 @@ def mock_session() -> Session:
 @pytest.fixture(scope="function")
 def client(mock_session: Session) -> Generator[TestClient, None, None]:
     """Create a FastAPI test client backed by a lightweight mocked DB session."""
+    app = load_test_app()
 
     def override_get_db() -> Generator[Session, None, None]:
         yield mock_session
@@ -137,6 +157,7 @@ def client(mock_session: Session) -> Generator[TestClient, None, None]:
 @pytest.fixture(scope="function")
 def db_client(db_session: Session) -> Generator[TestClient, None, None]:
     """Create a FastAPI test client backed by the real test PostgreSQL session."""
+    app = load_test_app()
 
     def override_get_db() -> Generator[Session, None, None]:
         yield db_session
@@ -148,6 +169,28 @@ def db_client(db_session: Session) -> Generator[TestClient, None, None]:
 
     # Clear overrides
     app.dependency_overrides.clear()
+
+
+@pytest.fixture(scope="function")
+def runtime_client(test_engine: Any) -> Generator[TestClient, None, None]:
+    """Create a TestClient whose request and worker sessions use the test DB."""
+    app = load_test_app()
+    runtime_session_factory = sessionmaker(
+        bind=test_engine,
+        autocommit=False,
+        autoflush=False,
+        future=True,
+    )
+
+    with (
+        patch("appcore.api.deps.SessionLocal", runtime_session_factory),
+        patch("appcore.db.session.SessionLocal", runtime_session_factory),
+        patch(
+            "workflows.marketplace.job_service.SessionLocal", runtime_session_factory
+        ),
+        TestClient(app) as test_client,
+    ):
+        yield test_client
 
 
 # =============================================================================

@@ -1,6 +1,6 @@
 # Testing Guide
 
-`Last Updated: 2026-04-15`
+`Last Updated: 2026-04-16`
 
 The test suite mirrors the refactored architecture: platform tests validate
 shared `appcore/` code, workflow tests validate business slices, executor tests
@@ -78,6 +78,11 @@ ui/smoke/
   - per-test transactional session
 - `client`
   - FastAPI `TestClient` with `get_db` override
+- `db_client`
+  - FastAPI `TestClient` that reuses the per-test transactional DB session
+- `runtime_client`
+  - FastAPI `TestClient` that patches request-time and background-worker
+    `SessionLocal` factories to the real test PostgreSQL engine
 - `mock_session`
   - reusable `MagicMock(spec=Session)` for DB-free tests
 - `sample_extension_data`
@@ -127,6 +132,10 @@ It validates:
 The smoke fixture is currently pinned to `ms-python.python` and uses the
 executor container directly.
 
+The smoke client now uses `runtime_client`, so both the request handlers and
+the async job worker talk to the real test PostgreSQL database instead of a
+mocked session when exercising `analysis_jobs`.
+
 ## Coverage Focus
 
 ### Platform
@@ -161,8 +170,12 @@ executor container directly.
 - Smoke coverage is still centered on the pinned `ms-python.python` fixture.
 - Executor reliability is the most failure-prone path, so unit coverage still
   needs periodic backing from real-container smoke runs.
-- Dynamic-analysis runs are artifact-first and file-backed, so tests assert JSON
-  snapshots rather than DB-backed run history.
+- Activation reports remain artifact-first and file-backed under `output/`, but
+  async marketplace job metadata is now DB-backed and should be exercised
+  through the Postgres test lane.
+- The current smoke blocker is executor-side CDP reload stability:
+  `reload_vscode.py` can hang during the workbench reconnect step even after the
+  API and persisted-job lanes pass.
 - The SPA has route-level coverage, but API-contract drift still matters because
   there is no generated client.
 
