@@ -72,6 +72,9 @@ def test_engine() -> Any:
     )
 
     try:
+        # Reset the dedicated test schema up front so interrupted smoke or DB
+        # runs do not leak active-job rows into later sessions.
+        Base.metadata.drop_all(bind=engine)
         Base.metadata.create_all(bind=engine)
     except OperationalError:
         engine.dispose()

@@ -8,32 +8,46 @@ import type {
 import { requestJson } from "./http";
 
 export const apiClient = {
-  listReports() {
-    return requestJson<ReportListItemDto[]>("/api/activations");
+  listReports(signal?: AbortSignal) {
+    return requestJson<ReportListItemDto[]>("/api/activations", { signal });
   },
-  getLatestReport() {
-    return requestJson<ActivationReportDto>("/api/activations/latest");
+  getLatestReport(signal?: AbortSignal) {
+    return requestJson<ActivationReportDto>("/api/activations/latest", { signal });
   },
-  getReportByName(name: string) {
-    return requestJson<ActivationReportDto>(`/api/activations/${name}`);
+  getReportByName(name: string, signal?: AbortSignal) {
+    return requestJson<ActivationReportDto>(`/api/activations/${name}`, { signal });
   },
-  searchMarketplace(query: string) {
+  searchMarketplace(query: string, signal?: AbortSignal) {
     const params = new URLSearchParams({ query, page_size: "18" });
-    return requestJson<MarketplaceExtensionDto[]>(`/api/marketplace/search?${params.toString()}`);
+    return requestJson<MarketplaceExtensionDto[]>(`/api/marketplace/search?${params.toString()}`, { signal });
   },
-  downloadMarketplaceExtension(publisher: string, name: string, version: string) {
+  downloadMarketplaceExtension(
+    publisher: string,
+    name: string,
+    version: string,
+    signal?: AbortSignal,
+  ) {
     return requestJson<MarketplaceDownloadResponseDto>("/api/marketplace/download", {
       method: "POST",
       body: JSON.stringify({ publisher, name, version }),
+      signal,
     });
   },
-  startAnalysisJob(publisher: string, name: string, version: string) {
+  startAnalysisJob(
+    publisher: string,
+    name: string,
+    version: string,
+    signal?: AbortSignal,
+  ) {
     return requestJson<AnalyzeJobStatusDto>("/api/marketplace/analyze/start", {
       method: "POST",
       body: JSON.stringify({ publisher, name, version }),
+      signal,
     });
   },
-  getAnalysisJob(jobId: string) {
-    return requestJson<AnalyzeJobStatusDto>(`/api/marketplace/analyze/${jobId}`);
+  getAnalysisJob(jobId: string, signal?: AbortSignal) {
+    return requestJson<AnalyzeJobStatusDto>(`/api/marketplace/analyze/${jobId}`, {
+      signal,
+    });
   },
 };

@@ -96,6 +96,10 @@ describe("SimulationPage", () => {
     vi.mocked(apiClient.getReportByName).mockResolvedValueOnce({
       report_version: 2,
       target_extension_expected: "ms.lint",
+      verdict: {},
+      scenario_traces: [],
+      network_events: [],
+      file_events: [],
       target_extension_observed: false,
       trigger_plan_applied: false,
       verification_gap: 2,

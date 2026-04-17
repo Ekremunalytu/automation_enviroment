@@ -1,5 +1,9 @@
 """Public schema facade for ExTrace."""
 
+from appcore.contracts.schema_defs.activation_reports import (
+    ActivationReportMetadata,
+    ActivationReportResponse,
+)
 from appcore.contracts.schema_defs.catalog import (
     ExtensionActivationEventsSchema,
     ExtensionCapabilitiesSchema,
@@ -28,6 +32,8 @@ from appcore.contracts.schema_defs.marketplace import (
 )
 
 __all__ = [
+    "ActivationReportMetadata",
+    "ActivationReportResponse",
     "AnalyzeJobStatusResponse",
     "AnalyzeJobStep",
     "AnalyzeRequest",

@@ -49,7 +49,7 @@ The repository now uses canonical imports only:
 
 - Shared platform modules live under `appcore/`
 - Workflow code lives under `workflows/`
-- Host-side executor control lives under `executor/host.py`
+- Workflow-visible executor control lives under `executor/control.py`
 
 ## Request Flows
 
@@ -79,10 +79,11 @@ The repository now uses canonical imports only:
 1. `workflows.marketplace.router`
 2. `workflows.marketplace.analysis_service`
 3. `workflows.marketplace.job_service`
-4. `executor.host` Docker exec wrapper
-5. `executor/flows/playwright/entrypoint.py`
-6. Reports written under `output/`
-7. Async job metadata persisted in PostgreSQL `analysis_jobs`
+4. `executor.control` boundary
+5. `executor.host` Docker exec wrapper
+6. `executor/flows/playwright/entrypoint.py`
+7. Reports written under `output/`
+8. Async job metadata persisted in PostgreSQL `analysis_jobs`
 
 Notes:
 

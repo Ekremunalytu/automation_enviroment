@@ -1,6 +1,6 @@
 # Risk Register
 
-`Last Updated: 2026-04-13`
+`Last Updated: 2026-04-17`
 
 This register reflects the post-refactor architecture.
 
@@ -31,7 +31,7 @@ Why it matters:
 - The core product promise depends on VS Code startup, extension install, reload, trigger application, and monitoring all lining up.
 - This remains the most failure-prone part of the system even in a single-user deployment.
 
-### P2 - Dynamic-analysis state is file-backed by design
+### P2 - Activation reports are artifact-first while jobs are DB-backed by design
 
 Files:
 
@@ -41,8 +41,10 @@ Files:
 
 Why it matters:
 
-- Activation reports and job snapshots are not persisted as first-class DB records.
-- This limits queryability and historical comparison, but it is currently acceptable for the single-user sandbox model.
+- Activation reports remain filesystem artifacts while async job metadata now
+  lives in PostgreSQL.
+- This split limits report queryability and historical comparison, but it keeps
+  the current single-user sandbox model operationally simple.
 
 ### P2 - Trigger generation and workspace alignment remain fragile
 

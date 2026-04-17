@@ -4,13 +4,13 @@ import { AppShell } from "./layout/AppShell";
 import { EmptyState } from "../components/ui/EmptyState";
 
 const ReportsPage = lazy(async () => ({
-  default: (await import("../features/reports/ReportsPage")).ReportsPage,
+  default: (await import("../features/reports")).ReportsPage,
 }));
 const SimulationPage = lazy(async () => ({
-  default: (await import("../features/simulation/SimulationPage")).SimulationPage,
+  default: (await import("../features/simulation")).SimulationPage,
 }));
 const MarketplacePage = lazy(async () => ({
-  default: (await import("../features/marketplace/MarketplacePage")).MarketplacePage,
+  default: (await import("../features/marketplace")).MarketplacePage,
 }));
 
 export function App() {

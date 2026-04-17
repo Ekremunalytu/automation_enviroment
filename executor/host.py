@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import subprocess
+import time
+from pathlib import Path
 
-from appcore.api.config import settings
+from executor.config import settings
 
 
 class ExecutorError(Exception):
@@ -16,59 +18,101 @@ class ExecutorError(Exception):
         self.output = output
 
 
+_DOCKER_RETRYABLE_ERROR_MARKERS = (
+    "failed to connect to the docker api",
+    "cannot connect to the docker daemon",
+    "docker daemon is not running",
+    "tls handshake timeout",
+    "transport is closing",
+    "dial unix /var/run/docker.sock",
+    "docker.sock",
+)
+_DOCKER_MAX_RETRIES = 3
+
+
+def _is_retryable_docker_transport_error(output: str) -> bool:
+    normalized = output.lower()
+    if any(marker in normalized for marker in _DOCKER_RETRYABLE_ERROR_MARKERS):
+        return True
+    return "error during connect" in normalized and (
+        "docker daemon" in normalized or "docker.sock" in normalized
+    )
+
+
+def _docker_exec_target_path(container_path: str) -> Path:
+    return Path(settings.project.OUTPUT_DIR) / Path(container_path).name
+
+
+def _run_docker_exec(
+    cmd: list[str],
+    timeout: int,
+    *,
+    allow_partial: bool,
+) -> subprocess.CompletedProcess[str]:
+    container = settings.executor.CONTAINER_NAME
+    full_cmd = ["docker", "exec", "-e", "PYTHONUNBUFFERED=1", container, *cmd]
+
+    for attempt in range(_DOCKER_MAX_RETRIES):
+        try:
+            result = subprocess.run(
+                full_cmd,
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+            )
+        except subprocess.TimeoutExpired as exc:
+            raise ExecutorError(
+                f"Command timed out after {timeout}s: {' '.join(cmd)}",
+                returncode=None,
+                output=str(exc.stdout or ""),
+            ) from exc
+
+        output = result.stderr or result.stdout or ""
+        if (
+            result.returncode != 0
+            and _is_retryable_docker_transport_error(output)
+            and attempt < (_DOCKER_MAX_RETRIES - 1)
+        ):
+            time.sleep(2**attempt)
+            continue
+
+        if result.returncode != 0 and not allow_partial:
+            raise ExecutorError(
+                f"Command failed (rc={result.returncode}): {' '.join(cmd)}",
+                returncode=result.returncode,
+                output=output,
+            )
+
+        if result.returncode != 0 and _is_retryable_docker_transport_error(output):
+            raise ExecutorError(
+                f"Command failed (rc={result.returncode}): {' '.join(cmd)}",
+                returncode=result.returncode,
+                output=output,
+            )
+
+        return result
+
+    raise ExecutorError(
+        f"Command failed after {_DOCKER_MAX_RETRIES} attempts: {' '.join(cmd)}",
+        returncode=None,
+        output="",
+    )
+
+
 def _docker_exec(
     cmd: list[str],
     timeout: int | None = None,
 ) -> subprocess.CompletedProcess[str]:
-    container = settings.executor.CONTAINER_NAME
     timeout = timeout or settings.executor.DOCKER_EXEC_TIMEOUT
-    full_cmd = ["docker", "exec", "-e", "PYTHONUNBUFFERED=1", container, *cmd]
-
-    try:
-        result = subprocess.run(
-            full_cmd,
-            capture_output=True,
-            text=True,
-            timeout=timeout,
-        )
-    except subprocess.TimeoutExpired as exc:
-        raise ExecutorError(
-            f"Command timed out after {timeout}s: {' '.join(cmd)}",
-            returncode=None,
-            output=str(exc.stdout or ""),
-        ) from exc
-
-    if result.returncode != 0:
-        raise ExecutorError(
-            f"Command failed (rc={result.returncode}): {' '.join(cmd)}",
-            returncode=result.returncode,
-            output=result.stderr or result.stdout,
-        )
-
-    return result
+    return _run_docker_exec(cmd, timeout, allow_partial=False)
 
 
 def _docker_exec_allow_partial(
     cmd: list[str],
     timeout: int | None = None,
 ) -> subprocess.CompletedProcess[str]:
-    container = settings.executor.CONTAINER_NAME
     timeout = timeout or settings.executor.DOCKER_EXEC_TIMEOUT
-    full_cmd = ["docker", "exec", "-e", "PYTHONUNBUFFERED=1", container, *cmd]
-
-    try:
-        return subprocess.run(
-            full_cmd,
-            capture_output=True,
-            text=True,
-            timeout=timeout,
-        )
-    except subprocess.TimeoutExpired as exc:
-        raise ExecutorError(
-            f"Command timed out after {timeout}s: {' '.join(cmd)}",
-            returncode=None,
-            output=str(exc.stdout or ""),
-        ) from exc
+    return _run_docker_exec(cmd, timeout, allow_partial=True)
 
 
 def install_extension_in_executor(publisher: str, name: str, version: str) -> str:
@@ -92,37 +136,100 @@ _RELOAD_TIMEOUT = 90
 _RESET_TIMEOUT = 90
 _AUTOMATION_TIMEOUT = 600
 _DEFAULT_SCENARIO = "coding_session"
+_RELOAD_CLEANUP_TIMEOUT = 5
+
+
+def _cleanup_stale_reload_processes() -> None:
+    try:
+        _docker_exec_allow_partial(
+            ["pkill", "-f", settings.executor.RELOAD_SCRIPT_PATH],
+            timeout=_RELOAD_CLEANUP_TIMEOUT,
+        )
+    except ExecutorError:
+        return
+
+
+def _cleanup_stale_entrypoint_processes() -> None:
+    try:
+        _docker_exec_allow_partial(
+            ["pkill", "-f", settings.executor.ENTRYPOINT_PATH],
+            timeout=_RELOAD_CLEANUP_TIMEOUT,
+        )
+    except ExecutorError:
+        return
+
+
+def _last_reload_output_line(output: str) -> str | None:
+    lines = [line.strip() for line in output.splitlines() if line.strip()]
+    if not lines:
+        return None
+    return lines[-1]
+
+
+def _reload_error_message(exc: ExecutorError) -> str:
+    detail = _last_reload_output_line(exc.output)
+    if detail:
+        return f"{exc}; last reload output: {detail}"
+    return str(exc)
 
 
 def reload_vscode_window() -> str:
-    result = _docker_exec(
-        ["python3", settings.executor.RELOAD_SCRIPT_PATH],
-        timeout=_RELOAD_TIMEOUT,
-    )
+    _cleanup_stale_reload_processes()
+    try:
+        result = _docker_exec(
+            ["python3", settings.executor.RELOAD_SCRIPT_PATH],
+            timeout=_RELOAD_TIMEOUT,
+        )
+    except ExecutorError as exc:
+        _cleanup_stale_reload_processes()
+        raise ExecutorError(
+            _reload_error_message(exc),
+            returncode=exc.returncode,
+            output=exc.output,
+        ) from exc
     return result.stdout
 
 
 def reset_executor_sandbox_state(reload_window: bool = True) -> str:
+    _cleanup_stale_entrypoint_processes()
     reset_result = _docker_exec(
         ["python3", settings.executor.RESET_SCRIPT_PATH],
         timeout=_RESET_TIMEOUT,
     )
     outputs = [reset_result.stdout.strip()]
     if reload_window:
-        outputs.append(reload_vscode_window().strip())
+        try:
+            outputs.append(reload_vscode_window().strip())
+        except ExecutorError:
+            time.sleep(2)
+            outputs.append(reload_vscode_window().strip())
     return "\n".join(output for output in outputs if output)
+
+
+def cleanup_trigger_file(trigger_container_path: str | None) -> None:
+    if not trigger_container_path:
+        return
+
+    _docker_exec_target_path(trigger_container_path).unlink(missing_ok=True)
+    _docker_exec_allow_partial(
+        ["rm", "-f", trigger_container_path],
+        timeout=_RELOAD_CLEANUP_TIMEOUT,
+    )
 
 
 def run_playwright_automation(
     report_path: str,
     scenario: str | None = None,
     trigger_container_path: str | None = None,
+    skip_automation: bool = False,
     reload_before_run: bool = False,
     target_extension_id: str | None = None,
 ) -> str:
-    effective_scenario = scenario or (
-        None if trigger_container_path else _DEFAULT_SCENARIO
-    )
+    effective_scenario = None
+    if not skip_automation:
+        effective_scenario = scenario or (
+            None if trigger_container_path else _DEFAULT_SCENARIO
+        )
     cmd = [
         "python3",
         settings.executor.ENTRYPOINT_PATH,
@@ -130,6 +237,8 @@ def run_playwright_automation(
         "--report-path",
         report_path,
     ]
+    if skip_automation:
+        cmd.append("--skip-automation")
     if reload_before_run:
         cmd.append("--reload-before-run")
     if target_extension_id:
@@ -142,14 +251,27 @@ def run_playwright_automation(
         if effective_scenario and effective_scenario != "all":
             cmd.extend(["--scenario", effective_scenario])
 
-    result = _docker_exec_allow_partial(cmd, timeout=_AUTOMATION_TIMEOUT)
-    return result.stdout
+    try:
+        result = _docker_exec_allow_partial(cmd, timeout=_AUTOMATION_TIMEOUT)
+        report_host_path = _docker_exec_target_path(report_path)
+        if result.returncode != 0 and not report_host_path.exists():
+            output = result.stderr or result.stdout or ""
+            raise ExecutorError(
+                "Automation exited before writing the requested report: "
+                f"{report_host_path.name}",
+                returncode=result.returncode,
+                output=output,
+            )
+        return result.stdout
+    finally:
+        cleanup_trigger_file(trigger_container_path)
 
 
 __all__ = [
     "ExecutorError",
     "_docker_exec",
     "_docker_exec_allow_partial",
+    "cleanup_trigger_file",
     "install_extension_in_executor",
     "reload_vscode_window",
     "reset_executor_sandbox_state",

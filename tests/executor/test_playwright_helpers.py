@@ -617,6 +617,228 @@ def test_vscode_reconnect_to_workbench_retries_until_fallback_page_is_ready(
     assert sleep_calls == [0.1]
 
 
+def test_vscode_connect_to_ready_workbench_uses_timeout_and_logs() -> None:
+    page = _FakePage()
+    browser = SimpleNamespace(contexts=[SimpleNamespace(pages=[page])])
+    captured_calls: list[tuple[str, int]] = []
+    reload_logs: list[str] = []
+
+    def connect_over_cdp(url: str, *, timeout: int) -> object:
+        captured_calls.append((url, timeout))
+        return browser
+
+    playwright = SimpleNamespace(
+        chromium=SimpleNamespace(connect_over_cdp=connect_over_cdp)
+    )
+
+    connected_browser, connected_page = vscode.connect_to_ready_workbench(
+        playwright,
+        timeout_ms=4321,
+        log=reload_logs.append,
+    )
+
+    assert connected_browser is browser
+    assert connected_page is page
+    assert captured_calls == [(vscode.CDP_URL, 4321)]
+    assert reload_logs == [
+        "[reload] connect: Connecting to VS Code over CDP at " f"{vscode.CDP_URL}...",
+        (
+            "[reload] connect: Connected to ready workbench page "
+            "title='[Extension Development Host] Running Extensions - workspace - Visual Studio Code' "
+            "url='vscode-file://vscode-app/usr/share/code/resources/app/out/vs/code/electron-browser/workbench/workbench.html'."
+        ),
+    ]
+
+
+def test_vscode_connect_to_ready_workbench_fails_closed_when_cdp_connect_fails() -> (
+    None
+):
+    playwright = SimpleNamespace(
+        chromium=SimpleNamespace(
+            connect_over_cdp=lambda _url, *, timeout: (_ for _ in ()).throw(
+                vscode.PlaywrightError("connection refused")
+            )
+        )
+    )
+
+    with pytest.raises(vscode.ReloadWindowError, match="connect: Could not connect"):
+        vscode.connect_to_ready_workbench(playwright, timeout_ms=5000)
+
+
+def test_vscode_reload_workbench_window_logs_and_reuses_primary_page(
+    monkeypatch,
+) -> None:
+    page = _FakePage()
+    browser = SimpleNamespace(contexts=[SimpleNamespace(pages=[page])])
+    ready_calls: list[tuple[object, int]] = []
+    reconnect_calls: list[tuple[object, object, int]] = []
+    command_calls: list[object] = []
+    reload_logs: list[str] = []
+
+    monkeypatch.setattr(
+        vscode,
+        "wait_until_ready",
+        lambda current_page, timeout_ms=10_000: ready_calls.append(
+            (current_page, timeout_ms)
+        ),
+    )
+    monkeypatch.setattr(
+        commands,
+        "run_reload_window_command",
+        lambda current_page: command_calls.append(current_page),
+    )
+    monkeypatch.setattr(
+        vscode,
+        "reconnect_to_workbench",
+        lambda current_browser, *, preferred_page, timeout_ms=30_000: (
+            reconnect_calls.append((current_browser, preferred_page, timeout_ms))
+            or preferred_page
+        ),
+    )
+
+    reloaded_page = vscode.reload_workbench_window(
+        browser,
+        page,
+        reconnect_timeout_ms=7654,
+        log=reload_logs.append,
+    )
+
+    assert reloaded_page is page
+    assert ready_calls == [(page, 10_000)]
+    assert command_calls == [page]
+    assert reconnect_calls == [(browser, page, 7654)]
+    assert page.waits == [3000, 5000]
+    assert reload_logs == [
+        "[reload] pre_ready: Waiting for VS Code workbench before reload...",
+        "[reload] dispatch: Sending 'Developer: Reload Window' command...",
+        "[reload] reconnect: Waiting 3000ms for VS Code to tear down before reconnect...",
+        "[reload] reconnect: Reconnecting to a ready VS Code workbench...",
+        "[reload] reconnect: Connected to the preferred workbench page.",
+        "[reload] post_settle: Waiting 5000ms for extensions to settle after reload...",
+        "[reload] done: VS Code reload completed.",
+    ]
+
+
+def test_vscode_reload_workbench_window_uses_fallback_page(monkeypatch) -> None:
+    primary_page = _FakePage(title="Primary", url="vscode-file://primary")
+    fallback_page = _FakePage()
+    browser = SimpleNamespace(contexts=[SimpleNamespace(pages=[fallback_page])])
+
+    monkeypatch.setattr(vscode, "wait_until_ready", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(
+        commands,
+        "run_reload_window_command",
+        lambda _current_page: None,
+    )
+    monkeypatch.setattr(
+        vscode,
+        "reconnect_to_workbench",
+        lambda _current_browser, *, preferred_page, timeout_ms=30_000: fallback_page,
+    )
+
+    reloaded_page = vscode.reload_workbench_window(browser, primary_page)
+
+    assert reloaded_page is fallback_page
+    assert primary_page.waits == [3000]
+    assert fallback_page.waits == [5000]
+
+
+def test_vscode_reload_workbench_window_fails_closed_when_pre_ready_fails(
+    monkeypatch,
+) -> None:
+    page = _FakePage()
+    browser = SimpleNamespace(contexts=[SimpleNamespace(pages=[page])])
+    command_calls: list[object] = []
+
+    monkeypatch.setattr(
+        vscode,
+        "wait_until_ready",
+        lambda _page, timeout_ms=10_000: (_ for _ in ()).throw(
+            vscode.PlaywrightError("page detached")
+        ),
+    )
+    monkeypatch.setattr(
+        commands,
+        "run_reload_window_command",
+        lambda current_page: command_calls.append(current_page),
+    )
+
+    with pytest.raises(
+        vscode.ReloadWindowError,
+        match="pre_ready: VS Code workbench was not ready before reload: page detached",
+    ):
+        vscode.reload_workbench_window(browser, page)
+
+    assert command_calls == []
+    assert page.waits == []
+
+
+def test_vscode_reload_workbench_window_fails_closed_when_reconnect_fails(
+    monkeypatch,
+) -> None:
+    page = _FakePage()
+    browser = SimpleNamespace(contexts=[SimpleNamespace(pages=[page])])
+    command_calls: list[object] = []
+
+    monkeypatch.setattr(vscode, "wait_until_ready", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(
+        commands,
+        "run_reload_window_command",
+        lambda current_page: command_calls.append(current_page),
+    )
+    monkeypatch.setattr(
+        vscode,
+        "reconnect_to_workbench",
+        lambda _current_browser, *, preferred_page, timeout_ms=30_000: (
+            _ for _ in ()
+        ).throw(
+            RuntimeError("Timed out while reconnecting to a VS Code workbench page.")
+        ),
+    )
+
+    with pytest.raises(
+        vscode.ReloadWindowError,
+        match="reconnect: Timed out while reconnecting to a VS Code workbench page",
+    ):
+        vscode.reload_workbench_window(browser, page)
+
+    assert command_calls == [page]
+    assert page.waits == [3000]
+
+
+def test_vscode_reload_workbench_window_fails_closed_when_post_settle_fails(
+    monkeypatch,
+) -> None:
+    page = _FakePage()
+    fallback_page = _FakePage()
+    browser = SimpleNamespace(contexts=[SimpleNamespace(pages=[fallback_page])])
+
+    monkeypatch.setattr(vscode, "wait_until_ready", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(
+        commands,
+        "run_reload_window_command",
+        lambda _current_page: None,
+    )
+    monkeypatch.setattr(
+        vscode,
+        "reconnect_to_workbench",
+        lambda _current_browser, *, preferred_page, timeout_ms=30_000: fallback_page,
+    )
+
+    def fail_post_settle(timeout_ms: int) -> None:
+        raise vscode.PlaywrightError("page closed")
+
+    fallback_page.wait_for_timeout = fail_post_settle
+
+    with pytest.raises(
+        vscode.ReloadWindowError,
+        match="post_settle: VS Code did not remain stable after reload: page closed",
+    ):
+        vscode.reload_workbench_window(browser, page)
+
+    assert page.waits == [3000]
+
+
 def test_run_reload_window_command_skips_quick_input_waits(monkeypatch) -> None:
     opened: list[str] = []
     page = _FakePage()

@@ -1,6 +1,6 @@
 # Refactor Expansion Notes
 
-`Last Updated: 2026-04-15`
+`Last Updated: 2026-04-17`
 
 These notes intentionally do not define a binding delivery plan. They exist so
 the heavier follow-on work is visible without overcommitting before Weeks 1-4
@@ -41,38 +41,45 @@ Turn one of these notes into a committed plan only after:
   treat it as a separate Week 5+ candidate unless it is explicitly descoped
   from the execution plan
 
-## Candidate Expansion Topics
+## Promoted Into The 7-Week Window (2026-04-17)
 
-### Executor Control Boundary
+The following items were previously Week 5+ candidates. The 7-week
+stabilization→security window promoted them into the execution plan via
+`REFACTOR_OPTIMIZATION.md` §10. They remain listed here for history; do
+not treat them as still-deferred.
 
-- replace API-side Docker host control with a narrower executor control
-  interface
-- keep Docker sandbox isolation, but remove broad daemon control from the API
-  path
+### Executor Control Boundary → W4 (Week 4E)
+
+Promoted because this is the sandbox security surface, not an operability
+concern. Covered by `REFACTOR_OPTIMIZATION.md` §2.4 and ADR 0002 §4
+(trust boundaries).
+
+### Deterministic Executor Runtime → W2 (Week 4D-a)
+
+Promoted because VS Code pinning is an attribution property for detection
+(ADR 0002 trust boundaries), not a reproducibility convenience. Covered
+by `REFACTOR_OPTIMIZATION.md` §7.2.2 / §7.2.3.
+
+### AI-Safe Ownership Map → W1 (Week 4C)
+
+Partially promoted: `packages/` charter + import-graph test land in W1.
+Full ownership map for UI adapters, storage, and engine stays deferred
+until after W5 detection contracts stabilize.
+
+### Expanded Smoke Matrix → W1 (benign) + W5 (malicious)
+
+Benign fixture expansion (color-theme, chat-only) is W1. The malicious
+fixture corpus (T1/T2/T3 per ADR 0004) is W5.
+
+## Candidate Expansion Topics (still deferred)
 
 ### Stack-Scoped Compose Runtime
 
 - remove fixed `container_name` assumptions
 - make ports and state roots stack-scoped from env alone
 - improve multi-worktree and parallel AI ergonomics
-
-### Deterministic Executor Runtime
-
-- pin VS Code/runtime inputs more tightly
-- pin Playwright/browser behavior more explicitly
-- reduce “same commit, different runner” drift
-
-### AI-Safe Ownership Map
-
-- define package ownership boundaries after planner/control-plane extraction
-- publish safe task lanes for contracts, planner, engine, UI adapters, and
-  storage
-
-### Expanded Smoke Matrix
-
-- keep `ms-python.python` as the primary acceptance baseline
-- add at least one additional extension fixture after the core boundaries are
-  stable
+- not promoted: operability gain, not on the stabilization→security
+  critical path
 
 ## Operating Rule
 

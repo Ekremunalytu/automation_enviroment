@@ -14,6 +14,11 @@ documentation, use `documents/REFACTOR_EXECUTION_PLAN.md` as the current
 refactor reference and `documents/REFACTOR_EXPANSION_NOTES.md` for deferred
 ideas. Priority stays on keeping the project clean, stable, and high quality.
 
+For the current 7-week stabilization-then-security window, consult
+`documents/REFACTOR_OPTIMIZATION.md` §10. Security posture (threat model,
+detection taxonomy, malicious fixture policy) is fixed by ADRs 0002-0004
+under `documents/adrs/` and binds once W5 implementation starts.
+
 ## Non-Negotiable Rules
 
 - Preserve the unique constraint `(publisher, name, version)`.
@@ -23,6 +28,16 @@ ideas. Priority stays on keeping the project clean, stable, and high quality.
 - Use Pydantic v2 APIs only.
 - Add an Alembic migration for schema changes.
 - Keep sandbox execution isolated in Docker.
+- `packages/` stays framework-agnostic. Packages must not import from
+  `workflows/`, `executor/`, `ui/`, or `appcore/`. Existing banned-import
+  test covers `packages.analysis_planner`; W1 extends coverage to the
+  whole `packages/` tree.
+- Detection rules (W5+) live inside `packages/` and see only contracts.
+  They must not import runtime, web, or storage layers (ADR 0003 §8).
+- Malicious fixtures under `extensions/malicious/` follow ADR 0004:
+  `LABEL.yaml` manifest required, T3 live samples never run in CI,
+  `make test-security` vs `make test-security-live` targets are
+  mutually exclusive.
 
 ## Repo Identity
 
@@ -102,6 +117,11 @@ ideas. Priority stays on keeping the project clean, stable, and high quality.
 - Shared contracts:
   - `appcore/contracts/schemas.py`
   - `appcore/contracts/schema_defs/`
+  - `packages/analysis_contracts/` (backend-owned Pydantic v2 contracts:
+    `ActivationReport`, `TriggerPayload`; W5 will add `DetectionReport`
+    per ADR 0003)
+  - `packages/analysis_planner/` (framework-agnostic trigger planner)
+  - `packages/analysis_engine/`
 - Storage layer:
   - `appcore/storage/models.py`
   - `appcore/storage/model_defs/`
@@ -202,6 +222,12 @@ ideas. Priority stays on keeping the project clean, stable, and high quality.
 - Documentation:
   - update `README.md` or `documents/`
   - verify every claim against code, tests, config, or runtime output
+- Security posture (threat model, detection, fixtures):
+  - `documents/adrs/0002-threat-model.md`
+  - `documents/adrs/0003-detection-taxonomy.md`
+  - `documents/adrs/0004-malicious-fixture-policy.md`
+  - once W5 begins: `extensions/malicious/`, `tests/security/`,
+    `packages/analysis_contracts/detection/`
 
 ## Working Conventions
 

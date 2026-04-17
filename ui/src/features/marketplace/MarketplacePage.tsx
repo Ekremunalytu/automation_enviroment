@@ -5,7 +5,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { MarketplaceResultCard } from "../../components/marketplace/MarketplaceResultCard";
 import { EmptyState } from "../../components/ui/EmptyState";
 import { Panel, PanelHeader } from "../../components/ui/Panel";
-import { rememberJobId } from "../simulation/jobStorage";
+import { rememberJobId } from "../simulation";
 import { ApiError } from "../../lib/api/http";
 import { apiClient } from "../../lib/api/client";
 
@@ -38,7 +38,7 @@ export function MarketplacePage() {
   const searchQuery = useQuery({
     enabled: Boolean(queryParam),
     queryKey: ["marketplace-search", queryParam],
-    queryFn: () => apiClient.searchMarketplace(queryParam),
+    queryFn: ({ signal }) => apiClient.searchMarketplace(queryParam, signal),
   });
 
   const downloadMutation = useMutation({

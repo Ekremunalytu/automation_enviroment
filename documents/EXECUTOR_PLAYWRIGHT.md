@@ -1,13 +1,28 @@
 # Executor Playwright Architecture
 
-`Last Updated: 2026-04-15`
+`Last Updated: 2026-04-17`
 
-The executor is ExTrace's dynamic-analysis sandbox. It runs a full VS Code GUI
-session inside Docker, drives that session with Playwright, and exports
+The executor is ExTrace's dynamic-analysis sandbox. It runs a full VS Code
+GUI session inside Docker, drives that session with Playwright, and exports
 artifact-first analysis results into `output/`.
 
-Open this only when changing executor/container/Playwright behavior or the API
-integration points that drive it.
+Open this only when changing executor/container/Playwright behavior or the
+API integration points that drive it.
+
+> **Security scope note (2026-04-17):** The executor is the analyzer's
+> **primary security surface**, not merely an operational component. Trust
+> boundary decisions are fixed by `adrs/0002-threat-model.md` §4:
+>
+> - VS Code binary trusted only if pinned (W2 lands the pinning).
+> - Harness extension trusted only if checksummed (W4 lands the
+>   verification).
+> - Extension code at runtime is **untrusted** and never elevated by
+>   heuristic.
+> - Docker daemon access from the API path is tracked for the `ExecutorControl`
+>   boundary (W4 / Week 4E).
+>
+> Changes to executor behavior that affect any of these boundaries must
+> update ADR 0002 §4 in the same change set.
 
 This runtime still assumes:
 

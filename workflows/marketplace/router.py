@@ -20,7 +20,7 @@ from appcore.contracts.schemas import (
     MarketplaceDownloadResponse,
     MarketplaceExtension,
 )
-from executor.host import ExecutorError
+from executor.control import ExecutorError
 from workflows.extension_catalog.manifest_reader import PackageJsonReadError
 from workflows.extension_catalog.service import (
     ExtensionManifestMismatchError,
@@ -57,7 +57,7 @@ def _package_json_error_detail(exc: PackageJsonReadError) -> str:
 
 
 @router.get("/marketplace/search", response_model=list[MarketplaceExtension])
-def search_marketplace(query: str, page_size: int = 10) -> list[dict]:
+def search_marketplace(query: str, page_size: int = 10) -> list[MarketplaceExtension]:
     if not query or not query.strip():
         raise HTTPException(status_code=400, detail="Query parameter cannot be empty.")
 

@@ -367,10 +367,17 @@ class ActivationReport:
     target_extension_id: str = ""
     monitoring_start: float = 0.0
     monitoring_end: float = 0.0
+    monitoring_started_monotonic: float = field(default=0.0, repr=False)
+    monitoring_ended_monotonic: float = field(default=0.0, repr=False)
     scenarios_run: list[str] = field(default_factory=list)
 
     @property
     def duration_s(self) -> float:
+        if (
+            self.monitoring_started_monotonic > 0
+            and self.monitoring_ended_monotonic > 0
+        ):
+            return self.monitoring_ended_monotonic - self.monitoring_started_monotonic
         return self.monitoring_end - self.monitoring_start
 
     @property
@@ -1824,6 +1831,7 @@ class ExtensionMonitor:
     def start(self) -> None:
         """Record the monitoring start time."""
         self.report.monitoring_start = time.time()
+        self.report.monitoring_started_monotonic = time.monotonic()
         self._log_offsets = _snapshot_log_offsets()
         self.report.log_offsets_snapshot = dict(self._log_offsets)
         self._network_capture = NetworkCapture(
@@ -1894,6 +1902,7 @@ class ExtensionMonitor:
         if not self._started:
             _log("Warning: stop() called without start()")
             self.report.monitoring_start = time.time()
+            self.report.monitoring_started_monotonic = time.monotonic()
 
         if self._network_capture is not None:
             self.report.network_events = self._network_capture.stop()
@@ -1919,6 +1928,7 @@ class ExtensionMonitor:
             time.sleep(2.0)
 
         self.report.monitoring_end = time.time()
+        self.report.monitoring_ended_monotonic = time.monotonic()
         self._finalize_running_scenarios()
         _log(f"Monitoring stopped ({self.report.duration_s:.1f}s elapsed)")
         self._persist_report(force=True)

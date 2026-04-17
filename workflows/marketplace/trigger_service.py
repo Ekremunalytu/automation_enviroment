@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -18,23 +19,94 @@ from packages.analysis_planner import select_scenarios, write_trigger_file
 
 logger = logging.getLogger(__name__)
 
+_NON_EXECUTABLE_CONTRIBUTE_FIELDS = (
+    "themes",
+    "iconThemes",
+    "productIconThemes",
+    "colors",
+    "snippets",
+)
+_EXECUTABLE_CONTRIBUTE_FIELDS = (
+    "authentication",
+    "breakpoints",
+    "commands",
+    "configuration",
+    "configurationDefaults",
+    "customEditors",
+    "debuggers",
+    "grammars",
+    "jsonValidation",
+    "keybindings",
+    "languages",
+    "menus",
+    "taskDefinitions",
+    "terminal",
+    "typescriptServerPlugins",
+    "views",
+    "viewsContainers",
+    "viewsWelcome",
+    "walkthroughs",
+)
+
+
+@dataclass(frozen=True, slots=True)
+class TriggerPlan:
+    trigger_container_path: str | None
+    selected_scenarios: list[str]
+    skip_automation: bool
+    reason_code: str
+    message: str
+
 
 def _is_mock_like(value: object) -> bool:
     return value.__class__.__module__.startswith("unittest.mock")
 
 
+def _has_meaningful_contribute_value(value: object) -> bool:
+    if value is None:
+        return False
+    if isinstance(value, str):
+        return bool(value.strip())
+    if isinstance(value, list | tuple | set | dict):
+        return bool(value)
+    return True
+
+
+def _is_non_executable_fixture(contributes: object | None) -> bool:
+    if contributes is None:
+        return False
+    if any(
+        _has_meaningful_contribute_value(getattr(contributes, field, None))
+        for field in _EXECUTABLE_CONTRIBUTE_FIELDS
+    ):
+        return False
+    return any(
+        _has_meaningful_contribute_value(getattr(contributes, field, None))
+        for field in _NON_EXECUTABLE_CONTRIBUTE_FIELDS
+    )
+
+
 def build_trigger_payload(
     db: Session,
     request: AnalyzeRequest,
-) -> tuple[str | None, list[str], str]:
+) -> TriggerPlan:
     if request.scenario:
-        return None, [], "Explicit scenario selected; smart trigger selection skipped."
+        return TriggerPlan(
+            trigger_container_path=None,
+            selected_scenarios=[],
+            skip_automation=False,
+            reason_code="explicit_scenario",
+            message="Explicit scenario selected; smart trigger selection skipped.",
+        )
 
-    activation_events = get_extension_activation_events(
-        db,
-        extension_name=request.name,
-        extension_publisher=request.publisher,
-        extension_version=request.version,
+    activation_events = (
+        get_extension_activation_events(
+            db,
+            extension_name=request.name,
+            extension_publisher=request.publisher,
+            extension_version=request.version,
+        )
+        or []
     )
     contributes = get_extension_contributes_all(
         db,
@@ -48,13 +120,6 @@ def build_trigger_payload(
         extension_publisher=request.publisher,
         extension_version=request.version,
     )
-
-    if not activation_events:
-        return (
-            None,
-            [],
-            "No stored activation events found; using default sandbox flow.",
-        )
 
     events_data = [
         {"event_type": event.event_type, "event_value": event.event_value}
@@ -127,6 +192,17 @@ def build_trigger_payload(
         contributes_terminal_profiles=terminal_profiles,
         capability_metadata=capability_metadata,
     )
+    if not activation_events and _is_non_executable_fixture(contributes):
+        return TriggerPlan(
+            trigger_container_path=None,
+            selected_scenarios=[],
+            skip_automation=True,
+            reason_code="non_executable_fixture",
+            message=(
+                "No stored activation events or executable contribution surfaces "
+                "were found; skipping automation for a scenario-zero analysis run."
+            ),
+        )
     trigger_container_path = write_trigger_file(
         request.publisher,
         request.name,
@@ -141,17 +217,17 @@ def build_trigger_payload(
         request.publisher,
         request.name,
     )
-    return (
-        trigger_container_path,
-        payload.selected_scenarios,
-        (
-            _build_trigger_summary(
-                publisher_name,
-                payload.selected_scenarios,
-                getattr(payload, "official_event_coverage", {}).get("declared", 0),
-                len(getattr(payload, "stimulus_passes", [])),
-                trigger_container_path,
-            )
+    return TriggerPlan(
+        trigger_container_path=trigger_container_path,
+        selected_scenarios=payload.selected_scenarios,
+        skip_automation=False,
+        reason_code="generated_trigger_plan",
+        message=_build_trigger_summary(
+            publisher_name,
+            payload.selected_scenarios,
+            getattr(payload, "official_event_coverage", {}).get("declared", 0),
+            len(getattr(payload, "stimulus_passes", [])),
+            trigger_container_path,
         ),
     )
 
@@ -174,4 +250,4 @@ def _build_trigger_summary(
     )
 
 
-__all__ = ["build_trigger_payload"]
+__all__ = ["TriggerPlan", "build_trigger_payload"]

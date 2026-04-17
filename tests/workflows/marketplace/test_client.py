@@ -9,6 +9,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from appcore.contracts.schemas import MarketplaceExtension
 from workflows.marketplace import client as marketplace_client
 
 
@@ -47,15 +48,15 @@ def test_search_marketplace_parses_gallery_response() -> None:
         results = marketplace_client.search_marketplace("python", page_size=5)
 
     assert results == [
-        {
-            "publisher": "ms-python",
-            "name": "python",
-            "version": "2025.0.0",
-            "displayName": "Python",
-            "description": "Python language support.",
-            "installs": 123456,
-            "rating": 4.88,
-        }
+        MarketplaceExtension(
+            publisher="ms-python",
+            name="python",
+            version="2025.0.0",
+            displayName="Python",
+            description="Python language support.",
+            installs=123456,
+            rating=4.88,
+        )
     ]
     http_client.post.assert_called_once()
 

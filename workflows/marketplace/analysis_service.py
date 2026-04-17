@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import threading
 from collections.abc import Callable
 from pathlib import Path
 from uuid import uuid4
@@ -18,15 +19,14 @@ from appcore.contracts.schema_defs.analysis_jobs import (
     AnalysisJobStepStatus,
 )
 from appcore.contracts.schemas import AnalyzeRequest, AnalyzeResponse
-from executor.host import (
+from executor.control import (
+    ExecutorControl,
     ExecutorError,
-    install_extension_in_executor,
-    reset_executor_sandbox_state,
-    run_playwright_automation,
+    default_executor_control,
 )
 from workflows.marketplace import client as marketplace_client
 from workflows.marketplace import job_service
-from workflows.marketplace.trigger_service import build_trigger_payload
+from workflows.marketplace.trigger_service import TriggerPlan, build_trigger_payload
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +37,35 @@ class TriggerPlanError(RuntimeError):
     def __init__(self, error_code: str, message: str) -> None:
         super().__init__(message)
         self.error_code = error_code
+
+
+def _coerce_trigger_plan(plan: object) -> TriggerPlan:
+    if isinstance(plan, TriggerPlan):
+        return plan
+    if isinstance(plan, tuple) and len(plan) == 3:
+        trigger_container_path, selected_scenarios, message = plan
+        return TriggerPlan(
+            trigger_container_path=(
+                str(trigger_container_path) if trigger_container_path else None
+            ),
+            selected_scenarios=[str(item) for item in selected_scenarios or []],
+            skip_automation=False,
+            reason_code="legacy_trigger_plan",
+            message=str(message),
+        )
+    raise TypeError(
+        "build_trigger_payload must return TriggerPlan or legacy "
+        "(trigger_container_path, selected_scenarios, message) tuple."
+    )
+
+
+def _monitoring_failure_message(exc: ExecutorError) -> str:
+    detail = str(exc).strip()
+    if not detail:
+        return "Sandbox automation failed before the report could be finalized."
+    return (
+        "Sandbox automation failed before the report could be finalized: " f"{detail}"
+    )
 
 
 def _open_job_session() -> Session:
@@ -54,6 +83,31 @@ def _load_report_payload(report_name: str) -> dict[str, object] | None:
     except (OSError, ValueError, TypeError):
         return None
     return payload if isinstance(payload, dict) else None
+
+
+def _trigger_host_path(trigger_container_path: str | None) -> Path | None:
+    if not trigger_container_path:
+        return None
+    return Path(settings.project.OUTPUT_DIR) / Path(trigger_container_path).name
+
+
+def _trigger_payload_exists(trigger_container_path: str | None) -> bool:
+    trigger_host_path = _trigger_host_path(trigger_container_path)
+    return bool(trigger_host_path and trigger_host_path.exists())
+
+
+def _run_monitoring_heartbeat(
+    stop_event: threading.Event,
+    reporter: _StepReporter,
+    *,
+    interval_s: float = 30.0,
+) -> None:
+    while not stop_event.wait(interval_s):
+        reporter.emit(
+            "run_monitoring",
+            "running",
+            "Sandbox automation is still running inside the executor.",
+        )
 
 
 def _build_report_messages(
@@ -201,73 +255,90 @@ def ensure_vsix_exists(request: AnalyzeRequest) -> Path:
     return vsix_path
 
 
-def execute_analysis_request(
-    request: AnalyzeRequest,
-    db: Session,
-    progress_callback: Callable[
-        [AnalysisJobStepName, AnalysisJobStepStatus, str, str | None],
-        None,
-    ]
-    | None = None,
-    report_name: str | None = None,
-) -> AnalyzeResponse:
-    def report(
+class _StepReporter:
+    """Thin progress adapter for marketplace analysis steps."""
+
+    def __init__(
+        self,
+        progress_callback: Callable[
+            [AnalysisJobStepName, AnalysisJobStepStatus, str, str | None],
+            None,
+        ]
+        | None,
+    ) -> None:
+        self._progress_callback = progress_callback
+
+    def emit(
+        self,
         step_name: AnalysisJobStepName,
         status: AnalysisJobStepStatus,
         message: str,
         error_code: str | None = None,
     ) -> None:
-        if progress_callback is not None:
-            progress_callback(step_name, status, message, error_code)
+        if self._progress_callback is not None:
+            self._progress_callback(step_name, status, message, error_code)
 
-    ensure_vsix_exists(request)
 
-    report(
+def _reset_sandbox(
+    reporter: _StepReporter,
+    executor_control: ExecutorControl,
+) -> None:
+    reporter.emit(
         "reset_sandbox",
         "running",
         "Resetting executor sandbox to a clean baseline.",
     )
     try:
-        reset_executor_sandbox_state()
+        executor_control.reset_sandbox()
     except ExecutorError:
-        report(
+        reporter.emit(
             "reset_sandbox",
             "failed",
             "Sandbox reset failed before extension installation.",
         )
         raise
-    report("reset_sandbox", "completed", "Sandbox reset completed.")
+    reporter.emit("reset_sandbox", "completed", "Sandbox reset completed.")
 
-    report(
+
+def _install_extension(
+    request: AnalyzeRequest,
+    reporter: _StepReporter,
+    executor_control: ExecutorControl,
+) -> str:
+    reporter.emit(
         "install_extension",
         "running",
         "Installing extension in the executor sandbox.",
     )
     try:
-        install_output = install_extension_in_executor(
+        install_output = executor_control.install_extension(
             request.publisher,
             request.name,
             request.version,
         )
     except ExecutorError:
-        report(
+        reporter.emit(
             "install_extension",
             "failed",
             "Extension installation failed inside the sandbox.",
         )
         raise
-    report("install_extension", "completed", "Extension installed in sandbox.")
+    reporter.emit("install_extension", "completed", "Extension installed in sandbox.")
+    return install_output
 
-    trigger_container_path: str | None = None
-    trigger_message = "No trigger payload requested; default sandbox flow will run."
-    report(
+
+def _build_triggers(
+    db: Session,
+    request: AnalyzeRequest,
+    reporter: _StepReporter,
+) -> TriggerPlan:
+    reporter.emit(
         "build_triggers",
         "running",
         "Resolving activation events and contribution metadata.",
     )
     try:
-        trigger_container_path, _, trigger_message = build_trigger_payload(db, request)
-        report("build_triggers", "completed", trigger_message)
+        trigger_plan = _coerce_trigger_plan(build_trigger_payload(db, request))
     except (SQLAlchemyError, OSError, ValueError) as exc:
         logger.warning(
             "Failed to build trigger payload for %s.%s: %s",
@@ -275,7 +346,7 @@ def execute_analysis_request(
             request.name,
             exc,
         )
-        report(
+        reporter.emit(
             "build_triggers",
             "failed",
             "Trigger payload build failed before sandbox automation started.",
@@ -286,46 +357,110 @@ def execute_analysis_request(
             f"Failed to build trigger payload: {exc}",
         ) from exc
 
-    report(
+    reporter.emit("build_triggers", "completed", trigger_plan.message)
+    return trigger_plan
+
+
+def _run_monitoring(
+    request: AnalyzeRequest,
+    report_name: str,
+    trigger_plan: TriggerPlan,
+    reporter: _StepReporter,
+    executor_control: ExecutorControl,
+) -> tuple[str, str]:
+    reporter.emit(
         "run_monitoring",
         "running",
         "Reloading VS Code under monitoring and executing automation scenarios.",
     )
-    report_name = report_name or job_service.build_report_name(request, uuid4().hex)
     report_container_path = f"/results/{report_name}"
+    trigger_payload_exists = _trigger_payload_exists(
+        trigger_plan.trigger_container_path
+    )
+    effective_scenario = request.scenario
+    if (
+        not effective_scenario
+        and trigger_plan.trigger_container_path
+        and not trigger_payload_exists
+        and trigger_plan.selected_scenarios
+    ):
+        effective_scenario = trigger_plan.selected_scenarios[0]
+    heartbeat_stop = threading.Event()
+    heartbeat_thread = threading.Thread(
+        target=_run_monitoring_heartbeat,
+        args=(heartbeat_stop, reporter),
+        daemon=True,
+        name="analysis-run-monitoring-heartbeat",
+    )
+    heartbeat_thread.start()
     try:
-        automation_output = run_playwright_automation(
+        automation_output = executor_control.run_automation(
             report_path=report_container_path,
-            scenario=request.scenario,
-            trigger_container_path=trigger_container_path,
+            scenario=effective_scenario,
+            trigger_container_path=trigger_plan.trigger_container_path,
+            skip_automation=trigger_plan.skip_automation,
             reload_before_run=True,
             target_extension_id=f"{request.publisher}.{request.name}",
         )
-    except ExecutorError:
-        report(
+    except ExecutorError as exc:
+        reporter.emit(
             "run_monitoring",
             "failed",
-            "Sandbox automation failed before the report could be finalized.",
+            _monitoring_failure_message(exc),
         )
         raise
+    finally:
+        heartbeat_stop.set()
+        heartbeat_thread.join(timeout=1.0)
+
     report_payload = _load_report_payload(report_name)
-    if trigger_container_path is not None:
+    if trigger_plan.trigger_container_path is not None and trigger_payload_exists:
         try:
             _validate_trigger_plan_report(report_name, report_payload)
         except TriggerPlanError as exc:
-            report(
+            reporter.emit(
                 "run_monitoring",
                 "failed",
                 str(exc),
                 exc.error_code,
             )
             raise
+
     monitoring_message, finalize_message = _build_report_messages(
         report_name,
         report_payload,
     )
-    report("run_monitoring", "completed", monitoring_message)
-    report("finalize_report", "completed", finalize_message)
+    reporter.emit("run_monitoring", "completed", monitoring_message)
+    reporter.emit("finalize_report", "completed", finalize_message)
+    return automation_output, finalize_message
+
+
+def execute_analysis_request(
+    request: AnalyzeRequest,
+    db: Session,
+    progress_callback: Callable[
+        [AnalysisJobStepName, AnalysisJobStepStatus, str, str | None],
+        None,
+    ]
+    | None = None,
+    report_name: str | None = None,
+    executor_control: ExecutorControl | None = None,
+) -> AnalyzeResponse:
+    if executor_control is None:
+        executor_control = default_executor_control
+    reporter = _StepReporter(progress_callback)
+    ensure_vsix_exists(request)
+    _reset_sandbox(reporter, executor_control)
+    install_output = _install_extension(request, reporter, executor_control)
+    trigger_plan = _build_triggers(db, request, reporter)
+    report_name = report_name or job_service.build_report_name(request, uuid4().hex)
+    automation_output, finalize_message = _run_monitoring(
+        request,
+        report_name,
+        trigger_plan,
+        reporter,
+        executor_control,
+    )
 
     return AnalyzeResponse(
         status="success",

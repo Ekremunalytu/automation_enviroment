@@ -14,6 +14,7 @@ NOVNC_PORT_VALUE="${EXECUTOR_NOVNC_PORT:-6080}"
 CDP_PORT="${EXECUTOR_CDP_PORT:-9222}"
 STARTUP_SLEEP_SECONDS="${EXECUTOR_STARTUP_SLEEP_SECONDS:-1}"
 PLAYWRIGHT_FLOW_DIR="${EXECUTOR_PLAYWRIGHT_FLOW_DIR:-/home/executor/flows/playwright}"
+HARNESS_SHA256_MANIFEST="${EXECUTOR_HARNESS_SHA256_MANIFEST:-/home/executor/flows/harness_extension.sha256}"
 
 PIDS=()
 
@@ -69,6 +70,17 @@ timeout 10s bash -c "until curl -sf http://localhost:${NOVNC_PORT_VALUE}/ >/dev/
 # --- Honeypot workspace ---
 echo "Setting up developer honeypot environment..."
 python3 "${PLAYWRIGHT_FLOW_DIR}/workspace.py"
+
+# --- Harness integrity ---
+if [ ! -f "${HARNESS_SHA256_MANIFEST}" ]; then
+    echo "ERROR: Harness checksum manifest is missing: ${HARNESS_SHA256_MANIFEST}"
+    exit 1
+fi
+echo "Verifying harness extension checksum manifest..."
+if ! sha256sum --check --status "${HARNESS_SHA256_MANIFEST}"; then
+    echo "ERROR: Harness extension checksum verification failed."
+    exit 1
+fi
 
 # --- VS Code settings ---
 VSCODE_SETTINGS_DIR="/home/executor/.vscode/User"

@@ -6,6 +6,10 @@ describe("adaptReport", () => {
     const dto: ActivationReportDto = {
       report_version: 2,
       target_extension_expected: "ms.test",
+      verdict: {},
+      scenario_traces: [],
+      network_events: [],
+      file_events: [],
       target_extension_observed: true,
       trigger_plan_applied: true,
       verification_gap: 1,
@@ -206,7 +210,7 @@ describe("adaptReport", () => {
   });
 
   it("falls back to legacy activation/file/scenario arrays", () => {
-    const dto: ActivationReportDto = {
+    const dto = {
       summary: {
         total_activated: 1,
         monitoring_duration_s: 9,
@@ -241,7 +245,7 @@ describe("adaptReport", () => {
           status: "completed",
         },
       ],
-    };
+    } as unknown as ActivationReportDto;
 
     const report = adaptReport(dto, "legacy");
     const inspector = getInspectorView(report, "file-0001");

@@ -268,22 +268,24 @@ job orchestration.
   worker sessions to the real test database via `tests/conftest.py`'s
   `runtime_client` fixture, so `/api/marketplace/analyze/start` no longer
   exercises the `analysis_jobs` path through a mocked `MagicMock` session.
-- Week 4B remains `validation pending` until all closure checks pass in an
-  environment with Postgres and the executor available.
+- Executor reload hardening now uses one bounded CDP reload/reconnect policy
+  across `executor/flows/playwright/reload_vscode.py` and the monitored
+  `--reload-before-run` path in `executor/flows/playwright/entrypoint.py`,
+  and the host wrapper now cleans up stale `reload_vscode.py` processes on
+  reload failure or timeout instead of leaving them behind in the container.
 - Week 4B closure checklist:
   - startup must fast-fail if job storage or migration state is unavailable
   - `tests/platform/storage/test_analysis_jobs.py` must pass against Postgres
   - Alembic upgrade -> downgrade -> upgrade must pass on the test DB
   - `tests/smoke/test_marketplace_analysis_smoke.py::test_ms_python_analysis_smoke`
     must pass with the executor container available
-- Current blocker on `2026-04-16`: the smoke acceptance lane reaches the real
-  persisted-job path but still fails inside the executor because
-  `python3 /home/executor/flows/playwright/reload_vscode.py` hangs during the
-  CDP reconnect/reload step and is eventually terminated by the host wrapper
-  timeout. Do not mark Week 4B closed until that executor-side smoke failure
-  and the Alembic cycle check are both resolved.
-- Once the remaining DB-backed and smoke validation is green, the next promoted
-  lane stays `Week 4C`; do not mix Week 4C scope into this closure pass.
+- Week 4B closure validation passed on `2026-04-16` with:
+  `make test-unit`, `make test-integration`, a passing
+  `tests/smoke/test_marketplace_analysis_smoke.py::test_ms_python_analysis_smoke`
+  run against the rebuilt executor container, and a passing Alembic
+  `upgrade -> downgrade -> upgrade` cycle on a clean test database.
+- With the closure checklist green, the next promoted lane stays `Week 4C`; do
+  not mix Week 4C scope into this closure pass retroactively.
 - Track the remaining post-review follow-ups in
   `documents/REFACTOR_OPTIMIZATION.md`, especially the VSIX re-download
   correctness gap and the broader Week 4C boundary/fixture work.
@@ -294,3 +296,31 @@ Week 5 and later are intentionally deferred. Use
 `REFACTOR_EXPANSION_NOTES.md` for candidate follow-on work after Week 4A and
 Week 4B are complete and stable. Items promoted into Week 4A are no longer
 treated as Week 5+ candidates.
+
+### 7-Week Window Integration (2026-04-17)
+
+With Week 4B closed, the project entered a 7-week stabilization-then-security
+window. Weekly scope for Weeks 4C-4E and the security implementation phase
+is tracked in `REFACTOR_OPTIMIZATION.md` §10 rather than re-derived here.
+
+Summary:
+
+- **W0 (complete, 2026-04-17):** security foundations written as specs —
+  `documents/adrs/0002-threat-model.md`,
+  `documents/adrs/0003-detection-taxonomy.md`,
+  `documents/adrs/0004-malicious-fixture-policy.md`.
+- **W1 (Week 4C):** legacy cleanup, import-graph enforcement, second and
+  third benign fixture, plan/status split, test pyramid.
+- **W2 (Week 4D-a):** executor determinism — VS Code pinning,
+  `time.monotonic`, report path collision fix, Docker exec retry/backoff.
+- **W3 (Week 4D-b):** executor modularization — split `monitor.py`,
+  decompose `analysis_service.execute_analysis_request`.
+- **W4 (Week 4E):** sandbox boundary — `ExecutorControl` interface, harness
+  checksum verification, trigger-file host-side cleanup.
+- **W5-W7:** security implementation per ADRs 0002-0004 — detection rule
+  package, malicious fixture corpus with T1 canaries per adversary class,
+  UI detection surface, `make test-security` + `test-security-live`.
+
+Items that were Week 5+ candidates in `REFACTOR_EXPANSION_NOTES.md` and
+have been promoted into W1-W7 are no longer tracked in the expansion
+notes; see that file for the current list of still-deferred candidates.

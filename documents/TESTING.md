@@ -92,11 +92,15 @@ ui/smoke/
 
 ```bash
 make test
+make test-unit
+make test-integration
+make test-smoke
 make test-cov
 make test-local
 make test-ci
 .venv/bin/pytest
-.venv/bin/pytest -m "not smoke and not requires_db"
+.venv/bin/pytest -m "not smoke and not requires_db and not integration"
+.venv/bin/pytest -m "(requires_db or integration) and not smoke"
 .venv/bin/pytest -m "requires_db"
 .venv/bin/pytest tests/workflows/marketplace/test_router.py -v
 .venv/bin/pytest tests/smoke/test_marketplace_analysis_smoke.py -v -m smoke
@@ -107,9 +111,13 @@ cd ui && npm run test:smoke
 Notes:
 
 - Default `pytest` excludes the smoke suite via `pyproject.toml`.
-- Fast lane: `pytest -m "not smoke and not requires_db"`.
+- Unit lane: `pytest -m "not smoke and not requires_db and not integration"`.
+- Integration lane: `pytest -m "(requires_db or integration) and not smoke"`.
 - DB lane: `pytest -m "requires_db"`.
 - Smoke lane: `pytest -m "smoke"`.
+- `make test-unit`, `make test-integration`, and `make test-smoke` map to the
+  same lane definitions so failures can be isolated without re-deriving marker
+  expressions each time.
 - `make test-local` starts `postgres_test` and then runs the default Python
   suite (`not smoke`), which includes DB-backed tests.
 - `make test-ci` also builds and waits for the executor container so the smoke
@@ -136,7 +144,36 @@ The smoke client now uses `runtime_client`, so both the request handlers and
 the async job worker talk to the real test PostgreSQL database instead of a
 mocked session when exercising `analysis_jobs`.
 
+The smoke lane now includes executor process and log diagnostics when a job
+fails or stops making progress on one step for two minutes. This is aimed at
+the recurring `reload_vscode.py` / CDP reconnect stall so the failure mode is
+visible before the full poll timeout or immediately when the worker fails.
+
 ## Coverage Focus
+
+## Test Lanes
+
+### Unit
+
+- Pure helper logic and mocked orchestration paths.
+- Should not require Postgres or the executor container.
+- Typical marker expression: `not smoke and not requires_db and not integration`.
+
+### Integration
+
+- Real Postgres persistence and other non-executor infrastructure seams.
+- Prefer `@pytest.mark.requires_db` for DB-backed tests; reserve
+  `@pytest.mark.integration` for non-smoke infra cases that still need real
+  wiring.
+- Typical marker expression: `(requires_db or integration) and not smoke`.
+
+### Smoke
+
+- Full marketplace download/analyze/report flow against the real executor
+  container.
+- Must stay narrow and diagnostic-heavy because runtime hangs are the dominant
+  failure mode.
+- Marker expression: `smoke`.
 
 ### Platform
 
@@ -173,9 +210,9 @@ mocked session when exercising `analysis_jobs`.
 - Activation reports remain artifact-first and file-backed under `output/`, but
   async marketplace job metadata is now DB-backed and should be exercised
   through the Postgres test lane.
-- The current smoke blocker is executor-side CDP reload stability:
-  `reload_vscode.py` can hang during the workbench reconnect step even after the
-  API and persisted-job lanes pass.
+- Reload failures now fail quickly with phase-tagged diagnostics and stale
+  process cleanup, but executor-side CDP/workbench stability still needs real
+  smoke coverage because it remains the most brittle runtime seam.
 - The SPA has route-level coverage, but API-contract drift still matters because
   there is no generated client.
 

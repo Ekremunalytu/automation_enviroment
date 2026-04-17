@@ -22,6 +22,10 @@ export async function requestJson<T>(path: string, init?: RequestInit): Promise<
     },
   });
 
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
   if (!response.ok) {
     let message = response.statusText;
     try {

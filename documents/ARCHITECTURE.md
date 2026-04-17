@@ -1,6 +1,6 @@
 # ExTrace Architecture
 
-`Last Updated: 2026-04-15`
+`Last Updated: 2026-04-17`
 
 This document reflects the current codebase shape in `main.py`, `appcore/`,
 `workflows/`, `executor/`, and `ui/`.
@@ -18,7 +18,8 @@ multi-tenant platform.
 - same machine or same Docker host deployment
 - one active background analysis job at a time
 - extension execution stays isolated in Docker
-- reports and job snapshots remain file-backed operator artifacts
+- activation reports remain artifact-first operator artifacts
+- async job state is durable in PostgreSQL (`analysis_jobs`)
 
 ## Runtime Surfaces
 
@@ -28,9 +29,10 @@ flowchart LR
     API --> WF["Workflow routers/services (`workflows/`)"]
     WF --> CORE["Shared platform code (`appcore/`)"]
     CORE --> DB[("PostgreSQL")]
-    WF --> HOST["Executor host wrapper (`executor/host.py`)"]
+    WF --> CTRL["Executor boundary (`executor/control.py`)"]
+    CTRL --> HOST["Executor host wrapper (`executor/host.py`)"]
     HOST --> EXEC["Executor container"]
-    EXEC --> OUT["`output/` reports + job snapshots"]
+    EXEC --> OUT["`output/` activation reports"]
 ```
 
 ## Canonical Modules
@@ -72,8 +74,11 @@ Business behavior organized by capability.
 
 Sandbox control and runtime.
 
+- `executor/control.py`
+  - Public workflow-facing boundary for reset, install, automation run, reload,
+    and trigger cleanup.
 - `executor/host.py`
-  - Docker exec control surface used by the API layer.
+  - Docker exec implementation details and retry/cleanup behavior.
 - `executor/container/`
   - Docker image, start script, and sandbox boot configuration.
 - `executor/flows/playwright/`
@@ -111,8 +116,8 @@ primary frontend and should not receive new feature work.
 - All catalog DB writes go through `appcore/storage/crud.py`.
 - Manifest data is validated with Pydantic before insertion.
 - The uniqueness constraint remains `(publisher, name, version)`.
-- Sandbox execution remains isolated in Docker and is invoked only through
-  `executor/host.py` from the API process.
+- Sandbox execution remains isolated in Docker and is invoked from workflows
+  only through `executor/control.py`.
 
 ## Request Flows
 
@@ -160,8 +165,8 @@ Notes:
 7. `executor/flows/playwright/report_builder.py`
 8. `output/activation_report_*.json`
 
-Async job mode now persists step-tracked analysis job metadata in the
-PostgreSQL `analysis_jobs` table through `appcore.storage.crud` and
+Async job mode persists step-tracked analysis metadata in the PostgreSQL
+`analysis_jobs` table through `appcore.storage.crud` and
 `workflows.marketplace.job_service`.
 
 Notes:

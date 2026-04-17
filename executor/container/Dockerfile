@@ -3,15 +3,21 @@
 # =============================================================================
 # ExTrace Executor
 # Dynamic analysis of VS Code extensions with full GUI via Xvfb + noVNC
+# Base image digest resolved on 2026-04-17 for deterministic W4/W5 builds.
 # =============================================================================
-FROM ubuntu:22.04
+FROM ubuntu:22.04@sha256:962f6cadeae0ea6284001009daa4cc9a8c37e75d1f5191cf0eb83fe565b63dd7
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-ARG EXECUTOR_NODE_MAJOR=20
-ARG EXECUTOR_VSCODE_CHANNEL=stable
+ARG EXECUTOR_NODE_MAJOR
+ARG EXECUTOR_VSCODE_CHANNEL
+ARG EXECUTOR_VSCODE_VERSION
 ARG EXECUTOR_DEFAULT_DISPLAY=:99
 ARG EXECUTOR_DEFAULT_NOVNC_PORT=6080
+
+RUN test -n "${EXECUTOR_NODE_MAJOR}" \
+    && test -n "${EXECUTOR_VSCODE_CHANNEL}" \
+    && test -n "${EXECUTOR_VSCODE_VERSION}"
 
 # Install monitoring tools, X11/Xvfb stack, Python3, and utilities
 # Cache apt indexes/packages between builds to reduce rebuild time.
@@ -52,7 +58,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     && apt-get update \
     && apt-get install -y --no-install-recommends nodejs
 
-# Install VS Code via direct .deb download.
+# Install a pinned VS Code build via direct .deb download.
 # Detect architecture: arm64 -> linux-deb-arm64, amd64 -> linux-deb-x64.
 # Use apt to install the local .deb so dependency resolution and archive
 # validation fail the build instead of silently continuing.
@@ -60,7 +66,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
     ARCH=$(dpkg --print-architecture) \
     && if [ "$ARCH" = "arm64" ]; then VSCODE_ARCH="linux-deb-arm64"; else VSCODE_ARCH="linux-deb-x64"; fi \
-    && curl --retry 5 --retry-all-errors --retry-delay 2 -fsSL -o /tmp/vscode.deb "https://update.code.visualstudio.com/latest/${VSCODE_ARCH}/${EXECUTOR_VSCODE_CHANNEL}" \
+    && curl --retry 5 --retry-all-errors --retry-delay 2 -fsSL -o /tmp/vscode.deb "https://update.code.visualstudio.com/${EXECUTOR_VSCODE_VERSION}/${VSCODE_ARCH}/${EXECUTOR_VSCODE_CHANNEL}" \
     && dpkg-deb --info /tmp/vscode.deb >/dev/null \
     && apt-get update \
     && apt-get install -y --no-install-recommends /tmp/vscode.deb \
@@ -99,6 +105,10 @@ RUN chmod 755 /usr/local/bin/start.sh
 # Copy Playwright automation scripts and shared contract package needed at runtime.
 COPY --chown=executor:executor executor/flows /home/executor/flows
 COPY --chown=executor:executor packages /home/packages
+RUN find /home/executor/flows/harness_extension -type f -print0 \
+    | LC_ALL=C sort -z \
+    | xargs -0 sha256sum > /home/executor/flows/harness_extension.sha256 \
+    && chown executor:executor /home/executor/flows/harness_extension.sha256
 
 USER executor
 WORKDIR /workspace

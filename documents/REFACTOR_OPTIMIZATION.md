@@ -1,13 +1,31 @@
 # Refactor Optimization — Plan Kritiği ve Düzeltme Önerileri
 
-`Last Updated: 2026-04-16`
+`Last Updated: 2026-04-17`
 
-> **Değerlendirici:** Bu doküman **Claude Opus 4.6** ile yapılan paralel-ajan
-> tabanlı (Explore subagents) bir kod tabanı incelemesinin çıktısıdır.
-> Öneriler ve bulgular Opus 4.6'nın analizidir. **Uygulama (kod değişikliği)
-> GPT-5.4 ile yapılacaktır.** GPT-5.4, bu dokümanı spec olarak okumalı;
-> her bir madde için verilen `file_path:line_number` referansları ve
+> **Değerlendirici (yazarlar):**
+>
+> - **Pass 1 (2026-04-16) — Claude Opus 4.6**, paralel-ajan (Explore subagents)
+>   tabanlı kod tabanı incelemesi. Bölüm 1-8 bu geçişin çıktısıdır.
+> - **Pass 2 (2026-04-17) — Claude Opus 4.7**, plan + kod revalidation. Bölüm 9
+>   ("Güncel Durum Doğrulaması") ve Bölüm 10 ("7 Haftalık Stabilizasyon →
+>   Güvenlik Penceresi") bu geçişte eklenmiştir; ayrıca Bölüm 7-8 içindeki
+>   stale bulgular üzerine satır-içi `⚠ STALE (YYYY-MM-DD)` notları düşülmüştür.
+>
+> **Uygulama ajanı:** **GPT-5.4** kod değişikliğini uygular. Bu doküman GPT-5.4
+> için spec'tir; her madde için verilen `file_path:line_number` referansları ve
 > kabul kriterleri bağlayıcıdır.
+>
+> **Multi-ajan sağlığı:** Bu doküman iki Claude sürümü ve bir GPT sürümü
+> tarafından okunur. Okuma/yazma disiplini:
+>
+> - Stale bulgular **silinmez**, `⚠ STALE` etiketiyle işaretlenir (geçmiş kanıt
+>   kaybolmasın). Bkz. Bölüm 9.
+> - Yeni geçiş yapan ajan, Bölüm 9'a o tarihli kısa bir doğrulama bloğu ekler.
+> - GPT-5.4 uygulama sırasında stale olmayan maddeleri takip eder; stale
+>   maddeleri atlar, commit mesajında `skip(stale: <madde>)` formatında
+>   referans verir.
+> - Herhangi bir ajan bir maddeyi tamamen reddediyorsa, silmek yerine madde
+>   altına `> Reddedildi (ajan, tarih, gerekçe)` bloğu ekler.
 
 Bu doküman, `REFACTOR_EXECUTION_PLAN.md` (Week 1-4B) üzerine yapılan bağımsız bir
 değerlendirmenin çıktısıdır. Amacı plana rakip olmak değil, **"modüler ve
@@ -609,6 +627,12 @@ DB engine açmıyor; `tests/workflows/marketplace/` yeşil kalıyor.
 
 #### 7.1.3 `job_store.py` layering sidecar
 
+> ⚠ STALE (2026-04-17, Opus 4.7): `workflows/marketplace/job_store.py` artık
+> **silinmiş**; `recover_interrupted_jobs()` `job_service.py`'ye taşınmış ve
+> `main.py` yalnızca `job_service` üzerinden çağırıyor. Week 4B status bloğu
+> (`REFACTOR_EXECUTION_PLAN.md:256-260`) bunu zaten teyit ediyor. GPT-5.4 bu
+> maddeyi uygulamaya almayacak. Bulgu tarihi kanıt olarak bırakıldı.
+
 `workflows/marketplace/job_store.py` — Week 4B sonrası `job_service`
 abstraksiyonunu bypass ediyor. `main.py:54` doğrudan
 `job_store.recover_interrupted_jobs()` çağırıyor. `get_job_file()` ve
@@ -860,6 +884,12 @@ işaret edecek şekilde güncelle. `routers/` referanslarını kaldır.
 
 #### 7.4.2 `.env` commit edilmiş
 
+> ⚠ STALE (2026-04-17, Opus 4.7): `git ls-files | grep -E "^\.env$"` **boş
+> dönüyor** — `.env` artık tracked değil, kabul kriteri zaten karşılanmış
+> durumda. `.gitignore` pattern'i netleştirme (`*.env` → `/.env`) isteğe bağlı
+> ufak iyileştirme olarak kalıyor; güvenlik borcu olarak görülmüyor. GPT-5.4
+> bu maddeyi uygulamaya almayacak.
+
 `.gitignore:8` `*.env` diyor ama `.env` tracked. Dev credentials
 (`POSTGRES_PASSWORD=postgres`) repo'da.
 
@@ -953,9 +983,10 @@ kabul kriterleri bağlayıcıdır.
 
 1. **7.4.3 — Legacy klasörleri sil** (`routers/`, `scanner/`, `core/`,
    `database/`, `crud/`, `models/`, `schemas/`). Tek commit, zero diff risk.
+   (2026-04-17 doğrulandı: hâlâ `__pycache__`-only, silinmeyi bekliyor.)
 2. **7.4.1 — CI'daki `routers/requirements.txt` referanslarını temizle.**
    `.github/workflows/ci.yml` tek dosya değişikliği.
-3. **7.4.2 — `.env` untrack, `.gitignore` netleştir.**
+3. ~~**7.4.2 — `.env` untrack**~~ — ⚠ STALE, zaten yapılmış (bkz. 7.4.2).
 4. **7.1.2 — `SessionLocal` modül-seviyesi import'u fonksiyona taşı.** 3
    satırlık değişiklik, testleri rahatlatır.
 5. **7.1.5 — `search_marketplace` return type uyumsuzluğunu düzelt.**
@@ -965,8 +996,9 @@ kabul kriterleri bağlayıcıdır.
 
 1. **7.2.2 — VS Code version pinleme (determinism).** Bugün yaşayan sorun.
 2. **7.2.1 — `monitor.py` modülerleşmesi.** Tek başına bir haftalık iş;
-   Week 4D veya Week 5.
-3. **7.1.3 — `job_store.py` layering temizliği.** Week 4B kapanışı için.
+   Week 4D veya Week 5. (2026-04-17 doğrulandı: 3993 satır, hiç bölünmemiş.)
+3. ~~**7.1.3 — `job_store.py` layering temizliği.**~~ — ⚠ STALE, Week 4B
+   kapanışında tamamlandı; dosya silindi (bkz. 7.1.3).
 4. **7.1.1 — `analysis_service.execute_analysis_request` parçalanması.**
 
 ### Frontend pass (paralel olabilir)
@@ -1009,3 +1041,252 @@ kabul kriterleri bağlayıcıdır.
   (yeni dependency, bare `except Exception`, crud bypass) **durdur ve
   kullanıcıya sor** — dokümanda belirtilen fix'lerden farklılaşma gerekirse
   ADR eşliğinde yapılmalı.
+- `⚠ STALE` etiketli maddeler **uygulanmaz**. Commit mesajında bu maddeler
+  geçerse `skip(stale: 7.x.y)` formatında atlama açıklaması ver.
+
+---
+
+## 9. Güncel Durum Doğrulaması (2026-04-17, Opus 4.7)
+
+Pass 1 (Opus 4.6, 2026-04-16) yazıldıktan sonra Week 4B kapanışı ve paralel
+temizlikler bazı bulguları stale yaptı. Bu bölüm repo'nun 2026-04-17
+itibarıyla doğrulanmış durumunu özetler; madde bazlı stale notları
+ilgili bölümlerde (`⚠ STALE` etiketi) satır-içi yer alır.
+
+### 9.1 Pass 1'e göre değişenler
+
+| Madde | 2026-04-16 iddiası | 2026-04-17 gerçeği | Durum |
+|---|---|---|---|
+| 7.1.3 `job_store.py` | `job_service`'i bypass ediyor | Dosya silinmiş, `job_service` tek yol | ⚠ STALE |
+| 7.4.2 `.env` tracked | `git ls-files` `.env` döndürüyor | Tracked değil, `.env.example` tek sürüm | ⚠ STALE |
+
+### 9.2 Pass 1 bulgularından hâlâ geçerli olanlar (spot-check)
+
+- `routers/ scanner/ core/ database/ crud/ models/ schemas/` — **hâlâ mevcut**,
+  içlerinde yalnızca `__pycache__`. 7.4.3 açık.
+- `apps/api`, `apps/ui` — yalnızca `README.md` içeriyor. 2.1'deki "yarım
+  skeleton" uyarısı geçerliliğini koruyor; `apps/` charter kararı hâlâ eksik.
+- `packages/` altında `analysis_contracts`, `analysis_planner`,
+  `analysis_engine` var; charter (2.1) ve import-graph testi (2.2) hâlâ yok.
+- `executor/flows/playwright/monitor.py` — **3993 satır**, 7.2.1 hâlâ en
+  büyük tekil borç.
+- `tests/architecture/` klasörü yok; 2.2 yazılmamış durumda.
+- Fixture corpus'u hâlâ tek (`extensions/ms-python.python`); 2.3 açık
+  (extensions/ altında 36 fixture var ama baseline/smoke yalnızca
+  `ms-python.python`'a dayanıyor).
+
+### 9.3 Pass 2 ek bulgular — güvenlik duruşu
+
+Pass 2 (Opus 4.7, 2026-04-17) siber güvenlikçi bakış açısıyla yapılan
+değerlendirmede Pass 1'in kapsamadığı yedi yapısal boşluk tespit etti:
+
+1. Sandbox boundary operasyonel borç olarak sınıflandırılmış; oysa
+   analizörün **ana güvenlik yüzeyi** burası. → W4 (Sandbox Boundary) bu
+   yüzden promote edildi.
+2. Anti-evasion düşüncesi yok. → ADR 0002'de scope dışı ilan edildi; `inconclusive`
+   verdict'i bu eksiği açıkça karşılıyor (ADR 0003 §5).
+3. Fixture corpus benign-only. → ADR 0004 T1/T2/T3 tier'ları bu boşluğu
+   spec seviyesinde kapatır; W5 implementasyonu bekliyor.
+4. Threat model yazılı değildi. → ADR 0002 yazıldı.
+5. Detection taxonomy yoktu. → ADR 0003 yazıldı.
+6. Platform supply chain attestation eksik (VS Code unpinned, harness
+   checksum yok). → W2 + W4 bu maddeleri karşılıyor.
+7. Output secondary-exfiltration yüzeyi sessizdi. → ADR 0002 §6 ve ADR 0004
+   §7'de açıkça tanımlandı.
+
+### 9.4 Bir sonraki pass için protokol
+
+Bir sonraki Claude veya GPT pass'i, doğrulama sırasında şunları yapsın:
+
+1. Bu bölümün altına `### 9.N (tarih, ajan)` başlığıyla yeni bir blok ekle.
+2. Değişen maddeleri `⚠ STALE` ile işaretle; bulguyu silme.
+3. Yeni bir bulgu varsa Bölüm 2 veya Bölüm 7 formatında ekle, numarayı
+   sıralı devam ettir (örn. 7.1.6, 7.2.8).
+4. Öncelik sırası değişirse Bölüm 8'i güncelle ama stale maddeleri listeden
+   tamamen silme — üstlerine çizgi çek (`~~...~~`).
+
+---
+
+## 10. 7 Haftalık Stabilizasyon → Güvenlik Penceresi (PoC-öncelikli)
+
+**Bağlam (2026-04-17):** Kullanıcının 7 haftası kaldı. Hedef: otomasyon
+akışını stabilize etmek, ardından güvenlik (dynamic-analysis detection)
+adımlarına geçmek. Bu bölüm Pass 1'in Week 4C/4D/5 önerilerini bu pencereye
+sığacak şekilde sıralar; Pass 1 önerileri **iptal değil**, tarihsel olarak
+sıralanmıştır.
+
+**PoC framing (2026-04-17):** bu 7 haftanın **acceptance bar'ı PoC
+seviyesi**. "Temel zararlıları yakalayabilen demonstrable bir araç"
+hedefiyle ölçülür; full production security product hedefiyle değil.
+Kapsam **daraltılmadı**: tüm maddeler planda kalıyor. Ama **öncelik**
+PoC'dir — iki madde çatışırsa PoC bar'ını karşılayan kazanır.
+
+PoC öncelik sıralaması:
+
+- **Must (PoC acceptance bar):** W1-W4 stabilizasyon, ADR 0002 PoC
+  sınıfları (A1/A2/A4/A6), her sınıf için en az bir T1 canary, en az
+  bir production rule per PoC class, minimum UI detection rendering.
+- **Should (PoC'yi güçlendirir, bar'ı bloklamaz):** Stretch sınıfları
+  (A3/A5/A7), ikinci benign fixture'lar, executor'ın minimum-invaziv
+  split'i yerine tam split, `analysis_service` dekompozisyonu.
+- **Nice-to-have (PoC sonrası):** T2 declawed samples, T3 handling,
+  axe-core accessibility, mypy strict promotion, dokümantasyon
+  konsolidasyonu, domain service pattern genişletmesi.
+
+PoC acceptance değerlendirmesi W7 sonunda yapılır; Must maddelerinin
+hepsi yeşil ise PoC "kabul" kabul edilir, kalan Should/Nice-to-have
+maddeleri post-PoC backlog'una taşınır.
+
+**Kullanıcı kararı (2026-04-17):** Otomasyon stabilizasyonu öncelikli;
+güvenlik sıkılaştırmaları şimdiye kadar geride kalmış durumda. Bu karar W0
+(güvenlik ön-yatırımı) haftasını getirdi — güvenlik fazı başlamadan **spec
+seviyesinde** üç ADR yazıldı:
+
+- [ADR 0002 — Threat Model](adrs/0002-threat-model.md): in-scope adversary
+  sınıfları (A1-A7), kabul edilen yetenekler, scope dışı, trust boundaries.
+- [ADR 0003 — Detection Taxonomy](adrs/0003-detection-taxonomy.md):
+  MITRE ATT&CK hizalaması, severity/confidence, `DetectionReport` contract'ı,
+  verdict rollup, kural lifecycle.
+- [ADR 0004 — Malicious Fixture Policy](adrs/0004-malicious-fixture-policy.md):
+  T1/T2/T3 izolasyon tier'ları, `LABEL.yaml` manifest, `make test-security`
+  ve `make test-security-live` ayrımı, CI guardrail'leri.
+
+Bu üç ADR W5-W7 detection çalışmasının **contract'ıdır**; kod uygulaması
+W5'te başlar.
+
+### 10.1 Ana prensip — güvenliğe geçiş ön koşulu
+
+Güvenlik fazına girmeden önce **sandbox kenarı sessiz olmamalı**. Pass 1'in
+en büyük kör noktası: plan dokümanı executor'a hiç dokunmuyor, ama kod
+tabanının en kırılgan halkası orası (bkz. 7.2 ve 7.5 #1). Güvenlik
+bulguları "extension'dan mı executor'dan mı?" belirsizliğiyle gelirse faz
+gürültülü olur. Bu yüzden W2-W4 executor'a ayrılmalıdır.
+
+**İkinci ön koşul (Pass 2 ekledi):** güvenlik fazı "ne yakalıyoruz?"
+sorusunun yazılı cevabı olmadan başlayamaz. ADR 0002/0003/0004 bu cevabı
+spec seviyesinde veriyor; W0'da yazıldı, W5 implementasyonun zeminidir.
+
+### 10.2 Haftalık dağılım (öneri)
+
+| Hafta | Etiket | Kapsam | Kaynak maddeler |
+|---|---|---|---|
+| **W0** | Security foundations (spec) ✅ | Üç ADR yazımı: threat model, detection taxonomy, malicious fixture policy | ADR 0002, 0003, 0004 (2026-04-17'de tamamlandı) |
+| **W1** | Week 4C (Pass 1 önerisi) | Legacy cleanup, import-graph testi, 2. fixture, plan/status ayrımı, test piramidi | 2.1, 2.2, 2.3, 2.5, 2.7, 7.4.1, 7.4.3 |
+| **W2** | Week 4D-a (Executor determinism) | VS Code pinleme, `time.monotonic`, report path collision, Docker exec retry/backoff | 7.2.2, 7.2.3, 7.2.4, 7.2.5 |
+| **W3** | Week 4D-b (Executor modularization) | `monitor.py` capture/ alt paketine bölünmesi; `analysis_service.execute_analysis_request` parçalanması | 7.2.1, 7.1.1 |
+| **W4** | Week 4E (Sandbox boundary) | `ExecutorControl` arayüzü + ADR, harness checksum, trigger-file host-side cleanup | 2.4, 7.2.6, 7.2.7 |
+| **W5** | Security foundations (implementation) | ADR 0002/0003/0004 **kod karşılıkları**: `packages/analysis_contracts/detection/` iskeleti; **PoC must:** A1/A2/A4/A6 için T1 canary'leri + `make test-security` + fixture hygiene testleri. **Stretch:** A3/A5/A7 canary'leri | ADR 0002, 0003, 0004 |
+| **W6** | Security detection pass 1 | **PoC must:** PoC sınıfları (A1/A2/A4/A6) için her birine en az bir production rule + CI'da PoC lifecycle (Draft→Production tek pass, ADR 0003 §7). **Stretch:** ek rule'lar, stretch sınıf rule'ları | ADR 0003 rule lifecycle |
+| **W7** | Security hardening + buffer | **PoC must:** UI minimum detection rendering (`DetectionReport` → analyst görebilir), demo senaryosu, PoC acceptance checklist doğrulaması. **Stretch/post-PoC:** axe-core, mypy strict, doc konsolidasyon, `test-security-live`, T3 handling | 7.3.6, 7.4.4, 7.4.5, ADR 0004 T3 handling |
+
+### 10.3 Ertelenenler (7 hafta içine girmeyen)
+
+Bu maddeler iyi fikir ama güvenliğe geçiş için kritik değil; W7 sonrasına
+bırakılmaları önerilir:
+
+- **7.1.2** `SessionLocal` import taşıma — küçük iyileştirme, test kolaylığı.
+- **7.1.4** Geniş `except` daraltma — cosmetic, AGENTS.md ruhuyla uyumlu
+  ama production'ı bloklamıyor.
+- **7.1.5** `search_marketplace` return type — IDE deneyimi, güvenlik değil.
+- **7.3.1 / 7.3.2** UI component bölünmesi — UI drift ölçülmeden büyük
+  iş; güvenlik detection UI'ı ayrı maddeyi hak ediyor.
+- **7.3.3 / 7.3.4** `window.__EXTRACE_CONFIG__`, `AbortController` — UI
+  polish.
+- **7.3.5** ESLint feature boundary — faydalı ama 7.3.1 öncesinde
+  prematüre.
+- **2.8** Domain service pattern yayılımı — Week 5 adayıydı, halen öyle.
+- **7.4.6 / 7.4.7** `make migrate` pre-check, Alembic reversibility testi
+  — operasyonel konfor; güvenliği bloklamıyor.
+
+### 10.4 Paralel ajan lane'leri (7 hafta için)
+
+Kullanıcı Claude + GPT paralel çalıştırdığı için lane çakışmasını önlemek
+gerekir. Önerilen lane haritası:
+
+| Lane | Sorumlu ajan tipi | Tipik çıktı |
+|---|---|---|
+| **Backend refactor** (`workflows/`, `appcore/`) | GPT-5.4 (uygulama) | Kod değişikliği + test |
+| **Executor modularization** (`executor/`) | GPT-5.4 (uygulama), Claude (review) | W2-W4 ana iş |
+| **Plan/ADR/status dokümanları** (`documents/`) | Claude (yazı), GPT (okuyucu) | ADR'lar, status blokları |
+| **Mimari review + pass'ler** | Claude Opus 4.x paralel Explore | Bu dokümana Bölüm 9.N ekleyişleri |
+| **Güvenlik plan + threat model** | Claude (tasarım), GPT (test fixture üretimi) | W5+ çıktısı |
+
+**Çakışma kuralları:**
+
+- Aynı dosyayı **aynı gün** birden fazla ajan değiştirmemeli. Lane
+  sahibi olmayan ajan dokunacaksa lane sahibine PR/branch üzerinden
+  iletmeli.
+- Doküman yazımı Claude'a, kod yazımı GPT'ye ait; Claude'un Edit yetkisi
+  kullanıldığında yalnızca `documents/` altına yazılmalı.
+- Import-graph testi (2.2) W1'de kurulduğunda her iki ajan için CI
+  seviyesinde korkuluk olur; lane ihlalleri otomatik kırılır.
+
+### 10.5 W1 girişi için hazırlık checklist
+
+GPT-5.4 W1'e başlamadan önce Claude'un (veya kullanıcının) şunları
+onaylaması gerekir:
+
+- [ ] `apps/` klasörünün kaderi karara bağlandı (sil veya charter'a ekle).
+- [ ] `documents/adrs/0005-packages-charter.md` taslağı yazıldı
+      (charter ADR'ı; numara 0005 ayrıldı).
+- [ ] `import-linter` veya `grimp` bağımlılık eklemesi için ADR onayı var
+      (AGENTS.md "no new dependency without approval" kuralı).
+- [ ] İkinci/üçüncü fixture seçimi yapıldı (color-theme + chat-only) —
+      bunlar ADR 0004 kapsamı **dışında** benign fixture olarak
+      `extensions/` altında kalır.
+- [ ] `REFACTOR_STATUS.md` iskeleti hazır; Week 4A/4B status blokları
+      taşınacak pattern'e uygun.
+
+### 10.6 W5 girişi için hazırlık checklist
+
+W4 bittikten sonra güvenlik implementasyonuna geçmeden önce:
+
+- [ ] ADR 0002/0003/0004 operatör tarafından son bir kere gözden geçirildi
+      (W0'dan bu yana executor çalışmalarından ötürü trust boundaries
+      kayma durumunda — özellikle W4 `ExecutorControl` arayüzünün güven
+      modelini etkilediği kontrol edilmeli).
+- [ ] `extensions/malicious/` klasörü oluşturuldu, `README.md` uyarı
+      metni yazıldı.
+- [ ] **PoC must:** A1/A2/A4/A6 (PoC sınıfları) her biri için en az bir
+      T1 synthetic canary yazıldı.
+- [ ] **Stretch:** A3/A5/A7 için T1 canary (zaman kalırsa).
+- [ ] `make test-security` hedefi Makefile'a eklendi; CI'da network egress
+      kısıtlamalı job olarak çalışıyor.
+- [ ] `tests/security/test_fixture_hygiene.py` ve
+      `tests/security/test_rule_coverage.py` kuruldu (ADR 0004 §4, §6).
+
+### 10.7 PoC acceptance checklist (W7 sonu)
+
+W7 sonunda aşağıdakilerin hepsi yeşil ise PoC kabul sayılır. Kalan
+Should/Nice-to-have maddeleri post-PoC backlog'una yazılır, W7 kapanışını
+bloklamaz.
+
+**Stabilizasyon tarafı:**
+
+- [ ] Legacy klasörler silinmiş (`routers/`, `scanner/`, `core/`,
+      `database/`, `crud/`, `models/`, `schemas/`).
+- [ ] `packages/` import-graph testi CI'da çalışıyor.
+- [ ] VS Code versiyonu Dockerfile'da pinli; harness extension checksum
+      doğrulamalı.
+- [ ] `monitor.py` minimum olarak capture/ alt paketine ayrılmış (tam split
+      zorunlu değil; capture concerns ayrıştırılmış olması yeter).
+- [ ] `ExecutorControl` sarmalayıcı mevcut; API süreci `docker`
+      modülünü doğrudan import etmiyor.
+
+**Detection tarafı:**
+
+- [ ] A1/A2/A4/A6 her biri için en az bir T1 canary fires its rule
+      with `confidence ≥ medium` and severity ≥ `high`.
+- [ ] Hiçbir benign fixture (extensions/, malicious/ dışı) bir
+      production rule'u tetiklemiyor.
+- [ ] `make test-security` CI'da yeşil.
+- [ ] Verdict rollup `inconclusive` vakalarını doğru işaretliyor
+      (verification gap açıkken `clean` dönmüyor).
+- [ ] UI'da `DetectionReport` görüntüleniyor; en az bir finding'in
+      evidence deep-link'i aktivasyon raporuna geçiyor.
+- [ ] Demo senaryosu yazılmış: PoC sınıflarından en az birinin
+      canary'sini analiz et, UI'da finding'i göster, verdict'i kanıtla.
+
+Bu checklist yeşilken W1 tek oturumda kapanabilir; eksiklerinden biri
+sarkarsa W1 haftasına taşma riski yaratır ve güvenlik faz başlangıcını
+geriye iter.

@@ -13,7 +13,12 @@ _EXECUTION_MODES = {
     "selected_scenarios",
     "single_scenario",
     "all_scenarios",
+    "skip_automation",
 }
+
+_SCENARIO_ZERO_REASON = (
+    "No automation scenario was required for this non-executable fixture."
+)
 
 
 def _resolve_trigger_execution_mode(report: Any) -> str:
@@ -43,6 +48,8 @@ def _resolve_trigger_execution_mode(report: Any) -> str:
 
 
 def _run_quality_reasons(report: Any) -> list[str]:
+    if _resolve_trigger_execution_mode(report) == "skip_automation":
+        return [_SCENARIO_ZERO_REASON]
     reasons = getattr(report, "run_quality_reasons", [])
     return [str(reason) for reason in reasons if str(reason).strip()]
 
@@ -93,6 +100,11 @@ def build_summary(
     execution_mode = _resolve_trigger_execution_mode(report)
     scenarios_run = _scenario_trace_names(report)
     failed_scenarios = _failed_scenario_names(report)
+    trigger_plan_applied = bool(
+        getattr(report, "trigger_plan_applied", False)
+    ) or not bool(getattr(report, "trigger_plan_requested", False))
+    if execution_mode == "skip_automation":
+        trigger_plan_applied = False
     return {
         "total_activated": len(getattr(report, "activated", [])),
         "unique_extensions": len(unique_ids),
@@ -146,8 +158,7 @@ def build_summary(
             {},
         ),
         "trigger_execution_mode": execution_mode,
-        "trigger_plan_applied": bool(getattr(report, "trigger_plan_applied", False))
-        or not bool(getattr(report, "trigger_plan_requested", False)),
+        "trigger_plan_applied": trigger_plan_applied,
         "verification_gap": getattr(report, "verification_gap", 0),
         "heuristic_verification_gap": getattr(report, "heuristic_verification_gap", 0),
         "run_quality": run_quality,
@@ -179,6 +190,11 @@ def build_report_data(
         eh_text = str(getattr(report, "extension_host_output", ""))
     execution_mode = _resolve_trigger_execution_mode(report)
     failed_scenarios = _failed_scenario_names(report)
+    trigger_plan_applied = bool(
+        getattr(report, "trigger_plan_applied", False)
+    ) or not bool(getattr(report, "trigger_plan_requested", False))
+    if execution_mode == "skip_automation":
+        trigger_plan_applied = False
 
     return {
         "report_version": getattr(report, "report_version", 2),
@@ -190,8 +206,7 @@ def build_report_data(
             getattr(report, "trigger_plan_requested", False)
         ),
         "trigger_plan_loaded": bool(getattr(report, "trigger_plan_loaded", False)),
-        "trigger_plan_applied": bool(getattr(report, "trigger_plan_applied", False))
-        or not bool(getattr(report, "trigger_plan_requested", False)),
+        "trigger_plan_applied": trigger_plan_applied,
         "trigger_plan_path": getattr(report, "trigger_plan_path", ""),
         "trigger_execution_mode": execution_mode,
         "requested_scenarios": getattr(report, "requested_scenarios", []),

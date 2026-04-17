@@ -3,13 +3,35 @@ from __future__ import annotations
 import json
 from copy import deepcopy
 from pathlib import Path
+from unittest.mock import patch
 
+from appcore.contracts.schemas import ExtensionSchema
 from packages.analysis_contracts import (
     ActivationReport,
     TriggerPayload,
     activation_report_invariant_issues,
     scenario_trace_names,
 )
+from workflows.extension_catalog.manifest_parser import (
+    parse_activation_events,
+    parse_contributes,
+)
+from workflows.extension_catalog.manifest_reader import get_package_json
+from workflows.marketplace.client import download_and_extract_vsix
+
+
+_EXTENSIONS_DIR = Path(__file__).parents[3] / "extensions"
+
+
+def _fixture_identity(name: str, version: str) -> tuple[str, str, str]:
+    return ("extrace", name, version)
+
+
+BASELINE_EXTENSION_FIXTURES = [
+    ("ms-python", "python", "2026.5.2026032701"),
+    _fixture_identity("fixture-chat", "0.0.1"),
+    _fixture_identity("fixture-theme", "0.0.1"),
+]
 
 
 def _load_fixture(path: Path) -> dict[str, object]:
@@ -67,6 +89,95 @@ def test_activation_report_fixture_exposes_minimum_shape() -> None:
     round_tripped = parsed.model_dump(mode="json")
 
     assert ActivationReport.model_validate(round_tripped) == parsed
+
+
+def test_color_theme_activation_report_fixture_supports_zero_scenario_semantics() -> (
+    None
+):
+    fixture_path = (
+        Path(__file__).parent
+        / "fixtures"
+        / "activation_reports"
+        / "extrace_fixture_theme.json"
+    )
+
+    report = _load_fixture(fixture_path)
+
+    assert report["target_extension_expected"] == "extrace.fixture-theme"
+    assert report["trigger_execution_mode"] == "skip_automation"
+    assert report["summary"]["scenarios_run"] == []
+    assert report["summary"]["failed_scenarios"] == []
+    assert report["summary"]["trigger_plan_applied"] is False
+    assert report["scenario_traces"] == []
+    assert report["stimulus_passes"] == []
+    assert report["event_attempts"] == []
+    assert report["run_quality"] == "scenario_zero"
+    assert report["run_quality_reasons"] == [
+        "No automation scenario was required for this non-executable fixture."
+    ]
+    assert report["automation_health"]["target_activation_count"] == 0
+    assert activation_report_invariant_issues(report) == []
+
+    parsed = ActivationReport.model_validate(report)
+    round_tripped = parsed.model_dump(mode="json")
+
+    assert round_tripped["trigger_execution_mode"] == "skip_automation"
+    assert round_tripped["summary"]["scenarios_run"] == []
+    assert ActivationReport.model_validate(round_tripped) == parsed
+
+
+@patch("workflows.marketplace.client.httpx.Client", side_effect=AssertionError)
+def test_baseline_extension_fixtures_resolve_from_local_artifacts_without_network(
+    _mock_http_client: object,
+) -> None:
+    for publisher, name, version in BASELINE_EXTENSION_FIXTURES:
+        resolved = download_and_extract_vsix(publisher, name, version)
+        assert (
+            resolved.resolve()
+            == (_EXTENSIONS_DIR / f"{publisher}.{name}-{version}").resolve()
+        )
+        assert resolved.exists()
+
+
+def test_baseline_extension_fixtures_round_trip_through_extension_schema() -> None:
+    expected_activation_event_types = {
+        "ms-python.python": {
+            "onLanguage",
+            "workspaceContains",
+            "onLanguageModelTool",
+            "onTerminalShellIntegration",
+        },
+        "extrace.fixture-chat": {"onChatParticipant"},
+        "extrace.fixture-theme": set(),
+    }
+
+    for publisher, name, version in BASELINE_EXTENSION_FIXTURES:
+        extension_id = f"{publisher}.{name}"
+        extension_dir = _EXTENSIONS_DIR / f"{extension_id}-{version}"
+        vsix_path = _EXTENSIONS_DIR / f"{extension_id}-{version}.vsix"
+
+        package_json = get_package_json(extension_dir)
+        parsed = ExtensionSchema.model_validate(package_json)
+        round_tripped = parsed.model_dump(mode="json")
+        contributes = parse_contributes(package_json) or {}
+        activation_events = parse_activation_events(package_json) or []
+        parsed_event_types = {item["event_type"] for item in activation_events}
+
+        assert vsix_path.exists(), f"VSIX fixture missing for {extension_id}@{version}"
+        assert ExtensionSchema.model_validate(round_tripped) == parsed
+        assert parsed_event_types >= expected_activation_event_types[extension_id]
+        assert len(activation_events) == len(package_json.get("activationEvents", []))
+        assert all(
+            "event_type" in item and "event_value" in item for item in activation_events
+        )
+
+        if extension_id == "extrace.fixture-chat":
+            assert package_json["activationEvents"] == [
+                "onChatParticipant:extrace.fixture-chat.agent"
+            ]
+        if extension_id == "extrace.fixture-theme":
+            assert contributes["themes"][0]["label"] == "ExTrace Fixture Theme"
+            assert activation_events == []
 
 
 def test_trigger_payload_fixture_exposes_minimum_shape() -> None:

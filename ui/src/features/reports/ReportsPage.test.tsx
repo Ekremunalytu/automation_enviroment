@@ -51,6 +51,7 @@ function renderPage(entry: string) {
 const latestReport: ActivationReportDto = {
   report_version: 2,
   target_extension_expected: "publisher.tool",
+  verdict: {},
   target_extension_observed: true,
   trigger_plan_applied: true,
   verification_gap: 1,
@@ -114,6 +115,7 @@ const latestReport: ActivationReportDto = {
       note: "Sensitive file access was followed by outbound traffic.",
     },
   },
+  scenario_traces: [],
   evidence_events: [
     {
       event_id: "activation-1",
@@ -232,6 +234,8 @@ const latestReport: ActivationReportDto = {
       ],
     },
   },
+  network_events: [],
+  file_events: [],
   log_streams: {
     target_extension_host: [
       {

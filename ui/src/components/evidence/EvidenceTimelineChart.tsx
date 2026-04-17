@@ -9,6 +9,24 @@ const COLORS: Record<string, string> = {
   Scenario: "#A19A8B",
 };
 
+function buildTimelineSummary(events: EvidenceEventView[]) {
+  if (!events.length) {
+    return "Evidence timeline with no events.";
+  }
+
+  const counts = new Map<string, number>();
+  for (const event of events) {
+    counts.set(event.kindLabel, (counts.get(event.kindLabel) || 0) + 1);
+  }
+
+  const breakdown = Array.from(counts.entries())
+    .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))
+    .map(([kind, count]) => `${count} ${kind.toLowerCase()} ${count === 1 ? "event" : "events"}`)
+    .join(", ");
+
+  return `Evidence timeline with ${events.length} total events: ${breakdown}.`;
+}
+
 export function EvidenceTimelineChart({
   events,
   onSelect,
@@ -20,6 +38,7 @@ export function EvidenceTimelineChart({
   className?: string;
   compact?: boolean;
 }) {
+  const summary = buildTimelineSummary(events);
   const option = {
     backgroundColor: "transparent",
     tooltip: {
@@ -77,15 +96,17 @@ export function EvidenceTimelineChart({
   };
 
   return (
-    <ReactECharts
-      className={className}
-      onEvents={{
-        click: (params: { data?: unknown[] }) => {
-          const eventId = Array.isArray(params.data) ? String(params.data[5] || "") : "";
-          if (eventId) onSelect(eventId);
-        },
-      }}
-      option={option}
-    />
+    <div aria-label={summary} role="img">
+      <ReactECharts
+        className={className}
+        onEvents={{
+          click: (params: { data?: unknown[] }) => {
+            const eventId = Array.isArray(params.data) ? String(params.data[5] || "") : "";
+            if (eventId) onSelect(eventId);
+          },
+        }}
+        option={option}
+      />
+    </div>
   );
 }

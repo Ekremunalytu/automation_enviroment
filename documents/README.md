@@ -1,14 +1,22 @@
 # Documents Guide
 
-`Last Updated: 2026-04-15`
+`Last Updated: 2026-04-17`
 
 This folder is intentionally split into a small canonical core plus a few
 specialized reference docs. Do not preload the entire folder unless the task
 really spans multiple subsystems.
 
 If an older note conflicts with the current refactor direction, prefer
-`REFACTOR_EXECUTION_PLAN.md`. Use `REFACTOR_EXPANSION_NOTES.md` only as a
-deferred reference, not as a binding delivery plan.
+`REFACTOR_EXECUTION_PLAN.md` for Weeks 1-4B and `REFACTOR_OPTIMIZATION.md`
+§10 for the 7-week stabilization-then-security window (W0-W7). Use
+`REFACTOR_EXPANSION_NOTES.md` only as a deferred reference, not as a
+binding delivery plan.
+
+Current status lives in `REFACTOR_STATUS.md`.
+
+Security posture (threat model, detection taxonomy, malicious fixture
+policy, package-boundary charter) is fixed by ADRs 0002-0005; those bind
+once W5 implementation begins.
 
 ## Agent Shortcut
 
@@ -47,10 +55,26 @@ These are intentionally short and should not replace the canonical docs above:
   - staged pipeline direction
 - `REFACTOR_EXECUTION_PLAN.md`
   - binding Week 1-4 execution plan for the current refactor cycle
+- `REFACTOR_STATUS.md`
+  - active Week 4 closure state and W5 gate
+- `REFACTOR_OPTIMIZATION.md`
+  - plan critique (Opus 4.6, Opus 4.7 passes) + 7-week stabilization→security
+    window (§10); GPT-5.4 uses this as an implementation spec
 - `REFACTOR_EXPANSION_NOTES.md`
   - deferred Week 5+ candidates that are intentionally not committed yet
 - `adrs/0001-single-host-appliance.md`
   - appliance-model decision that anchors the current refactor scope
+- `adrs/0002-threat-model.md`
+  - in-scope adversary classes (A1-A7), trust boundaries, capability
+    assumptions; fixes the security scope before rule authoring
+- `adrs/0003-detection-taxonomy.md`
+  - MITRE ATT&CK alignment, severity/confidence, `DetectionReport`
+    contract, verdict rollup, rule lifecycle
+- `adrs/0004-malicious-fixture-policy.md`
+  - T1/T2/T3 isolation tiers, `LABEL.yaml` manifest, `make test-security`
+    vs `test-security-live` separation, CI guardrails
+- `adrs/0005-packages-charter.md`
+  - allowed dependency direction and public API rules for `packages/`
 - `automation_todo.md`
   - actionable backlog snapshot
 - `ARCHITECTURE_AUDIT.md`

@@ -12,6 +12,7 @@ from uuid import uuid4
 import httpx
 
 from appcore.api.config import settings
+from appcore.contracts.schemas import MarketplaceExtension
 from workflows.extension_catalog.manifest_reader import (
     PackageJsonReadError,
     get_package_json,
@@ -27,7 +28,7 @@ _VSIX_URL_TEMPLATE = (
 _ACCEPT_HEADER = "application/json;api-version=7.2-preview.1"
 
 
-def search_marketplace(query: str, page_size: int = 10) -> list[dict]:
+def search_marketplace(query: str, page_size: int = 10) -> list[MarketplaceExtension]:
     """
     Search the VS Code Marketplace for extensions.
 
@@ -36,8 +37,7 @@ def search_marketplace(query: str, page_size: int = 10) -> list[dict]:
         page_size: Number of results to return (clamped to 1-100).
 
     Returns:
-        List of dicts with keys:
-            publisher, name, version, displayName, description, installs, rating
+        List of validated marketplace extension records.
 
     Raises:
         httpx.HTTPError: On network or upstream API errors.
@@ -65,7 +65,7 @@ def search_marketplace(query: str, page_size: int = 10) -> list[dict]:
         resp.raise_for_status()
         data = resp.json()
 
-    results: list[dict] = []
+    results: list[MarketplaceExtension] = []
     extensions = data.get("results", [{}])[0].get("extensions", [])
 
     for ext in extensions:
@@ -77,15 +77,15 @@ def search_marketplace(query: str, page_size: int = 10) -> list[dict]:
         stats = {s["statisticName"]: s["value"] for s in ext.get("statistics", [])}
 
         results.append(
-            {
-                "publisher": publisher,
-                "name": name,
-                "version": version,
-                "displayName": ext.get("displayName", ""),
-                "description": ext.get("shortDescription", ""),
-                "installs": int(stats.get("install", 0)),
-                "rating": round(float(stats.get("averagerating", 0.0)), 2),
-            }
+            MarketplaceExtension(
+                publisher=publisher,
+                name=name,
+                version=version,
+                displayName=ext.get("displayName", ""),
+                description=ext.get("shortDescription", ""),
+                installs=int(stats.get("install", 0)),
+                rating=round(float(stats.get("averagerating", 0.0)), 2),
+            )
         )
 
     return results

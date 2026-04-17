@@ -6,6 +6,7 @@ Tests for /api/marketplace/search and /api/marketplace/download endpoints.
 All external calls (HTTP + DB writes) are mocked via unittest.mock.patch.
 """
 
+import json
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import ANY, MagicMock, patch
@@ -451,6 +452,191 @@ def _vsix_path_exists(exists: bool = True):
     return mock_path
 
 
+def _resolve_exact_fixture(
+    publisher: str,
+    name: str,
+    version: str,
+) -> tuple[Path, Path]:
+    extensions_dir = Path(marketplace_router.settings.project.EXTENSION_DIR)
+    vsix_path = extensions_dir / f"{publisher}.{name}-{version}.vsix"
+    extracted_dir = extensions_dir / f"{publisher}.{name}-{version}"
+    if not vsix_path.exists():
+        pytest.skip(f"{publisher}.{name} VSIX fixture is unavailable")
+    if not extracted_dir.exists():
+        pytest.skip(f"{publisher}.{name} extracted fixture directory is unavailable")
+    return vsix_path, extracted_dir
+
+
+def _make_trigger_plan(
+    *,
+    trigger_container_path: str | None = "/results/triggers.json",
+    selected_scenarios: list[str] | None = None,
+    skip_automation: bool = False,
+    reason_code: str = "generated_trigger_plan",
+    message: str = "Trigger plan ready.",
+) -> trigger_service.TriggerPlan:
+    return trigger_service.TriggerPlan(
+        trigger_container_path=trigger_container_path,
+        selected_scenarios=selected_scenarios or [],
+        skip_automation=skip_automation,
+        reason_code=reason_code,
+        message=message,
+    )
+
+
+def _make_executor_control(
+    *,
+    reset_sandbox: object = "Sandbox reset.",
+    install_extension: object = "Extension installed successfully.",
+    run_automation: object = "Automation completed.",
+) -> MagicMock:
+    control = MagicMock(spec=analysis_service.ExecutorControl)
+    control.reset_sandbox.side_effect = (
+        reset_sandbox if isinstance(reset_sandbox, Exception) else None
+    )
+    control.install_extension.side_effect = (
+        install_extension if isinstance(install_extension, Exception) else None
+    )
+    control.run_automation.side_effect = (
+        run_automation if isinstance(run_automation, Exception) else None
+    )
+
+    if not isinstance(reset_sandbox, Exception):
+        control.reset_sandbox.return_value = str(reset_sandbox)
+    if not isinstance(install_extension, Exception):
+        control.install_extension.return_value = str(install_extension)
+    if not isinstance(run_automation, Exception):
+        control.run_automation.return_value = str(run_automation)
+    return control
+
+
+def _scenario_zero_report_payload(target_extension_id: str) -> dict[str, object]:
+    automation_health = {
+        "status": "healthy",
+        "reasons": [],
+        "trigger_requested": False,
+        "trigger_loaded": False,
+        "trigger_applied": False,
+        "extension_host_log_present": False,
+        "extension_host_output_present": False,
+        "target_stream_present": False,
+        "target_activation_count": 0,
+        "failed_scenarios": [],
+        "extra_trigger_failures": [],
+        "extra_trigger_failure_count": 0,
+        "extension_host_log_found": False,
+    }
+    log_health = {
+        "extension_host_log_found": False,
+        "extension_host_output_present": False,
+        "target_extension_log_entries": 0,
+        "total_activation_entries": 0,
+    }
+    verdict = {
+        "level": "benign",
+        "score": 8,
+        "note": "No executable surface was observed for the color-theme fixture.",
+    }
+    return {
+        "report_version": 2,
+        "target_extension_expected": target_extension_id,
+        "target_extension_observed": False,
+        "trigger_plan_requested": False,
+        "trigger_plan_loaded": False,
+        "trigger_plan_applied": False,
+        "trigger_plan_path": "",
+        "trigger_execution_mode": "skip_automation",
+        "requested_scenarios": [],
+        "failed_scenarios": [],
+        "extra_trigger_failures": [],
+        "verification_gap": 0,
+        "heuristic_verification_gap": 0,
+        "run_quality": "scenario_zero",
+        "run_quality_reasons": [
+            "No automation scenario was required for this non-executable fixture."
+        ],
+        "automation_health": automation_health,
+        "log_health": log_health,
+        "attribution_summary": {},
+        "risk_signals": [],
+        "risk_summary": {},
+        "verdict": verdict,
+        "summary": {
+            "total_activated": 0,
+            "unique_extensions": 0,
+            "unique_event_extensions": 0,
+            "running_extensions": 0,
+            "monitoring_duration_s": 0.0,
+            "monitoring_started_at": 0.0,
+            "monitoring_ended_at": 0.0,
+            "extension_ids": [],
+            "scenarios_run": [],
+            "failed_scenarios": [],
+            "network_events": 0,
+            "network_hosts": 0,
+            "file_events": 0,
+            "sensitive_file_events": 0,
+            "target_file_events": 0,
+            "target_network_events": 0,
+            "attempted_capabilities": [],
+            "verified_capabilities": [],
+            "official_attempted_capabilities": [],
+            "official_verified_capabilities": [],
+            "heuristic_attempted_capabilities": [],
+            "heuristic_verified_capabilities": [],
+            "ui_blocker_count": 0,
+            "target_extension_expected": target_extension_id,
+            "target_extension_observed": False,
+            "official_event_coverage": {},
+            "heuristic_workflow_coverage": {},
+            "trigger_execution_mode": "skip_automation",
+            "trigger_plan_applied": False,
+            "verification_gap": 0,
+            "heuristic_verification_gap": 0,
+            "run_quality": "scenario_zero",
+            "automation_health": automation_health,
+            "log_health": log_health,
+            "attribution_summary": {},
+            "risk_summary": {},
+            "verdict": verdict,
+        },
+        "attempted_capabilities": [],
+        "verified_capabilities": [],
+        "official_attempted_capabilities": [],
+        "official_verified_capabilities": [],
+        "heuristic_attempted_capabilities": [],
+        "heuristic_verified_capabilities": [],
+        "network_capture_error": "",
+        "file_capture_error": "",
+        "file_capture_diagnostics": {},
+        "activated": [],
+        "running_extensions": [],
+        "scenario_traces": [],
+        "stimulus_passes": [],
+        "prerequisite_results": [],
+        "event_attempts": [],
+        "evidence_events": [],
+        "evidence_links": [],
+        "network_events": [],
+        "network_summary": {},
+        "file_events": [],
+        "file_summary": {},
+        "coverage_summary": {},
+        "coverage_matrix": [],
+        "coverage_tracks": {},
+        "official_event_coverage": {},
+        "heuristic_workflow_coverage": {},
+        "extension_host_output_lines": 0,
+        "extension_host_output": "",
+        "log_streams": {
+            "automation": [],
+            "target_extension_host": [],
+            "other_extension_host": [],
+        },
+        "log_file": "",
+    }
+
+
 def test_analyze_success(client: TestClient) -> None:
     """Successful analyze returns 200 with install and automation output."""
     with (
@@ -459,16 +645,17 @@ def test_analyze_success(client: TestClient) -> None:
             return_value=_vsix_path_exists(True),
         ),
         patch(
-            "workflows.marketplace.analysis_service.reset_executor_sandbox_state",
-            return_value="Sandbox reset.",
-        ),
-        patch(
-            "workflows.marketplace.analysis_service.install_extension_in_executor",
-            return_value="Extension installed successfully.",
-        ),
-        patch(
-            "workflows.marketplace.analysis_service.run_playwright_automation",
-            return_value="Automation completed.",
+            "workflows.marketplace.router.execute_analysis_request",
+            return_value=AnalyzeResponse(
+                status="success",
+                publisher="ms-python",
+                name="python",
+                version="2025.0.0",
+                message="Analysis completed.",
+                install_output="Extension installed successfully.",
+                automation_output="Automation completed.",
+                report_path="activation_report_ms-python.python-2025.0.0-fixture.json",
+            ),
         ),
     ):
         response = client.post("/api/marketplace/analyze", json=ANALYZE_PAYLOAD)
@@ -488,19 +675,25 @@ def test_build_trigger_payload_skips_when_explicit_scenario_is_set() -> None:
     """Explicit scenarios should bypass smart trigger selection entirely."""
     request = AnalyzeRequest(**ANALYZE_PAYLOAD, scenario="demo")
 
-    trigger_path, scenarios, message = trigger_service.build_trigger_payload(
-        db=MagicMock(),
-        request=request,
-    )
+    plan = trigger_service.build_trigger_payload(db=MagicMock(), request=request)
 
-    assert trigger_path is None
-    assert scenarios == []
-    assert "skipped" in message.lower()
+    assert plan.trigger_container_path is None
+    assert plan.selected_scenarios == []
+    assert plan.skip_automation is False
+    assert plan.reason_code == "explicit_scenario"
+    assert "skipped" in plan.message.lower()
 
 
-def test_build_trigger_payload_returns_default_when_no_activation_events() -> None:
-    """Missing activation metadata should fall back to the default flow."""
+def test_build_trigger_payload_without_activation_events_preserves_fallback_planning() -> (
+    None
+):
+    """Missing activation metadata should still compile a fallback trigger plan."""
     request = AnalyzeRequest(**ANALYZE_PAYLOAD)
+    payload = SimpleNamespace(
+        selected_scenarios=["coding_session"],
+        official_event_coverage={"declared": 0},
+        stimulus_passes=[],
+    )
 
     with (
         patch(
@@ -511,15 +704,78 @@ def test_build_trigger_payload_returns_default_when_no_activation_events() -> No
             "workflows.marketplace.trigger_service.get_extension_contributes_all",
             return_value=None,
         ),
+        patch(
+            "workflows.marketplace.trigger_service.get_extension_capabilities",
+            return_value=None,
+        ),
+        patch(
+            "workflows.marketplace.trigger_service.select_scenarios",
+            return_value=payload,
+        ) as mock_select,
+        patch(
+            "workflows.marketplace.trigger_service.write_trigger_file",
+            return_value="/results/triggers.json",
+        ) as mock_write,
     ):
-        trigger_path, scenarios, message = trigger_service.build_trigger_payload(
-            db=MagicMock(),
-            request=request,
-        )
+        plan = trigger_service.build_trigger_payload(db=MagicMock(), request=request)
 
-    assert trigger_path is None
-    assert scenarios == []
-    assert "default sandbox flow" in message.lower()
+    assert plan.trigger_container_path == "/results/triggers.json"
+    assert plan.selected_scenarios == ["coding_session"]
+    assert plan.skip_automation is False
+    assert plan.reason_code == "generated_trigger_plan"
+    mock_select.assert_called_once()
+    mock_write.assert_called_once()
+
+
+def test_build_trigger_payload_returns_scenario_zero_for_theme_only_fixture() -> None:
+    """Theme-only fixtures should still skip executor automation."""
+    request = AnalyzeRequest(**ANALYZE_PAYLOAD)
+    contributes = SimpleNamespace(
+        themes=[
+            {
+                "label": "Fixture Theme",
+                "uiTheme": "vs-dark",
+                "path": "./themes/fixture.json",
+            }
+        ]
+    )
+    payload = SimpleNamespace(
+        selected_scenarios=["coding_session"],
+        official_event_coverage={"declared": 0},
+        stimulus_passes=[],
+    )
+
+    with (
+        patch(
+            "workflows.marketplace.trigger_service.get_extension_activation_events",
+            return_value=[],
+        ),
+        patch(
+            "workflows.marketplace.trigger_service.get_extension_contributes_all",
+            return_value=contributes,
+        ),
+        patch(
+            "workflows.marketplace.trigger_service.get_extension_capabilities",
+            return_value=None,
+        ),
+        patch(
+            "workflows.marketplace.trigger_service.select_scenarios",
+            return_value=payload,
+        ) as mock_select,
+        patch(
+            "workflows.marketplace.trigger_service.write_trigger_file",
+            return_value="/results/triggers.json",
+        ) as mock_write,
+    ):
+        plan = trigger_service.build_trigger_payload(db=MagicMock(), request=request)
+
+    assert plan.trigger_container_path is None
+    assert plan.selected_scenarios == []
+    assert plan.skip_automation is True
+    assert plan.reason_code == "non_executable_fixture"
+    assert "scenario-zero" in plan.message.lower()
+    mock_select.assert_called_once()
+    mock_write.assert_not_called()
 
 
 def test_build_trigger_payload_passes_commands_and_custom_editors() -> None:
@@ -554,15 +810,14 @@ def test_build_trigger_payload_passes_commands_and_custom_editors() -> None:
             return_value="/results/triggers.json",
         ) as mock_write,
     ):
-        trigger_path, scenarios, message = trigger_service.build_trigger_payload(
-            db=MagicMock(),
-            request=request,
-        )
+        plan = trigger_service.build_trigger_payload(db=MagicMock(), request=request)
 
-    assert trigger_path == "/results/triggers.json"
-    assert scenarios == ["command_palette"]
-    assert "trigger requested for ms-python.python" in message.lower()
-    assert "/results/triggers.json" in message
+    assert plan.trigger_container_path == "/results/triggers.json"
+    assert plan.selected_scenarios == ["command_palette"]
+    assert plan.skip_automation is False
+    assert plan.reason_code == "generated_trigger_plan"
+    assert "trigger requested for ms-python.python" in plan.message.lower()
+    assert "/results/triggers.json" in plan.message
     mock_select.assert_called_once_with(
         [{"event_type": "onCommand", "event_value": "extension.run"}],
         [{"viewType": "custom.editor"}],
@@ -583,25 +838,14 @@ def test_execute_analysis_request_fails_closed_when_trigger_build_fails() -> Non
     """Trigger payload failures should abort analysis before sandbox automation starts."""
     request = AnalyzeRequest(**ANALYZE_PAYLOAD)
     progress_events: list[tuple[str, str, str, str | None]] = []
+    executor_control = _make_executor_control()
 
     with (
         patch("workflows.marketplace.analysis_service.ensure_vsix_exists"),
         patch(
-            "workflows.marketplace.analysis_service.reset_executor_sandbox_state",
-            return_value="reset",
-        ),
-        patch(
-            "workflows.marketplace.analysis_service.install_extension_in_executor",
-            return_value="install",
-        ),
-        patch(
             "workflows.marketplace.analysis_service.build_trigger_payload",
             side_effect=ValueError("bad trigger"),
         ),
-        patch(
-            "workflows.marketplace.analysis_service.run_playwright_automation",
-            return_value="automation",
-        ) as mock_run,
         pytest.raises(analysis_service.TriggerPlanError) as exc_info,
     ):
         analysis_service.execute_analysis_request(
@@ -611,6 +855,7 @@ def test_execute_analysis_request_fails_closed_when_trigger_build_fails() -> Non
                 progress_events.append((step, status, message, error_code))
             ),
             report_name="activation_report.json",
+            executor_control=executor_control,
         )
 
     assert exc_info.value.error_code == "trigger_build_failed"
@@ -620,20 +865,19 @@ def test_execute_analysis_request_fails_closed_when_trigger_build_fails() -> Non
         "Trigger payload build failed before sandbox automation started.",
         "trigger_build_failed",
     )
-    mock_run.assert_not_called()
+    executor_control.run_automation.assert_not_called()
 
 
 def test_execute_analysis_request_reports_reset_failure() -> None:
     """Reset failures should be reported on the reset step before bubbling up."""
     request = AnalyzeRequest(**ANALYZE_PAYLOAD)
     progress_events: list[tuple[str, str, str, str | None]] = []
+    executor_control = _make_executor_control(
+        reset_sandbox=ExecutorError("reset failed", returncode=1, output="boom")
+    )
 
     with (
         patch("workflows.marketplace.analysis_service.ensure_vsix_exists"),
-        patch(
-            "workflows.marketplace.analysis_service.reset_executor_sandbox_state",
-            side_effect=ExecutorError("reset failed", returncode=1, output="boom"),
-        ),
         pytest.raises(ExecutorError),
     ):
         analysis_service.execute_analysis_request(
@@ -642,6 +886,7 @@ def test_execute_analysis_request_reports_reset_failure() -> None:
             progress_callback=lambda step, status, message, error_code=None: (
                 progress_events.append((step, status, message, error_code))
             ),
+            executor_control=executor_control,
         )
 
     assert progress_events[-1] == (
@@ -656,24 +901,18 @@ def test_execute_analysis_request_reports_automation_failure() -> None:
     """Automation failures should mark the monitoring step as failed."""
     request = AnalyzeRequest(**ANALYZE_PAYLOAD)
     progress_events: list[tuple[str, str, str, str | None]] = []
+    executor_control = _make_executor_control(
+        run_automation=ExecutorError("automation failed", returncode=1, output="boom")
+    )
 
     with (
         patch("workflows.marketplace.analysis_service.ensure_vsix_exists"),
         patch(
-            "workflows.marketplace.analysis_service.reset_executor_sandbox_state",
-            return_value="reset",
-        ),
-        patch(
-            "workflows.marketplace.analysis_service.install_extension_in_executor",
-            return_value="install",
-        ),
-        patch(
             "workflows.marketplace.analysis_service.build_trigger_payload",
-            return_value=("/results/triggers.json", ["scenario"], "selected"),
-        ),
-        patch(
-            "workflows.marketplace.analysis_service.run_playwright_automation",
-            side_effect=ExecutorError("automation failed", returncode=1, output="boom"),
+            return_value=_make_trigger_plan(
+                selected_scenarios=["scenario"],
+                message="selected",
+            ),
         ),
         pytest.raises(ExecutorError),
     ):
@@ -683,12 +922,16 @@ def test_execute_analysis_request_reports_automation_failure() -> None:
             progress_callback=lambda step, status, message, error_code=None: (
                 progress_events.append((step, status, message, error_code))
             ),
+            executor_control=executor_control,
         )
 
     assert progress_events[-1] == (
         "run_monitoring",
         "failed",
-        "Sandbox automation failed before the report could be finalized.",
+        (
+            "Sandbox automation failed before the report could be finalized: "
+            "automation failed"
+        ),
         None,
     )
 
@@ -698,6 +941,7 @@ def test_execute_analysis_request_reports_healthful_monitoring_summary(
 ) -> None:
     request = AnalyzeRequest(**ANALYZE_PAYLOAD)
     progress_events: list[tuple[str, str, str, str | None]] = []
+    executor_control = _make_executor_control()
     marketplace_router.settings.project.OUTPUT_DIR = str(tmp_path)
     report_name = "activation_report.json"
     (tmp_path / report_name).write_text(
@@ -730,20 +974,11 @@ def test_execute_analysis_request_reports_healthful_monitoring_summary(
     with (
         patch("workflows.marketplace.analysis_service.ensure_vsix_exists"),
         patch(
-            "workflows.marketplace.analysis_service.reset_executor_sandbox_state",
-            return_value="reset",
-        ),
-        patch(
-            "workflows.marketplace.analysis_service.install_extension_in_executor",
-            return_value="install",
-        ),
-        patch(
             "workflows.marketplace.analysis_service.build_trigger_payload",
-            return_value=("/results/triggers.json", ["coding_session"], "selected"),
-        ),
-        patch(
-            "workflows.marketplace.analysis_service.run_playwright_automation",
-            return_value="automation",
+            return_value=_make_trigger_plan(
+                selected_scenarios=["coding_session"],
+                message="selected",
+            ),
         ),
     ):
         response = analysis_service.execute_analysis_request(
@@ -753,6 +988,7 @@ def test_execute_analysis_request_reports_healthful_monitoring_summary(
                 progress_events.append((step, status, message, error_code))
             ),
             report_name=report_name,
+            executor_control=executor_control,
         )
 
     assert response.status == "success"
@@ -766,6 +1002,118 @@ def test_execute_analysis_request_reports_healthful_monitoring_summary(
         and "health=healthy" in message.lower()
         and "failed scenarios=1" in message.lower()
         for step, _, message, _ in progress_events
+    )
+
+
+def test_execute_analysis_request_accepts_legacy_trigger_plan_tuple(
+    tmp_path: Path,
+) -> None:
+    request = AnalyzeRequest(**ANALYZE_PAYLOAD)
+    executor_control = _make_executor_control()
+    marketplace_router.settings.project.OUTPUT_DIR = str(tmp_path)
+    report_name = "activation_report.json"
+    (tmp_path / report_name).write_text(
+        """
+        {
+          "trigger_execution_mode": "layered_passes",
+          "automation_health": {
+            "status": "healthy",
+            "trigger_requested": true,
+            "trigger_loaded": true,
+            "trigger_applied": true,
+            "target_activation_count": 1,
+            "failed_scenarios": []
+          },
+          "stimulus_passes": [
+            {"pass_id": "workspace_bootstrap", "status": "completed"}
+          ],
+          "event_attempts": [
+            {"attempt_id": "official-onLanguage-python", "attempted_passes": ["workspace_bootstrap"]}
+          ],
+          "summary": {
+            "scenarios_run": ["coding_session"],
+            "trigger_execution_mode": "layered_passes"
+          }
+        }
+        """,
+        encoding="utf-8",
+    )
+
+    with (
+        patch("workflows.marketplace.analysis_service.ensure_vsix_exists"),
+        patch(
+            "workflows.marketplace.analysis_service.build_trigger_payload",
+            return_value=(
+                "/results/triggers.json",
+                ["coding_session"],
+                "legacy trigger payload",
+            ),
+        ),
+    ):
+        response = analysis_service.execute_analysis_request(
+            request,
+            db=MagicMock(),
+            report_name=report_name,
+            executor_control=executor_control,
+        )
+
+    assert response.status == "success"
+    assert response.report_path == report_name
+
+
+def test_execute_analysis_request_falls_back_to_selected_scenario_when_legacy_trigger_file_is_missing(
+    tmp_path: Path,
+) -> None:
+    request = AnalyzeRequest(**ANALYZE_PAYLOAD)
+    executor_control = _make_executor_control()
+    marketplace_router.settings.project.OUTPUT_DIR = str(tmp_path)
+    report_name = "activation_report.json"
+    (tmp_path / report_name).write_text(
+        """
+        {
+          "trigger_execution_mode": "single_scenario",
+          "automation_health": {
+            "status": "inconclusive",
+            "trigger_requested": true,
+            "trigger_loaded": false,
+            "trigger_applied": false,
+            "target_activation_count": 0,
+            "failed_scenarios": []
+          },
+          "summary": {
+            "scenarios_run": ["coding_session"],
+            "trigger_execution_mode": "single_scenario"
+          }
+        }
+        """,
+        encoding="utf-8",
+    )
+
+    with (
+        patch("workflows.marketplace.analysis_service.ensure_vsix_exists"),
+        patch(
+            "workflows.marketplace.analysis_service.build_trigger_payload",
+            return_value=(
+                "/results/missing-trigger-payload.json",
+                ["coding_session"],
+                "legacy trigger payload",
+            ),
+        ),
+    ):
+        response = analysis_service.execute_analysis_request(
+            request,
+            db=MagicMock(),
+            report_name=report_name,
+            executor_control=executor_control,
+        )
+
+    assert response.status == "success"
+    assert (
+        executor_control.run_automation.call_args.kwargs["scenario"] == "coding_session"
+    )
+    assert (
+        executor_control.run_automation.call_args.kwargs["trigger_container_path"]
+        == "/results/missing-trigger-payload.json"
     )
 
 
@@ -802,6 +1150,7 @@ def test_execute_analysis_request_reports_degraded_monitoring_summary(
 ) -> None:
     request = AnalyzeRequest(**ANALYZE_PAYLOAD)
     progress_events: list[tuple[str, str, str, str | None]] = []
+    executor_control = _make_executor_control()
     marketplace_router.settings.project.OUTPUT_DIR = str(tmp_path)
     report_name = "activation_report.json"
     (tmp_path / report_name).write_text(
@@ -840,20 +1189,11 @@ def test_execute_analysis_request_reports_degraded_monitoring_summary(
     with (
         patch("workflows.marketplace.analysis_service.ensure_vsix_exists"),
         patch(
-            "workflows.marketplace.analysis_service.reset_executor_sandbox_state",
-            return_value="reset",
-        ),
-        patch(
-            "workflows.marketplace.analysis_service.install_extension_in_executor",
-            return_value="install",
-        ),
-        patch(
             "workflows.marketplace.analysis_service.build_trigger_payload",
-            return_value=("/results/triggers.json", ["coding_session"], "selected"),
-        ),
-        patch(
-            "workflows.marketplace.analysis_service.run_playwright_automation",
-            return_value="automation",
+            return_value=_make_trigger_plan(
+                selected_scenarios=["coding_session"],
+                message="selected",
+            ),
         ),
     ):
         response = analysis_service.execute_analysis_request(
@@ -863,6 +1203,7 @@ def test_execute_analysis_request_reports_degraded_monitoring_summary(
                 progress_events.append((step, status, message, error_code))
             ),
             report_name=report_name,
+            executor_control=executor_control,
         )
 
     assert response.status == "success"
@@ -886,25 +1227,18 @@ def test_execute_analysis_request_fails_when_trigger_report_cannot_load(
 ) -> None:
     request = AnalyzeRequest(**ANALYZE_PAYLOAD)
     progress_events: list[tuple[str, str, str, str | None]] = []
+    executor_control = _make_executor_control()
     marketplace_router.settings.project.OUTPUT_DIR = str(tmp_path)
+    (tmp_path / "triggers.json").write_text("{}", encoding="utf-8")
 
     with (
         patch("workflows.marketplace.analysis_service.ensure_vsix_exists"),
         patch(
-            "workflows.marketplace.analysis_service.reset_executor_sandbox_state",
-            return_value="reset",
-        ),
-        patch(
-            "workflows.marketplace.analysis_service.install_extension_in_executor",
-            return_value="install",
-        ),
-        patch(
             "workflows.marketplace.analysis_service.build_trigger_payload",
-            return_value=("/results/triggers.json", ["coding_session"], "selected"),
-        ),
-        patch(
-            "workflows.marketplace.analysis_service.run_playwright_automation",
-            return_value="automation",
+            return_value=_make_trigger_plan(
+                selected_scenarios=["coding_session"],
+                message="selected",
+            ),
         ),
         pytest.raises(analysis_service.TriggerPlanError) as exc_info,
     ):
@@ -915,6 +1249,7 @@ def test_execute_analysis_request_fails_when_trigger_report_cannot_load(
                 progress_events.append((step, status, message, error_code))
             ),
             report_name="missing_report.json",
+            executor_control=executor_control,
         )
 
     assert exc_info.value.error_code == "trigger_load_failed"
@@ -928,7 +1263,9 @@ def test_execute_analysis_request_fails_when_trigger_plan_not_applied(
 ) -> None:
     request = AnalyzeRequest(**ANALYZE_PAYLOAD)
     progress_events: list[tuple[str, str, str, str | None]] = []
+    executor_control = _make_executor_control()
     marketplace_router.settings.project.OUTPUT_DIR = str(tmp_path)
+    (tmp_path / "triggers.json").write_text("{}", encoding="utf-8")
     report_name = "activation_report.json"
     (tmp_path / report_name).write_text(
         """
@@ -950,20 +1287,11 @@ def test_execute_analysis_request_fails_when_trigger_plan_not_applied(
     with (
         patch("workflows.marketplace.analysis_service.ensure_vsix_exists"),
         patch(
-            "workflows.marketplace.analysis_service.reset_executor_sandbox_state",
-            return_value="reset",
-        ),
-        patch(
-            "workflows.marketplace.analysis_service.install_extension_in_executor",
-            return_value="install",
-        ),
-        patch(
             "workflows.marketplace.analysis_service.build_trigger_payload",
-            return_value=("/results/triggers.json", ["coding_session"], "selected"),
-        ),
-        patch(
-            "workflows.marketplace.analysis_service.run_playwright_automation",
-            return_value="automation",
+            return_value=_make_trigger_plan(
+                selected_scenarios=["coding_session"],
+                message="selected",
+            ),
         ),
         pytest.raises(analysis_service.TriggerPlanError) as exc_info,
     ):
@@ -974,6 +1302,7 @@ def test_execute_analysis_request_fails_when_trigger_plan_not_applied(
                 progress_events.append((step, status, message, error_code))
             ),
             report_name=report_name,
+            executor_control=executor_control,
         )
 
     assert exc_info.value.error_code == "trigger_apply_failed"
@@ -986,7 +1315,9 @@ def test_execute_analysis_request_fails_when_layered_evidence_is_missing(
 ) -> None:
     request = AnalyzeRequest(**ANALYZE_PAYLOAD)
     progress_events: list[tuple[str, str, str, str | None]] = []
+    executor_control = _make_executor_control()
     marketplace_router.settings.project.OUTPUT_DIR = str(tmp_path)
+    (tmp_path / "triggers.json").write_text("{}", encoding="utf-8")
     report_name = "activation_report.json"
     (tmp_path / report_name).write_text(
         """
@@ -1014,20 +1345,11 @@ def test_execute_analysis_request_fails_when_layered_evidence_is_missing(
     with (
         patch("workflows.marketplace.analysis_service.ensure_vsix_exists"),
         patch(
-            "workflows.marketplace.analysis_service.reset_executor_sandbox_state",
-            return_value="reset",
-        ),
-        patch(
-            "workflows.marketplace.analysis_service.install_extension_in_executor",
-            return_value="install",
-        ),
-        patch(
             "workflows.marketplace.analysis_service.build_trigger_payload",
-            return_value=("/results/triggers.json", ["coding_session"], "selected"),
-        ),
-        patch(
-            "workflows.marketplace.analysis_service.run_playwright_automation",
-            return_value="automation",
+            return_value=_make_trigger_plan(
+                selected_scenarios=["coding_session"],
+                message="selected",
+            ),
         ),
         pytest.raises(analysis_service.TriggerPlanError) as exc_info,
     ):
@@ -1038,6 +1360,7 @@ def test_execute_analysis_request_fails_when_layered_evidence_is_missing(
                 progress_events.append((step, status, message, error_code))
             ),
             report_name=report_name,
+            executor_control=executor_control,
         )
 
     assert exc_info.value.error_code == "trigger_apply_failed"
@@ -1244,11 +1567,7 @@ def test_analyze_install_failure_502(client: TestClient) -> None:
             return_value=_vsix_path_exists(True),
         ),
         patch(
-            "workflows.marketplace.analysis_service.reset_executor_sandbox_state",
-            return_value="Sandbox reset.",
-        ),
-        patch(
-            "workflows.marketplace.analysis_service.install_extension_in_executor",
+            "workflows.marketplace.router.execute_analysis_request",
             side_effect=ExecutorError("Install failed", returncode=1, output="error"),
         ),
     ):
@@ -1266,15 +1585,7 @@ def test_analyze_automation_failure_502(client: TestClient) -> None:
             return_value=_vsix_path_exists(True),
         ),
         patch(
-            "workflows.marketplace.analysis_service.reset_executor_sandbox_state",
-            return_value="Sandbox reset.",
-        ),
-        patch(
-            "workflows.marketplace.analysis_service.install_extension_in_executor",
-            return_value="ok",
-        ),
-        patch(
-            "workflows.marketplace.analysis_service.run_playwright_automation",
+            "workflows.marketplace.router.execute_analysis_request",
             side_effect=ExecutorError("Automation crashed", returncode=1, output="err"),
         ),
     ):
@@ -1282,6 +1593,109 @@ def test_analyze_automation_failure_502(client: TestClient) -> None:
 
     assert response.status_code == 502
     assert "Automation crashed" in response.json()["detail"]
+
+
+@pytest.mark.integration
+def test_theme_fixture_analysis_uses_scenario_zero_flow(
+    db_client: TestClient,
+    tmp_path: Path,
+) -> None:
+    publisher = "extrace"
+    name = "fixture-theme"
+    version = "0.0.1"
+    target_extension_id = f"{publisher}.{name}"
+    _vsix_path, extracted_dir = _resolve_exact_fixture(publisher, name, version)
+    assert extracted_dir.exists()
+
+    report_payload = _scenario_zero_report_payload(target_extension_id)
+    original_output_dir = marketplace_router.settings.project.OUTPUT_DIR
+
+    class ScenarioZeroExecutorControl:
+        def reset_sandbox(self, reload_window: bool = True) -> str:
+            assert reload_window is True
+            return "Sandbox reset."
+
+        def install_extension(
+            self, install_publisher: str, install_name: str, install_version: str
+        ) -> str:
+            assert (install_publisher, install_name, install_version) == (
+                publisher,
+                name,
+                version,
+            )
+            return "Extension installed successfully."
+
+        def run_automation(
+            self,
+            *,
+            report_path: str,
+            scenario: str | None = None,
+            trigger_container_path: str | None = None,
+            skip_automation: bool = False,
+            reload_before_run: bool = False,
+            target_extension_id: str | None = None,
+        ) -> str:
+            assert scenario is None
+            assert trigger_container_path is None
+            assert skip_automation is True
+            assert reload_before_run is True
+            assert target_extension_id == f"{publisher}.{name}"
+            resolved_report_path = tmp_path / Path(report_path).name
+            resolved_report_path.write_text(
+                json.dumps(report_payload, indent=2),
+                encoding="utf-8",
+            )
+            return "Automation skipped for scenario-zero analysis."
+
+    marketplace_router.settings.project.OUTPUT_DIR = str(tmp_path)
+    try:
+        with patch(
+            "workflows.marketplace.analysis_service.default_executor_control",
+            ScenarioZeroExecutorControl(),
+        ):
+            download_response = db_client.post(
+                "/api/marketplace/download",
+                json={
+                    "publisher": publisher,
+                    "name": name,
+                    "version": version,
+                },
+            )
+            assert download_response.status_code == 200
+
+            response = db_client.post(
+                "/api/marketplace/analyze",
+                json={
+                    "publisher": publisher,
+                    "name": name,
+                    "version": version,
+                },
+            )
+
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["status"] == "success"
+        assert payload["report_path"].endswith(".json")
+        assert "health=healthy" in payload["message"].lower()
+
+        report_response = db_client.get(f"/api/activations/{payload['report_path']}")
+        assert report_response.status_code == 200
+        report = report_response.json()
+        assert report["target_extension_expected"] == target_extension_id
+        assert report["trigger_execution_mode"] == "skip_automation"
+        assert report["summary"]["scenarios_run"] == []
+        assert report["summary"]["failed_scenarios"] == []
+        assert report["scenario_traces"] == []
+        assert report["stimulus_passes"] == []
+        assert report["event_attempts"] == []
+        assert report["run_quality"] == "scenario_zero"
+        assert report["trigger_plan_requested"] is False
+        assert report["trigger_plan_loaded"] is False
+        assert report["trigger_plan_applied"] is False
+        assert report["automation_health"]["status"] == "healthy"
+        assert report["automation_health"]["target_activation_count"] == 0
+    finally:
+        marketplace_router.settings.project.OUTPUT_DIR = original_output_dir
 
 
 def test_analyze_trigger_plan_failure_502(client: TestClient) -> None:

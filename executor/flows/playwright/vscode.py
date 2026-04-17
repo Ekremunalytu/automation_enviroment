@@ -4,11 +4,34 @@ from __future__ import annotations
 
 import os
 import time
+from collections.abc import Callable
 
 from playwright.sync_api import Browser, Page, Playwright
 from playwright.sync_api import Error as PlaywrightError
 
 CDP_URL = f"http://localhost:{os.environ.get('EXECUTOR_CDP_PORT', '9222')}"
+
+_DEFAULT_READY_TIMEOUT_MS = 10_000
+_DEFAULT_RECONNECT_TIMEOUT_MS = 30_000
+_DEFAULT_RELOAD_TEARDOWN_WAIT_MS = 3_000
+_DEFAULT_EXTENSION_SETTLE_MS = 5_000
+
+ReloadLogger = Callable[[str], None] | None
+
+
+class ReloadWindowError(RuntimeError):
+    """Raised when VS Code reload cannot be verified through the CDP path."""
+
+    def __init__(self, phase: str, detail: str) -> None:
+        super().__init__(f"{phase}: {detail}")
+        self.phase = phase
+        self.detail = detail
+
+
+def _emit_reload_log(log: ReloadLogger, phase: str, detail: str) -> None:
+    if log is None:
+        return
+    log(f"[reload] {phase}: {detail}")
 
 
 def _page_title(page: Page) -> str:
@@ -116,9 +139,116 @@ def connect(playwright: Playwright) -> tuple[Browser, Page]:
     return browser, find_workbench_page(browser)
 
 
+def connect_to_ready_workbench(
+    playwright: Playwright,
+    *,
+    timeout_ms: int = _DEFAULT_RECONNECT_TIMEOUT_MS,
+    log: ReloadLogger = None,
+) -> tuple[Browser, Page]:
+    """Connect to CDP and return a ready VS Code workbench page."""
+    _emit_reload_log(log, "connect", f"Connecting to VS Code over CDP at {CDP_URL}...")
+    try:
+        browser = playwright.chromium.connect_over_cdp(CDP_URL, timeout=timeout_ms)
+    except PlaywrightError as exc:
+        raise ReloadWindowError(
+            "connect",
+            f"Could not connect to VS Code over CDP at {CDP_URL}: {exc}",
+        ) from exc
+
+    try:
+        page = reconnect_to_workbench(browser, timeout_ms=timeout_ms)
+    except RuntimeError as exc:
+        raise ReloadWindowError("connect", str(exc)) from exc
+
+    _emit_reload_log(
+        log,
+        "connect",
+        f"Connected to ready workbench page {_page_diagnostic(page)}.",
+    )
+    return browser, page
+
+
 def wait_until_ready(page: Page, timeout_ms: int = 10_000) -> None:
     """Wait until the VS Code workbench is fully loaded."""
     page.wait_for_selector(".monaco-workbench", state="visible", timeout=timeout_ms)
+
+
+def reload_workbench_window(
+    browser: Browser,
+    page: Page,
+    *,
+    pre_ready_timeout_ms: int = _DEFAULT_READY_TIMEOUT_MS,
+    reconnect_timeout_ms: int = _DEFAULT_RECONNECT_TIMEOUT_MS,
+    teardown_wait_ms: int = _DEFAULT_RELOAD_TEARDOWN_WAIT_MS,
+    extension_settle_ms: int = _DEFAULT_EXTENSION_SETTLE_MS,
+    log: ReloadLogger = None,
+) -> Page:
+    """Reload a VS Code workbench page and verify the replacement window."""
+    _emit_reload_log(log, "pre_ready", "Waiting for VS Code workbench before reload...")
+    try:
+        wait_until_ready(page, timeout_ms=pre_ready_timeout_ms)
+    except PlaywrightError as exc:
+        raise ReloadWindowError(
+            "pre_ready",
+            f"VS Code workbench was not ready before reload: {exc}",
+        ) from exc
+
+    _emit_reload_log(log, "dispatch", "Sending 'Developer: Reload Window' command...")
+    try:
+        import commands
+
+        commands.run_reload_window_command(page)
+    except PlaywrightError as exc:
+        raise ReloadWindowError(
+            "dispatch",
+            f"Could not dispatch the reload command: {exc}",
+        ) from exc
+
+    _emit_reload_log(
+        log,
+        "reconnect",
+        f"Waiting {teardown_wait_ms}ms for VS Code to tear down before reconnect...",
+    )
+    try:
+        page.wait_for_timeout(teardown_wait_ms)
+    except PlaywrightError as exc:
+        raise ReloadWindowError(
+            "reconnect",
+            f"VS Code page became unreachable during reload teardown: {exc}",
+        ) from exc
+
+    _emit_reload_log(log, "reconnect", "Reconnecting to a ready VS Code workbench...")
+    try:
+        reloaded_page = reconnect_to_workbench(
+            browser,
+            preferred_page=page,
+            timeout_ms=reconnect_timeout_ms,
+        )
+    except RuntimeError as exc:
+        raise ReloadWindowError("reconnect", str(exc)) from exc
+
+    page_kind = "preferred" if reloaded_page is page else "fallback"
+    _emit_reload_log(
+        log,
+        "reconnect",
+        f"Connected to the {page_kind} workbench page.",
+    )
+
+    _emit_reload_log(
+        log,
+        "post_settle",
+        f"Waiting {extension_settle_ms}ms for extensions to settle after reload...",
+    )
+    try:
+        reloaded_page.wait_for_timeout(extension_settle_ms)
+    except PlaywrightError as exc:
+        raise ReloadWindowError(
+            "post_settle",
+            f"VS Code did not remain stable after reload: {exc}",
+        ) from exc
+
+    _emit_reload_log(log, "done", "VS Code reload completed.")
+    return reloaded_page
 
 
 def disconnect(browser: Browser) -> None:

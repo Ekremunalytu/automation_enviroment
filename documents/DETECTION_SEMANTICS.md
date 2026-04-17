@@ -1,13 +1,20 @@
 # Detection Semantics
 
-`Last Updated: 2026-04-15`
+`Last Updated: 2026-04-17`
 
-This document defines the meaning of the current exported report contract.
-Its purpose is to keep report generation, API responses, UI adapters, and
-analyst interpretation aligned.
+This document defines the meaning of the current exported **activation
+report** contract. Its purpose is to keep report generation, API
+responses, UI adapters, and analyst interpretation aligned.
 
-Open this only when changing report JSON fields, UI report adapters, health or
-verdict logic, or exported evidence semantics.
+Open this only when changing report JSON fields, UI report adapters,
+health or verdict logic, or exported evidence semantics.
+
+> **Scope note (2026-04-17):** `ActivationReport` is a quality +
+> verification contract. The security **detection** contract
+> (`DetectionReport`, findings, severity, verdict rollup) is a sibling
+> specified separately by `adrs/0003-detection-taxonomy.md` and will land
+> during W5. This document does not govern detection output; do not
+> overload `ActivationReport` with finding fields.
 
 ## Raw Evidence Sources
 

@@ -18,6 +18,17 @@ if str(PLAYWRIGHT_DIR) not in sys.path:
 import monitor  # noqa: E402
 
 
+def test_activation_report_duration_prefers_monotonic_clock() -> None:
+    report = monitor.ActivationReport(
+        monitoring_start=100.0,
+        monitoring_end=112.0,
+        monitoring_started_monotonic=10.0,
+        monitoring_ended_monotonic=18.5,
+    )
+
+    assert report.duration_s == 8.5
+
+
 def test_parse_activations_from_log_respects_start_offset(tmp_path: Path) -> None:
     log_file = tmp_path / "exthost.log"
     old_line = "activating extension 'old.publisher' because of 'onLanguage:python'\n"
@@ -160,6 +171,44 @@ def test_activation_report_save_uses_scenario_traces_as_runtime_ledger(
     assert payload["requested_scenarios"] == ["debug_session", "refactor_workflow"]
     assert payload["summary"]["failed_scenarios"] == ["coding_session"]
     assert payload["failed_scenarios"] == ["coding_session"]
+    assert activation_report_invariant_issues(payload) == []
+
+
+def test_activation_report_save_supports_skip_automation_scenario_zero(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setattr(monitor, "find_exthost_logs", lambda: [])
+
+    report = monitor.ActivationReport(
+        target_extension_id="extrace.fixture-theme",
+        trigger_execution_mode="skip_automation",
+        monitoring_start=0.0,
+        monitoring_end=0.0,
+    )
+    output_path = tmp_path / "scenario_zero_report.json"
+
+    report.save(output_path, announce=False)
+
+    payload = json.loads(output_path.read_text(encoding="utf-8"))
+
+    assert payload["trigger_execution_mode"] == "skip_automation"
+    assert payload["summary"]["trigger_execution_mode"] == "skip_automation"
+    assert payload["summary"]["scenarios_run"] == []
+    assert payload["summary"]["failed_scenarios"] == []
+    assert payload["scenario_traces"] == []
+    assert payload["stimulus_passes"] == []
+    assert payload["event_attempts"] == []
+    assert payload["run_quality"] == "scenario_zero"
+    assert payload["run_quality_reasons"] == [
+        "No automation scenario was required for this non-executable fixture."
+    ]
+    assert payload["trigger_plan_requested"] is False
+    assert payload["trigger_plan_loaded"] is False
+    assert payload["trigger_plan_applied"] is False
+    assert payload["summary"]["trigger_plan_applied"] is False
+    assert payload["automation_health"]["status"] == "healthy"
+    assert payload["automation_health"]["target_activation_count"] == 0
     assert activation_report_invariant_issues(payload) == []
 
 

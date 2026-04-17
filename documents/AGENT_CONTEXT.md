@@ -1,13 +1,23 @@
 # Agent Context
 
-`Last Updated: 2026-04-15`
+`Last Updated: 2026-04-17`
 
 This is the thin-context project map for coding agents. Read root `AGENTS.md`
 for hard rules first; use this file for fast task routing.
 
-If older docs or task notes conflict with the active refactor direction, check
-`documents/REFACTOR_EXECUTION_PLAN.md` first and treat
+If older docs or task notes conflict with the active refactor direction,
+check `documents/REFACTOR_EXECUTION_PLAN.md` (Weeks 1-4B, binding) and
+`documents/REFACTOR_OPTIMIZATION.md` §10 (W0-W7 7-week window). Treat
 `documents/REFACTOR_EXPANSION_NOTES.md` as non-binding follow-on guidance.
+
+## Project Phase Snapshot (2026-04-17)
+
+- Weeks 1-4B: closure in progress; W4 remains the gate before W5.
+- W0 (security foundations, spec): complete — ADRs 0002-0004 written.
+- W1-W4: automation stabilization (legacy cleanup, import-graph,
+  executor determinism + modularization, sandbox boundary).
+- W5-W7: security implementation (detection rules, malicious fixture
+  corpus, UI detection surface).
 
 ## Read Path
 
@@ -21,10 +31,12 @@ If older docs or task notes conflict with the active refactor direction, check
 
 - Entry point: `main.py`
 - Canonical backend: `appcore/`, `workflows/`, `executor/`
+- Reusable framework-agnostic packages: `packages/` (contracts, planner,
+  engine; detection lives here in W5+)
 - Canonical frontend: `ui/`
 - Tests: `tests/`
-- Legacy top-level dirs such as `routers/`, `scanner/`, `core/`, `database/`,
-  `crud/`, `models/`, `schemas/` are not where new logic should go
+- Legacy top-level dirs `routers/`, `scanner/`, `core/`, `database/`, `crud/`,
+  `models/`, and `schemas/` are removed from the repo surface
 
 ## Non-Negotiables
 
@@ -51,10 +63,16 @@ If older docs or task notes conflict with the active refactor direction, check
   - `workflows/activation_reports/router.py`
   - `tests/workflows/activation_reports/`
 - Marketplace/analysis:
-  - `workflows/marketplace/`
+  - `workflows/marketplace/` (`analysis_service.py`, `job_service.py`,
+    `trigger_service.py`)
   - `tests/workflows/marketplace/`
   - `tests/smoke/`
+- Contracts / planner (shared packages):
+  - `packages/analysis_contracts/`
+  - `packages/analysis_planner/`
+  - `packages/analysis_engine/`
 - Executor:
+  - `executor/control.py`
   - `executor/host.py`
   - `executor/container/`
   - `executor/flows/playwright/`
@@ -64,6 +82,13 @@ If older docs or task notes conflict with the active refactor direction, check
   - `ui/src/features/`
   - `ui/src/components/`
   - `ui/src/lib/`
+- Security (spec today, code in W5):
+  - `documents/adrs/0002-threat-model.md`
+  - `documents/adrs/0003-detection-taxonomy.md`
+  - `documents/adrs/0004-malicious-fixture-policy.md`
+  - `documents/adrs/0005-packages-charter.md`
+  - `extensions/malicious/` (planned)
+  - `tests/security/` (planned)
 
 ## API Shape
 
@@ -100,6 +125,15 @@ If older docs or task notes conflict with the active refactor direction, check
 - `documents/EXECUTOR_PLAYWRIGHT.md`
   - executor/runtime details
 - `documents/DETECTION_SEMANTICS.md`
-  - report JSON semantics
+  - activation report JSON semantics (quality/verification)
 - `documents/VSCODE_API_COVERAGE_AUDIT.md`
   - trigger and coverage semantics
+- `documents/adrs/0002-threat-model.md`
+  - adversary classes (A1-A7), trust boundaries; read before any
+    detection work
+- `documents/adrs/0003-detection-taxonomy.md`
+  - DetectionReport contract, severity/confidence, rule lifecycle
+- `documents/adrs/0004-malicious-fixture-policy.md`
+  - fixture tiering, CI guardrails, operator responsibilities
+- `documents/REFACTOR_OPTIMIZATION.md`
+  - 7-week window (§10), GPT-5.4 implementation spec

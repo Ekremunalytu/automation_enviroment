@@ -9,6 +9,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import ValidationError
 
 from appcore.api.config import settings
+from appcore.contracts.schema_defs.activation_reports import ActivationReportResponse
 from packages.analysis_contracts import ActivationReport, ActivationReportFileSummary
 
 router = APIRouter(prefix="/api", tags=["activations"])
@@ -136,7 +137,7 @@ def list_activations() -> list[ActivationReportFileSummary]:
     return results
 
 
-@router.get("/activations/latest")
+@router.get("/activations/latest", response_model=ActivationReportResponse)
 def get_latest_activation() -> dict[str, Any]:
     """
     Get the most recent activation report.
@@ -172,7 +173,7 @@ def get_latest_activation() -> dict[str, Any]:
     )
 
 
-@router.get("/activations/{name}")
+@router.get("/activations/{name}", response_model=ActivationReportResponse)
 def get_activation_by_name(name: str) -> dict[str, Any]:
     """
     Get a specific activation report by filename.

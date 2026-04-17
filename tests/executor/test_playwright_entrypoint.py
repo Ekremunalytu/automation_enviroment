@@ -21,9 +21,13 @@ import triggers as trigger_loader  # noqa: E402
 class _FakeKeyboard:
     def __init__(self) -> None:
         self.presses: list[str] = []
+        self.typed: list[tuple[str, int | None]] = []
 
     def press(self, key: str) -> None:
         self.presses.append(key)
+
+    def type(self, text: str, delay: int | None = None) -> None:
+        self.typed.append((text, delay))
 
 
 class _FakePage:
@@ -34,6 +38,12 @@ class _FakePage:
 
     def wait_for_timeout(self, timeout_ms: int) -> None:
         self.waits.append(timeout_ms)
+
+    def wait_for_selector(
+        self, selector: str, state: str = "visible", timeout: int = 0
+    ):
+        _ = (selector, state, timeout)
+        return None
 
     def title(self) -> str:
         return self._title_text
@@ -49,6 +59,7 @@ class _FakeStoppedReport:
         self.trigger_plan_requested = False
         self.trigger_plan_path = ""
         self.trigger_plan_applied = False
+        self.trigger_execution_mode = ""
         self.scenarios_run: list[str] = []
         self.failed_scenarios: list[str] = []
         self.extra_trigger_failures: list[str] = []
@@ -136,6 +147,7 @@ class _FakeMonitor:
 
     def set_trigger_execution_mode(self, mode: str) -> None:
         self.execution_modes.append(mode)
+        self.report.trigger_execution_mode = mode
 
     def attach_runtime_tracers(self) -> None:
         self.attach_runtime_tracers_calls += 1
@@ -232,6 +244,7 @@ def test_resolve_execution_plan_prefers_layered_trigger_passes() -> None:
     )
 
     plan, scenarios = entrypoint._resolve_execution_plan(
+        False,
         None,
         payload,
     )
@@ -244,6 +257,7 @@ def test_resolve_execution_plan_uses_selected_scenarios_for_explicit_scenario() 
     payload = trigger_loader.TriggerPayload(selected_scenarios=["rename_symbol"])
 
     plan, scenarios = entrypoint._resolve_execution_plan(
+        False,
         "coding_session",
         payload,
     )
@@ -254,6 +268,7 @@ def test_resolve_execution_plan_uses_selected_scenarios_for_explicit_scenario() 
 
 def test_resolve_execution_plan_uses_single_scenario_fallback() -> None:
     plan, scenarios = entrypoint._resolve_execution_plan(
+        False,
         "coding_session",
         None,
     )
@@ -264,11 +279,23 @@ def test_resolve_execution_plan_uses_single_scenario_fallback() -> None:
 
 def test_resolve_execution_plan_runs_all_without_payload_or_fallback() -> None:
     plan, scenarios = entrypoint._resolve_execution_plan(
+        False,
         None,
         None,
     )
 
     assert plan == "all_scenarios"
+    assert scenarios == []
+
+
+def test_resolve_execution_plan_supports_skip_automation_mode() -> None:
+    plan, scenarios = entrypoint._resolve_execution_plan(
+        True,
+        None,
+        None,
+    )
+
+    assert plan == "skip_automation"
     assert scenarios == []
 
 
@@ -317,6 +344,11 @@ def test_run_extra_triggers_runs_non_command_branches(monkeypatch) -> None:
         "run_command",
         lambda current_page, command_text: calls.append(("run_command", command_text)),
     )
+    monkeypatch.setattr(
+        entrypoint.editor,
+        "_dismiss_notification",
+        lambda current_page: "",
+    )
 
     failed = entrypoint._run_extra_triggers(
         page,
@@ -334,7 +366,7 @@ def test_run_extra_triggers_runs_non_command_branches(monkeypatch) -> None:
         ("run_command", "Welcome: Open Walkthrough"),
         ("close_editor", None),
     ]
-    assert page.keyboard.presses == ["Escape"]
+    assert page.keyboard.presses == []
     assert [item[0] for item in events] == [
         "extra_trigger",
         "extra_trigger",
@@ -506,48 +538,46 @@ def test_run_extra_triggers_recovers_from_command_failure(monkeypatch) -> None:
 def test_reload_window_under_monitoring_reuses_primary_page(monkeypatch) -> None:
     page = _FakePage()
     browser = _FakeBrowser([page])
-    reload_calls: list[_FakePage] = []
-    reconnect_calls: list[tuple[_FakeBrowser, _FakePage, int]] = []
+    reload_calls: list[tuple[_FakeBrowser, _FakePage, int, object]] = []
 
     monkeypatch.setattr(
-        entrypoint.commands,
-        "run_reload_window_command",
-        lambda current_page: reload_calls.append(current_page),
-    )
-    monkeypatch.setattr(
         entrypoint.vscode,
-        "reconnect_to_workbench",
-        lambda current_browser, *, preferred_page, timeout_ms=30_000: (
-            reconnect_calls.append((current_browser, preferred_page, timeout_ms))
-            or preferred_page
+        "reload_workbench_window",
+        lambda current_browser,
+        current_page,
+        *,
+        reconnect_timeout_ms=30_000,
+        log=None: (
+            reload_calls.append(
+                (current_browser, current_page, reconnect_timeout_ms, log)
+            )
+            or current_page
         ),
     )
 
     reloaded = entrypoint._reload_window_under_monitoring(browser, page)
 
     assert reloaded is page
-    assert reload_calls == [page]
-    assert reconnect_calls == [(browser, page, 30_000)]
-    assert page.waits == [3000]
+    assert reload_calls == [(browser, page, 30_000, print)]
 
 
 def test_reload_window_under_monitoring_uses_fallback_page(monkeypatch) -> None:
     primary_page = _FakePage("primary")
     fallback_page = _FakePage("fallback")
     browser = _FakeBrowser([fallback_page])
-    reload_calls: list[_FakePage] = []
-    reconnect_calls: list[tuple[_FakeBrowser, _FakePage, int]] = []
+    reload_calls: list[tuple[_FakeBrowser, _FakePage, int, object]] = []
 
     monkeypatch.setattr(
-        entrypoint.commands,
-        "run_reload_window_command",
-        lambda current_page: reload_calls.append(current_page),
-    )
-    monkeypatch.setattr(
         entrypoint.vscode,
-        "reconnect_to_workbench",
-        lambda current_browser, *, preferred_page, timeout_ms=30_000: (
-            reconnect_calls.append((current_browser, preferred_page, timeout_ms))
+        "reload_workbench_window",
+        lambda current_browser,
+        current_page,
+        *,
+        reconnect_timeout_ms=30_000,
+        log=None: (
+            reload_calls.append(
+                (current_browser, current_page, reconnect_timeout_ms, log)
+            )
             or fallback_page
         ),
     )
@@ -555,8 +585,7 @@ def test_reload_window_under_monitoring_uses_fallback_page(monkeypatch) -> None:
     reloaded = entrypoint._reload_window_under_monitoring(browser, primary_page)
 
     assert reloaded is fallback_page
-    assert reload_calls == [primary_page]
-    assert reconnect_calls == [(browser, primary_page, 30_000)]
+    assert reload_calls == [(browser, primary_page, 30_000, print)]
 
 
 def test_reload_window_under_monitoring_raises_when_no_window_is_available(
@@ -564,24 +593,34 @@ def test_reload_window_under_monitoring_raises_when_no_window_is_available(
 ) -> None:
     page = _FakePage()
     browser = _FakeBrowser([])
-    reload_calls: list[_FakePage] = []
+    reload_calls: list[tuple[_FakeBrowser, _FakePage, int, object]] = []
 
-    monkeypatch.setattr(
-        entrypoint.commands,
-        "run_reload_window_command",
-        lambda current_page: reload_calls.append(current_page),
-    )
     monkeypatch.setattr(
         entrypoint.vscode,
-        "reconnect_to_workbench",
-        lambda current_browser, *, preferred_page, timeout_ms=30_000: (
-            _ for _ in ()
-        ).throw(RuntimeError("Could not find a VS Code workbench page via CDP.")),
+        "reload_workbench_window",
+        lambda current_browser,
+        current_page,
+        *,
+        reconnect_timeout_ms=30_000,
+        log=None: (
+            reload_calls.append(
+                (current_browser, current_page, reconnect_timeout_ms, log)
+            )
+            or (_ for _ in ()).throw(
+                entrypoint.vscode.ReloadWindowError(
+                    "reconnect",
+                    "Could not find a VS Code workbench page via CDP.",
+                )
+            )
+        ),
     )
 
-    with pytest.raises(entrypoint.PlaywrightError, match="Unable to reconnect"):
+    with pytest.raises(
+        entrypoint.PlaywrightError,
+        match="Unable to reconnect to VS Code window after reload: reconnect:",
+    ):
         entrypoint._reload_window_under_monitoring(browser, page)
-    assert reload_calls == [page]
+    assert reload_calls == [(browser, page, 30_000, print)]
 
 
 def test_main_list_mode_prints_scenarios_without_connecting(
@@ -660,6 +699,7 @@ def test_main_dispatches_non_monitored_execution_modes(
 
 def test_main_monitor_marks_missing_trigger_plan(monkeypatch) -> None:
     _FakeMonitor.instances.clear()
+    monkeypatch.setattr(entrypoint, "uuid4", lambda: SimpleNamespace(hex="fixture"))
     _, _, _, disconnect_calls = _configure_main_runtime(
         monkeypatch,
         ["--monitor", "--triggers", "/results/triggers.json"],
@@ -684,8 +724,37 @@ def test_main_monitor_marks_missing_trigger_plan(monkeypatch) -> None:
     assert monitor.missing_trigger_paths == ["/results/triggers.json"]
     assert any(kind == "trigger_plan_missing" for kind, *_ in monitor.automation_events)
     assert monitor.report.print_summary_calls == 1
-    assert monitor.report.saved_paths == ["/results/activation_report.json"]
+    assert monitor.report.saved_paths == ["/results/activation_report_fixture.json"]
     assert disconnect_calls == [disconnect_calls[0]]
+
+
+def test_main_monitor_can_skip_automation(monkeypatch) -> None:
+    _FakeMonitor.instances.clear()
+    monkeypatch.setattr(entrypoint, "uuid4", lambda: SimpleNamespace(hex="skip"))
+    _configure_main_runtime(monkeypatch, ["--monitor", "--skip-automation"])
+
+    automation_calls: list[str] = []
+
+    monkeypatch.setattr(entrypoint.monitor, "ExtensionMonitor", _FakeMonitor)
+    monkeypatch.setattr(
+        entrypoint.automation,
+        "run_all_scenarios",
+        lambda page, shuffle=False: automation_calls.append("all") or [],
+    )
+    monkeypatch.setattr(
+        entrypoint.automation,
+        "list_scenarios",
+        lambda: ["coding_session"],
+    )
+
+    entrypoint.main()
+
+    monitor = _FakeMonitor.instances[0]
+    assert monitor.execution_modes == ["skip_automation"]
+    assert monitor.report.trigger_execution_mode == "skip_automation"
+    assert monitor.report.scenarios_run == []
+    assert monitor.report.saved_paths == ["/results/activation_report_skip.json"]
+    assert automation_calls == []
 
 
 def test_main_selected_scenarios_exit_nonzero_when_failures_returned(

@@ -1,5 +1,7 @@
 """FastAPI application entry point for ExTrace."""
 
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
@@ -21,7 +23,16 @@ def validate_runtime_settings() -> None:
         )
 
 
-def create_app() -> FastAPI:
+def should_recover_interrupted_jobs() -> bool:
+    """Allow tooling to build the app without touching job storage."""
+    return os.getenv("EXTRACE_SKIP_JOB_RECOVERY", "").lower() not in {
+        "1",
+        "true",
+        "yes",
+    }
+
+
+def create_app(*, recover_jobs: bool = True) -> FastAPI:
     """Application factory — creates and configures the FastAPI instance."""
     validate_runtime_settings()
     application = FastAPI(
@@ -52,17 +63,18 @@ def create_app() -> FastAPI:
     application.include_router(activation_reports_router)
     application.include_router(marketplace_router)
 
-    try:
-        recover_interrupted_jobs()
-    except SQLAlchemyError as exc:
-        raise RuntimeError(
-            "Marketplace analysis job storage is unavailable; run migrations "
-            "and verify DB connectivity before starting the API."
-        ) from exc
+    if recover_jobs:
+        try:
+            recover_interrupted_jobs()
+        except SQLAlchemyError as exc:
+            raise RuntimeError(
+                "Marketplace analysis job storage is unavailable; run migrations "
+                "and verify DB connectivity before starting the API."
+            ) from exc
     return application
 
 
-app = create_app()
+app = create_app(recover_jobs=should_recover_interrupted_jobs())
 
 
 if __name__ == "__main__":

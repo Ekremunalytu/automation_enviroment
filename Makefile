@@ -5,6 +5,7 @@
 
 VENV := .venv/bin
 TEST_DB_WAIT_SECONDS ?= 3
+UI_TYPES_PYTHON := $(if $(wildcard $(VENV)/python),$(VENV)/python,python)
 
 ifneq (,$(wildcard .env))
 include .env
@@ -12,11 +13,11 @@ export
 endif
 
 .PHONY: help install install-dev install-hooks lint lint-check format typecheck \
-        security test test-cov test-local test-ci check check-all all clean \
+        security test test-unit test-integration test-smoke test-security test-security-live test-cov test-local test-ci check check-all all clean \
         dev run build rebuild up down logs ps restart status \
         migrate migrate-create venv-check \
         exec-build exec-up exec-down exec-shell exec-test exec-run \
-        ui-build ui-up ui-down
+        ui-build ui-up ui-down ui-types ui-types-check ui-boundaries
 
 # =============================================================================
 # HELP
@@ -37,6 +38,11 @@ help:
 	@echo "║  typecheck      │ mypy type checker                               ║"
 	@echo "║  security       │ Bandit security check                           ║"
 	@echo "║  test           │ Run pytest                                      ║"
+	@echo "║  test-unit      │ Fast mocked/unit lane                           ║"
+	@echo "║  test-integration │ DB-backed integration lane                    ║"
+	@echo "║  test-smoke     │ Executor-backed smoke lane                      ║"
+	@echo "║  test-security  │ W5 malicious-fixture hygiene and coverage lane  ║"
+	@echo "║  test-security-live │ Reserved local-only live-sample lane        ║"
 	@echo "║  test-cov       │ pytest + coverage                               ║"
 	@echo "║  check          │ lint + type + test                              ║"
 	@echo "║  all            │ format + lint + type + test                     ║"
@@ -69,6 +75,9 @@ help:
 	@echo "║  ui-build       │ Build UI image                                  ║"
 	@echo "║  ui-up          │ Start UI container                              ║"
 	@echo "║  ui-down        │ Stop UI container                               ║"
+	@echo "║  ui-types       │ Generate backend-owned UI contract types        ║"
+	@echo "║  ui-types-check │ Fail on generated UI contract drift             ║"
+	@echo "║  ui-boundaries  │ Check UI feature boundary imports               ║"
 	@echo "╠═══════════════════════════════════════════════════════════════════╣"
 	@echo "║                     🗄️  Database                                   ║"
 	@echo "║  migrate        │ Run Alembic migrations                          ║"
@@ -156,6 +165,37 @@ test:
 	$(VENV)/pytest -v
 	@echo "✅ Tests complete!"
 
+test-unit:
+	@echo "🧪 Running unit lane..."
+	$(VENV)/pytest -v -m "not smoke and not requires_db and not integration"
+	@echo "✅ Unit lane complete!"
+
+test-integration:
+	@echo "🧪 Running integration lane..."
+	$(VENV)/pytest -v -m "(requires_db or integration) and not smoke"
+	@echo "✅ Integration lane complete!"
+
+test-smoke:
+	@echo "🧪 Running smoke lane..."
+	$(VENV)/pytest -v -m "smoke"
+	@echo "✅ Smoke lane complete!"
+
+test-security:
+	@echo "🧪 Running security fixture lane..."
+	$(VENV)/pytest -v tests/security/test_fixture_hygiene.py tests/security/test_rule_coverage.py
+	@echo "✅ Security fixture lane complete!"
+
+test-security-live:
+	@if [ -n "$$CI" ]; then \
+		echo "❌ Refusing to run live security fixtures in CI."; \
+		exit 1; \
+	fi
+	@if [ "$$I_UNDERSTAND_THIS_IS_LIVE" != "1" ]; then \
+		echo "❌ Live fixture execution requires I_UNDERSTAND_THIS_IS_LIVE=1."; \
+		exit 1; \
+	fi
+	@echo "ℹ️  No T3 live fixtures are configured yet."
+
 test-cov:
 	@echo "🧪 Running tests with coverage..."
 	$(VENV)/pytest --cov --cov-report=html --cov-report=term-missing
@@ -208,7 +248,7 @@ check: lint typecheck test
 	@echo "✅ All checks passed!"
 	@echo "═══════════════════════════════════════════════════════════════"
 
-check-all: lint typecheck security test
+check-all: lint typecheck security ui-types-check ui-boundaries test
 	@echo ""
 	@echo "═══════════════════════════════════════════════════════════════"
 	@echo "✅ All checks (including security) passed!"
@@ -351,6 +391,15 @@ ui-down:
 	docker-compose stop ui
 	docker-compose rm -f ui
 	@echo "✅ UI stopped!"
+
+ui-types:
+	$(UI_TYPES_PYTHON) scripts/generate_ui_contracts.py
+
+ui-types-check:
+	$(UI_TYPES_PYTHON) scripts/generate_ui_contracts.py --check
+
+ui-boundaries:
+	cd ui && npm run lint:boundaries
 
 # =============================================================================
 # CLEANUP
