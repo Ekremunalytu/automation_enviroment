@@ -7,7 +7,8 @@ import stat
 from pathlib import Path
 
 from language_samples import _LANGUAGE_SAMPLE_FILES, _WORKSPACE_PATTERN_FILES
-from workspace_seed_data import HOME_FILES, LANGUAGE_EXTENSIONS, WORKSPACE_FILES
+from workspace_seed_data import LANGUAGE_EXTENSIONS, WORKSPACE_FILES
+from workspace_seed_home import HOME_FILES
 
 WORKSPACE_DIR = Path("/workspace")
 HOME_DIR = Path("/home/executor")
