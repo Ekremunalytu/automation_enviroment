@@ -6,14 +6,28 @@ import sys
 from pathlib import Path
 from uuid import uuid4
 
-from playwright.sync_api import Browser, Page
+from playwright.sync_api import (
+    Browser,
+    Page,
+    sync_playwright,  # noqa: F401
+)
+from playwright.sync_api import Error as PlaywrightError  # noqa: F401
 
 _pkg_dir = str(Path(__file__).resolve().parent)
 if _pkg_dir not in sys.path:
     sys.path.insert(0, _pkg_dir)
 
+import automation  # noqa: E402, F401
+import commands  # noqa: E402, F401
+import editor  # noqa: E402, F401
 import monitor  # noqa: E402
+import panel  # noqa: E402, F401
+import sidebar  # noqa: E402, F401
+import stimulus  # noqa: E402, F401
+import terminal  # noqa: E402, F401
 import triggers as trigger_loader  # noqa: E402
+import vscode  # noqa: E402, F401
+import workspace  # noqa: E402, F401
 from entrypoint_runner import create_bait_files  # noqa: E402
 from entrypoint_runner import main as run_main  # noqa: E402
 from entrypoint_runner import run_demo as run_demo_impl  # noqa: E402
