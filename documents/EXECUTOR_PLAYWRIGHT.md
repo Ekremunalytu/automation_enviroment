@@ -1,28 +1,27 @@
 # Executor Playwright Architecture
 
-`Last Updated: 2026-04-17`
+`Last Updated: 2026-04-20`
 
-The executor is ExTrace's dynamic-analysis sandbox. It runs a full VS Code
-GUI session inside Docker, drives that session with Playwright, and exports
+The executor is ExTrace's dynamic-analysis sandbox. It runs a full VS Code GUI
+session inside Docker, drives that session with Playwright, and exports
 artifact-first analysis results into `output/`.
 
-Open this only when changing executor/container/Playwright behavior or the
-API integration points that drive it.
+Open this only when changing executor/container/Playwright behavior or the API
+integration points that drive it.
 
-> **Security scope note (2026-04-17):** The executor is the analyzer's
-> **primary security surface**, not merely an operational component. Trust
-> boundary decisions are fixed by `adrs/0002-threat-model.md` §4:
+> **Security scope note (2026-04-20):** The executor is the analyzer's primary
+> security surface, not merely an operational component. Trust boundary
+> decisions are fixed by `adrs/0002-threat-model.md` §4:
 >
-> - VS Code binary trusted only if pinned (W2 lands the pinning).
-> - Harness extension trusted only if checksummed (W4 lands the
->   verification).
-> - Extension code at runtime is **untrusted** and never elevated by
->   heuristic.
-> - Docker daemon access from the API path is tracked for the `ExecutorControl`
->   boundary (W4 / Week 4E).
+> - VS Code binary trusted only if pinned.
+> - Harness-extension checksum verification is deferred to the first W5
+>   supply-chain task; it is not part of the closed Week 4 scope.
+> - Extension code at runtime is untrusted and never elevated by heuristic.
+> - Docker daemon access from the API path is now mediated through the
+>   `ExecutorControl` boundary.
 >
-> Changes to executor behavior that affect any of these boundaries must
-> update ADR 0002 §4 in the same change set.
+> Changes to executor behavior that affect any of these boundaries must update
+> ADR 0002 §4 in the same change set.
 
 This runtime still assumes:
 
@@ -35,6 +34,7 @@ This runtime still assumes:
 
 ```text
 executor/
+  control.py
   host.py
   container/
     Dockerfile
@@ -52,18 +52,33 @@ executor/
       debug.py
       editor.py
       entrypoint.py
+      entrypoint_cli.py
+      entrypoint_runner.py
+      entrypoint_triggers.py
       health.py
+      health_reconciliation.py
+      health_runtime_facts.py
+      health_summary.py
       keyboard.py
       language_samples.py
       monitor.py
       panel.py
       reload_vscode.py
       report_builder.py
+      runtime_capture/
+      scenarios/
       reset_state.py
       settings.py
       sidebar.py
+      signal_facts.py
+      signal_policy.py
       signals.py
       stimulus.py
+      stimulus_attempts.py
+      stimulus_materializers.py
+      stimulus_passes.py
+      stimulus_prerequisites.py
+      stimulus_types.py
       terminal.py
       triggers.py
       vscode.py
@@ -87,19 +102,21 @@ The executor container remains the only place where extension code should run.
 
 ## Host Control Surface
 
-The API does not call Playwright modules directly. It goes through
-`executor/host.py`, which wraps `docker exec`.
+The API does not call Playwright modules directly. Workflow code goes through
+`executor/control.py`, which delegates to `executor/host.py` and keeps the
+workflow-visible boundary narrow.
 
 High-level operations:
 
-- `install_extension_in_executor()`
-- `reload_vscode_window()`
-- `reset_executor_sandbox_state()`
-- `run_playwright_automation()`
+- `ExecutorControl.install_extension()`
+- `ExecutorControl.reload_window()`
+- `ExecutorControl.reset_sandbox()`
+- `ExecutorControl.run_automation()`
+- `ExecutorControl.cleanup_trigger()`
 
 Current timeout model in `executor/host.py`:
 
-- reload: 60 seconds
+- reload: 90 seconds
 - reset: 90 seconds
 - automation: 600 seconds
 
@@ -120,13 +137,13 @@ The marketplace workflow currently drives the executor in this order:
 
 1. reset the sandbox
 2. install the target `.vsix`
-3. build a trigger payload unless an explicit scenario was requested
+3. build a trigger payload unless analysis resolves to scenario-zero
+   `skip_automation`
 4. run `entrypoint.py --monitor`
 5. export the report and update async job state
 
-Async job steps are now persisted through
-`workflows.marketplace.job_service` into the Postgres-backed
-`analysis_jobs` table:
+Async job steps are persisted through `workflows.marketplace.job_service` into
+the Postgres-backed `analysis_jobs` table:
 
 - `reset_sandbox`
 - `install_extension`
@@ -137,8 +154,7 @@ Async job steps are now persisted through
 ## Trigger Payload Model
 
 Host-side trigger planning is owned by `packages/analysis_planner` and is
-surfaced through the compatibility facade in
-`workflows/marketplace/triggers.py`.
+surfaced through the compatibility facade in `workflows/marketplace/triggers.py`.
 Container-side loading lives in `executor/flows/playwright/triggers.py`.
 
 The payload now carries more than a scenario list. Important fields include:
@@ -165,20 +181,28 @@ The executor deletes the trigger JSON after loading it.
 ## Playwright Module Responsibilities
 
 - `entrypoint.py`
-  - CLI surface for demo mode, named scenarios, shuffled runs, and monitored
-    report generation
+  - exported CLI surface for monitored runs
+- `entrypoint_cli.py`, `entrypoint_runner.py`, `entrypoint_triggers.py`
+  - thin split of CLI parsing, runtime loop, and trigger-loading behavior
 - `automation.py`
   - built-in user-behavior scenarios such as coding, debug, terminal,
     authentication, and webview probes
+- `scenarios/`
+  - scenario registry and workbench/editing/runtime helpers for automation
 - `stimulus.py`
   - layered pass execution and prerequisite materialization
 - `monitor.py`
   - activation/file/network/log collection plus canonical report assembly
+- `runtime_capture/`
+  - monitor-owned event parsing and capture helpers re-exported via
+    `monitor.py` for backwards compatibility
 - `report_builder.py`
   - summary construction and JSON serialization
-- `health.py`
-  - automation health, log health, run quality, and coverage reconciliation
-- `signals.py`
+- `health.py`, `health_reconciliation.py`, `health_runtime_facts.py`,
+  `health_summary.py`
+  - automation health, log health, runtime fact extraction, and coverage
+    reconciliation
+- `signals.py`, `signal_facts.py`, `signal_policy.py`
   - risk signal generation and verdict policy
 - `annotation.py`
   - attribution helpers and summary logic
@@ -198,10 +222,10 @@ The executor deletes the trigger JSON after loading it.
   without waiting for the original quick-input widget to finish tearing down.
 - `vscode.py` owns CDP page discovery and `reconnect_to_workbench()`, which
   polls for a ready VS Code workbench page before and after reload.
-- the reconnect helper is designed to survive transient post-reload CDP states
+- The reconnect helper is designed to survive transient post-reload CDP states
   such as detached pages, `chrome-error://chromewebdata/`, and temporary
   DevTools-only page lists.
-- both `entrypoint.py` and `reload_vscode.py` use this reconnect path so
+- Both `entrypoint.py` and `reload_vscode.py` use this reconnect path so
   layered trigger runs do not fail closed just because the first post-reload
   page snapshot is incomplete.
 
@@ -243,7 +267,7 @@ Current executor-backed API surface:
 Persisted job state lives in:
 
 ```text
-PostgreSQL analysis_jobs rows
+PostgreSQL `analysis_jobs` rows
 ```
 
 Reports are written to:
@@ -289,7 +313,8 @@ make sim-run SCENARIO=<name>
 
 ## Current Limitations
 
-- Dynamic-analysis persistence is still file-backed rather than DB-backed.
+- Activation reports remain file-backed while async job metadata is DB-backed.
 - The pipeline still depends on Docker exec success and VS Code timing.
+- Harness-extension checksum verification is still pending as a W5 task.
 - Only one background analysis job is allowed at a time.
 - This is not a queue-backed worker system and should not be documented as one.

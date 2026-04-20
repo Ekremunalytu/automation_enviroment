@@ -35,9 +35,8 @@ from __future__ import annotations
 
 import re
 import subprocess
-import threading
 import time
-from collections.abc import Callable, Mapping
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -60,6 +59,51 @@ from health import (
     summarize_event_attempts_for_report,
 )
 from report_builder import build_report_data, build_summary, save_report_payload
+
+# Re-export the runtime-capture surface on the ``monitor`` module so public
+# helpers (``monitor.parse_tshark_event_line`` etc.) and internal helpers
+# consumed by ``ExtensionMonitor`` keep resolving unchanged. The underscore
+# names are deliberately re-exported for backwards compatibility and for
+# tests that reach into ``monitor._foo``.
+from runtime_capture._shared import (  # noqa: F401 - re-exported surface
+    _FILE_WATCH_PATHS,
+    _NOISY_PATH_PREFIXES,
+    _SENSITIVE_PATH_PREFIXES,
+    VSCODE_LOGS_DIR,
+    VSCODE_USER_DATA,
+    _first_non_empty,
+    _is_relevant_file_path,
+    _is_sensitive_path,
+    _log,
+    _parse_iso_timestamp,
+)
+from runtime_capture.events import (
+    ActivationEntry,
+    FileEvent,
+    NetworkEvent,
+)
+from runtime_capture.extension_host import (  # noqa: F401 - re-exported surface
+    _ACTIVATION_PATTERNS,
+    _TIMESTAMP_RE,
+    ExtensionHostFileCapture,
+    _activation_within_monitoring_window,
+    _parse_activation_lines,
+    _poll_exthost_log,
+    watch_exthost_log,
+)
+from runtime_capture.filesystem import (  # noqa: F401 - re-exported surface
+    _STRACE_CALL_RE,
+    FileSystemCapture,
+    _normalize_inotify_operation,
+    _normalize_strace_operation,
+    parse_inotify_file_event_line,
+    parse_strace_file_event_line,
+)
+from runtime_capture.network import (  # noqa: F401 - re-exported surface
+    _NETWORK_CAPTURE_FILTER,
+    NetworkCapture,
+    parse_tshark_event_line,
+)
 from signals import build_risk_signals, build_risk_summary, build_verdict
 
 from playwright.sync_api import Error as PlaywrightError
@@ -69,56 +113,20 @@ from playwright.sync_api import Page
 # Paths
 # ---------------------------------------------------------------------------
 
-VSCODE_USER_DATA = Path("/home/executor/.vscode")
-VSCODE_LOGS_DIR = VSCODE_USER_DATA / "logs"
 RESULTS_DIR = Path("/results")
 
-_FILE_WATCH_PATHS = [
-    Path("/workspace"),
-    Path("/home/executor/.ssh"),
-    Path("/home/executor/.aws"),
-    Path("/home/executor/.kube"),
-    Path("/home/executor/.docker"),
-    Path("/home/executor/.config/gcloud"),
-    Path("/home/executor/credentials"),
-    Path("/home/executor/.wallet"),
-]
-_SENSITIVE_PATH_PREFIXES = (
-    "/workspace/.env",
-    "/workspace/credentials",
-    "/workspace/.wallet",
-    "/home/executor/.ssh",
-    "/home/executor/.aws",
-    "/home/executor/.kube",
-    "/home/executor/.docker",
-    "/home/executor/.config/gcloud",
-    "/home/executor/.npmrc",
-    "/home/executor/.git-credentials",
-)
-_NOISY_PATH_PREFIXES = (
-    "/proc/",
-    "/dev/",
-    "/sys/",
-    "/usr/",
-    "/etc/",
-    "/home/executor/.vscode/logs/",
-)
+# ``VSCODE_LOGS_DIR``, ``VSCODE_USER_DATA``, ``_FILE_WATCH_PATHS``,
+# ``_SENSITIVE_PATH_PREFIXES`` and ``_NOISY_PATH_PREFIXES`` now live in
+# ``runtime_capture._shared`` and are imported above for backwards
+# compatibility with any consumers that reach into ``monitor`` for them.
 
 # ---------------------------------------------------------------------------
 # Data classes
 # ---------------------------------------------------------------------------
 
-
-@dataclass
-class ActivationEntry:
-    """A single extension activation event parsed from logs."""
-
-    extension_id: str
-    activation_event: str = ""
-    duration_ms: int | None = None
-    timestamp: str = ""
-    success: bool = True
-    source: str = ""  # "log", "ui", "output"
+# ``ActivationEntry``, ``NetworkEvent`` and ``FileEvent`` now live in
+# ``runtime_capture.events`` and are imported above so that
+# ``monitor.ActivationEntry`` etc. continue to resolve.
 
 
 @dataclass
@@ -129,54 +137,6 @@ class RunningExtension:
     name: str = ""
     activation_time_ms: int | None = None
     status: str = "active"
-
-
-@dataclass
-class NetworkEvent:
-    """A single observed network event from tshark."""
-
-    timestamp: str = ""
-    rel_time_s: float | None = None
-    protocol: str = ""
-    event_type: str = ""
-    source_ip: str = ""
-    destination_ip: str = ""
-    destination_port: int | None = None
-    host: str = ""
-    path: str = ""
-    related_extension_id: str = ""
-    related_activation_event: str = ""
-    attribution_status: str = "unattributed"
-    attribution_basis: str = ""
-    attribution_confidence: float = 0.0
-    is_target_extension_event: bool = False
-    noise_reason: str = ""
-    summary: str = ""
-
-
-@dataclass
-class FileEvent:
-    """A single observed file-system event."""
-
-    timestamp: str = ""
-    rel_time_s: float | None = None
-    operation: str = ""
-    path: str = ""
-    secondary_path: str = ""
-    source: str = ""  # "extension", "automation", "system"
-    observer: str = ""  # "strace", "inotify"
-    scenario_name: str = ""
-    related_extension_id: str = ""
-    related_activation_event: str = ""
-    attribution_status: str = "unattributed"
-    attribution_basis: str = ""
-    attribution_confidence: float = 0.0
-    is_target_extension_event: bool = False
-    noise_reason: str = ""
-    artifact_class: str = ""
-    flags: str = ""
-    sensitive: bool = False
-    summary: str = ""
 
 
 @dataclass
@@ -695,97 +655,25 @@ class ActivationReport:
 # ---------------------------------------------------------------------------
 # Strategy 1: VS Code log file parsing
 # ---------------------------------------------------------------------------
-
-# Patterns found in VS Code Extension Host logs (--log trace)
-# These cover multiple VS Code versions.
-_ACTIVATION_PATTERNS = [
-    # "ExtensionService#_doActivateExtension <id>, ..."
-    re.compile(
-        r"ExtensionService#_doActivateExtension\s+(?P<id>[\w.\-]+)"
-        r"(?:.*?activationEvent:\s*'(?P<event>[^']*)')?"
-    ),
-    # "extension activated <id> in <N>ms"
-    re.compile(
-        r"extension activated\s+(?P<id>[\w.\-]+)" r"(?:.*?in\s+(?P<ms>\d+)\s*ms)?"
-    ),
-    # "activating extension '<id>' because of '<event>'"
-    re.compile(
-        r"activating extension\s+'(?P<id>[^']+)'"
-        r"(?:.*?because of\s+'(?P<event>[^']*)')?"
-    ),
-    # "eager activation <id>"
-    re.compile(r"eager\s+activation\s+(?P<id>[\w.\-]+)"),
-    # "[info] <id>: extension activated successfully"
-    re.compile(r"(?P<id>[\w.\-]+):\s+extension activated" r"(?:.*?(?P<ms>\d+)\s*ms)?"),
-    # "ExtHostExtensionService#_doActivateExtension ..."
-    re.compile(
-        r"ExtHostExtensionService#.*activat\w*\s+(?P<id>[\w.\-]+)"
-        r"(?:.*?'(?P<event>[^']*)')?"
-    ),
-]
-
-# Timestamp pattern at start of VS Code log lines
-_TIMESTAMP_RE = re.compile(r"^\[?(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}\.\d+)\]?")
-
-
-def _parse_activation_lines(lines: list[str], *, source: str) -> list[ActivationEntry]:
-    entries: list[ActivationEntry] = []
-    seen: set[tuple[str, str, str, int | None]] = set()
-
-    for line in lines:
-        if "activ" not in line.lower():
-            continue
-
-        for pattern in _ACTIVATION_PATTERNS:
-            match = pattern.search(line)
-            if match is None:
-                continue
-
-            ext_id = match.group("id")
-            event = match.groupdict().get("event", "") or ""
-            ms_str = match.groupdict().get("ms")
-            duration_ms = int(ms_str) if ms_str else None
-            ts_match = _TIMESTAMP_RE.match(line)
-            timestamp = ts_match.group(1) if ts_match else ""
-            dedup_key = (ext_id, event, timestamp, duration_ms)
-
-            if dedup_key in seen:
-                break
-
-            seen.add(dedup_key)
-            entries.append(
-                ActivationEntry(
-                    extension_id=ext_id,
-                    activation_event=event,
-                    duration_ms=duration_ms,
-                    timestamp=timestamp,
-                    source=source,
-                )
-            )
-            break
-
-    return entries
+#
+# The underlying parsing implementation lives in
+# ``runtime_capture.extension_host``. The thin wrappers below keep the
+# monitor-level module globals (``VSCODE_LOGS_DIR``, ``find_exthost_logs``)
+# on the resolution path so tests that ``monkeypatch.setattr(monitor, ...)``
+# continue to work as before.
 
 
 def find_exthost_logs() -> list[Path]:
-    """Find all Extension Host log files under the VS Code logs directory.
-
-    Returns paths sorted newest-first.
-    """
+    """Find Extension Host log files (wrapper preserving monkeypatch points)."""
     if not VSCODE_LOGS_DIR.exists():
         _log(f"Log directory not found: {VSCODE_LOGS_DIR}")
         return []
 
-    # Extension Host logs can be at various sub-paths depending on VS Code version:
-    #   logs/<session>/exthost/exthost.log
-    #   logs/<session>/exthost1/exthost.log
-    #   logs/<session>/window1/exthost/exthost.log
     patterns = ["**/exthost*/exthost.log", "**/exthost*.log"]
     found: list[Path] = []
     for pattern in patterns:
         found.extend(VSCODE_LOGS_DIR.glob(pattern))
 
-    # Deduplicate and sort by modification time (newest first)
     seen: set[str] = set()
     unique: list[Path] = []
     for p in sorted(found, key=lambda x: x.stat().st_mtime, reverse=True):
@@ -822,12 +710,7 @@ def parse_activations_from_log(
 def parse_all_exthost_logs(
     start_offsets: Mapping[str, int] | None = None,
 ) -> list[ActivationEntry]:
-    """Find and parse all Extension Host log files.
-
-    Args:
-        start_offsets: Optional map of ``resolved_log_path -> byte_offset``.
-            If provided, only content appended after the given offset is parsed.
-    """
+    """Find and parse all Extension Host log files."""
     all_entries: list[ActivationEntry] = []
     seen_entries: set[tuple[str, str, str, int | None, str]] = set()
     offsets = start_offsets or {}
@@ -952,20 +835,18 @@ def _parse_running_extension_row(
 # ---------------------------------------------------------------------------
 # Strategy 3: Extension Host Output channel
 # ---------------------------------------------------------------------------
+#
+# Thin wrappers kept on ``monitor`` so tests that monkey-patch
+# ``monitor.find_exthost_logs`` / ``monitor.VSCODE_LOGS_DIR`` still take
+# effect. The canonical implementation lives in
+# ``runtime_capture.extension_host``.
 
 
 def read_extension_host_output(page: Page | None = None) -> str:
-    """Read Extension Host output from the log file directly.
-
-    This is more reliable than trying to scrape the Output panel via
-    Playwright, since the Output channel picker can behave unpredictably.
-
-    Falls back to reading the exthost.log file which contains the same data.
-    """
+    """Read Extension Host output from the log file directly."""
     _ = page
     _log("Reading Extension Host output from log file...")
 
-    # Read directly from the Extension Host log file (most reliable)
     logs = find_exthost_logs()
     if logs:
         try:
@@ -975,7 +856,6 @@ def read_extension_host_output(page: Page | None = None) -> str:
         except OSError as exc:
             _log(f"Failed to read log file: {exc}")
 
-    # Fallback: try all per-extension log files
     if VSCODE_LOGS_DIR.exists():
         parts: list[str] = []
         for log_file in sorted(VSCODE_LOGS_DIR.rglob("*.log")):
@@ -1012,635 +892,30 @@ def parse_activations_from_output(
 # ---------------------------------------------------------------------------
 # Strategy 4: Network monitoring (real-time via tshark)
 # ---------------------------------------------------------------------------
-
-_NETWORK_CAPTURE_FILTER = (
-    "dns or http.request or tls.handshake.type == 1 or "
-    "(tcp.flags.syn == 1 and tcp.flags.ack == 0)"
-)
-
-
-def parse_tshark_event_line(
-    line: str,
-    monitoring_start: float = 0.0,
-) -> NetworkEvent | None:
-    """Parse a single tshark TSV line into a structured network event."""
-    if not line.strip():
-        return None
-
-    parts = line.rstrip("\n").split("\t")
-    if len(parts) < 13:
-        parts.extend([""] * (13 - len(parts)))
-
-    timestamp_raw = parts[0].strip()
-    try:
-        timestamp_epoch = float(timestamp_raw)
-    except ValueError:
-        return None
-
-    source_ip = _first_non_empty(parts[1], parts[2])
-    destination_ip = _first_non_empty(parts[3], parts[4])
-    destination_port_raw = _first_non_empty(parts[5], parts[6])
-    dns_query = parts[7].strip()
-    http_host = parts[8].strip()
-    http_uri = parts[9].strip()
-    tls_sni = parts[10].strip()
-    protocol = parts[11].strip().lower()
-    info = parts[12].strip()
-
-    destination_port = None
-    if destination_port_raw:
-        try:
-            destination_port = int(destination_port_raw)
-        except ValueError:
-            destination_port = None
-
-    host = _first_non_empty(http_host, tls_sni, dns_query)
-    if http_host and http_uri:
-        event_type = "http_request"
-    elif dns_query:
-        event_type = "dns_query"
-    elif tls_sni:
-        event_type = "tls_client_hello"
-    else:
-        event_type = "tcp_connect"
-
-    timestamp = datetime.fromtimestamp(timestamp_epoch).isoformat(
-        timespec="milliseconds"
-    )
-    rel_time_s = None
-    if monitoring_start > 0:
-        rel_time_s = round(max(timestamp_epoch - monitoring_start, 0.0), 3)
-
-    summary = info or " ".join(
-        part for part in [event_type, host or destination_ip, http_uri] if part
-    )
-
-    if not any([source_ip, destination_ip, host, summary]):
-        return None
-
-    return NetworkEvent(
-        timestamp=timestamp,
-        rel_time_s=rel_time_s,
-        protocol=protocol or event_type.replace("_", ""),
-        event_type=event_type,
-        source_ip=source_ip,
-        destination_ip=destination_ip,
-        destination_port=destination_port,
-        host=host,
-        path=http_uri,
-        summary=summary,
-    )
-
-
-class NetworkCapture:
-    """Capture network events from inside the executor container using tshark."""
-
-    def __init__(
-        self,
-        monitoring_start: float,
-        on_event: Callable[[NetworkEvent], None] | None = None,
-    ) -> None:
-        self.monitoring_start = monitoring_start
-        self.on_event = on_event
-        self.events: list[NetworkEvent] = []
-        self.start_error = ""
-        self._proc: subprocess.Popen[str] | None = None
-        self._reader: threading.Thread | None = None
-
-    def start(self) -> None:
-        """Start background tshark capture."""
-        cmd = [
-            "tshark",
-            "-l",
-            "-n",
-            "-Q",
-            "-i",
-            "any",
-            "-T",
-            "fields",
-            "-E",
-            "separator=\t",
-            "-E",
-            "occurrence=f",
-            "-e",
-            "frame.time_epoch",
-            "-e",
-            "ip.src",
-            "-e",
-            "ipv6.src",
-            "-e",
-            "ip.dst",
-            "-e",
-            "ipv6.dst",
-            "-e",
-            "tcp.dstport",
-            "-e",
-            "udp.dstport",
-            "-e",
-            "dns.qry.name",
-            "-e",
-            "http.host",
-            "-e",
-            "http.request.uri",
-            "-e",
-            "tls.handshake.extensions_server_name",
-            "-e",
-            "_ws.col.Protocol",
-            "-e",
-            "_ws.col.Info",
-            "-Y",
-            _NETWORK_CAPTURE_FILTER,
-        ]
-        try:
-            self._proc = subprocess.Popen(  # nosec B603,B607
-                cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.DEVNULL,
-                text=True,
-                bufsize=1,
-            )
-        except FileNotFoundError:
-            self.start_error = "tshark binary not available in executor container."
-            _log(self.start_error)
-            return
-        except OSError as exc:
-            self.start_error = f"tshark start failed: {exc}"
-            _log(self.start_error)
-            return
-
-        self._reader = threading.Thread(target=self._consume_stdout, daemon=True)
-        self._reader.start()
-        _log("Network capture started")
-
-    def stop(self) -> list[NetworkEvent]:
-        """Stop capture and return all collected events."""
-        if self._proc is None:
-            return list(self.events)
-
-        if self._proc.poll() is None:
-            self._proc.terminate()
-            try:
-                self._proc.wait(timeout=3)
-            except subprocess.TimeoutExpired:
-                self._proc.kill()
-                self._proc.wait(timeout=3)
-
-        if self._reader is not None:
-            self._reader.join(timeout=3)
-
-        _log(f"Network capture stopped with {len(self.events)} event(s)")
-        return list(self.events)
-
-    def _consume_stdout(self) -> None:
-        if self._proc is None or self._proc.stdout is None:
-            return
-
-        for line in self._proc.stdout:
-            event = parse_tshark_event_line(line, self.monitoring_start)
-            if event is None:
-                continue
-            self.events.append(event)
-            if self.on_event is not None:
-                self.on_event(event)
+#
+# ``NetworkCapture``, ``parse_tshark_event_line`` and
+# ``_NETWORK_CAPTURE_FILTER`` now live in ``runtime_capture.network`` and
+# are re-exported via the module-level imports above.
 
 
 # ---------------------------------------------------------------------------
 # Strategy 5: File I/O monitoring
 # ---------------------------------------------------------------------------
-
-_STRACE_CALL_RE = re.compile(
-    r"^(?:\[pid\s+(?P<pid>\d+)\]\s+)?(?P<ts>\d+\.\d+)\s+"
-    r"(?P<call>\w+)\((?P<args>.*)\)\s+=\s+(?P<result>.+)$"
-)
-
-
-def parse_strace_file_event_line(
-    line: str,
-    monitoring_start: float = 0.0,
-) -> FileEvent | None:
-    """Parse a single strace line from the Extension Host process."""
-    match = _STRACE_CALL_RE.match(line.strip())
-    if match is None:
-        return None
-
-    try:
-        timestamp_epoch = float(match.group("ts"))
-    except ValueError:
-        return None
-
-    call = match.group("call")
-    args = match.group("args")
-    quoted_paths = re.findall(r'"([^"]+)"', args)
-    if not quoted_paths:
-        return None
-
-    primary_path = quoted_paths[0]
-    secondary_path = quoted_paths[1] if len(quoted_paths) > 1 else ""
-    if not _is_relevant_file_path(primary_path):
-        return None
-
-    operation = _normalize_strace_operation(call, args)
-    if not operation:
-        return None
-
-    rel_time_s = None
-    if monitoring_start > 0:
-        rel_time_s = round(max(timestamp_epoch - monitoring_start, 0.0), 3)
-
-    timestamp = datetime.fromtimestamp(timestamp_epoch).isoformat(
-        timespec="milliseconds"
-    )
-    summary = operation
-    if secondary_path:
-        summary = f"{operation}: {primary_path} -> {secondary_path}"
-    else:
-        summary = f"{operation}: {primary_path}"
-
-    return FileEvent(
-        timestamp=timestamp,
-        rel_time_s=rel_time_s,
-        operation=operation,
-        path=primary_path,
-        secondary_path=secondary_path,
-        source="extension",
-        observer="strace",
-        flags=args,
-        sensitive=_is_sensitive_path(primary_path),
-        summary=summary,
-    )
-
-
-def parse_inotify_file_event_line(
-    line: str,
-    monitoring_start: float = 0.0,
-    event_time: float | None = None,
-) -> FileEvent | None:
-    """Parse a single inotifywait output line."""
-    stripped = line.strip()
-    if not stripped:
-        return None
-
-    parts = stripped.split("\t")
-    if len(parts) < 2:
-        return None
-
-    path = parts[0].strip()
-    raw_events = parts[1].strip()
-    if not _is_relevant_file_path(path):
-        return None
-
-    operation = _normalize_inotify_operation(raw_events)
-    if not operation:
-        return None
-
-    observed_at = event_time if event_time is not None else time.time()
-    rel_time_s = None
-    if monitoring_start > 0:
-        rel_time_s = round(max(observed_at - monitoring_start, 0.0), 3)
-
-    timestamp = datetime.fromtimestamp(observed_at).isoformat(timespec="milliseconds")
-    return FileEvent(
-        timestamp=timestamp,
-        rel_time_s=rel_time_s,
-        operation=operation,
-        path=path,
-        source="automation",
-        observer="inotify",
-        sensitive=_is_sensitive_path(path),
-        summary=f"{operation}: {path}",
-    )
-
-
-class FileSystemCapture:
-    """Watch selected filesystem roots via inotifywait."""
-
-    def __init__(
-        self,
-        monitoring_start: float,
-        on_event: Callable[[FileEvent], None] | None = None,
-    ) -> None:
-        self.monitoring_start = monitoring_start
-        self.on_event = on_event
-        self.events: list[FileEvent] = []
-        self.start_error = ""
-        self._proc: subprocess.Popen[str] | None = None
-        self._reader: threading.Thread | None = None
-
-    def start(self) -> None:
-        watch_paths = [str(path) for path in _FILE_WATCH_PATHS if path.exists()]
-        if not watch_paths:
-            self.start_error = (
-                "No filesystem watch paths available in executor container."
-            )
-            _log(self.start_error)
-            return
-
-        cmd = [
-            "inotifywait",
-            "-m",
-            "-r",
-            "--format",
-            "%w%f\t%e",
-            "-e",
-            "create",
-            "-e",
-            "modify",
-            "-e",
-            "delete",
-            "-e",
-            "move",
-            "-e",
-            "attrib",
-            "-e",
-            "open",
-            "-e",
-            "close_write",
-            *watch_paths,
-        ]
-        try:
-            self._proc = subprocess.Popen(  # nosec B603,B607
-                cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.DEVNULL,
-                text=True,
-                bufsize=1,
-            )
-        except FileNotFoundError:
-            self.start_error = "inotifywait binary not available in executor container."
-            _log(self.start_error)
-            return
-        except OSError as exc:
-            self.start_error = f"inotifywait start failed: {exc}"
-            _log(self.start_error)
-            return
-
-        self._reader = threading.Thread(target=self._consume_stdout, daemon=True)
-        self._reader.start()
-        _log("Filesystem capture started")
-
-    def stop(self) -> list[FileEvent]:
-        if self._proc is None:
-            return list(self.events)
-
-        if self._proc.poll() is None:
-            self._proc.terminate()
-            try:
-                self._proc.wait(timeout=3)
-            except subprocess.TimeoutExpired:
-                self._proc.kill()
-                self._proc.wait(timeout=3)
-
-        if self._reader is not None:
-            self._reader.join(timeout=3)
-
-        _log(f"Filesystem capture stopped with {len(self.events)} event(s)")
-        return list(self.events)
-
-    def _consume_stdout(self) -> None:
-        if self._proc is None or self._proc.stdout is None:
-            return
-
-        for line in self._proc.stdout:
-            event = parse_inotify_file_event_line(
-                line,
-                monitoring_start=self.monitoring_start,
-                event_time=time.time(),
-            )
-            if event is None:
-                continue
-            self.events.append(event)
-            if self.on_event is not None:
-                self.on_event(event)
-
-
-class ExtensionHostFileCapture:
-    """Attach strace to the current Extension Host process."""
-
-    def __init__(
-        self,
-        monitoring_start: float,
-        on_event: Callable[[FileEvent], None] | None = None,
-    ) -> None:
-        self.monitoring_start = monitoring_start
-        self.on_event = on_event
-        self.events: list[FileEvent] = []
-        self.start_error = ""
-        self._proc: subprocess.Popen[str] | None = None
-        self._reader: threading.Thread | None = None
-        self._pid: int | None = None
-        self.attach_attempts = 0
-        self.diagnostics: dict[str, Any] = {
-            "attempts": 0,
-            "selected_pid": None,
-            "status": "planned",
-            "poll_timeout_s": 10.0,
-            "poll_interval_s": 0.5,
-            "failure_reason": "",
-        }
-
-    @property
-    def pid(self) -> int | None:
-        return self._pid
-
-    def start(self) -> None:
-        pid, diagnostics = _wait_for_extension_host_pid()
-        self.attach_attempts = int(diagnostics.get("attempts", 0) or 0)
-        self.diagnostics = diagnostics
-        if pid is None:
-            self.start_error = (
-                "Extension Host PID not found; file attribution unavailable."
-            )
-            self.diagnostics["status"] = "failed"
-            self.diagnostics["failure_reason"] = self.start_error
-            _log(self.start_error)
-            return
-
-        self._pid = pid
-        self.diagnostics["selected_pid"] = pid
-        cmd = [
-            "strace",
-            "-f",
-            "-ttt",
-            "-s",
-            "256",
-            "-e",
-            (
-                "trace=open,openat,creat,unlink,unlinkat,rename,renameat,"
-                "renameat2,mkdir,rmdir,newfstatat,readlink"
-            ),
-            "-p",
-            str(pid),
-        ]
-        try:
-            self._proc = subprocess.Popen(  # nosec B603,B607
-                cmd,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.PIPE,
-                text=True,
-                bufsize=1,
-            )
-        except FileNotFoundError:
-            self.start_error = "strace binary not available in executor container."
-            self.diagnostics["status"] = "failed"
-            self.diagnostics["failure_reason"] = self.start_error
-            _log(self.start_error)
-            return
-        except OSError as exc:
-            self.start_error = f"strace start failed: {exc}"
-            self.diagnostics["status"] = "failed"
-            self.diagnostics["failure_reason"] = self.start_error
-            _log(self.start_error)
-            return
-
-        self._reader = threading.Thread(target=self._consume_stderr, daemon=True)
-        self._reader.start()
-        self.diagnostics["status"] = "attached"
-        _log(f"Extension Host file capture attached to pid {pid}")
-
-    def stop(self) -> list[FileEvent]:
-        if self._proc is None:
-            return list(self.events)
-
-        if self._proc.poll() is None:
-            self._proc.terminate()
-            try:
-                self._proc.wait(timeout=3)
-            except subprocess.TimeoutExpired:
-                self._proc.kill()
-                self._proc.wait(timeout=3)
-
-        if self._reader is not None:
-            self._reader.join(timeout=3)
-
-        _log(f"Extension Host file capture stopped with {len(self.events)} event(s)")
-        return list(self.events)
-
-    def _consume_stderr(self) -> None:
-        if self._proc is None or self._proc.stderr is None:
-            return
-
-        for line in self._proc.stderr:
-            event = parse_strace_file_event_line(
-                line,
-                monitoring_start=self.monitoring_start,
-            )
-            if event is None:
-                continue
-            self.events.append(event)
-            if self.on_event is not None:
-                self.on_event(event)
-
+#
+# ``FileSystemCapture``, ``ExtensionHostFileCapture``,
+# ``parse_strace_file_event_line``, ``parse_inotify_file_event_line``,
+# ``_normalize_strace_operation``, ``_normalize_inotify_operation`` and
+# ``_STRACE_CALL_RE`` now live in ``runtime_capture.filesystem`` and
+# ``runtime_capture.extension_host``; they are re-exported via the
+# module-level imports above.
 
 # ---------------------------------------------------------------------------
 # Strategy 6: Log file watching (real-time via inotifywait)
 # ---------------------------------------------------------------------------
-
-
-def watch_exthost_log(
-    callback: Callable[[ActivationEntry], None],
-    timeout_s: int = 60,
-) -> None:
-    """Watch the Extension Host log file for new activation events.
-
-    Uses inotifywait for efficient file monitoring. Calls ``callback(entry)``
-    for each new ActivationEntry detected.
-
-    Args:
-        callback: Function called with each new ActivationEntry.
-        timeout_s: Max time to watch in seconds.
-    """
-    logs = find_exthost_logs()
-    if not logs:
-        _log("No Extension Host log found to watch")
-        return
-
-    log_path = logs[0]
-    _log(f"Watching {log_path} for {timeout_s}s...")
-
-    # Read initial content to track what's new
-    initial_size = log_path.stat().st_size
-
-    proc: subprocess.Popen[str] | None = None
-
-    try:
-        proc = subprocess.Popen(  # nosec B603,B607
-            ["inotifywait", "-m", "-e", "modify", str(log_path)],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL,
-            text=True,
-        )
-
-        start = time.time()
-        seen_ids: set[str] = set()
-
-        while time.time() - start < timeout_s:
-            # Read new content appended to the log
-            current_size = log_path.stat().st_size
-            if current_size > initial_size:
-                with open(log_path, encoding="utf-8", errors="replace") as f:
-                    f.seek(initial_size)
-                    new_content = f.read()
-                initial_size = current_size
-
-                for line in new_content.splitlines():
-                    if "activ" not in line.lower():
-                        continue
-                    for pattern in _ACTIVATION_PATTERNS:
-                        m = pattern.search(line)
-                        if m and m.group("id") not in seen_ids:
-                            seen_ids.add(m.group("id"))
-                            entry = ActivationEntry(
-                                extension_id=m.group("id"),
-                                activation_event=m.groupdict().get("event", "") or "",
-                                source="watch",
-                            )
-                            callback(entry)
-                            break
-
-            time.sleep(0.5)
-
-    except FileNotFoundError:
-        _log("inotifywait not available, falling back to polling")
-        _poll_exthost_log(log_path, initial_size, callback, timeout_s)
-    finally:
-        if proc is not None and proc.poll() is None:
-            proc.terminate()
-
-
-def _poll_exthost_log(
-    log_path: Path,
-    initial_size: int,
-    callback: Callable[[ActivationEntry], None],
-    timeout_s: int,
-) -> None:
-    """Fallback polling-based log watcher when inotifywait is unavailable."""
-    start = time.time()
-    seen_ids: set[str] = set()
-
-    while time.time() - start < timeout_s:
-        current_size = log_path.stat().st_size
-        if current_size > initial_size:
-            with open(log_path, encoding="utf-8", errors="replace") as f:
-                f.seek(initial_size)
-                new_content = f.read()
-            initial_size = current_size
-
-            for line in new_content.splitlines():
-                if "activ" not in line.lower():
-                    continue
-                for pattern in _ACTIVATION_PATTERNS:
-                    m = pattern.search(line)
-                    if m and m.group("id") not in seen_ids:
-                        seen_ids.add(m.group("id"))
-                        entry = ActivationEntry(
-                            extension_id=m.group("id"),
-                            activation_event=m.groupdict().get("event", "") or "",
-                            source="poll",
-                        )
-                        callback(entry)
-                        break
-
-        time.sleep(1)
+#
+# ``watch_exthost_log`` and ``_poll_exthost_log`` now live in
+# ``runtime_capture.extension_host`` and are re-exported via the
+# module-level imports above.
 
 
 # ---------------------------------------------------------------------------
@@ -2494,8 +1769,11 @@ def check_extension_activated(extension_id: str, page: Page | None = None) -> bo
 # ---------------------------------------------------------------------------
 
 
-def _log(msg: str) -> None:
-    print(f"[monitor] {msg}")
+# ``_log``, ``_first_non_empty``, ``_is_sensitive_path``,
+# ``_is_relevant_file_path``, ``_normalize_inotify_operation`` and
+# ``_normalize_strace_operation`` now live in ``runtime_capture._shared``
+# and ``runtime_capture.filesystem``; they are imported at the top of
+# this module so ``monitor._log`` etc. still resolve.
 
 
 def _trigger_item_as_dict(item: Any) -> dict[str, Any] | None:
@@ -2515,63 +1793,6 @@ def _trigger_item_as_dict(item: Any) -> dict[str, Any] | None:
             return dumped
 
     return None
-
-
-def _first_non_empty(*values: str) -> str:
-    for value in values:
-        item = value.strip()
-        if item:
-            return item
-    return ""
-
-
-def _is_sensitive_path(path: str) -> bool:
-    normalized = path.strip()
-    return any(normalized.startswith(prefix) for prefix in _SENSITIVE_PATH_PREFIXES)
-
-
-def _is_relevant_file_path(path: str) -> bool:
-    normalized = path.strip()
-    if not normalized or normalized in {".", ".."}:
-        return False
-    if any(normalized.startswith(prefix) for prefix in _NOISY_PATH_PREFIXES):
-        return False
-    return normalized.startswith("/workspace") or normalized.startswith(
-        "/home/executor"
-    )
-
-
-def _normalize_inotify_operation(raw_events: str) -> str:
-    events = raw_events.upper()
-    if "CREATE" in events:
-        return "create"
-    if "CLOSE_WRITE" in events or "MODIFY" in events:
-        return "write"
-    if "DELETE" in events:
-        return "delete"
-    if "MOVE" in events:
-        return "move"
-    if "ATTRIB" in events:
-        return "metadata"
-    if "OPEN" in events:
-        return "read"
-    return ""
-
-
-def _normalize_strace_operation(call: str, args: str) -> str:
-    if call in {"unlink", "unlinkat", "rmdir"}:
-        return "delete"
-    if call in {"rename", "renameat", "renameat2"}:
-        return "move"
-    if call == "mkdir":
-        return "create"
-    if call in {"readlink", "newfstatat"}:
-        return "metadata"
-    if call in {"creat", "open", "openat"}:
-        if any(flag in args for flag in ["O_WRONLY", "O_RDWR", "O_CREAT", "O_TRUNC"]):
-            return "write"
-        return "read"
-    return ""
 
 
 def _parse_process_table(output: str) -> list[_ProcessEntry]:
@@ -2711,7 +1932,7 @@ def _wait_for_extension_host_pid(
     timeout_s: float = 10.0,
     poll_interval_s: float = 0.5,
 ) -> tuple[int | None, dict[str, Any]]:
-    deadline = time.time() + timeout_s
+    deadline = time.monotonic() + timeout_s
     attempts = 0
     while True:
         attempts += 1
@@ -2728,7 +1949,7 @@ def _wait_for_extension_host_pid(
                     "failure_reason": "",
                 },
             )
-        if time.time() >= deadline:
+        if time.monotonic() >= deadline:
             return (
                 None,
                 {
@@ -2743,31 +1964,10 @@ def _wait_for_extension_host_pid(
         time.sleep(poll_interval_s)
 
 
-def _parse_iso_timestamp(timestamp: str) -> float | None:
-    if not timestamp:
-        return None
-    try:
-        return datetime.fromisoformat(timestamp).timestamp()
-    except ValueError:
-        pass
-    try:
-        return datetime.strptime(timestamp, "%Y-%m-%d %H:%M:%S.%f").timestamp()
-    except ValueError:
-        return None
-
-
-def _activation_within_monitoring_window(
-    entry: ActivationEntry,
-    monitoring_start: float,
-) -> bool:
-    if monitoring_start <= 0:
-        return True
-
-    event_epoch = _parse_iso_timestamp(entry.timestamp)
-    if event_epoch is None:
-        return True
-
-    return event_epoch >= monitoring_start
+# ``_parse_iso_timestamp`` now lives in ``runtime_capture._shared`` and
+# ``_activation_within_monitoring_window`` now lives in
+# ``runtime_capture.extension_host``; both are imported at the top of this
+# module so monitor-level references keep resolving.
 
 
 def _merge_activation_entries(

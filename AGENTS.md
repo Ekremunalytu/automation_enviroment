@@ -10,14 +10,15 @@
 For a thinner repo map after reading these rules, use `documents/AGENT_CONTEXT.md`.
 
 If refactor sequencing or planning notes appear to conflict with older
-documentation, use `documents/REFACTOR_EXECUTION_PLAN.md` as the current
-refactor reference and `documents/REFACTOR_EXPANSION_NOTES.md` for deferred
-ideas. Priority stays on keeping the project clean, stable, and high quality.
+documentation, use `documents/REFACTOR_STATUS.md` for the current closure
+state, `documents/REFACTOR_EXECUTION_PLAN.md` for the historical Week 1-4
+plan, and `documents/REFACTOR_EXPANSION_NOTES.md` for deferred ideas.
+Priority stays on keeping the project clean, stable, and high quality.
 
 For the current 7-week stabilization-then-security window, consult
 `documents/REFACTOR_OPTIMIZATION.md` §10. Security posture (threat model,
 detection taxonomy, malicious fixture policy) is fixed by ADRs 0002-0004
-under `documents/adrs/` and binds once W5 implementation starts.
+under `documents/adrs/` and already governs the current W5 scaffolding.
 
 ## Non-Negotiable Rules
 
@@ -29,9 +30,9 @@ under `documents/adrs/` and binds once W5 implementation starts.
 - Add an Alembic migration for schema changes.
 - Keep sandbox execution isolated in Docker.
 - `packages/` stays framework-agnostic. Packages must not import from
-  `workflows/`, `executor/`, `ui/`, or `appcore/`. Existing banned-import
-  test covers `packages.analysis_planner`; W1 extends coverage to the
-  whole `packages/` tree.
+  `workflows/`, `executor/`, `ui/`, or `appcore/`. Repo-wide import-graph
+  tests now enforce the `packages/`, `executor/`, and `workflows/`
+  boundaries.
 - Detection rules (W5+) live inside `packages/` and see only contracts.
   They must not import runtime, web, or storage layers (ADR 0003 §8).
 - Malicious fixtures under `extensions/malicious/` follow ADR 0004:
@@ -118,8 +119,8 @@ under `documents/adrs/` and binds once W5 implementation starts.
   - `appcore/contracts/schemas.py`
   - `appcore/contracts/schema_defs/`
   - `packages/analysis_contracts/` (backend-owned Pydantic v2 contracts:
-    `ActivationReport`, `TriggerPayload`; W5 will add `DetectionReport`
-    per ADR 0003)
+    `ActivationReport`, `TriggerPayload`; `detection/` is the reserved W5
+    namespace for `DetectionReport` and related DTOs per ADR 0003)
   - `packages/analysis_planner/` (framework-agnostic trigger planner)
   - `packages/analysis_engine/`
 - Storage layer:
@@ -226,7 +227,7 @@ under `documents/adrs/` and binds once W5 implementation starts.
   - `documents/adrs/0002-threat-model.md`
   - `documents/adrs/0003-detection-taxonomy.md`
   - `documents/adrs/0004-malicious-fixture-policy.md`
-  - once W5 begins: `extensions/malicious/`, `tests/security/`,
+  - current W5 scaffold: `extensions/malicious/`, `tests/security/`,
     `packages/analysis_contracts/detection/`
 
 ## Working Conventions
@@ -243,6 +244,7 @@ under `documents/adrs/` and binds once W5 implementation starts.
 - `make test-local`
 - `make check-all`
 - `make migrate`
+- `make test-security`
 - `make exec-up`
 - `make exec-run`
 - `make ui-up`

@@ -1,6 +1,6 @@
 # Refactor Optimization — Plan Kritiği ve Düzeltme Önerileri
 
-`Last Updated: 2026-04-17`
+`Last Updated: 2026-04-20`
 
 > **Değerlendirici (yazarlar):**
 >
@@ -32,6 +32,11 @@ değerlendirmenin çıktısıdır. Amacı plana rakip olmak değil, **"modüler 
 kaliteli repo"** hedefine ulaşmak için mevcut planın hangi kararlarının doğru,
 hangilerinin yetersiz veya erken ertelenmiş olduğunu kanıta dayalı biçimde
 göstermektir.
+
+> **Kapanis notu (2026-04-20):** Week 4 kapanis durumu artik
+> `documents/REFACTOR_STATUS.md` dosyasinda tutuluyor. Bu belgeyi okurken,
+> burada onerilen maddelerin hangilerinin coktan land ettigini veya stale
+> oldugunu o durum panosuyla birlikte degerlendir.
 
 Okuma sırası:
 
@@ -1254,6 +1259,13 @@ W4 bittikten sonra güvenlik implementasyonuna geçmeden önce:
       kısıtlamalı job olarak çalışıyor.
 - [ ] `tests/security/test_fixture_hygiene.py` ve
       `tests/security/test_rule_coverage.py` kuruldu (ADR 0004 §4, §6).
+- [ ] **Harness-extension checksum verification** (7.2.6, W4'ten devralındı
+      2026-04-20): `executor/flows/harness_extension/*.js` için sha256
+      attestation; executor bundle'ı yüklemeden önce doğrulama adımı
+      eklendi. Bu madde W4 stabilizasyon kapsamından supply-chain güvenlik
+      kapsamına taşındı — Week 4 kapandığında yerinde değildi, Week 5
+      güvenlik implementasyon pass'inin ilk supply-chain task'ı olarak
+      alınacak.
 
 ### 10.7 PoC acceptance checklist (W7 sonu)
 

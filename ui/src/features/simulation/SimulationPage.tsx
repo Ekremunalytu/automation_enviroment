@@ -72,7 +72,10 @@ export function SimulationPage() {
     enabled: Boolean(jobQuery.data?.report_path),
     queryKey: ["live-report", jobQuery.data?.report_path],
     queryFn: async ({ signal }) => {
-      const reportName = jobQuery.data?.report_path!;
+      const reportName = jobQuery.data?.report_path;
+      if (!reportName) {
+        throw new Error("report_path is unavailable");
+      }
       const dto = await apiClient.getReportByName(reportName, signal);
       return adaptReport(dto, reportName);
     },

@@ -558,7 +558,9 @@ def test_reload_window_under_monitoring_reuses_primary_page(monkeypatch) -> None
     reloaded = entrypoint._reload_window_under_monitoring(browser, page)
 
     assert reloaded is page
-    assert reload_calls == [(browser, page, 30_000, print)]
+    assert reload_calls == [
+        (browser, page, entrypoint.vscode.DEFAULT_RECONNECT_TIMEOUT_MS, print)
+    ]
 
 
 def test_reload_window_under_monitoring_uses_fallback_page(monkeypatch) -> None:
@@ -585,7 +587,14 @@ def test_reload_window_under_monitoring_uses_fallback_page(monkeypatch) -> None:
     reloaded = entrypoint._reload_window_under_monitoring(browser, primary_page)
 
     assert reloaded is fallback_page
-    assert reload_calls == [(browser, primary_page, 30_000, print)]
+    assert reload_calls == [
+        (
+            browser,
+            primary_page,
+            entrypoint.vscode.DEFAULT_RECONNECT_TIMEOUT_MS,
+            print,
+        )
+    ]
 
 
 def test_reload_window_under_monitoring_raises_when_no_window_is_available(
@@ -620,7 +629,9 @@ def test_reload_window_under_monitoring_raises_when_no_window_is_available(
         match="Unable to reconnect to VS Code window after reload: reconnect:",
     ):
         entrypoint._reload_window_under_monitoring(browser, page)
-    assert reload_calls == [(browser, page, 30_000, print)]
+    assert reload_calls == [
+        (browser, page, entrypoint.vscode.DEFAULT_RECONNECT_TIMEOUT_MS, print)
+    ]
 
 
 def test_main_list_mode_prints_scenarios_without_connecting(

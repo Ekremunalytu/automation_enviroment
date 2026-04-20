@@ -1,9 +1,11 @@
 # packages/analysis_engine
 
-Week 1 skeleton for trusted analysis normalization and interpretation logic.
+`Last Updated: 2026-04-20`
 
-This directory is reserved for later extraction of code that should not remain
-buried inside sandbox-local executor modules.
+This package is still a reserved extraction surface for trusted analysis logic
+that should not remain buried inside sandbox-local executor modules.
+
+As of `2026-04-20`, no production modules have been extracted here yet.
 
 Expected future responsibilities:
 
@@ -11,3 +13,5 @@ Expected future responsibilities:
 - attribution helpers
 - risk signal derivation
 - trusted serialization and interpretation helpers
+
+This package must remain framework-agnostic like the rest of `packages/`.

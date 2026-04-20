@@ -1,11 +1,15 @@
 # Pipeline Roadmap
 
-`Last Updated: 2026-04-17`
+`Last Updated: 2026-04-20`
 
 This is the short staged view of the analysis pipeline. For the current
 backlog, use `automation_todo.md`; for active priorities, use
-`DEVELOPMENT_PRIORITIES.md`; for the 7-week window,
+`DEVELOPMENT_PRIORITIES.md`; for the 7-week window, use
 `REFACTOR_OPTIMIZATION.md` §10.
+
+Week 4 closure was validated on `2026-04-20`. The pipeline below reflects the
+current implementation shape, including the W5 security scaffold that exists
+without yet emitting production detection results.
 
 ## Current Pipeline
 
@@ -46,24 +50,29 @@ flowchart LR
 
 ### Phase D: Detection Layer (W5-W7)
 
+- detection scaffolding already exists:
+  - `packages/analysis_contracts/detection/`
+  - `extensions/malicious/` T1 canary manifests for A1/A2/A4/A6
+  - `tests/security/`
+  - `make test-security`
 - introduce `DetectionReport` as a sibling contract to `ActivationReport`
   (ADR 0003); verdicts are a deterministic rollup of findings
-- `inconclusive` verdict dominates `clean` when verification gaps remain
-- detection rules live inside `packages/` and consume only contracts;
-  they never import runtime, web, or storage layers
-- malicious fixtures under `extensions/malicious/` carry tier-aware
-  handling per ADR 0004; T1+T2 in CI via `make test-security`, T3 via
-  break-glass `make test-security-live`
+- detection rules live inside `packages/` and consume only contracts; they never
+  import runtime, web, or storage layers
+- malicious fixtures under `extensions/malicious/` carry tier-aware handling
+  per ADR 0004; T1+T2 belong in `make test-security`, T3 remains
+  break-glass-only via `make test-security-live`
 
 ## Design Constraints
 
 - orchestration stays in `workflows/marketplace/`
-- shared contracts and persistence stay in `appcore/` (platform
-  contracts) and `packages/analysis_contracts/` (analysis contracts)
+- shared contracts and persistence stay in `appcore/` (platform contracts) and
+  `packages/analysis_contracts/` (analysis contracts)
 - sandbox mechanics stay in `executor/`
 - workflow code reaches sandbox mechanics only through `executor.control`
-- dynamic-analysis persistence remains artifact-first unless product needs change
-- analysis output is semi-trusted (ADR 0002 §6); do not forward,
-  upload, or index without scrubbing
-- security posture is fixed by ADRs 0002-0004; scope expansion requires
-  a new ADR, not an informal upgrade
+- dynamic-analysis persistence remains artifact-first unless product needs
+  change
+- analysis output is semi-trusted (ADR 0002 §6); do not forward, upload, or
+  index without scrubbing
+- security posture is fixed by ADRs 0002-0004; scope expansion requires a new
+  ADR, not an informal upgrade

@@ -1,11 +1,12 @@
 # Testing Guide
 
-`Last Updated: 2026-04-16`
+`Last Updated: 2026-04-20`
 
 The test suite mirrors the refactored architecture: platform tests validate
 shared `appcore/` code, workflow tests validate business slices, executor tests
-cover sandbox helpers, and smoke coverage exercises the full marketplace to
-report pipeline.
+cover sandbox helpers, architecture tests enforce import boundaries, security
+tests validate the malicious-fixture scaffold, and smoke coverage exercises the
+full marketplace-to-report pipeline.
 
 ## Test Layout
 
@@ -13,24 +14,35 @@ report pipeline.
 tests/
   conftest.py
   test_health.py
+  architecture/
+    test_import_graph.py
   executor/
-    conftest.py
+    test_container_dockerfile.py
     test_playwright_automation.py
     test_playwright_commands.py
     test_playwright_entrypoint.py
+    test_playwright_helpers.py
     test_playwright_monitor.py
+    test_playwright_reload.py
     test_playwright_stimulus.py
     test_reset_state.py
     test_workspace.py
   platform/
     api/
+      test_app_runtime.py
       test_config.py
       test_deps.py
+      test_fixtures.py
     contracts/
+      test_analysis_fixture_baselines.py
       test_schemas.py
     storage/
+      test_analysis_jobs.py
       test_crud.py
     test_canonical_imports.py
+  security/
+    test_fixture_hygiene.py
+    test_rule_coverage.py
   scanner/
     test_executor.py
   smoke/
@@ -43,6 +55,7 @@ tests/
       test_router.py
       test_service.py
     marketplace/
+      test_analysis_planner.py
       test_client.py
       test_router.py
       test_triggers.py
@@ -98,6 +111,10 @@ make test-smoke
 make test-cov
 make test-local
 make test-ci
+make test-security
+.venv/bin/ruff check .
+.venv/bin/python scripts/generate_ui_contracts.py --check
+cd ui && npm run lint:boundaries
 .venv/bin/pytest
 .venv/bin/pytest -m "not smoke and not requires_db and not integration"
 .venv/bin/pytest -m "(requires_db or integration) and not smoke"
@@ -122,6 +139,8 @@ Notes:
   suite (`not smoke`), which includes DB-backed tests.
 - `make test-ci` also builds and waits for the executor container so the smoke
   path can run.
+- `make test-security` currently runs the malicious-fixture hygiene and PoC
+  canary-coverage contract tests under `tests/security/`.
 - `npm run test:smoke` maps to `ui/smoke/run-smoke.mjs`.
 
 ## Smoke Acceptance
@@ -137,19 +156,23 @@ It validates:
 - report retrieval via `/api/activations/{name}`
 - target-observed and automation-health semantics in the exported report
 
-The smoke fixture is currently pinned to `ms-python.python` and uses the
-executor container directly.
+The smoke lane currently covers:
 
-The smoke client now uses `runtime_client`, so both the request handlers and
-the async job worker talk to the real test PostgreSQL database instead of a
-mocked session when exercising `analysis_jobs`.
+- `ms-python.python`
+- layered chat/tool verification honesty on the same `ms-python.python` flow
+- `extrace.fixture-chat`
 
-The smoke lane now includes executor process and log diagnostics when a job
-fails or stops making progress on one step for two minutes. This is aimed at
-the recurring `reload_vscode.py` / CDP reconnect stall so the failure mode is
+The scenario-zero `extrace.fixture-theme` fixture is currently validated
+through contract and executor unit tests rather than smoke acceptance.
+
+The smoke client uses `runtime_client`, so both the request handlers and the
+async job worker talk to the real test PostgreSQL database instead of a mocked
+session when exercising `analysis_jobs`.
+
+The smoke lane includes executor process and log diagnostics when a job fails
+or stops making progress on one step for two minutes. This is aimed at the
+recurring `reload_vscode.py` / CDP reconnect stall so the failure mode is
 visible before the full poll timeout or immediately when the worker fails.
-
-## Coverage Focus
 
 ## Test Lanes
 
@@ -175,36 +198,51 @@ visible before the full poll timeout or immediately when the worker fails.
   failure mode.
 - Marker expression: `smoke`.
 
+### Architecture
+
+- Repo-wide import graph enforcement.
+- Ensures `packages/` stay framework-agnostic, `executor/` avoids `appcore/`
+  and `workflows/`, and workflows reach sandbox mechanics only through
+  `executor.control`.
+
 ### Platform
 
-- settings and dependency injection
-- Pydantic contracts
-- storage CRUD behavior and uniqueness protection
-- canonical import surface
+- Settings and dependency injection.
+- Pydantic contracts.
+- Storage CRUD behavior and uniqueness protection.
+- Durable analysis-job lifecycle and recovery.
 
 ### Workflows
 
-- extension catalog parsing and persistence orchestration
-- activation report file listing/reading behavior
-- marketplace search/download/analyze routes
-- trigger selection and failure handling
+- Extension catalog parsing and persistence orchestration.
+- Activation report file listing/reading behavior.
+- Marketplace search/download/analyze routes.
+- Trigger selection and failure handling.
 
 ### Executor
 
-- Docker exec wrapper behavior
-- Playwright automation helpers
-- monitor/report generation and workspace reset
-- entrypoint flag behavior
+- Docker exec wrapper behavior.
+- Playwright automation helpers.
+- Monitor/report generation and workspace reset.
+- Entrypoint flag behavior and reload handling.
+
+### Security
+
+- Malicious-fixture manifest hygiene.
+- PoC canary coverage contracts for A1/A2/A4/A6.
+- CI/local guard expectations around `make test-security` and
+  `make test-security-live`.
 
 ### UI
 
-- route pages under `ui/src/features/`
-- shared evidence and simulation widgets
-- adapters and rule-draft helpers under `ui/src/lib/`
+- Route pages under `ui/src/features/`.
+- Shared evidence and simulation widgets.
+- Adapters and rule-draft helpers under `ui/src/lib/`.
 
 ## Current Gaps
 
-- Smoke coverage is still centered on the pinned `ms-python.python` fixture.
+- Smoke coverage is still centered on `ms-python.python` plus one chat-only
+  benign fixture.
 - Executor reliability is the most failure-prone path, so unit coverage still
   needs periodic backing from real-container smoke runs.
 - Activation reports remain artifact-first and file-backed under `output/`, but
@@ -213,14 +251,22 @@ visible before the full poll timeout or immediately when the worker fails.
 - Reload failures now fail quickly with phase-tagged diagnostics and stale
   process cleanup, but executor-side CDP/workbench stability still needs real
   smoke coverage because it remains the most brittle runtime seam.
-- The SPA has route-level coverage, but API-contract drift still matters because
-  there is no generated client.
+- The SPA now has generated TypeScript contracts, but the request client and
+  view-model adapters remain hand-written and can still drift if the contract
+  generation step is skipped.
+- The security lane currently validates fixture manifests and PoC class
+  coverage, not production detection evaluation against runnable malicious
+  payloads.
 
 ## Expectations for New Work
 
 - New shared module in `appcore/`: add or update tests under `tests/platform/`.
+- New package-level contract or planner logic: add or update tests under
+  `tests/platform/` or `tests/architecture/` as appropriate.
 - New workflow behavior: add tests under the matching `tests/workflows/<name>/`.
 - New executor helper: add or update `tests/executor/` and, when needed,
   `tests/scanner/test_executor.py`.
 - New end-to-end analysis reliability behavior: extend `tests/smoke/`.
+- Security-fixture or detection-contract work: extend `tests/security/` and
+  keep `make test-security` passing.
 - Database schema changes require an Alembic migration plus updated tests.

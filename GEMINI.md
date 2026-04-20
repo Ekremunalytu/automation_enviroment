@@ -1,13 +1,26 @@
 # GEMINI.md
 
-Read `AGENTS.md` before doing anything substantial. It contains the authoritative rules.
+`Last Updated: 2026-04-20`
+
+Read `AGENTS.md` before doing anything substantial. It contains the
+authoritative rules.
+
+## Current Phase
+
+- Week 4 stabilization is closed (`2026-04-20`).
+- Security scaffolding already exists under
+  `packages/analysis_contracts/detection/`, `extensions/malicious/`, and
+  `tests/security/`.
+- Use `documents/REFACTOR_STATUS.md` for the current closure state.
 
 ## Context-Safe Workflow
 
-- Never expand to the whole repository unless the task truly spans multiple systems.
+- Never expand to the whole repository unless the task truly spans multiple
+  systems.
 - Start from the narrowest entrypoint and the matching tests.
 - Treat `docs/` and `documents/` as secondary references; verify against code.
-- Skip `extensions/`, `output/`, `node_modules/`, `legacy_ui/`, and `__pycache__/` unless directly needed.
+- Skip `extensions/`, `output/`, `node_modules/`, `legacy_ui/`, and
+  `__pycache__/` unless directly needed.
 
 ## Task Routing
 
@@ -29,6 +42,7 @@ Read `AGENTS.md` before doing anything substantial. It contains the authoritativ
   - `tests/workflows/marketplace/`
   - `tests/smoke/`
 - Executor:
+  - `executor/control.py`
   - `executor/host.py`
   - `executor/container/`
   - `executor/flows/playwright/`
@@ -38,16 +52,25 @@ Read `AGENTS.md` before doing anything substantial. It contains the authoritativ
   - `ui/src/features/`
   - `ui/src/components/`
   - `ui/src/lib/`
+- Security:
+  - `documents/adrs/0002-threat-model.md`
+  - `documents/adrs/0003-detection-taxonomy.md`
+  - `documents/adrs/0004-malicious-fixture-policy.md`
+  - `extensions/malicious/`
+  - `tests/security/`
 
 ## Canonical Structure
 
 - `appcore/`: shared platform code
+- `packages/`: framework-agnostic contracts and planner logic
 - `workflows/`: business workflows
 - `executor/`: Docker-isolated sandbox runtime
-- `ui/`: Vite + React + Tailwind analyst console
-- `tests/`: backend and executor test suites
+- `ui/`: Vite + React analyst console
+- `tests/`: backend, security, and executor test suites
 
-Do not add new business logic to top-level legacy directories such as `routers/`, `scanner/`, `core/`, `database/`, `crud/`, `models/`, or `schemas/`.
+Do not add new business logic to top-level legacy directories such as
+`routers/`, `scanner/`, `core/`, `database/`, `crud/`, `models/`, or
+`schemas/`.
 
 ## Invariants
 
@@ -71,6 +94,7 @@ Do not add new business logic to top-level legacy directories such as `routers/`
 make dev
 make test-local
 make check-all
+make test-security
 make migrate
 make exec-up
 make exec-run

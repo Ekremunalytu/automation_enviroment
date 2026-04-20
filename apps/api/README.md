@@ -1,12 +1,16 @@
 # apps/api
 
-Week 1 skeleton for the future canonical API app surface.
+`Last Updated: 2026-04-20`
 
-This directory is intentionally documentation-only in Week 1. Runtime entry and
-behavior still live in the current backend layout.
+This directory is a historical placeholder, not the canonical API runtime
+surface.
 
-Planned role:
+Current reality:
 
-- host the canonical FastAPI app entrypoint after the refactor advances
-- depend on shared packages rather than owning planner or contract internals
-- stay thin at the request/response boundary
+- FastAPI entry and behavior live in `main.py`
+- workflow orchestration lives in `workflows/`
+- shared platform code lives in `appcore/`
+- framework-agnostic contracts and planner logic live in `packages/`
+
+Do not treat `apps/api/` as an active migration target unless a new plan or ADR
+promotes it explicitly.

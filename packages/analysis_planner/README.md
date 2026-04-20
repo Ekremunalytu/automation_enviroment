@@ -1,5 +1,7 @@
 # packages/analysis_planner
 
+`Last Updated: 2026-04-20`
+
 Week 3 planner extraction package for layered marketplace trigger selection.
 
 Planner logic is split into small state-free modules:
@@ -16,4 +18,5 @@ Planner logic is split into small state-free modules:
   serialization, slug/label helpers, and payload file writing
 
 This package must stay independent from web, DB, and executor modules. It may
-depend on `packages.analysis_contracts` plus the Python standard library.
+depend on `packages.analysis_contracts` plus the Python standard library. The
+repo-wide import-graph tests enforce that boundary.

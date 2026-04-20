@@ -249,7 +249,7 @@ def reload_window_under_monitoring(browser: Browser, page: Page, *, deps: Any) -
         return deps.vscode.reload_workbench_window(
             browser,
             page,
-            reconnect_timeout_ms=30_000,
+            reconnect_timeout_ms=deps.vscode.DEFAULT_RECONNECT_TIMEOUT_MS,
             log=print,
         )
     except deps.vscode.ReloadWindowError as reconnect_error:

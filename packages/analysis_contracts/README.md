@@ -1,15 +1,23 @@
 # packages/analysis_contracts
 
-Week 1 skeleton for backend-owned analysis contracts.
+`Last Updated: 2026-04-20`
 
-No runtime models are moved here yet. Week 2 is expected to introduce the first
-authoritative Pydantic v2 schemas for:
+This package owns backend-defined analysis contracts that must stay usable
+across API, workflow, executor, and UI boundaries.
 
-- activation report payloads
-- trigger payloads
-- related analysis job DTO surfaces when needed
+Current surfaces:
 
-Week 5 opens `packages/analysis_contracts/detection/` as the reserved
-framework-agnostic surface for detection-owned contracts and helpers. Runtime,
-storage, and UI code must continue to depend only on exported contracts, not on
-rule implementations.
+- `contracts.py`
+  - authoritative Pydantic v2 models for `ActivationReport`,
+    `TriggerPayload`, and related nested record types
+- `report_invariants.py`
+  - invariant checks used to keep exported activation-report semantics aligned
+- `detection/`
+  - reserved framework-agnostic namespace for W5 `DetectionReport` DTOs and
+    detection-owned helpers
+
+Rules:
+
+- do not import from `appcore/`, `workflows/`, `executor/`, or `ui/`
+- keep public contract exports rooted at the package boundary
+- keep framework wiring and persistence adapters outside this package

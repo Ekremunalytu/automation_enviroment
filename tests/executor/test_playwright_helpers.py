@@ -641,7 +641,7 @@ def test_vscode_connect_to_ready_workbench_uses_timeout_and_logs() -> None:
     assert connected_page is page
     assert captured_calls == [(vscode.CDP_URL, 4321)]
     assert reload_logs == [
-        "[reload] connect: Connecting to VS Code over CDP at " f"{vscode.CDP_URL}...",
+        f"[reload] connect: Connecting to VS Code over CDP at {vscode.CDP_URL}...",
         (
             "[reload] connect: Connected to ready workbench page "
             "title='[Extension Development Host] Running Extensions - workspace - Visual Studio Code' "

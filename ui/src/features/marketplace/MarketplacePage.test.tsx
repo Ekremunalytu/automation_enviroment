@@ -113,7 +113,9 @@ describe("MarketplacePage", () => {
     fireEvent.click(downloadButton);
     fireEvent.click(downloadButton);
 
-    expect(apiClient.downloadMarketplaceExtension).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(apiClient.downloadMarketplaceExtension).toHaveBeenCalledTimes(1);
+    });
 
     if (!resolveDownload) {
       throw new Error("Download resolver was not initialized.");

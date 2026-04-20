@@ -23,7 +23,7 @@ import vscode  # noqa: E402
 from playwright.sync_api import Error as PlaywrightError  # noqa: E402
 from playwright.sync_api import sync_playwright  # noqa: E402
 
-_RELOAD_TIMEOUT_MS = 30_000
+_RELOAD_TIMEOUT_MS = vscode.DEFAULT_RECONNECT_TIMEOUT_MS
 """Maximum time (ms) to wait for workbench to become ready after reload."""
 
 

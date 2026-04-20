@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib
+import re
 import sys
 from unittest.mock import patch
 
@@ -59,7 +60,7 @@ def test_create_app_fails_fast_when_job_storage_is_unavailable(
         ),
         pytest.raises(
             RuntimeError,
-            match=(
+            match=re.escape(
                 "Marketplace analysis job storage is unavailable; run migrations "
                 "and verify DB connectivity before starting the API."
             ),

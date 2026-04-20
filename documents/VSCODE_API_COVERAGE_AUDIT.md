@@ -1,6 +1,6 @@
 # VS Code API Coverage Audit
 
-`Last Updated: 2026-04-15`
+`Last Updated: 2026-04-20`
 
 This document summarizes how ExTrace currently maps VS Code extension behavior
 into trigger planning and verification.
@@ -17,6 +17,17 @@ The important distinction in the current implementation is:
     metadata
 
 These are not the same thing.
+
+## Baseline Benign Fixtures
+
+The current benign reference corpus used by docs and tests is:
+
+- `ms-python.python`
+  - broad layered-pass reference fixture
+- `extrace.fixture-chat`
+  - isolated `onChatParticipant` benign fixture
+- `extrace.fixture-theme`
+  - scenario-zero benign fixture used to validate non-executable semantics
 
 ## Capability Status
 
@@ -178,11 +189,12 @@ even though some of them now have partial scaffolding elsewhere in the repo:
   flows still prove stimulation better than they prove extension-specific
   follow-through.
 
-## Next Candidate Expansions After Week 4A
+## Current Follow-On Candidates After Week 4 Closure
 
 Reporting-semantics cleanup and chat/tooling runtime verification closure were
-completed in Week 4A of `REFACTOR_EXECUTION_PLAN.md`. The remaining items below
-stay outside that phase.
+completed in Week 4A of `REFACTOR_EXECUTION_PLAN.md`, and the broader Week 4
+closure is now tracked in `REFACTOR_STATUS.md`. The remaining items below stay
+outside that closed stabilization scope.
 
 - `comments`
   - promote harness comment-thread support into trigger planning and report

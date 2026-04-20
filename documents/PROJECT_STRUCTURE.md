@@ -1,6 +1,6 @@
 # Project Structure
 
-`Last Updated: 2026-04-16`
+`Last Updated: 2026-04-20`
 
 This is the current top-level layout and placement guidance for the refactored
 repository.
@@ -9,6 +9,7 @@ repository.
 
 ```text
 alembic/                   Schema migrations
+apps/                      Historical placeholder app stubs (not canonical)
 appcore/                   Shared platform code
 docker/                    API container build files
 docs/                      Narrow risk notes outside the main doc set
@@ -16,6 +17,7 @@ documents/                 Canonical project documentation
 executor/                  Sandbox host wrapper + container runtime
 extensions/                Downloaded/extracted VSIX fixtures and samples
 legacy_ui/                 Archived Streamlit UI snapshot
+packages/                  Framework-agnostic contracts and analysis logic
 output/                    Generated reports and runtime artifacts
 scripts/                   Small maintenance helpers
 tests/                     Python test suite
@@ -26,6 +28,7 @@ workflows/                 Canonical business workflows
 ## Placement Rules
 
 - Put reusable platform code in `appcore/`.
+- Put framework-agnostic contracts or planning logic in `packages/`.
 - Put workflow-specific routers, services, parsers, and trigger logic in the
   matching `workflows/<name>/` package.
 - Put sandbox runtime code in `executor/`.
@@ -33,6 +36,8 @@ workflows/                 Canonical business workflows
 - Keep `legacy_ui/` archival unless a migration reference is required.
 - Keep generated artifacts in `output/`; do not treat them as source code.
 - Keep extension fixtures and downloaded VSIX artifacts in `extensions/`.
+- Treat `apps/` as documentation-only placeholders, not as canonical runtime
+  surfaces.
 - If a change affects persisted catalog schema, pair it with Alembic updates in
   `alembic/versions/`.
 
@@ -45,9 +50,12 @@ workflows/                 Canonical business workflows
 - `appcore/storage/models.py`
 - `appcore/storage/crud.py`
 - `appcore/contracts/schemas.py`
+- `packages/analysis_contracts/`
+- `packages/analysis_planner/`
 - `workflows/extension_catalog/`
 - `workflows/activation_reports/`
 - `workflows/marketplace/`
+- `executor/control.py`
 - `executor/host.py`
 
 ## Workflow Layout
@@ -107,11 +115,13 @@ Notes:
 - Evidence, inspector, and rule-draft behavior is largely composed from
   `ui/src/components/evidence/` plus adapters and draft helpers in
   `ui/src/lib/`.
+- Backend-owned UI contract types are generated into `ui/src/lib/types/`.
 
 ## Executor Layout
 
 ```text
 executor/
+  control.py
   host.py
   container/
     Dockerfile
@@ -129,22 +139,53 @@ executor/
       debug.py
       editor.py
       entrypoint.py
+      entrypoint_cli.py
+      entrypoint_runner.py
+      entrypoint_triggers.py
       health.py
+      health_reconciliation.py
+      health_runtime_facts.py
+      health_summary.py
       keyboard.py
       language_samples.py
       monitor.py
       panel.py
       reload_vscode.py
       report_builder.py
+      runtime_capture/
+        _shared.py
+        events.py
+        extension_host.py
+        filesystem.py
+        log_summary.py
+        network.py
+      scenarios/
+        common.py
+        editing.py
+        registry.py
+        runtime.py
+        workbench.py
       reset_state.py
       settings.py
       sidebar.py
+      signal_facts.py
+      signal_policy.py
       signals.py
       stimulus.py
+      stimulus_attempts.py
+      stimulus_materializers.py
+      stimulus_passes.py
+      stimulus_prerequisites.py
+      stimulus_types.py
       terminal.py
       triggers.py
       vscode.py
       workspace.py
+      workspace_seed_data.py
+      workspace_seed_home.py
+      workspace_seed_project_1.py
+      workspace_seed_project_2.py
+      workspace_seed_project_3.py
 ```
 
 ## Test Layout
@@ -153,19 +194,35 @@ executor/
 tests/
   conftest.py
   test_health.py
+  architecture/
+    test_import_graph.py
   executor/
+    test_container_dockerfile.py
     test_playwright_automation.py
     test_playwright_commands.py
     test_playwright_entrypoint.py
+    test_playwright_helpers.py
     test_playwright_monitor.py
+    test_playwright_reload.py
     test_playwright_stimulus.py
     test_reset_state.py
     test_workspace.py
   platform/
     api/
+      test_app_runtime.py
+      test_config.py
+      test_deps.py
+      test_fixtures.py
     contracts/
+      test_analysis_fixture_baselines.py
+      test_schemas.py
     storage/
+      test_analysis_jobs.py
+      test_crud.py
     test_canonical_imports.py
+  security/
+    test_fixture_hygiene.py
+    test_rule_coverage.py
   scanner/
     test_executor.py
   smoke/
@@ -183,22 +240,32 @@ UI tests live under `ui/src/**/*.test.ts(x)`.
 - `extensions/`
   - downloaded VSIX artifacts, extracted extension directories, and pinned test
     fixtures
+  - `extensions/malicious/` contains malicious-fixture manifests and canary
+    scaffold metadata
 - `output/`
-  - activation reports and async analysis job JSON snapshots
+  - activation reports and executor-side runtime artifacts
 - `documents/`
   - architecture, executor, testing, roadmap, and semantics notes
 - `docs/`
   - narrower risk notes such as `docs/risks.md`
+- `apps/`
+  - documentation-only historical placeholders, not an active runtime surface
 
 ## Quick Change Map
 
 - Shared config or dependency injection: `appcore/api/`
 - Shared schema or model change: `appcore/contracts/`, `appcore/storage/`,
   `alembic/versions/`, matching tests
+- Framework-agnostic contracts or planner logic: `packages/analysis_contracts/`
+  or `packages/analysis_planner/`
 - Catalog feature: `workflows/extension_catalog/`
 - Activation report behavior: `workflows/activation_reports/`
 - Marketplace download/analysis feature: `workflows/marketplace/`
-- Sandbox runtime behavior: `executor/host.py` or `executor/flows/playwright/`
+- Sandbox runtime behavior: `executor/control.py`, `executor/host.py`, or
+  `executor/flows/playwright/`
 - UI route or workspace behavior: `ui/src/features/`
 - UI shared primitive: `ui/src/components/`
 - UI API/adapters/rule logic: `ui/src/lib/`
+- Security scaffold or malicious fixture policy:
+  `packages/analysis_contracts/detection/`, `extensions/malicious/`,
+  `tests/security/`, and the ADRs under `documents/adrs/`

@@ -224,6 +224,7 @@ def test_ms_python_analysis_smoke(runtime_client: TestClient) -> None:
     job = start_response.json()
     completed_job = _poll_job(runtime_client, str(job["job_id"]))
 
+    _skip_if_executor_reset_failed(completed_job)
     _assert_completed_job(str(job["job_id"]), completed_job)
     report_name = str(completed_job["report_path"])
     report_response = runtime_client.get(f"/api/activations/{report_name}")
@@ -274,6 +275,7 @@ def test_ms_python_layered_analysis_smoke_never_reads_as_clean_when_chat_tool_ve
     job = start_response.json()
     completed_job = _poll_job(runtime_client, str(job["job_id"]))
 
+    _skip_if_executor_reset_failed(completed_job)
     _assert_completed_job(str(job["job_id"]), completed_job)
     report_name = str(completed_job["report_path"])
     report_response = runtime_client.get(f"/api/activations/{report_name}")
@@ -333,6 +335,7 @@ def test_fixture_chat_analysis_smoke(runtime_client: TestClient) -> None:
     job = start_response.json()
     completed_job = _poll_job(runtime_client, str(job["job_id"]))
 
+    _skip_if_executor_reset_failed(completed_job)
     _assert_completed_job(str(job["job_id"]), completed_job)
     report_name = str(completed_job["report_path"])
     report_response = runtime_client.get(f"/api/activations/{report_name}")

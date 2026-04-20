@@ -340,7 +340,7 @@ export interface ActivationReportDto {
   extension_host_output_lines?: number;
   extension_host_output?: string;
   log_file?: string;
-  _metadata?: ActivationReportMetadataDto;
+  _metadata?: ActivationReportMetadataDto | null;
 }
 
 export interface MarketplaceExtensionDto {
@@ -379,7 +379,7 @@ export interface AnalyzeJobStatusDto {
   scenario?: string | null;
   current_step?: string | null;
   message: string;
-  steps: AnalyzeJobStepDto[];
+  steps?: AnalyzeJobStepDto[];
   report_path?: string | null;
   install_output?: string | null;
   automation_output?: string | null;

@@ -57,7 +57,7 @@ def test_reload_window_closes_browser_on_success(monkeypatch) -> None:
 
     reload_vscode.reload_window()
 
-    assert reload_calls == [(browser, page, 30_000, print)]
+    assert reload_calls == [(browser, page, reload_vscode._RELOAD_TIMEOUT_MS, print)]
     assert disconnect_calls == [browser]
 
 

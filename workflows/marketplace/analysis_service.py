@@ -63,9 +63,7 @@ def _monitoring_failure_message(exc: ExecutorError) -> str:
     detail = str(exc).strip()
     if not detail:
         return "Sandbox automation failed before the report could be finalized."
-    return (
-        "Sandbox automation failed before the report could be finalized: " f"{detail}"
-    )
+    return f"Sandbox automation failed before the report could be finalized: {detail}"
 
 
 def _open_job_session() -> Session:

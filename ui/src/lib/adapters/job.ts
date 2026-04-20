@@ -25,8 +25,9 @@ function formatDate(epoch?: number | null) {
 }
 
 export function adaptJob(dto: AnalyzeJobStatusDto): SimulationViewModel {
-  const completedSteps = dto.steps.filter((step) => step.status === "completed").length;
-  const progressPct = dto.steps.length ? Math.round((completedSteps / dto.steps.length) * 100) : 0;
+  const steps = dto.steps ?? [];
+  const completedSteps = steps.filter((step) => step.status === "completed").length;
+  const progressPct = steps.length ? Math.round((completedSteps / steps.length) * 100) : 0;
   const warmupCopy =
     dto.status === "running" && !dto.report_path
       ? "Executor is still warming up. Trigger resolution and report bootstrapping are in flight."
@@ -38,11 +39,11 @@ export function adaptJob(dto: AnalyzeJobStatusDto): SimulationViewModel {
     jobId: dto.job_id,
     title: `${dto.publisher}.${dto.name}@${dto.version}`,
     status: dto.status,
-    progressLabel: `${completedSteps}/${dto.steps.length} steps complete`,
-    currentStepLabel: formatStep(dto.current_step || dto.steps.find((step) => step.status === "running")?.name || null),
+    progressLabel: `${completedSteps}/${steps.length} steps complete`,
+    currentStepLabel: formatStep(dto.current_step || steps.find((step) => step.status === "running")?.name || null),
     progressPct,
     warmupCopy,
     lastUpdatedLabel: formatDate(dto.updated_at),
-    recentMessages: dto.steps.map((step) => `${formatStep(step.name)}: ${step.message}`).slice(-4),
+    recentMessages: steps.map((step) => `${formatStep(step.name)}: ${step.message}`).slice(-4),
   };
 }

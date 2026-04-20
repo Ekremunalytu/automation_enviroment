@@ -55,9 +55,10 @@ call HTTP APIs, or invoke executor helpers.
 
 ### 5. App Skeleton Decision
 
-An `apps/` top-level skeleton is not introduced in Week 4. The current repo
-keeps runtime orchestration in `workflows/`, platform code in `appcore/`,
-executor mechanics in `executor/`, and reusable logic in `packages/`.
+The current repo keeps runtime orchestration in `workflows/`, platform code in
+`appcore/`, executor mechanics in `executor/`, and reusable logic in
+`packages/`. Historical `apps/` placeholder directories may still exist as
+documentation-only stubs, but they are not canonical runtime surfaces.
 
 ## Consequences
 

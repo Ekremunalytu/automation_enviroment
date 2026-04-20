@@ -95,19 +95,20 @@ retention:
 
 ### 4. Test Integration
 
-Three Make targets, mutually exclusive by network/env posture:
+Three execution surfaces, mutually exclusive by network/env posture:
 
-- `make test-security` — T1 + T2 only; runs in CI; no external network.
+- `make test-security` — security scaffold lane for T1/T2 policy checks;
+  CI-targeted; no external network.
 - `make test-security-live` — T3; local only; manual confirmation.
-- `make test-baselines` — existing benign-only tests; unchanged.
+- benign baseline tests continue through the normal Python test lanes
+  (`tests/platform/`, `tests/executor/`, `tests/smoke/`).
 
-Rule coverage matrix (`tests/security/test_rule_coverage.py`) asserts:
+Current scaffold coverage checks (`tests/security/test_rule_coverage.py`)
+assert:
 
-- every production rule from ADR 0003 has at least one T1 fixture that
-  fires it
-- every T2 and T3 fixture has at least one rule that fires on it
-- no benign fixture in `extensions/` (outside `malicious/`) fires any
-  production rule
+- T1 canaries cover the PoC adversary classes A1/A2/A4/A6
+- every T1 fixture declares at least one detection contract in `must_fire`
+- no T3 fixtures are present in the current PoC scaffold
 
 ### 5. Sourcing Policy
 
@@ -125,11 +126,11 @@ Rule coverage matrix (`tests/security/test_rule_coverage.py`) asserts:
 
 ### 6. Repository Guardrails
 
-The following tests/hooks are required:
+Target guardrail set:
 
 - `tests/security/test_fixture_hygiene.py`:
   - every subdirectory of `extensions/malicious/` has a `LABEL.yaml`
-  - every `LABEL.yaml` parses under the manifest schema
+  - every `LABEL.yaml` satisfies the repo fixture contract
   - T3 fixtures are never referenced from files outside `extensions/malicious/`
     and `make test-security-live`
 - Pre-commit hook (`scripts/check_fixture_install.py`):
@@ -139,6 +140,17 @@ The following tests/hooks are required:
   - `make test-security` runs with network policy denying external egress
   - CI job refuses to run `make test-security-live` (defense in depth; the
     Makefile target already refuses under `CI`)
+
+Current implementation status (`2026-04-20`):
+
+- present:
+  - `tests/security/test_fixture_hygiene.py`
+  - `tests/security/test_rule_coverage.py`
+  - `make test-security`
+  - `make test-security-live`
+- not yet wired:
+  - `scripts/check_fixture_install.py`
+  - dedicated CI execution of `make test-security` with explicit egress policy
 
 ### 7. Output Handling for Malicious Runs
 
@@ -183,9 +195,15 @@ These responsibilities are operator-level, not platform-enforced.
 
 ### Follow-On
 
-- Implement the `extensions/malicious/` skeleton with one T1 canary per
-  ADR 0002 class (A1-A7) during W5.
-- Add the hygiene and coverage tests before any production detection rule
-  is merged.
+- Initial scaffold landed by `2026-04-20`:
+  - `extensions/malicious/README.md`
+  - T1 canary manifests for A1, A2, A4, and A6
+  - `tests/security/test_fixture_hygiene.py`
+  - `tests/security/test_rule_coverage.py`
+  - `make test-security` and `make test-security-live`
+- Remaining implementation gaps:
+  - dedicated CI execution of `make test-security` with explicit egress policy
+  - install-guard automation for `extensions/malicious/`
+  - T2/T3 fixtures and runnable detection evaluation against them
 - Revisit T3 handling once a hardened analyst environment specification
   exists; it is currently operator-defined.

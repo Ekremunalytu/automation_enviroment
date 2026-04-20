@@ -47,6 +47,7 @@ The following rules apply:
 
 ### Follow-On
 
-- review this ADR again after Week 4
-- promote any Week 5+ runtime changes only if the repo is stable enough to
+- reviewed after Week 4 closure on `2026-04-20`; the single-host appliance
+  model still stands for W5 security work
+- promote any post-W5 runtime changes only if the repo is stable enough to
   absorb them

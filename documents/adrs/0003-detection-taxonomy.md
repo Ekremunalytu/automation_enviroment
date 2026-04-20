@@ -172,7 +172,8 @@ escalate a verdict past `suspicious`.
 
 ### Follow-On
 
-- Implement `packages/analysis_contracts/detection/` in W5.
+- Populate the existing `packages/analysis_contracts/detection/` namespace with
+  authoritative `DetectionReport` DTOs in W5.
 - Extend `make test-security` to validate rule lifecycle gates (ADR 0004).
 - Revisit severity and verdict rollup thresholds after the first 20 rules
   have been calibrated against real fixtures; thresholds are not sacred.

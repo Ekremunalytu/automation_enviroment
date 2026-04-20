@@ -1,42 +1,47 @@
 # Agent Context
 
-`Last Updated: 2026-04-17`
+`Last Updated: 2026-04-20`
 
 This is the thin-context project map for coding agents. Read root `AGENTS.md`
 for hard rules first; use this file for fast task routing.
 
-If older docs or task notes conflict with the active refactor direction,
-check `documents/REFACTOR_EXECUTION_PLAN.md` (Weeks 1-4B, binding) and
+If older docs or task notes conflict with the active refactor direction, check
+`documents/REFACTOR_STATUS.md` first, then
+`documents/REFACTOR_EXECUTION_PLAN.md` (historical Week 1-4 plan) and
 `documents/REFACTOR_OPTIMIZATION.md` §10 (W0-W7 7-week window). Treat
 `documents/REFACTOR_EXPANSION_NOTES.md` as non-binding follow-on guidance.
 
-## Project Phase Snapshot (2026-04-17)
+## Project Phase Snapshot (2026-04-20)
 
-- Weeks 1-4B: closure in progress; W4 remains the gate before W5.
+- Week 4 stabilization closed on `2026-04-20`; that closure remains the gate
+  before any broader W5 detection work reopens runtime boundaries.
 - W0 (security foundations, spec): complete — ADRs 0002-0004 written.
 - W1-W4: automation stabilization (legacy cleanup, import-graph,
   executor determinism + modularization, sandbox boundary).
-- W5-W7: security implementation (detection rules, malicious fixture
-  corpus, UI detection surface).
+- W5-W7: security implementation (detection rules, malicious fixture corpus,
+  UI detection surface); initial scaffolding already exists in
+  `packages/analysis_contracts/detection/`, `extensions/malicious/`, and
+  `tests/security/`.
 
 ## Read Path
 
 1. `AGENTS.md`
 2. this file
 3. only the subsystem docs the task actually touches
-4. `documents/REFACTOR_EXECUTION_PLAN.md` when the task touches ongoing
-   refactor work or document conflicts
+4. `documents/REFACTOR_STATUS.md` for current closure state and W5 gate
+5. `documents/REFACTOR_EXECUTION_PLAN.md` when the task touches historical
+   refactor scope or document conflicts
 
 ## Core Shape
 
 - Entry point: `main.py`
 - Canonical backend: `appcore/`, `workflows/`, `executor/`
 - Reusable framework-agnostic packages: `packages/` (contracts, planner,
-  engine; detection lives here in W5+)
+  engine; detection scaffolding lives under `analysis_contracts/detection/`)
 - Canonical frontend: `ui/`
 - Tests: `tests/`
 - Legacy top-level dirs `routers/`, `scanner/`, `core/`, `database/`, `crud/`,
-  `models/`, and `schemas/` are removed from the repo surface
+  `models/`, and `schemas/` are removed from the canonical repo surface
 
 ## Non-Negotiables
 
@@ -76,19 +81,21 @@ check `documents/REFACTOR_EXECUTION_PLAN.md` (Weeks 1-4B, binding) and
   - `executor/host.py`
   - `executor/container/`
   - `executor/flows/playwright/`
+  - `executor/flows/playwright/runtime_capture/`
   - `tests/executor/`
 - UI:
   - `ui/src/app/`
   - `ui/src/features/`
   - `ui/src/components/`
   - `ui/src/lib/`
-- Security (spec today, code in W5):
+- Security (scaffold now, implementation still W5):
   - `documents/adrs/0002-threat-model.md`
   - `documents/adrs/0003-detection-taxonomy.md`
   - `documents/adrs/0004-malicious-fixture-policy.md`
   - `documents/adrs/0005-packages-charter.md`
-  - `extensions/malicious/` (planned)
-  - `tests/security/` (planned)
+  - `packages/analysis_contracts/detection/`
+  - `extensions/malicious/`
+  - `tests/security/`
 
 ## API Shape
 
@@ -109,6 +116,7 @@ check `documents/REFACTOR_EXECUTION_PLAN.md` (Weeks 1-4B, binding) and
 - `make dev`
 - `make test-local`
 - `make check-all`
+- `make test-security`
 - `make migrate`
 - `make exec-up`
 - `make exec-run`
@@ -129,10 +137,9 @@ check `documents/REFACTOR_EXECUTION_PLAN.md` (Weeks 1-4B, binding) and
 - `documents/VSCODE_API_COVERAGE_AUDIT.md`
   - trigger and coverage semantics
 - `documents/adrs/0002-threat-model.md`
-  - adversary classes (A1-A7), trust boundaries; read before any
-    detection work
+  - adversary classes (A1-A7), trust boundaries; read before any detection work
 - `documents/adrs/0003-detection-taxonomy.md`
-  - DetectionReport contract, severity/confidence, rule lifecycle
+  - `DetectionReport` contract, severity/confidence, rule lifecycle
 - `documents/adrs/0004-malicious-fixture-policy.md`
   - fixture tiering, CI guardrails, operator responsibilities
 - `documents/REFACTOR_OPTIMIZATION.md`

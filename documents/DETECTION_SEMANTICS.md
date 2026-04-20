@@ -1,6 +1,6 @@
 # Detection Semantics
 
-`Last Updated: 2026-04-17`
+`Last Updated: 2026-04-20`
 
 This document defines the meaning of the current exported **activation
 report** contract. Its purpose is to keep report generation, API
@@ -37,6 +37,7 @@ The current report is built from five evidence layers:
 These layers are assembled primarily in:
 
 - `executor/flows/playwright/monitor.py`
+- `executor/flows/playwright/runtime_capture/`
 - `executor/flows/playwright/health.py`
 - `executor/flows/playwright/signals.py`
 - `executor/flows/playwright/report_builder.py`

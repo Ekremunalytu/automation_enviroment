@@ -12,7 +12,7 @@ from playwright.sync_api import Error as PlaywrightError
 CDP_URL = f"http://localhost:{os.environ.get('EXECUTOR_CDP_PORT', '9222')}"
 
 _DEFAULT_READY_TIMEOUT_MS = 10_000
-_DEFAULT_RECONNECT_TIMEOUT_MS = 30_000
+DEFAULT_RECONNECT_TIMEOUT_MS = 60_000
 _DEFAULT_RELOAD_TEARDOWN_WAIT_MS = 3_000
 _DEFAULT_EXTENSION_SETTLE_MS = 5_000
 
@@ -92,7 +92,7 @@ def reconnect_to_workbench(
     browser: Browser,
     *,
     preferred_page: Page | None = None,
-    timeout_ms: int = 30_000,
+    timeout_ms: int = DEFAULT_RECONNECT_TIMEOUT_MS,
     probe_timeout_ms: int = 2_000,
     poll_interval_ms: int = 250,
 ) -> Page:
@@ -142,7 +142,7 @@ def connect(playwright: Playwright) -> tuple[Browser, Page]:
 def connect_to_ready_workbench(
     playwright: Playwright,
     *,
-    timeout_ms: int = _DEFAULT_RECONNECT_TIMEOUT_MS,
+    timeout_ms: int = DEFAULT_RECONNECT_TIMEOUT_MS,
     log: ReloadLogger = None,
 ) -> tuple[Browser, Page]:
     """Connect to CDP and return a ready VS Code workbench page."""
@@ -178,7 +178,7 @@ def reload_workbench_window(
     page: Page,
     *,
     pre_ready_timeout_ms: int = _DEFAULT_READY_TIMEOUT_MS,
-    reconnect_timeout_ms: int = _DEFAULT_RECONNECT_TIMEOUT_MS,
+    reconnect_timeout_ms: int = DEFAULT_RECONNECT_TIMEOUT_MS,
     teardown_wait_ms: int = _DEFAULT_RELOAD_TEARDOWN_WAIT_MS,
     extension_settle_ms: int = _DEFAULT_EXTENSION_SETTLE_MS,
     log: ReloadLogger = None,

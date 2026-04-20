@@ -23,7 +23,7 @@ export function RunActivityRail({
         </div>
 
         <div className="space-y-3">
-          {job.steps.map((step, index) => {
+          {(job.steps ?? []).map((step, index) => {
             const tone =
               step.status === "completed"
                 ? "success"

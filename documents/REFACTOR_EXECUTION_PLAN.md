@@ -1,10 +1,15 @@
 # Refactor Execution Plan
 
-`Last Updated: 2026-04-16`
+`Last Updated: 2026-04-20`
 
 This is the canonical execution plan for the current refactor. It keeps the
 first four weeks decision-complete and intentionally defers heavier Week 5+
 ideas into a separate note: `REFACTOR_EXPANSION_NOTES.md`.
+
+> Status note (2026-04-20): Week 4 closure is green. Use
+> `REFACTOR_STATUS.md` for the current closure evidence and W5 gate. This file
+> now serves primarily as the historical Week 1-4 plan plus implementation
+> snapshots.
 
 ## Context
 
@@ -296,6 +301,15 @@ Week 5 and later are intentionally deferred. Use
 `REFACTOR_EXPANSION_NOTES.md` for candidate follow-on work after Week 4A and
 Week 4B are complete and stable. Items promoted into Week 4A are no longer
 treated as Week 5+ candidates.
+
+Current state note:
+
+- Week 4 closure evidence and deferred W5 blockers now live in
+  `REFACTOR_STATUS.md`.
+- Initial W5 scaffold has landed in
+  `packages/analysis_contracts/detection/`, `extensions/malicious/`,
+  `tests/security/`, and the Makefile security targets, but broader detection
+  implementation remains pending.
 
 ### 7-Week Window Integration (2026-04-17)
 
