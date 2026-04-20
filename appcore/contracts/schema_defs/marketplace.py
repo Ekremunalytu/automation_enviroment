@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from packages.analysis_contracts import DetectionReport
+
 
 class MarketplaceExtension(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -78,6 +80,7 @@ class AnalyzeJobStatusResponse(BaseModel):
     started_at: float | None = None
     finished_at: float | None = None
     updated_at: float
+    detection_report: DetectionReport | None = None
 
 
 __all__ = [

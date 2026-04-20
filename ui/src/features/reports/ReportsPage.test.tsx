@@ -3,12 +3,13 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { ReportsPage } from "./ReportsPage";
 import { apiClient } from "../../lib/api/client";
-import type { ActivationReportDto } from "../../lib/types/contracts";
+import type { ActivationReportDto, AnalysisBundleDto } from "../../lib/types/contracts";
 
 vi.mock("../../lib/api/client", () => ({
   apiClient: {
     listReports: vi.fn(),
-    getLatestReport: vi.fn(),
+    getLatestReportBundle: vi.fn(),
+    getReportBundleByName: vi.fn(),
     getReportByName: vi.fn(),
   },
 }));
@@ -265,23 +266,71 @@ const latestReport: ActivationReportDto = {
   },
 };
 
+const latestBundle: AnalysisBundleDto = {
+  activation_report: latestReport,
+  detection_report: {
+    schema_version: "1",
+    activation_report_ref: "activation_report_demo.json",
+    analyzed_extension: {
+      publisher: "publisher",
+      name: "tool",
+      version: "1.0.0",
+    },
+    findings: [
+      {
+        id: "01HXYZABCDE1234567890ABCDE",
+        rule_id: "extrace.a1.credential_read_then_network",
+        rule_version: "1.0.0",
+        rule_lifecycle: "production",
+        categories: ["attack.T1555", "attack.T1041"],
+        severity: "critical",
+        confidence: "high",
+        title: "Credential file read followed by outbound request",
+        description: "The extension read a credential-bearing path and contacted an unknown host.",
+        evidence: [
+          {
+            type: "filesystem_read",
+            event_id: "file-1",
+            summary: "Sensitive file read",
+          },
+        ],
+        adversary_class: "A1",
+        mitigation_hint: "Rotate credentials and remove the extension.",
+      },
+    ],
+    verdict: "malicious",
+    verdict_rationale: "critical finding with high confidence",
+    rules_executed: [
+      {
+        rule_id: "extrace.a1.credential_read_then_network",
+        rule_version: "1.0.0",
+        lifecycle: "production",
+        status: "fired",
+        finding_ids: ["01HXYZABCDE1234567890ABCDE"],
+      },
+    ],
+    generated_at: "2026-04-20T09:00:00Z",
+  },
+};
+
 describe("ReportsPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(apiClient.listReports).mockResolvedValue([
       { filename: "activation_report_demo.json", size_bytes: 2048, modified: 1713002410 },
     ]);
-    vi.mocked(apiClient.getLatestReport).mockResolvedValue(latestReport);
+    vi.mocked(apiClient.getLatestReportBundle).mockResolvedValue(latestBundle);
+    vi.mocked(apiClient.getReportBundleByName).mockResolvedValue(latestBundle);
   });
 
-  it("renders the dashboard score, category tabs, and supports opening the filter drawer", async () => {
+  it("renders the detection panel, category tabs, and supports opening the filter drawer", async () => {
     renderPage("/reports?report=latest&tab=overview");
 
     expect(await screen.findByText("Security report")).toBeInTheDocument();
-    expect((await screen.findAllByText("Automation health")).length).toBeGreaterThan(0);
-    expect(await screen.findByText("General score")).toBeInTheDocument();
-    expect(screen.getByText("Target stream")).toBeInTheDocument();
-    expect(screen.getByText("The target extension accessed a secret-bearing path.")).toBeInTheDocument();
+    expect(await screen.findByText("Malicious")).toBeInTheDocument();
+    expect(screen.getByText("critical finding with high confidence")).toBeInTheDocument();
+    expect(screen.getByText("Credential file read followed by outbound request")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "1 evidence" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "File I/O" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Network" }));

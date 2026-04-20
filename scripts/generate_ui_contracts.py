@@ -5,8 +5,11 @@ import importlib
 import os
 import sys
 from collections.abc import Mapping
+from enum import Enum
 from pathlib import Path
 from typing import Any
+
+from pydantic import BaseModel, TypeAdapter
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
@@ -19,19 +22,31 @@ GENERATED_HEADER = (
 )
 
 TARGET_SCHEMAS: list[str] = [
+    "AnalysisBundle",
     "ActivationReportFileSummary",
     "ActivationEntry",
+    "AdversaryClass",
+    "Confidence",
+    "DetectionFinding",
+    "DetectionReport",
+    "EvidenceRef",
+    "ExtensionIdentity",
     "RunningExtension",
     "EvidenceEvent",
     "EvidenceLink",
     "NetworkEvent",
     "FileEvent",
+    "RuleExecutionRecord",
+    "RuleExecutionStatus",
+    "RuleLifecycle",
     "ScenarioTrace",
+    "Severity",
     "StimulusPassTrace",
     "PrerequisiteResult",
     "EventAttemptRecord",
     "LogStreamEntry",
     "RiskSignal",
+    "Verdict",
     "ActivationReportMetadata",
     "ActivationReportResponse",
     "MarketplaceExtension",
@@ -41,19 +56,31 @@ TARGET_SCHEMAS: list[str] = [
 ]
 
 NAME_OVERRIDES: dict[str, str] = {
+    "AnalysisBundle": "AnalysisBundleDto",
     "ActivationReportFileSummary": "ReportListItemDto",
     "ActivationEntry": "ActivationEntryDto",
+    "AdversaryClass": "AdversaryClassDto",
+    "Confidence": "ConfidenceDto",
+    "DetectionFinding": "DetectionFindingDto",
+    "DetectionReport": "DetectionReportDto",
+    "EvidenceRef": "EvidenceRefDto",
+    "ExtensionIdentity": "ExtensionIdentityDto",
     "RunningExtension": "RunningExtensionDto",
     "EvidenceEvent": "EvidenceEventDto",
     "EvidenceLink": "EvidenceLinkDto",
     "NetworkEvent": "NetworkEventDto",
     "FileEvent": "FileEventDto",
+    "RuleExecutionRecord": "RuleExecutionRecordDto",
+    "RuleExecutionStatus": "RuleExecutionStatusDto",
+    "RuleLifecycle": "RuleLifecycleDto",
     "ScenarioTrace": "ScenarioTraceDto",
+    "Severity": "SeverityDto",
     "StimulusPassTrace": "StimulusPassDto",
     "PrerequisiteResult": "PrerequisiteResultDto",
     "EventAttemptRecord": "EventAttemptDto",
     "LogStreamEntry": "LogStreamEntryDto",
     "RiskSignal": "RiskSignalDto",
+    "Verdict": "VerdictDto",
     "ActivationReportMetadata": "ActivationReportMetadataDto",
     "ActivationReportResponse": "ActivationReportDto",
     "MarketplaceExtension": "MarketplaceExtensionDto",
@@ -177,6 +204,8 @@ export interface LogStreamsDto {
 }
 """
 
+EXTRA_SCHEMA_PROVIDERS: dict[str, type[BaseModel] | type[Enum]] = {}
+
 
 def _load_openapi_schemas() -> dict[str, Any]:
     os.environ.setdefault("EXTRACE_SKIP_JOB_RECOVERY", "1")
@@ -185,6 +214,60 @@ def _load_openapi_schemas() -> dict[str, Any]:
     schemas = openapi.get("components", {}).get("schemas", {})
     if not isinstance(schemas, dict):
         raise RuntimeError("OpenAPI components.schemas payload is missing.")
+    return schemas
+
+
+def _load_extra_schema_providers() -> dict[str, type[BaseModel] | type[Enum]]:
+    global EXTRA_SCHEMA_PROVIDERS
+    if EXTRA_SCHEMA_PROVIDERS:
+        return EXTRA_SCHEMA_PROVIDERS
+
+    detection_module = importlib.import_module("packages.analysis_contracts.detection")
+    provider_names = [
+        "AdversaryClass",
+        "Confidence",
+        "DetectionFinding",
+        "DetectionReport",
+        "EvidenceRef",
+        "ExtensionIdentity",
+        "RuleExecutionRecord",
+        "RuleExecutionStatus",
+        "RuleLifecycle",
+        "Severity",
+        "Verdict",
+    ]
+    EXTRA_SCHEMA_PROVIDERS = {
+        name: getattr(detection_module, name) for name in provider_names
+    }
+    return EXTRA_SCHEMA_PROVIDERS
+
+
+def _schema_from_provider(provider: type[BaseModel] | type[Enum]) -> dict[str, Any]:
+    if isinstance(provider, type) and issubclass(provider, BaseModel):
+        schema = provider.model_json_schema(ref_template="#/components/schemas/{model}")
+        defs = schema.pop("$defs", {})
+        flattened: dict[str, Any] = {}
+        if isinstance(defs, Mapping):
+            flattened.update(defs)
+        title = schema.get("title")
+        if isinstance(title, str):
+            flattened[title] = schema
+        return flattened
+
+    schema = TypeAdapter(provider).json_schema(
+        ref_template="#/components/schemas/{model}"
+    )
+    title = schema.get("title")
+    if not isinstance(title, str):
+        raise RuntimeError(f"Unnamed schema provider: {provider!r}")
+    return {title: schema}
+
+
+def _merge_schema_sources() -> dict[str, Any]:
+    schemas = dict(_load_openapi_schemas())
+    for provider in _load_extra_schema_providers().values():
+        for name, schema in _schema_from_provider(provider).items():
+            schemas.setdefault(name, schema)
     return schemas
 
 
@@ -341,11 +424,24 @@ def _emit_interface(schema_name: str, schema: Mapping[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def _emit_type_alias(schema_name: str, schema: Mapping[str, Any]) -> str:
+    ts_name = _schema_to_ts_name(schema_name)
+    ts_type = _schema_to_ts_type(schema, parent_schema=schema_name)
+    return f"export type {ts_name} = {ts_type};"
+
+
+def _emit_declaration(schema_name: str, schema: Mapping[str, Any]) -> str:
+    schema_type = schema.get("type")
+    if schema_type == "object" or isinstance(schema.get("properties"), Mapping):
+        return _emit_interface(schema_name, schema)
+    return _emit_type_alias(schema_name, schema)
+
+
 def _render_contracts(schemas: Mapping[str, Any]) -> str:
     blocks = [SUPPLEMENTAL_TYPES.rstrip()]
     for schema_name in TARGET_SCHEMAS:
         schema = schemas[schema_name]
-        blocks.append(_emit_interface(schema_name, schema))
+        blocks.append(_emit_declaration(schema_name, schema))
     return GENERATED_HEADER + "\n\n".join(blocks) + "\n"
 
 
@@ -360,7 +456,7 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    schemas = _load_openapi_schemas()
+    schemas = _merge_schema_sources()
     _assert_target_schemas_exist(schemas)
     rendered = _render_contracts(schemas)
 

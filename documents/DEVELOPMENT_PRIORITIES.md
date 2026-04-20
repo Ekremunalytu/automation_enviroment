@@ -43,8 +43,8 @@ that window; weekly scope is in `REFACTOR_OPTIMIZATION.md` §10.2.
 
 ### 2. Supply-Chain Boundary Tightening
 
-- land harness-extension checksum verification before trusting helper bundles in
-  W5 runs
+- keep harness-extension checksum verification enforced before trusting helper
+  bundles in W5/W6 runs
 - keep workflow access to Docker daemon behavior behind `executor.control`
 - avoid broadening sandbox trust assumptions without updating ADR 0002
 

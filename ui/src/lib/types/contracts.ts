@@ -99,6 +99,11 @@ export interface LogStreamsDto {
   ui_blockers?: LogStreamEntryDto[];
 }
 
+export interface AnalysisBundleDto {
+  activation_report: ActivationReportDto;
+  detection_report: DetectionReportDto;
+}
+
 export interface ReportListItemDto {
   filename: string;
   size_bytes: number;
@@ -112,6 +117,48 @@ export interface ActivationEntryDto {
   timestamp?: string;
   success?: boolean;
   source?: string;
+}
+
+export type AdversaryClassDto = "A1" | "A2" | "A3" | "A4" | "A5" | "A6" | "A7";
+
+export type ConfidenceDto = "high" | "medium" | "low";
+
+export interface DetectionFindingDto {
+  id?: string;
+  rule_id: string;
+  rule_version: string;
+  rule_lifecycle: RuleLifecycleDto;
+  categories: string[];
+  severity: SeverityDto;
+  confidence: ConfidenceDto;
+  title: string;
+  description: string;
+  evidence?: EvidenceRefDto[];
+  adversary_class?: AdversaryClassDto | null;
+  mitigation_hint?: string | null;
+}
+
+export interface DetectionReportDto {
+  schema_version?: string;
+  activation_report_ref: string;
+  analyzed_extension: ExtensionIdentityDto;
+  findings?: DetectionFindingDto[];
+  verdict: VerdictDto;
+  verdict_rationale: string;
+  rules_executed?: RuleExecutionRecordDto[];
+  generated_at?: string;
+}
+
+export interface EvidenceRefDto {
+  type: string;
+  event_id: string;
+  summary?: string | null;
+}
+
+export interface ExtensionIdentityDto {
+  publisher: string;
+  name: string;
+  version: string;
 }
 
 export interface RunningExtensionDto {
@@ -198,12 +245,27 @@ export interface FileEventDto {
   summary?: string;
 }
 
+export interface RuleExecutionRecordDto {
+  rule_id: string;
+  rule_version: string;
+  lifecycle: RuleLifecycleDto;
+  status: RuleExecutionStatusDto;
+  finding_ids?: string[];
+  error_detail?: string | null;
+}
+
+export type RuleExecutionStatusDto = "fired" | "silent" | "error";
+
+export type RuleLifecycleDto = "draft" | "fixture_validated" | "smoke_validated" | "production" | "deprecated";
+
 export interface ScenarioTraceDto {
   name: string;
   started_at: number;
   ended_at?: number;
   status?: string;
 }
+
+export type SeverityDto = "critical" | "high" | "medium" | "low" | "info";
 
 export interface StimulusPassDto {
   pass_id: string;
@@ -282,6 +344,8 @@ export interface RiskSignalDto {
   evidence_event_ids?: string[];
   summary?: string;
 }
+
+export type VerdictDto = "malicious" | "suspicious" | "clean_with_notes" | "clean" | "inconclusive";
 
 export interface ActivationReportMetadataDto {
   filename: string;
@@ -389,4 +453,5 @@ export interface AnalyzeJobStatusDto {
   started_at?: number | null;
   finished_at?: number | null;
   updated_at: number;
+  detection_report?: DetectionReportDto | null;
 }

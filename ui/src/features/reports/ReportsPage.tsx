@@ -14,17 +14,14 @@ import {
   parseEvidenceFilters,
 } from "../evidence";
 import { apiClient } from "../../lib/api/client";
-import { adaptReport, getInspectorView } from "../../lib/adapters/report";
+import { adaptBundle, adaptReport, getInspectorView } from "../../lib/adapters/report";
 import { buildRuleDraft } from "../../lib/rules/draft";
-import {
-  CategoryWorkspace,
-  DashboardScore,
-  type ReportWorkspaceTab,
-} from "./sections";
+import { CategoryWorkspace, type ReportWorkspaceTab } from "./sections";
+import { DetectionPanel } from "./DetectionPanel";
 
-type ReportTab = "dashboard" | "activation" | "file" | "network" | "scenario" | "evidence" | "logs";
+type ReportTab = "detection" | "activation" | "file" | "network" | "scenario" | "evidence" | "logs";
 const REPORT_TABS: Array<{ value: ReportTab; label: string }> = [
-  { value: "dashboard", label: "Dashboard" },
+  { value: "detection", label: "Detection" },
   { value: "activation", label: "Activation" },
   { value: "file", label: "File I/O" },
   { value: "network", label: "Network" },
@@ -33,7 +30,7 @@ const REPORT_TABS: Array<{ value: ReportTab; label: string }> = [
   { value: "logs", label: "Logs" },
 ];
 
-const TAB_META: Record<Exclude<ReportTab, "dashboard">, { title: string; description: string; emptyTitle: string }> = {
+const TAB_META: Record<Exclude<ReportTab, "detection">, { title: string; description: string; emptyTitle: string }> = {
   activation: {
     title: "Activation stream",
     description: "Extension activation entries only. Use this view to isolate startup triggers and activation ownership.",
@@ -67,9 +64,9 @@ const TAB_META: Record<Exclude<ReportTab, "dashboard">, { title: string; descrip
 };
 
 function normalizeTab(raw: string | null): ReportTab {
-  if (!raw || raw === "overview") return "dashboard";
+  if (!raw || raw === "overview" || raw === "dashboard") return "detection";
   if (raw === "evidence") return "evidence";
-  return REPORT_TABS.some((tab) => tab.value === raw) ? (raw as ReportTab) : "dashboard";
+  return REPORT_TABS.some((tab) => tab.value === raw) ? (raw as ReportTab) : "detection";
 }
 
 function normalizeWorkspaceTab(raw: string | null): ReportWorkspaceTab {
@@ -95,7 +92,7 @@ function scopeEventsForTab(
   tab: ReportTab,
   events: NonNullable<ReturnType<typeof adaptReport>>["evidence"],
 ) {
-  if (tab === "dashboard" || tab === "evidence") return events;
+  if (tab === "detection" || tab === "evidence") return events;
   if (tab === "file") return events.filter((event) => event.kind === "file");
   return events.filter((event) => event.kind === tab);
 }
@@ -122,9 +119,9 @@ export function ReportsPage() {
     queryFn: async ({ signal }) => {
       const dto =
         reportParam === "latest"
-          ? await apiClient.getLatestReport(signal)
-          : await apiClient.getReportByName(reportParam, signal);
-      return adaptReport(dto, reportParam);
+          ? await apiClient.getLatestReportBundle(signal)
+          : await apiClient.getReportBundleByName(reportParam, signal);
+      return adaptBundle(dto, reportParam);
     },
   });
 
@@ -136,7 +133,7 @@ export function ReportsPage() {
   const scopedEvents = scopeEventsForTab(selectedTab, filteredEvents);
 
   useEffect(() => {
-    if (selectedTab === "dashboard" || selectedTab === "logs") return;
+    if (selectedTab === "detection" || selectedTab === "logs") return;
     if (!scopedEvents.length) return;
 
     const candidate = scopedEvents[0]?.eventId;
@@ -169,6 +166,16 @@ export function ReportsPage() {
   const updateFilters = (nextFilters: EvidenceFilterState) => {
     startTransition(() => {
       setSearchParams(applyEvidenceFilters(searchParams, nextFilters), { replace: true });
+    });
+  };
+
+  const showFindingEvidence = (nextEventId: string) => {
+    startTransition(() => {
+      const next = new URLSearchParams(searchParams);
+      next.set("tab", "evidence");
+      next.set("workspace", "evidence");
+      next.set("event", nextEventId);
+      setSearchParams(next, { replace: true });
     });
   };
 
@@ -264,8 +271,8 @@ export function ReportsPage() {
         <EmptyState eyebrow="Loading" body="Fetching the selected report and normalizing evidence." title="Preparing report workspace" />
       ) : reportQuery.isError ? (
         <EmptyState eyebrow="Error" body={String(reportQuery.error)} title="Report could not be loaded" />
-      ) : !report ? null : selectedTab === "dashboard" ? (
-        <DashboardScore report={report} onSelectEvent={setSelectedEvent} />
+      ) : !report ? null : selectedTab === "detection" ? (
+        <DetectionPanel detection={report.detection} onShowEvidence={showFindingEvidence} />
       ) : selectedTab === "logs" ? (
                 <LogStreamsPanel
                   eventAttempts={report.eventAttempts}

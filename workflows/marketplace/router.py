@@ -21,6 +21,7 @@ from appcore.contracts.schemas import (
     MarketplaceExtension,
 )
 from executor.control import ExecutorError
+from packages.analysis_contracts import ExtensionIdentity
 from workflows.extension_catalog.manifest_reader import PackageJsonReadError
 from workflows.extension_catalog.service import (
     ExtensionManifestMismatchError,
@@ -31,6 +32,7 @@ from workflows.marketplace import client as marketplace_client
 from workflows.marketplace import job_service
 from workflows.marketplace.analysis_service import (
     TriggerPlanError,
+    build_analysis_bundle_from_report_name,
     ensure_vsix_exists,
     execute_analysis_request,
     map_executor_error,
@@ -190,12 +192,28 @@ def get_analysis_job(
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     try:
-        return job_service.get_job_snapshot(job_id, db=db)
+        snapshot = job_service.get_job_snapshot(job_id, db=db)
     except KeyError as exc:
         raise HTTPException(
             status_code=404,
             detail=f"Analysis job not found: {job_id}",
         ) from exc
+
+    report_path = snapshot.get("report_path")
+    if snapshot.get("status") == "completed" and isinstance(report_path, str):
+        bundle = build_analysis_bundle_from_report_name(
+            report_path,
+            analyzed_extension=ExtensionIdentity(
+                publisher=str(snapshot.get("publisher", "unknown")),
+                name=str(snapshot.get("name", "unknown")),
+                version=str(snapshot.get("version", "unknown")),
+            ),
+        )
+        if bundle is not None:
+            snapshot["detection_report"] = bundle.detection_report.model_dump(
+                mode="json"
+            )
+    return snapshot
 
 
 @router.post("/marketplace/analyze", response_model=AnalyzeResponse)

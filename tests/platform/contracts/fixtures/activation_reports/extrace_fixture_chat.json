@@ -1,0 +1,49 @@
+{
+  "report_version": 2,
+  "target_extension_expected": "extrace.fixture-chat",
+  "target_extension_observed": true,
+  "automation_health": {
+    "status": "healthy",
+    "reasons": [],
+    "trigger_requested": true,
+    "trigger_loaded": true,
+    "trigger_applied": true,
+    "target_activation_count": 1
+  },
+  "verdict": {
+    "level": "benign",
+    "score": 6,
+    "note": "Deterministic benign chat participant fixture."
+  },
+  "summary": {
+    "target_extension_version": "0.0.1",
+    "scenarios_run": [
+      "chat_panel"
+    ],
+    "failed_scenarios": [],
+    "trigger_plan_applied": true
+  },
+  "scenario_traces": [],
+  "evidence_events": [
+    {
+      "event_id": "activation-0001",
+      "kind": "extension_host",
+      "rel_time_s": 0.1,
+      "summary": "Activated extrace.fixture-chat",
+      "raw_context": {
+        "event_type": "activated"
+      }
+    },
+    {
+      "event_id": "log-0001",
+      "kind": "log",
+      "rel_time_s": 1.0,
+      "summary": "Chat participant responded with deterministic fixture text"
+    }
+  ],
+  "network_events": [],
+  "file_events": [],
+  "log_streams": {
+    "automation": []
+  }
+}

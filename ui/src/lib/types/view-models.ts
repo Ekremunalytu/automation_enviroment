@@ -47,6 +47,41 @@ export interface EvidenceLinkView {
   reason: string;
 }
 
+export interface DetectionEvidenceRefView {
+  eventId: string;
+  type: string;
+  summary: string;
+}
+
+export interface DetectionFindingView {
+  id: string;
+  ruleId: string;
+  ruleVersion: string;
+  ruleLifecycle: string;
+  title: string;
+  description: string;
+  categories: string[];
+  severity: "critical" | "high" | "medium" | "low" | "info";
+  severityLabel: string;
+  confidence: "high" | "medium" | "low";
+  confidenceLabel: string;
+  adversaryClass: string;
+  evidence: DetectionEvidenceRefView[];
+  mitigationHint: string;
+}
+
+export interface DetectionReportView {
+  verdict:
+    | "malicious"
+    | "suspicious"
+    | "clean_with_notes"
+    | "clean"
+    | "inconclusive";
+  verdictLabel: string;
+  verdictRationale: string;
+  findings: DetectionFindingView[];
+}
+
 export interface ReportSummaryView {
   totalEvents: number;
   totalActivated: number;
@@ -247,6 +282,7 @@ export interface ActivationReportView {
   reportId: string;
   reportVersion: number;
   summary: ReportSummaryView;
+  detection: DetectionReportView | null;
   attributionSummary: AttributionSummaryView;
   riskSignals: RiskSignalView[];
   riskSummary: RiskSummaryView;

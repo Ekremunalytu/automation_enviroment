@@ -8,16 +8,17 @@ them.
 
 ## Now
 
-- land harness-extension checksum verification before broader W5 detection work
+- add an activation confirmation gate with dynamic post-stimulus verification
 - keep executor failure states unambiguous in job steps and report health
 - keep interrupted jobs explicit after API restarts
-- wire a dedicated CI lane for `make test-security` with explicit guardrails
+- harden the dedicated CI lane for `make test-security` with explicit egress guardrails
 
 ## Next
 
-- implement first `DetectionReport` DTO surface under
-  `packages/analysis_contracts/detection/`
-- add production detection rules for PoC classes A1/A2/A4/A6
+- close runtime capture gaps for HTTP body capture and child-process tracking
+- make workspace seeding and materializers extension-aware for declared
+  activation events
+- add deferred-activation coverage with an idle observation window
 - close official-track verification gaps for `scm` and `settings`
 - decide which partial scaffolding should advance for `chat`, `comments`,
   `testing`, and `workspace_trust`

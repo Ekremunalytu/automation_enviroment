@@ -1,4 +1,5 @@
 import type {
+  AnalysisBundleDto,
   ActivationEntryDto,
   AutomationHealthDto,
   ActivationReportDto,
@@ -9,10 +10,13 @@ import type {
   EventAttemptDto,
   EventCoverageDto,
   EvidenceEventDto,
+  EvidenceRefDto,
   EvidenceLinkDto,
   FileEventDto,
   LogHealthDto,
   LogStreamEntryDto,
+  DetectionFindingDto,
+  DetectionReportDto,
   PrerequisiteResultDto,
   NetworkEventDto,
   RiskSignalDto,
@@ -27,6 +31,9 @@ import type {
   CoverageSummaryView,
   CoverageTrackView,
   CoverageTracksView,
+  DetectionEvidenceRefView,
+  DetectionFindingView,
+  DetectionReportView,
   EventAttemptView,
   EventCoverageView,
   EvidenceEventView,
@@ -670,6 +677,45 @@ function buildEventCoverage(summary?: EventCoverageDto | null): EventCoverageVie
   };
 }
 
+function buildDetectionEvidenceRef(ref: EvidenceRefDto): DetectionEvidenceRefView {
+  return {
+    eventId: ref.event_id || "",
+    type: ref.type || "event",
+    summary: ref.summary || ref.event_id || "Linked evidence event",
+  };
+}
+
+function buildDetectionFinding(finding: DetectionFindingDto): DetectionFindingView {
+  return {
+    id: finding.id || "",
+    ruleId: finding.rule_id || "",
+    ruleVersion: finding.rule_version || "",
+    ruleLifecycle: finding.rule_lifecycle || "draft",
+    title: finding.title || "",
+    description: finding.description || "",
+    categories: Array.isArray(finding.categories) ? finding.categories.map(String) : [],
+    severity: finding.severity || "info",
+    severityLabel: labelize(finding.severity, "Unknown"),
+    confidence: finding.confidence || "low",
+    confidenceLabel: labelize(finding.confidence, "Unknown"),
+    adversaryClass: finding.adversary_class || "N/A",
+    evidence: (finding.evidence || []).map(buildDetectionEvidenceRef),
+    mitigationHint: finding.mitigation_hint || "",
+  };
+}
+
+function buildDetectionReport(
+  dto?: DetectionReportDto | null,
+): DetectionReportView | null {
+  if (!dto) return null;
+  return {
+    verdict: dto.verdict,
+    verdictLabel: labelize(dto.verdict, "Unknown"),
+    verdictRationale: dto.verdict_rationale || "",
+    findings: (dto.findings || []).map(buildDetectionFinding),
+  };
+}
+
 export function adaptReport(dto: ActivationReportDto, reportId: string): ActivationReportView {
   const summary = dto.summary || {};
   const coverageTracks = buildCoverageTracks(dto);
@@ -694,6 +740,7 @@ export function adaptReport(dto: ActivationReportDto, reportId: string): Activat
     reportId,
     reportVersion: dto.report_version || 1,
     summary: buildSummary(dto, evidence),
+    detection: null,
     attributionSummary: buildAttributionSummary(
       dto.attribution_summary ||
         (typeof summary["attribution_summary"] === "object"
@@ -721,6 +768,14 @@ export function adaptReport(dto: ActivationReportDto, reportId: string): Activat
     hostOutput: dto.extension_host_output || "",
     hostOutputLines: dto.extension_host_output_lines || 0,
     metadataFilename: dto._metadata?.filename || reportId,
+  };
+}
+
+export function adaptBundle(dto: AnalysisBundleDto, reportId: string): ActivationReportView {
+  const report = adaptReport(dto.activation_report, reportId);
+  return {
+    ...report,
+    detection: buildDetectionReport(dto.detection_report),
   };
 }
 

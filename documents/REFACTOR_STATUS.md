@@ -68,15 +68,52 @@ Closure evidence captured while finishing the last open items:
   `pytest tests/` (unit+integration+architecture+security lanes) all
   green on 2026-04-20.
 
-## Deferred to Week 5
+## Deferred from Week 4 into Week 5
 
-- **Harness-extension checksum verification.** Implementing sha256
-  attestation over `executor/flows/harness_extension/*.js` before the
-  executor trusts a bundle is a security-posture property (ADR 0002
-  §7.2.6 supply-chain integrity). It belongs in the W5 security
-  implementation pass alongside detection rules and malicious-fixture
-  wiring, not in the Week 4 stabilization pass. Track it as the first
-  supply-chain task in the W5 checklist.
+- **Harness-extension checksum verification.** This was deferred at the
+  Week 4 close because it is a supply-chain security task (ADR 0002
+  §7.2.6), not a stabilization task. It is now implemented in Week 5:
+  `executor/container/Dockerfile` writes
+  `/home/executor/flows/harness_extension.sha256`, and
+  `executor/container/start.sh` verifies that manifest before VS Code
+  starts.
+
+## Week 5 Progress (2026-04-20)
+
+- Detection contracts are now materialized under
+  `packages/analysis_contracts/detection/` with ADR 0003-aligned
+  `DetectionFinding`, `DetectionReport`, 5-state verdict rollup, rule
+  lifecycle enums, and ULID-backed finding ids.
+- `packages/analysis_engine/` now contains the initial W5 rule runner,
+  registry, allowlist support, and four production PoC rules for A1,
+  A2, A4, and A6.
+- T1 malicious canaries under `extensions/malicious/` now carry offline
+  `activation_report.json` fixtures and `LABEL.yaml` expectations that
+  point at the production rule ids.
+- `workflows.marketplace.analysis_service.run_local_analysis()` provides
+  the offline fixture-to-bundle path used by security tests; completed
+  marketplace job status responses now expose `detection_report`, and
+  activation reports have a new `/api/activations/{name}/bundle`
+  endpoint.
+- `ui/src/features/reports/` now renders a detection-first analyst view
+  using `detection_report.verdict` instead of the legacy heuristic score,
+  including finding cards and evidence deep-links into the event tab.
+- `make test-security` now exercises fixture hygiene, rule coverage,
+  per-rule fire/silence checks, manifest round-trip validation, and
+  benign silence coverage. CI runs the same lane in a dedicated
+  `security-fixtures` job.
+- Automation reliability now fails closed at the verdict layer: missing
+  target observation or activation yields `inconclusive` instead of a
+  silent `clean`. The execution side is still not fully hardened,
+  though; stimulus runs still rely on fixed waits, static workspace
+  seeding, and no dedicated idle-observation pass.
+- Week 5 closes as PoC-complete, but not hardening-complete. Remaining
+  W6/W7 priorities:
+  - activation confirmation gate and dynamic post-stimulus verification
+  - extension-aware workspace seeding and materializer completeness
+  - deferred-activation coverage via an idle observation window
+  - runtime capture gap closure for HTTP body capture / child-process tracking
+  - explicit CI egress hardening for the security-fixture lane
 
 ## Week 5 Start Rule
 

@@ -182,7 +182,12 @@ test-smoke:
 
 test-security:
 	@echo "🧪 Running security fixture lane..."
-	$(VENV)/pytest -v tests/security/test_fixture_hygiene.py tests/security/test_rule_coverage.py
+	$(VENV)/pytest -v \
+		tests/security/test_fixture_hygiene.py \
+		tests/security/test_rule_coverage.py \
+		tests/security/rules \
+		tests/security/test_rule_validation.py \
+		tests/security/test_benign_silence.py
 	@echo "✅ Security fixture lane complete!"
 
 test-security-live:

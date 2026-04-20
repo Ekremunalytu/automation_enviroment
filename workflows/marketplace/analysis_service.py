@@ -10,6 +10,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from fastapi import HTTPException
+from pydantic import ValidationError
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -18,12 +19,14 @@ from appcore.contracts.schema_defs.analysis_jobs import (
     AnalysisJobStepName,
     AnalysisJobStepStatus,
 )
-from appcore.contracts.schemas import AnalyzeRequest, AnalyzeResponse
+from appcore.contracts.schemas import AnalysisBundle, AnalyzeRequest, AnalyzeResponse
 from executor.control import (
     ExecutorControl,
     ExecutorError,
     default_executor_control,
 )
+from packages.analysis_contracts import ActivationReport, ExtensionIdentity
+from packages.analysis_engine import run_detection
 from workflows.marketplace import client as marketplace_client
 from workflows.marketplace import job_service
 from workflows.marketplace.trigger_service import TriggerPlan, build_trigger_payload
@@ -81,6 +84,125 @@ def _load_report_payload(report_name: str) -> dict[str, object] | None:
     except (OSError, ValueError, TypeError):
         return None
     return payload if isinstance(payload, dict) else None
+
+
+def _load_local_report(fixture_path: Path) -> tuple[ActivationReport, str]:
+    report_path = fixture_path / "activation_report.json"
+    if not report_path.exists():
+        raise FileNotFoundError(
+            f"No offline activation report fixture found for {fixture_path}."
+        )
+
+    payload = json.loads(report_path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise ValueError(
+            "Offline activation report fixture must contain a JSON object: "
+            f"{report_path}"
+        )
+    return ActivationReport.model_validate(payload), report_path.name
+
+
+def _load_fixture_identity(
+    fixture_path: Path,
+    activation_report: ActivationReport,
+) -> ExtensionIdentity:
+    package_json_path = fixture_path / "package.json"
+    if package_json_path.exists():
+        payload = json.loads(package_json_path.read_text(encoding="utf-8"))
+        return ExtensionIdentity(
+            publisher=str(payload.get("publisher", "unknown")),
+            name=str(payload.get("name", "unknown")),
+            version=str(payload.get("version", "unknown")),
+        )
+
+    summary = (
+        activation_report.summary if isinstance(activation_report.summary, dict) else {}
+    )
+    version = str(summary.get("target_extension_version", "0.0.1"))
+    publisher, separator, name = activation_report.target_extension_expected.partition(
+        "."
+    )
+    if not separator:
+        publisher = "unknown"
+        name = activation_report.target_extension_expected or "unknown"
+    return ExtensionIdentity(publisher=publisher, name=name, version=version)
+
+
+def _infer_identity_from_report_name(
+    report_name: str,
+    activation_report: ActivationReport,
+) -> ExtensionIdentity:
+    summary = (
+        activation_report.summary if isinstance(activation_report.summary, dict) else {}
+    )
+    version = str(summary.get("target_extension_version", "unknown"))
+    expected = activation_report.target_extension_expected or "unknown.unknown"
+    publisher, separator, name = expected.partition(".")
+    if not separator:
+        publisher = "unknown"
+        name = expected or "unknown"
+
+    if report_name.startswith("activation_report_"):
+        remainder = report_name.removeprefix("activation_report_").removesuffix(".json")
+        try:
+            extension_id, parsed_version, _ = remainder.rsplit("-", 2)
+        except ValueError:
+            extension_id = ""
+        else:
+            parsed_publisher, parsed_separator, parsed_name = extension_id.partition(
+                "."
+            )
+            if parsed_separator:
+                publisher = parsed_publisher
+                name = parsed_name
+                version = parsed_version
+    return ExtensionIdentity(publisher=publisher, name=name, version=version)
+
+
+def build_analysis_bundle_from_report_name(
+    report_name: str,
+    *,
+    analyzed_extension: ExtensionIdentity | None = None,
+) -> AnalysisBundle | None:
+    payload = _load_report_payload(report_name)
+    if payload is None:
+        return None
+    try:
+        activation_report = ActivationReport.model_validate(payload)
+    except ValidationError as exc:
+        raise ValueError(
+            f"Invalid activation report payload for {report_name}"
+        ) from exc
+
+    resolved_extension = analyzed_extension or _infer_identity_from_report_name(
+        report_name,
+        activation_report,
+    )
+    detection_report = run_detection(
+        activation_report,
+        activation_report_ref=report_name,
+        analyzed_extension=resolved_extension,
+    )
+    return AnalysisBundle(
+        activation_report=activation_report,
+        detection_report=detection_report,
+    )
+
+
+def run_local_analysis(fixture_path: str | Path) -> AnalysisBundle:
+    """Run the package-local detection engine against a stored fixture report."""
+
+    resolved_fixture = Path(fixture_path).resolve()
+    activation_report, report_name = _load_local_report(resolved_fixture)
+    analyzed_extension = _load_fixture_identity(resolved_fixture, activation_report)
+    return AnalysisBundle(
+        activation_report=activation_report,
+        detection_report=run_detection(
+            activation_report,
+            activation_report_ref=report_name,
+            analyzed_extension=analyzed_extension,
+        ),
+    )
 
 
 def _trigger_host_path(trigger_container_path: str | None) -> Path | None:
