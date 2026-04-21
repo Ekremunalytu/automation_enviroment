@@ -31,6 +31,7 @@ try:
         RiskSignal,
         RunningExtension,
         ScenarioTrace,
+        SkippedScenarioRecord,
         StimulusPassTrace,
     )
     from .monitor_runtime import (
@@ -42,7 +43,12 @@ try:
     from .monitor_support import resolve_monitor_api
     from .report_builder import build_report_data, build_summary, save_report_payload
     from .runtime_capture._shared import _log
-    from .runtime_capture.events import ActivationEntry, FileEvent, NetworkEvent
+    from .runtime_capture.events import (
+        ActivationEntry,
+        FileEvent,
+        NetworkEvent,
+        ProcessEvent,
+    )
 except ImportError:  # pragma: no cover - top-level executor import mode
     from annotation import build_attribution_summary
     from capture import summarize_extension_host_logs
@@ -67,6 +73,7 @@ except ImportError:  # pragma: no cover - top-level executor import mode
         RiskSignal,
         RunningExtension,
         ScenarioTrace,
+        SkippedScenarioRecord,
         StimulusPassTrace,
     )
     from monitor_runtime import (
@@ -78,7 +85,12 @@ except ImportError:  # pragma: no cover - top-level executor import mode
     from monitor_support import resolve_monitor_api
     from report_builder import build_report_data, build_summary, save_report_payload
     from runtime_capture._shared import _log
-    from runtime_capture.events import ActivationEntry, FileEvent, NetworkEvent
+    from runtime_capture.events import (
+        ActivationEntry,
+        FileEvent,
+        NetworkEvent,
+        ProcessEvent,
+    )
 
 
 @dataclass
@@ -90,7 +102,9 @@ class ActivationReport:
     running_extensions: list[RunningExtension] = field(default_factory=list)
     network_events: list[NetworkEvent] = field(default_factory=list)
     file_events: list[FileEvent] = field(default_factory=list)
+    process_events: list[ProcessEvent] = field(default_factory=list)
     scenario_traces: list[ScenarioTrace] = field(default_factory=list)
+    skipped_scenarios: list[SkippedScenarioRecord] = field(default_factory=list)
     stimulus_passes: list[StimulusPassTrace] = field(default_factory=list)
     prerequisite_results: list[PrerequisiteResult] = field(default_factory=list)
     event_attempts: list[EventAttemptRecord] = field(default_factory=list)

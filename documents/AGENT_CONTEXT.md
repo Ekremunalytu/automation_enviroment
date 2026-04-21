@@ -1,6 +1,6 @@
 # Agent Context
 
-`Last Updated: 2026-04-20`
+`Last Updated: 2026-04-21`
 
 This is the thin-context project map for coding agents. Read root `AGENTS.md`
 for hard rules first; use this file for fast task routing.
@@ -11,17 +11,21 @@ If older docs or task notes conflict with the active refactor direction, check
 `documents/REFACTOR_OPTIMIZATION.md` §10 (W0-W7 7-week window). Treat
 `documents/REFACTOR_EXPANSION_NOTES.md` as non-binding follow-on guidance.
 
-## Project Phase Snapshot (2026-04-20)
+## Project Phase Snapshot (2026-04-21)
 
 - Week 4 stabilization closed on `2026-04-20`; that closure remains the gate
   before any broader W5 detection work reopens runtime boundaries.
 - W0 (security foundations, spec): complete — ADRs 0002-0004 written.
 - W1-W4: automation stabilization (legacy cleanup, import-graph,
   executor determinism + modularization, sandbox boundary).
-- W5-W7: security implementation (detection rules, malicious fixture corpus,
-  UI detection surface); initial scaffolding already exists in
-  `packages/analysis_contracts/detection/`, `extensions/malicious/`, and
-  `tests/security/`.
+- W5 (detection foundations): landed 2026-04-20 (contracts, A1/A2/A4/A6
+  rules, T1 canaries, `make test-security`).
+- W6 (automation reliability + capture hardening): landed 2026-04-21
+  (scenario-ledger honesty, bounded waits, capture bounds, CI egress).
+- Post-W6 bridge (2026-04-21): `RiskSignal.confidence_tier` via
+  `quantize_confidence` + `detection_report_invariant_issues`
+  cross-layer link check.
+- W7: acceptance + buffer (open).
 
 ## Read Path
 

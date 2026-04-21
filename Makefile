@@ -13,7 +13,7 @@ export
 endif
 
 .PHONY: help install install-dev install-hooks lint lint-check format typecheck \
-        security test test-unit test-integration test-smoke test-security test-security-live test-cov test-local test-ci check check-all all clean \
+        security test test-unit test-integration test-smoke test-security test-security-ci-guard test-security-live test-cov test-local test-ci check check-all all clean \
         dev run build rebuild up down logs ps restart status \
         migrate migrate-create venv-check \
         exec-build exec-up exec-down exec-shell exec-test exec-run \
@@ -189,6 +189,32 @@ test-security:
 		tests/security/test_rule_validation.py \
 		tests/security/test_benign_silence.py
 	@echo "✅ Security fixture lane complete!"
+
+test-security-ci-guard:
+	@if [ -z "$$CI" ]; then \
+		echo "❌ test-security-ci-guard is CI-only."; \
+		exit 1; \
+	fi
+	@echo "🔒 Verifying outbound egress is blocked for the security fixture lane..."
+	@$(UI_TYPES_PYTHON) - <<-'PY'
+	import socket
+
+	targets = [("1.1.1.1", 443), ("8.8.8.8", 443)]
+	allowed = []
+	for host, port in targets:
+	    try:
+	        with socket.create_connection((host, port), timeout=3):
+	            allowed.append(f"{host}:{port}")
+	    except OSError:
+	        continue
+
+	if allowed:
+	    raise SystemExit(
+	        f"Outbound egress is still enabled for: {', '.join(allowed)}"
+	    )
+
+	print("✅ Security fixture lane confirmed: outbound egress is blocked.")
+	PY
 
 test-security-live:
 	@if [ -n "$$CI" ]; then \

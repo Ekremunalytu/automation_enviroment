@@ -192,6 +192,8 @@ def build_report_messages(
     target_count = int(automation_health.get("target_activation_count", 0) or 0)
     failed_scenarios = automation_health.get("failed_scenarios", [])
     failed_count = len(failed_scenarios) if isinstance(failed_scenarios, list) else 0
+    skipped_scenarios = automation_health.get("skipped_scenarios", [])
+    skipped_count = len(skipped_scenarios) if isinstance(skipped_scenarios, list) else 0
     extra_trigger_failures = payload.get("extra_trigger_failures", [])
     if not isinstance(extra_trigger_failures, list):
         extra_trigger_failures = automation_health.get("extra_trigger_failures", [])
@@ -209,11 +211,13 @@ def build_report_messages(
         f"{trigger_requested}, loaded={trigger_loaded}, "
         f"applied={trigger_applied}; "
         f"executed scenarios=[{', '.join(scenarios_run) or 'none'}]; "
+        f"skipped scenarios={skipped_count}; "
         f"extra trigger failures={extra_trigger_failure_count}."
     )
     finalize_message = (
         f"Report exported to {report_name}; health={status}; "
         f"target activations={target_count}; failed scenarios={failed_count}; "
+        f"skipped scenarios={skipped_count}; "
         f"extra trigger failures={extra_trigger_failure_count}."
     )
     return monitoring_message, finalize_message

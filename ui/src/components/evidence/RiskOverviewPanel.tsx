@@ -43,6 +43,7 @@ export function RiskOverviewPanel({
   const inconclusive = summary.runQuality === "inconclusive";
   const degraded = summary.automationHealthStatus === "degraded";
   const legacyHealth = summary.legacyHealthFallback;
+  const skippedCount = summary.skippedScenarios.length;
 
   return (
     <Panel className="overflow-hidden p-0">
@@ -65,6 +66,7 @@ export function RiskOverviewPanel({
         {degraded ? (
           <div className="rounded-[16px] border border-warning/25 bg-warning/10 px-4 py-4 text-sm leading-6 text-warning">
             This run produced telemetry, but automation health is degraded and the evidence should not be treated as clean by default.
+            {skippedCount ? ` ${skippedCount} requested scenario${skippedCount === 1 ? " was" : "s were"} skipped.` : ""}
           </div>
         ) : null}
 
@@ -75,6 +77,7 @@ export function RiskOverviewPanel({
           <MetricTile title="Target activations" value={String(summary.targetActivationCount)} />
           <MetricTile title="Host log present" value={summary.extensionHostLogPresent ? "Yes" : "No"} badgeTone={summary.extensionHostLogPresent ? "success" : "warning"} />
           <MetricTile title="Target stream" value={summary.targetStreamPresent ? "Yes" : "No"} badgeTone={summary.targetStreamPresent ? "success" : "warning"} />
+          <MetricTile title="Skipped scenarios" value={String(skippedCount)} badgeTone={skippedCount ? "warning" : "success"} />
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">

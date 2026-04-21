@@ -10,9 +10,21 @@ import debug
 import editor
 import terminal
 from stimulus_materializers import resolve_command_text, write_harness_context
+from wait_helpers import (
+    require_wait,
+    wait_for_command_effect,
+    wait_for_editor_ready,
+    wait_for_trigger_effect,
+    wait_for_ui_settle,
+)
 
 from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import Page
+
+
+def _append_unique(items: list[str], value: str) -> None:
+    if value not in items:
+        items.append(value)
 
 
 def execute_attempt(
@@ -25,6 +37,8 @@ def execute_attempt(
     result: Any,
     monitor: Any | None,
 ) -> None:
+    recorder = getattr(monitor, "record_automation_event", None)
+    event_recorder = recorder if callable(recorder) else None
     if action.startswith("scenario:"):
         run_layered_scenario(
             page,
@@ -38,7 +52,13 @@ def execute_attempt(
         command_text = resolve_command_text(payload, attempt)
         if command_text:
             commands.run_command(page, command_text)
-            page.wait_for_timeout(1200)
+            require_wait(
+                wait_for_command_effect(
+                    page,
+                    event_recorder=event_recorder,
+                    activation_event=str(attempt.get("activation_event", "")),
+                )
+            )
         else:
             run_layered_scenario(
                 page,
@@ -50,46 +70,116 @@ def execute_attempt(
         return
     if action.startswith("command:"):
         commands.run_command(page, action.split(":", maxsplit=1)[1])
-        page.wait_for_timeout(1200)
+        require_wait(
+            wait_for_command_effect(
+                page,
+                event_recorder=event_recorder,
+                activation_event=str(attempt.get("activation_event", "")),
+            )
+        )
         return
     if action == "extra:task_trigger":
         commands.run_command(page, "Tasks: Run Task")
-        page.wait_for_timeout(1500)
+        require_wait(
+            wait_for_trigger_effect(
+                page,
+                event_recorder=event_recorder,
+                activation_event=str(attempt.get("activation_event", "")),
+            )
+        )
         page.keyboard.press("Escape")
-        page.wait_for_timeout(300)
+        require_wait(
+            wait_for_ui_settle(
+                page,
+                event_recorder=event_recorder,
+                activation_event=str(attempt.get("activation_event", "")),
+            )
+        )
         return
     if action == "extra:debug_lifecycle":
-        run_debug_event_attempt(page)
+        run_debug_event_attempt(
+            page,
+            event_recorder=event_recorder,
+            activation_event=str(attempt.get("activation_event", "")),
+        )
         return
     if action == "extra:walkthrough":
         commands.run_command(page, "Welcome: Open Walkthrough")
-        page.wait_for_timeout(2000)
+        require_wait(
+            wait_for_trigger_effect(
+                page,
+                event_recorder=event_recorder,
+                activation_event=str(attempt.get("activation_event", "")),
+            )
+        )
         page.keyboard.press("Escape")
-        page.wait_for_timeout(300)
+        require_wait(
+            wait_for_ui_settle(
+                page,
+                event_recorder=event_recorder,
+                activation_event=str(attempt.get("activation_event", "")),
+            )
+        )
         return
     if action == "extra:uri_trigger":
         uri = str(getattr(payload, "uri_trigger", "")).strip()
         if not uri:
             raise ValueError("URI trigger requested without a target URI")
         terminal.new_terminal(page)
-        page.wait_for_timeout(500)
+        require_wait(
+            wait_for_ui_settle(
+                page,
+                event_recorder=event_recorder,
+                activation_event=str(attempt.get("activation_event", "")),
+            )
+        )
         terminal.type_in_terminal(page, f"xdg-open '{uri}'")
-        page.wait_for_timeout(1500)
+        require_wait(
+            wait_for_trigger_effect(
+                page,
+                event_recorder=event_recorder,
+                activation_event=str(attempt.get("activation_event", "")),
+            )
+        )
         return
     if action == "extra:custom_editor":
         for filename in getattr(payload, "extra_custom_editor_files", []) or []:
             editor.open_file_by_name(page, str(filename))
-            page.wait_for_timeout(1200)
+            require_wait(
+                wait_for_trigger_effect(
+                    page,
+                    event_recorder=event_recorder,
+                    activation_event=str(attempt.get("activation_event", "")),
+                )
+            )
             editor.close_active_editor(page)
-            page.wait_for_timeout(300)
+            require_wait(
+                wait_for_ui_settle(
+                    page,
+                    event_recorder=event_recorder,
+                    activation_event=str(attempt.get("activation_event", "")),
+                )
+            )
         return
     if action.startswith("fixture:"):
-        page.wait_for_timeout(1000)
+        require_wait(
+            wait_for_trigger_effect(
+                page,
+                event_recorder=event_recorder,
+                activation_event=str(attempt.get("activation_event", "")),
+            )
+        )
         return
     if action.startswith("harness:"):
         write_harness_context(payload, attempt, trigger_method=trigger_method)
         commands.run_command(page, "ExTrace Harness: Run Current Stimulus")
-        page.wait_for_timeout(1500)
+        require_wait(
+            wait_for_trigger_effect(
+                page,
+                event_recorder=event_recorder,
+                activation_event=str(attempt.get("activation_event", "")),
+            )
+        )
         return
     raise ValueError(f"Unsupported stimulus action: {action}")
 
@@ -115,14 +205,14 @@ def run_layered_scenario(
         monitor.record_scenario_event(
             "start", scenario_name, "", scenario_metadata_for_reporting(scenario_name)
         )
+    result.executed_scenarios.append(scenario_name)
     try:
         if scenario_name == "coding_session" and language_id:
             automation.scenario_coding_session(page, language=language_id)
         else:
             automation.run_scenario(page, scenario_name)
     except (PlaywrightError, RuntimeError, ValueError) as exc:
-        if scenario_name not in result.failed_scenarios:
-            result.failed_scenarios.append(scenario_name)
+        _append_unique(result.failed_scenarios, scenario_name)
         if should_report_directly and monitor is not None:
             monitor.record_scenario_event(
                 "end",
@@ -131,8 +221,6 @@ def run_layered_scenario(
                 scenario_metadata_for_reporting(scenario_name, error=str(exc)),
             )
         raise
-
-    result.executed_scenarios.append(scenario_name)
     if should_report_directly and monitor is not None:
         monitor.record_scenario_event(
             "end",
@@ -184,23 +272,49 @@ def deduped_result_details(pass_id: str, action: str, prior_execution: Any) -> s
     )
 
 
-def run_debug_event_attempt(page: Page) -> None:
+def run_debug_event_attempt(
+    page: Page,
+    *,
+    event_recorder=None,
+    activation_event: str = "",
+) -> None:
     """Drive a minimal debug lifecycle without command-palette breakpoint setup."""
     editor.open_file_by_name(page, "src/app.py")
-    page.wait_for_timeout(800)
+    require_wait(
+        wait_for_editor_ready(
+            page,
+            event_recorder=event_recorder,
+            activation_event=activation_event,
+        )
+    )
     page.keyboard.press("Control+Home")
-    page.wait_for_timeout(150)
+    require_wait(
+        wait_for_ui_settle(
+            page,
+            event_recorder=event_recorder,
+            activation_event=activation_event,
+        )
+    )
     page.keyboard.press("Escape")
-    page.wait_for_timeout(150)
     debug.start_debug(page)
-    page.wait_for_timeout(2000)
+    require_wait(
+        wait_for_trigger_effect(
+            page,
+            event_recorder=event_recorder,
+            activation_event=activation_event,
+        )
+    )
     editor._dismiss_notification(page)
-    page.wait_for_timeout(250)
     debug.stop_debug(page)
-    page.wait_for_timeout(300)
+    require_wait(
+        wait_for_ui_settle(
+            page,
+            event_recorder=event_recorder,
+            activation_event=activation_event,
+        )
+    )
     editor._dismiss_notification(page)
     page.keyboard.press("Escape")
-    page.wait_for_timeout(200)
 
 
 def failure_reason_code_for_exception(exc: BaseException) -> str:

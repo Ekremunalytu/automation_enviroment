@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+import ipaddress
+from collections import defaultdict
 from typing import Any
 
 try:
@@ -20,6 +22,26 @@ except ImportError:  # pragma: no cover - top-level executor import mode
         indexed_target_file_events,
         indexed_target_network_events,
         indexed_ui_blockers,
+    )
+
+
+_CONFIDENCE_HIGH_THRESHOLD = 0.85
+_CONFIDENCE_MEDIUM_THRESHOLD = 0.65
+
+
+def _confidence_tier(value: float) -> str:
+    if value >= _CONFIDENCE_HIGH_THRESHOLD:
+        return "high"
+    if value >= _CONFIDENCE_MEDIUM_THRESHOLD:
+        return "medium"
+    return "low"
+
+
+def _make_signal(risk_signal_type: Any, *, confidence: float, **fields: Any) -> Any:
+    return risk_signal_type(
+        confidence=confidence,
+        confidence_tier=_confidence_tier(confidence),
+        **fields,
     )
 
 
@@ -46,37 +68,52 @@ def build_risk_signals(report: Any, risk_signal_type: Any) -> list[Any]:
         for event_id, event in strong_target_files
         if getattr(event, "sensitive", False)
     ]
-    correlated_events: list[tuple[str, float, str]] = []
+    correlated_groups: dict[str, list[tuple[str, float, float, str]]] = defaultdict(
+        list
+    )
     for index, file_event in enumerate(getattr(report, "file_events", []), start=1):
         if getattr(file_event, "attribution_status", "") in {
             "near_target_activation",
             "competing_candidate",
         } and getattr(file_event, "sensitive", False):
-            correlated_events.append(
-                (
-                    f"file-{index:04d}",
-                    getattr(file_event, "attribution_confidence", 0.0),
-                    getattr(file_event, "summary", ""),
+            event_id = f"file-{index:04d}"
+            rel_time_s = getattr(file_event, "rel_time_s", None)
+            if isinstance(rel_time_s, int | float):
+                correlated_groups[
+                    str(getattr(file_event, "related_activation_event", "")).strip()
+                ].append(
+                    (
+                        event_id,
+                        float(rel_time_s),
+                        getattr(file_event, "attribution_confidence", 0.0),
+                        "file",
+                    )
                 )
-            )
     for index, network_event in enumerate(
         getattr(report, "network_events", []), start=1
     ):
         if getattr(network_event, "attribution_status", "") in {
             "near_target_activation",
             "competing_candidate",
-        }:
-            correlated_events.append(
-                (
-                    f"network-{index:04d}",
-                    getattr(network_event, "attribution_confidence", 0.0),
-                    getattr(network_event, "summary", ""),
+        } and _is_correlative_network_candidate(network_event):
+            event_id = f"network-{index:04d}"
+            rel_time_s = getattr(network_event, "rel_time_s", None)
+            if isinstance(rel_time_s, int | float):
+                correlated_groups[
+                    str(getattr(network_event, "related_activation_event", "")).strip()
+                ].append(
+                    (
+                        event_id,
+                        float(rel_time_s),
+                        getattr(network_event, "attribution_confidence", 0.0),
+                        "network",
+                    )
                 )
-            )
 
     if background_activation_ids and sensitive_target_files:
         signals.append(
-            risk_signal_type(
+            _make_signal(
+                risk_signal_type,
                 signal_id="background_sensitive_file_access",
                 category="background_sensitive_file_access",
                 severity="high",
@@ -97,7 +134,8 @@ def build_risk_signals(report: Any, risk_signal_type: Any) -> list[Any]:
         )
     if background_activation_ids and strong_target_networks:
         signals.append(
-            risk_signal_type(
+            _make_signal(
+                risk_signal_type,
                 signal_id="background_outbound_network",
                 category="background_outbound_network",
                 severity="high",
@@ -118,7 +156,8 @@ def build_risk_signals(report: Any, risk_signal_type: Any) -> list[Any]:
         )
     if sensitive_target_files:
         signals.append(
-            risk_signal_type(
+            _make_signal(
+                risk_signal_type,
                 signal_id="credential_or_secret_access",
                 category="credential_or_secret_access",
                 severity="high",
@@ -138,7 +177,8 @@ def build_risk_signals(report: Any, risk_signal_type: Any) -> list[Any]:
         )
     if len({getattr(event, "path", "") for _, event in sensitive_target_files}) >= 2:
         signals.append(
-            risk_signal_type(
+            _make_signal(
+                risk_signal_type,
                 signal_id="multiple_sensitive_artifacts",
                 category="multiple_sensitive_artifacts",
                 severity="high",
@@ -152,7 +192,8 @@ def build_risk_signals(report: Any, risk_signal_type: Any) -> list[Any]:
         )
     if sensitive_target_files and strong_target_networks:
         signals.append(
-            risk_signal_type(
+            _make_signal(
+                risk_signal_type,
                 signal_id="sensitive_file_and_network_combo",
                 category="sensitive_file_and_network_combo",
                 severity="critical",
@@ -165,16 +206,40 @@ def build_risk_signals(report: Any, risk_signal_type: Any) -> list[Any]:
                 ),
             )
         )
-    if correlated_events:
+    qualifying_correlated_events: list[tuple[str, float, str]] = []
+    for activation_event, grouped_events in correlated_groups.items():
+        if not activation_event:
+            continue
+        if len(grouped_events) < 2:
+            continue
+        ordered_group = sorted(grouped_events, key=lambda item: item[1])
+        if ordered_group[-1][1] - ordered_group[0][1] > 5.0:
+            continue
+        kinds = {item[3] for item in ordered_group}
+        if "file" not in kinds or "network" not in kinds:
+            continue
+        qualifying_correlated_events = [
+            (event_id, confidence, activation_event)
+            for event_id, _rel_time_s, confidence, _kind in ordered_group
+        ]
+        break
+
+    if qualifying_correlated_events:
         signals.append(
-            risk_signal_type(
+            _make_signal(
+                risk_signal_type,
                 signal_id="correlative_suspicious_activity",
                 category="correlative_suspicious_activity",
                 severity="medium",
                 confidence=max(
-                    0.35, max(confidence for _, confidence, _ in correlated_events)
+                    0.35,
+                    max(
+                        confidence for _, confidence, _ in qualifying_correlated_events
+                    ),
                 ),
-                evidence_event_ids=[event_id for event_id, _, _ in correlated_events],
+                evidence_event_ids=[
+                    event_id for event_id, _, _ in qualifying_correlated_events
+                ],
                 summary=(
                     "Suspicious telemetry was observed near target activations, but the "
                     "evidence remains correlative."
@@ -183,7 +248,8 @@ def build_risk_signals(report: Any, risk_signal_type: Any) -> list[Any]:
         )
     if getattr(report, "ui_blocker_entries", []):
         signals.append(
-            risk_signal_type(
+            _make_signal(
+                risk_signal_type,
                 signal_id="ui_blocker_verification_gap",
                 category="ui_blocker_verification_gap",
                 severity="medium",
@@ -197,6 +263,35 @@ def build_risk_signals(report: Any, risk_signal_type: Any) -> list[Any]:
             )
         )
     return signals
+
+
+def _is_correlative_network_candidate(network_event: Any) -> bool:
+    host = str(getattr(network_event, "host", "")).strip()
+    if _is_loopback_or_infra_peer(host):
+        return False
+    source_ip = str(getattr(network_event, "source_ip", "")).strip()
+    destination_ip = str(getattr(network_event, "destination_ip", "")).strip()
+    return not (
+        _is_loopback_or_infra_peer(source_ip)
+        or _is_loopback_or_infra_peer(destination_ip)
+    )
+
+
+def _is_loopback_or_infra_peer(value: str) -> bool:
+    normalized = value.strip().lower()
+    if not normalized:
+        return False
+    if normalized.startswith("localhost"):
+        return True
+    peer = normalized
+    if peer.startswith("[") and "]" in peer:
+        peer = peer[1 : peer.index("]")]
+    elif peer.count(":") == 1 and peer.rsplit(":", maxsplit=1)[1].isdigit():
+        peer = peer.rsplit(":", maxsplit=1)[0]
+    try:
+        return ipaddress.ip_address(peer).is_loopback
+    except ValueError:
+        return False
 
 
 def build_risk_summary(signals: list[Any]) -> dict[str, Any]:

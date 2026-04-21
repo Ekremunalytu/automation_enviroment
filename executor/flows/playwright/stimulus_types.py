@@ -13,12 +13,24 @@ _LAUNCH_PATH = Path("/workspace/.vscode/launch.json")
 
 
 @dataclass
-class StimulusExecutionResult:
-    """Execution result for a layered stimulus plan."""
+class SkippedScenarioRecord:
+    name: str
+    reason_code: str
+    detail: str = ""
 
+
+@dataclass
+class AutomationExecutionResult:
+    """Normalized executor result shared across all automation modes."""
+
+    requested_scenarios: list[str] = field(default_factory=list)
     executed_scenarios: list[str] = field(default_factory=list)
     failed_scenarios: list[str] = field(default_factory=list)
+    skipped_scenarios: list[SkippedScenarioRecord] = field(default_factory=list)
     extra_trigger_failures: list[str] = field(default_factory=list)
+
+
+StimulusExecutionResult = AutomationExecutionResult
 
 
 @dataclass

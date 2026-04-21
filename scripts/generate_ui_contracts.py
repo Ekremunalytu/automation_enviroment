@@ -36,10 +36,12 @@ TARGET_SCHEMAS: list[str] = [
     "EvidenceLink",
     "NetworkEvent",
     "FileEvent",
+    "ProcessEvent",
     "RuleExecutionRecord",
     "RuleExecutionStatus",
     "RuleLifecycle",
     "ScenarioTrace",
+    "SkippedScenarioRecord",
     "Severity",
     "StimulusPassTrace",
     "PrerequisiteResult",
@@ -70,10 +72,12 @@ NAME_OVERRIDES: dict[str, str] = {
     "EvidenceLink": "EvidenceLinkDto",
     "NetworkEvent": "NetworkEventDto",
     "FileEvent": "FileEventDto",
+    "ProcessEvent": "ProcessEventDto",
     "RuleExecutionRecord": "RuleExecutionRecordDto",
     "RuleExecutionStatus": "RuleExecutionStatusDto",
     "RuleLifecycle": "RuleLifecycleDto",
     "ScenarioTrace": "ScenarioTraceDto",
+    "SkippedScenarioRecord": "SkippedScenarioRecordDto",
     "Severity": "SeverityDto",
     "StimulusPassTrace": "StimulusPassDto",
     "PrerequisiteResult": "PrerequisiteResultDto",
@@ -116,6 +120,7 @@ SUPPLEMENTAL_TYPES = """export interface AutomationHealthDto {
   target_stream_present?: boolean;
   target_activation_count?: number;
   failed_scenarios?: string[];
+  skipped_scenarios?: string[];
 }
 
 export interface LogHealthDto {

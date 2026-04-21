@@ -830,7 +830,13 @@ def test_empty_extension_host_output_degrades_run_health() -> None:
     assert "extension_host_output_missing" in health["reasons"]
 
 
-def test_unresolved_official_chat_tool_attempt_caps_run_quality_low() -> None:
+def test_layered_harness_chat_tool_attempt_keeps_health_healthy_and_quality_medium(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    log_file = tmp_path / "exthost.log"
+    log_file.write_text("extension host activity\n", encoding="utf-8")
+
     report = monitor.ActivationReport(
         activated=[
             monitor.ActivationEntry(
@@ -842,7 +848,20 @@ def test_unresolved_official_chat_tool_attempt_caps_run_quality_low() -> None:
         ],
         target_extension_id="publisher.tool",
         extension_host_output="extension output",
-        log_file_path="/workspace/exthost.log",
+        log_file_path=str(log_file),
+        trigger_plan_requested=True,
+        trigger_plan_loaded=True,
+        trigger_plan_applied=True,
+        trigger_execution_mode="layered_passes",
+        requested_scenarios=["coding_session"],
+        scenario_traces=[
+            monitor.ScenarioTrace(
+                name="coding_session",
+                started_at=1.0,
+                ended_at=2.0,
+                status="completed",
+            )
+        ],
         event_attempts=[
             monitor.EventAttemptRecord(
                 attempt_id="chat",
@@ -857,6 +876,16 @@ def test_unresolved_official_chat_tool_attempt_caps_run_quality_low() -> None:
                 verification_contract=["activation_log_prefix", "automation_trace"],
             )
         ],
+        official_event_coverage={
+            "track": "official",
+            "declared": 1,
+            "verified": 0,
+            "attempted_only": 1,
+            "failed": 0,
+            "blocked": 0,
+            "unresolved": 1,
+            "declared_events": ["onLanguageModelTool:test"],
+        },
     )
     report.log_entries.append(
         monitor.LogStreamEntry(
@@ -869,12 +898,13 @@ def test_unresolved_official_chat_tool_attempt_caps_run_quality_low() -> None:
             is_target_extension=True,
         )
     )
+    monkeypatch.setattr(monitor, "find_exthost_logs", lambda: [log_file])
 
     health = report.automation_health
 
-    assert health["status"] == "degraded"
-    assert "chat_tool_verification_incomplete" in health["reasons"]
-    assert report.run_quality == "low"
+    assert health["status"] == "healthy"
+    assert "chat_tool_verification_incomplete" not in health["reasons"]
+    assert report.run_quality == "medium"
 
 
 def test_failed_scenarios_degrade_run_health() -> None:
@@ -1025,3 +1055,54 @@ def test_risk_signals_capture_sensitive_file_and_network_combo() -> None:
         signal.category == "sensitive_file_and_network_combo" for signal in signals
     )
     assert summary["total_signals"] >= 2
+
+
+def test_risk_signals_ignore_loopback_only_correlative_network_activity() -> None:
+    report = monitor.ActivationReport(
+        activated=[
+            monitor.ActivationEntry(
+                extension_id="publisher.tool",
+                activation_event="onCommand:test",
+                timestamp="2026-01-01 10:00:00.000",
+                source="log",
+            )
+        ],
+        file_events=[
+            monitor.FileEvent(
+                timestamp="2026-01-01T10:00:00.500",
+                rel_time_s=0.5,
+                operation="read",
+                path="/workspace/.env",
+                observer="strace",
+                related_activation_event="onCommand:test",
+                attribution_status="near_target_activation",
+                attribution_basis="correlative only",
+                attribution_confidence=0.41,
+                sensitive=True,
+                summary="read: /workspace/.env",
+            )
+        ],
+        network_events=[
+            monitor.NetworkEvent(
+                timestamp="2026-01-01T10:00:00.700",
+                rel_time_s=0.7,
+                protocol="http",
+                event_type="http_request",
+                source_ip="127.0.0.1",
+                destination_ip="127.0.0.11",
+                destination_port=6080,
+                host="localhost:6080",
+                related_activation_event="onCommand:test",
+                attribution_status="near_target_activation",
+                attribution_basis="correlative only",
+                attribution_confidence=0.38,
+                summary="GET /health",
+            )
+        ],
+        target_extension_id="publisher.tool",
+    )
+
+    assert all(
+        signal.category != "correlative_suspicious_activity"
+        for signal in report.risk_signals
+    )

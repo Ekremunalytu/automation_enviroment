@@ -384,6 +384,62 @@ def test_attach_runtime_tracers_records_failure_without_crashing(monkeypatch) ->
     )
 
 
+def test_extension_monitor_surfaces_runtime_network_capture_failure(
+    monkeypatch,
+) -> None:
+    class DummyPage:
+        pass
+
+    monkeypatch.setattr(monitor, "_snapshot_log_offsets", lambda: {})
+    monkeypatch.setattr(
+        monitor, "parse_all_exthost_logs", lambda start_offsets=None: []
+    )
+    monkeypatch.setattr(monitor, "find_exthost_logs", lambda: [])
+    monkeypatch.setattr(monitor, "get_running_extensions", lambda page: [])
+    monkeypatch.setattr(monitor, "read_extension_host_output", lambda page=None: "")
+    monkeypatch.setattr(
+        monitor,
+        "NetworkCapture",
+        lambda monitoring_start, on_event=None: _FakeNetworkCapture(
+            monitoring_start,
+            on_event,
+            [],
+            capture_error="tshark capture exited unexpectedly: invalid field http.file_data",
+        ),
+    )
+    monkeypatch.setattr(
+        monitor,
+        "FileSystemCapture",
+        lambda monitoring_start, on_event=None: _FakeFileCapture(
+            monitoring_start,
+            on_event,
+            [],
+        ),
+    )
+    monkeypatch.setattr(
+        monitor,
+        "ExtensionHostFileCapture",
+        lambda monitoring_start, on_event=None: _FakeFileCapture(
+            monitoring_start,
+            on_event,
+            [],
+        ),
+    )
+
+    mon = monitor.ExtensionMonitor(DummyPage(), target_extension_id="sample.ext")
+
+    mon.start()
+    report = mon.stop()
+
+    assert "invalid field http.file_data" in report.network_capture_error
+    assert any(
+        entry.stream == "automation"
+        and entry.kind == "network_capture"
+        and entry.status == "failed"
+        for entry in report.log_entries
+    )
+
+
 def test_check_extension_activated_uses_logs_then_ui(monkeypatch) -> None:
     monkeypatch.setattr(
         monitor,
@@ -407,11 +463,14 @@ class _FakeNetworkCapture:
         monitoring_start: float,
         on_event,
         events: list[monitor.NetworkEvent],
+        *,
+        capture_error: str = "",
     ) -> None:
         self.monitoring_start = monitoring_start
         self.on_event = on_event
         self.events = events
         self.start_error = ""
+        self.capture_error = capture_error
 
     def start(self) -> None:
         if self.on_event is not None:

@@ -60,6 +60,13 @@ observation is correct (not whether the underlying behavior is malicious).
 | `medium` | Strong indirect evidence (e.g. DNS resolution + outbound TLS + known bad reputation) |
 | `low` | Heuristic match; requires analyst review |
 
+Activation-layer `RiskSignal.confidence` remains a float (attribution
+certainty) but also carries `confidence_tier` populated through
+`packages.analysis_contracts.quantize_confidence` (thresholds: `≥0.85` →
+`high`, `≥0.65` → `medium`, else `low`). This keeps activation and
+detection layers in the same enum vocabulary without forcing rule authors
+to reason about raw attribution floats.
+
 ### 4. Finding Contract
 
 A detection finding is serialized as:
@@ -88,6 +95,12 @@ A detection finding is serialized as:
 - `rule_version` enables rule evolution without breaking historic findings.
 - `evidence[].event_id` references events inside the corresponding
   `ActivationReport` so the UI can deep-link from finding to raw capture.
+  This reference is enforced by
+  `packages.analysis_contracts.detection_report_invariant_issues`, which
+  rejects any finding whose evidence does not resolve to an
+  `evidence_events[].event_id` in the paired activation report and any
+  `RuleExecutionRecord.finding_ids` that does not match a finding in the
+  same report.
 - `adversary_class` references ADR 0002 classes A1-A7 when applicable.
 
 ### 5. Verdict Rollup

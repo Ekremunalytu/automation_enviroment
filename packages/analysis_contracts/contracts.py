@@ -39,6 +39,15 @@ class NetworkEvent(StrictContractModel):
     destination_port: int | None = None
     host: str = ""
     path: str = ""
+    http_method: str = ""
+    http_status_code: int | None = None
+    http_content_type: str = ""
+    request_body_sha256: str = ""
+    request_body_preview: str = ""
+    request_body_truncated: bool = False
+    response_body_sha256: str = ""
+    response_body_preview: str = ""
+    response_body_truncated: bool = False
     related_extension_id: str = ""
     related_activation_event: str = ""
     attribution_status: str = "unattributed"
@@ -76,6 +85,12 @@ class ScenarioTrace(StrictContractModel):
     started_at: float
     ended_at: float = 0.0
     status: str = "running"
+
+
+class SkippedScenarioRecord(StrictContractModel):
+    name: str
+    reason_code: str
+    detail: str = ""
 
 
 class StimulusPassTrace(StrictContractModel):
@@ -161,6 +176,24 @@ class EvidenceEvent(StrictContractModel):
     raw_context: dict[str, Any] = Field(default_factory=dict)
 
 
+class ProcessEvent(StrictContractModel):
+    timestamp: str = ""
+    rel_time_s: float | None = None
+    pid: int
+    ppid: int | None = None
+    operation: str = ""
+    command: str = ""
+    arguments_preview: str = ""
+    cwd: str = ""
+    related_extension_id: str = ""
+    related_activation_event: str = ""
+    attribution_status: str = "unattributed"
+    attribution_basis: str = ""
+    attribution_confidence: float = 0.0
+    is_target_extension_event: bool = False
+    summary: str = ""
+
+
 class EvidenceLink(StrictContractModel):
     from_event_id: str
     to_event_id: str
@@ -187,6 +220,7 @@ class RiskSignal(StrictContractModel):
     category: str
     severity: str
     confidence: float
+    confidence_tier: str = ""
     evidence_event_ids: list[str] = Field(default_factory=list)
     summary: str = ""
     details: dict[str, Any] = Field(default_factory=dict)
@@ -228,9 +262,11 @@ class ActivationReport(StrictContractModel):
     verdict: dict[str, Any]
     summary: dict[str, Any]
     scenario_traces: list[ScenarioTrace]
+    skipped_scenarios: list[SkippedScenarioRecord] = Field(default_factory=list)
     evidence_events: list[EvidenceEvent]
     network_events: list[NetworkEvent]
     file_events: list[FileEvent]
+    process_events: list[ProcessEvent] = Field(default_factory=list)
     log_streams: dict[str, list[LogStreamEntry]]
     target_extension_observed: bool = False
     trigger_plan_requested: bool = False

@@ -1,6 +1,6 @@
 # Refactor Status
 
-`Last Updated: 2026-04-21`
+`Last Updated: 2026-04-21 (post-W6 detection bridge)`
 
 This is the active status board for the Week 1-4 stabilization work and the
 pre-W6 cleanup handoff. Use this file for current closure state; use
@@ -33,7 +33,7 @@ pre-W6 cleanup handoff. Use this file for current closure state; use
 
 - Repo-wide import graph checks pass.
 - Executor retry / cleanup / monotonic timing work is in place.
-  Harness-extension checksum verification is deferred to Week 5 (see below).
+  Harness-extension checksum verification is now enforced in executor startup.
 - `monitor.py` is a thin facade over dedicated lifecycle/source/runtime/
   attribution helpers while preserving the flat import surface used by tests
   and the executor entrypoint.
@@ -110,39 +110,104 @@ Closure evidence captured while finishing the last open items:
   per-rule fire/silence checks, manifest round-trip validation, and
   benign silence coverage. CI runs the same lane in a dedicated
   `security-fixtures` job.
-- Automation reliability now fails closed at the verdict layer: missing
-  target observation or activation yields `inconclusive` instead of a
-  silent `clean`. The execution side is still not fully hardened,
-  though; stimulus runs still rely on fixed waits, static workspace
-  seeding, and no dedicated idle-observation pass.
-- Week 5 closes as PoC-complete, but not hardening-complete. Remaining
-  W6/W7 priorities:
-  - activation confirmation gate and dynamic post-stimulus verification
-  - extension-aware workspace seeding and materializer completeness
-  - deferred-activation coverage via an idle observation window
-  - runtime capture gap closure for HTTP body capture / child-process tracking
-  - explicit CI egress hardening for the security-fixture lane
-  - scenario-dropout honesty: scenarios skipped by name mismatch or
-    missing handler must surface in `failed_scenarios` (or a new
-    `skipped_scenarios` bucket) with a reason code and must demote
-    `run_quality` / `automation_health` — silent drops violate
-    `DEVELOPMENT_PRIORITIES.md` §1 "Executor Failure Honesty"
-    (observed 2026-04-21 on ms-python baseline: 5 requested / 3 run
-    / 0 failed)
-  - correlative-signal false-positive floor: `signal_policy`
-    `correlative_suspicious_activity` must require a minimum
-    evidence count and a tightened time window so benign baselines
-    (ms-python, chat, theme) do not raise a medium signal — precondition
-    for the W7 §10.7 acceptance clause "no benign fixture triggers a
-    production rule"
 
-## W6 Ready State (2026-04-20)
+## Week 6 Progress (2026-04-21)
 
-- Pre-W6 structural cleanup is complete.
-- W6 starts directly with automation reliability and capture hardening work.
+- Scenario truth is now ledger-backed end to end: requested scenarios
+  reconcile to executed, failed, or typed `skipped_scenarios`, and the report
+  invariant gate rejects drift between requested/executed/skipped state.
+- `automation_health` and `run_quality` now degrade or become inconclusive when
+  requested scenarios are skipped or when none of the requested scenarios
+  execute.
+- Trigger-plan-driven flows now use named bounded wait helpers plus an
+  idle-observation window instead of treating fixed sleeps as success.
+- Workspace seeding/materialization now fails closed for unsupported activation
+  surfaces and unsupported fixture generation instead of silently fabricating
+  generic placeholders.
+- Runtime capture now adds bounded HTTP metadata/body previews and
+  extension-host child-process telemetry without storing raw full bodies,
+  raw argv, or environment dumps.
+- `signal_policy` now suppresses `correlative_suspicious_activity` unless
+  there are at least two tightly clustered correlated events and at least one
+  of them is network or sensitive-file evidence.
+- The `security-fixtures` CI job now disables outbound egress after dependency
+  install, verifies that the block is real, and asserts that
+  `make test-security-live` refuses to run under `CI=true`.
+
+## W6 Status (2026-04-21)
+
+- Pre-W6 structural cleanup remains complete.
+- W6 automation reliability, report honesty, capture hardening, and CI egress
+  enforcement are now implemented.
 - Structural tree cleanup, legacy trigger-plan compatibility, and `monitor.py`
   modularization are no longer open W6 scope items unless a regression is
   found.
+
+## Post-W6 Detection Bridge (2026-04-21)
+
+Landed before W7 acceptance to close the two `ActivationReport` ↔
+`DetectionReport` gaps surfaced during the W5/W6 review:
+
+- **Shared confidence vocabulary (ADR 0003 §3).** `RiskSignal` now carries a
+  `confidence_tier: "high" | "medium" | "low" | ""` field populated via
+  `packages.analysis_contracts.quantize_confidence` (thresholds 0.85 / 0.65).
+  Activation-layer floats and detection-layer `Confidence` enums now speak the
+  same tier vocabulary; `signal_policy.build_risk_signals` emits both the raw
+  `confidence` float and the quantized `confidence_tier`.
+- **Cross-layer link invariant (ADR 0003 §4).**
+  `detection_report_invariant_issues(detection_payload, activation_payload)`
+  asserts every `DetectionFinding.evidence[].event_id` resolves to an
+  `evidence_events[].event_id` in the paired `ActivationReport`, and every
+  `RuleExecutionRecord.finding_ids` references a finding carried in the same
+  report. The `ms-python.python` baseline runs `run_detection` end-to-end and
+  must report zero invariant issues
+  (`tests/platform/contracts/test_analysis_fixture_baselines.py`).
+- **UI contract regenerated.** `scripts/generate_ui_contracts.py` refreshed
+  `ui/src/lib/types/contracts.ts` so `RiskSignalDto.confidence_tier?` is visible
+  to the UI. No view-model shape changes were required; deeper UI deep-link
+  rewiring stays in the post-PoC backlog.
+- **Tests.** New `tests/security/test_detection_report_invariants.py` covers
+  clean resolution, unknown evidence event_id, dangling rule finding_id, and
+  quantization thresholds.
+
+## Known Concerns (tracked into W7)
+
+Risk log surfaced during the post-W6 review on `2026-04-21`. None block the
+bridge landing, but each is load-bearing for W7 acceptance or for
+post-PoC quality.
+
+- **Verdict vocabulary is split (medium).**
+  `signal_policy.build_verdict` emits
+  `likely_malicious / suspicious / needs_review / benign`; detection-layer
+  `packages.analysis_contracts.detection.rollup.compute_verdict` emits
+  `malicious / suspicious / clean_with_notes / clean / inconclusive`.
+  Analyst UI can surface both, so a single run may read "needs_review"
+  in one panel and "inconclusive" in another. W7 action: pick the
+  detection-layer enum as authoritative and demote the activation-layer
+  verdict to a presentation-only field or drop it. Reference: ADR 0003
+  §5.
+- **`monitor_attribution.py` is still ~1100 LoC (low, post-PoC).**
+  Post-W6 refactor split `monitor.py` and `stimulus.py` cleanly, but the
+  attribution module still bundles evidence-link builders and signal
+  facts. Not shipping-critical; becomes a rule-author friction point
+  after W7. Track in the post-PoC modularization backlog alongside
+  `analysis_service` decomposition (7.1.1).
+- **UI detection surface is minimum-viable (medium for demo).**
+  `DetectionPanel` and `FindingCard` render the contract but carry one
+  pre-existing `react-hooks/exhaustive-deps` warning and no axe-core
+  coverage. If W7 demo is stakeholder-facing, reserve part of the W7
+  buffer for UI polish. Otherwise this stays on the post-PoC UI lane
+  (REFACTOR_OPTIMIZATION.md §10.3).
+- **Stretch adversary classes A3/A5/A7 have no rules (low for PoC,
+  medium for demo).** PoC bar only requires A1/A2/A4/A6 and that bar is
+  met. However a single A3 (typosquat) canary + rule materially
+  improves demo readability because the signal is human-obvious. Candidate
+  for W7 buffer if acceptance items close early; otherwise hold.
+
+Each item has a single natural owner: verdict vocabulary is a contracts
+change, modularization is an executor change, UI polish is a UI change,
+A3 coverage is a detection-engine change. Pick by remaining W7 buffer,
+not by novelty.
 
 ## Week 5 Start Rule
 

@@ -53,6 +53,7 @@ try:
         RiskSignal,
         RunningExtension,
         ScenarioTrace,
+        SkippedScenarioRecord,
         StimulusPassTrace,
     )
     from .monitor_runtime import (
@@ -110,7 +111,12 @@ try:
         _log,
         _parse_iso_timestamp,
     )
-    from .runtime_capture.events import ActivationEntry, FileEvent, NetworkEvent
+    from .runtime_capture.events import (
+        ActivationEntry,
+        FileEvent,
+        NetworkEvent,
+        ProcessEvent,
+    )
     from .runtime_capture.extension_host import (  # noqa: F401 - re-exported surface
         _ACTIVATION_PATTERNS,
         _TIMESTAMP_RE,
@@ -175,6 +181,7 @@ except ImportError:  # pragma: no cover - top-level executor import mode
         RiskSignal,
         RunningExtension,
         ScenarioTrace,
+        SkippedScenarioRecord,
         StimulusPassTrace,
     )
     from monitor_runtime import (
@@ -232,7 +239,12 @@ except ImportError:  # pragma: no cover - top-level executor import mode
         _log,
         _parse_iso_timestamp,
     )
-    from runtime_capture.events import ActivationEntry, FileEvent, NetworkEvent
+    from runtime_capture.events import (
+        ActivationEntry,
+        FileEvent,
+        NetworkEvent,
+        ProcessEvent,
+    )
     from runtime_capture.extension_host import (  # noqa: F401 - re-exported surface
         _ACTIVATION_PATTERNS,
         _TIMESTAMP_RE,

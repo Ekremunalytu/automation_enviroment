@@ -1311,8 +1311,8 @@ bloklamaz.
 - [ ] Hiçbir benign fixture (extensions/, malicious/ dışı) bir
       production rule'u tetiklemiyor; `correlative_suspicious_activity`
       benign baseline'da (ms-python, chat, theme) ateşlenmemeli
-      (2026-04-21 itibariyle ateşleniyor — W6'da `signal_policy` eşik
-      sıkılaştırması gerekli).
+      (W6 `signal_policy` eşik sıkılaştırması 2026-04-21'de landed; W7
+      acceptance sırasında baseline regresyon doğrulaması yapılacak).
 - [ ] Scenario-dropout honesty: `requested_scenarios` ↔ `scenarios_run`
       farkı her zaman `failed_scenarios` veya `skipped_scenarios`
       üzerinden raporlanıyor; sessiz drop yok.
@@ -1321,6 +1321,9 @@ bloklamaz.
       (verification gap açıkken `clean` dönmüyor).
 - [ ] UI'da `DetectionReport` görüntüleniyor; en az bir finding'in
       evidence deep-link'i aktivasyon raporuna geçiyor.
+      (`detection_report_invariant_issues` post-W6'da landed; her finding
+      evidence event_id'sinin paired ActivationReport'ta çözüldüğünü test
+      lane'i doğruluyor.)
 - [ ] Demo senaryosu yazılmış: PoC sınıflarından en az birinin
       canary'sini analiz et, UI'da finding'i göster, verdict'i kanıtla.
 

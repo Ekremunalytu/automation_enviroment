@@ -13,6 +13,7 @@ if str(PLAYWRIGHT_DIR) not in sys.path:
     sys.path.insert(0, str(PLAYWRIGHT_DIR))
 
 import stimulus  # noqa: E402
+import stimulus_attempts  # noqa: E402
 
 
 class _FakeMonitor:
@@ -172,6 +173,37 @@ def test_workspace_contains_fixture_creates_requested_patterns(
     assert monitor.results[0]["status"] == "completed"
 
 
+def test_workspace_contains_fixture_falls_back_to_deterministic_placeholder(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setattr(stimulus.workspace, "WORKSPACE_DIR", tmp_path)
+    monitor = _FakeMonitor()
+    prerequisite = {
+        "prerequisite_id": "prep-workspace-contains",
+        "key": "workspace_contains_fixture",
+        "attempt_ids": ["a"],
+    }
+    attempts_by_id = {
+        "a": {
+            "attempt_id": "a",
+            "event_value": "**/.gitignore",
+            "activation_event": "workspaceContains:**/.gitignore",
+        }
+    }
+
+    result = stimulus._materialize_prerequisite(
+        prerequisite,
+        payload=_payload(),
+        attempts_by_id=attempts_by_id,
+        monitor=monitor,
+    )
+
+    assert result.status == "completed"
+    assert (tmp_path / "nested" / ".gitignore").exists()
+    assert monitor.results[0]["status"] == "completed"
+
+
 def test_command_target_without_metadata_is_blocked() -> None:
     monitor = _FakeMonitor()
     prerequisite = {
@@ -196,7 +228,7 @@ def test_command_target_without_metadata_is_blocked() -> None:
     )
 
     assert result.status == "blocked"
-    assert result.reason_code == "missing_command_target"
+    assert result.reason_code == "prerequisite_blocked"
     assert monitor.results[0]["status"] == "blocked"
 
 
@@ -220,7 +252,37 @@ def test_unknown_language_fixture_is_blocked() -> None:
     )
 
     assert result.status == "blocked"
-    assert result.reason_code == "unknown_language_fixture"
+    assert result.reason_code == "materialization_failed"
+
+
+def test_supported_generic_language_fixture_creates_sample_file(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setattr(stimulus.workspace, "WORKSPACE_DIR", tmp_path)
+    monitor = _FakeMonitor()
+
+    result = stimulus._materialize_prerequisite(
+        {
+            "prerequisite_id": "prep-language",
+            "key": "language_fixture",
+            "attempt_ids": ["a"],
+        },
+        payload=_payload(),
+        attempts_by_id={
+            "a": {
+                "attempt_id": "a",
+                "event_family": "onLanguage",
+                "activation_event": "onLanguage:json",
+                "event_value": "json",
+            }
+        },
+        monitor=monitor,
+    )
+
+    assert result.status == "completed"
+    assert (tmp_path / "sample.json").exists()
+    assert monitor.results[0]["status"] == "completed"
 
 
 def test_run_stimulus_plan_dedupes_repeat_scenarios_within_pass(
@@ -469,7 +531,7 @@ def test_run_stimulus_plan_records_failed_layered_scenarios(
 
     result = stimulus.run_stimulus_plan(object(), payload, monitor=monitor)
 
-    assert result.executed_scenarios == []
+    assert result.executed_scenarios == ["project_exploration"]
     assert result.failed_scenarios == ["project_exploration"]
     assert [item["status"] for item in monitor.attempt_ends] == ["failed"]
     assert monitor.attempt_ends[0]["failure_reason_code"] == "stimulus_execution_failed"
@@ -569,3 +631,71 @@ def test_run_stimulus_plan_uses_lightweight_debug_action(
         "Reused prior extra:debug_lifecycle result"
         in monitor.attempt_ends[1]["result_details"]
     )
+
+
+def test_run_stimulus_plan_waits_for_trigger_effect_for_custom_editor(
+    monkeypatch,
+) -> None:
+    calls: list[tuple[str, str | None]] = []
+    waits: list[str] = []
+
+    monkeypatch.setattr(
+        stimulus.editor,
+        "open_file_by_name",
+        lambda _page, filename: calls.append(("open", filename)),
+    )
+    monkeypatch.setattr(
+        stimulus.editor,
+        "close_active_editor",
+        lambda _page: calls.append(("close", None)),
+    )
+    monkeypatch.setattr(
+        stimulus_attempts,
+        "wait_for_trigger_effect",
+        lambda *_args, **_kwargs: "trigger_effect",
+    )
+    monkeypatch.setattr(
+        stimulus_attempts,
+        "wait_for_ui_settle",
+        lambda *_args, **_kwargs: "ui_settle",
+    )
+    monkeypatch.setattr(
+        stimulus_attempts,
+        "wait_for_editor_ready",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("custom editor attempts should not wait for Monaco")
+        ),
+    )
+    monkeypatch.setattr(
+        stimulus_attempts,
+        "require_wait",
+        lambda result: waits.append(str(result)),
+    )
+
+    payload = _payload(
+        extra_custom_editor_files=["samples/report.drawio"],
+        event_attempts=[
+            {
+                "attempt_id": "custom-editor",
+                "activation_event": "onCustomEditor:drawio",
+                "event_family": "onCustomEditor",
+                "executor_action": "extra:custom_editor",
+                "trigger_method": "mixed",
+            }
+        ],
+        stimulus_passes=[
+            {
+                "pass_id": "target_specific_activation",
+                "label": "target-specific activation pass",
+                "order": 3,
+                "attempt_ids": ["custom-editor"],
+                "prerequisite_keys": [],
+            }
+        ],
+    )
+
+    result = stimulus.run_stimulus_plan(SimpleNamespace(), payload, monitor=None)
+
+    assert result.executed_scenarios == []
+    assert calls == [("open", "samples/report.drawio"), ("close", None)]
+    assert waits == ["trigger_effect", "ui_settle"]

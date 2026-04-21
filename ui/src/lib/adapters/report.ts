@@ -19,9 +19,11 @@ import type {
   DetectionReportDto,
   PrerequisiteResultDto,
   NetworkEventDto,
+  ProcessEventDto,
   RiskSignalDto,
   RiskSummaryDto,
   ScenarioTraceDto,
+  SkippedScenarioRecordDto,
   StimulusPassDto,
 } from "../types/contracts";
 import type {
@@ -117,6 +119,7 @@ function buildAutomationHealth(
   targetStreamPresent: boolean;
   targetActivationCount: number;
   failedScenarios: string[];
+  skippedScenarios: string[];
   legacyHealthFallback: boolean;
 } {
   const legacySummary =
@@ -136,6 +139,7 @@ function buildAutomationHealth(
       targetStreamPresent: false,
       targetActivationCount: 0,
       failedScenarios: [],
+      skippedScenarios: [],
       legacyHealthFallback: true,
     };
   }
@@ -151,6 +155,9 @@ function buildAutomationHealth(
     targetActivationCount: Number(source.target_activation_count ?? 0),
     failedScenarios: Array.isArray(source.failed_scenarios)
       ? source.failed_scenarios.map(String)
+      : [],
+    skippedScenarios: Array.isArray(source.skipped_scenarios)
+      ? source.skipped_scenarios.map(String)
       : [],
     legacyHealthFallback: false,
   };
@@ -269,6 +276,15 @@ function fromNetwork(entry: NetworkEventDto, index: number): EvidenceEventView {
       raw_context: {
         event_type: entry.event_type || "",
         source_ip: entry.source_ip || "",
+        http_method: entry.http_method || "",
+        http_status_code: entry.http_status_code ?? null,
+        http_content_type: entry.http_content_type || "",
+        request_body_sha256: entry.request_body_sha256 || "",
+        request_body_preview: entry.request_body_preview || "",
+        request_body_truncated: Boolean(entry.request_body_truncated),
+        response_body_sha256: entry.response_body_sha256 || "",
+        response_body_preview: entry.response_body_preview || "",
+        response_body_truncated: Boolean(entry.response_body_truncated),
       },
     },
     index,
@@ -306,6 +322,35 @@ function fromFile(entry: FileEventDto, index: number): EvidenceEventView {
   );
 }
 
+function fromProcess(entry: ProcessEventDto, index: number): EvidenceEventView {
+  return fromCanonicalEvent(
+    {
+      event_id: `process-${String(index + 1).padStart(4, "0")}`,
+      kind: "process",
+      timestamp: entry.timestamp || "",
+      rel_time_s: entry.rel_time_s ?? null,
+      collector: "strace",
+      actor: entry.is_target_extension_event ? "extension" : "unknown",
+      extension_id: entry.related_extension_id || "",
+      activation_event: entry.related_activation_event || "",
+      operation: entry.operation || "",
+      attribution_status: entry.attribution_status || "unattributed",
+      attribution_basis: entry.attribution_basis || "",
+      attribution_confidence: entry.attribution_confidence ?? 0,
+      is_target_extension_event: entry.is_target_extension_event ?? false,
+      summary: entry.summary || "",
+      raw_context: {
+        pid: entry.pid ?? null,
+        ppid: entry.ppid ?? null,
+        command: entry.command || "",
+        arguments_preview: entry.arguments_preview || "",
+        cwd: entry.cwd || "",
+      },
+    },
+    index,
+  );
+}
+
 function fromScenario(entry: ScenarioTraceDto, index: number): EvidenceEventView {
   return fromCanonicalEvent(
     {
@@ -331,6 +376,7 @@ function buildLegacyEvents(report: ActivationReportDto) {
   for (const [index, entry] of (report.activated || []).entries()) events.push(fromActivation(entry, index));
   for (const [index, entry] of (report.network_events || []).entries()) events.push(fromNetwork(entry, index));
   for (const [index, entry] of (report.file_events || []).entries()) events.push(fromFile(entry, index));
+  for (const [index, entry] of (report.process_events || []).entries()) events.push(fromProcess(entry, index));
   for (const [index, entry] of (report.scenario_traces || []).entries()) events.push(fromScenario(entry, index));
   return events;
 }
@@ -409,6 +455,15 @@ function buildSummary(report: ActivationReportDto, events: EvidenceEventView[]):
       : Array.isArray(report.verified_capabilities)
         ? report.verified_capabilities.map(String)
       : [];
+  const skippedScenarioDetails = Array.isArray(report.skipped_scenarios)
+    ? report.skipped_scenarios
+        .map((entry: SkippedScenarioRecordDto) => ({
+          name: String(entry?.name || ""),
+          reasonCode: String(entry?.reason_code || ""),
+          detail: String(entry?.detail || ""),
+        }))
+        .filter((entry) => entry.name && entry.reasonCode)
+    : [];
   return {
     totalEvents: events.length,
     totalActivated: Number(summary.total_activated ?? events.filter((event) => event.kind === "activation").length),
@@ -446,6 +501,10 @@ function buildSummary(report: ActivationReportDto, events: EvidenceEventView[]):
     automationHealthStatus: automationHealth.status,
     automationHealthReasons: automationHealth.reasons,
     failedScenarios: automationHealth.failedScenarios,
+    skippedScenarios: skippedScenarioDetails.length
+      ? skippedScenarioDetails.map((entry) => entry.name)
+      : automationHealth.skippedScenarios,
+    skippedScenarioDetails,
     extensionHostLogPresent: automationHealth.extensionHostLogPresent,
     extensionHostLogFound: logHealth.extensionHostLogFound,
     extensionHostOutputPresent: automationHealth.extensionHostOutputPresent,

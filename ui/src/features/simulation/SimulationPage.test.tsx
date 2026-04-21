@@ -105,8 +105,8 @@ describe("SimulationPage", () => {
       verification_gap: 2,
       run_quality: "inconclusive",
       automation_health: {
-        status: "inconclusive",
-        reasons: ["target_extension_not_observed"],
+        status: "degraded",
+        reasons: ["skipped_scenarios_present"],
         trigger_requested: true,
         trigger_loaded: true,
         trigger_applied: false,
@@ -115,6 +115,7 @@ describe("SimulationPage", () => {
         target_stream_present: true,
         target_activation_count: 1,
         failed_scenarios: [],
+        skipped_scenarios: ["debug_session"],
       },
       log_health: {
         extension_host_log_found: true,
@@ -173,6 +174,13 @@ describe("SimulationPage", () => {
         },
       ],
       evidence_links: [],
+      skipped_scenarios: [
+        {
+          name: "debug_session",
+          reason_code: "unsupported_activation_surface",
+          detail: "family not supported by runtime",
+        },
+      ],
       coverage_summary: {
         covered: 5,
         partial: 2,
@@ -257,6 +265,7 @@ describe("SimulationPage", () => {
       },
       summary: {
         network_events: 1,
+        skipped_scenarios: ["debug_session"],
         verdict: {
           level: "needs_review",
           score: 34,
@@ -287,6 +296,12 @@ describe("SimulationPage", () => {
     await waitFor(() => {
       expect(screen.getByTestId("location-search").textContent).toContain("tab=status");
     });
+    expect(screen.getAllByText("Skipped scenarios").length).toBeGreaterThan(0);
+    expect(
+      screen.getByText(
+        "debug_session: unsupported_activation_surface (family not supported by runtime)",
+      ),
+    ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("tab", { name: "Live Evidence" }));
     await waitFor(() => {

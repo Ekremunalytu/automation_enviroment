@@ -7,11 +7,12 @@ import subprocess
 import threading
 import time
 from collections.abc import Callable, Mapping
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 from ._shared import VSCODE_LOGS_DIR, _log, _parse_iso_timestamp
-from .events import ActivationEntry, FileEvent
+from .events import ActivationEntry, FileEvent, ProcessEvent
 from .filesystem import parse_strace_file_event_line
 
 # Patterns found in VS Code Extension Host logs (--log trace)
@@ -44,6 +45,11 @@ _ACTIVATION_PATTERNS = [
 
 # Timestamp pattern at start of VS Code log lines
 _TIMESTAMP_RE = re.compile(r"^\[?(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}\.\d+)\]?")
+_PROCESS_EVENT_RE = re.compile(
+    r"^(?:\[pid\s+(?P<pid>\d+)\]\s+)?(?P<ts>\d+\.\d+)\s+"
+    r"(?P<call>execve|execveat|clone|clone3|fork|vfork|chdir)\((?P<args>.*)\)\s+=\s+(?P<result>.+)$"
+)
+_PROCESS_ARGUMENT_PREVIEW = 256
 
 
 def _parse_activation_lines(lines: list[str], *, source: str) -> list[ActivationEntry]:
@@ -237,6 +243,98 @@ def parse_activations_from_output(
     ]
 
 
+def parse_strace_process_event_line(
+    line: str,
+    *,
+    monitoring_start: float = 0.0,
+    root_pid: int,
+    ppid_by_pid: dict[int, int | None],
+    cwd_by_pid: dict[int, str],
+) -> ProcessEvent | None:
+    match = _PROCESS_EVENT_RE.match(line.strip())
+    if match is None:
+        return None
+
+    try:
+        timestamp_epoch = float(match.group("ts"))
+    except ValueError:
+        return None
+
+    call = match.group("call")
+    args = match.group("args")
+    result = match.group("result").strip()
+    current_pid = int(match.group("pid") or root_pid)
+    current_ppid = ppid_by_pid.get(current_pid)
+    current_cwd = cwd_by_pid.get(current_pid, "")
+    rel_time_s = None
+    if monitoring_start > 0:
+        rel_time_s = round(max(timestamp_epoch - monitoring_start, 0.0), 3)
+    timestamp = datetime.fromtimestamp(timestamp_epoch).isoformat(
+        timespec="milliseconds"
+    )
+
+    if call in {"clone", "clone3", "fork", "vfork"}:
+        try:
+            child_pid = int(result.split()[0])
+        except ValueError:
+            return None
+        ppid_by_pid[child_pid] = current_pid
+        return ProcessEvent(
+            timestamp=timestamp,
+            rel_time_s=rel_time_s,
+            pid=child_pid,
+            ppid=current_pid,
+            operation="spawn",
+            command=call,
+            arguments_preview=_bounded_arguments_preview(args),
+            cwd=current_cwd,
+            summary=f"Spawned child process {child_pid} from pid {current_pid}.",
+        )
+
+    quoted_items = re.findall(r'"([^"]*)"', args)
+    if call in {"execve", "execveat"}:
+        if not quoted_items:
+            return None
+        command = quoted_items[0]
+        arguments_preview = _bounded_arguments_preview(" ".join(quoted_items[1:]))
+        return ProcessEvent(
+            timestamp=timestamp,
+            rel_time_s=rel_time_s,
+            pid=current_pid,
+            ppid=current_ppid,
+            operation="exec",
+            command=command,
+            arguments_preview=arguments_preview,
+            cwd=current_cwd,
+            summary=f"Executed {command} in pid {current_pid}.",
+        )
+
+    if call == "chdir":
+        if not quoted_items:
+            return None
+        cwd_by_pid[current_pid] = quoted_items[0]
+        return ProcessEvent(
+            timestamp=timestamp,
+            rel_time_s=rel_time_s,
+            pid=current_pid,
+            ppid=current_ppid,
+            operation="chdir",
+            command="chdir",
+            arguments_preview="",
+            cwd=quoted_items[0],
+            summary=f"Changed working directory to {quoted_items[0]}.",
+        )
+
+    return None
+
+
+def _bounded_arguments_preview(raw: str) -> str:
+    preview = " ".join(raw.split())
+    if len(preview) <= _PROCESS_ARGUMENT_PREVIEW:
+        return preview
+    return preview[: _PROCESS_ARGUMENT_PREVIEW - 3] + "..."
+
+
 class ExtensionHostFileCapture:
     """Attach strace to the current Extension Host process."""
 
@@ -244,14 +342,19 @@ class ExtensionHostFileCapture:
         self,
         monitoring_start: float,
         on_event: Callable[[FileEvent], None] | None = None,
+        on_process_event: Callable[[ProcessEvent], None] | None = None,
     ) -> None:
         self.monitoring_start = monitoring_start
         self.on_event = on_event
+        self.on_process_event = on_process_event
         self.events: list[FileEvent] = []
+        self.process_events: list[ProcessEvent] = []
         self.start_error = ""
         self._proc: subprocess.Popen[str] | None = None
         self._reader: threading.Thread | None = None
         self._pid: int | None = None
+        self._ppid_by_pid: dict[int, int | None] = {}
+        self._cwd_by_pid: dict[int, str] = {}
         self.attach_attempts = 0
         self.diagnostics: dict[str, Any] = {
             "attempts": 0,
@@ -284,6 +387,7 @@ class ExtensionHostFileCapture:
             return
 
         self._pid = pid
+        self._ppid_by_pid[pid] = None
         self.diagnostics["selected_pid"] = pid
         cmd = [
             "strace",
@@ -294,7 +398,8 @@ class ExtensionHostFileCapture:
             "-e",
             (
                 "trace=open,openat,creat,unlink,unlinkat,rename,renameat,"
-                "renameat2,mkdir,rmdir,newfstatat,readlink"
+                "renameat2,mkdir,rmdir,newfstatat,readlink,execve,execveat,"
+                "clone,clone3,fork,vfork,chdir"
             ),
             "-p",
             str(pid),
@@ -348,6 +453,17 @@ class ExtensionHostFileCapture:
             return
 
         for line in self._proc.stderr:
+            process_event = parse_strace_process_event_line(
+                line,
+                monitoring_start=self.monitoring_start,
+                root_pid=self._pid or 0,
+                ppid_by_pid=self._ppid_by_pid,
+                cwd_by_pid=self._cwd_by_pid,
+            )
+            if process_event is not None:
+                self.process_events.append(process_event)
+                if self.on_process_event is not None:
+                    self.on_process_event(process_event)
             event = parse_strace_file_event_line(
                 line,
                 monitoring_start=self.monitoring_start,

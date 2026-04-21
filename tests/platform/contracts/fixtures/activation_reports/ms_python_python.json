@@ -8,27 +8,21 @@
   "trigger_plan_path": "/results/triggers_ms-python.python-2026.5.2026032701.json",
   "trigger_execution_mode": "layered_passes",
   "requested_scenarios": [
-    "coding_session",
     "project_exploration",
-    "debug_session",
+    "coding_session",
     "terminal_usage",
+    "debug_session",
     "refactor_workflow"
   ],
   "failed_scenarios": [],
   "extra_trigger_failures": [],
   "verification_gap": 2,
   "heuristic_verification_gap": 0,
-  "run_quality": "low",
-  "run_quality_reasons": [
-    "Some attempted capabilities could not be verified.",
-    "Some official chat/tool attempts remained unresolved after harness verification."
-  ],
+  "run_quality": "medium",
+  "run_quality_reasons": [],
   "automation_health": {
-    "status": "degraded",
-    "reasons": [
-      "verification_gap_present",
-      "chat_tool_verification_incomplete"
-    ],
+    "status": "healthy",
+    "reasons": [],
     "trigger_requested": true,
     "trigger_loaded": true,
     "trigger_applied": true,
@@ -39,7 +33,8 @@
     "failed_scenarios": [],
     "extra_trigger_failures": [],
     "extra_trigger_failure_count": 0,
-    "extension_host_log_found": true
+    "extension_host_log_found": true,
+    "skipped_scenarios": []
   },
   "log_health": {
     "extension_host_log_found": true,
@@ -57,42 +52,20 @@
     "competing_candidate_count": 498,
     "ui_blocker_count": 0
   },
-  "risk_signals": [
-    {
-      "signal_id": "correlative_suspicious_activity",
-      "category": "correlative_suspicious_activity",
-      "severity": "medium",
-      "confidence": 0.47,
-      "evidence_event_ids": [
-        "file-0654",
-        "file-2525",
-        "network-0001",
-        "network-0002"
-      ],
-      "summary": "Suspicious telemetry was observed near target activations, but the evidence remains correlative.",
-      "details": {
-        "correlation_window_s": 12.5,
-        "unique_sensitive_files": 2,
-        "unique_network_peers": 2
-      }
-    }
-  ],
+  "risk_signals": [],
   "risk_summary": {
-    "total_signals": 1,
+    "total_signals": 0,
     "critical": 0,
     "high": 0,
-    "medium": 1,
+    "medium": 0,
     "low": 0,
-    "categories": [
-      "correlative_suspicious_activity"
-    ]
+    "categories": []
   },
   "verdict": {
     "level": "needs_review",
-    "score": 28,
+    "score": 22,
     "reasons": [
-      "Sensitive file activity exists near target activations, but attribution is only correlative.",
-      "Run quality was low, so suspicious telemetry is weighted conservatively but not dismissed."
+      "Sensitive file activity exists near target activations, but attribution is only correlative."
     ],
     "note": "Sensitive file activity exists near target activations, but attribution is only correlative."
   },
@@ -221,13 +194,10 @@
     "trigger_plan_applied": true,
     "verification_gap": 2,
     "heuristic_verification_gap": 0,
-    "run_quality": "low",
+    "run_quality": "medium",
     "automation_health": {
-      "status": "degraded",
-      "reasons": [
-        "verification_gap_present",
-        "chat_tool_verification_incomplete"
-      ],
+      "status": "healthy",
+      "reasons": [],
       "trigger_requested": true,
       "trigger_loaded": true,
       "trigger_applied": true,
@@ -238,7 +208,8 @@
       "failed_scenarios": [],
       "extra_trigger_failures": [],
       "extra_trigger_failure_count": 0,
-      "extension_host_log_found": true
+      "extension_host_log_found": true,
+      "skipped_scenarios": []
     },
     "log_health": {
       "extension_host_log_found": true,
@@ -257,24 +228,22 @@
       "ui_blocker_count": 0
     },
     "risk_summary": {
-      "total_signals": 1,
+      "total_signals": 0,
       "critical": 0,
       "high": 0,
-      "medium": 1,
+      "medium": 0,
       "low": 0,
-      "categories": [
-        "correlative_suspicious_activity"
-      ]
+      "categories": []
     },
     "verdict": {
       "level": "needs_review",
-      "score": 28,
+      "score": 22,
       "reasons": [
-        "Sensitive file activity exists near target activations, but attribution is only correlative.",
-        "Run quality was low, so suspicious telemetry is weighted conservatively but not dismissed."
+        "Sensitive file activity exists near target activations, but attribution is only correlative."
       ],
       "note": "Sensitive file activity exists near target activations, but attribution is only correlative."
-    }
+    },
+    "skipped_scenarios": []
   },
   "attempted_capabilities": [
     "commands",
@@ -546,7 +515,7 @@
       "attribution_confidence": 0.47,
       "is_target_extension_event": false,
       "noise_reason": "temporal proximity alone is not treated as ownership",
-      "summary": "44426 → 6080 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2964870496 TSecr=0 WS=128"
+      "summary": "44426 \u2192 6080 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2964870496 TSecr=0 WS=128"
     },
     {
       "timestamp": "2026-04-15T15:24:58.675",
@@ -584,7 +553,7 @@
       "attribution_confidence": 0.0,
       "is_target_extension_event": false,
       "noise_reason": "",
-      "summary": "54254 → 39381 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2964884638 TSecr=0 WS=128 [project_exploration]"
+      "summary": "54254 \u2192 39381 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2964884638 TSecr=0 WS=128 [project_exploration]"
     },
     {
       "timestamp": "2026-04-15T15:25:12.818",
@@ -622,7 +591,7 @@
       "attribution_confidence": 0.0,
       "is_target_extension_event": false,
       "noise_reason": "",
-      "summary": "54266 → 39381 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2964884706 TSecr=0 WS=128 [project_exploration]"
+      "summary": "54266 \u2192 39381 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2964884706 TSecr=0 WS=128 [project_exploration]"
     },
     {
       "timestamp": "2026-04-15T15:25:12.885",
@@ -660,7 +629,7 @@
       "attribution_confidence": 0.0,
       "is_target_extension_event": false,
       "noise_reason": "",
-      "summary": "48970 → 6080 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2964885549 TSecr=0 WS=128 [project_exploration]"
+      "summary": "48970 \u2192 6080 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2964885549 TSecr=0 WS=128 [project_exploration]"
     },
     {
       "timestamp": "2026-04-15T15:25:13.727",
@@ -698,7 +667,7 @@
       "attribution_confidence": 0.0,
       "is_target_extension_event": false,
       "noise_reason": "",
-      "summary": "53998 → 6080 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2964900598 TSecr=0 WS=128 [project_exploration]"
+      "summary": "53998 \u2192 6080 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2964900598 TSecr=0 WS=128 [project_exploration]"
     },
     {
       "timestamp": "2026-04-15T15:25:28.778",
@@ -736,7 +705,7 @@
       "attribution_confidence": 0.0,
       "is_target_extension_event": false,
       "noise_reason": "",
-      "summary": "32956 → 39381 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2964904491 TSecr=0 WS=128 [project_exploration]"
+      "summary": "32956 \u2192 39381 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2964904491 TSecr=0 WS=128 [project_exploration]"
     },
     {
       "timestamp": "2026-04-15T15:25:32.671",
@@ -774,7 +743,7 @@
       "attribution_confidence": 0.0,
       "is_target_extension_event": false,
       "noise_reason": "",
-      "summary": "32962 → 39381 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2964905615 TSecr=0 WS=128 [project_exploration]"
+      "summary": "32962 \u2192 39381 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2964905615 TSecr=0 WS=128 [project_exploration]"
     },
     {
       "timestamp": "2026-04-15T15:25:33.795",
@@ -812,7 +781,7 @@
       "attribution_confidence": 0.0,
       "is_target_extension_event": false,
       "noise_reason": "",
-      "summary": "42564 → 6080 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2964915652 TSecr=0 WS=128 [project_exploration]"
+      "summary": "42564 \u2192 6080 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2964915652 TSecr=0 WS=128 [project_exploration]"
     },
     {
       "timestamp": "2026-04-15T15:25:43.832",
@@ -850,7 +819,7 @@
       "attribution_confidence": 0.0,
       "is_target_extension_event": false,
       "noise_reason": "",
-      "summary": "52928 → 6080 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2964930707 TSecr=0 WS=128 [project_exploration]"
+      "summary": "52928 \u2192 6080 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2964930707 TSecr=0 WS=128 [project_exploration]"
     },
     {
       "timestamp": "2026-04-15T15:25:58.887",
@@ -888,7 +857,7 @@
       "attribution_confidence": 0.0,
       "is_target_extension_event": false,
       "noise_reason": "",
-      "summary": "60004 → 39381 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2964935085 TSecr=0 WS=128 [project_exploration]"
+      "summary": "60004 \u2192 39381 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2964935085 TSecr=0 WS=128 [project_exploration]"
     },
     {
       "timestamp": "2026-04-15T15:26:03.265",
@@ -926,7 +895,7 @@
       "attribution_confidence": 0.0,
       "is_target_extension_event": false,
       "noise_reason": "",
-      "summary": "48286 → 39381 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2964936521 TSecr=0 WS=128 [project_exploration]"
+      "summary": "48286 \u2192 39381 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2964936521 TSecr=0 WS=128 [project_exploration]"
     },
     {
       "timestamp": "2026-04-15T15:26:04.701",
@@ -964,7 +933,7 @@
       "attribution_confidence": 0.0,
       "is_target_extension_event": false,
       "noise_reason": "",
-      "summary": "57494 → 6080 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2964945752 TSecr=0 WS=128"
+      "summary": "57494 \u2192 6080 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2964945752 TSecr=0 WS=128"
     },
     {
       "timestamp": "2026-04-15T15:26:13.932",
@@ -1002,7 +971,7 @@
       "attribution_confidence": 0.0,
       "is_target_extension_event": false,
       "noise_reason": "",
-      "summary": "58438 → 39381 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2964952792 TSecr=0 WS=128"
+      "summary": "58438 \u2192 39381 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2964952792 TSecr=0 WS=128"
     },
     {
       "timestamp": "2026-04-15T15:26:20.973",
@@ -1040,7 +1009,7 @@
       "attribution_confidence": 0.0,
       "is_target_extension_event": false,
       "noise_reason": "",
-      "summary": "58446 → 39381 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2964955325 TSecr=0 WS=128"
+      "summary": "58446 \u2192 39381 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2964955325 TSecr=0 WS=128"
     },
     {
       "timestamp": "2026-04-15T15:26:23.505",
@@ -1078,7 +1047,7 @@
       "attribution_confidence": 0.0,
       "is_target_extension_event": false,
       "noise_reason": "",
-      "summary": "38290 → 6080 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2964960791 TSecr=0 WS=128"
+      "summary": "38290 \u2192 6080 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2964960791 TSecr=0 WS=128"
     },
     {
       "timestamp": "2026-04-15T15:26:28.971",
@@ -1268,7 +1237,7 @@
       "attribution_confidence": 0.0,
       "is_target_extension_event": false,
       "noise_reason": "",
-      "summary": "43036 → 443 [SYN] Seq=0 Win=64240 Len=0 MSS=1460 SACK_PERM=1 TSval=409280423 TSecr=0 WS=128 [coding_session]"
+      "summary": "43036 \u2192 443 [SYN] Seq=0 Win=64240 Len=0 MSS=1460 SACK_PERM=1 TSval=409280423 TSecr=0 WS=128 [coding_session]"
     },
     {
       "timestamp": "2026-04-15T15:26:40.716",
@@ -1325,7 +1294,7 @@
       "attribution_confidence": 0.0,
       "is_target_extension_event": false,
       "noise_reason": "",
-      "summary": "46848 → 6080 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2964975839 TSecr=0 WS=128 [coding_session]"
+      "summary": "46848 \u2192 6080 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2964975839 TSecr=0 WS=128 [coding_session]"
     },
     {
       "timestamp": "2026-04-15T15:26:44.019",
@@ -1420,7 +1389,7 @@
       "attribution_confidence": 0.0,
       "is_target_extension_event": false,
       "noise_reason": "",
-      "summary": "35786 → 443 [SYN] Seq=0 Win=64240 Len=0 MSS=1460 SACK_PERM=1 TSval=567844093 TSecr=0 WS=128 [coding_session]"
+      "summary": "35786 \u2192 443 [SYN] Seq=0 Win=64240 Len=0 MSS=1460 SACK_PERM=1 TSval=567844093 TSecr=0 WS=128 [coding_session]"
     },
     {
       "timestamp": "2026-04-15T15:26:45.452",
@@ -1496,7 +1465,7 @@
       "attribution_confidence": 0.0,
       "is_target_extension_event": false,
       "noise_reason": "",
-      "summary": "44022 → 6080 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2964990896 TSecr=0 WS=128"
+      "summary": "44022 \u2192 6080 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2964990896 TSecr=0 WS=128"
     },
     {
       "timestamp": "2026-04-15T15:26:59.076",
@@ -1572,7 +1541,7 @@
       "attribution_confidence": 0.0,
       "is_target_extension_event": false,
       "noise_reason": "",
-      "summary": "47404 → 39381 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2965003681 TSecr=0 WS=128"
+      "summary": "47404 \u2192 39381 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2965003681 TSecr=0 WS=128"
     },
     {
       "timestamp": "2026-04-15T15:27:11.860",
@@ -1610,7 +1579,7 @@
       "attribution_confidence": 0.0,
       "is_target_extension_event": false,
       "noise_reason": "",
-      "summary": "37844 → 6080 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2965005951 TSecr=0 WS=128"
+      "summary": "37844 \u2192 6080 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2965005951 TSecr=0 WS=128"
     },
     {
       "timestamp": "2026-04-15T15:27:14.130",
@@ -1648,7 +1617,7 @@
       "attribution_confidence": 0.0,
       "is_target_extension_event": false,
       "noise_reason": "",
-      "summary": "46610 → 443 [SYN] Seq=0 Win=64240 Len=0 MSS=1460 SACK_PERM=1 TSval=831647540 TSecr=0 WS=128"
+      "summary": "46610 \u2192 443 [SYN] Seq=0 Win=64240 Len=0 MSS=1460 SACK_PERM=1 TSval=831647540 TSecr=0 WS=128"
     },
     {
       "timestamp": "2026-04-15T15:27:14.833",
@@ -1667,7 +1636,7 @@
       "attribution_confidence": 0.0,
       "is_target_extension_event": false,
       "noise_reason": "",
-      "summary": "41450 → 39381 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2965006654 TSecr=0 WS=128"
+      "summary": "41450 \u2192 39381 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2965006654 TSecr=0 WS=128"
     },
     {
       "timestamp": "2026-04-15T15:27:14.834",
@@ -1705,7 +1674,7 @@
       "attribution_confidence": 0.0,
       "is_target_extension_event": false,
       "noise_reason": "",
-      "summary": "46620 → 443 [SYN] Seq=0 Win=64240 Len=0 MSS=1460 SACK_PERM=1 TSval=831647561 TSecr=0 WS=128"
+      "summary": "46620 \u2192 443 [SYN] Seq=0 Win=64240 Len=0 MSS=1460 SACK_PERM=1 TSval=831647561 TSecr=0 WS=128"
     },
     {
       "timestamp": "2026-04-15T15:27:14.919",
@@ -1762,7 +1731,7 @@
       "attribution_confidence": 0.0,
       "is_target_extension_event": false,
       "noise_reason": "",
-      "summary": "41466 → 39381 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2965012268 TSecr=0 WS=128"
+      "summary": "41466 \u2192 39381 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2965012268 TSecr=0 WS=128"
     },
     {
       "timestamp": "2026-04-15T15:27:20.450",
@@ -1800,7 +1769,7 @@
       "attribution_confidence": 0.0,
       "is_target_extension_event": false,
       "noise_reason": "",
-      "summary": "41468 → 39381 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2965013516 TSecr=0 WS=128"
+      "summary": "41468 \u2192 39381 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2965013516 TSecr=0 WS=128"
     },
     {
       "timestamp": "2026-04-15T15:27:21.697",
@@ -1838,7 +1807,7 @@
       "attribution_confidence": 0.0,
       "is_target_extension_event": false,
       "noise_reason": "",
-      "summary": "39448 → 6080 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2965020990 TSecr=0 WS=128"
+      "summary": "39448 \u2192 6080 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2965020990 TSecr=0 WS=128"
     },
     {
       "timestamp": "2026-04-15T15:27:29.171",
@@ -1876,7 +1845,7 @@
       "attribution_confidence": 0.0,
       "is_target_extension_event": false,
       "noise_reason": "",
-      "summary": "59718 → 6080 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2965036057 TSecr=0 WS=128"
+      "summary": "59718 \u2192 6080 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2965036057 TSecr=0 WS=128"
     },
     {
       "timestamp": "2026-04-15T15:27:44.238",
@@ -1914,7 +1883,7 @@
       "attribution_confidence": 0.0,
       "is_target_extension_event": false,
       "noise_reason": "",
-      "summary": "52634 → 39381 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2965039463 TSecr=0 WS=128"
+      "summary": "52634 \u2192 39381 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2965039463 TSecr=0 WS=128"
     },
     {
       "timestamp": "2026-04-15T15:27:47.645",
@@ -1952,7 +1921,7 @@
       "attribution_confidence": 0.0,
       "is_target_extension_event": false,
       "noise_reason": "",
-      "summary": "35142 → 39381 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2965048086 TSecr=0 WS=128"
+      "summary": "35142 \u2192 39381 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2965048086 TSecr=0 WS=128"
     },
     {
       "timestamp": "2026-04-15T15:27:56.268",
@@ -1990,7 +1959,7 @@
       "attribution_confidence": 0.0,
       "is_target_extension_event": false,
       "noise_reason": "",
-      "summary": "43790 → 6080 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2965051194 TSecr=0 WS=128 [terminal_usage]"
+      "summary": "43790 \u2192 6080 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2965051194 TSecr=0 WS=128 [terminal_usage]"
     },
     {
       "timestamp": "2026-04-15T15:27:59.375",
@@ -2028,7 +1997,7 @@
       "attribution_confidence": 0.0,
       "is_target_extension_event": false,
       "noise_reason": "",
-      "summary": "38842 → 6080 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2965066282 TSecr=0 WS=128 [terminal_usage]"
+      "summary": "38842 \u2192 6080 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2965066282 TSecr=0 WS=128 [terminal_usage]"
     },
     {
       "timestamp": "2026-04-15T15:28:14.463",
@@ -2066,7 +2035,7 @@
       "attribution_confidence": 0.0,
       "is_target_extension_event": false,
       "noise_reason": "",
-      "summary": "38112 → 6080 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2965081333 TSecr=0 WS=128"
+      "summary": "38112 \u2192 6080 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2965081333 TSecr=0 WS=128"
     },
     {
       "timestamp": "2026-04-15T15:28:29.515",
@@ -2104,7 +2073,7 @@
       "attribution_confidence": 0.0,
       "is_target_extension_event": false,
       "noise_reason": "",
-      "summary": "48070 → 6080 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2965096384 TSecr=0 WS=128"
+      "summary": "48070 \u2192 6080 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2965096384 TSecr=0 WS=128"
     },
     {
       "timestamp": "2026-04-15T15:28:44.565",
@@ -2142,7 +2111,7 @@
       "attribution_confidence": 0.0,
       "is_target_extension_event": false,
       "noise_reason": "",
-      "summary": "36836 → 6080 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2965111555 TSecr=0 WS=128"
+      "summary": "36836 \u2192 6080 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2965111555 TSecr=0 WS=128"
     },
     {
       "timestamp": "2026-04-15T15:28:59.737",
@@ -2180,7 +2149,7 @@
       "attribution_confidence": 0.0,
       "is_target_extension_event": false,
       "noise_reason": "",
-      "summary": "35724 → 6080 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2965126644 TSecr=0 WS=128"
+      "summary": "35724 \u2192 6080 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2965126644 TSecr=0 WS=128"
     },
     {
       "timestamp": "2026-04-15T15:29:14.826",
@@ -2218,7 +2187,7 @@
       "attribution_confidence": 0.0,
       "is_target_extension_event": false,
       "noise_reason": "",
-      "summary": "55678 → 39381 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2965129776 TSecr=0 WS=128"
+      "summary": "55678 \u2192 39381 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2965129776 TSecr=0 WS=128"
     },
     {
       "timestamp": "2026-04-15T15:29:17.959",
@@ -2256,7 +2225,7 @@
       "attribution_confidence": 0.0,
       "is_target_extension_event": false,
       "noise_reason": "",
-      "summary": "42382 → 39381 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2965139836 TSecr=0 WS=128"
+      "summary": "42382 \u2192 39381 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2965139836 TSecr=0 WS=128"
     },
     {
       "timestamp": "2026-04-15T15:29:28.018",
@@ -2294,7 +2263,7 @@
       "attribution_confidence": 0.0,
       "is_target_extension_event": false,
       "noise_reason": "",
-      "summary": "54350 → 6080 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2965141692 TSecr=0 WS=128"
+      "summary": "54350 \u2192 6080 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2965141692 TSecr=0 WS=128"
     },
     {
       "timestamp": "2026-04-15T15:29:29.874",
@@ -2332,7 +2301,7 @@
       "attribution_confidence": 0.0,
       "is_target_extension_event": false,
       "noise_reason": "",
-      "summary": "42384 → 39381 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2965145362 TSecr=0 WS=128"
+      "summary": "42384 \u2192 39381 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2965145362 TSecr=0 WS=128"
     },
     {
       "timestamp": "2026-04-15T15:29:33.546",
@@ -71655,7 +71624,7 @@
       "noise_reason": "temporal proximity alone is not treated as ownership",
       "artifact_class": "",
       "sensitive": false,
-      "summary": "44426 → 6080 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2964870496 TSecr=0 WS=128",
+      "summary": "44426 \u2192 6080 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2964870496 TSecr=0 WS=128",
       "raw_context": {
         "event_type": "tcp_connect",
         "source_ip": "127.0.0.1",
@@ -71715,7 +71684,7 @@
       "noise_reason": "",
       "artifact_class": "",
       "sensitive": false,
-      "summary": "54254 → 39381 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2964884638 TSecr=0 WS=128 [project_exploration]",
+      "summary": "54254 \u2192 39381 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2964884638 TSecr=0 WS=128 [project_exploration]",
       "raw_context": {
         "event_type": "tcp_connect",
         "source_ip": "127.0.0.1",
@@ -71775,7 +71744,7 @@
       "noise_reason": "",
       "artifact_class": "",
       "sensitive": false,
-      "summary": "54266 → 39381 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2964884706 TSecr=0 WS=128 [project_exploration]",
+      "summary": "54266 \u2192 39381 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2964884706 TSecr=0 WS=128 [project_exploration]",
       "raw_context": {
         "event_type": "tcp_connect",
         "source_ip": "127.0.0.1",
@@ -71835,7 +71804,7 @@
       "noise_reason": "",
       "artifact_class": "",
       "sensitive": false,
-      "summary": "48970 → 6080 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2964885549 TSecr=0 WS=128 [project_exploration]",
+      "summary": "48970 \u2192 6080 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2964885549 TSecr=0 WS=128 [project_exploration]",
       "raw_context": {
         "event_type": "tcp_connect",
         "source_ip": "127.0.0.1",
@@ -71895,7 +71864,7 @@
       "noise_reason": "",
       "artifact_class": "",
       "sensitive": false,
-      "summary": "53998 → 6080 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2964900598 TSecr=0 WS=128 [project_exploration]",
+      "summary": "53998 \u2192 6080 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2964900598 TSecr=0 WS=128 [project_exploration]",
       "raw_context": {
         "event_type": "tcp_connect",
         "source_ip": "127.0.0.1",
@@ -71955,7 +71924,7 @@
       "noise_reason": "",
       "artifact_class": "",
       "sensitive": false,
-      "summary": "32956 → 39381 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2964904491 TSecr=0 WS=128 [project_exploration]",
+      "summary": "32956 \u2192 39381 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2964904491 TSecr=0 WS=128 [project_exploration]",
       "raw_context": {
         "event_type": "tcp_connect",
         "source_ip": "127.0.0.1",
@@ -72015,7 +71984,7 @@
       "noise_reason": "",
       "artifact_class": "",
       "sensitive": false,
-      "summary": "32962 → 39381 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2964905615 TSecr=0 WS=128 [project_exploration]",
+      "summary": "32962 \u2192 39381 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2964905615 TSecr=0 WS=128 [project_exploration]",
       "raw_context": {
         "event_type": "tcp_connect",
         "source_ip": "127.0.0.1",
@@ -72075,7 +72044,7 @@
       "noise_reason": "",
       "artifact_class": "",
       "sensitive": false,
-      "summary": "42564 → 6080 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2964915652 TSecr=0 WS=128 [project_exploration]",
+      "summary": "42564 \u2192 6080 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2964915652 TSecr=0 WS=128 [project_exploration]",
       "raw_context": {
         "event_type": "tcp_connect",
         "source_ip": "127.0.0.1",
@@ -72135,7 +72104,7 @@
       "noise_reason": "",
       "artifact_class": "",
       "sensitive": false,
-      "summary": "52928 → 6080 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2964930707 TSecr=0 WS=128 [project_exploration]",
+      "summary": "52928 \u2192 6080 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2964930707 TSecr=0 WS=128 [project_exploration]",
       "raw_context": {
         "event_type": "tcp_connect",
         "source_ip": "127.0.0.1",
@@ -72195,7 +72164,7 @@
       "noise_reason": "",
       "artifact_class": "",
       "sensitive": false,
-      "summary": "60004 → 39381 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2964935085 TSecr=0 WS=128 [project_exploration]",
+      "summary": "60004 \u2192 39381 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2964935085 TSecr=0 WS=128 [project_exploration]",
       "raw_context": {
         "event_type": "tcp_connect",
         "source_ip": "127.0.0.1",
@@ -72255,7 +72224,7 @@
       "noise_reason": "",
       "artifact_class": "",
       "sensitive": false,
-      "summary": "48286 → 39381 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2964936521 TSecr=0 WS=128 [project_exploration]",
+      "summary": "48286 \u2192 39381 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2964936521 TSecr=0 WS=128 [project_exploration]",
       "raw_context": {
         "event_type": "tcp_connect",
         "source_ip": "127.0.0.1",
@@ -72315,7 +72284,7 @@
       "noise_reason": "",
       "artifact_class": "",
       "sensitive": false,
-      "summary": "57494 → 6080 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2964945752 TSecr=0 WS=128",
+      "summary": "57494 \u2192 6080 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2964945752 TSecr=0 WS=128",
       "raw_context": {
         "event_type": "tcp_connect",
         "source_ip": "127.0.0.1",
@@ -72375,7 +72344,7 @@
       "noise_reason": "",
       "artifact_class": "",
       "sensitive": false,
-      "summary": "58438 → 39381 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2964952792 TSecr=0 WS=128",
+      "summary": "58438 \u2192 39381 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2964952792 TSecr=0 WS=128",
       "raw_context": {
         "event_type": "tcp_connect",
         "source_ip": "127.0.0.1",
@@ -72435,7 +72404,7 @@
       "noise_reason": "",
       "artifact_class": "",
       "sensitive": false,
-      "summary": "58446 → 39381 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2964955325 TSecr=0 WS=128",
+      "summary": "58446 \u2192 39381 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2964955325 TSecr=0 WS=128",
       "raw_context": {
         "event_type": "tcp_connect",
         "source_ip": "127.0.0.1",
@@ -72495,7 +72464,7 @@
       "noise_reason": "",
       "artifact_class": "",
       "sensitive": false,
-      "summary": "38290 → 6080 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2964960791 TSecr=0 WS=128",
+      "summary": "38290 \u2192 6080 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2964960791 TSecr=0 WS=128",
       "raw_context": {
         "event_type": "tcp_connect",
         "source_ip": "127.0.0.1",
@@ -72795,7 +72764,7 @@
       "noise_reason": "",
       "artifact_class": "",
       "sensitive": false,
-      "summary": "43036 → 443 [SYN] Seq=0 Win=64240 Len=0 MSS=1460 SACK_PERM=1 TSval=409280423 TSecr=0 WS=128 [coding_session]",
+      "summary": "43036 \u2192 443 [SYN] Seq=0 Win=64240 Len=0 MSS=1460 SACK_PERM=1 TSval=409280423 TSecr=0 WS=128 [coding_session]",
       "raw_context": {
         "event_type": "tcp_connect",
         "source_ip": "172.19.0.2",
@@ -72885,7 +72854,7 @@
       "noise_reason": "",
       "artifact_class": "",
       "sensitive": false,
-      "summary": "46848 → 6080 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2964975839 TSecr=0 WS=128 [coding_session]",
+      "summary": "46848 \u2192 6080 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2964975839 TSecr=0 WS=128 [coding_session]",
       "raw_context": {
         "event_type": "tcp_connect",
         "source_ip": "127.0.0.1",
@@ -73035,7 +73004,7 @@
       "noise_reason": "",
       "artifact_class": "",
       "sensitive": false,
-      "summary": "35786 → 443 [SYN] Seq=0 Win=64240 Len=0 MSS=1460 SACK_PERM=1 TSval=567844093 TSecr=0 WS=128 [coding_session]",
+      "summary": "35786 \u2192 443 [SYN] Seq=0 Win=64240 Len=0 MSS=1460 SACK_PERM=1 TSval=567844093 TSecr=0 WS=128 [coding_session]",
       "raw_context": {
         "event_type": "tcp_connect",
         "source_ip": "172.19.0.2",
@@ -73155,7 +73124,7 @@
       "noise_reason": "",
       "artifact_class": "",
       "sensitive": false,
-      "summary": "44022 → 6080 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2964990896 TSecr=0 WS=128",
+      "summary": "44022 \u2192 6080 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2964990896 TSecr=0 WS=128",
       "raw_context": {
         "event_type": "tcp_connect",
         "source_ip": "127.0.0.1",
@@ -73275,7 +73244,7 @@
       "noise_reason": "",
       "artifact_class": "",
       "sensitive": false,
-      "summary": "47404 → 39381 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2965003681 TSecr=0 WS=128",
+      "summary": "47404 \u2192 39381 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2965003681 TSecr=0 WS=128",
       "raw_context": {
         "event_type": "tcp_connect",
         "source_ip": "127.0.0.1",
@@ -73335,7 +73304,7 @@
       "noise_reason": "",
       "artifact_class": "",
       "sensitive": false,
-      "summary": "37844 → 6080 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2965005951 TSecr=0 WS=128",
+      "summary": "37844 \u2192 6080 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2965005951 TSecr=0 WS=128",
       "raw_context": {
         "event_type": "tcp_connect",
         "source_ip": "127.0.0.1",
@@ -73395,7 +73364,7 @@
       "noise_reason": "",
       "artifact_class": "",
       "sensitive": false,
-      "summary": "46610 → 443 [SYN] Seq=0 Win=64240 Len=0 MSS=1460 SACK_PERM=1 TSval=831647540 TSecr=0 WS=128",
+      "summary": "46610 \u2192 443 [SYN] Seq=0 Win=64240 Len=0 MSS=1460 SACK_PERM=1 TSval=831647540 TSecr=0 WS=128",
       "raw_context": {
         "event_type": "tcp_connect",
         "source_ip": "172.19.0.2",
@@ -73425,7 +73394,7 @@
       "noise_reason": "",
       "artifact_class": "",
       "sensitive": false,
-      "summary": "41450 → 39381 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2965006654 TSecr=0 WS=128",
+      "summary": "41450 \u2192 39381 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2965006654 TSecr=0 WS=128",
       "raw_context": {
         "event_type": "tcp_connect",
         "source_ip": "127.0.0.1",
@@ -73485,7 +73454,7 @@
       "noise_reason": "",
       "artifact_class": "",
       "sensitive": false,
-      "summary": "46620 → 443 [SYN] Seq=0 Win=64240 Len=0 MSS=1460 SACK_PERM=1 TSval=831647561 TSecr=0 WS=128",
+      "summary": "46620 \u2192 443 [SYN] Seq=0 Win=64240 Len=0 MSS=1460 SACK_PERM=1 TSval=831647561 TSecr=0 WS=128",
       "raw_context": {
         "event_type": "tcp_connect",
         "source_ip": "172.19.0.2",
@@ -73575,7 +73544,7 @@
       "noise_reason": "",
       "artifact_class": "",
       "sensitive": false,
-      "summary": "41466 → 39381 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2965012268 TSecr=0 WS=128",
+      "summary": "41466 \u2192 39381 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2965012268 TSecr=0 WS=128",
       "raw_context": {
         "event_type": "tcp_connect",
         "source_ip": "127.0.0.1",
@@ -73635,7 +73604,7 @@
       "noise_reason": "",
       "artifact_class": "",
       "sensitive": false,
-      "summary": "41468 → 39381 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2965013516 TSecr=0 WS=128",
+      "summary": "41468 \u2192 39381 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2965013516 TSecr=0 WS=128",
       "raw_context": {
         "event_type": "tcp_connect",
         "source_ip": "127.0.0.1",
@@ -73695,7 +73664,7 @@
       "noise_reason": "",
       "artifact_class": "",
       "sensitive": false,
-      "summary": "39448 → 6080 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2965020990 TSecr=0 WS=128",
+      "summary": "39448 \u2192 6080 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2965020990 TSecr=0 WS=128",
       "raw_context": {
         "event_type": "tcp_connect",
         "source_ip": "127.0.0.1",
@@ -73755,7 +73724,7 @@
       "noise_reason": "",
       "artifact_class": "",
       "sensitive": false,
-      "summary": "59718 → 6080 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2965036057 TSecr=0 WS=128",
+      "summary": "59718 \u2192 6080 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2965036057 TSecr=0 WS=128",
       "raw_context": {
         "event_type": "tcp_connect",
         "source_ip": "127.0.0.1",
@@ -73815,7 +73784,7 @@
       "noise_reason": "",
       "artifact_class": "",
       "sensitive": false,
-      "summary": "52634 → 39381 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2965039463 TSecr=0 WS=128",
+      "summary": "52634 \u2192 39381 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2965039463 TSecr=0 WS=128",
       "raw_context": {
         "event_type": "tcp_connect",
         "source_ip": "127.0.0.1",
@@ -73875,7 +73844,7 @@
       "noise_reason": "",
       "artifact_class": "",
       "sensitive": false,
-      "summary": "35142 → 39381 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2965048086 TSecr=0 WS=128",
+      "summary": "35142 \u2192 39381 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2965048086 TSecr=0 WS=128",
       "raw_context": {
         "event_type": "tcp_connect",
         "source_ip": "127.0.0.1",
@@ -73935,7 +73904,7 @@
       "noise_reason": "",
       "artifact_class": "",
       "sensitive": false,
-      "summary": "43790 → 6080 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2965051194 TSecr=0 WS=128 [terminal_usage]",
+      "summary": "43790 \u2192 6080 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2965051194 TSecr=0 WS=128 [terminal_usage]",
       "raw_context": {
         "event_type": "tcp_connect",
         "source_ip": "127.0.0.1",
@@ -73995,7 +73964,7 @@
       "noise_reason": "",
       "artifact_class": "",
       "sensitive": false,
-      "summary": "38842 → 6080 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2965066282 TSecr=0 WS=128 [terminal_usage]",
+      "summary": "38842 \u2192 6080 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2965066282 TSecr=0 WS=128 [terminal_usage]",
       "raw_context": {
         "event_type": "tcp_connect",
         "source_ip": "127.0.0.1",
@@ -74055,7 +74024,7 @@
       "noise_reason": "",
       "artifact_class": "",
       "sensitive": false,
-      "summary": "38112 → 6080 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2965081333 TSecr=0 WS=128",
+      "summary": "38112 \u2192 6080 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2965081333 TSecr=0 WS=128",
       "raw_context": {
         "event_type": "tcp_connect",
         "source_ip": "127.0.0.1",
@@ -74115,7 +74084,7 @@
       "noise_reason": "",
       "artifact_class": "",
       "sensitive": false,
-      "summary": "48070 → 6080 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2965096384 TSecr=0 WS=128",
+      "summary": "48070 \u2192 6080 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2965096384 TSecr=0 WS=128",
       "raw_context": {
         "event_type": "tcp_connect",
         "source_ip": "127.0.0.1",
@@ -74175,7 +74144,7 @@
       "noise_reason": "",
       "artifact_class": "",
       "sensitive": false,
-      "summary": "36836 → 6080 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2965111555 TSecr=0 WS=128",
+      "summary": "36836 \u2192 6080 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2965111555 TSecr=0 WS=128",
       "raw_context": {
         "event_type": "tcp_connect",
         "source_ip": "127.0.0.1",
@@ -74235,7 +74204,7 @@
       "noise_reason": "",
       "artifact_class": "",
       "sensitive": false,
-      "summary": "35724 → 6080 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2965126644 TSecr=0 WS=128",
+      "summary": "35724 \u2192 6080 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2965126644 TSecr=0 WS=128",
       "raw_context": {
         "event_type": "tcp_connect",
         "source_ip": "127.0.0.1",
@@ -74295,7 +74264,7 @@
       "noise_reason": "",
       "artifact_class": "",
       "sensitive": false,
-      "summary": "55678 → 39381 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2965129776 TSecr=0 WS=128",
+      "summary": "55678 \u2192 39381 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2965129776 TSecr=0 WS=128",
       "raw_context": {
         "event_type": "tcp_connect",
         "source_ip": "127.0.0.1",
@@ -74355,7 +74324,7 @@
       "noise_reason": "",
       "artifact_class": "",
       "sensitive": false,
-      "summary": "42382 → 39381 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2965139836 TSecr=0 WS=128",
+      "summary": "42382 \u2192 39381 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2965139836 TSecr=0 WS=128",
       "raw_context": {
         "event_type": "tcp_connect",
         "source_ip": "127.0.0.1",
@@ -74415,7 +74384,7 @@
       "noise_reason": "",
       "artifact_class": "",
       "sensitive": false,
-      "summary": "54350 → 6080 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2965141692 TSecr=0 WS=128",
+      "summary": "54350 \u2192 6080 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2965141692 TSecr=0 WS=128",
       "raw_context": {
         "event_type": "tcp_connect",
         "source_ip": "127.0.0.1",
@@ -74475,7 +74444,7 @@
       "noise_reason": "",
       "artifact_class": "",
       "sensitive": false,
-      "summary": "42384 → 39381 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2965145362 TSecr=0 WS=128",
+      "summary": "42384 \u2192 39381 [SYN] Seq=0 Win=65495 Len=0 MSS=65495 SACK_PERM=1 TSval=2965145362 TSecr=0 WS=128",
       "raw_context": {
         "event_type": "tcp_connect",
         "source_ip": "127.0.0.1",
@@ -207109,5 +207078,6 @@
   },
   "extension_host_output_lines": 1841,
   "extension_host_output": "2026-04-15 15:25:57.440 [debug] Ext host file search time: 10003ms\n2026-04-15 15:25:57.442 [trace] ExtHostCommands#executeCommand setContext\n2026-04-15 15:25:57.443 [trace] ExtHostCommands#executeCommand _setContext\n2026-04-15 15:25:57.444 [trace] [vscode.merge-conflict] provider DONE after 13ms\n2026-04-15 15:25:57.446 [trace] CommandsConverter#CREATE _json.showAssociatedSchemaList _json.showAssociatedSchemaList /4\n2026-04-15 15:25:57.447 [trace] [vscode.typescript-language-features] provider DONE after 1169ms\n2026-04-15 15:25:57.450 [trace] [vscode.typescript-language-features] provider DONE after 57ms\n2026-04-15 15:25:57.452 [debug] Ext host file search time: 1ms\n2026-04-15 15:25:57.454 [debug] Ext host file search time: 1ms\n2026-04-15 15:25:57.456 [debug] Ext host file search time: 1ms\n2026-04-15 15:25:57.457 [debug] Ext host file search time: 1ms\n2026-04-15 15:25:57.459 [debug] Ext host file search time: 1ms\n2026-04-15 15:25:57.461 [debug] Ext host file search time: 1ms\n2026-04-15 15:25:57.519 [debug] Ext host file search time: 57ms\n2026-04-15 15:25:57.520 [debug] Ext host file search time: 1ms\n2026-04-15 15:25:57.522 [debug] Ext host file search time: 1ms\n2026-04-15 15:25:57.523 [debug] Ext host file search time: 1ms\n2026-04-15 15:25:57.525 [debug] Ext host file search time: 1ms\n2026-04-15 15:25:57.526 [debug] Ext host file search time: 1ms\n2026-04-15 15:25:57.529 [debug] Ext host file search time: 2ms\n2026-04-15 15:25:57.531 [debug] Ext host file search time: 1ms\n2026-04-15 15:25:57.532 [trace] [vscode.typescript-language-features] INVOKE provider 's=>s.provideDocumentHighlights(y.revive(n),o,r)'\n2026-04-15 15:25:57.533 [trace] [vscode.merge-conflict] INVOKE provider 'r=>r.provideCodeLenses(y.revive(n),o)'\n2026-04-15 15:25:57.535 [trace] [vscode.typescript-language-features] provider DONE after 3ms\n2026-04-15 15:25:57.537 [debug] Ext host file search time: 1ms\n2026-04-15 15:25:57.538 [debug] Ext host file search time: 1ms\n2026-04-15 15:25:57.540 [debug] Ext host file search time: 1ms\n2026-04-15 15:25:57.541 [debug] Ext host file search time: 0ms\n2026-04-15 15:25:57.544 [debug] Ext host file search time: 1ms\n2026-04-15 15:25:57.545 [debug] Ext host file search time: 1ms\n2026-04-15 15:25:57.547 [debug] Ext host file search time: 1ms\n2026-04-15 15:25:57.548 [debug] Ext host file search time: 1ms\n2026-04-15 15:25:57.549 [debug] Ext host file search time: 1ms\n2026-04-15 15:25:57.550 [debug] Ext host file search time: 1ms\n2026-04-15 15:25:57.551 [debug] Ext host file search time: 1ms\n2026-04-15 15:25:57.553 [debug] Ext host file search time: 1ms\n2026-04-15 15:25:57.554 [debug] Ext host file search time: 1ms\n2026-04-15 15:25:57.620 [debug] Ext host file search time: 66ms\n2026-04-15 15:25:57.622 [debug] Ext host file search time: 1ms\n2026-04-15 15:25:57.623 [debug] Ext host file search time: 1ms\n2026-04-15 15:25:57.625 [debug] Ext host file search time: 1ms\n2026-04-15 15:25:57.626 [debug] Ext host file search time: 1ms\n2026-04-15 15:25:57.627 [debug] Ext host file search time: 0ms\n2026-04-15 15:25:57.629 [debug] Ext host file search time: 2ms\n2026-04-15 15:25:57.630 [debug] Ext host file search time: 1ms\n2026-04-15 15:25:57.632 [debug] Ext host file search time: 1ms\n2026-04-15 15:25:57.635 [debug] Ext host file search time: 2ms\n2026-04-15 15:25:57.637 [debug] Ext host file search time: 1ms\n2026-04-15 15:25:57.638 [debug] Ext host file search time: 0ms\n2026-04-15 15:25:57.640 [debug] Ext host file search time: 1ms\n2026-04-15 15:25:57.641 [trace] [vscode.typescript-language-features] INVOKE provider 's=>s.provideDocumentHighlights(y.revive(n),o,r)'\n2026-04-15 15:25:57.642 [debug] [TreeView:python-projects] refresh done changed=1 nodesToClear=0 elements.size=0 nodes.size=0 handles={\"changed\":[\"<root>\"],\"roots\":[],\"clearing\":[]}\n2026-04-15 15:25:57.643 [trace] [vscode.merge-conflict] INVOKE provider 'r=>r.provideCodeLenses(y.revive(n),o)'\n2026-04-15 15:25:57.652 [trace] ExtHostCommands#executeCommand setContext\n2026-04-15 15:25:57.653 [trace] ExtHostCommands#executeCommand _setContext\n2026-04-15 15:25:57.654 [trace] ExtHostCommands#executeCommand setContext\n2026-04-15 15:25:57.655 [trace] ExtHostCommands#executeCommand _setContext\n2026-04-15 15:25:57.656 [trace] [vscode.merge-conflict] provider DONE after 123ms\n2026-04-15 15:25:57.656 [trace] [vscode.merge-conflict] provider DONE after 13ms\n2026-04-15 15:25:57.723 [trace] openTextDocument from [object Object]\n2026-04-15 15:25:58.541 [trace] [vscode.typescript-language-features] provider DONE after 900ms\n2026-04-15 15:25:58.552 [debug] ExtHostSearch /usr/share/code/resources/app/node_modules/@vscode/ripgrep/bin/rg --files --hidden --case-sensitive --no-require-git -g '!**/.git' -g '!**/.svn' -g '!**/.hg' -g '!**/.DS_Store' -g '!**/Thumbs.db' -g '!**/node_modules' -g '!**/bower_components' -g '!**/*.code-search' --no-ignore-parent --follow --no-config --no-ignore-global\n - cwd: /workspace\n - Sibling clauses: {}\n2026-04-15 15:25:59.043 [trace] [DiagnosticCollection] change many (extension, owner, uris) vscode.extension-editing extension-editing [[{\"$mid\":1,\"fsPath\":\"/workspace/package.json\",\"external\":\"file:///workspace/package.json\",\"path\":\"/workspace/package.json\",\"scheme\":\"file\"},[]]]\n2026-04-15 15:25:59.045 [debug] Ext host file search time: 1ms\n2026-04-15 15:25:59.048 [debug] Ext host file search time: 1ms\n2026-04-15 15:25:59.050 [debug] Ext host file search time: 1ms\n2026-04-15 15:25:59.051 [debug] Ext host file search time: 1ms\n2026-04-15 15:25:59.053 [debug] Ext host file search time: 1ms\n2026-04-15 15:25:59.056 [debug] Ext host file search time: 1ms\n2026-04-15 15:25:59.060 [debug] Ext host file search time: 2ms\n2026-04-15 15:25:59.619 [debug] Ext host file search time: 558ms\n2026-04-15 15:25:59.623 [debug] Ext host file search time: 3ms\n2026-04-15 15:25:59.626 [debug] Ext host file search time: 2ms\n2026-04-15 15:25:59.629 [debug] Ext host file search time: 2ms\n2026-04-15 15:25:59.630 [trace] openTextDocument from [object Object]\n2026-04-15 15:25:59.637 [debug] ExtHostSearch Search finished. Stats: {\"cmdTime\":1096,\"fileWalkTime\":1096,\"directoriesWalked\":0,\"filesWalked\":0,\"cmdResultCount\":55}\n2026-04-15 15:25:59.638 [debug] Ext host file search time: 1097ms\n2026-04-15 15:25:59.639 [trace] ExtHostCommands#executeCommand setContext\n2026-04-15 15:25:59.640 [trace] ExtHostCommands#executeCommand _setContext\n2026-04-15 15:25:59.643 [debug] Ext host file search time: 1ms\n2026-04-15 15:25:59.645 [debug] Ext host file search time: 1ms\n2026-04-15 15:25:59.646 [debug] Ext host file search time: 1ms\n2026-04-15 15:25:59.647 [debug] Ext host file search time: 1ms\n2026-04-15 15:25:59.650 [debug] Ext host file search time: 2ms\n2026-04-15 15:25:59.653 [debug] Ext host file search time: 1ms\n2026-04-15 15:25:59.655 [debug] Ext host file search time: 1ms\n2026-04-15 15:25:59.656 [debug] Ext host file search time: 1ms\n2026-04-15 15:25:59.658 [debug] Ext host file search time: 1ms\n2026-04-15 15:25:59.659 [debug] Ext host file search time: 1ms\n2026-04-15 15:25:59.660 [debug] Ext host file search time: 0ms\n2026-04-15 15:25:59.717 [debug] Ext host file search time: 56ms\n2026-04-15 15:25:59.722 [debug] Ext host file search time: 2ms\n2026-04-15 15:25:59.723 [debug] Ext host file search time: 1ms\n2026-04-15 15:25:59.724 [debug] Ext host file search time: 0ms\n2026-04-15 15:26:04.836 [trace] ExtHostCommands#executeCommand setContext\n2026-04-15 15:26:04.837 [trace] ExtHostCommands#executeCommand _setContext\n2026-04-15 15:26:04.844 [trace] [vscode.typescript-language-features] provider DONE after 7415ms\n2026-04-15 15:26:04.846 [trace] [vscode.typescript-language-features] provider DONE after 7452ms\n2026-04-15 15:26:04.848 [trace] ExtHostCommands#executeCommand setContext\n2026-04-15 15:26:04.849 [trace] ExtHostCommands#executeCommand _setContext\n2026-04-15 15:26:04.851 [debug] [TreeView:python-projects] refresh start changed=1 nodesToClear=0 elements.size=0 nodes.size=0 handles={\"changed\":[\"<root>\"],\"roots\":[],\"clearing\":[]}\n2026-04-15 15:26:04.853 [trace] [vscode.typescript-language-features] provider DONE after 7426ms\n2026-04-15 15:26:04.857 [trace] [vscode.typescript-language-features] provider DONE after 8570ms\n2026-04-15 15:26:04.917 [trace] ExtHostCommands#executeCommand setContext\n2026-04-15 15:26:04.919 [trace] ExtHostCommands#executeCommand _setContext\n2026-04-15 15:26:04.924 [trace] [extrace.extrace-harness] INVOKE provider 'r=>r.provideLinks(y.revive(n),o)'\n2026-04-15 15:26:04.924 [trace] [extrace.extrace-harness] provider DONE after 0ms\n2026-04-15 15:26:04.925 [trace] [vscode.merge-conflict] INVOKE provider 'r=>r.provideCodeLenses(y.revive(n),o)'\n2026-04-15 15:26:07.628 [debug] ExtHostSearch /usr/share/code/resources/app/node_modules/@vscode/ripgrep/bin/rg --files --hidden --case-sensitive --no-require-git -g '!**/.git' -g '!**/.svn' -g '!**/.hg' -g '!**/.DS_Store' -g '!**/Thumbs.db' -g '!**/node_modules' -g '!**/bower_components' -g '!**/*.code-search' --no-ignore-parent --follow --no-config --no-ignore-global\n - cwd: /workspace\n - Sibling clauses: {}\n2026-04-15 15:26:07.630 [debug] Ext host file search time: 2ms\n2026-04-15 15:26:07.632 [debug] Ext host file search time: 1ms\n2026-04-15 15:26:07.633 [debug] Ext host file search time: 1ms\n2026-04-15 15:26:07.634 [debug] Ext host file search time: 1ms\n2026-04-15 15:26:07.635 [debug] Ext host file search time: 0ms\n2026-04-15 15:26:07.639 [debug] Ext host file search time: 3ms\n2026-04-15 15:26:07.641 [debug] Ext host file search time: 1ms\n2026-04-15 15:26:07.643 [debug] Ext host file search time: 0ms\n2026-04-15 15:26:08.152 [debug] Ext host file search time: 7ms\n2026-04-15 15:26:08.154 [debug] Ext host file search time: 1ms\n2026-04-15 15:26:17.930 [debug] Ext host file search time: 58ms\n2026-04-15 15:26:17.941 [debug] Ext host file search time: 10ms\n2026-04-15 15:26:17.942 [debug] Ext host file search time: 1ms\n2026-04-15 15:26:17.944 [debug] Ext host file search time: 1ms\n2026-04-15 15:26:17.946 [debug] Ext host file search time: 0ms\n2026-04-15 15:26:17.947 [debug] Ext host file search time: 1ms\n2026-04-15 15:26:17.948 [debug] Ext host file search time: 1ms\n2026-04-15 15:26:17.949 [debug] Ext host file search time: 1ms\n2026-04-15 15:26:17.950 [debug] Ext host file search time: 1ms\n2026-04-15 15:26:17.951 [trace] [vscode.merge-conflict] INVOKE provider 'r=>r.provideCodeLenses(y.revive(n),o)'\n2026-04-15 15:26:17.954 [trace] [vscode.typescript-language-features] provider DONE after 58120ms\n2026-04-15 15:26:17.954 [trace] [vscode.typescript-language-features] provider DONE after 58102ms\n2026-04-15 15:26:17.955 [trace] [vscode.typescript-language-features] provider DONE after 37921ms\n2026-04-15 15:26:17.955 [trace] [vscode.typescript-language-features] provider DONE after 33827ms\n2026-04-15 15:26:17.955 [trace] [vscode.typescript-language-features] provider DONE after 33816ms\n2026-04-15 15:26:17.955 [trace] [vscode.typescript-language-features] provider DONE after 20540ms\n2026-04-15 15:26:17.961 [debug] ExtHostSearch Search finished. Stats: {\"cmdTime\":13035,\"fileWalkTime\":13035,\"directoriesWalked\":0,\"filesWalked\":0,\"cmdResultCount\":55}\n2026-04-15 15:26:17.961 [debug] Ext host file search time: 13035ms\n2026-04-15 15:26:17.962 [trace] [vscode.typescript-language-features] provider DONE after 20532ms\n2026-04-15 15:26:17.962 [trace] ExtHostCommands#executeCommand setContext\n2026-04-15 15:26:17.963 [trace] ExtHostCommands#executeCommand _setContext\n2026-04-15 15:26:17.963 [trace] ExtHostCommands#executeCommand setContext\n2026-04-15 15:26:17.963 [trace] ExtHostCommands#executeCommand _setContext\n2026-04-15 15:26:17.963 [trace] [vscode.merge-conflict] provider DONE after 13038ms\n2026-04-15 15:26:17.963 [trace] [vscode.merge-conflict] provider DONE after 12ms\n2026-04-15 15:26:17.964 [trace] CommandsConverter#DISPOSE _json.showAssociatedSchemaList /4\n2026-04-15 15:26:17.964 [trace] CommandsConverter#CREATE _json.showAssociatedSchemaList _json.showAssociatedSchemaList /5\n2026-04-15 15:26:17.964 [debug] [TreeView:python-projects] refresh done changed=1 nodesToClear=0 elements.size=0 nodes.size=0 handles={\"changed\":[\"<root>\"],\"roots\":[],\"clearing\":[]}\n2026-04-15 15:26:18.016 [debug] [TreeView:python-projects] refresh start changed=1 nodesToClear=0 elements.size=0 nodes.size=0 handles={\"changed\":[\"<root>\"],\"roots\":[],\"clearing\":[]}\n2026-04-15 15:26:18.018 [info] ExtensionService#_doActivateExtension vscode.css-language-features, startup: false, activationEvent: 'onLanguage:css'\n2026-04-15 15:26:18.018 [trace] ExtensionService#loadModule [cjs] -> file:///usr/share/code/resources/app/extensions/css-language-features/client/dist/node/cssClientMain\n2026-04-15 15:26:18.019 [trace] ExtensionService#loadExtensionContext vscode.css-language-features\n2026-04-15 15:27:00.923 [trace] ExtHostCommands#executeCommand setContext\n2026-04-15 15:27:00.926 [trace] ExtHostCommands#executeCommand _setContext\n2026-04-15 15:27:01.852 [trace] [DiagnosticCollection] change many (extension, owner, uris) vscode.extension-editing extension-editing [[{\"$mid\":1,\"fsPath\":\"/workspace/frontend/src/api.js\",\"external\":\"file:///workspace/frontend/src/api.js\",\"path\":\"/workspace/frontend/src/api.js\",\"scheme\":\"file\"},null]]\n2026-04-15 15:27:01.852 [trace] [DiagnosticCollection] change many (extension, owner, uris) vscode.typescript-language-features typescript [[{\"$mid\":1,\"fsPath\":\"/workspace/frontend/src/api.js\",\"external\":\"file:///workspace/frontend/src/api.js\",\"path\":\"/workspace/frontend/src/api.js\",\"scheme\":\"file\"},null]]\n2026-04-15 15:27:01.854 [trace] [DiagnosticCollection] change many (extension, owner, uris) vscode.extension-editing extension-editing [[{\"$mid\":1,\"fsPath\":\"/workspace/frontend/public/styles.css\",\"external\":\"file:///workspace/frontend/public/styles.css\",\"path\":\"/workspace/frontend/public/styles.css\",\"scheme\":\"file\"},null]]\n2026-04-15 15:27:01.865 [trace] CommandsConverter#DISPOSE _json.showAssociatedSchemaList /5\n2026-04-15 15:27:01.869 [debug] [TreeView:python-projects] refresh done changed=1 nodesToClear=0 elements.size=0 nodes.size=0 handles={\"changed\":[\"<root>\"],\"roots\":[],\"clearing\":[]}\n2026-04-15 15:27:01.869 [debug] [TreeView:python-projects] refresh start changed=1 nodesToClear=0 elements.size=0 nodes.size=0 handles={\"changed\":[\"<root>\"],\"roots\":[],\"clearing\":[]}\n2026-04-15 15:27:01.874 [trace] ExtensionService#_callActivateOptional vscode.css-language-features\n2026-04-15 15:27:01.944 [debug] ExtHostSearch /usr/share/code/resources/app/node_modules/@vscode/ripgrep/bin/rg --files --hidden --case-sensitive --no-require-git -g '!**/.git' -g '!**/.svn' -g '!**/.hg' -g '!**/.DS_Store' -g '!**/Thumbs.db' -g '!**/node_modules' -g '!**/bower_components' -g '!**/*.code-search' --no-ignore-parent --follow --no-config --no-ignore-global\n - cwd: /workspace\n - Sibling clauses: {}\n2026-04-15 15:27:01.948 [debug] Ext host file search time: 4ms\n2026-04-15 15:27:01.951 [debug] Ext host file search time: 2ms\n2026-04-15 15:27:02.022 [debug] Ext host file search time: 2ms\n2026-04-15 15:27:02.024 [debug] Ext host file search time: 1ms\n2026-04-15 15:27:02.025 [debug] Ext host file search time: 1ms\n2026-04-15 15:27:02.027 [debug] Ext host file search time: 1ms\n2026-04-15 15:27:02.028 [debug] Ext host file search time: 1ms\n2026-04-15 15:27:02.031 [debug] Ext host file search time: 2ms\n2026-04-15 15:27:02.034 [debug] Ext host file search time: 2ms\n2026-04-15 15:27:02.035 [debug] Ext host file search time: 1ms\n2026-04-15 15:27:03.099 [trace] [ms-python.vscode-pylance] INVOKE provider 'a=>a.provideCodeActions(y.revive(n),o,r,s)'\n2026-04-15 15:27:03.101 [trace] ExtHostCommands#executeCommand setContext\n2026-04-15 15:27:03.104 [trace] ExtHostCommands#executeCommand _setContext\n2026-04-15 15:27:03.109 [trace] [ms-python.vscode-pylance] INVOKE provider 'r=>r.provideColors(y.revive(n),o)'\n2026-04-15 15:27:03.116 [trace] [ms-python.vscode-pylance] INVOKE provider 'r=>r.provideDocumentSymbols(y.revive(n),o)'\n2026-04-15 15:27:03.117 [trace] [ms-python.vscode-pylance] INVOKE provider 's=>s.provideDocumentSemanticTokens(y.revive(n),o,r)'\n2026-04-15 15:27:03.117 [trace] [ms-python.vscode-pylance] INVOKE provider 's=>s.provideInlayHints(y.revive(n),o,r)'\n2026-04-15 15:27:03.118 [trace] [extrace.extrace-harness] INVOKE provider 'r=>r.provideLinks(y.revive(n),o)'\n2026-04-15 15:27:03.118 [trace] [extrace.extrace-harness] provider DONE after 0ms\n2026-04-15 15:27:03.119 [trace] [ms-python.vscode-pylance] INVOKE provider 's=>s.provideDocumentHighlights(y.revive(n),o,r)'\n2026-04-15 15:27:03.119 [trace] [ms-python.vscode-pylance] INVOKE provider 'a=>a.provideCodeActions(y.revive(n),o,r,s)'\n2026-04-15 15:27:03.122 [trace] [ms-python.vscode-pylance] INVOKE provider 's=>s.provideDocumentRangeSemanticTokens(y.revive(n),o,r)'\n2026-04-15 15:27:03.123 [trace] [ms-python.vscode-pylance] INVOKE provider 's=>s.provideFoldingRanges(y.revive(n),o,r)'\n2026-04-15 15:27:03.123 [trace] [ms-python.vscode-pylance] INVOKE provider 'r=>r.provideDocumentSymbols(y.revive(n),o)'\n2026-04-15 15:27:03.124 [trace] [ms-python.vscode-pylance] INVOKE provider 'r=>r.provideCodeLenses(y.revive(n),o)'\n2026-04-15 15:27:03.125 [trace] [vscode.merge-conflict] INVOKE provider 'r=>r.provideCodeLenses(y.revive(n),o)'\n2026-04-15 15:27:03.141 [trace] [ms-python.vscode-pylance] INVOKE provider 'l=>l.provideOnTypeFormattingEdits(y.revive(n),o,r,s,a)'\n2026-04-15 15:27:03.145 [trace] [ms-python.vscode-pylance] INVOKE provider 'l=>l.provideOnTypeFormattingEdits(y.revive(n),o,r,s,a)'\n2026-04-15 15:27:03.148 [trace] [ms-python.vscode-pylance] INVOKE provider 's=>s.provideInlayHints(y.revive(n),o,r)'\n2026-04-15 15:27:03.151 [trace] [ms-python.vscode-pylance] INVOKE provider 's=>s.provideDocumentRangeSemanticTokens(y.revive(n),o,r)'\n2026-04-15 15:27:03.151 [trace] [ms-python.vscode-pylance] INVOKE provider 's=>s.provideFoldingRanges(y.revive(n),o,r)'\n2026-04-15 15:27:03.161 [trace] [ms-python.vscode-pylance] INVOKE provider 'a=>a.provideCompletionItems(y.revive(n),o,r,s)'\n2026-04-15 15:27:03.164 [trace] [ms-python.vscode-pylance] INVOKE provider 'r=>r.provideDocumentSymbols(y.revive(n),o)'\n2026-04-15 15:27:03.168 [trace] [ms-python.vscode-pylance] INVOKE provider 's=>s.provideInlayHints(y.revive(n),o,r)'\n2026-04-15 15:27:03.232 [trace] [ms-python.vscode-pylance] INVOKE provider 's=>s.provideInlayHints(y.revive(n),o,r)'\n2026-04-15 15:27:03.244 [trace] [ms-python.vscode-pylance] INVOKE provider 'r=>r.provideDocumentSymbols(y.revive(n),o)'\n2026-04-15 15:27:03.252 [trace] [ms-python.vscode-pylance] INVOKE provider 's=>s.provideInlayHints(y.revive(n),o,r)'\n2026-04-15 15:27:03.336 [trace] [ms-python.vscode-pylance] INVOKE provider 's=>s.provideInlayHints(y.revive(n),o,r)'\n2026-04-15 15:27:03.354 [trace] [ms-python.vscode-pylance] INVOKE provider 'r=>r.provideDocumentSymbols(y.revive(n),o)'\n2026-04-15 15:27:03.423 [trace] [ms-python.vscode-pylance] INVOKE provider 'l=>l.provideOnTypeFormattingEdits(y.revive(n),o,r,s,a)'\n2026-04-15 15:27:03.433 [trace] [ms-python.vscode-pylance] INVOKE provider 'l=>l.provideOnTypeFormattingEdits(y.revive(n),o,r,s,a)'\n2026-04-15 15:27:03.438 [trace] [ms-python.vscode-pylance] INVOKE provider 's=>s.provideInlayHints(y.revive(n),o,r)'\n2026-04-15 15:27:03.520 [trace] [ms-python.vscode-pylance] INVOKE provider 's=>s.provideInlayHints(y.revive(n),o,r)'\n2026-04-15 15:27:03.526 [trace] [ms-python.vscode-pylance] INVOKE provider 's=>s.provideInlayHints(y.revive(n),o,r)'\n2026-04-15 15:27:03.529 [trace] [ms-python.vscode-pylance] INVOKE provider 'a=>a.provideCompletionItems(y.revive(n),o,r,s)'\n2026-04-15 15:27:03.538 [trace] [ms-python.vscode-pylance] INVOKE provider 'r=>r.provideColors(y.revive(n),o)'\n2026-04-15 15:27:03.543 [trace] [ms-python.vscode-pylance] INVOKE provider 's=>s.provideInlayHints(y.revive(n),o,r)'\n2026-04-15 15:27:03.556 [trace] [ms-python.vscode-pylance] INVOKE provider 'a=>a.provideCompletionItems(y.revive(n),o,r,s)'\n2026-04-15 15:27:03.630 [trace] [ms-python.vscode-pylance] INVOKE provider 'r=>r.provideDocumentSymbols(y.revive(n),o)'\n2026-04-15 15:27:03.663 [trace] [ms-python.vscode-pylance] INVOKE provider 's=>s.provideInlayHints(y.revive(n),o,r)'\n2026-04-15 15:27:03.717 [trace] [ms-python.vscode-pylance] INVOKE provider 'l=>l.provideOnTypeFormattingEdits(y.revive(n),o,r,s,a)'\n2026-04-15 15:27:03.724 [trace] [ms-python.vscode-pylance] INVOKE provider 's=>s.provideInlayHints(y.revive(n),o,r)'\n2026-04-15 15:27:03.730 [trace] [ms-python.vscode-pylance] INVOKE provider 'a=>a.provideSignatureHelp(y.revive(n),o,r,s)'\n2026-04-15 15:27:03.732 [trace] [ms-python.vscode-pylance] INVOKE provider 's=>s.provideDocumentRangeSemanticTokens(y.revive(n),o,r)'\n2026-04-15 15:27:03.733 [trace] [ms-python.vscode-pylance] INVOKE provider 's=>s.provideFoldingRanges(y.revive(n),o,r)'\n2026-04-15 15:27:03.733 [trace] [ms-python.vscode-pylance] INVOKE provider 'r=>r.provideDocumentSymbols(y.revive(n),o)'\n2026-04-15 15:27:03.738 [trace] [ms-python.vscode-pylance] INVOKE provider 'r=>r.provideCodeLenses(y.revive(n),o)'\n2026-04-15 15:27:03.739 [trace] [vscode.merge-conflict] INVOKE provider 'r=>r.provideCodeLenses(y.revive(n),o)'\n2026-04-15 15:27:03.743 [trace] [ms-python.vscode-pylance] INVOKE provider 'r=>r.provideDocumentSymbols(y.revive(n),o)'\n2026-04-15 15:27:03.744 [trace] [ms-python.vscode-pylance] INVOKE provider 'a=>a.provideCompletionItems(y.revive(n),o,r,s)'\n2026-04-15 15:27:03.748 [trace] [ms-python.vscode-pylance] INVOKE provider 's=>s.provideInlayHints(y.revive(n),o,r)'\n2026-04-15 15:27:03.749 [trace] [ms-python.vscode-pylance] INVOKE provider 'r=>r.provideColors(y.revive(n),o)'\n2026-04-15 15:27:03.750 [trace] [extrace.extrace-harness] INVOKE provider 'r=>r.provideLinks(y.revive(n),o)'\n2026-04-15 15:27:03.751 [trace] [extrace.extrace-harness] provider DONE after 1ms\n2026-04-15 15:27:03.760 [trace] [ms-python.vscode-pylance] INVOKE provider 's=>s.provideInlayHints(y.revive(n),o,r)'\n2026-04-15 15:27:03.820 [trace] [ms-python.vscode-pylance] INVOKE provider 's=>s.provideDocumentRangeSemanticTokens(y.revive(n),o,r)'\n2026-04-15 15:27:03.829 [trace] [ms-python.vscode-pylance] INVOKE provider 's=>s.provideInlayHints(y.revive(n),o,r)'\n2026-04-15 15:27:03.843 [trace] [ms-python.vscode-pylance] INVOKE provider 's=>s.provideDocumentRangeSemanticTokens(y.revive(n),o,r)'\n2026-04-15 15:27:03.949 [trace] [ms-python.vscode-pylance] INVOKE provider 's=>s.provideInlayHints(y.revive(n),o,r)'\n2026-04-15 15:27:03.962 [trace] ExtHostCommands#executeCommand setContext\n2026-04-15 15:27:03.963 [trace] ExtHostCommands#executeCommand _setContext\n2026-04-15 15:27:04.022 [warning] [vscode.typescript-language-features] Accessing a resource scoped configuration without providing a resource is not expected. To get the effective value for 'files.watcherExclude', provide the URI of a resource or 'null' for any resource.\n2026-04-15 15:27:04.026 [trace] [ms-python.vscode-pylance] INVOKE provider 's=>s.provideDocumentRangeSemanticTokens(y.revive(n),o,r)'\n2026-04-15 15:27:04.027 [trace] [ms-python.vscode-pylance] INVOKE provider 's=>s.provideFoldingRanges(y.revive(n),o,r)'\n2026-04-15 15:27:04.029 [trace] [ms-python.vscode-pylance] INVOKE provider 'r=>r.provideDocumentSymbols(y.revive(n),o)'\n2026-04-15 15:27:04.034 [trace] [ms-python.vscode-pylance] INVOKE provider 'r=>r.provideCodeLenses(y.revive(n),o)'\n2026-04-15 15:27:04.035 [trace] [vscode.merge-conflict] INVOKE provider 'r=>r.provideCodeLenses(y.revive(n),o)'\n2026-04-15 15:27:04.039 [trace] [ms-python.vscode-pylance] INVOKE provider 'r=>r.provideDocumentSymbols(y.revive(n),o)'\n2026-04-15 15:27:04.046 [trace] [ms-python.vscode-pylance] INVOKE provider 's=>s.provideInlayHints(y.revive(n),o,r)'\n2026-04-15 15:27:04.048 [trace] [extrace.extrace-harness] INVOKE provider 'r=>r.provideLinks(y.revive(n),o)'\n2026-04-15 15:27:04.048 [trace] [extrace.extrace-harness] provider DONE after 1ms\n2026-04-15 15:27:04.049 [trace] [ms-python.vscode-pylance] INVOKE provider 'r=>r.provideColors(y.revive(n),o)'\n2026-04-15 15:27:04.053 [debug] Ext host file search time: 1ms\n2026-04-15 15:27:04.055 [debug] Ext host file search time: 2ms\n2026-04-15 15:27:04.058 [debug] Ext host file search time: 1ms\n2026-04-15 15:27:04.059 [debug] Ext host file search time: 1ms\n2026-04-15 15:27:04.119 [debug] Ext host file search time: 59ms\n2026-04-15 15:27:04.121 [debug] Ext host file search time: 1ms\n2026-04-15 15:27:04.123 [debug] Ext host file search time: 1ms\n2026-04-15 15:27:04.125 [debug] Ext host file search time: 2ms\n2026-04-15 15:27:04.126 [debug] Ext host file search time: 1ms\n2026-04-15 15:27:04.129 [debug] Ext host file search time: 2ms\n2026-04-15 15:27:04.140 [trace] [ms-python.vscode-pylance] INVOKE provider 'r=>r.provideCodeLenses(y.revive(n),o)'\n2026-04-15 15:27:04.141 [trace] [vscode.merge-conflict] INVOKE provider 'r=>r.provideCodeLenses(y.revive(n),o)'\n2026-04-15 15:27:04.338 [warning] [ms-python.vscode-python-envs] Accessing a window scoped configuration for a resource is not expected. To associate 'python-envs.defaultEnvManager' to a resource, define its scope to 'resource' in configuration contributions in 'package.json'.\n2026-04-15 15:27:04.339 [warning] [ms-python.vscode-python-envs] Accessing a window scoped configuration for a resource is not expected. To associate 'python-envs.defaultEnvManager' to a resource, define its scope to 'resource' in configuration contributions in 'package.json'.\n2026-04-15 15:27:04.340 [debug] ExtHostSearch Search finished. Stats: {\"cmdTime\":2419,\"fileWalkTime\":2419,\"directoriesWalked\":0,\"filesWalked\":0,\"cmdResultCount\":56}\n2026-04-15 15:27:04.340 [debug] Ext host file search time: 2419ms\n2026-04-15 15:27:04.341 [trace] ExtHostCommands#executeCommand setContext\n2026-04-15 15:27:04.344 [trace] ExtHostCommands#executeCommand _setContext\n2026-04-15 15:27:04.346 [trace] ExtHostCommands#executeCommand setContext\n2026-04-15 15:27:04.347 [trace] ExtHostCommands#executeCommand _setContext\n2026-04-15 15:27:04.419 [trace] ExtHostCommands#executeCommand setContext\n2026-04-15 15:27:04.420 [trace] ExtHostCommands#executeCommand _setContext\n2026-04-15 15:27:04.423 [trace] ExtHostCommands#executeCommand setContext\n2026-04-15 15:27:04.423 [trace] ExtHostCommands#executeCommand _setContext\n2026-04-15 15:27:04.424 [trace] ExtHostCommands#executeCommand setContext\n2026-04-15 15:27:04.425 [trace] ExtHostCommands#executeCommand _setContext\n2026-04-15 15:27:04.425 [trace] ExtHostCommands#executeCommand setContext\n2026-04-15 15:27:04.426 [trace] ExtHostCommands#executeCommand _setContext\n2026-04-15 15:27:04.427 [trace] ExtHostCommands#executeCommand setContext\n2026-04-15 15:27:04.428 [trace] ExtHostCommands#executeCommand _setContext\n2026-04-15 15:27:04.428 [trace] [vscode.merge-conflict] provider DONE after 1303ms\n2026-04-15 15:27:04.429 [trace] [vscode.merge-conflict] provider DONE after 690ms\n2026-04-15 15:27:04.429 [trace] [vscode.merge-conflict] provider DONE after 394ms\n2026-04-15 15:27:04.429 [trace] [vscode.merge-conflict] provider DONE after 288ms\n2026-04-15 15:27:04.430 [trace] CommandsConverter#CREATE _json.showAssociatedSchemaList _json.showAssociatedSchemaList /6\n2026-04-15 15:27:04.434 [debug] [TreeView:python-projects] refresh done changed=1 nodesToClear=0 elements.size=0 nodes.size=0 handles={\"changed\":[\"<root>\"],\"roots\":[],\"clearing\":[]}\n2026-04-15 15:27:04.435 [debug] [TreeView:python-projects] refresh start changed=1 nodesToClear=0 elements.size=0 nodes.size=0 handles={\"changed\":[\"<root>\"],\"roots\":[],\"clearing\":[]}\n2026-04-15 15:27:04.438 [trace] [ms-python.vscode-pylance] INVOKE provider 's=>s.provideDocumentHighlights(y.revive(n),o,r)'\n2026-04-15 15:27:05.222 [trace] [ms-python.vscode-pylance] INVOKE provider 'a=>a.provideCodeActions(y.revive(n),o,r,s)'\n2026-04-15 15:27:05.241 [trace] CommandsConverter#DISPOSE pylance.setAutoImportCompletions /1\n2026-04-15 15:27:05.242 [trace] CommandsConverter#CREATE pylance.setAutoImportCompletions pylance.setAutoImportCompletions /7\n2026-04-15 15:27:05.249 [debug] [TreeView:python-projects] refresh done changed=1 nodesToClear=0 elements.size=0 nodes.size=0 handles={\"changed\":[\"<root>\"],\"roots\":[],\"clearing\":[]}\n2026-04-15 15:27:05.250 [info] ExtensionService#_doActivateExtension vscode.debug-server-ready, startup: false, activationEvent: 'onDebugResolve'\n2026-04-15 15:27:05.250 [trace] ExtensionService#loadModule [cjs] -> file:///usr/share/code/resources/app/extensions/debug-server-ready/dist/extension\n2026-04-15 15:27:05.251 [trace] ExtensionService#loadExtensionContext vscode.debug-server-ready\n2026-04-15 15:27:08.828 [trace] [DiagnosticCollection] change many (extension, owner, uris) ms-python.vscode-pylance Pylance [[{\"$mid\":1,\"fsPath\":\"/workspace/src/app.py\",\"external\":\"file:///workspace/src/app.py\",\"path\":\"/workspace/src/app.py\",\"scheme\":\"file\"},[]]]\n2026-04-15 15:27:08.830 [trace] ExtensionService#_callActivateOptional vscode.debug-server-ready\n2026-04-15 15:27:14.827 [trace] ExtHostCommands#executeCommand setContext\n2026-04-15 15:27:14.828 [trace] ExtHostCommands#executeCommand _setContext\n2026-04-15 15:27:16.199 [trace] [ms-python.vscode-pylance] provider DONE after 13100ms\n2026-04-15 15:27:17.059 [trace] [ms-python.vscode-pylance] provider DONE after 13950ms\n2026-04-15 15:27:17.125 [trace] [ms-python.vscode-pylance] provider DONE after 14009ms\n2026-04-15 15:27:17.130 [trace] [InlayHints] NO inlay hints from 'ms-python.vscode-pylance' for range {\"startLineNumber\":1,\"startColumn\":1,\"endLineNumber\":3,\"endColumn\":1}\n2026-04-15 15:27:17.130 [trace] [ms-python.vscode-pylance] provider DONE after 14013ms\n2026-04-15 15:27:17.134 [trace] [ms-python.vscode-pylance] provider DONE after 14015ms\n2026-04-15 15:27:17.139 [trace] [ms-python.vscode-pylance] provider DONE after 14020ms\n2026-04-15 15:27:17.153 [trace] ExtHostCommands#registerCommand _css.applyCodeAction\n2026-04-15 15:27:17.222 [trace] [ms-python.vscode-pylance] INVOKE provider 'r=>r.provideDocumentSymbols(y.revive(n),o)'\n2026-04-15 15:27:17.234 [trace] [ms-python.vscode-pylance] INVOKE provider 'a=>a.provideCodeActions(y.revive(n),o,r,s)'\n2026-04-15 15:27:17.235 [trace] [ms-python.vscode-pylance] INVOKE provider 'r=>r.provideColors(y.revive(n),o)'\n2026-04-15 15:27:17.236 [trace] [extrace.extrace-harness] INVOKE provider 'r=>r.provideLinks(y.revive(n),o)'\n2026-04-15 15:27:17.236 [trace] [extrace.extrace-harness] provider DONE after 0ms\n2026-04-15 15:27:17.243 [trace] [ms-python.vscode-pylance] provider DONE after 14120ms\n2026-04-15 15:27:17.248 [trace] [ms-python.vscode-pylance] provider DONE after 14125ms\n2026-04-15 15:27:17.251 [trace] [ms-python.vscode-pylance] provider DONE after 14127ms\n2026-04-15 15:27:17.254 [trace] [ms-python.vscode-pylance] provider DONE after 14113ms\n2026-04-15 15:27:17.257 [trace] [ms-python.vscode-pylance] provider DONE after 14112ms\n2026-04-15 15:27:17.260 [trace] [InlayHints] NO inlay hints from 'ms-python.vscode-pylance' for range {\"startLineNumber\":1,\"startColumn\":1,\"endLineNumber\":5,\"endColumn\":1}\n2026-04-15 15:27:17.260 [trace] [ms-python.vscode-pylance] provider DONE after 14112ms\n2026-04-15 15:27:17.334 [trace] [ms-python.vscode-pylance] provider DONE after 14183ms\n2026-04-15 15:27:17.335 [trace] extHostWorkspace#findFiles: fileSearch, extension: ms-python.python, entryPoint: findFiles\n2026-04-15 15:27:17.337 [trace] extHostWorkspace#findFiles: fileSearch, extension: ms-python.python, entryPoint: findFiles\n2026-04-15 15:27:17.352 [trace] [ms-python.vscode-pylance] provider DONE after 14191ms\n2026-04-15 15:27:17.427 [debug] ExtHostSearch /usr/share/code/resources/app/node_modules/@vscode/ripgrep/bin/rg --files --hidden --case-sensitive --no-require-git -g '**/*requirement*.txt' -g '!**/.git' -g '!**/.svn' -g '!**/.hg' -g '!**/.DS_Store' -g '!**/Thumbs.db' -g '!**/{.venv*,.git,.nox,.tox,.conda,site-packages,__pypackages__}/**' --no-ignore --follow --no-config --no-ignore-global\n - cwd: /workspace\n - Sibling clauses: {}\n2026-04-15 15:27:21.697 [debug] ExtHostSearch /usr/share/code/resources/app/node_modules/@vscode/ripgrep/bin/rg --files --hidden --case-sensitive --no-require-git -g '**/requirements/*.txt' -g '!**/.git' -g '!**/.svn' -g '!**/.hg' -g '!**/.DS_Store' -g '!**/Thumbs.db' -g '!**/{.venv*,.git,.nox,.tox,.conda,site-packages,__pypackages__}/**' --no-ignore --follow --no-config --no-ignore-global\n - cwd: /workspace\n - Sibling clauses: {}\n2026-04-15 15:27:23.595 [trace] [ms-python.vscode-pylance] provider DONE after 20431ms\n2026-04-15 15:27:23.596 [trace] [ms-python.vscode-pylance] INVOKE provider 'r=>r.provideDocumentSymbols(y.revive(n),o)'\n2026-04-15 15:27:23.598 [trace] [ms-python.vscode-pylance] INVOKE provider 's=>s.provideFoldingRanges(y.revive(n),o,r)'\n2026-04-15 15:27:44.225 [trace] [InlayHints] NO inlay hints from 'ms-python.vscode-pylance' for range {\"startLineNumber\":1,\"startColumn\":1,\"endLineNumber\":5,\"endColumn\":3}\n2026-04-15 15:27:44.225 [trace] [ms-python.vscode-pylance] provider DONE after 41057ms\n2026-04-15 15:27:44.226 [debug] ExtHostSearch Search finished. Stats: {\"cmdTime\":26796,\"fileWalkTime\":26796,\"directoriesWalked\":0,\"filesWalked\":0,\"cmdResultCount\":0}\n2026-04-15 15:27:44.226 [debug] Ext host file search time: 26799ms\n2026-04-15 15:27:44.227 [debug] ExtHostSearch Search finished. Stats: {\"cmdTime\":26874,\"fileWalkTime\":26874,\"directoriesWalked\":0,\"filesWalked\":0,\"cmdResultCount\":1}\n2026-04-15 15:27:44.227 [debug] Ext host file search time: 26874ms\n2026-04-15 15:27:44.235 [trace] [ms-python.vscode-pylance] INVOKE provider 's=>s.provideDocumentHighlights(y.revive(n),o,r)'\n2026-04-15 15:27:44.326 [trace] [ms-python.vscode-pylance] INVOKE provider 'r=>r.provideCodeLenses(y.revive(n),o)'\n2026-04-15 15:27:44.333 [trace] [vscode.merge-conflict] INVOKE provider 'r=>r.provideCodeLenses(y.revive(n),o)'\n2026-04-15 15:27:44.344 [trace] [ms-python.vscode-pylance] INVOKE provider 's=>s.provideDocumentHighlights(y.revive(n),o,r)'\n2026-04-15 15:27:56.269 [trace] [ms-python.vscode-pylance] INVOKE provider 'r=>r.provideCodeLenses(y.revive(n),o)'\n2026-04-15 15:27:56.273 [trace] [vscode.merge-conflict] INVOKE provider 'r=>r.provideCodeLenses(y.revive(n),o)'\n2026-04-15 15:28:05.019 [trace] ExtHostCommands#executeCommand setContext\n2026-04-15 15:28:05.020 [trace] ExtHostCommands#executeCommand _setContext\n2026-04-15 15:28:05.020 [trace] ExtHostCommands#executeCommand setContext\n2026-04-15 15:28:05.021 [trace] ExtHostCommands#executeCommand _setContext\n2026-04-15 15:28:05.023 [trace] [vscode.merge-conflict] provider DONE after 20690ms\n2026-04-15 15:28:05.023 [trace] [vscode.merge-conflict] provider DONE after 8750ms\n2026-04-15 15:28:05.035 [trace] [ms-python.vscode-pylance] INVOKE provider 's=>s.provideDocumentHighlights(y.revive(n),o,r)'\n2026-04-15 15:28:05.039 [trace] [ms-python.vscode-pylance] INVOKE provider 'r=>r.provideCodeLenses(y.revive(n),o)'\n2026-04-15 15:28:05.040 [trace] [vscode.merge-conflict] INVOKE provider 'r=>r.provideCodeLenses(y.revive(n),o)'\n2026-04-15 15:28:05.120 [trace] [ms-python.vscode-pylance] INVOKE provider 's=>s.provideDocumentHighlights(y.revive(n),o,r)'\n2026-04-15 15:28:05.130 [trace] [ms-python.vscode-pylance] INVOKE provider 'r=>r.provideCodeLenses(y.revive(n),o)'\n2026-04-15 15:28:05.133 [trace] [vscode.merge-conflict] INVOKE provider 'r=>r.provideCodeLenses(y.revive(n),o)'\n2026-04-15 15:28:43.253 [trace] [ms-python.vscode-pylance] INVOKE provider 's=>s.provideDocumentHighlights(y.revive(n),o,r)'\n2026-04-15 15:29:14.333 [trace] [ms-python.vscode-pylance] INVOKE provider 'r=>r.provideCodeLenses(y.revive(n),o)'\n2026-04-15 15:29:14.337 [trace] [vscode.merge-conflict] INVOKE provider 'r=>r.provideCodeLenses(y.revive(n),o)'\n2026-04-15 15:29:14.342 [warning] [ms-python.vscode-python-envs] Accessing a window scoped configuration for a resource is not expected. To associate 'python-envs.defaultEnvManager' to a resource, define its scope to 'resource' in configuration contributions in 'package.json'.\n2026-04-15 15:29:14.342 [warning] [ms-python.vscode-python-envs] Accessing a window scoped configuration for a resource is not expected. To associate 'python-envs.defaultEnvManager' to a resource, define its scope to 'resource' in configuration contributions in 'package.json'.\n2026-04-15 15:29:14.344 [warning] [ms-python.vscode-python-envs] Accessing a resource scoped configuration without providing a resource is not expected. To get the effective value for 'python.terminal.activateEnvironment', provide the URI of a resource or 'null' for any resource.\n2026-04-15 15:29:14.351 [warning] [ms-python.vscode-python-envs] Accessing a window scoped configuration for a resource is not expected. To associate 'python-envs.defaultEnvManager' to a resource, define its scope to 'resource' in configuration contributions in 'package.json'.\n2026-04-15 15:29:14.352 [warning] [ms-python.vscode-python-envs] Accessing a window scoped configuration for a resource is not expected. To associate 'python-envs.defaultEnvManager' to a resource, define its scope to 'resource' in configuration contributions in 'package.json'.\n2026-04-15 15:29:14.421 [trace] ExtHostCommands#executeCommand setContext\n2026-04-15 15:29:14.422 [trace] ExtHostCommands#executeCommand _setContext\n2026-04-15 15:29:14.435 [trace] [ms-python.vscode-pylance] INVOKE provider 's=>s.provideInlayHints(y.revive(n),o,r)'\n2026-04-15 15:29:33.549 [trace] [ms-python.vscode-pylance] INVOKE provider 's=>s.provideDocumentRangeSemanticTokens(y.revive(n),o,r)'\n2026-04-15 15:29:50.223 [trace] ExtHostCommands#executeCommand setContext\n2026-04-15 15:29:50.226 [trace] ExtHostCommands#executeCommand _setContext\n2026-04-15 15:29:50.226 [trace] ExtHostCommands#executeCommand setContext\n2026-04-15 15:29:50.226 [trace] ExtHostCommands#executeCommand _setContext\n2026-04-15 15:29:50.226 [trace] ExtHostCommands#executeCommand setContext\n2026-04-15 15:29:50.226 [trace] ExtHostCommands#executeCommand _setContext\n2026-04-15 15:29:50.226 [trace] [vscode.merge-conflict] provider DONE after 105186ms\n2026-04-15 15:29:50.226 [trace] [vscode.merge-conflict] provider DONE after 105093ms\n2026-04-15 15:29:50.226 [trace] [vscode.merge-conflict] provider DONE after 35889ms\n2026-04-15 15:29:50.243 [trace] [DiagnosticCollection] change many (extension, owner, uris) vscode.extension-editing extension-editing [[{\"$mid\":1,\"fsPath\":\"/workspace/frontend/package.json\",\"external\":\"file:///workspace/frontend/package.json\",\"path\":\"/workspace/frontend/package.json\",\"scheme\":\"file\"},null]]\n2026-04-15 15:29:50.640 [trace] ExtHostCommands#executeCommand setContext\n2026-04-15 15:29:50.640 [trace] ExtHostCommands#executeCommand _setContext\n2026-04-15 15:29:51.017 [warning] [vscode.typescript-language-features] Accessing a resource scoped configuration without providing a resource is not expected. To get the effective value for 'files.watcherExclude', provide the URI of a resource or 'null' for any resource.\n2026-04-15 15:29:51.032 [trace] [ms-python.vscode-pylance] INVOKE provider 'a=>a.provideCodeActions(y.revive(n),o,r,s)'\n2026-04-15 15:29:51.133 [warning] [ms-python.vscode-python-envs] Accessing a window scoped configuration for a resource is not expected. To associate 'python-envs.defaultEnvManager' to a resource, define its scope to 'resource' in configuration contributions in 'package.json'.\n2026-04-15 15:29:51.134 [warning] [ms-python.vscode-python-envs] Accessing a window scoped configuration for a resource is not expected. To associate 'python-envs.defaultEnvManager' to a resource, define its scope to 'resource' in configuration contributions in 'package.json'.\n2026-04-15 15:29:51.134 [warning] [ms-python.vscode-python-envs] Accessing a resource scoped configuration without providing a resource is not expected. To get the effective value for 'python.terminal.activateEnvironment', provide the URI of a resource or 'null' for any resource.\n2026-04-15 15:29:51.143 [warning] [ms-python.vscode-python-envs] Accessing a window scoped configuration for a resource is not expected. To associate 'python-envs.defaultEnvManager' to a resource, define its scope to 'resource' in configuration contributions in 'package.json'.\n2026-04-15 15:29:51.143 [warning] [ms-python.vscode-python-envs] Accessing a window scoped configuration for a resource is not expected. To associate 'python-envs.defaultEnvManager' to a resource, define its scope to 'resource' in configuration contributions in 'package.json'.\n2026-04-15 15:29:51.143 [trace] ExtHostCommands#executeCommand setContext\n2026-04-15 15:29:51.143 [trace] ExtHostCommands#executeCommand _setContext\n2026-04-15 15:29:51.227 [trace] [DiagnosticCollection] change many (extension, owner, uris) vscode.extension-editing extension-editing [[{\"$mid\":1,\"fsPath\":\"/workspace/package.json\",\"external\":\"file:///workspace/package.json\",\"path\":\"/workspace/package.json\",\"scheme\":\"file\"},null]]\n2026-04-15 15:29:51.233 [trace] ExtHostCommands#executeCommand setContext\n2026-04-15 15:29:51.233 [trace] ExtHostCommands#executeCommand _setContext\n2026-04-15 15:29:51.239 [trace] ExtHostCommands#executeCommand setContext\n2026-04-15 15:29:51.239 [trace] ExtHostCommands#executeCommand _setContext\n2026-04-15 15:29:51.240 [trace] [InlayHints] NO inlay hints from 'ms-python.vscode-pylance' for range {\"startLineNumber\":1,\"startColumn\":1,\"endLineNumber\":5,\"endColumn\":6}\n2026-04-15 15:29:51.240 [trace] [ms-python.vscode-pylance] provider DONE after 168008ms\n2026-04-15 15:29:51.241 [trace] [ms-python.vscode-pylance] provider DONE after 167997ms\n2026-04-15 15:29:51.325 [trace] [InlayHints] NO inlay hints from 'ms-python.vscode-pylance' for range {\"startLineNumber\":1,\"startColumn\":1,\"endLineNumber\":5,\"endColumn\":12}\n2026-04-15 15:29:51.325 [trace] [ms-python.vscode-pylance] provider DONE after 168073ms\n2026-04-15 15:29:51.328 [trace] [InlayHints] NO inlay hints from 'ms-python.vscode-pylance' for range {\"startLineNumber\":1,\"startColumn\":1,\"endLineNumber\":5,\"endColumn\":16}\n2026-04-15 15:29:51.328 [trace] [ms-python.vscode-pylance] provider DONE after 167992ms\n2026-04-15 15:29:51.329 [trace] [ms-python.vscode-pylance] provider DONE after 167975ms\n2026-04-15 15:29:51.334 [trace] [ms-python.vscode-pylance] provider DONE after 167911ms\n2026-04-15 15:29:51.334 [trace] [ms-python.vscode-pylance] provider DONE after 167901ms\n2026-04-15 15:29:51.334 [trace] [InlayHints] NO inlay hints from 'ms-python.vscode-pylance' for range {\"startLineNumber\":1,\"startColumn\":1,\"endLineNumber\":6,\"endColumn\":5}\n2026-04-15 15:29:51.334 [trace] [ms-python.vscode-pylance] provider DONE after 167896ms\n2026-04-15 15:29:51.335 [trace] [InlayHints] NO inlay hints from 'ms-python.vscode-pylance' for range {\"startLineNumber\":1,\"startColumn\":1,\"endLineNumber\":6,\"endColumn\":8}\n2026-04-15 15:29:51.335 [trace] [ms-python.vscode-pylance] provider DONE after 167816ms\n2026-04-15 15:29:51.335 [trace] [InlayHints] NO inlay hints from 'ms-python.vscode-pylance' for range {\"startLineNumber\":1,\"startColumn\":1,\"endLineNumber\":6,\"endColumn\":9}\n2026-04-15 15:29:51.335 [trace] [ms-python.vscode-pylance] provider DONE after 167809ms\n2026-04-15 15:29:51.335 [trace] [ms-python.vscode-pylance] provider DONE after 167806ms\n2026-04-15 15:29:51.336 [trace] [ms-python.vscode-pylance] provider DONE after 167798ms\n2026-04-15 15:29:51.336 [trace] [InlayHints] NO inlay hints from 'ms-python.vscode-pylance' for range {\"startLineNumber\":1,\"startColumn\":1,\"endLineNumber\":6,\"endColumn\":13}\n2026-04-15 15:29:51.336 [trace] [ms-python.vscode-pylance] provider DONE after 167793ms\n2026-04-15 15:29:51.336 [trace] [ms-python.vscode-pylance] provider DONE after 167780ms\n2026-04-15 15:29:51.338 [trace] [ms-python.vscode-pylance] provider DONE after 167708ms\n2026-04-15 15:29:51.338 [trace] [InlayHints] NO inlay hints from 'ms-python.vscode-pylance' for range {\"startLineNumber\":1,\"startColumn\":1,\"endLineNumber\":6,\"endColumn\":34}\n2026-04-15 15:29:51.338 [trace] [ms-python.vscode-pylance] provider DONE after 167675ms\n2026-04-15 15:29:51.338 [trace] [ms-python.vscode-pylance] provider DONE after 167621ms\n2026-04-15 15:29:51.338 [trace] [InlayHints] NO inlay hints from 'ms-python.vscode-pylance' for range {\"startLineNumber\":1,\"startColumn\":1,\"endLineNumber\":7,\"endColumn\":9}\n2026-04-15 15:29:51.338 [trace] [ms-python.vscode-pylance] provider DONE after 167614ms\n2026-04-15 15:29:51.339 [trace] [ms-python.vscode-pylance] provider DONE after 167609ms\n2026-04-15 15:29:51.339 [trace] [ms-python.vscode-pylance] provider DONE after 167606ms\n2026-04-15 15:29:51.339 [trace] [ms-python.vscode-pylance] provider DONE after 167606ms\n2026-04-15 15:29:51.339 [trace] [ms-python.vscode-pylance] provider DONE after 167601ms\n2026-04-15 15:29:51.339 [trace] [ms-python.vscode-pylance] provider DONE after 167596ms\n2026-04-15 15:29:51.339 [trace] [ms-python.vscode-pylance] provider DONE after 167595ms\n2026-04-15 15:29:51.339 [trace] [InlayHints] NO inlay hints from 'ms-python.vscode-pylance' for range {\"startLineNumber\":1,\"startColumn\":1,\"endLineNumber\":7,\"endColumn\":9}\n2026-04-15 15:29:51.339 [trace] [ms-python.vscode-pylance] provider DONE after 167591ms\n2026-04-15 15:29:51.339 [trace] [ms-python.vscode-pylance] provider DONE after 167590ms\n2026-04-15 15:29:51.340 [trace] [InlayHints] NO inlay hints from 'ms-python.vscode-pylance' for range {\"startLineNumber\":1,\"startColumn\":1,\"endLineNumber\":7,\"endColumn\":9}\n2026-04-15 15:29:51.340 [trace] [ms-python.vscode-pylance] provider DONE after 167580ms\n2026-04-15 15:29:51.340 [trace] [InlayHints] NO inlay hints from 'ms-python.vscode-pylance' for range {\"startLineNumber\":1,\"startColumn\":1,\"endLineNumber\":7,\"endColumn\":9}\n2026-04-15 15:29:51.340 [trace] [ms-python.vscode-pylance] provider DONE after 167511ms\n2026-04-15 15:29:51.340 [trace] [InlayHints] NO inlay hints from 'ms-python.vscode-pylance' for range {\"startLineNumber\":1,\"startColumn\":1,\"endLineNumber\":2,\"endColumn\":1}\n2026-04-15 15:29:51.340 [trace] [ms-python.vscode-pylance] provider DONE after 167391ms\n2026-04-15 15:29:51.341 [trace] [ms-python.vscode-pylance] provider DONE after 167314ms\n2026-04-15 15:29:51.341 [trace] [ms-python.vscode-pylance] provider DONE after 167312ms\n2026-04-15 15:29:51.341 [trace] [ms-python.vscode-pylance] provider DONE after 167307ms\n2026-04-15 15:29:51.341 [trace] [ms-python.vscode-pylance] provider DONE after 167302ms\n2026-04-15 15:29:51.341 [trace] [InlayHints] NO inlay hints from 'ms-python.vscode-pylance' for range {\"startLineNumber\":1,\"startColumn\":1,\"endLineNumber\":2,\"endColumn\":1}\n2026-04-15 15:29:51.341 [trace] [ms-python.vscode-pylance] provider DONE after 167295ms\n2026-04-15 15:29:51.341 [trace] [ms-python.vscode-pylance] provider DONE after 167292ms\n2026-04-15 15:29:51.341 [trace] [ms-python.vscode-pylance] provider DONE after 167201ms\n2026-04-15 15:29:51.341 [trace] [ms-python.vscode-pylance] provider DONE after 166903ms\n2026-04-15 15:29:51.341 [trace] [DiagnosticCollection] change many (extension, owner, uris) ms-python.vscode-pylance Pylance [[{\"$mid\":1,\"fsPath\":\"/workspace/src/app.py\",\"external\":\"file:///workspace/src/app.py\",\"path\":\"/workspace/src/app.py\",\"scheme\":\"file\"},[]]]\n2026-04-15 15:29:51.342 [trace] [ms-python.vscode-pylance] provider DONE after 154120ms\n2026-04-15 15:29:51.342 [trace] [ms-python.vscode-pylance] provider DONE after 154107ms\n2026-04-15 15:29:51.342 [trace] [ms-python.vscode-pylance] provider DONE after 147746ms\n2026-04-15 15:29:51.342 [trace] [ms-python.vscode-pylance] provider DONE after 147744ms\n2026-04-15 15:29:51.343 [trace] [ms-python.vscode-pylance] provider DONE after 127108ms\n2026-04-15 15:29:51.343 [trace] [ms-python.vscode-pylance] provider DONE after 127017ms\n2026-04-15 15:29:51.343 [trace] [ms-python.vscode-pylance] provider DONE after 126999ms\n2026-04-15 15:29:51.343 [trace] [ms-python.vscode-pylance] provider DONE after 115074ms\n2026-04-15 15:29:51.343 [trace] [ms-python.vscode-pylance] provider DONE after 106308ms\n2026-04-15 15:29:51.423 [trace] [ms-python.vscode-pylance] provider DONE after 106384ms\n2026-04-15 15:29:51.423 [trace] ExtHostCommands#executeCommand setContext\n2026-04-15 15:29:51.423 [trace] ExtHostCommands#executeCommand _setContext\n2026-04-15 15:29:51.425 [trace] [ms-python.vscode-pylance] provider DONE after 106305ms\n2026-04-15 15:29:51.426 [trace] [ms-python.vscode-pylance] provider DONE after 106296ms\n2026-04-15 15:29:51.427 [trace] [ms-python.vscode-pylance] provider DONE after 68174ms\n2026-04-15 15:29:51.427 [trace] [ms-python.vscode-pylance] provider DONE after 37094ms\n2026-04-15 15:29:51.428 [trace] [InlayHints] NO inlay hints from 'ms-python.vscode-pylance' for range {\"startLineNumber\":1,\"startColumn\":1,\"endLineNumber\":2,\"endColumn\":1}\n2026-04-15 15:29:51.428 [trace] [ms-python.vscode-pylance] provider DONE after 36993ms\n2026-04-15 15:29:51.428 [trace] [ms-python.vscode-pylance] provider DONE after 168306ms\n2026-04-15 15:29:51.536 [trace] ExtHostCommands#executeCommand setContext\n2026-04-15 15:29:51.536 [trace] ExtHostCommands#executeCommand _setContext\n2026-04-15 15:29:51.638 [trace] [ms-python.vscode-pylance] INVOKE provider 's=>s.provideFoldingRanges(y.revive(n),o,r)'\n2026-04-15 15:29:52.932 [trace] [ms-python.vscode-pylance] provider DONE after 169815ms\n2026-04-15 15:29:52.932 [trace] [ms-python.vscode-pylance] provider DONE after 169781ms\n2026-04-15 15:29:52.932 [trace] [ms-python.vscode-pylance] provider DONE after 169200ms\n2026-04-15 15:29:52.933 [trace] [ms-python.vscode-pylance] provider DONE after 169113ms\n2026-04-15 15:29:52.933 [trace] [ms-python.vscode-pylance] provider DONE after 169090ms\n2026-04-15 15:29:52.933 [trace] [ms-python.vscode-pylance] provider DONE after 168907ms\n2026-04-15 15:29:52.933 [trace] [ms-python.vscode-pylance] provider DONE after 167711ms\n2026-04-15 15:29:52.934 [trace] [ms-python.vscode-pylance] provider DONE after 155700ms\n2026-04-15 15:29:52.934 [trace] [ms-python.vscode-pylance] provider DONE after 19387ms\n2026-04-15 15:29:52.936 [trace] [DiagnosticCollection] change many (extension, owner, uris) ms-python.vscode-pylance Pylance [[{\"$mid\":1,\"fsPath\":\"/workspace/src/app.py\",\"external\":\"file:///workspace/src/app.py\",\"path\":\"/workspace/src/app.py\",\"scheme\":\"file\"},[]]]\n2026-04-15 15:29:52.940 [trace] [ms-python.vscode-pylance] provider DONE after 1302ms\n2026-04-15 15:29:52.942 [trace] CommandsConverter#DISPOSE pylance.showTypeCheckingPicker /2\n2026-04-15 15:29:52.943 [trace] CommandsConverter#CREATE pylance.showTypeCheckingPicker pylance.showTypeCheckingPicker /8\n2026-04-15 15:29:53.021 [trace] ExtHostCommands#executeCommand setContext\n2026-04-15 15:29:53.021 [trace] ExtHostCommands#executeCommand _setContext\n2026-04-15 15:29:53.045 [trace] [ms-python.vscode-pylance] provider DONE after 2013ms\n2026-04-15 15:29:53.047 [trace] [DiagnosticCollection] change many (extension, owner, uris) ms-python.vscode-pylance Pylance [[{\"$mid\":1,\"fsPath\":\"/workspace/src/app.py\",\"external\":\"file:///workspace/src/app.py\",\"path\":\"/workspace/src/app.py\",\"scheme\":\"file\"},[]]]\n2026-04-15 15:29:53.122 [trace] ExtHostCommands#executeCommand setContext\n2026-04-15 15:29:53.122 [trace] ExtHostCommands#executeCommand _setContext\n2026-04-15 15:29:53.138 [trace] [DiagnosticCollection] change many (extension, owner, uris) ms-python.vscode-pylance Pylance [[{\"$mid\":1,\"fsPath\":\"/workspace/src/app.py\",\"external\":\"file:///workspace/src/app.py\",\"path\":\"/workspace/src/app.py\",\"scheme\":\"file\"},[]]]\n2026-04-15 15:29:53.149 [trace] [DiagnosticCollection] change many (extension, owner, uris) ms-python.vscode-pylance Pylance [[{\"$mid\":1,\"fsPath\":\"/workspace/src/app.py\",\"external\":\"file:///workspace/src/app.py\",\"path\":\"/workspace/src/app.py\",\"scheme\":\"file\"},[]]]\n2026-04-15 15:29:53.219 [trace] ExtHostCommands#executeCommand setContext\n2026-04-15 15:29:53.219 [trace] ExtHostCommands#executeCommand _setContext\n2026-04-15 15:29:53.422 [trace] [ms-python.vscode-pylance] INVOKE provider 's=>s.provideDocumentSemanticTokens(y.revive(n),o,r)'\n2026-04-15 15:29:53.440 [trace] [ms-python.vscode-pylance] provider DONE after 18ms\n2026-04-15 15:29:53.821 [trace] [ms-python.vscode-pylance] INVOKE provider 'o=>o.releaseDocumentSemanticColoring(n)'\n2026-04-15 15:29:53.823 [trace] [ms-python.vscode-pylance] provider DONE after 2ms\n2026-04-15 15:29:54.643 [warning] Accessing a resource scoped configuration without providing a resource is not expected. To get the effective value for 'files.watcherExclude', provide the URI of a resource or 'null' for any resource.\n2026-04-15 15:30:00.895 [trace] ExtHostCommands#executeCommand setContext\n2026-04-15 15:30:00.895 [trace] ExtHostCommands#executeCommand _setContext\n2026-04-15 15:30:00.896 [debug] [TreeView:python-projects] refresh start changed=1 nodesToClear=0 elements.size=0 nodes.size=0 handles={\"changed\":[\"<root>\"],\"roots\":[],\"clearing\":[]}\n2026-04-15 15:30:00.896 [trace] CommandsConverter#DISPOSE _json.showAssociatedSchemaList /6\n2026-04-15 15:30:00.969 [debug] [TreeView:python-projects] refresh done changed=1 nodesToClear=0 elements.size=0 nodes.size=0 handles={\"changed\":[\"<root>\"],\"roots\":[],\"clearing\":[]}",
-  "log_file": "/home/executor/.vscode/logs/20260415T152426/window1/exthost/exthost.log"
+  "log_file": "/home/executor/.vscode/logs/20260415T152426/window1/exthost/exthost.log",
+  "skipped_scenarios": []
 }

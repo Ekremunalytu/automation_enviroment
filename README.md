@@ -1,6 +1,6 @@
 # ExTrace
 
-`Last Updated: 2026-04-20`
+`Last Updated: 2026-04-21`
 
 ExTrace is a VS Code extension analysis platform built around three runtime
 surfaces:
@@ -33,12 +33,18 @@ multi-tenant web platform.
 - W5 security scaffolding now exists under
   `packages/analysis_contracts/detection/`, `extensions/malicious/`, and
   `tests/security/`.
-- Pre-W6 cleanup is complete on `2026-04-20`: dormant root app/UI artifacts
-  were removed, the marketplace trigger-planning contract is now `TriggerPlan`
-  only, and `executor/flows/playwright/monitor.py` is a thin facade over
-  lifecycle/source/runtime/attribution helpers.
-- Harness-extension checksum verification is intentionally deferred as the
-  first supply-chain task of W5; it is not part of the closed Week 4 scope.
+- W6 automation hardening landed on `2026-04-21`: requested scenarios now
+  reconcile against executed/failed/skipped truth, skipped runs demote
+  `automation_health` and `run_quality`, trigger-plan flows use bounded
+  verification plus an idle-observation window, and analyst reports include
+  bounded HTTP metadata/body previews plus extension-host child-process events.
+- Post-W6 detection bridge (`2026-04-21`): `RiskSignal.confidence_tier` now
+  shares the `Confidence` enum vocabulary with `DetectionFinding` via
+  `packages.analysis_contracts.quantize_confidence`, and
+  `detection_report_invariant_issues` enforces that every finding evidence
+  `event_id` resolves to an `ActivationReport.evidence_events[]` entry.
+- Harness-extension checksum verification is enforced at executor startup via
+  `/home/executor/flows/harness_extension.sha256` before VS Code launches.
 
 ## Current Architecture
 

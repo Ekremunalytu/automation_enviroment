@@ -34,6 +34,24 @@ class Confidence(ContractStrEnum):
     LOW = "low"
 
 
+_CONFIDENCE_HIGH_THRESHOLD = 0.85
+_CONFIDENCE_MEDIUM_THRESHOLD = 0.65
+
+
+def quantize_confidence(value: float) -> Confidence:
+    """Map a numeric attribution confidence to the contract enum tier.
+
+    Used so activation-layer risk signals and detection-layer findings
+    share a single confidence vocabulary (ADR 0003 §4).
+    """
+
+    if value >= _CONFIDENCE_HIGH_THRESHOLD:
+        return Confidence.HIGH
+    if value >= _CONFIDENCE_MEDIUM_THRESHOLD:
+        return Confidence.MEDIUM
+    return Confidence.LOW
+
+
 class Verdict(ContractStrEnum):
     MALICIOUS = "malicious"
     SUSPICIOUS = "suspicious"
@@ -73,4 +91,5 @@ __all__ = [
     "RuleLifecycle",
     "Severity",
     "Verdict",
+    "quantize_confidence",
 ]

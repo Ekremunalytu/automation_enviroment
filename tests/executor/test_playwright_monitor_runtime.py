@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import io
 import json
 import sys
 from pathlib import Path
@@ -13,6 +14,7 @@ if str(PLAYWRIGHT_DIR) not in sys.path:
     sys.path.insert(0, str(PLAYWRIGHT_DIR))
 
 import monitor  # noqa: E402
+from runtime_capture import network as network_capture  # noqa: E402
 
 
 def test_activation_report_duration_prefers_monotonic_clock() -> None:
@@ -94,7 +96,7 @@ def test_activation_report_save_is_atomic(tmp_path: Path) -> None:
     assert not list(tmp_path.glob(".activation_report.json.*.tmp"))
 
 
-def test_activation_report_save_uses_scenario_traces_as_runtime_ledger(
+def test_activation_report_save_uses_layered_attempt_coverage_to_avoid_synthetic_skips(
     tmp_path: Path,
 ) -> None:
     report = monitor.ActivationReport(
@@ -103,7 +105,12 @@ def test_activation_report_save_uses_scenario_traces_as_runtime_ledger(
         trigger_plan_loaded=True,
         trigger_plan_applied=True,
         trigger_execution_mode="layered_passes",
-        requested_scenarios=["debug_session", "refactor_workflow"],
+        requested_scenarios=[
+            "project_exploration",
+            "coding_session",
+            "debug_session",
+            "refactor_workflow",
+        ],
         scenarios_run=["stale_scenario"],
         failed_scenarios=["stale_scenario"],
         scenario_traces=[
@@ -129,7 +136,25 @@ def test_activation_report_save_uses_scenario_traces_as_runtime_ledger(
                 ended_at=12.0,
                 status="completed",
                 trigger_method="layered_deep",
-            )
+            ),
+            monitor.StimulusPassTrace(
+                pass_id="ui_first_user_session",  # noqa: S106
+                label="UI-first user session pass",
+                order=2,
+                started_at=12.5,
+                ended_at=16.0,
+                status="completed",
+                trigger_method="layered_deep",
+            ),
+            monitor.StimulusPassTrace(
+                pass_id="target_specific_activation",  # noqa: S106
+                label="target-specific activation pass",
+                order=3,
+                started_at=16.5,
+                ended_at=19.0,
+                status="completed",
+                trigger_method="layered_deep",
+            ),
         ],
         event_attempts=[
             monitor.EventAttemptRecord(
@@ -140,17 +165,43 @@ def test_activation_report_save_uses_scenario_traces_as_runtime_ledger(
                 track="official",
                 attempted_passes=["workspace_bootstrap"],
                 status="attempted_only",
-            )
+            ),
+            monitor.EventAttemptRecord(
+                attempt_id="attempt-2",
+                declared_event="onDebugInitialConfigurations",
+                activation_event="onDebugInitialConfigurations",
+                event_family="onDebugInitialConfigurations",
+                executor_action="extra:debug_lifecycle",
+                legacy_scenarios=["debug_session"],
+                track="official",
+                attempted_passes=["target_specific_activation"],
+                status="attempted_only",
+            ),
+            monitor.EventAttemptRecord(
+                attempt_id="attempt-3",
+                declared_event="onCommand:test",
+                activation_event="onCommand:test",
+                event_family="onCommand",
+                executor_action="command:auto",
+                legacy_scenarios=["refactor_workflow"],
+                track="official",
+                attempted_passes=["ui_first_user_session"],
+                status="attempted_only",
+            ),
         ],
         official_event_coverage={
             "track": "official",
-            "declared": 1,
+            "declared": 3,
             "verified": 0,
-            "attempted_only": 1,
+            "attempted_only": 3,
             "failed": 0,
             "blocked": 0,
-            "unresolved": 1,
-            "declared_events": ["workspaceContains:app.py"],
+            "unresolved": 3,
+            "declared_events": [
+                "workspaceContains:app.py",
+                "onDebugInitialConfigurations",
+                "onCommand:test",
+            ],
         },
         monitoring_start=10.0,
         monitoring_end=40.0,
@@ -165,9 +216,16 @@ def test_activation_report_save_uses_scenario_traces_as_runtime_ledger(
         "project_exploration",
         "coding_session",
     ]
-    assert payload["requested_scenarios"] == ["debug_session", "refactor_workflow"]
+    assert payload["requested_scenarios"] == [
+        "project_exploration",
+        "coding_session",
+        "debug_session",
+        "refactor_workflow",
+    ]
     assert payload["summary"]["failed_scenarios"] == ["coding_session"]
+    assert payload["summary"]["skipped_scenarios"] == []
     assert payload["failed_scenarios"] == ["coding_session"]
+    assert payload["skipped_scenarios"] == []
     assert activation_report_invariant_issues(payload) == []
 
 
@@ -224,6 +282,58 @@ def test_parse_tshark_event_line_extracts_http_fields() -> None:
     assert event.destination_ip == "93.184.216.34"
     assert event.destination_port == 443
     assert event.rel_time_s == 0.25
+
+
+def test_parse_tshark_event_line_extracts_text_http_body_preview() -> None:
+    line = (
+        "1700000000.250\t10.0.0.2\t\t93.184.216.34\t\t443\t\t\t"
+        "api.example.com\t/api/health\t\tHTTP\tPOST /api/health HTTP/1.1\t"
+        'POST\t200\tapplication/json\t{"status":"ok"}'
+    )
+
+    event = monitor.parse_tshark_event_line(line, monitoring_start=1700000000.0)
+
+    assert event is not None
+    assert event.request_body_preview == '{"status":"ok"}'
+    assert event.request_body_sha256
+    assert event.request_body_truncated is False
+
+
+def test_network_capture_surfaces_immediate_tshark_field_failure(
+    monkeypatch,
+) -> None:
+    class _ExitedTsharkProc:
+        def __init__(self) -> None:
+            self.stdout = io.StringIO("")
+            self.stderr = io.StringIO(
+                "tshark: Some fields aren't valid:\n\thttp.file_data\n"
+            )
+            self.returncode = 1
+
+        def wait(self, timeout: float | None = None) -> int:
+            _ = timeout
+            return self.returncode
+
+        def poll(self) -> int:
+            return self.returncode
+
+        def terminate(self) -> None:
+            self.returncode = -15
+
+        def kill(self) -> None:
+            self.returncode = -9
+
+    monkeypatch.setattr(
+        network_capture.subprocess,
+        "Popen",
+        lambda *args, **kwargs: _ExitedTsharkProc(),
+    )
+
+    capture = network_capture.NetworkCapture(monitoring_start=0.0)
+    capture.start()
+
+    assert "http.file_data" in capture.capture_error
+    assert capture.start_error == capture.capture_error
 
 
 def test_parse_strace_file_event_line_extracts_extension_io() -> None:

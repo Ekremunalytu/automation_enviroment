@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-`Last Updated: 2026-04-20`
+`Last Updated: 2026-04-21`
 
 Read `AGENTS.md` first. It is the authoritative source for architecture and
 safety rules. This file is the Claude-facing quick map for the current repo
@@ -9,9 +9,15 @@ state.
 ## Current Project Phase
 
 - **Week 4 stabilization:** closed and validated on `2026-04-20`.
-- **W5-W7:** security implementation phase.
+- **W5 (detection foundations):** landed 2026-04-20.
+- **W6 (automation reliability + capture hardening):** landed 2026-04-21.
+- **Post-W6 bridge (2026-04-21):** shared confidence vocabulary
+  (`quantize_confidence` + `RiskSignal.confidence_tier`) and
+  `detection_report_invariant_issues` cross-layer link check.
+- **W7 (acceptance + buffer):** open.
 - **Security scaffolding already present:**
   - `packages/analysis_contracts/detection/`
+  - `packages/analysis_engine/rules/`
   - `extensions/malicious/`
   - `tests/security/`
   - `make test-security`

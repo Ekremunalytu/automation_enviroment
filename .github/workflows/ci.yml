@@ -166,7 +166,33 @@ jobs:
           pip install -r docker/api/requirements.txt
           pip install -r requirements-dev.txt
 
+      - name: 🚫 Assert live security lane is blocked in CI
+        env:
+          CI: "true"
+        run: |
+          if make test-security-live; then
+            echo "ERROR: make test-security-live unexpectedly succeeded in CI."
+            exit 1
+          fi
+
+      - name: 🔒 Disable outbound egress for security lane
+        run: |
+          sudo iptables -P OUTPUT ACCEPT
+          sudo iptables -F OUTPUT
+          sudo iptables -A OUTPUT -o lo -j ACCEPT
+          sudo iptables -A OUTPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+          sudo iptables -P OUTPUT DROP
+          sudo iptables -S OUTPUT
+
+      - name: 🔍 Verify security lane egress hardening
+        env:
+          CI: "true"
+        run: |
+          make test-security-ci-guard
+
       - name: 🧪 Run security fixture lane
+        env:
+          CI: "true"
         run: |
           make test-security
 

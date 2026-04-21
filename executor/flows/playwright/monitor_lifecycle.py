@@ -20,6 +20,7 @@ try:
     from .monitor_attribution import (
         _annotate_file_events,
         _annotate_network_events,
+        _annotate_process_events,
         _build_verdict,
         _format_epoch_timestamp,
         _relative_time,
@@ -30,6 +31,7 @@ try:
         LogStreamEntry,
         PrerequisiteResult,
         ScenarioTrace,
+        SkippedScenarioRecord,
         StimulusPassTrace,
     )
     from .monitor_runtime import (
@@ -47,7 +49,7 @@ try:
     from .monitor_support import resolve_monitor_api
     from .monitor_types import ActivationReport
     from .runtime_capture._shared import _log, _parse_iso_timestamp
-    from .runtime_capture.events import FileEvent, NetworkEvent
+    from .runtime_capture.events import FileEvent, NetworkEvent, ProcessEvent
 except ImportError:  # pragma: no cover - top-level executor import mode
     from health import (
         derive_verified_capabilities,
@@ -57,6 +59,7 @@ except ImportError:  # pragma: no cover - top-level executor import mode
     from monitor_attribution import (
         _annotate_file_events,
         _annotate_network_events,
+        _annotate_process_events,
         _build_verdict,
         _format_epoch_timestamp,
         _relative_time,
@@ -67,6 +70,7 @@ except ImportError:  # pragma: no cover - top-level executor import mode
         LogStreamEntry,
         PrerequisiteResult,
         ScenarioTrace,
+        SkippedScenarioRecord,
         StimulusPassTrace,
     )
     from monitor_runtime import (
@@ -84,7 +88,7 @@ except ImportError:  # pragma: no cover - top-level executor import mode
     from monitor_support import resolve_monitor_api
     from monitor_types import ActivationReport
     from runtime_capture._shared import _log, _parse_iso_timestamp
-    from runtime_capture.events import FileEvent, NetworkEvent
+    from runtime_capture.events import FileEvent, NetworkEvent, ProcessEvent
 
     from playwright.sync_api import Error as PlaywrightError
     from playwright.sync_api import Page
@@ -130,8 +134,16 @@ class ExtensionMonitor:
             on_event=self._handle_network_event,
         )
         self._network_capture.start()
-        if self._network_capture.start_error:
-            self.report.network_capture_error = self._network_capture.start_error
+        network_capture_error = getattr(
+            self._network_capture, "capture_error", ""
+        ) or getattr(self._network_capture, "start_error", "")
+        if network_capture_error:
+            self.report.network_capture_error = network_capture_error
+            self.record_automation_event(
+                "network_capture",
+                f"Network capture unavailable: {network_capture_error}",
+                status="failed",
+            )
         self._file_capture = api.FileSystemCapture(
             monitoring_start=self.report.monitoring_start,
             on_event=self._handle_file_event,
@@ -148,10 +160,17 @@ class ExtensionMonitor:
         if self._extension_file_capture is not None:
             return
 
-        self._extension_file_capture = api.ExtensionHostFileCapture(
-            monitoring_start=self.report.monitoring_start,
-            on_event=self._handle_file_event,
-        )
+        try:
+            self._extension_file_capture = api.ExtensionHostFileCapture(
+                monitoring_start=self.report.monitoring_start,
+                on_event=self._handle_file_event,
+                on_process_event=self._handle_process_event,
+            )
+        except TypeError:
+            self._extension_file_capture = api.ExtensionHostFileCapture(
+                monitoring_start=self.report.monitoring_start,
+                on_event=self._handle_file_event,
+            )
         self._extension_file_capture.start()
         self.report.file_capture_diagnostics = dict(
             self._extension_file_capture.diagnostics
@@ -192,8 +211,17 @@ class ExtensionMonitor:
 
         if self._network_capture is not None:
             self.report.network_events = self._network_capture.stop()
-            if self._network_capture.start_error:
-                self.report.network_capture_error = self._network_capture.start_error
+            network_capture_error = getattr(
+                self._network_capture, "capture_error", ""
+            ) or getattr(self._network_capture, "start_error", "")
+            if network_capture_error:
+                if self.report.network_capture_error != network_capture_error:
+                    self.record_automation_event(
+                        "network_capture",
+                        f"Network capture collector failed: {network_capture_error}",
+                        status="failed",
+                    )
+                self.report.network_capture_error = network_capture_error
         if self._file_capture is not None:
             self.report.file_events = self._file_capture.stop()
             if self._file_capture.start_error and not self.report.file_capture_error:
@@ -278,6 +306,10 @@ class ExtensionMonitor:
         self.report.network_events.append(event)
         self._persist_report(force=False)
 
+    def _handle_process_event(self, event: ProcessEvent) -> None:
+        self.report.process_events.append(event)
+        self._persist_report(force=False)
+
     def mark_trigger_plan_applied(
         self,
         *,
@@ -302,6 +334,35 @@ class ExtensionMonitor:
         self.report.failed_scenarios = sorted(set(failed_scenarios))
         self._synchronize_scenario_truth()
         self._persist_report(force=False)
+
+    def record_execution_result(self, result: Any) -> None:
+        self.report.requested_scenarios = [
+            str(name).strip()
+            for name in getattr(result, "requested_scenarios", []) or []
+            if str(name).strip()
+        ]
+        self.report.skipped_scenarios = [
+            SkippedScenarioRecord(
+                name=str(getattr(item, "name", "")).strip(),
+                reason_code=str(getattr(item, "reason_code", "")).strip(),
+                detail=str(getattr(item, "detail", "")).strip(),
+            )
+            for item in getattr(result, "skipped_scenarios", []) or []
+            if str(getattr(item, "name", "")).strip()
+            and str(getattr(item, "reason_code", "")).strip()
+        ]
+        self.report.extra_trigger_failures = [
+            str(item).strip()
+            for item in getattr(result, "extra_trigger_failures", []) or []
+            if str(item).strip()
+        ]
+        self.record_failed_scenarios(
+            [
+                str(name).strip()
+                for name in getattr(result, "failed_scenarios", []) or []
+                if str(name).strip()
+            ]
+        )
 
     def record_stimulus_pass_event(
         self,
@@ -667,9 +728,6 @@ class ExtensionMonitor:
         self._synchronize_scenario_truth()
 
     def _synchronize_scenario_truth(self) -> None:
-        if not self.report.scenario_traces:
-            return
-
         self.report.scenarios_run = [
             trace.name
             for trace in self.report.scenario_traces
@@ -692,6 +750,12 @@ class ExtensionMonitor:
         )
         self.report.file_events = _annotate_file_events(
             self.report.file_events,
+            self.report.activated,
+            self.report.scenario_traces,
+            self.report.target_extension_id,
+        )
+        self.report.process_events = _annotate_process_events(
+            self.report.process_events,
             self.report.activated,
             self.report.scenario_traces,
             self.report.target_extension_id,

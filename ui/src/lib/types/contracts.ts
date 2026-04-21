@@ -12,6 +12,7 @@ export interface AutomationHealthDto {
   target_stream_present?: boolean;
   target_activation_count?: number;
   failed_scenarios?: string[];
+  skipped_scenarios?: string[];
 }
 
 export interface LogHealthDto {
@@ -213,6 +214,15 @@ export interface NetworkEventDto {
   destination_port?: number | null;
   host?: string;
   path?: string;
+  http_method?: string;
+  http_status_code?: number | null;
+  http_content_type?: string;
+  request_body_sha256?: string;
+  request_body_preview?: string;
+  request_body_truncated?: boolean;
+  response_body_sha256?: string;
+  response_body_preview?: string;
+  response_body_truncated?: boolean;
   related_extension_id?: string;
   related_activation_event?: string;
   attribution_status?: string;
@@ -245,6 +255,24 @@ export interface FileEventDto {
   summary?: string;
 }
 
+export interface ProcessEventDto {
+  timestamp?: string;
+  rel_time_s?: number | null;
+  pid: number;
+  ppid?: number | null;
+  operation?: string;
+  command?: string;
+  arguments_preview?: string;
+  cwd?: string;
+  related_extension_id?: string;
+  related_activation_event?: string;
+  attribution_status?: string;
+  attribution_basis?: string;
+  attribution_confidence?: number;
+  is_target_extension_event?: boolean;
+  summary?: string;
+}
+
 export interface RuleExecutionRecordDto {
   rule_id: string;
   rule_version: string;
@@ -263,6 +291,12 @@ export interface ScenarioTraceDto {
   started_at: number;
   ended_at?: number;
   status?: string;
+}
+
+export interface SkippedScenarioRecordDto {
+  name: string;
+  reason_code: string;
+  detail?: string;
 }
 
 export type SeverityDto = "critical" | "high" | "medium" | "low" | "info";
@@ -341,6 +375,7 @@ export interface RiskSignalDto {
   category: string;
   severity: string;
   confidence: number;
+  confidence_tier?: string;
   evidence_event_ids?: string[];
   summary?: string;
   details?: Record<string, unknown>;
@@ -359,9 +394,11 @@ export interface ActivationReportDto {
   verdict: Record<string, unknown>;
   summary: Record<string, unknown>;
   scenario_traces: ScenarioTraceDto[];
+  skipped_scenarios?: SkippedScenarioRecordDto[];
   evidence_events: EvidenceEventDto[];
   network_events: NetworkEventDto[];
   file_events: FileEventDto[];
+  process_events?: ProcessEventDto[];
   log_streams: LogStreamsDto;
   target_extension_observed?: boolean;
   trigger_plan_requested?: boolean;

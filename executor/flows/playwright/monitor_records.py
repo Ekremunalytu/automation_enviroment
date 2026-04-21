@@ -27,6 +27,15 @@ class ScenarioTrace:
 
 
 @dataclass
+class SkippedScenarioRecord:
+    """Authoritative record for a requested scenario that never executed."""
+
+    name: str
+    reason_code: str
+    detail: str = ""
+
+
+@dataclass
 class StimulusPassTrace:
     """Lifecycle timing for a layered stimulus pass."""
 
@@ -158,6 +167,7 @@ class RiskSignal:
     category: str
     severity: str = "info"
     confidence: float = 0.0
+    confidence_tier: str = ""
     evidence_event_ids: list[str] = field(default_factory=list)
     summary: str = ""
     details: dict[str, Any] = field(default_factory=dict)

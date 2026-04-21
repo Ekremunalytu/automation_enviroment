@@ -11,9 +11,11 @@ from packages.analysis_contracts.contracts import (
     LogStreamEntry,
     NetworkEvent,
     PrerequisiteResult,
+    ProcessEvent,
     RiskSignal,
     RunningExtension,
     ScenarioTrace,
+    SkippedScenarioRecord,
     StimulusPassTrace,
     TriggerPayload,
     TriggerScenarioDetail,
@@ -33,9 +35,11 @@ from packages.analysis_contracts.detection import (
     Severity,
     Verdict,
     compute_verdict,
+    quantize_confidence,
 )
 from packages.analysis_contracts.report_invariants import (
     activation_report_invariant_issues,
+    detection_report_invariant_issues,
     scenario_trace_names,
 )
 
@@ -57,6 +61,7 @@ __all__ = [
     "LogStreamEntry",
     "NetworkEvent",
     "PrerequisiteResult",
+    "ProcessEvent",
     "RiskSignal",
     "RuleExecutionRecord",
     "RuleExecutionStatus",
@@ -64,6 +69,7 @@ __all__ = [
     "RunningExtension",
     "ScenarioTrace",
     "Severity",
+    "SkippedScenarioRecord",
     "StimulusPassTrace",
     "TriggerPayload",
     "TriggerScenarioDetail",
@@ -71,5 +77,7 @@ __all__ = [
     "Verdict",
     "activation_report_invariant_issues",
     "compute_verdict",
+    "detection_report_invariant_issues",
+    "quantize_confidence",
     "scenario_trace_names",
 ]

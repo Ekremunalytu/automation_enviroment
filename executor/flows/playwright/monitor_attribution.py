@@ -14,7 +14,12 @@ try:
         ScenarioTrace,
     )
     from .runtime_capture._shared import _parse_iso_timestamp
-    from .runtime_capture.events import ActivationEntry, FileEvent, NetworkEvent
+    from .runtime_capture.events import (
+        ActivationEntry,
+        FileEvent,
+        NetworkEvent,
+        ProcessEvent,
+    )
     from .signal_facts import (
         indexed_target_activations,
         indexed_target_file_events,
@@ -31,7 +36,12 @@ except ImportError:  # pragma: no cover - top-level executor import mode
         ScenarioTrace,
     )
     from runtime_capture._shared import _parse_iso_timestamp
-    from runtime_capture.events import ActivationEntry, FileEvent, NetworkEvent
+    from runtime_capture.events import (
+        ActivationEntry,
+        FileEvent,
+        NetworkEvent,
+        ProcessEvent,
+    )
     from signal_facts import (
         indexed_target_activations,
         indexed_target_file_events,
@@ -354,6 +364,15 @@ def _annotate_network_events(
                 destination_port=network_event.destination_port,
                 host=network_event.host,
                 path=network_event.path,
+                http_method=network_event.http_method,
+                http_status_code=network_event.http_status_code,
+                http_content_type=network_event.http_content_type,
+                request_body_sha256=network_event.request_body_sha256,
+                request_body_preview=network_event.request_body_preview,
+                request_body_truncated=network_event.request_body_truncated,
+                response_body_sha256=network_event.response_body_sha256,
+                response_body_preview=network_event.response_body_preview,
+                response_body_truncated=network_event.response_body_truncated,
                 related_extension_id=related_extension_id,
                 related_activation_event=related_activation_event,
                 attribution_status=attribution_status,
@@ -448,6 +467,71 @@ def _annotate_file_events(
     return _upgrade_inotify_correlations(annotated)
 
 
+def _annotate_process_events(
+    process_events: list[ProcessEvent],
+    activations: list[ActivationEntry],
+    scenario_traces: list[ScenarioTrace],
+    target_extension_id: str,
+) -> list[ProcessEvent]:
+    annotated: list[ProcessEvent] = []
+    for process_event in sorted(
+        process_events,
+        key=lambda entry: (
+            entry.rel_time_s is None,
+            entry.rel_time_s if entry.rel_time_s is not None else 0.0,
+            entry.pid,
+        ),
+    ):
+        event_epoch = _resolve_event_epoch(
+            process_event.timestamp,
+            process_event.rel_time_s,
+            0.0,
+        )
+        (
+            attribution_status,
+            attribution_basis,
+            attribution_confidence,
+            related_extension_id,
+            related_activation_event,
+            is_target_extension_event,
+            _noise_reason,
+        ) = _classify_event_attribution(
+            event_epoch,
+            activations,
+            target_extension_id,
+            observer="strace",
+        )
+        summary = process_event.summary
+        scenario_name = _scenario_name_for_timestamp(
+            process_event.timestamp,
+            process_event.rel_time_s,
+            scenario_traces,
+            0.0,
+        )
+        if scenario_name:
+            summary = f"{summary} [{scenario_name}]"
+        annotated.append(
+            ProcessEvent(
+                timestamp=process_event.timestamp,
+                rel_time_s=process_event.rel_time_s,
+                pid=process_event.pid,
+                ppid=process_event.ppid,
+                operation=process_event.operation,
+                command=process_event.command,
+                arguments_preview=process_event.arguments_preview,
+                cwd=process_event.cwd,
+                related_extension_id=related_extension_id,
+                related_activation_event=related_activation_event,
+                attribution_status=attribution_status,
+                attribution_basis=attribution_basis,
+                attribution_confidence=attribution_confidence,
+                is_target_extension_event=is_target_extension_event,
+                summary=summary,
+            )
+        )
+    return annotated
+
+
 def _build_evidence_bundle(
     report: ActivationReport,
 ) -> tuple[list[EvidenceEvent], list[EvidenceLink]]:
@@ -459,6 +543,7 @@ def _build_evidence_bundle(
     activation_entries: list[tuple[str, ActivationEntry, float | None]] = []
     network_entries: list[tuple[str, NetworkEvent, float | None]] = []
     file_entries: list[tuple[str, FileEvent, float | None]] = []
+    process_entries: list[tuple[str, ProcessEvent, float | None]] = []
     blocker_entries: list[tuple[str, LogStreamEntry, float | None]] = []
 
     for index, trace in enumerate(
@@ -592,6 +677,15 @@ def _build_evidence_bundle(
                     "event_type": network_event.event_type,
                     "source_ip": network_event.source_ip,
                     "path": network_event.path,
+                    "http_method": network_event.http_method,
+                    "http_status_code": network_event.http_status_code,
+                    "http_content_type": network_event.http_content_type,
+                    "request_body_sha256": network_event.request_body_sha256,
+                    "request_body_preview": network_event.request_body_preview,
+                    "request_body_truncated": network_event.request_body_truncated,
+                    "response_body_sha256": network_event.response_body_sha256,
+                    "response_body_preview": network_event.response_body_preview,
+                    "response_body_truncated": network_event.response_body_truncated,
                 },
             )
         )
@@ -634,17 +728,66 @@ def _build_evidence_bundle(
             )
         )
 
+    for index, process_event in enumerate(report.process_events, start=1):
+        event_id = f"process-{index:04d}"
+        event_epoch = _resolve_event_epoch(
+            process_event.timestamp,
+            process_event.rel_time_s,
+            monitoring_start,
+        )
+        process_entries.append((event_id, process_event, event_epoch))
+        events.append(
+            EvidenceEvent(
+                event_id=event_id,
+                kind="process",
+                timestamp=process_event.timestamp
+                or _format_epoch_timestamp(event_epoch),
+                rel_time_s=process_event.rel_time_s,
+                collector="strace",
+                actor="extension"
+                if process_event.is_target_extension_event
+                else "unknown",
+                scenario_name=_scenario_name_for_timestamp(
+                    process_event.timestamp,
+                    process_event.rel_time_s,
+                    report.scenario_traces,
+                    monitoring_start,
+                ),
+                extension_id=process_event.related_extension_id,
+                activation_event=process_event.related_activation_event,
+                operation=process_event.operation,
+                attribution_status=process_event.attribution_status,
+                attribution_basis=process_event.attribution_basis,
+                attribution_confidence=process_event.attribution_confidence,
+                is_target_extension_event=process_event.is_target_extension_event,
+                summary=process_event.summary,
+                raw_context={
+                    "pid": process_event.pid,
+                    "ppid": process_event.ppid,
+                    "command": process_event.command,
+                    "arguments_preview": process_event.arguments_preview,
+                    "cwd": process_event.cwd,
+                },
+            )
+        )
+
     links.extend(
         _build_scenario_links(
             scenario_entries,
             activation_entries,
             network_entries,
             file_entries,
+            process_entries,
             blocker_entries,
         )
     )
     links.extend(
-        _build_temporal_links(activation_entries, network_entries, file_entries)
+        _build_temporal_links(
+            activation_entries,
+            network_entries,
+            file_entries,
+            process_entries,
+        )
     )
     links.extend(_build_duplicate_file_links(file_entries))
     links.extend(_build_noise_links(scenario_entries, file_entries, blocker_entries))
@@ -656,6 +799,7 @@ def _build_scenario_links(
     activation_entries: list[tuple[str, ActivationEntry, float | None]],
     network_entries: list[tuple[str, NetworkEvent, float | None]],
     file_entries: list[tuple[str, FileEvent, float | None]],
+    process_entries: list[tuple[str, ProcessEvent, float | None]],
     blocker_entries: list[tuple[str, LogStreamEntry, float | None]],
 ) -> list[EvidenceLink]:
     links: list[EvidenceLink] = []
@@ -667,6 +811,7 @@ def _build_scenario_links(
             *activation_entries,
             *network_entries,
             *file_entries,
+            *process_entries,
             *blocker_entries,
         ]:
             if event_epoch is None:
@@ -688,6 +833,7 @@ def _build_temporal_links(
     activation_entries: list[tuple[str, ActivationEntry, float | None]],
     network_entries: list[tuple[str, NetworkEvent, float | None]],
     file_entries: list[tuple[str, FileEvent, float | None]],
+    process_entries: list[tuple[str, ProcessEvent, float | None]],
 ) -> list[EvidenceLink]:
     links: list[EvidenceLink] = []
     for event_id, file_event, event_epoch in file_entries:
@@ -759,6 +905,44 @@ def _build_temporal_links(
                     reason=(
                         "Network activity happened near the target activation but remains "
                         f"correlative only ({delta:.3f}s delta)."
+                    ),
+                )
+            )
+    for event_id, process_event, event_epoch in process_entries:
+        if event_epoch is None:
+            continue
+        activation_match = _nearest_activation(activation_entries, event_epoch)
+        if activation_match is None:
+            continue
+        activation_event_id, _activation_entry, delta = activation_match
+        if process_event.is_target_extension_event:
+            links.append(
+                EvidenceLink(
+                    from_event_id=event_id,
+                    to_event_id=activation_event_id,
+                    link_type="caused_by_target_extension",
+                    confidence=process_event.attribution_confidence
+                    or _temporal_confidence(delta),
+                    reason=(
+                        "Process activity is attributed to the target extension because "
+                        "it aligned with a target activation window in the Extension Host tree."
+                    ),
+                )
+            )
+        elif process_event.attribution_status in {
+            "near_target_activation",
+            "competing_candidate",
+            "unattributed",
+        }:
+            links.append(
+                EvidenceLink(
+                    from_event_id=event_id,
+                    to_event_id=activation_event_id,
+                    link_type="near_target_activation",
+                    confidence=_temporal_confidence(delta),
+                    reason=(
+                        "Process activity happened near the target activation but "
+                        f"ownership remains unconfirmed ({delta:.3f}s delta)."
                     ),
                 )
             )

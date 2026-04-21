@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 from typing import Any
 
 import workspace
@@ -14,6 +13,7 @@ from stimulus_types import (
     _TASKS_PATH,
     PrerequisiteMaterialization,
 )
+from workspace_seed_data import LANGUAGE_EXTENSIONS
 
 
 def materialize_task_definition() -> PrerequisiteMaterialization:
@@ -80,12 +80,22 @@ def materialize_workspace_contains_fixture(
     )
     if not patterns:
         return blocked(
-            "missing_workspace_contains_pattern",
+            "prerequisite_blocked",
             "workspaceContains prerequisite did not include a filename pattern.",
         )
     created: list[str] = []
     for pattern in patterns:
-        created.extend(create_workspace_contains_fixture(pattern))
+        try:
+            created.extend(create_workspace_contains_fixture(pattern))
+        except KeyError:
+            return blocked(
+                "materialization_failed",
+                (
+                    "workspaceContains fixture materialization does not support "
+                    f"pattern {pattern!r}."
+                ),
+                {"pattern": pattern},
+            )
     return completed(
         f"Prepared workspaceContains fixtures for {', '.join(patterns)}.",
         {"patterns": patterns, "paths": created},
@@ -105,7 +115,7 @@ def materialize_language_fixture(
     )
     if not languages:
         return blocked(
-            "missing_language_fixture_target",
+            "prerequisite_blocked",
             "Language fixture target was unavailable for this attempt.",
         )
     created: list[str] = []
@@ -114,8 +124,11 @@ def materialize_language_fixture(
             created.extend(ensure_language_fixture(language_id))
         except KeyError:
             return blocked(
-                "unknown_language_fixture",
-                f"Language fixture {language_id} is not supported by the workspace seed.",
+                "materialization_failed",
+                (
+                    "Language fixture materialization does not support "
+                    f"{language_id!r}."
+                ),
                 {"language_id": language_id},
             )
     return completed(
@@ -136,7 +149,7 @@ def materialize_command_target(
                 {"command_text": command_text},
             )
     return blocked(
-        "missing_command_target",
+        "prerequisite_blocked",
         "Command target metadata was unavailable for this attempt.",
     )
 
@@ -178,10 +191,12 @@ def create_workspace_contains_fixture(pattern: str) -> list[str]:
 
     fallback = normalized.replace("**/", "nested/").lstrip("/")
     fallback = fallback.replace("*", "sample").replace("?", "x")
-    if fallback.endswith("/") or not Path(fallback).suffix:
+    if not fallback.strip("/"):
+        raise KeyError(normalized)
+    if fallback.endswith("/"):
         create_dir(fallback.rstrip("/"))
     else:
-        create_file(fallback, "")
+        create_file(fallback)
     return created
 
 
@@ -205,8 +220,10 @@ def ensure_language_fixture(language_id: str) -> list[str]:
         path, content = language_fixtures[language_id]
         create(path, content)
         return created
-    created.append(str(workspace.create_language_file(language_id)))
-    return created
+    if language_id in LANGUAGE_EXTENSIONS:
+        created.append(str(workspace.create_language_file(language_id)))
+        return created
+    raise KeyError(language_id)
 
 
 def _resolve_event_value(attempt: dict[str, Any]) -> str:

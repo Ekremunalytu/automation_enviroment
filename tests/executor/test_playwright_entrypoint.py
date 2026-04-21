@@ -367,16 +367,10 @@ def test_run_extra_triggers_runs_non_command_branches(monkeypatch) -> None:
         ("close_editor", None),
     ]
     assert page.keyboard.presses == []
-    assert [item[0] for item in events] == [
-        "extra_trigger",
-        "extra_trigger",
-        "extra_trigger",
-        "extra_trigger",
-        "extra_trigger",
-        "extra_trigger",
-        "extra_trigger",
-        "extra_trigger",
-    ]
+    event_kinds = [item[0] for item in events]
+    assert event_kinds.count("extra_trigger") == 8
+    assert "wait_for_trigger_effect" in event_kinds
+    assert "wait_for_ui_settle" in event_kinds
 
 
 @pytest.mark.parametrize(
@@ -479,22 +473,23 @@ def test_run_extra_triggers_records_ui_blocker_and_verification_for_commands(
 
     assert failed == []
     assert run_commands == ["Extension: Run Check"]
-    assert monitor.snapshot_calls == 1
+    assert monitor.snapshot_calls == 2
     assert monitor.verify_calls == [
         {
             "baseline": {"target_activations": 1},
             "capability": "commands",
             "trigger_label": "Extension: Run Check",
             "activation_event": "onCommand",
-            "success_signal": False,
+            "success_signal": True,
         }
     ]
-    assert [item[0] for item in recorder_events] == [
-        "command",
-        "ui_blocker_detected",
-        "ui_blocker_dismissed",
-        "command",
-    ]
+    event_kinds = [item[0] for item in recorder_events]
+    assert event_kinds[0] == "command"
+    assert "wait_for_command_effect" in event_kinds
+    assert "wait_for_target_reaction" in event_kinds
+    assert "ui_blocker_detected" in event_kinds
+    assert "ui_blocker_dismissed" in event_kinds
+    assert event_kinds[-1] == "command"
     assert page.keyboard.presses == []
 
 
@@ -528,11 +523,11 @@ def test_run_extra_triggers_recovers_from_command_failure(monkeypatch) -> None:
 
     assert failed == ["command:Extension: Fail"]
     assert page.keyboard.presses == ["Escape"]
-    assert [item[0] for item in recorder_events] == [
-        "command",
-        "ui_blocker_unresolved",
-        "command",
-    ]
+    event_kinds = [item[0] for item in recorder_events]
+    assert event_kinds[0] == "command"
+    assert "wait_for_ui_settle" in event_kinds
+    assert "ui_blocker_unresolved" in event_kinds
+    assert event_kinds[-1] == "command"
 
 
 def test_reload_window_under_monitoring_reuses_primary_page(monkeypatch) -> None:
@@ -657,7 +652,7 @@ def test_main_list_mode_prints_scenarios_without_connecting(
     ("argv", "payload", "expected_call"),
     [
         (["--demo"], None, ("demo", None)),
-        (["--scenario", "coding_session"], None, ("single", "coding_session")),
+        (["--scenario", "coding_session"], None, ("selected", ["coding_session"])),
         ([], None, ("all", False)),
         (
             ["--triggers", "/results/triggers.json"],
@@ -883,8 +878,8 @@ def test_main_resets_reporter_and_disconnects_when_execution_raises(
     monkeypatch.setattr(entrypoint.monitor, "ExtensionMonitor", _FakeMonitor)
     monkeypatch.setattr(
         entrypoint.automation,
-        "run_scenario",
-        lambda page, name: (_ for _ in ()).throw(RuntimeError("boom")),
+        "run_selected_scenarios",
+        lambda page, names, shuffle=False: (_ for _ in ()).throw(RuntimeError("boom")),
     )
     monkeypatch.setattr(
         entrypoint.automation,

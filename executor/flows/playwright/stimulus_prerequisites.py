@@ -99,7 +99,7 @@ def resolve_prerequisite_materialization(
             )
             if providers
             else blocked(
-                "missing_auth_request_target",
+                "prerequisite_blocked",
                 "Authentication request target was not available in the trigger payload.",
             )
         )
@@ -115,7 +115,7 @@ def resolve_prerequisite_materialization(
             )
             if tool_id
             else blocked(
-                "missing_language_model_tool_target",
+                "prerequisite_blocked",
                 "Language-model tool id was missing from the trigger payload.",
             )
         )
@@ -131,7 +131,7 @@ def resolve_prerequisite_materialization(
             )
             if participant_id
             else blocked(
-                "missing_chat_participant_target",
+                "prerequisite_blocked",
                 "Chat participant id was missing from the trigger payload.",
             )
         )
@@ -155,7 +155,7 @@ def resolve_prerequisite_materialization(
             )
             if profile_id
             else blocked(
-                "missing_terminal_profile_target",
+                "prerequisite_blocked",
                 "Terminal profile id was missing from the trigger payload.",
             )
         )
@@ -171,7 +171,7 @@ def resolve_prerequisite_materialization(
             or view_id not in view_targets
         ):
             return blocked(
-                "missing_view_target",
+                "prerequisite_blocked",
                 "Contributed view target metadata was unavailable for this attempt.",
                 {"view_id": view_id},
             )
@@ -197,7 +197,7 @@ def resolve_prerequisite_materialization(
             )
             if resolved_id
             else blocked(
-                "missing_webview_target",
+                "prerequisite_blocked",
                 "Webview target metadata was unavailable for this attempt.",
             )
         )
@@ -207,7 +207,7 @@ def resolve_prerequisite_materialization(
             completed(f"Resolved URI target {uri}.", {"uri_trigger": uri})
             if uri
             else blocked(
-                "missing_uri_target",
+                "prerequisite_blocked",
                 "Target vscode URI was unavailable for this attempt.",
             )
         )
@@ -231,7 +231,7 @@ def resolve_prerequisite_materialization(
             )
             if walkthrough_id
             else blocked(
-                "missing_walkthrough_target",
+                "prerequisite_blocked",
                 "Walkthrough target metadata was unavailable for this attempt.",
             )
         )
@@ -243,7 +243,7 @@ def resolve_prerequisite_materialization(
         ]
         if not filenames:
             return blocked(
-                "missing_custom_editor_bait_files",
+                "prerequisite_blocked",
                 "Custom editor bait files were missing from the trigger payload.",
             )
         created = [str(path) for path in workspace.create_bait_files(filenames)]
@@ -310,13 +310,13 @@ def resolve_prerequisite_materialization(
             )
             if scheme
             else blocked(
-                "missing_filesystem_scheme_target",
+                "prerequisite_blocked",
                 "Filesystem scheme target was unavailable for this attempt.",
             )
         )
     if key == "edit_session_fixture":
         return blocked(
-            "missing_edit_session_target",
+            "prerequisite_blocked",
             "Edit session stimulus requires harness metadata that was not provided.",
         )
     if key == "workspace_ready":

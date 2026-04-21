@@ -213,7 +213,12 @@ export function SimulationPage() {
         <LiveRiskStrip onSelectEvent={setSelectedEvent} report={report || null} />
 
         {tab === "status" ? (
-          <SimulationStatusPanel hasEvidence={Boolean(report?.evidence.length)} model={model} status={job?.status} />
+          <SimulationStatusPanel
+            hasEvidence={Boolean(report?.evidence.length)}
+            model={model}
+            report={report || null}
+            status={job?.status}
+          />
         ) : (
           <SimulationWorkspace
             eventId={eventId || undefined}

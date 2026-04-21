@@ -7,6 +7,7 @@ from packages.analysis_contracts.detection.enums import (
     RuleLifecycle,
     Severity,
     Verdict,
+    quantize_confidence,
 )
 from packages.analysis_contracts.detection.finding import DetectionFinding, EvidenceRef
 from packages.analysis_contracts.detection.report import (
@@ -31,4 +32,5 @@ __all__ = [
     "Severity",
     "Verdict",
     "compute_verdict",
+    "quantize_confidence",
 ]

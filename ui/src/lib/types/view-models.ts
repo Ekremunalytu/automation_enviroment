@@ -104,6 +104,8 @@ export interface ReportSummaryView {
   automationHealthStatus: "healthy" | "degraded" | "inconclusive";
   automationHealthReasons: string[];
   failedScenarios: string[];
+  skippedScenarios: string[];
+  skippedScenarioDetails: { name: string; reasonCode: string; detail: string }[];
   extensionHostLogPresent: boolean;
   extensionHostLogFound: boolean;
   extensionHostOutputPresent: boolean;

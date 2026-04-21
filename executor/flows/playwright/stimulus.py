@@ -83,13 +83,17 @@ from stimulus_prerequisites import (
 )
 from stimulus_types import (
     AttemptExecutionRecord,
+    AutomationExecutionResult,
     PrerequisiteMaterialization,
+    SkippedScenarioRecord,
     StimulusExecutionResult,
 )
 
 __all__ = [
     "AttemptExecutionRecord",
+    "AutomationExecutionResult",
     "PrerequisiteMaterialization",
+    "SkippedScenarioRecord",
     "StimulusExecutionResult",
     "_action_for_pass",
     "_blocked",

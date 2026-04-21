@@ -1,6 +1,6 @@
 """Internal runtime capture helpers for Playwright monitoring."""
 
-from .events import ActivationEntry, FileEvent, NetworkEvent
+from .events import ActivationEntry, FileEvent, NetworkEvent, ProcessEvent
 from .extension_host import (
     ExtensionHostFileCapture,
     find_exthost_logs,
@@ -25,6 +25,7 @@ __all__ = [
     "FileSystemCapture",
     "NetworkCapture",
     "NetworkEvent",
+    "ProcessEvent",
     "find_exthost_logs",
     "parse_activations_from_log",
     "parse_activations_from_output",
