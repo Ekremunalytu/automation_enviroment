@@ -1,0 +1,58 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e6]:
+      - link "Ex ExTrace Extension analysis workspace" [ref=e8] [cursor=pointer]:
+        - /url: /reports?report=latest&tab=overview
+        - generic [ref=e9]: Ex
+        - generic [ref=e10]:
+          - generic [ref=e11]: ExTrace
+          - generic [ref=e12]: Extension analysis workspace
+      - navigation "Primary" [ref=e14]:
+        - link "Reports" [ref=e15] [cursor=pointer]:
+          - /url: /reports?report=latest&tab=overview
+        - link "Simulation" [ref=e16] [cursor=pointer]:
+          - /url: /simulation
+        - link "Marketplace" [ref=e17] [cursor=pointer]:
+          - /url: /marketplace
+      - generic [ref=e18]:
+        - link "Latest Report" [ref=e19] [cursor=pointer]:
+          - /url: /reports?report=latest&tab=overview
+        - link "New Analysis" [ref=e20] [cursor=pointer]:
+          - /url: /marketplace
+  - main [ref=e21]:
+    - generic [ref=e22]:
+      - generic [ref=e23]:
+        - generic [ref=e24]:
+          - generic [ref=e25]: Reports
+          - heading "Security report" [level=1] [ref=e26]
+          - paragraph [ref=e27]: Keep the dashboard clean, then drill into one evidence class at a time instead of stacking every signal into a single screen.
+          - generic [ref=e28]:
+            - generic [ref=e29]: Loading report workspace
+            - generic [ref=e30]: 0 visible events
+        - generic [ref=e31]:
+          - button "Detection" [ref=e32] [cursor=pointer]
+          - button "Activation" [ref=e33] [cursor=pointer]
+          - button "File I/O" [ref=e34] [cursor=pointer]
+          - button "Network" [ref=e35] [cursor=pointer]
+          - button "Scenario" [ref=e36] [cursor=pointer]
+          - button "All Events" [ref=e37] [cursor=pointer]
+          - button "Logs" [ref=e38] [cursor=pointer]
+      - generic [ref=e40]:
+        - generic [ref=e41]:
+          - generic [ref=e42]: Active report
+          - generic [ref=e43]: Preparing selected report
+          - generic [ref=e44]: Last updated Unknown. Filters and inspector state remain shareable through the URL.
+        - generic [ref=e45]:
+          - generic [ref=e46]:
+            - text: Report
+            - combobox "Report" [ref=e47]:
+              - option "Latest report" [selected]
+          - generic [ref=e48]:
+            - text: Search
+            - textbox "Search" [ref=e49]:
+              - /placeholder: host, path, extension, summary…
+          - button "Filters" [ref=e51] [cursor=pointer]
+      - generic [ref=e52]:
+        - generic [ref=e53]: Loading
+        - heading "Preparing report workspace" [level=3] [ref=e54]
+        - paragraph [ref=e55]: Fetching the selected report and normalizing evidence.

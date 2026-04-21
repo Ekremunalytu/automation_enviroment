@@ -111,3 +111,9 @@ def test_detection_finding_generates_ulid_by_default() -> None:
 
     assert len(finding.id) == 26
     assert finding.id.isupper()
+
+
+def test_detection_enums_preserve_string_semantics() -> None:
+    assert str(Severity.CRITICAL) == "critical"
+    assert Severity.CRITICAL == "critical"
+    assert str(Verdict.MALICIOUS) == "malicious"

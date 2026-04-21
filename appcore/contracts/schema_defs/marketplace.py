@@ -81,6 +81,7 @@ class AnalyzeJobStatusResponse(BaseModel):
     finished_at: float | None = None
     updated_at: float
     detection_report: DetectionReport | None = None
+    report_error: str | None = None
 
 
 __all__ = [

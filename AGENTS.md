@@ -59,7 +59,6 @@ under `documents/adrs/` and already governs the current W5 scaffolding.
   - `extensions/`
   - `output/`
   - `node_modules/`
-  - `legacy_ui/`
   - `__pycache__/`
 - When a task spans multiple areas, load one area at a time and summarize before opening the next.
 

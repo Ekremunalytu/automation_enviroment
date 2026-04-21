@@ -189,6 +189,7 @@ class RiskSignal(StrictContractModel):
     confidence: float
     evidence_event_ids: list[str] = Field(default_factory=list)
     summary: str = ""
+    details: dict[str, Any] = Field(default_factory=dict)
 
 
 class TriggerStimulusPass(StrictContractModel):

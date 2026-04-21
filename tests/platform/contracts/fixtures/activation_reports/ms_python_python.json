@@ -69,7 +69,12 @@
         "network-0001",
         "network-0002"
       ],
-      "summary": "Suspicious telemetry was observed near target activations, but the evidence remains correlative."
+      "summary": "Suspicious telemetry was observed near target activations, but the evidence remains correlative.",
+      "details": {
+        "correlation_window_s": 12.5,
+        "unique_sensitive_files": 2,
+        "unique_network_peers": 2
+      }
     }
   ],
   "risk_summary": {

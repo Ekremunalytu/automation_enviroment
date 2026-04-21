@@ -1,10 +1,10 @@
 # Refactor Status
 
-`Last Updated: 2026-04-20`
+`Last Updated: 2026-04-21`
 
-This is the active status board for the Week 1-4 stabilization work. Use this
-file for current closure state; use `REFACTOR_EXECUTION_PLAN.md` for sequence
-and rationale.
+This is the active status board for the Week 1-4 stabilization work and the
+pre-W6 cleanup handoff. Use this file for current closure state; use
+`REFACTOR_EXECUTION_PLAN.md` for sequence and rationale.
 
 ## Authoritative Read Order
 
@@ -25,14 +25,18 @@ and rationale.
   `extensions/malicious/`, and `tests/security/`.
 - Root legacy directories (`routers/`, `scanner/`, `core/`, `database/`,
   `crud/`, `models/`, `schemas/`) are removed from the canonical repo surface.
+- Dormant root placeholders `apps/` and `legacy_ui/` are removed from the repo
+  surface; the canonical runtime tree is now `appcore/`, `packages/`,
+  `workflows/`, `executor/`, `ui/`, and `tests/`.
 
 ## Week 4 Exit Criteria
 
 - Repo-wide import graph checks pass.
 - Executor retry / cleanup / monotonic timing work is in place.
   Harness-extension checksum verification is deferred to Week 5 (see below).
-- `monitor.py` capture concerns are separated into the `runtime_capture/`
-  subpackage; full split is not required.
+- `monitor.py` is a thin facade over dedicated lifecycle/source/runtime/
+  attribution helpers while preserving the flat import surface used by tests
+  and the executor entrypoint.
 - UI contract generation drift checks and feature-boundary checks are wired into
   CI and local `make check-all`.
 - Benign baseline corpus includes:
@@ -59,6 +63,10 @@ Closure evidence captured while finishing the last open items:
   filesystem, and extension-host capture modules; `monitor.py` re-exports
   the parsers/classes so existing tests and the executor entrypoint keep
   their flat import surface.
+- Pre-W6 cleanup removed tracked `apps/` and `legacy_ui/`, removed the
+  legacy trigger-plan tuple shim from
+  `workflows.marketplace.analysis_service`, and completed the `monitor.py`
+  facade split without changing external API routes or report wire shape.
 - UI eslint no longer has hard errors (non-null-assertion on optional
   chain removed, non-component helper moved to
   `features/simulation/telemetry.ts`). One pre-existing
@@ -114,6 +122,27 @@ Closure evidence captured while finishing the last open items:
   - deferred-activation coverage via an idle observation window
   - runtime capture gap closure for HTTP body capture / child-process tracking
   - explicit CI egress hardening for the security-fixture lane
+  - scenario-dropout honesty: scenarios skipped by name mismatch or
+    missing handler must surface in `failed_scenarios` (or a new
+    `skipped_scenarios` bucket) with a reason code and must demote
+    `run_quality` / `automation_health` — silent drops violate
+    `DEVELOPMENT_PRIORITIES.md` §1 "Executor Failure Honesty"
+    (observed 2026-04-21 on ms-python baseline: 5 requested / 3 run
+    / 0 failed)
+  - correlative-signal false-positive floor: `signal_policy`
+    `correlative_suspicious_activity` must require a minimum
+    evidence count and a tightened time window so benign baselines
+    (ms-python, chat, theme) do not raise a medium signal — precondition
+    for the W7 §10.7 acceptance clause "no benign fixture triggers a
+    production rule"
+
+## W6 Ready State (2026-04-20)
+
+- Pre-W6 structural cleanup is complete.
+- W6 starts directly with automation reliability and capture hardening work.
+- Structural tree cleanup, legacy trigger-plan compatibility, and `monitor.py`
+  modularization are no longer open W6 scope items unless a regression is
+  found.
 
 ## Week 5 Start Rule
 

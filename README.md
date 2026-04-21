@@ -33,6 +33,10 @@ multi-tenant web platform.
 - W5 security scaffolding now exists under
   `packages/analysis_contracts/detection/`, `extensions/malicious/`, and
   `tests/security/`.
+- Pre-W6 cleanup is complete on `2026-04-20`: dormant root app/UI artifacts
+  were removed, the marketplace trigger-planning contract is now `TriggerPlan`
+  only, and `executor/flows/playwright/monitor.py` is a thin facade over
+  lifecycle/source/runtime/attribution helpers.
 - Harness-extension checksum verification is intentionally deferred as the
   first supply-chain task of W5; it is not part of the closed Week 4 scope.
 
@@ -62,19 +66,14 @@ workflow code:
   - Sandbox runtime.
   - `control.py`: workflow-visible sandbox boundary.
   - `container/`: Docker image, entrypoint, VS Code/Xvfb/noVNC boot logic.
-  - `flows/playwright/`: Playwright automation helpers, entrypoint, scenario,
-    and runtime-capture modules.
+  - `flows/playwright/`: Playwright automation helpers, entrypoint,
+    `monitor.py` facade, and sibling scenario/runtime-capture helper modules.
 - `ui/`
   - Primary analyst-facing React SPA built with Vite and Tailwind.
   - `src/app/`: shell and route composition.
   - `src/features/`: `marketplace`, `reports`, `simulation`.
   - `src/lib/`: API client, adapters, generated contract types, and shared
     frontend helpers.
-- `apps/`
-  - Historical placeholder app stubs. These are not canonical runtime surfaces.
-- `legacy_ui/`
-  - Previous Streamlit implementation retained as an archival compatibility
-    snapshot.
 
 The repository now uses canonical imports only:
 
@@ -211,8 +210,6 @@ executor/
   container/               Sandbox image and startup scripts
   flows/playwright/        VS Code GUI automation
 ui/                         React + Vite analyst console
-apps/                       Historical placeholder app stubs (not canonical)
-legacy_ui/                  Previous Streamlit UI snapshot
 tests/
   architecture/            Import-graph and boundary checks
   platform/                Shared platform tests

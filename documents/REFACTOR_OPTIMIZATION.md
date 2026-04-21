@@ -1,6 +1,6 @@
 # Refactor Optimization — Plan Kritiği ve Düzeltme Önerileri
 
-`Last Updated: 2026-04-20`
+`Last Updated: 2026-04-21`
 
 > **Değerlendirici (yazarlar):**
 >
@@ -1108,6 +1108,20 @@ Bir sonraki Claude veya GPT pass'i, doğrulama sırasında şunları yapsın:
 3. Yeni bir bulgu varsa Bölüm 2 veya Bölüm 7 formatında ekle, numarayı
    sıralı devam ettir (örn. 7.1.6, 7.2.8).
 4. Öncelik sırası değişirse Bölüm 8'i güncelle ama stale maddeleri listeden
+
+### 9.5 Güncel Durum Doğrulaması (2026-04-20, GPT-5.4)
+
+- Pre-W6 cleanup tamamlandı: tracked `apps/` ve `legacy_ui/` kaldırıldı,
+  `workflows.marketplace.analysis_service` içindeki legacy trigger-plan tuple
+  shim'i silindi ve `executor/flows/playwright/monitor.py` facade haline
+  getirildi.
+- 9.2 içindeki `apps/api`, `apps/ui` bulgusu artık **⚠ STALE (2026-04-20)**;
+  bu placeholder tree repo yüzeyinden kaldırıldı.
+- 9.2 içindeki `monitor.py` "hiç bölünmemiş" bulgusu artık
+  **⚠ STALE (2026-04-20)**; facade korunurken lifecycle/source/runtime/
+  attribution split'i landed.
+- W6 kapsamı yapısal temizlik değil; açık kalan maddeler automation
+  reliability + capture hardening backlog'unda kalıyor.
    tamamen silme — üstlerine çizgi çek (`~~...~~`).
 
 ---
@@ -1181,8 +1195,11 @@ spec seviyesinde veriyor; W0'da yazıldı, W5 implementasyonun zeminidir.
 | **W3** | Week 4D-b (Executor modularization) | `monitor.py` capture/ alt paketine bölünmesi; `analysis_service.execute_analysis_request` parçalanması | 7.2.1, 7.1.1 |
 | **W4** | Week 4E (Sandbox boundary) | `ExecutorControl` arayüzü + ADR, harness checksum, trigger-file host-side cleanup | 2.4, 7.2.6, 7.2.7 |
 | **W5** | Security foundations (implemented) | ADR 0002/0003/0004 **kod karşılıkları** landed: `DetectionReport` contract'ı, initial rule engine, A1/A2/A4/A6 production PoC rules, T1 canary'leri, `make test-security`, `/api/activations/{name}/bundle`, minimum analyst UI rendering | ADR 0002, 0003, 0004 |
-| **W6** | Automation reliability + capture hardening | **PoC must:** activation confirmation gate, extension-aware workspace/materializer completeness, deferred-activation coverage (idle observation window), HTTP body capture / child-process tracking, CI security lane egress hardening. **Stretch:** ek rule'lar, stretch sınıf rule'ları | ADR 0002, ADR 0003 |
+| **W6** | Automation reliability + capture hardening | **PoC must:** activation confirmation gate, extension-aware workspace/materializer completeness, deferred-activation coverage (idle observation window), HTTP body capture / child-process tracking, CI security lane egress hardening, scenario-dropout honesty (skipped scenarios surface in `failed_scenarios` with reason code; `automation_health` demoted), correlative-signal FP floor (min evidence count + tight time window; benign baselines must not raise `correlative_suspicious_activity`). **Stretch:** ek rule'lar, stretch sınıf rule'ları | ADR 0002, ADR 0003 |
 | **W7** | Acceptance + hardening buffer | **PoC must:** demo senaryosu, PoC acceptance checklist doğrulaması, kalan hardening maddelerinin kapanışı. **Stretch/post-PoC:** axe-core, mypy strict, doc konsolidasyon, `test-security-live`, T3 handling | 7.3.6, 7.4.4, 7.4.5, ADR 0004 T3 handling |
+
+2026-04-20 doğrulaması: pre-W6 cleanup landed. W6 bu tablodaki kapsamla
+başlar; structural cleanup maddeleri ayrı bir giriş kriteri değildir.
 
 ### 10.3 Ertelenenler (7 hafta içine girmeyen)
 
@@ -1231,7 +1248,8 @@ gerekir. Önerilen lane haritası:
 GPT-5.4 W1'e başlamadan önce Claude'un (veya kullanıcının) şunları
 onaylaması gerekir:
 
-- [ ] `apps/` klasörünün kaderi karara bağlandı (sil veya charter'a ekle).
+- [x] `apps/` klasörünün kaderi karara bağlandı: repo yüzeyinden silindi
+      (pre-W6 cleanup, 2026-04-20).
 - [ ] `documents/adrs/0005-packages-charter.md` taslağı yazıldı
       (charter ADR'ı; numara 0005 ayrıldı).
 - [ ] `import-linter` veya `grimp` bağımlılık eklemesi için ADR onayı var
@@ -1291,7 +1309,13 @@ bloklamaz.
 - [ ] A1/A2/A4/A6 her biri için en az bir T1 canary fires its rule
       with `confidence ≥ medium` and severity ≥ `high`.
 - [ ] Hiçbir benign fixture (extensions/, malicious/ dışı) bir
-      production rule'u tetiklemiyor.
+      production rule'u tetiklemiyor; `correlative_suspicious_activity`
+      benign baseline'da (ms-python, chat, theme) ateşlenmemeli
+      (2026-04-21 itibariyle ateşleniyor — W6'da `signal_policy` eşik
+      sıkılaştırması gerekli).
+- [ ] Scenario-dropout honesty: `requested_scenarios` ↔ `scenarios_run`
+      farkı her zaman `failed_scenarios` veya `skipped_scenarios`
+      üzerinden raporlanıyor; sessiz drop yok.
 - [ ] `make test-security` CI'da yeşil.
 - [ ] Verdict rollup `inconclusive` vakalarını doğru işaretliyor
       (verification gap açıkken `clean` dönmüyor).

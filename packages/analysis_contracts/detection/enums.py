@@ -1,12 +1,23 @@
 """Detection contract enums defined by ADR 0003."""
+# mypy: disable-error-code=no-redef
 
 from __future__ import annotations
 
 from enum import Enum
 
+try:
+    from enum import StrEnum
+except ImportError:  # pragma: no cover - Python 3.10 executor compatibility
 
-class ContractStrEnum(str, Enum):
-    """Compatibility enum base for runtimes without enum.StrEnum."""
+    class StrEnum(str, Enum):
+        """Minimal stdlib-compatible fallback for Python < 3.11."""
+
+        def __str__(self) -> str:
+            return str(self.value)
+
+
+class ContractStrEnum(StrEnum):
+    """Shared string enum base for detection contracts."""
 
 
 class Severity(ContractStrEnum):

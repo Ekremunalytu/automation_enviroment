@@ -1,0 +1,467 @@
+from __future__ import annotations
+
+import json
+import sys
+from pathlib import Path
+
+from packages.analysis_contracts import activation_report_invariant_issues
+
+PLAYWRIGHT_DIR = (
+    Path(__file__).resolve().parents[2] / "executor" / "flows" / "playwright"
+)
+if str(PLAYWRIGHT_DIR) not in sys.path:
+    sys.path.insert(0, str(PLAYWRIGHT_DIR))
+
+import monitor  # noqa: E402
+
+
+def test_activation_report_duration_prefers_monotonic_clock() -> None:
+    report = monitor.ActivationReport(
+        monitoring_start=100.0,
+        monitoring_end=112.0,
+        monitoring_started_monotonic=10.0,
+        monitoring_ended_monotonic=18.5,
+    )
+
+    assert report.duration_s == 8.5
+
+
+def test_parse_activations_from_log_respects_start_offset(tmp_path: Path) -> None:
+    log_file = tmp_path / "exthost.log"
+    old_line = "activating extension 'old.publisher' because of 'onLanguage:python'\n"
+    new_line = "activating extension 'new.publisher' because of 'onCommand:test'\n"
+    log_file.write_text(old_line + new_line)
+
+    start_offset = len(old_line.encode("utf-8"))
+    entries = monitor.parse_activations_from_log(log_file, start_offset=start_offset)
+
+    assert [entry.extension_id for entry in entries] == ["new.publisher"]
+    assert entries[0].activation_event == "onCommand:test"
+
+
+def test_activation_report_save_is_atomic(tmp_path: Path) -> None:
+    report = monitor.ActivationReport(
+        activated=[monitor.ActivationEntry(extension_id="sample.ext", source="log")],
+        target_extension_id="sample.ext",
+        trigger_plan_requested=True,
+        trigger_plan_applied=True,
+        trigger_execution_mode="layered_passes",
+        network_events=[
+            monitor.NetworkEvent(
+                timestamp="2026-01-01T10:00:00.000",
+                rel_time_s=0.25,
+                protocol="http",
+                event_type="http_request",
+                host="api.example.com",
+                destination_port=443,
+                summary="GET /api/health",
+            )
+        ],
+        monitoring_start=0.0,
+        monitoring_end=1.2,
+    )
+    output_path = tmp_path / "activation_report.json"
+    output_path.write_text("stale-content")
+
+    saved_path = report.save(output_path)
+
+    assert saved_path == output_path
+    payload = json.loads(output_path.read_text(encoding="utf-8"))
+    assert payload["report_version"] == 2
+    assert payload["summary"]["total_activated"] == 1
+    assert payload["summary"]["network_events"] == 1
+    assert payload["activated"][0]["extension_id"] == "sample.ext"
+    assert payload["network_events"][0]["host"] == "api.example.com"
+    assert payload["target_extension_expected"] == "sample.ext"
+    assert payload["target_extension_observed"] is True
+    assert payload["run_quality"] == "inconclusive"
+    assert payload["verdict"] == {}
+    assert payload["automation_health"]["status"] == "inconclusive"
+    assert "target_stream_missing" in payload["automation_health"]["reasons"]
+    assert payload["log_health"]["extension_host_log_found"] is False
+    assert payload["trigger_plan_requested"] is True
+    assert payload["trigger_plan_loaded"] is False
+    assert payload["trigger_plan_applied"] is True
+    assert payload["trigger_execution_mode"] == "layered_passes"
+    assert payload["summary"]["trigger_execution_mode"] == "layered_passes"
+    assert payload["run_quality_reasons"]
+    assert payload["evidence_events"][0]["event_id"].startswith("activation-")
+    assert payload["evidence_events"][1]["event_id"].startswith("network-")
+    assert payload["evidence_links"] == []
+    assert payload["network_summary"]["unique_hosts"] == 1
+    assert payload["attempted_capabilities"] == []
+    assert payload["verified_capabilities"] == []
+    assert not list(tmp_path.glob(".activation_report.json.*.tmp"))
+
+
+def test_activation_report_save_uses_scenario_traces_as_runtime_ledger(
+    tmp_path: Path,
+) -> None:
+    report = monitor.ActivationReport(
+        target_extension_id="sample.ext",
+        trigger_plan_requested=True,
+        trigger_plan_loaded=True,
+        trigger_plan_applied=True,
+        trigger_execution_mode="layered_passes",
+        requested_scenarios=["debug_session", "refactor_workflow"],
+        scenarios_run=["stale_scenario"],
+        failed_scenarios=["stale_scenario"],
+        scenario_traces=[
+            monitor.ScenarioTrace(
+                name="project_exploration",
+                started_at=10.0,
+                ended_at=20.0,
+                status="completed",
+            ),
+            monitor.ScenarioTrace(
+                name="coding_session",
+                started_at=21.0,
+                ended_at=32.0,
+                status="failed",
+            ),
+        ],
+        stimulus_passes=[
+            monitor.StimulusPassTrace(
+                pass_id="workspace_bootstrap",  # noqa: S106
+                label="workspace/bootstrap pass",
+                order=1,
+                started_at=10.0,
+                ended_at=12.0,
+                status="completed",
+                trigger_method="layered_deep",
+            )
+        ],
+        event_attempts=[
+            monitor.EventAttemptRecord(
+                attempt_id="attempt-1",
+                declared_event="workspaceContains:app.py",
+                activation_event="workspaceContains:app.py",
+                event_family="workspaceContains",
+                track="official",
+                attempted_passes=["workspace_bootstrap"],
+                status="attempted_only",
+            )
+        ],
+        official_event_coverage={
+            "track": "official",
+            "declared": 1,
+            "verified": 0,
+            "attempted_only": 1,
+            "failed": 0,
+            "blocked": 0,
+            "unresolved": 1,
+            "declared_events": ["workspaceContains:app.py"],
+        },
+        monitoring_start=10.0,
+        monitoring_end=40.0,
+    )
+    output_path = tmp_path / "aligned_report.json"
+
+    report.save(output_path, announce=False)
+
+    payload = json.loads(output_path.read_text(encoding="utf-8"))
+
+    assert payload["summary"]["scenarios_run"] == [
+        "project_exploration",
+        "coding_session",
+    ]
+    assert payload["requested_scenarios"] == ["debug_session", "refactor_workflow"]
+    assert payload["summary"]["failed_scenarios"] == ["coding_session"]
+    assert payload["failed_scenarios"] == ["coding_session"]
+    assert activation_report_invariant_issues(payload) == []
+
+
+def test_activation_report_save_supports_skip_automation_scenario_zero(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setattr(monitor, "find_exthost_logs", lambda: [])
+
+    report = monitor.ActivationReport(
+        target_extension_id="extrace.fixture-theme",
+        trigger_execution_mode="skip_automation",
+        monitoring_start=0.0,
+        monitoring_end=0.0,
+    )
+    output_path = tmp_path / "scenario_zero_report.json"
+
+    report.save(output_path, announce=False)
+
+    payload = json.loads(output_path.read_text(encoding="utf-8"))
+
+    assert payload["trigger_execution_mode"] == "skip_automation"
+    assert payload["summary"]["trigger_execution_mode"] == "skip_automation"
+    assert payload["summary"]["scenarios_run"] == []
+    assert payload["summary"]["failed_scenarios"] == []
+    assert payload["scenario_traces"] == []
+    assert payload["stimulus_passes"] == []
+    assert payload["event_attempts"] == []
+    assert payload["run_quality"] == "scenario_zero"
+    assert payload["run_quality_reasons"] == [
+        "No automation scenario was required for this non-executable fixture."
+    ]
+    assert payload["trigger_plan_requested"] is False
+    assert payload["trigger_plan_loaded"] is False
+    assert payload["trigger_plan_applied"] is False
+    assert payload["summary"]["trigger_plan_applied"] is False
+    assert payload["automation_health"]["status"] == "healthy"
+    assert payload["automation_health"]["target_activation_count"] == 0
+    assert activation_report_invariant_issues(payload) == []
+
+
+def test_parse_tshark_event_line_extracts_http_fields() -> None:
+    line = (
+        "1700000000.250\t10.0.0.2\t\t93.184.216.34\t\t443\t\t\t"
+        "api.example.com\t/api/health\t\tHTTP\tGET /api/health HTTP/1.1"
+    )
+
+    event = monitor.parse_tshark_event_line(line, monitoring_start=1700000000.0)
+
+    assert event is not None
+    assert event.event_type == "http_request"
+    assert event.protocol == "http"
+    assert event.host == "api.example.com"
+    assert event.destination_ip == "93.184.216.34"
+    assert event.destination_port == 443
+    assert event.rel_time_s == 0.25
+
+
+def test_parse_strace_file_event_line_extracts_extension_io() -> None:
+    line = '1700000000.750 openat(AT_FDCWD, "/workspace/.env", O_RDONLY|O_CLOEXEC) = 42'
+
+    event = monitor.parse_strace_file_event_line(line, monitoring_start=1700000000.0)
+
+    assert event is not None
+    assert event.operation == "read"
+    assert event.path == "/workspace/.env"
+    assert event.source == "extension"
+    assert event.sensitive is True
+    assert event.rel_time_s == 0.75
+
+
+def test_parse_inotify_file_event_line_extracts_automation_io() -> None:
+    event = monitor.parse_inotify_file_event_line(
+        "/workspace/src/app.py\tCLOSE_WRITE,CLOSE\n",
+        monitoring_start=1700000000.0,
+        event_time=1700000001.5,
+    )
+
+    assert event is not None
+    assert event.operation == "write"
+    assert event.path == "/workspace/src/app.py"
+    assert event.source == "automation"
+    assert event.rel_time_s == 1.5
+
+
+def test_parse_all_exthost_logs_uses_per_file_offsets(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    first_log = tmp_path / "first.log"
+    second_log = tmp_path / "second.log"
+
+    first_old = "activating extension 'first.old' because of 'onStartupFinished'\n"
+    first_new = "activating extension 'first.new' because of 'onView:explorer'\n"
+    second_line = "activating extension 'second.ext' because of 'onLanguage:json'\n"
+
+    first_log.write_text(first_old + first_new)
+    second_log.write_text(second_line)
+
+    monkeypatch.setattr(monitor, "find_exthost_logs", lambda: [first_log, second_log])
+
+    offsets = {
+        str(first_log.resolve()): len(first_old.encode("utf-8")),
+    }
+    entries = monitor.parse_all_exthost_logs(start_offsets=offsets)
+
+    assert [entry.extension_id for entry in entries] == ["first.new", "second.ext"]
+
+
+def test_parse_activations_from_log_preserves_distinct_events_and_parses_timestamp(
+    tmp_path: Path,
+) -> None:
+    log_file = tmp_path / "exthost.log"
+    log_file.write_text(
+        "[2026-01-01 10:00:00.123] activating extension 'dup.ext' because of "
+        "'onLanguage:python'\n"
+        "[2026-01-01 10:00:00.456] activating extension 'dup.ext' because of "
+        "'onCommand:test'\n"
+        "2026-01-01 10:00:01.000 ExtensionService#_doActivateExtension other.ext "
+        "activationEvent: 'onStartupFinished'\n"
+    )
+
+    entries = monitor.parse_activations_from_log(log_file, start_offset=-10)
+    assert [entry.extension_id for entry in entries] == [
+        "dup.ext",
+        "dup.ext",
+        "other.ext",
+    ]
+    assert entries[0].activation_event == "onLanguage:python"
+    assert entries[0].timestamp == "2026-01-01 10:00:00.123"
+    assert entries[1].activation_event == "onCommand:test"
+    assert entries[2].activation_event == "onStartupFinished"
+    assert all(entry.source == "log" for entry in entries)
+
+    beyond_eof_entries = monitor.parse_activations_from_log(
+        log_file,
+        start_offset=999_999,
+    )
+    assert beyond_eof_entries == []
+
+
+def test_parse_activations_from_output_filters_pre_start_entries() -> None:
+    output = (
+        "[2026-01-01 09:59:59.900] activating extension 'old.ext' because of "
+        "'onStartupFinished'\n"
+        "[2026-01-01 10:00:00.500] activating extension 'new.ext' because of "
+        "'onStartupFinished'\n"
+    )
+
+    monitoring_start = monitor._parse_iso_timestamp("2026-01-01 10:00:00.000")
+    assert monitoring_start is not None
+
+    entries = monitor.parse_activations_from_output(
+        output,
+        monitoring_start=monitoring_start,
+    )
+
+    assert [entry.extension_id for entry in entries] == ["new.ext"]
+    assert entries[0].source == "output"
+
+
+def test_parse_running_extension_row_handles_builtin_and_fallback_id() -> None:
+    built_in = monitor._parse_running_extension_row(
+        text="Git\n1.0.0\nStartup Activation: 39ms",
+        aria_label="git",
+    )
+    assert built_in is not None
+    assert built_in.extension_id == "vscode.git"
+    assert built_in.name == "Git"
+    assert built_in.activation_time_ms == 39
+
+    marketplace = monitor._parse_running_extension_row(
+        text="Python\nActivation: 125ms",
+        aria_label="ms-python.python",
+    )
+    assert marketplace is not None
+    assert marketplace.extension_id == "ms-python.python"
+    assert marketplace.activation_time_ms == 125
+
+    fallback = monitor._parse_running_extension_row(
+        text="Custom Extension\nActivation: 15ms",
+        aria_label="",
+    )
+    assert fallback is not None
+    assert fallback.extension_id == "Custom Extension"
+    assert fallback.activation_time_ms == 15
+
+    assert monitor._parse_running_extension_row("", aria_label="git") is None
+
+
+def test_read_extension_host_output_falls_back_to_exthost_rglob(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    log_file = tmp_path / "session" / "window1" / "exthost" / "exthost.log"
+    log_file.parent.mkdir(parents=True)
+    log_file.write_text("extension activated ms-python.python in 12ms\n")
+
+    monkeypatch.setattr(monitor, "find_exthost_logs", lambda: [])
+    monkeypatch.setattr(monitor, "VSCODE_LOGS_DIR", tmp_path)
+
+    output = monitor.read_extension_host_output()
+
+    assert "--- exthost.log ---" in output
+    assert "ms-python.python" in output
+    assert "--- exthost.log ---\n" in output
+    assert "\\n" not in output
+
+
+def test_activation_report_print_summary_uses_real_newlines(capsys) -> None:
+    report = monitor.ActivationReport(
+        activated=[monitor.ActivationEntry(extension_id="sample.ext", source="log")],
+    )
+
+    report.print_summary()
+
+    output = capsys.readouterr().out
+    assert output.startswith("\n" + "=" * 60)
+    assert "\\n  Activated extensions:" not in output
+
+
+def test_extract_user_data_dir_matches_equals_and_space_forms() -> None:
+    assert (
+        monitor._extract_user_data_dir("--user-data-dir=/workspace/profile")
+        == "/workspace/profile"
+    )
+    assert (
+        monitor._extract_user_data_dir("--foo --user-data-dir /workspace/profile --bar")
+        == "/workspace/profile"
+    )
+
+
+def test_select_extension_host_pid_prefers_legacy_extension_host() -> None:
+    entries = monitor._parse_process_table(
+        "101 1 /usr/share/code/code --user-data-dir=/tmp/profile\n"
+        "202 101 /usr/share/code/code --type=utility extensionHost --user-data-dir=/tmp/profile\n"
+        "203 101 /usr/share/code/code --type=utility --utility-sub-type=node.mojom.NodeService --user-data-dir=/tmp/profile\n"
+    )
+
+    assert monitor._select_extension_host_pid(entries) == 202
+
+
+def test_select_extension_host_pid_uses_modern_node_service_candidates() -> None:
+    entries = monitor._parse_process_table(
+        "100 1 /usr/share/code/code --user-data-dir=/tmp/profile\n"
+        "1184 100 /usr/share/code/code --type=utility --utility-sub-type=node.mojom.NodeService --user-data-dir=/tmp/profile --inspect-port=0\n"
+        "1200 100 /usr/share/code/code --type=utility --utility-sub-type=node.mojom.NodeService --user-data-dir=/tmp/profile /extensions/ms-python/server.bundle.js --clientProcessId=1184\n"
+        "1201 100 /usr/share/code/code --type=utility --utility-sub-type=node.mojom.NodeService --user-data-dir=/tmp/profile /extensions/json/jsonServerMain --clientProcessId=1184\n"
+        "1300 1184 pylance --clientProcessId=1184\n"
+    )
+
+    assert monitor._select_extension_host_pid(entries) == 1184
+
+
+def test_select_extension_host_pid_prefers_matching_profile_when_multiple_instances() -> (
+    None
+):
+    entries = monitor._parse_process_table(
+        "100 1 /usr/share/code/code --user-data-dir=/tmp/profile-a\n"
+        "110 100 /usr/share/code/code --type=utility --utility-sub-type=node.mojom.NodeService --user-data-dir=/tmp/profile-a --inspect-port=0\n"
+        "120 100 helper --clientProcessId=110\n"
+        "200 1 /usr/share/code/code --user-data-dir=/tmp/profile-b\n"
+        "210 200 /usr/share/code/code --type=utility --utility-sub-type=node.mojom.NodeService --user-data-dir=/tmp/profile-b --inspect-port=0\n"
+        "220 200 helper --clientProcessId=210\n"
+    )
+
+    assert monitor._select_extension_host_pid(entries) == 110
+
+
+def test_select_extension_host_pid_returns_none_for_only_excluded_candidates() -> None:
+    entries = monitor._parse_process_table(
+        "100 1 /usr/share/code/code --user-data-dir=/tmp/profile\n"
+        "1200 100 /usr/share/code/code --type=utility --utility-sub-type=node.mojom.NodeService --user-data-dir=/tmp/profile /extensions/ms-python/server.bundle.js\n"
+        "1201 100 /usr/share/code/code --type=utility --utility-sub-type=node.mojom.NodeService --user-data-dir=/tmp/profile /extensions/typescript/tsserver.js\n"
+    )
+
+    assert monitor._select_extension_host_pid(entries) is None
+
+
+def test_wait_for_extension_host_pid_retries_until_candidate_appears(
+    monkeypatch,
+) -> None:
+    seen = {"count": 0}
+
+    def fake_find_pid() -> int | None:
+        seen["count"] += 1
+        return 1184 if seen["count"] >= 3 else None
+
+    monkeypatch.setattr(monitor, "_find_extension_host_pid", fake_find_pid)
+    monkeypatch.setattr(monitor.time, "sleep", lambda _: None)
+
+    pid, diagnostics = monitor._wait_for_extension_host_pid(
+        timeout_s=1.0, poll_interval_s=0.01
+    )
+
+    assert pid == 1184
+    assert diagnostics["attempts"] == 3

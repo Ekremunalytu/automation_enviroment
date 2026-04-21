@@ -1,11 +1,16 @@
 """Helpers for automation, log, and run-quality summaries."""
+# mypy: disable-error-code=no-redef
 
 from __future__ import annotations
 
 from typing import Any
 
-from annotation import has_strong_target_attribution, target_stream_entries
-from health_runtime_facts import official_unresolved_chat_tool_attempts
+try:
+    from .annotation import has_strong_target_attribution, target_stream_entries
+    from .health_runtime_facts import official_unresolved_chat_tool_attempts
+except ImportError:  # pragma: no cover - top-level executor import mode
+    from annotation import has_strong_target_attribution, target_stream_entries
+    from health_runtime_facts import official_unresolved_chat_tool_attempts
 
 _REASON_LABELS = {
     "missing_target_extension_id": "Target extension context was missing.",

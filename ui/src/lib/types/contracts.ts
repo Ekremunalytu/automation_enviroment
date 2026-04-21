@@ -343,6 +343,7 @@ export interface RiskSignalDto {
   confidence: number;
   evidence_event_ids?: string[];
   summary?: string;
+  details?: Record<string, unknown>;
 }
 
 export type VerdictDto = "malicious" | "suspicious" | "clean_with_notes" | "clean" | "inconclusive";
@@ -454,4 +455,5 @@ export interface AnalyzeJobStatusDto {
   finished_at?: number | null;
   updated_at: number;
   detection_report?: DetectionReportDto | null;
+  report_error?: string | null;
 }

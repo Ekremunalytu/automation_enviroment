@@ -2,8 +2,14 @@
 
 Covers activation events: onCommand:*
 """
+# mypy: disable-error-code=no-redef
 
-import keyboard
+from __future__ import annotations
+
+try:
+    from . import keyboard
+except ImportError:  # pragma: no cover - top-level executor import mode
+    import keyboard
 
 from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import Page

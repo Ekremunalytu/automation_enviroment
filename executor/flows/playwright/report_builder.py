@@ -2,11 +2,35 @@
 
 from __future__ import annotations
 
+import importlib
 import json
+import sys
 import tempfile
 from dataclasses import asdict
 from pathlib import Path
 from typing import Any
+
+from pydantic import ValidationError
+
+_PROJECT_ROOT = str(Path(__file__).resolve().parents[3])
+if _PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, _PROJECT_ROOT)
+
+_ContractActivationReport = importlib.import_module(
+    "packages.analysis_contracts.contracts"
+).ActivationReport
+
+
+class ReportContractError(RuntimeError):
+    """Raised when the generated activation report violates the API contract.
+
+    The executor catches drift between its in-memory dataclasses and the
+    authoritative Pydantic contract in ``packages.analysis_contracts`` at the
+    serialization boundary. Failing here means a misshapen report never gets
+    written to disk and the analysis job fails loudly rather than silently
+    producing a payload the API will reject.
+    """
+
 
 _EXECUTION_MODES = {
     "layered_passes",
@@ -287,6 +311,19 @@ def build_report_data(
     }
 
 
+def _validate_report_against_contract(data: dict[str, Any]) -> None:
+    try:
+        _ContractActivationReport.model_validate(data)
+    except ValidationError as err:
+        first = err.errors()[0]
+        loc = ".".join(str(part) for part in first.get("loc", ()))
+        msg = first.get("msg", "invalid")
+        raise ReportContractError(
+            f"Activation report failed contract validation at "
+            f"{loc or '<root>'}: {msg}"
+        ) from err
+
+
 def save_report_payload(
     path: str | Path,
     data: dict[str, Any],
@@ -294,6 +331,7 @@ def save_report_payload(
     announce: bool = True,
     logger: Any | None = None,
 ) -> Path:
+    _validate_report_against_contract(data)
     out = Path(path)
     out.parent.mkdir(parents=True, exist_ok=True)
     serialized = json.dumps(data, indent=2, ensure_ascii=False)

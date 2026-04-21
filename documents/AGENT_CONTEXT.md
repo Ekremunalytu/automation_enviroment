@@ -107,8 +107,8 @@ If older docs or task notes conflict with the active refactor direction, check
 
 - Do not scan the whole repo by default
 - Open matching tests early
-- Ignore `extensions/`, `output/`, `node_modules/`, `legacy_ui/`, and
-  `__pycache__/` unless needed
+- Ignore `extensions/`, `output/`, `node_modules/`, and `__pycache__/`
+  unless needed
 - If docs and code disagree, trust code and tests
 
 ## Helpful Commands

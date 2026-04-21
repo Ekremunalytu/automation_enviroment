@@ -330,4 +330,5 @@ export interface SimulationViewModel {
   warmupCopy: string;
   lastUpdatedLabel: string;
   recentMessages: string[];
+  reportError: string | null;
 }

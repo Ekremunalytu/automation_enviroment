@@ -84,6 +84,15 @@ def test_activation_report_fixture_exposes_minimum_shape() -> None:
     assert report["requested_scenarios"] != report["summary"]["scenarios_run"]
     assert report["summary"]["scenarios_run"] == scenario_trace_names(report)
     assert activation_report_invariant_issues(report) == []
+    assert isinstance(report["risk_signals"], list)
+    assert report[
+        "risk_signals"
+    ], "Fixture must include at least one risk_signal to exercise the contract."
+    assert any(signal.get("details") for signal in report["risk_signals"]), (
+        "At least one risk_signal in the fixture must carry non-empty "
+        "'details'; this field regressed silently once and we lock coverage "
+        "via the fixture so the contract test cannot drift unnoticed."
+    )
 
     parsed = ActivationReport.model_validate(report)
     round_tripped = parsed.model_dump(mode="json")

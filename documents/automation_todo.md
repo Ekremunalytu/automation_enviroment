@@ -6,6 +6,9 @@ This is the short actionable backlog for the sandbox pipeline. It complements
 `DEVELOPMENT_PRIORITIES.md` and `PIPELINE_ROADMAP.md` rather than repeating
 them.
 
+Pre-W6 structural cleanup is complete; this backlog now starts directly at W6
+automation reliability and capture hardening work.
+
 ## Now
 
 - add an activation confirmation gate with dynamic post-stimulus verification

@@ -21,3 +21,18 @@ def test_executor_dockerfile_pins_base_image_digest() -> None:
 
     assert "@sha256:" in first_from
     assert first_from == f"FROM {_EXPECTED_BASE_IMAGE}"
+
+
+def test_executor_dockerfile_sanitizes_vscode_build_args() -> None:
+    dockerfile = (
+        Path(__file__).resolve().parents[2] / "executor" / "container" / "Dockerfile"
+    )
+    content = dockerfile.read_text(encoding="utf-8")
+
+    assert 'VSCODE_CHANNEL="$(printf \'%s\' "${EXECUTOR_VSCODE_CHANNEL}"' in content
+    assert 'VSCODE_VERSION="$(printf \'%s\' "${EXECUTOR_VSCODE_VERSION}"' in content
+    assert "contains embedded whitespace" in content
+    assert (
+        "https://update.code.visualstudio.com/"
+        "${VSCODE_VERSION}/${VSCODE_ARCH}/${VSCODE_CHANNEL}"
+    ) in content
