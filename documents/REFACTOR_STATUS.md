@@ -16,17 +16,24 @@ pre-W6 cleanup handoff. Use this file for current closure state; use
 
 ## Current State
 
-- Week 4 closure is green and remains the active gate before any broader Week 5
-  detection work.
+- Week 4 closure (2026-04-20), W5 detection foundations (2026-04-20), and W6
+  automation reliability + capture hardening (closed 2026-04-23 after the
+  correctness follow-up) are all green.
+- **W7 (acceptance + buffer)** is now the active gate; entry rule is the PoC
+  acceptance checklist in `REFACTOR_OPTIMIZATION.md` §10.7.
 - Async marketplace job state is durable in PostgreSQL via `analysis_jobs`.
 - Activation reports remain artifact-first under `output/activation_report_*.json`.
-- Workflow code now depends on the sandbox through `executor.control`.
-- Initial W5 scaffold exists under `packages/analysis_contracts/detection/`,
-  `extensions/malicious/`, and `tests/security/`.
+- Workflow code depends on the sandbox through `executor.control`.
+- W5 detection surfaces are wired:
+  `packages/analysis_contracts/detection/` (DTOs, `Confidence`),
+  `packages/analysis_engine/rules/` (A1/A2/A4/A6 rules with target-only
+  attribution), `extensions/malicious/` (T1 canaries with `LABEL.yaml`),
+  `tests/security/`, plus `make test-security` and
+  `make test-security-live`.
 - Root legacy directories (`routers/`, `scanner/`, `core/`, `database/`,
   `crud/`, `models/`, `schemas/`) are removed from the canonical repo surface.
 - Dormant root placeholders `apps/` and `legacy_ui/` are removed from the repo
-  surface; the canonical runtime tree is now `appcore/`, `packages/`,
+  surface; the canonical runtime tree is `appcore/`, `packages/`,
   `workflows/`, `executor/`, `ui/`, and `tests/`.
 
 ## Week 4 Exit Criteria

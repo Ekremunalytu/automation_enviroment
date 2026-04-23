@@ -1,6 +1,6 @@
 # ExTrace
 
-`Last Updated: 2026-04-21`
+`Last Updated: 2026-04-23`
 
 ExTrace is a VS Code extension analysis platform built around three runtime
 surfaces:
@@ -30,7 +30,7 @@ multi-tenant web platform.
 ## Current Phase
 
 - Week 4 stabilization closure was validated on `2026-04-20`.
-- W5 security scaffolding now exists under
+- W5 security scaffolding landed `2026-04-20` under
   `packages/analysis_contracts/detection/`, `extensions/malicious/`, and
   `tests/security/`.
 - W6 automation hardening landed on `2026-04-21`: requested scenarios now
@@ -43,8 +43,17 @@ multi-tenant web platform.
   `packages.analysis_contracts.quantize_confidence`, and
   `detection_report_invariant_issues` enforces that every finding evidence
   `event_id` resolves to an `ActivationReport.evidence_events[]` entry.
+- W6 correctness follow-up (`2026-04-23`): A1/A2/A4 rules now gate on
+  `ActivationReport` attribution (target-only via `target_file_events` and
+  `target_unknown_outbound_network_events`); `tls_client_hello` was added to
+  `TLS_EVENT_TYPES` so live tshark captures actually match TLS rules;
+  `RuleExecutionStatus.ERROR` degrades automation health to `inconclusive`
+  before verdict rollup (ADR 0003 error dominance); `.gitignore` was
+  re-narrowed so T1 canaries and benign baselines reach the
+  `security-fixtures` CI job. **W6 closed.**
 - Harness-extension checksum verification is enforced at executor startup via
   `/home/executor/flows/harness_extension.sha256` before VS Code launches.
+- **W7 (acceptance + buffer):** open as of `2026-04-23`.
 
 ## Current Architecture
 
@@ -235,7 +244,8 @@ docs/                       Targeted risk notes
   after `AGENTS.md`
 - `documents/README.md`: context-light guide for choosing which project docs to
   load first
-- `documents/REFACTOR_STATUS.md`: Week 4 closure state and the current W5 gate
+- `documents/REFACTOR_STATUS.md`: phase closure history (W4-W6) and the
+  current W7 gate
 - `documents/ARCHITECTURE.md`: canonical architecture and boundaries
 - `documents/DETECTION_SEMANTICS.md`: meaning and calculation rules for
   exported `ActivationReport` fields

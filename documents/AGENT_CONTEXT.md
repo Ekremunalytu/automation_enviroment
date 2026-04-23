@@ -13,8 +13,8 @@ If older docs or task notes conflict with the active refactor direction, check
 
 ## Project Phase Snapshot (2026-04-23)
 
-- Week 4 stabilization closed on `2026-04-20`; that closure remains the gate
-  before any broader W5 detection work reopens runtime boundaries.
+- Week 4 stabilization closed on `2026-04-20` and remains the gate that
+  protected detection foundations from runtime-boundary churn.
 - W0 (security foundations, spec): complete — ADRs 0002-0004 written.
 - W1-W4: automation stabilization (legacy cleanup, import-graph,
   executor determinism + modularization, sandbox boundary).
@@ -40,7 +40,7 @@ If older docs or task notes conflict with the active refactor direction, check
 1. `AGENTS.md`
 2. this file
 3. only the subsystem docs the task actually touches
-4. `documents/REFACTOR_STATUS.md` for current closure state and W5 gate
+4. `documents/REFACTOR_STATUS.md` for current closure state and W7 gate
 5. `documents/REFACTOR_EXECUTION_PLAN.md` when the task touches historical
    refactor scope or document conflicts
 
@@ -100,7 +100,7 @@ If older docs or task notes conflict with the active refactor direction, check
   - `ui/src/features/`
   - `ui/src/components/`
   - `ui/src/lib/`
-- Security (scaffold now, implementation still W5):
+- Security (W5 detection foundations + W6 hardening landed; W7 acceptance):
   - `documents/adrs/0002-threat-model.md`
   - `documents/adrs/0003-detection-taxonomy.md`
   - `documents/adrs/0004-malicious-fixture-policy.md`

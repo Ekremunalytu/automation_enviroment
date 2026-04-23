@@ -1,6 +1,6 @@
 # Documents Guide
 
-`Last Updated: 2026-04-20`
+`Last Updated: 2026-04-23`
 
 This folder is intentionally split into a small canonical core plus a few
 specialized reference docs. Do not preload the entire folder unless the task
@@ -13,9 +13,12 @@ for the historical Week 1-4 plan, and `REFACTOR_OPTIMIZATION.md` §10 for the
 `REFACTOR_EXPANSION_NOTES.md` only as a deferred reference, not as a binding
 delivery plan.
 
-Current status lives in `REFACTOR_STATUS.md`. Week 4 closure validation is
-green as of `2026-04-20`; W5 detection scaffolding is present, but the security
-implementation phase is still incomplete.
+Current status lives in `REFACTOR_STATUS.md`. Week 4 closure validated
+`2026-04-20`. W5 detection foundations (contracts, A1/A2/A4/A6 rules, T1
+canaries, `make test-security`) landed `2026-04-20`. W6 automation hardening
+landed `2026-04-21`, and the W6 correctness follow-up (target-only
+attribution, TLS vocabulary, error dominance, security-fixtures CI) closed
+on `2026-04-23`. **W7 (acceptance + buffer) is now open.**
 
 Security posture (threat model, detection taxonomy, malicious fixture policy,
 package-boundary charter) is fixed by ADRs 0002-0005. Those ADRs already
@@ -61,7 +64,8 @@ These are intentionally short and should not replace the canonical docs above:
 - `REFACTOR_EXECUTION_PLAN.md`
   - historical Week 1-4 execution plan and implementation snapshots
 - `REFACTOR_STATUS.md`
-  - current Week 4 closure state, closure evidence, and W5 entry rule
+  - phase closure history (W4 → W5 → W6) with closure evidence and the
+    current W7 entry rule
 - `REFACTOR_OPTIMIZATION.md`
   - plan critique (Opus 4.6, Opus 4.7 passes) + 7-week stabilization->security
     window (§10); GPT-5.4 uses this as an implementation spec

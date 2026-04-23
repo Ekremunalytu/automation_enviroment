@@ -1,15 +1,20 @@
 # Pipeline Roadmap
 
-`Last Updated: 2026-04-20`
+`Last Updated: 2026-04-23`
 
 This is the short staged view of the analysis pipeline. For the current
 backlog, use `automation_todo.md`; for active priorities, use
 `DEVELOPMENT_PRIORITIES.md`; for the 7-week window, use
 `REFACTOR_OPTIMIZATION.md` §10.
 
-Week 4 closure was validated on `2026-04-20`. The pipeline below reflects the
-current implementation shape, including the W5 security scaffold that exists
-without yet emitting production detection results.
+Week 4 closure was validated on `2026-04-20`. W5 detection foundations
+(contracts, A1/A2/A4/A6 rules, T1 canaries, `make test-security`) landed
+`2026-04-20`. W6 automation reliability and capture hardening landed
+`2026-04-21`, and the W6 correctness follow-up (target-only attribution,
+`tls_client_hello` in `TLS_EVENT_TYPES`, `RuleExecutionStatus.ERROR`
+dominance, security-fixtures CI lane) closed on `2026-04-23`. The pipeline
+below now describes a fully wired automation + detection path; W7
+(acceptance + buffer) drives the PoC acceptance checklist against it.
 
 ## Current Pipeline
 
@@ -48,20 +53,30 @@ flowchart LR
 - keep verdict and attribution signals aligned
 - keep activation reports artifact-first while async job state stays DB-backed
 
-### Phase D: Detection Layer (W5-W7)
+### Phase D: Detection Layer (W5-W6 complete, W7 acceptance)
 
-- detection scaffolding already exists:
-  - `packages/analysis_contracts/detection/`
+- detection scaffolding is implemented and wired:
+  - `packages/analysis_contracts/detection/` exposes
+    `DetectionReport`/`DetectionFinding`/`Confidence`
+  - `packages/analysis_engine/rules/` ships A1/A2/A4/A6 rules with
+    target-only attribution
   - `extensions/malicious/` T1 canary manifests for A1/A2/A4/A6
-  - `tests/security/`
-  - `make test-security`
-- introduce `DetectionReport` as a sibling contract to `ActivationReport`
-  (ADR 0003); verdicts are a deterministic rollup of findings
-- detection rules live inside `packages/` and consume only contracts; they never
-  import runtime, web, or storage layers
+  - `tests/security/` plus `make test-security` (CI) and
+    `make test-security-live` (break-glass)
+- `DetectionReport` lives alongside `ActivationReport` per ADR 0003; verdicts
+  are a deterministic rollup of findings, with `RuleExecutionStatus.ERROR`
+  degrading automation health to `inconclusive` before rollup.
+- `RiskSignal.confidence_tier` shares the `Confidence` enum with
+  `DetectionFinding` via `packages.analysis_contracts.quantize_confidence`,
+  and `detection_report_invariant_issues` enforces evidence `event_id`
+  resolution into `ActivationReport.evidence_events[]`.
+- detection rules live inside `packages/` and consume only contracts; they
+  never import runtime, web, or storage layers.
 - malicious fixtures under `extensions/malicious/` carry tier-aware handling
   per ADR 0004; T1+T2 belong in `make test-security`, T3 remains
-  break-glass-only via `make test-security-live`
+  break-glass-only via `make test-security-live`.
+- W7 work is acceptance + buffer against `REFACTOR_OPTIMIZATION.md` §10.7,
+  not new pipeline shape.
 
 ## Design Constraints
 

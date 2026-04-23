@@ -1,6 +1,6 @@
 # Development Priorities
 
-`Last Updated: 2026-04-20`
+`Last Updated: 2026-04-23`
 
 This is the short priority list for current work. It assumes the project stays
 a single-user sandbox appliance on one machine or one Docker host.
@@ -22,9 +22,19 @@ Must vs Stretch. See `REFACTOR_OPTIMIZATION.md` §10 for Must/Stretch split and
   PoC-priority annotations.
 - **W1-W4 (complete, closed 2026-04-20):** automation stabilization before
   security implementation.
-- **W5-W7 (open):** security implementation. Initial scaffold already exists:
-  `packages/analysis_contracts/detection/`, `extensions/malicious/`,
-  `tests/security/`, `make test-security`, `make test-security-live`.
+- **W5 (detection foundations, complete 2026-04-20):** detection contracts,
+  A1/A2/A4/A6 rule scaffolding, T1 canaries under `extensions/malicious/`,
+  `tests/security/`, and `make test-security` / `make test-security-live`.
+- **W6 (automation reliability + capture hardening, closed 2026-04-23):**
+  scenario truth ledger, bounded waits, capture bounds, plus the W6
+  correctness follow-up that gated A1/A2/A4 on `ActivationReport` attribution
+  (`target_file_events`, `target_unknown_outbound_network_events`), added
+  `tls_client_hello` to `TLS_EVENT_TYPES`, enforced
+  `RuleExecutionStatus.ERROR` dominance in verdict rollup, and re-narrowed
+  `.gitignore` so security fixtures reach the `security-fixtures` CI lane.
+- **W7 (acceptance + buffer, open as of 2026-04-23):** drive PoC acceptance
+  per `REFACTOR_OPTIMIZATION.md` §10.7, validate live capture against T1
+  canaries, and absorb leftover correctness items.
 - **Pre-W6 cleanup (complete, 2026-04-20):** dormant root directories removed,
   marketplace trigger planning narrowed to `TriggerPlan`, and
   `executor/flows/playwright/monitor.py` reduced to a facade over split helper
@@ -35,8 +45,9 @@ remote-loader, A6 package.json script abuse. **Stretch classes (still in
 scope):** A3 typosquat, A5 malicious update, A7 VS Code API abuse.
 
 The priority list below describes the enduring engineering priorities inside
-that window; weekly scope is in `REFACTOR_OPTIMIZATION.md` §10.2. W6 begins
-with behavior hardening, not structural cleanup.
+that window; weekly scope is in `REFACTOR_OPTIMIZATION.md` §10.2. W7 focuses
+on acceptance validation against the PoC checklist and buffer for leftover
+W6 follow-ups, not new structural work.
 
 ## Current Priorities
 

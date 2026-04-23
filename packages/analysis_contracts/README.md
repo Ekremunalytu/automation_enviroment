@@ -1,6 +1,6 @@
 # packages/analysis_contracts
 
-`Last Updated: 2026-04-20`
+`Last Updated: 2026-04-23`
 
 This package owns backend-defined analysis contracts that must stay usable
 across API, workflow, executor, and UI boundaries.
@@ -11,10 +11,16 @@ Current surfaces:
   - authoritative Pydantic v2 models for `ActivationReport`,
     `TriggerPayload`, and related nested record types
 - `report_invariants.py`
-  - invariant checks used to keep exported activation-report semantics aligned
+  - invariant checks used to keep exported activation-report semantics
+    aligned, including `detection_report_invariant_issues` for
+    cross-layer `event_id` resolution
 - `detection/`
-  - reserved framework-agnostic namespace for W5 `DetectionReport` DTOs and
-    detection-owned helpers
+  - framework-agnostic `DetectionReport`, `DetectionFinding`, and
+    `Confidence` types landed in W5 and shared with `RiskSignal` via
+    `quantize_confidence`
+- `quantize_confidence`
+  - shared confidence-tier vocabulary used by `RiskSignal.confidence_tier`
+    and `DetectionFinding`
 
 Rules:
 

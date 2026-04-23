@@ -1,6 +1,6 @@
 # Executor Playwright Architecture
 
-`Last Updated: 2026-04-20`
+`Last Updated: 2026-04-23`
 
 The executor is ExTrace's dynamic-analysis sandbox. It runs a full VS Code GUI
 session inside Docker, drives that session with Playwright, and exports
@@ -9,15 +9,17 @@ artifact-first analysis results into `output/`.
 Open this only when changing executor/container/Playwright behavior or the API
 integration points that drive it.
 
-> **Security scope note (2026-04-20):** The executor is the analyzer's primary
+> **Security scope note (2026-04-23):** The executor is the analyzer's primary
 > security surface, not merely an operational component. Trust boundary
 > decisions are fixed by `adrs/0002-threat-model.md` §4:
 >
 > - VS Code binary trusted only if pinned.
-> - Harness-extension checksum verification is deferred to the first W5
->   supply-chain task; it is not part of the closed Week 4 scope.
+> - Harness-extension checksum verification is enforced at executor startup
+>   (`executor/container/start.sh` verifies
+>   `/home/executor/flows/harness_extension.sha256` written by the
+>   container Dockerfile). Landed in W5; do not regress.
 > - Extension code at runtime is untrusted and never elevated by heuristic.
-> - Docker daemon access from the API path is now mediated through the
+> - Docker daemon access from the API path is mediated through the
 >   `ExecutorControl` boundary.
 >
 > Changes to executor behavior that affect any of these boundaries must update
@@ -315,6 +317,8 @@ make sim-run SCENARIO=<name>
 
 - Activation reports remain file-backed while async job metadata is DB-backed.
 - The pipeline still depends on Docker exec success and VS Code timing.
-- Harness-extension checksum verification is still pending as a W5 task.
+- Live capture (`make test-security-live`) is the most fragile detection
+  surface and is load-bearing for W7 acceptance; tshark / runtime-capture
+  changes can silently regress `tls_client_hello` matching.
 - Only one background analysis job is allowed at a time.
 - This is not a queue-backed worker system and should not be documented as one.
