@@ -1,0 +1,33 @@
+{
+  "name": "fixture-chat",
+  "displayName": "ExTrace Fixture Chat",
+  "description": "Deterministic local chat-participant fixture for W4 smoke coverage.",
+  "version": "0.0.1",
+  "publisher": "extrace",
+  "engines": {
+    "vscode": "^1.116.0"
+  },
+  "categories": [
+    "Chat"
+  ],
+  "activationEvents": [
+    "onChatParticipant:extrace.fixture-chat.agent"
+  ],
+  "main": "./extension.js",
+  "contributes": {
+    "chatParticipants": [
+      {
+        "id": "extrace.fixture-chat.agent",
+        "name": "ExTraceFixture",
+        "fullName": "ExTrace Fixture Agent",
+        "description": "Local deterministic participant used by executor smoke tests.",
+        "locations": [
+          "panel"
+        ],
+        "modes": [
+          "ask"
+        ]
+      }
+    ]
+  }
+}

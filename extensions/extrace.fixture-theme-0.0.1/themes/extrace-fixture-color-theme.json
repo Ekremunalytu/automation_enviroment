@@ -1,0 +1,15 @@
+{
+  "$schema": "vscode://schemas/color-theme",
+  "name": "ExTrace Fixture Theme",
+  "type": "dark",
+  "colors": {
+    "editor.background": "#0B1220",
+    "editor.foreground": "#E6ECF5",
+    "activityBar.background": "#132238",
+    "activityBar.foreground": "#F8FAFC",
+    "sideBar.background": "#101A2E",
+    "statusBar.background": "#17365D",
+    "statusBar.foreground": "#F8FAFC"
+  },
+  "tokenColors": []
+}

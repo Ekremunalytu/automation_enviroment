@@ -1005,7 +1005,7 @@ def test_execute_analysis_request_reports_healthful_monitoring_summary(
     )
 
 
-def test_execute_analysis_request_accepts_legacy_trigger_plan_tuple(
+def test_execute_analysis_request_rejects_legacy_trigger_plan_tuple(
     tmp_path: Path,
 ) -> None:
     request = AnalyzeRequest(**ANALYZE_PAYLOAD)
@@ -1050,15 +1050,15 @@ def test_execute_analysis_request_accepts_legacy_trigger_plan_tuple(
             ),
         ),
     ):
-        response = analysis_service.execute_analysis_request(
-            request,
-            db=MagicMock(),
-            report_name=report_name,
-            executor_control=executor_control,
-        )
-
-    assert response.status == "success"
-    assert response.report_path == report_name
+        with pytest.raises(
+            TypeError, match="build_trigger_payload must return TriggerPlan"
+        ):
+            analysis_service.execute_analysis_request(
+                request,
+                db=MagicMock(),
+                report_name=report_name,
+                executor_control=executor_control,
+            )
 
 
 def test_execute_analysis_request_falls_back_to_selected_scenario_when_legacy_trigger_file_is_missing(
@@ -1093,10 +1093,10 @@ def test_execute_analysis_request_falls_back_to_selected_scenario_when_legacy_tr
         patch("workflows.marketplace.analysis_service.ensure_vsix_exists"),
         patch(
             "workflows.marketplace.analysis_service.build_trigger_payload",
-            return_value=(
-                "/results/missing-trigger-payload.json",
-                ["coding_session"],
-                "legacy trigger payload",
+            return_value=_make_trigger_plan(
+                trigger_container_path="/results/missing-trigger-payload.json",
+                selected_scenarios=["coding_session"],
+                message="selected",
             ),
         ),
     ):

@@ -1,0 +1,564 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`DetectionPanel > renders clean verdict state 1`] = `
+<div>
+  <div
+    class="space-y-5"
+  >
+    <section
+      aria-live="polite"
+      class="rounded-[22px] border px-6 py-6 border-emerald-500/30 bg-emerald-500/10 text-emerald-200"
+    >
+      <div
+        class="eyebrow"
+      >
+        Detection
+      </div>
+      <div
+        class="mt-3 flex flex-wrap items-end justify-between gap-4"
+      >
+        <div
+          class="space-y-3"
+        >
+          <h2
+            class="text-[34px] font-semibold tracking-[-0.05em]"
+          >
+            clean
+          </h2>
+          <p
+            class="max-w-3xl text-sm leading-7"
+          >
+            Rationale for clean
+          </p>
+        </div>
+        <div
+          class="rounded-full px-4 py-2 text-sm font-medium bg-emerald-500/15 text-emerald-200"
+        >
+          0
+           finding
+          s
+        </div>
+      </div>
+    </section>
+    <div
+      class="panel flex min-h-[220px] flex-col justify-center p-8 text-center sm:p-10"
+    >
+      <div
+        class="eyebrow"
+      >
+        Findings
+      </div>
+      <h3
+        class="mt-4 text-balance font-display text-[40px] font-semibold tracking-[-0.04em] text-ink"
+      >
+        No fired rules
+      </h3>
+      <p
+        class="mx-auto mt-4 max-w-xl text-sm leading-6 text-mute sm:text-[15px]"
+      >
+        No rules fired. Verdict: clean.
+      </p>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`DetectionPanel > renders clean_with_notes verdict state 1`] = `
+<div>
+  <div
+    class="space-y-5"
+  >
+    <section
+      aria-live="polite"
+      class="rounded-[22px] border px-6 py-6 border-sky-500/30 bg-sky-500/10 text-sky-200"
+    >
+      <div
+        class="eyebrow"
+      >
+        Detection
+      </div>
+      <div
+        class="mt-3 flex flex-wrap items-end justify-between gap-4"
+      >
+        <div
+          class="space-y-3"
+        >
+          <h2
+            class="text-[34px] font-semibold tracking-[-0.05em]"
+          >
+            clean with notes
+          </h2>
+          <p
+            class="max-w-3xl text-sm leading-7"
+          >
+            Rationale for clean_with_notes
+          </p>
+        </div>
+        <div
+          class="rounded-full px-4 py-2 text-sm font-medium bg-sky-500/15 text-sky-200"
+        >
+          1
+           finding
+        </div>
+      </div>
+    </section>
+    <section
+      class="space-y-4"
+    >
+      <article
+        class="space-y-4 rounded-[18px] border border-line bg-panel px-5 py-5"
+      >
+        <div
+          class="flex flex-wrap items-start justify-between gap-3"
+        >
+          <div
+            class="space-y-2"
+          >
+            <div
+              class="micro-label"
+            >
+              extrace.a1.credential_read_then_network
+            </div>
+            <h3
+              class="text-xl font-semibold tracking-[-0.03em] text-ink"
+            >
+              Synthetic detection finding
+            </h3>
+          </div>
+          <div
+            class="flex flex-wrap gap-2 text-xs font-medium"
+          >
+            <span
+              class="rounded-full px-3 py-1 bg-warning/15 text-warning"
+            >
+              Severity:
+              Medium
+            </span>
+            <span
+              class="rounded-full bg-panelAlt px-3 py-1 text-inkSoft"
+            >
+              Confidence:
+              Medium
+            </span>
+            <span
+              class="rounded-full bg-panelAlt px-3 py-1 text-inkSoft"
+            >
+              A1
+            </span>
+          </div>
+        </div>
+        <p
+          class="text-sm leading-7 text-mute"
+        >
+          Synthetic description
+        </p>
+        <div
+          class="flex flex-wrap gap-2 text-xs text-inkSoft"
+        >
+          <span
+            class="rounded-full border border-line px-3 py-1"
+          >
+            attack.T1555
+          </span>
+        </div>
+        <div
+          class="rounded-[14px] border border-lineSoft bg-panelAlt px-4 py-3 text-sm text-mute"
+        >
+          Review extension behavior.
+        </div>
+        <div
+          class="flex items-center justify-between gap-3"
+        >
+          <div
+            class="text-sm text-mute"
+          >
+            Read file
+          </div>
+          <button
+            class="ghost-button"
+            type="button"
+          >
+            1
+             evidence
+          </button>
+        </div>
+      </article>
+    </section>
+  </div>
+</div>
+`;
+
+exports[`DetectionPanel > renders inconclusive verdict state 1`] = `
+<div>
+  <div
+    class="space-y-5"
+  >
+    <section
+      aria-live="polite"
+      class="rounded-[22px] border px-6 py-6 border-lineStrong bg-panelAlt text-inkSoft"
+    >
+      <div
+        class="eyebrow"
+      >
+        Detection
+      </div>
+      <div
+        class="mt-3 flex flex-wrap items-end justify-between gap-4"
+      >
+        <div
+          class="space-y-3"
+        >
+          <h2
+            class="text-[34px] font-semibold tracking-[-0.05em]"
+          >
+            inconclusive
+          </h2>
+          <p
+            class="max-w-3xl text-sm leading-7"
+          >
+            Rationale for inconclusive
+          </p>
+        </div>
+        <div
+          class="rounded-full px-4 py-2 text-sm font-medium bg-panelAlt text-inkSoft"
+        >
+          1
+           finding
+        </div>
+      </div>
+    </section>
+    <section
+      class="space-y-4"
+    >
+      <article
+        class="space-y-4 rounded-[18px] border border-line bg-panel px-5 py-5"
+      >
+        <div
+          class="flex flex-wrap items-start justify-between gap-3"
+        >
+          <div
+            class="space-y-2"
+          >
+            <div
+              class="micro-label"
+            >
+              extrace.a1.credential_read_then_network
+            </div>
+            <h3
+              class="text-xl font-semibold tracking-[-0.03em] text-ink"
+            >
+              Synthetic detection finding
+            </h3>
+          </div>
+          <div
+            class="flex flex-wrap gap-2 text-xs font-medium"
+          >
+            <span
+              class="rounded-full px-3 py-1 bg-warning/15 text-warning"
+            >
+              Severity:
+              Medium
+            </span>
+            <span
+              class="rounded-full bg-panelAlt px-3 py-1 text-inkSoft"
+            >
+              Confidence:
+              Medium
+            </span>
+            <span
+              class="rounded-full bg-panelAlt px-3 py-1 text-inkSoft"
+            >
+              A1
+            </span>
+          </div>
+        </div>
+        <p
+          class="text-sm leading-7 text-mute"
+        >
+          Synthetic description
+        </p>
+        <div
+          class="flex flex-wrap gap-2 text-xs text-inkSoft"
+        >
+          <span
+            class="rounded-full border border-line px-3 py-1"
+          >
+            attack.T1555
+          </span>
+        </div>
+        <div
+          class="rounded-[14px] border border-lineSoft bg-panelAlt px-4 py-3 text-sm text-mute"
+        >
+          Review extension behavior.
+        </div>
+        <div
+          class="flex items-center justify-between gap-3"
+        >
+          <div
+            class="text-sm text-mute"
+          >
+            Read file
+          </div>
+          <button
+            class="ghost-button"
+            type="button"
+          >
+            1
+             evidence
+          </button>
+        </div>
+      </article>
+    </section>
+  </div>
+</div>
+`;
+
+exports[`DetectionPanel > renders malicious verdict state 1`] = `
+<div>
+  <div
+    class="space-y-5"
+  >
+    <section
+      aria-live="polite"
+      class="rounded-[22px] border px-6 py-6 border-danger/30 bg-danger/10 text-danger"
+    >
+      <div
+        class="eyebrow"
+      >
+        Detection
+      </div>
+      <div
+        class="mt-3 flex flex-wrap items-end justify-between gap-4"
+      >
+        <div
+          class="space-y-3"
+        >
+          <h2
+            class="text-[34px] font-semibold tracking-[-0.05em]"
+          >
+            malicious
+          </h2>
+          <p
+            class="max-w-3xl text-sm leading-7"
+          >
+            Rationale for malicious
+          </p>
+        </div>
+        <div
+          class="rounded-full px-4 py-2 text-sm font-medium bg-danger/15 text-danger"
+        >
+          1
+           finding
+        </div>
+      </div>
+    </section>
+    <section
+      class="space-y-4"
+    >
+      <article
+        class="space-y-4 rounded-[18px] border border-line bg-panel px-5 py-5"
+      >
+        <div
+          class="flex flex-wrap items-start justify-between gap-3"
+        >
+          <div
+            class="space-y-2"
+          >
+            <div
+              class="micro-label"
+            >
+              extrace.a1.credential_read_then_network
+            </div>
+            <h3
+              class="text-xl font-semibold tracking-[-0.03em] text-ink"
+            >
+              Synthetic detection finding
+            </h3>
+          </div>
+          <div
+            class="flex flex-wrap gap-2 text-xs font-medium"
+          >
+            <span
+              class="rounded-full px-3 py-1 bg-danger/15 text-danger"
+            >
+              Severity:
+              Critical
+            </span>
+            <span
+              class="rounded-full bg-panelAlt px-3 py-1 text-inkSoft"
+            >
+              Confidence:
+              High
+            </span>
+            <span
+              class="rounded-full bg-panelAlt px-3 py-1 text-inkSoft"
+            >
+              A1
+            </span>
+          </div>
+        </div>
+        <p
+          class="text-sm leading-7 text-mute"
+        >
+          Synthetic description
+        </p>
+        <div
+          class="flex flex-wrap gap-2 text-xs text-inkSoft"
+        >
+          <span
+            class="rounded-full border border-line px-3 py-1"
+          >
+            attack.T1555
+          </span>
+        </div>
+        <div
+          class="rounded-[14px] border border-lineSoft bg-panelAlt px-4 py-3 text-sm text-mute"
+        >
+          Review extension behavior.
+        </div>
+        <div
+          class="flex items-center justify-between gap-3"
+        >
+          <div
+            class="text-sm text-mute"
+          >
+            Read file
+          </div>
+          <button
+            class="ghost-button"
+            type="button"
+          >
+            1
+             evidence
+          </button>
+        </div>
+      </article>
+    </section>
+  </div>
+</div>
+`;
+
+exports[`DetectionPanel > renders suspicious verdict state 1`] = `
+<div>
+  <div
+    class="space-y-5"
+  >
+    <section
+      aria-live="polite"
+      class="rounded-[22px] border px-6 py-6 border-warning/30 bg-warning/10 text-warning"
+    >
+      <div
+        class="eyebrow"
+      >
+        Detection
+      </div>
+      <div
+        class="mt-3 flex flex-wrap items-end justify-between gap-4"
+      >
+        <div
+          class="space-y-3"
+        >
+          <h2
+            class="text-[34px] font-semibold tracking-[-0.05em]"
+          >
+            suspicious
+          </h2>
+          <p
+            class="max-w-3xl text-sm leading-7"
+          >
+            Rationale for suspicious
+          </p>
+        </div>
+        <div
+          class="rounded-full px-4 py-2 text-sm font-medium bg-warning/15 text-warning"
+        >
+          1
+           finding
+        </div>
+      </div>
+    </section>
+    <section
+      class="space-y-4"
+    >
+      <article
+        class="space-y-4 rounded-[18px] border border-line bg-panel px-5 py-5"
+      >
+        <div
+          class="flex flex-wrap items-start justify-between gap-3"
+        >
+          <div
+            class="space-y-2"
+          >
+            <div
+              class="micro-label"
+            >
+              extrace.a1.credential_read_then_network
+            </div>
+            <h3
+              class="text-xl font-semibold tracking-[-0.03em] text-ink"
+            >
+              Synthetic detection finding
+            </h3>
+          </div>
+          <div
+            class="flex flex-wrap gap-2 text-xs font-medium"
+          >
+            <span
+              class="rounded-full px-3 py-1 bg-warning/15 text-warning"
+            >
+              Severity:
+              Medium
+            </span>
+            <span
+              class="rounded-full bg-panelAlt px-3 py-1 text-inkSoft"
+            >
+              Confidence:
+              Medium
+            </span>
+            <span
+              class="rounded-full bg-panelAlt px-3 py-1 text-inkSoft"
+            >
+              A1
+            </span>
+          </div>
+        </div>
+        <p
+          class="text-sm leading-7 text-mute"
+        >
+          Synthetic description
+        </p>
+        <div
+          class="flex flex-wrap gap-2 text-xs text-inkSoft"
+        >
+          <span
+            class="rounded-full border border-line px-3 py-1"
+          >
+            attack.T1555
+          </span>
+        </div>
+        <div
+          class="rounded-[14px] border border-lineSoft bg-panelAlt px-4 py-3 text-sm text-mute"
+        >
+          Review extension behavior.
+        </div>
+        <div
+          class="flex items-center justify-between gap-3"
+        >
+          <div
+            class="text-sm text-mute"
+          >
+            Read file
+          </div>
+          <button
+            class="ghost-button"
+            type="button"
+          >
+            1
+             evidence
+          </button>
+        </div>
+      </article>
+    </section>
+  </div>
+</div>
+`;

@@ -1,19 +1,38 @@
 """Helpers for automation and log health computation."""
+# mypy: disable-error-code=no-redef
 
-from health_reconciliation import (
-    derive_verified_capabilities,
-    reconcile_coverage_verification,
-    reconcile_event_attempts,
-)
-from health_summary import (
-    automation_reason_to_text,
-    build_automation_health,
-    build_log_health,
-    build_run_quality,
-    count_target_activations,
-    is_background_activation,
-    summarize_event_attempts_for_report,
-)
+from __future__ import annotations
+
+try:
+    from .health_reconciliation import (
+        derive_verified_capabilities,
+        reconcile_coverage_verification,
+        reconcile_event_attempts,
+    )
+    from .health_summary import (
+        automation_reason_to_text,
+        build_automation_health,
+        build_log_health,
+        build_run_quality,
+        count_target_activations,
+        is_background_activation,
+        summarize_event_attempts_for_report,
+    )
+except ImportError:  # pragma: no cover - top-level executor import mode
+    from health_reconciliation import (
+        derive_verified_capabilities,
+        reconcile_coverage_verification,
+        reconcile_event_attempts,
+    )
+    from health_summary import (
+        automation_reason_to_text,
+        build_automation_health,
+        build_log_health,
+        build_run_quality,
+        count_target_activations,
+        is_background_activation,
+        summarize_event_attempts_for_report,
+    )
 
 __all__ = [
     "automation_reason_to_text",

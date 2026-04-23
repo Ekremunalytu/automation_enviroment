@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-`Last Updated: 2026-04-20`
+`Last Updated: 2026-04-23`
 
 Read `AGENTS.md` first. It is the authoritative source for architecture and
 safety rules. This file is the Claude-facing quick map for the current repo
@@ -9,9 +9,27 @@ state.
 ## Current Project Phase
 
 - **Week 4 stabilization:** closed and validated on `2026-04-20`.
-- **W5-W7:** security implementation phase.
+- **W5 (detection foundations):** landed 2026-04-20.
+- **W6 (automation reliability + capture hardening):** landed 2026-04-21.
+- **Post-W6 bridge (2026-04-21):** shared confidence vocabulary
+  (`quantize_confidence` + `RiskSignal.confidence_tier`) and
+  `detection_report_invariant_issues` cross-layer link check.
+- **W6 correctness follow-up (2026-04-23):** A1/A2/A4 now gate on
+  `ActivationReport` attribution (target-only via
+  `target_file_events` / `target_unknown_outbound_network_events`);
+  `tls_client_hello` added to `TLS_EVENT_TYPES` so live tshark captures
+  actually match TLS rules; `RuleExecutionStatus.ERROR` now degrades
+  automation health to `inconclusive` before verdict rollup (ADR 0003
+  error dominance). `.gitignore` re-narrowed from `extensions/` to
+  `extensions/*` with explicit allow-lists so the T1 canaries and the
+  chat/theme benign baselines actually reach the `security-fixtures` CI
+  job. Executor `monitor_package_import` test no longer leaks
+  `sys.modules` state; layered `run_quality` medium now carries an
+  `official_unresolved_present` reason label. **W6 closed.**
+- **W7 (acceptance + buffer):** open.
 - **Security scaffolding already present:**
   - `packages/analysis_contracts/detection/`
+  - `packages/analysis_engine/rules/`
   - `extensions/malicious/`
   - `tests/security/`
   - `make test-security`

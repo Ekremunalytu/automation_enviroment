@@ -1,0 +1,9 @@
+127.0.0.1
+api.example.com
+example.com
+github.com
+localhost
+marketplace.visualstudio.com
+microsoft.com
+open-vsx.org
+visualstudio.com

@@ -63,9 +63,11 @@ def test_run_all_scenarios_returns_failed_names(monkeypatch) -> None:
         lambda page: calls.append("cleanup"),
     )
 
-    failed = automation.run_all_scenarios(DummyPage(), shuffle=False)
+    result = automation.run_all_scenarios(DummyPage(), shuffle=False)
 
-    assert failed == ["scenario_fail"]
+    assert result.requested_scenarios == ["scenario_ok", "scenario_fail"]
+    assert result.executed_scenarios == ["scenario_ok", "scenario_fail"]
+    assert result.failed_scenarios == ["scenario_fail"]
     assert calls.count("cleanup") == 2
     assert "recover" in calls
 
@@ -114,9 +116,10 @@ def test_run_all_scenarios_without_failures_does_not_recover(monkeypatch) -> Non
         lambda page: calls.append("cleanup"),
     )
 
-    failed = automation.run_all_scenarios(DummyPage(), shuffle=False)
+    result = automation.run_all_scenarios(DummyPage(), shuffle=False)
 
-    assert failed == []
+    assert result.failed_scenarios == []
+    assert result.executed_scenarios == ["scenario_one", "scenario_two"]
     assert "recover" not in calls
     assert calls.count("cleanup") == 2
 

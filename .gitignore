@@ -34,7 +34,12 @@ coverage.xml
 
 # Project Specific
 output/
-extensions/
+# extensions/ stores marketplace-downloaded VSIXes and extracted payloads; keep
+# them out of git but track the security fixtures the CI lane depends on.
+extensions/*
+!extensions/malicious/
+!extensions/extrace.fixture-chat-0.0.1/
+!extensions/extrace.fixture-theme-0.0.1/
 .env
 !.env.example
 node_modules/

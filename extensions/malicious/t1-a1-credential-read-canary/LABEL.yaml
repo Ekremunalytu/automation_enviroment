@@ -1,0 +1,21 @@
+{
+  "id": "t1-a1-credential-read-canary",
+  "tier": "T1",
+  "source": {
+    "kind": "internal_canary",
+    "reference": "week5/a1/credential-read",
+    "sha256": null
+  },
+  "category": {
+    "adversary_class": "A1",
+    "taxonomy": ["attack.T1555"]
+  },
+  "expected_detections": {
+    "must_fire": ["extrace.a1.credential_read_then_network"],
+    "must_not_fire": []
+  },
+  "declawing": null,
+  "retention": {
+    "expires": null
+  }
+}

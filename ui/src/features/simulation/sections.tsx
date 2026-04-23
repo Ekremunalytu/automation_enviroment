@@ -69,11 +69,19 @@ export function SimulationStatusPanel({
   model,
   status,
   hasEvidence,
+  report,
 }: {
   model: SimulationViewModel | null;
   status?: string;
   hasEvidence: boolean;
+  report: ActivationReportView | null;
 }) {
+  const skippedDetail =
+    report?.summary.skippedScenarioDetails.length
+      ? report.summary.skippedScenarioDetails
+          .map((entry) => `${entry.name}: ${entry.reasonCode}${entry.detail ? ` (${entry.detail})` : ""}`)
+          .join("\n")
+      : "No skipped scenario reasons were recorded.";
   return (
     <Panel className="overflow-hidden p-0">
       <div className="border-b border-line px-5 py-5">
@@ -86,9 +94,13 @@ export function SimulationStatusPanel({
         <StatusCard body={model?.currentStepLabel || "Queued"} title="Current step" />
         <StatusCard body={getExpectedTelemetry(status, hasEvidence)} title="Next expected telemetry" />
         <StatusCard
-          body={(model?.recentMessages || ["Waiting for job metadata."]).join("\n")}
+          body={
+            report?.summary.skippedScenarioDetails.length
+              ? skippedDetail
+              : (model?.recentMessages || ["Waiting for job metadata."]).join("\n")
+          }
           preformatted
-          title="Recent messages"
+          title={report?.summary.skippedScenarioDetails.length ? "Skipped scenarios" : "Recent messages"}
         />
       </div>
     </Panel>

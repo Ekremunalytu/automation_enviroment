@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+import automation
 from stimulus_attempts import (
     action_for_pass,
     dedupe_execution_key,
@@ -13,7 +14,11 @@ from stimulus_attempts import (
     method_for_pass,
 )
 from stimulus_prerequisites import materialize_prerequisite, trigger_item_as_dict
-from stimulus_types import AttemptExecutionRecord, StimulusExecutionResult
+from stimulus_types import (
+    AttemptExecutionRecord,
+    AutomationExecutionResult,
+    SkippedScenarioRecord,
+)
 
 from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import Page
@@ -24,9 +29,15 @@ def run_stimulus_plan(
     payload: Any,
     *,
     monitor: Any | None = None,
-) -> StimulusExecutionResult:
+) -> AutomationExecutionResult:
     """Execute the compiled layered plan pass-by-pass."""
-    result = StimulusExecutionResult()
+    result = AutomationExecutionResult(
+        requested_scenarios=_ordered_names(
+            getattr(payload, "selected_scenarios", []) or []
+        )
+    )
+    covered_scenarios: list[str] = []
+    scenario_reasons: dict[str, tuple[str, str]] = {}
     attempts_by_id = {
         attempt_id: attempt
         for raw_attempt in getattr(payload, "event_attempts", []) or []
@@ -90,6 +101,12 @@ def run_stimulus_plan(
             blocked_reason = blocked_attempts.get(str(attempt_id))
             if blocked_reason is not None:
                 pass_failed = True
+                _record_scenario_reason(
+                    scenario_reasons,
+                    _related_scenarios(attempt),
+                    reason_code=blocked_reason[0],
+                    detail=blocked_reason[1],
+                )
                 if monitor is not None:
                     monitor.record_event_attempt_end(
                         attempt["attempt_id"],
@@ -99,8 +116,46 @@ def run_stimulus_plan(
                     )
                 continue
 
+            unsupported_reason = _unsupported_surface_reason(attempt)
+            if unsupported_reason is not None:
+                pass_failed = True
+                _record_scenario_reason(
+                    scenario_reasons,
+                    _related_scenarios(attempt),
+                    reason_code=unsupported_reason[0],
+                    detail=unsupported_reason[1],
+                )
+                if monitor is not None:
+                    monitor.record_event_attempt_end(
+                        attempt["attempt_id"],
+                        status="blocked",
+                        pass_name=stage_id,
+                        blocked_reason_code=unsupported_reason[0],
+                        result_details=unsupported_reason[1],
+                    )
+                continue
+
             action = action_for_pass(stage_id, attempt)
             trigger_method = method_for_pass(stage_id, attempt)
+            unknown_reason = _unknown_scenario_reason(action)
+            if unknown_reason is not None:
+                pass_failed = True
+                _record_scenario_reason(
+                    scenario_reasons,
+                    [unknown_reason[2]],
+                    reason_code=unknown_reason[0],
+                    detail=unknown_reason[1],
+                )
+                if monitor is not None:
+                    monitor.record_event_attempt_end(
+                        attempt["attempt_id"],
+                        status="blocked",
+                        pass_name=stage_id,
+                        trigger_method_used=trigger_method,
+                        blocked_reason_code=unknown_reason[0],
+                        result_details=unknown_reason[1],
+                    )
+                continue
             if monitor is not None:
                 monitor.record_event_attempt_start(
                     attempt["attempt_id"], pass_name=stage_id
@@ -110,6 +165,8 @@ def run_stimulus_plan(
                 execution_records.get(execution_key) if execution_key else None
             )
             if prior_execution is not None:
+                if prior_execution.status in {"attempted_only", "failed"}:
+                    _record_scenario_coverage(covered_scenarios, attempt)
                 if prior_execution.status == "failed":
                     pass_failed = True
                 if monitor is not None:
@@ -139,6 +196,7 @@ def run_stimulus_plan(
                     execution_records[execution_key] = AttemptExecutionRecord(
                         status="attempted_only"
                     )
+                _record_scenario_coverage(covered_scenarios, attempt)
                 if monitor is not None:
                     monitor.record_event_attempt_end(
                         attempt["attempt_id"],
@@ -158,6 +216,7 @@ def run_stimulus_plan(
                         result_details=str(exc),
                         failure_reason_code=failure_reason_code,
                     )
+                _record_scenario_coverage(covered_scenarios, attempt)
                 if monitor is not None:
                     monitor.record_event_attempt_end(
                         attempt["attempt_id"],
@@ -178,7 +237,120 @@ def run_stimulus_plan(
                 status="failed" if pass_failed else "completed",
             )
 
+    executed_names = set(result.executed_scenarios) | set(covered_scenarios)
+    requested_attempt_scenarios = {
+        scenario_name
+        for attempt in attempts_by_id.values()
+        for scenario_name in _related_scenarios(attempt)
+    }
+    for scenario_name in result.requested_scenarios:
+        if scenario_name in executed_names:
+            continue
+        reason_code, detail = scenario_reasons.get(
+            scenario_name,
+            (
+                "not_executed",
+                (
+                    "Scenario was selected but no layered attempt produced runtime "
+                    "coverage."
+                    if scenario_name in requested_attempt_scenarios
+                    else "Scenario was selected but the layered plan contained no "
+                    "matching attempt."
+                ),
+            ),
+        )
+        result.skipped_scenarios.append(
+            SkippedScenarioRecord(
+                name=scenario_name,
+                reason_code=reason_code,
+                detail=detail,
+            )
+        )
+
     return result
+
+
+_SUPPORTED_EVENT_FAMILIES = {
+    "workspaceContains",
+    "onLanguage",
+    "onCommand",
+    "onDebugInitialConfigurations",
+    "onDebugResolve",
+    "onTaskType",
+    "onUri",
+    "onCustomEditor",
+    "onWalkthrough",
+    "onLanguageModelTool",
+    "onTerminalShellIntegration",
+}
+
+
+def _ordered_names(raw_names: list[Any]) -> list[str]:
+    names: list[str] = []
+    for raw_name in raw_names:
+        name = str(raw_name).strip()
+        if name and name not in names:
+            names.append(name)
+    return names
+
+
+def _related_scenarios(attempt: dict[str, Any]) -> list[str]:
+    names = _ordered_names(attempt.get("legacy_scenarios", []) or [])
+    action = str(attempt.get("executor_action", "")).strip()
+    if action.startswith("scenario:"):
+        names = _ordered_names([action.split(":", maxsplit=1)[1], *names])
+    backfill_action = str(attempt.get("backfill_executor_action", "")).strip()
+    if backfill_action.startswith("scenario:"):
+        names = _ordered_names([*names, backfill_action.split(":", maxsplit=1)[1]])
+    return names
+
+
+def _record_scenario_reason(
+    reasons: dict[str, tuple[str, str]],
+    scenario_names: list[str],
+    *,
+    reason_code: str,
+    detail: str,
+) -> None:
+    for scenario_name in scenario_names:
+        if scenario_name and scenario_name not in reasons:
+            reasons[scenario_name] = (reason_code, detail)
+
+
+def _record_scenario_coverage(
+    covered_scenarios: list[str],
+    attempt: dict[str, Any],
+) -> None:
+    for scenario_name in _related_scenarios(attempt):
+        if scenario_name and scenario_name not in covered_scenarios:
+            covered_scenarios.append(scenario_name)
+
+
+def _unsupported_surface_reason(
+    attempt: dict[str, Any],
+) -> tuple[str, str] | None:
+    event_family = str(attempt.get("event_family", "")).strip()
+    if not event_family or event_family in _SUPPORTED_EVENT_FAMILIES:
+        return None
+    return (
+        "unsupported_activation_surface",
+        f"Activation family {event_family!r} is not supported by the W6 executor.",
+    )
+
+
+def _unknown_scenario_reason(
+    action: str,
+) -> tuple[str, str, str] | None:
+    if not action.startswith("scenario:"):
+        return None
+    scenario_name = action.split(":", maxsplit=1)[1].strip()
+    if scenario_name in set(automation.list_scenarios()):
+        return None
+    return (
+        "unknown_scenario",
+        f"Scenario {scenario_name!r} is not registered in the executor.",
+        scenario_name,
+    )
 
 
 def prerequisites_for_pass(

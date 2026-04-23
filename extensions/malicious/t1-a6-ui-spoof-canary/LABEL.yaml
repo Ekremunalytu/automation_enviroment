@@ -1,0 +1,21 @@
+{
+  "id": "t1-a6-ui-spoof-canary",
+  "tier": "T1",
+  "source": {
+    "kind": "internal_canary",
+    "reference": "week5/a6/ui-spoof",
+    "sha256": null
+  },
+  "category": {
+    "adversary_class": "A6",
+    "taxonomy": ["attack.T1056"]
+  },
+  "expected_detections": {
+    "must_fire": ["extrace.a6.startup_ui_prompt"],
+    "must_not_fire": []
+  },
+  "declawing": null,
+  "retention": {
+    "expires": null
+  }
+}

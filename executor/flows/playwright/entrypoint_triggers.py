@@ -5,6 +5,14 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
+from wait_helpers import (
+    require_wait,
+    wait_for_command_effect,
+    wait_for_target_reaction,
+    wait_for_trigger_effect,
+    wait_for_ui_settle,
+)
+
 from playwright.sync_api import Browser, Page
 from playwright.sync_api import Error as PlaywrightError
 
@@ -83,16 +91,28 @@ def run_extra_triggers(
         try:
             print(f"[*] Opening custom editor bait file: {filename}")
             deps.editor.open_file_by_name(page, filename)
-            page.wait_for_timeout(2000)
+            require_wait(
+                wait_for_trigger_effect(
+                    page,
+                    event_recorder=automation_event_recorder,
+                    activation_event="onCustomEditor",
+                )
+            )
             deps.editor.close_active_editor(page)
-            page.wait_for_timeout(500)
+            require_wait(
+                wait_for_ui_settle(
+                    page,
+                    event_recorder=automation_event_recorder,
+                    activation_event="onCustomEditor",
+                )
+            )
             emit(
                 "extra_trigger",
                 f"Opened custom editor bait file {filename}",
                 "completed",
                 activation_event="onCustomEditor",
             )
-        except PlaywrightError as exc:
+        except (PlaywrightError, RuntimeError) as exc:
             print(f"[!] Custom editor trigger failed for {filename}: {exc}")
             emit(
                 "extra_trigger",
@@ -112,16 +132,28 @@ def run_extra_triggers(
         try:
             print(f"[*] Triggering URI: {payload.uri_trigger}")
             deps.terminal.new_terminal(page)
-            page.wait_for_timeout(500)
+            require_wait(
+                wait_for_ui_settle(
+                    page,
+                    event_recorder=automation_event_recorder,
+                    activation_event="onUri",
+                )
+            )
             deps.terminal.type_in_terminal(page, f"xdg-open '{payload.uri_trigger}'")
-            page.wait_for_timeout(2000)
+            require_wait(
+                wait_for_trigger_effect(
+                    page,
+                    event_recorder=automation_event_recorder,
+                    activation_event="onUri",
+                )
+            )
             emit(
                 "extra_trigger",
                 f"Triggered URI {payload.uri_trigger}",
                 "completed",
                 activation_event="onUri",
             )
-        except PlaywrightError as exc:
+        except (PlaywrightError, RuntimeError) as exc:
             print(f"[!] URI trigger failed: {exc}")
             emit(
                 "extra_trigger",
@@ -141,7 +173,13 @@ def run_extra_triggers(
         try:
             print("[*] Triggering task runner...")
             deps.commands.run_command(page, "Tasks: Run Task")
-            page.wait_for_timeout(2000)
+            require_wait(
+                wait_for_trigger_effect(
+                    page,
+                    event_recorder=automation_event_recorder,
+                    activation_event="onTaskType",
+                )
+            )
             dismiss_ui_blocker("task trigger", "onTaskType")
             emit(
                 "extra_trigger",
@@ -149,7 +187,7 @@ def run_extra_triggers(
                 "completed",
                 activation_event="onTaskType",
             )
-        except PlaywrightError as exc:
+        except (PlaywrightError, RuntimeError) as exc:
             print(f"[!] Task trigger failed: {exc}")
             emit(
                 "extra_trigger",
@@ -169,9 +207,21 @@ def run_extra_triggers(
         try:
             print("[*] Triggering walkthrough...")
             deps.commands.run_command(page, "Welcome: Open Walkthrough")
-            page.wait_for_timeout(2000)
+            require_wait(
+                wait_for_trigger_effect(
+                    page,
+                    event_recorder=automation_event_recorder,
+                    activation_event="onWalkthrough",
+                )
+            )
             deps.editor.close_active_editor(page)
-            page.wait_for_timeout(500)
+            require_wait(
+                wait_for_ui_settle(
+                    page,
+                    event_recorder=automation_event_recorder,
+                    activation_event="onWalkthrough",
+                )
+            )
             dismiss_ui_blocker("walkthrough trigger", "onWalkthrough")
             emit(
                 "extra_trigger",
@@ -179,7 +229,7 @@ def run_extra_triggers(
                 "completed",
                 activation_event="onWalkthrough",
             )
-        except PlaywrightError as exc:
+        except (PlaywrightError, RuntimeError) as exc:
             print(f"[!] Walkthrough trigger failed: {exc}")
             emit(
                 "extra_trigger",
@@ -204,16 +254,25 @@ def run_extra_triggers(
                 else {}
             )
             deps.commands.run_command(page, command)
-            page.wait_for_timeout(1200)
+            require_wait(
+                wait_for_command_effect(
+                    page,
+                    event_recorder=automation_event_recorder,
+                    activation_event="onCommand",
+                )
+            )
             dismiss_ui_blocker(f"command {command}", "onCommand")
             success_signal = False
             if verification_monitor is not None:
-                success_signal = verification_monitor.verify_target_reaction(
+                target_reaction = wait_for_target_reaction(
+                    verification_monitor,
                     baseline,
                     capability="commands",
                     trigger_label=command,
                     activation_event="onCommand",
+                    event_recorder=automation_event_recorder,
                 )
+                success_signal = target_reaction.status == "completed"
             emit(
                 "command",
                 f"Ran command {command}",
@@ -222,10 +281,16 @@ def run_extra_triggers(
             )
             if verification_monitor is not None and not success_signal:
                 failed_triggers.append(f"command:{command}")
-        except PlaywrightError as exc:
+        except (PlaywrightError, RuntimeError) as exc:
             print(f"[!] Command trigger failed for {command}: {exc}")
             page.keyboard.press("Escape")
-            page.wait_for_timeout(300)
+            require_wait(
+                wait_for_ui_settle(
+                    page,
+                    event_recorder=automation_event_recorder,
+                    activation_event="onCommand",
+                )
+            )
             emit(
                 "ui_blocker_unresolved",
                 f"Command {command} left the UI in a blocked state: {exc}",

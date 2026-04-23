@@ -9,14 +9,12 @@ repository.
 
 ```text
 alembic/                   Schema migrations
-apps/                      Historical placeholder app stubs (not canonical)
 appcore/                   Shared platform code
 docker/                    API container build files
 docs/                      Narrow risk notes outside the main doc set
 documents/                 Canonical project documentation
 executor/                  Sandbox host wrapper + container runtime
 extensions/                Downloaded/extracted VSIX fixtures and samples
-legacy_ui/                 Archived Streamlit UI snapshot
 packages/                  Framework-agnostic contracts and analysis logic
 output/                    Generated reports and runtime artifacts
 scripts/                   Small maintenance helpers
@@ -33,11 +31,8 @@ workflows/                 Canonical business workflows
   matching `workflows/<name>/` package.
 - Put sandbox runtime code in `executor/`.
 - Put analyst-facing frontend code in `ui/`.
-- Keep `legacy_ui/` archival unless a migration reference is required.
 - Keep generated artifacts in `output/`; do not treat them as source code.
 - Keep extension fixtures and downloaded VSIX artifacts in `extensions/`.
-- Treat `apps/` as documentation-only placeholders, not as canonical runtime
-  surfaces.
 - If a change affects persisted catalog schema, pair it with Alembic updates in
   `alembic/versions/`.
 
@@ -149,6 +144,13 @@ executor/
       keyboard.py
       language_samples.py
       monitor.py
+      monitor_attribution.py
+      monitor_lifecycle.py
+      monitor_records.py
+      monitor_runtime.py
+      monitor_sources.py
+      monitor_support.py
+      monitor_types.py
       panel.py
       reload_vscode.py
       report_builder.py
@@ -248,8 +250,6 @@ UI tests live under `ui/src/**/*.test.ts(x)`.
   - architecture, executor, testing, roadmap, and semantics notes
 - `docs/`
   - narrower risk notes such as `docs/risks.md`
-- `apps/`
-  - documentation-only historical placeholders, not an active runtime surface
 
 ## Quick Change Map
 

@@ -2,11 +2,35 @@
 
 from __future__ import annotations
 
+import importlib
 import json
+import sys
 import tempfile
 from dataclasses import asdict
 from pathlib import Path
 from typing import Any
+
+from pydantic import ValidationError
+
+_PROJECT_ROOT = str(Path(__file__).resolve().parents[3])
+if _PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, _PROJECT_ROOT)
+
+_ContractActivationReport = importlib.import_module(
+    "packages.analysis_contracts.contracts"
+).ActivationReport
+
+
+class ReportContractError(RuntimeError):
+    """Raised when the generated activation report violates the API contract.
+
+    The executor catches drift between its in-memory dataclasses and the
+    authoritative Pydantic contract in ``packages.analysis_contracts`` at the
+    serialization boundary. Failing here means a misshapen report never gets
+    written to disk and the analysis job fails loudly rather than silently
+    producing a payload the API will reject.
+    """
+
 
 _EXECUTION_MODES = {
     "layered_passes",
@@ -85,6 +109,34 @@ def _failed_scenario_names(report: Any) -> list[str]:
     ]
 
 
+def _skipped_scenario_records(report: Any) -> list[dict[str, str]]:
+    records: list[dict[str, str]] = []
+    seen: set[str] = set()
+    for item in getattr(report, "skipped_scenarios", []) or []:
+        name = str(getattr(item, "name", "")).strip()
+        reason_code = str(getattr(item, "reason_code", "")).strip()
+        detail = str(getattr(item, "detail", "")).strip()
+        if not name or not reason_code or name in seen:
+            continue
+        seen.add(name)
+        records.append(
+            {
+                "name": name,
+                "reason_code": reason_code,
+                "detail": detail,
+            }
+        )
+    return records
+
+
+def _skipped_scenario_names(report: Any) -> list[str]:
+    return [
+        str(item.get("name", "")).strip()
+        for item in _skipped_scenario_records(report)
+        if str(item.get("name", "")).strip()
+    ]
+
+
 def build_summary(
     report: Any,
     *,
@@ -100,6 +152,7 @@ def build_summary(
     execution_mode = _resolve_trigger_execution_mode(report)
     scenarios_run = _scenario_trace_names(report)
     failed_scenarios = _failed_scenario_names(report)
+    skipped_scenarios = _skipped_scenario_names(report)
     trigger_plan_applied = bool(
         getattr(report, "trigger_plan_applied", False)
     ) or not bool(getattr(report, "trigger_plan_requested", False))
@@ -116,6 +169,7 @@ def build_summary(
         "extension_ids": sorted(unique_ids),
         "scenarios_run": scenarios_run,
         "failed_scenarios": failed_scenarios,
+        "skipped_scenarios": skipped_scenarios,
         "network_events": len(getattr(report, "network_events", [])),
         "network_hosts": len(getattr(report, "network_hosts", set())),
         "file_events": len(getattr(report, "file_events", [])),
@@ -190,6 +244,7 @@ def build_report_data(
         eh_text = str(getattr(report, "extension_host_output", ""))
     execution_mode = _resolve_trigger_execution_mode(report)
     failed_scenarios = _failed_scenario_names(report)
+    skipped_scenarios = _skipped_scenario_records(report)
     trigger_plan_applied = bool(
         getattr(report, "trigger_plan_applied", False)
     ) or not bool(getattr(report, "trigger_plan_requested", False))
@@ -211,6 +266,7 @@ def build_report_data(
         "trigger_execution_mode": execution_mode,
         "requested_scenarios": getattr(report, "requested_scenarios", []),
         "failed_scenarios": failed_scenarios,
+        "skipped_scenarios": skipped_scenarios,
         "extra_trigger_failures": getattr(report, "extra_trigger_failures", []),
         "verification_gap": getattr(report, "verification_gap", 0),
         "heuristic_verification_gap": getattr(report, "heuristic_verification_gap", 0),
@@ -256,6 +312,7 @@ def build_report_data(
         ],
         "network_events": [asdict(e) for e in getattr(report, "network_events", [])],
         "file_events": [asdict(e) for e in getattr(report, "file_events", [])],
+        "process_events": [asdict(e) for e in getattr(report, "process_events", [])],
         "scenario_traces": [asdict(e) for e in getattr(report, "scenario_traces", [])],
         "stimulus_passes": [asdict(e) for e in getattr(report, "stimulus_passes", [])],
         "prerequisite_results": [
@@ -287,6 +344,19 @@ def build_report_data(
     }
 
 
+def _validate_report_against_contract(data: dict[str, Any]) -> None:
+    try:
+        _ContractActivationReport.model_validate(data)
+    except ValidationError as err:
+        first = err.errors()[0]
+        loc = ".".join(str(part) for part in first.get("loc", ()))
+        msg = first.get("msg", "invalid")
+        raise ReportContractError(
+            f"Activation report failed contract validation at "
+            f"{loc or '<root>'}: {msg}"
+        ) from err
+
+
 def save_report_payload(
     path: str | Path,
     data: dict[str, Any],
@@ -294,6 +364,7 @@ def save_report_payload(
     announce: bool = True,
     logger: Any | None = None,
 ) -> Path:
+    _validate_report_against_contract(data)
     out = Path(path)
     out.parent.mkdir(parents=True, exist_ok=True)
     serialized = json.dumps(data, indent=2, ensure_ascii=False)

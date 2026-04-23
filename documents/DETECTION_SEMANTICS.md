@@ -1,6 +1,6 @@
 # Detection Semantics
 
-`Last Updated: 2026-04-20`
+`Last Updated: 2026-04-21`
 
 This document defines the meaning of the current exported **activation
 report** contract. Its purpose is to keep report generation, API
@@ -426,7 +426,10 @@ These fields remain the basis for ownership and downstream risk scoring.
   - `signal_id`
   - `category`
   - `severity`
-  - `confidence`
+  - `confidence` (float attribution score)
+  - `confidence_tier` (`high` / `medium` / `low`, derived from
+    `confidence` via `packages.analysis_contracts.quantize_confidence`;
+    shares vocabulary with `DetectionFinding.confidence`)
   - `evidence_event_ids`
   - `summary`
 

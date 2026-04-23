@@ -190,12 +190,35 @@ export function SimulationPage() {
         </div>
       </section>
 
+      {model?.reportError ? (
+        <section
+          className="rounded-[18px] border border-danger/40 bg-danger/10 px-5 py-4 text-sm text-danger"
+          role="alert"
+        >
+          <div className="font-semibold">Activation report failed validation</div>
+          <p className="mt-1 text-mute">
+            The sandbox finished but the generated report did not match the
+            contract, so detection results are unavailable. The run can be
+            retried; re-running the analysis usually resolves transient
+            executor issues.
+          </p>
+          <pre className="mt-3 whitespace-pre-wrap break-words font-body text-xs leading-5 text-mute">
+            {model.reportError}
+          </pre>
+        </section>
+      ) : null}
+
       <div className="space-y-5">
         <RunActivityPanel job={job || null} model={model} />
         <LiveRiskStrip onSelectEvent={setSelectedEvent} report={report || null} />
 
         {tab === "status" ? (
-          <SimulationStatusPanel hasEvidence={Boolean(report?.evidence.length)} model={model} status={job?.status} />
+          <SimulationStatusPanel
+            hasEvidence={Boolean(report?.evidence.length)}
+            model={model}
+            report={report || null}
+            status={job?.status}
+          />
         ) : (
           <SimulationWorkspace
             eventId={eventId || undefined}

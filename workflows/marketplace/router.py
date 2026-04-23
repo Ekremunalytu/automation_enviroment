@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import logging
 import threading
 from pathlib import Path
 from typing import Any
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
 from appcore.api.config import settings as app_settings
@@ -21,6 +23,7 @@ from appcore.contracts.schemas import (
     MarketplaceExtension,
 )
 from executor.control import ExecutorError
+from packages.analysis_contracts import ExtensionIdentity
 from workflows.extension_catalog.manifest_reader import PackageJsonReadError
 from workflows.extension_catalog.service import (
     ExtensionManifestMismatchError,
@@ -29,8 +32,10 @@ from workflows.extension_catalog.service import (
 )
 from workflows.marketplace import client as marketplace_client
 from workflows.marketplace import job_service
+from workflows.marketplace.analysis_errors import ActivationReportLoadError
 from workflows.marketplace.analysis_service import (
     TriggerPlanError,
+    build_analysis_bundle_from_report_name,
     ensure_vsix_exists,
     execute_analysis_request,
     map_executor_error,
@@ -39,6 +44,7 @@ from workflows.marketplace.analysis_service import (
 from workflows.marketplace.job_service import ActiveAnalysisJobError
 
 settings = app_settings
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api", tags=["marketplace"])
 
@@ -190,12 +196,42 @@ def get_analysis_job(
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     try:
-        return job_service.get_job_snapshot(job_id, db=db)
+        snapshot = job_service.get_job_snapshot(job_id, db=db)
     except KeyError as exc:
         raise HTTPException(
             status_code=404,
             detail=f"Analysis job not found: {job_id}",
         ) from exc
+
+    report_path = snapshot.get("report_path")
+    if snapshot.get("status") == "completed" and isinstance(report_path, str):
+        try:
+            bundle = build_analysis_bundle_from_report_name(
+                report_path,
+                analyzed_extension=ExtensionIdentity(
+                    publisher=str(snapshot.get("publisher", "unknown")),
+                    name=str(snapshot.get("name", "unknown")),
+                    version=str(snapshot.get("version", "unknown")),
+                ),
+            )
+        except (ActivationReportLoadError, ValueError, ValidationError) as exc:
+            logger.error(
+                "Detection bundle build failed for job %s (report=%s): %s",
+                job_id,
+                report_path,
+                exc,
+            )
+            snapshot["detection_report"] = None
+            snapshot["report_error"] = f"activation_report_schema_invalid: {exc}"
+        else:
+            if bundle is not None:
+                snapshot["detection_report"] = bundle.detection_report.model_dump(
+                    mode="json"
+                )
+            else:
+                snapshot["detection_report"] = None
+                snapshot["report_error"] = f"activation_report_missing: {report_path}"
+    return snapshot
 
 
 @router.post("/marketplace/analyze", response_model=AnalyzeResponse)
@@ -207,6 +243,8 @@ def analyze_extension(
         return execute_analysis_request(request, db)
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ActivationReportLoadError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
     except TriggerPlanError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
     except ExecutorError as exc:

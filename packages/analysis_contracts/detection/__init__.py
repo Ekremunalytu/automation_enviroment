@@ -1,8 +1,36 @@
-"""Week 5 detection contract namespace.
+"""Framework-agnostic detection contracts governed by ADR 0003."""
 
-Detection rules will live behind framework-agnostic contracts in this package.
-Runtime layers may depend on exported DTOs, but the detection package must not
-import from appcore, workflows, executor, or ui.
-"""
+from packages.analysis_contracts.detection.enums import (
+    AdversaryClass,
+    Confidence,
+    RuleExecutionStatus,
+    RuleLifecycle,
+    Severity,
+    Verdict,
+    quantize_confidence,
+)
+from packages.analysis_contracts.detection.finding import DetectionFinding, EvidenceRef
+from packages.analysis_contracts.detection.report import (
+    AutomationHealthStatus,
+    DetectionReport,
+    ExtensionIdentity,
+    RuleExecutionRecord,
+)
+from packages.analysis_contracts.detection.rollup import compute_verdict
 
-__all__: list[str] = []
+__all__ = [
+    "AdversaryClass",
+    "AutomationHealthStatus",
+    "Confidence",
+    "DetectionFinding",
+    "DetectionReport",
+    "EvidenceRef",
+    "ExtensionIdentity",
+    "RuleExecutionRecord",
+    "RuleExecutionStatus",
+    "RuleLifecycle",
+    "Severity",
+    "Verdict",
+    "compute_verdict",
+    "quantize_confidence",
+]

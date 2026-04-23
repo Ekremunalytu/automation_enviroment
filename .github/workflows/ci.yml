@@ -145,12 +145,64 @@ jobs:
         run: npm run test
 
   # ===========================================================================
+  # SECURITY FIXTURE JOB
+  # ===========================================================================
+  security-fixtures:
+    name: 🔐 Security Fixtures
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: "pip"
+
+      - name: 📦 Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r docker/api/requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: 🚫 Assert live security lane is blocked in CI
+        env:
+          CI: "true"
+        run: |
+          if make test-security-live; then
+            echo "ERROR: make test-security-live unexpectedly succeeded in CI."
+            exit 1
+          fi
+
+      - name: 🔒 Disable outbound egress for security lane
+        run: |
+          sudo iptables -P OUTPUT ACCEPT
+          sudo iptables -F OUTPUT
+          sudo iptables -A OUTPUT -o lo -j ACCEPT
+          sudo iptables -A OUTPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+          sudo iptables -P OUTPUT DROP
+          sudo iptables -S OUTPUT
+
+      - name: 🔍 Verify security lane egress hardening
+        env:
+          CI: "true"
+        run: |
+          make test-security-ci-guard
+
+      - name: 🧪 Run security fixture lane
+        env:
+          CI: "true"
+        run: |
+          make test-security
+
+  # ===========================================================================
   # TEST JOB
   # ===========================================================================
   test:
     name: 🧪 Test
     runs-on: ubuntu-latest
-    needs: [lint, type-check, ui]
+    needs: [lint, type-check, ui, security-fixtures]
 
     services:
       postgres:
@@ -229,7 +281,7 @@ jobs:
   build:
     name: 🏗️ Build Check
     runs-on: ubuntu-latest
-    needs: [lint, type-check, ui]
+    needs: [lint, type-check, ui, security-fixtures]
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4

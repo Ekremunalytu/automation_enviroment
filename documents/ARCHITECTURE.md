@@ -98,8 +98,9 @@ Sandbox control and runtime.
 - `executor/container/`
   - Docker image, start script, and sandbox boot configuration
 - `executor/flows/playwright/`
-  - VS Code automation, trigger loading, monitoring, report building, health
-    derivation, and risk/verdict helpers
+  - VS Code automation, trigger loading, the thin `monitor.py` facade, and
+    sibling lifecycle/source/runtime/attribution helpers for report building,
+    health derivation, and risk/verdict calculation
 - `executor/flows/playwright/runtime_capture/`
   - monitor-owned network, filesystem, extension-host, and log-summary helpers
     re-exported through `monitor.py`
@@ -121,11 +122,6 @@ Primary analyst-facing SPA.
 - `ui/src/lib/`
   - API client, runtime config, adapters, generated contract types, rules,
     chart helpers, and shared frontend helpers
-
-### `legacy_ui/`
-
-Archived Streamlit implementation kept as a migration snapshot. It is not the
-primary frontend and should not receive new feature work.
 
 ## Canonical Boundaries
 
@@ -197,6 +193,8 @@ Notes:
   is marked failed on the next load.
 - Trigger planning may resolve to layered execution or a scenario-zero
   `skip_automation` run for non-executable fixtures.
+- The workflow-side trigger contract is `TriggerPlan` only; the old tuple shim
+  is removed.
 - Startup fails fast if job recovery or migration state for `analysis_jobs` is
   unavailable.
 

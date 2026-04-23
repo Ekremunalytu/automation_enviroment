@@ -1,0 +1,21 @@
+{
+  "id": "t1-a4-workspace-exfil-canary",
+  "tier": "T1",
+  "source": {
+    "kind": "internal_canary",
+    "reference": "week5/a4/workspace-exfil",
+    "sha256": null
+  },
+  "category": {
+    "adversary_class": "A4",
+    "taxonomy": ["attack.T1530"]
+  },
+  "expected_detections": {
+    "must_fire": ["extrace.a4.workspace_exfil"],
+    "must_not_fire": []
+  },
+  "declawing": null,
+  "retention": {
+    "expires": null
+  }
+}

@@ -10,7 +10,13 @@ from pydantic import ValidationError
 
 from appcore.api.config import settings
 from appcore.contracts.schema_defs.activation_reports import ActivationReportResponse
-from packages.analysis_contracts import ActivationReport, ActivationReportFileSummary
+from appcore.contracts.schema_defs.analysis_bundle import AnalysisBundle
+from packages.analysis_contracts import (
+    ActivationReport,
+    ActivationReportFileSummary,
+    ExtensionIdentity,
+)
+from packages.analysis_engine import run_detection
 
 router = APIRouter(prefix="/api", tags=["activations"])
 _REPORT_PATTERNS = ("activation_report*.json",)
@@ -110,6 +116,41 @@ def _read_report(path: Path, *, _retries: int = 3) -> ActivationReport:
         ) from exc
 
 
+def _identity_from_report_name(
+    name: str,
+    report: ActivationReport,
+) -> ExtensionIdentity:
+    summary = report.summary if isinstance(report.summary, dict) else {}
+    version = str(summary.get("target_extension_version", "unknown"))
+    publisher, separator, extension_name = report.target_extension_expected.partition(
+        "."
+    )
+    if not separator:
+        publisher = "unknown"
+        extension_name = report.target_extension_expected or "unknown"
+
+    if name.startswith("activation_report_") and name.endswith(".json"):
+        remainder = name.removeprefix("activation_report_").removesuffix(".json")
+        try:
+            extension_id, parsed_version, _ = remainder.rsplit("-", 2)
+        except ValueError:
+            extension_id = ""
+        else:
+            parsed_publisher, parsed_separator, parsed_name = extension_id.partition(
+                "."
+            )
+            if parsed_separator:
+                publisher = parsed_publisher
+                extension_name = parsed_name
+                version = parsed_version
+
+    return ExtensionIdentity(
+        publisher=publisher,
+        name=extension_name,
+        version=version,
+    )
+
+
 # =============================================================================
 # Endpoints
 # =============================================================================
@@ -203,3 +244,27 @@ def get_activation_by_name(name: str) -> dict[str, Any]:
     data = report.model_dump(mode="json")
     data["_metadata"] = {"filename": name}
     return data
+
+
+@router.get("/activations/{name}/bundle", response_model=AnalysisBundle)
+def get_activation_bundle_by_name(name: str) -> AnalysisBundle:
+    if ".." in name or "/" in name or "\\" in name:
+        raise HTTPException(status_code=400, detail="Invalid filename.")
+    if not name.startswith("activation_report") or not name.endswith(".json"):
+        raise HTTPException(status_code=400, detail="Invalid activation report name.")
+
+    path = _get_output_dir() / name
+    if not path.exists() or not path.is_file():
+        raise HTTPException(status_code=404, detail=f"Report not found: {name}")
+
+    report = _read_report(path)
+    analyzed_extension = _identity_from_report_name(name, report)
+    detection_report = run_detection(
+        report,
+        activation_report_ref=name,
+        analyzed_extension=analyzed_extension,
+    )
+    return AnalysisBundle(
+        activation_report=report,
+        detection_report=detection_report,
+    )

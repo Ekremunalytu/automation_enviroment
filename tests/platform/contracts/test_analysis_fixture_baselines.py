@@ -10,8 +10,10 @@ from packages.analysis_contracts import (
     ActivationReport,
     TriggerPayload,
     activation_report_invariant_issues,
+    detection_report_invariant_issues,
     scenario_trace_names,
 )
+from packages.analysis_engine.runner import run_detection
 from workflows.extension_catalog.manifest_parser import (
     parse_activation_events,
     parse_contributes,
@@ -81,9 +83,16 @@ def test_activation_report_fixture_exposes_minimum_shape() -> None:
     assert report["event_attempts"]
     assert isinstance(report["official_event_coverage"], dict)
     assert report["official_event_coverage"]
+    assert report["automation_health"]["status"] == "healthy"
+    assert report["automation_health"]["reasons"] == []
+    assert report["summary"]["skipped_scenarios"] == []
+    assert report["skipped_scenarios"] == []
+    assert report["run_quality"] == "medium"
     assert report["requested_scenarios"] != report["summary"]["scenarios_run"]
     assert report["summary"]["scenarios_run"] == scenario_trace_names(report)
     assert activation_report_invariant_issues(report) == []
+    assert isinstance(report["risk_signals"], list)
+    assert "correlative_suspicious_activity" not in report["risk_summary"]["categories"]
 
     parsed = ActivationReport.model_validate(report)
     round_tripped = parsed.model_dump(mode="json")
@@ -215,6 +224,26 @@ def test_trigger_payload_fixture_exposes_minimum_shape() -> None:
     round_tripped = parsed.model_dump(mode="json")
 
     assert TriggerPayload.model_validate(round_tripped) == parsed
+
+
+def test_benign_fixture_detection_report_links_resolve_cleanly() -> None:
+    fixture_path = (
+        Path(__file__).parent
+        / "fixtures"
+        / "activation_reports"
+        / "ms_python_python.json"
+    )
+    payload = _load_fixture(fixture_path)
+    activation_report = ActivationReport.model_validate(payload)
+
+    detection_report = run_detection(activation_report)
+
+    assert (
+        detection_report_invariant_issues(
+            detection_report.model_dump(mode="json"), payload
+        )
+        == []
+    )
 
 
 def test_activation_report_invariants_detect_failed_scenario_drift() -> None:

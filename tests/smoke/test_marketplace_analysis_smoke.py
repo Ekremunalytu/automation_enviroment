@@ -12,6 +12,7 @@ from fastapi.testclient import TestClient
 
 from appcore.api.config import settings
 from packages.analysis_contracts import activation_report_invariant_issues
+from workflows.marketplace.trigger_service import TriggerPlan
 
 _PUBLISHER = "ms-python"
 _NAME = "python"
@@ -363,10 +364,12 @@ def test_missing_trigger_payload_never_looks_benign(runtime_client: TestClient) 
 
     with patch(
         "workflows.marketplace.analysis_service.build_trigger_payload",
-        return_value=(
-            "/results/missing-trigger-payload.json",
-            ["coding_session"],
-            "Trigger requested for ms-python.python with a missing payload.",
+        return_value=TriggerPlan(
+            trigger_container_path="/results/missing-trigger-payload.json",
+            selected_scenarios=["coding_session"],
+            skip_automation=False,
+            reason_code="generated_trigger_plan",
+            message="Trigger requested for ms-python.python with a missing payload.",
         ),
     ):
         start_response = runtime_client.post(

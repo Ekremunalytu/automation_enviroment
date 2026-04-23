@@ -57,8 +57,8 @@ call HTTP APIs, or invoke executor helpers.
 
 The current repo keeps runtime orchestration in `workflows/`, platform code in
 `appcore/`, executor mechanics in `executor/`, and reusable logic in
-`packages/`. Historical `apps/` placeholder directories may still exist as
-documentation-only stubs, but they are not canonical runtime surfaces.
+`packages/`. Historical `apps/` placeholder directories were removed in the
+pre-W6 cleanup on `2026-04-20`; they are not canonical runtime surfaces.
 
 ## Consequences
 

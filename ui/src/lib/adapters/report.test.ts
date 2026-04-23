@@ -265,4 +265,92 @@ describe("adaptReport", () => {
     );
     expect(inspector?.related).toHaveLength(2);
   });
+
+  it("surfaces skipped scenario details and process events", () => {
+    const dto: ActivationReportDto = {
+      report_version: 2,
+      target_extension_expected: "ms.test",
+      verdict: {},
+      summary: {
+        skipped_scenarios: ["debug_session"],
+      },
+      scenario_traces: [
+        {
+          name: "coding_session",
+          started_at: 1713002400,
+          ended_at: 1713002404,
+          status: "completed",
+        },
+      ],
+      skipped_scenarios: [
+        {
+          name: "debug_session",
+          reason_code: "unsupported_activation_surface",
+          detail: "family not supported by runtime",
+        },
+      ],
+      evidence_events: [],
+      network_events: [],
+      file_events: [],
+      process_events: [
+        {
+          timestamp: "2026-04-13T10:00:03Z",
+          rel_time_s: 3,
+          pid: 4123,
+          ppid: 4010,
+          operation: "execve",
+          command: "/usr/bin/python3",
+          arguments_preview: "--child --flag",
+          cwd: "/workspace",
+          related_extension_id: "ms.test",
+          related_activation_event: "onCommand:test",
+          attribution_status: "target_attributed",
+          attribution_basis: "child process observed in target extension host tree",
+          attribution_confidence: 0.92,
+          is_target_extension_event: true,
+          summary: "Spawned python helper",
+        },
+      ],
+      automation_health: {
+        status: "degraded",
+        reasons: ["skipped_scenarios_present"],
+        trigger_requested: true,
+        trigger_loaded: true,
+        trigger_applied: true,
+        extension_host_log_present: true,
+        extension_host_output_present: true,
+        target_stream_present: true,
+        target_activation_count: 1,
+        failed_scenarios: [],
+        skipped_scenarios: ["debug_session"],
+      },
+      log_streams: {
+        automation: [],
+      },
+      target_extension_observed: true,
+      trigger_plan_applied: true,
+      verification_gap: 0,
+      run_quality: "low",
+    };
+
+    const report = adaptReport(dto, "latest");
+    const process = report.evidence.find((event) => event.kind === "process");
+
+    expect(report.summary.skippedScenarios).toEqual(["debug_session"]);
+    expect(report.summary.skippedScenarioDetails).toEqual([
+      {
+        name: "debug_session",
+        reasonCode: "unsupported_activation_surface",
+        detail: "family not supported by runtime",
+      },
+    ]);
+    expect(process?.artifact).toBe("ms.test");
+    expect(process?.rawContext).toMatchObject({
+      pid: 4123,
+      ppid: 4010,
+      command: "/usr/bin/python3",
+      arguments_preview: "--child --flag",
+      cwd: "/workspace",
+    });
+  });
 });

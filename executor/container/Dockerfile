@@ -60,13 +60,23 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 
 # Install a pinned VS Code build via direct .deb download.
 # Detect architecture: arm64 -> linux-deb-arm64, amd64 -> linux-deb-x64.
+# Normalize env-sourced build args so inline dotenv comments or trailing
+# whitespace cannot corrupt the download URL. Fail closed on embedded
+# whitespace because the update endpoint expects exact path segments.
 # Use apt to install the local .deb so dependency resolution and archive
 # validation fail the build instead of silently continuing.
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
     ARCH=$(dpkg --print-architecture) \
+    && VSCODE_CHANNEL="$(printf '%s' "${EXECUTOR_VSCODE_CHANNEL}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')" \
+    && VSCODE_VERSION="$(printf '%s' "${EXECUTOR_VSCODE_VERSION}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')" \
+    && test -n "$VSCODE_CHANNEL" \
+    && test -n "$VSCODE_VERSION" \
+    && case "$VSCODE_CHANNEL" in *[[:space:]]*) echo "EXECUTOR_VSCODE_CHANNEL contains embedded whitespace: $VSCODE_CHANNEL" >&2; exit 1;; esac \
+    && case "$VSCODE_VERSION" in *[[:space:]]*) echo "EXECUTOR_VSCODE_VERSION contains embedded whitespace: $VSCODE_VERSION" >&2; exit 1;; esac \
     && if [ "$ARCH" = "arm64" ]; then VSCODE_ARCH="linux-deb-arm64"; else VSCODE_ARCH="linux-deb-x64"; fi \
-    && curl --retry 5 --retry-all-errors --retry-delay 2 -fsSL -o /tmp/vscode.deb "https://update.code.visualstudio.com/${EXECUTOR_VSCODE_VERSION}/${VSCODE_ARCH}/${EXECUTOR_VSCODE_CHANNEL}" \
+    && echo "Downloading VS Code ${VSCODE_VERSION} (${VSCODE_CHANNEL}) for ${VSCODE_ARCH}" \
+    && curl --retry 5 --retry-all-errors --retry-delay 2 -fsSL -o /tmp/vscode.deb "https://update.code.visualstudio.com/${VSCODE_VERSION}/${VSCODE_ARCH}/${VSCODE_CHANNEL}" \
     && dpkg-deb --info /tmp/vscode.deb >/dev/null \
     && apt-get update \
     && apt-get install -y --no-install-recommends /tmp/vscode.deb \

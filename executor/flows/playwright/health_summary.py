@@ -1,11 +1,22 @@
 """Helpers for automation, log, and run-quality summaries."""
+# mypy: disable-error-code=no-redef
 
 from __future__ import annotations
 
 from typing import Any
 
-from annotation import has_strong_target_attribution, target_stream_entries
-from health_runtime_facts import official_unresolved_chat_tool_attempts
+try:
+    from .annotation import has_strong_target_attribution, target_stream_entries
+    from .health_runtime_facts import (
+        covered_scenarios_from_attempts,
+        official_unresolved_chat_tool_attempts,
+    )
+except ImportError:  # pragma: no cover - top-level executor import mode
+    from annotation import has_strong_target_attribution, target_stream_entries
+    from health_runtime_facts import (
+        covered_scenarios_from_attempts,
+        official_unresolved_chat_tool_attempts,
+    )
 
 _REASON_LABELS = {
     "missing_target_extension_id": "Target extension context was missing.",
@@ -17,6 +28,7 @@ _REASON_LABELS = {
     "extension_host_output_missing": "Extension Host output was empty.",
     "target_stream_missing": "The target extension did not produce a dedicated log stream.",
     "scenario_failures_present": "One or more automation scenarios failed.",
+    "skipped_scenarios_present": "One or more requested scenarios were skipped.",
     "extra_trigger_failures_present": "One or more extra trigger actions failed.",
     "ui_blockers_present": "UI blockers interrupted part of the run.",
     "verification_gap_present": "Some attempted capabilities could not be verified.",
@@ -24,6 +36,9 @@ _REASON_LABELS = {
         "Some official chat/tool attempts remained unresolved after harness verification."
     ),
     "strong_target_attribution_missing": "No strong target-owned telemetry supported attribution.",
+    "official_unresolved_present": (
+        "Official activation events remained unresolved after verification."
+    ),
 }
 
 _SCENARIO_ZERO_REASON = (
@@ -202,6 +217,7 @@ def build_automation_health(
     extension_host_log_present: bool,
 ) -> dict[str, Any]:
     execution_mode = str(getattr(report, "trigger_execution_mode", "")).strip()
+    layered_execution = execution_mode == "layered_passes"
     target_extension_id = getattr(report, "target_extension_id", "")
     target_activation_count = count_target_activations(
         getattr(report, "activated", []),
@@ -209,7 +225,25 @@ def build_automation_health(
     )
     output_present = bool(str(getattr(report, "extension_host_output", "")).strip())
     target_stream_present = bool(target_stream_entries(report))
+    executed_scenarios = [
+        str(getattr(trace, "name", "")).strip()
+        for trace in getattr(report, "scenario_traces", []) or []
+        if str(getattr(trace, "name", "")).strip()
+    ]
+    covered_scenarios = (
+        covered_scenarios_from_attempts(report) if layered_execution else []
+    )
+    requested_scenarios = [
+        str(name).strip()
+        for name in getattr(report, "requested_scenarios", []) or []
+        if str(name).strip()
+    ]
     failed_scenarios = sorted(set(getattr(report, "failed_scenarios", [])))
+    skipped_scenarios = [
+        str(getattr(item, "name", "")).strip()
+        for item in getattr(report, "skipped_scenarios", []) or []
+        if str(getattr(item, "name", "")).strip()
+    ]
     extra_trigger_failures = sorted(set(getattr(report, "extra_trigger_failures", [])))
     strong_target_attribution = has_strong_target_attribution(report)
     unresolved_chat_tool_attempts = official_unresolved_chat_tool_attempts(report)
@@ -227,6 +261,7 @@ def build_automation_health(
             "target_stream_present": target_stream_present,
             "target_activation_count": 0,
             "failed_scenarios": [],
+            "skipped_scenarios": [],
             "extra_trigger_failures": [],
             "extra_trigger_failure_count": 0,
             "extension_host_log_found": extension_host_log_found,
@@ -254,13 +289,15 @@ def build_automation_health(
         reasons.append("target_stream_missing")
     if failed_scenarios:
         reasons.append("scenario_failures_present")
+    if skipped_scenarios:
+        reasons.append("skipped_scenarios_present")
     if extra_trigger_failures:
         reasons.append("extra_trigger_failures_present")
     if getattr(report, "ui_blocker_entries", []):
         reasons.append("ui_blockers_present")
-    if getattr(report, "verification_gap", 0) > 0:
+    if not layered_execution and getattr(report, "verification_gap", 0) > 0:
         reasons.append("verification_gap_present")
-    if unresolved_chat_tool_attempts:
+    if not layered_execution and unresolved_chat_tool_attempts:
         reasons.append("chat_tool_verification_incomplete")
     if (
         not target_stream_present
@@ -273,8 +310,11 @@ def build_automation_health(
         not getattr(report, "trigger_plan_loaded", False)
         or not getattr(report, "trigger_plan_applied", False)
     )
+    observed_scenario_coverage = executed_scenarios or covered_scenarios
 
     if (
+        requested_scenarios and not observed_scenario_coverage and not skipped_scenarios
+    ) or (
         not target_extension_id
         or trigger_plan_incomplete
         or not getattr(report, "target_extension_observed", False)
@@ -282,15 +322,20 @@ def build_automation_health(
         or (not target_stream_present and not strong_target_attribution)
     ):
         status = "inconclusive"
-    elif (
+    elif (requested_scenarios and skipped_scenarios) or (
         not extension_host_log_present
         or not output_present
         or not target_stream_present
         or failed_scenarios
         or extra_trigger_failures
         or getattr(report, "ui_blocker_entries", [])
-        or getattr(report, "verification_gap", 0) > 0
-        or unresolved_chat_tool_attempts
+        or (
+            not layered_execution
+            and (
+                getattr(report, "verification_gap", 0) > 0
+                or unresolved_chat_tool_attempts
+            )
+        )
     ):
         status = "degraded"
     else:
@@ -307,6 +352,7 @@ def build_automation_health(
         "target_stream_present": target_stream_present,
         "target_activation_count": target_activation_count,
         "failed_scenarios": failed_scenarios,
+        "skipped_scenarios": skipped_scenarios,
         "extra_trigger_failures": extra_trigger_failures,
         "extra_trigger_failure_count": len(extra_trigger_failures),
         "extension_host_log_found": extension_host_log_found,
@@ -317,7 +363,8 @@ def build_run_quality(
     report: Any,
     automation_health: dict[str, Any] | None = None,
 ) -> tuple[str, list[str]]:
-    if str(getattr(report, "trigger_execution_mode", "")).strip() == "skip_automation":
+    execution_mode = str(getattr(report, "trigger_execution_mode", "")).strip()
+    if execution_mode == "skip_automation":
         return "scenario_zero", [_SCENARIO_ZERO_REASON]
     health = automation_health or build_automation_health(
         report,
@@ -332,6 +379,31 @@ def build_run_quality(
 
     if status == "inconclusive":
         return "inconclusive", reasons
+    if health.get("skipped_scenarios"):
+        return "low", reasons
+    if execution_mode == "layered_passes":
+        if status == "degraded":
+            return "low", reasons
+        if (
+            official_unresolved > 0
+            or unresolved_chat_tool_attempts
+            or getattr(report, "verification_gap", 0) > 0
+        ):
+            medium_reasons = list(reasons)
+            if getattr(report, "verification_gap", 0) > 0:
+                label = automation_reason_to_text("verification_gap_present")
+                if label not in medium_reasons:
+                    medium_reasons.append(label)
+            if unresolved_chat_tool_attempts:
+                label = automation_reason_to_text("chat_tool_verification_incomplete")
+                if label not in medium_reasons:
+                    medium_reasons.append(label)
+            if official_unresolved > 0:
+                label = automation_reason_to_text("official_unresolved_present")
+                if label not in medium_reasons:
+                    medium_reasons.append(label)
+            return "medium", medium_reasons
+        return "high", reasons
     if status == "degraded":
         if (
             unresolved_chat_tool_attempts

@@ -25,13 +25,18 @@ Must vs Stretch. See `REFACTOR_OPTIMIZATION.md` §10 for Must/Stretch split and
 - **W5-W7 (open):** security implementation. Initial scaffold already exists:
   `packages/analysis_contracts/detection/`, `extensions/malicious/`,
   `tests/security/`, `make test-security`, `make test-security-live`.
+- **Pre-W6 cleanup (complete, 2026-04-20):** dormant root directories removed,
+  marketplace trigger planning narrowed to `TriggerPlan`, and
+  `executor/flows/playwright/monitor.py` reduced to a facade over split helper
+  modules.
 
 **PoC Must classes (ADR 0002):** A1 credential stealer, A2 cryptominer, A4
 remote-loader, A6 package.json script abuse. **Stretch classes (still in
 scope):** A3 typosquat, A5 malicious update, A7 VS Code API abuse.
 
 The priority list below describes the enduring engineering priorities inside
-that window; weekly scope is in `REFACTOR_OPTIMIZATION.md` §10.2.
+that window; weekly scope is in `REFACTOR_OPTIMIZATION.md` §10.2. W6 begins
+with behavior hardening, not structural cleanup.
 
 ## Current Priorities
 
@@ -43,8 +48,8 @@ that window; weekly scope is in `REFACTOR_OPTIMIZATION.md` §10.2.
 
 ### 2. Supply-Chain Boundary Tightening
 
-- land harness-extension checksum verification before trusting helper bundles in
-  W5 runs
+- keep harness-extension checksum verification enforced before trusting helper
+  bundles in W5/W6 runs
 - keep workflow access to Docker daemon behavior behind `executor.control`
 - avoid broadening sandbox trust assumptions without updating ADR 0002
 

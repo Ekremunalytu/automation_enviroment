@@ -37,6 +37,7 @@ from scenarios.workbench import (  # noqa: F401
     scenario_search_workflow,
     scenario_settings_modification,
 )
+from stimulus_types import AutomationExecutionResult, SkippedScenarioRecord
 
 from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import Page
@@ -47,40 +48,16 @@ _SCENARIO_EVENT_REPORTER: ScenarioEventReporter | None = None
 _ALL_SCENARIOS: list[ScenarioSpec] = build_default_scenarios()
 
 
-def run_all_scenarios(page: Page, shuffle: bool = False) -> list[str]:
+def run_all_scenarios(page: Page, shuffle: bool = False) -> AutomationExecutionResult:
     """Run all user behavior simulation scenarios sequentially."""
     scenarios = list(_ALL_SCENARIOS)
-    failed_scenarios: list[str] = []
     if shuffle:
         random.shuffle(scenarios)
-
-    for scenario in scenarios:
-        _emit_scenario_event(
-            "start", scenario.name, metadata=_scenario_metadata(scenario)
-        )
-        try:
-            scenario.handler(page)
-            _log(f"DONE: {scenario.name}")
-            _emit_scenario_event(
-                "end",
-                scenario.name,
-                "completed",
-                metadata=_scenario_metadata(scenario),
-            )
-        except (PlaywrightError, RuntimeError, ValueError) as exc:
-            _log(f"FAIL: {scenario.name} -> {exc}")
-            failed_scenarios.append(scenario.name)
-            _emit_scenario_event(
-                "end",
-                scenario.name,
-                "failed",
-                metadata=_scenario_metadata(scenario, error=str(exc)),
-            )
-            _recover_ui_state(page)
-        _cleanup_between_scenarios(page)
-        page.wait_for_timeout(1000)
-
-    return failed_scenarios
+    result = AutomationExecutionResult(
+        requested_scenarios=[scenario.name for scenario in scenarios]
+    )
+    _run_scenario_sequence(page, scenarios, result)
+    return result
 
 
 def run_scenario(page: Page, name: str) -> None:
@@ -113,39 +90,26 @@ def run_selected_scenarios(
     page: Page,
     names: list[str],
     shuffle: bool = False,
-) -> list[str]:
+) -> AutomationExecutionResult:
     """Run a subset of scenarios by name."""
-    selected = [scenario for name in names if (scenario := _scenario_map().get(name))]
+    result = AutomationExecutionResult(requested_scenarios=list(names))
+    selected: list[ScenarioSpec] = []
+    for name in names:
+        scenario = _scenario_map().get(name)
+        if scenario is None:
+            result.skipped_scenarios.append(
+                SkippedScenarioRecord(
+                    name=name,
+                    reason_code="unknown_scenario",
+                    detail=f"Scenario {name!r} is not registered in the executor.",
+                )
+            )
+            continue
+        selected.append(scenario)
     if shuffle:
         random.shuffle(selected)
-
-    failed: list[str] = []
-    for scenario in selected:
-        _emit_scenario_event(
-            "start", scenario.name, metadata=_scenario_metadata(scenario)
-        )
-        try:
-            scenario.handler(page)
-            _log(f"DONE: {scenario.name}")
-            _emit_scenario_event(
-                "end",
-                scenario.name,
-                "completed",
-                metadata=_scenario_metadata(scenario),
-            )
-        except (PlaywrightError, RuntimeError, ValueError) as exc:
-            _log(f"FAIL: {scenario.name} -> {exc}")
-            failed.append(scenario.name)
-            _emit_scenario_event(
-                "end",
-                scenario.name,
-                "failed",
-                metadata=_scenario_metadata(scenario, error=str(exc)),
-            )
-            _recover_ui_state(page)
-        _cleanup_between_scenarios(page)
-        page.wait_for_timeout(1000)
-    return failed
+    _run_scenario_sequence(page, selected, result)
+    return result
 
 
 def list_scenarios() -> list[str]:
@@ -217,6 +181,44 @@ def _emit_scenario_event(
 
 def _scenario_map() -> dict[str, ScenarioSpec]:
     return {scenario.name: scenario for scenario in _ALL_SCENARIOS}
+
+
+def _run_scenario_sequence(
+    page: Page,
+    scenarios: list[ScenarioSpec],
+    result: AutomationExecutionResult,
+) -> None:
+    for scenario in scenarios:
+        _append_unique(result.executed_scenarios, scenario.name)
+        _emit_scenario_event(
+            "start", scenario.name, metadata=_scenario_metadata(scenario)
+        )
+        try:
+            scenario.handler(page)
+            _log(f"DONE: {scenario.name}")
+            _emit_scenario_event(
+                "end",
+                scenario.name,
+                "completed",
+                metadata=_scenario_metadata(scenario),
+            )
+        except (PlaywrightError, RuntimeError, ValueError) as exc:
+            _log(f"FAIL: {scenario.name} -> {exc}")
+            _append_unique(result.failed_scenarios, scenario.name)
+            _emit_scenario_event(
+                "end",
+                scenario.name,
+                "failed",
+                metadata=_scenario_metadata(scenario, error=str(exc)),
+            )
+            _recover_ui_state(page)
+        _cleanup_between_scenarios(page)
+        page.wait_for_timeout(1000)
+
+
+def _append_unique(items: list[str], value: str) -> None:
+    if value not in items:
+        items.append(value)
 
 
 def _scenario_metadata(

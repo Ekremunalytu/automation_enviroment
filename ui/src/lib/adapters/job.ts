@@ -45,5 +45,6 @@ export function adaptJob(dto: AnalyzeJobStatusDto): SimulationViewModel {
     warmupCopy,
     lastUpdatedLabel: formatDate(dto.updated_at),
     recentMessages: steps.map((step) => `${formatStep(step.name)}: ${step.message}`).slice(-4),
+    reportError: dto.report_error ?? null,
   };
 }

@@ -141,16 +141,17 @@ Target guardrail set:
   - CI job refuses to run `make test-security-live` (defense in depth; the
     Makefile target already refuses under `CI`)
 
-Current implementation status (`2026-04-20`):
+Current implementation status (`2026-04-21`):
 
 - present:
   - `tests/security/test_fixture_hygiene.py`
   - `tests/security/test_rule_coverage.py`
   - `make test-security`
   - `make test-security-live`
+  - dedicated CI execution of `make test-security` with explicit egress policy
+  - CI assertion that `make test-security-live` fails under `CI=true`
 - not yet wired:
   - `scripts/check_fixture_install.py`
-  - dedicated CI execution of `make test-security` with explicit egress policy
 
 ### 7. Output Handling for Malicious Runs
 
