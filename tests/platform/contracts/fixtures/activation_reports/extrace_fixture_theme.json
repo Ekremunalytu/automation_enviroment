@@ -40,7 +40,7 @@
   "attribution_summary": {},
   "risk_signals": [],
   "risk_summary": {},
-  "verdict": {
+  "signal_summary": {
     "level": "benign",
     "score": 8,
     "note": "No executable surface was observed for the color-theme fixture."
@@ -101,7 +101,7 @@
     },
     "attribution_summary": {},
     "risk_summary": {},
-    "verdict": {
+    "signal_summary": {
       "level": "benign",
       "score": 8,
       "note": "No executable surface was observed for the color-theme fixture."

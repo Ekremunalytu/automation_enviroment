@@ -96,7 +96,7 @@ describe("SimulationPage", () => {
     vi.mocked(apiClient.getReportByName).mockResolvedValueOnce({
       report_version: 2,
       target_extension_expected: "ms.lint",
-      verdict: {},
+      signal_summary: {},
       scenario_traces: [],
       network_events: [],
       file_events: [],
@@ -266,7 +266,7 @@ describe("SimulationPage", () => {
       summary: {
         network_events: 1,
         skipped_scenarios: ["debug_session"],
-        verdict: {
+        signal_summary: {
           level: "needs_review",
           score: 34,
           reasons: ["The target extension was not observed with enough confidence."],

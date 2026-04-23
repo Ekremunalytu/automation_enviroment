@@ -46,8 +46,8 @@ Read these in order for most code changes:
 - `EXECUTOR_PLAYWRIGHT.md`
   - executor container, host wrapper, Playwright runtime
 - `DETECTION_SEMANTICS.md`
-  - exported `ActivationReport` JSON fields, health/verdict semantics, evidence
-    interpretation
+  - exported `ActivationReport` JSON fields, health/signal-summary
+    semantics, evidence interpretation
 - `VSCODE_API_COVERAGE_AUDIT.md`
   - trigger planning, capability support, official vs heuristic coverage
 - `docs/risks.md`

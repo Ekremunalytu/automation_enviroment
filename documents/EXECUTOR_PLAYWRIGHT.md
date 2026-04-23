@@ -205,7 +205,9 @@ The executor deletes the trigger JSON after loading it.
   - automation health, log health, runtime fact extraction, and coverage
     reconciliation
 - `signals.py`, `signal_facts.py`, `signal_policy.py`
-  - risk signal generation and verdict policy
+  - risk signal generation and activation-layer signal summary policy
+    (the detection-layer `Verdict` rollup lives in
+    `packages/analysis_contracts/detection/rollup.py`)
 - `annotation.py`
   - attribution helpers and summary logic
 - `capture.py`

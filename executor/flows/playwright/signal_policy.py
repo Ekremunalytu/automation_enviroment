@@ -1,4 +1,4 @@
-"""Risk signal and verdict policy helpers."""
+"""Risk signal and activation-layer signal summary policy helpers."""
 # mypy: disable-error-code=no-redef
 
 from __future__ import annotations
@@ -314,7 +314,7 @@ def build_risk_summary(signals: list[Any]) -> dict[str, Any]:
     }
 
 
-def build_verdict(
+def build_signal_summary(
     report: Any,
     *,
     automation_health: dict[str, Any],

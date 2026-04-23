@@ -50,7 +50,9 @@ flowchart LR
 
 - keep JSON fields stable for the UI
 - refine degraded vs inconclusive semantics
-- keep verdict and attribution signals aligned
+- keep signal summary and attribution signals aligned (authoritative
+  `Verdict` now lives on `DetectionReport`; activation-layer
+  `signal_summary` is a presentation-only behavioral heuristic)
 - keep activation reports artifact-first while async job state stays DB-backed
 
 ### Phase D: Detection Layer (W5-W6 complete, W7 acceptance)

@@ -10,7 +10,7 @@
     "trigger_applied": true,
     "target_activation_count": 1
   },
-  "verdict": {
+  "signal_summary": {
     "level": "benign",
     "score": 6,
     "note": "Deterministic benign chat participant fixture."

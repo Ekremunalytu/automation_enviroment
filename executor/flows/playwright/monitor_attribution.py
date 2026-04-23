@@ -26,7 +26,7 @@ try:
         indexed_target_network_events,
         indexed_ui_blockers,
     )
-    from .signals import build_risk_signals, build_risk_summary, build_verdict
+    from .signals import build_risk_signals, build_risk_summary, build_signal_summary
 except ImportError:  # pragma: no cover - top-level executor import mode
     from monitor_records import (
         EvidenceEvent,
@@ -48,7 +48,7 @@ except ImportError:  # pragma: no cover - top-level executor import mode
         indexed_target_network_events,
         indexed_ui_blockers,
     )
-    from signals import build_risk_signals, build_risk_summary, build_verdict
+    from signals import build_risk_signals, build_risk_summary, build_signal_summary
 
 if TYPE_CHECKING:
     try:
@@ -1095,13 +1095,13 @@ def _build_risk_summary(signals: list[RiskSignal]) -> dict[str, Any]:
     return build_risk_summary(signals)
 
 
-def _build_verdict(report: ActivationReport) -> dict[str, Any]:
+def _build_signal_summary(report: ActivationReport) -> dict[str, Any]:
     try:
         from .health import build_run_quality
     except ImportError:  # pragma: no cover - top-level executor import mode
         from health import build_run_quality
 
-    return build_verdict(
+    return build_signal_summary(
         report,
         automation_health=report.automation_health,
         run_quality=build_run_quality(report, report.automation_health),

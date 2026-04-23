@@ -119,7 +119,7 @@ class ActivationReport:
     verified_capabilities: list[str] = field(default_factory=list)
     heuristic_attempted_capabilities: list[str] = field(default_factory=list)
     heuristic_verified_capabilities: list[str] = field(default_factory=list)
-    verdict: dict[str, Any] = field(default_factory=dict)
+    signal_summary: dict[str, Any] = field(default_factory=dict)
     trigger_plan_requested: bool = False
     trigger_plan_loaded: bool = False
     trigger_plan_applied: bool = False

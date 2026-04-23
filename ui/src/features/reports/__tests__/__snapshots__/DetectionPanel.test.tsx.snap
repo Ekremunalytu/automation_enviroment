@@ -131,13 +131,13 @@ exports[`DetectionPanel > renders clean_with_notes verdict state 1`] = `
             <span
               class="rounded-full px-3 py-1 bg-warning/15 text-warning"
             >
-              Severity:
+              Severity: 
               Medium
             </span>
             <span
               class="rounded-full bg-panelAlt px-3 py-1 text-inkSoft"
             >
-              Confidence:
+              Confidence: 
               Medium
             </span>
             <span
@@ -256,13 +256,13 @@ exports[`DetectionPanel > renders inconclusive verdict state 1`] = `
             <span
               class="rounded-full px-3 py-1 bg-warning/15 text-warning"
             >
-              Severity:
+              Severity: 
               Medium
             </span>
             <span
               class="rounded-full bg-panelAlt px-3 py-1 text-inkSoft"
             >
-              Confidence:
+              Confidence: 
               Medium
             </span>
             <span
@@ -381,13 +381,13 @@ exports[`DetectionPanel > renders malicious verdict state 1`] = `
             <span
               class="rounded-full px-3 py-1 bg-danger/15 text-danger"
             >
-              Severity:
+              Severity: 
               Critical
             </span>
             <span
               class="rounded-full bg-panelAlt px-3 py-1 text-inkSoft"
             >
-              Confidence:
+              Confidence: 
               High
             </span>
             <span
@@ -506,13 +506,13 @@ exports[`DetectionPanel > renders suspicious verdict state 1`] = `
             <span
               class="rounded-full px-3 py-1 bg-warning/15 text-warning"
             >
-              Severity:
+              Severity: 
               Medium
             </span>
             <span
               class="rounded-full bg-panelAlt px-3 py-1 text-inkSoft"
             >
-              Confidence:
+              Confidence: 
               Medium
             </span>
             <span

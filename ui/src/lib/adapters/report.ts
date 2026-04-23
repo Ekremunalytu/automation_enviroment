@@ -436,11 +436,12 @@ function buildSummary(report: ActivationReportDto, events: EvidenceEventView[]):
   const summary = report.summary || {};
   const automationHealth = buildAutomationHealth(report.automation_health, summary);
   const logHealth = buildLogHealth(report.log_health, summary);
-  const verdict =
-    typeof summary.verdict === "object" && summary.verdict
-      ? (summary.verdict as Record<string, unknown>)
+  const signalSummary =
+    typeof summary.signal_summary === "object" && summary.signal_summary
+      ? (summary.signal_summary as Record<string, unknown>)
       : {};
-  const verdictLevel = typeof verdict.level === "string" ? verdict.level : "needs_review";
+  const signalSummaryLevel =
+    typeof signalSummary.level === "string" ? signalSummary.level : "needs_review";
   const officialAttempted = Array.isArray(summary.attempted_capabilities)
     ? summary.attempted_capabilities.map(String)
     : Array.isArray(report.official_attempted_capabilities)
@@ -511,16 +512,18 @@ function buildSummary(report: ActivationReportDto, events: EvidenceEventView[]):
     targetStreamPresent: automationHealth.targetStreamPresent,
     targetActivationCount: automationHealth.targetActivationCount,
     legacyHealthFallback: automationHealth.legacyHealthFallback,
-    verdictLevel:
-      verdictLevel === "benign" ||
-      verdictLevel === "needs_review" ||
-      verdictLevel === "suspicious" ||
-      verdictLevel === "likely_malicious"
-        ? verdictLevel
+    signalSummaryLevel:
+      signalSummaryLevel === "benign" ||
+      signalSummaryLevel === "needs_review" ||
+      signalSummaryLevel === "suspicious" ||
+      signalSummaryLevel === "likely_malicious"
+        ? signalSummaryLevel
         : "needs_review",
-    verdictScore: Number(verdict.score ?? 0),
-    verdictReasons: Array.isArray(verdict.reasons) ? verdict.reasons.map(String) : [],
-    verdictNote: typeof verdict.note === "string" ? verdict.note : "",
+    signalSummaryScore: Number(signalSummary.score ?? 0),
+    signalSummaryReasons: Array.isArray(signalSummary.reasons)
+      ? signalSummary.reasons.map(String)
+      : [],
+    signalSummaryNote: typeof signalSummary.note === "string" ? signalSummary.note : "",
   };
 }
 

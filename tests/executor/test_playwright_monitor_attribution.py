@@ -676,11 +676,11 @@ def test_verdict_stays_bounded_when_only_correlative_sensitive_activity_exists()
         target_extension_id="publisher.tool",
     )
 
-    verdict = monitor._build_verdict(report)
+    signal_summary = monitor._build_signal_summary(report)
 
-    assert verdict["level"] in {"needs_review", "suspicious"}
-    assert verdict["level"] != "likely_malicious"
-    assert verdict["reasons"]
+    assert signal_summary["level"] in {"needs_review", "suspicious"}
+    assert signal_summary["level"] != "likely_malicious"
+    assert signal_summary["reasons"]
 
 
 def test_inconclusive_run_never_returns_benign() -> None:
@@ -691,11 +691,11 @@ def test_inconclusive_run_never_returns_benign() -> None:
         trigger_plan_applied=False,
     )
 
-    verdict = monitor._build_verdict(report)
+    signal_summary = monitor._build_signal_summary(report)
 
     assert report.run_quality == "inconclusive"
-    assert verdict["level"] == "needs_review"
-    assert "inconclusive" in verdict["note"].lower()
+    assert signal_summary["level"] == "needs_review"
+    assert "inconclusive" in signal_summary["note"].lower()
 
 
 def test_trigger_requested_but_not_loaded_is_inconclusive() -> None:
@@ -732,7 +732,7 @@ def test_trigger_requested_but_not_loaded_is_inconclusive() -> None:
     assert health["status"] == "inconclusive"
     assert "trigger_plan_not_loaded" in health["reasons"]
     assert "trigger_plan_not_applied" in health["reasons"]
-    assert monitor._build_verdict(report)["level"] != "benign"
+    assert monitor._build_signal_summary(report)["level"] != "benign"
 
 
 def test_target_running_alone_does_not_verify_window_ui() -> None:

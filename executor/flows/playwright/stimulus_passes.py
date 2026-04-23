@@ -334,7 +334,7 @@ def _unsupported_surface_reason(
         return None
     return (
         "unsupported_activation_surface",
-        f"Activation family {event_family!r} is not supported by the W6 executor.",
+        f"Activation family {event_family!r} is not supported by the executor.",
     )
 
 

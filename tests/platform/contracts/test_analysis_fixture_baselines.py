@@ -56,7 +56,7 @@ def test_activation_report_fixture_exposes_minimum_shape() -> None:
         "report_version",
         "target_extension_expected",
         "automation_health",
-        "verdict",
+        "signal_summary",
         "summary",
         "scenario_traces",
         "evidence_events",
@@ -68,7 +68,7 @@ def test_activation_report_fixture_exposes_minimum_shape() -> None:
     assert required_keys.issubset(report)
     assert report["target_extension_expected"] == "ms-python.python"
     assert isinstance(report["automation_health"], dict)
-    assert isinstance(report["verdict"], dict)
+    assert isinstance(report["signal_summary"], dict)
     assert isinstance(report["summary"], dict)
     assert isinstance(report["scenario_traces"], list)
     assert isinstance(report["evidence_events"], list)

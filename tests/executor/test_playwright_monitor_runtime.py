@@ -77,7 +77,7 @@ def test_activation_report_save_is_atomic(tmp_path: Path) -> None:
     assert payload["target_extension_expected"] == "sample.ext"
     assert payload["target_extension_observed"] is True
     assert payload["run_quality"] == "inconclusive"
-    assert payload["verdict"] == {}
+    assert payload["signal_summary"] == {}
     assert payload["automation_health"]["status"] == "inconclusive"
     assert "target_stream_missing" in payload["automation_health"]["reasons"]
     assert payload["log_health"]["extension_host_log_found"] is False

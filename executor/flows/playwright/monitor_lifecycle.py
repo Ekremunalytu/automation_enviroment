@@ -21,7 +21,7 @@ try:
         _annotate_file_events,
         _annotate_network_events,
         _annotate_process_events,
-        _build_verdict,
+        _build_signal_summary,
         _format_epoch_timestamp,
         _relative_time,
         _scenario_name_for_timestamp,
@@ -60,7 +60,7 @@ except ImportError:  # pragma: no cover - top-level executor import mode
         _annotate_file_events,
         _annotate_network_events,
         _annotate_process_events,
-        _build_verdict,
+        _build_signal_summary,
         _format_epoch_timestamp,
         _relative_time,
         _scenario_name_for_timestamp,
@@ -783,7 +783,7 @@ class ExtensionMonitor:
             self.report.coverage_matrix,
             self.report.coverage_tracks,
         ) = _reconcile_coverage_verification(self.report)
-        self.report.verdict = _build_verdict(self.report)
+        self.report.signal_summary = _build_signal_summary(self.report)
         self.report.evidence_links = self.report.canonical_evidence_links
 
     def _persist_report(self, force: bool) -> None:

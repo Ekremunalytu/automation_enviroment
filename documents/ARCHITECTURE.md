@@ -100,7 +100,9 @@ Sandbox control and runtime.
 - `executor/flows/playwright/`
   - VS Code automation, trigger loading, the thin `monitor.py` facade, and
     sibling lifecycle/source/runtime/attribution helpers for report building,
-    health derivation, and risk/verdict calculation
+    health derivation, and risk/signal-summary calculation (the
+    authoritative detection-layer `Verdict` lives in
+    `packages/analysis_contracts/detection/`)
 - `executor/flows/playwright/runtime_capture/`
   - monitor-owned network, filesystem, extension-host, and log-summary helpers
     re-exported through `monitor.py`

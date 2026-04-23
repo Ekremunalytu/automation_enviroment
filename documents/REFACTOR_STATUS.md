@@ -1,6 +1,6 @@
 # Refactor Status
 
-`Last Updated: 2026-04-23 (W6 correctness follow-up + closure)`
+`Last Updated: 2026-04-23 (W7 entry cleanup: W6 wording drop, SimulationPage exhaustive-deps fix, DetectionPanel snapshot refresh, pre-commit .snap trailing-whitespace exclusion, activation-layer verdict → signal_summary rename)`
 
 This is the active status board for the Week 1-4 stabilization work and the
 pre-W6 cleanup handoff. Use this file for current closure state; use
@@ -250,38 +250,47 @@ Risk log surfaced during the post-W6 review on `2026-04-21`. None block the
 bridge landing, but each is load-bearing for W7 acceptance or for
 post-PoC quality.
 
-- **Verdict vocabulary is split (medium).**
-  `signal_policy.build_verdict` emits
-  `likely_malicious / suspicious / needs_review / benign`; detection-layer
-  `packages.analysis_contracts.detection.rollup.compute_verdict` emits
-  `malicious / suspicious / clean_with_notes / clean / inconclusive`.
-  Analyst UI can surface both, so a single run may read "needs_review"
-  in one panel and "inconclusive" in another. W7 action: pick the
-  detection-layer enum as authoritative and demote the activation-layer
-  verdict to a presentation-only field or drop it. Reference: ADR 0003
-  §5.
+- **Verdict vocabulary split resolved (W7 entry, 2026-04-23).** The
+  activation-layer verdict has been demoted to a presentation-only
+  field: `signal_policy.build_signal_summary` (renamed from
+  `build_verdict`) now populates `ActivationReport.signal_summary`, and
+  the UI consumes it as `ReportSummaryView.signalSummary*`. The
+  detection-layer `Verdict` enum
+  (`packages.analysis_contracts.detection.rollup.compute_verdict` →
+  `malicious / suspicious / clean_with_notes / clean / inconclusive`)
+  is the sole authoritative verdict vocabulary. The activation-layer
+  signal summary (`likely_malicious / suspicious / needs_review /
+  benign`) remains visible in the dashboard-level risk panel as a
+  sandbox behavioral heuristic, clearly separated from rule-driven
+  verdicts. Reference: ADR 0003 §5.
 - **`monitor_attribution.py` is still ~1100 LoC (low, post-PoC).**
   Post-W6 refactor split `monitor.py` and `stimulus.py` cleanly, but the
   attribution module still bundles evidence-link builders and signal
   facts. Not shipping-critical; becomes a rule-author friction point
-  after W7. Track in the post-PoC modularization backlog alongside
-  `analysis_service` decomposition (7.1.1).
+  after W7. Track in the post-PoC modularization backlog. (Historical
+  note: `analysis_service` decomposition 7.1.1 already landed — see
+  `analysis_execution.py` and `analysis_reports.py` — so it is no longer
+  a sibling of this item.)
 - **UI detection surface is minimum-viable (medium for demo).**
-  `DetectionPanel` and `FindingCard` render the contract but carry one
-  pre-existing `react-hooks/exhaustive-deps` warning and no axe-core
-  coverage. If W7 demo is stakeholder-facing, reserve part of the W7
-  buffer for UI polish. Otherwise this stays on the post-PoC UI lane
-  (REFACTOR_OPTIMIZATION.md §10.3).
+  `DetectionPanel` and `FindingCard` render the contract. The
+  `react-hooks/exhaustive-deps` warning on `SimulationPage.tsx` was
+  cleaned up during W7 entry (2026-04-23) by wrapping `filteredEvents`
+  in `useMemo`; a stale snapshot on `DetectionPanel.test.tsx` was also
+  refreshed at the same time. Axe-core accessibility coverage still
+  missing — if W7 demo is stakeholder-facing, reserve part of the W7
+  buffer for axe-core wiring; otherwise this stays on the post-PoC UI
+  lane (REFACTOR_OPTIMIZATION.md §10.3).
 - **Stretch adversary classes A3/A5/A7 have no rules (low for PoC,
   medium for demo).** PoC bar only requires A1/A2/A4/A6 and that bar is
   met. However a single A3 (typosquat) canary + rule materially
   improves demo readability because the signal is human-obvious. Candidate
   for W7 buffer if acceptance items close early; otherwise hold.
 
-Each item has a single natural owner: verdict vocabulary is a contracts
-change, modularization is an executor change, UI polish is a UI change,
-A3 coverage is a detection-engine change. Pick by remaining W7 buffer,
-not by novelty.
+Each item has a single natural owner: modularization is an executor
+change, UI polish is a UI change, A3 coverage is a detection-engine
+change. (Verdict vocabulary split was resolved at W7 entry — see the
+item above.) Pick remaining items by available W7 buffer, not by
+novelty.
 
 ## Week 5 Start Rule
 

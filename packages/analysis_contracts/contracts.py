@@ -259,7 +259,7 @@ class ActivationReport(StrictContractModel):
     report_version: int
     target_extension_expected: str
     automation_health: dict[str, Any]
-    verdict: dict[str, Any]
+    signal_summary: dict[str, Any]
     summary: dict[str, Any]
     scenario_traces: list[ScenarioTrace]
     skipped_scenarios: list[SkippedScenarioRecord] = Field(default_factory=list)
