@@ -1,6 +1,6 @@
 # Refactor Status
 
-`Last Updated: 2026-04-21 (post-W6 detection bridge)`
+`Last Updated: 2026-04-23 (W6 correctness follow-up + closure)`
 
 This is the active status board for the Week 1-4 stabilization work and the
 pre-W6 cleanup handoff. Use this file for current closure state; use
@@ -134,14 +134,81 @@ Closure evidence captured while finishing the last open items:
   install, verifies that the block is real, and asserts that
   `make test-security-live` refuses to run under `CI=true`.
 
-## W6 Status (2026-04-21)
+## W6 Status (2026-04-23, closed)
 
 - Pre-W6 structural cleanup remains complete.
 - W6 automation reliability, report honesty, capture hardening, and CI egress
-  enforcement are now implemented.
+  enforcement are implemented.
+- W6 correctness follow-up (2026-04-23) closed the three blocking gaps
+  surfaced during the post-W6 review (see §"W6 correctness follow-up"
+  below). W6 is now closed; remaining detection improvements move to W7
+  buffer or the post-PoC backlog.
 - Structural tree cleanup, legacy trigger-plan compatibility, and `monitor.py`
   modularization are no longer open W6 scope items unless a regression is
   found.
+
+## W6 Correctness Follow-up (2026-04-23)
+
+Three detection-engine correctness gaps and one CI-visibility gap landed
+between the W6 hardening commits and W7 entry. None change architecture;
+each was required for the W7 acceptance bar to mean anything.
+
+- **Attribution gating on A1/A2/A4 (ADR 0002 §4, ADR 0003 §4).** The
+  production rules for A1 (credential-read-then-network), A2 (startup
+  network beacon), and A4 (workspace exfil) previously keyed on event
+  `kind`, path, and host only, ignoring the activation report's own
+  `is_target_extension_event` and `attribution_status` fields. On live
+  scans carrying automation noise or sibling-extension activity, rules
+  could fire for evidence the report explicitly did not attribute to the
+  analyzed extension. New helpers in
+  `packages/analysis_engine/rules/_common.py` —
+  `target_file_events()` and `target_unknown_outbound_network_events()` —
+  now admit only events with `is_target_extension_event == True` and
+  `attribution_status in {"strong", "direct"}`. A1/A2/A4 route through
+  them.
+- **TLS vocabulary (`tls_client_hello`).** The live `tshark` capture
+  emits TLS sessions as `tls_client_hello`; the production rules only
+  accepted the legacy `tls_sni` spelling, so A1/A2/A4 were effectively
+  dead on live data. A shared `TLS_EVENT_TYPES` constant and
+  `is_tls_event()` helper now cover both spellings, and the three rules
+  use the helper.
+- **Error dominance in the runner (ADR 0003 §5).** The detection runner
+  previously swallowed handled rule exceptions and still returned
+  `Verdict.CLEAN` when every rule errored on an otherwise-healthy
+  report, making detector failures indistinguishable from clean runs.
+  `packages/analysis_engine/runner.py` now checks
+  `RuleExecutionStatus.ERROR` before verdict rollup and degrades the
+  automation-health input to `inconclusive` with a
+  `rule_execution_errors` blocker, so errors dominate the rollup.
+- **Security fixtures reach CI.** `extensions/` was wholly gitignored,
+  so the T1 internal canaries under `extensions/malicious/` and the
+  benign-silence baselines at `extrace.fixture-chat-0.0.1` and
+  `extrace.fixture-theme-0.0.1` never reached the `security-fixtures`
+  CI job — the lane was green only because it failed to collect the
+  tests W5 depended on. `.gitignore` now ignores `extensions/*` with
+  explicit exceptions for the fixtures the security and detection
+  tests exercise. The canary evidence carries the target-attribution
+  fields the updated rule helpers require.
+- **Executor test isolation + layered run_quality label.** The
+  `monitor` package-import test popped flat module names from
+  `sys.modules` without restoring them, which made
+  `resolve_monitor_api()` return the package module for later tests
+  that monkeypatched the flat module object — suite order decided
+  whether runtime tests saw their patches. `sys.modules` is now
+  snapshotted and restored around the package import. Separately,
+  `build_run_quality` in `executor/flows/playwright/health_summary.py`
+  previously returned an empty reason list on layered-medium because
+  `build_automation_health` only records `verification_gap` and
+  `chat-tool` reasons in non-layered mode; the layered path now
+  appends the explicit reason text locally, and
+  `official_unresolved_present` is exposed as a reason label so the UI
+  can explain why the run landed at medium.
+
+Tests backing this follow-up: `tests/security/rules/test_rule_attribution.py`
+(target vs. unattributed evidence plus live `tls_client_hello` vocabulary
+across A1/A2/A4); updated `tests/platform/engine/test_rule_runner.py`
+(all-errors dominance case; existing error-does-not-abort test now asserts
+`inconclusive`); updated executor monitor package-import test.
 
 ## Post-W6 Detection Bridge (2026-04-21)
 

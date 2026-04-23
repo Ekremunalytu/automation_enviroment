@@ -1,6 +1,6 @@
 # Agent Context
 
-`Last Updated: 2026-04-21`
+`Last Updated: 2026-04-23`
 
 This is the thin-context project map for coding agents. Read root `AGENTS.md`
 for hard rules first; use this file for fast task routing.
@@ -11,7 +11,7 @@ If older docs or task notes conflict with the active refactor direction, check
 `documents/REFACTOR_OPTIMIZATION.md` §10 (W0-W7 7-week window). Treat
 `documents/REFACTOR_EXPANSION_NOTES.md` as non-binding follow-on guidance.
 
-## Project Phase Snapshot (2026-04-21)
+## Project Phase Snapshot (2026-04-23)
 
 - Week 4 stabilization closed on `2026-04-20`; that closure remains the gate
   before any broader W5 detection work reopens runtime boundaries.
@@ -25,6 +25,14 @@ If older docs or task notes conflict with the active refactor direction, check
 - Post-W6 bridge (2026-04-21): `RiskSignal.confidence_tier` via
   `quantize_confidence` + `detection_report_invariant_issues`
   cross-layer link check.
+- W6 correctness follow-up (2026-04-23): A1/A2/A4 now consult
+  `is_target_extension_event` + `attribution_status ∈ {strong,direct}`
+  via `target_file_events` / `target_unknown_outbound_network_events`;
+  `tls_client_hello` added to `TLS_EVENT_TYPES`; any
+  `RuleExecutionStatus.ERROR` degrades automation health to
+  `inconclusive` before verdict rollup; `.gitignore` exception-list so
+  T1 canaries + chat/theme benign baselines actually reach the
+  `security-fixtures` CI lane. **W6 closed.**
 - W7: acceptance + buffer (open).
 
 ## Read Path

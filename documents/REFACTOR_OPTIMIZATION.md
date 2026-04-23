@@ -1,6 +1,6 @@
 # Refactor Optimization — Plan Kritiği ve Düzeltme Önerileri
 
-`Last Updated: 2026-04-21`
+`Last Updated: 2026-04-23`
 
 > **Değerlendirici (yazarlar):**
 >
@@ -1123,6 +1123,45 @@ Bir sonraki Claude veya GPT pass'i, doğrulama sırasında şunları yapsın:
 - W6 kapsamı yapısal temizlik değil; açık kalan maddeler automation
   reliability + capture hardening backlog'unda kalıyor.
    tamamen silme — üstlerine çizgi çek (`~~...~~`).
+
+### 9.6 Güncel Durum Doğrulaması (2026-04-23, GPT-5.4 + Claude Opus 4.7)
+
+W6 korelasyon + capture hardening commit'lerinden sonra post-W6 review üç
+detection-engine correctness gap'i ve bir CI-görünürlük gap'i tespit etti.
+Bu pass'te dördü de kapatıldı; W6 kapanışa alındı.
+
+- **A1/A2/A4 attribution gating.** Kurallar `ActivationReport`'un
+  `is_target_extension_event` + `attribution_status` alanlarını yok
+  sayıyordu; `target_file_events()` ve
+  `target_unknown_outbound_network_events()` helper'ları
+  (`packages/analysis_engine/rules/_common.py`) target-only evidence'a
+  kilitliyor. ADR 0002 §4 trust boundary ve ADR 0003 §4 finding
+  attribution ile hizalı.
+- **TLS vocabulary (`tls_client_hello`).** Live tshark çıktısı
+  `tls_client_hello` emit ediyor; production kuralları yalnızca legacy
+  `tls_sni` kabul ediyordu → live veride A1/A2/A4 dead idi. Shared
+  `TLS_EVENT_TYPES` constant'ı ve `is_tls_event()` helper'ı her iki
+  spelling'i kapsıyor.
+- **Runner error dominance.** Handled rule exception'ları sessizce
+  yutuluyor, her kural error etse bile `Verdict.CLEAN` dönebiliyordu.
+  `packages/analysis_engine/runner.py` artık `RuleExecutionStatus.ERROR`
+  görürse automation-health input'unu `rule_execution_errors`
+  blocker'ıyla `inconclusive`'e düşürüyor (ADR 0003 §5 error dominance).
+- **Security fixtures CI'a ulaşıyor.** `extensions/` klasörü tümüyle
+  gitignored olduğundan T1 canary'leri ve chat/theme benign
+  baseline'ları `security-fixtures` job'una hiç inmiyordu — lane yeşildi
+  çünkü toplayacak test bulamıyordu. `.gitignore` artık `extensions/*`
+  pattern'iyle narrow; fixture path'leri exception list'te.
+- **Executor test isolation + layered run_quality label.** `monitor`
+  package-import testi `sys.modules`'u restore etmiyordu; layered
+  medium `run_quality` boş reason list dönüyordu. İkisi de bu pass'te
+  kapatıldı; `official_unresolved_present` artık UI'ya reason olarak
+  taşınıyor.
+
+Bu pass Bölüm 10.2 tablosundaki W6 kapsamını **değiştirmiyor**; W6
+satırındaki "PoC must" maddelerinin teslim edildiğini doğruluyor.
+`REFACTOR_STATUS.md` "W6 Correctness Follow-up (2026-04-23)" bloğu
+commit referanslarını ve test listesini tutuyor.
 
 ---
 
