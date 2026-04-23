@@ -14,10 +14,11 @@ from packages.analysis_contracts.detection import (
 )
 from packages.analysis_engine.rules._common import (
     event_type,
-    file_events,
+    is_tls_event,
     make_evidence_ref,
     rel_time,
-    unknown_outbound_network_events,
+    target_file_events,
+    target_unknown_outbound_network_events,
 )
 from packages.analysis_engine.rules.registry import register
 
@@ -35,14 +36,14 @@ class CredentialReadThenNetworkRule:
     def evaluate(self, report: ActivationReport) -> list[DetectionFinding]:
         candidate_files = [
             event
-            for event in file_events(report)
+            for event in target_file_events(report)
             if event.operation.strip().lower() == "read"
             and _CREDENTIAL_PATH_PATTERN.search(event.path)
         ]
         candidate_network = [
             event
-            for event in unknown_outbound_network_events(report)
-            if event_type(event) in {"http_request", "tls_sni"}
+            for event in target_unknown_outbound_network_events(report)
+            if event_type(event) == "http_request" or is_tls_event(event)
         ]
 
         findings: list[DetectionFinding] = []

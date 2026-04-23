@@ -13,6 +13,9 @@ _BENIGN_DOMAIN_PATH = (
     Path(__file__).resolve().parents[1] / "allowlists" / "benign_domains.txt"
 )
 
+TLS_EVENT_TYPES: frozenset[str] = frozenset({"tls_sni", "tls_client_hello"})
+_TARGET_ATTRIBUTION_STATUSES: frozenset[str] = frozenset({"strong", "direct"})
+
 
 @lru_cache(maxsize=1)
 def benign_domains() -> frozenset[str]:
@@ -87,6 +90,32 @@ def unknown_outbound_network_events(report: ActivationReport) -> list[EvidenceEv
     ]
 
 
+def is_target_owned(event: EvidenceEvent) -> bool:
+    """Event attributed to the analyzed extension with non-correlative strength."""
+
+    if event.is_target_extension_event:
+        return True
+    return event.attribution_status.strip().lower() in _TARGET_ATTRIBUTION_STATUSES
+
+
+def target_file_events(report: ActivationReport) -> list[EvidenceEvent]:
+    return [event for event in file_events(report) if is_target_owned(event)]
+
+
+def target_unknown_outbound_network_events(
+    report: ActivationReport,
+) -> list[EvidenceEvent]:
+    return [
+        event
+        for event in unknown_outbound_network_events(report)
+        if is_target_owned(event)
+    ]
+
+
+def is_tls_event(event: EvidenceEvent) -> bool:
+    return event_type(event) in TLS_EVENT_TYPES
+
+
 def make_evidence_ref(event: EvidenceEvent, **extra: Any) -> EvidenceRef:
     type_name = "event"
     if event.kind == "file":
@@ -124,15 +153,20 @@ def make_evidence_ref(event: EvidenceEvent, **extra: Any) -> EvidenceRef:
 
 
 __all__ = [
+    "TLS_EVENT_TYPES",
     "activation_time",
     "event_message",
     "event_method",
     "event_type",
     "file_events",
     "is_benign_domain",
+    "is_target_owned",
+    "is_tls_event",
     "make_evidence_ref",
     "network_events",
     "outbound_network_events",
     "rel_time",
+    "target_file_events",
+    "target_unknown_outbound_network_events",
     "unknown_outbound_network_events",
 ]

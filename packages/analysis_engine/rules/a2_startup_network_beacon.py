@@ -12,10 +12,10 @@ from packages.analysis_contracts.detection import (
 )
 from packages.analysis_engine.rules._common import (
     activation_time,
-    event_type,
+    is_tls_event,
     make_evidence_ref,
     rel_time,
-    unknown_outbound_network_events,
+    target_unknown_outbound_network_events,
 )
 from packages.analysis_engine.rules.registry import register
 
@@ -35,9 +35,8 @@ class StartupNetworkBeaconRule:
 
         outbound_tls_events = [
             event
-            for event in unknown_outbound_network_events(report)
-            if event_type(event) == "tls_sni"
-            and 0 <= rel_time(event) - activated_at <= 10
+            for event in target_unknown_outbound_network_events(report)
+            if is_tls_event(event) and 0 <= rel_time(event) - activated_at <= 10
         ]
         outbound_tls_events.sort(key=rel_time)
         early_burst = [

@@ -127,13 +127,14 @@ def test_rule_runner_builds_detection_report() -> None:
     assert [item.status for item in report.rules_executed] == ["fired", "silent"]
 
 
-def test_error_in_rule_does_not_abort_run() -> None:
+def test_error_in_rule_forces_inconclusive_verdict() -> None:
     report = run_detection(
         _activation_report(),
         rules=[_FailingRule(), _FiringRule()],
     )
 
-    assert report.verdict == Verdict.SUSPICIOUS
+    assert report.verdict == Verdict.INCONCLUSIVE
+    assert "rule_execution_errors" in report.verdict_rationale
     assert len(report.findings) == 1
     assert report.rules_executed[0].status == "error"
     assert report.rules_executed[0].error_detail == "synthetic evaluation failure"
@@ -149,6 +150,18 @@ def test_draft_rules_are_capped_to_low_confidence_and_non_malicious() -> None:
     assert report.verdict == Verdict.SUSPICIOUS
     assert report.findings[0].severity == Severity.MEDIUM
     assert report.findings[0].confidence == Confidence.LOW
+
+
+def test_all_rules_error_cannot_produce_clean_verdict() -> None:
+    report = run_detection(
+        _activation_report(),
+        rules=[_FailingRule()],
+    )
+
+    assert report.verdict == Verdict.INCONCLUSIVE
+    assert report.findings == []
+    assert all(item.status == "error" for item in report.rules_executed)
+    assert "extrace.test.error" in report.verdict_rationale
 
 
 def test_unexpected_rule_errors_are_re_raised() -> None:

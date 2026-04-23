@@ -120,6 +120,32 @@ def _normalize_findings(
     return normalized
 
 
+def _degrade_health_for_rule_errors(
+    automation_health: AutomationHealthStatus,
+    rules_executed: list[RuleExecutionRecord],
+) -> AutomationHealthStatus:
+    errored_rule_ids = [
+        record.rule_id
+        for record in rules_executed
+        if record.status == RuleExecutionStatus.ERROR
+    ]
+    if not errored_rule_ids:
+        return automation_health
+
+    blocker = "rule_execution_errors: " + ", ".join(sorted(set(errored_rule_ids)))
+    merged_reasons = list(automation_health.reasons)
+    if blocker not in merged_reasons:
+        merged_reasons.append(blocker)
+    merged_blockers = list(automation_health.blockers)
+    if blocker not in merged_blockers:
+        merged_blockers.append(blocker)
+    return AutomationHealthStatus(
+        status="inconclusive",
+        reasons=merged_reasons,
+        blockers=merged_blockers,
+    )
+
+
 def _guard_malicious_without_production(
     verdict: Verdict,
     findings: list[DetectionFinding],
@@ -173,6 +199,9 @@ def run_detection(
         )
 
     automation_health = _coerce_automation_health(activation_report)
+    automation_health = _degrade_health_for_rule_errors(
+        automation_health, rules_executed
+    )
     verdict, rationale = compute_verdict(findings, automation_health)
     verdict, rationale = _guard_malicious_without_production(
         verdict, findings, rationale
