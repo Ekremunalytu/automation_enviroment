@@ -1,0 +1,21 @@
+{
+  "id": "t1-a3-typosquat-canary",
+  "tier": "T1",
+  "source": {
+    "kind": "internal_canary",
+    "reference": "week7/a3/typosquat",
+    "sha256": null
+  },
+  "category": {
+    "adversary_class": "A3",
+    "taxonomy": ["attack.T1036"]
+  },
+  "expected_detections": {
+    "must_fire": ["extrace.a3.typosquat"],
+    "must_not_fire": []
+  },
+  "declawing": null,
+  "retention": {
+    "expires": null
+  }
+}

@@ -1,6 +1,6 @@
 # Refactor Status
 
-`Last Updated: 2026-04-23 (W7 entry cleanup: W6 wording drop, SimulationPage exhaustive-deps fix, DetectionPanel snapshot refresh, pre-commit .snap trailing-whitespace exclusion, activation-layer verdict → signal_summary rename)`
+`Last Updated: 2026-04-23 (W7 closed — §10.7 11/11 green; A3 typosquat rule + canary landed; monitor_attribution.py split deferred to POST_POC_BACKLOG.md)`
 
 This is the active status board for the Week 1-4 stabilization work and the
 pre-W6 cleanup handoff. Use this file for current closure state; use
@@ -16,11 +16,15 @@ pre-W6 cleanup handoff. Use this file for current closure state; use
 
 ## Current State
 
-- Week 4 closure (2026-04-20), W5 detection foundations (2026-04-20), and W6
+- Week 4 closure (2026-04-20), W5 detection foundations (2026-04-20), W6
   automation reliability + capture hardening (closed 2026-04-23 after the
-  correctness follow-up) are all green.
-- **W7 (acceptance + buffer)** is now the active gate; entry rule is the PoC
-  acceptance checklist in `REFACTOR_OPTIMIZATION.md` §10.7.
+  correctness follow-up), and **W7 acceptance + buffer (closed
+  2026-04-23)** are all green. PoC acceptance bar
+  (`REFACTOR_OPTIMIZATION.md` §10.7) is satisfied; stretch rule A3
+  (typosquat impersonation) landed as a W7 Phase 3a buffer item. See
+  the "W7 Closure" section below and
+  [`documents/POST_POC_BACKLOG.md`](POST_POC_BACKLOG.md) for the deferred
+  work items.
 - Async marketplace job state is durable in PostgreSQL via `analysis_jobs`.
 - Activation reports remain artifact-first under `output/activation_report_*.json`.
 - Workflow code depends on the sandbox through `executor.control`.
@@ -291,6 +295,165 @@ change, UI polish is a UI change, A3 coverage is a detection-engine
 change. (Verdict vocabulary split was resolved at W7 entry — see the
 item above.) Pick remaining items by available W7 buffer, not by
 novelty.
+
+## W7 Acceptance Validation (2026-04-23)
+
+Phase 1 of the W7 plan: each `REFACTOR_OPTIMIZATION.md` §10.7 checklist
+item re-verified against current `week7` branch state. All items except
+the demo scenario doc are green; that single gap is the scope of Phase 2.
+
+### Stabilization side (5/5 green)
+
+| # | Item | Evidence |
+|---|---|---|
+| S1 | Legacy folders removed | `routers/`, `scanner/`, `core/`, `database/`, `crud/`, `models/`, `schemas/`, `apps/`, `legacy_ui/` absent from repo surface. |
+| S2 | `packages/` import-graph test in CI | `tests/architecture/test_import_graph.py` (3 tests: `test_packages_remain_framework_agnostic`, `test_executor_avoids_workflow_and_appcore_imports`, `test_workflows_use_only_executor_control_boundary`) — all pass. `.github/workflows/ci.yml:150` carries the `security-fixtures` job that runs `make test-security`. |
+| S3 | VS Code pinned + harness checksum verified | `executor/container/Dockerfile:14-20,118-121` declares `EXECUTOR_VSCODE_VERSION` build-arg (default `1.116.0` via `docker-compose.yml`) and writes the harness sha256 manifest; `executor/container/start.sh:17-83` verifies it before VS Code starts. |
+| S4 | `monitor.py` split into capture/ subpackage | `executor/flows/playwright/runtime_capture/` holds `events.py`, `extension_host.py`, `filesystem.py`, `log_summary.py`, `network.py`, `__init__.py`; `monitor.py` is a thin re-export facade. |
+| S5 | `ExecutorControl` wrapper in place | `executor/control.py:19-50` defines the dataclass; `tests/architecture/test_import_graph.py:79-82` enforces that workflows only import from `executor.control`. No direct `docker` imports found under `workflows/`. |
+
+### Detection side (6/7 green)
+
+| # | Item | Evidence |
+|---|---|---|
+| D1 | A1/A2/A4/A6 rules + T1 canaries fire at ≥medium/≥high | `packages/analysis_engine/rules/a{1,2,4,6}_*.py` + `extensions/malicious/t1-a{1,2,4,6}-*-canary/`. Per-rule tests (`tests/security/rules/test_a{1,2,4,6}_*.py` + `test_rule_attribution.py`) — 14 pass. A1 rule reports `Severity.CRITICAL` / `Confidence.HIGH`. |
+| D2 | Benign baseline silence | `tests/security/test_benign_silence.py` (2 pass: chat + theme); `tests/platform/contracts/test_analysis_fixture_baselines.py:33,95` covers ms-python + asserts `correlative_suspicious_activity` absent. |
+| D3 | Scenario-dropout honesty | `workflows/marketplace/analysis_reports.py:193-196` and `executor/flows/playwright/report_builder.py:107,115,154-172` populate `failed_scenarios` / `skipped_scenarios`; invariant covered at `tests/platform/contracts/test_analysis_fixture_baselines.py:82-83`. |
+| D4 | Verdict rollup marks inconclusive correctly | `packages/analysis_contracts/detection/rollup.py:16-19` routes `automation_health == "inconclusive"` to `Verdict.INCONCLUSIVE`; `tests/platform/engine/test_rule_runner.py::test_error_in_rule_forces_inconclusive_verdict` and `::test_all_rules_error_cannot_produce_clean_verdict` — both pass. |
+| D5 | UI DetectionReport rendered + evidence deep-link + invariant | `ui/src/features/reports/DetectionPanel.tsx`, `FindingCard.tsx:11,65-72` wire `onShowEvidence(eventId)`. `tests/security/test_detection_report_invariants.py` — 9 pass (resolution + dangling + quantization thresholds). |
+| D6 | `make test-security` green | **32 passed, 0 failed** on 2026-04-23 (see lane details below). |
+| D7 | **Demo scenario written** | ✅ [`documents/DEMO_SCENARIO.md`](DEMO_SCENARIO.md) (offline + live UI flavors); [`scripts/demo_acceptance.py`](../scripts/demo_acceptance.py) headless smoke asserts the 6-point contract and exits 0 (verified 2026-04-23). |
+
+### Local verification lanes (2026-04-23)
+
+Ran on macOS darwin, Python 3.12.10, `.venv`. Docker daemon not running
+locally → `make test-local` and `make test-smoke` deferred to CI.
+
+| Lane | Outcome |
+|---|---|
+| `make test-security` | 32 passed, 0 failed (0.08s). |
+| `make lint-check` (ruff) | 1 pre-existing error in `packages/analysis_contracts/detection/enums.py:12` (UP042 on the Python-<3.11 `StrEnum` fallback); fixed in this pass with an inline `# noqa: UP042` — the block intentionally defines what the rule recommends as a fallback. Re-run: clean. |
+| `make typecheck` (mypy) | 201 source files, no issues. |
+| `make security` (bandit) | 0 high, 0 medium, 2 low, 1 intentionally skipped (`#nosec`). |
+| `make ui-types-check` | No contract drift. |
+| `make ui-boundaries` | Clean. |
+| `make test-unit` (no-DB lane) | 537 passed, 4 skipped (canaries with no `must_not_fire`), 37 deselected (requires-DB). |
+| `tests/architecture/` | 3 passed. |
+| `tests/platform/engine/test_rule_runner.py` | 5 passed (error dominance + inconclusive cases). |
+| `tests/security/test_detection_report_invariants.py` | 9 passed (evidence resolution + quantization thresholds). |
+| `make test-local` (integration lane) | **Deferred to CI** — Docker daemon unavailable locally; last CI run (`security-fixtures` + full `test-ci`) on branch `week7` was green. |
+
+### Phase 2 outcome (2026-04-23)
+
+- [`documents/DEMO_SCENARIO.md`](DEMO_SCENARIO.md) written with two
+  runnable flavors: **Offline** (`python scripts/demo_acceptance.py`,
+  framework-agnostic, ~30 s, CI-safe) and **Live UI** (`make dev` +
+  `make exec-up` + `make ui-up` walkthrough for stakeholder audiences).
+- [`scripts/demo_acceptance.py`](../scripts/demo_acceptance.py) exercises
+  `packages.analysis_engine.runner.run_detection` end-to-end against the
+  T1 A1 canary and asserts 7 contract lines: verdict ∈
+  {malicious, suspicious}, single finding fired from
+  `extrace.a1.credential_read_then_network`, severity=critical +
+  confidence=high, evidence carries both `filesystem_read` and
+  `network_request` refs, `detection_report_invariant_issues(...) == []`,
+  no rule execution errors, A1 rule status=fired. Last local run:
+  **DEMO GREEN**.
+- `pyproject.toml` gained a `scripts/*.py` ruff per-file-ignores row
+  matching the existing `alembic/` and `executor/` entries (T20, E501,
+  I001, E402) so CLI scripts can print output and perform `sys.path`
+  bootstrap without noqa spam.
+
+### Phase 3 scope (optional buffer)
+
+Per user selection (2026-04-23): A3 typosquat stretch canary + rule,
+then `monitor_attribution.py` split. Faz 1+2 remain hard prerequisites;
+Phase 3 only starts when this section is fully green.
+
+## W7 Phase 3a Landed — A3 Typosquat (2026-04-23)
+
+Stretch adversary class A3 (ADR 0002 §4 — impersonation /
+brand-name typosquat, MITRE `T1036`) is now wired end-to-end.
+
+| Layer | Artefact |
+|---|---|
+| Allow-list | [`packages/analysis_engine/allowlists/popular_extensions.txt`](../packages/analysis_engine/allowlists/popular_extensions.txt) — 18 curated publisher.name entries (ms-python.python, github.copilot, etc.). |
+| Rule | [`packages/analysis_engine/rules/a3_typosquat.py`](../packages/analysis_engine/rules/a3_typosquat.py) — pure-Python Levenshtein, fires when `0 < d ≤ 2` against the allow-list; severity `high`, confidence `medium`, categories `["attack.T1036", "extrace.ext.typosquat"]`; lifecycle `production`. Activation event is attached as evidence (falls back to an `extension_identity` ref if the report has no activation log). |
+| Registry | [`packages/analysis_engine/rules/registry.py`](../packages/analysis_engine/rules/registry.py) `_BUILTIN_RULE_MODULES` extended; `get_production_rules()` now returns 5 rules. |
+| Canary | [`extensions/malicious/t1-a3-typosquat-canary/`](../extensions/malicious/t1-a3-typosquat-canary/) — `LABEL.yaml` declares `must_fire: ["extrace.a3.typosquat"]`, `activation_report.json` targets `ms-pyhton.python` (distance 2 from `ms-python.python`). |
+| Rule test | [`tests/security/rules/test_a3_typosquat.py`](../tests/security/rules/test_a3_typosquat.py) — 7 cases: canary fires, chat/theme benign fixtures silent, exact-match of legit popular extension stays silent, distance-1 typo fires with correct severity/confidence/evidence, unrelated identifier silent, empty/malformed identifier silent. |
+| Coverage test | [`tests/security/test_rule_coverage.py`](../tests/security/test_rule_coverage.py) `EXPECTED_PRODUCTION_RULE_IDS` extended; `test_get_production_rules_returns_all_four_poc_rules` (still named for historical reasons) now asserts the 5-element set. `test_canary_must_fire_rule_ids_match_registered_rules` auto-picks up the new canary. |
+
+Verification: `make test-security` → 41 passed (previously 32).
+`make check-all` → ruff, mypy, bandit, ui-types-check, ui-boundaries,
+and `make test-unit` (548 passed + 39 DB/smoke skipped) all green on
+2026-04-23 against `week7`.
+
+## W7 Phase 3b Deferred — `monitor_attribution.py` Split (2026-04-23)
+
+Deferred to [`documents/POST_POC_BACKLOG.md`](POST_POC_BACKLOG.md) and
+**flagged as `[NEXT]` — first item to pull in the next iteration per
+user direction (2026-04-23).** Rationale: the current 1122-line module
+is a known concern tracked in "Known Concerns" above, but the split's
+benefit is rule-author friction — not a PoC gate. The plan (Faz 3b
+risk note) explicitly allows this deferral when §10.7 is already
+green and a full executor smoke against the A1 canary is unavailable
+locally (Docker daemon down). Pulling the refactor in at W7 close
+would risk silently invalidating the capture pipeline; the detection
+lane has no way to observe that kind of regression without
+`make exec-up`. Next session should open
+[`documents/POST_POC_BACKLOG.md`](POST_POC_BACKLOG.md) and start from
+the "Next iteration (pull first)" section.
+
+## W7 Closure (2026-04-23)
+
+W7 (acceptance + buffer) closes with the PoC acceptance bar met and
+one stretch rule (A3) landed. No open W7 items.
+
+### §10.7 checklist final state (11/11)
+
+| # | Item | State |
+|---|---|---|
+| S1-S5 | Stabilization (legacy folders, import-graph, VS Code pin, capture split, `ExecutorControl`) | ✅ green, evidence above. |
+| D1 | A1/A2/A4/A6 rules + T1 canaries fire at ≥medium/≥high | ✅; A3 added as stretch (not a §10.7 gate). |
+| D2 | Benign baseline silence | ✅. |
+| D3 | Scenario-dropout honesty | ✅. |
+| D4 | Verdict rollup marks inconclusive correctly | ✅. |
+| D5 | UI DetectionReport rendered + evidence deep-link + invariant | ✅. |
+| D6 | `make test-security` green | ✅ (41 passed post-A3). |
+| D7 | Demo scenario written | ✅ [`documents/DEMO_SCENARIO.md`](DEMO_SCENARIO.md) + [`scripts/demo_acceptance.py`](../scripts/demo_acceptance.py). |
+
+### Final verification lanes (2026-04-23, week7)
+
+| Lane | Outcome |
+|---|---|
+| `make test-security` | 41 passed, 0 failed. |
+| `make check-all` | ✅ Linting · ✅ Type checking · ✅ Security · ✅ 548 tests passed + 39 skipped (DB/smoke) + 3 deselected. |
+| Demo smoke | `python scripts/demo_acceptance.py` → `DEMO GREEN`. |
+
+### Known deferrals (tracked in POST_POC_BACKLOG.md)
+
+- `[NEXT]` `monitor_attribution.py` split (executor/capture).
+- `[NEXT]` Fatal UI-crash classification + fail-fast + `ScenarioTrace`
+  failure metadata (`failure_reason_code`, `error_detail`). Added
+  2026-04-23 after a `make sim-all` run cascade-failed 8 scenarios on
+  a single renderer crash; runner currently catches
+  `PlaywrightError`/`Target crashed` in `_run_scenario_sequence`
+  ([executor/flows/playwright/automation.py:186](../executor/flows/playwright/automation.py:186))
+  and keeps driving a dead page via `_recover_ui_state`.
+- `[NEXT]` Split `sim-all` (UI stress) from a new `sim-target` smoke
+  that feeds a trigger payload + extension id — `sim-all` alone is
+  **not** evidence of normal-extension activation
+  (produces `target_extension_observed: false`,
+  `run_quality: inconclusive`).
+- T2 declawed samples + T3 operational plumbing +
+  `make test-security-live` hardening.
+- Monitor discovery-log rate-limit (cosmetic).
+- Workflow/platform cleanups: `SessionLocal` top-of-module, narrow
+  `except` in `run_analysis_job`, typed `search_marketplace`.
+- UI component splits, `window.__EXTRACE_CONFIG__` context, `AbortController`
+  cancellation, feature-boundary ESLint, axe-core.
+- Stretch adversary classes A5, A7 (A3 delivered).
+- mypy `strict = true` promotion, refactor-doc consolidation.
 
 ## Week 5 Start Rule
 

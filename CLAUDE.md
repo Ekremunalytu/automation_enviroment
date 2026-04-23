@@ -26,7 +26,22 @@ state.
   job. Executor `monitor_package_import` test no longer leaks
   `sys.modules` state; layered `run_quality` medium now carries an
   `official_unresolved_present` reason label. **W6 closed.**
-- **W7 (acceptance + buffer):** open.
+- **W7 (acceptance + buffer):** closed 2026-04-23. §10.7 PoC acceptance
+  checklist met (11/11); [`documents/DEMO_SCENARIO.md`](documents/DEMO_SCENARIO.md)
+  - [`scripts/demo_acceptance.py`](scripts/demo_acceptance.py) cover the A1
+  credential-read → network canary end-to-end. Phase 3a buffer landed
+  stretch rule `extrace.a3.typosquat`
+  ([`packages/analysis_engine/rules/a3_typosquat.py`](packages/analysis_engine/rules/a3_typosquat.py),
+  canary [`extensions/malicious/t1-a3-typosquat-canary/`](extensions/malicious/t1-a3-typosquat-canary/),
+  allow-list [`packages/analysis_engine/allowlists/popular_extensions.txt`](packages/analysis_engine/allowlists/popular_extensions.txt)).
+  Phase 3b (`monitor_attribution.py` split) deferred to
+  [`documents/POST_POC_BACKLOG.md`](documents/POST_POC_BACKLOG.md)
+  **marked `[NEXT]` — first item to pull in the next iteration per
+  user direction (2026-04-23)**. Final `make test-security` → 41
+  passed; `make check-all` → all green.
+- **Post-PoC:** work items tracked in
+  [`documents/POST_POC_BACKLOG.md`](documents/POST_POC_BACKLOG.md);
+  next iteration starts from its "Next iteration (pull first)" block.
 - **Security scaffolding already present:**
   - `packages/analysis_contracts/detection/`
   - `packages/analysis_engine/rules/`

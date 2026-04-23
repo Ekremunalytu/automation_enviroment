@@ -93,6 +93,7 @@ ignore = [
 "executor/**/*.py" = ["T20", "S603", "S607", "E501"]
 "ui/*.py" = ["E501"]  # HTML/CSS inline strings are naturally long
 "ui/**/*.py" = ["E501"]
+"scripts/*.py" = ["T20", "E501", "I001", "E402"]  # CLI tools: print output + sys.path bootstrap
 "appcore/api/config.py" = ["S105"]  # Development default passwords in settings
 
 [tool.ruff.lint.isort]

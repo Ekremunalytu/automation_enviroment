@@ -337,70 +337,131 @@ def test_settings_change_theme_waits_for_picker_to_close(monkeypatch) -> None:
     assert page.waits == [800, 1000]
 
 
-def test_toggle_setting_via_json_appends_and_saves(monkeypatch) -> None:
-    opened: list[str] = []
-    monkeypatch.setattr(
-        settings, "open_settings_json", lambda page: opened.append("open")
+def _settings_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    target = tmp_path / "settings.json"
+    monkeypatch.setenv("EXTRACE_VSCODE_SETTINGS_JSON", str(target))
+    return target
+
+
+def test_toggle_setting_via_json_merges_key_into_existing_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    target = _settings_path(tmp_path, monkeypatch)
+    target.write_text(
+        json.dumps({"telemetry.telemetryLevel": "off"}) + "\n",
+        encoding="utf-8",
     )
     page = _FakePage()
 
     settings.toggle_setting_via_json(page, "editor.fontSize", "16")
 
-    assert opened == ["open"]
-    assert page.keyboard.presses == [
-        "Control+a",
-        "Control+End",
-        "ArrowUp",
-        "End",
-        keyboard.SAVE_FILE,
-        keyboard.CLOSE_EDITOR,
-    ]
-    assert page.keyboard.typed == [(',\n    "editor.fontSize": 16', 15)]
-    assert page.waits == [800, 200, 200, 300, 1000, 300]
+    assert json.loads(target.read_text(encoding="utf-8")) == {
+        "telemetry.telemetryLevel": "off",
+        "editor.fontSize": 16,
+    }
+    # Helper never touches the Monaco buffer anymore — no keyboard events,
+    # no command-palette open, no save shortcut.
+    assert page.keyboard.presses == []
+    assert page.keyboard.typed == []
+    assert page.waits == [1000]
 
 
-def test_write_settings_batch_short_circuits_when_empty(monkeypatch) -> None:
-    opened: list[str] = []
-    monkeypatch.setattr(
-        settings, "open_settings_json", lambda page: opened.append("open")
-    )
+def test_write_settings_batch_short_circuits_when_empty(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    target = _settings_path(tmp_path, monkeypatch)
+    target.write_text(json.dumps({"existing": True}) + "\n", encoding="utf-8")
 
     settings.write_settings_batch(_FakePage(), [])
 
-    assert opened == []
+    # File left untouched.
+    assert json.loads(target.read_text(encoding="utf-8")) == {"existing": True}
 
 
-def test_write_settings_batch_writes_all_settings_in_one_open(monkeypatch) -> None:
-    opened: list[str] = []
-    monkeypatch.setattr(
-        settings, "open_settings_json", lambda page: opened.append("open")
-    )
+def test_write_settings_batch_preserves_baseline_and_merges_all_keys(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    target = _settings_path(tmp_path, monkeypatch)
+    baseline = {
+        "security.workspace.trust.enabled": False,
+        "workbench.startupEditor": "none",
+        "telemetry.telemetryLevel": "off",
+    }
+    target.write_text(json.dumps(baseline) + "\n", encoding="utf-8")
     page = _FakePage()
 
     settings.write_settings_batch(
         page,
         [
             ("editor.fontSize", "16"),
+            ("editor.formatOnSave", "true"),
             ("editor.wordWrap", '"on"'),
+            ("editor.minimap.enabled", "false"),
         ],
     )
 
-    assert opened == ["open"]
-    assert page.keyboard.typed == [
-        (',\n    "editor.fontSize": 16', 15),
-        (',\n    "editor.wordWrap": "on"', 15),
-    ]
-    assert page.keyboard.presses == [
-        "Control+End",
-        "ArrowUp",
-        "End",
-        "Control+End",
-        "ArrowUp",
-        "End",
-        keyboard.SAVE_FILE,
-        keyboard.CLOSE_EDITOR,
-    ]
-    assert page.waits == [800, 200, 300, 200, 300, 1000, 300]
+    merged = json.loads(target.read_text(encoding="utf-8"))
+    # Baseline survives.
+    assert merged["security.workspace.trust.enabled"] is False
+    assert merged["workbench.startupEditor"] == "none"
+    assert merged["telemetry.telemetryLevel"] == "off"
+    # New keys merged with their JSON-parsed values.
+    assert merged["editor.fontSize"] == 16
+    assert merged["editor.formatOnSave"] is True
+    assert merged["editor.wordWrap"] == "on"
+    assert merged["editor.minimap.enabled"] is False
+    # One timeout to let the VS Code file watcher propagate changes.
+    assert page.waits == [1000]
+
+
+def test_write_settings_batch_creates_file_when_missing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    target = _settings_path(tmp_path, monkeypatch)
+    assert not target.exists()
+
+    settings.write_settings_batch(_FakePage(), [("editor.fontSize", "14")])
+
+    assert json.loads(target.read_text(encoding="utf-8")) == {"editor.fontSize": 14}
+
+
+def test_write_settings_batch_refuses_to_overwrite_corrupted_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    target = _settings_path(tmp_path, monkeypatch)
+    corrupted = '{\n  "valid": true\n},\n    "editor.fontSize": 16\n'
+    target.write_text(corrupted, encoding="utf-8")
+    page = _FakePage()
+
+    settings.write_settings_batch(page, [("editor.fontSize", "20")])
+
+    # Helper must bail rather than compound the damage.
+    assert target.read_text(encoding="utf-8") == corrupted
+    assert page.waits == [500]
+
+
+def test_write_settings_batch_output_is_valid_json(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Round-trip invariant: whatever we write must parse cleanly."""
+    target = _settings_path(tmp_path, monkeypatch)
+
+    settings.write_settings_batch(
+        _FakePage(),
+        [
+            ("editor.fontSize", "16"),
+            ("editor.wordWrap", '"on"'),
+            ("editor.rulers", "[80, 120]"),
+        ],
+    )
+
+    # Parses without error and round-trips the keys.
+    parsed = json.loads(target.read_text(encoding="utf-8"))
+    assert parsed == {
+        "editor.fontSize": 16,
+        "editor.wordWrap": "on",
+        "editor.rulers": [80, 120],
+    }
 
 
 def test_editor_type_open_format_and_rename_use_expected_helpers(monkeypatch) -> None:

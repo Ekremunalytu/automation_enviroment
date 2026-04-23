@@ -12,6 +12,7 @@ EXPECTED_POC_CLASSES = {"A1", "A2", "A4", "A6"}
 EXPECTED_PRODUCTION_RULE_IDS = {
     "extrace.a1.credential_read_then_network",
     "extrace.a2.startup_network_beacon",
+    "extrace.a3.typosquat",
     "extrace.a4.workspace_exfil",
     "extrace.a6.startup_ui_prompt",
 }
