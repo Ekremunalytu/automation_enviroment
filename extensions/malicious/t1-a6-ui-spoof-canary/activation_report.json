@@ -1,0 +1,39 @@
+{
+  "report_version": 2,
+  "target_extension_expected": "extrace.t1-a6-ui-spoof-canary",
+  "automation_health": {
+    "status": "healthy",
+    "reasons": []
+  },
+  "verdict": {},
+  "summary": {
+    "target_extension_version": "0.0.1"
+  },
+  "scenario_traces": [],
+  "evidence_events": [
+    {
+      "event_id": "ui-0001",
+      "kind": "extension_host",
+      "rel_time_s": 0.4,
+      "summary": "showQuickPick: Sign in to continue",
+      "raw_context": {
+        "event_type": "ui_prompt",
+        "message": "showQuickPick credential prompt"
+      }
+    },
+    {
+      "event_id": "activation-0001",
+      "kind": "extension_host",
+      "rel_time_s": 1.0,
+      "summary": "Activated extrace.t1-a6-ui-spoof-canary",
+      "raw_context": {
+        "event_type": "activated"
+      }
+    }
+  ],
+  "network_events": [],
+  "file_events": [],
+  "log_streams": {
+    "automation": []
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "id": "t1-a2-startup-network-canary",
+  "tier": "T1",
+  "source": {
+    "kind": "internal_canary",
+    "reference": "week5/a2/startup-network",
+    "sha256": null
+  },
+  "category": {
+    "adversary_class": "A2",
+    "taxonomy": ["attack.T1041"]
+  },
+  "expected_detections": {
+    "must_fire": ["extrace.a2.startup_network_beacon"],
+    "must_not_fire": []
+  },
+  "declawing": null,
+  "retention": {
+    "expires": null
+  }
+}

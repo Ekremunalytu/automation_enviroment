@@ -1,0 +1,22 @@
+{
+  "name": "fixture-theme",
+  "displayName": "ExTrace Fixture Theme",
+  "description": "Deterministic local color-theme fixture for zero-scenario report coverage.",
+  "version": "0.0.1",
+  "publisher": "extrace",
+  "engines": {
+    "vscode": "^1.116.0"
+  },
+  "categories": [
+    "Themes"
+  ],
+  "contributes": {
+    "themes": [
+      {
+        "label": "ExTrace Fixture Theme",
+        "uiTheme": "vs-dark",
+        "path": "./themes/extrace-fixture-color-theme.json"
+      }
+    ]
+  }
+}
