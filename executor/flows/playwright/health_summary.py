@@ -36,6 +36,9 @@ _REASON_LABELS = {
         "Some official chat/tool attempts remained unresolved after harness verification."
     ),
     "strong_target_attribution_missing": "No strong target-owned telemetry supported attribution.",
+    "official_unresolved_present": (
+        "Official activation events remained unresolved after verification."
+    ),
 }
 
 _SCENARIO_ZERO_REASON = (
@@ -386,7 +389,20 @@ def build_run_quality(
             or unresolved_chat_tool_attempts
             or getattr(report, "verification_gap", 0) > 0
         ):
-            return "medium", reasons
+            medium_reasons = list(reasons)
+            if getattr(report, "verification_gap", 0) > 0:
+                label = automation_reason_to_text("verification_gap_present")
+                if label not in medium_reasons:
+                    medium_reasons.append(label)
+            if unresolved_chat_tool_attempts:
+                label = automation_reason_to_text("chat_tool_verification_incomplete")
+                if label not in medium_reasons:
+                    medium_reasons.append(label)
+            if official_unresolved > 0:
+                label = automation_reason_to_text("official_unresolved_present")
+                if label not in medium_reasons:
+                    medium_reasons.append(label)
+            return "medium", medium_reasons
         return "high", reasons
     if status == "degraded":
         if (
