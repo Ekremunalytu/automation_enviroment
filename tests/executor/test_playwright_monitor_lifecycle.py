@@ -298,6 +298,62 @@ def test_extension_monitor_persists_live_report_with_network_events(
     )
 
 
+def test_record_scenario_event_writes_failure_fields_from_metadata() -> None:
+    class DummyPage:
+        pass
+
+    mon = monitor.ExtensionMonitor(DummyPage())
+    mon.record_scenario_event("start", "crashing_scenario")
+    mon.record_scenario_event(
+        "end",
+        "crashing_scenario",
+        "failed",
+        metadata={
+            "failure_reason_code": "fatal_ui_crash",
+            "error": "Keyboard.press: Target crashed",
+        },
+    )
+
+    assert len(mon.report.scenario_traces) == 1
+    trace = mon.report.scenario_traces[0]
+    assert trace.name == "crashing_scenario"
+    assert trace.status == "failed"
+    assert trace.failure_reason_code == "fatal_ui_crash"
+    assert "Target crashed" in trace.error_detail
+    assert mon.report.failed_scenarios == ["crashing_scenario"]
+
+
+def test_record_scenario_event_end_without_metadata_preserves_defaults() -> None:
+    class DummyPage:
+        pass
+
+    mon = monitor.ExtensionMonitor(DummyPage())
+    mon.record_scenario_event("start", "happy_scenario")
+    mon.record_scenario_event("end", "happy_scenario", "completed")
+
+    trace = mon.report.scenario_traces[0]
+    assert trace.failure_reason_code == ""
+    assert trace.error_detail == ""
+
+
+def test_record_scenario_event_truncates_long_error_detail() -> None:
+    class DummyPage:
+        pass
+
+    mon = monitor.ExtensionMonitor(DummyPage())
+    long_error = "x" * 1200
+    mon.record_scenario_event("start", "verbose_scenario")
+    mon.record_scenario_event(
+        "end",
+        "verbose_scenario",
+        "failed",
+        metadata={"failure_reason_code": "fatal_ui_crash", "error": long_error},
+    )
+
+    trace = mon.report.scenario_traces[0]
+    assert len(trace.error_detail) == 500
+
+
 def test_extension_monitor_apply_trigger_payload_accepts_contract_models() -> None:
     payload = TriggerPayload(
         target_extension_id="ms-python.python",

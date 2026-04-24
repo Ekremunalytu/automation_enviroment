@@ -646,6 +646,326 @@ def test_reconcile_event_attempts_verifies_chat_tool_with_marker_and_activation(
     assert "harness_trace:harness" in attempts[0].evidence
 
 
+def test_reconcile_event_attempts_upgrades_to_activation_seen_when_target_activates_without_runtime_evidence() -> (
+    None
+):
+    report = monitor.ActivationReport(
+        activated=[
+            monitor.ActivationEntry(
+                extension_id="publisher.tool",
+                activation_event="onCommand:run",
+                timestamp="2026-01-01 10:00:00.000",
+                source="log",
+            )
+        ],
+        target_extension_id="publisher.tool",
+        event_attempts=[
+            monitor.EventAttemptRecord(
+                attempt_id="seen",
+                declared_event="onCommand:run",
+                activation_event="onCommand:run",
+                event_family="onCommand",
+                attempted_passes=["ui_first_user_session"],
+                capability_tags=["chat"],
+                verification_contract=["target_runtime_delta"],
+            )
+        ],
+    )
+
+    attempts = monitor.reconcile_event_attempts(report)
+
+    assert attempts[0].status == "activation_seen"
+    assert attempts[0].verification_status == "activation_seen"
+    assert "onCommand:run" in attempts[0].evidence
+    assert "activation observed" in attempts[0].result_details
+
+
+def test_reconcile_event_attempts_upgrades_to_target_log_seen_when_target_logs_present() -> (
+    None
+):
+    report = monitor.ActivationReport(
+        activated=[
+            monitor.ActivationEntry(
+                extension_id="publisher.tool",
+                activation_event="onCommand:run",
+                timestamp="2026-01-01 10:00:00.000",
+                source="log",
+            )
+        ],
+        log_entries=[
+            monitor.LogStreamEntry(
+                timestamp="2026-01-01 10:00:00.100",
+                stream="target_extension_host",
+                kind="info",
+                message="Tool registered successfully",
+                extension_id="publisher.tool",
+                is_target_extension=True,
+            )
+        ],
+        target_extension_id="publisher.tool",
+        event_attempts=[
+            monitor.EventAttemptRecord(
+                attempt_id="log-seen",
+                declared_event="onCommand:run",
+                activation_event="onCommand:run",
+                event_family="onCommand",
+                attempted_passes=["ui_first_user_session"],
+                capability_tags=["chat"],
+                verification_contract=["target_runtime_delta"],
+            )
+        ],
+    )
+
+    attempts = monitor.reconcile_event_attempts(report)
+
+    assert attempts[0].status == "target_log_seen"
+    assert attempts[0].verification_status == "target_log_seen"
+    assert "onCommand:run" in attempts[0].evidence
+    assert any("Tool registered successfully" in item for item in attempts[0].evidence)
+    assert "log evidence observed" in attempts[0].result_details
+
+
+def test_reconcile_event_attempts_keeps_attempted_only_when_no_activation_match() -> (
+    None
+):
+    report = monitor.ActivationReport(
+        activated=[
+            monitor.ActivationEntry(
+                extension_id="publisher.tool",
+                activation_event="onCommand:run",
+                timestamp="2026-01-01 10:00:00.000",
+                source="log",
+            )
+        ],
+        log_entries=[
+            monitor.LogStreamEntry(
+                timestamp="2026-01-01 10:00:00.100",
+                stream="target_extension_host",
+                kind="info",
+                message="Unrelated activity",
+                extension_id="publisher.tool",
+                is_target_extension=True,
+            )
+        ],
+        target_extension_id="publisher.tool",
+        event_attempts=[
+            monitor.EventAttemptRecord(
+                attempt_id="no-match",
+                declared_event="onLanguage:python",
+                activation_event="onLanguage:python",
+                event_family="onLanguage",
+                attempted_passes=["ui_first_user_session"],
+                capability_tags=["languages_editor"],
+            )
+        ],
+    )
+
+    attempts = monitor.reconcile_event_attempts(report)
+
+    assert attempts[0].status == "attempted_only"
+    assert attempts[0].verification_status == "attempted_only"
+
+
+def test_reconcile_event_attempts_harness_attempt_keeps_unconfirmed_signal_over_activation_seen() -> (
+    None
+):
+    report = monitor.ActivationReport(
+        activated=[
+            monitor.ActivationEntry(
+                extension_id="publisher.tool",
+                activation_event="onLanguageModelTool:test",
+                timestamp="2026-01-01 10:00:00.000",
+                source="log",
+            )
+        ],
+        target_extension_id="publisher.tool",
+        event_attempts=[
+            monitor.EventAttemptRecord(
+                attempt_id="harness-no-trace",
+                declared_event="onLanguageModelTool:test",
+                activation_event="onLanguageModelTool:test",
+                event_family="onLanguageModelTool",
+                executor_action="harness:run_current_stimulus",
+                attempted_passes=["target_specific_activation"],
+                capability_tags=["chat"],
+                verification_contract=["activation_log_prefix", "automation_trace"],
+            )
+        ],
+    )
+
+    attempts = monitor.reconcile_event_attempts(report)
+
+    assert attempts[0].status == "attempted_only"
+    assert attempts[0].failure_reason_code == "harness_verification_unconfirmed"
+
+
+def test_reconcile_event_attempts_target_log_seen_requires_target_attributed_entry() -> (
+    None
+):
+    report = monitor.ActivationReport(
+        activated=[
+            monitor.ActivationEntry(
+                extension_id="publisher.tool",
+                activation_event="onCommand:run",
+                timestamp="2026-01-01 10:00:00.000",
+                source="log",
+            )
+        ],
+        log_entries=[
+            monitor.LogStreamEntry(
+                timestamp="2026-01-01 10:00:00.100",
+                stream="other_extension_host",
+                kind="info",
+                message="Background chatter",
+                extension_id="publisher.other",
+                is_target_extension=False,
+            )
+        ],
+        target_extension_id="publisher.tool",
+        event_attempts=[
+            monitor.EventAttemptRecord(
+                attempt_id="no-target-log",
+                declared_event="onCommand:run",
+                activation_event="onCommand:run",
+                event_family="onCommand",
+                attempted_passes=["ui_first_user_session"],
+                capability_tags=["chat"],
+                verification_contract=["target_runtime_delta"],
+            )
+        ],
+    )
+
+    attempts = monitor.reconcile_event_attempts(report)
+
+    assert attempts[0].status == "activation_seen"
+
+
+def test_reconcile_event_attempts_target_log_seen_skips_extension_id_mismatch() -> None:
+    """``is_target_extension=True`` is not enough; the entry's ``extension_id``
+    must also match ``target_extension_id`` when the latter is set. Guards
+    against a stale/wrong attribution flag silently promoting a non-target log
+    entry into target-owned evidence.
+    """
+
+    report = monitor.ActivationReport(
+        activated=[
+            monitor.ActivationEntry(
+                extension_id="publisher.tool",
+                activation_event="onCommand:run",
+                timestamp="2026-01-01 10:00:00.000",
+                source="log",
+            )
+        ],
+        log_entries=[
+            monitor.LogStreamEntry(
+                timestamp="2026-01-01 10:00:00.100",
+                stream="target_extension_host",
+                kind="info",
+                message="Stale flag — wrong extension id",
+                extension_id="publisher.other",
+                is_target_extension=True,
+            )
+        ],
+        target_extension_id="publisher.tool",
+        event_attempts=[
+            monitor.EventAttemptRecord(
+                attempt_id="mismatch",
+                declared_event="onCommand:run",
+                activation_event="onCommand:run",
+                event_family="onCommand",
+                attempted_passes=["ui_first_user_session"],
+                capability_tags=["chat"],
+                verification_contract=["target_runtime_delta"],
+            )
+        ],
+    )
+
+    attempts = monitor.reconcile_event_attempts(report)
+
+    assert attempts[0].status == "activation_seen"
+    assert not any("Stale flag" in item for item in attempts[0].evidence)
+
+
+def test_reconcile_event_attempts_target_log_summaries_capped_at_five() -> None:
+    """Defensive cap on log-summary noise: even if dozens of target-owned log
+    entries exist, only the first five should be folded into evidence so the
+    report stays readable.
+    """
+
+    log_entries = [
+        monitor.LogStreamEntry(
+            timestamp=f"2026-01-01 10:00:00.{idx:03d}",
+            stream="target_extension_host",
+            kind="info",
+            message=f"target log line {idx}",
+            extension_id="publisher.tool",
+            is_target_extension=True,
+        )
+        for idx in range(8)
+    ]
+
+    report = monitor.ActivationReport(
+        activated=[
+            monitor.ActivationEntry(
+                extension_id="publisher.tool",
+                activation_event="onCommand:run",
+                timestamp="2026-01-01 10:00:00.000",
+                source="log",
+            )
+        ],
+        log_entries=log_entries,
+        target_extension_id="publisher.tool",
+        event_attempts=[
+            monitor.EventAttemptRecord(
+                attempt_id="capped",
+                declared_event="onCommand:run",
+                activation_event="onCommand:run",
+                event_family="onCommand",
+                attempted_passes=["ui_first_user_session"],
+                capability_tags=["chat"],
+                verification_contract=["target_runtime_delta"],
+            )
+        ],
+    )
+
+    attempts = monitor.reconcile_event_attempts(report)
+
+    target_log_evidence = [
+        item for item in attempts[0].evidence if item.startswith("Target log entry:")
+    ]
+    assert len(target_log_evidence) == 5
+
+
+def test_attempt_has_runtime_evidence_accepts_lifecycle_observation_states() -> None:
+    """``activation_seen`` and ``target_log_seen`` are strictly stronger than
+    ``attempted_only`` so they must count as runtime evidence in coverage
+    rollups. Without this, a target that activated would be silently treated
+    as if no stimulus had reached it.
+    """
+
+    import health_runtime_facts
+
+    for status in ("activation_seen", "target_log_seen", "attempted_only", "verified"):
+        attempt = monitor.EventAttemptRecord(
+            attempt_id=f"runtime-{status}",
+            declared_event="onCommand:run",
+            activation_event="onCommand:run",
+            event_family="onCommand",
+            status=status,
+        )
+        assert health_runtime_facts.attempt_has_runtime_evidence(attempt), status
+
+    for status in ("planned", "running", "blocked"):
+        attempt = monitor.EventAttemptRecord(
+            attempt_id=f"runtime-{status}",
+            declared_event="onCommand:run",
+            activation_event="onCommand:run",
+            event_family="onCommand",
+            status=status,
+        )
+        assert not health_runtime_facts.attempt_has_runtime_evidence(attempt), status
+
+
 def test_verdict_stays_bounded_when_only_correlative_sensitive_activity_exists() -> (
     None
 ):
@@ -676,11 +996,11 @@ def test_verdict_stays_bounded_when_only_correlative_sensitive_activity_exists()
         target_extension_id="publisher.tool",
     )
 
-    verdict = monitor._build_verdict(report)
+    signal_summary = monitor._build_signal_summary(report)
 
-    assert verdict["level"] in {"needs_review", "suspicious"}
-    assert verdict["level"] != "likely_malicious"
-    assert verdict["reasons"]
+    assert signal_summary["level"] in {"needs_review", "suspicious"}
+    assert signal_summary["level"] != "likely_malicious"
+    assert signal_summary["reasons"]
 
 
 def test_inconclusive_run_never_returns_benign() -> None:
@@ -691,11 +1011,11 @@ def test_inconclusive_run_never_returns_benign() -> None:
         trigger_plan_applied=False,
     )
 
-    verdict = monitor._build_verdict(report)
+    signal_summary = monitor._build_signal_summary(report)
 
     assert report.run_quality == "inconclusive"
-    assert verdict["level"] == "needs_review"
-    assert "inconclusive" in verdict["note"].lower()
+    assert signal_summary["level"] == "needs_review"
+    assert "inconclusive" in signal_summary["note"].lower()
 
 
 def test_trigger_requested_but_not_loaded_is_inconclusive() -> None:
@@ -732,7 +1052,7 @@ def test_trigger_requested_but_not_loaded_is_inconclusive() -> None:
     assert health["status"] == "inconclusive"
     assert "trigger_plan_not_loaded" in health["reasons"]
     assert "trigger_plan_not_applied" in health["reasons"]
-    assert monitor._build_verdict(report)["level"] != "benign"
+    assert monitor._build_signal_summary(report)["level"] != "benign"
 
 
 def test_target_running_alone_does_not_verify_window_ui() -> None:

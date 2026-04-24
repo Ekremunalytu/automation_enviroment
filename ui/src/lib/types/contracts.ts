@@ -291,6 +291,8 @@ export interface ScenarioTraceDto {
   started_at: number;
   ended_at?: number;
   status?: string;
+  failure_reason_code?: string;
+  error_detail?: string;
 }
 
 export interface SkippedScenarioRecordDto {
@@ -391,7 +393,7 @@ export interface ActivationReportDto {
   report_version: number;
   target_extension_expected: string;
   automation_health: AutomationHealthDto;
-  verdict: Record<string, unknown>;
+  signal_summary: Record<string, unknown>;
   summary: Record<string, unknown>;
   scenario_traces: ScenarioTraceDto[];
   skipped_scenarios?: SkippedScenarioRecordDto[];

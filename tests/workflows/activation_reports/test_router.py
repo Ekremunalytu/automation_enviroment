@@ -51,7 +51,7 @@ def build_valid_report(**overrides: object) -> dict[str, object]:
         "target_extension_expected": "ms-python.python",
         "target_extension_observed": False,
         "automation_health": {"status": "ok", "reasons": []},
-        "verdict": {},
+        "signal_summary": {},
         "summary": {"total_activated": 0},
         "scenario_traces": [],
         "evidence_events": [],

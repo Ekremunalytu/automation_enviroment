@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class StrictContractModel(BaseModel):
@@ -85,6 +85,8 @@ class ScenarioTrace(StrictContractModel):
     started_at: float
     ended_at: float = 0.0
     status: str = "running"
+    failure_reason_code: str = ""
+    error_detail: str = ""
 
 
 class SkippedScenarioRecord(StrictContractModel):
@@ -114,6 +116,38 @@ class PrerequisiteResult(StrictContractModel):
     detail: str = ""
     reason_code: str = ""
     resolved_targets: dict[str, Any] = Field(default_factory=dict)
+
+
+# Allowed values for ``EventAttemptRecord.status``. Transition graph:
+#
+#   planned
+#      └─ running
+#           ├─ attempted_only      (harness stimulus ran, nothing verified)
+#           │     └─ activation_seen   (exthost log shows target activated)
+#           │           └─ target_log_seen  (target-owned log/output evidence)
+#           │                 └─ verified   (+ runtime capability evidence)
+#           ├─ blocked             (prerequisite unmet; skipped by policy)
+#           └─ failed              (attempt errored out)
+#
+# ``activation_seen`` and ``target_log_seen`` are weaker-than-``verified``
+# intermediate observation states so the report can distinguish "the target
+# extension genuinely reacted to the stimulus" from "the harness ran but we
+# have no target-owned evidence" (today both collapse into ``attempted_only``
+# / ``verified`` with no finer gradation). See the
+# ``Target activation lifecycle + target log instrumentation`` workstream
+# in ``documents/POST_POC_BACKLOG.md``.
+EVENT_ATTEMPT_LIFECYCLE_STATES: frozenset[str] = frozenset(
+    {
+        "planned",
+        "running",
+        "attempted_only",
+        "activation_seen",
+        "target_log_seen",
+        "verified",
+        "blocked",
+        "failed",
+    }
+)
 
 
 class EventAttemptRecord(StrictContractModel):
@@ -147,6 +181,16 @@ class EventAttemptRecord(StrictContractModel):
     heuristic: bool = False
     ui_path: str = ""
     harness_fallback: str = ""
+
+    @field_validator("status")
+    @classmethod
+    def _validate_status(cls, value: str) -> str:
+        if value not in EVENT_ATTEMPT_LIFECYCLE_STATES:
+            raise ValueError(
+                f"EventAttemptRecord.status {value!r} is not one of "
+                f"{sorted(EVENT_ATTEMPT_LIFECYCLE_STATES)}"
+            )
+        return value
 
 
 class EvidenceEvent(StrictContractModel):
@@ -259,7 +303,7 @@ class ActivationReport(StrictContractModel):
     report_version: int
     target_extension_expected: str
     automation_health: dict[str, Any]
-    verdict: dict[str, Any]
+    signal_summary: dict[str, Any]
     summary: dict[str, Any]
     scenario_traces: list[ScenarioTrace]
     skipped_scenarios: list[SkippedScenarioRecord] = Field(default_factory=list)
@@ -310,6 +354,17 @@ class ActivationReport(StrictContractModel):
     extension_host_output_lines: int = 0
     extension_host_output: str = ""
     log_file: str = ""
+
+    @model_validator(mode="before")
+    @classmethod
+    def _migrate_legacy_verdict(cls, data: object) -> object:
+        if not isinstance(data, dict):
+            return data
+        if "signal_summary" in data or "verdict" not in data:
+            return data
+        migrated = dict(data)
+        migrated["signal_summary"] = migrated.pop("verdict")
+        return migrated
 
 
 class TriggerPayload(StrictContractModel):

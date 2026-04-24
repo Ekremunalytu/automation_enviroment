@@ -1,42 +1,67 @@
 # Development Priorities
 
-`Last Updated: 2026-04-20`
+`Last Updated: 2026-04-24`
 
 This is the short priority list for current work. It assumes the project stays
 a single-user sandbox appliance on one machine or one Docker host.
 
 If any older planning note clashes with the active refactor track, follow
 `REFACTOR_STATUS.md` for current closure state and
-`REFACTOR_OPTIMIZATION.md` §10 for the active 7-week window (W0-W7). Keep
-changes biased toward cleanliness, stability, and overall code quality.
+`REFACTOR_OPTIMIZATION.md` §10 for the active 7-week window (W0-W7). Post-PoC
+deferrals live in `POST_POC_BACKLOG.md`. Keep changes biased toward
+cleanliness, stability, and overall code quality.
 
-## Current Window (7 weeks, 2026-04-17 -> ~2026-06-05)
+## Current Window (7 weeks, 2026-04-17 -> 2026-04-23; closed)
 
-**Acceptance bar: PoC.** The window targets a demonstrable
+**Acceptance bar: PoC.** The window targeted a demonstrable
 proof-of-concept that catches basic malicious extensions, not a full-featured
-production security product. Full scope stays in the plan; PoC framing selects
+production security product. Full scope stays in the plan; PoC framing selected
 Must vs Stretch. See `REFACTOR_OPTIMIZATION.md` §10 for Must/Stretch split and
-§10.7 for the PoC acceptance checklist.
+§10.7 for the PoC acceptance checklist (**11/11 green as of 2026-04-23**).
 
 - **W0 (spec, complete):** security foundations written as ADRs 0002-0004 with
   PoC-priority annotations.
 - **W1-W4 (complete, closed 2026-04-20):** automation stabilization before
   security implementation.
-- **W5-W7 (open):** security implementation. Initial scaffold already exists:
-  `packages/analysis_contracts/detection/`, `extensions/malicious/`,
-  `tests/security/`, `make test-security`, `make test-security-live`.
+- **W5 (detection foundations, complete 2026-04-20):** detection contracts,
+  A1/A2/A4/A6 rule scaffolding, T1 canaries under `extensions/malicious/`,
+  `tests/security/`, and `make test-security` / `make test-security-live`.
+- **W6 (automation reliability + capture hardening, closed 2026-04-23):**
+  scenario truth ledger, bounded waits, capture bounds, plus the W6
+  correctness follow-up that gated A1/A2/A4 on `ActivationReport` attribution
+  (`target_file_events`, `target_unknown_outbound_network_events`), added
+  `tls_client_hello` to `TLS_EVENT_TYPES`, enforced
+  `RuleExecutionStatus.ERROR` dominance in verdict rollup, and re-narrowed
+  `.gitignore` so security fixtures reach the `security-fixtures` CI lane.
+- **W7 (acceptance + buffer, closed 2026-04-23):** §10.7 PoC acceptance
+  checklist met (11/11); [`DEMO_SCENARIO.md`](DEMO_SCENARIO.md) +
+  [`scripts/demo_acceptance.py`](../scripts/demo_acceptance.py) cover the A1
+  credential-read → network canary end-to-end. Phase 3a buffer added
+  stretch rule `extrace.a3.typosquat`
+  ([`packages/analysis_engine/rules/a3_typosquat.py`](../packages/analysis_engine/rules/a3_typosquat.py))
+  with canary + `popular_extensions.txt` allow-list. Final
+  `make test-security` → 41 passed; `make check-all` → 627 passed / 5
+  skipped.
+- **Post-W7 hardening (2026-04-24):** four reliability + modularization
+  landings: (1) fatal UI-crash fail-fast classifier in
+  `_run_scenario_sequence`; (2) scan-between VS Code restart
+  (`reset_executor_state` + shared `launch_vscode.sh`) fixing the ESLint
+  `onStartupFinished` install race; (3) `attribution/` subpackage split
+  (`monitor_attribution.py` → three files, flat re-export facade); (4)
+  `sim-target` Makefile lane for single-extension smoke runs.
 - **Pre-W6 cleanup (complete, 2026-04-20):** dormant root directories removed,
   marketplace trigger planning narrowed to `TriggerPlan`, and
   `executor/flows/playwright/monitor.py` reduced to a facade over split helper
   modules.
 
 **PoC Must classes (ADR 0002):** A1 credential stealer, A2 cryptominer, A4
-remote-loader, A6 package.json script abuse. **Stretch classes (still in
-scope):** A3 typosquat, A5 malicious update, A7 VS Code API abuse.
+remote-loader, A6 package.json script abuse — **rules landed**. **Stretch
+classes:** A3 typosquat landed 2026-04-23; A5 malicious update and A7 VS
+Code API abuse remain in `POST_POC_BACKLOG.md`.
 
-The priority list below describes the enduring engineering priorities inside
-that window; weekly scope is in `REFACTOR_OPTIMIZATION.md` §10.2. W6 begins
-with behavior hardening, not structural cleanup.
+The priority list below describes the enduring engineering priorities that
+survive past W7 closure. The next iteration's scope pulls from
+`POST_POC_BACKLOG.md` "Next iteration (pull first)".
 
 ## Current Priorities
 

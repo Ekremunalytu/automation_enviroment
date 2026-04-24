@@ -28,6 +28,7 @@ _REASON_LABELS = {
     "extension_host_output_missing": "Extension Host output was empty.",
     "target_stream_missing": "The target extension did not produce a dedicated log stream.",
     "scenario_failures_present": "One or more automation scenarios failed.",
+    "fatal_ui_crash": ("VS Code renderer crashed; remaining scenarios were aborted."),
     "skipped_scenarios_present": "One or more requested scenarios were skipped.",
     "extra_trigger_failures_present": "One or more extra trigger actions failed.",
     "ui_blockers_present": "UI blockers interrupted part of the run.",
@@ -289,6 +290,13 @@ def build_automation_health(
         reasons.append("target_stream_missing")
     if failed_scenarios:
         reasons.append("scenario_failures_present")
+    fatal_crash_traces = [
+        trace
+        for trace in getattr(report, "scenario_traces", []) or []
+        if str(getattr(trace, "failure_reason_code", "") or "") == "fatal_ui_crash"
+    ]
+    if fatal_crash_traces:
+        reasons.append("fatal_ui_crash")
     if skipped_scenarios:
         reasons.append("skipped_scenarios_present")
     if extra_trigger_failures:
@@ -313,13 +321,19 @@ def build_automation_health(
     observed_scenario_coverage = executed_scenarios or covered_scenarios
 
     if (
-        requested_scenarios and not observed_scenario_coverage and not skipped_scenarios
-    ) or (
-        not target_extension_id
-        or trigger_plan_incomplete
-        or not getattr(report, "target_extension_observed", False)
-        or target_activation_count <= 0
-        or (not target_stream_present and not strong_target_attribution)
+        fatal_crash_traces
+        or (
+            requested_scenarios
+            and not observed_scenario_coverage
+            and not skipped_scenarios
+        )
+        or (
+            not target_extension_id
+            or trigger_plan_incomplete
+            or not getattr(report, "target_extension_observed", False)
+            or target_activation_count <= 0
+            or (not target_stream_present and not strong_target_attribution)
+        )
     ):
         status = "inconclusive"
     elif (requested_scenarios and skipped_scenarios) or (

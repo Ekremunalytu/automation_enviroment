@@ -220,7 +220,7 @@ def build_summary(
         "log_health": log_health,
         "attribution_summary": attribution_summary,
         "risk_summary": risk_summary,
-        "verdict": getattr(report, "verdict", {}),
+        "signal_summary": getattr(report, "signal_summary", {}),
     }
 
 
@@ -277,7 +277,7 @@ def build_report_data(
         "attribution_summary": attribution_summary,
         "risk_signals": [asdict(signal) for signal in risk_signals],
         "risk_summary": risk_summary,
-        "verdict": getattr(report, "verdict", {}),
+        "signal_summary": getattr(report, "signal_summary", {}),
         "summary": summary,
         "attempted_capabilities": getattr(
             report, "runtime_official_attempted_capabilities", []

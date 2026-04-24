@@ -108,9 +108,11 @@ RUN mkdir -p /home/executor/.vscode \
 # Create index.html symlink for noVNC
 RUN ln -s /usr/share/novnc/vnc.html /usr/share/novnc/index.html
 
-# Copy startup script
+# Copy startup + VS Code launch scripts (shared between boot and reset_state)
 COPY executor/container/start.sh /usr/local/bin/start.sh
-RUN chmod 755 /usr/local/bin/start.sh
+COPY executor/container/launch_vscode.sh /home/executor/container/launch_vscode.sh
+RUN chmod 755 /usr/local/bin/start.sh /home/executor/container/launch_vscode.sh \
+    && chown executor:executor /home/executor/container/launch_vscode.sh
 
 # Copy Playwright automation scripts and shared contract package needed at runtime.
 COPY --chown=executor:executor executor/flows /home/executor/flows

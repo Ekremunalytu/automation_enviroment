@@ -6,7 +6,7 @@ describe("adaptReport", () => {
     const dto: ActivationReportDto = {
       report_version: 2,
       target_extension_expected: "ms.test",
-      verdict: {},
+      signal_summary: {},
       scenario_traces: [],
       network_events: [],
       file_events: [],
@@ -270,7 +270,7 @@ describe("adaptReport", () => {
     const dto: ActivationReportDto = {
       report_version: 2,
       target_extension_expected: "ms.test",
-      verdict: {},
+      signal_summary: {},
       summary: {
         skipped_scenarios: ["debug_session"],
       },

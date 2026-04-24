@@ -12,19 +12,19 @@ try:
     from playwright.sync_api import Error as PlaywrightError
     from playwright.sync_api import Page
 
+    from .attribution import (
+        _annotate_file_events,
+        _annotate_network_events,
+        _annotate_process_events,
+        _build_signal_summary,
+        _format_epoch_timestamp,
+        _relative_time,
+        _scenario_name_for_timestamp,
+    )
     from .health import (
         derive_verified_capabilities,
         reconcile_event_attempts,
         summarize_event_attempts_for_report,
-    )
-    from .monitor_attribution import (
-        _annotate_file_events,
-        _annotate_network_events,
-        _annotate_process_events,
-        _build_verdict,
-        _format_epoch_timestamp,
-        _relative_time,
-        _scenario_name_for_timestamp,
     )
     from .monitor_payload import populate_report_from_trigger_payload
     from .monitor_records import (
@@ -51,19 +51,19 @@ try:
     from .runtime_capture._shared import _log, _parse_iso_timestamp
     from .runtime_capture.events import FileEvent, NetworkEvent, ProcessEvent
 except ImportError:  # pragma: no cover - top-level executor import mode
+    from attribution import (
+        _annotate_file_events,
+        _annotate_network_events,
+        _annotate_process_events,
+        _build_signal_summary,
+        _format_epoch_timestamp,
+        _relative_time,
+        _scenario_name_for_timestamp,
+    )
     from health import (
         derive_verified_capabilities,
         reconcile_event_attempts,
         summarize_event_attempts_for_report,
-    )
-    from monitor_attribution import (
-        _annotate_file_events,
-        _annotate_network_events,
-        _annotate_process_events,
-        _build_verdict,
-        _format_epoch_timestamp,
-        _relative_time,
-        _scenario_name_for_timestamp,
     )
     from monitor_payload import populate_report_from_trigger_payload
     from monitor_records import (
@@ -554,6 +554,13 @@ class ExtensionMonitor:
                 self.report.scenario_traces.append(finished_trace)
             finished_trace.ended_at = now
             finished_trace.status = status or "completed"
+            if metadata:
+                reason_code = str(metadata.get("failure_reason_code", "") or "")
+                if reason_code:
+                    finished_trace.failure_reason_code = reason_code
+                error_detail = str(metadata.get("error", "") or "")
+                if error_detail:
+                    finished_trace.error_detail = error_detail[:500]
         message = _build_scenario_log_message(action, name, status, metadata)
         self.report.log_entries.append(
             LogStreamEntry(
@@ -783,7 +790,7 @@ class ExtensionMonitor:
             self.report.coverage_matrix,
             self.report.coverage_tracks,
         ) = _reconcile_coverage_verification(self.report)
-        self.report.verdict = _build_verdict(self.report)
+        self.report.signal_summary = _build_signal_summary(self.report)
         self.report.evidence_links = self.report.canonical_evidence_links
 
     def _persist_report(self, force: bool) -> None:

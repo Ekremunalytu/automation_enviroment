@@ -22,7 +22,7 @@ def _report(events: list[dict[str, Any]]) -> ActivationReport:
             "report_version": 2,
             "target_extension_expected": "extrace.target",
             "automation_health": {"status": "healthy", "reasons": []},
-            "verdict": {},
+            "signal_summary": {},
             "summary": {},
             "scenario_traces": [],
             "evidence_events": events,

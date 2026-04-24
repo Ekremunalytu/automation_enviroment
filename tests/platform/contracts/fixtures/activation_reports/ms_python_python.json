@@ -61,7 +61,7 @@
     "low": 0,
     "categories": []
   },
-  "verdict": {
+  "signal_summary": {
     "level": "needs_review",
     "score": 22,
     "reasons": [
@@ -235,7 +235,7 @@
       "low": 0,
       "categories": []
     },
-    "verdict": {
+    "signal_summary": {
       "level": "needs_review",
       "score": 22,
       "reasons": [

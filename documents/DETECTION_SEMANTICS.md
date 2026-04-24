@@ -1,20 +1,23 @@
 # Detection Semantics
 
-`Last Updated: 2026-04-21`
+`Last Updated: 2026-04-23`
 
 This document defines the meaning of the current exported **activation
 report** contract. Its purpose is to keep report generation, API
 responses, UI adapters, and analyst interpretation aligned.
 
 Open this only when changing report JSON fields, UI report adapters,
-health or verdict logic, or exported evidence semantics.
+health, signal summary, or exported evidence semantics.
 
-> **Scope note (2026-04-17):** `ActivationReport` is a quality +
-> verification contract. The security **detection** contract
-> (`DetectionReport`, findings, severity, verdict rollup) is a sibling
-> specified separately by `adrs/0003-detection-taxonomy.md` and will land
-> during W5. This document does not govern detection output; do not
-> overload `ActivationReport` with finding fields.
+> **Scope note (2026-04-17, refined 2026-04-23):** `ActivationReport` is
+> a quality + verification contract. The security **detection** contract
+> (`DetectionReport`, findings, severity, `Verdict` rollup) is a sibling
+> specified separately by `adrs/0003-detection-taxonomy.md` and landed
+> during W5/W6. This document does not govern detection output; do not
+> overload `ActivationReport` with finding fields. At W7 entry the
+> activation-layer `verdict` was renamed to `signal_summary` so the
+> authoritative verdict vocabulary lives solely in `DetectionReport`
+> (see ADR 0003 §5).
 
 ## Raw Evidence Sources
 
@@ -178,7 +181,7 @@ These layers are assembled primarily in:
     keep the run out of `healthy`, even when the rest of the runtime looks
     complete
 - Analyst interpretation:
-  - Read this before reading the verdict.
+  - Read this before reading the signal summary.
 
 ### `log_health`
 
@@ -466,9 +469,17 @@ These fields remain the basis for ownership and downstream risk scoring.
 - Analyst interpretation:
   - Triage shortcut only; not the final decision.
 
-## Verdict Semantics
+## Signal Summary Semantics
 
-### `verdict.level`
+> **Naming note (W7 entry, 2026-04-23):** This section was formerly
+> titled "Verdict Semantics" and the field was named `verdict`. It was
+> renamed to `signal_summary` when the authoritative verdict vocabulary
+> was consolidated into `DetectionReport.verdict` (ADR 0003 §5). The
+> activation-layer signal summary is a sandbox behavioral heuristic,
+> not a final verdict; it is surfaced in the dashboard risk panel
+> clearly separated from rule-driven detection verdicts.
+
+### `signal_summary.level`
 
 - Allowed values:
   - `benign`
@@ -482,7 +493,7 @@ These fields remain the basis for ownership and downstream risk scoring.
   - correlative suspicious activity can elevate to `needs_review` or
     `suspicious`, but not `likely_malicious`
 
-### `verdict.score`
+### `signal_summary.score`
 
 - Meaning:
   - Heuristic score currently normalized into the `8-96` range.
@@ -493,12 +504,13 @@ These fields remain the basis for ownership and downstream risk scoring.
   - combined file and network behavior
   - degraded verification quality
 
-### `verdict.reasons`
+### `signal_summary.reasons`
 
 - Meaning:
   - Short analyst-facing explanations for the score and label.
 - Analyst interpretation:
-  - This is the bridge between raw evidence and the top-level decision.
+  - This is the bridge between raw evidence and the activation-layer
+    behavioral heuristic, not the final detection verdict.
 
 ## Analyst Reading Order
 
@@ -512,7 +524,7 @@ When reviewing a report, use this order:
 6. `heuristic_workflow_coverage`
 7. `attribution_summary`
 8. `risk_signals`
-9. `verdict`
+9. `signal_summary`
 10. raw evidence, logs, and attempt ledgers
 
 This order prevents two recurring mistakes:

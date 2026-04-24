@@ -1,4 +1,4 @@
-import { startTransition, useDeferredValue, useEffect, useState } from "react";
+import { startTransition, useDeferredValue, useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import { FilterRail, type EvidenceFilterState } from "../../components/evidence/FilterRail";
@@ -89,9 +89,10 @@ export function SimulationPage() {
   const report = reportQuery.data;
   const model = job ? adaptJob(job) : null;
 
-  const filteredEvents = report
-    ? filterEvidenceEvents(report.evidence, filters, deferredSearch)
-    : [];
+  const filteredEvents = useMemo(
+    () => (report ? filterEvidenceEvents(report.evidence, filters, deferredSearch) : []),
+    [report, filters, deferredSearch],
+  );
 
   useEffect(() => {
     if (!report?.evidence.length) return;

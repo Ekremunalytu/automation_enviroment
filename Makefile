@@ -66,7 +66,8 @@ help:
 	@echo "║  exec-run       │ Run Playwright automation                       ║"
 	@echo "╠═══════════════════════════════════════════════════════════════════╣"
 	@echo "║                     🤖 Simulations & Automation                    ║"
-	@echo "║  sim-all        │ Start executor & run all scenarios (monitor)    ║"
+	@echo "║  sim-all        │ UI-stimulus stress: scenarios w/o target ext.   ║"
+	@echo "║  sim-target     │ Target-extension smoke (TARGET=publisher.name)  ║"
 	@echo "║  sim-demo       │ Start executor & run quick Playwright demo      ║"
 	@echo "║  sim-list       │ List available scenarios                        ║"
 	@echo "║  sim-run        │ Run specific scenario (use SCENARIO=name)       ║"
@@ -384,8 +385,23 @@ exec-run:
 # =============================================================================
 
 sim-all: exec-up
-	@echo "🤖 Starting all simulations with monitoring..."
+	@echo "🤖 Running UI-stimulus stress lane (no target extension)..."
+	@echo "    NB: this answers 'does the UI engine run?' — NOT 'did a target extension activate?'."
+	@echo "    Expected: target_extension_observed=false, run_quality=inconclusive."
+	@echo "    For target-activation health use: make sim-target TARGET=publisher.name"
 	docker exec -e PYTHONUNBUFFERED=1 -it automation_executor python3 /home/executor/flows/playwright/entrypoint.py --monitor
+
+sim-target: exec-up
+	@if [ -z "$(TARGET)" ]; then \
+		echo "❌ Please provide a TARGET. Usage: make sim-target TARGET=publisher.name [TRIGGERS=/path/to/payload.json] [SCENARIO=<name>]"; \
+		exit 1; \
+	fi
+	@echo "🤖 Running target-extension smoke for $(TARGET)..."
+	docker exec -e PYTHONUNBUFFERED=1 -it automation_executor python3 /home/executor/flows/playwright/entrypoint.py \
+		--monitor \
+		--target-extension-id $(TARGET) \
+		$(if $(TRIGGERS),--triggers $(TRIGGERS),) \
+		$(if $(SCENARIO),--scenario $(SCENARIO),)
 
 sim-demo: exec-up
 	@echo "🤖 Running quick demo scenario..."

@@ -166,11 +166,120 @@ def test_install_extension_success(mock_exec: MagicMock) -> None:
 
 @patch("executor.host._docker_exec")
 def test_install_extension_failure(mock_exec: MagicMock) -> None:
-    """ExecutorError propagates from _docker_exec."""
-    mock_exec.side_effect = ExecutorError("Install failed", returncode=1, output="err")
+    """Non-retryable ExecutorError propagates on the first attempt."""
+    mock_exec.side_effect = ExecutorError(
+        "Install failed",
+        returncode=1,
+        output="bad VSIX manifest",
+    )
 
     with pytest.raises(ExecutorError):
         install_extension_in_executor("pub", "ext", "1.0.0")
+
+    assert mock_exec.call_count == 1
+
+
+@patch("executor.host.time.sleep")
+@patch("executor.host.reload_vscode_window")
+@patch("executor.host._docker_exec")
+def test_install_extension_retries_after_reload_on_transient_ipc_error(
+    mock_exec: MagicMock,
+    mock_reload: MagicMock,
+    mock_sleep: MagicMock,
+) -> None:
+    """On an IPC/lock-style failure we reload VS Code and retry once."""
+    mock_exec.side_effect = [
+        ExecutorError(
+            "Command failed (rc=1): code --install-extension ...",
+            returncode=1,
+            output="ENOENT: ipc handle lock file busy",
+        ),
+        subprocess.CompletedProcess(
+            args=[], returncode=0, stdout="installed on retry\n", stderr=""
+        ),
+    ]
+
+    output = install_extension_in_executor("pub", "ext", "1.0.0")
+
+    assert output == "installed on retry\n"
+    assert mock_exec.call_count == 2
+    mock_reload.assert_called_once_with()
+    mock_sleep.assert_called_once_with(2)
+
+
+@patch("executor.host.time.sleep")
+@patch("executor.host.reload_vscode_window")
+@patch("executor.host._docker_exec")
+def test_install_extension_retry_failure_surfaces_first_attempt_output(
+    mock_exec: MagicMock,
+    mock_reload: MagicMock,
+    mock_sleep: MagicMock,
+) -> None:
+    """If the retry also fails, the first attempt's stderr tail is included."""
+    mock_exec.side_effect = [
+        ExecutorError(
+            "Command failed (rc=1): code --install-extension ...",
+            returncode=1,
+            output="ipc hook connection refused; renderer gone",
+        ),
+        ExecutorError(
+            "Command failed (rc=1): code --install-extension ...",
+            returncode=1,
+            output="still unhappy on retry",
+        ),
+    ]
+
+    with pytest.raises(ExecutorError) as exc_info:
+        install_extension_in_executor("pub", "ext", "1.0.0")
+
+    assert mock_exec.call_count == 2
+    mock_reload.assert_called_once_with()
+    assert mock_sleep.call_count == 1
+    message = str(exc_info.value)
+    assert "first attempt output" in message
+    assert "connection refused" in message
+
+
+@patch("executor.host._docker_exec")
+def test_install_extension_skips_retry_on_non_transient_stderr(
+    mock_exec: MagicMock,
+) -> None:
+    """Clear non-transient failures (bad VSIX etc.) short-circuit without reload."""
+    mock_exec.side_effect = ExecutorError(
+        "Command failed (rc=1): code --install-extension ...",
+        returncode=1,
+        output="Error: extension manifest missing",
+    )
+
+    with pytest.raises(ExecutorError):
+        install_extension_in_executor("pub", "ext", "1.0.0")
+
+    assert mock_exec.call_count == 1
+
+
+@patch("executor.host.reload_vscode_window")
+@patch("executor.host._docker_exec")
+def test_install_extension_reload_failure_raises_original_error(
+    mock_exec: MagicMock,
+    mock_reload: MagicMock,
+) -> None:
+    """If the recovery reload itself fails, surface the original install error."""
+    first_exc = ExecutorError(
+        "Command failed (rc=1): code --install-extension ...",
+        returncode=1,
+        output="ipc handle busy",
+    )
+    mock_exec.side_effect = first_exc
+    mock_reload.side_effect = ExecutorError(
+        "reload failed", returncode=1, output="reload stderr"
+    )
+
+    with pytest.raises(ExecutorError) as exc_info:
+        install_extension_in_executor("pub", "ext", "1.0.0")
+
+    assert exc_info.value is first_exc
+    assert mock_exec.call_count == 1
+    mock_reload.assert_called_once_with()
 
 
 # ---------------------------------------------------------------------------

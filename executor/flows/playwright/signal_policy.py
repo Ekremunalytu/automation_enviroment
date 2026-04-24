@@ -1,10 +1,13 @@
-"""Risk signal and verdict policy helpers."""
+"""Risk signal and activation-layer signal summary policy helpers."""
 # mypy: disable-error-code=no-redef
 
 from __future__ import annotations
 
+import importlib
 import ipaddress
+import sys
 from collections import defaultdict
+from pathlib import Path
 from typing import Any
 
 try:
@@ -25,16 +28,17 @@ except ImportError:  # pragma: no cover - top-level executor import mode
     )
 
 
-_CONFIDENCE_HIGH_THRESHOLD = 0.85
-_CONFIDENCE_MEDIUM_THRESHOLD = 0.65
+_PROJECT_ROOT = str(Path(__file__).resolve().parents[3])
+if _PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, _PROJECT_ROOT)
+
+_quantize_confidence = importlib.import_module(
+    "packages.analysis_contracts.detection.enums"
+).quantize_confidence
 
 
 def _confidence_tier(value: float) -> str:
-    if value >= _CONFIDENCE_HIGH_THRESHOLD:
-        return "high"
-    if value >= _CONFIDENCE_MEDIUM_THRESHOLD:
-        return "medium"
-    return "low"
+    return str(_quantize_confidence(value))
 
 
 def _make_signal(risk_signal_type: Any, *, confidence: float, **fields: Any) -> Any:
@@ -310,7 +314,7 @@ def build_risk_summary(signals: list[Any]) -> dict[str, Any]:
     }
 
 
-def build_verdict(
+def build_signal_summary(
     report: Any,
     *,
     automation_health: dict[str, Any],

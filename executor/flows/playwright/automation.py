@@ -12,6 +12,7 @@ import keyboard
 import settings  # noqa: F401
 import sidebar  # noqa: F401
 import terminal  # noqa: F401
+import vscode
 from scenarios.common import log as _log
 from scenarios.editing import (  # noqa: F401
     scenario_coding_session,
@@ -43,12 +44,27 @@ from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import Page
 
 ScenarioEventReporter = Callable[[str, str, str, dict[str, Any] | None], None]
+OnPageReloaded = Callable[[Page], None]
+UiBlockerProbe = Callable[[Page, str], None]
 
 _SCENARIO_EVENT_REPORTER: ScenarioEventReporter | None = None
 _ALL_SCENARIOS: list[ScenarioSpec] = build_default_scenarios()
 
+ABORTED_AFTER_FATAL_UI_CRASH_REASON = "aborted_after_fatal_ui_crash"
+_ABORTED_AFTER_FATAL_UI_CRASH_DETAIL = (
+    "Scenario not executed: VS Code UI renderer crashed during a prior scenario."
+)
 
-def run_all_scenarios(page: Page, shuffle: bool = False) -> AutomationExecutionResult:
+
+def run_all_scenarios(
+    page: Page,
+    shuffle: bool = False,
+    *,
+    retry_on_crash: bool = False,
+    browser: Any = None,
+    on_page_reloaded: OnPageReloaded | None = None,
+    ui_blocker_probe: UiBlockerProbe | None = None,
+) -> AutomationExecutionResult:
     """Run all user behavior simulation scenarios sequentially."""
     scenarios = list(_ALL_SCENARIOS)
     if shuffle:
@@ -56,7 +72,15 @@ def run_all_scenarios(page: Page, shuffle: bool = False) -> AutomationExecutionR
     result = AutomationExecutionResult(
         requested_scenarios=[scenario.name for scenario in scenarios]
     )
-    _run_scenario_sequence(page, scenarios, result)
+    _run_scenario_sequence(
+        page,
+        scenarios,
+        result,
+        retry_on_crash=retry_on_crash,
+        browser=browser,
+        on_page_reloaded=on_page_reloaded,
+        ui_blocker_probe=ui_blocker_probe,
+    )
     return result
 
 
@@ -90,6 +114,11 @@ def run_selected_scenarios(
     page: Page,
     names: list[str],
     shuffle: bool = False,
+    *,
+    retry_on_crash: bool = False,
+    browser: Any = None,
+    on_page_reloaded: OnPageReloaded | None = None,
+    ui_blocker_probe: UiBlockerProbe | None = None,
 ) -> AutomationExecutionResult:
     """Run a subset of scenarios by name."""
     result = AutomationExecutionResult(requested_scenarios=list(names))
@@ -108,7 +137,15 @@ def run_selected_scenarios(
         selected.append(scenario)
     if shuffle:
         random.shuffle(selected)
-    _run_scenario_sequence(page, selected, result)
+    _run_scenario_sequence(
+        page,
+        selected,
+        result,
+        retry_on_crash=retry_on_crash,
+        browser=browser,
+        on_page_reloaded=on_page_reloaded,
+        ui_blocker_probe=ui_blocker_probe,
+    )
     return result
 
 
@@ -183,12 +220,67 @@ def _scenario_map() -> dict[str, ScenarioSpec]:
     return {scenario.name: scenario for scenario in _ALL_SCENARIOS}
 
 
+_FATAL_UI_ERROR_MARKERS: tuple[str, ...] = (
+    "Target crashed",
+    "renderer process gone",
+    "Target closed",
+    "Target page, context or browser has been closed",
+    "Connection closed",
+    "page has been closed",
+)
+
+FATAL_UI_CRASH_REASON = "fatal_ui_crash"
+
+
+def is_fatal_ui_error(exc: BaseException, page: Page | None) -> tuple[bool, str]:
+    """Classify whether an exception means the VS Code renderer is dead.
+
+    Returns ``(True, "fatal_ui_crash")`` on a positive assertion — explicit
+    error-message markers, `page.is_closed()` / `page.context.is_closed()`
+    true, or a short-timeout liveness probe that raises. Otherwise returns
+    ``(False, "")`` so the caller can continue with normal recovery.
+    """
+    message = str(exc)
+    for marker in _FATAL_UI_ERROR_MARKERS:
+        if marker in message:
+            return True, FATAL_UI_CRASH_REASON
+    if page is None:
+        return False, ""
+    try:
+        if page.is_closed():
+            return True, FATAL_UI_CRASH_REASON
+    except PlaywrightError:
+        return True, FATAL_UI_CRASH_REASON
+    ctx_is_closed = getattr(page.context, "is_closed", None)
+    if callable(ctx_is_closed):
+        try:
+            if ctx_is_closed():
+                return True, FATAL_UI_CRASH_REASON
+        except PlaywrightError:
+            return True, FATAL_UI_CRASH_REASON
+    try:
+        page.wait_for_function("1 === 1", timeout=1500)
+    except PlaywrightError:
+        return True, FATAL_UI_CRASH_REASON
+    return False, ""
+
+
 def _run_scenario_sequence(
     page: Page,
     scenarios: list[ScenarioSpec],
     result: AutomationExecutionResult,
+    *,
+    retry_on_crash: bool = False,
+    browser: Any = None,
+    on_page_reloaded: OnPageReloaded | None = None,
+    ui_blocker_probe: UiBlockerProbe | None = None,
 ) -> None:
-    for scenario in scenarios:
+    for idx, scenario in enumerate(scenarios):
+        if ui_blocker_probe is not None:
+            try:
+                ui_blocker_probe(page, scenario.name)
+            except (PlaywrightError, RuntimeError, ValueError) as exc:
+                _log(f"UI blocker probe failed for {scenario.name}: {exc}")
         _append_unique(result.executed_scenarios, scenario.name)
         _emit_scenario_event(
             "start", scenario.name, metadata=_scenario_metadata(scenario)
@@ -203,17 +295,65 @@ def _run_scenario_sequence(
                 metadata=_scenario_metadata(scenario),
             )
         except (PlaywrightError, RuntimeError, ValueError) as exc:
-            _log(f"FAIL: {scenario.name} -> {exc}")
+            fatal, reason_code = is_fatal_ui_error(exc, page)
+            error_detail = str(exc)[:500]
             _append_unique(result.failed_scenarios, scenario.name)
             _emit_scenario_event(
                 "end",
                 scenario.name,
                 "failed",
-                metadata=_scenario_metadata(scenario, error=str(exc)),
+                metadata=_scenario_metadata(
+                    scenario,
+                    error=error_detail,
+                    failure_reason_code=reason_code,
+                ),
             )
+            if fatal:
+                _log(f"FATAL: {scenario.name} -> {exc}")
+                if retry_on_crash and browser is not None:
+                    try:
+                        page = vscode.reload_workbench_window(browser, page)
+                    except (vscode.ReloadWindowError, PlaywrightError) as reload_exc:
+                        _log(f"Reload after crash failed: {reload_exc}")
+                        _mark_remaining_scenarios_aborted(scenarios, idx, result)
+                        break
+                    if on_page_reloaded is not None:
+                        on_page_reloaded(page)
+                    continue
+                _mark_remaining_scenarios_aborted(scenarios, idx, result)
+                break
+            _log(f"FAIL: {scenario.name} -> {exc}")
             _recover_ui_state(page)
         _cleanup_between_scenarios(page)
         page.wait_for_timeout(1000)
+
+
+def _mark_remaining_scenarios_aborted(
+    scenarios: list[ScenarioSpec],
+    current_idx: int,
+    result: AutomationExecutionResult,
+) -> None:
+    """Record untouched scenarios as aborted after a fatal UI crash.
+
+    Skipped here means: the current scenario's failure tore down the
+    renderer, so the loop bailed without even probing the rest. Recorded
+    distinctly from ``unknown_scenario`` so operators can tell
+    "never attempted" apart from "registered but unavailable".
+    """
+    already_skipped = {record.name for record in result.skipped_scenarios}
+    for remaining in scenarios[current_idx + 1 :]:
+        if remaining.name in already_skipped:
+            continue
+        if remaining.name in result.executed_scenarios:
+            continue
+        result.skipped_scenarios.append(
+            SkippedScenarioRecord(
+                name=remaining.name,
+                reason_code=ABORTED_AFTER_FATAL_UI_CRASH_REASON,
+                detail=_ABORTED_AFTER_FATAL_UI_CRASH_DETAIL,
+            )
+        )
+        already_skipped.add(remaining.name)
 
 
 def _append_unique(items: list[str], value: str) -> None:
@@ -225,5 +365,10 @@ def _scenario_metadata(
     scenario: ScenarioSpec,
     *,
     error: str = "",
+    failure_reason_code: str = "",
 ) -> dict[str, Any]:
-    return scenario_metadata(scenario, error=error)
+    return scenario_metadata(
+        scenario,
+        error=error,
+        failure_reason_code=failure_reason_code,
+    )

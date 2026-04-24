@@ -17,7 +17,7 @@ export type ReportWorkspaceTab = "evidence" | "analysis";
 type ReportModel = ActivationReportView;
 
 function computeRiskScore(report: ReportModel) {
-  const score = Math.max(8, Math.min(96, Math.round(report.summary.verdictScore || 0)));
+  const score = Math.max(8, Math.min(96, Math.round(report.summary.signalSummaryScore || 0)));
   const labelByLevel = {
     benign: "Benign",
     needs_review: "Needs review",
@@ -27,11 +27,11 @@ function computeRiskScore(report: ReportModel) {
 
   return {
     score,
-    label: labelByLevel[report.summary.verdictLevel] || "Needs review",
+    label: labelByLevel[report.summary.signalSummaryLevel] || "Needs review",
     note:
-      report.summary.verdictNote ||
-      "This report did not include a computed verdict note.",
-    reasons: report.summary.verdictReasons,
+      report.summary.signalSummaryNote ||
+      "This report did not include a computed activation-layer signal summary note.",
+    reasons: report.summary.signalSummaryReasons,
   };
 }
 

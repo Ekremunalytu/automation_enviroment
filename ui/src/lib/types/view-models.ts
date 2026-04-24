@@ -112,10 +112,10 @@ export interface ReportSummaryView {
   targetStreamPresent: boolean;
   targetActivationCount: number;
   legacyHealthFallback: boolean;
-  verdictLevel: "benign" | "needs_review" | "suspicious" | "likely_malicious";
-  verdictScore: number;
-  verdictReasons: string[];
-  verdictNote: string;
+  signalSummaryLevel: "benign" | "needs_review" | "suspicious" | "likely_malicious";
+  signalSummaryScore: number;
+  signalSummaryReasons: string[];
+  signalSummaryNote: string;
 }
 
 export interface AttributionSummaryView {

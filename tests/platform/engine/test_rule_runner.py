@@ -96,7 +96,7 @@ def _activation_report(**overrides: Any) -> ActivationReport:
         "report_version": 2,
         "target_extension_expected": "extrace.fixture-chat",
         "automation_health": {"status": "healthy", "reasons": []},
-        "verdict": {},
+        "signal_summary": {},
         "summary": {},
         "scenario_traces": [],
         "evidence_events": [],

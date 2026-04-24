@@ -26,13 +26,13 @@ try:
         reconcile_event_attempts,
         summarize_event_attempts_for_report,
     )
-    from .monitor_attribution import (
+    from .attribution import (
         _annotate_file_events,
         _annotate_network_events,
         _build_evidence_bundle,
         _build_risk_signals,
         _build_risk_summary,
-        _build_verdict,
+        _build_signal_summary,
         _format_epoch_timestamp,
         _indexed_target_activations,
         _indexed_target_file_events,
@@ -139,7 +139,7 @@ try:
         NetworkCapture,
         parse_tshark_event_line,
     )
-    from .signals import build_risk_signals, build_risk_summary, build_verdict
+    from .signals import build_risk_signals, build_risk_summary, build_signal_summary
 except ImportError:  # pragma: no cover - top-level executor import mode
     from annotation import build_attribution_summary
     from capture import summarize_extension_host_logs
@@ -154,13 +154,13 @@ except ImportError:  # pragma: no cover - top-level executor import mode
         reconcile_event_attempts,
         summarize_event_attempts_for_report,
     )
-    from monitor_attribution import (
+    from attribution import (
         _annotate_file_events,
         _annotate_network_events,
         _build_evidence_bundle,
         _build_risk_signals,
         _build_risk_summary,
-        _build_verdict,
+        _build_signal_summary,
         _format_epoch_timestamp,
         _indexed_target_activations,
         _indexed_target_file_events,
@@ -267,4 +267,4 @@ except ImportError:  # pragma: no cover - top-level executor import mode
         NetworkCapture,
         parse_tshark_event_line,
     )
-    from signals import build_risk_signals, build_risk_summary, build_verdict
+    from signals import build_risk_signals, build_risk_summary, build_signal_summary

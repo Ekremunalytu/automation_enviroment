@@ -35,12 +35,18 @@ except ImportError:  # pragma: no cover - top-level executor import mode
     from playwright.sync_api import Page
 
 
+_LAST_EXTHOST_LOG_COUNT: int = -1
+
+
 def find_exthost_logs() -> list[Path]:
     """Find Extension Host log files (wrapper preserving monkeypatch points)."""
+    global _LAST_EXTHOST_LOG_COUNT
     api = resolve_monitor_api()
     logs_dir = api.VSCODE_LOGS_DIR
     if not logs_dir.exists():
-        _log(f"Log directory not found: {logs_dir}")
+        if _LAST_EXTHOST_LOG_COUNT != -2:
+            _log(f"Log directory not found: {logs_dir}")
+            _LAST_EXTHOST_LOG_COUNT = -2
         return []
 
     patterns = ["**/exthost*/exthost.log", "**/exthost*.log"]
@@ -56,7 +62,9 @@ def find_exthost_logs() -> list[Path]:
             seen.add(canon)
             unique.append(p)
 
-    _log(f"Found {len(unique)} Extension Host log file(s)")
+    if len(unique) != _LAST_EXTHOST_LOG_COUNT:
+        _log(f"Found {len(unique)} Extension Host log file(s)")
+        _LAST_EXTHOST_LOG_COUNT = len(unique)
     return unique
 
 

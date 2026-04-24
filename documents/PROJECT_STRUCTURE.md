@@ -1,6 +1,6 @@
 # Project Structure
 
-`Last Updated: 2026-04-20`
+`Last Updated: 2026-04-24`
 
 This is the current top-level layout and placement guidance for the refactored
 repository.
@@ -120,6 +120,7 @@ executor/
   host.py
   container/
     Dockerfile
+    launch_vscode.sh
     requirements.txt
     start.sh
   flows/
@@ -128,6 +129,10 @@ executor/
       package.json
     playwright/
       annotation.py
+      attribution/
+        __init__.py
+        events.py
+        links.py
       automation.py
       capture.py
       commands.py
@@ -144,8 +149,8 @@ executor/
       keyboard.py
       language_samples.py
       monitor.py
-      monitor_attribution.py
       monitor_lifecycle.py
+      monitor_payload.py
       monitor_records.py
       monitor_runtime.py
       monitor_sources.py
@@ -182,6 +187,7 @@ executor/
       terminal.py
       triggers.py
       vscode.py
+      wait_helpers.py
       workspace.py
       workspace_seed_data.py
       workspace_seed_home.py
@@ -199,15 +205,22 @@ tests/
   architecture/
     test_import_graph.py
   executor/
+    conftest.py
     test_container_dockerfile.py
     test_playwright_automation.py
     test_playwright_commands.py
+    test_playwright_crash_classifier.py
     test_playwright_entrypoint.py
+    test_playwright_health_summary.py
     test_playwright_helpers.py
-    test_playwright_monitor.py
+    test_playwright_monitor_attribution.py
+    test_playwright_monitor_lifecycle.py
+    test_playwright_monitor_package_import.py
+    test_playwright_monitor_runtime.py
     test_playwright_reload.py
     test_playwright_stimulus.py
     test_reset_state.py
+    test_signal_policy.py
     test_workspace.py
   platform/
     api/
@@ -216,23 +229,53 @@ tests/
       test_deps.py
       test_fixtures.py
     contracts/
+      fixtures/
       test_analysis_fixture_baselines.py
+      test_detection_report.py
+      test_report_builder_contract.py
       test_schemas.py
+      test_verdict_rollup.py
+    engine/
+      test_rule_runner.py
     storage/
       test_analysis_jobs.py
       test_crud.py
     test_canonical_imports.py
   security/
+    helpers.py
+    rules/
+      test_a1_credential_read_then_network.py
+      test_a2_startup_network_beacon.py
+      test_a3_typosquat.py
+      test_a4_workspace_exfil.py
+      test_a6_startup_ui_prompt.py
+      test_rule_attribution.py
+    test_benign_silence.py
+    test_canary_end_to_end.py
+    test_detection_report_invariants.py
     test_fixture_hygiene.py
     test_rule_coverage.py
+    test_rule_validation.py
   scanner/
     test_executor.py
   smoke/
     test_marketplace_analysis_smoke.py
   workflows/
     activation_reports/
+      test_bundle_endpoint.py
+      test_router.py
     extension_catalog/
+      test_package_parser.py
+      test_router.py
+      test_service.py
     marketplace/
+      fixtures/
+      test_analysis_bundle.py
+      test_analysis_execution_helpers.py
+      test_analysis_planner.py
+      test_client.py
+      test_router.py
+      test_triggers.py
 ```
 
 UI tests live under `ui/src/**/*.test.ts(x)`.

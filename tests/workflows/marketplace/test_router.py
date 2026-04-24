@@ -532,7 +532,7 @@ def _scenario_zero_report_payload(target_extension_id: str) -> dict[str, object]
         "target_extension_log_entries": 0,
         "total_activation_entries": 0,
     }
-    verdict = {
+    signal_summary = {
         "level": "benign",
         "score": 8,
         "note": "No executable surface was observed for the color-theme fixture.",
@@ -560,7 +560,7 @@ def _scenario_zero_report_payload(target_extension_id: str) -> dict[str, object]
         "attribution_summary": {},
         "risk_signals": [],
         "risk_summary": {},
-        "verdict": verdict,
+        "signal_summary": signal_summary,
         "summary": {
             "total_activated": 0,
             "unique_extensions": 0,
@@ -598,7 +598,7 @@ def _scenario_zero_report_payload(target_extension_id: str) -> dict[str, object]
             "log_health": log_health,
             "attribution_summary": {},
             "risk_summary": {},
-            "verdict": verdict,
+            "signal_summary": signal_summary,
         },
         "attempted_capabilities": [],
         "verified_capabilities": [],

@@ -5,9 +5,14 @@ from copy import deepcopy
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
+from pydantic import ValidationError
+
 from appcore.contracts.schemas import ExtensionSchema
 from packages.analysis_contracts import (
+    EVENT_ATTEMPT_LIFECYCLE_STATES,
     ActivationReport,
+    EventAttemptRecord,
     TriggerPayload,
     activation_report_invariant_issues,
     detection_report_invariant_issues,
@@ -56,7 +61,7 @@ def test_activation_report_fixture_exposes_minimum_shape() -> None:
         "report_version",
         "target_extension_expected",
         "automation_health",
-        "verdict",
+        "signal_summary",
         "summary",
         "scenario_traces",
         "evidence_events",
@@ -68,7 +73,7 @@ def test_activation_report_fixture_exposes_minimum_shape() -> None:
     assert required_keys.issubset(report)
     assert report["target_extension_expected"] == "ms-python.python"
     assert isinstance(report["automation_health"], dict)
-    assert isinstance(report["verdict"], dict)
+    assert isinstance(report["signal_summary"], dict)
     assert isinstance(report["summary"], dict)
     assert isinstance(report["scenario_traces"], list)
     assert isinstance(report["evidence_events"], list)
@@ -133,6 +138,70 @@ def test_color_theme_activation_report_fixture_supports_zero_scenario_semantics(
     assert round_tripped["trigger_execution_mode"] == "skip_automation"
     assert round_tripped["summary"]["scenarios_run"] == []
     assert ActivationReport.model_validate(round_tripped) == parsed
+
+
+def test_activation_report_accepts_legacy_verdict_field() -> None:
+    fixture_path = (
+        Path(__file__).parent
+        / "fixtures"
+        / "activation_reports"
+        / "ms_python_python.json"
+    )
+    report = _load_fixture(fixture_path)
+
+    legacy = deepcopy(report)
+    legacy["verdict"] = legacy.pop("signal_summary")
+    assert "signal_summary" not in legacy
+    assert "verdict" in legacy
+
+    parsed = ActivationReport.model_validate(legacy)
+    dumped = parsed.model_dump(mode="json")
+
+    assert "signal_summary" in dumped
+    assert "verdict" not in dumped
+    assert dumped["signal_summary"] == report["signal_summary"]
+
+    reparsed = ActivationReport.model_validate(dumped)
+    assert reparsed == parsed
+
+
+def _minimal_event_attempt_payload(status: str) -> dict[str, object]:
+    return {
+        "attempt_id": "attempt-1",
+        "declared_event": "onLanguage:python",
+        "activation_event": "onLanguage:python",
+        "event_family": "onLanguage",
+        "status": status,
+    }
+
+
+@pytest.mark.parametrize("status", sorted(EVENT_ATTEMPT_LIFECYCLE_STATES))
+def test_event_attempt_record_accepts_all_documented_lifecycle_states(
+    status: str,
+) -> None:
+    record = EventAttemptRecord.model_validate(_minimal_event_attempt_payload(status))
+    assert record.status == status
+
+
+def test_event_attempt_record_rejects_unknown_status() -> None:
+    with pytest.raises(ValidationError) as exc:
+        EventAttemptRecord.model_validate(_minimal_event_attempt_payload("bogus"))
+    assert "EventAttemptRecord.status 'bogus'" in str(exc.value)
+
+
+def test_event_attempt_lifecycle_states_cover_current_runtime_emitters() -> None:
+    runtime_emitted_statuses = {
+        "planned",
+        "running",
+        "attempted_only",
+        "verified",
+        "blocked",
+        "failed",
+    }
+    missing = runtime_emitted_statuses - EVENT_ATTEMPT_LIFECYCLE_STATES
+    assert (
+        not missing
+    ), f"Runtime emits statuses the contract does not accept: {sorted(missing)}"
 
 
 @patch("workflows.marketplace.client.httpx.Client", side_effect=AssertionError)

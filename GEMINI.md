@@ -1,17 +1,40 @@
 # GEMINI.md
 
-`Last Updated: 2026-04-20`
+`Last Updated: 2026-04-24`
 
 Read `AGENTS.md` before doing anything substantial. It contains the
 authoritative rules.
 
 ## Current Phase
 
-- Week 4 stabilization is closed (`2026-04-20`).
-- Security scaffolding already exists under
-  `packages/analysis_contracts/detection/`, `extensions/malicious/`, and
-  `tests/security/`.
-- Use `documents/REFACTOR_STATUS.md` for the current closure state.
+- Week 4 stabilization closed `2026-04-20`.
+- W5 detection foundations landed `2026-04-20` (contracts under
+  `packages/analysis_contracts/detection/`, A1/A2/A4/A6 rules in
+  `packages/analysis_engine/rules/`, T1 canaries under
+  `extensions/malicious/`, `tests/security/`, `make test-security`).
+- W6 automation reliability + capture hardening landed `2026-04-21`; the W6
+  correctness follow-up (target-only attribution, `tls_client_hello` in
+  `TLS_EVENT_TYPES`, `RuleExecutionStatus.ERROR` dominance, security-fixtures
+  CI lane) closed on `2026-04-23`. **W6 closed.**
+- **W7 (acceptance + buffer):** closed `2026-04-23`. §10.7 PoC acceptance
+  checklist met (11/11); A3 typosquat rule + canary landed in the Phase 3a
+  buffer. `make test-security` → 41 passed, `make check-all` → all green.
+- **Post-W7 hardening (2026-04-24):** four reliability + modularization
+  fixes landed on top of W7 closure: (1) fatal UI-crash classification +
+  fail-fast in `_run_scenario_sequence` with `failure_reason_code =
+  "fatal_ui_crash"` degrading health to `inconclusive`; (2) scan-between
+  VS Code restart orchestrated by `reset_executor_state` with shared
+  `launch_vscode.sh` script (fixes ESLint `onStartupFinished` install
+  race); (3) `attribution/` subpackage split
+  (`executor/flows/playwright/monitor_attribution.py` → three files:
+  `attribution/events.py`, `attribution/links.py`, `attribution/__init__.py`
+  facade preserving the 29-name underscore-prefixed API); (4) `sim-target`
+  Makefile lane added (`make sim-target TARGET=publisher.name
+  [TRIGGERS=…] [SCENARIO=…]`) so operators can run a target-extension
+  smoke separately from the `sim-all` UI-stimulus stress run.
+- Use `documents/REFACTOR_STATUS.md` for current closure state,
+  `documents/REFACTOR_OPTIMIZATION.md` §10 for the W0-W7 window, and
+  `documents/POST_POC_BACKLOG.md` for next-iteration pull candidates.
 
 ## Context-Safe Workflow
 

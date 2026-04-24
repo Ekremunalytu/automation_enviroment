@@ -388,4 +388,4 @@ def test_missing_trigger_payload_never_looks_benign(runtime_client: TestClient) 
     report = report_response.json()
 
     assert report["automation_health"]["status"] in {"degraded", "inconclusive"}
-    assert report["verdict"]["level"] != "benign"
+    assert report["signal_summary"]["level"] != "benign"

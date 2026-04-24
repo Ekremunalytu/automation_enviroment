@@ -1,8 +1,27 @@
 """VS Code settings helpers.
 
 Covers activation events: onConfiguration:*
-Modifying settings triggers configuration change events that some extensions listen to.
+Modifying settings triggers configuration change events that some
+extensions listen to.
+
+`write_settings_batch` / `toggle_setting_via_json` update the user
+`settings.json` by rewriting the on-disk file atomically (temp + rename)
+instead of driving the Monaco buffer via keyboard navigation. The older
+cursor-based append produced invalid JSON (new keys landed after the
+closing brace), which crashed the VS Code renderer
+(`CodeWindow: renderer process gone`) and cascade-failed every
+subsequent Playwright scenario. The filesystem path is a documented
+VS Code affordance: the settings file watcher re-reads the file and
+dispatches `onDidChangeConfiguration` exactly as it would for a buffer
+save, without any risk of mid-write corruption.
 """
+
+from __future__ import annotations
+
+import json
+import os
+from pathlib import Path
+from typing import Any
 
 import keyboard
 from commands import run_command, wait_for_quick_input_hidden
@@ -15,6 +34,57 @@ _SETTINGS_SEARCH_SELECTORS = [
     "input[aria-label='Search Settings']",
     ".settings-editor .search-container input",
 ]
+
+_DEFAULT_SETTINGS_JSON_PATH = Path("/home/executor/.vscode/User/settings.json")
+
+
+def _settings_json_path() -> Path:
+    override = os.environ.get("EXTRACE_VSCODE_SETTINGS_JSON")
+    return Path(override) if override else _DEFAULT_SETTINGS_JSON_PATH
+
+
+def _load_current_settings(path: Path) -> dict[str, Any] | None:
+    """Parse the existing settings.json.
+
+    Returns the parsed mapping, `{}` if the file is missing or blank,
+    or `None` when the existing file is unreadable / malformed — in
+    that case callers must skip the write rather than compound the
+    damage by overwriting with partial data.
+    """
+    try:
+        raw = path.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        return {}
+    except OSError:
+        return None
+    if not raw.strip():
+        return {}
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(parsed, dict):
+        return None
+    return parsed
+
+
+def _parse_setting_value(value_literal: str) -> Any:
+    """Interpret the stringified JSON value; keep the raw string on parse error."""
+    try:
+        return json.loads(value_literal)
+    except json.JSONDecodeError:
+        return value_literal
+
+
+def _atomic_write_settings(path: Path, data: dict[str, Any]) -> None:
+    """Write `data` to `path` atomically (tmp + rename)."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = path.with_name(f"{path.name}.tmp")
+    tmp_path.write_text(
+        json.dumps(data, indent=2, ensure_ascii=False, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    os.replace(tmp_path, path)
 
 
 def open_settings(page: Page) -> None:
@@ -78,74 +148,53 @@ def change_theme(page: Page, theme_name: str = "Default Dark Modern") -> None:
 
 
 def toggle_setting_via_json(page: Page, key: str, value: str) -> None:
-    """Open settings.json and insert/update a setting key-value pair.
-
-    This triggers onConfiguration change events for extensions watching the key.
-    Selects all existing content and rewrites the JSON to avoid navigation issues.
+    """Merge `{key: value}` into settings.json atomically.
 
     Args:
         key: The setting key (e.g. "editor.fontSize").
-        value: The setting value as a JSON string (e.g. "16").
+        value: The setting value as a JSON string (e.g. "16", '"on"',
+            "true"). Unparseable strings are stored verbatim.
     """
-    open_settings_json(page)
-    page.wait_for_timeout(800)
-
-    # Read current JSON content by selecting all
-    page.keyboard.press("Control+a")
-    page.wait_for_timeout(200)
-
-    # Get selected text to parse existing settings
-    # Since we can't easily read, just append to a known structure
-    # Type the complete settings JSON with the new key added
-    page.keyboard.press("Control+End")
-    page.wait_for_timeout(200)
-
-    # Go to end, move before closing brace, add setting
-    page.keyboard.press("ArrowUp")
-    page.keyboard.press("End")
-    page.keyboard.type(f',\n    "{key}": {value}', delay=15)
-    page.wait_for_timeout(300)
-
-    # Save to trigger configuration change event
-    page.keyboard.press(keyboard.SAVE_FILE)
-    page.wait_for_timeout(1000)
-
-    # Close the file to prevent duplicate-tab issues on next call
-    page.keyboard.press(keyboard.CLOSE_EDITOR)
-    page.wait_for_timeout(300)
+    write_settings_batch(page, [(key, value)])
 
 
 def write_settings_batch(page: Page, settings: list[tuple[str, str]]) -> None:
-    """Write multiple settings to settings.json in a single operation.
+    """Merge multiple settings into settings.json in a single atomic write.
 
-    More reliable than calling toggle_setting_via_json multiple times,
-    since it opens the file once, writes all values, and saves once.
+    Reads the current file, overlays the new keys (preserving everything
+    else), and rewrites the full document via tmp + rename. VS Code's
+    user-settings file watcher picks up the change and dispatches
+    `onDidChangeConfiguration`.
+
+    Guarantees: the on-disk settings.json is always valid JSON, so the
+    renderer never crashes on a malformed buffer. If the file is
+    currently unreadable or already corrupted we skip the write rather
+    than compound the damage.
 
     Args:
-        settings: List of (key, value) tuples.
+        settings: List of (key, json_value_literal) tuples.
     """
     if not settings:
         return
 
-    open_settings_json(page)
-    page.wait_for_timeout(800)
+    path = _settings_json_path()
+    current = _load_current_settings(path)
+    if current is None:
+        print(
+            f"[settings] skipping write: {path} is unreadable or malformed; "
+            "leaving the file untouched to avoid compounding corruption."
+        )
+        page.wait_for_timeout(500)
+        return
 
-    for key, value in settings:
-        # Navigate to end each time, move before closing brace
-        page.keyboard.press("Control+End")
-        page.wait_for_timeout(200)
-        page.keyboard.press("ArrowUp")
-        page.keyboard.press("End")
-        page.keyboard.type(f',\n    "{key}": {value}', delay=15)
-        page.wait_for_timeout(300)
+    for key, value_literal in settings:
+        current[key] = _parse_setting_value(value_literal)
 
-    # Save once to trigger all configuration change events
-    page.keyboard.press(keyboard.SAVE_FILE)
+    _atomic_write_settings(path, current)
+
+    # Let the settings file watcher re-read and fan out
+    # onDidChangeConfiguration before the next scenario step.
     page.wait_for_timeout(1000)
-
-    # Close settings.json
-    page.keyboard.press(keyboard.CLOSE_EDITOR)
-    page.wait_for_timeout(300)
 
 
 def toggle_fullscreen(page: Page) -> None:

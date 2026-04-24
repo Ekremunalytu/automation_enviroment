@@ -176,6 +176,7 @@ def scenario_metadata(
     scenario: ScenarioSpec,
     *,
     error: str = "",
+    failure_reason_code: str = "",
 ) -> dict[str, Any]:
     metadata: dict[str, Any] = {
         "name": scenario.name,
@@ -187,4 +188,6 @@ def scenario_metadata(
     }
     if error:
         metadata["error"] = error
+    if failure_reason_code:
+        metadata["failure_reason_code"] = failure_reason_code
     return metadata
