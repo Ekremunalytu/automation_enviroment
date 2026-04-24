@@ -1254,6 +1254,73 @@ Buffer (2026-04-23)" ve "Post-W7 Hardening (2026-04-24)" bloklarıyla
 `[LANDED 2026-04-24]` işaretleri commit referanslarını ve test
 listesini tutuyor.
 
+### 9.8 External Review Integration Pass (2026-04-24, Claude Opus 4.7)
+
+Aynı gün (2026-04-24) iki bağımsız external review dokümanı teslim
+edildi ve plana entegre edildi:
+
+- [`documents/claude_code_review.md`](claude_code_review.md) — Claude
+  Opus 4.7, 18 bölüm, line-number referanslı bulgular. Daha keskin
+  güvenlik + framework boundary findings.
+- [`documents/codex_project_rewiew.md`](codex_project_rewiew.md) — Codex
+  GPT-5.4, 18 bölüm, daha abstract framing. Contract hygiene + executor
+  observability findings.
+
+**Doğrulanan kritik bulgular (kod tabanında spot-check):**
+
+- **VSIX extraction zip-bomb risk.** `packages/analysis_engine/static/vsix.py`
+  `zipfile.extractall()` kullanıyor; `MAX_UNCOMPRESSED_SIZE` sabiti yok,
+  ZipSlip koruması yok. (W8-1)
+- **Marketplace identity path-traversal.**
+  [`workflows/marketplace/client.py:94-103`](../workflows/marketplace/client.py)
+  `get_vsix_path` / `_artifact_name` / `_extension_dir` raw
+  publisher/name/version'ı filesystem path'e gömüyor. (W8-2)
+- **URI trigger shell injection.**
+  [`executor/flows/playwright/entrypoint_triggers.py:142`](../executor/flows/playwright/entrypoint_triggers.py)
+  ve
+  [`executor/flows/playwright/stimulus_attempts.py:136`](../executor/flows/playwright/stimulus_attempts.py)
+  `xdg-open '{uri}'` string interpolation; argv form değil. (W8-3)
+- **Framework boundary violation.**
+  [`executor/flows/playwright/signal_policy.py:33`](../executor/flows/playwright/signal_policy.py)
+  `sys.path.insert(0, _PROJECT_ROOT)`; 485 LoC detection signal policy
+  executor altında ama framework-agnostic davranıyor. (W9-2)
+- **Dual-import fallback.** 17 dosyada `try: from packages.X / except
+  ImportError: from X`; container packaging disiplini muğlak. (W9-3)
+- **Monitor lifecycle bloat.**
+  [`executor/flows/playwright/monitor_lifecycle.py`](../executor/flows/playwright/monitor_lifecycle.py)
+  834 LoC; runtime + report assembly + scenario accounting birleşmiş.
+  (W11)
+- **Planner registry bloat.**
+  [`packages/analysis_planner/registry.py`](../packages/analysis_planner/registry.py)
+  669 LoC; capabilities + scenarios + event index + pass order. (W10-3)
+- **Executor flat layout.** `executor/flows/playwright/` 54 flat dosya;
+  domain subpackage bölümlemesi yok. (W12-1)
+- **`ActivationReport` Any-typed fields.** `automation_health` ve
+  `coverage_*` field'ları `dict[str, Any]`; typed model gerekli. (W10-4, W10-5)
+- **`_TriggerPayloadDraft` redundancy.** `packages/analysis_planner/__init__.py`
+  `TriggerPayload` ile neredeyse aynı tipi tutuyor. (W10-2)
+- **Content-sample secret disclosure.** `ContentSample.value`
+  (W8-6'da yeni eklenecek `packages/analysis_contracts/evidence.py`
+  modülüne; şu an `packages/analysis_contracts/contracts.py` içindeki
+  `EvidenceEvent.context` / rule-match payload'ları raw text embed
+  ediyor) raw text'i geçiriyor; redaction filter'ı yok. (W8-6)
+
+**Promote edilmeyen (rejected) review maddeleri §11.12'de
+gerekçelenmiştir** — §0 binding rules gereği silinmezler; POST_POC
+backlog altında kalırlar.
+
+**Entegrasyon kararı:** Review bulguları §10 penceresine
+(W0-W7) **eklenmez**; yeni bir §11 **W8-W13** penceresine dağıtılır.
+Gerekçe: W0-W7 PoC acceptance altında yazıldı ve §10.7'de kapandı;
+review'lar post-PoC hardening turudur. W8 girişi PR345 (target
+activation lifecycle) tamamlandıktan sonra açılır (§11.1 entry gate).
+Review dokümanları repo'da archive olarak kalır — silinmez, gelecek
+review'larda baseline olarak kullanılır.
+
+Bu pass §10.2 W0-W7 tablosunu değiştirmedi (W7 kapalı); §11 altında
+yeni W8-W13 satırları eklendi; §10.2'ye §11'e pointer cross-reference
+düşüldü.
+
 ---
 
 ## 10. 7 Haftalık Stabilizasyon → Güvenlik Penceresi (PoC-öncelikli)
@@ -1330,6 +1397,24 @@ spec seviyesinde veriyor; W0'da yazıldı, W5 implementasyonun zeminidir.
 
 2026-04-20 doğrulaması: pre-W6 cleanup landed. W6 bu tablodaki kapsamla
 başlar; structural cleanup maddeleri ayrı bir giriş kriteri değildir.
+
+**Post-W7 external review window (2026-04-24+):** W0-W7 penceresi
+§10.7 kabul testi (11/11 green, 2026-04-23) ile **kapandı**. İki
+bağımsız external review (`claude_code_review.md`,
+`codex_project_rewiew.md`, 2026-04-24) sonrası altı haftalık post-PoC
+hardening + modülerleştirme turu **§11 W8-W13** altında planlanmıştır.
+§10.2'deki W0-W7 satırları değişmez; W8-W13 penceresi PR345 (target
+activation lifecycle) tamamlandıktan sonra açılır — bkz. §11.1 entry
+gate.
+
+| Hafta | Etiket | Kapsam | Kaynak |
+|---|---|---|---|
+| **W8** | Güvenlik sıkılaştırma | VSIX zip-bomb guard, marketplace identity helper, URI trigger shell-safe, absolute binary paths, activation-report regex, content-sample secret redaction | §11.5 · Claude §1/§18 · Codex §1 |
+| **W9** | Executor↔Detection boundary | ADR 0006 (container packaging), dual-import fallback kill, `signal_policy.py` relocation, `sys.path.insert` audit | §11.6 · Claude §6/§10 · Codex §9/§4 |
+| **W10** | Contract hygiene + Planner split | `schema_version` + DeprecationWarning, `_TriggerPayloadDraft` elimination, `registry.py` 4-way split, `automation_health`/`coverage_*` typing | §11.7 · Codex §1.2/§1.4/§2 · Claude §4 |
+| **W11** | Monitor lifecycle split | `monitor_lifecycle.py` 834→≤200 LoC facade; `MonitorRuntime` + `ReportAssembler` + `ScenarioAccountant`; `activation_discovery_strategies` field | §11.8 · Codex §3.1 · Claude §3 |
+| **W12** | Executor subpackaging + attribution cleanup | `playwright/` 54→≤10 flat + 5 subpackage; attribution facade underscore cleanup; `raw_context` typed discriminated union | §11.9 · Codex §3.2/§4 · Claude §2/§5 |
+| **W13** | Test expansion + observability | Benign silence 3→5; stale singleton-lock + `.env` gitignore regression; `extrace.executor.*` logger konsolidasyonu; run-ID stamping; W8-W12 lock-in | §11.10 · Claude §9/§12 · Codex §10/§12 |
 
 ### 10.3 Ertelenenler (7 hafta içine girmeyen)
 
@@ -1460,3 +1545,908 @@ bloklamaz.
 Bu checklist yeşilken W1 tek oturumda kapanabilir; eksiklerinden biri
 sarkarsa W1 haftasına taşma riski yaratır ve güvenlik faz başlangıcını
 geriye iter.
+
+---
+
+## 11. W8–W13 External Review Integration Window (2026-04-24+)
+
+**Bağlam (2026-04-24):** PoC penceresi (W0-W7) §10.7 kabul testi (11/11
+green, 2026-04-23) ile kapandı; post-W7 hardening iki bloğu
+(sim-all crash cascade + scan-between install failure) ve pull-first
+POST_POC entries (`attribution/` split + `sim-target` lane + sim-all
+report-semantics 6 fix) 2026-04-24 tarihinde landed. Aynı gün **iki
+bağımsız external review** dokümanı teslim edildi:
+
+- [`documents/claude_code_review.md`](claude_code_review.md) — Claude
+  Opus 4.7, 18 bölüm, line-number referanslı (§1-18).
+- [`documents/codex_project_rewiew.md`](codex_project_rewiew.md) — Codex
+  GPT-5.4, 18 bölüm, daha abstract framing (§1-18).
+
+Bu bölüm iki review'ı **§10 penceresini değiştirmeden** altı haftalık
+bir post-PoC window'a (W8-W13) entegre eder. §10.2 haftalık dağılımı
+**korunur** — W0-W7 kapalı kalır; yeni W8-W13 satırları §11.2'de
+ayrıca listelenir (§10.2 tablosunda atıf cross-reference bırakılır).
+
+### 11.0 Neden §11, §10'a ek satır değil
+
+- §10 (W0-W7) PoC acceptance bar'ı altında yazıldı; kapanış kriteri
+  §10.7'de sabitlendi. Aynı tabloya W8-W13 eklemek "PoC acceptance
+  bar'ı kaymış" sinyali verir.
+- İki review PoC sonrası gelen findings; bunlar **stabilizasyon**
+  değil, **post-PoC hardening + modülerleştirme** turudur. Kapsamı
+  ayrı tutmak audit trail için önemli.
+- Kullanıcı in-flight iş olarak **PR345** (target activation lifecycle)
+  üzerinde çalışıyor (2026-04-24; PRs 1-2 landed, PRs 3-5 + PR5 ADR
+  pending). W8 girişi bu PR345 tamamlanmadan **açılmaz**.
+
+### 11.1 Entry gate (W8 başlama koşulu)
+
+W8 aşağıdakilerin hepsi yeşil olmadan açılmaz:
+
+- [ ] PR345 tüm PR'ları (1-5) landed; özellikle PR5 için
+      `documents/adrs/00NN-target-output-channel-capture.md` ADR'ı
+      merged (`POST_POC_BACKLOG.md` "Next iteration" → "Target
+      activation lifecycle" item (5) requires short ADR).
+- [ ] `make check-all` green on `main`
+- [ ] `make test-security` → 41 passing
+- [ ] `scripts/demo_acceptance.py` → `DEMO GREEN`
+- [ ] `REFACTOR_STATUS.md` altında "PR345 complete" kapanış bloğu
+
+Bu gate yeşil değilken W8 bekleme modunda; external review maddeleri
+`POST_POC_BACKLOG.md`'de "scheduled for W8-W13" annotation'ı ile
+tutulur.
+
+### 11.2 Haftalık dağılım (W8-W13)
+
+| Hafta | Etiket | Kapsam | Kaynak review bölümleri |
+|---|---|---|---|
+| **W8** | Güvenlik sıkılaştırma | VSIX zip-bomb guard, marketplace identity helper, URI trigger shell-safe invocation, absolute binary paths, activation-report router path-traversal, content-sample secret redaction | Claude §1/§18; Codex §1 |
+| **W9** | Executor↔Detection boundary | ADR 0006 (container packaging), dual-import fallback sweep, `signal_policy.py` relocation, `sys.path.insert` audit, container import-mode CI test | Claude §6/§10; Codex §9/§4 |
+| **W10** | Contract hygiene + Planner split | `schema_version` + DeprecationWarning, `_TriggerPayloadDraft` elimination, `registry.py` 4-way split, `automation_health`/`coverage_*` typing | Codex §1.2/§1.4/§2; Claude §4 |
+| **W11** | Monitor lifecycle split | `monitor_lifecycle.py` 834 LoC → `MonitorRuntime` + `ReportAssembler` + `ScenarioAccountant` + `ExtensionMonitor` facade; `activation_discovery_strategies` report field; per-strategy `_stop_*` helpers | Codex §3.1; Claude §3 |
+| **W12** | Executor subpackaging + attribution cleanup | `executor/flows/playwright/` 54 → {monitor,stimulus,workspace,health,entrypoint}/; `entrypoint_runner.main` 487 LoC → ≤200 LoC dispatch extraction; attribution facade underscore cleanup; `raw_context` per-event-type typing | Codex §3.1/§3.2/§4; Claude §2/§3/§5 |
+| **W13** | Test expansion + observability | Benign silence 3→5 fixture, stale singleton-lock + `.env` gitignore regression tests, `extrace.executor.*` logger konsolidasyonu, run-ID stamping, W8-W12 regression lock-in | Claude §9/§12; Codex §10/§12 |
+
+### 11.3 Haftalar arası bağımlılıklar
+
+```text
+W8 ─┐
+    ├─ independent (entry gate outside both)
+W9 ─┘
+      │
+      ▼
+     W10 (depends on W9 — dual-import kill + ADR 0006 fixes import topology;
+           W10 typed contracts nerede oturacağını bilmek için W9'a bağlı)
+      │
+      ▼
+     W11 (depends on W10 — schema_version + typed coverage/health must
+           land before monitor split rewrites the report assembler)
+      │
+      ▼
+     W12 (depends on W11 — subpackaging güvenli bir şekilde yapılabilmesi
+           için monitor_lifecycle önce split edilmeli)
+      │
+      ▼
+     W13 (depends on W8-W12 — regression lock-in her hafta için yeni test'ler)
+```
+
+Kritik yollar:
+
+- **W8 paralelde yürür** — W9 ile file çakışması yok (W8 `packages/`, `workflows/`, `executor/flows/playwright/entrypoint_triggers.py + stimulus_attempts.py`; W9 `executor/flows/playwright/signal_policy.py` + 17 dosyada import fallback + 5 `sys.path.insert` hit).
+- **W10 sıralı** — W9'un ADR 0006 kararı (paket mode vs top-level) typed contract'ların import path'ini belirliyor.
+- **W11 sıralı** — W10 contract updates (schema_version, AutomationHealth, CoverageSummary) monitor split'inin report assembler imzasında oturmalı; tersi merge conflict hell yaratır.
+- **W12 sıralı** — W11 lifecycle split sonrası 54 flat dosyanın 5 subpackage'a bölünmesi deterministik; önce yapılırsa lifecycle split yeni subpackage path'leriyle yeniden kavga eder.
+- **W13 en sonda** — her hafta regression test bırakır, W13 merkezi lock-in turu.
+
+### 11.4 Non-goals (W8-W13 kapsamında OLMAYAN)
+
+Bu maddeler `POST_POC_BACKLOG.md`'de kalır; W13 sonunda yeniden
+değerlendirilir:
+
+- `POST_POC_BACKLOG.md` § "UI" (7.3.1, 7.3.2, 7.3.3, 7.3.4, 7.3.5,
+  axe-core) — UI surface stabilize değil
+- Adversary class **A5 + A7** T1/T2 canary + rule (stretch kalır)
+- `test-security-live` T2/T3 lane operasyonel kurulumu (T2 engagement'ı
+  yoksa plumbing'i yazmak nedensiz)
+- `T3 handling` (live malware repo lane)
+- Documentation consolidation (`REFACTOR_STATUS.md` /
+  `REFACTOR_EXECUTION_PLAN.md` / `REFACTOR_OPTIMIZATION.md` dedupe) —
+  W7 < 4 hafta uzak, living-doc cadence oturmadı
+- mypy strict promotion
+- Monorepo tooling migration (uv / poetry)
+- OpenAPI frontend client generation
+- Allow-list (`benign_domains.txt`, `popular_extensions.txt`) versioned
+  data artifact'a terfi
+- Domain service pattern genişletmesi (2.8 — W7'de ertelendi; kalır)
+
+### 11.5 W8 — Güvenlik Sıkılaştırma
+
+**Goal:** İki review'in kesiştiği **altı güvenlik kritik bulgusu**
+kapatılır. Stakeholder demo'su için en azından bu tur gerekli —
+current state'te scanner'ın kendisi zip-bomb / path-traversal /
+command-injection vektörleri içeriyor.
+
+**Scope:**
+
+1. **VSIX zip-bomb + entry-traversal guard.**
+   [`workflows/marketplace/client.py:144`](../workflows/marketplace/client.py)
+   `_extract_vsix_to_dir()` her üye için path-traversal kontrolü
+   (`..` reject + `resolve().relative_to(destination_dir)`) yapıyor
+   ama compression ratio / maksimum uncompressed size / dosya sayısı
+   limiti yok. Malicious VSIX `zipfile.ZipFile(io.BytesIO(...))`
+   üzerinden diske doyurabilir (zip-bomb) ya da extraction sırasında
+   OOM yaratabilir.
+   - **Change:** Module-level sabitler
+     `MAX_UNCOMPRESSED_SIZE = 256 * 1024 * 1024`,
+     `MAX_COMPRESSION_RATIO = 100`, `MAX_FILE_COUNT = 2_000`;
+     `_extract_vsix_to_dir` içinde iteration sırasında
+     `cumulative_uncompressed` ve `cumulative_compressed` takip
+     edilir, ratio ve toplam size aşımında yeni
+     `VSIXUnpackError`'a düşer; path-traversal guard korunur.
+   - **Test:** `tests/workflows/marketplace/test_vsix_hardening.py`
+     — 4 case: normal vsix passes, oversize rejects,
+     high-compression-ratio rejects, file-count rejects.
+   - **Refs:** `workflows/marketplace/client.py:144-170`
+     (`_extract_vsix_to_dir` flow); new exception in same module
+     or shared util; new test.
+   - **Claude:** §1 "Security findings"; **Codex:** §1
+     "Supply-chain hardening".
+
+2. **Safe marketplace identity helper.**
+   [`workflows/marketplace/client.py:94-103`](../workflows/marketplace/client.py)
+   `get_vsix_path` / `_artifact_name` / `_extension_dir` raw
+   publisher/name/version string'lerini filesystem path'e gömüyor;
+   adversarial publisher `../../etc` path-injection vector'ü.
+   - **Change:** Yeni `workflows/marketplace/identity.py` modülü;
+     `safe_marketplace_slug(publisher, name, version) -> str`
+     helper'ı regex `^[A-Za-z0-9][-_.A-Za-z0-9]{0,64}$` enforcement
+     uygular ve `publisher.name-version` canonical format üretir;
+     üç call site helper'a taşınır; architecture test
+     `raw concat ≠ helper` ihlali bloke eder.
+   - **Test:** `tests/workflows/marketplace/test_identity.py` — happy
+     path + 5 adversarial input (path traversal, absolute path, null
+     byte, unicode confusable, overlength).
+   - **Refs:** `workflows/marketplace/client.py:94-103`; new
+     `workflows/marketplace/identity.py`; new test; architecture
+     test extension.
+   - **Claude:** §1 "Path-traversal in identity concat"; **Codex:**
+     §1 "Marketplace identity".
+
+3. **URI trigger shell-safe invocation.**
+   [`executor/flows/playwright/entrypoint_triggers.py:142`](../executor/flows/playwright/entrypoint_triggers.py)
+   ve
+   [`executor/flows/playwright/stimulus_attempts.py:136`](../executor/flows/playwright/stimulus_attempts.py)
+   `xdg-open '{uri}'` şeklinde terminal stimulus üzerinden string
+   interpolation yapıyor; trigger payload'ı adversarial olursa
+   `'; rm -rf /;'` → terminal command injection vektörü.
+   - **Execution context:** İki dosya executor container içinde
+     (`docker exec python3 /home/executor/flows/playwright/entrypoint.py`
+     ile invoke edilir) çalışır; argv-form `subprocess.run` da container
+     içinde execute olur — host shell'ine kaçış yoktur, blast radius
+     sandbox'la sınırlıdır. Değişikliğin amacı container içi
+     `rm -rf /home/executor` tipi yıkıcı payload'ı kesmek.
+   - **Change:** Terminal stimulus yerine
+     `subprocess.run(["xdg-open", uri], check=False, timeout=5)`
+     argv form; URI validation
+     `urllib.parse.urlparse(uri).scheme in {"vscode", "vscode-insiders", "http", "https"}`;
+     direct shell string uygulaması iki dosyadan kaldırılır.
+   - **Test:** `tests/executor/security/test_uri_trigger_injection.py`
+     — `;` / `$(...)` / backtick / pipe içeren payload reddedilir.
+   - **Refs:** iki stimulus dosyası + new test.
+   - **Claude:** §18 "Shell injection in triggers"; **Codex:** §1.
+
+4. **Absolute binary paths (executor shell invocations).** PATH
+   hijacking koruması. W7-landed
+   [`executor/container/launch_vscode.sh`](../executor/container/launch_vscode.sh)
+   zaten explicit path disiplini takip ediyor; aynı disiplin
+   `entrypoint_triggers.py`, `stimulus_attempts.py`,
+   [`executor/host.py::install_extension_in_executor`](../executor/host.py)
+   içinde uygulanır.
+   - **Change:** `code` → `/usr/bin/code`, `xdg-open` →
+     `/usr/bin/xdg-open` gibi absolute path'ler; fallback resolver
+     `shutil.which` test başlangıcında tek seferlik.
+   - **Test:** `tests/executor/test_absolute_paths.py` — subprocess
+     invocation PATH'siz env ile smoke.
+   - **Refs:** iki stimulus dosyası + `executor/host.py`.
+   - **Claude:** §18; **Codex:** —.
+
+5. **Activation-report router regex konsolidasyonu
+   (defense-in-depth).**
+   [`workflows/activation_reports/router.py`](../workflows/activation_reports/router.py)
+   bundle endpoint'i mevcut durumda `..`, `/`, `\\` karakter
+   rejection'ı yapıyor (Claude review §3 step 12 "clean" olarak
+   işaretlemiş; concrete exploit path yok). Bu madde bir gap
+   kapatmıyor; W8-2'nin `safe_marketplace_slug` helper'ı ile tek
+   regex disiplinine konsolidasyon — iki farklı validation path'i
+   (router-level ad-hoc + marketplace identity) tek source-of-truth
+   altında birleşir, drift riski kapanır.
+   - **Change:** FastAPI
+     `Path(..., regex=r"^[A-Za-z0-9][-_.A-Za-z0-9]{0,64}$")` tight
+     constraint; validator helper
+     `appcore/contracts/validators.py::valid_extension_slug` merkezi
+     hale getirilir (yeni W8-2 `safe_marketplace_slug` ile aynı
+     regex disiplini paylaşır).
+   - **Test:**
+     `tests/workflows/activation_reports/test_router_path_traversal.py`
+     — 6 adversarial path case.
+   - **Refs:** `workflows/activation_reports/router.py`; new
+     `appcore/contracts/validators.py` (or consolidation); new test.
+   - **Claude:** §1; **Codex:** —.
+
+6. **Content-sample secret redaction.** `ContentSample` evidence
+   artifact'ları rule match'lerinde `.value` olarak embedded
+   ediliyor; regex hit'inden bazı satırlar (`.env` satırları gibi)
+   raw text olarak rapor'a yazılabilir → rapor diske yazıldığında
+   secret disclosure.
+   - **Change:** W8'de yeni `packages/analysis_contracts/evidence.py`
+     modülü oluşturulur (bugün `ContentSample` adında ayrı bir sınıf
+     yok; `contracts.py` içindeki `EvidenceEvent` + rule-match
+     payload'ları raw string taşıyor). Yeni `ContentSample.value`
+     setter'ı redaction filter'ından geçirilir;
+     `AWS_SECRET_ACCESS_KEY=...`, `bearer <token>`,
+     `Authorization: Bearer`, private-key header pattern'leri
+     `[REDACTED:<class>]` ile değiştirilir; redaction policy
+     **ADR 0003 §6** ek maddesi olarak yazılır.
+   - **Test:** `tests/platform/security/test_content_sample_redaction.py`
+     — 5 secret class (aws, bearer, private-key, generic api-key, db-url).
+   - **Refs:** new `packages/analysis_contracts/evidence.py`;
+     migration hook'larıyla `EvidenceEvent.context` raw string
+     tüketicileri W8 sonuna kadar yeni API'ya geçer; ADR 0003
+     update; new test.
+   - **Claude:** §1; **Codex:** §1.
+
+**Non-Goals:** container egress allowlist (W13 observability ayağına
+bağlı — egress logları run-ID ile stamp'lenmeden allowlist audit'i
+anlamlı değil); harness extension sandbox (W4 ExecutorControl bar'ı
+kapattı); T2/T3 fixture lane (POST_POC_BACKLOG).
+
+**Entry:** §11.1 entry gate green.
+
+**Exit:**
+
+- [ ] 6 yeni security test lane green
+- [ ] `make test-security` 41 → ≥47 passing
+- [ ] ADR 0003 §6 redaction ek maddesi merged
+- [ ] ADR 0006 (container packaging; W9 opener) **draft** başlamış
+      (merged olması gerekmiyor — W9 girişinde merged olur)
+- [ ] `workflows/marketplace/identity.py` + helper live; raw concat
+      architecture test bloke ediyor
+
+### 11.6 W9 — Executor↔Detection Boundary
+
+**Goal:** Paket import topolojisinde `except ImportError` dual-fallback
+ve `sys.path.insert` manipülasyonları kaldırılır; container packaging
+tek mode'a indirilir. Framework boundary review finding'i (Claude §6)
+kapanır.
+
+**Scope:**
+
+1. **ADR 0006 — Container packaging.** Yeni ADR: "Executor paket olarak
+   mı, yoksa top-level script olarak mı çalışır?" sorusuna tek cevap.
+   Mevcut durum: 17 dosya dual-import fallback + executor runtime'ında
+   5 `sys.path.insert(0, ...)` hit (`signal_policy.py:33`,
+   `reload_vscode.py:19`, `triggers.py:27`, `report_builder.py:17`,
+   `entrypoint.py:18`) her iki mode'u destekliyor.
+   - **Decision:** Paket mode (`python -m executor.flows.playwright.entrypoint`
+     container içinde); top-level mode destek bitirilir.
+   - **Refs:** `documents/adrs/0006-container-packaging.md` (new);
+     W8 girişinde draft başlamış olmalı, W9'un 1. PR'ında merged.
+
+2. **`signal_policy.py` relocation.**
+   [`executor/flows/playwright/signal_policy.py`](../executor/flows/playwright/signal_policy.py)
+   485 LoC; satır 33'te `sys.path.insert(0, _PROJECT_ROOT)` yapıyor.
+   İçerik **detection signal policy** (threshold'lar, correlative
+   evaluation rules); `packages/analysis_engine/` altında olmalı —
+   `executor/` içinde olması framework-agnostic disiplinini kırıyor.
+   - **Change:** Module'ü `packages/analysis_engine/signals/policy.py`
+     altına taşı; caller'lar (`monitor.py`, `monitor_lifecycle.py`,
+     `health_summary.py`) import path'ini günceller; `sys.path.insert`
+     kaldırılır.
+   - **Test:**
+     [`tests/architecture/test_import_graph.py`](../tests/architecture/test_import_graph.py)
+     `executor/*` → `packages/analysis_engine/signals/*` izinli ama
+     ters yön yasak.
+   - **Refs:** `executor/flows/playwright/signal_policy.py:33`; 3
+     caller; new `packages/analysis_engine/signals/policy.py`;
+     architecture test extension.
+   - **Claude:** §6 "Framework boundary violation"; **Codex:** §4
+     "Signal policy location".
+
+3. **Dual-import fallback sweep.** 17 dosyada `try: from packages.X /
+   except ImportError: from X` pattern'i. Paket mode seçildiği için
+   yalnızca `packages.X` import kalır.
+   - **Change:** Her dosyada fallback branch kaldır.
+   - **Test:**
+     `tests/architecture/test_import_graph.py::test_no_dual_import_fallback_in_executor`
+     — ripgrep `except ImportError` hit count'u executor ağacında 0.
+   - **Refs:** 17 dosya (post-W7 `rg -l "except ImportError" executor/`
+     çıktısı): `monitor_lifecycle.py`, `monitor_types.py`,
+     `monitor_sources.py`, `monitor_support.py`, `monitor_runtime.py`,
+     `monitor_payload.py`, `monitor.py`, `signal_policy.py`,
+     `signals.py`, `health.py`, `health_summary.py`,
+     `health_reconciliation.py`, `capture.py`, `commands.py`,
+     `attribution/__init__.py`, `attribution/events.py`,
+     `attribution/links.py`. W9 girişinde final grep ile
+     doğrulanır (rakam değişirse exit criteria güncellenir).
+
+4. **`sys.path.insert` audit + removal.** Executor runtime'ında **5
+   bilinen hit**: `signal_policy.py:33`, `reload_vscode.py:19`,
+   `triggers.py:27`, `report_builder.py:17`, `entrypoint.py:18`. Her
+   biri container path disiplini olmadığı için workaround olarak
+   kullanılıyor — paket mode (ADR 0006) sonrası hepsi gereksiz.
+   Scripts (`scripts/seed_test.py:55`, `scripts/demo_acceptance.py:24`,
+   `scripts/generate_ui_contracts.py:16`), test-harness
+   (`tests/executor/*` içinde 12+ hit), ve `alembic/env.py:10`
+   bu scope'un dışında — test/migration boot-strap zorunluluğu.
+   - **Change:** 5 runtime hit için ya relocation (yukarıdaki (2) gibi
+     `signal_policy.py` için) ya da delete (paket mode sonrası gerek
+     yok); `executor/`, `packages/`, `workflows/`, `appcore/` ağacında
+     sıfır hit hedefi.
+   - **Test:**
+     `tests/architecture/test_import_graph.py::test_no_sys_path_manipulation_outside_scripts`
+     — AST-based check, string literal değil;
+     `scripts/`, `tests/`, `alembic/` allow-list.
+   - **Verification:** W9 açılışında
+     `rg -nE "sys\.path\.(insert|append)" ./executor ./packages ./workflows ./appcore`
+     → hit count 0.
+
+5. **Container import-mode CI test.** `tests/ci/test_container_entrypoint.py`
+   (new, Docker layer'da): `docker exec executor python -c "import
+   executor.flows.playwright.entrypoint"` başarılı; `python
+   entrypoint.py` (top-level mode) non-zero dönmeli (explicit reddediş).
+   - **Refs:** new test + `make exec-up` pre-hook opsiyonel.
+
+**Non-Goals:** detection rule engine değişikliği; `packages/analysis_engine/`
+iç subpackage re-org (W10/W12 kapsamında); harness-extension import
+topolojisi (zaten ayrı).
+
+**Entry:** W8 green + ADR 0006 **draft** seviyesinde (merged şartı
+W9 1. PR'ı).
+
+**Exit:**
+
+- [ ] ADR 0006 merged
+- [ ] 17 dosya → `except ImportError` count 0 executor'da
+- [ ] `sys.path.insert` hit count 0 `scripts/` dışında
+- [ ] `signal_policy.py` → `packages/analysis_engine/signals/policy.py`;
+      import-graph test yeşil
+- [ ] Container import-mode CI test green
+
+### 11.7 W10 — Contract Hygiene + Planner Cleanup
+
+**Goal:** `ActivationReport` schema evolution için backward-compat
+disiplinli yol kurulur; gereksiz private type'lar temizlenir;
+`analysis_planner/registry.py` 669 LoC → SOLID 4 file + facade.
+
+**Scope:**
+
+1. **`ActivationReport.schema_version` + DeprecationWarning.**
+   Post-W7 `build_verdict` → `build_signal_summary` rename'i reaktif
+   bir legacy validator (2026-04-24) gerektirdi; proaktif yol:
+   `schema_version` field'ı her report'ta. Minor bump'ta warning,
+   major bump'ta reddediş.
+   - **Change:**
+     [`packages/analysis_contracts/contracts.py::ActivationReport`](../packages/analysis_contracts/contracts.py)
+     `schema_version: str = "1.0"` field'ı; `model_validator(mode="before")`
+     legacy ingestion'ında `warnings.warn(DeprecationWarning, ...)`
+     emit eder; `strict_schema=True` ingest flag'i reddeder.
+   - **Test:** `tests/platform/contracts/test_schema_version.py` —
+     legacy ingestion DeprecationWarning fırlatır; `strict_schema=True`
+     altında reddeder; current version round-trip temiz.
+   - **Refs:** `packages/analysis_contracts/contracts.py`; new test.
+   - **Codex:** §1.2 "Report schema"; **Claude:** §4 "Contract
+     evolution".
+
+2. **`_TriggerPayloadDraft` elimination.** Codex §2 finding:
+   [`packages/analysis_planner/__init__.py`](../packages/analysis_planner/__init__.py)
+   `_TriggerPayloadDraft` dataclass'ı `TriggerPayload` ile neredeyse
+   aynı alan setine sahip; iki tipi tutmak yazım hatalarını masking
+   ediyor.
+   - **Change:** `_TriggerPayloadDraft` sil; caller'lar direkt
+     `TriggerPayload.model_construct(...)` veya
+     `TriggerPayload.model_validate(dict)` kullansın.
+   - **Test:** `tests/platform/contracts/test_trigger_payload.py`
+     eski alias import'u reddedilir; aynı yerde round-trip regression.
+   - **Refs:** `packages/analysis_planner/__init__.py`; caller'lar;
+     test.
+   - **Codex:** §2 "Planner types"; **Claude:** —.
+
+3. **`registry.py` split.**
+   [`packages/analysis_planner/registry.py`](../packages/analysis_planner/registry.py)
+   669 LoC'da dört concern birleşmiş: capabilities, scenarios,
+   event→scenario index, pass order. SOLID çatı:
+   - `capabilities.py` — capability declaration + validation
+   - `scenarios.py` — scenario registry + lookup
+   - `event_scenario_index.py` — reverse-lookup (event →
+     scenarios that consume it)
+   - `pass_order.py` — topological pass ordering
+   - `__init__.py` — backward-compat re-export facade (29-name'lik
+     public surface)
+   - **Test:** Mevcut planner test'leri pas geçer; yeni
+     `tests/packages/analysis_planner/test_registry_split_regression.py`
+     4 file'ın bağımsız import'unu ve combined facade'ın identical
+     behavior'unu doğrular.
+   - **Refs:** `packages/analysis_planner/registry.py` → 4 file + facade.
+
+4. **`automation_health` typing.** Codex §1.4 finding:
+   `automation_health: dict[str, Any]` `ActivationReport`'ta raw
+   dict; typed Pydantic model'e taşınır.
+   - **Change:** `packages/analysis_contracts/automation.py::AutomationHealth`
+     Pydantic modeli (status literal `"ok" | "degraded" | "inconclusive"`,
+     `reasons: list[str]`, `metrics: dict[str, int]`);
+     `ActivationReport.automation_health: AutomationHealth`.
+   - **Test:** `tests/platform/contracts/test_automation_health_model.py`.
+   - **Refs:** `packages/analysis_contracts/contracts.py`; new
+     `automation.py`.
+   - **Codex:** §1.4 "Report Any dict"; **Claude:** —.
+
+5. **`coverage_*` fields typing.** `coverage_target_reached`,
+   `coverage_gap_reasons`, sibling fields raw dict/list; typed
+   `CoverageSummary` model'e taşınır.
+   - **Change:** `packages/analysis_contracts/coverage.py::CoverageSummary`.
+   - **Test:** `tests/platform/contracts/test_coverage_model.py`.
+   - **Refs:** `packages/analysis_contracts/contracts.py`; new file.
+   - **Codex:** §1.4; **Claude:** —.
+
+**Non-Goals:** ADR 0003 verdict rollup semantic değişikliği;
+`DetectionReport` contract churn; rule engine imza değişikliği.
+
+**Entry:** W9 green.
+
+**Exit:**
+
+- [ ] `schema_version` field + DeprecationWarning emitter live
+- [ ] `_TriggerPayloadDraft` removed; caller'lar direkt
+      `TriggerPayload` kullanıyor
+- [ ] `registry.py` 669 LoC → 4 file + facade; 29-name public
+      surface unchanged
+- [ ] `automation_health` + `coverage_*` typed; `dict[str, Any]`
+      residue 0
+- [ ] `make check-all` green; contract migration test eklendi
+
+### 11.8 W11 — Monitor Lifecycle Split
+
+**Goal:**
+[`executor/flows/playwright/monitor_lifecycle.py`](../executor/flows/playwright/monitor_lifecycle.py)
+834 LoC'u three-responsibility-split + facade ile parçala. W10
+typed contract'ları (AutomationHealth, CoverageSummary) yeni
+modüllerin imzalarına oturur.
+
+**Scope:**
+
+1. **`MonitorRuntime` extraction.** Runtime state machine (discovery
+   → streaming → stop → serialize) ayrı bir modülde
+   (`executor/flows/playwright/monitor_runtime.py`, new).
+   - **Refs:** new module; eski `monitor_lifecycle.py`'den runtime
+     section'ı cut.
+
+2. **`ReportAssembler` extraction.** Report builder (event aggregation
+   → summary → `ActivationReport`) ayrı bir modülde
+   (`executor/flows/playwright/monitor_report_assembler.py`, new).
+   ADR 0003 verdict rollup burada sit eder.
+   - **Refs:** new module.
+
+3. **`ActivationReport.activation_discovery_strategies` field.** Codex
+   §1.2: strategy list (`warm-start`, `command-probe`,
+   `output-channel`, `log-tail`, …) bugün `_discovery_strategies`
+   internal state; rapor'a taşınmaz. Scan-sonrası hangi strategy'nin
+   işe yaradığını analyst görmeli.
+   - **Change:**
+     `packages/analysis_contracts/contracts.py::ActivationReport.activation_discovery_strategies: list[str]`;
+     `ReportAssembler` doldurur; `schema_version` minor bump.
+   - **Test:** `tests/platform/contracts/test_activation_discovery_strategies.py`.
+   - **Refs:** `packages/analysis_contracts/contracts.py`; report
+     assembler.
+
+4. **`ScenarioAccountant` extraction.** Scenario lifecycle accounting
+   (requested, run, failed, skipped, aborted) ayrı bir modülde
+   (`executor/flows/playwright/monitor_scenario_accountant.py`, new).
+   Post-W7 landed `aborted_after_fatal_ui_crash` accounting'i bu
+   modülün içinde konsolide olur.
+   - **Refs:** new module.
+
+5. **`ExtensionMonitor` composition facade.** Eski
+   `monitor_lifecycle.py` artık sadece `class ExtensionMonitor`
+   facade'ı; bileşenler composition ile inject edilir (DI pattern,
+   test'te mock edilebilir).
+   - **Target:** `monitor_lifecycle.py` 834 LoC → ≤200 LoC (pure
+     facade + thin coordination).
+
+6. **Per-strategy helper extraction in `stop()`.**
+   `ExtensionMonitor.stop()` hâlâ strategy-specific cleanup branch'leri
+   içeriyor; her strategy için `_stop_<strategy>` helper'ına taşınır
+   (warm-start, command-probe, output-channel, log-tail).
+   - **Refs:** `monitor_runtime.py` / `monitor_lifecycle.py`.
+
+> **Not (2026-04-24 plan review):** `entrypoint_runner.main` dispatch
+> extraction (eski item 6) **W12-4'e taşındı** — W12 subpackaging
+> `entrypoint/` subpackage'ı zaten oluşturduğu için dispatch split
+> aynı operasyonun parçası olarak yapılması iki dosya
+> dokunma turunu bire indiriyor.
+
+**Non-Goals:** monitor event model (`EvidenceEvent` hierarchy)
+değişikliği; capture pipeline (`runtime_capture/`) dokunulmaz;
+scenario implementation (`scenarios/`) dokunulmaz.
+
+**Entry:** W10 green + W10 typed contracts merged.
+
+**Exit:**
+
+- [ ] `monitor_lifecycle.py` 834 → ≤200 LoC (facade)
+- [ ] `MonitorRuntime`, `ReportAssembler`, `ScenarioAccountant`
+      modülleri canlı + import-graph temiz
+- [ ] `activation_discovery_strategies` rapor'da görünüyor; UI
+      `contracts.ts` regen'd
+- [ ] Per-strategy `_stop_*` helpers canlı
+- [ ] `make check-all` green; demo acceptance → `DEMO GREEN`
+
+### 11.9 W12 — Executor Subpackaging + Attribution Cleanup
+
+**Goal:** `executor/flows/playwright/` 54 dosyalı flat layout → 5
+domain subpackage + shared helpers; W7-landed `attribution/` facade
+underscore API'ı public/private ayrımına kavuşur; `raw_context` typed
+hale getirilir.
+
+**Scope:**
+
+1. **Executor subpackaging.** Mevcut 54 flat dosya → 5 subpackage:
+   - `monitor/` — lifecycle, runtime, report_assembler,
+     scenario_accountant, types, records (W11 landed dosyaları buraya
+     sinter)
+   - `stimulus/` — stimulus_attempts, triggers, scenarios/
+   - `workspace/` — workspace_setup, workspace_fingerprint,
+     reset_state
+   - `health/` — health_summary, health_reconciliation,
+     health_runtime_facts
+   - `entrypoint/` — entrypoint, entrypoint_runner,
+     entrypoint_dispatch, entrypoint_triggers
+   - `attribution/` — already subpackaged W7 post
+   - **Remaining flat:** `automation.py`, shared helpers
+     (≤10 dosya hedefi)
+   - **Refs:** 54 dosya → 5 subpackage; import-graph test subpackage
+     cross-reference kurallarını ekler (`monitor/` ve `stimulus/`
+     birbirini import edemez, sadece shared helpers üzerinden).
+
+2. **Attribution facade underscore cleanup.** W7 Phase 3b
+   `attribution/__init__.py` **29 underscore-prefixed name** verbatim
+   korundu (backward-compat); public vs internal ayrımı muğlak.
+   W12 temizliği: gerçekten module-external kullanılan ~6-7 name
+   underscore'suz expose edilir; yalnızca module-internal olanlar
+   private kalır.
+   - **Change:** `attribution/__init__.py::__all__` revizyon; 3
+     caller (`monitor.py`, `monitor_types.py`, `monitor_lifecycle.py`
+     → W11 sonrası `monitor_runtime.py` + `monitor_report_assembler.py`)
+     underscore'suz import'a geçer.
+   - **Refs:** `executor/flows/playwright/attribution/__init__.py`
+     ve üç caller modülü.
+   - **Claude:** §5 "Pseudo-private exports"; **Codex:** §4.
+
+3. **`raw_context` per-event-type typing.** Mevcut
+   `raw_context: dict[str, Any]` her event type'ta (network, file,
+   process) aynı key set'iyle çalıştığı için Any fencing;
+   typed variant'lara bölünür.
+   - **Change:** `packages/analysis_contracts/evidence.py` (W8-6'da
+     oluşturulmuş olacak; W12 burada sadece yeni tipler ekler)
+     `NetworkRawContext`, `FileRawContext`, `ProcessRawContext`
+     Pydantic models; `RawContext = Annotated[NetworkRawContext |
+     FileRawContext | ProcessRawContext, Field(discriminator="event_class")]`.
+   - **Test:** `tests/platform/contracts/test_raw_context_discriminated.py`.
+   - **Refs:** `packages/analysis_contracts/evidence.py`;
+     `attribution/events.py` consumer'ları.
+   - **Codex:** §4; **Claude:** §5.
+
+4. **`entrypoint_runner.main` dispatch extraction.**
+   [`executor/flows/playwright/entrypoint_runner.py`](../executor/flows/playwright/entrypoint_runner.py)
+   487 LoC; `main()` dispatch logic'i (CLI arg parsing → config →
+   monitor invocation → page reload callback wiring → UI blocker
+   probe wiring) ayrı bir `entrypoint_dispatch.py`'e taşınır. W11'den
+   W12'ye taşındı (2026-04-24 plan review) — W12-1 subpackaging'in
+   yarattığı `entrypoint/` subpackage içinde `entrypoint/dispatch.py`
+   olarak oturur; iki dokunma turu tek operasyona birleşir.
+   - **Target:** `entrypoint_runner.py` 487 LoC → ≤200 LoC; dispatch
+     logic'i `entrypoint/dispatch.py` içinde.
+   - **Test:** Mevcut `tests/executor/test_playwright_entrypoint.py`
+     yeni import path'e geçer; `test_main_wires_ui_blocker_probe_and_page_reload_callbacks`
+     (post-W7 landed) yeni dispatch modülüne taşınır.
+   - **Refs:** `entrypoint_runner.py`; new `entrypoint/dispatch.py`;
+     test import path güncellemesi.
+   - **Claude:** §3 "`entrypoint_runner.main` god method";
+     **Codex:** §3.1.
+
+**Non-Goals:** `runtime_capture/` subpackage re-org (onun kendi
+lifecycle'ı var — monitor capture pipeline'ı dokunulmaz kalır);
+monitor event class hierarchy (`EvidenceEvent` tip ağacı) değişikliği.
+
+**Entry:** W11 green.
+
+**Exit:**
+
+- [ ] `executor/flows/playwright/` flat dosya sayısı 54 → ≤10
+- [ ] 5 subpackage + `attribution/` (W7'den) import-graph kurallarıyla
+      izole
+- [ ] `attribution/__init__.py::__all__` public 6-7 name;
+      underscore'lular internal scoped
+- [ ] `raw_context` typed discriminated union; `dict[str, Any]`
+      residue 0 evidence modelinde
+- [ ] `entrypoint_runner.py` 487 → ≤200 LoC; dispatch logic
+      `entrypoint/dispatch.py` içinde
+- [ ] Import-graph test green; `make check-all` green
+
+### 11.10 W13 — Test Expansion + Observability
+
+**Goal:** W8-W12 boyunca biriken yeni module + contract'ların test
+piramidinde yerli yerine oturması; executor observability disiplini
+(logger hiyerarşisi, run-ID stamping) merkezi hale getirilmesi.
+
+**Scope:**
+
+1. **Benign silence expansion.** Şu anki benign baseline 3 fixture
+   (ms-python, chat, theme); W13'te 5'e çıkar (+ vscode-eslint, +
+   github-copilot-chat). Her biri T1 canary **değil**; silent-run
+   baseline'ı için (hiçbir rule fire etmez).
+   - **Change:** `extensions/` allow-list 2 yeni benign fixture;
+     `tests/security/test_benign_silence.py` 3 → 5 case; `.gitignore`
+     allow-list extend.
+   - **Refs:** `extensions/` + `tests/security/test_benign_silence.py`.
+   - **Claude:** §9 "Test pyramid".
+
+2. **Stale singleton-lock regression test.** W7 post landed fix
+   (`cleanup_singleton_locks`) için regresyon koruması:
+   deliberately-left `SingletonLock` + `reset_executor_state` →
+   kesinlikle cleanup ediyor + re-install success'i doğrulanır.
+   - **Refs:**
+     [`tests/executor/test_reset_state.py`](../tests/executor/test_reset_state.py)
+     (extend).
+   - **Claude:** §12 "W7 regression coverage".
+
+3. **`.env` gitignore regression.** Post-W7'de `.gitignore` re-narrow
+   edildi (extensions/*/allow-list); bu disiplinin regresyona
+   düşmediğini bir contract test'i doğrular: `.env`,
+   `extensions/*/node_modules/`, `output/`, `__pycache__/` pattern'leri
+   tracked olamaz.
+   - **Refs:** new `tests/platform/test_gitignore_contract.py`.
+   - **Claude:** §9.
+
+4. **Logging consolidation → `extrace.executor.*` logger.** Codex §10:
+   executor boyunca `logging.getLogger(__name__)` + direct
+   `print(...)` karışımı; tek logger hiyerarşisi `extrace.executor.<module>`
+   altında birleşir.
+   - **Change:** `executor/logging_config.py` (new); her `print`
+     call site'ı logger'a geçer; structured logging `logger.info("%s",
+     dict(...))` pattern'i değil, `logger.info("event", extra={"run_id": ..., "module": ...})`.
+   - **Refs:** executor genelinde ~20 call site; new config module.
+   - **Codex:** §10 "Logger disjointedness"; **Claude:** §12
+     "Observability".
+
+5. **Run-ID stamping.** Codex §10: bir run'ın tüm log / evidence /
+   report çıktıları aynı `run_id` (UUIDv7) ile stamp'lenmeli; şu an
+   `analysis_run_id` sadece report'ta, log'larda yok.
+   - **Change:** Logger filter `run_id`'i tüm log record'lara enjekte
+     eder (context-var ile); evidence event'lerinde zaten var
+     (`_event_epoch` + `run_id`); log'larda yok — W13'te eklenir.
+   - **Refs:** `executor/logging_config.py` + `appcore/` entrypoint
+     hook.
+   - **Codex:** §10; **Claude:** §12.
+
+6. **Path-traversal router regression (W8-5 lock-in).** W8 §11.5-(5)
+   regex hardening'in regresyon test'i `make test-security`'e taşınır
+   (W8'de `tests/workflows/activation_reports/` altında landed; W13'te
+   security lane'ine de ayna).
+   - **Refs:** `tests/security/test_router_path_traversal_regression.py`.
+
+7. **Schema-version migration emitter test (W10-1 lock-in).** W10
+   §11.7-(1) DeprecationWarning emitter'ının yan-yan regression test'i:
+   `tests/security/test_schema_version_emitter.py` (emitter silenced
+   bırakılırsa fail).
+   - **Refs:** new test; `pytest` filterwarnings config güncellenir.
+
+8. **Zip-bomb + identity test lock-in (W8-1 + W8-2 lock-in).** W8
+   security fixtures (`test_vsix_hardening.py`, `test_identity.py`)
+   `make test-security` lane'ine de ayna; count 41 → 47 (W8) → ≥52
+   (W13).
+   - **Refs:** `tests/security/test_vsix_hardening_lockin.py`,
+     `tests/security/test_identity_lockin.py`.
+
+**Non-Goals:** E2E UI tests; stakeholder-facing observability
+dashboard (Grafana vb. — post-PoC product lane); benign silence 5+
+fixture ötesine scale-out; OpenTelemetry export (POST_POC_BACKLOG).
+
+**Entry:** W12 green.
+
+**Exit:**
+
+- [ ] Benign silence 3 → 5 fixture; baseline silent-run green
+- [ ] Stale singleton-lock regression test green
+- [ ] `.env` gitignore contract test green
+- [ ] Tüm `print(...)` call site'ları `extrace.executor.*` logger'ına
+      taşındı (executor ağacında `rg -n "^\s*print\(" executor/`
+      hit count 0)
+- [ ] Run-ID tüm log record'larda ve report çıktılarında stamp'li
+- [ ] `make test-security` ≥52 passing
+- [ ] `make check-all` green; `scripts/demo_acceptance.py` →
+      `DEMO GREEN`
+
+### 11.11 Kaynak cross-reference tablosu
+
+Her madde → iki review'daki referans + line evidence:
+
+| W# | Madde | Claude ref | Codex ref | Line evidence |
+|---|---|---|---|---|
+| W8-1 | VSIX zip-bomb guard | §1 | §1 | `workflows/marketplace/client.py:144` `_extract_vsix_to_dir` |
+| W8-2 | Marketplace identity helper | §1 | §1 | `workflows/marketplace/client.py:94-103` |
+| W8-3 | URI trigger shell-safe | §18 | §1 | `entrypoint_triggers.py:142`, `stimulus_attempts.py:136` |
+| W8-4 | Absolute binary paths | §18 | — | stimulus files + `executor/host.py` |
+| W8-5 | Activation-report regex | §1 | — | `workflows/activation_reports/router.py` |
+| W8-6 | Content-sample redaction | §1 | §1 | new `packages/analysis_contracts/evidence.py::ContentSample` (today `contracts.py::EvidenceEvent` raw strings) |
+| W9-1 | ADR 0006 | §10 | §9 | — (new ADR) |
+| W9-2 | `signal_policy.py` relocation | §6 | §4 | `executor/flows/playwright/signal_policy.py:33` |
+| W9-3 | Dual-import fallback sweep | §10 | §9 | 17 dosyada `except ImportError` (post-W7 grep) |
+| W9-4 | `sys.path.insert` audit | §10 | §9 | 5 runtime hits: `signal_policy.py:33`, `reload_vscode.py:19`, `triggers.py:27`, `report_builder.py:17`, `entrypoint.py:18` |
+| W9-5 | Container import-mode CI | §10 | §9 | new test |
+| W10-1 | `schema_version` | §4 | §1.2 | `packages/analysis_contracts/contracts.py::ActivationReport` |
+| W10-2 | `_TriggerPayloadDraft` elimination | — | §2 | `packages/analysis_planner/__init__.py` |
+| W10-3 | `registry.py` split | §4 | §2 | `packages/analysis_planner/registry.py` (669 LoC) |
+| W10-4 | `automation_health` typing | — | §1.4 | `packages/analysis_contracts/contracts.py` |
+| W10-5 | `coverage_*` typing | — | §1.4 | `packages/analysis_contracts/contracts.py` |
+| W11-1 | `MonitorRuntime` extraction | §3 | §3.1 | `monitor_lifecycle.py` (834 LoC) |
+| W11-2 | `ReportAssembler` extraction | §3 | §3.1 | same |
+| W11-3 | `activation_discovery_strategies` | — | §1.2 | `packages/analysis_contracts/contracts.py` |
+| W11-4 | `ScenarioAccountant` extraction | §3 | §3.1 | `monitor_lifecycle.py` |
+| W11-5 | `ExtensionMonitor` facade | §3 | §3.1 | same |
+| W11-6 | Per-strategy `_stop_*` helpers | §3 | — | `monitor_lifecycle.py::stop()` |
+| W12-1 | Executor subpackaging | §2 | §3.2 | `executor/flows/playwright/` (54 files) |
+| W12-2 | Attribution facade cleanup | §5 | §4 | `attribution/__init__.py` (29 underscore names) |
+| W12-3 | `raw_context` typing | §5 | §4 | `packages/analysis_contracts/evidence.py` |
+| W12-4 | `entrypoint_runner.main` dispatch (moved from W11) | §3 | §3.1 | `entrypoint_runner.py` (487 LoC) |
+| W13-1 | Benign silence 3→5 | §9 | §10 | `extensions/` + `tests/security/` |
+| W13-2 | Stale singleton-lock regression | §12 | — | `tests/executor/test_reset_state.py` |
+| W13-3 | `.env` gitignore contract | §9 | — | new `tests/platform/test_gitignore_contract.py` |
+| W13-4 | Logger consolidation | §12 | §10 | executor-wide |
+| W13-5 | Run-ID stamping | §12 | §10 | `executor/logging_config.py` (new) |
+| W13-6 | Path-traversal router regression lock | §1 | — | W8-5 mirror |
+| W13-7 | Schema-version emitter test lock | §4 | §1.2 | W10-1 mirror |
+| W13-8 | Zip-bomb + identity lock-in | §1 | §1 | W8-1 + W8-2 mirrors |
+
+### 11.12 Rejected items (iki review, promote edilmedi)
+
+§0 binding rules gereği reddedilen review maddeleri silinmez;
+gerekçelenir:
+
+- **UI component split (7.3.1 / 7.3.2, `ReportsWorkspace` /
+  `DetectionPanel` decomposition).**
+  > Reddedildi (Claude Opus 4.7, 2026-04-24 promotion review):
+  > evidence-deep-link behavior still settling; premature split would
+  > ossify incorrect component boundaries. POST_POC_BACKLOG § "UI"
+  > altında kalır — W13 sonunda re-evaluate.
+- **mypy strict promotion.**
+  > Reddedildi (Claude Opus 4.7, 2026-04-24): strict promotion
+  > requires each `ignore_errors` override (scripts, tests, alembic)
+  > to be lifted first — W8-W13 bandwidth doesn't cover that surface.
+  > POST_POC_BACKLOG § "Engineering quality" altında kalır.
+- **axe-core accessibility lane.**
+  > Reddedildi (Claude Opus 4.7, 2026-04-24): UI is not
+  > stakeholder-facing yet; accessibility bar without real users is
+  > premature. POST_POC_BACKLOG § "UI" altında kalır.
+- **Documentation consolidation (REFACTOR_STATUS / EXECUTION /
+  OPTIMIZATION dedupe).**
+  > Reddedildi (Claude Opus 4.7, 2026-04-24): W7 kapanışından < 4
+  > hafta geçmedi; living-doc cadence henüz oturmadı — erken merge
+  > audit trail'i kaybeder. POST_POC_BACKLOG § "Engineering
+  > quality" altında kalır.
+- **Monorepo tooling migration (uv / poetry).**
+  > Reddedildi (Codex §11, 2026-04-24 promotion review): "no new
+  > dependency without approval" AGENTS.md kuralı bu öneriyi ADR'sız
+  > bloke ediyor; ADR yok, bu tur tooling churn gereksiz.
+- **Async executor runtime refactor (`asyncio.Event` → `threading.Event`).**
+  > Reddedildi (Codex §7, 2026-04-24): executor Playwright sync;
+  > async boundary yalnızca `appcore/` tarafında. Değişiklik
+  > yarar/maliyet oranı düşük — deadlock vektörü açabilir.
+- **Frontend OpenAPI client generation.**
+  > Reddedildi (Claude §14, 2026-04-24): UI surface stabilize
+  > değilken OpenAPI snapshot her PR'da churn üretir; post-PoC UI
+  > stabilize olmadan değer yaratmaz.
+- **Executor Bandit exclude kaldırma (`pyproject.toml` scope genişletme).**
+  > Reddedildi (Claude Opus 4.7, 2026-04-24 plan review — birincil
+  > öncelik Claude): Codex §7 bu maddeyi flag'liyor; ancak Codex'in
+  > kendi önerisi "targeted security tests + narrow Bandit excludes,
+  > blindly enable etme" şeklinde. W8-3 (URI trigger argv-form), W8-4
+  > (absolute binary paths), W8-1 (zip-bomb guard) hit vektörlerinin
+  > tam kapsamını zaten **targeted test** ile kesiyor — Bandit'in
+  > executor genelinde açılması noise/benefit oranı düşük (subprocess
+  > call'ların hepsi list-form + `# nosec` annotated). **Post-W13
+  > mekanik temizlik** olarak POST_POC_BACKLOG'da kalır; W8-W13
+  > bandwidth'inde dahil değil.
+
+### 11.13 Paralel lane assignments (§10.4 + W8-W13)
+
+| Lane | Sorumlu ajan | W8 | W9 | W10 | W11 | W12 | W13 |
+|---|---|---|---|---|---|---|---|
+| Backend refactor | GPT-5.4 | §11.5-(2)(5) | — | §11.7 (hepsi) | — | §11.9-(3) | §11.10-(3)(7) |
+| Executor modularization | GPT-5.4 + Claude review | §11.5-(3)(4) | §11.6-(2)(3)(4)(5) | — | §11.8 (hepsi) | §11.9-(1)(2)(4) | §11.10-(2)(4)(5) |
+| Plan/ADR yazımı | Claude | ADR 0003 §6 update + ADR 0006 draft | ADR 0006 merged | — | — | — | — |
+| Güvenlik hardening | Claude (tasarım) + GPT (uygulama) | §11.5-(1)(6) | — | — | — | — | §11.10-(1)(6)(8) |
+| Mimari review | Claude Opus 4.x Explore | W8 post-review | W9 post-review | W10 post-review | W11 post-review | W12 post-review | W13 post-review |
+
+**Çakışma kuralları (§10.4'ten devralındı, W9 sonrası güçlendirilir):**
+
+- Aynı dosyayı aynı gün birden fazla ajan değiştirmez (AGENTS.md
+  multi-agent discipline).
+- Doküman yazımı Claude'a, kod yazımı GPT'ye ait.
+- Import-graph testi W9 sonrası daha sıkıdır (dual-import fallback
+  yasaklı, `sys.path.insert` yasaklı, subpackage cross-reference
+  sınırlı); lane ihlalleri CI'da otomatik bloke olur.
+- Her hafta bitişinde Claude Opus post-review yapar; bulgular
+  `REFACTOR_STATUS.md` altında haftalık blok olarak landed.
+
+### 11.14 W13-end overall exit criteria
+
+W13 bitiminde aşağıdakilerin hepsi yeşil ise external review
+integration window **closed** sayılır;
+[`REFACTOR_STATUS.md`](REFACTOR_STATUS.md) altına "External Review
+Window (W8-W13) — closed YYYY-MM-DD" bloğu eklenir; iki review'ın
+promote edilmeyen maddeleri [`POST_POC_BACKLOG.md`](POST_POC_BACKLOG.md)
+altında "Evaluated but deferred" etiketiyle kalır.
+
+**Güvenlik (W8):**
+
+- [ ] VSIX zip-bomb + path-traversal guard live; security test lock-in
+- [ ] `safe_marketplace_slug` helper live; raw concat architecture
+      test bloke ediyor
+- [ ] URI trigger argv-form invocation; shell injection vector kapalı
+- [ ] Absolute binary path disiplini executor genelinde
+- [ ] Activation-report router tight regex + helper konsolide
+- [ ] `ContentSample` secret redaction live; ADR 0003 §6 ek merged
+- [ ] `make test-security` 41 → ≥47 passing (W8 bitişinde) / ≥52 (W13)
+
+**Framework boundary (W9):**
+
+- [ ] ADR 0006 merged
+- [ ] 17 dosya → `except ImportError` count 0 executor'da
+- [ ] `sys.path.insert` hit count 0 `scripts/` dışında
+- [ ] `signal_policy.py` `packages/analysis_engine/signals/` altında
+- [ ] Container import-mode CI test green
+
+**Contract hygiene + planner (W10):**
+
+- [ ] `ActivationReport.schema_version` field + DeprecationWarning
+      emitter live
+- [ ] `_TriggerPayloadDraft` removed
+- [ ] `registry.py` 669 LoC → 4 file + facade; 29-name public
+      surface unchanged
+- [ ] `automation_health`, `coverage_*` typed Pydantic models; report
+      `dict[str, Any]` residue 0
+
+**Monitor lifecycle split (W11):**
+
+- [ ] `monitor_lifecycle.py` 834 → ≤200 LoC (facade)
+- [ ] `MonitorRuntime`, `ReportAssembler`, `ScenarioAccountant` canlı
+- [ ] `activation_discovery_strategies` report field live + UI
+      contracts.ts regen'd
+- [ ] Per-strategy `_stop_*` helpers canlı
+
+**Executor subpackaging (W12):**
+
+- [ ] `executor/flows/playwright/` flat dosya sayısı 54 → ≤10
+- [ ] 5 subpackage + `attribution/` import-graph kurallarıyla izole
+- [ ] `entrypoint_runner.py` 487 → ≤200 LoC; dispatch logic
+      `entrypoint/dispatch.py` içinde (W11'den W12-4'e taşındı)
+- [ ] `attribution/__init__.py::__all__` public 6-7 name;
+      underscore'lular internal
+- [ ] `raw_context` typed discriminated union; evidence modelinde
+      `dict[str, Any]` residue 0
+
+**Test + observability (W13):**
+
+- [ ] Benign silence 3 → 5 fixture
+- [ ] Stale singleton-lock + `.env` gitignore regression test green
+- [ ] Tüm `print(...)` → `extrace.executor.*` logger (executor ağacında
+      `rg -n "^\s*print\(" executor/` hit count 0)
+- [ ] Run-ID tüm log record'larda ve report çıktılarında
+- [ ] `make check-all` green; `make test-security` ≥52 passing;
+      `scripts/demo_acceptance.py` → `DEMO GREEN`
+
+Bu 14 madde yeşilken external review integration kapanır; POST_POC
+backlog "Evaluated but deferred" label'ıyla update edilir; iki
+review dokümanı (`claude_code_review.md`, `codex_project_rewiew.md`)
+archive olarak kalır — silinmez, gelecek review'larda baseline olarak
+kullanılır.

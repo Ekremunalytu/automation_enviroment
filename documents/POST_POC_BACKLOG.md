@@ -1,6 +1,6 @@
 # Post-PoC Backlog
 
-`Last Updated: 2026-04-24 (target activation lifecycle PRs 1-2 landed; PRs 3-5 pending)`
+`Last Updated: 2026-04-24 (target activation lifecycle PRs 1-2 landed; PRs 3-5 pending; external review integration scheduled as §11 W8-W13)`
 
 Work items that do not block PoC acceptance (`REFACTOR_OPTIMIZATION.md`
 §10.7) and were intentionally deferred from W0-W7 for scope management.
@@ -9,6 +9,36 @@ can pull it back without re-deriving context.
 
 The PoC acceptance bar is met as of 2026-04-23. Anything below this line
 is value-add, not a gate.
+
+## External review integration window (W8-W13, scheduled 2026-04-24)
+
+Two independent external reviews landed 2026-04-24
+([`documents/claude_code_review.md`](claude_code_review.md),
+[`documents/codex_project_rewiew.md`](codex_project_rewiew.md)). Their
+findings have been triaged and scheduled into a six-week post-PoC
+window in [`REFACTOR_OPTIMIZATION.md §11`](REFACTOR_OPTIMIZATION.md)
+(W8 Güvenlik sıkılaştırma → W13 Test expansion + observability).
+
+**Entry gate for W8 (REFACTOR_OPTIMIZATION.md §11.1):** PR345 (target
+activation lifecycle) must land fully — PRs 1-2 landed 2026-04-24,
+PRs 3-5 + ADR for PR5 still pending. W8 does not open until the
+"Target activation lifecycle + target log instrumentation" entry
+below reaches `[LANDED]` across all five PRs.
+
+**Promoted from this backlog into W8-W13:** the two "Next iteration"
+entries that were left as `[NEXT]` pulls — target activation lifecycle
+PRs 3-5 (W8 entry gate blocker) and review-surfaced items
+(`signal_policy.py` relocation → W9-2; `registry.py` split → W10-3;
+`monitor_lifecycle.py` split → W11; `executor/flows/playwright/`
+subpackaging → W12). Items not yet promoted stay in this file under
+their current sections.
+
+**Rejected from W8-W13 (stay in this file with promotion rationale
+in §11.12):** UI component split (7.3.1/7.3.2), axe-core, mypy strict
+promotion, documentation consolidation, monorepo tooling migration,
+async executor runtime refactor, OpenAPI frontend client generation.
+Each is annotated "Evaluated 2026-04-24, not promoted — see
+REFACTOR_OPTIMIZATION.md §11.12" below.
 
 ## Next iteration (pull first)
 
@@ -327,10 +357,23 @@ is value-add, not a gate.
 - `make migrate` pre-check for destructive Alembic operations (7.4.6);
   Alembic reversibility audit for every revision on `main` (7.4.7).
 
+## Workflow / platform cleanups (promoted to W8-W10)
+
+- **[PROMOTED → W8-2]** `safe_marketplace_slug` helper + architecture-test
+  enforcement. `workflows/marketplace/client.py:94-103` raw
+  publisher/name/version path concat bulgusu
+  (`REFACTOR_OPTIMIZATION.md §11.5` item 2).
+- **[PROMOTED → W8-5]** Activation-report router path-traversal
+  regex hardening + `appcore/contracts/validators.py::valid_extension_slug`
+  merkezi helper (`REFACTOR_OPTIMIZATION.md §11.5` item 5).
+
 ## UI
 
 - Split `ReportsWorkspace` / `DetectionPanel` into smaller components
   (7.3.1, 7.3.2) once the evidence-deep-link feature settles.
+  > **Evaluated 2026-04-24, not promoted to W8-W13** — evidence-deep-link
+  > behavior still settling; premature split would ossify incorrect
+  > component boundaries. See `REFACTOR_OPTIMIZATION.md §11.12`.
 - Replace the `window.__EXTRACE_CONFIG__` global with a React context
   provider (7.3.3).
 - Wire `AbortController` cancellation through the polling helpers
@@ -339,24 +382,149 @@ is value-add, not a gate.
   importing sibling `features/*` internals (7.3.5).
 - Axe-core accessibility lane (deferred W7; re-plan when UI is
   stakeholder-facing).
+  > **Evaluated 2026-04-24, not promoted to W8-W13** — UI is not
+  > stakeholder-facing yet; accessibility bar without real users is
+  > premature. See `REFACTOR_OPTIMIZATION.md §11.12`.
+- OpenAPI-generated frontend API client.
+  > **Evaluated 2026-04-24, not promoted to W8-W13** — UI surface not
+  > stabilized; OpenAPI snapshot churns every PR without delivering
+  > value until post-PoC UI stabilizes. See `REFACTOR_OPTIMIZATION.md
+  > §11.12`.
 
 ## Detection engine stretch
 
 - **Adversary classes A5 + A7** — stretch canaries + rules (ADR 0002
   §4). A3 landed in W7 Phase 3a (`extrace.a3.typosquat`); A5 and A7 are
   the remaining stretch entries.
+  > **Evaluated 2026-04-24, not promoted to W8-W13** — W8-W13 focuses
+  > on hardening + modularization of existing rule surface; adversary
+  > coverage expansion is orthogonal and stays in this section.
 - Promote allowlists (`benign_domains.txt`, `popular_extensions.txt`) to
   a versioned data artifact once the lists grow past the current
   hand-curated ~15-20 entries.
+  > **Evaluated 2026-04-24, not promoted to W8-W13** — list growth
+  > trigger not met; revisit when entries exceed ~50.
+
+## Detection engine + contract hygiene (promoted to W10-W12)
+
+- **[PROMOTED → W10-1]** `ActivationReport.schema_version` field +
+  DeprecationWarning migration emitter (`REFACTOR_OPTIMIZATION.md
+  §11.7` item 1).
+- **[PROMOTED → W10-2]** `_TriggerPayloadDraft` elimination from
+  `packages/analysis_planner/__init__.py` (`REFACTOR_OPTIMIZATION.md
+  §11.7` item 2).
+- **[PROMOTED → W10-3]** `packages/analysis_planner/registry.py` 669
+  LoC → `capabilities.py` + `scenarios.py` + `event_scenario_index.py`
+  - `pass_order.py` + facade split (`REFACTOR_OPTIMIZATION.md §11.7`
+  item 3).
+- **[PROMOTED → W10-4, W10-5]** `automation_health` +
+  `coverage_*` typed Pydantic models (`AutomationHealth`,
+  `CoverageSummary`) replacing `dict[str, Any]`
+  (`REFACTOR_OPTIMIZATION.md §11.7` items 4-5).
+- **[PROMOTED → W11-3]** `ActivationReport.activation_discovery_strategies`
+  report field (`REFACTOR_OPTIMIZATION.md §11.8` item 3).
+- **[PROMOTED → W12-3]** `raw_context` per-event-type typing
+  (`NetworkRawContext` / `FileRawContext` / `ProcessRawContext`
+  discriminated union) (`REFACTOR_OPTIMIZATION.md §11.9` item 3).
+
+## Executor modularization + boundary (promoted to W9-W12)
+
+- **[PROMOTED → W8-1]** VSIX zip-bomb + ZipSlip guard in
+  `packages/analysis_engine/static/vsix.py` (`REFACTOR_OPTIMIZATION.md
+  §11.5` item 1).
+- **[PROMOTED → W8-3]** URI trigger argv-form invocation in
+  `executor/flows/playwright/entrypoint_triggers.py:142` +
+  `stimulus_attempts.py:136` (`REFACTOR_OPTIMIZATION.md §11.5` item 3).
+- **[PROMOTED → W8-4]** Absolute binary paths discipline across
+  executor shell invocations (`REFACTOR_OPTIMIZATION.md §11.5` item 4).
+- **[PROMOTED → W8-6]** `ContentSample.value` secret redaction +
+  ADR 0003 §6 addendum (`REFACTOR_OPTIMIZATION.md §11.5` item 6).
+- **[PROMOTED → W9-1]** ADR 0006 — Container packaging (paket mode vs
+  top-level) (`REFACTOR_OPTIMIZATION.md §11.6` item 1).
+- **[PROMOTED → W9-2]** `executor/flows/playwright/signal_policy.py`
+  485 LoC → `packages/analysis_engine/signals/policy.py` relocation +
+  `sys.path.insert(0, _PROJECT_ROOT)` removal
+  (`REFACTOR_OPTIMIZATION.md §11.6` item 2).
+- **[PROMOTED → W9-3]** Dual-import `except ImportError` fallback sweep
+  across 17 executor files (`REFACTOR_OPTIMIZATION.md §11.6` item 3;
+  count corrected from 14 to 17 in 2026-04-24 plan review).
+- **[PROMOTED → W9-4]** `sys.path.insert` audit + removal outside
+  `scripts/`, `tests/`, `alembic/`. 5 runtime hits identified:
+  `signal_policy.py:33`, `reload_vscode.py:19`, `triggers.py:27`,
+  `report_builder.py:17`, `entrypoint.py:18` (`REFACTOR_OPTIMIZATION.md
+  §11.6` item 4; scope expanded from single hit to 5 in 2026-04-24
+  plan review).
+- **[PROMOTED → W9-5]** Container import-mode CI test
+  (`REFACTOR_OPTIMIZATION.md §11.6` item 5).
+- **[PROMOTED → W11]** `executor/flows/playwright/monitor_lifecycle.py`
+  834 LoC → `MonitorRuntime` + `ReportAssembler` + `ScenarioAccountant`
+  - `ExtensionMonitor` facade split; per-strategy `_stop_*` helper
+  extraction (`REFACTOR_OPTIMIZATION.md §11.8`).
+- **[PROMOTED → W12-4]** `entrypoint_runner.py` 487 LoC → ≤200 LoC
+  dispatch extraction; dispatch logic `entrypoint/dispatch.py` yeni
+  subpackage içinde oturur (`REFACTOR_OPTIMIZATION.md §11.9` item 4).
+  Moved from W11 to W12 in 2026-04-24 plan review: co-located with
+  its containing `entrypoint/` subpackage — tek operasyon, iki
+  dokunma turu yerine.
+- **[PROMOTED → W12-1]** `executor/flows/playwright/` 54 flat dosya →
+  `{monitor, stimulus, workspace, health, entrypoint}/` subpackage
+  split (`REFACTOR_OPTIMIZATION.md §11.9` item 1).
+- **[PROMOTED → W12-2]** `attribution/__init__.py` 29-name
+  underscore-prefixed API → public/private cleanup
+  (`REFACTOR_OPTIMIZATION.md §11.9` item 2).
+- Async executor runtime refactor (`asyncio.Event` → `threading.Event`).
+  > **Evaluated 2026-04-24, not promoted to W8-W13** — executor
+  > Playwright sync; async boundary only on `appcore/` side. Change
+  > benefit/cost ratio low; potential deadlock vector. See
+  > `REFACTOR_OPTIMIZATION.md §11.12`.
 
 ## Engineering quality
 
 - Promote mypy to `strict = true` once the remaining `ignore_errors`
   overrides (scripts, tests, alembic) are either typed or actually
   moved outside the source set.
+  > **Evaluated 2026-04-24, not promoted to W8-W13** — strict promotion
+  > requires each `ignore_errors` override to be lifted first; W8-W13
+  > bandwidth doesn't cover that surface. See `REFACTOR_OPTIMIZATION.md
+  > §11.12`.
 - Documentation consolidation pass: dedupe `REFACTOR_STATUS.md`,
   `REFACTOR_EXECUTION_PLAN.md`, `REFACTOR_OPTIMIZATION.md` once W7 is
   more than a few weeks old and the living-doc cadence has settled.
+  > **Evaluated 2026-04-24, not promoted to W8-W13** — W7 closure <4
+  > weeks old; living-doc cadence not yet settled — early merge would
+  > lose audit trail. See `REFACTOR_OPTIMIZATION.md §11.12`.
+- Monorepo tooling migration (`uv` / `poetry`).
+  > **Evaluated 2026-04-24, not promoted to W8-W13** — "no new
+  > dependency without approval" AGENTS.md rule blocks this without
+  > an ADR; no ADR exists. See `REFACTOR_OPTIMIZATION.md §11.12`.
+- Executor-wide Bandit scope expansion (`pyproject.toml` exclude
+  removal).
+  > **Evaluated 2026-04-24, not promoted to W8-W13** — Codex §7
+  > flag; but Codex's own recommendation is "targeted security tests
+  > - narrow excludes, not blanket enable". W8-1 (zip-bomb), W8-3
+  > (URI argv), W8-4 (absolute binary paths) already close the
+  > concrete subprocess/path injection vectors with targeted tests;
+  > Bandit-wide enable noise/benefit ratio low (subprocess calls are
+  > all list-form + `# nosec`-annotated). Post-W13 mechanical
+  > cleanup. See `REFACTOR_OPTIMIZATION.md §11.12`.
+
+## Test + observability (promoted to W13)
+
+- **[PROMOTED → W13-1]** Benign silence baseline expansion 3 → 5
+  fixtures (+ vscode-eslint, + github-copilot-chat)
+  (`REFACTOR_OPTIMIZATION.md §11.10` item 1).
+- **[PROMOTED → W13-2]** Stale `SingletonLock` cleanup regression test
+  (W7 post-hardening fix regression guard)
+  (`REFACTOR_OPTIMIZATION.md §11.10` item 2).
+- **[PROMOTED → W13-3]** `.gitignore` contract test (`.env`,
+  `extensions/*/node_modules/`, `output/`, `__pycache__/` pattern
+  assertions) (`REFACTOR_OPTIMIZATION.md §11.10` item 3).
+- **[PROMOTED → W13-4]** `extrace.executor.*` logger hierarchy
+  consolidation; all `print(...)` call sites → logger
+  (`REFACTOR_OPTIMIZATION.md §11.10` item 4).
+- **[PROMOTED → W13-5]** Run-ID (UUIDv7) stamping across all log
+  records + report outputs via logger filter
+  (`REFACTOR_OPTIMIZATION.md §11.10` item 5).
 
 ## How to pull an item back
 

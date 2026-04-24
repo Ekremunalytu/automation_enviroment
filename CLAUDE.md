@@ -181,6 +181,22 @@ state.
 - **Post-PoC:** work items tracked in
   [`documents/POST_POC_BACKLOG.md`](documents/POST_POC_BACKLOG.md);
   next iteration starts from its "Next iteration (pull first)" block.
+- **External review integration (W8-W13, scheduled 2026-04-24):**
+  Two independent external reviews landed 2026-04-24
+  ([`documents/claude_code_review.md`](documents/claude_code_review.md),
+  [`documents/codex_project_rewiew.md`](documents/codex_project_rewiew.md))
+  and have been triaged into a six-week post-PoC window — see
+  [`documents/REFACTOR_OPTIMIZATION.md` §11](documents/REFACTOR_OPTIMIZATION.md)
+  (§11.5 W8 Güvenlik, §11.6 W9 Boundary, §11.7 W10 Contract hygiene +
+  Planner, §11.8 W11 Monitor lifecycle split, §11.9 W12 Executor
+  subpackaging, §11.10 W13 Test + observability). **W8 entry gate:**
+  PR345 (target activation lifecycle) must complete — PRs 1-2 landed
+  2026-04-24, PRs 3-5 + PR5 ADR still pending. **W8 does not open
+  until PR345 is fully landed.** Promotion markers + rejection
+  rationale mirrored in
+  [`documents/POST_POC_BACKLOG.md`](documents/POST_POC_BACKLOG.md)
+  under "External review integration window (W8-W13, scheduled
+  2026-04-24)".
 - **Security scaffolding already present:**
   - `packages/analysis_contracts/detection/`
   - `packages/analysis_engine/rules/`
@@ -189,8 +205,11 @@ state.
   - `make test-security`
   - `make test-security-live`
 
-Use `documents/REFACTOR_STATUS.md` for current closure state and
-`documents/REFACTOR_OPTIMIZATION.md` §10 for the weekly W0-W7 window.
+Use `documents/REFACTOR_STATUS.md` for current closure state;
+`documents/REFACTOR_OPTIMIZATION.md` §10 for the W0-W7 weekly window
+(closed); `documents/REFACTOR_OPTIMIZATION.md` §11 for the W8-W13
+post-PoC external review integration window (scheduled, not yet
+started).
 
 ## Scope First
 
