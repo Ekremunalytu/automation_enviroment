@@ -85,6 +85,8 @@ class ScenarioTrace(StrictContractModel):
     started_at: float
     ended_at: float = 0.0
     status: str = "running"
+    failure_reason_code: str = ""
+    error_detail: str = ""
 
 
 class SkippedScenarioRecord(StrictContractModel):

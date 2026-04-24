@@ -53,6 +53,22 @@ def monitoring_failure_message(exc: ExecutorError) -> str:
     return f"Sandbox automation failed before the report could be finalized: {detail}"
 
 
+def install_failure_message(exc: ExecutorError) -> str:
+    """Surface the ``code --install-extension`` CLI stderr tail in the job log.
+
+    ``ExecutorError`` carries the CLI's stderr/stdout in ``exc.output`` but
+    ``str(exc)`` is just the rc/command line — without this helper the
+    operator only sees ``rc=1`` and has no signal for whether the failure is
+    a bad VSIX, a stale singleton lock, or an IPC race.
+    """
+    base = "Extension installation failed inside the sandbox."
+    output = (exc.output or "").strip()
+    if not output:
+        return base
+    tail = output[-500:].strip()
+    return f"{base} Installer output (tail): {tail}"
+
+
 def _run_monitoring_heartbeat(
     stop_event: threading.Event,
     reporter: StepReporter,
@@ -104,11 +120,11 @@ def install_extension(
             request.name,
             request.version,
         )
-    except ExecutorError:
+    except ExecutorError as exc:
         reporter.emit(
             "install_extension",
             "failed",
-            "Extension installation failed inside the sandbox.",
+            install_failure_message(exc),
         )
         raise
     reporter.emit("install_extension", "completed", "Extension installed in sandbox.")
@@ -237,6 +253,7 @@ __all__ = [
     "StepReporter",
     "build_triggers",
     "install_extension",
+    "install_failure_message",
     "monitoring_failure_message",
     "reset_sandbox",
     "run_monitoring",

@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-`Last Updated: 2026-04-23`
+`Last Updated: 2026-04-24`
 
 Read `AGENTS.md` first. It is the authoritative source for architecture and
 safety rules. This file is the Claude-facing quick map for the current repo
@@ -39,6 +39,42 @@ state.
   **marked `[NEXT]` — first item to pull in the next iteration per
   user direction (2026-04-23)**. Final `make test-security` → 41
   passed; `make check-all` → all green.
+- **Post-W7 hardening (2026-04-24):** two reliability fixes landed on
+  the back of the `sim-all` crash cascade and the second-scan install
+  failures observed at W7 closure:
+  1. **Fatal UI-crash classification + fail-fast.**
+     `_run_scenario_sequence`
+     ([`executor/flows/playwright/automation.py`](executor/flows/playwright/automation.py))
+     now routes `PlaywrightError` / `RuntimeError` / `ValueError` through
+     `is_fatal_ui_error` (explicit substring + `page.is_closed()` +
+     liveness-probe eksen'leri). Renderer ölürse loop **fail-fast** durur;
+     `ScenarioTrace.failure_reason_code = "fatal_ui_crash"` +
+     `error_detail` set edilir; `automation_health.status` ADR 0003 §5
+     error dominance gereği `inconclusive`'e degrade olur. Opt-in
+     `--retry-on-crash` bayrağı `vscode.reload_workbench_window` ile
+     devam eder. Contract mirror
+     ([`packages/analysis_contracts/contracts.py`](packages/analysis_contracts/contracts.py))
+     ve UI `contracts.ts` regen edildi. Closes the `[NEXT]` backlog
+     item by the same name.
+  2. **Scan-between VS Code restart (ESLint `onStartupFinished` race
+     fix).** İlk taramada temiz çalışan sistem, ikinci taramada
+     `code --install-extension` rc=1 ile düşüyordu — sebep bir önceki
+     tarama'nın bıraktığı stale Chromium SingletonLock + ölü IPC
+     socket'iydi. [`executor/flows/playwright/reset_state.py`](executor/flows/playwright/reset_state.py)
+     artık workspace setup → `terminate_vscode` (SIGTERM + 5 s grace +
+     SIGKILL fallback) → extensions/logs temizle →
+     `cleanup_singleton_locks` → `launch_vscode` sırasıyla orkestre
+     ediyor. Launch komutu
+     [`executor/container/launch_vscode.sh`](executor/container/launch_vscode.sh)
+     shared script'ine taşındı; `start.sh` boot'ta, `reset_state.py`
+     scan-between aynı scripti çağırıyor. Opportunistic defense olarak
+     [`executor/host.py`](executor/host.py) `install_extension` transient
+     IPC hatalarında `reload_vscode_window` ile bir kere retry ediyor,
+     [`workflows/marketplace/analysis_execution.py`](workflows/marketplace/analysis_execution.py)
+     install failure emit'inde stderr tail'i (son 500 char) footer olarak
+     sergiliyor — gelecekteki aynı sınıf hatalarda diagnostic susma olmasın.
+  `make typecheck` temiz (207 source file), `make check-all` → 627
+  passed / 5 skipped.
 - **Post-PoC:** work items tracked in
   [`documents/POST_POC_BACKLOG.md`](documents/POST_POC_BACKLOG.md);
   next iteration starts from its "Next iteration (pull first)" block.

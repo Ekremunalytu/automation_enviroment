@@ -97,20 +97,16 @@ cat > "${VSCODE_SETTINGS_DIR}/settings.json" <<'SETTINGS'
 SETTINGS
 
 # --- VS Code ---
+# Delegated to launch_vscode.sh so reset_state.py can reuse the same launch
+# command between analyses for a clean restart. The script prints the PID
+# of the detached VS Code process on stdout.
+VSCODE_LAUNCH_SCRIPT="${EXECUTOR_VSCODE_LAUNCH_SCRIPT:-/home/executor/container/launch_vscode.sh}"
 VSCODE_LOG_LEVEL="${EXECUTOR_VSCODE_LOG_LEVEL:-trace}"
-if ! command -v code >/dev/null 2>&1; then
-    echo "ERROR: VS Code CLI binary 'code' is not installed in the executor image."
-    exit 1
-fi
-
 echo "Starting VS Code (CDP on localhost:${CDP_PORT}, log level: ${VSCODE_LOG_LEVEL})..."
-code --no-sandbox \
-    --user-data-dir /home/executor/.vscode \
-    --extensionDevelopmentPath=/home/executor/flows/harness_extension \
-    --remote-debugging-port="${CDP_PORT}" \
-    --log "${VSCODE_LOG_LEVEL}" \
-    /workspace &
-PIDS+=($!)
+VSCODE_PID="$(EXECUTOR_CDP_PORT="${CDP_PORT}" \
+              EXECUTOR_VSCODE_LOG_LEVEL="${VSCODE_LOG_LEVEL}" \
+              bash "${VSCODE_LAUNCH_SCRIPT}")"
+PIDS+=("${VSCODE_PID}")
 
 # Wait for VS Code to initialise, then symlink the latest log directory
 (

@@ -47,4 +47,12 @@ def build_parser(*, default_report_path: str) -> argparse.ArgumentParser:
         action="store_true",
         help="Start monitoring but intentionally skip scenario execution.",
     )
+    parser.add_argument(
+        "--retry-on-crash",
+        action="store_true",
+        help=(
+            "Reload the VS Code workbench after a fatal UI crash and continue. "
+            "Default is fail-fast: a renderer crash aborts the scenario sequence."
+        ),
+    )
     return parser

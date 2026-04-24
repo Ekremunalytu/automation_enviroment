@@ -554,6 +554,13 @@ class ExtensionMonitor:
                 self.report.scenario_traces.append(finished_trace)
             finished_trace.ended_at = now
             finished_trace.status = status or "completed"
+            if metadata:
+                reason_code = str(metadata.get("failure_reason_code", "") or "")
+                if reason_code:
+                    finished_trace.failure_reason_code = reason_code
+                error_detail = str(metadata.get("error", "") or "")
+                if error_detail:
+                    finished_trace.error_detail = error_detail[:500]
         message = _build_scenario_log_message(action, name, status, metadata)
         self.report.log_entries.append(
             LogStreamEntry(

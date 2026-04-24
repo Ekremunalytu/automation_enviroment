@@ -319,6 +319,8 @@ def main(*, deps) -> None:
                         page,
                         planned_scenarios,
                         shuffle=args.shuffle,
+                        retry_on_crash=args.retry_on_crash,
+                        browser=browser,
                     ),
                     deps=deps,
                     requested_scenarios=planned_scenarios,
@@ -353,6 +355,8 @@ def main(*, deps) -> None:
                         page,
                         [scenario_name],
                         shuffle=False,
+                        retry_on_crash=args.retry_on_crash,
+                        browser=browser,
                     ),
                     deps=deps,
                     requested_scenarios=[scenario_name],
@@ -370,7 +374,12 @@ def main(*, deps) -> None:
             else:
                 print("[*] Running all automation scenarios...")
                 execution_result = _normalize_execution_result(
-                    deps.automation.run_all_scenarios(page, shuffle=args.shuffle),
+                    deps.automation.run_all_scenarios(
+                        page,
+                        shuffle=args.shuffle,
+                        retry_on_crash=args.retry_on_crash,
+                        browser=browser,
+                    ),
                     deps=deps,
                     requested_scenarios=deps.automation.list_scenarios(),
                 )

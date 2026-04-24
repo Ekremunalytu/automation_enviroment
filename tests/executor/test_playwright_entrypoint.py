@@ -685,12 +685,13 @@ def test_main_dispatches_non_monitored_execution_modes(
     monkeypatch.setattr(
         entrypoint.automation,
         "run_all_scenarios",
-        lambda page, shuffle=False: dispatched.append(("all", shuffle)) or [],
+        lambda page, shuffle=False, **_: dispatched.append(("all", shuffle)) or [],
     )
     monkeypatch.setattr(
         entrypoint.automation,
         "run_selected_scenarios",
-        lambda page, names, shuffle=False: dispatched.append(("selected", names)) or [],
+        lambda page, names, shuffle=False, **_: dispatched.append(("selected", names))
+        or [],
     )
     monkeypatch.setattr(
         entrypoint.automation,
@@ -718,7 +719,7 @@ def test_main_monitor_marks_missing_trigger_plan(monkeypatch) -> None:
     monkeypatch.setattr(
         entrypoint.automation,
         "run_all_scenarios",
-        lambda page, shuffle=False: [],
+        lambda page, shuffle=False, **_: [],
     )
     monkeypatch.setattr(
         entrypoint.automation, "list_scenarios", lambda: ["coding_session"]
@@ -745,7 +746,7 @@ def test_main_monitor_can_skip_automation(monkeypatch) -> None:
     monkeypatch.setattr(
         entrypoint.automation,
         "run_all_scenarios",
-        lambda page, shuffle=False: automation_calls.append("all") or [],
+        lambda page, shuffle=False, **_: automation_calls.append("all") or [],
     )
     monkeypatch.setattr(
         entrypoint.automation,
@@ -782,7 +783,7 @@ def test_main_selected_scenarios_exit_nonzero_when_failures_returned(
     monkeypatch.setattr(
         entrypoint.automation,
         "run_selected_scenarios",
-        lambda page, names, shuffle=False: ["coding_session"],
+        lambda page, names, shuffle=False, **_: ["coding_session"],
     )
 
     with pytest.raises(SystemExit, match="1"):
@@ -879,7 +880,9 @@ def test_main_resets_reporter_and_disconnects_when_execution_raises(
     monkeypatch.setattr(
         entrypoint.automation,
         "run_selected_scenarios",
-        lambda page, names, shuffle=False: (_ for _ in ()).throw(RuntimeError("boom")),
+        lambda page, names, shuffle=False, **_: (_ for _ in ()).throw(
+            RuntimeError("boom")
+        ),
     )
     monkeypatch.setattr(
         entrypoint.automation,

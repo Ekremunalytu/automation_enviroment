@@ -115,20 +115,71 @@ def _docker_exec_allow_partial(
     return _run_docker_exec(cmd, timeout, allow_partial=True)
 
 
+_INSTALL_EXTENSION_RETRYABLE_MARKERS = (
+    "connection refused",
+    "econnrefused",
+    "could not connect",
+    "ipc handle",
+    "ipc hook",
+    "singleton",
+    "already running",
+    "extension host",
+    "lock file",
+    "exited unexpectedly",
+    "timed out",
+    "timeout",
+    "renderer process gone",
+    "target crashed",
+)
+
+
+def _is_retryable_install_error(output: str) -> bool:
+    normalized = output.lower()
+    return any(marker in normalized for marker in _INSTALL_EXTENSION_RETRYABLE_MARKERS)
+
+
 def install_extension_in_executor(publisher: str, name: str, version: str) -> str:
+    """Install a VSIX inside the executor with one reload-backed retry.
+
+    VS Code's ``--install-extension`` CLI talks to any running instance over
+    IPC; if that instance is mid-reload or has a stale singleton lock, the
+    command fails with ``rc=1`` even though the sandbox is otherwise healthy.
+    We surface the CLI's own stderr in :class:`ExecutorError.output` so the
+    caller can emit it to the job log, and on recognizable transient failures
+    we issue a fresh ``reload_vscode_window()`` + brief settle delay and try
+    once more. Non-retryable failures (bad VSIX, permission, etc.) propagate
+    on the first attempt.
+    """
     vsix_container_path = (
         f"{settings.executor.EXTENSIONS_CONTAINER_PATH}"
         f"/{publisher}.{name}-{version}.vsix"
     )
-    result = _docker_exec(
-        [
-            "code",
-            "--install-extension",
-            vsix_container_path,
-            "--no-sandbox",
-            "--force",
-        ]
-    )
+    cmd = [
+        "code",
+        "--install-extension",
+        vsix_container_path,
+        "--no-sandbox",
+        "--force",
+    ]
+    try:
+        result = _docker_exec(cmd)
+    except ExecutorError as first_exc:
+        if not _is_retryable_install_error(first_exc.output):
+            raise
+        try:
+            reload_vscode_window()
+        except ExecutorError:
+            raise first_exc from None
+        time.sleep(2)
+        try:
+            result = _docker_exec(cmd)
+        except ExecutorError as retry_exc:
+            raise ExecutorError(
+                f"{retry_exc}; first attempt output: "
+                f"{first_exc.output[-200:].strip()}",
+                returncode=retry_exc.returncode,
+                output=retry_exc.output,
+            ) from retry_exc
     return result.stdout
 
 

@@ -1,6 +1,6 @@
 # Post-PoC Backlog
 
-`Last Updated: 2026-04-23 (W7 closure + sim-all crash-cascade follow-ups)`
+`Last Updated: 2026-04-24 (fatal UI-crash fail-fast + scan-between VS Code restart landed)`
 
 Work items that do not block PoC acceptance (`REFACTOR_OPTIMIZATION.md`
 §10.7) and were intentionally deferred from W0-W7 for scope management.
@@ -26,46 +26,68 @@ is value-add, not a gate.
   closure; **this is the first item to pull in the next iteration**
   per user direction (2026-04-23).
 
-- **[NEXT] Fatal UI-crash classification + fail-fast (with
-  `ScenarioTrace` failure metadata).** `_run_scenario_sequence`
-  ([executor/flows/playwright/automation.py:186](../executor/flows/playwright/automation.py:186))
-  catches `(PlaywrightError, RuntimeError, ValueError)` and falls back
-  to `_recover_ui_state`
-  ([automation.py:131](../executor/flows/playwright/automation.py:131)),
-  which only sends `Escape`/`FOCUS_EDITOR` on the **same** page. Once
-  the renderer dies (`CodeWindow: renderer process gone, code: 5`) the
-  page is dead; every subsequent scenario then cascade-fails with
-  `Keyboard.press: Target crashed`. Observed 2026-04-23 on
-  `make sim-all`: `settings_modification` crashed VS Code (pre-fix),
-  the remaining 8 scenarios all reported the same `Target crashed`.
-  Even with the settings.json fix landed, the runner must still
-  distinguish fatal page/context conditions from ordinary scenario
-  failures. Fix:
-  1. Detect `Target crashed`, closed page/context, CDP disconnect in
-     `_run_scenario_sequence`; classify as `fatal_ui_crash`.
-  2. **Fail-fast** on fatal crash rather than pretending recovery
-     succeeded — do not continue to the next scenario with a dead page.
-     Automatic reload via `vscode.reload_workbench_window`
-     ([vscode.py:176](../executor/flows/playwright/vscode.py:176)) stays
-     opt-in behind an explicit `--retry-on-crash` flag; defaulting to
-     auto-reload would mask the extension-triggered crash signal and
-     violate ADR 0003 §5 error dominance (crash should degrade
-     `automation_health` to `inconclusive`, not silently heal).
-  3. Extend `ScenarioTrace`
-     ([monitor_records.py:20](../executor/flows/playwright/monitor_records.py:20))
-     with `failure_reason_code: str = ""` and `error_detail: str = ""`,
-     populate them from `record_scenario_event`
-     ([monitor_lifecycle.py:534](../executor/flows/playwright/monitor_lifecycle.py:534))
-     so the report surfaces root cause on the trace itself instead of
-     buried in `log_entries`.
-  4. Add a cheap post-scenario liveness probe (e.g. `page.evaluate("1")`
-     inside a short timeout) gated on the same fatal-crash codepath —
-     avoid the full "is settings.json parseable / is extension host
-     alive" battery, which adds flake for no detection value.
-  Size: ~1 day. Risk: mis-classifying a transient `PlaywrightError` as
-  fatal would abort a real run; keep the classifier narrow
-  (explicit error-message / connection-state checks, not a broad
-  catch-all).
+- **[LANDED 2026-04-24] Fatal UI-crash classification + fail-fast (with
+  `ScenarioTrace` failure metadata).** Implemented per the plan:
+  `is_fatal_ui_error` classifier (substring markers + `page.is_closed()`
+  - `context.is_closed()` + ≤1.5 s liveness probe, all explicit positive
+  assertions; default non-fatal) in
+  [`executor/flows/playwright/automation.py`](../executor/flows/playwright/automation.py);
+  `_run_scenario_sequence` breaks the loop on fatal errors, opt-in
+  `--retry-on-crash` routes through `vscode.reload_workbench_window`
+  with page rebinding; `ScenarioTrace`
+  ([`monitor_records.py`](../executor/flows/playwright/monitor_records.py))
+  gained `failure_reason_code` + `error_detail` (≤500 char);
+  `record_scenario_event`
+  ([`monitor_lifecycle.py`](../executor/flows/playwright/monitor_lifecycle.py))
+  reads them off the existing `metadata` channel (no signature churn);
+  `health_summary.py` recognises `fatal_ui_crash` as a dominant reason
+  that forces `automation_health.status = "inconclusive"` per ADR 0003
+  §5; Pydantic mirror lock-stepped in
+  [`packages/analysis_contracts/contracts.py`](../packages/analysis_contracts/contracts.py)
+  with `extra="forbid"` guard; UI `contracts.ts` regen'd. New test
+  coverage: `tests/executor/test_playwright_crash_classifier.py` (11
+  tests including false-positive guard for transient timeouts),
+  extended `test_playwright_automation.py`,
+  `test_playwright_monitor_lifecycle.py`, and new
+  `test_playwright_health_summary.py`. Verified via `make typecheck` +
+  `make check-all` (627 passed / 5 skipped).
+
+- **[LANDED 2026-04-24] Scan-between VS Code restart (ESLint
+  `onStartupFinished` install race fix).** First scan after a fresh
+  container boot always succeeded; the **second** scan's
+  `code --install-extension <eslint>.vsix` reliably failed with rc=1
+  because the previous scan's extension host left a stale IPC socket +
+  Chromium `SingletonLock` that collided with the new install. Only
+  ESLint hit it consistently (`onStartupFinished` + `extensionKind:
+  workspace` + `untrustedWorkspaces.supported: false` all worsen the
+  race). Fix: `reset_executor_state` in
+  [`executor/flows/playwright/reset_state.py`](../executor/flows/playwright/reset_state.py)
+  now orchestrates workspace setup → `terminate_vscode` (SIGTERM +
+  5 s grace, SIGKILL fallback on survivors) → clear
+  `extensions/` + `logs/` → `cleanup_singleton_locks` (remove
+  `SingletonLock` / `SingletonCookie` / `SingletonSocket` under
+  `~/.config/Code`) → `launch_vscode` (new shared
+  [`executor/container/launch_vscode.sh`](../executor/container/launch_vscode.sh)
+  script, also used by `start.sh` at boot — single source of truth for
+  the CDP launch command, uses `setsid` for lifetime decoupling).
+  Summary dict now carries `terminated_vscode_processes`,
+  `removed_singleton_locks`, `relaunched_vscode_pid`. Defense-in-depth
+  on the app side:
+  [`executor/host.py::install_extension_in_executor`](../executor/host.py)
+  retries once through `reload_vscode_window` on transient IPC
+  markers (`connection refused`, `ipc hook`, `singleton`, `renderer
+  process gone`, `target crashed`, …) and
+  [`workflows/marketplace/analysis_execution.py::install_failure_message`](../workflows/marketplace/analysis_execution.py)
+  appends the last 500 chars of stderr to the failure line so the next
+  regression of this class is diagnosable from the report alone (no
+  more "Command failed (rc=1)" blind spots). New test coverage:
+  rewritten `tests/executor/test_reset_state.py` (11 tests covering
+  terminate / SIGKILL escalation / singleton cleanup / launch script
+  success+failure + orchestration order), extended
+  `tests/scanner/test_executor.py` (retry-after-reload, non-transient
+  no-retry guard, reload-failure preserves original error), new
+  `tests/workflows/marketplace/test_analysis_execution_helpers.py`
+  (5 tests for the install/monitoring failure formatters).
 
 - **[NEXT] Split `sim-all` (UI stress) from target-extension smoke.**
   `make sim-all`

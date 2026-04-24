@@ -291,6 +291,8 @@ export interface ScenarioTraceDto {
   started_at: number;
   ended_at?: number;
   status?: string;
+  failure_reason_code?: string;
+  error_detail?: string;
 }
 
 export interface SkippedScenarioRecordDto {
