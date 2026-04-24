@@ -1,6 +1,6 @@
 # Post-PoC Backlog
 
-`Last Updated: 2026-04-24 (attribution/ subpackage split + sim-target Makefile lane landed)`
+`Last Updated: 2026-04-24 (sim-all report semantics fixes + legacy verdict migration + discovery-log rate-limit landed)`
 
 Work items that do not block PoC acceptance (`REFACTOR_OPTIMIZATION.md`
 §10.7) and were intentionally deferred from W0-W7 for scope management.
@@ -131,6 +131,78 @@ is value-add, not a gate.
   TARGET=ms-python.python` (dry-run shows the correct docker exec
   expansion).
 
+- **[LANDED 2026-04-24] `sim-all` report-semantics + retry-on-crash
+  correctness pass.** Six follow-ups that fell out of a deep review
+  of a post-fail-fast `sim-all` report:
+  - **Legacy `verdict` → `signal_summary` migration validator.** The
+    W7-entry rename (`build_verdict` → `build_signal_summary`) ships
+    under `extra="forbid"`, which meant any `ActivationReport`
+    produced by an older runner or stored on disk from before the
+    rename would raise on load. Added a
+    `model_validator(mode="before")` on
+    [`packages/analysis_contracts/contracts.py::ActivationReport`](../packages/analysis_contracts/contracts.py)
+    that re-maps a legacy `verdict` field to `signal_summary` during
+    parse, so round-trip survives and the rename stays
+    backward-compatible. Test:
+    [`tests/platform/contracts/test_analysis_fixture_baselines.py::test_activation_report_accepts_legacy_verdict_field`](../tests/platform/contracts/test_analysis_fixture_baselines.py).
+  - **`on_page_reloaded` callback threading (retry-on-crash fix).**
+    Previously `--retry-on-crash` called
+    `vscode.reload_workbench_window` but kept the *old* `Page`
+    reference, so every subsequent scenario hit the dead handle and
+    re-crashed. `_run_scenario_sequence`
+    ([`executor/flows/playwright/automation.py`](../executor/flows/playwright/automation.py))
+    now accepts `on_page_reloaded: Callable[[Page], None]`;
+    `entrypoint_runner` wires it to a `nonlocal` closure that
+    rebinds both its own `page` and `mon.page`. Coverage:
+    `test_retry_on_crash_invokes_on_page_reloaded_callback`,
+    `test_on_page_reloaded_not_called_on_reload_failure` in
+    [`tests/executor/test_playwright_automation.py`](../tests/executor/test_playwright_automation.py).
+  - **`aborted_after_fatal_ui_crash` skipped-scenario records.**
+    Fail-fast used to leave `summary.skipped_scenarios` empty — a
+    crash at scenario #2 of 5 silently dropped scenarios 3-5 from
+    the report.
+    `_mark_remaining_scenarios_aborted` now emits a
+    `SkippedScenarioRecord` for each unrun scenario with
+    `reason="aborted_after_fatal_ui_crash"`, so the report faithfully
+    shows how many scenarios the run intended vs. actually attempted.
+    Fires both on the plain fail-fast path and on the reload-failure
+    branch when `--retry-on-crash` is opted in. Coverage:
+    `test_fail_fast_marks_remaining_scenarios_as_aborted`,
+    `test_fail_fast_aborts_on_reload_failure_when_retry_requested`.
+  - **UI blocker probe before each scenario.** A dismissal dialog
+    left over from a previous scenario could freeze the next
+    scenario's first keystroke indefinitely with no evidence line.
+    `_run_scenario_sequence` now accepts an optional
+    `ui_blocker_probe(page, scenario_name)` kwarg which
+    `entrypoint_runner` wires to `editor._dismiss_notification`;
+    when a blocker is detected, both `ui_blocker_detected` and
+    `ui_blocker_dismissed` automation events are recorded on `mon`.
+    Exceptions scoped explicitly to
+    `(PlaywrightError, RuntimeError, ValueError)` — no bare
+    `except Exception`. Coverage:
+    `test_ui_blocker_probe_invoked_before_each_scenario`,
+    `test_ui_blocker_probe_failure_does_not_break_loop`,
+    `test_main_wires_ui_blocker_probe_and_page_reload_callbacks`.
+  - **Trimmed `scenario_terminal_usage` stimulus.**
+    [`executor/flows/playwright/scenarios/runtime.py`](../executor/flows/playwright/scenarios/runtime.py)
+    removed `cat .env`, `pip list`, `npm ls --depth=0`:
+    high-output commands that (a) collided with target-owned
+    secret-read + network-reconnaissance signals in attribution and
+    (b) combined with aggressive keyboard typing were a repeatable
+    `terminal_usage → Keyboard.type: Target crashed` trigger.
+    Kept: `ls -la`, `git status`, `python --version`,
+    `node --version`, `echo $PATH`, `pwd`. 250 ms warm-up added
+    before each `type_in_terminal` call. Adversarial stimulus
+    belongs on the fixture lane, not the benign path — the rule of
+    thumb is now spelled out in the scenario's docstring.
+  - **Monitor discovery-log rate-limit (cosmetic item below).**
+    Closed in this same pass — see the "Monitor discovery-log
+    rate-limit" entry under *Executor / capture hygiene*.
+  Verification across all six: 636 pytest passes (+9 new tests,
+  including the legacy `verdict` migration round-trip and the two
+  retry-callback paths), `make test-security` → 41 passed,
+  `make typecheck` clean, demo acceptance → `DEMO GREEN`.
+
 ## Executor / capture hygiene
 
 - **T2 declawed samples + T3 handling + `make test-security-live`
@@ -138,14 +210,16 @@ is value-add, not a gate.
   (encrypted sample lane, rotation, per-sample license ledger) waits
   until there is an engagement that actually produces T2 data.
 
-- **Monitor discovery-log rate-limit (cosmetic).**
-  `find_exthost_logs()`
-  ([monitor_sources.py:38](../executor/flows/playwright/monitor_sources.py:38))
-  and `runtime_capture/extension_host.py:108` print
-  `"Found N Extension Host log file(s)"` on **every** invocation.
-  During `make sim-all` the real scenario-progress lines get drowned in
-  the repetition. Rate-limit to "log once per discovery change" or
-  demote to `logging.DEBUG`. Size: <2 h. Cosmetic — not a gate.
+- **[LANDED 2026-04-24] Monitor discovery-log rate-limit (cosmetic).**
+  `find_exthost_logs()` in
+  [`executor/flows/playwright/monitor_sources.py`](../executor/flows/playwright/monitor_sources.py)
+  and [`executor/flows/playwright/runtime_capture/extension_host.py`](../executor/flows/playwright/runtime_capture/extension_host.py)
+  now keep a module-level `_LAST_EXTHOST_LOG_COUNT: int = -1` and
+  only emit `"Found N Extension Host log file(s)"` when the count
+  changes from the previously-seen value. `make sim-all` scenario
+  progress is readable again; the state-change guard means noise
+  reappears automatically if a new exthost log shows up mid-run
+  (i.e. we still have the signal when it matters).
 
 ## Workflow / platform cleanups
 

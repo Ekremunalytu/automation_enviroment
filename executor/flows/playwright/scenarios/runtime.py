@@ -47,21 +47,27 @@ def scenario_debug_session(page: Page) -> None:
 
 
 def scenario_terminal_usage(page: Page) -> None:
-    """Simulate developer terminal activity."""
+    """Simulate developer terminal activity.
+
+    Low-noise benign-developer stimulus. High-output commands (``cat .env``,
+    ``pip list``, ``npm ls``) were removed because they (a) collide with
+    target-owned secret-read / network-reconnaissance signals in attribution
+    and (b) combined with aggressive keyboard typing were a repeatable
+    ``terminal_usage -> Keyboard.type: Target crashed`` trigger. Adversarial
+    stimulus belongs on the fixture lane, not the benign path.
+    """
     log("Terminal usage")
 
     terminal.new_terminal(page)
     page.wait_for_timeout(1000)
     for cmd in [
         "ls -la",
-        "cat .env",
         "git status",
         "python --version",
         "node --version",
-        "pip list",
-        "npm ls --depth=0",
         "echo $PATH",
     ]:
+        page.wait_for_timeout(250)
         terminal.type_in_terminal(page, cmd)
         page.wait_for_timeout(1500)
     terminal.new_terminal(page)

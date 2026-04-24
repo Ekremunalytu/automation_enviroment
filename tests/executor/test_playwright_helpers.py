@@ -1028,16 +1028,16 @@ def test_scenario_terminal_usage_runs_expected_commands(monkeypatch) -> None:
     assert terminal_calls == [
         ("new_terminal", None),
         ("type_in_terminal", ("ls -la", True)),
-        ("type_in_terminal", ("cat .env", True)),
         ("type_in_terminal", ("git status", True)),
         ("type_in_terminal", ("python --version", True)),
         ("type_in_terminal", ("node --version", True)),
-        ("type_in_terminal", ("pip list", True)),
-        ("type_in_terminal", ("npm ls --depth=0", True)),
         ("type_in_terminal", ("echo $PATH", True)),
         ("new_terminal", None),
         ("type_in_terminal", ("pwd", True)),
     ]
+    assert ("type_in_terminal", ("cat .env", True)) not in terminal_calls
+    assert ("type_in_terminal", ("pip list", True)) not in terminal_calls
+    assert ("type_in_terminal", ("npm ls --depth=0", True)) not in terminal_calls
 
 
 def test_scenario_settings_modification_calls_helper_layers(monkeypatch) -> None:

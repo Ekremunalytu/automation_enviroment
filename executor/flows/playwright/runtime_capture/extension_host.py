@@ -105,25 +105,26 @@ def _activation_within_monitoring_window(
     return event_epoch >= monitoring_start
 
 
+_LAST_EXTHOST_LOG_COUNT: int = -1
+
+
 def find_exthost_logs() -> list[Path]:
     """Find all Extension Host log files under the VS Code logs directory.
 
     Returns paths sorted newest-first.
     """
+    global _LAST_EXTHOST_LOG_COUNT
     if not VSCODE_LOGS_DIR.exists():
-        _log(f"Log directory not found: {VSCODE_LOGS_DIR}")
+        if _LAST_EXTHOST_LOG_COUNT != -2:
+            _log(f"Log directory not found: {VSCODE_LOGS_DIR}")
+            _LAST_EXTHOST_LOG_COUNT = -2
         return []
 
-    # Extension Host logs can be at various sub-paths depending on VS Code version:
-    #   logs/<session>/exthost/exthost.log
-    #   logs/<session>/exthost1/exthost.log
-    #   logs/<session>/window1/exthost/exthost.log
     patterns = ["**/exthost*/exthost.log", "**/exthost*.log"]
     found: list[Path] = []
     for pattern in patterns:
         found.extend(VSCODE_LOGS_DIR.glob(pattern))
 
-    # Deduplicate and sort by modification time (newest first)
     seen: set[str] = set()
     unique: list[Path] = []
     for p in sorted(found, key=lambda x: x.stat().st_mtime, reverse=True):
@@ -132,7 +133,9 @@ def find_exthost_logs() -> list[Path]:
             seen.add(canon)
             unique.append(p)
 
-    _log(f"Found {len(unique)} Extension Host log file(s)")
+    if len(unique) != _LAST_EXTHOST_LOG_COUNT:
+        _log(f"Found {len(unique)} Extension Host log file(s)")
+        _LAST_EXTHOST_LOG_COUNT = len(unique)
     return unique
 
 

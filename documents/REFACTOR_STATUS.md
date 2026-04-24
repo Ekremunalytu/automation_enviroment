@@ -444,9 +444,15 @@ one stretch rule (A3) landed. No open W7 items.
 - `[LANDED 2026-04-24]` `sim-target` Makefile lane (target-extension
   smoke) separated from `sim-all` (UI-stimulus stress). Usage:
   `make sim-target TARGET=publisher.name [TRIGGERS=…] [SCENARIO=…]`.
+- `[LANDED 2026-04-24]` `sim-all` report-semantics + retry-on-crash
+  correctness pass (legacy `verdict` migration validator,
+  `on_page_reloaded` callback threading,
+  `aborted_after_fatal_ui_crash` skipped records, UI blocker probe,
+  trimmed `scenario_terminal_usage` stimulus, discovery-log
+  rate-limit). See Post-W7 Continuation section below.
 - T2 declawed samples + T3 operational plumbing +
   `make test-security-live` hardening.
-- Monitor discovery-log rate-limit (cosmetic).
+- `[LANDED 2026-04-24]` Monitor discovery-log rate-limit (cosmetic).
 - Workflow/platform cleanups: `SessionLocal` top-of-module, narrow
   `except` in `run_analysis_job`, typed `search_marketplace`.
 - UI component splits, `window.__EXTRACE_CONFIG__` context, `AbortController`
@@ -505,6 +511,101 @@ CLAUDE.md):
   extension path is green. `TARGET` is required; missing it exits
   non-zero with a usage hint. Verified with `make -n sim-target
   TARGET=ms-python.python` (dry-run).
+
+## Post-W7 Continuation (2026-04-24)
+
+Six follow-ups landed on the back of `sim-all` review findings from
+the post-fail-fast report. Four close report-semantics and
+loop-honesty gaps that the fail-fast hardening surfaced; one closes a
+contract backward-compat risk introduced by the `verdict` →
+`signal_summary` rename; one closes the monitor discovery-log spam
+entry on POST_POC_BACKLOG. None change architecture; each was
+required for `sim-all` / `sim-target` reports to be honest artefacts.
+
+- **Legacy `verdict` → `signal_summary` migration validator.** The
+  W7-entry rename (`build_verdict` → `build_signal_summary`) ships
+  under `extra="forbid"`, which meant any `ActivationReport` produced
+  by an older runner or stored on disk from before the rename would
+  raise on load. A new `model_validator(mode="before")` on
+  [`packages/analysis_contracts/contracts.py::ActivationReport`](../packages/analysis_contracts/contracts.py)
+  re-maps a legacy `verdict` field to `signal_summary` during parse,
+  so round-trip survives. Test:
+  [`tests/platform/contracts/test_analysis_fixture_baselines.py::test_activation_report_accepts_legacy_verdict_field`](../tests/platform/contracts/test_analysis_fixture_baselines.py)
+  copies the ms-python fixture, renames `signal_summary` → `verdict`,
+  validates, dumps, and re-parses.
+
+- **`on_page_reloaded` callback threading (retry-on-crash fix).**
+  Previously `--retry-on-crash` called
+  `vscode.reload_workbench_window` but the caller kept using the
+  *old* `Page` reference, so every scenario after the reload hit the
+  dead handle and re-crashed. `_run_scenario_sequence`
+  ([`executor/flows/playwright/automation.py`](../executor/flows/playwright/automation.py))
+  now accepts an `on_page_reloaded: Callable[[Page], None]` kwarg.
+  [`entrypoint_runner.py`](../executor/flows/playwright/entrypoint_runner.py)
+  wires it to a `nonlocal` closure that rebinds both its own `page`
+  and `mon.page`. Coverage:
+  `test_retry_on_crash_invokes_on_page_reloaded_callback`,
+  `test_on_page_reloaded_not_called_on_reload_failure`.
+
+- **`aborted_after_fatal_ui_crash` skipped-scenario records.**
+  Fail-fast used to leave `summary.skipped_scenarios` empty — a
+  renderer crash at scenario #2 of 5 silently dropped scenarios 3-5
+  from the report. `_mark_remaining_scenarios_aborted` in
+  `automation.py` now emits a `SkippedScenarioRecord` for each unrun
+  scenario with `reason="aborted_after_fatal_ui_crash"`, so the
+  report faithfully shows how many scenarios the run intended vs.
+  actually attempted. Fires both on the plain fail-fast path and on
+  the reload-failure branch when `--retry-on-crash` is opted in.
+  Coverage: `test_fail_fast_marks_remaining_scenarios_as_aborted`,
+  `test_fail_fast_aborts_on_reload_failure_when_retry_requested`.
+
+- **UI blocker probe before each scenario.** A dismissal dialog left
+  over from a previous scenario could freeze the next scenario's
+  first keystroke indefinitely with no evidence line.
+  `_run_scenario_sequence` now accepts an optional
+  `ui_blocker_probe(page, scenario_name)` kwarg;
+  `entrypoint_runner.py` wires it to
+  `editor._dismiss_notification`. When a blocker is detected, both
+  `ui_blocker_detected` and `ui_blocker_dismissed` automation events
+  are recorded on `mon`. Exceptions scoped explicitly to
+  `(PlaywrightError, RuntimeError, ValueError)` — the probe never
+  throws into the scenario loop. Coverage:
+  `test_ui_blocker_probe_invoked_before_each_scenario`,
+  `test_ui_blocker_probe_failure_does_not_break_loop`,
+  `test_main_wires_ui_blocker_probe_and_page_reload_callbacks`.
+
+- **Trimmed `scenario_terminal_usage` stimulus.**
+  [`executor/flows/playwright/scenarios/runtime.py`](../executor/flows/playwright/scenarios/runtime.py)
+  removed `cat .env`, `pip list`, `npm ls --depth=0` — high-output
+  commands that (a) collided with target-owned secret-read +
+  network-reconnaissance signals in attribution and (b) combined
+  with aggressive keyboard typing were a repeatable
+  `terminal_usage → Keyboard.type: Target crashed` trigger. Kept:
+  `ls -la`, `git status`, `python --version`, `node --version`,
+  `echo $PATH`, `pwd`. 250 ms warm-up added before each
+  `type_in_terminal` call. Adversarial stimulus belongs on the
+  fixture lane, not the benign path — now spelled out in the
+  scenario's docstring. Updated
+  [`tests/executor/test_playwright_helpers.py::test_scenario_terminal_usage_runs_expected_commands`](../tests/executor/test_playwright_helpers.py)
+  accordingly.
+
+- **Monitor discovery-log rate-limit (POST_POC_BACKLOG cosmetic item
+  landed).** `find_exthost_logs()` in
+  [`executor/flows/playwright/monitor_sources.py`](../executor/flows/playwright/monitor_sources.py)
+  and [`executor/flows/playwright/runtime_capture/extension_host.py`](../executor/flows/playwright/runtime_capture/extension_host.py)
+  now keep a module-level `_LAST_EXTHOST_LOG_COUNT: int = -1` and
+  only emit `"Found N Extension Host log file(s)"` when the count
+  changes from the previously-seen value. `make sim-all` scenario
+  progress is readable again; the state-change guard means the
+  signal reappears automatically if a new exthost log shows up
+  mid-run.
+
+Verification across all six: 636 pytest passes (+9 new tests,
+including the legacy `verdict` migration round-trip, the two
+retry-callback paths, the fail-fast skipped-record semantics, and
+the two UI-blocker-probe wiring tests). `make test-security` → 41
+passed, `make typecheck` clean (207 source files), demo acceptance
+(`.venv/bin/python scripts/demo_acceptance.py`) → `DEMO GREEN`.
 
 ## Week 5 Start Rule
 

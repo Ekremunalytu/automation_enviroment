@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class StrictContractModel(BaseModel):
@@ -312,6 +312,17 @@ class ActivationReport(StrictContractModel):
     extension_host_output_lines: int = 0
     extension_host_output: str = ""
     log_file: str = ""
+
+    @model_validator(mode="before")
+    @classmethod
+    def _migrate_legacy_verdict(cls, data: object) -> object:
+        if not isinstance(data, dict):
+            return data
+        if "signal_summary" in data or "verdict" not in data:
+            return data
+        migrated = dict(data)
+        migrated["signal_summary"] = migrated.pop("verdict")
+        return migrated
 
 
 class TriggerPayload(StrictContractModel):

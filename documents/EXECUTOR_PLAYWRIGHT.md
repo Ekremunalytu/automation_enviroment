@@ -317,7 +317,13 @@ runs). On a fatal classification:
   that forces `automation_health.status = "inconclusive"` per ADR 0003 §5
   error dominance
 - Opt-in `--retry-on-crash` routes the loop through
-  `vscode.reload_workbench_window` with page rebinding
+  `vscode.reload_workbench_window` with page rebinding (see
+  *Retry-on-crash page rebinding* below)
+- Fail-fast populates `SkippedScenarioRecord` entries for every
+  unrun scenario via `_mark_remaining_scenarios_aborted`
+  (`reason="aborted_after_fatal_ui_crash"`), so
+  `summary.skipped_scenarios` honestly reflects the intended-vs-run
+  scenario delta instead of silently dropping downstream scenarios
 
 Contract mirrors: `packages/analysis_contracts/contracts.py::ScenarioTrace`
 carries `failure_reason_code` + `error_detail` with
@@ -326,7 +332,59 @@ carries `failure_reason_code` + `error_detail` with
 Coverage lives in `tests/executor/test_playwright_crash_classifier.py` and
 the extended `test_playwright_automation.py`,
 `test_playwright_monitor_lifecycle.py`, and `test_playwright_health_summary.py`
-modules.
+modules. Fail-fast skipped-record semantics are covered by
+`test_fail_fast_marks_remaining_scenarios_as_aborted` and
+`test_fail_fast_aborts_on_reload_failure_when_retry_requested`.
+
+### Retry-on-crash page rebinding
+
+When `--retry-on-crash` is opted in, `_run_scenario_sequence`
+accepts an `on_page_reloaded: Callable[[Page], None]` kwarg and
+invokes it with the fresh `Page` returned from
+`vscode.reload_workbench_window`. `entrypoint_runner.py` wires this
+to a `nonlocal` closure that rebinds both its own `page` variable
+and `mon.page`, so every scenario after the reload uses the live
+handle — previously the retry path kept reusing the dead `Page`
+and re-crashed every subsequent scenario.
+
+Coverage: `test_retry_on_crash_invokes_on_page_reloaded_callback`
+and `test_on_page_reloaded_not_called_on_reload_failure` in
+`tests/executor/test_playwright_automation.py`;
+`test_main_wires_ui_blocker_probe_and_page_reload_callbacks` in
+`tests/executor/test_playwright_entrypoint.py`.
+
+### UI blocker probe
+
+`_run_scenario_sequence` accepts an optional
+`ui_blocker_probe: Callable[[Page, str], None]` kwarg and calls it
+with `(page, scenario_name)` before each scenario starts.
+`entrypoint_runner.py` wires it to
+`editor._dismiss_notification`: when a leftover dismissal dialog is
+found, both `ui_blocker_detected` and `ui_blocker_dismissed`
+automation events are recorded on `mon` with the scenario name in
+the payload, and the next scenario's first keystroke proceeds
+against a clean viewport.
+
+Exceptions raised by the probe are caught narrowly
+(`PlaywrightError, RuntimeError, ValueError`) so a failing probe
+never short-circuits the scenario loop.
+
+Coverage: `test_ui_blocker_probe_invoked_before_each_scenario` and
+`test_ui_blocker_probe_failure_does_not_break_loop` in
+`tests/executor/test_playwright_automation.py`.
+
+### Benign-path stimulus hygiene
+
+`scenario_terminal_usage` no longer issues high-output commands
+(`cat .env`, `pip list`, `npm ls --depth=0`) — those collide with
+target-owned secret-read + network-reconnaissance signals in
+attribution and combined with aggressive keyboard typing were a
+repeatable `terminal_usage → Keyboard.type: Target crashed`
+trigger. The scenario now runs `ls -la`, `git status`,
+`python --version`, `node --version`, `echo $PATH`, `pwd` with a
+250 ms warm-up before each `type_in_terminal` call. Adversarial
+stimulus belongs on the fixture lane, not the benign path — the
+rule is spelled out in the scenario's docstring.
 
 ## Scan-Between Restart
 

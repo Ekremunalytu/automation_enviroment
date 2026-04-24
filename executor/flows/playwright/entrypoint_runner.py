@@ -12,6 +12,8 @@ from entrypoint_triggers import (
 )
 from wait_helpers import wait_for_idle_observation
 
+from playwright.sync_api import Error as PlaywrightError
+
 
 def run_demo(page, *, deps) -> None:
     """Quick demo exercising core helpers (legacy behavior)."""
@@ -252,6 +254,34 @@ def main(*, deps) -> None:
             if mon is not None:
                 mon.attach_runtime_tracers()
 
+            def _on_page_reloaded(reloaded_page) -> None:
+                nonlocal page
+                page = reloaded_page
+                if mon is not None:
+                    mon.page = reloaded_page
+
+            def _probe_ui_blocker(current_page, scenario_name: str) -> None:
+                if mon is None:
+                    return
+                try:
+                    text = deps.editor._dismiss_notification(current_page)
+                except (PlaywrightError, RuntimeError, ValueError):
+                    return
+                if not text:
+                    return
+                mon.record_automation_event(
+                    "ui_blocker_detected",
+                    f"Detected UI blocker before scenario {scenario_name!r}: {text}",
+                    status="running",
+                    scenario_name=scenario_name,
+                )
+                mon.record_automation_event(
+                    "ui_blocker_dismissed",
+                    f"Dismissed UI blocker before scenario {scenario_name!r}: {text}",
+                    status="completed",
+                    scenario_name=scenario_name,
+                )
+
             execution_mode, planned_scenarios = _resolve_execution_plan_for_deps(
                 args.skip_automation,
                 args.scenario,
@@ -321,6 +351,8 @@ def main(*, deps) -> None:
                         shuffle=args.shuffle,
                         retry_on_crash=args.retry_on_crash,
                         browser=browser,
+                        on_page_reloaded=_on_page_reloaded,
+                        ui_blocker_probe=_probe_ui_blocker,
                     ),
                     deps=deps,
                     requested_scenarios=planned_scenarios,
@@ -357,6 +389,8 @@ def main(*, deps) -> None:
                         shuffle=False,
                         retry_on_crash=args.retry_on_crash,
                         browser=browser,
+                        on_page_reloaded=_on_page_reloaded,
+                        ui_blocker_probe=_probe_ui_blocker,
                     ),
                     deps=deps,
                     requested_scenarios=[scenario_name],
@@ -379,6 +413,8 @@ def main(*, deps) -> None:
                         shuffle=args.shuffle,
                         retry_on_crash=args.retry_on_crash,
                         browser=browser,
+                        on_page_reloaded=_on_page_reloaded,
+                        ui_blocker_probe=_probe_ui_blocker,
                     ),
                     deps=deps,
                     requested_scenarios=deps.automation.list_scenarios(),

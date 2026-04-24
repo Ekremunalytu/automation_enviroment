@@ -108,6 +108,76 @@ state.
      longer mistake an inconclusive `sim-all` report for evidence
      that a normal extension path is green. `TARGET` required;
      missing it exits non-zero with a usage hint.
+- **Post-W7 continuation (2026-04-24):** six follow-ups landed on
+  the back of `sim-all` review findings. Four close report-semantics
+  and loop-honesty gaps that the fail-fast hardening surfaced; one
+  closes a contract backward-compat risk introduced by the
+  `verdict` → `signal_summary` rename; one closes the monitor
+  discovery-log spam entry on POST_POC_BACKLOG.
+  1. **Legacy `verdict` → `signal_summary` migration validator.**
+     `ActivationReport.model_validator(mode="before")` in
+     [`packages/analysis_contracts/contracts.py`](packages/analysis_contracts/contracts.py)
+     now re-maps `verdict` → `signal_summary` on the way in, so
+     pre-rename fixtures and in-flight reports on disk keep parsing
+     under `extra="forbid"`. Round-trip coverage lives in
+     [`tests/platform/contracts/test_analysis_fixture_baselines.py::test_activation_report_accepts_legacy_verdict_field`](tests/platform/contracts/test_analysis_fixture_baselines.py).
+  2. **`on_page_reloaded` callback threading (retry-on-crash fix).**
+     `_run_scenario_sequence`
+     ([`executor/flows/playwright/automation.py`](executor/flows/playwright/automation.py))
+     now accepts an `on_page_reloaded: Callable[[Page], None]` kwarg.
+     After a successful `vscode.reload_workbench_window` the new page
+     reference is propagated to the caller, which `entrypoint_runner`
+     uses to rebind both its own `page` closure and `mon.page` via a
+     `nonlocal` hook — previously the retry path kept hammering the
+     dead Page handle until the next fatal. Coverage in
+     [`tests/executor/test_playwright_automation.py`](tests/executor/test_playwright_automation.py)
+     (`test_retry_on_crash_invokes_on_page_reloaded_callback`,
+     `test_on_page_reloaded_not_called_on_reload_failure`).
+  3. **`aborted_after_fatal_ui_crash` skipped-scenario records.**
+     Fail-fast no longer leaves `summary.skipped_scenarios` empty:
+     `_mark_remaining_scenarios_aborted` populates a
+     `SkippedScenarioRecord` for every unrun scenario with
+     `reason="aborted_after_fatal_ui_crash"`, so a renderer crash at
+     scenario #2 of 5 now accurately shows 3 aborted scenarios
+     instead of silently dropping them. Also fires on reload-failure
+     when `--retry-on-crash` is opted in but the reload itself
+     raises. Coverage:
+     `test_fail_fast_marks_remaining_scenarios_as_aborted`,
+     `test_fail_fast_aborts_on_reload_failure_when_retry_requested`.
+  4. **UI blocker probe before each scenario.** `_run_scenario_sequence`
+     calls an optional `ui_blocker_probe(page, scenario_name)` kwarg
+     before every scenario; `entrypoint_runner` wires it to
+     `editor._dismiss_notification` and emits both
+     `ui_blocker_detected` + `ui_blocker_dismissed` automation
+     events (scoped exceptions: `PlaywrightError, RuntimeError,
+     ValueError` — no bare `except Exception`). Previously a
+     dismissal dialog left over from a prior scenario could freeze
+     the next scenario's first-keystroke indefinitely with no
+     evidence line. Coverage:
+     `test_ui_blocker_probe_invoked_before_each_scenario`,
+     `test_ui_blocker_probe_failure_does_not_break_loop`, plus
+     `test_main_wires_ui_blocker_probe_and_page_reload_callbacks`.
+  5. **Trimmed `scenario_terminal_usage` stimulus.** Removed
+     `cat .env`, `pip list`, `npm ls --depth=0` (high-output
+     commands that collided with target-owned secret-read +
+     network-reconnaissance signals in attribution and, combined
+     with aggressive keyboard typing, reliably triggered the
+     `terminal_usage → Keyboard.type: Target crashed` cascade).
+     Kept: `ls -la`, `git status`, `python --version`,
+     `node --version`, `echo $PATH`, `pwd`. 250 ms warm-up added
+     before each `type_in_terminal`. Adversarial stimulus belongs
+     on the fixture lane, not the benign path — the rule of thumb
+     is spelled out in the updated docstring.
+  6. **Monitor discovery-log rate-limit (POST_POC_BACKLOG cosmetic
+     item landed).** `find_exthost_logs()` in
+     [`executor/flows/playwright/monitor_sources.py`](executor/flows/playwright/monitor_sources.py)
+     and `runtime_capture/extension_host.py` now keep a module-level
+     `_LAST_EXTHOST_LOG_COUNT` and only emit
+     `"Found N Extension Host log file(s)"` when the count changes
+     — `make sim-all` scenario-progress output is now readable.
+  Verification: 636 pytest passes (+9 new tests),
+  `make test-security` → 41 passed, `make typecheck` clean, demo
+  acceptance → `DEMO GREEN`.
 - **Post-PoC:** work items tracked in
   [`documents/POST_POC_BACKLOG.md`](documents/POST_POC_BACKLOG.md);
   next iteration starts from its "Next iteration (pull first)" block.

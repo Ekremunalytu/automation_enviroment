@@ -44,9 +44,16 @@ from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import Page
 
 ScenarioEventReporter = Callable[[str, str, str, dict[str, Any] | None], None]
+OnPageReloaded = Callable[[Page], None]
+UiBlockerProbe = Callable[[Page, str], None]
 
 _SCENARIO_EVENT_REPORTER: ScenarioEventReporter | None = None
 _ALL_SCENARIOS: list[ScenarioSpec] = build_default_scenarios()
+
+ABORTED_AFTER_FATAL_UI_CRASH_REASON = "aborted_after_fatal_ui_crash"
+_ABORTED_AFTER_FATAL_UI_CRASH_DETAIL = (
+    "Scenario not executed: VS Code UI renderer crashed during a prior scenario."
+)
 
 
 def run_all_scenarios(
@@ -55,6 +62,8 @@ def run_all_scenarios(
     *,
     retry_on_crash: bool = False,
     browser: Any = None,
+    on_page_reloaded: OnPageReloaded | None = None,
+    ui_blocker_probe: UiBlockerProbe | None = None,
 ) -> AutomationExecutionResult:
     """Run all user behavior simulation scenarios sequentially."""
     scenarios = list(_ALL_SCENARIOS)
@@ -69,6 +78,8 @@ def run_all_scenarios(
         result,
         retry_on_crash=retry_on_crash,
         browser=browser,
+        on_page_reloaded=on_page_reloaded,
+        ui_blocker_probe=ui_blocker_probe,
     )
     return result
 
@@ -106,6 +117,8 @@ def run_selected_scenarios(
     *,
     retry_on_crash: bool = False,
     browser: Any = None,
+    on_page_reloaded: OnPageReloaded | None = None,
+    ui_blocker_probe: UiBlockerProbe | None = None,
 ) -> AutomationExecutionResult:
     """Run a subset of scenarios by name."""
     result = AutomationExecutionResult(requested_scenarios=list(names))
@@ -130,6 +143,8 @@ def run_selected_scenarios(
         result,
         retry_on_crash=retry_on_crash,
         browser=browser,
+        on_page_reloaded=on_page_reloaded,
+        ui_blocker_probe=ui_blocker_probe,
     )
     return result
 
@@ -257,8 +272,15 @@ def _run_scenario_sequence(
     *,
     retry_on_crash: bool = False,
     browser: Any = None,
+    on_page_reloaded: OnPageReloaded | None = None,
+    ui_blocker_probe: UiBlockerProbe | None = None,
 ) -> None:
-    for scenario in scenarios:
+    for idx, scenario in enumerate(scenarios):
+        if ui_blocker_probe is not None:
+            try:
+                ui_blocker_probe(page, scenario.name)
+            except (PlaywrightError, RuntimeError, ValueError) as exc:
+                _log(f"UI blocker probe failed for {scenario.name}: {exc}")
         _append_unique(result.executed_scenarios, scenario.name)
         _emit_scenario_event(
             "start", scenario.name, metadata=_scenario_metadata(scenario)
@@ -293,13 +315,45 @@ def _run_scenario_sequence(
                         page = vscode.reload_workbench_window(browser, page)
                     except (vscode.ReloadWindowError, PlaywrightError) as reload_exc:
                         _log(f"Reload after crash failed: {reload_exc}")
+                        _mark_remaining_scenarios_aborted(scenarios, idx, result)
                         break
+                    if on_page_reloaded is not None:
+                        on_page_reloaded(page)
                     continue
+                _mark_remaining_scenarios_aborted(scenarios, idx, result)
                 break
             _log(f"FAIL: {scenario.name} -> {exc}")
             _recover_ui_state(page)
         _cleanup_between_scenarios(page)
         page.wait_for_timeout(1000)
+
+
+def _mark_remaining_scenarios_aborted(
+    scenarios: list[ScenarioSpec],
+    current_idx: int,
+    result: AutomationExecutionResult,
+) -> None:
+    """Record untouched scenarios as aborted after a fatal UI crash.
+
+    Skipped here means: the current scenario's failure tore down the
+    renderer, so the loop bailed without even probing the rest. Recorded
+    distinctly from ``unknown_scenario`` so operators can tell
+    "never attempted" apart from "registered but unavailable".
+    """
+    already_skipped = {record.name for record in result.skipped_scenarios}
+    for remaining in scenarios[current_idx + 1 :]:
+        if remaining.name in already_skipped:
+            continue
+        if remaining.name in result.executed_scenarios:
+            continue
+        result.skipped_scenarios.append(
+            SkippedScenarioRecord(
+                name=remaining.name,
+                reason_code=ABORTED_AFTER_FATAL_UI_CRASH_REASON,
+                detail=_ABORTED_AFTER_FATAL_UI_CRASH_DETAIL,
+            )
+        )
+        already_skipped.add(remaining.name)
 
 
 def _append_unique(items: list[str], value: str) -> None:

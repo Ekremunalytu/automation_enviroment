@@ -135,6 +135,31 @@ def test_color_theme_activation_report_fixture_supports_zero_scenario_semantics(
     assert ActivationReport.model_validate(round_tripped) == parsed
 
 
+def test_activation_report_accepts_legacy_verdict_field() -> None:
+    fixture_path = (
+        Path(__file__).parent
+        / "fixtures"
+        / "activation_reports"
+        / "ms_python_python.json"
+    )
+    report = _load_fixture(fixture_path)
+
+    legacy = deepcopy(report)
+    legacy["verdict"] = legacy.pop("signal_summary")
+    assert "signal_summary" not in legacy
+    assert "verdict" in legacy
+
+    parsed = ActivationReport.model_validate(legacy)
+    dumped = parsed.model_dump(mode="json")
+
+    assert "signal_summary" in dumped
+    assert "verdict" not in dumped
+    assert dumped["signal_summary"] == report["signal_summary"]
+
+    reparsed = ActivationReport.model_validate(dumped)
+    assert reparsed == parsed
+
+
 @patch("workflows.marketplace.client.httpx.Client", side_effect=AssertionError)
 def test_baseline_extension_fixtures_resolve_from_local_artifacts_without_network(
     _mock_http_client: object,

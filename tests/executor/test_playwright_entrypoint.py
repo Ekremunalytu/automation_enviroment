@@ -866,6 +866,93 @@ def test_main_layered_passes_updates_monitor_and_exits_on_extra_trigger_failures
     assert disconnect_calls == [disconnect_calls[0]]
 
 
+def test_main_wires_ui_blocker_probe_and_page_reload_callbacks(monkeypatch) -> None:
+    _FakeMonitor.instances.clear()
+    _configure_main_runtime(monkeypatch, ["--monitor"])
+
+    monkeypatch.setattr(entrypoint.monitor, "ExtensionMonitor", _FakeMonitor)
+    monkeypatch.setattr(
+        entrypoint.automation, "list_scenarios", lambda: ["coding_session"]
+    )
+
+    captured: dict[str, Any] = {}
+
+    def capture_run_all_scenarios(page, shuffle=False, **kwargs):
+        captured["page"] = page
+        captured["kwargs"] = kwargs
+        return []
+
+    monkeypatch.setattr(
+        entrypoint.automation,
+        "run_all_scenarios",
+        capture_run_all_scenarios,
+    )
+
+    dismiss_returns = ["Python extension installed"]
+
+    def fake_dismiss(page) -> str:
+        _ = page
+        return dismiss_returns.pop(0) if dismiss_returns else ""
+
+    monkeypatch.setattr(entrypoint.editor, "_dismiss_notification", fake_dismiss)
+
+    entrypoint.main()
+
+    kwargs = captured["kwargs"]
+    assert "on_page_reloaded" in kwargs
+    assert "ui_blocker_probe" in kwargs
+    assert callable(kwargs["on_page_reloaded"])
+    assert callable(kwargs["ui_blocker_probe"])
+
+    monitor = _FakeMonitor.instances[0]
+
+    kwargs["ui_blocker_probe"](captured["page"], "coding_session")
+    blocker_kinds = [evt[0] for evt in monitor.automation_events]
+    assert "ui_blocker_detected" in blocker_kinds
+    assert "ui_blocker_dismissed" in blocker_kinds
+    detected = next(
+        evt for evt in monitor.automation_events if evt[0] == "ui_blocker_detected"
+    )
+    assert detected[3] == "coding_session"
+    assert "Python extension installed" in detected[1]
+
+    new_page = _FakePage()
+    kwargs["on_page_reloaded"](new_page)
+    assert monitor.page is new_page
+
+
+def test_ui_blocker_probe_is_silent_when_no_notification(monkeypatch) -> None:
+    _FakeMonitor.instances.clear()
+    _configure_main_runtime(monkeypatch, ["--monitor"])
+
+    monkeypatch.setattr(entrypoint.monitor, "ExtensionMonitor", _FakeMonitor)
+    monkeypatch.setattr(
+        entrypoint.automation, "list_scenarios", lambda: ["coding_session"]
+    )
+
+    captured: dict[str, Any] = {}
+
+    def capture_run_all_scenarios(page, shuffle=False, **kwargs):
+        captured["page"] = page
+        captured["kwargs"] = kwargs
+        return []
+
+    monkeypatch.setattr(
+        entrypoint.automation,
+        "run_all_scenarios",
+        capture_run_all_scenarios,
+    )
+    monkeypatch.setattr(entrypoint.editor, "_dismiss_notification", lambda page: "")
+
+    entrypoint.main()
+
+    monitor = _FakeMonitor.instances[0]
+    captured["kwargs"]["ui_blocker_probe"](captured["page"], "coding_session")
+    kinds = [evt[0] for evt in monitor.automation_events]
+    assert "ui_blocker_detected" not in kinds
+    assert "ui_blocker_dismissed" not in kinds
+
+
 def test_main_resets_reporter_and_disconnects_when_execution_raises(
     monkeypatch,
 ) -> None:
