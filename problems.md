@@ -1,9 +1,9 @@
 # Project Analysis - Current Issues
 
-`Last Updated: 2026-04-23`
+`Last Updated: 2026-04-24`
 
 This file tracks known issues against the current refactored architecture
-(post-W6 closure, W7 acceptance + buffer open).
+(post-W7 closure + post-W7 hardening landings on 2026-04-24).
 
 ## High Priority
 
@@ -12,12 +12,21 @@ This file tracks known issues against the current refactored architecture
      - `executor/host.py`
      - `executor/flows/playwright/reload_vscode.py`
      - `executor/flows/playwright/vscode.py`
+     - `executor/flows/playwright/reset_state.py` (scan-between restart)
+     - `executor/container/launch_vscode.sh` (shared boot + reset script)
    - Risk:
      - a run can still appear operationally healthy until the VS Code workbench
        and extension-host surfaces fully reconnect.
+   - Mitigation delta (2026-04-24): scan-between restart now terminates
+     VS Code (SIGTERM + 5 s grace + SIGKILL fallback), clears
+     `extensions/`/`logs/`, removes Chromium SingletonLock/Cookie/Socket,
+     and relaunches via the shared `launch_vscode.sh`; fatal UI crashes in
+     `_run_scenario_sequence` are now classified by `is_fatal_ui_error`
+     and fail-fast with `failure_reason_code = "fatal_ui_crash"` degrading
+     `automation_health.status` to `inconclusive`.
 
-2. Live capture (`make test-security-live`) is the most fragile detection
-   path and is load-bearing for W7 acceptance.
+2. Live capture (`make test-security-live`) remains the most fragile
+   detection path.
    - Relevant paths:
      - `executor/flows/playwright/runtime_capture/`
      - `tests/security/`
@@ -79,11 +88,22 @@ This file tracks known issues against the current refactored architecture
   canaries and benign baselines (W6 correctness follow-up, 2026-04-23).
 - Historical `apps/` and `legacy_ui/` placeholders were removed from the
   repo surface (pre-W6 cleanup, 2026-04-20).
+- W7 PoC acceptance checklist closed 11/11 on 2026-04-23;
+  `scripts/demo_acceptance.py` replays the A1 credential-read → network
+  canary end-to-end.
+- Scan-between install races (ESLint `onStartupFinished` rc=1) resolved by
+  the 2026-04-24 `reset_executor_state` orchestration + shared
+  `launch_vscode.sh`; `install_extension_in_executor` now retries once
+  through `reload_vscode_window` on transient IPC markers and surfaces
+  stderr-tail diagnostics in the analysis report.
+- `executor/flows/playwright/monitor_attribution.py` (1122 LoC) split
+  into the `attribution/` subpackage on 2026-04-24 with the 29-name
+  underscore-prefixed API preserved verbatim.
 
 ## Validation Notes
 
 - The architecture references in this file use canonical paths.
 - This file assumes a single-user sandbox deployment, not a shared SaaS app.
-- W5 detection foundations and W6 hardening + correctness follow-up are
-  complete; remaining open scope is W7 PoC acceptance per
-  `REFACTOR_OPTIMIZATION.md` §10.7.
+- W5-W7 are all closed; post-PoC deferrals live in
+  `documents/POST_POC_BACKLOG.md`. The next-iteration pull list is the
+  source of truth for what to work on next.

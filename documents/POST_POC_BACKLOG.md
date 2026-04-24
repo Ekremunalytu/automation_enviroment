@@ -1,6 +1,6 @@
 # Post-PoC Backlog
 
-`Last Updated: 2026-04-24 (fatal UI-crash fail-fast + scan-between VS Code restart landed)`
+`Last Updated: 2026-04-24 (attribution/ subpackage split + sim-target Makefile lane landed)`
 
 Work items that do not block PoC acceptance (`REFACTOR_OPTIMIZATION.md`
 §10.7) and were intentionally deferred from W0-W7 for scope management.
@@ -12,19 +12,45 @@ is value-add, not a gate.
 
 ## Next iteration (pull first)
 
-- **[NEXT] Split `executor/flows/playwright/monitor_attribution.py`**
-  into a dedicated `attribution/` subpackage (`events.py` for event
-  annotation + `_classify_event_attribution` + `_annotate_*_events`,
-  `links.py` for `_build_evidence_bundle` + `_build_*_links`,
-  `__init__.py` as the flat re-export facade preserving the
-  private-underscore API). Size: ~1 day with full executor smoke.
-  Risk: capture-pipeline regressions silently zero the detection layer
-  — split must be accompanied by `make exec-up && make exec-run`
-  against the A1 canary with a structural diff of the produced
-  ActivationReport before and after. Deferred from W7 Phase 3b
-  (2026-04-23) because Docker daemon was unavailable locally at
-  closure; **this is the first item to pull in the next iteration**
-  per user direction (2026-04-23).
+- **[LANDED 2026-04-24] Split `executor/flows/playwright/monitor_attribution.py`**
+  into a dedicated `attribution/` subpackage. Implemented per the W7
+  Phase 3b plan: the 1122 LoC module is now three files, each with a
+  single responsibility and the exact same private-underscore API:
+  - [`executor/flows/playwright/attribution/events.py`](../executor/flows/playwright/attribution/events.py)
+    — event annotation + classification (`_annotate_network_events`,
+    `_annotate_file_events`, `_annotate_process_events`,
+    `_classify_event_attribution`, `_upgrade_inotify_correlations`,
+    `_matches_extension_signature`, `_scenario_name_for_timestamp`,
+    plus the shared helpers
+    `_actor_from_file_source` / `_actor_from_network_event` /
+    `_artifact_class_for_path` / `_nearest_activation_matches` /
+    `_format_epoch_timestamp` / `_resolve_event_epoch` /
+    `_relative_time`).
+  - [`executor/flows/playwright/attribution/links.py`](../executor/flows/playwright/attribution/links.py)
+    — evidence-bundle + link builders (`_build_evidence_bundle`,
+    `_build_scenario_links`, `_build_temporal_links`,
+    `_build_duplicate_file_links`, `_build_noise_links`,
+    `_nearest_activation`, `_temporal_confidence`,
+    `_dedupe_evidence_links`); pulls shared helpers from `.events`.
+  - [`executor/flows/playwright/attribution/__init__.py`](../executor/flows/playwright/attribution/__init__.py)
+    — flat re-export facade. Preserves the dual-import pattern
+    (paket mode vs top-level executor mode where `playwright/` sits on
+    `sys.path`) and the signal-layer shims (`_indexed_target_*`,
+    `_build_risk_signals`, `_build_risk_summary`,
+    `_build_signal_summary`); type-only imports sit under
+    `if TYPE_CHECKING:` to keep ruff F401 quiet. The 29 names in
+    `__all__` are identical to the pre-split module's public-for-internal
+    surface so the three callers (`monitor.py`, `monitor_types.py`,
+    `monitor_lifecycle.py`) only needed the module path updated
+    (`monitor_attribution` → `attribution`).
+    Verification: `make check-all` → 627 passed /
+    5 skipped; `make test-security` → 41 passed; demo acceptance
+    (`.venv/bin/python scripts/demo_acceptance.py`) → `DEMO GREEN`.
+    **Docker-based A1 canary structural diff remains user-side**
+    (`make exec-up && make exec-run` against
+    `t1-a1-credential-read-to-network-canary`) — the pipeline regression
+    risk flagged in the deferral note can only be fully closed with a
+    live executor smoke.
 
 - **[LANDED 2026-04-24] Fatal UI-crash classification + fail-fast (with
   `ScenarioTrace` failure metadata).** Implemented per the plan:
@@ -89,22 +115,21 @@ is value-add, not a gate.
   `tests/workflows/marketplace/test_analysis_execution_helpers.py`
   (5 tests for the install/monitoring failure formatters).
 
-- **[NEXT] Split `sim-all` (UI stress) from target-extension smoke.**
-  `make sim-all`
-  ([Makefile:386](../Makefile:386)) runs `entrypoint.py --monitor` with
-  no target id / trigger payload. The execution plan then falls through
-  to `all_scenarios`
-  ([entrypoint_triggers.py:20](../executor/flows/playwright/entrypoint_triggers.py:20));
-  the resulting report carries `target_extension_observed: false`,
-  `automation_health.status: inconclusive`, `run_quality: inconclusive`,
-  `event_attempts: 0`. In other words, `sim-all` answers *"did the
-  UI-stimulus engine run?"* — **not** *"did a normal extension activate
-  cleanly?"*. Add a dedicated `make sim-target TARGET=publisher.name`
-  (or equivalent env-driven variant) that feeds a trigger payload +
-  extension id through `entrypoint.py`, so operators can distinguish
-  UI-engine health from target-activation health. `sim-all` stays as
-  the stress lane; the target-smoke lane becomes the answer to
-  "is normal extension path still green?". Size: half day.
+- **[LANDED 2026-04-24] Split `sim-all` (UI stress) from target-extension smoke.**
+  New [`Makefile`](../Makefile) target `sim-target` runs
+  `entrypoint.py --monitor --target-extension-id $(TARGET)` with
+  optional `TRIGGERS=/path/to/payload.json` and `SCENARIO=<name>`
+  passthrough, so operators can answer "did a normal extension
+  activate cleanly?" without reading through a `sim-all`
+  inconclusive-by-design report. Usage:
+  `make sim-target TARGET=publisher.name [TRIGGERS=…] [SCENARIO=…]`.
+  The `make help` section and the `sim-all` echo banner were updated
+  to make the split explicit — `sim-all` is now labelled "UI-stimulus
+  stress: scenarios w/o target ext." and `sim-target` is the target
+  smoke. The `TARGET` argument is required; missing it exits non-zero
+  with a usage hint. Verified with `make -n sim-target
+  TARGET=ms-python.python` (dry-run shows the correct docker exec
+  expansion).
 
 ## Executor / capture hygiene
 

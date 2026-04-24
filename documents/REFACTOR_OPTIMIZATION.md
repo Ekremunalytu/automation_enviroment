@@ -1,6 +1,6 @@
 # Refactor Optimization — Plan Kritiği ve Düzeltme Önerileri
 
-`Last Updated: 2026-04-23`
+`Last Updated: 2026-04-24`
 
 > **Değerlendirici (yazarlar):**
 >
@@ -1162,6 +1162,97 @@ Bu pass Bölüm 10.2 tablosundaki W6 kapsamını **değiştirmiyor**; W6
 satırındaki "PoC must" maddelerinin teslim edildiğini doğruluyor.
 `REFACTOR_STATUS.md` "W6 Correctness Follow-up (2026-04-23)" bloğu
 commit referanslarını ve test listesini tutuyor.
+
+### 9.7 Güncel Durum Doğrulaması (2026-04-24, Claude Opus 4.7)
+
+W7 kapanışının (2026-04-23) ve iki ardışık post-W7 hardening bloğunun
+(sim-all crash cascade + scan-between install failure) teslim edildiği
+günlük. Bu pass yeni bir §10 faz satırı açmıyor — W0-W7 penceresi
+§10.7 kabul testi (11/11) ile kapandı; buradaki maddeler §10.2'nin
+dışına düşen operasyonel dayanıklılık fix'leri ve
+`POST_POC_BACKLOG.md` `[NEXT]` pull'larıdır.
+
+- **W7 Phase 3a — A3 typosquat rule + canary (landed 2026-04-23).**
+  Stretch adversary class A3 için `extrace.a3.typosquat`
+  (`packages/analysis_engine/rules/a3_typosquat.py`), canary
+  (`extensions/malicious/t1-a3-typosquat-canary/`), ve
+  `popular_extensions.txt` allow-list'i landed. A5 ve A7 kalan stretch
+  sınıfları olarak `POST_POC_BACKLOG.md`'e taşındı.
+- **Fatal UI-crash classification + fail-fast (landed 2026-04-24).**
+  `_run_scenario_sequence` (`executor/flows/playwright/automation.py`)
+  `PlaywrightError` / `RuntimeError` / `ValueError`'ları
+  `is_fatal_ui_error` (substring markers + `page.is_closed()` +
+  `context.is_closed()` + ≤1.5 s liveness probe) ile sınıflandırıyor;
+  renderer ölümü loop'u kırıyor, `ScenarioTrace.failure_reason_code =
+  "fatal_ui_crash"` + `error_detail` set ediliyor;
+  `health_summary.py` `fatal_ui_crash`'i dominant reason olarak tanıyor
+  ve `automation_health.status`'u ADR 0003 §5 error dominance gereği
+  `inconclusive`'e düşürüyor. Opt-in `--retry-on-crash` bayrağı
+  `vscode.reload_workbench_window` üzerinden loop'a devam ediyor.
+  Contract mirror (`packages/analysis_contracts/contracts.py`) ve UI
+  `contracts.ts` regen edildi.
+- **Scan-between VS Code restart (landed 2026-04-24).** İkinci
+  tarama'nın `code --install-extension <eslint>.vsix`'inin rc=1 ile
+  düşmesinin kök nedeni bulundu (bir önceki scan'in bıraktığı stale
+  Chromium SingletonLock + IPC socket — ESLint'in
+  `onStartupFinished` + `extensionKind: workspace` +
+  `untrustedWorkspaces.supported: false` kombinasyonu race'i
+  kötüleştiriyor). `reset_executor_state`
+  (`executor/flows/playwright/reset_state.py`) artık
+  workspace setup → `terminate_vscode` (SIGTERM + 5 s grace +
+  SIGKILL fallback) → `extensions/`+`logs/` temizliği →
+  `cleanup_singleton_locks` → `launch_vscode` sırasıyla orkestre
+  ediyor; `launch_vscode.sh` (`executor/container/launch_vscode.sh`)
+  shared script'i hem boot hem reset yolunda aynı CDP komutunu
+  çağırıyor (`setsid` ile lifetime decoupling). Defense-in-depth:
+  `executor/host.py::install_extension_in_executor` transient IPC
+  marker'larında bir kere `reload_vscode_window` retry'ı yapıyor;
+  `workflows/marketplace/analysis_execution.py::install_failure_message`
+  son 500 char stderr tail'ını footer olarak eklediği için
+  "Command failed (rc=1)" blind spot'u kapandı.
+- **`attribution/` subpackage split (landed 2026-04-24).**
+  `executor/flows/playwright/monitor_attribution.py` (1122 LoC) üç
+  dosyaya ayrıldı:
+  - `attribution/events.py` — event annotation + classification +
+    shared actor/artifact/epoch helpers
+  - `attribution/links.py` — evidence-bundle + scenario/temporal/
+    noise/duplicate-file link builders
+  - `attribution/__init__.py` — flat re-export facade, 29-name
+    underscore-prefixed API'yi verbatim koruyor; signal-layer shim'leri
+    (`_indexed_target_*`, `_build_risk_signals`, `_build_risk_summary`,
+    `_build_signal_summary`) ve dual-import pattern (paket vs top-level
+    executor mode) aynı kaldı.
+  Üç caller (`monitor.py`, `monitor_types.py`, `monitor_lifecycle.py`)
+  yalnızca module path flip'i (`monitor_attribution` → `attribution`)
+  ile geçti. Pre-existing ruff UP042 warning
+  `packages/analysis_contracts/detection/enums.py:12`
+  `# noqa: UP042 - intentional <3.11 fallback` ile susturuldu.
+  Doğrulama: `make check-all` → 627 passed / 5 skipped;
+  `make test-security` → 41 passed; `scripts/demo_acceptance.py` →
+  `DEMO GREEN`. **Docker-based A1 canary structural diff
+  (`make exec-up && make exec-run` against
+  `t1-a1-credential-read-to-network-canary`) user-side** — deferral
+  note'unda flag edilen capture-pipeline regresyon riskini
+  yalnızca live executor smoke kapatabilir;
+  `POST_POC_BACKLOG.md` "Next (post-PoC value-adds)" altında.
+- **`sim-target` Makefile lane (landed 2026-04-24).** Yeni
+  [`Makefile`](../Makefile) target: `make sim-target
+  TARGET=publisher.name [TRIGGERS=/path/to/payload.json]
+  [SCENARIO=<name>]` `entrypoint.py --monitor
+  --target-extension-id $(TARGET)` ile target-extension smoke'u
+  çalıştırıyor; `TARGET` gerekli, missing ise non-zero + usage hint.
+  `sim-all` artık `make help` + echo banner'da
+  "UI-stimulus stress: scenarios w/o target ext." olarak
+  etiketli — operator'ler artık `sim-all` inconclusive raporunu
+  "normal extension path failed" sanmıyor.
+
+Bu pass §10.2 haftalık kapsamını **değiştirmiyor** (W7 zaten kapandı);
+post-W7 hardening + Phase 3a buffer + pull-first POST_POC entries'in
+landed olduğunu doğruluyor. `REFACTOR_STATUS.md` "W7 Acceptance +
+Buffer (2026-04-23)" ve "Post-W7 Hardening (2026-04-24)" bloklarıyla
+`POST_POC_BACKLOG.md` "Next iteration (pull first)" altındaki
+`[LANDED 2026-04-24]` işaretleri commit referanslarını ve test
+listesini tutuyor.
 
 ---
 

@@ -1,6 +1,6 @@
 # Documents Guide
 
-`Last Updated: 2026-04-23`
+`Last Updated: 2026-04-24`
 
 This folder is intentionally split into a small canonical core plus a few
 specialized reference docs. Do not preload the entire folder unless the task
@@ -11,14 +11,20 @@ If an older note conflicts with the current refactor direction, prefer
 for the historical Week 1-4 plan, and `REFACTOR_OPTIMIZATION.md` §10 for the
 7-week stabilization-then-security window (W0-W7). Use
 `REFACTOR_EXPANSION_NOTES.md` only as a deferred reference, not as a binding
-delivery plan.
+delivery plan. Post-PoC deferrals live in `POST_POC_BACKLOG.md`.
 
 Current status lives in `REFACTOR_STATUS.md`. Week 4 closure validated
 `2026-04-20`. W5 detection foundations (contracts, A1/A2/A4/A6 rules, T1
 canaries, `make test-security`) landed `2026-04-20`. W6 automation hardening
 landed `2026-04-21`, and the W6 correctness follow-up (target-only
 attribution, TLS vocabulary, error dominance, security-fixtures CI) closed
-on `2026-04-23`. **W7 (acceptance + buffer) is now open.**
+on `2026-04-23`. **W7 (acceptance + buffer) closed on `2026-04-23`** with
+the §10.7 PoC acceptance checklist green (11/11) and the A1 credential-read
+→ network canary demo covered by [`DEMO_SCENARIO.md`](DEMO_SCENARIO.md) +
+[`scripts/demo_acceptance.py`](../scripts/demo_acceptance.py). **Post-W7
+hardening on `2026-04-24`** landed fatal-UI-crash fail-fast, scan-between
+VS Code restart (ESLint install race fix), the `attribution/` subpackage
+split, and the `sim-target` Makefile lane.
 
 Security posture (threat model, detection taxonomy, malicious fixture policy,
 package-boundary charter) is fixed by ADRs 0002-0005. Those ADRs already
@@ -48,6 +54,8 @@ Read these in order for most code changes:
 - `DETECTION_SEMANTICS.md`
   - exported `ActivationReport` JSON fields, health/signal-summary
     semantics, evidence interpretation
+- `DEMO_SCENARIO.md`
+  - single-extension A1 canary playbook used by the PoC acceptance demo
 - `VSCODE_API_COVERAGE_AUDIT.md`
   - trigger planning, capability support, official vs heuristic coverage
 - `docs/risks.md`
@@ -64,8 +72,11 @@ These are intentionally short and should not replace the canonical docs above:
 - `REFACTOR_EXECUTION_PLAN.md`
   - historical Week 1-4 execution plan and implementation snapshots
 - `REFACTOR_STATUS.md`
-  - phase closure history (W4 → W5 → W6) with closure evidence and the
-    current W7 entry rule
+  - phase closure history (W4 → W5 → W6 → W7) with closure evidence and
+    the post-W7 hardening follow-up log
+- `POST_POC_BACKLOG.md`
+  - deferred items and the "pull first" next-iteration list; source of
+    truth for work that passed the PoC acceptance gate
 - `REFACTOR_OPTIMIZATION.md`
   - plan critique (Opus 4.6, Opus 4.7 passes) + 7-week stabilization->security
     window (§10); GPT-5.4 uses this as an implementation spec

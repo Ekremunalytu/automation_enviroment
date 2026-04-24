@@ -1,6 +1,6 @@
 # ExTrace
 
-`Last Updated: 2026-04-23`
+`Last Updated: 2026-04-24`
 
 ExTrace is a VS Code extension analysis platform built around three runtime
 surfaces:
@@ -53,7 +53,35 @@ multi-tenant web platform.
   `security-fixtures` CI job. **W6 closed.**
 - Harness-extension checksum verification is enforced at executor startup via
   `/home/executor/flows/harness_extension.sha256` before VS Code launches.
-- **W7 (acceptance + buffer):** open as of `2026-04-23`.
+- **W7 (acceptance + buffer):** closed `2026-04-23`. §10.7 PoC acceptance
+  checklist met (11/11); `documents/DEMO_SCENARIO.md` +
+  `scripts/demo_acceptance.py` cover the A1 credential-read → network canary
+  end-to-end. Phase 3a buffer added stretch rule `extrace.a3.typosquat` with
+  canary + allow-list. Final `make test-security` → 41 passed,
+  `make check-all` → 627 passed / 5 skipped.
+- **Post-W7 hardening (2026-04-24):** four reliability + modularization fixes
+  landed:
+  1. Fatal UI-crash classification + fail-fast. `_run_scenario_sequence`
+     (`executor/flows/playwright/automation.py`) routes renderer-death
+     errors through `is_fatal_ui_error`, breaks the loop, and degrades
+     `automation_health.status` to `inconclusive` via
+     `failure_reason_code = "fatal_ui_crash"`. Opt-in `--retry-on-crash`
+     routes through `vscode.reload_workbench_window`.
+  2. Scan-between VS Code restart (ESLint `onStartupFinished` install race
+     fix). `reset_executor_state` now orchestrates workspace setup →
+     `terminate_vscode` (SIGTERM + 5 s grace + SIGKILL fallback) → clear
+     `extensions/`+`logs/` → `cleanup_singleton_locks` → `launch_vscode` via
+     shared `executor/container/launch_vscode.sh`.
+     `install_extension_in_executor` retries once on transient IPC markers.
+  3. `attribution/` subpackage split. The 1122-LoC
+     `executor/flows/playwright/monitor_attribution.py` is now three files
+     (`attribution/events.py`, `attribution/links.py`,
+     `attribution/__init__.py` flat re-export facade) preserving the
+     29-name underscore-prefixed API verbatim.
+  4. `sim-target` Makefile lane. New `make sim-target TARGET=publisher.name
+     [TRIGGERS=…] [SCENARIO=…]` runs a target-extension smoke separate
+     from the `sim-all` UI-stimulus stress run. `sim-all` is now labelled
+     "UI-stimulus stress: scenarios w/o target ext." in `make help`.
 
 ## Current Architecture
 
@@ -80,9 +108,11 @@ workflow code:
 - `executor/`
   - Sandbox runtime.
   - `control.py`: workflow-visible sandbox boundary.
-  - `container/`: Docker image, entrypoint, VS Code/Xvfb/noVNC boot logic.
+  - `container/`: Docker image, entrypoint (`start.sh`), and the shared
+    `launch_vscode.sh` script used at boot and by scan-between resets.
   - `flows/playwright/`: Playwright automation helpers, entrypoint,
-    `monitor.py` facade, and sibling scenario/runtime-capture helper modules.
+    `monitor.py` facade, `attribution/` subpackage (events + evidence
+    link builders), and sibling scenario/runtime-capture helper modules.
 - `ui/`
   - Primary analyst-facing React SPA built with Vite and Tailwind.
   - `src/app/`: shell and route composition.
@@ -244,8 +274,9 @@ docs/                       Targeted risk notes
   after `AGENTS.md`
 - `documents/README.md`: context-light guide for choosing which project docs to
   load first
-- `documents/REFACTOR_STATUS.md`: phase closure history (W4-W6) and the
-  current W7 gate
+- `documents/REFACTOR_STATUS.md`: phase closure history (W4-W7) and the
+  post-W7 hardening follow-ups
+- `documents/POST_POC_BACKLOG.md`: deferred work items and the pull-next list
 - `documents/ARCHITECTURE.md`: canonical architecture and boundaries
 - `documents/DETECTION_SEMANTICS.md`: meaning and calculation rules for
   exported `ActivationReport` fields

@@ -1,12 +1,13 @@
 # Testing Guide
 
-`Last Updated: 2026-04-20`
+`Last Updated: 2026-04-24`
 
 The test suite mirrors the refactored architecture: platform tests validate
-shared `appcore/` code, workflow tests validate business slices, executor tests
-cover sandbox helpers, architecture tests enforce import boundaries, security
-tests validate the malicious-fixture scaffold, and smoke coverage exercises the
-full marketplace-to-report pipeline.
+shared `appcore/` code and the detection-engine rule runner, workflow tests
+validate business slices, executor tests cover sandbox helpers, architecture
+tests enforce import boundaries, security tests validate the
+malicious-fixture scaffold + per-rule detection behavior, and smoke
+coverage exercises the full marketplace-to-report pipeline.
 
 ## Test Layout
 
@@ -17,15 +18,22 @@ tests/
   architecture/
     test_import_graph.py
   executor/
+    conftest.py
     test_container_dockerfile.py
     test_playwright_automation.py
     test_playwright_commands.py
+    test_playwright_crash_classifier.py
     test_playwright_entrypoint.py
+    test_playwright_health_summary.py
     test_playwright_helpers.py
-    test_playwright_monitor.py
+    test_playwright_monitor_attribution.py
+    test_playwright_monitor_lifecycle.py
+    test_playwright_monitor_package_import.py
+    test_playwright_monitor_runtime.py
     test_playwright_reload.py
     test_playwright_stimulus.py
     test_reset_state.py
+    test_signal_policy.py
     test_workspace.py
   platform/
     api/
@@ -34,32 +42,67 @@ tests/
       test_deps.py
       test_fixtures.py
     contracts/
+      fixtures/
       test_analysis_fixture_baselines.py
+      test_detection_report.py
+      test_report_builder_contract.py
       test_schemas.py
+      test_verdict_rollup.py
+    engine/
+      test_rule_runner.py
     storage/
       test_analysis_jobs.py
       test_crud.py
     test_canonical_imports.py
   security/
+    helpers.py
+    rules/
+      test_a1_credential_read_then_network.py
+      test_a2_startup_network_beacon.py
+      test_a3_typosquat.py
+      test_a4_workspace_exfil.py
+      test_a6_startup_ui_prompt.py
+      test_rule_attribution.py
+    test_benign_silence.py
+    test_canary_end_to_end.py
+    test_detection_report_invariants.py
     test_fixture_hygiene.py
     test_rule_coverage.py
+    test_rule_validation.py
   scanner/
     test_executor.py
   smoke/
     test_marketplace_analysis_smoke.py
   workflows/
     activation_reports/
+      test_bundle_endpoint.py
       test_router.py
     extension_catalog/
       test_package_parser.py
       test_router.py
       test_service.py
     marketplace/
+      fixtures/
+      test_analysis_bundle.py
+      test_analysis_execution_helpers.py
       test_analysis_planner.py
       test_client.py
       test_router.py
       test_triggers.py
 ```
+
+Note on executor monitor coverage: `test_playwright_monitor.py` was split
+into four focused files — `test_playwright_monitor_attribution.py` (the
+`attribution/` subpackage), `test_playwright_monitor_lifecycle.py`
+(scenario-event ledger), `test_playwright_monitor_package_import.py`
+(paket vs top-level executor import mode), and
+`test_playwright_monitor_runtime.py` (runtime loop). The new
+`test_playwright_crash_classifier.py` covers
+`is_fatal_ui_error` with 11 tests including a transient-timeout
+false-positive guard; `test_playwright_health_summary.py` covers
+`fatal_ui_crash` dominance; `test_reset_state.py` was rewritten (11
+tests) to cover terminate / SIGKILL escalation / singleton cleanup /
+launch-script success+failure / orchestration order.
 
 UI tests live in:
 
@@ -207,31 +250,62 @@ visible before the full poll timeout or immediately when the worker fails.
 
 ### Platform
 
-- Settings and dependency injection.
-- Pydantic contracts.
-- Storage CRUD behavior and uniqueness protection.
-- Durable analysis-job lifecycle and recovery.
+- Settings and dependency injection (`platform/api/`).
+- Pydantic contracts and detection contracts
+  (`platform/contracts/test_schemas.py`,
+  `test_analysis_fixture_baselines.py`, `test_detection_report.py`,
+  `test_report_builder_contract.py`, `test_verdict_rollup.py`).
+- Detection-engine rule runner (`platform/engine/test_rule_runner.py`).
+- Storage CRUD behavior and uniqueness protection
+  (`platform/storage/test_crud.py`).
+- Durable analysis-job lifecycle and recovery
+  (`platform/storage/test_analysis_jobs.py`).
+- Canonical imports guard (`platform/test_canonical_imports.py`).
 
 ### Workflows
 
-- Extension catalog parsing and persistence orchestration.
-- Activation report file listing/reading behavior.
-- Marketplace search/download/analyze routes.
-- Trigger selection and failure handling.
+- Extension catalog parsing and persistence orchestration
+  (`workflows/extension_catalog/`).
+- Activation report file listing/reading behavior
+  (`workflows/activation_reports/test_router.py`,
+  `test_bundle_endpoint.py`).
+- Marketplace search/download/analyze routes (`test_router.py`,
+  `test_client.py`) plus analysis bundle shaping
+  (`test_analysis_bundle.py`) and execution-failure formatters
+  (`test_analysis_execution_helpers.py`).
+- Trigger selection and failure handling (`test_triggers.py`,
+  `test_analysis_planner.py`).
 
 ### Executor
 
-- Docker exec wrapper behavior.
-- Playwright automation helpers.
-- Monitor/report generation and workspace reset.
+- Docker exec wrapper behavior (`scanner/test_executor.py`: retry-after-reload,
+  non-transient no-retry guard, reload-failure preserves original error).
+- Playwright automation helpers (`test_playwright_automation.py`).
+- Fatal UI-crash classifier (`test_playwright_crash_classifier.py`) and
+  `fatal_ui_crash` health dominance (`test_playwright_health_summary.py`).
+- Monitor/report generation split across the four `test_playwright_monitor_*`
+  modules (attribution / lifecycle / package-import / runtime).
+- Scan-between restart orchestration (`test_reset_state.py`: terminate,
+  SIGKILL escalation, singleton cleanup, launch-script success+failure).
+- Signal policy (`test_signal_policy.py`) and workspace reset
+  (`test_workspace.py`).
 - Entrypoint flag behavior and reload handling.
 
 ### Security
 
-- Malicious-fixture manifest hygiene.
-- PoC canary coverage contracts for A1/A2/A4/A6.
+- Malicious-fixture manifest hygiene (`test_fixture_hygiene.py`).
+- PoC canary coverage contracts for A1/A2/A3/A4/A6 (`test_rule_coverage.py`).
+- Per-rule detection under `security/rules/` — each Must-class adversary
+  has a dedicated test (A3 typosquat landed in the W7 Phase 3a buffer);
+  `test_rule_attribution.py` asserts target-only attribution gating.
+- `test_benign_silence.py` ensures benign baselines stay zero-finding.
+- `test_canary_end_to_end.py` wires a fixture through the rule runner.
+- `test_detection_report_invariants.py` enforces the cross-layer
+  evidence-link contract between `DetectionFinding.evidence.event_id`
+  and `ActivationReport.evidence_events[]`.
+- `test_rule_validation.py` checks rule loader / shape assertions.
 - CI/local guard expectations around `make test-security` and
-  `make test-security-live`.
+  `make test-security-live` (T3 break-glass).
 
 ### UI
 
@@ -254,9 +328,14 @@ visible before the full poll timeout or immediately when the worker fails.
 - The SPA now has generated TypeScript contracts, but the request client and
   view-model adapters remain hand-written and can still drift if the contract
   generation step is skipped.
-- The security lane currently validates fixture manifests and PoC class
-  coverage, not production detection evaluation against runnable malicious
-  payloads.
+- The security lane validates fixture manifests, PoC class coverage,
+  per-rule detection against T1 canaries, attribution gating, and
+  benign-baseline silence. `make test-security` → 41 passed as of
+  2026-04-23; live `make test-security-live` + Docker-based A1 canary
+  structural diff (`make exec-up && make exec-run` against
+  `t1-a1-credential-read-to-network-canary`) remain user-side and are
+  the canonical regression gates for the capture pipeline.
+- `make check-all` totals 627 passed / 5 skipped as of 2026-04-24.
 
 ## Expectations for New Work
 

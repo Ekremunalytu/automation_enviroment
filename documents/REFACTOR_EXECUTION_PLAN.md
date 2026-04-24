@@ -6,12 +6,16 @@ This is the canonical execution plan for the current refactor. It keeps the
 first four weeks decision-complete and intentionally defers heavier Week 5+
 ideas into a separate note: `REFACTOR_EXPANSION_NOTES.md`.
 
-> Status note (2026-04-20, snapshot 2026-04-23): Week 4 closure is green; W5
-> and W6 have since closed and W7 (acceptance + buffer) is open. This file is
-> now read-only historical reference for the Week 1-4 plan plus implementation
-> snapshots. For the active 7-week window (W0-W7) see
-> `REFACTOR_OPTIMIZATION.md` §10; for current closure evidence see
-> `REFACTOR_STATUS.md`.
+> Status note (2026-04-20, snapshot 2026-04-24): Week 4 closure is green;
+> W5, W6, and W7 have all closed (W7 on 2026-04-23 with §10.7 PoC
+> acceptance checklist 11/11), and post-W7 hardening on 2026-04-24 landed
+> fatal-UI-crash fail-fast, scan-between VS Code restart, the
+> `attribution/` subpackage split, and the `sim-target` Makefile lane.
+> This file is now read-only historical reference for the Week 1-4 plan
+> plus implementation snapshots. For the active 7-week window (W0-W7) see
+> `REFACTOR_OPTIMIZATION.md` §10 (and §9.7 for the 2026-04-24 agent-audit
+> block); for current closure evidence see `REFACTOR_STATUS.md`; for
+> deferred work see `POST_POC_BACKLOG.md`.
 
 ## Context
 

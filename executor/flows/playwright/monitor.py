@@ -26,7 +26,7 @@ try:
         reconcile_event_attempts,
         summarize_event_attempts_for_report,
     )
-    from .monitor_attribution import (
+    from .attribution import (
         _annotate_file_events,
         _annotate_network_events,
         _build_evidence_bundle,
@@ -154,7 +154,7 @@ except ImportError:  # pragma: no cover - top-level executor import mode
         reconcile_event_attempts,
         summarize_event_attempts_for_report,
     )
-    from monitor_attribution import (
+    from attribution import (
         _annotate_file_events,
         _annotate_network_events,
         _build_evidence_bundle,

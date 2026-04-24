@@ -9,6 +9,11 @@ from typing import Any
 
 try:
     from .annotation import build_attribution_summary
+    from .attribution import (
+        _build_evidence_bundle,
+        _build_risk_signals,
+        _build_risk_summary,
+    )
     from .capture import summarize_extension_host_logs
     from .health import (
         build_automation_health,
@@ -16,11 +21,6 @@ try:
         build_run_quality,
         count_target_activations,
         is_background_activation,
-    )
-    from .monitor_attribution import (
-        _build_evidence_bundle,
-        _build_risk_signals,
-        _build_risk_summary,
     )
     from .monitor_records import (
         EventAttemptRecord,
@@ -51,6 +51,11 @@ try:
     )
 except ImportError:  # pragma: no cover - top-level executor import mode
     from annotation import build_attribution_summary
+    from attribution import (
+        _build_evidence_bundle,
+        _build_risk_signals,
+        _build_risk_summary,
+    )
     from capture import summarize_extension_host_logs
     from health import (
         build_automation_health,
@@ -58,11 +63,6 @@ except ImportError:  # pragma: no cover - top-level executor import mode
         build_run_quality,
         count_target_activations,
         is_background_activation,
-    )
-    from monitor_attribution import (
-        _build_evidence_bundle,
-        _build_risk_signals,
-        _build_risk_summary,
     )
     from monitor_records import (
         EventAttemptRecord,

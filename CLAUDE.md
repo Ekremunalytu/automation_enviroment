@@ -75,6 +75,39 @@ state.
      sergiliyor — gelecekteki aynı sınıf hatalarda diagnostic susma olmasın.
   `make typecheck` temiz (207 source file), `make check-all` → 627
   passed / 5 skipped.
+- **Post-W7 backlog burndown (2026-04-24):** two `[NEXT]` items from
+  POST_POC_BACKLOG landed the same day, keeping the modularization +
+  operator-hygiene debt aligned with the reliability fixes above.
+  1. **`attribution/` subpackage split.**
+     `executor/flows/playwright/monitor_attribution.py` (1122 LoC)
+     split into
+     [`attribution/events.py`](executor/flows/playwright/attribution/events.py)
+     (event annotation + classification + shared actor/artifact/epoch
+     helpers),
+     [`attribution/links.py`](executor/flows/playwright/attribution/links.py)
+     (evidence-bundle + scenario/temporal/noise link builders), and
+     [`attribution/__init__.py`](executor/flows/playwright/attribution/__init__.py)
+     (flat re-export facade preserving the 29-name underscore-prefixed
+     API + signal-layer shims + dual-import pattern for paket vs
+     top-level executor mode). Three callers (`monitor.py`,
+     `monitor_types.py`, `monitor_lifecycle.py`) needed only the
+     module-path flip (`monitor_attribution` → `attribution`).
+     `make check-all` → 627 passed / 5 skipped; `make test-security`
+     → 41 passed; demo acceptance → `DEMO GREEN`. **Docker-based A1
+     canary structural diff (`make exec-up && make exec-run` against
+     `t1-a1-credential-read-to-network-canary`) still user-side** —
+     the capture-pipeline regression risk flagged in the deferral
+     note closes only with a live executor smoke.
+  2. **`sim-target` Makefile lane.** New target in [`Makefile`](Makefile):
+     `make sim-target TARGET=publisher.name
+     [TRIGGERS=/path/to/payload.json] [SCENARIO=<name>]` runs
+     `entrypoint.py --monitor --target-extension-id $(TARGET)` with
+     optional trigger-payload + scenario passthrough. `sim-all` is
+     now explicitly labelled "UI-stimulus stress: scenarios w/o
+     target ext." in `make help` + echo banner, so operators no
+     longer mistake an inconclusive `sim-all` report for evidence
+     that a normal extension path is green. `TARGET` required;
+     missing it exits non-zero with a usage hint.
 - **Post-PoC:** work items tracked in
   [`documents/POST_POC_BACKLOG.md`](documents/POST_POC_BACKLOG.md);
   next iteration starts from its "Next iteration (pull first)" block.

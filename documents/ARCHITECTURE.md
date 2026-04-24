@@ -1,9 +1,10 @@
 # ExTrace Architecture
 
-`Last Updated: 2026-04-20`
+`Last Updated: 2026-04-24`
 
 This document reflects the current codebase shape in `main.py`, `appcore/`,
-`packages/`, `workflows/`, `executor/`, and `ui/`.
+`packages/`, `workflows/`, `executor/`, and `ui/` after W7 closure and the
+post-W7 hardening landings (2026-04-23 and 2026-04-24).
 
 Open this for system shape and request-flow questions. For placement rules use
 `PROJECT_STRUCTURE.md`; for executor or report internals, open the specialized
@@ -66,13 +67,17 @@ Framework-agnostic contracts and analysis logic.
 
 - `packages/analysis_contracts/`
   - backend-owned contracts for `ActivationReport`, `TriggerPayload`, and the
-    reserved `detection/` namespace for W5 `DetectionReport` DTOs
+    `detection/` namespace (`DetectionReport`, `DetectionFinding`,
+    `Confidence`, `Verdict`, `AdversaryClass`, `RuleLifecycle`,
+    `RuleExecutionStatus`, `quantize_confidence`)
 - `packages/analysis_planner/`
   - planner registries, selection logic, attempts, coverage accounting, and
     payload serialization
 - `packages/analysis_engine/`
-  - reserved extraction surface for shared analysis logic that should not stay
-    buried in executor-only modules
+  - detection rules under `rules/` (A1/A2/A3/A4/A6 live; A5/A7 deferred to
+    `POST_POC_BACKLOG.md`) and allow-lists under `allowlists/`
+    (`benign_domains.txt`, `popular_extensions.txt`); rules import only
+    contracts, never runtime/web/storage layers
 
 ### `workflows/`
 
@@ -92,17 +97,31 @@ Sandbox control and runtime.
 
 - `executor/control.py`
   - public workflow-facing boundary for reset, install, automation run, reload,
-    and trigger cleanup
+    and trigger cleanup; `install_extension_in_executor` (via `host.py`)
+    retries once through `reload_vscode_window` on transient IPC markers
+    and surfaces stderr tail for diagnostics
 - `executor/host.py`
   - Docker exec implementation details and retry/cleanup behavior
 - `executor/container/`
-  - Docker image, start script, and sandbox boot configuration
+  - Docker image, `start.sh` entrypoint, and the shared `launch_vscode.sh`
+    script (also invoked by `reset_state.py` during scan-between restarts)
 - `executor/flows/playwright/`
   - VS Code automation, trigger loading, the thin `monitor.py` facade, and
-    sibling lifecycle/source/runtime/attribution helpers for report building,
-    health derivation, and risk/signal-summary calculation (the
-    authoritative detection-layer `Verdict` lives in
-    `packages/analysis_contracts/detection/`)
+    sibling lifecycle/source/runtime helpers for report building, health
+    derivation, and risk/signal-summary calculation. `_run_scenario_sequence`
+    in `automation.py` classifies fatal UI crashes via `is_fatal_ui_error`
+    and fails fast with `failure_reason_code = "fatal_ui_crash"`
+    degrading `automation_health.status` to `inconclusive`.
+    `reset_state.py::reset_executor_state` orchestrates terminate →
+    cleanup → launch across scans. The authoritative detection-layer
+    `Verdict` lives in `packages/analysis_contracts/detection/`.
+- `executor/flows/playwright/attribution/`
+  - `events.py` (event annotation + classification + shared
+    actor/artifact/epoch helpers), `links.py` (evidence-bundle +
+    scenario/temporal/noise/duplicate-file link builders), and
+    `__init__.py` (flat re-export facade preserving the 29-name
+    underscore-prefixed API + signal-layer shims; dual-import pattern for
+    package mode vs top-level executor mode)
 - `executor/flows/playwright/runtime_capture/`
   - monitor-owned network, filesystem, extension-host, and log-summary helpers
     re-exported through `monitor.py`
@@ -180,7 +199,9 @@ Notes:
 4. `executor.control`
 5. `executor.host`
 6. `executor/flows/playwright/entrypoint.py`
-7. `executor/flows/playwright/monitor.py`
+7. `executor/flows/playwright/monitor.py` (facade over
+   `attribution/`, `runtime_capture/`, `signals.py`, `signal_facts.py`,
+   and the scenario/health helper modules)
 8. `executor/flows/playwright/report_builder.py`
 9. `output/activation_report_*.json`
 

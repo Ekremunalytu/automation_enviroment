@@ -12,12 +12,7 @@ try:
     from playwright.sync_api import Error as PlaywrightError
     from playwright.sync_api import Page
 
-    from .health import (
-        derive_verified_capabilities,
-        reconcile_event_attempts,
-        summarize_event_attempts_for_report,
-    )
-    from .monitor_attribution import (
+    from .attribution import (
         _annotate_file_events,
         _annotate_network_events,
         _annotate_process_events,
@@ -25,6 +20,11 @@ try:
         _format_epoch_timestamp,
         _relative_time,
         _scenario_name_for_timestamp,
+    )
+    from .health import (
+        derive_verified_capabilities,
+        reconcile_event_attempts,
+        summarize_event_attempts_for_report,
     )
     from .monitor_payload import populate_report_from_trigger_payload
     from .monitor_records import (
@@ -51,12 +51,7 @@ try:
     from .runtime_capture._shared import _log, _parse_iso_timestamp
     from .runtime_capture.events import FileEvent, NetworkEvent, ProcessEvent
 except ImportError:  # pragma: no cover - top-level executor import mode
-    from health import (
-        derive_verified_capabilities,
-        reconcile_event_attempts,
-        summarize_event_attempts_for_report,
-    )
-    from monitor_attribution import (
+    from attribution import (
         _annotate_file_events,
         _annotate_network_events,
         _annotate_process_events,
@@ -64,6 +59,11 @@ except ImportError:  # pragma: no cover - top-level executor import mode
         _format_epoch_timestamp,
         _relative_time,
         _scenario_name_for_timestamp,
+    )
+    from health import (
+        derive_verified_capabilities,
+        reconcile_event_attempts,
+        summarize_event_attempts_for_report,
     )
     from monitor_payload import populate_report_from_trigger_payload
     from monitor_records import (

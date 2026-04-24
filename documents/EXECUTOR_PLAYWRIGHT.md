@@ -1,6 +1,6 @@
 # Executor Playwright Architecture
 
-`Last Updated: 2026-04-23`
+`Last Updated: 2026-04-24`
 
 The executor is ExTrace's dynamic-analysis sandbox. It runs a full VS Code GUI
 session inside Docker, drives that session with Playwright, and exports
@@ -25,6 +25,15 @@ integration points that drive it.
 > Changes to executor behavior that affect any of these boundaries must update
 > ADR 0002 §4 in the same change set.
 
+> **Post-W7 hardening (2026-04-24):** two executor reliability fixes
+> landed: (1) fatal UI-crash classification + fail-fast in
+> `_run_scenario_sequence` (see *Fatal UI Crash Handling* below); (2)
+> scan-between VS Code restart orchestrated by `reset_executor_state` via
+> the shared `executor/container/launch_vscode.sh` script (see
+> *Scan-Between Restart* below). The `attribution/` subpackage replaces
+> the former `monitor_attribution.py` monolith with a three-file split
+> behind a flat re-export facade.
+
 This runtime still assumes:
 
 - one operator
@@ -40,6 +49,7 @@ executor/
   host.py
   container/
     Dockerfile
+    launch_vscode.sh
     requirements.txt
     start.sh
   flows/
@@ -48,6 +58,10 @@ executor/
       package.json
     playwright/
       annotation.py
+      attribution/
+        __init__.py
+        events.py
+        links.py
       automation.py
       capture.py
       commands.py
@@ -64,6 +78,13 @@ executor/
       keyboard.py
       language_samples.py
       monitor.py
+      monitor_lifecycle.py
+      monitor_payload.py
+      monitor_records.py
+      monitor_runtime.py
+      monitor_sources.py
+      monitor_support.py
+      monitor_types.py
       panel.py
       reload_vscode.py
       report_builder.py
@@ -84,7 +105,13 @@ executor/
       terminal.py
       triggers.py
       vscode.py
+      wait_helpers.py
       workspace.py
+      workspace_seed_data.py
+      workspace_seed_home.py
+      workspace_seed_project_1.py
+      workspace_seed_project_2.py
+      workspace_seed_project_3.py
 ```
 
 ## Container Boot Sequence
@@ -98,7 +125,11 @@ The runtime is expected to:
 3. expose VNC/noVNC
 4. prepare the workspace and bait files
 5. write VS Code baseline settings
-6. launch VS Code on `/workspace`
+6. launch VS Code on `/workspace` via the shared
+   `executor/container/launch_vscode.sh` script (also invoked by
+   `reset_executor_state` during scan-between resets — single source of
+   truth for the CDP launch command; `setsid` decouples VS Code lifetime
+   from the invoking shell)
 
 The executor container remains the only place where extension code should run.
 
@@ -194,7 +225,30 @@ The executor deletes the trigger JSON after loading it.
 - `stimulus.py`
   - layered pass execution and prerequisite materialization
 - `monitor.py`
-  - activation/file/network/log collection plus canonical report assembly
+  - thin facade over the split monitor_* helpers and the `attribution/`
+    subpackage; owns activation/file/network/log collection plus canonical
+    report assembly
+- `monitor_lifecycle.py`, `monitor_payload.py`, `monitor_records.py`,
+  `monitor_runtime.py`, `monitor_sources.py`, `monitor_support.py`,
+  `monitor_types.py`
+  - scenario-event ledger, payload assembly, dataclass records, runtime
+    loop, log-source discovery, helper utilities, and shared type exports
+- `attribution/`
+  - `events.py`: annotation + classification (`_annotate_network_events`,
+    `_annotate_file_events`, `_annotate_process_events`,
+    `_classify_event_attribution`, `_upgrade_inotify_correlations`,
+    `_matches_extension_signature`, `_scenario_name_for_timestamp`, plus
+    shared actor/artifact/epoch helpers)
+  - `links.py`: evidence-bundle + scenario/temporal/noise/duplicate-file
+    link builders (`_build_evidence_bundle`, `_build_scenario_links`,
+    `_build_temporal_links`, `_build_duplicate_file_links`,
+    `_build_noise_links`, `_nearest_activation`, `_temporal_confidence`,
+    `_dedupe_evidence_links`)
+  - `__init__.py`: flat re-export facade preserving the 29-name
+    underscore-prefixed API + signal-layer shims
+    (`_indexed_target_*`, `_build_risk_signals`, `_build_risk_summary`,
+    `_build_signal_summary`); dual-import pattern supports both package
+    mode and top-level executor mode (`playwright/` on `sys.path`)
 - `runtime_capture/`
   - monitor-owned event parsing and capture helpers re-exported via
     `monitor.py` for backwards compatibility
@@ -203,22 +257,110 @@ The executor deletes the trigger JSON after loading it.
 - `health.py`, `health_reconciliation.py`, `health_runtime_facts.py`,
   `health_summary.py`
   - automation health, log health, runtime fact extraction, and coverage
-    reconciliation
+    reconciliation; `health_summary.py` recognises `fatal_ui_crash` as a
+    dominant failure-reason code that forces
+    `automation_health.status = "inconclusive"` per ADR 0003 §5
 - `signals.py`, `signal_facts.py`, `signal_policy.py`
   - risk signal generation and activation-layer signal summary policy
     (the detection-layer `Verdict` rollup lives in
     `packages/analysis_contracts/detection/rollup.py`)
 - `annotation.py`
   - attribution helpers and summary logic
+- `automation.py`
+  - built-in user-behavior scenarios and `_run_scenario_sequence`, which
+    routes `PlaywrightError` / `RuntimeError` / `ValueError` through
+    `is_fatal_ui_error` (substring markers + `page.is_closed()` +
+    `context.is_closed()` + ≤1.5 s liveness probe) and breaks the loop
+    with `ScenarioTrace.failure_reason_code = "fatal_ui_crash"` +
+    `error_detail`; opt-in `--retry-on-crash` routes through
+    `vscode.reload_workbench_window`
 - `capture.py`
   - extension-host log summarization
-- `workspace.py`, `language_samples.py`
-  - workspace fixture and bait-file support
+- `wait_helpers.py`
+  - shared bounded-wait primitives for automation scenarios
+- `workspace.py`, `workspace_seed_*.py`, `language_samples.py`
+  - workspace fixture, per-project seed data, and bait-file support
 - `commands.py`, `editor.py`, `sidebar.py`, `panel.py`, `terminal.py`,
   `settings.py`, `debug.py`, `keyboard.py`, `vscode.py`
   - focused UI interaction helpers
-- `reload_vscode.py`, `reset_state.py`
-  - sandbox cleanup and reload scripts invoked from the host wrapper
+- `reload_vscode.py`
+  - sandbox reload scripts invoked from the host wrapper
+- `reset_state.py`
+  - scan-between orchestrator: workspace setup → `terminate_vscode`
+    (SIGTERM + 5 s grace + SIGKILL fallback on survivors) → clear
+    `extensions/` + `logs/` → `cleanup_singleton_locks` (remove
+    `SingletonLock` / `SingletonCookie` / `SingletonSocket` under
+    `~/.config/Code`) → `launch_vscode` via the shared
+    `executor/container/launch_vscode.sh`. Summary carries
+    `terminated_vscode_processes`, `removed_singleton_locks`, and
+    `relaunched_vscode_pid`.
+
+## Fatal UI Crash Handling
+
+`executor/flows/playwright/automation.py::_run_scenario_sequence` classifies
+renderer-death via `is_fatal_ui_error` using explicit positive assertions:
+
+- substring markers (`"target page, context or browser has been closed"`,
+  `"renderer process gone"`, `"crashed"`, …)
+- `page.is_closed()` / `context.is_closed()` checks
+- a ≤1.5 s liveness probe against the page
+
+Default is non-fatal (so transient timeouts do not poison otherwise-healthy
+runs). On a fatal classification:
+
+- the scenario loop breaks immediately (fail-fast, no cascading failures
+  against a dead renderer)
+- `ScenarioTrace` ([`monitor_records.py`](../executor/flows/playwright/monitor_records.py))
+  records `failure_reason_code = "fatal_ui_crash"` plus
+  `error_detail` (≤500 char) on the existing `metadata` channel
+- `health_summary.py` treats `fatal_ui_crash` as a dominant failure reason
+  that forces `automation_health.status = "inconclusive"` per ADR 0003 §5
+  error dominance
+- Opt-in `--retry-on-crash` routes the loop through
+  `vscode.reload_workbench_window` with page rebinding
+
+Contract mirrors: `packages/analysis_contracts/contracts.py::ScenarioTrace`
+carries `failure_reason_code` + `error_detail` with
+`extra="forbid"`; UI `contracts.ts` was regenerated.
+
+Coverage lives in `tests/executor/test_playwright_crash_classifier.py` and
+the extended `test_playwright_automation.py`,
+`test_playwright_monitor_lifecycle.py`, and `test_playwright_health_summary.py`
+modules.
+
+## Scan-Between Restart
+
+After a scan finishes, the extension host can leave stale Chromium
+`SingletonLock`/`SingletonCookie`/`SingletonSocket` artifacts plus an IPC
+socket the next scan's `code --install-extension` will trip over (the
+ESLint `onStartupFinished` + `extensionKind: workspace` +
+`untrustedWorkspaces.supported: false` combination reliably hits this
+race). `reset_executor_state` now orchestrates:
+
+1. workspace setup (same as before)
+2. `terminate_vscode`: SIGTERM + 5 s grace, SIGKILL fallback on survivors
+3. clear `extensions/` + `logs/`
+4. `cleanup_singleton_locks`: remove
+   `SingletonLock` / `SingletonCookie` / `SingletonSocket` under
+   `~/.config/Code`
+5. `launch_vscode` via `executor/container/launch_vscode.sh` (shared with
+   container boot)
+
+The summary dict now carries `terminated_vscode_processes`,
+`removed_singleton_locks`, and `relaunched_vscode_pid` for diagnostics.
+
+Defense-in-depth:
+
+- `executor/host.py::install_extension_in_executor` retries once through
+  `reload_vscode_window` on transient IPC markers (`connection refused`,
+  `ipc hook`, `singleton`, `renderer process gone`, `target crashed`, …)
+- `workflows/marketplace/analysis_execution.py::install_failure_message`
+  appends the last 500 chars of stderr to the failure line so the next
+  regression of this class is diagnosable from the report alone
+
+Coverage lives in `tests/executor/test_reset_state.py`, the extended
+`tests/scanner/test_executor.py`, and
+`tests/workflows/marketplace/test_analysis_execution_helpers.py`.
 
 ## Reload And Reconnect Behavior
 
@@ -309,18 +451,36 @@ make exec-up
 make exec-shell
 make exec-test
 make exec-run
-make sim-all
+make sim-all                        # UI-stimulus stress: scenarios w/o target ext.
+make sim-target TARGET=pub.name \   # target-extension smoke (activation hygiene)
+                [TRIGGERS=/path/to/payload.json] \
+                [SCENARIO=<name>]
 make sim-demo
 make sim-list
 make sim-run SCENARIO=<name>
 ```
+
+Note the `sim-all` vs `sim-target` split introduced 2026-04-24:
+
+- `sim-all` is the UI-stimulus stress lane (scenarios w/o a target
+  extension). Its reports are **inconclusive by design**; it answers
+  "do the scenarios themselves survive a full pass?" not "does this
+  extension activate cleanly?"
+- `sim-target` (required `TARGET=publisher.name`) runs
+  `entrypoint.py --monitor --target-extension-id $(TARGET)` with
+  optional `TRIGGERS` / `SCENARIO` passthrough; this is the correct lane
+  for "did a normal extension activate cleanly?"
+- Missing `TARGET` exits non-zero with a usage hint.
 
 ## Current Limitations
 
 - Activation reports remain file-backed while async job metadata is DB-backed.
 - The pipeline still depends on Docker exec success and VS Code timing.
 - Live capture (`make test-security-live`) is the most fragile detection
-  surface and is load-bearing for W7 acceptance; tshark / runtime-capture
-  changes can silently regress `tls_client_hello` matching.
+  surface; tshark / runtime-capture changes can silently regress
+  `tls_client_hello` matching even though `make test-security` (offline)
+  stays green. Docker-based A1 canary structural diff (`make exec-up &&
+  make exec-run` against `t1-a1-credential-read-to-network-canary`)
+  remains the canonical user-side smoke.
 - Only one background analysis job is allowed at a time.
 - This is not a queue-backed worker system and should not be documented as one.

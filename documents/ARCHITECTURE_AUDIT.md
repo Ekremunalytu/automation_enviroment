@@ -1,10 +1,10 @@
 # Architecture Audit
 
-`Last Updated: 2026-04-23`
+`Last Updated: 2026-04-24`
 
 This is the short health summary for the current architecture. Use
 `ARCHITECTURE.md` for structure and flows; use `docs/risks.md` for the live
-risk register.
+risk register. Post-PoC deferred items live in `POST_POC_BACKLOG.md`.
 
 ## What Is Healthy
 
@@ -17,10 +17,16 @@ risk register.
 - Async analysis is decomposed into router, analysis service, trigger planning,
   executor control, and job storage instead of one opaque path.
 - The executor runtime is less monolithic than before:
-  `runtime_capture/`, scenario helpers, and health/signal support modules now
-  carry part of the surface.
+  `runtime_capture/`, scenario helpers, health/signal support modules, and
+  the `attribution/` subpackage (`events.py` + `links.py` behind a flat
+  re-export facade, split out from `monitor_attribution.py` on 2026-04-24)
+  now carry part of the surface.
 - The UI now has generated backend-owned contract types plus feature-boundary
   checks.
+- Scan-between restarts are now orchestrated (`reset_executor_state` +
+  shared `launch_vscode.sh`), and renderer-death failures fail-fast with
+  `failure_reason_code = "fatal_ui_crash"` rather than cascading through
+  downstream scenarios.
 
 ## What Still Carries Risk
 
@@ -30,10 +36,13 @@ risk register.
   (W5/W6); regressions in the helper-bundle pipeline would silently
   invalidate runs.
 - Live capture (`make test-security-live`) exercises real tshark output and
-  is still the most fragile detection path; W7 acceptance depends on it
-  staying honest against T1 canaries.
-- The PoC acceptance bar (`REFACTOR_OPTIMIZATION.md` §10.7) is the open W7
-  gate; demo-time regressions there would invalidate the W6 closure.
+  is still the most fragile detection path; regressions here would silently
+  compromise detection truthfulness even though `make test-security`
+  (offline) stays green.
+- Docker-based A1 canary structural diff (`make exec-up && make exec-run`
+  against `t1-a1-credential-read-to-network-canary`) remains user-side —
+  the capture-pipeline regression risk flagged in the `attribution/` split
+  deferral note only closes with a live executor smoke.
 
 ## Recommended Reading By Problem Type
 

@@ -1,6 +1,6 @@
 # Refactor Status
 
-`Last Updated: 2026-04-23 (W7 closed — §10.7 11/11 green; A3 typosquat rule + canary landed; monitor_attribution.py split deferred to POST_POC_BACKLOG.md)`
+`Last Updated: 2026-04-24 (post-W7 hardening: attribution/ subpackage split + sim-target Makefile lane landed; two [NEXT] items closed)`
 
 This is the active status board for the Week 1-4 stabilization work and the
 pre-W6 cleanup handoff. Use this file for current closure state; use
@@ -267,14 +267,14 @@ post-PoC quality.
   benign`) remains visible in the dashboard-level risk panel as a
   sandbox behavioral heuristic, clearly separated from rule-driven
   verdicts. Reference: ADR 0003 §5.
-- **`monitor_attribution.py` is still ~1100 LoC (low, post-PoC).**
-  Post-W6 refactor split `monitor.py` and `stimulus.py` cleanly, but the
-  attribution module still bundles evidence-link builders and signal
-  facts. Not shipping-critical; becomes a rule-author friction point
-  after W7. Track in the post-PoC modularization backlog. (Historical
-  note: `analysis_service` decomposition 7.1.1 already landed — see
-  `analysis_execution.py` and `analysis_reports.py` — so it is no longer
-  a sibling of this item.)
+- **`monitor_attribution.py` split landed (2026-04-24, post-W7).**
+  The ~1100 LoC module is now the `attribution/` subpackage
+  (`events.py` + `links.py` + `__init__.py` facade) per ADR 0002 §4
+  and the POST_POC_BACKLOG `[NEXT]` plan. Private-underscore API
+  preserved verbatim so callers only needed the module path updated
+  (`monitor_attribution` → `attribution`). Docker-based A1 canary
+  structural diff remains user-side to fully close the capture
+  regression risk flagged in the deferral note.
 - **UI detection surface is minimum-viable (medium for demo).**
   `DetectionPanel` and `FindingCard` render the contract. The
   `react-hooks/exhaustive-deps` warning on `SimulationPage.tsx` was
@@ -432,19 +432,18 @@ one stretch rule (A3) landed. No open W7 items.
 
 ### Known deferrals (tracked in POST_POC_BACKLOG.md)
 
-- `[NEXT]` `monitor_attribution.py` split (executor/capture).
-- `[NEXT]` Fatal UI-crash classification + fail-fast + `ScenarioTrace`
-  failure metadata (`failure_reason_code`, `error_detail`). Added
-  2026-04-23 after a `make sim-all` run cascade-failed 8 scenarios on
-  a single renderer crash; runner currently catches
-  `PlaywrightError`/`Target crashed` in `_run_scenario_sequence`
-  ([executor/flows/playwright/automation.py:186](../executor/flows/playwright/automation.py:186))
-  and keeps driving a dead page via `_recover_ui_state`.
-- `[NEXT]` Split `sim-all` (UI stress) from a new `sim-target` smoke
-  that feeds a trigger payload + extension id — `sim-all` alone is
-  **not** evidence of normal-extension activation
-  (produces `target_extension_observed: false`,
-  `run_quality: inconclusive`).
+- `[LANDED 2026-04-24]` `monitor_attribution.py` split into the
+  `attribution/` subpackage (`events.py` + `links.py` +
+  `__init__.py` facade). Private-underscore API preserved verbatim;
+  `make check-all` 627 passed / 5 skipped. **Docker-based A1 canary
+  smoke still user-side** (`make exec-up && make exec-run`).
+- `[LANDED 2026-04-24]` Fatal UI-crash classification + fail-fast +
+  `ScenarioTrace` failure metadata (`failure_reason_code`,
+  `error_detail`). See Post-W7 Hardening section in
+  `CLAUDE.md` / `POST_POC_BACKLOG.md`.
+- `[LANDED 2026-04-24]` `sim-target` Makefile lane (target-extension
+  smoke) separated from `sim-all` (UI-stimulus stress). Usage:
+  `make sim-target TARGET=publisher.name [TRIGGERS=…] [SCENARIO=…]`.
 - T2 declawed samples + T3 operational plumbing +
   `make test-security-live` hardening.
 - Monitor discovery-log rate-limit (cosmetic).
@@ -454,6 +453,58 @@ one stretch rule (A3) landed. No open W7 items.
   cancellation, feature-boundary ESLint, axe-core.
 - Stretch adversary classes A5, A7 (A3 delivered).
 - mypy `strict = true` promotion, refactor-doc consolidation.
+
+## Post-W7 Hardening (2026-04-24)
+
+Two `[NEXT]` items from `POST_POC_BACKLOG.md` landed on 2026-04-24
+(plus the fatal UI-crash + scan-between restart fixes captured in
+CLAUDE.md):
+
+- **`attribution/` subpackage split.** `monitor_attribution.py` (1122
+  LoC, single-file evidence/annotation/link/signal blend) was split
+  into:
+  - [`executor/flows/playwright/attribution/events.py`](../executor/flows/playwright/attribution/events.py)
+    — event annotation + classification helpers (`_annotate_*_events`,
+    `_classify_event_attribution`, `_upgrade_inotify_correlations`,
+    `_matches_extension_signature`, actor/artifact helpers, epoch +
+    scenario-timestamp helpers).
+  - [`executor/flows/playwright/attribution/links.py`](../executor/flows/playwright/attribution/links.py)
+    — evidence-bundle + link builders (`_build_evidence_bundle`,
+    `_build_scenario_links`, `_build_temporal_links`,
+    `_build_duplicate_file_links`, `_build_noise_links`,
+    `_nearest_activation`, `_temporal_confidence`,
+    `_dedupe_evidence_links`), sharing helpers from `.events`.
+  - [`executor/flows/playwright/attribution/__init__.py`](../executor/flows/playwright/attribution/__init__.py)
+    — flat re-export facade. Preserves the dual-import pattern
+    (paket mode vs top-level executor mode where `playwright/` is on
+    `sys.path`) and the signal-layer shims (`_indexed_target_*`,
+    `_build_risk_signals`, `_build_risk_summary`,
+    `_build_signal_summary`) exactly as they were. Type-only imports
+    sit under `if TYPE_CHECKING:`. 29 names in `__all__` match the
+    pre-split surface so the three callers (`monitor.py`,
+    `monitor_types.py`, `monitor_lifecycle.py`) only needed the
+    module path updated (`monitor_attribution` → `attribution`).
+  Pre-existing ruff UP042 warning on
+  [`packages/analysis_contracts/detection/enums.py:12`](../packages/analysis_contracts/detection/enums.py)
+  (the Python-<3.11 `StrEnum` fallback) was suppressed with
+  `# noqa: UP042 - intentional <3.11 fallback`. Verification:
+  `make check-all` → 627 passed / 5 skipped; `make test-security` →
+  41 passed; demo acceptance → `DEMO GREEN`. **Docker-based A1 canary
+  structural diff (`make exec-up && make exec-run` against
+  `t1-a1-credential-read-to-network-canary`) remains user-side** — the
+  capture-pipeline regression risk flagged in the original deferral
+  note can only be closed by a live executor smoke.
+- **`sim-target` Makefile lane.** New target in
+  [`Makefile`](../Makefile): `make sim-target TARGET=publisher.name
+  [TRIGGERS=/path/to/payload.json] [SCENARIO=<name>]` runs
+  `entrypoint.py --monitor --target-extension-id $(TARGET)` with
+  optional trigger-payload + scenario passthrough. `sim-all` is now
+  explicitly labelled "UI-stimulus stress: scenarios w/o target ext."
+  in `make help` and in the echo banner, so operators no longer
+  mistake an inconclusive `sim-all` report for evidence that a normal
+  extension path is green. `TARGET` is required; missing it exits
+  non-zero with a usage hint. Verified with `make -n sim-target
+  TARGET=ms-python.python` (dry-run).
 
 ## Week 5 Start Rule
 
