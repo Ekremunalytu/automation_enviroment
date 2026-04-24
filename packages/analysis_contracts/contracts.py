@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class StrictContractModel(BaseModel):
@@ -118,6 +118,38 @@ class PrerequisiteResult(StrictContractModel):
     resolved_targets: dict[str, Any] = Field(default_factory=dict)
 
 
+# Allowed values for ``EventAttemptRecord.status``. Transition graph:
+#
+#   planned
+#      └─ running
+#           ├─ attempted_only      (harness stimulus ran, nothing verified)
+#           │     └─ activation_seen   (exthost log shows target activated)
+#           │           └─ target_log_seen  (target-owned log/output evidence)
+#           │                 └─ verified   (+ runtime capability evidence)
+#           ├─ blocked             (prerequisite unmet; skipped by policy)
+#           └─ failed              (attempt errored out)
+#
+# ``activation_seen`` and ``target_log_seen`` are weaker-than-``verified``
+# intermediate observation states so the report can distinguish "the target
+# extension genuinely reacted to the stimulus" from "the harness ran but we
+# have no target-owned evidence" (today both collapse into ``attempted_only``
+# / ``verified`` with no finer gradation). See the
+# ``Target activation lifecycle + target log instrumentation`` workstream
+# in ``documents/POST_POC_BACKLOG.md``.
+EVENT_ATTEMPT_LIFECYCLE_STATES: frozenset[str] = frozenset(
+    {
+        "planned",
+        "running",
+        "attempted_only",
+        "activation_seen",
+        "target_log_seen",
+        "verified",
+        "blocked",
+        "failed",
+    }
+)
+
+
 class EventAttemptRecord(StrictContractModel):
     attempt_id: str
     declared_event: str
@@ -149,6 +181,16 @@ class EventAttemptRecord(StrictContractModel):
     heuristic: bool = False
     ui_path: str = ""
     harness_fallback: str = ""
+
+    @field_validator("status")
+    @classmethod
+    def _validate_status(cls, value: str) -> str:
+        if value not in EVENT_ATTEMPT_LIFECYCLE_STATES:
+            raise ValueError(
+                f"EventAttemptRecord.status {value!r} is not one of "
+                f"{sorted(EVENT_ATTEMPT_LIFECYCLE_STATES)}"
+            )
+        return value
 
 
 class EvidenceEvent(StrictContractModel):

@@ -5,9 +5,14 @@ from copy import deepcopy
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
+from pydantic import ValidationError
+
 from appcore.contracts.schemas import ExtensionSchema
 from packages.analysis_contracts import (
+    EVENT_ATTEMPT_LIFECYCLE_STATES,
     ActivationReport,
+    EventAttemptRecord,
     TriggerPayload,
     activation_report_invariant_issues,
     detection_report_invariant_issues,
@@ -158,6 +163,45 @@ def test_activation_report_accepts_legacy_verdict_field() -> None:
 
     reparsed = ActivationReport.model_validate(dumped)
     assert reparsed == parsed
+
+
+def _minimal_event_attempt_payload(status: str) -> dict[str, object]:
+    return {
+        "attempt_id": "attempt-1",
+        "declared_event": "onLanguage:python",
+        "activation_event": "onLanguage:python",
+        "event_family": "onLanguage",
+        "status": status,
+    }
+
+
+@pytest.mark.parametrize("status", sorted(EVENT_ATTEMPT_LIFECYCLE_STATES))
+def test_event_attempt_record_accepts_all_documented_lifecycle_states(
+    status: str,
+) -> None:
+    record = EventAttemptRecord.model_validate(_minimal_event_attempt_payload(status))
+    assert record.status == status
+
+
+def test_event_attempt_record_rejects_unknown_status() -> None:
+    with pytest.raises(ValidationError) as exc:
+        EventAttemptRecord.model_validate(_minimal_event_attempt_payload("bogus"))
+    assert "EventAttemptRecord.status 'bogus'" in str(exc.value)
+
+
+def test_event_attempt_lifecycle_states_cover_current_runtime_emitters() -> None:
+    runtime_emitted_statuses = {
+        "planned",
+        "running",
+        "attempted_only",
+        "verified",
+        "blocked",
+        "failed",
+    }
+    missing = runtime_emitted_statuses - EVENT_ATTEMPT_LIFECYCLE_STATES
+    assert (
+        not missing
+    ), f"Runtime emits statuses the contract does not accept: {sorted(missing)}"
 
 
 @patch("workflows.marketplace.client.httpx.Client", side_effect=AssertionError)

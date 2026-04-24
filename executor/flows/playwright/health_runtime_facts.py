@@ -35,7 +35,21 @@ def attempt_has_runtime_evidence(attempt: Any) -> bool:
         for pass_id in getattr(attempt, "attempted_passes", []) or []
         if str(pass_id).strip()
     ]
-    return bool(attempted_passes or status in {"attempted_only", "verified", "failed"})
+    # ``activation_seen`` and ``target_log_seen`` are intermediate observation
+    # states emitted by ``reconcile_event_attempts`` when the target extension
+    # activated but full verification did not close. Both are strictly
+    # stronger than ``attempted_only`` so they count as runtime evidence.
+    return bool(
+        attempted_passes
+        or status
+        in {
+            "attempted_only",
+            "activation_seen",
+            "target_log_seen",
+            "verified",
+            "failed",
+        }
+    )
 
 
 def attempt_related_scenarios(attempt: Any) -> list[str]:

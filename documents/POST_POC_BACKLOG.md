@@ -1,6 +1,6 @@
 # Post-PoC Backlog
 
-`Last Updated: 2026-04-24 (sim-all report semantics fixes + legacy verdict migration + discovery-log rate-limit landed)`
+`Last Updated: 2026-04-24 (target activation lifecycle PRs 1-2 landed; PRs 3-5 pending)`
 
 Work items that do not block PoC acceptance (`REFACTOR_OPTIMIZATION.md`
 §10.7) and were intentionally deferred from W0-W7 for scope management.
@@ -11,6 +11,96 @@ The PoC acceptance bar is met as of 2026-04-23. Anything below this line
 is value-add, not a gate.
 
 ## Next iteration (pull first)
+
+- **[NEXT] Target activation lifecycle + target log instrumentation.**
+  Post-W7 review (2026-04-24) found that the current
+  `EventAttemptRecord.status` state machine is effectively binary in the
+  verification path: `planned → running → (attempted_only | verified |
+  blocked | failed)`. That collapses three distinct observation
+  milestones into one `verified` flip, which hides the failure-mode
+  where harness stimulus fired, the target extension activated, but
+  **no target-owned log/output-signal evidence was emitted**. Fix
+  lands in five incremental PRs, each self-contained + independently
+  testable:
+  1. **[LANDED 2026-04-24] Lifecycle vocabulary + validator.** Extended
+     `EventAttemptRecord.status` allowed values to
+     `planned | running | attempted_only | activation_seen |
+     target_log_seen | verified | blocked | failed` via the
+     `EVENT_ATTEMPT_LIFECYCLE_STATES` frozenset in
+     [`packages/analysis_contracts/contracts.py`](../packages/analysis_contracts/contracts.py)
+     and a Pydantic `field_validator` on `EventAttemptRecord.status`.
+     Transition graph documented as a module comment adjacent to the
+     constant. Re-exported through `packages.analysis_contracts.__init__`.
+     Coverage: parametrized acceptance test over every documented
+     state + rejection test for unknown values + runtime-emitter
+     coverage assertion in
+     [`tests/platform/contracts/test_analysis_fixture_baselines.py`](../tests/platform/contracts/test_analysis_fixture_baselines.py).
+  2. **[LANDED 2026-04-24] Emit intermediate transitions.**
+     `reconcile_event_attempts` in
+     [`executor/flows/playwright/health_reconciliation.py`](../executor/flows/playwright/health_reconciliation.py)
+     now upgrades non-harness attempts whose planner activation event
+     matches a `target_id`-scoped `ActivationEntry`: to `target_log_seen`
+     when at least one `log_streams` entry with
+     `is_target_extension=True` AND `extension_id == target_id`
+     correlates to the attempt, otherwise to `activation_seen`.
+     Harness attempts continue to route through
+     `_mark_unverified_harness_attempt` so they keep their
+     `harness_verification_unconfirmed` signal — the new states only
+     apply to target-side observation.
+     `attempt_has_runtime_evidence` in
+     [`executor/flows/playwright/health_runtime_facts.py`](../executor/flows/playwright/health_runtime_facts.py)
+     accepts both new states as runtime evidence so coverage rollups
+     do not regress. Coverage: 8 new tests across upgrade paths,
+     harness-exclusion guard, target-attribution requirement,
+     `extension_id` mismatch defense, 5-entry summary cap, and direct
+     `attempt_has_runtime_evidence` lifecycle-state assertion.
+  3. **exthost.log parser lifecycle markers.** Today
+     `runtime_capture/extension_host.py::_ACTIVATION_PATTERNS` only
+     captures `"activated X in Nms"` / `"activating extension 'X'"`.
+     Extend it to also extract activation-function entry/exit and
+     command/provider registration events when present in the exthost
+     trace output. Emit as a new dataclass adjacent to
+     `ActivationEntry` (or an extended one) so attribution can
+     correlate them to `event_attempts` in step (2).
+  4. **Deterministic `log_streams["target_extension_host"]`.** Current
+     `LogStreamEntry.is_target_extension` gets filled reactively from
+     attribution. Promote `target_extension_host` to an explicit
+     stream key with an invariant: every entry under that key has
+     `is_target_extension=True` and `extension_id == target_id`.
+     Other streams (e.g. `extension_host_other`, `automation_output`)
+     stay. Report-builder test covers the invariant.
+  5. **Target-owned output-signal capture.** Grep confirms zero
+     coverage today for `OutputChannel.appendLine`,
+     `console.log`, and `command/provider` invocations
+     emitted **from inside the target extension**. Architectural
+     choice needed before implementation:
+     (a) harness-side hook in `executor/flows/harness_extension/` that
+     instruments `vscode.window.createOutputChannel` and surfaces
+     appendLine calls as `EvidenceEvent` records; or
+     (b) mine the exthost Output channel log bundle and correlate
+     via timestamp + channel name. (a) is cleaner but requires the
+     harness to run alongside the target without polluting
+     attribution; (b) is log-only but weaker signal fidelity. Needs
+     its own short ADR before code — do not start without one.
+
+  Once (1)-(5) are in, tighten the `target_extension_observed=true`
+  decision (`signal_policy.py`, `health_summary.py`): currently
+  derived from the activation-entry list alone, which mis-credits
+  background extensions whose activation coincidentally overlaps the
+  monitoring window. The tighter rule: target is observed **iff**
+  at least one attempt reached status ≥ `activation_seen` AND at
+  least one target-owned log or output-signal event exists on the
+  evidence chain. This removes a known false-positive class surfaced
+  during the W7 `sim-all` review.
+
+  Triggers for pulling this back: a `make sim-target` run that
+  reports `target_extension_observed=true` but contains zero
+  target-owned network / file / log / output events; a verification
+  that short-circuits because "activation == observation" is assumed.
+  Size: 1-2 weeks across five PRs. Depends on: PRs 1-2 landed
+  2026-04-24; PRs 3-5 still pending (PR 5 needs an ADR before code).
+  Blocks: no PoC gate, but every detection rule that reads
+  `target_extension_observed` gets sharper once this lands.
 
 - **[LANDED 2026-04-24] Split `executor/flows/playwright/monitor_attribution.py`**
   into a dedicated `attribution/` subpackage. Implemented per the W7

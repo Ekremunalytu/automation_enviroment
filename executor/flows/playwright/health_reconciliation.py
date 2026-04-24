@@ -121,6 +121,102 @@ def _mark_unverified_harness_attempt(
     attempt.evidence = evidence
 
 
+def _target_log_stream_summaries(report: Any, target_id: str) -> list[str]:
+    """Return short summaries of log entries attributed to the target extension.
+
+    Used by ``reconcile_event_attempts`` to decide whether an attempt with an
+    activation match also has target-owned log evidence, in which case it is
+    upgraded from ``activation_seen`` to ``target_log_seen``. Conservative:
+    requires ``is_target_extension=True`` AND, when ``target_id`` is set, an
+    exact ``extension_id`` match.
+    """
+    streams = getattr(report, "log_streams", {}) or {}
+    summaries: list[str] = []
+    for stream_name, entries in streams.items():
+        for entry in entries or []:
+            if not getattr(entry, "is_target_extension", False):
+                continue
+            entry_ext_id = str(getattr(entry, "extension_id", "")).strip()
+            if target_id and entry_ext_id != target_id:
+                continue
+            message = str(getattr(entry, "message", "")).strip()
+            if not message:
+                continue
+            snippet = message if len(message) <= 80 else message[:77] + "..."
+            summaries.append(f"{stream_name}: {snippet}")
+            if len(summaries) >= 5:
+                return summaries
+    return summaries
+
+
+def _mark_attempt_activation_seen(
+    attempt: Any,
+    *,
+    activation_matches: list[str],
+) -> None:
+    """Mark attempt as 'target activation observed, full verification pending'.
+
+    Stronger than ``attempted_only`` (we have direct evidence the target
+    extension activated for this event), weaker than ``verified`` (no
+    runtime-capability evidence or harness completion trace yet). See the
+    lifecycle state graph in ``packages/analysis_contracts/contracts.py``.
+    """
+    attempt.status = "activation_seen"
+    attempt.verification_status = "activation_seen"
+    attempt.failure_reason_code = ""
+    attempt.result_details = (
+        "Target extension activation observed for this event; "
+        "full verification (runtime capability / harness trace) not yet closed."
+    )
+    evidence = list(getattr(attempt, "evidence", []) or [])
+    if activation_matches:
+        evidence = _unique_evidence_items(
+            evidence,
+            [
+                *activation_matches,
+                f"Observed target activation(s): {', '.join(activation_matches)}",
+            ],
+        )
+    attempt.evidence = evidence
+
+
+def _mark_attempt_target_log_seen(
+    attempt: Any,
+    *,
+    activation_matches: list[str],
+    target_log_summaries: list[str],
+) -> None:
+    """Mark attempt as 'target activated AND target-owned log evidence seen'.
+
+    Stronger than ``activation_seen``: we observed both the activation entry
+    AND at least one log stream entry attributed to the target extension. Still
+    weaker than ``verified`` — the full verification contract (runtime delta /
+    harness completion trace) has not closed.
+    """
+    attempt.status = "target_log_seen"
+    attempt.verification_status = "target_log_seen"
+    attempt.failure_reason_code = ""
+    attempt.result_details = (
+        "Target activation and target-owned log evidence observed; "
+        "runtime capability / harness completion still unverified."
+    )
+    evidence = list(getattr(attempt, "evidence", []) or [])
+    if activation_matches:
+        evidence = _unique_evidence_items(
+            evidence,
+            [
+                *activation_matches,
+                f"Observed target activation(s): {', '.join(activation_matches)}",
+            ],
+        )
+    if target_log_summaries:
+        evidence = _unique_evidence_items(
+            evidence,
+            [f"Target log entry: {summary}" for summary in target_log_summaries],
+        )
+    attempt.evidence = evidence
+
+
 def _mark_attempt_verified(
     attempt: Any,
     *,
@@ -178,6 +274,7 @@ def reconcile_event_attempts(report: Any) -> list[Any]:
     ]
     derived_verified_capabilities = set(derive_verified_capabilities(report))
     harness_traces = _harness_trace_records_by_attempt(report)
+    target_log_summaries = _target_log_stream_summaries(report, target_id)
 
     for attempt in attempts:
         activation_event = str(getattr(attempt, "activation_event", "")).strip()
@@ -266,6 +363,28 @@ def reconcile_event_attempts(report: Any) -> list[Any]:
                     execution_closed=execution_required and execution_closed,
                 )
                 continue
+
+        # Intermediate observation states: stronger than ``attempted_only``,
+        # weaker than ``verified``. Only applied to non-harness attempts where
+        # the target extension actually activated for this event. Harness
+        # attempts continue to route through ``_mark_unverified_harness_attempt``
+        # so they keep their ``harness_verification_unconfirmed`` signal. The
+        # final fallback block below still handles the "no activation match"
+        # case for everyone.
+        activation_matches_for_upgrade = exact_matches or prefix_matches
+        if activation_matches_for_upgrade and not _is_harness_attempt(attempt):
+            if target_log_summaries:
+                _mark_attempt_target_log_seen(
+                    attempt,
+                    activation_matches=activation_matches_for_upgrade,
+                    target_log_summaries=target_log_summaries,
+                )
+            else:
+                _mark_attempt_activation_seen(
+                    attempt,
+                    activation_matches=activation_matches_for_upgrade,
+                )
+            continue
 
         if getattr(attempt, "status", "") in {"running", "planned", "attempted_only"}:
             attempted_evidence = bool(attempted_passes or execution_closed)
