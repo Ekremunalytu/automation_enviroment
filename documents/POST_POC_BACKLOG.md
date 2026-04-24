@@ -14,7 +14,7 @@ is value-add, not a gate.
 
 Two independent external reviews landed 2026-04-24
 ([`documents/claude_code_review.md`](claude_code_review.md),
-[`documents/codex_project_rewiew.md`](codex_project_rewiew.md)). Their
+[`documents/codex_project_review.md`](codex_project_review.md)). Their
 findings have been triaged and scheduled into a six-week post-PoC
 window in [`REFACTOR_OPTIMIZATION.md §11`](REFACTOR_OPTIMIZATION.md)
 (W8 Güvenlik sıkılaştırma → W13 Test expansion + observability).

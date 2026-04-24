@@ -29,59 +29,17 @@ multi-tenant web platform.
 
 ## Current Phase
 
-- Week 4 stabilization closure was validated on `2026-04-20`.
-- W5 security scaffolding landed `2026-04-20` under
-  `packages/analysis_contracts/detection/`, `extensions/malicious/`, and
-  `tests/security/`.
-- W6 automation hardening landed on `2026-04-21`: requested scenarios now
-  reconcile against executed/failed/skipped truth, skipped runs demote
-  `automation_health` and `run_quality`, trigger-plan flows use bounded
-  verification plus an idle-observation window, and analyst reports include
-  bounded HTTP metadata/body previews plus extension-host child-process events.
-- Post-W6 detection bridge (`2026-04-21`): `RiskSignal.confidence_tier` now
-  shares the `Confidence` enum vocabulary with `DetectionFinding` via
-  `packages.analysis_contracts.quantize_confidence`, and
-  `detection_report_invariant_issues` enforces that every finding evidence
-  `event_id` resolves to an `ActivationReport.evidence_events[]` entry.
-- W6 correctness follow-up (`2026-04-23`): A1/A2/A4 rules now gate on
-  `ActivationReport` attribution (target-only via `target_file_events` and
-  `target_unknown_outbound_network_events`); `tls_client_hello` was added to
-  `TLS_EVENT_TYPES` so live tshark captures actually match TLS rules;
-  `RuleExecutionStatus.ERROR` degrades automation health to `inconclusive`
-  before verdict rollup (ADR 0003 error dominance); `.gitignore` was
-  re-narrowed so T1 canaries and benign baselines reach the
-  `security-fixtures` CI job. **W6 closed.**
-- Harness-extension checksum verification is enforced at executor startup via
-  `/home/executor/flows/harness_extension.sha256` before VS Code launches.
-- **W7 (acceptance + buffer):** closed `2026-04-23`. §10.7 PoC acceptance
-  checklist met (11/11); `documents/DEMO_SCENARIO.md` +
-  `scripts/demo_acceptance.py` cover the A1 credential-read → network canary
-  end-to-end. Phase 3a buffer added stretch rule `extrace.a3.typosquat` with
-  canary + allow-list. Final `make test-security` → 41 passed,
-  `make check-all` → 627 passed / 5 skipped.
-- **Post-W7 hardening (2026-04-24):** four reliability + modularization fixes
-  landed:
-  1. Fatal UI-crash classification + fail-fast. `_run_scenario_sequence`
-     (`executor/flows/playwright/automation.py`) routes renderer-death
-     errors through `is_fatal_ui_error`, breaks the loop, and degrades
-     `automation_health.status` to `inconclusive` via
-     `failure_reason_code = "fatal_ui_crash"`. Opt-in `--retry-on-crash`
-     routes through `vscode.reload_workbench_window`.
-  2. Scan-between VS Code restart (ESLint `onStartupFinished` install race
-     fix). `reset_executor_state` now orchestrates workspace setup →
-     `terminate_vscode` (SIGTERM + 5 s grace + SIGKILL fallback) → clear
-     `extensions/`+`logs/` → `cleanup_singleton_locks` → `launch_vscode` via
-     shared `executor/container/launch_vscode.sh`.
-     `install_extension_in_executor` retries once on transient IPC markers.
-  3. `attribution/` subpackage split. The 1122-LoC
-     `executor/flows/playwright/monitor_attribution.py` is now three files
-     (`attribution/events.py`, `attribution/links.py`,
-     `attribution/__init__.py` flat re-export facade) preserving the
-     29-name underscore-prefixed API verbatim.
-  4. `sim-target` Makefile lane. New `make sim-target TARGET=publisher.name
-     [TRIGGERS=…] [SCENARIO=…]` runs a target-extension smoke separate
-     from the `sim-all` UI-stimulus stress run. `sim-all` is now labelled
-     "UI-stimulus stress: scenarios w/o target ext." in `make help`.
+- W4 stabilization, W5 detection foundations, W6 automation hardening, and
+  W7 PoC acceptance are all closed (last closure `2026-04-23`).
+- Post-W7 hardening (`2026-04-24`) landed reliability + modularization
+  follow-ups (fatal UI-crash fail-fast, scan-between VS Code restart,
+  `attribution/` subpackage split, `sim-target` Makefile lane).
+- W8-W13 external-review integration window is scheduled but gated on
+  PR345 (target activation lifecycle).
+- **Canonical source of truth for phase state:**
+  [`documents/REFACTOR_STATUS.md`](documents/REFACTOR_STATUS.md).
+  Deferred items: [`documents/POST_POC_BACKLOG.md`](documents/POST_POC_BACKLOG.md).
+  W8-W13 plan: [`documents/REFACTOR_OPTIMIZATION.md` §11](documents/REFACTOR_OPTIMIZATION.md).
 
 ## Current Architecture
 

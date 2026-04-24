@@ -1262,7 +1262,7 @@ edildi ve plana entegre edildi:
 - [`documents/claude_code_review.md`](claude_code_review.md) — Claude
   Opus 4.7, 18 bölüm, line-number referanslı bulgular. Daha keskin
   güvenlik + framework boundary findings.
-- [`documents/codex_project_rewiew.md`](codex_project_rewiew.md) — Codex
+- [`documents/codex_project_review.md`](codex_project_review.md) — Codex
   GPT-5.4, 18 bölüm, daha abstract framing. Contract hygiene + executor
   observability findings.
 
@@ -1401,7 +1401,7 @@ başlar; structural cleanup maddeleri ayrı bir giriş kriteri değildir.
 **Post-W7 external review window (2026-04-24+):** W0-W7 penceresi
 §10.7 kabul testi (11/11 green, 2026-04-23) ile **kapandı**. İki
 bağımsız external review (`claude_code_review.md`,
-`codex_project_rewiew.md`, 2026-04-24) sonrası altı haftalık post-PoC
+`codex_project_review.md`, 2026-04-24) sonrası altı haftalık post-PoC
 hardening + modülerleştirme turu **§11 W8-W13** altında planlanmıştır.
 §10.2'deki W0-W7 satırları değişmez; W8-W13 penceresi PR345 (target
 activation lifecycle) tamamlandıktan sonra açılır — bkz. §11.1 entry
@@ -1559,7 +1559,7 @@ bağımsız external review** dokümanı teslim edildi:
 
 - [`documents/claude_code_review.md`](claude_code_review.md) — Claude
   Opus 4.7, 18 bölüm, line-number referanslı (§1-18).
-- [`documents/codex_project_rewiew.md`](codex_project_rewiew.md) — Codex
+- [`documents/codex_project_review.md`](codex_project_review.md) — Codex
   GPT-5.4, 18 bölüm, daha abstract framing (§1-18).
 
 Bu bölüm iki review'ı **§10 penceresini değiştirmeden** altı haftalık
@@ -2447,6 +2447,6 @@ altında "Evaluated but deferred" etiketiyle kalır.
 
 Bu 14 madde yeşilken external review integration kapanır; POST_POC
 backlog "Evaluated but deferred" label'ıyla update edilir; iki
-review dokümanı (`claude_code_review.md`, `codex_project_rewiew.md`)
+review dokümanı (`claude_code_review.md`, `codex_project_review.md`)
 archive olarak kalır — silinmez, gelecek review'larda baseline olarak
 kullanılır.

@@ -6,25 +6,14 @@ This folder is intentionally split into a small canonical core plus a few
 specialized reference docs. Do not preload the entire folder unless the task
 really spans multiple subsystems.
 
-If an older note conflicts with the current refactor direction, prefer
-`REFACTOR_STATUS.md` for current closure state, `REFACTOR_EXECUTION_PLAN.md`
-for the historical Week 1-4 plan, and `REFACTOR_OPTIMIZATION.md` §10 for the
-7-week stabilization-then-security window (W0-W7). Use
-`REFACTOR_EXPANSION_NOTES.md` only as a deferred reference, not as a binding
-delivery plan. Post-PoC deferrals live in `POST_POC_BACKLOG.md`.
-
-Current status lives in `REFACTOR_STATUS.md`. Week 4 closure validated
-`2026-04-20`. W5 detection foundations (contracts, A1/A2/A4/A6 rules, T1
-canaries, `make test-security`) landed `2026-04-20`. W6 automation hardening
-landed `2026-04-21`, and the W6 correctness follow-up (target-only
-attribution, TLS vocabulary, error dominance, security-fixtures CI) closed
-on `2026-04-23`. **W7 (acceptance + buffer) closed on `2026-04-23`** with
-the §10.7 PoC acceptance checklist green (11/11) and the A1 credential-read
-→ network canary demo covered by [`DEMO_SCENARIO.md`](DEMO_SCENARIO.md) +
-[`scripts/demo_acceptance.py`](../scripts/demo_acceptance.py). **Post-W7
-hardening on `2026-04-24`** landed fatal-UI-crash fail-fast, scan-between
-VS Code restart (ESLint install race fix), the `attribution/` subpackage
-split, and the `sim-target` Makefile lane.
+Current status lives in [`REFACTOR_STATUS.md`](REFACTOR_STATUS.md) — treat it
+as the single source of phase-state truth. Deferrals:
+[`POST_POC_BACKLOG.md`](POST_POC_BACKLOG.md). W0-W7 window:
+[`REFACTOR_OPTIMIZATION.md` §10](REFACTOR_OPTIMIZATION.md). W8-W13
+post-PoC external-review integration window:
+[`REFACTOR_OPTIMIZATION.md` §11](REFACTOR_OPTIMIZATION.md). Historical
+Week 1-4 execution plan: [`REFACTOR_EXECUTION_PLAN.md`](REFACTOR_EXECUTION_PLAN.md).
+Non-binding deferred ideas: [`REFACTOR_EXPANSION_NOTES.md`](REFACTOR_EXPANSION_NOTES.md).
 
 Security posture (threat model, detection taxonomy, malicious fixture policy,
 package-boundary charter) is fixed by ADRs 0002-0005. Those ADRs already
@@ -60,6 +49,23 @@ Read these in order for most code changes:
   - trigger planning, capability support, official vs heuristic coverage
 - `docs/risks.md`
   - current risk register and accepted tradeoffs
+
+## Operational Runbooks
+
+Open one of these when a specific failure mode is in flight; do not preload.
+
+- [`runbooks/README.md`](runbooks/README.md) — index + shape all runbooks follow
+- [`runbooks/analysis-job-stuck.md`](runbooks/analysis-job-stuck.md)
+  - async `analysis_jobs` row stuck in `running` with no step transition
+- [`runbooks/fatal-ui-crash.md`](runbooks/fatal-ui-crash.md)
+  - `failure_reason_code = "fatal_ui_crash"`,
+    `automation_health.status = inconclusive`, aborted scenarios
+- [`runbooks/scan-between-restart-failure.md`](runbooks/scan-between-restart-failure.md)
+  - second scan fails `code --install-extension` with rc=1 (stale
+    Chromium SingletonLock / dead IPC socket)
+- [`runbooks/live-capture-regression.md`](runbooks/live-capture-regression.md)
+  - `make test-security` green, `make test-security-live` red; A4 TLS
+    rules report zero matches on real outbound HTTPS
 
 ## Planning And Review Docs
 

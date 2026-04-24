@@ -11,57 +11,17 @@ If older docs or task notes conflict with the active refactor direction, check
 `documents/REFACTOR_OPTIMIZATION.md` §10 (W0-W7 7-week window). Treat
 `documents/REFACTOR_EXPANSION_NOTES.md` as non-binding follow-on guidance.
 
-## Project Phase Snapshot (2026-04-24)
+## Project Phase Snapshot
 
-- Week 4 stabilization closed on `2026-04-20` and remains the gate that
-  protected detection foundations from runtime-boundary churn.
-- W0 (security foundations, spec): complete — ADRs 0002-0004 written.
-- W1-W4: automation stabilization (legacy cleanup, import-graph,
-  executor determinism + modularization, sandbox boundary).
-- W5 (detection foundations): landed 2026-04-20 (contracts, A1/A2/A4/A6
-  rules, T1 canaries, `make test-security`).
-- W6 (automation reliability + capture hardening): landed 2026-04-21
-  (scenario-ledger honesty, bounded waits, capture bounds, CI egress).
-- Post-W6 bridge (2026-04-21): `RiskSignal.confidence_tier` via
-  `quantize_confidence` + `detection_report_invariant_issues`
-  cross-layer link check.
-- W6 correctness follow-up (2026-04-23): A1/A2/A4 now consult
-  `is_target_extension_event` + `attribution_status ∈ {strong,direct}`
-  via `target_file_events` / `target_unknown_outbound_network_events`;
-  `tls_client_hello` added to `TLS_EVENT_TYPES`; any
-  `RuleExecutionStatus.ERROR` degrades automation health to
-  `inconclusive` before verdict rollup; `.gitignore` exception-list so
-  T1 canaries + chat/theme benign baselines actually reach the
-  `security-fixtures` CI lane. **W6 closed.**
-- **W7 (acceptance + buffer):** closed 2026-04-23. §10.7 PoC acceptance
-  checklist met (11/11); [`documents/DEMO_SCENARIO.md`](DEMO_SCENARIO.md) +
-  [`scripts/demo_acceptance.py`](../scripts/demo_acceptance.py) cover the A1
-  credential-read → network canary end-to-end. Phase 3a buffer added stretch
-  rule `extrace.a3.typosquat` with canary + `popular_extensions.txt`
-  allow-list. Final `make test-security` → 41 passed, `make check-all` →
-  627 passed / 5 skipped.
-- **Post-W7 hardening (2026-04-24):** four reliability + modularization
-  landings on top of W7 closure:
-  1. Fatal UI-crash classification + fail-fast in `_run_scenario_sequence`
-     ([`executor/flows/playwright/automation.py`](../executor/flows/playwright/automation.py))
-     with `failure_reason_code = "fatal_ui_crash"` degrading health to
-     `inconclusive`; opt-in `--retry-on-crash` flag.
-  2. Scan-between VS Code restart orchestrated by `reset_executor_state`
-     ([`executor/flows/playwright/reset_state.py`](../executor/flows/playwright/reset_state.py))
-     with shared `launch_vscode.sh` script (fixes ESLint
-     `onStartupFinished` install race on second scan).
-  3. `attribution/` subpackage split — the 1122-LoC
-     `executor/flows/playwright/monitor_attribution.py` is now
-     [`attribution/events.py`](../executor/flows/playwright/attribution/events.py),
-     [`attribution/links.py`](../executor/flows/playwright/attribution/links.py),
-     and a flat re-export facade preserving the 29-name underscore
-     API verbatim.
-  4. `sim-target` Makefile lane: `make sim-target TARGET=publisher.name
-     [TRIGGERS=…] [SCENARIO=…]` separates target-extension smoke from
-     the `sim-all` UI-stimulus stress run.
-- Post-PoC deferrals tracked in
-  [`documents/POST_POC_BACKLOG.md`](POST_POC_BACKLOG.md); next iteration
-  starts from its "Next iteration (pull first)" block.
+> Canonical source: [`REFACTOR_STATUS.md`](REFACTOR_STATUS.md). Do not
+> duplicate here. Deferred items: [`POST_POC_BACKLOG.md`](POST_POC_BACKLOG.md).
+> W0-W7 plan: [`REFACTOR_OPTIMIZATION.md` §10](REFACTOR_OPTIMIZATION.md).
+> W8-W13 plan: [`REFACTOR_OPTIMIZATION.md` §11](REFACTOR_OPTIMIZATION.md).
+
+One-line summary (2026-04-24): W4-W7 all closed; post-W7 hardening landings
+on 2026-04-24 (fatal-UI-crash fail-fast, scan-between restart, attribution/
+split, sim-target lane, plus six report-semantics follow-ups); W8-W13
+scheduled, gated on PR345 target activation lifecycle.
 
 ## Read Path
 
@@ -189,3 +149,7 @@ If older docs or task notes conflict with the active refactor direction, check
   - 7-week window (§10), GPT-5.4 implementation spec, §9.N agent-audit log
 - `documents/POST_POC_BACKLOG.md`
   - deferred items and the "pull first" next-iteration list
+- `documents/runbooks/`
+  - operational recovery playbooks (stuck job, fatal UI crash,
+    scan-between restart failure, live capture regression); open the
+    specific runbook only when that failure mode is in flight
