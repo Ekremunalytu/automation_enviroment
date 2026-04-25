@@ -1,6 +1,6 @@
 # Dynamic Analysis Backlog
 
-`Last Updated: 2026-04-24`
+`Last Updated: 2026-04-25`
 
 This is the short actionable backlog for the sandbox pipeline. It complements
 `DEVELOPMENT_PRIORITIES.md`, `PIPELINE_ROADMAP.md`, and the canonical
@@ -11,21 +11,40 @@ capture hardening (2026-04-21 plus correctness follow-up 2026-04-23),
 and W7 acceptance plus buffer (2026-04-23) are all closed. Post-W7
 hardening on 2026-04-24 landed fatal UI-crash fail-fast, scan-between
 VS Code restart, `attribution/` subpackage split, and the `sim-target`
-Makefile lane.
+Makefile lane. The 2026-04-25 simulation-progress-cancel branch then
+landed weighted simulation progress, the full-stack analysis cancel
+flow, the VNC harness ready-marker fix, and the
+`t1-demo-runnable-canary` + rule + `make demo-canary` /
+`make demo-canary-offline` Makefile lanes; review follow-ups are
+tagged `[FOLLOWUP simulation-progress-cancel]` in
+`POST_POC_BACKLOG.md`.
 
 ## Now (next-iteration pull)
 
 Source of truth: `POST_POC_BACKLOG.md` "Next iteration (pull first)". The
 W7 `[NEXT]` items (attribution split + sim-target lane) landed on
-2026-04-24 alongside the fatal-UI-crash + scan-between restart fixes; the
-next pull-first candidates from the backlog are:
+2026-04-24 alongside the fatal-UI-crash + scan-between restart fixes;
+the simulation progress + cancel + VNC fix + demo runnable canary
+quartet landed on 2026-04-25. The next pull-first candidates from the
+backlog are:
 
++ PR345 PRs 3-5 (target activation lifecycle): exthost.log parser
+  lifecycle markers (PR3), deterministic
+  `log_streams["target_extension_host"]` (PR4), target-owned
+  output-signal capture (PR5; needs a short ADR before code). PR345
+  is the W8 entry gate per `REFACTOR_OPTIMIZATION.md` §11.1.
 + Docker-based A1 canary structural diff smoke (`make exec-up && make
   exec-run` against `t1-a1-credential-read-to-network-canary`); closes
   the capture-pipeline regression risk flagged in the attribution-split
-  deferral note
-+ monitor discovery-log rate-limit (cosmetic; `find_exthost_logs` + sibling
-  call sites; <2h)
+  deferral note. `make demo-canary` exercises the same surface against
+  the new declawed fixture and is a faster smoke for routine work.
++ Code-review follow-ups from the simulation-progress-cancel branch
+  (custom `role="alertdialog"` for Stop simulation, cancel-mutation
+  timeout/retry, heartbeat sandbox-reset off-thread, schema
+  duplication, `is_job_cancelled` session churn, heartbeat refactor,
+  cancel-after-finish race test, heartbeat 30 s → 5 s load
+  verification) — see `POST_POC_BACKLOG.md`
+  `[FOLLOWUP simulation-progress-cancel]` entries.
 
 ## Next (post-PoC value-adds)
 

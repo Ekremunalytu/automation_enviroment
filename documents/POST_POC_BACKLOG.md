@@ -343,6 +343,48 @@ REFACTOR_OPTIMIZATION.md §11.12" below.
 
 ## Workflow / platform cleanups
 
+- **[FOLLOWUP runner-status-contract] First-class runner status field on
+  `ActivationReport`.** Today `executor/host.py` already tracks
+  `result.returncode` (and `executor/host.py:308` even branches on the
+  `nonzero exit AND report exists` case so the failure mode is observed
+  at runtime), but the contract surface in
+  `packages/analysis_contracts/contracts.py::ActivationReport` does not
+  carry a first-class field for it. ADR 0003 §5 covers the *effect*
+  (verdict rolls up to `inconclusive` when analysis is incomplete) and
+  `automation_health.reasons` carries categorical reason codes
+  (`fatal_ui_crash`, `rule_execution_errors`, `verification_gap`, …),
+  but a partial-finalization runner crash that still leaves a report
+  on disk reads as "verdict inconclusive, reasons list short" without
+  surfacing the runner exit code that drove it. Operators can only
+  recover the signal from the executor stderr tail
+  (`workflows/marketplace/analysis_execution.py::install_failure_message`
+  appends 500 chars on install failures, but not on the analysis path).
+  - **Change:** add `ActivationReport.runner_exit_code: int | None`
+    and `ActivationReport.runner_status: Literal["clean_exit",
+    "nonzero_with_report", "timeout", "crashed", "cancelled"]` (or a
+    typed enum). `report_builder.py` (today) and the W11
+    `ReportAssembler` (planned) populate them from the host wrapper's
+    `ExecutorError.returncode` + the `AnalysisCancelledError` path
+    introduced by the 2026-04-25 cancel branch. ADR 0003 §5 picks up
+    a short addendum noting that `runner_status` is informational and
+    does **not** override verdict rollup — `inconclusive` remains the
+    dominant verdict whenever the runner did not exit cleanly. UI
+    adapter renders a `runner_status` chip beside the Automation
+    Health chip on the report workspace.
+  - **Triggers for pulling this back:** a `make sim-target` run that
+    completes "successfully" on the surface (verdict `clean`,
+    automation_health `ok`) but whose container actually exited
+    nonzero mid-finalization; an operator who needs to distinguish a
+    user-cancelled job (`AnalysisCancelledError`) from a
+    timeout-killed job in the report alone.
+  - **Natural landing point:** W11 (`ReportAssembler` extraction,
+    `REFACTOR_OPTIMIZATION.md` §11.8) — the new field belongs in the
+    assembler's output contract. Pulling it earlier means touching the
+    report builder twice; later means another `[FOLLOWUP]` round.
+  - **Surfaced by:** supplementary review 2026-04-25 (Codex
+    "Runner exit status semantics" gap) + the post-fail-fast review
+    that surfaced the underlying `executor/host.py:308` branch.
+
 - **[FOLLOWUP simulation-progress-cancel] Run heartbeat sandbox-reset off
   the heartbeat thread.** [`workflows/marketplace/analysis_execution.py`](../workflows/marketplace/analysis_execution.py)
   `_heartbeat_on_cancel()` calls `executor_control.reset_sandbox(reload_window=True)`

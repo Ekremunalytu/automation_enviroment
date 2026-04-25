@@ -1,6 +1,6 @@
 # VS Code API Coverage Audit
 
-`Last Updated: 2026-04-20`
+`Last Updated: 2026-04-25`
 
 This document summarizes how ExTrace currently maps VS Code extension behavior
 into trigger planning and verification.
@@ -8,13 +8,27 @@ into trigger planning and verification.
 Open this only when changing trigger selection, capability support, coverage
 matrix logic, or related report semantics.
 
+> **Phase context (2026-04-25):** W4 stabilization, W5 detection
+> foundations, W6 automation hardening, and W7 PoC acceptance are all
+> closed (see `REFACTOR_STATUS.md`). The capability matrix and
+> scenario registry below reflect the post-W7 / post-W7-hardening
+> state and were spot-verified against
+> `packages/analysis_planner/registry.py` on `2026-04-25`. The
+> `_GLOBAL_CAPABILITY_SUPPORT`, `_OFFICIAL_CAPABILITY_SUPPORT`, and
+> `_HEURISTIC_CAPABILITY_SUPPORT` maps in that module are the
+> authoritative source — if this doc disagrees, trust the module and
+> file a follow-up.
+
 The important distinction in the current implementation is:
 
 - global/scenario support
   - what the trigger system knows how to stimulate at all
+  - source: `_GLOBAL_CAPABILITY_SUPPORT` in
+    `packages/analysis_planner/registry.py`
 - official activation-track verification
   - what the coverage matrix can verify directly from declared activation
     metadata
+  - source: `_OFFICIAL_CAPABILITY_SUPPORT` in the same module
 
 These are not the same thing.
 
@@ -31,9 +45,15 @@ The current benign reference corpus used by docs and tests is:
 
 ## Capability Status
 
+`CAPABILITY_TAXONOMY` declares 18 capabilities total
+(`packages/analysis_planner/registry.py:7-26`). The buckets below
+classify each one by the intersection of `_GLOBAL_CAPABILITY_SUPPORT`
+and `_OFFICIAL_CAPABILITY_SUPPORT`.
+
 ### Covered End-to-End
 
-The trigger system and coverage model both treat these capabilities as covered:
+Both the global/scenario track and the official activation track mark
+these 12 capabilities `covered`:
 
 - `commands`
 - `window_ui`
@@ -189,12 +209,20 @@ even though some of them now have partial scaffolding elsewhere in the repo:
   flows still prove stimulation better than they prove extension-specific
   follow-through.
 
-## Current Follow-On Candidates After Week 4 Closure
+## Post-PoC Follow-On Candidates
 
-Reporting-semantics cleanup and chat/tooling runtime verification closure were
-completed in Week 4A of `REFACTOR_EXECUTION_PLAN.md`, and the broader Week 4
-closure is now tracked in `REFACTOR_STATUS.md`. The remaining items below stay
-outside that closed stabilization scope.
+Reporting-semantics cleanup and chat/tooling runtime verification closure
+landed during W4A; W5 detection foundations, W6 automation hardening,
+and W7 PoC acceptance all closed by `2026-04-23` (see
+`REFACTOR_STATUS.md`). Post-W7 hardening on `2026-04-24` and
+`2026-04-25` (fatal UI-crash fail-fast, scan-between VS Code restart,
+`attribution/` subpackage split, `sim-target` Makefile lane, weighted
+simulation progress, full-stack analysis cancel, VNC harness
+ready-marker fix, and the `t1-demo-runnable-canary` + rule +
+`make demo-canary` lanes) did not change the capability matrix or the
+scenario registry. The follow-on items below remain post-PoC value-adds
+that surface coverage rather than gate the PoC bar; pull source is
+`POST_POC_BACKLOG.md` "Next (post-PoC value-adds)".
 
 - `comments`
   - promote harness comment-thread support into trigger planning and report
@@ -206,3 +234,6 @@ outside that closed stabilization scope.
   - promote manifest capability metadata into a real trust-state execution and
     verification path
 - official-track closure for `scm` and `settings`
+  - both already covered on the global/scenario track
+    (`git_workflow`, `settings_modification`); the gap is
+    `_OFFICIAL_CAPABILITY_SUPPORT` reporting them as `missing`

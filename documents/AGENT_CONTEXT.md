@@ -1,6 +1,6 @@
 # Agent Context
 
-`Last Updated: 2026-04-24`
+`Last Updated: 2026-04-25`
 
 This is the thin-context project map for coding agents. Read root `AGENTS.md`
 for hard rules first; use this file for fast task routing.
@@ -18,10 +18,14 @@ If older docs or task notes conflict with the active refactor direction, check
 > W0-W7 plan: [`REFACTOR_OPTIMIZATION.md` §10](REFACTOR_OPTIMIZATION.md).
 > W8-W13 plan: [`REFACTOR_OPTIMIZATION.md` §11](REFACTOR_OPTIMIZATION.md).
 
-One-line summary (2026-04-24): W4-W7 all closed; post-W7 hardening landings
+One-line summary (2026-04-25): W4-W7 all closed; post-W7 hardening landings
 on 2026-04-24 (fatal-UI-crash fail-fast, scan-between restart, attribution/
-split, sim-target lane, plus six report-semantics follow-ups); W8-W13
-scheduled, gated on PR345 target activation lifecycle.
+split, sim-target lane, plus six report-semantics follow-ups) and
+2026-04-25 (weighted simulation progress, full-stack analysis cancel,
+VNC harness ready-marker fix, `t1-demo-runnable-canary` + rule +
+`make demo-canary` lanes); W8-W13 scheduled, gated on PR345 target
+activation lifecycle (PRs 1-2 landed 2026-04-24; PRs 3-5 + PR5 ADR
+pending).
 
 ## Read Path
 
@@ -95,6 +99,7 @@ scheduled, gated on PR345 target activation lifecycle.
   - `documents/adrs/0003-detection-taxonomy.md`
   - `documents/adrs/0004-malicious-fixture-policy.md`
   - `documents/adrs/0005-packages-charter.md`
+  - `documents/adrs/0007-local-network-binding.md` (Proposed 2026-04-25; W8-7 implementation pending)
   - `packages/analysis_contracts/detection/`
   - `packages/analysis_engine/rules/` (A1/A2/A3/A4/A6)
   - `extensions/malicious/`
@@ -124,6 +129,9 @@ scheduled, gated on PR345 target activation lifecycle.
 - `make exec-up`
 - `make exec-run`
 - `make ui-up`
+- `make sim-target TARGET=publisher.name`  (target-extension smoke)
+- `make sim-all`  (UI-stimulus stress without target ext.)
+- `make demo-canary` / `make demo-canary-offline`  (demo runnable canary lanes)
 
 ## Load Only If Needed
 

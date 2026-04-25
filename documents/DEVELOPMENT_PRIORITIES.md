@@ -1,6 +1,6 @@
 # Development Priorities
 
-`Last Updated: 2026-04-24`
+`Last Updated: 2026-04-25`
 
 This is the short priority list for current work. It assumes the project stays
 a single-user sandbox appliance on one machine or one Docker host.
@@ -49,6 +49,21 @@ Must vs Stretch. See `REFACTOR_OPTIMIZATION.md` §10 for Must/Stretch split and
   `onStartupFinished` install race; (3) `attribution/` subpackage split
   (`monitor_attribution.py` → three files, flat re-export facade); (4)
   `sim-target` Makefile lane for single-extension smoke runs.
+- **Post-W7 simulation UX + reliability (2026-04-25):** four further
+  landings on the `feat/simulation-progress-cancel` branch: (1) weighted
+  simulation progress (UI phase weights + heartbeat scenario sub-progress,
+  monotonic 0-100 % climb instead of 20 % chunks); (2) full-stack
+  analysis cancel flow (`POST /api/marketplace/analyze/{job_id}/cancel`
+  - `cancel_analysis_job` CRUD with `with_for_update()` lock + heartbeat
+  cancel poll + `executor_control.reset_sandbox` tear-down + Stop button
+  in `SimulationPage.tsx`); (3) VNC harness ready-marker fix
+  (`vscode.py::reload_workbench_window` deletes the marker before reload;
+  harness `activate()` is async and awaits the marker write); (4) the
+  `t1-demo-runnable-canary` declawed fixture + `demo_runnable_canary.py`
+  rule + `make demo-canary` / `make demo-canary-offline` lanes. Code
+  review follow-ups (dialog replacement, cancel-mutation timeout,
+  heartbeat off-thread reset, etc.) deferred under
+  `[FOLLOWUP simulation-progress-cancel]` in `POST_POC_BACKLOG.md`.
 - **Pre-W6 cleanup (complete, 2026-04-20):** dormant root directories removed,
   marketplace trigger planning narrowed to `TriggerPlan`, and
   `executor/flows/playwright/monitor.py` reduced to a facade over split helper

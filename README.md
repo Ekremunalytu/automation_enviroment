@@ -1,6 +1,6 @@
 # ExTrace
 
-`Last Updated: 2026-04-24`
+`Last Updated: 2026-04-25`
 
 ExTrace is a VS Code extension analysis platform built around three runtime
 surfaces:
@@ -34,8 +34,13 @@ multi-tenant web platform.
 - Post-W7 hardening (`2026-04-24`) landed reliability + modularization
   follow-ups (fatal UI-crash fail-fast, scan-between VS Code restart,
   `attribution/` subpackage split, `sim-target` Makefile lane).
+- Post-W7 simulation UX + reliability (`2026-04-25`) landed weighted
+  simulation progress, full-stack analysis cancel flow, the VNC harness
+  ready-marker fix, and the `t1-demo-runnable-canary` fixture + rule +
+  `make demo-canary` lanes.
 - W8-W13 external-review integration window is scheduled but gated on
-  PR345 (target activation lifecycle).
+  PR345 (target activation lifecycle; PRs 1-2 landed 2026-04-24, PRs
+  3-5 + the PR5 ADR pending).
 - **Canonical source of truth for phase state:**
   [`documents/REFACTOR_STATUS.md`](documents/REFACTOR_STATUS.md).
   Deferred items: [`documents/POST_POC_BACKLOG.md`](documents/POST_POC_BACKLOG.md).
@@ -162,6 +167,7 @@ Notes:
 - `POST /api/marketplace/analyze`
 - `POST /api/marketplace/analyze/start`
 - `GET /api/marketplace/analyze/{job_id}`
+- `POST /api/marketplace/analyze/{job_id}/cancel`
 
 ## Local Development
 
@@ -187,6 +193,10 @@ make ui-boundaries
 make exec-up
 make exec-run
 make ui-up
+make sim-target TARGET=publisher.name      # target-extension smoke
+make sim-all                                # UI-stimulus stress (no target ext.)
+make demo-canary                            # end-to-end demo runnable canary
+make demo-canary-offline                    # offline fixture validation
 cd ui && npm run dev
 cd ui && npm run test
 .venv/bin/pytest

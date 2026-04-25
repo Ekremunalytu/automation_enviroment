@@ -1,6 +1,6 @@
 # Pipeline Roadmap
 
-`Last Updated: 2026-04-24`
+`Last Updated: 2026-04-25`
 
 This is the short staged view of the analysis pipeline. For the current
 backlog, use `automation_todo.md`; for active priorities, use
@@ -19,7 +19,17 @@ acceptance checklist green (11/11); the pipeline below describes the
 acceptance-green automation + detection path. **Post-W7 hardening on
 `2026-04-24`** added fatal UI-crash fail-fast, scan-between VS Code
 restart, the `attribution/` subpackage split, and the `sim-target`
-Makefile lane without changing pipeline shape.
+Makefile lane without changing pipeline shape. **Post-W7 simulation
+UX + reliability on `2026-04-25`** added weighted simulation progress,
+the full-stack analysis cancel flow
+(`POST /api/marketplace/analyze/{job_id}/cancel` →
+`cancel_analysis_job` CRUD → heartbeat cancel poll →
+`executor_control.reset_sandbox`), the VNC harness ready-marker fix
+(`vscode.py::reload_workbench_window` unlinks the marker before reload;
+harness `activate()` awaits the write), and the
+`t1-demo-runnable-canary` + rule + `make demo-canary` lanes — none
+change pipeline shape but the cancel branch adds a new heartbeat
+side-effect surface that operators must understand.
 
 ## Current Pipeline
 

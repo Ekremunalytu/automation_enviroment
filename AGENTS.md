@@ -15,10 +15,21 @@ state, `documents/REFACTOR_EXECUTION_PLAN.md` for the historical Week 1-4
 plan, and `documents/REFACTOR_EXPANSION_NOTES.md` for deferred ideas.
 Priority stays on keeping the project clean, stable, and high quality.
 
-For the current 7-week stabilization-then-security window, consult
-`documents/REFACTOR_OPTIMIZATION.md` §10. Security posture (threat model,
-detection taxonomy, malicious fixture policy) is fixed by ADRs 0002-0004
-under `documents/adrs/` and already governs the current W5 scaffolding.
+The W0-W7 PoC stabilization-then-security window closed on `2026-04-23`
+with the §10.7 acceptance checklist green (11/11). The post-PoC W8-W13
+external-review integration window is scheduled in
+`documents/REFACTOR_OPTIMIZATION.md` §11 and is gated on the PR345
+"target activation lifecycle" landings (PRs 1-2 landed `2026-04-24`;
+PRs 3-5 + the PR5 ADR are still pending). Security posture (threat
+model, detection taxonomy, malicious fixture policy, packages charter,
+local network binding) is fixed by ADRs 0002-0005 + ADR 0007 under
+`documents/adrs/` (ADR 0007 was added on `2026-04-25` and is
+**Proposed** — its W8-7 implementation is scheduled in §11.5; until it
+lands, the loopback/`EXTRACE_ALLOW_LAN` discipline is documentation
+intent, not enforced configuration). These ADRs govern the current
+detection + exposure surface; the detection side is no longer
+scaffolding — A1/A2/A3/A4/A6 production rules and T1 canaries are
+live.
 
 ## Non-Negotiable Rules
 
@@ -33,8 +44,9 @@ under `documents/adrs/` and already governs the current W5 scaffolding.
   `workflows/`, `executor/`, `ui/`, or `appcore/`. Repo-wide import-graph
   tests now enforce the `packages/`, `executor/`, and `workflows/`
   boundaries.
-- Detection rules (W5+) live inside `packages/` and see only contracts.
-  They must not import runtime, web, or storage layers (ADR 0003 §8).
+- Detection rules live inside `packages/analysis_engine/rules/` and see
+  only contracts. They must not import runtime, web, or storage layers
+  (ADR 0003 §8).
 - Malicious fixtures under `extensions/malicious/` follow ADR 0004:
   `LABEL.yaml` manifest required, T3 live samples never run in CI,
   `make test-security` vs `make test-security-live` targets are
@@ -48,7 +60,7 @@ under `documents/adrs/` and already governs the current W5 scaffolding.
 - Canonical frontend code: `ui/`
 - Tests live under `tests/`
 - `docs/` and `documents/` are reference material, not source of truth; verify claims against code before relying on them.
-- Top-level legacy directories `routers/`, `scanner/`, `core/`, `database/`, `crud/`, `models/`, `schemas/` are not the primary implementation surface. Do not add new business logic there.
+- Top-level legacy directories `routers/`, `scanner/`, `core/`, `database/`, `crud/`, `models/`, `schemas/` are removed from the canonical repo surface. Do not recreate them or add business logic there.
 
 ## Context Budget Rules
 
@@ -167,6 +179,7 @@ under `documents/adrs/` and already governs the current W5 scaffolding.
   - `POST /api/marketplace/analyze`
   - `POST /api/marketplace/analyze/start`
   - `GET /api/marketplace/analyze/{job_id}`
+  - `POST /api/marketplace/analyze/{job_id}/cancel`
 
 ## Verified Data Flow
 
@@ -222,12 +235,16 @@ under `documents/adrs/` and already governs the current W5 scaffolding.
 - Documentation:
   - update `README.md` or `documents/`
   - verify every claim against code, tests, config, or runtime output
-- Security posture (threat model, detection, fixtures):
+- Security posture (threat model, detection, fixtures, packages, network):
   - `documents/adrs/0002-threat-model.md`
   - `documents/adrs/0003-detection-taxonomy.md`
   - `documents/adrs/0004-malicious-fixture-policy.md`
-  - current W5 scaffold: `extensions/malicious/`, `tests/security/`,
-    `packages/analysis_contracts/detection/`
+  - `documents/adrs/0005-packages-charter.md`
+  - `documents/adrs/0007-local-network-binding.md` (Proposed; W8-7 implementation pending)
+  - current detection surface (W5-W7 closed; PoC bar 11/11 green):
+    `extensions/malicious/` (T1 canaries A1/A2/A3/A4/A6 + demo runnable),
+    `tests/security/`, `packages/analysis_contracts/detection/`,
+    `packages/analysis_engine/rules/`
 
 ## Working Conventions
 
@@ -247,6 +264,10 @@ under `documents/adrs/` and already governs the current W5 scaffolding.
 - `make exec-up`
 - `make exec-run`
 - `make ui-up`
+- `make sim-target TARGET=publisher.name [TRIGGERS=…] [SCENARIO=…]` (target-extension smoke)
+- `make sim-all` (UI-stimulus stress: scenarios w/o target ext.)
+- `make demo-canary` (end-to-end demo runnable canary smoke)
+- `make demo-canary-offline` (offline fixture validation)
 
 ## Required Self-Review
 
