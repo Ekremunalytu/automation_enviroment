@@ -699,3 +699,23 @@ def test_run_stimulus_plan_waits_for_trigger_effect_for_custom_editor(
     assert result.executed_scenarios == []
     assert calls == [("open", "samples/report.drawio"), ("close", None)]
     assert waits == ["trigger_effect", "ui_settle"]
+
+
+def test_ensure_harness_ready_returns_when_marker_exists(tmp_path: Path) -> None:
+    marker = tmp_path / "ready.json"
+    marker.write_text("{}", encoding="utf-8")
+    stimulus_attempts._ensure_harness_ready(
+        timeout_s=0.5, poll_interval_s=0.05, ready_path=marker
+    )
+
+
+def test_ensure_harness_ready_raises_when_marker_missing(tmp_path: Path) -> None:
+    import pytest
+
+    from stimulus_types import HarnessUnavailableError
+
+    marker = tmp_path / "ready.json"
+    with pytest.raises(HarnessUnavailableError):
+        stimulus_attempts._ensure_harness_ready(
+            timeout_s=0.1, poll_interval_s=0.05, ready_path=marker
+        )

@@ -1,0 +1,106 @@
+{
+  "report_version": 2,
+  "target_extension_expected": "extrace.t1-demo-runnable-canary",
+  "automation_health": {
+    "status": "healthy",
+    "reasons": []
+  },
+  "signal_summary": {},
+  "summary": {
+    "target_extension_version": "0.0.1"
+  },
+  "scenario_traces": [],
+  "event_attempts": [
+    {
+      "attempt_id": "demo-oncommand-run-safe-simulation",
+      "declared_event": "onCommand:extraceDemo.runSafeSimulation",
+      "activation_event": "onCommand:extraceDemo.runSafeSimulation",
+      "event_family": "onCommand",
+      "event_value": "extraceDemo.runSafeSimulation",
+      "track": "official",
+      "selected_by": "demo-canary",
+      "selection_reasons": [
+        "Command is the explicit safe simulation entrypoint."
+      ],
+      "verification_contract": [
+        "target_extension_activation",
+        "target_log_output"
+      ],
+      "trigger_method": "command",
+      "executor_action": "command:auto",
+      "capability_tags": [
+        "commands"
+      ],
+      "status": "verified",
+      "verification_status": "verified",
+      "evidence": [
+        "Observed runtime capability evidence: commands"
+      ],
+      "official": true,
+      "heuristic": false
+    }
+  ],
+  "evidence_events": [
+    {
+      "event_id": "activation-0001",
+      "kind": "activation",
+      "rel_time_s": 0.0,
+      "extension_id": "extrace.t1-demo-runnable-canary",
+      "activation_event": "onCommand:extraceDemo.runSafeSimulation",
+      "summary": "Activated extrace.t1-demo-runnable-canary",
+      "raw_context": {
+        "event_type": "activated"
+      }
+    },
+    {
+      "event_id": "ui-0001",
+      "kind": "extension_host",
+      "rel_time_s": 0.4,
+      "summary": "showWarningMessage: simulated credential prompt",
+      "raw_context": {
+        "event_type": "ui_prompt",
+        "message": "showWarningMessage simulated credential prompt"
+      }
+    },
+    {
+      "event_id": "file-0001",
+      "kind": "file",
+      "rel_time_s": 4.0,
+      "operation": "read",
+      "path": "/workspace/.extrace-demo/secrets.env",
+      "summary": "Read declawed workspace canary file",
+      "is_target_extension_event": true,
+      "attribution_status": "strong"
+    },
+    {
+      "event_id": "file-0002",
+      "kind": "file",
+      "rel_time_s": 5.0,
+      "operation": "read",
+      "path": "/home/executor/.ssh/id_rsa",
+      "summary": "Synthetic credential-path read used only by offline detection fixture",
+      "is_target_extension_event": true,
+      "attribution_status": "strong"
+    },
+    {
+      "event_id": "network-0001",
+      "kind": "network",
+      "rel_time_s": 8.0,
+      "protocol": "http",
+      "host": "demo-collector.evil.invalid",
+      "path": "/extrace-demo",
+      "summary": "Synthetic outbound POST used only by offline detection fixture",
+      "is_target_extension_event": true,
+      "attribution_status": "strong",
+      "raw_context": {
+        "event_type": "http_request",
+        "method": "POST"
+      }
+    }
+  ],
+  "network_events": [],
+  "file_events": [],
+  "log_streams": {
+    "automation": []
+  }
+}

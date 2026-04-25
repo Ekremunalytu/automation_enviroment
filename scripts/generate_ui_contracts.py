@@ -54,6 +54,7 @@ TARGET_SCHEMAS: list[str] = [
     "MarketplaceExtension",
     "MarketplaceDownloadResponse",
     "AnalyzeJobStep",
+    "AnalyzeJobStepProgress",
     "AnalyzeJobStatusResponse",
 ]
 

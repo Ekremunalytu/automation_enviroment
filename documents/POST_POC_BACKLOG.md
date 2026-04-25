@@ -1,6 +1,6 @@
 # Post-PoC Backlog
 
-`Last Updated: 2026-04-24 (target activation lifecycle PRs 1-2 landed; PRs 3-5 pending; external review integration scheduled as §11 W8-W13)`
+`Last Updated: 2026-04-25 (simulation progress + cancel review follow-ups added; target activation lifecycle PRs 1-2 landed; PRs 3-5 pending; external review integration scheduled as §11 W8-W13)`
 
 Work items that do not block PoC acceptance (`REFACTOR_OPTIMIZATION.md`
 §10.7) and were intentionally deferred from W0-W7 for scope management.
@@ -343,6 +343,38 @@ REFACTOR_OPTIMIZATION.md §11.12" below.
 
 ## Workflow / platform cleanups
 
+- **[FOLLOWUP simulation-progress-cancel] Run heartbeat sandbox-reset off
+  the heartbeat thread.** [`workflows/marketplace/analysis_execution.py`](../workflows/marketplace/analysis_execution.py)
+  `_heartbeat_on_cancel()` calls `executor_control.reset_sandbox(reload_window=True)`
+  synchronously from the daemon heartbeat. If the reset blocks, no further
+  cancel checks fire and the heartbeat thread is wedged. Spin the reset on
+  a short-lived worker thread (or future) so the heartbeat returns immediately.
+- **[FOLLOWUP simulation-progress-cancel] Dedupe / document
+  `AnalysisJobStepProgress` (storage, `extra="forbid"`) vs
+  `AnalyzeJobStepProgress` (API, no extra config).** Two near-identical
+  schemas in [`appcore/contracts/schema_defs/analysis_jobs.py`](../appcore/contracts/schema_defs/analysis_jobs.py)
+  and [`appcore/contracts/schema_defs/marketplace.py`](../appcore/contracts/schema_defs/marketplace.py)
+  with subtly different validation. Either pick a canonical one and adapt,
+  or leave a comment in both pointing at the deliberate split.
+- **[FOLLOWUP simulation-progress-cancel] `is_job_cancelled` session
+  churn.** [`workflows/marketplace/job_service.py:308`](../workflows/marketplace/job_service.py)
+  opens a fresh DB session every 5 s on the heartbeat. Acceptable today;
+  fold into a longer-lived session or batch with the report-payload read
+  if profiling shows it.
+- **[FOLLOWUP simulation-progress-cancel] Heartbeat refactor.**
+  [`_run_monitoring_heartbeat`](../workflows/marketplace/analysis_execution.py)
+  now juggles cancel polling, on_cancel firing, JSON file reads, scenario-
+  trace counting, and emit. Lift into a `MonitoringHeartbeat` helper so
+  the trace-counting branch can be unit-tested in isolation.
+- **[FOLLOWUP simulation-progress-cancel] Cancel-after-finish race test.**
+  Add a unit test asserting `cancel_job` called after the job has reached
+  a terminal status server-side returns 409 (covered by `JobNotCancellableError`,
+  but no explicit test for the in-flight race).
+- **[FOLLOWUP simulation-progress-cancel] Verify heartbeat 30 s → 5 s
+  load.** Interval was tightened in
+  [`analysis_execution.py:82`](../workflows/marketplace/analysis_execution.py)
+  for cancel responsiveness; confirm executor + DB absorb 6× more ticks
+  on long runs (read report JSON + open DB session per tick).
 - `workflows/marketplace/analysis_service._open_job_session` → move the
   `SessionLocal` import back to module top (7.1.2). Currently inlined to
   break a startup import cycle; revisit after the cycle source is split.
@@ -369,6 +401,22 @@ REFACTOR_OPTIMIZATION.md §11.12" below.
 
 ## UI
 
+- **[FOLLOWUP simulation-progress-cancel] Replace `window.confirm()` on
+  Stop simulation.** [`SimulationPage.tsx:108`](../ui/src/features/simulation/SimulationPage.tsx)
+  uses the browser-native confirm — non-stylable, not keyboard-friendly,
+  inconsistent with the design system. Build a custom `role="alertdialog"`
+  with focus trap + ESC-to-cancel.
+- **[FOLLOWUP simulation-progress-cancel] Cancel mutation timeout +
+  retry.** No `AbortSignal` / timeout on the cancel mutation in
+  [`SimulationPage.tsx:93`](../ui/src/features/simulation/SimulationPage.tsx);
+  if the request hangs, the button stays disabled showing "Stopping…"
+  until page reload. Add a timeout and surface a retry path on `isError`.
+- **[FOLLOWUP simulation-progress-cancel] Cancel-during-completion race
+  test.** [`SimulationPage.tsx:99`](../ui/src/features/simulation/SimulationPage.tsx)
+  uses `setQueryData(...)` with the cancel response — if the job
+  completes server-side mid-cancel, the completed status is briefly
+  overwritten with cancelled until the 2 s refetch heals it. Add a unit
+  test that asserts the refetch path corrects the UI.
 - Split `ReportsWorkspace` / `DetectionPanel` into smaller components
   (7.3.1, 7.3.2) once the evidence-deep-link feature settles.
   > **Evaluated 2026-04-24, not promoted to W8-W13** — evidence-deep-link

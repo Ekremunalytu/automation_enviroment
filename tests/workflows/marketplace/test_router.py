@@ -851,7 +851,11 @@ def test_execute_analysis_request_fails_closed_when_trigger_build_fails() -> Non
         analysis_service.execute_analysis_request(
             request,
             db=MagicMock(),
-            progress_callback=lambda step, status, message, error_code=None: (
+            progress_callback=lambda step,
+            status,
+            message,
+            error_code=None,
+            progress=None: (
                 progress_events.append((step, status, message, error_code))
             ),
             report_name="activation_report.json",
@@ -883,7 +887,11 @@ def test_execute_analysis_request_reports_reset_failure() -> None:
         analysis_service.execute_analysis_request(
             request,
             db=MagicMock(),
-            progress_callback=lambda step, status, message, error_code=None: (
+            progress_callback=lambda step,
+            status,
+            message,
+            error_code=None,
+            progress=None: (
                 progress_events.append((step, status, message, error_code))
             ),
             executor_control=executor_control,
@@ -919,7 +927,11 @@ def test_execute_analysis_request_reports_automation_failure() -> None:
         analysis_service.execute_analysis_request(
             request,
             db=MagicMock(),
-            progress_callback=lambda step, status, message, error_code=None: (
+            progress_callback=lambda step,
+            status,
+            message,
+            error_code=None,
+            progress=None: (
                 progress_events.append((step, status, message, error_code))
             ),
             executor_control=executor_control,
@@ -984,7 +996,11 @@ def test_execute_analysis_request_reports_healthful_monitoring_summary(
         response = analysis_service.execute_analysis_request(
             request,
             db=MagicMock(),
-            progress_callback=lambda step, status, message, error_code=None: (
+            progress_callback=lambda step,
+            status,
+            message,
+            error_code=None,
+            progress=None: (
                 progress_events.append((step, status, message, error_code))
             ),
             report_name=report_name,
@@ -1199,7 +1215,11 @@ def test_execute_analysis_request_reports_degraded_monitoring_summary(
         response = analysis_service.execute_analysis_request(
             request,
             db=MagicMock(),
-            progress_callback=lambda step, status, message, error_code=None: (
+            progress_callback=lambda step,
+            status,
+            message,
+            error_code=None,
+            progress=None: (
                 progress_events.append((step, status, message, error_code))
             ),
             report_name=report_name,
@@ -1245,7 +1265,11 @@ def test_execute_analysis_request_fails_when_trigger_report_cannot_load(
         analysis_service.execute_analysis_request(
             request,
             db=MagicMock(),
-            progress_callback=lambda step, status, message, error_code=None: (
+            progress_callback=lambda step,
+            status,
+            message,
+            error_code=None,
+            progress=None: (
                 progress_events.append((step, status, message, error_code))
             ),
             report_name="missing_report.json",
@@ -1298,7 +1322,11 @@ def test_execute_analysis_request_fails_when_trigger_plan_not_applied(
         analysis_service.execute_analysis_request(
             request,
             db=MagicMock(),
-            progress_callback=lambda step, status, message, error_code=None: (
+            progress_callback=lambda step,
+            status,
+            message,
+            error_code=None,
+            progress=None: (
                 progress_events.append((step, status, message, error_code))
             ),
             report_name=report_name,
@@ -1356,7 +1384,11 @@ def test_execute_analysis_request_fails_when_layered_evidence_is_missing(
         analysis_service.execute_analysis_request(
             request,
             db=MagicMock(),
-            progress_callback=lambda step, status, message, error_code=None: (
+            progress_callback=lambda step,
+            status,
+            message,
+            error_code=None,
+            progress=None: (
                 progress_events.append((step, status, message, error_code))
             ),
             report_name=report_name,
@@ -1497,6 +1529,119 @@ def test_run_analysis_job_marks_value_error_failure() -> None:
         "bad trigger payload",
         error_code=None,
     )
+    session.close.assert_called_once_with()
+
+
+def test_run_analysis_job_swallows_cancellation_without_calling_fail_job() -> None:
+    """AnalysisCancelledError must short-circuit silently — the job row was already
+    marked cancelled by the /cancel endpoint, so a second fail_job would clobber it."""
+    request = AnalyzeRequest(**ANALYZE_PAYLOAD)
+    session = MagicMock()
+    with (
+        patch(
+            "workflows.marketplace.analysis_service._open_job_session",
+            return_value=session,
+        ),
+        patch(
+            "workflows.marketplace.analysis_service.job_service.get_job_snapshot",
+            return_value={"job_id": "job-c1", "report_path": "saved-report.json"},
+        ),
+        patch("workflows.marketplace.analysis_service.job_service.update_job"),
+        patch(
+            "workflows.marketplace.analysis_service.job_service.fail_job"
+        ) as mock_fail,
+        patch(
+            "workflows.marketplace.analysis_service.job_service.complete_job"
+        ) as mock_complete,
+        patch(
+            "workflows.marketplace.analysis_service.execute_analysis_request",
+            side_effect=analysis_service.AnalysisCancelledError("cancelled"),
+        ),
+    ):
+        analysis_service.run_analysis_job("job-c1", request)
+
+    mock_fail.assert_not_called()
+    mock_complete.assert_not_called()
+    session.close.assert_called_once_with()
+
+
+def test_run_analysis_job_skips_fail_job_when_cancelled_during_executor_error() -> None:
+    """If the user cancels mid-run, the executor often surfaces an ExecutorError
+    when the sandbox reset interrupts it. fail_job must NOT overwrite the
+    'cancelled' status set by the /cancel endpoint."""
+    request = AnalyzeRequest(**ANALYZE_PAYLOAD)
+    session = MagicMock()
+    with (
+        patch(
+            "workflows.marketplace.analysis_service._open_job_session",
+            return_value=session,
+        ),
+        patch(
+            "workflows.marketplace.analysis_service.job_service.get_job_snapshot",
+            return_value={"job_id": "job-c2", "report_path": "saved-report.json"},
+        ),
+        patch("workflows.marketplace.analysis_service.job_service.update_job"),
+        patch(
+            "workflows.marketplace.analysis_service.job_service.is_job_cancelled",
+            return_value=True,
+        ),
+        patch(
+            "workflows.marketplace.analysis_service.job_service.fail_job"
+        ) as mock_fail,
+        patch(
+            "workflows.marketplace.analysis_service.execute_analysis_request",
+            side_effect=ExecutorError("sandbox reset interrupted run"),
+        ),
+    ):
+        analysis_service.run_analysis_job("job-c2", request)
+
+    mock_fail.assert_not_called()
+    session.close.assert_called_once_with()
+
+
+def test_run_analysis_job_progress_update_swallows_keyerror_when_job_vanishes() -> None:
+    """The background heartbeat keeps emitting after the row could be deleted in
+    rare edge cases (e.g. interactive tests). progress_update must not crash the
+    automation thread when update_job_step raises KeyError."""
+    request = AnalyzeRequest(**ANALYZE_PAYLOAD)
+    session = MagicMock()
+    captured_callback: dict[str, object] = {}
+
+    def fake_execute(*_args, **kwargs):
+        captured_callback["cb"] = kwargs["progress_callback"]
+        # Fire a progress update from the executor side and then short-circuit.
+        kwargs["progress_callback"](
+            "run_monitoring",
+            "running",
+            "Scenario 1/2",
+            None,
+            {"completed": 1, "total": 2},
+        )
+        raise analysis_service.AnalysisCancelledError("cancelled")
+
+    with (
+        patch(
+            "workflows.marketplace.analysis_service._open_job_session",
+            return_value=session,
+        ),
+        patch(
+            "workflows.marketplace.analysis_service.job_service.get_job_snapshot",
+            return_value={"job_id": "job-c3", "report_path": "saved-report.json"},
+        ),
+        patch("workflows.marketplace.analysis_service.job_service.update_job"),
+        patch(
+            "workflows.marketplace.analysis_service.job_service.update_job_step",
+            side_effect=KeyError("job-c3"),
+        ) as mock_update_step,
+        patch(
+            "workflows.marketplace.analysis_service.execute_analysis_request",
+            side_effect=fake_execute,
+        ),
+    ):
+        # Should NOT raise — KeyError is swallowed inside progress_update.
+        analysis_service.run_analysis_job("job-c3", request)
+
+    assert mock_update_step.call_count >= 1
     session.close.assert_called_once_with()
 
 
@@ -1807,6 +1952,73 @@ def test_analyze_start_missing_vsix_404(client: TestClient) -> None:
 
     assert response.status_code == 404
     assert "VSIX file not found" in response.json()["detail"]
+
+
+def test_cancel_analysis_job_returns_cancelled_snapshot(client: TestClient) -> None:
+    cancelled_snapshot = {
+        "job_id": "job-456",
+        "status": "cancelled",
+        "publisher": "ms-python",
+        "name": "python",
+        "version": "2025.0.0",
+        "scenario": None,
+        "current_step": "run_monitoring",
+        "message": "Cancelled by user.",
+        "steps": [
+            {"name": "reset_sandbox", "status": "completed", "message": "ok"},
+            {"name": "install_extension", "status": "completed", "message": "ok"},
+            {"name": "build_triggers", "status": "completed", "message": "ok"},
+            {
+                "name": "run_monitoring",
+                "status": "cancelled",
+                "message": "Cancelled by user.",
+            },
+            {"name": "finalize_report", "status": "skipped", "message": "Skipped"},
+        ],
+        "report_path": "activation_report_ms-python.python-2025.0.0-job456.json",
+        "install_output": None,
+        "automation_output": None,
+        "error_detail": "Cancelled by user.",
+        "error_code": "cancelled_by_user",
+        "created_at": 1.0,
+        "started_at": 2.0,
+        "finished_at": 3.0,
+        "updated_at": 3.0,
+    }
+    with patch(
+        "workflows.marketplace.router.job_service.cancel_job",
+        return_value=cancelled_snapshot,
+    ) as mock_cancel:
+        response = client.post("/api/marketplace/analyze/job-456/cancel")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "cancelled"
+    assert body["error_code"] == "cancelled_by_user"
+    assert body["steps"][3]["status"] == "cancelled"
+    mock_cancel.assert_called_once()
+
+
+def test_cancel_analysis_job_terminal_returns_409(client: TestClient) -> None:
+    with patch(
+        "workflows.marketplace.router.job_service.cancel_job",
+        side_effect=marketplace_router.JobNotCancellableError("job-789", "completed"),
+    ):
+        response = client.post("/api/marketplace/analyze/job-789/cancel")
+
+    assert response.status_code == 409
+    assert "terminal status" in response.json()["detail"].lower()
+
+
+def test_cancel_analysis_job_unknown_returns_404(client: TestClient) -> None:
+    with patch(
+        "workflows.marketplace.router.job_service.cancel_job",
+        side_effect=KeyError("job-missing"),
+    ):
+        response = client.post("/api/marketplace/analyze/job-missing/cancel")
+
+    assert response.status_code == 404
+    assert "not found" in response.json()["detail"].lower()
 
 
 def test_get_analysis_job_status_404(client: TestClient) -> None:

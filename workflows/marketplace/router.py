@@ -41,7 +41,10 @@ from workflows.marketplace.analysis_service import (
     map_executor_error,
     run_analysis_job,
 )
-from workflows.marketplace.job_service import ActiveAnalysisJobError
+from workflows.marketplace.job_service import (
+    ActiveAnalysisJobError,
+    JobNotCancellableError,
+)
 
 settings = app_settings
 logger = logging.getLogger(__name__)
@@ -188,6 +191,25 @@ def start_analysis_job(
     )
     worker.start()
     return job_service.get_job_snapshot(job["job_id"], db=db)
+
+
+@router.post(
+    "/marketplace/analyze/{job_id}/cancel",
+    response_model=AnalyzeJobStatusResponse,
+)
+def cancel_analysis_job_endpoint(
+    job_id: str,
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    try:
+        return job_service.cancel_job(job_id, db=db)
+    except KeyError as exc:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Analysis job not found: {job_id}",
+        ) from exc
+    except JobNotCancellableError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
 @router.get("/marketplace/analyze/{job_id}", response_model=AnalyzeJobStatusResponse)

@@ -17,22 +17,27 @@ from appcore.contracts.schemas import AnalyzeRequest
 from executor.control import ExecutorControl, ExecutorError
 from workflows.marketplace.trigger_service import TriggerPlan
 
-from .analysis_errors import TriggerPlanError
+from .analysis_errors import AnalysisCancelledError, TriggerPlanError
 
 logger = logging.getLogger(__name__)
+
+
+ProgressCallback = Callable[
+    [
+        AnalysisJobStepName,
+        AnalysisJobStepStatus,
+        str,
+        str | None,
+        dict[str, int] | None,
+    ],
+    None,
+]
 
 
 class StepReporter:
     """Thin progress adapter for marketplace analysis steps."""
 
-    def __init__(
-        self,
-        progress_callback: Callable[
-            [AnalysisJobStepName, AnalysisJobStepStatus, str, str | None],
-            None,
-        ]
-        | None,
-    ) -> None:
+    def __init__(self, progress_callback: ProgressCallback | None) -> None:
         self._progress_callback = progress_callback
 
     def emit(
@@ -41,9 +46,10 @@ class StepReporter:
         status: AnalysisJobStepStatus,
         message: str,
         error_code: str | None = None,
+        progress: dict[str, int] | None = None,
     ) -> None:
         if self._progress_callback is not None:
-            self._progress_callback(step_name, status, message, error_code)
+            self._progress_callback(step_name, status, message, error_code, progress)
 
 
 def monitoring_failure_message(exc: ExecutorError) -> str:
@@ -73,14 +79,60 @@ def _run_monitoring_heartbeat(
     stop_event: threading.Event,
     reporter: StepReporter,
     *,
-    interval_s: float = 30.0,
+    report_path: str,
+    total_initial: int,
+    load_report_payload: Callable[[str], dict[str, object] | None],
+    cancel_check: Callable[[], bool] | None = None,
+    on_cancel: Callable[[], None] | None = None,
+    interval_s: float = 5.0,
 ) -> None:
+    cancel_emitted = False
     while not stop_event.wait(interval_s):
-        reporter.emit(
-            "run_monitoring",
-            "running",
-            "Sandbox automation is still running inside the executor.",
+        if cancel_check is not None and cancel_check():
+            if not cancel_emitted and on_cancel is not None:
+                cancel_emitted = True
+                try:
+                    on_cancel()
+                except (
+                    ExecutorError,
+                    RuntimeError,
+                    OSError,
+                    ValueError,
+                    AttributeError,
+                ):
+                    logger.exception(
+                        "on_cancel handler failed in monitoring heartbeat."
+                    )
+            break
+
+        try:
+            payload = load_report_payload(report_path) or {}
+        except (OSError, ValueError):
+            payload = {}
+        raw_traces = payload.get("scenario_traces") or []
+        traces: list[dict[str, object]] = (
+            list(raw_traces) if isinstance(raw_traces, list) else []
         )
+        done = 0
+        for trace in traces:
+            if not isinstance(trace, dict):
+                continue
+            if str(trace.get("status", "")) in {"completed", "failed"}:
+                done += 1
+        total = max(total_initial, len(traces))
+        if total:
+            reporter.emit(
+                "run_monitoring",
+                "running",
+                f"Scenario {done}/{total} complete.",
+                progress={"completed": done, "total": total},
+            )
+        else:
+            reporter.emit(
+                "run_monitoring",
+                "running",
+                "Sandbox automation is still running inside the executor.",
+            )
 
 
 def reset_sandbox(
@@ -183,11 +235,17 @@ def run_monitoring(
         [str, dict[str, object] | None],
         tuple[str, str],
     ],
+    cancel_check: Callable[[], bool] | None = None,
+    on_cancel_signal: Callable[[], None] | None = None,
 ) -> tuple[str, str]:
+    total_scenarios = len(trigger_plan.selected_scenarios)
     reporter.emit(
         "run_monitoring",
         "running",
         "Reloading VS Code under monitoring and executing automation scenarios.",
+        progress=(
+            {"completed": 0, "total": total_scenarios} if total_scenarios else None
+        ),
     )
     report_container_path = f"/results/{report_name}"
     payload_exists = trigger_payload_exists(trigger_plan.trigger_container_path)
@@ -199,10 +257,31 @@ def run_monitoring(
         and trigger_plan.selected_scenarios
     ):
         effective_scenario = trigger_plan.selected_scenarios[0]
+    cancel_triggered = threading.Event()
+
+    def _heartbeat_on_cancel() -> None:
+        cancel_triggered.set()
+        if on_cancel_signal is not None:
+            on_cancel_signal()
+        try:
+            executor_control.reset_sandbox(reload_window=True)
+        except ExecutorError:
+            logger.exception(
+                "Sandbox reset during cancel did not complete cleanly; "
+                "executor process will be killed by the next reset attempt."
+            )
+
     heartbeat_stop = threading.Event()
     heartbeat_thread = threading.Thread(
         target=_run_monitoring_heartbeat,
         args=(heartbeat_stop, reporter),
+        kwargs={
+            "report_path": report_name,
+            "total_initial": total_scenarios,
+            "load_report_payload": load_report_payload,
+            "cancel_check": cancel_check,
+            "on_cancel": _heartbeat_on_cancel,
+        },
         daemon=True,
         name="analysis-run-monitoring-heartbeat",
     )
@@ -217,6 +296,8 @@ def run_monitoring(
             target_extension_id=f"{request.publisher}.{request.name}",
         )
     except ExecutorError as exc:
+        if cancel_triggered.is_set():
+            raise AnalysisCancelledError("Analysis cancelled by user.") from exc
         reporter.emit(
             "run_monitoring",
             "failed",
@@ -226,6 +307,9 @@ def run_monitoring(
     finally:
         heartbeat_stop.set()
         heartbeat_thread.join(timeout=1.0)
+
+    if cancel_triggered.is_set():
+        raise AnalysisCancelledError("Analysis cancelled by user.")
 
     report_payload = load_report_payload(report_name)
     if trigger_plan.trigger_container_path is not None and payload_exists:

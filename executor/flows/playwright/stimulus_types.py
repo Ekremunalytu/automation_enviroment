@@ -8,8 +8,27 @@ from typing import Any
 
 _HARNESS_CONTEXT_DIR = Path("/workspace/.extrace-harness")
 _HARNESS_CONTEXT_PATH = _HARNESS_CONTEXT_DIR / "context.json"
+_HARNESS_READY_PATH = _HARNESS_CONTEXT_DIR / "ready.json"
 _TASKS_PATH = Path("/workspace/.vscode/tasks.json")
 _LAUNCH_PATH = Path("/workspace/.vscode/launch.json")
+
+
+HARNESS_COMMAND_UNAVAILABLE_REASON = "harness_command_unavailable"
+
+
+class HarnessUnavailableError(RuntimeError):
+    """Raised when the harness extension's command never registers in time."""
+
+    reason_code = HARNESS_COMMAND_UNAVAILABLE_REASON
+
+    def __init__(
+        self,
+        message: str = (
+            "Harness extension did not register "
+            "extrace.harness.runCurrentStimulus in time."
+        ),
+    ) -> None:
+        super().__init__(message)
 
 
 @dataclass

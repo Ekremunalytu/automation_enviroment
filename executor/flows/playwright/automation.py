@@ -38,7 +38,12 @@ from scenarios.workbench import (  # noqa: F401
     scenario_search_workflow,
     scenario_settings_modification,
 )
-from stimulus_types import AutomationExecutionResult, SkippedScenarioRecord
+from stimulus_types import (
+    HARNESS_COMMAND_UNAVAILABLE_REASON,
+    AutomationExecutionResult,
+    HarnessUnavailableError,
+    SkippedScenarioRecord,
+)
 
 from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import Page
@@ -294,6 +299,27 @@ def _run_scenario_sequence(
                 "completed",
                 metadata=_scenario_metadata(scenario),
             )
+        except HarnessUnavailableError as exc:
+            error_detail = str(exc)[:500]
+            result.skipped_scenarios.append(
+                SkippedScenarioRecord(
+                    name=scenario.name,
+                    reason_code=HARNESS_COMMAND_UNAVAILABLE_REASON,
+                    detail=error_detail,
+                )
+            )
+            _emit_scenario_event(
+                "end",
+                scenario.name,
+                "skipped",
+                metadata=_scenario_metadata(
+                    scenario,
+                    error=error_detail,
+                    failure_reason_code=HARNESS_COMMAND_UNAVAILABLE_REASON,
+                ),
+            )
+            _log(f"SKIP: {scenario.name} -> harness command unavailable")
+            _recover_ui_state(page)
         except (PlaywrightError, RuntimeError, ValueError) as exc:
             fatal, reason_code = is_fatal_ui_error(exc, page)
             error_detail = str(exc)[:500]

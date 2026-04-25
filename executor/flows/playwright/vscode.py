@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import contextlib
 import os
 import time
 from collections.abc import Callable
+
+from stimulus_types import _HARNESS_READY_PATH
 
 from playwright.sync_api import Browser, Page, Playwright
 from playwright.sync_api import Error as PlaywrightError
@@ -194,6 +197,12 @@ def reload_workbench_window(
         ) from exc
 
     _emit_reload_log(log, "dispatch", "Sending 'Developer: Reload Window' command...")
+    # Clear the harness ready marker so post-reload polling can only succeed
+    # once the new extension activation writes a fresh marker. Without this,
+    # a stale marker from the prior activation would let the next harness
+    # command race ahead before the command is registered.
+    with contextlib.suppress(FileNotFoundError):
+        _HARNESS_READY_PATH.unlink()
     try:
         import commands
 

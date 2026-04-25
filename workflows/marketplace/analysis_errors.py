@@ -15,4 +15,10 @@ class ActivationReportLoadError(ValueError):
     """Raised when an exported activation report cannot be read safely."""
 
 
-__all__ = ["ActivationReportLoadError", "TriggerPlanError"]
+class AnalysisCancelledError(RuntimeError):
+    """Raised when the running sandbox analysis is cancelled by the user."""
+
+    error_code = "cancelled_by_user"
+
+
+__all__ = ["ActivationReportLoadError", "AnalysisCancelledError", "TriggerPlanError"]

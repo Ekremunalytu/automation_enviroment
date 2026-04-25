@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import time
+from pathlib import Path
 from typing import Any
 
 import automation
@@ -10,6 +12,7 @@ import debug
 import editor
 import terminal
 from stimulus_materializers import resolve_command_text, write_harness_context
+from stimulus_types import _HARNESS_READY_PATH, HarnessUnavailableError
 from wait_helpers import (
     require_wait,
     wait_for_command_effect,
@@ -20,6 +23,31 @@ from wait_helpers import (
 
 from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import Page
+
+
+def _ensure_harness_ready(
+    timeout_s: float = 15.0,
+    *,
+    poll_interval_s: float = 0.25,
+    ready_path: Path = _HARNESS_READY_PATH,
+) -> None:
+    """Block until the harness extension writes its ready marker, or raise.
+
+    The marker is written at the end of ``activate()`` in the harness
+    extension (`executor/flows/harness_extension/extension.js`); its presence
+    proves the command has been registered. We poll because VS Code's
+    ``activate()`` runs asynchronously after a window reload, and the
+    container-side ``run_command`` invocation otherwise races ahead.
+    """
+    deadline = time.monotonic() + timeout_s
+    while True:
+        if ready_path.exists():
+            return
+        if time.monotonic() >= deadline:
+            raise HarnessUnavailableError(
+                f"Harness ready marker {ready_path} did not appear within {timeout_s:.1f}s."
+            )
+        time.sleep(poll_interval_s)
 
 
 def _append_unique(items: list[str], value: str) -> None:
@@ -171,6 +199,7 @@ def execute_attempt(
         )
         return
     if action.startswith("harness:"):
+        _ensure_harness_ready()
         write_harness_context(payload, attempt, trigger_method=trigger_method)
         commands.run_command(page, "ExTrace Harness: Run Current Stimulus")
         require_wait(

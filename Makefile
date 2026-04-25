@@ -17,7 +17,14 @@ endif
         dev run build rebuild up down logs ps restart status \
         migrate migrate-create venv-check \
         exec-build exec-up exec-down exec-shell exec-test exec-run \
-        ui-build ui-up ui-down ui-types ui-types-check ui-boundaries
+        ui-build ui-up ui-down ui-types ui-types-check ui-boundaries \
+        demo-canary demo-canary-offline
+
+DEMO_CANARY_ID := extrace.t1-demo-runnable-canary
+DEMO_CANARY_VERSION := 0.0.1
+DEMO_CANARY_DIR := extensions/malicious/t1-demo-runnable-canary
+DEMO_CANARY_CONTAINER_DIR := /home/executor/.vscode/extensions/$(DEMO_CANARY_ID)-$(DEMO_CANARY_VERSION)
+DEMO_CANARY_TRIGGER := /extensions-input/malicious/t1-demo-runnable-canary/trigger_payload.json
 
 # =============================================================================
 # HELP
@@ -71,6 +78,8 @@ help:
 	@echo "║  sim-demo       │ Start executor & run quick Playwright demo      ║"
 	@echo "║  sim-list       │ List available scenarios                        ║"
 	@echo "║  sim-run        │ Run specific scenario (use SCENARIO=name)       ║"
+	@echo "║  demo-canary    │ Install & trigger safe runnable malicious demo  ║"
+	@echo "║  demo-canary-offline │ Run demo fixture through detection engine  ║"
 	@echo "╠═══════════════════════════════════════════════════════════════════╣"
 	@echo "║                     🖥️  UI Dashboard                               ║"
 	@echo "║  ui-build       │ Build UI image                                  ║"
@@ -418,6 +427,24 @@ sim-run: exec-up
 	fi
 	@echo "🤖 Running scenario: $(SCENARIO)..."
 	docker exec -e PYTHONUNBUFFERED=1 -it automation_executor python3 /home/executor/flows/playwright/entrypoint.py --monitor --scenario $(SCENARIO)
+
+demo-canary: exec-up
+	@echo "🤖 Installing safe runnable demo canary into executor..."
+	docker exec -u root automation_executor bash -lc 'rm -rf "$(DEMO_CANARY_CONTAINER_DIR)" && mkdir -p "$(DEMO_CANARY_CONTAINER_DIR)"'
+	docker cp "$(DEMO_CANARY_DIR)/." automation_executor:"$(DEMO_CANARY_CONTAINER_DIR)/"
+	docker exec -u root automation_executor chown -R executor:executor "$(DEMO_CANARY_CONTAINER_DIR)"
+	@echo "🤖 Triggering $(DEMO_CANARY_ID) command via Playwright..."
+	docker exec -e PYTHONUNBUFFERED=1 automation_executor python3 /home/executor/flows/playwright/entrypoint.py \
+		--monitor \
+		--skip-automation \
+		--reload-before-run \
+		--target-extension-id "$(DEMO_CANARY_ID)" \
+		--triggers "$(DEMO_CANARY_TRIGGER)"
+
+demo-canary-offline:
+	@echo "🧪 Running safe demo canary offline detection fixture..."
+	$(VENV)/pytest -q tests/security/test_rule_validation.py -k t1-demo-runnable-canary
+	@echo "✅ Demo canary offline fixture passed."
 
 # =============================================================================
 # UI WEB CONSOLE

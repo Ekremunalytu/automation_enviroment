@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-`Last Updated: 2026-04-24`
+`Last Updated: 2026-04-25`
 
 Read `AGENTS.md` first. It is the authoritative source for architecture and
 safety rules. This file is the Claude-facing quick map for the current repo
@@ -17,7 +17,7 @@ state.
 > the scheduled W8-W13 post-PoC external-review integration window is §11
 > (gated on PR345 target activation lifecycle).
 
-**Current state summary (2026-04-24):**
+**Current state summary (2026-04-25):**
 
 - W4 stabilization, W5 detection foundations, W6 automation hardening,
   W7 PoC acceptance — all **closed**.
@@ -27,6 +27,14 @@ state.
   page-reload callback threading, `aborted_after_fatal_ui_crash`
   skipped-scenario records, per-scenario UI blocker probe, trimmed
   terminal-usage stimulus, monitor discovery-log rate-limit.
+- Branch `feat/simulation-progress-cancel` landed `2026-04-25`:
+  weighted simulation progress (UI + heartbeat scenario sub-progress),
+  full-stack cancel flow (HTTP + DB pessimistic-lock CRUD + heartbeat
+  sandbox tear-down), VNC harness crash fix (delete-before-reload of
+  ready marker + async/await activation), and the
+  `t1-demo-runnable-canary` declawed fixture + rule + Makefile lanes.
+  Code-review follow-ups deferred to POST_POC_BACKLOG under the
+  `[FOLLOWUP simulation-progress-cancel]` tag.
 - W8-W13 scheduled, not opened. Next action: land PR345 3-5 + ADR.
 - **Security scaffolding already present:**
   - `packages/analysis_contracts/detection/`

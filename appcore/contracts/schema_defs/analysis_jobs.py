@@ -19,8 +19,9 @@ ANALYSIS_JOB_STEP_STATUSES = (
     "completed",
     "skipped",
     "failed",
+    "cancelled",
 )
-ANALYSIS_JOB_STATUSES = ("queued", "running", "completed", "failed")
+ANALYSIS_JOB_STATUSES = ("queued", "running", "completed", "failed", "cancelled")
 ACTIVE_ANALYSIS_JOB_STATUSES = ("queued", "running")
 
 AnalysisJobStepName = Literal[
@@ -36,8 +37,16 @@ AnalysisJobStepStatus = Literal[
     "completed",
     "skipped",
     "failed",
+    "cancelled",
 ]
-AnalysisJobStatus = Literal["queued", "running", "completed", "failed"]
+AnalysisJobStatus = Literal["queued", "running", "completed", "failed", "cancelled"]
+
+
+class AnalysisJobStepProgress(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    completed: int = Field(ge=0)
+    total: int = Field(ge=0)
 
 
 class AnalysisJobStepRecord(BaseModel):
@@ -47,6 +56,7 @@ class AnalysisJobStepRecord(BaseModel):
     status: AnalysisJobStepStatus
     message: str = Field(min_length=1)
     error_code: str | None = None
+    progress: AnalysisJobStepProgress | None = None
 
 
 def _validate_steps(
@@ -132,6 +142,7 @@ class AnalysisJobStepUpdate(BaseModel):
     status: AnalysisJobStepStatus
     message: str = Field(min_length=1)
     error_code: str | None = None
+    progress: AnalysisJobStepProgress | None = None
 
 
 __all__ = [
@@ -144,6 +155,7 @@ __all__ = [
     "AnalysisJobPersistedRecord",
     "AnalysisJobStatus",
     "AnalysisJobStepName",
+    "AnalysisJobStepProgress",
     "AnalysisJobStepRecord",
     "AnalysisJobStepStatus",
     "AnalysisJobStepUpdate",

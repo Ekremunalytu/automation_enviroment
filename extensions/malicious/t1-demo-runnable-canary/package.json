@@ -1,0 +1,26 @@
+{
+  "name": "t1-demo-runnable-canary",
+  "displayName": "ExTrace T1 Runnable Demo Canary",
+  "description": "Safe runnable ExTrace demo extension that emits declawed malicious-behavior canary signals.",
+  "version": "0.0.1",
+  "publisher": "extrace",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onCommand:extraceDemo.runSafeSimulation"
+  ],
+  "main": "./extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "extraceDemo.runSafeSimulation",
+        "title": "ExTrace Demo: Run Safe Malicious Simulation",
+        "category": "ExTrace Demo"
+      }
+    ]
+  }
+}

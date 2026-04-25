@@ -472,6 +472,12 @@ export interface AnalyzeJobStepDto {
   status: string;
   message: string;
   error_code?: string | null;
+  progress?: AnalyzeJobStepProgressDto | null;
+}
+
+export interface AnalyzeJobStepProgressDto {
+  completed: number;
+  total: number;
 }
 
 export interface AnalyzeJobStatusDto {

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable
 from pathlib import Path
 from uuid import uuid4
@@ -22,7 +23,10 @@ from executor.control import (
 )
 from workflows.marketplace import client as marketplace_client
 from workflows.marketplace import job_service
-from workflows.marketplace.analysis_errors import TriggerPlanError
+from workflows.marketplace.analysis_errors import (
+    AnalysisCancelledError,
+    TriggerPlanError,
+)
 from workflows.marketplace.analysis_execution import (
     StepReporter as _StepReporter,
 )
@@ -56,6 +60,8 @@ from workflows.marketplace.analysis_reports import (
 )
 from workflows.marketplace.trigger_service import TriggerPlan, build_trigger_payload
 
+logger = logging.getLogger(__name__)
+
 
 def _open_job_session() -> Session:
     from appcore.db.session import SessionLocal
@@ -81,12 +87,20 @@ def execute_analysis_request(
     request: AnalyzeRequest,
     db: Session,
     progress_callback: Callable[
-        [AnalysisJobStepName, AnalysisJobStepStatus, str, str | None],
+        [
+            AnalysisJobStepName,
+            AnalysisJobStepStatus,
+            str,
+            str | None,
+            dict[str, int] | None,
+        ],
         None,
     ]
     | None = None,
     report_name: str | None = None,
     executor_control: ExecutorControl | None = None,
+    cancel_check: Callable[[], bool] | None = None,
+    on_cancel_signal: Callable[[], None] | None = None,
 ) -> AnalyzeResponse:
     if executor_control is None:
         executor_control = default_executor_control
@@ -112,6 +126,8 @@ def execute_analysis_request(
         load_report_payload=_load_report_payload,
         validate_trigger_plan_report=_validate_trigger_plan_report,
         build_report_messages=_build_report_messages,
+        cancel_check=cancel_check,
+        on_cancel_signal=on_cancel_signal,
     )
 
     return AnalyzeResponse(
@@ -160,14 +176,24 @@ def run_analysis_job(job_id: str, request: AnalyzeRequest) -> None:
         status: AnalysisJobStepStatus,
         message: str,
         error_code: str | None = None,
+        progress: dict[str, int] | None = None,
     ) -> None:
-        job_service.update_job_step(
-            job_id,
-            step,
-            status,
-            message,
-            error_code=error_code,
-        )
+        try:
+            job_service.update_job_step(
+                job_id,
+                step,
+                status,
+                message,
+                error_code=error_code,
+                progress=progress,
+            )
+        except KeyError:
+            # Job row vanished (very unlikely outside tests); swallow so the
+            # automation thread doesn't crash on a missing snapshot.
+            logger.warning("Progress update dropped: job %s no longer exists.", job_id)
+
+    def cancel_check() -> bool:
+        return job_service.is_job_cancelled(job_id)
 
     try:
         result = execute_analysis_request(
@@ -175,7 +201,10 @@ def run_analysis_job(job_id: str, request: AnalyzeRequest) -> None:
             db,
             progress_callback=progress_update,
             report_name=report_name,
+            cancel_check=cancel_check,
         )
+    except AnalysisCancelledError:
+        return
     except (TypeError, AttributeError) as exc:
         job_service.fail_job(
             job_id,
@@ -191,6 +220,8 @@ def run_analysis_job(job_id: str, request: AnalyzeRequest) -> None:
         SQLAlchemyError,
         ValueError,
     ) as exc:
+        if job_service.is_job_cancelled(job_id):
+            return
         job_service.fail_job(
             job_id,
             str(exc),

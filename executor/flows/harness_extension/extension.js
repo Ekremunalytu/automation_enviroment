@@ -1,10 +1,14 @@
 const vscode = require("vscode");
 
-const { emitHarnessMarker, readHarnessContext } = require("./markers");
+const {
+  emitHarnessMarker,
+  readHarnessContext,
+  writeHarnessReadyMarker,
+} = require("./markers");
 const { LocalAuthProvider, LocalFileSystemProvider } = require("./providers");
 const { dispatchStimulus, ensureCommentThread } = require("./stimulus_dispatch");
 
-function activate(context) {
+async function activate(context) {
   const localAuthProvider = new LocalAuthProvider();
   const authDisposable = vscode.authentication.registerAuthenticationProvider(
     "extrace.local",
@@ -118,6 +122,10 @@ function activate(context) {
     commentController,
     commandDisposable
   );
+
+  // Marker write must succeed or activation fails: the Python harness polls
+  // for this file to verify the command is registered before invoking it.
+  await writeHarnessReadyMarker();
 }
 
 function deactivate() {}

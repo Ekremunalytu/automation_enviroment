@@ -1,6 +1,12 @@
 import pytest
 from pydantic import ValidationError
 
+from appcore.contracts.schema_defs.analysis_jobs import (
+    AnalysisJobStepProgress,
+    AnalysisJobStepRecord,
+    AnalysisJobStepUpdate,
+)
+from appcore.contracts.schema_defs.marketplace import AnalyzeJobStepProgress
 from appcore.contracts.schemas import (
     ExtensionContributesSchema,
     ExtensionSchema,
@@ -164,3 +170,79 @@ def test_extension_contributes_schema_with_children():
     assert schema.menus[0].menu_location == "editor/context"
     assert schema.authentication[0].auth_id == "github"
     assert schema.terminal[0].profile_id == "ext.term"
+
+
+# -- Analysis-job step progress contract --------------------------------------
+
+
+def test_analysis_job_step_progress_accepts_zero_and_positive_counts() -> None:
+    progress = AnalysisJobStepProgress(completed=0, total=5)
+    assert progress.completed == 0
+    assert progress.total == 5
+
+
+def test_analysis_job_step_progress_rejects_negative_completed() -> None:
+    with pytest.raises(ValidationError):
+        AnalysisJobStepProgress(completed=-1, total=5)
+
+
+def test_analysis_job_step_progress_rejects_negative_total() -> None:
+    with pytest.raises(ValidationError):
+        AnalysisJobStepProgress(completed=0, total=-1)
+
+
+def test_analysis_job_step_progress_forbids_unknown_fields() -> None:
+    """``extra='forbid'`` is the load-bearing guard against silently dropping
+    a fat-fingered key like ``done``/``count`` that won't reach the UI."""
+    with pytest.raises(ValidationError):
+        AnalysisJobStepProgress(completed=1, total=2, done=1)  # type: ignore[call-arg]
+
+
+def test_analysis_job_step_record_accepts_progress_field() -> None:
+    record = AnalysisJobStepRecord(
+        name="run_monitoring",
+        status="running",
+        message="Scenario 1/5",
+        progress=AnalysisJobStepProgress(completed=1, total=5),
+    )
+    assert record.progress is not None
+    assert record.progress.completed == 1
+
+
+def test_analysis_job_step_record_progress_defaults_to_none() -> None:
+    record = AnalysisJobStepRecord(
+        name="reset_sandbox",
+        status="completed",
+        message="ok",
+    )
+    assert record.progress is None
+
+
+def test_analysis_job_step_update_accepts_cancelled_status() -> None:
+    update = AnalysisJobStepUpdate(
+        step_name="run_monitoring",
+        status="cancelled",
+        message="Cancelled by user.",
+        error_code="cancelled_by_user",
+    )
+    assert update.status == "cancelled"
+
+
+# -- Marketplace API DTO progress contract ------------------------------------
+
+
+def test_analyze_job_step_progress_dto_rejects_negative_values() -> None:
+    """The wire-facing DTO mirrors the storage schema's ge=0 constraint so the
+    UI never sees a negative numerator/denominator from a misbehaving worker."""
+    with pytest.raises(ValidationError):
+        AnalyzeJobStepProgress(completed=-1, total=2)
+    with pytest.raises(ValidationError):
+        AnalyzeJobStepProgress(completed=0, total=-1)
+
+
+def test_analyze_job_step_progress_dto_accepts_zero_total() -> None:
+    """A zero total is legal at the schema layer; UI clamps progress when
+    total is 0 to avoid divide-by-zero (covered separately in adapters)."""
+    progress = AnalyzeJobStepProgress(completed=0, total=0)
+    assert progress.completed == 0
+    assert progress.total == 0

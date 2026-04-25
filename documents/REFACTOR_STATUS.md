@@ -1,6 +1,6 @@
 # Refactor Status
 
-`Last Updated: 2026-04-24 (post-W7 hardening: attribution/ subpackage split + sim-target Makefile lane landed; two [NEXT] items closed)`
+`Last Updated: 2026-04-25 (simulation progress + cancel branch + VNC harness crash fix + demo runnable canary landed; review follow-ups deferred to POST_POC_BACKLOG)`
 
 This is the active status board for the Week 1-4 stabilization work and the
 pre-W6 cleanup handoff. Use this file for current closure state; use
@@ -606,6 +606,88 @@ retry-callback paths, the fail-fast skipped-record semantics, and
 the two UI-blocker-probe wiring tests). `make test-security` → 41
 passed, `make typecheck` clean (207 source files), demo acceptance
 (`.venv/bin/python scripts/demo_acceptance.py`) → `DEMO GREEN`.
+
+## Simulation Progress + Cancel + VNC Harness Fix (2026-04-25)
+
+Branch `feat/simulation-progress-cancel` landed four loosely-coupled
+tracks plus a focused code-review pass:
+
+- **Realistic progress reporting.** Replaced
+  `completed_steps / total_steps` with weighted phase distribution
+  (reset_sandbox=5, install_extension=10, build_triggers=10,
+  run_monitoring=70, finalize_report=5) in
+  [`ui/src/lib/adapters/job.ts`](../ui/src/lib/adapters/job.ts) plus
+  per-scenario sub-progress on the run_monitoring phase. Heartbeat in
+  [`workflows/marketplace/analysis_execution.py`](../workflows/marketplace/analysis_execution.py)
+  reads the in-flight report's `scenario_traces` and emits
+  `progress={completed, total}` to the UI every 5 s. The bar now climbs
+  monotonically through realistic phase weights instead of jumping in
+  20 % chunks.
+
+- **Cancel flow (full stack).** New `cancel_analysis_job` CRUD with
+  `with_for_update()` pessimistic lock and `JobNotCancellableError`
+  guard against racing complete-vs-cancel
+  ([`appcore/storage/crud_ops/analysis_jobs.py`](../appcore/storage/crud_ops/analysis_jobs.py)).
+  New `POST /api/marketplace/analyze/{job_id}/cancel` endpoint
+  ([`workflows/marketplace/router.py`](../workflows/marketplace/router.py))
+  returns the snapshot, 404 on missing, 409 on terminal-state. The
+  monitoring heartbeat polls `is_job_cancelled` every tick, calls a
+  `_heartbeat_on_cancel` that triggers `executor_control.reset_sandbox`,
+  and the main thread converts the resulting `ExecutorError` into
+  `AnalysisCancelledError` so `run_analysis_job` returns silently
+  without clobbering the cancel state. UI adds a Stop simulation button
+  (`useMutation` + `setQueryData`) gated by `isJobActive`.
+  `ANALYSIS_JOB_STATUSES` extended with `cancelled`; no Alembic
+  migration needed (status is plain `String` with no CHECK constraint).
+
+- **VNC harness crash fix.** The user-reported crash signature was
+  `extract_harness automation crashes on VNC` mid-scenario.
+  Root cause: the harness extension wrote a ready marker at activate()
+  but the marker was never deleted, so after a workbench reload polling
+  saw the stale marker and let `commands.run_command(...)` race ahead
+  before the new activation re-registered the command.
+  [`vscode.py:reload_workbench_window`](../executor/flows/playwright/vscode.py)
+  now `unlink()`s `_HARNESS_READY_PATH` before dispatching the reload;
+  `extension.js:activate()` is now `async` and `await`s
+  `writeHarnessReadyMarker()` so a write failure fails activation
+  loudly and the Python polling sees a clean
+  `HarnessUnavailableError` timeout instead of stale-marker confusion.
+
+- **Demo runnable canary fixture.** New T1 `t1-demo-runnable-canary`
+  under [`extensions/malicious/`](../extensions/malicious/) with
+  declawed payload (localhost-only POST to 127.0.0.1:8787 with 500 ms
+  timeout, workspace-local file write, explicit `onCommand`
+  activation). New rule
+  [`packages/analysis_engine/rules/demo_runnable_canary.py`](../packages/analysis_engine/rules/demo_runnable_canary.py)
+  with `target_extension_expected` gate so it can't false-positive on
+  real extensions. New `make demo-canary` and `make demo-canary-offline`
+  Makefile lanes for end-to-end and offline-fixture validation.
+
+- **Code review pass (this session).** Critical fixes applied inline:
+  the stale-marker bug, the fire-and-forget marker write,
+  `progressLabel` realignment from "3/5 steps complete" → context-aware
+  "Step N of 5 · scenario X/Y", ARIA attributes (`role="progressbar"`,
+  `aria-valuenow/min/max`, `aria-label`) on both progress bars
+  ([`SimulationPage.tsx`](../ui/src/features/simulation/SimulationPage.tsx)
+  and [`RunActivityRail.tsx`](../ui/src/components/simulation/RunActivityRail.tsx)),
+  and narrowed the bare `except Exception` in the heartbeat to
+  `(ExecutorError, RuntimeError, OSError, ValueError, AttributeError)`.
+  Suggestions deferred to
+  [`POST_POC_BACKLOG.md`](POST_POC_BACKLOG.md): custom `role="alertdialog"`
+  to replace `window.confirm`, cancel-mutation timeout/retry, heartbeat
+  sandbox-reset off-thread, schema duplication doc/dedup,
+  `is_job_cancelled` session churn, heartbeat refactor, cancel-after-finish
+  - cancel-during-completion race tests, heartbeat 30 s → 5 s load
+  verification (all tagged `[FOLLOWUP simulation-progress-cancel]`).
+
+Verification: 114 backend tests
+([`workflows/marketplace`](../workflows/marketplace/),
+[`platform/storage`](../tests/platform/storage/),
+[`platform/contracts`](../tests/platform/contracts/),
+[`security`](../tests/security/)) + 33 executor stimulus tests + 76
+vscode reload tests + 18 UI tests pass; `tsc --noEmit` clean,
+ESLint clean on touched files; `make demo-canary-offline` test
+passes.
 
 ## Week 5 Start Rule
 
