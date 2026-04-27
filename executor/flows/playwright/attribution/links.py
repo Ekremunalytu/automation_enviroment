@@ -286,6 +286,40 @@ def _build_evidence_bundle(
             )
         )
 
+    # PR345 PR5: target Output channel events captured by the harness
+    # createOutputChannel hook. ADR 0006 §3-§4 owns the kind +
+    # attribution contract; collector="harness_extension" is what the
+    # _actor_from_* defensive filter recognizes.
+    output_signal_events = getattr(report, "output_signal_events", []) or []
+    for index, output_event in enumerate(output_signal_events, start=1):
+        event_id = f"output-channel-{index:04d}"
+        events.append(
+            EvidenceEvent(
+                event_id=event_id,
+                kind="output_channel_appendline",
+                timestamp=output_event.timestamp,
+                rel_time_s=output_event.rel_time_s,
+                collector="harness_extension",
+                actor="harness",
+                scenario_name=_scenario_name_for_timestamp(
+                    output_event.timestamp,
+                    output_event.rel_time_s,
+                    report.scenario_traces,
+                    monitoring_start,
+                ),
+                extension_id=output_event.extension_id,
+                activation_event=output_event.activation_event,
+                attribution_status=output_event.attribution_status,
+                attribution_basis=output_event.attribution_basis,
+                is_target_extension_event=output_event.is_target_extension_event,
+                summary=output_event.summary,
+                raw_context={
+                    "channel": output_event.channel,
+                    "text": output_event.text,
+                },
+            )
+        )
+
     links.extend(
         _build_scenario_links(
             scenario_entries,

@@ -1,10 +1,11 @@
 # ExTrace Architecture
 
-`Last Updated: 2026-04-24`
+`Last Updated: 2026-04-27`
 
 This document reflects the current codebase shape in `main.py`, `appcore/`,
 `packages/`, `workflows/`, `executor/`, and `ui/` after W7 closure and the
-post-W7 hardening landings (2026-04-23 and 2026-04-24).
+post-W7 hardening landings through PR345 completion and W8-0 on
+2026-04-27.
 
 Open this for system shape and request-flow questions. For placement rules use
 `PROJECT_STRUCTURE.md`; for executor or report internals, open the specialized
@@ -21,6 +22,8 @@ multi-tenant platform.
 - extension execution stays isolated in Docker
 - activation reports remain artifact-first operator artifacts
 - async job state is durable in PostgreSQL (`analysis_jobs`)
+- ADR 0007 local-network-binding is Accepted, but current code/config defaults
+  still need W8-7 enforcement before loopback binding is mechanically true.
 
 ## Runtime Surfaces
 
@@ -89,7 +92,11 @@ Business behavior organized by capability.
   - file-backed report listing and retrieval under `/api/activations`
 - `workflows/marketplace/`
   - marketplace search/download, layered trigger planning, sync analysis,
-    async job orchestration, and job snapshot persistence
+    async job orchestration, job snapshot persistence, and the cancel
+    flow (`analysis_execution.py` runs the monitoring heartbeat with
+    cancel polling + executor reset on cancel; `cancel_analysis_job`
+    in `appcore/storage/crud_ops/analysis_jobs.py` carries the
+    pessimistic-lock CRUD)
 
 ### `executor/`
 
@@ -113,8 +120,16 @@ Sandbox control and runtime.
     and fails fast with `failure_reason_code = "fatal_ui_crash"`
     degrading `automation_health.status` to `inconclusive`.
     `reset_state.py::reset_executor_state` orchestrates terminate →
-    cleanup → launch across scans. The authoritative detection-layer
-    `Verdict` lives in `packages/analysis_contracts/detection/`.
+    cleanup → launch across scans. `vscode.py::reload_workbench_window`
+    deletes the harness ready-marker before dispatching the reload so
+    the post-reload activation cannot race a stale marker (the VNC
+    harness crash fix landed 2026-04-25); the harness extension's
+    `activate()` is async and awaits the marker write so a write
+    failure surfaces a `HarnessUnavailableError` cleanly. W8-0 adds
+    epoch/pid-aware harness ready-marker validation and typed
+    `harness_ready_marker_*` / `harness_activation_timeout` reason codes. The
+    authoritative detection-layer `Verdict` lives in
+    `packages/analysis_contracts/detection/`.
 - `executor/flows/playwright/attribution/`
   - `events.py` (event annotation + classification + shared
     actor/artifact/epoch helpers), `links.py` (evidence-bundle +
@@ -209,6 +224,14 @@ Async job mode persists step-tracked analysis metadata in the PostgreSQL
 `analysis_jobs` table through `appcore.storage.crud` and
 `workflows.marketplace.job_service`.
 
+`POST /api/marketplace/analyze/{job_id}/cancel` returns the job snapshot
+(`404` on missing, `409` on terminal-state) via `cancel_analysis_job`
+under a `with_for_update()` pessimistic lock; the monitoring heartbeat
+in `analysis_execution.py` polls `is_job_cancelled` every 5 s and
+triggers `executor_control.reset_sandbox` on cancel, after which
+`run_analysis_job` converts the resulting `ExecutorError` to
+`AnalysisCancelledError` and returns silently.
+
 Notes:
 
 - The async endpoint serializes work to one active job.
@@ -220,6 +243,9 @@ Notes:
   is removed.
 - Startup fails fast if job recovery or migration state for `analysis_jobs` is
   unavailable.
+- `ANALYSIS_JOB_STATUSES` includes `cancelled`; the `analysis_jobs.status`
+  column is plain `String` (no DB CHECK constraint), so the new state did
+  not require an Alembic migration.
 
 ### 4. Activation Report Browsing
 

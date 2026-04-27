@@ -1,6 +1,6 @@
 # Demo Scenario — A1 Credential-Read → Network Exfil
 
-`Last Updated: 2026-04-23`
+`Last Updated: 2026-04-25`
 
 ## Purpose
 
@@ -25,6 +25,9 @@ DetectionReport  ────► UI DetectionPanel → FindingCard → Evidence 
 ```
 
 Two runnable flavors are provided — pick whichever suits the audience.
+A third flavor (`make demo-canary`) was added on 2026-04-25 and runs the
+same A1 detection contract end-to-end against the new
+`t1-demo-runnable-canary` declawed fixture; see *Flavor C* below.
 
 ## Canary at a Glance
 
@@ -158,6 +161,46 @@ make exec-build       # Executor + VS Code pinned image
    with `publisher=extrace, name=fixture-chat, version=0.0.1`. The
    Reports page renders `clean` with **no findings**; this proves the
    W6 correlative-signal FP floor holds.
+
+## Flavor C — Demo Runnable Canary (`make demo-canary`) ~1 min
+
+Use this when you want to demonstrate that the rule engine fires
+end-to-end against an extension that **does** run real, declawed code
+inside the sandbox — not just a stored `activation_report.json`. The
+fixture `extensions/malicious/t1-demo-runnable-canary/` carries:
+
+- localhost-only POST to `127.0.0.1:8787` with a 500 ms timeout
+  (network signal source)
+- workspace-local file write (filesystem signal source)
+- explicit `onCommand` activation (no auto-fire)
+- a dedicated `extrace.demo.runnable_canary` rule with a
+  `target_extension_expected` gate so it cannot false-positive on
+  unrelated extensions
+
+### Steps
+
+1. **Offline (no Docker):**
+
+   ```bash
+   make demo-canary-offline
+   ```
+
+   Validates the fixture against the rule engine without spinning up the
+   executor. Equivalent to `python scripts/demo_acceptance.py` but
+   targets the demo-canary fixture and rule.
+
+2. **End-to-end (requires Docker):**
+
+   ```bash
+   make exec-up           # one-time per session
+   make demo-canary       # builds + runs the canary in the sandbox
+   ```
+
+   Watch the resulting report under `output/`; the
+   `extrace.demo.runnable_canary` finding fires with the expected
+   evidence chain. Use this as a fast smoke for capture-pipeline
+   regressions after touching `executor/flows/playwright/attribution/`
+   or `runtime_capture/`.
 
 ## Troubleshooting
 

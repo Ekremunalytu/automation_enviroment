@@ -15,7 +15,14 @@ export function RunActivityRail({
         <div className="metric-tile">
           <div className="micro-label">Run Activity</div>
           <div className="mt-3 text-3xl font-display font-semibold text-ink tabular-nums">{model.progressPct}%</div>
-          <div className="mt-3 h-2 overflow-hidden rounded-full bg-canvas">
+          <div
+            aria-label="Run progress"
+            aria-valuemax={100}
+            aria-valuemin={0}
+            aria-valuenow={model.progressPct}
+            className="mt-3 h-2 overflow-hidden rounded-full bg-canvas"
+            role="progressbar"
+          >
             <div className="h-full rounded-full bg-accent" style={{ width: `${model.progressPct}%` }} />
           </div>
           <div className="mt-3 text-sm text-mute">{model.progressLabel}</div>

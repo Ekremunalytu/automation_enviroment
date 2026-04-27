@@ -1,27 +1,21 @@
 # GEMINI.md
 
-`Last Updated: 2026-04-24`
+`Last Updated: 2026-04-27`
 
-This file was previously a near-clone of `AGENTS.md` + `AGENT_CONTEXT.md`.
-It is now a thin pointer to reduce duplication drift.
+This file is intentionally a thin pointer to reduce duplication drift.
 
-## Read Path (in order)
+## Read Path
 
-1. [`AGENTS.md`](AGENTS.md) — authoritative rules (architectural, security,
-   dependency). Read this first.
-2. [`documents/AGENT_CONTEXT.md`](documents/AGENT_CONTEXT.md) — thin-context
-   project map: task routing, read paths, load-only-if-needed pointers.
-3. [`documents/REFACTOR_STATUS.md`](documents/REFACTOR_STATUS.md) — current
-   closure state, phase history, landed follow-ups.
-4. Subsystem docs under [`documents/`](documents/) **only** when the task
-   reaches that subsystem.
+1. `AGENTS.md` — authoritative hard rules.
+2. `documents/AGENT_CONTEXT.md` — task-routing decision tree.
+3. One matching `documents/agent-lanes/*.md` file.
+4. `documents/REFACTOR_STATUS.md` when phase state matters.
 
-## If Docs and Code Disagree
+## If Docs And Code Disagree
 
-Trust code and tests. Update the doc if the drift is confirmed.
+Trust code and tests. Update the stale doc after confirming the drift.
 
 ## Context Budget
 
-Do not scan the whole repo. Start from one lane (see AGENT_CONTEXT.md).
-Ignore `extensions/`, `output/`, `node_modules/`, `__pycache__/` unless the
-task explicitly targets them.
+Do not scan the whole repo. Start from one lane and ignore generated or heavy
+trees unless the task explicitly targets them.

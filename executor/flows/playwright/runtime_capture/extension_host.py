@@ -43,6 +43,60 @@ _ACTIVATION_PATTERNS = [
     ),
 ]
 
+# Lifecycle marker patterns enrich event_attempts correlation in
+# health_reconciliation (PR345 PR3). Each entry is (compiled_pattern,
+# marker_type) where marker_type ends up on ActivationEntry.marker_type.
+# Kept sibling to _ACTIVATION_PATTERNS so the existing dedup contract
+# (entry per (id, event, timestamp, duration_ms)) stays intact for the
+# default activation path; lifecycle entries dedup on the same tuple
+# extended with marker_type.
+_LIFECYCLE_MARKER_PATTERNS: list[tuple[re.Pattern[str], str]] = [
+    # "activate(<id>) entered"
+    (
+        re.compile(r"activate(?:Function)?\s*\((?P<id>[\w.\-]+)\)\s*entered"),
+        "activate_fn_entry",
+    ),
+    # "activateFunction entered for <id>" / "activate entered <id>"
+    (
+        re.compile(r"activate(?:Function)?\s*entered.*?(?P<id>[\w.\-]+)"),
+        "activate_fn_entry",
+    ),
+    # "activate(<id>) returned in 42ms" / "activate(<id>) completed"
+    (
+        re.compile(
+            r"activate(?:Function)?\s*\((?P<id>[\w.\-]+)\)\s*"
+            r"(?:returned|completed)"
+            r"(?:.*?in\s+(?P<ms>\d+)\s*ms)?"
+        ),
+        "activate_fn_exit",
+    ),
+    # "activate returned for <id> in <N>ms" / "activate completed <id>"
+    (
+        re.compile(
+            r"activate(?:Function)?\s*"
+            r"(?:returned|completed).*?(?P<id>[\w.\-]+)"
+            r"(?:.*?in\s+(?P<ms>\d+)\s*ms)?"
+        ),
+        "activate_fn_exit",
+    ),
+    # "registered command 'extrace.example.run' for <id>"
+    (
+        re.compile(
+            r"register(?:ed|ing)?\s+command\s+'(?P<event>[^']+)'"
+            r"(?:.*?(?:for|by|from)\s+(?P<id>[\w.\-]+))?"
+        ),
+        "command_register",
+    ),
+    # "registered FooProvider for <id>"
+    (
+        re.compile(
+            r"register(?:ed|ing)?\s+(?P<event>\w+Provider)"
+            r"(?:.*?(?:for|by|from)\s+(?P<id>[\w.\-]+))?"
+        ),
+        "provider_register",
+    ),
+]
+
 # Timestamp pattern at start of VS Code log lines
 _TIMESTAMP_RE = re.compile(r"^\[?(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}\.\d+)\]?")
 _PROCESS_EVENT_RE = re.compile(
@@ -54,12 +108,17 @@ _PROCESS_ARGUMENT_PREVIEW = 256
 
 def _parse_activation_lines(lines: list[str], *, source: str) -> list[ActivationEntry]:
     entries: list[ActivationEntry] = []
-    seen: set[tuple[str, str, str, int | None]] = set()
+    seen: set[tuple[str, str, str, int | None, str]] = set()
 
     for line in lines:
-        if "activ" not in line.lower():
+        lowered = line.lower()
+        if "activ" not in lowered and "register" not in lowered:
             continue
 
+        ts_match = _TIMESTAMP_RE.match(line)
+        timestamp = ts_match.group(1) if ts_match else ""
+
+        matched = False
         for pattern in _ACTIVATION_PATTERNS:
             match = pattern.search(line)
             if match is None:
@@ -69,9 +128,41 @@ def _parse_activation_lines(lines: list[str], *, source: str) -> list[Activation
             event = match.groupdict().get("event", "") or ""
             ms_str = match.groupdict().get("ms")
             duration_ms = int(ms_str) if ms_str else None
-            ts_match = _TIMESTAMP_RE.match(line)
-            timestamp = ts_match.group(1) if ts_match else ""
-            dedup_key = (ext_id, event, timestamp, duration_ms)
+            dedup_key = (ext_id, event, timestamp, duration_ms, "")
+
+            if dedup_key in seen:
+                matched = True
+                break
+
+            seen.add(dedup_key)
+            entries.append(
+                ActivationEntry(
+                    extension_id=ext_id,
+                    activation_event=event,
+                    duration_ms=duration_ms,
+                    timestamp=timestamp,
+                    source=source,
+                )
+            )
+            matched = True
+            break
+
+        if matched:
+            continue
+
+        for pattern, marker_type in _LIFECYCLE_MARKER_PATTERNS:
+            match = pattern.search(line)
+            if match is None:
+                continue
+
+            ext_id = match.groupdict().get("id") or ""
+            if not ext_id:
+                continue
+
+            event = match.groupdict().get("event", "") or ""
+            ms_str = match.groupdict().get("ms")
+            duration_ms = int(ms_str) if ms_str else None
+            dedup_key = (ext_id, event, timestamp, duration_ms, marker_type)
 
             if dedup_key in seen:
                 break
@@ -84,6 +175,7 @@ def _parse_activation_lines(lines: list[str], *, source: str) -> list[Activation
                     duration_ms=duration_ms,
                     timestamp=timestamp,
                     source=source,
+                    marker_type=marker_type,
                 )
             )
             break
@@ -170,7 +262,7 @@ def parse_all_exthost_logs(
             If provided, only content appended after the given offset is parsed.
     """
     all_entries: list[ActivationEntry] = []
-    seen_entries: set[tuple[str, str, str, int | None, str]] = set()
+    seen_entries: set[tuple[str, str, str, int | None, str, str]] = set()
     offsets = start_offsets or {}
 
     for log_path in find_exthost_logs():
@@ -182,6 +274,7 @@ def parse_all_exthost_logs(
                 entry.timestamp,
                 entry.duration_ms,
                 entry.source,
+                entry.marker_type,
             )
             if dedup_key in seen_entries:
                 continue

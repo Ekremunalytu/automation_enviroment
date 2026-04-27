@@ -37,6 +37,7 @@ TARGET_SCHEMAS: list[str] = [
     "NetworkEvent",
     "FileEvent",
     "ProcessEvent",
+    "OutputSignalEvent",
     "RuleExecutionRecord",
     "RuleExecutionStatus",
     "RuleLifecycle",
@@ -54,6 +55,7 @@ TARGET_SCHEMAS: list[str] = [
     "MarketplaceExtension",
     "MarketplaceDownloadResponse",
     "AnalyzeJobStep",
+    "AnalyzeJobStepProgress",
     "AnalyzeJobStatusResponse",
 ]
 
@@ -73,6 +75,7 @@ NAME_OVERRIDES: dict[str, str] = {
     "NetworkEvent": "NetworkEventDto",
     "FileEvent": "FileEventDto",
     "ProcessEvent": "ProcessEventDto",
+    "OutputSignalEvent": "OutputSignalEventDto",
     "RuleExecutionRecord": "RuleExecutionRecordDto",
     "RuleExecutionStatus": "RuleExecutionStatusDto",
     "RuleLifecycle": "RuleLifecycleDto",

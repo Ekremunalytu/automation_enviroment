@@ -1,0 +1,26 @@
+{
+  "id": "t1-demo-runnable-canary",
+  "tier": "T1",
+  "source": {
+    "kind": "internal_canary",
+    "reference": "demo/runnable-safe-canary",
+    "sha256": null
+  },
+  "category": {
+    "adversary_class": "A1",
+    "taxonomy": ["attack.T1555", "attack.T1041", "extrace.ext.startup_ui_prompt"]
+  },
+  "expected_detections": {
+    "must_fire": [
+      "extrace.a1.credential_read_then_network",
+      "extrace.a4.workspace_exfil",
+      "extrace.a6.startup_ui_prompt",
+      "extrace.demo.runnable_canary"
+    ],
+    "must_not_fire": []
+  },
+  "declawing": null,
+  "retention": {
+    "expires": null
+  }
+}

@@ -40,6 +40,18 @@ _REASON_LABELS = {
     "official_unresolved_present": (
         "Official activation events remained unresolved after verification."
     ),
+    "harness_verification_unconfirmed_present": (
+        "One or more harness-routed attempts could not be verified end-to-end."
+    ),
+    # W8-0: typed sub-reasons that replace the generic
+    # "harness_command_unavailable" bucket. Each surfaces a distinct
+    # actionable failure mode of the harness ready-marker handshake.
+    "harness_ready_marker_missing": "Harness ready marker never appeared.",
+    "harness_ready_marker_stale": ("Harness ready marker belonged to a previous run."),
+    "harness_ready_marker_invalid": "Harness ready marker was unreadable.",
+    "harness_activation_timeout": (
+        "Harness extension activation did not complete in time."
+    ),
 }
 
 _SCENARIO_ZERO_REASON = (
@@ -303,10 +315,28 @@ def build_automation_health(
         reasons.append("extra_trigger_failures_present")
     if getattr(report, "ui_blocker_entries", []):
         reasons.append("ui_blockers_present")
-    if not layered_execution and getattr(report, "verification_gap", 0) > 0:
+    # FOLLOWUP codex-automation-3: verification gap + chat-tool gap reasons
+    # propagate regardless of execution mode. The W7 entry's "layered
+    # run_quality label" fix limited these to non-layered runs, leaving
+    # automation_health.status="healthy" while run_quality dropped to
+    # medium for layered runs with the same evidence — operators reading
+    # only the health chip got misplaced confidence.
+    if getattr(report, "verification_gap", 0) > 0:
         reasons.append("verification_gap_present")
-    if not layered_execution and unresolved_chat_tool_attempts:
+    if unresolved_chat_tool_attempts:
         reasons.append("chat_tool_verification_incomplete")
+    official_event_coverage = getattr(report, "official_event_coverage", {}) or {}
+    if int(official_event_coverage.get("unresolved", 0) or 0) > 0:
+        reasons.append("official_unresolved_present")
+    # FOLLOWUP codex-automation-3 (4/4): attempt-level harness verification
+    # gaps. Unlike the run-level reasons above, this is recorded against
+    # individual ``event_attempts`` rows by the W8-0 PR-C catch path.
+    if any(
+        str(getattr(attempt, "failure_reason_code", "") or "")
+        == "harness_verification_unconfirmed"
+        for attempt in getattr(report, "event_attempts", []) or []
+    ):
+        reasons.append("harness_verification_unconfirmed_present")
     if (
         not target_stream_present
         and target_activation_count <= 0
@@ -343,13 +373,12 @@ def build_automation_health(
         or failed_scenarios
         or extra_trigger_failures
         or getattr(report, "ui_blocker_entries", [])
-        or (
-            not layered_execution
-            and (
-                getattr(report, "verification_gap", 0) > 0
-                or unresolved_chat_tool_attempts
-            )
-        )
+        # FOLLOWUP codex-automation-3: partial-evidence signals demote to
+        # ``degraded`` regardless of execution mode (was non-layered only).
+        or getattr(report, "verification_gap", 0) > 0
+        or unresolved_chat_tool_attempts
+        or int(official_event_coverage.get("unresolved", 0) or 0) > 0
+        or "harness_verification_unconfirmed_present" in reasons
     ):
         status = "degraded"
     else:
@@ -395,13 +424,32 @@ def build_run_quality(
         return "inconclusive", reasons
     if health.get("skipped_scenarios"):
         return "low", reasons
+    # FOLLOWUP codex-automation-3: partial-evidence reasons (verification
+    # gap, chat-tool unresolved, official unresolved) now demote
+    # automation_health.status from "healthy" to "degraded". A layered
+    # run that lands at "degraded" purely on partial-evidence signals
+    # remains a medium-quality run — it would be misleading to return
+    # "low" when no actual failures occurred.
+    partial_evidence_reason_codes = {
+        "verification_gap_present",
+        "chat_tool_verification_incomplete",
+        "official_unresolved_present",
+        "harness_verification_unconfirmed_present",
+    }
+    health_reason_codes = set(health.get("reasons", []) or [])
+    only_partial_evidence_degradation = (
+        status == "degraded"
+        and health_reason_codes
+        and health_reason_codes.issubset(partial_evidence_reason_codes)
+    )
     if execution_mode == "layered_passes":
-        if status == "degraded":
+        if status == "degraded" and not only_partial_evidence_degradation:
             return "low", reasons
         if (
             official_unresolved > 0
             or unresolved_chat_tool_attempts
             or getattr(report, "verification_gap", 0) > 0
+            or only_partial_evidence_degradation
         ):
             medium_reasons = list(reasons)
             if getattr(report, "verification_gap", 0) > 0:

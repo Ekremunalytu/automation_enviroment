@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import time
+from typing import Literal
 
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
@@ -17,6 +18,21 @@ from appcore.contracts.schema_defs.analysis_jobs import (
     AnalysisJobUpdate,
 )
 from appcore.storage.models import AnalysisJob
+
+
+class JobNotCancellableError(RuntimeError):
+    """Raised when a cancel request targets a job already in a terminal state."""
+
+    def __init__(self, job_id: str, status: str) -> None:
+        super().__init__(
+            f"Analysis job {job_id} is in terminal status "
+            f"{status!r} and cannot be cancelled."
+        )
+        self.job_id = job_id
+        self.status = status
+
+
+_TERMINAL_JOB_STATUSES: frozenset[str] = frozenset({"completed", "failed", "cancelled"})
 
 
 def _get_analysis_job_or_raise(db: Session, job_id: str) -> AnalysisJob:
@@ -36,46 +52,89 @@ def _write_steps(job: AnalysisJob, steps: list[AnalysisJobStepRecord]) -> None:
 
 
 def _interrupt_job(
-    job: AnalysisJob, detail: str, error_code: str | None = None
+    job: AnalysisJob,
+    detail: str,
+    error_code: str | None = None,
+    *,
+    terminal_status: Literal["failed", "cancelled"] = "failed",
+    terminal_step_status: Literal["failed", "cancelled"] = "failed",
 ) -> None:
     steps = _job_steps(job)
     current_step = job.current_step
-    failed_index: int | None = None
+    interrupted_index: int | None = None
+    skipped_reason_verb = (
+        "was cancelled" if terminal_status == "cancelled" else "was interrupted"
+    )
 
     if current_step is not None:
         for index, step in enumerate(steps):
             if step.name == current_step:
                 steps[index] = step.model_copy(
                     update={
-                        "status": "failed",
+                        "status": terminal_step_status,
                         "message": detail,
                         "error_code": error_code,
+                        "progress": None,
                     }
                 )
-                failed_index = index
+                interrupted_index = index
                 break
 
-    if failed_index is not None and current_step is not None:
-        for index, step in enumerate(steps[failed_index + 1 :], start=failed_index + 1):
+    if interrupted_index is not None and current_step is not None:
+        for index, step in enumerate(
+            steps[interrupted_index + 1 :], start=interrupted_index + 1
+        ):
             if step.status == "pending":
                 steps[index] = step.model_copy(
                     update={
                         "status": "skipped",
                         "message": (
                             "Skipped because "
-                            f"{current_step.replace('_', ' ')} was interrupted."
+                            f"{current_step.replace('_', ' ')} {skipped_reason_verb}."
                         ),
                     }
                 )
 
     _write_steps(job, steps)
     finished_at = time.time()
-    job.status = "failed"
+    job.status = terminal_status
     job.message = detail
     job.error_detail = detail
     job.error_code = error_code
     job.finished_at = finished_at
     job.updated_at = finished_at
+
+
+def cancel_analysis_job(
+    db: Session,
+    job_id: str,
+    detail: str = "Cancelled by user.",
+    *,
+    error_code: str = "cancelled_by_user",
+) -> AnalysisJob:
+    stmt = select(AnalysisJob).where(AnalysisJob.job_id == job_id).with_for_update()
+    job = db.scalars(stmt).first()
+    if job is None:
+        raise KeyError(job_id)
+
+    if job.status in _TERMINAL_JOB_STATUSES:
+        raise JobNotCancellableError(job_id, job.status)
+
+    _interrupt_job(
+        job,
+        detail,
+        error_code=error_code,
+        terminal_status="cancelled",
+        terminal_step_status="cancelled",
+    )
+
+    try:
+        db.commit()
+        db.refresh(job)
+        return job
+    except SQLAlchemyError:
+        db.rollback()
+        raise
 
 
 def create_analysis_job(
@@ -135,6 +194,11 @@ def update_analysis_job_step(
     job = _get_analysis_job_or_raise(db, job_id)
     steps = _job_steps(job)
 
+    if step_update.status in {"completed", "skipped", "cancelled"}:
+        next_progress = None
+    else:
+        next_progress = step_update.progress
+
     for index, step in enumerate(steps):
         if step.name == step_update.step_name:
             steps[index] = step.model_copy(
@@ -142,6 +206,7 @@ def update_analysis_job_step(
                     "status": step_update.status,
                     "message": step_update.message,
                     "error_code": step_update.error_code,
+                    "progress": next_progress,
                 }
             )
             break
@@ -155,7 +220,7 @@ def update_analysis_job_step(
     elif step_update.status in {"completed", "skipped"}:
         if job.current_step == step_update.step_name:
             job.current_step = None
-    elif step_update.status == "failed":
+    elif step_update.status in {"failed", "cancelled"}:
         job.current_step = step_update.step_name
 
     _write_steps(job, steps)
@@ -188,6 +253,7 @@ def fail_analysis_job(
                         "status": "failed",
                         "message": failure.detail,
                         "error_code": failure.error_code,
+                        "progress": None,
                     }
                 )
                 failed_index = index
@@ -269,6 +335,8 @@ def recover_interrupted_analysis_jobs(
 
 
 __all__ = [
+    "JobNotCancellableError",
+    "cancel_analysis_job",
     "complete_analysis_job",
     "create_analysis_job",
     "fail_analysis_job",

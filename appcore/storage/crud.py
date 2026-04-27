@@ -1,6 +1,8 @@
 """Public CRUD facade for ExTrace storage."""
 
 from appcore.storage.crud_ops.analysis_jobs import (
+    JobNotCancellableError,
+    cancel_analysis_job,
     complete_analysis_job,
     create_analysis_job,
     fail_analysis_job,
@@ -26,6 +28,8 @@ from appcore.storage.crud_ops.relations import (
 from appcore.storage.crud_ops.writes import create_extension, delete_extension
 
 __all__ = [
+    "JobNotCancellableError",
+    "cancel_analysis_job",
     "complete_analysis_job",
     "create_analysis_job",
     "create_extension",

@@ -17,6 +17,7 @@ from appcore.contracts.schema_defs.analysis_jobs import (
     AnalysisJobFailure,
     AnalysisJobPersistedRecord,
     AnalysisJobStepName,
+    AnalysisJobStepProgress,
     AnalysisJobStepRecord,
     AnalysisJobStepStatus,
     AnalysisJobStepUpdate,
@@ -29,6 +30,8 @@ from appcore.contracts.schemas import (
 )
 from appcore.db.session import SessionLocal
 from appcore.storage.crud import (
+    JobNotCancellableError,
+    cancel_analysis_job,
     complete_analysis_job,
     create_analysis_job,
     fail_analysis_job,
@@ -258,12 +261,19 @@ def update_job_step(
     *,
     db: Session | None = None,
     error_code: str | None = None,
+    progress: dict[str, int] | None = None,
 ) -> dict[str, Any]:
+    step_progress = (
+        AnalysisJobStepProgress.model_validate(progress)
+        if progress is not None
+        else None
+    )
     step_update = AnalysisJobStepUpdate(
         step_name=step_name,
         status=status,
         message=message,
         error_code=error_code,
+        progress=step_progress,
     )
 
     def operation(session: Session) -> dict[str, Any]:
@@ -285,6 +295,30 @@ def fail_job(
     def operation(session: Session) -> dict[str, Any]:
         job = fail_analysis_job(session, job_id, failure)
         return _public_snapshot(job)
+
+    return _run_in_session(db, operation)
+
+
+def cancel_job(
+    job_id: str,
+    *,
+    detail: str = "Cancelled by user.",
+    db: Session | None = None,
+    error_code: str = "cancelled_by_user",
+) -> dict[str, Any]:
+    def operation(session: Session) -> dict[str, Any]:
+        job = cancel_analysis_job(session, job_id, detail, error_code=error_code)
+        return _public_snapshot(job)
+
+    return _run_in_session(db, operation)
+
+
+def is_job_cancelled(job_id: str, db: Session | None = None) -> bool:
+    def operation(session: Session) -> bool:
+        job = get_analysis_job(session, job_id)
+        if job is None:
+            return False
+        return job.status == "cancelled"
 
     return _run_in_session(db, operation)
 
@@ -323,7 +357,9 @@ def recover_interrupted_jobs(db: Session | None = None) -> int:
 
 __all__ = [
     "ActiveAnalysisJobError",
+    "JobNotCancellableError",
     "build_report_name",
+    "cancel_job",
     "complete_job",
     "create_job_snapshot",
     "empty_job_steps",
@@ -332,6 +368,7 @@ __all__ = [
     "get_active_persisted_job_snapshot",
     "get_job_snapshot",
     "get_persisted_job_snapshot",
+    "is_job_cancelled",
     "now",
     "recover_interrupted_jobs",
     "reserve_job",

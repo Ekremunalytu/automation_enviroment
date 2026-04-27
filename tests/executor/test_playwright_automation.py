@@ -89,6 +89,65 @@ def test_run_all_scenarios_returns_failed_names(monkeypatch) -> None:
     assert "recover" in calls
 
 
+def test_harness_unavailable_skips_scenario_and_continues(monkeypatch) -> None:
+    calls: list[str] = []
+
+    def scenario_harness_fail(page) -> None:
+        _ = page
+        calls.append("harness")
+        raise automation.HarnessUnavailableError("ready marker missing")
+
+    def scenario_after(page) -> None:
+        _ = page
+        calls.append("after")
+
+    monkeypatch.setattr(
+        automation,
+        "_ALL_SCENARIOS",
+        [
+            automation.ScenarioSpec(
+                name="harness_target",
+                handler=scenario_harness_fail,
+                intent="harness",
+                activation_events=("onCommand",),
+                api_capabilities=("commands",),
+                success_signals=("done",),
+            ),
+            automation.ScenarioSpec(
+                name="follow_up",
+                handler=scenario_after,
+                intent="ok",
+                activation_events=("onCommand",),
+                api_capabilities=("commands",),
+                success_signals=("done",),
+            ),
+        ],
+    )
+    monkeypatch.setattr(
+        automation,
+        "_recover_ui_state",
+        lambda page: calls.append("recover"),
+    )
+    monkeypatch.setattr(
+        automation,
+        "_cleanup_between_scenarios",
+        lambda page: calls.append("cleanup"),
+    )
+
+    result = automation.run_all_scenarios(DummyPage(), shuffle=False)
+
+    # Harness scenario was attempted but recorded as skipped (not failed),
+    # and the follow-up still ran.
+    assert "harness" in calls
+    assert "after" in calls
+    assert result.failed_scenarios == []
+    assert any(
+        record.name == "harness_target"
+        and record.reason_code == automation.HARNESS_COMMAND_UNAVAILABLE_REASON
+        for record in result.skipped_scenarios
+    )
+
+
 def test_run_all_scenarios_without_failures_does_not_recover(monkeypatch) -> None:
     calls: list[str] = []
 

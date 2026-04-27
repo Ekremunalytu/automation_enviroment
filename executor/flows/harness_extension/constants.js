@@ -1,4 +1,6 @@
 const CONTEXT_PATH = "/workspace/.extrace-harness/context.json";
+const READY_PATH = "/workspace/.extrace-harness/ready.json";
+const HARNESS_RUN_COMMAND_ID = "extrace.harness.runCurrentStimulus";
 
 const BUILTIN_VIEW_CONTAINER_COMMANDS = {
   debug: ["workbench.view.debug"],
@@ -12,4 +14,6 @@ const BUILTIN_VIEW_CONTAINER_COMMANDS = {
 module.exports = {
   BUILTIN_VIEW_CONTAINER_COMMANDS,
   CONTEXT_PATH,
+  HARNESS_RUN_COMMAND_ID,
+  READY_PATH,
 };

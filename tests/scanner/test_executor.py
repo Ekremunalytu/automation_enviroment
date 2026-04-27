@@ -517,16 +517,19 @@ def test_run_automation_nonzero_without_report_raises_executor_error(
 
 
 @patch("executor.host.cleanup_trigger_file")
+@patch("executor.host._cleanup_stale_entrypoint_processes")
 @patch("executor.host._docker_exec_allow_partial")
 def test_run_automation_timeout(
     mock_exec: MagicMock,
+    mock_cleanup_entrypoint: MagicMock,
     mock_cleanup: MagicMock,
 ) -> None:
-    """Timeout still raises ExecutorError."""
+    """Timeout fails closed and stops the in-container entrypoint."""
     mock_exec.side_effect = ExecutorError("Timed out", returncode=None, output="")
 
     with pytest.raises(ExecutorError):
         run_playwright_automation("/results/r.json")
+    mock_cleanup_entrypoint.assert_called_once_with()
     mock_cleanup.assert_called_once_with(None)
 
 

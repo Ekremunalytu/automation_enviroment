@@ -122,19 +122,34 @@ def _mark_unverified_harness_attempt(
 
 
 def _target_log_stream_summaries(report: Any, target_id: str) -> list[str]:
-    """Return short summaries of log entries attributed to the target extension.
+    """Return short summaries of target-owned evidence beyond the activation entry.
 
     Used by ``reconcile_event_attempts`` to decide whether an attempt with an
-    activation match also has target-owned log evidence, in which case it is
-    upgraded from ``activation_seen`` to ``target_log_seen``. Conservative:
-    requires ``is_target_extension=True`` AND, when ``target_id`` is set, an
-    exact ``extension_id`` match.
+    activation match also has target-owned log/output evidence, in which case
+    it is upgraded from ``activation_seen`` to ``target_log_seen``.
+    Conservative: requires ``is_target_extension=True`` AND, when ``target_id``
+    is set, an exact ``extension_id`` match.
+
+    PR345 PR3-5 follow-up (2026-04-27): two correctness fixes
+    1. ``kind == "activation"`` log entries are excluded — every target
+       ``ActivationEntry`` is mirrored into ``target_extension_host`` by
+       ``_append_activation_log_entries``, so counting them as "target log
+       evidence" collapses ``activation_seen`` into ``target_log_seen``
+       automatically. Lifecycle now requires evidence beyond the activation.
+    2. ``report.output_signal_events`` (PR5 harness Output channel hook) is
+       harvested as a second evidence source. Per ADR 0006 §5: a target-owned
+       Output channel write is exactly the kind of post-activation signal
+       ``target_log_seen`` was meant to capture.
     """
-    streams = getattr(report, "log_streams", {}) or {}
     summaries: list[str] = []
+    cap = 5
+
+    streams = getattr(report, "log_streams", {}) or {}
     for stream_name, entries in streams.items():
         for entry in entries or []:
             if not getattr(entry, "is_target_extension", False):
+                continue
+            if str(getattr(entry, "kind", "")).strip() == "activation":
                 continue
             entry_ext_id = str(getattr(entry, "extension_id", "")).strip()
             if target_id and entry_ext_id != target_id:
@@ -144,8 +159,25 @@ def _target_log_stream_summaries(report: Any, target_id: str) -> list[str]:
                 continue
             snippet = message if len(message) <= 80 else message[:77] + "..."
             summaries.append(f"{stream_name}: {snippet}")
-            if len(summaries) >= 5:
+            if len(summaries) >= cap:
                 return summaries
+
+    output_events = getattr(report, "output_signal_events", []) or []
+    for event in output_events:
+        if not getattr(event, "is_target_extension_event", False):
+            continue
+        event_ext_id = str(getattr(event, "extension_id", "")).strip()
+        if target_id and event_ext_id != target_id:
+            continue
+        channel = str(getattr(event, "channel", "")).strip() or "<unnamed>"
+        text = str(getattr(event, "text", "")).strip()
+        if not text:
+            continue
+        snippet = text if len(text) <= 80 else text[:77] + "..."
+        summaries.append(f"output_channel({channel}): {snippet}")
+        if len(summaries) >= cap:
+            return summaries
+
     return summaries
 
 

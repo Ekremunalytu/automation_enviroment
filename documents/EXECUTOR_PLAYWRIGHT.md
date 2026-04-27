@@ -1,6 +1,6 @@
 # Executor Playwright Architecture
 
-`Last Updated: 2026-04-24`
+`Last Updated: 2026-04-25`
 
 The executor is ExTrace's dynamic-analysis sandbox. It runs a full VS Code GUI
 session inside Docker, drives that session with Playwright, and exports
@@ -33,6 +33,24 @@ integration points that drive it.
 > *Scan-Between Restart* below). The `attribution/` subpackage replaces
 > the former `monitor_attribution.py` monolith with a three-file split
 > behind a flat re-export facade.
+>
+> **Post-W7 reliability + UX (2026-04-25):** the
+> `feat/simulation-progress-cancel` branch added two executor-side
+> changes: (1) `vscode.py::reload_workbench_window` now `unlink()`s
+> `_HARNESS_READY_PATH` before dispatching the reload, eliminating the
+> stale-marker race that crashed the harness extension on VNC after a
+> reload (the harness extension's `activate()` is now `async` and
+> awaits `writeHarnessReadyMarker()` so a write failure surfaces as a
+> clean `HarnessUnavailableError` timeout instead of stale-marker
+> confusion); (2) the monitoring heartbeat in
+> `workflows/marketplace/analysis_execution.py` polls
+> `is_job_cancelled` every 5 s and triggers
+> `executor_control.reset_sandbox(reload_window=True)` on cancel —
+> downstream the resulting `ExecutorError` is converted to
+> `AnalysisCancelledError` so `run_analysis_job` returns silently. The
+> `t1-demo-runnable-canary` fixture exercises a declawed end-to-end
+> path (localhost-only POST + workspace-local file write + explicit
+> `onCommand` activation) for the new `make demo-canary` lane.
 
 This runtime still assumes:
 

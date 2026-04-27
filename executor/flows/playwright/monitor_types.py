@@ -47,6 +47,7 @@ try:
         ActivationEntry,
         FileEvent,
         NetworkEvent,
+        OutputSignalEvent,
         ProcessEvent,
     )
 except ImportError:  # pragma: no cover - top-level executor import mode
@@ -89,7 +90,31 @@ except ImportError:  # pragma: no cover - top-level executor import mode
         ActivationEntry,
         FileEvent,
         NetworkEvent,
+        OutputSignalEvent,
         ProcessEvent,
+    )
+
+
+_DEMOTE_WARNING_EMITTED: set[tuple[str, str]] = set()
+
+
+def _log_stream_demote_warning(entry: LogStreamEntry, target_id: str) -> None:
+    """Emit a one-shot warning per (extension_id, target_id) demote.
+
+    PR345 PR4 serialization-time defense: when an entry assigned to
+    ``target_extension_host`` violates the invariant the build-path
+    guard enforces, we demote it to ``other_extension_host`` and log
+    once so the leak is observable without spamming the report build.
+    """
+    key = (entry.extension_id or "", target_id or "")
+    if key in _DEMOTE_WARNING_EMITTED:
+        return
+    _DEMOTE_WARNING_EMITTED.add(key)
+    _log(
+        "Demoted target_extension_host log entry to other_extension_host: "
+        f"extension_id={entry.extension_id!r} "
+        f"is_target_extension={entry.is_target_extension} "
+        f"target={target_id!r}"
     )
 
 
@@ -103,6 +128,7 @@ class ActivationReport:
     network_events: list[NetworkEvent] = field(default_factory=list)
     file_events: list[FileEvent] = field(default_factory=list)
     process_events: list[ProcessEvent] = field(default_factory=list)
+    output_signal_events: list[OutputSignalEvent] = field(default_factory=list)
     scenario_traces: list[ScenarioTrace] = field(default_factory=list)
     skipped_scenarios: list[SkippedScenarioRecord] = field(default_factory=list)
     stimulus_passes: list[StimulusPassTrace] = field(default_factory=list)
@@ -186,6 +212,20 @@ class ActivationReport:
         return [entry for entry in self.log_entries if entry.stream == "ui_blockers"]
 
     @property
+    def target_output_signal_events(self) -> list[OutputSignalEvent]:
+        """Output channel events attributed to the target extension.
+
+        PR345 PR5 + ADR 0006: events emitted by the harness Output
+        channel hook whose attribution resolved to the target extension
+        (timestamp within ATTRIBUTION_WINDOW_S of a target activation).
+        """
+        return [
+            entry
+            for entry in self.output_signal_events
+            if entry.is_target_extension_event
+        ]
+
+    @property
     def target_extension_observed(self) -> bool:
         if not self.target_extension_id:
             return False
@@ -200,6 +240,7 @@ class ActivationReport:
             )
             or self.target_file_events
             or self.target_network_events
+            or self.target_output_signal_events
         )
 
     @property
@@ -367,6 +408,7 @@ class ActivationReport:
             "automation": [],
             "ui_blockers": [],
         }
+        target_id = self.target_extension_id
         for entry in sorted(
             self.log_entries,
             key=lambda item: (
@@ -376,7 +418,21 @@ class ActivationReport:
                 item.message,
             ),
         ):
-            grouped.setdefault(entry.stream, []).append(entry)
+            stream = entry.stream
+            # PR345 PR4: serialization-time invariant defense.
+            # Build-path guard in monitor_lifecycle._assert_target_stream_invariant
+            # is the primary contract; this demote handles entries that
+            # somehow slipped past it (legacy fixtures, manual report
+            # construction in tests). Half-correct over crashing report
+            # delivery in production.
+            if stream == "target_extension_host" and (
+                not entry.is_target_extension
+                or not target_id
+                or entry.extension_id != target_id
+            ):
+                _log_stream_demote_warning(entry, target_id)
+                stream = "other_extension_host"
+            grouped.setdefault(stream, []).append(entry)
         return grouped
 
     def save(self, path: str | Path, announce: bool = True) -> Path:

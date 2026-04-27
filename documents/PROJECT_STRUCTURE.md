@@ -1,6 +1,6 @@
 # Project Structure
 
-`Last Updated: 2026-04-24`
+`Last Updated: 2026-04-25`
 
 This is the current top-level layout and placement guidance for the refactored
 repository.
@@ -66,6 +66,9 @@ workflows/
     router.py
     service.py
   marketplace/
+    analysis_errors.py
+    analysis_execution.py
+    analysis_reports.py
     analysis_service.py
     client.py
     job_service.py

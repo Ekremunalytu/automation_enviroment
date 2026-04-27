@@ -116,6 +116,158 @@ def test_complete_job_persists_final_outputs(db_session: Session) -> None:
     assert completed["finished_at"] is not None
 
 
+def test_cancel_job_marks_current_step_cancelled_and_skips_remaining(
+    db_session: Session,
+) -> None:
+    job = job_service.reserve_job(_request(), db=db_session)
+    job_service.update_job_step(
+        job["job_id"],
+        "run_monitoring",
+        "running",
+        "Running monitor.",
+        db=db_session,
+        progress={"completed": 1, "total": 5},
+    )
+
+    job_service.cancel_job(job["job_id"], db=db_session)
+    cancelled = job_service.get_persisted_job_snapshot(job["job_id"], db=db_session)
+
+    assert cancelled["status"] == "cancelled"
+    assert cancelled["error_code"] == "cancelled_by_user"
+    assert cancelled["error_detail"] == "Cancelled by user."
+    assert cancelled["current_step"] == "run_monitoring"
+    assert cancelled["steps"][3]["status"] == "cancelled"
+    assert cancelled["steps"][3]["progress"] is None
+    assert cancelled["steps"][4]["status"] == "skipped"
+    assert "cancelled" in cancelled["steps"][4]["message"].lower()
+    assert cancelled["finished_at"] is not None
+
+
+def test_cancel_job_on_completed_job_raises(db_session: Session) -> None:
+    job = job_service.reserve_job(_request(), db=db_session)
+    result = AnalyzeResponse(
+        status="success",
+        publisher="ms-python",
+        name="python",
+        version="2025.0.0",
+        message="done",
+        install_output=None,
+        automation_output=None,
+        report_path="activation_report.json",
+    )
+    job_service.complete_job(job["job_id"], result, db=db_session)
+
+    with pytest.raises(job_service.JobNotCancellableError):
+        job_service.cancel_job(job["job_id"], db=db_session)
+
+
+def test_cancel_job_unknown_id_raises(db_session: Session) -> None:
+    with pytest.raises(KeyError):
+        job_service.cancel_job("does-not-exist", db=db_session)
+
+
+def test_update_job_step_progress_field_is_persisted_and_cleared(
+    db_session: Session,
+) -> None:
+    job = job_service.reserve_job(_request(), db=db_session)
+    job_service.update_job_step(
+        job["job_id"],
+        "run_monitoring",
+        "running",
+        "Running 2/5",
+        db=db_session,
+        progress={"completed": 2, "total": 5},
+    )
+    running = job_service.get_persisted_job_snapshot(job["job_id"], db=db_session)
+    assert running["steps"][3]["progress"] == {"completed": 2, "total": 5}
+
+    job_service.update_job_step(
+        job["job_id"],
+        "run_monitoring",
+        "completed",
+        "Done",
+        db=db_session,
+    )
+    done = job_service.get_persisted_job_snapshot(job["job_id"], db=db_session)
+    assert done["steps"][3]["progress"] is None
+
+
+def test_update_job_step_clears_progress_when_status_becomes_skipped(
+    db_session: Session,
+) -> None:
+    """A 'skipped' transition is also terminal: stale progress numerator/total
+    must be cleared so the UI doesn't keep showing 2/5 on a step that never
+    actually finished."""
+    job = job_service.reserve_job(_request(), db=db_session)
+    job_service.update_job_step(
+        job["job_id"],
+        "run_monitoring",
+        "running",
+        "Running 2/5",
+        db=db_session,
+        progress={"completed": 2, "total": 5},
+    )
+    job_service.update_job_step(
+        job["job_id"],
+        "run_monitoring",
+        "skipped",
+        "Skipped because automation was interrupted.",
+        db=db_session,
+    )
+    snapshot = job_service.get_persisted_job_snapshot(job["job_id"], db=db_session)
+    assert snapshot["steps"][3]["status"] == "skipped"
+    assert snapshot["steps"][3]["progress"] is None
+
+
+def test_is_job_cancelled_returns_true_only_for_cancelled_status(
+    db_session: Session,
+) -> None:
+    """is_job_cancelled is the polling primitive used by the analysis worker to
+    decide whether to keep running. It must return True only for the cancelled
+    terminal state — not for queued/running/completed/failed."""
+    job = job_service.reserve_job(_request(), db=db_session)
+    # queued: not cancelled
+    assert job_service.is_job_cancelled(job["job_id"], db=db_session) is False
+
+    job_service.update_job(
+        job["job_id"],
+        status="running",
+        message="running",
+        db=db_session,
+    )
+    assert job_service.is_job_cancelled(job["job_id"], db=db_session) is False
+
+    job_service.cancel_job(job["job_id"], db=db_session)
+    assert job_service.is_job_cancelled(job["job_id"], db=db_session) is True
+
+
+def test_is_job_cancelled_returns_false_for_unknown_job(
+    db_session: Session,
+) -> None:
+    """Unknown jobs are 'not cancelled' rather than raising — the worker uses
+    this to gate behavior, and a missing row should never crash the heartbeat."""
+    assert job_service.is_job_cancelled("does-not-exist", db=db_session) is False
+
+
+def test_is_job_cancelled_returns_false_after_completion(
+    db_session: Session,
+) -> None:
+    job = job_service.reserve_job(_request(), db=db_session)
+    result = AnalyzeResponse(
+        status="success",
+        publisher="ms-python",
+        name="python",
+        version="2025.0.0",
+        message="done",
+        install_output=None,
+        automation_output=None,
+        report_path="activation_report.json",
+    )
+    job_service.complete_job(job["job_id"], result, db=db_session)
+
+    assert job_service.is_job_cancelled(job["job_id"], db=db_session) is False
+
+
 def test_recover_interrupted_jobs_marks_stale_active_rows_failed(
     db_session: Session,
 ) -> None:

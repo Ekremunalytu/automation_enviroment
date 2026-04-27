@@ -1,5 +1,5 @@
 import { startTransition, useDeferredValue, useEffect, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import { FilterRail, type EvidenceFilterState } from "../../components/evidence/FilterRail";
 import { EmptyState } from "../../components/ui/EmptyState";
@@ -35,6 +35,7 @@ function normalizeWorkspaceTab(raw: string | null): WorkspaceTab {
 export function SimulationPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const queryClient = useQueryClient();
   const jobId = searchParams.get("job");
   const tab = searchParams.get("tab") || "live";
   const workspaceTab = normalizeWorkspaceTab(searchParams.get("workspace"));
@@ -88,6 +89,27 @@ export function SimulationPage() {
   const job = jobQuery.data;
   const report = reportQuery.data;
   const model = job ? adaptJob(job) : null;
+
+  const cancelMutation = useMutation({
+    mutationFn: () => {
+      if (!jobId) throw new Error("Cannot cancel without an active job id.");
+      return apiClient.cancelAnalysisJob(jobId);
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(["job", jobId], data);
+      queryClient.invalidateQueries({ queryKey: ["job", jobId] });
+    },
+  });
+
+  const isJobActive = job?.status === "queued" || job?.status === "running";
+
+  const handleStopRun = () => {
+    if (!jobId || cancelMutation.isPending) return;
+    const ok = window.confirm(
+      "Stop the simulation? The sandbox will be reset and a partial report will be saved.",
+    );
+    if (ok) cancelMutation.mutate();
+  };
 
   const filteredEvents = useMemo(
     () => (report ? filterEvidenceEvents(report.evidence, filters, deferredSearch) : []),
@@ -156,6 +178,24 @@ export function SimulationPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          {isJobActive ? (
+            <button
+              aria-label="Stop simulation"
+              className="ghost-button border-danger/40 text-danger hover:bg-danger/10"
+              disabled={cancelMutation.isPending}
+              onClick={handleStopRun}
+              type="button"
+            >
+              {cancelMutation.isPending ? "Stopping…" : "Stop simulation"}
+            </button>
+          ) : null}
+          {cancelMutation.isError ? (
+            <span className="text-xs text-danger" role="alert">
+              {cancelMutation.error instanceof Error
+                ? cancelMutation.error.message
+                : "Failed to cancel run."}
+            </span>
+          ) : null}
           <button className="ghost-button" onClick={() => setFiltersOpen(true)} type="button">
             Filters {activeFilterCount ? `(${activeFilterCount})` : ""}
           </button>
@@ -183,7 +223,14 @@ export function SimulationPage() {
           <TelemetryField label="Last update" value={model?.lastUpdatedLabel || "--"} />
           <TelemetryField label="Progress" value={model ? `${model.progressPct}%` : "--"} />
         </div>
-        <div className="mt-4 h-2 overflow-hidden rounded-full bg-canvas">
+        <div
+          aria-label="Simulation progress"
+          aria-valuemax={100}
+          aria-valuemin={0}
+          aria-valuenow={model?.progressPct ?? 0}
+          className="mt-4 h-2 overflow-hidden rounded-full bg-canvas"
+          role="progressbar"
+        >
           <div className="h-full rounded-full bg-accent" style={{ width: `${model?.progressPct || 0}%` }} />
         </div>
         <div className="mt-3 text-sm text-mute">

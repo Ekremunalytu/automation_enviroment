@@ -1,6 +1,6 @@
 # Testing Guide
 
-`Last Updated: 2026-04-24`
+`Last Updated: 2026-04-27`
 
 The test suite mirrors the refactored architecture: platform tests validate
 shared `appcore/` code and the detection-engine rule runner, workflow tests
@@ -155,6 +155,10 @@ make test-cov
 make test-local
 make test-ci
 make test-security
+make sim-target TARGET=publisher.name
+make sim-all
+make demo-canary
+make demo-canary-offline
 .venv/bin/ruff check .
 .venv/bin/python scripts/generate_ui_contracts.py --check
 cd ui && npm run lint:boundaries
@@ -330,12 +334,22 @@ visible before the full poll timeout or immediately when the worker fails.
   generation step is skipped.
 - The security lane validates fixture manifests, PoC class coverage,
   per-rule detection against T1 canaries, attribution gating, and
-  benign-baseline silence. `make test-security` → 41 passed as of
-  2026-04-23; live `make test-security-live` + Docker-based A1 canary
-  structural diff (`make exec-up && make exec-run` against
+  benign-baseline silence. `make test-security` → 45 passed as of
+  2026-04-27 after PR345/W8-0 lock-in; live
+  `make test-security-live` + Docker-based A1 canary structural diff
+  (`make exec-up && make exec-run` against
   `t1-a1-credential-read-to-network-canary`) remain user-side and are
   the canonical regression gates for the capture pipeline.
-- `make check-all` totals 627 passed / 5 skipped as of 2026-04-24.
+- PR345/W8-0 targeted validation in `REFACTOR_STATUS.md` records
+  `tests/executor + tests/security + tests/platform/contracts` at
+  401 passed / 6 skipped, `make typecheck` clean, and `make lint-check`
+  clean on 2026-04-27. Treat older full-suite counts as historical unless
+  rerun in the current branch.
+- `make demo-canary-offline` runs the demo runnable canary's offline
+  fixture validation in <30 s and is the smallest signal that the
+  detection-engine wiring is unbroken; pair it with
+  `make test-security` after any `packages/analysis_engine/rules/`
+  change.
 
 ## Expectations for New Work
 

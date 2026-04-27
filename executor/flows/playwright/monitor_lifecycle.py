@@ -48,6 +48,12 @@ try:
     )
     from .monitor_support import resolve_monitor_api
     from .monitor_types import ActivationReport
+    from .output_signals import (
+        annotate_output_signal_events,
+        merge_output_signal_events,
+        parse_output_signal_events,
+        read_output_channel_logs,
+    )
     from .runtime_capture._shared import _log, _parse_iso_timestamp
     from .runtime_capture.events import FileEvent, NetworkEvent, ProcessEvent
 except ImportError:  # pragma: no cover - top-level executor import mode
@@ -87,11 +93,42 @@ except ImportError:  # pragma: no cover - top-level executor import mode
     )
     from monitor_support import resolve_monitor_api
     from monitor_types import ActivationReport
+    from output_signals import (
+        annotate_output_signal_events,
+        merge_output_signal_events,
+        parse_output_signal_events,
+        read_output_channel_logs,
+    )
     from runtime_capture._shared import _log, _parse_iso_timestamp
     from runtime_capture.events import FileEvent, NetworkEvent, ProcessEvent
 
     from playwright.sync_api import Error as PlaywrightError
     from playwright.sync_api import Page
+
+
+def _assert_target_stream_invariant(
+    entry: LogStreamEntry, target_extension_id: str
+) -> None:
+    """Reject log entries that violate the target_extension_host invariant.
+
+    PR345 PR4: every entry assigned to the ``target_extension_host`` stream
+    must have ``is_target_extension=True`` and ``extension_id`` matching
+    ``target_extension_id``. Build-path callers enforce this so detection
+    rules reading the target stream cannot see a leaked sibling-extension
+    entry. Caller must invoke immediately after appending a LogStreamEntry.
+    """
+    if entry.stream != "target_extension_host":
+        return
+    if not entry.is_target_extension:
+        raise ValueError(
+            "target_extension_host log entry must have is_target_extension=True; "
+            f"got entry for {entry.extension_id!r} with is_target_extension=False"
+        )
+    if not target_extension_id or entry.extension_id != target_extension_id:
+        raise ValueError(
+            "target_extension_host log entry must have extension_id matching "
+            f"target ({target_extension_id!r}); got {entry.extension_id!r}"
+        )
 
 
 class ExtensionMonitor:
@@ -284,6 +321,27 @@ class ExtensionMonitor:
         except OSError as exc:
             _log(f"Strategy 3 failed: {exc}")
         self._append_activation_log_entries()
+        # PR345 PR5 + W8-0 capture-pipeline fix: merge two source streams
+        # before attribution. The legacy stream (parse_output_signal_events)
+        # consumes ``[extrace-harness]`` markers from the captured exthost
+        # output; the W8-0 fix stream (read_output_channel_logs) reads
+        # VS Code 1.105+ per-channel persistence files directly because
+        # ``console.log`` from extensions no longer reaches exthost.log
+        # in 1.105+. ADR 0006 §2-§4 owns the contract.
+        self.report.output_signal_events = annotate_output_signal_events(
+            merge_output_signal_events(
+                parse_output_signal_events(
+                    self.report.extension_host_output,
+                    monitoring_start=self.report.monitoring_start,
+                ),
+                read_output_channel_logs(
+                    monitoring_start=self.report.monitoring_start,
+                ),
+            ),
+            activations=self.report.activated,
+            target_extension_id=self.report.target_extension_id,
+            monitoring_start=self.report.monitoring_start,
+        )
         self._refresh_derived_report_state()
         self._persist_report(force=True)
 
@@ -631,6 +689,9 @@ class ExtensionMonitor:
                     is_target_extension=is_target,
                 )
             )
+            _assert_target_stream_invariant(
+                self.report.log_entries[-1], self.report.target_extension_id
+            )
 
     def record_automation_event(
         self,
@@ -653,6 +714,12 @@ class ExtensionMonitor:
                 activation_event=activation_event,
                 status=status,
             )
+        )
+        # PR345 PR4: defensive — automation/ui_blocker streams cannot
+        # legally land on target_extension_host; invariant call is a no-op
+        # today but locks the route if a future kind ever picks that key.
+        _assert_target_stream_invariant(
+            self.report.log_entries[-1], self.report.target_extension_id
         )
         self._persist_report(force=False)
 

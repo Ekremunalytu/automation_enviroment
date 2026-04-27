@@ -1,6 +1,6 @@
 # Architecture Audit
 
-`Last Updated: 2026-04-24`
+`Last Updated: 2026-04-25`
 
 This is the short health summary for the current architecture. Use
 `ARCHITECTURE.md` for structure and flows; use `docs/risks.md` for the live
@@ -27,6 +27,17 @@ risk register. Post-PoC deferred items live in `POST_POC_BACKLOG.md`.
   shared `launch_vscode.sh`), and renderer-death failures fail-fast with
   `failure_reason_code = "fatal_ui_crash"` rather than cascading through
   downstream scenarios.
+- Long-running analyses are observable and interruptible end-to-end:
+  the simulation UI reports weighted phase progress + per-scenario
+  sub-progress, and `POST /api/marketplace/analyze/{job_id}/cancel`
+  walks pessimistic-locked CRUD → heartbeat cancel poll →
+  `executor_control.reset_sandbox` instead of leaving the operator to
+  kill the process.
+- The harness extension's reload path no longer races a stale ready
+  marker: `vscode.py::reload_workbench_window` unlinks the marker
+  before dispatching the reload and the harness `activate()` awaits
+  the marker write, so VNC sessions survive a workbench reload
+  without a follow-up `HarnessUnavailableError`.
 
 ## What Still Carries Risk
 

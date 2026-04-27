@@ -66,4 +66,10 @@ export const apiClient = {
       signal,
     });
   },
+  cancelAnalysisJob(jobId: string, signal?: AbortSignal) {
+    return requestJson<AnalyzeJobStatusDto>(
+      `/api/marketplace/analyze/${jobId}/cancel`,
+      { method: "POST", signal },
+    );
+  },
 };

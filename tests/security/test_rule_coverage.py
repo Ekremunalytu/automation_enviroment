@@ -15,6 +15,7 @@ EXPECTED_PRODUCTION_RULE_IDS = {
     "extrace.a3.typosquat",
     "extrace.a4.workspace_exfil",
     "extrace.a6.startup_ui_prompt",
+    "extrace.demo.runnable_canary",
 }
 
 
@@ -52,8 +53,8 @@ def test_live_fixtures_are_not_present_in_the_poc_scaffold() -> None:
     assert all(manifest["tier"] != "T3" for manifest in manifests)
 
 
-def test_get_production_rules_returns_all_four_poc_rules() -> None:
-    """Registry must surface every PoC Must-class rule (A1/A2/A4/A6).
+def test_get_production_rules_returns_all_poc_rules() -> None:
+    """Registry must surface every PoC Must-class and demo rule.
 
     Without this, dropping a rule from `_BUILTIN_RULE_MODULES` would only be
     caught by a downstream rule-specific test, which can be flaky to attribute.

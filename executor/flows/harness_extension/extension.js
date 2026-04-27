@@ -1,10 +1,79 @@
 const vscode = require("vscode");
 
-const { emitHarnessMarker, readHarnessContext } = require("./markers");
+const {
+  emitHarnessEvent,
+  emitHarnessMarker,
+  readHarnessContext,
+  writeHarnessReadyMarker,
+} = require("./markers");
 const { LocalAuthProvider, LocalFileSystemProvider } = require("./providers");
 const { dispatchStimulus, ensureCommentThread } = require("./stimulus_dispatch");
 
-function activate(context) {
+// PR345 PR5: capture target-owned output-channel writes by wrapping
+// vscode.window.createOutputChannel before any non-harness extension
+// activates. ADR 0006 §2 documents the contract; the hook installs once
+// per Extension Host process and emits each append/appendLine call as a
+// JSON-line marker the Python parser converts into an EvidenceEvent
+// (kind="output_channel_appendline", collector="harness_extension").
+let _outputChannelHookInstalled = false;
+function installOutputChannelHook() {
+  if (_outputChannelHookInstalled) {
+    return;
+  }
+  _outputChannelHookInstalled = true;
+  const _origCreate = vscode.window.createOutputChannel;
+  vscode.window.createOutputChannel = function patchedCreateOutputChannel(name, ...rest) {
+    const channel = _origCreate.call(vscode.window, name, ...rest);
+    const wrap = (fn) => function patchedAppend(value) {
+      try {
+        const text = String(value == null ? "" : value);
+        const truncated = text.length > 500 ? text.slice(0, 500) : text;
+        emitHarnessEvent({
+          kind: "output_channel_appendline",
+          channel: name,
+          text: truncated,
+          ts: Date.now(),
+          collector: "harness_extension",
+        });
+      } catch (_err) {
+        // Hook must never break the wrapped extension's flow.
+      }
+      return fn.apply(channel, arguments);
+    };
+    if (typeof channel.append === "function") {
+      channel.append = wrap(channel.append);
+    }
+    if (typeof channel.appendLine === "function") {
+      channel.appendLine = wrap(channel.appendLine);
+    }
+    return channel;
+  };
+}
+
+async function activate(context) {
+  installOutputChannelHook();
+  // W8-0: dedicated diagnostic channel. Created AFTER the hook so its
+  // appendLine writes are captured as OutputSignalEvent (kind=
+  // output_channel_appendline, channel="ExTrace Harness"). This gives
+  // the Python side a deterministic record of activate() enter/exit
+  // and marker-write phases, separate from generic stimulus markers.
+  const harnessChannel = vscode.window.createOutputChannel("ExTrace Harness");
+  context.subscriptions.push(harnessChannel);
+  const _diag = (phase, extra) => {
+    try {
+      harnessChannel.appendLine(
+        JSON.stringify({
+          phase,
+          pid: process.pid,
+          ts: Date.now(),
+          ...(extra || {}),
+        })
+      );
+    } catch (_err) {
+      // Diagnostic must never break activation.
+    }
+  };
+  _diag("activate_enter");
   const localAuthProvider = new LocalAuthProvider();
   const authDisposable = vscode.authentication.registerAuthenticationProvider(
     "extrace.local",
@@ -118,6 +187,20 @@ function activate(context) {
     commentController,
     commandDisposable
   );
+
+  // Marker write must succeed or activation fails: the Python harness polls
+  // for this file to verify the command is registered before invoking it.
+  _diag("marker_write_start");
+  try {
+    await writeHarnessReadyMarker();
+    _diag("marker_write_done");
+  } catch (err) {
+    _diag("marker_write_failed", {
+      error: err && err.message ? String(err.message) : String(err),
+    });
+    throw err;
+  }
+  _diag("activate_exit");
 }
 
 function deactivate() {}

@@ -9,5 +9,6 @@ This directory is reserved for ADR 0004 malicious fixtures.
 - `make test-security` is allowed in CI.
 - `make test-security-live` is local-only and refuses to run in CI.
 
-Initial Week 5 canaries cover A1, A2, A4, and A6 as scaffold manifests only.
-Detection rules and runnable fixture payloads will be added incrementally.
+Initial Week 5 canaries cover A1, A2, A4, and A6 through offline report
+fixtures. `t1-demo-runnable-canary` is a declawed local-only demo extension
+for operator demos; it does not contact external hosts or read real secrets.

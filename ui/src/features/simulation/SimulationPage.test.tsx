@@ -3,11 +3,13 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { SimulationPage } from "./SimulationPage";
 import { apiClient } from "../../lib/api/client";
+import type { AnalyzeJobStatusDto } from "../../lib/types/contracts";
 
 vi.mock("../../lib/api/client", () => ({
   apiClient: {
     getAnalysisJob: vi.fn(),
     getReportByName: vi.fn(),
+    cancelAnalysisJob: vi.fn(),
   },
 }));
 
@@ -330,5 +332,198 @@ describe("SimulationPage", () => {
     await waitFor(() => {
       expect(screen.getByTestId("location-search").textContent).toContain("inspector=rules");
     });
+  });
+
+  it("renders the Stop button only while the job is active and calls the API after confirm", async () => {
+    vi.mocked(apiClient.getAnalysisJob).mockResolvedValueOnce({
+      job_id: "job-stop-1",
+      status: "running",
+      publisher: "ms",
+      name: "lint",
+      version: "1.0.0",
+      message: "running",
+      steps: [
+        { name: "reset_sandbox", status: "completed", message: "ok" },
+        {
+          name: "run_monitoring",
+          status: "running",
+          message: "Scenario 2/5",
+          progress: { completed: 2, total: 5 },
+        },
+      ],
+      created_at: 1713002400,
+      updated_at: 1713002410,
+      report_path: null,
+    });
+    vi.mocked(apiClient.cancelAnalysisJob).mockResolvedValueOnce({
+      job_id: "job-stop-1",
+      status: "cancelled",
+      publisher: "ms",
+      name: "lint",
+      version: "1.0.0",
+      message: "Cancelled by user.",
+      steps: [],
+      created_at: 1713002400,
+      updated_at: 1713002420,
+    });
+
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+
+    renderPage("/simulation?job=job-stop-1&tab=live");
+
+    const stopButton = await screen.findByRole("button", { name: "Stop simulation" });
+    fireEvent.click(stopButton);
+
+    await waitFor(() => {
+      expect(apiClient.cancelAnalysisJob).toHaveBeenCalledWith("job-stop-1");
+    });
+    expect(confirmSpy).toHaveBeenCalled();
+
+    confirmSpy.mockRestore();
+  });
+
+  it("hides the Stop button when the job is not active", async () => {
+    vi.mocked(apiClient.getAnalysisJob).mockResolvedValueOnce({
+      job_id: "job-done-1",
+      status: "completed",
+      publisher: "ms",
+      name: "lint",
+      version: "1.0.0",
+      message: "done",
+      steps: [
+        { name: "reset_sandbox", status: "completed", message: "ok" },
+        { name: "run_monitoring", status: "completed", message: "ok" },
+      ],
+      created_at: 1713002400,
+      updated_at: 1713002410,
+      report_path: null,
+    });
+
+    renderPage("/simulation?job=job-done-1&tab=live");
+
+    await screen.findByText("ms.lint@1.0.0");
+    expect(screen.queryByRole("button", { name: "Stop simulation" })).toBeNull();
+  });
+
+  it("does not call the cancel API when the user dismisses the confirm dialog", async () => {
+    vi.mocked(apiClient.getAnalysisJob).mockResolvedValueOnce({
+      job_id: "job-stop-2",
+      status: "running",
+      publisher: "ms",
+      name: "lint",
+      version: "1.0.0",
+      message: "running",
+      steps: [
+        { name: "reset_sandbox", status: "completed", message: "ok" },
+        { name: "run_monitoring", status: "running", message: "running" },
+      ],
+      created_at: 1713002400,
+      updated_at: 1713002410,
+      report_path: null,
+    });
+
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
+
+    renderPage("/simulation?job=job-stop-2&tab=live");
+
+    const stopButton = await screen.findByRole("button", { name: "Stop simulation" });
+    fireEvent.click(stopButton);
+
+    expect(confirmSpy).toHaveBeenCalled();
+    expect(apiClient.cancelAnalysisJob).not.toHaveBeenCalled();
+
+    confirmSpy.mockRestore();
+  });
+
+  it("shows 'Stopping…' and disables the button while the cancel request is in-flight", async () => {
+    vi.mocked(apiClient.getAnalysisJob).mockResolvedValue({
+      job_id: "job-stop-3",
+      status: "running",
+      publisher: "ms",
+      name: "lint",
+      version: "1.0.0",
+      message: "running",
+      steps: [
+        { name: "reset_sandbox", status: "completed", message: "ok" },
+        { name: "run_monitoring", status: "running", message: "running" },
+      ],
+      created_at: 1713002400,
+      updated_at: 1713002410,
+      report_path: null,
+    });
+
+    // Stall the cancel response so we can observe the pending state.
+    let resolveCancel: (
+      value: AnalyzeJobStatusDto | PromiseLike<AnalyzeJobStatusDto>,
+    ) => void = () => {};
+    vi.mocked(apiClient.cancelAnalysisJob).mockImplementationOnce(
+      () =>
+        new Promise<AnalyzeJobStatusDto>((resolve) => {
+          resolveCancel = resolve;
+        }),
+    );
+
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+    renderPage("/simulation?job=job-stop-3&tab=live");
+
+    const stopButton = await screen.findByRole("button", { name: "Stop simulation" });
+    fireEvent.click(stopButton);
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: "Stop simulation" }).textContent,
+      ).toContain("Stopping");
+    });
+    expect(screen.getByRole("button", { name: "Stop simulation" })).toBeDisabled();
+
+    // Clicking again while pending must not fire a second cancel request.
+    fireEvent.click(screen.getByRole("button", { name: "Stop simulation" }));
+    expect(apiClient.cancelAnalysisJob).toHaveBeenCalledTimes(1);
+
+    resolveCancel({
+      job_id: "job-stop-3",
+      status: "cancelled",
+      publisher: "ms",
+      name: "lint",
+      version: "1.0.0",
+      message: "Cancelled by user.",
+      steps: [],
+      created_at: 1713002400,
+      updated_at: 1713002420,
+    });
+
+    confirmSpy.mockRestore();
+  });
+
+  it("surfaces a cancel error inline when the API rejects", async () => {
+    vi.mocked(apiClient.getAnalysisJob).mockResolvedValue({
+      job_id: "job-stop-4",
+      status: "running",
+      publisher: "ms",
+      name: "lint",
+      version: "1.0.0",
+      message: "running",
+      steps: [
+        { name: "reset_sandbox", status: "completed", message: "ok" },
+        { name: "run_monitoring", status: "running", message: "running" },
+      ],
+      created_at: 1713002400,
+      updated_at: 1713002410,
+      report_path: null,
+    });
+    vi.mocked(apiClient.cancelAnalysisJob).mockRejectedValueOnce(
+      new Error("Job already completed"),
+    );
+
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+    renderPage("/simulation?job=job-stop-4&tab=live");
+
+    const stopButton = await screen.findByRole("button", { name: "Stop simulation" });
+    fireEvent.click(stopButton);
+
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toContain("Job already completed");
+
+    confirmSpy.mockRestore();
   });
 });

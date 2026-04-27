@@ -1,6 +1,14 @@
 # Refactor Optimization — Plan Kritiği ve Düzeltme Önerileri
 
-`Last Updated: 2026-04-24`
+`Last Updated: 2026-04-27`
+
+> **2026-04-27 update note (operational):** The §1-§11 planning body still
+> preserves the original W8-W13 review-integration scope, but the old W8 entry
+> gate is no longer pending. PR345 PRs 1-5, ADR 0006 target output-channel
+> capture, and W8-0 deterministic harness readiness landed on
+> `feat/pr345-completion`. Current closure evidence lives in
+> [`REFACTOR_STATUS.md`](REFACTOR_STATUS.md); deferred/pull-next work lives in
+> [`POST_POC_BACKLOG.md`](POST_POC_BACKLOG.md).
 
 > **Değerlendirici (yazarlar):**
 >
@@ -1312,8 +1320,8 @@ backlog altında kalırlar.
 **Entegrasyon kararı:** Review bulguları §10 penceresine
 (W0-W7) **eklenmez**; yeni bir §11 **W8-W13** penceresine dağıtılır.
 Gerekçe: W0-W7 PoC acceptance altında yazıldı ve §10.7'de kapandı;
-review'lar post-PoC hardening turudur. W8 girişi PR345 (target
-activation lifecycle) tamamlandıktan sonra açılır (§11.1 entry gate).
+review'lar post-PoC hardening turudur. PR345 target activation lifecycle
+2026-04-27'de tamamlandı; W8 girişi artık açıktır (§11.1 entry gate).
 Review dokümanları repo'da archive olarak kalır — silinmez, gelecek
 review'larda baseline olarak kullanılır.
 
@@ -1403,14 +1411,14 @@ başlar; structural cleanup maddeleri ayrı bir giriş kriteri değildir.
 bağımsız external review (`claude_code_review.md`,
 `codex_project_review.md`, 2026-04-24) sonrası altı haftalık post-PoC
 hardening + modülerleştirme turu **§11 W8-W13** altında planlanmıştır.
-§10.2'deki W0-W7 satırları değişmez; W8-W13 penceresi PR345 (target
-activation lifecycle) tamamlandıktan sonra açılır — bkz. §11.1 entry
-gate.
+§10.2'deki W0-W7 satırları değişmez. PR345 target activation lifecycle
+2026-04-27'de tamamlandığı için W8-W13 penceresi artık açılabilir —
+bkz. §11.1 entry gate.
 
 | Hafta | Etiket | Kapsam | Kaynak |
 |---|---|---|---|
-| **W8** | Güvenlik sıkılaştırma | VSIX zip-bomb guard, marketplace identity helper, URI trigger shell-safe, absolute binary paths, activation-report regex, content-sample secret redaction | §11.5 · Claude §1/§18 · Codex §1 |
-| **W9** | Executor↔Detection boundary | ADR 0006 (container packaging), dual-import fallback kill, `signal_policy.py` relocation, `sys.path.insert` audit | §11.6 · Claude §6/§10 · Codex §9/§4 |
+| **W8** | Güvenlik sıkılaştırma | VSIX zip-bomb guard, marketplace identity helper, URI trigger shell-safe, absolute binary paths, activation-report regex, content-sample secret redaction, local network binding discipline (ADR 0007) | §11.5 · Claude §1/§18 · Codex §1 · supplementary review 2026-04-25 |
+| **W9** | Executor↔Detection boundary | container-packaging ADR (number TBD; ADR 0008 if next available), dual-import fallback kill, `signal_policy.py` relocation, `sys.path.insert` audit | §11.6 · Claude §6/§10 · Codex §9/§4 |
 | **W10** | Contract hygiene + Planner split | `schema_version` + DeprecationWarning, `_TriggerPayloadDraft` elimination, `registry.py` 4-way split, `automation_health`/`coverage_*` typing | §11.7 · Codex §1.2/§1.4/§2 · Claude §4 |
 | **W11** | Monitor lifecycle split | `monitor_lifecycle.py` 834→≤200 LoC facade; `MonitorRuntime` + `ReportAssembler` + `ScenarioAccountant`; `activation_discovery_strategies` field | §11.8 · Codex §3.1 · Claude §3 |
 | **W12** | Executor subpackaging + attribution cleanup | `playwright/` 54→≤10 flat + 5 subpackage; attribution facade underscore cleanup; `raw_context` typed discriminated union | §11.9 · Codex §3.2/§4 · Claude §2/§5 |
@@ -1575,33 +1583,31 @@ ayrıca listelenir (§10.2 tablosunda atıf cross-reference bırakılır).
 - İki review PoC sonrası gelen findings; bunlar **stabilizasyon**
   değil, **post-PoC hardening + modülerleştirme** turudur. Kapsamı
   ayrı tutmak audit trail için önemli.
-- Kullanıcı in-flight iş olarak **PR345** (target activation lifecycle)
-  üzerinde çalışıyor (2026-04-24; PRs 1-2 landed, PRs 3-5 + PR5 ADR
-  pending). W8 girişi bu PR345 tamamlanmadan **açılmaz**.
+- PR345 target activation lifecycle 2026-04-27'de tamamlandı. W8 girişi
+  artık PR345 tarafından bloke edilmiyor; closure kanıtı
+  `REFACTOR_STATUS.md` "PR345 Complete" bloğunda.
 
 ### 11.1 Entry gate (W8 başlama koşulu)
 
-W8 aşağıdakilerin hepsi yeşil olmadan açılmaz:
+W8 entry gate **MET as of 2026-04-27**:
 
-- [ ] PR345 tüm PR'ları (1-5) landed; özellikle PR5 için
-      `documents/adrs/00NN-target-output-channel-capture.md` ADR'ı
-      merged (`POST_POC_BACKLOG.md` "Next iteration" → "Target
-      activation lifecycle" item (5) requires short ADR).
-- [ ] `make check-all` green on `main`
-- [ ] `make test-security` → 41 passing
-- [ ] `scripts/demo_acceptance.py` → `DEMO GREEN`
-- [ ] `REFACTOR_STATUS.md` altında "PR345 complete" kapanış bloğu
+- [x] PR345 tüm PR'ları (1-5) landed.
+- [x] ADR 0006 `target-output-channel-capture` Accepted.
+- [x] `make test-security` → 45 passing.
+- [x] `scripts/demo_acceptance.py` → `DEMO GREEN`.
+- [x] `REFACTOR_STATUS.md` altında "PR345 Complete" kapanış bloğu.
+- [x] W8-0 deterministic harness readiness gate landed.
 
-Bu gate yeşil değilken W8 bekleme modunda; external review maddeleri
-`POST_POC_BACKLOG.md`'de "scheduled for W8-W13" annotation'ı ile
-tutulur.
+W8 artık açılabilir; ilk güvenlik sıkılaştırma adayları W8-1, W8-2 ve
+W8-3'tür. Docker-based smoke hâlâ user-side deferred olarak
+`REFACTOR_STATUS.md` altında izlenir.
 
 ### 11.2 Haftalık dağılım (W8-W13)
 
 | Hafta | Etiket | Kapsam | Kaynak review bölümleri |
 |---|---|---|---|
-| **W8** | Güvenlik sıkılaştırma | VSIX zip-bomb guard, marketplace identity helper, URI trigger shell-safe invocation, absolute binary paths, activation-report router path-traversal, content-sample secret redaction | Claude §1/§18; Codex §1 |
-| **W9** | Executor↔Detection boundary | ADR 0006 (container packaging), dual-import fallback sweep, `signal_policy.py` relocation, `sys.path.insert` audit, container import-mode CI test | Claude §6/§10; Codex §9/§4 |
+| **W8** | Güvenlik sıkılaştırma | VSIX zip-bomb guard, marketplace identity helper, URI trigger shell-safe invocation, absolute binary paths, activation-report router path-traversal, content-sample secret redaction, local network binding discipline (loopback default + `EXTRACE_ALLOW_LAN` opt-in + CORS allow-list + CDP behind `debug` profile, ADR 0007) | Claude §1/§18; Codex §1; supplementary review 2026-04-25 (network exposure) |
+| **W9** | Executor↔Detection boundary | container-packaging ADR (number TBD; ADR 0008 if next available), dual-import fallback sweep, `signal_policy.py` relocation, `sys.path.insert` audit, container import-mode CI test | Claude §6/§10; Codex §9/§4 |
 | **W10** | Contract hygiene + Planner split | `schema_version` + DeprecationWarning, `_TriggerPayloadDraft` elimination, `registry.py` 4-way split, `automation_health`/`coverage_*` typing | Codex §1.2/§1.4/§2; Claude §4 |
 | **W11** | Monitor lifecycle split | `monitor_lifecycle.py` 834 LoC → `MonitorRuntime` + `ReportAssembler` + `ScenarioAccountant` + `ExtensionMonitor` facade; `activation_discovery_strategies` report field; per-strategy `_stop_*` helpers | Codex §3.1; Claude §3 |
 | **W12** | Executor subpackaging + attribution cleanup | `executor/flows/playwright/` 54 → {monitor,stimulus,workspace,health,entrypoint}/; `entrypoint_runner.main` 487 LoC → ≤200 LoC dispatch extraction; attribution facade underscore cleanup; `raw_context` per-event-type typing | Codex §3.1/§3.2/§4; Claude §2/§3/§5 |
@@ -1615,7 +1621,7 @@ W8 ─┐
 W9 ─┘
       │
       ▼
-     W10 (depends on W9 — dual-import kill + ADR 0006 fixes import topology;
+     W10 (depends on W9 — dual-import kill + container-packaging ADR fixes import topology;
            W10 typed contracts nerede oturacağını bilmek için W9'a bağlı)
       │
       ▼
@@ -1633,7 +1639,7 @@ W9 ─┘
 Kritik yollar:
 
 - **W8 paralelde yürür** — W9 ile file çakışması yok (W8 `packages/`, `workflows/`, `executor/flows/playwright/entrypoint_triggers.py + stimulus_attempts.py`; W9 `executor/flows/playwright/signal_policy.py` + 17 dosyada import fallback + 5 `sys.path.insert` hit).
-- **W10 sıralı** — W9'un ADR 0006 kararı (paket mode vs top-level) typed contract'ların import path'ini belirliyor.
+- **W10 sıralı** — W9'un container-packaging ADR kararı (paket mode vs top-level) typed contract'ların import path'ini belirliyor.
 - **W11 sıralı** — W10 contract updates (schema_version, AutomationHealth, CoverageSummary) monitor split'inin report assembler imzasında oturmalı; tersi merge conflict hell yaratır.
 - **W12 sıralı** — W11 lifecycle split sonrası 54 flat dosyanın 5 subpackage'a bölünmesi deterministik; önce yapılırsa lifecycle split yeni subpackage path'leriyle yeniden kavga eder.
 - **W13 en sonda** — her hafta regression test bırakır, W13 merkezi lock-in turu.
@@ -1795,22 +1801,73 @@ command-injection vektörleri içeriyor.
      update; new test.
    - **Claude:** §1; **Codex:** §1.
 
+7. **Local network binding discipline (ADR 0007).** Today
+   `.env.example` ships `API_HOST=0.0.0.0`, `API_CORS_ALLOW_ORIGINS=*`,
+   and `docker-compose.yml` maps the API, UI, executor noVNC + CDP
+   ports, and PostgreSQL on every host interface
+   (`docker-compose.yml:11-12,27-28,66-68,101-102,119-120` —
+   none of the host port mappings carry a `127.0.0.1:` prefix). The
+   single-operator trust model from ADR 0001 §1 / ADR 0002 §5 is left
+   as a comment in `.env.example:82-84` ("INTERNAL USE ONLY ... ensure
+   it runs in a trusted network") with no enforcement. A LAN-adjacent
+   attacker today reaches CDP `9222` unauthenticated and can drive the
+   live VS Code instance.
+   - **Change:** Per ADR 0007, every host-facing port defaults to
+     `127.0.0.1`; compose `ports:` entries gain explicit
+     `127.0.0.1:` prefixes; `appcore/api/config.py::APISettings.HOST`
+     defaults to `127.0.0.1` and `CORS_ALLOW_ORIGINS` defaults to
+     `["http://localhost:3000"]`; LAN exposure is opt-in through a
+     single `EXTRACE_ALLOW_LAN=1` env var that the entrypoints inspect;
+     the executor CDP port mapping moves behind a Compose `debug`
+     profile so it is absent from `docker compose up` by default.
+     `.env.example` security notice rewritten to describe the
+     loopback default + opt-in path.
+   - **Test:** new `tests/architecture/test_default_bindings.py` —
+     loads `appcore/api/config.py` settings with empty env, asserts
+     `settings.api.HOST == "127.0.0.1"` and
+     `settings.api.CORS_ALLOW_ORIGINS != ["*"]`; parses
+     `docker-compose.yml` and asserts every default-profile `ports:`
+     entry begins with `127.0.0.1:` (or is gated behind a non-default
+     profile). Companion runbook
+     `documents/runbooks/lan-exposure.md` carries the operator-side
+     hardening checklist (firewall rules, reverse-proxy auth, CORS
+     allow-list, rotated PostgreSQL password) that must precede the
+     `EXTRACE_ALLOW_LAN=1` flip.
+   - **Refs:** new
+     [`documents/adrs/0007-local-network-binding.md`](adrs/0007-local-network-binding.md);
+     `.env.example`; `docker-compose.yml`; `appcore/api/config.py`;
+     `Makefile` (dev targets); root `README.md` "Service Endpoints"
+     section; new test + new runbook.
+   - **Supplementary review:** 2026-04-25 (Codex review surfaced the
+     ingress side of the trust boundary; original Claude/Codex W8
+     review covered scanner-side parsing/injection only).
+
 **Non-Goals:** container egress allowlist (W13 observability ayağına
 bağlı — egress logları run-ID ile stamp'lenmeden allowlist audit'i
 anlamlı değil); harness extension sandbox (W4 ExecutorControl bar'ı
-kapattı); T2/T3 fixture lane (POST_POC_BACKLOG).
+kapattı); T2/T3 fixture lane (POST_POC_BACKLOG); rotated production
+PostgreSQL credentials (operator responsibility per ADR 0007 §5; the
+ADR rewrites the `.env.example` notice but does not auto-rotate).
 
 **Entry:** §11.1 entry gate green.
 
 **Exit:**
 
-- [ ] 6 yeni security test lane green
-- [ ] `make test-security` 41 → ≥47 passing
+- [ ] 7 yeni security test lane green
+- [ ] `make test-security` 41 → ≥48 passing
 - [ ] ADR 0003 §6 redaction ek maddesi merged
-- [ ] ADR 0006 (container packaging; W9 opener) **draft** başlamış
+- [ ] Container-packaging ADR (number TBD; ADR 0008 if next available)
+      **draft** başlamış
       (merged olması gerekmiyor — W9 girişinde merged olur)
+- [ ] ADR 0007 (local network binding) merged; `.env.example` +
+      `docker-compose.yml` + `appcore/api/config.py` defaultları
+      `127.0.0.1` / allow-list CORS; `EXTRACE_ALLOW_LAN=1` opt-in
+      yolu doğrulanmış; `documents/runbooks/lan-exposure.md` live
 - [ ] `workflows/marketplace/identity.py` + helper live; raw concat
       architecture test bloke ediyor
+- [ ] `tests/architecture/test_default_bindings.py` green
+      (varsayılan settings `0.0.0.0` üretmiyor; compose `ports:`
+      entries `127.0.0.1:` prefix'li veya `debug` profile altında)
 
 ### 11.6 W9 — Executor↔Detection Boundary
 
@@ -1821,16 +1878,18 @@ kapanır.
 
 **Scope:**
 
-1. **ADR 0006 — Container packaging.** Yeni ADR: "Executor paket olarak
-   mı, yoksa top-level script olarak mı çalışır?" sorusuna tek cevap.
+1. **Container-packaging ADR (number TBD; ADR 0008 if next available).**
+   Yeni ADR: "Executor paket olarak mı, yoksa top-level script olarak mı
+   çalışır?" sorusuna tek cevap.
    Mevcut durum: 17 dosya dual-import fallback + executor runtime'ında
    5 `sys.path.insert(0, ...)` hit (`signal_policy.py:33`,
    `reload_vscode.py:19`, `triggers.py:27`, `report_builder.py:17`,
    `entrypoint.py:18`) her iki mode'u destekliyor.
    - **Decision:** Paket mode (`python -m executor.flows.playwright.entrypoint`
      container içinde); top-level mode destek bitirilir.
-   - **Refs:** `documents/adrs/0006-container-packaging.md` (new);
-     W8 girişinde draft başlamış olmalı, W9'un 1. PR'ında merged.
+   - **Refs:** `documents/adrs/00NN-container-packaging.md` (new; use
+     ADR 0008 if it is still the next available number); W8 girişinde
+     draft başlamış olmalı, W9'un 1. PR'ında merged.
 
 2. **`signal_policy.py` relocation.**
    [`executor/flows/playwright/signal_policy.py`](../executor/flows/playwright/signal_policy.py)
@@ -1873,7 +1932,7 @@ kapanır.
    bilinen hit**: `signal_policy.py:33`, `reload_vscode.py:19`,
    `triggers.py:27`, `report_builder.py:17`, `entrypoint.py:18`. Her
    biri container path disiplini olmadığı için workaround olarak
-   kullanılıyor — paket mode (ADR 0006) sonrası hepsi gereksiz.
+     kullanılıyor — container-packaging ADR sonrası hepsi gereksiz.
    Scripts (`scripts/seed_test.py:55`, `scripts/demo_acceptance.py:24`,
    `scripts/generate_ui_contracts.py:16`), test-harness
    (`tests/executor/*` içinde 12+ hit), ve `alembic/env.py:10`
@@ -1900,12 +1959,12 @@ kapanır.
 iç subpackage re-org (W10/W12 kapsamında); harness-extension import
 topolojisi (zaten ayrı).
 
-**Entry:** W8 green + ADR 0006 **draft** seviyesinde (merged şartı
-W9 1. PR'ı).
+**Entry:** W8 green + container-packaging ADR **draft** seviyesinde
+(merged şartı W9 1. PR'ı).
 
 **Exit:**
 
-- [ ] ADR 0006 merged
+- [ ] Container-packaging ADR merged
 - [ ] 17 dosya → `except ImportError` count 0 executor'da
 - [ ] `sys.path.insert` hit count 0 `scripts/` dışında
 - [ ] `signal_policy.py` → `packages/analysis_engine/signals/policy.py`;
@@ -2278,7 +2337,8 @@ Her madde → iki review'daki referans + line evidence:
 | W8-4 | Absolute binary paths | §18 | — | stimulus files + `executor/host.py` |
 | W8-5 | Activation-report regex | §1 | — | `workflows/activation_reports/router.py` |
 | W8-6 | Content-sample redaction | §1 | §1 | new `packages/analysis_contracts/evidence.py::ContentSample` (today `contracts.py::EvidenceEvent` raw strings) |
-| W9-1 | ADR 0006 | §10 | §9 | — (new ADR) |
+| W8-7 | Local network binding (ADR 0007) | — | — | `.env.example:46,59,82-84`; `docker-compose.yml:11-12,27-28,66-68,101-102,119-120`; `appcore/api/config.py::APISettings`; supplementary review 2026-04-25 (network exposure) |
+| W9-1 | Container-packaging ADR | §10 | §9 | number TBD; ADR 0008 if next available |
 | W9-2 | `signal_policy.py` relocation | §6 | §4 | `executor/flows/playwright/signal_policy.py:33` |
 | W9-3 | Dual-import fallback sweep | §10 | §9 | 17 dosyada `except ImportError` (post-W7 grep) |
 | W9-4 | `sys.path.insert` audit | §10 | §9 | 5 runtime hits: `signal_policy.py:33`, `reload_vscode.py:19`, `triggers.py:27`, `report_builder.py:17`, `entrypoint.py:18` |
@@ -2363,7 +2423,7 @@ gerekçelenir:
 |---|---|---|---|---|---|---|---|
 | Backend refactor | GPT-5.4 | §11.5-(2)(5) | — | §11.7 (hepsi) | — | §11.9-(3) | §11.10-(3)(7) |
 | Executor modularization | GPT-5.4 + Claude review | §11.5-(3)(4) | §11.6-(2)(3)(4)(5) | — | §11.8 (hepsi) | §11.9-(1)(2)(4) | §11.10-(2)(4)(5) |
-| Plan/ADR yazımı | Claude | ADR 0003 §6 update + ADR 0006 draft | ADR 0006 merged | — | — | — | — |
+| Plan/ADR yazımı | Claude | ADR 0003 §6 update + container-packaging ADR draft | container-packaging ADR merged | — | — | — | — |
 | Güvenlik hardening | Claude (tasarım) + GPT (uygulama) | §11.5-(1)(6) | — | — | — | — | §11.10-(1)(6)(8) |
 | Mimari review | Claude Opus 4.x Explore | W8 post-review | W9 post-review | W10 post-review | W11 post-review | W12 post-review | W13 post-review |
 
@@ -2396,11 +2456,15 @@ altında "Evaluated but deferred" etiketiyle kalır.
 - [ ] Absolute binary path disiplini executor genelinde
 - [ ] Activation-report router tight regex + helper konsolide
 - [ ] `ContentSample` secret redaction live; ADR 0003 §6 ek merged
-- [ ] `make test-security` 41 → ≥47 passing (W8 bitişinde) / ≥52 (W13)
+- [ ] ADR 0007 merged; loopback default + `EXTRACE_ALLOW_LAN` opt-in
+      + CORS allow-list + CDP `debug` profile live;
+      `tests/architecture/test_default_bindings.py` green;
+      `documents/runbooks/lan-exposure.md` live
+- [ ] `make test-security` 41 → ≥48 passing (W8 bitişinde) / ≥52 (W13)
 
 **Framework boundary (W9):**
 
-- [ ] ADR 0006 merged
+- [ ] Container-packaging ADR merged
 - [ ] 17 dosya → `except ImportError` count 0 executor'da
 - [ ] `sys.path.insert` hit count 0 `scripts/` dışında
 - [ ] `signal_policy.py` `packages/analysis_engine/signals/` altında

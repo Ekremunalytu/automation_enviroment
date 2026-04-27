@@ -1,0 +1,52 @@
+{
+  "analysis_profile": "demo_canary",
+  "target_extension_id": "extrace.t1-demo-runnable-canary",
+  "selected_scenarios": [],
+  "official_selected_scenarios": [],
+  "heuristic_selected_scenarios": [],
+  "selection_reasons": {
+    "demo": [
+      "Trigger only the declawed runnable malicious-behavior demo command."
+    ]
+  },
+  "coverage_summary": {
+    "mode": "manual_demo",
+    "scope": "safe_runnable_canary"
+  },
+  "official_attempted_capabilities": [
+    "commands"
+  ],
+  "heuristic_attempted_capabilities": [],
+  "command_targets": {
+    "extraceDemo.runSafeSimulation": "ExTrace Demo: Run Safe Malicious Simulation"
+  },
+  "extra_commands": [
+    "ExTrace Demo: Run Safe Malicious Simulation"
+  ],
+  "event_attempts": [
+    {
+      "attempt_id": "demo-oncommand-run-safe-simulation",
+      "declared_event": "onCommand:extraceDemo.runSafeSimulation",
+      "activation_event": "onCommand:extraceDemo.runSafeSimulation",
+      "event_family": "onCommand",
+      "event_value": "extraceDemo.runSafeSimulation",
+      "track": "official",
+      "selected_by": "demo-canary",
+      "selection_reasons": [
+        "Command is the explicit safe simulation entrypoint."
+      ],
+      "verification_contract": [
+        "target_extension_activation",
+        "target_log_output"
+      ],
+      "trigger_method": "command",
+      "executor_action": "command:auto",
+      "capability_tags": [
+        "commands"
+      ],
+      "status": "planned",
+      "official": true,
+      "heuristic": false
+    }
+  ]
+}

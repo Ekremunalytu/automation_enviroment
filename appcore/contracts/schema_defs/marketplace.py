@@ -54,11 +54,17 @@ class AnalyzeResponse(BaseModel):
     report_path: str | None = None
 
 
+class AnalyzeJobStepProgress(BaseModel):
+    completed: int = Field(ge=0)
+    total: int = Field(ge=0)
+
+
 class AnalyzeJobStep(BaseModel):
     name: str
     status: str
     message: str
     error_code: str | None = None
+    progress: AnalyzeJobStepProgress | None = None
 
 
 class AnalyzeJobStatusResponse(BaseModel):
@@ -87,6 +93,7 @@ class AnalyzeJobStatusResponse(BaseModel):
 __all__ = [
     "AnalyzeJobStatusResponse",
     "AnalyzeJobStep",
+    "AnalyzeJobStepProgress",
     "AnalyzeRequest",
     "AnalyzeResponse",
     "MarketplaceDownloadRequest",

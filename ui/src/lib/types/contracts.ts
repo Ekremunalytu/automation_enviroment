@@ -118,6 +118,7 @@ export interface ActivationEntryDto {
   timestamp?: string;
   success?: boolean;
   source?: string;
+  marker_type?: string;
 }
 
 export type AdversaryClassDto = "A1" | "A2" | "A3" | "A4" | "A5" | "A6" | "A7";
@@ -270,6 +271,19 @@ export interface ProcessEventDto {
   attribution_basis?: string;
   attribution_confidence?: number;
   is_target_extension_event?: boolean;
+  summary?: string;
+}
+
+export interface OutputSignalEventDto {
+  timestamp?: string;
+  rel_time_s?: number | null;
+  channel?: string;
+  text?: string;
+  extension_id?: string;
+  activation_event?: string;
+  is_target_extension_event?: boolean;
+  attribution_status?: string;
+  attribution_basis?: string;
   summary?: string;
 }
 
@@ -444,6 +458,7 @@ export interface ActivationReportDto {
   extension_host_output_lines?: number;
   extension_host_output?: string;
   log_file?: string;
+  output_signal_events?: OutputSignalEventDto[];
   _metadata?: ActivationReportMetadataDto | null;
 }
 
@@ -472,6 +487,12 @@ export interface AnalyzeJobStepDto {
   status: string;
   message: string;
   error_code?: string | null;
+  progress?: AnalyzeJobStepProgressDto | null;
+}
+
+export interface AnalyzeJobStepProgressDto {
+  completed: number;
+  total: number;
 }
 
 export interface AnalyzeJobStatusDto {

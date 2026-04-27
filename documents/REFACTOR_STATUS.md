@@ -1,6 +1,6 @@
 # Refactor Status
 
-`Last Updated: 2026-04-24 (post-W7 hardening: attribution/ subpackage split + sim-target Makefile lane landed; two [NEXT] items closed)`
+`Last Updated: 2026-04-27 (W8-0 capture-pipeline + automation_health reason propagation gap fixes)`
 
 This is the active status board for the Week 1-4 stabilization work and the
 pre-W6 cleanup handoff. Use this file for current closure state; use
@@ -606,6 +606,340 @@ retry-callback paths, the fail-fast skipped-record semantics, and
 the two UI-blocker-probe wiring tests). `make test-security` → 41
 passed, `make typecheck` clean (207 source files), demo acceptance
 (`.venv/bin/python scripts/demo_acceptance.py`) → `DEMO GREEN`.
+
+## Simulation Progress + Cancel + VNC Harness Fix (2026-04-25)
+
+Branch `feat/simulation-progress-cancel` landed four loosely-coupled
+tracks plus a focused code-review pass:
+
+- **Realistic progress reporting.** Replaced
+  `completed_steps / total_steps` with weighted phase distribution
+  (reset_sandbox=5, install_extension=10, build_triggers=10,
+  run_monitoring=70, finalize_report=5) in
+  [`ui/src/lib/adapters/job.ts`](../ui/src/lib/adapters/job.ts) plus
+  per-scenario sub-progress on the run_monitoring phase. Heartbeat in
+  [`workflows/marketplace/analysis_execution.py`](../workflows/marketplace/analysis_execution.py)
+  reads the in-flight report's `scenario_traces` and emits
+  `progress={completed, total}` to the UI every 5 s. The bar now climbs
+  monotonically through realistic phase weights instead of jumping in
+  20 % chunks.
+
+- **Cancel flow (full stack).** New `cancel_analysis_job` CRUD with
+  `with_for_update()` pessimistic lock and `JobNotCancellableError`
+  guard against racing complete-vs-cancel
+  ([`appcore/storage/crud_ops/analysis_jobs.py`](../appcore/storage/crud_ops/analysis_jobs.py)).
+  New `POST /api/marketplace/analyze/{job_id}/cancel` endpoint
+  ([`workflows/marketplace/router.py`](../workflows/marketplace/router.py))
+  returns the snapshot, 404 on missing, 409 on terminal-state. The
+  monitoring heartbeat polls `is_job_cancelled` every tick, calls a
+  `_heartbeat_on_cancel` that triggers `executor_control.reset_sandbox`,
+  and the main thread converts the resulting `ExecutorError` into
+  `AnalysisCancelledError` so `run_analysis_job` returns silently
+  without clobbering the cancel state. UI adds a Stop simulation button
+  (`useMutation` + `setQueryData`) gated by `isJobActive`.
+  `ANALYSIS_JOB_STATUSES` extended with `cancelled`; no Alembic
+  migration needed (status is plain `String` with no CHECK constraint).
+
+- **VNC harness crash fix.** The user-reported crash signature was
+  `extract_harness automation crashes on VNC` mid-scenario.
+  Root cause: the harness extension wrote a ready marker at activate()
+  but the marker was never deleted, so after a workbench reload polling
+  saw the stale marker and let `commands.run_command(...)` race ahead
+  before the new activation re-registered the command.
+  [`vscode.py:reload_workbench_window`](../executor/flows/playwright/vscode.py)
+  now `unlink()`s `_HARNESS_READY_PATH` before dispatching the reload;
+  `extension.js:activate()` is now `async` and `await`s
+  `writeHarnessReadyMarker()` so a write failure fails activation
+  loudly and the Python polling sees a clean
+  `HarnessUnavailableError` timeout instead of stale-marker confusion.
+
+- **Demo runnable canary fixture.** New T1 `t1-demo-runnable-canary`
+  under [`extensions/malicious/`](../extensions/malicious/) with
+  declawed payload (localhost-only POST to 127.0.0.1:8787 with 500 ms
+  timeout, workspace-local file write, explicit `onCommand`
+  activation). New rule
+  [`packages/analysis_engine/rules/demo_runnable_canary.py`](../packages/analysis_engine/rules/demo_runnable_canary.py)
+  with `target_extension_expected` gate so it can't false-positive on
+  real extensions. New `make demo-canary` and `make demo-canary-offline`
+  Makefile lanes for end-to-end and offline-fixture validation.
+
+- **Code review pass (this session).** Critical fixes applied inline:
+  the stale-marker bug, the fire-and-forget marker write,
+  `progressLabel` realignment from "3/5 steps complete" → context-aware
+  "Step N of 5 · scenario X/Y", ARIA attributes (`role="progressbar"`,
+  `aria-valuenow/min/max`, `aria-label`) on both progress bars
+  ([`SimulationPage.tsx`](../ui/src/features/simulation/SimulationPage.tsx)
+  and [`RunActivityRail.tsx`](../ui/src/components/simulation/RunActivityRail.tsx)),
+  and narrowed the bare `except Exception` in the heartbeat to
+  `(ExecutorError, RuntimeError, OSError, ValueError, AttributeError)`.
+  Suggestions deferred to
+  [`POST_POC_BACKLOG.md`](POST_POC_BACKLOG.md): custom `role="alertdialog"`
+  to replace `window.confirm`, cancel-mutation timeout/retry, heartbeat
+  sandbox-reset off-thread, schema duplication doc/dedup,
+  `is_job_cancelled` session churn, heartbeat refactor, cancel-after-finish
+  - cancel-during-completion race tests, heartbeat 30 s → 5 s load
+  verification (all tagged `[FOLLOWUP simulation-progress-cancel]`).
+
+Verification: 114 backend tests
+([`workflows/marketplace`](../workflows/marketplace/),
+[`platform/storage`](../tests/platform/storage/),
+[`platform/contracts`](../tests/platform/contracts/),
+[`security`](../tests/security/)) + 33 executor stimulus tests + 76
+vscode reload tests + 18 UI tests pass; `tsc --noEmit` clean,
+ESLint clean on touched files; `make demo-canary-offline` test
+passes.
+
+## PR345 Complete — Target Activation Lifecycle (2026-04-27)
+
+W8 entry gate (`REFACTOR_OPTIMIZATION.md §11.1`) closes with PR345
+complete. PR1+PR2 landed 2026-04-24 (commit `1b62434`); PR3+PR4 +
+ADR 0006 + PR5 landed 2026-04-27 on branch `feat/pr345-completion`.
+
+### Commits
+
+| Stage | Commit | Scope |
+|---|---|---|
+| PR1 | `1b62434` | `EVENT_ATTEMPT_LIFECYCLE_STATES` + `EventAttemptRecord.status` field validator |
+| PR2 | `1b62434` | `reconcile_event_attempts` upgrades to `activation_seen` / `target_log_seen`; `attempt_has_runtime_evidence` accepts both states |
+| PR3 | `c59762d` | `extension_host.py` `_LIFECYCLE_MARKER_PATTERNS` (activate fn entry/exit + command/provider register) + `ActivationEntry.marker_type` field |
+| PR4 | `c5e400b` | `_assert_target_stream_invariant` build-path guard in `monitor_lifecycle.py`; serialization-time demote in `monitor_types.log_streams` |
+| ADR 0006 | `b737529` | [`documents/adrs/0006-target-output-channel-capture.md`](adrs/0006-target-output-channel-capture.md) — Status: Accepted, Option (a) baseline |
+| PR5 | `8453fb2` | Harness `createOutputChannel` hook + `OutputSignalEvent` dataclass + `output_signals.py` parser/attribution + `_build_evidence_bundle` integration + `target_extension_observed` OR-clause extension |
+
+### Verification (2026-04-27, branch `feat/pr345-completion`)
+
+| Lane | Outcome |
+|---|---|
+| `make test-security` | 45 passed (gate ≥ 41 satisfied) |
+| `tests/executor + tests/security + tests/platform/contracts` | 387 passed, 6 skipped (canary `must_not_fire` gaps unchanged) |
+| `tests/executor/test_output_signal_capture.py` (new, PR5) | 5 passed |
+| `tests/executor/test_playwright_monitor_lifecycle.py` (PR4 invariant test added) | 11 passed |
+| `tests/executor/test_playwright_monitor_runtime.py` (PR3 5 new tests) | 27 passed |
+| `.venv/bin/python scripts/demo_acceptance.py` | `DEMO GREEN` |
+| ruff + mypy on touched modules | clean |
+| UI contract regen (`scripts/generate_ui_contracts.py`) | `marker_type?` + `OutputSignalEventDto` + `output_signal_events?` propagated to `ui/src/lib/types/contracts.ts` |
+
+### W8 entry-gate checklist (`REFACTOR_OPTIMIZATION.md §11.1`)
+
+- [x] PR345 PRs 1-5 landed
+- [x] PR5 ADR (`0006-target-output-channel-capture.md`) merged with
+      Status: Accepted
+- [x] `make check-all` green (executor/security/contracts lanes verified;
+      Docker-based smoke deferred to user-side)
+- [x] `make test-security` 45 ≥ 41
+- [x] `scripts/demo_acceptance.py` → `DEMO GREEN`
+- [x] `REFACTOR_STATUS.md` "PR345 Complete" closure block (this section)
+
+### Followup landed (2026-04-27, post-PR345)
+
+Codex review surfaced two semantic gaps in the PR345 surface; both
+closed in a single follow-up commit and are reflected here.
+
+- **Bug 1 — output_signal_events were not lifecycle evidence.** PR5
+  wired Output channel writes into `evidence_events` and into the
+  `target_extension_observed` OR clause, but
+  `health_reconciliation._target_log_stream_summaries` only read
+  `log_streams`, so an attempt with a target-owned output signal but
+  no separate log entry stayed at `activation_seen` instead of
+  upgrading to `target_log_seen`. Now harvested.
+- **Bug 2 — activation entries were collapsing the lifecycle.**
+  Every target activation is mirrored into `target_extension_host`
+  by `_append_activation_log_entries` with `kind="activation"`, and
+  reconciliation didn't ignore `kind="activation"` rows — so
+  any target activation auto-upgraded to `target_log_seen`,
+  defeating the `activation_seen` ↔ `target_log_seen` distinction
+  PR2 introduced. `_target_log_stream_summaries` now skips
+  `kind == "activation"`.
+- **Doc — ADR 0006 §5 was over-promising.** §5 read "after PR3-PR5
+  land, the rule tightens to (conjunction)", but the conjunction at
+  the `target_extension_observed` level is deferred. ADR rewritten
+  to split the lifecycle landing (done in PR5 + followup) from the
+  top-level conjunction tightening (deferred), with a 2026-04-27
+  Amended note in the header.
+
+New tests:
+`tests/executor/test_playwright_monitor_attribution.py` —
+`test_reconcile_event_attempts_activation_log_entry_alone_keeps_activation_seen`,
+`test_reconcile_event_attempts_target_output_signal_upgrades_to_target_log_seen`.
+389 passed, 6 skipped on the executor + security + contracts lane;
+`make test-security` 45 passed; demo acceptance `DEMO GREEN`.
+
+### Deferred
+
+- ADR 0006 §5 full conjunction tightening of the **top-level**
+  `target_extension_observed` predicate (lifecycle-level evidence
+  consumption is closed; the property still uses additive OR).
+  Full `(activation_seen AND (target_log OR target_output_signal))`
+  rule needs broad fixture/tests churn. Post-W8 follow-up.
+- Docker-based A1 canary structural diff smoke (`make exec-up && make
+  exec-run` against `t1-a1-credential-read-to-network-canary`) remains
+  user-side; capture pipeline regression risk only fully closed by a
+  live executor run.
+
+## W8-0 Landed — Deterministic Harness Readiness Gate (2026-04-27)
+
+W8-0 (POST_POC_BACKLOG `[PROMOTED]`, ordered before W8-1 + W8-3) closes
+on `feat/pr345-completion` with three sequential commits. Trigger
+report:
+`output/activation_report_ms-python.python-2026.5.2026042602-cba16dba0258.json`
+— 21 `event_attempts`, 9× `harness_command_unavailable`,
+`target_extension_observed=true`, `output_signal_events=0`. Root cause
+hypothesis: harness ready marker payload was a 2-field stub
+(`ready_at_unix`, `command`); Python side polled only `path.exists()`.
+A stale or partially-written marker from a previous container life
+satisfied that gate and tricked every stimulus attempt into firing
+before the harness command was registered.
+
+### Commits
+
+| Stage | Commit | Scope |
+|---|---|---|
+| PR-A | `9c2e2d9` | `ExTrace Harness` Output Channel + diagnostic emit on `activate()` enter/exit + marker-write phases. PR345 PR5 hook captures every appendLine as `OutputSignalEvent(kind=output_channel_appendline)`; no parser change. |
+| PR-B | `9eb4aaf` | Marker payload widened with `marker_version`, `epoch_run_id`, `pid`; atomic tmp+rename. `start.sh` exports `EXTRACE_EPOCH_RUN_ID` per boot. New `parse_harness_ready_marker` (frozen dataclass) + four typed `HarnessUnavailableError.reason_code` sub-codes. `_ensure_harness_ready` accepts `expected_epoch_run_id`. |
+| PR-C | `d39a612` | `_ensure_harness_ready_with_recovery` wraps the wait with one controlled retry on `MISSING`/`TIMEOUT`; `STALE`/`INVALID` non-recoverable. `automation.py` `HarnessUnavailableError` catch block reads `exc.reason_code` instead of the legacy generic constant. `health_summary._REASON_LABELS` gains 4 human-readable sentences. |
+
+### Verification (2026-04-27, branch `feat/pr345-completion`)
+
+| Lane | Outcome |
+|---|---|
+| `make test-security` | 45 passed (gate ≥ 41 satisfied) |
+| `tests/executor/test_playwright_stimulus.py` | 25 passed (W8-0 alone adds 12 new tests) |
+| `tests/executor/test_output_signal_capture.py` | 6 passed (PR-A adds 1 lifecycle case) |
+| `tests/executor/test_playwright_automation.py` | 19 passed (no regression on the harness-skip path) |
+| `tests/executor + tests/security + tests/platform/contracts` | 401 passed, 6 skipped |
+| `make typecheck` | 213 source files, no issues |
+| `make lint-check` | clean |
+
+### Reason code rollup
+
+| Code | When raised | Recoverable? |
+|---|---|---|
+| `harness_ready_marker_missing` | Deadline passed, marker never appeared. | Yes (one retry) |
+| `harness_ready_marker_invalid` | Marker exists but JSON unparseable / required field missing. | No |
+| `harness_ready_marker_stale` | Payload `epoch_run_id` ≠ container `EXTRACE_EPOCH_RUN_ID` (only checked when both non-empty). | No |
+| `harness_activation_timeout` | Marker arrived after the deadline (race observed mid-poll). | Yes (one retry) |
+
+### Deferred / open
+
+- **Docker-based smoke ran 2026-04-27 14:57** (report
+  `output/activation_report_ms-python.python-2026.5.2026042602-80f070c03e9c.json`).
+  Acceptance signal (a) — `output_signal_events` carrying
+  `ExTrace Harness` lifecycle entries — **failed live**: the
+  PR-A-deployed image emitted the four phase events to disk but
+  the parser was reading `exthost.log` rather than the
+  `output_logging_*/<idx>-<channel>.log` files VS Code 1.105+
+  actually persists Output channel content to. Closed by the
+  capture-pipeline fix below. Acceptance signal (b) — typed
+  harness-readiness reason codes — **still unconfirmed**: the
+  smoke surfaced 9 attempts with `harness_verification_unconfirmed`,
+  none with the W8-0 PR-B/PR-C typed sub-codes. Stays user-side
+  until a follow-up `make sim-target` produces an attempt that
+  trips the typed marker path.
+- **`failure_reason_code` formal enum migration** stays under
+  `[PROMOTED → W10-1]`. The four new strings reserve a non-colliding
+  namespace (`harness_*_marker_*` + `harness_activation_timeout`) so
+  the W10 PR can promote them without touching call sites.
+- W8-1 (VSIX zip-bomb) and W8-3 (URI argv-form) are now unblocked —
+  the entry-gate ordering in POST_POC_BACKLOG `[PROMOTED → W8-0]`
+  is satisfied.
+
+## W8-0 Follow-up Fixes (2026-04-27)
+
+Two fixes landed on `fix/w8-0-capture-and-health-reasons` to close
+the capture-pipeline gap exposed by the live smoke and the
+long-tracked `[FOLLOWUP codex-automation-3]` item that the same
+report surfaced as live evidence.
+
+### Fix #1 — Output channel capture pipeline reads VS Code 1.105+ persistence files
+
+`output_signal_events=0` despite W8-0 PR-A `ExTrace Harness`
+diagnostic emits being correctly deployed. Root cause: VS Code
+1.105 stopped piping extension `console.log` into `exthost.log`;
+each Output channel persists its content to
+`<user-data>/logs/<session>/window<N>/exthost/output_logging_<ts>/<idx>-<channel>.log`
+instead. The `[extrace-harness]` marker stream the parser scans
+exthost.log for never lands there.
+
+- New
+  [`output_signals.read_output_channel_logs(logs_dir)`](../executor/flows/playwright/output_signals.py)
+  walks the per-channel persistence files, parses each line
+  (JSON-with-`ts` field preferred; file mtime fallback for plain
+  text), and emits one `OutputSignalEvent` per appendLine.
+- New
+  [`output_signals.merge_output_signal_events(*sources)`](../executor/flows/playwright/output_signals.py)
+  deduplicates the merged stream by `(channel, text, timestamp)`
+  so the legacy exthost-output marker source remains compatible
+  for older fixtures.
+- [`monitor_lifecycle.py`](../executor/flows/playwright/monitor_lifecycle.py)
+  `_build_run_report` now reads both sources and merges them
+  before attribution.
+- Coverage: 5 new tests in
+  [`tests/executor/test_output_signal_capture.py`](../tests/executor/test_output_signal_capture.py)
+  pin the new reader against a synthetic
+  `output_logging_*/<idx>-<channel>.log` tree (JSON-with-ts +
+  plain-text mtime fallback + filename filter + missing-dir
+  noop + dedup).
+
+### Fix #2 — `automation_health` propagates partial-evidence reason codes regardless of execution mode
+
+`[FOLLOWUP codex-automation-3]` (POST_POC_BACKLOG L594-625): the
+W7 entry "layered run_quality label" patch closed
+`official_unresolved_present` only inside the `run_quality`
+reason text builder. `automation_health.reasons` stayed empty
+for layered runs even when `run_quality` correctly dropped to
+`medium`, leaving operators reading the health chip with
+misplaced confidence. The 2026-04-27 smoke produced
+`automation_health.status="healthy"`, `reasons=[]` while
+`run_quality="medium"`, `run_quality_reasons=[2 entries]` —
+exactly the gap the FOLLOWUP describes.
+
+- [`health_summary.py::build_automation_health`](../executor/flows/playwright/health_summary.py)
+  now appends all four FOLLOWUP-listed reason codes regardless of
+  layered/non-layered mode and demotes status `healthy` →
+  `degraded` whenever any of them fires:
+  - `verification_gap_present` (run-level: `verification_gap > 0`)
+  - `chat_tool_verification_incomplete` (run-level: helper match)
+  - `official_unresolved_present` (run-level:
+    `official_event_coverage.unresolved > 0`)
+  - **`harness_verification_unconfirmed_present`** (attempt-level:
+    any `event_attempts[].failure_reason_code ==
+    "harness_verification_unconfirmed"`).
+- [`health_summary.py::build_run_quality`](../executor/flows/playwright/health_summary.py)
+  layered branch refined: a `degraded` run whose reasons are
+  *only* partial-evidence codes returns `medium`, not `low` —
+  partial evidence is not a run failure. The
+  ``partial_evidence_reason_codes`` set tracks all four codes so
+  the heuristic stays consistent across new propagations.
+  Real-failure degradations (extension_host_log_missing,
+  scenario_failures, trigger_plan_not_loaded/applied, etc.) still
+  drop to `low`.
+- Pinned existing test
+  [`test_layered_harness_chat_tool_attempt_degrades_health_and_keeps_quality_medium`](../tests/executor/test_playwright_monitor_attribution.py)
+  (renamed from `keeps_health_healthy_and_quality_medium`) and
+  added 4 dedicated cases in
+  [`tests/executor/test_playwright_health_summary.py`](../tests/executor/test_playwright_health_summary.py)
+  for layered + non-layered + clean-run regression guard +
+  attempt-level harness propagation.
+
+### Verification
+
+| Lane | Outcome |
+|---|---|
+| `tests/executor/test_output_signal_capture.py` | 11 passed (5 new). |
+| `tests/executor/test_playwright_health_summary.py` | 7 passed (3 new). |
+| `tests/executor/test_playwright_monitor_attribution.py` | 76 passed (1 renamed + assertion flipped per FOLLOWUP). |
+| `make test-security` | 45 passed. |
+| `make check-all` | green (recorded at commit time). |
+
+### Live live-scan-derived backlog entries (2026-04-27)
+
+The same 14:57 scan surfaced the `[FOLLOWUP capability-verification-gap]`
+(`debug` + `terminal_tasks` capability verification) backlog entry
+recorded under `POST_POC_BACKLOG.md` "Live-scan findings" section.
+W12-fingerprint stale-image regression class
+(`[FOLLOWUP codex-automation-5]`) was ruled out for this run — the
+deployed image carried the PR-A code; the gap was capture-side, not
+build-side.
 
 ## Week 5 Start Rule
 

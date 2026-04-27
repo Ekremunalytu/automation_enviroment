@@ -38,7 +38,12 @@ from scenarios.workbench import (  # noqa: F401
     scenario_search_workflow,
     scenario_settings_modification,
 )
-from stimulus_types import AutomationExecutionResult, SkippedScenarioRecord
+from stimulus_types import (
+    HARNESS_COMMAND_UNAVAILABLE_REASON,
+    AutomationExecutionResult,
+    HarnessUnavailableError,
+    SkippedScenarioRecord,
+)
 
 from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import Page
@@ -294,6 +299,36 @@ def _run_scenario_sequence(
                 "completed",
                 metadata=_scenario_metadata(scenario),
             )
+        except HarnessUnavailableError as exc:
+            error_detail = str(exc)[:500]
+            # W8-0: prefer the exception's typed sub-reason
+            # (harness_ready_marker_{missing,stale,invalid} or
+            # harness_activation_timeout) so the report shows *why* the
+            # harness was unreachable; fall back to the legacy generic
+            # code only when the exception did not carry one.
+            harness_reason = (
+                str(getattr(exc, "reason_code", "")).strip()
+                or HARNESS_COMMAND_UNAVAILABLE_REASON
+            )
+            result.skipped_scenarios.append(
+                SkippedScenarioRecord(
+                    name=scenario.name,
+                    reason_code=harness_reason,
+                    detail=error_detail,
+                )
+            )
+            _emit_scenario_event(
+                "end",
+                scenario.name,
+                "skipped",
+                metadata=_scenario_metadata(
+                    scenario,
+                    error=error_detail,
+                    failure_reason_code=harness_reason,
+                ),
+            )
+            _log(f"SKIP: {scenario.name} -> {harness_reason}")
+            _recover_ui_state(page)
         except (PlaywrightError, RuntimeError, ValueError) as exc:
             fatal, reason_code = is_fatal_ui_error(exc, page)
             error_detail = str(exc)[:500]
