@@ -94,6 +94,31 @@ except ImportError:  # pragma: no cover - top-level executor import mode
     from playwright.sync_api import Page
 
 
+def _assert_target_stream_invariant(
+    entry: LogStreamEntry, target_extension_id: str
+) -> None:
+    """Reject log entries that violate the target_extension_host invariant.
+
+    PR345 PR4: every entry assigned to the ``target_extension_host`` stream
+    must have ``is_target_extension=True`` and ``extension_id`` matching
+    ``target_extension_id``. Build-path callers enforce this so detection
+    rules reading the target stream cannot see a leaked sibling-extension
+    entry. Caller must invoke immediately after appending a LogStreamEntry.
+    """
+    if entry.stream != "target_extension_host":
+        return
+    if not entry.is_target_extension:
+        raise ValueError(
+            "target_extension_host log entry must have is_target_extension=True; "
+            f"got entry for {entry.extension_id!r} with is_target_extension=False"
+        )
+    if not target_extension_id or entry.extension_id != target_extension_id:
+        raise ValueError(
+            "target_extension_host log entry must have extension_id matching "
+            f"target ({target_extension_id!r}); got {entry.extension_id!r}"
+        )
+
+
 class ExtensionMonitor:
     """Context manager that captures extension activations around scenario execution."""
 
@@ -631,6 +656,9 @@ class ExtensionMonitor:
                     is_target_extension=is_target,
                 )
             )
+            _assert_target_stream_invariant(
+                self.report.log_entries[-1], self.report.target_extension_id
+            )
 
     def record_automation_event(
         self,
@@ -653,6 +681,12 @@ class ExtensionMonitor:
                 activation_event=activation_event,
                 status=status,
             )
+        )
+        # PR345 PR4: defensive — automation/ui_blocker streams cannot
+        # legally land on target_extension_host; invariant call is a no-op
+        # today but locks the route if a future kind ever picks that key.
+        _assert_target_stream_invariant(
+            self.report.log_entries[-1], self.report.target_extension_id
         )
         self._persist_report(force=False)
 

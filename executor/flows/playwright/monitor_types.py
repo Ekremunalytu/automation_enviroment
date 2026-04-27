@@ -93,6 +93,29 @@ except ImportError:  # pragma: no cover - top-level executor import mode
     )
 
 
+_DEMOTE_WARNING_EMITTED: set[tuple[str, str]] = set()
+
+
+def _log_stream_demote_warning(entry: LogStreamEntry, target_id: str) -> None:
+    """Emit a one-shot warning per (extension_id, target_id) demote.
+
+    PR345 PR4 serialization-time defense: when an entry assigned to
+    ``target_extension_host`` violates the invariant the build-path
+    guard enforces, we demote it to ``other_extension_host`` and log
+    once so the leak is observable without spamming the report build.
+    """
+    key = (entry.extension_id or "", target_id or "")
+    if key in _DEMOTE_WARNING_EMITTED:
+        return
+    _DEMOTE_WARNING_EMITTED.add(key)
+    _log(
+        "Demoted target_extension_host log entry to other_extension_host: "
+        f"extension_id={entry.extension_id!r} "
+        f"is_target_extension={entry.is_target_extension} "
+        f"target={target_id!r}"
+    )
+
+
 @dataclass
 class ActivationReport:
     """Aggregated monitoring results."""
@@ -367,6 +390,7 @@ class ActivationReport:
             "automation": [],
             "ui_blockers": [],
         }
+        target_id = self.target_extension_id
         for entry in sorted(
             self.log_entries,
             key=lambda item: (
@@ -376,7 +400,21 @@ class ActivationReport:
                 item.message,
             ),
         ):
-            grouped.setdefault(entry.stream, []).append(entry)
+            stream = entry.stream
+            # PR345 PR4: serialization-time invariant defense.
+            # Build-path guard in monitor_lifecycle._assert_target_stream_invariant
+            # is the primary contract; this demote handles entries that
+            # somehow slipped past it (legacy fixtures, manual report
+            # construction in tests). Half-correct over crashing report
+            # delivery in production.
+            if stream == "target_extension_host" and (
+                not entry.is_target_extension
+                or not target_id
+                or entry.extension_id != target_id
+            ):
+                _log_stream_demote_warning(entry, target_id)
+                stream = "other_extension_host"
+            grouped.setdefault(stream, []).append(entry)
         return grouped
 
     def save(self, path: str | Path, announce: bool = True) -> Path:

@@ -556,3 +556,71 @@ class _FakeFileCapture:
 
     def stop(self) -> list[monitor.FileEvent]:
         return list(self.events)
+
+
+def test_target_extension_host_stream_invariant_rejects_non_target_entries() -> None:
+    """PR345 PR4: target_extension_host stream invariant.
+
+    Build-path callers must call ``_assert_target_stream_invariant``;
+    serialization-path ``log_streams`` grouping demotes any entry that
+    slipped past the build-path guard.
+    """
+    import pytest
+
+    from monitor_lifecycle import _assert_target_stream_invariant
+    from monitor_records import LogStreamEntry
+    from monitor_types import ActivationReport, _DEMOTE_WARNING_EMITTED
+
+    # Reset module-level dedup so demote warnings fire deterministically.
+    _DEMOTE_WARNING_EMITTED.clear()
+
+    bad_entry = LogStreamEntry(
+        stream="target_extension_host",
+        extension_id="sample.publisher",
+        is_target_extension=False,
+    )
+    with pytest.raises(ValueError, match="is_target_extension=True"):
+        _assert_target_stream_invariant(bad_entry, "sample.publisher")
+
+    mismatch_entry = LogStreamEntry(
+        stream="target_extension_host",
+        extension_id="sibling.publisher",
+        is_target_extension=True,
+    )
+    with pytest.raises(ValueError, match="extension_id matching"):
+        _assert_target_stream_invariant(mismatch_entry, "sample.publisher")
+
+    valid_entry = LogStreamEntry(
+        stream="target_extension_host",
+        extension_id="sample.publisher",
+        is_target_extension=True,
+    )
+    _assert_target_stream_invariant(valid_entry, "sample.publisher")
+
+    # Serialization-path: grouping demotes a leaked entry to other_extension_host.
+    report = ActivationReport(target_extension_id="sample.publisher")
+    report.log_entries.append(
+        LogStreamEntry(
+            stream="target_extension_host",
+            extension_id="sibling.publisher",
+            is_target_extension=False,
+            message="leaked entry",
+        )
+    )
+    grouped = report.log_streams
+    assert grouped["target_extension_host"] == []
+    assert len(grouped["other_extension_host"]) == 1
+    assert grouped["other_extension_host"][0].extension_id == "sibling.publisher"
+
+    # Valid entry stays on the target stream after grouping.
+    report2 = ActivationReport(target_extension_id="sample.publisher")
+    report2.log_entries.append(
+        LogStreamEntry(
+            stream="target_extension_host",
+            extension_id="sample.publisher",
+            is_target_extension=True,
+        )
+    )
+    grouped2 = report2.log_streams
+    assert len(grouped2["target_extension_host"]) == 1
+    assert grouped2["target_extension_host"][0].extension_id == "sample.publisher"
