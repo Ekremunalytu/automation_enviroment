@@ -40,6 +40,9 @@ _REASON_LABELS = {
     "official_unresolved_present": (
         "Official activation events remained unresolved after verification."
     ),
+    "harness_verification_unconfirmed_present": (
+        "One or more harness-routed attempts could not be verified end-to-end."
+    ),
     # W8-0: typed sub-reasons that replace the generic
     # "harness_command_unavailable" bucket. Each surfaces a distinct
     # actionable failure mode of the harness ready-marker handshake.
@@ -325,6 +328,15 @@ def build_automation_health(
     official_event_coverage = getattr(report, "official_event_coverage", {}) or {}
     if int(official_event_coverage.get("unresolved", 0) or 0) > 0:
         reasons.append("official_unresolved_present")
+    # FOLLOWUP codex-automation-3 (4/4): attempt-level harness verification
+    # gaps. Unlike the run-level reasons above, this is recorded against
+    # individual ``event_attempts`` rows by the W8-0 PR-C catch path.
+    if any(
+        str(getattr(attempt, "failure_reason_code", "") or "")
+        == "harness_verification_unconfirmed"
+        for attempt in getattr(report, "event_attempts", []) or []
+    ):
+        reasons.append("harness_verification_unconfirmed_present")
     if (
         not target_stream_present
         and target_activation_count <= 0
@@ -366,6 +378,7 @@ def build_automation_health(
         or getattr(report, "verification_gap", 0) > 0
         or unresolved_chat_tool_attempts
         or int(official_event_coverage.get("unresolved", 0) or 0) > 0
+        or "harness_verification_unconfirmed_present" in reasons
     ):
         status = "degraded"
     else:
@@ -421,6 +434,7 @@ def build_run_quality(
         "verification_gap_present",
         "chat_tool_verification_incomplete",
         "official_unresolved_present",
+        "harness_verification_unconfirmed_present",
     }
     health_reason_codes = set(health.get("reasons", []) or [])
     only_partial_evidence_degradation = (
@@ -435,6 +449,7 @@ def build_run_quality(
             official_unresolved > 0
             or unresolved_chat_tool_attempts
             or getattr(report, "verification_gap", 0) > 0
+            or only_partial_evidence_degradation
         ):
             medium_reasons = list(reasons)
             if getattr(report, "verification_gap", 0) > 0:

@@ -275,3 +275,45 @@ def test_no_partial_evidence_keeps_health_healthy() -> None:
     assert "verification_gap_present" not in health["reasons"]
     assert "official_unresolved_present" not in health["reasons"]
     assert quality == "high"
+
+
+def test_harness_verification_unconfirmed_attempt_propagates_to_health_reasons() -> (
+    None
+):
+    """FOLLOWUP codex-automation-3 4/4.
+
+    Attempt-level ``harness_verification_unconfirmed`` reason codes are
+    now scanned and surfaced on ``automation_health.reasons`` as
+    ``harness_verification_unconfirmed_present``. Status drops to
+    ``degraded``; run_quality stays ``medium`` because this is a
+    partial-evidence signal, not a run failure.
+    """
+    from monitor_records import EventAttemptRecord
+
+    report = _partial_evidence_report(
+        execution_mode="layered_passes",
+        verification_gap=0,
+        unresolved=0,
+    )
+    report.event_attempts = [
+        EventAttemptRecord(
+            attempt_id="probe-1",
+            declared_event="onCommand:test",
+            activation_event="onCommand:test",
+            event_family="onCommand",
+            executor_action="harness:run_current_stimulus",
+            status="attempted_only",
+            failure_reason_code="harness_verification_unconfirmed",
+        )
+    ]
+
+    health = build_automation_health(
+        report,
+        extension_host_log_found=True,
+        extension_host_log_present=True,
+    )
+    quality, _ = build_run_quality(report, automation_health=health)
+
+    assert "harness_verification_unconfirmed_present" in health["reasons"]
+    assert health["status"] == "degraded"
+    assert quality == "medium"

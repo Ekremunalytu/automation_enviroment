@@ -591,38 +591,53 @@ or `extension_host_log_missing` reasons; item 4 (harness readiness)
 landed as W8-0 (`9c2e2d9` + `9eb4aaf` + `d39a612`). The remaining
 five items are recorded below.
 
-### [FOLLOWUP codex-automation-3] Layered run health ↔ run_quality consistency
+### [FOLLOWUP codex-automation-3] — LANDED 2026-04-27
 
-The `build_run_quality()` path in
-[`executor/flows/playwright/health_summary.py`](../executor/flows/playwright/health_summary.py)
-returns `medium` when `official_unresolved > 0`,
-`verification_gap > 0`, or `chat_tool_unresolved > 0`. The peer
-`build_automation_health()` in the same module does not always
-attach the same reason codes — the W7 entry "layered run_quality
-label" fix (REFACTOR_STATUS 2026-04-23) closed this for
-`official_unresolved_present` only; the other reasons can still
-leave `automation_health.status = "healthy"` while `run_quality`
-drops to `medium`. An operator who reads only the health badge
-gets misplaced confidence.
+`build_run_quality()` returned `medium` when partial-evidence signals
+fired, but `build_automation_health()` did not attach the same reason
+codes — the W7 entry "layered run_quality label" patch closed
+`official_unresolved_present` text only. The 2026-04-27 14:57 live
+smoke produced `automation_health.status="healthy"`, `reasons=[]`
+while `run_quality="medium"`, `run_quality_reasons=[2 entries]` —
+operator reading the health chip alone got misplaced confidence.
 
-- **Change:** when the run is layered and any of
-  `official_unresolved_present`, `verification_gap_present`,
-  `chat_tool_verification_incomplete`, or
-  `harness_verification_unconfirmed` is recorded against an
-  attempt, surface the same reason code on
-  `automation_health.reasons` and demote `automation_health.status`
-  to `degraded` (never `inconclusive` — these are partial-evidence
-  signals, not run-failure signals).
-- **Trigger for pulling this back:** a `make sim-target` run that
-  reports `automation_health.status="healthy"` but
-  `run_quality="medium"` for the same set of attempts; an operator
-  asking "if everything is healthy, why is run quality medium?".
-- **Natural landing point:** W10-4 (`AutomationHealth` typed
-  Pydantic model, `REFACTOR_OPTIMIZATION.md §11.7` item 4) — the
-  reason-code consistency contract belongs in the same model
-  promotion. Pulling it earlier means touching `health_summary.py`
-  twice; later means another `[FOLLOWUP]` round.
-- **Size:** small (~60 LoC + 3 tests).
+Closed in
+[`health_summary.py::build_automation_health`](../executor/flows/playwright/health_summary.py)
+on `fix/w8-0-capture-and-health-reasons`. All four FOLLOWUP-listed
+reason codes propagate to `automation_health.reasons` regardless of
+execution mode, with status demotion `healthy` → `degraded`:
+
+- `verification_gap_present` (run-level: `verification_gap > 0`)
+- `chat_tool_verification_incomplete` (run-level: helper match)
+- `official_unresolved_present` (run-level:
+  `official_event_coverage.unresolved > 0`)
+- **`harness_verification_unconfirmed_present`** (attempt-level:
+  any `event_attempts[].failure_reason_code ==
+  "harness_verification_unconfirmed"`).
+
+`build_run_quality()` layered branch refined: a `degraded` run whose
+reasons are *only* partial-evidence codes returns `medium`, not
+`low`. The `partial_evidence_reason_codes` set tracks all four codes
+so the heuristic stays consistent across new propagations.
+Real-failure degradations (extension_host_log_missing,
+scenario_failures, trigger_plan_not_loaded/applied, etc.) still drop
+to `low`.
+
+Coverage:
+[`tests/executor/test_playwright_health_summary.py`](../tests/executor/test_playwright_health_summary.py)
+gained 4 dedicated cases (layered partial-evidence demotion +
+non-layered + clean-run regression guard + attempt-level harness
+propagation). Existing test
+[`test_layered_harness_chat_tool_attempt`](../tests/executor/test_playwright_monitor_attribution.py)
+renamed (`keeps_health_healthy_and_quality_medium` →
+`degrades_health_and_keeps_quality_medium`) with assertions flipped.
+
+Live re-verification (2026-04-27 15:46 sim-target run, report
+`output/activation_report_ms-python.python-2026.5.2026042602-17ba4b80acac.json`):
+`automation_health.status="degraded"` ✅;
+`automation_health.reasons=["verification_gap_present",
+"official_unresolved_present"]` ✅;
+`run_quality="medium"`, `run_quality_reasons=[2 entries]` ✅.
 
 ### [FOLLOWUP codex-automation-5] Executor runtime fingerprint in report
 

@@ -894,23 +894,32 @@ misplaced confidence. The 2026-04-27 smoke produced
 exactly the gap the FOLLOWUP describes.
 
 - [`health_summary.py::build_automation_health`](../executor/flows/playwright/health_summary.py)
-  now appends `verification_gap_present`,
-  `chat_tool_verification_incomplete`, and
-  `official_unresolved_present` reason codes regardless of
+  now appends all four FOLLOWUP-listed reason codes regardless of
   layered/non-layered mode and demotes status `healthy` →
-  `degraded` whenever any of them fires.
+  `degraded` whenever any of them fires:
+  - `verification_gap_present` (run-level: `verification_gap > 0`)
+  - `chat_tool_verification_incomplete` (run-level: helper match)
+  - `official_unresolved_present` (run-level:
+    `official_event_coverage.unresolved > 0`)
+  - **`harness_verification_unconfirmed_present`** (attempt-level:
+    any `event_attempts[].failure_reason_code ==
+    "harness_verification_unconfirmed"`).
 - [`health_summary.py::build_run_quality`](../executor/flows/playwright/health_summary.py)
   layered branch refined: a `degraded` run whose reasons are
   *only* partial-evidence codes returns `medium`, not `low` —
-  partial evidence is not a run failure. Real-failure
-  degradations (extension_host_log_missing, scenario_failures,
-  trigger_plan_not_loaded/applied, etc.) still drop to `low`.
+  partial evidence is not a run failure. The
+  ``partial_evidence_reason_codes`` set tracks all four codes so
+  the heuristic stays consistent across new propagations.
+  Real-failure degradations (extension_host_log_missing,
+  scenario_failures, trigger_plan_not_loaded/applied, etc.) still
+  drop to `low`.
 - Pinned existing test
   [`test_layered_harness_chat_tool_attempt_degrades_health_and_keeps_quality_medium`](../tests/executor/test_playwright_monitor_attribution.py)
   (renamed from `keeps_health_healthy_and_quality_medium`) and
-  added 3 dedicated cases in
+  added 4 dedicated cases in
   [`tests/executor/test_playwright_health_summary.py`](../tests/executor/test_playwright_health_summary.py)
-  for layered + non-layered + clean-run regression guard.
+  for layered + non-layered + clean-run regression guard +
+  attempt-level harness propagation.
 
 ### Verification
 
