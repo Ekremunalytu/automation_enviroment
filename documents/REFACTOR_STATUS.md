@@ -1,6 +1,6 @@
 # Refactor Status
 
-`Last Updated: 2026-04-27 (W8-0 landed; harness readiness gate hardened ahead of W8-1/W8-3)`
+`Last Updated: 2026-04-27 (W8-0 capture-pipeline + automation_health reason propagation gap fixes)`
 
 This is the active status board for the Week 1-4 stabilization work and the
 pre-W6 cleanup handoff. Use this file for current closure state; use
@@ -821,16 +821,20 @@ before the harness command was registered.
 
 ### Deferred / open
 
-- **Docker-based smoke remains user-side** (`make exec-up && make
-  sim-target TARGET=ms-python.python`). Two acceptance signals to
-  confirm: (a) `output_signal_events` now carry `ExTrace Harness`
-  channel entries with `phase` payloads from `activate()`; (b) a
-  rerun against the same trigger conditions surfaces a specific reason
-  code (most likely `harness_ready_marker_stale` or
-  `harness_activation_timeout`) instead of the previous run's 9×
-  generic `harness_command_unavailable`. Capture-pipeline correctness
-  for the new payload schema can only be fully closed by the live
-  executor run.
+- **Docker-based smoke ran 2026-04-27 14:57** (report
+  `output/activation_report_ms-python.python-2026.5.2026042602-80f070c03e9c.json`).
+  Acceptance signal (a) — `output_signal_events` carrying
+  `ExTrace Harness` lifecycle entries — **failed live**: the
+  PR-A-deployed image emitted the four phase events to disk but
+  the parser was reading `exthost.log` rather than the
+  `output_logging_*/<idx>-<channel>.log` files VS Code 1.105+
+  actually persists Output channel content to. Closed by the
+  capture-pipeline fix below. Acceptance signal (b) — typed
+  harness-readiness reason codes — **still unconfirmed**: the
+  smoke surfaced 9 attempts with `harness_verification_unconfirmed`,
+  none with the W8-0 PR-B/PR-C typed sub-codes. Stays user-side
+  until a follow-up `make sim-target` produces an attempt that
+  trips the typed marker path.
 - **`failure_reason_code` formal enum migration** stays under
   `[PROMOTED → W10-1]`. The four new strings reserve a non-colliding
   namespace (`harness_*_marker_*` + `harness_activation_timeout`) so
@@ -838,6 +842,95 @@ before the harness command was registered.
 - W8-1 (VSIX zip-bomb) and W8-3 (URI argv-form) are now unblocked —
   the entry-gate ordering in POST_POC_BACKLOG `[PROMOTED → W8-0]`
   is satisfied.
+
+## W8-0 Follow-up Fixes (2026-04-27)
+
+Two fixes landed on `fix/w8-0-capture-and-health-reasons` to close
+the capture-pipeline gap exposed by the live smoke and the
+long-tracked `[FOLLOWUP codex-automation-3]` item that the same
+report surfaced as live evidence.
+
+### Fix #1 — Output channel capture pipeline reads VS Code 1.105+ persistence files
+
+`output_signal_events=0` despite W8-0 PR-A `ExTrace Harness`
+diagnostic emits being correctly deployed. Root cause: VS Code
+1.105 stopped piping extension `console.log` into `exthost.log`;
+each Output channel persists its content to
+`<user-data>/logs/<session>/window<N>/exthost/output_logging_<ts>/<idx>-<channel>.log`
+instead. The `[extrace-harness]` marker stream the parser scans
+exthost.log for never lands there.
+
+- New
+  [`output_signals.read_output_channel_logs(logs_dir)`](../executor/flows/playwright/output_signals.py)
+  walks the per-channel persistence files, parses each line
+  (JSON-with-`ts` field preferred; file mtime fallback for plain
+  text), and emits one `OutputSignalEvent` per appendLine.
+- New
+  [`output_signals.merge_output_signal_events(*sources)`](../executor/flows/playwright/output_signals.py)
+  deduplicates the merged stream by `(channel, text, timestamp)`
+  so the legacy exthost-output marker source remains compatible
+  for older fixtures.
+- [`monitor_lifecycle.py`](../executor/flows/playwright/monitor_lifecycle.py)
+  `_build_run_report` now reads both sources and merges them
+  before attribution.
+- Coverage: 5 new tests in
+  [`tests/executor/test_output_signal_capture.py`](../tests/executor/test_output_signal_capture.py)
+  pin the new reader against a synthetic
+  `output_logging_*/<idx>-<channel>.log` tree (JSON-with-ts +
+  plain-text mtime fallback + filename filter + missing-dir
+  noop + dedup).
+
+### Fix #2 — `automation_health` propagates partial-evidence reason codes regardless of execution mode
+
+`[FOLLOWUP codex-automation-3]` (POST_POC_BACKLOG L594-625): the
+W7 entry "layered run_quality label" patch closed
+`official_unresolved_present` only inside the `run_quality`
+reason text builder. `automation_health.reasons` stayed empty
+for layered runs even when `run_quality` correctly dropped to
+`medium`, leaving operators reading the health chip with
+misplaced confidence. The 2026-04-27 smoke produced
+`automation_health.status="healthy"`, `reasons=[]` while
+`run_quality="medium"`, `run_quality_reasons=[2 entries]` —
+exactly the gap the FOLLOWUP describes.
+
+- [`health_summary.py::build_automation_health`](../executor/flows/playwright/health_summary.py)
+  now appends `verification_gap_present`,
+  `chat_tool_verification_incomplete`, and
+  `official_unresolved_present` reason codes regardless of
+  layered/non-layered mode and demotes status `healthy` →
+  `degraded` whenever any of them fires.
+- [`health_summary.py::build_run_quality`](../executor/flows/playwright/health_summary.py)
+  layered branch refined: a `degraded` run whose reasons are
+  *only* partial-evidence codes returns `medium`, not `low` —
+  partial evidence is not a run failure. Real-failure
+  degradations (extension_host_log_missing, scenario_failures,
+  trigger_plan_not_loaded/applied, etc.) still drop to `low`.
+- Pinned existing test
+  [`test_layered_harness_chat_tool_attempt_degrades_health_and_keeps_quality_medium`](../tests/executor/test_playwright_monitor_attribution.py)
+  (renamed from `keeps_health_healthy_and_quality_medium`) and
+  added 3 dedicated cases in
+  [`tests/executor/test_playwright_health_summary.py`](../tests/executor/test_playwright_health_summary.py)
+  for layered + non-layered + clean-run regression guard.
+
+### Verification
+
+| Lane | Outcome |
+|---|---|
+| `tests/executor/test_output_signal_capture.py` | 11 passed (5 new). |
+| `tests/executor/test_playwright_health_summary.py` | 7 passed (3 new). |
+| `tests/executor/test_playwright_monitor_attribution.py` | 76 passed (1 renamed + assertion flipped per FOLLOWUP). |
+| `make test-security` | 45 passed. |
+| `make check-all` | green (recorded at commit time). |
+
+### Live live-scan-derived backlog entries (2026-04-27)
+
+The same 14:57 scan surfaced the `[FOLLOWUP capability-verification-gap]`
+(`debug` + `terminal_tasks` capability verification) backlog entry
+recorded under `POST_POC_BACKLOG.md` "Live-scan findings" section.
+W12-fingerprint stale-image regression class
+(`[FOLLOWUP codex-automation-5]`) was ruled out for this run — the
+deployed image carried the PR-A code; the gap was capture-side, not
+build-side.
 
 ## Week 5 Start Rule
 

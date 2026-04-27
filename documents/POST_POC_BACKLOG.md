@@ -741,6 +741,94 @@ correct pattern is in-tree.
   alongside item 7 in a single Makefile cleanup commit.
 - **Size:** trivial (~6 lines + a `make help` blurb).
 
+## Live-scan findings (2026-04-27, post-W8-0 smoke)
+
+A live `make sim-target TARGET=ms-python.python` run on
+2026-04-27 14:57 (report
+`output/activation_report_ms-python.python-2026.5.2026042602-80f070c03e9c.json`)
+surfaced one tracker-ready capability gap and confirmed two existing
+followups (codex-automation-3, codex-automation-5) as live evidence.
+The capability gap below is recorded for the next iteration; it is
+genuinely untracked and orthogonal to the captured fixes shipped in
+the same session.
+
+### [FOLLOWUP capability-verification-gap] `debug` + `terminal_tasks` capability verification
+
+Live scan reported:
+
+- `attempted_capabilities` = `[commands, debug, languages_editor,
+  terminal_tasks, window_ui, workspace_fs]` (6).
+- `verified_capabilities` = `[commands, languages_editor, window_ui,
+  workspace_fs]` (4).
+- Verification gap = 2: `debug` and `terminal_tasks` were attempted
+  but never marked verified. No fail/abort along the way; the run
+  completed all 3 scenarios with `automation_health.status=degraded`
+  (after the codex-automation-3 fix lands).
+
+Hypotheses (require validation before committing to a tracker plan):
+
+- **`debug`**: likely needs an actual DAP message exchange to
+  verify, not just `debugpy` extension activation. The current
+  stimulus may register the configuration without driving a debug
+  session, so attempt logs but never crosses the verification
+  threshold.
+- **`terminal_tasks`**: the W7 trim of
+  `scenario_terminal_usage` (REFACTOR_STATUS L580-590, removed
+  `cat .env`/`pip list`/`npm ls`) reduced the terminal commands
+  exercised. Verification heuristic may be tied to specific command
+  patterns that no longer fire after the trim, so the capability
+  attempt remains unverified despite the scenario completing.
+
+- **Change candidate (after diagnosis):** scope-tight stimulus
+  additions (a debug-session probe in `scenarios/runtime.py`
+  scenario_coding_session and a deterministic verification command
+  in `scenario_terminal_usage`) plus updates to
+  `health.derive_verified_capabilities` so the verification rules
+  match the new stimulus payloads. Touching the verification rules
+  alone risks hiding a real gap; touching the stimulus alone risks
+  noise without coverage.
+- **Trigger for pulling this back:** any stakeholder report where
+  "the simulator says debug works on benign extensions" carries
+  weight; a benign baseline whose verification gap masks a real
+  detection regression.
+- **Natural landing point:** W13 test expansion (benign baseline
+  fixture growth — the same iteration that adds vscode-eslint /
+  github-copilot-chat baselines should add capability-coverage
+  expectations).
+- **Size:** medium (~80 LoC stimulus + 50 LoC verification rule
+  tweaks + 4-6 capability assertion tests).
+
+### [FOLLOWUP w8-0-capture-pipeline] — LANDED 2026-04-27
+
+W8-0 deferred-smoke acceptance signal (a) — `output_signal_events`
+carrying `ExTrace Harness` lifecycle entries — was reported live
+on 2026-04-27 14:57 to be **not satisfied even with the PR-A
+image deployed**. Root cause: VS Code 1.105 no longer pipes
+extension `console.log` into `exthost.log`; instead each Output
+channel persists its content to
+`<user-data>/logs/<session>/window<N>/exthost/output_logging_<ts>/<idx>-<channel>.log`.
+The harness `harnessChannel.appendLine(...)` calls were reaching
+disk all along — the parser was reading the wrong file.
+
+Fix: `output_signals.read_output_channel_logs(logs_dir)` walks
+the per-channel persistence files directly and emits one
+`OutputSignalEvent` per appendLine.
+`monitor_lifecycle._build_run_report` now merges this stream with
+the legacy `parse_output_signal_events` source (deduplicating by
+``(channel, text, timestamp)`` via `merge_output_signal_events`)
+before attribution. Tests pin the new reader against a synthetic
+`output_logging_*/<idx>-<channel>.log` tree
+(`tests/executor/test_output_signal_capture.py`).
+
+Acceptance signal (b) — typed harness-readiness reason codes
+(`harness_ready_marker_*` / `harness_activation_timeout`) instead
+of the legacy generic `harness_command_unavailable` — is **still
+unconfirmed live**: the same scan reported 9 attempts with
+`harness_verification_unconfirmed`, none with the W8-0 PR-B/PR-C
+typed sub-codes. Remains user-side until a follow-up
+`make sim-target` produces an attempt that actually trips the
+typed marker path.
+
 ## How to pull an item back
 
 1. Confirm the item is still relevant (some may be obsoleted by newer
