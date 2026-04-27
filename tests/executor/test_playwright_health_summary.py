@@ -10,7 +10,7 @@ if str(PLAYWRIGHT_DIR) not in sys.path:
     sys.path.insert(0, str(PLAYWRIGHT_DIR))
 
 from health_summary import build_automation_health, build_run_quality  # noqa: E402
-from monitor_records import ScenarioTrace  # noqa: E402
+from monitor_records import LogStreamEntry, ScenarioTrace  # noqa: E402
 from monitor_types import ActivationReport  # noqa: E402
 from runtime_capture.events import ActivationEntry  # noqa: E402
 
@@ -138,3 +138,140 @@ def test_no_fatal_crash_does_not_add_reason_label() -> None:
     )
 
     assert "fatal_ui_crash" not in health["reasons"]
+
+
+def _partial_evidence_report(
+    *,
+    execution_mode: str,
+    verification_gap: int,
+    unresolved: int,
+) -> ActivationReport:
+    """Build a report whose `verification_gap` property = ``verification_gap``.
+
+    `verification_gap` is computed (attempted - verified capability
+    counts), so it can't be set directly. The fixture seeds the
+    underlying ``coverage_matrix`` + ``attempted_capabilities`` +
+    ``verified_capabilities`` fields so the property returns the
+    expected delta.
+    """
+    target_id = "publisher.tool"
+    report = ActivationReport()
+    report.target_extension_id = target_id
+    report.extension_host_output = "host output"
+    report.activated.append(
+        ActivationEntry(
+            extension_id=target_id,
+            activation_event="onCommand:test",
+            timestamp="2026-01-01 10:00:00.000",
+            source="log",
+        )
+    )
+    # target_stream_entries reads report.log_streams["target_extension_host"];
+    # ``log_streams`` is computed from ``log_entries``, so seed an entry
+    # marked is_target_extension=True so the inconclusive guard sees a
+    # non-empty target stream.
+    report.log_entries.append(
+        LogStreamEntry(
+            stream="target_extension_host",
+            kind="activation",
+            extension_id=target_id,
+            message="Activated publisher.tool",
+            is_target_extension=True,
+        )
+    )
+    report.trigger_plan_requested = True
+    report.trigger_plan_loaded = True
+    report.trigger_plan_applied = True
+    report.trigger_execution_mode = execution_mode
+    report.attempted_capabilities = [f"cap_{i}" for i in range(3 + verification_gap)]
+    report.verified_capabilities = [f"cap_{i}" for i in range(3)]
+    report.coverage_matrix = {
+        cap: {"track": "official", "track_kind": "official"}
+        for cap in report.attempted_capabilities
+    }
+    report.official_event_coverage = {
+        "track": "official",
+        "declared": 3 + unresolved,
+        "verified": 3,
+        "attempted_only": unresolved,
+        "failed": 0,
+        "blocked": 0,
+        "unresolved": unresolved,
+        "declared_events": [],
+    }
+    return report
+
+
+def test_partial_evidence_signals_demote_health_to_degraded_in_layered_runs() -> None:
+    """FOLLOWUP codex-automation-3.
+
+    Layered runs with verification_gap > 0 / official_unresolved_present
+    used to keep automation_health.status="healthy" while run_quality
+    dropped to "medium" (W7 entry layered run_quality label fix only
+    closed official_unresolved_present in run_quality reasons text).
+    The FOLLOWUP propagates the same reason codes into
+    automation_health.reasons regardless of execution mode and demotes
+    status to "degraded". run_quality stays "medium" because partial
+    evidence is not a run failure.
+    """
+    report = _partial_evidence_report(
+        execution_mode="layered_passes",
+        verification_gap=2,
+        unresolved=2,
+    )
+
+    health = build_automation_health(
+        report,
+        extension_host_log_found=True,
+        extension_host_log_present=True,
+    )
+    quality, _ = build_run_quality(report, automation_health=health)
+
+    assert report.verification_gap == 2
+    assert health["status"] == "degraded"
+    assert "verification_gap_present" in health["reasons"]
+    assert "official_unresolved_present" in health["reasons"]
+    # Partial-evidence-only degradation stays at "medium".
+    assert quality == "medium"
+
+
+def test_partial_evidence_in_non_layered_run_still_degrades_health() -> None:
+    """Non-layered counterpart: same propagation contract."""
+    report = _partial_evidence_report(
+        execution_mode="single_pass",
+        verification_gap=1,
+        unresolved=1,
+    )
+
+    health = build_automation_health(
+        report,
+        extension_host_log_found=True,
+        extension_host_log_present=True,
+    )
+
+    assert report.verification_gap == 1
+    assert health["status"] == "degraded"
+    assert "verification_gap_present" in health["reasons"]
+    assert "official_unresolved_present" in health["reasons"]
+
+
+def test_no_partial_evidence_keeps_health_healthy() -> None:
+    """Regression guard: clean reports stay healthy and high quality."""
+    report = _partial_evidence_report(
+        execution_mode="single_pass",
+        verification_gap=0,
+        unresolved=0,
+    )
+
+    health = build_automation_health(
+        report,
+        extension_host_log_found=True,
+        extension_host_log_present=True,
+    )
+    quality, _ = build_run_quality(report, automation_health=health)
+
+    assert report.verification_gap == 0
+    assert health["status"] == "healthy"
+    assert "verification_gap_present" not in health["reasons"]
+    assert "official_unresolved_present" not in health["reasons"]
+    assert quality == "high"
