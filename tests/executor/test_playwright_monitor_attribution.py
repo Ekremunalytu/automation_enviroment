@@ -1255,7 +1255,7 @@ def test_empty_extension_host_output_degrades_run_health() -> None:
     assert "extension_host_output_missing" in health["reasons"]
 
 
-def test_layered_harness_chat_tool_attempt_keeps_health_healthy_and_quality_medium(
+def test_layered_harness_chat_tool_attempt_degrades_health_and_keeps_quality_medium(
     monkeypatch,
     tmp_path: Path,
 ) -> None:
@@ -1327,7 +1327,16 @@ def test_layered_harness_chat_tool_attempt_keeps_health_healthy_and_quality_medi
 
     health = report.automation_health
 
-    assert health["status"] == "healthy"
+    # FOLLOWUP codex-automation-3: partial-evidence signals (verification
+    # gap, official unresolved) now demote automation_health.status to
+    # "degraded" and surface their reason codes there. run_quality stays
+    # "medium" because partial-evidence degradation is not a run failure.
+    # ``chat_tool_verification_incomplete`` is still gated on
+    # ``official_unresolved_chat_tool_attempts`` semantics — a single
+    # ``attempted_only`` harness chat attempt does not qualify.
+    assert health["status"] == "degraded"
+    assert "verification_gap_present" in health["reasons"]
+    assert "official_unresolved_present" in health["reasons"]
     assert "chat_tool_verification_incomplete" not in health["reasons"]
     assert report.run_quality == "medium"
 

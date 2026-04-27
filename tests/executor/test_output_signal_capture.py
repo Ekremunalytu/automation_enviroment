@@ -22,7 +22,9 @@ import monitor  # noqa: E402
 from output_signals import (  # noqa: E402
     ATTRIBUTION_WINDOW_S,
     annotate_output_signal_events,
+    merge_output_signal_events,
     parse_output_signal_events,
+    read_output_channel_logs,
 )
 
 
@@ -297,3 +299,123 @@ def test_attribution_window_picks_nearest_activation() -> None:
     assert events[0].activation_event == "onStartupFinished"
     # Verify the window guard: window is ATTRIBUTION_WINDOW_S; both activations fit.
     assert ATTRIBUTION_WINDOW_S >= 3.0
+
+
+def _write_output_channel_log(
+    base: Path, session: str, idx: int, channel: str, content: str
+) -> Path:
+    target_dir = base / session / "window1" / "exthost" / f"output_logging_{session}"
+    target_dir.mkdir(parents=True, exist_ok=True)
+    file_path = target_dir / f"{idx}-{channel}.log"
+    file_path.write_text(content)
+    return file_path
+
+
+def test_read_output_channel_logs_picks_up_persisted_channel_files(
+    tmp_path: Path,
+) -> None:
+    # W8-0 capture-pipeline fix: VS Code 1.105+ writes Output channel content
+    # to per-channel files under ``output_logging_<ts>/<idx>-<channel>.log``.
+    # ``console.log`` from extensions no longer reaches ``exthost.log``, so
+    # the parser must read these files directly to surface
+    # ``OutputSignalEvent`` records.
+    _write_output_channel_log(
+        tmp_path,
+        session="20260427T114902",
+        idx=1,
+        channel="ExTrace Harness",
+        content=(
+            '{"phase":"activate_enter","pid":42,"ts":1700000001000}\n'
+            '{"phase":"activate_exit","pid":42,"ts":1700000001500}\n'
+        ),
+    )
+
+    events = read_output_channel_logs(tmp_path, monitoring_start=1_700_000_000.0)
+
+    assert len(events) == 2
+    channels = {event.channel for event in events}
+    assert channels == {"ExTrace Harness"}
+    parsed = json.loads(events[0].text)
+    assert parsed["phase"] == "activate_enter"
+    assert parsed["pid"] == 42
+    # Per-line `ts` field overrides file mtime when present.
+    assert events[0].rel_time_s == 1.0
+    assert events[1].rel_time_s == 1.5
+
+
+def test_read_output_channel_logs_handles_non_json_lines_with_mtime_fallback(
+    tmp_path: Path,
+) -> None:
+    log_path = _write_output_channel_log(
+        tmp_path,
+        session="20260427T120000",
+        idx=2,
+        channel="Pylance",
+        content="indexed 1234 symbols\nstartup complete\n",
+    )
+    # Pin mtime to a deterministic point so rel_time_s is stable.
+    import os
+
+    os.utime(log_path, (1_700_000_010.0, 1_700_000_010.0))
+
+    events = read_output_channel_logs(tmp_path, monitoring_start=1_700_000_000.0)
+
+    assert len(events) == 2
+    assert all(event.channel == "Pylance" for event in events)
+    # Non-JSON lines fall back to file mtime ⇒ rel_time_s aligns with mtime.
+    assert events[0].rel_time_s == 10.0
+    assert events[1].rel_time_s == 10.0
+
+
+def test_read_output_channel_logs_skips_non_matching_filenames(tmp_path: Path) -> None:
+    target_dir = (
+        tmp_path / "20260427T114902" / "window1" / "exthost" / "output_logging_X"
+    )
+    target_dir.mkdir(parents=True)
+    (target_dir / "not-a-channel.txt").write_text("ignored")
+    (target_dir / "no-prefix.log").write_text("ignored")
+    (target_dir / "1-Real Channel.log").write_text("captured\n")
+
+    events = read_output_channel_logs(tmp_path)
+    channels = {event.channel for event in events}
+    assert channels == {"Real Channel"}
+
+
+def test_read_output_channel_logs_returns_empty_when_dir_missing(
+    tmp_path: Path,
+) -> None:
+    missing = tmp_path / "does-not-exist"
+    assert read_output_channel_logs(missing) == []
+
+
+def test_merge_output_signal_events_dedupes_by_channel_text_timestamp() -> None:
+    legacy = parse_output_signal_events(
+        _harness_marker_line(
+            {
+                "kind": "output_channel_appendline",
+                "channel": "ExTrace Harness",
+                "text": "boot",
+                "ts": 1_700_000_000_000,
+                "collector": "harness_extension",
+            }
+        )
+    )
+    file_source = [
+        monitor.OutputSignalEvent(
+            timestamp=legacy[0].timestamp,
+            rel_time_s=legacy[0].rel_time_s,
+            channel="ExTrace Harness",
+            text="boot",
+        ),
+        monitor.OutputSignalEvent(
+            timestamp=legacy[0].timestamp,
+            rel_time_s=legacy[0].rel_time_s,
+            channel="ExTrace Harness",
+            text="extra",
+        ),
+    ]
+
+    merged = merge_output_signal_events(legacy, file_source)
+    assert len(merged) == 2
+    texts = {event.text for event in merged}
+    assert texts == {"boot", "extra"}

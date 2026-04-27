@@ -50,7 +50,9 @@ try:
     from .monitor_types import ActivationReport
     from .output_signals import (
         annotate_output_signal_events,
+        merge_output_signal_events,
         parse_output_signal_events,
+        read_output_channel_logs,
     )
     from .runtime_capture._shared import _log, _parse_iso_timestamp
     from .runtime_capture.events import FileEvent, NetworkEvent, ProcessEvent
@@ -93,7 +95,9 @@ except ImportError:  # pragma: no cover - top-level executor import mode
     from monitor_types import ActivationReport
     from output_signals import (
         annotate_output_signal_events,
+        merge_output_signal_events,
         parse_output_signal_events,
+        read_output_channel_logs,
     )
     from runtime_capture._shared import _log, _parse_iso_timestamp
     from runtime_capture.events import FileEvent, NetworkEvent, ProcessEvent
@@ -317,12 +321,22 @@ class ExtensionMonitor:
         except OSError as exc:
             _log(f"Strategy 3 failed: {exc}")
         self._append_activation_log_entries()
-        # PR345 PR5: parse + attribute target Output channel events from
-        # the captured exthost output. ADR 0006 §2-§4 owns the contract.
+        # PR345 PR5 + W8-0 capture-pipeline fix: merge two source streams
+        # before attribution. The legacy stream (parse_output_signal_events)
+        # consumes ``[extrace-harness]`` markers from the captured exthost
+        # output; the W8-0 fix stream (read_output_channel_logs) reads
+        # VS Code 1.105+ per-channel persistence files directly because
+        # ``console.log`` from extensions no longer reaches exthost.log
+        # in 1.105+. ADR 0006 §2-§4 owns the contract.
         self.report.output_signal_events = annotate_output_signal_events(
-            parse_output_signal_events(
-                self.report.extension_host_output,
-                monitoring_start=self.report.monitoring_start,
+            merge_output_signal_events(
+                parse_output_signal_events(
+                    self.report.extension_host_output,
+                    monitoring_start=self.report.monitoring_start,
+                ),
+                read_output_channel_logs(
+                    monitoring_start=self.report.monitoring_start,
+                ),
             ),
             activations=self.report.activated,
             target_extension_id=self.report.target_extension_id,

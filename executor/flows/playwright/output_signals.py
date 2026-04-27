@@ -7,7 +7,14 @@ call as a JSON-line ``[extrace-harness]`` marker with
 
 - ``parse_output_signal_events(extension_host_output)`` extracts those
   markers from the captured exthost output and returns
-  ``OutputSignalEvent`` instances.
+  ``OutputSignalEvent`` instances. Used as a fallback / transitional
+  source for older VS Code builds that piped extension ``console.log``
+  into ``exthost.log``.
+- ``read_output_channel_logs(logs_dir)`` walks the per-window
+  ``output_logging_<ts>/<idx>-<channel>.log`` files VS Code 1.105+
+  writes to disk and emits one ``OutputSignalEvent`` per appendLine.
+  This is the primary source post-W8-0 because ``console.log`` from
+  extensions no longer reaches ``exthost.log`` on VS Code 1.105+.
 - ``annotate_output_signal_events(report)`` fills in the per-event
   attribution fields by correlating each event's timestamp against the
   nearest target-extension activation entry.
@@ -27,12 +34,13 @@ from __future__ import annotations
 import json
 import re
 from datetime import datetime
+from pathlib import Path
 
 try:
-    from .runtime_capture._shared import _parse_iso_timestamp
+    from .runtime_capture._shared import VSCODE_LOGS_DIR, _parse_iso_timestamp
     from .runtime_capture.events import ActivationEntry, OutputSignalEvent
 except ImportError:  # pragma: no cover - top-level executor import mode
-    from runtime_capture._shared import _parse_iso_timestamp
+    from runtime_capture._shared import VSCODE_LOGS_DIR, _parse_iso_timestamp
     from runtime_capture.events import ActivationEntry, OutputSignalEvent
 
 # Reuses the same prefix the existing _HARNESS_MARKER_RE in
@@ -126,6 +134,107 @@ def parse_output_signal_events(
         )
 
     return events
+
+
+# VS Code 1.105+ persists Output channel content under
+# ``<user-data>/logs/<session>/window<N>/exthost/output_logging_<ts>/<idx>-<channel>.log``.
+# Filename pattern: ``<numeric idx>-<channel name>.log``.
+_OUTPUT_CHANNEL_FILE_RE = re.compile(r"^\d+-(?P<channel>.+)\.log$")
+
+
+def read_output_channel_logs(
+    logs_dir: Path | None = None,
+    *,
+    monitoring_start: float = 0.0,
+) -> list[OutputSignalEvent]:
+    """Return OutputSignalEvent records by reading VS Code's persisted
+    Output channel files directly.
+
+    VS Code 1.105+ no longer pipes extension ``console.log`` into
+    ``exthost.log``; instead each Output channel's appendLine writes
+    are persisted to ``output_logging_<ts>/<idx>-<channel>.log`` files.
+    Reading those files directly is the reliable signal source —
+    independent of the harness ``[extrace-harness]`` console.log shim,
+    which silently drops in 1.105+.
+
+    Lines that parse as JSON with a numeric ``ts`` field carry the
+    extension-side emit timestamp; otherwise we fall back to the
+    file's mtime as the per-line timestamp.
+    """
+    base_dir = logs_dir if logs_dir is not None else VSCODE_LOGS_DIR
+    if base_dir is None or not base_dir.exists():
+        return []
+
+    events: list[OutputSignalEvent] = []
+    for log_path in base_dir.glob("**/output_logging_*/*-*.log"):
+        match = _OUTPUT_CHANNEL_FILE_RE.match(log_path.name)
+        if match is None:
+            continue
+        channel = match.group("channel")
+        try:
+            content = log_path.read_text(errors="replace")
+        except OSError:
+            continue
+        try:
+            mtime_ms = log_path.stat().st_mtime * 1000.0
+        except OSError:
+            mtime_ms = 0.0
+
+        for raw_line in content.splitlines():
+            line = raw_line.strip()
+            if not line:
+                continue
+
+            ts_ms = mtime_ms
+            try:
+                payload = json.loads(line)
+            except (ValueError, TypeError):
+                payload = None
+            if isinstance(payload, dict):
+                value = payload.get("ts")
+                try:
+                    if value is not None:
+                        ts_ms = float(value)
+                except (TypeError, ValueError):
+                    pass
+
+            timestamp, rel_time_s = _format_epoch_ms(ts_ms, monitoring_start)
+            text = _truncate(line)
+            events.append(
+                OutputSignalEvent(
+                    timestamp=timestamp,
+                    rel_time_s=rel_time_s,
+                    channel=channel,
+                    text=text,
+                    summary=f"OutputChannel({channel}) appendLine",
+                )
+            )
+
+    events.sort(key=lambda e: e.timestamp)
+    return events
+
+
+def merge_output_signal_events(
+    *event_lists: list[OutputSignalEvent],
+) -> list[OutputSignalEvent]:
+    """Merge multiple OutputSignalEvent sources, deduplicating identical entries.
+
+    Duplicates can arise when both ``parse_output_signal_events`` (legacy
+    exthost-output marker source) and ``read_output_channel_logs``
+    (VS Code 1.105+ file source) observe the same appendLine. Dedup key
+    is ``(channel, text, timestamp)``.
+    """
+    seen: set[tuple[str, str, str]] = set()
+    merged: list[OutputSignalEvent] = []
+    for events in event_lists:
+        for event in events:
+            key = (event.channel, event.text, event.timestamp)
+            if key in seen:
+                continue
+            seen.add(key)
+            merged.append(event)
+    merged.sort(key=lambda e: e.timestamp)
+    return merged
 
 
 def _activation_index(
