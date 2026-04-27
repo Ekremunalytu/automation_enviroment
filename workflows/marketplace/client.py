@@ -13,6 +13,7 @@ import httpx
 
 from appcore.api.config import settings
 from appcore.contracts.schemas import MarketplaceExtension
+from packages.marketplace_identity import safe_marketplace_slug
 from workflows.extension_catalog.manifest_reader import (
     PackageJsonReadError,
     get_package_json,
@@ -102,11 +103,12 @@ def search_marketplace(query: str, page_size: int = 10) -> list[MarketplaceExten
 
 def get_vsix_path(publisher: str, name: str, version: str) -> Path:
     """Return the expected path for a raw .vsix file on disk."""
-    return Path(settings.project.EXTENSION_DIR) / f"{publisher}.{name}-{version}.vsix"
+    slug = safe_marketplace_slug(publisher, name, version)
+    return Path(settings.project.EXTENSION_DIR) / f"{slug}.vsix"
 
 
 def _artifact_name(publisher: str, name: str, version: str) -> str:
-    return f"{publisher}.{name}-{version}"
+    return safe_marketplace_slug(publisher, name, version)
 
 
 def _extension_dir(publisher: str, name: str, version: str) -> Path:

@@ -10,6 +10,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from appcore.contracts.schemas import MarketplaceExtension
+from packages.marketplace_identity import MarketplaceIdentityError
 from workflows.marketplace import client as marketplace_client
 
 
@@ -59,6 +60,25 @@ def test_search_marketplace_parses_gallery_response() -> None:
         )
     ]
     http_client.post.assert_called_once()
+
+
+@pytest.mark.parametrize(
+    ("publisher", "name", "version"),
+    [
+        ("../etc", "python", "2025.0.0"),
+        ("ms-python", "../passwd", "2025.0.0"),
+        ("ms-python", "python", ";rm -rf /"),
+        ("ms-python", "python\x00evil", "2025.0.0"),
+    ],
+)
+def test_get_vsix_path_rejects_adversarial_identity(
+    publisher: str, name: str, version: str
+) -> None:
+    """The W8-2 helper short-circuits adversarial publisher/name/version
+    before the path is constructed; verify the rejection happens at the
+    public client surface, not deep in the extraction loop."""
+    with pytest.raises(MarketplaceIdentityError):
+        marketplace_client.get_vsix_path(publisher, name, version)
 
 
 def test_download_and_extract_vsix_is_idempotent(monkeypatch, tmp_path: Path) -> None:
