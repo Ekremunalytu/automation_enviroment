@@ -575,3 +575,82 @@ def test_wait_for_extension_host_pid_retries_until_candidate_appears(
 
     assert pid == 1184
     assert diagnostics["attempts"] == 3
+
+
+def test_parse_activation_function_entry_marker(tmp_path: Path) -> None:
+    log_file = tmp_path / "exthost.log"
+    log_file.write_text(
+        "[2026-04-26 09:00:01.123] activate(sample.publisher) entered\n"
+    )
+
+    entries = monitor.parse_activations_from_log(log_file)
+
+    assert len(entries) == 1
+    entry = entries[0]
+    assert entry.extension_id == "sample.publisher"
+    assert entry.marker_type == "activate_fn_entry"
+    assert entry.duration_ms is None
+
+
+def test_parse_activation_function_exit_marker_with_duration(
+    tmp_path: Path,
+) -> None:
+    log_file = tmp_path / "exthost.log"
+    log_file.write_text(
+        "[2026-04-26 09:00:02.500] activate completed sample.publisher in 42ms\n"
+    )
+
+    entries = monitor.parse_activations_from_log(log_file)
+
+    assert len(entries) == 1
+    entry = entries[0]
+    assert entry.extension_id == "sample.publisher"
+    assert entry.marker_type == "activate_fn_exit"
+    assert entry.duration_ms == 42
+
+
+def test_parse_command_register_marker_attaches_to_target_id(
+    tmp_path: Path,
+) -> None:
+    log_file = tmp_path / "exthost.log"
+    log_file.write_text(
+        "[2026-04-26 09:00:03.001] registered command 'extrace.example.run' "
+        "for sample.publisher\n"
+    )
+
+    entries = monitor.parse_activations_from_log(log_file)
+
+    assert len(entries) == 1
+    entry = entries[0]
+    assert entry.extension_id == "sample.publisher"
+    assert entry.activation_event == "extrace.example.run"
+    assert entry.marker_type == "command_register"
+
+
+def test_parse_provider_register_marker(tmp_path: Path) -> None:
+    log_file = tmp_path / "exthost.log"
+    log_file.write_text(
+        "[2026-04-26 09:00:04.002] registered HoverProvider for sample.publisher\n"
+    )
+
+    entries = monitor.parse_activations_from_log(log_file)
+
+    assert len(entries) == 1
+    entry = entries[0]
+    assert entry.extension_id == "sample.publisher"
+    assert entry.activation_event == "HoverProvider"
+    assert entry.marker_type == "provider_register"
+
+
+def test_marker_type_in_dedup_key_keeps_entry_and_exit(tmp_path: Path) -> None:
+    log_file = tmp_path / "exthost.log"
+    log_file.write_text(
+        "[2026-04-26 09:00:05.001] activate(sample.publisher) entered\n"
+        "[2026-04-26 09:00:05.001] activate completed sample.publisher\n"
+    )
+
+    entries = monitor.parse_activations_from_log(log_file)
+
+    marker_types = [entry.marker_type for entry in entries]
+    assert marker_types == ["activate_fn_entry", "activate_fn_exit"]
+    assert all(entry.extension_id == "sample.publisher" for entry in entries)

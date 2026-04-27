@@ -20,6 +20,10 @@ class ActivationEntry(StrictContractModel):
     timestamp: str = ""
     success: bool = True
     source: str = ""
+    # PR345 PR3: lifecycle marker type from exthost.log parsers.
+    # "" = activation (legacy default); "activate_fn_entry",
+    # "activate_fn_exit", "command_register", "provider_register".
+    marker_type: str = ""
 
 
 class RunningExtension(StrictContractModel):

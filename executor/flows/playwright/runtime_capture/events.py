@@ -19,6 +19,11 @@ class ActivationEntry:
     timestamp: str = ""
     success: bool = True
     source: str = ""  # "log", "ui", "output"
+    # "" (default = activation), "activate_fn_entry", "activate_fn_exit",
+    # "command_register", "provider_register". Lifecycle markers parsed
+    # from exthost.log enrich event_attempts correlation in
+    # health_reconciliation. Default empty preserves PR1+PR2 behavior.
+    marker_type: str = ""
 
 
 @dataclass
