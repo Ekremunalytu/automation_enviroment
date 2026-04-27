@@ -1,6 +1,6 @@
 # Post-PoC Backlog
 
-`Last Updated: 2026-04-27 (W8-0 deterministic harness readiness gate landed: PR-A diagnostic emit + PR-B marker payload validation + PR-C controlled-recovery retry; W8-1/W8-3 unblocked)`
+`Last Updated: 2026-04-27 (W8-0 landed; Codex automation-flow review entries 3/5/6/7/8 recorded as [FOLLOWUP codex-automation-N])`
 
 Work items that do not block PoC acceptance (`REFACTOR_OPTIMIZATION.md`
 §10.7) and were intentionally deferred from W0-W7 for scope management.
@@ -663,6 +663,168 @@ REFACTOR_OPTIMIZATION.md §11.12" below.
 - **[PROMOTED → W13-5]** Run-ID (UUIDv7) stamping across all log
   records + report outputs via logger filter
   (`REFACTOR_OPTIMIZATION.md §11.10` item 5).
+
+## Codex automation flow review (2026-04-27)
+
+Codex external review (delivered 2026-04-27, post-W8-0) proposed eight
+hardening items for the automation flow. Three are already covered:
+item 1 (timeout / partial-report contract) is tracked under
+`[FOLLOWUP runner-status-contract]` (W11 landing target); item 2
+(per-source capture-fail reasons) is marginal value because
+capture failure already surfaces as `target_extension_not_observed`
+or `extension_host_log_missing` reasons; item 4 (harness readiness)
+landed as W8-0 (`9c2e2d9` + `9eb4aaf` + `d39a612`). The remaining
+five items are recorded below.
+
+### [FOLLOWUP codex-automation-3] Layered run health ↔ run_quality consistency
+
+The `build_run_quality()` path in
+[`executor/flows/playwright/health_summary.py`](../executor/flows/playwright/health_summary.py)
+returns `medium` when `official_unresolved > 0`,
+`verification_gap > 0`, or `chat_tool_unresolved > 0`. The peer
+`build_automation_health()` in the same module does not always
+attach the same reason codes — the W7 entry "layered run_quality
+label" fix (REFACTOR_STATUS 2026-04-23) closed this for
+`official_unresolved_present` only; the other reasons can still
+leave `automation_health.status = "healthy"` while `run_quality`
+drops to `medium`. An operator who reads only the health badge
+gets misplaced confidence.
+
+- **Change:** when the run is layered and any of
+  `official_unresolved_present`, `verification_gap_present`,
+  `chat_tool_verification_incomplete`, or
+  `harness_verification_unconfirmed` is recorded against an
+  attempt, surface the same reason code on
+  `automation_health.reasons` and demote `automation_health.status`
+  to `degraded` (never `inconclusive` — these are partial-evidence
+  signals, not run-failure signals).
+- **Trigger for pulling this back:** a `make sim-target` run that
+  reports `automation_health.status="healthy"` but
+  `run_quality="medium"` for the same set of attempts; an operator
+  asking "if everything is healthy, why is run quality medium?".
+- **Natural landing point:** W10-4 (`AutomationHealth` typed
+  Pydantic model, `REFACTOR_OPTIMIZATION.md §11.7` item 4) — the
+  reason-code consistency contract belongs in the same model
+  promotion. Pulling it earlier means touching `health_summary.py`
+  twice; later means another `[FOLLOWUP]` round.
+- **Size:** small (~60 LoC + 3 tests).
+
+### [FOLLOWUP codex-automation-5] Executor runtime fingerprint in report
+
+`executor/container/Dockerfile` bakes the harness extension,
+Playwright flow, `packages/`, and VS Code into the image. If the
+host code changes but the image is not rebuilt,
+`make sim-target` runs the **previous** executor build silently.
+Verified live on 2026-04-27: after the W8-0 PR-A change to
+`harness_extension/extension.js`, the first `make sim-target`
+produced `output_signal_events=0` because the running container
+still carried the pre-PR-A JS. Rebuilding the image resolved it,
+but the report itself gave no clue — a stale-image regression
+class can pass acceptance gates without anyone noticing.
+
+- **Change:** add `ActivationReport.executor_fingerprint:
+  ExecutorFingerprint` (typed nested model) carrying:
+  `image_id` (from `docker inspect`), `image_label` (a Dockerfile
+  `LABEL extrace.build`), `harness_sha256_manifest` (already on
+  disk at `/home/executor/flows/harness_extension.sha256`), and
+  `git_sha` (the host's `git rev-parse HEAD` at scan-start).
+  `executor/host.py` reads the running container's image id at
+  scan-start and stamps the report; mismatches between expected
+  and actual fingerprint append a
+  `executor_fingerprint_mismatch` reason to
+  `automation_health.reasons` (without changing the verdict).
+- **Trigger for pulling this back:** any debugging session where
+  "did the container actually rebuild?" was a question; a CI
+  release where the deployed image trailed `main` by N commits.
+- **Natural landing point:** W12 (`executor/flows/playwright/`
+  subpackaging) — the fingerprint module fits the new
+  `workspace/` or `entrypoint/` subpackage. If pulled earlier as
+  a one-off, drop into `executor/host.py` directly.
+- **Size:** medium (~150 LoC + Dockerfile LABEL + 2 contract
+  tests + 1 host integration test).
+
+### [FOLLOWUP codex-automation-6] UI failure taxonomy
+
+The W7-era `is_fatal_ui_error` classifier in
+[`executor/flows/playwright/automation.py`](../executor/flows/playwright/automation.py)
+distinguishes renderer crashes from non-fatal errors and writes a
+`fatal_ui_crash` reason. Below that level the failure granularity
+is generic Playwright `TimeoutError` — a `selector_not_found`,
+`command_not_registered`, `command_palette_unavailable`,
+`workbench_not_ready`, and `cdp_reconnect_failed` all collapse
+into the same opaque timeout. Operators reading a `failed` scenario
+trace cannot tell which UI primitive broke without re-running
+under VNC.
+
+- **Change:** introduce a UI failure classifier sibling to
+  `is_fatal_ui_error` that maps Playwright exceptions plus the
+  call site context into a typed taxonomy. The taxonomy lives
+  next to `_REASON_LABELS` in `health_summary.py`. Wait helpers
+  in `wait_helpers.py` carry a `wait_id` so a timeout there is
+  recorded with the wait that timed out (e.g.
+  `wait_for_command_effect_timeout`). `vscode.run_command`
+  records `command_palette_unavailable` when the palette never
+  became visible; `command_not_registered` when the palette
+  showed but the entry was absent. `ScenarioTrace.failure_reason_code`
+  receives the typed code instead of generic
+  `stimulus_execution_failed`.
+- **Trigger for pulling this back:** a regression where a
+  rebrand of a built-in command label silently breaks scenarios
+  for one or two extensions and the report can't say which command
+  changed.
+- **Natural landing point:** W10 contract hygiene round, after
+  W10-1 enum migration lands. Premature taxonomies churn under
+  W10's enum work.
+- **Size:** medium (~250 LoC + 6 tests across `wait_helpers`,
+  `vscode`, and `ScenarioTrace` plumbing).
+
+### [FOLLOWUP codex-automation-7] `make test-ci` smoke lane mismatch
+
+[`pyproject.toml`](../pyproject.toml) `addopts` includes
+`-m "not smoke"` as a default, which skips smoke-marked tests on
+plain `pytest` invocations.
+[`Makefile`](../Makefile) `test-ci` target prints "Running CI
+tests with **blocking smoke acceptance**" but then invokes
+`pytest --cov ...` without overriding the marker filter — i.e.
+the message is misleading; the lane skips the very tests it
+claims to gate on.
+
+- **Change:** decide between two fixes —
+  (a) make `test-ci` actually run smoke (`pytest -m "smoke or not
+  smoke" --cov ...` or invoke `make test-smoke` after the
+  unit/integration block), or (b) drop the "blocking smoke
+  acceptance" wording and rename the target to clarify it covers
+  unit + integration + security only. Option (a) is the
+  correctness path; option (b) is the documentation path. The
+  CI workflow at `.github/workflows/ci.yml` should be inspected
+  alongside since it composes its own marker filter.
+- **Trigger for pulling this back:** any PR that depends on a
+  smoke-marked test catching a regression and instead passes
+  through `make test-ci` silently.
+- **Natural landing point:** standalone, can land anytime — does
+  not depend on W8-W13 sequencing.
+- **Size:** small (~10 LoC Makefile + 1 doc edit).
+
+### [FOLLOWUP codex-automation-8] `docker exec -it` non-interactive cleanup
+
+The `Makefile` simulator targets `sim-all`, `sim-target`,
+`sim-demo`, `sim-list`, `sim-run`, and `exec-run` all use
+`docker exec -it`. The `-t` flag allocates a TTY which fails
+under non-interactive contexts (CI, agent harness, headless
+shells) with `the input device is not a TTY`. The
+`make demo-canary` target already uses TTY-less invocation —
+correct pattern is in-tree.
+
+- **Change:** drop `-t` (keep `-i` for stdin attach) on all six
+  simulator targets. Add a separate `exec-shell` target (or
+  preserve the existing one) that keeps `-it` for genuine
+  interactive debugging. `exec-run-interactive` could be added
+  if a use case appears.
+- **Trigger for pulling this back:** a CI run or agent
+  invocation that aborts at "the input device is not a TTY".
+- **Natural landing point:** standalone, low risk, can land
+  alongside item 7 in a single Makefile cleanup commit.
+- **Size:** trivial (~6 lines + a `make help` blurb).
 
 ## How to pull an item back
 
