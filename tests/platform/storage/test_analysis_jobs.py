@@ -143,8 +143,7 @@ def test_cancel_job_marks_current_step_cancelled_and_skips_remaining(
     assert cancelled["finished_at"] is not None
 
 
-def test_cancel_job_on_completed_job_raises(db_session: Session) -> None:
-    job = job_service.reserve_job(_request(), db=db_session)
+def _drive_to_completed(job_id: str, db: Session) -> None:
     result = AnalyzeResponse(
         status="success",
         publisher="ms-python",
@@ -155,10 +154,51 @@ def test_cancel_job_on_completed_job_raises(db_session: Session) -> None:
         automation_output=None,
         report_path="activation_report.json",
     )
-    job_service.complete_job(job["job_id"], result, db=db_session)
+    job_service.complete_job(job_id, result, db=db)
 
-    with pytest.raises(job_service.JobNotCancellableError):
+
+def _drive_to_failed(job_id: str, db: Session) -> None:
+    job_service.fail_job(job_id, "monitor crashed", db=db)
+
+
+def _drive_to_cancelled(job_id: str, db: Session) -> None:
+    job_service.cancel_job(job_id, db=db)
+
+
+@pytest.mark.parametrize(
+    ("driver", "expected_status"),
+    [
+        (_drive_to_completed, "completed"),
+        (_drive_to_failed, "failed"),
+        (_drive_to_cancelled, "cancelled"),
+    ],
+)
+def test_cancel_job_on_terminal_status_raises_not_cancellable(
+    db_session: Session,
+    driver: object,
+    expected_status: str,
+) -> None:
+    """`cancel_job` issued after the job reached any terminal status raises
+    ``JobNotCancellableError`` rather than re-marking the job. Closes the
+    in-flight race gap from POST_POC_BACKLOG `[FOLLOWUP
+    simulation-progress-cancel]` (cancel-after-finish race coverage)."""
+    job = job_service.reserve_job(_request(), db=db_session)
+    driver(job["job_id"], db_session)  # type: ignore[operator]
+
+    snapshot_before = job_service.get_persisted_job_snapshot(
+        job["job_id"], db=db_session
+    )
+    assert snapshot_before["status"] == expected_status
+
+    with pytest.raises(job_service.JobNotCancellableError) as exc_info:
         job_service.cancel_job(job["job_id"], db=db_session)
+
+    assert exc_info.value.status == expected_status
+
+    snapshot_after = job_service.get_persisted_job_snapshot(
+        job["job_id"], db=db_session
+    )
+    assert snapshot_after["status"] == expected_status
 
 
 def test_cancel_job_unknown_id_raises(db_session: Session) -> None:
