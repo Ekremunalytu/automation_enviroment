@@ -1,6 +1,6 @@
 # Refactor Status
 
-`Last Updated: 2026-04-25 (simulation progress + cancel branch + VNC harness crash fix + demo runnable canary landed; review follow-ups deferred to POST_POC_BACKLOG)`
+`Last Updated: 2026-04-27 (PR345 PR3-5 + ADR 0006 landed; W8 entry gate green)`
 
 This is the active status board for the Week 1-4 stabilization work and the
 pre-W6 cleanup handoff. Use this file for current closure state; use
@@ -688,6 +688,58 @@ Verification: 114 backend tests
 vscode reload tests + 18 UI tests pass; `tsc --noEmit` clean,
 ESLint clean on touched files; `make demo-canary-offline` test
 passes.
+
+## PR345 Complete — Target Activation Lifecycle (2026-04-27)
+
+W8 entry gate (`REFACTOR_OPTIMIZATION.md §11.1`) closes with PR345
+complete. PR1+PR2 landed 2026-04-24 (commit `1b62434`); PR3+PR4 +
+ADR 0006 + PR5 landed 2026-04-27 on branch `feat/pr345-completion`.
+
+### Commits
+
+| Stage | Commit | Scope |
+|---|---|---|
+| PR1 | `1b62434` | `EVENT_ATTEMPT_LIFECYCLE_STATES` + `EventAttemptRecord.status` field validator |
+| PR2 | `1b62434` | `reconcile_event_attempts` upgrades to `activation_seen` / `target_log_seen`; `attempt_has_runtime_evidence` accepts both states |
+| PR3 | `c59762d` | `extension_host.py` `_LIFECYCLE_MARKER_PATTERNS` (activate fn entry/exit + command/provider register) + `ActivationEntry.marker_type` field |
+| PR4 | `c5e400b` | `_assert_target_stream_invariant` build-path guard in `monitor_lifecycle.py`; serialization-time demote in `monitor_types.log_streams` |
+| ADR 0006 | `b737529` | [`documents/adrs/0006-target-output-channel-capture.md`](adrs/0006-target-output-channel-capture.md) — Status: Accepted, Option (a) baseline |
+| PR5 | `8453fb2` | Harness `createOutputChannel` hook + `OutputSignalEvent` dataclass + `output_signals.py` parser/attribution + `_build_evidence_bundle` integration + `target_extension_observed` OR-clause extension |
+
+### Verification (2026-04-27, branch `feat/pr345-completion`)
+
+| Lane | Outcome |
+|---|---|
+| `make test-security` | 45 passed (gate ≥ 41 satisfied) |
+| `tests/executor + tests/security + tests/platform/contracts` | 387 passed, 6 skipped (canary `must_not_fire` gaps unchanged) |
+| `tests/executor/test_output_signal_capture.py` (new, PR5) | 5 passed |
+| `tests/executor/test_playwright_monitor_lifecycle.py` (PR4 invariant test added) | 11 passed |
+| `tests/executor/test_playwright_monitor_runtime.py` (PR3 5 new tests) | 27 passed |
+| `.venv/bin/python scripts/demo_acceptance.py` | `DEMO GREEN` |
+| ruff + mypy on touched modules | clean |
+| UI contract regen (`scripts/generate_ui_contracts.py`) | `marker_type?` + `OutputSignalEventDto` + `output_signal_events?` propagated to `ui/src/lib/types/contracts.ts` |
+
+### W8 entry-gate checklist (`REFACTOR_OPTIMIZATION.md §11.1`)
+
+- [x] PR345 PRs 1-5 landed
+- [x] PR5 ADR (`0006-target-output-channel-capture.md`) merged with
+      Status: Accepted
+- [x] `make check-all` green (executor/security/contracts lanes verified;
+      Docker-based smoke deferred to user-side)
+- [x] `make test-security` 45 ≥ 41
+- [x] `scripts/demo_acceptance.py` → `DEMO GREEN`
+- [x] `REFACTOR_STATUS.md` "PR345 Complete" closure block (this section)
+
+### Deferred
+
+- ADR 0006 §5 full conjunction tightening of
+  `target_extension_observed` (currently the additive OR clause only);
+  full `(activation_seen AND (target_log OR target_output_signal))` rule
+  needs broad fixture/tests churn. Post-W8 follow-up.
+- Docker-based A1 canary structural diff smoke (`make exec-up && make
+  exec-run` against `t1-a1-credential-read-to-network-canary`) remains
+  user-side; capture pipeline regression risk only fully closed by a
+  live executor run.
 
 ## Week 5 Start Rule
 

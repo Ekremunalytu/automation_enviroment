@@ -1,6 +1,6 @@
 # Post-PoC Backlog
 
-`Last Updated: 2026-04-25 (simulation progress + cancel review follow-ups added; target activation lifecycle PRs 1-2 landed; PRs 3-5 pending; external review integration scheduled as §11 W8-W13)`
+`Last Updated: 2026-04-27 (target activation lifecycle complete: PR3 + PR4 + ADR 0006 + PR5 landed on feat/pr345-completion; W8 entry gate green)`
 
 Work items that do not block PoC acceptance (`REFACTOR_OPTIMIZATION.md`
 §10.7) and were intentionally deferred from W0-W7 for scope management.
@@ -19,11 +19,13 @@ findings have been triaged and scheduled into a six-week post-PoC
 window in [`REFACTOR_OPTIMIZATION.md §11`](REFACTOR_OPTIMIZATION.md)
 (W8 Güvenlik sıkılaştırma → W13 Test expansion + observability).
 
-**Entry gate for W8 (REFACTOR_OPTIMIZATION.md §11.1):** PR345 (target
-activation lifecycle) must land fully — PRs 1-2 landed 2026-04-24,
-PRs 3-5 + ADR for PR5 still pending. W8 does not open until the
-"Target activation lifecycle + target log instrumentation" entry
-below reaches `[LANDED]` across all five PRs.
+**Entry gate for W8 (REFACTOR_OPTIMIZATION.md §11.1):** **MET as of
+2026-04-27.** PRs 1-2 landed 2026-04-24 (`1b62434`); PR3
+(`c59762d`), PR4 (`c5e400b`), ADR 0006 (`b737529`), and PR5
+(`8453fb2`) landed 2026-04-27 on branch `feat/pr345-completion`.
+See `REFACTOR_STATUS.md` "PR345 Complete" section for the full closure
+checklist. W8 (`REFACTOR_OPTIMIZATION.md §11.5`) is now eligible to
+open.
 
 **Promoted from this backlog into W8-W13:** the two "Next iteration"
 entries that were left as `[NEXT]` pulls — target activation lifecycle
@@ -84,34 +86,45 @@ REFACTOR_OPTIMIZATION.md §11.12" below.
      harness-exclusion guard, target-attribution requirement,
      `extension_id` mismatch defense, 5-entry summary cap, and direct
      `attempt_has_runtime_evidence` lifecycle-state assertion.
-  3. **exthost.log parser lifecycle markers.** Today
-     `runtime_capture/extension_host.py::_ACTIVATION_PATTERNS` only
-     captures `"activated X in Nms"` / `"activating extension 'X'"`.
-     Extend it to also extract activation-function entry/exit and
-     command/provider registration events when present in the exthost
-     trace output. Emit as a new dataclass adjacent to
-     `ActivationEntry` (or an extended one) so attribution can
-     correlate them to `event_attempts` in step (2).
-  4. **Deterministic `log_streams["target_extension_host"]`.** Current
-     `LogStreamEntry.is_target_extension` gets filled reactively from
-     attribution. Promote `target_extension_host` to an explicit
-     stream key with an invariant: every entry under that key has
-     `is_target_extension=True` and `extension_id == target_id`.
-     Other streams (e.g. `extension_host_other`, `automation_output`)
-     stay. Report-builder test covers the invariant.
-  5. **Target-owned output-signal capture.** Grep confirms zero
-     coverage today for `OutputChannel.appendLine`,
-     `console.log`, and `command/provider` invocations
-     emitted **from inside the target extension**. Architectural
-     choice needed before implementation:
-     (a) harness-side hook in `executor/flows/harness_extension/` that
-     instruments `vscode.window.createOutputChannel` and surfaces
-     appendLine calls as `EvidenceEvent` records; or
-     (b) mine the exthost Output channel log bundle and correlate
-     via timestamp + channel name. (a) is cleaner but requires the
-     harness to run alongside the target without polluting
-     attribution; (b) is log-only but weaker signal fidelity. Needs
-     its own short ADR before code — do not start without one.
+  3. **[LANDED 2026-04-27 `c59762d`] exthost.log parser lifecycle markers.**
+     `_LIFECYCLE_MARKER_PATTERNS` added to
+     [`extension_host.py`](../executor/flows/playwright/runtime_capture/extension_host.py)
+     covering activate function entry/exit, command registration, and
+     provider registration. `ActivationEntry.marker_type` field
+     extended (default `""` preserves PR1+PR2 behavior). Five new
+     parser tests in
+     [`test_playwright_monitor_runtime.py`](../tests/executor/test_playwright_monitor_runtime.py).
+     Pydantic mirror + UI contract regen'd.
+  4. **[LANDED 2026-04-27 `c5e400b`] Deterministic `log_streams["target_extension_host"]`.**
+     `_assert_target_stream_invariant` build-path guard added to
+     [`monitor_lifecycle.py`](../executor/flows/playwright/monitor_lifecycle.py)
+     `_append_activation_log_entries` and `record_automation_event`;
+     serialization-time demote in
+     [`monitor_types.log_streams`](../executor/flows/playwright/monitor_types.py)
+     handles legacy/manual-construction leaks via one-shot warning +
+     `other_extension_host` reassignment.
+     New invariant test in
+     [`test_playwright_monitor_lifecycle.py`](../tests/executor/test_playwright_monitor_lifecycle.py).
+  5. **[LANDED 2026-04-27 `8453fb2`, ADR 0006 `b737529`] Target-owned output-signal capture.**
+     ADR 0006 selected Option (a). Harness-side hook in
+     [`extension.js`](../executor/flows/harness_extension/extension.js)
+     wraps `vscode.window.createOutputChannel` and emits each
+     append/appendLine via the new `emitHarnessEvent` helper in
+     [`markers.js`](../executor/flows/harness_extension/markers.js).
+     Python parser
+     [`output_signals.py`](../executor/flows/playwright/output_signals.py)
+     converts markers to `OutputSignalEvent` (new dataclass in
+     [`runtime_capture/events.py`](../executor/flows/playwright/runtime_capture/events.py));
+     attribution helper marks events within
+     `ATTRIBUTION_WINDOW_S=5.0` of a target activation as target-owned.
+     `_build_evidence_bundle` routes them to
+     `EvidenceEvent(kind="output_channel_appendline",
+     collector="harness_extension", actor="harness")`.
+     `target_extension_observed` extended with an OR clause for
+     target-attributed output signals. Five new tests in
+     [`test_output_signal_capture.py`](../tests/executor/test_output_signal_capture.py).
+     ADR 0006 §5 full conjunction tightening deferred (see "Deferred"
+     in REFACTOR_STATUS PR345 Complete section).
 
   Once (1)-(5) are in, tighten the `target_extension_observed=true`
   decision (`signal_policy.py`, `health_summary.py`): currently

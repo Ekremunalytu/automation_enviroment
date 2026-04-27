@@ -1,6 +1,6 @@
 # Dynamic Analysis Backlog
 
-`Last Updated: 2026-04-25`
+`Last Updated: 2026-04-27`
 
 This is the short actionable backlog for the sandbox pipeline. It complements
 `DEVELOPMENT_PRIORITIES.md`, `PIPELINE_ROADMAP.md`, and the canonical
@@ -28,16 +28,19 @@ the simulation progress + cancel + VNC fix + demo runnable canary
 quartet landed on 2026-04-25. The next pull-first candidates from the
 backlog are:
 
-+ PR345 PRs 3-5 (target activation lifecycle): exthost.log parser
-  lifecycle markers (PR3), deterministic
-  `log_streams["target_extension_host"]` (PR4), target-owned
-  output-signal capture (PR5; needs a short ADR before code). PR345
-  is the W8 entry gate per `REFACTOR_OPTIMIZATION.md` §11.1.
++ **W8 (`REFACTOR_OPTIMIZATION.md §11.5` — Güvenlik Sıkılaştırma) is
+  now eligible to open.** PR345 PRs 3-5 + ADR 0006 landed 2026-04-27
+  on `feat/pr345-completion`; entry-gate checklist is green (see
+  `REFACTOR_STATUS.md` "PR345 Complete" section). First W8 PR
+  candidates: W8-1 VSIX zip-bomb guard, W8-2 marketplace identity
+  helper, W8-3 URI trigger shell-safe invocation.
 + Docker-based A1 canary structural diff smoke (`make exec-up && make
   exec-run` against `t1-a1-credential-read-to-network-canary`); closes
   the capture-pipeline regression risk flagged in the attribution-split
   deferral note. `make demo-canary` exercises the same surface against
   the new declawed fixture and is a faster smoke for routine work.
+  Now also worth running against the new harness output-channel hook
+  (PR5) once the next executor smoke happens.
 + Code-review follow-ups from the simulation-progress-cancel branch
   (custom `role="alertdialog"` for Stop simulation, cancel-mutation
   timeout/retry, heartbeat sandbox-reset off-thread, schema
@@ -45,6 +48,10 @@ backlog are:
   cancel-after-finish race test, heartbeat 30 s → 5 s load
   verification) — see `POST_POC_BACKLOG.md`
   `[FOLLOWUP simulation-progress-cancel]` entries.
++ ADR 0006 §5 full `target_extension_observed` conjunction tightening
+  (currently only the additive OR clause landed in PR5). Deferred so
+  baseline fixtures don't churn; planned as a focused follow-up before
+  W8-W13 closes.
 
 ## Next (post-PoC value-adds)
 
