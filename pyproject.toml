@@ -95,6 +95,7 @@ ignore = [
 "ui/**/*.py" = ["E501"]
 "scripts/*.py" = ["T20", "E501", "I001", "E402"]  # CLI tools: print output + sys.path bootstrap
 "appcore/api/config.py" = ["S105"]  # Development default passwords in settings
+"packages/analysis_contracts/detection/enums.py" = ["UP042"]  # intentional Python<3.11 StrEnum fallback
 
 [tool.ruff.lint.isort]
 known-first-party = [
