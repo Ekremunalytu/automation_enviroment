@@ -301,10 +301,19 @@ def _run_scenario_sequence(
             )
         except HarnessUnavailableError as exc:
             error_detail = str(exc)[:500]
+            # W8-0: prefer the exception's typed sub-reason
+            # (harness_ready_marker_{missing,stale,invalid} or
+            # harness_activation_timeout) so the report shows *why* the
+            # harness was unreachable; fall back to the legacy generic
+            # code only when the exception did not carry one.
+            harness_reason = (
+                str(getattr(exc, "reason_code", "")).strip()
+                or HARNESS_COMMAND_UNAVAILABLE_REASON
+            )
             result.skipped_scenarios.append(
                 SkippedScenarioRecord(
                     name=scenario.name,
-                    reason_code=HARNESS_COMMAND_UNAVAILABLE_REASON,
+                    reason_code=harness_reason,
                     detail=error_detail,
                 )
             )
@@ -315,10 +324,10 @@ def _run_scenario_sequence(
                 metadata=_scenario_metadata(
                     scenario,
                     error=error_detail,
-                    failure_reason_code=HARNESS_COMMAND_UNAVAILABLE_REASON,
+                    failure_reason_code=harness_reason,
                 ),
             )
-            _log(f"SKIP: {scenario.name} -> harness command unavailable")
+            _log(f"SKIP: {scenario.name} -> {harness_reason}")
             _recover_ui_state(page)
         except (PlaywrightError, RuntimeError, ValueError) as exc:
             fatal, reason_code = is_fatal_ui_error(exc, page)

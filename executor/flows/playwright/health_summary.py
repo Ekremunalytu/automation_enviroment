@@ -40,6 +40,15 @@ _REASON_LABELS = {
     "official_unresolved_present": (
         "Official activation events remained unresolved after verification."
     ),
+    # W8-0: typed sub-reasons that replace the generic
+    # "harness_command_unavailable" bucket. Each surfaces a distinct
+    # actionable failure mode of the harness ready-marker handshake.
+    "harness_ready_marker_missing": "Harness ready marker never appeared.",
+    "harness_ready_marker_stale": ("Harness ready marker belonged to a previous run."),
+    "harness_ready_marker_invalid": "Harness ready marker was unreadable.",
+    "harness_activation_timeout": (
+        "Harness extension activation did not complete in time."
+    ),
 }
 
 _SCENARIO_ZERO_REASON = (

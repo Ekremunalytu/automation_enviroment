@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import time
@@ -155,6 +156,60 @@ def _expected_harness_epoch() -> str:
     return os.environ.get("EXTRACE_EPOCH_RUN_ID", "")
 
 
+# W8-0: reason codes that signal a recoverable race (the marker may
+# still be on its way) rather than corruption (a marker that exists
+# but disagrees with our expectations).
+_HARNESS_RECOVERABLE_REASONS = frozenset(
+    {
+        HARNESS_READY_MARKER_MISSING_REASON,
+        HARNESS_ACTIVATION_TIMEOUT_REASON,
+    }
+)
+
+
+def _ensure_harness_ready_with_recovery(
+    timeout_s: float = 15.0,
+    *,
+    poll_interval_s: float = 0.25,
+    ready_path: Path = _HARNESS_READY_PATH,
+    expected_epoch_run_id: str = "",
+    retry_budget: int = 1,
+    recovery_sleep_s: float = 0.25,
+) -> None:
+    """Run ``_ensure_harness_ready`` with one controlled-recovery retry.
+
+    On a recoverable miss (marker never appeared, or arrived past the
+    deadline) we delete the marker path defensively (so a stale file
+    cannot mask the second poll) and re-issue the wait once. STALE and
+    INVALID reason codes are *not* recoverable here — they signal that
+    the marker exists but disagrees with the current run, and another
+    poll would just observe the same defective payload.
+    """
+    attempts = max(1, retry_budget + 1)
+    last_error: HarnessUnavailableError | None = None
+    for attempt_index in range(attempts):
+        try:
+            _ensure_harness_ready(
+                timeout_s,
+                poll_interval_s=poll_interval_s,
+                ready_path=ready_path,
+                expected_epoch_run_id=expected_epoch_run_id,
+            )
+            return
+        except HarnessUnavailableError as exc:
+            last_error = exc
+            if attempt_index >= attempts - 1:
+                raise
+            if exc.reason_code not in _HARNESS_RECOVERABLE_REASONS:
+                raise
+            with contextlib.suppress(OSError):
+                ready_path.unlink(missing_ok=True)
+            time.sleep(recovery_sleep_s)
+    # Defensive: the loop always either returns or raises above.
+    if last_error is not None:
+        raise last_error
+
+
 def _append_unique(items: list[str], value: str) -> None:
     if value not in items:
         items.append(value)
@@ -304,7 +359,9 @@ def execute_attempt(
         )
         return
     if action.startswith("harness:"):
-        _ensure_harness_ready(expected_epoch_run_id=_expected_harness_epoch())
+        _ensure_harness_ready_with_recovery(
+            expected_epoch_run_id=_expected_harness_epoch()
+        )
         write_harness_context(payload, attempt, trigger_method=trigger_method)
         commands.run_command(page, "ExTrace Harness: Run Current Stimulus")
         require_wait(

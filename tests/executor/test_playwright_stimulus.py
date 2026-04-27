@@ -857,3 +857,97 @@ def test_parse_harness_ready_marker_returns_none_on_missing_file(
 ) -> None:
     marker = tmp_path / "absent.json"
     assert stimulus_attempts.parse_harness_ready_marker(marker) is None
+
+
+def test_ensure_harness_ready_with_recovery_succeeds_on_second_poll(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    """First poll sees nothing; recovery sleep writes the marker; second poll succeeds."""
+    marker = tmp_path / "ready.json"
+
+    call_state = {"count": 0}
+    real_sleep = stimulus_attempts.time.sleep
+
+    def staging_sleep(_seconds: float) -> None:
+        call_state["count"] += 1
+        # On the recovery_sleep between attempts, materialise the marker
+        # so the second `_ensure_harness_ready` call observes a valid file.
+        if call_state["count"] == 1:
+            marker.write_text(_valid_marker_payload(), encoding="utf-8")
+
+    monkeypatch.setattr(stimulus_attempts.time, "sleep", staging_sleep)
+    try:
+        stimulus_attempts._ensure_harness_ready_with_recovery(
+            timeout_s=0.05,
+            poll_interval_s=0.01,
+            ready_path=marker,
+            recovery_sleep_s=0.0,
+        )
+    finally:
+        monkeypatch.setattr(stimulus_attempts.time, "sleep", real_sleep)
+
+
+def test_ensure_harness_ready_with_recovery_exhausts_budget(tmp_path: Path) -> None:
+    import pytest
+
+    from stimulus_types import (
+        HARNESS_READY_MARKER_MISSING_REASON,
+        HarnessUnavailableError,
+    )
+
+    marker = tmp_path / "ready.json"
+    with pytest.raises(HarnessUnavailableError) as exc_info:
+        stimulus_attempts._ensure_harness_ready_with_recovery(
+            timeout_s=0.05,
+            poll_interval_s=0.01,
+            ready_path=marker,
+            recovery_sleep_s=0.0,
+        )
+    assert exc_info.value.reason_code == HARNESS_READY_MARKER_MISSING_REASON
+
+
+def test_ensure_harness_ready_with_recovery_does_not_retry_stale(
+    tmp_path: Path,
+) -> None:
+    """STALE is a corruption signal: retry would observe the same defect."""
+    import pytest
+
+    from stimulus_types import (
+        HARNESS_READY_MARKER_STALE_REASON,
+        HarnessUnavailableError,
+    )
+
+    marker = tmp_path / "ready.json"
+    marker.write_text(
+        _valid_marker_payload(epoch_run_id="previous-container"), encoding="utf-8"
+    )
+    with pytest.raises(HarnessUnavailableError) as exc_info:
+        stimulus_attempts._ensure_harness_ready_with_recovery(
+            timeout_s=0.5,
+            poll_interval_s=0.05,
+            ready_path=marker,
+            expected_epoch_run_id="current-container",
+            recovery_sleep_s=0.0,
+        )
+    assert exc_info.value.reason_code == HARNESS_READY_MARKER_STALE_REASON
+    # The marker file must still exist — the wrapper must not unlink it
+    # because non-recoverable reasons keep their evidence on disk.
+    assert marker.exists()
+
+
+def test_health_summary_reason_labels_cover_w8_0_codes() -> None:
+    from health_summary import automation_reason_to_text
+
+    for code in (
+        "harness_ready_marker_missing",
+        "harness_ready_marker_stale",
+        "harness_ready_marker_invalid",
+        "harness_activation_timeout",
+    ):
+        # The label should be a non-empty human-readable sentence,
+        # never the underscore-replaced fallback.
+        label = automation_reason_to_text(code)
+        assert label
+        assert label != code.replace("_", " ")
+        assert label.endswith(".")
