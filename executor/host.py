@@ -303,7 +303,12 @@ def run_playwright_automation(
             cmd.extend(["--scenario", effective_scenario])
 
     try:
-        result = _docker_exec_allow_partial(cmd, timeout=_AUTOMATION_TIMEOUT)
+        try:
+            result = _docker_exec_allow_partial(cmd, timeout=_AUTOMATION_TIMEOUT)
+        except ExecutorError as exc:
+            if exc.returncode is None:
+                _cleanup_stale_entrypoint_processes()
+            raise
         report_host_path = _docker_exec_target_path(report_path)
         if result.returncode != 0 and not report_host_path.exists():
             output = result.stderr or result.stdout or ""
