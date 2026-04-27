@@ -274,6 +274,19 @@ export interface ProcessEventDto {
   summary?: string;
 }
 
+export interface OutputSignalEventDto {
+  timestamp?: string;
+  rel_time_s?: number | null;
+  channel?: string;
+  text?: string;
+  extension_id?: string;
+  activation_event?: string;
+  is_target_extension_event?: boolean;
+  attribution_status?: string;
+  attribution_basis?: string;
+  summary?: string;
+}
+
 export interface RuleExecutionRecordDto {
   rule_id: string;
   rule_version: string;

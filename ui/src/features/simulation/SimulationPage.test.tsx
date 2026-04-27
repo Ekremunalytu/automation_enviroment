@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { SimulationPage } from "./SimulationPage";
 import { apiClient } from "../../lib/api/client";
+import type { AnalyzeJobStatusDto } from "../../lib/types/contracts";
 
 vi.mock("../../lib/api/client", () => ({
   apiClient: {
@@ -452,10 +453,12 @@ describe("SimulationPage", () => {
     });
 
     // Stall the cancel response so we can observe the pending state.
-    let resolveCancel: (value: unknown) => void = () => {};
+    let resolveCancel: (
+      value: AnalyzeJobStatusDto | PromiseLike<AnalyzeJobStatusDto>,
+    ) => void = () => {};
     vi.mocked(apiClient.cancelAnalysisJob).mockImplementationOnce(
       () =>
-        new Promise((resolve) => {
+        new Promise<AnalyzeJobStatusDto>((resolve) => {
           resolveCancel = resolve;
         }),
     );

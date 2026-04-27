@@ -2,7 +2,8 @@ const vscode = require("vscode");
 
 class LocalAuthProvider {
   constructor() {
-    this.onDidChangeSessions = new vscode.EventEmitter();
+    this._onDidChangeSessions = new vscode.EventEmitter();
+    this.onDidChangeSessions = this._onDidChangeSessions.event;
     this.currentSession = {
       id: "extrace-local-session",
       accessToken: "extrace-local-token",
@@ -23,15 +24,22 @@ class LocalAuthProvider {
       ...this.currentSession,
       scopes,
     };
+    this._onDidChangeSessions.fire();
     return Promise.resolve(this.currentSession);
   }
 
   removeSession() {
+    this._onDidChangeSessions.fire();
     return Promise.resolve();
   }
 }
 
 class LocalFileSystemProvider {
+  constructor() {
+    this._onDidChangeFile = new vscode.EventEmitter();
+    this.onDidChangeFile = this._onDidChangeFile.event;
+  }
+
   stat() {
     return {
       ctime: Date.now(),
@@ -51,14 +59,33 @@ class LocalFileSystemProvider {
     return Buffer.from("extrace");
   }
 
-  writeFile() {}
+  writeFile(uri) {
+    this._emitChanged(uri);
+  }
 
-  delete() {}
+  delete(uri) {
+    this._emitDeleted(uri);
+  }
 
-  rename() {}
+  rename(oldUri, newUri) {
+    this._emitDeleted(oldUri);
+    this._emitChanged(newUri);
+  }
 
   watch() {
     return new vscode.Disposable(() => {});
+  }
+
+  _emitChanged(uri) {
+    this._onDidChangeFile.fire([
+      { type: vscode.FileChangeType.Changed, uri },
+    ]);
+  }
+
+  _emitDeleted(uri) {
+    this._onDidChangeFile.fire([
+      { type: vscode.FileChangeType.Deleted, uri },
+    ]);
   }
 }
 
