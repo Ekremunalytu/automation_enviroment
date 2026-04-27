@@ -1,6 +1,6 @@
 # Refactor Status
 
-`Last Updated: 2026-04-27 (W8-1 landed; W8-0 capture-pipeline + automation_health reason propagation gap fixes)`
+`Last Updated: 2026-04-27 (W8-1 landed; W8-0 capture-pipeline + automation_health reason propagation gap fixes; main consolidation recorded)`
 
 This is the active status board for the Week 1-4 stabilization work and the
 pre-W6 cleanup handoff. Use this file for current closure state; use
@@ -1019,6 +1019,34 @@ W12-fingerprint stale-image regression class
 (`[FOLLOWUP codex-automation-5]`) was ruled out for this run — the
 deployed image carried the PR-A code; the gap was capture-side, not
 build-side.
+
+## Repository Consolidation (2026-04-27)
+
+After PR345, W8-0, W8-0 follow-up fixes, simulation progress/cancel,
+and W8-1 all landed, the local feature branches were consolidated into
+`main` and pushed to `origin/main`.
+
+- `origin/main` now points at merge commit `72340ef`
+  (`Merge branch 'feat/w8-1-vsix-hardening'`).
+- The `feat/simulation-progress-cancel` work remains preserved in
+  `origin/main`, including commits `fcf5a37` (simulation progress,
+  cancel, demo canary, VNC harness crash fix) and `7bb3a54`
+  (ADR 0007 + W8/simulation-cancel docs sync).
+- The PR345 / W8-0 / W8-0 follow-up history remains preserved in
+  `origin/main`, including `f990a60`, `4400aef`, `eb7ed9f`, `a37d1be`,
+  `3180eca`, and `a2b96c2`.
+- The W8-1 VSIX hardening commit `bd9d1f1` is preserved through merge
+  commit `72340ef`.
+- Before branch cleanup, `git merge-base --is-ancestor` verified that
+  the old feature/fix branch tips were reachable from `origin/main`.
+- Deleted remote branches after verification:
+  `feat/pr345-completion`, `feat/simulation-progress-cancel`.
+- Deleted local merged branches after verification:
+  `feat/pr345-completion`, `feat/simulation-progress-cancel`,
+  `feat/w8-1-vsix-hardening`, `fix/w8-0-capture-and-health-reasons`.
+- The active Dependabot PR branch
+  `origin/dependabot/npm_and_yarn/ui/npm_and_yarn-754666cf41` was not
+  deleted.
 
 ## Week 5 Start Rule
 
