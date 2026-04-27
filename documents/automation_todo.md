@@ -28,6 +28,19 @@ the simulation progress + cancel + VNC fix + demo runnable canary
 quartet landed on 2026-04-25. The next pull-first candidates from the
 backlog are:
 
++ **W8-0 (önceliklı, W8 açılış öncesi). Deterministic harness readiness
+  gate.** Post-PR345 ms-python.python taramasında 9 attempt
+  `harness_command_unavailable` ile 15s timeout'a düştü
+  (`output/activation_report_ms-python.python-2026.5.2026042602-cba16dba0258.json`).
+  Mevcut `_ensure_harness_ready`
+  (`executor/flows/playwright/stimulus_attempts.py:28-50`) yalnızca dosya
+  varlığı kontrolü yapıyor; `ready.json` payload'u epoch/pid taşımadığı
+  için stale-marker fresh-but-missing'den ayırt edilemiyor. Üç ayrı
+  `reload_workbench_window` çağrı yolu marker'ı `unlink()` ediyor;
+  post-reload harness aktivasyonu fragile. Detay + uygulama planı:
+  `POST_POC_BACKLOG.md` "Executor modularization + boundary"
+  §`[PROMOTED → W8-0]`. W8-1 (VSIX zip-bomb) ve W8-3 (URI shell-safe —
+  aynı dosyaya dokunuyor) öncesi tek küçük PR olarak landlanmalı.
 + **W8 (`REFACTOR_OPTIMIZATION.md §11.5` — Güvenlik Sıkılaştırma) is
   now eligible to open.** PR345 PRs 3-5 + ADR 0006 landed 2026-04-27
   on `feat/pr345-completion`; entry-gate checklist is green (see

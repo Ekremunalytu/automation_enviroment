@@ -532,6 +532,27 @@ REFACTOR_OPTIMIZATION.md §11.12" below.
 
 ## Executor modularization + boundary (promoted to W9-W12)
 
+- **[PROMOTED → W8-0]** Deterministic harness readiness gate.
+  `_ensure_harness_ready`
+  (`executor/flows/playwright/stimulus_attempts.py:28-50`) bugün yalnızca
+  dosya varlığı kontrol ediyor. Marker payload'una `epoch_run_id`,
+  `pid` ve `marker_version` eklenmeli (atomic write,
+  `executor/flows/harness_extension/markers.js:33-40`); Python tarafı
+  parse + epoch karşılaştırmalı; yeni tipli kodlar
+  (`harness_ready_marker_missing`, `harness_ready_marker_stale`,
+  `harness_ready_marker_invalid`, `harness_activation_timeout`); tek
+  controlled-recovery retry; harness `activate()` enter/exit + marker-write
+  `console.log` + dedicated output channel diagnostic capture (PR345 PR5
+  altyapısını kullanır); test genişletmesi
+  `tests/executor/test_playwright_stimulus.py`. Tetikleyici:
+  `output/activation_report_ms-python.python-2026.5.2026042602-cba16dba0258.json`
+  (9 attempt × `harness_command_unavailable`,
+  `target_extension_observed=true`). W8-1 + W8-3 öncesi sırala.
+  `failure_reason_code` enum hareketi W10 contracts hygiene ile koordine
+  edilecek. Detection rule **değişikliği değil** — automation health
+  sıkılaştırma. Lower-level kök sebep mevcut raporla **kanıtlanamıyor**
+  (extension_host_output gappy); diagnostic capture düzeltmeden **önce**
+  landlanmalı ki yeniden tarama kök sebebi doğrulayabilsin.
 - **[PROMOTED → W8-1]** VSIX zip-bomb + ZipSlip guard in
   `packages/analysis_engine/static/vsix.py` (`REFACTOR_OPTIMIZATION.md
   §11.5` item 1).
