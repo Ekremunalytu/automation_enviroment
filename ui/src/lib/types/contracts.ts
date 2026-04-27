@@ -445,6 +445,7 @@ export interface ActivationReportDto {
   extension_host_output_lines?: number;
   extension_host_output?: string;
   log_file?: string;
+  output_signal_events?: OutputSignalEventDto[];
   _metadata?: ActivationReportMetadataDto | null;
 }
 

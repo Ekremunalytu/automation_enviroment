@@ -242,6 +242,28 @@ class ProcessEvent(StrictContractModel):
     summary: str = ""
 
 
+class OutputSignalEvent(StrictContractModel):
+    """A target-extension Output channel write captured by the harness hook.
+
+    PR345 PR5 + ADR 0006: emitted by the harness extension's
+    createOutputChannel proxy as an [extrace-harness] JSON-line marker;
+    parsed into this dataclass and routed into the evidence chain by
+    ``_build_evidence_bundle`` as ``EvidenceEvent.kind ==
+    "output_channel_appendline"``.
+    """
+
+    timestamp: str = ""
+    rel_time_s: float | None = None
+    channel: str = ""
+    text: str = ""
+    extension_id: str = ""
+    activation_event: str = ""
+    is_target_extension_event: bool = False
+    attribution_status: str = "unattributed"
+    attribution_basis: str = ""
+    summary: str = ""
+
+
 class EvidenceLink(StrictContractModel):
     from_event_id: str
     to_event_id: str
@@ -358,6 +380,7 @@ class ActivationReport(StrictContractModel):
     extension_host_output_lines: int = 0
     extension_host_output: str = ""
     log_file: str = ""
+    output_signal_events: list[OutputSignalEvent] = Field(default_factory=list)
 
     @model_validator(mode="before")
     @classmethod

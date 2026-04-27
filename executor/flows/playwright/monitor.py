@@ -115,6 +115,7 @@ try:
         ActivationEntry,
         FileEvent,
         NetworkEvent,
+        OutputSignalEvent,
         ProcessEvent,
     )
     from .runtime_capture.extension_host import (  # noqa: F401 - re-exported surface
@@ -243,6 +244,7 @@ except ImportError:  # pragma: no cover - top-level executor import mode
         ActivationEntry,
         FileEvent,
         NetworkEvent,
+        OutputSignalEvent,
         ProcessEvent,
     )
     from runtime_capture.extension_host import (  # noqa: F401 - re-exported surface

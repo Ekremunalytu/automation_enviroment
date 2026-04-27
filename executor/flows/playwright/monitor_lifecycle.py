@@ -48,6 +48,10 @@ try:
     )
     from .monitor_support import resolve_monitor_api
     from .monitor_types import ActivationReport
+    from .output_signals import (
+        annotate_output_signal_events,
+        parse_output_signal_events,
+    )
     from .runtime_capture._shared import _log, _parse_iso_timestamp
     from .runtime_capture.events import FileEvent, NetworkEvent, ProcessEvent
 except ImportError:  # pragma: no cover - top-level executor import mode
@@ -87,6 +91,10 @@ except ImportError:  # pragma: no cover - top-level executor import mode
     )
     from monitor_support import resolve_monitor_api
     from monitor_types import ActivationReport
+    from output_signals import (
+        annotate_output_signal_events,
+        parse_output_signal_events,
+    )
     from runtime_capture._shared import _log, _parse_iso_timestamp
     from runtime_capture.events import FileEvent, NetworkEvent, ProcessEvent
 
@@ -309,6 +317,17 @@ class ExtensionMonitor:
         except OSError as exc:
             _log(f"Strategy 3 failed: {exc}")
         self._append_activation_log_entries()
+        # PR345 PR5: parse + attribute target Output channel events from
+        # the captured exthost output. ADR 0006 §2-§4 owns the contract.
+        self.report.output_signal_events = annotate_output_signal_events(
+            parse_output_signal_events(
+                self.report.extension_host_output,
+                monitoring_start=self.report.monitoring_start,
+            ),
+            activations=self.report.activated,
+            target_extension_id=self.report.target_extension_id,
+            monitoring_start=self.report.monitoring_start,
+        )
         self._refresh_derived_report_state()
         self._persist_report(force=True)
 

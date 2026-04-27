@@ -102,3 +102,27 @@ class ProcessEvent:
     attribution_confidence: float = 0.0
     is_target_extension_event: bool = False
     summary: str = ""
+
+
+@dataclass
+class OutputSignalEvent:
+    """A single Output channel write captured by the harness extension hook.
+
+    PR345 PR5 + ADR 0006: emitted by the harness extension's
+    createOutputChannel proxy and converted from a [extrace-harness]
+    JSON-line marker by ``parse_output_signal_events``. ``channel`` is
+    the OutputChannel name as passed to ``vscode.window.createOutputChannel``;
+    ``text`` is the appendLine/append content truncated to 500 chars.
+    Attribution is filled in post-hoc from the nearest target activation.
+    """
+
+    timestamp: str = ""
+    rel_time_s: float | None = None
+    channel: str = ""
+    text: str = ""
+    extension_id: str = ""
+    activation_event: str = ""
+    is_target_extension_event: bool = False
+    attribution_status: str = "unattributed"
+    attribution_basis: str = ""
+    summary: str = ""

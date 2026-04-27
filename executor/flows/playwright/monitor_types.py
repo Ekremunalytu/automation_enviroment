@@ -47,6 +47,7 @@ try:
         ActivationEntry,
         FileEvent,
         NetworkEvent,
+        OutputSignalEvent,
         ProcessEvent,
     )
 except ImportError:  # pragma: no cover - top-level executor import mode
@@ -89,6 +90,7 @@ except ImportError:  # pragma: no cover - top-level executor import mode
         ActivationEntry,
         FileEvent,
         NetworkEvent,
+        OutputSignalEvent,
         ProcessEvent,
     )
 
@@ -126,6 +128,7 @@ class ActivationReport:
     network_events: list[NetworkEvent] = field(default_factory=list)
     file_events: list[FileEvent] = field(default_factory=list)
     process_events: list[ProcessEvent] = field(default_factory=list)
+    output_signal_events: list[OutputSignalEvent] = field(default_factory=list)
     scenario_traces: list[ScenarioTrace] = field(default_factory=list)
     skipped_scenarios: list[SkippedScenarioRecord] = field(default_factory=list)
     stimulus_passes: list[StimulusPassTrace] = field(default_factory=list)
@@ -209,6 +212,20 @@ class ActivationReport:
         return [entry for entry in self.log_entries if entry.stream == "ui_blockers"]
 
     @property
+    def target_output_signal_events(self) -> list[OutputSignalEvent]:
+        """Output channel events attributed to the target extension.
+
+        PR345 PR5 + ADR 0006: events emitted by the harness Output
+        channel hook whose attribution resolved to the target extension
+        (timestamp within ATTRIBUTION_WINDOW_S of a target activation).
+        """
+        return [
+            entry
+            for entry in self.output_signal_events
+            if entry.is_target_extension_event
+        ]
+
+    @property
     def target_extension_observed(self) -> bool:
         if not self.target_extension_id:
             return False
@@ -223,6 +240,7 @@ class ActivationReport:
             )
             or self.target_file_events
             or self.target_network_events
+            or self.target_output_signal_events
         )
 
     @property

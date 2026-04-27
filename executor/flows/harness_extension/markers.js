@@ -22,6 +22,14 @@ function emitHarnessMarker(phase, details) {
   );
 }
 
+// PR345 PR5: generic JSON-line emitter for non-stimulus harness events
+// (e.g. output_channel_appendline). Caller supplies the full payload —
+// in particular the ``kind`` field. Reuses the [extrace-harness] prefix
+// the existing _HARNESS_MARKER_RE consumes on the Python side.
+function emitHarnessEvent(payload) {
+  console.log(`[extrace-harness] ${JSON.stringify(payload)}`);
+}
+
 async function writeHarnessReadyMarker() {
   await fs.mkdir(path.dirname(READY_PATH), { recursive: true });
   const payload = {
@@ -32,6 +40,7 @@ async function writeHarnessReadyMarker() {
 }
 
 module.exports = {
+  emitHarnessEvent,
   emitHarnessMarker,
   readHarnessContext,
   writeHarnessReadyMarker,

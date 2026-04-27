@@ -313,6 +313,9 @@ def build_report_data(
         "network_events": [asdict(e) for e in getattr(report, "network_events", [])],
         "file_events": [asdict(e) for e in getattr(report, "file_events", [])],
         "process_events": [asdict(e) for e in getattr(report, "process_events", [])],
+        "output_signal_events": [
+            asdict(e) for e in getattr(report, "output_signal_events", [])
+        ],
         "scenario_traces": [asdict(e) for e in getattr(report, "scenario_traces", [])],
         "stimulus_passes": [asdict(e) for e in getattr(report, "stimulus_passes", [])],
         "prerequisite_results": [
