@@ -1,6 +1,6 @@
 # Post-PoC Backlog
 
-`Last Updated: 2026-04-27 (W8-0 landed; Codex automation-flow review entries 3/5/6/7/8 recorded as [FOLLOWUP codex-automation-N])`
+`Last Updated: 2026-04-27 (W8-0 landed; Codex automation-flow review entries 3/5/6/7/8 recorded as [FOLLOWUP codex-automation-N]; architecture audit 2026-04-27 — W8-8/W11-7/W11-8 promoted to REFACTOR_OPTIMIZATION.md, hygiene cleanups recorded as [CLEANUP audit-2026-04-27])`
 
 Work items that do not block PoC acceptance (`REFACTOR_OPTIMIZATION.md`
 §10.7) and were intentionally deferred from W0-W7 for scope management.
@@ -938,6 +938,101 @@ unconfirmed live**: the same scan reported 9 attempts with
 typed sub-codes. Remains user-side until a follow-up
 `make sim-target` produces an attempt that actually trips the
 typed marker path.
+
+## Architecture audit (2026-04-27)
+
+A full-codebase architecture + security + maintainability audit run
+on 2026-04-27 cross-checked findings against the W8-W13 plan. Result:
+~67% of the audit's recommendations were already in
+`REFACTOR_OPTIMIZATION.md §11`; security findings 100% covered (W8-1
+↔ W8-7); structural findings (monitor_lifecycle split, signal_policy
+relocation, registry split, executor subpackaging) all already
+present. Three audit-surfaced gaps were promoted into the W8-W13
+plan; four are tracked as one-off hygiene PRs below. Audit framing:
+local-first single-user defensive security tool; no
+microservices / event bus / distributed tracing recommendations.
+
+**Promoted into W8-W13 (see `REFACTOR_OPTIMIZATION.md`):**
+
+- **W8-8** — Manifest field log-injection sanitization
+  (defense-in-depth). `appcore/contracts/sanitize.py::sanitize_for_log`
+  helper + ADR 0002 §7 addendum + manifest log emit site'ları
+  helper'a geçirilir. (`§11.5-(8)`)
+- **W11-7** — `workflows/extension_catalog/service.py` 475 LoC →
+  `manifest_to_schema.py` + `lifecycle.py` split. W11 modularization
+  temasının workflow-tarafı aynası. (`§11.8-(7)`)
+- **W11-8** — `appcore/storage/crud_ops/analysis_jobs.py` 348 LoC →
+  `lifecycle.py` + `steps.py` + facade subpackage. W10 contract
+  hygiene'in storage ayağı temizliği. (`§11.8-(8)`)
+
+**One-off hygiene PRs (not week-bound; recommended bundled into a
+single cleanup commit alongside W8 entry):**
+
+- **[CLEANUP audit-2026-04-27] `httpx` runtime dependency.**
+  [`pyproject.toml:33`](../pyproject.toml) ships `httpx>=0.28.0`
+  under `[project.optional-dependencies] dev` only, but
+  [`workflows/marketplace/client.py`](../workflows/marketplace/client.py)
+  and [`workflows/marketplace/router.py`](../workflows/marketplace/router.py)
+  import it at runtime. Production-shape install (`pip install .`
+  without `[dev]`) breaks at import time. Fix: move `httpx` line
+  into `[project] dependencies` and remove the duplicate from the
+  dev section. **Size:** 1-line move.
+
+- **[CLEANUP audit-2026-04-27] `seed_test.py` exception narrowing.**
+  [`scripts/seed_test.py:164`](../scripts/seed_test.py) bare
+  `except Exception:` swallows everything during DB seed. AGENTS.md
+  "no generic try/except Exception" rule has zero exceptions in
+  production paths; the only audit-surfaced bare hit lives in
+  `scripts/`. Not on a runtime path, but new contributors copy
+  patterns from `scripts/`. Fix: narrow to
+  `except SQLAlchemyError as exc` + log + rollback. **Size:**
+  ~3 lines.
+
+- **[CLEANUP audit-2026-04-27] Finder duplicate-suffix dirs.**
+  Local filesystem residue from a macOS Finder name-conflict
+  resolution: `docker/api 2/`, `ui/src/components/ui 2/`,
+  `ui/src/lib/api 2/`, `ui/src/lib/charts 2/`. Verified **not
+  git-tracked** (`git ls-files` empty for all four), so these are
+  workstation-local cruft. Risk: Python / Node tooling that scans
+  the tree (mypy auto-discovery, vite glob imports) can pick up
+  shadow modules and produce confusing build errors. Fix: `rm -rf`
+  locally; verify `.dockerignore` + `.gitignore` cover `2/`-suffix
+  glob so a future Finder accident on the workstation gets ignored
+  by builds. **Size:** trivial; no PR strictly required (local
+  cleanup), but a one-line `.gitignore` add prevents recurrence.
+
+- **[CLEANUP audit-2026-04-27] Unused `ExecutorError` import.**
+  [`workflows/extension_catalog/router.py:25`](../workflows/extension_catalog/router.py)
+  imports `ExecutorError` but the symbol is referenced nowhere in
+  the file. ruff F401 would normally catch this — verify whether
+  per-file ignore in `pyproject.toml [tool.ruff.lint.per-file-ignores]`
+  is masking it; if so, narrow the ignore. **Size:** 1 line.
+
+**Audit observations evaluated and not promoted (rationale documented):**
+
+- `appcore/api/config.py` 4 BaseSettings → single packaged settings
+  (audit §6 overengineering candidate). **Reddedildi (2026-04-27):**
+  mevcut 4-class split temiz env-prefixed (PROJECT_, API_, POSTGRES_,
+  EXECUTOR_); collapsing into one nested model trades prefix
+  clarity for ~50 LoC savings — net negative for an operator
+  reading `.env`. Re-evaluate only if any one settings class shrinks
+  below 20 LoC.
+- `executor/flows/playwright/signal_facts.py` (42 LoC) merge into
+  `output_signals.py` (audit §6). **Reddedildi (2026-04-27):**
+  kozmetik; W12-1 subpackaging zaten bu dosyaları `health/` veya
+  `monitor/` altına taşıyacak — merge'in operasyonel değeri yok.
+- `documents/{claude_code_review.md, codex_project_review.md}`
+  arşivleme (~2K LoC bloat, audit §2). Already evaluated and
+  rejected by `REFACTOR_OPTIMIZATION.md §11.12`
+  ("documentation consolidation"); revisit when W7 closure is
+  >4 weeks old and living-doc cadence settles.
+- `runtime_capture/extension_host.py` 678 LoC → 3 parser
+  (process / network / filesystem) split. **Implicitly covered by
+  W12-1** subpackaging (`runtime_capture/` will be reorganized as
+  part of executor subpackaging); explicit split inside the file
+  not promoted to a separate item — leave to the W12 PR author's
+  judgment. Re-evaluate if W12-1 PR ships without parser split
+  and `extension_host.py` LoC stays >600.
 
 ## How to pull an item back
 
