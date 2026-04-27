@@ -52,6 +52,28 @@ function installOutputChannelHook() {
 
 async function activate(context) {
   installOutputChannelHook();
+  // W8-0: dedicated diagnostic channel. Created AFTER the hook so its
+  // appendLine writes are captured as OutputSignalEvent (kind=
+  // output_channel_appendline, channel="ExTrace Harness"). This gives
+  // the Python side a deterministic record of activate() enter/exit
+  // and marker-write phases, separate from generic stimulus markers.
+  const harnessChannel = vscode.window.createOutputChannel("ExTrace Harness");
+  context.subscriptions.push(harnessChannel);
+  const _diag = (phase, extra) => {
+    try {
+      harnessChannel.appendLine(
+        JSON.stringify({
+          phase,
+          pid: process.pid,
+          ts: Date.now(),
+          ...(extra || {}),
+        })
+      );
+    } catch (_err) {
+      // Diagnostic must never break activation.
+    }
+  };
+  _diag("activate_enter");
   const localAuthProvider = new LocalAuthProvider();
   const authDisposable = vscode.authentication.registerAuthenticationProvider(
     "extrace.local",
@@ -168,7 +190,17 @@ async function activate(context) {
 
   // Marker write must succeed or activation fails: the Python harness polls
   // for this file to verify the command is registered before invoking it.
-  await writeHarnessReadyMarker();
+  _diag("marker_write_start");
+  try {
+    await writeHarnessReadyMarker();
+    _diag("marker_write_done");
+  } catch (err) {
+    _diag("marker_write_failed", {
+      error: err && err.message ? String(err.message) : String(err),
+    });
+    throw err;
+  }
+  _diag("activate_exit");
 }
 
 function deactivate() {}

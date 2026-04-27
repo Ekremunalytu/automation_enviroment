@@ -218,6 +218,35 @@ def test_evidence_bundle_routes_output_signal_events_with_harness_collector() ->
     assert evidence.raw_context["text"] == "boot complete"
 
 
+def test_harness_lifecycle_diagnostic_appendline_parses_as_output_signal() -> None:
+    # W8-0: harness extension activate() phases (enter/exit + marker write)
+    # are written as appendLine on a dedicated "ExTrace Harness" output
+    # channel. The existing PR345 PR5 hook captures every appendLine; the
+    # Python parser converts it into an OutputSignalEvent whose `text`
+    # carries the JSON-stringified diagnostic payload.
+    diag_payload = {
+        "phase": "activate_enter",
+        "pid": 4321,
+        "ts": 1_700_000_001_000,
+    }
+    output = _harness_marker_line(
+        {
+            "kind": "output_channel_appendline",
+            "channel": "ExTrace Harness",
+            "text": json.dumps(diag_payload),
+            "ts": 1_700_000_001_000,
+            "collector": "harness_extension",
+        }
+    )
+
+    events = parse_output_signal_events(output)
+    assert len(events) == 1
+    assert events[0].channel == "ExTrace Harness"
+    parsed = json.loads(events[0].text)
+    assert parsed["phase"] == "activate_enter"
+    assert parsed["pid"] == 4321
+
+
 def test_attribution_window_picks_nearest_activation() -> None:
     """When multiple target activations are present, attribution picks nearest by abs delta."""
     output = "\n".join(
