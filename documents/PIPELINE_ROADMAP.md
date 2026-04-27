@@ -1,6 +1,6 @@
 # Pipeline Roadmap
 
-`Last Updated: 2026-04-25`
+`Last Updated: 2026-04-27`
 
 This is the short staged view of the analysis pipeline. For the current
 backlog, use `automation_todo.md`; for active priorities, use
@@ -29,7 +29,9 @@ the full-stack analysis cancel flow
 harness `activate()` awaits the write), and the
 `t1-demo-runnable-canary` + rule + `make demo-canary` lanes — none
 change pipeline shape but the cancel branch adds a new heartbeat
-side-effect surface that operators must understand.
+side-effect surface that operators must understand. **PR345 and W8-0 on
+`2026-04-27`** sharpened target activation lifecycle evidence and harness
+readiness diagnostics without changing the high-level pipeline shape.
 
 ## Current Pipeline
 
@@ -116,5 +118,6 @@ flowchart LR
   change
 - analysis output is semi-trusted (ADR 0002 §6); do not forward, upload, or
   index without scrubbing
-- security posture is fixed by ADRs 0002-0004; scope expansion requires a new
-  ADR, not an informal upgrade
+- security posture is fixed by ADRs 0002-0005 plus ADR 0007; scope expansion
+  requires a new ADR, not an informal upgrade. ADR 0007 is Accepted, but its
+  loopback-binding enforcement is still W8-7 work.

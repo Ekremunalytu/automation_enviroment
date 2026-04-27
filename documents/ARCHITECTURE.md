@@ -1,12 +1,11 @@
 # ExTrace Architecture
 
-`Last Updated: 2026-04-25`
+`Last Updated: 2026-04-27`
 
 This document reflects the current codebase shape in `main.py`, `appcore/`,
 `packages/`, `workflows/`, `executor/`, and `ui/` after W7 closure and the
-post-W7 hardening landings (2026-04-23, 2026-04-24, and the
-2026-04-25 simulation progress + cancel + VNC harness fix +
-demo runnable canary branch).
+post-W7 hardening landings through PR345 completion and W8-0 on
+2026-04-27.
 
 Open this for system shape and request-flow questions. For placement rules use
 `PROJECT_STRUCTURE.md`; for executor or report internals, open the specialized
@@ -23,6 +22,8 @@ multi-tenant platform.
 - extension execution stays isolated in Docker
 - activation reports remain artifact-first operator artifacts
 - async job state is durable in PostgreSQL (`analysis_jobs`)
+- ADR 0007 local-network-binding is Accepted, but current code/config defaults
+  still need W8-7 enforcement before loopback binding is mechanically true.
 
 ## Runtime Surfaces
 
@@ -124,7 +125,9 @@ Sandbox control and runtime.
     the post-reload activation cannot race a stale marker (the VNC
     harness crash fix landed 2026-04-25); the harness extension's
     `activate()` is async and awaits the marker write so a write
-    failure surfaces a `HarnessUnavailableError` cleanly. The
+    failure surfaces a `HarnessUnavailableError` cleanly. W8-0 adds
+    epoch/pid-aware harness ready-marker validation and typed
+    `harness_ready_marker_*` / `harness_activation_timeout` reason codes. The
     authoritative detection-layer `Verdict` lives in
     `packages/analysis_contracts/detection/`.
 - `executor/flows/playwright/attribution/`

@@ -1,6 +1,6 @@
 # ExTrace
 
-`Last Updated: 2026-04-25`
+`Last Updated: 2026-04-27`
 
 ExTrace is a VS Code extension analysis platform built around three runtime
 surfaces:
@@ -26,6 +26,10 @@ multi-tenant web platform.
   while async analysis job metadata is persisted in PostgreSQL.
 - If the API process restarts during an active analysis, that job is marked
   failed and should be rerun.
+- ADR 0007 local-network-binding is Accepted, but current code/config still
+  carries `0.0.0.0` / wildcard exposure defaults until W8-7 lands. Treat
+  localhost service URLs below as the intended operator access path, not proof
+  that loopback enforcement is implemented.
 
 ## Current Phase
 
@@ -38,9 +42,12 @@ multi-tenant web platform.
   simulation progress, full-stack analysis cancel flow, the VNC harness
   ready-marker fix, and the `t1-demo-runnable-canary` fixture + rule +
   `make demo-canary` lanes.
-- W8-W13 external-review integration window is scheduled but gated on
-  PR345 (target activation lifecycle; PRs 1-2 landed 2026-04-24, PRs
-  3-5 + the PR5 ADR pending).
+- PR345 target activation lifecycle is complete as of `2026-04-27`; PRs 1-5
+  plus ADR 0006 target output-channel capture landed on
+  `feat/pr345-completion`.
+- W8-0 deterministic harness readiness gate landed on `2026-04-27`, unblocking
+  W8-1 and W8-3.
+- W8-W13 external-review integration is now eligible to open.
 - **Canonical source of truth for phase state:**
   [`documents/REFACTOR_STATUS.md`](documents/REFACTOR_STATUS.md).
   Deferred items: [`documents/POST_POC_BACKLOG.md`](documents/POST_POC_BACKLOG.md).
@@ -59,8 +66,8 @@ workflow code:
   - `contracts/`: shared Pydantic v2 schemas.
 - `packages/`
   - Framework-agnostic contracts and analysis logic.
-  - `analysis_contracts/`: backend-owned analysis contracts and the reserved
-    W5 `detection/` namespace.
+  - `analysis_contracts/`: backend-owned analysis contracts, activation
+    reports, trigger payloads, and detection DTOs.
   - `analysis_planner/`: trigger planning logic.
   - `analysis_engine/`: reserved extraction surface for shared analysis logic.
 - `workflows/`
@@ -238,8 +245,11 @@ docs/                       Targeted risk notes
 
 ## Documentation Index
 
-- `documents/AGENT_CONTEXT.md`: one-page thin-context map for coding agents
-  after `AGENTS.md`
+- `documents/AGENT_CONTEXT.md`: thin task-routing map for coding agents after
+  `AGENTS.md`
+- `documents/agent-lanes/`: lazy-load task-lane docs for platform/storage,
+  marketplace/analysis, executor/runtime, security/detection, UI, and docs
+  maintenance
 - `documents/README.md`: context-light guide for choosing which project docs to
   load first
 - `documents/REFACTOR_STATUS.md`: phase closure history (W4-W7) and the

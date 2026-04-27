@@ -1,8 +1,9 @@
 # Risk Register
 
-`Last Updated: 2026-04-21`
+`Last Updated: 2026-04-27`
 
-This register reflects the current post-Week-4 architecture.
+This register reflects the current post-W8-0 architecture and the remaining
+post-PoC hardening risks.
 
 ## Active Risks
 
@@ -83,11 +84,30 @@ Why it matters:
 - This is the intended posture, but it still relies on GitHub runner support
   for the firewall step and does not replace the remaining install-guard work.
 
+### P2 - Host-facing services still need ADR 0007 enforcement
+
+Files:
+
+- `.env.example`
+- `docker-compose.yml`
+- `appcore/api/config.py`
+- `documents/adrs/0007-local-network-binding.md`
+
+Why it matters:
+
+- ADR 0007 is Accepted, but current defaults still include `0.0.0.0`,
+  wildcard CORS, and host-mapped noVNC/CDP ports.
+- Until W8-7 lands the loopback defaults, CORS allow-list, CDP debug profile,
+  and architecture test, operators must treat LAN exposure as an active
+  environment risk.
+
 ## Accepted Risks
 
-### Local noVNC exposure
+### Local noVNC exposure after W8-7
 
 - noVNC is intended for local operator access, not public deployment.
+- This remains accepted only after ADR 0007 loopback/default-profile
+  enforcement lands; until then, see the active host-facing services risk.
 
 ### Single active analysis
 
@@ -101,3 +121,5 @@ Why it matters:
 - keep report semantics and health metadata honest when a run is degraded
 - expand bounded capture without storing unsafe raw payloads
 - keep CI egress hardening observable and fail-closed
+- land ADR 0007 W8-7 binding defaults before treating localhost-only exposure
+  as mechanically enforced

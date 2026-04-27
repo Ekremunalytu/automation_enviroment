@@ -17,36 +17,22 @@ flow, the VNC harness ready-marker fix, and the
 `t1-demo-runnable-canary` + rule + `make demo-canary` /
 `make demo-canary-offline` Makefile lanes; review follow-ups are
 tagged `[FOLLOWUP simulation-progress-cancel]` in
-`POST_POC_BACKLOG.md`.
+`POST_POC_BACKLOG.md`. PR345 target activation lifecycle and W8-0
+deterministic harness readiness gate both landed on 2026-04-27; W8 is
+now eligible to open.
 
 ## Now (next-iteration pull)
 
-Source of truth: `POST_POC_BACKLOG.md` "Next iteration (pull first)". The
-W7 `[NEXT]` items (attribution split + sim-target lane) landed on
-2026-04-24 alongside the fatal-UI-crash + scan-between restart fixes;
-the simulation progress + cancel + VNC fix + demo runnable canary
-quartet landed on 2026-04-25. The next pull-first candidates from the
-backlog are:
+Source of truth: `POST_POC_BACKLOG.md` "Next iteration (pull first)" and
+`REFACTOR_STATUS.md` for landed closure evidence. The W7 `[NEXT]` items
+(attribution split + sim-target lane), simulation progress/cancel/VNC/demo
+canary work, PR345 PRs 1-5, and W8-0 are all landed. The next pull-first
+candidates from the backlog are:
 
-+ **W8-0 (önceliklı, W8 açılış öncesi). Deterministic harness readiness
-  gate.** Post-PR345 ms-python.python taramasında 9 attempt
-  `harness_command_unavailable` ile 15s timeout'a düştü
-  (`output/activation_report_ms-python.python-2026.5.2026042602-cba16dba0258.json`).
-  Mevcut `_ensure_harness_ready`
-  (`executor/flows/playwright/stimulus_attempts.py:28-50`) yalnızca dosya
-  varlığı kontrolü yapıyor; `ready.json` payload'u epoch/pid taşımadığı
-  için stale-marker fresh-but-missing'den ayırt edilemiyor. Üç ayrı
-  `reload_workbench_window` çağrı yolu marker'ı `unlink()` ediyor;
-  post-reload harness aktivasyonu fragile. Detay + uygulama planı:
-  `POST_POC_BACKLOG.md` "Executor modularization + boundary"
-  §`[PROMOTED → W8-0]`. W8-1 (VSIX zip-bomb) ve W8-3 (URI shell-safe —
-  aynı dosyaya dokunuyor) öncesi tek küçük PR olarak landlanmalı.
-+ **W8 (`REFACTOR_OPTIMIZATION.md §11.5` — Güvenlik Sıkılaştırma) is
-  now eligible to open.** PR345 PRs 3-5 + ADR 0006 landed 2026-04-27
-  on `feat/pr345-completion`; entry-gate checklist is green (see
-  `REFACTOR_STATUS.md` "PR345 Complete" section). First W8 PR
-  candidates: W8-1 VSIX zip-bomb guard, W8-2 marketplace identity
-  helper, W8-3 URI trigger shell-safe invocation.
++ **W8 (`REFACTOR_OPTIMIZATION.md` §11.5) security hardening.** First PR
+  candidates: W8-1 VSIX zip-bomb guard, W8-2 marketplace identity helper,
+  W8-3 URI trigger shell-safe invocation. W8-0 no longer blocks these; it
+  landed 2026-04-27 (`REFACTOR_STATUS.md` "W8-0 Landed").
 + Docker-based A1 canary structural diff smoke (`make exec-up && make
   exec-run` against `t1-a1-credential-read-to-network-canary`); closes
   the capture-pipeline regression risk flagged in the attribution-split

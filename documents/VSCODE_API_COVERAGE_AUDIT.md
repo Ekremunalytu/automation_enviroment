@@ -1,6 +1,6 @@
 # VS Code API Coverage Audit
 
-`Last Updated: 2026-04-25`
+`Last Updated: 2026-04-27`
 
 This document summarizes how ExTrace currently maps VS Code extension behavior
 into trigger planning and verification.
@@ -8,11 +8,11 @@ into trigger planning and verification.
 Open this only when changing trigger selection, capability support, coverage
 matrix logic, or related report semantics.
 
-> **Phase context (2026-04-25):** W4 stabilization, W5 detection
+> **Phase context (2026-04-27):** W4 stabilization, W5 detection
 > foundations, W6 automation hardening, and W7 PoC acceptance are all
-> closed (see `REFACTOR_STATUS.md`). The capability matrix and
-> scenario registry below reflect the post-W7 / post-W7-hardening
-> state and were spot-verified against
+> closed, PR345 target activation lifecycle is complete, and W8-0 harness
+> readiness is landed (see `REFACTOR_STATUS.md`). The capability matrix and
+> scenario registry below were last spot-verified against
 > `packages/analysis_planner/registry.py` on `2026-04-25`. The
 > `_GLOBAL_CAPABILITY_SUPPORT`, `_OFFICIAL_CAPABILITY_SUPPORT`, and
 > `_HEURISTIC_CAPABILITY_SUPPORT` maps in that module are the

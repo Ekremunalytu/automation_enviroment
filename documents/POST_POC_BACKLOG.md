@@ -29,7 +29,7 @@ open.
 
 **Promoted from this backlog into W8-W13:** the two "Next iteration"
 entries that were left as `[NEXT]` pulls — target activation lifecycle
-PRs 3-5 (W8 entry gate blocker) and review-surfaced items
+(now landed; W8 gate met) and review-surfaced items
 (`signal_policy.py` relocation → W9-2; `registry.py` split → W10-3;
 `monitor_lifecycle.py` split → W11; `executor/flows/playwright/`
 subpackaging → W12). Items not yet promoted stay in this file under
@@ -44,106 +44,20 @@ REFACTOR_OPTIMIZATION.md §11.12" below.
 
 ## Next iteration (pull first)
 
-- **[NEXT] Target activation lifecycle + target log instrumentation.**
-  Post-W7 review (2026-04-24) found that the current
-  `EventAttemptRecord.status` state machine is effectively binary in the
-  verification path: `planned → running → (attempted_only | verified |
-  blocked | failed)`. That collapses three distinct observation
-  milestones into one `verified` flip, which hides the failure-mode
-  where harness stimulus fired, the target extension activated, but
-  **no target-owned log/output-signal evidence was emitted**. Fix
-  lands in five incremental PRs, each self-contained + independently
-  testable:
-  1. **[LANDED 2026-04-24] Lifecycle vocabulary + validator.** Extended
-     `EventAttemptRecord.status` allowed values to
-     `planned | running | attempted_only | activation_seen |
-     target_log_seen | verified | blocked | failed` via the
-     `EVENT_ATTEMPT_LIFECYCLE_STATES` frozenset in
-     [`packages/analysis_contracts/contracts.py`](../packages/analysis_contracts/contracts.py)
-     and a Pydantic `field_validator` on `EventAttemptRecord.status`.
-     Transition graph documented as a module comment adjacent to the
-     constant. Re-exported through `packages.analysis_contracts.__init__`.
-     Coverage: parametrized acceptance test over every documented
-     state + rejection test for unknown values + runtime-emitter
-     coverage assertion in
-     [`tests/platform/contracts/test_analysis_fixture_baselines.py`](../tests/platform/contracts/test_analysis_fixture_baselines.py).
-  2. **[LANDED 2026-04-24] Emit intermediate transitions.**
-     `reconcile_event_attempts` in
-     [`executor/flows/playwright/health_reconciliation.py`](../executor/flows/playwright/health_reconciliation.py)
-     now upgrades non-harness attempts whose planner activation event
-     matches a `target_id`-scoped `ActivationEntry`: to `target_log_seen`
-     when at least one `log_streams` entry with
-     `is_target_extension=True` AND `extension_id == target_id`
-     correlates to the attempt, otherwise to `activation_seen`.
-     Harness attempts continue to route through
-     `_mark_unverified_harness_attempt` so they keep their
-     `harness_verification_unconfirmed` signal — the new states only
-     apply to target-side observation.
-     `attempt_has_runtime_evidence` in
-     [`executor/flows/playwright/health_runtime_facts.py`](../executor/flows/playwright/health_runtime_facts.py)
-     accepts both new states as runtime evidence so coverage rollups
-     do not regress. Coverage: 8 new tests across upgrade paths,
-     harness-exclusion guard, target-attribution requirement,
-     `extension_id` mismatch defense, 5-entry summary cap, and direct
-     `attempt_has_runtime_evidence` lifecycle-state assertion.
-  3. **[LANDED 2026-04-27 `c59762d`] exthost.log parser lifecycle markers.**
-     `_LIFECYCLE_MARKER_PATTERNS` added to
-     [`extension_host.py`](../executor/flows/playwright/runtime_capture/extension_host.py)
-     covering activate function entry/exit, command registration, and
-     provider registration. `ActivationEntry.marker_type` field
-     extended (default `""` preserves PR1+PR2 behavior). Five new
-     parser tests in
-     [`test_playwright_monitor_runtime.py`](../tests/executor/test_playwright_monitor_runtime.py).
-     Pydantic mirror + UI contract regen'd.
-  4. **[LANDED 2026-04-27 `c5e400b`] Deterministic `log_streams["target_extension_host"]`.**
-     `_assert_target_stream_invariant` build-path guard added to
-     [`monitor_lifecycle.py`](../executor/flows/playwright/monitor_lifecycle.py)
-     `_append_activation_log_entries` and `record_automation_event`;
-     serialization-time demote in
-     [`monitor_types.log_streams`](../executor/flows/playwright/monitor_types.py)
-     handles legacy/manual-construction leaks via one-shot warning +
-     `other_extension_host` reassignment.
-     New invariant test in
-     [`test_playwright_monitor_lifecycle.py`](../tests/executor/test_playwright_monitor_lifecycle.py).
-  5. **[LANDED 2026-04-27 `8453fb2`, ADR 0006 `b737529`] Target-owned output-signal capture.**
-     ADR 0006 selected Option (a). Harness-side hook in
-     [`extension.js`](../executor/flows/harness_extension/extension.js)
-     wraps `vscode.window.createOutputChannel` and emits each
-     append/appendLine via the new `emitHarnessEvent` helper in
-     [`markers.js`](../executor/flows/harness_extension/markers.js).
-     Python parser
-     [`output_signals.py`](../executor/flows/playwright/output_signals.py)
-     converts markers to `OutputSignalEvent` (new dataclass in
-     [`runtime_capture/events.py`](../executor/flows/playwright/runtime_capture/events.py));
-     attribution helper marks events within
-     `ATTRIBUTION_WINDOW_S=5.0` of a target activation as target-owned.
-     `_build_evidence_bundle` routes them to
-     `EvidenceEvent(kind="output_channel_appendline",
-     collector="harness_extension", actor="harness")`.
-     `target_extension_observed` extended with an OR clause for
-     target-attributed output signals. Five new tests in
-     [`test_output_signal_capture.py`](../tests/executor/test_output_signal_capture.py).
-     ADR 0006 §5 full conjunction tightening deferred (see "Deferred"
-     in REFACTOR_STATUS PR345 Complete section).
-
-  Once (1)-(5) are in, tighten the `target_extension_observed=true`
-  decision (`signal_policy.py`, `health_summary.py`): currently
-  derived from the activation-entry list alone, which mis-credits
-  background extensions whose activation coincidentally overlaps the
-  monitoring window. The tighter rule: target is observed **iff**
-  at least one attempt reached status ≥ `activation_seen` AND at
-  least one target-owned log or output-signal event exists on the
-  evidence chain. This removes a known false-positive class surfaced
-  during the W7 `sim-all` review.
-
-  Triggers for pulling this back: a `make sim-target` run that
-  reports `target_extension_observed=true` but contains zero
-  target-owned network / file / log / output events; a verification
-  that short-circuits because "activation == observation" is assumed.
-  Size: 1-2 weeks across five PRs. Depends on: PRs 1-2 landed
-  2026-04-24; PRs 3-5 still pending (PR 5 needs an ADR before code).
-  Blocks: no PoC gate, but every detection rule that reads
-  `target_extension_observed` gets sharper once this lands.
+- **[LANDED 2026-04-27] Target activation lifecycle + target log instrumentation.**
+  PR345 PRs 1-5 and ADR 0006 target output-channel capture are closed; full
+  commit/test evidence lives in `REFACTOR_STATUS.md` "PR345 Complete".
+  Remaining follow-ups only:
+  - Tighten the top-level `target_extension_observed=true` decision from the
+    current additive OR to the full conjunction: an attempt reached status ≥
+    `activation_seen` AND at least one target-owned log or output-signal event
+    exists on the evidence chain. ADR 0006 §5 records this as deferred because
+    baseline fixtures need churn.
+  - Run the Docker-based A1 canary structural diff smoke
+    (`make exec-up && make exec-run` against
+    `t1-a1-credential-read-to-network-canary`). This remains user-side because
+    the capture-pipeline regression risk only fully closes with a live executor
+    run.
 
 - **[LANDED 2026-04-24] Split `executor/flows/playwright/monitor_attribution.py`**
   into a dedicated `attribution/` subpackage. Implemented per the W7
@@ -577,8 +491,9 @@ REFACTOR_OPTIMIZATION.md §11.12" below.
   executor shell invocations (`REFACTOR_OPTIMIZATION.md §11.5` item 4).
 - **[PROMOTED → W8-6]** `ContentSample.value` secret redaction +
   ADR 0003 §6 addendum (`REFACTOR_OPTIMIZATION.md §11.5` item 6).
-- **[PROMOTED → W9-1]** ADR 0006 — Container packaging (paket mode vs
-  top-level) (`REFACTOR_OPTIMIZATION.md §11.6` item 1).
+- **[PROMOTED → W9-1]** Container-packaging ADR (number TBD; ADR 0008 if
+  next available) — paket mode vs top-level
+  (`REFACTOR_OPTIMIZATION.md §11.6` item 1).
 - **[PROMOTED → W9-2]** `executor/flows/playwright/signal_policy.py`
   485 LoC → `packages/analysis_engine/signals/policy.py` relocation +
   `sys.path.insert(0, _PROJECT_ROOT)` removal

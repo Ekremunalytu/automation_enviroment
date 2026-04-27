@@ -1,7 +1,8 @@
 # ADR 0007: Local Network Binding Discipline
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-04-25
+- Accepted: 2026-04-27 — promoted ahead of W8-7 implementation; no content changes vs the 2026-04-25 Proposed text.
 - Related: ADR 0001 (Single-Host Appliance), ADR 0002 (Threat Model §4 Trust Boundaries, §5 Analyst Operating Environment)
 
 ## Context

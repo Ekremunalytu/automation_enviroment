@@ -1,6 +1,6 @@
 # Documents Guide
 
-`Last Updated: 2026-04-25`
+`Last Updated: 2026-04-27`
 
 This folder is intentionally split into a small canonical core plus a few
 specialized reference docs. Do not preload the entire folder unless the task
@@ -19,24 +19,31 @@ Security posture (threat model, detection taxonomy, malicious fixture policy,
 package-boundary charter, local network binding) is fixed by ADRs 0002-0005
 plus ADR 0007. Those ADRs already govern the current detection surface under
 `packages/`, `extensions/malicious/`, and `tests/security/`. ADR 0007 is
-**Proposed** as of `2026-04-25` and its W8-7 implementation
-(`REFACTOR_OPTIMIZATION.md` §11.5) is the gate that turns its loopback /
+**Accepted** as of `2026-04-27`, but its W8-7 implementation
+(`REFACTOR_OPTIMIZATION.md` §11.5) is still the gate that turns its loopback /
 `EXTRACE_ALLOW_LAN` discipline from prose into enforced configuration.
 
 ## Agent Shortcut
 
 - `AGENT_CONTEXT.md`
-  - one-page quickstart for coding agents after reading root `AGENTS.md`
+  - thin task-routing map for coding agents after reading root `AGENTS.md`
+- `agent-lanes/`
+  - lazy-load task-lane details; open one lane only after
+    `AGENT_CONTEXT.md`
 
 ## Read First
 
 Read these in order for most code changes:
 
-1. `ARCHITECTURE.md`
+1. `AGENT_CONTEXT.md`
+   - choose the task lane and avoid preloading the whole doc set
+2. `agent-lanes/<matching-lane>.md`
+   - source files, invariants, tests, and shortcuts for the touched area
+3. `ARCHITECTURE.md`
    - system shape, boundaries, request flows
-2. `PROJECT_STRUCTURE.md`
+4. `PROJECT_STRUCTURE.md`
    - where new code should live
-3. `TESTING.md`
+5. `TESTING.md`
    - test layout, fixtures, and commands
 
 ## Load Only If The Task Needs It
@@ -107,8 +114,8 @@ These are intentionally short and should not replace the canonical docs above:
 - `adrs/0007-local-network-binding.md`
   - loopback-by-default + `EXTRACE_ALLOW_LAN` opt-in + CORS allow-list
     - CDP behind `debug` profile; encodes the ADR 0001 / ADR 0002 §5
-    trusted-environment assumption in configuration. Proposed
-    2026-04-25; W8-7 implementation scheduled.
+    trusted-environment assumption in configuration. Accepted
+    2026-04-27; W8-7 implementation still pending in code/config/tests.
 - `automation_todo.md`
   - thin pull-next snapshot pointing at `POST_POC_BACKLOG.md` for the
     canonical deferred-work list (use the backlog as source of truth)
