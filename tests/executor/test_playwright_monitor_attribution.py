@@ -725,6 +725,111 @@ def test_reconcile_event_attempts_upgrades_to_target_log_seen_when_target_logs_p
     assert "log evidence observed" in attempts[0].result_details
 
 
+def test_reconcile_event_attempts_activation_log_entry_alone_keeps_activation_seen() -> (
+    None
+):
+    """PR345 followup: an ActivationEntry mirrored into target_extension_host
+    must NOT count as separate target log evidence.
+
+    Without the kind=='activation' guard in _target_log_stream_summaries,
+    every target activation would auto-upgrade to ``target_log_seen`` because
+    ``_append_activation_log_entries`` writes the activation into the stream
+    with kind="activation" + is_target_extension=True. Lifecycle expects an
+    additional, post-activation log/output event before the upgrade.
+    """
+    report = monitor.ActivationReport(
+        activated=[
+            monitor.ActivationEntry(
+                extension_id="publisher.tool",
+                activation_event="onCommand:run",
+                timestamp="2026-01-01 10:00:00.000",
+                source="log",
+            )
+        ],
+        log_entries=[
+            # Mirrors what _append_activation_log_entries produces — kind="activation".
+            monitor.LogStreamEntry(
+                timestamp="2026-01-01 10:00:00.000",
+                stream="target_extension_host",
+                kind="activation",
+                message="Activation publisher.tool via onCommand:run",
+                extension_id="publisher.tool",
+                activation_event="onCommand:run",
+                is_target_extension=True,
+            )
+        ],
+        target_extension_id="publisher.tool",
+        event_attempts=[
+            monitor.EventAttemptRecord(
+                attempt_id="seen",
+                declared_event="onCommand:run",
+                activation_event="onCommand:run",
+                event_family="onCommand",
+                attempted_passes=["ui_first_user_session"],
+                capability_tags=["chat"],
+                verification_contract=["target_runtime_delta"],
+            )
+        ],
+    )
+
+    attempts = monitor.reconcile_event_attempts(report)
+
+    assert attempts[0].status == "activation_seen"
+    assert attempts[0].verification_status == "activation_seen"
+
+
+def test_reconcile_event_attempts_target_output_signal_upgrades_to_target_log_seen() -> (
+    None
+):
+    """PR345 followup: a target-attributed OutputSignalEvent counts as
+    post-activation evidence and upgrades the attempt to ``target_log_seen``.
+
+    Per ADR 0006 §5 the output-channel signal is exactly the kind of
+    "target emitted something after activation" milestone target_log_seen
+    was meant to capture.
+    """
+    report = monitor.ActivationReport(
+        activated=[
+            monitor.ActivationEntry(
+                extension_id="publisher.tool",
+                activation_event="onCommand:run",
+                timestamp="2026-01-01 10:00:00.000",
+                source="log",
+            )
+        ],
+        output_signal_events=[
+            monitor.OutputSignalEvent(
+                timestamp="2026-01-01T10:00:00.250",
+                rel_time_s=0.25,
+                channel="Tool Output",
+                text="Boot complete",
+                extension_id="publisher.tool",
+                activation_event="onCommand:run",
+                is_target_extension_event=True,
+                attribution_status="near_target_activation",
+            )
+        ],
+        target_extension_id="publisher.tool",
+        event_attempts=[
+            monitor.EventAttemptRecord(
+                attempt_id="output-seen",
+                declared_event="onCommand:run",
+                activation_event="onCommand:run",
+                event_family="onCommand",
+                attempted_passes=["ui_first_user_session"],
+                capability_tags=["chat"],
+                verification_contract=["target_runtime_delta"],
+            )
+        ],
+    )
+
+    attempts = monitor.reconcile_event_attempts(report)
+
+    assert attempts[0].status == "target_log_seen"
+    assert attempts[0].verification_status == "target_log_seen"
+    assert any("output_channel(Tool Output)" in item for item in attempts[0].evidence)
+
+
 def test_reconcile_event_attempts_keeps_attempted_only_when_no_activation_match() -> (
     None
 ):

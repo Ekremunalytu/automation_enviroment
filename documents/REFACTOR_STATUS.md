@@ -730,12 +730,47 @@ ADR 0006 + PR5 landed 2026-04-27 on branch `feat/pr345-completion`.
 - [x] `scripts/demo_acceptance.py` → `DEMO GREEN`
 - [x] `REFACTOR_STATUS.md` "PR345 Complete" closure block (this section)
 
+### Followup landed (2026-04-27, post-PR345)
+
+Codex review surfaced two semantic gaps in the PR345 surface; both
+closed in a single follow-up commit and are reflected here.
+
+- **Bug 1 — output_signal_events were not lifecycle evidence.** PR5
+  wired Output channel writes into `evidence_events` and into the
+  `target_extension_observed` OR clause, but
+  `health_reconciliation._target_log_stream_summaries` only read
+  `log_streams`, so an attempt with a target-owned output signal but
+  no separate log entry stayed at `activation_seen` instead of
+  upgrading to `target_log_seen`. Now harvested.
+- **Bug 2 — activation entries were collapsing the lifecycle.**
+  Every target activation is mirrored into `target_extension_host`
+  by `_append_activation_log_entries` with `kind="activation"`, and
+  reconciliation didn't ignore `kind="activation"` rows — so
+  any target activation auto-upgraded to `target_log_seen`,
+  defeating the `activation_seen` ↔ `target_log_seen` distinction
+  PR2 introduced. `_target_log_stream_summaries` now skips
+  `kind == "activation"`.
+- **Doc — ADR 0006 §5 was over-promising.** §5 read "after PR3-PR5
+  land, the rule tightens to (conjunction)", but the conjunction at
+  the `target_extension_observed` level is deferred. ADR rewritten
+  to split the lifecycle landing (done in PR5 + followup) from the
+  top-level conjunction tightening (deferred), with a 2026-04-27
+  Amended note in the header.
+
+New tests:
+`tests/executor/test_playwright_monitor_attribution.py` —
+`test_reconcile_event_attempts_activation_log_entry_alone_keeps_activation_seen`,
+`test_reconcile_event_attempts_target_output_signal_upgrades_to_target_log_seen`.
+389 passed, 6 skipped on the executor + security + contracts lane;
+`make test-security` 45 passed; demo acceptance `DEMO GREEN`.
+
 ### Deferred
 
-- ADR 0006 §5 full conjunction tightening of
-  `target_extension_observed` (currently the additive OR clause only);
-  full `(activation_seen AND (target_log OR target_output_signal))` rule
-  needs broad fixture/tests churn. Post-W8 follow-up.
+- ADR 0006 §5 full conjunction tightening of the **top-level**
+  `target_extension_observed` predicate (lifecycle-level evidence
+  consumption is closed; the property still uses additive OR).
+  Full `(activation_seen AND (target_log OR target_output_signal))`
+  rule needs broad fixture/tests churn. Post-W8 follow-up.
 - Docker-based A1 canary structural diff smoke (`make exec-up && make
   exec-run` against `t1-a1-credential-read-to-network-canary`) remains
   user-side; capture pipeline regression risk only fully closed by a

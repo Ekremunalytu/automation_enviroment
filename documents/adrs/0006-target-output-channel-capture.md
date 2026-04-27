@@ -2,6 +2,11 @@
 
 - Status: Accepted
 - Date: 2026-04-27
+- Amended: 2026-04-27 — §5 wording softened: PR5 establishes the
+  evidence surface and wires it into ``EventAttemptRecord`` lifecycle
+  reconciliation, but the full ``target_extension_observed``
+  conjunction tightening is filed as a follow-up so baseline fixtures
+  can stabilize first.
 - Related: ADR 0002 (Threat Model §4 Trust Boundaries), ADR 0003
   (Detection Taxonomy §4 Attribution, §5 Verdict Rollup), ADR 0005
   (Packages Charter)
@@ -148,27 +153,50 @@ boundary, not by the harness `collector` field. The harness collector
 is a marker of who *emitted* the EvidenceEvent, not who *triggered*
 the underlying API call.
 
-### 5. Tightened `target_extension_observed`
+### 5. Lifecycle and `target_extension_observed` consequences
 
-Before this ADR, `target_extension_observed=true` was derived from
-the activation-entry list alone (`signal_policy.py`). After PR345's
-PR3-PR5 land, the rule tightens to:
+PR5 contributes evidence in two places:
 
-```text
-target_extension_observed = (
-    has_event_attempt_status_at_least("activation_seen")
-    AND (
-        has_target_owned_log_entry
-        OR has_target_owned_output_signal_event
-    )
-)
-```
+- **Lifecycle reconciliation (landed with PR5).**
+  ``health_reconciliation._target_log_stream_summaries`` excludes
+  ``kind == "activation"`` log entries (the activation entry alone is
+  not a separate post-activation signal) and harvests
+  ``ActivationReport.output_signal_events`` whose
+  ``is_target_extension_event=True`` as a second evidence source.
+  Result: an ``EventAttemptRecord`` upgrades from
+  ``activation_seen`` to ``target_log_seen`` when, **on top of** a
+  matching activation entry, the report carries either a non-activation
+  target-owned log entry or a target-attributed output-channel event.
 
-This removes the false-positive class where an extension activated
-during the monitoring window but never emitted any target-owned
-runtime signal. It is a downstream consequence of PR5 wiring up the
-new EvidenceEvent kind, not a separate decision; it is stated here
-because the ADR's full effect is the conjunction.
+- **`target_extension_observed` (full conjunction tightening
+  deferred).** The eventual conjunction form is:
+
+  ```text
+  target_extension_observed = (
+      has_event_attempt_status_at_least("activation_seen")
+      AND (
+          has_target_owned_log_entry
+          OR has_target_owned_output_signal_event
+      )
+  )
+  ```
+
+  As of 2026-04-27, ``ActivationReport.target_extension_observed``
+  carries an **additive OR** clause for target-attributed output
+  signals (alongside the legacy activation/running/file/network
+  predicates). The full conjunction ``activation_seen AND
+  (log OR output_signal)`` is deferred so baseline fixtures
+  (``ms-python.python``, the chat/theme benign baselines, and the
+  T1 canaries) can be re-validated against the stricter rule without
+  forcing a flag-day churn. The follow-up is tracked in
+  ``POST_POC_BACKLOG.md`` as the "ADR 0006 §5 conjunction tightening"
+  entry; ``REFACTOR_STATUS.md`` PR345 closure section also flags it.
+
+This staging removes the false-positive class where an extension
+activated during the monitoring window but never emitted any
+target-owned runtime signal — but does so in two steps: PR5
+upgrades the lifecycle status, and the follow-up upgrades the
+top-level observation predicate.
 
 ### 6. Dockerfile harness checksum re-generation
 
