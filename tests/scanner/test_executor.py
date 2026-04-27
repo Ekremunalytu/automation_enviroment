@@ -20,6 +20,7 @@ from executor.host import (
     reset_executor_sandbox_state,
     run_playwright_automation,
 )
+from packages.marketplace_identity import MarketplaceIdentityError
 
 # ---------------------------------------------------------------------------
 # _docker_exec
@@ -162,6 +163,17 @@ def test_install_extension_success(mock_exec: MagicMock) -> None:
     assert "code" in call_cmd
     assert "--install-extension" in call_cmd
     assert any("pub.ext-1.0.0.vsix" in arg for arg in call_cmd)
+
+
+@patch("executor.host._docker_exec")
+def test_install_extension_rejects_adversarial_identity_before_docker_exec(
+    mock_exec: MagicMock,
+) -> None:
+    """Invalid marketplace identity must fail before docker exec sees a path."""
+    with pytest.raises(MarketplaceIdentityError):
+        install_extension_in_executor("../etc", "ext", "1.0.0")
+
+    mock_exec.assert_not_called()
 
 
 @patch("executor.host._docker_exec")

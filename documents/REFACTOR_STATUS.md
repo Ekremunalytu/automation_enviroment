@@ -1,6 +1,6 @@
 # Refactor Status
 
-`Last Updated: 2026-04-27 (W8-1 landed; W8-0 capture-pipeline + automation_health reason propagation gap fixes; main consolidation recorded)`
+`Last Updated: 2026-04-27 (W8-2 marketplace identity helper landed; reviewer-feedback gaps recorded; live ms-python degraded-health mapping added)`
 
 This is the active status board for the Week 1-4 stabilization work and the
 pre-W6 cleanup handoff. Use this file for current closure state; use
@@ -1128,12 +1128,13 @@ different toolchain, deserves its own UI-only branch); gap 6
 
 | Lane | Outcome |
 |---|---|
-| `pytest tests/marketplace_identity -v` | 29 passed (new helper suite). |
-| `pytest tests/architecture -v` | 6 passed (3 new — production scan + 2 self-tests). |
-| `pytest tests/workflows/marketplace tests/marketplace_identity tests/executor tests/architecture -v` | 452 passed. |
+| `.venv/bin/pytest tests/marketplace_identity tests/architecture tests/workflows/marketplace -v` | 171 passed, including the helper suite, architecture scan, and marketplace workflow call-site coverage. |
+| `.venv/bin/pytest tests/executor -v` | 284 passed. |
+| `.venv/bin/pytest tests/platform/storage/test_analysis_jobs.py -v` | 16 passed, including terminal-state cancel race coverage. |
 | `pytest tests/workflows/marketplace/test_router.py -k cancel -v` | 7 passed (3 new parametrize cases). |
 | `pytest tests/workflows/marketplace/test_analysis_execution_helpers.py -k heartbeat -v` | 6 passed (1 new). |
-| `pytest --collect-only -m "smoke"` | 3 smoke tests collected (gap 1 verified). |
+| `.venv/bin/pytest tests/workflows/marketplace/test_job_service.py tests/workflows/marketplace/test_triggers.py tests/scanner/test_executor.py -v` | 75 passed; guards the remaining direct call sites against adversarial identity before report-name, trigger-file, or docker-exec side effects. |
+| `.venv/bin/pytest --collect-only -m "smoke"` | 3 smoke tests collected (gap 1 verified). |
 
 Docker-based `make sim-target` smoke remains user-side; helper does
 not affect runtime behavior of an already-validated extension identity.

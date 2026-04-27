@@ -383,8 +383,11 @@ REFACTOR_OPTIMIZATION.md §11.12" below.
   regressions with an AST-based three-token adjacency scan; `tests/`
   and `packages/marketplace_identity/` are allowlisted, file-level
   pragma `# arch-allow: marketplace-identity-concat` is the escape
-  hatch. See `REFACTOR_STATUS.md` "W8-2 Landed" section for verification
-  matrix.
+  hatch. Follow-up call-site tests pin `build_report_name`,
+  `write_trigger_file`, and `install_extension_in_executor` so
+  adversarial identity fails before report-name, trigger-file, or
+  docker-exec side effects. See `REFACTOR_STATUS.md` "W8-2 Landed"
+  section for verification matrix.
 - **[PROMOTED → W8-5]** Activation-report router path-traversal
   regex hardening + `appcore/contracts/validators.py::valid_extension_slug`
   merkezi helper (`REFACTOR_OPTIMIZATION.md §11.5` item 5). W8-2'de
@@ -809,6 +812,55 @@ followups (codex-automation-3, codex-automation-5) as live evidence.
 The capability gap below is recorded for the next iteration; it is
 genuinely untracked and orthogonal to the captured fixes shipped in
 the same session.
+
+### How to read the current `ms-python.python` `degraded` health
+
+The 2026-04-27 18:14 `ms-python.python` report
+(`output/activation_report_ms-python.python-2026.5.2026042602-f8d981323862.json`)
+is not a total automation failure and is not a malicious verdict by
+itself. The target extension was observed, the trigger plan loaded and
+applied, the target stream was present,
+`automation_health.target_activation_count=1`,
+`failed_scenarios=[]`, `skipped_scenarios=[]`, and `run_quality=medium`.
+The report still shows `automation_health.status="degraded"` because
+three partial-evidence reason classes are present at the same time:
+
+- `verification_gap_present`: six capabilities were attempted, but
+  only four were verified. The remaining gap is `debug` and
+  `terminal_tasks`; this maps to `[FOLLOWUP capability-verification-gap]`
+  below.
+- `official_unresolved_present`: official activation coverage was
+  `declared=21`, `verified=12`, `attempted_only=9`, `unresolved=9`.
+  This overlaps with the capability gap but is broader because
+  individual official events such as `onLanguageModelTool:*`,
+  `onLanguage:python`, debug, and terminal triggers must either be
+  verified or explicitly classified as unsupported / non-actionable.
+- `harness_verification_unconfirmed_present`: eight harness-routed
+  attempts carried `failure_reason_code="harness_verification_unconfirmed"`.
+  This is separate from the capability gap: adding coverage stimulus
+  without confirming the harness completion trace would hide the symptom
+  rather than prove the attempt end-to-end.
+
+Do not treat the baseline as healthy by changing verification labels
+alone. A clean closure for this specific degraded state requires all of:
+
+- `verification_gap == 0`
+- `official_event_coverage.unresolved == 0`, or unsupported official
+  events are separated into an explicit unsupported / non-actionable
+  class that does not masquerade as verified coverage
+- no `event_attempts[].failure_reason_code ==
+  "harness_verification_unconfirmed"`
+- existing execution-health gates stay true: target observed, trigger
+  loaded/applied, target stream present, and no failed or skipped
+  scenarios
+
+Roadmap mapping: the `debug` + `terminal_tasks` capability gap is W13
+test-expansion material; the broader official-event closure should be
+handled in the same baseline-health pass if W13 claims `ms-python.python`
+as a healthy benign fixture. Repeated
+`harness_verification_unconfirmed` attempts should be pulled back
+separately as W8-0 harness confirmation work, not folded into coverage
+label tweaks.
 
 ### [FOLLOWUP capability-verification-gap] `debug` + `terminal_tasks` capability verification
 

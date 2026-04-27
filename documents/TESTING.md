@@ -17,6 +17,9 @@ tests/
   test_health.py
   architecture/
     test_import_graph.py
+    test_marketplace_identity_concat.py
+  marketplace_identity/
+    test_identity.py
   executor/
     conftest.py
     test_container_dockerfile.py
@@ -87,8 +90,10 @@ tests/
       test_analysis_execution_helpers.py
       test_analysis_planner.py
       test_client.py
+      test_job_service.py
       test_router.py
       test_triggers.py
+      test_vsix_hardening.py
 ```
 
 Note on executor monitor coverage: `test_playwright_monitor.py` was split
@@ -184,8 +189,9 @@ Notes:
   expressions each time.
 - `make test-local` starts `postgres_test` and then runs the default Python
   suite (`not smoke`), which includes DB-backed tests.
-- `make test-ci` also builds and waits for the executor container so the smoke
-  path can run.
+- `make test-ci` builds and waits for the executor container, then overrides
+  the default smoke exclusion with `pytest -m "smoke or not smoke"` so the
+  smoke acceptance path actually runs.
 - `make test-security` currently runs the malicious-fixture hygiene and PoC
   canary-coverage contract tests under `tests/security/`.
 - `npm run test:smoke` maps to `ui/smoke/run-smoke.mjs`.
