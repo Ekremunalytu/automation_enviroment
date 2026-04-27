@@ -1048,6 +1048,96 @@ and W8-1 all landed, the local feature branches were consolidated into
   `origin/dependabot/npm_and_yarn/ui/npm_and_yarn-754666cf41` was not
   deleted.
 
+## W8-2 Landed — Marketplace Identity Helper + Reviewer-Feedback Gap Closure (2026-04-27)
+
+W8-2 (`REFACTOR_OPTIMIZATION.md §11.5` item 2) closes on
+`feat/w8-2-and-reviewer-feedback-gaps` together with four
+reviewer-feedback test-coverage gaps surfaced by the live
+`make sim-target` smoke and the Codex 2026-04-27 automation review.
+
+### W8-2 — Safe marketplace identity helper
+
+New
+[`packages/marketplace_identity/`](../packages/marketplace_identity/)
+exposes `safe_marketplace_slug(publisher, name, version) -> str` which
+validates each token against
+`MARKETPLACE_SLUG_TOKEN_RE = ^[A-Za-z0-9][-_.A-Za-z0-9]{0,64}$` and
+returns the canonical `publisher.name-version` form. On the first
+offending token it raises `MarketplaceIdentityError(field, value, reason)`
+so callers can surface a structured error.
+
+The package lives under `packages/` (not `workflows/marketplace/`) because
+`executor/host.py:153-156` is one of the migration call sites and
+`tests/architecture/test_import_graph.py:9-11` bans `executor/` from
+importing `workflows/`. Both `workflows/` and `executor/` are allowed to
+import `packages/`.
+
+`MARKETPLACE_SLUG_TOKEN_RE` is the canonical name pinned at this
+landing; W8-5 (`REFACTOR_OPTIMIZATION.md §11.5` item 5) will land
+`appcore/contracts/validators.py::valid_extension_slug` re-importing the
+same regex constant so the two helpers cannot drift.
+
+Migrated production call sites (six total, one of them surfaced by the
+new architecture detector and not in the original W8-2 plan):
+
+- `workflows/marketplace/client.py:103-115` (`get_vsix_path`,
+  `_artifact_name`, `_extension_dir`).
+- `packages/analysis_planner/io.py:22` (`write_trigger_file`).
+- `executor/host.py:153-156` (`install_extension_in_executor`).
+- `workflows/marketplace/job_service.py:92-94` (`build_report_name` —
+  not enumerated in the plan; surfaced by the architecture lane and
+  migrated alongside).
+
+Left untouched (intentional): `workflows/marketplace/analysis_execution.py:296`
+emits `f"{request.publisher}.{request.name}"` (no version, two tokens)
+for the Playwright `--target-extension-id` argv. The architecture-test
+regression gate targets the three-token slug pattern, so this site is
+out of scope; the W8 ADR closeout will revisit whether a sibling
+`safe_extension_id` helper is warranted.
+
+### W8-2 — Architecture regression gate
+
+New
+[`tests/architecture/test_marketplace_identity_concat.py`](../tests/architecture/test_marketplace_identity_concat.py)
+walks every f-string under `appcore/`, `executor/`, `workflows/`, and
+`packages/` (excluding `packages/marketplace_identity/`) and flags the
+`{publisher} . {name} - {version}` adjacency pattern. A regression
+introduces a violation that fails the architecture lane with a `file:line`
+list and a hint pointing at the helper or at the
+`# arch-allow: marketplace-identity-concat` pragma escape hatch.
+
+Two detector self-tests (`test_detector_flags_a_synthetic_violation` +
+`test_detector_ignores_unrelated_fstring`) pin the AST shape so a future
+Python upgrade that drifts `JoinedStr` layout cannot silently turn the
+scan into a no-op.
+
+### Reviewer-feedback test-coverage gaps closed in the same branch
+
+| Gap | Source | Lands as | Coverage |
+|---|---|---|---|
+| `make test-ci` smoke lane mismatch (gap 1) | `[FOLLOWUP codex-automation-7]` | Makefile + `pyproject.toml` annotation | `test-ci` now invokes `pytest -m "smoke or not smoke"` so the 3 smoke tests fire (previously 0). |
+| `docker exec -it` non-interactive cleanup (gap 3) | `[FOLLOWUP codex-automation-8]` | `Makefile` six target swaps + `make help` blurb | `sim-all`/`sim-target`/`sim-demo`/`sim-list`/`sim-run`/`exec-run` now use `-i`; `exec-shell` keeps `-it`. |
+| Cancel-after-terminal-status race (gap 2) | `[FOLLOWUP simulation-progress-cancel]` | Parametrized router test (`completed`/`failed`/`cancelled`) + parametrized CRUD test | `tests/workflows/marketplace/test_router.py` cancel suite 7 passed (3 new); `tests/platform/storage/test_analysis_jobs.py` parametrize covers all three terminal states. |
+| Heartbeat 30s→5s load verification (gap 5) | `[FOLLOWUP simulation-progress-cancel]` | New `test_run_monitoring_heartbeat_per_tick_load_is_constant_under_5s_interval` | Asserts 1:1 ratio between payload reads and cancel polls per tick over a 6-tick run with ±2 jitter window. A regression that adds an extra IO inside the loop body surfaces as 2× growth. |
+
+Excluded by scope: gap 4 (UI/Jest cancel-during-completion race —
+different toolchain, deserves its own UI-only branch); gap 6
+(capability-verification-gap — explicitly W13-targeted, premature here).
+
+### Verification
+
+| Lane | Outcome |
+|---|---|
+| `pytest tests/marketplace_identity -v` | 29 passed (new helper suite). |
+| `pytest tests/architecture -v` | 6 passed (3 new — production scan + 2 self-tests). |
+| `pytest tests/workflows/marketplace tests/marketplace_identity tests/executor tests/architecture -v` | 452 passed. |
+| `pytest tests/workflows/marketplace/test_router.py -k cancel -v` | 7 passed (3 new parametrize cases). |
+| `pytest tests/workflows/marketplace/test_analysis_execution_helpers.py -k heartbeat -v` | 6 passed (1 new). |
+| `pytest --collect-only -m "smoke"` | 3 smoke tests collected (gap 1 verified). |
+
+Docker-based `make sim-target` smoke remains user-side; helper does
+not affect runtime behavior of an already-validated extension identity.
+
 ## Week 5 Start Rule
 
 Week 5 begins only after the Week 4 exit criteria above are green. Detection

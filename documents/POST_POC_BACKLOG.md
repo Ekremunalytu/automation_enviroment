@@ -335,15 +335,25 @@ REFACTOR_OPTIMIZATION.md §11.12" below.
   now juggles cancel polling, on_cancel firing, JSON file reads, scenario-
   trace counting, and emit. Lift into a `MonitoringHeartbeat` helper so
   the trace-counting branch can be unit-tested in isolation.
-- **[FOLLOWUP simulation-progress-cancel] Cancel-after-finish race test.**
-  Add a unit test asserting `cancel_job` called after the job has reached
-  a terminal status server-side returns 409 (covered by `JobNotCancellableError`,
-  but no explicit test for the in-flight race).
-- **[FOLLOWUP simulation-progress-cancel] Verify heartbeat 30 s → 5 s
-  load.** Interval was tightened in
-  [`analysis_execution.py:82`](../workflows/marketplace/analysis_execution.py)
-  for cancel responsiveness; confirm executor + DB absorb 6× more ticks
-  on long runs (read report JSON + open DB session per tick).
+- **[LANDED 2026-04-27] [FOLLOWUP simulation-progress-cancel] Cancel-after-finish race test.**
+  Closed on `feat/w8-2-and-reviewer-feedback-gaps`. Both the router
+  and CRUD lanes now parametrize the `JobNotCancellableError` surface
+  across all three terminal statuses (`completed`, `failed`,
+  `cancelled`). Router test
+  [`test_cancel_analysis_job_terminal_returns_409`](../tests/workflows/marketplace/test_router.py)
+  asserts 409 with the offending status preserved in the detail; CRUD
+  test
+  [`test_cancel_job_on_terminal_status_raises_not_cancellable`](../tests/platform/storage/test_analysis_jobs.py)
+  drives each terminal state through `complete_job` / `fail_job` /
+  `cancel_job` and verifies the persisted snapshot is unchanged after
+  the second cancel attempt.
+- **[LANDED 2026-04-27] [FOLLOWUP simulation-progress-cancel] Verify heartbeat 30 s → 5 s
+  load.** Closed on `feat/w8-2-and-reviewer-feedback-gaps`. New
+  [`test_run_monitoring_heartbeat_per_tick_load_is_constant_under_5s_interval`](../tests/workflows/marketplace/test_analysis_execution_helpers.py)
+  asserts one `load_report_payload` read and one `cancel_check` poll per
+  tick (1:1 ratio) and pins total tick count to a 6 ± 2 jitter window. A
+  regression that adds an extra IO inside the loop body surfaces as 2×
+  growth on the ratio assertion.
 - `workflows/marketplace/analysis_service._open_job_session` → move the
   `SessionLocal` import back to module top (7.1.2). Currently inlined to
   break a startup import cycle; revisit after the cycle source is split.
@@ -360,13 +370,26 @@ REFACTOR_OPTIMIZATION.md §11.12" below.
 
 ## Workflow / platform cleanups (promoted to W8-W10)
 
-- **[PROMOTED → W8-2]** `safe_marketplace_slug` helper + architecture-test
-  enforcement. `workflows/marketplace/client.py:94-103` raw
-  publisher/name/version path concat bulgusu
-  (`REFACTOR_OPTIMIZATION.md §11.5` item 2).
+- **[LANDED 2026-04-27]** `safe_marketplace_slug` helper + architecture-test
+  enforcement (W8-2). New `packages/marketplace_identity/` exposes
+  `safe_marketplace_slug(publisher, name, version)` plus the canonical
+  `MARKETPLACE_SLUG_TOKEN_RE = ^[A-Za-z0-9][-_.A-Za-z0-9]{0,64}$`
+  constant. Six call sites migrated
+  (`workflows/marketplace/client.py:103-115`,
+  `packages/analysis_planner/io.py:22`, `executor/host.py:153-156`, plus
+  `workflows/marketplace/job_service.py::build_report_name` surfaced by
+  the new architecture detector). New
+  `tests/architecture/test_marketplace_identity_concat.py` blocks future
+  regressions with an AST-based three-token adjacency scan; `tests/`
+  and `packages/marketplace_identity/` are allowlisted, file-level
+  pragma `# arch-allow: marketplace-identity-concat` is the escape
+  hatch. See `REFACTOR_STATUS.md` "W8-2 Landed" section for verification
+  matrix.
 - **[PROMOTED → W8-5]** Activation-report router path-traversal
   regex hardening + `appcore/contracts/validators.py::valid_extension_slug`
-  merkezi helper (`REFACTOR_OPTIMIZATION.md §11.5` item 5).
+  merkezi helper (`REFACTOR_OPTIMIZATION.md §11.5` item 5). W8-2'de
+  pinlenen `packages.marketplace_identity.MARKETPLACE_SLUG_TOKEN_RE`
+  re-import edilir; W8-5 yalnızca Pydantic v2 wrapper ekler.
 
 ## UI
 
@@ -708,7 +731,18 @@ under VNC.
 - **Size:** medium (~250 LoC + 6 tests across `wait_helpers`,
   `vscode`, and `ScenarioTrace` plumbing).
 
-### [FOLLOWUP codex-automation-7] `make test-ci` smoke lane mismatch
+### [LANDED 2026-04-27] [FOLLOWUP codex-automation-7] `make test-ci` smoke lane mismatch
+
+Closed on `feat/w8-2-and-reviewer-feedback-gaps`. `Makefile`'s `test-ci`
+target now invokes `pytest -m "smoke or not smoke" --cov ...`, overriding
+the global `addopts = ["-m", "not smoke"]` in `pyproject.toml`. A
+documenting comment in `pyproject.toml` and a banner line in the
+Makefile target spell out the override. `pytest --collect-only -m
+"smoke"` reports the 3 smoke tests under
+`tests/smoke/test_marketplace_analysis_smoke.py`; previously they were
+silently deselected from `make test-ci`.
+
+Original entry (preserved for audit trail):
 
 [`pyproject.toml`](../pyproject.toml) `addopts` includes
 `-m "not smoke"` as a default, which skips smoke-marked tests on
@@ -735,7 +769,16 @@ claims to gate on.
   not depend on W8-W13 sequencing.
 - **Size:** small (~10 LoC Makefile + 1 doc edit).
 
-### [FOLLOWUP codex-automation-8] `docker exec -it` non-interactive cleanup
+### [LANDED 2026-04-27] [FOLLOWUP codex-automation-8] `docker exec -it` non-interactive cleanup
+
+Closed on `feat/w8-2-and-reviewer-feedback-gaps`. `Makefile` swapped
+`-it` to `-i` on the six non-interactive simulator/exec targets
+(`exec-run`, `sim-all`, `sim-target`, `sim-demo`, `sim-list`,
+`sim-run`); `exec-shell` keeps `-it` since it is genuinely interactive.
+`make help` blurb spells out the split so future contributors see the
+TTY discipline at a glance.
+
+Original entry (preserved for audit trail):
 
 The `Makefile` simulator targets `sim-all`, `sim-target`,
 `sim-demo`, `sim-list`, `sim-run`, and `exec-run` all use

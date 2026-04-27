@@ -1771,7 +1771,13 @@ command-injection vektörleri içeriyor.
      constraint; validator helper
      `appcore/contracts/validators.py::valid_extension_slug` merkezi
      hale getirilir (yeni W8-2 `safe_marketplace_slug` ile aynı
-     regex disiplini paylaşır).
+     regex disiplini paylaşır). **W8-5 regex'i kendi başına
+     tanımlamaz** — W8-2'de pinlenen
+     `packages.marketplace_identity.MARKETPLACE_SLUG_TOKEN_RE`
+     constant'ını re-import eder; böylece iki helper drift edemez.
+     Pydantic v2 `@field_validator` wrapper'ı `valid_extension_slug`
+     fonksiyonunu üretir; FastAPI `Path(..., regex=...)` aynı
+     constant'ı `.pattern` üzerinden kullanır.
    - **Test:**
      `tests/workflows/activation_reports/test_router_path_traversal.py`
      — 6 adversarial path case.
@@ -1863,8 +1869,15 @@ ADR rewrites the `.env.example` notice but does not auto-rotate).
       `docker-compose.yml` + `appcore/api/config.py` defaultları
       `127.0.0.1` / allow-list CORS; `EXTRACE_ALLOW_LAN=1` opt-in
       yolu doğrulanmış; `documents/runbooks/lan-exposure.md` live
-- [ ] `workflows/marketplace/identity.py` + helper live; raw concat
-      architecture test bloke ediyor
+- [x] `packages/marketplace_identity/` + `safe_marketplace_slug` helper
+      live (LANDED 2026-04-27 on `feat/w8-2-and-reviewer-feedback-gaps`);
+      raw concat architecture test
+      `tests/architecture/test_marketplace_identity_concat.py` bloke
+      ediyor. Exit checkbox güncellemesi: helper plan'da
+      `workflows/marketplace/identity.py` olarak yazılmıştı; architecture
+      test'i (`executor/` ↛ `workflows/`) kuralı nedeniyle
+      `packages/marketplace_identity/` altında otururdu — gerçek konum
+      bu path'tir, W8-5 import bu path'ten yapar.
 - [ ] `tests/architecture/test_default_bindings.py` green
       (varsayılan settings `0.0.0.0` üretmiyor; compose `ports:`
       entries `127.0.0.1:` prefix'li veya `debug` profile altında)
