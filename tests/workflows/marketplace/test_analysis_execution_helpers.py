@@ -226,6 +226,72 @@ def test_run_monitoring_heartbeat_emits_on_cancel_only_once() -> None:
     assert on_cancel_calls["count"] == 1
 
 
+def test_run_monitoring_heartbeat_per_tick_load_is_constant_under_5s_interval() -> None:
+    """Heartbeat tick interval was tightened from 30 s → 5 s
+    (`analysis_execution.py:82`) for cancel responsiveness; this raised the
+    tick rate by 6x, which means the executor + DB layer must absorb 6x more
+    polls per long run. Per-tick cost (one ``load_report_payload`` and one
+    ``cancel_check`` call) must stay constant: a regression that adds extra
+    IO inside the loop body would silently amplify production load.
+
+    Closes [FOLLOWUP simulation-progress-cancel] heartbeat 30s→5s load
+    verification gap from POST_POC_BACKLOG.md L342-346."""
+    payload_reads: list[str] = []
+    cancel_polls: list[int] = []
+
+    def load_payload(path: str) -> dict[str, Any]:
+        payload_reads.append(path)
+        return {"scenario_traces": [{"status": "running"}]}
+
+    def cancel_check() -> bool:
+        cancel_polls.append(len(cancel_polls))
+        return False
+
+    target_ticks = 6  # 30 s / 5 s = 6x tick amplification
+    stop_event = threading.Event()
+
+    def schedule_stop() -> None:
+        # Allow exactly target_ticks tick intervals, then halt the loop.
+        # interval_s=0.01 ⇒ stop after ≥6 ticks fire.
+        stop_event.wait(0.01 * target_ticks + 0.005)
+        stop_event.set()
+
+    stopper = threading.Thread(target=schedule_stop, daemon=True)
+    stopper.start()
+    try:
+        _run_monitoring_heartbeat(
+            stop_event,
+            StepReporter(lambda *_a, **_k: None),
+            report_path="report.json",
+            total_initial=4,
+            load_report_payload=load_payload,
+            cancel_check=cancel_check,
+            interval_s=0.01,
+        )
+    finally:
+        stopper.join(timeout=1.0)
+
+    payload_count = len(payload_reads)
+    cancel_count = len(cancel_polls)
+
+    # Per-tick contract: each tick fires exactly one payload read and one
+    # cancel poll. Allow a small jitter window (±2 ticks) to absorb timing
+    # noise on busy CI runners while still catching a regression that
+    # doubles the per-tick IO cost.
+    assert payload_count == cancel_count, (
+        f"per-tick load drifted: {payload_count} payload reads vs "
+        f"{cancel_count} cancel polls (must be 1:1)"
+    )
+    assert target_ticks - 2 <= cancel_count <= target_ticks + 2, (
+        f"unexpected tick count {cancel_count}; expected ~{target_ticks} "
+        "(jitter ±2). A regression that adds an extra IO inside the loop "
+        "body would surface here as 2x growth."
+    )
+    assert all(
+        p == "report.json" for p in payload_reads
+    ), "payload reader must always receive the canonical report path"
+
+
 # --- run_monitoring (cancel-flow integration) ---------------------------------
 
 _ANALYZE_KWARGS = {"publisher": "ms-python", "name": "python", "version": "2025.0.0"}
