@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import json
+import os
 import time
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -12,7 +15,14 @@ import debug
 import editor
 import terminal
 from stimulus_materializers import resolve_command_text, write_harness_context
-from stimulus_types import _HARNESS_READY_PATH, HarnessUnavailableError
+from stimulus_types import (
+    _HARNESS_READY_PATH,
+    HARNESS_ACTIVATION_TIMEOUT_REASON,
+    HARNESS_READY_MARKER_INVALID_REASON,
+    HARNESS_READY_MARKER_MISSING_REASON,
+    HARNESS_READY_MARKER_STALE_REASON,
+    HarnessUnavailableError,
+)
 from wait_helpers import (
     require_wait,
     wait_for_command_effect,
@@ -25,29 +35,124 @@ from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import Page
 
 
+@dataclass(frozen=True)
+class HarnessReadyMarker:
+    """Parsed harness ready-marker payload (W8-0).
+
+    The harness writes this JSON at the end of ``activate()``; the Python
+    side validates each field before accepting the marker as proof that
+    the harness command is registered.
+    """
+
+    ready_at_unix: float
+    command: str
+    marker_version: int
+    epoch_run_id: str
+    pid: int
+
+
+def parse_harness_ready_marker(path: Path) -> HarnessReadyMarker | None:
+    """Read and parse a harness ready marker. Returns None on any defect.
+
+    Bare ``except Exception`` is forbidden by repo policy. We only swallow
+    the four exception classes that legitimately mean "marker not yet
+    valid": file-system race, malformed JSON, missing field, type error.
+    """
+    try:
+        raw = path.read_text(encoding="utf-8")
+    except OSError:
+        return None
+    try:
+        payload = json.loads(raw)
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(payload, dict):
+        return None
+    try:
+        return HarnessReadyMarker(
+            ready_at_unix=float(payload["ready_at_unix"]),
+            command=str(payload["command"]),
+            marker_version=int(payload["marker_version"]),
+            epoch_run_id=str(payload.get("epoch_run_id", "")),
+            pid=int(payload["pid"]),
+        )
+    except (KeyError, TypeError, ValueError):
+        return None
+
+
 def _ensure_harness_ready(
     timeout_s: float = 15.0,
     *,
     poll_interval_s: float = 0.25,
     ready_path: Path = _HARNESS_READY_PATH,
+    expected_epoch_run_id: str = "",
 ) -> None:
-    """Block until the harness extension writes its ready marker, or raise.
+    """Block until the harness extension writes a valid ready marker, or raise.
 
-    The marker is written at the end of ``activate()`` in the harness
-    extension (`executor/flows/harness_extension/extension.js`); its presence
-    proves the command has been registered. We poll because VS Code's
-    ``activate()`` runs asynchronously after a window reload, and the
-    container-side ``run_command`` invocation otherwise races ahead.
+    W8-0 split the legacy "marker exists" gate into four actionable cases:
+
+    * ``harness_ready_marker_missing`` — deadline passed, marker never appeared.
+    * ``harness_ready_marker_invalid`` — marker exists but payload is unparseable
+      or missing required fields.
+    * ``harness_ready_marker_stale`` — marker payload's ``epoch_run_id`` does
+      not match ``expected_epoch_run_id`` (only checked when both are non-empty).
+    * ``harness_activation_timeout`` — marker eventually appeared but only after
+      the deadline (race observed mid-poll).
+
+    The marker is written at the end of ``activate()`` in
+    ``executor/flows/harness_extension/extension.js``; its valid presence
+    proves the command has been registered for this container life.
     """
     deadline = time.monotonic() + timeout_s
+    saw_marker_after_deadline = False
     while True:
         if ready_path.exists():
+            marker = parse_harness_ready_marker(ready_path)
+            if marker is None:
+                raise HarnessUnavailableError(
+                    f"Harness ready marker {ready_path} is unreadable.",
+                    reason_code=HARNESS_READY_MARKER_INVALID_REASON,
+                )
+            if (
+                expected_epoch_run_id
+                and marker.epoch_run_id
+                and marker.epoch_run_id != expected_epoch_run_id
+            ):
+                raise HarnessUnavailableError(
+                    "Harness ready marker belongs to a previous run "
+                    f"(payload epoch={marker.epoch_run_id!r} expected="
+                    f"{expected_epoch_run_id!r}).",
+                    reason_code=HARNESS_READY_MARKER_STALE_REASON,
+                )
+            if saw_marker_after_deadline:
+                raise HarnessUnavailableError(
+                    f"Harness ready marker {ready_path} arrived after "
+                    f"{timeout_s:.1f}s deadline.",
+                    reason_code=HARNESS_ACTIVATION_TIMEOUT_REASON,
+                )
             return
         if time.monotonic() >= deadline:
+            if ready_path.exists():
+                saw_marker_after_deadline = True
+                continue
             raise HarnessUnavailableError(
-                f"Harness ready marker {ready_path} did not appear within {timeout_s:.1f}s."
+                f"Harness ready marker {ready_path} did not appear within "
+                f"{timeout_s:.1f}s.",
+                reason_code=HARNESS_READY_MARKER_MISSING_REASON,
             )
         time.sleep(poll_interval_s)
+
+
+def _expected_harness_epoch() -> str:
+    """Read the container's harness epoch run-id from the environment.
+
+    Container ``start.sh`` exports ``EXTRACE_EPOCH_RUN_ID`` once per
+    boot; the harness extension picks it up via ``process.env`` and
+    stamps each marker. Empty here means stale-checking is disabled
+    for backwards compatibility (e.g. pytest invocations outside a
+    container).
+    """
+    return os.environ.get("EXTRACE_EPOCH_RUN_ID", "")
 
 
 def _append_unique(items: list[str], value: str) -> None:
@@ -199,7 +304,7 @@ def execute_attempt(
         )
         return
     if action.startswith("harness:"):
-        _ensure_harness_ready()
+        _ensure_harness_ready(expected_epoch_run_id=_expected_harness_epoch())
         write_harness_context(payload, attempt, trigger_method=trigger_method)
         commands.run_command(page, "ExTrace Harness: Run Current Stimulus")
         require_wait(

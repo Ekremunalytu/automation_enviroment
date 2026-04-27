@@ -701,21 +701,159 @@ def test_run_stimulus_plan_waits_for_trigger_effect_for_custom_editor(
     assert waits == ["trigger_effect", "ui_settle"]
 
 
-def test_ensure_harness_ready_returns_when_marker_exists(tmp_path: Path) -> None:
+def _valid_marker_payload(**overrides: object) -> str:
+    import json as _json
+
+    payload: dict[str, object] = {
+        "ready_at_unix": 1700000000.0,
+        "command": "extrace.harness.runCurrentStimulus",
+        "marker_version": 1,
+        "epoch_run_id": "",
+        "pid": 4321,
+    }
+    payload.update(overrides)
+    return _json.dumps(payload)
+
+
+def test_ensure_harness_ready_returns_when_marker_valid(tmp_path: Path) -> None:
     marker = tmp_path / "ready.json"
-    marker.write_text("{}", encoding="utf-8")
+    marker.write_text(_valid_marker_payload(), encoding="utf-8")
     stimulus_attempts._ensure_harness_ready(
         timeout_s=0.5, poll_interval_s=0.05, ready_path=marker
     )
 
 
-def test_ensure_harness_ready_raises_when_marker_missing(tmp_path: Path) -> None:
+def test_ensure_harness_ready_raises_missing_when_marker_absent(tmp_path: Path) -> None:
     import pytest
 
-    from stimulus_types import HarnessUnavailableError
+    from stimulus_types import (
+        HARNESS_READY_MARKER_MISSING_REASON,
+        HarnessUnavailableError,
+    )
 
     marker = tmp_path / "ready.json"
-    with pytest.raises(HarnessUnavailableError):
+    with pytest.raises(HarnessUnavailableError) as exc_info:
         stimulus_attempts._ensure_harness_ready(
             timeout_s=0.1, poll_interval_s=0.05, ready_path=marker
         )
+    assert exc_info.value.reason_code == HARNESS_READY_MARKER_MISSING_REASON
+
+
+def test_ensure_harness_ready_raises_invalid_when_marker_unparseable(
+    tmp_path: Path,
+) -> None:
+    import pytest
+
+    from stimulus_types import (
+        HARNESS_READY_MARKER_INVALID_REASON,
+        HarnessUnavailableError,
+    )
+
+    marker = tmp_path / "ready.json"
+    marker.write_text("{not-json", encoding="utf-8")
+    with pytest.raises(HarnessUnavailableError) as exc_info:
+        stimulus_attempts._ensure_harness_ready(
+            timeout_s=0.5, poll_interval_s=0.05, ready_path=marker
+        )
+    assert exc_info.value.reason_code == HARNESS_READY_MARKER_INVALID_REASON
+
+
+def test_ensure_harness_ready_raises_invalid_when_required_field_missing(
+    tmp_path: Path,
+) -> None:
+    import json as _json
+
+    import pytest
+
+    from stimulus_types import (
+        HARNESS_READY_MARKER_INVALID_REASON,
+        HarnessUnavailableError,
+    )
+
+    marker = tmp_path / "ready.json"
+    # Drop the required `pid` field — payload becomes invalid.
+    marker.write_text(
+        _json.dumps(
+            {
+                "ready_at_unix": 1700000000.0,
+                "command": "extrace.harness.runCurrentStimulus",
+                "marker_version": 1,
+                "epoch_run_id": "",
+            }
+        ),
+        encoding="utf-8",
+    )
+    with pytest.raises(HarnessUnavailableError) as exc_info:
+        stimulus_attempts._ensure_harness_ready(
+            timeout_s=0.5, poll_interval_s=0.05, ready_path=marker
+        )
+    assert exc_info.value.reason_code == HARNESS_READY_MARKER_INVALID_REASON
+
+
+def test_ensure_harness_ready_raises_stale_when_epoch_mismatches(
+    tmp_path: Path,
+) -> None:
+    import pytest
+
+    from stimulus_types import (
+        HARNESS_READY_MARKER_STALE_REASON,
+        HarnessUnavailableError,
+    )
+
+    marker = tmp_path / "ready.json"
+    marker.write_text(
+        _valid_marker_payload(epoch_run_id="previous-container"), encoding="utf-8"
+    )
+    with pytest.raises(HarnessUnavailableError) as exc_info:
+        stimulus_attempts._ensure_harness_ready(
+            timeout_s=0.5,
+            poll_interval_s=0.05,
+            ready_path=marker,
+            expected_epoch_run_id="current-container",
+        )
+    assert exc_info.value.reason_code == HARNESS_READY_MARKER_STALE_REASON
+
+
+def test_ensure_harness_ready_skips_stale_check_when_expected_empty(
+    tmp_path: Path,
+) -> None:
+    """Backwards-compat: empty expected epoch disables stale verification."""
+    marker = tmp_path / "ready.json"
+    marker.write_text(
+        _valid_marker_payload(epoch_run_id="any-container"), encoding="utf-8"
+    )
+    stimulus_attempts._ensure_harness_ready(
+        timeout_s=0.5,
+        poll_interval_s=0.05,
+        ready_path=marker,
+        expected_epoch_run_id="",
+    )
+
+
+def test_parse_harness_ready_marker_round_trip(tmp_path: Path) -> None:
+    marker = tmp_path / "ready.json"
+    marker.write_text(
+        _valid_marker_payload(
+            epoch_run_id="boot-abc", pid=9999, ready_at_unix=1700000005.5
+        ),
+        encoding="utf-8",
+    )
+    parsed = stimulus_attempts.parse_harness_ready_marker(marker)
+    assert parsed is not None
+    assert parsed.epoch_run_id == "boot-abc"
+    assert parsed.pid == 9999
+    assert parsed.marker_version == 1
+    assert parsed.ready_at_unix == 1700000005.5
+
+
+def test_parse_harness_ready_marker_returns_none_on_garbage(tmp_path: Path) -> None:
+    marker = tmp_path / "ready.json"
+    marker.write_text("not json at all", encoding="utf-8")
+    assert stimulus_attempts.parse_harness_ready_marker(marker) is None
+
+
+def test_parse_harness_ready_marker_returns_none_on_missing_file(
+    tmp_path: Path,
+) -> None:
+    marker = tmp_path / "absent.json"
+    assert stimulus_attempts.parse_harness_ready_marker(marker) is None

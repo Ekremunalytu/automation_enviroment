@@ -30,13 +30,25 @@ function emitHarnessEvent(payload) {
   console.log(`[extrace-harness] ${JSON.stringify(payload)}`);
 }
 
+// W8-0: marker payload schema version. Bumped only when the contract
+// the Python parser depends on (parse_harness_ready_marker) changes
+// in a non-additive way. Additive fields do not require a bump.
+const HARNESS_MARKER_VERSION = 1;
+
 async function writeHarnessReadyMarker() {
   await fs.mkdir(path.dirname(READY_PATH), { recursive: true });
   const payload = {
     ready_at_unix: Date.now() / 1000,
     command: HARNESS_RUN_COMMAND_ID,
+    marker_version: HARNESS_MARKER_VERSION,
+    epoch_run_id: process.env.EXTRACE_EPOCH_RUN_ID || "",
+    pid: process.pid,
   };
-  await fs.writeFile(READY_PATH, JSON.stringify(payload), "utf8");
+  // Atomic write: tmp + rename. POSIX rename within the same fs is
+  // atomic, so a Python reader can never observe a half-written marker.
+  const tmpPath = `${READY_PATH}.tmp-${process.pid}`;
+  await fs.writeFile(tmpPath, JSON.stringify(payload), "utf8");
+  await fs.rename(tmpPath, READY_PATH);
 }
 
 module.exports = {

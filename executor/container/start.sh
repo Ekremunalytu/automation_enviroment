@@ -16,6 +16,16 @@ STARTUP_SLEEP_SECONDS="${EXECUTOR_STARTUP_SLEEP_SECONDS:-1}"
 PLAYWRIGHT_FLOW_DIR="${EXECUTOR_PLAYWRIGHT_FLOW_DIR:-/home/executor/flows/playwright}"
 HARNESS_SHA256_MANIFEST="${EXECUTOR_HARNESS_SHA256_MANIFEST:-/home/executor/flows/harness_extension.sha256}"
 
+# W8-0: deterministic epoch identifier for the harness ready-marker
+# handshake. Generated once per container boot and inherited by every
+# spawned process (notably VS Code → extension host → harness
+# extension). Python-side `_ensure_harness_ready_with_recovery` reads
+# the same env var and rejects markers whose `epoch_run_id` does not
+# match (stale from a previous container life).
+EXTRACE_EPOCH_RUN_ID="${EXTRACE_EPOCH_RUN_ID:-$(date +%s)-$(head -c 4 /dev/urandom | od -An -tx1 | tr -d ' \n')}"
+export EXTRACE_EPOCH_RUN_ID
+echo "EXTRACE_EPOCH_RUN_ID=${EXTRACE_EPOCH_RUN_ID}"
+
 PIDS=()
 
 # Graceful shutdown: kill all child processes on SIGTERM/SIGINT
