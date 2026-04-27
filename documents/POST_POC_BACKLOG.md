@@ -1,6 +1,6 @@
 # Post-PoC Backlog
 
-`Last Updated: 2026-04-27 (target activation lifecycle complete: PR3 + PR4 + ADR 0006 + PR5 landed on feat/pr345-completion; W8 entry gate green)`
+`Last Updated: 2026-04-27 (W8-0 deterministic harness readiness gate landed: PR-A diagnostic emit + PR-B marker payload validation + PR-C controlled-recovery retry; W8-1/W8-3 unblocked)`
 
 Work items that do not block PoC acceptance (`REFACTOR_OPTIMIZATION.md`
 §10.7) and were intentionally deferred from W0-W7 for scope management.
@@ -532,27 +532,41 @@ REFACTOR_OPTIMIZATION.md §11.12" below.
 
 ## Executor modularization + boundary (promoted to W9-W12)
 
-- **[PROMOTED → W8-0]** Deterministic harness readiness gate.
-  `_ensure_harness_ready`
-  (`executor/flows/playwright/stimulus_attempts.py:28-50`) bugün yalnızca
-  dosya varlığı kontrol ediyor. Marker payload'una `epoch_run_id`,
-  `pid` ve `marker_version` eklenmeli (atomic write,
-  `executor/flows/harness_extension/markers.js:33-40`); Python tarafı
-  parse + epoch karşılaştırmalı; yeni tipli kodlar
-  (`harness_ready_marker_missing`, `harness_ready_marker_stale`,
-  `harness_ready_marker_invalid`, `harness_activation_timeout`); tek
-  controlled-recovery retry; harness `activate()` enter/exit + marker-write
-  `console.log` + dedicated output channel diagnostic capture (PR345 PR5
-  altyapısını kullanır); test genişletmesi
-  `tests/executor/test_playwright_stimulus.py`. Tetikleyici:
-  `output/activation_report_ms-python.python-2026.5.2026042602-cba16dba0258.json`
-  (9 attempt × `harness_command_unavailable`,
-  `target_extension_observed=true`). W8-1 + W8-3 öncesi sırala.
-  `failure_reason_code` enum hareketi W10 contracts hygiene ile koordine
-  edilecek. Detection rule **değişikliği değil** — automation health
-  sıkılaştırma. Lower-level kök sebep mevcut raporla **kanıtlanamıyor**
-  (extension_host_output gappy); diagnostic capture düzeltmeden **önce**
-  landlanmalı ki yeniden tarama kök sebebi doğrulayabilsin.
+- **[LANDED 2026-04-27 `9c2e2d9` + `9eb4aaf` + `d39a612`] Deterministic
+  harness readiness gate.** Three sequential commits on
+  `feat/pr345-completion`. PR-A wires diagnostic emit on a dedicated
+  `ExTrace Harness` Output Channel (`activate_enter` /
+  `marker_write_start` / `marker_write_done` / `activate_exit` /
+  `*_failed`); the existing PR345 PR5 hook captures them as
+  `OutputSignalEvent(kind=output_channel_appendline)`. PR-B widens the
+  marker payload with `marker_version`, `epoch_run_id`, and `pid`
+  (atomic tmp+rename); container `start.sh` exports a unique
+  `EXTRACE_EPOCH_RUN_ID` per boot which the harness inherits via
+  `process.env`. New `parse_harness_ready_marker` (frozen dataclass)
+  - four typed `HarnessUnavailableError.reason_code` sub-codes
+  (`harness_ready_marker_missing | _stale | _invalid` and
+  `harness_activation_timeout`). PR-C wraps the wait in
+  `_ensure_harness_ready_with_recovery` (one controlled retry on
+  `MISSING` or `TIMEOUT`; `STALE`/`INVALID` are non-recoverable);
+  `automation.py`'s `HarnessUnavailableError` catch block now reads
+  `exc.reason_code` instead of the legacy hard-coded
+  `harness_command_unavailable`; `health_summary._REASON_LABELS` gains
+  four human-readable sentences. Coverage: 12 new tests in
+  [`tests/executor/test_playwright_stimulus.py`](../tests/executor/test_playwright_stimulus.py)
+  and 1 new test in
+  [`tests/executor/test_output_signal_capture.py`](../tests/executor/test_output_signal_capture.py).
+  Verification: `make test-security` 41 → 45; `make typecheck` clean
+  on 213 source files; `make lint-check` clean. **Docker-based smoke
+  remains user-side** (`make exec-up && make sim-target
+  TARGET=ms-python.python`) to confirm:
+  (a) `output_signal_events` now carry `ExTrace Harness` lifecycle
+  payloads; (b) the trigger report
+  `activation_report_ms-python.python-...cba16dba0258.json` rerun
+  surfaces a specific reason code instead of 9× generic
+  `harness_command_unavailable`. Detection rule contract unchanged.
+  `failure_reason_code` formal enum migration tracked under
+  `[PROMOTED → W10-1]`; the four new strings reserve their namespace
+  so the W10 PR can promote them without rewriting their call sites.
 - **[PROMOTED → W8-1]** VSIX zip-bomb + ZipSlip guard in
   `packages/analysis_engine/static/vsix.py` (`REFACTOR_OPTIMIZATION.md
   §11.5` item 1).

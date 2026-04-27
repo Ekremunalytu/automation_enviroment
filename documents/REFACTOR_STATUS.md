@@ -1,6 +1,6 @@
 # Refactor Status
 
-`Last Updated: 2026-04-27 (PR345 PR3-5 + ADR 0006 landed; W8 entry gate green)`
+`Last Updated: 2026-04-27 (W8-0 landed; harness readiness gate hardened ahead of W8-1/W8-3)`
 
 This is the active status board for the Week 1-4 stabilization work and the
 pre-W6 cleanup handoff. Use this file for current closure state; use
@@ -775,6 +775,69 @@ New tests:
   exec-run` against `t1-a1-credential-read-to-network-canary`) remains
   user-side; capture pipeline regression risk only fully closed by a
   live executor run.
+
+## W8-0 Landed — Deterministic Harness Readiness Gate (2026-04-27)
+
+W8-0 (POST_POC_BACKLOG `[PROMOTED]`, ordered before W8-1 + W8-3) closes
+on `feat/pr345-completion` with three sequential commits. Trigger
+report:
+`output/activation_report_ms-python.python-2026.5.2026042602-cba16dba0258.json`
+— 21 `event_attempts`, 9× `harness_command_unavailable`,
+`target_extension_observed=true`, `output_signal_events=0`. Root cause
+hypothesis: harness ready marker payload was a 2-field stub
+(`ready_at_unix`, `command`); Python side polled only `path.exists()`.
+A stale or partially-written marker from a previous container life
+satisfied that gate and tricked every stimulus attempt into firing
+before the harness command was registered.
+
+### Commits
+
+| Stage | Commit | Scope |
+|---|---|---|
+| PR-A | `9c2e2d9` | `ExTrace Harness` Output Channel + diagnostic emit on `activate()` enter/exit + marker-write phases. PR345 PR5 hook captures every appendLine as `OutputSignalEvent(kind=output_channel_appendline)`; no parser change. |
+| PR-B | `9eb4aaf` | Marker payload widened with `marker_version`, `epoch_run_id`, `pid`; atomic tmp+rename. `start.sh` exports `EXTRACE_EPOCH_RUN_ID` per boot. New `parse_harness_ready_marker` (frozen dataclass) + four typed `HarnessUnavailableError.reason_code` sub-codes. `_ensure_harness_ready` accepts `expected_epoch_run_id`. |
+| PR-C | `d39a612` | `_ensure_harness_ready_with_recovery` wraps the wait with one controlled retry on `MISSING`/`TIMEOUT`; `STALE`/`INVALID` non-recoverable. `automation.py` `HarnessUnavailableError` catch block reads `exc.reason_code` instead of the legacy generic constant. `health_summary._REASON_LABELS` gains 4 human-readable sentences. |
+
+### Verification (2026-04-27, branch `feat/pr345-completion`)
+
+| Lane | Outcome |
+|---|---|
+| `make test-security` | 45 passed (gate ≥ 41 satisfied) |
+| `tests/executor/test_playwright_stimulus.py` | 25 passed (W8-0 alone adds 12 new tests) |
+| `tests/executor/test_output_signal_capture.py` | 6 passed (PR-A adds 1 lifecycle case) |
+| `tests/executor/test_playwright_automation.py` | 19 passed (no regression on the harness-skip path) |
+| `tests/executor + tests/security + tests/platform/contracts` | 401 passed, 6 skipped |
+| `make typecheck` | 213 source files, no issues |
+| `make lint-check` | clean |
+
+### Reason code rollup
+
+| Code | When raised | Recoverable? |
+|---|---|---|
+| `harness_ready_marker_missing` | Deadline passed, marker never appeared. | Yes (one retry) |
+| `harness_ready_marker_invalid` | Marker exists but JSON unparseable / required field missing. | No |
+| `harness_ready_marker_stale` | Payload `epoch_run_id` ≠ container `EXTRACE_EPOCH_RUN_ID` (only checked when both non-empty). | No |
+| `harness_activation_timeout` | Marker arrived after the deadline (race observed mid-poll). | Yes (one retry) |
+
+### Deferred / open
+
+- **Docker-based smoke remains user-side** (`make exec-up && make
+  sim-target TARGET=ms-python.python`). Two acceptance signals to
+  confirm: (a) `output_signal_events` now carry `ExTrace Harness`
+  channel entries with `phase` payloads from `activate()`; (b) a
+  rerun against the same trigger conditions surfaces a specific reason
+  code (most likely `harness_ready_marker_stale` or
+  `harness_activation_timeout`) instead of the previous run's 9×
+  generic `harness_command_unavailable`. Capture-pipeline correctness
+  for the new payload schema can only be fully closed by the live
+  executor run.
+- **`failure_reason_code` formal enum migration** stays under
+  `[PROMOTED → W10-1]`. The four new strings reserve a non-colliding
+  namespace (`harness_*_marker_*` + `harness_activation_timeout`) so
+  the W10 PR can promote them without touching call sites.
+- W8-1 (VSIX zip-bomb) and W8-3 (URI argv-form) are now unblocked —
+  the entry-gate ordering in POST_POC_BACKLOG `[PROMOTED → W8-0]`
+  is satisfied.
 
 ## Week 5 Start Rule
 
