@@ -42,6 +42,7 @@ from appcore.storage.crud import (
     update_analysis_job_step,
 )
 from appcore.storage.models import AnalysisJob
+from packages.marketplace_identity import safe_marketplace_slug
 
 _PROCESS_BOOT_ID = uuid4().hex
 T = TypeVar("T")
@@ -90,10 +91,8 @@ def empty_job_steps() -> list[AnalysisJobStepRecord]:
 
 
 def build_report_name(request: AnalyzeRequest, run_id: str) -> str:
-    return (
-        f"activation_report_{request.publisher}.{request.name}-"
-        f"{request.version}-{run_id[:12]}.json"
-    )
+    slug = safe_marketplace_slug(request.publisher, request.name, request.version)
+    return f"activation_report_{slug}-{run_id[:12]}.json"
 
 
 def create_job_snapshot(
