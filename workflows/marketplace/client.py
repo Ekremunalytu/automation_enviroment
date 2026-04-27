@@ -27,6 +27,15 @@ _VSIX_URL_TEMPLATE = (
 )
 _ACCEPT_HEADER = "application/json;api-version=7.2-preview.1"
 
+# Adversarial-VSIX extraction limits (ADR 0002 §7.2.6).
+MAX_UNCOMPRESSED_SIZE = 256 * 1024 * 1024
+MAX_COMPRESSION_RATIO = 100
+MAX_FILE_COUNT = 2_000
+
+
+class VSIXUnpackError(RuntimeError):
+    """Raised when a VSIX archive violates extraction safety limits."""
+
 
 def search_marketplace(query: str, page_size: int = 10) -> list[MarketplaceExtension]:
     """
@@ -142,18 +151,43 @@ def _publish_vsix_file(vsix_file: Path, vsix_bytes: bytes, artifact_name: str) -
 
 
 def _extract_vsix_to_dir(vsix_bytes: bytes, destination_dir: Path) -> None:
+    cumulative_uncompressed = 0
+    cumulative_compressed = 0
+    file_count = 0
+
     with zipfile.ZipFile(io.BytesIO(vsix_bytes)) as zf:
-        for member in zf.namelist():
-            if not member.startswith("extension/"):
+        for info in zf.infolist():
+            if not info.filename.startswith("extension/"):
                 continue
 
-            parts = Path(member).parts
+            parts = Path(info.filename).parts
             if ".." in parts:
                 continue
 
             rel_parts = parts[1:]
             if not rel_parts:
                 continue
+
+            file_count += 1
+            if file_count > MAX_FILE_COUNT:
+                raise VSIXUnpackError(
+                    f"VSIX archive exceeds entry count limit ({MAX_FILE_COUNT})"
+                )
+
+            cumulative_uncompressed += info.file_size
+            cumulative_compressed += info.compress_size
+            if cumulative_uncompressed > MAX_UNCOMPRESSED_SIZE:
+                raise VSIXUnpackError(
+                    f"VSIX archive exceeds uncompressed size limit "
+                    f"({MAX_UNCOMPRESSED_SIZE} bytes)"
+                )
+            if cumulative_compressed > 0:
+                ratio = cumulative_uncompressed / cumulative_compressed
+                if ratio > MAX_COMPRESSION_RATIO:
+                    raise VSIXUnpackError(
+                        f"VSIX compression ratio {ratio:.1f}:1 exceeds "
+                        f"limit ({MAX_COMPRESSION_RATIO}:1)"
+                    )
 
             rel_path = Path(*rel_parts)
             target = destination_dir / rel_path
@@ -163,11 +197,11 @@ def _extract_vsix_to_dir(vsix_bytes: bytes, destination_dir: Path) -> None:
             except ValueError:
                 continue
 
-            if member.endswith("/"):
+            if info.filename.endswith("/"):
                 target.mkdir(parents=True, exist_ok=True)
             else:
                 target.parent.mkdir(parents=True, exist_ok=True)
-                target.write_bytes(zf.read(member))
+                target.write_bytes(zf.read(info))
 
 
 def _publish_extracted_extension(partial_dir: Path, final_dir: Path) -> Path:
@@ -255,7 +289,7 @@ def download_and_extract_vsix(publisher: str, name: str, version: str) -> Path:
     try:
         _extract_vsix_to_dir(vsix_bytes, partial_dir)
         get_package_json(partial_dir)
-    except (OSError, PackageJsonReadError, zipfile.BadZipFile):
+    except (OSError, PackageJsonReadError, zipfile.BadZipFile, VSIXUnpackError):
         _cleanup_partial_dir(partial_dir)
         raise
 

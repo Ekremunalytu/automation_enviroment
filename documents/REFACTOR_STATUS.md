@@ -1,6 +1,6 @@
 # Refactor Status
 
-`Last Updated: 2026-04-27 (W8-0 capture-pipeline + automation_health reason propagation gap fixes)`
+`Last Updated: 2026-04-27 (W8-1 landed; W8-0 capture-pipeline + automation_health reason propagation gap fixes)`
 
 This is the active status board for the Week 1-4 stabilization work and the
 pre-W6 cleanup handoff. Use this file for current closure state; use
@@ -839,9 +839,88 @@ before the harness command was registered.
   `[PROMOTED → W10-1]`. The four new strings reserve a non-colliding
   namespace (`harness_*_marker_*` + `harness_activation_timeout`) so
   the W10 PR can promote them without touching call sites.
-- W8-1 (VSIX zip-bomb) and W8-3 (URI argv-form) are now unblocked —
-  the entry-gate ordering in POST_POC_BACKLOG `[PROMOTED → W8-0]`
-  is satisfied.
+- W8-1 landed (see "W8-1 Landed" section below); W8-3 (URI argv-form)
+  remains unblocked — the entry-gate ordering in POST_POC_BACKLOG
+  `[PROMOTED → W8-0]` is satisfied.
+
+## PR345 / W8-0 Closeout Tail (2026-04-27)
+
+Two follow-up commits closed audit-trail gaps that surfaced after the
+W8-0 closeout block was written:
+
+- **`9a90880` — `PR345 closeout: regenerate UI contracts + harness
+  shim event surface`**. Three loosely-coupled fixes in one commit:
+  (a) `scripts/generate_ui_contracts.py` extended with
+  `OutputSignalEvent` so `ui/src/lib/types/contracts.ts` actually
+  carries `OutputSignalEventDto` + `ActivationReport.output_signal_events`
+  (the PR345 PR5 closure note had claimed this propagation; the
+  generator hadn't been re-run); (b)
+  `executor/flows/harness_extension/providers.js` — `LocalAuthProvider`
+  and new `LocalFileSystemProvider` now expose VS Code's required
+  `EventEmitter.event` surface (`onDidChangeSessions` /
+  `onDidChangeFile`) and emit change events on
+  `writeFile`/`rename`/`delete`; (c) new
+  `tests/executor/test_harness_extension_contract.py` runs a Node-level
+  shim contract check that mocks the `vscode` module and asserts the
+  event surface fires; UI test
+  `ui/src/features/simulation/SimulationPage.test.tsx` tightens the
+  `resolveCancel` mock signature to `AnalyzeJobStatusDto`.
+- **`5e16c7a` — `Executor: cleanup stale entrypoint on automation
+  timeout`**. When `_docker_exec_allow_partial` raises
+  `ExecutorError` with `returncode=None` (timeout / signal kill, no
+  exit code captured), the in-container Python entrypoint can survive
+  past the host-side timeout and leave a stale process owning the
+  report directory. `executor/host.py:303-310` now calls
+  `_cleanup_stale_entrypoint_processes()` before re-raising so the
+  next run starts from a clean container state. Coverage:
+  `tests/scanner/test_executor.py::test_run_automation_timeout`
+  asserts the cleanup is invoked exactly once on the timeout path.
+
+Verification (2026-04-27, branch `feat/pr345-completion`):
+`make test-security` 45 ≥ 41 stable; `make check-all` 726 passed,
+6 skipped; ruff + mypy + bandit + ui-types-check + ui-boundaries all
+green.
+
+## W8-1 Landed — VSIX Zip-Bomb + Entry-Count Guard (2026-04-27)
+
+W8-1 (`REFACTOR_OPTIMIZATION.md §11.5` item 1) closes on
+`feat/w8-1-vsix-hardening`. Adversarial VSIX archives now fail closed
+before extraction can saturate disk or memory.
+
+### Change
+
+`workflows/marketplace/client.py` gained three module-level extraction
+limits and a typed `VSIXUnpackError`:
+
+| Limit | Value | Trigger |
+|---|---|---|
+| `MAX_UNCOMPRESSED_SIZE` | `256 * 1024 * 1024` (256 MiB) | Sum of `ZipInfo.file_size` over `extension/` members exceeds the cap. |
+| `MAX_COMPRESSION_RATIO` | `100` | Cumulative `file_size / compress_size` ratio exceeds the cap (zip-bomb signal). |
+| `MAX_FILE_COUNT` | `2_000` | More than 2 000 entries under `extension/`. |
+
+`_extract_vsix_to_dir` accumulates the three counters per accepted
+member and raises `VSIXUnpackError` on first violation. The pre-W8-1
+path-traversal guards (`..` reject + `target.resolve().relative_to`)
+remain unchanged. `download_and_extract_vsix` extends its except
+tuple to include `VSIXUnpackError` so the partial extraction directory
+is cleaned up on failure.
+
+### Verification
+
+| Lane | Outcome |
+|---|---|
+| `tests/workflows/marketplace/test_vsix_hardening.py` (new) | 5 passed: normal vsix extracts, oversize rejects, ratio rejects, file-count rejects, path-traversal regression guard. |
+| `tests/workflows/marketplace/` (full) | 126 passed (no regression). |
+| `make check-all` | ✅ ruff · mypy (214 source files) · bandit · ui-types-check · ui-boundaries · 726 passed + 6 skipped. |
+| `make test-security` | 45 passed (baseline preserved — W8-1 tests live under `tests/workflows/marketplace/`, not `tests/security/`). |
+
+### Deferred / open
+
+- ADR 0002 §7.2.6 (supply-chain hardening) does not yet pin the three
+  numeric limits. A short addendum is appropriate when bundling the
+  W8 ADR / runbook closeout (low priority; the limits live in code).
+- W8-2 (`safe_marketplace_slug` identity helper) is the natural next
+  W8 task and shares the regex disiplini target with W8-5.
 
 ## W8-0 Follow-up Fixes (2026-04-27)
 
