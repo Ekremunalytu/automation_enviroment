@@ -16,6 +16,7 @@ if str(PLAYWRIGHT_DIR) not in sys.path:
 
 import entrypoint  # noqa: E402
 import triggers as trigger_loader  # noqa: E402
+import uri_validation  # noqa: E402
 
 
 class _FakeKeyboard:
@@ -340,6 +341,11 @@ def test_run_extra_triggers_runs_non_command_branches(monkeypatch) -> None:
         lambda current_page, text: calls.append(("type_terminal", text)),
     )
     monkeypatch.setattr(
+        uri_validation,
+        "run_uri_trigger",
+        lambda uri, **_: calls.append(("run_uri_trigger", uri)),
+    )
+    monkeypatch.setattr(
         entrypoint.commands,
         "run_command",
         lambda current_page, command_text: calls.append(("run_command", command_text)),
@@ -361,7 +367,7 @@ def test_run_extra_triggers_runs_non_command_branches(monkeypatch) -> None:
         ("open_file", "samples/report.drawio"),
         ("close_editor", None),
         ("new_terminal", None),
-        ("type_terminal", "xdg-open 'vscode://publisher.tool/open'"),
+        ("run_uri_trigger", "vscode://publisher.tool/open"),
         ("run_command", "Tasks: Run Task"),
         ("run_command", "Welcome: Open Walkthrough"),
         ("close_editor", None),

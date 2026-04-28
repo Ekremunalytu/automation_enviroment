@@ -1,6 +1,6 @@
 # Post-PoC Backlog
 
-`Last Updated: 2026-04-27 (W8-0 landed; Codex automation-flow review entries 3/5/6/7/8 recorded as [FOLLOWUP codex-automation-N])`
+`Last Updated: 2026-04-27 (W8-0 landed; Codex automation-flow review entries 3/5/6/7/8 recorded as [FOLLOWUP codex-automation-N]; architecture audit 2026-04-27 — W8-8/W11-7/W11-8 promoted to REFACTOR_OPTIMIZATION.md, hygiene cleanups recorded as [CLEANUP audit-2026-04-27])`
 
 Work items that do not block PoC acceptance (`REFACTOR_OPTIMIZATION.md`
 §10.7) and were intentionally deferred from W0-W7 for scope management.
@@ -335,15 +335,25 @@ REFACTOR_OPTIMIZATION.md §11.12" below.
   now juggles cancel polling, on_cancel firing, JSON file reads, scenario-
   trace counting, and emit. Lift into a `MonitoringHeartbeat` helper so
   the trace-counting branch can be unit-tested in isolation.
-- **[FOLLOWUP simulation-progress-cancel] Cancel-after-finish race test.**
-  Add a unit test asserting `cancel_job` called after the job has reached
-  a terminal status server-side returns 409 (covered by `JobNotCancellableError`,
-  but no explicit test for the in-flight race).
-- **[FOLLOWUP simulation-progress-cancel] Verify heartbeat 30 s → 5 s
-  load.** Interval was tightened in
-  [`analysis_execution.py:82`](../workflows/marketplace/analysis_execution.py)
-  for cancel responsiveness; confirm executor + DB absorb 6× more ticks
-  on long runs (read report JSON + open DB session per tick).
+- **[LANDED 2026-04-27] [FOLLOWUP simulation-progress-cancel] Cancel-after-finish race test.**
+  Closed on `feat/w8-2-and-reviewer-feedback-gaps`. Both the router
+  and CRUD lanes now parametrize the `JobNotCancellableError` surface
+  across all three terminal statuses (`completed`, `failed`,
+  `cancelled`). Router test
+  [`test_cancel_analysis_job_terminal_returns_409`](../tests/workflows/marketplace/test_router.py)
+  asserts 409 with the offending status preserved in the detail; CRUD
+  test
+  [`test_cancel_job_on_terminal_status_raises_not_cancellable`](../tests/platform/storage/test_analysis_jobs.py)
+  drives each terminal state through `complete_job` / `fail_job` /
+  `cancel_job` and verifies the persisted snapshot is unchanged after
+  the second cancel attempt.
+- **[LANDED 2026-04-27] [FOLLOWUP simulation-progress-cancel] Verify heartbeat 30 s → 5 s
+  load.** Closed on `feat/w8-2-and-reviewer-feedback-gaps`. New
+  [`test_run_monitoring_heartbeat_per_tick_load_is_constant_under_5s_interval`](../tests/workflows/marketplace/test_analysis_execution_helpers.py)
+  asserts one `load_report_payload` read and one `cancel_check` poll per
+  tick (1:1 ratio) and pins total tick count to a 6 ± 2 jitter window. A
+  regression that adds an extra IO inside the loop body surfaces as 2×
+  growth on the ratio assertion.
 - `workflows/marketplace/analysis_service._open_job_session` → move the
   `SessionLocal` import back to module top (7.1.2). Currently inlined to
   break a startup import cycle; revisit after the cycle source is split.
@@ -360,13 +370,29 @@ REFACTOR_OPTIMIZATION.md §11.12" below.
 
 ## Workflow / platform cleanups (promoted to W8-W10)
 
-- **[PROMOTED → W8-2]** `safe_marketplace_slug` helper + architecture-test
-  enforcement. `workflows/marketplace/client.py:94-103` raw
-  publisher/name/version path concat bulgusu
-  (`REFACTOR_OPTIMIZATION.md §11.5` item 2).
+- **[LANDED 2026-04-27]** `safe_marketplace_slug` helper + architecture-test
+  enforcement (W8-2). New `packages/marketplace_identity/` exposes
+  `safe_marketplace_slug(publisher, name, version)` plus the canonical
+  `MARKETPLACE_SLUG_TOKEN_RE = ^[A-Za-z0-9][-_.A-Za-z0-9]{0,64}$`
+  constant. Six call sites migrated
+  (`workflows/marketplace/client.py:103-115`,
+  `packages/analysis_planner/io.py:22`, `executor/host.py:153-156`, plus
+  `workflows/marketplace/job_service.py::build_report_name` surfaced by
+  the new architecture detector). New
+  `tests/architecture/test_marketplace_identity_concat.py` blocks future
+  regressions with an AST-based three-token adjacency scan; `tests/`
+  and `packages/marketplace_identity/` are allowlisted, file-level
+  pragma `# arch-allow: marketplace-identity-concat` is the escape
+  hatch. Follow-up call-site tests pin `build_report_name`,
+  `write_trigger_file`, and `install_extension_in_executor` so
+  adversarial identity fails before report-name, trigger-file, or
+  docker-exec side effects. See `REFACTOR_STATUS.md` "W8-2 Landed"
+  section for verification matrix.
 - **[PROMOTED → W8-5]** Activation-report router path-traversal
   regex hardening + `appcore/contracts/validators.py::valid_extension_slug`
-  merkezi helper (`REFACTOR_OPTIMIZATION.md §11.5` item 5).
+  merkezi helper (`REFACTOR_OPTIMIZATION.md §11.5` item 5). W8-2'de
+  pinlenen `packages.marketplace_identity.MARKETPLACE_SLUG_TOKEN_RE`
+  re-import edilir; W8-5 yalnızca Pydantic v2 wrapper ekler.
 
 ## UI
 
@@ -484,9 +510,14 @@ REFACTOR_OPTIMIZATION.md §11.12" below.
 - **[PROMOTED → W8-1]** VSIX zip-bomb + ZipSlip guard in
   `packages/analysis_engine/static/vsix.py` (`REFACTOR_OPTIMIZATION.md
   §11.5` item 1).
-- **[PROMOTED → W8-3]** URI trigger argv-form invocation in
+- **[LANDED 2026-04-28]** URI trigger argv-form invocation in
   `executor/flows/playwright/entrypoint_triggers.py:142` +
-  `stimulus_attempts.py:136` (`REFACTOR_OPTIMIZATION.md §11.5` item 3).
+  `stimulus_attempts.py:324` (plan said `:136` — line drift)
+  (`REFACTOR_OPTIMIZATION.md §11.5` item 3). Helper
+  `executor/flows/playwright/uri_validation.py` + AST detector
+  `tests/architecture/test_uri_trigger_shell_pattern.py` + 26
+  adversarial cases `tests/executor/security/test_uri_trigger_injection.py`.
+  See `REFACTOR_STATUS.md` "W8-3 Landed" section.
 - **[PROMOTED → W8-4]** Absolute binary paths discipline across
   executor shell invocations (`REFACTOR_OPTIMIZATION.md §11.5` item 4).
 - **[PROMOTED → W8-6]** `ContentSample.value` secret redaction +
@@ -708,7 +739,18 @@ under VNC.
 - **Size:** medium (~250 LoC + 6 tests across `wait_helpers`,
   `vscode`, and `ScenarioTrace` plumbing).
 
-### [FOLLOWUP codex-automation-7] `make test-ci` smoke lane mismatch
+### [LANDED 2026-04-27] [FOLLOWUP codex-automation-7] `make test-ci` smoke lane mismatch
+
+Closed on `feat/w8-2-and-reviewer-feedback-gaps`. `Makefile`'s `test-ci`
+target now invokes `pytest -m "smoke or not smoke" --cov ...`, overriding
+the global `addopts = ["-m", "not smoke"]` in `pyproject.toml`. A
+documenting comment in `pyproject.toml` and a banner line in the
+Makefile target spell out the override. `pytest --collect-only -m
+"smoke"` reports the 3 smoke tests under
+`tests/smoke/test_marketplace_analysis_smoke.py`; previously they were
+silently deselected from `make test-ci`.
+
+Original entry (preserved for audit trail):
 
 [`pyproject.toml`](../pyproject.toml) `addopts` includes
 `-m "not smoke"` as a default, which skips smoke-marked tests on
@@ -735,7 +777,16 @@ claims to gate on.
   not depend on W8-W13 sequencing.
 - **Size:** small (~10 LoC Makefile + 1 doc edit).
 
-### [FOLLOWUP codex-automation-8] `docker exec -it` non-interactive cleanup
+### [LANDED 2026-04-27] [FOLLOWUP codex-automation-8] `docker exec -it` non-interactive cleanup
+
+Closed on `feat/w8-2-and-reviewer-feedback-gaps`. `Makefile` swapped
+`-it` to `-i` on the six non-interactive simulator/exec targets
+(`exec-run`, `sim-all`, `sim-target`, `sim-demo`, `sim-list`,
+`sim-run`); `exec-shell` keeps `-it` since it is genuinely interactive.
+`make help` blurb spells out the split so future contributors see the
+TTY discipline at a glance.
+
+Original entry (preserved for audit trail):
 
 The `Makefile` simulator targets `sim-all`, `sim-target`,
 `sim-demo`, `sim-list`, `sim-run`, and `exec-run` all use
@@ -766,6 +817,55 @@ followups (codex-automation-3, codex-automation-5) as live evidence.
 The capability gap below is recorded for the next iteration; it is
 genuinely untracked and orthogonal to the captured fixes shipped in
 the same session.
+
+### How to read the current `ms-python.python` `degraded` health
+
+The 2026-04-27 18:14 `ms-python.python` report
+(`output/activation_report_ms-python.python-2026.5.2026042602-f8d981323862.json`)
+is not a total automation failure and is not a malicious verdict by
+itself. The target extension was observed, the trigger plan loaded and
+applied, the target stream was present,
+`automation_health.target_activation_count=1`,
+`failed_scenarios=[]`, `skipped_scenarios=[]`, and `run_quality=medium`.
+The report still shows `automation_health.status="degraded"` because
+three partial-evidence reason classes are present at the same time:
+
+- `verification_gap_present`: six capabilities were attempted, but
+  only four were verified. The remaining gap is `debug` and
+  `terminal_tasks`; this maps to `[FOLLOWUP capability-verification-gap]`
+  below.
+- `official_unresolved_present`: official activation coverage was
+  `declared=21`, `verified=12`, `attempted_only=9`, `unresolved=9`.
+  This overlaps with the capability gap but is broader because
+  individual official events such as `onLanguageModelTool:*`,
+  `onLanguage:python`, debug, and terminal triggers must either be
+  verified or explicitly classified as unsupported / non-actionable.
+- `harness_verification_unconfirmed_present`: eight harness-routed
+  attempts carried `failure_reason_code="harness_verification_unconfirmed"`.
+  This is separate from the capability gap: adding coverage stimulus
+  without confirming the harness completion trace would hide the symptom
+  rather than prove the attempt end-to-end.
+
+Do not treat the baseline as healthy by changing verification labels
+alone. A clean closure for this specific degraded state requires all of:
+
+- `verification_gap == 0`
+- `official_event_coverage.unresolved == 0`, or unsupported official
+  events are separated into an explicit unsupported / non-actionable
+  class that does not masquerade as verified coverage
+- no `event_attempts[].failure_reason_code ==
+  "harness_verification_unconfirmed"`
+- existing execution-health gates stay true: target observed, trigger
+  loaded/applied, target stream present, and no failed or skipped
+  scenarios
+
+Roadmap mapping: the `debug` + `terminal_tasks` capability gap is W13
+test-expansion material; the broader official-event closure should be
+handled in the same baseline-health pass if W13 claims `ms-python.python`
+as a healthy benign fixture. Repeated
+`harness_verification_unconfirmed` attempts should be pulled back
+separately as W8-0 harness confirmation work, not folded into coverage
+label tweaks.
 
 ### [FOLLOWUP capability-verification-gap] `debug` + `terminal_tasks` capability verification
 
@@ -835,14 +935,117 @@ before attribution. Tests pin the new reader against a synthetic
 `output_logging_*/<idx>-<channel>.log` tree
 (`tests/executor/test_output_signal_capture.py`).
 
+**Acceptance signal (a) — live verified 2026-04-28** on report
+`output/activation_report_ms-python.python-2026.5.2026042602-31587fd1a0ff.json`:
+`output_signal_events_count = 12`, all on the `ExTrace Harness`
+channel, parsed JSON payloads with phase distribution
+`activate_enter × 3, marker_write_start × 3, marker_write_done × 3,
+activate_exit × 3` (three full lifecycle cycles). The 2026-04-27
+"live failed" gate is now closed.
+
 Acceptance signal (b) — typed harness-readiness reason codes
 (`harness_ready_marker_*` / `harness_activation_timeout`) instead
 of the legacy generic `harness_command_unavailable` — is **still
-unconfirmed live**: the same scan reported 9 attempts with
-`harness_verification_unconfirmed`, none with the W8-0 PR-B/PR-C
-typed sub-codes. Remains user-side until a follow-up
-`make sim-target` produces an attempt that actually trips the
-typed marker path.
+unconfirmed live as of 2026-04-28**: the latest scan reported 8
+attempts with `harness_verification_unconfirmed`, none with the
+W8-0 PR-B/PR-C typed sub-codes. Remains user-side until a
+follow-up `make sim-target` produces an attempt that actually
+trips the typed marker path.
+
+## Architecture audit (2026-04-27)
+
+A full-codebase architecture + security + maintainability audit run
+on 2026-04-27 cross-checked findings against the W8-W13 plan. Result:
+~67% of the audit's recommendations were already in
+`REFACTOR_OPTIMIZATION.md §11`; security findings 100% covered (W8-1
+↔ W8-7); structural findings (monitor_lifecycle split, signal_policy
+relocation, registry split, executor subpackaging) all already
+present. Three audit-surfaced gaps were promoted into the W8-W13
+plan; four are tracked as one-off hygiene PRs below. Audit framing:
+local-first single-user defensive security tool; no
+microservices / event bus / distributed tracing recommendations.
+
+**Promoted into W8-W13 (see `REFACTOR_OPTIMIZATION.md`):**
+
+- **W8-8** — Manifest field log-injection sanitization
+  (defense-in-depth). `appcore/contracts/sanitize.py::sanitize_for_log`
+  helper + ADR 0002 §7 addendum + manifest log emit site'ları
+  helper'a geçirilir. (`§11.5-(8)`)
+- **W11-7** — `workflows/extension_catalog/service.py` 475 LoC →
+  `manifest_to_schema.py` + `lifecycle.py` split. W11 modularization
+  temasının workflow-tarafı aynası. (`§11.8-(7)`)
+- **W11-8** — `appcore/storage/crud_ops/analysis_jobs.py` 348 LoC →
+  `lifecycle.py` + `steps.py` + facade subpackage. W10 contract
+  hygiene'in storage ayağı temizliği. (`§11.8-(8)`)
+
+**One-off hygiene PRs (not week-bound; recommended bundled into a
+single cleanup commit alongside W8 entry):**
+
+- **[CLEANUP audit-2026-04-27] `httpx` runtime dependency.**
+  [`pyproject.toml:33`](../pyproject.toml) ships `httpx>=0.28.0`
+  under `[project.optional-dependencies] dev` only, but
+  [`workflows/marketplace/client.py`](../workflows/marketplace/client.py)
+  and [`workflows/marketplace/router.py`](../workflows/marketplace/router.py)
+  import it at runtime. Production-shape install (`pip install .`
+  without `[dev]`) breaks at import time. Fix: move `httpx` line
+  into `[project] dependencies` and remove the duplicate from the
+  dev section. **Size:** 1-line move.
+
+- **[CLEANUP audit-2026-04-27] `seed_test.py` exception narrowing.**
+  [`scripts/seed_test.py:164`](../scripts/seed_test.py) bare
+  `except Exception:` swallows everything during DB seed. AGENTS.md
+  "no generic try/except Exception" rule has zero exceptions in
+  production paths; the only audit-surfaced bare hit lives in
+  `scripts/`. Not on a runtime path, but new contributors copy
+  patterns from `scripts/`. Fix: narrow to
+  `except SQLAlchemyError as exc` + log + rollback. **Size:**
+  ~3 lines.
+
+- **[CLEANUP audit-2026-04-27] Finder duplicate-suffix dirs.**
+  Local filesystem residue from a macOS Finder name-conflict
+  resolution: `docker/api 2/`, `ui/src/components/ui 2/`,
+  `ui/src/lib/api 2/`, `ui/src/lib/charts 2/`. Verified **not
+  git-tracked** (`git ls-files` empty for all four), so these are
+  workstation-local cruft. Risk: Python / Node tooling that scans
+  the tree (mypy auto-discovery, vite glob imports) can pick up
+  shadow modules and produce confusing build errors. Fix: `rm -rf`
+  locally; verify `.dockerignore` + `.gitignore` cover `2/`-suffix
+  glob so a future Finder accident on the workstation gets ignored
+  by builds. **Size:** trivial; no PR strictly required (local
+  cleanup), but a one-line `.gitignore` add prevents recurrence.
+
+- **[CLEANUP audit-2026-04-27] Unused `ExecutorError` import.**
+  [`workflows/extension_catalog/router.py:25`](../workflows/extension_catalog/router.py)
+  imports `ExecutorError` but the symbol is referenced nowhere in
+  the file. ruff F401 would normally catch this — verify whether
+  per-file ignore in `pyproject.toml [tool.ruff.lint.per-file-ignores]`
+  is masking it; if so, narrow the ignore. **Size:** 1 line.
+
+**Audit observations evaluated and not promoted (rationale documented):**
+
+- `appcore/api/config.py` 4 BaseSettings → single packaged settings
+  (audit §6 overengineering candidate). **Reddedildi (2026-04-27):**
+  mevcut 4-class split temiz env-prefixed (PROJECT_, API_, POSTGRES_,
+  EXECUTOR_); collapsing into one nested model trades prefix
+  clarity for ~50 LoC savings — net negative for an operator
+  reading `.env`. Re-evaluate only if any one settings class shrinks
+  below 20 LoC.
+- `executor/flows/playwright/signal_facts.py` (42 LoC) merge into
+  `output_signals.py` (audit §6). **Reddedildi (2026-04-27):**
+  kozmetik; W12-1 subpackaging zaten bu dosyaları `health/` veya
+  `monitor/` altına taşıyacak — merge'in operasyonel değeri yok.
+- `documents/{claude_code_review.md, codex_project_review.md}`
+  arşivleme (~2K LoC bloat, audit §2). Already evaluated and
+  rejected by `REFACTOR_OPTIMIZATION.md §11.12`
+  ("documentation consolidation"); revisit when W7 closure is
+  >4 weeks old and living-doc cadence settles.
+- `runtime_capture/extension_host.py` 678 LoC → 3 parser
+  (process / network / filesystem) split. **Implicitly covered by
+  W12-1** subpackaging (`runtime_capture/` will be reorganized as
+  part of executor subpackaging); explicit split inside the file
+  not promoted to a separate item — leave to the W12 PR author's
+  judgment. Re-evaluate if W12-1 PR ships without parser split
+  and `extension_host.py` LoC stays >600.
 
 ## How to pull an item back
 

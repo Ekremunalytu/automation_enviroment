@@ -3,7 +3,10 @@
 import json
 from pathlib import Path
 
+import pytest
+
 from packages.analysis_contracts import TriggerPayload
+from packages.marketplace_identity import MarketplaceIdentityError
 from workflows.marketplace.triggers import (
     CAPABILITY_TAXONOMY,
     _glob_to_bait_filename,
@@ -361,6 +364,21 @@ class TestWriteTriggerFile:
         payload = TriggerPayload(selected_scenarios=["coding_session"])
         write_trigger_file("p", "n", "1.0.0", payload, output_dir=str(output_dir))
         assert (output_dir / "triggers_p.n-1.0.0.json").exists()
+
+    def test_rejects_adversarial_identity_before_writing(self, tmp_path: Path) -> None:
+        output_dir = tmp_path / "output"
+        payload = TriggerPayload(selected_scenarios=["coding_session"])
+
+        with pytest.raises(MarketplaceIdentityError):
+            write_trigger_file(
+                "../etc",
+                "ext",
+                "1.0.0",
+                payload,
+                output_dir=str(output_dir),
+            )
+
+        assert not output_dir.exists()
 
 
 # ---------------------------------------------------------------------------

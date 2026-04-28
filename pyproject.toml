@@ -163,6 +163,8 @@ addopts = [
     "--tb=short",
     "--strict-markers",
     "--import-mode=importlib",
+    # Default lane skips smoke; `make test-ci` overrides this with
+    # `-m "smoke or not smoke"` so blocking smoke acceptance actually fires.
     "-m",
     "not smoke",
     "-ra",

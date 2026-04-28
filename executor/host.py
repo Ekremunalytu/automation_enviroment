@@ -7,6 +7,7 @@ import time
 from pathlib import Path
 
 from executor.config import settings
+from packages.marketplace_identity import safe_marketplace_slug
 
 
 class ExecutorError(Exception):
@@ -150,10 +151,8 @@ def install_extension_in_executor(publisher: str, name: str, version: str) -> st
     once more. Non-retryable failures (bad VSIX, permission, etc.) propagate
     on the first attempt.
     """
-    vsix_container_path = (
-        f"{settings.executor.EXTENSIONS_CONTAINER_PATH}"
-        f"/{publisher}.{name}-{version}.vsix"
-    )
+    slug = safe_marketplace_slug(publisher, name, version)
+    vsix_container_path = f"{settings.executor.EXTENSIONS_CONTAINER_PATH}/{slug}.vsix"
     cmd = [
         "code",
         "--install-extension",

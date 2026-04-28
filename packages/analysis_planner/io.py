@@ -8,6 +8,7 @@ from typing import Any
 
 from packages.analysis_contracts import TriggerPayload
 from packages.analysis_planner.registry import EventStrategy, ScenarioDefinition
+from packages.marketplace_identity import safe_marketplace_slug
 
 
 def write_trigger_file(
@@ -19,7 +20,7 @@ def write_trigger_file(
 ) -> str:
     """Write trigger payload to a JSON file on the shared volume."""
 
-    filename = f"triggers_{publisher}.{name}-{version}.json"
+    filename = f"triggers_{safe_marketplace_slug(publisher, name, version)}.json"
     host_path = Path(output_dir) / filename
     host_path.parent.mkdir(parents=True, exist_ok=True)
     host_path.write_text(

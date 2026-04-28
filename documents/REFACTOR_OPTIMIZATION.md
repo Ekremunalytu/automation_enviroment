@@ -1771,7 +1771,13 @@ command-injection vektörleri içeriyor.
      constraint; validator helper
      `appcore/contracts/validators.py::valid_extension_slug` merkezi
      hale getirilir (yeni W8-2 `safe_marketplace_slug` ile aynı
-     regex disiplini paylaşır).
+     regex disiplini paylaşır). **W8-5 regex'i kendi başına
+     tanımlamaz** — W8-2'de pinlenen
+     `packages.marketplace_identity.MARKETPLACE_SLUG_TOKEN_RE`
+     constant'ını re-import eder; böylece iki helper drift edemez.
+     Pydantic v2 `@field_validator` wrapper'ı `valid_extension_slug`
+     fonksiyonunu üretir; FastAPI `Path(..., regex=...)` aynı
+     constant'ı `.pattern` üzerinden kullanır.
    - **Test:**
      `tests/workflows/activation_reports/test_router_path_traversal.py`
      — 6 adversarial path case.
@@ -1842,6 +1848,44 @@ command-injection vektörleri içeriyor.
      ingress side of the trust boundary; original Claude/Codex W8
      review covered scanner-side parsing/injection only).
 
+8. **Manifest field log-injection sanitization (defense-in-depth).**
+   Adversarial extension manifests carry attacker-controlled strings
+   in `displayName`, `publisher.displayName`, `description`,
+   `repository.url`, ve `categories[]`. Bu alanlar marketplace
+   ingestion + extension-catalog lifecycle üzerinden geçip logger
+   emit + job snapshot persist path'ine ulaşıyor. Merkezi bir
+   sanitization pass'i yok: kötü niyetli bir publisher kendi
+   `displayName`'ine `\n` / `\r` / ANSI control sequence gömerek
+   (a) post-W13-4 `extrace.executor.*` log akışında satır forge
+   edebilir, (b) `output/*.json` artifact'ını terminalde inceleyen
+   operatörü ANSI escape ile kandırabilir.
+   - **Change:** Yeni
+     `appcore/contracts/sanitize.py::sanitize_for_log(value, *, max_length=200)`
+     helper'ı CR/LF + C0/C1 control character'larını `\x{HH}` formuna
+     escape eder, NULL byte'ı reddeder, max_length aşımında
+     `…` ile keser. Helper, manifest field'ları log emit eden tüm
+     call site'larda
+     `logger.info("event %s", sanitize_for_log(displayName))` formuna
+     geçer. Job snapshot persist'i (`crud_ops/analysis_jobs.py`)
+     raw manifest field'ı saklamaya devam eder (DB integrity); log /
+     evidence path'inde sanitize edilmiş varyant kullanılır. ADR 0002
+     §7'ye "untrusted manifest → log forging" satırı eklenir.
+   - **Test:**
+     `tests/platform/security/test_manifest_log_sanitization.py` —
+     6 case: newline injection, CR injection, ANSI escape, NULL byte
+     reject, overlength truncation, ve regression: legitimate unicode
+     `displayName` ('日本語', 'müzik') preserved (UTF-8 encode
+     pass-through).
+   - **Refs:** new `appcore/contracts/sanitize.py`;
+     `workflows/extension_catalog/service.py` (manifest log emit);
+     `workflows/marketplace/job_service.py` (job log emit);
+     `workflows/marketplace/analysis_execution.py` (step log emit);
+     ADR 0002 update; new test.
+   - **Architecture audit (2026-04-27):** §7 "Untrusted input →
+     logging" gap "Bilinmiyor" olarak bırakılmıştı; bu madde her
+     emit site'ında audit yerine emit-time enforcement ile boşluğu
+     kapatır.
+
 **Non-Goals:** container egress allowlist (W13 observability ayağına
 bağlı — egress logları run-ID ile stamp'lenmeden allowlist audit'i
 anlamlı değil); harness extension sandbox (W4 ExecutorControl bar'ı
@@ -1853,9 +1897,15 @@ ADR rewrites the `.env.example` notice but does not auto-rotate).
 
 **Exit:**
 
-- [ ] 7 yeni security test lane green
-- [ ] `make test-security` 41 → ≥48 passing
+- [ ] 8 yeni security test lane green
+- [ ] `make test-security` 41 → ≥49 passing
 - [ ] ADR 0003 §6 redaction ek maddesi merged
+- [ ] ADR 0002 §7 "untrusted manifest → log forging" addendum merged
+- [ ] `appcore/contracts/sanitize.py::sanitize_for_log` live; manifest
+      field log emit site'ları (extension_catalog, marketplace
+      job_service + analysis_execution) helper'a geçirilmiş;
+      `tests/platform/security/test_manifest_log_sanitization.py`
+      green
 - [ ] Container-packaging ADR (number TBD; ADR 0008 if next available)
       **draft** başlamış
       (merged olması gerekmiyor — W9 girişinde merged olur)
@@ -1863,8 +1913,24 @@ ADR rewrites the `.env.example` notice but does not auto-rotate).
       `docker-compose.yml` + `appcore/api/config.py` defaultları
       `127.0.0.1` / allow-list CORS; `EXTRACE_ALLOW_LAN=1` opt-in
       yolu doğrulanmış; `documents/runbooks/lan-exposure.md` live
-- [ ] `workflows/marketplace/identity.py` + helper live; raw concat
-      architecture test bloke ediyor
+- [x] `packages/marketplace_identity/` + `safe_marketplace_slug` helper
+      live (LANDED 2026-04-27 on `feat/w8-2-and-reviewer-feedback-gaps`);
+      raw concat architecture test
+      `tests/architecture/test_marketplace_identity_concat.py` bloke
+      ediyor. Exit checkbox güncellemesi: helper plan'da
+      `workflows/marketplace/identity.py` olarak yazılmıştı; architecture
+      test'i (`executor/` ↛ `workflows/`) kuralı nedeniyle
+      `packages/marketplace_identity/` altında otururdu — gerçek konum
+      bu path'tir, W8-5 import bu path'ten yapar.
+- [x] `executor/flows/playwright/uri_validation.py` URI trigger argv-form
+      helper live (LANDED 2026-04-28 on `feat/w8-3-uri-trigger-argv-form`);
+      `subprocess.run` argv form + scheme allow-list (`vscode`,
+      `vscode-insiders`, `http`, `https`); shell-template architecture
+      test `tests/architecture/test_uri_trigger_shell_pattern.py` bloke
+      ediyor; 26 adversarial test case
+      `tests/executor/security/test_uri_trigger_injection.py` altında
+      pin'li. Plan'daki `stimulus_attempts.py:136` satır referansı `:324`
+      olarak güncellendi (line drift).
 - [ ] `tests/architecture/test_default_bindings.py` green
       (varsayılan settings `0.0.0.0` üretmiyor; compose `ports:`
       entries `127.0.0.1:` prefix'li veya `debug` profile altında)
@@ -2117,6 +2183,60 @@ modüllerin imzalarına oturur.
    (warm-start, command-probe, output-channel, log-tail).
    - **Refs:** `monitor_runtime.py` / `monitor_lifecycle.py`.
 
+7. **Workflow-side modularization: `extension_catalog/service.py`
+   split (audit 2026-04-27 expansion).**
+   [`workflows/extension_catalog/service.py`](../workflows/extension_catalog/service.py)
+   475 LoC tek dosyada altı sorumluluk topluyor: (a) `manifest_parser.py`
+   çağrısı ile manifest parse, (b) Pydantic schema hidrasyonu, (c)
+   ORM nesne grafı kurma (12+ ilişkili row), (d) `crud.create_extension`
+   çağrısı, (e) arama, (f) silme. W11 "modularization" temasının
+   workflow-tarafı aynası — monitor split aynı sprint'te
+   `extension_catalog` split'iyle eşlenir, böylece "modularization"
+   PR turu hem executor hem workflow tarafını kapatmış olur.
+   - **Change:** İki dosyaya bölünür:
+     `workflows/extension_catalog/manifest_to_schema.py` (~200 LoC,
+     manifest parse + Pydantic hidrasyon) ve
+     `workflows/extension_catalog/lifecycle.py` (~250 LoC, search +
+     create + delete). Mevcut `service.py` ya silinir (eğer hiçbir
+     external import etmiyorsa) ya da ince re-export facade kalır
+     (back-compat). Router import path güncellenir.
+   - **Test:** Mevcut
+     [`tests/workflows/extension_catalog/`](../tests/workflows/extension_catalog/)
+     test'leri yeni import path'e geçer; davranışsal regresyon
+     `make test-local` üzerinden korunur.
+   - **Refs:** `workflows/extension_catalog/service.py`; new
+     `manifest_to_schema.py` + `lifecycle.py`; mevcut router import
+     güncellemesi.
+   - **Architecture audit (2026-04-27):** §5 "extension_catalog/service.py
+     ahtapot" issue'su.
+
+8. **Workflow-side modularization: `crud_ops/analysis_jobs.py` split
+   (audit 2026-04-27 expansion).**
+   [`appcore/storage/crud_ops/analysis_jobs.py`](../appcore/storage/crud_ops/analysis_jobs.py)
+   348 LoC içinde job lifecycle (create/cancel/complete/fail), step
+   lifecycle (update_step), interrupted-job recovery, JSON
+   serialization, terminal-state predicates karışık. W10 contract
+   hygiene zaten `analysis_jobs` schema'sına dokunduğu için W11'de
+   storage ayağı paralel olarak temizlenir; iki sprint'te ayrı
+   dokunmak yerine W11'de single-pass.
+   - **Change:** Subpackage'a bölünür:
+     `appcore/storage/crud_ops/analysis_jobs/lifecycle.py` (~180 LoC,
+     create/cancel/complete/fail/recovery) ve
+     `appcore/storage/crud_ops/analysis_jobs/steps.py` (~150 LoC,
+     step update + JSON serialization + step state).
+     `analysis_jobs/__init__.py` re-export facade (~20 LoC) —
+     `appcore/storage/crud.py` mevcut re-export'u kırılmaz, caller
+     hiçbir değişiklik görmez.
+   - **Test:** Mevcut
+     [`tests/platform/storage/test_analysis_jobs.py`](../tests/platform/storage/test_analysis_jobs.py)
+     yeni import path'e geçer; `make test-local` regresyon green.
+     Cancel-after-finish race test (W8-2'de landed) korunur.
+   - **Refs:** `appcore/storage/crud_ops/analysis_jobs.py`; new
+     subpackage; mevcut caller'lar (workflows, `main.py::recover_interrupted_jobs`)
+     facade üzerinden çağrıya devam eder.
+   - **Architecture audit (2026-04-27):** §5 "crud_ops/analysis_jobs.py
+     step + lifecycle + JSON" issue'su.
+
 > **Not (2026-04-24 plan review):** `entrypoint_runner.main` dispatch
 > extraction (eski item 6) **W12-4'e taşındı** — W12 subpackaging
 > `entrypoint/` subpackage'ı zaten oluşturduğu için dispatch split
@@ -2137,6 +2257,12 @@ scenario implementation (`scenarios/`) dokunulmaz.
 - [ ] `activation_discovery_strategies` rapor'da görünüyor; UI
       `contracts.ts` regen'd
 - [ ] Per-strategy `_stop_*` helpers canlı
+- [ ] `workflows/extension_catalog/service.py` 475 → 2 dosya
+      (`manifest_to_schema.py` + `lifecycle.py`); router import
+      path'i güncellenmiş; `tests/workflows/extension_catalog/` green
+- [ ] `appcore/storage/crud_ops/analysis_jobs.py` 348 → subpackage
+      (`lifecycle.py` + `steps.py` + facade); mevcut caller'lar
+      değişmemiş; `tests/platform/storage/test_analysis_jobs.py` green
 - [ ] `make check-all` green; demo acceptance → `DEMO GREEN`
 
 ### 11.9 W12 — Executor Subpackaging + Attribution Cleanup
@@ -2338,6 +2464,7 @@ Her madde → iki review'daki referans + line evidence:
 | W8-5 | Activation-report regex | §1 | — | `workflows/activation_reports/router.py` |
 | W8-6 | Content-sample redaction | §1 | §1 | new `packages/analysis_contracts/evidence.py::ContentSample` (today `contracts.py::EvidenceEvent` raw strings) |
 | W8-7 | Local network binding (ADR 0007) | — | — | `.env.example:46,59,82-84`; `docker-compose.yml:11-12,27-28,66-68,101-102,119-120`; `appcore/api/config.py::APISettings`; supplementary review 2026-04-25 (network exposure) |
+| W8-8 | Manifest log-injection sanitization | — | — | new `appcore/contracts/sanitize.py`; `extension_catalog/service.py` + `marketplace/job_service.py` + `marketplace/analysis_execution.py` log emit; architecture audit 2026-04-27 §7 |
 | W9-1 | Container-packaging ADR | §10 | §9 | number TBD; ADR 0008 if next available |
 | W9-2 | `signal_policy.py` relocation | §6 | §4 | `executor/flows/playwright/signal_policy.py:33` |
 | W9-3 | Dual-import fallback sweep | §10 | §9 | 17 dosyada `except ImportError` (post-W7 grep) |
@@ -2354,6 +2481,8 @@ Her madde → iki review'daki referans + line evidence:
 | W11-4 | `ScenarioAccountant` extraction | §3 | §3.1 | `monitor_lifecycle.py` |
 | W11-5 | `ExtensionMonitor` facade | §3 | §3.1 | same |
 | W11-6 | Per-strategy `_stop_*` helpers | §3 | — | `monitor_lifecycle.py::stop()` |
+| W11-7 | `extension_catalog/service.py` split | — | — | `workflows/extension_catalog/service.py` (475 LoC); architecture audit 2026-04-27 §5 |
+| W11-8 | `crud_ops/analysis_jobs.py` split | — | — | `appcore/storage/crud_ops/analysis_jobs.py` (348 LoC); architecture audit 2026-04-27 §5 |
 | W12-1 | Executor subpackaging | §2 | §3.2 | `executor/flows/playwright/` (54 files) |
 | W12-2 | Attribution facade cleanup | §5 | §4 | `attribution/__init__.py` (29 underscore names) |
 | W12-3 | `raw_context` typing | §5 | §4 | `packages/analysis_contracts/evidence.py` |
@@ -2421,10 +2550,10 @@ gerekçelenir:
 
 | Lane | Sorumlu ajan | W8 | W9 | W10 | W11 | W12 | W13 |
 |---|---|---|---|---|---|---|---|
-| Backend refactor | GPT-5.4 | §11.5-(2)(5) | — | §11.7 (hepsi) | — | §11.9-(3) | §11.10-(3)(7) |
-| Executor modularization | GPT-5.4 + Claude review | §11.5-(3)(4) | §11.6-(2)(3)(4)(5) | — | §11.8 (hepsi) | §11.9-(1)(2)(4) | §11.10-(2)(4)(5) |
-| Plan/ADR yazımı | Claude | ADR 0003 §6 update + container-packaging ADR draft | container-packaging ADR merged | — | — | — | — |
-| Güvenlik hardening | Claude (tasarım) + GPT (uygulama) | §11.5-(1)(6) | — | — | — | — | §11.10-(1)(6)(8) |
+| Backend refactor | GPT-5.4 | §11.5-(2)(5) | — | §11.7 (hepsi) | §11.8-(7)(8) | §11.9-(3) | §11.10-(3)(7) |
+| Executor modularization | GPT-5.4 + Claude review | §11.5-(3)(4) | §11.6-(2)(3)(4)(5) | — | §11.8-(1..6) | §11.9-(1)(2)(4) | §11.10-(2)(4)(5) |
+| Plan/ADR yazımı | Claude | ADR 0002 §7 + ADR 0003 §6 update + container-packaging ADR draft | container-packaging ADR merged | — | — | — | — |
+| Güvenlik hardening | Claude (tasarım) + GPT (uygulama) | §11.5-(1)(6)(8) | — | — | — | — | §11.10-(1)(6)(8) |
 | Mimari review | Claude Opus 4.x Explore | W8 post-review | W9 post-review | W10 post-review | W11 post-review | W12 post-review | W13 post-review |
 
 **Çakışma kuralları (§10.4'ten devralındı, W9 sonrası güçlendirilir):**
@@ -2452,7 +2581,10 @@ altında "Evaluated but deferred" etiketiyle kalır.
 - [ ] VSIX zip-bomb + path-traversal guard live; security test lock-in
 - [ ] `safe_marketplace_slug` helper live; raw concat architecture
       test bloke ediyor
-- [ ] URI trigger argv-form invocation; shell injection vector kapalı
+- [x] URI trigger argv-form invocation; shell injection vector kapalı
+      (LANDED 2026-04-28; helper `executor/flows/playwright/uri_validation.py`,
+      AST detector `tests/architecture/test_uri_trigger_shell_pattern.py`,
+      26 adversarial cases `tests/executor/security/test_uri_trigger_injection.py`)
 - [ ] Absolute binary path disiplini executor genelinde
 - [ ] Activation-report router tight regex + helper konsolide
 - [ ] `ContentSample` secret redaction live; ADR 0003 §6 ek merged
@@ -2460,7 +2592,11 @@ altında "Evaluated but deferred" etiketiyle kalır.
       + CORS allow-list + CDP `debug` profile live;
       `tests/architecture/test_default_bindings.py` green;
       `documents/runbooks/lan-exposure.md` live
-- [ ] `make test-security` 41 → ≥48 passing (W8 bitişinde) / ≥52 (W13)
+- [ ] ADR 0002 §7 manifest log-injection addendum merged;
+      `appcore/contracts/sanitize.py::sanitize_for_log` live; manifest
+      field log emit site'ları sanitize'a geçirilmiş;
+      `tests/platform/security/test_manifest_log_sanitization.py` green
+- [ ] `make test-security` 41 → ≥49 passing (W8 bitişinde) / ≥53 (W13)
 
 **Framework boundary (W9):**
 
@@ -2487,6 +2623,10 @@ altında "Evaluated but deferred" etiketiyle kalır.
 - [ ] `activation_discovery_strategies` report field live + UI
       contracts.ts regen'd
 - [ ] Per-strategy `_stop_*` helpers canlı
+- [ ] `workflows/extension_catalog/service.py` 475 LoC → 2 dosya
+      + router import path güncellenmiş
+- [ ] `appcore/storage/crud_ops/analysis_jobs.py` 348 LoC →
+      `lifecycle.py` + `steps.py` + facade subpackage
 
 **Executor subpackaging (W12):**
 
@@ -2509,8 +2649,9 @@ altında "Evaluated but deferred" etiketiyle kalır.
 - [ ] `make check-all` green; `make test-security` ≥52 passing;
       `scripts/demo_acceptance.py` → `DEMO GREEN`
 
-Bu 14 madde yeşilken external review integration kapanır; POST_POC
-backlog "Evaluated but deferred" label'ıyla update edilir; iki
-review dokümanı (`claude_code_review.md`, `codex_project_review.md`)
-archive olarak kalır — silinmez, gelecek review'larda baseline olarak
-kullanılır.
+Yukarıdaki tüm exit kriterleri yeşilken external review integration
+window kapanır; POST_POC backlog "Evaluated but deferred" label'ıyla
+update edilir; iki review dokümanı (`claude_code_review.md`,
+`codex_project_review.md`) ile 2026-04-27 architecture audit raporu
+archive olarak kalır — silinmez, gelecek review'larda baseline
+olarak kullanılır.

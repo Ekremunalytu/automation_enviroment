@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import subprocess
 from collections.abc import Callable
 from typing import Any
 
+import uri_validation
 from wait_helpers import (
     require_wait,
     wait_for_command_effect,
@@ -130,6 +132,7 @@ def run_extra_triggers(
             activation_event="onUri",
         )
         try:
+            uri_validation.validate_uri_scheme(payload.uri_trigger)
             print(f"[*] Triggering URI: {payload.uri_trigger}")
             deps.terminal.new_terminal(page)
             require_wait(
@@ -139,7 +142,7 @@ def run_extra_triggers(
                     activation_event="onUri",
                 )
             )
-            deps.terminal.type_in_terminal(page, f"xdg-open '{payload.uri_trigger}'")
+            uri_validation.run_uri_trigger(payload.uri_trigger)
             require_wait(
                 wait_for_trigger_effect(
                     page,
@@ -153,7 +156,13 @@ def run_extra_triggers(
                 "completed",
                 activation_event="onUri",
             )
-        except (PlaywrightError, RuntimeError) as exc:
+        except (
+            PlaywrightError,
+            RuntimeError,
+            uri_validation.UriValidationError,
+            subprocess.SubprocessError,
+            OSError,
+        ) as exc:
             print(f"[!] URI trigger failed: {exc}")
             emit(
                 "extra_trigger",

@@ -1999,15 +1999,27 @@ def test_cancel_analysis_job_returns_cancelled_snapshot(client: TestClient) -> N
     mock_cancel.assert_called_once()
 
 
-def test_cancel_analysis_job_terminal_returns_409(client: TestClient) -> None:
+@pytest.mark.parametrize("terminal_status", ["completed", "failed", "cancelled"])
+def test_cancel_analysis_job_terminal_returns_409(
+    client: TestClient, terminal_status: str
+) -> None:
+    """A cancel request that races against any terminal-state transition
+    surfaces 409 with the offending status preserved in the detail. Mirrors
+    the CRUD-level cancel-after-finish race coverage; closes the router-side
+    half of POST_POC_BACKLOG `[FOLLOWUP simulation-progress-cancel]`
+    cancel-after-finish race gap."""
     with patch(
         "workflows.marketplace.router.job_service.cancel_job",
-        side_effect=marketplace_router.JobNotCancellableError("job-789", "completed"),
+        side_effect=marketplace_router.JobNotCancellableError(
+            "job-789", terminal_status
+        ),
     ):
         response = client.post("/api/marketplace/analyze/job-789/cancel")
 
     assert response.status_code == 409
-    assert "terminal status" in response.json()["detail"].lower()
+    detail = response.json()["detail"].lower()
+    assert "terminal status" in detail
+    assert terminal_status in detail
 
 
 def test_cancel_analysis_job_unknown_returns_404(client: TestClient) -> None:
