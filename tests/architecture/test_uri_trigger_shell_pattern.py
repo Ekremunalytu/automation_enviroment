@@ -142,3 +142,58 @@ def test_detector_ignores_unrelated_fstrings() -> None:
         assert (
             _detects_xdg_open_shell_template(tree.body) is None
         ), f"detector false-fired on benign f-string: {src!r}"
+
+
+def _scan_synthetic_source(source: str) -> list[int]:
+    """Mirror the production scan loop body for a synthetic source.
+
+    Returns a list of offending lineno entries that survive the pragma
+    filter — empty list means "no violation". Used by the pragma escape
+    tests below so they exercise the same gate the real test does
+    without going through the filesystem walk.
+    """
+    pragma_at = _pragma_lines(source)
+    tree = ast.parse(source)
+    offending: list[int] = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.JoinedStr):
+            continue
+        offense_line = _detects_xdg_open_shell_template(node)
+        if offense_line is None:
+            continue
+        if any(line in pragma_at for line in (offense_line, offense_line - 1)):
+            continue
+        offending.append(offense_line)
+    return offending
+
+
+def test_pragma_escapes_violation_on_same_line() -> None:
+    """A ``# arch-allow: xdg-open-shell-string`` pragma on the same line
+    as the offending f-string must skip the violation. Without this the
+    architecture detector would have no escape hatch for legitimate
+    future shell-template sites."""
+    source = (
+        "# heading\ncmd = f\"xdg-open '{uri}'\"  # arch-allow: xdg-open-shell-string\n"
+    )
+    assert _scan_synthetic_source(source) == []
+
+
+def test_pragma_escapes_violation_on_line_above() -> None:
+    """A pragma placed on the line *directly above* the offending
+    f-string must also skip the violation. This covers multi-line
+    f-string expressions where the offending lineno is one below the
+    annotation comment."""
+    source = "# arch-allow: xdg-open-shell-string\ncmd = f\"xdg-open '{uri}'\"\n"
+    assert _scan_synthetic_source(source) == []
+
+
+def test_pragma_two_lines_above_does_not_escape() -> None:
+    """A pragma further than one line above the offending f-string must
+    NOT skip the violation — otherwise an unrelated comment far up the
+    file could accidentally silence a real finding."""
+    source = (
+        "# arch-allow: xdg-open-shell-string\n"
+        "# unrelated intervening comment\n"
+        "cmd = f\"xdg-open '{uri}'\"\n"
+    )
+    assert _scan_synthetic_source(source) == [3]

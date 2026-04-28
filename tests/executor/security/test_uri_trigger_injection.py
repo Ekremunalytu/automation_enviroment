@@ -13,6 +13,7 @@ Covers three layers:
 
 from __future__ import annotations
 
+import subprocess
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -281,3 +282,243 @@ def test_execute_attempt_uri_trigger_rejects_adversarial_uri(
     # Terminal helpers must not fire on an adversarial URI.
     assert captured_terminal_calls == []
     assert captured_subprocess_calls == []
+
+
+# ---------------------------------------------------------------------------
+# validate_uri_scheme — defensive contract gaps
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("non_string", [None, 123, 1.5, [], {}, True, b"vscode://x"])
+def test_validate_uri_scheme_rejects_non_string_input(non_string: Any) -> None:
+    """The helper's ``isinstance(uri, str)`` guard must reject any
+    non-string input with ``UriValidationError`` so a caller that
+    forwards an unparsed payload (e.g. a Pydantic ``Any`` slot) cannot
+    bypass scheme validation."""
+    with pytest.raises(uri_validation.UriValidationError):
+        uri_validation.validate_uri_scheme(non_string)  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize(
+    "uri",
+    [
+        "VSCODE://publisher.tool/activate",
+        "Vscode://publisher.tool/activate",
+        "VSCode-Insiders://publisher.tool/activate",
+        "HTTPS://example.com/path",
+        "Http://example.com/path",
+    ],
+)
+def test_validate_uri_scheme_accepts_case_insensitive_scheme(uri: str) -> None:
+    """RFC 3986 schemes are case-insensitive. The helper lower-cases the
+    parsed scheme before allow-list lookup; this test pins that behaviour
+    so a future refactor cannot silently tighten the contract."""
+    assert uri_validation.validate_uri_scheme(uri) == uri
+
+
+# ---------------------------------------------------------------------------
+# run_uri_trigger — exception propagation
+# ---------------------------------------------------------------------------
+
+
+def test_run_uri_trigger_propagates_subprocess_timeout(monkeypatch) -> None:
+    """If ``xdg-open`` hangs past ``timeout_s`` the helper must propagate
+    ``subprocess.TimeoutExpired`` so the caller's catch clause records a
+    failed trigger. Silent swallow would hide a real problem."""
+
+    def fake_run(argv, **kwargs):
+        raise subprocess.TimeoutExpired(cmd=argv, timeout=kwargs.get("timeout", 0.0))
+
+    monkeypatch.setattr(uri_validation.subprocess, "run", fake_run)
+    with pytest.raises(subprocess.TimeoutExpired):
+        uri_validation.run_uri_trigger("vscode://publisher.tool/activate")
+
+
+def test_run_uri_trigger_propagates_oserror_when_binary_missing(monkeypatch) -> None:
+    """If ``/usr/bin/xdg-open`` is absent inside the container,
+    ``subprocess.run`` raises ``FileNotFoundError`` (subclass of
+    ``OSError``); the helper must let it propagate to the caller's
+    failure path."""
+
+    def fake_run(argv, **kwargs):
+        raise FileNotFoundError(argv[0])
+
+    monkeypatch.setattr(uri_validation.subprocess, "run", fake_run)
+    with pytest.raises(FileNotFoundError):
+        uri_validation.run_uri_trigger("vscode://publisher.tool/activate")
+
+
+# ---------------------------------------------------------------------------
+# entrypoint_triggers.run_extra_triggers — failure-path coverage
+# ---------------------------------------------------------------------------
+
+
+def test_run_extra_triggers_marks_failed_when_subprocess_times_out(monkeypatch) -> None:
+    """A valid URI whose argv-form launch raises ``TimeoutExpired`` must
+    surface as ``failed_triggers=["uri_trigger"]``; this exercises the
+    widened except clause that now includes ``subprocess.SubprocessError``
+    alongside ``PlaywrightError``/``RuntimeError``."""
+    payload = trigger_loader.TriggerPayload(
+        uri_trigger="vscode://publisher.tool/activate"
+    )
+    calls: list[tuple[str, Any]] = []
+    deps = _build_deps(calls)
+
+    def fake_run(argv, **kwargs):
+        raise subprocess.TimeoutExpired(cmd=argv, timeout=kwargs.get("timeout", 0.0))
+
+    monkeypatch.setattr(uri_validation.subprocess, "run", fake_run)
+    failed = entrypoint_triggers.run_extra_triggers(_FakePage(), payload, deps=deps)
+
+    assert failed == ["uri_trigger"]
+
+
+def test_run_extra_triggers_marks_failed_when_binary_missing(monkeypatch) -> None:
+    """Same coverage point but for the ``OSError`` branch of the except
+    clause: an absent ``xdg-open`` binary must record the trigger as
+    failed instead of crashing the run."""
+    payload = trigger_loader.TriggerPayload(
+        uri_trigger="vscode://publisher.tool/activate"
+    )
+    calls: list[tuple[str, Any]] = []
+    deps = _build_deps(calls)
+
+    def fake_run(argv, **kwargs):
+        raise FileNotFoundError(argv[0])
+
+    monkeypatch.setattr(uri_validation.subprocess, "run", fake_run)
+    failed = entrypoint_triggers.run_extra_triggers(_FakePage(), payload, deps=deps)
+
+    assert failed == ["uri_trigger"]
+
+
+def test_run_extra_triggers_emits_failed_event_on_adversarial_uri(monkeypatch) -> None:
+    """Adversarial URI rejection must propagate to the recorder so the
+    final report carries an ``extra_trigger ... failed`` event tied to
+    ``activation_event="onUri"`` — operators reading the report would
+    otherwise see a silent miss."""
+    payload = trigger_loader.TriggerPayload(uri_trigger="javascript:alert(1)")
+    calls: list[tuple[str, Any]] = []
+    deps = _build_deps(calls)
+    events: list[tuple[str, str, str, str, str]] = []
+
+    def record_event(
+        kind: str,
+        message: str,
+        status: str,
+        scenario_name: str = "",
+        activation_event: str = "",
+    ) -> None:
+        events.append((kind, message, status, scenario_name, activation_event))
+
+    monkeypatch.setattr(
+        uri_validation.subprocess,
+        "run",
+        lambda argv, **kwargs: SimpleNamespace(returncode=0, stdout="", stderr=""),
+    )
+
+    failed = entrypoint_triggers.run_extra_triggers(
+        _FakePage(),
+        payload,
+        deps=deps,
+        automation_event_recorder=record_event,
+    )
+
+    assert failed == ["uri_trigger"]
+    failed_events = [e for e in events if e[2] == "failed" and e[4] == "onUri"]
+    assert len(failed_events) == 1
+    assert "URI trigger failed" in failed_events[0][1]
+
+
+# ---------------------------------------------------------------------------
+# stimulus_attempts.execute_attempt(extra:uri_trigger) — happy + legacy paths
+# ---------------------------------------------------------------------------
+
+
+def test_execute_attempt_uri_trigger_invokes_argv_form_under_valid_uri(
+    monkeypatch,
+) -> None:
+    """Mirror of the entrypoint_triggers happy-path argv-form proof for
+    the ``execute_attempt(extra:uri_trigger)`` branch — pins that this
+    code path also goes through ``uri_validation.run_uri_trigger`` and
+    not through the legacy terminal interpolation."""
+    captured_terminal_calls: list[tuple[str, Any]] = []
+    monkeypatch.setattr(
+        stimulus_attempts.terminal,
+        "new_terminal",
+        lambda page: captured_terminal_calls.append(("new_terminal", None)),
+    )
+    monkeypatch.setattr(
+        stimulus_attempts.terminal,
+        "type_in_terminal",
+        lambda page, text: captured_terminal_calls.append(("type_terminal", text)),
+    )
+    captured_argv: list[Any] = []
+
+    def fake_run(argv, **kwargs):
+        captured_argv.append(argv)
+        return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    monkeypatch.setattr(uri_validation.subprocess, "run", fake_run)
+    completed_wait = SimpleNamespace(status="completed", message="ok")
+    monkeypatch.setattr(
+        stimulus_attempts, "wait_for_ui_settle", lambda *a, **k: completed_wait
+    )
+    monkeypatch.setattr(
+        stimulus_attempts, "wait_for_trigger_effect", lambda *a, **k: completed_wait
+    )
+
+    payload = SimpleNamespace(uri_trigger="vscode://publisher.tool/activate")
+    attempt: dict[str, Any] = {"activation_event": "onUri"}
+
+    stimulus_attempts.execute_attempt(
+        _FakePage(),
+        payload,
+        attempt,
+        action="extra:uri_trigger",
+        trigger_method="uri",
+        result=SimpleNamespace(),
+        monitor=None,
+    )
+
+    assert captured_argv == [
+        [uri_validation.XDG_OPEN_PATH, "vscode://publisher.tool/activate"],
+    ]
+    # new_terminal still fires (UI sequencing preserved); type_in_terminal
+    # is the legacy shell-template entry and must NOT.
+    assert ("new_terminal", None) in captured_terminal_calls
+    assert all(name != "type_terminal" for name, _ in captured_terminal_calls)
+
+
+@pytest.mark.parametrize("empty_uri", ["", "   ", "\t\n"])
+def test_execute_attempt_uri_trigger_empty_uri_raises_plain_value_error(
+    monkeypatch, empty_uri: str
+) -> None:
+    """Legacy contract: an empty/whitespace-only ``uri_trigger`` raises a
+    plain ``ValueError`` (not ``UriValidationError``) so callers that
+    discriminate on exception type keep their behaviour. The strip+empty
+    guard sits before ``validate_uri_scheme`` and must not be bypassed."""
+    monkeypatch.setattr(stimulus_attempts.terminal, "new_terminal", lambda page: None)
+    monkeypatch.setattr(
+        uri_validation.subprocess,
+        "run",
+        lambda argv, **kwargs: SimpleNamespace(returncode=0, stdout="", stderr=""),
+    )
+
+    payload = SimpleNamespace(uri_trigger=empty_uri)
+    attempt: dict[str, Any] = {"activation_event": "onUri"}
+
+    with pytest.raises(ValueError) as exc_info:
+        stimulus_attempts.execute_attempt(
+            _FakePage(),
+            payload,
+            attempt,
+            action="extra:uri_trigger",
+            trigger_method="uri",
+            result=SimpleNamespace(),
+            monitor=None,
+        )
+    # Must be the plain ValueError from the empty-URI guard, not the
+    # ``UriValidationError`` subclass produced by scheme validation.
+    assert type(exc_info.value) is ValueError
+    assert "without a target URI" in str(exc_info.value)
