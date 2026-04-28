@@ -1,4 +1,6 @@
-import { Badge, GhostButton, V3, type V3Tone } from "../../components/v3";
+import { useNavigate } from "react-router-dom";
+
+import { Badge, RISK_COLOR, V3, type Risk, type V3Tone } from "../../components/v3";
 import type { DetectionFindingView } from "../../lib/types/view-models";
 
 function severityTone(severity: DetectionFindingView["severity"]): V3Tone {
@@ -8,112 +10,81 @@ function severityTone(severity: DetectionFindingView["severity"]): V3Tone {
   return "neutral";
 }
 
-export function FindingCard({
-  finding,
-  onShowEvidence,
-}: {
-  finding: DetectionFindingView;
-  onShowEvidence: (eventId: string) => void;
-}) {
-  const firstEvidenceId = finding.evidence[0]?.eventId;
+function severityRisk(severity: DetectionFindingView["severity"]): Risk {
+  if (severity === "critical" || severity === "high") return "high";
+  if (severity === "medium") return "medium";
+  return "low";
+}
+
+export function FindingCard({ finding }: { finding: DetectionFindingView }) {
+  const navigate = useNavigate();
+  const mappedRisk = severityRisk(finding.severity);
 
   return (
-    <article
+    <button
+      type="button"
+      onClick={() => navigate(`/rules?rule=${encodeURIComponent(finding.ruleId)}&from=reports`)}
       style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: 14,
+        display: "grid",
+        gridTemplateColumns: "10px minmax(0, 1fr) auto auto auto",
+        gap: 12,
+        alignItems: "center",
+        width: "100%",
         border: `1px solid ${V3.rule}`,
+        borderLeft: `3px solid ${RISK_COLOR[mappedRisk]}`,
         background: V3.paper2,
-        padding: "18px 20px",
+        padding: "14px 16px",
+        textAlign: "left",
+        cursor: "pointer",
+        color: "inherit",
       }}
     >
-      <div style={{ display: "flex", flexWrap: "wrap", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
-        <div style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 6 }}>
-          <span
-            style={{
-              fontFamily: "'JetBrains Mono', monospace",
-              fontSize: 10,
-              color: V3.ink3,
-              letterSpacing: "0.1em",
-              textTransform: "uppercase",
-              wordBreak: "break-all",
-            }}
-          >
-            {finding.ruleId}
-          </span>
-          <h3
-            style={{
-              margin: 0,
-              fontFamily: "'Manrope', sans-serif",
-              fontSize: 18,
-              fontWeight: 700,
-              color: V3.ink,
-              lineHeight: 1.2,
-            }}
-          >
-            {finding.title}
-          </h3>
-        </div>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-          <Badge tone={severityTone(finding.severity)}>Severity · {finding.severityLabel}</Badge>
-          <Badge tone="neutral">Confidence · {finding.confidenceLabel}</Badge>
-          <Badge tone="neutral">{finding.adversaryClass}</Badge>
-        </div>
-      </div>
-
-      <p style={{ margin: 0, fontSize: 13, color: V3.ink3, lineHeight: 1.6 }}>{finding.description}</p>
-
-      {finding.categories.length ? (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-          {finding.categories.map((category) => (
-            <span
-              key={category}
-              style={{
-                border: `1px solid ${V3.rule}`,
-                padding: "3px 8px",
-                fontFamily: "'JetBrains Mono', monospace",
-                fontSize: 10,
-                color: V3.ink3,
-                letterSpacing: "0.06em",
-                textTransform: "uppercase",
-              }}
-            >
-              {category}
-            </span>
-          ))}
-        </div>
-      ) : null}
-
-      {finding.mitigationHint ? (
+      <span aria-hidden style={{ width: 8, height: 8, background: RISK_COLOR[mappedRisk] }} />
+      <div style={{ minWidth: 0 }}>
         <div
           style={{
-            border: `1px solid ${V3.rule2}`,
-            background: V3.paper3,
-            padding: "10px 12px",
-            fontSize: 13,
-            lineHeight: 1.6,
-            color: V3.ink3,
+            fontSize: 14,
+            fontWeight: 600,
+            color: V3.ink,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
           }}
         >
-          {finding.mitigationHint}
+          {finding.title}
         </div>
-      ) : null}
-
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-        <div style={{ fontSize: 12.5, color: V3.ink3, lineHeight: 1.5, minWidth: 0 }}>
-          {finding.evidence.length
-            ? finding.evidence.map((item) => item.summary).join(" · ")
-            : "No evidence references recorded."}
-        </div>
-        <GhostButton
-          ariaLabel={`Show evidence for ${finding.title}`}
-          disabled={!firstEvidenceId}
-          onClick={() => firstEvidenceId && onShowEvidence(firstEvidenceId)}
+        <div
+          style={{
+            marginTop: 4,
+            fontFamily: "'JetBrains Mono', monospace",
+            fontSize: 11,
+            color: V3.ink3,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
         >
-          {finding.evidence.length} evidence
-        </GhostButton>
+          {finding.ruleId}
+        </div>
       </div>
-    </article>
+      <Badge tone={severityTone(finding.severity)}>{finding.severityLabel}</Badge>
+      <span
+        style={{
+          border: `1px solid ${V3.rule2}`,
+          background: V3.paper,
+          color: V3.ink3,
+          padding: "3px 8px",
+          fontFamily: "'JetBrains Mono', monospace",
+          fontSize: 10,
+          fontWeight: 600,
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {finding.evidence.length} hits
+      </span>
+      <span aria-hidden style={{ color: V3.ink4 }}>›</span>
+    </button>
   );
 }

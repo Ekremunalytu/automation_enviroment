@@ -25,8 +25,7 @@ import {
 import { getStoredJobId, rememberJobId } from "./jobStorage";
 import { apiClient } from "../../lib/api/client";
 import { adaptJob } from "../../lib/adapters/job";
-import { adaptReport, getInspectorView } from "../../lib/adapters/report";
-import { buildRuleDraft } from "../../lib/rules/draft";
+import { adaptBundle, getInspectorView } from "../../lib/adapters/report";
 import { LiveEvidenceWorkspace } from "./sections";
 import { ActivityBars } from "./charts/ActivityBars";
 
@@ -91,8 +90,8 @@ export function SimulationPage() {
       if (!reportName) {
         throw new Error("report_path is unavailable");
       }
-      const dto = await apiClient.getReportByName(reportName, signal);
-      return adaptReport(dto, reportName);
+      const dto = await apiClient.getReportBundleByName(reportName, signal);
+      return adaptBundle(dto, reportName);
     },
     refetchInterval: () => {
       const status = jobQuery.data?.status;
@@ -154,7 +153,6 @@ export function SimulationPage() {
   }, [eventId, filteredEvents, report?.evidence, searchParams, setSearchParams]);
 
   const inspector = report ? getInspectorView(report, eventId) : null;
-  const ruleDraft = buildRuleDraft(inspector);
   const options = buildEvidenceFilterOptions(report?.evidence || []);
   const activeFilterCount = countEvidenceFilters(filters);
   const [runTitle, runVersion] = (model?.title || "").split("@", 2);
@@ -419,7 +417,6 @@ export function SimulationPage() {
           });
         }}
         onSelectEvent={setSelectedEvent}
-        ruleDraft={ruleDraft}
         status={job?.status}
       />
 

@@ -11,7 +11,6 @@ import type {
   ActivationReportView,
   EvidenceInspectorView,
   SimulationViewModel,
-  RuleDraftView,
 } from "../../lib/types/view-models";
 import type { InspectorTab } from "../evidence";
 import { getExpectedTelemetry } from "./telemetry";
@@ -109,7 +108,6 @@ export function LiveEvidenceWorkspace({
   eventId,
   inspector,
   inspectorTab,
-  ruleDraft,
   model,
   status,
   detection,
@@ -120,7 +118,6 @@ export function LiveEvidenceWorkspace({
   eventId?: string;
   inspector: EvidenceInspectorView | null;
   inspectorTab: InspectorTab;
-  ruleDraft: RuleDraftView | null;
   detection: ActivationReportView["detection"];
   model: SimulationViewModel | null;
   status?: string;
@@ -162,7 +159,6 @@ export function LiveEvidenceWorkspace({
             detection={detection}
             inspector={inspector}
             onTabChange={onInspectorTabChange}
-            ruleDraft={ruleDraft}
           />
         </div>
       </div>

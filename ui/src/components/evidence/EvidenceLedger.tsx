@@ -66,7 +66,7 @@ export function EvidenceLedger({
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "52px 86px minmax(0, 1fr) 104px 112px 28px",
+          gridTemplateColumns: "56px 80px minmax(0, 1fr) 100px 90px 28px",
           gap: 12,
           padding: "10px 16px",
           borderBottom: `1px solid ${V3.rule}`,
@@ -90,6 +90,9 @@ export function EvidenceLedger({
         {events.map((event, index) => {
           const selected = event.eventId === selectedEventId;
           const risk = eventRisk(event);
+          const primary = event.summaryDisplay || event.artifactShort || event.summary;
+          const secondaryCandidate = [event.artifactShort, event.detail, event.collectorLabel]
+            .find((value) => Boolean(value) && value !== primary);
           return (
             <div key={event.eventId}>
               <div
@@ -100,7 +103,7 @@ export function EvidenceLedger({
                 onKeyDown={(keyboardEvent) => onKeyboardSelect(keyboardEvent, () => onSelect(event.eventId))}
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "52px 86px minmax(0, 1fr) 104px 112px 28px",
+                  gridTemplateColumns: "56px 80px minmax(0, 1fr) 100px 90px 28px",
                   gap: 12,
                   padding: "12px 16px",
                   alignItems: "center",
@@ -134,20 +137,22 @@ export function EvidenceLedger({
                       whiteSpace: "nowrap",
                     }}
                   >
-                    {event.summaryDisplay || event.artifactShort || event.summary}
+                    {primary}
                   </div>
-                  <div
-                    style={{
-                      marginTop: 5,
-                      fontSize: 11,
-                      color: V3.ink3,
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {event.artifactShort || event.detail || event.collectorLabel}
-                  </div>
+                  {secondaryCandidate ? (
+                    <div
+                      style={{
+                        marginTop: 5,
+                        fontSize: 11,
+                        color: V3.ink3,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {secondaryCandidate}
+                    </div>
+                  ) : null}
                 </div>
                 <span style={{ display: "inline-flex", alignItems: "center", gap: 7 }}>
                   <span aria-hidden style={{ width: 9, height: 9, background: risk.color, display: "inline-block" }} />
@@ -209,7 +214,7 @@ function ExpandedEvent({
         display: "grid",
         gridTemplateColumns: "minmax(0, 1.4fr) minmax(220px, 0.9fr) minmax(210px, 0.8fr)",
         gap: 18,
-        padding: "16px 16px 18px 13px",
+        padding: "16px 16px 20px 13px",
         borderLeft: `3px solid ${V3.coral}`,
         borderBottom: `1px solid ${V3.rule}`,
         background: V3.paper2,

@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { Inspector } from "./Inspector";
-import type { EvidenceInspectorView, RuleDraftView } from "../../lib/types/view-models";
+import type { EvidenceInspectorView } from "../../lib/types/view-models";
 
 vi.mock("../../lib/charts/core", () => ({
   ReactECharts: () => <div data-testid="chart" />,
@@ -98,26 +99,16 @@ const inspector: EvidenceInspectorView = {
   ],
 };
 
-const ruleDraft: RuleDraftView = {
-  title: "File Watch: /workspace/.env",
-  severity: "high",
-  confidence: 0.61,
-  scope: { kind: "file" },
-  conditions: [{ field: "path", operator: "contains", value: "/workspace/.env" }],
-  rationale: "Sensitive file read",
-  labels: ["file", "strace"],
-  suspiciousReasons: ["file activity happened near the target activation but ownership remains unconfirmed"],
-};
-
 describe("Inspector", () => {
   it("renders provenance metadata without the repeated reason chain", () => {
     render(
-      <Inspector
-        activeTab="provenance"
-        inspector={inspector}
-        onTabChange={() => undefined}
-        ruleDraft={ruleDraft}
-      />,
+      <MemoryRouter>
+        <Inspector
+          activeTab="provenance"
+          inspector={inspector}
+          onTabChange={() => undefined}
+        />
+      </MemoryRouter>,
     );
 
     expect(screen.getByText("Inspector")).toBeInTheDocument();
@@ -129,12 +120,13 @@ describe("Inspector", () => {
 
   it("renders the relations graph tab", () => {
     render(
-      <Inspector
-        activeTab="relations"
-        inspector={inspector}
-        onTabChange={() => undefined}
-        ruleDraft={ruleDraft}
-      />,
+      <MemoryRouter>
+        <Inspector
+          activeTab="relations"
+          inspector={inspector}
+          onTabChange={() => undefined}
+        />
+      </MemoryRouter>,
     );
 
     expect(screen.getByRole("heading", { name: "Interaction graph" })).toBeInTheDocument();

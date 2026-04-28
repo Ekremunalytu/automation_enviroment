@@ -5,6 +5,7 @@ import { useSearchParams } from "react-router-dom";
 import { FilterRail, type EvidenceFilterState } from "../../components/evidence/FilterRail";
 import { EvidenceLedger } from "../../components/evidence/EvidenceLedger";
 import { LogStreamsPanel } from "../../components/evidence/LogStreamsPanel";
+import { RiskRadarPanel } from "../../components/evidence/RiskRadarPanel";
 import { SlideOverDrawer } from "../../components/ui/SlideOverDrawer";
 import {
   Badge,
@@ -33,6 +34,7 @@ import {
   adaptBundle,
   adaptReport,
   buildInteractionGraph,
+  buildRiskRadar,
 } from "../../lib/adapters/report";
 import { FindingCard } from "./FindingCard";
 import { EventTimeline } from "./charts/EventTimeline";
@@ -113,7 +115,7 @@ export function ReportsPage() {
   );
 
   useEffect(() => {
-    if (selectedTab !== "interactions" && selectedTab !== "timeline" && selectedTab !== "ledger") return;
+    if (selectedTab !== "interactions" && selectedTab !== "ledger") return;
     if (!filteredEvents.length) return;
 
     const candidate = filteredEvents[0]?.eventId;
@@ -147,6 +149,7 @@ export function ReportsPage() {
         | "high",
     }));
   }, [report, filteredEvents]);
+  const timelineKey = timelineEvents.map((event) => `${event.id}:${event.relTimeS ?? "na"}:${event.kind}:${event.risk}`).join("|");
 
   const setSelectedEvent = (nextEventId: string) => {
     startTransition(() => {
@@ -159,15 +162,6 @@ export function ReportsPage() {
   const updateFilters = (nextFilters: EvidenceFilterState) => {
     startTransition(() => {
       setSearchParams(applyEvidenceFilters(searchParams, nextFilters), { replace: true });
-    });
-  };
-
-  const showFindingEvidence = (nextEventId: string) => {
-    startTransition(() => {
-      const next = new URLSearchParams(searchParams);
-      next.set("tab", "ledger");
-      next.set("event", nextEventId);
-      setSearchParams(next, { replace: true });
     });
   };
 
@@ -228,6 +222,13 @@ export function ReportsPage() {
           </span>
         </div>
       </header>
+
+      {report ? (
+        <RiskRadarPanel
+          scores={buildRiskRadar(report)}
+          compositeScore={report.summary.signalSummaryScore ?? 0}
+        />
+      ) : null}
 
       <Panel padded={false}>
         <div
@@ -329,12 +330,13 @@ export function ReportsPage() {
       ) : reportQuery.isError ? (
         <EmptyState eyebrow="Error" body={String(reportQuery.error)} title="Report could not be loaded" />
       ) : !report ? null : selectedTab === "overview" ? (
-        <OverviewSection report={report} onShowEvidence={showFindingEvidence} />
+        <OverviewSection report={report} />
       ) : selectedTab === "interactions" ? (
         <InteractionsSection graph={interactionGraph} report={report} onSelectEvent={setSelectedEvent} />
       ) : selectedTab === "timeline" ? (
         <TimelineSection
           events={timelineEvents}
+          timelineKey={timelineKey}
           selectedId={eventId || undefined}
           onSelect={setSelectedEvent}
           visibleCount={filteredEvents.length}
@@ -403,14 +405,12 @@ function Cell({ label, value, tone = "neutral" }: CellProps) {
 
 function OverviewSection({
   report,
-  onShowEvidence,
 }: {
   report: ReportModel;
-  onShowEvidence: (eventId: string) => void;
 }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-      <VerdictSummaryPanel detection={report.detection} onShowEvidence={onShowEvidence} />
+      <VerdictSummaryPanel detection={report.detection} />
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 320px), 1fr))", gap: 20 }}>
         <BreakdownPanel label="By kind" rows={buildKindRows(report)} />
         <BreakdownPanel label="Risk mix" rows={buildRiskRows(report)} />
@@ -421,10 +421,8 @@ function OverviewSection({
 
 function VerdictSummaryPanel({
   detection,
-  onShowEvidence,
 }: {
   detection: ReportModel["detection"];
-  onShowEvidence: (eventId: string) => void;
 }) {
   if (!detection?.findings.length) return null;
   const visible = detection.findings.slice(0, 3);
@@ -433,7 +431,7 @@ function VerdictSummaryPanel({
     <Panel label="Findings">
       <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
         {visible.map((finding) => (
-          <FindingCard key={finding.id} finding={finding} onShowEvidence={onShowEvidence} />
+          <FindingCard key={finding.id} finding={finding} />
         ))}
         {overflow > 0 ? (
           <span
@@ -559,12 +557,14 @@ type TimelineEvent = {
 
 function TimelineSection({
   events,
+  timelineKey,
   selectedId,
   onSelect,
   visibleCount,
   report,
 }: {
   events: ReadonlyArray<TimelineEvent>;
+  timelineKey: string;
   selectedId?: string;
   onSelect: (eventId: string) => void;
   visibleCount: number;
@@ -583,7 +583,7 @@ function TimelineSection({
           </p>
         </div>
         <div style={{ padding: "18px 20px" }}>
-          <EventTimeline events={events} selectedId={selectedId} onSelect={onSelect} height={280} />
+          <EventTimeline key={timelineKey} events={events} selectedId={selectedId} onSelect={onSelect} height={280} />
         </div>
       </Panel>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 320px), 1fr))", gap: 20 }}>

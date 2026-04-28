@@ -6,10 +6,11 @@ type KVRowProps = {
   k: ReactNode;
   v: ReactNode;
   mono?: boolean;
+  dot?: string;
   style?: CSSProperties;
 };
 
-export function KVRow({ k, v, mono = true, style }: KVRowProps) {
+export function KVRow({ k, v, mono = true, dot, style }: KVRowProps) {
   return (
     <div
       style={{
@@ -42,6 +43,7 @@ export function KVRow({ k, v, mono = true, style }: KVRowProps) {
           wordBreak: "break-all",
         }}
       >
+        {dot ? <span aria-hidden style={{ display: "inline-block", width: 7, height: 7, background: dot, marginRight: 6 }} /> : null}
         {v}
       </div>
     </div>

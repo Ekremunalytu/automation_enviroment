@@ -41,7 +41,7 @@ describe.skip("DetectionPanel", () => {
     "inconclusive",
   ] as const)("renders %s verdict state", (verdict) => {
     const { container } = render(
-      <DetectionPanel detection={buildDetection(verdict)} onShowEvidence={vi.fn()} />,
+      <DetectionPanel detection={buildDetection(verdict)} />,
     );
 
     expect(container).toMatchSnapshot();

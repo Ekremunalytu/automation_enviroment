@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 
 import { RISK_COLOR, V3, type Risk } from "../../../components/v3";
 
@@ -17,24 +17,84 @@ type EventTimelineProps = {
   height?: number;
 };
 
-export function EventTimeline({ events, selectedId, onSelect, height = 140 }: EventTimelineProps) {
-  const [playing, setPlaying] = useState(false);
+const W = 960;
+const H = 240;
+const PAD_L = 110;
+const PAD_R = 28;
+const PAD_T = 16;
+const PAD_B = 40;
+const INNER_W = W - PAD_L - PAD_R;
+const SCAN_DURATION_MS = 6000;
+
+const R_LANES = [
+  { id: "activation", label: "Activation", color: V3.coral, y: 56 },
+  { id: "file", label: "File I/O", color: V3.ink2, y: 116 },
+  { id: "network", label: "Network", color: V3.warn, y: 176 },
+] as const;
+
+type LaneId = (typeof R_LANES)[number]["id"];
+
+type NormalizedTimelineEvent = {
+  id: string;
+  summary: string;
+  t: number;
+  kind: LaneId;
+  risk: Risk;
+};
+
+function normalizeKind(kind?: string): LaneId | null {
+  if (kind === "activation" || kind === "file" || kind === "network") return kind;
+  return null;
+}
+
+function truncate(value: string, max = 32) {
+  return value.length > max ? `${value.slice(0, max - 2)}…` : value;
+}
+
+export function EventTimeline({ events, selectedId, onSelect, height = 240 }: EventTimelineProps) {
+  const [playing, setPlaying] = useState(true);
   const [cursor, setCursor] = useState(0);
   const [hoverId, setHoverId] = useState<string | null>(null);
+  const [selectionAnchorEnabled, setSelectionAnchorEnabled] = useState(true);
   const frameRef = useRef<number | null>(null);
   const startedRef = useRef<number | null>(null);
+  const cursorRef = useRef(0);
+  const hasEventsRef = useRef(false);
 
-  const span = useMemo(() => {
-    const times = events
-      .map((event) => event.relTimeS)
-      .filter((value): value is number => typeof value === "number" && Number.isFinite(value));
-    if (!times.length) return null;
-    const min = Math.min(...times, 0);
-    const max = Math.max(...times, min + 1);
-    return { min, max, total: max - min || 1 };
-  }, [events]);
+  const allEvents = useMemo(
+    () =>
+      events
+        .flatMap<NormalizedTimelineEvent>((event) => {
+          const kind = normalizeKind(event.kind);
+          if (!kind || typeof event.relTimeS !== "number" || !Number.isFinite(event.relTimeS)) return [];
+          return [
+            {
+              id: event.id,
+              summary: event.label || event.id,
+              t: Math.max(0, event.relTimeS),
+              kind,
+              risk: event.risk ?? "low",
+            },
+          ];
+        })
+        .sort((left, right) => left.t - right.t),
+    [events],
+  );
 
-  const width = 720;
+  const maxT = useMemo(() => Math.max(1, ...allEvents.map((event) => event.t)) + 2, [allEvents]);
+  const selectedEvent = allEvents.find((event) => event.id === selectedId);
+  const anchoredEvent = selectionAnchorEnabled ? selectedEvent : undefined;
+  const activeCursor = anchoredEvent ? anchoredEvent.t / maxT : cursor;
+  const playX = PAD_L + activeCursor * INNER_W;
+  const highRiskCount = allEvents.filter((event) => event.risk === "high").length;
+
+  useEffect(() => {
+    cursorRef.current = cursor;
+  }, [cursor]);
+
+  useEffect(() => {
+    hasEventsRef.current = allEvents.length > 0;
+  }, [allEvents.length]);
 
   useEffect(() => {
     if (!playing) {
@@ -44,12 +104,20 @@ export function EventTimeline({ events, selectedId, onSelect, height = 140 }: Ev
       return;
     }
 
-    const duration = 6000;
     const step = (timestamp: number) => {
-      if (startedRef.current === null) startedRef.current = timestamp - cursor * duration;
-      const next = Math.min(1, (timestamp - startedRef.current) / duration);
+      if (!hasEventsRef.current) {
+        startedRef.current = null;
+        frameRef.current = window.requestAnimationFrame(step);
+        return;
+      }
+      if (startedRef.current === null) {
+        startedRef.current = timestamp - cursorRef.current * SCAN_DURATION_MS;
+      }
+      const next = Math.min(1, (timestamp - startedRef.current) / SCAN_DURATION_MS);
+      cursorRef.current = next;
       setCursor(next);
       if (next >= 1) {
+        startedRef.current = null;
         setPlaying(false);
         return;
       }
@@ -60,9 +128,35 @@ export function EventTimeline({ events, selectedId, onSelect, height = 140 }: Ev
     return () => {
       if (frameRef.current !== null) window.cancelAnimationFrame(frameRef.current);
     };
-  }, [cursor, playing]);
+  }, [playing]);
 
-  if (!span) {
+  const xOf = (t: number) => PAD_L + (t / maxT) * INNER_W;
+  const laneFor = (kind: LaneId) => R_LANES.find((lane) => lane.id === kind)!;
+
+  const onPlayToggle = () => {
+    if (cursorRef.current >= 0.999) {
+      cursorRef.current = 0;
+      setCursor(0);
+    }
+    startedRef.current = null;
+    setPlaying((value) => !value);
+  };
+
+  const onSeek = (event: MouseEvent<SVGSVGElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const scale = Math.min(rect.width / W, rect.height / H);
+    const renderedWidth = W * scale;
+    const offsetX = (rect.width - renderedWidth) / 2;
+    const viewX = (event.clientX - rect.left - offsetX) / scale;
+    const next = Math.max(0, Math.min(1, (viewX - PAD_L) / INNER_W));
+    cursorRef.current = next;
+    setCursor(next);
+    setSelectionAnchorEnabled(false);
+    startedRef.current = null;
+    setPlaying(false);
+  };
+
+  if (!allEvents.length) {
     return (
       <div
         style={{
@@ -84,28 +178,8 @@ export function EventTimeline({ events, selectedId, onSelect, height = 140 }: Ev
     );
   }
 
-  const lanes = [
-    { kind: "activation", label: "Activation", color: V3.coral },
-    { kind: "file", label: "File", color: V3.warn },
-    { kind: "network", label: "Network", color: V3.ok },
-  ] as const;
-  const ticks = [0, 0.25, 0.5, 0.75, 1];
-  const left = 112;
-  const right = 20;
-  const top = 26;
-  const bottom = 34;
-  const innerWidth = width - left - right;
-  const laneStep = (height - top - bottom) / lanes.length;
-  const selectedEvent = events.find((event) => event.id === selectedId);
-  const selectedX =
-    selectedEvent && typeof selectedEvent.relTimeS === "number"
-      ? left + ((selectedEvent.relTimeS - span.min) / span.total) * innerWidth
-      : null;
-  const cursorX = left + cursor * innerWidth;
-  const playheadX = selectedX ?? cursorX;
-
   return (
-    <div style={{ border: `1px solid ${V3.rule}`, background: V3.paper }}>
+    <div style={{ position: "relative", background: V3.paper, border: `1px solid ${V3.rule}` }}>
       <div
         style={{
           display: "flex",
@@ -119,24 +193,21 @@ export function EventTimeline({ events, selectedId, onSelect, height = 140 }: Ev
       >
         <button
           type="button"
-          onClick={() => {
-            if (cursor >= 0.999) setCursor(0);
-            setPlaying((value) => !value);
-          }}
+          onClick={onPlayToggle}
           style={{
-            border: `1px solid ${V3.ink}`,
-            background: playing ? V3.ink : V3.paper,
-            color: playing ? V3.paper : V3.ink,
-            padding: "5px 10px",
             fontFamily: "'JetBrains Mono', monospace",
             fontSize: 11,
+            padding: "5px 10px",
+            background: playing ? V3.ink : V3.paper,
+            color: playing ? V3.paper : V3.ink,
+            border: `1px solid ${V3.ink}`,
+            cursor: "pointer",
             letterSpacing: "0.08em",
             textTransform: "lowercase",
             minWidth: 78,
-            cursor: "pointer",
           }}
         >
-          {playing ? "pause" : "scan"}
+          {playing ? "❚❚ pause" : "▶ scan"}
         </button>
         <span
           style={{
@@ -144,175 +215,253 @@ export function EventTimeline({ events, selectedId, onSelect, height = 140 }: Ev
             fontSize: 10.5,
             color: V3.ink3,
             letterSpacing: "0.06em",
+            marginLeft: "auto",
           }}
         >
-          t = {(cursor * span.total + span.min).toFixed(1)}s / {span.max.toFixed(1)}s · {events.length} events
+          t = {(activeCursor * maxT).toFixed(1)}s / {maxT.toFixed(1)}s · {allEvents.length} events · {highRiskCount} high-risk
         </span>
       </div>
+
       <svg
         role="img"
         aria-label="Event timeline"
-        viewBox={`0 0 ${width} ${height}`}
-        preserveAspectRatio="none"
-        style={{ width: "100%", height, display: "block" }}
+        viewBox={`0 0 ${W} ${H}`}
+        preserveAspectRatio="xMidYMid meet"
+        onClick={onSeek}
+        style={{ width: "100%", height, display: "block", cursor: "crosshair" }}
       >
-      <rect x={0} y={0} width={width} height={height} fill={V3.paper2} />
-      {lanes.map((lane, index) => {
-        const y = top + index * laneStep + laneStep / 2;
-        return (
-          <g key={lane.kind}>
-            <text
-              x={12}
-              y={y + 4}
-              fontFamily="'JetBrains Mono', monospace"
-              fontSize={10}
-              fill={V3.ink3}
-              letterSpacing="0.1em"
-            >
-              {lane.label}
-            </text>
-            <line
-              x1={left}
-              x2={width - right}
-              y1={y}
-              y2={y}
-              stroke={V3.rule}
-              strokeWidth={1}
-            />
-            <rect x={left} y={y - 10} width={2} height={20} fill={lane.color} opacity={0.8} />
-          </g>
-        );
-      })}
-      {ticks.map((ratio, index) => {
-        const x = left + ratio * innerWidth;
-        const seconds = span.min + ratio * span.total;
-        return (
-          <g key={`tick-${index}`}>
-            <line
-              x1={x}
-              x2={x}
-              y1={top - 6}
-              y2={height - bottom + 10}
-              stroke={V3.rule2}
-              strokeWidth={1}
-              opacity={0.45}
-            />
-            <text
-              x={x}
-              y={height - 8}
-              textAnchor="middle"
-              fontFamily="'JetBrains Mono', monospace"
-              fontSize={10}
-              fill={V3.ink4}
-              letterSpacing="0.12em"
-            >
-              {seconds.toFixed(1)}s
-            </text>
-          </g>
-        );
-      })}
-      {playheadX !== null ? (
-        <g>
-          <line x1={playheadX} x2={playheadX} y1={top - 10} y2={height - bottom + 14} stroke={V3.coral} strokeWidth={1.5} strokeDasharray={selectedX === null ? "4 3" : undefined} />
-          <text
-            x={Math.min(width - 80, Math.max(left + 42, playheadX))}
-            y={16}
-            textAnchor="middle"
-            fontFamily="'JetBrains Mono', monospace"
-            fontSize={10}
-            fill={V3.coral}
-            letterSpacing="0.1em"
-          >
-            PLAYHEAD
-          </text>
-        </g>
-      ) : null}
-      {(() => {
-        const ordered = [...events]
-          .filter((event) => typeof event.relTimeS === "number" && lanes.some((lane) => lane.kind === event.kind))
-          .sort((a, b) => (a.relTimeS! - b.relTimeS!));
-        return ordered.slice(0, -1).map((event, i) => {
-          const next = ordered[i + 1];
-          const laneA = lanes.findIndex((lane) => lane.kind === event.kind);
-          const laneB = lanes.findIndex((lane) => lane.kind === next.kind);
-          if (laneA < 0 || laneB < 0) return null;
-          const x0 = left + ((event.relTimeS! - span.min) / span.total) * innerWidth;
-          const x1 = left + ((next.relTimeS! - span.min) / span.total) * innerWidth;
-          const y0 = top + laneA * laneStep + laneStep / 2;
-          const y1 = top + laneB * laneStep + laneStep / 2;
+        <defs>
+          <linearGradient id="tl-wash" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stopColor={V3.coral} stopOpacity="0" />
+            <stop offset="1" stopColor={V3.coral} stopOpacity="0.08" />
+          </linearGradient>
+        </defs>
+
+        <rect x={0} y={0} width={W} height={H} fill={V3.paper} />
+        <rect x={PAD_L} y={PAD_T} width={Math.max(0, playX - PAD_L)} height={H - PAD_T - PAD_B} fill="url(#tl-wash)" />
+
+        {R_LANES.map((lane) => {
+          const laneCount = allEvents.filter((event) => event.kind === lane.id).length;
+          return (
+            <g key={lane.id}>
+              <rect x={4} y={lane.y - 18} width={PAD_L - 14} height={36} fill={V3.paper2} stroke={V3.rule} />
+              <text
+                x={14}
+                y={lane.y - 4}
+                fontSize="10.5"
+                fill={V3.ink}
+                fontFamily="JetBrains Mono"
+                fontWeight="600"
+                letterSpacing="0.06em"
+              >
+                {lane.label.toUpperCase()}
+              </text>
+              <text x={14} y={lane.y + 10} fontSize="9.5" fill={V3.ink3} fontFamily="JetBrains Mono">
+                n={laneCount}
+              </text>
+              <line x1={PAD_L} y1={lane.y} x2={W - PAD_R} y2={lane.y} stroke={V3.rule2} strokeWidth="1" />
+              <rect
+                x={PAD_L}
+                y={lane.y - 14}
+                width={INNER_W}
+                height={28}
+                fill="none"
+                stroke={V3.rule}
+                strokeDasharray="2 4"
+                opacity="0.5"
+              />
+            </g>
+          );
+        })}
+
+        {Array.from({ length: 7 }).map((_, index) => {
+          const p = index / 6;
+          const x = PAD_L + p * INNER_W;
+          return (
+            <g key={`tick-${index}`}>
+              <line x1={x} y1={PAD_T} x2={x} y2={H - PAD_B} stroke={V3.rule} strokeWidth="0.5" opacity="0.6" />
+              <line x1={x} y1={H - PAD_B} x2={x} y2={H - PAD_B + 5} stroke={V3.ink3} strokeWidth="1" />
+              <text
+                x={x}
+                y={H - PAD_B + 18}
+                textAnchor="middle"
+                fontSize="9.5"
+                fill={V3.ink3}
+                fontFamily="JetBrains Mono"
+                letterSpacing="0.06em"
+              >
+                {(p * maxT).toFixed(0)}s
+              </text>
+            </g>
+          );
+        })}
+
+        {allEvents.slice(0, -1).map((event, index) => {
+          const next = allEvents[index + 1];
+          const laneA = laneFor(event.kind);
+          const laneB = laneFor(next.kind);
+          const x0 = xOf(event.t);
+          const y0 = laneA.y;
+          const x1 = xOf(next.t);
+          const y1 = laneB.y;
           const dx = (x1 - x0) * 0.4;
-          const visible = playheadX === null || x0 <= playheadX;
+          const visible = x0 <= playX;
           return (
             <path
               key={`conn-${event.id}-${next.id}`}
               d={`M ${x0} ${y0} C ${x0 + dx} ${y0} ${x1 - dx} ${y1} ${x1} ${y1}`}
               stroke={V3.ink3}
-              strokeWidth={1}
+              strokeWidth="1"
               fill="none"
               strokeDasharray="3 3"
-              opacity={visible ? 0.4 : 0.12}
+              opacity={visible ? 0.35 : 0.12}
+              style={{ transition: "opacity 240ms" }}
             />
           );
-        });
-      })()}
-      {events.map((event) => {
-        const time = event.relTimeS ?? span.min;
-        const cx = left + ((time - span.min) / span.total) * innerWidth;
-        const risk = event.risk ?? "low";
-        const fill = RISK_COLOR[risk];
-        const isSelected = event.id === selectedId;
-        const isHover = event.id === hoverId;
-        const laneIndex = lanes.findIndex((lane) => lane.kind === event.kind);
-        const cy = top + (laneIndex >= 0 ? laneIndex : 0) * laneStep + laneStep / 2;
-        const showCallout = (isSelected || isHover) && Boolean(event.label);
-        const calloutX = Math.min(cx + 10, width - 222);
-        const calloutY = Math.max(cy - 38, 4);
-        return (
-          <g
-            key={event.id}
-            onClick={() => onSelect?.(event.id)}
-            onMouseEnter={() => setHoverId(event.id)}
-            onMouseLeave={() => setHoverId((current) => (current === event.id ? null : current))}
-            style={{ cursor: onSelect ? "pointer" : undefined }}
+        })}
+
+        {allEvents.map((event) => {
+          const lane = laneFor(event.kind);
+          const x = xOf(event.t);
+          const y = lane.y;
+          const col = RISK_COLOR[event.risk];
+          const selected = selectedId === event.id;
+          const hovered = hoverId === event.id;
+          const scanned = x <= playX + 0.5;
+          const dimmed = playing && !scanned;
+          const strong = selected || hovered;
+          const calloutX = Math.min(x, W - PAD_R - 230);
+          const calloutY = y - PAD_T < 60 ? y + 24 : 8;
+
+          return (
+            <g
+              key={event.id}
+              style={{ cursor: onSelect ? "pointer" : "default" }}
+              onMouseEnter={() => setHoverId(event.id)}
+              onMouseLeave={() => setHoverId((current) => (current === event.id ? null : current))}
+              onClick={(clickEvent) => {
+                clickEvent.stopPropagation();
+                setSelectionAnchorEnabled(true);
+                onSelect?.(event.id);
+              }}
+            >
+              <line
+                x1={x}
+                y1={y}
+                x2={x}
+                y2={H - PAD_B}
+                stroke={strong ? col : V3.rule2}
+                strokeWidth={selected ? 1.25 : 1}
+                strokeDasharray={selected ? undefined : "2 3"}
+                opacity={dimmed ? 0.25 : strong ? 0.8 : 0.5}
+                style={{ transition: "opacity 180ms" }}
+              />
+
+              {event.risk !== "low" && scanned ? (
+                <circle
+                  cx={x}
+                  cy={y}
+                  r="6"
+                  fill="none"
+                  stroke={col}
+                  strokeWidth="1"
+                  className="tl-pulse"
+                  style={{ animationDelay: `${event.t * 0.1}s` }}
+                />
+              ) : null}
+
+              {event.kind === "activation" ? (
+                <rect
+                  x={x - 4.5}
+                  y={y - 4.5}
+                  width="9"
+                  height="9"
+                  fill={V3.paper}
+                  stroke={col}
+                  strokeWidth={strong ? 2 : 1.5}
+                  transform={`rotate(45 ${x} ${y})`}
+                  opacity={dimmed ? 0.4 : 1}
+                  style={{ transition: "opacity 200ms" }}
+                />
+              ) : event.kind === "file" ? (
+                <rect
+                  x={x - 4.5}
+                  y={y - 4.5}
+                  width="9"
+                  height="9"
+                  fill={V3.paper}
+                  stroke={col}
+                  strokeWidth={strong ? 2 : 1.5}
+                  opacity={dimmed ? 0.4 : 1}
+                  style={{ transition: "opacity 200ms" }}
+                />
+              ) : (
+                <circle
+                  cx={x}
+                  cy={y}
+                  r={strong ? 5.5 : 4.5}
+                  fill={V3.paper}
+                  stroke={col}
+                  strokeWidth={strong ? 2 : 1.5}
+                  opacity={dimmed ? 0.4 : 1}
+                  style={{ transition: "all 200ms" }}
+                />
+              )}
+              <circle cx={x} cy={y} r={strong ? 2 : 1.5} fill={col} opacity={dimmed ? 0.4 : 1} />
+
+              {strong ? (
+                <g>
+                  <line x1={x} y1={y - 8} x2={x} y2={y - 22} stroke={col} strokeWidth="1" />
+                  <rect x={x - 3} y={y - 25} width="6" height="6" fill={col} />
+                  <g transform={`translate(${calloutX}, ${calloutY})`}>
+                    <rect x="0" y="0" width="230" height="36" fill={V3.ink} stroke={V3.ink} />
+                    <rect x="0" y="0" width="3" height="36" fill={lane.color} />
+                    <text
+                      x="10"
+                      y="15"
+                      fontSize="10.5"
+                      fill={V3.paper}
+                      fontFamily="JetBrains Mono"
+                      fontWeight="600"
+                      letterSpacing="0.04em"
+                    >
+                      t={event.t.toFixed(1)}s · +{event.t.toFixed(1)}s · {event.kind.toUpperCase()}
+                    </text>
+                    <text x="10" y="29" fontSize="10" fill={V3.paper} fontFamily="JetBrains Mono" opacity="0.8">
+                      {truncate(event.summary)}
+                    </text>
+                  </g>
+                </g>
+              ) : null}
+            </g>
+          );
+        })}
+
+        <g style={{ pointerEvents: "none" }}>
+          <line
+            x1={playX}
+            y1={PAD_T - 4}
+            x2={playX}
+            y2={H - PAD_B + 4}
+            stroke={V3.coral}
+            strokeWidth="1.25"
+            strokeDasharray={playing ? undefined : "4 3"}
+          />
+          <polygon points={`${playX - 5},${PAD_T - 4} ${playX + 5},${PAD_T - 4} ${playX},${PAD_T + 3}`} fill={V3.coral} />
+          <rect x={playX - 28} y={H - PAD_B + 4} width="56" height="16" fill={V3.coral} />
+          <text
+            x={playX}
+            y={H - PAD_B + 16}
+            textAnchor="middle"
+            fontSize="10"
+            fontFamily="JetBrains Mono"
+            fontWeight="600"
+            fill={V3.paper}
+            letterSpacing="0.04em"
           >
-            <rect
-              x={cx - (isSelected ? 6 : isHover ? 5 : 4)}
-              y={cy - (isSelected ? 6 : isHover ? 5 : 4)}
-              width={isSelected ? 12 : isHover ? 10 : 8}
-              height={isSelected ? 12 : isHover ? 10 : 8}
-              fill={fill}
-              stroke={isSelected ? V3.ink : V3.paper2}
-              strokeWidth={isSelected ? 1.5 : 1}
-              opacity={isSelected || isHover ? 1 : 0.85}
-            />
-            {showCallout ? (
-              <g transform={`translate(${calloutX}, ${calloutY})`}>
-                <rect width={210} height={32} fill={V3.paper3} stroke={V3.rule} />
-                <rect width={3} height={32} fill={fill} />
-                <text
-                  x={10}
-                  y={13}
-                  fontFamily="'JetBrains Mono', monospace"
-                  fontSize={10}
-                  fill={V3.ink}
-                  letterSpacing="0.06em"
-                >
-                  {`+${(event.relTimeS ?? 0).toFixed(1)}s · ${(event.kind ?? "").toUpperCase()}`}
-                </text>
-                <text
-                  x={10}
-                  y={26}
-                  fontFamily="'JetBrains Mono', monospace"
-                  fontSize={10}
-                  fill={V3.ink2}
-                >
-                  {event.label && event.label.length > 32 ? `${event.label.slice(0, 30)}…` : event.label}
-                </text>
-              </g>
-            ) : null}
-          </g>
-        );
-      })}
+            {(activeCursor * maxT).toFixed(1)}s
+          </text>
+        </g>
       </svg>
     </div>
   );

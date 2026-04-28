@@ -163,9 +163,9 @@ export function LogStreamsPanel({
 
 function MetricTile({ title, value }: { title: string; value: string }) {
   return (
-    <div className="metric-tile">
+    <div className="metric-tile !px-3 !py-3">
       <div className="micro-label">{title}</div>
-      <div className="mt-3 text-2xl font-semibold text-ink">{value}</div>
+      <div className="mt-3 text-xl font-semibold text-ink">{value}</div>
     </div>
   );
 }
@@ -186,7 +186,7 @@ function CoverageAuditCard({
     <div className="rounded-none border border-line bg-canvas/55 p-4">
       <div className="micro-label">{title}</div>
       <div className="mt-2 text-sm leading-6 text-mute">{description}</div>
-      <div className="mt-4 grid gap-3 md:grid-cols-[repeat(3,minmax(0,1fr))]">
+      <div className="mt-4 grid grid-cols-3 gap-3">
         <MetricTile title="Covered" value={String(track.summary.covered)} />
         <MetricTile title="Partial" value={String(track.summary.partial)} />
         <MetricTile title="Missing" value={String(track.summary.missing)} />
@@ -199,12 +199,16 @@ function CoverageAuditCard({
       </div>
       <div className="mt-4">
         <div className="micro-label">Missing capabilities</div>
-        <div className="mt-3 flex flex-wrap gap-2">
+        <div className="mt-3 flex flex-wrap gap-1.5">
           {track.summary.missingCapabilities.length ? (
             track.summary.missingCapabilities.map((item) => (
-              <Badge key={`${title}-${item}`} tone="danger">
-                {item}
-              </Badge>
+              <span
+                key={`${title}-${item}`}
+                title={item}
+                style={{ maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+              >
+                <Badge tone="danger">{item}</Badge>
+              </span>
             ))
           ) : (
             <span className="text-sm text-mute">No missing capabilities reported.</span>
@@ -255,7 +259,7 @@ function EventCoverageCard({
   return (
     <div className="rounded-none border border-line bg-canvas/55 p-4">
       <div className="micro-label">{title}</div>
-      <div className="mt-4 grid gap-3 md:grid-cols-[repeat(4,minmax(0,1fr))]">
+      <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <MetricTile title="Declared" value={String(coverage.declared)} />
         <MetricTile title="Verified" value={String(coverage.verified)} />
         <MetricTile title="Attempted Only" value={String(coverage.attemptedOnly)} />
@@ -277,11 +281,11 @@ function EventCoverageCard({
       </div>
       <div className="mt-4">
         <div className="micro-label">Per-event ledger</div>
-        <div className="mt-3 space-y-2 text-sm leading-6">
+        <div className="mt-3 space-y-3 text-sm leading-6">
           {unresolved.length ? (
             unresolved.map((item) => (
               <div className="rounded-none border border-lineSoft bg-panelAlt/60 px-3 py-2" key={`${title}-${item.attemptId}`}>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex min-w-0 flex-wrap gap-2">
                   <Badge tone={item.status === "failed" ? "danger" : item.status === "blocked" ? "warning" : "default"}>
                     {item.statusLabel}
                   </Badge>

@@ -1,66 +1,28 @@
+import { useNavigate } from "react-router-dom";
+
 import { ReactECharts } from "../../lib/charts/core";
-import type { DetectionReportView, EvidenceInspectorView, RuleDraftView } from "../../lib/types/view-models";
-import { toRuleJson, toRuleYaml } from "../../lib/rules/draft";
+import type { DetectionReportView, EvidenceInspectorView } from "../../lib/types/view-models";
 import { Badge } from "../ui/Badge";
 import { V3 } from "../v3";
 
-function attributionTone(status: string) {
-  if (status === "target_attributed") return "success";
-  if (status === "near_target_activation" || status === "competing_candidate") return "warning";
-  if (status === "automation_noise") return "danger";
-  if (status === "corroboration") return "accent";
-  return "default";
-}
-
-function severityTone(severity: string) {
-  if (severity === "critical" || severity === "high") return "danger";
-  if (severity === "medium") return "warning";
-  return "default";
-}
-
-export function SelectedEventHero({ inspector }: { inspector: EvidenceInspectorView }) {
-  return (
-    <div className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]">
-      <section className="panel-alt p-4">
-        <div className="micro-label">Selected Event</div>
-        <div className="mt-3 break-words text-[24px] font-semibold leading-tight text-ink">{inspector.event.artifactShort}</div>
-        <p className="mt-3 max-w-2xl text-sm leading-6 text-mute">{inspector.event.summaryDisplay}</p>
-        <div className="mt-4 flex flex-wrap gap-2">
-          <Badge tone="accent">{inspector.event.kindLabel}</Badge>
-          <Badge tone="cyan">{inspector.event.collectorLabel}</Badge>
-          <Badge tone="lime">{inspector.event.actorLabel}</Badge>
-          <Badge tone={attributionTone(inspector.event.attributionStatus)}>
-            {inspector.event.attributionStatusLabel}
-          </Badge>
-          {inspector.event.attributionConfidencePct ? (
-            <Badge tone={inspector.event.attributionConfidencePct >= 80 ? "success" : inspector.event.attributionConfidencePct >= 50 ? "warning" : "default"}>
-              {inspector.event.attributionConfidencePct}%
-            </Badge>
-          ) : null}
-          {inspector.event.artifactClass ? <Badge tone="amber">{inspector.event.artifactClass.replaceAll("_", " ")}</Badge> : null}
-          {inspector.event.sensitive ? <Badge tone="rose">Sensitive</Badge> : null}
-        </div>
-      </section>
-
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
-        <Meta label="Scenario" value={inspector.event.scenarioLabel} />
-        <Meta label="Linked Events" value={String(inspector.related.length)} />
-        <Meta label="Attribution" value={inspector.event.attributionStatusLabel} />
-        <Meta
-          label="Confidence"
-          value={inspector.event.attributionConfidencePct ? `${inspector.event.attributionConfidencePct}%` : "Unscored"}
-        />
-      </div>
-    </div>
-  );
-}
-
-export function ProvenanceTab({ inspector }: { inspector: EvidenceInspectorView }) {
+export function ProvenanceTab({
+  inspector,
+  detection,
+}: {
+  inspector: EvidenceInspectorView;
+  detection: DetectionReportView | null;
+}) {
+  const navigate = useNavigate();
   const suspicionBody = inspector.event.attributionBasis || inspector.event.noiseReason
     || "No explicit suspicion rationale was derived for this event.";
   const linkBody = inspector.related.length
     ? `${inspector.related.length} related evidence links are available in the Relations view.`
     : "No related evidence links are available for the selected event.";
+  const eventFindings =
+    detection?.findings.filter((finding) =>
+      finding.evidence.some((evidence) => evidence.eventId === inspector.event.eventId),
+    ) ?? [];
+  const hitRules = Array.from(new Map(eventFindings.map((finding) => [finding.ruleId, { ruleId: finding.ruleId }])).values());
   return (
     <div className="space-y-4">
       <div>
@@ -92,6 +54,25 @@ export function ProvenanceTab({ inspector }: { inspector: EvidenceInspectorView 
         <ContextBlock title="Link Status" body={linkBody} />
         <ContextBlock title="Why this is suspicious" body={suspicionBody} />
       </div>
+
+      {hitRules.length ? (
+        <section>
+          <div className="micro-label">Hit rules · {hitRules.length}</div>
+          <div className="mt-3 flex flex-col gap-2">
+            {hitRules.map((rule) => (
+              <button
+                key={rule.ruleId}
+                type="button"
+                onClick={() => navigate(`/rules?rule=${encodeURIComponent(rule.ruleId)}&from=simulation`)}
+                className="ghost-button justify-between"
+              >
+                <span className="font-mono text-xs">{rule.ruleId}</span>
+                <span aria-hidden style={{ color: V3.ink4 }}>›</span>
+              </button>
+            ))}
+          </div>
+        </section>
+      ) : null}
     </div>
   );
 }
@@ -202,182 +183,6 @@ export function RelationsTab({ inspector }: { inspector: EvidenceInspectorView }
           No explicit evidence links are available for the selected event.
         </div>
       )}
-    </div>
-  );
-}
-
-export function RulesTab({ ruleDraft }: { ruleDraft: RuleDraftView | null }) {
-  if (!ruleDraft) {
-    return (
-      <div className="text-sm leading-6 text-mute">Select an event to generate a portable rule draft.</div>
-    );
-  }
-
-  return (
-    <div className="space-y-5">
-      <div>
-        <div className="micro-label">Rule Draft</div>
-        <h3 className="mt-3 text-xl font-semibold text-ink">Portable detection draft</h3>
-        <p className="mt-2 max-w-3xl text-sm leading-6 text-mute">
-          Generate a shareable rule from the focused evidence without burying labels and conditions in the side column.
-        </p>
-      </div>
-
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Meta label="Title" value={ruleDraft.title} />
-        <Meta label="Severity" value={ruleDraft.severity.toUpperCase()} />
-        <Meta label="Confidence" value={`${Math.round(ruleDraft.confidence * 100)}%`} />
-        <Meta label="Conditions" value={String(ruleDraft.conditions.length)} />
-      </div>
-
-      <section className="panel-alt p-4">
-        <div className="micro-label">Rule Export</div>
-        <p className="mt-3 text-sm leading-6 text-mute">{ruleDraft.rationale}</p>
-      </section>
-
-      <section className="panel-alt p-4">
-        <div className="micro-label">Why This Is Suspicious</div>
-        <div className="mt-3 space-y-2 text-sm leading-6 text-mute">
-          {ruleDraft.suspiciousReasons.length ? (
-            ruleDraft.suspiciousReasons.map((reason) => <div key={reason}>{reason}</div>)
-          ) : (
-            <div>No additional suspicion rationale was derived.</div>
-          )}
-        </div>
-      </section>
-
-      <section>
-        <div className="micro-label">Labels</div>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {ruleDraft.labels.map((label) => (
-            <Badge key={label} tone="accent">
-              {label}
-            </Badge>
-          ))}
-        </div>
-      </section>
-
-      <section>
-        <div className="micro-label">Conditions</div>
-        <div className="mt-3 grid gap-2 lg:grid-cols-2">
-          {ruleDraft.conditions.map((condition) => (
-            <div key={`${condition.field}-${condition.operator}-${String(condition.value)}`} className="panel-alt px-3 py-3 text-sm text-ink">
-              <span className="font-mono text-accentSoft">{condition.field}</span>
-              <span className="mx-2 text-mute">{condition.operator}</span>
-              <span className="font-mono text-ink">{JSON.stringify(condition.value)}</span>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <DualCodeBlock json={toRuleJson(ruleDraft)} yaml={toRuleYaml(ruleDraft)} />
-    </div>
-  );
-}
-
-export function RuleHitsTab({
-  detection,
-  inspector,
-}: {
-  detection: DetectionReportView | null;
-  inspector: EvidenceInspectorView;
-}) {
-  const eventId = inspector.event.eventId;
-  const eventFindings =
-    detection?.findings.filter((finding) =>
-      finding.evidence.some((evidence) => evidence.eventId === eventId),
-    ) ?? [];
-  const hitRuleIds = new Set(eventFindings.map((finding) => finding.ruleId));
-  const rules = detection?.rulesExecuted ?? [];
-
-  return (
-    <div className="space-y-5">
-      <section>
-        <div className="micro-label">Rules</div>
-        <h3 className="mt-3 text-xl font-semibold text-ink">Rule registry</h3>
-        <div
-          style={{
-            marginTop: 12,
-            border: `1px dashed ${V3.rule2}`,
-            background: V3.paper2,
-            padding: "16px 18px",
-            color: V3.ink3,
-            fontSize: 13,
-            lineHeight: 1.6,
-          }}
-        >
-          The full detection rule catalog will plug in here. This space is reserved as a placeholder for the upcoming registry + hits view.
-        </div>
-      </section>
-
-      <section className="space-y-3">
-        <div className="micro-label">Selected event hits</div>
-        {eventFindings.length ? (
-          <div className="space-y-2">
-            {eventFindings.map((finding) => (
-              <div key={finding.id} className="metric-tile">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="break-words text-sm font-medium text-ink">{finding.title}</div>
-                    <div className="mt-1 break-all font-mono text-xs text-mute">{finding.ruleId}</div>
-                  </div>
-                  <Badge tone={severityTone(finding.severity)}>{finding.severityLabel}</Badge>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="rounded-none border border-line bg-panelAlt/50 px-4 py-4 text-sm leading-6 text-mute">
-            No fired rule references this selected event.
-          </div>
-        )}
-      </section>
-
-      <section className="space-y-3">
-        <div className="micro-label">Rule executions</div>
-        {!detection ? (
-          <div className="rounded-none border border-dashed border-lineStrong px-4 py-5 text-sm leading-6 text-mute">
-            Detection rule execution data is unavailable for this report.
-          </div>
-        ) : rules.length ? (
-          <div className="space-y-2">
-            {rules.map((rule) => {
-              const fired = rule.status === "fired";
-              const linkedToSelection = hitRuleIds.has(rule.ruleId);
-              return (
-                <div
-                  key={`${rule.ruleId}-${rule.ruleVersion}`}
-                  className={`metric-tile ${linkedToSelection ? "border-accent" : ""}`}
-                >
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="break-all font-mono text-sm text-ink">{rule.ruleId}</div>
-                      <div className="mt-1 font-mono text-xs text-mute">
-                        v{rule.ruleVersion} · {rule.lifecycle.replaceAll("_", " ")}
-                      </div>
-                      {rule.errorDetail ? (
-                        <div className="mt-2 text-sm leading-6 text-danger">{rule.errorDetail}</div>
-                      ) : null}
-                    </div>
-                    <div className="flex flex-wrap justify-end gap-2">
-                      <Badge tone={rule.status === "error" ? "danger" : fired ? "success" : "default"}>
-                        {rule.statusLabel}
-                      </Badge>
-                      <Badge tone={fired ? "accent" : "default"}>
-                        {rule.findingIds.length} hit{rule.findingIds.length === 1 ? "" : "s"}
-                      </Badge>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="rounded-none border border-line bg-panelAlt/50 px-4 py-4 text-sm leading-6 text-mute">
-            No rule execution records were attached to this detection report yet.
-          </div>
-        )}
-      </section>
     </div>
   );
 }
@@ -571,25 +376,6 @@ function Meta({ label, value }: { label: string; value: string }) {
     <div className="metric-tile">
       <div className="micro-label">{label}</div>
       <div className="mt-3 break-words text-sm leading-6 text-ink">{value}</div>
-    </div>
-  );
-}
-
-function DualCodeBlock({ json, yaml }: { json: string; yaml: string }) {
-  return (
-    <div className="grid gap-4 lg:grid-cols-2">
-      <div className="rounded-none border border-line bg-canvas p-4">
-        <div className="micro-label">JSON</div>
-        <pre className="mt-3 max-h-[320px] overflow-auto whitespace-pre-wrap break-all font-mono text-xs leading-6 text-accentSoft scroll-thin">
-          {json}
-        </pre>
-      </div>
-      <div className="rounded-none border border-line bg-canvas p-4">
-        <div className="micro-label">YAML</div>
-        <pre className="mt-3 max-h-[320px] overflow-auto whitespace-pre-wrap break-all font-mono text-xs leading-6 text-ink scroll-thin">
-          {yaml}
-        </pre>
-      </div>
     </div>
   );
 }

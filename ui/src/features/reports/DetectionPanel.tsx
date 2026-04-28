@@ -11,10 +11,8 @@ function emptyStateCopy(verdict: DetectionReportView["verdict"]) {
 
 export function DetectionPanel({
   detection,
-  onShowEvidence,
 }: {
   detection: DetectionReportView | null;
-  onShowEvidence: (eventId: string) => void;
 }) {
   if (!detection) {
     return (
@@ -81,11 +79,7 @@ export function DetectionPanel({
       ) : (
         <section style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           {detection.findings.map((finding) => (
-            <FindingCard
-              finding={finding}
-              key={finding.id}
-              onShowEvidence={onShowEvidence}
-            />
+            <FindingCard finding={finding} key={finding.id} />
           ))}
         </section>
       )}

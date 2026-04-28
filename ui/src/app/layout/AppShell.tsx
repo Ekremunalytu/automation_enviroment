@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 
 import { LogoMark, V3 } from "../../components/v3";
 
-type NavId = "reports" | "simulation" | "marketplace" | "settings" | "system";
+type NavId = "reports" | "simulation" | "marketplace" | "rules" | "settings" | "system";
 
 type NavSpec = {
   id: NavId;
@@ -16,6 +16,7 @@ const NAV: NavSpec[] = [
   { id: "reports", label: "Reports", hint: "Activation reports & artifacts", to: "/reports?report=latest&tab=overview" },
   { id: "simulation", label: "Simulation", hint: "Sandbox scenarios, live", to: "/simulation" },
   { id: "marketplace", label: "Marketplace", hint: "Extension intake", to: "/marketplace" },
+  { id: "rules", label: "Rules", hint: "Detection registry", to: "/rules" },
   { id: "settings", label: "Settings", hint: "Console preferences", to: "/settings" },
   { id: "system", label: "System", hint: "Executor & telemetry", to: "/system" },
 ];
@@ -38,6 +39,7 @@ function readIsNarrow(): boolean {
 function activeIdFromPath(pathname: string): NavId {
   if (pathname.startsWith("/simulation")) return "simulation";
   if (pathname.startsWith("/marketplace")) return "marketplace";
+  if (pathname.startsWith("/rules")) return "rules";
   if (pathname.startsWith("/settings")) return "settings";
   if (pathname.startsWith("/system")) return "system";
   return "reports";

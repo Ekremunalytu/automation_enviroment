@@ -1,60 +1,80 @@
-import type { DetectionReportView, EvidenceInspectorView, RuleDraftView } from "../../lib/types/view-models";
-import { Panel as V3Panel, Tabs, V3, type TabSpec } from "../v3";
-import {
-  ProvenanceTab,
-  RelationsTab,
-  RuleHitsTab,
-  RulesTab,
-  SelectedEventHero,
-} from "./InspectorSections";
+import type { DetectionReportView, EvidenceInspectorView } from "../../lib/types/view-models";
+import { KVRow, Panel as V3Panel, RISK_COLOR, Tabs, V3, type Risk, type TabSpec } from "../v3";
+import { ProvenanceTab, RelationsTab } from "./InspectorSections";
 
-type InspectorTab = "provenance" | "relations" | "rules" | "rule-hits";
+export type InspectorTab = "provenance" | "relations";
 
 const INSPECTOR_TABS: TabSpec<InspectorTab>[] = [
   { value: "provenance", label: "Provenance" },
   { value: "relations", label: "Relations" },
-  { value: "rules", label: "Rule Draft" },
-  { value: "rule-hits", label: "Rules" },
 ];
+
+function eventRisk(inspector: EvidenceInspectorView): Risk {
+  if (inspector.event.sensitive) return "high";
+  if (inspector.event.kind === "network") return "medium";
+  return "low";
+}
 
 export function Inspector({
   activeTab,
   onTabChange,
   inspector,
-  ruleDraft,
   detection,
 }: {
   activeTab: InspectorTab;
   onTabChange: (next: InspectorTab) => void;
   inspector: EvidenceInspectorView | null;
-  ruleDraft: RuleDraftView | null;
   detection?: DetectionReportView | null;
 }) {
+  const selectedRisk = inspector ? eventRisk(inspector) : "low";
+
   return (
     <V3Panel label="Inspector" bodyStyle={{ padding: 0 }}>
-      <div style={{ padding: "12px 16px", borderBottom: `1px solid ${V3.rule}` }}>
-        <Tabs<InspectorTab>
-          ariaLabel="Inspector tabs"
-          tabs={INSPECTOR_TABS}
-          value={activeTab}
-          onChange={onTabChange}
-        />
-      </div>
-      <div style={{ padding: "16px", display: "flex", flexDirection: "column", gap: 18 }}>
-        {inspector ? (
-          <>
-            <SelectedEventHero inspector={inspector} />
-            {activeTab === "provenance" ? <ProvenanceTab inspector={inspector} /> : null}
-            {activeTab === "relations" ? <RelationsTab inspector={inspector} /> : null}
-            {activeTab === "rules" ? <RulesTab ruleDraft={ruleDraft} /> : null}
-            {activeTab === "rule-hits" ? <RuleHitsTab detection={detection || null} inspector={inspector} /> : null}
-          </>
-        ) : (
-          <div style={{ fontSize: 13, color: V3.ink3, lineHeight: 1.6 }}>
-            Select an event from the timeline or table to inspect provenance, relations, and rules.
+      {inspector ? (
+        <>
+          <div style={{ padding: "14px 16px", borderBottom: `1px solid ${V3.rule}` }}>
+            <div className="v3-eyebrow" style={{ marginBottom: 8 }}>Evidence</div>
+            <div
+              style={{
+                fontFamily: "'JetBrains Mono', monospace",
+                fontSize: 12.5,
+                color: V3.ink,
+                lineHeight: 1.55,
+                padding: "10px 12px",
+                background: V3.paper,
+                border: `1px solid ${V3.rule}`,
+                borderLeft: `2px solid ${RISK_COLOR[selectedRisk]}`,
+                wordBreak: "break-all",
+              }}
+            >
+              {inspector.event.summaryDisplay || inspector.event.summary}
+            </div>
+            <div style={{ marginTop: 12 }}>
+              <KVRow k="id" v={inspector.event.eventId} />
+              <KVRow k="kind" v={inspector.event.kindLabel} />
+              <KVRow k="risk" v={selectedRisk} dot={RISK_COLOR[selectedRisk]} />
+              <KVRow k="timestamp" v={inspector.event.timestampDisplay} />
+              <KVRow k="offset" v={inspector.event.relTimeS != null ? `+${inspector.event.relTimeS}s` : "(n/a)"} />
+            </div>
           </div>
-        )}
-      </div>
+          <div style={{ padding: "12px 16px", borderBottom: `1px solid ${V3.rule}` }}>
+            <Tabs<InspectorTab>
+              ariaLabel="Inspector tabs"
+              tabs={INSPECTOR_TABS}
+              value={activeTab}
+              onChange={onTabChange}
+            />
+          </div>
+          <div style={{ padding: "16px" }}>
+            {activeTab === "provenance" ? <ProvenanceTab inspector={inspector} detection={detection ?? null} /> : null}
+            {activeTab === "relations" ? <RelationsTab inspector={inspector} /> : null}
+          </div>
+        </>
+      ) : (
+        <div style={{ padding: 16, fontSize: 13, color: V3.ink3, lineHeight: 1.6 }}>
+          Select an event from the timeline or table to inspect provenance and relations.
+        </div>
+      )}
     </V3Panel>
   );
 }

@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react";
+import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { FindingCard } from "../FindingCard";
 import type { DetectionFindingView } from "../../../lib/types/view-models";
 
@@ -21,17 +22,33 @@ const finding: DetectionFindingView = {
   mitigationHint: "Block the extension.",
 };
 
-describe("FindingCard", () => {
-  it("emits the first evidence event id when the evidence button is clicked", () => {
-    const onShowEvidence = vi.fn();
+function LocationDisplay() {
+  const location = useLocation();
+  return <div data-testid="location">{location.pathname}{location.search}</div>;
+}
 
-    render(<FindingCard finding={finding} onShowEvidence={onShowEvidence} />);
-    fireEvent.click(
-      screen.getByRole("button", {
-        name: /show evidence for workspace file read/iu,
-      }),
+describe("FindingCard", () => {
+  it("links to the rules registry for the finding rule", () => {
+    render(
+      <MemoryRouter initialEntries={["/reports"]}>
+        <Routes>
+          <Route
+            path="*"
+            element={
+              <>
+                <FindingCard finding={finding} />
+                <LocationDisplay />
+              </>
+            }
+          />
+        </Routes>
+      </MemoryRouter>,
     );
 
-    expect(onShowEvidence).toHaveBeenCalledWith("file-123");
+    fireEvent.click(screen.getByRole("button", { name: /workspace file read followed/iu }));
+
+    expect(screen.getByTestId("location").textContent).toBe(
+      "/rules?rule=extrace.a4.workspace_exfil&from=reports",
+    );
   });
 });

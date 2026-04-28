@@ -13,6 +13,9 @@ const SimulationPage = lazy(async () => ({
 const MarketplacePage = lazy(async () => ({
   default: (await import("../features/marketplace")).MarketplacePage,
 }));
+const RulesPage = lazy(async () => ({
+  default: (await import("../features/rules")).RulesPage,
+}));
 const SettingsPage = lazy(async () => ({
   default: (await import("../features/settings")).SettingsPage,
 }));
@@ -37,6 +40,7 @@ export function App() {
           <Route element={<ReportsPage />} path="/reports" />
           <Route element={<SimulationPage />} path="/simulation" />
           <Route element={<MarketplacePage />} path="/marketplace" />
+          <Route element={<RulesPage />} path="/rules" />
           <Route element={<SettingsPage />} path="/settings" />
           <Route element={<SystemPage />} path="/system" />
         </Routes>

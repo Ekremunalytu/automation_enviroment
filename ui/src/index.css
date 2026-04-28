@@ -234,6 +234,12 @@
     font-feature-settings: "zero";
   }
 
+  .tl-pulse {
+    animation: tlPulse 2.4s ease-out infinite;
+    transform-origin: center;
+    transform-box: fill-box;
+  }
+
   .v3-tab-label {
     font-family: "JetBrains Mono", monospace;
     font-size: 11px;

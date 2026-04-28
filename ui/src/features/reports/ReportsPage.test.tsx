@@ -330,9 +330,8 @@ describe("ReportsPage", () => {
     expect(await screen.findByText("Verdict · MALICIOUS")).toBeInTheDocument();
     expect(screen.getByText("critical finding with high confidence")).toBeInTheDocument();
     expect(screen.getByText("Credential file read followed by outbound request")).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: /show evidence for credential file read/iu }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /credential file read followed by outbound request/iu })).toBeInTheDocument();
+    expect(screen.getByText("Composite score")).toBeInTheDocument();
     expect(screen.getByText("Findings · 1")).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Overview" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Interactions" })).toBeInTheDocument();
