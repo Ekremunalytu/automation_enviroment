@@ -72,4 +72,7 @@ export const apiClient = {
       { method: "POST", signal },
     );
   },
+  getHealth(signal?: AbortSignal) {
+    return requestJson<{ status: string; service: string }>("/health", { signal });
+  },
 };
