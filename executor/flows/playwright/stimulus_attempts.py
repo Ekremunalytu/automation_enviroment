@@ -15,6 +15,7 @@ import commands
 import debug
 import editor
 import terminal
+import uri_validation
 from stimulus_materializers import resolve_command_text, write_harness_context
 from stimulus_types import (
     _HARNESS_READY_PATH,
@@ -313,6 +314,7 @@ def execute_attempt(
         uri = str(getattr(payload, "uri_trigger", "")).strip()
         if not uri:
             raise ValueError("URI trigger requested without a target URI")
+        uri_validation.validate_uri_scheme(uri)
         terminal.new_terminal(page)
         require_wait(
             wait_for_ui_settle(
@@ -321,7 +323,7 @@ def execute_attempt(
                 activation_event=str(attempt.get("activation_event", "")),
             )
         )
-        terminal.type_in_terminal(page, f"xdg-open '{uri}'")
+        uri_validation.run_uri_trigger(uri)
         require_wait(
             wait_for_trigger_effect(
                 page,
