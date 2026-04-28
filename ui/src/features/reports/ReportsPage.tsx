@@ -39,7 +39,8 @@ import { CategoryWorkspace, type ReportWorkspaceTab } from "./sections";
 import { DetectionPanel } from "./DetectionPanel";
 import { EventTimeline } from "./charts/EventTimeline";
 import { InteractionGraph } from "./charts/InteractionGraph";
-import { RADAR_AXES, RiskRadar } from "./charts/RiskRadar";
+import { RiskRadar } from "./charts/RiskRadar";
+import { RADAR_AXES } from "./charts/radar-axes";
 
 type ReportTab = "detection" | "activation" | "file" | "network" | "scenario" | "evidence" | "logs";
 

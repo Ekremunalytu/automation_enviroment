@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
+import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
 
 import {
   Badge,
@@ -70,14 +70,10 @@ function loadSettings(): SettingsState {
 
 export function SettingsPage() {
   const [section, setSection] = useState<SectionId>("general");
-  const [settings, setSettings] = useState<SettingsState>(() => loadSettings());
-  const [persisted, setPersisted] = useState<SettingsState>(() => loadSettings());
+  const initial = useMemo(() => loadSettings(), []);
+  const [settings, setSettings] = useState<SettingsState>(initial);
+  const [persisted, setPersisted] = useState<SettingsState>(initial);
   const dirty = JSON.stringify(settings) !== JSON.stringify(persisted);
-
-  useEffect(() => {
-    setSettings(loadSettings());
-    setPersisted(loadSettings());
-  }, []);
 
   const update = <K extends keyof SettingsState>(key: K, value: SettingsState[K]) => {
     setSettings((prev) => ({ ...prev, [key]: value }));

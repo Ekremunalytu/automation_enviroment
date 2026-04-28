@@ -1,11 +1,7 @@
 import { useMemo } from "react";
 
 import { V3 } from "../../../components/v3";
-
-export const RADAR_AXES = ["Threat", "Exfil", "Persistence", "Privesc", "Defense", "Resource"] as const;
-export type RadarAxis = (typeof RADAR_AXES)[number];
-
-export type RadarScore = Record<RadarAxis, number> & { _synthetic?: boolean };
+import { RADAR_AXES, type RadarScore } from "./radar-axes";
 
 type RiskRadarProps = {
   scores: RadarScore;

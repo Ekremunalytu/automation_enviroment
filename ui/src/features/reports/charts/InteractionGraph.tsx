@@ -41,28 +41,35 @@ export function InteractionGraph({ data, height = 480 }: InteractionGraphProps) 
     const groups = data.groups.slice(0, 6);
     const totalLeaves = groups.reduce((acc, group) => acc + Math.max(1, group.children.length), 0);
     const verticalUnit = (height - 40) / Math.max(totalLeaves, 1);
-    let leafCursor = 20;
 
-    const positionedGroups = groups.map((group, groupIndex) => {
-      const groupHeight = Math.max(1, group.children.length) * verticalUnit;
-      const groupTop = leafCursor;
-      const groupCenter = groupTop + groupHeight / 2;
-      const positionedChildren = group.children.map((child, childIndex) => {
-        const y = leafCursor + (childIndex + 0.5) * verticalUnit;
-        return {
+    type PositionedChild = InteractionGroupChild & { x: number; y: number };
+    type PositionedGroup = Omit<InteractionGroup, "children"> & {
+      index: number;
+      center: number;
+      children: PositionedChild[];
+    };
+
+    const positionedGroups = groups.reduce<{ cursor: number; groups: PositionedGroup[] }>(
+      (acc, group, groupIndex) => {
+        const groupHeight = Math.max(1, group.children.length) * verticalUnit;
+        const groupTop = acc.cursor;
+        const groupCenter = groupTop + groupHeight / 2;
+        const positionedChildren: PositionedChild[] = group.children.map((child, childIndex) => ({
           ...child,
           x: COLUMN_X.leaf,
-          y,
-        };
-      });
-      leafCursor += groupHeight;
-      return {
-        ...group,
-        index: groupIndex,
-        center: groupCenter,
-        children: positionedChildren,
-      };
-    });
+          y: groupTop + (childIndex + 0.5) * verticalUnit,
+        }));
+        acc.groups.push({
+          ...group,
+          index: groupIndex,
+          center: groupCenter,
+          children: positionedChildren,
+        });
+        acc.cursor = groupTop + groupHeight;
+        return acc;
+      },
+      { cursor: 20, groups: [] },
+    ).groups;
 
     return {
       groups: positionedGroups,
