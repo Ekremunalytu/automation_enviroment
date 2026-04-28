@@ -43,6 +43,7 @@ function renderPage(entry: string) {
             }
             path="/reports"
           />
+          <Route element={<LocationDisplay />} path="/rules" />
         </Routes>
       </MemoryRouter>
     </QueryClientProvider>,
@@ -370,6 +371,7 @@ describe("ReportsPage", () => {
     expect(screen.getByRole("tab", { name: "Network" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "File" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Activation" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Scenario" })).toBeInTheDocument();
     expect(screen.queryByText("Coverage audit")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("tab", { name: "Audit" }));
@@ -399,6 +401,25 @@ describe("ReportsPage", () => {
     fireEvent.click(screen.getByRole("tab", { name: "Audit" }));
     await waitFor(() => {
       expect(screen.getByTestId("location-search").textContent).toContain("tab=audit");
+    });
+  });
+
+  it("opens the Inspector drawer on deep-link and routes 'Draft rule from event' to /rules", async () => {
+    renderPage("/reports?report=latest&tab=ledger&event=file-1");
+
+    await screen.findByText("Findings · 1");
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
+    const draftButton = await screen.findByRole(
+      "button",
+      { name: /draft rule from event/i },
+      { timeout: 4000 },
+    );
+    fireEvent.click(draftButton);
+
+    await waitFor(() => {
+      const search = screen.getByTestId("location-search").textContent || "";
+      expect(search).toContain("tab=draft");
+      expect(search).toContain("from=file-1");
     });
   });
 });

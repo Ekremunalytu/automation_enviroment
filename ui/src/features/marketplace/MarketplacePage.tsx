@@ -368,8 +368,9 @@ function ResultCard({ extension, isReady, busy, onDownload, onAnalyze }: ResultC
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 260px), 1fr))",
+        display: "flex",
+        flexWrap: "wrap",
+        justifyContent: "space-between",
         gap: 20,
         alignItems: "flex-start",
         padding: "18px 20px",
@@ -379,7 +380,7 @@ function ResultCard({ extension, isReady, busy, onDownload, onAnalyze }: ResultC
         transition: "border-color 140ms",
       }}
     >
-      <div style={{ minWidth: 0 }}>
+      <div style={{ minWidth: 0, flex: "1 1 320px" }}>
         <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
           <div
             style={{
@@ -425,7 +426,7 @@ function ResultCard({ extension, isReady, busy, onDownload, onAnalyze }: ResultC
         </div>
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-start" }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-end", flexShrink: 0, marginLeft: "auto" }}>
         {!isReady ? (
           <SolidButton disabled={busy} onClick={onDownload}>
             {busy ? "Downloading…" : "Download"}

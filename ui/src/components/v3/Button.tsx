@@ -8,6 +8,8 @@ type ButtonProps = PropsWithChildren<{
   type?: ButtonHTMLAttributes<HTMLButtonElement>["type"];
   style?: CSSProperties;
   ariaLabel?: string;
+  title?: string;
+  "data-feature-stub"?: string;
 }>;
 
 export function SolidButton({ children, onClick, disabled, type = "button", style, ariaLabel }: ButtonProps) {
@@ -44,7 +46,16 @@ export function SolidButton({ children, onClick, disabled, type = "button", styl
   );
 }
 
-export function GhostButton({ children, onClick, disabled, type = "button", style, ariaLabel }: ButtonProps) {
+export function GhostButton({
+  children,
+  onClick,
+  disabled,
+  type = "button",
+  style,
+  ariaLabel,
+  title,
+  "data-feature-stub": dataFeatureStub,
+}: ButtonProps) {
   const [hover, setHover] = useState(false);
   return (
     <button
@@ -52,6 +63,8 @@ export function GhostButton({ children, onClick, disabled, type = "button", styl
       onClick={onClick}
       disabled={disabled}
       aria-label={ariaLabel}
+      title={title}
+      data-feature-stub={dataFeatureStub}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       style={{

@@ -1,6 +1,6 @@
 # ExTrace Web UI
 
-`Last Updated: 2026-04-20`
+`Last Updated: 2026-04-29`
 
 `ui/` is the primary analyst-facing frontend for ExTrace.
 
@@ -59,3 +59,12 @@ Helpful repo-level checks:
 make ui-types-check
 make ui-boundaries
 ```
+
+## Recent Changes
+
+- 2026-04-29: v3 redesign minimal-completion landed on
+  `feat/ui-v3-design-extrace-console`. Inspector drawer + Rule Draft
+  preview, Run health + Coverage summary panels, Ledger Scenario
+  tab. Pending backend contracts are tracked in
+  [`documents/POST_POC_BACKLOG.md`](../documents/POST_POC_BACKLOG.md)
+  under `[BACKLOG ui-v3-1]` … `[BACKLOG ui-v3-13]`.

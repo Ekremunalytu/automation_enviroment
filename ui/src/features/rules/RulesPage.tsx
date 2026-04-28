@@ -22,9 +22,16 @@ import type {
   DetectionFindingView,
   RuleExecutionRecordView,
 } from "../../lib/types/view-models";
+import { RuleDraftSection } from "./RuleDraftSection";
 
+type RulesMode = "registry" | "draft";
 type SeverityFilter = "all" | "critical" | "high" | "medium" | "low";
 type StatusFilter = "all" | "fired" | "not_fired" | "error";
+
+const MODE_TABS: TabSpec<RulesMode>[] = [
+  { value: "registry", label: "Registry" },
+  { value: "draft", label: "Draft" },
+];
 
 const SEVERITY_TABS: TabSpec<SeverityFilter>[] = [
   { value: "all", label: "All" },
@@ -110,6 +117,8 @@ function conditionRows(row: RuleRow) {
 export function RulesPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
+  const mode: RulesMode = searchParams.get("tab") === "draft" ? "draft" : "registry";
+  const fromEventId = searchParams.get("from");
   const search = searchParams.get("q") || "";
   const severity = normalizeSeverity(searchParams.get("severity"));
   const status = normalizeStatus(searchParams.get("status"));
@@ -153,8 +162,11 @@ export function RulesPage() {
   const setParam = (key: string, value: string) => {
     startTransition(() => {
       const next = new URLSearchParams(searchParams);
-      if (!value || value === "all") next.delete(key);
-      else next.set(key, value);
+      if (!value || value === "all" || (key === "tab" && value === "registry")) {
+        next.delete(key);
+      } else {
+        next.set(key, value);
+      }
       setSearchParams(next, { replace: true });
     });
   };
@@ -183,6 +195,61 @@ export function RulesPage() {
         </div>
       </header>
 
+      <Tabs<RulesMode>
+        ariaLabel="Rules mode"
+        tabs={MODE_TABS}
+        value={mode}
+        onChange={(next) => setParam("tab", next)}
+      />
+
+      {mode === "draft" ? (
+        <RuleDraftSection fromEventId={fromEventId} report={report ?? null} />
+      ) : (
+        <RegistryMode
+          reportQuery={reportQuery}
+          report={report}
+          rows={rows}
+          filteredRows={filteredRows}
+          search={search}
+          severity={severity}
+          status={status}
+          selectedRuleId={selectedRuleId}
+          setParam={setParam}
+          toggleRule={toggleRule}
+          navigate={navigate}
+        />
+      )}
+    </div>
+  );
+}
+
+function RegistryMode({
+  reportQuery,
+  report,
+  rows,
+  filteredRows,
+  search,
+  severity,
+  status,
+  selectedRuleId,
+  setParam,
+  toggleRule,
+  navigate,
+}: {
+  reportQuery: { isLoading: boolean; isError: boolean; error: unknown };
+  report: ActivationReportView | undefined;
+  rows: RuleRow[];
+  filteredRows: RuleRow[];
+  search: string;
+  severity: SeverityFilter;
+  status: StatusFilter;
+  selectedRuleId: string | null;
+  setParam: (key: string, value: string) => void;
+  toggleRule: (ruleId: string) => void;
+  navigate: ReturnType<typeof useNavigate>;
+}) {
+  return (
+    <>
       <Panel padded={false}>
         <div
           style={{
@@ -243,7 +310,7 @@ export function RulesPage() {
           </div>
         )}
       </Panel>
-    </div>
+    </>
   );
 }
 

@@ -310,11 +310,11 @@ export function EventTimeline({ events, selectedId, onSelect, height = 240 }: Ev
             <path
               key={`conn-${event.id}-${next.id}`}
               d={`M ${x0} ${y0} C ${x0 + dx} ${y0} ${x1 - dx} ${y1} ${x1} ${y1}`}
-              stroke={V3.ink3}
-              strokeWidth="1"
+              stroke={V3.ink2}
+              strokeWidth="1.5"
               fill="none"
-              strokeDasharray="3 3"
-              opacity={visible ? 0.35 : 0.12}
+              strokeDasharray="4 3"
+              opacity={visible ? 0.6 : 0.2}
               style={{ transition: "opacity 240ms" }}
             />
           );

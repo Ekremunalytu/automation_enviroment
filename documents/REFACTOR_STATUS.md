@@ -1,6 +1,6 @@
 # Refactor Status
 
-`Last Updated: 2026-04-28 (W8-3 URI trigger argv-form invocation landed; live smoke regression-clean; W8-0 acceptance signal (a) live verified)`
+`Last Updated: 2026-04-29 (UI v3 minimal-completion + handoff prototype retirement landed; previous: 2026-04-28 W8-3 URI trigger argv-form invocation landed; live smoke regression-clean)`
 
 This is the active status board for the Week 1-4 stabilization work and the
 pre-W6 cleanup handoff. Use this file for current closure state; use
@@ -39,6 +39,12 @@ pre-W6 cleanup handoff. Use this file for current closure state; use
 - Dormant root placeholders `apps/` and `legacy_ui/` are removed from the repo
   surface; the canonical runtime tree is `appcore/`, `packages/`,
   `workflows/`, `executor/`, `ui/`, and `tests/`.
+- UI v3 redesign minimal-completion landed (2026-04-29): orphan v3
+  components pruned, Inspector drawer + event-scoped `RuleDraftSection`
+  added on Reports, Run health + Coverage summary panels added on
+  Simulation, `design_handoff_extrace_console/` prototype retired.
+  See [`POST_POC_BACKLOG.md`](POST_POC_BACKLOG.md) `[CLEANUP ui-v3-9/14]`,
+  `[ADD ui-v3-10/11/12]`, `[BACKLOG ui-v3-13]` for the gap list.
 
 ## Week 4 Exit Criteria
 
@@ -669,7 +675,7 @@ tracks plus a focused code-review pass:
   "Step N of 5 · scenario X/Y", ARIA attributes (`role="progressbar"`,
   `aria-valuenow/min/max`, `aria-label`) on both progress bars
   ([`SimulationPage.tsx`](../ui/src/features/simulation/SimulationPage.tsx)
-  and [`RunActivityRail.tsx`](../ui/src/components/simulation/RunActivityRail.tsx)),
+  and `RunActivityRail.tsx` — the latter retired in the 2026-04-29 v3 cleanup),
   and narrowed the bare `except Exception` in the heartbeat to
   `(ExecutorError, RuntimeError, OSError, ValueError, AttributeError)`.
   Suggestions deferred to

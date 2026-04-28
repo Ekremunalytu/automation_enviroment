@@ -54,7 +54,7 @@ describe("SimulationPage", () => {
     vi.clearAllMocks();
   });
 
-  it("shows the compact warmup cards before evidence arrives", async () => {
+  it("shows the warmup empty state before evidence arrives", async () => {
     vi.mocked(apiClient.getAnalysisJob).mockResolvedValueOnce({
       job_id: "job-1",
       status: "running",
@@ -75,10 +75,9 @@ describe("SimulationPage", () => {
 
     expect(await screen.findByRole("heading", { name: /ms\s*\.lint/u })).toBeInTheDocument();
     expect(screen.getByText("Version · 1.0.0")).toBeInTheDocument();
-    expect(screen.getByText("Run Is Warming Up")).toBeInTheDocument();
-    expect(screen.getByText("Current step")).toBeInTheDocument();
-    expect(screen.getByText("Recent messages")).toBeInTheDocument();
-    expect(screen.getAllByText("Running Playwright automation").length).toBeGreaterThan(0);
+    expect(await screen.findByText("Run is warming up")).toBeInTheDocument();
+    expect(screen.queryByText("Automation health")).not.toBeInTheDocument();
+    expect(screen.queryByText("Covered")).not.toBeInTheDocument();
   });
 
   it("renders the live strip, filter drawer, and keeps tab state in the URL", async () => {
@@ -312,6 +311,18 @@ describe("SimulationPage", () => {
     await waitFor(() => {
       expect(screen.getByTestId("location-search").textContent).toContain("inspector=relations");
     });
+
+    expect(screen.getByText("Automation health")).toBeInTheDocument();
+    expect(screen.getByText("degraded")).toBeInTheDocument();
+    expect(screen.getByText("Covered")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /open coverage detail/i })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "View skipped scenarios" }));
+    expect(
+      await screen.findByRole("dialog", { name: "Skipped scenarios" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("debug_session")).toBeInTheDocument();
+    expect(screen.getByText("unsupported_activation_surface")).toBeInTheDocument();
   });
 
   it("redirects ?tab=status to ?tab=live", async () => {

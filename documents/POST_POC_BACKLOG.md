@@ -1,6 +1,6 @@
 # Post-PoC Backlog
 
-`Last Updated: 2026-04-28 (UI v3 redesign backend gaps recorded as [BACKLOG ui-v3-1] … [BACKLOG ui-v3-8]; previous: 2026-04-27 W8-0 landed)`
+`Last Updated: 2026-04-29 ([CLEANUP ui-v3-14] design hand-off prototype directory retired). Earlier 2026-04-28: UI v3 minimal-completion landed: [CLEANUP ui-v3-9], [ADD ui-v3-10] Inspector drawer + rule draft, [ADD ui-v3-11] Run health + Coverage summary, [ADD ui-v3-12] Ledger Scenario tab; new gap [BACKLOG ui-v3-13] rule-save endpoint. Earlier: backend gaps [BACKLOG ui-v3-1] … [BACKLOG ui-v3-8])`
 
 Work items that do not block PoC acceptance (`REFACTOR_OPTIMIZATION.md`
 §10.7) and were intentionally deferred from W0-W7 for scope management.
@@ -438,14 +438,13 @@ REFACTOR_OPTIMIZATION.md §11.12" below.
 
 The v3 console redesign on
 [`feat/ui-v3-design-extrace-console`](../ui/src) ports five pages,
-13 shared components, and three bespoke SVG visuals
-([`InteractionGraph`](../ui/src/features/reports/charts/InteractionGraph.tsx),
-[`RiskRadar`](../ui/src/features/reports/charts/RiskRadar.tsx),
-[`EventTimeline`](../ui/src/features/reports/charts/EventTimeline.tsx))
-against the design handed off in
-[`design_handoff_extrace_console/`](../design_handoff_extrace_console/).
-The backend contracts the new pages assume but cannot reach yet are
-captured below; each entry names a stable trigger so a follow-up
+13 shared components, and two bespoke SVG visuals
+([`InteractionGraph`](../ui/src/features/reports/charts/InteractionGraph.tsx)
+and [`EventTimeline`](../ui/src/features/reports/charts/EventTimeline.tsx)).
+The original design hand-off prototype directory was retired on
+2026-04-29 once the production surfaces matched the spec; the
+backend contracts the new pages assume but cannot reach yet are
+captured below. Each entry names a stable trigger so a follow-up
 iteration can pick it up without re-deriving context. Until they
 land, the UI shows explicit `Backend pending` badges or
 `data-feature-stub` markers so the missing piece is visible.
@@ -509,6 +508,89 @@ land, the UI shows explicit `Backend pending` badges or
   stack. Extend the listing response and adapt
   [`ReportsPage.tsx`](../ui/src/features/reports/ReportsPage.tsx)
   to consume the richer metadata.
+
+### UI v3 redesign — minimal completion (2026-04-28)
+
+These entries record the cleanup + four feature additions that
+brought the v3 surface to functional parity with the pre-redesign
+flows without re-introducing the old sticky-panel layout. The
+backend-only gap left over (rule-draft persistence) is captured as
+`[BACKLOG ui-v3-13]` below.
+
+- **[CLEANUP ui-v3-9] Orphan v3 component prune** *(S, landed
+  2026-04-28)* — Removed
+  [`EvidenceTable.tsx`](../ui/src/components/evidence/),
+  [`RiskOverviewPanel.tsx`](../ui/src/components/evidence/),
+  [`DetectionPanel.tsx`](../ui/src/features/reports/) (plus its
+  `describe.skip` test and snapshot fixture),
+  `RunActivityRail.tsx` (formerly under `ui/src/components/simulation/`),
+  [`features/simulation/telemetry.ts`](../ui/src/features/simulation/),
+  and the dormant `LiveRiskStrip` / `SimulationStatusPanel` /
+  `SimulationLogsPanel` / `TelemetryField` / `StatusCard` /
+  `RunActivityPanel` / `WarmupPanel` exports from
+  [`features/simulation/sections.tsx`](../ui/src/features/simulation/sections.tsx).
+  The v3 surface now owns only what it renders; the `ui/src/components/simulation/`
+  and `ui/src/features/reports/__tests__/__snapshots__/` directories
+  collapsed to empty and were removed.
+
+- **[ADD ui-v3-10] Inspector drawer + event-scoped rule draft**
+  *(M, landed 2026-04-28)* — `ReportsPage` opens `Inspector` inside a
+  `SlideOverDrawer` on event selection across the timeline /
+  interactions / ledger paths
+  ([`ReportsPage.tsx`](../ui/src/features/reports/ReportsPage.tsx)).
+  Drawer footer ships a `GhostButton` that navigates to
+  `/rules?tab=draft&from=<eventId>`, where
+  [`RuleDraftSection.tsx`](../ui/src/features/rules/RuleDraftSection.tsx)
+  renders the YAML/JSON preview driven by
+  [`lib/rules/draft.ts`](../ui/src/lib/rules/draft.ts)
+  (`buildRuleDraft` / `toRuleYaml` / `toRuleJson`). Copy YAML / Copy
+  JSON use `navigator.clipboard`; **Save to file** is
+  `data-feature-stub="rule-save"` pending the rule-persistence
+  endpoint (`[BACKLOG ui-v3-13]`). `SlideOverDrawer` now accepts an
+  optional `eyebrow` prop so non-Filters drawers do not inherit the
+  hardcoded "Filters" caption.
+
+- **[ADD ui-v3-11] Run health + Coverage summary on Simulation**
+  *(S, landed 2026-04-28)* — Two `Panel padded={false}` strips below
+  the run header on
+  [`SimulationPage.tsx`](../ui/src/features/simulation/SimulationPage.tsx)
+  surface `summary.automationHealthStatus`,
+  `summary.skippedScenarioDetails`, and
+  `coverageSummary.covered / partial / missing`. A second
+  `SlideOverDrawer` ("Run health" eyebrow) opens on **View skipped
+  scenarios** with the executor's reason codes; the coverage strip
+  links to `/reports?report=<filename>&tab=audit`, preserving the
+  single-source-of-truth rule (coverage detail still lives in
+  Reports / Audit).
+
+- **[ADD ui-v3-12] Ledger Scenario kind tab** *(S, landed
+  2026-04-28)* — `LEDGER_KIND_TABS` in
+  [`ReportsPage.tsx`](../ui/src/features/reports/ReportsPage.tsx)
+  now includes `Scenario` alongside `Network` / `File` /
+  `Activation`. The `kindFilter` derivation also accepts the new
+  literal so the existing `kindLabel` produced by `adaptBundle`
+  (`"scenario"` → `"Scenario"`) flows end-to-end without adapter
+  churn.
+
+- **[BACKLOG ui-v3-13] Rule draft persistence endpoint** *(M)* —
+  POST `/api/rules/drafts` (or a sandboxed local file write under
+  `rules/draft/`) and an accompanying GET to list pending drafts.
+  The **Save to file** button on
+  [`RuleDraftSection.tsx`](../ui/src/features/rules/RuleDraftSection.tsx)
+  is currently disabled with `data-feature-stub="rule-save"` and a
+  tooltip pointing the operator at the Copy YAML path. Until this
+  endpoint lands, drafts are copy/paste only.
+
+- **[CLEANUP ui-v3-14] Design hand-off prototype directory retired**
+  *(S, landed 2026-04-29)* — Removed `design_handoff_extrace_console/`
+  (its `README.md` plus the `design_files/` JSX prototypes:
+  `AppShell.jsx`, `Components.jsx`, `MarketplacePage.jsx`,
+  `ReportsPage.jsx`, `SettingsPage.jsx`, `SimulationPage.jsx`,
+  `SystemPage.jsx`, `index.html`). The production v3 surfaces in
+  [`ui/src/features/`](../ui/src/features/) and
+  [`ui/src/components/v3/`](../ui/src/components/v3/) are now the
+  single source of truth; the prototype directory had finished
+  serving its hand-off purpose.
 
 ## Detection engine stretch
 

@@ -1,9 +1,10 @@
 import { startTransition, useDeferredValue, useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 import { FilterRail, type EvidenceFilterState } from "../../components/evidence/FilterRail";
 import { EvidenceLedger } from "../../components/evidence/EvidenceLedger";
+import { Inspector } from "../../components/evidence/Inspector";
 import { LogStreamsPanel } from "../../components/evidence/LogStreamsPanel";
 import { RiskRadarPanel } from "../../components/evidence/RiskRadarPanel";
 import { SlideOverDrawer } from "../../components/ui/SlideOverDrawer";
@@ -27,6 +28,7 @@ import {
   buildEvidenceFilterOptions,
   countEvidenceFilters,
   filterEvidenceEvents,
+  normalizeInspectorTab,
   parseEvidenceFilters,
 } from "../evidence";
 import { apiClient } from "../../lib/api/client";
@@ -35,7 +37,9 @@ import {
   adaptReport,
   buildInteractionGraph,
   buildRiskRadar,
+  getInspectorView,
 } from "../../lib/adapters/report";
+import type { EvidenceInspectorView } from "../../lib/types/view-models";
 import { FindingCard } from "./FindingCard";
 import { EventTimeline } from "./charts/EventTimeline";
 import { InteractionGraph } from "./charts/InteractionGraph";
@@ -85,11 +89,18 @@ function severityToTone(severity?: string): V3Tone {
 export function ReportsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const navigate = useNavigate();
   const reportParam = searchParams.get("report") || "latest";
   const selectedTab = normalizeTab(searchParams.get("tab"));
   const eventId = searchParams.get("event");
+  const inspectorTab = normalizeInspectorTab(searchParams.get("inspector"));
   const filters = parseEvidenceFilters(searchParams);
   const deferredSearch = useDeferredValue(filters.search);
+  const [inspectorOpen, setInspectorOpen] = useState(
+    () =>
+      Boolean(eventId) &&
+      (selectedTab === "ledger" || selectedTab === "timeline" || selectedTab === "interactions"),
+  );
 
   const reportsQuery = useQuery({
     queryKey: ["reports"],
@@ -112,6 +123,10 @@ export function ReportsPage() {
   const filteredEvents = useMemo(
     () => (report ? filterEvidenceEvents(report.evidence, filters, deferredSearch) : []),
     [report, filters, deferredSearch],
+  );
+  const inspector = useMemo(
+    () => (report ? getInspectorView(report, eventId) : null),
+    [report, eventId],
   );
 
   useEffect(() => {
@@ -157,6 +172,7 @@ export function ReportsPage() {
       next.set("event", nextEventId);
       setSearchParams(next, { replace: true });
     });
+    setInspectorOpen(true);
   };
 
   const updateFilters = (nextFilters: EvidenceFilterState) => {
@@ -182,10 +198,6 @@ export function ReportsPage() {
           ) : null}
         </div>
         <PageTitle style={{ marginTop: 14, fontSize: 44, lineHeight: 1, wordBreak: "break-word" }}>Security report</PageTitle>
-        <p style={{ fontSize: 13.5, color: V3.ink3, marginTop: 14, maxWidth: 720, lineHeight: 1.6 }}>
-          {report?.detection?.verdictRationale
-            || "Keep the dashboard clean, then drill into one evidence class at a time instead of stacking every signal into a single screen."}
-        </p>
         <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginTop: 18 }}>
           <span
             style={{
@@ -222,13 +234,6 @@ export function ReportsPage() {
           </span>
         </div>
       </header>
-
-      {report ? (
-        <RiskRadarPanel
-          scores={buildRiskRadar(report)}
-          compositeScore={report.summary.signalSummaryScore ?? 0}
-        />
-      ) : null}
 
       <Panel padded={false}>
         <div
@@ -310,6 +315,13 @@ export function ReportsPage() {
         </div>
       </Panel>
 
+      {report ? (
+        <RiskRadarPanel
+          scores={buildRiskRadar(report)}
+          compositeScore={report.summary.signalSummaryScore ?? 0}
+        />
+      ) : null}
+
       <Tabs<ReportTab>
         ariaLabel="Report sections"
         tabs={REPORT_TABS}
@@ -348,7 +360,10 @@ export function ReportsPage() {
           eventId={eventId || undefined}
           onSelectEvent={setSelectedEvent}
           kindFilter={
-            filters.kinds[0] === "Network" || filters.kinds[0] === "File" || filters.kinds[0] === "Activation"
+            filters.kinds[0] === "Network" ||
+            filters.kinds[0] === "File" ||
+            filters.kinds[0] === "Activation" ||
+            filters.kinds[0] === "Scenario"
               ? filters.kinds[0]
               : "all"
           }
@@ -376,6 +391,58 @@ export function ReportsPage() {
           title="Refine evidence"
         />
       </SlideOverDrawer>
+
+      <SlideOverDrawer
+        eyebrow="Inspector"
+        description="Provenance and relations for the selected event."
+        onClose={() => setInspectorOpen(false)}
+        open={inspectorOpen}
+        title={inspector?.event.summaryDisplay || "Event inspector"}
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <Inspector
+            activeTab={inspectorTab}
+            onTabChange={(next) => {
+              const params = new URLSearchParams(searchParams);
+              params.set("inspector", next);
+              setSearchParams(params, { replace: true });
+            }}
+            inspector={inspector}
+            detection={report?.detection || null}
+          />
+          <InspectorFooter
+            inspector={inspector}
+            onDraftRule={(id) => navigate(`/rules?tab=draft&from=${encodeURIComponent(id)}`)}
+          />
+        </div>
+      </SlideOverDrawer>
+    </div>
+  );
+}
+
+function InspectorFooter({
+  inspector,
+  onDraftRule,
+}: {
+  inspector: EvidenceInspectorView | null;
+  onDraftRule: (eventId: string) => void;
+}) {
+  if (!inspector) return null;
+  return (
+    <div
+      style={{
+        borderTop: `1px solid ${V3.rule}`,
+        paddingTop: 12,
+        display: "flex",
+        justifyContent: "flex-end",
+      }}
+    >
+      <GhostButton
+        ariaLabel="Draft rule from event"
+        onClick={() => onDraftRule(inspector.event.eventId)}
+      >
+        Draft rule from event
+      </GhostButton>
     </div>
   );
 }
@@ -408,8 +475,16 @@ function OverviewSection({
 }: {
   report: ReportModel;
 }) {
+  const rationale = report.detection?.verdictRationale;
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+      {rationale ? (
+        <Panel label="Verdict rationale">
+          <p style={{ fontSize: 13.5, color: V3.ink2, lineHeight: 1.6, margin: 0, maxWidth: 820 }}>
+            {rationale}
+          </p>
+        </Panel>
+      ) : null}
       <VerdictSummaryPanel detection={report.detection} />
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 320px), 1fr))", gap: 20 }}>
         <BreakdownPanel label="By kind" rows={buildKindRows(report)} />
@@ -669,13 +744,14 @@ function EventDensityStrip({
   );
 }
 
-type LedgerKindFilter = "all" | "Network" | "File" | "Activation";
+type LedgerKindFilter = "all" | "Network" | "File" | "Activation" | "Scenario";
 
 const LEDGER_KIND_TABS: TabSpec<LedgerKindFilter>[] = [
   { value: "all", label: "All" },
   { value: "Network", label: "Network" },
   { value: "File", label: "File" },
   { value: "Activation", label: "Activation" },
+  { value: "Scenario", label: "Scenario" },
 ];
 
 function LedgerSection({

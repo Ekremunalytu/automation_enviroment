@@ -146,4 +146,45 @@ describe("RulesPage", () => {
     expect(screen.getByText("Mitigation hint")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Open evidence file-1" })).toBeInTheDocument();
   });
+
+  it("renders Registry/Draft mode tabs and shows the empty draft state without ?from", async () => {
+    vi.mocked(apiClient.getLatestReportBundle).mockResolvedValue(bundleWithRules([]));
+
+    renderPage("/rules?tab=draft");
+
+    expect(await screen.findByRole("tab", { name: "Registry" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Draft" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Draft" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByText("No event selected")).toBeInTheDocument();
+  });
+
+  it("renders the Draft preview with copy buttons and a disabled save-to-file stub", async () => {
+    vi.mocked(apiClient.getLatestReportBundle).mockResolvedValue(
+      bundleWithRules([
+        {
+          rule_id: "extrace.a1.credential_read",
+          rule_version: "1.0.0",
+          lifecycle: "production",
+          status: "fired",
+          finding_ids: ["finding-1"],
+        },
+      ]),
+    );
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+
+    renderPage("/rules?tab=draft&from=file-1");
+
+    await screen.findByText("YAML preview");
+    expect(screen.getByText("JSON preview")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Copy YAML" }));
+    expect(writeText).toHaveBeenCalled();
+    const yamlPayload = writeText.mock.calls[0]?.[0] as string;
+    expect(yamlPayload).toContain("severity:");
+
+    const saveButton = screen.getByRole("button", { name: /save to file/i });
+    expect(saveButton).toBeDisabled();
+    expect(saveButton).toHaveAttribute("data-feature-stub", "rule-save");
+  });
 });

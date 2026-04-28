@@ -66,7 +66,7 @@ export function EvidenceLedger({
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "56px 80px minmax(0, 1fr) 100px 90px 28px",
+          gridTemplateColumns: "56px minmax(120px, 160px) minmax(0, 1fr) 100px 90px 28px",
           gap: 12,
           padding: "10px 16px",
           borderBottom: `1px solid ${V3.rule}`,
@@ -76,6 +76,7 @@ export function EvidenceLedger({
           color: V3.ink3,
           textTransform: "uppercase",
           letterSpacing: "0.08em",
+          minWidth: 800,
         }}
       >
         <span>#</span>
@@ -103,7 +104,7 @@ export function EvidenceLedger({
                 onKeyDown={(keyboardEvent) => onKeyboardSelect(keyboardEvent, () => onSelect(event.eventId))}
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "56px 80px minmax(0, 1fr) 100px 90px 28px",
+                  gridTemplateColumns: "56px minmax(120px, 160px) minmax(0, 1fr) 100px 90px 28px",
                   gap: 12,
                   padding: "12px 16px",
                   alignItems: "center",
@@ -111,7 +112,7 @@ export function EvidenceLedger({
                   borderLeft: selected ? `3px solid ${V3.coral}` : "3px solid transparent",
                   background: selected ? V3.paper2 : "transparent",
                   cursor: "pointer",
-                  minWidth: 760,
+                  minWidth: 800,
                   transition: "background 140ms",
                 }}
               >
@@ -125,7 +126,28 @@ export function EvidenceLedger({
                 >
                   {String(index + 1).padStart(3, "0")}
                 </span>
-                <Badge tone={kindTone(event)}>{event.kindLabel}</Badge>
+                <span
+                  style={{
+                    minWidth: 0,
+                    maxWidth: "100%",
+                    overflow: "hidden",
+                    display: "inline-flex",
+                  }}
+                >
+                  <Badge tone={kindTone(event)}>
+                    <span
+                      style={{
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        maxWidth: "100%",
+                        display: "inline-block",
+                      }}
+                    >
+                      {event.kindLabel}
+                    </span>
+                  </Badge>
+                </span>
                 <div style={{ minWidth: 0 }}>
                   <div
                     style={{

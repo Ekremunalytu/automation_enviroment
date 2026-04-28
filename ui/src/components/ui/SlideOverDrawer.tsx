@@ -5,12 +5,14 @@ export function SlideOverDrawer({
   open,
   title,
   description,
+  eyebrow,
   onClose,
   children,
 }: PropsWithChildren<{
   open: boolean;
   title: string;
   description?: string;
+  eyebrow?: string;
   onClose: () => void;
 }>) {
   const titleId = useId();
@@ -61,7 +63,7 @@ export function SlideOverDrawer({
           <div className="border-b border-line px-5 py-5">
             <div className="flex items-start justify-between gap-4">
               <div className="space-y-2">
-                <div className="eyebrow">Filters</div>
+                <div className="eyebrow">{eyebrow ?? "Filters"}</div>
                 <h2 className="font-display text-xl font-semibold text-ink" id={titleId}>
                   {title}
                 </h2>

@@ -1,6 +1,6 @@
 import { startTransition, useDeferredValue, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 import { FilterRail, type EvidenceFilterState } from "../../components/evidence/FilterRail";
 import { SlideOverDrawer } from "../../components/ui/SlideOverDrawer";
@@ -8,11 +8,13 @@ import {
   EmptyState,
   Eyebrow,
   GhostButton,
+  KVRow,
   MetricCell,
   Panel,
   PageTitle,
   ProgressBar,
   V3,
+  type V3Tone,
 } from "../../components/v3";
 import {
   applyEvidenceFilters,
@@ -42,6 +44,8 @@ function renderRunTitle(title: string) {
 export function SimulationPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [skippedOpen, setSkippedOpen] = useState(false);
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const jobId = searchParams.get("job");
   const eventId = searchParams.get("event");
@@ -368,6 +372,104 @@ export function SimulationPage() {
         ) : null}
       </Panel>
 
+      {report?.summary ? (
+        <Panel padded={false}>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr auto",
+              alignItems: "stretch",
+            }}
+          >
+            <SimulationCell
+              label="Automation health"
+              value={report.summary.automationHealthStatus}
+              tone={
+                report.summary.automationHealthStatus === "healthy"
+                  ? "ok"
+                  : report.summary.automationHealthStatus === "degraded"
+                    ? "warn"
+                    : "neutral"
+              }
+              borderRight
+            />
+            <SimulationCell
+              label="Skipped"
+              value={String(report.summary.skippedScenarioDetails.length)}
+              tone={report.summary.skippedScenarioDetails.length ? "warn" : "neutral"}
+              borderRight
+            />
+            <div style={{ padding: "20px 22px", display: "flex", alignItems: "center" }}>
+              {report.summary.skippedScenarioDetails.length ? (
+                <GhostButton
+                  ariaLabel="View skipped scenarios"
+                  onClick={() => setSkippedOpen(true)}
+                >
+                  View skipped scenarios
+                </GhostButton>
+              ) : (
+                <span
+                  style={{
+                    fontFamily: "'JetBrains Mono', monospace",
+                    fontSize: 11,
+                    color: V3.ink4,
+                    letterSpacing: "0.08em",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  No skipped scenarios
+                </span>
+              )}
+            </div>
+          </div>
+        </Panel>
+      ) : null}
+
+      {report?.coverageSummary ? (
+        <Panel padded={false}>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(3, 1fr) auto",
+              alignItems: "stretch",
+            }}
+          >
+            <SimulationCell
+              label="Covered"
+              value={String(report.coverageSummary.covered)}
+              tone="ok"
+              borderRight
+            />
+            <SimulationCell
+              label="Partial"
+              value={String(report.coverageSummary.partial)}
+              tone="warn"
+              borderRight
+            />
+            <SimulationCell
+              label="Missing"
+              value={String(report.coverageSummary.missing)}
+              tone={report.coverageSummary.missing ? "danger" : "neutral"}
+              borderRight
+            />
+            <div style={{ padding: "20px 22px", display: "flex", alignItems: "center" }}>
+              <GhostButton
+                ariaLabel="Open coverage detail in Reports / Audit"
+                onClick={() =>
+                  navigate(
+                    `/reports?report=${encodeURIComponent(
+                      report.metadataFilename || "latest",
+                    )}&tab=audit`,
+                  )
+                }
+              >
+                Open Reports / Audit
+              </GhostButton>
+            </div>
+          </div>
+        </Panel>
+      ) : null}
+
       {model?.reportError ? (
         <section
           role="alert"
@@ -417,7 +519,6 @@ export function SimulationPage() {
           });
         }}
         onSelectEvent={setSelectedEvent}
-        status={job?.status}
       />
 
       <SlideOverDrawer
@@ -435,6 +536,57 @@ export function SimulationPage() {
           title="Refine stream"
         />
       </SlideOverDrawer>
+
+      <SlideOverDrawer
+        eyebrow="Run health"
+        description="Reasons reported by the executor when a scenario was not run."
+        onClose={() => setSkippedOpen(false)}
+        open={skippedOpen}
+        title="Skipped scenarios"
+      >
+        <div style={{ display: "flex", flexDirection: "column" }}>
+          {(report?.summary.skippedScenarioDetails || []).map((entry, index) => (
+            <div
+              key={`${entry.name}-${index}`}
+              style={{
+                borderBottom: `1px solid ${V3.rule}`,
+                padding: "12px 0",
+              }}
+            >
+              <KVRow k="name" v={entry.name} />
+              <KVRow k="reason" v={entry.reasonCode} />
+              {entry.detail ? <KVRow k="detail" v={entry.detail} mono={false} /> : null}
+            </div>
+          ))}
+        </div>
+      </SlideOverDrawer>
+    </div>
+  );
+}
+
+function SimulationCell({
+  label,
+  value,
+  tone = "neutral",
+  borderRight = false,
+}: {
+  label: string;
+  value: string;
+  tone?: V3Tone;
+  borderRight?: boolean;
+}) {
+  return (
+    <div
+      style={{
+        padding: "20px 22px",
+        borderRight: borderRight ? `1px solid ${V3.rule}` : "none",
+      }}
+    >
+      <MetricCell
+        label={label}
+        value={<span style={{ fontSize: 22, letterSpacing: 0 }}>{value}</span>}
+        tone={tone}
+      />
     </div>
   );
 }
