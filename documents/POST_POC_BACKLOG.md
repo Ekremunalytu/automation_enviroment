@@ -510,9 +510,14 @@ REFACTOR_OPTIMIZATION.md §11.12" below.
 - **[PROMOTED → W8-1]** VSIX zip-bomb + ZipSlip guard in
   `packages/analysis_engine/static/vsix.py` (`REFACTOR_OPTIMIZATION.md
   §11.5` item 1).
-- **[PROMOTED → W8-3]** URI trigger argv-form invocation in
+- **[LANDED 2026-04-28]** URI trigger argv-form invocation in
   `executor/flows/playwright/entrypoint_triggers.py:142` +
-  `stimulus_attempts.py:136` (`REFACTOR_OPTIMIZATION.md §11.5` item 3).
+  `stimulus_attempts.py:324` (plan said `:136` — line drift)
+  (`REFACTOR_OPTIMIZATION.md §11.5` item 3). Helper
+  `executor/flows/playwright/uri_validation.py` + AST detector
+  `tests/architecture/test_uri_trigger_shell_pattern.py` + 26
+  adversarial cases `tests/executor/security/test_uri_trigger_injection.py`.
+  See `REFACTOR_STATUS.md` "W8-3 Landed" section.
 - **[PROMOTED → W8-4]** Absolute binary paths discipline across
   executor shell invocations (`REFACTOR_OPTIMIZATION.md §11.5` item 4).
 - **[PROMOTED → W8-6]** `ContentSample.value` secret redaction +
@@ -930,14 +935,22 @@ before attribution. Tests pin the new reader against a synthetic
 `output_logging_*/<idx>-<channel>.log` tree
 (`tests/executor/test_output_signal_capture.py`).
 
+**Acceptance signal (a) — live verified 2026-04-28** on report
+`output/activation_report_ms-python.python-2026.5.2026042602-31587fd1a0ff.json`:
+`output_signal_events_count = 12`, all on the `ExTrace Harness`
+channel, parsed JSON payloads with phase distribution
+`activate_enter × 3, marker_write_start × 3, marker_write_done × 3,
+activate_exit × 3` (three full lifecycle cycles). The 2026-04-27
+"live failed" gate is now closed.
+
 Acceptance signal (b) — typed harness-readiness reason codes
 (`harness_ready_marker_*` / `harness_activation_timeout`) instead
 of the legacy generic `harness_command_unavailable` — is **still
-unconfirmed live**: the same scan reported 9 attempts with
-`harness_verification_unconfirmed`, none with the W8-0 PR-B/PR-C
-typed sub-codes. Remains user-side until a follow-up
-`make sim-target` produces an attempt that actually trips the
-typed marker path.
+unconfirmed live as of 2026-04-28**: the latest scan reported 8
+attempts with `harness_verification_unconfirmed`, none with the
+W8-0 PR-B/PR-C typed sub-codes. Remains user-side until a
+follow-up `make sim-target` produces an attempt that actually
+trips the typed marker path.
 
 ## Architecture audit (2026-04-27)
 

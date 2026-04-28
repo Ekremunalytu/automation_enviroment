@@ -1,6 +1,6 @@
 # Refactor Status
 
-`Last Updated: 2026-04-27 (W8-2 marketplace identity helper landed; reviewer-feedback gaps recorded; live ms-python degraded-health mapping added)`
+`Last Updated: 2026-04-28 (W8-3 URI trigger argv-form invocation landed; live smoke regression-clean; W8-0 acceptance signal (a) live verified)`
 
 This is the active status board for the Week 1-4 stabilization work and the
 pre-W6 cleanup handoff. Use this file for current closure state; use
@@ -1138,6 +1138,167 @@ different toolchain, deserves its own UI-only branch); gap 6
 
 Docker-based `make sim-target` smoke remains user-side; helper does
 not affect runtime behavior of an already-validated extension identity.
+
+## W8-3 Landed — URI Trigger argv-Form Invocation (2026-04-28)
+
+W8-3 (`REFACTOR_OPTIMIZATION.md §11.5` item 3) closes on
+`feat/w8-3-uri-trigger-argv-form`. The two trigger sites that interpolated
+`payload.uri_trigger` into a `f"xdg-open '{uri}'"` shell template now route
+through a scheme-validating `subprocess.run` argv-form launcher; an
+AST-based architecture detector blocks the shell-template pattern from
+re-appearing anywhere under `appcore/`, `executor/`, `workflows/`, or
+`packages/`.
+
+### Change
+
+New
+[`executor/flows/playwright/uri_validation.py`](../executor/flows/playwright/uri_validation.py)
+exposes:
+
+- `ALLOWED_URI_SCHEMES = {"vscode", "vscode-insiders", "http", "https"}`
+- `validate_uri_scheme(uri)` — returns `uri` unchanged when its scheme is
+  allow-listed, else raises `UriValidationError(ValueError)`.
+- `run_uri_trigger(uri, *, timeout_s=5.0)` — validates the scheme and
+  invokes `["/usr/bin/xdg-open", uri]` through `subprocess.run` with
+  `check=False`, `capture_output=True`, no `shell=True`. Absolute binary
+  path defends against `$PATH` hijacking inside the container.
+
+The two production call sites:
+
+- [`executor/flows/playwright/entrypoint_triggers.py:142`](../executor/flows/playwright/entrypoint_triggers.py)
+  — `deps.terminal.type_in_terminal(page, f"xdg-open '{payload.uri_trigger}'")`
+  → `uri_validation.validate_uri_scheme(...)` + `uri_validation.run_uri_trigger(...)`.
+  The except clause widens to
+  `(PlaywrightError, RuntimeError, UriValidationError, subprocess.SubprocessError, OSError)`
+  so a rejected scheme, timeout, or missing `xdg-open` binary surfaces as
+  `failed_triggers.append("uri_trigger")` (existing behaviour preserved
+  for malformed payloads; new behaviour adds the scheme reject path).
+- [`executor/flows/playwright/stimulus_attempts.py:324`](../executor/flows/playwright/stimulus_attempts.py)
+  — `terminal.type_in_terminal(page, f"xdg-open '{uri}'")`
+  → `uri_validation.validate_uri_scheme(uri)` + `uri_validation.run_uri_trigger(uri)`.
+  Adversarial URIs raise before `terminal.new_terminal` fires; matches the
+  existing empty-URI `ValueError` propagation contract.
+
+The plan source pinned the second site at `:136`; the actual line is
+`:324` — recorded here so future readers can map plan ↔ code.
+
+### W8-3 — Architecture regression gate
+
+New
+[`tests/architecture/test_uri_trigger_shell_pattern.py`](../tests/architecture/test_uri_trigger_shell_pattern.py)
+walks every `JoinedStr` AST node under `appcore/`, `executor/`,
+`workflows/`, `packages/` and flags any constant containing `xdg-open`
+that is immediately followed by a `FormattedValue` interpolation. The
+helper itself (`executor/flows/playwright/uri_validation.py`) is the
+sole excluded path; `tests/` is not scanned (test fixtures legitimately
+construct adversarial shell-template payloads); `# arch-allow:
+xdg-open-shell-string` pragma is the escape hatch for an intentional
+future site.
+
+Three detector self-tests pin the AST shape so a future Python upgrade
+that drifts `JoinedStr` layout cannot silently turn the scan into a
+no-op:
+
+- `test_detector_flags_a_synthetic_violation` — `f"xdg-open '{uri}'"`
+- `test_detector_flags_unquoted_synthetic_violation` — `f"xdg-open {uri}"`
+- `test_detector_ignores_unrelated_fstrings` — four benign forms
+  (`f"echo {value}"`, `f"Triggering URI: {uri}"`,
+  `f"xdg-open documentation reference"`,
+  `f"Run xdg-open manually if the trigger fails"`).
+
+### Adversarial test coverage
+
+New
+[`tests/executor/security/test_uri_trigger_injection.py`](../tests/executor/security/test_uri_trigger_injection.py)
+(under a new `tests/executor/security/` directory) covers three layers
+across 26 test cases:
+
+| Layer | Cases |
+|---|---|
+| `validate_uri_scheme` allow-list (parametrized) | 4 happy-path schemes, 9 reject schemes (`file:`, `javascript:`, `data:`, `ftp:`, empty, no-scheme, `; rm -rf /`, `$(whoami)`, four-token `vscode://x'; rm -rf /; echo '` documents the residual scheme-allow + argv-form defence) |
+| `run_uri_trigger` argv-form proof | argv list + absolute path assertion; subprocess.run never reached on rejected scheme |
+| Call-site integration (parametrized) | `entrypoint_triggers.run_extra_triggers` rejects 5 adversarial URIs before terminal/subprocess fire; `stimulus_attempts.execute_attempt(extra:uri_trigger)` raises `UriValidationError` before terminal/subprocess fire on 4 adversarial URIs |
+
+The existing
+[`tests/executor/test_playwright_entrypoint.py::test_run_extra_triggers_runs_non_command_branches`](../tests/executor/test_playwright_entrypoint.py)
+was updated to assert `("run_uri_trigger", "vscode://publisher.tool/open")`
+in the call-order list (replacing the legacy
+`("type_terminal", "xdg-open '...'")` tuple) so the regression cover
+matches the new argv-form invocation.
+
+### Verification
+
+| Lane | Outcome |
+|---|---|
+| `.venv/bin/pytest tests/executor/security/test_uri_trigger_injection.py tests/architecture/test_uri_trigger_shell_pattern.py -v` | 30 passed (26 security + 4 architecture). |
+| `.venv/bin/pytest tests/executor/ tests/architecture/ -v` | 320 passed (regression: existing entrypoint test updated for argv-form, marketplace_identity_concat detector still green). |
+| `make test-security` | 45 passed (baseline preserved — W8-3 tests live under `tests/executor/security/`, not `tests/security/`; same pattern as W8-1 which lives under `tests/workflows/marketplace/`). |
+| `make check-all` | ruff (225 source files clean) + mypy + bandit + ui-types-check + ui-boundaries all green. 763 pytest passed + 50 skipped + 3 unrelated DB-marker hygiene failures (`tests/workflows/marketplace/test_router.py::test_run_analysis_job_*`; missing `requires_db` marker — pre-existing, not introduced by W8-3). |
+
+Docker-based smoke (`make exec-up && make sim-target
+TARGET=ms-python.python`) remains user-side. The argv-form invocation
+runs inside the container; the existing `vscode://` payload generated
+by `packages/analysis_planner/selection.py:249` passes the new
+allow-list trivially, so a regression here would surface as
+`failed_triggers=["uri_trigger"]` in the report.
+
+### Live smoke check (2026-04-28)
+
+A `make sim-target TARGET=ms-python.python` run on 2026-04-28 13:06
+(report
+`output/activation_report_ms-python.python-2026.5.2026042602-31587fd1a0ff.json`)
+produced **zero regression** against the 2026-04-27 18:14 baseline
+(`f8d981323862`):
+
+| Metric | 27 Apr 18:14 baseline | 28 Apr 13:06 (W8-3) | Outcome |
+|---|---|---|---|
+| `automation_health.status` | `degraded` (3 partial-evidence reasons) | identical | preserved |
+| `signal_summary.level` / score | `needs_review` / 22 | identical | preserved |
+| `event_attempts` failure histogram | 13 ok + 8 `harness_verification_unconfirmed` | identical | preserved |
+| `failed_scenarios` / `skipped_scenarios` / `extra_trigger_failures` | [] / [] / [] | identical | preserved |
+| `target_extension_observed`, `target_activation_count` | true, 1 | identical | preserved |
+
+The W8-3 code path itself was **not exercised** on this canary —
+`trigger_plan.uri_trigger` was `null`, so `if payload.uri_trigger:`
+short-circuited and neither `validate_uri_scheme` nor
+`run_uri_trigger` fired. The smoke therefore demonstrates only that
+W8-3 introduced **no regression**, not that the new path is
+end-to-end correct in production. The 26 adversarial cases under
+`tests/executor/security/test_uri_trigger_injection.py` already pin
+the helper plus both call sites against malformed and shell-injection
+URIs; a dedicated container smoke with a `uri_trigger`-bearing
+payload (e.g. `make sim-target TARGET=... TRIGGERS=/path/to/payload.json`)
+would close the remaining live-verification gap and is recorded as
+a follow-up here rather than blocking the W8-3 close.
+
+Side benefit: the same run **closes W8-0 acceptance signal (a)** —
+`output_signal_events_count = 12` on the `ExTrace Harness` channel
+with parsed JSON payloads and a clean phase distribution
+(`activate_enter × 3, marker_write_start × 3, marker_write_done × 3,
+activate_exit × 3`). The 2026-04-27 "live failed" gate documented in
+`POST_POC_BACKLOG.md` "[FOLLOWUP w8-0-capture-pipeline]" is now closed.
+Acceptance signal (b) (typed harness-readiness reason codes) remains
+unconfirmed live; that is tracked in the same backlog entry and is
+unrelated to W8-3.
+
+### Out-of-scope follow-ups
+
+- Three pre-existing failures in `tests/workflows/marketplace/test_router.py`
+  (`test_run_analysis_job_marks_failure_and_closes_session`,
+  `test_run_analysis_job_persists_trigger_error_code`,
+  `test_run_analysis_job_marks_value_error_failure`) attempt to bind to
+  postgres on port 5433 without the `requires_db` pytest marker, so
+  they fail when the test DB container is down. The other 25+ DB tests
+  in the same file are properly marked and SKIP cleanly. Worth flagging
+  as a separate hygiene PR (out-of-scope for W8-3).
+- `make test-security` lane composition — Plan §11.5 Exit "41 → ≥49"
+  presumes new W8 tests land under `tests/security/`, but W8-1 and W8-3
+  both naturally sit in subsystem-local lanes (`tests/workflows/marketplace/`
+  and `tests/executor/security/` respectively). Worth either adding the
+  W8 subsystem-local lanes to the Makefile target or amending the plan
+  exit criterion to count the broader test-suite security tally
+  (passing+green) rather than a single Makefile target. Defer to W8
+  closure pass.
 
 ## Week 5 Start Rule
 

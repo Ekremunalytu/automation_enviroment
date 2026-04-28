@@ -1922,6 +1922,15 @@ ADR rewrites the `.env.example` notice but does not auto-rotate).
       test'i (`executor/` ↛ `workflows/`) kuralı nedeniyle
       `packages/marketplace_identity/` altında otururdu — gerçek konum
       bu path'tir, W8-5 import bu path'ten yapar.
+- [x] `executor/flows/playwright/uri_validation.py` URI trigger argv-form
+      helper live (LANDED 2026-04-28 on `feat/w8-3-uri-trigger-argv-form`);
+      `subprocess.run` argv form + scheme allow-list (`vscode`,
+      `vscode-insiders`, `http`, `https`); shell-template architecture
+      test `tests/architecture/test_uri_trigger_shell_pattern.py` bloke
+      ediyor; 26 adversarial test case
+      `tests/executor/security/test_uri_trigger_injection.py` altında
+      pin'li. Plan'daki `stimulus_attempts.py:136` satır referansı `:324`
+      olarak güncellendi (line drift).
 - [ ] `tests/architecture/test_default_bindings.py` green
       (varsayılan settings `0.0.0.0` üretmiyor; compose `ports:`
       entries `127.0.0.1:` prefix'li veya `debug` profile altında)
@@ -2572,7 +2581,10 @@ altında "Evaluated but deferred" etiketiyle kalır.
 - [ ] VSIX zip-bomb + path-traversal guard live; security test lock-in
 - [ ] `safe_marketplace_slug` helper live; raw concat architecture
       test bloke ediyor
-- [ ] URI trigger argv-form invocation; shell injection vector kapalı
+- [x] URI trigger argv-form invocation; shell injection vector kapalı
+      (LANDED 2026-04-28; helper `executor/flows/playwright/uri_validation.py`,
+      AST detector `tests/architecture/test_uri_trigger_shell_pattern.py`,
+      26 adversarial cases `tests/executor/security/test_uri_trigger_injection.py`)
 - [ ] Absolute binary path disiplini executor genelinde
 - [ ] Activation-report router tight regex + helper konsolide
 - [ ] `ContentSample` secret redaction live; ADR 0003 §6 ek merged
