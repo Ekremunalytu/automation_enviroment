@@ -22,11 +22,11 @@ export function StatBlock({
     <div className="metric-tile">
       <div className="flex items-center justify-between gap-3">
         <div className="micro-label">{label}</div>
-        <span className={`inline-flex h-8 min-w-8 items-center justify-center rounded-full px-2 text-xs font-semibold ${toneMap[tone]}`}>
+        <span className={`inline-flex h-8 min-w-8 items-center justify-center rounded-none px-2 text-xs font-semibold ${toneMap[tone]}`}>
           ●
         </span>
       </div>
-      <div className="mt-4 font-display text-[30px] font-semibold tracking-tight text-ink tabular-nums">{value}</div>
+      <div className="mt-4 font-display text-[30px] font-semibold text-ink tabular-nums">{value}</div>
     </div>
   );
 }

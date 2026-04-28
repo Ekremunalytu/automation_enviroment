@@ -3,61 +3,63 @@
 exports[`DetectionPanel > renders clean verdict state 1`] = `
 <div>
   <div
-    class="space-y-5"
+    style="display: flex; flex-direction: column; gap: 18px;"
   >
     <section
       aria-live="polite"
-      class="rounded-[22px] border px-6 py-6 border-emerald-500/30 bg-emerald-500/10 text-emerald-200"
+      style="border: 1px solid rgb(42, 74, 54); background: rgb(20, 20, 20); padding: 18px 20px;"
     >
       <div
-        class="eyebrow"
+        class="v3-eyebrow"
       >
         Detection
       </div>
       <div
-        class="mt-3 flex flex-wrap items-end justify-between gap-4"
+        style="display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 18px; align-items: end; margin-top: 10px;"
       >
         <div
-          class="space-y-3"
+          style="min-width: 0;"
         >
           <h2
-            class="text-[34px] font-semibold tracking-[-0.05em]"
+            style="margin: 0px; font-size: 24px; font-weight: 700; letter-spacing: 0; color: rgb(122, 176, 136); line-height: 1.05;"
           >
             clean
           </h2>
           <p
-            class="max-w-3xl text-sm leading-7"
+            style="margin-top: 8px; max-width: 760px; font-size: 13.5px; line-height: 1.6; color: rgb(138, 135, 128);"
           >
             Rationale for clean
           </p>
         </div>
-        <div
-          class="rounded-full px-4 py-2 text-sm font-medium bg-emerald-500/15 text-emerald-200"
+        <span
+          style="display: inline-flex; align-items: center; background: rgb(19, 35, 26); color: rgb(122, 176, 136); border: 1px solid rgb(42, 74, 54); padding: 3px 8px; font-family: "JetBrains Mono", monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; border-radius: 0; white-space: nowrap;"
         >
           0
            finding
           s
-        </div>
+        </span>
       </div>
     </section>
     <div
-      class="panel flex min-h-[220px] flex-col justify-center p-8 text-center sm:p-10"
+      style="padding: 56px 24px; text-align: center; border: 1px dashed rgb(58, 58, 58); border-radius: 0; background: rgb(20, 20, 20); display: flex; flex-direction: column; align-items: center; gap: 12px;"
     >
       <div
-        class="eyebrow"
+        style="display: inline-flex; align-items: center; gap: 10px; font-family: "JetBrains Mono", monospace; font-size: 10px; font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase; color: rgb(138, 135, 128);"
       >
-        Findings
+        <span>
+          Findings
+        </span>
       </div>
-      <h3
-        class="mt-4 text-balance font-display text-[40px] font-semibold tracking-[-0.04em] text-ink"
+      <div
+        style="font-family: "Manrope", sans-serif; font-size: 32px; font-weight: 700; color: rgb(244, 241, 234); letter-spacing: 0; line-height: 1;"
       >
         No fired rules
-      </h3>
-      <p
-        class="mx-auto mt-4 max-w-xl text-sm leading-6 text-mute sm:text-[15px]"
+      </div>
+      <div
+        style="font-size: 13px; color: rgb(138, 135, 128); max-width: 380px; line-height: 1.6;"
       >
         No rules fired. Verdict: clean.
-      </p>
+      </div>
     </div>
   </div>
 </div>
@@ -66,47 +68,47 @@ exports[`DetectionPanel > renders clean verdict state 1`] = `
 exports[`DetectionPanel > renders clean_with_notes verdict state 1`] = `
 <div>
   <div
-    class="space-y-5"
+    style="display: flex; flex-direction: column; gap: 18px;"
   >
     <section
       aria-live="polite"
-      class="rounded-[22px] border px-6 py-6 border-sky-500/30 bg-sky-500/10 text-sky-200"
+      style="border: 1px solid rgb(42, 74, 54); background: rgb(20, 20, 20); padding: 18px 20px;"
     >
       <div
-        class="eyebrow"
+        class="v3-eyebrow"
       >
         Detection
       </div>
       <div
-        class="mt-3 flex flex-wrap items-end justify-between gap-4"
+        style="display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 18px; align-items: end; margin-top: 10px;"
       >
         <div
-          class="space-y-3"
+          style="min-width: 0;"
         >
           <h2
-            class="text-[34px] font-semibold tracking-[-0.05em]"
+            style="margin: 0px; font-size: 24px; font-weight: 700; letter-spacing: 0; color: rgb(122, 176, 136); line-height: 1.05;"
           >
             clean with notes
           </h2>
           <p
-            class="max-w-3xl text-sm leading-7"
+            style="margin-top: 8px; max-width: 760px; font-size: 13.5px; line-height: 1.6; color: rgb(138, 135, 128);"
           >
             Rationale for clean_with_notes
           </p>
         </div>
-        <div
-          class="rounded-full px-4 py-2 text-sm font-medium bg-sky-500/15 text-sky-200"
+        <span
+          style="display: inline-flex; align-items: center; background: rgb(19, 35, 26); color: rgb(122, 176, 136); border: 1px solid rgb(42, 74, 54); padding: 3px 8px; font-family: "JetBrains Mono", monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; border-radius: 0; white-space: nowrap;"
         >
           1
            finding
-        </div>
+        </span>
       </div>
     </section>
     <section
-      class="space-y-4"
+      style="display: flex; flex-direction: column; gap: 14px;"
     >
       <article
-        class="space-y-4 rounded-[18px] border border-line bg-panel px-5 py-5"
+        class="space-y-4 rounded-none border border-line bg-panel px-5 py-5"
       >
         <div
           class="flex flex-wrap items-start justify-between gap-3"
@@ -120,7 +122,7 @@ exports[`DetectionPanel > renders clean_with_notes verdict state 1`] = `
               extrace.a1.credential_read_then_network
             </div>
             <h3
-              class="text-xl font-semibold tracking-[-0.03em] text-ink"
+              class="text-xl font-semibold text-ink"
             >
               Synthetic detection finding
             </h3>
@@ -129,19 +131,19 @@ exports[`DetectionPanel > renders clean_with_notes verdict state 1`] = `
             class="flex flex-wrap gap-2 text-xs font-medium"
           >
             <span
-              class="rounded-full px-3 py-1 bg-warning/15 text-warning"
+              class="rounded-none px-3 py-1 bg-warning/15 text-warning"
             >
               Severity: 
               Medium
             </span>
             <span
-              class="rounded-full bg-panelAlt px-3 py-1 text-inkSoft"
+              class="rounded-none bg-panelAlt px-3 py-1 text-inkSoft"
             >
               Confidence: 
               Medium
             </span>
             <span
-              class="rounded-full bg-panelAlt px-3 py-1 text-inkSoft"
+              class="rounded-none bg-panelAlt px-3 py-1 text-inkSoft"
             >
               A1
             </span>
@@ -156,13 +158,13 @@ exports[`DetectionPanel > renders clean_with_notes verdict state 1`] = `
           class="flex flex-wrap gap-2 text-xs text-inkSoft"
         >
           <span
-            class="rounded-full border border-line px-3 py-1"
+            class="rounded-none border border-line px-3 py-1"
           >
             attack.T1555
           </span>
         </div>
         <div
-          class="rounded-[14px] border border-lineSoft bg-panelAlt px-4 py-3 text-sm text-mute"
+          class="rounded-none border border-lineSoft bg-panelAlt px-4 py-3 text-sm text-mute"
         >
           Review extension behavior.
         </div>
@@ -191,47 +193,47 @@ exports[`DetectionPanel > renders clean_with_notes verdict state 1`] = `
 exports[`DetectionPanel > renders inconclusive verdict state 1`] = `
 <div>
   <div
-    class="space-y-5"
+    style="display: flex; flex-direction: column; gap: 18px;"
   >
     <section
       aria-live="polite"
-      class="rounded-[22px] border px-6 py-6 border-lineStrong bg-panelAlt text-inkSoft"
+      style="border: 1px solid rgb(58, 58, 58); background: rgb(28, 28, 28); padding: 18px 20px;"
     >
       <div
-        class="eyebrow"
+        class="v3-eyebrow"
       >
         Detection
       </div>
       <div
-        class="mt-3 flex flex-wrap items-end justify-between gap-4"
+        style="display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 18px; align-items: end; margin-top: 10px;"
       >
         <div
-          class="space-y-3"
+          style="min-width: 0;"
         >
           <h2
-            class="text-[34px] font-semibold tracking-[-0.05em]"
+            style="margin: 0px; font-size: 30px; font-weight: 700; letter-spacing: 0; color: rgb(207, 203, 194); line-height: 1.05;"
           >
             inconclusive
           </h2>
           <p
-            class="max-w-3xl text-sm leading-7"
+            style="margin-top: 8px; max-width: 760px; font-size: 13.5px; line-height: 1.6; color: rgb(138, 135, 128);"
           >
             Rationale for inconclusive
           </p>
         </div>
-        <div
-          class="rounded-full px-4 py-2 text-sm font-medium bg-panelAlt text-inkSoft"
+        <span
+          style="display: inline-flex; align-items: center; background: rgb(28, 28, 28); color: rgb(207, 203, 194); border: 1px solid rgb(58, 58, 58); padding: 3px 8px; font-family: "JetBrains Mono", monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; border-radius: 0; white-space: nowrap;"
         >
           1
            finding
-        </div>
+        </span>
       </div>
     </section>
     <section
-      class="space-y-4"
+      style="display: flex; flex-direction: column; gap: 14px;"
     >
       <article
-        class="space-y-4 rounded-[18px] border border-line bg-panel px-5 py-5"
+        class="space-y-4 rounded-none border border-line bg-panel px-5 py-5"
       >
         <div
           class="flex flex-wrap items-start justify-between gap-3"
@@ -245,7 +247,7 @@ exports[`DetectionPanel > renders inconclusive verdict state 1`] = `
               extrace.a1.credential_read_then_network
             </div>
             <h3
-              class="text-xl font-semibold tracking-[-0.03em] text-ink"
+              class="text-xl font-semibold text-ink"
             >
               Synthetic detection finding
             </h3>
@@ -254,19 +256,19 @@ exports[`DetectionPanel > renders inconclusive verdict state 1`] = `
             class="flex flex-wrap gap-2 text-xs font-medium"
           >
             <span
-              class="rounded-full px-3 py-1 bg-warning/15 text-warning"
+              class="rounded-none px-3 py-1 bg-warning/15 text-warning"
             >
               Severity: 
               Medium
             </span>
             <span
-              class="rounded-full bg-panelAlt px-3 py-1 text-inkSoft"
+              class="rounded-none bg-panelAlt px-3 py-1 text-inkSoft"
             >
               Confidence: 
               Medium
             </span>
             <span
-              class="rounded-full bg-panelAlt px-3 py-1 text-inkSoft"
+              class="rounded-none bg-panelAlt px-3 py-1 text-inkSoft"
             >
               A1
             </span>
@@ -281,13 +283,13 @@ exports[`DetectionPanel > renders inconclusive verdict state 1`] = `
           class="flex flex-wrap gap-2 text-xs text-inkSoft"
         >
           <span
-            class="rounded-full border border-line px-3 py-1"
+            class="rounded-none border border-line px-3 py-1"
           >
             attack.T1555
           </span>
         </div>
         <div
-          class="rounded-[14px] border border-lineSoft bg-panelAlt px-4 py-3 text-sm text-mute"
+          class="rounded-none border border-lineSoft bg-panelAlt px-4 py-3 text-sm text-mute"
         >
           Review extension behavior.
         </div>
@@ -316,47 +318,47 @@ exports[`DetectionPanel > renders inconclusive verdict state 1`] = `
 exports[`DetectionPanel > renders malicious verdict state 1`] = `
 <div>
   <div
-    class="space-y-5"
+    style="display: flex; flex-direction: column; gap: 18px;"
   >
     <section
       aria-live="polite"
-      class="rounded-[22px] border px-6 py-6 border-danger/30 bg-danger/10 text-danger"
+      style="border: 1px solid rgb(255, 92, 66); background: rgb(42, 22, 18); padding: 18px 20px;"
     >
       <div
-        class="eyebrow"
+        class="v3-eyebrow"
       >
         Detection
       </div>
       <div
-        class="mt-3 flex flex-wrap items-end justify-between gap-4"
+        style="display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 18px; align-items: end; margin-top: 10px;"
       >
         <div
-          class="space-y-3"
+          style="min-width: 0;"
         >
           <h2
-            class="text-[34px] font-semibold tracking-[-0.05em]"
+            style="margin: 0px; font-size: 30px; font-weight: 700; letter-spacing: 0; color: rgb(255, 92, 66); line-height: 1.05;"
           >
             malicious
           </h2>
           <p
-            class="max-w-3xl text-sm leading-7"
+            style="margin-top: 8px; max-width: 760px; font-size: 13.5px; line-height: 1.6; color: rgb(138, 135, 128);"
           >
             Rationale for malicious
           </p>
         </div>
-        <div
-          class="rounded-full px-4 py-2 text-sm font-medium bg-danger/15 text-danger"
+        <span
+          style="display: inline-flex; align-items: center; background: rgb(255, 92, 66); color: rgb(10, 10, 10); border: 1px solid rgb(255, 92, 66); padding: 3px 8px; font-family: "JetBrains Mono", monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; border-radius: 0; white-space: nowrap;"
         >
           1
            finding
-        </div>
+        </span>
       </div>
     </section>
     <section
-      class="space-y-4"
+      style="display: flex; flex-direction: column; gap: 14px;"
     >
       <article
-        class="space-y-4 rounded-[18px] border border-line bg-panel px-5 py-5"
+        class="space-y-4 rounded-none border border-line bg-panel px-5 py-5"
       >
         <div
           class="flex flex-wrap items-start justify-between gap-3"
@@ -370,7 +372,7 @@ exports[`DetectionPanel > renders malicious verdict state 1`] = `
               extrace.a1.credential_read_then_network
             </div>
             <h3
-              class="text-xl font-semibold tracking-[-0.03em] text-ink"
+              class="text-xl font-semibold text-ink"
             >
               Synthetic detection finding
             </h3>
@@ -379,19 +381,19 @@ exports[`DetectionPanel > renders malicious verdict state 1`] = `
             class="flex flex-wrap gap-2 text-xs font-medium"
           >
             <span
-              class="rounded-full px-3 py-1 bg-danger/15 text-danger"
+              class="rounded-none px-3 py-1 bg-danger/15 text-danger"
             >
               Severity: 
               Critical
             </span>
             <span
-              class="rounded-full bg-panelAlt px-3 py-1 text-inkSoft"
+              class="rounded-none bg-panelAlt px-3 py-1 text-inkSoft"
             >
               Confidence: 
               High
             </span>
             <span
-              class="rounded-full bg-panelAlt px-3 py-1 text-inkSoft"
+              class="rounded-none bg-panelAlt px-3 py-1 text-inkSoft"
             >
               A1
             </span>
@@ -406,13 +408,13 @@ exports[`DetectionPanel > renders malicious verdict state 1`] = `
           class="flex flex-wrap gap-2 text-xs text-inkSoft"
         >
           <span
-            class="rounded-full border border-line px-3 py-1"
+            class="rounded-none border border-line px-3 py-1"
           >
             attack.T1555
           </span>
         </div>
         <div
-          class="rounded-[14px] border border-lineSoft bg-panelAlt px-4 py-3 text-sm text-mute"
+          class="rounded-none border border-lineSoft bg-panelAlt px-4 py-3 text-sm text-mute"
         >
           Review extension behavior.
         </div>
@@ -441,47 +443,47 @@ exports[`DetectionPanel > renders malicious verdict state 1`] = `
 exports[`DetectionPanel > renders suspicious verdict state 1`] = `
 <div>
   <div
-    class="space-y-5"
+    style="display: flex; flex-direction: column; gap: 18px;"
   >
     <section
       aria-live="polite"
-      class="rounded-[22px] border px-6 py-6 border-warning/30 bg-warning/10 text-warning"
+      style="border: 1px solid rgb(92, 74, 34); background: rgb(42, 32, 15); padding: 18px 20px;"
     >
       <div
-        class="eyebrow"
+        class="v3-eyebrow"
       >
         Detection
       </div>
       <div
-        class="mt-3 flex flex-wrap items-end justify-between gap-4"
+        style="display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 18px; align-items: end; margin-top: 10px;"
       >
         <div
-          class="space-y-3"
+          style="min-width: 0;"
         >
           <h2
-            class="text-[34px] font-semibold tracking-[-0.05em]"
+            style="margin: 0px; font-size: 30px; font-weight: 700; letter-spacing: 0; color: rgb(212, 168, 90); line-height: 1.05;"
           >
             suspicious
           </h2>
           <p
-            class="max-w-3xl text-sm leading-7"
+            style="margin-top: 8px; max-width: 760px; font-size: 13.5px; line-height: 1.6; color: rgb(138, 135, 128);"
           >
             Rationale for suspicious
           </p>
         </div>
-        <div
-          class="rounded-full px-4 py-2 text-sm font-medium bg-warning/15 text-warning"
+        <span
+          style="display: inline-flex; align-items: center; background: rgb(42, 32, 15); color: rgb(212, 168, 90); border: 1px solid rgb(92, 74, 34); padding: 3px 8px; font-family: "JetBrains Mono", monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; border-radius: 0; white-space: nowrap;"
         >
           1
            finding
-        </div>
+        </span>
       </div>
     </section>
     <section
-      class="space-y-4"
+      style="display: flex; flex-direction: column; gap: 14px;"
     >
       <article
-        class="space-y-4 rounded-[18px] border border-line bg-panel px-5 py-5"
+        class="space-y-4 rounded-none border border-line bg-panel px-5 py-5"
       >
         <div
           class="flex flex-wrap items-start justify-between gap-3"
@@ -495,7 +497,7 @@ exports[`DetectionPanel > renders suspicious verdict state 1`] = `
               extrace.a1.credential_read_then_network
             </div>
             <h3
-              class="text-xl font-semibold tracking-[-0.03em] text-ink"
+              class="text-xl font-semibold text-ink"
             >
               Synthetic detection finding
             </h3>
@@ -504,19 +506,19 @@ exports[`DetectionPanel > renders suspicious verdict state 1`] = `
             class="flex flex-wrap gap-2 text-xs font-medium"
           >
             <span
-              class="rounded-full px-3 py-1 bg-warning/15 text-warning"
+              class="rounded-none px-3 py-1 bg-warning/15 text-warning"
             >
               Severity: 
               Medium
             </span>
             <span
-              class="rounded-full bg-panelAlt px-3 py-1 text-inkSoft"
+              class="rounded-none bg-panelAlt px-3 py-1 text-inkSoft"
             >
               Confidence: 
               Medium
             </span>
             <span
-              class="rounded-full bg-panelAlt px-3 py-1 text-inkSoft"
+              class="rounded-none bg-panelAlt px-3 py-1 text-inkSoft"
             >
               A1
             </span>
@@ -531,13 +533,13 @@ exports[`DetectionPanel > renders suspicious verdict state 1`] = `
           class="flex flex-wrap gap-2 text-xs text-inkSoft"
         >
           <span
-            class="rounded-full border border-line px-3 py-1"
+            class="rounded-none border border-line px-3 py-1"
           >
             attack.T1555
           </span>
         </div>
         <div
-          class="rounded-[14px] border border-lineSoft bg-panelAlt px-4 py-3 text-sm text-mute"
+          class="rounded-none border border-lineSoft bg-panelAlt px-4 py-3 text-sm text-mute"
         >
           Review extension behavior.
         </div>

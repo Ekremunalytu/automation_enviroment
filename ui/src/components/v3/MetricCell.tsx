@@ -23,7 +23,7 @@ export function MetricCell({ label, value, sub, tone = "neutral", align = "left"
           fontFamily: FONT_DISPLAY,
           fontSize: 48,
           fontWeight: 800,
-          letterSpacing: "-0.04em",
+          letterSpacing: 0,
           lineHeight: 0.95,
           color: numberColor,
           fontVariantNumeric: "tabular-nums",

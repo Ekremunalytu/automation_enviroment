@@ -1,7 +1,6 @@
-import { EmptyState } from "../../components/ui/EmptyState";
+import { Badge, EmptyState, V3, type V3Tone } from "../../components/v3";
 import type { DetectionReportView } from "../../lib/types/view-models";
 import { FindingCard } from "./FindingCard";
-import { verdictColors } from "./verdictColors";
 
 function emptyStateCopy(verdict: DetectionReportView["verdict"]) {
   if (verdict === "clean") return "No rules fired. Verdict: clean.";
@@ -27,25 +26,49 @@ export function DetectionPanel({
     );
   }
 
-  const tone = verdictColors[detection.verdict];
+  const tone = verdictTone(detection.verdict);
+  const isClean = detection.verdict === "clean" || detection.verdict === "clean_with_notes";
 
   return (
-    <div className="space-y-5">
+    <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
       <section
         aria-live="polite"
-        className={`rounded-[22px] border px-6 py-6 ${tone.banner}`}
+        style={{
+          border: `1px solid ${tone.border}`,
+          background: isClean ? V3.paper2 : tone.bg,
+          padding: "18px 20px",
+        }}
       >
-        <div className="eyebrow">Detection</div>
-        <div className="mt-3 flex flex-wrap items-end justify-between gap-4">
-          <div className="space-y-3">
-            <h2 className="text-[34px] font-semibold tracking-[-0.05em]">
+        <div className="v3-eyebrow">Detection</div>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "minmax(0, 1fr) auto",
+            gap: 18,
+            alignItems: "end",
+            marginTop: 10,
+          }}
+        >
+          <div style={{ minWidth: 0 }}>
+            <h2
+              style={{
+                margin: 0,
+                fontSize: isClean ? 24 : 30,
+                fontWeight: 700,
+                letterSpacing: 0,
+                color: tone.fg,
+                lineHeight: 1.05,
+              }}
+            >
               {detection.verdictLabel}
             </h2>
-            <p className="max-w-3xl text-sm leading-7">{detection.verdictRationale}</p>
+            <p style={{ marginTop: 8, maxWidth: 760, fontSize: 13.5, lineHeight: 1.6, color: V3.ink3 }}>
+              {detection.verdictRationale}
+            </p>
           </div>
-          <div className={`rounded-full px-4 py-2 text-sm font-medium ${tone.badge}`}>
+          <Badge tone={tone.badgeTone}>
             {detection.findings.length} finding{detection.findings.length === 1 ? "" : "s"}
-          </div>
+          </Badge>
         </div>
       </section>
 
@@ -56,7 +79,7 @@ export function DetectionPanel({
           title="No fired rules"
         />
       ) : (
-        <section className="space-y-4">
+        <section style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           {detection.findings.map((finding) => (
             <FindingCard
               finding={finding}
@@ -68,4 +91,25 @@ export function DetectionPanel({
       )}
     </div>
   );
+}
+
+function verdictTone(verdict: DetectionReportView["verdict"]): {
+  border: string;
+  bg: string;
+  fg: string;
+  badgeTone: V3Tone;
+} {
+  if (verdict === "malicious") {
+    return { border: V3.coral, bg: V3.dangerBg, fg: V3.coral, badgeTone: "danger" };
+  }
+  if (verdict === "suspicious") {
+    return { border: "#5c4a22", bg: V3.warnBg, fg: V3.warn, badgeTone: "warn" };
+  }
+  if (verdict === "inconclusive") {
+    return { border: V3.rule2, bg: V3.paper3, fg: V3.ink2, badgeTone: "neutral" };
+  }
+  if (verdict === "clean_with_notes") {
+    return { border: "#2a4a36", bg: V3.okBg, fg: V3.ok, badgeTone: "ok" };
+  }
+  return { border: "#2a4a36", bg: V3.okBg, fg: V3.ok, badgeTone: "ok" };
 }

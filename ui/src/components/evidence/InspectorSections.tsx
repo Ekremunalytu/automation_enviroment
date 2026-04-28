@@ -1,7 +1,8 @@
 import { ReactECharts } from "../../lib/charts/core";
-import type { EvidenceInspectorView, RuleDraftView } from "../../lib/types/view-models";
+import type { DetectionReportView, EvidenceInspectorView, RuleDraftView } from "../../lib/types/view-models";
 import { toRuleJson, toRuleYaml } from "../../lib/rules/draft";
 import { Badge } from "../ui/Badge";
+import { V3 } from "../v3";
 
 function attributionTone(status: string) {
   if (status === "target_attributed") return "success";
@@ -11,12 +12,18 @@ function attributionTone(status: string) {
   return "default";
 }
 
+function severityTone(severity: string) {
+  if (severity === "critical" || severity === "high") return "danger";
+  if (severity === "medium") return "warning";
+  return "default";
+}
+
 export function SelectedEventHero({ inspector }: { inspector: EvidenceInspectorView }) {
   return (
     <div className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]">
       <section className="panel-alt p-4">
         <div className="micro-label">Selected Event</div>
-        <div className="mt-3 text-[28px] font-semibold tracking-[-0.04em] text-ink">{inspector.event.artifactShort}</div>
+        <div className="mt-3 break-words text-[24px] font-semibold leading-tight text-ink">{inspector.event.artifactShort}</div>
         <p className="mt-3 max-w-2xl text-sm leading-6 text-mute">{inspector.event.summaryDisplay}</p>
         <div className="mt-4 flex flex-wrap gap-2">
           <Badge tone="accent">{inspector.event.kindLabel}</Badge>
@@ -49,129 +56,115 @@ export function SelectedEventHero({ inspector }: { inspector: EvidenceInspectorV
 }
 
 export function ProvenanceTab({ inspector }: { inspector: EvidenceInspectorView }) {
+  const suspicionBody = inspector.event.attributionBasis || inspector.event.noiseReason
+    || "No explicit suspicion rationale was derived for this event.";
+  const linkBody = inspector.related.length
+    ? `${inspector.related.length} related evidence links are available in the Relations view.`
+    : "No related evidence links are available for the selected event.";
   return (
-    <div className="grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(300px,0.8fr)]">
-      <section className="space-y-4">
-        <div>
-          <div className="micro-label">Provenance</div>
-          <h3 className="mt-3 text-2xl font-semibold tracking-tight text-ink">Focused event context</h3>
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-mute">
-            Attribution metadata stays isolated here so the primary table and the relations graph do not compete for attention.
-          </p>
-        </div>
+    <div className="space-y-4">
+      <div>
+        <div className="micro-label">Provenance</div>
+        <h3 className="mt-3 text-xl font-semibold text-ink">Focused event context</h3>
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-mute">
+          Attribution metadata stays isolated here so the primary table and the relations graph do not compete for attention.
+        </p>
+      </div>
 
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Meta label="Timestamp" value={inspector.event.timestampDisplay} />
-          <Meta label="Scenario" value={inspector.event.scenarioLabel} />
-          <Meta label="Extension" value={inspector.event.extensionId || "(unattributed)"} />
-          <Meta label="Attribution basis" value={inspector.event.attributionBasis || "(n/a)"} />
-          <Meta label="Host / Path" value={inspector.event.host || inspector.event.path || "(n/a)"} />
-          <Meta
-            label="Destination"
-            value={
-              inspector.event.destinationIp
-                ? `${inspector.event.destinationIp}${inspector.event.destinationPort ? `:${inspector.event.destinationPort}` : ""}`
-                : "(n/a)"
-            }
-          />
-          <Meta label="Operation" value={inspector.event.detail || "(n/a)"} />
-        </div>
-      </section>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Meta label="Timestamp" value={inspector.event.timestampDisplay} />
+        <Meta label="Scenario" value={inspector.event.scenarioLabel} />
+        <Meta label="Extension" value={inspector.event.extensionId || "(unattributed)"} />
+        <Meta label="Attribution basis" value={inspector.event.attributionBasis || "(n/a)"} />
+        <Meta label="Host / Path" value={inspector.event.host || inspector.event.path || "(n/a)"} />
+        <Meta
+          label="Destination"
+          value={
+            inspector.event.destinationIp
+              ? `${inspector.event.destinationIp}${inspector.event.destinationPort ? `:${inspector.event.destinationPort}` : ""}`
+              : "(n/a)"
+          }
+        />
+        <Meta label="Operation" value={inspector.event.detail || "(n/a)"} />
+      </div>
 
-      <section className="space-y-4">
-        <div className="panel-alt p-4">
-          <div className="micro-label">Link Status</div>
-          <div className="mt-3 text-sm leading-6 text-mute">
-            {inspector.related.length
-              ? `${inspector.related.length} related evidence links are available in the Relations view.`
-              : "No related evidence links are available for the selected event."}
-          </div>
-        </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <ContextBlock title="Link Status" body={linkBody} />
+        <ContextBlock title="Why this is suspicious" body={suspicionBody} />
+      </div>
+    </div>
+  );
+}
 
-        <div className="panel-alt p-4">
-          <div className="micro-label">Focus</div>
-          <div className="mt-3 text-sm leading-6 text-mute">
-            Use this section for attribution and event ownership, then switch to Relations when you need graph context or to Rules when you want a portable signature.
-          </div>
-        </div>
-
-        <div className="panel-alt p-4">
-          <div className="micro-label">Why This Is Suspicious</div>
-          <div className="mt-3 space-y-2 text-sm leading-6 text-mute">
-            {inspector.event.attributionBasis ? <div>{inspector.event.attributionBasis}</div> : null}
-            {inspector.event.noiseReason ? <div>{inspector.event.noiseReason}</div> : null}
-            {!inspector.event.attributionBasis && !inspector.event.noiseReason ? (
-              <div>No explicit suspicion rationale was derived for this event.</div>
-            ) : null}
-          </div>
-        </div>
-      </section>
+function ContextBlock({ title, body }: { title: string; body: string }) {
+  return (
+    <div style={{ borderTop: `1px solid ${V3.rule2}`, paddingTop: 12 }}>
+      <div className="micro-label">{title}</div>
+      <p style={{ marginTop: 6, color: V3.ink3, fontSize: 13, lineHeight: 1.6 }}>{body}</p>
     </div>
   );
 }
 
 export function RelationsTab({ inspector }: { inspector: EvidenceInspectorView }) {
   const clusters = buildRelationClusters(inspector);
-  const visibleLinks = inspector.related.slice(0, 12);
+  const visibleLinks = inspector.related.slice(0, 8);
 
   return (
     <div className="space-y-5">
       <div>
         <div className="micro-label">Relations</div>
-        <h3 className="mt-3 text-2xl font-semibold tracking-tight text-ink">Interaction graph</h3>
-        <p className="mt-3 max-w-3xl text-sm leading-6 text-mute">
+        <h3 className="mt-3 text-xl font-semibold text-ink">Interaction graph</h3>
+        <p className="mt-2 max-w-3xl text-sm leading-6 text-mute">
           Read the relation map as a hierarchy: selected event first, then relation groups, then target classes, then representative linked events.
         </p>
       </div>
 
       {inspector.related.length ? (
         <>
-          <div className="rounded-[16px] border border-line bg-panelAlt p-4">
+          <div className="rounded-none border border-line bg-panelAlt p-4">
             <div className="micro-label">Hierarchy Map</div>
-            <ReactECharts className="mt-3 h-[420px] w-full" option={buildRelationGraphOption(inspector)} />
+            <ReactECharts className="mt-3 h-[260px] w-full" option={buildRelationGraphOption(inspector)} />
           </div>
 
-          <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(360px,0.9fr)]">
-            <section className="space-y-3">
-              <div className="micro-label">Connection Summary</div>
-              <div className="space-y-2">
-                {buildRelationSummary(inspector).map((item) => (
-                  <div key={`${item.label}-${item.target}`} className="metric-tile">
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <div className="text-sm font-medium text-ink">
-                          {item.label} → {item.target}
-                        </div>
-                        <div className="mt-1 text-sm leading-6 text-mute">{item.reason}</div>
+          <section className="space-y-3">
+            <div className="micro-label">Connection Summary</div>
+            <div className="space-y-2">
+              {buildRelationSummary(inspector).map((item) => (
+                <div key={`${item.label}-${item.target}`} className="metric-tile">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <div className="text-sm font-medium text-ink">
+                        {item.label} → {item.target}
                       </div>
-                      <Badge tone={item.confidence >= 80 ? "success" : item.confidence >= 50 ? "warning" : "danger"}>
-                        {item.confidence}%
-                      </Badge>
+                      <div className="mt-1 text-sm leading-6 text-mute">{item.reason}</div>
                     </div>
+                    <Badge tone={item.confidence >= 80 ? "success" : item.confidence >= 50 ? "warning" : "danger"}>
+                      {item.confidence}%
+                    </Badge>
                   </div>
-                ))}
-              </div>
-            </section>
+                </div>
+              ))}
+            </div>
+          </section>
 
-            <section className="space-y-3">
-              <div className="micro-label">Relation Groups</div>
-              <div className="space-y-2">
-                {clusters.map((cluster) => (
-                  <div key={cluster.key} className="metric-tile">
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <div className="text-sm font-medium text-ink">{cluster.heading}</div>
-                        <div className="mt-1 text-sm leading-6 text-mute">
-                          {cluster.kinds.map((kind) => `${kind.target} (${kind.count})`).join(" · ")}
-                        </div>
+          <section className="space-y-3">
+            <div className="micro-label">Relation Groups</div>
+            <div className="space-y-2">
+              {clusters.map((cluster) => (
+                <div key={cluster.key} className="metric-tile">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <div className="text-sm font-medium text-ink">{cluster.heading}</div>
+                      <div className="mt-1 text-sm leading-6 text-mute">
+                        {cluster.kinds.map((kind) => `${kind.target} (${kind.count})`).join(" · ")}
                       </div>
-                      <Badge tone="accent">{cluster.total}</Badge>
                     </div>
+                    <Badge tone="accent">{cluster.total}</Badge>
                   </div>
-                ))}
-              </div>
-            </section>
-          </div>
+                </div>
+              ))}
+            </div>
+          </section>
 
           <section className="space-y-3">
             <div className="flex items-center justify-between gap-4">
@@ -182,32 +175,30 @@ export function RelationsTab({ inspector }: { inspector: EvidenceInspectorView }
                 </div>
               ) : null}
             </div>
-            <div className="grid gap-3 xl:grid-cols-2">
-              <div className="space-y-2">
-                {visibleLinks.map((link) => (
-                  <div
-                    key={`${link.direction}-${link.fromEventId}-${link.toEventId}-${link.linkType}`}
-                    className="metric-tile"
-                  >
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <div className="text-sm font-medium text-ink">
-                          {link.direction === "incoming" ? "Incoming" : "Outgoing"} · {link.linkLabel}
-                        </div>
-                        <div className="mt-1 text-sm leading-6 text-mute">
-                          {link.peerEvent?.artifactShort || "Unresolved event"} · {link.reason}
-                        </div>
+            <div className="space-y-2">
+              {visibleLinks.map((link) => (
+                <div
+                  key={`${link.direction}-${link.fromEventId}-${link.toEventId}-${link.linkType}`}
+                  className="metric-tile"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <div className="text-sm font-medium text-ink">
+                        {link.direction === "incoming" ? "Incoming" : "Outgoing"} · {link.linkLabel}
                       </div>
-                      <Badge tone="accent">{link.confidenceLabel}</Badge>
+                      <div className="mt-1 text-sm leading-6 text-mute">
+                        {link.peerEvent?.artifactShort || "Unresolved event"} · {link.reason}
+                      </div>
                     </div>
+                    <Badge tone="accent">{link.confidenceLabel}</Badge>
                   </div>
-                ))}
-              </div>
+                </div>
+              ))}
             </div>
           </section>
         </>
       ) : (
-        <div className="rounded-[16px] border border-dashed border-lineStrong px-4 py-5 text-sm text-mute">
+        <div className="rounded-none border border-dashed border-lineStrong px-4 py-5 text-sm text-mute">
           No explicit evidence links are available for the selected event.
         </div>
       )}
@@ -225,9 +216,9 @@ export function RulesTab({ ruleDraft }: { ruleDraft: RuleDraftView | null }) {
   return (
     <div className="space-y-5">
       <div>
-        <div className="micro-label">Rules</div>
-        <h3 className="mt-3 text-2xl font-semibold tracking-tight text-ink">Portable detection draft</h3>
-        <p className="mt-3 max-w-3xl text-sm leading-6 text-mute">
+        <div className="micro-label">Rule Draft</div>
+        <h3 className="mt-3 text-xl font-semibold text-ink">Portable detection draft</h3>
+        <p className="mt-2 max-w-3xl text-sm leading-6 text-mute">
           Generate a shareable rule from the focused evidence without burying labels and conditions in the side column.
         </p>
       </div>
@@ -280,6 +271,113 @@ export function RulesTab({ ruleDraft }: { ruleDraft: RuleDraftView | null }) {
       </section>
 
       <DualCodeBlock json={toRuleJson(ruleDraft)} yaml={toRuleYaml(ruleDraft)} />
+    </div>
+  );
+}
+
+export function RuleHitsTab({
+  detection,
+  inspector,
+}: {
+  detection: DetectionReportView | null;
+  inspector: EvidenceInspectorView;
+}) {
+  const eventId = inspector.event.eventId;
+  const eventFindings =
+    detection?.findings.filter((finding) =>
+      finding.evidence.some((evidence) => evidence.eventId === eventId),
+    ) ?? [];
+  const hitRuleIds = new Set(eventFindings.map((finding) => finding.ruleId));
+  const rules = detection?.rulesExecuted ?? [];
+
+  return (
+    <div className="space-y-5">
+      <section>
+        <div className="micro-label">Rules</div>
+        <h3 className="mt-3 text-xl font-semibold text-ink">Rule registry</h3>
+        <div
+          style={{
+            marginTop: 12,
+            border: `1px dashed ${V3.rule2}`,
+            background: V3.paper2,
+            padding: "16px 18px",
+            color: V3.ink3,
+            fontSize: 13,
+            lineHeight: 1.6,
+          }}
+        >
+          The full detection rule catalog will plug in here. This space is reserved as a placeholder for the upcoming registry + hits view.
+        </div>
+      </section>
+
+      <section className="space-y-3">
+        <div className="micro-label">Selected event hits</div>
+        {eventFindings.length ? (
+          <div className="space-y-2">
+            {eventFindings.map((finding) => (
+              <div key={finding.id} className="metric-tile">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="break-words text-sm font-medium text-ink">{finding.title}</div>
+                    <div className="mt-1 break-all font-mono text-xs text-mute">{finding.ruleId}</div>
+                  </div>
+                  <Badge tone={severityTone(finding.severity)}>{finding.severityLabel}</Badge>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-none border border-line bg-panelAlt/50 px-4 py-4 text-sm leading-6 text-mute">
+            No fired rule references this selected event.
+          </div>
+        )}
+      </section>
+
+      <section className="space-y-3">
+        <div className="micro-label">Rule executions</div>
+        {!detection ? (
+          <div className="rounded-none border border-dashed border-lineStrong px-4 py-5 text-sm leading-6 text-mute">
+            Detection rule execution data is unavailable for this report.
+          </div>
+        ) : rules.length ? (
+          <div className="space-y-2">
+            {rules.map((rule) => {
+              const fired = rule.status === "fired";
+              const linkedToSelection = hitRuleIds.has(rule.ruleId);
+              return (
+                <div
+                  key={`${rule.ruleId}-${rule.ruleVersion}`}
+                  className={`metric-tile ${linkedToSelection ? "border-accent" : ""}`}
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="break-all font-mono text-sm text-ink">{rule.ruleId}</div>
+                      <div className="mt-1 font-mono text-xs text-mute">
+                        v{rule.ruleVersion} · {rule.lifecycle.replaceAll("_", " ")}
+                      </div>
+                      {rule.errorDetail ? (
+                        <div className="mt-2 text-sm leading-6 text-danger">{rule.errorDetail}</div>
+                      ) : null}
+                    </div>
+                    <div className="flex flex-wrap justify-end gap-2">
+                      <Badge tone={rule.status === "error" ? "danger" : fired ? "success" : "default"}>
+                        {rule.statusLabel}
+                      </Badge>
+                      <Badge tone={fired ? "accent" : "default"}>
+                        {rule.findingIds.length} hit{rule.findingIds.length === 1 ? "" : "s"}
+                      </Badge>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="rounded-none border border-line bg-panelAlt/50 px-4 py-4 text-sm leading-6 text-mute">
+            No rule execution records were attached to this detection report yet.
+          </div>
+        )}
+      </section>
     </div>
   );
 }
@@ -415,9 +513,9 @@ function buildRelationGraphOption(inspector: EvidenceInspectorView) {
   return {
     backgroundColor: "transparent",
     tooltip: {
-      backgroundColor: "#1A2126",
-      borderColor: "#2B3640",
-      textStyle: { color: "#F4F0E8" },
+      backgroundColor: "#141414",
+      borderColor: "#2b2b2b",
+      textStyle: { color: "#f4f1ea" },
     },
     series: [
       {
@@ -438,7 +536,7 @@ function buildRelationGraphOption(inspector: EvidenceInspectorView) {
           position: "left",
           align: "right",
           verticalAlign: "middle",
-          color: "#F4F0E8",
+          color: "#f4f1ea",
           fontSize: 11,
         },
         leaves: {
@@ -451,12 +549,12 @@ function buildRelationGraphOption(inspector: EvidenceInspectorView) {
           focus: "descendant",
         },
         itemStyle: {
-          color: "#9EC6B3",
-          borderColor: "#2B3640",
+          color: "#ff5c42",
+          borderColor: "#2b2b2b",
           borderWidth: 1,
         },
         lineStyle: {
-          color: "#4E7E67",
+          color: "#5a5750",
           width: 1.5,
           curveness: 0.5,
         },
@@ -480,13 +578,13 @@ function Meta({ label, value }: { label: string; value: string }) {
 function DualCodeBlock({ json, yaml }: { json: string; yaml: string }) {
   return (
     <div className="grid gap-4 lg:grid-cols-2">
-      <div className="rounded-[16px] border border-line bg-canvas p-4">
+      <div className="rounded-none border border-line bg-canvas p-4">
         <div className="micro-label">JSON</div>
         <pre className="mt-3 max-h-[320px] overflow-auto whitespace-pre-wrap break-all font-mono text-xs leading-6 text-accentSoft scroll-thin">
           {json}
         </pre>
       </div>
-      <div className="rounded-[16px] border border-line bg-canvas p-4">
+      <div className="rounded-none border border-line bg-canvas p-4">
         <div className="micro-label">YAML</div>
         <pre className="mt-3 max-h-[320px] overflow-auto whitespace-pre-wrap break-all font-mono text-xs leading-6 text-ink scroll-thin">
           {yaml}

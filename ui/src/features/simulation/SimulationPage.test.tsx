@@ -72,7 +72,8 @@ describe("SimulationPage", () => {
 
     renderPage("/simulation?job=job-1&tab=live");
 
-    expect(await screen.findByText("ms.lint@1.0.0")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: /ms\s*\.lint/u })).toBeInTheDocument();
+    expect(screen.getByText("Version · 1.0.0")).toBeInTheDocument();
     expect(screen.getByText("Run Is Warming Up")).toBeInTheDocument();
     expect(screen.getByText("Current step")).toBeInTheDocument();
     expect(screen.getByText("Recent messages")).toBeInTheDocument();
@@ -280,13 +281,14 @@ describe("SimulationPage", () => {
     renderPage("/simulation?job=job-2&tab=live&event=activation-1");
 
     await waitFor(() => {
-      expect(screen.getAllByText("Live Event Stream").length).toBeGreaterThan(0);
+      expect(screen.getAllByText("Event stream").length).toBeGreaterThan(0);
     });
-    expect(screen.getByText("Live detection posture")).toBeInTheDocument();
-    expect(screen.getByText("This run is inconclusive because the target extension was not observed with enough confidence.")).toBeInTheDocument();
-    expect(screen.getByText("Status")).toBeInTheDocument();
     expect(screen.getByText("Progress")).toBeInTheDocument();
-    expect(screen.getByTestId("chart")).toBeInTheDocument();
+    expect(screen.getByText("Live event ledger")).toBeInTheDocument();
+    expect(screen.queryByText("Live detection posture")).not.toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: "Status" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: "Live" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Mini Timeline")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Filters" }));
     expect(
@@ -294,44 +296,32 @@ describe("SimulationPage", () => {
     ).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Close" }));
 
-    fireEvent.click(screen.getByRole("tab", { name: "Run Status" }));
-    await waitFor(() => {
-      expect(screen.getByTestId("location-search").textContent).toContain("tab=status");
-    });
-    expect(screen.getAllByText("Skipped scenarios").length).toBeGreaterThan(0);
-    expect(
-      screen.getByText(
-        "debug_session: unsupported_activation_surface (family not supported by runtime)",
-      ),
-    ).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("tab", { name: "Live Evidence" }));
-    await waitFor(() => {
-      expect(screen.getByText("Simulation evidence")).toBeInTheDocument();
-    });
-
-    fireEvent.click(screen.getByRole("tab", { name: "Analysis" }));
-    await waitFor(() => {
-      expect(screen.getByTestId("location-search").textContent).toContain("workspace=analysis");
-    });
-
-    fireEvent.click(screen.getByRole("tab", { name: "Logs" }));
-    await waitFor(() => {
-      expect(screen.getByText("Coverage audit")).toBeInTheDocument();
-    });
-    expect(screen.getByText("Official Coverage")).toBeInTheDocument();
-    expect(screen.getByText("Heuristic Workflow Coverage")).toBeInTheDocument();
-    expect(screen.getByText("Activated ms.lint via onStartupFinished")).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("tab", { name: "Analysis" }));
-    await waitFor(() => {
-      expect(screen.getByTestId("location-search").textContent).toContain("workspace=analysis");
-    });
-
-    fireEvent.click(screen.getByRole("tab", { name: "Rules" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Rule Draft" }));
     await waitFor(() => {
       expect(screen.getByTestId("location-search").textContent).toContain("inspector=rules");
     });
+  });
+
+  it("redirects ?tab=status to ?tab=live", async () => {
+    vi.mocked(apiClient.getAnalysisJob).mockResolvedValueOnce({
+      job_id: "job-redirect",
+      status: "completed",
+      publisher: "ms",
+      name: "lint",
+      version: "1.0.0",
+      message: "done",
+      steps: [],
+      created_at: 1713002400,
+      updated_at: 1713002410,
+      report_path: null,
+    });
+
+    renderPage("/simulation?job=job-redirect&tab=status");
+
+    await waitFor(() => {
+      expect(screen.getByTestId("location-search").textContent).toContain("tab=live");
+    });
+    expect(screen.getByTestId("location-search").textContent).not.toContain("tab=status");
   });
 
   it("renders the Stop button only while the job is active and calls the API after confirm", async () => {
@@ -401,7 +391,8 @@ describe("SimulationPage", () => {
 
     renderPage("/simulation?job=job-done-1&tab=live");
 
-    await screen.findByText("ms.lint@1.0.0");
+    await screen.findByRole("heading", { name: /ms\s*\.lint/u });
+    expect(screen.getByText("Version · 1.0.0")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Stop simulation" })).toBeNull();
   });
 

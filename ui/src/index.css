@@ -8,7 +8,7 @@
   :root {
     color-scheme: dark;
     font-family: "Manrope", sans-serif;
-    background: #101416;
+    background: #0a0a0a;
 
     --paper: #0a0a0a;
     --paper-2: #141414;
@@ -50,10 +50,8 @@
 
   body {
     @apply bg-canvas font-body text-ink antialiased;
-    background-color: #101416;
-    background-image:
-      radial-gradient(circle at top center, rgba(158, 198, 179, 0.07), transparent 20%),
-      linear-gradient(180deg, #101416 0%, #0b0e10 100%);
+    background-color: var(--paper);
+    background-image: none;
   }
 
   body[data-theme="v3"] {
@@ -96,8 +94,8 @@
   }
 
   ::selection {
-    background: rgba(103, 164, 255, 0.38);
-    color: #ffffff;
+    background: var(--coral);
+    color: var(--paper);
   }
 
   body[data-theme="v3"] ::selection {
@@ -120,11 +118,11 @@
 
 @layer components {
   .panel {
-    @apply rounded-[20px] border border-line bg-panel shadow-soft backdrop-blur-sm;
+    @apply rounded-none border border-line bg-panel;
   }
 
   .panel-alt {
-    @apply rounded-[16px] border border-lineSoft bg-panelAlt;
+    @apply rounded-none border border-lineSoft bg-panelAlt;
   }
 
   .micro-label {
@@ -136,35 +134,35 @@
   }
 
   .field-control {
-    @apply w-full rounded-[16px] border border-line bg-canvas px-4 py-3 text-sm text-ink shadow-inset placeholder:text-mute transition placeholder:font-normal hover:border-lineStrong focus:border-accent;
+    @apply w-full rounded-none border border-line bg-canvas px-4 py-3 text-sm text-ink placeholder:text-mute transition placeholder:font-normal hover:border-lineStrong focus:border-accent;
   }
 
   .ghost-button {
-    @apply inline-flex items-center justify-center gap-2 rounded-[16px] border border-line bg-panelAlt px-4 py-3 text-sm font-medium text-ink transition duration-200 hover:border-lineStrong hover:bg-surface;
+    @apply inline-flex items-center justify-center gap-2 rounded-none border border-line bg-panelAlt px-4 py-3 text-sm font-medium text-ink transition duration-200 hover:border-lineStrong hover:bg-surface;
   }
 
   .solid-button {
-    @apply inline-flex items-center justify-center gap-2 rounded-[16px] bg-accent px-4 py-3 text-sm font-semibold text-canvasDeep transition duration-200 hover:bg-accentStrong;
+    @apply inline-flex items-center justify-center gap-2 rounded-none bg-accent px-4 py-3 text-sm font-semibold text-canvasDeep transition duration-200 hover:bg-accentStrong;
   }
 
   .subtle-button {
-    @apply inline-flex items-center justify-center gap-2 rounded-[16px] border border-accent bg-accent px-4 py-3 text-sm font-medium text-canvasDeep transition duration-200 hover:bg-accentStrong;
+    @apply inline-flex items-center justify-center gap-2 rounded-none border border-accent bg-accent px-4 py-3 text-sm font-medium text-canvasDeep transition duration-200 hover:bg-accentStrong;
   }
 
   .nav-button {
-    @apply inline-flex items-center gap-2 rounded-full border border-transparent px-3.5 py-2.5 text-sm font-medium text-mute transition duration-200 hover:bg-panelAlt hover:text-ink;
+    @apply inline-flex items-center gap-2 rounded-none border border-transparent px-3.5 py-2.5 text-sm font-medium text-mute transition duration-200 hover:bg-panelAlt hover:text-ink;
   }
 
   .nav-button-active {
-    @apply border-line bg-panelAlt text-ink shadow-inset;
+    @apply border-line bg-panelAlt text-ink;
   }
 
   .info-chip {
-    @apply inline-flex items-center gap-2 rounded-full border border-line bg-canvas px-3 py-1.5 text-xs font-medium text-inkSoft;
+    @apply inline-flex items-center gap-2 rounded-none border border-line bg-canvas px-3 py-1.5 text-xs font-medium text-inkSoft;
   }
 
   .metric-tile {
-    @apply rounded-[14px] border border-lineSoft bg-panelAlt px-4 py-4 shadow-inset;
+    @apply rounded-none border border-lineSoft bg-panelAlt px-4 py-4;
   }
 
   .shell-frame {
@@ -176,11 +174,11 @@
   }
 
   .page-title {
-    @apply text-balance font-display text-[40px] font-semibold tracking-[-0.035em] text-ink;
+    @apply text-balance font-display text-[40px] font-semibold text-ink;
   }
 
   .toolbar-surface {
-    @apply rounded-[18px] border border-line bg-panel px-4 py-4 shadow-soft;
+    @apply rounded-none border border-line bg-panel px-4 py-4;
   }
 
   .section-tabs {
@@ -188,7 +186,7 @@
   }
 
   .section-tab {
-    @apply rounded-full border border-transparent px-4 py-2.5 text-sm font-medium text-mute transition hover:bg-panelAlt hover:text-ink;
+    @apply rounded-none border border-transparent px-4 py-2.5 text-sm font-medium text-mute transition hover:bg-panelAlt hover:text-ink;
   }
 
   .section-tab-active {
@@ -196,7 +194,7 @@
   }
 
   .score-surface {
-    @apply rounded-[22px] border border-line bg-panel px-6 py-8 shadow-soft;
+    @apply rounded-none border border-line bg-panel px-6 py-8;
   }
 
   .workspace-divider {
@@ -205,7 +203,7 @@
 
   .scroll-thin {
     scrollbar-width: thin;
-    scrollbar-color: rgba(141, 156, 175, 0.32) transparent;
+    scrollbar-color: rgba(255, 92, 66, 0.32) transparent;
   }
 
   .scroll-thin::-webkit-scrollbar {
@@ -214,7 +212,7 @@
   }
 
   .scroll-thin::-webkit-scrollbar-thumb {
-    background: rgba(141, 156, 175, 0.28);
+    background: rgba(255, 92, 66, 0.28);
     border-radius: 999px;
   }
 
@@ -268,6 +266,14 @@
 
   .v3-scrollbar::-webkit-scrollbar-thumb:hover {
     background: var(--coral);
+  }
+
+  .settings-layout {
+    grid-template-columns: minmax(220px, 260px) minmax(0, 1fr);
+  }
+
+  .system-detail-layout {
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
   }
 }
 
@@ -410,5 +416,12 @@
     animation-iteration-count: 1 !important;
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+@media (max-width: 820px) {
+  .settings-layout,
+  .system-detail-layout {
+    grid-template-columns: 1fr;
   }
 }

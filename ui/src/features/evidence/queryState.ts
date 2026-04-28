@@ -1,11 +1,12 @@
 import type { EvidenceFilterState } from "../../components/evidence/FilterRail";
 import type { EvidenceEventView } from "../../lib/types/view-models";
 
-export type InspectorTab = "provenance" | "relations" | "rules";
+export type InspectorTab = "provenance" | "relations" | "rules" | "rule-hits";
 
 export function normalizeInspectorTab(raw: string | null): InspectorTab {
-  if (raw === "relations" || raw === "rules") return raw;
+  if (raw === "relations" || raw === "rules" || raw === "rule-hits") return raw;
   if (raw === "rule") return "rules";
+  if (raw === "hits" || raw === "rule_hits") return "rule-hits";
   return "provenance";
 }
 

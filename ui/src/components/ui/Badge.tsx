@@ -28,7 +28,7 @@ export function Badge({
   tone = "default",
 }: PropsWithChildren<{ tone?: Tone }>) {
   return (
-    <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium tracking-[0.01em] ${tones[tone]}`}>
+    <span className={`inline-flex items-center rounded-none border px-2.5 py-1 text-xs font-medium uppercase tracking-data ${tones[tone]}`}>
       {children}
     </span>
   );

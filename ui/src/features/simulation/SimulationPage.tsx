@@ -5,7 +5,6 @@ import { useSearchParams } from "react-router-dom";
 import { FilterRail, type EvidenceFilterState } from "../../components/evidence/FilterRail";
 import { SlideOverDrawer } from "../../components/ui/SlideOverDrawer";
 import {
-  Badge,
   EmptyState,
   Eyebrow,
   GhostButton,
@@ -13,9 +12,7 @@ import {
   Panel,
   PageTitle,
   ProgressBar,
-  Tabs,
   V3,
-  type TabSpec,
 } from "../../components/v3";
 import {
   applyEvidenceFilters,
@@ -30,25 +27,17 @@ import { apiClient } from "../../lib/api/client";
 import { adaptJob } from "../../lib/adapters/job";
 import { adaptReport, getInspectorView } from "../../lib/adapters/report";
 import { buildRuleDraft } from "../../lib/rules/draft";
-import {
-  LiveRiskStrip,
-  RunActivityPanel,
-  SimulationStatusPanel,
-  SimulationWorkspace,
-  type WorkspaceTab,
-} from "./sections";
+import { LiveEvidenceWorkspace } from "./sections";
 import { ActivityBars } from "./charts/ActivityBars";
 
-type StreamTab = "live" | "status";
-
-const STREAM_TABS: TabSpec<StreamTab>[] = [
-  { value: "live", label: "Live Evidence" },
-  { value: "status", label: "Run Status" },
-];
-
-function normalizeWorkspaceTab(raw: string | null): WorkspaceTab {
-  if (raw === "analysis" || raw === "logs") return raw;
-  return "evidence";
+function renderRunTitle(title: string) {
+  const parts = title.split(".").filter(Boolean);
+  if (parts.length <= 1) return title;
+  return parts.map((part, index) => (
+    <span key={`${part}-${index}`} style={{ display: "inline-block" }}>
+      {index === 0 ? part : `.${part}`}
+    </span>
+  ));
 }
 
 export function SimulationPage() {
@@ -56,8 +45,6 @@ export function SimulationPage() {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const queryClient = useQueryClient();
   const jobId = searchParams.get("job");
-  const tab: StreamTab = searchParams.get("tab") === "status" ? "status" : "live";
-  const workspaceTab = normalizeWorkspaceTab(searchParams.get("workspace"));
   const eventId = searchParams.get("event");
   const inspectorTab = normalizeInspectorTab(searchParams.get("inspector"));
   const filters = parseEvidenceFilters(searchParams);
@@ -77,6 +64,14 @@ export function SimulationPage() {
     }
     rememberJobId(jobId);
   }, [jobId, searchParams, setSearchParams]);
+
+  useEffect(() => {
+    if (searchParams.get("tab") === "status") {
+      const next = new URLSearchParams(searchParams);
+      next.set("tab", "live");
+      setSearchParams(next, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   const jobQuery = useQuery({
     enabled: Boolean(jobId),
@@ -162,6 +157,7 @@ export function SimulationPage() {
   const ruleDraft = buildRuleDraft(inspector);
   const options = buildEvidenceFilterOptions(report?.evidence || []);
   const activeFilterCount = countEvidenceFilters(filters);
+  const [runTitle, runVersion] = (model?.title || "").split("@", 2);
 
   const setSelectedEvent = (nextEventId: string) => {
     startTransition(() => {
@@ -198,11 +194,10 @@ export function SimulationPage() {
       <header style={{ paddingBottom: 24, borderBottom: `1px solid ${V3.rule}` }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
           <Eyebrow>Simulation</Eyebrow>
-          <Badge tone="warn" data-feature-stub="simulation-stream">
-            Polling 2s · live SSE pending
-          </Badge>
         </div>
-        <PageTitle style={{ marginTop: 14 }}>{model?.title || "Live run"}</PageTitle>
+        <PageTitle style={{ marginTop: 14, fontSize: 26, lineHeight: 1.08, overflowWrap: "anywhere" }}>
+          {runTitle ? renderRunTitle(runTitle) : "Live run"}
+        </PageTitle>
         <p style={{ fontSize: 14, color: V3.ink3, marginTop: 14, maxWidth: 640, lineHeight: 1.6 }}>
           {job?.message ||
             "Track sandbox progress, then inspect live evidence and attribution without leaving the simulation surface."}
@@ -227,6 +222,30 @@ export function SimulationPage() {
             }}
           >
             Job · {jobId || "pending"}
+          </span>
+          {runVersion ? (
+            <span
+              style={{
+                fontFamily: "'JetBrains Mono', monospace",
+                fontSize: 11,
+                color: V3.ink3,
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+              }}
+            >
+              Version · {runVersion}
+            </span>
+          ) : null}
+          <span
+            style={{
+              fontFamily: "'JetBrains Mono', monospace",
+              fontSize: 11,
+              color: V3.ink3,
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+            }}
+          >
+            Status · {job?.status || "pending"}
           </span>
           <span
             style={{
@@ -279,7 +298,7 @@ export function SimulationPage() {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(4, 1fr)",
+            gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 180px), 1fr))",
             borderBottom: `1px solid ${V3.rule}`,
           }}
         >
@@ -294,12 +313,13 @@ export function SimulationPage() {
               style={{
                 padding: "20px 22px",
                 borderRight: index < 3 ? `1px solid ${V3.rule}` : "none",
+                borderBottom: index < 3 ? `1px solid ${V3.rule}` : "none",
               }}
             >
               <MetricCell
                 label={cell.label}
                 value={
-                  <span style={{ fontSize: 28, letterSpacing: "-0.03em" }}>{cell.value}</span>
+                  <span style={{ fontSize: 22, letterSpacing: 0 }}>{cell.value}</span>
                 }
               />
             </div>
@@ -384,59 +404,24 @@ export function SimulationPage() {
         </section>
       ) : null}
 
-      <Tabs<StreamTab>
-        ariaLabel="Simulation streams"
-        tabs={STREAM_TABS}
-        value={tab}
-        onChange={(next) => {
+      <LiveEvidenceWorkspace
+        eventId={eventId || undefined}
+        filteredEvents={filteredEvents}
+        detection={report?.detection || null}
+        inspector={inspector}
+        inspectorTab={inspectorTab}
+        model={model}
+        onInspectorTabChange={(next) => {
           startTransition(() => {
             const params = new URLSearchParams(searchParams);
-            params.set("tab", next);
+            params.set("inspector", next);
             setSearchParams(params, { replace: true });
           });
         }}
+        onSelectEvent={setSelectedEvent}
+        ruleDraft={ruleDraft}
+        status={job?.status}
       />
-
-      <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-        <RunActivityPanel job={job || null} model={model} />
-        <LiveRiskStrip onSelectEvent={setSelectedEvent} report={report || null} />
-
-        {tab === "status" ? (
-          <SimulationStatusPanel
-            hasEvidence={Boolean(report?.evidence.length)}
-            model={model}
-            report={report || null}
-            status={job?.status}
-          />
-        ) : (
-          <SimulationWorkspace
-            eventId={eventId || undefined}
-            filteredEvents={filteredEvents}
-            inspector={inspector}
-            inspectorTab={inspectorTab}
-            model={model}
-            onInspectorTabChange={(next) => {
-              startTransition(() => {
-                const params = new URLSearchParams(searchParams);
-                params.set("inspector", next);
-                setSearchParams(params, { replace: true });
-              });
-            }}
-            onSelectEvent={setSelectedEvent}
-            onWorkspaceTabChange={(next) => {
-              startTransition(() => {
-                const params = new URLSearchParams(searchParams);
-                params.set("workspace", next);
-                setSearchParams(params, { replace: true });
-              });
-            }}
-            report={report || null}
-            ruleDraft={ruleDraft}
-            status={job?.status}
-            workspaceTab={workspaceTab}
-          />
-        )}
-      </div>
 
       <SlideOverDrawer
         description="Apply the same URL-backed evidence filters used in reports without sacrificing workspace width."

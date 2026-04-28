@@ -63,6 +63,26 @@ const jobFixture = {
   report_path: "activation_report_demo.json",
 };
 
+const detectionFixture = {
+  schema_version: "1",
+  activation_report_ref: "activation_report_demo.json",
+  analyzed_extension: {
+    publisher: "publisher",
+    name: "tool",
+    version: "1.0.0",
+  },
+  findings: [],
+  verdict: "clean",
+  verdict_rationale: "No rules fired in smoke fixture.",
+  rules_executed: [],
+  generated_at: "2026-04-20T09:00:00Z",
+};
+
+const bundleFixture = {
+  activation_report: reportFixture,
+  detection_report: detectionFixture,
+};
+
 const reportsFixture = [
   {
     filename: "activation_report_demo.json",
@@ -82,6 +102,11 @@ function routeApi(page) {
 
     if (url.pathname === "/api/activations") {
       await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(reportsFixture) });
+      return;
+    }
+
+    if (url.pathname === "/api/activations/activation_report_demo.json/bundle") {
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(bundleFixture) });
       return;
     }
 

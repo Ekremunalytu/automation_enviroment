@@ -17,7 +17,7 @@ export function SegmentedTabs({
   return (
     <div
       aria-label={ariaLabel}
-      className="inline-flex items-center gap-1 rounded-[18px] border border-line bg-canvas/70 p-1.5 shadow-inset"
+      className="inline-flex items-center gap-0 rounded-none border border-line bg-canvas/70 p-0"
       role="tablist"
     >
       {options.map((option) => {
@@ -26,10 +26,10 @@ export function SegmentedTabs({
           <button
             aria-selected={selected}
             key={option.value}
-            className={`rounded-lg px-3 py-2 text-sm font-medium transition ${
+            className={`rounded-none border-r border-line px-3 py-2 text-sm font-medium transition last:border-r-0 ${
               selected
-                ? "border border-lineStrong bg-surface text-ink shadow-inset"
-                : "border border-transparent text-mute hover:bg-panelAlt hover:text-ink"
+                ? "bg-surface text-ink"
+                : "text-mute hover:bg-panelAlt hover:text-ink"
             }`}
             onClick={() => onChange(option.value)}
             role="tab"

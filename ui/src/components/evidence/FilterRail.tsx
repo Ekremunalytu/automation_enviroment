@@ -45,7 +45,7 @@ export function FilterRail({
     <div className="space-y-6">
       {title || description ? (
         <div className="space-y-2">
-          {title ? <div className="font-display text-lg font-semibold tracking-tight text-ink">{title}</div> : null}
+          {title ? <div className="font-display text-lg font-semibold text-ink">{title}</div> : null}
           {description ? <p className="text-sm leading-6 text-mute sm:text-[15px]">{description}</p> : null}
         </div>
       ) : null}
@@ -146,10 +146,10 @@ export function FilterRail({
           </label>
         ) : null}
 
-        <label className="flex items-center gap-3 rounded-[18px] border border-line bg-canvas/55 px-4 py-3 text-sm text-ink">
+        <label className="flex items-center gap-3 rounded-none border border-line bg-canvas/55 px-4 py-3 text-sm text-ink">
           <input
             checked={filters.sensitiveOnly}
-            className="h-4 w-4 rounded border-line bg-transparent accent-accent"
+            className="h-4 w-4 rounded-none border-line bg-transparent accent-accent"
             onChange={(event) => onChange({ ...filters, sensitiveOnly: event.target.checked })}
             type="checkbox"
           />

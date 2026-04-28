@@ -31,12 +31,12 @@ describe("SystemPage", () => {
     });
   });
 
-  it("renders the v3 header, stub badge, and lists the four service tiles", async () => {
+  it("renders the v3 header without placeholder badges and lists the four service tiles", async () => {
     renderPage();
 
     expect(await screen.findByText(/All systems/u)).toBeInTheDocument();
     expect(screen.getByText(/operational/u)).toBeInTheDocument();
-    expect(screen.getByText(/Backend pending/u)).toBeInTheDocument();
+    expect(screen.queryByText(/Backend pending/u)).not.toBeInTheDocument();
 
     expect(screen.getByTestId("service-tile-executor")).toBeInTheDocument();
     expect(screen.getByTestId("service-tile-catalog")).toBeInTheDocument();
@@ -48,8 +48,9 @@ describe("SystemPage", () => {
     });
   });
 
-  it("falls back to mock service detail and marks stub services explicitly", () => {
+  it("falls back to mock service detail without rendering stub badges", () => {
     renderPage();
-    expect(screen.getAllByText("stub").length).toBeGreaterThanOrEqual(3);
+    expect(screen.queryByText("stub")).not.toBeInTheDocument();
+    expect(screen.getByText(/catalog, sandbox, and telemetry render mock values/u)).toBeInTheDocument();
   });
 });

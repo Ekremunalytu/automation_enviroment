@@ -1,5 +1,12 @@
+import { Badge, GhostButton, V3, type V3Tone } from "../../components/v3";
 import type { DetectionFindingView } from "../../lib/types/view-models";
-import { verdictColors } from "./verdictColors";
+
+function severityTone(severity: DetectionFindingView["severity"]): V3Tone {
+  if (severity === "critical" || severity === "high") return "danger";
+  if (severity === "medium") return "warn";
+  if (severity === "low") return "ok";
+  return "neutral";
+}
 
 export function FindingCard({
   finding,
@@ -9,41 +16,69 @@ export function FindingCard({
   onShowEvidence: (eventId: string) => void;
 }) {
   const firstEvidenceId = finding.evidence[0]?.eventId;
-  const severityTone =
-    finding.severity === "critical" || finding.severity === "high"
-      ? verdictColors.malicious.badge
-      : finding.severity === "medium"
-        ? verdictColors.suspicious.badge
-        : verdictColors.clean_with_notes.badge;
 
   return (
-    <article className="space-y-4 rounded-[18px] border border-line bg-panel px-5 py-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="space-y-2">
-          <div className="micro-label">{finding.ruleId}</div>
-          <h3 className="text-xl font-semibold tracking-[-0.03em] text-ink">
+    <article
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 14,
+        border: `1px solid ${V3.rule}`,
+        background: V3.paper2,
+        padding: "18px 20px",
+      }}
+    >
+      <div style={{ display: "flex", flexWrap: "wrap", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+        <div style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 6 }}>
+          <span
+            style={{
+              fontFamily: "'JetBrains Mono', monospace",
+              fontSize: 10,
+              color: V3.ink3,
+              letterSpacing: "0.1em",
+              textTransform: "uppercase",
+              wordBreak: "break-all",
+            }}
+          >
+            {finding.ruleId}
+          </span>
+          <h3
+            style={{
+              margin: 0,
+              fontFamily: "'Manrope', sans-serif",
+              fontSize: 18,
+              fontWeight: 700,
+              color: V3.ink,
+              lineHeight: 1.2,
+            }}
+          >
             {finding.title}
           </h3>
         </div>
-        <div className="flex flex-wrap gap-2 text-xs font-medium">
-          <span className={`rounded-full px-3 py-1 ${severityTone}`}>
-            Severity: {finding.severityLabel}
-          </span>
-          <span className="rounded-full bg-panelAlt px-3 py-1 text-inkSoft">
-            Confidence: {finding.confidenceLabel}
-          </span>
-          <span className="rounded-full bg-panelAlt px-3 py-1 text-inkSoft">
-            {finding.adversaryClass}
-          </span>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+          <Badge tone={severityTone(finding.severity)}>Severity · {finding.severityLabel}</Badge>
+          <Badge tone="neutral">Confidence · {finding.confidenceLabel}</Badge>
+          <Badge tone="neutral">{finding.adversaryClass}</Badge>
         </div>
       </div>
 
-      <p className="text-sm leading-7 text-mute">{finding.description}</p>
+      <p style={{ margin: 0, fontSize: 13, color: V3.ink3, lineHeight: 1.6 }}>{finding.description}</p>
 
       {finding.categories.length ? (
-        <div className="flex flex-wrap gap-2 text-xs text-inkSoft">
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
           {finding.categories.map((category) => (
-            <span className="rounded-full border border-line px-3 py-1" key={category}>
+            <span
+              key={category}
+              style={{
+                border: `1px solid ${V3.rule}`,
+                padding: "3px 8px",
+                fontFamily: "'JetBrains Mono', monospace",
+                fontSize: 10,
+                color: V3.ink3,
+                letterSpacing: "0.06em",
+                textTransform: "uppercase",
+              }}
+            >
               {category}
             </span>
           ))}
@@ -51,25 +86,33 @@ export function FindingCard({
       ) : null}
 
       {finding.mitigationHint ? (
-        <div className="rounded-[14px] border border-lineSoft bg-panelAlt px-4 py-3 text-sm text-mute">
+        <div
+          style={{
+            border: `1px solid ${V3.rule2}`,
+            background: V3.paper3,
+            padding: "10px 12px",
+            fontSize: 13,
+            lineHeight: 1.6,
+            color: V3.ink3,
+          }}
+        >
           {finding.mitigationHint}
         </div>
       ) : null}
 
-      <div className="flex items-center justify-between gap-3">
-        <div className="text-sm text-mute">
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+        <div style={{ fontSize: 12.5, color: V3.ink3, lineHeight: 1.5, minWidth: 0 }}>
           {finding.evidence.length
-            ? finding.evidence.map((item) => item.summary).join(" • ")
+            ? finding.evidence.map((item) => item.summary).join(" · ")
             : "No evidence references recorded."}
         </div>
-        <button
-          className="ghost-button"
+        <GhostButton
+          ariaLabel={`Show evidence for ${finding.title}`}
           disabled={!firstEvidenceId}
           onClick={() => firstEvidenceId && onShowEvidence(firstEvidenceId)}
-          type="button"
         >
           {finding.evidence.length} evidence
-        </button>
+        </GhostButton>
       </div>
     </article>
   );

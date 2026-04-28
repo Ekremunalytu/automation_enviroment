@@ -165,7 +165,7 @@ function MetricTile({ title, value }: { title: string; value: string }) {
   return (
     <div className="metric-tile">
       <div className="micro-label">{title}</div>
-      <div className="mt-3 text-2xl font-semibold tracking-tight text-ink">{value}</div>
+      <div className="mt-3 text-2xl font-semibold text-ink">{value}</div>
     </div>
   );
 }
@@ -183,7 +183,7 @@ function CoverageAuditCard({
   const attemptedOnly = track.matrix.filter((item) => item.verificationStatus === "attempted_only");
 
   return (
-    <div className="rounded-[22px] border border-line bg-canvas/55 p-4">
+    <div className="rounded-none border border-line bg-canvas/55 p-4">
       <div className="micro-label">{title}</div>
       <div className="mt-2 text-sm leading-6 text-mute">{description}</div>
       <div className="mt-4 grid gap-3 md:grid-cols-[repeat(3,minmax(0,1fr))]">
@@ -253,7 +253,7 @@ function EventCoverageCard({
     .slice(0, 5);
 
   return (
-    <div className="rounded-[22px] border border-line bg-canvas/55 p-4">
+    <div className="rounded-none border border-line bg-canvas/55 p-4">
       <div className="micro-label">{title}</div>
       <div className="mt-4 grid gap-3 md:grid-cols-[repeat(4,minmax(0,1fr))]">
         <MetricTile title="Declared" value={String(coverage.declared)} />
@@ -280,7 +280,7 @@ function EventCoverageCard({
         <div className="mt-3 space-y-2 text-sm leading-6">
           {unresolved.length ? (
             unresolved.map((item) => (
-              <div className="rounded-[14px] border border-lineSoft bg-panelAlt/60 px-3 py-2" key={`${title}-${item.attemptId}`}>
+              <div className="rounded-none border border-lineSoft bg-panelAlt/60 px-3 py-2" key={`${title}-${item.attemptId}`}>
                 <div className="flex flex-wrap gap-2">
                   <Badge tone={item.status === "failed" ? "danger" : item.status === "blocked" ? "warning" : "default"}>
                     {item.statusLabel}

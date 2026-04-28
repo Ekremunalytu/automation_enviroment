@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import {
-  Badge,
   Eyebrow,
   GhostButton,
   PageTitle,
@@ -149,9 +148,6 @@ export function SystemPage() {
       <header style={{ paddingBottom: 32, borderBottom: `1px solid ${V3.rule}` }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <Eyebrow>System status</Eyebrow>
-          <Badge tone="warn" data-feature-stub="system-services">
-            Backend pending · executor live, others mocked
-          </Badge>
         </div>
         <PageTitle style={{ marginTop: 18 }}>
           All systems
@@ -169,7 +165,7 @@ export function SystemPage() {
       <section
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(4, 1fr)",
+          gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 180px), 1fr))",
           border: `1px solid ${V3.rule}`,
           background: V3.paper2,
         }}
@@ -201,11 +197,6 @@ export function SystemPage() {
               }}
             >
               <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8 }}>
-                {service.isStub ? (
-                  <Badge tone={sel ? "neutral" : "neutral"} data-feature-stub="service-card">
-                    stub
-                  </Badge>
-                ) : null}
                 <span
                   aria-hidden
                   style={{
@@ -222,7 +213,7 @@ export function SystemPage() {
                   fontFamily: "'Manrope', sans-serif",
                   fontSize: 32,
                   fontWeight: 800,
-                  letterSpacing: "-0.04em",
+                  letterSpacing: 0,
                   lineHeight: 0.95,
                   textTransform: "uppercase",
                   color: sel ? V3.paper : V3.ink,
@@ -247,7 +238,7 @@ export function SystemPage() {
         })}
       </section>
 
-      <section style={{ display: "grid", gridTemplateColumns: "1fr 360px", gap: 28 }}>
+      <section className="system-detail-layout" style={{ display: "grid", gap: 28 }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
           <div style={{ display: "flex", alignItems: "baseline", gap: 14 }}>
             <Eyebrow>Service</Eyebrow>
@@ -263,18 +254,13 @@ export function SystemPage() {
             >
               {svc.name}
             </span>
-            {svc.isStub ? (
-              <Badge tone="warn" data-feature-stub="service-card">
-                Mocked
-              </Badge>
-            ) : null}
           </div>
           <SectionTitle>{svc.detail}</SectionTitle>
 
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(4, 1fr)",
+              gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 140px), 1fr))",
               border: `1px solid ${V3.rule}`,
               background: V3.paper2,
             }}
@@ -294,7 +280,7 @@ export function SystemPage() {
                     fontSize: 30,
                     fontWeight: 800,
                     color: V3.ink,
-                    letterSpacing: "-0.035em",
+                    letterSpacing: 0,
                     marginTop: 10,
                     lineHeight: 1,
                   }}

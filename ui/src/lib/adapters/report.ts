@@ -20,6 +20,7 @@ import type {
   PrerequisiteResultDto,
   NetworkEventDto,
   ProcessEventDto,
+  RuleExecutionRecordDto,
   RiskSignalDto,
   RiskSummaryDto,
   ScenarioTraceDto,
@@ -46,6 +47,7 @@ import type {
   PrerequisiteResultView,
   RiskSignalView,
   RiskSummaryView,
+  RuleExecutionRecordView,
   ReportSummaryView,
   StimulusPassView,
 } from "../types/view-models";
@@ -766,6 +768,18 @@ function buildDetectionFinding(finding: DetectionFindingDto): DetectionFindingVi
   };
 }
 
+function buildRuleExecutionRecord(record: RuleExecutionRecordDto): RuleExecutionRecordView {
+  return {
+    ruleId: record.rule_id || "",
+    ruleVersion: record.rule_version || "",
+    lifecycle: record.lifecycle || "draft",
+    status: record.status || "silent",
+    statusLabel: labelize(record.status || "silent", "Unknown"),
+    findingIds: Array.isArray(record.finding_ids) ? record.finding_ids.map(String) : [],
+    errorDetail: record.error_detail || "",
+  };
+}
+
 function buildDetectionReport(
   dto?: DetectionReportDto | null,
 ): DetectionReportView | null {
@@ -775,6 +789,7 @@ function buildDetectionReport(
     verdictLabel: labelize(dto.verdict, "Unknown"),
     verdictRationale: dto.verdict_rationale || "",
     findings: (dto.findings || []).map(buildDetectionFinding),
+    rulesExecuted: (dto.rules_executed || []).map(buildRuleExecutionRecord),
   };
 }
 

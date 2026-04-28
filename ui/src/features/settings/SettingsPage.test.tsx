@@ -7,12 +7,12 @@ describe("SettingsPage", () => {
     window.localStorage.clear();
   });
 
-  it("renders the v3 header with the backend-pending stub badge and the four sections", () => {
+  it("renders the v3 header and the four sections without placeholder badges", () => {
     render(<SettingsPage />);
 
     expect(screen.getByText(/Configure/u)).toBeInTheDocument();
     expect(screen.getByText(/the appliance/u)).toBeInTheDocument();
-    expect(screen.getByText(/Backend pending/u)).toBeInTheDocument();
+    expect(screen.queryByText(/Backend pending/u)).not.toBeInTheDocument();
     for (const label of ["General", "Executor", "Telemetry", "Danger"]) {
       expect(screen.getByRole("button", { name: new RegExp(`^${label}`, "i") })).toBeInTheDocument();
     }

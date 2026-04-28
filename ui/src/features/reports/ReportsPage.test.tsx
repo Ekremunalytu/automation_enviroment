@@ -323,19 +323,37 @@ describe("ReportsPage", () => {
     vi.mocked(apiClient.getReportBundleByName).mockResolvedValue(latestBundle);
   });
 
-  it("renders the detection panel, category tabs, and supports opening the filter drawer", async () => {
+  it("renders overview, canonical tabs, and supports opening the filter drawer", async () => {
     renderPage("/reports?report=latest&tab=overview");
 
     expect(await screen.findByText("Security report")).toBeInTheDocument();
-    expect(await screen.findByText("Malicious")).toBeInTheDocument();
+    expect(await screen.findByText("Verdict · MALICIOUS")).toBeInTheDocument();
     expect(screen.getByText("critical finding with high confidence")).toBeInTheDocument();
     expect(screen.getByText("Credential file read followed by outbound request")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "1 evidence" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "File I/O" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /show evidence for credential file read/iu }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Findings · 1")).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Overview" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Interactions" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Timeline" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Event ledger" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Audit" })).toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: "File I/O" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Automation health")).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Network" }));
-    expect(await screen.findByText("Network activity")).toBeInTheDocument();
-    expect(await screen.findAllByTestId("chart")).toHaveLength(1);
+    fireEvent.click(screen.getByRole("tab", { name: "Interactions" }));
+    expect(await screen.findByText("Interaction graph")).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Interaction flow graph" })).toBeInTheDocument();
+    expect(screen.queryByText("Attribution context")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("tab", { name: "Timeline" }));
+    expect(
+      await screen.findByText(
+        "Canonical report timeline. Category mini timelines were removed so temporal analysis has one source of truth.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Event timeline" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Filters" }));
     expect(
@@ -346,7 +364,16 @@ describe("ReportsPage", () => {
       expect(screen.queryByText("Evidence filters")).not.toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Logs" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Event ledger" }));
+    await waitFor(() => {
+      expect(screen.getByRole("tab", { name: "All" })).toBeInTheDocument();
+    });
+    expect(screen.getByRole("tab", { name: "Network" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "File" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Activation" })).toBeInTheDocument();
+    expect(screen.queryByText("Coverage audit")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("tab", { name: "Audit" }));
     expect(await screen.findByText("Coverage audit")).toBeInTheDocument();
     expect(screen.getByText("Official Coverage")).toBeInTheDocument();
     expect(screen.getByText("Heuristic Workflow Coverage")).toBeInTheDocument();
@@ -354,28 +381,25 @@ describe("ReportsPage", () => {
     expect(screen.getByText("Activated publisher.tool via onStartupFinished")).toBeInTheDocument();
   });
 
-  it("keeps tab and inspector state in the URL while updating inspector content from table selection", async () => {
+  it("maps legacy tabs to the ledger and keeps canonical tab state in the URL", async () => {
     renderPage("/reports?report=latest&tab=evidence&event=activation-1");
 
-    expect(await screen.findByText("Event Table")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "File I/O" }));
+    expect(await screen.findByRole("tab", { name: "Event ledger" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Event ledger" })).toHaveAttribute("aria-selected", "true");
 
+    fireEvent.click(screen.getByRole("tab", { name: "Timeline" }));
     await waitFor(() => {
-      expect(screen.getByTestId("location-search").textContent).toContain("tab=file");
+      expect(screen.getByTestId("location-search").textContent).toContain("tab=timeline");
     });
 
-    fireEvent.click(screen.getAllByText("/workspace/.env")[0]);
-
-    expect(screen.getByText("/workspace/.env")).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("tab", { name: "Analysis" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Event ledger" }));
     await waitFor(() => {
-      expect(screen.getByTestId("location-search").textContent).toContain("workspace=analysis");
+      expect(screen.getByTestId("location-search").textContent).toContain("tab=ledger");
     });
 
-    fireEvent.click(screen.getByRole("tab", { name: "Rules" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Audit" }));
     await waitFor(() => {
-      expect(screen.getByTestId("location-search").textContent).toContain("inspector=rules");
+      expect(screen.getByTestId("location-search").textContent).toContain("tab=audit");
     });
   });
 });

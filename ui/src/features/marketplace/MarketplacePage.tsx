@@ -11,7 +11,6 @@ import {
   SectionTitle,
   SolidButton,
   V3,
-  type V3Tone,
 } from "../../components/v3";
 import { rememberJobId } from "../simulation";
 import { ApiError } from "../../lib/api/http";
@@ -160,7 +159,7 @@ export function MarketplacePage() {
           onSubmit={onSubmit}
           style={{
             display: "grid",
-            gridTemplateColumns: "auto 1fr auto",
+            gridTemplateColumns: "auto minmax(0, 1fr) auto",
             gap: 0,
             alignItems: "stretch",
             maxWidth: 720,
@@ -325,14 +324,13 @@ export function MarketplacePage() {
           <EmptyState eyebrow="Empty" title="Nothing matched" body="Try a different keyword." />
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {results.map((extension, index) => {
+            {results.map((extension) => {
               const key = artifactKey(extension);
               const isReady = Boolean(ready[key]);
               const busy = Boolean(downloadsInFlight[key]) || activeAnalyzeKey === key;
               return (
                 <ResultCard
                   key={key}
-                  index={index}
                   extension={extension}
                   isReady={isReady}
                   busy={busy}
@@ -355,7 +353,6 @@ export function MarketplacePage() {
 }
 
 type ResultCardProps = {
-  index: number;
   extension: MarketplaceExtensionDto;
   isReady: boolean;
   busy: boolean;
@@ -363,23 +360,16 @@ type ResultCardProps = {
   onAnalyze: () => void;
 };
 
-function ResultCard({ index, extension, isReady, busy, onDownload, onAnalyze }: ResultCardProps) {
+function ResultCard({ extension, isReady, busy, onDownload, onAnalyze }: ResultCardProps) {
   const [hover, setHover] = useState(false);
-
-  // Backend currently exposes neither category nor risk taxonomy for marketplace
-  // listings; show explicit stub badges so the design intent is obvious until
-  // [BACKLOG ui-v3-3] lands.
-  const categoryStub: { label: string; tone: V3Tone } = { label: "UNCATEGORIZED", tone: "neutral" };
-  const riskStub: { label: string; tone: V3Tone } = { label: "RISK TBD", tone: "neutral" };
 
   return (
     <article
-      data-feature-stub="marketplace-card"
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       style={{
         display: "grid",
-        gridTemplateColumns: "48px 1fr auto",
+        gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 260px), 1fr))",
         gap: 20,
         alignItems: "flex-start",
         padding: "18px 20px",
@@ -389,22 +379,6 @@ function ResultCard({ index, extension, isReady, busy, onDownload, onAnalyze }: 
         transition: "border-color 140ms",
       }}
     >
-      <div
-        style={{
-          fontFamily: "'JetBrains Mono', monospace",
-          fontSize: 11,
-          color: V3.ink4,
-          paddingTop: 2,
-          textAlign: "left",
-          letterSpacing: "0.05em",
-          borderRight: `1px dashed ${V3.rule}`,
-          paddingRight: 12,
-          minHeight: 60,
-        }}
-      >
-        {String(index + 1).padStart(2, "0")}
-      </div>
-
       <div style={{ minWidth: 0 }}>
         <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
           <div
@@ -413,18 +387,12 @@ function ResultCard({ index, extension, isReady, busy, onDownload, onAnalyze }: 
               fontSize: 22,
               fontWeight: 600,
               color: V3.ink,
-              letterSpacing: "-0.01em",
+              letterSpacing: 0,
             }}
           >
             {extension.displayName}
           </div>
           {isReady ? <Badge tone="ok">Ready</Badge> : <Badge tone="neutral">Marketplace</Badge>}
-          <Badge tone={categoryStub.tone} data-feature-stub="category">
-            {categoryStub.label}
-          </Badge>
-          <Badge tone={riskStub.tone} data-feature-stub="risk-tone">
-            {riskStub.label}
-          </Badge>
         </div>
         <div
           style={{
@@ -457,7 +425,7 @@ function ResultCard({ index, extension, isReady, busy, onDownload, onAnalyze }: 
         </div>
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-end" }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-start" }}>
         {!isReady ? (
           <SolidButton disabled={busy} onClick={onDownload}>
             {busy ? "Downloading…" : "Download"}

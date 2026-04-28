@@ -54,7 +54,7 @@ export function SlideOverDrawer({
         aria-describedby={description ? descriptionId : undefined}
         aria-labelledby={titleId}
         aria-modal="true"
-        className="h-full w-full max-w-[440px] border-l border-line bg-panel shadow-soft"
+        className="h-full w-full max-w-[440px] border-l border-line bg-panel"
         role="dialog"
       >
         <div className="flex h-full flex-col">
@@ -62,7 +62,7 @@ export function SlideOverDrawer({
             <div className="flex items-start justify-between gap-4">
               <div className="space-y-2">
                 <div className="eyebrow">Filters</div>
-                <h2 className="font-display text-xl font-semibold tracking-tight text-ink" id={titleId}>
+                <h2 className="font-display text-xl font-semibold text-ink" id={titleId}>
                   {title}
                 </h2>
                 {description ? (

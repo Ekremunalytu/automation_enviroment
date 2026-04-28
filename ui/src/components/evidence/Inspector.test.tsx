@@ -120,7 +120,7 @@ describe("Inspector", () => {
       />,
     );
 
-    expect(screen.getByRole("heading", { name: "Analysis workspace" })).toBeInTheDocument();
+    expect(screen.getByText("Inspector")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Focused event context" })).toBeInTheDocument();
     expect(screen.getByText("Sensitive file read")).toBeInTheDocument();
     expect(screen.getByText("Link Status")).toBeInTheDocument();

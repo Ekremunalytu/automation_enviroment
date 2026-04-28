@@ -70,6 +70,16 @@ export interface DetectionFindingView {
   mitigationHint: string;
 }
 
+export interface RuleExecutionRecordView {
+  ruleId: string;
+  ruleVersion: string;
+  lifecycle: string;
+  status: "fired" | "silent" | "error";
+  statusLabel: string;
+  findingIds: string[];
+  errorDetail: string;
+}
+
 export interface DetectionReportView {
   verdict:
     | "malicious"
@@ -80,6 +90,7 @@ export interface DetectionReportView {
   verdictLabel: string;
   verdictRationale: string;
   findings: DetectionFindingView[];
+  rulesExecuted: RuleExecutionRecordView[];
 }
 
 export interface ReportSummaryView {

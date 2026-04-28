@@ -30,10 +30,10 @@ export function PageTitle({ children, style }: PropsWithChildren<WithStyle>) {
     <h1
       style={{
         fontFamily: FONT_DISPLAY,
-        fontSize: 88,
+        fontSize: 48,
         fontWeight: 800,
-        letterSpacing: "-0.045em",
-        lineHeight: 0.92,
+        letterSpacing: 0,
+        lineHeight: 0.96,
         color: V3.ink,
         textWrap: "balance",
         margin: 0,
@@ -52,7 +52,7 @@ export function SectionTitle({ children, style }: PropsWithChildren<WithStyle>) 
         fontFamily: FONT_DISPLAY,
         fontSize: 28,
         fontWeight: 700,
-        letterSpacing: "-0.025em",
+        letterSpacing: 0,
         lineHeight: 1.05,
         color: V3.ink,
         margin: 0,

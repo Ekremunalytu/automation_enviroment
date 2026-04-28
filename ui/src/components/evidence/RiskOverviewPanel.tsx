@@ -52,46 +52,50 @@ export function RiskOverviewPanel({
       </div>
       <div className="space-y-5 px-5 py-5">
         {legacyHealth ? (
-          <div className="rounded-[16px] border border-warning/25 bg-warning/10 px-4 py-4 text-sm leading-6 text-warning">
+          <div className="rounded-none border border-warning/25 bg-warning/10 px-4 py-4 text-sm leading-6 text-warning">
             Health metadata is unavailable for this legacy report, so automation reliability is treated as inconclusive.
           </div>
         ) : null}
 
         {inconclusive ? (
-          <div className="rounded-[16px] border border-danger/25 bg-danger/10 px-4 py-4 text-sm leading-6 text-danger">
+          <div className="rounded-none border border-danger/25 bg-danger/10 px-4 py-4 text-sm leading-6 text-danger">
             This run is inconclusive because the target extension was not observed with enough confidence.
           </div>
         ) : null}
 
         {degraded ? (
-          <div className="rounded-[16px] border border-warning/25 bg-warning/10 px-4 py-4 text-sm leading-6 text-warning">
+          <div className="rounded-none border border-warning/25 bg-warning/10 px-4 py-4 text-sm leading-6 text-warning">
             This run produced telemetry, but automation health is degraded and the evidence should not be treated as clean by default.
             {skippedCount ? ` ${skippedCount} requested scenario${skippedCount === 1 ? " was" : "s were"} skipped.` : ""}
           </div>
         ) : null}
 
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
-          <MetricTile title="Target observed" value={summary.targetExtensionObserved ? "Yes" : "No"} />
-          <MetricTile title="Automation health" value={summary.automationHealthStatus.replaceAll("_", " ")} badgeTone={healthTone(summary.automationHealthStatus)} />
-          <MetricTile title="Trigger applied" value={summary.triggerPlanApplied ? "Yes" : "No"} badgeTone={summary.triggerPlanApplied ? "success" : "warning"} />
-          <MetricTile title="Target activations" value={String(summary.targetActivationCount)} />
-          <MetricTile title="Host log present" value={summary.extensionHostLogPresent ? "Yes" : "No"} badgeTone={summary.extensionHostLogPresent ? "success" : "warning"} />
-          <MetricTile title="Target stream" value={summary.targetStreamPresent ? "Yes" : "No"} badgeTone={summary.targetStreamPresent ? "success" : "warning"} />
-          <MetricTile title="Skipped scenarios" value={String(skippedCount)} badgeTone={skippedCount ? "warning" : "success"} />
+        <div className="overflow-hidden rounded-none border border-line bg-canvas">
+          <div className="grid md:grid-cols-2 xl:grid-cols-5">
+            <MetricTile title="Target observed" value={summary.targetExtensionObserved ? "Yes" : "No"} />
+            <MetricTile title="Automation health" value={summary.automationHealthStatus.replaceAll("_", " ")} badgeTone={healthTone(summary.automationHealthStatus)} />
+            <MetricTile title="Run quality" value={summary.runQuality.replaceAll("_", " ")} badgeTone={qualityTone(summary.runQuality)} />
+            <MetricTile title="Trigger applied" value={summary.triggerPlanApplied ? "Yes" : "No"} badgeTone={summary.triggerPlanApplied ? "success" : "warning"} />
+            <MetricTile title="Verification gap" value={String(summary.verificationGap)} />
+          </div>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <MetricTile title="Run quality" value={summary.runQuality.replaceAll("_", " ")} badgeTone={qualityTone(summary.runQuality)} />
-          <MetricTile title="Verification gap" value={String(summary.verificationGap)} />
-          <MetricTile title="Host output" value={summary.extensionHostOutputPresent ? "Present" : "Missing"} badgeTone={summary.extensionHostOutputPresent ? "success" : "warning"} />
-          <MetricTile title="Correlative only" value={String(attributionSummary.correlatedOnlyEventCount)} />
+        <div className="overflow-hidden rounded-none border border-line bg-canvas">
+          <div className="grid md:grid-cols-2 xl:grid-cols-4">
+            <MetricTile title="Target activations" value={String(summary.targetActivationCount)} />
+            <MetricTile title="Strong file attribution" value={String(attributionSummary.strongTargetFileEventCount)} />
+            <MetricTile title="Strong network attribution" value={String(attributionSummary.strongTargetNetworkEventCount)} />
+            <MetricTile title="Correlative only" value={String(attributionSummary.correlatedOnlyEventCount)} />
+          </div>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          <MetricTile title="Background activations" value={String(attributionSummary.backgroundActivationCount)} />
-          <MetricTile title="Strong file attribution" value={String(attributionSummary.strongTargetFileEventCount)} />
-          <MetricTile title="Strong network attribution" value={String(attributionSummary.strongTargetNetworkEventCount)} />
-        </div>
+        {skippedCount || !summary.extensionHostLogPresent || !summary.targetStreamPresent ? (
+          <div className="grid gap-3 md:grid-cols-3">
+            <MetricTile title="Skipped scenarios" value={String(skippedCount)} badgeTone={skippedCount ? "warning" : "success"} />
+            <MetricTile title="Host log" value={summary.extensionHostLogPresent ? "Present" : "Missing"} badgeTone={summary.extensionHostLogPresent ? "success" : "warning"} />
+            <MetricTile title="Target stream" value={summary.targetStreamPresent ? "Present" : "Missing"} badgeTone={summary.targetStreamPresent ? "success" : "warning"} />
+          </div>
+        ) : null}
 
         <div className="space-y-3">
           <div className="flex flex-wrap items-center gap-2">
@@ -103,7 +107,7 @@ export function RiskOverviewPanel({
           {riskSignals.length ? (
             <div className="space-y-3">
               {riskSignals.map((signal) => (
-                <article className="rounded-[16px] border border-line bg-panelAlt/70 px-4 py-4" key={signal.signalId}>
+                <article className="rounded-none border border-line bg-panelAlt/70 px-4 py-4" key={signal.signalId}>
                   <div className="flex flex-wrap items-center gap-2">
                     <Badge tone={severityTone(signal.severity)}>{signal.severityLabel}</Badge>
                     <Badge>{signal.categoryLabel}</Badge>
@@ -128,7 +132,7 @@ export function RiskOverviewPanel({
               ))}
             </div>
           ) : (
-            <div className="rounded-[16px] border border-line bg-panelAlt/50 px-4 py-4 text-sm leading-6 text-mute">
+            <div className="rounded-none border border-line bg-panelAlt/50 px-4 py-4 text-sm leading-6 text-mute">
               {summary.automationHealthStatus === "healthy"
                 ? "No explicit risk signals were derived from this healthy run."
                 : "No explicit risk signals were derived, but automation health was not healthy."}

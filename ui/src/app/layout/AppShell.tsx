@@ -30,6 +30,11 @@ function readStoredCollapsed(): boolean {
   }
 }
 
+function readIsNarrow(): boolean {
+  if (typeof window === "undefined") return false;
+  return window.innerWidth < 820;
+}
+
 function activeIdFromPath(pathname: string): NavId {
   if (pathname.startsWith("/simulation")) return "simulation";
   if (pathname.startsWith("/marketplace")) return "marketplace";
@@ -42,6 +47,7 @@ export function AppShell({ children }: PropsWithChildren) {
   const location = useLocation();
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState<boolean>(() => readStoredCollapsed());
+  const [isNarrow, setIsNarrow] = useState<boolean>(() => readIsNarrow());
   const activeId = activeIdFromPath(location.pathname);
 
   useEffect(() => {
@@ -49,6 +55,12 @@ export function AppShell({ children }: PropsWithChildren) {
     return () => {
       delete document.body.dataset.theme;
     };
+  }, []);
+
+  useEffect(() => {
+    const onResize = () => setIsNarrow(readIsNarrow());
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
   }, []);
 
   const toggle = () => {
@@ -63,7 +75,8 @@ export function AppShell({ children }: PropsWithChildren) {
     });
   };
 
-  const railWidth = collapsed ? 72 : 280;
+  const effectiveCollapsed = isNarrow || collapsed;
+  const railWidth = effectiveCollapsed ? 72 : 280;
 
   return (
     <div
@@ -96,11 +109,11 @@ export function AppShell({ children }: PropsWithChildren) {
           aria-expanded={!collapsed}
           title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           style={{
-            padding: collapsed ? "24px 0 22px" : "26px 22px 22px",
+            padding: effectiveCollapsed ? "24px 0 22px" : "26px 22px 22px",
             borderBottom: `1px solid ${V3.rule}`,
             display: "flex",
             alignItems: "center",
-            justifyContent: collapsed ? "center" : "flex-start",
+            justifyContent: effectiveCollapsed ? "center" : "flex-start",
             cursor: "pointer",
             userSelect: "none",
             background: "transparent",
@@ -116,7 +129,7 @@ export function AppShell({ children }: PropsWithChildren) {
         >
           <span style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <LogoMark size={28} />
-            {!collapsed ? (
+            {!effectiveCollapsed ? (
               <span
                 style={{
                   display: "flex",
@@ -128,7 +141,7 @@ export function AppShell({ children }: PropsWithChildren) {
                   style={{
                     fontSize: 22,
                     fontWeight: 800,
-                    letterSpacing: "-0.04em",
+                    letterSpacing: 0,
                     color: V3.ink,
                     textTransform: "uppercase",
                   }}
@@ -140,7 +153,7 @@ export function AppShell({ children }: PropsWithChildren) {
           </span>
         </button>
 
-        {!collapsed ? (
+        {!effectiveCollapsed ? (
           <div
             style={{
               padding: "18px 22px 8px",
@@ -168,7 +181,7 @@ export function AppShell({ children }: PropsWithChildren) {
         <nav
           aria-label="Primary"
           style={{
-            padding: collapsed ? "14px 10px" : "4px 14px",
+            padding: effectiveCollapsed ? "14px 10px" : "4px 14px",
             display: "flex",
             flexDirection: "column",
             gap: 0,
@@ -177,7 +190,7 @@ export function AppShell({ children }: PropsWithChildren) {
           {NAV.map((item) => (
             <NavItem
               key={item.id}
-              collapsed={collapsed}
+              collapsed={effectiveCollapsed}
               active={activeId === item.id}
               item={item}
               onClick={() => navigate(item.to)}
@@ -200,7 +213,7 @@ export function AppShell({ children }: PropsWithChildren) {
         <div
           key={location.pathname}
           className="v3-page-reveal v3-scrollbar"
-          style={{ padding: "48px 56px 96px", width: "100%" }}
+          style={{ padding: isNarrow ? "28px 16px 72px" : "48px 56px 96px", width: "100%" }}
         >
           {children}
         </div>
@@ -270,13 +283,13 @@ function NavItem({ item, active, collapsed, onClick }: NavItemProps) {
         }}
       >
         <span
-          style={{
-            fontSize: 18,
-            fontWeight: 700,
-            color: labelColor,
-            letterSpacing: "-0.025em",
-            textTransform: "uppercase",
-          }}
+                  style={{
+                    fontSize: 18,
+                    fontWeight: 700,
+                    color: labelColor,
+                    letterSpacing: 0,
+                    textTransform: "uppercase",
+                  }}
         >
           {item.label}
         </span>

@@ -26,7 +26,11 @@ describe("FindingCard", () => {
     const onShowEvidence = vi.fn();
 
     render(<FindingCard finding={finding} onShowEvidence={onShowEvidence} />);
-    fireEvent.click(screen.getByRole("button", { name: "1 evidence" }));
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: /show evidence for workspace file read/iu,
+      }),
+    );
 
     expect(onShowEvidence).toHaveBeenCalledWith("file-123");
   });

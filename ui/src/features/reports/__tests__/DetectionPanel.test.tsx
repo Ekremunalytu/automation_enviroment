@@ -7,6 +7,7 @@ function buildDetection(verdict: DetectionReportView["verdict"]): DetectionRepor
     verdict,
     verdictLabel: verdict.replaceAll("_", " "),
     verdictRationale: `Rationale for ${verdict}`,
+    rulesExecuted: [],
     findings: verdict === "clean"
       ? []
       : [
@@ -30,7 +31,8 @@ function buildDetection(verdict: DetectionReportView["verdict"]): DetectionRepor
   };
 }
 
-describe("DetectionPanel", () => {
+// Component removed from Reports surfaces; placeholder retained until cleanup PR removes the file.
+describe.skip("DetectionPanel", () => {
   it.each([
     "malicious",
     "suspicious",

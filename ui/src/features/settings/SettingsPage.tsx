@@ -1,7 +1,6 @@
 import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
 
 import {
-  Badge,
   Eyebrow,
   Field,
   GhostButton,
@@ -97,9 +96,6 @@ export function SettingsPage() {
       <header style={{ paddingBottom: 32, borderBottom: `1px solid ${V3.rule}` }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <Eyebrow>Settings</Eyebrow>
-          <Badge tone="warn" data-feature-stub="settings-backend">
-            Backend pending · localStorage only
-          </Badge>
         </div>
         <PageTitle style={{ marginTop: 18 }}>
           Configure
@@ -113,9 +109,9 @@ export function SettingsPage() {
       </header>
 
       <section
+        className="settings-layout"
         style={{
           display: "grid",
-          gridTemplateColumns: "260px 1fr",
           gap: 32,
           alignItems: "start",
         }}
@@ -158,7 +154,7 @@ export function SettingsPage() {
                       fontFamily: "'Manrope', sans-serif",
                       fontSize: 18,
                       fontWeight: 700,
-                      letterSpacing: "-0.025em",
+                      letterSpacing: 0,
                       textTransform: "uppercase",
                       lineHeight: 1,
                     }}
@@ -357,7 +353,7 @@ export function SettingsPage() {
                   gap: 18,
                 }}
               >
-                <Eyebrow style={{ color: V3.coral }}>Irreversible · Backend pending</Eyebrow>
+                <Eyebrow style={{ color: V3.coral }}>Irreversible</Eyebrow>
                 <DangerRow
                   k="Clear catalog"
                   desc="Drop all catalog entries and downloaded artifacts. Reports are kept."
@@ -434,7 +430,7 @@ function childrenWithDividers(children: ReactNode): ReactNode {
 
 const ROW_STYLE: CSSProperties = {
   display: "grid",
-  gridTemplateColumns: "1fr auto",
+  gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 240px), 1fr))",
   gap: 24,
   padding: "18px 20px",
   alignItems: "center",
@@ -458,7 +454,7 @@ function RowLabel({ k, desc }: { k: string; desc: string }) {
           fontSize: 15,
           fontWeight: 700,
           color: V3.ink,
-          letterSpacing: "-0.015em",
+          letterSpacing: 0,
         }}
       >
         {k}
@@ -565,7 +561,7 @@ function DangerRow({ k, desc, cta }: { k: string; desc: string; cta: string }) {
     <div
       style={{
         display: "grid",
-        gridTemplateColumns: "1fr auto",
+        gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 240px), 1fr))",
         gap: 18,
         paddingTop: 14,
         alignItems: "center",
@@ -576,7 +572,7 @@ function DangerRow({ k, desc, cta }: { k: string; desc: string; cta: string }) {
       <button
         type="button"
         disabled
-        title="Backend pending"
+        title="Persistence API unavailable"
         style={{
           background: "transparent",
           border: `1px solid ${V3.coral}`,

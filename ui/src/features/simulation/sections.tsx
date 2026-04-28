@@ -1,12 +1,11 @@
-import { EvidenceTable } from "../../components/evidence/EvidenceTable";
-import { EvidenceTimelineChart } from "../../components/evidence/EvidenceTimelineChart";
+import { EvidenceLedger } from "../../components/evidence/EvidenceLedger";
 import { Inspector } from "../../components/evidence/Inspector";
 import { LogStreamsPanel } from "../../components/evidence/LogStreamsPanel";
 import { RiskOverviewPanel } from "../../components/evidence/RiskOverviewPanel";
 import { RunActivityRail } from "../../components/simulation/RunActivityRail";
 import { EmptyState } from "../../components/ui/EmptyState";
 import { Panel, PanelHeader } from "../../components/ui/Panel";
-import { SegmentedTabs } from "../../components/ui/SegmentedTabs";
+import { Eyebrow, Panel as V3Panel, SectionTitle, V3 } from "../../components/v3";
 import type { AnalyzeJobStatusDto } from "../../lib/types/contracts";
 import type {
   ActivationReportView,
@@ -16,8 +15,6 @@ import type {
 } from "../../lib/types/view-models";
 import type { InspectorTab } from "../evidence";
 import { getExpectedTelemetry } from "./telemetry";
-
-export type WorkspaceTab = "evidence" | "analysis" | "logs";
 
 export function RunActivityPanel({
   job,
@@ -107,9 +104,7 @@ export function SimulationStatusPanel({
   );
 }
 
-export function SimulationWorkspace({
-  workspaceTab,
-  report,
+export function LiveEvidenceWorkspace({
   filteredEvents,
   eventId,
   inspector,
@@ -117,80 +112,84 @@ export function SimulationWorkspace({
   ruleDraft,
   model,
   status,
-  onWorkspaceTabChange,
+  detection,
   onInspectorTabChange,
   onSelectEvent,
 }: {
-  workspaceTab: WorkspaceTab;
-  report: ActivationReportView | null;
   filteredEvents: ActivationReportView["evidence"];
   eventId?: string;
   inspector: EvidenceInspectorView | null;
   inspectorTab: InspectorTab;
   ruleDraft: RuleDraftView | null;
+  detection: ActivationReportView["detection"];
   model: SimulationViewModel | null;
   status?: string;
-  onWorkspaceTabChange: (next: WorkspaceTab) => void;
   onInspectorTabChange: (next: InspectorTab) => void;
   onSelectEvent: (eventId: string) => void;
 }) {
+  if (!filteredEvents.length) {
+    return <WarmupPanel body={getExpectedTelemetry(status, false)} model={model} />;
+  }
+
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-        <div>
-          <div className="eyebrow">Workspace</div>
-          <h2 className="mt-3 text-[32px] font-semibold tracking-[-0.04em] text-ink">Simulation evidence</h2>
-          <p className="mt-3 max-w-3xl text-sm leading-7 text-mute sm:text-base">
-            Switch between the raw live stream and the analysis surface without compressing the inspector into a narrow right rail.
-          </p>
-        </div>
-
-        <SegmentedTabs
-          onChange={(next) => onWorkspaceTabChange(next as WorkspaceTab)}
-          options={[
-            { value: "evidence", label: "Evidence" },
-            { value: "analysis", label: "Analysis" },
-            { value: "logs", label: "Logs" },
-          ]}
-          value={workspaceTab}
-        />
+    <section style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+      <div>
+        <Eyebrow>Live</Eyebrow>
+        <SectionTitle style={{ marginTop: 10, fontSize: 22 }}>Live event ledger</SectionTitle>
+        <p style={{ marginTop: 10, maxWidth: 720, color: V3.ink3, fontSize: 13.5, lineHeight: 1.6 }}>
+          Inspect the raw stream and selected-event provenance in the same surface.
+        </p>
       </div>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "minmax(0, 1fr) minmax(280px, 320px)",
+          gap: 18,
+          alignItems: "start",
+        }}
+      >
+        <V3Panel label="Event stream" bodyStyle={{ padding: 0 }}>
+          <EvidenceLedger
+            events={filteredEvents}
+            onSelect={onSelectEvent}
+            selectedEventId={eventId}
+            expandSelected={false}
+          />
+        </V3Panel>
+        <div style={{ position: "sticky", top: 80 }}>
+          <Inspector
+            activeTab={inspectorTab}
+            detection={detection}
+            inspector={inspector}
+            onTabChange={onInspectorTabChange}
+            ruleDraft={ruleDraft}
+          />
+        </div>
+      </div>
+    </section>
+  );
+}
 
-      {workspaceTab === "analysis" ? (
-        <Inspector activeTab={inspectorTab} inspector={inspector} onTabChange={onInspectorTabChange} ruleDraft={ruleDraft} />
-      ) : workspaceTab === "logs" ? (
-        <LogStreamsPanel
-          eventAttempts={report?.eventAttempts || []}
-          coverageTracks={report?.coverageTracks || emptyCoverageTracks()}
-          heuristicWorkflowCoverage={report?.heuristicWorkflowCoverage || emptyEventCoverage("heuristic")}
-          logStreams={report?.logStreams || emptyLogStreams()}
-          officialEventCoverage={report?.officialEventCoverage || emptyEventCoverage("official")}
-          stimulusPasses={report?.stimulusPasses || []}
-        />
-      ) : report && filteredEvents.length ? (
-        <Panel className="overflow-hidden p-0">
-          <div className="border-b border-line px-5 py-5">
-            <PanelHeader description="Live Event Stream" title="Evidence" />
-          </div>
-          <div className="space-y-5 px-5 py-5">
-            <div className="rounded-[22px] border border-line bg-canvas/55 px-4 py-4">
-              <div className="micro-label">Mini Timeline</div>
-              <div className="mt-3">
-                <EvidenceTimelineChart className="h-[210px] w-full" compact events={filteredEvents} onSelect={onSelectEvent} />
-              </div>
-            </div>
-            <div>
-              <div className="micro-label">Live Event Stream</div>
-              <div className="mt-3">
-                <EvidenceTable events={filteredEvents} onSelect={onSelectEvent} selectedEventId={eventId} />
-              </div>
-            </div>
-          </div>
-        </Panel>
-      ) : (
-        <WarmupPanel body={getExpectedTelemetry(status, false)} model={model} />
-      )}
-    </div>
+export function SimulationLogsPanel({ report }: { report: ActivationReportView | null }) {
+  if (!report) {
+    return (
+      <EmptyState
+        eyebrow="Logs"
+        body="Coverage and log streams are available after a report is attached to this job."
+        title="No report logs yet"
+      />
+    );
+  }
+
+  return (
+    <LogStreamsPanel
+      eventAttempts={report.eventAttempts}
+      coverageTracks={report.coverageTracks}
+      heuristicWorkflowCoverage={report.heuristicWorkflowCoverage}
+      logStreams={report.logStreams}
+      officialEventCoverage={report.officialEventCoverage}
+      stimulusPasses={report.stimulusPasses}
+    />
   );
 }
 
@@ -250,61 +249,4 @@ function WarmupPanel({
       </div>
     </Panel>
   );
-}
-
-function emptyCoverageTracks() {
-  return {
-    official: {
-      source: "",
-      selectedScenarios: [],
-      summary: {
-        covered: 0,
-        partial: 0,
-        missing: 0,
-        attempted: 0,
-        verified: 0,
-        missingCapabilities: [],
-        attemptedCapabilities: [],
-        verifiedCapabilities: [],
-      },
-      matrix: [],
-    },
-    heuristic: {
-      source: "",
-      selectedScenarios: [],
-      summary: {
-        covered: 0,
-        partial: 0,
-        missing: 0,
-        attempted: 0,
-        verified: 0,
-        missingCapabilities: [],
-        attemptedCapabilities: [],
-        verifiedCapabilities: [],
-      },
-      matrix: [],
-    },
-  };
-}
-
-function emptyEventCoverage(track: string) {
-  return {
-    track,
-    declared: 0,
-    verified: 0,
-    attemptedOnly: 0,
-    failed: 0,
-    blocked: 0,
-    unresolved: 0,
-    declaredEvents: [],
-  };
-}
-
-function emptyLogStreams() {
-  return {
-    targetExtensionHost: [],
-    otherExtensionHost: [],
-    automation: [],
-    uiBlockers: [],
-  };
 }

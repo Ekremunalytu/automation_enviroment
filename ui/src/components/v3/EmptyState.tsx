@@ -34,7 +34,7 @@ export function EmptyState({ eyebrow, title, body, action, style }: EmptyStatePr
           fontSize: 32,
           fontWeight: 700,
           color: V3.ink,
-          letterSpacing: "-0.03em",
+          letterSpacing: 0,
           lineHeight: 1,
         }}
       >

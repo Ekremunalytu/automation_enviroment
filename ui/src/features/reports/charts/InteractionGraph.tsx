@@ -35,12 +35,37 @@ const COLUMN_X = { root: 60, category: 360, leaf: 760 };
 const ROOT_DIM = { width: 200, height: 80 };
 const CATEGORY_DIM = { width: 240, height: 64 };
 const LEAF_DIM = { width: 180, height: 48 };
+const MIN_LEAF_SPACING = 58;
+const LEAF_CAP = 6;
 
 export function InteractionGraph({ data, height = 480 }: InteractionGraphProps) {
   const layout = useMemo(() => {
-    const groups = data.groups.slice(0, 6);
+    const groups = data.groups.slice(0, 5).map((group) => {
+      const childCount = group.children.length;
+      const visible = group.children.slice(0, LEAF_CAP);
+      const overflow = childCount - visible.length;
+      if (overflow > 0 && visible.length > 0) {
+        const last = visible[visible.length - 1];
+        return {
+          ...group,
+          children: [
+            ...visible.slice(0, -1),
+            {
+              ...last,
+              meta: `+${overflow} more${last.meta ? ` · ${last.meta}` : ""}`,
+            },
+          ],
+        };
+      }
+      return { ...group, children: visible };
+    });
     const totalLeaves = groups.reduce((acc, group) => acc + Math.max(1, group.children.length), 0);
-    const verticalUnit = (height - 40) / Math.max(totalLeaves, 1);
+    const minHeight = totalLeaves * MIN_LEAF_SPACING + 40;
+    const computedHeight = Math.max(height, minHeight);
+    const verticalUnit = Math.max(
+      (computedHeight - 40) / Math.max(totalLeaves, 1),
+      MIN_LEAF_SPACING,
+    );
 
     type PositionedChild = InteractionGroupChild & { x: number; y: number };
     type PositionedGroup = Omit<InteractionGroup, "children"> & {
@@ -74,7 +99,8 @@ export function InteractionGraph({ data, height = 480 }: InteractionGraphProps) 
     return {
       groups: positionedGroups,
       width: 980,
-      rootCenter: height / 2,
+      height: computedHeight,
+      rootCenter: computedHeight / 2,
     };
   }, [data, height]);
 
@@ -82,7 +108,7 @@ export function InteractionGraph({ data, height = 480 }: InteractionGraphProps) 
     <svg
       role="img"
       aria-label="Interaction flow graph"
-      viewBox={`0 0 ${layout.width} ${height}`}
+      viewBox={`0 0 ${layout.width} ${layout.height}`}
       style={{ width: "100%", height: "auto", display: "block" }}
     >
       <rect
@@ -102,7 +128,7 @@ export function InteractionGraph({ data, height = 480 }: InteractionGraphProps) 
         fontSize={14}
         fontWeight={700}
         fill={V3.ink}
-        letterSpacing="-0.025em"
+        letterSpacing="0"
       >
         {data.rootLabel}
       </text>
@@ -154,7 +180,7 @@ export function InteractionGraph({ data, height = 480 }: InteractionGraphProps) 
               fontSize={13}
               fontWeight={700}
               fill={V3.ink}
-              letterSpacing="-0.02em"
+              letterSpacing="0"
             >
               {group.label}
             </text>
