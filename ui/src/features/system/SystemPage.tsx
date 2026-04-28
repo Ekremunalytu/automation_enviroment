@@ -183,6 +183,7 @@ export function SystemPage() {
               type="button"
               onClick={() => setSelected(service.id)}
               aria-pressed={sel}
+              data-testid={`service-tile-${service.id}`}
               style={{
                 background: sel ? V3.coral : "transparent",
                 color: sel ? V3.paper : V3.ink,

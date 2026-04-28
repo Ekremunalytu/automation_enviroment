@@ -1,4 +1,4 @@
-import { adaptReport, getInspectorView } from "./report";
+import { adaptReport, buildInteractionGraph, buildRiskRadar, getInspectorView } from "./report";
 import type { ActivationReportDto } from "../types/contracts";
 
 describe("adaptReport", () => {
@@ -352,5 +352,343 @@ describe("adaptReport", () => {
       arguments_preview: "--child --flag",
       cwd: "/workspace",
     });
+  });
+});
+
+describe("buildInteractionGraph", () => {
+  it("groups evidence into network / fs / activation buckets and marks the result synthetic", () => {
+    const dto: ActivationReportDto = {
+      report_version: 2,
+      target_extension_expected: "ms.test",
+      signal_summary: {},
+      scenario_traces: [],
+      network_events: [],
+      file_events: [],
+      target_extension_observed: true,
+      trigger_plan_applied: true,
+      verification_gap: 0,
+      run_quality: "low",
+      automation_health: {
+        status: "healthy",
+        reasons: [],
+        trigger_requested: true,
+        trigger_loaded: true,
+        trigger_applied: true,
+        extension_host_log_present: true,
+        extension_host_output_present: true,
+        target_stream_present: true,
+        target_activation_count: 1,
+        failed_scenarios: [],
+      },
+      log_health: {
+        extension_host_log_found: true,
+        extension_host_output_present: true,
+        target_extension_log_entries: 1,
+        total_activation_entries: 1,
+      },
+      attribution_summary: {
+        target_activation_count: 1,
+        strong_target_file_event_count: 1,
+        strong_target_network_event_count: 1,
+        correlated_only_event_count: 0,
+      },
+      risk_signals: [],
+      risk_summary: {
+        total_signals: 0,
+        critical: 0,
+        high: 0,
+        medium: 0,
+        low: 0,
+        categories: [],
+      },
+      _metadata: { filename: "graph_demo.json" },
+      summary: { network_events: 1, file_events: 1 },
+      evidence_events: [
+        {
+          event_id: "network-1",
+          kind: "network",
+          timestamp: "2026-04-13T10:00:00Z",
+          rel_time_s: 1,
+          collector: "tshark",
+          actor: "extension",
+          extension_id: "ms.test",
+          host: "api.example.com",
+          path: "/collect",
+          summary: "Outbound",
+        },
+        {
+          event_id: "file-1",
+          kind: "file",
+          timestamp: "2026-04-13T10:00:01Z",
+          rel_time_s: 2,
+          collector: "strace",
+          actor: "extension",
+          extension_id: "ms.test",
+          path: "/workspace/.env",
+          operation: "read",
+          sensitive: true,
+          summary: "Sensitive read",
+        },
+        {
+          event_id: "activation-1",
+          kind: "activation",
+          timestamp: "2026-04-13T10:00:02Z",
+          rel_time_s: 0,
+          collector: "log",
+          actor: "extension",
+          extension_id: "ms.test",
+          activation_event: "onStartupFinished",
+          summary: "Activated",
+        },
+      ],
+      evidence_links: [],
+      coverage_summary: { covered: 0, partial: 0, missing: 0, missing_capabilities: [] },
+      coverage_matrix: [],
+      coverage_tracks: {
+        official: {
+          source: "official_activation_track",
+          selected_scenarios: [],
+          summary: {
+            covered: 0,
+            partial: 0,
+            missing: 0,
+            attempted: 0,
+            verified: 0,
+            missing_capabilities: [],
+            attempted_capabilities: [],
+            verified_capabilities: [],
+          },
+          matrix: [],
+        },
+        heuristic: {
+          source: "heuristic_workflow_track",
+          selected_scenarios: [],
+          summary: {
+            covered: 0,
+            partial: 0,
+            missing: 0,
+            attempted: 0,
+            verified: 0,
+            missing_capabilities: [],
+            attempted_capabilities: [],
+            verified_capabilities: [],
+          },
+          matrix: [],
+        },
+      },
+      log_streams: { automation: [] },
+    };
+
+    const report = adaptReport(dto, "graph_demo.json");
+    const graph = buildInteractionGraph(report);
+
+    expect(graph._synthetic).toBe(true);
+    const ids = graph.groups.map((group) => group.id);
+    expect(ids).toEqual(expect.arrayContaining(["network", "fs", "activation"]));
+    const network = graph.groups.find((group) => group.id === "network");
+    expect(network?.children[0]?.label).toBe("api.example.com");
+    const fs = graph.groups.find((group) => group.id === "fs");
+    expect(fs?.children[0]?.risk).toBe("high");
+  });
+
+  it("returns no groups when the report has no evidence", () => {
+    const dto: ActivationReportDto = {
+      report_version: 2,
+      target_extension_expected: "ms.test",
+      signal_summary: {},
+      scenario_traces: [],
+      network_events: [],
+      file_events: [],
+      target_extension_observed: false,
+      trigger_plan_applied: false,
+      verification_gap: 0,
+      run_quality: "low",
+      automation_health: {
+        status: "inconclusive",
+        reasons: [],
+        trigger_requested: false,
+        trigger_loaded: false,
+        trigger_applied: false,
+        extension_host_log_present: false,
+        extension_host_output_present: false,
+        target_stream_present: false,
+        target_activation_count: 0,
+        failed_scenarios: [],
+      },
+      log_health: {
+        extension_host_log_found: false,
+        extension_host_output_present: false,
+        target_extension_log_entries: 0,
+        total_activation_entries: 0,
+      },
+      attribution_summary: {
+        target_activation_count: 0,
+        strong_target_file_event_count: 0,
+        strong_target_network_event_count: 0,
+        correlated_only_event_count: 0,
+      },
+      risk_signals: [],
+      risk_summary: { total_signals: 0, critical: 0, high: 0, medium: 0, low: 0, categories: [] },
+      _metadata: { filename: "empty.json" },
+      summary: {},
+      evidence_events: [],
+      evidence_links: [],
+      coverage_summary: { covered: 0, partial: 0, missing: 0, missing_capabilities: [] },
+      coverage_matrix: [],
+      coverage_tracks: {
+        official: {
+          source: "official_activation_track",
+          selected_scenarios: [],
+          summary: {
+            covered: 0,
+            partial: 0,
+            missing: 0,
+            attempted: 0,
+            verified: 0,
+            missing_capabilities: [],
+            attempted_capabilities: [],
+            verified_capabilities: [],
+          },
+          matrix: [],
+        },
+        heuristic: {
+          source: "heuristic_workflow_track",
+          selected_scenarios: [],
+          summary: {
+            covered: 0,
+            partial: 0,
+            missing: 0,
+            attempted: 0,
+            verified: 0,
+            missing_capabilities: [],
+            attempted_capabilities: [],
+            verified_capabilities: [],
+          },
+          matrix: [],
+        },
+      },
+      log_streams: { automation: [] },
+    };
+
+    const report = adaptReport(dto, "empty.json");
+    expect(buildInteractionGraph(report).groups).toHaveLength(0);
+  });
+});
+
+describe("buildRiskRadar", () => {
+  it("emits 0-100 axis scores tagged synthetic", () => {
+    const dto: ActivationReportDto = {
+      report_version: 2,
+      target_extension_expected: "ms.test",
+      signal_summary: {},
+      scenario_traces: [],
+      network_events: [],
+      file_events: [],
+      target_extension_observed: true,
+      trigger_plan_applied: true,
+      verification_gap: 0,
+      run_quality: "medium",
+      automation_health: {
+        status: "healthy",
+        reasons: [],
+        trigger_requested: true,
+        trigger_loaded: true,
+        trigger_applied: true,
+        extension_host_log_present: true,
+        extension_host_output_present: true,
+        target_stream_present: true,
+        target_activation_count: 1,
+        failed_scenarios: [],
+      },
+      log_health: {
+        extension_host_log_found: true,
+        extension_host_output_present: true,
+        target_extension_log_entries: 1,
+        total_activation_entries: 1,
+      },
+      attribution_summary: {
+        target_activation_count: 1,
+        strong_target_file_event_count: 1,
+        strong_target_network_event_count: 1,
+        correlated_only_event_count: 0,
+      },
+      risk_signals: [],
+      risk_summary: { total_signals: 1, critical: 0, high: 1, medium: 0, low: 0, categories: [] },
+      _metadata: { filename: "radar_demo.json" },
+      summary: {},
+      evidence_events: [
+        {
+          event_id: "network-1",
+          kind: "network",
+          timestamp: "2026-04-13T10:00:00Z",
+          rel_time_s: 1,
+          collector: "tshark",
+          actor: "extension",
+          extension_id: "ms.test",
+          host: "api.example.com",
+          summary: "Outbound",
+        },
+        {
+          event_id: "file-1",
+          kind: "file",
+          timestamp: "2026-04-13T10:00:01Z",
+          rel_time_s: 2,
+          collector: "strace",
+          actor: "extension",
+          extension_id: "ms.test",
+          path: "/workspace/.env",
+          operation: "read",
+          sensitive: true,
+          summary: "Sensitive read",
+        },
+      ],
+      evidence_links: [],
+      coverage_summary: { covered: 4, partial: 0, missing: 0, missing_capabilities: [] },
+      coverage_matrix: [],
+      coverage_tracks: {
+        official: {
+          source: "official_activation_track",
+          selected_scenarios: [],
+          summary: {
+            covered: 4,
+            partial: 0,
+            missing: 0,
+            attempted: 0,
+            verified: 0,
+            missing_capabilities: [],
+            attempted_capabilities: [],
+            verified_capabilities: [],
+          },
+          matrix: [],
+        },
+        heuristic: {
+          source: "heuristic_workflow_track",
+          selected_scenarios: [],
+          summary: {
+            covered: 0,
+            partial: 0,
+            missing: 0,
+            attempted: 0,
+            verified: 0,
+            missing_capabilities: [],
+            attempted_capabilities: [],
+            verified_capabilities: [],
+          },
+          matrix: [],
+        },
+      },
+      log_streams: { automation: [] },
+    };
+
+    const report = adaptReport(dto, "radar_demo.json");
+    const radar = buildRiskRadar(report);
+
+    expect(radar._synthetic).toBe(true);
+    for (const axis of ["Threat", "Exfil", "Persistence", "Privesc", "Defense", "Resource"] as const) {
+      expect(radar[axis]).toBeGreaterThanOrEqual(0);
+      expect(radar[axis]).toBeLessThanOrEqual(100);
+    }
+    expect(radar.Threat).toBeGreaterThan(0);
+    expect(radar.Exfil).toBeGreaterThan(0);
   });
 });
