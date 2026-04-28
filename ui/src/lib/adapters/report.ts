@@ -841,6 +841,217 @@ export function adaptBundle(dto: AnalysisBundleDto, reportId: string): Activatio
   };
 }
 
+type Risk = "low" | "medium" | "high";
+
+function eventRiskHeuristic(event: EvidenceEventView): Risk {
+  if (event.sensitive) return "high";
+  if (event.kind === "network") return "medium";
+  if (event.attributionStatus === "strong") return "medium";
+  return "low";
+}
+
+export type ReportInteractionGraph = {
+  rootLabel: string;
+  rootMeta?: string;
+  groups: Array<{
+    id: string;
+    label: string;
+    count: number;
+    pct?: number;
+    axis: "network" | "fs" | "activation" | "secret" | "process";
+    description?: string;
+    children: Array<{
+      id: string;
+      label: string;
+      count: number;
+      meta?: string;
+      risk?: Risk;
+    }>;
+  }>;
+  _synthetic: boolean;
+};
+
+export function buildInteractionGraph(report: ActivationReportView): ReportInteractionGraph {
+  const events = report.evidence;
+  const total = events.length || 1;
+  const network = events.filter((event) => event.kind === "network");
+  const file = events.filter((event) => event.kind === "file");
+  const activation = events.filter((event) => event.kind === "activation");
+  const process = events.filter((event) => event.kind === "process");
+
+  const networkChildren = uniqueByKey(network, (event) => event.host || event.path || event.eventId)
+    .slice(0, 6)
+    .map((event, index) => ({
+      id: `net-${index}`,
+      label: event.host || event.path || event.eventId,
+      count: countByKey(network, (entry) => entry.host || entry.path || entry.eventId, event.host || event.path || event.eventId),
+      meta: event.protocol ? event.protocol.toUpperCase() : undefined,
+      risk: eventRiskHeuristic(event),
+    }));
+
+  const fileChildren = uniqueByKey(file, (event) => event.path || event.eventId)
+    .slice(0, 6)
+    .map((event, index) => ({
+      id: `file-${index}`,
+      label: event.path || event.eventId,
+      count: countByKey(file, (entry) => entry.path || entry.eventId, event.path || event.eventId),
+      meta: event.operation || undefined,
+      risk: eventRiskHeuristic(event),
+    }));
+
+  const activationChildren = uniqueByKey(activation, (event) => event.activationEvent || event.eventId)
+    .slice(0, 6)
+    .map((event, index) => ({
+      id: `act-${index}`,
+      label: event.activationEvent || event.eventId,
+      count: countByKey(
+        activation,
+        (entry) => entry.activationEvent || entry.eventId,
+        event.activationEvent || event.eventId,
+      ),
+      meta: event.extensionId || undefined,
+      risk: eventRiskHeuristic(event),
+    }));
+
+  const processChildren = uniqueByKey(process, (event) => event.summary || event.eventId)
+    .slice(0, 4)
+    .map((event, index) => ({
+      id: `proc-${index}`,
+      label: event.summary || event.eventId,
+      count: 1,
+      meta: event.actor || undefined,
+      risk: eventRiskHeuristic(event),
+    }));
+
+  const groups: ReportInteractionGraph["groups"] = [];
+  if (network.length) {
+    groups.push({
+      id: "network",
+      label: "Outgoing · Network",
+      count: network.length,
+      pct: Math.round((network.length / total) * 100),
+      axis: "network",
+      description: "Outbound hosts and paths observed during the run.",
+      children: networkChildren,
+    });
+  }
+  if (file.length) {
+    groups.push({
+      id: "fs",
+      label: "Filesystem · I/O",
+      count: file.length,
+      pct: Math.round((file.length / total) * 100),
+      axis: "fs",
+      description: "Files read or written by the target extension.",
+      children: fileChildren,
+    });
+  }
+  if (activation.length) {
+    groups.push({
+      id: "activation",
+      label: "Activation · Triggers",
+      count: activation.length,
+      pct: Math.round((activation.length / total) * 100),
+      axis: "activation",
+      description: "Extension activation hooks consumed during automation.",
+      children: activationChildren,
+    });
+  }
+  if (process.length) {
+    groups.push({
+      id: "process",
+      label: "Processes",
+      count: process.length,
+      pct: Math.round((process.length / total) * 100),
+      axis: "process",
+      description: "Subprocess events spawned by the extension.",
+      children: processChildren,
+    });
+  }
+
+  return {
+    rootLabel: report.metadataFilename.replace(/\.json$/u, ""),
+    rootMeta: "extension",
+    groups,
+    _synthetic: true,
+  };
+}
+
+export type ReportRiskRadar = {
+  threat: number;
+  exfil: number;
+  persistence: number;
+  privesc: number;
+  defense: number;
+  resource: number;
+  Threat: number;
+  Exfil: number;
+  Persistence: number;
+  Privesc: number;
+  Defense: number;
+  Resource: number;
+  _synthetic: true;
+};
+
+export function buildRiskRadar(report: ActivationReportView): ReportRiskRadar {
+  const events = report.evidence;
+  const networkCount = events.filter((event) => event.kind === "network").length;
+  const fileCount = events.filter((event) => event.kind === "file").length;
+  const sensitiveCount = events.filter((event) => event.sensitive).length;
+  const processCount = events.filter((event) => event.kind === "process").length;
+  const activationCount = events.filter((event) => event.kind === "activation").length;
+  const totalSignals = report.riskSummary.totalSignals ?? events.length;
+  const denom = Math.max(totalSignals, 1);
+
+  const threat = clampScore((sensitiveCount / Math.max(events.length, 1)) * 100 + (report.riskSummary.high ?? 0) * 20);
+  const exfil = clampScore((networkCount / Math.max(events.length, 1)) * 110 + (report.riskSummary.medium ?? 0) * 12);
+  const persistence = clampScore((activationCount / denom) * 70 + (report.riskSignals.length ?? 0) * 8);
+  const privesc = clampScore((processCount / denom) * 90);
+  const defense = clampScore(100 - (report.coverageSummary.covered ?? 0) * 12);
+  const resource = clampScore((fileCount / Math.max(events.length, 1)) * 90 + (report.riskSummary.low ?? 0) * 5);
+
+  return {
+    threat,
+    exfil,
+    persistence,
+    privesc,
+    defense,
+    resource,
+    Threat: threat,
+    Exfil: exfil,
+    Persistence: persistence,
+    Privesc: privesc,
+    Defense: defense,
+    Resource: resource,
+    _synthetic: true,
+  };
+}
+
+function clampScore(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return Math.max(0, Math.min(100, Math.round(value)));
+}
+
+function uniqueByKey<T>(items: ReadonlyArray<T>, key: (item: T) => string): T[] {
+  const seen = new Set<string>();
+  const out: T[] = [];
+  for (const item of items) {
+    const k = key(item);
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push(item);
+  }
+  return out;
+}
+
+function countByKey<T>(items: ReadonlyArray<T>, key: (item: T) => string, value: string): number {
+  let count = 0;
+  for (const item of items) {
+    if (key(item) === value) count += 1;
+  }
+  return count;
+}
+
 export function getInspectorView(report: ActivationReportView, eventId?: string | null): EvidenceInspectorView | null {
   const event = report.evidence.find((item) => item.eventId === eventId);
   if (!event) return null;

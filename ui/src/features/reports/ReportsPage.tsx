@@ -1,10 +1,23 @@
-import { startTransition, useDeferredValue, useEffect, useState } from "react";
+import { startTransition, useDeferredValue, useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
+
 import { FilterRail, type EvidenceFilterState } from "../../components/evidence/FilterRail";
 import { LogStreamsPanel } from "../../components/evidence/LogStreamsPanel";
-import { EmptyState } from "../../components/ui/EmptyState";
 import { SlideOverDrawer } from "../../components/ui/SlideOverDrawer";
+import {
+  Badge,
+  EmptyState,
+  Eyebrow,
+  Field,
+  GhostButton,
+  KVRow,
+  MetricCell,
+  PageTitle,
+  Panel,
+  V3,
+  type V3Tone,
+} from "../../components/v3";
 import {
   applyEvidenceFilters,
   buildEvidenceFilterOptions,
@@ -14,12 +27,22 @@ import {
   parseEvidenceFilters,
 } from "../evidence";
 import { apiClient } from "../../lib/api/client";
-import { adaptBundle, adaptReport, getInspectorView } from "../../lib/adapters/report";
+import {
+  adaptBundle,
+  adaptReport,
+  buildInteractionGraph,
+  buildRiskRadar,
+  getInspectorView,
+} from "../../lib/adapters/report";
 import { buildRuleDraft } from "../../lib/rules/draft";
 import { CategoryWorkspace, type ReportWorkspaceTab } from "./sections";
 import { DetectionPanel } from "./DetectionPanel";
+import { EventTimeline } from "./charts/EventTimeline";
+import { InteractionGraph } from "./charts/InteractionGraph";
+import { RADAR_AXES, RiskRadar } from "./charts/RiskRadar";
 
 type ReportTab = "detection" | "activation" | "file" | "network" | "scenario" | "evidence" | "logs";
+
 const REPORT_TABS: Array<{ value: ReportTab; label: string }> = [
   { value: "detection", label: "Detection" },
   { value: "activation", label: "Activation" },
@@ -97,6 +120,14 @@ function scopeEventsForTab(
   return events.filter((event) => event.kind === tab);
 }
 
+function severityToTone(severity?: string): V3Tone {
+  if (!severity) return "neutral";
+  if (severity === "critical" || severity === "high") return "danger";
+  if (severity === "medium") return "warn";
+  if (severity === "low") return "ok";
+  return "neutral";
+}
+
 export function ReportsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -155,6 +186,22 @@ export function ReportsPage() {
       ? reportsQuery.data?.[0]
       : reportsQuery.data?.find((item) => item.filename === reportParam) || reportsQuery.data?.[0];
 
+  const interactionGraph = useMemo(() => (report ? buildInteractionGraph(report) : null), [report]);
+  const radarScores = useMemo(() => (report ? buildRiskRadar(report) : null), [report]);
+  const timelineEvents = useMemo(() => {
+    if (!report) return [];
+    return report.evidence.map((event) => ({
+      id: event.eventId,
+      relTimeS: event.relTimeS,
+      kind: event.kind,
+      label: event.summaryDisplay || event.summary,
+      risk: (event.sensitive ? "high" : event.kind === "network" ? "medium" : "low") as
+        | "low"
+        | "medium"
+        | "high",
+    }));
+  }, [report]);
+
   const setSelectedEvent = (nextEventId: string) => {
     startTransition(() => {
       const next = new URLSearchParams(searchParams);
@@ -179,65 +226,104 @@ export function ReportsPage() {
     });
   };
 
+  const verdict = report?.detection?.verdict;
+  const verdictTone = severityToTone(
+    verdict === "malicious" ? "critical" : verdict === "suspicious" ? "medium" : "low",
+  );
+
   return (
-    <div className="space-y-6">
-      <section className="page-header">
-        <div className="space-y-3">
-          <div className="eyebrow">Reports</div>
-          <h1 className="page-title">Security report</h1>
-          <p className="max-w-3xl text-sm leading-7 text-mute sm:text-base">
-            Keep the dashboard clean, then drill into one evidence class at a time instead of stacking every signal into a single screen.
-          </p>
-          <div className="flex flex-wrap gap-2">
-            <span className="info-chip">{report?.metadataFilename || "Loading report workspace"}</span>
-            <span className="info-chip">{formatNumber(filteredEvents.length)} visible events</span>
-          </div>
+    <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>
+      <header style={{ paddingBottom: 24, borderBottom: `1px solid ${V3.rule}` }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <Eyebrow>Reports</Eyebrow>
+          {verdict ? (
+            <Badge tone={verdictTone} data-feature-stub="verdict-badge">
+              Verdict · {verdict.toUpperCase()}
+            </Badge>
+          ) : null}
+          <Badge tone="neutral" data-feature-stub="reports-list-metadata">
+            Severity TBD · backend pending
+          </Badge>
         </div>
-
-        <div className="section-tabs">
-          {REPORT_TABS.map((tab) => {
-            const active = tab.value === selectedTab;
-            return (
-              <button
-                className={`section-tab ${active ? "section-tab-active" : ""}`}
-                key={tab.value}
-                onClick={() => {
-                  const params = new URLSearchParams(searchParams);
-                  params.set("tab", tab.value);
-                  setSearchParams(params, { replace: true });
-                }}
-                type="button"
-              >
-                {tab.label}
-              </button>
-            );
-          })}
+        <PageTitle style={{ marginTop: 14 }}>Security report</PageTitle>
+        <p style={{ fontSize: 14, color: V3.ink3, marginTop: 14, maxWidth: 640, lineHeight: 1.6 }}>
+          Keep the dashboard clean, then drill into one evidence class at a time instead of
+          stacking every signal into a single screen.
+        </p>
+        <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginTop: 18 }}>
+          <span
+            style={{
+              fontFamily: "'JetBrains Mono', monospace",
+              fontSize: 11,
+              color: V3.ink3,
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+            }}
+          >
+            File · {report?.metadataFilename || "loading"}
+          </span>
+          <span
+            style={{
+              fontFamily: "'JetBrains Mono', monospace",
+              fontSize: 11,
+              color: V3.ink3,
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+            }}
+          >
+            Visible · {formatNumber(filteredEvents.length)} events
+          </span>
         </div>
-      </section>
+      </header>
 
-      <section className="toolbar-surface">
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(420px,0.9fr)]">
-          <div className="min-w-0 rounded-[16px] border border-lineSoft bg-panelAlt px-4 py-4">
-            <div className="micro-label">Active report</div>
-            <div className="mt-3 text-xl font-semibold tracking-tight text-ink">
-              {report?.metadataFilename || "Preparing selected report"}
-            </div>
-            <div className="mt-2 text-sm leading-6 text-mute">
-              Last updated {formatModified(activeReport?.modified)}. Filters and inspector state remain shareable through the URL.
-            </div>
+      <section
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr auto",
+          gap: 24,
+          alignItems: "stretch",
+        }}
+      >
+        <Panel padded={false}>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(4, 1fr)",
+              borderBottom: `1px solid ${V3.rule}`,
+            }}
+          >
+            <Cell label="Total events" value={formatNumber(report?.summary.totalEvents ?? 0)} />
+            <Cell label="Sensitive" value={formatNumber(report?.summary.sensitiveEvents ?? 0)} tone="danger" />
+            <Cell label="Network" value={formatNumber(report?.summary.networkEvents ?? 0)} tone="warn" />
+            <Cell label="Score" value={`${report?.summary.signalSummaryScore ?? 0}`} tone={verdictTone} />
           </div>
+          <div style={{ padding: "16px 22px" }}>
+            <KVRow k="Active report" v={report?.metadataFilename || "Preparing selected report"} />
+            <KVRow k="Last updated" v={formatModified(activeReport?.modified)} />
+            <KVRow k="Run quality" v={report?.summary.runQuality ?? "—"} mono={false} />
+          </div>
+        </Panel>
 
-          <div className="grid gap-3 md:grid-cols-2">
-            <label className="space-y-2">
-              <span className="micro-label">Report</span>
+        <Panel label="Selector" padded>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12, minWidth: 280 }}>
+            <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <Eyebrow>Report</Eyebrow>
               <select
-                className="field-control"
+                value={reportParam}
                 onChange={(event) => {
                   const next = new URLSearchParams(searchParams);
                   next.set("report", event.target.value);
                   setSearchParams(next, { replace: true });
                 }}
-                value={reportParam}
+                style={{
+                  background: V3.paper2,
+                  color: V3.ink,
+                  border: `1px solid ${V3.rule}`,
+                  borderRadius: 0,
+                  padding: "10px 12px",
+                  fontFamily: "'JetBrains Mono', monospace",
+                  fontSize: 12.5,
+                }}
               >
                 <option value="latest">Latest report</option>
                 {(reportsQuery.data || []).map((item) => (
@@ -248,40 +334,143 @@ export function ReportsPage() {
               </select>
             </label>
 
-            <label className="space-y-2">
-              <span className="micro-label">Search</span>
-              <input
-                className="field-control"
-                onChange={(event) => updateFilters({ ...filters, search: event.target.value })}
-                placeholder="host, path, extension, summary…"
-                value={filters.search}
-              />
-            </label>
+            <Field
+              label="Search"
+              placeholder="host, path, extension, summary…"
+              value={filters.search}
+              onChange={(value) => updateFilters({ ...filters, search: value })}
+              mono
+            />
 
-            <div className="md:col-span-2">
-              <button className="ghost-button" onClick={() => setFiltersOpen(true)} type="button">
-                Filters {activeFilterCount ? `(${activeFilterCount})` : ""}
-              </button>
-            </div>
+            <GhostButton ariaLabel="Filters" onClick={() => setFiltersOpen(true)}>
+              Filters {activeFilterCount ? `(${activeFilterCount})` : ""}
+            </GhostButton>
           </div>
-        </div>
+        </Panel>
+      </section>
+
+      <section
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: 0,
+          borderBottom: `1px solid ${V3.rule2}`,
+        }}
+      >
+        {REPORT_TABS.map((tab) => {
+          const active = tab.value === selectedTab;
+          return (
+            <button
+              key={tab.value}
+              type="button"
+              onClick={() => {
+                const params = new URLSearchParams(searchParams);
+                params.set("tab", tab.value);
+                setSearchParams(params, { replace: true });
+              }}
+              style={{
+                background: "none",
+                border: "none",
+                padding: "12px 18px 13px",
+                fontFamily: "'JetBrains Mono', monospace",
+                fontSize: 11,
+                fontWeight: active ? 700 : 500,
+                letterSpacing: "0.1em",
+                textTransform: "uppercase",
+                color: active ? V3.ink : V3.ink3,
+                cursor: "pointer",
+                position: "relative",
+                transition: "color 140ms",
+              }}
+            >
+              {tab.label}
+              {active ? (
+                <span
+                  aria-hidden
+                  style={{
+                    position: "absolute",
+                    left: 0,
+                    right: 0,
+                    bottom: -1,
+                    height: 3,
+                    background: V3.coral,
+                  }}
+                />
+              ) : null}
+            </button>
+          );
+        })}
       </section>
 
       {reportQuery.isLoading ? (
-        <EmptyState eyebrow="Loading" body="Fetching the selected report and normalizing evidence." title="Preparing report workspace" />
+        <EmptyState
+          eyebrow="Loading"
+          body="Fetching the selected report and normalizing evidence."
+          title="Preparing report workspace"
+        />
       ) : reportQuery.isError ? (
         <EmptyState eyebrow="Error" body={String(reportQuery.error)} title="Report could not be loaded" />
       ) : !report ? null : selectedTab === "detection" ? (
-        <DetectionPanel detection={report.detection} onShowEvidence={showFindingEvidence} />
+        <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+          <DetectionPanel detection={report.detection} onShowEvidence={showFindingEvidence} />
+          {radarScores ? (
+            <Panel label="Risk radar (synthetic)">
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr auto",
+                  gap: 24,
+                  alignItems: "center",
+                }}
+              >
+                <RiskRadar scores={radarScores} />
+                <div style={{ minWidth: 240 }}>
+                  {RADAR_AXES.map((axis) => (
+                    <KVRow
+                      key={axis}
+                      k={axis}
+                      v={`${radarScores[axis]} / 100`}
+                    />
+                  ))}
+                  <p
+                    style={{
+                      marginTop: 12,
+                      fontFamily: "'JetBrains Mono', monospace",
+                      fontSize: 10,
+                      color: V3.ink4,
+                      letterSpacing: "0.06em",
+                      lineHeight: 1.6,
+                    }}
+                  >
+                    Approximate scores derived from kind frequency. Backend axis
+                    scoring lands with [BACKLOG ui-v3-4].
+                  </p>
+                </div>
+              </div>
+            </Panel>
+          ) : null}
+          {interactionGraph && interactionGraph.groups.length ? (
+            <Panel label="Interaction graph (synthetic)">
+              <InteractionGraph data={interactionGraph} />
+            </Panel>
+          ) : null}
+          <Panel label="Event timeline">
+            <EventTimeline
+              events={timelineEvents}
+              selectedId={eventId || undefined}
+              onSelect={(id) => setSelectedEvent(id)}
+            />
+          </Panel>
+        </div>
       ) : selectedTab === "logs" ? (
-                <LogStreamsPanel
-                  eventAttempts={report.eventAttempts}
-                  coverageTracks={report.coverageTracks}
-                  heuristicWorkflowCoverage={report.heuristicWorkflowCoverage}
-                  logStreams={report.logStreams}
-                  officialEventCoverage={report.officialEventCoverage}
-                  stimulusPasses={report.stimulusPasses}
-                />
+        <LogStreamsPanel
+          eventAttempts={report.eventAttempts}
+          coverageTracks={report.coverageTracks}
+          heuristicWorkflowCoverage={report.heuristicWorkflowCoverage}
+          logStreams={report.logStreams}
+          officialEventCoverage={report.officialEventCoverage}
+          stimulusPasses={report.stimulusPasses}
+        />
       ) : (
         <CategoryWorkspace
           emptyTitle={TAB_META[selectedTab].emptyTitle}
@@ -322,6 +511,29 @@ export function ReportsPage() {
           title="Refine evidence"
         />
       </SlideOverDrawer>
+    </div>
+  );
+}
+
+type CellProps = {
+  label: string;
+  value: string;
+  tone?: V3Tone;
+};
+
+function Cell({ label, value, tone = "neutral" }: CellProps) {
+  return (
+    <div
+      style={{
+        padding: "20px 22px",
+        borderRight: `1px solid ${V3.rule}`,
+      }}
+    >
+      <MetricCell
+        label={label}
+        value={<span style={{ fontSize: 28, letterSpacing: "-0.03em" }}>{value}</span>}
+        tone={tone}
+      />
     </div>
   );
 }
