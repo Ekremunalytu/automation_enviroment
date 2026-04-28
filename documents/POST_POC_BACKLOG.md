@@ -1,6 +1,6 @@
 # Post-PoC Backlog
 
-`Last Updated: 2026-04-27 (W8-0 landed; Codex automation-flow review entries 3/5/6/7/8 recorded as [FOLLOWUP codex-automation-N]; architecture audit 2026-04-27 — W8-8/W11-7/W11-8 promoted to REFACTOR_OPTIMIZATION.md, hygiene cleanups recorded as [CLEANUP audit-2026-04-27])`
+`Last Updated: 2026-04-28 (UI v3 redesign backend gaps recorded as [BACKLOG ui-v3-1] … [BACKLOG ui-v3-8]; previous: 2026-04-27 W8-0 landed)`
 
 Work items that do not block PoC acceptance (`REFACTOR_OPTIMIZATION.md`
 §10.7) and were intentionally deferred from W0-W7 for scope management.
@@ -433,6 +433,82 @@ REFACTOR_OPTIMIZATION.md §11.12" below.
   > stabilized; OpenAPI snapshot churns every PR without delivering
   > value until post-PoC UI stabilizes. See `REFACTOR_OPTIMIZATION.md
   > §11.12`.
+
+### UI v3 redesign — backend gaps (2026-04-28)
+
+The v3 console redesign on
+[`feat/ui-v3-design-extrace-console`](../ui/src) ports five pages,
+13 shared components, and three bespoke SVG visuals
+([`InteractionGraph`](../ui/src/features/reports/charts/InteractionGraph.tsx),
+[`RiskRadar`](../ui/src/features/reports/charts/RiskRadar.tsx),
+[`EventTimeline`](../ui/src/features/reports/charts/EventTimeline.tsx))
+against the design handed off in
+[`design_handoff_extrace_console/`](../design_handoff_extrace_console/).
+The backend contracts the new pages assume but cannot reach yet are
+captured below; each entry names a stable trigger so a follow-up
+iteration can pick it up without re-deriving context. Until they
+land, the UI shows explicit `Backend pending` badges or
+`data-feature-stub` markers so the missing piece is visible.
+
+- **[BACKLOG ui-v3-1] Scenario catalog API** *(M)* — `GET
+  /api/scenarios` + `POST /api/scenarios/{id}/run`. The Simulation
+  page currently lists downloaded marketplace extensions in place of
+  scenario templates because the executor owns scenarios internally
+  during a run. Promote a first-class scenario catalog so the
+  scenario picker on
+  [`SimulationPage.tsx`](../ui/src/features/simulation/SimulationPage.tsx)
+  can drive sandbox runs directly.
+- **[BACKLOG ui-v3-2] Live event stream (SSE / WebSocket)** *(L)* —
+  Replace the 2 s `getAnalysisJob` poll with a streaming endpoint so
+  the v3 Live Evidence surface and the new
+  [`ActivityBars`](../ui/src/features/simulation/charts/ActivityBars.tsx)
+  histogram can update without the polling lag. The header on the
+  Simulation page carries a "Polling 2 s · live SSE pending" badge
+  until this lands.
+- **[BACKLOG ui-v3-3] Marketplace risk taxonomy** *(S)* — Extend
+  `MarketplaceExtension` with `category`
+  (detector/collector/enricher) and `risk_tone` (low/medium/high)
+  so the v3 Marketplace cards can drop the `UNCATEGORIZED` and
+  `RISK TBD` placeholder badges. The placeholder badges are
+  flagged with `data-feature-stub="category|risk-tone"` in
+  [`MarketplacePage.tsx`](../ui/src/features/marketplace/MarketplacePage.tsx).
+- **[BACKLOG ui-v3-4] Risk radar 6-axis scoring** *(M)* — Add
+  `Threat / Exfil / Persistence / Privesc / Defense / Resource`
+  scores (0-100) to `RiskSummary`. The current adapter
+  [`buildRiskRadar`](../ui/src/lib/adapters/report.ts) synthesizes
+  scores from kind frequencies and emits `_synthetic: true`; the
+  Reports detection tab labels the panel "Risk radar
+  (synthetic)" until the backend produces real axis scores.
+- **[BACKLOG ui-v3-5] Settings persistence API** *(M)* — `GET /
+  PUT /api/settings`. Settings on
+  [`SettingsPage.tsx`](../ui/src/features/settings/SettingsPage.tsx)
+  persist to `localStorage["extrace-v3-settings"]` only; the
+  header shows a "Backend pending · localStorage only" badge.
+  Cross-device sync and audit retention need a real endpoint.
+- **[BACKLOG ui-v3-6] System service health & telemetry API**
+  *(L)* — `GET /api/system/services` + `GET
+  /api/system/services/{id}/telemetry`. Today only `/health`
+  feeds the executor tile on
+  [`SystemPage.tsx`](../ui/src/features/system/SystemPage.tsx);
+  catalog, sandbox, and telemetry tiles are mocked and visibly
+  marked with the `stub` Badge. The disabled `Restart executor` /
+  `Re-sync catalog` actions in the inventory sidebar need their
+  control endpoints alongside per-service health and a telemetry
+  sparkline.
+- **[BACKLOG ui-v3-7] Authentication surface** *(M)* — The v3
+  console assumes no auth (mirroring current state). The JWT
+  template in
+  [`appcore/api/deps.py`](../appcore/api/deps.py) needs to be
+  enabled before the v3 design ships outside the single-operator
+  appliance assumption recorded in `AGENTS.md`.
+- **[BACKLOG ui-v3-8] Reports list metadata enrichment** *(S)* —
+  `GET /api/activations` returns only `filename / size_bytes /
+  modified` today; the v3 Reports header carries a `Severity TBD ·
+  backend pending` Badge because the list view wants `severity`,
+  `system`, and `executor` fields per row to drive the index card
+  stack. Extend the listing response and adapt
+  [`ReportsPage.tsx`](../ui/src/features/reports/ReportsPage.tsx)
+  to consume the richer metadata.
 
 ## Detection engine stretch
 
