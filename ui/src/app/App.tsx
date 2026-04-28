@@ -1,7 +1,8 @@
 import { Suspense, lazy } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
+
 import { AppShell } from "./layout/AppShell";
-import { EmptyState } from "../components/ui/EmptyState";
+import { EmptyState } from "../components/v3";
 
 const ReportsPage = lazy(async () => ({
   default: (await import("../features/reports")).ReportsPage,
@@ -11,6 +12,12 @@ const SimulationPage = lazy(async () => ({
 }));
 const MarketplacePage = lazy(async () => ({
   default: (await import("../features/marketplace")).MarketplacePage,
+}));
+const SettingsPage = lazy(async () => ({
+  default: (await import("../features/settings")).SettingsPage,
+}));
+const SystemPage = lazy(async () => ({
+  default: (await import("../features/system")).SystemPage,
 }));
 
 export function App() {
@@ -30,6 +37,8 @@ export function App() {
           <Route element={<ReportsPage />} path="/reports" />
           <Route element={<SimulationPage />} path="/simulation" />
           <Route element={<MarketplacePage />} path="/marketplace" />
+          <Route element={<SettingsPage />} path="/settings" />
+          <Route element={<SystemPage />} path="/system" />
         </Routes>
       </Suspense>
     </AppShell>

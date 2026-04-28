@@ -1,111 +1,347 @@
-import { useState, type PropsWithChildren } from "react";
-import { NavLink, useLocation } from "react-router-dom";
+import { useEffect, useState, type CSSProperties, type PropsWithChildren } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 
-const NAV_ITEMS = [
-  { to: "/reports?report=latest&tab=overview", label: "Reports", path: "/reports" },
-  { to: "/simulation", label: "Simulation", path: "/simulation" },
-  { to: "/marketplace", label: "Marketplace", path: "/marketplace" },
+import { LogoMark, V3 } from "../../components/v3";
+
+type NavId = "reports" | "simulation" | "marketplace" | "settings" | "system";
+
+type NavSpec = {
+  id: NavId;
+  label: string;
+  hint: string;
+  to: string;
+};
+
+const NAV: NavSpec[] = [
+  { id: "reports", label: "Reports", hint: "Activation reports & artifacts", to: "/reports?report=latest&tab=overview" },
+  { id: "simulation", label: "Simulation", hint: "Sandbox scenarios, live", to: "/simulation" },
+  { id: "marketplace", label: "Marketplace", hint: "Extension intake", to: "/marketplace" },
+  { id: "settings", label: "Settings", hint: "Console preferences", to: "/settings" },
+  { id: "system", label: "System", hint: "Executor & telemetry", to: "/system" },
 ];
 
-function PrimaryNav({ onNavigate }: { onNavigate?: () => void }) {
-  const location = useLocation();
+const RAIL_STORAGE_KEY = "extrace-v3-rail";
 
-  return (
-    <nav aria-label="Primary" className="flex flex-col gap-2 lg:flex-row lg:items-center">
-      {NAV_ITEMS.map((item) => {
-        const active = location.pathname.startsWith(item.path);
-        return (
-          <NavLink
-            className={`nav-button ${active ? "nav-button-active" : ""}`}
-            key={item.path}
-            onClick={onNavigate}
-            to={item.to}
-          >
-            {item.label}
-          </NavLink>
-        );
-      })}
-    </nav>
-  );
+function readStoredCollapsed(): boolean {
+  try {
+    return window.localStorage.getItem(RAIL_STORAGE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function activeIdFromPath(pathname: string): NavId {
+  if (pathname.startsWith("/simulation")) return "simulation";
+  if (pathname.startsWith("/marketplace")) return "marketplace";
+  if (pathname.startsWith("/settings")) return "settings";
+  if (pathname.startsWith("/system")) return "system";
+  return "reports";
 }
 
 export function AppShell({ children }: PropsWithChildren) {
-  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [collapsed, setCollapsed] = useState<boolean>(() => readStoredCollapsed());
+  const activeId = activeIdFromPath(location.pathname);
+
+  useEffect(() => {
+    document.body.dataset.theme = "v3";
+    return () => {
+      delete document.body.dataset.theme;
+    };
+  }, []);
+
+  const toggle = () => {
+    setCollapsed((prev) => {
+      const next = !prev;
+      try {
+        window.localStorage.setItem(RAIL_STORAGE_KEY, next ? "1" : "0");
+      } catch {
+        /* localStorage may be unavailable; ignore */
+      }
+      return next;
+    });
+  };
+
+  const railWidth = collapsed ? 72 : 280;
 
   return (
-    <div className="min-h-screen bg-canvas text-ink">
-      <header className="sticky top-0 z-40 border-b border-line bg-canvas/92 backdrop-blur-xl">
-        <div className="shell-frame">
-          <div className="flex min-h-[78px] items-center justify-between gap-4">
-            <div className="flex min-w-0 items-center gap-4">
-              <button
-                aria-expanded={mobileNavOpen}
-                aria-label="Open navigation"
-                className="ghost-button px-3 py-2 lg:hidden"
-                onClick={() => setMobileNavOpen(true)}
-                type="button"
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: `${railWidth}px 1fr`,
+        minHeight: "100vh",
+        fontFamily: "'Manrope', sans-serif",
+        color: V3.ink,
+        background: V3.paper,
+        transition: "grid-template-columns 200ms ease",
+      }}
+    >
+      <aside
+        style={{
+          position: "sticky",
+          top: 0,
+          height: "100vh",
+          borderRight: `1px solid ${V3.rule}`,
+          background: "#000",
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
+        }}
+      >
+        <button
+          type="button"
+          onClick={toggle}
+          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          aria-expanded={!collapsed}
+          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          style={{
+            padding: collapsed ? "24px 0 22px" : "26px 22px 22px",
+            borderBottom: `1px solid ${V3.rule}`,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: collapsed ? "center" : "flex-start",
+            cursor: "pointer",
+            userSelect: "none",
+            background: "transparent",
+            border: 0,
+            borderBottomStyle: "solid",
+            borderBottomColor: V3.rule,
+            borderBottomWidth: 1,
+            color: "inherit",
+            font: "inherit",
+            width: "100%",
+            textAlign: "left",
+          }}
+        >
+          <span style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <LogoMark size={28} />
+            {!collapsed ? (
+              <span
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  lineHeight: 1.05,
+                }}
               >
-                Menu
-              </button>
+                <span
+                  style={{
+                    fontSize: 22,
+                    fontWeight: 800,
+                    letterSpacing: "-0.04em",
+                    color: V3.ink,
+                    textTransform: "uppercase",
+                  }}
+                >
+                  ExTrace
+                </span>
+              </span>
+            ) : null}
+          </span>
+        </button>
 
-              <NavLink className="flex min-w-0 items-center gap-3" to="/reports?report=latest&tab=overview">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-accent/20 bg-accent/10 font-display text-lg font-semibold text-accentSoft">
-                  Ex
-                </div>
-                <div className="min-w-0">
-                  <div className="font-display text-[28px] font-semibold tracking-[-0.04em] text-ink">ExTrace</div>
-                  <div className="text-sm text-mute">Extension analysis workspace</div>
-                </div>
-              </NavLink>
-            </div>
-
-            <div className="hidden lg:block">
-              <PrimaryNav />
-            </div>
-
-            <div className="hidden items-center gap-2 lg:flex">
-              <NavLink className="ghost-button" to="/reports?report=latest&tab=overview">
-                Latest Report
-              </NavLink>
-              <NavLink className="solid-button" to="/marketplace">
-                New Analysis
-              </NavLink>
-            </div>
+        {!collapsed ? (
+          <div
+            style={{
+              padding: "18px 22px 8px",
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+            }}
+          >
+            <span style={{ width: 14, height: 1, background: V3.coral }} />
+            <span
+              style={{
+                fontFamily: "'JetBrains Mono', monospace",
+                fontSize: 10,
+                fontWeight: 500,
+                letterSpacing: "0.18em",
+                textTransform: "uppercase",
+                color: V3.ink4,
+              }}
+            >
+              Index
+            </span>
           </div>
-        </div>
-      </header>
+        ) : null}
 
-      <main className="page-reveal shell-frame py-8">{children}</main>
+        <nav
+          aria-label="Primary"
+          style={{
+            padding: collapsed ? "14px 10px" : "4px 14px",
+            display: "flex",
+            flexDirection: "column",
+            gap: 0,
+          }}
+        >
+          {NAV.map((item) => (
+            <NavItem
+              key={item.id}
+              collapsed={collapsed}
+              active={activeId === item.id}
+              item={item}
+              onClick={() => navigate(item.to)}
+            />
+          ))}
+        </nav>
 
-      {mobileNavOpen ? (
-        <div className="fixed inset-0 z-50 lg:hidden">
-          <button
-            aria-label="Close navigation"
-            className="absolute inset-0 bg-canvasDeep/70 backdrop-blur-sm"
-            onClick={() => setMobileNavOpen(false)}
-            type="button"
-          />
-          <div className="absolute inset-x-4 top-4 rounded-[24px] border border-line bg-panel p-4 shadow-soft">
-            <div className="flex items-center justify-between gap-3">
-              <div className="font-display text-xl font-semibold tracking-tight text-ink">ExTrace</div>
-              <button className="ghost-button px-3 py-2" onClick={() => setMobileNavOpen(false)} type="button">
-                Close
-              </button>
-            </div>
-            <div className="mt-4">
-              <PrimaryNav onNavigate={() => setMobileNavOpen(false)} />
-            </div>
-            <div className="mt-4 flex gap-2">
-              <NavLink className="ghost-button flex-1" onClick={() => setMobileNavOpen(false)} to="/reports?report=latest&tab=overview">
-                Latest Report
-              </NavLink>
-              <NavLink className="solid-button flex-1" onClick={() => setMobileNavOpen(false)} to="/marketplace">
-                New Analysis
-              </NavLink>
-            </div>
-          </div>
+        <div style={{ flex: 1 }} />
+      </aside>
+
+      <main
+        style={{
+          minWidth: 0,
+          display: "flex",
+          flexDirection: "column",
+          background: V3.paper,
+          position: "relative",
+        }}
+      >
+        <div
+          key={location.pathname}
+          className="v3-page-reveal v3-scrollbar"
+          style={{ padding: "48px 56px 96px", width: "100%" }}
+        >
+          {children}
         </div>
-      ) : null}
+      </main>
     </div>
   );
+}
+
+type NavItemProps = {
+  item: NavSpec;
+  active: boolean;
+  collapsed: boolean;
+  onClick: () => void;
+};
+
+function NavItem({ item, active, collapsed, onClick }: NavItemProps) {
+  const [hover, setHover] = useState(false);
+
+  if (collapsed) {
+    const dotBg = active ? V3.paper : hover ? V3.coral : V3.ink3;
+    const buttonBg = active ? V3.coral : hover ? V3.paper3 : "transparent";
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        title={item.label}
+        aria-label={item.label}
+        aria-current={active ? "page" : undefined}
+        onMouseEnter={() => setHover(true)}
+        onMouseLeave={() => setHover(false)}
+        style={collapsedNavStyle(buttonBg)}
+      >
+        <span
+          aria-hidden
+          style={{
+            width: 6,
+            height: 6,
+            borderRadius: "50%",
+            background: dotBg,
+            transition: "background 140ms",
+          }}
+        />
+      </button>
+    );
+  }
+
+  const buttonBg = active ? V3.coral : hover ? V3.paper3 : "transparent";
+  const labelColor = active ? V3.paper : V3.ink;
+  const hintColor = active ? "rgba(0, 0, 0, 0.6)" : V3.ink4;
+  const chevronColor = active ? V3.paper : hover ? V3.coral : V3.ink4;
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-current={active ? "page" : undefined}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      style={expandedNavStyle(buttonBg)}
+    >
+      <span
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 2,
+          minWidth: 0,
+        }}
+      >
+        <span
+          style={{
+            fontSize: 18,
+            fontWeight: 700,
+            color: labelColor,
+            letterSpacing: "-0.025em",
+            textTransform: "uppercase",
+          }}
+        >
+          {item.label}
+        </span>
+        <span
+          style={{
+            fontFamily: "'JetBrains Mono', monospace",
+            fontSize: 10,
+            color: hintColor,
+            letterSpacing: "0.04em",
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+          }}
+        >
+          {item.hint}
+        </span>
+      </span>
+      <span
+        aria-hidden
+        style={{
+          fontSize: 14,
+          color: chevronColor,
+          fontWeight: 700,
+          transition: "color 140ms",
+        }}
+      >
+        ›
+      </span>
+    </button>
+  );
+}
+
+function collapsedNavStyle(background: string): CSSProperties {
+  return {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    background,
+    border: "none",
+    padding: "14px 0",
+    cursor: "pointer",
+    borderRadius: 0,
+    transition: "all 140ms",
+    width: "100%",
+    fontFamily: "inherit",
+    color: "inherit",
+  };
+}
+
+function expandedNavStyle(background: string): CSSProperties {
+  return {
+    display: "grid",
+    gridTemplateColumns: "1fr 12px",
+    gap: 10,
+    alignItems: "center",
+    background,
+    border: "none",
+    padding: "14px 14px",
+    cursor: "pointer",
+    borderRadius: 0,
+    textAlign: "left",
+    transition: "all 140ms",
+    width: "100%",
+    fontFamily: "inherit",
+    color: "inherit",
+    position: "relative",
+  };
 }
