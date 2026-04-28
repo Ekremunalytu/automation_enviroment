@@ -80,13 +80,15 @@ describe("MarketplacePage", () => {
     });
   });
 
-  it("renders the toolbar-first layout and preserves the download/analyze flow", async () => {
+  it("renders the v3 layout, surfaces backend-pending stubs, and preserves the download/analyze flow", async () => {
     renderPage("/marketplace?q=python");
 
     expect(await screen.findByText("Extension intake")).toBeInTheDocument();
-    expect(screen.getByText(/Results for/u)).toBeInTheDocument();
     expect(screen.getByDisplayValue("python")).toBeInTheDocument();
     expect(await screen.findByText("Python")).toBeInTheDocument();
+    expect(await screen.findByText(/Results for/u)).toBeInTheDocument();
+    expect(screen.getByText("UNCATEGORIZED")).toBeInTheDocument();
+    expect(screen.getByText("RISK TBD")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Download" }));
     await waitFor(() => {

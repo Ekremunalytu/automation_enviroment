@@ -1,25 +1,36 @@
-import type { FormEvent } from "react";
+import type { CSSProperties, FormEvent } from "react";
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { MarketplaceResultCard } from "../../components/marketplace/MarketplaceResultCard";
-import { EmptyState } from "../../components/ui/EmptyState";
-import { Panel, PanelHeader } from "../../components/ui/Panel";
+
+import {
+  Badge,
+  EmptyState,
+  Eyebrow,
+  PageTitle,
+  SectionTitle,
+  SolidButton,
+  V3,
+  type V3Tone,
+} from "../../components/v3";
 import { rememberJobId } from "../simulation";
 import { ApiError } from "../../lib/api/http";
 import { apiClient } from "../../lib/api/client";
+import type { MarketplaceExtensionDto } from "../../lib/types/contracts";
 
-function artifactKey({
-  publisher,
-  name,
-  version,
-}: {
-  publisher: string;
-  name: string;
-  version: string;
-}) {
+type ArtifactKey = { publisher: string; name: string; version: string };
+
+function artifactKey({ publisher, name, version }: ArtifactKey) {
   return `${publisher}.${name}@${version}`;
 }
+
+function fmtInstalls(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/u, "")}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K`;
+  return String(n);
+}
+
+const QUICK_QUERIES = ["python", "copilot", "eslint", "prettier"];
 
 export function MarketplacePage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -42,12 +53,12 @@ export function MarketplacePage() {
   });
 
   const downloadMutation = useMutation({
-    mutationFn: ({ publisher, name, version }: { publisher: string; name: string; version: string }) =>
+    mutationFn: ({ publisher, name, version }: ArtifactKey) =>
       apiClient.downloadMarketplaceExtension(publisher, name, version),
   });
 
   const analyzeMutation = useMutation({
-    mutationFn: ({ publisher, name, version }: { publisher: string; name: string; version: string }) =>
+    mutationFn: ({ publisher, name, version }: ArtifactKey) =>
       apiClient.startAnalysisJob(publisher, name, version),
     onSuccess: (job) => {
       setActionError(null);
@@ -59,13 +70,18 @@ export function MarketplacePage() {
     },
   });
 
-  const onSubmit = (event: FormEvent) => {
-    event.preventDefault();
+  const submit = (rawQuery: string) => {
     setActionError(null);
     const next = new URLSearchParams(searchParams);
-    if (query.trim()) next.set("q", query.trim());
+    const trimmed = rawQuery.trim();
+    if (trimmed) next.set("q", trimmed);
     else next.delete("q");
     setSearchParams(next, { replace: true });
+  };
+
+  const onSubmit = (event: FormEvent) => {
+    event.preventDefault();
+    submit(query);
   };
 
   const setDownloadPending = (key: string, pending: boolean) => {
@@ -73,14 +89,8 @@ export function MarketplacePage() {
     else downloadsInFlightRef.current.delete(key);
 
     setDownloadsInFlight((current) => {
-      if (pending) {
-        return { ...current, [key]: true };
-      }
-
-      if (!current[key]) {
-        return current;
-      }
-
+      if (pending) return { ...current, [key]: true };
+      if (!current[key]) return current;
       const next = { ...current };
       delete next[key];
       return next;
@@ -89,9 +99,7 @@ export function MarketplacePage() {
 
   const onDownload = (publisher: string, name: string, version: string) => {
     const key = artifactKey({ publisher, name, version });
-    if (downloadsInFlightRef.current.has(key)) {
-      return;
-    }
+    if (downloadsInFlightRef.current.has(key)) return;
 
     setActionError(null);
     setDownloadPending(key, true);
@@ -117,84 +125,218 @@ export function MarketplacePage() {
   const activeAnalyzeKey =
     analyzeMutation.isPending && analyzeMutation.variables ? artifactKey(analyzeMutation.variables) : null;
 
+  const results = searchQuery.data ?? [];
+  const matchCount = results.length;
+  const sectionTitle = !queryParam
+    ? "Awaiting query"
+    : searchQuery.isLoading
+      ? `Searching “${queryParam}”…`
+      : matchCount === 0
+        ? `No matches for “${queryParam}”`
+        : `Results for “${queryParam}” · ${matchCount} match${matchCount === 1 ? "" : "es"}`;
+
   return (
-    <div className="space-y-6">
-      <section className="page-header">
-        <div className="space-y-3">
-          <div className="eyebrow">Marketplace</div>
-          <h1 className="page-title">Extension intake</h1>
-          <p className="max-w-3xl text-sm leading-7 text-mute sm:text-base">
-            Search the marketplace, shortlist a candidate, download it once, then jump straight into sandbox analysis.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <span className="info-chip">VS Code catalog</span>
-          {queryParam ? <span className="info-chip">Query: {queryParam}</span> : null}
-        </div>
-      </section>
+    <div style={{ display: "flex", flexDirection: "column", gap: 40 }}>
+      <header style={{ paddingBottom: 24, borderBottom: `1px solid ${V3.rule2}` }}>
+        <Eyebrow>Extension intake</Eyebrow>
+        <PageTitle style={{ marginTop: 14 }}>Find, download, analyze.</PageTitle>
+        <p
+          style={{
+            fontSize: 15,
+            color: V3.ink3,
+            marginTop: 14,
+            maxWidth: 580,
+            lineHeight: 1.6,
+          }}
+        >
+          Search the VS Code marketplace, shortlist a candidate, then hand it to the sandbox.
+          Each download adds one entry to the local catalog.
+        </p>
+      </header>
 
-      <section className="toolbar-surface">
-        <form className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-end" onSubmit={onSubmit}>
-          <label className="space-y-2">
-            <span className="micro-label">Search marketplace</span>
-            <input
-              className="field-control h-[58px] text-base"
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="python, eslint, prettier, github copilot…"
-              value={query}
-            />
-          </label>
-
-          <button className="solid-button h-[58px] min-w-[140px]" type="submit">
-            Search
+      <section>
+        <Eyebrow style={{ marginBottom: 12 }}>Search marketplace</Eyebrow>
+        <form
+          onSubmit={onSubmit}
+          style={{
+            display: "grid",
+            gridTemplateColumns: "auto 1fr auto",
+            gap: 0,
+            alignItems: "stretch",
+            maxWidth: 720,
+            border: `1px solid ${V3.ink}`,
+            borderRadius: 0,
+            background: V3.card,
+          }}
+        >
+          <div
+            style={{
+              padding: "0 14px",
+              display: "flex",
+              alignItems: "center",
+              borderRight: `1px solid ${V3.rule}`,
+              background: V3.paper2,
+            }}
+          >
+            <span
+              style={{
+                fontFamily: "'JetBrains Mono', monospace",
+                fontSize: 12,
+                color: V3.ink3,
+              }}
+            >
+              find ›
+            </span>
+          </div>
+          <input
+            placeholder="python, eslint, prettier, github copilot…"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            style={{
+              background: "transparent",
+              border: "none",
+              outline: "none",
+              padding: "14px 16px",
+              fontSize: 15,
+              color: V3.ink,
+              fontFamily: "'JetBrains Mono', monospace",
+              fontVariantLigatures: "none",
+            }}
+          />
+          <button
+            type="submit"
+            style={{
+              background: V3.ink,
+              color: V3.paper,
+              border: "none",
+              padding: "0 22px",
+              fontSize: 13,
+              fontWeight: 500,
+              cursor: "pointer",
+              fontFamily: "inherit",
+            }}
+          >
+            Search ↵
           </button>
         </form>
+
+        <div style={{ marginTop: 14, display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <span
+            style={{
+              fontFamily: "'JetBrains Mono', monospace",
+              fontSize: 11,
+              color: V3.ink3,
+              marginRight: 4,
+              alignSelf: "center",
+            }}
+          >
+            try:
+          </span>
+          {QUICK_QUERIES.map((q) => (
+            <button
+              key={q}
+              type="button"
+              onClick={() => {
+                setQuery(q);
+                submit(q);
+              }}
+              style={{
+                background: V3.paper2,
+                border: `1px solid ${V3.rule}`,
+                borderRadius: 0,
+                padding: "4px 10px",
+                fontSize: 11.5,
+                color: V3.ink2,
+                cursor: "pointer",
+                fontFamily: "'JetBrains Mono', monospace",
+                transition: "all 140ms",
+              }}
+              onMouseEnter={(event) => {
+                event.currentTarget.style.borderColor = V3.ink;
+                event.currentTarget.style.background = V3.card;
+              }}
+              onMouseLeave={(event) => {
+                event.currentTarget.style.borderColor = V3.rule;
+                event.currentTarget.style.background = V3.paper2;
+              }}
+            >
+              {q}
+            </button>
+          ))}
+        </div>
       </section>
 
-      {queryParam ? (
-        <div className="grid gap-3 md:grid-cols-3">
-          <SignalTile body={`Results for “${queryParam}”`} title="Search state" />
-          <SignalTile body={searchQuery.isLoading ? "Searching…" : `${searchQuery.data?.length || 0} results`} title="Result count" />
-          <SignalTile body="Download first, then run only the extension you actually want to inspect." title="Workflow" />
-        </div>
-      ) : null}
-
-      {actionError ? (
-        <div className="rounded-[16px] border border-danger/30 bg-danger/10 px-4 py-4 text-sm leading-6 text-danger">
-          {actionError}
-        </div>
-      ) : null}
-
-      {!queryParam ? (
-        <EmptyState
-          body="Search the Marketplace to populate downloadable results and launch the sandbox pipeline."
-          eyebrow="Ready"
-          title="No query yet"
-        />
-      ) : searchQuery.isLoading ? (
-        <EmptyState eyebrow="Searching" body="Marketplace metadata is loading." title="Fetching results" />
-      ) : searchQuery.isError ? (
-        <EmptyState eyebrow="Error" body={String(searchQuery.error)} title="Marketplace request failed" />
-      ) : !(searchQuery.data || []).length ? (
-        <EmptyState eyebrow="Empty" body="The Marketplace returned no results for this query." title="Nothing matched" />
-      ) : (
-        <Panel className="overflow-hidden p-0">
-          <div className="border-b border-line px-5 py-5">
-            <PanelHeader
-              description="Results for review. Download a candidate once, then promote it into the sandbox when you are ready."
-              title={`Results for “${queryParam}”`}
-            />
+      <section>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "flex-end",
+            marginBottom: 16,
+            gap: 16,
+            flexWrap: "wrap",
+          }}
+        >
+          <div>
+            <Eyebrow>Results</Eyebrow>
+            <SectionTitle style={{ marginTop: 10 }}>{sectionTitle}</SectionTitle>
           </div>
+          {queryParam && matchCount > 0 ? (
+            <span
+              style={{
+                fontFamily: "'JetBrains Mono', monospace",
+                fontSize: 12,
+                color: V3.ink3,
+              }}
+            >
+              sorted by installs
+            </span>
+          ) : null}
+        </div>
 
-          <div className="divide-y divide-line px-5">
-            {(searchQuery.data || []).map((extension) => {
+        {actionError ? (
+          <div
+            style={{
+              border: `1px solid ${V3.coral}`,
+              background: V3.dangerBg,
+              color: V3.coral,
+              padding: "12px 16px",
+              fontSize: 13,
+              fontFamily: "'JetBrains Mono', monospace",
+              marginBottom: 16,
+            }}
+            role="alert"
+          >
+            {actionError}
+          </div>
+        ) : null}
+
+        {!queryParam ? (
+          <EmptyState
+            eyebrow="Ready"
+            title="No query yet"
+            body="Enter an extension name or keyword above to populate results from the marketplace catalog."
+          />
+        ) : searchQuery.isLoading ? (
+          <EmptyState eyebrow="Searching" title="Fetching results" body="Marketplace metadata is loading." />
+        ) : searchQuery.isError ? (
+          <EmptyState eyebrow="Error" title="Marketplace request failed" body={String(searchQuery.error)} />
+        ) : matchCount === 0 ? (
+          <EmptyState eyebrow="Empty" title="Nothing matched" body="Try a different keyword." />
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {results.map((extension, index) => {
               const key = artifactKey(extension);
+              const isReady = Boolean(ready[key]);
               const busy = Boolean(downloadsInFlight[key]) || activeAnalyzeKey === key;
               return (
-                <MarketplaceResultCard
-                  busy={busy}
-                  extension={extension}
+                <ResultCard
                   key={key}
+                  index={index}
+                  extension={extension}
+                  isReady={isReady}
+                  busy={busy}
+                  onDownload={() => onDownload(extension.publisher, extension.name, extension.version)}
                   onAnalyze={() =>
                     analyzeMutation.mutate({
                       publisher: extension.publisher,
@@ -202,25 +344,193 @@ export function MarketplacePage() {
                       version: extension.version,
                     })
                   }
-                  onDownload={() =>
-                    onDownload(extension.publisher, extension.name, extension.version)
-                  }
-                  readyToAnalyze={ready[key] || false}
                 />
               );
             })}
           </div>
-        </Panel>
-      )}
+        )}
+      </section>
     </div>
   );
 }
 
-function SignalTile({ title, body }: { title: string; body: string }) {
+type ResultCardProps = {
+  index: number;
+  extension: MarketplaceExtensionDto;
+  isReady: boolean;
+  busy: boolean;
+  onDownload: () => void;
+  onAnalyze: () => void;
+};
+
+function ResultCard({ index, extension, isReady, busy, onDownload, onAnalyze }: ResultCardProps) {
+  const [hover, setHover] = useState(false);
+
+  // Backend currently exposes neither category nor risk taxonomy for marketplace
+  // listings; show explicit stub badges so the design intent is obvious until
+  // [BACKLOG ui-v3-3] lands.
+  const categoryStub: { label: string; tone: V3Tone } = { label: "UNCATEGORIZED", tone: "neutral" };
+  const riskStub: { label: string; tone: V3Tone } = { label: "RISK TBD", tone: "neutral" };
+
   return (
-    <div className="metric-tile">
-      <div className="micro-label">{title}</div>
-      <div className="mt-3 text-sm leading-6 text-ink">{body}</div>
-    </div>
+    <article
+      data-feature-stub="marketplace-card"
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      style={{
+        display: "grid",
+        gridTemplateColumns: "48px 1fr auto",
+        gap: 20,
+        alignItems: "flex-start",
+        padding: "18px 20px",
+        background: V3.card,
+        border: `1px solid ${hover ? V3.rule2 : V3.rule}`,
+        borderRadius: 0,
+        transition: "border-color 140ms",
+      }}
+    >
+      <div
+        style={{
+          fontFamily: "'JetBrains Mono', monospace",
+          fontSize: 11,
+          color: V3.ink4,
+          paddingTop: 2,
+          textAlign: "left",
+          letterSpacing: "0.05em",
+          borderRight: `1px dashed ${V3.rule}`,
+          paddingRight: 12,
+          minHeight: 60,
+        }}
+      >
+        {String(index + 1).padStart(2, "0")}
+      </div>
+
+      <div style={{ minWidth: 0 }}>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
+          <div
+            style={{
+              fontFamily: "'Manrope', sans-serif",
+              fontSize: 22,
+              fontWeight: 600,
+              color: V3.ink,
+              letterSpacing: "-0.01em",
+            }}
+          >
+            {extension.displayName}
+          </div>
+          {isReady ? <Badge tone="ok">Ready</Badge> : <Badge tone="neutral">Marketplace</Badge>}
+          <Badge tone={categoryStub.tone} data-feature-stub="category">
+            {categoryStub.label}
+          </Badge>
+          <Badge tone={riskStub.tone} data-feature-stub="risk-tone">
+            {riskStub.label}
+          </Badge>
+        </div>
+        <div
+          style={{
+            fontFamily: "'JetBrains Mono', monospace",
+            fontSize: 11.5,
+            color: V3.ink3,
+            marginTop: 6,
+          }}
+        >
+          {extension.publisher}.{extension.name}
+        </div>
+        <p
+          style={{
+            fontSize: 13.5,
+            color: V3.ink2,
+            lineHeight: 1.55,
+            marginTop: 10,
+            maxWidth: 600,
+          }}
+        >
+          {extension.description}
+        </p>
+
+        <div style={{ marginTop: 12, display: "flex", gap: 0, alignItems: "center", flexWrap: "wrap" }}>
+          <Meta k="version" v={`v${extension.version}`} />
+          <Divider />
+          <Meta k="installs" v={fmtInstalls(extension.installs)} />
+          <Divider />
+          <Meta k="rating" v={`${extension.rating.toFixed(1)} / 5`} />
+        </div>
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-end" }}>
+        {!isReady ? (
+          <SolidButton disabled={busy} onClick={onDownload}>
+            {busy ? "Downloading…" : "Download"}
+          </SolidButton>
+        ) : (
+          <SolidButton disabled={busy} onClick={onAnalyze}>
+            {busy ? "Starting…" : "Analyze"}
+          </SolidButton>
+        )}
+        {isReady ? (
+          <span
+            style={{
+              fontFamily: "'JetBrains Mono', monospace",
+              fontSize: 10,
+              color: V3.ok,
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+            }}
+          >
+            ● in catalog
+          </span>
+        ) : null}
+      </div>
+    </article>
+  );
+}
+
+const META_STYLE: CSSProperties = {
+  display: "inline-flex",
+  flexDirection: "column",
+  gap: 2,
+  padding: "0 14px 0 0",
+};
+
+function Meta({ k, v }: { k: string; v: string }) {
+  return (
+    <span style={META_STYLE}>
+      <span
+        style={{
+          fontFamily: "'JetBrains Mono', monospace",
+          fontSize: 10,
+          fontWeight: 500,
+          letterSpacing: "0.18em",
+          textTransform: "uppercase",
+          color: V3.ink3,
+        }}
+      >
+        {k}
+      </span>
+      <span
+        style={{
+          fontFamily: "'JetBrains Mono', monospace",
+          fontSize: 12.5,
+          color: V3.ink,
+          fontWeight: 500,
+        }}
+      >
+        {v}
+      </span>
+    </span>
+  );
+}
+
+function Divider() {
+  return (
+    <span
+      aria-hidden
+      style={{
+        width: 1,
+        height: 24,
+        background: V3.rule,
+        margin: "0 14px 0 0",
+      }}
+    />
   );
 }
