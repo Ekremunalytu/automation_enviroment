@@ -1,10 +1,22 @@
 import { startTransition, useDeferredValue, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
+
 import { FilterRail, type EvidenceFilterState } from "../../components/evidence/FilterRail";
-import { EmptyState } from "../../components/ui/EmptyState";
-import { SegmentedTabs } from "../../components/ui/SegmentedTabs";
 import { SlideOverDrawer } from "../../components/ui/SlideOverDrawer";
+import {
+  Badge,
+  EmptyState,
+  Eyebrow,
+  GhostButton,
+  MetricCell,
+  Panel,
+  PageTitle,
+  ProgressBar,
+  Tabs,
+  V3,
+  type TabSpec,
+} from "../../components/v3";
 import {
   applyEvidenceFilters,
   buildEvidenceFilterOptions,
@@ -23,9 +35,16 @@ import {
   RunActivityPanel,
   SimulationStatusPanel,
   SimulationWorkspace,
-  TelemetryField,
   type WorkspaceTab,
 } from "./sections";
+import { ActivityBars } from "./charts/ActivityBars";
+
+type StreamTab = "live" | "status";
+
+const STREAM_TABS: TabSpec<StreamTab>[] = [
+  { value: "live", label: "Live Evidence" },
+  { value: "status", label: "Run Status" },
+];
 
 function normalizeWorkspaceTab(raw: string | null): WorkspaceTab {
   if (raw === "analysis" || raw === "logs") return raw;
@@ -37,7 +56,7 @@ export function SimulationPage() {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const queryClient = useQueryClient();
   const jobId = searchParams.get("job");
-  const tab = searchParams.get("tab") || "live";
+  const tab: StreamTab = searchParams.get("tab") === "status" ? "status" : "live";
   const workspaceTab = normalizeWorkspaceTab(searchParams.get("workspace"));
   const eventId = searchParams.get("event");
   const inspectorTab = normalizeInspectorTab(searchParams.get("inspector"));
@@ -159,104 +178,226 @@ export function SimulationPage() {
   };
 
   if (!jobId && !getStoredJobId()) {
-    return <EmptyState body="Start an analysis from Marketplace to open the live simulation surface." eyebrow="Simulation" title="No active job selected" />;
+    return (
+      <EmptyState
+        eyebrow="Simulation"
+        title="No active job selected"
+        body="Start an analysis from Marketplace to open the live simulation surface."
+      />
+    );
   }
 
-  return (
-    <div className="space-y-6">
-      <section className="page-header">
-        <div className="space-y-3">
-          <div className="eyebrow">Simulation</div>
-          <h1 className="page-title">{model?.title || "Live run"}</h1>
-          <p className="max-w-3xl text-sm leading-7 text-mute sm:text-base">
-            {job?.message || "Track sandbox progress, then inspect live evidence and attribution without leaving the simulation surface."}
-          </p>
-          <div className="flex flex-wrap gap-2">
-            <span className="info-chip">Job {jobId || "pending"}</span>
-            <span className="info-chip">{filteredEvents.length} visible events</span>
-          </div>
-        </div>
+  const selectedEventRelTime = (() => {
+    if (!report) return null;
+    const event = report.evidence.find((entry) => entry.eventId === eventId);
+    return event?.relTimeS ?? null;
+  })();
 
-        <div className="flex flex-wrap items-center gap-2">
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>
+      <header style={{ paddingBottom: 24, borderBottom: `1px solid ${V3.rule}` }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <Eyebrow>Simulation</Eyebrow>
+          <Badge tone="warn" data-feature-stub="simulation-stream">
+            Polling 2s · live SSE pending
+          </Badge>
+        </div>
+        <PageTitle style={{ marginTop: 14 }}>{model?.title || "Live run"}</PageTitle>
+        <p style={{ fontSize: 14, color: V3.ink3, marginTop: 14, maxWidth: 640, lineHeight: 1.6 }}>
+          {job?.message ||
+            "Track sandbox progress, then inspect live evidence and attribution without leaving the simulation surface."}
+        </p>
+
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 16,
+            flexWrap: "wrap",
+            marginTop: 18,
+          }}
+        >
+          <span
+            style={{
+              fontFamily: "'JetBrains Mono', monospace",
+              fontSize: 11,
+              color: V3.ink3,
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+            }}
+          >
+            Job · {jobId || "pending"}
+          </span>
+          <span
+            style={{
+              fontFamily: "'JetBrains Mono', monospace",
+              fontSize: 11,
+              color: V3.ink3,
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+            }}
+          >
+            Visible · {filteredEvents.length} events
+          </span>
+          <div style={{ flex: 1 }} />
           {isJobActive ? (
-            <button
-              aria-label="Stop simulation"
-              className="ghost-button border-danger/40 text-danger hover:bg-danger/10"
+            <GhostButton
+              ariaLabel="Stop simulation"
               disabled={cancelMutation.isPending}
               onClick={handleStopRun}
-              type="button"
+              style={{ borderColor: V3.coral, color: V3.coral }}
             >
               {cancelMutation.isPending ? "Stopping…" : "Stop simulation"}
-            </button>
+            </GhostButton>
           ) : null}
-          {cancelMutation.isError ? (
-            <span className="text-xs text-danger" role="alert">
-              {cancelMutation.error instanceof Error
-                ? cancelMutation.error.message
-                : "Failed to cancel run."}
-            </span>
-          ) : null}
-          <button className="ghost-button" onClick={() => setFiltersOpen(true)} type="button">
+          <GhostButton ariaLabel="Filters" onClick={() => setFiltersOpen(true)}>
             Filters {activeFilterCount ? `(${activeFilterCount})` : ""}
-          </button>
-          <SegmentedTabs
-            onChange={(next) => {
-              startTransition(() => {
-                const params = new URLSearchParams(searchParams);
-                params.set("tab", next);
-                setSearchParams(params, { replace: true });
-              });
-            }}
-            options={[
-              { value: "live", label: "Live Evidence" },
-              { value: "status", label: "Run Status" },
-            ]}
-            value={tab === "status" ? "status" : "live"}
-          />
+          </GhostButton>
         </div>
-      </section>
 
-      <section className="toolbar-surface">
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <TelemetryField label="Status" value={job?.status || "pending"} />
-          <TelemetryField label="Current phase" value={model?.currentStepLabel || "Awaiting job"} />
-          <TelemetryField label="Last update" value={model?.lastUpdatedLabel || "--"} />
-          <TelemetryField label="Progress" value={model ? `${model.progressPct}%` : "--"} />
-        </div>
+        {cancelMutation.isError ? (
+          <div
+            role="alert"
+            style={{
+              marginTop: 14,
+              border: `1px solid ${V3.coral}`,
+              background: V3.dangerBg,
+              color: V3.coral,
+              padding: "10px 14px",
+              fontSize: 12,
+              fontFamily: "'JetBrains Mono', monospace",
+            }}
+          >
+            {cancelMutation.error instanceof Error
+              ? cancelMutation.error.message
+              : "Failed to cancel run."}
+          </div>
+        ) : null}
+      </header>
+
+      <Panel padded={false} bodyStyle={{ display: "flex", flexDirection: "column", gap: 0 }}>
         <div
-          aria-label="Simulation progress"
-          aria-valuemax={100}
-          aria-valuemin={0}
-          aria-valuenow={model?.progressPct ?? 0}
-          className="mt-4 h-2 overflow-hidden rounded-full bg-canvas"
-          role="progressbar"
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(4, 1fr)",
+            borderBottom: `1px solid ${V3.rule}`,
+          }}
         >
-          <div className="h-full rounded-full bg-accent" style={{ width: `${model?.progressPct || 0}%` }} />
+          {[
+            { label: "Status", value: job?.status || "pending" },
+            { label: "Current phase", value: model?.currentStepLabel || "Awaiting job" },
+            { label: "Last update", value: model?.lastUpdatedLabel || "—" },
+            { label: "Progress", value: model ? `${model.progressPct}%` : "—" },
+          ].map((cell, index) => (
+            <div
+              key={cell.label}
+              style={{
+                padding: "20px 22px",
+                borderRight: index < 3 ? `1px solid ${V3.rule}` : "none",
+              }}
+            >
+              <MetricCell
+                label={cell.label}
+                value={
+                  <span style={{ fontSize: 28, letterSpacing: "-0.03em" }}>{cell.value}</span>
+                }
+              />
+            </div>
+          ))}
         </div>
-        <div className="mt-3 text-sm text-mute">
-          {filteredEvents.length} visible events {report ? `from ${report.summary.totalEvents} total` : "while the run warms up"}
+        <div style={{ padding: "16px 22px" }}>
+          <ProgressBar pct={model?.progressPct ?? 0} />
+          <div
+            style={{
+              marginTop: 10,
+              fontFamily: "'JetBrains Mono', monospace",
+              fontSize: 11,
+              color: V3.ink3,
+              letterSpacing: "0.04em",
+            }}
+          >
+            {filteredEvents.length} visible events
+            {report ? ` from ${report.summary.totalEvents} total` : " while the run warms up"}
+          </div>
         </div>
-      </section>
+        {report?.evidence.length ? (
+          <div
+            style={{
+              padding: "14px 22px 18px",
+              borderTop: `1px solid ${V3.rule}`,
+              background: V3.paper3,
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 8 }}>
+              <Eyebrow>Activity histogram</Eyebrow>
+              <span
+                style={{
+                  fontFamily: "'JetBrains Mono', monospace",
+                  fontSize: 10,
+                  letterSpacing: "0.12em",
+                  textTransform: "uppercase",
+                  color: V3.ink4,
+                }}
+              >
+                20 bins · relative time
+              </span>
+            </div>
+            <ActivityBars
+              events={report.evidence.map((event) => ({ relTimeS: event.relTimeS }))}
+              selectedRelTimeS={selectedEventRelTime}
+            />
+          </div>
+        ) : null}
+      </Panel>
 
       {model?.reportError ? (
         <section
-          className="rounded-[18px] border border-danger/40 bg-danger/10 px-5 py-4 text-sm text-danger"
           role="alert"
+          style={{
+            border: `1px solid ${V3.coral}`,
+            background: V3.dangerBg,
+            color: V3.coral,
+            padding: "16px 18px",
+            fontSize: 13,
+            lineHeight: 1.5,
+          }}
         >
-          <div className="font-semibold">Activation report failed validation</div>
-          <p className="mt-1 text-mute">
-            The sandbox finished but the generated report did not match the
-            contract, so detection results are unavailable. The run can be
-            retried; re-running the analysis usually resolves transient
-            executor issues.
+          <div style={{ fontWeight: 700 }}>Activation report failed validation</div>
+          <p style={{ marginTop: 6, color: V3.ink3 }}>
+            The sandbox finished but the generated report did not match the contract, so detection
+            results are unavailable. Re-running the analysis usually resolves transient executor
+            issues.
           </p>
-          <pre className="mt-3 whitespace-pre-wrap break-words font-body text-xs leading-5 text-mute">
+          <pre
+            style={{
+              marginTop: 12,
+              whiteSpace: "pre-wrap",
+              wordBreak: "break-word",
+              fontFamily: "'JetBrains Mono', monospace",
+              fontSize: 11,
+              lineHeight: 1.5,
+              color: V3.ink3,
+            }}
+          >
             {model.reportError}
           </pre>
         </section>
       ) : null}
 
-      <div className="space-y-5">
+      <Tabs<StreamTab>
+        ariaLabel="Simulation streams"
+        tabs={STREAM_TABS}
+        value={tab}
+        onChange={(next) => {
+          startTransition(() => {
+            const params = new URLSearchParams(searchParams);
+            params.set("tab", next);
+            setSearchParams(params, { replace: true });
+          });
+        }}
+      />
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
         <RunActivityPanel job={job || null} model={model} />
         <LiveRiskStrip onSelectEvent={setSelectedEvent} report={report || null} />
 
