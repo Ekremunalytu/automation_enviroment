@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Manrope:wght@400;500;600;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Manrope:wght@400;500;600;700;800&display=swap");
 
 @tailwind base;
 @tailwind components;
@@ -9,6 +9,28 @@
     color-scheme: dark;
     font-family: "Manrope", sans-serif;
     background: #101416;
+
+    --paper: #0a0a0a;
+    --paper-2: #141414;
+    --paper-3: #1c1c1c;
+    --card: #0f0f0f;
+    --bone: #d6d4d0;
+    --bone-2: #c5c2bd;
+    --coral: #ff5c42;
+    --coral-deep: #e84a31;
+    --coral-soft: #ffe4dd;
+    --ink: #f4f1ea;
+    --ink-2: #cfcbc2;
+    --ink-3: #8a8780;
+    --ink-4: #5a5750;
+    --rule: #2b2b2b;
+    --rule-2: #3a3a3a;
+    --ok: #7ab088;
+    --ok-bg: #13231a;
+    --warn: #d4a85a;
+    --warn-bg: #2a200f;
+    --danger: #ff5c42;
+    --danger-bg: #2a1612;
   }
 
   * {
@@ -34,6 +56,12 @@
       linear-gradient(180deg, #101416 0%, #0b0e10 100%);
   }
 
+  body[data-theme="v3"] {
+    background-color: var(--paper);
+    background-image: none;
+    color: var(--ink);
+  }
+
   button,
   input,
   select,
@@ -55,9 +83,38 @@
     @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/80 focus-visible:ring-offset-2 focus-visible:ring-offset-canvas;
   }
 
+  body[data-theme="v3"] a:focus-visible,
+  body[data-theme="v3"] button:focus-visible,
+  body[data-theme="v3"] input:focus-visible,
+  body[data-theme="v3"] select:focus-visible,
+  body[data-theme="v3"] textarea:focus-visible,
+  body[data-theme="v3"] [tabindex]:not([tabindex="-1"]):focus-visible {
+    outline: 2px solid var(--coral);
+    outline-offset: 2px;
+    box-shadow: none;
+    --tw-ring-shadow: none;
+  }
+
   ::selection {
     background: rgba(103, 164, 255, 0.38);
     color: #ffffff;
+  }
+
+  body[data-theme="v3"] ::selection {
+    background: var(--coral);
+    color: var(--ink);
+  }
+
+  body[data-theme="v3"] {
+    font-feature-settings: normal;
+  }
+
+  body[data-theme="v3"] .font-mono,
+  body[data-theme="v3"] code,
+  body[data-theme="v3"] kbd,
+  body[data-theme="v3"] pre,
+  body[data-theme="v3"] samp {
+    font-feature-settings: "zero";
   }
 }
 
@@ -160,6 +217,58 @@
     background: rgba(141, 156, 175, 0.28);
     border-radius: 999px;
   }
+
+  .v3-page-padding {
+    padding: 48px 56px 96px;
+  }
+
+  .v3-eyebrow {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+
+  .v3-mono {
+    font-family: "JetBrains Mono", monospace;
+    font-feature-settings: "zero";
+  }
+
+  .v3-tab-label {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .v3-button-label {
+    font-family: "Manrope", sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .v3-scrollbar::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  .v3-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .v3-scrollbar::-webkit-scrollbar-thumb {
+    background: #2a2a2a;
+    border-radius: 0;
+  }
+
+  .v3-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: var(--coral);
+  }
 }
 
 @layer utilities {
@@ -171,8 +280,21 @@
     font-variant-numeric: tabular-nums;
   }
 
+  .slashed-zero {
+    font-feature-settings: "zero";
+  }
+
   .page-reveal {
     animation: page-reveal 360ms ease-out both;
+  }
+
+  .v3-page-reveal {
+    animation: v3-page-reveal 280ms ease-out both;
+  }
+
+  .svg-fill-box {
+    transform-box: fill-box;
+    transform-origin: center;
   }
 }
 
@@ -185,6 +307,94 @@
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes v3-page-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes flow-dash {
+  to {
+    stroke-dashoffset: -24;
+  }
+}
+
+@keyframes node-pulse {
+  0%,
+  100% {
+    r: 4;
+    opacity: 1;
+  }
+
+  50% {
+    r: 5.5;
+    opacity: 0.75;
+  }
+}
+
+@keyframes halo-pulse {
+  from {
+    r: 6;
+    opacity: 0.6;
+  }
+
+  to {
+    r: 16;
+    opacity: 0;
+  }
+}
+
+@keyframes radar-sweep {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes radar-breath {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+
+  50% {
+    opacity: 0.85;
+  }
+}
+
+@keyframes tl-pulse {
+  from {
+    r: 4.5;
+    opacity: 0.9;
+  }
+
+  to {
+    r: 16;
+    opacity: 0;
+  }
+}
+
+@keyframes lane-slide {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
   }
 }
 
