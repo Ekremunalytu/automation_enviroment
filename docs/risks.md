@@ -1,6 +1,6 @@
 # Risk Register
 
-`Last Updated: 2026-04-27`
+`Last Updated: 2026-04-29`
 
 This register reflects the current post-W8-0 architecture and the remaining
 post-PoC hardening risks.
@@ -100,6 +100,68 @@ Why it matters:
 - Until W8-7 lands the loopback defaults, CORS allow-list, CDP debug profile,
   and architecture test, operators must treat LAN exposure as an active
   environment risk.
+
+### P2 - API container mounts the host Docker socket (deliberate, scope-bounded)
+
+Files:
+
+- `docker-compose.yml`
+- `executor/host.py`
+- `documents/adrs/0001-single-host-appliance.md`
+
+Why it matters:
+
+- The API container needs `docker exec` to drive the executor; the socket
+  mount is the chosen mechanism. Per ADR 0001 the appliance is single-host
+  single-operator, so the blast radius is the operator's own machine.
+- The trade-off becomes load-bearing the moment LAN exposure is opened: any
+  RCE-equivalent on the API would inherit host-wide container control. This
+  risk therefore tracks W8-7 closely — once loopback is enforced, the
+  exposure is bounded back to its design assumption.
+- Not currently planned to gate with a docker-socket-proxy; revisit only if
+  the threat model shifts (e.g., exposing the API for remote operator use).
+
+### P2 - Executor container runs with NET_RAW + SYS_PTRACE (deliberate, observation-side trade-off)
+
+Files:
+
+- `docker-compose.yml`
+- `executor/container/Dockerfile`
+- `executor/flows/playwright/runtime_capture/network.py`
+- `executor/flows/playwright/runtime_capture/extension_host.py`
+
+Why it matters:
+
+- `NET_RAW` is required by the tshark/tcpdump capture pipeline; `SYS_PTRACE`
+  is required by strace-based extension-host observation.
+- The threat model assumes the extension under analysis can execute
+  arbitrary code inside the executor container. Combined with these caps,
+  an in-sandbox attacker can sniff sibling-process traffic and ptrace other
+  in-container processes — i.e. evade or pollute observation rather than
+  escape the container.
+- Accepted because the observation pipeline depends on these caps; document
+  the trade-off here so the next reviewer doesn't have to re-derive it.
+
+### P2 - Background analysis thread can drop uncaught exception types silently
+
+Files:
+
+- `workflows/marketplace/router.py`
+- `workflows/marketplace/analysis_service.py`
+
+Why it matters:
+
+- `run_analysis_job` enumerates the exception types it converts into
+  `fail_job` calls. Any other exception (e.g. a future `RuntimeError`,
+  `httpx.HTTPError`, `ConnectionResetError`) propagates out of the daemon
+  thread and the job row stays in `running` until process restart triggers
+  `recover_interrupted_jobs`.
+- Cancellation, single-active-job enforcement, and UI status all rely on
+  the row being moved out of `running` promptly; a silent drop blocks the
+  next analysis until restart.
+- Tracked for follow-up in `POST_POC_BACKLOG.md` under
+  `[FOLLOWUP analysis-thread-supervisor]` (structural complement to the
+  existing `7.1.4 narrow the broad except` item).
 
 ## Accepted Risks
 

@@ -132,6 +132,50 @@ already in `ActivationReport`.
   the two reports travel together (`report_bundle`) so quality and
   detection concerns stay decoupled.
 
+### 6.1 Content-Sample Redaction Policy (W8-6)
+
+Findings and evidence artifacts may carry snippets of extension-controlled
+content (file lines, log fragments, header dumps). Without filtering, an
+adversarial extension can leak credentials through the rule-match pipeline
+into reports persisted on disk.
+
+`packages/analysis_contracts/evidence.py::ContentSample` is the single
+authoritative carrier for such snippets. Its `value` field runs through
+`redact_secrets` on construction AND on every assignment
+(`validate_assignment=True`). Raw secret material never persists on the
+model.
+
+Five secret classes are pinned. Replacement marker: `[REDACTED:<class>]`.
+Patterns are ordered most-specific-first; `redact_secrets` is idempotent.
+
+| Class | Trigger |
+|---|---|
+| `aws` | `AWS_(SECRET_ACCESS_KEY\|ACCESS_KEY_ID)=…` env-var form; bare `AKIA[0-9A-Z]{16}` / `ASIA…` access-key body |
+| `bearer` | `Authorization: Bearer <token>` header form; bare `Bearer <token>` with token body ≥ 8 chars |
+| `private_key` | `-----BEGIN … PRIVATE KEY-----` … `-----END … PRIVATE KEY-----` block (full match, body collapsed) |
+| `api_key` | `api_key` / `api-key` / `apikey` followed by `=`/`:` and a 12+-char token |
+| `db_url` | `(postgres\|postgresql\|mysql\|mongodb\|mongodb+srv\|redis)://user:pass@host` with embedded credentials |
+
+Banned patterns (anti-policy):
+
+- No contract under `packages/analysis_contracts/` may surface
+  extension-controlled raw text outside `ContentSample`. New evidence
+  carriers MUST embed `ContentSample` rather than introduce a sibling
+  raw-string field.
+- `EvidenceEvent.raw_context` (a free-form `dict[str, Any]`) predates
+  this rule; rule consumers under
+  `packages/analysis_engine/rules/_common.py` migrate to `ContentSample`
+  during the W8 closure pass.
+- Rule code MUST NOT bypass redaction by reading the original input
+  before constructing `ContentSample`. Construct the sample first, read
+  `.value` after.
+
+Drift gate:
+`tests/platform/security/test_content_sample_redaction.py` pins the
+five-class behavior, idempotence, multi-secret coverage, and
+`validate_assignment` re-entry. Adding a new secret class requires
+adding a parametrized case and updating the `SECRET_CLASSES` set.
+
 ### 7. Rule Lifecycle
 
 Rules progress through explicit states. No rule ships to production without

@@ -1,6 +1,6 @@
 # Post-PoC Backlog
 
-`Last Updated: 2026-04-29`
+`Last Updated: 2026-04-29` (audit-pass refresh)
 
 Open work items deferred from W0-W7 PoC scope. **Slim canonical** — full
 verbose item descriptions, landed-evidence detail, and review triage
@@ -87,6 +87,25 @@ when picking an item up.
 - **`analysis_service._open_job_session`** — move `SessionLocal` import
   back to module top (7.1.2; inlined to break startup cycle).
 - Narrow the broad `except` in `run_analysis_job` (7.1.4).
+- **`[FOLLOWUP analysis-thread-supervisor]`** Structural complement to
+  7.1.4: wrap the daemon-thread `target` (`router.py:186` →
+  `run_analysis_job`) in a `BaseException`-catching supervisor that always
+  calls `job_service.fail_job(job_id, reason=str(exc))` before re-raising,
+  so future un-enumerated exception types cannot leave the row in
+  `running`. AGENTS.md exception for the broad catch documented at the
+  supervisor site only. Surfaced by 2026-04-29 audit pass.
+- **`[FOLLOWUP analysis-thread-error-detail-leakage]`**
+  `analysis_service.map_executor_error()` returns `HTTPException(detail=
+  f"Automation failed: {message}")` where `message` is `str(exc)` from an
+  `ExecutorError`; sanitize/truncate before returning so internal paths
+  and env values do not surface in API responses. Low-impact under
+  loopback default, must close before LAN exposure (W8-7).
+- **`[FOLLOWUP sqlalchemy-error-subtype-logging]`**
+  `appcore/storage/crud_ops/analysis_jobs.py` (and the wider `crud_ops/`
+  surface) catches `SQLAlchemyError` broadly without distinguishing
+  `IntegrityError` (constraint), `OperationalError` (connection), or
+  `ProgrammingError` (schema). Distinguish for incident triage; rolling
+  back/raising semantics stay the same.
 - Tighten `search_marketplace` return type (7.1.5).
 - Pull "domain service" pattern into remaining router surfaces (2.8).
 - `make migrate` pre-check for destructive Alembic operations (7.4.6);
@@ -131,6 +150,32 @@ UI v3 redesign minimal-completion landed `2026-04-29` (see
   `REFACTOR_EXECUTION_PLAN` / `REFACTOR_OPTIMIZATION` dedupe) —
   living-doc cadence not settled yet.
 
+### Repo Hygiene (surfaced 2026-04-29 audit pass)
+
+- **`[CLEANUP repo-tracked-scratch-files]`** — `problems.md` (4.5 KB)
+  and `todo.md` (215 B) at repo root are git-tracked but read like local
+  scratch (analysis artifacts, ad-hoc notes). `.gitignore` already
+  excludes `*.log` / `.coverage` / `htmlcov/`; either `git rm` these
+  two and add explicit ignores, or move their content into the
+  appropriate canonical doc (`automation_todo.md` or active-work
+  tracker).
+- **`[CLEANUP tests-scanner-rename]`** — `tests/scanner/test_executor.py`
+  (34 tests) tests `docker_exec` / `install_extension` / VS Code
+  container harness — i.e. executor-layer concerns. AGENTS.md §62
+  retired the legacy `scanner/` top-level; the test directory still
+  carries the stale name. `git mv tests/scanner tests/executor/scanner`
+  (or merge into `tests/executor/`) and update any pytest path-marker
+  references.
+- **`[CLEANUP report-builder-naming]`** — Two "report" modules with
+  similar names live in different layers:
+  `executor/flows/playwright/report_builder.py` (in-container, builds
+  the on-disk `ActivationReport`) and
+  `workflows/marketplace/analysis_reports.py` (host, loads + validates
+  reports from disk). A grep for "report builder" or "analysis report"
+  matches both and confuses navigation. Rename one when convenient
+  (suggest `analysis_reports.py` → `report_loader.py` since its job
+  is read-side); keep cosmetic, not urgent.
+
 ### Test + Observability (Promoted To W13)
 
 These now live in `REFACTOR_OPTIMIZATION.md §11.10`; tracked here only as
@@ -167,7 +212,11 @@ codex-automation-3, 7, 8.
   pattern likely for W8-6 / W8-8. Either extend the Makefile target
   to fold subsystem-local W8 lanes in, or update
   `active-work/W8-security.md` exit criterion to count the broader
-  test-suite security tally. Defer to W8 closure pass.
+  test-suite security tally. **Partial close 2026-04-29:** W8-6
+  (content-sample redaction) added `tests/platform/security` to the
+  `test-security` target so the new lane runs alongside fixture
+  hygiene; W8-1/W8-3/W8-8 paths remain outside the target. Full
+  reorganization still deferred to W8 closure pass.
 - **`[FOLLOWUP w8-4-broader-executor]`** — W8-4 absolute-binary-path
   discipline applied to `executor/host.py` + `uri_validation.py` only
   (tracker scope). Bare-name `subprocess.run`/`Popen` literals remain
@@ -188,6 +237,34 @@ codex-automation-3, 7, 8.
   literal sites and the variable-indirect cmd lists, then remove the
   pragmas. POST_POC because it is uniformly `# nosec`-annotated already
   and not on the W8 stakeholder bar.
+- **`[FOLLOWUP w8-1-extract-rejection-logging]`** —
+  `workflows/marketplace/client.py:_extract_vsix_to_dir` silently
+  `continue`s when an entry fails the `..` filter (line 166) or the
+  `target.resolve().relative_to(destination_dir.resolve())` check
+  (line 197-200). The extraction-limit branches raise `VSIXUnpackError`
+  with detail; the path-rejection branches drop the entry without a
+  log line, so a malicious VSIX leaves no breadcrumb in the heartbeat
+  or analysis report. Add a single `logger.warning("vsix_entry_rejected
+  reason=... entry=...", ...)` per branch and surface the count in the
+  job report. Surfaced by 2026-04-29 audit pass.
+- **`[FOLLOWUP w8-5-list-endpoint-name-filter]`** — W8-5 closed the
+  `/{name}` and `/{name}/bundle` path-parameter validation; the list
+  endpoint at `workflows/activation_reports/router.py:_list_report_files`
+  still globs `activation_report*.json` without filtering results
+  through `ACTIVATION_REPORT_NAME_RE`. A locally-writable file named
+  e.g. `activation_report_evil.json` would be returned by listing.
+  Threat is bounded (requires local FS write to `output/`), defense in
+  depth. Surfaced by 2026-04-29 audit pass.
+- **`[FOLLOWUP w8-6-content-sample-structural-test]`** — W8-6 redaction
+  is correct on construction + assignment, but there is no contract
+  test that all extension-derived string fields on `ActivationReport`
+  (and its nested types) are typed as `ContentSample` rather than
+  plain `str`. A future rule could add a `str` evidence field and
+  bypass redaction without any gate failing. Land a Pydantic-introspect
+  test under `tests/platform/security/` that walks the schema and
+  asserts the typing constraint. Out-of-scope for W8-6 closure pass
+  but tracked here so it doesn't get lost. Surfaced by 2026-04-29
+  audit pass.
 
 ### Architecture Audit (2026-04-27)
 
