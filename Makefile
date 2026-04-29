@@ -199,7 +199,8 @@ test-security:
 		tests/security/test_rule_coverage.py \
 		tests/security/rules \
 		tests/security/test_rule_validation.py \
-		tests/security/test_benign_silence.py
+		tests/security/test_benign_silence.py \
+		tests/platform/security
 	@echo "✅ Security fixture lane complete!"
 
 test-security-ci-guard:

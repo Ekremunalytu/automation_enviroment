@@ -38,6 +38,11 @@ from packages.analysis_contracts.detection import (
     compute_verdict,
     quantize_confidence,
 )
+from packages.analysis_contracts.evidence import (
+    SECRET_CLASSES,
+    ContentSample,
+    redact_secrets,
+)
 from packages.analysis_contracts.report_invariants import (
     activation_report_invariant_issues,
     detection_report_invariant_issues,
@@ -46,12 +51,14 @@ from packages.analysis_contracts.report_invariants import (
 
 __all__ = [
     "EVENT_ATTEMPT_LIFECYCLE_STATES",
+    "SECRET_CLASSES",
     "ActivationEntry",
     "ActivationReport",
     "ActivationReportFileSummary",
     "AdversaryClass",
     "AutomationHealthStatus",
     "Confidence",
+    "ContentSample",
     "DetectionFinding",
     "DetectionReport",
     "EventAttemptRecord",
@@ -81,5 +88,6 @@ __all__ = [
     "compute_verdict",
     "detection_report_invariant_issues",
     "quantize_confidence",
+    "redact_secrets",
     "scenario_trace_names",
 ]

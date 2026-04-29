@@ -45,7 +45,21 @@ the W8-1..W8-8 detail; full historical snapshot at
   (18 parametrized cases) +
   `tests/architecture/test_extension_slug_regex_drift.py` AST drift gate.
   Status code change: traversal/non-matching paths now 422 instead of 400.)
-- **W8-6, W8-7, W8-8** — pending W8 implementation
+- **W8-6** — landed `2026-04-29` (`packages/analysis_contracts/evidence.py`
+  introduces `ContentSample` Pydantic v2 model with `validate_assignment=True`
+  - `redact_secrets` idempotent filter covering 5 secret classes — `aws`
+  (env-var + AKIA/ASIA body), `bearer` (Authorization header + bare token),
+  `private_key` (BEGIN/END block), `api_key` (≥12-char body envelope), `db_url`
+  (postgres/mysql/mongodb/redis user:pass@host); `tests/platform/security/test_content_sample_redaction.py`
+  (18 cases — 6 secret-class parametrize + multi-secret + idempotence + 5
+  legitimate-text pass-through + empty/None + reassignment + extra-field reject
+  - public re-export); `Makefile` `test-security` target extended with
+  `tests/platform/security` (partial close on
+  `[FOLLOWUP make-test-security-lane-composition]`); ADR 0003 §6.1 redaction
+  policy addendum. Out-of-scope: `EvidenceEvent.raw_context` consumer migration
+  (`packages/analysis_engine/rules/_common.py` readers stay on dict access until
+  W8 closure pass).)
+- **W8-7, W8-8** — pending W8 implementation
 
 ## Goal
 
@@ -185,7 +199,8 @@ command-injection vektörleri içeriyor.
      `appcore/contracts/validators.py` (or consolidation); new test.
    - **Claude:** §1; **Codex:** —.
 
-6. **W8-6 — Content-sample secret redaction.** `ContentSample` evidence
+6. **W8-6 — Content-sample secret redaction.** *(LANDED 2026-04-29)*
+   `ContentSample` evidence
    artifact'ları rule match'lerinde `.value` olarak embedded
    ediliyor; regex hit'inden bazı satırlar (`.env` satırları gibi)
    raw text olarak rapor'a yazılabilir → rapor diske yazıldığında
@@ -305,7 +320,8 @@ command-injection vektörleri içeriyor.
 
 - [ ] 8 yeni security test lane green
 - [ ] `make test-security` 41 → ≥49 passing
-- [ ] ADR 0003 §6 redaction ek maddesi merged
+- [x] ADR 0003 §6.1 redaction policy addendum merged (LANDED 2026-04-29 on
+      `feat/w8-6-content-sample-redaction`).
 - [ ] ADR 0002 §7 "untrusted manifest → log forging" addendum merged
 - [ ] `appcore/contracts/sanitize.py::sanitize_for_log` live; manifest
       field log emit site'ları (extension_catalog, marketplace
@@ -349,6 +365,13 @@ command-injection vektörleri içeriyor.
       `Path(..., pattern=...)` gate; AST drift gate
       `tests/architecture/test_extension_slug_regex_drift.py` blocks
       duplicate slug regex literals; status code shift 400 → 422 documented.
+- [x] `packages/analysis_contracts/evidence.py` `ContentSample` Pydantic v2
+      model + `redact_secrets` 5-class filter live (LANDED 2026-04-29 on
+      `feat/w8-6-content-sample-redaction`); 18-case
+      `tests/platform/security/test_content_sample_redaction.py` pinned;
+      `Makefile` `test-security` target extended with `tests/platform/security`
+      (partial close on `[FOLLOWUP make-test-security-lane-composition]`,
+      W8-1/W8-3/W8-8 lane membership still deferred to W8 closure).
 - [ ] `tests/architecture/test_default_bindings.py` green
       (varsayılan settings `0.0.0.0` üretmiyor; compose `ports:`
       entries `127.0.0.1:` prefix'li veya `debug` profile altında)
