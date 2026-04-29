@@ -87,6 +87,38 @@ the W8-1..W8-8 detail; full historical snapshot at
   actually introduces such an emit site (track:
   `[FOLLOWUP w8-8-manifest-emit-when-needed]` in `POST_POC_BACKLOG.md`).
 
+  **`[!]` Deferred — NOT abandoned.** This item re-opens on either of
+  the two triggers below; both are tracked under
+  `[FOLLOWUP w8-8-manifest-emit-when-needed]`:
+
+  1. **Trigger A — first real call site appears.** A future feature
+     adds a `logger.{info,warning,error,debug,exception}` call that
+     references a manifest field name listed above (typical
+     candidates: an "extension info" diagnostic emit, an audit-trail
+     log of catalog ingestion details, a debug log dumping the parsed
+     manifest). At that point the feature PR **must** also include
+     `appcore/contracts/sanitize.py::sanitize_for_log`, the
+     `tests/architecture/test_manifest_field_log_emit.py` AST gate,
+     ADR 0002 §7 addendum, and
+     `tests/platform/security/test_manifest_log_sanitization.py`.
+     The helper lands alongside its first real caller so the AST
+     gate has a concrete reference shape and the plan body in this
+     file matches code state.
+  2. **Trigger B — proactive security pull.** A subsequent external
+     review or a stakeholder gate explicitly requires the
+     defense-in-depth helper before any real call site exists.
+     In that case the same artifact set lands without a feature
+     hook, and the AST gate is sized against synthetic fixtures
+     (mirroring the `tests/architecture/test_marketplace_identity_concat.py`
+     self-test pattern from W8-2).
+
+  When either trigger fires, walk this DEFERRED block top-to-bottom,
+  add the four artifacts in the matching scope's PR, then retire the
+  followup ID with `[LANDED <date>]` in `POST_POC_BACKLOG.md` and
+  flip this entry's marker to `landed`. The W8-8 plan body below the
+  marker stays as the canonical statement of the threat — do not
+  delete it.
+
 ## Goal
 
 İki review'in kesiştiği **altı güvenlik kritik bulgusu** + iki ek post-PoC

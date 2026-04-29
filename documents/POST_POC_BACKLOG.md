@@ -277,13 +277,45 @@ codex-automation-3, 7, 8.
   unsanitized manifest-field emits) land in the iteration that
   actually introduces such an emit site, so the helper can land
   alongside its first real caller and the AST gate can be sized
-  against real fixtures. The W8-8 plan body in
-  `active-work/W8-security.md` carries a `(DEFERRED 2026-04-29 — see
-  this followup)` marker; do not delete it because the threat
-  description is still the canonical statement of the vector. When
-  picking this up, walk that body, add the helper + tests, then
-  retire this followup ID with a `[LANDED <date>]` marker. Surfaced
-  by 2026-04-29 W8-7 implementation pass.
+  against real fixtures.
+
+  **Reopen triggers (either is sufficient):**
+
+  - **Trigger A — first real call site appears.** A feature PR adds
+    a logger call that references `displayName`,
+    `publisher.displayName`, `description`, `repository.url`,
+    `categories[]`, `homepage`, `bugs`, `qna`, or `license` from the
+    parsed manifest. The same PR ships the four W8-8 artifacts.
+  - **Trigger B — proactive security pull.** External review or a
+    stakeholder gate requires the defense-in-depth helper before any
+    real call site exists. A standalone PR ships the four W8-8
+    artifacts; the AST gate is sized against synthetic fixtures
+    (mirror `tests/architecture/test_marketplace_identity_concat.py`
+    self-test pattern).
+
+  **W8-8 artifact set (four items, all in one PR):**
+
+  1. `appcore/contracts/sanitize.py::sanitize_for_log` helper
+     (CR/LF/C0/C1/ANSI escape, NULL-byte reject, length cap;
+     re-export from `appcore/contracts/__init__.py`).
+  2. `tests/platform/security/test_manifest_log_sanitization.py`
+     (parametrized cases for control-char escape, null-byte reject,
+     length truncation, unicode pass-through, and idempotence —
+     mirroring the W8-6 `test_content_sample_redaction.py` shape).
+  3. `tests/architecture/test_manifest_field_log_emit.py` AST gate
+     (forbids unsanitized manifest field references inside production
+     logger calls; pragma `# arch-allow: untrusted-manifest-log` for
+     legitimate exceptions).
+  4. `documents/adrs/0002-threat-model.md` §7 "Untrusted Manifest
+     Fields as Log Forging Surface" addendum.
+
+  **Pickup procedure:** Walk the DEFERRED block in
+  `active-work/W8-security.md` top-to-bottom, add the four artifacts
+  in the matching trigger's PR, retire this followup ID with
+  `[LANDED <date>]`, and flip the W8-security.md DEFERRED marker to
+  `landed`. **Do not delete the W8-8 plan body** in W8-security.md —
+  it is the canonical statement of the threat and survives the marker
+  flip. Surfaced by 2026-04-29 W8-7 implementation pass.
 
 ### Architecture Audit (2026-04-27)
 

@@ -50,15 +50,34 @@ detail blocks) frozen under
   `tests/architecture/test_default_bindings.py` (14 cases) wired into
   the `make test-security` lane.
 
-W8-8 (manifest log sanitization) is deferred to a future iteration —
-audit on `2026-04-29` confirmed no production logger call in
+W8-8 (manifest log sanitization) is **deferred — not abandoned**. Audit
+on `2026-04-29` confirmed no production logger call in
 `workflows/extension_catalog/` or `workflows/marketplace/` currently
-forwards an attacker-controlled manifest field; the helper + ADR §7 +
-AST gate land alongside the iteration that introduces such an emit
-site (track: `[FOLLOWUP w8-8-manifest-emit-when-needed]` in
-`POST_POC_BACKLOG.md`). With W8-7 landed and W8-8 deferred, W8 is
-**closed for active work** pending the optional ADR 0008 draft on
-container packaging that the active-work tracker keeps as a single
+forwards an attacker-controlled manifest field; the four W8-8 artifacts
+(`sanitize_for_log` helper, parametrized sanitization test, AST gate,
+ADR 0002 §7 addendum) reopen on **either** of two named triggers:
+
+- **Trigger A** — a future feature PR introduces the first real call
+  site that logs `displayName` / `description` / `repository.url` /
+  `categories[]` / `homepage` / `bugs` / `qna` / `license` from a
+  parsed manifest. The W8-8 artifacts ship in the same PR so the
+  helper has a real caller and the AST gate locks in the shape.
+- **Trigger B** — an external review or stakeholder gate explicitly
+  asks for the defense-in-depth helper before any real call site
+  exists. A standalone PR ships the four artifacts and the AST gate
+  is sized against synthetic fixtures.
+
+Track: `[FOLLOWUP w8-8-manifest-emit-when-needed]` in
+`POST_POC_BACKLOG.md` carries the full pickup procedure (artifact
+list, file paths, retirement marker). The W8-8 plan body in
+`active-work/W8-security.md` carries a `(DEFERRED 2026-04-29)` marker
+and a "Deferred — NOT abandoned" callout listing the same triggers;
+the threat description below the marker is the canonical statement of
+the vector and survives the eventual landing flip.
+
+With W8-7 landed and W8-8 deferred under the named triggers above,
+W8 is **closed for active work** pending the optional ADR 0008 draft
+on container packaging that the active-work tracker keeps as a single
 remaining checkbox before W9 entry.
 
 ## Subsystem Posture
