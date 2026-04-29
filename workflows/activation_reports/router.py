@@ -6,11 +6,13 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
+from fastapi import Path as PathParam
 from pydantic import ValidationError
 
 from appcore.api.config import settings
 from appcore.contracts.schema_defs.activation_reports import ActivationReportResponse
 from appcore.contracts.schema_defs.analysis_bundle import AnalysisBundle
+from appcore.contracts.validators import ACTIVATION_REPORT_NAME_RE
 from packages.analysis_contracts import (
     ActivationReport,
     ActivationReportFileSummary,
@@ -215,25 +217,16 @@ def get_latest_activation() -> dict[str, Any]:
 
 
 @router.get("/activations/{name}", response_model=ActivationReportResponse)
-def get_activation_by_name(name: str) -> dict[str, Any]:
+def get_activation_by_name(
+    name: str = PathParam(..., pattern=ACTIVATION_REPORT_NAME_RE.pattern),
+) -> dict[str, Any]:
     """
     Get a specific activation report by filename.
 
-    Args:
-        name: The filename of the report (e.g., "activation_report.json")
-
-    Returns:
-        Full contents of the requested report file.
-
-    Raises:
-        404: If the specified report file does not exist.
+    The path parameter is gated by ``ACTIVATION_REPORT_NAME_RE`` (W8-5);
+    directory-traversal sequences, separators, control characters, and
+    overlength inputs return 422 before this handler runs.
     """
-    # Prevent directory traversal
-    if ".." in name or "/" in name or "\\" in name:
-        raise HTTPException(status_code=400, detail="Invalid filename.")
-    if not name.startswith("activation_report") or not name.endswith(".json"):
-        raise HTTPException(status_code=400, detail="Invalid activation report name.")
-
     path = _get_output_dir() / name
     if not path.exists() or not path.is_file():
         raise HTTPException(
@@ -247,12 +240,9 @@ def get_activation_by_name(name: str) -> dict[str, Any]:
 
 
 @router.get("/activations/{name}/bundle", response_model=AnalysisBundle)
-def get_activation_bundle_by_name(name: str) -> AnalysisBundle:
-    if ".." in name or "/" in name or "\\" in name:
-        raise HTTPException(status_code=400, detail="Invalid filename.")
-    if not name.startswith("activation_report") or not name.endswith(".json"):
-        raise HTTPException(status_code=400, detail="Invalid activation report name.")
-
+def get_activation_bundle_by_name(
+    name: str = PathParam(..., pattern=ACTIVATION_REPORT_NAME_RE.pattern),
+) -> AnalysisBundle:
     path = _get_output_dir() / name
     if not path.exists() or not path.is_file():
         raise HTTPException(status_code=404, detail=f"Report not found: {name}")

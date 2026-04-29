@@ -20,7 +20,32 @@ the W8-1..W8-8 detail; full historical snapshot at
   5 cases)
 - **W8-2** — landed `2026-04-27` (`feat/w8-2-and-reviewer-feedback-gaps`)
 - **W8-3** — landed `2026-04-28` (`feat/w8-3-uri-trigger-argv-form`)
-- **W8-4, W8-5, W8-6, W8-7, W8-8** — pending W8 implementation
+- **W8-4** — landed `2026-04-29` (`executor/binary_paths.py` constants
+  - lazy `docker_path()` resolver; `host.py` 6 invocation sites switched
+  to absolute paths; `XDG_OPEN_PATH` source-of-truth lives in
+  `executor/binary_paths.py` but is *mirrored* inline in
+  `executor/flows/playwright/uri_validation.py:27` because that module
+  runs inside the executor container as a path-based script — `from
+  executor.binary_paths import …` is not resolvable at runtime; sync is
+  guarded by `tests/executor/test_absolute_paths.py::test_uri_validation_re_exports_xdg_open_constant`
+  (any drift between the two literals fails CI);
+  `tests/executor/test_absolute_paths.py` (13 cases) +
+  `tests/architecture/test_absolute_binary_paths.py` AST gate (10 self-test
+  cases). Out-of-scope `editor.py`/`monitor_runtime.py`/`reset_state.py`/
+  `runtime_capture/extension_host.py` carry `# arch-allow: bare-binary-path`
+  pragmas pending `[FOLLOWUP w8-4-broader-executor]`.)
+- **W8-5** — landed `2026-04-29` (`appcore/contracts/validators.py`
+  `valid_extension_slug` + `ACTIVATION_REPORT_NAME_RE` re-import the
+  W8-2 `MARKETPLACE_SLUG_TOKEN_RE` constant; router `/{name}` and
+  `/{name}/bundle` endpoints gated by FastAPI `Path(..., pattern=...)`;
+  duplicate ad-hoc validation removed from
+  `workflows/activation_reports/router.py:217-271`;
+  `tests/platform/contracts/test_validators.py` (35 cases) +
+  `tests/workflows/activation_reports/test_router_path_traversal.py`
+  (18 parametrized cases) +
+  `tests/architecture/test_extension_slug_regex_drift.py` AST drift gate.
+  Status code change: traversal/non-matching paths now 422 instead of 400.)
+- **W8-6, W8-7, W8-8** — pending W8 implementation
 
 ## Goal
 
@@ -307,6 +332,23 @@ command-injection vektörleri içeriyor.
       ediyor; 26 adversarial test case
       `tests/executor/security/test_uri_trigger_injection.py` altında
       pin'li.
+- [x] `executor/binary_paths.py` constants + `docker_path()` resolver live
+      (LANDED 2026-04-29); `host.py` 6 invocation sites use absolute paths;
+      `XDG_OPEN_PATH` source-of-truth in `binary_paths.py`, *mirrored*
+      inline in `executor/flows/playwright/uri_validation.py:27` because
+      that module runs as a path-based script in the executor container
+      (cross-package imports unresolvable at runtime); drift guarded by
+      `tests/executor/test_absolute_paths.py::test_uri_validation_re_exports_xdg_open_constant`.
+      AST gate `tests/architecture/test_absolute_binary_paths.py` blocks
+      bare-name literals in `executor/`. Out-of-scope sites carry
+      `# arch-allow: bare-binary-path` pragmas pending
+      `[FOLLOWUP w8-4-broader-executor]`.
+- [x] `appcore/contracts/validators.py` `valid_extension_slug` +
+      `ACTIVATION_REPORT_NAME_RE` live (LANDED 2026-04-29); activation-report
+      router `/{name}` and `/{name}/bundle` endpoints use FastAPI
+      `Path(..., pattern=...)` gate; AST drift gate
+      `tests/architecture/test_extension_slug_regex_drift.py` blocks
+      duplicate slug regex literals; status code shift 400 → 422 documented.
 - [ ] `tests/architecture/test_default_bindings.py` green
       (varsayılan settings `0.0.0.0` üretmiyor; compose `ports:`
       entries `127.0.0.1:` prefix'li veya `debug` profile altında)

@@ -18,9 +18,24 @@ ALLOWED_URI_SCHEMES: frozenset[str] = frozenset(
     {"vscode", "vscode-insiders", "http", "https"}
 )
 
+# Inline constant: this module runs inside the executor container as a
+# path-based script (sys.path injects /home/executor/flows/playwright/),
+# so cross-package imports like ``executor.binary_paths`` are not
+# resolvable at runtime. ``executor/binary_paths.py`` mirrors this value
+# for host-side host.py callers; an architecture invariant in
+# ``tests/executor/test_absolute_paths.py`` checks the two stay in sync.
 XDG_OPEN_PATH = "/usr/bin/xdg-open"
 
 DEFAULT_TIMEOUT_S = 5.0
+
+__all__ = [
+    "ALLOWED_URI_SCHEMES",
+    "DEFAULT_TIMEOUT_S",
+    "XDG_OPEN_PATH",
+    "UriValidationError",
+    "run_uri_trigger",
+    "validate_uri_scheme",
+]
 
 
 class UriValidationError(ValueError):

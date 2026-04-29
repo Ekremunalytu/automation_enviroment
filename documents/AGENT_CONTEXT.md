@@ -25,7 +25,8 @@ Do not copy phase history here; use `REFACTOR_STATUS.md` (slim canonical).
 - PR345 target activation lifecycle complete `2026-04-27`.
 - W8-0 harness readiness gate landed `2026-04-27`.
 - W8 is open. W8-1 + W8-2 landed `2026-04-27`; W8-3 landed
-  `2026-04-28`. W8-4..W8-8 pending — see `active-work/W8-security.md`.
+  `2026-04-28`; W8-4 + W8-5 landed `2026-04-29`. W8-6, W8-7, W8-8
+  pending — see `active-work/W8-security.md`.
 - ADR 0007 is Accepted, but loopback/`EXTRACE_ALLOW_LAN` enforcement
   is still pending W8-7 implementation.
 

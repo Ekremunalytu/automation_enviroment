@@ -598,6 +598,7 @@ def watch_exthost_log(
     proc: subprocess.Popen[str] | None = None
 
     try:
+        # arch-allow: bare-binary-path  # W8-4-followup: see POST_POC_BACKLOG.md
         proc = subprocess.Popen(  # nosec B603,B607
             ["inotifywait", "-m", "-e", "modify", str(log_path)],
             stdout=subprocess.PIPE,

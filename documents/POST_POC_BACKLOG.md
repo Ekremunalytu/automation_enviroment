@@ -168,6 +168,26 @@ codex-automation-3, 7, 8.
   to fold subsystem-local W8 lanes in, or update
   `active-work/W8-security.md` exit criterion to count the broader
   test-suite security tally. Defer to W8 closure pass.
+- **`[FOLLOWUP w8-4-broader-executor]`** — W8-4 absolute-binary-path
+  discipline applied to `executor/host.py` + `uri_validation.py` only
+  (tracker scope). Bare-name `subprocess.run`/`Popen` literals remain
+  in `editor.py` (xdotool x3), `monitor_runtime.py` (ps),
+  `reset_state.py` (pgrep, bash), and
+  `runtime_capture/extension_host.py` (inotifywait); each carries a
+  `# arch-allow: bare-binary-path` pragma so the
+  `tests/architecture/test_absolute_binary_paths.py` gate stays green.
+  Three additional sites use a `cmd = [...]; subprocess.Popen(cmd)`
+  variable-indirect form that the AST gate intentionally skips
+  (`runtime_capture/network.py:268` `tshark`,
+  `runtime_capture/filesystem.py:203` `inotifywait`,
+  `runtime_capture/extension_host.py:504` `strace`); the followup must
+  cover these too because the gate cannot enforce them today.
+  Pull-next: extend `binary_paths.py` with `XDOTOOL_PATH`, `PS_PATH`,
+  `PGREP_PATH`, `BASH_PATH`, `INOTIFYWAIT_PATH`, **`STRACE_PATH`**, and
+  **`TSHARK_PATH`** (container Linux paths), migrate both pragma'd
+  literal sites and the variable-indirect cmd lists, then remove the
+  pragmas. POST_POC because it is uniformly `# nosec`-annotated already
+  and not on the W8 stakeholder bar.
 
 ### Architecture Audit (2026-04-27)
 

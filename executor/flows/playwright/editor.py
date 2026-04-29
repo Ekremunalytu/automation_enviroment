@@ -35,9 +35,12 @@ def save_file_as(page: Page, filename: str) -> None:
 
     # Clear existing filename in the dialog, type new one, press Enter
     # nosec B603,B607: xdotool with fixed arguments, filename is internal
+    # arch-allow: bare-binary-path  # W8-4-followup: see POST_POC_BACKLOG.md
     subprocess.run(["xdotool", "key", "ctrl+a"], check=True)  # nosec B603,B607
+    # arch-allow: bare-binary-path
     subprocess.run(["xdotool", "type", "--delay", "30", filename], check=True)  # nosec B603,B607
     page.wait_for_timeout(300)
+    # arch-allow: bare-binary-path
     subprocess.run(["xdotool", "key", "Return"], check=True)  # nosec B603,B607
     page.wait_for_timeout(1000)
 

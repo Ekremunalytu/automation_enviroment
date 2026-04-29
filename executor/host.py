@@ -6,6 +6,13 @@ import subprocess
 import time
 from pathlib import Path
 
+from executor.binary_paths import (
+    CODE_PATH,
+    PKILL_PATH,
+    PYTHON3_PATH,
+    RM_PATH,
+    docker_path,
+)
 from executor.config import settings
 from packages.marketplace_identity import safe_marketplace_slug
 
@@ -51,7 +58,7 @@ def _run_docker_exec(
     allow_partial: bool,
 ) -> subprocess.CompletedProcess[str]:
     container = settings.executor.CONTAINER_NAME
-    full_cmd = ["docker", "exec", "-e", "PYTHONUNBUFFERED=1", container, *cmd]
+    full_cmd = [docker_path(), "exec", "-e", "PYTHONUNBUFFERED=1", container, *cmd]
 
     for attempt in range(_DOCKER_MAX_RETRIES):
         try:
@@ -154,7 +161,7 @@ def install_extension_in_executor(publisher: str, name: str, version: str) -> st
     slug = safe_marketplace_slug(publisher, name, version)
     vsix_container_path = f"{settings.executor.EXTENSIONS_CONTAINER_PATH}/{slug}.vsix"
     cmd = [
-        "code",
+        CODE_PATH,
         "--install-extension",
         vsix_container_path,
         "--no-sandbox",
@@ -192,7 +199,7 @@ _RELOAD_CLEANUP_TIMEOUT = 5
 def _cleanup_stale_reload_processes() -> None:
     try:
         _docker_exec_allow_partial(
-            ["pkill", "-f", settings.executor.RELOAD_SCRIPT_PATH],
+            [PKILL_PATH, "-f", settings.executor.RELOAD_SCRIPT_PATH],
             timeout=_RELOAD_CLEANUP_TIMEOUT,
         )
     except ExecutorError:
@@ -202,7 +209,7 @@ def _cleanup_stale_reload_processes() -> None:
 def _cleanup_stale_entrypoint_processes() -> None:
     try:
         _docker_exec_allow_partial(
-            ["pkill", "-f", settings.executor.ENTRYPOINT_PATH],
+            [PKILL_PATH, "-f", settings.executor.ENTRYPOINT_PATH],
             timeout=_RELOAD_CLEANUP_TIMEOUT,
         )
     except ExecutorError:
@@ -227,7 +234,7 @@ def reload_vscode_window() -> str:
     _cleanup_stale_reload_processes()
     try:
         result = _docker_exec(
-            ["python3", settings.executor.RELOAD_SCRIPT_PATH],
+            [PYTHON3_PATH, settings.executor.RELOAD_SCRIPT_PATH],
             timeout=_RELOAD_TIMEOUT,
         )
     except ExecutorError as exc:
@@ -243,7 +250,7 @@ def reload_vscode_window() -> str:
 def reset_executor_sandbox_state(reload_window: bool = True) -> str:
     _cleanup_stale_entrypoint_processes()
     reset_result = _docker_exec(
-        ["python3", settings.executor.RESET_SCRIPT_PATH],
+        [PYTHON3_PATH, settings.executor.RESET_SCRIPT_PATH],
         timeout=_RESET_TIMEOUT,
     )
     outputs = [reset_result.stdout.strip()]
@@ -262,7 +269,7 @@ def cleanup_trigger_file(trigger_container_path: str | None) -> None:
 
     _docker_exec_target_path(trigger_container_path).unlink(missing_ok=True)
     _docker_exec_allow_partial(
-        ["rm", "-f", trigger_container_path],
+        [RM_PATH, "-f", trigger_container_path],
         timeout=_RELOAD_CLEANUP_TIMEOUT,
     )
 
@@ -281,7 +288,7 @@ def run_playwright_automation(
             None if trigger_container_path else _DEFAULT_SCENARIO
         )
     cmd = [
-        "python3",
+        PYTHON3_PATH,
         settings.executor.ENTRYPOINT_PATH,
         "--monitor",
         "--report-path",

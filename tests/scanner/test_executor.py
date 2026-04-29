@@ -9,6 +9,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 import executor.config as executor_config
+from executor import binary_paths
+from executor.binary_paths import CODE_PATH, PKILL_PATH, PYTHON3_PATH, RM_PATH
 from executor.host import (
     ExecutorError,
     _cleanup_stale_reload_processes,
@@ -21,6 +23,18 @@ from executor.host import (
     run_playwright_automation,
 )
 from packages.marketplace_identity import MarketplaceIdentityError
+
+
+_FAKE_DOCKER_PATH = "/fake/abs/docker"
+
+
+@pytest.fixture(autouse=True)
+def _pin_docker_path(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Pin ``docker_path()`` to a deterministic absolute path so argv
+    assertions remain stable across host environments (W8-4)."""
+    binary_paths._reset_docker_path_cache()
+    monkeypatch.setattr(binary_paths.shutil, "which", lambda _name: _FAKE_DOCKER_PATH)
+
 
 # ---------------------------------------------------------------------------
 # _docker_exec
@@ -39,7 +53,8 @@ def test_docker_exec_success(mock_run: MagicMock) -> None:
     assert result.stdout == "ok\n"
     mock_run.assert_called_once()
     call_args = mock_run.call_args[0][0]
-    assert call_args[0:2] == ["docker", "exec"]
+    assert call_args[0] == _FAKE_DOCKER_PATH
+    assert call_args[1] == "exec"
     # PYTHONUNBUFFERED=1 should be passed as env flag
     assert "-e" in call_args
     assert "PYTHONUNBUFFERED=1" in call_args
@@ -160,7 +175,8 @@ def test_install_extension_success(mock_exec: MagicMock) -> None:
 
     assert "successfully installed" in output
     call_cmd = mock_exec.call_args[0][0]
-    assert "code" in call_cmd
+    assert CODE_PATH in call_cmd
+    assert call_cmd[0] == "/usr/bin/code"
     assert "--install-extension" in call_cmd
     assert any("pub.ext-1.0.0.vsix" in arg for arg in call_cmd)
 
@@ -340,7 +356,7 @@ def test_run_automation_success(
 
     assert "Report written" in output
     call_cmd = mock_exec.call_args[0][0]
-    assert "python3" in call_cmd
+    assert PYTHON3_PATH in call_cmd
     assert "--monitor" in call_cmd
     assert "--report-path" in call_cmd
     assert "/results/report.json" in call_cmd
@@ -591,7 +607,7 @@ def test_reload_vscode_window_success(
 
     assert "Done" in output
     call_cmd = mock_exec.call_args[0][0]
-    assert "python3" in call_cmd
+    assert PYTHON3_PATH in call_cmd
     assert "reload_vscode.py" in call_cmd[-1]
     mock_cleanup.assert_called_once_with()
 
@@ -656,7 +672,7 @@ def test_cleanup_stale_reload_processes_ignores_missing_processes(
     mock_exec.assert_called_once()
     call_cmd = mock_exec.call_args[0][0]
     assert call_cmd == [
-        "pkill",
+        PKILL_PATH,
         "-f",
         "/home/executor/flows/playwright/reload_vscode.py",
     ]
@@ -675,7 +691,9 @@ def test_cleanup_trigger_file_removes_host_and_container_artifacts(
         cleanup_trigger_file("/results/triggers.json")
 
     assert not host_trigger.exists()
-    mock_exec.assert_called_once_with(["rm", "-f", "/results/triggers.json"], timeout=5)
+    mock_exec.assert_called_once_with(
+        [RM_PATH, "-f", "/results/triggers.json"], timeout=5
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -705,10 +723,10 @@ def test_reset_executor_sandbox_state_with_reload(
     assert "[reset] sandbox ready" in output
     assert "[reload] Done" in output
     call_cmd = mock_exec.call_args[0][0]
-    assert call_cmd[0] == "python3"
+    assert call_cmd[0] == PYTHON3_PATH
     assert "reset_state.py" in call_cmd[-1]
     mock_exec_allow_partial.assert_called_once_with(
-        ["pkill", "-f", "/home/executor/flows/playwright/entrypoint.py"],
+        [PKILL_PATH, "-f", "/home/executor/flows/playwright/entrypoint.py"],
         timeout=5,
     )
     mock_reload.assert_called_once_with()
@@ -740,7 +758,7 @@ def test_reset_executor_sandbox_state_retries_reload_once(
     assert "[reset] sandbox ready" in output
     assert "[reload] Done" in output
     mock_exec_allow_partial.assert_called_once_with(
-        ["pkill", "-f", "/home/executor/flows/playwright/entrypoint.py"],
+        [PKILL_PATH, "-f", "/home/executor/flows/playwright/entrypoint.py"],
         timeout=5,
     )
     mock_sleep.assert_called_once_with(2)
@@ -767,7 +785,7 @@ def test_reset_executor_sandbox_state_without_reload(
 
     assert output == "[reset] sandbox ready"
     mock_exec_allow_partial.assert_called_once_with(
-        ["pkill", "-f", "/home/executor/flows/playwright/entrypoint.py"],
+        [PKILL_PATH, "-f", "/home/executor/flows/playwright/entrypoint.py"],
         timeout=5,
     )
     mock_reload.assert_not_called()

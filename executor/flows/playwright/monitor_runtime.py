@@ -199,6 +199,7 @@ def _select_extension_host_pid(entries: list[_ProcessEntry]) -> int | None:
 
 def _find_extension_host_pid() -> int | None:
     try:
+        # arch-allow: bare-binary-path  # W8-4-followup: see POST_POC_BACKLOG.md
         result = subprocess.run(  # nosec B603
             ["ps", "-eo", "pid=,ppid=,args="],
             capture_output=True,

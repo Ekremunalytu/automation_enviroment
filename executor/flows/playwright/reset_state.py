@@ -58,6 +58,7 @@ def _clear_directory(path: Path) -> int:
 def _find_vscode_pids() -> list[int]:
     """Return PIDs of VS Code processes this executor started, if any."""
     try:
+        # arch-allow: bare-binary-path  # W8-4-followup: see POST_POC_BACKLOG.md
         result = subprocess.run(
             ["pgrep", "-f", _VSCODE_PROCESS_NEEDLE],
             capture_output=True,
@@ -149,6 +150,7 @@ def launch_vscode() -> int | None:
     if not _VSCODE_LAUNCH_SCRIPT.is_file():
         return None
     try:
+        # arch-allow: bare-binary-path  # W8-4-followup: see POST_POC_BACKLOG.md
         result = subprocess.run(
             ["bash", str(_VSCODE_LAUNCH_SCRIPT)],
             capture_output=True,

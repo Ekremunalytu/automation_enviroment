@@ -27,12 +27,20 @@ detail blocks) frozen under
   components pruned, Inspector drawer + event-scoped `RuleDraftSection`
   on Reports, Run health + Coverage summary panels on Simulation,
   `design_handoff_extrace_console/` prototype retired.
+- **W8-4 absolute binary paths landed `2026-04-29`** —
+  `executor/binary_paths.py` constants + lazy `docker_path()` resolver;
+  `host.py` 6 invocation sites switched to absolute paths; AST gate
+  `tests/architecture/test_absolute_binary_paths.py` pins discipline.
+- **W8-5 router regex consolidation landed `2026-04-29`** —
+  `appcore/contracts/validators.py` re-imports W8-2's
+  `MARKETPLACE_SLUG_TOKEN_RE`; activation-report router uses FastAPI
+  `Path(..., pattern=...)` gate; AST drift gate prevents duplicate slug
+  regex literals.
 
 W8 is in progress. Active checklist:
 [`active-work/W8-security.md`](active-work/W8-security.md). Remaining
-items: W8-4 (absolute paths), W8-5 (router regex consolidation),
-W8-6 (content-sample redaction), W8-7 (ADR 0007 local network binding),
-W8-8 (manifest log sanitization).
+items: W8-6 (content-sample redaction), W8-7 (ADR 0007 local network
+binding), W8-8 (manifest log sanitization).
 
 ## Subsystem Posture
 

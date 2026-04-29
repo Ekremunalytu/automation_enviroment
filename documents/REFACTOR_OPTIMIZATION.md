@@ -144,7 +144,9 @@ Status quick glance:
 - W8-1 — landed `2026-04-27`
 - W8-2 — landed `2026-04-27`
 - W8-3 — landed `2026-04-28`
-- W8-4, W8-5, W8-6, W8-7, W8-8 — pending
+- W8-4 — landed `2026-04-29`
+- W8-5 — landed `2026-04-29`
+- W8-6, W8-7, W8-8 — pending
 
 ### §11.6 — W9 Executor↔Detection Boundary
 

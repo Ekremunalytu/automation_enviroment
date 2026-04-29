@@ -236,22 +236,21 @@ def test_get_activation_by_name_404(client: TestClient, mock_output_dir: Path):
 
 
 def test_get_activation_security_traversal(client: TestClient, mock_output_dir: Path):
-    """Test path traversal protection."""
-    # Test with ".." which is blocked by our logic
+    """W8-5: Path-traversal sequences are rejected at the FastAPI Path
+    pattern gate before the handler runs (HTTP 422)."""
     response = client.get("/api/activations/suspicious..name.json")
-    assert response.status_code == 400
-    assert "Invalid filename" in response.json()["detail"]
+    assert response.status_code == 422
 
 
 def test_get_activation_rejects_non_report_name(
     client: TestClient, mock_output_dir: Path
 ):
-    """Only activation report filenames are allowed."""
+    """W8-5: Only activation report filenames matching
+    ``ACTIVATION_REPORT_NAME_RE`` are accepted (HTTP 422 otherwise)."""
     create_report(mock_output_dir, "triggers_hidden.json", {"selected_scenarios": []})
 
     response = client.get("/api/activations/triggers_hidden.json")
-    assert response.status_code == 400
-    assert "Invalid activation report name" in response.json()["detail"]
+    assert response.status_code == 422
 
 
 def test_read_report_corrupt_json(client: TestClient, mock_output_dir: Path):
