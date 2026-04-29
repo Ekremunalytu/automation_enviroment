@@ -69,11 +69,22 @@ Two paths, depending on whether you run the API in host mode or in Docker.
 EXTRACE_ALLOW_LAN=1 make dev-lan
 ```
 
-This sets the env var and starts uvicorn with `--host 0.0.0.0`. The
-`APISettings.model_post_init` hook in
+The target emits a one-line warning to stdout before uvicorn launches:
+
+```text
+⚠️  ADR 0007 — LAN binding requested. Read documents/runbooks/lan-exposure.md first.
+```
+
+This banner is intentional — it is the only in-process signal that the
+loopback default has been bypassed. If the warning does not appear, the
+flag is not active and the process is still loopback-bound.
+
+The `APISettings.model_post_init` hook in
 [appcore/api/config.py](../../appcore/api/config.py) substitutes
 `HOST=0.0.0.0` and (if you did not set an explicit allow-list) restores
-`CORS_ALLOW_ORIGINS=*`.
+`CORS_ALLOW_ORIGINS=*`. Explicit `API_HOST=...` and
+`API_CORS_ALLOW_ORIGINS=...` overrides win over the substitution; the
+hook only swaps when the field still holds the loopback default.
 
 ### Docker (`make up`)
 

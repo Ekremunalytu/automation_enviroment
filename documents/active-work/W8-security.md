@@ -59,7 +59,8 @@ the W8-1..W8-8 detail; full historical snapshot at
   policy addendum. Out-of-scope: `EvidenceEvent.raw_context` consumer migration
   (`packages/analysis_engine/rules/_common.py` readers stay on dict access until
   W8 closure pass).)
-- **W8-7** — landed `2026-04-29` (`feat/w8-7-lan-binding-defaults`).
+- **W8-7** — landed `2026-04-29` (`feat/w8-7-lan-binding-defaults`) per
+  [ADR 0007](../adrs/0007-local-network-binding.md).
   `appcore/api/config.py` defaults `HOST=127.0.0.1`,
   `CORS_ALLOW_ORIGINS=http://localhost:3000`,
   `CORS_ALLOW_CREDENTIALS=False`; `model_post_init` substitutes
@@ -70,8 +71,13 @@ the W8-1..W8-8 detail; full historical snapshot at
   sidecar gated by `profiles: ["debug"]`. `Makefile` adds `dev-lan`
   and `up-debug` targets. `documents/runbooks/lan-exposure.md` documents the
   operator-side pre-flight (firewall, reverse-proxy auth, explicit
-  CORS allow-list, rotated PostgreSQL password). 14 cases pinned in
-  `tests/architecture/test_default_bindings.py`; `make test-security`
+  CORS allow-list, rotated PostgreSQL password) and the `dev-lan`
+  warning banner. Regression cases pinned in
+  `tests/architecture/test_default_bindings.py` (loopback defaults,
+  explicit-override-wins for `HOST` and `CORS_ALLOW_ORIGINS`, CORS
+  methods/headers allow-list, credentials False under LAN mode,
+  `_allow_lan()` whitespace/case tolerance, compose default-profile
+  loopback discipline, CDP debug-profile gate); `make test-security`
   lane wired in. ADR 0002 §4 trust-boundary table extended with the
   "Operator host network interfaces" row.
 - **W8-8** — **deferred** (audit `2026-04-29`). The original W8-8 plan

@@ -128,3 +128,77 @@ def test_compose_cdp_port_is_debug_gated() -> None:
         "CDP port 9222 must remain reachable under the `debug` profile "
         "(executor-cdp socat sidecar)."
     )
+
+
+def test_explicit_host_override_wins_over_lan_substitution(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """ADR 0007: explicit env overrides win — `model_post_init` only swaps
+    in `0.0.0.0` when `HOST` still holds the loopback default. An operator
+    who pins a specific bind address must keep it even with the LAN flag on."""
+    monkeypatch.setenv("EXTRACE_ALLOW_LAN", "1")
+    monkeypatch.setenv("API_HOST", "192.168.1.10")
+    settings = _fresh_api_settings()
+    assert settings.HOST == "192.168.1.10"
+
+
+def test_explicit_cors_origins_override_wins_over_lan_substitution(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Explicit `API_CORS_ALLOW_ORIGINS` allow-list survives the LAN-mode
+    wildcard substitution. The runbook §Pre-Flight item 3 mandates an
+    explicit list; this test pins that the substitution does not silently
+    overwrite it."""
+    monkeypatch.setenv("EXTRACE_ALLOW_LAN", "1")
+    monkeypatch.setenv(
+        "API_CORS_ALLOW_ORIGINS",
+        "https://extrace.lab.local,https://analyst.lab.local",
+    )
+    settings = _fresh_api_settings()
+    assert settings.cors_allow_origins == [
+        "https://extrace.lab.local",
+        "https://analyst.lab.local",
+    ]
+    assert "*" not in settings.cors_allow_origins
+
+
+def test_cors_methods_default_is_explicit_allow_list() -> None:
+    settings = _fresh_api_settings()
+    assert settings.cors_allow_methods == [
+        "GET",
+        "POST",
+        "PUT",
+        "DELETE",
+        "PATCH",
+        "OPTIONS",
+    ]
+    assert "*" not in settings.cors_allow_methods
+
+
+def test_cors_headers_default_is_explicit_allow_list() -> None:
+    settings = _fresh_api_settings()
+    assert settings.cors_allow_headers == ["Content-Type", "Authorization"]
+    assert "*" not in settings.cors_allow_headers
+
+
+def test_cors_credentials_remains_false_under_lan_mode(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Even when `EXTRACE_ALLOW_LAN=1` widens origins to `*`, credentials
+    must stay False — the browser CORS spec rejects `*` paired with
+    credentials=true (runbook §Pre-Flight item 3)."""
+    monkeypatch.setenv("EXTRACE_ALLOW_LAN", "1")
+    settings = _fresh_api_settings()
+    assert settings.cors_allow_origins == ["*"]
+    assert settings.CORS_ALLOW_CREDENTIALS is False
+
+
+@pytest.mark.parametrize("padded", [" 1 ", "TRUE\n", "  yes", "On\t"])
+def test_extrace_allow_lan_strips_and_lowercases(
+    padded: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`_allow_lan()` applies `.strip().lower()` before the truthy
+    comparison; whitespace and case must not gate the opt-in."""
+    monkeypatch.setenv("EXTRACE_ALLOW_LAN", padded)
+    settings = _fresh_api_settings()
+    assert settings.HOST == "0.0.0.0"
