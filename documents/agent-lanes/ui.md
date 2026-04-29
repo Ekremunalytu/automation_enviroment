@@ -1,16 +1,24 @@
 # UI Lane
 
-`Last Updated: 2026-04-27`
+`Last Updated: 2026-04-29`
 
 Use this lane for the React/Vite analyst console, frontend contracts, route
-behavior, report views, simulation UI, and UI tests.
+behavior, report views, simulation UI, rules / settings / system surfaces,
+shared v3 primitives, and UI tests.
 
 ## Start Here
 
 - `ui/src/app/`
 - `ui/src/features/marketplace/`
 - `ui/src/features/reports/`
+- `ui/src/features/reports/charts/` — bespoke SVG (`EventTimeline`,
+  `InteractionGraph`)
 - `ui/src/features/simulation/`
+- `ui/src/features/simulation/charts/` — bespoke SVG (`ActivityBars`)
+- `ui/src/features/rules/` — rule library + draft preview
+- `ui/src/features/settings/` — operator preferences (localStorage-backed)
+- `ui/src/features/system/` — service health (executor `/health` only)
+- `ui/src/components/v3/` — shared primitive kitaplığı + design tokens
 - `ui/src/components/`
 - `ui/src/lib/api/`
 - `ui/src/lib/types/`
@@ -25,6 +33,12 @@ behavior, report views, simulation UI, and UI tests.
 - Detection verdict is authoritative on `DetectionReport`; activation-layer
   `signal_summary` is a behavioral heuristic.
 - Keep dense operator workflows usable; avoid marketing-style pages.
+- v3 design tokens (`ui/src/components/v3/tokens.ts` and
+  `ui/tailwind.config.js`) are the single source of truth for color,
+  spacing, and typography; do not reintroduce ad-hoc inline tokens.
+- Backend-pending surfaces must remain visibly marked (`Backend pending`
+  badge or `data-feature-stub` attribute) until the matching backlog entry
+  (`[BACKLOG ui-v3-1..8]`, `[BACKLOG ui-v3-13]`) lands.
 
 ## Tests And Checks
 

@@ -148,13 +148,30 @@ Sandbox control and runtime.
 Primary analyst-facing SPA.
 
 - `ui/src/app/`
-  - route shell and lazy route composition
+  - route shell, lazy route composition, and the collapsible left-rail
+    AppShell
 - `ui/src/features/marketplace/`
   - search, download, and analysis job launch
 - `ui/src/features/simulation/`
-  - job polling, live evidence, log streams, and inspector surface
+  - job polling, live evidence, log streams, inspector surface, run health,
+    and coverage summary; bespoke SVG `ActivityBars` lives under `charts/`
 - `ui/src/features/reports/`
-  - final report workspace with tabbed evidence slices
+  - final report workspace with tabbed evidence slices, inspector drawer,
+    and event-scoped `RuleDraftSection`; bespoke SVG `EventTimeline` and
+    `InteractionGraph` live under `charts/`
+- `ui/src/features/rules/`
+  - rule library overview + draft preview (save endpoint deferred — see
+    `[BACKLOG ui-v3-13]`)
+- `ui/src/features/settings/`
+  - operator preferences UI; persists to `localStorage` until the settings
+    API lands (`[BACKLOG ui-v3-5]`)
+- `ui/src/features/system/`
+  - service health + telemetry tiles; only the executor `/health` endpoint
+    is wired today (`[BACKLOG ui-v3-6]`)
+- `ui/src/components/v3/`
+  - shared primitive kitaplığı (Panel, Tabs, Buttons, MetricCell, Badge,
+    EmptyState, ProgressBar, RiskDot, Field, KVRow, Crosshair, LogoMark,
+    Typography) + `tokens.ts`; mirrored in `ui/tailwind.config.js`
 - `ui/src/lib/`
   - API client, runtime config, adapters, generated contract types, rules,
     chart helpers, and shared frontend helpers

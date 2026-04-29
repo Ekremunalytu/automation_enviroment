@@ -1,6 +1,6 @@
 # Project Structure
 
-`Last Updated: 2026-04-25`
+`Last Updated: 2026-04-29`
 
 This is the current top-level layout and placement guidance for the refactored
 repository.
@@ -87,13 +87,17 @@ ui/
       layout/
     components/
       evidence/
-      marketplace/
-      simulation/
       ui/
+      v3/                       # shared v3 primitive kitaplığı + tokens
     features/
       marketplace/
       reports/
+        charts/                 # bespoke SVG (EventTimeline, InteractionGraph)
+      rules/                    # rule library + draft preview
+      settings/                 # operator preferences (localStorage)
       simulation/
+        charts/                 # bespoke SVG (ActivityBars)
+      system/                   # service health (executor /health)
     lib/
       adapters/
       api/
@@ -109,11 +113,20 @@ ui/
 
 Notes:
 
-- The routed analyst surfaces are `/marketplace`, `/simulation`, and `/reports`.
+- The routed analyst surfaces are `/reports`, `/simulation`, `/marketplace`,
+  `/rules`, `/settings`, and `/system`.
 - Evidence, inspector, and rule-draft behavior is largely composed from
   `ui/src/components/evidence/` plus adapters and draft helpers in
   `ui/src/lib/`.
+- Shared v3 primitives (Panel, Tabs, Buttons, MetricCell, Badge, EmptyState,
+  ProgressBar, RiskDot, Field, KVRow, Crosshair, LogoMark, Typography) and
+  design tokens live in `ui/src/components/v3/`; Tailwind tokens are mirrored
+  in `ui/tailwind.config.js`.
 - Backend-owned UI contract types are generated into `ui/src/lib/types/`.
+- Backend gaps for the v3 surfaces (`/rules`, `/settings`, `/system`, plus
+  enrichments on existing pages) are tracked under `[BACKLOG ui-v3-1..8]` and
+  `[BACKLOG ui-v3-13]` in `documents/POST_POC_BACKLOG.md`; the UI exposes
+  them with `Backend pending` badges or `data-feature-stub` markers.
 
 ## Executor Layout
 

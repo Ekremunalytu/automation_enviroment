@@ -21,6 +21,12 @@ Routes:
 - `/reports?report=latest&tab=overview`
 - `/simulation?job=<jobId>&tab=live`
 - `/marketplace?q=<query>`
+- `/rules` — rule library overview + draft preview (save endpoint pending,
+  see `[BACKLOG ui-v3-13]`)
+- `/settings` — operator preferences, persists to `localStorage` until the
+  settings API lands (see `[BACKLOG ui-v3-5]`)
+- `/system` — service health + telemetry tiles; only the executor `/health`
+  endpoint is wired today (see `[BACKLOG ui-v3-6]`)
 
 Key behavior:
 
@@ -31,6 +37,15 @@ Key behavior:
   `ui/src/lib/adapters/`
 - Docker runtime injects `window.__EXTRACE_CONFIG__` through `env.js`
 - the simulation surface assumes only one active background analysis at a time
+- shared v3 primitives live in `ui/src/components/v3/` (Panel, Tabs, Buttons,
+  MetricCell, Badge, EmptyState, ProgressBar, RiskDot, Field, KVRow, Crosshair,
+  LogoMark, Typography); design tokens are in `ui/src/components/v3/tokens.ts`
+  and `ui/tailwind.config.js`
+- bespoke SVG visuals (keyframe-driven, ECharts-independent) live under
+  `ui/src/features/reports/charts/` (`EventTimeline`, `InteractionGraph`) and
+  `ui/src/features/simulation/charts/` (`ActivityBars`)
+- `AppShell` renders a collapsible left rail; backend-pending surfaces show
+  explicit `Backend pending` badges or `data-feature-stub` markers
 
 Local development:
 
