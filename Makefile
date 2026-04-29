@@ -14,7 +14,7 @@ endif
 
 .PHONY: help install install-dev install-hooks lint lint-check format typecheck \
         security test test-unit test-integration test-smoke test-security test-security-ci-guard test-security-live test-cov test-local test-ci check check-all all clean \
-        dev run build rebuild up down logs ps restart status \
+        dev dev-lan run build rebuild up up-debug down logs ps restart status \
         migrate migrate-create venv-check \
         exec-build exec-up exec-down exec-shell exec-test exec-run \
         ui-build ui-up ui-down ui-types ui-types-check ui-boundaries \
@@ -95,7 +95,9 @@ help:
 	@echo "║  migrate        │ Run Alembic migrations                          ║"
 	@echo "║  migrate-create │ Create new migration                            ║"
 	@echo "╠═══════════════════════════════════════════════════════════════════╣"
-	@echo "║  dev            │ Local dev server (uvicorn --reload)             ║"
+	@echo "║  dev            │ Local dev server (loopback, uvicorn --reload)   ║"
+	@echo "║  dev-lan        │ Local dev server with EXTRACE_ALLOW_LAN=1       ║"
+	@echo "║  up-debug       │ Compose up with `debug` profile (CDP exposed)   ║"
 	@echo "║  clean          │ Clean cache / build files                       ║"
 	@echo "╚═══════════════════════════════════════════════════════════════════╝"
 
@@ -163,10 +165,14 @@ security:
 # =============================================================================
 
 dev:
-	$(VENV)/uvicorn main:app --reload
+	$(VENV)/uvicorn main:app --reload --host 127.0.0.1
+
+dev-lan:
+	@echo "⚠️  ADR 0007 — LAN binding requested. Read documents/runbooks/lan-exposure.md first."
+	EXTRACE_ALLOW_LAN=1 $(VENV)/uvicorn main:app --reload --host 0.0.0.0
 
 run:
-	$(VENV)/uvicorn main:app
+	$(VENV)/uvicorn main:app --host 127.0.0.1
 
 # =============================================================================
 # TESTING
@@ -200,7 +206,8 @@ test-security:
 		tests/security/rules \
 		tests/security/test_rule_validation.py \
 		tests/security/test_benign_silence.py \
-		tests/platform/security
+		tests/platform/security \
+		tests/architecture/test_default_bindings.py
 	@echo "✅ Security fixture lane complete!"
 
 test-security-ci-guard:
@@ -324,6 +331,12 @@ up:
 	@docker-compose up -d
 	@docker-compose ps
 	@echo "✅ All containers running!"
+
+up-debug:
+	@echo "🐛 Starting containers with debug profile (CDP port 9222 exposed)..."
+	@docker-compose --profile debug up -d
+	@docker-compose --profile debug ps
+	@echo "✅ Debug-profile containers running. CDP available on 127.0.0.1:9222."
 
 down:
 	@echo "🛑 Stopping all containers..."

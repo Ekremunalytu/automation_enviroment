@@ -167,3 +167,35 @@ host-bound CDP port without the `debug` profile.
 - `.env.example` is rewritten so the security notice describes both the
   loopback default and the `EXTRACE_ALLOW_LAN` opt-in, instead of leaving
   enforcement to the operator alone.
+
+## Implementation
+
+Landed `2026-04-29` on `feat/w8-7-lan-binding-defaults` (W8-7).
+
+- `appcore/api/config.py` — `APISettings.HOST` defaults to `127.0.0.1`,
+  `CORS_ALLOW_ORIGINS` defaults to `http://localhost:3000`,
+  `CORS_ALLOW_CREDENTIALS` defaults to `False`. The
+  `model_post_init` hook substitutes `0.0.0.0` and `*` only when
+  `EXTRACE_ALLOW_LAN` is truthy *and* the field still holds the loopback
+  default; explicit env overrides win over the substitution.
+- `docker-compose.yml` — every default-profile `ports:` entry carries
+  the explicit `127.0.0.1:` host-IP prefix. The CDP port (`9222`) is
+  routed through a new `executor-cdp` socat sidecar under
+  `profiles: ["debug"]`; the default `docker compose up` does not start
+  it.
+- `.env.example` — defaults match the post-init values; the security
+  notice block describes the loopback posture and the opt-in path.
+- `Makefile` — `dev` and `run` bind `127.0.0.1`; new `dev-lan` target
+  flips `EXTRACE_ALLOW_LAN=1`; new `up-debug` target starts the
+  `debug` profile (CDP exposed via the sidecar).
+- `documents/runbooks/lan-exposure.md` — operator-side pre-flight
+  checklist (firewall rules, reverse-proxy auth, explicit CORS
+  allow-list, rotated PostgreSQL password) that must precede any LAN
+  exposure.
+- `tests/architecture/test_default_bindings.py` — 14 cases pinning
+  loopback defaults, the truthy/falsy semantics of `EXTRACE_ALLOW_LAN`,
+  the compose host-IP prefix discipline, and the CDP `debug`-profile
+  gate. Wired into `make test-security`.
+- ADR 0002 §4 (Trust Boundaries) — new "Operator host network
+  interfaces" row added in the same change set, per the Follow-On note
+  above.

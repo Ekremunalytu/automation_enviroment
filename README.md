@@ -26,10 +26,14 @@ multi-tenant web platform.
   while async analysis job metadata is persisted in PostgreSQL.
 - If the API process restarts during an active analysis, that job is marked
   failed and should be rerun.
-- ADR 0007 local-network-binding is Accepted, but current code/config still
-  carries `0.0.0.0` / wildcard exposure defaults until W8-7 lands. Treat
-  localhost service URLs below as the intended operator access path, not proof
-  that loopback enforcement is implemented.
+- ADR 0007 local-network-binding is Accepted **and implemented (W8-7,
+  `2026-04-29`)** — `appcore/api/config.py` defaults bind `127.0.0.1`,
+  CORS allow-list replaces the wildcard, every `docker-compose.yml`
+  `ports:` entry carries an explicit `127.0.0.1:` prefix, and CDP (port
+  9222) is gated behind the Compose `debug` profile. To expose services
+  on the LAN, follow `documents/runbooks/lan-exposure.md` and set
+  `EXTRACE_ALLOW_LAN=1` (host-mode `make dev-lan`) or edit the compose
+  file directly.
 
 ## Current Phase
 
@@ -214,10 +218,17 @@ cd ui && npm run test
 
 ### Service Endpoints
 
-- API: `http://localhost:8000`
-- Swagger: `http://localhost:8000/docs`
-- Web UI: `http://localhost:3000`
-- noVNC executor view: `http://localhost:6080/vnc.html`
+ADR 0007 — every endpoint below binds loopback only by default. Replace
+`127.0.0.1` with the operator-host LAN IP only after the
+`documents/runbooks/lan-exposure.md` checklist is applied.
+
+- API: `http://127.0.0.1:8000`
+- Swagger: `http://127.0.0.1:8000/docs`
+- Web UI: `http://127.0.0.1:3000`
+- noVNC executor view: `http://127.0.0.1:6080/vnc.html`
+- CDP (debug profile only): `http://127.0.0.1:9222` — start with
+  `make up-debug` or `docker compose --profile debug up`. Absent from the
+  default `make up` service set.
 
 ## Project Layout
 

@@ -29,6 +29,18 @@ import os
 from pydantic import PostgresDsn, computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# ADR 0007 — Local Network Binding Discipline.
+# Defaults bind loopback only. Operators that genuinely need LAN exposure
+# set EXTRACE_ALLOW_LAN=1; the post-init hook on APISettings substitutes
+# the wildcard binding when the field still holds the loopback default.
+# See documents/runbooks/lan-exposure.md for the operator-side checklist.
+_EXTRACE_ALLOW_LAN_TRUTHY = frozenset({"1", "true", "yes", "on"})
+
+
+def _allow_lan() -> bool:
+    raw = os.getenv("EXTRACE_ALLOW_LAN", "").strip().lower()
+    return raw in _EXTRACE_ALLOW_LAN_TRUTHY
+
 
 class ProjectSettings(BaseSettings):
     """
@@ -55,9 +67,13 @@ class APISettings(BaseSettings):
     """
     API server configuration.
     Prefix: API_
+
+    Defaults bind loopback only per ADR 0007. EXTRACE_ALLOW_LAN=1 substitutes
+    the wildcard binding for fields that still hold the loopback default;
+    explicit env overrides win over the substitution.
     """
 
-    HOST: str = "0.0.0.0"  # nosec B104 (Explicitly binding to all interfaces for Docker)
+    HOST: str = "127.0.0.1"
     PORT: int = 8000
     WORKERS: int = 1
     DEBUG: bool = False
@@ -66,10 +82,18 @@ class APISettings(BaseSettings):
     REDOC_URL: str = "/redoc"
     OPENAPI_URL: str = "/openapi.json"
     GZIP_MINIMUM_SIZE: int = 2000
-    CORS_ALLOW_ORIGINS: str = "*"
-    CORS_ALLOW_METHODS: str = "*"
-    CORS_ALLOW_HEADERS: str = "*"
-    CORS_ALLOW_CREDENTIALS: bool = True
+    CORS_ALLOW_ORIGINS: str = "http://localhost:3000"
+    CORS_ALLOW_METHODS: str = "GET,POST,PUT,DELETE,PATCH,OPTIONS"
+    CORS_ALLOW_HEADERS: str = "Content-Type,Authorization"
+    CORS_ALLOW_CREDENTIALS: bool = False
+
+    def model_post_init(self, _ctx: object, /) -> None:
+        if not _allow_lan():
+            return
+        if self.HOST == "127.0.0.1":
+            self.HOST = "0.0.0.0"  # nosec B104
+        if self.CORS_ALLOW_ORIGINS == "http://localhost:3000":
+            self.CORS_ALLOW_ORIGINS = "*"
 
     @staticmethod
     def _split_csv(value: str) -> list[str]:
