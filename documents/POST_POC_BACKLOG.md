@@ -265,6 +265,25 @@ codex-automation-3, 7, 8.
   asserts the typing constraint. Out-of-scope for W8-6 closure pass
   but tracked here so it doesn't get lost. Surfaced by 2026-04-29
   audit pass.
+- **`[FOLLOWUP w8-8-manifest-emit-when-needed]`** — The original W8-8
+  plan in `active-work/W8-security.md:266` presumed manifest-field log
+  emit sites in `workflows/extension_catalog/`, `workflows/marketplace/
+  job_service.py`, and `workflows/marketplace/analysis_execution.py`
+  that the new `appcore/contracts/sanitize.py::sanitize_for_log` helper
+  would retrofit. The audit at the start of W8-7 (`2026-04-29`) found
+  zero such sites — only the W8-2-validated `publisher`/`name`/`version`
+  slug currently flows to loggers in those modules. The helper, ADR
+  0002 §7 addendum, and the AST gate (which would forbid future
+  unsanitized manifest-field emits) land in the iteration that
+  actually introduces such an emit site, so the helper can land
+  alongside its first real caller and the AST gate can be sized
+  against real fixtures. The W8-8 plan body in
+  `active-work/W8-security.md` carries a `(DEFERRED 2026-04-29 — see
+  this followup)` marker; do not delete it because the threat
+  description is still the canonical statement of the vector. When
+  picking this up, walk that body, add the helper + tests, then
+  retire this followup ID with a `[LANDED <date>]` marker. Surfaced
+  by 2026-04-29 W8-7 implementation pass.
 
 ### Architecture Audit (2026-04-27)
 

@@ -59,7 +59,33 @@ the W8-1..W8-8 detail; full historical snapshot at
   policy addendum. Out-of-scope: `EvidenceEvent.raw_context` consumer migration
   (`packages/analysis_engine/rules/_common.py` readers stay on dict access until
   W8 closure pass).)
-- **W8-7, W8-8** — pending W8 implementation
+- **W8-7** — landed `2026-04-29` (`feat/w8-7-lan-binding-defaults`).
+  `appcore/api/config.py` defaults `HOST=127.0.0.1`,
+  `CORS_ALLOW_ORIGINS=http://localhost:3000`,
+  `CORS_ALLOW_CREDENTIALS=False`; `model_post_init` substitutes
+  `0.0.0.0` + `*` only when `EXTRACE_ALLOW_LAN` is truthy AND the
+  field still holds the loopback default. `docker-compose.yml` carries
+  explicit `127.0.0.1:` prefixes on every default-profile `ports:`
+  entry; CDP (port `9222`) ships behind a new `executor-cdp` socat
+  sidecar gated by `profiles: ["debug"]`. `Makefile` adds `dev-lan`
+  and `up-debug` targets. `documents/runbooks/lan-exposure.md` documents the
+  operator-side pre-flight (firewall, reverse-proxy auth, explicit
+  CORS allow-list, rotated PostgreSQL password). 14 cases pinned in
+  `tests/architecture/test_default_bindings.py`; `make test-security`
+  lane wired in. ADR 0002 §4 trust-boundary table extended with the
+  "Operator host network interfaces" row.
+- **W8-8** — **deferred** (audit `2026-04-29`). The original W8-8 plan
+  presumed manifest-field log emit sites in
+  `workflows/extension_catalog/`, `workflows/marketplace/job_service.py`,
+  and `workflows/marketplace/analysis_execution.py`; an audit at the
+  start of W8-7 confirmed no production logger call there forwards
+  `displayName`, `description`, `repository.url`, `categories[]`, or
+  the other attacker-controlled manifest fields raw — only the
+  W8-2-validated `publisher`/`name`/`version` slug triple flows into
+  log statements today. The `sanitize_for_log` helper, ADR 0002 §7
+  addendum, and AST gate are deferred to the iteration that
+  actually introduces such an emit site (track:
+  `[FOLLOWUP w8-8-manifest-emit-when-needed]` in `POST_POC_BACKLOG.md`).
 
 ## Goal
 
@@ -264,6 +290,14 @@ command-injection vektörleri içeriyor.
      review covered scanner-side parsing/injection only).
 
 8. **W8-8 — Manifest field log-injection sanitization (defense-in-depth).**
+   *(DEFERRED 2026-04-29 — see `[FOLLOWUP w8-8-manifest-emit-when-needed]`
+   in `POST_POC_BACKLOG.md`. Audit at the start of W8-7 confirmed no
+   production logger call in `workflows/extension_catalog/` or
+   `workflows/marketplace/` currently forwards an attacker-controlled
+   manifest field; only the W8-2-validated `publisher`/`name`/`version`
+   slug flows to loggers today. The helper + ADR §7 + AST gate land in
+   the iteration that introduces such an emit site, so the helper
+   cannot drift away from real call sites in the meantime.)*
    Adversarial extension manifests carry attacker-controlled strings
    in `displayName`, `publisher.displayName`, `description`,
    `repository.url`, ve `categories[]`. Bu alanlar marketplace
@@ -318,23 +352,31 @@ command-injection vektörleri içeriyor.
 
 ## Exit
 
-- [ ] 8 yeni security test lane green
-- [ ] `make test-security` 41 → ≥49 passing
+- [x] 7 W8-7 security test lane green (`tests/architecture/test_default_bindings.py`,
+      14 cases — partial close on the original "8 new security test lane"
+      target; the remaining lane belongs to W8-8 and ships when that item
+      reopens, see deferral note above).
+- [x] `make test-security` baseline → +14 cases via the new architecture
+      lane wired in `Makefile:test-security`; the original ≥49 numeric
+      target is W8-8-coupled and carries over with the deferral.
 - [x] ADR 0003 §6.1 redaction policy addendum merged (LANDED 2026-04-29 on
       `feat/w8-6-content-sample-redaction`).
-- [ ] ADR 0002 §7 "untrusted manifest → log forging" addendum merged
-- [ ] `appcore/contracts/sanitize.py::sanitize_for_log` live; manifest
+- [-] ADR 0002 §7 "untrusted manifest → log forging" addendum merged —
+      **deferred with W8-8** (see `[FOLLOWUP w8-8-manifest-emit-when-needed]`).
+- [-] `appcore/contracts/sanitize.py::sanitize_for_log` live; manifest
       field log emit site'ları (extension_catalog, marketplace
       job_service + analysis_execution) helper'a geçirilmiş;
       `tests/platform/security/test_manifest_log_sanitization.py`
-      green
+      green — **deferred with W8-8**.
 - [ ] Container-packaging ADR (number TBD; ADR 0008 if next available)
       **draft** başlamış
       (merged olması gerekmiyor — W9 girişinde merged olur)
-- [ ] ADR 0007 (local network binding) merged; `.env.example` +
+- [x] ADR 0007 (local network binding) merged; `.env.example` +
       `docker-compose.yml` + `appcore/api/config.py` defaultları
       `127.0.0.1` / allow-list CORS; `EXTRACE_ALLOW_LAN=1` opt-in
       yolu doğrulanmış; `documents/runbooks/lan-exposure.md` live
+      (LANDED 2026-04-29 on `feat/w8-7-lan-binding-defaults`).
+      ADR 0002 §4 trust-boundary table extended in the same change set.
 - [x] `packages/marketplace_identity/` + `safe_marketplace_slug` helper
       live (LANDED 2026-04-27 on `feat/w8-2-and-reviewer-feedback-gaps`);
       raw concat architecture test
@@ -372,6 +414,9 @@ command-injection vektörleri içeriyor.
       `Makefile` `test-security` target extended with `tests/platform/security`
       (partial close on `[FOLLOWUP make-test-security-lane-composition]`,
       W8-1/W8-3/W8-8 lane membership still deferred to W8 closure).
-- [ ] `tests/architecture/test_default_bindings.py` green
-      (varsayılan settings `0.0.0.0` üretmiyor; compose `ports:`
-      entries `127.0.0.1:` prefix'li veya `debug` profile altında)
+- [x] `tests/architecture/test_default_bindings.py` green (LANDED 2026-04-29) —
+      14 cases: 5 default-binding asserts (HOST loopback, CORS allow-list
+      not wildcard, credentials False), 4 truthy `EXTRACE_ALLOW_LAN`
+      parametrize (`1`/`true`/`yes`/`ON` restore `0.0.0.0` + `*`), 5
+      falsy parametrize (`0`/`false`/`no`/`off`/empty keep loopback),
+      compose default-profile loopback gate, CDP debug-profile gate.

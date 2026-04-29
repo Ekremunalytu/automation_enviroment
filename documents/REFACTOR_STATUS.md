@@ -36,11 +36,30 @@ detail blocks) frozen under
   `MARKETPLACE_SLUG_TOKEN_RE`; activation-report router uses FastAPI
   `Path(..., pattern=...)` gate; AST drift gate prevents duplicate slug
   regex literals.
+- **W8-7 LAN binding defaults landed `2026-04-29`** —
+  `appcore/api/config.py` defaults `HOST=127.0.0.1`,
+  `CORS_ALLOW_ORIGINS=http://localhost:3000`,
+  `CORS_ALLOW_CREDENTIALS=False`; `model_post_init` substitutes
+  `0.0.0.0` + `*` only when `EXTRACE_ALLOW_LAN` is truthy AND the field
+  still holds the loopback default. `docker-compose.yml` carries
+  explicit `127.0.0.1:` prefixes on every default-profile `ports:`
+  entry; CDP (port `9222`) ships behind a new `executor-cdp` socat
+  sidecar gated by `profiles: ["debug"]`. `Makefile` adds `dev-lan`
+  and `up-debug` targets. `documents/runbooks/lan-exposure.md` live; ADR 0007
+  Implementation section plus ADR 0002 §4 trust-boundary row appended;
+  `tests/architecture/test_default_bindings.py` (14 cases) wired into
+  the `make test-security` lane.
 
-W8 is in progress. Active checklist:
-[`active-work/W8-security.md`](active-work/W8-security.md). Remaining
-items: W8-6 (content-sample redaction), W8-7 (ADR 0007 local network
-binding), W8-8 (manifest log sanitization).
+W8-8 (manifest log sanitization) is deferred to a future iteration —
+audit on `2026-04-29` confirmed no production logger call in
+`workflows/extension_catalog/` or `workflows/marketplace/` currently
+forwards an attacker-controlled manifest field; the helper + ADR §7 +
+AST gate land alongside the iteration that introduces such an emit
+site (track: `[FOLLOWUP w8-8-manifest-emit-when-needed]` in
+`POST_POC_BACKLOG.md`). With W8-7 landed and W8-8 deferred, W8 is
+**closed for active work** pending the optional ADR 0008 draft on
+container packaging that the active-work tracker keeps as a single
+remaining checkbox before W9 entry.
 
 ## Subsystem Posture
 
