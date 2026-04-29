@@ -1,6 +1,6 @@
 # Platform And Storage Lane
 
-`Last Updated: 2026-04-27`
+`Last Updated: 2026-04-29`
 
 Use this lane for FastAPI app wiring, settings, dependencies, shared contracts,
 SQLAlchemy models, CRUD, and migrations.
@@ -32,6 +32,17 @@ SQLAlchemy models, CRUD, and migrations.
 - `.venv/bin/pytest tests/workflows/extension_catalog/`
 - `make migrate` when migrations change.
 - `make check-all` before broad platform changes are considered complete.
+
+## Open Subsystem Doc Only If Needed
+
+- `ARCHITECTURE.md` (slim) → `architecture/data-flow.md` for the
+  request flow you touch; `architecture/boundary-rules.md` for
+  dependency-direction rules.
+- `PROJECT_STRUCTURE.md` (slim) → `structure/legacy-do-not-recreate.md`
+  if you suspect a forbidden top-level directory is being reintroduced.
+- `TESTING.md` (slim) → `testing/platform-tests.md` for the
+  per-subdir test layout.
+- `active-work/W8-security.md` only if the task is W8-1..W8-8.
 
 ## Avoid
 

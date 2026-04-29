@@ -235,7 +235,9 @@ def test_run_monitoring_heartbeat_per_tick_load_is_constant_under_5s_interval() 
     IO inside the loop body would silently amplify production load.
 
     Closes [FOLLOWUP simulation-progress-cancel] heartbeat 30s→5s load
-    verification gap from POST_POC_BACKLOG.md L342-346."""
+    verification gap (``POST_POC_BACKLOG.md`` item
+    [FOLLOWUP simulation-progress-cancel] cancel-after-finish race test;
+    landed 2026-04-27 on ``feat/w8-2-and-reviewer-feedback-gaps``)."""
     payload_reads: list[str] = []
     cancel_polls: list[int] = []
 

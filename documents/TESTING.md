@@ -1,371 +1,148 @@
 # Testing Guide
 
-`Last Updated: 2026-04-27`
+`Last Updated: 2026-04-29`
 
-The test suite mirrors the refactored architecture: platform tests validate
-shared `appcore/` code and the detection-engine rule runner, workflow tests
-validate business slices, executor tests cover sandbox helpers, architecture
-tests enforce import boundaries, security tests validate the
-malicious-fixture scaffold + per-rule detection behavior, and smoke
-coverage exercises the full marketplace-to-report pipeline.
+Test layers, fixtures, and commands. **Slim canonical** — per-domain
+deep dives split out:
 
-## Test Layout
+- [`testing/security-tests.md`](testing/security-tests.md) —
+  malicious-fixture hygiene, A1..A6 rule tests, canary E2E.
+- [`testing/platform-tests.md`](testing/platform-tests.md) — API,
+  contracts, engine, storage, canonical imports.
+- [`testing/marketplace-tests.md`](testing/marketplace-tests.md) —
+  routers, services, planners, hardening (W8-1 VSIX).
+- [`testing/executor-tests.md`](testing/executor-tests.md) — Playwright,
+  monitor, reset, signal policy, W8-3 URI trigger.
 
-```text
-tests/
-  conftest.py
-  test_health.py
-  architecture/
-    test_import_graph.py
-    test_marketplace_identity_concat.py
-  marketplace_identity/
-    test_identity.py
-  executor/
-    conftest.py
-    test_container_dockerfile.py
-    test_playwright_automation.py
-    test_playwright_commands.py
-    test_playwright_crash_classifier.py
-    test_playwright_entrypoint.py
-    test_playwright_health_summary.py
-    test_playwright_helpers.py
-    test_playwright_monitor_attribution.py
-    test_playwright_monitor_lifecycle.py
-    test_playwright_monitor_package_import.py
-    test_playwright_monitor_runtime.py
-    test_playwright_reload.py
-    test_playwright_stimulus.py
-    test_reset_state.py
-    test_signal_policy.py
-    test_workspace.py
-  platform/
-    api/
-      test_app_runtime.py
-      test_config.py
-      test_deps.py
-      test_fixtures.py
-    contracts/
-      fixtures/
-      test_analysis_fixture_baselines.py
-      test_detection_report.py
-      test_report_builder_contract.py
-      test_schemas.py
-      test_verdict_rollup.py
-    engine/
-      test_rule_runner.py
-    storage/
-      test_analysis_jobs.py
-      test_crud.py
-    test_canonical_imports.py
-  security/
-    helpers.py
-    rules/
-      test_a1_credential_read_then_network.py
-      test_a2_startup_network_beacon.py
-      test_a3_typosquat.py
-      test_a4_workspace_exfil.py
-      test_a6_startup_ui_prompt.py
-      test_rule_attribution.py
-    test_benign_silence.py
-    test_canary_end_to_end.py
-    test_detection_report_invariants.py
-    test_fixture_hygiene.py
-    test_rule_coverage.py
-    test_rule_validation.py
-  scanner/
-    test_executor.py
-  smoke/
-    test_marketplace_analysis_smoke.py
-  workflows/
-    activation_reports/
-      test_bundle_endpoint.py
-      test_router.py
-    extension_catalog/
-      test_package_parser.py
-      test_router.py
-      test_service.py
-    marketplace/
-      fixtures/
-      test_analysis_bundle.py
-      test_analysis_execution_helpers.py
-      test_analysis_planner.py
-      test_client.py
-      test_job_service.py
-      test_router.py
-      test_triggers.py
-      test_vsix_hardening.py
-```
+Layer-by-layer file map:
+[`structure/test-layout.md`](structure/test-layout.md). Architecture
+boundary tests:
+[`architecture/boundary-rules.md`](architecture/boundary-rules.md).
 
-Note on executor monitor coverage: `test_playwright_monitor.py` was split
-into four focused files — `test_playwright_monitor_attribution.py` (the
-`attribution/` subpackage), `test_playwright_monitor_lifecycle.py`
-(scenario-event ledger), `test_playwright_monitor_package_import.py`
-(paket vs top-level executor import mode), and
-`test_playwright_monitor_runtime.py` (runtime loop). The new
-`test_playwright_crash_classifier.py` covers
-`is_fatal_ui_error` with 11 tests including a transient-timeout
-false-positive guard; `test_playwright_health_summary.py` covers
-`fatal_ui_crash` dominance; `test_reset_state.py` was rewritten (11
-tests) to cover terminate / SIGKILL escalation / singleton cleanup /
-launch-script success+failure / orchestration order.
+## Test Lanes
 
-UI tests live in:
+| Lane | Marker | Command |
+|---|---|---|
+| Unit | `not smoke and not requires_db and not integration` | `make test-unit` |
+| Integration | `(requires_db or integration) and not smoke` | `make test-integration` |
+| Smoke | `smoke` | `make test-smoke` |
+| Security | n/a (path-based) | `make test-security` |
+| Live security | n/a (T2/T3) | `make test-security-live` |
+| Local default | `not smoke` | `make test-local` |
+| CI default | `smoke or not smoke` | `make test-ci` |
+| Full + lint + types | mixed | `make check-all` |
 
-```text
-ui/src/**/*.test.ts(x)
-```
-
-UI smoke coverage currently lives in:
-
-```text
-ui/smoke/
-```
+`make test-security` lane composition note: W8-1 + W8-3 land in
+subsystem-local lanes (`tests/workflows/marketplace/test_vsix_*`,
+`tests/executor/security/test_uri_trigger_*`). Either extend the
+Makefile target or update `active-work/W8-security.md` exit criterion to
+count broader tally — see `POST_POC_BACKLOG.md` `[FOLLOWUP
+make-test-security-lane-composition]`.
 
 ## Database Strategy
 
-- DB-backed persistence tests use PostgreSQL; DB-free lanes use mocked sessions.
-- `tests/conftest.py` builds the test URL from `DATABASE_URL` first, then falls
-  back to `postgresql://postgres:postgres@localhost:5434/test_db`.
-- The `test_engine` fixture creates tables once per test session and drops them
-  afterward, but only when a test requests DB fixtures.
-- The `db_session` fixture opens a transaction per test and rolls it back for
-  isolation.
+- DB-backed tests use PostgreSQL; DB-free lanes use mocked sessions.
+- `tests/conftest.py` builds the test URL from `DATABASE_URL` first,
+  then falls back to
+  `postgresql://postgres:postgres@localhost:5434/test_db`.
+- `test_engine` fixture creates tables once per session and drops them
+  afterward, only when a test requests DB fixtures.
+- `db_session` fixture opens a transaction per test and rolls it back
+  for isolation.
+- `make test-local` starts `postgres_test` and runs the default Python
+  suite (`not smoke`) including DB-backed tests.
 
 ## Main Fixtures
 
-- `test_engine`
-  - session-scoped SQLAlchemy engine
-- `db_session`
-  - per-test transactional session
-- `client`
-  - FastAPI `TestClient` with `get_db` override
-- `db_client`
-  - FastAPI `TestClient` that reuses the per-test transactional DB session
-- `runtime_client`
-  - FastAPI `TestClient` that patches request-time and background-worker
-    `SessionLocal` factories to the real test PostgreSQL engine
-- `mock_session`
-  - reusable `MagicMock(spec=Session)` for DB-free tests
-- `sample_extension_data`
-  - reusable extension payload for storage and API tests
+| Fixture | Scope | Purpose |
+|---|---|---|
+| `test_engine` | session | SQLAlchemy engine |
+| `db_session` | per-test | transactional session |
+| `client` | per-test | FastAPI `TestClient` with `get_db` override |
+| `db_client` | per-test | TestClient that reuses the per-test transactional session |
+| `runtime_client` | per-test | TestClient that patches request-time + worker `SessionLocal` factories to the real test PostgreSQL engine |
+| `mock_session` | per-test | reusable `MagicMock(spec=Session)` for DB-free tests |
+| `sample_extension_data` | per-test | reusable extension payload |
 
-## Commands
+## Commands (Quick Reference)
 
 ```bash
-make test
-make test-unit
-make test-integration
-make test-smoke
-make test-cov
-make test-local
-make test-ci
-make test-security
-make sim-target TARGET=publisher.name
-make sim-all
-make demo-canary
-make demo-canary-offline
-.venv/bin/ruff check .
-.venv/bin/python scripts/generate_ui_contracts.py --check
-cd ui && npm run lint:boundaries
-.venv/bin/pytest
-.venv/bin/pytest -m "not smoke and not requires_db and not integration"
-.venv/bin/pytest -m "(requires_db or integration) and not smoke"
-.venv/bin/pytest -m "requires_db"
-.venv/bin/pytest tests/workflows/marketplace/test_router.py -v
-.venv/bin/pytest tests/smoke/test_marketplace_analysis_smoke.py -v -m smoke
-cd ui && npm run test
-cd ui && npm run test:smoke
+make test-local                      # default Python suite (no smoke), with postgres_test
+make test-security                   # tests/security/ (45 passing as of 2026-04-27)
+make check-all                       # ruff + mypy + bandit + ui-types-check + ui-boundaries + pytest
+make sim-target TARGET=publisher.name [TRIGGERS=...] [SCENARIO=...]
+make demo-canary                     # full canary demo
+make demo-canary-offline             # offline fixture validation (<30 s)
+make exec-up && make exec-run        # docker-based A1 canary smoke (user-side)
+.venv/bin/pytest tests/<area> -v     # focused lane run
 ```
 
-Notes:
+UI tests:
 
-- Default `pytest` excludes the smoke suite via `pyproject.toml`.
-- Unit lane: `pytest -m "not smoke and not requires_db and not integration"`.
-- Integration lane: `pytest -m "(requires_db or integration) and not smoke"`.
-- DB lane: `pytest -m "requires_db"`.
-- Smoke lane: `pytest -m "smoke"`.
-- `make test-unit`, `make test-integration`, and `make test-smoke` map to the
-  same lane definitions so failures can be isolated without re-deriving marker
-  expressions each time.
-- `make test-local` starts `postgres_test` and then runs the default Python
-  suite (`not smoke`), which includes DB-backed tests.
-- `make test-ci` builds and waits for the executor container, then overrides
-  the default smoke exclusion with `pytest -m "smoke or not smoke"` so the
-  smoke acceptance path actually runs.
-- `make test-security` currently runs the malicious-fixture hygiene and PoC
-  canary-coverage contract tests under `tests/security/`.
-- `npm run test:smoke` maps to `ui/smoke/run-smoke.mjs`.
+```bash
+cd ui && npm run test
+cd ui && npm run test:smoke          # ui/smoke/run-smoke.mjs
+```
 
 ## Smoke Acceptance
 
-Smoke acceptance currently lives in
-`tests/smoke/test_marketplace_analysis_smoke.py`.
-
-It validates:
+`tests/smoke/test_marketplace_analysis_smoke.py` validates:
 
 - `/api/marketplace/download`
 - `/api/marketplace/analyze/start`
 - async job polling via `/api/marketplace/analyze/{job_id}`
 - report retrieval via `/api/activations/{name}`
-- target-observed and automation-health semantics in the exported report
+- target-observed and automation-health semantics in the exported
+  report
 
-The smoke lane currently covers:
+Currently covers: `ms-python.python` (+ layered chat/tool verification
+on the same flow), `extrace.fixture-chat`. Scenario-zero
+`extrace.fixture-theme` validated via contract + executor unit tests
+rather than smoke.
 
-- `ms-python.python`
-- layered chat/tool verification honesty on the same `ms-python.python` flow
-- `extrace.fixture-chat`
+The smoke client uses `runtime_client`, so request handlers + the async
+job worker talk to the real test PostgreSQL when exercising
+`analysis_jobs`. Failure-mode diagnostics (process + log dumps) trigger
+when a job stalls on one step for two minutes (`reload_vscode.py` /
+CDP reconnect stalls are the dominant failure mode).
 
-The scenario-zero `extrace.fixture-theme` fixture is currently validated
-through contract and executor unit tests rather than smoke acceptance.
+## Test Layers (Quick Map)
 
-The smoke client uses `runtime_client`, so both the request handlers and the
-async job worker talk to the real test PostgreSQL database instead of a mocked
-session when exercising `analysis_jobs`.
-
-The smoke lane includes executor process and log diagnostics when a job fails
-or stops making progress on one step for two minutes. This is aimed at the
-recurring `reload_vscode.py` / CDP reconnect stall so the failure mode is
-visible before the full poll timeout or immediately when the worker fails.
-
-## Test Lanes
-
-### Unit
-
-- Pure helper logic and mocked orchestration paths.
-- Should not require Postgres or the executor container.
-- Typical marker expression: `not smoke and not requires_db and not integration`.
-
-### Integration
-
-- Real Postgres persistence and other non-executor infrastructure seams.
-- Prefer `@pytest.mark.requires_db` for DB-backed tests; reserve
-  `@pytest.mark.integration` for non-smoke infra cases that still need real
-  wiring.
-- Typical marker expression: `(requires_db or integration) and not smoke`.
-
-### Smoke
-
-- Full marketplace download/analyze/report flow against the real executor
-  container.
-- Must stay narrow and diagnostic-heavy because runtime hangs are the dominant
-  failure mode.
-- Marker expression: `smoke`.
-
-### Architecture
-
-- Repo-wide import graph enforcement.
-- Ensures `packages/` stay framework-agnostic, `executor/` avoids `appcore/`
-  and `workflows/`, and workflows reach sandbox mechanics only through
-  `executor.control`.
-
-### Platform
-
-- Settings and dependency injection (`platform/api/`).
-- Pydantic contracts and detection contracts
-  (`platform/contracts/test_schemas.py`,
-  `test_analysis_fixture_baselines.py`, `test_detection_report.py`,
-  `test_report_builder_contract.py`, `test_verdict_rollup.py`).
-- Detection-engine rule runner (`platform/engine/test_rule_runner.py`).
-- Storage CRUD behavior and uniqueness protection
-  (`platform/storage/test_crud.py`).
-- Durable analysis-job lifecycle and recovery
-  (`platform/storage/test_analysis_jobs.py`).
-- Canonical imports guard (`platform/test_canonical_imports.py`).
-
-### Workflows
-
-- Extension catalog parsing and persistence orchestration
-  (`workflows/extension_catalog/`).
-- Activation report file listing/reading behavior
-  (`workflows/activation_reports/test_router.py`,
-  `test_bundle_endpoint.py`).
-- Marketplace search/download/analyze routes (`test_router.py`,
-  `test_client.py`) plus analysis bundle shaping
-  (`test_analysis_bundle.py`) and execution-failure formatters
-  (`test_analysis_execution_helpers.py`).
-- Trigger selection and failure handling (`test_triggers.py`,
-  `test_analysis_planner.py`).
-
-### Executor
-
-- Docker exec wrapper behavior (`scanner/test_executor.py`: retry-after-reload,
-  non-transient no-retry guard, reload-failure preserves original error).
-- Playwright automation helpers (`test_playwright_automation.py`).
-- Fatal UI-crash classifier (`test_playwright_crash_classifier.py`) and
-  `fatal_ui_crash` health dominance (`test_playwright_health_summary.py`).
-- Monitor/report generation split across the four `test_playwright_monitor_*`
-  modules (attribution / lifecycle / package-import / runtime).
-- Scan-between restart orchestration (`test_reset_state.py`: terminate,
-  SIGKILL escalation, singleton cleanup, launch-script success+failure).
-- Signal policy (`test_signal_policy.py`) and workspace reset
-  (`test_workspace.py`).
-- Entrypoint flag behavior and reload handling.
-
-### Security
-
-- Malicious-fixture manifest hygiene (`test_fixture_hygiene.py`).
-- PoC canary coverage contracts for A1/A2/A3/A4/A6 (`test_rule_coverage.py`).
-- Per-rule detection under `security/rules/` — each Must-class adversary
-  has a dedicated test (A3 typosquat landed in the W7 Phase 3a buffer);
-  `test_rule_attribution.py` asserts target-only attribution gating.
-- `test_benign_silence.py` ensures benign baselines stay zero-finding.
-- `test_canary_end_to_end.py` wires a fixture through the rule runner.
-- `test_detection_report_invariants.py` enforces the cross-layer
-  evidence-link contract between `DetectionFinding.evidence.event_id`
-  and `ActivationReport.evidence_events[]`.
-- `test_rule_validation.py` checks rule loader / shape assertions.
-- CI/local guard expectations around `make test-security` and
-  `make test-security-live` (T3 break-glass).
-
-### UI
-
-- Route pages under `ui/src/features/`.
-- Shared evidence and simulation widgets.
-- Adapters and rule-draft helpers under `ui/src/lib/`.
+| Layer | Path | Detail file |
+|---|---|---|
+| Architecture | `tests/architecture/` | `architecture/boundary-rules.md` |
+| Platform | `tests/platform/` | `testing/platform-tests.md` |
+| Workflows (marketplace) | `tests/workflows/marketplace/` | `testing/marketplace-tests.md` |
+| Workflows (other) | `tests/workflows/{activation_reports,extension_catalog}/` | `testing/marketplace-tests.md` |
+| Executor | `tests/executor/`, `tests/scanner/` | `testing/executor-tests.md` |
+| Security | `tests/security/`, `tests/executor/security/`, `tests/platform/security/` | `testing/security-tests.md` |
+| Smoke | `tests/smoke/` | (this file, "Smoke Acceptance") |
+| UI | `ui/src/**/*.test.ts(x)`, `ui/smoke/` | (Vitest + Testing Library; no detail doc) |
 
 ## Current Gaps
 
-- Smoke coverage is still centered on `ms-python.python` plus one chat-only
-  benign fixture.
-- Executor reliability is the most failure-prone path, so unit coverage still
-  needs periodic backing from real-container smoke runs.
-- Activation reports remain artifact-first and file-backed under `output/`, but
-  async marketplace job metadata is now DB-backed and should be exercised
-  through the Postgres test lane.
-- Reload failures now fail quickly with phase-tagged diagnostics and stale
-  process cleanup, but executor-side CDP/workbench stability still needs real
-  smoke coverage because it remains the most brittle runtime seam.
-- The SPA now has generated TypeScript contracts, but the request client and
-  view-model adapters remain hand-written and can still drift if the contract
-  generation step is skipped.
-- The security lane validates fixture manifests, PoC class coverage,
-  per-rule detection against T1 canaries, attribution gating, and
-  benign-baseline silence. `make test-security` → 45 passed as of
-  2026-04-27 after PR345/W8-0 lock-in; live
-  `make test-security-live` + Docker-based A1 canary structural diff
-  (`make exec-up && make exec-run` against
-  `t1-a1-credential-read-to-network-canary`) remain user-side and are
-  the canonical regression gates for the capture pipeline.
-- PR345/W8-0 targeted validation in `REFACTOR_STATUS.md` records
-  `tests/executor + tests/security + tests/platform/contracts` at
-  401 passed / 6 skipped, `make typecheck` clean, and `make lint-check`
-  clean on 2026-04-27. Treat older full-suite counts as historical unless
-  rerun in the current branch.
-- `make demo-canary-offline` runs the demo runnable canary's offline
-  fixture validation in <30 s and is the smallest signal that the
-  detection-engine wiring is unbroken; pair it with
-  `make test-security` after any `packages/analysis_engine/rules/`
-  change.
+- Smoke coverage centered on `ms-python.python` + one chat-only benign
+  fixture.
+- Executor reliability remains failure-prone; unit coverage needs
+  periodic backing from real-container smoke.
+- Reload failures fail quickly with phase-tagged diagnostics; CDP /
+  workbench stability still needs real smoke.
+- SPA TypeScript contracts are generated, but request client + adapters
+  hand-written — drift if generation is skipped.
+- `make test-security` → 45 passed (2026-04-27, post-PR345 + W8-0
+  lock-in). Live `make test-security-live` + Docker-based A1 canary
+  structural diff are user-side regression gates for the capture
+  pipeline.
 
-## Expectations for New Work
+## Expectations For New Work
 
-- New shared module in `appcore/`: add or update tests under `tests/platform/`.
-- New package-level contract or planner logic: add or update tests under
-  `tests/platform/` or `tests/architecture/` as appropriate.
-- New workflow behavior: add tests under the matching `tests/workflows/<name>/`.
-- New executor helper: add or update `tests/executor/` and, when needed,
-  `tests/scanner/test_executor.py`.
-- New end-to-end analysis reliability behavior: extend `tests/smoke/`.
-- Security-fixture or detection-contract work: extend `tests/security/` and
+- New shared module in `appcore/` → tests under `tests/platform/`.
+- New package-level contract or planner logic →
+  `tests/platform/contracts/` or `tests/architecture/` as appropriate.
+- New workflow behavior → `tests/workflows/<name>/`.
+- New executor helper → `tests/executor/` (and `tests/scanner/test_executor.py`
+  if it touches the docker exec wrapper).
+- New end-to-end reliability behavior → `tests/smoke/`.
+- Security-fixture or detection-contract work → `tests/security/`;
   keep `make test-security` passing.
-- Database schema changes require an Alembic migration plus updated tests.
+- DB schema changes require an Alembic migration + updated tests.

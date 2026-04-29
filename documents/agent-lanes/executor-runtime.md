@@ -1,6 +1,6 @@
 # Executor Runtime Lane
 
-`Last Updated: 2026-04-27`
+`Last Updated: 2026-04-29`
 
 Use this lane for Docker executor behavior, Playwright automation, the harness
 extension, runtime capture, reset/reload behavior, and executor runbooks.
@@ -35,6 +35,26 @@ extension, runtime capture, reset/reload behavior, and executor runbooks.
 - `make exec-up`
 - `make sim-target TARGET=publisher.name`
 - `make demo-canary`
+
+## Open Subsystem Doc Only If Needed
+
+- `EXECUTOR_PLAYWRIGHT.md` (slim) → open one split based on the area
+  you touch:
+  - `executor/host-wrapper.md` for `executor/host.py`,
+    `executor/control.py`, container boot, scan-between restart, API
+    integration.
+  - `executor/playwright-flow.md` for analysis phases, trigger payload,
+    `executor/flows/playwright/` modules, fatal-UI-crash handling,
+    reload behavior, entrypoint flags.
+  - `executor/runtime-capture.md` for `runtime_capture/` subpackage,
+    network/filesystem/extension-host capture.
+- `runbooks/scan-between-restart-failure.md`,
+  `runbooks/fatal-ui-crash.md`,
+  `runbooks/live-capture-regression.md` — open the matching one when
+  the failure mode is in flight.
+- `active-work/W8-security.md` items W8-3, W8-4 (URI trigger +
+  absolute paths) and W8-7 (ADR 0007 enforcement).
+- `testing/executor-tests.md` for the executor-side test map.
 
 ## Avoid
 

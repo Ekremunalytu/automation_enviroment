@@ -1,1217 +1,201 @@
 # Post-PoC Backlog
 
-`Last Updated: 2026-04-29 ([CLEANUP ui-v3-14] design hand-off prototype directory retired). Earlier 2026-04-28: UI v3 minimal-completion landed: [CLEANUP ui-v3-9], [ADD ui-v3-10] Inspector drawer + rule draft, [ADD ui-v3-11] Run health + Coverage summary, [ADD ui-v3-12] Ledger Scenario tab; new gap [BACKLOG ui-v3-13] rule-save endpoint. Earlier: backend gaps [BACKLOG ui-v3-1] … [BACKLOG ui-v3-8])`
+`Last Updated: 2026-04-29`
 
-Work items that do not block PoC acceptance (`REFACTOR_OPTIMIZATION.md`
-§10.7) and were intentionally deferred from W0-W7 for scope management.
-Each entry names a stable trigger and a rough size so a future iteration
-can pull it back without re-deriving context.
+Open work items deferred from W0-W7 PoC scope. **Slim canonical** — full
+verbose item descriptions, landed-evidence detail, and review triage
+blocks frozen under
+[`archive/backlog/POST_POC_BACKLOG_full_2026-04-29.md`](archive/backlog/POST_POC_BACKLOG_full_2026-04-29.md).
 
-The PoC acceptance bar is met as of 2026-04-23. Anything below this line
-is value-add, not a gate.
+PoC acceptance bar (`REFACTOR_OPTIMIZATION.md` §10.7) was met `2026-04-23`;
+items below are value-add, not gates.
 
-## External review integration window (W8-W13, scheduled 2026-04-24)
+## Stable IDs Are A Contract
 
-Two independent external reviews landed 2026-04-24
-([`documents/claude_code_review.md`](claude_code_review.md),
-[`documents/codex_project_review.md`](codex_project_review.md)). Their
-findings have been triaged and scheduled into a six-week post-PoC
-window in [`REFACTOR_OPTIMIZATION.md §11`](REFACTOR_OPTIMIZATION.md)
-(W8 Güvenlik sıkılaştırma → W13 Test expansion + observability).
+Test/code comments reference items here by stable ID
+(e.g. `[FOLLOWUP simulation-progress-cancel]`). **Do not rename** existing
+IDs; new items get fresh IDs. Where multiple sub-items share a parent ID
+(`[FOLLOWUP simulation-progress-cancel] heartbeat refactor` vs
+`[FOLLOWUP simulation-progress-cancel] is_job_cancelled session churn`),
+the trailing phrase is part of the contract and must be preserved.
 
-**Entry gate for W8 (REFACTOR_OPTIMIZATION.md §11.1):** **MET as of
-2026-04-27.** PRs 1-2 landed 2026-04-24 (`1b62434`); PR3
-(`c59762d`), PR4 (`c5e400b`), ADR 0006 (`b737529`), and PR5
-(`8453fb2`) landed 2026-04-27 on branch `feat/pr345-completion`.
-See `REFACTOR_STATUS.md` "PR345 Complete" section for the full closure
-checklist. W8 (`REFACTOR_OPTIMIZATION.md §11.5`) is now eligible to
-open.
+Inbound code references — keep these stable:
 
-**Promoted from this backlog into W8-W13:** the two "Next iteration"
-entries that were left as `[NEXT]` pulls — target activation lifecycle
-(now landed; W8 gate met) and review-surfaced items
-(`signal_policy.py` relocation → W9-2; `registry.py` split → W10-3;
-`monitor_lifecycle.py` split → W11; `executor/flows/playwright/`
-subpackaging → W12). Items not yet promoted stay in this file under
-their current sections.
+- `tests/platform/storage/test_analysis_jobs.py:183` →
+  `[FOLLOWUP analysis-jobs-race]` (in-flight race gap)
+- `tests/workflows/marketplace/test_router.py:2009` →
+  `[FOLLOWUP simulation-progress-cancel]` parent
+- `tests/workflows/marketplace/test_analysis_execution_helpers.py:238` →
+  `[FOLLOWUP simulation-progress-cancel] cancel-after-finish race test`
+  (LANDED 2026-04-27, evidence in archive + `REFACTOR_STATUS.md`)
+- `packages/analysis_contracts/contracts.py:142` → filename mention
+  (kararlı)
 
-**Rejected from W8-W13 (stay in this file with promotion rationale
-in §11.12):** UI component split (7.3.1/7.3.2), axe-core, mypy strict
+---
+
+## External Review Integration Window (W8-W13)
+
+Two external reviews landed `2026-04-24`:
+
+- [`archive/reviews/claude_code_review.md`](archive/reviews/claude_code_review.md)
+- [`archive/reviews/codex_project_review.md`](archive/reviews/codex_project_review.md)
+
+Findings triaged into `REFACTOR_OPTIMIZATION.md §11` weekly split (W8
+Güvenlik sıkılaştırma → W13 Test expansion + observability). Active W8
+tracker: [`active-work/W8-security.md`](active-work/W8-security.md).
+
+W8 entry gate (`§11.1`) **MET as of 2026-04-27**. PR345 closure
+(`REFACTOR_STATUS.md` "PR345 Complete"). W8 (`§11.5`) is open; items
+W8-1 (2026-04-27), W8-2 (2026-04-27), and W8-3 (2026-04-28) landed.
+
+**Promoted into W8-W13** (no longer pull-next here): target activation
+lifecycle (landed), `signal_policy.py` relocation → W9, `registry.py`
+split → W10, `monitor_lifecycle.py` split → W11,
+`executor/flows/playwright/` subpackaging → W12.
+
+**Rejected from W8-W13** (stay here, see archive §11.12 for promotion
+rationale): UI component split (7.3.1/7.3.2), axe-core, mypy strict
 promotion, documentation consolidation, monorepo tooling migration,
 async executor runtime refactor, OpenAPI frontend client generation.
-Each is annotated "Evaluated 2026-04-24, not promoted — see
-REFACTOR_OPTIMIZATION.md §11.12" below.
 
-## Next iteration (pull first)
+---
 
-- **[LANDED 2026-04-27] Target activation lifecycle + target log instrumentation.**
-  PR345 PRs 1-5 and ADR 0006 target output-channel capture are closed; full
-  commit/test evidence lives in `REFACTOR_STATUS.md` "PR345 Complete".
-  Remaining follow-ups only:
-  - Tighten the top-level `target_extension_observed=true` decision from the
-    current additive OR to the full conjunction: an attempt reached status ≥
-    `activation_seen` AND at least one target-owned log or output-signal event
-    exists on the evidence chain. ADR 0006 §5 records this as deferred because
-    baseline fixtures need churn.
-  - Run the Docker-based A1 canary structural diff smoke
-    (`make exec-up && make exec-run` against
-    `t1-a1-credential-read-to-network-canary`). This remains user-side because
-    the capture-pipeline regression risk only fully closes with a live executor
-    run.
+## Open Items By Area
 
-- **[LANDED 2026-04-24] Split `executor/flows/playwright/monitor_attribution.py`**
-  into a dedicated `attribution/` subpackage. Implemented per the W7
-  Phase 3b plan: the 1122 LoC module is now three files, each with a
-  single responsibility and the exact same private-underscore API:
-  - [`executor/flows/playwright/attribution/events.py`](../executor/flows/playwright/attribution/events.py)
-    — event annotation + classification (`_annotate_network_events`,
-    `_annotate_file_events`, `_annotate_process_events`,
-    `_classify_event_attribution`, `_upgrade_inotify_correlations`,
-    `_matches_extension_signature`, `_scenario_name_for_timestamp`,
-    plus the shared helpers
-    `_actor_from_file_source` / `_actor_from_network_event` /
-    `_artifact_class_for_path` / `_nearest_activation_matches` /
-    `_format_epoch_timestamp` / `_resolve_event_epoch` /
-    `_relative_time`).
-  - [`executor/flows/playwright/attribution/links.py`](../executor/flows/playwright/attribution/links.py)
-    — evidence-bundle + link builders (`_build_evidence_bundle`,
-    `_build_scenario_links`, `_build_temporal_links`,
-    `_build_duplicate_file_links`, `_build_noise_links`,
-    `_nearest_activation`, `_temporal_confidence`,
-    `_dedupe_evidence_links`); pulls shared helpers from `.events`.
-  - [`executor/flows/playwright/attribution/__init__.py`](../executor/flows/playwright/attribution/__init__.py)
-    — flat re-export facade. Preserves the dual-import pattern
-    (paket mode vs top-level executor mode where `playwright/` sits on
-    `sys.path`) and the signal-layer shims (`_indexed_target_*`,
-    `_build_risk_signals`, `_build_risk_summary`,
-    `_build_signal_summary`); type-only imports sit under
-    `if TYPE_CHECKING:` to keep ruff F401 quiet. The 29 names in
-    `__all__` are identical to the pre-split module's public-for-internal
-    surface so the three callers (`monitor.py`, `monitor_types.py`,
-    `monitor_lifecycle.py`) only needed the module path updated
-    (`monitor_attribution` → `attribution`).
-    Verification: `make check-all` → 627 passed /
-    5 skipped; `make test-security` → 41 passed; demo acceptance
-    (`.venv/bin/python scripts/demo_acceptance.py`) → `DEMO GREEN`.
-    **Docker-based A1 canary structural diff remains user-side**
-    (`make exec-up && make exec-run` against
-    `t1-a1-credential-read-to-network-canary`) — the pipeline regression
-    risk flagged in the deferral note can only be fully closed with a
-    live executor smoke.
+Items are listed with stable ID + short trigger. Detail (file refs,
+acceptance criteria, surfaced-by review §) lives in archive — open it
+when picking an item up.
 
-- **[LANDED 2026-04-24] Fatal UI-crash classification + fail-fast (with
-  `ScenarioTrace` failure metadata).** Implemented per the plan:
-  `is_fatal_ui_error` classifier (substring markers + `page.is_closed()`
-  - `context.is_closed()` + ≤1.5 s liveness probe, all explicit positive
-  assertions; default non-fatal) in
-  [`executor/flows/playwright/automation.py`](../executor/flows/playwright/automation.py);
-  `_run_scenario_sequence` breaks the loop on fatal errors, opt-in
-  `--retry-on-crash` routes through `vscode.reload_workbench_window`
-  with page rebinding; `ScenarioTrace`
-  ([`monitor_records.py`](../executor/flows/playwright/monitor_records.py))
-  gained `failure_reason_code` + `error_detail` (≤500 char);
-  `record_scenario_event`
-  ([`monitor_lifecycle.py`](../executor/flows/playwright/monitor_lifecycle.py))
-  reads them off the existing `metadata` channel (no signature churn);
-  `health_summary.py` recognises `fatal_ui_crash` as a dominant reason
-  that forces `automation_health.status = "inconclusive"` per ADR 0003
-  §5; Pydantic mirror lock-stepped in
-  [`packages/analysis_contracts/contracts.py`](../packages/analysis_contracts/contracts.py)
-  with `extra="forbid"` guard; UI `contracts.ts` regen'd. New test
-  coverage: `tests/executor/test_playwright_crash_classifier.py` (11
-  tests including false-positive guard for transient timeouts),
-  extended `test_playwright_automation.py`,
-  `test_playwright_monitor_lifecycle.py`, and new
-  `test_playwright_health_summary.py`. Verified via `make typecheck` +
-  `make check-all` (627 passed / 5 skipped).
+### Workflow / Platform
 
-- **[LANDED 2026-04-24] Scan-between VS Code restart (ESLint
-  `onStartupFinished` install race fix).** First scan after a fresh
-  container boot always succeeded; the **second** scan's
-  `code --install-extension <eslint>.vsix` reliably failed with rc=1
-  because the previous scan's extension host left a stale IPC socket +
-  Chromium `SingletonLock` that collided with the new install. Only
-  ESLint hit it consistently (`onStartupFinished` + `extensionKind:
-  workspace` + `untrustedWorkspaces.supported: false` all worsen the
-  race). Fix: `reset_executor_state` in
-  [`executor/flows/playwright/reset_state.py`](../executor/flows/playwright/reset_state.py)
-  now orchestrates workspace setup → `terminate_vscode` (SIGTERM +
-  5 s grace, SIGKILL fallback on survivors) → clear
-  `extensions/` + `logs/` → `cleanup_singleton_locks` (remove
-  `SingletonLock` / `SingletonCookie` / `SingletonSocket` under
-  `~/.config/Code`) → `launch_vscode` (new shared
-  [`executor/container/launch_vscode.sh`](../executor/container/launch_vscode.sh)
-  script, also used by `start.sh` at boot — single source of truth for
-  the CDP launch command, uses `setsid` for lifetime decoupling).
-  Summary dict now carries `terminated_vscode_processes`,
-  `removed_singleton_locks`, `relaunched_vscode_pid`. Defense-in-depth
-  on the app side:
-  [`executor/host.py::install_extension_in_executor`](../executor/host.py)
-  retries once through `reload_vscode_window` on transient IPC
-  markers (`connection refused`, `ipc hook`, `singleton`, `renderer
-  process gone`, `target crashed`, …) and
-  [`workflows/marketplace/analysis_execution.py::install_failure_message`](../workflows/marketplace/analysis_execution.py)
-  appends the last 500 chars of stderr to the failure line so the next
-  regression of this class is diagnosable from the report alone (no
-  more "Command failed (rc=1)" blind spots). New test coverage:
-  rewritten `tests/executor/test_reset_state.py` (11 tests covering
-  terminate / SIGKILL escalation / singleton cleanup / launch script
-  success+failure + orchestration order), extended
-  `tests/scanner/test_executor.py` (retry-after-reload, non-transient
-  no-retry guard, reload-failure preserves original error), new
-  `tests/workflows/marketplace/test_analysis_execution_helpers.py`
-  (5 tests for the install/monitoring failure formatters).
-
-- **[LANDED 2026-04-24] Split `sim-all` (UI stress) from target-extension smoke.**
-  New [`Makefile`](../Makefile) target `sim-target` runs
-  `entrypoint.py --monitor --target-extension-id $(TARGET)` with
-  optional `TRIGGERS=/path/to/payload.json` and `SCENARIO=<name>`
-  passthrough, so operators can answer "did a normal extension
-  activate cleanly?" without reading through a `sim-all`
-  inconclusive-by-design report. Usage:
-  `make sim-target TARGET=publisher.name [TRIGGERS=…] [SCENARIO=…]`.
-  The `make help` section and the `sim-all` echo banner were updated
-  to make the split explicit — `sim-all` is now labelled "UI-stimulus
-  stress: scenarios w/o target ext." and `sim-target` is the target
-  smoke. The `TARGET` argument is required; missing it exits non-zero
-  with a usage hint. Verified with `make -n sim-target
-  TARGET=ms-python.python` (dry-run shows the correct docker exec
-  expansion).
-
-- **[LANDED 2026-04-24] `sim-all` report-semantics + retry-on-crash
-  correctness pass.** Six follow-ups that fell out of a deep review
-  of a post-fail-fast `sim-all` report:
-  - **Legacy `verdict` → `signal_summary` migration validator.** The
-    W7-entry rename (`build_verdict` → `build_signal_summary`) ships
-    under `extra="forbid"`, which meant any `ActivationReport`
-    produced by an older runner or stored on disk from before the
-    rename would raise on load. Added a
-    `model_validator(mode="before")` on
-    [`packages/analysis_contracts/contracts.py::ActivationReport`](../packages/analysis_contracts/contracts.py)
-    that re-maps a legacy `verdict` field to `signal_summary` during
-    parse, so round-trip survives and the rename stays
-    backward-compatible. Test:
-    [`tests/platform/contracts/test_analysis_fixture_baselines.py::test_activation_report_accepts_legacy_verdict_field`](../tests/platform/contracts/test_analysis_fixture_baselines.py).
-  - **`on_page_reloaded` callback threading (retry-on-crash fix).**
-    Previously `--retry-on-crash` called
-    `vscode.reload_workbench_window` but kept the *old* `Page`
-    reference, so every subsequent scenario hit the dead handle and
-    re-crashed. `_run_scenario_sequence`
-    ([`executor/flows/playwright/automation.py`](../executor/flows/playwright/automation.py))
-    now accepts `on_page_reloaded: Callable[[Page], None]`;
-    `entrypoint_runner` wires it to a `nonlocal` closure that
-    rebinds both its own `page` and `mon.page`. Coverage:
-    `test_retry_on_crash_invokes_on_page_reloaded_callback`,
-    `test_on_page_reloaded_not_called_on_reload_failure` in
-    [`tests/executor/test_playwright_automation.py`](../tests/executor/test_playwright_automation.py).
-  - **`aborted_after_fatal_ui_crash` skipped-scenario records.**
-    Fail-fast used to leave `summary.skipped_scenarios` empty — a
-    crash at scenario #2 of 5 silently dropped scenarios 3-5 from
-    the report.
-    `_mark_remaining_scenarios_aborted` now emits a
-    `SkippedScenarioRecord` for each unrun scenario with
-    `reason="aborted_after_fatal_ui_crash"`, so the report faithfully
-    shows how many scenarios the run intended vs. actually attempted.
-    Fires both on the plain fail-fast path and on the reload-failure
-    branch when `--retry-on-crash` is opted in. Coverage:
-    `test_fail_fast_marks_remaining_scenarios_as_aborted`,
-    `test_fail_fast_aborts_on_reload_failure_when_retry_requested`.
-  - **UI blocker probe before each scenario.** A dismissal dialog
-    left over from a previous scenario could freeze the next
-    scenario's first keystroke indefinitely with no evidence line.
-    `_run_scenario_sequence` now accepts an optional
-    `ui_blocker_probe(page, scenario_name)` kwarg which
-    `entrypoint_runner` wires to `editor._dismiss_notification`;
-    when a blocker is detected, both `ui_blocker_detected` and
-    `ui_blocker_dismissed` automation events are recorded on `mon`.
-    Exceptions scoped explicitly to
-    `(PlaywrightError, RuntimeError, ValueError)` — no bare
-    `except Exception`. Coverage:
-    `test_ui_blocker_probe_invoked_before_each_scenario`,
-    `test_ui_blocker_probe_failure_does_not_break_loop`,
-    `test_main_wires_ui_blocker_probe_and_page_reload_callbacks`.
-  - **Trimmed `scenario_terminal_usage` stimulus.**
-    [`executor/flows/playwright/scenarios/runtime.py`](../executor/flows/playwright/scenarios/runtime.py)
-    removed `cat .env`, `pip list`, `npm ls --depth=0`:
-    high-output commands that (a) collided with target-owned
-    secret-read + network-reconnaissance signals in attribution and
-    (b) combined with aggressive keyboard typing were a repeatable
-    `terminal_usage → Keyboard.type: Target crashed` trigger.
-    Kept: `ls -la`, `git status`, `python --version`,
-    `node --version`, `echo $PATH`, `pwd`. 250 ms warm-up added
-    before each `type_in_terminal` call. Adversarial stimulus
-    belongs on the fixture lane, not the benign path — the rule of
-    thumb is now spelled out in the scenario's docstring.
-  - **Monitor discovery-log rate-limit (cosmetic item below).**
-    Closed in this same pass — see the "Monitor discovery-log
-    rate-limit" entry under *Executor / capture hygiene*.
-  Verification across all six: 636 pytest passes (+9 new tests,
-  including the legacy `verdict` migration round-trip and the two
-  retry-callback paths), `make test-security` → 41 passed,
-  `make typecheck` clean, demo acceptance → `DEMO GREEN`.
-
-## Executor / capture hygiene
-
-- **T2 declawed samples + T3 handling + `make test-security-live`
-  hardening.** ADR 0004 already covers the policy; operational plumbing
-  (encrypted sample lane, rotation, per-sample license ledger) waits
-  until there is an engagement that actually produces T2 data.
-
-- **[LANDED 2026-04-24] Monitor discovery-log rate-limit (cosmetic).**
-  `find_exthost_logs()` in
-  [`executor/flows/playwright/monitor_sources.py`](../executor/flows/playwright/monitor_sources.py)
-  and [`executor/flows/playwright/runtime_capture/extension_host.py`](../executor/flows/playwright/runtime_capture/extension_host.py)
-  now keep a module-level `_LAST_EXTHOST_LOG_COUNT: int = -1` and
-  only emit `"Found N Extension Host log file(s)"` when the count
-  changes from the previously-seen value. `make sim-all` scenario
-  progress is readable again; the state-change guard means noise
-  reappears automatically if a new exthost log shows up mid-run
-  (i.e. we still have the signal when it matters).
-
-## Workflow / platform cleanups
-
-- **[FOLLOWUP runner-status-contract] First-class runner status field on
-  `ActivationReport`.** Today `executor/host.py` already tracks
-  `result.returncode` (and `executor/host.py:308` even branches on the
-  `nonzero exit AND report exists` case so the failure mode is observed
-  at runtime), but the contract surface in
-  `packages/analysis_contracts/contracts.py::ActivationReport` does not
-  carry a first-class field for it. ADR 0003 §5 covers the *effect*
-  (verdict rolls up to `inconclusive` when analysis is incomplete) and
-  `automation_health.reasons` carries categorical reason codes
-  (`fatal_ui_crash`, `rule_execution_errors`, `verification_gap`, …),
-  but a partial-finalization runner crash that still leaves a report
-  on disk reads as "verdict inconclusive, reasons list short" without
-  surfacing the runner exit code that drove it. Operators can only
-  recover the signal from the executor stderr tail
-  (`workflows/marketplace/analysis_execution.py::install_failure_message`
-  appends 500 chars on install failures, but not on the analysis path).
-  - **Change:** add `ActivationReport.runner_exit_code: int | None`
-    and `ActivationReport.runner_status: Literal["clean_exit",
-    "nonzero_with_report", "timeout", "crashed", "cancelled"]` (or a
-    typed enum). `report_builder.py` (today) and the W11
-    `ReportAssembler` (planned) populate them from the host wrapper's
-    `ExecutorError.returncode` + the `AnalysisCancelledError` path
-    introduced by the 2026-04-25 cancel branch. ADR 0003 §5 picks up
-    a short addendum noting that `runner_status` is informational and
-    does **not** override verdict rollup — `inconclusive` remains the
-    dominant verdict whenever the runner did not exit cleanly. UI
-    adapter renders a `runner_status` chip beside the Automation
-    Health chip on the report workspace.
-  - **Triggers for pulling this back:** a `make sim-target` run that
-    completes "successfully" on the surface (verdict `clean`,
-    automation_health `ok`) but whose container actually exited
-    nonzero mid-finalization; an operator who needs to distinguish a
-    user-cancelled job (`AnalysisCancelledError`) from a
-    timeout-killed job in the report alone.
-  - **Natural landing point:** W11 (`ReportAssembler` extraction,
-    `REFACTOR_OPTIMIZATION.md` §11.8) — the new field belongs in the
-    assembler's output contract. Pulling it earlier means touching the
-    report builder twice; later means another `[FOLLOWUP]` round.
-  - **Surfaced by:** supplementary review 2026-04-25 (Codex
-    "Runner exit status semantics" gap) + the post-fail-fast review
-    that surfaced the underlying `executor/host.py:308` branch.
-
-- **[FOLLOWUP simulation-progress-cancel] Run heartbeat sandbox-reset off
-  the heartbeat thread.** [`workflows/marketplace/analysis_execution.py`](../workflows/marketplace/analysis_execution.py)
-  `_heartbeat_on_cancel()` calls `executor_control.reset_sandbox(reload_window=True)`
-  synchronously from the daemon heartbeat. If the reset blocks, no further
-  cancel checks fire and the heartbeat thread is wedged. Spin the reset on
-  a short-lived worker thread (or future) so the heartbeat returns immediately.
-- **[FOLLOWUP simulation-progress-cancel] Dedupe / document
-  `AnalysisJobStepProgress` (storage, `extra="forbid"`) vs
-  `AnalyzeJobStepProgress` (API, no extra config).** Two near-identical
-  schemas in [`appcore/contracts/schema_defs/analysis_jobs.py`](../appcore/contracts/schema_defs/analysis_jobs.py)
-  and [`appcore/contracts/schema_defs/marketplace.py`](../appcore/contracts/schema_defs/marketplace.py)
-  with subtly different validation. Either pick a canonical one and adapt,
-  or leave a comment in both pointing at the deliberate split.
-- **[FOLLOWUP simulation-progress-cancel] `is_job_cancelled` session
-  churn.** [`workflows/marketplace/job_service.py:308`](../workflows/marketplace/job_service.py)
-  opens a fresh DB session every 5 s on the heartbeat. Acceptable today;
-  fold into a longer-lived session or batch with the report-payload read
-  if profiling shows it.
-- **[FOLLOWUP simulation-progress-cancel] Heartbeat refactor.**
-  [`_run_monitoring_heartbeat`](../workflows/marketplace/analysis_execution.py)
-  now juggles cancel polling, on_cancel firing, JSON file reads, scenario-
-  trace counting, and emit. Lift into a `MonitoringHeartbeat` helper so
-  the trace-counting branch can be unit-tested in isolation.
-- **[LANDED 2026-04-27] [FOLLOWUP simulation-progress-cancel] Cancel-after-finish race test.**
-  Closed on `feat/w8-2-and-reviewer-feedback-gaps`. Both the router
-  and CRUD lanes now parametrize the `JobNotCancellableError` surface
-  across all three terminal statuses (`completed`, `failed`,
-  `cancelled`). Router test
-  [`test_cancel_analysis_job_terminal_returns_409`](../tests/workflows/marketplace/test_router.py)
-  asserts 409 with the offending status preserved in the detail; CRUD
-  test
-  [`test_cancel_job_on_terminal_status_raises_not_cancellable`](../tests/platform/storage/test_analysis_jobs.py)
-  drives each terminal state through `complete_job` / `fail_job` /
-  `cancel_job` and verifies the persisted snapshot is unchanged after
-  the second cancel attempt.
-- **[LANDED 2026-04-27] [FOLLOWUP simulation-progress-cancel] Verify heartbeat 30 s → 5 s
-  load.** Closed on `feat/w8-2-and-reviewer-feedback-gaps`. New
-  [`test_run_monitoring_heartbeat_per_tick_load_is_constant_under_5s_interval`](../tests/workflows/marketplace/test_analysis_execution_helpers.py)
-  asserts one `load_report_payload` read and one `cancel_check` poll per
-  tick (1:1 ratio) and pins total tick count to a 6 ± 2 jitter window. A
-  regression that adds an extra IO inside the loop body surfaces as 2×
-  growth on the ratio assertion.
-- `workflows/marketplace/analysis_service._open_job_session` → move the
-  `SessionLocal` import back to module top (7.1.2). Currently inlined to
-  break a startup import cycle; revisit after the cycle source is split.
-- Narrow the broad `except (FileNotFoundError, ExecutorError,
-  TriggerPlanError, OSError, SQLAlchemyError, ValueError)` in
-  `run_analysis_job` (7.1.4) once the individual handlers diverge enough
-  to warrant distinct recovery paths.
-- Tighten `search_marketplace` return type (7.1.5) so the UI adapter
-  stops re-shaping loosely-typed dicts.
-- Pull the "domain service" pattern (`workflows.extension_catalog`,
-  `workflows.marketplace`) into the remaining router surfaces (2.8).
+- **`[FOLLOWUP runner-status-contract]`** First-class
+  `ActivationReport.runner_exit_code` + `runner_status` enum. Natural
+  landing: W11 `ReportAssembler`. Surfaced by 2026-04-25 supplementary
+  review (Codex "Runner exit status semantics").
+- **`[FOLLOWUP simulation-progress-cancel] heartbeat-sandbox-reset-off-thread`**
+  `_heartbeat_on_cancel()` calls `executor_control.reset_sandbox`
+  synchronously from the daemon heartbeat; spin reset on a worker.
+- **`[FOLLOWUP simulation-progress-cancel] dedupe-step-progress-schemas`**
+  `AnalysisJobStepProgress` vs `AnalyzeJobStepProgress` — pick canonical
+  or document the deliberate split.
+- **`[FOLLOWUP simulation-progress-cancel] is-job-cancelled-session-churn`**
+  `job_service.py:308` opens a fresh DB session every 5 s; fold into a
+  longer-lived session if profiling shows pressure.
+- **`[FOLLOWUP simulation-progress-cancel] heartbeat-refactor`**
+  Lift `_run_monitoring_heartbeat` cancel/poll/JSON-read mix into
+  `MonitoringHeartbeat` helper for unit-testability.
+- **`analysis_service._open_job_session`** — move `SessionLocal` import
+  back to module top (7.1.2; inlined to break startup cycle).
+- Narrow the broad `except` in `run_analysis_job` (7.1.4).
+- Tighten `search_marketplace` return type (7.1.5).
+- Pull "domain service" pattern into remaining router surfaces (2.8).
 - `make migrate` pre-check for destructive Alembic operations (7.4.6);
-  Alembic reversibility audit for every revision on `main` (7.4.7).
+  Alembic reversibility audit (7.4.7).
+
+### Executor / Capture Hygiene
+
+- **T2 declawed samples + T3 handling** + `make test-security-live`
+  hardening — ADR 0004 covers policy; operational plumbing waits on
+  real T2 engagement.
 
-## Workflow / platform cleanups (promoted to W8-W10)
-
-- **[LANDED 2026-04-27]** `safe_marketplace_slug` helper + architecture-test
-  enforcement (W8-2). New `packages/marketplace_identity/` exposes
-  `safe_marketplace_slug(publisher, name, version)` plus the canonical
-  `MARKETPLACE_SLUG_TOKEN_RE = ^[A-Za-z0-9][-_.A-Za-z0-9]{0,64}$`
-  constant. Six call sites migrated
-  (`workflows/marketplace/client.py:103-115`,
-  `packages/analysis_planner/io.py:22`, `executor/host.py:153-156`, plus
-  `workflows/marketplace/job_service.py::build_report_name` surfaced by
-  the new architecture detector). New
-  `tests/architecture/test_marketplace_identity_concat.py` blocks future
-  regressions with an AST-based three-token adjacency scan; `tests/`
-  and `packages/marketplace_identity/` are allowlisted, file-level
-  pragma `# arch-allow: marketplace-identity-concat` is the escape
-  hatch. Follow-up call-site tests pin `build_report_name`,
-  `write_trigger_file`, and `install_extension_in_executor` so
-  adversarial identity fails before report-name, trigger-file, or
-  docker-exec side effects. See `REFACTOR_STATUS.md` "W8-2 Landed"
-  section for verification matrix.
-- **[PROMOTED → W8-5]** Activation-report router path-traversal
-  regex hardening + `appcore/contracts/validators.py::valid_extension_slug`
-  merkezi helper (`REFACTOR_OPTIMIZATION.md §11.5` item 5). W8-2'de
-  pinlenen `packages.marketplace_identity.MARKETPLACE_SLUG_TOKEN_RE`
-  re-import edilir; W8-5 yalnızca Pydantic v2 wrapper ekler.
-
-## UI
-
-- **[FOLLOWUP simulation-progress-cancel] Replace `window.confirm()` on
-  Stop simulation.** [`SimulationPage.tsx:108`](../ui/src/features/simulation/SimulationPage.tsx)
-  uses the browser-native confirm — non-stylable, not keyboard-friendly,
-  inconsistent with the design system. Build a custom `role="alertdialog"`
-  with focus trap + ESC-to-cancel.
-- **[FOLLOWUP simulation-progress-cancel] Cancel mutation timeout +
-  retry.** No `AbortSignal` / timeout on the cancel mutation in
-  [`SimulationPage.tsx:93`](../ui/src/features/simulation/SimulationPage.tsx);
-  if the request hangs, the button stays disabled showing "Stopping…"
-  until page reload. Add a timeout and surface a retry path on `isError`.
-- **[FOLLOWUP simulation-progress-cancel] Cancel-during-completion race
-  test.** [`SimulationPage.tsx:99`](../ui/src/features/simulation/SimulationPage.tsx)
-  uses `setQueryData(...)` with the cancel response — if the job
-  completes server-side mid-cancel, the completed status is briefly
-  overwritten with cancelled until the 2 s refetch heals it. Add a unit
-  test that asserts the refetch path corrects the UI.
-- Split `ReportsWorkspace` / `DetectionPanel` into smaller components
-  (7.3.1, 7.3.2) once the evidence-deep-link feature settles.
-  > **Evaluated 2026-04-24, not promoted to W8-W13** — evidence-deep-link
-  > behavior still settling; premature split would ossify incorrect
-  > component boundaries. See `REFACTOR_OPTIMIZATION.md §11.12`.
-- Replace the `window.__EXTRACE_CONFIG__` global with a React context
-  provider (7.3.3).
-- Wire `AbortController` cancellation through the polling helpers
-  (7.3.4).
-- Add a feature-boundary ESLint rule that prevents `features/*` from
-  importing sibling `features/*` internals (7.3.5).
-- Axe-core accessibility lane (deferred W7; re-plan when UI is
-  stakeholder-facing).
-  > **Evaluated 2026-04-24, not promoted to W8-W13** — UI is not
-  > stakeholder-facing yet; accessibility bar without real users is
-  > premature. See `REFACTOR_OPTIMIZATION.md §11.12`.
-- OpenAPI-generated frontend API client.
-  > **Evaluated 2026-04-24, not promoted to W8-W13** — UI surface not
-  > stabilized; OpenAPI snapshot churns every PR without delivering
-  > value until post-PoC UI stabilizes. See `REFACTOR_OPTIMIZATION.md
-  > §11.12`.
-
-### UI v3 redesign — backend gaps (2026-04-28)
-
-The v3 console redesign on
-[`feat/ui-v3-design-extrace-console`](../ui/src) ports five pages,
-13 shared components, and two bespoke SVG visuals
-([`InteractionGraph`](../ui/src/features/reports/charts/InteractionGraph.tsx)
-and [`EventTimeline`](../ui/src/features/reports/charts/EventTimeline.tsx)).
-The original design hand-off prototype directory was retired on
-2026-04-29 once the production surfaces matched the spec; the
-backend contracts the new pages assume but cannot reach yet are
-captured below. Each entry names a stable trigger so a follow-up
-iteration can pick it up without re-deriving context. Until they
-land, the UI shows explicit `Backend pending` badges or
-`data-feature-stub` markers so the missing piece is visible.
-
-- **[BACKLOG ui-v3-1] Scenario catalog API** *(M)* — `GET
-  /api/scenarios` + `POST /api/scenarios/{id}/run`. The Simulation
-  page currently lists downloaded marketplace extensions in place of
-  scenario templates because the executor owns scenarios internally
-  during a run. Promote a first-class scenario catalog so the
-  scenario picker on
-  [`SimulationPage.tsx`](../ui/src/features/simulation/SimulationPage.tsx)
-  can drive sandbox runs directly.
-- **[BACKLOG ui-v3-2] Live event stream (SSE / WebSocket)** *(L)* —
-  Replace the 2 s `getAnalysisJob` poll with a streaming endpoint so
-  the v3 Live Evidence surface and the new
-  [`ActivityBars`](../ui/src/features/simulation/charts/ActivityBars.tsx)
-  histogram can update without the polling lag. The header on the
-  Simulation page carries a "Polling 2 s · live SSE pending" badge
-  until this lands.
-- **[BACKLOG ui-v3-3] Marketplace risk taxonomy** *(S)* — Extend
-  `MarketplaceExtension` with `category`
-  (detector/collector/enricher) and `risk_tone` (low/medium/high)
-  so the v3 Marketplace cards can drop the `UNCATEGORIZED` and
-  `RISK TBD` placeholder badges. The placeholder badges are
-  flagged with `data-feature-stub="category|risk-tone"` in
-  [`MarketplacePage.tsx`](../ui/src/features/marketplace/MarketplacePage.tsx).
-- **[BACKLOG ui-v3-4] Risk radar 6-axis scoring** *(M)* — Add
-  `Threat / Exfil / Persistence / Privesc / Defense / Resource`
-  scores (0-100) to `RiskSummary`. The current adapter
-  [`buildRiskRadar`](../ui/src/lib/adapters/report.ts) synthesizes
-  scores from kind frequencies and emits `_synthetic: true`; the
-  Reports detection tab labels the panel "Risk radar
-  (synthetic)" until the backend produces real axis scores.
-- **[BACKLOG ui-v3-5] Settings persistence API** *(M)* — `GET /
-  PUT /api/settings`. Settings on
-  [`SettingsPage.tsx`](../ui/src/features/settings/SettingsPage.tsx)
-  persist to `localStorage["extrace-v3-settings"]` only; the
-  header shows a "Backend pending · localStorage only" badge.
-  Cross-device sync and audit retention need a real endpoint.
-- **[BACKLOG ui-v3-6] System service health & telemetry API**
-  *(L)* — `GET /api/system/services` + `GET
-  /api/system/services/{id}/telemetry`. Today only `/health`
-  feeds the executor tile on
-  [`SystemPage.tsx`](../ui/src/features/system/SystemPage.tsx);
-  catalog, sandbox, and telemetry tiles are mocked and visibly
-  marked with the `stub` Badge. The disabled `Restart executor` /
-  `Re-sync catalog` actions in the inventory sidebar need their
-  control endpoints alongside per-service health and a telemetry
-  sparkline.
-- **[BACKLOG ui-v3-7] Authentication surface** *(M)* — The v3
-  console assumes no auth (mirroring current state). The JWT
-  template in
-  [`appcore/api/deps.py`](../appcore/api/deps.py) needs to be
-  enabled before the v3 design ships outside the single-operator
-  appliance assumption recorded in `AGENTS.md`.
-- **[BACKLOG ui-v3-8] Reports list metadata enrichment** *(S)* —
-  `GET /api/activations` returns only `filename / size_bytes /
-  modified` today; the v3 Reports header carries a `Severity TBD ·
-  backend pending` Badge because the list view wants `severity`,
-  `system`, and `executor` fields per row to drive the index card
-  stack. Extend the listing response and adapt
-  [`ReportsPage.tsx`](../ui/src/features/reports/ReportsPage.tsx)
-  to consume the richer metadata.
-
-### UI v3 redesign — minimal completion (2026-04-28)
-
-These entries record the cleanup + four feature additions that
-brought the v3 surface to functional parity with the pre-redesign
-flows without re-introducing the old sticky-panel layout. The
-backend-only gap left over (rule-draft persistence) is captured as
-`[BACKLOG ui-v3-13]` below.
-
-- **[CLEANUP ui-v3-9] Orphan v3 component prune** *(S, landed
-  2026-04-28)* — Removed
-  [`EvidenceTable.tsx`](../ui/src/components/evidence/),
-  [`RiskOverviewPanel.tsx`](../ui/src/components/evidence/),
-  [`DetectionPanel.tsx`](../ui/src/features/reports/) (plus its
-  `describe.skip` test and snapshot fixture),
-  `RunActivityRail.tsx` (formerly under `ui/src/components/simulation/`),
-  [`features/simulation/telemetry.ts`](../ui/src/features/simulation/),
-  and the dormant `LiveRiskStrip` / `SimulationStatusPanel` /
-  `SimulationLogsPanel` / `TelemetryField` / `StatusCard` /
-  `RunActivityPanel` / `WarmupPanel` exports from
-  [`features/simulation/sections.tsx`](../ui/src/features/simulation/sections.tsx).
-  The v3 surface now owns only what it renders; the `ui/src/components/simulation/`
-  and `ui/src/features/reports/__tests__/__snapshots__/` directories
-  collapsed to empty and were removed.
-
-- **[ADD ui-v3-10] Inspector drawer + event-scoped rule draft**
-  *(M, landed 2026-04-28)* — `ReportsPage` opens `Inspector` inside a
-  `SlideOverDrawer` on event selection across the timeline /
-  interactions / ledger paths
-  ([`ReportsPage.tsx`](../ui/src/features/reports/ReportsPage.tsx)).
-  Drawer footer ships a `GhostButton` that navigates to
-  `/rules?tab=draft&from=<eventId>`, where
-  [`RuleDraftSection.tsx`](../ui/src/features/rules/RuleDraftSection.tsx)
-  renders the YAML/JSON preview driven by
-  [`lib/rules/draft.ts`](../ui/src/lib/rules/draft.ts)
-  (`buildRuleDraft` / `toRuleYaml` / `toRuleJson`). Copy YAML / Copy
-  JSON use `navigator.clipboard`; **Save to file** is
-  `data-feature-stub="rule-save"` pending the rule-persistence
-  endpoint (`[BACKLOG ui-v3-13]`). `SlideOverDrawer` now accepts an
-  optional `eyebrow` prop so non-Filters drawers do not inherit the
-  hardcoded "Filters" caption.
-
-- **[ADD ui-v3-11] Run health + Coverage summary on Simulation**
-  *(S, landed 2026-04-28)* — Two `Panel padded={false}` strips below
-  the run header on
-  [`SimulationPage.tsx`](../ui/src/features/simulation/SimulationPage.tsx)
-  surface `summary.automationHealthStatus`,
-  `summary.skippedScenarioDetails`, and
-  `coverageSummary.covered / partial / missing`. A second
-  `SlideOverDrawer` ("Run health" eyebrow) opens on **View skipped
-  scenarios** with the executor's reason codes; the coverage strip
-  links to `/reports?report=<filename>&tab=audit`, preserving the
-  single-source-of-truth rule (coverage detail still lives in
-  Reports / Audit).
-
-- **[ADD ui-v3-12] Ledger Scenario kind tab** *(S, landed
-  2026-04-28)* — `LEDGER_KIND_TABS` in
-  [`ReportsPage.tsx`](../ui/src/features/reports/ReportsPage.tsx)
-  now includes `Scenario` alongside `Network` / `File` /
-  `Activation`. The `kindFilter` derivation also accepts the new
-  literal so the existing `kindLabel` produced by `adaptBundle`
-  (`"scenario"` → `"Scenario"`) flows end-to-end without adapter
-  churn.
-
-- **[BACKLOG ui-v3-13] Rule draft persistence endpoint** *(M)* —
-  POST `/api/rules/drafts` (or a sandboxed local file write under
-  `rules/draft/`) and an accompanying GET to list pending drafts.
-  The **Save to file** button on
-  [`RuleDraftSection.tsx`](../ui/src/features/rules/RuleDraftSection.tsx)
-  is currently disabled with `data-feature-stub="rule-save"` and a
-  tooltip pointing the operator at the Copy YAML path. Until this
-  endpoint lands, drafts are copy/paste only.
-
-- **[CLEANUP ui-v3-14] Design hand-off prototype directory retired**
-  *(S, landed 2026-04-29)* — Removed `design_handoff_extrace_console/`
-  (its `README.md` plus the `design_files/` JSX prototypes:
-  `AppShell.jsx`, `Components.jsx`, `MarketplacePage.jsx`,
-  `ReportsPage.jsx`, `SettingsPage.jsx`, `SimulationPage.jsx`,
-  `SystemPage.jsx`, `index.html`). The production v3 surfaces in
-  [`ui/src/features/`](../ui/src/features/) and
-  [`ui/src/components/v3/`](../ui/src/components/v3/) are now the
-  single source of truth; the prototype directory had finished
-  serving its hand-off purpose.
-
-## Detection engine stretch
-
-- **Adversary classes A5 + A7** — stretch canaries + rules (ADR 0002
-  §4). A3 landed in W7 Phase 3a (`extrace.a3.typosquat`); A5 and A7 are
-  the remaining stretch entries.
-  > **Evaluated 2026-04-24, not promoted to W8-W13** — W8-W13 focuses
-  > on hardening + modularization of existing rule surface; adversary
-  > coverage expansion is orthogonal and stays in this section.
-- Promote allowlists (`benign_domains.txt`, `popular_extensions.txt`) to
-  a versioned data artifact once the lists grow past the current
-  hand-curated ~15-20 entries.
-  > **Evaluated 2026-04-24, not promoted to W8-W13** — list growth
-  > trigger not met; revisit when entries exceed ~50.
-
-## Detection engine + contract hygiene (promoted to W10-W12)
-
-- **[PROMOTED → W10-1]** `ActivationReport.schema_version` field +
-  DeprecationWarning migration emitter (`REFACTOR_OPTIMIZATION.md
-  §11.7` item 1).
-- **[PROMOTED → W10-2]** `_TriggerPayloadDraft` elimination from
-  `packages/analysis_planner/__init__.py` (`REFACTOR_OPTIMIZATION.md
-  §11.7` item 2).
-- **[PROMOTED → W10-3]** `packages/analysis_planner/registry.py` 669
-  LoC → `capabilities.py` + `scenarios.py` + `event_scenario_index.py`
-  - `pass_order.py` + facade split (`REFACTOR_OPTIMIZATION.md §11.7`
-  item 3).
-- **[PROMOTED → W10-4, W10-5]** `automation_health` +
-  `coverage_*` typed Pydantic models (`AutomationHealth`,
-  `CoverageSummary`) replacing `dict[str, Any]`
-  (`REFACTOR_OPTIMIZATION.md §11.7` items 4-5).
-- **[PROMOTED → W11-3]** `ActivationReport.activation_discovery_strategies`
-  report field (`REFACTOR_OPTIMIZATION.md §11.8` item 3).
-- **[PROMOTED → W12-3]** `raw_context` per-event-type typing
-  (`NetworkRawContext` / `FileRawContext` / `ProcessRawContext`
-  discriminated union) (`REFACTOR_OPTIMIZATION.md §11.9` item 3).
-
-## Executor modularization + boundary (promoted to W9-W12)
-
-- **[LANDED 2026-04-27 `9c2e2d9` + `9eb4aaf` + `d39a612`] Deterministic
-  harness readiness gate.** Three sequential commits on
-  `feat/pr345-completion`. PR-A wires diagnostic emit on a dedicated
-  `ExTrace Harness` Output Channel (`activate_enter` /
-  `marker_write_start` / `marker_write_done` / `activate_exit` /
-  `*_failed`); the existing PR345 PR5 hook captures them as
-  `OutputSignalEvent(kind=output_channel_appendline)`. PR-B widens the
-  marker payload with `marker_version`, `epoch_run_id`, and `pid`
-  (atomic tmp+rename); container `start.sh` exports a unique
-  `EXTRACE_EPOCH_RUN_ID` per boot which the harness inherits via
-  `process.env`. New `parse_harness_ready_marker` (frozen dataclass)
-  - four typed `HarnessUnavailableError.reason_code` sub-codes
-  (`harness_ready_marker_missing | _stale | _invalid` and
-  `harness_activation_timeout`). PR-C wraps the wait in
-  `_ensure_harness_ready_with_recovery` (one controlled retry on
-  `MISSING` or `TIMEOUT`; `STALE`/`INVALID` are non-recoverable);
-  `automation.py`'s `HarnessUnavailableError` catch block now reads
-  `exc.reason_code` instead of the legacy hard-coded
-  `harness_command_unavailable`; `health_summary._REASON_LABELS` gains
-  four human-readable sentences. Coverage: 12 new tests in
-  [`tests/executor/test_playwright_stimulus.py`](../tests/executor/test_playwright_stimulus.py)
-  and 1 new test in
-  [`tests/executor/test_output_signal_capture.py`](../tests/executor/test_output_signal_capture.py).
-  Verification: `make test-security` 41 → 45; `make typecheck` clean
-  on 213 source files; `make lint-check` clean. **Docker-based smoke
-  remains user-side** (`make exec-up && make sim-target
-  TARGET=ms-python.python`) to confirm:
-  (a) `output_signal_events` now carry `ExTrace Harness` lifecycle
-  payloads; (b) the trigger report
-  `activation_report_ms-python.python-...cba16dba0258.json` rerun
-  surfaces a specific reason code instead of 9× generic
-  `harness_command_unavailable`. Detection rule contract unchanged.
-  `failure_reason_code` formal enum migration tracked under
-  `[PROMOTED → W10-1]`; the four new strings reserve their namespace
-  so the W10 PR can promote them without rewriting their call sites.
-- **[PROMOTED → W8-1]** VSIX zip-bomb + ZipSlip guard in
-  `packages/analysis_engine/static/vsix.py` (`REFACTOR_OPTIMIZATION.md
-  §11.5` item 1).
-- **[LANDED 2026-04-28]** URI trigger argv-form invocation in
-  `executor/flows/playwright/entrypoint_triggers.py:142` +
-  `stimulus_attempts.py:324` (plan said `:136` — line drift)
-  (`REFACTOR_OPTIMIZATION.md §11.5` item 3). Helper
-  `executor/flows/playwright/uri_validation.py` + AST detector
-  `tests/architecture/test_uri_trigger_shell_pattern.py` + 26
-  adversarial cases `tests/executor/security/test_uri_trigger_injection.py`.
-  See `REFACTOR_STATUS.md` "W8-3 Landed" section.
-- **[PROMOTED → W8-4]** Absolute binary paths discipline across
-  executor shell invocations (`REFACTOR_OPTIMIZATION.md §11.5` item 4).
-- **[PROMOTED → W8-6]** `ContentSample.value` secret redaction +
-  ADR 0003 §6 addendum (`REFACTOR_OPTIMIZATION.md §11.5` item 6).
-- **[PROMOTED → W9-1]** Container-packaging ADR (number TBD; ADR 0008 if
-  next available) — paket mode vs top-level
-  (`REFACTOR_OPTIMIZATION.md §11.6` item 1).
-- **[PROMOTED → W9-2]** `executor/flows/playwright/signal_policy.py`
-  485 LoC → `packages/analysis_engine/signals/policy.py` relocation +
-  `sys.path.insert(0, _PROJECT_ROOT)` removal
-  (`REFACTOR_OPTIMIZATION.md §11.6` item 2).
-- **[PROMOTED → W9-3]** Dual-import `except ImportError` fallback sweep
-  across 17 executor files (`REFACTOR_OPTIMIZATION.md §11.6` item 3;
-  count corrected from 14 to 17 in 2026-04-24 plan review).
-- **[PROMOTED → W9-4]** `sys.path.insert` audit + removal outside
-  `scripts/`, `tests/`, `alembic/`. 5 runtime hits identified:
-  `signal_policy.py:33`, `reload_vscode.py:19`, `triggers.py:27`,
-  `report_builder.py:17`, `entrypoint.py:18` (`REFACTOR_OPTIMIZATION.md
-  §11.6` item 4; scope expanded from single hit to 5 in 2026-04-24
-  plan review).
-- **[PROMOTED → W9-5]** Container import-mode CI test
-  (`REFACTOR_OPTIMIZATION.md §11.6` item 5).
-- **[PROMOTED → W11]** `executor/flows/playwright/monitor_lifecycle.py`
-  834 LoC → `MonitorRuntime` + `ReportAssembler` + `ScenarioAccountant`
-  - `ExtensionMonitor` facade split; per-strategy `_stop_*` helper
-  extraction (`REFACTOR_OPTIMIZATION.md §11.8`).
-- **[PROMOTED → W12-4]** `entrypoint_runner.py` 487 LoC → ≤200 LoC
-  dispatch extraction; dispatch logic `entrypoint/dispatch.py` yeni
-  subpackage içinde oturur (`REFACTOR_OPTIMIZATION.md §11.9` item 4).
-  Moved from W11 to W12 in 2026-04-24 plan review: co-located with
-  its containing `entrypoint/` subpackage — tek operasyon, iki
-  dokunma turu yerine.
-- **[PROMOTED → W12-1]** `executor/flows/playwright/` 54 flat dosya →
-  `{monitor, stimulus, workspace, health, entrypoint}/` subpackage
-  split (`REFACTOR_OPTIMIZATION.md §11.9` item 1).
-- **[PROMOTED → W12-2]** `attribution/__init__.py` 29-name
-  underscore-prefixed API → public/private cleanup
-  (`REFACTOR_OPTIMIZATION.md §11.9` item 2).
-- Async executor runtime refactor (`asyncio.Event` → `threading.Event`).
-  > **Evaluated 2026-04-24, not promoted to W8-W13** — executor
-  > Playwright sync; async boundary only on `appcore/` side. Change
-  > benefit/cost ratio low; potential deadlock vector. See
-  > `REFACTOR_OPTIMIZATION.md §11.12`.
-
-## Engineering quality
-
-- Promote mypy to `strict = true` once the remaining `ignore_errors`
-  overrides (scripts, tests, alembic) are either typed or actually
-  moved outside the source set.
-  > **Evaluated 2026-04-24, not promoted to W8-W13** — strict promotion
-  > requires each `ignore_errors` override to be lifted first; W8-W13
-  > bandwidth doesn't cover that surface. See `REFACTOR_OPTIMIZATION.md
-  > §11.12`.
-- Documentation consolidation pass: dedupe `REFACTOR_STATUS.md`,
-  `REFACTOR_EXECUTION_PLAN.md`, `REFACTOR_OPTIMIZATION.md` once W7 is
-  more than a few weeks old and the living-doc cadence has settled.
-  > **Evaluated 2026-04-24, not promoted to W8-W13** — W7 closure <4
-  > weeks old; living-doc cadence not yet settled — early merge would
-  > lose audit trail. See `REFACTOR_OPTIMIZATION.md §11.12`.
-- Monorepo tooling migration (`uv` / `poetry`).
-  > **Evaluated 2026-04-24, not promoted to W8-W13** — "no new
-  > dependency without approval" AGENTS.md rule blocks this without
-  > an ADR; no ADR exists. See `REFACTOR_OPTIMIZATION.md §11.12`.
-- Executor-wide Bandit scope expansion (`pyproject.toml` exclude
-  removal).
-  > **Evaluated 2026-04-24, not promoted to W8-W13** — Codex §7
-  > flag; but Codex's own recommendation is "targeted security tests
-  > - narrow excludes, not blanket enable". W8-1 (zip-bomb), W8-3
-  > (URI argv), W8-4 (absolute binary paths) already close the
-  > concrete subprocess/path injection vectors with targeted tests;
-  > Bandit-wide enable noise/benefit ratio low (subprocess calls are
-  > all list-form + `# nosec`-annotated). Post-W13 mechanical
-  > cleanup. See `REFACTOR_OPTIMIZATION.md §11.12`.
-
-## Test + observability (promoted to W13)
-
-- **[PROMOTED → W13-1]** Benign silence baseline expansion 3 → 5
-  fixtures (+ vscode-eslint, + github-copilot-chat)
-  (`REFACTOR_OPTIMIZATION.md §11.10` item 1).
-- **[PROMOTED → W13-2]** Stale `SingletonLock` cleanup regression test
-  (W7 post-hardening fix regression guard)
-  (`REFACTOR_OPTIMIZATION.md §11.10` item 2).
-- **[PROMOTED → W13-3]** `.gitignore` contract test (`.env`,
-  `extensions/*/node_modules/`, `output/`, `__pycache__/` pattern
-  assertions) (`REFACTOR_OPTIMIZATION.md §11.10` item 3).
-- **[PROMOTED → W13-4]** `extrace.executor.*` logger hierarchy
-  consolidation; all `print(...)` call sites → logger
-  (`REFACTOR_OPTIMIZATION.md §11.10` item 4).
-- **[PROMOTED → W13-5]** Run-ID (UUIDv7) stamping across all log
-  records + report outputs via logger filter
-  (`REFACTOR_OPTIMIZATION.md §11.10` item 5).
-
-## Codex automation flow review (2026-04-27)
-
-Codex external review (delivered 2026-04-27, post-W8-0) proposed eight
-hardening items for the automation flow. Three are already covered:
-item 1 (timeout / partial-report contract) is tracked under
-`[FOLLOWUP runner-status-contract]` (W11 landing target); item 2
-(per-source capture-fail reasons) is marginal value because
-capture failure already surfaces as `target_extension_not_observed`
-or `extension_host_log_missing` reasons; item 4 (harness readiness)
-landed as W8-0 (`9c2e2d9` + `9eb4aaf` + `d39a612`). The remaining
-five items are recorded below.
-
-### [FOLLOWUP codex-automation-3] — LANDED 2026-04-27
-
-`build_run_quality()` returned `medium` when partial-evidence signals
-fired, but `build_automation_health()` did not attach the same reason
-codes — the W7 entry "layered run_quality label" patch closed
-`official_unresolved_present` text only. The 2026-04-27 14:57 live
-smoke produced `automation_health.status="healthy"`, `reasons=[]`
-while `run_quality="medium"`, `run_quality_reasons=[2 entries]` —
-operator reading the health chip alone got misplaced confidence.
-
-Closed in
-[`health_summary.py::build_automation_health`](../executor/flows/playwright/health_summary.py)
-on `fix/w8-0-capture-and-health-reasons`. All four FOLLOWUP-listed
-reason codes propagate to `automation_health.reasons` regardless of
-execution mode, with status demotion `healthy` → `degraded`:
-
-- `verification_gap_present` (run-level: `verification_gap > 0`)
-- `chat_tool_verification_incomplete` (run-level: helper match)
-- `official_unresolved_present` (run-level:
-  `official_event_coverage.unresolved > 0`)
-- **`harness_verification_unconfirmed_present`** (attempt-level:
-  any `event_attempts[].failure_reason_code ==
-  "harness_verification_unconfirmed"`).
-
-`build_run_quality()` layered branch refined: a `degraded` run whose
-reasons are *only* partial-evidence codes returns `medium`, not
-`low`. The `partial_evidence_reason_codes` set tracks all four codes
-so the heuristic stays consistent across new propagations.
-Real-failure degradations (extension_host_log_missing,
-scenario_failures, trigger_plan_not_loaded/applied, etc.) still drop
-to `low`.
-
-Coverage:
-[`tests/executor/test_playwright_health_summary.py`](../tests/executor/test_playwright_health_summary.py)
-gained 4 dedicated cases (layered partial-evidence demotion +
-non-layered + clean-run regression guard + attempt-level harness
-propagation). Existing test
-[`test_layered_harness_chat_tool_attempt`](../tests/executor/test_playwright_monitor_attribution.py)
-renamed (`keeps_health_healthy_and_quality_medium` →
-`degrades_health_and_keeps_quality_medium`) with assertions flipped.
-
-Live re-verification (2026-04-27 15:46 sim-target run, report
-`output/activation_report_ms-python.python-2026.5.2026042602-17ba4b80acac.json`):
-`automation_health.status="degraded"` ✅;
-`automation_health.reasons=["verification_gap_present",
-"official_unresolved_present"]` ✅;
-`run_quality="medium"`, `run_quality_reasons=[2 entries]` ✅.
-
-### [FOLLOWUP codex-automation-5] Executor runtime fingerprint in report
-
-`executor/container/Dockerfile` bakes the harness extension,
-Playwright flow, `packages/`, and VS Code into the image. If the
-host code changes but the image is not rebuilt,
-`make sim-target` runs the **previous** executor build silently.
-Verified live on 2026-04-27: after the W8-0 PR-A change to
-`harness_extension/extension.js`, the first `make sim-target`
-produced `output_signal_events=0` because the running container
-still carried the pre-PR-A JS. Rebuilding the image resolved it,
-but the report itself gave no clue — a stale-image regression
-class can pass acceptance gates without anyone noticing.
-
-- **Change:** add `ActivationReport.executor_fingerprint:
-  ExecutorFingerprint` (typed nested model) carrying:
-  `image_id` (from `docker inspect`), `image_label` (a Dockerfile
-  `LABEL extrace.build`), `harness_sha256_manifest` (already on
-  disk at `/home/executor/flows/harness_extension.sha256`), and
-  `git_sha` (the host's `git rev-parse HEAD` at scan-start).
-  `executor/host.py` reads the running container's image id at
-  scan-start and stamps the report; mismatches between expected
-  and actual fingerprint append a
-  `executor_fingerprint_mismatch` reason to
-  `automation_health.reasons` (without changing the verdict).
-- **Trigger for pulling this back:** any debugging session where
-  "did the container actually rebuild?" was a question; a CI
-  release where the deployed image trailed `main` by N commits.
-- **Natural landing point:** W12 (`executor/flows/playwright/`
-  subpackaging) — the fingerprint module fits the new
-  `workspace/` or `entrypoint/` subpackage. If pulled earlier as
-  a one-off, drop into `executor/host.py` directly.
-- **Size:** medium (~150 LoC + Dockerfile LABEL + 2 contract
-  tests + 1 host integration test).
-
-### [FOLLOWUP codex-automation-6] UI failure taxonomy
-
-The W7-era `is_fatal_ui_error` classifier in
-[`executor/flows/playwright/automation.py`](../executor/flows/playwright/automation.py)
-distinguishes renderer crashes from non-fatal errors and writes a
-`fatal_ui_crash` reason. Below that level the failure granularity
-is generic Playwright `TimeoutError` — a `selector_not_found`,
-`command_not_registered`, `command_palette_unavailable`,
-`workbench_not_ready`, and `cdp_reconnect_failed` all collapse
-into the same opaque timeout. Operators reading a `failed` scenario
-trace cannot tell which UI primitive broke without re-running
-under VNC.
-
-- **Change:** introduce a UI failure classifier sibling to
-  `is_fatal_ui_error` that maps Playwright exceptions plus the
-  call site context into a typed taxonomy. The taxonomy lives
-  next to `_REASON_LABELS` in `health_summary.py`. Wait helpers
-  in `wait_helpers.py` carry a `wait_id` so a timeout there is
-  recorded with the wait that timed out (e.g.
-  `wait_for_command_effect_timeout`). `vscode.run_command`
-  records `command_palette_unavailable` when the palette never
-  became visible; `command_not_registered` when the palette
-  showed but the entry was absent. `ScenarioTrace.failure_reason_code`
-  receives the typed code instead of generic
-  `stimulus_execution_failed`.
-- **Trigger for pulling this back:** a regression where a
-  rebrand of a built-in command label silently breaks scenarios
-  for one or two extensions and the report can't say which command
-  changed.
-- **Natural landing point:** W10 contract hygiene round, after
-  W10-1 enum migration lands. Premature taxonomies churn under
-  W10's enum work.
-- **Size:** medium (~250 LoC + 6 tests across `wait_helpers`,
-  `vscode`, and `ScenarioTrace` plumbing).
-
-### [LANDED 2026-04-27] [FOLLOWUP codex-automation-7] `make test-ci` smoke lane mismatch
-
-Closed on `feat/w8-2-and-reviewer-feedback-gaps`. `Makefile`'s `test-ci`
-target now invokes `pytest -m "smoke or not smoke" --cov ...`, overriding
-the global `addopts = ["-m", "not smoke"]` in `pyproject.toml`. A
-documenting comment in `pyproject.toml` and a banner line in the
-Makefile target spell out the override. `pytest --collect-only -m
-"smoke"` reports the 3 smoke tests under
-`tests/smoke/test_marketplace_analysis_smoke.py`; previously they were
-silently deselected from `make test-ci`.
-
-Original entry (preserved for audit trail):
-
-[`pyproject.toml`](../pyproject.toml) `addopts` includes
-`-m "not smoke"` as a default, which skips smoke-marked tests on
-plain `pytest` invocations.
-[`Makefile`](../Makefile) `test-ci` target prints "Running CI
-tests with **blocking smoke acceptance**" but then invokes
-`pytest --cov ...` without overriding the marker filter — i.e.
-the message is misleading; the lane skips the very tests it
-claims to gate on.
-
-- **Change:** decide between two fixes —
-  (a) make `test-ci` actually run smoke (`pytest -m "smoke or not
-  smoke" --cov ...` or invoke `make test-smoke` after the
-  unit/integration block), or (b) drop the "blocking smoke
-  acceptance" wording and rename the target to clarify it covers
-  unit + integration + security only. Option (a) is the
-  correctness path; option (b) is the documentation path. The
-  CI workflow at `.github/workflows/ci.yml` should be inspected
-  alongside since it composes its own marker filter.
-- **Trigger for pulling this back:** any PR that depends on a
-  smoke-marked test catching a regression and instead passes
-  through `make test-ci` silently.
-- **Natural landing point:** standalone, can land anytime — does
-  not depend on W8-W13 sequencing.
-- **Size:** small (~10 LoC Makefile + 1 doc edit).
-
-### [LANDED 2026-04-27] [FOLLOWUP codex-automation-8] `docker exec -it` non-interactive cleanup
-
-Closed on `feat/w8-2-and-reviewer-feedback-gaps`. `Makefile` swapped
-`-it` to `-i` on the six non-interactive simulator/exec targets
-(`exec-run`, `sim-all`, `sim-target`, `sim-demo`, `sim-list`,
-`sim-run`); `exec-shell` keeps `-it` since it is genuinely interactive.
-`make help` blurb spells out the split so future contributors see the
-TTY discipline at a glance.
-
-Original entry (preserved for audit trail):
-
-The `Makefile` simulator targets `sim-all`, `sim-target`,
-`sim-demo`, `sim-list`, `sim-run`, and `exec-run` all use
-`docker exec -it`. The `-t` flag allocates a TTY which fails
-under non-interactive contexts (CI, agent harness, headless
-shells) with `the input device is not a TTY`. The
-`make demo-canary` target already uses TTY-less invocation —
-correct pattern is in-tree.
-
-- **Change:** drop `-t` (keep `-i` for stdin attach) on all six
-  simulator targets. Add a separate `exec-shell` target (or
-  preserve the existing one) that keeps `-it` for genuine
-  interactive debugging. `exec-run-interactive` could be added
-  if a use case appears.
-- **Trigger for pulling this back:** a CI run or agent
-  invocation that aborts at "the input device is not a TTY".
-- **Natural landing point:** standalone, low risk, can land
-  alongside item 7 in a single Makefile cleanup commit.
-- **Size:** trivial (~6 lines + a `make help` blurb).
-
-## Live-scan findings (2026-04-27, post-W8-0 smoke)
-
-A live `make sim-target TARGET=ms-python.python` run on
-2026-04-27 14:57 (report
-`output/activation_report_ms-python.python-2026.5.2026042602-80f070c03e9c.json`)
-surfaced one tracker-ready capability gap and confirmed two existing
-followups (codex-automation-3, codex-automation-5) as live evidence.
-The capability gap below is recorded for the next iteration; it is
-genuinely untracked and orthogonal to the captured fixes shipped in
-the same session.
-
-### How to read the current `ms-python.python` `degraded` health
-
-The 2026-04-27 18:14 `ms-python.python` report
-(`output/activation_report_ms-python.python-2026.5.2026042602-f8d981323862.json`)
-is not a total automation failure and is not a malicious verdict by
-itself. The target extension was observed, the trigger plan loaded and
-applied, the target stream was present,
-`automation_health.target_activation_count=1`,
-`failed_scenarios=[]`, `skipped_scenarios=[]`, and `run_quality=medium`.
-The report still shows `automation_health.status="degraded"` because
-three partial-evidence reason classes are present at the same time:
-
-- `verification_gap_present`: six capabilities were attempted, but
-  only four were verified. The remaining gap is `debug` and
-  `terminal_tasks`; this maps to `[FOLLOWUP capability-verification-gap]`
-  below.
-- `official_unresolved_present`: official activation coverage was
-  `declared=21`, `verified=12`, `attempted_only=9`, `unresolved=9`.
-  This overlaps with the capability gap but is broader because
-  individual official events such as `onLanguageModelTool:*`,
-  `onLanguage:python`, debug, and terminal triggers must either be
-  verified or explicitly classified as unsupported / non-actionable.
-- `harness_verification_unconfirmed_present`: eight harness-routed
-  attempts carried `failure_reason_code="harness_verification_unconfirmed"`.
-  This is separate from the capability gap: adding coverage stimulus
-  without confirming the harness completion trace would hide the symptom
-  rather than prove the attempt end-to-end.
-
-Do not treat the baseline as healthy by changing verification labels
-alone. A clean closure for this specific degraded state requires all of:
-
-- `verification_gap == 0`
-- `official_event_coverage.unresolved == 0`, or unsupported official
-  events are separated into an explicit unsupported / non-actionable
-  class that does not masquerade as verified coverage
-- no `event_attempts[].failure_reason_code ==
-  "harness_verification_unconfirmed"`
-- existing execution-health gates stay true: target observed, trigger
-  loaded/applied, target stream present, and no failed or skipped
-  scenarios
-
-Roadmap mapping: the `debug` + `terminal_tasks` capability gap is W13
-test-expansion material; the broader official-event closure should be
-handled in the same baseline-health pass if W13 claims `ms-python.python`
-as a healthy benign fixture. Repeated
-`harness_verification_unconfirmed` attempts should be pulled back
-separately as W8-0 harness confirmation work, not folded into coverage
-label tweaks.
-
-### [FOLLOWUP capability-verification-gap] `debug` + `terminal_tasks` capability verification
-
-Live scan reported:
-
-- `attempted_capabilities` = `[commands, debug, languages_editor,
-  terminal_tasks, window_ui, workspace_fs]` (6).
-- `verified_capabilities` = `[commands, languages_editor, window_ui,
-  workspace_fs]` (4).
-- Verification gap = 2: `debug` and `terminal_tasks` were attempted
-  but never marked verified. No fail/abort along the way; the run
-  completed all 3 scenarios with `automation_health.status=degraded`
-  (after the codex-automation-3 fix lands).
-
-Hypotheses (require validation before committing to a tracker plan):
-
-- **`debug`**: likely needs an actual DAP message exchange to
-  verify, not just `debugpy` extension activation. The current
-  stimulus may register the configuration without driving a debug
-  session, so attempt logs but never crosses the verification
-  threshold.
-- **`terminal_tasks`**: the W7 trim of
-  `scenario_terminal_usage` (REFACTOR_STATUS L580-590, removed
-  `cat .env`/`pip list`/`npm ls`) reduced the terminal commands
-  exercised. Verification heuristic may be tied to specific command
-  patterns that no longer fire after the trim, so the capability
-  attempt remains unverified despite the scenario completing.
-
-- **Change candidate (after diagnosis):** scope-tight stimulus
-  additions (a debug-session probe in `scenarios/runtime.py`
-  scenario_coding_session and a deterministic verification command
-  in `scenario_terminal_usage`) plus updates to
-  `health.derive_verified_capabilities` so the verification rules
-  match the new stimulus payloads. Touching the verification rules
-  alone risks hiding a real gap; touching the stimulus alone risks
-  noise without coverage.
-- **Trigger for pulling this back:** any stakeholder report where
-  "the simulator says debug works on benign extensions" carries
-  weight; a benign baseline whose verification gap masks a real
-  detection regression.
-- **Natural landing point:** W13 test expansion (benign baseline
-  fixture growth — the same iteration that adds vscode-eslint /
-  github-copilot-chat baselines should add capability-coverage
-  expectations).
-- **Size:** medium (~80 LoC stimulus + 50 LoC verification rule
-  tweaks + 4-6 capability assertion tests).
-
-### [FOLLOWUP w8-0-capture-pipeline] — LANDED 2026-04-27
-
-W8-0 deferred-smoke acceptance signal (a) — `output_signal_events`
-carrying `ExTrace Harness` lifecycle entries — was reported live
-on 2026-04-27 14:57 to be **not satisfied even with the PR-A
-image deployed**. Root cause: VS Code 1.105 no longer pipes
-extension `console.log` into `exthost.log`; instead each Output
-channel persists its content to
-`<user-data>/logs/<session>/window<N>/exthost/output_logging_<ts>/<idx>-<channel>.log`.
-The harness `harnessChannel.appendLine(...)` calls were reaching
-disk all along — the parser was reading the wrong file.
-
-Fix: `output_signals.read_output_channel_logs(logs_dir)` walks
-the per-channel persistence files directly and emits one
-`OutputSignalEvent` per appendLine.
-`monitor_lifecycle._build_run_report` now merges this stream with
-the legacy `parse_output_signal_events` source (deduplicating by
-``(channel, text, timestamp)`` via `merge_output_signal_events`)
-before attribution. Tests pin the new reader against a synthetic
-`output_logging_*/<idx>-<channel>.log` tree
-(`tests/executor/test_output_signal_capture.py`).
-
-**Acceptance signal (a) — live verified 2026-04-28** on report
-`output/activation_report_ms-python.python-2026.5.2026042602-31587fd1a0ff.json`:
-`output_signal_events_count = 12`, all on the `ExTrace Harness`
-channel, parsed JSON payloads with phase distribution
-`activate_enter × 3, marker_write_start × 3, marker_write_done × 3,
-activate_exit × 3` (three full lifecycle cycles). The 2026-04-27
-"live failed" gate is now closed.
-
-Acceptance signal (b) — typed harness-readiness reason codes
-(`harness_ready_marker_*` / `harness_activation_timeout`) instead
-of the legacy generic `harness_command_unavailable` — is **still
-unconfirmed live as of 2026-04-28**: the latest scan reported 8
-attempts with `harness_verification_unconfirmed`, none with the
-W8-0 PR-B/PR-C typed sub-codes. Remains user-side until a
-follow-up `make sim-target` produces an attempt that actually
-trips the typed marker path.
-
-## Architecture audit (2026-04-27)
-
-A full-codebase architecture + security + maintainability audit run
-on 2026-04-27 cross-checked findings against the W8-W13 plan. Result:
-~67% of the audit's recommendations were already in
-`REFACTOR_OPTIMIZATION.md §11`; security findings 100% covered (W8-1
-↔ W8-7); structural findings (monitor_lifecycle split, signal_policy
-relocation, registry split, executor subpackaging) all already
-present. Three audit-surfaced gaps were promoted into the W8-W13
-plan; four are tracked as one-off hygiene PRs below. Audit framing:
-local-first single-user defensive security tool; no
-microservices / event bus / distributed tracing recommendations.
-
-**Promoted into W8-W13 (see `REFACTOR_OPTIMIZATION.md`):**
-
-- **W8-8** — Manifest field log-injection sanitization
-  (defense-in-depth). `appcore/contracts/sanitize.py::sanitize_for_log`
-  helper + ADR 0002 §7 addendum + manifest log emit site'ları
-  helper'a geçirilir. (`§11.5-(8)`)
-- **W11-7** — `workflows/extension_catalog/service.py` 475 LoC →
-  `manifest_to_schema.py` + `lifecycle.py` split. W11 modularization
-  temasının workflow-tarafı aynası. (`§11.8-(7)`)
-- **W11-8** — `appcore/storage/crud_ops/analysis_jobs.py` 348 LoC →
-  `lifecycle.py` + `steps.py` + facade subpackage. W10 contract
-  hygiene'in storage ayağı temizliği. (`§11.8-(8)`)
-
-**One-off hygiene PRs (not week-bound; recommended bundled into a
-single cleanup commit alongside W8 entry):**
-
-- **[CLEANUP audit-2026-04-27] `httpx` runtime dependency.**
-  [`pyproject.toml:33`](../pyproject.toml) ships `httpx>=0.28.0`
-  under `[project.optional-dependencies] dev` only, but
-  [`workflows/marketplace/client.py`](../workflows/marketplace/client.py)
-  and [`workflows/marketplace/router.py`](../workflows/marketplace/router.py)
-  import it at runtime. Production-shape install (`pip install .`
-  without `[dev]`) breaks at import time. Fix: move `httpx` line
-  into `[project] dependencies` and remove the duplicate from the
-  dev section. **Size:** 1-line move.
-
-- **[CLEANUP audit-2026-04-27] `seed_test.py` exception narrowing.**
-  [`scripts/seed_test.py:164`](../scripts/seed_test.py) bare
-  `except Exception:` swallows everything during DB seed. AGENTS.md
-  "no generic try/except Exception" rule has zero exceptions in
-  production paths; the only audit-surfaced bare hit lives in
-  `scripts/`. Not on a runtime path, but new contributors copy
-  patterns from `scripts/`. Fix: narrow to
-  `except SQLAlchemyError as exc` + log + rollback. **Size:**
-  ~3 lines.
-
-- **[CLEANUP audit-2026-04-27] Finder duplicate-suffix dirs.**
-  Local filesystem residue from a macOS Finder name-conflict
-  resolution: `docker/api 2/`, `ui/src/components/ui 2/`,
-  `ui/src/lib/api 2/`, `ui/src/lib/charts 2/`. Verified **not
-  git-tracked** (`git ls-files` empty for all four), so these are
-  workstation-local cruft. Risk: Python / Node tooling that scans
-  the tree (mypy auto-discovery, vite glob imports) can pick up
-  shadow modules and produce confusing build errors. Fix: `rm -rf`
-  locally; verify `.dockerignore` + `.gitignore` cover `2/`-suffix
-  glob so a future Finder accident on the workstation gets ignored
-  by builds. **Size:** trivial; no PR strictly required (local
-  cleanup), but a one-line `.gitignore` add prevents recurrence.
-
-- **[CLEANUP audit-2026-04-27] Unused `ExecutorError` import.**
-  [`workflows/extension_catalog/router.py:25`](../workflows/extension_catalog/router.py)
-  imports `ExecutorError` but the symbol is referenced nowhere in
-  the file. ruff F401 would normally catch this — verify whether
-  per-file ignore in `pyproject.toml [tool.ruff.lint.per-file-ignores]`
-  is masking it; if so, narrow the ignore. **Size:** 1 line.
-
-**Audit observations evaluated and not promoted (rationale documented):**
-
-- `appcore/api/config.py` 4 BaseSettings → single packaged settings
-  (audit §6 overengineering candidate). **Reddedildi (2026-04-27):**
-  mevcut 4-class split temiz env-prefixed (PROJECT_, API_, POSTGRES_,
-  EXECUTOR_); collapsing into one nested model trades prefix
-  clarity for ~50 LoC savings — net negative for an operator
-  reading `.env`. Re-evaluate only if any one settings class shrinks
-  below 20 LoC.
-- `executor/flows/playwright/signal_facts.py` (42 LoC) merge into
-  `output_signals.py` (audit §6). **Reddedildi (2026-04-27):**
-  kozmetik; W12-1 subpackaging zaten bu dosyaları `health/` veya
-  `monitor/` altına taşıyacak — merge'in operasyonel değeri yok.
-- `documents/{claude_code_review.md, codex_project_review.md}`
-  arşivleme (~2K LoC bloat, audit §2). Already evaluated and
-  rejected by `REFACTOR_OPTIMIZATION.md §11.12`
-  ("documentation consolidation"); revisit when W7 closure is
-  >4 weeks old and living-doc cadence settles.
-- `runtime_capture/extension_host.py` 678 LoC → 3 parser
-  (process / network / filesystem) split. **Implicitly covered by
-  W12-1** subpackaging (`runtime_capture/` will be reorganized as
-  part of executor subpackaging); explicit split inside the file
-  not promoted to a separate item — leave to the W12 PR author's
-  judgment. Re-evaluate if W12-1 PR ships without parser split
-  and `extension_host.py` LoC stays >600.
-
-## How to pull an item back
-
-1. Confirm the item is still relevant (some may be obsoleted by newer
-   ADRs or prior deferrals).
-2. Re-derive a scoped plan (small implementation plan, not a whole
-   weekly cycle) and attach it in
-   `documents/REFACTOR_EXECUTION_PLAN.md` as a new section.
-3. Update this file when the item lands — move it to a completion log
-   rather than deleting it, so future readers can trace when the
-   deferral unwound.
+### Detection / Contracts
+
+- A5 + A7 adversary-class T1/T2 canary + rule (stretch).
+- Allow-list (`benign_domains.txt`, `popular_extensions.txt`) versioned
+  data artifact promotion.
+- Domain service pattern genişletmesi (2.8 — W7'de ertelendi).
+
+### UI
+
+UI v3 redesign minimal-completion landed `2026-04-29` (see
+`REFACTOR_STATUS.md`). Open follow-ups:
+
+- **`[BACKLOG ui-v3-1]` … `[BACKLOG ui-v3-8]`** — pre-minimal-completion
+  backend gaps (rule-save endpoint scaffolding, contract drift edges).
+- **`[BACKLOG ui-v3-13]`** rule-save endpoint (post-minimal-completion).
+- **`[CLEANUP ui-v3-9]`** orphan v3 component prune (LANDED 2026-04-28).
+- **`[CLEANUP ui-v3-14]`** `design_handoff_extrace_console/` retired
+  (LANDED 2026-04-29).
+- **`[ADD ui-v3-10/11/12]`** Inspector drawer + RuleDraftSection on
+  Reports, Run health + Coverage summary on Simulation, Ledger Scenario
+  tab (LANDED 2026-04-28).
+- UI component split (7.3.1, 7.3.2, 7.3.3, 7.3.4, 7.3.5) + axe-core —
+  surface not stabilized; rejected from W8-W13.
+
+### Engineering Quality
+
+- mypy strict promotion (rejected from W8-W13; revisit W13 sonrası).
+- Monorepo tooling migration (uv / poetry).
+- OpenAPI frontend client generation.
+- Documentation consolidation pass (`REFACTOR_STATUS` /
+  `REFACTOR_EXECUTION_PLAN` / `REFACTOR_OPTIMIZATION` dedupe) —
+  living-doc cadence not settled yet.
+
+### Test + Observability (Promoted To W13)
+
+These now live in `REFACTOR_OPTIMIZATION.md §11.10`; tracked here only as
+a pointer:
+
+- Benign silence fixture 3 → 5; stale singleton-lock + `.env` gitignore
+  regression tests; `extrace.executor.*` logger consolidation; run-ID
+  stamping.
+
+### Codex Automation Flow Review (2026-04-27)
+
+Numbered triage (codex-automation-{1..8}). Detail in archive
+("§Codex automation flow review"). Open:
+
+- **`[FOLLOWUP codex-automation-5]`** Executor runtime fingerprint in
+  report.
+- **`[FOLLOWUP codex-automation-6]`** UI failure taxonomy.
+
+Landed (evidence in `REFACTOR_STATUS.md` archive):
+codex-automation-3, 7, 8.
+
+### Live-Scan Findings (2026-04-27, post-W8-0 smoke)
+
+- **`[FOLLOWUP capability-verification-gap]`** `debug` +
+  `terminal_tasks` capability verification (read in archive for the
+  `ms-python.python` `degraded` health debrief).
+- **`[FOLLOWUP w8-0-capture-pipeline]`** — partial close: signal (a)
+  closed by W8-3 live smoke 2026-04-28; signal (b) typed
+  harness-readiness reason codes still unconfirmed live.
+- **`[FOLLOWUP make-test-security-lane-composition]`** — `make
+  test-security` only runs `tests/security/`. W8-1 lives at
+  `tests/workflows/marketplace/test_vsix_hardening.py`, W8-3 at
+  `tests/executor/security/test_uri_trigger_injection.py`; same
+  pattern likely for W8-6 / W8-8. Either extend the Makefile target
+  to fold subsystem-local W8 lanes in, or update
+  `active-work/W8-security.md` exit criterion to count the broader
+  test-suite security tally. Defer to W8 closure pass.
+
+### Architecture Audit (2026-04-27)
+
+Detail in archive. Open audit gaps:
+
+- §7 untrusted-input → logging gap closed by W8-8 (manifest
+  log-injection sanitization, `active-work/W8-security.md`).
+- Remaining audit deltas tracked in archive; consolidate after W13.
+
+---
+
+## How To Pull An Item Back
+
+1. Pick the item by stable ID.
+2. Open the archive entry for the full trigger / file refs / acceptance.
+3. If the work landing point matches a `REFACTOR_OPTIMIZATION.md §11`
+   week, promote it there with a one-line rationale; otherwise open a
+   focused branch and update the item to `[LANDED <date>]` with the
+   commit SHA + branch name.
+4. Drop the verbose closure evidence into `REFACTOR_STATUS.md` (slim
+   canonical or archive depending on size budget).
+
+When this file exceeds 300 lines / 3,000 tokens, drop a new dated full
+snapshot under `archive/backlog/` and re-trim — see
+`agent-lanes/docs-maintenance.md` invariants.
+
+## Archive
+
+Full historical backlog (verbose item descriptions, all landed evidence,
+review triage blocks, architecture audit body):
+[`archive/backlog/POST_POC_BACKLOG_full_2026-04-29.md`](archive/backlog/POST_POC_BACKLOG_full_2026-04-29.md).

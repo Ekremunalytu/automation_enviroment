@@ -1,6 +1,6 @@
 # Security And Detection Lane
 
-`Last Updated: 2026-04-27`
+`Last Updated: 2026-04-29`
 
 Use this lane for detection contracts, rule behavior, malicious fixtures, and
 security ADR alignment.
@@ -35,6 +35,22 @@ security ADR alignment.
 - `.venv/bin/pytest tests/security/`
 - `.venv/bin/python scripts/demo_acceptance.py`
 - `make demo-canary-offline`
+
+## Open Subsystem Doc Only If Needed
+
+- `DETECTION_SEMANTICS.md` (slim) → open one split based on what you
+  touch:
+  - `detection/evidence-fields.md` for `target_*`, `trigger_plan_*`,
+    scenarios, coverage, execution ledger, attribution.
+  - `detection/health-signals.md` for `automation_health`, `log_health`,
+    `run_quality`, `signal_summary`, `risk_signals[]`, `risk_summary`.
+  - `detection/rule-lifecycle.md` for ADR 0003 cross-ref, rule
+    authoring, activation-layer vs detection-layer verdict vocabulary.
+- ADRs 0002-0005 — open the one that governs the touched boundary,
+  not all four.
+- `active-work/W8-security.md` items W8-5 (router regex), W8-6
+  (content-sample redaction).
+- `testing/security-tests.md` for the security-test layer map.
 
 ## Avoid
 

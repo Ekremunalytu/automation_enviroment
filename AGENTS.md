@@ -1,6 +1,6 @@
 # AGENTS.md
 
-`Last Updated: 2026-04-27`
+`Last Updated: 2026-04-29`
 
 ## Authority
 
@@ -16,12 +16,13 @@
 ## Current State
 
 - W0-W7 PoC stabilization/security window closed on `2026-04-23`
-  with `REFACTOR_OPTIMIZATION.md` section 10.7 green.
-- PR345 target activation lifecycle is complete as of `2026-04-27`
-  (`REFACTOR_STATUS.md` "PR345 Complete").
-- W8-0 deterministic harness readiness gate landed on `2026-04-27`.
-- W8-W13 external-review integration is eligible to open; use
-  `REFACTOR_OPTIMIZATION.md` section 11 and `POST_POC_BACKLOG.md`.
+  (PoC acceptance bar 11/11 green). Details:
+  `documents/REFACTOR_STATUS.md` (slim canonical).
+- PR345 target activation lifecycle complete `2026-04-27`; W8-0
+  deterministic harness readiness gate landed `2026-04-27`.
+- W8-W13 external-review integration is open. Active W8 tracker:
+  `documents/active-work/W8-security.md` (stable IDs W8-1..W8-8).
+  Plan navigation: `documents/AGENT_CONTEXT.md` → matching lane doc.
 - ADR 0007 local-network-binding is Accepted, but its loopback /
   `EXTRACE_ALLOW_LAN` enforcement is still W8-7 work until code/config/tests
   land. Do not document it as implemented.
@@ -64,9 +65,18 @@
 1. Read this file.
 2. Read `documents/AGENT_CONTEXT.md`.
 3. Read exactly one matching lane doc under `documents/agent-lanes/`.
-4. Read subsystem docs only if the lane doc points to them.
-5. Read matching tests early; they usually reveal expected behavior faster
+4. **Read subsystem docs only when the lane doc explicitly points to
+   them. Default preload is forbidden.** Slim canonical subsystem
+   docs (`ARCHITECTURE.md`, `PROJECT_STRUCTURE.md`, `TESTING.md`,
+   `DETECTION_SEMANTICS.md`, `EXECUTOR_PLAYWRIGHT.md`) link out to
+   subdir splits — open the split, not the canonical, for detail.
+5. Read `documents/active-work/<file>.md` only when the lane doc
+   points to it (e.g. W8 work goes through `active-work/W8-security.md`).
+6. Read matching tests early; they usually reveal expected behavior faster
    than broad source scans.
+7. Do **not** read `documents/archive/`. Archive is frozen historical
+   reference; open it only when a slim canonical doc explicitly says
+   "details: archive/...".
 
 ## Context Budget
 

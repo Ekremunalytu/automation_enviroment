@@ -1,38 +1,52 @@
 # Agent Context
 
-`Last Updated: 2026-04-27`
+`Last Updated: 2026-04-29`
 
-This is the thin routing map for coding agents after `AGENTS.md`. It should
-stay short. Do not copy phase history here; use `REFACTOR_STATUS.md`.
+Thin routing map for coding agents after `AGENTS.md`. **Stays short.**
+Do not copy phase history here; use `REFACTOR_STATUS.md` (slim canonical).
 
 ## Source Of Truth
 
-- Current closure state: `REFACTOR_STATUS.md`.
-- Deferred/pull-next work: `POST_POC_BACKLOG.md`.
-- W8-W13 plan: `REFACTOR_OPTIMIZATION.md` section 11.
-- Architecture: `ARCHITECTURE.md`.
-- Placement rules: `PROJECT_STRUCTURE.md`.
-- Test lanes: `TESTING.md`.
+- Current closure state: `REFACTOR_STATUS.md` (slim canonical; full
+  history under `archive/status/`).
+- Deferred/pull-next work: `POST_POC_BACKLOG.md` (slim canonical;
+  full backlog under `archive/backlog/`).
+- W8-W13 plan: `REFACTOR_OPTIMIZATION.md` section 11 (slim canonical;
+  full text under `archive/plans/`).
+- **Active W8 work tracker:** `active-work/W8-security.md`
+  (stable IDs W8-1..W8-8; code references depend on these IDs).
+- Architecture: `ARCHITECTURE.md` (slim) + `architecture/` splits.
+- Placement rules: `PROJECT_STRUCTURE.md` (slim) + `structure/` splits.
+- Test lanes: `TESTING.md` (slim) + `testing/` splits.
 
 ## Current Snapshot
 
-- W7 PoC acceptance is closed.
-- PR345 target activation lifecycle is complete.
-- W8-0 harness readiness gate landed.
-- W8 is eligible to open.
-- ADR 0007 is Accepted, but loopback/`EXTRACE_ALLOW_LAN` enforcement is still
-  pending W8-7 implementation.
+- W7 PoC acceptance closed `2026-04-23`.
+- PR345 target activation lifecycle complete `2026-04-27`.
+- W8-0 harness readiness gate landed `2026-04-27`.
+- W8 is open. W8-1 + W8-2 landed `2026-04-27`; W8-3 landed
+  `2026-04-28`. W8-4..W8-8 pending — see `active-work/W8-security.md`.
+- ADR 0007 is Accepted, but loopback/`EXTRACE_ALLOW_LAN` enforcement
+  is still pending W8-7 implementation.
 
 ## Task Decision Tree
 
-| If the task touches... | Open this lane first | Then open only if needed |
+Each "open if needed" entry names the **trigger** that justifies
+opening that doc. If the trigger does not match, do not open it.
+
+| If the task touches... | Open this lane first | Then open only if the trigger matches |
 |---|---|---|
-| FastAPI config, DB, schemas, CRUD, migrations | `agent-lanes/platform-storage.md` | `ARCHITECTURE.md`, `PROJECT_STRUCTURE.md`, `TESTING.md` |
-| Marketplace search/download/analyze jobs, trigger planning | `agent-lanes/marketplace-analysis.md` | `PIPELINE_ROADMAP.md`, `VSCODE_API_COVERAGE_AUDIT.md` |
-| Docker executor, Playwright, harness, runtime capture | `agent-lanes/executor-runtime.md` | `EXECUTOR_PLAYWRIGHT.md`, relevant runbook |
-| Detection rules, malicious fixtures, ADR security posture | `agent-lanes/security-detection.md` | ADRs 0002-0005, `DETECTION_SEMANTICS.md` |
+| FastAPI config, DB, schemas, CRUD, migrations | `agent-lanes/platform-storage.md` | `ARCHITECTURE.md` (new boundary/dependency line); `PROJECT_STRUCTURE.md` (new top-level package); `TESTING.md` (new test layer / fixture pattern) |
+| Marketplace search/download/analyze jobs, trigger planning | `agent-lanes/marketplace-analysis.md` | `PIPELINE_ROADMAP.md` (staged pipeline direction); `VSCODE_API_COVERAGE_AUDIT.md` (capability/coverage question); `testing/marketplace-tests.md` |
+| Docker executor, Playwright, harness, runtime capture | `agent-lanes/executor-runtime.md` | `EXECUTOR_PLAYWRIGHT.md` slim → `executor/host-wrapper.md` / `executor/playwright-flow.md` / `executor/runtime-capture.md` (whichever sub-area you touch); relevant runbook |
+| Detection rules, malicious fixtures, ADR security posture | `agent-lanes/security-detection.md` | ADRs 0002-0005 (only the one that governs the touched boundary); `DETECTION_SEMANTICS.md` slim → `detection/evidence-fields.md` / `detection/health-signals.md` / `detection/rule-lifecycle.md` |
 | React/Vite UI or generated TS contracts | `agent-lanes/ui.md` | `ui/README.md`, UI tests |
-| Documentation drift, README, runbooks, ADR text | `agent-lanes/docs-maintenance.md` | `documents/README.md`, current code/tests |
+| Documentation drift, README, runbooks, ADR text | `agent-lanes/docs-maintenance.md` | `documents/README.md`; current code/tests; archive only when retracing why a thing changed |
+| W8 security work | (lane above + `agent-lanes/security-detection.md` if relevant) | `active-work/W8-security.md` (always — that is the active tracker) |
+
+If a task touches a slim canonical's domain but does not match any of
+the listed triggers, open the slim canonical itself, **not** its
+splits. Splits are only opened on a trigger.
 
 ## Core Paths
 
@@ -41,7 +55,9 @@ stay short. Do not copy phase history here; use `REFACTOR_STATUS.md`.
 - Framework-agnostic packages: `packages/`.
 - Frontend: `ui/`.
 - Tests: `tests/`.
-- Docs: `documents/`, with lane docs under `documents/agent-lanes/`.
+- Docs: `documents/`, with lane docs under `documents/agent-lanes/`,
+  active work under `documents/active-work/`, frozen history under
+  `documents/archive/` (off default path).
 
 ## Minimal Rules Reminder
 

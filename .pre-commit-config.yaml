@@ -99,7 +99,7 @@ repos:
     hooks:
       - id: markdown-link-check
         args: ["--quiet", "--config", ".mlc_config.json"]
-        exclude: ^(extensions/)
+        exclude: ^(extensions/|documents/archive/)
 
 # CI parallel execution settings
 ci:

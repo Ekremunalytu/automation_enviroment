@@ -1,6 +1,6 @@
 # Marketplace And Analysis Lane
 
-`Last Updated: 2026-04-27`
+`Last Updated: 2026-04-29`
 
 Use this lane for marketplace search/download, sandbox analysis orchestration,
 async analysis jobs, cancellation, trigger planning, and report handoff.
@@ -33,6 +33,21 @@ async analysis jobs, cancellation, trigger planning, and report handoff.
 - `.venv/bin/pytest tests/smoke/ -m smoke` when behavior is end-to-end.
 - `make sim-target TARGET=publisher.name` for target-extension smoke.
 - `make sim-all` only for UI-stimulus stress without target extension.
+
+## Open Subsystem Doc Only If Needed
+
+- `PIPELINE_ROADMAP.md` if the staged pipeline direction is the
+  question.
+- `VSCODE_API_COVERAGE_AUDIT.md` for trigger planning,
+  capability support, official-vs-heuristic coverage.
+- `DETECTION_SEMANTICS.md` (slim) → `detection/evidence-fields.md`
+  for `automation_health`, coverage, attribution interpretation.
+- `architecture/data-flow.md` for the end-to-end sandbox analysis
+  flow (request → executor → report).
+- `testing/marketplace-tests.md` for the marketplace test layer map.
+- `active-work/W8-security.md` items W8-1 (VSIX zip-bomb), W8-2
+  (marketplace identity), W8-8 (manifest log sanitization).
+- `runbooks/analysis-job-stuck.md` when a job is wedged.
 
 ## Avoid
 

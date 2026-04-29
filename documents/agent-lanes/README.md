@@ -1,6 +1,6 @@
 # Agent Lanes
 
-`Last Updated: 2026-04-27`
+`Last Updated: 2026-04-29`
 
 Use these files after `AGENTS.md` and `documents/AGENT_CONTEXT.md`. Open only
 the lane that matches the task.

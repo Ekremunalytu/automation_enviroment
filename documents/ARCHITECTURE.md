@@ -1,29 +1,32 @@
 # ExTrace Architecture
 
-`Last Updated: 2026-04-27`
+`Last Updated: 2026-04-29`
 
-This document reflects the current codebase shape in `main.py`, `appcore/`,
-`packages/`, `workflows/`, `executor/`, and `ui/` after W7 closure and the
-post-W7 hardening landings through PR345 completion and W8-0 on
-2026-04-27.
+System shape, runtime surfaces, and module map. **Slim canonical** —
+detailed request flows under
+[`architecture/data-flow.md`](architecture/data-flow.md);
+boundary/dependency-direction rules under
+[`architecture/boundary-rules.md`](architecture/boundary-rules.md).
 
-Open this for system shape and request-flow questions. For placement rules use
-`PROJECT_STRUCTURE.md`; for executor or report internals, open the specialized
-docs only if the task reaches those layers.
+Open this file when adding a new service/component, drawing a high-level
+diagram, or onboarding to the canonical module set. Use
+`PROJECT_STRUCTURE.md` for placement rules; subsystem reference docs
+(`EXECUTOR_PLAYWRIGHT.md`, `DETECTION_SEMANTICS.md`) only when the lane
+doc points to them.
 
 ## Product Assumptions
 
-ExTrace is still implemented as a single-operator sandbox appliance, not a
-multi-tenant platform.
+ExTrace is a single-operator sandbox appliance, not a multi-tenant
+platform.
 
-- one analyst
-- same machine or same Docker host deployment
-- one active background analysis job at a time
-- extension execution stays isolated in Docker
-- activation reports remain artifact-first operator artifacts
-- async job state is durable in PostgreSQL (`analysis_jobs`)
-- ADR 0007 local-network-binding is Accepted, but current code/config defaults
-  still need W8-7 enforcement before loopback binding is mechanically true.
+- One analyst, same machine or same Docker host deployment.
+- One active background analysis job at a time.
+- Extension execution stays Docker-isolated.
+- Activation reports are artifact-first operator artifacts.
+- Async job state is durable in PostgreSQL (`analysis_jobs`).
+- ADR 0007 local-network-binding is **Accepted**, but loopback default
+  needs W8-7 enforcement before mechanically true
+  (`active-work/W8-security.md`).
 
 ## Runtime Surfaces
 
@@ -42,303 +45,133 @@ flowchart LR
 
 ## Canonical Modules
 
-### `appcore/`
+### `appcore/` — shared platform code
 
-Shared platform code used by more than one workflow.
+API config + deps, DB session, ORM models, CRUD facade and ops split,
+Pydantic v2 schema_defs and public schema facade. Write entrypoint for
+catalog data + analysis-job metadata is `appcore/storage/crud.py`.
 
-- `appcore/api/config.py`
-  - Pydantic settings for project, API, database, and executor runtime.
-- `appcore/api/deps.py`
-  - FastAPI dependencies such as `get_db`.
-- `appcore/db/session.py`
-  - SQLAlchemy engine and `SessionLocal`.
-- `appcore/storage/models.py`
-  - ORM export surface.
-- `appcore/storage/crud.py`
-  - Canonical CRUD facade; write entrypoint for persisted catalog data and
-    analysis-job metadata.
-- `appcore/storage/crud_ops/*`
-  - Read/write implementation split.
-- `appcore/contracts/schema_defs/*`
-  - Pydantic v2 request/response contracts.
-- `appcore/contracts/schemas.py`
-  - Public schema facade used by routers and services.
+### `packages/` — framework-agnostic contracts and analysis logic
 
-### `packages/`
+- `analysis_contracts/` — `ActivationReport`, `TriggerPayload`, and
+  `detection/` namespace (`DetectionReport`, `DetectionFinding`,
+  `Confidence`, `Verdict`, `AdversaryClass`, `RuleLifecycle`,
+  `RuleExecutionStatus`, `quantize_confidence`).
+- `analysis_planner/` — registries, selection, attempts, coverage
+  accounting, payload serialization.
+- `analysis_engine/` — detection rules under `rules/` (A1/A2/A3/A4/A6
+  live; A5/A7 deferred — see `POST_POC_BACKLOG.md`); allow-lists
+  (`benign_domains.txt`, `popular_extensions.txt`). Rules import only
+  contracts.
+- `marketplace_identity/` — `safe_marketplace_slug` helper (W8-2
+  landed).
 
-Framework-agnostic contracts and analysis logic.
+### `workflows/` — capability-organized business logic
 
-- `packages/analysis_contracts/`
-  - backend-owned contracts for `ActivationReport`, `TriggerPayload`, and the
-    `detection/` namespace (`DetectionReport`, `DetectionFinding`,
-    `Confidence`, `Verdict`, `AdversaryClass`, `RuleLifecycle`,
-    `RuleExecutionStatus`, `quantize_confidence`)
-- `packages/analysis_planner/`
-  - planner registries, selection logic, attempts, coverage accounting, and
-    payload serialization
-- `packages/analysis_engine/`
-  - detection rules under `rules/` (A1/A2/A3/A4/A6 live; A5/A7 deferred to
-    `POST_POC_BACKLOG.md`) and allow-lists under `allowlists/`
-    (`benign_domains.txt`, `popular_extensions.txt`); rules import only
-    contracts, never runtime/web/storage layers
+- `extension_catalog/` — manifest lookup, parsing, validation,
+  persistence, root catalog routes.
+- `activation_reports/` — file-backed listing/retrieval under
+  `/api/activations`.
+- `marketplace/` — search/download, layered trigger planning, sync +
+  async analysis, job snapshot persistence, cancel flow
+  (`analysis_execution.py` heartbeat polls cancel + reset_sandbox;
+  `cancel_analysis_job` carries pessimistic lock CRUD).
 
-### `workflows/`
+### `executor/` — sandbox control + runtime
 
-Business behavior organized by capability.
+- `control.py` — workflow-facing boundary (reset, install, automation
+  run, reload, trigger cleanup); install retries once through
+  `reload_vscode_window` on transient IPC markers.
+- `host.py` — Docker exec, retry/cleanup behavior.
+- `container/` — Docker image, `start.sh`, shared `launch_vscode.sh`.
+- `flows/playwright/` — VS Code automation, trigger loading, the
+  `monitor.py` facade, lifecycle/source/runtime helpers, attribution
+  subpackage. **Detail:** `EXECUTOR_PLAYWRIGHT.md` (slim) →
+  `executor/playwright-flow.md` for in-flow specifics.
+- `flows/playwright/attribution/` — events.py + links.py + facade
+  re-export.
+- `flows/playwright/runtime_capture/` — network/filesystem/extension-host
+  helpers.
+- `flows/harness_extension/` — local helper extension for harness
+  stimulus.
 
-- `workflows/extension_catalog/`
-  - manifest lookup, parsing, validation, persistence, and root catalog routes
-- `workflows/activation_reports/`
-  - file-backed report listing and retrieval under `/api/activations`
-- `workflows/marketplace/`
-  - marketplace search/download, layered trigger planning, sync analysis,
-    async job orchestration, job snapshot persistence, and the cancel
-    flow (`analysis_execution.py` runs the monitoring heartbeat with
-    cancel polling + executor reset on cancel; `cancel_analysis_job`
-    in `appcore/storage/crud_ops/analysis_jobs.py` carries the
-    pessimistic-lock CRUD)
+### `ui/` — analyst SPA
 
-### `executor/`
+App shell + features (`marketplace`, `simulation`, `reports`, `rules`,
+`settings`, `system`); shared v3 primitives under `ui/src/components/v3/`
+mirrored in `ui/tailwind.config.js`. UI v3 redesign minimal-completion
+landed `2026-04-29` (`REFACTOR_STATUS.md`).
 
-Sandbox control and runtime.
+## Canonical Boundaries (summary)
 
-- `executor/control.py`
-  - public workflow-facing boundary for reset, install, automation run, reload,
-    and trigger cleanup; `install_extension_in_executor` (via `host.py`)
-    retries once through `reload_vscode_window` on transient IPC markers
-    and surfaces stderr tail for diagnostics
-- `executor/host.py`
-  - Docker exec implementation details and retry/cleanup behavior
-- `executor/container/`
-  - Docker image, `start.sh` entrypoint, and the shared `launch_vscode.sh`
-    script (also invoked by `reset_state.py` during scan-between restarts)
-- `executor/flows/playwright/`
-  - VS Code automation, trigger loading, the thin `monitor.py` facade, and
-    sibling lifecycle/source/runtime helpers for report building, health
-    derivation, and risk/signal-summary calculation. `_run_scenario_sequence`
-    in `automation.py` classifies fatal UI crashes via `is_fatal_ui_error`
-    and fails fast with `failure_reason_code = "fatal_ui_crash"`
-    degrading `automation_health.status` to `inconclusive`.
-    `reset_state.py::reset_executor_state` orchestrates terminate →
-    cleanup → launch across scans. `vscode.py::reload_workbench_window`
-    deletes the harness ready-marker before dispatching the reload so
-    the post-reload activation cannot race a stale marker (the VNC
-    harness crash fix landed 2026-04-25); the harness extension's
-    `activate()` is async and awaits the marker write so a write
-    failure surfaces a `HarnessUnavailableError` cleanly. W8-0 adds
-    epoch/pid-aware harness ready-marker validation and typed
-    `harness_ready_marker_*` / `harness_activation_timeout` reason codes. The
-    authoritative detection-layer `Verdict` lives in
-    `packages/analysis_contracts/detection/`.
-- `executor/flows/playwright/attribution/`
-  - `events.py` (event annotation + classification + shared
-    actor/artifact/epoch helpers), `links.py` (evidence-bundle +
-    scenario/temporal/noise/duplicate-file link builders), and
-    `__init__.py` (flat re-export facade preserving the 29-name
-    underscore-prefixed API + signal-layer shims; dual-import pattern for
-    package mode vs top-level executor mode)
-- `executor/flows/playwright/runtime_capture/`
-  - monitor-owned network, filesystem, extension-host, and log-summary helpers
-    re-exported through `monitor.py`
-- `executor/flows/harness_extension/`
-  - local helper extension used by harness-assisted stimulus paths
+- Shared reusable → `appcore/`.
+- Framework-agnostic contracts/logic → `packages/`.
+- Workflow-specific business → `workflows/`.
+- Catalog and analysis-job DB writes go through
+  `appcore/storage/crud.py`.
+- Manifest data validated with Pydantic before insertion.
+- Uniqueness constraint `(publisher, name, version)`.
+- Sandbox execution Docker-isolated, invoked from workflows only
+  through `executor/control.py`.
 
-### `ui/`
+Full boundary rules + import graph enforcement details:
+[`architecture/boundary-rules.md`](architecture/boundary-rules.md).
 
-Primary analyst-facing SPA.
+## Request Flows (summary)
 
-- `ui/src/app/`
-  - route shell, lazy route composition, and the collapsible left-rail
-    AppShell
-- `ui/src/features/marketplace/`
-  - search, download, and analysis job launch
-- `ui/src/features/simulation/`
-  - job polling, live evidence, log streams, inspector surface, run health,
-    and coverage summary; bespoke SVG `ActivityBars` lives under `charts/`
-- `ui/src/features/reports/`
-  - final report workspace with tabbed evidence slices, inspector drawer,
-    and event-scoped `RuleDraftSection`; bespoke SVG `EventTimeline` and
-    `InteractionGraph` live under `charts/`
-- `ui/src/features/rules/`
-  - rule library overview + draft preview (save endpoint deferred — see
-    `[BACKLOG ui-v3-13]`)
-- `ui/src/features/settings/`
-  - operator preferences UI; persists to `localStorage` until the settings
-    API lands (`[BACKLOG ui-v3-5]`)
-- `ui/src/features/system/`
-  - service health + telemetry tiles; only the executor `/health` endpoint
-    is wired today (`[BACKLOG ui-v3-6]`)
-- `ui/src/components/v3/`
-  - shared primitive kitaplığı (Panel, Tabs, Buttons, MetricCell, Badge,
-    EmptyState, ProgressBar, RiskDot, Field, KVRow, Crosshair, LogoMark,
-    Typography) + `tokens.ts`; mirrored in `ui/tailwind.config.js`
-- `ui/src/lib/`
-  - API client, runtime config, adapters, generated contract types, rules,
-    chart helpers, and shared frontend helpers
+| # | Flow | Endpoint | Entry → Exit |
+|---|---|---|---|
+| 1 | Static catalog ingestion | `POST /createExtension` | `extension_catalog.router` → `crud` → PostgreSQL |
+| 2 | Marketplace download | `POST /api/marketplace/download` | `marketplace.client.download_and_extract_vsix` → `extension_catalog.service` → `crud` |
+| 3 | Sandbox analysis | `POST /api/marketplace/analyze[/start]` | `marketplace.router` → `analysis_service` → `executor.control` → `executor/flows/playwright/` → `output/activation_report_*.json` |
+| 4 | Activation report browsing | `GET /api/activations[/{name}]` | `activation_reports.router` → `output/` |
+| 5 | Analyst UI loop | `/marketplace` → `/simulation` → `/reports` | search → analyze → poll → inspect |
 
-## Canonical Boundaries
-
-- Shared reusable code belongs in `appcore/`.
-- Framework-agnostic contracts and planner logic belong in `packages/`.
-- Workflow-specific business logic belongs beside the owning workflow in
-  `workflows/`.
-- All catalog and analysis-job DB writes go through `appcore/storage/crud.py`.
-- Manifest data is validated with Pydantic before insertion.
-- The uniqueness constraint remains `(publisher, name, version)`.
-- Sandbox execution remains isolated in Docker and is invoked from workflows
-  only through `executor/control.py`.
-
-## Request Flows
-
-### 1. Static Catalog Ingestion
-
-`POST /createExtension`
-
-1. `workflows.extension_catalog.router`
-2. `workflows.extension_catalog.service.create_extension_by_name`
-3. `workflows.extension_catalog.manifest_reader` +
-   `workflows.extension_catalog.manifest_parser`
-4. `appcore.contracts.schemas`
-5. `appcore.storage.crud`
-6. PostgreSQL
-
-Notes:
-
-- `ExtensionSchema` and related nested contracts are built before persistence.
-- Duplicate inserts fail closed on the `(publisher, name, version)` constraint.
-
-### 2. Marketplace Download
-
-`POST /api/marketplace/download`
-
-1. `workflows.marketplace.client.download_and_extract_vsix`
-2. `workflows.extension_catalog.service.create_extension_from_directory`
-3. `appcore.storage.crud`
-
-Notes:
-
-- Manifest identity is checked against the requested publisher/name/version.
-- Existing catalog entries return a usable success response with the existing DB
-  id instead of silently re-inserting.
-
-### 3. Sandbox Analysis
-
-`POST /api/marketplace/analyze` or `POST /api/marketplace/analyze/start`
-
-1. `workflows.marketplace.router`
-2. `workflows.marketplace.analysis_service`
-3. `workflows.marketplace.trigger_service`
-4. `executor.control`
-5. `executor.host`
-6. `executor/flows/playwright/entrypoint.py`
-7. `executor/flows/playwright/monitor.py` (facade over
-   `attribution/`, `runtime_capture/`, `signals.py`, `signal_facts.py`,
-   and the scenario/health helper modules)
-8. `executor/flows/playwright/report_builder.py`
-9. `output/activation_report_*.json`
-
-Async job mode persists step-tracked analysis metadata in the PostgreSQL
-`analysis_jobs` table through `appcore.storage.crud` and
-`workflows.marketplace.job_service`.
-
-`POST /api/marketplace/analyze/{job_id}/cancel` returns the job snapshot
-(`404` on missing, `409` on terminal-state) via `cancel_analysis_job`
-under a `with_for_update()` pessimistic lock; the monitoring heartbeat
-in `analysis_execution.py` polls `is_job_cancelled` every 5 s and
-triggers `executor_control.reset_sandbox` on cancel, after which
-`run_analysis_job` converts the resulting `ExecutorError` to
-`AnalysisCancelledError` and returns silently.
-
-Notes:
-
-- The async endpoint serializes work to one active job.
-- Persisted jobs carry an `owner_boot_id`; if the API restarts mid-run, the job
-  is marked failed on the next load.
-- Trigger planning may resolve to layered execution or a scenario-zero
-  `skip_automation` run for non-executable fixtures.
-- The workflow-side trigger contract is `TriggerPlan` only; the old tuple shim
-  is removed.
-- Startup fails fast if job recovery or migration state for `analysis_jobs` is
-  unavailable.
-- `ANALYSIS_JOB_STATUSES` includes `cancelled`; the `analysis_jobs.status`
-  column is plain `String` (no DB CHECK constraint), so the new state did
-  not require an Alembic migration.
-
-### 4. Activation Report Browsing
-
-`GET /api/activations`, `GET /api/activations/latest`,
-`GET /api/activations/{name}`
-
-1. `workflows.activation_reports.router`
-2. `output/activation_report*.json`
-
-Notes:
-
-- Report reads retry transient `OSError` failures.
-- Latest-report reads fall back to the next-most-recent valid JSON file if the
-  newest file is still being written.
-
-### 5. Analyst UI Loop
-
-1. `/marketplace`
-   - search results, download, then launch async analysis
-2. `/simulation`
-   - poll job state and load the in-progress report by `report_path`
-3. `/reports`
-   - inspect report slices, attribution, risk signals, and rule draft output
+Step-by-step trace per flow + cancel/heartbeat/error paths:
+[`architecture/data-flow.md`](architecture/data-flow.md).
 
 ## Data Boundaries
 
-### PostgreSQL-backed state
+- **PostgreSQL** — extension metadata, manifest activation events,
+  capabilities/scripts/contributes metadata, async job metadata
+  (`analysis_jobs`).
+- **Filesystem** — extracted extensions under `extensions/`,
+  malicious-fixture scaffold under `extensions/malicious/`, activation
+  reports under `output/`.
+- **In-memory** — none authoritative; async job state is durable in
+  Postgres and loaded per request/transition.
 
-- extension metadata
-- activation events parsed from manifests
-- capabilities, scripts, and contributes metadata
-- async marketplace job metadata (`analysis_jobs`)
-
-### Filesystem-backed state
-
-- extracted extensions under `extensions/`
-- malicious-fixture manifest scaffold under `extensions/malicious/`
-- activation reports under `output/`
-
-### In-memory state
-
-- no analysis-job cache is the source of truth; async job state is durable in
-  Postgres and loaded per request/job transition
-
-This split is still intentional for the current product shape. The database is
-used for extension catalog data and durable async job metadata; dynamic-analysis
-artifacts such as reports still remain filesystem-first.
+The split is intentional for the current product shape: DB for catalog +
+durable job metadata; dynamic-analysis artifacts (reports) remain
+filesystem-first.
 
 ## Testing Structure
 
-- `tests/platform/`
-  - shared platform contracts, config, storage, and canonical import checks
-- `tests/architecture/`
-  - repo-wide import graph enforcement for `packages/`, `executor/`, and
-    `workflows/`
-- `tests/workflows/`
-  - activation reports, extension catalog, and marketplace behavior
-- `tests/executor/`
-  - Playwright helper and executor-host coverage
-- `tests/scanner/`
-  - focused unit coverage for the Docker exec wrapper surface
-- `tests/security/`
-  - malicious-fixture scaffold hygiene and PoC canary coverage contracts
-- `tests/smoke/`
-  - end-to-end marketplace analysis acceptance against the executor container
-- `ui/src/**/*.test.ts(x)`
-  - Vitest + Testing Library coverage for the SPA
+See [`TESTING.md`](TESTING.md) for layer/fixture/command detail. Quick
+map:
 
-## Architectural Rules
+- `tests/platform/` — shared platform contracts, config, storage,
+  canonical import checks.
+- `tests/architecture/` — repo-wide import graph enforcement.
+- `tests/workflows/` — activation reports, extension catalog,
+  marketplace.
+- `tests/executor/` — Playwright + executor-host.
+- `tests/scanner/` — Docker exec wrapper.
+- `tests/security/` — malicious-fixture hygiene + PoC canary contracts.
+- `tests/smoke/` — end-to-end marketplace analysis against the executor
+  container.
+- `ui/src/**/*.test.ts(x)` — Vitest + Testing Library.
 
-- Prefer canonical imports from `appcore/`, `packages/`, `workflows/`, and
+## Architectural Rules (summary)
+
+Full list with rationale:
+[`architecture/boundary-rules.md`](architecture/boundary-rules.md).
+
+- Canonical imports from `appcore/`, `packages/`, `workflows/`,
   `executor/`.
-- Use SQLAlchemy 2.0 style only.
-- Use Pydantic v2 APIs only.
-- Keep compatibility/historical surfaces thin and out of new feature work.
-- Keep workflow access to sandbox mechanics behind `executor/control.py`; the
-  import graph tests fail if workflows reach into `executor.host` directly.
-- Do not introduce queue-backed or multi-tenant infrastructure unless the
-  product assumptions change first.
+- SQLAlchemy 2.0 style only.
+- Pydantic v2 APIs only.
+- Workflow access to sandbox mechanics goes through
+  `executor/control.py` (import graph tests fail otherwise).
+- No queue-backed or multi-tenant infrastructure unless product
+  assumptions change first.

@@ -6,7 +6,7 @@ that adversarial URI payloads cannot reach a shell interpreter.
 
 Replaces the legacy ``terminal.type_in_terminal(page, f"xdg-open '{uri}'")``
 sites in ``entrypoint_triggers.py`` and ``stimulus_attempts.py`` (see
-REFACTOR_OPTIMIZATION.md §11.5 item 3).
+``documents/active-work/W8-security.md`` item W8-3).
 """
 
 from __future__ import annotations
