@@ -33,6 +33,13 @@ def _list_report_files() -> list[Path]:
     """
     List all JSON report files in the output directory, sorted by
     modification time (newest first).
+
+    Names are filtered through ``ACTIVATION_REPORT_NAME_RE`` (W9-6b) so a
+    locally-writable file that happens to match the glob but not the
+    canonical slug shape (e.g. ``activation_report_evil.json``) does not
+    surface to API consumers. The single-name endpoints already gate
+    inputs through the same regex via FastAPI ``Path(..., pattern=...)``;
+    this listing-side filter closes the same defense-in-depth loop.
     """
     output_dir = _get_output_dir()
     if not output_dir.exists():
@@ -41,6 +48,8 @@ def _list_report_files() -> list[Path]:
     seen: set[Path] = set()
     for pattern in _REPORT_PATTERNS:
         for file_path in output_dir.glob(pattern):
+            if not ACTIVATION_REPORT_NAME_RE.match(file_path.name):
+                continue
             resolved = file_path.resolve()
             if resolved in seen:
                 continue

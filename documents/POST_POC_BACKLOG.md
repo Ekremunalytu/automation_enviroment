@@ -269,14 +269,13 @@ codex-automation-3, 7, 8.
   `vsix_rejection_count: int = 0` field) where the report is built
   post-analysis. Surfaced by 2026-04-29 audit pass; logging half closed
   by W9-6a on 2026-04-30.
-- **`[FOLLOWUP w8-5-list-endpoint-name-filter]`** — W8-5 closed the
-  `/{name}` and `/{name}/bundle` path-parameter validation; the list
-  endpoint at `workflows/activation_reports/router.py:_list_report_files`
-  still globs `activation_report*.json` without filtering results
-  through `ACTIVATION_REPORT_NAME_RE`. A locally-writable file named
-  e.g. `activation_report_evil.json` would be returned by listing.
-  Threat is bounded (requires local FS write to `output/`), defense in
-  depth. Surfaced by 2026-04-29 audit pass.
+- **`[FOLLOWUP w8-5-list-endpoint-name-filter]`** — *CLOSED 2026-04-30
+  via W9-6b*. `_list_report_files` now filters glob hits through
+  `ACTIVATION_REPORT_NAME_RE`; defense-in-depth gap on the list
+  endpoint sealed. Regression: `tests/workflows/activation_reports/
+  test_router_path_traversal.py::test_list_endpoint_filters_malformed_names`
+  asserts a leading-dash slug, an overlength body, and a whitespace-bearing
+  body all drop from the listing while a canonical name surfaces.
 - **`[FOLLOWUP w8-6-content-sample-structural-test]`** — W8-6 redaction
   is correct on construction + assignment, but there is no contract
   test that all extension-derived string fields on `ActivationReport`
