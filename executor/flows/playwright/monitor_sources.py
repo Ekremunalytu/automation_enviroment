@@ -24,15 +24,14 @@ except ImportError:  # pragma: no cover - top-level executor import mode
     import keyboard
     from monitor_records import RunningExtension
     from monitor_support import resolve_monitor_api
+    from playwright.sync_api import Error as PlaywrightError
+    from playwright.sync_api import Page
     from runtime_capture._shared import _log
     from runtime_capture.events import ActivationEntry
     from runtime_capture.extension_host import (
         _activation_within_monitoring_window,
         _parse_activation_lines,
     )
-
-    from playwright.sync_api import Error as PlaywrightError
-    from playwright.sync_api import Page
 
 
 _LAST_EXTHOST_LOG_COUNT: int = -1

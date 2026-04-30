@@ -5,7 +5,6 @@ Covers activation events: onView:*
 
 import keyboard
 from commands import run_command
-
 from playwright.sync_api import Page
 
 

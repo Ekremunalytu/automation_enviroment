@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import commands
 import editor
-
 from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import Page
 

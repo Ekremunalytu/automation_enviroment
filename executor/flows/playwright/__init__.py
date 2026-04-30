@@ -4,7 +4,9 @@ This package provides composable functions for automating VS Code UI
 interactions via Playwright CDP connection. Each module has a single
 responsibility (commands, editor, sidebar, terminal, panel, workspace).
 
-Note: Due to the directory name 'playwright' conflicting with the pip
-package, these modules are imported directly (not as a package) when
-run via entrypoint.py inside the executor container.
+Canonical invocation is `python -m executor.flows.playwright.<module>`
+(see ADR 0008). The package directory name 'playwright' would shadow
+the third-party `playwright` pip distribution if imported by bare name,
+so dotted-form imports through the `executor` namespace are required
+both inside the container and in host-side test runs.
 """

@@ -7,7 +7,6 @@ import keyboard
 import panel
 import settings
 import sidebar
-
 from playwright.sync_api import Page
 
 from .common import log

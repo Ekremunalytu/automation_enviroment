@@ -10,9 +10,8 @@ from entrypoint_triggers import (
     resolve_execution_plan,
     run_extra_triggers,
 )
-from wait_helpers import wait_for_idle_observation
-
 from playwright.sync_api import Error as PlaywrightError
+from wait_helpers import wait_for_idle_observation
 
 
 def run_demo(page, *, deps) -> None:

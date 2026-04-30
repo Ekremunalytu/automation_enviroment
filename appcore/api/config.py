@@ -180,9 +180,9 @@ class ExecutorSettings(BaseSettings):
     CONTAINER_NAME: str = "automation_executor"
     EXTENSIONS_CONTAINER_PATH: str = "/extensions-input"
     PLAYWRIGHT_FLOW_DIR: str = "/home/executor/flows/playwright"
-    ENTRYPOINT_PATH: str = "/home/executor/flows/playwright/entrypoint.py"
-    RELOAD_SCRIPT_PATH: str = "/home/executor/flows/playwright/reload_vscode.py"
-    RESET_SCRIPT_PATH: str = "/home/executor/flows/playwright/reset_state.py"
+    ENTRYPOINT_MODULE: str = "executor.flows.playwright.entrypoint"
+    RELOAD_SCRIPT_MODULE: str = "executor.flows.playwright.reload_vscode"
+    RESET_SCRIPT_MODULE: str = "executor.flows.playwright.reset_state"
     DOCKER_EXEC_TIMEOUT: int = 300
 
     model_config = SettingsConfigDict(

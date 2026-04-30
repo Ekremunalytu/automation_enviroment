@@ -41,6 +41,12 @@ cleanup() {
 trap cleanup SIGTERM SIGINT
 
 # --- Xvfb ---
+# Clean stale X locks left by a prior boot whose Xvfb exited before the
+# cleanup trap could run; otherwise the next launch sees `Server is already
+# active for display 99` and the container enters a restart loop.
+DISPLAY_NUM="${DISPLAY_VALUE#:}"
+rm -f "/tmp/.X${DISPLAY_NUM}-lock" "/tmp/.X11-unix/X${DISPLAY_NUM}"
+
 echo "Starting Xvfb on ${DISPLAY_VALUE} with screen ${SCREEN_VALUE}..."
 Xvfb "${DISPLAY_VALUE}" -screen 0 "${SCREEN_VALUE}" -ac &
 PIDS+=($!)
@@ -78,8 +84,9 @@ timeout 10s bash -c "until curl -sf http://localhost:${NOVNC_PORT_VALUE}/ >/dev/
 }
 
 # --- Honeypot workspace ---
+# ADR 0008: package-mode invocation; PYTHONPATH=/home is set in the image.
 echo "Setting up developer honeypot environment..."
-python3 "${PLAYWRIGHT_FLOW_DIR}/workspace.py"
+python3 -m executor.flows.playwright.workspace
 
 # --- Harness integrity ---
 if [ ! -f "${HARNESS_SHA256_MANIFEST}" ]; then

@@ -8,7 +8,6 @@ import editor
 import panel
 import sidebar
 import terminal
-
 from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import Page
 

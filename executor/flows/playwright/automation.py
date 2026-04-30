@@ -13,6 +13,8 @@ import settings  # noqa: F401
 import sidebar  # noqa: F401
 import terminal  # noqa: F401
 import vscode
+from playwright.sync_api import Error as PlaywrightError
+from playwright.sync_api import Page
 from scenarios.common import log as _log
 from scenarios.editing import (  # noqa: F401
     scenario_coding_session,
@@ -44,9 +46,6 @@ from stimulus_types import (
     HarnessUnavailableError,
     SkippedScenarioRecord,
 )
-
-from playwright.sync_api import Error as PlaywrightError
-from playwright.sync_api import Page
 
 ScenarioEventReporter = Callable[[str, str, str, dict[str, Any] | None], None]
 OnPageReloaded = Callable[[Page], None]

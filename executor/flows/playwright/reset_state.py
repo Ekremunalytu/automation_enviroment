@@ -17,10 +17,17 @@ import os
 import shutil
 import signal
 import subprocess
+import sys
 import time
 from pathlib import Path
 
-import workspace
+# Sibling helper module loaded by flat name; matches workspace.py / entrypoint.py
+# pattern. The path-injection and the flat import drop in W9-3/W9-4.
+_PKG_DIR = str(Path(__file__).resolve().parent)
+if _PKG_DIR not in sys.path:
+    sys.path.insert(0, _PKG_DIR)
+
+import workspace  # noqa: E402
 
 VSCODE_DATA_DIR = Path("/home/executor/.vscode")
 EXTENSIONS_DIR = VSCODE_DATA_DIR / "extensions"

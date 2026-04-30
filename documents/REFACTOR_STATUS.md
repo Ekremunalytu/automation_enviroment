@@ -80,6 +80,21 @@ W8 is **closed for active work** pending the optional ADR 0008 draft
 on container packaging that the active-work tracker keeps as a single
 remaining checkbox before W9 entry.
 
+- **W9-1 container packaging ADR + entrypoint argv pivot in flight `2026-04-30`** —
+  `feat/w9-executor-detection-boundary` umbrella branch opened. ADR 0008
+  (`documents/adrs/0008-container-packaging.md`) drafted as Proposed.
+  `appcore/api/config.py` and `executor/config.py` migrated `*_PATH`
+  literals to `*_MODULE` dotted names (no deprecation alias). `executor/host.py`
+  pivoted four call sites to `[PYTHON3_PATH, "-m", <module>]` argv form;
+  `pkill -f` cleanup uses dotted module name as pattern (uniqueness invariant
+  per ADR 0008 §6). Container `Dockerfile` provisions
+  `/home/executor/__init__.py` + `/home/executor/flows/__init__.py` regular
+  package markers and sets `ENV PYTHONPATH=/home`. `start.sh` honeypot
+  bootstrap pivoted to `python3 -m executor.flows.playwright.workspace`.
+  `Makefile` `exec-run`/`sim-*` lanes pivoted to argv form. ADR 0008 stays
+  Proposed until W9-1 lands and container smoke confirms; flips to Accepted
+  with the Implementation block in the same closure pass.
+
 - **CI pipeline retired `2026-04-30`** — `.github/workflows/ci.yml` and
   `.github/workflows/docs-check.yml` removed; `security.yml` (weekly
   Trivy + Bandit) kept. The `security-fixtures` job (iptables egress

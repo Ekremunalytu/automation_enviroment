@@ -99,11 +99,10 @@ except ImportError:  # pragma: no cover - top-level executor import mode
         parse_output_signal_events,
         read_output_channel_logs,
     )
-    from runtime_capture._shared import _log, _parse_iso_timestamp
-    from runtime_capture.events import FileEvent, NetworkEvent, ProcessEvent
-
     from playwright.sync_api import Error as PlaywrightError
     from playwright.sync_api import Page
+    from runtime_capture._shared import _log, _parse_iso_timestamp
+    from runtime_capture.events import FileEvent, NetworkEvent, ProcessEvent
 
 
 def _assert_target_stream_invariant(

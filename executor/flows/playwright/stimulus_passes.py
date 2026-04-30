@@ -5,6 +5,8 @@ from __future__ import annotations
 from typing import Any
 
 import automation
+from playwright.sync_api import Error as PlaywrightError
+from playwright.sync_api import Page
 from stimulus_attempts import (
     action_for_pass,
     dedupe_execution_key,
@@ -19,9 +21,6 @@ from stimulus_types import (
     AutomationExecutionResult,
     SkippedScenarioRecord,
 )
-
-from playwright.sync_api import Error as PlaywrightError
-from playwright.sync_api import Page
 
 
 def run_stimulus_plan(

@@ -190,7 +190,7 @@ def _skip_if_executor_reset_failed(payload: dict[str, object]) -> None:
     if payload.get("status") != "failed":
         return
     error_detail = str(payload.get("error_detail", "") or "")
-    if "reload_vscode.py" not in error_detail:
+    if "reload_vscode" not in error_detail:
         return
     pytest.skip(
         "executor reset failed before the smoke scenario could run; "

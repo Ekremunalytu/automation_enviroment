@@ -19,7 +19,6 @@ if _pkg_dir not in sys.path:
     sys.path.insert(0, _pkg_dir)
 
 import vscode  # noqa: E402
-
 from playwright.sync_api import Error as PlaywrightError  # noqa: E402
 from playwright.sync_api import sync_playwright  # noqa: E402
 

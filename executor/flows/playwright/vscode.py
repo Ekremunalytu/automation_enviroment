@@ -7,10 +7,9 @@ import os
 import time
 from collections.abc import Callable
 
-from stimulus_types import _HARNESS_READY_PATH
-
 from playwright.sync_api import Browser, Page, Playwright
 from playwright.sync_api import Error as PlaywrightError
+from stimulus_types import _HARNESS_READY_PATH
 
 CDP_URL = f"http://localhost:{os.environ.get('EXECUTOR_CDP_PORT', '9222')}"
 

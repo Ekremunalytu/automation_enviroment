@@ -25,7 +25,6 @@ from typing import Any
 
 import keyboard
 from commands import run_command, wait_for_quick_input_hidden
-
 from playwright.sync_api import Page
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 

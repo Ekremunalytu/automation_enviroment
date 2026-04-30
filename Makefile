@@ -404,7 +404,7 @@ exec-test:
 	@echo "✅ All executor tools verified!"
 
 exec-run:
-	docker exec -e PYTHONUNBUFFERED=1 -i automation_executor python3 /home/executor/flows/playwright/entrypoint.py --monitor
+	docker exec -e PYTHONUNBUFFERED=1 -i automation_executor python3 -m executor.flows.playwright.entrypoint --monitor
 
 # =============================================================================
 # SIMULATION / AUTOMATION
@@ -415,7 +415,7 @@ sim-all: exec-up
 	@echo "    NB: this answers 'does the UI engine run?' — NOT 'did a target extension activate?'."
 	@echo "    Expected: target_extension_observed=false, run_quality=inconclusive."
 	@echo "    For target-activation health use: make sim-target TARGET=publisher.name"
-	docker exec -e PYTHONUNBUFFERED=1 -i automation_executor python3 /home/executor/flows/playwright/entrypoint.py --monitor
+	docker exec -e PYTHONUNBUFFERED=1 -i automation_executor python3 -m executor.flows.playwright.entrypoint --monitor
 
 sim-target: exec-up
 	@if [ -z "$(TARGET)" ]; then \
@@ -423,7 +423,7 @@ sim-target: exec-up
 		exit 1; \
 	fi
 	@echo "🤖 Running target-extension smoke for $(TARGET)..."
-	docker exec -e PYTHONUNBUFFERED=1 -i automation_executor python3 /home/executor/flows/playwright/entrypoint.py \
+	docker exec -e PYTHONUNBUFFERED=1 -i automation_executor python3 -m executor.flows.playwright.entrypoint \
 		--monitor \
 		--target-extension-id $(TARGET) \
 		$(if $(TRIGGERS),--triggers $(TRIGGERS),) \
@@ -431,11 +431,11 @@ sim-target: exec-up
 
 sim-demo: exec-up
 	@echo "🤖 Running quick demo scenario..."
-	docker exec -e PYTHONUNBUFFERED=1 -i automation_executor python3 /home/executor/flows/playwright/entrypoint.py --demo
+	docker exec -e PYTHONUNBUFFERED=1 -i automation_executor python3 -m executor.flows.playwright.entrypoint --demo
 
 sim-list:
 	@echo "🤖 Listing available scenarios..."
-	docker exec -e PYTHONUNBUFFERED=1 -i automation_executor python3 /home/executor/flows/playwright/entrypoint.py --list
+	docker exec -e PYTHONUNBUFFERED=1 -i automation_executor python3 -m executor.flows.playwright.entrypoint --list
 
 sim-run: exec-up
 	@if [ -z "$(SCENARIO)" ]; then \
@@ -443,7 +443,7 @@ sim-run: exec-up
 		exit 1; \
 	fi
 	@echo "🤖 Running scenario: $(SCENARIO)..."
-	docker exec -e PYTHONUNBUFFERED=1 -i automation_executor python3 /home/executor/flows/playwright/entrypoint.py --monitor --scenario $(SCENARIO)
+	docker exec -e PYTHONUNBUFFERED=1 -i automation_executor python3 -m executor.flows.playwright.entrypoint --monitor --scenario $(SCENARIO)
 
 demo-canary: exec-up
 	@echo "🤖 Installing safe runnable demo canary into executor..."

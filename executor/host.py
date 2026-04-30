@@ -198,7 +198,7 @@ _RELOAD_CLEANUP_TIMEOUT = 5
 def _cleanup_stale_reload_processes() -> None:
     try:
         _docker_exec_allow_partial(
-            [PKILL_PATH, "-f", settings.executor.RELOAD_SCRIPT_PATH],
+            [PKILL_PATH, "-f", settings.executor.RELOAD_SCRIPT_MODULE],
             timeout=_RELOAD_CLEANUP_TIMEOUT,
         )
     except ExecutorError:
@@ -208,7 +208,7 @@ def _cleanup_stale_reload_processes() -> None:
 def _cleanup_stale_entrypoint_processes() -> None:
     try:
         _docker_exec_allow_partial(
-            [PKILL_PATH, "-f", settings.executor.ENTRYPOINT_PATH],
+            [PKILL_PATH, "-f", settings.executor.ENTRYPOINT_MODULE],
             timeout=_RELOAD_CLEANUP_TIMEOUT,
         )
     except ExecutorError:
@@ -233,7 +233,7 @@ def reload_vscode_window() -> str:
     _cleanup_stale_reload_processes()
     try:
         result = _docker_exec(
-            [PYTHON3_PATH, settings.executor.RELOAD_SCRIPT_PATH],
+            [PYTHON3_PATH, "-m", settings.executor.RELOAD_SCRIPT_MODULE],
             timeout=_RELOAD_TIMEOUT,
         )
     except ExecutorError as exc:
@@ -249,7 +249,7 @@ def reload_vscode_window() -> str:
 def reset_executor_sandbox_state(reload_window: bool = True) -> str:
     _cleanup_stale_entrypoint_processes()
     reset_result = _docker_exec(
-        [PYTHON3_PATH, settings.executor.RESET_SCRIPT_PATH],
+        [PYTHON3_PATH, "-m", settings.executor.RESET_SCRIPT_MODULE],
         timeout=_RESET_TIMEOUT,
     )
     outputs = [reset_result.stdout.strip()]
@@ -288,7 +288,8 @@ def run_playwright_automation(
         )
     cmd = [
         PYTHON3_PATH,
-        settings.executor.ENTRYPOINT_PATH,
+        "-m",
+        settings.executor.ENTRYPOINT_MODULE,
         "--monitor",
         "--report-path",
         report_path,

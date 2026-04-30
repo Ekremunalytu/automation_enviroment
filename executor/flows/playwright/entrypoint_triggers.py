@@ -7,6 +7,8 @@ from collections.abc import Callable
 from typing import Any
 
 import uri_validation
+from playwright.sync_api import Browser, Page
+from playwright.sync_api import Error as PlaywrightError
 from wait_helpers import (
     require_wait,
     wait_for_command_effect,
@@ -14,9 +16,6 @@ from wait_helpers import (
     wait_for_trigger_effect,
     wait_for_ui_settle,
 )
-
-from playwright.sync_api import Browser, Page
-from playwright.sync_api import Error as PlaywrightError
 
 
 def resolve_execution_plan(

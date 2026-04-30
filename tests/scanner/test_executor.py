@@ -608,7 +608,8 @@ def test_reload_vscode_window_success(
     assert "Done" in output
     call_cmd = mock_exec.call_args[0][0]
     assert PYTHON3_PATH in call_cmd
-    assert "reload_vscode.py" in call_cmd[-1]
+    assert call_cmd[-2] == "-m"
+    assert call_cmd[-1] == "executor.flows.playwright.reload_vscode"
     mock_cleanup.assert_called_once_with()
 
 
@@ -640,7 +641,7 @@ def test_reload_vscode_window_nonzero_exit_surfaces_script_error(
     mock_cleanup: MagicMock,
 ) -> None:
     mock_exec.side_effect = ExecutorError(
-        "Command failed (rc=1): python3 /home/executor/flows/playwright/reload_vscode.py",
+        "Command failed (rc=1): python3 -m executor.flows.playwright.reload_vscode",
         returncode=1,
         output=(
             "[reload] post_settle: Waiting 5000ms for extensions to settle after reload...\n"
@@ -674,7 +675,7 @@ def test_cleanup_stale_reload_processes_ignores_missing_processes(
     assert call_cmd == [
         PKILL_PATH,
         "-f",
-        "/home/executor/flows/playwright/reload_vscode.py",
+        "executor.flows.playwright.reload_vscode",
     ]
     assert mock_exec.call_args.kwargs["timeout"] == 5
 
@@ -724,9 +725,10 @@ def test_reset_executor_sandbox_state_with_reload(
     assert "[reload] Done" in output
     call_cmd = mock_exec.call_args[0][0]
     assert call_cmd[0] == PYTHON3_PATH
-    assert "reset_state.py" in call_cmd[-1]
+    assert call_cmd[-2] == "-m"
+    assert call_cmd[-1] == "executor.flows.playwright.reset_state"
     mock_exec_allow_partial.assert_called_once_with(
-        [PKILL_PATH, "-f", "/home/executor/flows/playwright/entrypoint.py"],
+        [PKILL_PATH, "-f", "executor.flows.playwright.entrypoint"],
         timeout=5,
     )
     mock_reload.assert_called_once_with()
@@ -758,7 +760,7 @@ def test_reset_executor_sandbox_state_retries_reload_once(
     assert "[reset] sandbox ready" in output
     assert "[reload] Done" in output
     mock_exec_allow_partial.assert_called_once_with(
-        [PKILL_PATH, "-f", "/home/executor/flows/playwright/entrypoint.py"],
+        [PKILL_PATH, "-f", "executor.flows.playwright.entrypoint"],
         timeout=5,
     )
     mock_sleep.assert_called_once_with(2)
@@ -785,7 +787,7 @@ def test_reset_executor_sandbox_state_without_reload(
 
     assert output == "[reset] sandbox ready"
     mock_exec_allow_partial.assert_called_once_with(
-        [PKILL_PATH, "-f", "/home/executor/flows/playwright/entrypoint.py"],
+        [PKILL_PATH, "-f", "executor.flows.playwright.entrypoint"],
         timeout=5,
     )
     mock_reload.assert_not_called()

@@ -16,6 +16,8 @@ import debug
 import editor
 import terminal
 import uri_validation
+from playwright.sync_api import Error as PlaywrightError
+from playwright.sync_api import Page
 from stimulus_materializers import resolve_command_text, write_harness_context
 from stimulus_types import (
     _HARNESS_READY_PATH,
@@ -32,9 +34,6 @@ from wait_helpers import (
     wait_for_trigger_effect,
     wait_for_ui_settle,
 )
-
-from playwright.sync_api import Error as PlaywrightError
-from playwright.sync_api import Page
 
 
 @dataclass(frozen=True)
