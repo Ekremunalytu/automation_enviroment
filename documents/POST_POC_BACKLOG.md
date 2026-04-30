@@ -149,6 +149,19 @@ UI v3 redesign minimal-completion landed `2026-04-29` (see
 - Documentation consolidation pass (`REFACTOR_STATUS` /
   `REFACTOR_EXECUTION_PLAN` / `REFACTOR_OPTIMIZATION` dedupe) —
   living-doc cadence not settled yet.
+- **`[FOLLOWUP ci-reintroduction]`** — `ci.yml` and `docs-check.yml`
+  workflows were retired on `2026-04-30` after persistent flakiness in
+  the `security-fixtures` job (iptables egress sandbox on GitHub
+  runners). Local equivalents (`make check-all`, `make test-security`,
+  `make test-local`, plus the new `pre-push` pre-commit stage) cover
+  the same checks. `security.yml` (weekly Trivy + Bandit) was kept.
+  Reintroduce a remote pipeline if any of the following triggers fire:
+  (a) a second contributor joins, (b) PyPI/Docker-registry release
+  starts, (c) T2 fixtures land that genuinely need ambient egress
+  isolation. Before reintroduction, diagnose the original
+  `security-fixtures` breakage (likely runner-image iptables / sudo
+  drift) so the new lane does not inherit the same flake. See ADR 0004
+  addendum (2026-04-30).
 
 ### Repo Hygiene (surfaced 2026-04-29 audit pass)
 

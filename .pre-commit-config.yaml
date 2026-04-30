@@ -19,6 +19,7 @@ repos:
       - id: check-yaml
         args: [--unsafe]
       - id: check-json
+        exclude: ^ui/tsconfig.*\.json$  # JSONC: TypeScript tsconfig variants permit trailing commas / comments
       - id: check-toml
       - id: check-added-large-files
         args: [--maxkb=1000]
@@ -101,7 +102,20 @@ repos:
         args: ["--quiet", "--config", ".mlc_config.json"]
         exclude: ^(extensions/|documents/archive/)
 
-# CI parallel execution settings
+  # ============================================================
+  # PRE-PUSH — Full local check gate (replaces remote CI)
+  # Activate once with: pre-commit install --hook-type pre-push
+  # ============================================================
+  - repo: local
+    hooks:
+      - id: make-check-all
+        name: make check-all
+        entry: make check-all
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
+
+# pre-commit.ci settings (autofix bot — no GitHub Actions involved)
 ci:
   autofix_prs: true
   autoupdate_schedule: weekly

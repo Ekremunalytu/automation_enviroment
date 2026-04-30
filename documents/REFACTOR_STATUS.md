@@ -1,6 +1,6 @@
 # Refactor Status
 
-`Last Updated: 2026-04-29`
+`Last Updated: 2026-04-30`
 
 Active status board for current closure state. **Slim canonical** — full
 phase closure history (W4 → W5 → W6 → W7 + post-W7 hardening + W8-0..W8-3
@@ -79,6 +79,18 @@ With W8-7 landed and W8-8 deferred under the named triggers above,
 W8 is **closed for active work** pending the optional ADR 0008 draft
 on container packaging that the active-work tracker keeps as a single
 remaining checkbox before W9 entry.
+
+- **CI pipeline retired `2026-04-30`** — `.github/workflows/ci.yml` and
+  `.github/workflows/docs-check.yml` removed; `security.yml` (weekly
+  Trivy + Bandit) kept. The `security-fixtures` job (iptables egress
+  sandbox) was the persistent flake source; its protections are
+  Makefile-enforced (`test-security-live` refuses under `CI=true`)
+  and the security fixture lane itself runs locally via
+  `make test-security` (pure pytest, no network). A new `pre-push`
+  pre-commit stage runs `make check-all` before push as the local
+  gate. ADR 0004 carries a 2026-04-30 addendum spelling out the
+  policy change. Reintroduction trigger logged as
+  `[FOLLOWUP ci-reintroduction]` in `POST_POC_BACKLOG.md`.
 
 ## Subsystem Posture
 
