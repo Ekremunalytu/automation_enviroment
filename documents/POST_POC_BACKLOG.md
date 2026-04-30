@@ -276,16 +276,24 @@ codex-automation-3, 7, 8.
   test_router_path_traversal.py::test_list_endpoint_filters_malformed_names`
   asserts a leading-dash slug, an overlength body, and a whitespace-bearing
   body all drop from the listing while a canonical name surfaces.
-- **`[FOLLOWUP w8-6-content-sample-structural-test]`** — W8-6 redaction
-  is correct on construction + assignment, but there is no contract
-  test that all extension-derived string fields on `ActivationReport`
-  (and its nested types) are typed as `ContentSample` rather than
-  plain `str`. A future rule could add a `str` evidence field and
-  bypass redaction without any gate failing. Land a Pydantic-introspect
-  test under `tests/platform/security/` that walks the schema and
-  asserts the typing constraint. Out-of-scope for W8-6 closure pass
-  but tracked here so it doesn't get lost. Surfaced by 2026-04-29
-  audit pass.
+- **`[FOLLOWUP w8-6-content-sample-structural-test]`** — *Partial close
+  2026-04-30 via W9-6c*: `tests/platform/security/test_content_sample_typing.py`
+  pins `ContentSample` shape invariants (`extra="forbid"`,
+  `validate_assignment=True`, redaction validator on `value`) and locks
+  a `_PENDING_MIGRATION` allow-list snapshot — currently
+  `EvidenceEvent.raw_context` is the registered placeholder. When a
+  field's annotation flips to `ContentSample`, the test fails (XPASS-
+  equivalent) and the allow-list must be trimmed. **Audit gap remains**:
+  the comprehensive sweep of every extension-derived string field on
+  the `ActivationReport` subtree (`NetworkEvent.request_body_preview`,
+  `NetworkEvent.response_body_preview`, `EvidenceEvent.summary`,
+  `ProcessEvent.command`/`arguments_preview`, `FileEvent.summary`, etc.)
+  is *not* enumerated yet — the `_PENDING_MIGRATION` list is a baseline
+  placeholder, not a complete inventory. Pickup procedure: walk the
+  contract surface, append every extension-controlled string field to
+  `_PENDING_MIGRATION`, then plan the per-field migration to
+  `ContentSample`. Surfaced by 2026-04-29 audit pass; structural-test
+  half closed by W9-6c on 2026-04-30.
 - **`[FOLLOWUP w8-8-manifest-emit-when-needed]`** — The original W8-8
   plan in `active-work/W8-security.md:266` presumed manifest-field log
   emit sites in `workflows/extension_catalog/`, `workflows/marketplace/
