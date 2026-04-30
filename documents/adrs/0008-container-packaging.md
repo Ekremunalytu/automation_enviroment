@@ -180,21 +180,57 @@ döner (false-positive baseline doğrulaması).
 - `pkill -f` pattern'inin güvenliği §6 invariant'ına bağlıdır;
   invariant'ı koruyacak naming convention discipline gerekir.
 
-### Follow-On
+### Follow-On Outcomes (W9 closure)
 
-- W9-1 commit'inde implement edilir (`feat/w9-executor-detection-boundary`
-  umbrella).
-- W9-2'de `signal_policy.py` `packages/analysis_engine/signals/policy.py`
-  altına minimum-invaziv relocation.
-- W9-3'te 18 dosyada `except ImportError` fallback elimine edilir.
-- W9-4'te runtime tree'deki son 5 `sys.path.insert` kaldırılır.
-- W9-5'te container import-mode regression test eklenir.
-- `documents/executor/playwright-flow.md`, `documents/EXECUTOR_PLAYWRIGHT.md`,
-  `documents/architecture/data-flow.md`, `README.md` ve runbook'lardaki
-  file-path referansları W9 closure pas'ında module-name formuna
-  güncellenir.
+- **W9-1 landed `2026-04-30`** (`76c0760`) — argv pivot + container
+  packaging markers + Makefile lanes; `pkill -f` dotted module name
+  cleanup invariant locked.
+- **W9-2 landed `2026-04-30`** (`55ee3f7`) — `signal_policy.py` →
+  `packages/analysis_engine/signals/policy.py`; AST gate
+  `test_executor_imports_signals_from_packages` regression-guards the
+  boundary.
+- **W9-3 landed `2026-04-30`** (`ae0a8a7`) — full package-mode pivot in
+  one commit:
+  - 39 source files converted to package-relative imports
+    (`from . import …` / `from .X import Y`).
+  - 17 dual-import fallbacks (`try: from .X / except: from X`) removed;
+    one allow-listed: `executor/flows/playwright/monitor_support.py`
+    (legitimate `importlib.import_module` ImportError catch).
+  - 6 `sys.path.insert` removals across runtime tree: `entrypoint`,
+    `reload_vscode`, `reset_state`, `report_builder`, `triggers`,
+    `workspace`.
+  - Three AST gates lock the contract in
+    `tests/architecture/test_import_graph.py`:
+    `test_no_dual_import_fallback_in_executor` (line 123),
+    `test_no_sys_path_manipulation_in_runtime` (line 151),
+    `test_executor_imports_signals_from_packages` (line 173).
+  - W9-4 `sys.path.insert` audit folded into this commit; the AST gate
+    is the binding artifact, no separate runtime-tree pass remained.
+- **W9-5 follows** — `tests/architecture/test_container_entrypoint.py`
+  asserts paket-mode invocation succeeds and flat-mode invocation
+  fails inside the executor container (runtime regression layer that
+  AST gates cannot reach).
+- Document and runbook file-path references update opportunistically
+  with future module-aware tooling commits (no umbrella block
+  needed — `pkill -f` invariant and AST gates carry the contract).
 
 ## Implementation
 
-W9-1 implementation closure'da bu bölüm doldurulacak; ADR 0007 deseni
-(`Implementation` bölümü Status `Accepted` flip ile birlikte yazılır).
+Status flips to **Accepted** with W9-3 landing on `2026-04-30`. The
+W9-1/W9-2/W9-3 commit sequence on `feat/w9-executor-detection-boundary`
+realizes the design as proposed; deviations from the original plan:
+
+- `sys.path.insert` audit (W9-4) merged into W9-3 because the AST gate
+  `test_no_sys_path_manipulation_in_runtime` was the binding artifact
+  and runtime-tree was already touched in the dual-import sweep.
+- `monitor_support.py` retained one legitimate `except ImportError`
+  via explicit allow-list rather than refactor; the catch wraps
+  `importlib.import_module(...)` for dynamic facade resolution and is
+  semantically distinct from the dual-import fallback pattern the
+  ADR targets.
+
+Verification: `make check-all` (959 passed / 6 skipped) plus three
+smoke tests (`test_ms_python_analysis_smoke`,
+`test_ms_python_layered_analysis_smoke`,
+`test_missing_trigger_payload_never_looks_benign`) green at HEAD
+`ae0a8a7`.
