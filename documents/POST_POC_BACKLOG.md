@@ -251,15 +251,24 @@ codex-automation-3, 7, 8.
   pragmas. POST_POC because it is uniformly `# nosec`-annotated already
   and not on the W8 stakeholder bar.
 - **`[FOLLOWUP w8-1-extract-rejection-logging]`** —
-  `workflows/marketplace/client.py:_extract_vsix_to_dir` silently
-  `continue`s when an entry fails the `..` filter (line 166) or the
-  `target.resolve().relative_to(destination_dir.resolve())` check
-  (line 197-200). The extraction-limit branches raise `VSIXUnpackError`
-  with detail; the path-rejection branches drop the entry without a
-  log line, so a malicious VSIX leaves no breadcrumb in the heartbeat
-  or analysis report. Add a single `logger.warning("vsix_entry_rejected
-  reason=... entry=...", ...)` per branch and surface the count in the
-  job report. Surfaced by 2026-04-29 audit pass.
+  *Logging breadcrumb shipped 2026-04-30 via W9-6a*:
+  `workflows/marketplace/client.py:_extract_vsix_to_dir` now emits
+  `logger.warning("vsix_entry_rejected reason=path_traversal entry=...")`
+  and `reason=symlink_escape` per rejected entry, plus an aggregate
+  `logger.info("vsix_extraction_rejections total=...")` and returns the
+  rejection count. Two `caplog` regression tests in
+  `tests/workflows/marketplace/test_vsix_hardening.py`
+  (`test_path_traversal_emits_rejection_log`,
+  `test_symlink_escape_emits_rejection_log`) lock the breadcrumb shape.
+  *Count propagation to the job/activation report still pending* —
+  caller chain (`router.download_marketplace_extension` → DB row →
+  separate `analysis_execution` path) does not currently surface
+  per-extraction state into `ActivationReport`. Pickup procedure: tuple
+  the count out of `download_and_extract_vsix`, persist on the
+  marketplace job state row, fold into `ActivationReport` (new
+  `vsix_rejection_count: int = 0` field) where the report is built
+  post-analysis. Surfaced by 2026-04-29 audit pass; logging half closed
+  by W9-6a on 2026-04-30.
 - **`[FOLLOWUP w8-5-list-endpoint-name-filter]`** — W8-5 closed the
   `/{name}` and `/{name}/bundle` path-parameter validation; the list
   endpoint at `workflows/activation_reports/router.py:_list_report_files`
