@@ -97,9 +97,9 @@ def test_t1_canary_must_not_fire_rules_stay_silent(
         if record.status == RuleExecutionStatus.FIRED
     }
     leaked = must_not_fire & fired_rule_ids
-    assert (
-        not leaked
-    ), f"{canary_id}: rules fired that should have stayed silent: {sorted(leaked)}"
+    assert not leaked, (
+        f"{canary_id}: rules fired that should have stayed silent: {sorted(leaked)}"
+    )
 
 
 @pytest.mark.parametrize(

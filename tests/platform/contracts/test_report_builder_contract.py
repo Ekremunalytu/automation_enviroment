@@ -142,9 +142,9 @@ def test_save_report_payload_refuses_to_write_drifted_payload(tmp_path: Path) ->
     with pytest.raises(ReportContractError):
         save_report_payload(out_path, payload, announce=False)
 
-    assert (
-        not out_path.exists()
-    ), "Producer gate must refuse the write, not merely validate after the fact."
+    assert not out_path.exists(), (
+        "Producer gate must refuse the write, not merely validate after the fact."
+    )
 
 
 def test_minimal_report_roundtrips_with_populated_risk_signal_details() -> None:
