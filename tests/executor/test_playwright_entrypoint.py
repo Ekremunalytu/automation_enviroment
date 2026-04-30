@@ -696,8 +696,9 @@ def test_main_dispatches_non_monitored_execution_modes(
     monkeypatch.setattr(
         entrypoint.automation,
         "run_selected_scenarios",
-        lambda page, names, shuffle=False, **_: dispatched.append(("selected", names))
-        or [],
+        lambda page, names, shuffle=False, **_: (
+            dispatched.append(("selected", names)) or []
+        ),
     )
     monkeypatch.setattr(
         entrypoint.automation,

@@ -125,10 +125,7 @@ def materialize_language_fixture(
         except KeyError:
             return blocked(
                 "materialization_failed",
-                (
-                    "Language fixture materialization does not support "
-                    f"{language_id!r}."
-                ),
+                (f"Language fixture materialization does not support {language_id!r}."),
                 {"language_id": language_id},
             )
     return completed(

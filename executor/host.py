@@ -181,8 +181,7 @@ def install_extension_in_executor(publisher: str, name: str, version: str) -> st
             result = _docker_exec(cmd)
         except ExecutorError as retry_exc:
             raise ExecutorError(
-                f"{retry_exc}; first attempt output: "
-                f"{first_exc.output[-200:].strip()}",
+                f"{retry_exc}; first attempt output: {first_exc.output[-200:].strip()}",
                 returncode=retry_exc.returncode,
                 output=retry_exc.output,
             ) from retry_exc

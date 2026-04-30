@@ -173,8 +173,7 @@ def test_detector_flags_bare_binary_in_popen() -> None:
 
 def test_detector_ignores_absolute_binary_literal() -> None:
     source = (
-        "import subprocess\n"
-        'subprocess.run(["/usr/bin/code", "--install-extension"])\n'
+        'import subprocess\nsubprocess.run(["/usr/bin/code", "--install-extension"])\n'
     )
     assert _scan_synthetic_source(source) == []
 

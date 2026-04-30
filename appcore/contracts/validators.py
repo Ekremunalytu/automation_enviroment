@@ -38,8 +38,7 @@ def valid_extension_slug(value: str) -> str:
         raise InvalidExtensionSlugError(f"empty or non-string slug: {value!r}")
     if MARKETPLACE_SLUG_TOKEN_RE.fullmatch(value) is None:
         raise InvalidExtensionSlugError(
-            f"slug rejected (must match {MARKETPLACE_SLUG_TOKEN_RE.pattern}): "
-            f"{value!r}"
+            f"slug rejected (must match {MARKETPLACE_SLUG_TOKEN_RE.pattern}): {value!r}"
         )
     return value
 
