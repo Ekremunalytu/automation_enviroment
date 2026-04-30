@@ -355,8 +355,7 @@ def _validate_report_against_contract(data: dict[str, Any]) -> None:
         loc = ".".join(str(part) for part in first.get("loc", ()))
         msg = first.get("msg", "invalid")
         raise ReportContractError(
-            f"Activation report failed contract validation at "
-            f"{loc or '<root>'}: {msg}"
+            f"Activation report failed contract validation at {loc or '<root>'}: {msg}"
         ) from err
 
 

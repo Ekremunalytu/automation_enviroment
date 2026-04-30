@@ -1,6 +1,6 @@
 # Refactor Status
 
-`Last Updated: 2026-04-29`
+`Last Updated: 2026-04-30`
 
 Active status board for current closure state. **Slim canonical** — full
 phase closure history (W4 → W5 → W6 → W7 + post-W7 hardening + W8-0..W8-3
@@ -36,11 +36,61 @@ detail blocks) frozen under
   `MARKETPLACE_SLUG_TOKEN_RE`; activation-report router uses FastAPI
   `Path(..., pattern=...)` gate; AST drift gate prevents duplicate slug
   regex literals.
+- **W8-7 LAN binding defaults landed `2026-04-29`** —
+  `appcore/api/config.py` defaults `HOST=127.0.0.1`,
+  `CORS_ALLOW_ORIGINS=http://localhost:3000`,
+  `CORS_ALLOW_CREDENTIALS=False`; `model_post_init` substitutes
+  `0.0.0.0` + `*` only when `EXTRACE_ALLOW_LAN` is truthy AND the field
+  still holds the loopback default. `docker-compose.yml` carries
+  explicit `127.0.0.1:` prefixes on every default-profile `ports:`
+  entry; CDP (port `9222`) ships behind a new `executor-cdp` socat
+  sidecar gated by `profiles: ["debug"]`. `Makefile` adds `dev-lan`
+  and `up-debug` targets. `documents/runbooks/lan-exposure.md` live; ADR 0007
+  Implementation section plus ADR 0002 §4 trust-boundary row appended;
+  `tests/architecture/test_default_bindings.py` (14 cases) wired into
+  the `make test-security` lane.
 
-W8 is in progress. Active checklist:
-[`active-work/W8-security.md`](active-work/W8-security.md). Remaining
-items: W8-6 (content-sample redaction), W8-7 (ADR 0007 local network
-binding), W8-8 (manifest log sanitization).
+W8-8 (manifest log sanitization) is **deferred — not abandoned**. Audit
+on `2026-04-29` confirmed no production logger call in
+`workflows/extension_catalog/` or `workflows/marketplace/` currently
+forwards an attacker-controlled manifest field; the four W8-8 artifacts
+(`sanitize_for_log` helper, parametrized sanitization test, AST gate,
+ADR 0002 §7 addendum) reopen on **either** of two named triggers:
+
+- **Trigger A** — a future feature PR introduces the first real call
+  site that logs `displayName` / `description` / `repository.url` /
+  `categories[]` / `homepage` / `bugs` / `qna` / `license` from a
+  parsed manifest. The W8-8 artifacts ship in the same PR so the
+  helper has a real caller and the AST gate locks in the shape.
+- **Trigger B** — an external review or stakeholder gate explicitly
+  asks for the defense-in-depth helper before any real call site
+  exists. A standalone PR ships the four artifacts and the AST gate
+  is sized against synthetic fixtures.
+
+Track: `[FOLLOWUP w8-8-manifest-emit-when-needed]` in
+`POST_POC_BACKLOG.md` carries the full pickup procedure (artifact
+list, file paths, retirement marker). The W8-8 plan body in
+`active-work/W8-security.md` carries a `(DEFERRED 2026-04-29)` marker
+and a "Deferred — NOT abandoned" callout listing the same triggers;
+the threat description below the marker is the canonical statement of
+the vector and survives the eventual landing flip.
+
+With W8-7 landed and W8-8 deferred under the named triggers above,
+W8 is **closed for active work** pending the optional ADR 0008 draft
+on container packaging that the active-work tracker keeps as a single
+remaining checkbox before W9 entry.
+
+- **CI pipeline retired `2026-04-30`** — `.github/workflows/ci.yml` and
+  `.github/workflows/docs-check.yml` removed; `security.yml` (weekly
+  Trivy + Bandit) kept. The `security-fixtures` job (iptables egress
+  sandbox) was the persistent flake source; its protections are
+  Makefile-enforced (`test-security-live` refuses under `CI=true`)
+  and the security fixture lane itself runs locally via
+  `make test-security` (pure pytest, no network). A new `pre-push`
+  pre-commit stage runs `make check-all` before push as the local
+  gate. ADR 0004 carries a 2026-04-30 addendum spelling out the
+  policy change. Reintroduction trigger logged as
+  `[FOLLOWUP ci-reintroduction]` in `POST_POC_BACKLOG.md`.
 
 ## Subsystem Posture
 

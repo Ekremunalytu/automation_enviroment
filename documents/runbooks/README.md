@@ -29,6 +29,10 @@ Each runbook follows the same shape:
 - [Live capture regression](live-capture-regression.md)
   — `make test-security` green, `make test-security-live` red; missing
     `tls_client_hello` events break A2/A4 TLS rules
+- [LAN exposure (`EXTRACE_ALLOW_LAN`)](lan-exposure.md)
+  — opt-in path to expose ExTrace services on the LAN per ADR 0007;
+    operator-side hardening checklist (firewall, reverse-proxy auth,
+    explicit CORS allow-list, rotated PostgreSQL password)
 
 ## When to Update
 

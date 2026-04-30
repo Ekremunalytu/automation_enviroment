@@ -21,7 +21,7 @@ ActivationReport (canary fixture)
 packages.analysis_engine.runner.run_detection
         │
         ▼
-DetectionReport  ────► UI DetectionPanel → FindingCard → Evidence deep-link
+DetectionReport  ────► UI ReportsPage → FindingCard → Evidence deep-link
 ```
 
 Two runnable flavors are provided — pick whichever suits the audience.
@@ -144,8 +144,8 @@ make exec-build       # Executor + VS Code pinned image
 
 3. **Walk the UI.**
    - Navigate to `Reports → extrace.t1-a1-credential-read-canary`.
-   - `DetectionPanel`
-     ([`ui/src/features/reports/DetectionPanel.tsx`](../ui/src/features/reports/DetectionPanel.tsx))
+   - `ReportsPage`
+     ([`ui/src/features/reports/ReportsPage.tsx`](../ui/src/features/reports/ReportsPage.tsx))
      renders a single red `FindingCard` titled **"Credential file read
      followed by outbound request"**, verdict badge `malicious`,
      severity `critical`, confidence `high`.

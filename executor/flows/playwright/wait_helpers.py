@@ -108,10 +108,7 @@ def wait_for_target_reaction(
     _emit(
         event_recorder,
         "wait_for_target_reaction",
-        (
-            "Waiting for target-owned telemetry after "
-            f"{trigger_label} ({capability})."
-        ),
+        (f"Waiting for target-owned telemetry after {trigger_label} ({capability})."),
         "running",
         activation_event=activation_event,
     )
@@ -143,7 +140,7 @@ def wait_for_target_reaction(
             result = WaitResult(
                 status="completed",
                 detail=(
-                    "Observed target-owned telemetry growth after " f"{trigger_label}."
+                    f"Observed target-owned telemetry growth after {trigger_label}."
                 ),
                 observed=True,
             )

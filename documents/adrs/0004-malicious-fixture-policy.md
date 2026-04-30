@@ -1,6 +1,6 @@
 # ADR 0004: Malicious Fixture Policy
 
-- Status: Accepted
+- Status: Accepted (with 2026-04-30 addendum — see end of document)
 - Date: 2026-04-17
 - Related: ADR 0002 (Threat Model), ADR 0003 (Detection Taxonomy)
 
@@ -208,3 +208,42 @@ These responsibilities are operator-level, not platform-enforced.
   - T2/T3 fixtures and runnable detection evaluation against them
 - Revisit T3 handling once a hardened analyst environment specification
   exists; it is currently operator-defined.
+
+## Addendum — 2026-04-30: Local-only operating model
+
+This ADR was authored when the project ran a GitHub Actions `ci.yml`
+pipeline whose `security-fixtures` job applied iptables egress rules
+before invoking `make test-security`. That pipeline has been retired in
+favor of a single-developer, local-appliance operating model
+(`security.yml` for weekly Trivy/Bandit reports remains; `ci.yml` and
+`docs-check.yml` were removed on 2026-04-30).
+
+What changes:
+
+- The "CI guard" enumerated in §6 ("CI job refuses to run
+  `make test-security-live`") is no longer enforced at runner level.
+  Defense in depth still holds because the Makefile target itself
+  refuses under `CI=true` (`Makefile:240-243`) and refuses without
+  `I_UNDERSTAND_THIS_IS_LIVE=1` (`Makefile:244-247`). The platform-level
+  refusal moves from "two layers" to "one layer" (Makefile only).
+- The "egress-disabled CI lane for T2" guarantee in §3 (T2 row) and
+  §6 ("`make test-security` runs with network policy denying external
+  egress") is no longer provided automatically. T2 fixtures, when
+  introduced, must be executed inside the executor container's existing
+  network isolation rather than relying on a runner-level iptables
+  sandbox.
+
+What does not change:
+
+- T1 canary fixtures still safe to run anywhere, including local dev.
+- T3 live samples still forbidden in any automated context; operator
+  acknowledgement (`I_UNDERSTAND_THIS_IS_LIVE=1`) remains the single
+  gate.
+- `tests/security/test_fixture_hygiene.py` and
+  `tests/security/test_rule_coverage.py` continue to enforce the
+  corpus contract; they run via `make test-security` locally.
+
+Trigger to revisit: if a second contributor joins, or if T2 fixtures
+are added that genuinely need ambient egress isolation, the
+`security-fixtures` job should be reintroduced — but only after
+diagnosing the prior breakage (likely runner-image iptables drift).

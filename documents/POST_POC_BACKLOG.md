@@ -149,6 +149,19 @@ UI v3 redesign minimal-completion landed `2026-04-29` (see
 - Documentation consolidation pass (`REFACTOR_STATUS` /
   `REFACTOR_EXECUTION_PLAN` / `REFACTOR_OPTIMIZATION` dedupe) —
   living-doc cadence not settled yet.
+- **`[FOLLOWUP ci-reintroduction]`** — `ci.yml` and `docs-check.yml`
+  workflows were retired on `2026-04-30` after persistent flakiness in
+  the `security-fixtures` job (iptables egress sandbox on GitHub
+  runners). Local equivalents (`make check-all`, `make test-security`,
+  `make test-local`, plus the new `pre-push` pre-commit stage) cover
+  the same checks. `security.yml` (weekly Trivy + Bandit) was kept.
+  Reintroduce a remote pipeline if any of the following triggers fire:
+  (a) a second contributor joins, (b) PyPI/Docker-registry release
+  starts, (c) T2 fixtures land that genuinely need ambient egress
+  isolation. Before reintroduction, diagnose the original
+  `security-fixtures` breakage (likely runner-image iptables / sudo
+  drift) so the new lane does not inherit the same flake. See ADR 0004
+  addendum (2026-04-30).
 
 ### Repo Hygiene (surfaced 2026-04-29 audit pass)
 
@@ -265,6 +278,57 @@ codex-automation-3, 7, 8.
   asserts the typing constraint. Out-of-scope for W8-6 closure pass
   but tracked here so it doesn't get lost. Surfaced by 2026-04-29
   audit pass.
+- **`[FOLLOWUP w8-8-manifest-emit-when-needed]`** — The original W8-8
+  plan in `active-work/W8-security.md:266` presumed manifest-field log
+  emit sites in `workflows/extension_catalog/`, `workflows/marketplace/
+  job_service.py`, and `workflows/marketplace/analysis_execution.py`
+  that the new `appcore/contracts/sanitize.py::sanitize_for_log` helper
+  would retrofit. The audit at the start of W8-7 (`2026-04-29`) found
+  zero such sites — only the W8-2-validated `publisher`/`name`/`version`
+  slug currently flows to loggers in those modules. The helper, ADR
+  0002 §7 addendum, and the AST gate (which would forbid future
+  unsanitized manifest-field emits) land in the iteration that
+  actually introduces such an emit site, so the helper can land
+  alongside its first real caller and the AST gate can be sized
+  against real fixtures.
+
+  **Reopen triggers (either is sufficient):**
+
+  - **Trigger A — first real call site appears.** A feature PR adds
+    a logger call that references `displayName`,
+    `publisher.displayName`, `description`, `repository.url`,
+    `categories[]`, `homepage`, `bugs`, `qna`, or `license` from the
+    parsed manifest. The same PR ships the four W8-8 artifacts.
+  - **Trigger B — proactive security pull.** External review or a
+    stakeholder gate requires the defense-in-depth helper before any
+    real call site exists. A standalone PR ships the four W8-8
+    artifacts; the AST gate is sized against synthetic fixtures
+    (mirror `tests/architecture/test_marketplace_identity_concat.py`
+    self-test pattern).
+
+  **W8-8 artifact set (four items, all in one PR):**
+
+  1. `appcore/contracts/sanitize.py::sanitize_for_log` helper
+     (CR/LF/C0/C1/ANSI escape, NULL-byte reject, length cap;
+     re-export from `appcore/contracts/__init__.py`).
+  2. `tests/platform/security/test_manifest_log_sanitization.py`
+     (parametrized cases for control-char escape, null-byte reject,
+     length truncation, unicode pass-through, and idempotence —
+     mirroring the W8-6 `test_content_sample_redaction.py` shape).
+  3. `tests/architecture/test_manifest_field_log_emit.py` AST gate
+     (forbids unsanitized manifest field references inside production
+     logger calls; pragma `# arch-allow: untrusted-manifest-log` for
+     legitimate exceptions).
+  4. `documents/adrs/0002-threat-model.md` §7 "Untrusted Manifest
+     Fields as Log Forging Surface" addendum.
+
+  **Pickup procedure:** Walk the DEFERRED block in
+  `active-work/W8-security.md` top-to-bottom, add the four artifacts
+  in the matching trigger's PR, retire this followup ID with
+  `[LANDED <date>]`, and flip the W8-security.md DEFERRED marker to
+  `landed`. **Do not delete the W8-8 plan body** in W8-security.md —
+  it is the canonical statement of the threat and survives the marker
+  flip. Surfaced by 2026-04-29 W8-7 implementation pass.
 
 ### Architecture Audit (2026-04-27)
 

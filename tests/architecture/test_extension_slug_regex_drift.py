@@ -119,7 +119,7 @@ def _scan_synthetic_source(source: str) -> list[int]:
 
 
 def test_detector_flags_synthetic_slug_pattern_duplicate() -> None:
-    source = "import re\n" f"PAT = re.compile(r{SLUG_PATTERN_LITERAL!r})\n"
+    source = f"import re\nPAT = re.compile(r{SLUG_PATTERN_LITERAL!r})\n"
     assert _scan_synthetic_source(source) == [2]
 
 
@@ -138,5 +138,5 @@ def test_detector_ignores_builtin_compile() -> None:
 def test_detector_ignores_re_match_calls() -> None:
     """Only ``re.compile(...)`` is in scope; ``re.match(...)`` etc. produce
     runtime matches but do not stash a duplicate compiled pattern."""
-    source = "import re\n" f"hit = re.match(r{SLUG_PATTERN_LITERAL!r}, 'foo')\n"
+    source = f"import re\nhit = re.match(r{SLUG_PATTERN_LITERAL!r}, 'foo')\n"
     assert _scan_synthetic_source(source) == []

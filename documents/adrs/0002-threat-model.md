@@ -99,6 +99,7 @@ with its validation mechanism.
 | Extension code at runtime | **Untrusted** | This is the subject of analysis; never elevated to trusted by any heuristic |
 | Analysis output (`activation_report_*.json`) | **Semi-trusted** | May contain captured data originating from an untrusted extension; rendering in UI requires encoding/escaping; retention policy applies |
 | Executor container filesystem at rest | Untrusted after first analysis run | Must be reset (not reused) between analyses of different extensions |
+| Operator host network interfaces | Loopback by default, opt-in LAN | ADR 0007 — `appcore/api/config.py` defaults bind `127.0.0.1`; `docker-compose.yml` ports carry explicit `127.0.0.1:` prefix; CDP behind `debug` profile; `EXTRACE_ALLOW_LAN=1` is the single audited opt-in |
 
 ### 5. Analyst Operating Environment
 
