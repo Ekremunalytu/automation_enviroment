@@ -1,18 +1,10 @@
 from __future__ import annotations
 
 import json
-import sys
 from pathlib import Path
 
+from executor.flows.playwright import monitor
 from packages.analysis_contracts import TriggerPayload
-
-PLAYWRIGHT_DIR = (
-    Path(__file__).resolve().parents[2] / "executor" / "flows" / "playwright"
-)
-if str(PLAYWRIGHT_DIR) not in sys.path:
-    sys.path.insert(0, str(PLAYWRIGHT_DIR))
-
-import monitor  # noqa: E402
 
 
 def test_extension_monitor_stop_keeps_runtime_snapshot_separate(
@@ -567,9 +559,14 @@ def test_target_extension_host_stream_invariant_rejects_non_target_entries() -> 
     """
     import pytest
 
-    from monitor_lifecycle import _assert_target_stream_invariant
-    from monitor_records import LogStreamEntry
-    from monitor_types import ActivationReport, _DEMOTE_WARNING_EMITTED
+    from executor.flows.playwright.monitor_lifecycle import (
+        _assert_target_stream_invariant,
+    )
+    from executor.flows.playwright.monitor_records import LogStreamEntry
+    from executor.flows.playwright.monitor_types import (
+        ActivationReport,
+        _DEMOTE_WARNING_EMITTED,
+    )
 
     # Reset module-level dedup so demote warnings fire deterministically.
     _DEMOTE_WARNING_EMITTED.clear()

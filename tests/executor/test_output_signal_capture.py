@@ -9,17 +9,10 @@ routing (``_build_evidence_bundle``), and the tightened
 from __future__ import annotations
 
 import json
-import sys
 from pathlib import Path
 
-PLAYWRIGHT_DIR = (
-    Path(__file__).resolve().parents[2] / "executor" / "flows" / "playwright"
-)
-if str(PLAYWRIGHT_DIR) not in sys.path:
-    sys.path.insert(0, str(PLAYWRIGHT_DIR))
-
-import monitor  # noqa: E402
-from output_signals import (  # noqa: E402
+from executor.flows.playwright import monitor
+from executor.flows.playwright.output_signals import (
     ATTRIBUTION_WINDOW_S,
     annotate_output_signal_events,
     merge_output_signal_events,

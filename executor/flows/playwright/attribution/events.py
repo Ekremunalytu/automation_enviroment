@@ -5,24 +5,14 @@ from __future__ import annotations
 
 from datetime import datetime
 
-try:
-    from ..monitor_records import ScenarioTrace
-    from ..runtime_capture._shared import _parse_iso_timestamp
-    from ..runtime_capture.events import (
-        ActivationEntry,
-        FileEvent,
-        NetworkEvent,
-        ProcessEvent,
-    )
-except ImportError:  # pragma: no cover - top-level executor import mode
-    from monitor_records import ScenarioTrace
-    from runtime_capture._shared import _parse_iso_timestamp
-    from runtime_capture.events import (
-        ActivationEntry,
-        FileEvent,
-        NetworkEvent,
-        ProcessEvent,
-    )
+from ..monitor_records import ScenarioTrace
+from ..runtime_capture._shared import _parse_iso_timestamp
+from ..runtime_capture.events import (
+    ActivationEntry,
+    FileEvent,
+    NetworkEvent,
+    ProcessEvent,
+)
 
 
 def _format_epoch_timestamp(epoch: float | None) -> str:

@@ -6,10 +6,11 @@ import subprocess
 from collections.abc import Callable
 from typing import Any
 
-import uri_validation
 from playwright.sync_api import Browser, Page
 from playwright.sync_api import Error as PlaywrightError
-from wait_helpers import (
+
+from . import uri_validation
+from .wait_helpers import (
     require_wait,
     wait_for_command_effect,
     wait_for_target_reaction,

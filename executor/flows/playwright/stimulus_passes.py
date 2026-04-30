@@ -4,10 +4,11 @@ from __future__ import annotations
 
 from typing import Any
 
-import automation
 from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import Page
-from stimulus_attempts import (
+
+from . import automation
+from .stimulus_attempts import (
     action_for_pass,
     dedupe_execution_key,
     deduped_result_details,
@@ -15,8 +16,8 @@ from stimulus_attempts import (
     failure_reason_code_for_exception,
     method_for_pass,
 )
-from stimulus_prerequisites import materialize_prerequisite, trigger_item_as_dict
-from stimulus_types import (
+from .stimulus_prerequisites import materialize_prerequisite, trigger_item_as_dict
+from .stimulus_types import (
     AttemptExecutionRecord,
     AutomationExecutionResult,
     SkippedScenarioRecord,

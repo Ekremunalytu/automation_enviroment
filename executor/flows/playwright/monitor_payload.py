@@ -5,34 +5,19 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-try:
-    from .monitor_records import (
-        EventAttemptRecord,
-        PrerequisiteResult,
-        StimulusPassTrace,
-    )
-    from .monitor_runtime import (
-        _extract_heuristic_attempted_capabilities,
-        _extract_official_attempted_capabilities,
-        _trigger_item_as_dict,
-    )
-except ImportError:  # pragma: no cover - top-level executor import mode
-    from monitor_records import (
-        EventAttemptRecord,
-        PrerequisiteResult,
-        StimulusPassTrace,
-    )
-    from monitor_runtime import (
-        _extract_heuristic_attempted_capabilities,
-        _extract_official_attempted_capabilities,
-        _trigger_item_as_dict,
-    )
+from .monitor_records import (
+    EventAttemptRecord,
+    PrerequisiteResult,
+    StimulusPassTrace,
+)
+from .monitor_runtime import (
+    _extract_heuristic_attempted_capabilities,
+    _extract_official_attempted_capabilities,
+    _trigger_item_as_dict,
+)
 
 if TYPE_CHECKING:
-    try:
-        from .monitor_types import ActivationReport
-    except ImportError:  # pragma: no cover - top-level executor import mode
-        from monitor_types import ActivationReport
+    from .monitor_types import ActivationReport
 
 
 def _payload_items(payload: Any, field_name: str) -> list[dict[str, Any]]:

@@ -1,8 +1,9 @@
 """Bottom panel helpers (Problems, Output, Debug Console)."""
 
-import keyboard
-from commands import run_command
 from playwright.sync_api import Page
+
+from . import keyboard
+from .commands import run_command
 
 
 def toggle_panel(page: Page) -> None:

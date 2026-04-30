@@ -14,23 +14,17 @@ Covers three layers:
 from __future__ import annotations
 
 import subprocess
-import sys
-from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
 import pytest
 
-PLAYWRIGHT_DIR = (
-    Path(__file__).resolve().parents[3] / "executor" / "flows" / "playwright"
+from executor.flows.playwright import (
+    entrypoint_triggers,
+    stimulus_attempts,
+    uri_validation,
 )
-if str(PLAYWRIGHT_DIR) not in sys.path:
-    sys.path.insert(0, str(PLAYWRIGHT_DIR))
-
-import entrypoint_triggers  # noqa: E402
-import stimulus_attempts  # noqa: E402
-import triggers as trigger_loader  # noqa: E402
-import uri_validation  # noqa: E402
+from executor.flows.playwright import triggers as trigger_loader
 
 
 # ---------------------------------------------------------------------------

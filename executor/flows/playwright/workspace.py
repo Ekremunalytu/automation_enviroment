@@ -4,24 +4,14 @@ from __future__ import annotations
 
 import shutil
 import stat
-import sys
 from pathlib import Path
 
-# Honeypot seed modules (`workspace_seed_data`, `workspace_seed_home`,
-# `language_samples`) re-import each other via flat names from inside
-# `executor/flows/playwright/`. The flat-name resolution depends on the
-# package directory living on `sys.path`. Drop the path-injection (and the
-# downstream flat imports it covers) in W9-3/W9-4 once the wider sweep lands.
-_PKG_DIR = str(Path(__file__).resolve().parent)
-if _PKG_DIR not in sys.path:
-    sys.path.insert(0, _PKG_DIR)
-
-from language_samples import (  # noqa: E402
+from .language_samples import (
     _LANGUAGE_SAMPLE_FILES,
     _WORKSPACE_PATTERN_FILES,
 )
-from workspace_seed_data import LANGUAGE_EXTENSIONS, WORKSPACE_FILES  # noqa: E402
-from workspace_seed_home import HOME_FILES  # noqa: E402
+from .workspace_seed_data import LANGUAGE_EXTENSIONS, WORKSPACE_FILES
+from .workspace_seed_home import HOME_FILES
 
 WORKSPACE_DIR = Path("/workspace")
 HOME_DIR = Path("/home/executor")

@@ -22,22 +22,13 @@ from packages.analysis_engine.signals.policy import (
     build_signal_summary as _build_signal_summary_policy,
 )
 
-try:
-    from .health import is_background_activation
-    from .signal_facts import (
-        indexed_target_activations,
-        indexed_target_file_events,
-        indexed_target_network_events,
-        indexed_ui_blockers,
-    )
-except ImportError:  # pragma: no cover - top-level executor import mode
-    from health import is_background_activation
-    from signal_facts import (
-        indexed_target_activations,
-        indexed_target_file_events,
-        indexed_target_network_events,
-        indexed_ui_blockers,
-    )
+from .health import is_background_activation
+from .signal_facts import (
+    indexed_target_activations,
+    indexed_target_file_events,
+    indexed_target_network_events,
+    indexed_ui_blockers,
+)
 
 
 def build_risk_signals(report: Any, risk_signal_type: Any) -> list[Any]:

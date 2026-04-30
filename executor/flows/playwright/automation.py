@@ -6,41 +6,44 @@ import random
 from collections.abc import Callable
 from typing import Any
 
-import commands
-import editor
-import keyboard
-import settings  # noqa: F401
-import sidebar  # noqa: F401
-import terminal  # noqa: F401
-import vscode
 from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import Page
-from scenarios.common import log as _log
-from scenarios.editing import (  # noqa: F401
+
+from . import (
+    commands,
+    editor,
+    keyboard,
+    settings,  # noqa: F401
+    sidebar,  # noqa: F401
+    terminal,  # noqa: F401
+    vscode,
+)
+from .scenarios.common import log as _log
+from .scenarios.editing import (  # noqa: F401
     scenario_coding_session,
     scenario_notebook_session,
     scenario_refactor_workflow,
 )
-from scenarios.registry import (
+from .scenarios.registry import (
     ScenarioSpec,
     build_default_scenarios,
     scenario_metadata,
 )
-from scenarios.runtime import (  # noqa: F401
+from .scenarios.runtime import (  # noqa: F401
     scenario_authentication_probe,
     scenario_debug_session,
     scenario_git_workflow,
     scenario_terminal_usage,
     scenario_webview_probe,
 )
-from scenarios.workbench import (  # noqa: F401
+from .scenarios.workbench import (  # noqa: F401
     scenario_diagnostics_check,
     scenario_extension_browsing,
     scenario_project_exploration,
     scenario_search_workflow,
     scenario_settings_modification,
 )
-from stimulus_types import (
+from .stimulus_types import (
     HARNESS_COMMAND_UNAVAILABLE_REASON,
     AutomationExecutionResult,
     HarnessUnavailableError,

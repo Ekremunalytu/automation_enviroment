@@ -9,7 +9,8 @@ from collections.abc import Callable
 
 from playwright.sync_api import Browser, Page, Playwright
 from playwright.sync_api import Error as PlaywrightError
-from stimulus_types import _HARNESS_READY_PATH
+
+from .stimulus_types import _HARNESS_READY_PATH
 
 CDP_URL = f"http://localhost:{os.environ.get('EXECUTOR_CDP_PORT', '9222')}"
 
@@ -203,7 +204,7 @@ def reload_workbench_window(
     with contextlib.suppress(FileNotFoundError):
         _HARNESS_READY_PATH.unlink()
     try:
-        import commands
+        from . import commands
 
         commands.run_reload_window_command(page)
     except PlaywrightError as exc:

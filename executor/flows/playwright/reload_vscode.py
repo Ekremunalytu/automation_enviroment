@@ -11,16 +11,11 @@ Usage (from host):
 """
 
 import sys
-from pathlib import Path
 
-# Bootstrap: add parent dir so sibling imports resolve correctly.
-_pkg_dir = str(Path(__file__).resolve().parent)
-if _pkg_dir not in sys.path:
-    sys.path.insert(0, _pkg_dir)
+from playwright.sync_api import Error as PlaywrightError
+from playwright.sync_api import sync_playwright
 
-import vscode  # noqa: E402
-from playwright.sync_api import Error as PlaywrightError  # noqa: E402
-from playwright.sync_api import sync_playwright  # noqa: E402
+from . import vscode
 
 _RELOAD_TIMEOUT_MS = vscode.DEFAULT_RECONNECT_TIMEOUT_MS
 """Maximum time (ms) to wait for workbench to become ready after reload."""

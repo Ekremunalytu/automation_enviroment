@@ -468,7 +468,7 @@ class ExtensionHostFileCapture:
     def start(self) -> None:
         # Imported lazily to avoid a circular import with ``monitor`` which
         # owns the process-table inspection helpers.
-        from monitor import _wait_for_extension_host_pid
+        from ..monitor import _wait_for_extension_host_pid
 
         pid, diagnostics = _wait_for_extension_host_pid()
         self.attach_attempts = int(diagnostics.get("attempts", 0) or 0)

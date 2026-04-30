@@ -1,18 +1,12 @@
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-PLAYWRIGHT_DIR = (
-    Path(__file__).resolve().parents[2] / "executor" / "flows" / "playwright"
+from executor.flows.playwright.health_summary import (
+    build_automation_health,
+    build_run_quality,
 )
-if str(PLAYWRIGHT_DIR) not in sys.path:
-    sys.path.insert(0, str(PLAYWRIGHT_DIR))
-
-from health_summary import build_automation_health, build_run_quality  # noqa: E402
-from monitor_records import LogStreamEntry, ScenarioTrace  # noqa: E402
-from monitor_types import ActivationReport  # noqa: E402
-from runtime_capture.events import ActivationEntry  # noqa: E402
+from executor.flows.playwright.monitor_records import LogStreamEntry, ScenarioTrace
+from executor.flows.playwright.monitor_types import ActivationReport
+from executor.flows.playwright.runtime_capture.events import ActivationEntry
 
 
 def _healthy_report(**overrides) -> ActivationReport:
@@ -288,7 +282,7 @@ def test_harness_verification_unconfirmed_attempt_propagates_to_health_reasons()
     ``degraded``; run_quality stays ``medium`` because this is a
     partial-evidence signal, not a run failure.
     """
-    from monitor_records import EventAttemptRecord
+    from executor.flows.playwright.monitor_records import EventAttemptRecord
 
     report = _partial_evidence_report(
         execution_mode="layered_passes",

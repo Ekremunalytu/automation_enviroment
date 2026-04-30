@@ -7,22 +7,13 @@ import json
 import re
 from typing import Any
 
-try:
-    from .health_runtime_facts import (
-        attempt_contracts as _attempt_contracts,
-    )
-    from .health_runtime_facts import (
-        is_harness_attempt as _is_harness_attempt,
-    )
-    from .health_summary import derive_verified_capabilities
-except ImportError:  # pragma: no cover - top-level executor import mode
-    from health_runtime_facts import (
-        attempt_contracts as _attempt_contracts,
-    )
-    from health_runtime_facts import (
-        is_harness_attempt as _is_harness_attempt,
-    )
-    from health_summary import derive_verified_capabilities
+from .health_runtime_facts import (
+    attempt_contracts as _attempt_contracts,
+)
+from .health_runtime_facts import (
+    is_harness_attempt as _is_harness_attempt,
+)
+from .health_summary import derive_verified_capabilities
 
 _HARNESS_MARKER_RE = re.compile(r"\[extrace-harness\]\s+(?P<payload>\{.*\})")
 

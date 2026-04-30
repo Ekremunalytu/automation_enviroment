@@ -5,33 +5,18 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-try:
-    from ..monitor_records import (
-        EvidenceEvent,
-        EvidenceLink,
-        LogStreamEntry,
-        ScenarioTrace,
-    )
-    from ..runtime_capture.events import (
-        ActivationEntry,
-        FileEvent,
-        NetworkEvent,
-        ProcessEvent,
-    )
-except ImportError:  # pragma: no cover - top-level executor import mode
-    from monitor_records import (
-        EvidenceEvent,
-        EvidenceLink,
-        LogStreamEntry,
-        ScenarioTrace,
-    )
-    from runtime_capture.events import (
-        ActivationEntry,
-        FileEvent,
-        NetworkEvent,
-        ProcessEvent,
-    )
-
+from ..monitor_records import (
+    EvidenceEvent,
+    EvidenceLink,
+    LogStreamEntry,
+    ScenarioTrace,
+)
+from ..runtime_capture.events import (
+    ActivationEntry,
+    FileEvent,
+    NetworkEvent,
+    ProcessEvent,
+)
 from .events import (
     _actor_from_file_source,
     _actor_from_network_event,
@@ -41,10 +26,7 @@ from .events import (
 )
 
 if TYPE_CHECKING:
-    try:
-        from ..monitor_types import ActivationReport
-    except ImportError:  # pragma: no cover - top-level executor import mode
-        from monitor_types import ActivationReport
+    from ..monitor_types import ActivationReport
 
 
 def _build_evidence_bundle(

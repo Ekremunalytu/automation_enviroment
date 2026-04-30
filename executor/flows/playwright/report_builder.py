@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-import importlib
 import json
-import sys
 import tempfile
 from dataclasses import asdict
 from pathlib import Path
@@ -12,13 +10,9 @@ from typing import Any
 
 from pydantic import ValidationError
 
-_PROJECT_ROOT = str(Path(__file__).resolve().parents[3])
-if _PROJECT_ROOT not in sys.path:
-    sys.path.insert(0, _PROJECT_ROOT)
-
-_ContractActivationReport = importlib.import_module(
-    "packages.analysis_contracts.contracts"
-).ActivationReport
+from packages.analysis_contracts.contracts import (
+    ActivationReport as _ContractActivationReport,
+)
 
 
 class ReportContractError(RuntimeError):

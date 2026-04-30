@@ -1,8 +1,8 @@
 """Aggregated seed data for the Playwright workspace fixtures."""
 
-from workspace_seed_project_1 import WORKSPACE_FILES as WORKSPACE_FILES_PART_1
-from workspace_seed_project_2 import WORKSPACE_FILES as WORKSPACE_FILES_PART_2
-from workspace_seed_project_3 import WORKSPACE_FILES as WORKSPACE_FILES_PART_3
+from .workspace_seed_project_1 import WORKSPACE_FILES as WORKSPACE_FILES_PART_1
+from .workspace_seed_project_2 import WORKSPACE_FILES as WORKSPACE_FILES_PART_2
+from .workspace_seed_project_3 import WORKSPACE_FILES as WORKSPACE_FILES_PART_3
 
 LANGUAGE_EXTENSIONS = {
     "python": ".py",

@@ -3,9 +3,10 @@
 Covers activation events: onView:*
 """
 
-import keyboard
-from commands import run_command
 from playwright.sync_api import Page
+
+from . import keyboard
+from .commands import run_command
 
 
 def toggle_sidebar(page: Page) -> None:

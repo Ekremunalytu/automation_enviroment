@@ -1,18 +1,9 @@
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
+from executor.flows.playwright import keyboard
 import pytest
 
-PLAYWRIGHT_DIR = (
-    Path(__file__).resolve().parents[2] / "executor" / "flows" / "playwright"
-)
-if str(PLAYWRIGHT_DIR) not in sys.path:
-    sys.path.insert(0, str(PLAYWRIGHT_DIR))
-
-import commands  # noqa: E402
-import keyboard  # noqa: E402
+from executor.flows.playwright import commands
 
 
 class _FakeKeyboard:

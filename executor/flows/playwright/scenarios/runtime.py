@@ -2,15 +2,10 @@
 
 from __future__ import annotations
 
-import commands
-import debug
-import editor
-import panel
-import sidebar
-import terminal
 from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import Page
 
+from .. import commands, debug, editor, panel, sidebar, terminal
 from .common import log
 
 

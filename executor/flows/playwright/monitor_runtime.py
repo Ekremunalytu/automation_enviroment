@@ -9,36 +9,20 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-try:
-    from .health import (
-        build_run_quality,
-        count_target_activations,
-        derive_verified_capabilities,
-        is_background_activation,
-        reconcile_coverage_verification,
-    )
-    from .monitor_records import EventAttemptRecord, PrerequisiteResult
-    from .monitor_support import resolve_monitor_api
-    from .runtime_capture._shared import _log
-    from .runtime_capture.events import ActivationEntry
-except ImportError:  # pragma: no cover - top-level executor import mode
-    from health import (
-        build_run_quality,
-        count_target_activations,
-        derive_verified_capabilities,
-        is_background_activation,
-        reconcile_coverage_verification,
-    )
-    from monitor_records import EventAttemptRecord, PrerequisiteResult
-    from monitor_support import resolve_monitor_api
-    from runtime_capture._shared import _log
-    from runtime_capture.events import ActivationEntry
+from .health import (
+    build_run_quality,
+    count_target_activations,
+    derive_verified_capabilities,
+    is_background_activation,
+    reconcile_coverage_verification,
+)
+from .monitor_records import EventAttemptRecord, PrerequisiteResult
+from .monitor_support import resolve_monitor_api
+from .runtime_capture._shared import _log
+from .runtime_capture.events import ActivationEntry
 
 if TYPE_CHECKING:
-    try:
-        from .monitor_types import ActivationReport
-    except ImportError:  # pragma: no cover - top-level executor import mode
-        from monitor_types import ActivationReport
+    from .monitor_types import ActivationReport
 
 
 def _trigger_item_as_dict(item: Any) -> dict[str, Any] | None:

@@ -2,19 +2,11 @@ from __future__ import annotations
 
 import io
 import json
-import sys
 from pathlib import Path
 
+from executor.flows.playwright import monitor
+from executor.flows.playwright.runtime_capture import network as network_capture
 from packages.analysis_contracts import activation_report_invariant_issues
-
-PLAYWRIGHT_DIR = (
-    Path(__file__).resolve().parents[2] / "executor" / "flows" / "playwright"
-)
-if str(PLAYWRIGHT_DIR) not in sys.path:
-    sys.path.insert(0, str(PLAYWRIGHT_DIR))
-
-import monitor  # noqa: E402
-from runtime_capture import network as network_capture  # noqa: E402
 
 
 def test_activation_report_duration_prefers_monotonic_clock() -> None:

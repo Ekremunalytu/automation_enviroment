@@ -7,93 +7,48 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-try:
-    from .annotation import build_attribution_summary
-    from .attribution import (
-        _build_evidence_bundle,
-        _build_risk_signals,
-        _build_risk_summary,
-    )
-    from .capture import summarize_extension_host_logs
-    from .health import (
-        build_automation_health,
-        build_log_health,
-        build_run_quality,
-        count_target_activations,
-        is_background_activation,
-    )
-    from .monitor_records import (
-        EventAttemptRecord,
-        EvidenceEvent,
-        EvidenceLink,
-        LogStreamEntry,
-        PrerequisiteResult,
-        RiskSignal,
-        RunningExtension,
-        ScenarioTrace,
-        SkippedScenarioRecord,
-        StimulusPassTrace,
-    )
-    from .monitor_runtime import (
-        _derive_runtime_attempted_capabilities,
-        _derive_runtime_verified_capabilities,
-        _filter_supported_capabilities,
-        _matrix_entries_for_track,
-    )
-    from .monitor_support import resolve_monitor_api
-    from .report_builder import build_report_data, build_summary, save_report_payload
-    from .runtime_capture._shared import _log
-    from .runtime_capture.events import (
-        ActivationEntry,
-        FileEvent,
-        NetworkEvent,
-        OutputSignalEvent,
-        ProcessEvent,
-    )
-except ImportError:  # pragma: no cover - top-level executor import mode
-    from annotation import build_attribution_summary
-    from attribution import (
-        _build_evidence_bundle,
-        _build_risk_signals,
-        _build_risk_summary,
-    )
-    from capture import summarize_extension_host_logs
-    from health import (
-        build_automation_health,
-        build_log_health,
-        build_run_quality,
-        count_target_activations,
-        is_background_activation,
-    )
-    from monitor_records import (
-        EventAttemptRecord,
-        EvidenceEvent,
-        EvidenceLink,
-        LogStreamEntry,
-        PrerequisiteResult,
-        RiskSignal,
-        RunningExtension,
-        ScenarioTrace,
-        SkippedScenarioRecord,
-        StimulusPassTrace,
-    )
-    from monitor_runtime import (
-        _derive_runtime_attempted_capabilities,
-        _derive_runtime_verified_capabilities,
-        _filter_supported_capabilities,
-        _matrix_entries_for_track,
-    )
-    from monitor_support import resolve_monitor_api
-    from report_builder import build_report_data, build_summary, save_report_payload
-    from runtime_capture._shared import _log
-    from runtime_capture.events import (
-        ActivationEntry,
-        FileEvent,
-        NetworkEvent,
-        OutputSignalEvent,
-        ProcessEvent,
-    )
-
+from .annotation import build_attribution_summary
+from .attribution import (
+    _build_evidence_bundle,
+    _build_risk_signals,
+    _build_risk_summary,
+)
+from .capture import summarize_extension_host_logs
+from .health import (
+    build_automation_health,
+    build_log_health,
+    build_run_quality,
+    count_target_activations,
+    is_background_activation,
+)
+from .monitor_records import (
+    EventAttemptRecord,
+    EvidenceEvent,
+    EvidenceLink,
+    LogStreamEntry,
+    PrerequisiteResult,
+    RiskSignal,
+    RunningExtension,
+    ScenarioTrace,
+    SkippedScenarioRecord,
+    StimulusPassTrace,
+)
+from .monitor_runtime import (
+    _derive_runtime_attempted_capabilities,
+    _derive_runtime_verified_capabilities,
+    _filter_supported_capabilities,
+    _matrix_entries_for_track,
+)
+from .monitor_support import resolve_monitor_api
+from .report_builder import build_report_data, build_summary, save_report_payload
+from .runtime_capture._shared import _log
+from .runtime_capture.events import (
+    ActivationEntry,
+    FileEvent,
+    NetworkEvent,
+    OutputSignalEvent,
+    ProcessEvent,
+)
 
 _DEMOTE_WARNING_EMITTED: set[tuple[str, str]] = set()
 

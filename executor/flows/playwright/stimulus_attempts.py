@@ -10,16 +10,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-import automation
-import commands
-import debug
-import editor
-import terminal
-import uri_validation
 from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import Page
-from stimulus_materializers import resolve_command_text, write_harness_context
-from stimulus_types import (
+
+from . import automation, commands, debug, editor, terminal, uri_validation
+from .stimulus_materializers import resolve_command_text, write_harness_context
+from .stimulus_types import (
     _HARNESS_READY_PATH,
     HARNESS_ACTIVATION_TIMEOUT_REASON,
     HARNESS_READY_MARKER_INVALID_REASON,
@@ -27,7 +23,7 @@ from stimulus_types import (
     HARNESS_READY_MARKER_STALE_REASON,
     HarnessUnavailableError,
 )
-from wait_helpers import (
+from .wait_helpers import (
     require_wait,
     wait_for_command_effect,
     wait_for_editor_ready,

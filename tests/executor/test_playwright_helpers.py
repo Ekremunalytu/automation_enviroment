@@ -1,31 +1,26 @@
 from __future__ import annotations
 
 import json
-import sys
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
+from executor.flows.playwright import keyboard
 import pytest
 
-PLAYWRIGHT_DIR = (
-    Path(__file__).resolve().parents[2] / "executor" / "flows" / "playwright"
+from executor.flows.playwright import (
+    automation,
+    capture,
+    commands,
+    debug,
+    editor,
+    panel,
+    settings,
+    sidebar,
+    terminal,
+    triggers,
+    vscode,
 )
-if str(PLAYWRIGHT_DIR) not in sys.path:
-    sys.path.insert(0, str(PLAYWRIGHT_DIR))
-
-import automation  # noqa: E402
-import capture  # noqa: E402
-import commands  # noqa: E402
-import debug  # noqa: E402
-import editor  # noqa: E402
-import keyboard  # noqa: E402
-import panel  # noqa: E402
-import settings  # noqa: E402
-import sidebar  # noqa: E402
-import terminal  # noqa: E402
-import triggers  # noqa: E402
-import vscode  # noqa: E402
 
 
 class _FakeKeyboard:

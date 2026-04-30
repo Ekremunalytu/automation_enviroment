@@ -36,12 +36,8 @@ import re
 from datetime import datetime
 from pathlib import Path
 
-try:
-    from .runtime_capture._shared import VSCODE_LOGS_DIR, _parse_iso_timestamp
-    from .runtime_capture.events import ActivationEntry, OutputSignalEvent
-except ImportError:  # pragma: no cover - top-level executor import mode
-    from runtime_capture._shared import VSCODE_LOGS_DIR, _parse_iso_timestamp
-    from runtime_capture.events import ActivationEntry, OutputSignalEvent
+from .runtime_capture._shared import VSCODE_LOGS_DIR, _parse_iso_timestamp
+from .runtime_capture.events import ActivationEntry, OutputSignalEvent
 
 # Reuses the same prefix the existing _HARNESS_MARKER_RE in
 # health_reconciliation.py consumes; keeps a single inbound IPC channel.

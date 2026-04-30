@@ -13,25 +13,14 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-try:
-    from ..monitor_records import RiskSignal
-    from ..signal_facts import (
-        indexed_target_activations,
-        indexed_target_file_events,
-        indexed_target_network_events,
-        indexed_ui_blockers,
-    )
-    from ..signals import build_risk_signals, build_risk_summary, build_signal_summary
-except ImportError:  # pragma: no cover - top-level executor import mode
-    from monitor_records import RiskSignal
-    from signal_facts import (
-        indexed_target_activations,
-        indexed_target_file_events,
-        indexed_target_network_events,
-        indexed_ui_blockers,
-    )
-    from signals import build_risk_signals, build_risk_summary, build_signal_summary
-
+from ..monitor_records import RiskSignal
+from ..signal_facts import (
+    indexed_target_activations,
+    indexed_target_file_events,
+    indexed_target_network_events,
+    indexed_ui_blockers,
+)
+from ..signals import build_risk_signals, build_risk_summary, build_signal_summary
 from .events import (
     _actor_from_file_source,
     _actor_from_network_event,
@@ -98,10 +87,7 @@ def _build_risk_summary(signals: list[RiskSignal]) -> dict[str, Any]:
 
 
 def _build_signal_summary(report: ActivationReport) -> dict[str, Any]:
-    try:
-        from ..health import build_run_quality
-    except ImportError:  # pragma: no cover - top-level executor import mode
-        from health import build_run_quality
+    from ..health import build_run_quality
 
     return build_signal_summary(
         report,
