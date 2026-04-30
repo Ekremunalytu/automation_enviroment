@@ -198,6 +198,11 @@ test-smoke:
 	$(VENV)/pytest -v -m "smoke"
 	@echo "✅ Smoke lane complete!"
 
+test-arch-import-mode:  ## Container paket-mode invariant (ADR 0008 §6)
+	@echo "🧪 Asserting container import-mode contract..."
+	$(VENV)/pytest -v tests/architecture/test_container_entrypoint.py -m "smoke or integration or not smoke"
+	@echo "✅ Container import-mode contract held."
+
 test-security:
 	@echo "🧪 Running security fixture lane..."
 	$(VENV)/pytest -v \
