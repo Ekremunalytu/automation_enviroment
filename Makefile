@@ -212,7 +212,10 @@ test-security:
 		tests/security/test_rule_validation.py \
 		tests/security/test_benign_silence.py \
 		tests/platform/security \
-		tests/architecture/test_default_bindings.py
+		tests/architecture/test_default_bindings.py \
+		tests/workflows/marketplace/test_vsix_hardening.py \
+		tests/executor/security/test_uri_trigger_injection.py \
+		tests/workflows/activation_reports/test_router_path_traversal.py
 	@echo "✅ Security fixture lane complete!"
 
 test-security-ci-guard:

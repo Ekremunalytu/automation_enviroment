@@ -218,18 +218,23 @@ codex-automation-3, 7, 8.
 - **`[FOLLOWUP w8-0-capture-pipeline]`** — partial close: signal (a)
   closed by W8-3 live smoke 2026-04-28; signal (b) typed
   harness-readiness reason codes still unconfirmed live.
-- **`[FOLLOWUP make-test-security-lane-composition]`** — `make
-  test-security` only runs `tests/security/`. W8-1 lives at
-  `tests/workflows/marketplace/test_vsix_hardening.py`, W8-3 at
-  `tests/executor/security/test_uri_trigger_injection.py`; same
-  pattern likely for W8-6 / W8-8. Either extend the Makefile target
-  to fold subsystem-local W8 lanes in, or update
-  `active-work/W8-security.md` exit criterion to count the broader
-  test-suite security tally. **Partial close 2026-04-29:** W8-6
-  (content-sample redaction) added `tests/platform/security` to the
-  `test-security` target so the new lane runs alongside fixture
-  hygiene; W8-1/W8-3/W8-8 paths remain outside the target. Full
-  reorganization still deferred to W8 closure pass.
+- **`[FOLLOWUP make-test-security-lane-composition]`** — *FULL CLOSE
+  2026-04-30 via W9-6d*. `make test-security` now runs the union of
+  fixture hygiene + architecture defaults + every subsystem-local W8
+  security lane:
+  - `tests/security/` (rule fixtures + benign-silence)
+  - `tests/platform/security/` (W8-6 ContentSample redaction +
+      W9-6c structural typing)
+  - `tests/architecture/test_default_bindings.py` (W8-7)
+  - `tests/workflows/marketplace/test_vsix_hardening.py`
+      (W8-1 + W9-6a logging breadcrumbs)
+  - `tests/executor/security/test_uri_trigger_injection.py` (W8-3)
+  - `tests/workflows/activation_reports/test_router_path_traversal.py`
+      (W8-5 + W9-6b list-endpoint name filter)
+  W9-5 container import-mode test stays under the dedicated
+  `make test-arch-import-mode` target because it carries the `smoke`
+  marker (default pytest config filters smoke out); folding it into
+  the security lane would silently deselect on the inherited filter.
 - **`[FOLLOWUP w8-4-broader-executor]`** — W8-4 absolute-binary-path
   discipline applied to `executor/host.py` + `uri_validation.py` only
   (tracker scope). Bare-name `subprocess.run`/`Popen` literals remain

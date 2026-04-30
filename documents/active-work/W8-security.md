@@ -397,6 +397,15 @@ command-injection vektörleri içeriyor.
 - [x] `make test-security` baseline → +14 cases via the new architecture
       lane wired in `Makefile:test-security`; the original ≥49 numeric
       target is W8-8-coupled and carries over with the deferral.
+      **Lane composition full close 2026-04-30 via W9-6d** —
+      `make test-security` now folds in every subsystem-local W8
+      deliverable: `tests/workflows/marketplace/test_vsix_hardening.py`
+      (W8-1), `tests/executor/security/test_uri_trigger_injection.py`
+      (W8-3), `tests/workflows/activation_reports/test_router_path_traversal.py`
+      (W8-5), alongside `tests/platform/security/` (W8-6) and
+      `tests/architecture/test_default_bindings.py` (W8-7). See
+      `[FOLLOWUP make-test-security-lane-composition]` in
+      POST_POC_BACKLOG (CLOSED).
 - [x] ADR 0003 §6.1 redaction policy addendum merged (LANDED 2026-04-29 on
       `feat/w8-6-content-sample-redaction`).
 - [-] ADR 0002 §7 "untrusted manifest → log forging" addendum merged —
