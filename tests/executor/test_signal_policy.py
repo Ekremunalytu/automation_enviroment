@@ -1,32 +1,26 @@
-"""Tests for executor risk-signal confidence-tier vocabulary.
+"""Tests for risk-signal confidence-tier vocabulary.
 
-These tests lock the invariant that the executor-side
-``signal_policy._confidence_tier`` produces the same tier string as the
-canonical ``packages.analysis_contracts.detection.enums.quantize_confidence``
-function. The executor and the platform must share one confidence vocabulary
-so that ``RiskSignal.confidence_tier`` and ``DetectionFinding.confidence``
-agree for the same numeric input (ADR 0003 §4).
+These tests lock the invariant that the framework-agnostic policy
+``packages.analysis_engine.signals.policy._confidence_tier`` produces the
+same tier string as the canonical
+``packages.analysis_contracts.detection.enums.quantize_confidence`` function.
+The executor and the platform must share one confidence vocabulary so that
+``RiskSignal.confidence_tier`` and ``DetectionFinding.confidence`` agree
+for the same numeric input (ADR 0003 §4).
+
+Module location migrated from ``executor.flows.playwright.signal_policy`` to
+``packages.analysis_engine.signals.policy`` in W9-2 (ADR 0008 / ADR 0005).
 """
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import pytest
 
-PLAYWRIGHT_DIR = (
-    Path(__file__).resolve().parents[2] / "executor" / "flows" / "playwright"
-)
-if str(PLAYWRIGHT_DIR) not in sys.path:
-    sys.path.insert(0, str(PLAYWRIGHT_DIR))
-
-import signal_policy  # noqa: E402
-
-from packages.analysis_contracts.detection.enums import (  # noqa: E402
+from packages.analysis_contracts.detection.enums import (
     Confidence,
     quantize_confidence,
 )
+from packages.analysis_engine.signals import policy as signal_policy
 
 
 @pytest.mark.parametrize(
@@ -47,9 +41,9 @@ from packages.analysis_contracts.detection.enums import (  # noqa: E402
     ],
 )
 def test_executor_confidence_tier_matches_platform_quantize(value: float) -> None:
-    """Executor `_confidence_tier` must equal `str(quantize_confidence(value))`.
+    """`_confidence_tier` must equal `str(quantize_confidence(value))`.
 
-    Without this, the executor could silently drift to a different threshold
+    Without this, the policy could silently drift to a different threshold
     set than the platform's `DetectionFinding.confidence` vocabulary, and
     `RiskSignal.confidence_tier` would no longer be a faithful peer.
     """

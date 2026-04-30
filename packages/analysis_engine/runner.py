@@ -1,8 +1,9 @@
 """Detection runner that converts ActivationReport data into DetectionReport."""
+# mypy: disable-error-code=no-redef
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+import datetime as _dt
 from typing import Literal
 
 from packages.analysis_contracts import ActivationReport
@@ -21,6 +22,11 @@ from packages.analysis_contracts.detection import (
 )
 from packages.analysis_engine.rules.base import DetectionRule
 from packages.analysis_engine.rules.registry import get_production_rules
+
+# Python 3.10 executor compatibility: `datetime.UTC` arrived in Python 3.11.
+# `getattr` keeps the import site valid on the older runtime.
+datetime = _dt.datetime
+UTC = getattr(_dt, "UTC", _dt.timezone.utc)  # noqa: UP017
 
 _RULE_EVALUATION_ERRORS = (AttributeError, KeyError, TypeError, ValueError)
 
