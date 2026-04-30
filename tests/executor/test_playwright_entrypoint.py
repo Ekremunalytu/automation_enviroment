@@ -544,11 +544,7 @@ def test_reload_window_under_monitoring_reuses_primary_page(monkeypatch) -> None
     monkeypatch.setattr(
         entrypoint.vscode,
         "reload_workbench_window",
-        lambda current_browser,
-        current_page,
-        *,
-        reconnect_timeout_ms=30_000,
-        log=None: (
+        lambda current_browser, current_page, *, reconnect_timeout_ms=30_000, log=None: (
             reload_calls.append(
                 (current_browser, current_page, reconnect_timeout_ms, log)
             )
@@ -573,11 +569,7 @@ def test_reload_window_under_monitoring_uses_fallback_page(monkeypatch) -> None:
     monkeypatch.setattr(
         entrypoint.vscode,
         "reload_workbench_window",
-        lambda current_browser,
-        current_page,
-        *,
-        reconnect_timeout_ms=30_000,
-        log=None: (
+        lambda current_browser, current_page, *, reconnect_timeout_ms=30_000, log=None: (
             reload_calls.append(
                 (current_browser, current_page, reconnect_timeout_ms, log)
             )
@@ -608,11 +600,7 @@ def test_reload_window_under_monitoring_raises_when_no_window_is_available(
     monkeypatch.setattr(
         entrypoint.vscode,
         "reload_workbench_window",
-        lambda current_browser,
-        current_page,
-        *,
-        reconnect_timeout_ms=30_000,
-        log=None: (
+        lambda current_browser, current_page, *, reconnect_timeout_ms=30_000, log=None: (
             reload_calls.append(
                 (current_browser, current_page, reconnect_timeout_ms, log)
             )

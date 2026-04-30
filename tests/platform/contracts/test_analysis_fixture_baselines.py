@@ -199,9 +199,9 @@ def test_event_attempt_lifecycle_states_cover_current_runtime_emitters() -> None
         "failed",
     }
     missing = runtime_emitted_statuses - EVENT_ATTEMPT_LIFECYCLE_STATES
-    assert (
-        not missing
-    ), f"Runtime emits statuses the contract does not accept: {sorted(missing)}"
+    assert not missing, (
+        f"Runtime emits statuses the contract does not accept: {sorted(missing)}"
+    )
 
 
 @patch("workflows.marketplace.client.httpx.Client", side_effect=AssertionError)

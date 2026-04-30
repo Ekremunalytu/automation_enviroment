@@ -28,14 +28,14 @@ def test_analysis_planner_modules_avoid_runtime_imports() -> None:
             if isinstance(node, ast.Import):
                 for alias in node.names:
                     root = alias.name.split(".", maxsplit=1)[0]
-                    assert (
-                        root not in _BANNED_IMPORT_ROOTS
-                    ), f"{module_path.name} imports banned module root {root}"
+                    assert root not in _BANNED_IMPORT_ROOTS, (
+                        f"{module_path.name} imports banned module root {root}"
+                    )
             elif isinstance(node, ast.ImportFrom) and node.module:
                 root = node.module.split(".", maxsplit=1)[0]
-                assert (
-                    root not in _BANNED_IMPORT_ROOTS
-                ), f"{module_path.name} imports banned module root {root}"
+                assert root not in _BANNED_IMPORT_ROOTS, (
+                    f"{module_path.name} imports banned module root {root}"
+                )
 
 
 def test_ms_python_planner_input_matches_frozen_trigger_fixture() -> None:

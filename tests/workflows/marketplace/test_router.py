@@ -851,11 +851,7 @@ def test_execute_analysis_request_fails_closed_when_trigger_build_fails() -> Non
         analysis_service.execute_analysis_request(
             request,
             db=MagicMock(),
-            progress_callback=lambda step,
-            status,
-            message,
-            error_code=None,
-            progress=None: (
+            progress_callback=lambda step, status, message, error_code=None, progress=None: (
                 progress_events.append((step, status, message, error_code))
             ),
             report_name="activation_report.json",
@@ -887,11 +883,7 @@ def test_execute_analysis_request_reports_reset_failure() -> None:
         analysis_service.execute_analysis_request(
             request,
             db=MagicMock(),
-            progress_callback=lambda step,
-            status,
-            message,
-            error_code=None,
-            progress=None: (
+            progress_callback=lambda step, status, message, error_code=None, progress=None: (
                 progress_events.append((step, status, message, error_code))
             ),
             executor_control=executor_control,
@@ -927,11 +919,7 @@ def test_execute_analysis_request_reports_automation_failure() -> None:
         analysis_service.execute_analysis_request(
             request,
             db=MagicMock(),
-            progress_callback=lambda step,
-            status,
-            message,
-            error_code=None,
-            progress=None: (
+            progress_callback=lambda step, status, message, error_code=None, progress=None: (
                 progress_events.append((step, status, message, error_code))
             ),
             executor_control=executor_control,
@@ -996,11 +984,7 @@ def test_execute_analysis_request_reports_healthful_monitoring_summary(
         response = analysis_service.execute_analysis_request(
             request,
             db=MagicMock(),
-            progress_callback=lambda step,
-            status,
-            message,
-            error_code=None,
-            progress=None: (
+            progress_callback=lambda step, status, message, error_code=None, progress=None: (
                 progress_events.append((step, status, message, error_code))
             ),
             report_name=report_name,
@@ -1215,11 +1199,7 @@ def test_execute_analysis_request_reports_degraded_monitoring_summary(
         response = analysis_service.execute_analysis_request(
             request,
             db=MagicMock(),
-            progress_callback=lambda step,
-            status,
-            message,
-            error_code=None,
-            progress=None: (
+            progress_callback=lambda step, status, message, error_code=None, progress=None: (
                 progress_events.append((step, status, message, error_code))
             ),
             report_name=report_name,
@@ -1265,11 +1245,7 @@ def test_execute_analysis_request_fails_when_trigger_report_cannot_load(
         analysis_service.execute_analysis_request(
             request,
             db=MagicMock(),
-            progress_callback=lambda step,
-            status,
-            message,
-            error_code=None,
-            progress=None: (
+            progress_callback=lambda step, status, message, error_code=None, progress=None: (
                 progress_events.append((step, status, message, error_code))
             ),
             report_name="missing_report.json",
@@ -1322,11 +1298,7 @@ def test_execute_analysis_request_fails_when_trigger_plan_not_applied(
         analysis_service.execute_analysis_request(
             request,
             db=MagicMock(),
-            progress_callback=lambda step,
-            status,
-            message,
-            error_code=None,
-            progress=None: (
+            progress_callback=lambda step, status, message, error_code=None, progress=None: (
                 progress_events.append((step, status, message, error_code))
             ),
             report_name=report_name,
@@ -1384,11 +1356,7 @@ def test_execute_analysis_request_fails_when_layered_evidence_is_missing(
         analysis_service.execute_analysis_request(
             request,
             db=MagicMock(),
-            progress_callback=lambda step,
-            status,
-            message,
-            error_code=None,
-            progress=None: (
+            progress_callback=lambda step, status, message, error_code=None, progress=None: (
                 progress_events.append((step, status, message, error_code))
             ),
             report_name=report_name,

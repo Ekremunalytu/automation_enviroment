@@ -152,6 +152,6 @@ def test_detector_ignores_unrelated_fstring() -> None:
     for src in benign_sources:
         tree = ast.parse(src, mode="eval")
         assert isinstance(tree.body, ast.JoinedStr)
-        assert (
-            _detects_three_token_concat(tree.body) is None
-        ), f"detector false-fired on benign f-string: {src!r}"
+        assert _detects_three_token_concat(tree.body) is None, (
+            f"detector false-fired on benign f-string: {src!r}"
+        )

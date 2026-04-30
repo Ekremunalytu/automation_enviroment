@@ -29,14 +29,14 @@ def _load_manifest(path: Path) -> dict[str, object]:
 
 def test_every_malicious_fixture_directory_has_a_manifest() -> None:
     fixture_dirs = _fixture_dirs()
-    assert (
-        fixture_dirs
-    ), "extensions/malicious/ must contain at least one fixture scaffold."
+    assert fixture_dirs, (
+        "extensions/malicious/ must contain at least one fixture scaffold."
+    )
 
     for fixture_dir in fixture_dirs:
-        assert (
-            fixture_dir / "LABEL.yaml"
-        ).is_file(), f"{fixture_dir.name} is missing LABEL.yaml"
+        assert (fixture_dir / "LABEL.yaml").is_file(), (
+            f"{fixture_dir.name} is missing LABEL.yaml"
+        )
 
 
 @pytest.mark.parametrize("fixture_dir", _fixture_dirs(), ids=lambda path: path.name)

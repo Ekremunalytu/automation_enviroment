@@ -43,9 +43,9 @@ def test_every_t1_fixture_declares_at_least_one_detection_contract() -> None:
     assert t1_manifests, "Week 5 requires at least one T1 canary manifest."
     for manifest in t1_manifests:
         must_fire = manifest["expected_detections"]["must_fire"]
-        assert (
-            must_fire
-        ), f"{manifest['id']} must declare at least one rule expectation."
+        assert must_fire, (
+            f"{manifest['id']} must declare at least one rule expectation."
+        )
 
 
 def test_live_fixtures_are_not_present_in_the_poc_scaffold() -> None:
@@ -63,9 +63,9 @@ def test_get_production_rules_returns_all_poc_rules() -> None:
     production_rules = get_production_rules()
     rule_ids = {rule.rule_id for rule in production_rules}
 
-    assert (
-        rule_ids == EXPECTED_PRODUCTION_RULE_IDS
-    ), f"production rule registry drifted: got {rule_ids}"
+    assert rule_ids == EXPECTED_PRODUCTION_RULE_IDS, (
+        f"production rule registry drifted: got {rule_ids}"
+    )
 
 
 def test_every_production_rule_is_marked_production_lifecycle() -> None:
@@ -74,9 +74,9 @@ def test_every_production_rule_is_marked_production_lifecycle() -> None:
     real findings to suspicious."""
 
     for rule in get_production_rules():
-        assert (
-            rule.lifecycle == RuleLifecycle.PRODUCTION
-        ), f"{rule.rule_id} returned by get_production_rules but lifecycle={rule.lifecycle}"
+        assert rule.lifecycle == RuleLifecycle.PRODUCTION, (
+            f"{rule.rule_id} returned by get_production_rules but lifecycle={rule.lifecycle}"
+        )
 
 
 def test_canary_must_fire_rule_ids_match_registered_rules() -> None:

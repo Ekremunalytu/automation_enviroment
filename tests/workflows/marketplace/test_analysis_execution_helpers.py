@@ -289,9 +289,9 @@ def test_run_monitoring_heartbeat_per_tick_load_is_constant_under_5s_interval() 
         "(jitter ±2). A regression that adds an extra IO inside the loop "
         "body would surface here as 2x growth."
     )
-    assert all(
-        p == "report.json" for p in payload_reads
-    ), "payload reader must always receive the canonical report path"
+    assert all(p == "report.json" for p in payload_reads), (
+        "payload reader must always receive the canonical report path"
+    )
 
 
 # --- run_monitoring (cancel-flow integration) ---------------------------------

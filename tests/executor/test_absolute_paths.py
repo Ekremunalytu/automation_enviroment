@@ -140,9 +140,9 @@ def test_reload_vscode_window_uses_absolute_python3(
         if container_cmd and container_cmd[0] == PYTHON3_PATH:
             python_invocation = argv
             break
-    assert (
-        python_invocation is not None
-    ), "reload_vscode_window did not invoke /usr/bin/python3 inside docker exec"
+    assert python_invocation is not None, (
+        "reload_vscode_window did not invoke /usr/bin/python3 inside docker exec"
+    )
     assert python_invocation[5] == "/usr/bin/python3"
 
 

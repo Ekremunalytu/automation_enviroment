@@ -54,9 +54,9 @@ def test_get_activation_by_name_rejects_adversarial_path(
     name: str, client: TestClient, mock_output_dir: Path
 ) -> None:
     response = client.get(f"/api/activations/{name}")
-    assert (
-        response.status_code == 422
-    ), f"adversarial path was not rejected: {name!r} → {response.status_code}"
+    assert response.status_code == 422, (
+        f"adversarial path was not rejected: {name!r} → {response.status_code}"
+    )
 
 
 @pytest.mark.parametrize("name", _ADVERSARIAL_NAMES)
@@ -64,9 +64,9 @@ def test_get_activation_bundle_rejects_adversarial_path(
     name: str, client: TestClient, mock_output_dir: Path
 ) -> None:
     response = client.get(f"/api/activations/{name}/bundle")
-    assert (
-        response.status_code == 422
-    ), f"adversarial bundle path was not rejected: {name!r} → {response.status_code}"
+    assert response.status_code == 422, (
+        f"adversarial bundle path was not rejected: {name!r} → {response.status_code}"
+    )
 
 
 def test_canonical_filename_passes_gate_then_404s(

@@ -39,11 +39,7 @@ def test_reload_window_closes_browser_on_success(monkeypatch) -> None:
     monkeypatch.setattr(
         reload_vscode.vscode,
         "reload_workbench_window",
-        lambda current_browser,
-        current_page,
-        *,
-        reconnect_timeout_ms=30_000,
-        log=None: (
+        lambda current_browser, current_page, *, reconnect_timeout_ms=30_000, log=None: (
             reload_calls.append(
                 (current_browser, current_page, reconnect_timeout_ms, log)
             )
