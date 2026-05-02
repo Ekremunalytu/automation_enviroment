@@ -1,6 +1,6 @@
 # Refactor Status
 
-`Last Updated: 2026-04-30`
+`Last Updated: 2026-05-02`
 
 Active status board for current closure state. **Slim canonical** — full
 phase closure history (W4 → W5 → W6 → W7 + post-W7 hardening + W8-0..W8-3
@@ -120,6 +120,26 @@ remaining checkbox before W9 entry.
   skipped); smoke 3-test green
   (`test_ms_python_analysis_smoke`, `test_ms_python_layered_analysis_smoke`,
   `test_missing_trigger_payload_never_looks_benign`).
+
+- **W8-9 external-review follow-up landed `2026-05-02`** on
+  `feat/w9-executor-detection-boundary` — two findings closed in one
+  pass. P1 workspace fixture path-traversal: new
+  `_resolve_within_workspace` helper in
+  `executor/flows/playwright/workspace.py` rejects absolute paths and
+  `..` segments and asserts `Path.resolve().is_relative_to(WORKSPACE_DIR)`;
+  `create_workspace_file` / `create_workspace_dir` / `create_bait_files`
+  routed through it; `materialize_workspace_contains_fixture` catches
+  the new `ValueError` and reports `prerequisite_blocked` (separate
+  reason code from the existing `KeyError → materialization_failed` path).
+  P2 HTTP body preview redaction: `runtime_capture/network.py::_bounded_body_metadata`
+  now passes the decoded text preview through the W8-6 `redact_secrets`
+  filter before assignment to `NetworkEvent.{request,response}_body_preview`;
+  raw byte SHA-256 unchanged so sample integrity preserved. New
+  regression tests in `tests/executor/test_playwright_stimulus.py`
+  (parent-traversal + helper unit tests) and
+  `tests/executor/test_playwright_monitor_runtime.py` (AKIA and Bearer
+  secrets → `[REDACTED:aws]`/`[REDACTED:bearer]`). Detail block in
+  `active-work/W8-security.md` W8-9 entry.
 
 - **CI pipeline retired `2026-04-30`** — `.github/workflows/ci.yml` and
   `.github/workflows/docs-check.yml` removed; `security.yml` (weekly

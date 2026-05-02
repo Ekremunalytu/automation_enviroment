@@ -291,6 +291,24 @@ def test_parse_tshark_event_line_extracts_text_http_body_preview() -> None:
     assert event.request_body_truncated is False
 
 
+def test_parse_tshark_event_line_redacts_secrets_in_body_preview() -> None:
+    line = (
+        "1700000000.250\t10.0.0.2\t\t93.184.216.34\t\t443\t\t\t"
+        "api.example.com\t/api/login\t\tHTTP\tPOST /api/login HTTP/1.1\t"
+        "POST\t200\tapplication/json\t"
+        '{"key":"AKIA1234567890ABCDEF","auth":"Bearer eyJabcdef.ghijklmn.opqrstu"}'
+    )
+
+    event = monitor.parse_tshark_event_line(line, monitoring_start=1700000000.0)
+
+    assert event is not None
+    assert "AKIA1234567890ABCDEF" not in event.request_body_preview
+    assert "eyJabcdef.ghijklmn.opqrstu" not in event.request_body_preview
+    assert "[REDACTED:aws]" in event.request_body_preview
+    assert "[REDACTED:bearer]" in event.request_body_preview
+    assert event.request_body_sha256
+
+
 def test_network_capture_surfaces_immediate_tshark_field_failure(
     monkeypatch,
 ) -> None:

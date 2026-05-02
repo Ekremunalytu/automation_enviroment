@@ -1,6 +1,6 @@
 # W8 — Security Hardening (Active Work Tracker)
 
-`Last Updated: 2026-04-29`
+`Last Updated: 2026-05-02`
 
 This is the canonical active work tracker for the W8 security hardening
 window. Items have stable IDs (`W8-1` … `W8-8`). Code comments, tests, and
@@ -124,6 +124,51 @@ the W8-1..W8-8 detail; full historical snapshot at
   flip this entry's marker to `landed`. The W8-8 plan body below the
   marker stays as the canonical statement of the threat — do not
   delete it.
+- **W8-9** — landed `2026-05-02` on `feat/w9-executor-detection-boundary`.
+  Two external-review findings closed in one pass:
+  - **P1 workspace fixture path containment.** `workspaceContains`
+    activation patterns from a malicious VSIX manifest were materialized
+    into the executor workspace via `executor/flows/playwright/workspace.py`
+    helpers that joined the untrusted segment to `WORKSPACE_DIR` without
+    resolving and asserting containment, allowing `../` traversal to
+    escape `/workspace`. New `_resolve_within_workspace(filename)` helper
+    rejects empty/whitespace-only input, absolute paths, and resolved
+    targets that fall outside `WORKSPACE_DIR.resolve()`; it is the single
+    entry point for `create_workspace_file`, `create_workspace_dir`, and
+    `create_bait_files`. `executor/flows/playwright/stimulus_materializers.py::materialize_workspace_contains_fixture`
+    catches the new `ValueError` and reports the attempt as
+    `prerequisite_blocked` (separate from the existing `KeyError →
+    materialization_failed` path so attack-shaped patterns are
+    distinguishable in reports).
+  - **P2 HTTP body preview redaction.** `executor/flows/playwright/runtime_capture/network.py::_bounded_body_metadata`
+    decoded text HTTP bodies straight into `NetworkEvent.{request,response}_body_preview`,
+    bypassing the W8-6 `redact_secrets` filter that `ContentSample` applies.
+    Body previews are now passed through `redact_secrets` before assignment;
+    the SHA-256 still hashes the raw bytes so sample integrity is preserved
+    and the W8-6 secret-class taxonomy (`aws`, `bearer`, `private_key`,
+    `api_key`, `db_url`) covers the leak surface. This closes the W8-6
+    out-of-scope note about consumers that hold body content outside the
+    `ContentSample` carrier; the `EvidenceEvent.raw_context` rule consumers
+    in `packages/analysis_engine/rules/_common.py` are unaffected because
+    they read already-redacted previews.
+  - **Tests.** `tests/executor/test_playwright_stimulus.py` adds
+    `test_workspace_contains_fixture_rejects_parent_traversal` (materializer
+    level: parent-traversal pattern returns `blocked` /
+    `prerequisite_blocked` and no file is written) and
+    `test_workspace_helper_rejects_absolute_and_traversal_paths` (helper
+    unit test: absolute paths and `..` segments raise `ValueError`; safe
+    relative paths still write).
+    `tests/executor/test_playwright_monitor_runtime.py` adds
+    `test_parse_tshark_event_line_redacts_secrets_in_body_preview` (AKIA
+    and Bearer secrets in a JSON body → `[REDACTED:aws]` and
+    `[REDACTED:bearer]`, raw tokens absent).
+  - **Verification.** Targeted suites green
+    (`tests/executor/test_playwright_stimulus.py` 30 cases,
+    `tests/executor/test_playwright_monitor_runtime.py` 25 cases),
+    `make test-security` 164 cases pass, `make security` Bandit clean
+    (no new medium/high), unit lane (`pytest -m "not smoke and not
+    requires_db and not integration"`) 926 pass / 6 skipped after the
+    test-Postgres container is up.
 
 ## Goal
 

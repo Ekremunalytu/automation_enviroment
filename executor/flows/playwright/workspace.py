@@ -17,9 +17,26 @@ WORKSPACE_DIR = Path("/workspace")
 HOME_DIR = Path("/home/executor")
 
 
+def _resolve_within_workspace(filename: str) -> Path:
+    if not filename or filename != filename.strip():
+        raise ValueError(
+            f"workspace path empty or has surrounding whitespace: {filename!r}"
+        )
+    candidate = Path(filename)
+    if candidate.is_absolute():
+        raise ValueError(f"workspace path must be relative: {filename!r}")
+    resolved = (WORKSPACE_DIR / candidate).resolve()
+    workspace_root = WORKSPACE_DIR.resolve()
+    if not resolved.is_relative_to(workspace_root):
+        raise ValueError(
+            f"workspace path escapes WORKSPACE_DIR: {filename!r} -> {resolved}"
+        )
+    return resolved
+
+
 def create_workspace_file(filename: str, content: str = "") -> Path:
     """Create a file inside the workspace directory."""
-    path = WORKSPACE_DIR / filename
+    path = _resolve_within_workspace(filename)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content)
     return path
@@ -27,7 +44,7 @@ def create_workspace_file(filename: str, content: str = "") -> Path:
 
 def create_workspace_dir(dirname: str) -> Path:
     """Create a directory inside the workspace."""
-    path = WORKSPACE_DIR / dirname
+    path = _resolve_within_workspace(dirname)
     path.mkdir(parents=True, exist_ok=True)
     return path
 
@@ -46,7 +63,7 @@ def create_bait_files(filenames: list[str]) -> list[Path]:
     """Create empty bait files inside the active workspace."""
     created_files: list[Path] = []
     for name in filenames:
-        bait_path = WORKSPACE_DIR / name
+        bait_path = _resolve_within_workspace(name)
         bait_path.parent.mkdir(parents=True, exist_ok=True)
         if not bait_path.exists():
             bait_path.write_text("")

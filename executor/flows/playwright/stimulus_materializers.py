@@ -96,6 +96,15 @@ def materialize_workspace_contains_fixture(
                 ),
                 {"pattern": pattern},
             )
+        except ValueError as exc:
+            return blocked(
+                "prerequisite_blocked",
+                (
+                    "workspaceContains pattern rejected by workspace path "
+                    f"policy: {pattern!r} ({exc})."
+                ),
+                {"pattern": pattern},
+            )
     return completed(
         f"Prepared workspaceContains fixtures for {', '.join(patterns)}.",
         {"patterns": patterns, "paths": created},

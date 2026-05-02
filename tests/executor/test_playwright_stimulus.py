@@ -164,6 +164,62 @@ def test_workspace_contains_fixture_creates_requested_patterns(
     assert monitor.results[0]["status"] == "completed"
 
 
+def test_workspace_contains_fixture_rejects_parent_traversal(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setattr(stimulus.workspace, "WORKSPACE_DIR", tmp_path)
+    monitor = _FakeMonitor()
+    prerequisite = {
+        "prerequisite_id": "prep-workspace-contains",
+        "key": "workspace_contains_fixture",
+        "attempt_ids": ["a"],
+    }
+    attempts_by_id = {
+        "a": {
+            "attempt_id": "a",
+            "event_value": "../../tmp/extrace_escape.txt",
+            "activation_event": "workspaceContains:../../tmp/extrace_escape.txt",
+        }
+    }
+
+    result = stimulus._materialize_prerequisite(
+        prerequisite,
+        payload=_payload(),
+        attempts_by_id=attempts_by_id,
+        monitor=monitor,
+    )
+
+    assert result.status == "blocked"
+    assert result.reason_code == "prerequisite_blocked"
+    escape_target = (tmp_path / ".." / ".." / "tmp" / "extrace_escape.txt").resolve()
+    assert not escape_target.exists()
+    assert monitor.results[0]["status"] == "blocked"
+
+
+def test_workspace_helper_rejects_absolute_and_traversal_paths(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    import pytest
+
+    from executor.flows.playwright import workspace as workspace_module
+
+    monkeypatch.setattr(workspace_module, "WORKSPACE_DIR", tmp_path)
+
+    with pytest.raises(ValueError, match="must be relative"):
+        workspace_module.create_workspace_file("/etc/passwd_overwrite", "")
+    with pytest.raises(ValueError, match="escapes WORKSPACE_DIR"):
+        workspace_module.create_workspace_file("../../tmp/extrace_escape.txt", "")
+    with pytest.raises(ValueError, match="escapes WORKSPACE_DIR"):
+        workspace_module.create_workspace_dir("../sibling")
+
+    # Containment-safe relative path still works.
+    safe = workspace_module.create_workspace_file("nested/ok.txt", "ok")
+    assert safe.exists()
+    assert safe.read_text() == "ok"
+
+
 def test_workspace_contains_fixture_falls_back_to_deterministic_placeholder(
     monkeypatch,
     tmp_path: Path,
