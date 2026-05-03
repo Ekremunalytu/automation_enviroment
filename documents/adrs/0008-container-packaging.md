@@ -1,6 +1,6 @@
 # ADR 0008: Container Packaging — Package-Mode Canonical Invocation
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-04-30
 - Related: ADR 0001 (Single-Host Appliance), ADR 0005 (Packages Charter), ADR 0007 (Local Network Binding)
 

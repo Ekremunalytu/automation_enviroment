@@ -1,6 +1,6 @@
 # REFACTOR_OPTIMIZATION
 
-`Last Updated: 2026-04-29`
+`Last Updated: 2026-05-03`
 
 W0-W13 plan dokümanı: stabilizasyon + güvenlik + post-PoC external-review
 integration. **Slim canonical** — full historical content (review pass'leri,
@@ -146,7 +146,12 @@ Status quick glance:
 - W8-3 — landed `2026-04-28`
 - W8-4 — landed `2026-04-29`
 - W8-5 — landed `2026-04-29`
-- W8-6, W8-7, W8-8 — pending
+- W8-6 — landed `2026-04-29`
+- W8-7 — landed `2026-04-29`
+- W8-8 — deferred `2026-04-29` (named triggers; see
+  `active-work/W8-security.md`)
+- W8-9 — landed `2026-05-02` (external-review follow-up on
+  `feat/w9-executor-detection-boundary`)
 
 ### §11.6 — W9 Executor↔Detection Boundary
 
