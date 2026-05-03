@@ -172,20 +172,20 @@ UI v3 redesign minimal-completion landed `2026-04-29` (see
 
 ### Repo Hygiene (surfaced 2026-04-29 audit pass)
 
-- **`[CLEANUP repo-tracked-scratch-files]`** — `problems.md` (4.5 KB)
-  and `todo.md` (215 B) at repo root are git-tracked but read like local
-  scratch (analysis artifacts, ad-hoc notes). `.gitignore` already
-  excludes `*.log` / `.coverage` / `htmlcov/`; either `git rm` these
-  two and add explicit ignores, or move their content into the
-  appropriate canonical doc (`automation_todo.md` or active-work
-  tracker).
-- **`[CLEANUP tests-scanner-rename]`** — `tests/scanner/test_executor.py`
-  (34 tests) tests `docker_exec` / `install_extension` / VS Code
-  container harness — i.e. executor-layer concerns. AGENTS.md §62
-  retired the legacy `scanner/` top-level; the test directory still
-  carries the stale name. `git mv tests/scanner tests/executor/scanner`
-  (or merge into `tests/executor/`) and update any pytest path-marker
-  references.
+- **`[CLEANUP repo-tracked-scratch-files]`** — *LANDED 2026-05-03 on
+  `feat/w9-executor-detection-boundary`*. `git rm --cached problems.md
+  todo.md` + `.gitignore` rules `/problems.md` and `/todo.md` (root
+  scope only). Files preserved on disk for the operator; canonical
+  status now reads from `documents/REFACTOR_STATUS.md` and
+  `documents/automation_todo.md` exclusively. The `problems.md`
+  snapshot was a 2026-04-24 post-W7 issue catalog whose entries are
+  superseded by the `REFACTOR_STATUS.md` W8/W9 closure entries.
+- **`[CLEANUP tests-scanner-rename]`** — *LANDED 2026-05-03 on
+  `feat/w9-executor-detection-boundary`*. `git mv tests/scanner
+  tests/executor/scanner` (34 tests preserved verbatim under the new
+  path); pytest collection unchanged (`pyproject.toml` `testpaths =
+  ["tests"]` discovers the subdirectory automatically). No inbound
+  imports referenced the old module path.
 - **`[CLEANUP report-builder-naming]`** — Two "report" modules with
   similar names live in different layers:
   `executor/flows/playwright/report_builder.py` (in-container, builds
