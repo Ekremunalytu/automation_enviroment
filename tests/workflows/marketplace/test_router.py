@@ -1719,7 +1719,7 @@ def test_analyze_install_failure_502(client: TestClient) -> None:
 
 
 def test_analyze_automation_failure_502(client: TestClient) -> None:
-    """ExecutorError during automation returns 502."""
+    """ExecutorError during automation returns 502 with redacted detail."""
     with (
         patch(
             "workflows.marketplace.analysis_service.marketplace_client.get_vsix_path",
@@ -1733,7 +1733,10 @@ def test_analyze_automation_failure_502(client: TestClient) -> None:
         response = client.post("/api/marketplace/analyze", json=ANALYZE_PAYLOAD)
 
     assert response.status_code == 502
-    assert "Automation crashed" in response.json()["detail"]
+    detail = response.json()["detail"]
+    assert detail.startswith("Automation failed in sandbox.")
+    assert "error_id=" in detail
+    assert "Automation crashed" not in detail
 
 
 @pytest.mark.integration
