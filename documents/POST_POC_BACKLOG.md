@@ -1,6 +1,6 @@
 # Post-PoC Backlog
 
-`Last Updated: 2026-04-29` (audit-pass refresh)
+`Last Updated: 2026-05-03` (W9 close pass)
 
 Open work items deferred from W0-W7 PoC scope. **Slim canonical** — full
 verbose item descriptions, landed-evidence detail, and review triage
@@ -94,12 +94,19 @@ when picking an item up.
   so future un-enumerated exception types cannot leave the row in
   `running`. AGENTS.md exception for the broad catch documented at the
   supervisor site only. Surfaced by 2026-04-29 audit pass.
-- **`[FOLLOWUP analysis-thread-error-detail-leakage]`**
-  `analysis_service.map_executor_error()` returns `HTTPException(detail=
-  f"Automation failed: {message}")` where `message` is `str(exc)` from an
-  `ExecutorError`; sanitize/truncate before returning so internal paths
-  and env values do not surface in API responses. Low-impact under
-  loopback default, must close before LAN exposure (W8-7).
+- **`[FOLLOWUP analysis-thread-error-detail-leakage]`** — *CLOSED
+  2026-05-03 on `feat/w9-executor-detection-boundary`*. W8-7 LAN-exposure
+  trigger reached; `analysis_service.map_executor_error()` now returns a
+  generic public detail (`"Failed to install extension in executor."` /
+  `"Automation failed in sandbox."`) suffixed with an 8-char `error_id`,
+  and emits the raw exception text via `logger.warning("executor_error
+  error_id=%s message=%s", ...)` so operator triage stays available
+  without exposing internal paths or env values to HTTP callers.
+  Regression: `tests/workflows/marketplace/test_router.py
+  ::test_map_executor_error_redacts_internal_paths_and_env` (asserts
+  `/etc/`, `/home/`, `POSTGRES_PASSWORD`, and the secret value are absent
+  from `HTTPException.detail` while still present in the captured warning
+  log record).
 - **`[FOLLOWUP sqlalchemy-error-subtype-logging]`**
   `appcore/storage/crud_ops/analysis_jobs.py` (and the wider `crud_ops/`
   surface) catches `SQLAlchemyError` broadly without distinguishing

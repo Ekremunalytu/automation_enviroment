@@ -1,6 +1,6 @@
 # Refactor Status
 
-`Last Updated: 2026-05-02`
+`Last Updated: 2026-05-03`
 
 Active status board for current closure state. **Slim canonical** — full
 phase closure history (W4 → W5 → W6 → W7 + post-W7 hardening + W8-0..W8-3
@@ -120,6 +120,22 @@ remaining checkbox before W9 entry.
   skipped); smoke 3-test green
   (`test_ms_python_analysis_smoke`, `test_ms_python_layered_analysis_smoke`,
   `test_missing_trigger_payload_never_looks_benign`).
+
+- **W8-7 follow-up `analysis-thread-error-detail-leakage` closed
+  `2026-05-03`** on `feat/w9-executor-detection-boundary` — W8-7
+  LAN-exposure trigger reached the original deferral guard.
+  `workflows/marketplace/analysis_service.py::map_executor_error` now
+  returns a generic public detail (`"Failed to install extension in
+  executor."` / `"Automation failed in sandbox."`) suffixed with an
+  8-char `error_id`; the raw `ExecutorError` text is emitted via
+  `logger.warning("executor_error error_id=%s message=%s", ...)` so
+  operators can correlate the response handle to the server log without
+  internal paths, env values, or stderr tail content surfacing in HTTP
+  responses. Regression: `tests/workflows/marketplace/test_router.py
+  ::test_map_executor_error_redacts_internal_paths_and_env` (asserts
+  `/etc/`, `/home/`, `POSTGRES_PASSWORD`, and the secret value are
+  absent from `HTTPException.detail` while still present in the captured
+  warning log record).
 
 - **W8-9 external-review follow-up landed `2026-05-02`** on
   `feat/w9-executor-detection-boundary` — two findings closed in one

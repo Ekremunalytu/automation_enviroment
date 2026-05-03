@@ -1658,6 +1658,34 @@ def test_map_executor_error_for_install_branch() -> None:
 
     assert mapped.status_code == 502
     assert "install extension" in mapped.detail.lower()
+    assert "error_id=" in mapped.detail
+
+
+def test_map_executor_error_redacts_internal_paths_and_env(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Raw exception text must not surface in HTTP detail; logger keeps it."""
+    leaky = analysis_service.ExecutorError(
+        "Internal /etc/secrets/db.pem read failed; HOME=/home/operator/.config",
+        returncode=1,
+        output="POSTGRES_PASSWORD=hunter2",
+    )
+
+    with caplog.at_level("WARNING", logger="workflows.marketplace.analysis_service"):
+        mapped = analysis_service.map_executor_error(leaky)
+
+    detail = mapped.detail
+    assert mapped.status_code == 502
+    assert "/etc/" not in detail
+    assert "/home/" not in detail
+    assert "POSTGRES_PASSWORD" not in detail
+    assert "hunter2" not in detail
+    assert detail.startswith("Automation failed in sandbox.")
+    assert "error_id=" in detail
+
+    logged = "\n".join(record.getMessage() for record in caplog.records)
+    assert "executor_error" in logged
+    assert "/etc/secrets/db.pem" in logged
 
 
 def test_analyze_vsix_not_found_404(client: TestClient) -> None:
