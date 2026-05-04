@@ -356,6 +356,7 @@ def test_fixture_chat_analysis_smoke(runtime_client: TestClient) -> None:
     )
 
 
+@pytest.mark.smoke
 @pytest.mark.integration
 @pytest.mark.slow
 def test_missing_trigger_payload_never_looks_benign(runtime_client: TestClient) -> None:
