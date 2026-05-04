@@ -189,8 +189,42 @@ remaining checkbox before W9 entry.
   refactor cannot regress public behavior through facade/integration
   coverage alone. W11 active tracker:
   [`active-work/W11-monitor-lifecycle.md`](active-work/W11-monitor-lifecycle.md).
-  W11 (§11.8 monitor lifecycle split) **open** — W11-1
-  `MonitorRuntime` extraction is the next pull-first.
+
+- **W11-1 landed `2026-05-04`** (PR #12, commit `84d51ae`) —
+  `MonitorRuntime` extraction; `executor/flows/playwright/monitor_runtime_state.py`
+  (new, 334 LoC) owns the capture state machine; `monitor_lifecycle.py`
+  shrank 852 → 672 LoC; `ExtensionMonitor` becomes a transitional
+  facade with delegation shims pinned by
+  `tests/executor/test_extension_monitor_facade.py` (9 cases) and the
+  new module is pinned by
+  `tests/executor/test_playwright_monitor_runtime_state.py` (14 cases).
+  Baseline grew 1079 → 1102.
+
+- **W11-2 landed `2026-05-04`** — `ReportAssembler` extraction;
+  `executor/flows/playwright/monitor_report_assembler.py` (new, 158
+  LoC) owns derived-state refresh (event annotation, capability
+  promotion, `event_attempts` reconcile, coverage tuple,
+  `signal_summary`, `evidence_links`) and the persist debounce
+  throttle. ADR 0003 verdict rollup (called via
+  `_build_signal_summary`) follows the move into the assembler.
+  `monitor_lifecycle.py` shrank 672 → 623 LoC; `ExtensionMonitor`
+  keeps thin `_refresh_derived_report_state` / `_persist_report` shims
+  so the W11-1 facade pin file's bound-method-identity assertions
+  remain green. Tests:
+  `tests/executor/test_playwright_monitor_report_assembler.py` (22
+  cases pinning collaborator stubs + persist debounce + idempotent
+  refresh + monotonic throttle advance) + 5 new cases in
+  `tests/executor/test_extension_monitor_facade.py` (existing 9 W11-1
+  cases unchanged). Baseline grew 1102 → 1129. Acceptance sub-tasks
+  deferred: `[FOLLOWUP runner-status-contract]` rides W11-3 (with the
+  `schema_version` bump);
+  `[FOLLOWUP target-log-lifecycle-instrumentation]` rides W11-4
+  (`ScenarioAccountant` producer side; consumer-side state machine
+  already lives in `health_reconciliation.py`).
+
+  W11 (§11.8 monitor lifecycle split) **open** — W11-3
+  (`activation_discovery_strategies` field + `runner_status_contract`
+  - `schema_version` minor bump) is the next pull-first.
 
 - **CI pipeline retired `2026-04-30`** — `.github/workflows/ci.yml` and
   `.github/workflows/docs-check.yml` removed; `security.yml` (weekly

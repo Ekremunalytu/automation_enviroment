@@ -503,3 +503,67 @@ def test_assembler_accepts_optional_report_path(
     assembler = ReportAssembler(report=report, report_path=explicit_path)
 
     assert assembler._report_path == explicit_path
+
+
+def test_refresh_is_idempotent_across_repeated_calls(monkeypatch) -> None:
+    """A second ``refresh_derived_state`` call must not corrupt prior state.
+
+    The merge-back logic in ``refresh_derived_state`` uses
+    ``set(existing) | (derived & set(attempted))`` for both
+    ``verified_capabilities`` and ``heuristic_verified_capabilities``;
+    calling refresh twice must reach the same final value (no
+    duplicates, no growth) so future callers (e.g. the W11-3+ wirings
+    that may invoke refresh outside ``MonitorRuntime.stop``) cannot
+    silently produce drifting state.
+    """
+
+    _patch_refresh_helpers(monkeypatch)
+    _patch_official_attempted(monkeypatch, ["cap.read"])
+    report = _make_report()
+    assembler = ReportAssembler(report=report, report_path=None)
+
+    assembler.refresh_derived_state()
+    first_verified = list(report.verified_capabilities)
+    first_heuristic = list(report.heuristic_verified_capabilities)
+    first_event_attempts = list(report.event_attempts)
+    first_signal_summary = dict(report.signal_summary)
+
+    assembler.refresh_derived_state()
+
+    assert report.verified_capabilities == first_verified
+    assert report.heuristic_verified_capabilities == first_heuristic
+    assert report.event_attempts == first_event_attempts
+    assert report.signal_summary == first_signal_summary
+
+
+def test_persist_advances_throttle_strictly_monotonically(
+    tmp_path, monkeypatch
+) -> None:
+    """Two successful saves move ``_last_persist_at`` strictly forward.
+
+    Pairs with ``test_persist_swallows_oserror_and_does_not_advance_throttle``
+    so the positive (advance on success) and negative (no advance on
+    failure) shapes of the throttle move through W11-2 together.
+    """
+
+    report = ActivationReport(target_extension_id="publisher.tool")
+    target = tmp_path / "report.json"
+
+    def _fake_save(self, path, *, announce: bool = False) -> None:
+        # Spend a hair of wall-clock so a second time.time() call returns
+        # a strictly larger value (avoids the same-microsecond tie on
+        # very fast hosts).
+        time.sleep(0.001)
+
+    import time
+
+    monkeypatch.setattr(ActivationReport, "save", _fake_save)
+    assembler = ReportAssembler(report=report, report_path=target)
+
+    assembler.persist(force=True)
+    first = assembler._last_persist_at
+    assembler.persist(force=True)
+    second = assembler._last_persist_at
+
+    assert first > 0.0
+    assert second > first

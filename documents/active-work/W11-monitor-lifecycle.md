@@ -71,14 +71,16 @@ item by reading both this tracker and that archive section.
   shims, not directly to the assembler, so the W11-1 invariant
   survives untouched until W11-5 collapses the facade.
   `monitor_lifecycle.py` shrank 672 → 623 LoC. Tests:
-  `tests/executor/test_playwright_monitor_report_assembler.py` (20
+  `tests/executor/test_playwright_monitor_report_assembler.py` (22
   cases, imported at the real module path so the W12 reshuffle cannot
   silently regress this surface; helper stubs cover all eight
   refresh-side collaborators plus the property-derived
-  `canonical_evidence_links` read) + 5 new cases in
+  `canonical_evidence_links` read; idempotent-refresh and
+  strictly-monotonic throttle-advance cases pin the side-effect
+  semantics) + 5 new cases in
   `tests/executor/test_extension_monitor_facade.py` pinning the
   `_RecordingAssembler` (parallel to `_RecordingRuntime`) plus the
-  runtime→shim→assembler chain. Baseline grew 1102 → 1127.
+  runtime→shim→assembler chain. Baseline grew 1102 → 1129.
 
   **Live-scan validation:** pending operator run against the W11-1
   baseline target (`ms-python.python@2026.5.2026042602`); behavior
