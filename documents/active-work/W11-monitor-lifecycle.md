@@ -228,9 +228,34 @@ item by reading both this tracker and that archive section.
   `stimulus_passes=5`, `failed_scenarios=[]`); raw event counts within
   the prior 4-scan variance band (`network_events=178`,
   `file_events=2467`, `process_events=67`, `evidence_links=3821`,
-  `activated=22`). A second live scan is owed once the fixup is in
-  the running container; only that run can confirm the producer-side
-  values reach disk end-to-end.
+  `activated=22`).
+
+  **Second live-scan validation (post-fixup, `2026-05-04`):** with the
+  `build_report_data` patch in the running container, a second scan
+  against `ms-python.python@2026.5.2026042602` (job `64627b3ea714`,
+  22:59 local) wrote the producer values to disk end-to-end:
+  `activation_discovery_strategies=["exthost_log_parse",
+  "running_extensions_ui"]` (Strategy 2 yielded a non-empty Running
+  Extensions list this run, which is non-stationary on ms-python; the
+  W11-3 plan note that Strategy 2 "rarely produces entries" turned out
+  to be wrong on the optimistic side — the field tolerates this fine
+  because it is a sorted/deduped list, not a fixed ordered tuple);
+  Strategy 3 (`exthost_output_parse`) absent because its merge
+  produced no new entries beyond Strategy 1 (the dedupe-no-credit
+  semantics pinned by
+  `test_stop_omits_strategy_three_when_output_parse_yields_no_new_entries`
+  played out live as designed); `runner_exit_code=0`,
+  `runner_status="success"`. Detection-relevant fields bitwise-equal
+  to the W11-2 / first-W11-3 baselines (same `signal_summary`,
+  `verified_capabilities`, `coverage_summary`, `automation_health`,
+  `output_signal_events=12`, `target_activation_count=1`,
+  `run_quality=medium`, `log_entries=0`, `scenario_traces=3`,
+  `stimulus_passes=5`, `failed_scenarios=[]`). Raw event counts within
+  the now-5-scan variance band (`network_events=198`,
+  `file_events=2592`, `process_events=78`, `evidence_links=3541`,
+  `activated=22`); `process_events=78` slightly above the prior
+  4-scan ceiling of 74 — strace timing delta, not refactor. Refactor
+  - serialization fix confirmed behavior-preserving end-to-end.
 - **W11-4** — pending. `ScenarioAccountant` extraction
   (`executor/flows/playwright/monitor_scenario_accountant.py`, new).
 - **W11-5** — pending. `ExtensionMonitor` composition facade —
