@@ -5,6 +5,25 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
+# W10-6: shared status set declaring "the harness saw enough runtime
+# evidence to count this attempt as exercised". Imported by both the
+# contract invariant (_attempt_has_runtime_evidence below) and the
+# executor's health_runtime_facts.attempt_has_runtime_evidence so the
+# two helpers cannot drift again. ``activation_seen`` /
+# ``target_log_seen`` are intermediate observation states emitted by
+# reconcile_event_attempts when the target extension activated but full
+# verification did not close — both are strictly stronger than
+# ``attempted_only`` so they count as runtime evidence.
+RUNTIME_EVIDENCE_STATES: frozenset[str] = frozenset(
+    {
+        "attempted_only",
+        "activation_seen",
+        "target_log_seen",
+        "verified",
+        "failed",
+    }
+)
+
 
 def _string_list(value: Any) -> list[str]:
     if not isinstance(value, list):
@@ -55,7 +74,7 @@ def _scenario_action_name(attempt: Mapping[str, Any]) -> str:
 def _attempt_has_runtime_evidence(attempt: Mapping[str, Any]) -> bool:
     status = str(attempt.get("status", "")).strip()
     attempted_passes = _string_list(attempt.get("attempted_passes"))
-    return bool(attempted_passes or status in {"attempted_only", "verified", "failed"})
+    return bool(attempted_passes or status in RUNTIME_EVIDENCE_STATES)
 
 
 def _attempt_related_scenarios(attempt: Mapping[str, Any]) -> list[str]:

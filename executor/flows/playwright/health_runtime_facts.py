@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from packages.analysis_contracts.report_invariants import RUNTIME_EVIDENCE_STATES
+
 _CHAT_TOOL_FAMILIES = {"onChatParticipant", "onLanguageModelTool"}
 
 
@@ -35,21 +37,10 @@ def attempt_has_runtime_evidence(attempt: Any) -> bool:
         for pass_id in getattr(attempt, "attempted_passes", []) or []
         if str(pass_id).strip()
     ]
-    # ``activation_seen`` and ``target_log_seen`` are intermediate observation
-    # states emitted by ``reconcile_event_attempts`` when the target extension
-    # activated but full verification did not close. Both are strictly
-    # stronger than ``attempted_only`` so they count as runtime evidence.
-    return bool(
-        attempted_passes
-        or status
-        in {
-            "attempted_only",
-            "activation_seen",
-            "target_log_seen",
-            "verified",
-            "failed",
-        }
-    )
+    # W10-6: source-of-truth state set lives in
+    # packages.analysis_contracts.report_invariants.RUNTIME_EVIDENCE_STATES
+    # so the contract invariant and the runtime helper cannot drift.
+    return bool(attempted_passes or status in RUNTIME_EVIDENCE_STATES)
 
 
 def attempt_related_scenarios(attempt: Any) -> list[str]:

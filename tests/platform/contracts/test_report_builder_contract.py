@@ -20,11 +20,16 @@ from __future__ import annotations
 import copy
 import json
 import sys
+import warnings
 from pathlib import Path
 
 import pytest
+from pydantic import ValidationError
 
-from packages.analysis_contracts.contracts import ActivationReport
+from packages.analysis_contracts.contracts import (
+    ACTIVATION_REPORT_SCHEMA_VERSION,
+    ActivationReport,
+)
 
 _PLAYWRIGHT_DIR = (
     Path(__file__).resolve().parents[3] / "executor" / "flows" / "playwright"
@@ -218,3 +223,52 @@ def test_copy_isolation_is_safe() -> None:
     payload = _load_fixture()
     _ = copy.deepcopy(payload)
     _validate_report_against_contract(payload)
+
+
+def test_save_report_payload_persists_schema_version_when_input_omits_it(
+    tmp_path: Path,
+) -> None:
+    """W10-FIXUP-1 regression pin: ``save_report_payload`` must write the
+    parsed-and-dumped payload, so the ``schema_version`` injected by
+    ``_validate_schema_version`` reaches disk even when the caller omits it.
+
+    Pre-FIXUP, the validator's mutation lived only in the parsed model and
+    the original (version-less) dict was serialized verbatim — defeating the
+    whole point of the W10-1 evolution discipline at the on-disk boundary.
+    """
+
+    payload = _load_fixture()
+    payload.pop("schema_version", None)
+    out_path = tmp_path / "activation_report.json"
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", DeprecationWarning)
+        save_report_payload(out_path, payload, announce=False)
+
+    on_disk = json.loads(out_path.read_text(encoding="utf-8"))
+    assert on_disk["schema_version"] == ACTIVATION_REPORT_SCHEMA_VERSION
+
+
+def test_contract_rejects_missing_automation_health() -> None:
+    """W10-FIXUP-2 regression pin: ``automation_health`` is a first-class
+    required field at the report root. A producer regression that drops it
+    must fail the contract gate, not silently default to an empty health
+    ledger (which would erase the distinction between "we genuinely could
+    not assess" and "we forgot to record")."""
+
+    minimal_without_automation_health = {
+        "report_version": 2,
+        "target_extension_expected": "extrace.smoke",
+        "signal_summary": {},
+        "summary": {},
+        "scenario_traces": [],
+        "evidence_events": [],
+        "network_events": [],
+        "file_events": [],
+        "log_streams": {"automation": []},
+    }
+
+    with pytest.raises(ValidationError) as excinfo:
+        ActivationReport.model_validate(minimal_without_automation_health)
+
+    assert "automation_health" in str(excinfo.value)

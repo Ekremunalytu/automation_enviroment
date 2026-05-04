@@ -1,10 +1,20 @@
 """Backend-owned analysis contracts."""
 
+# Import everything contract-related from contracts.py — it is the single
+# entry that resolves the contracts <-> automation/coverage circular
+# dependency in the right order. Importing AutomationHealth/CoverageSummary
+# directly from their dedicated modules here would have ruff re-order the
+# import block alphabetically (automation < contracts) and re-introduce the
+# circular import, so we lean on the contracts.py re-export instead.
 from packages.analysis_contracts.contracts import (
+    ACTIVATION_REPORT_SCHEMA_VERSION,
     EVENT_ATTEMPT_LIFECYCLE_STATES,
     ActivationEntry,
     ActivationReport,
     ActivationReportFileSummary,
+    AutomationHealth,
+    AutomationHealthStatusLiteral,
+    CoverageSummary,
     EventAttemptRecord,
     EvidenceEvent,
     EvidenceLink,
@@ -43,6 +53,11 @@ from packages.analysis_contracts.evidence import (
     ContentSample,
     redact_secrets,
 )
+from packages.analysis_contracts.executor_actions import (
+    EXECUTOR_ACTION_NAMESPACES,
+    EXTRA_EXECUTOR_ACTIONS,
+    validate_executor_action,
+)
 from packages.analysis_contracts.report_invariants import (
     activation_report_invariant_issues,
     detection_report_invariant_issues,
@@ -50,15 +65,21 @@ from packages.analysis_contracts.report_invariants import (
 )
 
 __all__ = [
+    "ACTIVATION_REPORT_SCHEMA_VERSION",
     "EVENT_ATTEMPT_LIFECYCLE_STATES",
+    "EXECUTOR_ACTION_NAMESPACES",
+    "EXTRA_EXECUTOR_ACTIONS",
     "SECRET_CLASSES",
     "ActivationEntry",
     "ActivationReport",
     "ActivationReportFileSummary",
     "AdversaryClass",
+    "AutomationHealth",
     "AutomationHealthStatus",
+    "AutomationHealthStatusLiteral",
     "Confidence",
     "ContentSample",
+    "CoverageSummary",
     "DetectionFinding",
     "DetectionReport",
     "EventAttemptRecord",
@@ -90,4 +111,5 @@ __all__ = [
     "quantize_confidence",
     "redact_secrets",
     "scenario_trace_names",
+    "validate_executor_action",
 ]

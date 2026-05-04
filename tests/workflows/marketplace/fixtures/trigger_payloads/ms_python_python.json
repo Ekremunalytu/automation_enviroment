@@ -250,7 +250,11 @@
           "comments",
           "testing",
           "workspace_trust"
-        ]
+        ],
+        "attempted": 0,
+        "verified": 0,
+        "attempted_capabilities": [],
+        "verified_capabilities": []
       },
       "matrix": [
         {
@@ -874,7 +878,11 @@
       "comments",
       "testing",
       "workspace_trust"
-    ]
+    ],
+    "attempted": 0,
+    "verified": 0,
+    "attempted_capabilities": [],
+    "verified_capabilities": []
   },
   "coverage_matrix": [
     {

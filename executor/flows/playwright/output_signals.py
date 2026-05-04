@@ -36,6 +36,8 @@ import re
 from datetime import datetime
 from pathlib import Path
 
+from packages.analysis_contracts import redact_secrets
+
 from .runtime_capture._shared import VSCODE_LOGS_DIR, _parse_iso_timestamp
 from .runtime_capture.events import ActivationEntry, OutputSignalEvent
 
@@ -112,7 +114,12 @@ def parse_output_signal_events(
         if payload.get("collector") != "harness_extension":
             continue
         channel = str(payload.get("channel", "") or "")
-        text = _truncate(str(payload.get("text", "") or ""))
+        # W10-7 (closes [FOLLOWUP w8-6-output-signals-redaction]):
+        # OutputSignalEvent.text carries extension-controlled output
+        # channel content. Pipe through redact_secrets at construction so
+        # the persisted ActivationReport never holds raw API keys / DB
+        # URLs / OAuth tokens emitted by the target extension.
+        text = redact_secrets(_truncate(str(payload.get("text", "") or "")))
         ts_value = payload.get("ts")
         try:
             ts_ms = float(ts_value) if ts_value is not None else 0.0

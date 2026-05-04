@@ -1,6 +1,6 @@
 # AGENTS.md
 
-`Last Updated: 2026-04-29`
+`Last Updated: 2026-05-04`
 
 ## Authority
 
@@ -20,12 +20,20 @@
   `documents/REFACTOR_STATUS.md` (slim canonical).
 - PR345 target activation lifecycle complete `2026-04-27`; W8-0
   deterministic harness readiness gate landed `2026-04-27`.
-- W8-W13 external-review integration is open. Active W8 tracker:
-  `documents/active-work/W8-security.md` (stable IDs W8-1..W8-8).
-  Plan navigation: `documents/AGENT_CONTEXT.md` → matching lane doc.
-- ADR 0007 local-network-binding is Accepted, but its loopback /
-  `EXTRACE_ALLOW_LAN` enforcement is still W8-7 work until code/config/tests
-  land. Do not document it as implemented.
+- **W8 closed for active work `2026-04-29`** — W8-1..W8-7 + W8-9
+  landed; W8-8 manifest log sanitization deferred under named triggers
+  (see `active-work/W8-security.md`). **W9 closed `2026-05-04` via
+  PR #9.** Active phase: **W10 contract hygiene + planner cleanup**
+  on `feat/w10-contract-hygiene` (PR #11, in flight). Plan navigation:
+  `documents/AGENT_CONTEXT.md` → matching lane doc. Past W8/W9
+  trackers stay around because code/tests reference items by stable
+  ID (`W8-N`, W9 commit hashes), not because new work is being done
+  in those windows.
+- ADR 0007 local-network-binding **Accepted and implemented**
+  `2026-04-29` via W8-7 (`feat/w8-7-lan-binding-defaults`). Loopback
+  defaults + `EXTRACE_ALLOW_LAN` enforcement live in
+  `appcore/api/config.py`, `docker-compose.yml`, and the
+  `test_default_bindings.py` regression matrix.
 
 ## Non-Negotiable Rules
 

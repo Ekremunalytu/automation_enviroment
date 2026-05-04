@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass, field
 from typing import Any
 
 from packages.analysis_contracts import TriggerPayload
@@ -12,7 +11,7 @@ from packages.analysis_planner.coverage import _finalize_payload
 from packages.analysis_planner.io import (
     _activation_label,
     _collect_contributed_view_ids,
-    _glob_to_bait_filename,
+    glob_to_bait_filename,
 )
 from packages.analysis_planner.registry import (
     _BUILTIN_VIEW_IDS,
@@ -26,43 +25,10 @@ from packages.analysis_planner.registry import (
 )
 
 
-@dataclass
-class _TriggerPayloadDraft:
-    """Mutable planner state before the canonical trigger contract is finalized."""
-
-    analysis_profile: str = "layered_deep"
-    selected_scenarios: list[str] = field(default_factory=list)
-    official_selected_scenarios: list[str] = field(default_factory=list)
-    heuristic_selected_scenarios: list[str] = field(default_factory=list)
-    selected_scenario_details: list[dict[str, Any]] = field(default_factory=list)
-    selection_reasons: dict[str, list[str]] = field(default_factory=dict)
-    coverage_tracks: dict[str, dict[str, Any]] = field(default_factory=dict)
-    coverage_summary: dict[str, Any] = field(default_factory=dict)
-    coverage_matrix: list[dict[str, Any]] = field(default_factory=list)
-    official_attempted_capabilities: list[str] = field(default_factory=list)
-    heuristic_attempted_capabilities: list[str] = field(default_factory=list)
-    target_extension_id: str | None = None
-    command_targets: dict[str, str] = field(default_factory=dict)
-    view_targets: dict[str, dict[str, str]] = field(default_factory=dict)
-    extra_notebook_files: list[str] = field(default_factory=list)
-    extra_custom_editor_files: list[str] = field(default_factory=list)
-    extra_commands: list[str] = field(default_factory=list)
-    auth_provider_ids: list[str] = field(default_factory=list)
-    webview_view_ids: list[str] = field(default_factory=list)
-    uri_trigger: str | None = None
-    run_task_trigger: bool = False
-    run_walkthrough_trigger: bool = False
-    stimulus_passes: list[dict[str, Any]] = field(default_factory=list)
-    event_attempts: list[dict[str, Any]] = field(default_factory=list)
-    prerequisite_results: list[dict[str, Any]] = field(default_factory=list)
-    official_event_coverage: dict[str, Any] = field(default_factory=dict)
-    heuristic_workflow_coverage: dict[str, Any] = field(default_factory=dict)
-
-
 def _apply_activation_event(
     event: dict[str, str | None],
     *,
-    payload: _TriggerPayloadDraft,
+    payload: TriggerPayload,
     publisher_name: str | None,
     contributed_view_ids: set[str],
     official_extra_capabilities: set[str],
@@ -139,7 +105,7 @@ def _apply_view_trigger(
     *,
     event_value: str,
     contributed_view_ids: set[str],
-    payload: _TriggerPayloadDraft,
+    payload: TriggerPayload,
     mark_scenario: Callable[..., None],
     register_attempt: Callable[..., None],
     official_extra_capabilities: set[str],
@@ -211,7 +177,7 @@ def _apply_event_capability_metadata(
     event_type: str,
     event_value: str | None,
     publisher_name: str | None,
-    payload: _TriggerPayloadDraft,
+    payload: TriggerPayload,
     contributed_view_ids: set[str],
     official_extra_capabilities: set[str],
 ) -> None:
@@ -260,7 +226,7 @@ def _apply_event_capability_metadata(
 
 def _apply_contributes_metadata(
     *,
-    payload: _TriggerPayloadDraft,
+    payload: TriggerPayload,
     contributes_custom_editors: list[dict] | None,
     contributes_commands: list[dict] | None,
     contributes_authentication: list[dict] | None,
@@ -281,7 +247,7 @@ def _apply_contributes_metadata(
                 glob_pattern = selector.get("filenamePattern", "")
                 if not glob_pattern:
                     continue
-                bait = _glob_to_bait_filename(glob_pattern)
+                bait = glob_to_bait_filename(glob_pattern)
                 if bait:
                     payload.extra_custom_editor_files.append(bait)
                     heuristic_extra_capabilities.add("custom_editors")
@@ -435,7 +401,10 @@ def select_scenarios(
     scenario_reasons: dict[str, set[str]] = {}
     official_extra_capabilities: set[str] = set()
     heuristic_extra_capabilities: set[str] = set()
-    payload = _TriggerPayloadDraft(target_extension_id=publisher_name)
+    # W10-2: TriggerPayload is the canonical contract; build it directly via
+    # model_construct so the mutation-heavy planner phase doesn't need a
+    # parallel dataclass shadow. _finalize_payload re-validates on the way out.
+    payload = TriggerPayload.model_construct(target_extension_id=publisher_name)
     contributed_view_ids = _collect_contributed_view_ids(contributes_views)
 
     def mark_scenario(

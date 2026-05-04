@@ -84,7 +84,7 @@ def _activation_label(event_type: str, event_value: str | None) -> str:
     return event_type
 
 
-def _glob_to_bait_filename(pattern: str) -> str | None:
+def glob_to_bait_filename(pattern: str) -> str | None:
     """Convert a VS Code filenamePattern glob to a concrete bait filename."""
 
     name_part = pattern.rsplit("/", maxsplit=1)[-1]

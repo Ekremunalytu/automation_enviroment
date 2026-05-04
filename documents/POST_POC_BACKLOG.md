@@ -159,6 +159,16 @@ when picking an item up.
   parse/reconcile surface as a safety net **before** the splits land,
   so the refactor is not over-dependent on facade/integration coverage.
   Surfaced by 2026-05-04 audit pass.
+- **`[FOLLOWUP w12-attribution-naming-overlap]`** —
+  `attribution_summary.background_activation_count` and
+  `attribution_summary.competing_candidate_count` describe overlapping
+  populations but the values diverge by orders of magnitude. Observed
+  2026-05-04 manual UI scan with 25 unique extensions / 22 activations
+  / 1 target: `background_activation_count: 0` while
+  `competing_candidate_count: 54`. Reconcile category definitions (or
+  rename one) so operators can reason about non-target activity from
+  the report alone. Natural landing: W12 attribution facade cleanup
+  (`§11.9`). Surfaced by 2026-05-04 manual UI scan.
 
 ### Detection / Contracts
 
@@ -211,6 +221,52 @@ when picking an item up.
   `[FOLLOWUP w8-6-content-sample-structural-test]`; landing both
   together as W10 contract hygiene closes the W8-6 broader sweep.
   Surfaced by 2026-05-04 second-pass review.
+- **`[FOLLOWUP coverage-summary-attempted-drift]`** —
+  `coverage_summary.attempted_capabilities` (7 entries including
+  `uri_walkthrough`), the parallel `summary.attempted_capabilities`
+  alongside top-level `attempted_capabilities` (6 entries, no
+  `uri_walkthrough`), and `event_attempts[]` (zero attempts of
+  `uri_walkthrough` family) all describe the same run's attempted
+  capabilities but disagree. Producer paths diverge — likely
+  `analysis_planner.coverage` vs the reconcile path under
+  `executor/flows/playwright/health_*`. Reduce to a single source so
+  UI components reading either alias see the same number. Natural
+  landing: W12 attribution cleanup (`§11.9`); pull earlier as a
+  surgical fix if any UI surface reads both fields and renders
+  diverging counts. Surfaced by 2026-05-04 manual UI scan.
+- **`[FOLLOWUP target-log-lifecycle-instrumentation]`** —
+  W10-6 pinned `RUNTIME_EVIDENCE_STATES = {attempted_only,
+  activation_seen, target_log_seen, verified, failed}` as a shared
+  frozenset across contract + executor helpers, but no reconciler
+  currently transitions attempts into the intermediate
+  `activation_seen`/`target_log_seen` states. On a 2026-05-04 UI scan
+  all 9 unresolved attempts collapsed to `attempted_only` and
+  `log_streams.target_extension_host` carried only 1 entry for a
+  22-activation run; the lifecycle ledger has alphabet but no
+  vocabulary. Wire `reconcile_event_attempts` (or its W11 successor
+  `ScenarioAccountant`/`ReportAssembler`) to emit the intermediate
+  states whenever target-owned log/output evidence exists short of
+  full verification, and broaden target log capture so
+  `target_extension_host` does not collapse to 1 entry per run. The
+  contracts.py:166 lifecycle comment already references this
+  workstream; this entry makes it trackable. Natural landing: W11
+  monitor lifecycle split (`§11.8`) **as an acceptance sub-task** +
+  W12 reconciler updates (`§11.9`). Surfaced by 2026-05-04 manual UI
+  scan.
+- **`[FOLLOWUP signal-summary-needs-review-categories]`** —
+  `signal_summary.level` can land on `"needs_review"` with
+  `score>0` while `risk_signals == []` and
+  `risk_summary.categories == []`. Observed 2026-05-04 manual UI scan:
+  `level=needs_review`, `score=22`, single human-readable reason in
+  `signal_summary.note` (`"Sensitive file activity exists near target
+  activations, but attribution is only correlative."`) but no
+  structured category for the UI to badge. Either populate
+  `risk_summary.categories` from the `signal_summary` derivation path
+  or downgrade the level to a more honest `"inconclusive"` when no
+  risk signal supports it. Tied to ADR 0003 verdict rollup semantics
+  — `§11` brief flagged ADR 0003 changes as W10 non-goal; natural
+  landing is W13+ external-review window where verdict semantics can
+  be revised holistically. Surfaced by 2026-05-04 manual UI scan.
 
 ### UI
 
@@ -226,6 +282,22 @@ UI v3 redesign minimal-completion landed `2026-04-29` (see
 - **`[ADD ui-v3-10/11/12]`** Inspector drawer + RuleDraftSection on
   Reports, Run health + Coverage summary on Simulation, Ledger Scenario
   tab (LANDED 2026-04-28).
+- **`[FOLLOWUP ui-supplemental-types-retire]`** —
+  `scripts/generate_ui_contracts.py:115` ships a hardcoded
+  `SUPPLEMENTAL_TYPES` TypeScript string for `AutomationHealthDto`,
+  `LogHealthDto`, `AttributionSummaryDto`, `RiskSummaryDto`,
+  `CoverageSummaryDto`, `CoverageCapabilityDto`, `CoverageTrackDto`,
+  `CoverageTracksDto`, `EventCoverageDto`, and `LogStreamsDto` instead
+  of introspecting the Pydantic models. `make ui-types-check` cannot
+  detect drift because the template is the source of truth on both
+  sides of the `--check` comparison. W10-4's three new
+  `AutomationHealth` fields (`extension_host_log_found`,
+  `extra_trigger_failures`, `extra_trigger_failure_count`) silently
+  went missing on the TS side until manual W10 QA caught it. Migrate
+  `AutomationHealthDto` and `CoverageSummaryDto` (at minimum) into the
+  Pydantic introspect path so future field additions surface through
+  `make ui-types-check`. Natural landing: W13 test expansion +
+  observability. Surfaced by 2026-05-04 W10 QA pass.
 - UI component split (7.3.1, 7.3.2, 7.3.3, 7.3.4, 7.3.5) + axe-core —
   surface not stabilized; rejected from W8-W13.
 
@@ -280,16 +352,14 @@ UI v3 redesign minimal-completion landed `2026-04-29` (see
   `executor/container/start.sh:25-26` — and stays undocumented.
   Append commented entries with one-sentence purpose strings.
   Surfaced by 2026-05-04 audit pass.
-- **`[CLEANUP agent-context-phase-snapshot-stale]`** —
-  `documents/AGENT_CONTEXT.md:24-29` still says "W8 is open … W8-6,
-  W8-7, W8-8 pending" and "ADR 0007 … pending W8-7 implementation",
-  while `REFACTOR_STATUS.md:78` says "W8 is closed for active work"
-  and W8-7 is implemented in `appcore/api/config.py:40-96`. Stale
-  agent-routing snapshot risks misrouting future agents into wrong
-  phase context. Fix: refresh the AGENT_CONTEXT snapshot to current
-  state (W8 closed, W9 active) or remove volatile phase detail and
-  point to `REFACTOR_STATUS.md` as the single source of truth.
-  Surfaced by 2026-05-04 second-pass review.
+- **`[CLEANUP agent-context-phase-snapshot-stale]`** — *LANDED
+  2026-05-04 on `feat/w10-contract-hygiene`*. Refreshed `AGENTS.md`
+  Current State + `AGENT_CONTEXT.md` Source-of-Truth list to current
+  phase (W8 closed `2026-04-29`, W9 closed `2026-05-04`, W10 in
+  flight on `feat/w10-contract-hygiene`); ADR 0007 documented as
+  implemented (W8-7 landed). The W8 tracker is preserved with a
+  "past tracker" framing because code/tests still reference items
+  by stable W8-N IDs.
 - **`[CLEANUP postgres-version-fact-drift]`** — `docker-compose.yml:3`
   runs `image: postgres:16-alpine`, while external audit prompts /
   project-fact handoffs have still referenced PostgreSQL 15. Current

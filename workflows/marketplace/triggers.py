@@ -8,10 +8,10 @@ from packages.analysis_planner import (
     ScenarioDefinition,
     build_coverage_matrix,
     build_static_coverage_audit,
+    glob_to_bait_filename,
     select_scenarios,
     write_trigger_file,
 )
-from packages.analysis_planner.io import _glob_to_bait_filename
 
 __all__ = [
     "CAPABILITY_TAXONOMY",
@@ -19,9 +19,9 @@ __all__ = [
     "OFFICIAL_EVENT_REGISTRY",
     "SCENARIO_REGISTRY",
     "ScenarioDefinition",
-    "_glob_to_bait_filename",
     "build_coverage_matrix",
     "build_static_coverage_audit",
+    "glob_to_bait_filename",
     "select_scenarios",
     "write_trigger_file",
 ]

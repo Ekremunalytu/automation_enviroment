@@ -2,15 +2,40 @@
 
 from __future__ import annotations
 
+import warnings
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    ValidationInfo,
+    field_validator,
+    model_validator,
+)
+
+# W10-1: Proactive schema evolution discipline for ActivationReport.
+# Bumped on breaking changes; minor bumps emit DeprecationWarning, major
+# bumps are rejected under model_validate(..., context={"strict_schema": True}).
+# W10-4: 1.0 -> 2.0 — automation_health and coverage_summary slots became
+# typed models (AutomationHealth, CoverageSummary) instead of dict[str, Any].
+ACTIVATION_REPORT_SCHEMA_VERSION = "2.0"
 
 
 class StrictContractModel(BaseModel):
     """Common base for backend-owned contract models."""
 
     model_config = ConfigDict(extra="forbid")
+
+
+# Imports placed below StrictContractModel so the typed-projection modules
+# (which import StrictContractModel from this file) can resolve without
+# bringing in a half-initialized contracts module.
+from packages.analysis_contracts.automation import (  # noqa: E402
+    AutomationHealth,
+    AutomationHealthStatusLiteral,  # noqa: F401  (re-exported via __init__)
+)
+from packages.analysis_contracts.coverage import CoverageSummary  # noqa: E402
 
 
 class ActivationEntry(StrictContractModel):
@@ -326,9 +351,14 @@ class ActivationReportFileSummary(StrictContractModel):
 
 
 class ActivationReport(StrictContractModel):
+    schema_version: str = ACTIVATION_REPORT_SCHEMA_VERSION
     report_version: int
     target_extension_expected: str
-    automation_health: dict[str, Any]
+    # W10-FIXUP-2: outer field stays required (matches pre-W10 contract). Inner
+    # AutomationHealth fields keep their defaults so skip_automation's 5-field
+    # subset still validates; the rationale for inner defaults does not extend
+    # to the outer slot.
+    automation_health: AutomationHealth
     signal_summary: dict[str, Any]
     summary: dict[str, Any]
     scenario_traces: list[ScenarioTrace]
@@ -372,7 +402,7 @@ class ActivationReport(StrictContractModel):
     evidence_links: list[EvidenceLink] = Field(default_factory=list)
     network_summary: dict[str, Any] = Field(default_factory=dict)
     file_summary: dict[str, Any] = Field(default_factory=dict)
-    coverage_summary: dict[str, Any] = Field(default_factory=dict)
+    coverage_summary: CoverageSummary = Field(default_factory=CoverageSummary)
     coverage_matrix: list[dict[str, Any]] = Field(default_factory=list)
     coverage_tracks: dict[str, dict[str, Any]] = Field(default_factory=dict)
     official_event_coverage: dict[str, Any] = Field(default_factory=dict)
@@ -381,6 +411,45 @@ class ActivationReport(StrictContractModel):
     extension_host_output: str = ""
     log_file: str = ""
     output_signal_events: list[OutputSignalEvent] = Field(default_factory=list)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _validate_schema_version(cls, data: object, info: ValidationInfo) -> object:
+        # W10-1: proactive schema evolution. Missing or stale schema_version
+        # emits DeprecationWarning; model_validate(..., context={"strict_schema": True})
+        # rejects instead of warning. See ACTIVATION_REPORT_SCHEMA_VERSION.
+        if not isinstance(data, dict):
+            return data
+        context = info.context or {}
+        strict = bool(context.get("strict_schema", False))
+        version = data.get("schema_version")
+        if version is None:
+            if strict:
+                raise ValueError(
+                    "ActivationReport ingest rejected: schema_version missing "
+                    "under strict_schema=True"
+                )
+            warnings.warn(
+                f"ActivationReport ingested without schema_version; defaulting to "
+                f"current {ACTIVATION_REPORT_SCHEMA_VERSION!r}",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            data = dict(data)
+            data["schema_version"] = ACTIVATION_REPORT_SCHEMA_VERSION
+        elif version != ACTIVATION_REPORT_SCHEMA_VERSION:
+            if strict:
+                raise ValueError(
+                    f"ActivationReport ingest rejected: schema_version={version!r} "
+                    f"does not match current {ACTIVATION_REPORT_SCHEMA_VERSION!r}"
+                )
+            warnings.warn(
+                f"ActivationReport ingested with stale schema_version={version!r}; "
+                f"current is {ACTIVATION_REPORT_SCHEMA_VERSION!r}",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+        return data
 
     @model_validator(mode="before")
     @classmethod
@@ -402,7 +471,7 @@ class TriggerPayload(StrictContractModel):
     selected_scenario_details: list[TriggerScenarioDetail] = Field(default_factory=list)
     selection_reasons: dict[str, list[str]] = Field(default_factory=dict)
     coverage_tracks: dict[str, dict[str, Any]] = Field(default_factory=dict)
-    coverage_summary: dict[str, Any] = Field(default_factory=dict)
+    coverage_summary: CoverageSummary = Field(default_factory=CoverageSummary)
     coverage_matrix: list[dict[str, Any]] = Field(default_factory=list)
     official_attempted_capabilities: list[str] = Field(default_factory=list)
     heuristic_attempted_capabilities: list[str] = Field(default_factory=list)
