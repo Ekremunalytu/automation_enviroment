@@ -1,15 +1,8 @@
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
-PLAYWRIGHT_DIR = (
-    Path(__file__).resolve().parents[2] / "executor" / "flows" / "playwright"
-)
-if str(PLAYWRIGHT_DIR) not in sys.path:
-    sys.path.insert(0, str(PLAYWRIGHT_DIR))
-
-import workspace  # noqa: E402
+from executor.flows.playwright import workspace
 
 
 def test_create_bait_files_uses_active_workspace(monkeypatch, tmp_path: Path) -> None:

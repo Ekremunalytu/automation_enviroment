@@ -5,11 +5,17 @@ disk or memory. ``_extract_vsix_to_dir`` enforces three module-level
 limits (``MAX_UNCOMPRESSED_SIZE``, ``MAX_COMPRESSION_RATIO``,
 ``MAX_FILE_COUNT``); these tests verify the limits trigger and that a
 benign small VSIX still extracts cleanly.
+
+W9-6a additions: rejection-branch logging — path-traversal and
+symlink-escape entries emit ``vsix_entry_rejected`` warning breadcrumbs
+and contribute to the per-call rejection counter that ``_extract_vsix_to_dir``
+returns.
 """
 
 from __future__ import annotations
 
 import io
+import logging
 import zipfile
 from pathlib import Path
 
@@ -103,3 +109,77 @@ def test_path_traversal_still_blocked(tmp_path: Path) -> None:
     # filename contains ``..``.
     assert not (tmp_path.parent / "escape.txt").exists()
     assert not (tmp_path / "escape.txt").exists()
+
+
+def test_path_traversal_emits_rejection_log(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """W9-6a: ``..`` rejection branch must emit a warning breadcrumb and
+    contribute to the per-call rejection counter."""
+    vsix = _build_vsix(
+        [
+            ("extension/../escape.txt", b"pwned"),
+            ("extension/legit.txt", b"ok"),
+        ]
+    )
+
+    with caplog.at_level(logging.WARNING, logger="workflows.marketplace.client"):
+        rejected = marketplace_client._extract_vsix_to_dir(vsix, tmp_path)
+
+    assert rejected == 1
+    warnings = [
+        rec
+        for rec in caplog.records
+        if rec.levelno == logging.WARNING and "vsix_entry_rejected" in rec.getMessage()
+    ]
+    assert len(warnings) == 1
+    msg = warnings[0].getMessage()
+    assert "reason=path_traversal" in msg
+    assert "extension/../escape.txt" in msg
+
+
+def test_symlink_escape_emits_rejection_log(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """W9-6a: relative_to-fail rejection branch must emit a warning
+    breadcrumb. We force the failure by symlinking ``destination_dir`` so
+    the resolved entry path falls outside the resolved sandbox."""
+    sandbox_outside = tmp_path / "outside"
+    sandbox_outside.mkdir()
+    sandbox = tmp_path / "sandbox"
+    sandbox.symlink_to(sandbox_outside)
+
+    # The ``relative_to`` guard resolves both target and destination_dir.
+    # Patch Path.resolve so the *target* entry resolves to a path that
+    # escapes destination_dir.resolve(), tripping the ValueError branch.
+    real_resolve = Path.resolve
+    forbidden = tmp_path / "forbidden" / "escape.txt"
+    forbidden.parent.mkdir(parents=True, exist_ok=True)
+
+    def fake_resolve(self: Path, *args: object, **kwargs: object) -> Path:
+        if self.name == "escape.txt":
+            return forbidden
+        return real_resolve(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "resolve", fake_resolve)
+
+    vsix = _build_vsix(
+        [
+            ("extension/escape.txt", b"pwned"),
+            ("extension/legit.txt", b"ok"),
+        ]
+    )
+
+    with caplog.at_level(logging.WARNING, logger="workflows.marketplace.client"):
+        rejected = marketplace_client._extract_vsix_to_dir(vsix, sandbox)
+
+    assert rejected == 1
+    warnings = [
+        rec
+        for rec in caplog.records
+        if rec.levelno == logging.WARNING and "vsix_entry_rejected" in rec.getMessage()
+    ]
+    assert len(warnings) == 1
+    msg = warnings[0].getMessage()
+    assert "reason=symlink_escape" in msg
+    assert "extension/escape.txt" in msg

@@ -53,3 +53,8 @@ node_modules/
 
 # Security Reports
 bandit-report.json
+
+# Operator-local scratch (do not track repo-root note files; canonical
+# trackers live under documents/ — automation_todo.md, REFACTOR_STATUS.md)
+/problems.md
+/todo.md

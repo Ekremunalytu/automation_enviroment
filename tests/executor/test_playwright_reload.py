@@ -1,19 +1,10 @@
 from __future__ import annotations
 
-import sys
-from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 
-PLAYWRIGHT_DIR = (
-    Path(__file__).resolve().parents[2] / "executor" / "flows" / "playwright"
-)
-if str(PLAYWRIGHT_DIR) not in sys.path:
-    sys.path.insert(0, str(PLAYWRIGHT_DIR))
-
-import reload_vscode  # noqa: E402
-import vscode  # noqa: E402
+from executor.flows.playwright import reload_vscode, vscode
 
 
 class _FakeSyncPlaywright:

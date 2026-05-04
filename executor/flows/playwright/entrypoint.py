@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import sys
-from pathlib import Path
 from uuid import uuid4
 
 from playwright.sync_api import (
@@ -13,25 +12,23 @@ from playwright.sync_api import (
 )
 from playwright.sync_api import Error as PlaywrightError  # noqa: F401
 
-_pkg_dir = str(Path(__file__).resolve().parent)
-if _pkg_dir not in sys.path:
-    sys.path.insert(0, _pkg_dir)
-
-import automation  # noqa: E402, F401
-import commands  # noqa: E402, F401
-import editor  # noqa: E402, F401
-import monitor  # noqa: E402
-import panel  # noqa: E402, F401
-import sidebar  # noqa: E402, F401
-import stimulus  # noqa: E402, F401
-import terminal  # noqa: E402, F401
-import triggers as trigger_loader  # noqa: E402
-import vscode  # noqa: E402, F401
-import workspace  # noqa: E402, F401
-from entrypoint_runner import create_bait_files  # noqa: E402
-from entrypoint_runner import main as run_main  # noqa: E402
-from entrypoint_runner import run_demo as run_demo_impl  # noqa: E402
-from entrypoint_triggers import (  # noqa: E402
+from . import (
+    automation,  # noqa: F401
+    commands,  # noqa: F401
+    editor,  # noqa: F401
+    monitor,
+    panel,  # noqa: F401
+    sidebar,  # noqa: F401
+    stimulus,  # noqa: F401
+    terminal,  # noqa: F401
+    vscode,  # noqa: F401
+    workspace,  # noqa: F401
+)
+from . import triggers as trigger_loader
+from .entrypoint_runner import create_bait_files
+from .entrypoint_runner import main as run_main
+from .entrypoint_runner import run_demo as run_demo_impl
+from .entrypoint_triggers import (
     reload_window_under_monitoring,
     resolve_execution_plan,
     run_extra_triggers,

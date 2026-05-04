@@ -4,15 +4,15 @@ from __future__ import annotations
 
 from uuid import uuid4
 
-from entrypoint_cli import build_parser
-from entrypoint_triggers import (
+from playwright.sync_api import Error as PlaywrightError
+
+from .entrypoint_cli import build_parser
+from .entrypoint_triggers import (
     reload_window_under_monitoring,
     resolve_execution_plan,
     run_extra_triggers,
 )
-from wait_helpers import wait_for_idle_observation
-
-from playwright.sync_api import Error as PlaywrightError
+from .wait_helpers import wait_for_idle_observation
 
 
 def run_demo(page, *, deps) -> None:

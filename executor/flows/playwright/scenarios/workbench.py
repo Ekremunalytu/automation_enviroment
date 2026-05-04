@@ -2,14 +2,9 @@
 
 from __future__ import annotations
 
-import editor
-import keyboard
-import panel
-import settings
-import sidebar
-
 from playwright.sync_api import Page
 
+from .. import editor, keyboard, panel, settings, sidebar
 from .common import log
 
 

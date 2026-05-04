@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+import logging
 import os
 import shutil
 import zipfile
@@ -18,6 +19,8 @@ from workflows.extension_catalog.manifest_reader import (
     PackageJsonReadError,
     get_package_json,
 )
+
+logger = logging.getLogger(__name__)
 
 _MARKETPLACE_API = (
     "https://marketplace.visualstudio.com/_apis/public/gallery/extensionquery"
@@ -152,10 +155,17 @@ def _publish_vsix_file(vsix_file: Path, vsix_bytes: bytes, artifact_name: str) -
         raise
 
 
-def _extract_vsix_to_dir(vsix_bytes: bytes, destination_dir: Path) -> None:
+def _extract_vsix_to_dir(vsix_bytes: bytes, destination_dir: Path) -> int:
+    """Extract a VSIX archive into ``destination_dir`` under safety limits.
+
+    Returns the count of entries rejected for path-traversal or
+    symlink-escape reasons (silently skipped during extraction). Limit
+    breaches still raise ``VSIXUnpackError``.
+    """
     cumulative_uncompressed = 0
     cumulative_compressed = 0
     file_count = 0
+    rejected_count = 0
 
     with zipfile.ZipFile(io.BytesIO(vsix_bytes)) as zf:
         for info in zf.infolist():
@@ -164,6 +174,11 @@ def _extract_vsix_to_dir(vsix_bytes: bytes, destination_dir: Path) -> None:
 
             parts = Path(info.filename).parts
             if ".." in parts:
+                rejected_count += 1
+                logger.warning(
+                    "vsix_entry_rejected reason=path_traversal entry=%s",
+                    info.filename,
+                )
                 continue
 
             rel_parts = parts[1:]
@@ -197,6 +212,11 @@ def _extract_vsix_to_dir(vsix_bytes: bytes, destination_dir: Path) -> None:
             try:
                 target.resolve().relative_to(destination_dir.resolve())
             except ValueError:
+                rejected_count += 1
+                logger.warning(
+                    "vsix_entry_rejected reason=symlink_escape entry=%s",
+                    info.filename,
+                )
                 continue
 
             if info.filename.endswith("/"):
@@ -204,6 +224,14 @@ def _extract_vsix_to_dir(vsix_bytes: bytes, destination_dir: Path) -> None:
             else:
                 target.parent.mkdir(parents=True, exist_ok=True)
                 target.write_bytes(zf.read(info))
+
+    if rejected_count:
+        logger.info(
+            "vsix_extraction_rejections total=%d destination=%s",
+            rejected_count,
+            destination_dir,
+        )
+    return rejected_count
 
 
 def _publish_extracted_extension(partial_dir: Path, final_dir: Path) -> Path:

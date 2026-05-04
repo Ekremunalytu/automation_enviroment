@@ -8,102 +8,53 @@ from pathlib import Path
 from types import TracebackType
 from typing import Any
 
-try:
-    from playwright.sync_api import Error as PlaywrightError
-    from playwright.sync_api import Page
+from playwright.sync_api import Error as PlaywrightError
+from playwright.sync_api import Page
 
-    from .attribution import (
-        _annotate_file_events,
-        _annotate_network_events,
-        _annotate_process_events,
-        _build_signal_summary,
-        _format_epoch_timestamp,
-        _relative_time,
-        _scenario_name_for_timestamp,
-    )
-    from .health import (
-        derive_verified_capabilities,
-        reconcile_event_attempts,
-        summarize_event_attempts_for_report,
-    )
-    from .monitor_payload import populate_report_from_trigger_payload
-    from .monitor_records import (
-        LogStreamEntry,
-        PrerequisiteResult,
-        ScenarioTrace,
-        SkippedScenarioRecord,
-        StimulusPassTrace,
-    )
-    from .monitor_runtime import (
-        _build_activation_log_message,
-        _build_event_attempt_log_message,
-        _build_prerequisite_log_message,
-        _build_scenario_log_message,
-        _build_stimulus_pass_log_message,
-        _count_target_activations,
-        _find_event_attempt,
-        _merge_activation_entries,
-        _reconcile_coverage_verification,
-        _requires_startup_grace,
-    )
-    from .monitor_support import resolve_monitor_api
-    from .monitor_types import ActivationReport
-    from .output_signals import (
-        annotate_output_signal_events,
-        merge_output_signal_events,
-        parse_output_signal_events,
-        read_output_channel_logs,
-    )
-    from .runtime_capture._shared import _log, _parse_iso_timestamp
-    from .runtime_capture.events import FileEvent, NetworkEvent, ProcessEvent
-except ImportError:  # pragma: no cover - top-level executor import mode
-    from attribution import (
-        _annotate_file_events,
-        _annotate_network_events,
-        _annotate_process_events,
-        _build_signal_summary,
-        _format_epoch_timestamp,
-        _relative_time,
-        _scenario_name_for_timestamp,
-    )
-    from health import (
-        derive_verified_capabilities,
-        reconcile_event_attempts,
-        summarize_event_attempts_for_report,
-    )
-    from monitor_payload import populate_report_from_trigger_payload
-    from monitor_records import (
-        LogStreamEntry,
-        PrerequisiteResult,
-        ScenarioTrace,
-        SkippedScenarioRecord,
-        StimulusPassTrace,
-    )
-    from monitor_runtime import (
-        _build_activation_log_message,
-        _build_event_attempt_log_message,
-        _build_prerequisite_log_message,
-        _build_scenario_log_message,
-        _build_stimulus_pass_log_message,
-        _count_target_activations,
-        _find_event_attempt,
-        _merge_activation_entries,
-        _reconcile_coverage_verification,
-        _requires_startup_grace,
-    )
-    from monitor_support import resolve_monitor_api
-    from monitor_types import ActivationReport
-    from output_signals import (
-        annotate_output_signal_events,
-        merge_output_signal_events,
-        parse_output_signal_events,
-        read_output_channel_logs,
-    )
-    from runtime_capture._shared import _log, _parse_iso_timestamp
-    from runtime_capture.events import FileEvent, NetworkEvent, ProcessEvent
-
-    from playwright.sync_api import Error as PlaywrightError
-    from playwright.sync_api import Page
+from .attribution import (
+    _annotate_file_events,
+    _annotate_network_events,
+    _annotate_process_events,
+    _build_signal_summary,
+    _format_epoch_timestamp,
+    _relative_time,
+    _scenario_name_for_timestamp,
+)
+from .health import (
+    derive_verified_capabilities,
+    reconcile_event_attempts,
+    summarize_event_attempts_for_report,
+)
+from .monitor_payload import populate_report_from_trigger_payload
+from .monitor_records import (
+    LogStreamEntry,
+    PrerequisiteResult,
+    ScenarioTrace,
+    SkippedScenarioRecord,
+    StimulusPassTrace,
+)
+from .monitor_runtime import (
+    _build_activation_log_message,
+    _build_event_attempt_log_message,
+    _build_prerequisite_log_message,
+    _build_scenario_log_message,
+    _build_stimulus_pass_log_message,
+    _count_target_activations,
+    _find_event_attempt,
+    _merge_activation_entries,
+    _reconcile_coverage_verification,
+    _requires_startup_grace,
+)
+from .monitor_support import resolve_monitor_api
+from .monitor_types import ActivationReport
+from .output_signals import (
+    annotate_output_signal_events,
+    merge_output_signal_events,
+    parse_output_signal_events,
+    read_output_channel_logs,
+)
+from .runtime_capture._shared import _log, _parse_iso_timestamp
+from .runtime_capture.events import FileEvent, NetworkEvent, ProcessEvent
 
 
 def _assert_target_stream_invariant(

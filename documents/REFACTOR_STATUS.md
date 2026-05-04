@@ -1,6 +1,6 @@
 # Refactor Status
 
-`Last Updated: 2026-04-30`
+`Last Updated: 2026-05-04`
 
 Active status board for current closure state. **Slim canonical** — full
 phase closure history (W4 → W5 → W6 → W7 + post-W7 hardening + W8-0..W8-3
@@ -80,6 +80,83 @@ W8 is **closed for active work** pending the optional ADR 0008 draft
 on container packaging that the active-work tracker keeps as a single
 remaining checkbox before W9 entry.
 
+- **W9-1 container packaging ADR + entrypoint argv pivot landed `2026-04-30`** (`76c0760`) —
+  `feat/w9-executor-detection-boundary` umbrella branch opened. ADR 0008
+  (`documents/adrs/0008-container-packaging.md`) shipped as Proposed.
+  `appcore/api/config.py` and `executor/config.py` migrated `*_PATH`
+  literals to `*_MODULE` dotted names (no deprecation alias). `executor/host.py`
+  pivoted four call sites to `[PYTHON3_PATH, "-m", <module>]` argv form;
+  `pkill -f` cleanup uses dotted module name as pattern (uniqueness invariant
+  per ADR 0008 §6). Container `Dockerfile` provisions
+  `/home/executor/__init__.py` + `/home/executor/flows/__init__.py` regular
+  package markers and sets `ENV PYTHONPATH=/home`. `start.sh` honeypot
+  bootstrap pivoted to `python3 -m executor.flows.playwright.workspace`.
+  `Makefile` `exec-run`/`sim-*` lanes pivoted to argv form.
+
+- **W9-2 signal_policy relocation landed `2026-04-30`** (`55ee3f7`) —
+  pure-logic signal policy moved from `executor/flows/playwright/signal_policy.py`
+  into `packages/analysis_engine/signals/policy.py`; executor flows import
+  via `from packages.analysis_engine.signals.policy import …`. AST gate
+  `test_executor_imports_signals_from_packages`
+  (`tests/architecture/test_import_graph.py:173`) regression-guards the
+  detection-boundary pull.
+
+- **W9-3 dual-import sweep + sys.path eradication + AST gates landed `2026-04-30`** (`ae0a8a7`) —
+  full package-mode pivot completed in one commit (59 files changed,
+  604 insertions / 1045 deletions). 39 source files converted to
+  package-relative imports; 17 dual-import fallbacks removed (one
+  allow-listed: `executor/flows/playwright/monitor_support.py`); 6
+  `sys.path.insert` calls eliminated across runtime tree
+  (`entrypoint`, `reload_vscode`, `reset_state`, `report_builder`,
+  `triggers`, `workspace`). Three AST gates lock the contract in
+  `tests/architecture/test_import_graph.py`:
+  `test_no_dual_import_fallback_in_executor` (line 123),
+  `test_no_sys_path_manipulation_in_runtime` (line 151),
+  `test_executor_imports_signals_from_packages` (line 173). The
+  originally separate W9-4 `sys.path.insert` audit folded into this
+  commit because the AST gate is the binding artifact. ADR 0008 §6
+  Outcomes block + Implementation section updated; ADR status flips
+  to **Accepted**. Verification: `make check-all` (959 passed / 6
+  skipped); smoke 3-test green
+  (`test_ms_python_analysis_smoke`, `test_ms_python_layered_analysis_smoke`,
+  `test_missing_trigger_payload_never_looks_benign`).
+
+- **W8-7 follow-up `analysis-thread-error-detail-leakage` closed
+  `2026-05-03`** on `feat/w9-executor-detection-boundary` — W8-7
+  LAN-exposure trigger reached the original deferral guard.
+  `workflows/marketplace/analysis_service.py::map_executor_error` now
+  returns a generic public detail (`"Failed to install extension in
+  executor."` / `"Automation failed in sandbox."`) suffixed with an
+  8-char `error_id`; the raw `ExecutorError` text is emitted via
+  `logger.warning("executor_error error_id=%s message=%s", ...)` so
+  operators can correlate the response handle to the server log without
+  internal paths, env values, or stderr tail content surfacing in HTTP
+  responses. Regression: `tests/workflows/marketplace/test_router.py
+  ::test_map_executor_error_redacts_internal_paths_and_env` (asserts
+  `/etc/`, `/home/`, `POSTGRES_PASSWORD`, and the secret value are
+  absent from `HTTPException.detail` while still present in the captured
+  warning log record).
+
+- **W8-9 external-review follow-up landed `2026-05-02`** on
+  `feat/w9-executor-detection-boundary` — two findings closed in one
+  pass. P1 workspace fixture path-traversal: new
+  `_resolve_within_workspace` helper in
+  `executor/flows/playwright/workspace.py` rejects absolute paths and
+  `..` segments and asserts `Path.resolve().is_relative_to(WORKSPACE_DIR)`;
+  `create_workspace_file` / `create_workspace_dir` / `create_bait_files`
+  routed through it; `materialize_workspace_contains_fixture` catches
+  the new `ValueError` and reports `prerequisite_blocked` (separate
+  reason code from the existing `KeyError → materialization_failed` path).
+  P2 HTTP body preview redaction: `runtime_capture/network.py::_bounded_body_metadata`
+  now passes the decoded text preview through the W8-6 `redact_secrets`
+  filter before assignment to `NetworkEvent.{request,response}_body_preview`;
+  raw byte SHA-256 unchanged so sample integrity preserved. New
+  regression tests in `tests/executor/test_playwright_stimulus.py`
+  (parent-traversal + helper unit tests) and
+  `tests/executor/test_playwright_monitor_runtime.py` (AKIA and Bearer
+  secrets → `[REDACTED:aws]`/`[REDACTED:bearer]`). Detail block in
+  `active-work/W8-security.md` W8-9 entry.
+
 - **CI pipeline retired `2026-04-30`** — `.github/workflows/ci.yml` and
   `.github/workflows/docs-check.yml` removed; `security.yml` (weekly
   Trivy + Bandit) kept. The `security-fixtures` job (iptables egress
@@ -117,9 +194,6 @@ Authoritative open list lives in
 - `[FOLLOWUP w8-0-capture-pipeline]` — W8-3 live smoke (2026-04-28)
   closed acceptance signal (a); typed harness-readiness reason codes
   (signal b) remain unconfirmed live.
-- `tests/workflows/marketplace/test_router.py` 3 pre-existing
-  `test_run_analysis_job_*` failures (missing `requires_db` marker;
-  hygiene PR).
 - `make test-security` lane composition — W8-1 + W8-3 tests live in
   subsystem-local lanes; either extend Makefile target or update
   `active-work/W8-security.md` exit criterion to count broader tally.

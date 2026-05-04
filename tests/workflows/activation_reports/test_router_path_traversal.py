@@ -43,7 +43,7 @@ _ADVERSARIAL_NAMES = [
     pytest.param(quote("activation_report_\x00.json", safe=""), id="encoded-null-byte"),
     pytest.param(".activation_report_pub.name-1.0.json", id="leading-dot"),
     pytest.param("activation_report_-bad.json", id="leading-dash-in-slug"),
-    pytest.param("activation_report_" + "x" * 80 + ".json", id="overlength-slug"),
+    pytest.param("activation_report_" + "x" * 211 + ".json", id="overlength-slug"),
     pytest.param("report_pub.name-1.0.0.json", id="missing-activation-prefix"),
     pytest.param("activation_report_pub.name-1.0.0.txt", id="wrong-suffix"),
 ]
@@ -85,3 +85,35 @@ def test_canonical_filename_passes_gate_then_404s_on_bundle(
         "/api/activations/activation_report_pub.name-1.0.0.json/bundle"
     )
     assert response.status_code == 404
+
+
+def test_list_endpoint_filters_malformed_names(
+    client: TestClient, mock_output_dir: Path
+) -> None:
+    """W9-6b: ``GET /api/activations`` must drop glob hits that fail the
+    canonical-name regex. The single-name endpoints already gate via
+    ``Path(..., pattern=...)``; this closes the listing-side gap so a
+    locally-writable file like ``activation_report_evil.json`` never
+    surfaces to API consumers.
+    """
+    valid_name = "activation_report_pub.name-1.0.0.json"
+    # Names that match the glob ``activation_report*.json`` but fail
+    # ``ACTIVATION_REPORT_NAME_RE`` (body must use the per-token
+    # char class ``[A-Za-z0-9][-_.A-Za-z0-9]`` and stay under the
+    # producer ceiling of 210 characters).
+    malformed_names = [
+        "activation_report_-bad.json",  # leading dash violates first-char class
+        "activation_report_"
+        + "x" * 211
+        + ".json",  # body exceeds 210-char producer ceiling
+        "activation_report_a b.json",  # whitespace inside the body
+    ]
+    payload = '{"report_version": 1}'
+    (mock_output_dir / valid_name).write_text(payload)
+    for name in malformed_names:
+        (mock_output_dir / name).write_text(payload)
+
+    response = client.get("/api/activations")
+    assert response.status_code == 200
+    returned = {entry["filename"] for entry in response.json()}
+    assert returned == {valid_name}

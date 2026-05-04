@@ -9,6 +9,8 @@ from collections.abc import Callable
 from datetime import datetime
 from typing import TypedDict
 
+from packages.analysis_contracts.evidence import redact_secrets
+
 from ._shared import _first_non_empty, _log
 from .events import NetworkEvent
 
@@ -148,9 +150,10 @@ def _bounded_body_metadata(
         return {"sha256": sha256, "preview": "", "truncated": True}
 
     preview_bytes = raw_bytes[:_HTTP_BODY_PREVIEW_BYTES]
+    preview_text = preview_bytes.decode("utf-8", errors="replace")
     return {
         "sha256": sha256,
-        "preview": preview_bytes.decode("utf-8", errors="replace"),
+        "preview": redact_secrets(preview_text),
         "truncated": len(raw_bytes) > _HTTP_BODY_PREVIEW_BYTES,
     }
 

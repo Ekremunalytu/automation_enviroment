@@ -1,3 +1,10 @@
+"""Regression: the monitor module is importable purely as
+``executor.flows.playwright.monitor`` (package mode), without any
+``sys.path`` manipulation that would let bare flat names like ``monitor``
+or ``signals`` resolve. ADR 0008 codifies the package-mode contract;
+this test pins it.
+"""
+
 from __future__ import annotations
 
 import importlib
@@ -5,29 +12,7 @@ import sys
 from pathlib import Path
 
 
-_FLAT_MODULE_NAMES = (
-    "monitor",
-    "annotation",
-    "capture",
-    "health",
-    "health_reconciliation",
-    "health_summary",
-    "signal_policy",
-    "signals",
-    "runtime_capture",
-    "executor.flows.playwright.capture",
-    "executor.flows.playwright.health",
-    "executor.flows.playwright.health_reconciliation",
-    "executor.flows.playwright.health_summary",
-    "executor.flows.playwright.signal_policy",
-    "executor.flows.playwright.signals",
-    "executor.flows.playwright.monitor",
-)
-
-
-def test_monitor_package_import_does_not_require_flat_module_names(
-    monkeypatch,
-) -> None:
+def test_monitor_package_import_works_without_flat_path(monkeypatch) -> None:
     repo_root = Path(__file__).resolve().parents[2]
     playwright_dir = repo_root / "executor" / "flows" / "playwright"
     trimmed_path = [
@@ -37,7 +22,7 @@ def test_monitor_package_import_does_not_require_flat_module_names(
     ]
     monkeypatch.setattr(sys, "path", trimmed_path)
 
-    snapshot_keys = set(_FLAT_MODULE_NAMES) | {
+    snapshot_keys = {
         name
         for name in sys.modules
         if name == "executor.flows.playwright"
@@ -60,9 +45,6 @@ def test_monitor_package_import_does_not_require_flat_module_names(
                 sys.modules[name] = original
 
     try:
-        for module_name in _FLAT_MODULE_NAMES:
-            sys.modules.pop(module_name, None)
-
         importlib.invalidate_caches()
         module = importlib.import_module("executor.flows.playwright.monitor")
 

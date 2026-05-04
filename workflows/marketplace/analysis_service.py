@@ -146,12 +146,17 @@ def execute_analysis_request(
 
 
 def map_executor_error(exc: ExecutorError) -> HTTPException:
-    message = str(exc)
-    if "install" in message.lower():
-        detail = f"Failed to install extension in executor: {message}"
+    raw = str(exc)
+    error_id = uuid4().hex[:8]
+    if "install" in raw.lower():
+        public_detail = "Failed to install extension in executor."
     else:
-        detail = f"Automation failed: {message}"
-    return HTTPException(status_code=502, detail=detail)
+        public_detail = "Automation failed in sandbox."
+    logger.warning("executor_error error_id=%s message=%s", error_id, raw)
+    return HTTPException(
+        status_code=502,
+        detail=f"{public_detail} (error_id={error_id})",
+    )
 
 
 def run_analysis_job(job_id: str, request: AnalyzeRequest) -> None:

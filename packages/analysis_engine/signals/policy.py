@@ -1,44 +1,25 @@
-"""Risk signal and activation-layer signal summary policy helpers."""
-# mypy: disable-error-code=no-redef
+"""Risk signal and activation-layer signal summary policy helpers.
+
+Pure logic. Runtime fact resolvers (``is_background_activation``,
+``indexed_target_*``, ``indexed_ui_blockers``) are injected by the caller
+so this module stays framework-agnostic and obeys ADR 0005 §1.
+"""
 
 from __future__ import annotations
 
-import importlib
 import ipaddress
-import sys
 from collections import defaultdict
-from pathlib import Path
+from collections.abc import Callable
 from typing import Any
 
-try:
-    from .health import is_background_activation
-    from .signal_facts import (
-        indexed_target_activations,
-        indexed_target_file_events,
-        indexed_target_network_events,
-        indexed_ui_blockers,
-    )
-except ImportError:  # pragma: no cover - top-level executor import mode
-    from health import is_background_activation
-    from signal_facts import (
-        indexed_target_activations,
-        indexed_target_file_events,
-        indexed_target_network_events,
-        indexed_ui_blockers,
-    )
+from packages.analysis_contracts.detection.enums import quantize_confidence
 
-
-_PROJECT_ROOT = str(Path(__file__).resolve().parents[3])
-if _PROJECT_ROOT not in sys.path:
-    sys.path.insert(0, _PROJECT_ROOT)
-
-_quantize_confidence = importlib.import_module(
-    "packages.analysis_contracts.detection.enums"
-).quantize_confidence
+IsBackgroundActivation = Callable[[str], bool]
+IndexedEvents = Callable[[Any], list[tuple[str, Any]]]
 
 
 def _confidence_tier(value: float) -> str:
-    return str(_quantize_confidence(value))
+    return str(quantize_confidence(value))
 
 
 def _make_signal(risk_signal_type: Any, *, confidence: float, **fields: Any) -> Any:
@@ -49,7 +30,16 @@ def _make_signal(risk_signal_type: Any, *, confidence: float, **fields: Any) -> 
     )
 
 
-def build_risk_signals(report: Any, risk_signal_type: Any) -> list[Any]:
+def build_risk_signals(
+    report: Any,
+    risk_signal_type: Any,
+    *,
+    is_background_activation: IsBackgroundActivation,
+    indexed_target_activations: IndexedEvents,
+    indexed_target_file_events: IndexedEvents,
+    indexed_target_network_events: IndexedEvents,
+    indexed_ui_blockers: IndexedEvents,
+) -> list[Any]:
     signals: list[Any] = []
     target_activations = indexed_target_activations(report)
     background_activation_ids = [
@@ -245,8 +235,8 @@ def build_risk_signals(report: Any, risk_signal_type: Any) -> list[Any]:
                     event_id for event_id, _, _ in qualifying_correlated_events
                 ],
                 summary=(
-                    "Suspicious telemetry was observed near target activations, but the "
-                    "evidence remains correlative."
+                    "Suspicious telemetry was observed near target activations, "
+                    "but the evidence remains correlative."
                 ),
             )
         )
@@ -262,7 +252,8 @@ def build_risk_signals(report: Any, risk_signal_type: Any) -> list[Any]:
                     event_id for event_id, _ in indexed_ui_blockers(report)
                 ],
                 summary=(
-                    "UI blockers interrupted the run and reduced verification certainty."
+                    "UI blockers interrupted the run and reduced verification "
+                    "certainty."
                 ),
             )
         )
@@ -319,6 +310,7 @@ def build_signal_summary(
     *,
     automation_health: dict[str, Any],
     run_quality: tuple[str, list[str]],
+    is_background_activation: IsBackgroundActivation,
 ) -> dict[str, Any]:
     target_id = getattr(report, "target_extension_id", "")
     if not target_id:
@@ -326,9 +318,13 @@ def build_signal_summary(
             "level": "needs_review",
             "score": 25,
             "reasons": [
-                "Target extension context was missing, so ownership could not be evaluated."
+                "Target extension context was missing, so ownership could "
+                "not be evaluated."
             ],
-            "note": "Target extension context was missing, so the run can only be reviewed manually.",
+            "note": (
+                "Target extension context was missing, so the run can only "
+                "be reviewed manually."
+            ),
         }
 
     quality_level, quality_reasons = run_quality
@@ -383,12 +379,14 @@ def build_signal_summary(
     if startup_target and sensitive_target_files:
         score += 28
         reasons.append(
-            "The target extension activated in a background/startup path and then touched sensitive files."
+            "The target extension activated in a background/startup path and "
+            "then touched sensitive files."
         )
     if startup_target and strong_target_networks:
         score += 20
         reasons.append(
-            "The target extension emitted network activity after a background or eager activation."
+            "The target extension emitted network activity after a background "
+            "or eager activation."
         )
     if any(
         getattr(event, "scenario_name", "")
@@ -398,7 +396,8 @@ def build_signal_summary(
     ):
         score += 18
         reasons.append(
-            "Sensitive file access happened while scanning workspace/settings-oriented scenarios."
+            "Sensitive file access happened while scanning "
+            "workspace/settings-oriented scenarios."
         )
     if any(
         getattr(event, "scenario_name", "") in {"terminal_usage", "debug_session"}
@@ -407,39 +406,46 @@ def build_signal_summary(
     ):
         score += 18
         reasons.append(
-            "Credential or secret paths were accessed during terminal/debug-oriented hooks."
+            "Credential or secret paths were accessed during "
+            "terminal/debug-oriented hooks."
         )
     if len({getattr(event, "path", "") for event in sensitive_target_files}) >= 2:
         score += 22
         reasons.append(
-            "Multiple distinct sensitive artifacts were touched with strong target attribution."
+            "Multiple distinct sensitive artifacts were touched with strong "
+            "target attribution."
         )
     if sensitive_target_files and strong_target_networks:
         score += 22
         reasons.append(
-            "Sensitive local access and outbound network activity both belong to the target extension."
+            "Sensitive local access and outbound network activity both belong "
+            "to the target extension."
         )
     if correlated_sensitive_files and not sensitive_target_files:
         score += 14
         reasons.append(
-            "Sensitive file activity exists near target activations, but attribution is only correlative."
+            "Sensitive file activity exists near target activations, but "
+            "attribution is only correlative."
         )
     if getattr(report, "ui_blocker_entries", []):
         score += 5
         reasons.append(
-            "UI blockers were detected, which reduced verification certainty for parts of the run."
+            "UI blockers were detected, which reduced verification certainty "
+            "for parts of the run."
         )
     if getattr(report, "trigger_plan_requested", False) and not getattr(
         report, "trigger_plan_applied", False
     ):
         score += 8
         reasons.append(
-            "The trigger plan was not applied inside the executor, which reduced run reliability."
+            "The trigger plan was not applied inside the executor, which "
+            "reduced run reliability."
         )
     if quality_level == "low":
         score += 6
         reasons.append(
-            "Run quality was low, so suspicious telemetry is weighted conservatively but not dismissed."
+            "Run quality was low, so suspicious telemetry is weighted "
+            "conservatively but not dismissed."
         )
 
     score = max(8, min(96, score))
@@ -474,7 +480,8 @@ def build_signal_summary(
         reasons[0]
         if reasons
         else (
-            "The run did not produce strongly attributed high-risk behavior from the target extension."
+            "The run did not produce strongly attributed high-risk behavior "
+            "from the target extension."
         )
     )
     return {

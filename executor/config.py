@@ -62,9 +62,9 @@ class ExecutorSettings:
     CONTAINER_NAME: str
     EXTENSIONS_CONTAINER_PATH: str
     PLAYWRIGHT_FLOW_DIR: str
-    ENTRYPOINT_PATH: str
-    RELOAD_SCRIPT_PATH: str
-    RESET_SCRIPT_PATH: str
+    ENTRYPOINT_MODULE: str
+    RELOAD_SCRIPT_MODULE: str
+    RESET_SCRIPT_MODULE: str
     DOCKER_EXEC_TIMEOUT: int
 
 
@@ -90,17 +90,17 @@ def build_settings() -> Settings:
                 "EXECUTOR_PLAYWRIGHT_FLOW_DIR",
                 "/home/executor/flows/playwright",
             ),
-            ENTRYPOINT_PATH=_env_str(
-                "EXECUTOR_ENTRYPOINT_PATH",
-                "/home/executor/flows/playwright/entrypoint.py",
+            ENTRYPOINT_MODULE=_env_str(
+                "EXECUTOR_ENTRYPOINT_MODULE",
+                "executor.flows.playwright.entrypoint",
             ),
-            RELOAD_SCRIPT_PATH=_env_str(
-                "EXECUTOR_RELOAD_SCRIPT_PATH",
-                "/home/executor/flows/playwright/reload_vscode.py",
+            RELOAD_SCRIPT_MODULE=_env_str(
+                "EXECUTOR_RELOAD_SCRIPT_MODULE",
+                "executor.flows.playwright.reload_vscode",
             ),
-            RESET_SCRIPT_PATH=_env_str(
-                "EXECUTOR_RESET_SCRIPT_PATH",
-                "/home/executor/flows/playwright/reset_state.py",
+            RESET_SCRIPT_MODULE=_env_str(
+                "EXECUTOR_RESET_SCRIPT_MODULE",
+                "executor.flows.playwright.reset_state",
             ),
             DOCKER_EXEC_TIMEOUT=_env_int("EXECUTOR_DOCKER_EXEC_TIMEOUT", 300),
         ),

@@ -198,6 +198,11 @@ test-smoke:
 	$(VENV)/pytest -v -m "smoke"
 	@echo "✅ Smoke lane complete!"
 
+test-arch-import-mode:  ## Container paket-mode invariant (ADR 0008 §6)
+	@echo "🧪 Asserting container import-mode contract..."
+	$(VENV)/pytest -v tests/architecture/test_container_entrypoint.py -m "smoke or integration or not smoke"
+	@echo "✅ Container import-mode contract held."
+
 test-security:
 	@echo "🧪 Running security fixture lane..."
 	$(VENV)/pytest -v \
@@ -207,7 +212,10 @@ test-security:
 		tests/security/test_rule_validation.py \
 		tests/security/test_benign_silence.py \
 		tests/platform/security \
-		tests/architecture/test_default_bindings.py
+		tests/architecture/test_default_bindings.py \
+		tests/workflows/marketplace/test_vsix_hardening.py \
+		tests/executor/security/test_uri_trigger_injection.py \
+		tests/workflows/activation_reports/test_router_path_traversal.py
 	@echo "✅ Security fixture lane complete!"
 
 test-security-ci-guard:
@@ -404,7 +412,7 @@ exec-test:
 	@echo "✅ All executor tools verified!"
 
 exec-run:
-	docker exec -e PYTHONUNBUFFERED=1 -i automation_executor python3 /home/executor/flows/playwright/entrypoint.py --monitor
+	docker exec -e PYTHONUNBUFFERED=1 -i automation_executor python3 -m executor.flows.playwright.entrypoint --monitor
 
 # =============================================================================
 # SIMULATION / AUTOMATION
@@ -415,7 +423,7 @@ sim-all: exec-up
 	@echo "    NB: this answers 'does the UI engine run?' — NOT 'did a target extension activate?'."
 	@echo "    Expected: target_extension_observed=false, run_quality=inconclusive."
 	@echo "    For target-activation health use: make sim-target TARGET=publisher.name"
-	docker exec -e PYTHONUNBUFFERED=1 -i automation_executor python3 /home/executor/flows/playwright/entrypoint.py --monitor
+	docker exec -e PYTHONUNBUFFERED=1 -i automation_executor python3 -m executor.flows.playwright.entrypoint --monitor
 
 sim-target: exec-up
 	@if [ -z "$(TARGET)" ]; then \
@@ -423,7 +431,7 @@ sim-target: exec-up
 		exit 1; \
 	fi
 	@echo "🤖 Running target-extension smoke for $(TARGET)..."
-	docker exec -e PYTHONUNBUFFERED=1 -i automation_executor python3 /home/executor/flows/playwright/entrypoint.py \
+	docker exec -e PYTHONUNBUFFERED=1 -i automation_executor python3 -m executor.flows.playwright.entrypoint \
 		--monitor \
 		--target-extension-id $(TARGET) \
 		$(if $(TRIGGERS),--triggers $(TRIGGERS),) \
@@ -431,11 +439,11 @@ sim-target: exec-up
 
 sim-demo: exec-up
 	@echo "🤖 Running quick demo scenario..."
-	docker exec -e PYTHONUNBUFFERED=1 -i automation_executor python3 /home/executor/flows/playwright/entrypoint.py --demo
+	docker exec -e PYTHONUNBUFFERED=1 -i automation_executor python3 -m executor.flows.playwright.entrypoint --demo
 
 sim-list:
 	@echo "🤖 Listing available scenarios..."
-	docker exec -e PYTHONUNBUFFERED=1 -i automation_executor python3 /home/executor/flows/playwright/entrypoint.py --list
+	docker exec -e PYTHONUNBUFFERED=1 -i automation_executor python3 -m executor.flows.playwright.entrypoint --list
 
 sim-run: exec-up
 	@if [ -z "$(SCENARIO)" ]; then \
@@ -443,7 +451,7 @@ sim-run: exec-up
 		exit 1; \
 	fi
 	@echo "🤖 Running scenario: $(SCENARIO)..."
-	docker exec -e PYTHONUNBUFFERED=1 -i automation_executor python3 /home/executor/flows/playwright/entrypoint.py --monitor --scenario $(SCENARIO)
+	docker exec -e PYTHONUNBUFFERED=1 -i automation_executor python3 -m executor.flows.playwright.entrypoint --monitor --scenario $(SCENARIO)
 
 demo-canary: exec-up
 	@echo "🤖 Installing safe runnable demo canary into executor..."
@@ -451,7 +459,7 @@ demo-canary: exec-up
 	docker cp "$(DEMO_CANARY_DIR)/." automation_executor:"$(DEMO_CANARY_CONTAINER_DIR)/"
 	docker exec -u root automation_executor chown -R executor:executor "$(DEMO_CANARY_CONTAINER_DIR)"
 	@echo "🤖 Triggering $(DEMO_CANARY_ID) command via Playwright..."
-	docker exec -e PYTHONUNBUFFERED=1 automation_executor python3 /home/executor/flows/playwright/entrypoint.py \
+	docker exec -e PYTHONUNBUFFERED=1 automation_executor python3 -m executor.flows.playwright.entrypoint \
 		--monitor \
 		--skip-automation \
 		--reload-before-run \

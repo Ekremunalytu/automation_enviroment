@@ -115,8 +115,13 @@ RUN chmod 755 /usr/local/bin/start.sh /home/executor/container/launch_vscode.sh 
     && chown executor:executor /home/executor/container/launch_vscode.sh
 
 # Copy Playwright automation scripts and shared contract package needed at runtime.
+# ADR 0008: regular-package layout — `executor` and `executor.flows` are real
+# packages (not PEP 420 namespace) so the canonical `python -m
+# executor.flows.playwright.X` invocation resolves deterministically.
 COPY --chown=executor:executor executor/flows /home/executor/flows
 COPY --chown=executor:executor packages /home/packages
+RUN touch /home/executor/__init__.py /home/executor/flows/__init__.py \
+    && chown executor:executor /home/executor/__init__.py /home/executor/flows/__init__.py
 RUN find /home/executor/flows/harness_extension -type f -print0 \
     | LC_ALL=C sort -z \
     | xargs -0 sha256sum > /home/executor/flows/harness_extension.sha256 \
@@ -127,7 +132,8 @@ WORKDIR /workspace
 
 ENV DISPLAY=${EXECUTOR_DEFAULT_DISPLAY} \
     DONT_PROMPT_WSL_INSTALL=1 \
-    VSCODE_CLI_DISABLE_TELEMETRY=1
+    VSCODE_CLI_DISABLE_TELEMETRY=1 \
+    PYTHONPATH=/home
 
 EXPOSE ${EXECUTOR_DEFAULT_NOVNC_PORT}
 

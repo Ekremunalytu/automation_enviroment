@@ -1,19 +1,10 @@
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 from types import SimpleNamespace
 
+from executor.flows.playwright import stimulus, stimulus_attempts
 from packages.analysis_contracts import TriggerPayload
-
-PLAYWRIGHT_DIR = (
-    Path(__file__).resolve().parents[2] / "executor" / "flows" / "playwright"
-)
-if str(PLAYWRIGHT_DIR) not in sys.path:
-    sys.path.insert(0, str(PLAYWRIGHT_DIR))
-
-import stimulus  # noqa: E402
-import stimulus_attempts  # noqa: E402
 
 
 class _FakeMonitor:
@@ -171,6 +162,62 @@ def test_workspace_contains_fixture_creates_requested_patterns(
     assert (tmp_path / "app.py").exists()
     assert (tmp_path / "nested" / "pylock.dev.toml").exists()
     assert monitor.results[0]["status"] == "completed"
+
+
+def test_workspace_contains_fixture_rejects_parent_traversal(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setattr(stimulus.workspace, "WORKSPACE_DIR", tmp_path)
+    monitor = _FakeMonitor()
+    prerequisite = {
+        "prerequisite_id": "prep-workspace-contains",
+        "key": "workspace_contains_fixture",
+        "attempt_ids": ["a"],
+    }
+    attempts_by_id = {
+        "a": {
+            "attempt_id": "a",
+            "event_value": "../../tmp/extrace_escape.txt",
+            "activation_event": "workspaceContains:../../tmp/extrace_escape.txt",
+        }
+    }
+
+    result = stimulus._materialize_prerequisite(
+        prerequisite,
+        payload=_payload(),
+        attempts_by_id=attempts_by_id,
+        monitor=monitor,
+    )
+
+    assert result.status == "blocked"
+    assert result.reason_code == "prerequisite_blocked"
+    escape_target = (tmp_path / ".." / ".." / "tmp" / "extrace_escape.txt").resolve()
+    assert not escape_target.exists()
+    assert monitor.results[0]["status"] == "blocked"
+
+
+def test_workspace_helper_rejects_absolute_and_traversal_paths(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    import pytest
+
+    from executor.flows.playwright import workspace as workspace_module
+
+    monkeypatch.setattr(workspace_module, "WORKSPACE_DIR", tmp_path)
+
+    with pytest.raises(ValueError, match="must be relative"):
+        workspace_module.create_workspace_file("/etc/passwd_overwrite", "")
+    with pytest.raises(ValueError, match="escapes WORKSPACE_DIR"):
+        workspace_module.create_workspace_file("../../tmp/extrace_escape.txt", "")
+    with pytest.raises(ValueError, match="escapes WORKSPACE_DIR"):
+        workspace_module.create_workspace_dir("../sibling")
+
+    # Containment-safe relative path still works.
+    safe = workspace_module.create_workspace_file("nested/ok.txt", "ok")
+    assert safe.exists()
+    assert safe.read_text() == "ok"
 
 
 def test_workspace_contains_fixture_falls_back_to_deterministic_placeholder(
@@ -726,7 +773,7 @@ def test_ensure_harness_ready_returns_when_marker_valid(tmp_path: Path) -> None:
 def test_ensure_harness_ready_raises_missing_when_marker_absent(tmp_path: Path) -> None:
     import pytest
 
-    from stimulus_types import (
+    from executor.flows.playwright.stimulus_types import (
         HARNESS_READY_MARKER_MISSING_REASON,
         HarnessUnavailableError,
     )
@@ -744,7 +791,7 @@ def test_ensure_harness_ready_raises_invalid_when_marker_unparseable(
 ) -> None:
     import pytest
 
-    from stimulus_types import (
+    from executor.flows.playwright.stimulus_types import (
         HARNESS_READY_MARKER_INVALID_REASON,
         HarnessUnavailableError,
     )
@@ -765,7 +812,7 @@ def test_ensure_harness_ready_raises_invalid_when_required_field_missing(
 
     import pytest
 
-    from stimulus_types import (
+    from executor.flows.playwright.stimulus_types import (
         HARNESS_READY_MARKER_INVALID_REASON,
         HarnessUnavailableError,
     )
@@ -795,7 +842,7 @@ def test_ensure_harness_ready_raises_stale_when_epoch_mismatches(
 ) -> None:
     import pytest
 
-    from stimulus_types import (
+    from executor.flows.playwright.stimulus_types import (
         HARNESS_READY_MARKER_STALE_REASON,
         HarnessUnavailableError,
     )
@@ -891,7 +938,7 @@ def test_ensure_harness_ready_with_recovery_succeeds_on_second_poll(
 def test_ensure_harness_ready_with_recovery_exhausts_budget(tmp_path: Path) -> None:
     import pytest
 
-    from stimulus_types import (
+    from executor.flows.playwright.stimulus_types import (
         HARNESS_READY_MARKER_MISSING_REASON,
         HarnessUnavailableError,
     )
@@ -913,7 +960,7 @@ def test_ensure_harness_ready_with_recovery_does_not_retry_stale(
     """STALE is a corruption signal: retry would observe the same defect."""
     import pytest
 
-    from stimulus_types import (
+    from executor.flows.playwright.stimulus_types import (
         HARNESS_READY_MARKER_STALE_REASON,
         HarnessUnavailableError,
     )
@@ -937,7 +984,7 @@ def test_ensure_harness_ready_with_recovery_does_not_retry_stale(
 
 
 def test_health_summary_reason_labels_cover_w8_0_codes() -> None:
-    from health_summary import automation_reason_to_text
+    from executor.flows.playwright.health_summary import automation_reason_to_text
 
     for code in (
         "harness_ready_marker_missing",

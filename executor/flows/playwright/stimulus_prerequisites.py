@@ -5,8 +5,8 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
-import workspace
-from stimulus_materializers import (
+from . import workspace
+from .stimulus_materializers import (
     _resolve_event_value,
     blocked,
     completed,

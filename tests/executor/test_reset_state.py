@@ -2,18 +2,11 @@ from __future__ import annotations
 
 import signal
 import subprocess
-import sys
 from pathlib import Path
 
 import pytest
 
-PLAYWRIGHT_DIR = (
-    Path(__file__).resolve().parents[2] / "executor" / "flows" / "playwright"
-)
-if str(PLAYWRIGHT_DIR) not in sys.path:
-    sys.path.insert(0, str(PLAYWRIGHT_DIR))
-
-import reset_state  # noqa: E402
+from executor.flows.playwright import reset_state
 
 
 def _stub_vscode_lifecycle(monkeypatch: pytest.MonkeyPatch) -> None:

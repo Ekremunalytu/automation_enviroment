@@ -20,7 +20,7 @@ import subprocess
 import time
 from pathlib import Path
 
-import workspace
+from . import workspace
 
 VSCODE_DATA_DIR = Path("/home/executor/.vscode")
 EXTENSIONS_DIR = VSCODE_DATA_DIR / "extensions"

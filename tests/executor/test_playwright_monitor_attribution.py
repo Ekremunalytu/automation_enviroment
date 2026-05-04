@@ -1,16 +1,9 @@
 from __future__ import annotations
 
 import json
-import sys
 from pathlib import Path
 
-PLAYWRIGHT_DIR = (
-    Path(__file__).resolve().parents[2] / "executor" / "flows" / "playwright"
-)
-if str(PLAYWRIGHT_DIR) not in sys.path:
-    sys.path.insert(0, str(PLAYWRIGHT_DIR))
-
-import monitor  # noqa: E402
+from executor.flows.playwright import monitor
 
 
 def test_annotate_file_events_preserves_duplicate_observers_and_emits_links() -> None:
@@ -1048,7 +1041,7 @@ def test_attempt_has_runtime_evidence_accepts_lifecycle_observation_states() -> 
     as if no stimulus had reached it.
     """
 
-    import health_runtime_facts
+    from executor.flows.playwright import health_runtime_facts
 
     for status in ("activation_seen", "target_log_seen", "attempted_only", "verified"):
         attempt = monitor.EventAttemptRecord(

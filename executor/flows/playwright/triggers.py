@@ -9,24 +9,18 @@ scenarios and run extra activation triggers.
 from __future__ import annotations
 
 import contextlib
-import importlib
 import json
-import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from pydantic import ValidationError
 
+from packages.analysis_contracts import TriggerPayload
+
 if TYPE_CHECKING:
     from packages.analysis_contracts import TriggerPayload as TriggerPayloadModel
 else:
     TriggerPayloadModel = Any
-
-_PROJECT_ROOT = str(Path(__file__).resolve().parents[3])
-if _PROJECT_ROOT not in sys.path:
-    sys.path.insert(0, _PROJECT_ROOT)
-
-TriggerPayload = importlib.import_module("packages.analysis_contracts").TriggerPayload
 
 
 def load_trigger_file(path: str) -> TriggerPayloadModel | None:

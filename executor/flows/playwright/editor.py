@@ -5,11 +5,11 @@ Covers activation events: onLanguage:*, onCustomEditor:*
 
 import subprocess
 
-import keyboard
-from commands import quick_open, run_command
-
 from playwright.sync_api import Page
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
+
+from . import keyboard
+from .commands import quick_open, run_command
 
 
 def new_untitled_file(page: Page) -> None:

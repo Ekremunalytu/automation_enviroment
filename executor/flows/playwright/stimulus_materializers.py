@@ -5,15 +5,15 @@ from __future__ import annotations
 import json
 from typing import Any
 
-import workspace
-from stimulus_types import (
+from . import workspace
+from .stimulus_types import (
     _HARNESS_CONTEXT_DIR,
     _HARNESS_CONTEXT_PATH,
     _LAUNCH_PATH,
     _TASKS_PATH,
     PrerequisiteMaterialization,
 )
-from workspace_seed_data import LANGUAGE_EXTENSIONS
+from .workspace_seed_data import LANGUAGE_EXTENSIONS
 
 
 def materialize_task_definition() -> PrerequisiteMaterialization:
@@ -93,6 +93,15 @@ def materialize_workspace_contains_fixture(
                 (
                     "workspaceContains fixture materialization does not support "
                     f"pattern {pattern!r}."
+                ),
+                {"pattern": pattern},
+            )
+        except ValueError as exc:
+            return blocked(
+                "prerequisite_blocked",
+                (
+                    "workspaceContains pattern rejected by workspace path "
+                    f"policy: {pattern!r} ({exc})."
                 ),
                 {"pattern": pattern},
             )

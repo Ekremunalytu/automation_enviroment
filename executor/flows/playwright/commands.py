@@ -6,14 +6,11 @@ Covers activation events: onCommand:*
 
 from __future__ import annotations
 
-try:
-    from . import keyboard
-except ImportError:  # pragma: no cover - top-level executor import mode
-    import keyboard
-
 from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import Page
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
+
+from . import keyboard
 
 _QUICK_INPUT_VISIBLE = ".quick-input-widget:not([style*='display: none'])"
 _QUICK_INPUT_INPUT_SELECTORS = (
