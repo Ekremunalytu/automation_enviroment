@@ -1,6 +1,6 @@
 # W8 — Security Hardening (Active Work Tracker)
 
-`Last Updated: 2026-05-02`
+`Last Updated: 2026-05-04`
 
 This is the canonical active work tracker for the W8 security hardening
 window. Items have stable IDs (`W8-1` … `W8-8`). Code comments, tests, and
@@ -460,9 +460,9 @@ command-injection vektörleri içeriyor.
       job_service + analysis_execution) helper'a geçirilmiş;
       `tests/platform/security/test_manifest_log_sanitization.py`
       green — **deferred with W8-8**.
-- [ ] Container-packaging ADR (number TBD; ADR 0008 if next available)
-      **draft** başlamış
-      (merged olması gerekmiyor — W9 girişinde merged olur)
+- [x] Container-packaging ADR (ADR 0008) merged into `main` via W9 PR #9
+      `2026-05-04` (`d67944d`). Status: **Accepted** (flipped Proposed →
+      Accepted with W9-3 landing on `2026-04-30`).
 - [x] ADR 0007 (local network binding) merged; `.env.example` +
       `docker-compose.yml` + `appcore/api/config.py` defaultları
       `127.0.0.1` / allow-list CORS; `EXTRACE_ALLOW_LAN=1` opt-in

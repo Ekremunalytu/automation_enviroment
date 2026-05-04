@@ -157,6 +157,16 @@ remaining checkbox before W9 entry.
   secrets → `[REDACTED:aws]`/`[REDACTED:bearer]`). Detail block in
   `active-work/W8-security.md` W8-9 entry.
 
+- **W9 closed `2026-05-04`** — `feat/w9-executor-detection-boundary`
+  merged into `main` via PR #9 (`d67944d`). All §11.6 items landed:
+  W9-1 (`76c0760`), W9-2 (`55ee3f7`), W9-3 (`ae0a8a7`), W9-4 folded
+  into W9-3, W9-5 (`a38cb6f`); W9-6a..d follow-ups + W8-7 detail
+  leakage close (`842fd07`) + W8-9 external-review P1/P2 (`16d6df4`)
+  also rode the branch. ADR 0008 status **Accepted**. Dependency gate
+  (§11.3 "W10 ← W9") green. Final exit bar:
+  `make check-all` 978 passed / 6 skipped / 6 deselected. W10
+  (§11.7 contract hygiene + planner cleanup) **open**.
+
 - **CI pipeline retired `2026-04-30`** — `.github/workflows/ci.yml` and
   `.github/workflows/docs-check.yml` removed; `security.yml` (weekly
   Trivy + Bandit) kept. The `security-fixtures` job (iptables egress
