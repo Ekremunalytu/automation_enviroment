@@ -23,12 +23,18 @@
 - **W8 closed for active work `2026-04-29`** — W8-1..W8-7 + W8-9
   landed; W8-8 manifest log sanitization deferred under named triggers
   (see `active-work/W8-security.md`). **W9 closed `2026-05-04` via
-  PR #9.** Active phase: **W10 contract hygiene + planner cleanup**
-  on `feat/w10-contract-hygiene` (PR #11, in flight). Plan navigation:
-  `documents/AGENT_CONTEXT.md` → matching lane doc. Past W8/W9
-  trackers stay around because code/tests reference items by stable
-  ID (`W8-N`, W9 commit hashes), not because new work is being done
-  in those windows.
+  PR #9.** **W10 closed `2026-05-04` via PR #11** (contract hygiene +
+  planner cleanup; W10-1..W10-7 landed). Active phase: **W11 monitor
+  lifecycle split** — entry gate met `2026-05-04` after the
+  `[FOLLOWUP w11-precursor-tests]` safety net landed (38 direct
+  module-owned tests for `runtime_capture/extension_host.py` and
+  `health_reconciliation.py`). W11-1 `MonitorRuntime` extraction is
+  the next pull-first; tracker at
+  `active-work/W11-monitor-lifecycle.md`. Plan navigation:
+  `documents/AGENT_CONTEXT.md` → matching lane doc. Past W8/W9/W10
+  trackers and stable IDs stay around because code/tests reference
+  items by ID (`W8-N`, W9/W10 commit hashes), not because new work is
+  being done in those windows.
 - ADR 0007 local-network-binding **Accepted and implemented**
   `2026-04-29` via W8-7 (`feat/w8-7-lan-binding-defaults`). Loopback
   defaults + `EXTRACE_ALLOW_LAN` enforcement live in

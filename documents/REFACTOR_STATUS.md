@@ -164,8 +164,33 @@ remaining checkbox before W9 entry.
   leakage close (`842fd07`) + W8-9 external-review P1/P2 (`16d6df4`)
   also rode the branch. ADR 0008 status **Accepted**. Dependency gate
   (§11.3 "W10 ← W9") green. Final exit bar:
-  `make check-all` 978 passed / 6 skipped / 6 deselected. W10
-  (§11.7 contract hygiene + planner cleanup) **open**.
+  `make check-all` 978 passed / 6 skipped / 6 deselected.
+
+- **W10 closed `2026-05-04`** — `feat/w10-contract-hygiene` merged into
+  `main` via PR #11 (`25e4c16`). All §11.7 items landed: W10-1
+  schema_version (`b9f4d6c`), W10-2 `_TriggerPayloadDraft` elimination
+  (`a4d8cc8`), W10-3 `registry.py` 4-way split (`e48f179`), W10-4
+  `automation_health` typing (`22f9915`), W10-5
+  `validate_executor_action` enum (`b312d34`), W10-6 runtime-evidence
+  state alignment (`c1d58ef`), W10-7 W8-6 output signal redaction
+  (`c1e2273`); pre-W11 audit findings closed in `ec2d84c` (UI types
+  drift + doc sync) and `3d3e1cd` (PR #11 review fixup — disk
+  persistence + automation_health required). Dependency gate
+  (§11.3 "W11 ← W10") green: typed AutomationHealth/CoverageSummary +
+  schema_version 2.0 ready for the W11 monitor split assembler
+  signature. Final exit bar: `make check-all` 1041 passed / 6 skipped /
+  6 deselected.
+
+- **W11 entry gate met `2026-05-04`** — `[FOLLOWUP w11-precursor-tests]`
+  safety net landed: `tests/executor/test_playwright_extension_host.py`
+  (23 cases) and `tests/executor/test_playwright_health_reconciliation.py`
+  (15 cases) provide direct module-owned coverage for the two
+  playwright god-modules touched by the W11 lifecycle split, so the
+  refactor cannot regress public behavior through facade/integration
+  coverage alone. W11 active tracker:
+  [`active-work/W11-monitor-lifecycle.md`](active-work/W11-monitor-lifecycle.md).
+  W11 (§11.8 monitor lifecycle split) **open** — W11-1
+  `MonitorRuntime` extraction is the next pull-first.
 
 - **CI pipeline retired `2026-04-30`** — `.github/workflows/ci.yml` and
   `.github/workflows/docs-check.yml` removed; `security.yml` (weekly

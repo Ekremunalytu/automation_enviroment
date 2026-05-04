@@ -21,24 +21,30 @@ tagged `[FOLLOWUP simulation-progress-cancel]` in
 deterministic harness readiness gate both landed on `2026-04-27`;
 **W8 closed for active work `2026-04-29`** (W8-1..W8-7 + W8-9 landed,
 W8-8 deferred under named triggers); **W9 closed `2026-05-04` via
-PR #9**; **W10 contract hygiene + planner cleanup is in flight on
-`feat/w10-contract-hygiene` (PR #11)**.
+PR #9**; **W10 closed `2026-05-04` via PR #11**;
+**W11 entry gate met `2026-05-04`** — `[FOLLOWUP w11-precursor-tests]`
+safety net landed; W11 monitor lifecycle split (§11.8) is the active
+pull-first phase, tracked in
+[`active-work/W11-monitor-lifecycle.md`](active-work/W11-monitor-lifecycle.md).
 
 ## Now (next-iteration pull)
 
 Source of truth: `POST_POC_BACKLOG.md` "Next iteration (pull first)" and
 `REFACTOR_STATUS.md` for landed closure evidence. The W7 `[NEXT]` items
 (attribution split + sim-target lane), simulation progress/cancel/VNC/demo
-canary work, PR345 PRs 1-5, W8-0, and W8/W9 in their entirety are all
-landed. Active phase: W10 contract hygiene + planner cleanup
-(`feat/w10-contract-hygiene`, PR #11). The next pull-first candidates
-after W10 lands:
+canary work, PR345 PRs 1-5, W8-0, W8/W9 in their entirety, and W10
+contract hygiene + planner cleanup (PR #11, `2026-05-04`) are all
+landed. Active phase: W11 monitor lifecycle split
+(`active-work/W11-monitor-lifecycle.md`). The pull-first candidates
+inside and just past W11:
 
 + **W11 (`REFACTOR_OPTIMIZATION.md` §11.8) monitor lifecycle split.**
-  Precursor: `[FOLLOWUP w11-precursor-tests]` in `POST_POC_BACKLOG.md`
-  — minimal direct tests for two playwright god-modules
-  (`runtime_capture/extension_host.py`, `health_reconciliation.py`)
-  must land **before** the split refactor.
+  Precursor `[FOLLOWUP w11-precursor-tests]` landed `2026-05-04`
+  (38 direct module-owned tests across
+  `tests/executor/test_playwright_extension_host.py` and
+  `tests/executor/test_playwright_health_reconciliation.py`). W11-1
+  `MonitorRuntime` extraction is the next pull-first; full W11-N
+  schedule in `active-work/W11-monitor-lifecycle.md`.
 + **W11+W12 lifecycle wiring** picks up
   `[FOLLOWUP target-log-lifecycle-instrumentation]` — wire
   `reconcile_event_attempts` / its W11 successor to emit the

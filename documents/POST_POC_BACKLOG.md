@@ -147,18 +147,26 @@ when picking an item up.
 - **T2 declawed samples + T3 handling** + `make test-security-live`
   hardening — ADR 0004 covers policy; operational plumbing waits on
   real T2 engagement.
-- **`[FOLLOWUP w11-precursor-tests]`** — Two playwright god-modules
-  are tested mostly through the `monitor` facade today rather than
-  direct module-owned tests:
+- **`[FOLLOWUP w11-precursor-tests]`** — *LANDED 2026-05-04* on the W11
+  prep branch. Two playwright god-modules now have direct module-owned
+  test coverage so the W11 lifecycle split (`§11.8`) and W12
+  subpackaging (`§11.9`) cannot regress public behavior through
+  facade/integration coverage alone:
+  `tests/executor/test_playwright_extension_host.py` (23 cases —
+  pins `parse_activations_from_output`, `parse_activations_from_log`,
+  `parse_strace_process_event_line`, `find_exthost_logs`,
+  `parse_all_exthost_logs`, `read_extension_host_output`,
+  `ExtensionHostFileCapture` initial state) covers
   `executor/flows/playwright/runtime_capture/extension_host.py`
-  (679 LOC, strace parsing + PID discovery) and
-  `executor/flows/playwright/health_reconciliation.py` (533 LOC,
-  activation verification + cross-imports `health_summary`). Both are
-  scheduled for refactor (`§11.8` W11 lifecycle split, `§11.9` W12
-  subpackaging). Land minimal direct tests covering the public
-  parse/reconcile surface as a safety net **before** the splits land,
-  so the refactor is not over-dependent on facade/integration coverage.
-  Surfaced by 2026-05-04 audit pass.
+  (679 LOC); `tests/executor/test_playwright_health_reconciliation.py`
+  (15 cases — pins the W10-6 frozenset state machine
+  {`failed`, `blocked`, `verified`, `activation_seen`, `target_log_seen`,
+  `attempted_only`} including the harness-unverified path, plus
+  `reconcile_coverage_verification` matrix shape) covers
+  `executor/flows/playwright/health_reconciliation.py` (533 LOC).
+  Both files import their target module by its real path (not via the
+  `monitor` facade) so the W11 facade re-export rearrangement cannot
+  silently drift. Surfaced by 2026-05-04 audit pass.
 - **`[FOLLOWUP w12-attribution-naming-overlap]`** —
   `attribution_summary.background_activation_count` and
   `attribution_summary.competing_candidate_count` describe overlapping

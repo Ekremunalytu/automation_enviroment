@@ -16,9 +16,12 @@ Do not copy phase history here; use `REFACTOR_STATUS.md` (slim canonical).
 - **Past W8 work tracker (closed `2026-04-29`):**
   `active-work/W8-security.md` (stable IDs W8-1..W8-9; code/tests
   still reference items by ID — keep IDs stable when reorganizing).
-  W9 closed `2026-05-04`; W10 contract hygiene is the active phase
-  on `feat/w10-contract-hygiene` (PR #11). For current closure
-  state always defer to `REFACTOR_STATUS.md`.
+  W9 closed `2026-05-04`; W10 closed `2026-05-04` via PR #11. **Active
+  phase:** W11 monitor lifecycle split — tracker at
+  `active-work/W11-monitor-lifecycle.md` (stable IDs W11-1..W11-8);
+  entry gate met `2026-05-04` after `[FOLLOWUP w11-precursor-tests]`
+  safety net landed. For current closure state always defer to
+  `REFACTOR_STATUS.md`.
 - Architecture: `ARCHITECTURE.md` (slim) + `architecture/` splits.
 - Placement rules: `PROJECT_STRUCTURE.md` (slim) + `structure/` splits.
 - Test lanes: `TESTING.md` (slim) + `testing/` splits.
