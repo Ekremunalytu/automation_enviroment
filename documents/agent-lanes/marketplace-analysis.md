@@ -1,6 +1,6 @@
 # Marketplace And Analysis Lane
 
-`Last Updated: 2026-04-29`
+`Last Updated: 2026-05-04`
 
 Use this lane for marketplace search/download, sandbox analysis orchestration,
 async analysis jobs, cancellation, trigger planning, and report handoff.
@@ -26,6 +26,16 @@ async analysis jobs, cancellation, trigger planning, and report handoff.
   `executor.control`.
 - Trigger planning must keep unsupported, skipped, failed, and verified states
   explicit in reports.
+- The planner→executor action surface is intentionally narrow:
+  `packages/analysis_contracts/executor_actions.py::validate_executor_action`
+  rejects anything outside `EXTRA_EXECUTOR_ACTIONS` (the 5 closed-set
+  `extra:` action names) or the namespaced `EXECUTOR_ACTION_NAMESPACES`
+  prefix set (`scenario:`, `command:`, `extra:`, `fixture:`, `harness:`).
+  When adding a new executor verb, extend exactly one of those frozensets
+  AND add the matching dispatcher branch in
+  `executor/flows/playwright/stimulus_attempts.py::_dispatch_action` —
+  emitting an unregistered action is a producer-side bug, not a runtime
+  fallthrough.
 
 ## Tests And Checks
 

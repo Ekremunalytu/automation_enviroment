@@ -282,6 +282,22 @@ UI v3 redesign minimal-completion landed `2026-04-29` (see
 - **`[ADD ui-v3-10/11/12]`** Inspector drawer + RuleDraftSection on
   Reports, Run health + Coverage summary on Simulation, Ledger Scenario
   tab (LANDED 2026-04-28).
+- **`[FOLLOWUP ui-supplemental-types-retire]`** —
+  `scripts/generate_ui_contracts.py:115` ships a hardcoded
+  `SUPPLEMENTAL_TYPES` TypeScript string for `AutomationHealthDto`,
+  `LogHealthDto`, `AttributionSummaryDto`, `RiskSummaryDto`,
+  `CoverageSummaryDto`, `CoverageCapabilityDto`, `CoverageTrackDto`,
+  `CoverageTracksDto`, `EventCoverageDto`, and `LogStreamsDto` instead
+  of introspecting the Pydantic models. `make ui-types-check` cannot
+  detect drift because the template is the source of truth on both
+  sides of the `--check` comparison. W10-4's three new
+  `AutomationHealth` fields (`extension_host_log_found`,
+  `extra_trigger_failures`, `extra_trigger_failure_count`) silently
+  went missing on the TS side until manual W10 QA caught it. Migrate
+  `AutomationHealthDto` and `CoverageSummaryDto` (at minimum) into the
+  Pydantic introspect path so future field additions surface through
+  `make ui-types-check`. Natural landing: W13 test expansion +
+  observability. Surfaced by 2026-05-04 W10 QA pass.
 - UI component split (7.3.1, 7.3.2, 7.3.3, 7.3.4, 7.3.5) + axe-core —
   surface not stabilized; rejected from W8-W13.
 

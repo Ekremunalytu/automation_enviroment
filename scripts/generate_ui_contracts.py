@@ -119,10 +119,13 @@ SUPPLEMENTAL_TYPES = """export interface AutomationHealthDto {
   trigger_loaded?: boolean;
   trigger_applied?: boolean;
   extension_host_log_present?: boolean;
+  extension_host_log_found?: boolean;
   extension_host_output_present?: boolean;
   target_stream_present?: boolean;
   target_activation_count?: number;
   failed_scenarios?: string[];
+  extra_trigger_failures?: string[];
+  extra_trigger_failure_count?: number;
   skipped_scenarios?: string[];
 }
 

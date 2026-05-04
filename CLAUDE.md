@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-`Last Updated: 2026-04-29`
+`Last Updated: 2026-05-04`
 
 This file is intentionally a thin pointer. Do not duplicate phase summaries or
 architecture maps here; that caused drift.
