@@ -1,6 +1,6 @@
 # W11 — Monitor Lifecycle Split (Active Work Tracker)
 
-`Last Updated: 2026-05-04`
+`Last Updated: 2026-05-04 (W11-1 landed)`
 
 This is the canonical active work tracker for the W11 monitor lifecycle
 split window. Items have stable IDs (`W11-1` … `W11-8`). Code comments,
@@ -21,8 +21,39 @@ item by reading both this tracker and that archive section.
   landed (`tests/executor/test_playwright_extension_host.py` 23 cases,
   `tests/executor/test_playwright_health_reconciliation.py` 15 cases). The
   W11 split refactor is now safe to start.
-- **W11-1** — pending. `MonitorRuntime` extraction
-  (`executor/flows/playwright/monitor_runtime.py`, new).
+- **W11-1** — landed `2026-05-04`. `MonitorRuntime` extraction landed in
+  `executor/flows/playwright/monitor_runtime_state.py` (new, 334 LoC).
+  Note: filename diverged from the archive entry because
+  `monitor_runtime.py` already existed (554 LoC of runtime
+  verification/process helpers consumed by the lifecycle module).
+  `ExtensionMonitor` becomes a transitional facade that composes the
+  new collaborator via constructor injection and forwards public
+  methods (`start`, `stop`, `attach_runtime_tracers`,
+  `capture_runtime_snapshot`, `__enter__`/`__exit__`,
+  `_handle_*_event`); persistence, scenario finalization, activation
+  log appending, and derived-state refresh stay on the facade as
+  callbacks until W11-5 collapses the orchestration. `monitor_lifecycle.py`
+  shrank 852 → 672 LoC. Tests:
+  `tests/executor/test_playwright_monitor_runtime_state.py` (14 cases,
+  imported at the real module path so the W12 reshuffle cannot
+  silently regress this surface) +
+  `tests/executor/test_extension_monitor_facade.py` (9 cases pinning
+  the W11-1 transitional delegation stubs and the
+  facade→runtime callback wiring; W11-5 must rewrite these against
+  the collapsed facade). Baseline grew 1079 → 1102.
+
+  **Live-scan validation (`2026-05-04`):** the W11-1 build was
+  exercised end-to-end against `ms-python.python@2026.5.2026042602`
+  in the live executor (job
+  `a412888c4736400ca4d09d9466f83519`, 444s monitoring,
+  22 activations / 175 network events / 2515 file events / 282
+  process events, 5 stimulus passes + 3 scenarios completed,
+  detection verdict=clean). Field-by-field comparison against four
+  prior scans of the same target on the same container (including
+  one taken minutes before the W11-1 cutover) showed bitwise-equal
+  pre/post pattern: identical activation count, scenario_traces=3,
+  log_entries=0, run_quality=medium, automation_health=degraded.
+  No new behavior delta from the refactor.
 - **W11-2** — pending. `ReportAssembler` extraction
   (`executor/flows/playwright/monitor_report_assembler.py`, new).
 - **W11-3** — pending. `ActivationReport.activation_discovery_strategies`
@@ -31,8 +62,11 @@ item by reading both this tracker and that archive section.
 - **W11-4** — pending. `ScenarioAccountant` extraction
   (`executor/flows/playwright/monitor_scenario_accountant.py`, new).
 - **W11-5** — pending. `ExtensionMonitor` composition facade —
-  `monitor_lifecycle.py` 852 → ≤200 LoC (current size 852, archive
-  §11.8 cited 834 — module grew between W8 and W10).
+  `monitor_lifecycle.py` ≤200 LoC final target (current size **672**
+  after W11-1, down from 852; archive §11.8 cited 834 — module grew
+  between W8 and W10). W11-5 must also remove the transitional
+  delegation stubs (`_handle_*_event` shims, `_log_offsets` property)
+  and inline runtime composition into the facade init.
 - **W11-6** — pending. Per-strategy `_stop_<strategy>` helpers in
   `ExtensionMonitor.stop()` (warm-start, command-probe, output-channel,
   log-tail).
@@ -120,11 +154,19 @@ For each W11-N to be marked **landed**:
 
 ## Notes / Drift
 
-- `monitor_lifecycle.py` is **852 LoC** as of `2026-05-04`; archive plan
-  cited 834 LoC. The drift is post-W7 + W8/W9 hardening; the W11-5
-  ≤200 LoC target stays unchanged.
+- `monitor_lifecycle.py` was **852 LoC** at the start of `2026-05-04`;
+  after W11-1 it is **672 LoC**; archive plan cited 834 LoC pre-W10.
+  W11-5 ≤200 LoC target unchanged.
 - The W11 entry table in
   `archive/plans/REFACTOR_OPTIMIZATION_full_2026-04-29.md` lines 2478–
   2485 is the canonical W11-N→file mapping. If split granularity
   changes during execution, update both this tracker and the archive
   table at the same time.
+- **W11-1 filename divergence** (`2026-05-04`): the archive table
+  lists the new module as `monitor_runtime.py`, but that filename was
+  already taken by a 554-LoC helper module (runtime verification +
+  process helpers consumed by the lifecycle module). To avoid name
+  collision, the new state-machine class lives in
+  `monitor_runtime_state.py`. Downstream items (W11-5, W11-6) should
+  reference this module. The archive table will be reconciled when
+  W11 closes; until then, this tracker is the source of truth.

@@ -8,7 +8,6 @@ from pathlib import Path
 from types import TracebackType
 from typing import Any
 
-from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import Page
 
 from .attribution import (
@@ -41,18 +40,11 @@ from .monitor_runtime import (
     _build_stimulus_pass_log_message,
     _count_target_activations,
     _find_event_attempt,
-    _merge_activation_entries,
     _reconcile_coverage_verification,
-    _requires_startup_grace,
 )
+from .monitor_runtime_state import MonitorRuntime
 from .monitor_support import resolve_monitor_api
 from .monitor_types import ActivationReport
-from .output_signals import (
-    annotate_output_signal_events,
-    merge_output_signal_events,
-    parse_output_signal_events,
-    read_output_channel_logs,
-)
 from .runtime_capture._shared import _log, _parse_iso_timestamp
 from .runtime_capture.events import FileEvent, NetworkEvent, ProcessEvent
 
@@ -94,13 +86,30 @@ class ExtensionMonitor:
         self.page = page
         self.report_path = None if report_path is None else Path(report_path)
         self.report = ActivationReport(target_extension_id=target_extension_id)
-        self._started = False
-        self._log_offsets: dict[str, int] = {}
-        self._network_capture: Any = None
-        self._file_capture: Any = None
-        self._extension_file_capture: Any = None
         self._active_scenarios: dict[str, ScenarioTrace] = {}
         self._last_persist_at = 0.0
+        # W11-1: runtime state machine (captures, log offsets, event handlers)
+        # is owned by MonitorRuntime; persistence and accountant callbacks are
+        # wired back to this facade until W11-2/W11-4/W11-5 collapse them.
+        self._runtime = MonitorRuntime(
+            page=self.page,
+            report=self.report,
+            persist=self._persist_report,
+            record_automation_event=self.record_automation_event,
+            finalize_scenarios=self._finalize_running_scenarios,
+            append_activation_log_entries=self._append_activation_log_entries,
+            refresh_derived_state=self._refresh_derived_report_state,
+        )
+
+    @property
+    def _log_offsets(self) -> dict[str, int]:
+        """W11-1 transitional shim: log offsets live on MonitorRuntime now.
+
+        Report-assembly methods that still live on this facade
+        (``verify_target_reaction``) read offsets through this property
+        until W11-2 lands the ``ReportAssembler`` collaborator.
+        """
+        return self._runtime.log_offsets
 
     def apply_trigger_payload(self, payload: Any) -> None:
         """Attach trigger-selection metadata to the in-progress report."""
@@ -112,191 +121,16 @@ class ExtensionMonitor:
         self._persist_report(force=False)
 
     def start(self) -> None:
-        api = resolve_monitor_api()
-        self.report.monitoring_start = time.time()
-        self.report.monitoring_started_monotonic = api.time.monotonic()
-        self._log_offsets = api._snapshot_log_offsets()
-        self.report.log_offsets_snapshot = dict(self._log_offsets)
-        self._network_capture = api.NetworkCapture(
-            monitoring_start=self.report.monitoring_start,
-            on_event=self._handle_network_event,
-        )
-        self._network_capture.start()
-        network_capture_error = getattr(
-            self._network_capture, "capture_error", ""
-        ) or getattr(self._network_capture, "start_error", "")
-        if network_capture_error:
-            self.report.network_capture_error = network_capture_error
-            self.record_automation_event(
-                "network_capture",
-                f"Network capture unavailable: {network_capture_error}",
-                status="failed",
-            )
-        self._file_capture = api.FileSystemCapture(
-            monitoring_start=self.report.monitoring_start,
-            on_event=self._handle_file_event,
-        )
-        self._file_capture.start()
-        if self._file_capture.start_error:
-            self.report.file_capture_error = self._file_capture.start_error
-        self._started = True
-        self._persist_report(force=True)
-        _log("Monitoring started")
+        """Delegate to MonitorRuntime; preserved for facade public surface."""
+        self._runtime.start()
 
     def attach_runtime_tracers(self) -> None:
-        api = resolve_monitor_api()
-        if self._extension_file_capture is not None:
-            return
-
-        try:
-            self._extension_file_capture = api.ExtensionHostFileCapture(
-                monitoring_start=self.report.monitoring_start,
-                on_event=self._handle_file_event,
-                on_process_event=self._handle_process_event,
-            )
-        except TypeError:
-            self._extension_file_capture = api.ExtensionHostFileCapture(
-                monitoring_start=self.report.monitoring_start,
-                on_event=self._handle_file_event,
-            )
-        self._extension_file_capture.start()
-        self.report.file_capture_diagnostics = dict(
-            self._extension_file_capture.diagnostics
-        )
-        if (
-            self._extension_file_capture.start_error
-            and not self.report.file_capture_error
-        ):
-            self.report.file_capture_error = self._extension_file_capture.start_error
-        if self._extension_file_capture.start_error:
-            self.record_automation_event(
-                "runtime_tracer_attach",
-                (
-                    "Extension Host file capture unavailable after "
-                    f"{self._extension_file_capture.attach_attempts} attempt(s): "
-                    f"{self._extension_file_capture.start_error}"
-                ),
-                status="failed",
-            )
-        else:
-            self.record_automation_event(
-                "runtime_tracer_attach",
-                (
-                    "Extension Host file capture attached to pid "
-                    f"{self._extension_file_capture.pid} after "
-                    f"{self._extension_file_capture.attach_attempts} attempt(s)."
-                ),
-                status="completed",
-            )
-        self._persist_report(force=True)
+        """Delegate to MonitorRuntime; preserved for facade public surface."""
+        self._runtime.attach_runtime_tracers()
 
     def stop(self) -> ActivationReport:
-        api = resolve_monitor_api()
-        if not self._started:
-            _log("Warning: stop() called without start()")
-            self.report.monitoring_start = time.time()
-            self.report.monitoring_started_monotonic = api.time.monotonic()
-
-        if self._network_capture is not None:
-            self.report.network_events = self._network_capture.stop()
-            network_capture_error = getattr(
-                self._network_capture, "capture_error", ""
-            ) or getattr(self._network_capture, "start_error", "")
-            if network_capture_error:
-                if self.report.network_capture_error != network_capture_error:
-                    self.record_automation_event(
-                        "network_capture",
-                        f"Network capture collector failed: {network_capture_error}",
-                        status="failed",
-                    )
-                self.report.network_capture_error = network_capture_error
-        if self._file_capture is not None:
-            self.report.file_events = self._file_capture.stop()
-            if self._file_capture.start_error and not self.report.file_capture_error:
-                self.report.file_capture_error = self._file_capture.start_error
-        if self._extension_file_capture is not None:
-            extension_events = self._extension_file_capture.stop()
-            if (
-                self._extension_file_capture.start_error
-                and not self.report.file_capture_error
-            ):
-                self.report.file_capture_error = (
-                    self._extension_file_capture.start_error
-                )
-            self.report.file_events.extend(extension_events)
-
-        if _requires_startup_grace(self.report):
-            _log("Waiting 2.0s for startup-only activation evidence to flush...")
-            api.time.sleep(2.0)
-
-        self.report.monitoring_end = time.time()
-        self.report.monitoring_ended_monotonic = api.time.monotonic()
-        self._finalize_running_scenarios()
-        _log(f"Monitoring stopped ({self.report.duration_s:.1f}s elapsed)")
-        self._persist_report(force=True)
-
-        try:
-            _log("Strategy 1: Parsing Extension Host logs...")
-            self.report.activated = api.parse_all_exthost_logs(
-                start_offsets=self._log_offsets
-            )
-            if self.report.activated:
-                log_files = api.find_exthost_logs()
-                self.report.log_file_path = str(log_files[0]) if log_files else ""
-        except (OSError, ValueError) as exc:
-            _log(f"Strategy 1 failed: {exc}")
-        self._persist_report(force=True)
-
-        try:
-            _log("Strategy 2: Scraping Running Extensions UI...")
-            self.report.running_extensions = api.get_running_extensions(self.page)
-        except (PlaywrightError, OSError, ValueError) as exc:
-            _log(f"Strategy 2 failed: {exc}")
-            try:
-                self.page.keyboard.press("Escape")
-                self.page.wait_for_timeout(300)
-            except PlaywrightError as esc_exc:
-                _log(f"Strategy 2 recovery failed: {esc_exc}")
-        self._persist_report(force=True)
-
-        try:
-            _log("Strategy 3: Reading Extension Host output...")
-            self.report.extension_host_output = api.read_extension_host_output()
-            self.report.activated = _merge_activation_entries(
-                self.report.activated,
-                api.parse_activations_from_output(
-                    self.report.extension_host_output,
-                    monitoring_start=self.report.monitoring_start,
-                ),
-            )
-        except OSError as exc:
-            _log(f"Strategy 3 failed: {exc}")
-        self._append_activation_log_entries()
-        # PR345 PR5 + W8-0 capture-pipeline fix: merge two source streams
-        # before attribution. The legacy stream (parse_output_signal_events)
-        # consumes ``[extrace-harness]`` markers from the captured exthost
-        # output; the W8-0 fix stream (read_output_channel_logs) reads
-        # VS Code 1.105+ per-channel persistence files directly because
-        # ``console.log`` from extensions no longer reaches exthost.log
-        # in 1.105+. ADR 0006 §2-§4 owns the contract.
-        self.report.output_signal_events = annotate_output_signal_events(
-            merge_output_signal_events(
-                parse_output_signal_events(
-                    self.report.extension_host_output,
-                    monitoring_start=self.report.monitoring_start,
-                ),
-                read_output_channel_logs(
-                    monitoring_start=self.report.monitoring_start,
-                ),
-            ),
-            activations=self.report.activated,
-            target_extension_id=self.report.target_extension_id,
-            monitoring_start=self.report.monitoring_start,
-        )
-        self._refresh_derived_report_state()
-        self._persist_report(force=True)
-
-        return self.report
+        """Delegate to MonitorRuntime; preserved for facade public surface."""
+        return self._runtime.stop()
 
     def __enter__(self) -> ExtensionMonitor:
         self.start()
@@ -312,12 +146,20 @@ class ExtensionMonitor:
         self.stop()
 
     def _handle_network_event(self, event: NetworkEvent) -> None:
-        self.report.network_events.append(event)
-        self._persist_report(force=False)
+        """W11-1 transitional shim: forward to runtime handler."""
+        self._runtime._handle_network_event(event)
 
     def _handle_process_event(self, event: ProcessEvent) -> None:
-        self.report.process_events.append(event)
-        self._persist_report(force=False)
+        """W11-1 transitional shim: forward to runtime handler."""
+        self._runtime._handle_process_event(event)
+
+    def _handle_file_event(self, event: FileEvent) -> None:
+        """W11-1 transitional shim: forward to runtime handler."""
+        self._runtime._handle_file_event(event)
+
+    def capture_runtime_snapshot(self) -> dict[str, int | bool]:
+        """Delegate to MonitorRuntime; preserved for facade public surface."""
+        return self._runtime.capture_runtime_snapshot()
 
     def mark_trigger_plan_applied(
         self,
@@ -536,10 +378,6 @@ class ExtensionMonitor:
             activation_event=attempt.activation_event,
         )
 
-    def _handle_file_event(self, event: FileEvent) -> None:
-        self.report.file_events.append(event)
-        self._persist_report(force=False)
-
     def record_scenario_event(
         self,
         action: str,
@@ -673,24 +511,6 @@ class ExtensionMonitor:
             self.report.log_entries[-1], self.report.target_extension_id
         )
         self._persist_report(force=False)
-
-    def capture_runtime_snapshot(self) -> dict[str, int | bool]:
-        api = resolve_monitor_api()
-        target_activations = _count_target_activations(
-            api.parse_all_exthost_logs(start_offsets=self._log_offsets),
-            self.report.target_extension_id,
-        )
-        target_running = any(
-            entry.extension_id == self.report.target_extension_id
-            for entry in api.get_running_extensions(self.page)
-        )
-        return {
-            "target_activations": target_activations,
-            "target_running": target_running,
-            "target_file_events": len(self.report.target_file_events),
-            "target_network_events": len(self.report.target_network_events),
-            "ui_blockers": len(self.report.ui_blocker_entries),
-        }
 
     def verify_target_reaction(
         self,
