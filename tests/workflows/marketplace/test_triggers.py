@@ -146,7 +146,7 @@ class TestSelectScenarios:
     def test_empty_events_falls_back_to_coding_session(self) -> None:
         payload = select_scenarios([])
         assert payload.selected_scenarios == ["coding_session"]
-        assert payload.coverage_summary["covered"] == 0
+        assert payload.coverage_summary.covered == 0
         assert payload.official_attempted_capabilities == []
         assert payload.heuristic_attempted_capabilities == [
             "commands",

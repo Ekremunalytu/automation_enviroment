@@ -6,6 +6,7 @@ from typing import Any, cast
 
 from packages.analysis_contracts import TriggerPayload
 from packages.analysis_contracts.contracts import (
+    CoverageSummary,
     EventAttemptRecord,
     PrerequisiteResult,
     TriggerScenarioDetail,
@@ -118,7 +119,12 @@ def _finalize_payload(
     ]
     official_matrix = build_coverage_matrix(payload, track=_OFFICIAL_TRACK)
     heuristic_matrix = build_coverage_matrix(payload, track=_HEURISTIC_TRACK)
-    payload.coverage_summary = _summarize_coverage_matrix(official_matrix)
+    # W10-4: coverage_summary slot is typed CoverageSummary; the planner
+    # emits the 6-field projection while attempted/verified counts default
+    # to 0 (executor's reconcile_coverage_verification fills them in later).
+    payload.coverage_summary = CoverageSummary.model_validate(
+        _summarize_coverage_matrix(official_matrix)
+    )
     payload.coverage_matrix = official_matrix
     payload.coverage_tracks = {
         _OFFICIAL_TRACK: {

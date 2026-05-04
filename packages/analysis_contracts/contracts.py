@@ -17,13 +17,25 @@ from pydantic import (
 # W10-1: Proactive schema evolution discipline for ActivationReport.
 # Bumped on breaking changes; minor bumps emit DeprecationWarning, major
 # bumps are rejected under model_validate(..., context={"strict_schema": True}).
-ACTIVATION_REPORT_SCHEMA_VERSION = "1.0"
+# W10-4: 1.0 -> 2.0 — automation_health and coverage_summary slots became
+# typed models (AutomationHealth, CoverageSummary) instead of dict[str, Any].
+ACTIVATION_REPORT_SCHEMA_VERSION = "2.0"
 
 
 class StrictContractModel(BaseModel):
     """Common base for backend-owned contract models."""
 
     model_config = ConfigDict(extra="forbid")
+
+
+# Imports placed below StrictContractModel so the typed-projection modules
+# (which import StrictContractModel from this file) can resolve without
+# bringing in a half-initialized contracts module.
+from packages.analysis_contracts.automation import (  # noqa: E402
+    AutomationHealth,
+    AutomationHealthStatusLiteral,  # noqa: F401  (re-exported via __init__)
+)
+from packages.analysis_contracts.coverage import CoverageSummary  # noqa: E402
 
 
 class ActivationEntry(StrictContractModel):
@@ -342,7 +354,7 @@ class ActivationReport(StrictContractModel):
     schema_version: str = ACTIVATION_REPORT_SCHEMA_VERSION
     report_version: int
     target_extension_expected: str
-    automation_health: dict[str, Any]
+    automation_health: AutomationHealth = Field(default_factory=AutomationHealth)
     signal_summary: dict[str, Any]
     summary: dict[str, Any]
     scenario_traces: list[ScenarioTrace]
@@ -386,7 +398,7 @@ class ActivationReport(StrictContractModel):
     evidence_links: list[EvidenceLink] = Field(default_factory=list)
     network_summary: dict[str, Any] = Field(default_factory=dict)
     file_summary: dict[str, Any] = Field(default_factory=dict)
-    coverage_summary: dict[str, Any] = Field(default_factory=dict)
+    coverage_summary: CoverageSummary = Field(default_factory=CoverageSummary)
     coverage_matrix: list[dict[str, Any]] = Field(default_factory=list)
     coverage_tracks: dict[str, dict[str, Any]] = Field(default_factory=dict)
     official_event_coverage: dict[str, Any] = Field(default_factory=dict)
@@ -455,7 +467,7 @@ class TriggerPayload(StrictContractModel):
     selected_scenario_details: list[TriggerScenarioDetail] = Field(default_factory=list)
     selection_reasons: dict[str, list[str]] = Field(default_factory=dict)
     coverage_tracks: dict[str, dict[str, Any]] = Field(default_factory=dict)
-    coverage_summary: dict[str, Any] = Field(default_factory=dict)
+    coverage_summary: CoverageSummary = Field(default_factory=CoverageSummary)
     coverage_matrix: list[dict[str, Any]] = Field(default_factory=list)
     official_attempted_capabilities: list[str] = Field(default_factory=list)
     heuristic_attempted_capabilities: list[str] = Field(default_factory=list)
