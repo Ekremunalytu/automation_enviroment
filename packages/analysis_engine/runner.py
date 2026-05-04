@@ -43,23 +43,16 @@ def _normalize_health_status(value: object) -> AutomationHealthLiteral:
 
 
 def _coerce_automation_health(report: ActivationReport) -> AutomationHealthStatus:
-    payload = (
-        report.automation_health if isinstance(report.automation_health, dict) else {}
-    )
-    reasons = payload.get("reasons", [])
-    blockers = payload.get("blockers", [])
-    normalized_reasons = (
-        [str(item) for item in reasons] if isinstance(reasons, list) else []
-    )
-    normalized_blockers = (
-        [str(item) for item in blockers]
-        if isinstance(blockers, list)
-        else normalized_reasons
-    )
+    # W10-4: report.automation_health is now a typed AutomationHealth
+    # (was dict[str, Any] pre-W10). The detection-side AutomationHealthStatus
+    # is a 3-field projection (status/reasons/blockers); copy reasons over
+    # and pass them as blockers too because the producer never emits a
+    # distinct ``blockers`` list.
+    health = report.automation_health
     return AutomationHealthStatus(
-        status=_normalize_health_status(payload.get("status", "healthy")),
-        reasons=normalized_reasons,
-        blockers=normalized_blockers,
+        status=_normalize_health_status(health.status),
+        reasons=list(health.reasons),
+        blockers=list(health.reasons),
     )
 
 

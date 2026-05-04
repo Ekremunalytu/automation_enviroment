@@ -21,6 +21,7 @@ from executor.control import (
     ExecutorError,
     default_executor_control,
 )
+from packages.analysis_contracts import redact_secrets
 from workflows.marketplace import client as marketplace_client
 from workflows.marketplace import job_service
 from workflows.marketplace.analysis_errors import (
@@ -152,7 +153,17 @@ def map_executor_error(exc: ExecutorError) -> HTTPException:
         public_detail = "Failed to install extension in executor."
     else:
         public_detail = "Automation failed in sandbox."
-    logger.warning("executor_error error_id=%s message=%s", error_id, raw)
+    # W10-7 (closes [FOLLOWUP w8-6-output-signals-redaction]): the W8-7
+    # detail-leakage close routes only the generic public detail to the
+    # HTTP response; the raw exception text still lands in logger.warning
+    # for triage. Redact secrets before logging so log aggregation /
+    # ingestion pipelines never see API keys / DB URLs / OAuth tokens
+    # leaked through executor exception text.
+    logger.warning(
+        "executor_error error_id=%s message=%s",
+        error_id,
+        redact_secrets(raw),
+    )
     return HTTPException(
         status_code=502,
         detail=f"{public_detail} (error_id={error_id})",
