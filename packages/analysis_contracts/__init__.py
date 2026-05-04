@@ -53,6 +53,11 @@ from packages.analysis_contracts.evidence import (
     ContentSample,
     redact_secrets,
 )
+from packages.analysis_contracts.executor_actions import (
+    EXECUTOR_ACTION_NAMESPACES,
+    EXTRA_EXECUTOR_ACTIONS,
+    validate_executor_action,
+)
 from packages.analysis_contracts.report_invariants import (
     activation_report_invariant_issues,
     detection_report_invariant_issues,
@@ -62,6 +67,8 @@ from packages.analysis_contracts.report_invariants import (
 __all__ = [
     "ACTIVATION_REPORT_SCHEMA_VERSION",
     "EVENT_ATTEMPT_LIFECYCLE_STATES",
+    "EXECUTOR_ACTION_NAMESPACES",
+    "EXTRA_EXECUTOR_ACTIONS",
     "SECRET_CLASSES",
     "ActivationEntry",
     "ActivationReport",
@@ -104,4 +111,5 @@ __all__ = [
     "quantize_confidence",
     "redact_secrets",
     "scenario_trace_names",
+    "validate_executor_action",
 ]

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from packages.analysis_contracts import validate_executor_action
 from packages.analysis_planner.io import _activation_label, _slugify
 from packages.analysis_planner.registry import (
     _BUILTIN_VIEW_IDS,
@@ -26,12 +27,17 @@ def _build_event_attempt(
     selected_by: str,
 ) -> dict[str, Any]:
     activation_event = _activation_label(event_type, event_value)
-    executor_action = _resolve_executor_action(
-        strategy.family,
-        event_value,
-        publisher_name=publisher_name,
+    # W10-5: validate at the producer boundary so any typo in
+    # _resolve_executor_action raises here instead of bubbling to the
+    # playwright dispatcher's "Unsupported stimulus action" branch.
+    executor_action = validate_executor_action(
+        _resolve_executor_action(
+            strategy.family,
+            event_value,
+            publisher_name=publisher_name,
+        )
     )
-    backfill_executor_action = (
+    backfill_executor_action = validate_executor_action(
         f"harness:{strategy.harness_fallback}" if strategy.harness_fallback else ""
     )
     pass_name = _choose_primary_pass(strategy.family, track)
