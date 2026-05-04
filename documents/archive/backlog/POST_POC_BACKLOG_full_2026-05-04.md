@@ -95,13 +95,18 @@ when picking an item up.
   `running`. AGENTS.md exception for the broad catch documented at the
   supervisor site only. Surfaced by 2026-04-29 audit pass.
 - **`[FOLLOWUP analysis-thread-error-detail-leakage]`** — *CLOSED
-  2026-05-03 on `feat/w9-executor-detection-boundary`* (W8-7
-  LAN-exposure trigger). `analysis_service.map_executor_error()`
-  redacts paths/env from public HTTP detail, suffixes an 8-char
-  `error_id`, retains raw text in `logger.warning`. Regression:
-  `tests/workflows/marketplace/test_router.py::
-  test_map_executor_error_redacts_internal_paths_and_env`. Detail in
-  `archive/backlog/POST_POC_BACKLOG_full_2026-05-04.md`.
+  2026-05-03 on `feat/w9-executor-detection-boundary`*. W8-7 LAN-exposure
+  trigger reached; `analysis_service.map_executor_error()` now returns a
+  generic public detail (`"Failed to install extension in executor."` /
+  `"Automation failed in sandbox."`) suffixed with an 8-char `error_id`,
+  and emits the raw exception text via `logger.warning("executor_error
+  error_id=%s message=%s", ...)` so operator triage stays available
+  without exposing internal paths or env values to HTTP callers.
+  Regression: `tests/workflows/marketplace/test_router.py
+  ::test_map_executor_error_redacts_internal_paths_and_env` (asserts
+  `/etc/`, `/home/`, `POSTGRES_PASSWORD`, and the secret value are absent
+  from `HTTPException.detail` while still present in the captured warning
+  log record).
 - **`[FOLLOWUP sqlalchemy-error-subtype-logging]`**
   `appcore/storage/crud_ops/analysis_jobs.py` (and the wider `crud_ops/`
   surface) catches `SQLAlchemyError` broadly without distinguishing
@@ -117,28 +122,6 @@ when picking an item up.
   call sites unverified during the audit pass. Inspect downstream
   usage; if the generic does not earn its keep, remove it. Surfaced by
   2026-05-04 audit pass.
-- **`[FOLLOWUP scripts-seed-test-rewrite]`** — `scripts/seed_test.py`
-  carries four AGENTS hard-rule violations in one file: `:55`
-  `sys.path.insert`, `:119` `Extension(...)` ORM creation bypassing
-  Pydantic (rule 3), `:154` `db.add` bypassing CRUD facade (rule 2),
-  `:164` generic `except Exception` (rule 6 — explicit). Either
-  delete (if obsolete) or rewrite through `appcore/storage/crud.py`
-  with Pydantic + narrow exception types. Surfaced by 2026-05-04
-  second-pass review.
-- **`[FOLLOWUP triggers-private-helper-import]`** —
-  `workflows/marketplace/triggers.py:14` imports
-  `_glob_to_bait_filename` from `packages.analysis_planner.io`,
-  violating ADR 0005 §3 (public API through package roots). Either
-  promote a public re-export through
-  `packages/analysis_planner/__init__.py`, or inline the helper into
-  `triggers.py`. Surfaced by 2026-05-04 second-pass review.
-- **`[CLEANUP httpx-runtime-dependency-metadata]`** — `httpx` is
-  imported in production at `workflows/marketplace/{client,router}.py`
-  and installed by `docker/api/requirements.txt:9`, but absent from
-  `pyproject.toml [project].dependencies` (`:15-24`); only
-  `[project.optional-dependencies].dev:33` lists it. Move to base
-  dependencies — no new dep, packaging metadata fix. Surfaced by
-  2026-05-04 second-pass review.
 
 ### Executor / Capture Hygiene
 
@@ -163,51 +146,6 @@ when picking an item up.
 - Allow-list (`benign_domains.txt`, `popular_extensions.txt`) versioned
   data artifact promotion.
 - Domain service pattern genişletmesi (2.8 — W7'de ertelendi).
-- **`[FOLLOWUP report-invariants-runtime-evidence-drift]`** —
-  `packages/analysis_contracts/report_invariants.py:55`
-  (`_attempt_has_runtime_evidence`) counts only `{attempted_only,
-  verified, failed}`, but the runtime equivalent at
-  `executor/flows/playwright/health_runtime_facts.py:31`
-  (`attempt_has_runtime_evidence`) counts `{attempted_only,
-  activation_seen, target_log_seen, verified, failed}` and includes
-  an explicit comment justifying the broader set
-  (`activation_seen`/`target_log_seen` are intermediate observation
-  states emitted by `reconcile_event_attempts` when the target
-  activated but full verification did not close). Contract invariant
-  lags runtime; align both helpers and add a contract-level
-  regression test pinning the broader set. Natural landing: W10
-  contract hygiene. Surfaced by 2026-05-04 second-pass review.
-- **`[FOLLOWUP planner-executor-action-enum]`** — Planner emits
-  string actions (e.g. `extra:uri_trigger`,
-  `scenario:<scenario_name>`) at
-  `packages/analysis_planner/attempts.py`; executor dispatches over
-  raw action strings at
-  `executor/flows/playwright/stimulus_attempts.py:308`. Typos or
-  unhandled action names become runtime behaviour bugs rather than
-  contract validation failures. Add an enum or narrow Pydantic
-  contract for executor action names so dispatch becomes total.
-  Natural landing: W10 contract hygiene (alongside the existing
-  `_TriggerPayloadDraft` elimination in `§11.7`). Keep dispatch
-  explicit — no generic event framework. Surfaced by 2026-05-04
-  second-pass review.
-- **`[FOLLOWUP w8-6-output-signals-redaction]`** — Three
-  extension-derived text surfaces escape `ContentSample`/redaction:
-  (a) `executor/flows/playwright/output_signals.py:115` truncates but
-  does not redact, and the contract field
-  `OutputSignalEvent.text` (`packages/analysis_contracts/contracts.py
-  :258`) is plain `str`; (b) `workflows/marketplace/
-  analysis_execution.py:71-74` appends raw executor stderr/stdout
-  500-byte tail to job progress; (c)
-  `workflows/marketplace/analysis_service.py:155`
-  (`map_executor_error`) preserves raw exception text in
-  `logger.warning` for triage. Migrate to `ContentSample` (or pipe
-  through `redact_secrets()` at construction) and append the
-  affected fields to `_PENDING_MIGRATION` in
-  `tests/platform/security/test_content_sample_typing.py`.
-  Companion to
-  `[FOLLOWUP w8-6-content-sample-structural-test]`; landing both
-  together as W10 contract hygiene closes the W8-6 broader sweep.
-  Surfaced by 2026-05-04 second-pass review.
 
 ### UI
 
@@ -251,13 +189,19 @@ UI v3 redesign minimal-completion landed `2026-04-29` (see
 ### Repo Hygiene (surfaced 2026-04-29 audit pass)
 
 - **`[CLEANUP repo-tracked-scratch-files]`** — *LANDED 2026-05-03 on
-  `feat/w9-executor-detection-boundary`*. `problems.md` + `todo.md`
-  untracked + `.gitignore`'d (root scope); canonical status owned by
-  `REFACTOR_STATUS.md` + `automation_todo.md`.
+  `feat/w9-executor-detection-boundary`*. `git rm --cached problems.md
+  todo.md` + `.gitignore` rules `/problems.md` and `/todo.md` (root
+  scope only). Files preserved on disk for the operator; canonical
+  status now reads from `documents/REFACTOR_STATUS.md` and
+  `documents/automation_todo.md` exclusively. The `problems.md`
+  snapshot was a 2026-04-24 post-W7 issue catalog whose entries are
+  superseded by the `REFACTOR_STATUS.md` W8/W9 closure entries.
 - **`[CLEANUP tests-scanner-rename]`** — *LANDED 2026-05-03 on
   `feat/w9-executor-detection-boundary`*. `git mv tests/scanner
-  tests/executor/scanner` (34 tests preserved); no inbound imports
-  to update. pytest collection unchanged.
+  tests/executor/scanner` (34 tests preserved verbatim under the new
+  path); pytest collection unchanged (`pyproject.toml` `testpaths =
+  ["tests"]` discovers the subdirectory automatically). No inbound
+  imports referenced the old module path.
 - **`[CLEANUP report-builder-naming]`** — Two "report" modules with
   similar names live in different layers:
   `executor/flows/playwright/report_builder.py` (in-container, builds
@@ -277,40 +221,6 @@ UI v3 redesign minimal-completion landed `2026-04-29` (see
   `executor/container/start.sh:25-26` — and stays undocumented.
   Append commented entries with one-sentence purpose strings.
   Surfaced by 2026-05-04 audit pass.
-- **`[CLEANUP agent-context-phase-snapshot-stale]`** —
-  `documents/AGENT_CONTEXT.md:24-29` still says "W8 is open … W8-6,
-  W8-7, W8-8 pending" and "ADR 0007 … pending W8-7 implementation",
-  while `REFACTOR_STATUS.md:78` says "W8 is closed for active work"
-  and W8-7 is implemented in `appcore/api/config.py:40-96`. Stale
-  agent-routing snapshot risks misrouting future agents into wrong
-  phase context. Fix: refresh the AGENT_CONTEXT snapshot to current
-  state (W8 closed, W9 active) or remove volatile phase detail and
-  point to `REFACTOR_STATUS.md` as the single source of truth.
-  Surfaced by 2026-05-04 second-pass review.
-- **`[CLEANUP postgres-version-fact-drift]`** — `docker-compose.yml:3`
-  runs `image: postgres:16-alpine`, while project fact references
-  (audit prompts, README, possibly older docs) state PostgreSQL 15.
-  Compose is ground truth for runtime. Audit fact references and
-  update to PG 16 — or pin compose back to 15 if the version bump
-  was incidental. Surfaced by 2026-05-04 second-pass review.
-- **`[CLEANUP adr-0007-runbook-wording-drift]`** —
-  `documents/adrs/0007-local-network-binding.md:86` says a compose
-  selector substitutes the wildcard binding when `EXTRACE_ALLOW_LAN=1`
-  is set; `documents/runbooks/lan-exposure.md:91` says the operator
-  must edit `docker-compose.yml` ports manually. Code is on the safer
-  side (compose binds `127.0.0.1:` literally and post-init only
-  swaps API HOST to `0.0.0.0` inside the process), but the two docs
-  describe different operator paths. Reconcile wording. Surfaced by
-  2026-05-04 second-pass review.
-- **`[CLEANUP session-docstring-except-exception]`** —
-  `appcore/db/session.py:137` is a docstring example that teaches
-  `except Exception: db.rollback()` as the canonical session
-  pattern, even though AGENTS rule 6 forbids it in production code.
-  Not executable, but the example will mislead future authors and
-  conflict with the planned `[FOLLOWUP arch-gate-no-bare-except]`
-  AST gate. Replace the docstring example with narrow exception
-  types (`SQLAlchemyError`, `IntegrityError`). Surfaced by
-  2026-05-04 second-pass review.
 
 ### Test + Observability (Promoted To W13)
 
@@ -342,16 +252,22 @@ codex-automation-3, 7, 8.
   closed by W8-3 live smoke 2026-04-28; signal (b) typed
   harness-readiness reason codes still unconfirmed live.
 - **`[FOLLOWUP make-test-security-lane-composition]`** — *FULL CLOSE
-  2026-04-30 via W9-6d*. `make test-security` now unions fixture
-  hygiene + architecture defaults + W8 subsystem security lanes
-  (`tests/security/`, `tests/platform/security/`,
-  `tests/architecture/test_default_bindings.py`,
-  `tests/workflows/marketplace/test_vsix_hardening.py`,
-  `tests/executor/security/test_uri_trigger_injection.py`,
-  `tests/workflows/activation_reports/test_router_path_traversal.py`).
-  W9-5 container import-mode test stays under
-  `make test-arch-import-mode` (smoke marker; default pytest config
-  filters smoke out, so folding would silently deselect).
+  2026-04-30 via W9-6d*. `make test-security` now runs the union of
+  fixture hygiene + architecture defaults + every subsystem-local W8
+  security lane:
+  - `tests/security/` (rule fixtures + benign-silence)
+  - `tests/platform/security/` (W8-6 ContentSample redaction +
+      W9-6c structural typing)
+  - `tests/architecture/test_default_bindings.py` (W8-7)
+  - `tests/workflows/marketplace/test_vsix_hardening.py`
+      (W8-1 + W9-6a logging breadcrumbs)
+  - `tests/executor/security/test_uri_trigger_injection.py` (W8-3)
+  - `tests/workflows/activation_reports/test_router_path_traversal.py`
+      (W8-5 + W9-6b list-endpoint name filter)
+  W9-5 container import-mode test stays under the dedicated
+  `make test-arch-import-mode` target because it carries the `smoke`
+  marker (default pytest config filters smoke out); folding it into
+  the security lane would silently deselect on the inherited filter.
 - **`[FOLLOWUP w8-4-broader-executor]`** — W8-4 absolute-binary-path
   discipline applied to `executor/host.py` + `uri_validation.py` only
   (tracker scope). Bare-name `subprocess.run`/`Popen` literals remain
@@ -373,50 +289,31 @@ codex-automation-3, 7, 8.
   pragmas. POST_POC because it is uniformly `# nosec`-annotated already
   and not on the W8 stakeholder bar.
 - **`[FOLLOWUP w8-1-extract-rejection-logging]`** —
-  *Logging half closed 2026-04-30 via W9-6a*:
-  `_extract_vsix_to_dir` emits per-entry `vsix_entry_rejected
-  reason={path_traversal,symlink_escape}` + aggregate
-  `vsix_extraction_rejections total=...` and returns rejection count;
-  regression in `tests/workflows/marketplace/test_vsix_hardening.py`.
-  *Count propagation pending*: tuple the count out of
-  `download_and_extract_vsix`, persist on the marketplace job state
-  row, fold into `ActivationReport` (new `vsix_rejection_count: int =
-  0` field). Surfaced by 2026-04-29 audit pass.
-- **`[FOLLOWUP w8-1-archive-count-bypass]`** —
-  `workflows/marketplace/client.py:172` skips entries whose name does
-  not start with `extension/` **before** `:188` increments
-  `file_count`, so the W8-1 `MAX_FILE_COUNT` guard never fires for
-  archives that pad the central directory with non-`extension/`
-  members. Bounded blast radius (the `zipfile` central directory is
-  already in memory; the loop does no per-entry disk I/O), but a
-  defense-in-depth closure is `len(zf.infolist()) > MAX_FILE_COUNT`
-  early-reject + a regression fixture in
-  `tests/workflows/marketplace/test_vsix_hardening.py` that posts a
-  VSIX with thousands of `pad/<n>` members and one valid
-  `extension/package.json`. Companion to
-  `[FOLLOWUP w8-1-extract-rejection-logging]`. Surfaced by 2026-05-04
-  second-pass review.
-- **`[FOLLOWUP w8-3-harness-js-scheme]`** —
-  `executor/flows/harness_extension/stimulus_dispatch.js:41` calls
-  `vscode.env.openExternal(vscode.Uri.parse(payload.uri_trigger))`
-  without re-validating the URI scheme; the W8-3 allow-list
-  (`vscode`, `vscode-insiders`, `http`, `https`) is enforced only on
-  the Python `executor/flows/playwright/uri_validation.py` host-side
-  path. If any orchestration path can supply a non-validated
-  `payload.uri_trigger` to the harness, schemes outside the allow-list
-  reach `openExternal` unchecked. Defense-in-depth options: (a)
-  re-validate scheme in `stimulus_dispatch.js` against the same
-  allow-list; or (b) prove via test that every producer of
-  `payload.uri_trigger` flows through `uri_validation` first, and add
-  a JS-side AST gate
-  (`tests/architecture/test_uri_trigger_open_external_validation.py`)
-  forbidding raw `openExternal(Uri.parse(...))` outside that path.
-  Surfaced by 2026-05-04 second-pass review.
+  *Logging breadcrumb shipped 2026-04-30 via W9-6a*:
+  `workflows/marketplace/client.py:_extract_vsix_to_dir` now emits
+  `logger.warning("vsix_entry_rejected reason=path_traversal entry=...")`
+  and `reason=symlink_escape` per rejected entry, plus an aggregate
+  `logger.info("vsix_extraction_rejections total=...")` and returns the
+  rejection count. Two `caplog` regression tests in
+  `tests/workflows/marketplace/test_vsix_hardening.py`
+  (`test_path_traversal_emits_rejection_log`,
+  `test_symlink_escape_emits_rejection_log`) lock the breadcrumb shape.
+  *Count propagation to the job/activation report still pending* —
+  caller chain (`router.download_marketplace_extension` → DB row →
+  separate `analysis_execution` path) does not currently surface
+  per-extraction state into `ActivationReport`. Pickup procedure: tuple
+  the count out of `download_and_extract_vsix`, persist on the
+  marketplace job state row, fold into `ActivationReport` (new
+  `vsix_rejection_count: int = 0` field) where the report is built
+  post-analysis. Surfaced by 2026-04-29 audit pass; logging half closed
+  by W9-6a on 2026-04-30.
 - **`[FOLLOWUP w8-5-list-endpoint-name-filter]`** — *CLOSED 2026-04-30
-  via W9-6b*. `_list_report_files` filters glob hits through
-  `ACTIVATION_REPORT_NAME_RE`. Regression: `tests/workflows/
-  activation_reports/test_router_path_traversal.py
-  ::test_list_endpoint_filters_malformed_names`.
+  via W9-6b*. `_list_report_files` now filters glob hits through
+  `ACTIVATION_REPORT_NAME_RE`; defense-in-depth gap on the list
+  endpoint sealed. Regression: `tests/workflows/activation_reports/
+  test_router_path_traversal.py::test_list_endpoint_filters_malformed_names`
+  asserts a leading-dash slug, an overlength body, and a whitespace-bearing
+  body all drop from the listing while a canonical name surfaces.
 - **`[FOLLOWUP w8-6-content-sample-structural-test]`** — *Partial close
   2026-04-30 via W9-6c*: `tests/platform/security/test_content_sample_typing.py`
   pins `ContentSample` shape invariants (`extra="forbid"`,
@@ -435,22 +332,57 @@ codex-automation-3, 7, 8.
   `_PENDING_MIGRATION`, then plan the per-field migration to
   `ContentSample`. Surfaced by 2026-04-29 audit pass; structural-test
   half closed by W9-6c on 2026-04-30.
-- **`[FOLLOWUP w8-8-manifest-emit-when-needed]`** — DEFERRED 2026-04-29
-  (W8-7 audit pass). No production logger emits manifest fields raw
-  today; only the W8-2-validated `publisher`/`name`/`version` slug
-  reaches loggers. **Canonical body lives in
-  `active-work/W8-security.md` W8-8** (threat statement, two reopen
-  triggers, four-artifact set, pickup procedure — do not delete).
-  Triggers in short: (A) first feature PR adding a `logger.*` call
-  that references a raw manifest field (`displayName`, `description`,
-  `repository.url`, `categories[]`, `homepage`, `bugs`, `qna`,
-  `license`); (B) proactive security pull from external review or
-  stakeholder gate. Either trigger ships
-  `appcore/contracts/sanitize.py::sanitize_for_log`,
-  `tests/platform/security/test_manifest_log_sanitization.py`,
-  `tests/architecture/test_manifest_field_log_emit.py`, and ADR 0002
-  §7 addendum in one PR; flip W8-security.md marker to landed and
-  retire this ID.
+- **`[FOLLOWUP w8-8-manifest-emit-when-needed]`** — The original W8-8
+  plan in `active-work/W8-security.md:266` presumed manifest-field log
+  emit sites in `workflows/extension_catalog/`, `workflows/marketplace/
+  job_service.py`, and `workflows/marketplace/analysis_execution.py`
+  that the new `appcore/contracts/sanitize.py::sanitize_for_log` helper
+  would retrofit. The audit at the start of W8-7 (`2026-04-29`) found
+  zero such sites — only the W8-2-validated `publisher`/`name`/`version`
+  slug currently flows to loggers in those modules. The helper, ADR
+  0002 §7 addendum, and the AST gate (which would forbid future
+  unsanitized manifest-field emits) land in the iteration that
+  actually introduces such an emit site, so the helper can land
+  alongside its first real caller and the AST gate can be sized
+  against real fixtures.
+
+  **Reopen triggers (either is sufficient):**
+
+  - **Trigger A — first real call site appears.** A feature PR adds
+    a logger call that references `displayName`,
+    `publisher.displayName`, `description`, `repository.url`,
+    `categories[]`, `homepage`, `bugs`, `qna`, or `license` from the
+    parsed manifest. The same PR ships the four W8-8 artifacts.
+  - **Trigger B — proactive security pull.** External review or a
+    stakeholder gate requires the defense-in-depth helper before any
+    real call site exists. A standalone PR ships the four W8-8
+    artifacts; the AST gate is sized against synthetic fixtures
+    (mirror `tests/architecture/test_marketplace_identity_concat.py`
+    self-test pattern).
+
+  **W8-8 artifact set (four items, all in one PR):**
+
+  1. `appcore/contracts/sanitize.py::sanitize_for_log` helper
+     (CR/LF/C0/C1/ANSI escape, NULL-byte reject, length cap;
+     re-export from `appcore/contracts/__init__.py`).
+  2. `tests/platform/security/test_manifest_log_sanitization.py`
+     (parametrized cases for control-char escape, null-byte reject,
+     length truncation, unicode pass-through, and idempotence —
+     mirroring the W8-6 `test_content_sample_redaction.py` shape).
+  3. `tests/architecture/test_manifest_field_log_emit.py` AST gate
+     (forbids unsanitized manifest field references inside production
+     logger calls; pragma `# arch-allow: untrusted-manifest-log` for
+     legitimate exceptions).
+  4. `documents/adrs/0002-threat-model.md` §7 "Untrusted Manifest
+     Fields as Log Forging Surface" addendum.
+
+  **Pickup procedure:** Walk the DEFERRED block in
+  `active-work/W8-security.md` top-to-bottom, add the four artifacts
+  in the matching trigger's PR, retire this followup ID with
+  `[LANDED <date>]`, and flip the W8-security.md DEFERRED marker to
+  `landed`. **Do not delete the W8-8 plan body** in W8-security.md —
+  it is the canonical statement of the threat and survives the marker
+  flip. Surfaced by 2026-04-29 W8-7 implementation pass.
 
 ### Architecture Audit (2026-04-27)
 
