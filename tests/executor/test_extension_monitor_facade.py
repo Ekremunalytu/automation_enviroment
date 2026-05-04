@@ -23,6 +23,7 @@ from typing import Any
 from executor.flows.playwright import monitor
 from executor.flows.playwright import monitor_lifecycle
 from executor.flows.playwright.monitor_lifecycle import ExtensionMonitor
+from executor.flows.playwright.monitor_report_assembler import ReportAssembler
 from executor.flows.playwright.monitor_runtime_state import MonitorRuntime
 from executor.flows.playwright.monitor_types import ActivationReport
 
@@ -255,3 +256,130 @@ def test_facade_runtime_uses_real_class_when_unpatched() -> None:
 
     mon = ExtensionMonitor(page=_DummyPage())
     assert isinstance(mon._runtime, MonitorRuntime)
+
+
+# ---------------------------------------------------------------------------
+# W11-2 — ReportAssembler delegation pins
+#
+# These cases pin that the facade composes a ``ReportAssembler``, that the
+# transitional ``_refresh_derived_report_state`` / ``_persist_report``
+# shims forward to it, and that runtime callbacks reach the assembler
+# *through* those shims (so the W11-1 bound-method-identity assertions
+# above keep their meaning until W11-5 collapses the facade).
+# ---------------------------------------------------------------------------
+
+
+class _RecordingAssembler:
+    """Minimal stand-in for ``ReportAssembler`` that captures every call."""
+
+    last_instance: _RecordingAssembler | None = None
+
+    def __init__(self, *, report: ActivationReport, report_path: Any) -> None:
+        self.report = report
+        self.report_path = report_path
+        self.refresh_calls: int = 0
+        self.persist_calls: list[bool] = []
+        _RecordingAssembler.last_instance = self
+
+    def refresh_derived_state(self) -> None:
+        self.refresh_calls += 1
+
+    def persist(self, force: bool) -> None:
+        self.persist_calls.append(force)
+
+
+def _patch_assembler(monkeypatch) -> type[_RecordingAssembler]:
+    monkeypatch.setattr(monitor_lifecycle, "ReportAssembler", _RecordingAssembler)
+    _RecordingAssembler.last_instance = None
+    return _RecordingAssembler
+
+
+def test_facade_init_constructs_assembler_with_shared_report(monkeypatch) -> None:
+    _patch_assembler(monkeypatch)
+    _patch_runtime(monkeypatch)
+
+    page = _DummyPage()
+    mon = ExtensionMonitor(
+        page=page,
+        report_path="/tmp/r.json",  # noqa: S108 — never written, just shape pin
+        target_extension_id="publisher.tool",
+    )
+
+    assembler = _RecordingAssembler.last_instance
+    assert assembler is not None
+    # Same ActivationReport instance reaches the assembler (the W11-1
+    # facade and runtime invariant: all three share one report).
+    assert assembler.report is mon.report
+    # Path is the Path-coerced value the facade owns; the assembler
+    # captures it once and never re-resolves.
+    assert assembler.report_path == mon.report_path
+
+
+def test_facade_persist_shim_delegates_to_assembler(monkeypatch) -> None:
+    _patch_assembler(monkeypatch)
+    _patch_runtime(monkeypatch)
+
+    mon = ExtensionMonitor(page=_DummyPage())
+    assembler = _RecordingAssembler.last_instance
+    assert assembler is not None
+
+    mon._persist_report(force=True)
+    mon._persist_report(force=False)
+
+    assert assembler.persist_calls == [True, False]
+
+
+def test_facade_refresh_shim_delegates_to_assembler(monkeypatch) -> None:
+    _patch_assembler(monkeypatch)
+    _patch_runtime(monkeypatch)
+
+    mon = ExtensionMonitor(page=_DummyPage())
+    assembler = _RecordingAssembler.last_instance
+    assert assembler is not None
+
+    mon._refresh_derived_report_state()
+    mon._refresh_derived_report_state()
+
+    assert assembler.refresh_calls == 2
+
+
+def test_facade_runtime_callback_reaches_assembler_through_shim(
+    monkeypatch,
+) -> None:
+    """End-to-end pin: runtime.persist invocation lands on the assembler.
+
+    The runtime holds ``mon._persist_report`` as the persist callback
+    (W11-1 invariant). After W11-2 that bound method is a one-line shim
+    that delegates to the assembler. Calling through the runtime
+    callback must transitively reach ``assembler.persist``.
+    """
+
+    _patch_assembler(monkeypatch)
+    _patch_runtime(monkeypatch)
+
+    mon = ExtensionMonitor(page=_DummyPage())
+    runtime = _RecordingRuntime.last_instance
+    assembler = _RecordingAssembler.last_instance
+    assert runtime is not None and assembler is not None
+    # The runtime captured the facade's bound _persist_report — pin
+    # the W11-1 identity invariant alongside the new chain.
+    assert runtime.persist == mon._persist_report
+    assert runtime.refresh_derived_state == mon._refresh_derived_report_state
+
+    # Invoking through the runtime-held reference must hit the assembler.
+    runtime.persist(True)
+    runtime.refresh_derived_state()
+
+    assert assembler.persist_calls == [True]
+    assert assembler.refresh_calls == 1
+
+
+def test_facade_uses_real_assembler_when_unpatched() -> None:
+    """Sanity guard parallel to ``test_facade_runtime_uses_real_class…``.
+
+    Catches accidental import drift if the facade ever stops importing
+    ``ReportAssembler`` directly from ``monitor_report_assembler``.
+    """
+
+    mon = ExtensionMonitor(page=_DummyPage())
+    assert isinstance(mon._assembler, ReportAssembler)
