@@ -1,6 +1,7 @@
 """Backend-owned analysis contracts."""
 
 from packages.analysis_contracts.contracts import (
+    ACTIVATION_REPORT_SCHEMA_VERSION,
     EVENT_ATTEMPT_LIFECYCLE_STATES,
     ActivationEntry,
     ActivationReport,
@@ -50,6 +51,7 @@ from packages.analysis_contracts.report_invariants import (
 )
 
 __all__ = [
+    "ACTIVATION_REPORT_SCHEMA_VERSION",
     "EVENT_ATTEMPT_LIFECYCLE_STATES",
     "SECRET_CLASSES",
     "ActivationEntry",

@@ -11,6 +11,9 @@ from typing import Any
 from pydantic import ValidationError
 
 from packages.analysis_contracts.contracts import (
+    ACTIVATION_REPORT_SCHEMA_VERSION,
+)
+from packages.analysis_contracts.contracts import (
     ActivationReport as _ContractActivationReport,
 )
 
@@ -246,6 +249,7 @@ def build_report_data(
         trigger_plan_applied = False
 
     return {
+        "schema_version": ACTIVATION_REPORT_SCHEMA_VERSION,
         "report_version": getattr(report, "report_version", 2),
         "target_extension_expected": getattr(report, "target_extension_id", ""),
         "target_extension_observed": getattr(

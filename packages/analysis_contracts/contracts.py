@@ -2,9 +2,22 @@
 
 from __future__ import annotations
 
+import warnings
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    ValidationInfo,
+    field_validator,
+    model_validator,
+)
+
+# W10-1: Proactive schema evolution discipline for ActivationReport.
+# Bumped on breaking changes; minor bumps emit DeprecationWarning, major
+# bumps are rejected under model_validate(..., context={"strict_schema": True}).
+ACTIVATION_REPORT_SCHEMA_VERSION = "1.0"
 
 
 class StrictContractModel(BaseModel):
@@ -326,6 +339,7 @@ class ActivationReportFileSummary(StrictContractModel):
 
 
 class ActivationReport(StrictContractModel):
+    schema_version: str = ACTIVATION_REPORT_SCHEMA_VERSION
     report_version: int
     target_extension_expected: str
     automation_health: dict[str, Any]
@@ -381,6 +395,45 @@ class ActivationReport(StrictContractModel):
     extension_host_output: str = ""
     log_file: str = ""
     output_signal_events: list[OutputSignalEvent] = Field(default_factory=list)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _validate_schema_version(cls, data: object, info: ValidationInfo) -> object:
+        # W10-1: proactive schema evolution. Missing or stale schema_version
+        # emits DeprecationWarning; model_validate(..., context={"strict_schema": True})
+        # rejects instead of warning. See ACTIVATION_REPORT_SCHEMA_VERSION.
+        if not isinstance(data, dict):
+            return data
+        context = info.context or {}
+        strict = bool(context.get("strict_schema", False))
+        version = data.get("schema_version")
+        if version is None:
+            if strict:
+                raise ValueError(
+                    "ActivationReport ingest rejected: schema_version missing "
+                    "under strict_schema=True"
+                )
+            warnings.warn(
+                f"ActivationReport ingested without schema_version; defaulting to "
+                f"current {ACTIVATION_REPORT_SCHEMA_VERSION!r}",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            data = dict(data)
+            data["schema_version"] = ACTIVATION_REPORT_SCHEMA_VERSION
+        elif version != ACTIVATION_REPORT_SCHEMA_VERSION:
+            if strict:
+                raise ValueError(
+                    f"ActivationReport ingest rejected: schema_version={version!r} "
+                    f"does not match current {ACTIVATION_REPORT_SCHEMA_VERSION!r}"
+                )
+            warnings.warn(
+                f"ActivationReport ingested with stale schema_version={version!r}; "
+                f"current is {ACTIVATION_REPORT_SCHEMA_VERSION!r}",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+        return data
 
     @model_validator(mode="before")
     @classmethod
