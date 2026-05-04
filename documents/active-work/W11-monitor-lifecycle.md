@@ -196,6 +196,41 @@ item by reading both this tracker and that archive section.
   a single long-lived `week11` branch instead of the documented
   per-item `feat/w11-<n>-<slug>` branches (Pickup Procedure step 2).
   The branch will fold into `main` as a single PR after W11 closes.
+
+  **First live-scan validation surfaced a serialization gap
+  (`2026-05-04`):** the W11-3 build was exercised end-to-end against
+  `ms-python.python@2026.5.2026042602` (job `f6faab10ce35`, 22:44 local).
+  `schema_version` correctly bumped to `"2.1"` on disk, but the three
+  new fields landed at their defaults
+  (`activation_discovery_strategies=[]`, `runner_exit_code=null`,
+  `runner_status="unknown"`) even though Strategy 1 had clearly
+  succeeded (22 activations) and the runner reached its
+  `set_runner_status` call. Root cause: the `ReportAssembler` setters
+  mutate the runtime dataclass correctly, but
+  `executor/flows/playwright/report_builder.py::build_report_data`
+  (a 322-line manual dataclass→dict serializer that pre-dates W11)
+  never read the new dataclass fields, so the on-disk dict defaulted
+  them via the contract validator. Unit tests covering the setters
+  pinned the dataclass mutation but missed the serializer's outbound
+  path. Fixup landed on the same branch: `build_report_data` now
+  forwards the three fields, plus
+  `tests/platform/contracts/test_report_builder_contract.py` adds two
+  round-trip pins
+  (`test_w11_3_fields_round_trip_through_build_report_data_and_save`,
+  `test_w11_3_fields_default_to_unknown_when_producer_skips_setters`)
+  so the next dataclass change cannot silently drop the surface again.
+  Detection-relevant fields from job `f6faab10ce35` matched the W11-2
+  baseline (`signal_summary` level=`needs_review` score=22,
+  `verified_capabilities` 4-list, `coverage_summary` covered=7/partial=5/missing=6,
+  `automation_health.status=degraded` with the same 3-element reasons,
+  `output_signal_events=12`, `target_activation_count=1`,
+  `run_quality=medium`, `log_entries=0`, `scenario_traces=3`,
+  `stimulus_passes=5`, `failed_scenarios=[]`); raw event counts within
+  the prior 4-scan variance band (`network_events=178`,
+  `file_events=2467`, `process_events=67`, `evidence_links=3821`,
+  `activated=22`). A second live scan is owed once the fixup is in
+  the running container; only that run can confirm the producer-side
+  values reach disk end-to-end.
 - **W11-4** — pending. `ScenarioAccountant` extraction
   (`executor/flows/playwright/monitor_scenario_accountant.py`, new).
 - **W11-5** — pending. `ExtensionMonitor` composition facade —

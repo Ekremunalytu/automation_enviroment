@@ -342,6 +342,14 @@ def build_report_data(
         ).count("\n"),
         "extension_host_output": eh_text,
         "log_file": getattr(report, "log_file_path", ""),
+        # W11-3: producer-set fields surface here so the disk write
+        # carries the runtime values. The contract defaults survive when
+        # callers (e.g. report-only ingest) skip the producer setters.
+        "activation_discovery_strategies": list(
+            getattr(report, "activation_discovery_strategies", [])
+        ),
+        "runner_exit_code": getattr(report, "runner_exit_code", None),
+        "runner_status": getattr(report, "runner_status", "unknown"),
     }
 
 
