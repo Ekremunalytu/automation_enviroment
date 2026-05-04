@@ -459,7 +459,7 @@ demo-canary: exec-up
 	docker cp "$(DEMO_CANARY_DIR)/." automation_executor:"$(DEMO_CANARY_CONTAINER_DIR)/"
 	docker exec -u root automation_executor chown -R executor:executor "$(DEMO_CANARY_CONTAINER_DIR)"
 	@echo "🤖 Triggering $(DEMO_CANARY_ID) command via Playwright..."
-	docker exec -e PYTHONUNBUFFERED=1 automation_executor python3 /home/executor/flows/playwright/entrypoint.py \
+	docker exec -e PYTHONUNBUFFERED=1 automation_executor python3 -m executor.flows.playwright.entrypoint \
 		--monitor \
 		--skip-automation \
 		--reload-before-run \

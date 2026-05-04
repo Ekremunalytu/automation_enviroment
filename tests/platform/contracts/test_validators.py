@@ -87,6 +87,8 @@ def test_valid_extension_slug_accepts_well_formed_inputs(slug: str) -> None:
     ],
 )
 def test_valid_extension_slug_rejects_adversarial_inputs(slug: str) -> None:
+    """Per-token validator stays strict at 65 chars; the report-filename
+    regex's wider bound applies only to the composed report-name body."""
     with pytest.raises(InvalidExtensionSlugError):
         valid_extension_slug(slug)
 
@@ -114,7 +116,9 @@ def test_invalid_extension_slug_error_is_value_error_subclass() -> None:
         "activation_report_\x00.json",
         ".activation_report_pub.name-1.0.0.json",
         "activation_report_-bad.json",
-        "activation_report_" + "x" * 66 + ".json",
+        "activation_report_"
+        + "x" * 211
+        + ".json",  # 211 chars body exceeds the 210-char producer ceiling
         "activation_report_pubр.name-1.0.json",  # noqa: RUF001, RUF003 — Cyrillic 'р' confusable test
         "activation_report.json",  # missing the underscore-prefixed slug
         "report_pub.name-1.0.0.json",  # missing activation_ prefix

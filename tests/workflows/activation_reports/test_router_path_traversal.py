@@ -43,7 +43,7 @@ _ADVERSARIAL_NAMES = [
     pytest.param(quote("activation_report_\x00.json", safe=""), id="encoded-null-byte"),
     pytest.param(".activation_report_pub.name-1.0.json", id="leading-dot"),
     pytest.param("activation_report_-bad.json", id="leading-dash-in-slug"),
-    pytest.param("activation_report_" + "x" * 80 + ".json", id="overlength-slug"),
+    pytest.param("activation_report_" + "x" * 211 + ".json", id="overlength-slug"),
     pytest.param("report_pub.name-1.0.0.json", id="missing-activation-prefix"),
     pytest.param("activation_report_pub.name-1.0.0.txt", id="wrong-suffix"),
 ]
@@ -98,11 +98,14 @@ def test_list_endpoint_filters_malformed_names(
     """
     valid_name = "activation_report_pub.name-1.0.0.json"
     # Names that match the glob ``activation_report*.json`` but fail
-    # ``ACTIVATION_REPORT_NAME_RE`` (slug body must satisfy
-    # MARKETPLACE_SLUG_TOKEN_RE: ``[A-Za-z0-9][-_.A-Za-z0-9]{0,64}``).
+    # ``ACTIVATION_REPORT_NAME_RE`` (body must use the per-token
+    # char class ``[A-Za-z0-9][-_.A-Za-z0-9]`` and stay under the
+    # producer ceiling of 210 characters).
     malformed_names = [
         "activation_report_-bad.json",  # leading dash violates first-char class
-        "activation_report_" + "x" * 80 + ".json",  # body length > 65
+        "activation_report_"
+        + "x" * 211
+        + ".json",  # body exceeds 210-char producer ceiling
         "activation_report_a b.json",  # whitespace inside the body
     ]
     payload = '{"report_version": 1}'
