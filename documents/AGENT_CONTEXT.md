@@ -13,8 +13,12 @@ Do not copy phase history here; use `REFACTOR_STATUS.md` (slim canonical).
   full backlog under `archive/backlog/`).
 - W8-W13 plan: `REFACTOR_OPTIMIZATION.md` section 11 (slim canonical;
   full text under `archive/plans/`).
-- **Active W8 work tracker:** `active-work/W8-security.md`
-  (stable IDs W8-1..W8-8; code references depend on these IDs).
+- **Past W8 work tracker (closed `2026-04-29`):**
+  `active-work/W8-security.md` (stable IDs W8-1..W8-9; code/tests
+  still reference items by ID — keep IDs stable when reorganizing).
+  W9 closed `2026-05-04`; W10 contract hygiene is the active phase
+  on `feat/w10-contract-hygiene` (PR #11). For current closure
+  state always defer to `REFACTOR_STATUS.md`.
 - Architecture: `ARCHITECTURE.md` (slim) + `architecture/` splits.
 - Placement rules: `PROJECT_STRUCTURE.md` (slim) + `structure/` splits.
 - Test lanes: `TESTING.md` (slim) + `testing/` splits.
@@ -36,7 +40,7 @@ opening that doc. If the trigger does not match, do not open it.
 | Detection rules, malicious fixtures, ADR security posture | `agent-lanes/security-detection.md` | ADRs 0002-0005 (only the one that governs the touched boundary); `DETECTION_SEMANTICS.md` slim → `detection/evidence-fields.md` / `detection/health-signals.md` / `detection/rule-lifecycle.md` |
 | React/Vite UI or generated TS contracts | `agent-lanes/ui.md` | `ui/README.md`, UI tests |
 | Documentation drift, README, runbooks, ADR text | `agent-lanes/docs-maintenance.md` | `documents/README.md`; current code/tests; archive only when retracing why a thing changed |
-| W8 security work | (lane above + `agent-lanes/security-detection.md` if relevant) | `active-work/W8-security.md` (always — that is the active tracker) |
+| W8/W9 closure history (stable IDs in code/tests) | (lane above) | `active-work/W8-security.md` for W8-1..W8-9 IDs; `REFACTOR_STATUS.md` for W9 closure evidence |
 
 If a task touches a slim canonical's domain but does not match any of
 the listed triggers, open the slim canonical itself, **not** its

@@ -1,6 +1,6 @@
 # Dynamic Analysis Backlog
 
-`Last Updated: 2026-04-27`
+`Last Updated: 2026-05-04`
 
 This is the short actionable backlog for the sandbox pipeline. It complements
 `DEVELOPMENT_PRIORITIES.md`, `PIPELINE_ROADMAP.md`, and the canonical
@@ -18,21 +18,36 @@ flow, the VNC harness ready-marker fix, and the
 `make demo-canary-offline` Makefile lanes; review follow-ups are
 tagged `[FOLLOWUP simulation-progress-cancel]` in
 `POST_POC_BACKLOG.md`. PR345 target activation lifecycle and W8-0
-deterministic harness readiness gate both landed on 2026-04-27; W8 is
-now eligible to open.
+deterministic harness readiness gate both landed on `2026-04-27`;
+**W8 closed for active work `2026-04-29`** (W8-1..W8-7 + W8-9 landed,
+W8-8 deferred under named triggers); **W9 closed `2026-05-04` via
+PR #9**; **W10 contract hygiene + planner cleanup is in flight on
+`feat/w10-contract-hygiene` (PR #11)**.
 
 ## Now (next-iteration pull)
 
 Source of truth: `POST_POC_BACKLOG.md` "Next iteration (pull first)" and
 `REFACTOR_STATUS.md` for landed closure evidence. The W7 `[NEXT]` items
 (attribution split + sim-target lane), simulation progress/cancel/VNC/demo
-canary work, PR345 PRs 1-5, and W8-0 are all landed. The next pull-first
-candidates from the backlog are:
+canary work, PR345 PRs 1-5, W8-0, and W8/W9 in their entirety are all
+landed. Active phase: W10 contract hygiene + planner cleanup
+(`feat/w10-contract-hygiene`, PR #11). The next pull-first candidates
+after W10 lands:
 
-+ **W8 (`REFACTOR_OPTIMIZATION.md` §11.5) security hardening.** First PR
-  candidates: W8-1 VSIX zip-bomb guard, W8-2 marketplace identity helper,
-  W8-3 URI trigger shell-safe invocation. W8-0 no longer blocks these; it
-  landed 2026-04-27 (`REFACTOR_STATUS.md` "W8-0 Landed").
++ **W11 (`REFACTOR_OPTIMIZATION.md` §11.8) monitor lifecycle split.**
+  Precursor: `[FOLLOWUP w11-precursor-tests]` in `POST_POC_BACKLOG.md`
+  — minimal direct tests for two playwright god-modules
+  (`runtime_capture/extension_host.py`, `health_reconciliation.py`)
+  must land **before** the split refactor.
++ **W11+W12 lifecycle wiring** picks up
+  `[FOLLOWUP target-log-lifecycle-instrumentation]` — wire
+  `reconcile_event_attempts` / its W11 successor to emit the
+  intermediate `activation_seen`/`target_log_seen` states the W10-6
+  frozenset already pinned. Surfaced by 2026-05-04 manual UI scan.
++ **W12 attribution facade cleanup** (`§11.9`) picks up
+  `[FOLLOWUP w12-attribution-naming-overlap]` and
+  `[FOLLOWUP coverage-summary-attempted-drift]`. Surfaced by
+  2026-05-04 manual UI scan.
 + Docker-based A1 canary structural diff smoke (`make exec-up && make
   exec-run` against `t1-a1-credential-read-to-network-canary`); closes
   the capture-pipeline regression risk flagged in the attribution-split
