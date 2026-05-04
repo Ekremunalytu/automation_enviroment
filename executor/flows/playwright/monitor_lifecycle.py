@@ -11,18 +11,9 @@ from typing import Any
 from playwright.sync_api import Page
 
 from .attribution import (
-    _annotate_file_events,
-    _annotate_network_events,
-    _annotate_process_events,
-    _build_signal_summary,
     _format_epoch_timestamp,
     _relative_time,
     _scenario_name_for_timestamp,
-)
-from .health import (
-    derive_verified_capabilities,
-    reconcile_event_attempts,
-    summarize_event_attempts_for_report,
 )
 from .monitor_payload import populate_report_from_trigger_payload
 from .monitor_records import (
@@ -32,6 +23,7 @@ from .monitor_records import (
     SkippedScenarioRecord,
     StimulusPassTrace,
 )
+from .monitor_report_assembler import ReportAssembler
 from .monitor_runtime import (
     _build_activation_log_message,
     _build_event_attempt_log_message,
@@ -40,12 +32,11 @@ from .monitor_runtime import (
     _build_stimulus_pass_log_message,
     _count_target_activations,
     _find_event_attempt,
-    _reconcile_coverage_verification,
 )
 from .monitor_runtime_state import MonitorRuntime
 from .monitor_support import resolve_monitor_api
 from .monitor_types import ActivationReport
-from .runtime_capture._shared import _log, _parse_iso_timestamp
+from .runtime_capture._shared import _parse_iso_timestamp
 from .runtime_capture.events import FileEvent, NetworkEvent, ProcessEvent
 
 
@@ -87,10 +78,18 @@ class ExtensionMonitor:
         self.report_path = None if report_path is None else Path(report_path)
         self.report = ActivationReport(target_extension_id=target_extension_id)
         self._active_scenarios: dict[str, ScenarioTrace] = {}
-        self._last_persist_at = 0.0
+        # W11-2: derived-state refresh + persist debounce moved into
+        # ReportAssembler. The facade keeps thin _refresh_…/_persist_…
+        # shims (below) so the W11-1 facade pin file's bound-method
+        # identity assertions stay green.
+        self._assembler = ReportAssembler(
+            report=self.report,
+            report_path=self.report_path,
+        )
         # W11-1: runtime state machine (captures, log offsets, event handlers)
-        # is owned by MonitorRuntime; persistence and accountant callbacks are
-        # wired back to this facade until W11-2/W11-4/W11-5 collapse them.
+        # is owned by MonitorRuntime; runtime callbacks are wired through the
+        # facade shims so the W11-1 pin file's identity assertions remain
+        # untouched until W11-5 collapses the facade.
         self._runtime = MonitorRuntime(
             page=self.page,
             report=self.report,
@@ -587,71 +586,23 @@ class ExtensionMonitor:
         )
 
     def _refresh_derived_report_state(self) -> None:
-        self.report.network_events = _annotate_network_events(
-            self.report.network_events,
-            self.report.activated,
-            self.report.scenario_traces,
-            self.report.target_extension_id,
-        )
-        self.report.file_events = _annotate_file_events(
-            self.report.file_events,
-            self.report.activated,
-            self.report.scenario_traces,
-            self.report.target_extension_id,
-        )
-        self.report.process_events = _annotate_process_events(
-            self.report.process_events,
-            self.report.activated,
-            self.report.scenario_traces,
-            self.report.target_extension_id,
-        )
-        derived_verified = set(derive_verified_capabilities(self.report))
-        self.report.verified_capabilities = sorted(
-            set(self.report.verified_capabilities)
-            | (derived_verified & set(self.report.official_attempted_capabilities))
-        )
-        self.report.heuristic_verified_capabilities = sorted(
-            set(self.report.heuristic_verified_capabilities)
-            | (derived_verified & set(self.report.heuristic_attempted_capabilities))
-        )
-        self.report.event_attempts = reconcile_event_attempts(self.report)
-        self.report.official_event_coverage = summarize_event_attempts_for_report(
-            self.report,
-            track="official",
-        )
-        self.report.heuristic_workflow_coverage = summarize_event_attempts_for_report(
-            self.report,
-            track="heuristic",
-        )
-        (
-            self.report.coverage_summary,
-            self.report.coverage_matrix,
-            self.report.coverage_tracks,
-        ) = _reconcile_coverage_verification(self.report)
-        self.report.signal_summary = _build_signal_summary(self.report)
-        self.report.evidence_links = self.report.canonical_evidence_links
+        """W11-2 transitional shim: report assembly lives on ``ReportAssembler``.
+
+        Kept on the facade so the W11-1 pin file's
+        ``runtime.refresh_derived_state == mon._refresh_derived_report_state``
+        bound-method-identity assertion remains stable until W11-5
+        collapses the facade.
+        """
+        self._assembler.refresh_derived_state()
 
     def _persist_report(self, force: bool) -> None:
-        if self.report_path is None:
-            return
+        """W11-2 transitional shim: persist debounce lives on ``ReportAssembler``.
 
-        now = time.time()
-        file_count = len(self.report.file_events)
-        scenario_count = len(self.report.scenario_traces)
-        if (
-            not force
-            and (len(self.report.network_events) % 5 != 0)
-            and (file_count % 5 != 0)
-            and (scenario_count % 2 != 0)
-            and (now - self._last_persist_at < 1.0)
-        ):
-            return
-
-        try:
-            self.report.save(self.report_path, announce=False)
-            self._last_persist_at = now
-        except OSError as exc:
-            _log(f"Live report persistence failed: {exc}")
+        Kept on the facade so the W11-1 pin file's
+        ``runtime.persist == mon._persist_report`` bound-method-identity
+        assertion remains stable until W11-5 collapses the facade.
+        """
+        self._assembler.persist(force)
 
 
 def check_extension_activated(extension_id: str, page: Page | None = None) -> bool:
