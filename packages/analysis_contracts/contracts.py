@@ -354,7 +354,11 @@ class ActivationReport(StrictContractModel):
     schema_version: str = ACTIVATION_REPORT_SCHEMA_VERSION
     report_version: int
     target_extension_expected: str
-    automation_health: AutomationHealth = Field(default_factory=AutomationHealth)
+    # W10-FIXUP-2: outer field stays required (matches pre-W10 contract). Inner
+    # AutomationHealth fields keep their defaults so skip_automation's 5-field
+    # subset still validates; the rationale for inner defaults does not extend
+    # to the outer slot.
+    automation_health: AutomationHealth
     signal_summary: dict[str, Any]
     summary: dict[str, Any]
     scenario_traces: list[ScenarioTrace]

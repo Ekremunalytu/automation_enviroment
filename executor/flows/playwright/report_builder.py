@@ -345,9 +345,11 @@ def build_report_data(
     }
 
 
-def _validate_report_against_contract(data: dict[str, Any]) -> None:
+def _validate_report_against_contract(
+    data: dict[str, Any],
+) -> _ContractActivationReport:
     try:
-        _ContractActivationReport.model_validate(data)
+        return _ContractActivationReport.model_validate(data)
     except ValidationError as err:
         first = err.errors()[0]
         loc = ".".join(str(part) for part in first.get("loc", ()))
@@ -364,10 +366,16 @@ def save_report_payload(
     announce: bool = True,
     logger: Any | None = None,
 ) -> Path:
-    _validate_report_against_contract(data)
+    # W10-FIXUP-1: persist the parsed-and-dumped payload, not the caller's
+    # input dict. The before-validators on ActivationReport (schema_version
+    # injection, legacy verdict migration) only mutate the parsed model;
+    # writing the original dict would leak those gaps to disk.
+    parsed = _validate_report_against_contract(data)
     out = Path(path)
     out.parent.mkdir(parents=True, exist_ok=True)
-    serialized = json.dumps(data, indent=2, ensure_ascii=False)
+    serialized = json.dumps(
+        parsed.model_dump(mode="json"), indent=2, ensure_ascii=False
+    )
     with tempfile.NamedTemporaryFile(
         "w",
         encoding="utf-8",

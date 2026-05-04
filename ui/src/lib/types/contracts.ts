@@ -407,7 +407,7 @@ export interface ActivationReportDto {
   schema_version?: string;
   report_version: number;
   target_extension_expected: string;
-  automation_health?: AutomationHealthDto;
+  automation_health: AutomationHealthDto;
   signal_summary: Record<string, unknown>;
   summary: Record<string, unknown>;
   scenario_traces: ScenarioTraceDto[];
