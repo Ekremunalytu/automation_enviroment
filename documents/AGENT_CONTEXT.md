@@ -1,6 +1,6 @@
 # Agent Context
 
-`Last Updated: 2026-04-29`
+`Last Updated: 2026-05-04`
 
 Thin routing map for coding agents after `AGENTS.md`. **Stays short.**
 Do not copy phase history here; use `REFACTOR_STATUS.md` (slim canonical).
@@ -21,14 +21,7 @@ Do not copy phase history here; use `REFACTOR_STATUS.md` (slim canonical).
 
 ## Current Snapshot
 
-- W7 PoC acceptance closed `2026-04-23`.
-- PR345 target activation lifecycle complete `2026-04-27`.
-- W8-0 harness readiness gate landed `2026-04-27`.
-- W8 is open. W8-1 + W8-2 landed `2026-04-27`; W8-3 landed
-  `2026-04-28`; W8-4 + W8-5 landed `2026-04-29`. W8-6, W8-7, W8-8
-  pending — see `active-work/W8-security.md`.
-- ADR 0007 is Accepted, but loopback/`EXTRACE_ALLOW_LAN` enforcement
-  is still pending W8-7 implementation.
+For current phase state, see [`REFACTOR_STATUS.md`](REFACTOR_STATUS.md).
 
 ## Task Decision Tree
 
