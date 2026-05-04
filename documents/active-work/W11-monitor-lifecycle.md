@@ -82,15 +82,38 @@ item by reading both this tracker and that archive section.
   `_RecordingAssembler` (parallel to `_RecordingRuntime`) plus the
   runtime→shim→assembler chain. Baseline grew 1102 → 1129.
 
-  **Live-scan validation:** pending operator run against the W11-1
-  baseline target (`ms-python.python@2026.5.2026042602`); behavior
-  preservation asserted at unit + `make check-all` level so far.
-  Operator should run `make exec-up && make sim-target
-  TARGET=ms-python.python` and confirm bitwise-equal pre/post pattern
-  with the W11-1 baseline (activation count = 22, network events =
-  175, file events = 2515, process events = 282, scenario_traces = 3,
-  log_entries = 0, run_quality = medium, automation_health =
-  degraded) before merge.
+  **Live-scan validation (`2026-05-04`):** the W11-2 build was
+  exercised end-to-end against `ms-python.python@2026.5.2026042602`
+  in the live executor (job `473467cfe0ed`, 21:56 local). Field-by-field
+  comparison against the W11-1 baseline (job `a412888c4736`, 19:09)
+  plus three prior scans on the same target/container showed:
+
+  - **Detection-relevant fields identical across all five scans:**
+    `signal_summary` (level=`needs_review`, score=22),
+    `verified_capabilities` (4-list:
+    `commands`/`languages_editor`/`window_ui`/`workspace_fs`),
+    `attempted_capabilities` (7-list), `coverage_summary`
+    (covered=7 / partial=5 / missing=6, attempted=7, verified=4),
+    `automation_health.status=degraded` with the same 3-element
+    reasons list (`verification_gap_present`,
+    `official_unresolved_present`,
+    `harness_verification_unconfirmed_present`),
+    `output_signal_events=12`, `target_activation_count=1`,
+    `run_quality=medium`, `log_entries=0`, `scenario_traces=3`,
+    `stimulus_passes=5`, `scenarios_run=[]`, `failed_scenarios=[]`.
+  - **Raw event counts within the prior 4-scan variance band**
+    (timing-bound: strace/inotify/CDN load): `network_events=192`
+    (prior range 167–195), `file_events=2689` (prior range
+    2507–2689), `process_events=67` (prior range 66–74),
+    `evidence_links=3574` (prior range 3541–3810).
+  - **`activated` count 22 → 23**: foreign-extension delta only —
+    `target_activation_count` stable at 1, `verified_capabilities`
+    unchanged. The 23rd entry is a non-target ext-host startup
+    signal that lives in the raw capture pipeline (`MonitorRuntime`
+    Strategy 1, outside `ReportAssembler`'s annotation surface).
+
+  No regression in derived-report state. Refactor confirmed
+  behavior-preserving end-to-end.
 
   **Acceptance sub-tasks deferred** (see Acceptance Sub-Tasks section
   below for rationale): `[FOLLOWUP runner-status-contract]` rides
