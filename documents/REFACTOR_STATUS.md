@@ -1,6 +1,6 @@
 # Refactor Status
 
-`Last Updated: 2026-05-03`
+`Last Updated: 2026-05-04`
 
 Active status board for current closure state. **Slim canonical** — full
 phase closure history (W4 → W5 → W6 → W7 + post-W7 hardening + W8-0..W8-3
@@ -194,9 +194,6 @@ Authoritative open list lives in
 - `[FOLLOWUP w8-0-capture-pipeline]` — W8-3 live smoke (2026-04-28)
   closed acceptance signal (a); typed harness-readiness reason codes
   (signal b) remain unconfirmed live.
-- `tests/workflows/marketplace/test_router.py` 3 pre-existing
-  `test_run_analysis_job_*` failures (missing `requires_db` marker;
-  hygiene PR).
 - `make test-security` lane composition — W8-1 + W8-3 tests live in
   subsystem-local lanes; either extend Makefile target or update
   `active-work/W8-security.md` exit criterion to count broader tally.
