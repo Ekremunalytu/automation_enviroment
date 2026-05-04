@@ -2,10 +2,15 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict
-from typing import Any
+from typing import Any, cast
 
 from packages.analysis_contracts import TriggerPayload
+from packages.analysis_contracts.contracts import (
+    EventAttemptRecord,
+    PrerequisiteResult,
+    TriggerScenarioDetail,
+    TriggerStimulusPass,
+)
 from packages.analysis_planner.attempts import (
     _build_prerequisite_results,
     _build_stimulus_passes,
@@ -34,7 +39,7 @@ from packages.analysis_planner.registry import (
 
 def _finalize_payload(
     *,
-    payload,
+    payload: TriggerPayload,
     selected_candidates: set[str],
     official_candidates: set[str],
     heuristic_candidates: set[str],
@@ -49,12 +54,26 @@ def _finalize_payload(
     payload.webview_view_ids = sorted(set(payload.webview_view_ids))
     payload.extra_custom_editor_files = sorted(set(payload.extra_custom_editor_files))
     payload.extra_notebook_files = sorted(set(payload.extra_notebook_files))
-    payload.event_attempts = [
-        compiled_attempts[key]
-        for key in sorted(compiled_attempts, key=lambda item: (item[0], item[1]))
-    ]
-    payload.stimulus_passes = _build_stimulus_passes(payload.event_attempts)
-    payload.prerequisite_results = _build_prerequisite_results(payload.event_attempts)
+    # During the planner mutation phase TriggerPayload's typed list slots
+    # (event_attempts, stimulus_passes, prerequisite_results,
+    # selected_scenario_details) hold raw dicts; the model_validate call at
+    # the bottom of this function is what coerces them into typed records.
+    # cast(...) tells mypy to trust the post-validation shape.
+    payload.event_attempts = cast(
+        list[EventAttemptRecord],
+        [
+            compiled_attempts[key]
+            for key in sorted(compiled_attempts, key=lambda item: (item[0], item[1]))
+        ],
+    )
+    payload.stimulus_passes = cast(
+        list[TriggerStimulusPass],
+        _build_stimulus_passes(cast(list[dict[str, Any]], payload.event_attempts)),
+    )
+    payload.prerequisite_results = cast(
+        list[PrerequisiteResult],
+        _build_prerequisite_results(cast(list[dict[str, Any]], payload.event_attempts)),
+    )
     payload.selected_scenarios = _order_scenarios(selected_candidates, scenario_scores)
     payload.official_selected_scenarios = [
         scenario_name
@@ -70,13 +89,16 @@ def _finalize_payload(
         scenario_name: sorted(scenario_reasons.get(scenario_name, set()))
         for scenario_name in payload.selected_scenarios
     }
-    payload.selected_scenario_details = [
-        _serialize_scenario_definition(
-            _SCENARIO_BY_NAME[scenario_name],
-            payload.selection_reasons.get(scenario_name, []),
-        )
-        for scenario_name in payload.selected_scenarios
-    ]
+    payload.selected_scenario_details = cast(
+        list[TriggerScenarioDetail],
+        [
+            _serialize_scenario_definition(
+                _SCENARIO_BY_NAME[scenario_name],
+                payload.selection_reasons.get(scenario_name, []),
+            )
+            for scenario_name in payload.selected_scenarios
+        ],
+    )
     payload.official_attempted_capabilities = _collect_active_capabilities(
         payload.official_selected_scenarios,
         payload=payload,
@@ -113,18 +135,23 @@ def _finalize_payload(
         },
     }
     payload.official_event_coverage = _summarize_event_attempts(
-        payload.event_attempts,
+        cast(list[dict[str, Any]], payload.event_attempts),
         track=_OFFICIAL_TRACK,
     )
     payload.heuristic_workflow_coverage = _summarize_event_attempts(
-        payload.event_attempts,
+        cast(list[dict[str, Any]], payload.event_attempts),
         track=_HEURISTIC_TRACK,
     )
-    return TriggerPayload.model_validate(asdict(payload))
+    # W10-2: payload was built via TriggerPayload.model_construct so typed
+    # list slots (selected_scenario_details, event_attempts, ...) currently
+    # hold plain dicts. model_dump(warnings=False) suppresses the expected
+    # "untyped item in typed slot" notices; the model_validate that follows
+    # is the authoritative contract enforcement on the way out.
+    return TriggerPayload.model_validate(payload.model_dump(warnings=False))
 
 
 def build_coverage_matrix(
-    payload,
+    payload: TriggerPayload,
     *,
     track: str = _OFFICIAL_TRACK,
 ) -> list[dict[str, Any]]:
@@ -220,7 +247,7 @@ def _order_scenarios(selected: set[str], scores: dict[str, int]) -> list[str]:
 def _collect_active_capabilities(
     selected_scenarios: list[str],
     *,
-    payload,
+    payload: TriggerPayload,
     track: str,
     extra_capabilities: set[str] | None = None,
 ) -> list[str]:
@@ -232,7 +259,10 @@ def _collect_active_capabilities(
     capabilities: set[str] = set()
     for scenario_name in selected_scenarios:
         capabilities.update(_SCENARIO_BY_NAME[scenario_name].api_capabilities)
-    for attempt in payload.event_attempts:
+    # event_attempts items are still raw dicts here (planner mutation
+    # phase); .get(...) is the right access pattern. The slot becomes
+    # list[EventAttemptRecord] only after _finalize_payload's model_validate.
+    for attempt in cast(list[dict[str, Any]], payload.event_attempts):
         if attempt.get("track") != track:
             continue
         if track == _OFFICIAL_TRACK and attempt.get("event_family") in {

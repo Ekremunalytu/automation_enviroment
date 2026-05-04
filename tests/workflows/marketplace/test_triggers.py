@@ -9,7 +9,7 @@ from packages.analysis_contracts import TriggerPayload
 from packages.marketplace_identity import MarketplaceIdentityError
 from workflows.marketplace.triggers import (
     CAPABILITY_TAXONOMY,
-    _glob_to_bait_filename,
+    glob_to_bait_filename,
     build_static_coverage_audit,
     select_scenarios,
     write_trigger_file,
@@ -382,7 +382,7 @@ class TestWriteTriggerFile:
 
 
 # ---------------------------------------------------------------------------
-# _glob_to_bait_filename
+# glob_to_bait_filename
 # ---------------------------------------------------------------------------
 
 
@@ -390,16 +390,16 @@ class TestGlobToBaitFilename:
     """Tests for the internal glob-to-filename converter."""
 
     def test_simple_extension(self) -> None:
-        assert _glob_to_bait_filename("*.csv") == "bait.csv"
+        assert glob_to_bait_filename("*.csv") == "bait.csv"
 
     def test_brace_expansion(self) -> None:
-        assert _glob_to_bait_filename("*.{png,jpg}") == "bait.png"
+        assert glob_to_bait_filename("*.{png,jpg}") == "bait.png"
 
     def test_directory_prefix(self) -> None:
-        assert _glob_to_bait_filename("**/*.csv") == "bait.csv"
+        assert glob_to_bait_filename("**/*.csv") == "bait.csv"
 
     def test_concrete_filename(self) -> None:
-        assert _glob_to_bait_filename("config.yaml") == "config.yaml"
+        assert glob_to_bait_filename("config.yaml") == "config.yaml"
 
     def test_unsupported_glob_returns_none(self) -> None:
-        assert _glob_to_bait_filename("file?.txt") is None
+        assert glob_to_bait_filename("file?.txt") is None

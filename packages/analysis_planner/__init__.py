@@ -4,7 +4,7 @@ from packages.analysis_planner.coverage import (
     build_coverage_matrix,
     build_static_coverage_audit,
 )
-from packages.analysis_planner.io import write_trigger_file
+from packages.analysis_planner.io import glob_to_bait_filename, write_trigger_file
 from packages.analysis_planner.registry import (
     CAPABILITY_TAXONOMY,
     EVENT_TYPE_TO_SCENARIOS,
@@ -22,6 +22,7 @@ __all__ = [
     "ScenarioDefinition",
     "build_coverage_matrix",
     "build_static_coverage_audit",
+    "glob_to_bait_filename",
     "select_scenarios",
     "write_trigger_file",
 ]
