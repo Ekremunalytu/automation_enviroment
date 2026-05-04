@@ -36,7 +36,24 @@ item by reading both this tracker and that archive section.
   shrank 852 → 672 LoC. Tests:
   `tests/executor/test_playwright_monitor_runtime_state.py` (14 cases,
   imported at the real module path so the W12 reshuffle cannot
-  silently regress this surface). Baseline grew 1079 → 1093.
+  silently regress this surface) +
+  `tests/executor/test_extension_monitor_facade.py` (9 cases pinning
+  the W11-1 transitional delegation stubs and the
+  facade→runtime callback wiring; W11-5 must rewrite these against
+  the collapsed facade). Baseline grew 1079 → 1102.
+
+  **Live-scan validation (`2026-05-04`):** the W11-1 build was
+  exercised end-to-end against `ms-python.python@2026.5.2026042602`
+  in the live executor (job
+  `a412888c4736400ca4d09d9466f83519`, 444s monitoring,
+  22 activations / 175 network events / 2515 file events / 282
+  process events, 5 stimulus passes + 3 scenarios completed,
+  detection verdict=clean). Field-by-field comparison against four
+  prior scans of the same target on the same container (including
+  one taken minutes before the W11-1 cutover) showed bitwise-equal
+  pre/post pattern: identical activation count, scenario_traces=3,
+  log_entries=0, run_quality=medium, automation_health=degraded.
+  No new behavior delta from the refactor.
 - **W11-2** — pending. `ReportAssembler` extraction
   (`executor/flows/playwright/monitor_report_assembler.py`, new).
 - **W11-3** — pending. `ActivationReport.activation_discovery_strategies`
