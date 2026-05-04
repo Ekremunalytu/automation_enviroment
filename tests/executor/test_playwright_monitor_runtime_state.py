@@ -34,6 +34,8 @@ class _RecordingHooks:
         self.finalize_calls: int = 0
         self.append_calls: int = 0
         self.refresh_calls: int = 0
+        # W11-3: list of strategy-id lists shipped via the runtime callback.
+        self.discovery_strategy_calls: list[list[str]] = []
 
     def persist(self, force: bool) -> None:
         self.persist_calls.append(force)
@@ -66,6 +68,9 @@ class _RecordingHooks:
 
     def refresh_derived_state(self) -> None:
         self.refresh_calls += 1
+
+    def set_discovery_strategies(self, strategies: list[str]) -> None:
+        self.discovery_strategy_calls.append(list(strategies))
 
 
 class _FakeNetworkCapture:
@@ -167,6 +172,7 @@ def _build_runtime(
         finalize_scenarios=hooks.finalize_scenarios,
         append_activation_log_entries=hooks.append_activation_log_entries,
         refresh_derived_state=hooks.refresh_derived_state,
+        set_discovery_strategies=hooks.set_discovery_strategies,
     )
     return runtime, report, hooks
 
@@ -365,6 +371,10 @@ def test_stop_runs_strategies_and_invokes_collaborator_callbacks(
     # start() persists once with force=True; stop() persists multiple times
     # (post-finalize, after each strategy, and at the end after refresh).
     assert hooks.persist_calls.count(True) >= 4
+    # W11-3: strategy 1 (parse_all_exthost_logs) returned a non-empty
+    # list and strategy 3's parse_activations_from_output returned [],
+    # so only "exthost_log_parse" lands. Pin one shipped emission.
+    assert hooks.discovery_strategy_calls == [["exthost_log_parse"]]
 
 
 def test_stop_without_start_falls_back_safely(monkeypatch) -> None:
@@ -487,6 +497,113 @@ def test_capture_runtime_snapshot_returns_expected_shape(monkeypatch) -> None:
     assert snapshot["target_running"] is True
     assert snapshot["target_file_events"] == 0
     assert snapshot["target_network_events"] == 0
+
+
+# ---------------------------------------------------------------------------
+# W11-3 — discovery-strategy callback emission
+# ---------------------------------------------------------------------------
+
+
+def test_stop_emits_all_three_strategies_when_all_succeed(
+    monkeypatch, tmp_path
+) -> None:
+    """Strategy 1 finds an exthost-log activation, Strategy 2 returns a
+    non-empty Running Extensions list, Strategy 3 merges in a brand-new
+    activation entry. All three identifiers must reach the assembler."""
+
+    log_file = tmp_path / "exthost.log"
+    log_file.write_text("placeholder")
+
+    strategy_one_entry = monitor.ActivationEntry(
+        extension_id="publisher.tool",
+        activation_event="onCommand:publisher.tool.run",
+        timestamp="2026-01-01 10:00:00.500",
+        source="log",
+    )
+    strategy_three_entry = monitor.ActivationEntry(
+        extension_id="publisher.tool",
+        activation_event="onView:publisher.view",
+        timestamp="2026-01-01 10:00:01.000",
+        source="output",
+    )
+
+    _patch_facade(
+        monkeypatch,
+        parse_all_exthost_logs=lambda start_offsets=None: [strategy_one_entry],
+        find_exthost_logs=lambda: [log_file],
+        get_running_extensions=lambda page: [
+            monitor.RunningExtension(
+                extension_id="publisher.tool", activation_time_ms=12
+            )
+        ],
+        read_extension_host_output=lambda page=None: "extension host output",
+        parse_activations_from_output=lambda output, monitoring_start=0.0: [
+            strategy_three_entry,
+        ],
+    )
+
+    runtime, _report, hooks = _build_runtime()
+    runtime.start()
+    runtime.stop()
+
+    assert hooks.discovery_strategy_calls == [
+        [
+            "exthost_log_parse",
+            "running_extensions_ui",
+            "exthost_output_parse",
+        ]
+    ]
+
+
+def test_stop_emits_empty_list_when_all_strategies_yield_no_entries(
+    monkeypatch,
+) -> None:
+    """All three strategies execute without exception but return empty
+    results; the callback still fires (so the assembler clears any
+    stale value), with an empty list."""
+
+    _patch_facade(monkeypatch)  # all defaults return empty results.
+
+    runtime, _report, hooks = _build_runtime()
+    runtime.start()
+    runtime.stop()
+
+    assert hooks.discovery_strategy_calls == [[]]
+
+
+def test_stop_omits_strategy_three_when_output_parse_yields_no_new_entries(
+    monkeypatch, tmp_path
+) -> None:
+    """If the exthost-output parse returns the same set already produced
+    by Strategy 1 (i.e. no new entries after dedup-merge),
+    ``exthost_output_parse`` must NOT be reported. Pins the producer's
+    "yielded at least one *new* entry" semantics for Strategy 3."""
+
+    log_file = tmp_path / "exthost.log"
+    log_file.write_text("placeholder")
+    activation = monitor.ActivationEntry(
+        extension_id="publisher.tool",
+        activation_event="onCommand:publisher.tool.run",
+        timestamp="2026-01-01 10:00:00.500",
+        source="log",
+    )
+
+    _patch_facade(
+        monkeypatch,
+        parse_all_exthost_logs=lambda start_offsets=None: [activation],
+        find_exthost_logs=lambda: [log_file],
+        # parse_activations_from_output returns the same activation; the
+        # merge dedupes, so post_count == pre_count and Strategy 3 is
+        # not credited.
+        parse_activations_from_output=lambda output, monitoring_start=0.0: [activation],
+        read_extension_host_output=lambda page=None: "extension host output",
+    )
+
+    runtime, _report, hooks = _build_runtime()
+    runtime.start()
+    runtime.stop()
+
+    assert hooks.discovery_strategy_calls == [["exthost_log_parse"]]
 
 
 def test_log_offsets_property_reflects_runtime_state(monkeypatch) -> None:

@@ -1,6 +1,6 @@
 # W11 — Monitor Lifecycle Split (Active Work Tracker)
 
-`Last Updated: 2026-05-04 (W11-2 landed)`
+`Last Updated: 2026-05-04 (W11-3 landed)`
 
 This is the canonical active work tracker for the W11 monitor lifecycle
 split window. Items have stable IDs (`W11-1` … `W11-8`). Code comments,
@@ -123,9 +123,79 @@ item by reading both this tracker and that archive section.
   (the gap is on the producer signal — `ScenarioAccountant` — not
   the consumer; `health_reconciliation` state machine already emits
   intermediate states).
-- **W11-3** — pending. `ActivationReport.activation_discovery_strategies`
-  field (`packages/analysis_contracts/contracts.py`); `schema_version`
-  minor bump; `tests/platform/contracts/test_activation_discovery_strategies.py`.
+- **W11-3** — landed `2026-05-04` on the `week11` working branch (commit
+  pending). `ActivationReport` widened with three new fields in
+  `packages/analysis_contracts/contracts.py`:
+  `activation_discovery_strategies: list[str]`,
+  `runner_exit_code: int | None`, and
+  `runner_status: RunnerStatusLiteral` (new `Literal["success", "error",
+  "unknown"]` exported via the package `__init__`).
+  `ACTIVATION_REPORT_SCHEMA_VERSION` bumped `2.0` → `2.1` (W10-1
+  proactive evolution: ingest of stale `2.0` warns lenient / rejects
+  under `strict_schema=True`; the existing constant-driven
+  `test_schema_version.py` cases automatically pin the new baseline).
+  Mirror fields added to the runtime dataclass in
+  `executor/flows/playwright/monitor_types.py` so the in-memory shape
+  matches the persisted contract. UI contracts regenerated
+  (`ui/src/lib/types/contracts.ts:466-468`).
+
+  Producer wiring landed alongside the contract change (the
+  `[FOLLOWUP runner-status-contract]` bundle):
+  `ReportAssembler.set_runner_status(exit_code)` derives the enum
+  (`0 → success`, `!= 0 → error`, no call → field default `unknown`)
+  and `ReportAssembler.set_discovery_strategies(strategies)` deduplicates
+  and sorts the producer list. `MonitorRuntime.stop()` now tracks success
+  per strategy (Strategy 1 → `exthost_log_parse`, Strategy 2 →
+  `running_extensions_ui`, Strategy 3 → `exthost_output_parse`) and
+  emits the list once via a new `set_discovery_strategies` callback.
+  `ExtensionMonitor` keeps thin `set_runner_status` /
+  `_set_discovery_strategies` shims so the W11-1 facade pin file's
+  bound-method-identity invariants (`runtime.persist == mon._persist_report`,
+  `runtime.refresh_derived_state == mon._refresh_derived_report_state`)
+  are extended — not violated — with a parallel
+  `runtime.set_discovery_strategies == mon._set_discovery_strategies`
+  pin. `entrypoint_runner.py:486-487` calls `mon.set_runner_status(exit_code)`
+  immediately before the final `report.save()` (every code path that
+  mutates `exit_code` lives above the `if mon is not None` block, so
+  the call happens after the value is finalized).
+
+  Tests:
+  `tests/platform/contracts/test_activation_discovery_strategies.py`
+  (10 cases — defaults, full round-trip, the three accepted
+  RunnerStatusLiteral values, rejection of unknown status / non-int
+  exit / non-list strategies / typo'd extras / `runner_exit_code=None`
+  pass-through) +
+  5 new cases in `tests/executor/test_playwright_monitor_report_assembler.py`
+  (setters: 0→success, 1→error, 137→error pin for the "any non-zero
+  maps to error" contract, dedupe+sort for strategies, empty list
+  clears prior content) +
+  3 new cases in `tests/executor/test_extension_monitor_facade.py`
+  (W11-3 facade shim delegation + bound-method identity invariant +
+  end-to-end runtime→shim→assembler chain) +
+  3 new cases in `tests/executor/test_playwright_monitor_runtime_state.py`
+  (all-three-succeed, all-empty, Strategy-3 dedupe-no-credit) plus an
+  emission pin added to the existing
+  `test_stop_runs_strategies_and_invokes_collaborator_callbacks` case +
+  `_FakeMonitor.set_runner_status` stub added to
+  `tests/executor/test_playwright_entrypoint.py` so the 6 existing
+  monitor-mode entrypoint cases keep their pin shape. Baseline grew
+  1129 → 1150 (`make check-all`); `make test-security` 170 cases
+  green.
+
+  Strategy-name divergence note: archive plan
+  `archive/plans/REFACTOR_OPTIMIZATION_full_2026-04-29.md §11.8` lists
+  example identifiers (`warm-start`, `command-probe`, `output-channel`,
+  `log-tail`) that do not appear in the current `MonitorRuntime.stop()`
+  source — those are aspirational/example names. The W11-3 producer
+  uses the three actual strategies' snake-case identifiers
+  (`exthost_log_parse`, `running_extensions_ui`,
+  `exthost_output_parse`); the archive table will be reconciled when
+  W11 closes.
+
+  Branch policy deviation: per user direction, all W11-N items land on
+  a single long-lived `week11` branch instead of the documented
+  per-item `feat/w11-<n>-<slug>` branches (Pickup Procedure step 2).
+  The branch will fold into `main` as a single PR after W11 closes.
 - **W11-4** — pending. `ScenarioAccountant` extraction
   (`executor/flows/playwright/monitor_scenario_accountant.py`, new).
 - **W11-5** — pending. `ExtensionMonitor` composition facade —
@@ -152,19 +222,16 @@ item by reading both this tracker and that archive section.
 These open `[FOLLOWUP …]` items in `POST_POC_BACKLOG.md` are scheduled to
 land *as part of* W11 acceptance, not as separate PRs:
 
-- **`[FOLLOWUP runner-status-contract]`** —
-  `ActivationReport.runner_exit_code` + `runner_status` enum first-class.
-  Natural landing was originally W11-2 `ReportAssembler`. **Deferred to
-  W11-3 `2026-05-04`** because adding fields to the contract requires a
-  `schema_version` bump and a contracts-test pin, which the Verification
-  Bar below already reserves for W11-3 (`activation_discovery_strategies`
-  field + minor bump). Bundling both contract widenings into one pass
-  keeps W11-2 a pure code-restructure (W11-1 disipline) and gives
-  reviewers one clean contract diff to read. The assembler is still the
-  right runtime owner of the new fields; W11-3 wires
-  `assembler.set_runner_status(exit_code, status)` (or equivalent) when
-  it lands the contract change. Surfaced 2026-04-25 (Codex supplementary
-  review).
+- **`[FOLLOWUP runner-status-contract]`** — **LANDED with W11-3
+  `2026-05-04`**. `ActivationReport.runner_exit_code` (`int | None`)
+  and `runner_status` (`RunnerStatusLiteral = Literal["success",
+  "error", "unknown"]`) live first-class on both the persisted Pydantic
+  contract
+  and the runtime dataclass. `ReportAssembler.set_runner_status(exit_code)`
+  owns the (exit_code → status) derivation; the runner calls
+  `mon.set_runner_status(exit_code)` immediately before the final
+  `report.save()` in `entrypoint_runner.py`. Surfaced 2026-04-25 (Codex
+  supplementary review).
 - **`[FOLLOWUP target-log-lifecycle-instrumentation]`** —
   Wire `reconcile_event_attempts` (or its W11 successor
   `ScenarioAccountant`/`ReportAssembler`) to emit the intermediate
@@ -238,13 +305,29 @@ For each W11-N to be marked **landed**:
 ## Notes / Drift
 
 - `monitor_lifecycle.py` was **852 LoC** at the start of `2026-05-04`;
-  after W11-1 it is **672 LoC**; after W11-2 it is **623 LoC**; archive
-  plan cited 834 LoC pre-W10. W11-5 ≤200 LoC target unchanged.
+  after W11-1 it is **672 LoC**; after W11-2 it is **623 LoC**; after
+  W11-3 it is **643 LoC** (two facade shims +
+  one extra `MonitorRuntime` constructor argument). Archive plan cited
+  834 LoC pre-W10. W11-5 ≤200 LoC target unchanged.
 - The W11 entry table in
   `archive/plans/REFACTOR_OPTIMIZATION_full_2026-04-29.md` lines 2478–
   2485 is the canonical W11-N→file mapping. If split granularity
   changes during execution, update both this tracker and the archive
   table at the same time.
+- **W11-3 strategy-name divergence** (`2026-05-04`): archive plan
+  `archive/plans/REFACTOR_OPTIMIZATION_full_2026-04-29.md §11.8` lists
+  example identifiers `warm-start`, `command-probe`, `output-channel`,
+  `log-tail` for the discovery strategies. Those names do not appear
+  anywhere in the current `MonitorRuntime.stop()` source — the
+  archived list is aspirational/example. The W11-3 producer reports
+  the three actual strategies' snake-case identifiers
+  (`exthost_log_parse`, `running_extensions_ui`,
+  `exthost_output_parse`). Archive table to be reconciled at W11
+  closure.
+- **W11-3 branch policy deviation** (`2026-05-04`): all W11-N items
+  land on a single long-lived `week11` branch (per user direction)
+  instead of `feat/w11-<n>-<slug>` per Pickup Procedure step 2. The
+  branch folds into `main` as a single PR after W11 closes.
 - **W11-1 filename divergence** (`2026-05-04`): the archive table
   lists the new module as `monitor_runtime.py`, but that filename was
   already taken by a 554-LoC helper module (runtime verification +

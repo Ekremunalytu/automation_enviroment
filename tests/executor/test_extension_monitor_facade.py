@@ -47,6 +47,7 @@ class _RecordingRuntime:
         finalize_scenarios: Any,
         append_activation_log_entries: Any,
         refresh_derived_state: Any,
+        set_discovery_strategies: Any,
     ) -> None:
         self.page = page
         self.report = report
@@ -55,6 +56,7 @@ class _RecordingRuntime:
         self.finalize_scenarios = finalize_scenarios
         self.append_activation_log_entries = append_activation_log_entries
         self.refresh_derived_state = refresh_derived_state
+        self.set_discovery_strategies = set_discovery_strategies
         self.calls: list[tuple[str, tuple[Any, ...]]] = []
         self._log_offsets: dict[str, int] = {}
         self.start_return: Any = None
@@ -121,6 +123,9 @@ def test_facade_init_constructs_runtime_with_facade_callbacks(monkeypatch) -> No
     assert runtime.finalize_scenarios == mon._finalize_running_scenarios
     assert runtime.append_activation_log_entries == mon._append_activation_log_entries
     assert runtime.refresh_derived_state == mon._refresh_derived_report_state
+    # W11-3: discovery-strategies callback also routed through a facade
+    # shim, mirroring the W11-2 persist/refresh pattern.
+    assert runtime.set_discovery_strategies == mon._set_discovery_strategies
 
 
 def test_facade_start_delegates_to_runtime(monkeypatch) -> None:
@@ -279,6 +284,8 @@ class _RecordingAssembler:
         self.report_path = report_path
         self.refresh_calls: int = 0
         self.persist_calls: list[bool] = []
+        self.runner_status_calls: list[int] = []
+        self.discovery_strategy_calls: list[list[str]] = []
         _RecordingAssembler.last_instance = self
 
     def refresh_derived_state(self) -> None:
@@ -286,6 +293,12 @@ class _RecordingAssembler:
 
     def persist(self, force: bool) -> None:
         self.persist_calls.append(force)
+
+    def set_runner_status(self, exit_code: int) -> None:
+        self.runner_status_calls.append(exit_code)
+
+    def set_discovery_strategies(self, strategies: list[str]) -> None:
+        self.discovery_strategy_calls.append(list(strategies))
 
 
 def _patch_assembler(monkeypatch) -> type[_RecordingAssembler]:
@@ -372,6 +385,77 @@ def test_facade_runtime_callback_reaches_assembler_through_shim(
 
     assert assembler.persist_calls == [True]
     assert assembler.refresh_calls == 1
+
+
+# ---------------------------------------------------------------------------
+# W11-3 — runner-status + discovery-strategy shim pins
+#
+# These cases pin that the new facade shims (``set_runner_status`` and
+# ``_set_discovery_strategies``) forward to the assembler, that the runtime
+# callback identity matches the facade shim, and that the runtime can drive
+# the assembler transitively the same way W11-2 wired persist/refresh.
+# ---------------------------------------------------------------------------
+
+
+def test_facade_set_runner_status_shim_delegates_to_assembler(monkeypatch) -> None:
+    _patch_assembler(monkeypatch)
+    _patch_runtime(monkeypatch)
+
+    mon = ExtensionMonitor(page=_DummyPage())
+    assembler = _RecordingAssembler.last_instance
+    assert assembler is not None
+
+    mon.set_runner_status(0)
+    mon.set_runner_status(1)
+
+    assert assembler.runner_status_calls == [0, 1]
+
+
+def test_facade_set_discovery_strategies_shim_delegates_to_assembler(
+    monkeypatch,
+) -> None:
+    _patch_assembler(monkeypatch)
+    _patch_runtime(monkeypatch)
+
+    mon = ExtensionMonitor(page=_DummyPage())
+    assembler = _RecordingAssembler.last_instance
+    assert assembler is not None
+
+    mon._set_discovery_strategies(["exthost_log_parse"])
+    mon._set_discovery_strategies([])
+
+    assert assembler.discovery_strategy_calls == [["exthost_log_parse"], []]
+
+
+def test_facade_runtime_discovery_strategies_callback_reaches_assembler(
+    monkeypatch,
+) -> None:
+    """End-to-end pin: ``runtime.set_discovery_strategies`` invocation
+    lands on the assembler through the facade shim.
+
+    The runtime holds ``mon._set_discovery_strategies`` as the callback
+    (W11-3 invariant). After the W11-3 wiring that bound method is a
+    one-line shim that delegates to the assembler. Calling through the
+    runtime callback must transitively reach
+    ``assembler.set_discovery_strategies``.
+    """
+
+    _patch_assembler(monkeypatch)
+    _patch_runtime(monkeypatch)
+
+    mon = ExtensionMonitor(page=_DummyPage())
+    runtime = _RecordingRuntime.last_instance
+    assembler = _RecordingAssembler.last_instance
+    assert runtime is not None and assembler is not None
+    # W11-3 bound-method-identity invariant — pin it at the same surface
+    # as the W11-1 / W11-2 ones above.
+    assert runtime.set_discovery_strategies == mon._set_discovery_strategies
+
+    runtime.set_discovery_strategies(["exthost_log_parse", "exthost_output_parse"])
+
+    assert assembler.discovery_strategy_calls == [
+        ["exthost_log_parse", "exthost_output_parse"],
+    ]
 
 
 def test_facade_uses_real_assembler_when_unpatched() -> None:

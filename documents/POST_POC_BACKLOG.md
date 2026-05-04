@@ -68,10 +68,13 @@ when picking an item up.
 
 ### Workflow / Platform
 
-- **`[FOLLOWUP runner-status-contract]`** First-class
-  `ActivationReport.runner_exit_code` + `runner_status` enum. Natural
-  landing: W11 `ReportAssembler`. Surfaced by 2026-04-25 supplementary
-  review (Codex "Runner exit status semantics").
+- **`[FOLLOWUP runner-status-contract]`** *LANDED with W11-3
+  `2026-05-04`*. First-class `ActivationReport.runner_exit_code` (`int |
+  None`) + `runner_status` (`RunnerStatusLiteral`) live on the contract;
+  `ReportAssembler.set_runner_status` owns the (exit_code → status)
+  mapping; `entrypoint_runner` invokes the facade shim immediately
+  before the final `report.save()`. Surfaced by 2026-04-25
+  supplementary review (Codex "Runner exit status semantics").
 - **`[FOLLOWUP simulation-progress-cancel] heartbeat-sandbox-reset-off-thread`**
   `_heartbeat_on_cancel()` calls `executor_control.reset_sandbox`
   synchronously from the daemon heartbeat; spin reset on a worker.

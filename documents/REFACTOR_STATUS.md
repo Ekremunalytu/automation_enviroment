@@ -222,9 +222,36 @@ remaining checkbox before W9 entry.
   (`ScenarioAccountant` producer side; consumer-side state machine
   already lives in `health_reconciliation.py`).
 
-  W11 (§11.8 monitor lifecycle split) **open** — W11-3
-  (`activation_discovery_strategies` field + `runner_status_contract`
-  - `schema_version` minor bump) is the next pull-first.
+  W11 (§11.8 monitor lifecycle split) **open** — W11-4
+  (`ScenarioAccountant` extraction) is the next pull-first.
+
+- **W11-3 landed `2026-05-04`** on the `week11` working branch (commit
+  pending). Contract widening: `ActivationReport.activation_discovery_strategies`,
+  `runner_exit_code`, and `runner_status` (with new
+  `RunnerStatusLiteral = Literal["success", "error", "unknown"]`) added
+  to `packages/analysis_contracts/contracts.py`; `schema_version`
+  bumped `2.0` → `2.1` (W10-1 evolution discipline: stale `2.0`
+  warns lenient / rejects strict). Runtime dataclass mirrors landed in
+  `executor/flows/playwright/monitor_types.py`; UI contracts
+  regenerated. Producer wiring: `ReportAssembler.set_runner_status` /
+  `set_discovery_strategies` setters; `MonitorRuntime.stop()` tracks
+  per-strategy success and emits the deduped+sorted list via a new
+  callback (`exthost_log_parse`, `running_extensions_ui`,
+  `exthost_output_parse`); `ExtensionMonitor` keeps thin shims so the
+  W11-1 facade pin file's bound-method-identity invariants hold; the
+  entrypoint runner calls `mon.set_runner_status(exit_code)` just
+  before the final `report.save()`. Bundled
+  `[FOLLOWUP runner-status-contract]` rode the contract bump (single
+  clean contracts diff). Tests:
+  `tests/platform/contracts/test_activation_discovery_strategies.py`
+  (10 cases) + 5 new in
+  `test_playwright_monitor_report_assembler.py` + 3 new in
+  `test_extension_monitor_facade.py` + 3 new in
+  `test_playwright_monitor_runtime_state.py` + `_FakeMonitor.set_runner_status`
+  stub in `test_playwright_entrypoint.py`. Baseline grew 1129 → 1150;
+  `make test-security` 170 cases green. Strategy-name divergence note
+  and branch policy deviation captured in `active-work/W11-monitor-lifecycle.md`
+  Notes/Drift section.
 
 - **CI pipeline retired `2026-04-30`** — `.github/workflows/ci.yml` and
   `.github/workflows/docs-check.yml` removed; `security.yml` (weekly

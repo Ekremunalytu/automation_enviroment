@@ -121,6 +121,18 @@ class ActivationReport:
     monitoring_started_monotonic: float = field(default=0.0, repr=False)
     monitoring_ended_monotonic: float = field(default=0.0, repr=False)
     scenarios_run: list[str] = field(default_factory=list)
+    # W11-3: discovery strategies in MonitorRuntime.stop() that yielded
+    # at least one entry. Mirrors the persisted contract field; the
+    # ReportAssembler writes via set_discovery_strategies after stop's
+    # final strategy completes.
+    activation_discovery_strategies: list[str] = field(default_factory=list)
+    # W11-3: runner exit code captured by entrypoint_runner just before
+    # SystemExit. None when the runner never reaches set_runner_status.
+    runner_exit_code: int | None = None
+    # W11-3: derived from runner_exit_code (`0`/`!=0`/`None` ->
+    # `success`/`error`/`unknown`); the assembler is the single owner of
+    # the mapping so the contract literal stays the source of truth.
+    runner_status: str = "unknown"
 
     @property
     def duration_s(self) -> float:

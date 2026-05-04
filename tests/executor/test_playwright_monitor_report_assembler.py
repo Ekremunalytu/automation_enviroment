@@ -536,6 +536,85 @@ def test_refresh_is_idempotent_across_repeated_calls(monkeypatch) -> None:
     assert report.signal_summary == first_signal_summary
 
 
+# ---------------------------------------------------------------------------
+# W11-3 setters: set_runner_status / set_discovery_strategies
+# ---------------------------------------------------------------------------
+
+
+def test_set_runner_status_zero_maps_to_success() -> None:
+    report = ActivationReport(target_extension_id="publisher.tool")
+    assembler = ReportAssembler(report=report, report_path=None)
+
+    assembler.set_runner_status(0)
+
+    assert report.runner_exit_code == 0
+    assert report.runner_status == "success"
+
+
+def test_set_runner_status_one_maps_to_error() -> None:
+    report = ActivationReport(target_extension_id="publisher.tool")
+    assembler = ReportAssembler(report=report, report_path=None)
+
+    assembler.set_runner_status(1)
+
+    assert report.runner_exit_code == 1
+    assert report.runner_status == "error"
+
+
+def test_set_runner_status_nonzero_other_value_still_maps_to_error() -> None:
+    """Pin the contract: any non-zero exit_code maps to ``error`` so the
+    field carries no extra alphabet beyond what RunnerStatusLiteral
+    declares. If a future signal demands richer mapping (e.g. timeout),
+    that mapping must come with a contract widening, not a silent
+    producer change."""
+
+    report = ActivationReport(target_extension_id="publisher.tool")
+    assembler = ReportAssembler(report=report, report_path=None)
+
+    assembler.set_runner_status(137)
+
+    assert report.runner_exit_code == 137
+    assert report.runner_status == "error"
+
+
+def test_set_discovery_strategies_sorts_and_dedupes() -> None:
+    """Producer order from ``MonitorRuntime.stop()`` is not stable
+    across runs (Strategy 2 may or may not produce entries depending
+    on UI scrape success). Sort + dedup at the assembler so analysts
+    diffing two reports of the same target get bitwise-equal lists
+    when the underlying success set is identical."""
+
+    report = ActivationReport(target_extension_id="publisher.tool")
+    assembler = ReportAssembler(report=report, report_path=None)
+
+    assembler.set_discovery_strategies(
+        [
+            "running_extensions_ui",
+            "exthost_log_parse",
+            "exthost_log_parse",
+        ]
+    )
+
+    assert report.activation_discovery_strategies == [
+        "exthost_log_parse",
+        "running_extensions_ui",
+    ]
+
+
+def test_set_discovery_strategies_with_empty_iterable_clears_field() -> None:
+    """If every strategy fails the producer emits an empty list; the
+    assembler must overwrite (not preserve) any prior content so the
+    field accurately reflects the most recent stop()."""
+
+    report = ActivationReport(target_extension_id="publisher.tool")
+    report.activation_discovery_strategies = ["stale_value"]
+    assembler = ReportAssembler(report=report, report_path=None)
+
+    assembler.set_discovery_strategies([])
+
+    assert report.activation_discovery_strategies == []
+
+
 def test_persist_advances_throttle_strictly_monotonically(
     tmp_path, monkeypatch
 ) -> None:

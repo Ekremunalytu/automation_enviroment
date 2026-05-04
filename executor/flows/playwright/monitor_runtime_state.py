@@ -44,6 +44,7 @@ from .runtime_capture.events import FileEvent, NetworkEvent, ProcessEvent
 PersistCallback = Callable[[bool], None]
 RecordAutomationEventCallback = Callable[..., None]
 NoArgCallback = Callable[[], None]
+SetDiscoveryStrategiesCallback = Callable[[list[str]], None]
 
 
 class MonitorRuntime:
@@ -68,6 +69,7 @@ class MonitorRuntime:
         finalize_scenarios: NoArgCallback,
         append_activation_log_entries: NoArgCallback,
         refresh_derived_state: NoArgCallback,
+        set_discovery_strategies: SetDiscoveryStrategiesCallback,
     ) -> None:
         self._page = page
         self._report = report
@@ -76,6 +78,7 @@ class MonitorRuntime:
         self._finalize_scenarios = finalize_scenarios
         self._append_activation_log_entries = append_activation_log_entries
         self._refresh_derived_state = refresh_derived_state
+        self._set_discovery_strategies = set_discovery_strategies
         self._started: bool = False
         self._log_offsets: dict[str, int] = {}
         self._network_capture: Any = None
@@ -224,6 +227,12 @@ class MonitorRuntime:
         _log(f"Monitoring stopped ({self._report.duration_s:.1f}s elapsed)")
         self._persist(True)
 
+        # W11-3: track which discovery strategies returned at least one
+        # entry. The list is shipped to the report via the assembler
+        # callback at the end of stop() so analysts can see which path
+        # produced the activation evidence.
+        succeeded_strategies: list[str] = []
+
         try:
             _log("Strategy 1: Parsing Extension Host logs...")
             self._report.activated = api.parse_all_exthost_logs(
@@ -232,6 +241,7 @@ class MonitorRuntime:
             if self._report.activated:
                 log_files = api.find_exthost_logs()
                 self._report.log_file_path = str(log_files[0]) if log_files else ""
+                succeeded_strategies.append("exthost_log_parse")
         except (OSError, ValueError) as exc:
             _log(f"Strategy 1 failed: {exc}")
         self._persist(True)
@@ -239,6 +249,8 @@ class MonitorRuntime:
         try:
             _log("Strategy 2: Scraping Running Extensions UI...")
             self._report.running_extensions = api.get_running_extensions(self._page)
+            if self._report.running_extensions:
+                succeeded_strategies.append("running_extensions_ui")
         except (PlaywrightError, OSError, ValueError) as exc:
             _log(f"Strategy 2 failed: {exc}")
             try:
@@ -251,6 +263,7 @@ class MonitorRuntime:
         try:
             _log("Strategy 3: Reading Extension Host output...")
             self._report.extension_host_output = api.read_extension_host_output()
+            pre_merge_count = len(self._report.activated)
             self._report.activated = _merge_activation_entries(
                 self._report.activated,
                 api.parse_activations_from_output(
@@ -258,8 +271,11 @@ class MonitorRuntime:
                     monitoring_start=self._report.monitoring_start,
                 ),
             )
+            if len(self._report.activated) > pre_merge_count:
+                succeeded_strategies.append("exthost_output_parse")
         except OSError as exc:
             _log(f"Strategy 3 failed: {exc}")
+        self._set_discovery_strategies(succeeded_strategies)
         self._append_activation_log_entries()
         # PR345 PR5 + W8-0 capture-pipeline fix: merge two source streams
         # before attribution. The legacy stream (parse_output_signal_events)

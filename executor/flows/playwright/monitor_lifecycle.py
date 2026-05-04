@@ -98,6 +98,7 @@ class ExtensionMonitor:
             finalize_scenarios=self._finalize_running_scenarios,
             append_activation_log_entries=self._append_activation_log_entries,
             refresh_derived_state=self._refresh_derived_report_state,
+            set_discovery_strategies=self._set_discovery_strategies,
         )
 
     @property
@@ -603,6 +604,27 @@ class ExtensionMonitor:
         assertion remains stable until W11-5 collapses the facade.
         """
         self._assembler.persist(force)
+
+    def _set_discovery_strategies(self, strategies: list[str]) -> None:
+        """W11-3 transitional shim: discovery strategies live on ``ReportAssembler``.
+
+        Kept on the facade so the runtime collaborator's bound-method
+        identity matches the assembler delegation pattern from W11-1 /
+        W11-2 (callbacks routed through facade, never directly to the
+        assembler) until W11-5 collapses the facade.
+        """
+        self._assembler.set_discovery_strategies(strategies)
+
+    def set_runner_status(self, exit_code: int) -> None:
+        """W11-3: surface runner exit status on the report.
+
+        Called by ``entrypoint_runner`` immediately before
+        ``SystemExit(exit_code)``; the assembler derives ``runner_status``
+        from the code and writes both fields to the live
+        ``ActivationReport``. A subsequent ``_persist_report(force=True)``
+        is the runner's responsibility so the new fields hit disk.
+        """
+        self._assembler.set_runner_status(exit_code)
 
 
 def check_extension_activated(extension_id: str, page: Page | None = None) -> bool:
