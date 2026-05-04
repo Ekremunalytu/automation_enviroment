@@ -4,8 +4,8 @@
 
 Open work items deferred from W0-W7 PoC scope. **Slim canonical** — full
 verbose item descriptions, landed-evidence detail, and review triage
-blocks frozen under
-[`archive/backlog/POST_POC_BACKLOG_full_2026-04-29.md`](archive/backlog/POST_POC_BACKLOG_full_2026-04-29.md).
+blocks are frozen under dated snapshots in `archive/backlog/` (latest:
+[`archive/backlog/POST_POC_BACKLOG_full_2026-05-04.md`](archive/backlog/POST_POC_BACKLOG_full_2026-05-04.md)).
 
 PoC acceptance bar (`REFACTOR_OPTIMIZATION.md` §10.7) was met `2026-04-23`;
 items below are value-add, not gates.
@@ -114,9 +114,10 @@ when picking an item up.
   Alembic reversibility audit (7.4.7).
 - **`[FOLLOWUP job-service-typevar-audit]`** —
   `workflows/marketplace/job_service.py:48` declares `T = TypeVar("T")`;
-  call sites unverified during the audit pass. Inspect downstream
-  usage; if the generic does not earn its keep, remove it. Surfaced by
-  2026-05-04 audit pass.
+  immediate re-check found it is used by `_run_in_session()` to preserve
+  the return type of `Callable[[Session], T]`. Treat as low-priority:
+  keep if mypy/reader clarity benefits from the generic, or remove only
+  if the helper is simplified. Surfaced by 2026-05-04 audit pass.
 - **`[FOLLOWUP scripts-seed-test-rewrite]`** — `scripts/seed_test.py`
   carries four AGENTS hard-rule violations in one file: `:55`
   `sys.path.insert`, `:119` `Extension(...)` ORM creation bypassing
@@ -130,8 +131,9 @@ when picking an item up.
   `_glob_to_bait_filename` from `packages.analysis_planner.io`,
   violating ADR 0005 §3 (public API through package roots). Either
   promote a public re-export through
-  `packages/analysis_planner/__init__.py`, or inline the helper into
-  `triggers.py`. Surfaced by 2026-05-04 second-pass review.
+  `packages/analysis_planner/__init__.py` or rename/promote the helper
+  inside `packages.analysis_planner`; do not duplicate planner logic in
+  `workflows/`. Surfaced by 2026-05-04 second-pass review.
 - **`[CLEANUP httpx-runtime-dependency-metadata]`** — `httpx` is
   imported in production at `workflows/marketplace/{client,router}.py`
   and installed by `docker/api/requirements.txt:9`, but absent from
@@ -146,15 +148,16 @@ when picking an item up.
   hardening — ADR 0004 covers policy; operational plumbing waits on
   real T2 engagement.
 - **`[FOLLOWUP w11-precursor-tests]`** — Two playwright god-modules
-  have no dedicated test module:
+  are tested mostly through the `monitor` facade today rather than
+  direct module-owned tests:
   `executor/flows/playwright/runtime_capture/extension_host.py`
   (679 LOC, strace parsing + PID discovery) and
   `executor/flows/playwright/health_reconciliation.py` (533 LOC,
   activation verification + cross-imports `health_summary`). Both are
   scheduled for refactor (`§11.8` W11 lifecycle split, `§11.9` W12
-  subpackaging). Land minimal unit tests covering the public
+  subpackaging). Land minimal direct tests covering the public
   parse/reconcile surface as a safety net **before** the splits land,
-  so the refactor is not gated on integration tests downstream.
+  so the refactor is not over-dependent on facade/integration coverage.
   Surfaced by 2026-05-04 audit pass.
 
 ### Detection / Contracts
@@ -288,11 +291,13 @@ UI v3 redesign minimal-completion landed `2026-04-29` (see
   point to `REFACTOR_STATUS.md` as the single source of truth.
   Surfaced by 2026-05-04 second-pass review.
 - **`[CLEANUP postgres-version-fact-drift]`** — `docker-compose.yml:3`
-  runs `image: postgres:16-alpine`, while project fact references
-  (audit prompts, README, possibly older docs) state PostgreSQL 15.
-  Compose is ground truth for runtime. Audit fact references and
-  update to PG 16 — or pin compose back to 15 if the version bump
-  was incidental. Surfaced by 2026-05-04 second-pass review.
+  runs `image: postgres:16-alpine`, while external audit prompts /
+  project-fact handoffs have still referenced PostgreSQL 15. Current
+  repo docs searched in the 2026-05-04 pass did not show a live
+  PostgreSQL 15 claim, and README already states PostgreSQL 16.
+  Compose is ground truth for runtime; keep future prompts/handoffs
+  aligned with PG 16 unless compose is intentionally pinned back.
+  Surfaced by 2026-05-04 second-pass review.
 - **`[CLEANUP adr-0007-runbook-wording-drift]`** —
   `documents/adrs/0007-local-network-binding.md:86` says a compose
   selector substitutes the wildcard binding when `EXTRACE_ALLOW_LAN=1`
@@ -464,8 +469,9 @@ Detail in archive. Open audit gaps:
   gate exists. Production code is currently clean (the only
   `except Exception` hit is inside a docstring at
   `appcore/db/session.py:137`), but the rule has no machine guard
-  against re-introduction — every other AGENTS hard rule has an AST
-  gate under `tests/architecture/`. Add
+  against re-introduction. Several AGENTS hard rules already have
+  architecture gates under `tests/architecture/`; add the same style of
+  narrow gate for this rule:
   `tests/architecture/test_no_bare_except_exception.py` that AST-walks
   `appcore/`, `workflows/`, `executor/`, `packages/` (excluding tests,
   alembic, scripts) and rejects `ExceptHandler(type=Name(id="Exception"))`
@@ -495,4 +501,8 @@ snapshot under `archive/backlog/` and re-trim — see
 
 Full historical backlog (verbose item descriptions, all landed evidence,
 review triage blocks, architecture audit body):
-[`archive/backlog/POST_POC_BACKLOG_full_2026-04-29.md`](archive/backlog/POST_POC_BACKLOG_full_2026-04-29.md).
+
+- Latest audit snapshot:
+  [`archive/backlog/POST_POC_BACKLOG_full_2026-05-04.md`](archive/backlog/POST_POC_BACKLOG_full_2026-05-04.md)
+- Pre-trim baseline snapshot:
+  [`archive/backlog/POST_POC_BACKLOG_full_2026-04-29.md`](archive/backlog/POST_POC_BACKLOG_full_2026-04-29.md)
