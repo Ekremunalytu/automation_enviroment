@@ -1,6 +1,6 @@
 # Dynamic Analysis Backlog
 
-`Last Updated: 2026-05-04`
+`Last Updated: 2026-05-05`
 
 This is the short actionable backlog for the sandbox pipeline. It complements
 `DEVELOPMENT_PRIORITIES.md`, `PIPELINE_ROADMAP.md`, and the canonical
@@ -39,17 +39,22 @@ landed. Active phase: W11 monitor lifecycle split
 inside and just past W11:
 
 + **W11 (`REFACTOR_OPTIMIZATION.md` §11.8) monitor lifecycle split.**
-  Precursor `[FOLLOWUP w11-precursor-tests]` landed `2026-05-04`
-  (38 direct module-owned tests across
-  `tests/executor/test_playwright_extension_host.py` and
-  `tests/executor/test_playwright_health_reconciliation.py`). W11-1
-  `MonitorRuntime` extraction is the next pull-first; full W11-N
-  schedule in `active-work/W11-monitor-lifecycle.md`.
-+ **W11+W12 lifecycle wiring** picks up
-  `[FOLLOWUP target-log-lifecycle-instrumentation]` — wire
-  `reconcile_event_attempts` / its W11 successor to emit the
-  intermediate `activation_seen`/`target_log_seen` states the W10-6
-  frozenset already pinned. Surfaced by 2026-05-04 manual UI scan.
+  W11-1 `MonitorRuntime` (PR #12, `84d51ae`), W11-2 `ReportAssembler`,
+  W11-3 contract widening (`schema_version` 2.0 → 2.1), W11-4
+  `ScenarioAccountant`, and W11-5 `ExtensionMonitor` facade collapse
+  landed `2026-05-04`/`2026-05-05`. W11-6 (per-strategy
+  `_stop_<strategy>` helpers on `MonitorRuntime.stop()`) is the next
+  pull-first; W11-7 (`workflows/extension_catalog/service.py` split)
+  and W11-8 (`appcore/storage/crud_ops/analysis_jobs.py` split) stay
+  queued behind it. Full W11-N schedule in
+  `active-work/W11-monitor-lifecycle.md`.
++ ~~**W11+W12 lifecycle wiring** picks up
+  `[FOLLOWUP target-log-lifecycle-instrumentation]`~~ — closed
+  `2026-05-05` with W11-4. `ScenarioAccountant.emit_intermediate_state_events`
+  now surfaces the W10-6 alphabet's intermediate states on the live
+  automation timeline (wired into `MonitorRuntime.stop()` after
+  `refresh_derived_state`); see
+  `active-work/W11-monitor-lifecycle.md`.
 + **W12 attribution facade cleanup** (`§11.9`) picks up
   `[FOLLOWUP w12-attribution-naming-overlap]` and
   `[FOLLOWUP coverage-summary-attempted-drift]`. Surfaced by

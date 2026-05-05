@@ -123,8 +123,9 @@ item by reading both this tracker and that archive section.
   (the gap is on the producer signal — `ScenarioAccountant` — not
   the consumer; `health_reconciliation` state machine already emits
   intermediate states).
-- **W11-3** — landed `2026-05-04` on the `week11` working branch (commit
-  pending). `ActivationReport` widened with three new fields in
+- **W11-3** — landed `2026-05-04` on the `week11` working branch
+  (commit `d4f513f`; serializer follow-up `5f4e292`; live-scan
+  validation `d9a2a27`). `ActivationReport` widened with three new fields in
   `packages/analysis_contracts/contracts.py`:
   `activation_discovery_strategies: list[str]`,
   `runner_exit_code: int | None`, and

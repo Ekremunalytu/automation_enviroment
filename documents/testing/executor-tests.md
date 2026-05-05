@@ -1,6 +1,6 @@
 # Executor Tests
 
-`Last Updated: 2026-04-29`
+`Last Updated: 2026-05-05`
 
 `tests/executor/` and `tests/scanner/`. Lane shape:
 [`../TESTING.md`](../TESTING.md). Layer file map:
@@ -37,7 +37,7 @@ subsystem reference: [`../EXECUTOR_PLAYWRIGHT.md`](../EXECUTOR_PLAYWRIGHT.md).
   subpackage (events.py, links.py, facade re-export).
 - `test_playwright_monitor_lifecycle.py` — scenario-event ledger.
 - `test_playwright_monitor_package_import.py` — paket vs top-level
-  executor import mode (W9 boundary work pending).
+  executor import mode (W9 closed `2026-05-04` via PR #9).
 - `test_playwright_monitor_runtime.py` — runtime loop.
 
 ### Reset + Reload

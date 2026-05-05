@@ -1,6 +1,6 @@
 # Testing Guide
 
-`Last Updated: 2026-04-29`
+`Last Updated: 2026-05-05`
 
 Test layers, fixtures, and commands. **Slim canonical** — per-domain
 deep dives split out:
@@ -68,7 +68,7 @@ make-test-security-lane-composition]`.
 
 ```bash
 make test-local                      # default Python suite (no smoke), with postgres_test
-make test-security                   # tests/security/ (45 passing as of 2026-04-27)
+make test-security                   # tests/security/ (170 cases as of W11-5 `2026-05-05`; entry-gate baseline was 45 on `2026-04-27`)
 make check-all                       # ruff + mypy + bandit + ui-types-check + ui-boundaries + pytest
 make sim-target TARGET=publisher.name [TRIGGERS=...] [SCENARIO=...]
 make demo-canary                     # full canary demo
@@ -129,10 +129,11 @@ CDP reconnect stalls are the dominant failure mode).
   workbench stability still needs real smoke.
 - SPA TypeScript contracts are generated, but request client + adapters
   hand-written — drift if generation is skipped.
-- `make test-security` → 45 passed (2026-04-27, post-PR345 + W8-0
-  lock-in). Live `make test-security-live` + Docker-based A1 canary
-  structural diff are user-side regression gates for the capture
-  pipeline.
+- `make test-security` → 170 cases green as of W11-5 (`2026-05-05`,
+  `REFACTOR_STATUS.md`). The 45-case figure was the entry-gate
+  baseline at `2026-04-27` (post-PR345 + W8-0 lock-in). Live
+  `make test-security-live` + Docker-based A1 canary structural diff
+  are user-side regression gates for the capture pipeline.
 
 ## Expectations For New Work
 

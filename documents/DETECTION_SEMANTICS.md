@@ -1,6 +1,6 @@
 # Detection Semantics
 
-`Last Updated: 2026-04-29`
+`Last Updated: 2026-05-05`
 
 Exported `ActivationReport` JSON contract. **Slim canonical** — field
 detail split out:
@@ -97,5 +97,6 @@ This order prevents two recurring mistakes:
   [`adrs/0003-detection-taxonomy.md`](adrs/0003-detection-taxonomy.md).
 - Verdict rollup contract: `packages/analysis_contracts/detection/`
   - `tests/platform/contracts/test_verdict_rollup.py`.
-- W8-6 content-sample redaction (pending) and ADR 0003 §6 addendum:
+- W8-6 content-sample redaction (closed by W10-7 `2026-05-04`,
+  `c1e2273`) and ADR 0003 §6 addendum:
   [`active-work/W8-security.md`](active-work/W8-security.md) item W8-6.

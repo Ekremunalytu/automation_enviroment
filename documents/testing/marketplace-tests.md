@@ -1,6 +1,6 @@
 # Marketplace + Workflow Tests
 
-`Last Updated: 2026-04-29`
+`Last Updated: 2026-05-05`
 
 `tests/workflows/` — workflow router/service/parser/job_service tests.
 Lane shape: [`../TESTING.md`](../TESTING.md). Layer file map:
@@ -18,7 +18,7 @@ Lane shape: [`../TESTING.md`](../TESTING.md). Layer file map:
 - `test_router.py` — `/api/activations`, `/api/activations/latest`,
   `/api/activations/{name}` + retry-on-OSError + latest fallback.
 - `test_bundle_endpoint.py` — bundle download + W8-5 path-traversal
-  guard (router-level regex, pending W8-5 consolidation).
+  guard (router-level regex; W8-5 consolidation landed `2026-04-29`).
 
 ## `tests/workflows/marketplace/`
 

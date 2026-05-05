@@ -1,6 +1,6 @@
 # Risk Register
 
-`Last Updated: 2026-04-29`
+`Last Updated: 2026-05-05`
 
 This register reflects the current post-W8-0 architecture and the remaining
 post-PoC hardening risks.
@@ -68,38 +68,54 @@ Why it matters:
 - The tradeoff is that fixture/matrix gaps now surface as degraded coverage
   instead of being papered over.
 
-### P2 - Security-fixture CI hardening now depends on runner firewall controls
+### P2 - Security-fixture hygiene moved off CI after pipeline retirement
 
 Files:
 
 - `tests/security/`
 - `Makefile`
-- `.github/workflows/ci.yml`
+- `.github/workflows/security.yml`
 - `documents/adrs/0004-malicious-fixture-policy.md`
 
 Why it matters:
 
-- The CI lane now disables outbound egress before `make test-security` and
-  asserts that `make test-security-live` fails under `CI=true`.
-- This is the intended posture, but it still relies on GitHub runner support
-  for the firewall step and does not replace the remaining install-guard work.
+- `.github/workflows/ci.yml` and `docs-check.yml` were retired
+  `2026-04-30` (`REFACTOR_STATUS.md`); the persistent `security-fixtures`
+  egress-sandbox flake source was removed alongside, and CI no longer
+  asserts `make test-security-live` fails under `CI=true`.
+- The remaining CI surface is `security.yml` (weekly Trivy + Bandit).
+  Egress-disabled `make test-security` is now the local-only guard for
+  malicious-fixture hygiene; install-guard work remains operator-side.
+- Re-introducing a CI lane that runs malicious fixtures must again
+  disable outbound egress before `make test-security` and keep
+  `make test-security-live` red under `CI=true`.
 
-### P2 - Host-facing services still need ADR 0007 enforcement
+### P2 - LAN exposure remains an opt-in operator decision
 
 Files:
 
 - `.env.example`
 - `docker-compose.yml`
 - `appcore/api/config.py`
+- `tests/architecture/test_default_bindings.py`
 - `documents/adrs/0007-local-network-binding.md`
+- `documents/runbooks/lan-exposure.md`
 
 Why it matters:
 
-- ADR 0007 is Accepted, but current defaults still include `0.0.0.0`,
-  wildcard CORS, and host-mapped noVNC/CDP ports.
-- Until W8-7 lands the loopback defaults, CORS allow-list, CDP debug profile,
-  and architecture test, operators must treat LAN exposure as an active
-  environment risk.
+- ADR 0007 is Accepted and implemented `2026-04-29` via W8-7. Defaults
+  bind loopback (`API_HOST=127.0.0.1`,
+  `CORS_ALLOW_ORIGINS=http://localhost:3000`,
+  `CORS_ALLOW_CREDENTIALS=False`); default-profile compose `ports:`
+  entries carry the `127.0.0.1:` prefix; the CDP port runs only under
+  the `debug` compose profile via the `executor-cdp` sidecar.
+- LAN exposure now requires both `EXTRACE_ALLOW_LAN=1` (host-side
+  uvicorn/CORS substitution in `model_post_init`) **and** manual
+  compose port edits per `documents/runbooks/lan-exposure.md`.
+- Operators who flip both still inherit the rest of the runbook's
+  pre-flight checklist (firewall rules, reverse-proxy auth, explicit
+  CORS allow-list, rotated PostgreSQL password) — that responsibility
+  did not move to code.
 
 ### P2 - API container mounts the host Docker socket (deliberate, scope-bounded)
 
@@ -115,9 +131,12 @@ Why it matters:
   mount is the chosen mechanism. Per ADR 0001 the appliance is single-host
   single-operator, so the blast radius is the operator's own machine.
 - The trade-off becomes load-bearing the moment LAN exposure is opened: any
-  RCE-equivalent on the API would inherit host-wide container control. This
-  risk therefore tracks W8-7 closely — once loopback is enforced, the
-  exposure is bounded back to its design assumption.
+  RCE-equivalent on the API would inherit host-wide container control. With
+  ADR 0007 / W8-7 enforced (landed `2026-04-29`), the default loopback bind
+  keeps this exposure bounded to the design assumption; flipping
+  `EXTRACE_ALLOW_LAN=1` plus the manual compose port edit re-introduces the
+  load-bearing condition and must be paired with the `lan-exposure.md`
+  runbook hardening.
 - Not currently planned to gate with a docker-socket-proxy; revisit only if
   the threat model shifts (e.g., exposing the API for remote operator use).
 
@@ -168,8 +187,10 @@ Why it matters:
 ### Local noVNC exposure after W8-7
 
 - noVNC is intended for local operator access, not public deployment.
-- This remains accepted only after ADR 0007 loopback/default-profile
-  enforcement lands; until then, see the active host-facing services risk.
+- ADR 0007 loopback/default-profile enforcement landed `2026-04-29`
+  via W8-7; this risk is therefore accepted in its post-landing form
+  (loopback bind plus the `EXTRACE_ALLOW_LAN` + manual compose-edit
+  opt-in described above).
 
 ### Single active analysis
 
@@ -183,5 +204,5 @@ Why it matters:
 - keep report semantics and health metadata honest when a run is degraded
 - expand bounded capture without storing unsafe raw payloads
 - keep CI egress hardening observable and fail-closed
-- land ADR 0007 W8-7 binding defaults before treating localhost-only exposure
-  as mechanically enforced
+- keep ADR 0007 loopback defaults green; `tests/architecture/test_default_bindings.py`
+  is the regression guard and must not be skipped or weakened

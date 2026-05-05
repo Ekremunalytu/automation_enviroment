@@ -1,6 +1,6 @@
 # Platform And Storage Lane
 
-`Last Updated: 2026-04-29`
+`Last Updated: 2026-05-05`
 
 Use this lane for FastAPI app wiring, settings, dependencies, shared contracts,
 SQLAlchemy models, CRUD, and migrations.
@@ -23,8 +23,13 @@ SQLAlchemy models, CRUD, and migrations.
 - Validate with Pydantic v2 before DB insertion.
 - Use SQLAlchemy 2.0 syntax only.
 - Add Alembic migrations for schema changes.
-- Keep settings claims aligned with code. ADR 0007 is Accepted, but loopback
-  binding is not implemented until W8-7 lands.
+- Keep settings claims aligned with code. ADR 0007 is Accepted and
+  implemented `2026-04-29` via W8-7 — `APISettings.HOST` defaults to
+  `127.0.0.1`, `CORS_ALLOW_ORIGINS` to `http://localhost:3000`,
+  `CORS_ALLOW_CREDENTIALS` to `False`; `EXTRACE_ALLOW_LAN=1` opt-in
+  substitutes `0.0.0.0` / `*` only for fields still holding the
+  loopback default. Pinned by
+  `tests/architecture/test_default_bindings.py`.
 
 ## Tests And Checks
 

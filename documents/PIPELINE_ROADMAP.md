@@ -1,6 +1,6 @@
 # Pipeline Roadmap
 
-`Last Updated: 2026-04-27`
+`Last Updated: 2026-05-05`
 
 This is the short staged view of the analysis pipeline. For the current
 backlog, use `automation_todo.md`; for active priorities, use
@@ -119,5 +119,7 @@ flowchart LR
 - analysis output is semi-trusted (ADR 0002 §6); do not forward, upload, or
   index without scrubbing
 - security posture is fixed by ADRs 0002-0005 plus ADR 0007; scope expansion
-  requires a new ADR, not an informal upgrade. ADR 0007 is Accepted, but its
-  loopback-binding enforcement is still W8-7 work.
+  requires a new ADR, not an informal upgrade. ADR 0007 is Accepted and
+  implemented `2026-04-29` via W8-7 — loopback defaults plus
+  `EXTRACE_ALLOW_LAN` opt-in are enforced in `appcore/api/config.py`,
+  `docker-compose.yml`, and `tests/architecture/test_default_bindings.py`.

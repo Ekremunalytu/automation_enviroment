@@ -1,6 +1,6 @@
 # Boundary And Dependency-Direction Rules
 
-`Last Updated: 2026-04-29`
+`Last Updated: 2026-05-05`
 
 Detailed boundary, import-graph, and architectural-rule reference. Open
 this when the import graph test fails, when adding a new top-level
@@ -66,8 +66,10 @@ executor/host.py + executor/container/ + executor/flows/
 - Workflows reach the sandbox only through `executor.control`.
 - The harness extension is checksum-verified at executor startup.
 - ADR 0007 (local network binding): every host-facing port defaults to
-  `127.0.0.1`; LAN exposure is opt-in via `EXTRACE_ALLOW_LAN=1`.
-  Enforcement lands as W8-7 (`active-work/W8-security.md`).
+  `127.0.0.1`; LAN exposure is opt-in via `EXTRACE_ALLOW_LAN=1` (host
+  side) plus manual compose port editing (Docker side) per
+  `documents/runbooks/lan-exposure.md`. Implemented `2026-04-29` via
+  W8-7; pinned by `tests/architecture/test_default_bindings.py`.
 
 ## Security Rules
 

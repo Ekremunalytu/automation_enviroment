@@ -1,6 +1,6 @@
 # Documents Guide
 
-`Last Updated: 2026-04-29`
+`Last Updated: 2026-05-05`
 
 This folder is split into a small canonical core, a few specialized
 reference docs (each as a slim canonical + subdir splits), and a frozen
@@ -12,7 +12,9 @@ Current status: [`REFACTOR_STATUS.md`](REFACTOR_STATUS.md) (slim).
 Deferrals: [`POST_POC_BACKLOG.md`](POST_POC_BACKLOG.md) (slim).
 W0-W7 history: [`REFACTOR_OPTIMIZATION.md`](REFACTOR_OPTIMIZATION.md) §10.
 W8-W13 plan: [`REFACTOR_OPTIMIZATION.md`](REFACTOR_OPTIMIZATION.md) §11.
-**Active W8 work tracker:**
+**Active phase:** W11 monitor lifecycle split — tracker at
+[`active-work/W11-monitor-lifecycle.md`](active-work/W11-monitor-lifecycle.md).
+**Past W8 tracker (closed `2026-04-29`):**
 [`active-work/W8-security.md`](active-work/W8-security.md). Historical
 Week 1-4 execution plan:
 [`REFACTOR_EXECUTION_PLAN.md`](REFACTOR_EXECUTION_PLAN.md). Non-binding
@@ -21,11 +23,12 @@ deferred ideas:
 
 Security posture (threat model, detection taxonomy, malicious fixture
 policy, package-boundary charter, local network binding) is fixed by
-ADRs 0002-0005 plus ADR 0007. ADR 0007 is **Accepted** as of
-`2026-04-27`, but its W8-7 implementation
-([`active-work/W8-security.md`](active-work/W8-security.md) item W8-7)
-is still the gate that turns its loopback / `EXTRACE_ALLOW_LAN`
-discipline from prose into enforced configuration.
+ADRs 0002-0005 plus ADR 0007. ADR 0007 is **Accepted and implemented**
+`2026-04-29` via W8-7 — loopback defaults plus `EXTRACE_ALLOW_LAN`
+opt-in live in `appcore/api/config.py`, `docker-compose.yml`, and the
+[`tests/architecture/test_default_bindings.py`](../tests/architecture/test_default_bindings.py)
+regression matrix; status owned by
+[`REFACTOR_STATUS.md`](REFACTOR_STATUS.md).
 
 ## Read First
 

@@ -1,6 +1,6 @@
 # Executor Playwright Architecture
 
-`Last Updated: 2026-04-29`
+`Last Updated: 2026-05-05`
 
 ExTrace's dynamic-analysis sandbox: full VS Code GUI session inside
 Docker, driven by Playwright, exporting artifact-first analysis results
@@ -161,9 +161,13 @@ Frontend files: `ui/src/features/{marketplace,simulation,reports}/`.
   `t1-a1-credential-read-to-network-canary`) remains the canonical
   user-side smoke.
 - Only one background analysis job is allowed at a time.
-- ADR 0007 (local network binding) is **Accepted** but loopback default
-  needs W8-7 enforcement before mechanically true. See
-  `active-work/W8-security.md` item W8-7.
+- ADR 0007 (local network binding) is **Accepted and implemented**
+  `2026-04-29` via W8-7 — default-profile compose ports carry the
+  `127.0.0.1:` prefix; the CDP port runs only under the `debug`
+  compose profile (executor-cdp sidecar); LAN exposure is opt-in via
+  `EXTRACE_ALLOW_LAN=1` (host) plus manual compose port editing per
+  `documents/runbooks/lan-exposure.md`. Pinned by
+  `tests/architecture/test_default_bindings.py`.
 
 ## See Also
 

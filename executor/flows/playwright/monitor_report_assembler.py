@@ -12,19 +12,23 @@ on the ``ExtensionMonitor`` facade in ``monitor_lifecycle``:
   to ``report_path`` when one is configured. Owns the ``_last_persist_at``
   throttle state.
 
-The owning ``ExtensionMonitor`` facade composes this collaborator at
-construction time and keeps thin one-line shims
-(``_refresh_derived_report_state`` / ``_persist_report``) so that the
-W11-1 facade pin file (``tests/executor/test_extension_monitor_facade.py``)
-keeps its ``runtime.persist == mon._persist_report`` bound-method
-identity invariant intact until W11-5 collapses the facade. Future
-acceptance sub-tasks that the assembler is the natural landing for —
-``runner_exit_code``/``runner_status`` first-class fields
-(``[FOLLOWUP runner-status-contract]``) and the ``activation_seen``/
-``target_log_seen`` intermediate-state emission
-(``[FOLLOWUP target-log-lifecycle-instrumentation]``) — are deferred to
-W11-3 (contract bump) and W11-4 (``ScenarioAccountant`` producer side)
-respectively, so this round stays a pure code-restructure.
+``ExtensionMonitor`` composed this collaborator at construction time
+through W11-2..W11-4 and kept thin one-line shims
+(``_refresh_derived_report_state`` / ``_persist_report``) so the W11-1
+facade pin file (``tests/executor/test_extension_monitor_facade.py``)
+held its ``runtime.persist == mon._persist_report`` bound-method
+identity invariant. W11-5 (``2026-05-05``) then collapsed that facade
+and migrated the fat methods to ``ScenarioAccountant``; the assembler
+is now reached directly from ``MonitorRuntime`` while preserving the
+behavior the W11-1/W11-2 pin files lock in.
+
+Two acceptance sub-tasks that this collaborator was the natural
+landing for — ``runner_exit_code``/``runner_status`` first-class
+fields (``[FOLLOWUP runner-status-contract]``) and the
+``activation_seen``/``target_log_seen`` intermediate-state emission
+(``[FOLLOWUP target-log-lifecycle-instrumentation]``) — landed with
+W11-3 (contract bump, ``d4f513f``) and W11-4 (``ScenarioAccountant``
+producer side, ``2026-05-05``) respectively.
 
 The assembler holds the ``ActivationReport`` by reference (mirroring
 ``MonitorRuntime`` from W11-1) and never mutates ``report_path`` after

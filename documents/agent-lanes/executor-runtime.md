@@ -1,6 +1,6 @@
 # Executor Runtime Lane
 
-`Last Updated: 2026-04-29`
+`Last Updated: 2026-05-05`
 
 Use this lane for Docker executor behavior, Playwright automation, the harness
 extension, runtime capture, reset/reload behavior, and executor runbooks.
@@ -25,8 +25,12 @@ extension, runtime capture, reset/reload behavior, and executor runbooks.
   scenario loop unless retry-on-crash is explicitly enabled.
 - Runtime capture is bounded; do not add raw body, raw argv, or environment
   dumps.
-- noVNC/CDP/API LAN exposure remains an active risk until ADR 0007 W8-7
-  enforcement lands.
+- noVNC/CDP/API LAN exposure is bounded by ADR 0007 W8-7 (landed
+  `2026-04-29`): default-profile compose ports carry `127.0.0.1:`
+  prefixes and the CDP port runs only under the `debug` compose
+  profile via the `executor-cdp` sidecar. LAN exposure is opt-in via
+  `EXTRACE_ALLOW_LAN=1` (host-side uvicorn/CORS) plus manual compose
+  port editing per `documents/runbooks/lan-exposure.md`.
 
 ## Tests And Checks
 

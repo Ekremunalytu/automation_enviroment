@@ -1,6 +1,6 @@
 # Development Priorities
 
-`Last Updated: 2026-04-27`
+`Last Updated: 2026-05-05`
 
 This is the short priority list for current work. It assumes the project stays
 a single-user sandbox appliance on one machine or one Docker host.
@@ -67,7 +67,9 @@ Must vs Stretch. See `REFACTOR_OPTIMIZATION.md` §10 for Must/Stretch split and
 - **PR345 + W8-0 (2026-04-27):** target activation lifecycle PRs 1-5
   landed with ADR 0006 target output-channel capture. W8-0 then hardened the
   harness readiness gate with epoch/pid-aware marker validation and typed
-  `harness_*` reason codes. W8 is now eligible to open.
+  `harness_*` reason codes. W8 opened on `2026-04-27` and **closed
+  `2026-04-29`** (W8-1..W8-7 + W8-9 landed, W8-8 deferred); see
+  `REFACTOR_STATUS.md`.
 - **Pre-W6 cleanup (complete, 2026-04-20):** dormant root directories removed,
   marketplace trigger planning narrowed to `TriggerPlan`, and
   `executor/flows/playwright/monitor.py` reduced to a facade over split helper

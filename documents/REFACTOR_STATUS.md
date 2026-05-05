@@ -1,6 +1,6 @@
 # Refactor Status
 
-`Last Updated: 2026-05-04`
+`Last Updated: 2026-05-05`
 
 Active status board for current closure state. **Slim canonical** — full
 phase closure history (W4 → W5 → W6 → W7 + post-W7 hardening + W8-0..W8-3
@@ -232,8 +232,9 @@ remaining checkbox before W9 entry.
   or alongside the next structural W11 pull; W13 should only lock the
   regression test in, not defer the first redaction fix.
 
-- **W11-3 landed `2026-05-04`** on the `week11` working branch (commit
-  pending). Contract widening: `ActivationReport.activation_discovery_strategies`,
+- **W11-3 landed `2026-05-04`** on the `week11` working branch
+  (commit `d4f513f`; serializer follow-up `5f4e292`; live-scan
+  validation `d9a2a27`). Contract widening: `ActivationReport.activation_discovery_strategies`,
   `runner_exit_code`, and `runner_status` (with new
   `RunnerStatusLiteral = Literal["success", "error", "unknown"]`) added
   to `packages/analysis_contracts/contracts.py`; `schema_version`

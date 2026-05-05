@@ -259,51 +259,29 @@ when picking an item up.
 - Allow-list (`benign_domains.txt`, `popular_extensions.txt`) versioned
   data artifact promotion.
 - Domain service pattern genişletmesi (2.8 — W7'de ertelendi).
-- **`[FOLLOWUP report-invariants-runtime-evidence-drift]`** —
-  `packages/analysis_contracts/report_invariants.py:55`
-  (`_attempt_has_runtime_evidence`) counts only `{attempted_only,
-  verified, failed}`, but the runtime equivalent at
-  `executor/flows/playwright/health_runtime_facts.py:31`
-  (`attempt_has_runtime_evidence`) counts `{attempted_only,
-  activation_seen, target_log_seen, verified, failed}` and includes
-  an explicit comment justifying the broader set
-  (`activation_seen`/`target_log_seen` are intermediate observation
-  states emitted by `reconcile_event_attempts` when the target
-  activated but full verification did not close). Contract invariant
-  lags runtime; align both helpers and add a contract-level
-  regression test pinning the broader set. Natural landing: W10
-  contract hygiene. Surfaced by 2026-05-04 second-pass review.
-- **`[FOLLOWUP planner-executor-action-enum]`** — Planner emits
-  string actions (e.g. `extra:uri_trigger`,
-  `scenario:<scenario_name>`) at
-  `packages/analysis_planner/attempts.py`; executor dispatches over
-  raw action strings at
-  `executor/flows/playwright/stimulus_attempts.py:308`. Typos or
-  unhandled action names become runtime behaviour bugs rather than
-  contract validation failures. Add an enum or narrow Pydantic
-  contract for executor action names so dispatch becomes total.
-  Natural landing: W10 contract hygiene (alongside the existing
-  `_TriggerPayloadDraft` elimination in `§11.7`). Keep dispatch
-  explicit — no generic event framework. Surfaced by 2026-05-04
-  second-pass review.
-- **`[FOLLOWUP w8-6-output-signals-redaction]`** — Three
-  extension-derived text surfaces escape `ContentSample`/redaction:
-  (a) `executor/flows/playwright/output_signals.py:115` truncates but
-  does not redact, and the contract field
-  `OutputSignalEvent.text` (`packages/analysis_contracts/contracts.py
-  :258`) is plain `str`; (b) `workflows/marketplace/
-  analysis_execution.py:71-74` appends raw executor stderr/stdout
-  500-byte tail to job progress; (c)
-  `workflows/marketplace/analysis_service.py:155`
-  (`map_executor_error`) preserves raw exception text in
-  `logger.warning` for triage. Migrate to `ContentSample` (or pipe
-  through `redact_secrets()` at construction) and append the
-  affected fields to `_PENDING_MIGRATION` in
-  `tests/platform/security/test_content_sample_typing.py`.
-  Companion to
-  `[FOLLOWUP w8-6-content-sample-structural-test]`; landing both
-  together as W10 contract hygiene closes the W8-6 broader sweep.
-  Surfaced by 2026-05-04 second-pass review.
+- ~~**`[FOLLOWUP report-invariants-runtime-evidence-drift]`**~~ —
+  closed by W10-6 (`c1d58ef`, `2026-05-04`). The
+  `RUNTIME_EVIDENCE_STATES` frozenset in
+  `packages/analysis_contracts/report_invariants.py` now pins the
+  broader `{attempted_only, activation_seen, target_log_seen,
+  verified, failed}` set; the contract and runtime helpers share it.
+  Stable ID retained for inbound code/test references; see
+  `REFACTOR_STATUS.md` W10 entry.
+- ~~**`[FOLLOWUP planner-executor-action-enum]`**~~ — closed by
+  W10-5 (`b312d34`, `2026-05-04`). `validate_executor_action` and
+  `EXTRA_EXECUTOR_ACTIONS` live in
+  `packages/analysis_contracts/executor_actions.py`; executor
+  dispatch over raw action strings is now guarded by the enum and
+  becomes total. Stable ID retained for inbound code/test
+  references; see `REFACTOR_STATUS.md` W10 entry.
+- ~~**`[FOLLOWUP w8-6-output-signals-redaction]`**~~ — closed by
+  W10-7 (`c1e2273`, `2026-05-04`). Extension-controlled text surfaces
+  (`OutputSignalEvent.text`, executor stderr/stdout tail in
+  `analysis_execution.py`, `map_executor_error` exception text) are
+  routed through `redact_secrets` at construction; regression pinned
+  by `tests/platform/security/test_output_signals_redaction.py`.
+  Stable ID retained for inbound code/test references; see
+  `REFACTOR_STATUS.md` W10 entry.
 - **`[FOLLOWUP coverage-summary-attempted-drift]`** —
   `coverage_summary.attempted_capabilities` (7 entries including
   `uri_walkthrough`), the parallel `summary.attempted_capabilities`
@@ -361,9 +339,9 @@ when picking an item up.
   No `redact_secrets()` call in the chain. Extension `console.log`
   output, `OutputChannel.appendLine` writes, runtime exception stacks
   carry AKIA tokens / bearer headers / Postgres DSNs straight to
-  disk. Sister to `[FOLLOWUP w8-6-output-signals-redaction]` (which
-  enumerates output_signals.py / analysis_execution.py /
-  analysis_service.py but does **not** name `extension_host_output`)
+  disk. Sister to `[FOLLOWUP w8-6-output-signals-redaction]` (closed
+  by W10-7; covered output_signals.py / analysis_execution.py /
+  analysis_service.py but did **not** name `extension_host_output`)
   and `[FOLLOWUP w8-6-content-sample-structural-test]` (broader sweep
   parent). Pickup: wrap `eh_text` through `redact_secrets(...)` in
   `build_report_data` before assignment to the dict; add regression
@@ -396,9 +374,9 @@ when picking an item up.
   `EVENT_ATTEMPT_LIFECYCLE_STATES` (`:179`); add
   `@field_validator("verification_status")` mirroring `_validate_status`
   shape; 8-10 case test (each valid value + 2 invalid + casing +
-  `None` handling). If `[FOLLOWUP report-invariants-runtime-evidence-drift]`
-  is still present elsewhere, mark that older item stale/closed rather
-  than bundling this validator with it. Natural landing:
+  `None` handling). `[FOLLOWUP report-invariants-runtime-evidence-drift]`
+  is already closed by W10-6; this validator is its strictly-narrower
+  follow-up rather than a re-open of that older item. Natural landing:
   W11-companion (before W11-5 facade collapse so the contract
   guarantee sits under the new facade). **Priority: P1.** Surfaced
   2026-05-05 audit pass.
