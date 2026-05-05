@@ -1,6 +1,6 @@
 # Agent Context
 
-`Last Updated: 2026-05-05`
+`Last Updated: 2026-05-05 (W11 closed)`
 
 Thin routing map for coding agents after `AGENTS.md`. **Stays short.**
 Do not copy phase history here; use `REFACTOR_STATUS.md` (slim canonical).
@@ -16,15 +16,16 @@ Do not copy phase history here; use `REFACTOR_STATUS.md` (slim canonical).
 - **Past W8 work tracker (closed `2026-04-29`):**
   `active-work/W8-security.md` (stable IDs W8-1..W8-9; code/tests
   still reference items by ID — keep IDs stable when reorganizing).
-  W9 closed `2026-05-04`; W10 closed `2026-05-04` via PR #11. **Active
-  phase:** W11 monitor lifecycle split — tracker at
-  `active-work/W11-monitor-lifecycle.md` (stable IDs W11-1..W11-8);
-  W11-1..W11-7 have landed, W11-8
-  (`appcore/storage/crud_ops/analysis_jobs.py` subpackage split) is
-  the final structural pull-first before W11 closure; P1 W11 companion
-  `[FOLLOWUP w8-6-extension-host-output-redaction]` landed
-  `2026-05-05` ahead of W11-6. For current closure state always
-  defer to `REFACTOR_STATUS.md`.
+  W9 closed `2026-05-04`; W10 closed `2026-05-04` via PR #11.
+  **W11 closed `2026-05-05`** on the `week11` working branch
+  (W11-1..W11-8 landed; folds into `main` as a single PR). Past
+  W11 tracker: `active-work/W11-monitor-lifecycle.md` (stable IDs
+  W11-1..W11-8 stay around — code/tests reference by ID). P1 W11
+  companion `[FOLLOWUP w8-6-extension-host-output-redaction]`
+  landed `2026-05-05` ahead of W11-6. **Active phase:** W12
+  Executor Subpackaging + Attribution Cleanup (REFACTOR_OPTIMIZATION
+  §11.9). For current closure state always defer to
+  `REFACTOR_STATUS.md`.
 - Architecture: `ARCHITECTURE.md` (slim) + `architecture/` splits.
 - Placement rules: `PROJECT_STRUCTURE.md` (slim) + `structure/` splits.
 - Test lanes: `TESTING.md` (slim) + `testing/` splits.

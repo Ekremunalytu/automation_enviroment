@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-`Last Updated: 2026-05-05`
+`Last Updated: 2026-05-05 (W11 closed)`
 
 This file is intentionally a thin pointer. Do not duplicate phase summaries or
 architecture maps here; that caused drift.
@@ -28,9 +28,12 @@ architecture maps here; that caused drift.
 - Deferred and pull-next work is owned by `documents/POST_POC_BACKLOG.md`
   (slim canonical).
 - W8-W13 planning is owned by `documents/REFACTOR_OPTIMIZATION.md` section 11;
-  active phase is W11 monitor lifecycle split — tracker at
-  `documents/active-work/W11-monitor-lifecycle.md`. Past W8 tracker
-  (closed `2026-04-29`): `documents/active-work/W8-security.md`.
+  W11 closed `2026-05-05` on the `week11` working branch (folds into
+  `main` as a single PR). Active phase: W12 executor subpackaging +
+  attribution cleanup (REFACTOR_OPTIMIZATION §11.9). Past trackers:
+  `documents/active-work/W11-monitor-lifecycle.md` (stable IDs
+  W11-1..W11-8); `documents/active-work/W8-security.md` (closed
+  `2026-04-29`).
 - `documents/archive/` is frozen reference; not on the default read path.
   Open only when a slim canonical explicitly points there.
 

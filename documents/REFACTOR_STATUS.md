@@ -1,6 +1,6 @@
 # Refactor Status
 
-`Last Updated: 2026-05-05`
+`Last Updated: 2026-05-05 (W11 closed)`
 
 Active status board for current closure state. **Slim canonical** — full
 phase closure history (W4 → W5 → W6 → W7 + post-W7 hardening + W8-0..W8-3
@@ -222,12 +222,14 @@ remaining checkbox before W9 entry.
   (`ScenarioAccountant` producer side; consumer-side state machine
   already lives in `health_reconciliation.py`).
 
-  W11 (§11.8 monitor lifecycle split) **open** — W11-5, W11-6, and
-  W11-7 landed `2026-05-05`; W11-8
-  (`appcore/storage/crud_ops/analysis_jobs.py` split) is now the
-  final structural pull-first before W11 closure. P1 companion
-  `[FOLLOWUP w8-6-extension-host-output-redaction]` already landed
-  `2026-05-05` ahead of W11-6.
+  W11 (§11.8 monitor lifecycle split) **closed `2026-05-05`** —
+  W11-1..W11-7 landed `2026-05-04` / `2026-05-05`; W11-8
+  (`appcore/storage/crud_ops/analysis_jobs.py` subpackage split)
+  landed `2026-05-05` as the final structural pull-first. P1
+  companion `[FOLLOWUP w8-6-extension-host-output-redaction]`
+  landed `2026-05-05` ahead of W11-6. The `week11` working branch
+  folds into `main` as a single PR; next phase is W12 (executor
+  subpackaging + attribution cleanup, REFACTOR_OPTIMIZATION §11.9).
 
 - **W11-3 landed `2026-05-04`** on the `week11` working branch
   (commit `d4f513f`; serializer follow-up `5f4e292`; live-scan
@@ -456,6 +458,104 @@ remaining checkbox before W9 entry.
   `ActivationReport` field touched; no producer wiring change);
   workflow router endpoints exercised by FastAPI TestClient unit
   tests.
+
+- **W11-8 landed `2026-05-05`** on the `week11` working branch.
+  Storage-side modularization companion to W11-7, closing audit
+  2026-04-27 §5 "crud_ops/analysis_jobs.py step + lifecycle + JSON":
+  `appcore/storage/crud_ops/analysis_jobs.py` (348 LoC, six
+  responsibilities — job lifecycle create/cancel/complete/fail,
+  recovery, step lifecycle update_step, JSON serialization helpers
+  `_job_steps`/`_write_steps`, shared `JobNotCancellableError`,
+  `_TERMINAL_JOB_STATUSES` set) **deleted** and replaced with a
+  same-named subpackage holding two focused modules + a thin
+  re-export facade. **`appcore/storage/crud_ops/analysis_jobs/steps.py`**
+  (new, ~88 LoC) owns the JSON serialization pair plus the public
+  `update_analysis_job_step`; the legacy `_get_analysis_job_or_raise`
+  call inside that function was inlined as a 4-line
+  `select`/`scalars`/`KeyError` block so `steps.py` does not
+  import from `lifecycle.py` (W11-8 cycle-break invariant).
+  **`appcore/storage/crud_ops/analysis_jobs/lifecycle.py`**
+  (new, ~296 LoC) owns the public lifecycle/recovery surface
+  (9 public symbols + `_get_analysis_job_or_raise` + `_interrupt_job`)
+  and imports `_job_steps`/`_write_steps` from `.steps` —
+  dependency direction strictly `lifecycle → steps`, acyclic.
+  **`appcore/storage/crud_ops/analysis_jobs/__init__.py`**
+  (new, ~52 LoC) is the back-compat facade — kept (not collapsed)
+  because `appcore/storage/crud.py:3-14` and any out-of-tree
+  caller still hold the legacy import path; uses the mypy
+  `--strict` re-export form (`name as name`) consistent with the
+  W11-1..W11-7 facades. **No caller migration**: `crud.py` and
+  every workflow call site (`workflows/marketplace/job_service.py`,
+  `workflows/marketplace/trigger_service.py`) plus the 20+
+  `mock.patch("workflows.marketplace.…")` sites in
+  `test_router.py` resolve identically across the package/module
+  swap.
+
+  Tests (W11 pattern: every new module gets its own focused test
+  file at the real module path so a future reshuffle cannot
+  silently regress): `tests/platform/storage/test_analysis_jobs_lifecycle.py`
+  (new, 16 cases — `pytest.mark.requires_db` lane; create round-trip,
+  get None vs found, get_active only-active-row + None-when-all-terminal,
+  update partial-fields + KeyError, complete status mutation,
+  cancel current-step-cancelled + trailing-pending-skipped + 3-way
+  parametrize over `JobNotCancellableError` for the cancel-after-finish
+  race contract + KeyError, fail current-step-failed +
+  trailing-pending-skipped, recover boot_id-mismatch-marks-failed +
+  boot_id-match-returns-zero, module-path pin) +
+  `tests/platform/storage/test_analysis_jobs_steps.py` (new, 9
+  cases — running→sets-current-step,
+  completed→clears-current-step, skipped→clears-progress-and-current-step,
+  failed→keeps-current-step-for-postmortem, progress persistence
+  for running, unknown-job→KeyError pinning the W11-8 cycle-break
+  inline-lookup, unknown-step-name→ValueError forced via
+  fixture-level JSONB column mutation, module-path pin asserting
+  `lifecycle` is unimported in `steps`). Existing
+  `tests/platform/storage/test_analysis_jobs.py` (13-case
+  integration suite via `workflows.marketplace.job_service`)
+  **untouched** and yeşil — proves the workflow-layer view of the
+  storage surface is bit-for-bit preserved through the subpackage
+  split.
+
+  Architecture gates added in `tests/architecture/test_import_graph.py`
+  (W11-7 pattern):
+  `test_analysis_jobs_facade_stays_thin` (AST-walks
+  `analysis_jobs/__init__.py` and rejects any top-level statement
+  other than `Import` / `ImportFrom` / module docstring /
+  `__all__` assignment — the audit §5 ahtapot-closure structural
+  lock; if a future PR adds logic the test fails and the right
+  answer is to land that logic in `lifecycle.py` or `steps.py`) +
+  `test_analysis_jobs_facade_reexports_match_canonical_modules`
+  (runtime identity pin: every name in `facade.__all__` resolves
+  to the same object as the matching attribute on `lifecycle` or
+  `steps`, so a future facade rewrite that swaps re-exports for
+  shim wrappers fails here). `tests/platform/test_canonical_imports.py`
+  extended with `analysis_jobs_facade` / `analysis_jobs_lifecycle` /
+  `analysis_jobs_steps` plus four new asserts (callable shape on
+  each + `JobNotCancellableError` and `update_analysis_job_step`
+  identity through the facade).
+
+  Verification: `make check-all` green (1247 → 1274 pytest cases,
+  **+27** net new = 16 lifecycle + 9 steps + 2 arch gates;
+  ruff auto-cleaned the unused `AnalysisJobStepRecord` import on
+  `lifecycle.py` after the split because the symbol now lives
+  only on the `steps.py` consumer side). `make test-security` 190
+  cases yeşil (no detection rule touched). No live-scan validation
+  required: W11-8 has zero detection-relevant surface area
+  (`schema_version` unchanged at `2.1`; no `ActivationReport`
+  field touched; no producer wiring change; no monitor lifecycle
+  code touched).
+
+  **W11 closes with W11-8.** All eight §11.8 scope items shipped
+  on the `week11` working branch: monitor split (W11-1..W11-6),
+  workflow-side ahtapot closure (W11-7), storage-side ahtapot
+  closure (W11-8), plus the bundled acceptance sub-tasks
+  (`[FOLLOWUP w8-6-extension-host-output-redaction]` ahead of
+  W11-6, `[FOLLOWUP runner-status-contract]` rode W11-3,
+  `[FOLLOWUP target-log-lifecycle-instrumentation]` rode W11-4).
+  Next phase: **W12 — Executor Subpackaging + Attribution
+  Cleanup** (REFACTOR_OPTIMIZATION §11.9). The `week11` branch
+  folds into `main` as a single PR per the W11-3 branch policy
+  deviation.
 
 - **`[FOLLOWUP w8-6-extension-host-output-redaction]` landed
   `2026-05-05`** on the `week11` working branch as the P1 W11

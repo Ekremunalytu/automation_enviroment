@@ -100,8 +100,11 @@ W8 entry gate **MET as of 2026-04-27** (tarihsel kayıt):
 
 W8 açıldı `2026-04-27` ve **kapandı `2026-04-29`** (W8-1..W8-7 + W8-9
 landed, W8-8 deferred). Closure detayları `REFACTOR_STATUS.md` ve
-`active-work/W8-security.md`'da; aktif faz W11 monitor lifecycle split
-(`active-work/W11-monitor-lifecycle.md`).
+`active-work/W8-security.md`'da. W9 kapandı `2026-05-04` (PR #9), W10
+kapandı `2026-05-04` (PR #11), **W11 kapandı `2026-05-05`** (W11-1..W11-8
+landed on the `week11` working branch). Past W11 tracker:
+`active-work/W11-monitor-lifecycle.md`. Aktif faz: W12 executor
+subpackaging + attribution cleanup (§11.9).
 
 ### §11.2 — Haftalık dağılım (W8-W13)
 
