@@ -187,3 +187,84 @@ def test_executor_imports_signals_from_packages() -> None:
         "executor/flows/playwright/signals.py must import from "
         "packages.analysis_engine.signals.policy (W9-2 contract)."
     )
+
+
+def test_extension_catalog_service_stays_a_thin_facade() -> None:
+    """W11-7: `workflows/extension_catalog/service.py` must remain re-export only.
+
+    The original 475-LoC `service.py` was the audit 2026-04-27 §5 "ahtapot":
+    six responsibilities packed into one module. After the W11-7 split,
+    `manifest_to_schema.py` owns the hydration pipeline and `lifecycle.py`
+    owns the public surface; `service.py` survives as a back-compat facade
+    for `workflows/marketplace/router.py` and the canonical-imports test.
+    This gate prevents the facade from re-growing function/class bodies —
+    if any future PR adds logic here it fails this test, and the right
+    answer is to land that logic in `lifecycle.py` or `manifest_to_schema.py`.
+    """
+    facade = REPO_ROOT / "workflows/extension_catalog/service.py"
+    tree = ast.parse(facade.read_text(encoding="utf-8"))
+
+    allowed_node_types: tuple[type[ast.AST], ...] = (
+        ast.Import,
+        ast.ImportFrom,
+    )
+    violations: list[str] = []
+    for node in tree.body:
+        # Module docstring: a top-level Expr wrapping a string Constant.
+        if (
+            isinstance(node, ast.Expr)
+            and isinstance(node.value, ast.Constant)
+            and isinstance(node.value.value, str)
+        ):
+            continue
+        # `__all__ = [...]` re-export listing.
+        if (
+            isinstance(node, ast.Assign)
+            and len(node.targets) == 1
+            and isinstance(node.targets[0], ast.Name)
+            and node.targets[0].id == "__all__"
+        ):
+            continue
+        if isinstance(node, allowed_node_types):
+            continue
+        violations.append(f"line {node.lineno}: {type(node).__name__}")
+
+    assert not violations, (
+        "workflows/extension_catalog/service.py must stay a thin re-export "
+        "facade (W11-7 audit §5 ahtapot closure invariant). "
+        "Move new logic into lifecycle.py or manifest_to_schema.py:\n"
+        + "\n".join(violations)
+    )
+
+
+def test_extension_catalog_service_reexports_match_canonical_modules() -> None:
+    """W11-7: every name in `service.__all__` must come from the focused modules.
+
+    Pins the contract that the facade's re-exported set is exactly what
+    `lifecycle.py` and `manifest_to_schema.py` provide — no orphan
+    re-exports, no shim-wrapped versions of public symbols.
+    """
+    from workflows.extension_catalog import (
+        lifecycle,
+        manifest_to_schema,
+        service,
+    )
+
+    expected_in_manifest_to_schema = {"ExtensionManifestMismatchError"}
+    expected_in_lifecycle = set(service.__all__) - expected_in_manifest_to_schema
+
+    for name in expected_in_manifest_to_schema:
+        facade_obj = getattr(service, name)
+        canonical_obj = getattr(manifest_to_schema, name)
+        assert facade_obj is canonical_obj, (
+            f"service.{name} must be the same object as "
+            f"manifest_to_schema.{name} (W11-7 re-export invariant)."
+        )
+
+    for name in expected_in_lifecycle:
+        facade_obj = getattr(service, name)
+        canonical_obj = getattr(lifecycle, name)
+        assert facade_obj is canonical_obj, (
+            f"service.{name} must be the same object as lifecycle.{name} "
+            "(W11-7 re-export invariant)."
+        )

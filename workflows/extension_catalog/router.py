@@ -18,7 +18,7 @@ from appcore.contracts.schemas import (
     SearchAllExtensionsInfo,
     SearchRequest,
 )
-from workflows.extension_catalog import service
+from workflows.extension_catalog import lifecycle
 
 # =============================================================================
 # Router Configuration
@@ -58,7 +58,7 @@ def health_check():
 def search_extension(params: SearchRequest = Depends(), db: Session = Depends(get_db)):
     """Search for a single extension by exact name (+ optional publisher/version)."""
     try:
-        result = service.search_extension_by_name(
+        result = lifecycle.search_extension_by_name(
             db=db,
             extension_name=params.name,
             extension_publisher=params.publisher,
@@ -83,7 +83,7 @@ def search_extension(params: SearchRequest = Depends(), db: Session = Depends(ge
 def get_extensions_base_info(db: Session = Depends(get_db)):
     """List all extensions with minimal fields (id, name, publisher, etc.)."""
     try:
-        result = service.get_all_extensions_basic(db)
+        result = lifecycle.get_all_extensions_basic(db)
 
         if result is None:
             raise HTTPException(status_code=404, detail="Extension not found")
@@ -104,7 +104,7 @@ def get_extensions_all_info(
 ):
     """List all extensions with full detail. Supports skip/limit pagination."""
     try:
-        result = service.get_all_extensions_all(db, skip=skip, limit=limit)
+        result = lifecycle.get_all_extensions_all(db, skip=skip, limit=limit)
 
         if result is None:
             raise HTTPException(status_code=404, detail="Extension not found")
@@ -121,7 +121,7 @@ def get_extensions_all_info(
 def create_extension(request: ScanRequest, db: Session = Depends(get_db)):
     """Scan extensions/ for matching name, parse package.json, persist to DB."""
     try:
-        result = service.create_extension_by_name(db, request.name)
+        result = lifecycle.create_extension_by_name(db, request.name)
 
         if result is None:
             raise HTTPException(status_code=404, detail="Extension not found")
@@ -143,7 +143,7 @@ def create_extension(request: ScanRequest, db: Session = Depends(get_db)):
 def delete_extension(params: SearchRequest = Depends(), db: Session = Depends(get_db)):
     """Delete an extension. Provide publisher+version for unambiguous deletion."""
     try:
-        deleted = service.delete_extension_by_name(
+        deleted = lifecycle.delete_extension_by_name(
             db, params.name, params.publisher, params.version
         )
 
@@ -166,7 +166,7 @@ def get_extension_scripts(
 ):
     """Retrieve npm scripts defined in an extension's package.json."""
     try:
-        result = service.get_extension_scripts(
+        result = lifecycle.get_extension_scripts(
             db,
             extension_name=params.name,
             extension_publisher=params.publisher,
@@ -193,7 +193,7 @@ def get_extension_activation_events(
 ):
     """Retrieve activation events for an extension."""
     try:
-        result = service.get_extension_activation_events(
+        result = lifecycle.get_extension_activation_events(
             db,
             extension_name=params.name,
             extension_publisher=params.publisher,
@@ -220,7 +220,7 @@ def get_extension_capabilities(
 ):
     """Retrieve capability declarations for an extension."""
     try:
-        result = service.get_extension_capabilities(
+        result = lifecycle.get_extension_capabilities(
             db,
             extension_name=params.name,
             extension_publisher=params.publisher,
@@ -242,7 +242,7 @@ def get_extension_contributes_all(
     params: SearchRequest = Depends(), db: Session = Depends(get_db)
 ):
     try:
-        result = service.get_extension_contributes_all(
+        result = lifecycle.get_extension_contributes_all(
             db,
             extension_name=params.name,
             extension_publisher=params.publisher,
@@ -267,7 +267,7 @@ def get_extension_contributes_commands(
     params: SearchRequest = Depends(), db: Session = Depends(get_db)
 ):
     try:
-        result = service.get_extension_contributes_commands(
+        result = lifecycle.get_extension_contributes_commands(
             db,
             extension_name=params.name,
             extension_publisher=params.publisher,
