@@ -1,6 +1,6 @@
 # ExTrace
 
-`Last Updated: 2026-04-27`
+`Last Updated: 2026-05-05`
 
 ExTrace is a VS Code extension analysis platform built around three runtime
 surfaces:
@@ -51,7 +51,12 @@ multi-tenant web platform.
   `feat/pr345-completion`.
 - W8-0 deterministic harness readiness gate landed on `2026-04-27`, unblocking
   W8-1 and W8-3.
-- W8-W13 external-review integration is now eligible to open.
+- **W8 closed for active work `2026-04-29`** (W8-1..W8-7 + W8-9 landed,
+  W8-8 deferred); **W9 closed `2026-05-04`** (PR #9); **W10 closed
+  `2026-05-04`** (PR #11). Active phase: **W11 monitor lifecycle split**
+  — W11-1..W11-5 landed `2026-05-04`/`2026-05-05`; W11-6 (per-strategy
+  `_stop_<strategy>` helpers on `MonitorRuntime.stop()`) is the next
+  pull-first. Tracker: [`active-work/W11-monitor-lifecycle.md`](documents/active-work/W11-monitor-lifecycle.md).
 - **Canonical source of truth for phase state:**
   [`documents/REFACTOR_STATUS.md`](documents/REFACTOR_STATUS.md).
   Deferred items: [`documents/POST_POC_BACKLOG.md`](documents/POST_POC_BACKLOG.md).

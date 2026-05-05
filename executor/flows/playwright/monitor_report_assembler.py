@@ -12,19 +12,23 @@ on the ``ExtensionMonitor`` facade in ``monitor_lifecycle``:
   to ``report_path`` when one is configured. Owns the ``_last_persist_at``
   throttle state.
 
-The owning ``ExtensionMonitor`` facade composes this collaborator at
-construction time and keeps thin one-line shims
-(``_refresh_derived_report_state`` / ``_persist_report``) so that the
-W11-1 facade pin file (``tests/executor/test_extension_monitor_facade.py``)
-keeps its ``runtime.persist == mon._persist_report`` bound-method
-identity invariant intact until W11-5 collapses the facade. Future
-acceptance sub-tasks that the assembler is the natural landing for —
-``runner_exit_code``/``runner_status`` first-class fields
-(``[FOLLOWUP runner-status-contract]``) and the ``activation_seen``/
-``target_log_seen`` intermediate-state emission
-(``[FOLLOWUP target-log-lifecycle-instrumentation]``) — are deferred to
-W11-3 (contract bump) and W11-4 (``ScenarioAccountant`` producer side)
-respectively, so this round stays a pure code-restructure.
+``ExtensionMonitor`` composed this collaborator at construction time
+through W11-2..W11-4 and kept thin one-line shims
+(``_refresh_derived_report_state`` / ``_persist_report``) so the W11-1
+facade pin file (``tests/executor/test_extension_monitor_facade.py``)
+held its ``runtime.persist == mon._persist_report`` bound-method
+identity invariant. W11-5 (``2026-05-05``) then collapsed that facade
+and migrated the fat methods to ``ScenarioAccountant``; the assembler
+is now reached directly from ``MonitorRuntime`` while preserving the
+behavior the W11-1/W11-2 pin files lock in.
+
+Two acceptance sub-tasks that this collaborator was the natural
+landing for — ``runner_exit_code``/``runner_status`` first-class
+fields (``[FOLLOWUP runner-status-contract]``) and the
+``activation_seen``/``target_log_seen`` intermediate-state emission
+(``[FOLLOWUP target-log-lifecycle-instrumentation]``) — landed with
+W11-3 (contract bump, ``d4f513f``) and W11-4 (``ScenarioAccountant``
+producer side, ``2026-05-05``) respectively.
 
 The assembler holds the ``ActivationReport`` by reference (mirroring
 ``MonitorRuntime`` from W11-1) and never mutates ``report_path`` after
@@ -35,6 +39,7 @@ so the two views cannot drift.
 from __future__ import annotations
 
 import time
+from collections.abc import Iterable
 from pathlib import Path
 
 from .attribution import (
@@ -123,6 +128,29 @@ class ReportAssembler:
         ) = _reconcile_coverage_verification(self._report)
         self._report.signal_summary = _build_signal_summary(self._report)
         self._report.evidence_links = self._report.canonical_evidence_links
+
+    def set_runner_status(self, exit_code: int) -> None:
+        """Record the entrypoint runner's exit code on the report.
+
+        W11-3: producer side of `[FOLLOWUP runner-status-contract]`. The
+        runner calls this from `entrypoint_runner.py` immediately before
+        `SystemExit(exit_code)`; the report's `runner_status` enum is
+        derived here so the contract stays the single source of truth on
+        the (exit_code -> status) mapping (`0 -> success`, `!= 0 -> error`,
+        no call -> `unknown` default on the field).
+        """
+        self._report.runner_exit_code = exit_code
+        self._report.runner_status = "success" if exit_code == 0 else "error"
+
+    def set_discovery_strategies(self, strategies: Iterable[str]) -> None:
+        """Record which discovery strategies produced activations.
+
+        W11-3: producer side of `activation_discovery_strategies`. The
+        runtime collaborator (`MonitorRuntime.stop()`) emits this list
+        once per scan; entries are deduped + sorted for deterministic
+        diffs across re-runs of the same target.
+        """
+        self._report.activation_discovery_strategies = sorted(set(strategies))
 
     def persist(self, force: bool) -> None:
         """Write the report if forced or if a debounce threshold tripped.

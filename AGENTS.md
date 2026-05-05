@@ -1,6 +1,6 @@
 # AGENTS.md
 
-`Last Updated: 2026-05-04`
+`Last Updated: 2026-05-05 (W11 closed)`
 
 ## Authority
 
@@ -24,17 +24,24 @@
   landed; W8-8 manifest log sanitization deferred under named triggers
   (see `active-work/W8-security.md`). **W9 closed `2026-05-04` via
   PR #9.** **W10 closed `2026-05-04` via PR #11** (contract hygiene +
-  planner cleanup; W10-1..W10-7 landed). Active phase: **W11 monitor
-  lifecycle split** — entry gate met `2026-05-04` after the
-  `[FOLLOWUP w11-precursor-tests]` safety net landed (38 direct
-  module-owned tests for `runtime_capture/extension_host.py` and
-  `health_reconciliation.py`). W11-1 `MonitorRuntime` extraction is
-  the next pull-first; tracker at
+  planner cleanup; W10-1..W10-7 landed). **W11 closed `2026-05-05`**
+  on the `week11` working branch — all eight §11.8 scope items
+  shipped: W11-1..W11-6 monitor lifecycle split (`MonitorRuntime` +
+  `ReportAssembler` + `ScenarioAccountant` + per-strategy stop
+  helpers), W11-7 `workflows/extension_catalog/service.py` ahtapot
+  closure (`manifest_to_schema` + `lifecycle` modules with thin
+  facade), W11-8 `appcore/storage/crud_ops/analysis_jobs.py`
+  ahtapot closure (subpackage with `lifecycle.py` + `steps.py` +
+  `__init__.py` facade). P1 companion
+  `[FOLLOWUP w8-6-extension-host-output-redaction]` landed
+  `2026-05-05` ahead of W11-6. Active phase: **W12 — Executor
+  Subpackaging + Attribution Cleanup** (REFACTOR_OPTIMIZATION
+  §11.9). Tracker for past W11 detail (stable IDs W11-1..W11-8):
   `active-work/W11-monitor-lifecycle.md`. Plan navigation:
-  `documents/AGENT_CONTEXT.md` → matching lane doc. Past W8/W9/W10
+  `documents/AGENT_CONTEXT.md` → matching lane doc. Past W8/W9/W10/W11
   trackers and stable IDs stay around because code/tests reference
-  items by ID (`W8-N`, W9/W10 commit hashes), not because new work is
-  being done in those windows.
+  items by ID (`W8-N`, W9/W10/W11 commit hashes), not because new
+  work is being done in those windows.
 - ADR 0007 local-network-binding **Accepted and implemented**
   `2026-04-29` via W8-7 (`feat/w8-7-lan-binding-defaults`). Loopback
   defaults + `EXTRACE_ALLOW_LAN` enforcement live in

@@ -1,6 +1,6 @@
 # ExTrace Architecture
 
-`Last Updated: 2026-04-29`
+`Last Updated: 2026-05-05`
 
 System shape, runtime surfaces, and module map. **Slim canonical** —
 detailed request flows under
@@ -24,9 +24,10 @@ platform.
 - Extension execution stays Docker-isolated.
 - Activation reports are artifact-first operator artifacts.
 - Async job state is durable in PostgreSQL (`analysis_jobs`).
-- ADR 0007 local-network-binding is **Accepted**, but loopback default
-  needs W8-7 enforcement before mechanically true
-  (`active-work/W8-security.md`).
+- ADR 0007 local-network-binding is **Accepted and implemented**
+  `2026-04-29` via W8-7 — loopback defaults are enforced by
+  `appcore/api/config.py`, `docker-compose.yml`, and
+  `tests/architecture/test_default_bindings.py`.
 
 ## Runtime Surfaces
 

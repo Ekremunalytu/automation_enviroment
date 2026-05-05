@@ -16,6 +16,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from playwright.sync_api import Error as PlaywrightError
+
 from executor.flows.playwright import monitor
 from executor.flows.playwright.monitor_runtime_state import MonitorRuntime
 from executor.flows.playwright.monitor_types import ActivationReport
@@ -34,6 +36,15 @@ class _RecordingHooks:
         self.finalize_calls: int = 0
         self.append_calls: int = 0
         self.refresh_calls: int = 0
+        # W11-3: list of strategy-id lists shipped via the runtime callback.
+        self.discovery_strategy_calls: list[list[str]] = []
+        # W11-4: counts ``emit_intermediate_state_events`` invocations
+        # routed through the runtime → facade-shim → accountant chain.
+        self.emit_intermediate_calls: int = 0
+        # W11-4: snapshot of runtime callback ordering — appended once
+        # per stop() for ``refresh`` and ``emit`` so tests can pin the
+        # post-refresh emission ordering invariant.
+        self.callback_order: list[str] = []
 
     def persist(self, force: bool) -> None:
         self.persist_calls.append(force)
@@ -66,6 +77,14 @@ class _RecordingHooks:
 
     def refresh_derived_state(self) -> None:
         self.refresh_calls += 1
+        self.callback_order.append("refresh")
+
+    def set_discovery_strategies(self, strategies: list[str]) -> None:
+        self.discovery_strategy_calls.append(list(strategies))
+
+    def emit_intermediate_state_events(self) -> None:
+        self.emit_intermediate_calls += 1
+        self.callback_order.append("emit")
 
 
 class _FakeNetworkCapture:
@@ -167,6 +186,8 @@ def _build_runtime(
         finalize_scenarios=hooks.finalize_scenarios,
         append_activation_log_entries=hooks.append_activation_log_entries,
         refresh_derived_state=hooks.refresh_derived_state,
+        set_discovery_strategies=hooks.set_discovery_strategies,
+        emit_intermediate_state_events=hooks.emit_intermediate_state_events,
     )
     return runtime, report, hooks
 
@@ -216,6 +237,20 @@ def test_init_state_defaults() -> None:
     assert hooks.persist_calls == []
     assert report.network_events == []
     assert report.file_events == []
+
+
+def test_page_setter_updates_runtime_page() -> None:
+    """W11-5: ``MonitorRuntime.page`` setter lets the facade rewire the
+    page reference after a reload (``entrypoint_runner`` calls
+    ``mon.page = reloaded_page`` post-reload)."""
+
+    runtime, _report, _hooks = _build_runtime()
+    new_page = _DummyPage()
+
+    runtime.page = new_page
+
+    assert runtime.page is new_page
+    assert runtime._page is new_page
 
 
 def test_start_snapshots_log_offsets_and_attaches_captures(monkeypatch) -> None:
@@ -365,6 +400,10 @@ def test_stop_runs_strategies_and_invokes_collaborator_callbacks(
     # start() persists once with force=True; stop() persists multiple times
     # (post-finalize, after each strategy, and at the end after refresh).
     assert hooks.persist_calls.count(True) >= 4
+    # W11-3: strategy 1 (parse_all_exthost_logs) returned a non-empty
+    # list and strategy 3's parse_activations_from_output returned [],
+    # so only "exthost_log_parse" lands. Pin one shipped emission.
+    assert hooks.discovery_strategy_calls == [["exthost_log_parse"]]
 
 
 def test_stop_without_start_falls_back_safely(monkeypatch) -> None:
@@ -489,6 +528,113 @@ def test_capture_runtime_snapshot_returns_expected_shape(monkeypatch) -> None:
     assert snapshot["target_network_events"] == 0
 
 
+# ---------------------------------------------------------------------------
+# W11-3 — discovery-strategy callback emission
+# ---------------------------------------------------------------------------
+
+
+def test_stop_emits_all_three_strategies_when_all_succeed(
+    monkeypatch, tmp_path
+) -> None:
+    """Strategy 1 finds an exthost-log activation, Strategy 2 returns a
+    non-empty Running Extensions list, Strategy 3 merges in a brand-new
+    activation entry. All three identifiers must reach the assembler."""
+
+    log_file = tmp_path / "exthost.log"
+    log_file.write_text("placeholder")
+
+    strategy_one_entry = monitor.ActivationEntry(
+        extension_id="publisher.tool",
+        activation_event="onCommand:publisher.tool.run",
+        timestamp="2026-01-01 10:00:00.500",
+        source="log",
+    )
+    strategy_three_entry = monitor.ActivationEntry(
+        extension_id="publisher.tool",
+        activation_event="onView:publisher.view",
+        timestamp="2026-01-01 10:00:01.000",
+        source="output",
+    )
+
+    _patch_facade(
+        monkeypatch,
+        parse_all_exthost_logs=lambda start_offsets=None: [strategy_one_entry],
+        find_exthost_logs=lambda: [log_file],
+        get_running_extensions=lambda page: [
+            monitor.RunningExtension(
+                extension_id="publisher.tool", activation_time_ms=12
+            )
+        ],
+        read_extension_host_output=lambda page=None: "extension host output",
+        parse_activations_from_output=lambda output, monitoring_start=0.0: [
+            strategy_three_entry,
+        ],
+    )
+
+    runtime, _report, hooks = _build_runtime()
+    runtime.start()
+    runtime.stop()
+
+    assert hooks.discovery_strategy_calls == [
+        [
+            "exthost_log_parse",
+            "running_extensions_ui",
+            "exthost_output_parse",
+        ]
+    ]
+
+
+def test_stop_emits_empty_list_when_all_strategies_yield_no_entries(
+    monkeypatch,
+) -> None:
+    """All three strategies execute without exception but return empty
+    results; the callback still fires (so the assembler clears any
+    stale value), with an empty list."""
+
+    _patch_facade(monkeypatch)  # all defaults return empty results.
+
+    runtime, _report, hooks = _build_runtime()
+    runtime.start()
+    runtime.stop()
+
+    assert hooks.discovery_strategy_calls == [[]]
+
+
+def test_stop_omits_strategy_three_when_output_parse_yields_no_new_entries(
+    monkeypatch, tmp_path
+) -> None:
+    """If the exthost-output parse returns the same set already produced
+    by Strategy 1 (i.e. no new entries after dedup-merge),
+    ``exthost_output_parse`` must NOT be reported. Pins the producer's
+    "yielded at least one *new* entry" semantics for Strategy 3."""
+
+    log_file = tmp_path / "exthost.log"
+    log_file.write_text("placeholder")
+    activation = monitor.ActivationEntry(
+        extension_id="publisher.tool",
+        activation_event="onCommand:publisher.tool.run",
+        timestamp="2026-01-01 10:00:00.500",
+        source="log",
+    )
+
+    _patch_facade(
+        monkeypatch,
+        parse_all_exthost_logs=lambda start_offsets=None: [activation],
+        find_exthost_logs=lambda: [log_file],
+        # parse_activations_from_output returns the same activation; the
+        # merge dedupes, so post_count == pre_count and Strategy 3 is
+        # not credited.
+        parse_activations_from_output=lambda output, monitoring_start=0.0: [activation],
+        read_extension_host_output=lambda page=None: "extension host output",
+    )
+
+    runtime, _report, hooks = _build_runtime()
+    runtime.start()
+    runtime.stop()
+
+    assert hooks.discovery_strategy_calls == [["exthost_log_parse"]]
+
+
 def test_log_offsets_property_reflects_runtime_state(monkeypatch) -> None:
     """W11-1 transitional pin: facade reads ``_log_offsets`` via runtime."""
 
@@ -499,3 +645,337 @@ def test_log_offsets_property_reflects_runtime_state(monkeypatch) -> None:
     assert runtime.log_offsets == {}
     runtime.start()
     assert runtime.log_offsets == expected
+
+
+# ---------------------------------------------------------------------------
+# W11-4 — intermediate-state emission callback ordering
+# ---------------------------------------------------------------------------
+
+
+def test_stop_invokes_emit_intermediate_state_events_callback(monkeypatch) -> None:
+    """W11-4: ``emit_intermediate_state_events`` fires exactly once per stop()."""
+
+    _patch_facade(monkeypatch)
+
+    runtime, _report, hooks = _build_runtime()
+    runtime.start()
+    runtime.stop()
+
+    assert hooks.emit_intermediate_calls == 1
+
+
+def test_stop_emits_intermediate_state_events_after_refresh(monkeypatch) -> None:
+    """W11-4: ``emit_intermediate_state_events`` must run *after*
+    ``refresh_derived_state`` so the emitted events reflect the
+    post-reconcile ``verification_status`` literals
+    (``activation_seen`` / ``target_log_seen``). Pinning the order at
+    the runtime layer keeps this guarantee independent of the facade
+    shim shape that W11-5 will collapse.
+    """
+
+    _patch_facade(monkeypatch)
+
+    runtime, _report, hooks = _build_runtime()
+    runtime.start()
+    runtime.stop()
+
+    # Filter to the two callbacks we care about; positional order matters.
+    refresh_emit_order = [
+        step for step in hooks.callback_order if step in {"refresh", "emit"}
+    ]
+    assert refresh_emit_order == ["refresh", "emit"]
+
+
+def test_stop_without_start_still_emits_intermediate_state_events(monkeypatch) -> None:
+    """W11-4: defensive ``stop()`` (without ``start()``) still drives the
+    emission callback so partial test scaffolds do not silently drop the
+    intermediate-state vocabulary."""
+
+    _patch_facade(monkeypatch)
+
+    runtime, _report, hooks = _build_runtime()
+    runtime.stop()
+
+    assert hooks.emit_intermediate_calls == 1
+    assert hooks.refresh_calls == 1
+
+
+# ---------------------------------------------------------------------------
+# W11-6 — per-strategy stop helpers
+# ---------------------------------------------------------------------------
+# Each ``_stop_<strategy>`` helper is exercised in isolation. The helpers
+# do not call ``self._persist`` themselves (orchestration in ``stop()``
+# owns the persist cadence) and they do not invoke
+# ``_set_discovery_strategies`` — they just return the strategy id on a
+# hit or ``None`` otherwise. Tests assert return values plus per-strategy
+# side effects on the report.
+
+
+class _RecordingKeyboard:
+    """Page.keyboard fake for Strategy 2 Escape recovery branch tests."""
+
+    def __init__(self, *, raise_on_press: bool = False) -> None:
+        self.raise_on_press = raise_on_press
+        self.press_calls: list[str] = []
+
+    def press(self, key: str) -> None:
+        self.press_calls.append(key)
+        if self.raise_on_press:
+            raise PlaywrightError("escape press failed")
+
+
+class _RecordingPage:
+    """Minimal Page fake exposing ``keyboard`` and ``wait_for_timeout``
+    so Strategy 2 recovery branch can be observed without spinning up
+    a real Playwright context."""
+
+    def __init__(self, *, raise_on_keyboard: bool = False) -> None:
+        self.keyboard = _RecordingKeyboard(raise_on_press=raise_on_keyboard)
+        self.wait_calls: list[int] = []
+
+    def wait_for_timeout(self, ms: int) -> None:
+        self.wait_calls.append(ms)
+
+
+# --- Strategy 1 (_stop_exthost_log_parse) ---------------------------------
+
+
+def test_stop_exthost_log_parse_returns_name_on_activations(
+    monkeypatch, tmp_path
+) -> None:
+    log_file = tmp_path / "exthost.log"
+    log_file.write_text("placeholder")
+    activation = monitor.ActivationEntry(
+        extension_id="publisher.tool",
+        activation_event="onCommand:publisher.tool.run",
+        timestamp="2026-01-01 10:00:00.500",
+        source="log",
+    )
+    _patch_facade(
+        monkeypatch,
+        parse_all_exthost_logs=lambda start_offsets=None: [activation],
+        find_exthost_logs=lambda: [log_file],
+    )
+
+    runtime, report, hooks = _build_runtime()
+    result = runtime._stop_exthost_log_parse()
+
+    assert result == "exthost_log_parse"
+    assert report.activated == [activation]
+    assert report.log_file_path == str(log_file)
+    # Helpers do not persist on their own — orchestration owns the
+    # cadence. Pin the contract so a later refactor cannot push persist
+    # into helpers.
+    assert hooks.persist_calls == []
+
+
+def test_stop_exthost_log_parse_returns_none_on_empty_activated(monkeypatch) -> None:
+    _patch_facade(monkeypatch)  # parse_all_exthost_logs default returns [].
+
+    runtime, report, _hooks = _build_runtime()
+    result = runtime._stop_exthost_log_parse()
+
+    assert result is None
+    assert report.activated == []
+    assert report.log_file_path == ""
+
+
+def test_stop_exthost_log_parse_swallows_oserror_returns_none(monkeypatch) -> None:
+    def boom(start_offsets=None):
+        raise OSError("log dir unreadable")
+
+    _patch_facade(monkeypatch, parse_all_exthost_logs=boom)
+
+    runtime, report, _hooks = _build_runtime()
+    result = runtime._stop_exthost_log_parse()
+
+    assert result is None
+    # ``_report.activated`` is left at its prior value (here: default []).
+    assert report.activated == []
+
+
+def test_stop_exthost_log_parse_writes_log_file_path_only_when_activated_non_empty(
+    monkeypatch, tmp_path
+) -> None:
+    """Mirror of W11-3 invariant: ``log_file_path`` is only written when
+    Strategy 1 returns at least one activation. Even if
+    ``find_exthost_logs`` returns a path, an empty activation list must
+    not seed the path field."""
+
+    sentinel = tmp_path / "should_not_be_written.log"
+    sentinel.write_text("placeholder")
+    _patch_facade(
+        monkeypatch,
+        parse_all_exthost_logs=lambda start_offsets=None: [],
+        find_exthost_logs=lambda: [sentinel],
+    )
+
+    runtime, report, _hooks = _build_runtime()
+    result = runtime._stop_exthost_log_parse()
+
+    assert result is None
+    assert report.log_file_path == ""
+
+
+# --- Strategy 2 (_stop_running_extensions_ui) -----------------------------
+
+
+def test_stop_running_extensions_ui_returns_name_on_running_list(monkeypatch) -> None:
+    running = monitor.RunningExtension(
+        extension_id="publisher.tool", activation_time_ms=12
+    )
+    _patch_facade(
+        monkeypatch,
+        get_running_extensions=lambda page: [running],
+    )
+
+    runtime, report, _hooks = _build_runtime()
+    result = runtime._stop_running_extensions_ui()
+
+    assert result == "running_extensions_ui"
+    assert report.running_extensions == [running]
+
+
+def test_stop_running_extensions_ui_returns_none_on_empty(monkeypatch) -> None:
+    _patch_facade(monkeypatch)  # default returns [].
+
+    runtime, report, _hooks = _build_runtime()
+    result = runtime._stop_running_extensions_ui()
+
+    assert result is None
+    assert report.running_extensions == []
+
+
+def test_stop_running_extensions_ui_invokes_escape_recovery_on_playwright_error(
+    monkeypatch,
+) -> None:
+    def raise_playwright(page):
+        raise PlaywrightError("dom panel detached")
+
+    _patch_facade(monkeypatch, get_running_extensions=raise_playwright)
+
+    page = _RecordingPage()
+    runtime, _report, _hooks = _build_runtime(page=page)
+    result = runtime._stop_running_extensions_ui()
+
+    assert result is None
+    assert page.keyboard.press_calls == ["Escape"]
+    assert page.wait_calls == [300]
+
+
+def test_stop_running_extensions_ui_swallows_recovery_error(monkeypatch) -> None:
+    """The recovery branch's own ``PlaywrightError`` (e.g. page detached
+    mid-Escape) must be swallowed so a single broken strategy does not
+    crash the rest of stop()."""
+
+    def raise_playwright(page):
+        raise PlaywrightError("primary panel error")
+
+    _patch_facade(monkeypatch, get_running_extensions=raise_playwright)
+
+    page = _RecordingPage(raise_on_keyboard=True)
+    runtime, _report, _hooks = _build_runtime(page=page)
+
+    # Must not raise.
+    result = runtime._stop_running_extensions_ui()
+
+    assert result is None
+    assert page.keyboard.press_calls == ["Escape"]
+
+
+# --- Strategy 3 (_stop_exthost_output_parse) ------------------------------
+
+
+def test_stop_exthost_output_parse_returns_name_on_net_new_merge(monkeypatch) -> None:
+    """Pre-merge ``activated`` is empty, ``parse_activations_from_output``
+    yields one new entry, post-merge count grows → strategy is credited."""
+
+    new_entry = monitor.ActivationEntry(
+        extension_id="publisher.tool",
+        activation_event="onView:publisher.view",
+        timestamp="2026-01-01 10:00:01.000",
+        source="output",
+    )
+    _patch_facade(
+        monkeypatch,
+        read_extension_host_output=lambda page=None: "raw output blob",
+        parse_activations_from_output=lambda output, monitoring_start=0.0: [new_entry],
+    )
+
+    runtime, report, _hooks = _build_runtime()
+    result = runtime._stop_exthost_output_parse()
+
+    assert result == "exthost_output_parse"
+    assert report.extension_host_output == "raw output blob"
+    assert report.activated == [new_entry]
+
+
+def test_stop_exthost_output_parse_returns_none_when_dedupe_yields_no_credit(
+    monkeypatch,
+) -> None:
+    """W11-3 dedupe-no-credit semantics — pinned at the helper level so
+    a future change to ``_merge_activation_entries`` cannot silently
+    flip the credit rule."""
+
+    existing = monitor.ActivationEntry(
+        extension_id="publisher.tool",
+        activation_event="onCommand:publisher.tool.run",
+        timestamp="2026-01-01 10:00:00.500",
+        source="log",
+    )
+    _patch_facade(
+        monkeypatch,
+        read_extension_host_output=lambda page=None: "raw output blob",
+        # parse_activations_from_output returns the same activation
+        # already present in the report; merge dedupes, post_count ==
+        # pre_count → no credit.
+        parse_activations_from_output=lambda output, monitoring_start=0.0: [existing],
+    )
+
+    runtime, report, _hooks = _build_runtime()
+    report.activated = [existing]
+    result = runtime._stop_exthost_output_parse()
+
+    assert result is None
+    assert report.extension_host_output == "raw output blob"
+    assert report.activated == [existing]
+
+
+def test_stop_exthost_output_parse_swallows_oserror_returns_none(monkeypatch) -> None:
+    def boom(page=None):
+        raise OSError("/proc/<pid>/fd unreadable")
+
+    _patch_facade(monkeypatch, read_extension_host_output=boom)
+
+    runtime, report, _hooks = _build_runtime()
+    result = runtime._stop_exthost_output_parse()
+
+    assert result is None
+    assert report.extension_host_output == ""
+    assert report.activated == []
+
+
+# --- Module-path pin ------------------------------------------------------
+
+
+def test_module_path_pins_monitor_runtime_state() -> None:
+    """W11-6: ``MonitorRuntime`` lives at
+    ``executor.flows.playwright.monitor_runtime_state``. Pinning this
+    here means the W12 executor subpackaging cannot silently move the
+    class out from under the per-strategy helpers without breaking this
+    test."""
+
+    from executor.flows.playwright import monitor_runtime_state
+
+    assert (
+        MonitorRuntime.__module__ == "executor.flows.playwright.monitor_runtime_state"
+    )
+    assert monitor_runtime_state.MonitorRuntime is MonitorRuntime
+    # Helper methods must remain attributes of the class — not free
+    # functions accidentally rebound. W12 must keep them on the class.
+    for helper_name in (
+        "_stop_exthost_log_parse",
+        "_stop_running_extensions_ui",
+        "_stop_exthost_output_parse",
+    ):
+        assert hasattr(MonitorRuntime, helper_name), helper_name

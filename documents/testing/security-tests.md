@@ -1,6 +1,6 @@
 # Security Tests
 
-`Last Updated: 2026-04-29`
+`Last Updated: 2026-05-05`
 
 `tests/security/`, `tests/executor/security/`, and
 `tests/platform/security/` (the last two for subsystem-local W8 work).
@@ -38,11 +38,17 @@ Lane shape and overall test guide:
 
 ## `tests/platform/security/`
 
-(W8-6 + W8-8 land here — see `active-work/W8-security.md`.)
+(W8-6 closed by W10-7 `2026-05-04`; W8-8 deferred — see
+`active-work/W8-security.md`.)
 
-- `test_content_sample_redaction.py` (W8-6 pending) — secret class
-  redaction for `ContentSample.value`.
-- `test_manifest_log_sanitization.py` (W8-8 pending) — newline / CR /
+- `test_content_sample_redaction.py` (W8-6 closed by W10-7
+  `2026-05-04`, `c1e2273`) — secret-class redaction for
+  `ContentSample.value` and adjacent extension-controlled text
+  surfaces. See also
+  `tests/platform/security/test_output_signals_redaction.py` (the
+  W10-7 regression net for `OutputSignalEvent.text`, executor
+  stderr/stdout tail, and `map_executor_error` exception text).
+- `test_manifest_log_sanitization.py` (W8-8 deferred) — newline / CR /
   ANSI / NULL / overlength manifest-field sanitization for log + job
   emit sites.
 

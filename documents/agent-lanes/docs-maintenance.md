@@ -1,6 +1,6 @@
 # Documentation Maintenance Lane
 
-`Last Updated: 2026-04-29`
+`Last Updated: 2026-05-05`
 
 Use this lane for README, ADR, runbook, roadmap, testing-guide, and
 agent-doc updates.
@@ -27,15 +27,20 @@ agent-doc updates.
   work; **stable item IDs** (`[FOLLOWUP <id>]`) are a contract — code
   comments and tests reference them. Do not rename.
 - `REFACTOR_OPTIMIZATION.md` section 11 owns W8-W13 planning. Active
-  W8 work tracker lives at `documents/active-work/W8-security.md`
-  (stable IDs `W8-1..W8-8`). Inbound source-tree references:
+  phase is W11 monitor lifecycle split — tracker at
+  `documents/active-work/W11-monitor-lifecycle.md`. Past W8 tracker
+  (closed `2026-04-29`) at `documents/active-work/W8-security.md`
+  carries stable IDs `W8-1..W8-8` — keep them stable because code
+  comments reference items by ID. Inbound source-tree references:
   - `executor/flows/playwright/uri_validation.py:9` →
     `active-work/W8-security.md` item W8-3.
   - `tests/security/test_canary_end_to_end.py:8` → preserves the
     `REFACTOR_OPTIMIZATION.md §10.7` heading (W7 PoC acceptance bar,
     not a W8 ID).
-- Do not document ADR 0007 enforcement as live until code/config/tests
-  land.
+- ADR 0007 enforcement landed `2026-04-29` via W8-7 — loopback
+  defaults plus `EXTRACE_ALLOW_LAN` opt-in are pinned by
+  `tests/architecture/test_default_bindings.py`. Do not regress to
+  wildcard binds or wildcard CORS without an updated ADR.
 
 ### Archive + Active-Work Discipline
 

@@ -1,8 +1,9 @@
 # ADR 0007: Local Network Binding Discipline
 
-- Status: Accepted
-- Date: 2026-04-25
+- Status: Accepted and implemented (`2026-04-29`)
+- Date: 2026-04-25 (doc-sync `2026-05-05`)
 - Accepted: 2026-04-27 — promoted ahead of W8-7 implementation; no content changes vs the 2026-04-25 Proposed text.
+- Implemented: 2026-04-29 via W8-7 (`feat/w8-7-lan-binding-defaults`); see the Implementation section below and `REFACTOR_STATUS.md`.
 - Related: ADR 0001 (Single-Host Appliance), ADR 0002 (Threat Model §4 Trust Boundaries, §5 Analyst Operating Environment)
 
 ## Context
@@ -83,9 +84,13 @@ workstation) set a single environment variable:
 
 - `EXTRACE_ALLOW_LAN=1`
 
-When set, the canonical entrypoints (Makefile targets, `appcore/api/config.py`
-post-init, the compose `ports:` selector) substitute `0.0.0.0` for the bind
-addresses listed in (1). No other variable enables LAN exposure.
+When set, `appcore/api/config.py` `model_post_init` substitutes `0.0.0.0`
+and `*` for the loopback bind addresses on the host (FastAPI/CORS) surfaces,
+and Makefile targets (`dev-lan`) wire the env var through. **Docker
+exposure is not controlled by `EXTRACE_ALLOW_LAN`**: the compose `ports:`
+mappings carry literal `127.0.0.1:` prefixes and require manual editing per
+[`runbooks/lan-exposure.md`](../runbooks/lan-exposure.md). No other variable
+enables LAN exposure.
 
 A short `documents/runbooks/lan-exposure.md` runbook documents what an
 operator must additionally harden before flipping the flag (firewall rules,

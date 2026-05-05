@@ -1,6 +1,6 @@
 # REFACTOR_OPTIMIZATION
 
-`Last Updated: 2026-05-03`
+`Last Updated: 2026-05-05`
 
 W0-W13 plan dokümanı: stabilizasyon + güvenlik + post-PoC external-review
 integration. **Slim canonical** — full historical content (review pass'leri,
@@ -88,17 +88,23 @@ turudur; kapsamı ayrı tutmak audit trail için gerekli.
 
 ### §11.1 — Entry Gate (W8 başlama koşulu)
 
-W8 entry gate **MET as of 2026-04-27**:
+W8 entry gate **MET as of 2026-04-27** (tarihsel kayıt):
 
 - [x] PR345 tüm PR'ları (1-5) landed.
 - [x] ADR 0006 `target-output-channel-capture` Accepted.
-- [x] `make test-security` → 45 passing.
+- [x] `make test-security` → 45 passing (entry-gate baseline; current
+      lane is 170+ cases — `REFACTOR_STATUS.md`).
 - [x] `scripts/demo_acceptance.py` → `DEMO GREEN`.
 - [x] `REFACTOR_STATUS.md` "PR345 Complete" closure block.
 - [x] W8-0 deterministic harness readiness gate landed.
 
-W8 artık açılabilir; ilk security adayları W8-1..W8-3
-(`active-work/W8-security.md`).
+W8 açıldı `2026-04-27` ve **kapandı `2026-04-29`** (W8-1..W8-7 + W8-9
+landed, W8-8 deferred). Closure detayları `REFACTOR_STATUS.md` ve
+`active-work/W8-security.md`'da. W9 kapandı `2026-05-04` (PR #9), W10
+kapandı `2026-05-04` (PR #11), **W11 kapandı `2026-05-05`** (W11-1..W11-8
+landed on the `week11` working branch). Past W11 tracker:
+`active-work/W11-monitor-lifecycle.md`. Aktif faz: W12 executor
+subpackaging + attribution cleanup (§11.9).
 
 ### §11.2 — Haftalık dağılım (W8-W13)
 

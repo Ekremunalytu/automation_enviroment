@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import warnings
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import (
     BaseModel,
@@ -19,7 +19,18 @@ from pydantic import (
 # bumps are rejected under model_validate(..., context={"strict_schema": True}).
 # W10-4: 1.0 -> 2.0 — automation_health and coverage_summary slots became
 # typed models (AutomationHealth, CoverageSummary) instead of dict[str, Any].
-ACTIVATION_REPORT_SCHEMA_VERSION = "2.0"
+# W11-3: 2.0 -> 2.1 — activation_discovery_strategies, runner_exit_code,
+# and runner_status added; runner_status keys off RunnerStatusLiteral.
+ACTIVATION_REPORT_SCHEMA_VERSION = "2.1"
+
+
+# W11-3: Top-level outcome classification for the entrypoint runner. The
+# producer (`executor/flows/playwright/entrypoint_runner.py`) raises
+# `SystemExit(0)` on a clean run and `SystemExit(1)` on any control-path
+# failure today; "unknown" survives the case where the report is persisted
+# without the runner ever calling `set_runner_status` (e.g. cancelled jobs
+# whose monitor stopped before runner cleanup, or report-only ingest).
+RunnerStatusLiteral = Literal["success", "error", "unknown"]
 
 
 class StrictContractModel(BaseModel):
@@ -411,6 +422,20 @@ class ActivationReport(StrictContractModel):
     extension_host_output: str = ""
     log_file: str = ""
     output_signal_events: list[OutputSignalEvent] = Field(default_factory=list)
+    # W11-3: discovery strategies in `MonitorRuntime.stop()` that returned
+    # at least one entry; sorted, deduped, normalized identifiers.
+    # Today's producer set: "exthost_log_parse" (strategy 1 — exthost.log
+    # parse), "running_extensions_ui" (strategy 2 — Running Extensions UI
+    # scrape), "exthost_output_parse" (strategy 3 — extension host stdout
+    # parse).
+    activation_discovery_strategies: list[str] = Field(default_factory=list)
+    # W11-3: runner exit code (0 / non-zero). `None` if the runner never
+    # finalized — the report was persisted before the runner reached its
+    # `set_runner_status` call.
+    runner_exit_code: int | None = None
+    # W11-3: derived from runner_exit_code; `success` for 0, `error` for
+    # any non-zero, `unknown` if the runner never finalized.
+    runner_status: RunnerStatusLiteral = "unknown"
 
     @model_validator(mode="before")
     @classmethod

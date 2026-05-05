@@ -463,6 +463,9 @@ export interface ActivationReportDto {
   extension_host_output?: string;
   log_file?: string;
   output_signal_events?: OutputSignalEventDto[];
+  activation_discovery_strategies?: string[];
+  runner_exit_code?: number | null;
+  runner_status?: "success" | "error" | "unknown";
   _metadata?: ActivationReportMetadataDto | null;
 }
 

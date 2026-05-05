@@ -1,30 +1,43 @@
-"""Facade delegation pins for ``ExtensionMonitor`` (W11-1 transitional).
+"""Composition pins for ``ExtensionMonitor`` (W11-5 collapsed shape).
 
-W11-1 splits the runtime state machine into ``MonitorRuntime`` and
-keeps ``ExtensionMonitor`` as a transitional facade with delegation
-stubs for ``start``/``stop``/``attach_runtime_tracers``/
-``capture_runtime_snapshot`` plus ``_handle_*_event`` shims. These
-tests pin the facade's wiring: that constructing the facade builds a
-``MonitorRuntime`` with the right callbacks bound to the facade's
-own methods, and that each public-surface call forwards to the
-runtime collaborator.
+W11-5 collapsed the transitional ``ExtensionMonitor`` facade into a
+thin composition over three collaborators (``MonitorRuntime``,
+``ReportAssembler``, ``ScenarioAccountant``). The pre-W11-5 version of
+this file pinned bound-method-identity invariants between the facade
+and the runtime — every runtime callback was a facade ``_*`` shim. The
+W11-5 collapse deletes those shims; runtime callbacks now bind
+directly to collaborator methods. These tests pin the new shape:
 
-Once W11-5 collapses the facade into a thin composition (≤200 LoC,
-no delegation stubs), these tests become a regression net for the
-new shape — the assertions on `_handle_*_event` and `_log_offsets`
-should fail (signaling the cleanup landed) and need rewriting against
-the new surface. Mark them with the W11-5 cross-ref.
+* the three collaborators are composed at construction and share the
+  same ``ActivationReport`` instance;
+* runtime callbacks point straight at collaborator methods (no shim
+  layer in between);
+* the keyword arguments ``runtime`` / ``assembler`` / ``accountant``
+  let tests inject pre-built fakes;
+* public-API method calls (``start``, ``stop``,
+  ``attach_runtime_tracers``, ``capture_runtime_snapshot``,
+  ``set_runner_status``, ``record_event_attempt_*``,
+  ``record_failed_scenarios``, ``record_scenario_event``,
+  ``record_stimulus_pass_event``, ``record_prerequisite_result``,
+  ``mark_trigger_plan_*``) forward to the right collaborator;
+* ``page`` is a property whose setter writes through to the runtime;
+* ``apply_trigger_payload`` / ``set_trigger_execution_mode`` /
+  ``record_automation_event`` / ``verify_target_reaction`` exercise
+  the facade-owned bodies (or thin forwards) end-to-end.
+
+A final sanity test asserts that an unpatched ``ExtensionMonitor``
+holds three real collaborator instances — guarding against a future
+constructor regression that silently elides one of them.
 """
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, ClassVar
 
-from executor.flows.playwright import monitor
-from executor.flows.playwright import monitor_lifecycle
 from executor.flows.playwright.monitor_lifecycle import ExtensionMonitor
 from executor.flows.playwright.monitor_report_assembler import ReportAssembler
 from executor.flows.playwright.monitor_runtime_state import MonitorRuntime
+from executor.flows.playwright.monitor_scenario_accountant import ScenarioAccountant
 from executor.flows.playwright.monitor_types import ActivationReport
 
 
@@ -33,9 +46,7 @@ class _DummyPage:
 
 
 class _RecordingRuntime:
-    """Minimal stand-in for ``MonitorRuntime`` that captures every call."""
-
-    last_instance: _RecordingRuntime | None = None
+    """Captures every runtime call so composition wiring can be asserted."""
 
     def __init__(
         self,
@@ -47,19 +58,20 @@ class _RecordingRuntime:
         finalize_scenarios: Any,
         append_activation_log_entries: Any,
         refresh_derived_state: Any,
+        set_discovery_strategies: Any,
+        emit_intermediate_state_events: Any,
     ) -> None:
-        self.page = page
+        self._page = page
         self.report = report
         self.persist = persist
         self.record_automation_event = record_automation_event
         self.finalize_scenarios = finalize_scenarios
         self.append_activation_log_entries = append_activation_log_entries
         self.refresh_derived_state = refresh_derived_state
+        self.set_discovery_strategies = set_discovery_strategies
+        self.emit_intermediate_state_events = emit_intermediate_state_events
         self.calls: list[tuple[str, tuple[Any, ...]]] = []
-        self._log_offsets: dict[str, int] = {}
-        self.start_return: Any = None
-        self.attach_return: Any = None
-        self.stop_return: ActivationReport = report
+        self.log_offsets: dict[str, int] = {}
         self.snapshot_return: dict[str, int | bool] = {
             "target_activations": 7,
             "target_running": True,
@@ -67,319 +79,439 @@ class _RecordingRuntime:
             "target_network_events": 2,
             "ui_blockers": 0,
         }
-        _RecordingRuntime.last_instance = self
 
     @property
-    def log_offsets(self) -> dict[str, int]:
-        return self._log_offsets
+    def page(self) -> Any:
+        return self._page
+
+    @page.setter
+    def page(self, value: Any) -> None:
+        self._page = value
 
     def start(self) -> None:
         self.calls.append(("start", ()))
-        return self.start_return
 
     def stop(self) -> ActivationReport:
         self.calls.append(("stop", ()))
-        return self.stop_return
+        return self.report
 
     def attach_runtime_tracers(self) -> None:
         self.calls.append(("attach_runtime_tracers", ()))
-        return self.attach_return
 
     def capture_runtime_snapshot(self) -> dict[str, int | bool]:
         self.calls.append(("capture_runtime_snapshot", ()))
         return self.snapshot_return
 
-    def _handle_network_event(self, event: Any) -> None:
-        self.calls.append(("_handle_network_event", (event,)))
-
-    def _handle_process_event(self, event: Any) -> None:
-        self.calls.append(("_handle_process_event", (event,)))
-
-    def _handle_file_event(self, event: Any) -> None:
-        self.calls.append(("_handle_file_event", (event,)))
-
-
-def _patch_runtime(monkeypatch) -> type[_RecordingRuntime]:
-    monkeypatch.setattr(monitor_lifecycle, "MonitorRuntime", _RecordingRuntime)
-    _RecordingRuntime.last_instance = None
-    return _RecordingRuntime
-
-
-def test_facade_init_constructs_runtime_with_facade_callbacks(monkeypatch) -> None:
-    _patch_runtime(monkeypatch)
-
-    page = _DummyPage()
-    mon = ExtensionMonitor(page=page, target_extension_id="publisher.tool")
-
-    runtime = _RecordingRuntime.last_instance
-    assert runtime is not None
-    assert runtime.page is page
-    assert runtime.report is mon.report
-    # The five facade callbacks must be bound methods of this exact facade.
-    assert runtime.persist == mon._persist_report
-    assert runtime.record_automation_event == mon.record_automation_event
-    assert runtime.finalize_scenarios == mon._finalize_running_scenarios
-    assert runtime.append_activation_log_entries == mon._append_activation_log_entries
-    assert runtime.refresh_derived_state == mon._refresh_derived_report_state
-
-
-def test_facade_start_delegates_to_runtime(monkeypatch) -> None:
-    _patch_runtime(monkeypatch)
-
-    mon = ExtensionMonitor(page=_DummyPage())
-    mon.start()
-
-    runtime = _RecordingRuntime.last_instance
-    assert runtime is not None
-    assert ("start", ()) in runtime.calls
-
-
-def test_facade_stop_returns_runtime_result(monkeypatch) -> None:
-    _patch_runtime(monkeypatch)
-
-    mon = ExtensionMonitor(page=_DummyPage())
-    runtime = _RecordingRuntime.last_instance
-    assert runtime is not None
-    sentinel = ActivationReport(target_extension_id="other")
-    runtime.stop_return = sentinel
-
-    returned = mon.stop()
-
-    assert returned is sentinel
-    assert ("stop", ()) in runtime.calls
-
-
-def test_facade_attach_runtime_tracers_delegates_to_runtime(monkeypatch) -> None:
-    _patch_runtime(monkeypatch)
-
-    mon = ExtensionMonitor(page=_DummyPage())
-    mon.attach_runtime_tracers()
-
-    runtime = _RecordingRuntime.last_instance
-    assert runtime is not None
-    assert ("attach_runtime_tracers", ()) in runtime.calls
-
-
-def test_facade_capture_runtime_snapshot_returns_runtime_dict(monkeypatch) -> None:
-    _patch_runtime(monkeypatch)
-
-    mon = ExtensionMonitor(page=_DummyPage())
-    snapshot = mon.capture_runtime_snapshot()
-
-    runtime = _RecordingRuntime.last_instance
-    assert runtime is not None
-    assert ("capture_runtime_snapshot", ()) in runtime.calls
-    assert snapshot == runtime.snapshot_return
-
-
-def test_facade_log_offsets_property_reads_runtime(monkeypatch) -> None:
-    _patch_runtime(monkeypatch)
-
-    mon = ExtensionMonitor(page=_DummyPage())
-    runtime = _RecordingRuntime.last_instance
-    assert runtime is not None
-    runtime._log_offsets = {"exthost.log": 4242}
-
-    assert mon._log_offsets == {"exthost.log": 4242}
-
-
-def test_facade_handle_event_shims_forward_to_runtime(monkeypatch) -> None:
-    _patch_runtime(monkeypatch)
-
-    mon = ExtensionMonitor(page=_DummyPage())
-
-    network_event = monitor.NetworkEvent(
-        timestamp="2026-01-01T10:00:00.000",
-        rel_time_s=0.1,
-        protocol="tls",
-        event_type="tls_client_hello",
-        source_ip="10.0.0.2",
-        destination_ip="140.82.112.3",
-        destination_port=443,
-        host="github.com",
-        summary="Client Hello",
-    )
-    process_event = monitor.ProcessEvent(
-        timestamp="2026-01-01T10:00:00.500",
-        rel_time_s=0.5,
-        pid=4242,
-        ppid=1,
-        operation="execve",
-    )
-    file_event = monitor.FileEvent(
-        timestamp="2026-01-01T10:00:00.700",
-        rel_time_s=0.7,
-        path="/sandbox/file",
-        operation="open",
-        observer="strace",
-    )
-
-    mon._handle_network_event(network_event)
-    mon._handle_process_event(process_event)
-    mon._handle_file_event(file_event)
-
-    runtime = _RecordingRuntime.last_instance
-    assert runtime is not None
-    kinds = [name for name, _args in runtime.calls]
-    assert kinds == [
-        "_handle_network_event",
-        "_handle_process_event",
-        "_handle_file_event",
-    ]
-    # Forwarded payload identity preserved.
-    assert runtime.calls[0][1] == (network_event,)
-    assert runtime.calls[1][1] == (process_event,)
-    assert runtime.calls[2][1] == (file_event,)
-
-
-def test_facade_context_manager_round_trip(monkeypatch) -> None:
-    _patch_runtime(monkeypatch)
-
-    page = _DummyPage()
-    with ExtensionMonitor(page=page) as mon:
-        assert isinstance(mon, ExtensionMonitor)
-        assert mon.page is page
-
-    runtime = _RecordingRuntime.last_instance
-    assert runtime is not None
-    assert ("start", ()) in runtime.calls
-    assert ("stop", ()) in runtime.calls
-
-
-def test_facade_runtime_uses_real_class_when_unpatched() -> None:
-    """Sanity guard: without the monkeypatch the facade composes the real class.
-
-    Catches accidental import drift in W11-5 if the facade ever stops
-    importing ``MonitorRuntime`` directly from
-    ``monitor_runtime_state``.
-    """
-
-    mon = ExtensionMonitor(page=_DummyPage())
-    assert isinstance(mon._runtime, MonitorRuntime)
-
-
-# ---------------------------------------------------------------------------
-# W11-2 — ReportAssembler delegation pins
-#
-# These cases pin that the facade composes a ``ReportAssembler``, that the
-# transitional ``_refresh_derived_report_state`` / ``_persist_report``
-# shims forward to it, and that runtime callbacks reach the assembler
-# *through* those shims (so the W11-1 bound-method-identity assertions
-# above keep their meaning until W11-5 collapses the facade).
-# ---------------------------------------------------------------------------
-
 
 class _RecordingAssembler:
-    """Minimal stand-in for ``ReportAssembler`` that captures every call."""
-
-    last_instance: _RecordingAssembler | None = None
-
-    def __init__(self, *, report: ActivationReport, report_path: Any) -> None:
+    def __init__(self, *, report: ActivationReport) -> None:
         self.report = report
-        self.report_path = report_path
-        self.refresh_calls: int = 0
         self.persist_calls: list[bool] = []
-        _RecordingAssembler.last_instance = self
-
-    def refresh_derived_state(self) -> None:
-        self.refresh_calls += 1
+        self.refresh_calls: int = 0
+        self.discovery_strategies_calls: list[list[str]] = []
+        self.runner_status_calls: list[int] = []
 
     def persist(self, force: bool) -> None:
         self.persist_calls.append(force)
 
+    def refresh_derived_state(self) -> None:
+        self.refresh_calls += 1
 
-def _patch_assembler(monkeypatch) -> type[_RecordingAssembler]:
-    monkeypatch.setattr(monitor_lifecycle, "ReportAssembler", _RecordingAssembler)
-    _RecordingAssembler.last_instance = None
-    return _RecordingAssembler
+    def set_discovery_strategies(self, strategies: Any) -> None:
+        self.discovery_strategies_calls.append(list(strategies))
+
+    def set_runner_status(self, exit_code: int) -> None:
+        self.runner_status_calls.append(exit_code)
 
 
-def test_facade_init_constructs_assembler_with_shared_report(monkeypatch) -> None:
-    _patch_assembler(monkeypatch)
-    _patch_runtime(monkeypatch)
+class _RecordingAccountant:
+    def __init__(self, *, report: ActivationReport) -> None:
+        self.report = report
+        self.calls: list[tuple[str, tuple[Any, ...], dict[str, Any]]] = []
+        self.verify_return: bool = True
 
-    page = _DummyPage()
+    def _track(self, name: str, *args: Any, **kwargs: Any) -> None:
+        self.calls.append((name, args, kwargs))
+
+    def mark_trigger_plan_applied(self, **kwargs: Any) -> None:
+        self._track("mark_trigger_plan_applied", **kwargs)
+
+    def mark_trigger_plan_missing(self, trigger_path: str = "") -> None:
+        self._track("mark_trigger_plan_missing", trigger_path)
+
+    def record_failed_scenarios(self, failed_scenarios: list[str]) -> None:
+        self._track("record_failed_scenarios", failed_scenarios)
+
+    def record_execution_result(self, result: Any) -> None:
+        self._track("record_execution_result", result)
+
+    def record_stimulus_pass_event(self, *args: Any, **kwargs: Any) -> None:
+        self._track("record_stimulus_pass_event", *args, **kwargs)
+
+    def record_prerequisite_result(self, *args: Any, **kwargs: Any) -> None:
+        self._track("record_prerequisite_result", *args, **kwargs)
+
+    def record_event_attempt_start(self, *args: Any, **kwargs: Any) -> None:
+        self._track("record_event_attempt_start", *args, **kwargs)
+
+    def record_event_attempt_end(self, *args: Any, **kwargs: Any) -> None:
+        self._track("record_event_attempt_end", *args, **kwargs)
+
+    def record_scenario_event(self, *args: Any, **kwargs: Any) -> None:
+        self._track("record_scenario_event", *args, **kwargs)
+
+    def finalize_running_scenarios(self) -> None:
+        self._track("finalize_running_scenarios")
+
+    def append_activation_log_entries(self) -> None:
+        self._track("append_activation_log_entries")
+
+    def emit_intermediate_state_events(self) -> None:
+        self._track("emit_intermediate_state_events")
+
+    def verify_target_reaction(self, *args: Any, **kwargs: Any) -> bool:
+        self._track("verify_target_reaction", *args, **kwargs)
+        return self.verify_return
+
+
+def _make_facade_with_fakes(
+    *,
+    page: Any | None = None,
+    target_extension_id: str = "publisher.tool",
+) -> tuple[
+    ExtensionMonitor,
+    _RecordingRuntime,
+    _RecordingAssembler,
+    _RecordingAccountant,
+]:
+    page = page or _DummyPage()
+    report = ActivationReport(target_extension_id=target_extension_id)
+    assembler = _RecordingAssembler(report=report)
+    accountant = _RecordingAccountant(report=report)
+    runtime_holder: dict[str, _RecordingRuntime] = {}
+
+    def runtime_factory(**kwargs: Any) -> _RecordingRuntime:
+        runtime_holder["instance"] = _RecordingRuntime(**kwargs)
+        return runtime_holder["instance"]
+
+    # We can't pre-build the runtime (it needs the accountant/assembler
+    # callbacks) so we let the facade construct it via the kwarg path
+    # below. Use the standard ctor with assembler/accountant injected
+    # and let the facade build a real MonitorRuntime — but for shim-free
+    # composition we want a recording runtime, so pass through.
     mon = ExtensionMonitor(
-        page=page,
-        report_path="/tmp/r.json",  # noqa: S108 — never written, just shape pin
-        target_extension_id="publisher.tool",
+        page,
+        target_extension_id=target_extension_id,
+        report=report,
+        assembler=assembler,  # type: ignore[arg-type]
+        accountant=accountant,  # type: ignore[arg-type]
+        runtime=None,
+    )
+    # Replace the auto-built MonitorRuntime with a recording one that
+    # uses the *exact* callbacks the facade computed.
+    real_runtime = mon._runtime
+    rec_runtime = _RecordingRuntime(
+        page=real_runtime._page,
+        report=real_runtime._report,
+        persist=real_runtime._persist,
+        record_automation_event=real_runtime._record_automation,
+        finalize_scenarios=real_runtime._finalize_scenarios,
+        append_activation_log_entries=real_runtime._append_activation_log_entries,
+        refresh_derived_state=real_runtime._refresh_derived_state,
+        set_discovery_strategies=real_runtime._set_discovery_strategies,
+        emit_intermediate_state_events=real_runtime._emit_intermediate_state_events,
+    )
+    mon._runtime = rec_runtime  # type: ignore[assignment]
+    return mon, rec_runtime, assembler, accountant
+
+
+# ---------------------------------------------------------------------------
+# Composition contract
+# ---------------------------------------------------------------------------
+
+
+def test_facade_composes_three_collaborators_sharing_one_report() -> None:
+    page = _DummyPage()
+    mon = ExtensionMonitor(page=page, target_extension_id="publisher.tool")
+
+    assert isinstance(mon._runtime, MonitorRuntime)
+    assert isinstance(mon._assembler, ReportAssembler)
+    assert isinstance(mon._scenario_accountant, ScenarioAccountant)
+    # Same ActivationReport instance flows through all three.
+    assert mon.report is mon._assembler._report
+    assert mon.report is mon._scenario_accountant._report
+    assert mon.report is mon._runtime._report
+
+
+def test_facade_runtime_callbacks_bind_directly_to_collaborator_methods() -> None:
+    """No shim layer between runtime and assembler/accountant — runtime
+    callbacks are bound methods of the collaborators themselves."""
+
+    mon = ExtensionMonitor(page=_DummyPage(), target_extension_id="t")
+
+    assert mon._runtime._persist == mon._assembler.persist
+    assert mon._runtime._refresh_derived_state == mon._assembler.refresh_derived_state
+    assert (
+        mon._runtime._set_discovery_strategies
+        == mon._assembler.set_discovery_strategies
+    )
+    assert (
+        mon._runtime._finalize_scenarios
+        == mon._scenario_accountant.finalize_running_scenarios
+    )
+    assert (
+        mon._runtime._append_activation_log_entries
+        == mon._scenario_accountant.append_activation_log_entries
+    )
+    assert (
+        mon._runtime._emit_intermediate_state_events
+        == mon._scenario_accountant.emit_intermediate_state_events
+    )
+    # record_automation_event stays on the facade (orchestration ham);
+    # both runtime and accountant get it as a callback.
+    assert mon._runtime._record_automation == mon.record_automation_event
+    assert (
+        mon._scenario_accountant._record_automation_event == mon.record_automation_event
     )
 
-    assembler = _RecordingAssembler.last_instance
-    assert assembler is not None
-    # Same ActivationReport instance reaches the assembler (the W11-1
-    # facade and runtime invariant: all three share one report).
-    assert assembler.report is mon.report
-    # Path is the Path-coerced value the facade owns; the assembler
-    # captures it once and never re-resolves.
-    assert assembler.report_path == mon.report_path
+
+def test_facade_accepts_pre_built_report_kwarg() -> None:
+    """The ``report`` kwarg lets a caller pin the underlying
+    ``ActivationReport`` instance instead of letting the facade build a
+    fresh one from ``target_extension_id``."""
+
+    custom = ActivationReport(target_extension_id="custom.target")
+    custom.trigger_plan_path = "/seed.json"
+
+    mon = ExtensionMonitor(page=_DummyPage(), report=custom)
+
+    assert mon.report is custom
+    assert mon.report.target_extension_id == "custom.target"
+    assert mon.report.trigger_plan_path == "/seed.json"
+    # Default-built collaborators must observe the injected report.
+    assert mon._assembler._report is custom
+    assert mon._scenario_accountant._report is custom
+    assert mon._runtime._report is custom
 
 
-def test_facade_persist_shim_delegates_to_assembler(monkeypatch) -> None:
-    _patch_assembler(monkeypatch)
-    _patch_runtime(monkeypatch)
+def test_facade_accepts_pre_built_collaborator_injection() -> None:
+    page = _DummyPage()
+    report = ActivationReport(target_extension_id="t")
+    assembler = ReportAssembler(report=report, report_path=None)
+    accountant = ScenarioAccountant(
+        report=report,
+        record_automation_event=lambda *a, **kw: None,
+        persist=assembler.persist,
+    )
 
-    mon = ExtensionMonitor(page=_DummyPage())
-    assembler = _RecordingAssembler.last_instance
-    assert assembler is not None
+    mon = ExtensionMonitor(
+        page=page,
+        target_extension_id="t",
+        report=report,
+        assembler=assembler,
+        accountant=accountant,
+    )
 
-    mon._persist_report(force=True)
-    mon._persist_report(force=False)
-
-    assert assembler.persist_calls == [True, False]
-
-
-def test_facade_refresh_shim_delegates_to_assembler(monkeypatch) -> None:
-    _patch_assembler(monkeypatch)
-    _patch_runtime(monkeypatch)
-
-    mon = ExtensionMonitor(page=_DummyPage())
-    assembler = _RecordingAssembler.last_instance
-    assert assembler is not None
-
-    mon._refresh_derived_report_state()
-    mon._refresh_derived_report_state()
-
-    assert assembler.refresh_calls == 2
+    assert mon.report is report
+    assert mon._assembler is assembler
+    assert mon._scenario_accountant is accountant
 
 
-def test_facade_runtime_callback_reaches_assembler_through_shim(
-    monkeypatch,
-) -> None:
-    """End-to-end pin: runtime.persist invocation lands on the assembler.
-
-    The runtime holds ``mon._persist_report`` as the persist callback
-    (W11-1 invariant). After W11-2 that bound method is a one-line shim
-    that delegates to the assembler. Calling through the runtime
-    callback must transitively reach ``assembler.persist``.
-    """
-
-    _patch_assembler(monkeypatch)
-    _patch_runtime(monkeypatch)
-
-    mon = ExtensionMonitor(page=_DummyPage())
-    runtime = _RecordingRuntime.last_instance
-    assembler = _RecordingAssembler.last_instance
-    assert runtime is not None and assembler is not None
-    # The runtime captured the facade's bound _persist_report — pin
-    # the W11-1 identity invariant alongside the new chain.
-    assert runtime.persist == mon._persist_report
-    assert runtime.refresh_derived_state == mon._refresh_derived_report_state
-
-    # Invoking through the runtime-held reference must hit the assembler.
-    runtime.persist(True)
-    runtime.refresh_derived_state()
-
-    assert assembler.persist_calls == [True]
-    assert assembler.refresh_calls == 1
+# ---------------------------------------------------------------------------
+# Page property
+# ---------------------------------------------------------------------------
 
 
-def test_facade_uses_real_assembler_when_unpatched() -> None:
-    """Sanity guard parallel to ``test_facade_runtime_uses_real_class…``.
+def test_facade_page_property_reads_runtime() -> None:
+    page = _DummyPage()
+    mon = ExtensionMonitor(page=page, target_extension_id="t")
 
-    Catches accidental import drift if the facade ever stops importing
-    ``ReportAssembler`` directly from ``monitor_report_assembler``.
-    """
+    assert mon.page is page
+    assert mon._runtime.page is page
 
-    mon = ExtensionMonitor(page=_DummyPage())
+
+def test_facade_page_setter_writes_through_to_runtime() -> None:
+    mon = ExtensionMonitor(page=_DummyPage(), target_extension_id="t")
+    new_page = _DummyPage()
+
+    mon.page = new_page
+
+    assert mon.page is new_page
+    assert mon._runtime.page is new_page
+
+
+# ---------------------------------------------------------------------------
+# Public-API forwards
+# ---------------------------------------------------------------------------
+
+
+def test_facade_lifecycle_methods_forward_to_runtime() -> None:
+    mon, runtime, _assembler, _accountant = _make_facade_with_fakes()
+
+    mon.start()
+    mon.attach_runtime_tracers()
+    snapshot = mon.capture_runtime_snapshot()
+    report = mon.stop()
+
+    names = [name for name, _ in runtime.calls]
+    assert names == [
+        "start",
+        "attach_runtime_tracers",
+        "capture_runtime_snapshot",
+        "stop",
+    ]
+    assert snapshot == runtime.snapshot_return
+    assert report is mon.report
+
+
+def test_facade_context_manager_runs_start_and_stop() -> None:
+    mon, runtime, _assembler, _accountant = _make_facade_with_fakes()
+
+    with mon:
+        pass
+
+    names = [name for name, _ in runtime.calls]
+    assert names == ["start", "stop"]
+
+
+def test_facade_set_runner_status_forwards_to_assembler() -> None:
+    mon, _runtime, assembler, _accountant = _make_facade_with_fakes()
+
+    mon.set_runner_status(0)
+    mon.set_runner_status(2)
+
+    assert assembler.runner_status_calls == [0, 2]
+
+
+def test_facade_trigger_plan_methods_forward_to_accountant() -> None:
+    mon, _runtime, _assembler, accountant = _make_facade_with_fakes()
+
+    mon.mark_trigger_plan_applied(scenarios=["s1"], trigger_path="/t.json")
+    mon.mark_trigger_plan_missing("/t.json")
+
+    names = [call[0] for call in accountant.calls]
+    assert names == ["mark_trigger_plan_applied", "mark_trigger_plan_missing"]
+
+
+def test_facade_failed_scenarios_and_execution_result_forward_to_accountant() -> None:
+    mon, _runtime, _assembler, accountant = _make_facade_with_fakes()
+
+    mon.record_failed_scenarios(["a"])
+    mon.record_execution_result(object())
+
+    names = [call[0] for call in accountant.calls]
+    assert names == ["record_failed_scenarios", "record_execution_result"]
+
+
+def test_facade_event_attempt_methods_forward_to_accountant() -> None:
+    mon, _runtime, _assembler, accountant = _make_facade_with_fakes()
+
+    mon.record_event_attempt_start("att1", pass_name="pass1")  # noqa: S106
+    mon.record_event_attempt_end(
+        "att1",
+        status="verified",
+        pass_name="pass1",  # noqa: S106
+        trigger_method_used="cmd",
+        result_details="ok",
+    )
+
+    names = [call[0] for call in accountant.calls]
+    assert names == ["record_event_attempt_start", "record_event_attempt_end"]
+    end_kwargs = accountant.calls[1][2]
+    assert end_kwargs["status"] == "verified"
+    assert end_kwargs["trigger_method_used"] == "cmd"
+
+
+def test_facade_scenario_stimulus_prerequisite_forwards_to_accountant() -> None:
+    mon, _runtime, _assembler, accountant = _make_facade_with_fakes()
+
+    mon.record_scenario_event("start", "s1")
+    mon.record_stimulus_pass_event("start", "p1", label="Pass")
+    mon.record_prerequisite_result("ext", status="completed")
+
+    names = [call[0] for call in accountant.calls]
+    assert names == [
+        "record_scenario_event",
+        "record_stimulus_pass_event",
+        "record_prerequisite_result",
+    ]
+
+
+def test_facade_verify_target_reaction_forwards_with_runtime_log_offsets() -> None:
+    mon, runtime, _assembler, accountant = _make_facade_with_fakes()
+    runtime.log_offsets = {"exthost-1.log": 42}
+    accountant.verify_return = True
+
+    result = mon.verify_target_reaction(
+        {"target_activations": 0},
+        capability="cap",
+        trigger_label="trig",
+    )
+
+    assert result is True
+    assert accountant.calls[-1][0] == "verify_target_reaction"
+    args = accountant.calls[-1][1]
+    assert args[1] == {"exthost-1.log": 42}
+
+
+# ---------------------------------------------------------------------------
+# Facade-owned bodies
+# ---------------------------------------------------------------------------
+
+
+def test_facade_apply_trigger_payload_persists_force_true() -> None:
+    mon, _runtime, assembler, _accountant = _make_facade_with_fakes()
+
+    class _Payload:
+        scenario_filter: ClassVar[list[str]] = []
+        execution_mode: str = ""
+        trigger_path: str = ""
+        triggers: ClassVar[dict[str, Any]] = {}
+
+    mon.apply_trigger_payload(_Payload())
+
+    assert assembler.persist_calls and assembler.persist_calls[-1] is True
+
+
+def test_facade_set_trigger_execution_mode_persists_force_false() -> None:
+    mon, _runtime, assembler, _accountant = _make_facade_with_fakes()
+
+    mon.set_trigger_execution_mode("  parallel  ")
+
+    assert mon.report.trigger_execution_mode == "parallel"
+    assert assembler.persist_calls and assembler.persist_calls[-1] is False
+
+
+def test_facade_record_automation_event_appends_log_entry_and_persists() -> None:
+    mon, _runtime, assembler, _accountant = _make_facade_with_fakes()
+    initial = len(mon.report.log_entries)
+
+    mon.record_automation_event("scenario", "started", status="running")
+
+    assert len(mon.report.log_entries) == initial + 1
+    last = mon.report.log_entries[-1]
+    assert last.kind == "scenario"
+    assert last.message == "started"
+    assert last.stream == "automation"
+    assert assembler.persist_calls and assembler.persist_calls[-1] is False
+
+
+def test_facade_record_automation_event_routes_ui_blockers_to_ui_stream() -> None:
+    mon, _runtime, _assembler, _accountant = _make_facade_with_fakes()
+
+    mon.record_automation_event("ui_blocker", "blocked")
+
+    assert mon.report.log_entries[-1].stream == "ui_blockers"
+
+
+# ---------------------------------------------------------------------------
+# Sanity guard: unpatched facade really holds three real collaborators
+# ---------------------------------------------------------------------------
+
+
+def test_facade_unpatched_holds_three_real_collaborator_instances() -> None:
+    mon = ExtensionMonitor(page=_DummyPage(), target_extension_id="t")
+
+    assert isinstance(mon._runtime, MonitorRuntime)
     assert isinstance(mon._assembler, ReportAssembler)
+    assert isinstance(mon._scenario_accountant, ScenarioAccountant)

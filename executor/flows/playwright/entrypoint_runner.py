@@ -476,6 +476,13 @@ def main(*, deps) -> None:
                     mon.record_failed_scenarios(execution_result.failed_scenarios)
                     mon.report.scenarios_run = list(execution_result.executed_scenarios)
                 report = mon.stop()
+                # W11-3: surface the runner outcome on the report before
+                # the final disk write so analysts can correlate the saved
+                # `runner_exit_code` / `runner_status` with the run that
+                # produced the activation evidence. exit_code is finalized
+                # by this point — every code path that mutates it lives
+                # above the `if mon is not None` block.
+                mon.set_runner_status(exit_code)
                 report.print_summary()
                 report.save(args.report_path)
         finally:

@@ -1,6 +1,6 @@
 # W11 — Monitor Lifecycle Split (Active Work Tracker)
 
-`Last Updated: 2026-05-04 (W11-2 landed)`
+`Last Updated: 2026-05-05 (W11-8 landed; W11 closed)`
 
 This is the canonical active work tracker for the W11 monitor lifecycle
 split window. Items have stable IDs (`W11-1` … `W11-8`). Code comments,
@@ -15,6 +15,14 @@ item by reading both this tracker and that archive section.
 
 ## Status (Quick Glance)
 
+- **W11 closed `2026-05-05`** — All eight scope items landed on the
+  `week11` working branch (W11-1..W11-6 monitor split, W11-7 workflow
+  ahtapot closure, W11-8 storage ahtapot closure) plus the bundled
+  acceptance sub-tasks. The branch will fold into `main` as a single
+  PR per the W11-3 branch policy deviation. Final exit bar:
+  `make check-all` 1274 passed / 6 skipped / 6 deselected;
+  `make test-security` 190 yeşil. Authoritative current-state pointer:
+  [`documents/REFACTOR_STATUS.md`](../REFACTOR_STATUS.md).
 - **Entry gate** — met `2026-05-04`. W10 contract hygiene closed (PR #11
   merged), `[FOLLOWUP w11-precursor-tests]` safety net for
   `runtime_capture/extension_host.py` and `health_reconciliation.py`
@@ -123,64 +131,903 @@ item by reading both this tracker and that archive section.
   (the gap is on the producer signal — `ScenarioAccountant` — not
   the consumer; `health_reconciliation` state machine already emits
   intermediate states).
-- **W11-3** — pending. `ActivationReport.activation_discovery_strategies`
-  field (`packages/analysis_contracts/contracts.py`); `schema_version`
-  minor bump; `tests/platform/contracts/test_activation_discovery_strategies.py`.
-- **W11-4** — pending. `ScenarioAccountant` extraction
-  (`executor/flows/playwright/monitor_scenario_accountant.py`, new).
-- **W11-5** — pending. `ExtensionMonitor` composition facade —
-  `monitor_lifecycle.py` ≤200 LoC final target (current size **672**
-  after W11-1, down from 852; archive §11.8 cited 834 — module grew
-  between W8 and W10). W11-5 must also remove the transitional
-  delegation stubs (`_handle_*_event` shims, `_log_offsets` property)
-  and inline runtime composition into the facade init.
-- **W11-6** — pending. Per-strategy `_stop_<strategy>` helpers in
-  `ExtensionMonitor.stop()` (warm-start, command-probe, output-channel,
-  log-tail).
-- **W11-7** — pending. Workflow-side modularization:
-  `workflows/extension_catalog/service.py` 475 LoC →
-  `manifest_to_schema.py` (~200 LoC) + `lifecycle.py` (~250 LoC); thin
-  re-export facade. Architecture audit 2026-04-27 §5.
-- **W11-8** — pending. Storage-side modularization:
-  `appcore/storage/crud_ops/analysis_jobs.py` 348 LoC →
-  `analysis_jobs/lifecycle.py` (~180 LoC) +
-  `analysis_jobs/steps.py` (~150 LoC) + `__init__.py` re-export
-  facade (~20 LoC). Architecture audit 2026-04-27 §5.
+- **W11-3** — landed `2026-05-04` on the `week11` working branch
+  (commit `d4f513f`; serializer follow-up `5f4e292`; live-scan
+  validation `d9a2a27`). `ActivationReport` widened with three new fields in
+  `packages/analysis_contracts/contracts.py`:
+  `activation_discovery_strategies: list[str]`,
+  `runner_exit_code: int | None`, and
+  `runner_status: RunnerStatusLiteral` (new `Literal["success", "error",
+  "unknown"]` exported via the package `__init__`).
+  `ACTIVATION_REPORT_SCHEMA_VERSION` bumped `2.0` → `2.1` (W10-1
+  proactive evolution: ingest of stale `2.0` warns lenient / rejects
+  under `strict_schema=True`; the existing constant-driven
+  `test_schema_version.py` cases automatically pin the new baseline).
+  Mirror fields added to the runtime dataclass in
+  `executor/flows/playwright/monitor_types.py` so the in-memory shape
+  matches the persisted contract. UI contracts regenerated
+  (`ui/src/lib/types/contracts.ts:466-468`).
+
+  Producer wiring landed alongside the contract change (the
+  `[FOLLOWUP runner-status-contract]` bundle):
+  `ReportAssembler.set_runner_status(exit_code)` derives the enum
+  (`0 → success`, `!= 0 → error`, no call → field default `unknown`)
+  and `ReportAssembler.set_discovery_strategies(strategies)` deduplicates
+  and sorts the producer list. `MonitorRuntime.stop()` now tracks success
+  per strategy (Strategy 1 → `exthost_log_parse`, Strategy 2 →
+  `running_extensions_ui`, Strategy 3 → `exthost_output_parse`) and
+  emits the list once via a new `set_discovery_strategies` callback.
+  `ExtensionMonitor` keeps thin `set_runner_status` /
+  `_set_discovery_strategies` shims so the W11-1 facade pin file's
+  bound-method-identity invariants (`runtime.persist == mon._persist_report`,
+  `runtime.refresh_derived_state == mon._refresh_derived_report_state`)
+  are extended — not violated — with a parallel
+  `runtime.set_discovery_strategies == mon._set_discovery_strategies`
+  pin. `entrypoint_runner.py:486-487` calls `mon.set_runner_status(exit_code)`
+  immediately before the final `report.save()` (every code path that
+  mutates `exit_code` lives above the `if mon is not None` block, so
+  the call happens after the value is finalized).
+
+  Tests:
+  `tests/platform/contracts/test_activation_discovery_strategies.py`
+  (10 cases — defaults, full round-trip, the three accepted
+  RunnerStatusLiteral values, rejection of unknown status / non-int
+  exit / non-list strategies / typo'd extras / `runner_exit_code=None`
+  pass-through) +
+  5 new cases in `tests/executor/test_playwright_monitor_report_assembler.py`
+  (setters: 0→success, 1→error, 137→error pin for the "any non-zero
+  maps to error" contract, dedupe+sort for strategies, empty list
+  clears prior content) +
+  3 new cases in `tests/executor/test_extension_monitor_facade.py`
+  (W11-3 facade shim delegation + bound-method identity invariant +
+  end-to-end runtime→shim→assembler chain) +
+  3 new cases in `tests/executor/test_playwright_monitor_runtime_state.py`
+  (all-three-succeed, all-empty, Strategy-3 dedupe-no-credit) plus an
+  emission pin added to the existing
+  `test_stop_runs_strategies_and_invokes_collaborator_callbacks` case +
+  `_FakeMonitor.set_runner_status` stub added to
+  `tests/executor/test_playwright_entrypoint.py` so the 6 existing
+  monitor-mode entrypoint cases keep their pin shape. Baseline grew
+  1129 → 1150 (`make check-all`); `make test-security` 170 cases
+  green.
+
+  Strategy-name divergence note: archive plan
+  `archive/plans/REFACTOR_OPTIMIZATION_full_2026-04-29.md §11.8` lists
+  example identifiers (`warm-start`, `command-probe`, `output-channel`,
+  `log-tail`) that do not appear in the current `MonitorRuntime.stop()`
+  source — those are aspirational/example names. The W11-3 producer
+  uses the three actual strategies' snake-case identifiers
+  (`exthost_log_parse`, `running_extensions_ui`,
+  `exthost_output_parse`); the archive table will be reconciled when
+  W11 closes.
+
+  Branch policy deviation: per user direction, all W11-N items land on
+  a single long-lived `week11` branch instead of the documented
+  per-item `feat/w11-<n>-<slug>` branches (Pickup Procedure step 2).
+  The branch will fold into `main` as a single PR after W11 closes.
+
+  **First live-scan validation surfaced a serialization gap
+  (`2026-05-04`):** the W11-3 build was exercised end-to-end against
+  `ms-python.python@2026.5.2026042602` (job `f6faab10ce35`, 22:44 local).
+  `schema_version` correctly bumped to `"2.1"` on disk, but the three
+  new fields landed at their defaults
+  (`activation_discovery_strategies=[]`, `runner_exit_code=null`,
+  `runner_status="unknown"`) even though Strategy 1 had clearly
+  succeeded (22 activations) and the runner reached its
+  `set_runner_status` call. Root cause: the `ReportAssembler` setters
+  mutate the runtime dataclass correctly, but
+  `executor/flows/playwright/report_builder.py::build_report_data`
+  (a 322-line manual dataclass→dict serializer that pre-dates W11)
+  never read the new dataclass fields, so the on-disk dict defaulted
+  them via the contract validator. Unit tests covering the setters
+  pinned the dataclass mutation but missed the serializer's outbound
+  path. Fixup landed on the same branch: `build_report_data` now
+  forwards the three fields, plus
+  `tests/platform/contracts/test_report_builder_contract.py` adds two
+  round-trip pins
+  (`test_w11_3_fields_round_trip_through_build_report_data_and_save`,
+  `test_w11_3_fields_default_to_unknown_when_producer_skips_setters`)
+  so the next dataclass change cannot silently drop the surface again.
+  Detection-relevant fields from job `f6faab10ce35` matched the W11-2
+  baseline (`signal_summary` level=`needs_review` score=22,
+  `verified_capabilities` 4-list, `coverage_summary` covered=7/partial=5/missing=6,
+  `automation_health.status=degraded` with the same 3-element reasons,
+  `output_signal_events=12`, `target_activation_count=1`,
+  `run_quality=medium`, `log_entries=0`, `scenario_traces=3`,
+  `stimulus_passes=5`, `failed_scenarios=[]`); raw event counts within
+  the prior 4-scan variance band (`network_events=178`,
+  `file_events=2467`, `process_events=67`, `evidence_links=3821`,
+  `activated=22`).
+
+  **Second live-scan validation (post-fixup, `2026-05-04`):** with the
+  `build_report_data` patch in the running container, a second scan
+  against `ms-python.python@2026.5.2026042602` (job `64627b3ea714`,
+  22:59 local) wrote the producer values to disk end-to-end:
+  `activation_discovery_strategies=["exthost_log_parse",
+  "running_extensions_ui"]` (Strategy 2 yielded a non-empty Running
+  Extensions list this run, which is non-stationary on ms-python; the
+  W11-3 plan note that Strategy 2 "rarely produces entries" turned out
+  to be wrong on the optimistic side — the field tolerates this fine
+  because it is a sorted/deduped list, not a fixed ordered tuple);
+  Strategy 3 (`exthost_output_parse`) absent because its merge
+  produced no new entries beyond Strategy 1 (the dedupe-no-credit
+  semantics pinned by
+  `test_stop_omits_strategy_three_when_output_parse_yields_no_new_entries`
+  played out live as designed); `runner_exit_code=0`,
+  `runner_status="success"`. Detection-relevant fields bitwise-equal
+  to the W11-2 / first-W11-3 baselines (same `signal_summary`,
+  `verified_capabilities`, `coverage_summary`, `automation_health`,
+  `output_signal_events=12`, `target_activation_count=1`,
+  `run_quality=medium`, `log_entries=0`, `scenario_traces=3`,
+  `stimulus_passes=5`, `failed_scenarios=[]`). Raw event counts within
+  the now-5-scan variance band (`network_events=198`,
+  `file_events=2592`, `process_events=78`, `evidence_links=3541`,
+  `activated=22`); `process_events=78` slightly above the prior
+  4-scan ceiling of 74 — strace timing delta, not refactor. Refactor
+  - serialization fix confirmed behavior-preserving end-to-end.
+- **W11-4** — landed `2026-05-05` on the `week11` working branch
+  (commit `f4f5df6`). `ScenarioAccountant` extraction landed in
+  `executor/flows/playwright/monitor_scenario_accountant.py` (new,
+  426 LoC). The collaborator owns trigger-plan / execution-result
+  intake (`mark_trigger_plan_*` / `record_failed_scenarios` /
+  `record_execution_result`), scenario lifecycle bookkeeping
+  (`record_scenario_event` / `finalize_running_scenarios` /
+  `_synchronize_scenario_truth`, plus the `_active_scenarios` dict),
+  event-attempt status mutation (`record_event_attempt_start` /
+  `record_event_attempt_end`), activation-window log derivation
+  (`append_activation_log_entries`), and the W11-4 producer signal
+  (`emit_intermediate_state_events`) for
+  `[FOLLOWUP target-log-lifecycle-instrumentation]` — the post-reconcile
+  pass that surfaces `activation_seen` / `target_log_seen` promotions
+  on the live automation timeline (the W10-6 alphabet finally gets a
+  vocabulary). `ExtensionMonitor` keeps thin one-line shims for every
+  moved method (10 forwarding methods) plus a new
+  `_emit_intermediate_state_events` shim, so the W11-1/2/3 facade pin
+  file's bound-method-identity assertions
+  (`runtime.finalize_scenarios == mon._finalize_running_scenarios`,
+  `runtime.append_activation_log_entries == mon._append_activation_log_entries`,
+  `runtime.emit_intermediate_state_events == mon._emit_intermediate_state_events`)
+  remain green; runtime collaborator callbacks are wired through these
+  shims, never directly to the accountant, so the W11-1 invariant
+  survives untouched until W11-5 collapses the facade.
+
+  Helper relocation: `_assert_target_stream_invariant` moved to
+  `monitor_records.py` (next to `LogStreamEntry`, where it logically
+  belongs as a build-path contract guard) so both `monitor_lifecycle`
+  and `monitor_scenario_accountant` can import it without a circular
+  dep. `monitor_lifecycle` re-exports the symbol via `__all__` so the
+  existing test pin (`from executor.flows.playwright.monitor_lifecycle
+  import _assert_target_stream_invariant` in
+  `tests/executor/test_playwright_monitor_lifecycle.py:563`) keeps
+  working.
+
+  `monitor_lifecycle.py` shrank 645 → 499 LoC (W11-5 ≤200 final
+  target; this lands well under the planned ≤575 budget for W11-4).
+  Tests:
+  `tests/executor/test_playwright_monitor_scenario_accountant.py`
+  (26 cases, imported at the real module path so the W12 reshuffle
+  cannot silently regress this surface; covers init invariants,
+  trigger-plan/execution-result intake including the
+  trace-driven-sync semantics for `failed_scenarios`, event-attempt
+  status mutation including the
+  `verified`/`failed`/`blocked`/terminal-mapping pin, scenario
+  lifecycle including the orphan-end-without-start tolerance,
+  activation-window log derivation including idempotency, 8
+  W11-4 producer-signal cases pinning emission, idempotency-per-
+  attempt, terminal-state filtering, per-attempt promotion, and
+  `activation_event` metadata passthrough, plus 1 end-to-end
+  integration case
+  `test_emit_intermediate_state_events_fires_after_real_reconciliation`
+  driving the chain through the real `reconcile_event_attempts` so
+  the positive intermediate-state path stays pinned even when the
+  trigger-driven live-scan profile does not exercise it) +
+  15 new W11-4 cases in
+  `tests/executor/test_extension_monitor_facade.py` (a
+  `_RecordingAccountant` parallel to `_RecordingRuntime` and
+  `_RecordingAssembler`, covering construction with shared report,
+  every shim's delegation —
+  `mark_trigger_plan_applied`/`mark_trigger_plan_missing`/
+  `record_failed_scenarios`/`record_execution_result`/
+  `record_event_attempt_start`/`record_event_attempt_end`/
+  `record_scenario_event`/`_finalize_running_scenarios`/
+  `_append_activation_log_entries`/`_synchronize_scenario_truth`/
+  `_emit_intermediate_state_events`, the runtime→shim→accountant
+  chain for `emit_intermediate_state_events`, and a sanity guard
+  pinning the real class is composed when unpatched) + 3 new W11-4
+  cases in `tests/executor/test_playwright_monitor_runtime_state.py`
+  (post-refresh emission ordering invariant, single-fire-per-stop
+  pin, defensive stop-without-start coverage). Baseline grew
+  1150 → 1201 (`make check-all` green: lint, mypy, bandit,
+  ui-types, pytest all clean).
+
+  **Live-scan validation (`2026-05-05`):** the W11-4 build was
+  exercised end-to-end against `ms-python.python@2026.5.2026042602`
+  in the live executor (`make sim-target TARGET=ms-python.python`,
+  job `95efbaeb721b`, 82.2s monitoring, all_scenarios mode). The
+  scan profile diverged from the W11-3 trigger-driven baseline (no
+  trigger payload was supplied, so `event_attempts=[]` /
+  `stimulus_passes=[]` / target activation never fired) and
+  Chrome crashed mid-run on the `git_workflow` scenario (environmental:
+  the strace+Playwright pipeline has hit this Target-crashed
+  failure mode on this host before W11). A second scan attempt
+  (`SCENARIO=coding_session`) timed out connecting to Chrome
+  because the crashed browser didn't recover; rather than
+  destructively reset the executor container, the W11-4 validation
+  was completed against scan 1 alone.
+  - **W11-4-owned producer signals all populated correctly:**
+    `schema_version="2.1"` (W11-3 contract preserved),
+    `activation_discovery_strategies=["exthost_log_parse"]`
+    (Strategy 1 succeeded with 2 non-target activations, Strategy 2
+    failed via the Chrome crash, Strategy 3 yielded no new entries
+    after the Strategy 1 dedupe-merge),
+    `runner_exit_code=1`, `runner_status="error"`
+    (`set_runner_status` correctly mapped the failed run via the
+    W11-3 setter contract, exercised through the W11-4 facade-shim
+    chain).
+  - **Scenario-accounting refactor preserved bit-for-bit:**
+    `len(scenario_traces)=4` (all four `all_scenarios` mode
+    scenarios traced — `coding_session`, `debug_session`,
+    `terminal_usage`, `git_workflow`); the post-`_synchronize_scenario_truth`
+    `summary.scenarios_run` carries all four names;
+    `failed_scenarios=["git_workflow"]` captured the Chrome-crash
+    failure with the right reason code; the automation timeline
+    (`log_streams.automation`) carries 10 entries — runtime tracer
+    attach + trigger-execution-mode + four `start`/`end` scenario
+    pairs — exactly the shape pre-W11-4 produced. The
+    `append_activation_log_entries` derivation correctly attributed
+    the 2 non-target activations (`ms-python.debugpy@onLanguage:python`
+    → coding_session, `vscode.debug-server-ready@onDebugResolve` →
+    debug_session) to `log_streams.other_extension_host` with
+    scenario attribution intact.
+  - **W11-4 producer signal wired correctly:**
+    `emit_intermediate_state_events` ran (count=0 emissions, which
+    is the correct semantic — there were no `event_attempts` to
+    promote because no trigger plan was applied; the focused unit
+    test
+    `test_emit_intermediate_state_events_emits_per_promoted_attempt`
+    pins the positive path). Confirms the post-refresh wiring
+    (`MonitorRuntime.stop()` → `refresh_derived_state` →
+    `emit_intermediate_state_events`) survives end-to-end without a
+    stop()-time crash.
+
+  Because the smoke run never had `event_attempts` and the target was
+  never observed, the trigger-driven W11-3 baseline (job `64627b3ea714`
+  with target_activation_count=1, stimulus_passes=5, full
+  coverage_summary) is not directly comparable to it on
+  detection-relevant fields. What scan 1 validated: (a) the producer
+  side runs without monitor-side errors, (b) every W11-3 contract
+  field is still populated by the refactored producers, (c) the
+  scenario / event-attempt accounting still surfaces the right shape
+  on the refactored path, and (d) the new intermediate-state emission
+  step is wired without breaking `stop()`.
+
+  **UI-driven scan validation (post-fixup, `2026-05-05`):** the W11-4
+  build was exercised end-to-end via the UI's analysis pipeline
+  against `ms-python.python@2026.5.2026042602` (job `2c1dea3c70e6`,
+  12:22 local) — the proper trigger-driven, target-observed positive
+  validation that the smoke run could not provide. Field-by-field
+  comparison against the W11-3 second-scan baseline (job
+  `64627b3ea714`) confirms **bitwise-equal detection-relevant fields**
+  across the refactor:
+  - `signal_summary` (level=`needs_review`, score=22),
+    `verified_capabilities` (4-list:
+    `commands`/`languages_editor`/`window_ui`/`workspace_fs`),
+    `attempted_capabilities` (6-list), `coverage_summary`
+    (covered=7 / partial=5 / missing=6, attempted=7, verified=4),
+    `automation_health.status=degraded`,
+    `target_extension_observed=True`,
+    `target_activation_count=1`, `run_quality=medium`,
+    `len(activated)=22`, `len(scenario_traces)=3`,
+    `len(stimulus_passes)=5`, `len(event_attempts)=21`,
+    `summary.scenarios_run=["project_exploration", "coding_session",
+    "terminal_usage"]`, `failed_scenarios=[]`,
+    `log_streams.target_extension_host=1`,
+    `log_streams.other_extension_host=21`,
+    `log_streams.automation=130`.
+  - `event_attempts.verification_status` distribution identical:
+    `attempted_only: 9, verified: 12`. **No attempt landed in
+    `activation_seen` / `target_log_seen` for this target on either
+    scan** — the reconciler's intermediate-state path requires the
+    contract-driven branch with unresolved
+    `target_runtime_delta` / `activation_log_*` (the W11-3 baseline's
+    21 attempts all either hit the no-contract activation-only
+    shortcut → `verified` or fell through the no-evidence path →
+    `attempted_only`). `emit_intermediate_state_events` correctly
+    emitted 0 entries on both runs; the producer signal is a function
+    of the reconciler's promotion decisions, not the run profile by
+    itself. The positive integration path (real reconciler → emission
+    chain) is pinned by
+    `test_emit_intermediate_state_events_fires_after_real_reconciliation`
+    in the focused accountant test module — that test forces
+    `verification_contract=["target_runtime_delta"]` with empty
+    `attempted_passes`/`capability_tags` so the reconciler hits the
+    intermediate-state branch deterministically.
+  - Raw event counts within the prior 6-scan variance band:
+    `network_events=193` (prior 167–198), `file_events=2616`
+    (prior 2467–2689), `process_events=67` (prior 66–78). No drift
+    attributable to the refactor.
+
+  Refactor confirmed behavior-preserving end-to-end on the
+  trigger-driven UI path; the 1-LoC delta in detection-relevant
+  fields between scan and baseline is zero. W11-4 closes with full
+  bar coverage (`make check-all` green, smoke run + UI run both
+  validated).
+- **W11-5** — landed `2026-05-05` on the `week11` working branch.
+  `ExtensionMonitor` composition facade collapsed: every transitional
+  delegation stub is gone (the W11-1 `_handle_*_event` shims and
+  `_log_offsets` property, the W11-2 `_persist_report` /
+  `_refresh_derived_report_state`, the W11-3 `_set_discovery_strategies`,
+  the W11-4 ten-method shim block plus `_emit_intermediate_state_events`
+  and `_synchronize_scenario_truth`). `MonitorRuntime` callbacks now
+  bind directly to `ReportAssembler.persist`,
+  `ReportAssembler.refresh_derived_state`,
+  `ReportAssembler.set_discovery_strategies`,
+  `ScenarioAccountant.finalize_running_scenarios`,
+  `ScenarioAccountant.append_activation_log_entries`, and
+  `ScenarioAccountant.emit_intermediate_state_events`. The constructor
+  accepts opt-in `runtime` / `assembler` / `accountant` / `report`
+  kwargs for test injection (`tests/executor/test_extension_monitor_facade.py`
+  uses this). Three fat methods migrated off the facade onto the
+  accountant: `record_stimulus_pass_event` (~58 LoC),
+  `record_prerequisite_result` (~36 LoC), and `verify_target_reaction`
+  (~52 LoC); the facade keeps single-statement public-API forwards so
+  `entrypoint_runner.py`, `wait_helpers.py`, `stimulus_passes.py`,
+  and `stimulus_prerequisites.py` need no migration. `MonitorRuntime`
+  gained a `@page.setter` so the facade's `page` property can write
+  through to the runtime (used by `entrypoint_runner.py:252,261`
+  reload-time page reassignment). The `test_extension_monitor_facade.py`
+  pin file shrank 891 → 499 LoC and pivoted from bound-method-identity
+  invariants to composition-shape contracts (collaborator share-the-
+  same-report, callbacks point at collaborator methods, public-API
+  forwards land in the right collaborator, page setter writes through,
+  facade-owned bodies still work, and an unpatched facade really holds
+  three real collaborator instances). `monitor_lifecycle.py` settled at
+  **286 LoC** — above the ≤200 ortodox target but every shim layer is
+  gone; the residual budget is 28-LoC `record_automation_event`
+  orchestration body (intentionally facade-owned because both runtime
+  and accountant get it as a callback) plus public-API forward
+  shims (caller compatibility) plus the `apply_trigger_payload` /
+  `set_trigger_execution_mode` single-purpose bodies.
+
+  Verification:
+
+  - `make check-all` — green (lint + mypy strict + bandit + ui-types-check
+    - ui-boundaries + 1199 pytest cases).
+  - `make test-security` — 170 cases green, no regression on W5
+    fixture hygiene or rule coverage.
+  - `pytest tests/executor/` — 528 cases green; 18 W11-5 facade pins
+    - 13 new accountant cases (5 stimulus, 2 prerequisite, 5
+    verify_target_reaction, 1 page setter) replace the 35-case W11-1
+    bound-method-identity suite.
+
+- **W11-6 landed `2026-05-05`** on the `week11` working branch.
+  Per-strategy `_stop_<strategy>` helpers extracted from
+  `MonitorRuntime.stop()` into three dedicated methods on the same
+  class: `_stop_exthost_log_parse` (Strategy 1), `_stop_running_extensions_ui`
+  (Strategy 2 — owns the Escape recovery branch on `PlaywrightError`),
+  and `_stop_exthost_output_parse` (Strategy 3 — owns the
+  dedupe-no-credit semantics pinned in W11-3). Each helper returns
+  `str | None` (the strategy id on a hit, `None` otherwise);
+  `stop()` now drives them through a small orchestration loop that
+  preserves the W11-3 strategy-aware persist cadence (one
+  `self._persist(True)` after each helper returns) and feeds the
+  collected list to `_set_discovery_strategies`. Helpers do not
+  persist on their own — pinned by the new
+  `test_stop_exthost_log_parse_returns_name_on_activations` case
+  (`assert hooks.persist_calls == []` after a direct helper call).
+  Per-strategy `except` types are preserved bit-for-bit (S1
+  `OSError, ValueError`; S2 `PlaywrightError, OSError, ValueError`
+  - inner `PlaywrightError` for the Escape-recovery branch; S3
+  `OSError`). `monitor_runtime_state.py` 369 → 429 LoC (the helpers
+  - their docstrings + section header add ~60 LoC; the `stop()`
+  body's strategy section collapsed from ~45 LoC of three
+  try-blocks into a 12-line for-loop). Docstrings name the mutated
+  report fields and the swallow contract per helper so future
+  readers do not have to re-derive the invariants from the call
+  site.
+
+  Strategy-name reconciliation (closes the W11-3 archive divergence
+  at lines 706–715 below): the actual strategy ids are
+  `exthost_log_parse`, `running_extensions_ui`, `exthost_output_parse`
+  (snake-case identifiers introduced by the W11-3 producer). The
+  archive's aspirational names (`warm-start`, `command-probe`,
+  `output-channel`, `log-tail`) appear nowhere in the runtime; the
+  W11-6 helpers carry the real names so the producer wiring (W11-3
+  → assembler → contract → on-disk dict) reads as a single
+  vocabulary end-to-end. The archive table at
+  `archive/plans/REFACTOR_OPTIMIZATION_full_2026-04-29.md §11.8`
+  will be reconciled when W11 closes; until then this tracker (and
+  the W11-6 source) are the source of truth.
+
+  Tests: `tests/executor/test_playwright_monitor_runtime_state.py`
+  grew 21 → 33 cases. The 12 new cases pin each helper in isolation
+  — Strategy 1 (`returns_name_on_activations` /
+  `returns_none_on_empty_activated` /
+  `swallows_oserror_returns_none` /
+  `writes_log_file_path_only_when_activated_non_empty`), Strategy 2
+  (`returns_name_on_running_list` / `returns_none_on_empty` /
+  `invokes_escape_recovery_on_playwright_error` /
+  `swallows_recovery_error`), Strategy 3
+  (`returns_name_on_net_new_merge` /
+  `returns_none_when_dedupe_yields_no_credit` /
+  `swallows_oserror_returns_none`) — plus a module-path pin
+  (`test_module_path_pins_monitor_runtime_state`) that asserts the
+  three helpers stay attached to `MonitorRuntime` so a W12
+  reshuffle cannot silently move them onto a free function. The
+  three pre-existing stop-level regression cases
+  (`test_stop_emits_all_three_strategies_when_all_succeed`,
+  `test_stop_emits_empty_list_when_all_strategies_yield_no_entries`,
+  `test_stop_omits_strategy_three_when_output_parse_yields_no_new_entries`)
+  stayed unmodified and green — the primary behavior-preservation
+  evidence at the orchestration layer.
+
+  Verification: `make check-all` green (1222 → 1234 pytest cases,
+  exactly the planned +12). `make test-security` 190 cases green
+  (no regression in the W5/W8 fixture-hygiene lane). Live-scan
+  validation (per W11-3/W11-4 pattern) executed against
+  `ms-python.python` via `make sim-target`
+  (job `b6b52049804f4ff2a63c98eb93c74691`, 164.9s elapsed). All
+  three helpers fired in for-loop order (`Strategy 1: ...` →
+  `Strategy 2: ...` → `Strategy 3: ...`); the new method names
+  on disk and on the wire match the W11-3 producer ids. Strategy
+  1 yielded 3 activation entries and the new
+  `_stop_exthost_log_parse` returned `"exthost_log_parse"` →
+  on-disk `activation_discovery_strategies == ["exthost_log_parse"]`.
+  Strategy 2 hit a `Keyboard.press: Target crashed`
+  `PlaywrightError` (macOS Docker UI flake unrelated to the
+  refactor); the new `_stop_running_extensions_ui` recovery
+  branch fired `Escape`-press, the recovery itself raised a
+  second `PlaywrightError`, and the outer `try/except` swallowed
+  it cleanly so Strategy 3 still ran — the live counterpart to
+  the new `test_stop_running_extensions_ui_swallows_recovery_error`
+  unit case. Strategy 3 read 1071381 chars from `exthost.log` but
+  yielded no new entries beyond Strategy 1 → not credited
+  (dedupe-no-credit semantics live, matches the unit pin). On the
+  saved report: `schema_version="2.1"` (unchanged),
+  `runner_status="error"` with `runner_exit_code=1`
+  (W11-3 derivation correct given the `Target crashed`),
+  `automation_health.fatal_ui_crash=true`, and
+  `failed_scenarios=["settings_modification"]` — the runner
+  surfaced the crash through the W10/W11-3/W11-4 health and
+  scenario-accounting pipelines without any monitor-side error.
+  The non-stationary delta vs. the W11-4 baseline
+  (`job 2c1dea3c70e6`: target observed, S1+S2 strategies, success
+  status) is the UI-crash branch — explicitly allowed by the
+  W11-3 contract (sorted/deduped list, non-fixed shape) and by
+  the W10 health vocabulary (`fatal_ui_crash` is the named
+  outcome). Refactor confirmed behavior-preserving end-to-end.
+
+- **W11-7 landed `2026-05-05`** on the `week11` working branch.
+  Workflow-side modularization companion to the W11-1..W11-6 monitor
+  split: `workflows/extension_catalog/service.py` (475 LoC, audit
+  2026-04-27 §5 "ahtapot") split into two focused modules with a thin
+  back-compat facade. **`workflows/extension_catalog/manifest_to_schema.py`**
+  (new, 139 LoC) owns the manifest dict → Pydantic schema → ORM
+  hidrasyon pipeline: `ExtensionManifestMismatchError`,
+  `_validate_manifest_identity`, `_create_extension_from_package_json`.
+  **`workflows/extension_catalog/lifecycle.py`** (new, 352 LoC) owns
+  the public extension-catalog surface called by the router and the
+  marketplace workflow: `get_all_extensions_basic`,
+  `get_all_extensions_all`, `search_extension_by_name`,
+  `delete_extension_by_name`, `create_extension_by_name`,
+  `create_extension_from_directory`, and the five getter functions
+  (`get_extension_scripts`, `get_extension_activation_events`,
+  `get_extension_capabilities`, `get_extension_contributes_all`,
+  `get_extension_contributes_commands`). **`workflows/extension_catalog/service.py`**
+  (475 → 64 LoC) collapsed into a thin re-export facade — kept (not
+  deleted) because three external consumers still hold the legacy
+  import path: `workflows/marketplace/router.py:28-32` (three name
+  imports — `ExtensionManifestMismatchError`,
+  `create_extension_from_directory`, `search_extension_by_name`),
+  `tests/platform/test_canonical_imports.py:13` (asserts the public
+  symbol set), and any out-of-tree caller still on the legacy
+  path. The facade uses the mypy `--strict` re-export form
+  (`name as name`) consistent with the W11-1..W11-6 facades.
+
+  Router pivot: `workflows/extension_catalog/router.py` import switched
+  from `from workflows.extension_catalog import service` to
+  `from workflows.extension_catalog import lifecycle`; ~10 call sites
+  updated `service.X` → `lifecycle.X` (mechanical sed-style diff, no
+  behavioral change). The router now reads its CRUD-shaped public
+  surface from the focused module rather than from the back-compat
+  facade.
+
+  Tests: existing `tests/workflows/extension_catalog/test_service.py`
+  (297 LoC, 13 cases) split into two new focused test files and the
+  old file deleted (W11 pattern: every new module gets its own
+  focused test file imported at the real module path so a future
+  reshuffle cannot silently regress this surface):
+
+  - `tests/workflows/extension_catalog/test_manifest_to_schema.py`
+    (235 LoC, 10 cases) — pins `_create_extension_from_package_json`
+    full-pipeline + no-extra-data branches with parse_* /
+    `create_db_extension` mocks anchored at the real module path
+    (`workflows.extension_catalog.manifest_to_schema.parse_*`,
+    `…manifest_to_schema.create_db_extension`); 6
+    `_validate_manifest_identity` cases covering single-field
+    mismatches (publisher / name / version) and the two-field
+    multi-mismatch composition; the `ExtensionManifestMismatchError
+    issubclass ValueError` shape pin protects callers that catch
+    `ValueError`; module-path pin asserts all three helpers stay
+    attached to `manifest_to_schema.py` so a W12 reshuffle cannot
+    silently move them.
+  - `tests/workflows/extension_catalog/test_lifecycle.py`
+    (286 LoC, 16 cases) — pins the public lifecycle surface with
+    CRUD-side collaborators and the hydration helper mocked at the
+    `lifecycle` module boundary
+    (`workflows.extension_catalog.lifecycle.find_json_in_dir`,
+    `…lifecycle.get_package_json`,
+    `…lifecycle._create_extension_from_package_json`,
+    `…lifecycle.search_db_extension`, `…lifecycle.delete_db_extension`,
+    `…lifecycle.get_db_*`); covers `create_extension_by_name`
+    success/not-found, `create_extension_from_directory` happy +
+    mismatch + read-error branches, the two listing getters
+    (basic / all-info), search and delete passthroughs, and all
+    five typed getter passthroughs; module-path pin for the lifecycle
+    public surface; **facade back-compat re-export pin** asserts
+    `service.X is lifecycle.X` (and `service.ExtensionManifestMismatchError
+    is manifest_to_schema.ExtensionManifestMismatchError`) for all
+    12 re-exported symbols, so a future facade rewrite that swaps
+    re-exports for shim wrappers fails here. The 23 legacy
+    `mock.patch("workflows.extension_catalog.service.X", …)` sites
+    in the old `test_service.py` were rewritten to anchor at the
+    real execution module — required because Python's
+    `mock.patch` semantics intercept name lookup in the module
+    where the call site lives, and after the split the parse_* /
+    CRUD calls execute inside `manifest_to_schema` /
+    `lifecycle`, not inside the `service` facade.
+
+  Router test migration: `tests/workflows/extension_catalog/test_router.py`
+  ~30 patch sites pivoted from `workflows.extension_catalog.router.service.X`
+  / `workflows.extension_catalog.service.create_extension_by_name` to
+  `workflows.extension_catalog.router.lifecycle.X` (the router now reads
+  the surface from `lifecycle`, so patches anchor at the new attribute
+  name on the router module).
+
+  Architecture gates (W11-7 audit §5 closure invariants — added to
+  `tests/architecture/test_import_graph.py`):
+
+  - `test_extension_catalog_service_stays_a_thin_facade` — AST-walks
+    `service.py` and rejects any top-level statement that is not
+    `Import` / `ImportFrom` / the module docstring / the `__all__`
+    assignment. Prevents the ahtapot from re-growing function or
+    class bodies inside the facade; if a future PR adds logic, the
+    test fails and the right answer is to land that logic in
+    `lifecycle.py` or `manifest_to_schema.py`.
+  - `test_extension_catalog_service_reexports_match_canonical_modules`
+    — runtime identity pin: every name in `service.__all__` resolves
+    to the same object as the matching attribute on `lifecycle` or
+    `manifest_to_schema`, so a future facade rewrite that swaps
+    re-exports for shim wrappers fails here. Complements the
+    test-side `test_facade_back_compat_reexports_match_lifecycle`
+    pin in `test_lifecycle.py` by anchoring the same invariant from
+    the architecture lane (visible to `make check-all`'s
+    architecture pass).
+
+  `tests/platform/test_canonical_imports.py` extended with both new
+  modules: `extension_lifecycle` and `extension_manifest_to_schema`
+  added to the canonical-importable surface alongside the existing
+  `extension_service` facade pin (asserts
+  `extension_lifecycle.create_extension_by_name`,
+  `extension_lifecycle.search_extension_by_name`,
+  `extension_manifest_to_schema.ExtensionManifestMismatchError`, and
+  the `_validate_manifest_identity` callable shape).
+
+  External-caller compatibility verified:
+  `workflows/marketplace/router.py:28-32` continues to import
+  `ExtensionManifestMismatchError`, `create_extension_from_directory`,
+  and `search_extension_by_name` from `workflows.extension_catalog.service`
+  through the re-export facade with no diff;
+  `tests/platform/test_canonical_imports.py:13,25`
+  (`assert extension_service.create_extension_by_name is not None`)
+  passes unchanged.
+
+  Verification:
+
+  - `make check-all` — green (lint + mypy strict + bandit + ui-types-check
+    - ui-boundaries + 1247 pytest cases; baseline 1234 → 1247 = **+13**
+    net new tests, within the W11-1..W11-6 pull-size envelope).
+  - `make test-security` — 190 cases green, no regression on W5/W8
+    fixture hygiene or rule coverage (W11-7 does not touch detection
+    rules).
+  - `pytest tests/workflows/extension_catalog/` — 101 cases green
+    (101 = 10 new manifest_to_schema + 16 new lifecycle + 34
+    test_router + 41 test_package_parser).
+  - `pytest tests/platform/test_canonical_imports.py
+    tests/workflows/marketplace/test_router.py` — both green; legacy
+    import path through the facade resolves cleanly.
+
+  No live-scan validation required: W11-7 is workflow-side
+  modularization with zero detection-relevant surface area
+  (`schema_version` unchanged at `2.1`; no `ActivationReport` field
+  touched; no producer wiring change). Workflow router endpoints are
+  exercised by FastAPI TestClient unit tests in `test_router.py`,
+  which all pass.
+- **W11-8 landed `2026-05-05`** on the `week11` working branch.
+  Storage-side modularization companion to the W11-7 workflow split,
+  closing audit 2026-04-27 §5 "crud_ops/analysis_jobs.py
+  step + lifecycle + JSON" issue. The original module file
+  `appcore/storage/crud_ops/analysis_jobs.py` (348 LoC, six
+  responsibilities — job lifecycle create/cancel/complete/fail,
+  recovery, step lifecycle update, JSON serialization helpers,
+  shared `JobNotCancellableError`, terminal-status set) **deleted**
+  and replaced with a same-named subpackage holding three focused
+  modules with a thin re-export facade. **`appcore/storage/crud_ops/analysis_jobs/steps.py`**
+  (new, ~88 LoC) owns the JSON serialization pair (`_job_steps`,
+  `_write_steps`) plus the public step-update entry point
+  `update_analysis_job_step`; the legacy `_get_analysis_job_or_raise`
+  call inside `update_analysis_job_step` was inlined as a 4-line
+  `select`/`scalars`/`KeyError` block so `steps.py` does not import
+  from `lifecycle.py` (W11-8 cycle-break invariant). **`appcore/storage/crud_ops/analysis_jobs/lifecycle.py`**
+  (new, ~296 LoC) owns the public lifecycle/recovery surface:
+  `JobNotCancellableError`, `_TERMINAL_JOB_STATUSES`,
+  `_get_analysis_job_or_raise`, `_interrupt_job`,
+  `cancel_analysis_job`, `create_analysis_job`, `get_analysis_job`,
+  `get_active_analysis_job`, `update_analysis_job`,
+  `fail_analysis_job`, `complete_analysis_job`, and
+  `recover_interrupted_analysis_jobs`. `_interrupt_job` and
+  `fail_analysis_job` import `_job_steps` / `_write_steps` from
+  `.steps` — the dependency direction is strictly `lifecycle →
+  steps` to keep the subpackage acyclic. **`appcore/storage/crud_ops/analysis_jobs/__init__.py`**
+  (new, ~52 LoC) is the back-compat facade — kept (not collapsed
+  into `lifecycle`) because external consumers still hold the
+  legacy `from appcore.storage.crud_ops.analysis_jobs import …`
+  path: `appcore/storage/crud.py:3-14` is the primary one (drives
+  every workflow caller — `workflows/marketplace/job_service.py`,
+  `workflows/marketplace/trigger_service.py` — through the public
+  CRUD facade). The subpackage `__init__.py` uses the mypy
+  `--strict` re-export form (`name as name`) consistent with the
+  W11-1..W11-7 facades.
+
+  **No caller migration**: `appcore/storage/crud.py:3-14` continues
+  to import `JobNotCancellableError`, `cancel_analysis_job`,
+  `complete_analysis_job`, `create_analysis_job`,
+  `fail_analysis_job`, `get_active_analysis_job`,
+  `get_analysis_job`, `recover_interrupted_analysis_jobs`,
+  `update_analysis_job`, and `update_analysis_job_step` from
+  `appcore.storage.crud_ops.analysis_jobs` with no diff — Python's
+  import machinery resolves the package `__init__.py` re-exports
+  identically to the legacy module file, so caller code (and the
+  20+ patch sites in `tests/workflows/marketplace/test_router.py`)
+  needed no migration.
+
+  Tests: every new module gets its own focused test file imported
+  at the real module path (W11 pattern) so a future reshuffle
+  cannot silently regress this surface:
+
+  - `tests/platform/storage/test_analysis_jobs_lifecycle.py`
+    (new, ~290 LoC, 16 cases — `pytest.mark.requires_db` lane,
+    SQLAlchemy `db_session` fixture for real DB roundtrips):
+    `create_analysis_job` snapshot persistence, `get_analysis_job`
+    None-vs-found contract, `get_active_analysis_job`
+    only-active-row + None-when-all-terminal cases pinned against
+    the `uq_analysis_jobs_single_active` partial unique index,
+    `update_analysis_job` `model_dump(exclude_unset=True)` partial
+    semantics + `KeyError` for unknown id, `complete_analysis_job`
+    status mutation, `cancel_analysis_job` current-step-cancelled
+    - trailing-pending-skipped + parametrize over the three
+    terminal statuses (completed/failed/cancelled) for the
+    `JobNotCancellableError` race contract + `KeyError` for
+    unknown id, `fail_analysis_job` current-step-failed +
+    trailing-pending-skipped, `recover_interrupted_analysis_jobs`
+    boot_id-mismatch-marks-failed + boot_id-match-returns-zero,
+    plus a module-path pin asserting all nine public symbols stay
+    attached to `lifecycle` so a W12 reshuffle cannot silently
+    move them.
+  - `tests/platform/storage/test_analysis_jobs_steps.py` (new,
+    ~225 LoC, 9 cases): `update_analysis_job_step`
+    running→sets-current-step, completed→clears-current-step,
+    skipped→clears-progress-and-current-step,
+    failed→keeps-current-step-for-postmortem,
+    progress-persists-for-running-status,
+    unknown-job→KeyError (the W11-8 cycle-break inline-lookup pin
+    — the test will start failing if a future PR re-imports
+    `_get_analysis_job_or_raise` from `.lifecycle` because that's
+    a circular import), unknown-step-name→ValueError (forced via
+    a fixture-level mutation that prunes a canonical step from
+    the persisted JSONB column), and a module-path pin asserting
+    `steps.lifecycle` is unimported (cycle-break documentation).
+
+  Architecture gates (added to `tests/architecture/test_import_graph.py`,
+  W11-7 pattern):
+
+  - `test_analysis_jobs_facade_stays_thin` — AST-walks
+    `analysis_jobs/__init__.py` and rejects any top-level
+    statement other than `Import` / `ImportFrom` / module
+    docstring / `__all__` assignment. Prevents the facade from
+    re-growing function or class bodies; if a future PR adds
+    logic, the test fails and the right answer is to land that
+    logic in `lifecycle.py` or `steps.py`.
+  - `test_analysis_jobs_facade_reexports_match_canonical_modules`
+    — runtime identity pin: every name in `facade.__all__`
+    resolves to the same object as the matching attribute on
+    `lifecycle` (or `steps` for `update_analysis_job_step`), so
+    a future facade rewrite that swaps re-exports for shim
+    wrappers fails here.
+
+  `tests/platform/test_canonical_imports.py` extended with three
+  new imports (`analysis_jobs_facade`, `analysis_jobs_lifecycle`,
+  `analysis_jobs_steps`) and four new asserts pinning callable
+  shape on each module plus the `JobNotCancellableError` and
+  `update_analysis_job_step` identity through the facade.
+
+  External-caller compatibility verified: `appcore/storage/crud.py:3-14`
+  continues to resolve cleanly, `tests/platform/storage/test_analysis_jobs.py`
+  (existing 13-case integration suite via
+  `workflows.marketplace.job_service`) stays untouched and yeşil,
+  `tests/platform/storage/test_crud.py` and `tests/workflows/marketplace/test_router.py`
+  (router cancel-after-finish race + 409 path) both stay untouched
+  and yeşil.
+
+  Verification:
+
+  - `make check-all` — green (lint + mypy strict + bandit +
+    ui-types-check + ui-boundaries + 1274 pytest cases; baseline
+    1247 → 1274 = **+27** net new tests = 16 lifecycle + 9 steps +
+    2 arch gates; 1 canonical-imports extension does not add a
+    case count). The lifecycle module's `AnalysisJobStepRecord`
+    import was auto-cleaned by ruff after the split because the
+    name is no longer referenced inside the module (the JSON
+    serialization helpers `_job_steps` / `_write_steps` that
+    consumed it now live in `steps.py`).
+  - `make test-security` — 190 cases yeşil (W11-8 does not touch
+    detection rules; storage-only modularization).
+  - `pytest tests/platform/storage/test_analysis_jobs_lifecycle.py
+    tests/platform/storage/test_analysis_jobs_steps.py` — 25
+    cases yeşil.
+  - `pytest tests/platform/storage/test_analysis_jobs.py
+    tests/platform/storage/test_crud.py
+    tests/workflows/marketplace/test_router.py` — 101 cases yeşil
+    (legacy import path through `appcore.storage.crud` resolves
+    cleanly).
+
+  No live-scan validation required: W11-8 has zero
+  detection-relevant surface area (`schema_version` unchanged at
+  `2.1`; no `ActivationReport` field touched; no producer wiring
+  change; no monitor lifecycle code touched). Same exemption logic
+  as W11-7 (workflow router endpoints exercised by FastAPI
+  TestClient unit tests; storage CRUD exercised by db_session
+  fixture).
+
+  **W11 closes with W11-8.** `monitor_lifecycle.py` settled at
+  286 LoC after W11-5 (above the ≤200 LoC ortodox target but every
+  shim layer collapsed; the residual budget is the
+  `record_automation_event` orchestration body kept facade-owned
+  - caller-compatibility forward shims). All seven §11.8 scope
+  items shipped: monitor split (W11-1..W11-6), workflow-side
+  ahtapot closure (W11-7), storage-side ahtapot closure (W11-8),
+  plus the bundled W11 acceptance sub-tasks
+  (`[FOLLOWUP w8-6-extension-host-output-redaction]` ahead of
+  W11-6, `[FOLLOWUP runner-status-contract]` rode W11-3,
+  `[FOLLOWUP target-log-lifecycle-instrumentation]` rode W11-4).
+  The `week11` working branch will fold into `main` as a single
+  PR per the W11-3 branch policy deviation.
 
 ## Acceptance Sub-Tasks (W11-N picks up these follow-ups)
 
 These open `[FOLLOWUP …]` items in `POST_POC_BACKLOG.md` are scheduled to
-land *as part of* W11 acceptance, not as separate PRs:
+land *as part of* W11 acceptance or as short W11 companion PRs before the
+next structural pull:
 
-- **`[FOLLOWUP runner-status-contract]`** —
-  `ActivationReport.runner_exit_code` + `runner_status` enum first-class.
-  Natural landing was originally W11-2 `ReportAssembler`. **Deferred to
-  W11-3 `2026-05-04`** because adding fields to the contract requires a
-  `schema_version` bump and a contracts-test pin, which the Verification
-  Bar below already reserves for W11-3 (`activation_discovery_strategies`
-  field + minor bump). Bundling both contract widenings into one pass
-  keeps W11-2 a pure code-restructure (W11-1 disipline) and gives
-  reviewers one clean contract diff to read. The assembler is still the
-  right runtime owner of the new fields; W11-3 wires
-  `assembler.set_runner_status(exit_code, status)` (or equivalent) when
-  it lands the contract change. Surfaced 2026-04-25 (Codex supplementary
-  review).
-- **`[FOLLOWUP target-log-lifecycle-instrumentation]`** —
-  Wire `reconcile_event_attempts` (or its W11 successor
-  `ScenarioAccountant`/`ReportAssembler`) to emit the intermediate
-  `activation_seen` / `target_log_seen` states the W10-6 frozenset
-  already pinned. The W10-6 lifecycle has alphabet but no vocabulary —
-  W11-4 closes the producer side. Companion W12 reconciler updates pick
-  up the broader target-log capture widening. **Confirmed W11-4
-  landing during W11-2 design pass `2026-05-04`:** the state-machine
-  emission already exists in
-  `executor/flows/playwright/health_reconciliation.py:175-220`
-  (`_mark_attempt_activation_seen`, `_mark_attempt_target_log_seen`)
-  and is invoked by `reconcile_event_attempts` itself; the consumer
-  side is complete. The remaining gap is the **producer signal** —
-  getting attempts to reach the reconciler with enough context to
-  promote past `failed/blocked` — which is `ScenarioAccountant`
-  territory (W11-4). Surfaced 2026-05-04 (manual UI scan).
+- **`[FOLLOWUP w8-6-extension-host-output-redaction]`** — **LANDED on
+  the `week11` working branch `2026-05-05`** ahead of the next
+  structural pull (W11-6).
+  `executor/flows/playwright/report_builder.py::build_report_data`
+  now applies a **trim-then-expand-then-redact** pipeline: the
+  500-line tail window is computed on the **raw** Extension Host
+  line stream first, the start index walks backwards to include any
+  ``-----BEGIN PRIVATE KEY-----`` marker whose matching ``END`` falls
+  inside the retained tail (private helper
+  `_expand_window_for_orphaned_pem`), and `redact_secrets(...)`
+  (imported from `packages.analysis_contracts`) is applied once on
+  the resulting window. **Two layered invariants**: (1) the
+  `private_key` pattern in `packages.analysis_contracts.evidence` is
+  a multi-line `-----BEGIN ... PRIVATE KEY-----` …
+  `-----END ... PRIVATE KEY-----` span — if the BEGIN marker falls
+  outside the retained tail, a naïve trim-then-redact pipeline would
+  leave the orphaned body unmatched and persist raw key bytes. Codex
+  review #2 (`2026-05-05`) caught this in the first redact-after-trim
+  landing; the BEGIN-expansion step pulls the originating BEGIN into
+  the window so the span collapses cleanly to
+  `[REDACTED:private_key]`. (2) An interim redact-before-trim version
+  fixed (1) but introduced a *tail-window inflation* attack: a hostile
+  extension that wraps thousands of attacker-controlled `console.log`
+  lines in fake `BEGIN/END PRIVATE KEY` markers would see the
+  redaction collapse the span to a single token, slip the 500-line
+  cap (then computed on redacted lines), and surface older head lines
+  into the persisted artifact. Codex review #3 (`2026-05-05`) caught
+  that vector; anchoring the cap on raw lines (computed before the
+  BEGIN-expansion step) closes the hole. The
+  `extension_host_output_lines` metric still counts raw newlines from
+  the original capture so the field is not perturbed by the redaction
+  layer.
+
+  New regression suite
+  `tests/platform/security/test_extension_host_output_redaction.py`
+  (20 cases) covers four of the five `SECRET_CLASSES`
+  (`aws` / `bearer` / `db_url` / `api_key`) via parametrize plus the
+  multi-line `private_key` class via dedicated PEM cases. Pins the
+  dict-emission boundary and the on-disk JSON byte form so AKIA +
+  Bearer + Postgres DSN payloads land redacted both in the emitted
+  dict and after a `tempfile`-backed `json.dumps` round-trip; the
+  orphaned-PEM scenario gets its own dedicated byte-form pin
+  (`test_extension_host_output_orphaned_pem_at_json_disk_boundary`)
+  so a future encoding change cannot silently re-leak the key body
+  through the persisted artifact. Three orphaned-PEM cases pin the
+  BEGIN-expansion invariant:
+  `test_extension_host_output_orphaned_pem_body_does_not_leak`
+  exercises reviewer #2's exact scenario (BEGIN @line 100, body
+  @101-600, END @601, 50-line suffix; raw tail-window starts at line
+  152 so BEGIN is dropped without expansion) and additionally
+  asserts that the head prefix lines (`benign prefix 0..99`) do not
+  ride the collapse past the cap into the persisted dict;
+  `test_extension_host_output_pem_block_fully_inside_tail_redacted`
+  pins the symmetric all-inside case;
+  `test_extension_host_output_pem_block_fully_outside_tail_no_residue`
+  pins the all-older case (token dropped along with the rest of the
+  head; no raw bytes survive).
+  `test_extension_host_output_tail_window_resists_pem_collapse_inflation`
+  pins reviewer #3's scenario: 800 attacker-controlled prefix lines
+  - 5000-line synthetic PEM body + 100-line suffix; asserts no
+  `attacker prefix N` reaches the persisted dict while
+  `benign suffix N` (inside the original raw tail) does — the cap
+  resists collapse-driven inflation by an attacker-shaped payload.
+  `test_extension_host_output_lines_metric_uses_raw_capture` pins the
+  metric invariant: `extension_host_output_lines` reports the raw
+  capture's newline count (not the redacted form), so a future
+  "consistency" refactor that switches the metric to the persisted
+  text would fail here — exercised with a 22-line PEM payload that
+  collapses to a 1-line redacted form, asserting the metric still
+  reports the raw count.
+  `test_extension_host_output_mixed_secret_classes_in_single_buffer`
+  pins the composition invariant: AWS + Bearer + DB URL + api_key +
+  PEM all redact in the same buffer without one pattern consuming
+  text another needed; benign framing lines around the secrets are
+  preserved (no over-match). Three no-drift invariants pinned
+  alongside: idempotency (re-redacting an already-redacted payload is
+  a no-op), benign-payload preservation (no semantic drift outside
+  pattern matches), and the 500-line tail truncation interaction (a
+  secret in the trailing line of a >500-line buffer survives the
+  truncation in redacted form, with the head correctly dropped).
+  `tests/platform/security/test_content_sample_typing.py` allow-list
+  `_PENDING_MIGRATION` extended with `(ActivationReport,
+  "extension_host_output")` so the W13 `§11.10` contract-level
+  migration prompt flips XPASS → fail when the field is typed as
+  `ContentSample`. No schema migration (string shape unchanged; only
+  content filtered). Verification: `make test-security` green;
+  `make check-all` 1222 passed (baseline 1218 → 1222). The broader
+  `[FOLLOWUP w8-6-content-sample-structural-test]` audit sweep stays
+  open as the parent backlog item; this companion closes only the
+  named `extension_host_output` surface. Surfaced 2026-05-05 (Codex
+  review #1, audit pass); reviewer-flagged orphaned-PEM regression
+  caught 2026-05-05 (Codex review #2, BEGIN-expansion invariant);
+  reviewer-flagged tail-window inflation regression caught
+  2026-05-05 (Codex review #3, raw-line cap invariant); closed
+  2026-05-05.
+
+- **`[FOLLOWUP runner-status-contract]`** — **LANDED with W11-3
+  `2026-05-04`**. `ActivationReport.runner_exit_code` (`int | None`)
+  and `runner_status` (`RunnerStatusLiteral = Literal["success",
+  "error", "unknown"]`) live first-class on both the persisted Pydantic
+  contract
+  and the runtime dataclass. `ReportAssembler.set_runner_status(exit_code)`
+  owns the (exit_code → status) derivation; the runner calls
+  `mon.set_runner_status(exit_code)` immediately before the final
+  `report.save()` in `entrypoint_runner.py`. Surfaced 2026-04-25 (Codex
+  supplementary review).
+- **`[FOLLOWUP target-log-lifecycle-instrumentation]`** — **LANDED with
+  W11-4 `2026-05-05`**. `ScenarioAccountant.emit_intermediate_state_events`
+  surfaces the intermediate-state vocabulary on the live automation
+  timeline. Wired into `MonitorRuntime.stop()` after
+  `refresh_derived_state` so emissions reflect the post-reconcile
+  `verification_status` literals
+  (`activation_seen` / `target_log_seen`); idempotent per-attempt via
+  `_emitted_intermediate_state_attempts` so repeated stops do not
+  double-log. Producer-side positive path pinned by
+  `test_emit_intermediate_state_events_emits_for_activation_seen` /
+  `…_for_target_log_seen` / `…_emits_per_promoted_attempt` in the new
+  focused accountant test module. The W10-6 alphabet now has a
+  vocabulary. Surfaced 2026-05-04 (manual UI scan); closed 2026-05-05.
 
 ## Entry Criteria (all green as of 2026-05-04)
 
@@ -238,13 +1085,39 @@ For each W11-N to be marked **landed**:
 ## Notes / Drift
 
 - `monitor_lifecycle.py` was **852 LoC** at the start of `2026-05-04`;
-  after W11-1 it is **672 LoC**; after W11-2 it is **623 LoC**; archive
-  plan cited 834 LoC pre-W10. W11-5 ≤200 LoC target unchanged.
+  after W11-1 it is **672 LoC**; after W11-2 it is **623 LoC**; after
+  W11-3 it is **643 LoC** (two facade shims +
+  one extra `MonitorRuntime` constructor argument); after W11-4
+  (`2026-05-05`) it is **499 LoC** (10 accountant shims + 1 emission
+  shim + 1 extra `MonitorRuntime` constructor argument; offset by
+  removing 8 method bodies + the `_active_scenarios` field +
+  `_assert_target_stream_invariant` definition that moved to
+  `monitor_records.py`). Archive plan cited 834 LoC pre-W10. W11-5
+  ≤200 LoC target unchanged — final 299-LoC reduction will land when
+  the transitional shim block collapses.
 - The W11 entry table in
   `archive/plans/REFACTOR_OPTIMIZATION_full_2026-04-29.md` lines 2478–
   2485 is the canonical W11-N→file mapping. If split granularity
   changes during execution, update both this tracker and the archive
   table at the same time.
+- **W11-3 strategy-name divergence** (`2026-05-04`; reconciled in
+  source by W11-6 `2026-05-05`): archive plan
+  `archive/plans/REFACTOR_OPTIMIZATION_full_2026-04-29.md §11.8` lists
+  example identifiers `warm-start`, `command-probe`, `output-channel`,
+  `log-tail` for the discovery strategies. Those names do not appear
+  anywhere in the current `MonitorRuntime.stop()` source — the
+  archived list is aspirational/example. The W11-3 producer reports
+  the three actual strategies' snake-case identifiers
+  (`exthost_log_parse`, `running_extensions_ui`,
+  `exthost_output_parse`); W11-6 carried the same vocabulary onto
+  the per-strategy helper method names (`_stop_exthost_log_parse`,
+  `_stop_running_extensions_ui`, `_stop_exthost_output_parse`) so the
+  pipeline reads as a single vocabulary end-to-end. Archive table
+  still to be reconciled at W11 closure.
+- **W11-3 branch policy deviation** (`2026-05-04`): all W11-N items
+  land on a single long-lived `week11` branch (per user direction)
+  instead of `feat/w11-<n>-<slug>` per Pickup Procedure step 2. The
+  branch folds into `main` as a single PR after W11 closes.
 - **W11-1 filename divergence** (`2026-05-04`): the archive table
   lists the new module as `monitor_runtime.py`, but that filename was
   already taken by a 554-LoC helper module (runtime verification +

@@ -56,7 +56,7 @@ def test_search_extension_endpoint(db_client: TestClient, db_session: Session):
 def test_search_extension_not_found(client: TestClient):
     """Test searching for a non-existent extension returns 404."""
     with patch(
-        "workflows.extension_catalog.router.service.search_extension_by_name",
+        "workflows.extension_catalog.router.lifecycle.search_extension_by_name",
         return_value=None,
     ):
         response = client.get("/searchExtension?name=ghost")
@@ -122,7 +122,7 @@ def test_create_extension_endpoint(client: TestClient):
 
     # Mock the service method to avoid filesystem scan
     with patch(
-        "workflows.extension_catalog.router.service.create_extension_by_name"
+        "workflows.extension_catalog.router.lifecycle.create_extension_by_name"
     ) as mock_create:
         mock_create.return_value = mock_ext
 
@@ -137,7 +137,7 @@ def test_create_extension_endpoint(client: TestClient):
 def test_get_extensions_all_info_with_pagination(client: TestClient):
     """Test GET /getExtensionsAllInfo with pagination params."""
     with patch(
-        "workflows.extension_catalog.router.service.get_all_extensions_all"
+        "workflows.extension_catalog.router.lifecycle.get_all_extensions_all"
     ) as mock_get:
         mock_get.return_value = []
 
@@ -153,7 +153,7 @@ def test_get_extensions_all_info_with_pagination(client: TestClient):
 def test_create_extension_not_found(client: TestClient):
     """Test POST /createExtension when extension is missing on disk"""
     with patch(
-        "workflows.extension_catalog.service.create_extension_by_name"
+        "workflows.extension_catalog.router.lifecycle.create_extension_by_name"
     ) as mock_create:
         mock_create.return_value = None
 
@@ -166,7 +166,7 @@ def test_create_extension_not_found(client: TestClient):
 def test_create_extension_conflict(client: TestClient):
     """Test POST /createExtension when extension is duplicate"""
     with patch(
-        "workflows.extension_catalog.service.create_extension_by_name"
+        "workflows.extension_catalog.router.lifecycle.create_extension_by_name"
     ) as mock_create:
         mock_create.side_effect = ValueError("Extension already exists")
 
@@ -180,7 +180,7 @@ def test_get_extension_scripts(client: TestClient):
     """Test GET /getExtensionScripts"""
     mock_scripts = [{"script_name": "test", "script_command": {"command": "echo test"}}]
     with patch(
-        "workflows.extension_catalog.router.service.get_extension_scripts"
+        "workflows.extension_catalog.router.lifecycle.get_extension_scripts"
     ) as mock_get:
         mock_get.return_value = mock_scripts
 
@@ -196,7 +196,7 @@ def test_get_extension_activation_events(client: TestClient):
     """Test GET /getExtensionActivationEvents"""
     mock_events = [{"event_type": "onLanguage", "event_value": "python"}]
     with patch(
-        "workflows.extension_catalog.router.service.get_extension_activation_events"
+        "workflows.extension_catalog.router.lifecycle.get_extension_activation_events"
     ) as mock_get:
         mock_get.return_value = mock_events
 
@@ -211,7 +211,7 @@ def test_get_extension_activation_events(client: TestClient):
 def test_get_extension_scripts_not_found(client: TestClient):
     """Test GET /getExtensionScripts returns 404 when not found"""
     with patch(
-        "workflows.extension_catalog.router.service.get_extension_scripts"
+        "workflows.extension_catalog.router.lifecycle.get_extension_scripts"
     ) as mock_get:
         mock_get.return_value = None
 
@@ -224,7 +224,7 @@ def test_get_extension_scripts_not_found(client: TestClient):
 def test_get_extension_activation_events_not_found(client: TestClient):
     """Test GET /getExtensionActivationEvents returns 404 when not found"""
     with patch(
-        "workflows.extension_catalog.router.service.get_extension_activation_events"
+        "workflows.extension_catalog.router.lifecycle.get_extension_activation_events"
     ) as mock_get:
         mock_get.return_value = None
 
@@ -241,7 +241,7 @@ def test_get_extension_capabilities(client: TestClient):
         "virtual_supported": "not_supported",
     }
     with patch(
-        "workflows.extension_catalog.router.service.get_extension_capabilities"
+        "workflows.extension_catalog.router.lifecycle.get_extension_capabilities"
     ) as mock_get:
         mock_get.return_value = mock_caps
 
@@ -255,7 +255,7 @@ def test_get_extension_capabilities(client: TestClient):
 def test_get_extension_capabilities_not_found(client: TestClient):
     """Test GET /getExtensionCapabilities returns 404 when not found."""
     with patch(
-        "workflows.extension_catalog.router.service.get_extension_capabilities"
+        "workflows.extension_catalog.router.lifecycle.get_extension_capabilities"
     ) as mock_get:
         mock_get.return_value = None
 
@@ -273,7 +273,7 @@ def test_get_extension_capabilities_not_found(client: TestClient):
 def test_search_extension_error_handling(client: TestClient):
     """Test search endpoint database error handling."""
     with patch(
-        "workflows.extension_catalog.router.service.search_extension_by_name",
+        "workflows.extension_catalog.router.lifecycle.search_extension_by_name",
         side_effect=SQLAlchemyError("DB Error"),
     ):
         response = client.get("/searchExtension?name=boom")
@@ -284,7 +284,7 @@ def test_search_extension_error_handling(client: TestClient):
 def test_create_extension_conflict_error(client: TestClient):
     """Duplicate create attempts should still map to 409."""
     with patch(
-        "workflows.extension_catalog.router.service.create_extension_by_name",
+        "workflows.extension_catalog.router.lifecycle.create_extension_by_name",
         side_effect=ValueError("Invalid Data"),
     ):
         response = client.post("/createExtension", json={"name": "bad-ext"})
@@ -295,7 +295,7 @@ def test_create_extension_conflict_error(client: TestClient):
 def test_create_extension_validation_error(client: TestClient):
     """Manifest validation errors should be returned as 422 details."""
     with patch(
-        "workflows.extension_catalog.router.service.create_extension_by_name",
+        "workflows.extension_catalog.router.lifecycle.create_extension_by_name",
         side_effect=_build_validation_error(),
     ):
         response = client.post("/createExtension", json={"name": "bad-manifest"})
@@ -306,7 +306,7 @@ def test_create_extension_validation_error(client: TestClient):
 def test_delete_extension_validation_error(client: TestClient):
     """Test delete endpoint validation error."""
     with patch(
-        "workflows.extension_catalog.router.service.delete_extension_by_name",
+        "workflows.extension_catalog.router.lifecycle.delete_extension_by_name",
         side_effect=ValueError("Cannot delete"),
     ):
         response = client.delete("/deleteExtension?name=bad-ext")
@@ -317,7 +317,7 @@ def test_delete_extension_validation_error(client: TestClient):
 def test_delete_extension_database_error(client: TestClient):
     """Test delete endpoint database error mapping."""
     with patch(
-        "workflows.extension_catalog.router.service.delete_extension_by_name",
+        "workflows.extension_catalog.router.lifecycle.delete_extension_by_name",
         side_effect=SQLAlchemyError("Boom"),
     ):
         response = client.delete("/deleteExtension?name=boom")
@@ -328,7 +328,7 @@ def test_delete_extension_database_error(client: TestClient):
 def test_get_base_info_value_error(client: TestClient):
     """Test get base info validation error."""
     with patch(
-        "workflows.extension_catalog.router.service.get_all_extensions_basic",
+        "workflows.extension_catalog.router.lifecycle.get_all_extensions_basic",
         side_effect=ValueError("Bad"),
     ):
         response = client.get("/getExtensionsBaseInfo")
@@ -339,7 +339,7 @@ def test_get_base_info_value_error(client: TestClient):
 def test_get_base_info_database_error(client: TestClient):
     """Test get base info database error."""
     with patch(
-        "workflows.extension_catalog.router.service.get_all_extensions_basic",
+        "workflows.extension_catalog.router.lifecycle.get_all_extensions_basic",
         side_effect=SQLAlchemyError("Boom"),
     ):
         response = client.get("/getExtensionsBaseInfo")
@@ -350,7 +350,7 @@ def test_get_base_info_database_error(client: TestClient):
 def test_get_all_info_value_error(client: TestClient):
     """Test get all info validation error."""
     with patch(
-        "workflows.extension_catalog.router.service.get_all_extensions_all",
+        "workflows.extension_catalog.router.lifecycle.get_all_extensions_all",
         side_effect=ValueError("Bad"),
     ):
         response = client.get("/getExtensionsAllInfo")
@@ -360,7 +360,7 @@ def test_get_all_info_value_error(client: TestClient):
 def test_get_all_info_database_error(client: TestClient):
     """Test get all info database error."""
     with patch(
-        "workflows.extension_catalog.router.service.get_all_extensions_all",
+        "workflows.extension_catalog.router.lifecycle.get_all_extensions_all",
         side_effect=SQLAlchemyError("Boom"),
     ):
         response = client.get("/getExtensionsAllInfo")
@@ -371,7 +371,7 @@ def test_get_all_info_database_error(client: TestClient):
 def test_extension_scripts_value_error(client: TestClient):
     """Test get scripts validation error."""
     with patch(
-        "workflows.extension_catalog.router.service.get_extension_scripts",
+        "workflows.extension_catalog.router.lifecycle.get_extension_scripts",
         side_effect=ValueError("Bad"),
     ):
         response = client.get("/getExtensionScripts?name=bad")
@@ -381,7 +381,7 @@ def test_extension_scripts_value_error(client: TestClient):
 def test_activation_events_value_error(client: TestClient):
     """Test get activation events validation error."""
     with patch(
-        "workflows.extension_catalog.router.service.get_extension_activation_events",
+        "workflows.extension_catalog.router.lifecycle.get_extension_activation_events",
         side_effect=ValueError("Bad"),
     ):
         response = client.get("/getExtensionActivationEvents?name=bad")
@@ -391,7 +391,7 @@ def test_activation_events_value_error(client: TestClient):
 def test_extension_capabilities_value_error(client: TestClient):
     """Test get capabilities validation error."""
     with patch(
-        "workflows.extension_catalog.router.service.get_extension_capabilities",
+        "workflows.extension_catalog.router.lifecycle.get_extension_capabilities",
         side_effect=ValueError("Bad"),
     ):
         response = client.get("/getExtensionCapabilities?name=bad")
@@ -414,7 +414,7 @@ def test_get_extension_contributes_all(client: TestClient):
         "terminal": [],
     }
     with patch(
-        "workflows.extension_catalog.router.service.get_extension_contributes_all"
+        "workflows.extension_catalog.router.lifecycle.get_extension_contributes_all"
     ) as mock_get:
         mock_get.return_value = mock_contributes
 
@@ -428,7 +428,7 @@ def test_get_extension_contributes_all(client: TestClient):
 def test_get_extension_contributes_all_not_found(client: TestClient):
     """Test GET /getExtensionContributesAll returns 404 when not found."""
     with patch(
-        "workflows.extension_catalog.router.service.get_extension_contributes_all"
+        "workflows.extension_catalog.router.lifecycle.get_extension_contributes_all"
     ) as mock_get:
         mock_get.return_value = None
 
@@ -441,7 +441,7 @@ def test_get_extension_contributes_all_not_found(client: TestClient):
 def test_get_extension_contributes_all_value_error(client: TestClient):
     """Test GET /getExtensionContributesAll validation error."""
     with patch(
-        "workflows.extension_catalog.router.service.get_extension_contributes_all",
+        "workflows.extension_catalog.router.lifecycle.get_extension_contributes_all",
         side_effect=ValueError("Bad"),
     ):
         response = client.get("/getExtensionContributesAll?name=bad")
@@ -455,7 +455,7 @@ def test_get_extension_contributes_commands(client: TestClient):
         {"command_id": "ext.goodbye", "title": "Goodbye World"},
     ]
     with patch(
-        "workflows.extension_catalog.router.service.get_extension_contributes_commands"
+        "workflows.extension_catalog.router.lifecycle.get_extension_contributes_commands"
     ) as mock_get:
         mock_get.return_value = mock_commands
 
@@ -470,7 +470,7 @@ def test_get_extension_contributes_commands(client: TestClient):
 def test_get_extension_contributes_commands_not_found(client: TestClient):
     """Test GET /getExtensionContributesCommands returns 404 when not found."""
     with patch(
-        "workflows.extension_catalog.router.service.get_extension_contributes_commands"
+        "workflows.extension_catalog.router.lifecycle.get_extension_contributes_commands"
     ) as mock_get:
         mock_get.return_value = None
 
@@ -483,7 +483,7 @@ def test_get_extension_contributes_commands_not_found(client: TestClient):
 def test_get_extension_contributes_commands_empty(client: TestClient):
     """Test GET /getExtensionContributesCommands returns empty list."""
     with patch(
-        "workflows.extension_catalog.router.service.get_extension_contributes_commands"
+        "workflows.extension_catalog.router.lifecycle.get_extension_contributes_commands"
     ) as mock_get:
         mock_get.return_value = []
 
@@ -496,7 +496,7 @@ def test_get_extension_contributes_commands_empty(client: TestClient):
 def test_get_extension_contributes_commands_value_error(client: TestClient):
     """Test GET /getExtensionContributesCommands validation error."""
     with patch(
-        "workflows.extension_catalog.router.service.get_extension_contributes_commands",
+        "workflows.extension_catalog.router.lifecycle.get_extension_contributes_commands",
         side_effect=ValueError("Bad"),
     ):
         response = client.get("/getExtensionContributesCommands?name=bad")

@@ -1,6 +1,6 @@
 # Dynamic Analysis Backlog
 
-`Last Updated: 2026-05-04`
+`Last Updated: 2026-05-05`
 
 This is the short actionable backlog for the sandbox pipeline. It complements
 `DEVELOPMENT_PRIORITIES.md`, `PIPELINE_ROADMAP.md`, and the canonical
@@ -32,24 +32,36 @@ pull-first phase, tracked in
 Source of truth: `POST_POC_BACKLOG.md` "Next iteration (pull first)" and
 `REFACTOR_STATUS.md` for landed closure evidence. The W7 `[NEXT]` items
 (attribution split + sim-target lane), simulation progress/cancel/VNC/demo
-canary work, PR345 PRs 1-5, W8-0, W8/W9 in their entirety, and W10
-contract hygiene + planner cleanup (PR #11, `2026-05-04`) are all
-landed. Active phase: W11 monitor lifecycle split
-(`active-work/W11-monitor-lifecycle.md`). The pull-first candidates
-inside and just past W11:
+canary work, PR345 PRs 1-5, W8-0, W8/W9 in their entirety, W10
+contract hygiene + planner cleanup (PR #11, `2026-05-04`), and W11
+monitor lifecycle split + workflow/storage ahtapot closures (W11-1..W11-8
+on the `week11` working branch, `2026-05-05`) are all landed. Active
+phase: W12 executor subpackaging + attribution cleanup
+(`REFACTOR_OPTIMIZATION.md` §11.9). The pull-first candidates inside
+and just past W12:
 
-+ **W11 (`REFACTOR_OPTIMIZATION.md` §11.8) monitor lifecycle split.**
-  Precursor `[FOLLOWUP w11-precursor-tests]` landed `2026-05-04`
-  (38 direct module-owned tests across
-  `tests/executor/test_playwright_extension_host.py` and
-  `tests/executor/test_playwright_health_reconciliation.py`). W11-1
-  `MonitorRuntime` extraction is the next pull-first; full W11-N
-  schedule in `active-work/W11-monitor-lifecycle.md`.
-+ **W11+W12 lifecycle wiring** picks up
-  `[FOLLOWUP target-log-lifecycle-instrumentation]` — wire
-  `reconcile_event_attempts` / its W11 successor to emit the
-  intermediate `activation_seen`/`target_log_seen` states the W10-6
-  frozenset already pinned. Surfaced by 2026-05-04 manual UI scan.
++ **W11 (`REFACTOR_OPTIMIZATION.md` §11.8) monitor lifecycle split —
+  CLOSED `2026-05-05`.** W11-1 `MonitorRuntime` (PR #12, `84d51ae`),
+  W11-2 `ReportAssembler`, W11-3 contract widening (`schema_version`
+  2.0 → 2.1), W11-4 `ScenarioAccountant`, W11-5 `ExtensionMonitor`
+  facade collapse, W11-6 per-strategy `_stop_<strategy>` helpers on
+  `MonitorRuntime.stop()`, W11-7
+  (`workflows/extension_catalog/service.py` ahtapot closure into
+  `manifest_to_schema` + `lifecycle` modules), and W11-8
+  (`appcore/storage/crud_ops/analysis_jobs.py` ahtapot closure into
+  the same-named subpackage with `lifecycle.py` + `steps.py` +
+  thin `__init__.py` facade) all landed `2026-05-04`/`2026-05-05` on
+  the `week11` working branch. The branch folds into `main` as a
+  single PR per the W11-3 branch policy deviation. Full W11-N
+  closure detail in `active-work/W11-monitor-lifecycle.md` and
+  `REFACTOR_STATUS.md`.
++ ~~**W11+W12 lifecycle wiring** picks up
+  `[FOLLOWUP target-log-lifecycle-instrumentation]`~~ — closed
+  `2026-05-05` with W11-4. `ScenarioAccountant.emit_intermediate_state_events`
+  now surfaces the W10-6 alphabet's intermediate states on the live
+  automation timeline (wired into `MonitorRuntime.stop()` after
+  `refresh_derived_state`); see
+  `active-work/W11-monitor-lifecycle.md`.
 + **W12 attribution facade cleanup** (`§11.9`) picks up
   `[FOLLOWUP w12-attribution-naming-overlap]` and
   `[FOLLOWUP coverage-summary-attempted-drift]`. Surfaced by

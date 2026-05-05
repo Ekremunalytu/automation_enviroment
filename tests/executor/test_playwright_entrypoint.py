@@ -87,6 +87,10 @@ class _FakeMonitor:
         self.snapshot_calls = 0
         self.verify_calls: list[dict[str, object]] = []
         self.scenario_events: list[tuple[str, str, str, dict[str, object] | None]] = []
+        # W11-3: entrypoint calls set_runner_status(exit_code) just
+        # before the final report.save(); record both the calls and the
+        # ordering relative to stop() / save().
+        self.runner_status_calls: list[int] = []
         type(self).instances.append(self)
 
     def start(self) -> None:
@@ -143,6 +147,9 @@ class _FakeMonitor:
 
     def attach_runtime_tracers(self) -> None:
         self.attach_runtime_tracers_calls += 1
+
+    def set_runner_status(self, exit_code: int) -> None:
+        self.runner_status_calls.append(exit_code)
 
     def record_failed_scenarios(self, failed_scenarios: list[str]) -> None:
         self.failed_scenario_batches.append(list(failed_scenarios))

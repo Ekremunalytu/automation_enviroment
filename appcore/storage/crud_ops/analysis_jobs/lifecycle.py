@@ -1,4 +1,11 @@
-"""Read/write helpers for persisted marketplace analysis jobs."""
+"""Lifecycle helpers for persisted marketplace analysis jobs.
+
+Owns create/cancel/complete/fail + recovery + read paths plus the shared
+`JobNotCancellableError` and the terminal-status set. Imports the JSON
+serialization pair (`_job_steps` / `_write_steps`) from
+`appcore.storage.crud_ops.analysis_jobs.steps` — the dependency direction is
+strictly `lifecycle -> steps` to keep the subpackage acyclic (W11-8).
+"""
 
 from __future__ import annotations
 
@@ -13,10 +20,9 @@ from appcore.contracts.schema_defs.analysis_jobs import (
     ACTIVE_ANALYSIS_JOB_STATUSES,
     AnalysisJobCreateSnapshot,
     AnalysisJobFailure,
-    AnalysisJobStepRecord,
-    AnalysisJobStepUpdate,
     AnalysisJobUpdate,
 )
+from appcore.storage.crud_ops.analysis_jobs.steps import _job_steps, _write_steps
 from appcore.storage.models import AnalysisJob
 
 
@@ -40,15 +46,6 @@ def _get_analysis_job_or_raise(db: Session, job_id: str) -> AnalysisJob:
     if job is None:
         raise KeyError(job_id)
     return job
-
-
-def _job_steps(job: AnalysisJob) -> list[AnalysisJobStepRecord]:
-    steps = [AnalysisJobStepRecord.model_validate(step) for step in job.steps or []]
-    return steps
-
-
-def _write_steps(job: AnalysisJob, steps: list[AnalysisJobStepRecord]) -> None:
-    job.steps = [step.model_dump(mode="python") for step in steps]
 
 
 def _interrupt_job(
@@ -186,55 +183,6 @@ def update_analysis_job(
         raise
 
 
-def update_analysis_job_step(
-    db: Session,
-    job_id: str,
-    step_update: AnalysisJobStepUpdate,
-) -> AnalysisJob:
-    job = _get_analysis_job_or_raise(db, job_id)
-    steps = _job_steps(job)
-
-    if step_update.status in {"completed", "skipped", "cancelled"}:
-        next_progress = None
-    else:
-        next_progress = step_update.progress
-
-    for index, step in enumerate(steps):
-        if step.name == step_update.step_name:
-            steps[index] = step.model_copy(
-                update={
-                    "status": step_update.status,
-                    "message": step_update.message,
-                    "error_code": step_update.error_code,
-                    "progress": next_progress,
-                }
-            )
-            break
-    else:
-        raise ValueError(
-            f"Stored analysis job is missing canonical step {step_update.step_name}."
-        )
-
-    if step_update.status == "running":
-        job.current_step = step_update.step_name
-    elif step_update.status in {"completed", "skipped"}:
-        if job.current_step == step_update.step_name:
-            job.current_step = None
-    elif step_update.status in {"failed", "cancelled"}:
-        job.current_step = step_update.step_name
-
-    _write_steps(job, steps)
-    job.updated_at = time.time()
-
-    try:
-        db.commit()
-        db.refresh(job)
-        return job
-    except SQLAlchemyError:
-        db.rollback()
-        raise
-
-
 def fail_analysis_job(
     db: Session,
     job_id: str,
@@ -344,5 +292,4 @@ __all__ = [
     "get_analysis_job",
     "recover_interrupted_analysis_jobs",
     "update_analysis_job",
-    "update_analysis_job_step",
 ]

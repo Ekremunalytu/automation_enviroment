@@ -44,6 +44,7 @@ from .runtime_capture.events import FileEvent, NetworkEvent, ProcessEvent
 PersistCallback = Callable[[bool], None]
 RecordAutomationEventCallback = Callable[..., None]
 NoArgCallback = Callable[[], None]
+SetDiscoveryStrategiesCallback = Callable[[list[str]], None]
 
 
 class MonitorRuntime:
@@ -68,6 +69,8 @@ class MonitorRuntime:
         finalize_scenarios: NoArgCallback,
         append_activation_log_entries: NoArgCallback,
         refresh_derived_state: NoArgCallback,
+        set_discovery_strategies: SetDiscoveryStrategiesCallback,
+        emit_intermediate_state_events: NoArgCallback,
     ) -> None:
         self._page = page
         self._report = report
@@ -76,6 +79,13 @@ class MonitorRuntime:
         self._finalize_scenarios = finalize_scenarios
         self._append_activation_log_entries = append_activation_log_entries
         self._refresh_derived_state = refresh_derived_state
+        self._set_discovery_strategies = set_discovery_strategies
+        # W11-4: producer signal for
+        # ``[FOLLOWUP target-log-lifecycle-instrumentation]``. Fires after
+        # ``refresh_derived_state`` so emitted events reflect the
+        # post-reconcile verification_status (the intermediate
+        # ``activation_seen`` / ``target_log_seen`` literals).
+        self._emit_intermediate_state_events = emit_intermediate_state_events
         self._started: bool = False
         self._log_offsets: dict[str, int] = {}
         self._network_capture: Any = None
@@ -95,6 +105,10 @@ class MonitorRuntime:
     @property
     def page(self) -> Page:
         return self._page
+
+    @page.setter
+    def page(self, value: Page) -> None:
+        self._page = value
 
     @property
     def started(self) -> bool:
@@ -224,42 +238,26 @@ class MonitorRuntime:
         _log(f"Monitoring stopped ({self._report.duration_s:.1f}s elapsed)")
         self._persist(True)
 
-        try:
-            _log("Strategy 1: Parsing Extension Host logs...")
-            self._report.activated = api.parse_all_exthost_logs(
-                start_offsets=self._log_offsets
-            )
-            if self._report.activated:
-                log_files = api.find_exthost_logs()
-                self._report.log_file_path = str(log_files[0]) if log_files else ""
-        except (OSError, ValueError) as exc:
-            _log(f"Strategy 1 failed: {exc}")
-        self._persist(True)
-
-        try:
-            _log("Strategy 2: Scraping Running Extensions UI...")
-            self._report.running_extensions = api.get_running_extensions(self._page)
-        except (PlaywrightError, OSError, ValueError) as exc:
-            _log(f"Strategy 2 failed: {exc}")
-            try:
-                self._page.keyboard.press("Escape")
-                self._page.wait_for_timeout(300)
-            except PlaywrightError as esc_exc:
-                _log(f"Strategy 2 recovery failed: {esc_exc}")
-        self._persist(True)
-
-        try:
-            _log("Strategy 3: Reading Extension Host output...")
-            self._report.extension_host_output = api.read_extension_host_output()
-            self._report.activated = _merge_activation_entries(
-                self._report.activated,
-                api.parse_activations_from_output(
-                    self._report.extension_host_output,
-                    monitoring_start=self._report.monitoring_start,
-                ),
-            )
-        except OSError as exc:
-            _log(f"Strategy 3 failed: {exc}")
+        # W11-3: track which discovery strategies returned at least one
+        # entry. The list is shipped to the report via the assembler
+        # callback at the end of stop() so analysts can see which path
+        # produced the activation evidence.
+        # W11-6: each strategy lives on its own ``_stop_<strategy>``
+        # helper so unit tests can pin the per-strategy behavior in
+        # isolation; this orchestration loop preserves the W11-3
+        # strategy-aware persist cadence (one ``_persist(True)`` after
+        # each strategy returns).
+        succeeded_strategies: list[str] = []
+        for helper in (
+            self._stop_exthost_log_parse,
+            self._stop_running_extensions_ui,
+            self._stop_exthost_output_parse,
+        ):
+            name = helper()
+            if name is not None:
+                succeeded_strategies.append(name)
+            self._persist(True)
+        self._set_discovery_strategies(succeeded_strategies)
         self._append_activation_log_entries()
         # PR345 PR5 + W8-0 capture-pipeline fix: merge two source streams
         # before attribution. The legacy stream (parse_output_signal_events)
@@ -283,9 +281,106 @@ class MonitorRuntime:
             monitoring_start=self._report.monitoring_start,
         )
         self._refresh_derived_state()
+        # W11-4: surface intermediate-state promotions
+        # (``activation_seen`` / ``target_log_seen``) on the live
+        # automation timeline. Runs after ``refresh_derived_state``
+        # because the reconciler inside it is what assigns those
+        # ``verification_status`` literals; running before would emit
+        # nothing. Pinned by
+        # ``test_stop_emits_intermediate_state_events_after_refresh``.
+        self._emit_intermediate_state_events()
         self._persist(True)
 
         return self._report
+
+    # ------------------------------------------------------------------
+    # W11-6 — per-strategy stop helpers
+    # ------------------------------------------------------------------
+    # Each helper owns a single discovery strategy: log message, API
+    # call, success branch, exception swallow. Returns the strategy id
+    # on a hit, ``None`` otherwise. ``stop()`` is the only caller and
+    # owns the persist-between-strategies cadence; helpers do not
+    # persist on their own.
+
+    def _stop_exthost_log_parse(self) -> str | None:
+        """Strategy 1: parse Extension Host logs.
+
+        Mutates ``_report.activated`` and (only when the parse returns
+        a non-empty list) ``_report.log_file_path``. Returns
+        ``"exthost_log_parse"`` on a hit, ``None`` otherwise.
+        ``OSError`` / ``ValueError`` from the parse pipeline are
+        swallowed so a single broken strategy does not break the rest
+        of ``stop()``.
+        """
+
+        api = resolve_monitor_api()
+        try:
+            _log("Strategy 1: Parsing Extension Host logs...")
+            self._report.activated = api.parse_all_exthost_logs(
+                start_offsets=self._log_offsets
+            )
+            if self._report.activated:
+                log_files = api.find_exthost_logs()
+                self._report.log_file_path = str(log_files[0]) if log_files else ""
+                return "exthost_log_parse"
+        except (OSError, ValueError) as exc:
+            _log(f"Strategy 1 failed: {exc}")
+        return None
+
+    def _stop_running_extensions_ui(self) -> str | None:
+        """Strategy 2: scrape the Running Extensions UI panel.
+
+        Mutates ``_report.running_extensions``. Returns
+        ``"running_extensions_ui"`` when the panel scrape returns a
+        non-empty list, ``None`` otherwise. On a primary failure the
+        panel is dismissed via ``Escape`` + 300ms timeout so the next
+        strategy starts from a clean UI state; both the primary
+        ``PlaywrightError`` / ``OSError`` / ``ValueError`` and the
+        recovery's ``PlaywrightError`` are swallowed.
+        """
+
+        api = resolve_monitor_api()
+        try:
+            _log("Strategy 2: Scraping Running Extensions UI...")
+            self._report.running_extensions = api.get_running_extensions(self._page)
+            if self._report.running_extensions:
+                return "running_extensions_ui"
+        except (PlaywrightError, OSError, ValueError) as exc:
+            _log(f"Strategy 2 failed: {exc}")
+            try:
+                self._page.keyboard.press("Escape")
+                self._page.wait_for_timeout(300)
+            except PlaywrightError as esc_exc:
+                _log(f"Strategy 2 recovery failed: {esc_exc}")
+        return None
+
+    def _stop_exthost_output_parse(self) -> str | None:
+        """Strategy 3: read Extension Host output and merge new entries.
+
+        Mutates ``_report.extension_host_output`` and
+        ``_report.activated``. Returns ``"exthost_output_parse"`` only
+        when the merge produces *net new* activation entries beyond
+        Strategy 1's results — the dedupe-no-credit semantics pinned
+        in W11-3. ``OSError`` is swallowed.
+        """
+
+        api = resolve_monitor_api()
+        try:
+            _log("Strategy 3: Reading Extension Host output...")
+            self._report.extension_host_output = api.read_extension_host_output()
+            pre_merge_count = len(self._report.activated)
+            self._report.activated = _merge_activation_entries(
+                self._report.activated,
+                api.parse_activations_from_output(
+                    self._report.extension_host_output,
+                    monitoring_start=self._report.monitoring_start,
+                ),
+            )
+            if len(self._report.activated) > pre_merge_count:
+                return "exthost_output_parse"
+        except OSError as exc:
+            _log(f"Strategy 3 failed: {exc}")
+        return None
 
     def __enter__(self) -> MonitorRuntime:
         self.start()
