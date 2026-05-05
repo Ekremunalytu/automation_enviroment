@@ -1,6 +1,6 @@
 # Post-PoC Backlog
 
-`Last Updated: 2026-05-04` (audit-pass additions)
+`Last Updated: 2026-05-05` (post-Codex/audit follow-ups and drift reconciliations added 2026-05-05)
 
 Open work items deferred from W0-W7 PoC scope. **Slim canonical** — full
 verbose item descriptions, landed-evidence detail, and review triage
@@ -121,22 +121,26 @@ when picking an item up.
   the return type of `Callable[[Session], T]`. Treat as low-priority:
   keep if mypy/reader clarity benefits from the generic, or remove only
   if the helper is simplified. Surfaced by 2026-05-04 audit pass.
-- **`[FOLLOWUP scripts-seed-test-rewrite]`** — `scripts/seed_test.py`
-  carries four AGENTS hard-rule violations in one file: `:55`
-  `sys.path.insert`, `:119` `Extension(...)` ORM creation bypassing
-  Pydantic (rule 3), `:154` `db.add` bypassing CRUD facade (rule 2),
-  `:164` generic `except Exception` (rule 6 — explicit). Either
-  delete (if obsolete) or rewrite through `appcore/storage/crud.py`
-  with Pydantic + narrow exception types. Surfaced by 2026-05-04
-  second-pass review.
-- **`[FOLLOWUP triggers-private-helper-import]`** —
-  `workflows/marketplace/triggers.py:14` imports
-  `_glob_to_bait_filename` from `packages.analysis_planner.io`,
-  violating ADR 0005 §3 (public API through package roots). Either
-  promote a public re-export through
-  `packages/analysis_planner/__init__.py` or rename/promote the helper
-  inside `packages.analysis_planner`; do not duplicate planner logic in
-  `workflows/`. Surfaced by 2026-05-04 second-pass review.
+- **`[FOLLOWUP scripts-seed-test-rewrite]`** — *LANDED-via-deletion
+  (verified 2026-05-05 audit pass)*. `scripts/seed_test.py` no longer
+  exists in the tree; current `scripts/` contents are
+  `demo_acceptance.py`, `generate_ui_contracts.py`, and
+  `check_ui_boundaries.mjs`. The four hard-rule violations the
+  original report enumerated (`sys.path.insert` at `:55`, raw ORM
+  `Extension(...)` at `:119` bypassing Pydantic, `db.add` at `:154`
+  bypassing CRUD facade, generic `except Exception` at `:164`) are all
+  closed by the file's removal. Surfaced 2026-05-04, verified-deleted
+  2026-05-05.
+- **`[FOLLOWUP triggers-private-helper-import]`** — *RESOLVED 2026-05-05
+  (already satisfied; no code change needed)*. Audit verified
+  `workflows/marketplace/triggers.py:3` already imports the public
+  alias `glob_to_bait_filename` from the `packages.analysis_planner`
+  package root (re-exported via `packages/analysis_planner/__init__.py:7,25`);
+  no `_glob_to_bait_filename` private import exists. The original
+  drift report assumed a private helper import that the W10-3 planner
+  split had already made public via the package root. ADR 0005 §3 not
+  violated. Surfaced 2026-05-04, verified-resolved 2026-05-05 audit
+  pass.
 - **`[CLEANUP httpx-runtime-dependency-metadata]`** — `httpx` is
   imported in production at `workflows/marketplace/{client,router}.py`
   and installed by `docker/api/requirements.txt:9`, but absent from
@@ -144,6 +148,29 @@ when picking an item up.
   `[project.optional-dependencies].dev:33` lists it. Move to base
   dependencies — no new dep, packaging metadata fix. Surfaced by
   2026-05-04 second-pass review.
+- **`[FOLLOWUP w11-8-companion-workflow-orm-bleed]`** —
+  `workflows/extension_catalog/service.py:50-57` imports six storage
+  ORM models (`Extension`, `ExtensionActivationEvents`,
+  `ExtensionCapabilities`, `ExtensionContributes`,
+  `ExtensionContributesCommands`, `ExtensionScripts`) from
+  `appcore.storage.models` and uses them as public function return
+  types (`:172, 199, 228, 282, 309, 380, 400, 418, 435, 454, 466`).
+  FastAPI `response_model` auto-converts to Pydantic on the way out
+  (docstring `:244-279` documents the pattern as intentional). AGENTS
+  rule 2 not violated — writes still go through
+  `appcore/storage/crud.py` — but workflow layer carries storage
+  internals as a public surface, blurring the boundary. Sister site
+  `workflows/marketplace/job_service.py:44` is *not* in scope: there
+  `AnalysisJob` is type-hint-only inside the private
+  `_persisted_snapshot`/`_public_snapshot` helpers; all public
+  functions return `dict[str, Any]`. Pickup: decide DTO migration
+  (`ExtensionReadSchema` in `appcore/contracts/schemas.py`) vs
+  documenting the auto-conversion pattern as a boundary exception in
+  `documents/agent-lanes/platform-storage.md`. **No new
+  repository/service abstraction layer** unless it removes a concrete
+  current coupling. Natural landing: W11-8 companion (parallel to the
+  `crud_ops/analysis_jobs.py` split, not the same scope). Surfaced
+  2026-05-05 (Codex review #2, audit pass refined framing).
 
 ### Executor / Capture Hygiene
 
@@ -180,6 +207,47 @@ when picking an item up.
   rename one) so operators can reason about non-target activity from
   the report alone. Natural landing: W12 attribution facade cleanup
   (`§11.9`). Surfaced by 2026-05-04 manual UI scan.
+- **`[FOLLOWUP w12-precursor-tests-attribution-links]`** —
+  `executor/flows/playwright/attribution/links.py` (594 LoC) lacks the
+  direct module-owned test net that `[FOLLOWUP w11-precursor-tests]`
+  landed for `runtime_capture/extension_host.py` (23 cases) and
+  `health_reconciliation.py` (15 cases). W12 attribution facade
+  cleanup (`§11.9`) is a structurally similar refactor — same risk
+  W11-1 hit live (W11-3 first-scan `build_report_data` serialization
+  gap caught by integration coverage at the last moment). Pickup: add
+  `tests/executor/test_playwright_attribution_links.py` (~20 cases —
+  link rule pins, confidence weights, edge cases: no-trigger,
+  multi-trigger, time-window edge), import the module at its real
+  path (not via the `monitor` facade) so future re-export
+  rearrangement cannot silently regress. **Land before W12 begins.**
+  Surfaced 2026-05-05 audit pass.
+- **`[FOLLOWUP w12-precursor-tests-attribution-events]`** — Sibling
+  to `[FOLLOWUP w12-precursor-tests-attribution-links]`:
+  `executor/flows/playwright/attribution/events.py` (502 LoC) needs
+  the same precursor net for the same W12 split risk. Pickup: add
+  `tests/executor/test_playwright_attribution_events.py` (~15-20
+  cases — event construction, attribution status mutation, monitor_*
+  overlap surface). **Land in the same PR as
+  `[FOLLOWUP w12-precursor-tests-attribution-links]`** so the W12
+  attribution facade cleanup gate-passes the precursor invariant in
+  one shot. Surfaced 2026-05-05 audit pass.
+- **`[FOLLOWUP w12-extension-host-split-scoping]`** —
+  `executor/flows/playwright/runtime_capture/extension_host.py`
+  (679 LoC) is the largest single source file in the executor flow
+  tree. It owns three independent capture sources (exthost.log
+  parser, strace text-mode line parser, harness output capture +
+  `ExtensionHostFileCapture` class). `REFACTOR_OPTIMIZATION.md
+  §11.9` W12 plan describes a 5-subpackage shape ({monitor, stimulus,
+  workspace, health, entrypoint}/) but does not name this file
+  specifically; the runtime_capture/ tree's split target is
+  ambiguous. Pickup (plan-level work, no code change in the first
+  PR): add a subsection to `§11.9` body proposing a 3-way split
+  (`extension_host_log_parse.py` ~200 LoC,
+  `extension_host_strace_parse.py` ~200 LoC,
+  `extension_host_capture.py` ~250 LoC) plus re-export facade.
+  `[FOLLOWUP w11-precursor-tests]` (LANDED 2026-05-04, 23-case net)
+  is the safety floor for the eventual split. Surfaced 2026-05-05
+  audit pass.
 
 ### Detection / Contracts
 
@@ -281,6 +349,69 @@ when picking an item up.
   — `§11` brief flagged ADR 0003 changes as W10 non-goal; natural
   landing is W13+ external-review window where verdict semantics can
   be revised holistically. Surfaced by 2026-05-04 manual UI scan.
+- **`[FOLLOWUP w8-6-extension-host-output-redaction]`** —
+  `executor/flows/playwright/report_builder.py:237-241,343` writes
+  the last 500 lines of raw Extension Host log into
+  `ActivationReport.extension_host_output`
+  (`packages/analysis_contracts/contracts.py:422`, plain `str = ""`).
+  No `redact_secrets()` call in the chain. Extension `console.log`
+  output, `OutputChannel.appendLine` writes, runtime exception stacks
+  carry AKIA tokens / bearer headers / Postgres DSNs straight to
+  disk. Sister to `[FOLLOWUP w8-6-output-signals-redaction]` (which
+  enumerates output_signals.py / analysis_execution.py /
+  analysis_service.py but does **not** name `extension_host_output`)
+  and `[FOLLOWUP w8-6-content-sample-structural-test]` (broader sweep
+  parent). Pickup: wrap `eh_text` through `redact_secrets(...)` in
+  `build_report_data` before assignment to the dict; add regression
+  test fixturing AKIA + Bearer + Postgres DSN through Extension Host
+  output → save → on-disk JSON contains `[REDACTED:aws]`,
+  `[REDACTED:bearer]`, `[REDACTED:db_url]` (no raw tokens); append
+  `ActivationReport.extension_host_output` to `_PENDING_MIGRATION` in
+  `tests/platform/security/test_content_sample_typing.py`. No schema
+  migration required (string shape unchanged; only content filtered).
+  Natural landing: W11-companion (highest-leverage P1 single-PR fix)
+  or W13 `§11.10` regression lock-in. **Priority: P1.** Surfaced
+  2026-05-05 (Codex review #1, audit pass).
+- **`[FOLLOWUP event-attempt-verification-status-validator]`** —
+  `EventAttemptRecord.verification_status: str = "not_attempted"`
+  (`packages/analysis_contracts/contracts.py:216`) carries the W10-6
+  alphabet (`{not_attempted, attempted_only, activation_seen,
+  target_log_seen, verified, failed, blocked}`) but is plain `str`
+  with no Pydantic validator. Sibling `status` field (`:212`) is
+  pinned to `EVENT_ATTEMPT_LIFECYCLE_STATES` frozenset via
+  `field_validator` (`:225-233`). Producer typo (e.g. `"target_seen"`
+  vs `"target_log_seen"`) round-trips cleanly through the contract;
+  the runtime-evidence helper set is now shared through
+  `packages.analysis_contracts.report_invariants.RUNTIME_EVIDENCE_STATES`,
+  so this is not a current report-invariant drift bug; the remaining
+  gap is that `verification_status` itself accepts arbitrary strings.
+  A producer typo silently round-trips through the contract and can
+  confuse downstream health/report interpretation. Pickup: add
+  `EVENT_ATTEMPT_VERIFICATION_STATES: frozenset[str]` next to
+  `EVENT_ATTEMPT_LIFECYCLE_STATES` (`:179`); add
+  `@field_validator("verification_status")` mirroring `_validate_status`
+  shape; 8-10 case test (each valid value + 2 invalid + casing +
+  `None` handling). If `[FOLLOWUP report-invariants-runtime-evidence-drift]`
+  is still present elsewhere, mark that older item stale/closed rather
+  than bundling this validator with it. Natural landing:
+  W11-companion (before W11-5 facade collapse so the contract
+  guarantee sits under the new facade). **Priority: P1.** Surfaced
+  2026-05-05 audit pass.
+- **`[FOLLOWUP compute-verdict-table-driven-test]`** —
+  `packages/analysis_contracts/detection/rollup.py::compute_verdict`
+  is the ADR 0003 verdict rollup core. Existing
+  `tests/platform/contracts/test_verdict_rollup.py` covers the main
+  rollup branches, but the audit did not find an explicit
+  `(severity, confidence)` cross-product table. Pickup: first verify
+  whether a cross-product table already exists under a different name;
+  if not, add `tests/platform/contracts/test_compute_verdict_table.py`
+  with severity ∈ `{low, medium, high, critical}` × confidence ∈
+  `{low, medium, high}` cross-product (12 case minimum), expected
+  verdict (`clean` / `suspicious` / `malicious` / `inconclusive`)
+  cited from ADR 0003 in test docstring. If the table exists, mark
+  this item LANDED-already and close. Natural landing: W13 test
+  expansion + observability (`§11.10`). Surfaced 2026-05-05 audit
+  pass.
 
 ### UI
 
@@ -395,11 +526,53 @@ UI v3 redesign minimal-completion landed `2026-04-29` (see
   `appcore/db/session.py:137` is a docstring example that teaches
   `except Exception: db.rollback()` as the canonical session
   pattern, even though AGENTS rule 6 forbids it in production code.
-  Not executable, but the example will mislead future authors and
-  conflict with the planned `[FOLLOWUP arch-gate-no-bare-except]`
-  AST gate. Replace the docstring example with narrow exception
-  types (`SQLAlchemyError`, `IntegrityError`). Surfaced by
-  2026-05-04 second-pass review.
+  Not executable (lives inside a string node, invisible to
+  `ast.parse`), so the now-landed
+  `tests/architecture/test_no_bare_except_exception.py` gate skips
+  it. Still misleading for future authors. Replace the docstring
+  example with narrow exception types (`SQLAlchemyError`,
+  `IntegrityError`). Surfaced 2026-05-04; gate-relationship clarified
+  2026-05-05 audit pass.
+- **`[CLEANUP uri-validation-stale-sys-path-comment]`** —
+  `executor/flows/playwright/uri_validation.py:21-26` comment block
+  asserts the module runs as a path-based script with
+  `sys.path` injection. False post-W9-3 / ADR 0008 §1: W9-3 removed
+  6 `sys.path.insert` calls from the runtime tree, the AST gate
+  `tests/architecture/test_import_graph.py::test_no_sys_path_manipulation_in_runtime`
+  forbids re-introduction, and `test_container_entrypoint.py`
+  smoke-pins package-mode invocation. The stale comment justifies a
+  duplicate `XDG_OPEN_PATH = "/usr/bin/xdg-open"` literal whose
+  host-side mirror lives at `executor/binary_paths.py:20`; two
+  sources of truth for the same constant (current invariant
+  `tests/executor/test_absolute_paths.py` checks they match — this
+  invariant becomes redundant after consolidation). Pickup: update
+  or delete the stale comment; replace inline literal with
+  `from executor.binary_paths import XDG_OPEN_PATH`; simplify or
+  delete the absolute-path invariant. Natural landing: W11-companion
+  (any time, ~10 LoC code change). Surfaced 2026-05-05 audit pass.
+- **`[CLEANUP monitor-runtime-naming-overlap]`** —
+  `executor/flows/playwright/monitor_runtime.py` (554 LoC, original
+  helper for runtime verification + process helpers) sits next to
+  `executor/flows/playwright/monitor_runtime_state.py` (365 LoC,
+  W11-1 state machine extraction). The W11-1 filename divergence is
+  acknowledged in `active-work/W11-monitor-lifecycle.md` Notes/Drift
+  but not bound to a W-marker. Risk: editing the wrong file is easy;
+  review fatigue source. Pickup: at W11-5 facade collapse, decide
+  rename (option A: `monitor_runtime.py` → `monitor_runtime_helpers.py`)
+  vs merge (option B: fold helper into state module if surface
+  permits) vs intentional leave-as-is with explicit comment;
+  document decision in W11-5 PR body; mark Notes/Drift entry
+  LANDED. Natural landing: **W11-5**. Surfaced 2026-05-05 audit
+  pass.
+- **`[CLEANUP appcore-config-stale-docstring]`** —
+  `appcore/api/config.py:2-8` module docstring opens with
+  `core/config.py` as the section header, but `core/` is in the
+  AGENTS rule 10 forbidden top-level directory list (removed pre-W6
+  cleanup `2026-04-20`). Aktif kod dosyasının docstring'inde adı
+  geçtiği için ileride dosyayı arayan biri yanlış yere bakar.
+  Pickup: replace `core/config.py` header with
+  `appcore/api/config.py`; one-line docstring touch. Surfaced
+  2026-05-05 audit pass.
 
 ### Test + Observability (Promoted To W13)
 
@@ -485,6 +658,39 @@ codex-automation-3, 7, 8.
   `extension/package.json`. Companion to
   `[FOLLOWUP w8-1-extract-rejection-logging]`. Surfaced by 2026-05-04
   second-pass review.
+- **`[FOLLOWUP w8-1-vsix-compressed-size-limit]`** — W8-1 guards bound
+  uncompressed size, compression ratio, and extracted entry count,
+  but `workflows/marketplace/client.py:306-309` reads `resp.content`
+  fully **before** any archive guard runs:
+
+  ```python
+  with httpx.Client(timeout=120, follow_redirects=True) as client:
+      resp = client.get(url)
+      resp.raise_for_status()
+      vsix_bytes = resp.content
+  ```
+
+  No `Content-Length` precheck, no streaming cap. An adversarial
+  marketplace mirror or MITM point sending a 500MB+ compressed body
+  pressures memory/disk before extraction limits ever apply.
+  Sibling to `[FOLLOWUP w8-1-archive-count-bypass]` (post-extraction)
+  and `[FOLLOWUP w8-1-extract-rejection-logging]`; this one closes
+  the pre-extraction surface. Pickup: introduce a
+  `MAX_VSIX_COMPRESSED_SIZE` constant, with the exact value decided in
+  the implementation PR after sampling representative Marketplace
+  VSIX sizes; when `Content-Length` header present, reject if
+  it exceeds the cap before reading body; when absent, switch to
+  `client.stream("GET", url)` with a cumulative byte counter and
+  raise `VSIXUnpackError` on cap breach. **No new dependency** —
+  httpx already supports streaming. Tests: oversized
+  `Content-Length` rejected pre-read; missing `Content-Length` +
+  streamed bytes exceeding cap rejected mid-stream; small
+  `Content-Length` succeeds; missing `Content-Length` + bytes under
+  cap succeeds. Natural landing: W11-companion (DoS surface; not on
+  the W8-1 stakeholder bar but real attack vector). **Priority: P2**
+  (Codex original P3 → audit raised; pull earlier if marketplace
+  ingestion is being touched for any reason). Surfaced 2026-05-05
+  (Codex review #3, audit pass).
 - **`[FOLLOWUP w8-3-harness-js-scheme]`** —
   `executor/flows/harness_extension/stimulus_dispatch.js:41` calls
   `vscode.env.openExternal(vscode.Uri.parse(payload.uri_trigger))`
@@ -548,21 +754,82 @@ Detail in archive. Open audit gaps:
 - §7 untrusted-input → logging gap closed by W8-8 (manifest
   log-injection sanitization, `active-work/W8-security.md`).
 - Remaining audit deltas tracked in archive; consolidate after W13.
-- **`[FOLLOWUP arch-gate-no-bare-except]`** — AGENTS rule 6 (no
-  generic `try/except Exception`) is enforced verbally only; no AST
-  gate exists. Production code is currently clean (the only
-  `except Exception` hit is inside a docstring at
-  `appcore/db/session.py:137`), but the rule has no machine guard
-  against re-introduction. Several AGENTS hard rules already have
-  architecture gates under `tests/architecture/`; add the same style of
-  narrow gate for this rule:
-  `tests/architecture/test_no_bare_except_exception.py` that AST-walks
-  `appcore/`, `workflows/`, `executor/`, `packages/` (excluding tests,
-  alembic, scripts) and rejects `ExceptHandler(type=Name(id="Exception"))`
-  and `ExceptHandler(type=None)`. Allowlist the future
+- **`[FOLLOWUP arch-gate-no-bare-except]`** — *LANDED (verified
+  2026-05-05 audit pass)*. AST gate
+  `tests/architecture/test_no_bare_except_exception.py` is in tree
+  with full implementation: AST-walks `appcore/`, `workflows/`,
+  `executor/`, `packages/` (excludes `tests/`, `alembic/versions/`,
+  `scripts/`); rejects `ExceptHandler(type=Name(id="Exception"))` and
+  `ExceptHandler(type=None)`; allow-lists the planned
   `[FOLLOWUP analysis-thread-supervisor]` site via
-  `# arch-allow: thread-supervisor` when that lands. Surfaced by
-  2026-05-04 audit pass.
+  `# arch-allow: thread-supervisor` pragma; ships with self-tests
+  (detector flags bare/Exception, ignores narrow types, ignores
+  identifier references, pragma escape policy). The only remaining
+  `except Exception` literal in production roots is inside the
+  docstring at `appcore/db/session.py:137`, which is invisible to
+  `ast.parse` and tracked separately as
+  `[CLEANUP session-docstring-except-exception]`. Surfaced
+  2026-05-04, verified-landed 2026-05-05.
+- **`[FOLLOWUP w8-8-trigger-sweep-as-test]`** — W8-8 deferral
+  (`[FOLLOWUP w8-8-manifest-emit-when-needed]`) carries two named
+  reopen triggers; **Trigger A** = "first feature PR introduces a
+  `logger.*` call referencing a raw manifest field
+  (`displayName` / `description` / `repository.url` / `categories[]` /
+  `homepage` / `bugs` / `qna` / `license`)". Today this trigger is a
+  manual grep procedure documented in `active-work/W8-security.md`;
+  no re-audit evidence since 2026-04-29. The trigger is mechanically
+  enforceable as an AST gate. Pickup: add
+  `tests/platform/security/test_manifest_log_emit_audit.py` that
+  AST-walks `workflows/extension_catalog/` and
+  `workflows/marketplace/`, finds `Call` nodes whose function is
+  `logger.{info,warning,error,debug,exception}` and whose argv
+  string-literal contains any of the 8 manifest field names; fail
+  with `f"W8-8 trigger A fired: {file}:{line} → ship sanitize_for_log
+  helper now"`. Default-empty allow-list (becomes the helper-call
+  marker once W8-8 ships). Self-tests mirror existing AST gate
+  pattern. Verifies green on current codebase (W8-8 deferral
+  assumption holds); if it red-fails on first run, ship W8-8 helper
+  immediately. AST gate count 8 → 9. Natural landing:
+  W11-companion. **Priority: P2.** Surfaced 2026-05-05 audit pass.
+- **`[FOLLOWUP arch-gate-executor-control-outbound]`** — Existing
+  import-graph gate
+  (`tests/architecture/test_import_graph.py::test_workflows_use_only_executor_control_boundary`)
+  restricts the `workflows/`→`executor/` direction to
+  `executor.control(.*)`. No machine guard prevents `executor.control`
+  itself from leaking `docker.*` / `playwright.*` / `aiohttp.*` types
+  through its public surface back to workflow callers. No leak today
+  (verified by direct read), but no protection against
+  re-introduction. Pickup: extend `test_import_graph.py` or add new
+  `tests/architecture/test_executor_control_boundary.py` that scans
+  `executor/control.py` public functions/classes (and any future
+  `executor/control/` package if introduced), AST-walks public
+  function signatures and class attribute annotations, fails on any
+  reference to
+  `docker.*`/`playwright.*`/`aiohttp.*` types. Intentionally strict
+  (no pragma escape). AST gate count 9 → 10 (after
+  `[FOLLOWUP w8-8-trigger-sweep-as-test]` lands). Natural landing:
+  W13 `§11.10`. **Priority: P3.** Surfaced 2026-05-05 audit pass.
+- **`[FOLLOWUP arch-gate-bare-binary-pragma-ratchet]`** —
+  `# arch-allow: bare-binary-path` pragma (sibling to
+  `[FOLLOWUP w8-4-broader-executor]`) currently authorizes known
+  pragma-bearing files / call groups (`editor.py` xdotool x3,
+  `monitor_runtime.py` ps, `reset_state.py` pgrep+bash,
+  `runtime_capture/extension_host.py:602` inotifywait). The same-line
+  / line-above pragma policy is correct
+  but no count ratchet protects against silent dilution: a reviewer
+  could in principle scatter the pragma to suppress real new
+  findings. Pickup: extend
+  `tests/architecture/test_absolute_binary_paths.py` (or new
+  `tests/architecture/test_bare_binary_pragma_count.py`) with a
+  baseline file (`tests/architecture/_baselines/bare_binary_pragma.txt`)
+  recording line-by-line pragma sites; gate fails if scanned count
+  exceeds the baseline with message
+  `f"bare-binary-path pragma count grew: was N, now M. Either remove
+  pragmas via binary_paths.py migration or update the baseline if
+  intentional."`. Self-tests. Once
+  `[FOLLOWUP w8-4-broader-executor]` lands and removes the pragmas,
+  the baseline target becomes 0. Natural landing: W13 `§11.10`.
+  **Priority: P3.** Surfaced 2026-05-05 audit pass.
 
 ---
 
