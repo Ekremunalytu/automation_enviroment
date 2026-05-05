@@ -579,3 +579,98 @@ def test_emit_intermediate_state_events_emits_per_promoted_attempt() -> None:
 
     statuses = [meta["status"] for _k, _msg, meta in rec.automation_events]
     assert sorted(statuses) == ["activation_seen", "target_log_seen"]
+
+
+def test_emit_intermediate_state_events_carries_activation_event_metadata() -> None:
+    """Pin that the emission carries the source attempt's
+    ``activation_event`` on the log entry's metadata, so downstream
+    timeline filters can attribute the intermediate-state event to the
+    same activation as the attempt itself."""
+
+    accountant, report, rec = _build_accountant()
+    attempt = _seed_attempt(report, attempt_id="a1")
+    attempt.activation_event = "onCommand:python.run"
+    attempt.verification_status = "activation_seen"
+
+    accountant.emit_intermediate_state_events()
+
+    assert len(rec.automation_events) == 1
+    _kind, _msg, meta = rec.automation_events[0]
+    assert meta["activation_event"] == "onCommand:python.run"
+
+
+# ---------------------------------------------------------------------------
+# W11-4 end-to-end: real reconciler -> emission chain
+# ---------------------------------------------------------------------------
+
+
+def test_emit_intermediate_state_events_fires_after_real_reconciliation() -> None:
+    """End-to-end pin: drive the full producer signal chain through the
+    real ``reconcile_event_attempts`` (rather than hand-setting
+    ``verification_status``) and verify the automation timeline picks
+    up the resulting promotion.
+
+    Setup mirrors the reconciler's intermediate-state condition: the
+    attempt declares a ``target_runtime_delta`` contract (so the
+    reconciler refuses the no-contract / activation-only shortcut at
+    line 336-347 and falls into the contract-driven branch), but has
+    no ``attempted_passes`` + no ``capability_tags`` so
+    ``runtime_capability_evidence`` stays empty and
+    ``target_reaction_closed`` never flips True. The reconciler
+    therefore skips ``_mark_attempt_verified``, drops to line 397,
+    sees ``exact_matches`` non-empty, and promotes to
+    ``activation_seen``. ``emit_intermediate_state_events`` then
+    surfaces one automation log entry. This is the missing positive
+    integration pin that the W11-3-baseline live scan run profile
+    (with this target's trigger plan and capability evidence) does
+    not exercise on its own.
+    """
+
+    from executor.flows.playwright.health_reconciliation import (
+        reconcile_event_attempts,
+    )
+
+    accountant, report, rec = _build_accountant()
+    report.activated.append(
+        ActivationEntry(
+            extension_id="publisher.tool",
+            activation_event="onCommand:publisher.tool.run",
+            timestamp="2026-01-01 10:00:00.500",
+            source="log",
+            success=True,
+        )
+    )
+    attempt = _seed_attempt(
+        report,
+        attempt_id="a1",
+        activation_event="onCommand:publisher.tool.run",
+        event_family="onCommand",
+    )
+    # Force the contract-driven branch: target_runtime_delta declares
+    # target_reaction_required without execution_required, but with
+    # empty attempted_passes/capability_tags target_reaction_closed
+    # stays False (line 371-377), so the attempt cannot reach
+    # _mark_attempt_verified and instead falls into the
+    # intermediate-state block at line 397.
+    attempt.verification_contract = ["target_runtime_delta"]
+    attempt.attempted_passes = []
+    attempt.capability_tags = []
+
+    reconcile_event_attempts(report)
+
+    # Reconciler promoted the attempt to activation_seen.
+    assert attempt.verification_status == "activation_seen"
+
+    # No emission yet — accountant.emit_intermediate_state_events has
+    # not been called. Rely on the runtime stop() ordering invariant
+    # (refresh_derived_state -> emit_intermediate_state_events) for
+    # the real chain.
+    assert rec.automation_events == []
+
+    accountant.emit_intermediate_state_events()
+
+    assert len(rec.automation_events) == 1
+    _kind, msg, meta = rec.automation_events[0]
+    assert meta["status"] == "activation_seen"
+    assert meta["activation_event"] == "onCommand:publisher.tool.run"
+    assert "Target activation observed" in msg

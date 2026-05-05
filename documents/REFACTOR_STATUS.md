@@ -275,17 +275,18 @@ remaining checkbox before W9 entry.
   `monitor_lifecycle.py` shrank 643 → 499 LoC (W11-5 ≤200 LoC final
   target unchanged). Tests:
   `tests/executor/test_playwright_monitor_scenario_accountant.py`
-  (24 cases) + 11 new W11-4 cases in
+  (26 cases incl. an end-to-end integration case driving the real
+  reconciler → emission chain) + 15 new W11-4 cases in
   `test_extension_monitor_facade.py` + 3 new W11-4 cases in
   `test_playwright_monitor_runtime_state.py`. Baseline grew
-  1150 → 1195; `make check-all` green (lint, mypy, bandit,
-  ui-types, pytest). Live-scan validation against
-  `ms-python.python@2026.5.2026042602` (job `95efbaeb721b`) confirmed
-  W11-3 contract fields populate correctly through the refactored
-  producer chain and scenario-accounting refactor preserves shape
-  bit-for-bit; the trigger-driven positive-promotion path stays
-  pinned by the focused unit-test surface (no trigger payload was
-  supplied in the smoke run). Full validation notes in
+  1150 → 1201; `make check-all` green (lint, mypy, bandit,
+  ui-types, pytest). Two live-scan validations against
+  `ms-python.python@2026.5.2026042602`: the smoke run (job
+  `95efbaeb721b`) confirmed the producer chain runs without
+  monitor-side errors, and the trigger-driven UI run (job
+  `2c1dea3c70e6`) is bitwise-equal to the W11-3 baseline
+  (job `64627b3ea714`) on every detection-relevant field — refactor
+  confirmed behavior-preserving end-to-end. Full validation notes in
   `active-work/W11-monitor-lifecycle.md`.
 
 - **CI pipeline retired `2026-04-30`** — `.github/workflows/ci.yml` and

@@ -784,6 +784,97 @@ def test_facade_append_activation_log_entries_shim_delegates_to_accountant(
     assert accountant.calls == [("append_activation_log_entries", (), {})]
 
 
+def test_facade_mark_trigger_plan_applied_shim_delegates_to_accountant(
+    monkeypatch,
+) -> None:
+    _patch_accountant(monkeypatch)
+    _patch_runtime(monkeypatch)
+
+    mon = ExtensionMonitor(page=_DummyPage())
+    accountant = _RecordingAccountant.last_instance
+    assert accountant is not None
+
+    mon.mark_trigger_plan_applied(
+        scenarios=["scenario_a"],
+        trigger_path="/tmp/trigger.json",  # noqa: S108 — never opened, just shape pin
+    )
+
+    assert accountant.calls == [
+        (
+            "mark_trigger_plan_applied",
+            (),
+            {
+                "scenarios": ["scenario_a"],
+                "trigger_path": "/tmp/trigger.json",  # noqa: S108 — never opened, just shape pin
+            },
+        ),
+    ]
+
+
+def test_facade_mark_trigger_plan_missing_shim_delegates_to_accountant(
+    monkeypatch,
+) -> None:
+    _patch_accountant(monkeypatch)
+    _patch_runtime(monkeypatch)
+
+    mon = ExtensionMonitor(page=_DummyPage())
+    accountant = _RecordingAccountant.last_instance
+    assert accountant is not None
+
+    mon.mark_trigger_plan_missing("/tmp/missing.json")  # noqa: S108
+
+    assert accountant.calls == [
+        ("mark_trigger_plan_missing", ("/tmp/missing.json",), {}),  # noqa: S108 — never opened, just shape pin
+    ]
+
+
+def test_facade_record_execution_result_shim_delegates_to_accountant(
+    monkeypatch,
+) -> None:
+    """The execution-result intake forwards the whole result object so
+    the accountant can introspect ``requested_scenarios`` /
+    ``skipped_scenarios`` / ``extra_trigger_failures`` /
+    ``failed_scenarios`` via ``getattr``. The shim must not re-shape
+    or unwrap the argument."""
+
+    _patch_accountant(monkeypatch)
+    _patch_runtime(monkeypatch)
+
+    mon = ExtensionMonitor(page=_DummyPage())
+    accountant = _RecordingAccountant.last_instance
+    assert accountant is not None
+
+    sentinel = object()
+    mon.record_execution_result(sentinel)
+
+    assert len(accountant.calls) == 1
+    name, args, kwargs = accountant.calls[0]
+    assert name == "record_execution_result"
+    assert args == (sentinel,)
+    assert kwargs == {}
+
+
+def test_facade_synchronize_scenario_truth_shim_delegates_to_accountant(
+    monkeypatch,
+) -> None:
+    """The `_synchronize_scenario_truth` shim is a private surface kept
+    for direct callers that bypass `record_*_scenarios` (none today,
+    but the shim keeps the public-ish entry stable until W11-5).
+    Pin the delegation so a future cleanup that drops it surfaces
+    here, not on a downstream callsite."""
+
+    _patch_accountant(monkeypatch)
+    _patch_runtime(monkeypatch)
+
+    mon = ExtensionMonitor(page=_DummyPage())
+    accountant = _RecordingAccountant.last_instance
+    assert accountant is not None
+
+    mon._synchronize_scenario_truth()
+
+    assert accountant.calls == [("_synchronize_scenario_truth", (), {})]
+
+
 def test_facade_uses_real_accountant_when_unpatched() -> None:
     """Sanity guard parallel to ``test_facade_runtime_uses_real_class…``
     and ``test_facade_uses_real_assembler_when_unpatched``.

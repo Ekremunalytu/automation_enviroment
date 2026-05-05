@@ -296,27 +296,39 @@ item by reading both this tracker and that archive section.
   target; this lands well under the planned ≤575 budget for W11-4).
   Tests:
   `tests/executor/test_playwright_monitor_scenario_accountant.py`
-  (24 cases, imported at the real module path so the W12 reshuffle
+  (26 cases, imported at the real module path so the W12 reshuffle
   cannot silently regress this surface; covers init invariants,
   trigger-plan/execution-result intake including the
   trace-driven-sync semantics for `failed_scenarios`, event-attempt
   status mutation including the
   `verified`/`failed`/`blocked`/terminal-mapping pin, scenario
   lifecycle including the orphan-end-without-start tolerance,
-  activation-window log derivation including idempotency, and 7
+  activation-window log derivation including idempotency, 8
   W11-4 producer-signal cases pinning emission, idempotency-per-
-  attempt, terminal-state filtering, and per-attempt promotion) +
-  11 new W11-4 cases in
+  attempt, terminal-state filtering, per-attempt promotion, and
+  `activation_event` metadata passthrough, plus 1 end-to-end
+  integration case
+  `test_emit_intermediate_state_events_fires_after_real_reconciliation`
+  driving the chain through the real `reconcile_event_attempts` so
+  the positive intermediate-state path stays pinned even when the
+  trigger-driven live-scan profile does not exercise it) +
+  15 new W11-4 cases in
   `tests/executor/test_extension_monitor_facade.py` (a
   `_RecordingAccountant` parallel to `_RecordingRuntime` and
   `_RecordingAssembler`, covering construction with shared report,
-  every shim's delegation, the runtime→shim→accountant chain for
-  `emit_intermediate_state_events`, and a sanity guard pinning the
-  real class is composed when unpatched) + 3 new W11-4 cases in
-  `tests/executor/test_playwright_monitor_runtime_state.py`
+  every shim's delegation —
+  `mark_trigger_plan_applied`/`mark_trigger_plan_missing`/
+  `record_failed_scenarios`/`record_execution_result`/
+  `record_event_attempt_start`/`record_event_attempt_end`/
+  `record_scenario_event`/`_finalize_running_scenarios`/
+  `_append_activation_log_entries`/`_synchronize_scenario_truth`/
+  `_emit_intermediate_state_events`, the runtime→shim→accountant
+  chain for `emit_intermediate_state_events`, and a sanity guard
+  pinning the real class is composed when unpatched) + 3 new W11-4
+  cases in `tests/executor/test_playwright_monitor_runtime_state.py`
   (post-refresh emission ordering invariant, single-fire-per-stop
   pin, defensive stop-without-start coverage). Baseline grew
-  1150 → 1195 (`make check-all` green: lint, mypy, bandit,
+  1150 → 1201 (`make check-all` green: lint, mypy, bandit,
   ui-types, pytest all clean).
 
   **Live-scan validation (`2026-05-05`):** the W11-4 build was
@@ -369,23 +381,68 @@ item by reading both this tracker and that archive section.
     `emit_intermediate_state_events`) survives end-to-end without a
     stop()-time crash.
 
-  Because the scan never had `event_attempts` and the target was
+  Because the smoke run never had `event_attempts` and the target was
   never observed, the trigger-driven W11-3 baseline (job `64627b3ea714`
   with target_activation_count=1, stimulus_passes=5, full
-  coverage_summary) is not directly comparable on detection-relevant
-  fields. What W11-4 validates is: (a) the producer side runs
-  without monitor-side errors, (b) every W11-3 contract field is
-  still populated by the refactored producers, (c) the scenario /
-  event-attempt accounting still surfaces the right shape on the
-  refactored path, and (d) the new intermediate-state emission step
-  is wired without breaking `stop()`. A trigger-driven re-scan with
-  the producer signal exercised positively (at least one attempt
-  reaching `activation_seen` or `target_log_seen`) is deferred to
-  the next pull — the focused unit-test surface
-  (`test_emit_intermediate_state_events_emits_for_activation_seen`,
-  `…emits_for_target_log_seen`,
-  `…emits_per_promoted_attempt`) already pins the producer's
-  positive path against an in-memory report.
+  coverage_summary) is not directly comparable to it on
+  detection-relevant fields. What scan 1 validated: (a) the producer
+  side runs without monitor-side errors, (b) every W11-3 contract
+  field is still populated by the refactored producers, (c) the
+  scenario / event-attempt accounting still surfaces the right shape
+  on the refactored path, and (d) the new intermediate-state emission
+  step is wired without breaking `stop()`.
+
+  **UI-driven scan validation (post-fixup, `2026-05-05`):** the W11-4
+  build was exercised end-to-end via the UI's analysis pipeline
+  against `ms-python.python@2026.5.2026042602` (job `2c1dea3c70e6`,
+  12:22 local) — the proper trigger-driven, target-observed positive
+  validation that the smoke run could not provide. Field-by-field
+  comparison against the W11-3 second-scan baseline (job
+  `64627b3ea714`) confirms **bitwise-equal detection-relevant fields**
+  across the refactor:
+  - `signal_summary` (level=`needs_review`, score=22),
+    `verified_capabilities` (4-list:
+    `commands`/`languages_editor`/`window_ui`/`workspace_fs`),
+    `attempted_capabilities` (6-list), `coverage_summary`
+    (covered=7 / partial=5 / missing=6, attempted=7, verified=4),
+    `automation_health.status=degraded`,
+    `target_extension_observed=True`,
+    `target_activation_count=1`, `run_quality=medium`,
+    `len(activated)=22`, `len(scenario_traces)=3`,
+    `len(stimulus_passes)=5`, `len(event_attempts)=21`,
+    `summary.scenarios_run=["project_exploration", "coding_session",
+    "terminal_usage"]`, `failed_scenarios=[]`,
+    `log_streams.target_extension_host=1`,
+    `log_streams.other_extension_host=21`,
+    `log_streams.automation=130`.
+  - `event_attempts.verification_status` distribution identical:
+    `attempted_only: 9, verified: 12`. **No attempt landed in
+    `activation_seen` / `target_log_seen` for this target on either
+    scan** — the reconciler's intermediate-state path requires the
+    contract-driven branch with unresolved
+    `target_runtime_delta` / `activation_log_*` (the W11-3 baseline's
+    21 attempts all either hit the no-contract activation-only
+    shortcut → `verified` or fell through the no-evidence path →
+    `attempted_only`). `emit_intermediate_state_events` correctly
+    emitted 0 entries on both runs; the producer signal is a function
+    of the reconciler's promotion decisions, not the run profile by
+    itself. The positive integration path (real reconciler → emission
+    chain) is pinned by
+    `test_emit_intermediate_state_events_fires_after_real_reconciliation`
+    in the focused accountant test module — that test forces
+    `verification_contract=["target_runtime_delta"]` with empty
+    `attempted_passes`/`capability_tags` so the reconciler hits the
+    intermediate-state branch deterministically.
+  - Raw event counts within the prior 6-scan variance band:
+    `network_events=193` (prior 167–198), `file_events=2616`
+    (prior 2467–2689), `process_events=67` (prior 66–78). No drift
+    attributable to the refactor.
+
+  Refactor confirmed behavior-preserving end-to-end on the
+  trigger-driven UI path; the 1-LoC delta in detection-relevant
+  fields between scan and baseline is zero. W11-4 closes with full
+  bar coverage (`make check-all` green, smoke run + UI run both
+  validated).
 - **W11-5** — pending (next pull-first). `ExtensionMonitor` composition
   facade — `monitor_lifecycle.py` ≤200 LoC final target (current size
   **499** after W11-4, down from 852 → 672 (W11-1) → 623 (W11-2) →
