@@ -1,6 +1,6 @@
 # W11 — Monitor Lifecycle Split (Active Work Tracker)
 
-`Last Updated: 2026-05-04 (W11-3 landed)`
+`Last Updated: 2026-05-05 (W11-4 landed)`
 
 This is the canonical active work tracker for the W11 monitor lifecycle
 split window. Items have stable IDs (`W11-1` … `W11-8`). Code comments,
@@ -256,14 +256,149 @@ item by reading both this tracker and that archive section.
   `activated=22`); `process_events=78` slightly above the prior
   4-scan ceiling of 74 — strace timing delta, not refactor. Refactor
   - serialization fix confirmed behavior-preserving end-to-end.
-- **W11-4** — pending. `ScenarioAccountant` extraction
-  (`executor/flows/playwright/monitor_scenario_accountant.py`, new).
-- **W11-5** — pending. `ExtensionMonitor` composition facade —
-  `monitor_lifecycle.py` ≤200 LoC final target (current size **672**
-  after W11-1, down from 852; archive §11.8 cited 834 — module grew
-  between W8 and W10). W11-5 must also remove the transitional
-  delegation stubs (`_handle_*_event` shims, `_log_offsets` property)
-  and inline runtime composition into the facade init.
+- **W11-4** — landed `2026-05-05` on the `week11` working branch
+  (commit `f4f5df6`). `ScenarioAccountant` extraction landed in
+  `executor/flows/playwright/monitor_scenario_accountant.py` (new,
+  426 LoC). The collaborator owns trigger-plan / execution-result
+  intake (`mark_trigger_plan_*` / `record_failed_scenarios` /
+  `record_execution_result`), scenario lifecycle bookkeeping
+  (`record_scenario_event` / `finalize_running_scenarios` /
+  `_synchronize_scenario_truth`, plus the `_active_scenarios` dict),
+  event-attempt status mutation (`record_event_attempt_start` /
+  `record_event_attempt_end`), activation-window log derivation
+  (`append_activation_log_entries`), and the W11-4 producer signal
+  (`emit_intermediate_state_events`) for
+  `[FOLLOWUP target-log-lifecycle-instrumentation]` — the post-reconcile
+  pass that surfaces `activation_seen` / `target_log_seen` promotions
+  on the live automation timeline (the W10-6 alphabet finally gets a
+  vocabulary). `ExtensionMonitor` keeps thin one-line shims for every
+  moved method (10 forwarding methods) plus a new
+  `_emit_intermediate_state_events` shim, so the W11-1/2/3 facade pin
+  file's bound-method-identity assertions
+  (`runtime.finalize_scenarios == mon._finalize_running_scenarios`,
+  `runtime.append_activation_log_entries == mon._append_activation_log_entries`,
+  `runtime.emit_intermediate_state_events == mon._emit_intermediate_state_events`)
+  remain green; runtime collaborator callbacks are wired through these
+  shims, never directly to the accountant, so the W11-1 invariant
+  survives untouched until W11-5 collapses the facade.
+
+  Helper relocation: `_assert_target_stream_invariant` moved to
+  `monitor_records.py` (next to `LogStreamEntry`, where it logically
+  belongs as a build-path contract guard) so both `monitor_lifecycle`
+  and `monitor_scenario_accountant` can import it without a circular
+  dep. `monitor_lifecycle` re-exports the symbol via `__all__` so the
+  existing test pin (`from executor.flows.playwright.monitor_lifecycle
+  import _assert_target_stream_invariant` in
+  `tests/executor/test_playwright_monitor_lifecycle.py:563`) keeps
+  working.
+
+  `monitor_lifecycle.py` shrank 645 → 499 LoC (W11-5 ≤200 final
+  target; this lands well under the planned ≤575 budget for W11-4).
+  Tests:
+  `tests/executor/test_playwright_monitor_scenario_accountant.py`
+  (24 cases, imported at the real module path so the W12 reshuffle
+  cannot silently regress this surface; covers init invariants,
+  trigger-plan/execution-result intake including the
+  trace-driven-sync semantics for `failed_scenarios`, event-attempt
+  status mutation including the
+  `verified`/`failed`/`blocked`/terminal-mapping pin, scenario
+  lifecycle including the orphan-end-without-start tolerance,
+  activation-window log derivation including idempotency, and 7
+  W11-4 producer-signal cases pinning emission, idempotency-per-
+  attempt, terminal-state filtering, and per-attempt promotion) +
+  11 new W11-4 cases in
+  `tests/executor/test_extension_monitor_facade.py` (a
+  `_RecordingAccountant` parallel to `_RecordingRuntime` and
+  `_RecordingAssembler`, covering construction with shared report,
+  every shim's delegation, the runtime→shim→accountant chain for
+  `emit_intermediate_state_events`, and a sanity guard pinning the
+  real class is composed when unpatched) + 3 new W11-4 cases in
+  `tests/executor/test_playwright_monitor_runtime_state.py`
+  (post-refresh emission ordering invariant, single-fire-per-stop
+  pin, defensive stop-without-start coverage). Baseline grew
+  1150 → 1195 (`make check-all` green: lint, mypy, bandit,
+  ui-types, pytest all clean).
+
+  **Live-scan validation (`2026-05-05`):** the W11-4 build was
+  exercised end-to-end against `ms-python.python@2026.5.2026042602`
+  in the live executor (`make sim-target TARGET=ms-python.python`,
+  job `95efbaeb721b`, 82.2s monitoring, all_scenarios mode). The
+  scan profile diverged from the W11-3 trigger-driven baseline (no
+  trigger payload was supplied, so `event_attempts=[]` /
+  `stimulus_passes=[]` / target activation never fired) and
+  Chrome crashed mid-run on the `git_workflow` scenario (environmental:
+  the strace+Playwright pipeline has hit this Target-crashed
+  failure mode on this host before W11). A second scan attempt
+  (`SCENARIO=coding_session`) timed out connecting to Chrome
+  because the crashed browser didn't recover; rather than
+  destructively reset the executor container, the W11-4 validation
+  was completed against scan 1 alone.
+  - **W11-4-owned producer signals all populated correctly:**
+    `schema_version="2.1"` (W11-3 contract preserved),
+    `activation_discovery_strategies=["exthost_log_parse"]`
+    (Strategy 1 succeeded with 2 non-target activations, Strategy 2
+    failed via the Chrome crash, Strategy 3 yielded no new entries
+    after the Strategy 1 dedupe-merge),
+    `runner_exit_code=1`, `runner_status="error"`
+    (`set_runner_status` correctly mapped the failed run via the
+    W11-3 setter contract, exercised through the W11-4 facade-shim
+    chain).
+  - **Scenario-accounting refactor preserved bit-for-bit:**
+    `len(scenario_traces)=4` (all four `all_scenarios` mode
+    scenarios traced — `coding_session`, `debug_session`,
+    `terminal_usage`, `git_workflow`); the post-`_synchronize_scenario_truth`
+    `summary.scenarios_run` carries all four names;
+    `failed_scenarios=["git_workflow"]` captured the Chrome-crash
+    failure with the right reason code; the automation timeline
+    (`log_streams.automation`) carries 10 entries — runtime tracer
+    attach + trigger-execution-mode + four `start`/`end` scenario
+    pairs — exactly the shape pre-W11-4 produced. The
+    `append_activation_log_entries` derivation correctly attributed
+    the 2 non-target activations (`ms-python.debugpy@onLanguage:python`
+    → coding_session, `vscode.debug-server-ready@onDebugResolve` →
+    debug_session) to `log_streams.other_extension_host` with
+    scenario attribution intact.
+  - **W11-4 producer signal wired correctly:**
+    `emit_intermediate_state_events` ran (count=0 emissions, which
+    is the correct semantic — there were no `event_attempts` to
+    promote because no trigger plan was applied; the focused unit
+    test
+    `test_emit_intermediate_state_events_emits_per_promoted_attempt`
+    pins the positive path). Confirms the post-refresh wiring
+    (`MonitorRuntime.stop()` → `refresh_derived_state` →
+    `emit_intermediate_state_events`) survives end-to-end without a
+    stop()-time crash.
+
+  Because the scan never had `event_attempts` and the target was
+  never observed, the trigger-driven W11-3 baseline (job `64627b3ea714`
+  with target_activation_count=1, stimulus_passes=5, full
+  coverage_summary) is not directly comparable on detection-relevant
+  fields. What W11-4 validates is: (a) the producer side runs
+  without monitor-side errors, (b) every W11-3 contract field is
+  still populated by the refactored producers, (c) the scenario /
+  event-attempt accounting still surfaces the right shape on the
+  refactored path, and (d) the new intermediate-state emission step
+  is wired without breaking `stop()`. A trigger-driven re-scan with
+  the producer signal exercised positively (at least one attempt
+  reaching `activation_seen` or `target_log_seen`) is deferred to
+  the next pull — the focused unit-test surface
+  (`test_emit_intermediate_state_events_emits_for_activation_seen`,
+  `…emits_for_target_log_seen`,
+  `…emits_per_promoted_attempt`) already pins the producer's
+  positive path against an in-memory report.
+- **W11-5** — pending (next pull-first). `ExtensionMonitor` composition
+  facade — `monitor_lifecycle.py` ≤200 LoC final target (current size
+  **499** after W11-4, down from 852 → 672 (W11-1) → 623 (W11-2) →
+  643 (W11-3) → 499 (W11-4); archive §11.8 cited 834 — module grew
+  between W8 and W10). W11-5 must remove the transitional delegation
+  stubs (the W11-1 `_handle_*_event` shims and `_log_offsets` property,
+  plus the W11-2 `_persist_report` / `_refresh_derived_report_state`,
+  the W11-3 `_set_discovery_strategies` / `set_runner_status`, and
+  the W11-4 ten-method shim block plus
+  `_emit_intermediate_state_events`), inline runtime / assembler /
+  accountant composition into the facade init, and rewrite the
+  `test_extension_monitor_facade.py` pin file against the collapsed
+  shape.
 - **W11-6** — pending. Per-strategy `_stop_<strategy>` helpers in
   `ExtensionMonitor.stop()` (warm-start, command-probe, output-channel,
   log-tail).
@@ -292,22 +427,19 @@ land *as part of* W11 acceptance, not as separate PRs:
   `mon.set_runner_status(exit_code)` immediately before the final
   `report.save()` in `entrypoint_runner.py`. Surfaced 2026-04-25 (Codex
   supplementary review).
-- **`[FOLLOWUP target-log-lifecycle-instrumentation]`** —
-  Wire `reconcile_event_attempts` (or its W11 successor
-  `ScenarioAccountant`/`ReportAssembler`) to emit the intermediate
-  `activation_seen` / `target_log_seen` states the W10-6 frozenset
-  already pinned. The W10-6 lifecycle has alphabet but no vocabulary —
-  W11-4 closes the producer side. Companion W12 reconciler updates pick
-  up the broader target-log capture widening. **Confirmed W11-4
-  landing during W11-2 design pass `2026-05-04`:** the state-machine
-  emission already exists in
-  `executor/flows/playwright/health_reconciliation.py:175-220`
-  (`_mark_attempt_activation_seen`, `_mark_attempt_target_log_seen`)
-  and is invoked by `reconcile_event_attempts` itself; the consumer
-  side is complete. The remaining gap is the **producer signal** —
-  getting attempts to reach the reconciler with enough context to
-  promote past `failed/blocked` — which is `ScenarioAccountant`
-  territory (W11-4). Surfaced 2026-05-04 (manual UI scan).
+- **`[FOLLOWUP target-log-lifecycle-instrumentation]`** — **LANDED with
+  W11-4 `2026-05-05`**. `ScenarioAccountant.emit_intermediate_state_events`
+  surfaces the intermediate-state vocabulary on the live automation
+  timeline. Wired into `MonitorRuntime.stop()` after
+  `refresh_derived_state` so emissions reflect the post-reconcile
+  `verification_status` literals
+  (`activation_seen` / `target_log_seen`); idempotent per-attempt via
+  `_emitted_intermediate_state_attempts` so repeated stops do not
+  double-log. Producer-side positive path pinned by
+  `test_emit_intermediate_state_events_emits_for_activation_seen` /
+  `…_for_target_log_seen` / `…_emits_per_promoted_attempt` in the new
+  focused accountant test module. The W10-6 alphabet now has a
+  vocabulary. Surfaced 2026-05-04 (manual UI scan); closed 2026-05-05.
 
 ## Entry Criteria (all green as of 2026-05-04)
 
@@ -367,8 +499,14 @@ For each W11-N to be marked **landed**:
 - `monitor_lifecycle.py` was **852 LoC** at the start of `2026-05-04`;
   after W11-1 it is **672 LoC**; after W11-2 it is **623 LoC**; after
   W11-3 it is **643 LoC** (two facade shims +
-  one extra `MonitorRuntime` constructor argument). Archive plan cited
-  834 LoC pre-W10. W11-5 ≤200 LoC target unchanged.
+  one extra `MonitorRuntime` constructor argument); after W11-4
+  (`2026-05-05`) it is **499 LoC** (10 accountant shims + 1 emission
+  shim + 1 extra `MonitorRuntime` constructor argument; offset by
+  removing 8 method bodies + the `_active_scenarios` field +
+  `_assert_target_stream_invariant` definition that moved to
+  `monitor_records.py`). Archive plan cited 834 LoC pre-W10. W11-5
+  ≤200 LoC target unchanged — final 299-LoC reduction will land when
+  the transitional shim block collapses.
 - The W11 entry table in
   `archive/plans/REFACTOR_OPTIMIZATION_full_2026-04-29.md` lines 2478–
   2485 is the canonical W11-N→file mapping. If split granularity

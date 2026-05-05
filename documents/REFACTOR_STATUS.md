@@ -222,8 +222,9 @@ remaining checkbox before W9 entry.
   (`ScenarioAccountant` producer side; consumer-side state machine
   already lives in `health_reconciliation.py`).
 
-  W11 (§11.8 monitor lifecycle split) **open** — W11-4
-  (`ScenarioAccountant` extraction) is the next pull-first.
+  W11 (§11.8 monitor lifecycle split) **open** — W11-5
+  (`ExtensionMonitor` composition facade collapse to ≤200 LoC) is the
+  next pull-first.
 
 - **W11-3 landed `2026-05-04`** on the `week11` working branch (commit
   pending). Contract widening: `ActivationReport.activation_discovery_strategies`,
@@ -252,6 +253,40 @@ remaining checkbox before W9 entry.
   `make test-security` 170 cases green. Strategy-name divergence note
   and branch policy deviation captured in `active-work/W11-monitor-lifecycle.md`
   Notes/Drift section.
+
+- **W11-4 landed `2026-05-05`** on the `week11` working branch
+  (commit `f4f5df6`). `ScenarioAccountant` extraction landed in
+  `executor/flows/playwright/monitor_scenario_accountant.py` (new,
+  426 LoC). The collaborator owns scenario / event-attempt accounting:
+  trigger-plan / execution-result intake, scenario lifecycle traces,
+  event-attempt status mutation, activation-window log derivation, and
+  the W11-4 producer signal (`emit_intermediate_state_events`) that
+  surfaces `activation_seen` / `target_log_seen` promotions on the
+  live automation timeline after `reconcile_event_attempts`. Bundled
+  `[FOLLOWUP target-log-lifecycle-instrumentation]` rode the same
+  commit (single producer-side closure for the W10-6 alphabet that
+  previously had no vocabulary). `_assert_target_stream_invariant`
+  helper relocated from `monitor_lifecycle.py` to `monitor_records.py`
+  (logical home next to `LogStreamEntry`); `monitor_lifecycle`
+  re-exports the symbol so the existing test pin keeps working.
+  `ExtensionMonitor` keeps thin one-line shims for every moved method
+  plus a new `_emit_intermediate_state_events` shim so the W11-1/2/3
+  facade pin file's bound-method-identity invariants hold.
+  `monitor_lifecycle.py` shrank 643 → 499 LoC (W11-5 ≤200 LoC final
+  target unchanged). Tests:
+  `tests/executor/test_playwright_monitor_scenario_accountant.py`
+  (24 cases) + 11 new W11-4 cases in
+  `test_extension_monitor_facade.py` + 3 new W11-4 cases in
+  `test_playwright_monitor_runtime_state.py`. Baseline grew
+  1150 → 1195; `make check-all` green (lint, mypy, bandit,
+  ui-types, pytest). Live-scan validation against
+  `ms-python.python@2026.5.2026042602` (job `95efbaeb721b`) confirmed
+  W11-3 contract fields populate correctly through the refactored
+  producer chain and scenario-accounting refactor preserves shape
+  bit-for-bit; the trigger-driven positive-promotion path stays
+  pinned by the focused unit-test surface (no trigger payload was
+  supplied in the smoke run). Full validation notes in
+  `active-work/W11-monitor-lifecycle.md`.
 
 - **CI pipeline retired `2026-04-30`** — `.github/workflows/ci.yml` and
   `.github/workflows/docs-check.yml` removed; `security.yml` (weekly

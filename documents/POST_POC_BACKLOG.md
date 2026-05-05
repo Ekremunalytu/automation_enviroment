@@ -245,25 +245,28 @@ when picking an item up.
   landing: W12 attribution cleanup (`§11.9`); pull earlier as a
   surgical fix if any UI surface reads both fields and renders
   diverging counts. Surfaced by 2026-05-04 manual UI scan.
-- **`[FOLLOWUP target-log-lifecycle-instrumentation]`** —
-  W10-6 pinned `RUNTIME_EVIDENCE_STATES = {attempted_only,
-  activation_seen, target_log_seen, verified, failed}` as a shared
-  frozenset across contract + executor helpers, but no reconciler
-  currently transitions attempts into the intermediate
-  `activation_seen`/`target_log_seen` states. On a 2026-05-04 UI scan
-  all 9 unresolved attempts collapsed to `attempted_only` and
-  `log_streams.target_extension_host` carried only 1 entry for a
-  22-activation run; the lifecycle ledger has alphabet but no
-  vocabulary. Wire `reconcile_event_attempts` (or its W11 successor
-  `ScenarioAccountant`/`ReportAssembler`) to emit the intermediate
-  states whenever target-owned log/output evidence exists short of
-  full verification, and broaden target log capture so
-  `target_extension_host` does not collapse to 1 entry per run. The
-  contracts.py:166 lifecycle comment already references this
-  workstream; this entry makes it trackable. Natural landing: W11
-  monitor lifecycle split (`§11.8`) **as an acceptance sub-task** +
-  W12 reconciler updates (`§11.9`). Surfaced by 2026-05-04 manual UI
-  scan.
+- **`[FOLLOWUP target-log-lifecycle-instrumentation]`** — **LANDED with
+  W11-4 `2026-05-05`** (commit `f4f5df6` on the `week11` working
+  branch). The producer-side gap closed:
+  `ScenarioAccountant.emit_intermediate_state_events` runs after
+  `reconcile_event_attempts` and emits an `automation`-stream
+  `event_attempt` log entry for every attempt whose
+  `verification_status` reached `activation_seen` or
+  `target_log_seen` (idempotent per-attempt via
+  `_emitted_intermediate_state_attempts`). Wired into
+  `MonitorRuntime.stop()` after `refresh_derived_state` so emissions
+  reflect the post-reconcile truth; runtime callback routed through
+  the `ExtensionMonitor._emit_intermediate_state_events` shim so the
+  W11-1/2/3 facade pin file's bound-method-identity invariants stay
+  green. Positive path pinned by
+  `tests/executor/test_playwright_monitor_scenario_accountant.py`
+  (`test_emit_intermediate_state_events_emits_for_activation_seen`,
+  `…_for_target_log_seen`, `…_emits_per_promoted_attempt`). The
+  consumer-side broadening of target log capture (so
+  `log_streams.target_extension_host` does not collapse to 1 entry
+  per 22-activation run) stays open as a separate W12 reconciler
+  workstream — distinct from the producer-signal closure W11-4
+  shipped. Surfaced 2026-05-04; producer side closed 2026-05-05.
 - **`[FOLLOWUP signal-summary-needs-review-categories]`** —
   `signal_summary.level` can land on `"needs_review"` with
   `score>0` while `risk_signals == []` and
