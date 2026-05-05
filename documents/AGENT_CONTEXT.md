@@ -1,6 +1,6 @@
 # Agent Context
 
-`Last Updated: 2026-05-04`
+`Last Updated: 2026-05-05`
 
 Thin routing map for coding agents after `AGENTS.md`. **Stays short.**
 Do not copy phase history here; use `REFACTOR_STATUS.md` (slim canonical).
@@ -19,8 +19,9 @@ Do not copy phase history here; use `REFACTOR_STATUS.md` (slim canonical).
   W9 closed `2026-05-04`; W10 closed `2026-05-04` via PR #11. **Active
   phase:** W11 monitor lifecycle split — tracker at
   `active-work/W11-monitor-lifecycle.md` (stable IDs W11-1..W11-8);
-  entry gate met `2026-05-04` after `[FOLLOWUP w11-precursor-tests]`
-  safety net landed. For current closure state always defer to
+  W11-1..W11-5 have landed, W11-6 is the next structural pull-first,
+  and the P1 `[FOLLOWUP w8-6-extension-host-output-redaction]` may land
+  first as a short companion. For current closure state always defer to
   `REFACTOR_STATUS.md`.
 - Architecture: `ARCHITECTURE.md` (slim) + `architecture/` splits.
 - Placement rules: `PROJECT_STRUCTURE.md` (slim) + `structure/` splits.

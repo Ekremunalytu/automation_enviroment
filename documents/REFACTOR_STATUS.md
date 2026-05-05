@@ -222,9 +222,15 @@ remaining checkbox before W9 entry.
   (`ScenarioAccountant` producer side; consumer-side state machine
   already lives in `health_reconciliation.py`).
 
-  W11 (§11.8 monitor lifecycle split) **open** — W11-5
-  (`ExtensionMonitor` composition facade collapse to ≤200 LoC) is the
-  next pull-first.
+  W11 (§11.8 monitor lifecycle split) **open** — W11-5 landed
+  `2026-05-05`; W11-6 (per-strategy `_stop_<strategy>` helpers on
+  `MonitorRuntime.stop()`) is the next pull-first, with W11-7
+  (`workflows/extension_catalog/service.py` split) and W11-8
+  (`appcore/storage/crud_ops/analysis_jobs.py` split) staying queued
+  behind it. P1 companion:
+  `[FOLLOWUP w8-6-extension-host-output-redaction]` should land before
+  or alongside the next structural W11 pull; W13 should only lock the
+  regression test in, not defer the first redaction fix.
 
 - **W11-3 landed `2026-05-04`** on the `week11` working branch (commit
   pending). Contract widening: `ActivationReport.activation_discovery_strategies`,
@@ -288,6 +294,41 @@ remaining checkbox before W9 entry.
   (job `64627b3ea714`) on every detection-relevant field — refactor
   confirmed behavior-preserving end-to-end. Full validation notes in
   `active-work/W11-monitor-lifecycle.md`.
+
+- **W11-5 landed `2026-05-05`** on the `week11` working branch.
+  `ExtensionMonitor` composition facade collapsed: every transitional
+  delegation stub from W11-1/W11-2/W11-3/W11-4 is removed, runtime
+  callbacks bind directly to `ReportAssembler` / `ScenarioAccountant`
+  methods (no shim layer), and the constructor accepts opt-in
+  `runtime` / `assembler` / `accountant` / `report` kwargs for test
+  injection. Three fat methods migrated off the facade onto
+  `ScenarioAccountant`: `record_stimulus_pass_event`,
+  `record_prerequisite_result`, and `verify_target_reaction`
+  (`log_offsets` becomes an explicit positional argument so the
+  accountant doesn't need a `MonitorRuntime` reference). The facade
+  keeps single-statement public-API forwards so production callers
+  (`entrypoint_runner.py`, `wait_helpers.py`, `stimulus_passes.py`,
+  `stimulus_prerequisites.py`) need no migration. `MonitorRuntime`
+  gained a `@page.setter` for the facade's `page` property to write
+  through (`entrypoint_runner.py:252,261` reload-time page reassignment).
+  `monitor_lifecycle.py` settled at **286 LoC** (852 → 672 → 623 →
+  643 → 499 → 286 progression; the residual budget is the
+  `record_automation_event` orchestration body kept facade-owned
+  because both runtime and accountant get it as a callback, plus
+  caller-compatibility forward shims). The `test_extension_monitor_facade.py`
+  pin file shrank 891 → 499 LoC and pivoted from
+  bound-method-identity invariants to composition-shape contracts;
+  18 new pins (composition share-the-same-report, direct callback
+  wiring, collaborator injection acceptance, public-API forwards,
+  page setter writethrough, facade-owned bodies, sanity guard for
+  three real collaborator instances) replace the pre-W11-5 35-case
+  bound-method-identity suite. New accountant cases: 5 stimulus-pass
+  - 2 prerequisite-result + 5 verify_target_reaction; one new
+  runtime-state case for the `@page.setter`. Verification:
+  `make check-all` green (1199 pytest cases), `make test-security`
+  170 cases green. With W11-5 done, W11-6's per-strategy
+  `_stop_<strategy>` helpers move to `MonitorRuntime.stop()` — the
+  facade no longer owns that lifecycle.
 
 - **CI pipeline retired `2026-04-30`** — `.github/workflows/ci.yml` and
   `.github/workflows/docs-check.yml` removed; `security.yml` (weekly

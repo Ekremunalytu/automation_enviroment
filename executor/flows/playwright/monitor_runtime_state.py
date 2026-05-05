@@ -106,6 +106,10 @@ class MonitorRuntime:
     def page(self) -> Page:
         return self._page
 
+    @page.setter
+    def page(self, value: Page) -> None:
+        self._page = value
+
     @property
     def started(self) -> bool:
         return self._started

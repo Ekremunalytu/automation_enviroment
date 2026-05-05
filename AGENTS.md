@@ -1,6 +1,6 @@
 # AGENTS.md
 
-`Last Updated: 2026-05-04`
+`Last Updated: 2026-05-05`
 
 ## Authority
 
@@ -28,8 +28,11 @@
   lifecycle split** — entry gate met `2026-05-04` after the
   `[FOLLOWUP w11-precursor-tests]` safety net landed (38 direct
   module-owned tests for `runtime_capture/extension_host.py` and
-  `health_reconciliation.py`). W11-1 `MonitorRuntime` extraction is
-  the next pull-first; tracker at
+  `health_reconciliation.py`). W11-1..W11-5 landed on `2026-05-04`
+  / `2026-05-05`; W11-6 `MonitorRuntime.stop()` strategy-helper
+  extraction is the next structural pull-first. A short P1 W11
+  companion may land first for
+  `[FOLLOWUP w8-6-extension-host-output-redaction]`. Tracker:
   `active-work/W11-monitor-lifecycle.md`. Plan navigation:
   `documents/AGENT_CONTEXT.md` → matching lane doc. Past W8/W9/W10
   trackers and stable IDs stay around because code/tests reference

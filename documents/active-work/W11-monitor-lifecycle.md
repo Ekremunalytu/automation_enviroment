@@ -1,6 +1,6 @@
 # W11 — Monitor Lifecycle Split (Active Work Tracker)
 
-`Last Updated: 2026-05-05 (W11-4 landed)`
+`Last Updated: 2026-05-05 (W11-5 landed)`
 
 This is the canonical active work tracker for the W11 monitor lifecycle
 split window. Items have stable IDs (`W11-1` … `W11-8`). Code comments,
@@ -443,22 +443,58 @@ item by reading both this tracker and that archive section.
   fields between scan and baseline is zero. W11-4 closes with full
   bar coverage (`make check-all` green, smoke run + UI run both
   validated).
-- **W11-5** — pending (next pull-first). `ExtensionMonitor` composition
-  facade — `monitor_lifecycle.py` ≤200 LoC final target (current size
-  **499** after W11-4, down from 852 → 672 (W11-1) → 623 (W11-2) →
-  643 (W11-3) → 499 (W11-4); archive §11.8 cited 834 — module grew
-  between W8 and W10). W11-5 must remove the transitional delegation
-  stubs (the W11-1 `_handle_*_event` shims and `_log_offsets` property,
-  plus the W11-2 `_persist_report` / `_refresh_derived_report_state`,
-  the W11-3 `_set_discovery_strategies` / `set_runner_status`, and
-  the W11-4 ten-method shim block plus
-  `_emit_intermediate_state_events`), inline runtime / assembler /
-  accountant composition into the facade init, and rewrite the
-  `test_extension_monitor_facade.py` pin file against the collapsed
-  shape.
+- **W11-5** — landed `2026-05-05` on the `week11` working branch.
+  `ExtensionMonitor` composition facade collapsed: every transitional
+  delegation stub is gone (the W11-1 `_handle_*_event` shims and
+  `_log_offsets` property, the W11-2 `_persist_report` /
+  `_refresh_derived_report_state`, the W11-3 `_set_discovery_strategies`,
+  the W11-4 ten-method shim block plus `_emit_intermediate_state_events`
+  and `_synchronize_scenario_truth`). `MonitorRuntime` callbacks now
+  bind directly to `ReportAssembler.persist`,
+  `ReportAssembler.refresh_derived_state`,
+  `ReportAssembler.set_discovery_strategies`,
+  `ScenarioAccountant.finalize_running_scenarios`,
+  `ScenarioAccountant.append_activation_log_entries`, and
+  `ScenarioAccountant.emit_intermediate_state_events`. The constructor
+  accepts opt-in `runtime` / `assembler` / `accountant` / `report`
+  kwargs for test injection (`tests/executor/test_extension_monitor_facade.py`
+  uses this). Three fat methods migrated off the facade onto the
+  accountant: `record_stimulus_pass_event` (~58 LoC),
+  `record_prerequisite_result` (~36 LoC), and `verify_target_reaction`
+  (~52 LoC); the facade keeps single-statement public-API forwards so
+  `entrypoint_runner.py`, `wait_helpers.py`, `stimulus_passes.py`,
+  and `stimulus_prerequisites.py` need no migration. `MonitorRuntime`
+  gained a `@page.setter` so the facade's `page` property can write
+  through to the runtime (used by `entrypoint_runner.py:252,261`
+  reload-time page reassignment). The `test_extension_monitor_facade.py`
+  pin file shrank 891 → 499 LoC and pivoted from bound-method-identity
+  invariants to composition-shape contracts (collaborator share-the-
+  same-report, callbacks point at collaborator methods, public-API
+  forwards land in the right collaborator, page setter writes through,
+  facade-owned bodies still work, and an unpatched facade really holds
+  three real collaborator instances). `monitor_lifecycle.py` settled at
+  **286 LoC** — above the ≤200 ortodox target but every shim layer is
+  gone; the residual budget is 28-LoC `record_automation_event`
+  orchestration body (intentionally facade-owned because both runtime
+  and accountant get it as a callback) plus public-API forward
+  shims (caller compatibility) plus the `apply_trigger_payload` /
+  `set_trigger_execution_mode` single-purpose bodies.
+
+  Verification:
+
+  - `make check-all` — green (lint + mypy strict + bandit + ui-types-check
+    - ui-boundaries + 1199 pytest cases).
+  - `make test-security` — 170 cases green, no regression on W5
+    fixture hygiene or rule coverage.
+  - `pytest tests/executor/` — 528 cases green; 18 W11-5 facade pins
+    - 13 new accountant cases (5 stimulus, 2 prerequisite, 5
+    verify_target_reaction, 1 page setter) replace the 35-case W11-1
+    bound-method-identity suite.
+
 - **W11-6** — pending. Per-strategy `_stop_<strategy>` helpers in
   `ExtensionMonitor.stop()` (warm-start, command-probe, output-channel,
-  log-tail).
+  log-tail). With W11-5 landed, the facade no longer owns `stop()` —
+  this work moves to `MonitorRuntime.stop()` instead.
 - **W11-7** — pending. Workflow-side modularization:
   `workflows/extension_catalog/service.py` 475 LoC →
   `manifest_to_schema.py` (~200 LoC) + `lifecycle.py` (~250 LoC); thin
@@ -472,7 +508,18 @@ item by reading both this tracker and that archive section.
 ## Acceptance Sub-Tasks (W11-N picks up these follow-ups)
 
 These open `[FOLLOWUP …]` items in `POST_POC_BACKLOG.md` are scheduled to
-land *as part of* W11 acceptance, not as separate PRs:
+land *as part of* W11 acceptance or as short W11 companion PRs before the
+next structural pull:
+
+- **`[FOLLOWUP w8-6-extension-host-output-redaction]`** — **P1 W11
+  companion, pull before W11-6 when possible.**
+  `ActivationReport.extension_host_output` currently carries raw
+  Extension Host log tail text through `report_builder.py`; the backlog
+  item requires
+  `redact_secrets(...)` before persistence plus a regression test that
+  proves AKIA / bearer / DB URL values do not appear raw in the saved
+  report. W13 owns regression lock-in, but the first redaction fix
+  should not wait for W13.
 
 - **`[FOLLOWUP runner-status-contract]`** — **LANDED with W11-3
   `2026-05-04`**. `ActivationReport.runner_exit_code` (`int | None`)

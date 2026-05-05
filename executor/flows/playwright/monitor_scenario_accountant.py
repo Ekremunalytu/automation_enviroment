@@ -46,16 +46,22 @@ from .attribution import (
 )
 from .monitor_records import (
     LogStreamEntry,
+    PrerequisiteResult,
     ScenarioTrace,
     SkippedScenarioRecord,
+    StimulusPassTrace,
     _assert_target_stream_invariant,
 )
 from .monitor_runtime import (
     _build_activation_log_message,
     _build_event_attempt_log_message,
+    _build_prerequisite_log_message,
     _build_scenario_log_message,
+    _build_stimulus_pass_log_message,
+    _count_target_activations,
     _find_event_attempt,
 )
+from .monitor_support import resolve_monitor_api
 from .monitor_types import ActivationReport
 from .runtime_capture._shared import _parse_iso_timestamp
 
@@ -142,6 +148,107 @@ class ScenarioAccountant:
                 for name in getattr(result, "failed_scenarios", []) or []
                 if str(name).strip()
             ]
+        )
+
+    # ------------------------------------------------------------------
+    # Stimulus passes + prerequisites
+    # ------------------------------------------------------------------
+
+    def record_stimulus_pass_event(
+        self,
+        action: str,
+        pass_id: str,
+        *,
+        label: str = "",
+        order: int = 0,
+        trigger_method: str = "",
+        status: str = "",
+    ) -> None:
+        now = time.time()
+        trace = next(
+            (item for item in self._report.stimulus_passes if item.pass_id == pass_id),
+            None,
+        )
+        if action == "start":
+            if trace is None:
+                trace = StimulusPassTrace(
+                    pass_id=pass_id,
+                    label=label or pass_id,
+                    order=order,
+                    started_at=now,
+                    status="running",
+                    trigger_method=trigger_method,
+                )
+                self._report.stimulus_passes.append(trace)
+            else:
+                trace.started_at = now
+                trace.status = "running"
+                if label:
+                    trace.label = label
+                if order:
+                    trace.order = order
+                if trigger_method:
+                    trace.trigger_method = trigger_method
+        else:
+            if trace is None:
+                trace = StimulusPassTrace(
+                    pass_id=pass_id,
+                    label=label or pass_id,
+                    order=order,
+                    started_at=now,
+                    ended_at=now,
+                    status=status or "completed",
+                    trigger_method=trigger_method,
+                )
+                self._report.stimulus_passes.append(trace)
+            else:
+                trace.ended_at = now
+                trace.status = status or "completed"
+        self._record_automation_event(
+            "stimulus_pass",
+            _build_stimulus_pass_log_message(
+                action,
+                label or pass_id,
+                status=status or ("running" if action == "start" else "completed"),
+            ),
+            status=status or ("running" if action == "start" else "completed"),
+        )
+
+    def record_prerequisite_result(
+        self,
+        prerequisite_id: str,
+        *,
+        status: str,
+        detail: str = "",
+        reason_code: str = "",
+        resolved_targets: dict[str, Any] | None = None,
+    ) -> None:
+        existing = next(
+            (
+                item
+                for item in self._report.prerequisite_results
+                if item.prerequisite_id == prerequisite_id
+            ),
+            None,
+        )
+        if existing is None:
+            existing = PrerequisiteResult(
+                prerequisite_id=prerequisite_id,
+                key=prerequisite_id,
+                label=prerequisite_id,
+            )
+            self._report.prerequisite_results.append(existing)
+        existing.status = status
+        if detail:
+            existing.detail = detail
+        if reason_code:
+            existing.reason_code = reason_code
+        if resolved_targets:
+            existing.resolved_targets = dict(resolved_targets)
+        self._record_automation_event(
+            "prerequisite",
+            _build_prerequisite_log_message(existing),
+            status=status,
         )
 
     # ------------------------------------------------------------------
@@ -293,6 +400,68 @@ class ScenarioAccountant:
                 if str(trace.name).strip() and str(trace.status).strip() == "failed"
             )
         )
+
+    # ------------------------------------------------------------------
+    # Target reaction verification
+    # ------------------------------------------------------------------
+
+    def verify_target_reaction(
+        self,
+        baseline: dict[str, int | bool],
+        log_offsets: dict[str, int],
+        *,
+        capability: str,
+        trigger_label: str,
+        activation_event: str = "",
+        success_signal: bool = False,
+    ) -> bool:
+        """Decide whether a trigger produced a verified target reaction.
+
+        W11-5 moved this from the facade to the accountant. ``log_offsets``
+        is now an explicit argument because the runtime owns it; the
+        facade pulls them from ``MonitorRuntime.log_offsets`` and forwards.
+        """
+        api = resolve_monitor_api()
+        current_target_activations = _count_target_activations(
+            api.parse_all_exthost_logs(start_offsets=log_offsets),
+            self._report.target_extension_id,
+        )
+        new_activity = len(self._report.target_file_events) > int(
+            baseline.get("target_file_events", 0)
+        ) or len(self._report.target_network_events) > int(
+            baseline.get("target_network_events", 0)
+        )
+        ui_blocked = len(self._report.ui_blocker_entries) > int(
+            baseline.get("ui_blockers", 0)
+        )
+        activation_seen = current_target_activations > int(
+            baseline.get("target_activations", 0)
+        )
+        verified = activation_seen or new_activity or success_signal
+        if verified:
+            if capability in self._report.attempted_capabilities:
+                self._report.verified_capabilities = sorted(
+                    set(self._report.verified_capabilities) | {capability}
+                )
+            if capability in self._report.heuristic_attempted_capabilities:
+                self._report.heuristic_verified_capabilities = sorted(
+                    set(self._report.heuristic_verified_capabilities) | {capability}
+                )
+        status = "completed" if verified else "failed"
+        message = (
+            f"Verified {capability} trigger {trigger_label}"
+            if verified
+            else f"Trigger {trigger_label} did not produce a verified target reaction"
+        )
+        if ui_blocked and not verified:
+            message += " because a UI blocker interrupted the flow"
+        self._record_automation_event(
+            "command_verification",
+            message,
+            status=status,
+            activation_event=activation_event,
+        )
+        return verified
 
     # ------------------------------------------------------------------
     # Activation-window log derivation

@@ -674,3 +674,290 @@ def test_emit_intermediate_state_events_fires_after_real_reconciliation() -> Non
     assert meta["status"] == "activation_seen"
     assert meta["activation_event"] == "onCommand:publisher.tool.run"
     assert "Target activation observed" in msg
+
+
+# ---------------------------------------------------------------------------
+# W11-5: stimulus passes + prerequisites (moved from ExtensionMonitor facade)
+# ---------------------------------------------------------------------------
+
+
+def test_record_stimulus_pass_event_start_creates_running_trace() -> None:
+    accountant, report, rec = _build_accountant()
+
+    accountant.record_stimulus_pass_event(
+        "start",
+        "p1",
+        label="Pass One",
+        order=1,
+        trigger_method="command",
+    )
+
+    assert len(report.stimulus_passes) == 1
+    trace = report.stimulus_passes[0]
+    assert trace.pass_id == "p1"  # noqa: S105
+    assert trace.label == "Pass One"
+    assert trace.order == 1
+    assert trace.status == "running"
+    assert trace.trigger_method == "command"
+    assert len(rec.automation_events) == 1
+    kind, _msg, meta = rec.automation_events[0]
+    assert kind == "stimulus_pass"
+    assert meta["status"] == "running"
+
+
+def test_record_stimulus_pass_event_end_updates_existing_trace() -> None:
+    accountant, report, rec = _build_accountant()
+    accountant.record_stimulus_pass_event("start", "p1", label="Pass", order=1)
+    rec.automation_events.clear()
+
+    accountant.record_stimulus_pass_event("end", "p1", status="completed")
+
+    assert len(report.stimulus_passes) == 1
+    trace = report.stimulus_passes[0]
+    assert trace.status == "completed"
+    assert trace.ended_at > 0.0
+    assert len(rec.automation_events) == 1
+    assert rec.automation_events[0][2]["status"] == "completed"
+
+
+def test_record_stimulus_pass_event_end_without_prior_start_synthesizes_trace() -> None:
+    accountant, report, rec = _build_accountant()
+
+    accountant.record_stimulus_pass_event(
+        "end",
+        "ghost",
+        label="Ghost Pass",
+        status="failed",
+        trigger_method="hotkey",
+    )
+
+    assert len(report.stimulus_passes) == 1
+    trace = report.stimulus_passes[0]
+    assert trace.pass_id == "ghost"  # noqa: S105
+    assert trace.label == "Ghost Pass"
+    assert trace.status == "failed"
+    assert trace.trigger_method == "hotkey"
+    assert trace.started_at == trace.ended_at
+    assert len(rec.automation_events) == 1
+
+
+def test_record_prerequisite_result_creates_record_and_emits_event() -> None:
+    accountant, report, rec = _build_accountant()
+
+    accountant.record_prerequisite_result(
+        "ext.installed",
+        status="completed",
+        detail="ms-python.python is present",
+        reason_code="ok",
+        resolved_targets={"extension_id": "ms-python.python"},
+    )
+
+    assert len(report.prerequisite_results) == 1
+    result = report.prerequisite_results[0]
+    assert result.prerequisite_id == "ext.installed"
+    assert result.status == "completed"
+    assert result.detail == "ms-python.python is present"
+    assert result.reason_code == "ok"
+    assert result.resolved_targets == {"extension_id": "ms-python.python"}
+    assert len(rec.automation_events) == 1
+    assert rec.automation_events[0][0] == "prerequisite"
+    assert rec.automation_events[0][2]["status"] == "completed"
+
+
+def test_record_prerequisite_result_updates_existing_record() -> None:
+    accountant, report, rec = _build_accountant()
+    accountant.record_prerequisite_result("ext.installed", status="running")
+    rec.automation_events.clear()
+
+    accountant.record_prerequisite_result(
+        "ext.installed",
+        status="failed",
+        reason_code="missing",
+    )
+
+    assert len(report.prerequisite_results) == 1
+    result = report.prerequisite_results[0]
+    assert result.status == "failed"
+    assert result.reason_code == "missing"
+
+
+# ---------------------------------------------------------------------------
+# W11-5: verify_target_reaction (moved from ExtensionMonitor facade)
+# ---------------------------------------------------------------------------
+
+
+def _patch_target_log_count(monkeypatch, count: int) -> None:
+    from executor.flows.playwright import monitor_scenario_accountant as accountant_mod
+
+    monkeypatch.setattr(
+        accountant_mod,
+        "resolve_monitor_api",
+        lambda: type(
+            "Api",
+            (),
+            {"parse_all_exthost_logs": staticmethod(lambda **_: [])},
+        )(),
+    )
+    monkeypatch.setattr(
+        accountant_mod,
+        "_count_target_activations",
+        lambda _entries, _target: count,
+    )
+
+
+def test_verify_target_reaction_marks_capability_verified_when_activation_seen(
+    monkeypatch,
+) -> None:
+    accountant, report, rec = _build_accountant()
+    report.attempted_capabilities = ["network"]
+    _patch_target_log_count(monkeypatch, count=1)
+
+    verified = accountant.verify_target_reaction(
+        {"target_activations": 0},
+        {},
+        capability="network",
+        trigger_label="trigger.run",
+    )
+
+    assert verified is True
+    assert "network" in report.verified_capabilities
+    assert len(rec.automation_events) == 1
+    assert rec.automation_events[0][0] == "command_verification"
+    assert rec.automation_events[0][2]["status"] == "completed"
+
+
+def test_verify_target_reaction_returns_false_when_no_evidence(monkeypatch) -> None:
+    accountant, report, rec = _build_accountant()
+    _patch_target_log_count(monkeypatch, count=0)
+
+    verified = accountant.verify_target_reaction(
+        {"target_activations": 0},
+        {},
+        capability="network",
+        trigger_label="trigger.run",
+    )
+
+    assert verified is False
+    assert report.verified_capabilities == []
+    assert rec.automation_events[0][2]["status"] == "failed"
+
+
+def test_verify_target_reaction_appends_ui_blocker_note_when_blocked_and_unverified(
+    monkeypatch,
+) -> None:
+    accountant, report, _rec = _build_accountant()
+    report.log_entries.append(
+        LogStreamEntry(
+            timestamp="",
+            rel_time_s=0.0,
+            stream="ui_blockers",
+            kind="ui_blocker",
+            message="modal blocked",
+        )
+    )
+    _patch_target_log_count(monkeypatch, count=0)
+    rec_capture: list[str] = []
+    accountant._record_automation_event = (  # type: ignore[assignment]
+        lambda kind, message, **_: rec_capture.append(message)
+    )
+
+    accountant.verify_target_reaction(
+        {"ui_blockers": 0, "target_activations": 0},
+        {},
+        capability="network",
+        trigger_label="trigger.run",
+    )
+
+    assert any("UI blocker" in m for m in rec_capture)
+
+
+def test_verify_target_reaction_marks_heuristic_capability_when_attempted(
+    monkeypatch,
+) -> None:
+    accountant, report, _rec = _build_accountant()
+    report.heuristic_attempted_capabilities = ["fs"]
+    _patch_target_log_count(monkeypatch, count=1)
+
+    verified = accountant.verify_target_reaction(
+        {"target_activations": 0},
+        {},
+        capability="fs",
+        trigger_label="trigger.run",
+    )
+
+    assert verified is True
+    assert "fs" in report.heuristic_verified_capabilities
+
+
+def test_verify_target_reaction_returns_true_when_new_target_file_event_observed(
+    monkeypatch,
+) -> None:
+    """W11-5: file/network activity post-baseline counts as verification
+    even when the exthost log shows no fresh activation. Guards the
+    ``new_activity`` branch of ``verify_target_reaction``."""
+    from executor.flows.playwright.runtime_capture.events import FileEvent
+
+    accountant, report, _rec = _build_accountant()
+    report.attempted_capabilities = ["fs"]
+    _patch_target_log_count(monkeypatch, count=0)
+    report.file_events.append(
+        FileEvent(
+            path="/tmp/x",  # noqa: S108
+            operation="created",
+            related_extension_id="publisher.tool",
+            is_target_extension_event=True,
+        )
+    )
+
+    verified = accountant.verify_target_reaction(
+        {"target_activations": 0, "target_file_events": 0},
+        {},
+        capability="fs",
+        trigger_label="trigger.run",
+    )
+
+    assert verified is True
+    assert "fs" in report.verified_capabilities
+
+
+def test_record_stimulus_pass_event_start_of_existing_trace_resets_started_at(
+    monkeypatch,
+) -> None:
+    """W11-5: re-issuing ``start`` for an existing pass id refreshes the
+    metadata (started_at, status, optional label/order/trigger_method)
+    without creating a duplicate trace. Guards the in-place update path."""
+
+    accountant, report, _rec = _build_accountant()
+    accountant.record_stimulus_pass_event("start", "p1", label="Old", order=1)
+    first_started_at = report.stimulus_passes[0].started_at
+
+    accountant.record_stimulus_pass_event(
+        "start",
+        "p1",
+        label="New",
+        order=2,
+        trigger_method="hotkey",
+    )
+
+    assert len(report.stimulus_passes) == 1
+    trace = report.stimulus_passes[0]
+    assert trace.label == "New"
+    assert trace.order == 2
+    assert trace.trigger_method == "hotkey"
+    assert trace.status == "running"
+    assert trace.started_at >= first_started_at
+
+
+def test_verify_target_reaction_treats_success_signal_as_verified(monkeypatch) -> None:
+    accountant, _report, _rec = _build_accountant()
+    _patch_target_log_count(monkeypatch, count=0)
+
+    verified = accountant.verify_target_reaction(
+        {"target_activations": 0},
+        {},
+        capability="cap",
+        trigger_label="trigger.run",
+        success_signal=True,
+    )
+
+    assert verified is True

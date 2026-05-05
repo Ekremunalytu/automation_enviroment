@@ -237,6 +237,20 @@ def test_init_state_defaults() -> None:
     assert report.file_events == []
 
 
+def test_page_setter_updates_runtime_page() -> None:
+    """W11-5: ``MonitorRuntime.page`` setter lets the facade rewire the
+    page reference after a reload (``entrypoint_runner`` calls
+    ``mon.page = reloaded_page`` post-reload)."""
+
+    runtime, _report, _hooks = _build_runtime()
+    new_page = _DummyPage()
+
+    runtime.page = new_page
+
+    assert runtime.page is new_page
+    assert runtime._page is new_page
+
+
 def test_start_snapshots_log_offsets_and_attaches_captures(monkeypatch) -> None:
     expected_offsets = {"exthost-1.log": 17, "exthost-2.log": 99}
     _patch_facade(

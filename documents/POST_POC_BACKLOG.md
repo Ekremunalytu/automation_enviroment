@@ -41,12 +41,16 @@ Two external reviews landed `2026-04-24`:
 - [`archive/reviews/codex_project_review.md`](archive/reviews/codex_project_review.md)
 
 Findings triaged into `REFACTOR_OPTIMIZATION.md §11` weekly split (W8
-Güvenlik sıkılaştırma → W13 Test expansion + observability). Active W8
-tracker: [`active-work/W8-security.md`](active-work/W8-security.md).
+security hardening → W13 test expansion + observability). W8, W9, and
+W10 are closed; the active tracker is
+[`active-work/W11-monitor-lifecycle.md`](active-work/W11-monitor-lifecycle.md).
+The W8 tracker is historical only:
+[`active-work/W8-security.md`](active-work/W8-security.md).
 
-W8 entry gate (`§11.1`) **MET as of 2026-04-27**. PR345 closure
-(`REFACTOR_STATUS.md` "PR345 Complete"). W8 (`§11.5`) is open; items
-W8-1 (2026-04-27), W8-2 (2026-04-27), and W8-3 (2026-04-28) landed.
+W8 entry gate (`§11.1`) **MET as of 2026-04-27**; W8 closed for active
+work `2026-04-29`. W9 closed `2026-05-04` via PR #9; W10 closed
+`2026-05-04` via PR #11. Current closure state is owned by
+`REFACTOR_STATUS.md`.
 
 **Promoted into W8-W13** (no longer pull-next here): target activation
 lifecycle (landed), `signal_policy.py` relocation → W9, `registry.py`
@@ -369,9 +373,10 @@ when picking an item up.
   `ActivationReport.extension_host_output` to `_PENDING_MIGRATION` in
   `tests/platform/security/test_content_sample_typing.py`. No schema
   migration required (string shape unchanged; only content filtered).
-  Natural landing: W11-companion (highest-leverage P1 single-PR fix)
-  or W13 `§11.10` regression lock-in. **Priority: P1.** Surfaced
-  2026-05-05 (Codex review #1, audit pass).
+  Natural landing: W11-companion (highest-leverage P1 single-PR fix),
+  preferably before W11-6/W11-7/W11-8 structural work continues; W13
+  `§11.10` should only be the regression lock-in, not the first fix.
+  **Priority: P1.** Surfaced 2026-05-05 (Codex review #1, audit pass).
 - **`[FOLLOWUP event-attempt-verification-status-validator]`** —
   `EventAttemptRecord.verification_status: str = "not_attempted"`
   (`packages/analysis_contracts/contracts.py:216`) carries the W10-6
@@ -553,17 +558,19 @@ UI v3 redesign minimal-completion landed `2026-04-29` (see
 - **`[CLEANUP monitor-runtime-naming-overlap]`** —
   `executor/flows/playwright/monitor_runtime.py` (554 LoC, original
   helper for runtime verification + process helpers) sits next to
-  `executor/flows/playwright/monitor_runtime_state.py` (365 LoC,
-  W11-1 state machine extraction). The W11-1 filename divergence is
-  acknowledged in `active-work/W11-monitor-lifecycle.md` Notes/Drift
-  but not bound to a W-marker. Risk: editing the wrong file is easy;
-  review fatigue source. Pickup: at W11-5 facade collapse, decide
-  rename (option A: `monitor_runtime.py` → `monitor_runtime_helpers.py`)
-  vs merge (option B: fold helper into state module if surface
-  permits) vs intentional leave-as-is with explicit comment;
-  document decision in W11-5 PR body; mark Notes/Drift entry
-  LANDED. Natural landing: **W11-5**. Surfaced 2026-05-05 audit
-  pass.
+  `executor/flows/playwright/monitor_runtime_state.py` (369 LoC,
+  W11-1 state machine extraction; +4 LoC in W11-5 for the
+  ``@page.setter``). The W11-1 filename divergence is acknowledged in
+  `active-work/W11-monitor-lifecycle.md` Notes/Drift but not bound to
+  a W-marker. Risk: editing the wrong file is easy; review fatigue
+  source. **W11-5 (`2026-05-05`) chose option C** (intentional
+  leave-as-is) because the rename adds churn unrelated to the facade
+  collapse and the two modules now have clearly distinct surfaces
+  (helpers vs state machine). Pickup deferred — rename or merge
+  decision now sits standalone (no W-marker dependency); revisit when
+  W12 reshuffles `executor/flows/playwright/` into subpackages
+  (`monitor/`) where the naming collision can be resolved as a
+  side-effect of directory layout. Surfaced 2026-05-05 audit pass.
 - **`[CLEANUP appcore-config-stale-docstring]`** —
   `appcore/api/config.py:2-8` module docstring opens with
   `core/config.py` as the section header, but `core/` is in the
