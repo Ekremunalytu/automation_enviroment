@@ -82,7 +82,7 @@ ignore = [
     "S101",   # allow use of assert (for tests)
     "B008",   # function call in FastAPI Depends
     "N815",   # for VS Code API camelCase fields (displayName, galleryBanner)
-    "S104",   # 0.0.0.0 binding required for Docker container access
+    "S104",   # ADR 0007: loopback default; model_post_init sets "0.0.0.0" only under EXTRACE_ALLOW_LAN=1 — test_default_bindings.py is the binding gate
 ]
 
 [tool.ruff.lint.per-file-ignores]
@@ -210,5 +210,8 @@ fail_under = 0
 # BANDIT CONFIGURATION
 # ============================================================
 [tool.bandit]
+# `executor` is intentionally excluded: every subprocess call carries `# nosec`
+# and `tests/architecture/test_absolute_binary_paths.py` is the binding artifact
+# for absolute-path discipline (W8-4 / `[FOLLOWUP w8-4-broader-executor]`).
 exclude_dirs = ["tests", "alembic", "extensions", ".venv", "extrace.egg-info", "executor"]
 skips = ["B101"]

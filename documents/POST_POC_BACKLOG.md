@@ -145,13 +145,15 @@ when picking an item up.
   split had already made public via the package root. ADR 0005 §3 not
   violated. Surfaced 2026-05-04, verified-resolved 2026-05-05 audit
   pass.
-- **`[CLEANUP httpx-runtime-dependency-metadata]`** — `httpx` is
-  imported in production at `workflows/marketplace/{client,router}.py`
-  and installed by `docker/api/requirements.txt:9`, but absent from
-  `pyproject.toml [project].dependencies` (`:15-24`); only
-  `[project.optional-dependencies].dev:33` lists it. Move to base
-  dependencies — no new dep, packaging metadata fix. Surfaced by
-  2026-05-04 second-pass review.
+- **`[CLEANUP httpx-runtime-dependency-metadata]`** — *LANDED-via-prior-edit
+  (verified 2026-05-06 audit pass)*. `httpx>=0.27.0,<1.0.0` now lives at
+  `pyproject.toml:24` inside `[project].dependencies`; absent from
+  `[project.optional-dependencies].dev` (`:28-36`). Stable ID retained for
+  inbound code/test references. Original surfacing context preserved:
+  `httpx` is imported in production at `workflows/marketplace/{client,router}.py`
+  and installed by `docker/api/requirements.txt:9`; the metadata fix moved
+  it to base dependencies — no new dep. Surfaced 2026-05-04 second-pass
+  review; verified-resolved 2026-05-06 audit pass.
 - **`[FOLLOWUP w11-8-companion-workflow-orm-bleed]`** —
   `workflows/extension_catalog/service.py:50-57` imports six storage
   ORM models (`Extension`, `ExtensionActivationEvents`,

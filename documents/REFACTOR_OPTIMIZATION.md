@@ -114,7 +114,7 @@ subpackaging + attribution cleanup (§11.9).
 | **W9** | Executor↔Detection boundary | container-packaging ADR (TBD; ADR 0008 if next), dual-import fallback sweep, `signal_policy.py` relocation, `sys.path.insert` audit, container import-mode CI test | Claude §6/§10; Codex §9/§4 |
 | **W10** | Contract hygiene + Planner split | `schema_version` + DeprecationWarning, `_TriggerPayloadDraft` elimination, `registry.py` 4-way split, `automation_health`/`coverage_*` typing | Codex §1.2/§1.4/§2; Claude §4 |
 | **W11** | Monitor lifecycle split | `monitor_lifecycle.py` 834 LoC → `MonitorRuntime` + `ReportAssembler` + `ScenarioAccountant` + `ExtensionMonitor` facade | Codex §3.1; Claude §3 |
-| **W12** | Executor subpackaging + attribution cleanup | `executor/flows/playwright/` 54 → 5 subpackage; `entrypoint_runner.main` 487→≤200 LoC; attribution facade cleanup | Codex §3.1/§3.2/§4; Claude §2/§3/§5 |
+| **W12** | Executor subpackaging + attribution cleanup | `executor/flows/playwright/` 54 → 5 subpackage; `entrypoint_runner.main` 324→≤200 LoC (W11-3 sonrası post-extraction baseline); attribution facade cleanup | Codex §3.1/§3.2/§4; Claude §2/§3/§5 |
 | **W13** | Test expansion + observability | Benign silence 3→5 fixture, regression locks, `extrace.executor.*` logger consolidation, run-ID stamping | Claude §9/§12; Codex §10/§12 |
 
 ### §11.3 — Haftalar arası bağımlılıklar
@@ -190,7 +190,8 @@ Detail: archive §11.8.
 
 **Goal:** `executor/flows/playwright/` 54 flat dosya → 5 subpackage
 ({monitor, stimulus, workspace, health, entrypoint}/); `entrypoint_runner.main`
-487 LoC → ≤200 LoC dispatch extraction; attribution facade underscore
+324 LoC → ≤200 LoC dispatch extraction (W11-3 sonrası post-extraction
+baseline; pre-W11 pencerede 487 LoC idi); attribution facade underscore
 cleanup; `raw_context` per-event-type typing.
 
 Detail: archive §11.9.
