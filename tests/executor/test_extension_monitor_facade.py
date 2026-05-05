@@ -48,6 +48,7 @@ class _RecordingRuntime:
         append_activation_log_entries: Any,
         refresh_derived_state: Any,
         set_discovery_strategies: Any,
+        emit_intermediate_state_events: Any,
     ) -> None:
         self.page = page
         self.report = report
@@ -57,6 +58,7 @@ class _RecordingRuntime:
         self.append_activation_log_entries = append_activation_log_entries
         self.refresh_derived_state = refresh_derived_state
         self.set_discovery_strategies = set_discovery_strategies
+        self.emit_intermediate_state_events = emit_intermediate_state_events
         self.calls: list[tuple[str, tuple[Any, ...]]] = []
         self._log_offsets: dict[str, int] = {}
         self.start_return: Any = None
@@ -126,6 +128,10 @@ def test_facade_init_constructs_runtime_with_facade_callbacks(monkeypatch) -> No
     # W11-3: discovery-strategies callback also routed through a facade
     # shim, mirroring the W11-2 persist/refresh pattern.
     assert runtime.set_discovery_strategies == mon._set_discovery_strategies
+    # W11-4: emit_intermediate_state_events callback also routed through
+    # a facade shim. Same shape as the W11-3 invariant — the runtime
+    # holds the bound shim, the shim delegates to ScenarioAccountant.
+    assert runtime.emit_intermediate_state_events == mon._emit_intermediate_state_events
 
 
 def test_facade_start_delegates_to_runtime(monkeypatch) -> None:
@@ -467,3 +473,328 @@ def test_facade_uses_real_assembler_when_unpatched() -> None:
 
     mon = ExtensionMonitor(page=_DummyPage())
     assert isinstance(mon._assembler, ReportAssembler)
+
+
+# ---------------------------------------------------------------------------
+# W11-4 — ScenarioAccountant delegation pins
+#
+# These cases pin that the facade composes a ``ScenarioAccountant``, that the
+# transitional shim methods (``mark_trigger_plan_*``, ``record_*_scenarios``,
+# ``record_execution_result``, ``record_event_attempt_*``,
+# ``record_scenario_event``, ``_finalize_running_scenarios``,
+# ``_append_activation_log_entries``, ``_synchronize_scenario_truth``,
+# ``_emit_intermediate_state_events``) forward to it, and that runtime
+# callbacks reach the accountant *through* those shims (so the W11-1
+# bound-method-identity assertions above keep their meaning until W11-5
+# collapses the facade).
+# ---------------------------------------------------------------------------
+
+
+class _RecordingAccountant:
+    """Minimal stand-in for ``ScenarioAccountant`` that captures every call."""
+
+    last_instance: _RecordingAccountant | None = None
+
+    def __init__(
+        self,
+        *,
+        report: ActivationReport,
+        record_automation_event: Any,
+        persist: Any,
+    ) -> None:
+        self.report = report
+        self.record_automation_event = record_automation_event
+        self.persist = persist
+        self.calls: list[tuple[str, tuple[Any, ...], dict[str, Any]]] = []
+        self.emit_calls: int = 0
+        _RecordingAccountant.last_instance = self
+
+    def _record(self, name: str, *args: Any, **kwargs: Any) -> None:
+        self.calls.append((name, args, dict(kwargs)))
+
+    def mark_trigger_plan_applied(
+        self,
+        *,
+        scenarios: list[str] | None = None,
+        trigger_path: str | None = None,
+    ) -> None:
+        self._record(
+            "mark_trigger_plan_applied",
+            scenarios=scenarios,
+            trigger_path=trigger_path,
+        )
+
+    def mark_trigger_plan_missing(self, trigger_path: str = "") -> None:
+        self._record("mark_trigger_plan_missing", trigger_path)
+
+    def record_failed_scenarios(self, failed_scenarios: list[str]) -> None:
+        self._record("record_failed_scenarios", list(failed_scenarios))
+
+    def record_execution_result(self, result: Any) -> None:
+        self._record("record_execution_result", result)
+
+    def record_event_attempt_start(
+        self,
+        attempt_id: str,
+        *,
+        pass_name: str = "",
+    ) -> None:
+        self._record("record_event_attempt_start", attempt_id, pass_name=pass_name)
+
+    def record_event_attempt_end(
+        self,
+        attempt_id: str,
+        *,
+        status: str,
+        pass_name: str = "",
+        trigger_method_used: str = "",
+        result_details: str = "",
+        failure_reason_code: str = "",
+        blocked_reason_code: str = "",
+    ) -> None:
+        self._record(
+            "record_event_attempt_end",
+            attempt_id,
+            status=status,
+            pass_name=pass_name,
+            trigger_method_used=trigger_method_used,
+            result_details=result_details,
+            failure_reason_code=failure_reason_code,
+            blocked_reason_code=blocked_reason_code,
+        )
+
+    def record_scenario_event(
+        self,
+        action: str,
+        name: str,
+        status: str = "",
+        metadata: dict[str, Any] | None = None,
+    ) -> None:
+        self._record("record_scenario_event", action, name, status, metadata)
+
+    def finalize_running_scenarios(self) -> None:
+        self._record("finalize_running_scenarios")
+
+    def append_activation_log_entries(self) -> None:
+        self._record("append_activation_log_entries")
+
+    def _synchronize_scenario_truth(self) -> None:
+        self._record("_synchronize_scenario_truth")
+
+    def emit_intermediate_state_events(self) -> None:
+        self.emit_calls += 1
+        self._record("emit_intermediate_state_events")
+
+
+def _patch_accountant(monkeypatch) -> type[_RecordingAccountant]:
+    monkeypatch.setattr(monitor_lifecycle, "ScenarioAccountant", _RecordingAccountant)
+    _RecordingAccountant.last_instance = None
+    return _RecordingAccountant
+
+
+def test_facade_init_constructs_accountant_with_shared_report(monkeypatch) -> None:
+    _patch_accountant(monkeypatch)
+    _patch_runtime(monkeypatch)
+
+    mon = ExtensionMonitor(
+        page=_DummyPage(),
+        target_extension_id="publisher.tool",
+    )
+
+    accountant = _RecordingAccountant.last_instance
+    assert accountant is not None
+    # Same ActivationReport instance reaches the accountant (W11-1
+    # facade/runtime/assembler/accountant invariant: all four share one
+    # report).
+    assert accountant.report is mon.report
+    # Cross-module callbacks bound to the facade itself, mirroring the
+    # W11-2 ReportAssembler injection shape.
+    assert accountant.record_automation_event == mon.record_automation_event
+    assert accountant.persist == mon._persist_report
+
+
+def test_facade_emit_intermediate_state_events_shim_delegates_to_accountant(
+    monkeypatch,
+) -> None:
+    _patch_accountant(monkeypatch)
+    _patch_runtime(monkeypatch)
+
+    mon = ExtensionMonitor(page=_DummyPage())
+    accountant = _RecordingAccountant.last_instance
+    assert accountant is not None
+
+    mon._emit_intermediate_state_events()
+    mon._emit_intermediate_state_events()
+
+    assert accountant.emit_calls == 2
+
+
+def test_facade_runtime_emit_callback_reaches_accountant_through_shim(
+    monkeypatch,
+) -> None:
+    """End-to-end pin: ``runtime.emit_intermediate_state_events`` invocation
+    lands on the accountant through the facade shim.
+
+    The runtime holds ``mon._emit_intermediate_state_events`` as the
+    callback (W11-4 invariant). After the W11-4 wiring that bound
+    method is a one-line shim that delegates to the accountant.
+    Calling through the runtime callback must transitively reach
+    ``accountant.emit_intermediate_state_events``.
+    """
+
+    _patch_accountant(monkeypatch)
+    _patch_runtime(monkeypatch)
+
+    mon = ExtensionMonitor(page=_DummyPage())
+    runtime = _RecordingRuntime.last_instance
+    accountant = _RecordingAccountant.last_instance
+    assert runtime is not None and accountant is not None
+    # W11-4 bound-method-identity invariant — pin it at the same surface
+    # as the W11-1 / W11-2 / W11-3 ones above.
+    assert runtime.emit_intermediate_state_events == mon._emit_intermediate_state_events
+
+    runtime.emit_intermediate_state_events()
+
+    assert accountant.emit_calls == 1
+
+
+def test_facade_record_event_attempt_start_shim_delegates_to_accountant(
+    monkeypatch,
+) -> None:
+    _patch_accountant(monkeypatch)
+    _patch_runtime(monkeypatch)
+
+    mon = ExtensionMonitor(page=_DummyPage())
+    accountant = _RecordingAccountant.last_instance
+    assert accountant is not None
+
+    mon.record_event_attempt_start("a1", pass_name="bootstrap")  # noqa: S106 — stimulus pass id, not a password
+
+    assert accountant.calls == [
+        ("record_event_attempt_start", ("a1",), {"pass_name": "bootstrap"}),
+    ]
+
+
+def test_facade_record_event_attempt_end_shim_forwards_all_kwargs(
+    monkeypatch,
+) -> None:
+    _patch_accountant(monkeypatch)
+    _patch_runtime(monkeypatch)
+
+    mon = ExtensionMonitor(page=_DummyPage())
+    accountant = _RecordingAccountant.last_instance
+    assert accountant is not None
+
+    mon.record_event_attempt_end(
+        "a1",
+        status="failed",
+        pass_name="bootstrap",  # noqa: S106 — stimulus pass id, not a password
+        trigger_method_used="ui",
+        result_details="dialog blocker",
+        failure_reason_code="trigger_failure",
+        blocked_reason_code="",
+    )
+
+    assert accountant.calls == [
+        (
+            "record_event_attempt_end",
+            ("a1",),
+            {
+                "status": "failed",
+                "pass_name": "bootstrap",
+                "trigger_method_used": "ui",
+                "result_details": "dialog blocker",
+                "failure_reason_code": "trigger_failure",
+                "blocked_reason_code": "",
+            },
+        ),
+    ]
+
+
+def test_facade_record_scenario_event_shim_delegates_to_accountant(
+    monkeypatch,
+) -> None:
+    _patch_accountant(monkeypatch)
+    _patch_runtime(monkeypatch)
+
+    mon = ExtensionMonitor(page=_DummyPage())
+    accountant = _RecordingAccountant.last_instance
+    assert accountant is not None
+
+    mon.record_scenario_event(
+        "end",
+        "session-1",
+        "failed",
+        metadata={"failure_reason_code": "fatal_ui_crash"},
+    )
+
+    assert accountant.calls == [
+        (
+            "record_scenario_event",
+            ("end", "session-1", "failed", {"failure_reason_code": "fatal_ui_crash"}),
+            {},
+        ),
+    ]
+
+
+def test_facade_record_failed_scenarios_shim_delegates_to_accountant(
+    monkeypatch,
+) -> None:
+    _patch_accountant(monkeypatch)
+    _patch_runtime(monkeypatch)
+
+    mon = ExtensionMonitor(page=_DummyPage())
+    accountant = _RecordingAccountant.last_instance
+    assert accountant is not None
+
+    mon.record_failed_scenarios(["s1", "s2"])
+
+    assert accountant.calls == [
+        ("record_failed_scenarios", (["s1", "s2"],), {}),
+    ]
+
+
+def test_facade_finalize_running_scenarios_shim_delegates_to_accountant(
+    monkeypatch,
+) -> None:
+    _patch_accountant(monkeypatch)
+    _patch_runtime(monkeypatch)
+
+    mon = ExtensionMonitor(page=_DummyPage())
+    accountant = _RecordingAccountant.last_instance
+    assert accountant is not None
+
+    mon._finalize_running_scenarios()
+
+    assert accountant.calls == [("finalize_running_scenarios", (), {})]
+
+
+def test_facade_append_activation_log_entries_shim_delegates_to_accountant(
+    monkeypatch,
+) -> None:
+    _patch_accountant(monkeypatch)
+    _patch_runtime(monkeypatch)
+
+    mon = ExtensionMonitor(page=_DummyPage())
+    accountant = _RecordingAccountant.last_instance
+    assert accountant is not None
+
+    mon._append_activation_log_entries()
+
+    assert accountant.calls == [("append_activation_log_entries", (), {})]
+
+
+def test_facade_uses_real_accountant_when_unpatched() -> None:
+    """Sanity guard parallel to ``test_facade_runtime_uses_real_class…``
+    and ``test_facade_uses_real_assembler_when_unpatched``.
+
+    Catches accidental import drift if the facade ever stops importing
+    ``ScenarioAccountant`` directly from ``monitor_scenario_accountant``.
+    """
+
+    from executor.flows.playwright.monitor_scenario_accountant import (
+        ScenarioAccountant,
+    )
+
+    mon = ExtensionMonitor(page=_DummyPage())
+    assert isinstance(mon._scenario_accountant, ScenarioAccountant)

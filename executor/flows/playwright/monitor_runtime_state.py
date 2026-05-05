@@ -70,6 +70,7 @@ class MonitorRuntime:
         append_activation_log_entries: NoArgCallback,
         refresh_derived_state: NoArgCallback,
         set_discovery_strategies: SetDiscoveryStrategiesCallback,
+        emit_intermediate_state_events: NoArgCallback,
     ) -> None:
         self._page = page
         self._report = report
@@ -79,6 +80,12 @@ class MonitorRuntime:
         self._append_activation_log_entries = append_activation_log_entries
         self._refresh_derived_state = refresh_derived_state
         self._set_discovery_strategies = set_discovery_strategies
+        # W11-4: producer signal for
+        # ``[FOLLOWUP target-log-lifecycle-instrumentation]``. Fires after
+        # ``refresh_derived_state`` so emitted events reflect the
+        # post-reconcile verification_status (the intermediate
+        # ``activation_seen`` / ``target_log_seen`` literals).
+        self._emit_intermediate_state_events = emit_intermediate_state_events
         self._started: bool = False
         self._log_offsets: dict[str, int] = {}
         self._network_capture: Any = None
@@ -299,6 +306,14 @@ class MonitorRuntime:
             monitoring_start=self._report.monitoring_start,
         )
         self._refresh_derived_state()
+        # W11-4: surface intermediate-state promotions
+        # (``activation_seen`` / ``target_log_seen``) on the live
+        # automation timeline. Runs after ``refresh_derived_state``
+        # because the reconciler inside it is what assigns those
+        # ``verification_status`` literals; running before would emit
+        # nothing. Pinned by
+        # ``test_stop_emits_intermediate_state_events_after_refresh``.
+        self._emit_intermediate_state_events()
         self._persist(True)
 
         return self._report

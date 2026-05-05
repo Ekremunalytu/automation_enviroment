@@ -13,56 +13,35 @@ from playwright.sync_api import Page
 from .attribution import (
     _format_epoch_timestamp,
     _relative_time,
-    _scenario_name_for_timestamp,
 )
 from .monitor_payload import populate_report_from_trigger_payload
 from .monitor_records import (
     LogStreamEntry,
     PrerequisiteResult,
-    ScenarioTrace,
-    SkippedScenarioRecord,
     StimulusPassTrace,
+    _assert_target_stream_invariant,
 )
 from .monitor_report_assembler import ReportAssembler
 from .monitor_runtime import (
-    _build_activation_log_message,
-    _build_event_attempt_log_message,
     _build_prerequisite_log_message,
-    _build_scenario_log_message,
     _build_stimulus_pass_log_message,
     _count_target_activations,
-    _find_event_attempt,
 )
 from .monitor_runtime_state import MonitorRuntime
+from .monitor_scenario_accountant import ScenarioAccountant
 from .monitor_support import resolve_monitor_api
 from .monitor_types import ActivationReport
-from .runtime_capture._shared import _parse_iso_timestamp
 from .runtime_capture.events import FileEvent, NetworkEvent, ProcessEvent
 
-
-def _assert_target_stream_invariant(
-    entry: LogStreamEntry, target_extension_id: str
-) -> None:
-    """Reject log entries that violate the target_extension_host invariant.
-
-    PR345 PR4: every entry assigned to the ``target_extension_host`` stream
-    must have ``is_target_extension=True`` and ``extension_id`` matching
-    ``target_extension_id``. Build-path callers enforce this so detection
-    rules reading the target stream cannot see a leaked sibling-extension
-    entry. Caller must invoke immediately after appending a LogStreamEntry.
-    """
-    if entry.stream != "target_extension_host":
-        return
-    if not entry.is_target_extension:
-        raise ValueError(
-            "target_extension_host log entry must have is_target_extension=True; "
-            f"got entry for {entry.extension_id!r} with is_target_extension=False"
-        )
-    if not target_extension_id or entry.extension_id != target_extension_id:
-        raise ValueError(
-            "target_extension_host log entry must have extension_id matching "
-            f"target ({target_extension_id!r}); got {entry.extension_id!r}"
-        )
+# ``_assert_target_stream_invariant`` is re-exported so the existing
+# test pin ``from executor.flows.playwright.monitor_lifecycle import
+# _assert_target_stream_invariant`` keeps working after W11-4 moved
+# the helper to ``monitor_records`` (next to ``LogStreamEntry``).
+__all__ = [
+    "ExtensionMonitor",
+    "_assert_target_stream_invariant",
+    "check_extension_activated",
+]
 
 
 class ExtensionMonitor:
@@ -77,7 +56,6 @@ class ExtensionMonitor:
         self.page = page
         self.report_path = None if report_path is None else Path(report_path)
         self.report = ActivationReport(target_extension_id=target_extension_id)
-        self._active_scenarios: dict[str, ScenarioTrace] = {}
         # W11-2: derived-state refresh + persist debounce moved into
         # ReportAssembler. The facade keeps thin _refresh_…/_persist_…
         # shims (below) so the W11-1 facade pin file's bound-method
@@ -85,6 +63,21 @@ class ExtensionMonitor:
         self._assembler = ReportAssembler(
             report=self.report,
             report_path=self.report_path,
+        )
+        # W11-4: scenario / event-attempt accounting and the producer
+        # signal for ``[FOLLOWUP target-log-lifecycle-instrumentation]``
+        # live on ScenarioAccountant. The facade keeps thin shims for
+        # ``mark_trigger_plan_*`` / ``record_*`` /
+        # ``_finalize_running_scenarios`` / ``_append_activation_log_entries``
+        # / ``_synchronize_scenario_truth`` so the W11-1 facade pin
+        # file's bound-method-identity assertions
+        # (``runtime.finalize_scenarios == mon._finalize_running_scenarios``,
+        # ``runtime.append_activation_log_entries == mon._append_activation_log_entries``)
+        # remain green until W11-5 collapses the facade.
+        self._scenario_accountant = ScenarioAccountant(
+            report=self.report,
+            record_automation_event=self.record_automation_event,
+            persist=self._persist_report,
         )
         # W11-1: runtime state machine (captures, log offsets, event handlers)
         # is owned by MonitorRuntime; runtime callbacks are wired through the
@@ -99,6 +92,7 @@ class ExtensionMonitor:
             append_activation_log_entries=self._append_activation_log_entries,
             refresh_derived_state=self._refresh_derived_report_state,
             set_discovery_strategies=self._set_discovery_strategies,
+            emit_intermediate_state_events=self._emit_intermediate_state_events,
         )
 
     @property
@@ -167,53 +161,23 @@ class ExtensionMonitor:
         scenarios: list[str] | None = None,
         trigger_path: str | None = None,
     ) -> None:
-        self.report.trigger_plan_applied = True
-        if scenarios:
-            self.report.requested_scenarios = list(scenarios)
-        if trigger_path:
-            self.report.trigger_plan_path = trigger_path
-        self._persist_report(force=False)
+        """W11-4 transitional shim: delegates to ``ScenarioAccountant``."""
+        self._scenario_accountant.mark_trigger_plan_applied(
+            scenarios=scenarios,
+            trigger_path=trigger_path,
+        )
 
     def mark_trigger_plan_missing(self, trigger_path: str = "") -> None:
-        self.report.trigger_plan_requested = True
-        self.report.trigger_plan_loaded = False
-        if trigger_path:
-            self.report.trigger_plan_path = trigger_path
-        self._persist_report(force=False)
+        """W11-4 transitional shim: delegates to ``ScenarioAccountant``."""
+        self._scenario_accountant.mark_trigger_plan_missing(trigger_path)
 
     def record_failed_scenarios(self, failed_scenarios: list[str]) -> None:
-        self.report.failed_scenarios = sorted(set(failed_scenarios))
-        self._synchronize_scenario_truth()
-        self._persist_report(force=False)
+        """W11-4 transitional shim: delegates to ``ScenarioAccountant``."""
+        self._scenario_accountant.record_failed_scenarios(failed_scenarios)
 
     def record_execution_result(self, result: Any) -> None:
-        self.report.requested_scenarios = [
-            str(name).strip()
-            for name in getattr(result, "requested_scenarios", []) or []
-            if str(name).strip()
-        ]
-        self.report.skipped_scenarios = [
-            SkippedScenarioRecord(
-                name=str(getattr(item, "name", "")).strip(),
-                reason_code=str(getattr(item, "reason_code", "")).strip(),
-                detail=str(getattr(item, "detail", "")).strip(),
-            )
-            for item in getattr(result, "skipped_scenarios", []) or []
-            if str(getattr(item, "name", "")).strip()
-            and str(getattr(item, "reason_code", "")).strip()
-        ]
-        self.report.extra_trigger_failures = [
-            str(item).strip()
-            for item in getattr(result, "extra_trigger_failures", []) or []
-            if str(item).strip()
-        ]
-        self.record_failed_scenarios(
-            [
-                str(name).strip()
-                for name in getattr(result, "failed_scenarios", []) or []
-                if str(name).strip()
-            ]
-        )
+        """W11-4 transitional shim: delegates to ``ScenarioAccountant``."""
+        self._scenario_accountant.record_execution_result(result)
 
     def record_stimulus_pass_event(
         self,
@@ -318,19 +282,10 @@ class ExtensionMonitor:
         *,
         pass_name: str = "",
     ) -> None:
-        attempt = _find_event_attempt(self.report, attempt_id)
-        if attempt is None:
-            return
-        attempt.status = "running"
-        if pass_name:
-            attempt.attempted_passes = list(
-                dict.fromkeys([*attempt.attempted_passes, pass_name])
-            )
-        self.record_automation_event(
-            "event_attempt",
-            f"Starting event attempt {attempt.activation_event or attempt.event_family}",
-            status="running",
-            activation_event=attempt.activation_event,
+        """W11-4 transitional shim: delegates to ``ScenarioAccountant``."""
+        self._scenario_accountant.record_event_attempt_start(
+            attempt_id,
+            pass_name=pass_name,
         )
 
     def record_event_attempt_end(
@@ -344,38 +299,15 @@ class ExtensionMonitor:
         failure_reason_code: str = "",
         blocked_reason_code: str = "",
     ) -> None:
-        attempt = _find_event_attempt(self.report, attempt_id)
-        if attempt is None:
-            return
-        attempt.status = status
-        if pass_name:
-            attempt.attempted_passes = list(
-                dict.fromkeys([*attempt.attempted_passes, pass_name])
-            )
-        if trigger_method_used:
-            attempt.trigger_method_used = trigger_method_used
-        if result_details:
-            attempt.result_details = result_details
-        if failure_reason_code:
-            attempt.failure_reason_code = failure_reason_code
-        if blocked_reason_code:
-            attempt.blocked_reason_code = blocked_reason_code
-        attempt.verification_status = (
-            "verified"
-            if status == "verified"
-            else "attempted_only"
-            if status == "attempted_only"
-            else "failed"
-            if status == "failed"
-            else "blocked"
-            if status == "blocked"
-            else attempt.verification_status
-        )
-        self.record_automation_event(
-            "event_attempt",
-            _build_event_attempt_log_message(attempt),
+        """W11-4 transitional shim: delegates to ``ScenarioAccountant``."""
+        self._scenario_accountant.record_event_attempt_end(
+            attempt_id,
             status=status,
-            activation_event=attempt.activation_event,
+            pass_name=pass_name,
+            trigger_method_used=trigger_method_used,
+            result_details=result_details,
+            failure_reason_code=failure_reason_code,
+            blocked_reason_code=blocked_reason_code,
         )
 
     def record_scenario_event(
@@ -385,102 +317,17 @@ class ExtensionMonitor:
         status: str = "",
         metadata: dict[str, Any] | None = None,
     ) -> None:
-        now = time.time()
-        if action == "start":
-            started_trace = ScenarioTrace(name=name, started_at=now)
-            self._active_scenarios[name] = started_trace
-            self.report.scenario_traces.append(started_trace)
-        elif action == "end":
-            finished_trace = (
-                self._active_scenarios.pop(name)
-                if name in self._active_scenarios
-                else None
-            )
-            if finished_trace is None:
-                finished_trace = ScenarioTrace(name=name, started_at=now)
-                self.report.scenario_traces.append(finished_trace)
-            finished_trace.ended_at = now
-            finished_trace.status = status or "completed"
-            if metadata:
-                reason_code = str(metadata.get("failure_reason_code", "") or "")
-                if reason_code:
-                    finished_trace.failure_reason_code = reason_code
-                error_detail = str(metadata.get("error", "") or "")
-                if error_detail:
-                    finished_trace.error_detail = error_detail[:500]
-        message = _build_scenario_log_message(action, name, status, metadata)
-        self.report.log_entries.append(
-            LogStreamEntry(
-                timestamp=_format_epoch_timestamp(now),
-                rel_time_s=_relative_time(now, self.report.monitoring_start),
-                stream="automation",
-                kind="scenario",
-                message=message,
-                scenario_name=name,
-                status=status or ("running" if action == "start" else "completed"),
-            )
-        )
-        self._synchronize_scenario_truth()
-        self._persist_report(force=False)
+        """W11-4 transitional shim: delegates to ``ScenarioAccountant``."""
+        self._scenario_accountant.record_scenario_event(action, name, status, metadata)
 
     def _append_activation_log_entries(self) -> None:
-        existing_keys = {
-            (
-                entry.stream,
-                entry.kind,
-                entry.extension_id,
-                entry.activation_event,
-                entry.timestamp,
-                entry.message,
-            )
-            for entry in self.report.log_entries
-        }
-        for entry in self.report.activated:
-            rel_time = _relative_time(
-                _parse_iso_timestamp(entry.timestamp),
-                self.report.monitoring_start,
-            )
-            scenario_name = _scenario_name_for_timestamp(
-                entry.timestamp,
-                rel_time,
-                self.report.scenario_traces,
-                self.report.monitoring_start,
-            )
-            is_target = bool(
-                self.report.target_extension_id
-                and entry.extension_id == self.report.target_extension_id
-            )
-            message = _build_activation_log_message(entry)
-            key = (
-                "target_extension_host" if is_target else "other_extension_host",
-                "activation",
-                entry.extension_id,
-                entry.activation_event,
-                entry.timestamp,
-                message,
-            )
-            if key in existing_keys:
-                continue
-            existing_keys.add(key)
-            self.report.log_entries.append(
-                LogStreamEntry(
-                    timestamp=entry.timestamp,
-                    rel_time_s=rel_time,
-                    stream="target_extension_host"
-                    if is_target
-                    else "other_extension_host",
-                    kind="activation",
-                    message=message,
-                    extension_id=entry.extension_id,
-                    activation_event=entry.activation_event,
-                    scenario_name=scenario_name,
-                    status="completed" if entry.success else "failed",
-                    is_target_extension=is_target,
-                )
-            )
-            _assert_target_stream_invariant(
-                self.report.log_entries[-1], self.report.target_extension_id
-            )
+        """W11-4 transitional shim: delegates to ``ScenarioAccountant``.
+
+        Kept on the facade so ``runtime.append_activation_log_entries
+        == mon._append_activation_log_entries`` (W11-1 bound-method
+        identity invariant) holds until W11-5 collapses the facade.
+        """
+        self._scenario_accountant.append_activation_log_entries()
 
     def record_automation_event(
         self,
@@ -564,27 +411,22 @@ class ExtensionMonitor:
         return verified
 
     def _finalize_running_scenarios(self) -> None:
-        ended_at = self.report.monitoring_end or time.time()
-        for trace in self._active_scenarios.values():
-            trace.ended_at = ended_at
-            if trace.status == "running":
-                trace.status = "completed"
-        self._active_scenarios.clear()
-        self._synchronize_scenario_truth()
+        """W11-4 transitional shim: delegates to ``ScenarioAccountant``.
+
+        Kept on the facade so ``runtime.finalize_scenarios ==
+        mon._finalize_running_scenarios`` (W11-1 bound-method identity
+        invariant) holds until W11-5 collapses the facade.
+        """
+        self._scenario_accountant.finalize_running_scenarios()
 
     def _synchronize_scenario_truth(self) -> None:
-        self.report.scenarios_run = [
-            trace.name
-            for trace in self.report.scenario_traces
-            if str(trace.name).strip()
-        ]
-        self.report.failed_scenarios = list(
-            dict.fromkeys(
-                trace.name
-                for trace in self.report.scenario_traces
-                if str(trace.name).strip() and str(trace.status).strip() == "failed"
-            )
-        )
+        """W11-4 transitional shim: delegates to ``ScenarioAccountant``.
+
+        Kept on the facade for direct callers that bypass
+        ``record_*_scenarios`` (none today, but the shim keeps the
+        public-ish surface stable until W11-5).
+        """
+        self._scenario_accountant._synchronize_scenario_truth()
 
     def _refresh_derived_report_state(self) -> None:
         """W11-2 transitional shim: report assembly lives on ``ReportAssembler``.
@@ -626,6 +468,21 @@ class ExtensionMonitor:
         """
         self._assembler.set_runner_status(exit_code)
 
+    def _emit_intermediate_state_events(self) -> None:
+        """W11-4 transitional shim: producer signal for intermediate states.
+
+        Wired into ``MonitorRuntime.stop()`` after
+        ``_refresh_derived_report_state`` so emitted events reflect the
+        post-reconcile truth. Delegates to
+        ``ScenarioAccountant.emit_intermediate_state_events`` which
+        appends an automation-stream log entry for every event_attempt
+        whose verification_status reached ``activation_seen`` or
+        ``target_log_seen``. The shim shape mirrors W11-2/W11-3 so the
+        facade pin file can keep its bound-method-identity invariants
+        green.
+        """
+        self._scenario_accountant.emit_intermediate_state_events()
+
 
 def check_extension_activated(extension_id: str, page: Page | None = None) -> bool:
     """Quick check: is a specific extension activated?"""
@@ -640,6 +497,3 @@ def check_extension_activated(extension_id: str, page: Page | None = None) -> bo
                 return True
 
     return False
-
-
-__all__ = ["ExtensionMonitor", "check_extension_activated"]

@@ -36,6 +36,13 @@ class _RecordingHooks:
         self.refresh_calls: int = 0
         # W11-3: list of strategy-id lists shipped via the runtime callback.
         self.discovery_strategy_calls: list[list[str]] = []
+        # W11-4: counts ``emit_intermediate_state_events`` invocations
+        # routed through the runtime → facade-shim → accountant chain.
+        self.emit_intermediate_calls: int = 0
+        # W11-4: snapshot of runtime callback ordering — appended once
+        # per stop() for ``refresh`` and ``emit`` so tests can pin the
+        # post-refresh emission ordering invariant.
+        self.callback_order: list[str] = []
 
     def persist(self, force: bool) -> None:
         self.persist_calls.append(force)
@@ -68,9 +75,14 @@ class _RecordingHooks:
 
     def refresh_derived_state(self) -> None:
         self.refresh_calls += 1
+        self.callback_order.append("refresh")
 
     def set_discovery_strategies(self, strategies: list[str]) -> None:
         self.discovery_strategy_calls.append(list(strategies))
+
+    def emit_intermediate_state_events(self) -> None:
+        self.emit_intermediate_calls += 1
+        self.callback_order.append("emit")
 
 
 class _FakeNetworkCapture:
@@ -173,6 +185,7 @@ def _build_runtime(
         append_activation_log_entries=hooks.append_activation_log_entries,
         refresh_derived_state=hooks.refresh_derived_state,
         set_discovery_strategies=hooks.set_discovery_strategies,
+        emit_intermediate_state_events=hooks.emit_intermediate_state_events,
     )
     return runtime, report, hooks
 
@@ -616,3 +629,56 @@ def test_log_offsets_property_reflects_runtime_state(monkeypatch) -> None:
     assert runtime.log_offsets == {}
     runtime.start()
     assert runtime.log_offsets == expected
+
+
+# ---------------------------------------------------------------------------
+# W11-4 — intermediate-state emission callback ordering
+# ---------------------------------------------------------------------------
+
+
+def test_stop_invokes_emit_intermediate_state_events_callback(monkeypatch) -> None:
+    """W11-4: ``emit_intermediate_state_events`` fires exactly once per stop()."""
+
+    _patch_facade(monkeypatch)
+
+    runtime, _report, hooks = _build_runtime()
+    runtime.start()
+    runtime.stop()
+
+    assert hooks.emit_intermediate_calls == 1
+
+
+def test_stop_emits_intermediate_state_events_after_refresh(monkeypatch) -> None:
+    """W11-4: ``emit_intermediate_state_events`` must run *after*
+    ``refresh_derived_state`` so the emitted events reflect the
+    post-reconcile ``verification_status`` literals
+    (``activation_seen`` / ``target_log_seen``). Pinning the order at
+    the runtime layer keeps this guarantee independent of the facade
+    shim shape that W11-5 will collapse.
+    """
+
+    _patch_facade(monkeypatch)
+
+    runtime, _report, hooks = _build_runtime()
+    runtime.start()
+    runtime.stop()
+
+    # Filter to the two callbacks we care about; positional order matters.
+    refresh_emit_order = [
+        step for step in hooks.callback_order if step in {"refresh", "emit"}
+    ]
+    assert refresh_emit_order == ["refresh", "emit"]
+
+
+def test_stop_without_start_still_emits_intermediate_state_events(monkeypatch) -> None:
+    """W11-4: defensive ``stop()`` (without ``start()``) still drives the
+    emission callback so partial test scaffolds do not silently drop the
+    intermediate-state vocabulary."""
+
+    _patch_facade(monkeypatch)
+
+    runtime, _report, hooks = _build_runtime()
+    runtime.stop()
+
+    assert hooks.emit_intermediate_calls == 1
+    assert hooks.refresh_calls == 1
