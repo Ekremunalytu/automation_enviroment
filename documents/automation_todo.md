@@ -41,12 +41,12 @@ inside and just past W11:
 + **W11 (`REFACTOR_OPTIMIZATION.md` §11.8) monitor lifecycle split.**
   W11-1 `MonitorRuntime` (PR #12, `84d51ae`), W11-2 `ReportAssembler`,
   W11-3 contract widening (`schema_version` 2.0 → 2.1), W11-4
-  `ScenarioAccountant`, and W11-5 `ExtensionMonitor` facade collapse
-  landed `2026-05-04`/`2026-05-05`. W11-6 (per-strategy
-  `_stop_<strategy>` helpers on `MonitorRuntime.stop()`) is the next
-  pull-first; W11-7 (`workflows/extension_catalog/service.py` split)
-  and W11-8 (`appcore/storage/crud_ops/analysis_jobs.py` split) stay
-  queued behind it. Full W11-N schedule in
+  `ScenarioAccountant`, W11-5 `ExtensionMonitor` facade collapse, and
+  W11-6 per-strategy `_stop_<strategy>` helpers on
+  `MonitorRuntime.stop()` landed `2026-05-04`/`2026-05-05`. W11-7
+  (`workflows/extension_catalog/service.py` split) is now the next
+  pull-first; W11-8 (`appcore/storage/crud_ops/analysis_jobs.py` split)
+  stays queued behind it. Full W11-N schedule in
   `active-work/W11-monitor-lifecycle.md`.
 + ~~**W11+W12 lifecycle wiring** picks up
   `[FOLLOWUP target-log-lifecycle-instrumentation]`~~ — closed

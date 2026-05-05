@@ -21,10 +21,10 @@ points to it.
 
 - `W11-monitor-lifecycle.md`
   - **Active phase.** W11 monitor lifecycle split (W11-1..W11-N),
-    formerly `REFACTOR_OPTIMIZATION.md §11.8`. W11-1..W11-5 landed
-    `2026-05-04`/`2026-05-05`; W11-6 (per-strategy
-    `_stop_<strategy>` helpers on `MonitorRuntime.stop()`) is the
-    next pull-first.
+    formerly `REFACTOR_OPTIMIZATION.md §11.8`. W11-1..W11-6 landed
+    `2026-05-04`/`2026-05-05`; W11-7
+    (`workflows/extension_catalog/service.py` split) is the next
+    pull-first.
 - `W8-security.md`
   - W8 security hardening checklist (W8-1..W8-7), formerly
     `REFACTOR_OPTIMIZATION.md §11.5`. Closed for active work
