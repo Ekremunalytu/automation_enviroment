@@ -19,8 +19,9 @@ Do not copy phase history here; use `REFACTOR_STATUS.md` (slim canonical).
   W9 closed `2026-05-04`; W10 closed `2026-05-04` via PR #11. **Active
   phase:** W11 monitor lifecycle split — tracker at
   `active-work/W11-monitor-lifecycle.md` (stable IDs W11-1..W11-8);
-  W11-1..W11-6 have landed, W11-7 (`workflows/extension_catalog/service.py`
-  split) is the next structural pull-first; P1 W11 companion
+  W11-1..W11-7 have landed, W11-8
+  (`appcore/storage/crud_ops/analysis_jobs.py` subpackage split) is
+  the final structural pull-first before W11 closure; P1 W11 companion
   `[FOLLOWUP w8-6-extension-host-output-redaction]` landed
   `2026-05-05` ahead of W11-6. For current closure state always
   defer to `REFACTOR_STATUS.md`.

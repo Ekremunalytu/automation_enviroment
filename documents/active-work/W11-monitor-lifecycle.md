@@ -1,6 +1,6 @@
 # W11 — Monitor Lifecycle Split (Active Work Tracker)
 
-`Last Updated: 2026-05-05 (W11-5 landed)`
+`Last Updated: 2026-05-05 (W11-7 landed)`
 
 This is the canonical active work tracker for the W11 monitor lifecycle
 split window. Items have stable IDs (`W11-1` … `W11-8`). Code comments,
@@ -589,10 +589,152 @@ item by reading both this tracker and that archive section.
   the W10 health vocabulary (`fatal_ui_crash` is the named
   outcome). Refactor confirmed behavior-preserving end-to-end.
 
-- **W11-7** — pending. Workflow-side modularization:
-  `workflows/extension_catalog/service.py` 475 LoC →
-  `manifest_to_schema.py` (~200 LoC) + `lifecycle.py` (~250 LoC); thin
-  re-export facade. Architecture audit 2026-04-27 §5.
+- **W11-7 landed `2026-05-05`** on the `week11` working branch.
+  Workflow-side modularization companion to the W11-1..W11-6 monitor
+  split: `workflows/extension_catalog/service.py` (475 LoC, audit
+  2026-04-27 §5 "ahtapot") split into two focused modules with a thin
+  back-compat facade. **`workflows/extension_catalog/manifest_to_schema.py`**
+  (new, 139 LoC) owns the manifest dict → Pydantic schema → ORM
+  hidrasyon pipeline: `ExtensionManifestMismatchError`,
+  `_validate_manifest_identity`, `_create_extension_from_package_json`.
+  **`workflows/extension_catalog/lifecycle.py`** (new, 352 LoC) owns
+  the public extension-catalog surface called by the router and the
+  marketplace workflow: `get_all_extensions_basic`,
+  `get_all_extensions_all`, `search_extension_by_name`,
+  `delete_extension_by_name`, `create_extension_by_name`,
+  `create_extension_from_directory`, and the five getter functions
+  (`get_extension_scripts`, `get_extension_activation_events`,
+  `get_extension_capabilities`, `get_extension_contributes_all`,
+  `get_extension_contributes_commands`). **`workflows/extension_catalog/service.py`**
+  (475 → 64 LoC) collapsed into a thin re-export facade — kept (not
+  deleted) because three external consumers still hold the legacy
+  import path: `workflows/marketplace/router.py:28-32` (three name
+  imports — `ExtensionManifestMismatchError`,
+  `create_extension_from_directory`, `search_extension_by_name`),
+  `tests/platform/test_canonical_imports.py:13` (asserts the public
+  symbol set), and any out-of-tree caller still on the legacy
+  path. The facade uses the mypy `--strict` re-export form
+  (`name as name`) consistent with the W11-1..W11-6 facades.
+
+  Router pivot: `workflows/extension_catalog/router.py` import switched
+  from `from workflows.extension_catalog import service` to
+  `from workflows.extension_catalog import lifecycle`; ~10 call sites
+  updated `service.X` → `lifecycle.X` (mechanical sed-style diff, no
+  behavioral change). The router now reads its CRUD-shaped public
+  surface from the focused module rather than from the back-compat
+  facade.
+
+  Tests: existing `tests/workflows/extension_catalog/test_service.py`
+  (297 LoC, 13 cases) split into two new focused test files and the
+  old file deleted (W11 pattern: every new module gets its own
+  focused test file imported at the real module path so a future
+  reshuffle cannot silently regress this surface):
+
+  - `tests/workflows/extension_catalog/test_manifest_to_schema.py`
+    (235 LoC, 10 cases) — pins `_create_extension_from_package_json`
+    full-pipeline + no-extra-data branches with parse_* /
+    `create_db_extension` mocks anchored at the real module path
+    (`workflows.extension_catalog.manifest_to_schema.parse_*`,
+    `…manifest_to_schema.create_db_extension`); 6
+    `_validate_manifest_identity` cases covering single-field
+    mismatches (publisher / name / version) and the two-field
+    multi-mismatch composition; the `ExtensionManifestMismatchError
+    issubclass ValueError` shape pin protects callers that catch
+    `ValueError`; module-path pin asserts all three helpers stay
+    attached to `manifest_to_schema.py` so a W12 reshuffle cannot
+    silently move them.
+  - `tests/workflows/extension_catalog/test_lifecycle.py`
+    (286 LoC, 16 cases) — pins the public lifecycle surface with
+    CRUD-side collaborators and the hydration helper mocked at the
+    `lifecycle` module boundary
+    (`workflows.extension_catalog.lifecycle.find_json_in_dir`,
+    `…lifecycle.get_package_json`,
+    `…lifecycle._create_extension_from_package_json`,
+    `…lifecycle.search_db_extension`, `…lifecycle.delete_db_extension`,
+    `…lifecycle.get_db_*`); covers `create_extension_by_name`
+    success/not-found, `create_extension_from_directory` happy +
+    mismatch + read-error branches, the two listing getters
+    (basic / all-info), search and delete passthroughs, and all
+    five typed getter passthroughs; module-path pin for the lifecycle
+    public surface; **facade back-compat re-export pin** asserts
+    `service.X is lifecycle.X` (and `service.ExtensionManifestMismatchError
+    is manifest_to_schema.ExtensionManifestMismatchError`) for all
+    12 re-exported symbols, so a future facade rewrite that swaps
+    re-exports for shim wrappers fails here. The 23 legacy
+    `mock.patch("workflows.extension_catalog.service.X", …)` sites
+    in the old `test_service.py` were rewritten to anchor at the
+    real execution module — required because Python's
+    `mock.patch` semantics intercept name lookup in the module
+    where the call site lives, and after the split the parse_* /
+    CRUD calls execute inside `manifest_to_schema` /
+    `lifecycle`, not inside the `service` facade.
+
+  Router test migration: `tests/workflows/extension_catalog/test_router.py`
+  ~30 patch sites pivoted from `workflows.extension_catalog.router.service.X`
+  / `workflows.extension_catalog.service.create_extension_by_name` to
+  `workflows.extension_catalog.router.lifecycle.X` (the router now reads
+  the surface from `lifecycle`, so patches anchor at the new attribute
+  name on the router module).
+
+  Architecture gates (W11-7 audit §5 closure invariants — added to
+  `tests/architecture/test_import_graph.py`):
+
+  - `test_extension_catalog_service_stays_a_thin_facade` — AST-walks
+    `service.py` and rejects any top-level statement that is not
+    `Import` / `ImportFrom` / the module docstring / the `__all__`
+    assignment. Prevents the ahtapot from re-growing function or
+    class bodies inside the facade; if a future PR adds logic, the
+    test fails and the right answer is to land that logic in
+    `lifecycle.py` or `manifest_to_schema.py`.
+  - `test_extension_catalog_service_reexports_match_canonical_modules`
+    — runtime identity pin: every name in `service.__all__` resolves
+    to the same object as the matching attribute on `lifecycle` or
+    `manifest_to_schema`, so a future facade rewrite that swaps
+    re-exports for shim wrappers fails here. Complements the
+    test-side `test_facade_back_compat_reexports_match_lifecycle`
+    pin in `test_lifecycle.py` by anchoring the same invariant from
+    the architecture lane (visible to `make check-all`'s
+    architecture pass).
+
+  `tests/platform/test_canonical_imports.py` extended with both new
+  modules: `extension_lifecycle` and `extension_manifest_to_schema`
+  added to the canonical-importable surface alongside the existing
+  `extension_service` facade pin (asserts
+  `extension_lifecycle.create_extension_by_name`,
+  `extension_lifecycle.search_extension_by_name`,
+  `extension_manifest_to_schema.ExtensionManifestMismatchError`, and
+  the `_validate_manifest_identity` callable shape).
+
+  External-caller compatibility verified:
+  `workflows/marketplace/router.py:28-32` continues to import
+  `ExtensionManifestMismatchError`, `create_extension_from_directory`,
+  and `search_extension_by_name` from `workflows.extension_catalog.service`
+  through the re-export facade with no diff;
+  `tests/platform/test_canonical_imports.py:13,25`
+  (`assert extension_service.create_extension_by_name is not None`)
+  passes unchanged.
+
+  Verification:
+
+  - `make check-all` — green (lint + mypy strict + bandit + ui-types-check
+    - ui-boundaries + 1247 pytest cases; baseline 1234 → 1247 = **+13**
+    net new tests, within the W11-1..W11-6 pull-size envelope).
+  - `make test-security` — 190 cases green, no regression on W5/W8
+    fixture hygiene or rule coverage (W11-7 does not touch detection
+    rules).
+  - `pytest tests/workflows/extension_catalog/` — 101 cases green
+    (101 = 10 new manifest_to_schema + 16 new lifecycle + 34
+    test_router + 41 test_package_parser).
+  - `pytest tests/platform/test_canonical_imports.py
+    tests/workflows/marketplace/test_router.py` — both green; legacy
+    import path through the facade resolves cleanly.
+
+  No live-scan validation required: W11-7 is workflow-side
+  modularization with zero detection-relevant surface area
+  (`schema_version` unchanged at `2.1`; no `ActivationReport` field
+  touched; no producer wiring change). Workflow router endpoints are
+  exercised by FastAPI TestClient unit tests in `test_router.py`,
+  which all pass.
 - **W11-8** — pending. Storage-side modularization:
   `appcore/storage/crud_ops/analysis_jobs.py` 348 LoC →
   `analysis_jobs/lifecycle.py` (~180 LoC) +

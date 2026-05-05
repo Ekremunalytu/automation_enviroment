@@ -30,7 +30,10 @@
   module-owned tests for `runtime_capture/extension_host.py` and
   `health_reconciliation.py`). W11-1..W11-6 landed on `2026-05-04`
   / `2026-05-05`; W11-7 `workflows/extension_catalog/service.py`
-  split is now the next structural pull-first. P1 W11 companion
+  split landed `2026-05-05` (manifest_to_schema + lifecycle modules
+  with thin re-export facade); W11-8
+  `appcore/storage/crud_ops/analysis_jobs.py` subpackage split is
+  now the final structural pull-first before W11 closure. P1 W11 companion
   `[FOLLOWUP w8-6-extension-host-output-redaction]` landed
   `2026-05-05` ahead of W11-6. Tracker:
   `active-work/W11-monitor-lifecycle.md`. Plan navigation:
