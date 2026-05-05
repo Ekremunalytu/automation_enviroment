@@ -268,3 +268,87 @@ def test_extension_catalog_service_reexports_match_canonical_modules() -> None:
             f"service.{name} must be the same object as lifecycle.{name} "
             "(W11-7 re-export invariant)."
         )
+
+
+def test_analysis_jobs_facade_stays_thin() -> None:
+    """W11-8: ``crud_ops/analysis_jobs/__init__.py`` must remain re-export only.
+
+    The original 348-LoC ``analysis_jobs.py`` was the audit 2026-04-27 §5
+    "ahtapot" on the storage side: job lifecycle (create/cancel/complete/
+    fail/recovery), step lifecycle (update_step), JSON serialization, and
+    a shared error class packed into one module. After the W11-8 split,
+    ``lifecycle.py`` owns the lifecycle/recovery surface and ``steps.py``
+    owns the step-update + JSON serialization surface; the package
+    ``__init__.py`` survives as a back-compat facade so ``appcore/storage/
+    crud.py`` and any out-of-tree caller that still imports
+    ``appcore.storage.crud_ops.analysis_jobs`` keeps resolving without a
+    flag day. This gate prevents the facade from re-growing function or
+    class bodies — if any future PR adds logic here it fails this test,
+    and the right answer is to land that logic in ``lifecycle.py`` or
+    ``steps.py``.
+    """
+    facade = REPO_ROOT / "appcore/storage/crud_ops/analysis_jobs/__init__.py"
+    tree = ast.parse(facade.read_text(encoding="utf-8"))
+
+    allowed_node_types: tuple[type[ast.AST], ...] = (
+        ast.Import,
+        ast.ImportFrom,
+    )
+    violations: list[str] = []
+    for node in tree.body:
+        # Module docstring: a top-level Expr wrapping a string Constant.
+        if (
+            isinstance(node, ast.Expr)
+            and isinstance(node.value, ast.Constant)
+            and isinstance(node.value.value, str)
+        ):
+            continue
+        # `__all__ = [...]` re-export listing.
+        if (
+            isinstance(node, ast.Assign)
+            and len(node.targets) == 1
+            and isinstance(node.targets[0], ast.Name)
+            and node.targets[0].id == "__all__"
+        ):
+            continue
+        if isinstance(node, allowed_node_types):
+            continue
+        violations.append(f"line {node.lineno}: {type(node).__name__}")
+
+    assert not violations, (
+        "appcore/storage/crud_ops/analysis_jobs/__init__.py must stay a "
+        "thin re-export facade (W11-8 audit §5 ahtapot closure invariant). "
+        "Move new logic into lifecycle.py or steps.py:\n" + "\n".join(violations)
+    )
+
+
+def test_analysis_jobs_facade_reexports_match_canonical_modules() -> None:
+    """W11-8: every name in ``analysis_jobs.__all__`` must come from the
+    focused modules, by ``is`` identity (not equality).
+
+    Pins the contract that the facade's re-exported set is exactly what
+    ``lifecycle.py`` and ``steps.py`` provide — no orphan re-exports, no
+    shim-wrapped versions of public symbols. A future facade rewrite that
+    swaps re-exports for shim wrappers fails this test.
+    """
+    from appcore.storage.crud_ops import analysis_jobs as facade
+    from appcore.storage.crud_ops.analysis_jobs import lifecycle, steps
+
+    expected_in_steps = {"update_analysis_job_step"}
+    expected_in_lifecycle = set(facade.__all__) - expected_in_steps
+
+    for name in expected_in_steps:
+        facade_obj = getattr(facade, name)
+        canonical_obj = getattr(steps, name)
+        assert facade_obj is canonical_obj, (
+            f"analysis_jobs.{name} must be the same object as steps.{name} "
+            "(W11-8 re-export invariant)."
+        )
+
+    for name in expected_in_lifecycle:
+        facade_obj = getattr(facade, name)
+        canonical_obj = getattr(lifecycle, name)
+        assert facade_obj is canonical_obj, (
+            f"analysis_jobs.{name} must be the same object as "
+            f"lifecycle.{name} (W11-8 re-export invariant)."
+        )

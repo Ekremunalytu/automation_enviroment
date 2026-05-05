@@ -5,6 +5,9 @@ import appcore.api.deps as app_deps
 import appcore.contracts.schemas as app_schemas
 import appcore.db.session as app_session
 import appcore.storage.crud as app_crud
+import appcore.storage.crud_ops.analysis_jobs as analysis_jobs_facade
+import appcore.storage.crud_ops.analysis_jobs.lifecycle as analysis_jobs_lifecycle
+import appcore.storage.crud_ops.analysis_jobs.steps as analysis_jobs_steps
 import appcore.storage.models as app_models
 import executor.host as executor_host
 import packages.analysis_contracts as analysis_contracts
@@ -36,3 +39,14 @@ def test_canonical_modules_export_expected_symbols() -> None:
     assert analysis_contracts.TriggerPayload is not None
     assert callable(analysis_planner.select_scenarios)
     assert executor_host.ExecutorError is not None
+    assert callable(analysis_jobs_facade.cancel_analysis_job)
+    assert callable(analysis_jobs_lifecycle.cancel_analysis_job)
+    assert callable(analysis_jobs_steps.update_analysis_job_step)
+    assert (
+        analysis_jobs_facade.JobNotCancellableError
+        is analysis_jobs_lifecycle.JobNotCancellableError
+    )
+    assert (
+        analysis_jobs_facade.update_analysis_job_step
+        is analysis_jobs_steps.update_analysis_job_step
+    )
