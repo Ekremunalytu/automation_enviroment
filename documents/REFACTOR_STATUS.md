@@ -222,15 +222,14 @@ remaining checkbox before W9 entry.
   (`ScenarioAccountant` producer side; consumer-side state machine
   already lives in `health_reconciliation.py`).
 
-  W11 (§11.8 monitor lifecycle split) **open** — W11-5 landed
-  `2026-05-05`; W11-6 (per-strategy `_stop_<strategy>` helpers on
-  `MonitorRuntime.stop()`) is the next pull-first, with W11-7
-  (`workflows/extension_catalog/service.py` split) and W11-8
+  W11 (§11.8 monitor lifecycle split) **open** — W11-5 and W11-6
+  landed `2026-05-05`; W11-7
+  (`workflows/extension_catalog/service.py` split) is now the next
+  pull-first, with W11-8
   (`appcore/storage/crud_ops/analysis_jobs.py` split) staying queued
-  behind it. P1 companion:
-  `[FOLLOWUP w8-6-extension-host-output-redaction]` should land before
-  or alongside the next structural W11 pull; W13 should only lock the
-  regression test in, not defer the first redaction fix.
+  behind it. P1 companion
+  `[FOLLOWUP w8-6-extension-host-output-redaction]` already landed
+  `2026-05-05` ahead of W11-6.
 
 - **W11-3 landed `2026-05-04`** on the `week11` working branch
   (commit `d4f513f`; serializer follow-up `5f4e292`; live-scan
@@ -330,6 +329,69 @@ remaining checkbox before W9 entry.
   170 cases green. With W11-5 done, W11-6's per-strategy
   `_stop_<strategy>` helpers move to `MonitorRuntime.stop()` — the
   facade no longer owns that lifecycle.
+
+- **W11-6 landed `2026-05-05`** on the `week11` working branch.
+  Per-strategy stop helpers extracted from `MonitorRuntime.stop()`
+  into three private methods on the same class —
+  `_stop_exthost_log_parse` (Strategy 1),
+  `_stop_running_extensions_ui` (Strategy 2, owns the
+  Escape recovery branch on `PlaywrightError`), and
+  `_stop_exthost_output_parse` (Strategy 3, owns the dedupe-no-credit
+  semantics pinned in W11-3). Each helper returns `str | None` (the
+  strategy id on a hit, `None` otherwise); `stop()` orchestrates them
+  through a small for-loop that preserves the W11-3 strategy-aware
+  persist cadence (`self._persist(True)` after each helper) and
+  feeds the collected list to `_set_discovery_strategies`. Helpers
+  do not persist on their own — pinned by
+  `test_stop_exthost_log_parse_returns_name_on_activations`
+  (`assert hooks.persist_calls == []` after a direct helper call).
+  Per-strategy `except` types are preserved bit-for-bit (S1
+  `OSError, ValueError`; S2 `PlaywrightError, OSError, ValueError`
+  - inner `PlaywrightError` for the recovery branch; S3 `OSError`).
+  `monitor_runtime_state.py` 369 → 429 LoC (the helpers + their
+  docstrings + section header add ~60 LoC; the strategy section of
+  `stop()` shrank from ~45 LoC of three try-blocks into a 12-line
+  for-loop). Also reconciles the W11-3 strategy-name divergence:
+  the helper method names carry the actual snake-case identifiers
+  (`exthost_log_parse`, `running_extensions_ui`,
+  `exthost_output_parse`) so the producer wiring → assembler →
+  contract → on-disk dict reads as a single vocabulary end-to-end;
+  the archive plan's aspirational names (`warm-start`, etc.) appear
+  nowhere in the runtime. Tests:
+  `tests/executor/test_playwright_monitor_runtime_state.py` 21 → 33
+  cases (12 new per-strategy pins covering each helper's success
+  path, empty-result branch, and exception-swallow contract; the
+  Strategy 2 Escape recovery branch and its swallowed inner
+  `PlaywrightError`; the Strategy 3 dedupe-no-credit semantics; plus
+  a module-path pin asserting the three helpers stay attached to
+  `MonitorRuntime` so a W12 reshuffle cannot silently move them onto
+  free functions). The three pre-existing stop-level regression
+  cases (`test_stop_emits_all_three_strategies_when_all_succeed`,
+  `..._yield_no_entries`, `..._omits_strategy_three_when_output_parse_yields_no_new_entries`)
+  stayed unmodified and green — primary behavior-preservation
+  evidence at the orchestration layer. Verification: `make
+  check-all` green (1222 → 1234 pytest cases, exactly the planned
+  +12); `make test-security` 190 cases green; live-scan validation
+  against `ms-python.python` via `make sim-target` (per W11-3/W11-4
+  pattern; job `b6b52049804f4ff2a63c98eb93c74691`, 164.9s elapsed)
+  — all three helpers fired in for-loop order, Strategy 1 credit
+  landed (`activation_discovery_strategies == ["exthost_log_parse"]`),
+  Strategy 2 recovery branch + recovery `PlaywrightError` swallow
+  exercised live by a `Keyboard.press: Target crashed` macOS
+  Docker UI flake (the live counterpart to the new
+  `test_stop_running_extensions_ui_swallows_recovery_error`),
+  Strategy 3 read 1MB of exthost output but stayed uncredited
+  under the dedupe-no-credit semantics. Saved report:
+  `schema_version="2.1"`, `runner_status="error"` /
+  `runner_exit_code=1` (W11-3 derivation correct given the UI
+  crash), `automation_health.fatal_ui_crash=true`,
+  `failed_scenarios=["settings_modification"]`. The non-stationary
+  delta vs. the W11-4 baseline (`job 2c1dea3c70e6`: target observed,
+  S1+S2 strategies, success status) is the UI-crash branch —
+  explicitly allowed by the W11-3 contract (sorted/deduped list,
+  non-fixed shape) and by the W10 health vocabulary
+  (`fatal_ui_crash` is the named outcome). Refactor confirmed
+  behavior-preserving end-to-end.
 
 - **`[FOLLOWUP w8-6-extension-host-output-redaction]` landed
   `2026-05-05`** on the `week11` working branch as the P1 W11

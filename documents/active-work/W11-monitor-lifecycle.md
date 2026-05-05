@@ -492,10 +492,103 @@ item by reading both this tracker and that archive section.
     verify_target_reaction, 1 page setter) replace the 35-case W11-1
     bound-method-identity suite.
 
-- **W11-6** — pending. Per-strategy `_stop_<strategy>` helpers in
-  `ExtensionMonitor.stop()` (warm-start, command-probe, output-channel,
-  log-tail). With W11-5 landed, the facade no longer owns `stop()` —
-  this work moves to `MonitorRuntime.stop()` instead.
+- **W11-6 landed `2026-05-05`** on the `week11` working branch.
+  Per-strategy `_stop_<strategy>` helpers extracted from
+  `MonitorRuntime.stop()` into three dedicated methods on the same
+  class: `_stop_exthost_log_parse` (Strategy 1), `_stop_running_extensions_ui`
+  (Strategy 2 — owns the Escape recovery branch on `PlaywrightError`),
+  and `_stop_exthost_output_parse` (Strategy 3 — owns the
+  dedupe-no-credit semantics pinned in W11-3). Each helper returns
+  `str | None` (the strategy id on a hit, `None` otherwise);
+  `stop()` now drives them through a small orchestration loop that
+  preserves the W11-3 strategy-aware persist cadence (one
+  `self._persist(True)` after each helper returns) and feeds the
+  collected list to `_set_discovery_strategies`. Helpers do not
+  persist on their own — pinned by the new
+  `test_stop_exthost_log_parse_returns_name_on_activations` case
+  (`assert hooks.persist_calls == []` after a direct helper call).
+  Per-strategy `except` types are preserved bit-for-bit (S1
+  `OSError, ValueError`; S2 `PlaywrightError, OSError, ValueError`
+  - inner `PlaywrightError` for the Escape-recovery branch; S3
+  `OSError`). `monitor_runtime_state.py` 369 → 429 LoC (the helpers
+  - their docstrings + section header add ~60 LoC; the `stop()`
+  body's strategy section collapsed from ~45 LoC of three
+  try-blocks into a 12-line for-loop). Docstrings name the mutated
+  report fields and the swallow contract per helper so future
+  readers do not have to re-derive the invariants from the call
+  site.
+
+  Strategy-name reconciliation (closes the W11-3 archive divergence
+  at lines 706–715 below): the actual strategy ids are
+  `exthost_log_parse`, `running_extensions_ui`, `exthost_output_parse`
+  (snake-case identifiers introduced by the W11-3 producer). The
+  archive's aspirational names (`warm-start`, `command-probe`,
+  `output-channel`, `log-tail`) appear nowhere in the runtime; the
+  W11-6 helpers carry the real names so the producer wiring (W11-3
+  → assembler → contract → on-disk dict) reads as a single
+  vocabulary end-to-end. The archive table at
+  `archive/plans/REFACTOR_OPTIMIZATION_full_2026-04-29.md §11.8`
+  will be reconciled when W11 closes; until then this tracker (and
+  the W11-6 source) are the source of truth.
+
+  Tests: `tests/executor/test_playwright_monitor_runtime_state.py`
+  grew 21 → 33 cases. The 12 new cases pin each helper in isolation
+  — Strategy 1 (`returns_name_on_activations` /
+  `returns_none_on_empty_activated` /
+  `swallows_oserror_returns_none` /
+  `writes_log_file_path_only_when_activated_non_empty`), Strategy 2
+  (`returns_name_on_running_list` / `returns_none_on_empty` /
+  `invokes_escape_recovery_on_playwright_error` /
+  `swallows_recovery_error`), Strategy 3
+  (`returns_name_on_net_new_merge` /
+  `returns_none_when_dedupe_yields_no_credit` /
+  `swallows_oserror_returns_none`) — plus a module-path pin
+  (`test_module_path_pins_monitor_runtime_state`) that asserts the
+  three helpers stay attached to `MonitorRuntime` so a W12
+  reshuffle cannot silently move them onto a free function. The
+  three pre-existing stop-level regression cases
+  (`test_stop_emits_all_three_strategies_when_all_succeed`,
+  `test_stop_emits_empty_list_when_all_strategies_yield_no_entries`,
+  `test_stop_omits_strategy_three_when_output_parse_yields_no_new_entries`)
+  stayed unmodified and green — the primary behavior-preservation
+  evidence at the orchestration layer.
+
+  Verification: `make check-all` green (1222 → 1234 pytest cases,
+  exactly the planned +12). `make test-security` 190 cases green
+  (no regression in the W5/W8 fixture-hygiene lane). Live-scan
+  validation (per W11-3/W11-4 pattern) executed against
+  `ms-python.python` via `make sim-target`
+  (job `b6b52049804f4ff2a63c98eb93c74691`, 164.9s elapsed). All
+  three helpers fired in for-loop order (`Strategy 1: ...` →
+  `Strategy 2: ...` → `Strategy 3: ...`); the new method names
+  on disk and on the wire match the W11-3 producer ids. Strategy
+  1 yielded 3 activation entries and the new
+  `_stop_exthost_log_parse` returned `"exthost_log_parse"` →
+  on-disk `activation_discovery_strategies == ["exthost_log_parse"]`.
+  Strategy 2 hit a `Keyboard.press: Target crashed`
+  `PlaywrightError` (macOS Docker UI flake unrelated to the
+  refactor); the new `_stop_running_extensions_ui` recovery
+  branch fired `Escape`-press, the recovery itself raised a
+  second `PlaywrightError`, and the outer `try/except` swallowed
+  it cleanly so Strategy 3 still ran — the live counterpart to
+  the new `test_stop_running_extensions_ui_swallows_recovery_error`
+  unit case. Strategy 3 read 1071381 chars from `exthost.log` but
+  yielded no new entries beyond Strategy 1 → not credited
+  (dedupe-no-credit semantics live, matches the unit pin). On the
+  saved report: `schema_version="2.1"` (unchanged),
+  `runner_status="error"` with `runner_exit_code=1`
+  (W11-3 derivation correct given the `Target crashed`),
+  `automation_health.fatal_ui_crash=true`, and
+  `failed_scenarios=["settings_modification"]` — the runner
+  surfaced the crash through the W10/W11-3/W11-4 health and
+  scenario-accounting pipelines without any monitor-side error.
+  The non-stationary delta vs. the W11-4 baseline
+  (`job 2c1dea3c70e6`: target observed, S1+S2 strategies, success
+  status) is the UI-crash branch — explicitly allowed by the
+  W11-3 contract (sorted/deduped list, non-fixed shape) and by
+  the W10 health vocabulary (`fatal_ui_crash` is the named
+  outcome). Refactor confirmed behavior-preserving end-to-end.
+
 - **W11-7** — pending. Workflow-side modularization:
   `workflows/extension_catalog/service.py` 475 LoC →
   `manifest_to_schema.py` (~200 LoC) + `lifecycle.py` (~250 LoC); thin
@@ -703,7 +796,8 @@ For each W11-N to be marked **landed**:
   2485 is the canonical W11-N→file mapping. If split granularity
   changes during execution, update both this tracker and the archive
   table at the same time.
-- **W11-3 strategy-name divergence** (`2026-05-04`): archive plan
+- **W11-3 strategy-name divergence** (`2026-05-04`; reconciled in
+  source by W11-6 `2026-05-05`): archive plan
   `archive/plans/REFACTOR_OPTIMIZATION_full_2026-04-29.md §11.8` lists
   example identifiers `warm-start`, `command-probe`, `output-channel`,
   `log-tail` for the discovery strategies. Those names do not appear
@@ -711,8 +805,11 @@ For each W11-N to be marked **landed**:
   archived list is aspirational/example. The W11-3 producer reports
   the three actual strategies' snake-case identifiers
   (`exthost_log_parse`, `running_extensions_ui`,
-  `exthost_output_parse`). Archive table to be reconciled at W11
-  closure.
+  `exthost_output_parse`); W11-6 carried the same vocabulary onto
+  the per-strategy helper method names (`_stop_exthost_log_parse`,
+  `_stop_running_extensions_ui`, `_stop_exthost_output_parse`) so the
+  pipeline reads as a single vocabulary end-to-end. Archive table
+  still to be reconciled at W11 closure.
 - **W11-3 branch policy deviation** (`2026-05-04`): all W11-N items
   land on a single long-lived `week11` branch (per user direction)
   instead of `feat/w11-<n>-<slug>` per Pickup Procedure step 2. The

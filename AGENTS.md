@@ -28,9 +28,9 @@
   lifecycle split** — entry gate met `2026-05-04` after the
   `[FOLLOWUP w11-precursor-tests]` safety net landed (38 direct
   module-owned tests for `runtime_capture/extension_host.py` and
-  `health_reconciliation.py`). W11-1..W11-5 landed on `2026-05-04`
-  / `2026-05-05`; W11-6 `MonitorRuntime.stop()` strategy-helper
-  extraction is the next structural pull-first. P1 W11 companion
+  `health_reconciliation.py`). W11-1..W11-6 landed on `2026-05-04`
+  / `2026-05-05`; W11-7 `workflows/extension_catalog/service.py`
+  split is now the next structural pull-first. P1 W11 companion
   `[FOLLOWUP w8-6-extension-host-output-redaction]` landed
   `2026-05-05` ahead of W11-6. Tracker:
   `active-work/W11-monitor-lifecycle.md`. Plan navigation:
