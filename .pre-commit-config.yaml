@@ -25,7 +25,16 @@ repos:
         args: [--maxkb=1000]
       - id: check-merge-conflict
       - id: detect-private-key
-        exclude: ^(executor/playwright/workspace\.py|tests/platform/security/test_content_sample_redaction\.py)$  # Intentional fake keys: honeypot + redaction-test fixture
+        exclude: |
+          (?x)^(
+            executor/playwright/workspace\.py|
+            executor/flows/playwright/report_builder\.py|
+            tests/platform/security/test_content_sample_redaction\.py|
+            tests/platform/security/test_extension_host_output_redaction\.py|
+            documents/POST_POC_BACKLOG\.md|
+            documents/REFACTOR_STATUS\.md|
+            documents/active-work/W11-monitor-lifecycle\.md
+          )$  # Intentional fake-key markers: honeypot + redaction tests + PEM-marker substring detector + W11-companion landing notes
       - id: check-case-conflict
 
   # ============================================================

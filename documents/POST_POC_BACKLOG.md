@@ -294,7 +294,34 @@ when picking an item up.
   UI components reading either alias see the same number. Natural
   landing: W12 attribution cleanup (`§11.9`); pull earlier as a
   surgical fix if any UI surface reads both fields and renders
-  diverging counts. Surfaced by 2026-05-04 manual UI scan.
+  diverging counts. Surfaced by 2026-05-04 manual UI scan;
+  re-observed 2026-05-05 manual UI scan
+  (`activation_report_ms-python.python-2026.5.2026042602-c0c4f270030c.json`).
+- **`[FOLLOWUP activation-discovery-strategy-outcome-detail]`** —
+  `ActivationReport.activation_discovery_strategies` lists only the
+  strategies that succeeded *and* contributed at least one new
+  activation (`executor/flows/playwright/monitor_runtime_state.py`
+  appends to `succeeded_strategies` only when
+  `len(self._report.activated) > pre_merge_count` for Strategy 3, and
+  on raw success for Strategies 1/2). Strategies that ran cleanly but
+  contributed no novel activation (the second/third attempt sees a
+  superset already populated by an earlier strategy) and strategies
+  that raised a caught exception both end up *absent from the
+  persisted list with no per-strategy outcome record*. Observed
+  2026-05-05 manual UI scan: a 22-activation ms-python.python run
+  lists `["exthost_log_parse", "running_extensions_ui"]` only — no
+  signal whether `exthost_output_parse` ran-and-was-redundant,
+  ran-and-failed, or never reached. Reduces diagnostic value when an
+  analyst tries to explain a low `target_activation_count` or
+  unattributed events. Pickup options: extend to `dict[str, str]`
+  (`{strategy: outcome}` with literals like
+  `"succeeded_with_new_activations" / "succeeded_no_new_activations"
+  / "failed:<exc-class>"`) — or keep the current shape and add a
+  parallel `activation_discovery_diagnostics` field for the failed /
+  redundant cases. Tied to the W11-3 producer surface (where the
+  field landed) but the read-side detail loss is W12 attribution
+  cleanup territory (`§11.9`). **Priority: P3.** Surfaced 2026-05-05
+  manual UI scan.
 - **`[FOLLOWUP target-log-lifecycle-instrumentation]`** — **LANDED with
   W11-4 `2026-05-05`** (commit `f4f5df6` on the `week11` working
   branch). The producer-side gap closed:
@@ -331,7 +358,70 @@ when picking an item up.
   — `§11` brief flagged ADR 0003 changes as W10 non-goal; natural
   landing is W13+ external-review window where verdict semantics can
   be revised holistically. Surfaced by 2026-05-04 manual UI scan.
-- **`[FOLLOWUP w8-6-extension-host-output-redaction]`** —
+- **`[FOLLOWUP w8-6-extension-host-output-redaction]`** — *LANDED on
+  `week11` `2026-05-05`* as the P1 W11 companion before the next
+  structural pull. `executor/flows/playwright/report_builder.py::build_report_data`
+  now applies a **trim-then-expand-then-redact** pipeline: the
+  500-line tail window is computed on the **raw** Extension Host
+  line stream first, the start index walks backwards to include any
+  ``-----BEGIN PRIVATE KEY-----`` marker whose matching ``END`` falls
+  inside the retained tail (private helper
+  `_expand_window_for_orphaned_pem`), and `redact_secrets(...)`
+  (imported from `packages.analysis_contracts`) is applied once on
+  the resulting window. **Two layered invariants**: (1) the
+  `private_key` pattern in `packages.analysis_contracts.evidence`
+  matches the `-----BEGIN ... PRIVATE KEY-----` …
+  `-----END ... PRIVATE KEY-----` span as a unit, so a naïve
+  trim-then-redact would leave an orphaned body unmatched and persist
+  raw key bytes — the BEGIN-expansion step closes that hole. (2) An
+  earlier redact-then-trim version (Codex review #2, `2026-05-05`)
+  fixed (1) but introduced a *tail-window inflation* attack: an
+  extension that wraps thousands of attacker-controlled
+  `console.log` lines in fake `BEGIN/END PRIVATE KEY` markers would
+  see the redaction collapse the span to a single token, slip the
+  500-line cap (computed on redacted lines), and leak older head
+  lines into the persisted artifact (Codex review #3,
+  `2026-05-05`); anchoring the cap to raw lines closes that hole.
+  Regression suite
+  `tests/platform/security/test_extension_host_output_redaction.py`
+  (20 cases) covers four of the five `SECRET_CLASSES`
+  (`aws` / `bearer` / `db_url` / `api_key`) via parametrize plus the
+  multi-line `private_key` class via dedicated PEM cases. Pins both
+  the dict-emission boundary and the on-disk JSON byte form — AKIA +
+  Bearer + Postgres DSN samples flowed through `build_report_data`
+  produce `[REDACTED:aws]` / `[REDACTED:bearer]` / `[REDACTED:db_url]`
+  while raw token bytes are absent both from the emitted dict and
+  from `tempfile`-backed `json.dumps` round-trips; the orphaned-PEM
+  scenario gets its own byte-form pin so a future encoding change
+  cannot silently re-leak the key body. **Three orphaned-PEM cases
+  pin the BEGIN-expansion invariant**
+  (BEGIN-outside-tail body-inside-tail, fully-inside-tail,
+  fully-outside-tail) plus tail-window assertions on the
+  body-inside-tail case so attacker-controlled head lines do not
+  ride the collapse past the cap. **Tail-window inflation pin**
+  (`test_extension_host_output_tail_window_resists_pem_collapse_inflation`):
+  800 attacker-controlled prefix lines + 5000-line synthetic PEM
+  body + 100-line suffix; asserts no `attacker prefix N` reaches the
+  persisted dict while `benign suffix N` (inside the original raw
+  tail) does. **`extension_host_output_lines` metric pin**: the
+  field counts raw newlines from the original capture, not the
+  redacted text — pinned with a 22-line PEM payload that collapses
+  to a 1-line redacted form, asserting the metric still reports the
+  raw count. **Composition pin**: a mixed AWS + Bearer + DB URL +
+  api_key + PEM buffer asserts every class is redacted without one
+  pattern consuming text another needed and benign framing lines
+  survive. Idempotency, benign-payload preservation, and the
+  500-line tail-truncation interaction case pin the no-drift
+  invariants. `tests/platform/security/test_content_sample_typing.py`
+  `_PENDING_MIGRATION` extended with `(ActivationReport,
+  "extension_host_output")` so the W13 contract-level migration prompt
+  flips the test surface XPASS → fail when the field flips to
+  `ContentSample`. No schema migration shipped (string shape unchanged;
+  only content filtered). W13 `§11.10` owns the contract-layer lock-in
+  (flip `extension_host_output: str` → `ContentSample` so redaction is
+  enforced by the type rather than the producer). Verification:
+  `make test-security` 190 cases green, `make check-all` 1222 passed.
+  Original surfacing context preserved for W13 reference:
   `executor/flows/playwright/report_builder.py:237-241,343` writes
   the last 500 lines of raw Extension Host log into
   `ActivationReport.extension_host_output`
@@ -343,18 +433,11 @@ when picking an item up.
   by W10-7; covered output_signals.py / analysis_execution.py /
   analysis_service.py but did **not** name `extension_host_output`)
   and `[FOLLOWUP w8-6-content-sample-structural-test]` (broader sweep
-  parent). Pickup: wrap `eh_text` through `redact_secrets(...)` in
-  `build_report_data` before assignment to the dict; add regression
-  test fixturing AKIA + Bearer + Postgres DSN through Extension Host
-  output → save → on-disk JSON contains `[REDACTED:aws]`,
-  `[REDACTED:bearer]`, `[REDACTED:db_url]` (no raw tokens); append
-  `ActivationReport.extension_host_output` to `_PENDING_MIGRATION` in
-  `tests/platform/security/test_content_sample_typing.py`. No schema
-  migration required (string shape unchanged; only content filtered).
-  Natural landing: W11-companion (highest-leverage P1 single-PR fix),
-  preferably before W11-6/W11-7/W11-8 structural work continues; W13
-  `§11.10` should only be the regression lock-in, not the first fix.
-  **Priority: P1.** Surfaced 2026-05-05 (Codex review #1, audit pass).
+  parent). **Priority: P1.** Surfaced 2026-05-05 (Codex review #1,
+  audit pass); reviewer-flagged orphaned-PEM regression caught
+  2026-05-05 (Codex review #2, BEGIN-expansion invariant); reviewer-
+  flagged tail-window inflation regression caught 2026-05-05 (Codex
+  review #3, raw-line cap invariant); closed 2026-05-05.
 - **`[FOLLOWUP event-attempt-verification-status-validator]`** —
   `EventAttemptRecord.verification_status: str = "not_attempted"`
   (`packages/analysis_contracts/contracts.py:216`) carries the W10-6

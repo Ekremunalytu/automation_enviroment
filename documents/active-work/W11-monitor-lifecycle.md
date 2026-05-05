@@ -512,15 +512,101 @@ These open `[FOLLOWUP …]` items in `POST_POC_BACKLOG.md` are scheduled to
 land *as part of* W11 acceptance or as short W11 companion PRs before the
 next structural pull:
 
-- **`[FOLLOWUP w8-6-extension-host-output-redaction]`** — **P1 W11
-  companion, pull before W11-6 when possible.**
-  `ActivationReport.extension_host_output` currently carries raw
-  Extension Host log tail text through `report_builder.py`; the backlog
-  item requires
-  `redact_secrets(...)` before persistence plus a regression test that
-  proves AKIA / bearer / DB URL values do not appear raw in the saved
-  report. W13 owns regression lock-in, but the first redaction fix
-  should not wait for W13.
+- **`[FOLLOWUP w8-6-extension-host-output-redaction]`** — **LANDED on
+  the `week11` working branch `2026-05-05`** ahead of the next
+  structural pull (W11-6).
+  `executor/flows/playwright/report_builder.py::build_report_data`
+  now applies a **trim-then-expand-then-redact** pipeline: the
+  500-line tail window is computed on the **raw** Extension Host
+  line stream first, the start index walks backwards to include any
+  ``-----BEGIN PRIVATE KEY-----`` marker whose matching ``END`` falls
+  inside the retained tail (private helper
+  `_expand_window_for_orphaned_pem`), and `redact_secrets(...)`
+  (imported from `packages.analysis_contracts`) is applied once on
+  the resulting window. **Two layered invariants**: (1) the
+  `private_key` pattern in `packages.analysis_contracts.evidence` is
+  a multi-line `-----BEGIN ... PRIVATE KEY-----` …
+  `-----END ... PRIVATE KEY-----` span — if the BEGIN marker falls
+  outside the retained tail, a naïve trim-then-redact pipeline would
+  leave the orphaned body unmatched and persist raw key bytes. Codex
+  review #2 (`2026-05-05`) caught this in the first redact-after-trim
+  landing; the BEGIN-expansion step pulls the originating BEGIN into
+  the window so the span collapses cleanly to
+  `[REDACTED:private_key]`. (2) An interim redact-before-trim version
+  fixed (1) but introduced a *tail-window inflation* attack: a hostile
+  extension that wraps thousands of attacker-controlled `console.log`
+  lines in fake `BEGIN/END PRIVATE KEY` markers would see the
+  redaction collapse the span to a single token, slip the 500-line
+  cap (then computed on redacted lines), and surface older head lines
+  into the persisted artifact. Codex review #3 (`2026-05-05`) caught
+  that vector; anchoring the cap on raw lines (computed before the
+  BEGIN-expansion step) closes the hole. The
+  `extension_host_output_lines` metric still counts raw newlines from
+  the original capture so the field is not perturbed by the redaction
+  layer.
+
+  New regression suite
+  `tests/platform/security/test_extension_host_output_redaction.py`
+  (20 cases) covers four of the five `SECRET_CLASSES`
+  (`aws` / `bearer` / `db_url` / `api_key`) via parametrize plus the
+  multi-line `private_key` class via dedicated PEM cases. Pins the
+  dict-emission boundary and the on-disk JSON byte form so AKIA +
+  Bearer + Postgres DSN payloads land redacted both in the emitted
+  dict and after a `tempfile`-backed `json.dumps` round-trip; the
+  orphaned-PEM scenario gets its own dedicated byte-form pin
+  (`test_extension_host_output_orphaned_pem_at_json_disk_boundary`)
+  so a future encoding change cannot silently re-leak the key body
+  through the persisted artifact. Three orphaned-PEM cases pin the
+  BEGIN-expansion invariant:
+  `test_extension_host_output_orphaned_pem_body_does_not_leak`
+  exercises reviewer #2's exact scenario (BEGIN @line 100, body
+  @101-600, END @601, 50-line suffix; raw tail-window starts at line
+  152 so BEGIN is dropped without expansion) and additionally
+  asserts that the head prefix lines (`benign prefix 0..99`) do not
+  ride the collapse past the cap into the persisted dict;
+  `test_extension_host_output_pem_block_fully_inside_tail_redacted`
+  pins the symmetric all-inside case;
+  `test_extension_host_output_pem_block_fully_outside_tail_no_residue`
+  pins the all-older case (token dropped along with the rest of the
+  head; no raw bytes survive).
+  `test_extension_host_output_tail_window_resists_pem_collapse_inflation`
+  pins reviewer #3's scenario: 800 attacker-controlled prefix lines
+  - 5000-line synthetic PEM body + 100-line suffix; asserts no
+  `attacker prefix N` reaches the persisted dict while
+  `benign suffix N` (inside the original raw tail) does — the cap
+  resists collapse-driven inflation by an attacker-shaped payload.
+  `test_extension_host_output_lines_metric_uses_raw_capture` pins the
+  metric invariant: `extension_host_output_lines` reports the raw
+  capture's newline count (not the redacted form), so a future
+  "consistency" refactor that switches the metric to the persisted
+  text would fail here — exercised with a 22-line PEM payload that
+  collapses to a 1-line redacted form, asserting the metric still
+  reports the raw count.
+  `test_extension_host_output_mixed_secret_classes_in_single_buffer`
+  pins the composition invariant: AWS + Bearer + DB URL + api_key +
+  PEM all redact in the same buffer without one pattern consuming
+  text another needed; benign framing lines around the secrets are
+  preserved (no over-match). Three no-drift invariants pinned
+  alongside: idempotency (re-redacting an already-redacted payload is
+  a no-op), benign-payload preservation (no semantic drift outside
+  pattern matches), and the 500-line tail truncation interaction (a
+  secret in the trailing line of a >500-line buffer survives the
+  truncation in redacted form, with the head correctly dropped).
+  `tests/platform/security/test_content_sample_typing.py` allow-list
+  `_PENDING_MIGRATION` extended with `(ActivationReport,
+  "extension_host_output")` so the W13 `§11.10` contract-level
+  migration prompt flips XPASS → fail when the field is typed as
+  `ContentSample`. No schema migration (string shape unchanged; only
+  content filtered). Verification: `make test-security` green;
+  `make check-all` 1222 passed (baseline 1218 → 1222). The broader
+  `[FOLLOWUP w8-6-content-sample-structural-test]` audit sweep stays
+  open as the parent backlog item; this companion closes only the
+  named `extension_host_output` surface. Surfaced 2026-05-05 (Codex
+  review #1, audit pass); reviewer-flagged orphaned-PEM regression
+  caught 2026-05-05 (Codex review #2, BEGIN-expansion invariant);
+  reviewer-flagged tail-window inflation regression caught
+  2026-05-05 (Codex review #3, raw-line cap invariant); closed
+  2026-05-05.
 
 - **`[FOLLOWUP runner-status-contract]`** — **LANDED with W11-3
   `2026-05-04`**. `ActivationReport.runner_exit_code` (`int | None`)

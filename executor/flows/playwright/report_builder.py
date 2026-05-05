@@ -10,6 +10,7 @@ from typing import Any
 
 from pydantic import ValidationError
 
+from packages.analysis_contracts import redact_secrets
 from packages.analysis_contracts.contracts import (
     ACTIVATION_REPORT_SCHEMA_VERSION,
 )
@@ -221,6 +222,33 @@ def build_summary(
     }
 
 
+def _expand_window_for_orphaned_pem(raw_lines: list[str], start: int) -> int:
+    """Walk ``start`` backwards to include the ``BEGIN PRIVATE KEY``
+    marker if the first PEM marker inside the retained tail is an
+    ``END`` without a preceding ``BEGIN``. Without this, the
+    ``private_key`` regex in ``packages.analysis_contracts.evidence``
+    (a multi-line ``BEGIN…END`` span) cannot collapse the orphaned
+    body and raw key bytes would persist. Idempotent when the tail
+    window is well-formed.
+    """
+    if start <= 0:
+        return 0
+    in_pem = False
+    for i in range(start, len(raw_lines)):
+        line = raw_lines[i]
+        if "-----BEGIN" in line and "PRIVATE KEY-----" in line:
+            in_pem = True
+        elif "-----END" in line and "PRIVATE KEY-----" in line:
+            if not in_pem:
+                for j in range(start - 1, -1, -1):
+                    candidate = raw_lines[j]
+                    if "-----BEGIN" in candidate and "PRIVATE KEY-----" in candidate:
+                        return j
+                return start
+            in_pem = False
+    return start
+
+
 def build_report_data(
     report: Any,
     *,
@@ -234,11 +262,35 @@ def build_report_data(
     attribution_summary: dict[str, Any],
     summary: dict[str, Any],
 ) -> dict[str, Any]:
-    eh_lines = str(getattr(report, "extension_host_output", "")).splitlines()
-    if len(eh_lines) > 500:
-        eh_text = "\n".join(eh_lines[-500:])
+    # Tail window first, redaction second. Computing the cap on the
+    # raw line stream — not on the post-redaction stream — defeats a
+    # ``fake-PEM tail-inflation`` attack: an extension that wraps
+    # thousands of attacker-controlled ``console.log`` lines in
+    # ``-----BEGIN/END PRIVATE KEY-----`` markers would otherwise see
+    # the redaction collapse the span to a single token, slip the
+    # 500-line cap, and leak older log lines that lived BEFORE the
+    # original tail window. (Codex review #3, 2026-05-05.)
+    #
+    # The orphaned-PEM body bug — body lines retained in the tail
+    # while their ``BEGIN`` marker falls outside it, leaving the
+    # ``private_key`` BEGIN/END span unmatched — is closed by walking
+    # the window start back to include the originating ``BEGIN``
+    # before redaction runs. Single-line secret classes (``aws`` /
+    # ``bearer`` / ``db_url`` / ``api_key``) do not change line count
+    # so they are unaffected by either layer.
+    raw_eh = str(getattr(report, "extension_host_output", ""))
+    raw_lines = raw_eh.splitlines()
+    if len(raw_lines) > 500:
+        start = _expand_window_for_orphaned_pem(raw_lines, len(raw_lines) - 500)
+        # Reattach the trailing newline (``splitlines()`` drops it) so
+        # the truncated branch round-trips the same trailing-byte form
+        # the short-input branch already preserves.
+        window = "\n".join(raw_lines[start:])
+        if raw_eh.endswith("\n"):
+            window += "\n"
+        eh_text = redact_secrets(window)
     else:
-        eh_text = str(getattr(report, "extension_host_output", ""))
+        eh_text = redact_secrets(raw_eh)
     execution_mode = _resolve_trigger_execution_mode(report)
     failed_scenarios = _failed_scenario_names(report)
     skipped_scenarios = _skipped_scenario_records(report)
@@ -337,9 +389,7 @@ def build_report_data(
             stream: [asdict(entry) for entry in entries]
             for stream, entries in getattr(report, "log_streams", {}).items()
         },
-        "extension_host_output_lines": str(
-            getattr(report, "extension_host_output", "")
-        ).count("\n"),
+        "extension_host_output_lines": raw_eh.count("\n"),
         "extension_host_output": eh_text,
         "log_file": getattr(report, "log_file_path", ""),
         # W11-3: producer-set fields surface here so the disk write
