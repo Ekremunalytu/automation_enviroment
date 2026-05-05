@@ -43,6 +43,10 @@ extensions/*
 .env
 !.env.example
 node_modules/
+# macOS Finder duplicates ("node_modules 2") and Apple iCloud
+# .nosync variants ("node_modules.nosync") created when an operator
+# moves node_modules out of an iCloud-synced directory.
+node_modules[ .]*
 
 # Linting & Type Checking
 .mypy_cache/
