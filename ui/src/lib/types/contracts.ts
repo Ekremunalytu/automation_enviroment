@@ -290,6 +290,65 @@ export interface OutputSignalEventDto {
   summary?: string;
 }
 
+export interface NetworkRawContextDto {
+  event_class?: string;
+  event_type?: string;
+  source_ip?: string;
+  path?: string;
+  http_method?: string;
+  http_status_code?: number | null;
+  http_content_type?: string;
+  request_body_sha256?: string;
+  request_body_preview?: string;
+  request_body_truncated?: boolean;
+  response_body_sha256?: string;
+  response_body_preview?: string;
+  response_body_truncated?: boolean;
+}
+
+export interface FileRawContextDto {
+  event_class?: string;
+  secondary_path?: string;
+  flags?: string;
+  observer?: string;
+  source?: string;
+}
+
+export interface ProcessRawContextDto {
+  event_class?: string;
+  pid: number;
+  ppid?: number | null;
+  command?: string;
+  arguments_preview?: string;
+  cwd?: string;
+}
+
+export interface ScenarioRawContextDto {
+  event_class?: string;
+  status?: string;
+  started_at?: number;
+  ended_at?: number;
+}
+
+export interface ActivationRawContextDto {
+  event_class?: string;
+  success?: boolean;
+  duration_ms?: number | null;
+  source?: string;
+}
+
+export interface UiBlockerRawContextDto {
+  event_class?: string;
+  status?: string;
+  stream?: string;
+}
+
+export interface OutputChannelRawContextDto {
+  event_class?: string;
+  channel?: string;
+  text?: string;
+}
+
 export interface RuleExecutionRecordDto {
   rule_id: string;
   rule_version: string;
