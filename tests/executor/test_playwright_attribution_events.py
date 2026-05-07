@@ -32,16 +32,16 @@ from executor.flows.playwright.runtime_capture.events import (
 
 
 def test_format_epoch_timestamp_zero_returns_empty_string() -> None:
-    assert attribution_events._format_epoch_timestamp(0.0) == ""
+    assert attribution_events.format_epoch_timestamp(0.0) == ""
 
 
 def test_format_epoch_timestamp_none_returns_empty_string() -> None:
-    assert attribution_events._format_epoch_timestamp(None) == ""
+    assert attribution_events.format_epoch_timestamp(None) == ""
 
 
 def test_format_epoch_timestamp_positive_returns_iso_with_milliseconds() -> None:
     epoch = datetime(2026, 1, 1, 10, 0, 0, 500_000).timestamp()
-    formatted = attribution_events._format_epoch_timestamp(epoch)
+    formatted = attribution_events.format_epoch_timestamp(epoch)
     # The exact local-tz string is platform dependent, but ms precision and
     # the ISO `T` separator are not. Assert structural shape only.
     assert "T" in formatted
@@ -54,22 +54,20 @@ def test_format_epoch_timestamp_positive_returns_iso_with_milliseconds() -> None
 
 
 def test_relative_time_returns_none_when_event_epoch_is_none() -> None:
-    assert attribution_events._relative_time(None, monitoring_start=1000.0) is None
+    assert attribution_events.relative_time(None, monitoring_start=1000.0) is None
 
 
 def test_relative_time_returns_none_when_monitoring_start_not_positive() -> None:
-    assert attribution_events._relative_time(1000.5, monitoring_start=0.0) is None
+    assert attribution_events.relative_time(1000.5, monitoring_start=0.0) is None
 
 
 def test_relative_time_clamps_negative_delta_to_zero() -> None:
     # Event predates monitoring_start → 0.0, never negative.
-    assert attribution_events._relative_time(999.0, monitoring_start=1000.0) == 0.0
+    assert attribution_events.relative_time(999.0, monitoring_start=1000.0) == 0.0
 
 
 def test_relative_time_rounds_positive_delta_to_three_decimals() -> None:
-    assert (
-        attribution_events._relative_time(1000.4567, monitoring_start=1000.0) == 0.457
-    )
+    assert attribution_events.relative_time(1000.4567, monitoring_start=1000.0) == 0.457
 
 
 # ---------------------------------------------------------------------------
@@ -414,7 +412,7 @@ def test_scenario_name_for_timestamp_returns_name_when_inside_window() -> None:
         ended_at=monitoring_start + 15.0,
     )
 
-    name = attribution_events._scenario_name_for_timestamp(
+    name = attribution_events.scenario_name_for_timestamp(
         timestamp="",  # force the rel_time_s + monitoring_start fallback
         rel_time_s=10.0,
         scenario_traces=[trace],
@@ -431,7 +429,7 @@ def test_scenario_name_for_timestamp_returns_empty_when_outside_window() -> None
         ended_at=monitoring_start + 15.0,
     )
 
-    name = attribution_events._scenario_name_for_timestamp(
+    name = attribution_events.scenario_name_for_timestamp(
         timestamp="",
         rel_time_s=20.0,  # past the window
         scenario_traces=[trace],
@@ -486,7 +484,7 @@ def test_annotate_network_events_classifies_target_attribution_with_scenario_lab
         summary="POST /steal",
     )
 
-    annotated = attribution_events._annotate_network_events(
+    annotated = attribution_events.annotate_network_events(
         [network_event],
         activations,
         [scenario],
@@ -509,7 +507,7 @@ def test_annotate_file_events_marks_inotify_as_automation_noise() -> None:
         scenario_name="canary",
     )
 
-    annotated = attribution_events._annotate_file_events(
+    annotated = attribution_events.annotate_file_events(
         [inotify_event],
         activations=[],
         scenario_traces=[],
@@ -538,7 +536,7 @@ def test_annotate_process_events_attributes_target_strace_event() -> None:
         command="/usr/bin/node",
     )
 
-    annotated = attribution_events._annotate_process_events(
+    annotated = attribution_events.annotate_process_events(
         [process_event],
         activations,
         scenario_traces=[],

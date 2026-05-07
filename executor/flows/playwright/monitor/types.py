@@ -9,9 +9,9 @@ from typing import Any
 
 from ..annotation import build_attribution_summary
 from ..attribution import (
-    _build_evidence_bundle,
-    _build_risk_signals,
-    _build_risk_summary,
+    build_evidence_bundle,
+    build_risk_signals,
+    build_risk_summary,
 )
 from ..capture import summarize_extension_host_logs
 from ..health import (
@@ -303,11 +303,11 @@ class ActivationReport:
 
     @property
     def risk_signals(self) -> list[RiskSignal]:
-        return _build_risk_signals(self)
+        return build_risk_signals(self)
 
     @property
     def risk_summary(self) -> dict[str, Any]:
-        return _build_risk_summary(self.risk_signals)
+        return build_risk_summary(self.risk_signals)
 
     @property
     def summary(self) -> dict[str, Any]:
@@ -359,12 +359,12 @@ class ActivationReport:
 
     @property
     def evidence_events(self) -> list[EvidenceEvent]:
-        events, _ = _build_evidence_bundle(self)
+        events, _ = build_evidence_bundle(self)
         return events
 
     @property
     def canonical_evidence_links(self) -> list[EvidenceLink]:
-        _, links = _build_evidence_bundle(self)
+        _, links = build_evidence_bundle(self)
         return links
 
     @property
@@ -404,7 +404,7 @@ class ActivationReport:
 
     def save(self, path: str | Path, announce: bool = True) -> Path:
         """Save full report as JSON."""
-        evidence_events, evidence_links = _build_evidence_bundle(self)
+        evidence_events, evidence_links = build_evidence_bundle(self)
         data = build_report_data(
             self,
             evidence_events=evidence_events,

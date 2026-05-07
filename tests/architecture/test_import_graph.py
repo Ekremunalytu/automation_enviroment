@@ -360,14 +360,15 @@ def test_monitor_facade_does_not_eagerly_import_attribution() -> None:
 
     The attribution subpackage transitively imports ``monitor.records``,
     which (after W12-1 subpackaging) triggers ``monitor/__init__.py`` to
-    load. Eager ``from ..attribution import _annotate_*`` etc. inside the
+    load. Eager ``from ..attribution import annotate_*`` etc. inside the
     monitor facade re-introduces the import cycle and the partial-module
     AttributeError it produces. The PEP 562 ``__getattr__`` at the bottom
     of ``monitor/__init__.py`` proxies the attribution surface lazily so
-    callers still see ``monitor._annotate_file_events`` via the historical
-    flat re-export shape. This gate fails fast if a future PR replaces
-    the lazy proxy with a top-level import — the right answer is to
-    extend ``_LAZY_ATTRIBUTION_NAMES`` and keep ``__getattr__``.
+    callers still see ``monitor.annotate_file_events`` via the public
+    re-export shape (W12-2 trimmed the surface from 15 underscore names to
+    10 public names). This gate fails fast if a future PR replaces the
+    lazy proxy with a top-level import — the right answer is to extend
+    ``_LAZY_ATTRIBUTION_NAMES`` and keep ``__getattr__``.
     """
     facade = REPO_ROOT / "executor/flows/playwright/monitor/__init__.py"
     tree = ast.parse(facade.read_text(encoding="utf-8"))
@@ -512,12 +513,12 @@ def test_attribution_does_not_eagerly_import_monitor() -> None:
     The symmetric counterpart to
     ``test_monitor_facade_does_not_eagerly_import_attribution``. Attribution
     needs ``RiskSignal`` (defined in ``monitor.records``) at runtime inside
-    ``_build_risk_signals``; if that import is hoisted to the module top
+    ``build_risk_signals``; if that import is hoisted to the module top
     level it re-creates the cycle (``attribution`` → ``monitor.records`` →
     ``monitor/__init__`` → attribution proxy lookup), since
     ``monitor/__init__.py`` runs eagerly when any ``monitor.<sub>`` module
     is loaded. This gate scans only ``tree.body`` so the lazy import inside
-    ``_build_risk_signals`` (a nested ``ImportFrom`` reachable via
+    ``build_risk_signals`` (a nested ``ImportFrom`` reachable via
     ``ast.walk`` but not via direct ``tree.body`` iteration) is correctly
     ignored. Any future PR that moves ``from ..monitor[...] import ...`` to
     the top level fails here.

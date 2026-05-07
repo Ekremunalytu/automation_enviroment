@@ -7,9 +7,9 @@ through the ``monitor`` facade so that the W12 directory reshuffle
 cannot silently regress this surface.
 
 ``refresh_derived_state`` calls into seven module-level helpers
-(``_annotate_*``, ``derive_verified_capabilities``,
+(``annotate_*``, ``derive_verified_capabilities``,
 ``reconcile_event_attempts``, ``summarize_event_attempts_for_report``,
-``_reconcile_coverage_verification``, ``_build_signal_summary``); each
+``_reconcile_coverage_verification``, ``build_signal_summary``); each
 test monkeypatches the helper at the assembler's import path so the
 assembler's call shape and assignment behavior are pinned without
 re-exercising the helpers themselves (those have their own test
@@ -46,14 +46,14 @@ def _patch_refresh_helpers(monkeypatch) -> dict[str, list[Any]]:
     report field.
     """
     calls: dict[str, list[Any]] = {
-        "_annotate_network_events": [],
-        "_annotate_file_events": [],
-        "_annotate_process_events": [],
+        "annotate_network_events": [],
+        "annotate_file_events": [],
+        "annotate_process_events": [],
         "derive_verified_capabilities": [],
         "reconcile_event_attempts": [],
         "summarize_event_attempts_for_report": [],
         "_reconcile_coverage_verification": [],
-        "_build_signal_summary": [],
+        "build_signal_summary": [],
     }
 
     def _record(name: str, ret: Any):
@@ -65,18 +65,18 @@ def _patch_refresh_helpers(monkeypatch) -> dict[str, list[Any]]:
 
     monkeypatch.setattr(
         monitor_report_assembler,
-        "_annotate_network_events",
-        _record("_annotate_network_events", ["net-out"]),
+        "annotate_network_events",
+        _record("annotate_network_events", ["net-out"]),
     )
     monkeypatch.setattr(
         monitor_report_assembler,
-        "_annotate_file_events",
-        _record("_annotate_file_events", ["file-out"]),
+        "annotate_file_events",
+        _record("annotate_file_events", ["file-out"]),
     )
     monkeypatch.setattr(
         monitor_report_assembler,
-        "_annotate_process_events",
-        _record("_annotate_process_events", ["proc-out"]),
+        "annotate_process_events",
+        _record("annotate_process_events", ["proc-out"]),
     )
     # Two of the attempted capabilities will be in the derived set so we can
     # assert official vs heuristic split logic.
@@ -105,13 +105,13 @@ def _patch_refresh_helpers(monkeypatch) -> dict[str, list[Any]]:
     )
     monkeypatch.setattr(
         monitor_report_assembler,
-        "_build_signal_summary",
-        _record("_build_signal_summary", {"signal": "sig"}),
+        "build_signal_summary",
+        _record("build_signal_summary", {"signal": "sig"}),
     )
 
     # ``canonical_evidence_links`` is a derived property that walks the
     # (now stubbed) event lists; with sentinel return values like
-    # ``["net-out"]`` it would crash inside ``_build_evidence_bundle``.
+    # ``["net-out"]`` it would crash inside ``build_evidence_bundle``.
     # Pin the property to a deterministic value so the assembler's
     # ``evidence_links = report.canonical_evidence_links`` line is
     # exercised without dragging the real bundle builder in.
@@ -171,13 +171,13 @@ def test_refresh_calls_three_event_annotators_with_report_state(monkeypatch) -> 
 
     # Each annotator received the matching events list, the activation list,
     # the scenario traces, and the target_extension_id — in that order.
-    assert len(calls["_annotate_network_events"]) == 1
-    args, _ = calls["_annotate_network_events"][0]
+    assert len(calls["annotate_network_events"]) == 1
+    args, _ = calls["annotate_network_events"][0]
     assert args[1] is report.activated
     assert args[2] is report.scenario_traces
     assert args[3] == "publisher.tool"
-    assert len(calls["_annotate_file_events"]) == 1
-    assert len(calls["_annotate_process_events"]) == 1
+    assert len(calls["annotate_file_events"]) == 1
+    assert len(calls["annotate_process_events"]) == 1
 
 
 def test_refresh_writes_annotator_returns_back_onto_report(monkeypatch) -> None:

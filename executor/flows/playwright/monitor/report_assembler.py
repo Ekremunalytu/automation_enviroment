@@ -43,10 +43,10 @@ from collections.abc import Iterable
 from pathlib import Path
 
 from ..attribution import (
-    _annotate_file_events,
-    _annotate_network_events,
-    _annotate_process_events,
-    _build_signal_summary,
+    annotate_file_events,
+    annotate_network_events,
+    annotate_process_events,
+    build_signal_summary,
 )
 from ..health import (
     derive_verified_capabilities,
@@ -85,19 +85,19 @@ class ReportAssembler:
         the facade that need a fresh view (today, none — but the shim
         keeps the call path stable for W11-3+ subscribers).
         """
-        self._report.network_events = _annotate_network_events(
+        self._report.network_events = annotate_network_events(
             self._report.network_events,
             self._report.activated,
             self._report.scenario_traces,
             self._report.target_extension_id,
         )
-        self._report.file_events = _annotate_file_events(
+        self._report.file_events = annotate_file_events(
             self._report.file_events,
             self._report.activated,
             self._report.scenario_traces,
             self._report.target_extension_id,
         )
-        self._report.process_events = _annotate_process_events(
+        self._report.process_events = annotate_process_events(
             self._report.process_events,
             self._report.activated,
             self._report.scenario_traces,
@@ -126,7 +126,7 @@ class ReportAssembler:
             self._report.coverage_matrix,
             self._report.coverage_tracks,
         ) = _reconcile_coverage_verification(self._report)
-        self._report.signal_summary = _build_signal_summary(self._report)
+        self._report.signal_summary = build_signal_summary(self._report)
         self._report.evidence_links = self._report.canonical_evidence_links
 
     def set_runner_status(self, exit_code: int) -> None:

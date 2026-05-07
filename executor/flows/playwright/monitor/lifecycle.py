@@ -11,8 +11,8 @@ from typing import Any
 from playwright.sync_api import Page
 
 from ..attribution import (
-    _format_epoch_timestamp,
-    _relative_time,
+    format_epoch_timestamp,
+    relative_time,
 )
 from .payload import populate_report_from_trigger_payload
 from .records import (
@@ -233,8 +233,8 @@ class ExtensionMonitor:
         stream = "ui_blockers" if kind.startswith("ui_blocker") else "automation"
         self.report.log_entries.append(
             LogStreamEntry(
-                timestamp=_format_epoch_timestamp(now),
-                rel_time_s=_relative_time(now, self.report.monitoring_start),
+                timestamp=format_epoch_timestamp(now),
+                rel_time_s=relative_time(now, self.report.monitoring_start),
                 stream=stream,
                 kind=kind,
                 message=message,

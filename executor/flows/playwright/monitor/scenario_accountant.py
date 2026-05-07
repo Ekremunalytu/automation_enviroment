@@ -40,9 +40,9 @@ from collections.abc import Callable
 from typing import Any
 
 from ..attribution import (
-    _format_epoch_timestamp,
-    _relative_time,
-    _scenario_name_for_timestamp,
+    format_epoch_timestamp,
+    relative_time,
+    scenario_name_for_timestamp,
 )
 from ..runtime_capture._shared import _parse_iso_timestamp
 from .records import (
@@ -359,8 +359,8 @@ class ScenarioAccountant:
         message = _build_scenario_log_message(action, name, status, metadata)
         self._report.log_entries.append(
             LogStreamEntry(
-                timestamp=_format_epoch_timestamp(now),
-                rel_time_s=_relative_time(now, self._report.monitoring_start),
+                timestamp=format_epoch_timestamp(now),
+                rel_time_s=relative_time(now, self._report.monitoring_start),
                 stream="automation",
                 kind="scenario",
                 message=message,
@@ -537,11 +537,11 @@ class ScenarioAccountant:
             for entry in self._report.log_entries
         }
         for entry in self._report.activated:
-            rel_time = _relative_time(
+            rel_time = relative_time(
                 _parse_iso_timestamp(entry.timestamp),
                 self._report.monitoring_start,
             )
-            scenario_name = _scenario_name_for_timestamp(
+            scenario_name = scenario_name_for_timestamp(
                 entry.timestamp,
                 rel_time,
                 self._report.scenario_traces,

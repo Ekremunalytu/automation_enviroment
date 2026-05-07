@@ -54,7 +54,7 @@ def test_annotate_file_events_preserves_duplicate_observers_and_emits_links() ->
         )
     ]
 
-    annotated = monitor._annotate_file_events(
+    annotated = monitor.annotate_file_events(
         file_events,
         activations,
         traces,
@@ -166,7 +166,7 @@ def test_inotify_events_never_claim_target_ownership() -> None:
         )
     ]
 
-    annotated = monitor._annotate_file_events(
+    annotated = monitor.annotate_file_events(
         file_events,
         activations,
         traces,
@@ -208,7 +208,7 @@ def test_strace_event_with_competing_activation_is_not_owned_by_target() -> None
         )
     ]
 
-    annotated = monitor._annotate_file_events(
+    annotated = monitor.annotate_file_events(
         file_events,
         activations,
         traces,
@@ -242,7 +242,7 @@ def test_network_events_without_target_activation_stay_unattributed() -> None:
         )
     ]
 
-    annotated = monitor._annotate_network_events(
+    annotated = monitor.annotate_network_events(
         network_events,
         activations,
         [],
@@ -1094,7 +1094,7 @@ def test_verdict_stays_bounded_when_only_correlative_sensitive_activity_exists()
         target_extension_id="publisher.tool",
     )
 
-    signal_summary = monitor._build_signal_summary(report)
+    signal_summary = monitor.build_signal_summary(report)
 
     assert signal_summary["level"] in {"needs_review", "suspicious"}
     assert signal_summary["level"] != "likely_malicious"
@@ -1109,7 +1109,7 @@ def test_inconclusive_run_never_returns_benign() -> None:
         trigger_plan_applied=False,
     )
 
-    signal_summary = monitor._build_signal_summary(report)
+    signal_summary = monitor.build_signal_summary(report)
 
     assert report.run_quality == "inconclusive"
     assert signal_summary["level"] == "needs_review"
@@ -1150,7 +1150,7 @@ def test_trigger_requested_but_not_loaded_is_inconclusive() -> None:
     assert health["status"] == "inconclusive"
     assert "trigger_plan_not_loaded" in health["reasons"]
     assert "trigger_plan_not_applied" in health["reasons"]
-    assert monitor._build_signal_summary(report)["level"] != "benign"
+    assert monitor.build_signal_summary(report)["level"] != "benign"
 
 
 def test_target_running_alone_does_not_verify_window_ui() -> None:

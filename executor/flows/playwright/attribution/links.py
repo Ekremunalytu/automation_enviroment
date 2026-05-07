@@ -20,16 +20,16 @@ from ..runtime_capture.events import (
 from .events import (
     _actor_from_file_source,
     _actor_from_network_event,
-    _format_epoch_timestamp,
     _resolve_event_epoch,
-    _scenario_name_for_timestamp,
+    format_epoch_timestamp,
+    scenario_name_for_timestamp,
 )
 
 if TYPE_CHECKING:
     from ..monitor.types import ActivationReport
 
 
-def _build_evidence_bundle(
+def build_evidence_bundle(
     report: ActivationReport,
 ) -> tuple[list[EvidenceEvent], list[EvidenceLink]]:
     events: list[EvidenceEvent] = []
@@ -56,7 +56,7 @@ def _build_evidence_bundle(
             EvidenceEvent(
                 event_id=event_id,
                 kind="scenario",
-                timestamp=_format_epoch_timestamp(trace.started_at),
+                timestamp=format_epoch_timestamp(trace.started_at),
                 rel_time_s=rel_time_s,
                 collector="automation",
                 actor="automation",
@@ -82,7 +82,7 @@ def _build_evidence_bundle(
             EvidenceEvent(
                 event_id=event_id,
                 kind="activation",
-                timestamp=activation.timestamp or _format_epoch_timestamp(event_epoch),
+                timestamp=activation.timestamp or format_epoch_timestamp(event_epoch),
                 rel_time_s=round(max(event_epoch - monitoring_start, 0.0), 3)
                 if event_epoch is not None and monitoring_start > 0
                 else None,
@@ -121,7 +121,7 @@ def _build_evidence_bundle(
             EvidenceEvent(
                 event_id=event_id,
                 kind="ui_blocker",
-                timestamp=blocker.timestamp or _format_epoch_timestamp(event_epoch),
+                timestamp=blocker.timestamp or format_epoch_timestamp(event_epoch),
                 rel_time_s=blocker.rel_time_s,
                 collector=blocker.stream,
                 actor="automation",
@@ -148,11 +148,11 @@ def _build_evidence_bundle(
                 event_id=event_id,
                 kind="network",
                 timestamp=network_event.timestamp
-                or _format_epoch_timestamp(event_epoch),
+                or format_epoch_timestamp(event_epoch),
                 rel_time_s=network_event.rel_time_s,
                 collector="tshark",
                 actor=_actor_from_network_event(network_event),
-                scenario_name=_scenario_name_for_timestamp(
+                scenario_name=scenario_name_for_timestamp(
                     network_event.timestamp,
                     network_event.rel_time_s,
                     report.scenario_traces,
@@ -199,7 +199,7 @@ def _build_evidence_bundle(
             EvidenceEvent(
                 event_id=event_id,
                 kind="file",
-                timestamp=file_event.timestamp or _format_epoch_timestamp(event_epoch),
+                timestamp=file_event.timestamp or format_epoch_timestamp(event_epoch),
                 rel_time_s=file_event.rel_time_s,
                 collector=file_event.observer or "unknown",
                 actor=_actor_from_file_source(file_event.source),
@@ -238,13 +238,13 @@ def _build_evidence_bundle(
                 event_id=event_id,
                 kind="process",
                 timestamp=process_event.timestamp
-                or _format_epoch_timestamp(event_epoch),
+                or format_epoch_timestamp(event_epoch),
                 rel_time_s=process_event.rel_time_s,
                 collector="strace",
                 actor="extension"
                 if process_event.is_target_extension_event
                 else "unknown",
-                scenario_name=_scenario_name_for_timestamp(
+                scenario_name=scenario_name_for_timestamp(
                     process_event.timestamp,
                     process_event.rel_time_s,
                     report.scenario_traces,
@@ -283,7 +283,7 @@ def _build_evidence_bundle(
                 rel_time_s=output_event.rel_time_s,
                 collector="harness_extension",
                 actor="harness",
-                scenario_name=_scenario_name_for_timestamp(
+                scenario_name=scenario_name_for_timestamp(
                     output_event.timestamp,
                     output_event.rel_time_s,
                     report.scenario_traces,

@@ -120,29 +120,36 @@ from ..runtime_capture.network import (  # noqa: F401 - re-exported surface
     NetworkCapture,
     parse_tshark_event_line,
 )
-from ..signals import build_risk_signals, build_risk_summary, build_signal_summary
+# NOTE (W12-2): Do NOT add `from ..signals import build_risk_signals, ...`
+# back here. The historical facade exposed `monitor.build_signal_summary`
+# (and the two risk siblings) via the underscore-prefixed wrappers in
+# `attribution/__init__.py`, which inject `automation_health` + `run_quality`
+# (and the lazy `RiskSignal` import). After the W12-2 underscore cleanup
+# those wrappers are public; the lazy `__getattr__` proxy below routes
+# `monitor.build_signal_summary` to `attribution.build_signal_summary`
+# (the 1-arg wrapper) — re-importing the raw 3-arg signals helper here
+# would shadow the proxy and crash callers that pass `(report,)` only.
 
-# Lazy attribution re-exports (W12-1): direct module-load imports for these
-# would create a cycle (attribution.events / attribution.links import from
-# ..monitor.records, which transitively triggers this facade's load). The
-# PEP 562 __getattr__ below proxies access to the attribution subpackage
-# without forcing it to be loaded as monitor's facade initializes.
+# Lazy attribution re-exports (W12-1; W12-2 trimmed to public names): direct
+# module-load imports for these would create a cycle (attribution.events /
+# attribution.links import from ..monitor.records, which transitively triggers
+# this facade's load). The PEP 562 __getattr__ below proxies access to the
+# attribution subpackage without forcing it to be loaded as monitor's facade
+# initializes. W12-2 trimmed the surface from 15 underscore-prefixed names to
+# 10 public names; the four ``_indexed_*`` shims were dropped (callers reach
+# ``signals.facts`` directly) and ``_matches_extension_signature`` /
+# ``_resolve_event_epoch`` are no longer facade-public.
 _LAZY_ATTRIBUTION_NAMES = (
-    "_annotate_file_events",
-    "_annotate_network_events",
-    "_build_evidence_bundle",
-    "_build_risk_signals",
-    "_build_risk_summary",
-    "_build_signal_summary",
-    "_format_epoch_timestamp",
-    "_indexed_target_activations",
-    "_indexed_target_file_events",
-    "_indexed_target_network_events",
-    "_indexed_ui_blockers",
-    "_matches_extension_signature",
-    "_relative_time",
-    "_resolve_event_epoch",
-    "_scenario_name_for_timestamp",
+    "annotate_file_events",
+    "annotate_network_events",
+    "annotate_process_events",
+    "build_evidence_bundle",
+    "build_risk_signals",
+    "build_risk_summary",
+    "build_signal_summary",
+    "format_epoch_timestamp",
+    "relative_time",
+    "scenario_name_for_timestamp",
 )
 # `.lifecycle` and `.types` both eagerly import from `..attribution`, which
 # would re-enter this facade during the load triggered by attribution's
