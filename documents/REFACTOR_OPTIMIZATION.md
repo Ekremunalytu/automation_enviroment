@@ -194,7 +194,39 @@ Detail: archive §11.8.
 baseline; pre-W11 pencerede 487 LoC idi); attribution facade underscore
 cleanup; `raw_context` per-event-type typing.
 
-Detail: archive §11.9.
+Detail: archive §11.9. Active tracker:
+[`active-work/W12-executor-subpackaging.md`](active-work/W12-executor-subpackaging.md)
+(W12-1..W12-4 stable IDs, entry/exit criteria, pre-W12 precursor gate).
+
+#### §11.9.1 — `runtime_capture/extension_host.py` Split Scoping
+
+`runtime_capture/extension_host.py` (679 LoC; executor flow tree'deki
+en büyük tek dosya) üç bağımsız capture source'unu sahipleniyor:
+exthost.log parser, strace text-mode line parser, ve harness output
+capture + `ExtensionHostFileCapture` class. Slim canonical §11.9'un
+5-subpackage hedefi (`{monitor, stimulus, workspace, health, entrypoint}/`)
+bu dosyaya dokunmaz — archive §11.9 line 2341 `runtime_capture/`'ı
+non-goal olarak işaretler. Ancak dosya boyutu pratikte W12 radar
+içinde; `runtime_capture/` tree'sinin split target'ı W12 giriş
+bandında belirsiz kalmıştı. Bu alt-bölüm o boşluğu doldurur:
+
+- **`extension_host_log_parse.py`** (~200 LoC) — `exthost.log` parser
+- **`extension_host_strace_parse.py`** (~200 LoC) — strace text-mode
+  line parser
+- **`extension_host_capture.py`** (~250 LoC) — harness output capture +
+  `ExtensionHostFileCapture` class
+- Plus a re-export facade (`runtime_capture/extension_host.py` thin
+  `__all__`-only wrapper; W11-7/W11-8 ahtapot pattern, mypy `--strict`
+  re-export form)
+
+Safety floor: `[FOLLOWUP w11-precursor-tests]` (LANDED `2026-05-04`,
+23-case net at `tests/executor/test_playwright_extension_host.py`)
+imported the module at its real path so the split cannot silently
+regress. Backlog item: `[FOLLOWUP w12-extension-host-split-scoping]`
+(`POST_POC_BACKLOG.md:240-256`). Stable ID assignment deferred to
+W12 entry; landing pattern follows W11-7/W11-8 ahtapot closure
+(facade + per-source split + mypy `--strict` re-export, callers
+unchanged).
 
 ### §11.10 — W13 Test Expansion + Observability
 

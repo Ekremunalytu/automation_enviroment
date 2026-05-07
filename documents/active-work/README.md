@@ -1,6 +1,6 @@
 # Active Work
 
-`Last Updated: 2026-05-05`
+`Last Updated: 2026-05-07`
 
 Slim canonical files for **active engineering work tracking**. Each file is
 a stable contract: code comments and tests reference items here by stable
@@ -19,12 +19,18 @@ points to it.
 
 ## Files
 
+- `W12-executor-subpackaging.md`
+  - **Active phase scaffold.** W12 executor subpackaging +
+    attribution cleanup (W12-1..W12-4), slim canonical
+    `REFACTOR_OPTIMIZATION.md §11.9` (+ §11.9.1 split scoping for
+    `runtime_capture/extension_host.py`). Pre-W12 gate:
+    `[FOLLOWUP w12-precursor-tests-attribution-{links,events}]` in
+    `POST_POC_BACKLOG.md:216-239` must land before W12-2 starts.
 - `W11-monitor-lifecycle.md`
-  - **Active phase.** W11 monitor lifecycle split (W11-1..W11-N),
-    formerly `REFACTOR_OPTIMIZATION.md §11.8`. W11-1..W11-6 landed
-    `2026-05-04`/`2026-05-05`; W11-7
-    (`workflows/extension_catalog/service.py` split) is the next
-    pull-first.
+  - **Past phase.** W11 monitor lifecycle split (W11-1..W11-8) closed
+    `2026-05-05`, formerly `REFACTOR_OPTIMIZATION.md §11.8`. Retained
+    on the read path because code comments reference items by
+    `W11-<n>` ID — do not renumber.
 - `W8-security.md`
   - W8 security hardening checklist (W8-1..W8-7), formerly
     `REFACTOR_OPTIMIZATION.md §11.5`. Closed for active work
