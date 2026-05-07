@@ -54,12 +54,22 @@ Lane shape and overall test guide:
 
 ## Test Lanes
 
-- **`make test-security`** runs only `tests/security/`. Subsystem-local
-  W8 tests (`tests/workflows/marketplace/test_vsix_*` for W8-1,
-  `tests/executor/security/test_uri_trigger_*` for W8-3) live in their
-  natural lanes. See `POST_POC_BACKLOG.md` `[FOLLOWUP
-  make-test-security-lane-composition]` for the open question on
-  whether to fold subsystem-local lanes into the Makefile target.
+- **`make test-security`** runs the cross-tree W5 + W8 perimeter lane:
+  - W5 malicious-fixture hygiene + rule coverage:
+    `tests/security/test_fixture_hygiene.py`,
+    `tests/security/test_rule_coverage.py`,
+    `tests/security/rules/`,
+    `tests/security/test_rule_validation.py`,
+    `tests/security/test_benign_silence.py`
+  - W8-6 + W11-6 + W12-0 redaction lanes: `tests/platform/security/`
+  - W8-7 ADR 0007 binding gates: `tests/architecture/test_default_bindings.py`
+  - W8-1 VSIX zip-bomb hardening: `tests/workflows/marketplace/test_vsix_hardening.py`
+  - W8-3 URI trigger injection: `tests/executor/security/test_uri_trigger_injection.py`
+  - W8-5 router path traversal: `tests/workflows/activation_reports/test_router_path_traversal.py`
+
+  Cross-tree composition landed during W8 acceptance;
+  `[FOLLOWUP make-test-security-lane-composition]` is closed in
+  `POST_POC_BACKLOG.md`.
 - **`make test-security-live`** — T2/T3 fixture lane, gated by ADR
   0004; user-side because operational T2 plumbing waits on a real
   engagement.

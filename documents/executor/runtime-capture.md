@@ -102,19 +102,27 @@ stays green. Docker-based A1 canary structural diff
 `t1-a1-credential-read-to-network-canary`) is the canonical user-side
 smoke gate.
 
-## Pending W8 Items Touching Capture
+## W8 Items Touching Capture
 
-- **W8-6** — content-sample secret redaction. New
-  `packages/analysis_contracts/evidence.py`; `ContentSample.value`
-  setter routes through redaction filter
-  (`AWS_SECRET_ACCESS_KEY=…`, `bearer <token>`,
-  `Authorization: Bearer`, private-key headers →
-  `[REDACTED:<class>]`). ADR 0003 §6 addendum.
-- **W8-8** — manifest field log-injection sanitization.
-  `appcore/contracts/sanitize.py::sanitize_for_log`; manifest field
-  log emit sites in `extension_catalog`, `marketplace.job_service`,
-  `marketplace.analysis_execution` route through helper. ADR 0002 §7
-  addendum.
+- **W8-6** — content-sample secret redaction. **Closed** —
+  - harness-marker channel: W10-7 (`2026-05-04`)
+  - extension-host log tail companion: W11-6 (`2026-05-05`)
+  - file-backed output-signals channel: W12-0 (`22eb836`, `2026-05-07`)
+  - channel/summary fields: W12-0 dolgusu (`b642af7`, `2026-05-07`)
+
+  Helper: `packages/analysis_contracts/evidence.py::ContentSample.redact_secrets`
+  with five secret classes (aws, bearer, private_key, api_key, db_url).
+  Broader structural enforcement is tracked under
+  `[FOLLOWUP w8-6-content-sample-structural-test]` for W13.
+- **W8-8** — manifest field log-injection sanitization. **Deferred
+  `2026-04-29` under named triggers A/B**, not abandoned. No production
+  call site currently emits attacker-controlled manifest fields
+  (`displayName`, `description`, `repository.url`, `categories[]`,
+  `homepage`, `bugs`, `qna`, `license`). Reactivation conditions and
+  the planned helper at `appcore/contracts/sanitize.py::sanitize_for_log`
+  are documented in `documents/active-work/W8-security.md` and
+  `[FOLLOWUP w8-8-manifest-emit-when-needed]` in
+  `POST_POC_BACKLOG.md`.
 
 Detail: [`../active-work/W8-security.md`](../active-work/W8-security.md)
 items W8-6 and W8-8.

@@ -39,7 +39,7 @@ Use stable IDs in new references; do not cite canonical doc line numbers.
   `tests/platform/security/test_output_signals_redaction.py`. W12-1
   unblocked.
 - ~~**`[FOLLOWUP w8-6-output-signal-channel-summary-redaction]`**~~ —
-  **W12-0 dolgusu landed `<TARIH>` on `week12` in commit `<HASH>`.**
+  **W12-0 dolgusu landed `2026-05-07` on `week12` in commit `b642af7`.**
   `OutputSignalEvent.channel` ve `OutputSignalEvent.summary` hem
   harness-marker (`signals/output.py:~116`) hem de file-backed
   (`signals/output.py:~180`) source'larda
