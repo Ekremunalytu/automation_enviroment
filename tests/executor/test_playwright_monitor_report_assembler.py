@@ -251,56 +251,57 @@ def test_refresh_populates_coverage_tuple(monkeypatch) -> None:
     assert report.coverage_tracks == {"official": {"x": 1}}
 
 
-def test_refresh_syncs_attempted_capabilities_to_reconciled_summary(
+def test_refresh_syncs_attempted_capabilities_to_runtime_derived(
     monkeypatch,
 ) -> None:
-    """W12-2 [FOLLOWUP coverage-summary-attempted-drift]: reconcile is the
-    single authority for ``attempted_capabilities``.
+    """W12-2 [FOLLOWUP coverage-summary-attempted-drift]: the assembler
+    must collapse the planner-seeded ``attempted_capabilities`` into the
+    runtime-derived view (event_attempts → capability_tags) BEFORE
+    reconcile runs.
 
     The pre-W12-2 dataflow let ``payload.populate_report_from_trigger_payload``
-    seed ``report.attempted_capabilities`` from the analysis_planner output
-    while ``coverage_summary["attempted_capabilities"]`` was rebuilt by
-    ``_reconcile_coverage_verification`` against the matrix-supported set.
-    The two could diverge (analyst-side ``uri_walkthrough`` not in the matrix
-    → seed had 7 entries, summary had 6). After W12-2 the assembler syncs
-    the top-level field to the reconciled summary at the end of every
-    ``refresh_derived_state`` so the UI fallback chain
-    (``summary.attempted_capabilities`` → ``official_attempted_capabilities``
-    → ``attempted_capabilities``) sees the same number everywhere.
+    seed ``report.attempted_capabilities`` from the analysis_planner output;
+    ``report_builder.py`` writes the on-disk ``attempted_capabilities``
+    field from ``runtime_official_attempted_capabilities`` (event_attempts
+    derive), but the reconciled ``coverage_summary["attempted_capabilities"]``
+    flowed from ``official_attempted_capabilities`` (matrix-filtered planner
+    seed). Live 2026-05-07 scan: ``uri_walkthrough`` was planned but never
+    attempted → JSON top-level had 6 entries, ``coverage_summary`` had 7.
+    Post-fix, the assembler reassigns ``attempted_capabilities`` to
+    ``runtime_official_attempted_capabilities`` BEFORE reconcile so both
+    aliases resolve to the same runtime-derived list.
     """
     _patch_refresh_helpers(monkeypatch)
     report = _make_report()
-    # Simulate the pre-refresh drift: payload-seeded list with an extra
-    # capability that the matrix-reconciled summary will drop.
+    # Simulate the pre-refresh drift: payload-seeded list carries an extra
+    # capability (``uri_walkthrough``) that never made it into event_attempts,
+    # so the runtime-derived view drops it.
     report.attempted_capabilities = ["cap.read", "cap.write", "uri_walkthrough"]
     report.heuristic_attempted_capabilities = ["heuristic_extra", "cap.write"]
 
-    # The patched ``_reconcile_coverage_verification`` returns
-    # ``({"summary": "S"}, ...)``; override its return value so the summary
-    # carries an ``attempted_capabilities`` list to sync against.
+    # Stub the runtime-derived properties so the test does not depend on
+    # the full ``_derive_runtime_attempted_capabilities`` event-attempt
+    # walker — that path is exercised in test_playwright_helpers /
+    # test_playwright_monitor_report_assembler runtime-derive tests.
     monkeypatch.setattr(
-        monitor_report_assembler,
-        "_reconcile_coverage_verification",
-        lambda _r: (
-            {"summary": "S", "attempted_capabilities": ["cap.read", "cap.write"]},
-            [{"row": 1}],
-            {
-                "official": {"x": 1},
-                "heuristic": {"summary": {"attempted_capabilities": ["cap.write"]}},
-            },
-        ),
+        ActivationReport,
+        "runtime_official_attempted_capabilities",
+        property(lambda self: ["cap.read", "cap.write"]),
+    )
+    monkeypatch.setattr(
+        ActivationReport,
+        "runtime_heuristic_attempted_capabilities",
+        property(lambda self: ["cap.write"]),
     )
 
     assembler = ReportAssembler(report=report, report_path=None)
     assembler.refresh_derived_state()
 
+    # Top-level fields are runtime-derived now; ``uri_walkthrough`` is
+    # gone because it was planner-seeded but never attempted.
     assert report.attempted_capabilities == ["cap.read", "cap.write"]
+    assert "uri_walkthrough" not in report.attempted_capabilities
     assert report.heuristic_attempted_capabilities == ["cap.write"]
-    # And the reconciled coverage_summary remains the authority.
-    assert report.coverage_summary["attempted_capabilities"] == [
-        "cap.read",
-        "cap.write",
-    ]
 
 
 def test_refresh_writes_signal_summary_and_evidence_links(monkeypatch) -> None:

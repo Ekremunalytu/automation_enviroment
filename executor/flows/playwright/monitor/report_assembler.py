@@ -112,6 +112,25 @@ class ReportAssembler:
             | (derived_verified & set(self._report.heuristic_attempted_capabilities))
         )
         self._report.event_attempts = reconcile_event_attempts(self._report)
+        # W12-2 [FOLLOWUP coverage-summary-attempted-drift]: collapse the
+        # planner-seeded ``attempted_capabilities`` into the runtime-derived
+        # view (event_attempts → capability_tags) BEFORE reconcile runs.
+        # ``runtime_official_attempted_capabilities`` reads from the just-
+        # reconciled ``event_attempts``; reassigning the top-level field
+        # makes ``official_attempted_capabilities`` (the matrix-filtered
+        # property reconcile reads as its 3rd arg) flow from the same
+        # source. The on-disk ``attempted_capabilities`` field
+        # (``report_builder.py`` writes from
+        # ``runtime_official_attempted_capabilities``) and the reconciled
+        # ``coverage_summary["attempted_capabilities"]`` then resolve to
+        # identical lists; analysts no longer see ``uri_walkthrough`` in
+        # one alias and not the other on the same run.
+        self._report.attempted_capabilities = list(
+            self._report.runtime_official_attempted_capabilities
+        )
+        self._report.heuristic_attempted_capabilities = list(
+            self._report.runtime_heuristic_attempted_capabilities
+        )
         self._report.official_event_coverage = summarize_event_attempts_for_report(
             self._report,
             track="official",
@@ -125,24 +144,6 @@ class ReportAssembler:
             self._report.coverage_matrix,
             self._report.coverage_tracks,
         ) = _reconcile_coverage_verification(self._report)
-        # W12-2 [FOLLOWUP coverage-summary-attempted-drift]: reconcile is the
-        # single authority for ``attempted_capabilities``. Sync the top-level
-        # ``report.attempted_capabilities`` and ``heuristic_attempted_capabilities``
-        # to the reconciled summary lists so the analysis_planner ingestion seed
-        # (``payload.py``) cannot drift from the post-matrix-filter view that
-        # ``coverage_summary`` and the UI fallback chain read.
-        self._report.attempted_capabilities = list(
-            self._report.coverage_summary.get("attempted_capabilities", [])
-        )
-        heuristic_track = self._report.coverage_tracks.get("heuristic", {})
-        heuristic_summary = (
-            heuristic_track.get("summary", {})
-            if isinstance(heuristic_track, dict)
-            else {}
-        )
-        self._report.heuristic_attempted_capabilities = list(
-            heuristic_summary.get("attempted_capabilities", [])
-        )
         self._report.signal_summary = build_signal_summary(self._report)
         self._report.evidence_links = self._report.canonical_evidence_links
 
