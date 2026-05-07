@@ -1,6 +1,6 @@
 # Post-PoC Backlog
 
-`Last Updated: 2026-05-07` (W12 precursor-test gate items landed 2026-05-07; W12 prep PR carried §11.9.1 plan addendum and W12 tracker scaffold)
+`Last Updated: 2026-05-07` (W12 precursor-test gate items landed 2026-05-07; companion W12 tracker scaffold + §11.9.1 plan addendum land on PR #15)
 
 Open work items deferred from W0-W7 PoC scope. **Slim canonical** — full
 verbose item descriptions, landed-evidence detail, and review triage
@@ -216,7 +216,7 @@ when picking an item up.
 - ~~**`[FOLLOWUP w12-precursor-tests-attribution-links]`**~~ —
   closed by commit `5ae0d32` on the
   `feat/w12-precursor-tests-attribution` branch (`2026-05-07`).
-  `tests/executor/test_playwright_attribution_links.py` lands 25
+  `tests/executor/test_playwright_attribution_links.py` lands 26
   cases pinning `_temporal_confidence`, `_dedupe_evidence_links`,
   `_nearest_activation`, the four `_build_*_links` builders
   (scenario / temporal / duplicate-file / noise) and a smoke test for
@@ -228,7 +228,7 @@ when picking an item up.
   closed by commit `5ae0d32` on the
   `feat/w12-precursor-tests-attribution` branch (`2026-05-07`, same
   commit as the links sibling).
-  `tests/executor/test_playwright_attribution_events.py` lands 35
+  `tests/executor/test_playwright_attribution_events.py` lands 34
   cases pinning the timestamp/actor/artifact-class helpers, the five
   `_classify_event_attribution` branches (inotify short-circuit /
   missing target_id / strace tight-window 0.93 / competing demote /
