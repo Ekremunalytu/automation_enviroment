@@ -113,7 +113,16 @@ def parse_output_signal_events(
             continue
         if payload.get("collector") != "harness_extension":
             continue
-        channel = str(payload.get("channel", "") or "")
+        # W12-0 follow-up (closes
+        # [FOLLOWUP w8-6-output-signal-channel-summary-redaction]):
+        # OutputSignalEvent.{channel,summary,text} all carry
+        # extension-controlled strings. `channel` comes straight from the
+        # harness payload; `summary` is a string interpolation built on
+        # top of `channel` (the events.append block below uses
+        # f"OutputChannel({channel}) appendLine"). All three flow through
+        # redact_secrets(_truncate(...)) so the persisted ActivationReport
+        # never carries raw secrets.
+        channel = redact_secrets(_truncate(str(payload.get("channel", "") or "")))
         # W10-7 (closes [FOLLOWUP w8-6-output-signals-redaction]) +
         # W12-0 (closes [FOLLOWUP w8-6-output-signals-file-backed-redaction]):
         # OutputSignalEvent.text carries extension-controlled output channel
@@ -177,7 +186,12 @@ def read_output_channel_logs(
         match = _OUTPUT_CHANNEL_FILE_RE.match(log_path.name)
         if match is None:
             continue
-        channel = match.group("channel")
+        # W12-0 follow-up: VS Code 1.105+ embeds the
+        # extension-supplied output-channel name directly in the
+        # filename (`\d+-(?P<channel>.+)\.log`). An adversary can
+        # hide AKIA / Bearer / PEM patterns inside the channel name,
+        # so route it through the same redact pipeline as `text`.
+        channel = redact_secrets(_truncate(match.group("channel")))
         try:
             content = log_path.read_text(errors="replace")
         except OSError:

@@ -293,3 +293,102 @@ def test_read_output_channel_logs_benign_line_unchanged(tmp_path: Path) -> None:
 
     assert len(events) == 1
     assert events[0].text == benign
+
+
+# --- W12-0 follow-up: OutputSignalEvent.{channel,summary} redaction ---
+#
+# W12-0 closed text-side redaction at both the harness-marker source and the
+# file-backed VS Code 1.105+ source, but left ``channel`` (and the
+# ``summary`` interpolation built on top of it) carrying raw
+# extension-supplied strings. An adversarial extension can call
+# ``vscode.window.createOutputChannel("AKIA...")`` and reach the persisted
+# ActivationReport via either source. The tests below pin both sources +
+# the false-positive guard for benign channels.
+
+
+def _channel_appendline_marker(channel: str, text: str = "benign") -> str:
+    """Harness-marker fixture with a parametrizable ``channel`` field;
+    sibling helper to ``_harness_appendline_marker`` above (which fixes
+    channel='ExtraceTarget'). Kept local to this test block to avoid
+    refactor churn on the existing W10-7/W12-0 cases."""
+    import json
+
+    return "[extrace-harness] " + json.dumps(
+        {
+            "kind": "output_channel_appendline",
+            "channel": channel,
+            "text": text,
+            "ts": 1_700_000_000_000,
+            "collector": "harness_extension",
+        }
+    )
+
+
+@pytest.mark.parametrize(
+    "raw_channel, expected_marker",
+    [
+        ("AKIA1234567890ABCDEF", "[REDACTED:aws]"),
+        ("Bearer eyJhbGciOiJIUzI1NiJ9", "[REDACTED:bearer]"),
+        ("api_key=sk-test-1234567890abcdef", "[REDACTED:api_key]"),
+        ("postgres://user:p%40ss@db:5432/x", "[REDACTED:db_url]"),
+    ],
+)
+def test_harness_marker_channel_redaction(
+    raw_channel: str, expected_marker: str
+) -> None:
+    """W12-0 follow-up: harness-marker source must redact extension-supplied
+    secrets out of both ``OutputSignalEvent.channel`` and ``summary``."""
+    from executor.flows.playwright.signals.output import parse_output_signal_events
+
+    events = parse_output_signal_events(_channel_appendline_marker(raw_channel))
+    assert len(events) == 1
+    assert expected_marker in events[0].channel
+    assert raw_channel not in events[0].channel
+    assert raw_channel not in events[0].summary
+    assert expected_marker in events[0].summary
+
+
+@pytest.mark.parametrize(
+    "filename_channel, expected_marker",
+    [
+        # VS Code 1.105+'s ``output_logging_*/<idx>-<channel>.log`` glob
+        # captures the channel name greedily (``.+`` in
+        # ``_OUTPUT_CHANNEL_FILE_RE``), so spaces are preserved verbatim
+        # from the extension-supplied ``createOutputChannel`` argument.
+        ("AKIA1234567890ABCDEF", "[REDACTED:aws]"),
+        ("Bearer eyJhbGciOiJIUzI1NiJ9", "[REDACTED:bearer]"),
+    ],
+)
+def test_file_backed_channel_redaction(
+    tmp_path: Path, filename_channel: str, expected_marker: str
+) -> None:
+    """W12-0 follow-up: file-backed source must redact secrets embedded
+    in the per-channel filename (``<idx>-<channel>.log``)."""
+    from executor.flows.playwright.signals.output import read_output_channel_logs
+
+    _write_output_channel_log(
+        tmp_path,
+        session="20260507T120400",
+        idx=0,
+        channel=filename_channel,
+        content="benign content\n",
+    )
+
+    events = read_output_channel_logs(tmp_path)
+    assert len(events) == 1
+    assert expected_marker in events[0].channel
+    assert filename_channel not in events[0].channel
+    assert filename_channel not in events[0].summary
+
+
+def test_benign_channel_unchanged() -> None:
+    """W12-0 follow-up false-positive guard: benign channel names round-trip
+    byte-for-byte and the summary interpolation stays semantically intact."""
+    from executor.flows.playwright.signals.output import parse_output_signal_events
+
+    events = parse_output_signal_events(
+        _channel_appendline_marker("GitHub Copilot", text="Hello")
+    )
+    assert len(events) == 1
+    assert events[0].channel == "GitHub Copilot"
+    assert events[0].summary == "OutputChannel(GitHub Copilot) appendLine"

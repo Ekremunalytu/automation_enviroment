@@ -38,6 +38,19 @@ Use stable IDs in new references; do not cite canonical doc line numbers.
   end-to-end regressions added under
   `tests/platform/security/test_output_signals_redaction.py`. W12-1
   unblocked.
+- ~~**`[FOLLOWUP w8-6-output-signal-channel-summary-redaction]`**~~ —
+  **W12-0 dolgusu landed `<TARIH>` on `week12` in commit `<HASH>`.**
+  `OutputSignalEvent.channel` ve `OutputSignalEvent.summary` hem
+  harness-marker (`signals/output.py:~116`) hem de file-backed
+  (`signals/output.py:~180`) source'larda
+  `redact_secrets(_truncate(...))` pipeline'ından geçiyor; `summary`
+  alan değeri `f"OutputChannel({channel}) appendLine"` olduğu için
+  redact'lı channel'ı otomatik miras alır. Adversarial extension
+  `vscode.window.createOutputChannel("AKIA...")` çağırarak persisted
+  ActivationReport'a secret sızdıramıyor. 7 yeni regression case'i
+  (4 harness-marker + 2 file-backed + 1 benign-channel guard)
+  `tests/platform/security/test_output_signals_redaction.py`'ye
+  eklendi. W12-3 unblocked.
 
 ## W12 Acceptance Items
 
