@@ -1,6 +1,6 @@
 # Post-PoC Backlog
 
-`Last Updated: 2026-05-05` (post-Codex/audit follow-ups and drift reconciliations added 2026-05-05)
+`Last Updated: 2026-05-07` (W12 precursor-test gate items landed 2026-05-07; companion W12 tracker scaffold + §11.9.1 plan addendum land on PR #15)
 
 Open work items deferred from W0-W7 PoC scope. **Slim canonical** — full
 verbose item descriptions, landed-evidence detail, and review triage
@@ -213,30 +213,30 @@ when picking an item up.
   rename one) so operators can reason about non-target activity from
   the report alone. Natural landing: W12 attribution facade cleanup
   (`§11.9`). Surfaced by 2026-05-04 manual UI scan.
-- **`[FOLLOWUP w12-precursor-tests-attribution-links]`** —
-  `executor/flows/playwright/attribution/links.py` (594 LoC) lacks the
-  direct module-owned test net that `[FOLLOWUP w11-precursor-tests]`
-  landed for `runtime_capture/extension_host.py` (23 cases) and
-  `health_reconciliation.py` (15 cases). W12 attribution facade
-  cleanup (`§11.9`) is a structurally similar refactor — same risk
-  W11-1 hit live (W11-3 first-scan `build_report_data` serialization
-  gap caught by integration coverage at the last moment). Pickup: add
-  `tests/executor/test_playwright_attribution_links.py` (~20 cases —
-  link rule pins, confidence weights, edge cases: no-trigger,
-  multi-trigger, time-window edge), import the module at its real
-  path (not via the `monitor` facade) so future re-export
-  rearrangement cannot silently regress. **Land before W12 begins.**
-  Surfaced 2026-05-05 audit pass.
-- **`[FOLLOWUP w12-precursor-tests-attribution-events]`** — Sibling
-  to `[FOLLOWUP w12-precursor-tests-attribution-links]`:
-  `executor/flows/playwright/attribution/events.py` (502 LoC) needs
-  the same precursor net for the same W12 split risk. Pickup: add
-  `tests/executor/test_playwright_attribution_events.py` (~15-20
-  cases — event construction, attribution status mutation, monitor_*
-  overlap surface). **Land in the same PR as
-  `[FOLLOWUP w12-precursor-tests-attribution-links]`** so the W12
-  attribution facade cleanup gate-passes the precursor invariant in
-  one shot. Surfaced 2026-05-05 audit pass.
+- ~~**`[FOLLOWUP w12-precursor-tests-attribution-links]`**~~ —
+  closed by commit `5ae0d32` on the
+  `feat/w12-precursor-tests-attribution` branch (`2026-05-07`).
+  `tests/executor/test_playwright_attribution_links.py` lands 26
+  cases pinning `_temporal_confidence`, `_dedupe_evidence_links`,
+  `_nearest_activation`, the four `_build_*_links` builders
+  (scenario / temporal / duplicate-file / noise) and a smoke test for
+  the `_build_evidence_bundle` orchestrator. Imported at the real
+  module path (not via `attribution.__init__`) so the W12-2 facade
+  rework cannot silently regress the bound surface. Stable ID
+  retained for inbound code/test references.
+- ~~**`[FOLLOWUP w12-precursor-tests-attribution-events]`**~~ —
+  closed by commit `5ae0d32` on the
+  `feat/w12-precursor-tests-attribution` branch (`2026-05-07`, same
+  commit as the links sibling).
+  `tests/executor/test_playwright_attribution_events.py` lands 34
+  cases pinning the timestamp/actor/artifact-class helpers, the five
+  `_classify_event_attribution` branches (inotify short-circuit /
+  missing target_id / strace tight-window 0.93 / competing demote /
+  network far-window near_target), `_upgrade_inotify_correlations`
+  paired-strace upgrade, and shape-level pins for the three
+  `_annotate_*_events` annotators. Imported at the real module path
+  so the W12-2 facade rework cannot silently regress. Stable ID
+  retained for inbound code/test references.
 - **`[FOLLOWUP w12-extension-host-split-scoping]`** —
   `executor/flows/playwright/runtime_capture/extension_host.py`
   (679 LoC) is the largest single source file in the executor flow
