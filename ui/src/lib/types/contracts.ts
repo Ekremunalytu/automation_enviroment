@@ -197,7 +197,7 @@ export interface EvidenceEventDto {
   artifact_class?: string;
   sensitive?: boolean;
   summary?: string;
-  raw_context?: Record<string, unknown>;
+  raw_context?: NetworkRawContextDto | FileRawContextDto | ProcessRawContextDto | ScenarioRawContextDto | ActivationRawContextDto | UiBlockerRawContextDto | OutputChannelRawContextDto;
 }
 
 export interface EvidenceLinkDto {

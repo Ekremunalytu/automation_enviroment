@@ -30,7 +30,7 @@ from __future__ import annotations
 from pydantic import ConfigDict
 
 from packages.analysis_contracts import ContentSample
-from packages.analysis_contracts.contracts import ActivationReport, EvidenceEvent
+from packages.analysis_contracts.contracts import ActivationReport
 from packages.analysis_contracts.evidence import redact_secrets
 
 # Migration-pending ``ActivationReport`` subtree fields. Once the field's
@@ -39,7 +39,6 @@ from packages.analysis_contracts.evidence import redact_secrets
 # that is the prompt to remove the entry here and from the allow-list in
 # ``[FOLLOWUP w8-6-content-sample-structural-test]``.
 _PENDING_MIGRATION: list[tuple[type, str]] = [
-    (EvidenceEvent, "raw_context"),
     # ``extension_host_output`` is filtered through ``redact_secrets`` at
     # the ``report_builder.build_report_data`` serialization boundary
     # (the W11-companion close of

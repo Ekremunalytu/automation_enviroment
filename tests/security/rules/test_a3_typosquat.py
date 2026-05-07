@@ -41,7 +41,7 @@ def _report_with_identifier(identifier: str) -> ActivationReport:
                 "kind": "extension_host",
                 "rel_time_s": 0.0,
                 "summary": f"Activated {identifier}",
-                "raw_context": {"event_type": "activated"},
+                "raw_context": {"event_class": "activation"},
             }
         ],
         "network_events": [],

@@ -63,6 +63,7 @@ def build_evidence_bundle(
                 scenario_name=trace.name,
                 summary=f"Scenario {trace.name} {trace.status}",
                 raw_context={
+                    "event_class": "scenario",
                     "status": trace.status,
                     "started_at": trace.started_at,
                     "ended_at": trace.ended_at,
@@ -99,6 +100,7 @@ def build_evidence_bundle(
                     )
                 ),
                 raw_context={
+                    "event_class": "activation",
                     "success": activation.success,
                     "duration_ms": activation.duration_ms,
                     "source": activation.source,
@@ -129,6 +131,7 @@ def build_evidence_bundle(
                 activation_event=blocker.activation_event,
                 summary=blocker.message,
                 raw_context={
+                    "event_class": "ui_blocker",
                     "status": blocker.status,
                     "stream": blocker.stream,
                 },
@@ -171,6 +174,7 @@ def build_evidence_bundle(
                 noise_reason=network_event.noise_reason,
                 summary=network_event.summary,
                 raw_context={
+                    "event_class": "network",
                     "event_type": network_event.event_type,
                     "source_ip": network_event.source_ip,
                     "path": network_event.path,
@@ -217,6 +221,7 @@ def build_evidence_bundle(
                 sensitive=file_event.sensitive,
                 summary=file_event.summary,
                 raw_context={
+                    "event_class": "file",
                     "secondary_path": file_event.secondary_path,
                     "flags": file_event.flags,
                     "observer": file_event.observer,
@@ -259,6 +264,7 @@ def build_evidence_bundle(
                 is_target_extension_event=process_event.is_target_extension_event,
                 summary=process_event.summary,
                 raw_context={
+                    "event_class": "process",
                     "pid": process_event.pid,
                     "ppid": process_event.ppid,
                     "command": process_event.command,
@@ -296,6 +302,7 @@ def build_evidence_bundle(
                 is_target_extension_event=output_event.is_target_extension_event,
                 summary=output_event.summary,
                 raw_context={
+                    "event_class": "output_channel_appendline",
                     "channel": output_event.channel,
                     "text": output_event.text,
                 },

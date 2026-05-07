@@ -15,7 +15,7 @@ See ADR 0003 §6.1 for the secret-class taxonomy and policy bar.
 from __future__ import annotations
 
 import re
-from typing import Final
+from typing import Annotated, Final, Literal
 
 from pydantic import ConfigDict, Field, field_validator
 
@@ -112,4 +112,96 @@ class ContentSample(StrictContractModel):
         return redact_secrets(value)
 
 
-__all__ = ["SECRET_CLASSES", "ContentSample", "redact_secrets"]
+# W12-3: typed `EvidenceEvent.raw_context`. The producer
+# (`executor/flows/playwright/attribution/links.py`) builds a fixed,
+# known-key dict per `EvidenceEvent.kind`; W12-3 hoists those shapes into
+# Pydantic variants and folds them into a discriminated union keyed by
+# `event_class`. The literal §11.9 plan named only Network/File/Process —
+# §11.9 was written before the W7+W11 `EvidenceEvent` consolidation, so the
+# union covers all 7 producer kinds today (3 named + 4 extra).
+
+
+class ScenarioRawContext(StrictContractModel):
+    event_class: Literal["scenario"] = "scenario"
+    status: str = ""
+    started_at: float = 0.0
+    ended_at: float = 0.0
+
+
+class ActivationRawContext(StrictContractModel):
+    event_class: Literal["activation"] = "activation"
+    success: bool = True
+    duration_ms: int | None = None
+    source: str = ""
+
+
+class UiBlockerRawContext(StrictContractModel):
+    event_class: Literal["ui_blocker"] = "ui_blocker"
+    status: str = ""
+    stream: str = ""
+
+
+class NetworkRawContext(StrictContractModel):
+    event_class: Literal["network"] = "network"
+    event_type: str = ""
+    source_ip: str = ""
+    path: str = ""
+    http_method: str = ""
+    http_status_code: int | None = None
+    http_content_type: str = ""
+    request_body_sha256: str = ""
+    request_body_preview: str = ""
+    request_body_truncated: bool = False
+    response_body_sha256: str = ""
+    response_body_preview: str = ""
+    response_body_truncated: bool = False
+
+
+class FileRawContext(StrictContractModel):
+    event_class: Literal["file"] = "file"
+    secondary_path: str = ""
+    flags: str = ""
+    observer: str = ""
+    source: str = ""
+
+
+class ProcessRawContext(StrictContractModel):
+    event_class: Literal["process"] = "process"
+    pid: int
+    ppid: int | None = None
+    command: str = ""
+    arguments_preview: str = ""
+    cwd: str = ""
+
+
+class OutputChannelRawContext(StrictContractModel):
+    event_class: Literal["output_channel_appendline"] = "output_channel_appendline"
+    channel: str = ""
+    text: str = ""
+
+
+RawContext = Annotated[
+    NetworkRawContext
+    | FileRawContext
+    | ProcessRawContext
+    | ScenarioRawContext
+    | ActivationRawContext
+    | UiBlockerRawContext
+    | OutputChannelRawContext,
+    Field(discriminator="event_class"),
+]
+
+
+__all__ = [
+    "SECRET_CLASSES",
+    "ActivationRawContext",
+    "ContentSample",
+    "FileRawContext",
+    "NetworkRawContext",
+    "OutputChannelRawContext",
+    "ProcessRawContext",
+    "RawContext",
+    "ScenarioRawContext",
+    "UiBlockerRawContext",
+    "redact_secrets",
+]

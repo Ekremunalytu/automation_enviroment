@@ -49,6 +49,10 @@ from packages.analysis_contracts.automation import (  # noqa: E402
     AutomationHealthStatusLiteral,  # noqa: F401  (re-exported via __init__)
 )
 from packages.analysis_contracts.coverage import CoverageSummary  # noqa: E402
+from packages.analysis_contracts.evidence import (  # noqa: E402
+    RawContext,
+    ScenarioRawContext,
+)
 
 
 class ActivationEntry(StrictContractModel):
@@ -259,7 +263,7 @@ class EvidenceEvent(StrictContractModel):
     artifact_class: str = ""
     sensitive: bool = False
     summary: str = ""
-    raw_context: dict[str, Any] = Field(default_factory=dict)
+    raw_context: RawContext = Field(default_factory=ScenarioRawContext)
 
 
 class ProcessEvent(StrictContractModel):
