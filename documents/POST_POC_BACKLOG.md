@@ -39,7 +39,7 @@ Use stable IDs in new references; do not cite canonical doc line numbers.
   `tests/platform/security/test_output_signals_redaction.py`. W12-1
   unblocked.
 - ~~**`[FOLLOWUP w12-promoted-attempt-coverage-erasure]`**~~ —
-  **landed `2026-05-07` on `week12` in commit `<HASH_B>`.**
+  **landed `2026-05-07` on `week12` in commit `422a647`.**
   `_derive_runtime_attempted_capabilities` in
   `executor/flows/playwright/monitor/runtime.py` filtered status to
   `{verified, attempted_only, failed}`. After
@@ -57,7 +57,7 @@ Use stable IDs in new references; do not cite canonical doc line numbers.
   `tests/executor/test_playwright_monitor_attribution.py`
   (`test_runtime_attempted_includes_{activation_seen,target_log_seen}_promotion`).
 - ~~**`[FOLLOWUP w12-legacy-strategy-outcomes-migration]`**~~ —
-  **landed `2026-05-07` on `week12` in commit `<HASH_A>`.**
+  **landed `2026-05-07` on `week12` in commit `ba1accb`.**
   W12-2 P3 (`0981e92`) renamed
   `activation_discovery_strategies: list[str]` →
   `activation_discovery_strategy_outcomes: dict[str, str]` under the
