@@ -1,6 +1,6 @@
 # UI Lane
 
-`Last Updated: 2026-04-29`
+`Last Updated: 2026-05-07`
 
 Use this lane for the React/Vite analyst console, frontend contracts, route
 behavior, report views, simulation UI, rules / settings / system surfaces,
@@ -9,6 +9,7 @@ shared v3 primitives, and UI tests.
 ## Start Here
 
 - `ui/src/app/`
+- `ui/src/features/evidence/` — evidence filter/query helpers
 - `ui/src/features/marketplace/`
 - `ui/src/features/reports/`
 - `ui/src/features/reports/charts/` — bespoke SVG (`EventTimeline`,

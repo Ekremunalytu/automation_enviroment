@@ -136,7 +136,7 @@ because a crashed renderer usually means corrupted state downstream.
     `_run_scenario_sequence`, `_mark_remaining_scenarios_aborted`
 - [executor/flows/playwright/health/summary.py](../../executor/flows/playwright/health/summary.py)
   — `automation_health.status` rollup logic
-- [executor/flows/playwright/vscode.py](../../executor/flows/playwright/vscode/__init__.py)
+- [executor/flows/playwright/vscode/**init**.py](../../executor/flows/playwright/vscode/__init__.py)
   — `reload_workbench_window` (used by `retry_on_crash`)
 - [packages/analysis_contracts/contracts.py](../../packages/analysis_contracts/contracts.py)
   — `ScenarioTrace`, `SkippedScenarioRecord`, `automation_health` contract

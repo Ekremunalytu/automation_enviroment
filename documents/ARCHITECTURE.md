@@ -1,6 +1,6 @@
 # ExTrace Architecture
 
-`Last Updated: 2026-05-05`
+`Last Updated: 2026-05-07`
 
 System shape, runtime surfaces, and module map. **Slim canonical** —
 detailed request flows under
@@ -101,10 +101,10 @@ catalog data + analysis-job metadata is `appcore/storage/crud.py`.
 
 ### `ui/` — analyst SPA
 
-App shell + features (`marketplace`, `simulation`, `reports`, `rules`,
-`settings`, `system`); shared v3 primitives under `ui/src/components/v3/`
-mirrored in `ui/tailwind.config.js`. UI v3 redesign minimal-completion
-landed `2026-04-29` (`REFACTOR_STATUS.md`).
+App shell + features (`evidence`, `marketplace`, `simulation`, `reports`,
+`rules`, `settings`, `system`); shared v3 primitives under
+`ui/src/components/v3/` mirrored in `ui/tailwind.config.js`. UI v3
+redesign minimal-completion landed `2026-04-29` (`REFACTOR_STATUS.md`).
 
 ## Canonical Boundaries (summary)
 
@@ -160,7 +160,7 @@ map:
 - `tests/workflows/` — activation reports, extension catalog,
   marketplace.
 - `tests/executor/` — Playwright + executor-host.
-- `tests/scanner/` — Docker exec wrapper.
+- `tests/executor/scanner/` — Docker exec wrapper.
 - `tests/security/` — malicious-fixture hygiene + PoC canary contracts.
 - `tests/smoke/` — end-to-end marketplace analysis against the executor
   container.

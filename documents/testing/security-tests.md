@@ -1,6 +1,6 @@
 # Security Tests
 
-`Last Updated: 2026-05-05`
+`Last Updated: 2026-05-07`
 
 `tests/security/`, `tests/executor/security/`, and
 `tests/platform/security/` (the last two for subsystem-local W8 work).
@@ -48,9 +48,11 @@ Lane shape and overall test guide:
   `tests/platform/security/test_output_signals_redaction.py` (the
   W10-7 regression net for `OutputSignalEvent.text`, executor
   stderr/stdout tail, and `map_executor_error` exception text).
-- `test_manifest_log_sanitization.py` (W8-8 deferred) — newline / CR /
-  ANSI / NULL / overlength manifest-field sanitization for log + job
-  emit sites.
+- W8-8 manifest-field log sanitization is deferred, so there is no
+  current `test_manifest_log_sanitization.py`. When
+  `[FOLLOWUP w8-8-manifest-emit-when-needed]` reopens, land the
+  sanitizer helper, platform security test, AST gate, and ADR 0002
+  addendum in the same PR.
 
 ## Test Lanes
 

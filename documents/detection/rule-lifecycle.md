@@ -70,8 +70,9 @@ the final verdict.
    `LABEL.yaml`.
 4. Add per-class test under `tests/security/rules/test_a<N>_*.py`.
 5. Update `test_rule_coverage.py` if the canary set changes.
-6. Run `make test-security` (45 baseline) and `make demo-canary-offline`
-   (<30 s detection-engine sanity).
+6. Run `make test-security` (current cross-tree lane; entry baseline was
+   45 cases on `2026-04-27`) and `make demo-canary-offline` (<30 s
+   detection-engine sanity).
 
 ## Rejected From W8-W13
 

@@ -415,9 +415,10 @@ number.
   `test_accepts_failed_outcome_with_arbitrary_exception_class`.
   UI adapter does not currently read this field; TS contract regen
   deferred to W13 if a UI consumer is added.
-- **Tests.** `make test-local` 1352 passed (3 pre-existing
-  postgres-port-5433 DB failures unrelated). `make test-security`
-  197 passed (unchanged). Targeted attribution + assembler +
+- **Tests.** `make test-local` 1352 passed at W12-2 close (3
+  pre-existing postgres-port-5433 DB failures unrelated). `make
+  test-security` was 197 passed at W12-2 close and is 204 passed as of
+  the `2026-05-07` docs-drift audit. Targeted attribution + assembler +
   contracts + architecture suite ~420 cases green.
 - **Live-scan.** Deferred to W12 close (Iteration 6) per W12-1
   precedent — Docker `automation_executor` container not running

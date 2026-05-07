@@ -1,6 +1,6 @@
 # Host Wrapper + Container Boot
 
-`Last Updated: 2026-04-29`
+`Last Updated: 2026-05-07`
 
 `executor/host.py`, `executor/control.py`, container boot sequence,
 scan-between restart, API integration. Top-level executor doc:
@@ -91,7 +91,7 @@ Summary dict carries `terminated_vscode_processes`,
   regression of this class is diagnosable from the report alone.
 
 Coverage: `tests/executor/test_reset_state.py`,
-`tests/scanner/test_executor.py`,
+`tests/executor/scanner/test_executor.py`,
 `tests/workflows/marketplace/test_analysis_execution_helpers.py`.
 
 ## API Integration

@@ -1,6 +1,6 @@
 # Test Layout
 
-`Last Updated: 2026-04-29`
+`Last Updated: 2026-05-07`
 
 Layered map of `tests/`. Coordinates with [`../TESTING.md`](../TESTING.md)
 (layer purpose, fixtures, commands). This file is the structural skeleton —
@@ -14,14 +14,14 @@ tests/
   test_health.py
   architecture/        repo-wide import graph + AST regression detectors
   executor/            Playwright + executor-host coverage
+    scanner/           Docker exec wrapper unit coverage
     security/          W8-3 URI trigger argv-form regression lane
   platform/            shared platform contracts, config, storage
     api/
     contracts/
     engine/
     storage/
-    security/          (W8-6, W8-8 land here)
-  scanner/             Docker exec wrapper unit coverage
+    security/          W8-6 and future W8-8 platform security tests
   security/            malicious-fixture hygiene + PoC canary contracts
     rules/             A1/A2/A3/A4/A6 rule tests
   smoke/               end-to-end marketplace analysis acceptance
@@ -49,8 +49,8 @@ UI tests live under `ui/src/**/*.test.ts(x)` (Vitest + Testing Library).
 - **`tests/executor/security/`** — adversarial subprocess invocation
   tests for the URI trigger (W8-3); future executor-local security
   regressions land here.
-- **`tests/scanner/`** — focused unit coverage for the Docker exec
-  wrapper.
+- **`tests/executor/scanner/`** — focused unit coverage for the Docker
+  exec wrapper.
 - **`tests/security/`** — `LABEL.yaml` hygiene, canary end-to-end
   contracts, `make test-security` lane composition; `rules/` holds the
   A1..A6 rule tests.

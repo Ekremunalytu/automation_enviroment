@@ -61,10 +61,10 @@ phase history and verbose evidence are frozen under dated snapshots:
   public names; three companion follow-ups closed (naming-overlap
   rename, coverage-summary unify, P3 strategy-outcome dict).
 - Working branch: `week12` (single-branch policy for W12).
-- Last known check bar at W12-2 close: `make test-local` 1352
-  passed / 6 skipped / 6 deselected (3 pre-existing
-  postgres-port-5433 DB failures unrelated); `make test-security`
-  197 passed.
+- Last known check bar: `make test-local` 1352 passed / 6 skipped / 6
+  deselected at W12-2 close (3 pre-existing postgres-port-5433 DB
+  failures unrelated); `make test-security` 204 passed on the
+  `2026-05-07` docs-drift audit.
 
 ## 2026-05-07 Audit Pass
 

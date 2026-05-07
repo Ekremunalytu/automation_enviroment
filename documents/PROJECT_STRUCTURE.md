@@ -1,6 +1,6 @@
 # Project Structure
 
-`Last Updated: 2026-04-29`
+`Last Updated: 2026-05-07`
 
 Top-level layout and placement guidance. **Slim canonical** — full
 directory trees for `executor/flows/playwright/`, `ui/src/`, and
@@ -97,13 +97,16 @@ executor/
   container/            Dockerfile, start.sh, launch_vscode.sh
   flows/
     harness_extension/  local helper extension
-    playwright/         VS Code automation, attribution/, runtime_capture/, scenarios/
+    playwright/         VS Code automation packages:
+      attribution/, entrypoint/, health/, monitor/, runtime_capture/,
+      scenarios/, signals/, stimulus/, vscode/, workspace/
 ```
 
 Full file inventory of `executor/flows/playwright/` lives in code (`ls
-executor/flows/playwright/`); the slim canonical does not list 50+
-files. Subsystem detail in [`EXECUTOR_PLAYWRIGHT.md`](EXECUTOR_PLAYWRIGHT.md)
-and split docs under `executor/`.
+executor/flows/playwright/`); the slim canonical lists only package-level
+shape and the top level must stay at ≤10 flat `.py` files. Subsystem detail
+in [`EXECUTOR_PLAYWRIGHT.md`](EXECUTOR_PLAYWRIGHT.md) and split docs under
+`executor/`.
 
 ## UI Layout (summary)
 
@@ -111,7 +114,7 @@ and split docs under `executor/`.
 ui/src/
   app/                  shell, layout
   components/v3/        shared primitives (Panel, Tabs, MetricCell, …)
-  features/             marketplace, simulation, reports, rules, settings, system
+  features/             evidence, marketplace, simulation, reports, rules, settings, system
   lib/                  api, adapters, charts, types, rules, helpers
 ```
 

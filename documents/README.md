@@ -59,6 +59,10 @@ Short and intentionally not on the default read path.
   [`PIPELINE_ROADMAP.md`](PIPELINE_ROADMAP.md), `automation_todo.md`,
   [`ARCHITECTURE_AUDIT.md`](ARCHITECTURE_AUDIT.md), and [`review.md`](review.md)
   stay off the default read path.
+- Historical Week 1-4 planning snapshots
+  [`REFACTOR_EXECUTION_PLAN.md`](REFACTOR_EXECUTION_PLAN.md) and
+  [`REFACTOR_EXPANSION_NOTES.md`](REFACTOR_EXPANSION_NOTES.md) are
+  read-only/off-path unless retracing that earlier plan.
 - ADRs (`adrs/0001`-`0008`) — binding decisions on appliance model,
   threat model, detection taxonomy, malicious-fixture policy,
   packages charter, local network binding, and container package-mode

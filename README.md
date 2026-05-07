@@ -98,7 +98,8 @@ workflow code:
 - `ui/`
   - Primary analyst-facing React SPA built with Vite and Tailwind.
   - `src/app/`: shell and route composition.
-  - `src/features/`: `marketplace`, `reports`, `simulation`.
+  - `src/features/`: `evidence`, `marketplace`, `reports`, `rules`,
+    `settings`, `simulation`, `system`.
   - `src/lib/`: API client, adapters, generated contract types, and shared
     frontend helpers.
 
@@ -247,14 +248,14 @@ workflows/                  Canonical business workflows
 executor/
   control.py               Workflow-visible sandbox boundary
   container/               Sandbox image and startup scripts
-  flows/playwright/        VS Code GUI automation
+  flows/playwright/        VS Code GUI automation packages
 ui/                         React + Vite analyst console
 tests/
   architecture/            Import-graph and boundary checks
   platform/                Shared platform tests
   workflows/               Workflow tests
   executor/                Playwright runtime tests
-  scanner/                 Docker exec wrapper tests
+    scanner/               Docker exec wrapper tests
   security/                Malicious-fixture scaffold checks
   smoke/                   End-to-end marketplace analysis tests
   ui tests live under ui/src/**/*.test.ts(x)

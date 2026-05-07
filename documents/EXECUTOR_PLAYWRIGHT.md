@@ -1,6 +1,6 @@
 # Executor Playwright Architecture
 
-`Last Updated: 2026-05-05`
+`Last Updated: 2026-05-07`
 
 ExTrace's dynamic-analysis sandbox: full VS Code GUI session inside
 Docker, driven by Playwright, exporting artifact-first analysis results
@@ -84,11 +84,14 @@ executor/
     Dockerfile, start.sh, launch_vscode.sh, requirements.txt
   flows/
     harness_extension/ local helper extension
-    playwright/        VS Code automation, attribution/, runtime_capture/, scenarios/
+    playwright/        VS Code automation packages:
+      attribution/, entrypoint/, health/, monitor/, runtime_capture/,
+      scenarios/, signals/, stimulus/, vscode/, workspace/
 ```
 
-Full file inventory: `ls executor/flows/playwright/`. Module
-responsibility map: `executor/playwright-flow.md`.
+Full file inventory: `ls executor/flows/playwright/`. The W12 top-level
+budget is ≤10 flat `.py` files; package responsibilities are mapped in
+`executor/playwright-flow.md`.
 
 ## Operational Commands
 
