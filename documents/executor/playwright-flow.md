@@ -1,6 +1,6 @@
 # Playwright Flow + Module Responsibilities
 
-`Last Updated: 2026-04-29`
+`Last Updated: 2026-05-07`
 
 Container-side Playwright orchestration: phases, trigger payload,
 module map, fatal-UI-crash handling, reload behavior. Top-level
@@ -55,34 +55,54 @@ The executor deletes the trigger JSON after loading it.
 
 ## Playwright Module Responsibilities
 
-### Entrypoint
+W12-1 (landed 2026-05-07, commit `b4bd3ee`) reshaped the flat 53-file
+tree into 7 subpackages plus the existing `attribution/`, leaving 10
+flat modules at the top. The descriptions below use the post-W12-1
+layout. The `monitor/` and `entrypoint/` package facades expose the
+same names that the old `monitor.py` / `entrypoint.py` modules did, so
+external import paths stay stable.
 
-- `entrypoint.py` — exported CLI surface for monitored runs.
-- `entrypoint_cli.py`, `entrypoint_runner.py`, `entrypoint_triggers.py`
+### Entrypoint (`entrypoint/`)
+
+- `entrypoint/__init__.py` — package facade, the `main()` CLI surface
+  for monitored runs.
+- `entrypoint/__main__.py` — shim so `python -m
+  executor.flows.playwright.entrypoint` keeps working after the file
+  → package conversion.
+- `entrypoint/cli.py`, `entrypoint/runner.py`, `entrypoint/triggers.py`
   — thin split of CLI parsing, runtime loop, trigger-loading.
 
 ### Automation + Scenarios
 
-- `automation.py` — built-in user-behavior scenarios (coding, debug,
-  terminal, authentication, webview probes) and
+- `automation.py` (flat) — built-in user-behavior scenarios (coding,
+  debug, terminal, authentication, webview probes) and
   `_run_scenario_sequence`. Routes `PlaywrightError` / `RuntimeError` /
   `ValueError` through `is_fatal_ui_error` (see "Fatal UI Crash
   Handling" below).
 - `scenarios/` — scenario registry and workbench/editing/runtime
   helpers for automation.
-- `stimulus.py` — layered pass execution and prerequisite
-  materialization.
+- `stimulus/` — package facade in `stimulus/__init__.py`; layered
+  pass execution and prerequisite materialization split across
+  `stimulus/attempts.py`, `stimulus/materializers.py`,
+  `stimulus/passes.py`, `stimulus/prerequisites.py`,
+  `stimulus/types.py`.
 
 ### Monitor + Attribution
 
-- `monitor.py` — thin facade over the split `monitor_*` helpers and the
-  `attribution/` subpackage. Owns activation/file/network/log
-  collection plus canonical report assembly.
-- `monitor_lifecycle.py`, `monitor_payload.py`, `monitor_records.py`,
-  `monitor_runtime.py`, `monitor_sources.py`, `monitor_support.py`,
-  `monitor_types.py` — scenario-event ledger, payload assembly,
-  dataclass records, runtime loop, log-source discovery, helper
-  utilities, shared type exports.
+- `monitor/__init__.py` — facade over the split monitor helpers and
+  the `attribution/` subpackage. Owns activation/file/network/log
+  collection plus canonical report assembly. Uses a PEP 562
+  `__getattr__` to lazily proxy 18 names from `attribution`,
+  `monitor.lifecycle`, `monitor.types` and break the
+  `attribution → monitor.records → monitor/__init__ → attribution`
+  cycle.
+- `monitor/lifecycle.py`, `monitor/payload.py`, `monitor/records.py`,
+  `monitor/runtime.py`, `monitor/runtime_state.py`,
+  `monitor/report_assembler.py`, `monitor/scenario_accountant.py`,
+  `monitor/sources.py`, `monitor/support.py`, `monitor/types.py` —
+  scenario-event ledger, payload assembly, dataclass records, runtime
+  loop, runtime state machine, report assembly, scenario accounting,
+  log-source discovery, helper utilities, shared type exports.
 - `attribution/`:
   - `events.py` — annotation + classification
     (`_annotate_network_events`, `_annotate_file_events`,
@@ -99,44 +119,65 @@ The executor deletes the trigger JSON after loading it.
   - `__init__.py` — flat re-export facade preserving the 29-name
     underscore-prefixed API + signal-layer shims (`_indexed_target_*`,
     `_build_risk_signals`, `_build_risk_summary`,
-    `_build_signal_summary`); dual-import pattern supports both
-    package mode and top-level executor mode (`playwright/` on
+    `_build_signal_summary`); the `RiskSignal` import lives inside
+    `_build_risk_signals` (lazy) so attribution stays free of a
+    top-level `from ..monitor.records import RiskSignal` (W12-1
+    cycle-break invariant — gated by
+    `tests/architecture/test_import_graph.py::test_attribution_does_not_eagerly_import_monitor`).
+    `monitor/support.py` keeps a single allow-listed dual-import
+    pattern for the top-level executor mode (`playwright/` on
     `sys.path`).
 
 ### Health + Signals
 
-- `health.py`, `health_reconciliation.py`, `health_runtime_facts.py`,
-  `health_summary.py` — automation health, log health, runtime fact
-  extraction, coverage reconciliation. `health_summary.py` recognises
+- `health/__init__.py` — package facade over
+  `health/reconciliation.py`, `health/runtime_facts.py`,
+  `health/summary.py`. Automation health, log health, runtime fact
+  extraction, coverage reconciliation. `health/summary.py` recognises
   `fatal_ui_crash` as a dominant failure-reason code that forces
   `automation_health.status = "inconclusive"` per ADR 0003 §5.
-- `signals.py`, `signal_facts.py`, `signal_policy.py` — risk signal
-  generation and activation-layer signal summary policy.
+- `signals/__init__.py` — package facade re-exporting risk-signal
+  generation and activation-layer signal-summary policy. Submodules:
+  `signals/facts.py` (signal facts resolver) and `signals/output.py`
+  (output-channel redaction). The risk-signal policy itself lives in
+  `packages/analysis_engine/signals/policy.py` (W9-2 contract; pinned
+  by
+  `tests/architecture/test_import_graph.py::test_executor_imports_signals_from_packages`).
   Detection-layer `Verdict` rollup lives in
   `packages/analysis_contracts/detection/rollup.py`.
 
 ### Report + Capture
 
-- `report_builder.py` — summary construction and JSON serialization.
+- `report_builder.py` (flat) — summary construction and JSON
+  serialization.
 - `runtime_capture/` — see [`runtime-capture.md`](runtime-capture.md).
-- `capture.py` — extension-host log summarization.
-- `annotation.py` — attribution helpers and summary logic.
+- `capture.py` (flat) — extension-host log summarization.
+- `annotation.py` (flat) — attribution helpers and summary logic.
 
-### UI Interaction Helpers
+### UI Interaction Helpers (`vscode/`)
 
-`commands.py`, `editor.py`, `sidebar.py`, `panel.py`, `terminal.py`,
-`settings.py`, `debug.py`, `keyboard.py`, `vscode.py` — focused UI
-interaction helpers. `wait_helpers.py` — shared bounded-wait
-primitives.
+- `vscode/__init__.py` — facade providing CDP page discovery,
+  `reconnect_to_workbench`, and `reload_workbench_window`.
+- `vscode/commands.py`, `vscode/editor.py`, `vscode/sidebar.py`,
+  `vscode/panel.py`, `vscode/terminal.py`, `vscode/settings.py`,
+  `vscode/debug.py`, `vscode/keyboard.py` — focused UI interaction
+  helpers.
+- `wait_helpers.py` (flat) — shared bounded-wait primitives.
 
 ### Workspace + Reload
 
-- `workspace.py`, `workspace_seed_*.py`, `language_samples.py` —
-  workspace fixture, per-project seed data, bait-file support.
-- `reload_vscode.py` — sandbox reload scripts invoked from the host
-  wrapper.
-- `reset_state.py` — scan-between orchestrator (detail in
-  `host-wrapper.md` §"Scan-Between Restart").
+- `workspace/__init__.py` — facade for the workspace fixture.
+- `workspace/seed_data.py`, `workspace/seed_home.py`,
+  `workspace/seed_project_1.py`, `workspace/seed_project_2.py`,
+  `workspace/seed_project_3.py`, `workspace/language_samples.py` —
+  per-project seed data, bait-file support.
+- `reload_vscode.py` (flat — intentionally; referenced as a
+  subprocess module path from `appcore/api/config.py` and
+  `executor/config.py`) — sandbox reload scripts invoked from the
+  host wrapper.
+- `reset_state.py` (flat — same intentional reason as `reload_vscode`)
+  — scan-between orchestrator (detail in `host-wrapper.md`
+  §"Scan-Between Restart").
 
 ### URI Trigger (W8-3)
 
@@ -147,12 +188,17 @@ primitives.
 
 ## Entrypoint Flags
 
+Post-W12-1 the entrypoint is invoked as a package via `python -m`
+(the `entrypoint/__main__.py` shim makes this work). The runtime
+config that wires this is `appcore/api/config.py:ENTRYPOINT_MODULE`
+= `executor.flows.playwright.entrypoint`.
+
 ```bash
-python3 /home/executor/flows/playwright/entrypoint.py --demo
-python3 /home/executor/flows/playwright/entrypoint.py --list
-python3 /home/executor/flows/playwright/entrypoint.py --monitor
-python3 /home/executor/flows/playwright/entrypoint.py --monitor --scenario coding_session
-python3 /home/executor/flows/playwright/entrypoint.py --monitor --triggers /results/triggers.json --report-path /results/report.json
+python3 -m executor.flows.playwright.entrypoint --demo
+python3 -m executor.flows.playwright.entrypoint --list
+python3 -m executor.flows.playwright.entrypoint --monitor
+python3 -m executor.flows.playwright.entrypoint --monitor --scenario coding_session
+python3 -m executor.flows.playwright.entrypoint --monitor --triggers /results/triggers.json --report-path /results/report.json
 ```
 
 Important flags:
@@ -182,10 +228,10 @@ otherwise-healthy runs. On fatal classification:
 
 - the scenario loop breaks immediately (fail-fast, no cascading
   failures against a dead renderer)
-- `ScenarioTrace` (`monitor_records.py`) records
+- `ScenarioTrace` (`monitor/records.py`) records
   `failure_reason_code = "fatal_ui_crash"` plus `error_detail` (≤500
   char) on the existing `metadata` channel
-- `health_summary.py` treats `fatal_ui_crash` as a dominant failure
+- `health/summary.py` treats `fatal_ui_crash` as a dominant failure
   reason that forces `automation_health.status = "inconclusive"` per
   ADR 0003 §5 error dominance
 - Opt-in `--retry-on-crash` routes the loop through
@@ -215,7 +261,7 @@ semantics covered by
 When `--retry-on-crash` is opted in, `_run_scenario_sequence` accepts
 an `on_page_reloaded: Callable[[Page], None]` kwarg and invokes it
 with the fresh `Page` returned from `vscode.reload_workbench_window`.
-`entrypoint_runner.py` wires this to a `nonlocal` closure that rebinds
+`entrypoint/runner.py` wires this to a `nonlocal` closure that rebinds
 both its own `page` variable and `mon.page`, so every scenario after
 the reload uses the live handle. Previously the retry path kept reusing
 the dead `Page` and re-crashed every subsequent scenario.
@@ -232,7 +278,7 @@ Coverage:
 `_run_scenario_sequence` accepts an optional
 `ui_blocker_probe: Callable[[Page, str], None]` kwarg and calls it
 with `(page, scenario_name)` before each scenario starts.
-`entrypoint_runner.py` wires it to `editor._dismiss_notification`:
+`entrypoint/runner.py` wires it to `editor._dismiss_notification`:
 when a leftover dismissal dialog is found, both `ui_blocker_detected`
 and `ui_blocker_dismissed` automation events are recorded on `mon`
 with the scenario name in the payload, and the next scenario's first
@@ -265,16 +311,16 @@ scenario's docstring.
 - `commands.run_reload_window_command()` dispatches
   `Developer: Reload Window` without waiting for the original
   quick-input widget to finish tearing down.
-- `vscode.py` owns CDP page discovery and
+- `vscode/__init__.py` owns CDP page discovery and
   `reconnect_to_workbench()`, which polls for a ready VS Code
   workbench page before and after reload.
 - The reconnect helper is designed to survive transient post-reload
   CDP states such as detached pages, `chrome-error://chromewebdata/`,
   and temporary DevTools-only page lists.
-- Both `entrypoint.py` and `reload_vscode.py` use this reconnect path
-  so layered trigger runs do not fail closed just because the first
-  post-reload page snapshot is incomplete.
-- `vscode.py::reload_workbench_window` `unlink()`s
+- Both `entrypoint/__init__.py` and `reload_vscode.py` use this
+  reconnect path so layered trigger runs do not fail closed just
+  because the first post-reload page snapshot is incomplete.
+- `vscode.reload_workbench_window` `unlink()`s
   `_HARNESS_READY_PATH` before dispatching the reload (post-W7
   hardening 2026-04-25); the harness extension's `activate()` is
   `async` and awaits `writeHarnessReadyMarker()` so a write failure

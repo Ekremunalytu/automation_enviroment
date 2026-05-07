@@ -33,8 +33,8 @@ Lane shape and overall test guide:
   invocation (26 adversarial cases). Layered as: `validate_uri_scheme`
   allow-list (parametrized 4 happy + 9 reject), `run_uri_trigger`
   argv-form proof, call-site integration on
-  `entrypoint_triggers.run_extra_triggers` and
-  `stimulus_attempts.execute_attempt(extra:uri_trigger)`.
+  `entrypoint.triggers.run_extra_triggers` and
+  `stimulus.attempts.execute_attempt(extra:uri_trigger)`.
 
 ## `tests/platform/security/`
 

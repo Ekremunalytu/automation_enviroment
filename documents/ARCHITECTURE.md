@@ -86,9 +86,12 @@ catalog data + analysis-job metadata is `appcore/storage/crud.py`.
 - `host.py` — Docker exec, retry/cleanup behavior.
 - `container/` — Docker image, `start.sh`, shared `launch_vscode.sh`.
 - `flows/playwright/` — VS Code automation, trigger loading, the
-  `monitor.py` facade, lifecycle/source/runtime helpers, attribution
-  subpackage. **Detail:** `EXECUTOR_PLAYWRIGHT.md` (slim) →
-  `executor/playwright-flow.md` for in-flow specifics.
+  `monitor/` package (facade in `monitor/__init__.py`),
+  lifecycle/source/runtime helpers, plus the `stimulus/`, `health/`,
+  `entrypoint/`, `vscode/`, `workspace/`, `signals/` subpackages and
+  the existing `attribution/` subpackage (W12-1, 2026-05-07). Top
+  level keeps ≤10 flat modules. **Detail:** `EXECUTOR_PLAYWRIGHT.md`
+  (slim) → `executor/playwright-flow.md` for in-flow specifics.
 - `flows/playwright/attribution/` — events.py + links.py + facade
   re-export.
 - `flows/playwright/runtime_capture/` — network/filesystem/extension-host

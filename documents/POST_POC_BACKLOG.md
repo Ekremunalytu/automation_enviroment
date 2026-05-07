@@ -31,7 +31,8 @@ Use stable IDs in new references; do not cite canonical doc line numbers.
 - ~~**`[FOLLOWUP w8-6-output-signals-file-backed-redaction]`**~~ —
   **W12-0 landed `2026-05-07` on `week12` in commit `22eb836`.**
   `redact_secrets(_truncate(line))` applied at
-  `executor/flows/playwright/output_signals.py:205`; W10-7 source
+  `executor/flows/playwright/signals/output.py:209` (path post-W12-1;
+  was `output_signals.py:205` at W12-0 landing); W10-7 source
   comment updated to name both harness-marker and file-backed paths;
   four file-backed regression tests + three harness-marker
   end-to-end regressions added under

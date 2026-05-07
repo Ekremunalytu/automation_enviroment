@@ -1,6 +1,6 @@
 # Runtime Capture
 
-`Last Updated: 2026-04-29`
+`Last Updated: 2026-05-07`
 
 `executor/flows/playwright/runtime_capture/` — monitor-owned event
 parsing and capture helpers. Top-level executor doc:
@@ -19,9 +19,10 @@ executor/flows/playwright/runtime_capture/
   network.py          network capture (libpcap / tshark wrappers)
 ```
 
-All modules are re-exported through `monitor.py` for backwards
-compatibility; do not import them directly from outside `monitor.py`
-unless you are inside another `runtime_capture/` module.
+All modules are re-exported through the `monitor/` package facade
+(`monitor/__init__.py`, post-W12-1) for backwards compatibility; do
+not import them directly from outside the `monitor/` package unless
+you are inside another `runtime_capture/` module.
 
 ## What Each Capture Helper Owns
 
@@ -39,7 +40,7 @@ unless you are inside another `runtime_capture/` module.
 - inotify-driven filesystem event stream.
 - Annotated against activation windows by
   `attribution/events.py::_annotate_file_events`.
-- Handles bait-file artifact paths planted by `workspace_seed_*`.
+- Handles bait-file artifact paths planted by `workspace/seed_*`.
 
 ### `extension_host.py`
 
@@ -59,7 +60,7 @@ unless you are inside another `runtime_capture/` module.
 
 - Summarization for report assembly: count caps, time-bounded windows,
   scenario alignment.
-- Consumed by `report_builder.py` and `health_summary.py`.
+- Consumed by `report_builder.py` and `health/summary.py`.
 
 ### `_shared.py`
 

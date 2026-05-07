@@ -81,7 +81,7 @@ ls -lt output/activation_report*.json | head -5
 **Step 1 — Kill the hung automation (non-destructive, keeps executor):**
 
 ```bash
-docker exec automation_executor pkill -f entrypoint_runner
+docker exec automation_executor pkill -f executor.flows.playwright.entrypoint
 # gives executor.host's subprocess watch a chance to exit cleanly
 ```
 

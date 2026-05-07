@@ -225,10 +225,11 @@ without mixing that cleanup into storage or router-state work.
   `run_quality`, and preserving the
   `harness_verification_unconfirmed` path when target verification stays open.
 - VS Code reload/reconnect handling was hardened in
-  `executor/flows/playwright/vscode.py`,
-  `executor/flows/playwright/entrypoint.py`, and
-  `executor/flows/playwright/reload_vscode.py` so transient CDP states do not
-  incorrectly strand layered trigger plans in a not-applied state.
+  `executor/flows/playwright/vscode/` (was `vscode.py` pre-W12-1),
+  `executor/flows/playwright/entrypoint/` (was `entrypoint.py`
+  pre-W12-1), and `executor/flows/playwright/reload_vscode.py` so
+  transient CDP states do not incorrectly strand layered trigger
+  plans in a not-applied state.
 - validation evidence on `2026-04-15` includes a passing `make test` run
   (`422 passed, 3 deselected`) and a passing
   `tests/smoke/test_marketplace_analysis_smoke.py::test_ms_python_layered_analysis_smoke_never_reads_as_clean_when_chat_tool_verification_is_open`
@@ -281,9 +282,10 @@ job orchestration.
   exercises the `analysis_jobs` path through a mocked `MagicMock` session.
 - Executor reload hardening now uses one bounded CDP reload/reconnect policy
   across `executor/flows/playwright/reload_vscode.py` and the monitored
-  `--reload-before-run` path in `executor/flows/playwright/entrypoint.py`,
-  and the host wrapper now cleans up stale `reload_vscode.py` processes on
-  reload failure or timeout instead of leaving them behind in the container.
+  `--reload-before-run` path in `executor/flows/playwright/entrypoint/`
+  (the `entrypoint.py` flat module became a package in W12-1), and the host
+  wrapper now cleans up stale `reload_vscode.py` processes on reload failure
+  or timeout instead of leaving them behind in the container.
 - Week 4B closure checklist:
   - startup must fast-fail if job storage or migration state is unavailable
   - `tests/platform/storage/test_analysis_jobs.py` must pass against Postgres

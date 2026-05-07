@@ -114,7 +114,7 @@ subpackaging + attribution cleanup (§11.9).
 | **W9** | Executor↔Detection boundary | ADR 0008 container package-mode invocation, dual-import fallback sweep, `signal_policy.py` relocation, `sys.path.insert` audit, container import-mode CI test | Claude §6/§10; Codex §9/§4 |
 | **W10** | Contract hygiene + Planner split | `schema_version` + DeprecationWarning, `_TriggerPayloadDraft` elimination, `registry.py` 4-way split, `automation_health`/`coverage_*` typing | Codex §1.2/§1.4/§2; Claude §4 |
 | **W11** | Monitor lifecycle split | `monitor_lifecycle.py` 834 LoC → `MonitorRuntime` + `ReportAssembler` + `ScenarioAccountant` + `ExtensionMonitor` facade | Codex §3.1; Claude §3 |
-| **W12** | Executor subpackaging + attribution cleanup | `executor/flows/playwright/` 54 → 5 subpackage; `entrypoint_runner.main` 324→≤200 LoC (W11-3 sonrası post-extraction baseline); attribution facade cleanup | Codex §3.1/§3.2/§4; Claude §2/§3/§5 |
+| **W12** | Executor subpackaging + attribution cleanup | W12-1 landed 2026-05-07 (`b4bd3ee`): `executor/flows/playwright/` 54 → 7 subpackage + 10 flat (plan was 5; expanded to satisfy ≤10 flat budget); `entrypoint/runner.py::main` 324→≤200 LoC (W11-3 sonrası post-extraction baseline; pending); attribution facade cleanup | Codex §3.1/§3.2/§4; Claude §2/§3/§5 |
 | **W13** | Test expansion + observability | Benign silence 3→5 fixture, regression locks, `extrace.executor.*` logger consolidation, run-ID stamping | Claude §9/§12; Codex §10/§12 |
 
 ### §11.3 — Haftalar arası bağımlılıklar
@@ -197,6 +197,24 @@ cleanup; `raw_context` per-event-type typing.
 Detail: archive §11.9. Active tracker:
 [`active-work/W12-executor-subpackaging.md`](active-work/W12-executor-subpackaging.md)
 (W12-1..W12-4 stable IDs, entry/exit criteria, pre-W12 precursor gate).
+
+**W12-1 landed 2026-05-07** (commit `b4bd3ee`): the planned 5-subpackage
+target expanded to 7 (`monitor/`, `stimulus/`, `workspace/`, `health/`,
+`entrypoint/`) plus `vscode/` and `signals/` to satisfy the ≤10 flat
+file exit criterion, alongside the existing `attribution/`. Cycle
+break via PEP 562 `__getattr__` lazy proxy in `monitor/__init__.py`
+(15 attribution + 2 lifecycle + 1 types names) plus a lazy
+`RiskSignal` import inside `attribution._build_risk_signals`. Two
+mimari kapı landed in
+[`tests/architecture/test_import_graph.py`](../tests/architecture/test_import_graph.py)
+in the same commit
+(`test_monitor_facade_does_not_eagerly_import_attribution`,
+`test_monitor_and_stimulus_subpackages_do_not_cross_import`); three
+follow-up gates landed post-commit
+(`test_monitor_lazy_proxy_completeness`,
+`test_executor_playwright_flat_file_count_limit`,
+`test_attribution_does_not_eagerly_import_monitor`). Live-scan
+deferred to W12-1 Iteration 6.
 
 #### §11.9.1 — `runtime_capture/extension_host.py` Split Scoping
 

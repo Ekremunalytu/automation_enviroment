@@ -47,10 +47,10 @@ The current report is built from five evidence layers:
 
 Assembled primarily in:
 
-- `executor/flows/playwright/monitor.py`
+- `executor/flows/playwright/monitor/` (facade in `monitor/__init__.py`)
 - `executor/flows/playwright/runtime_capture/`
-- `executor/flows/playwright/health.py`
-- `executor/flows/playwright/signals.py`
+- `executor/flows/playwright/health/`
+- `executor/flows/playwright/signals/`
 - `executor/flows/playwright/report_builder.py`
 
 ## Contract Field Map

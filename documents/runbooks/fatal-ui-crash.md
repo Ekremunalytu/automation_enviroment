@@ -64,7 +64,7 @@ When `is_fatal_ui_error` returns `True`:
   `summary.skipped_scenarios` with `reason = "aborted_after_fatal_ui_crash"`
   (source: [automation.py:331-356](../../executor/flows/playwright/automation.py)).
 - `automation_health.status` degrades to `inconclusive` in the health
-  summary rollup (source: [executor/flows/playwright/health_summary.py](../../executor/flows/playwright/health_summary.py)).
+  summary rollup (source: [executor/flows/playwright/health/summary.py](../../executor/flows/playwright/health/summary.py)).
 
 **Where to read the crash detail:**
 
@@ -103,7 +103,7 @@ Call `POST /api/marketplace/analyze/start` with the same request body.
 
 If the failure is intermittent (e.g. OOM on a specific scenario),
 `_run_scenario_sequence` supports a `retry_on_crash` mode that calls
-[vscode.reload_workbench_window()](../../executor/flows/playwright/vscode.py)
+[vscode.reload_workbench_window()](../../executor/flows/playwright/vscode/__init__.py)
 once after a fatal. The flag is opt-in at the entrypoint runner and is
 threaded through to `on_page_reloaded` so monitoring state rebinds to the
 new Page handle (source: [automation.py:274](../../executor/flows/playwright/automation.py)).
@@ -134,9 +134,9 @@ because a crashed renderer usually means corrupted state downstream.
 - [executor/flows/playwright/automation.py](../../executor/flows/playwright/automation.py)
   — `is_fatal_ui_error`, `_FATAL_UI_ERROR_MARKERS`, `FATAL_UI_CRASH_REASON`,
     `_run_scenario_sequence`, `_mark_remaining_scenarios_aborted`
-- [executor/flows/playwright/health_summary.py](../../executor/flows/playwright/health_summary.py)
+- [executor/flows/playwright/health/summary.py](../../executor/flows/playwright/health/summary.py)
   — `automation_health.status` rollup logic
-- [executor/flows/playwright/vscode.py](../../executor/flows/playwright/vscode.py)
+- [executor/flows/playwright/vscode.py](../../executor/flows/playwright/vscode/__init__.py)
   — `reload_workbench_window` (used by `retry_on_crash`)
 - [packages/analysis_contracts/contracts.py](../../packages/analysis_contracts/contracts.py)
   — `ScenarioTrace`, `SkippedScenarioRecord`, `automation_health` contract
