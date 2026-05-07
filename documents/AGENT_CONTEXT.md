@@ -13,33 +13,20 @@ Do not copy phase history here; use `REFACTOR_STATUS.md` (slim canonical).
   full backlog under `archive/backlog/`).
 - W8-W13 plan: `REFACTOR_OPTIMIZATION.md` section 11 (slim canonical;
   full text under `archive/plans/`).
-- **Past W8 work tracker (closed `2026-04-29`):**
-  `active-work/W8-security.md` (stable IDs W8-1..W8-9; code/tests
-  still reference items by ID — keep IDs stable when reorganizing).
-  W9 closed `2026-05-04`; W10 closed `2026-05-04` via PR #11.
-  **W11 closed `2026-05-05`** on the `week11` working branch
-  (W11-1..W11-8 landed; folds into `main` as a single PR). Past
-  W11 tracker: `active-work/W11-monitor-lifecycle.md` (stable IDs
-  W11-1..W11-8 stay around — code/tests reference by ID). P1 W11
-  companion `[FOLLOWUP w8-6-extension-host-output-redaction]`
-  landed `2026-05-05` ahead of W11-6. **Active phase:** W12
-  Executor Subpackaging + Attribution Cleanup (REFACTOR_OPTIMIZATION
+- W8-W11 are closed; W11 merged via PR #14. Past W8/W11 trackers remain
+  only for stable IDs referenced by code/tests. **Active phase:** W12
+  Executor Subpackaging + Attribution Cleanup (`REFACTOR_OPTIMIZATION.md`
   §11.9 + §11.9.1). Active tracker:
-  `active-work/W12-executor-subpackaging.md` (stable IDs W12-1..W12-4;
-  pre-W12 precursor gate detailed under "Entry Conditions"). For
-  current closure state always defer to `REFACTOR_STATUS.md`.
+  `active-work/W12-executor-subpackaging.md`. For current closure state
+  always defer to `REFACTOR_STATUS.md`.
 - Architecture: `ARCHITECTURE.md` (slim) + `architecture/` splits.
 - Placement rules: `PROJECT_STRUCTURE.md` (slim) + `structure/` splits.
 - Test lanes: `TESTING.md` (slim) + `testing/` splits.
 
-## Current Snapshot
-
-For current phase state, see [`REFACTOR_STATUS.md`](REFACTOR_STATUS.md).
-
 ## Task Decision Tree
 
-Each "open if needed" entry names the **trigger** that justifies
-opening that doc. If the trigger does not match, do not open it.
+Open the matching lane first; open the third-column docs only on the listed
+trigger.
 
 | If the task touches... | Open this lane first | Then open only if the trigger matches |
 |---|---|---|
@@ -51,9 +38,8 @@ opening that doc. If the trigger does not match, do not open it.
 | Documentation drift, README, runbooks, ADR text | `agent-lanes/docs-maintenance.md` | `documents/README.md`; current code/tests; archive only when retracing why a thing changed |
 | W8/W9 closure history (stable IDs in code/tests) | (lane above) | `active-work/W8-security.md` for W8-1..W8-9 IDs; `REFACTOR_STATUS.md` for W9 closure evidence |
 
-If a task touches a slim canonical's domain but does not match any of
-the listed triggers, open the slim canonical itself, **not** its
-splits. Splits are only opened on a trigger.
+If a task touches a slim canonical's domain without matching a split trigger,
+open the slim canonical itself, not its splits.
 
 ## Core Paths
 
@@ -62,9 +48,7 @@ splits. Splits are only opened on a trigger.
 - Framework-agnostic packages: `packages/`.
 - Frontend: `ui/`.
 - Tests: `tests/`.
-- Docs: `documents/`, with lane docs under `documents/agent-lanes/`,
-  active work under `documents/active-work/`, frozen history under
-  `documents/archive/` (off default path).
+- Docs: `documents/`; archive is off default path.
 
 ## Minimal Rules Reminder
 
@@ -74,13 +58,3 @@ splits. Splits are only opened on a trigger.
 - `packages/` remains framework-agnostic.
 - Detection rules consume contracts only.
 - Matching tests should be opened early.
-
-## Useful Commands
-
-- `make test-local`
-- `make check-all`
-- `make test-security`
-- `make exec-up`
-- `make exec-run`
-- `make sim-target TARGET=publisher.name`
-- `make demo-canary`

@@ -1,6 +1,6 @@
 # AGENTS.md
 
-`Last Updated: 2026-05-05 (W11 closed)`
+`Last Updated: 2026-05-07 (W12 active prep)`
 
 ## Authority
 
@@ -15,38 +15,15 @@
 
 ## Current State
 
-- W0-W7 PoC stabilization/security window closed on `2026-04-23`
-  (PoC acceptance bar 11/11 green). Details:
-  `documents/REFACTOR_STATUS.md` (slim canonical).
-- PR345 target activation lifecycle complete `2026-04-27`; W8-0
-  deterministic harness readiness gate landed `2026-04-27`.
-- **W8 closed for active work `2026-04-29`** — W8-1..W8-7 + W8-9
-  landed; W8-8 manifest log sanitization deferred under named triggers
-  (see `active-work/W8-security.md`). **W9 closed `2026-05-04` via
-  PR #9.** **W10 closed `2026-05-04` via PR #11** (contract hygiene +
-  planner cleanup; W10-1..W10-7 landed). **W11 closed `2026-05-05`**
-  on the `week11` working branch — all eight §11.8 scope items
-  shipped: W11-1..W11-6 monitor lifecycle split (`MonitorRuntime` +
-  `ReportAssembler` + `ScenarioAccountant` + per-strategy stop
-  helpers), W11-7 `workflows/extension_catalog/service.py` ahtapot
-  closure (`manifest_to_schema` + `lifecycle` modules with thin
-  facade), W11-8 `appcore/storage/crud_ops/analysis_jobs.py`
-  ahtapot closure (subpackage with `lifecycle.py` + `steps.py` +
-  `__init__.py` facade). P1 companion
-  `[FOLLOWUP w8-6-extension-host-output-redaction]` landed
-  `2026-05-05` ahead of W11-6. Active phase: **W12 — Executor
-  Subpackaging + Attribution Cleanup** (REFACTOR_OPTIMIZATION
-  §11.9). Tracker for past W11 detail (stable IDs W11-1..W11-8):
-  `active-work/W11-monitor-lifecycle.md`. Plan navigation:
-  `documents/AGENT_CONTEXT.md` → matching lane doc. Past W8/W9/W10/W11
-  trackers and stable IDs stay around because code/tests reference
-  items by ID (`W8-N`, W9/W10/W11 commit hashes), not because new
-  work is being done in those windows.
-- ADR 0007 local-network-binding **Accepted and implemented**
-  `2026-04-29` via W8-7 (`feat/w8-7-lan-binding-defaults`). Loopback
-  defaults + `EXTRACE_ALLOW_LAN` enforcement live in
-  `appcore/api/config.py`, `docker-compose.yml`, and the
-  `test_default_bindings.py` regression matrix.
+- W0-W7 closed `2026-04-23`; PR345 and W8-0 landed `2026-04-27`.
+- **W8 closed `2026-04-29`; W9 closed `2026-05-04` via PR #9; W10
+  closed `2026-05-04` via PR #11; W11 closed `2026-05-05` and merged
+  via PR #14.** Active phase: **W12 - Executor Subpackaging +
+  Attribution Cleanup** (`REFACTOR_OPTIMIZATION.md` §11.9; tracker:
+  `active-work/W12-executor-subpackaging.md`). Past W8/W11 trackers
+  stay available only because code/tests reference stable IDs.
+- ADR 0007 local-network-binding is **Accepted and implemented**; loopback
+  defaults + `EXTRACE_ALLOW_LAN` are pinned by `test_default_bindings.py`.
 
 ## Non-Negotiable Rules
 
@@ -111,19 +88,10 @@
 
 ## Common Commands
 
-- `make install-dev`
-- `make dev`
-- `make test-local`
-- `make check-all`
-- `make migrate`
-- `make test-security`
-- `make exec-up`
-- `make exec-run`
-- `make ui-up`
-- `make sim-target TARGET=publisher.name [TRIGGERS=...] [SCENARIO=...]`
-- `make sim-all`
-- `make demo-canary`
-- `make demo-canary-offline`
+`make install-dev`, `make dev`, `make test-local`, `make check-all`,
+`make migrate`, `make test-security`, `make exec-up`, `make exec-run`,
+`make ui-up`, `make sim-target TARGET=publisher.name`, `make sim-all`,
+`make demo-canary`, `make demo-canary-offline`.
 
 ## Required Self-Review
 

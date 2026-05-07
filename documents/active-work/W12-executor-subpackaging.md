@@ -1,6 +1,6 @@
 # W12 — Executor Subpackaging + Attribution Cleanup (Active Work Tracker)
 
-`Last Updated: 2026-05-07 (initial scaffold; W12 not yet entered)`
+`Last Updated: 2026-05-07 (W12 active prep; W12-0 precursor surfaced by 2026-05-07 audit pass)`
 
 This is the canonical active work tracker for the W12 executor
 subpackaging + attribution cleanup window. Items have stable IDs
@@ -17,19 +17,29 @@ and that archive section.
 
 ## Status (Quick Glance)
 
-- **W12 not yet entered.** Initial scaffold landed `2026-05-07` on the
+- **W12 active prep.** Initial scaffold landed `2026-05-07` on the
   `chore/pre-w12-prep` branch alongside the §11.9.1 plan addendum.
-  W11 closed `2026-05-05` (`active-work/W11-monitor-lifecycle.md`).
-  Entry gate is **not** yet met — see "Entry Conditions" below.
-- **Pre-W12 gate (precursor tests).**
-  `[FOLLOWUP w12-precursor-tests-attribution-links]`
-  (`POST_POC_BACKLOG.md:216-228`) +
-  `[FOLLOWUP w12-precursor-tests-attribution-events]`
-  (`POST_POC_BACKLOG.md:230-239`) must land before W12-2 starts. Both
-  marked **"Land before W12 begins."** Companion plan-level item
-  `[FOLLOWUP w12-extension-host-split-scoping]`
-  (`POST_POC_BACKLOG.md:240-256`) closed by the §11.9.1 addendum on
-  this prep PR (no code change).
+  W11 closed `2026-05-05` and merged via PR #14. W12-1 has not started
+  because W12-0 must land first — see "Entry Conditions" below.
+- **Pre-W12 attribution precursor tests landed.**
+  `[FOLLOWUP w12-precursor-tests-attribution-links]` and
+  `[FOLLOWUP w12-precursor-tests-attribution-events]` both closed in
+  commit `5ae0d32` on `2026-05-07`; tests now live at
+  `tests/executor/test_playwright_attribution_links.py` and
+  `tests/executor/test_playwright_attribution_events.py`. Companion
+  plan-level item `[FOLLOWUP w12-extension-host-split-scoping]` closed
+  by the §11.9.1 addendum on PR #15 (no code change).
+- **W12-0 (precursor — security pull-forward).**
+  `[FOLLOWUP w8-6-output-signals-file-backed-redaction]`
+  (`POST_POC_BACKLOG.md` Detection / Contracts) is an active W8-6
+  perimeter regression — the file-backed
+  `read_output_channel_logs` path at `output_signals.py:205` builds
+  `OutputSignalEvent` without `redact_secrets`. Land as a standalone
+  pre-W12 PR (single-line fix + sibling redaction test) **before**
+  W12-1 starts; not eligible to ride a refactor PR. Companion
+  comment update at `output_signals.py:117` to acknowledge both the
+  harness-marker and file-backed paths. Surfaced 2026-05-07 audit
+  pass.
 - **W12-1** — pending. Executor subpackaging:
   `executor/flows/playwright/` 54 flat files → 5 subpackage
   ({`monitor/`, `stimulus/`, `workspace/`, `health/`, `entrypoint/`})
@@ -42,12 +52,9 @@ and that archive section.
   migration in `monitor_lifecycle.py`,
   `monitor_report_assembler.py`, and `monitor_scenario_accountant.py`.
   Companion backlog items rolled in:
-  `[FOLLOWUP w12-attribution-naming-overlap]`
-  (`POST_POC_BACKLOG.md:206-215`),
-  `[FOLLOWUP coverage-summary-attempted-drift]`
-  (`POST_POC_BACKLOG.md:287-301`),
-  `[FOLLOWUP activation-discovery-strategy-outcome-detail]`
-  (`POST_POC_BACKLOG.md:302-326`, P3).
+  `[FOLLOWUP w12-attribution-naming-overlap]`,
+  `[FOLLOWUP coverage-summary-attempted-drift]`, and
+  `[FOLLOWUP activation-discovery-strategy-outcome-detail]` (P3).
 - **W12-3** — pending. `raw_context` discriminated union typing:
   `dict[str, Any]` → `NetworkRawContext` / `FileRawContext` /
   `ProcessRawContext` Pydantic variants under
@@ -67,11 +74,14 @@ and that archive section.
 - W11 precursor tests landed (✓ met `2026-05-04` —
   `tests/executor/test_playwright_extension_host.py` 23 cases +
   `tests/executor/test_playwright_health_reconciliation.py` 15 cases)
-- W12 precursor tests landed (✗ pending —
-  `tests/executor/test_playwright_attribution_links.py` ~20 cases +
-  `tests/executor/test_playwright_attribution_events.py` ~15-20 cases,
+- W12 precursor tests landed (✓ met `2026-05-07` —
+  `tests/executor/test_playwright_attribution_links.py` 26 cases +
+  `tests/executor/test_playwright_attribution_events.py` 34 cases,
   imported at real module path; safety net for W12-2 attribution
   refactor)
+- W12-0 security pull-forward landed (✗ pending —
+  `[FOLLOWUP w8-6-output-signals-file-backed-redaction]`, single-line
+  fix + regression test before W12-1 starts)
 - §11.9.1 plan addendum (✓ landed on `chore/pre-w12-prep`) defining
   the `runtime_capture/extension_host.py` split target
 - Working tree clean on `main` (TBD at W12-1 entry)
@@ -97,29 +107,36 @@ and that archive section.
 
 ## Acceptance Sub-Tasks (W12-N picks up these follow-ups)
 
-These open `[FOLLOWUP …]` items in `POST_POC_BACKLOG.md` are scheduled
-to land *as part of* W12 acceptance:
+These `[FOLLOWUP ...]` items in `POST_POC_BACKLOG.md` are scheduled
+to land before or during W12 acceptance. Refer by stable ID, not line
+number.
 
-- `[FOLLOWUP w12-precursor-tests-attribution-links]`
-  (`POST_POC_BACKLOG.md:216-228`) — **MUST land before W12-2.**
-  Standalone PR or W12-1 prerequisite.
-- `[FOLLOWUP w12-precursor-tests-attribution-events]`
-  (`POST_POC_BACKLOG.md:230-239`) — **same PR as the links
-  precursor.**
+- ~~`[FOLLOWUP w12-precursor-tests-attribution-links]`~~ —
+  closed `2026-05-07` in commit `5ae0d32`.
+- ~~`[FOLLOWUP w12-precursor-tests-attribution-events]`~~ —
+  closed `2026-05-07` in commit `5ae0d32`.
 - `[FOLLOWUP w12-attribution-naming-overlap]`
-  (`POST_POC_BACKLOG.md:206-215`) — natural landing W12-2
-  (`background_activation_count` vs `competing_candidate_count`
-  divergence reconcile).
+  — natural landing W12-2 (`background_activation_count` vs
+  `competing_candidate_count` divergence reconcile).
 - `[FOLLOWUP w12-extension-host-split-scoping]`
-  (`POST_POC_BACKLOG.md:240-256`) — plan-level addition to slim
-  canonical §11.9.1; closed by the prep PR (no code change).
-  Implementation deferred to W12 entry; lands as ahtapot pattern.
+  — plan-level addition to slim canonical §11.9.1; closed by PR #15
+  (no code change). Implementation deferred to W12 entry; lands as
+  ahtapot pattern.
 - `[FOLLOWUP coverage-summary-attempted-drift]`
-  (`POST_POC_BACKLOG.md:287-301`) — natural landing W12-2; surgical
-  pull-forward acceptable if a UI surface reads both fields.
+  — natural landing W12-2; surgical pull-forward acceptable if a UI
+  surface reads both fields.
 - `[FOLLOWUP activation-discovery-strategy-outcome-detail]`
-  (`POST_POC_BACKLOG.md:302-326`, **P3**) — read-side detail loss;
-  W12-2 territory.
+  (**P3**) — read-side detail loss; W12-2 territory.
+- `[FOLLOWUP w8-6-output-signals-file-backed-redaction]`
+  (`POST_POC_BACKLOG.md` Detection / Contracts) — **W12-0 precursor.
+  MUST land before W12-1.** Active W8-6 perimeter regression; one-line
+  fix at `output_signals.py:205` + redaction test extension. Surfaced
+  2026-05-07 audit pass.
+- `[FOLLOWUP arch-gate-network-body-preview-redaction]`
+  (`POST_POC_BACKLOG.md` Engineering Quality, **P2**) — optional
+  W12-1 companion (defense-in-depth structural gate sibling to
+  the existing AST-gate suite). Land if W12-1 has spare review
+  capacity; otherwise defer to W13.
 
 ## Detailed Item Notes (filled as items land)
 

@@ -1,6 +1,6 @@
 # W11 — Monitor Lifecycle Split (Active Work Tracker)
 
-`Last Updated: 2026-05-05 (W11-8 landed; W11 closed)`
+`Last Updated: 2026-05-07 (W11 closed; PR #14 merged)`
 
 This is the canonical active work tracker for the W11 monitor lifecycle
 split window. Items have stable IDs (`W11-1` … `W11-8`). Code comments,
@@ -18,8 +18,8 @@ item by reading both this tracker and that archive section.
 - **W11 closed `2026-05-05`** — All eight scope items landed on the
   `week11` working branch (W11-1..W11-6 monitor split, W11-7 workflow
   ahtapot closure, W11-8 storage ahtapot closure) plus the bundled
-  acceptance sub-tasks. The branch will fold into `main` as a single
-  PR per the W11-3 branch policy deviation. Final exit bar:
+  acceptance sub-tasks. The branch merged into `main` via PR #14 per
+  the W11-3 branch policy deviation. Final exit bar:
   `make check-all` 1274 passed / 6 skipped / 6 deselected;
   `make test-security` 190 yeşil. Authoritative current-state pointer:
   [`documents/REFACTOR_STATUS.md`](../REFACTOR_STATUS.md).
@@ -201,10 +201,10 @@ item by reading both this tracker and that archive section.
   `exthost_output_parse`); the archive table will be reconciled when
   W11 closes.
 
-  Branch policy deviation: per user direction, all W11-N items land on
+  Branch policy deviation: per user direction, all W11-N items landed on
   a single long-lived `week11` branch instead of the documented
   per-item `feat/w11-<n>-<slug>` branches (Pickup Procedure step 2).
-  The branch will fold into `main` as a single PR after W11 closes.
+  The branch merged into `main` via PR #14 after W11 closed.
 
   **First live-scan validation surfaced a serialization gap
   (`2026-05-04`):** the W11-3 build was exercised end-to-end against
@@ -900,8 +900,8 @@ item by reading both this tracker and that archive section.
   (`[FOLLOWUP w8-6-extension-host-output-redaction]` ahead of
   W11-6, `[FOLLOWUP runner-status-contract]` rode W11-3,
   `[FOLLOWUP target-log-lifecycle-instrumentation]` rode W11-4).
-  The `week11` working branch will fold into `main` as a single
-  PR per the W11-3 branch policy deviation.
+  The `week11` working branch merged into `main` via PR #14 per the
+  W11-3 branch policy deviation.
 
 ## Acceptance Sub-Tasks (W11-N picks up these follow-ups)
 
@@ -1115,9 +1115,9 @@ For each W11-N to be marked **landed**:
   pipeline reads as a single vocabulary end-to-end. Archive table
   still to be reconciled at W11 closure.
 - **W11-3 branch policy deviation** (`2026-05-04`): all W11-N items
-  land on a single long-lived `week11` branch (per user direction)
+  landed on a single long-lived `week11` branch (per user direction)
   instead of `feat/w11-<n>-<slug>` per Pickup Procedure step 2. The
-  branch folds into `main` as a single PR after W11 closes.
+  branch merged into `main` via PR #14 after W11 closed.
 - **W11-1 filename divergence** (`2026-05-04`): the archive table
   lists the new module as `monitor_runtime.py`, but that filename was
   already taken by a 554-LoC helper module (runtime verification +

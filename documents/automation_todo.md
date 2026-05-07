@@ -1,6 +1,6 @@
 # Dynamic Analysis Backlog
 
-`Last Updated: 2026-05-05`
+`Last Updated: 2026-05-07`
 
 This is the short actionable backlog for the sandbox pipeline. It complements
 `DEVELOPMENT_PRIORITIES.md`, `PIPELINE_ROADMAP.md`, and the canonical
@@ -22,10 +22,9 @@ deterministic harness readiness gate both landed on `2026-04-27`;
 **W8 closed for active work `2026-04-29`** (W8-1..W8-7 + W8-9 landed,
 W8-8 deferred under named triggers); **W9 closed `2026-05-04` via
 PR #9**; **W10 closed `2026-05-04` via PR #11**;
-**W11 entry gate met `2026-05-04`** — `[FOLLOWUP w11-precursor-tests]`
-safety net landed; W11 monitor lifecycle split (§11.8) is the active
-pull-first phase, tracked in
-[`active-work/W11-monitor-lifecycle.md`](active-work/W11-monitor-lifecycle.md).
+**W11 closed `2026-05-05`** and merged via PR #14. Active phase is W12
+executor subpackaging + attribution cleanup (§11.9), tracked in
+[`active-work/W12-executor-subpackaging.md`](active-work/W12-executor-subpackaging.md).
 
 ## Now (next-iteration pull)
 
@@ -34,8 +33,8 @@ Source of truth: `POST_POC_BACKLOG.md` "Next iteration (pull first)" and
 (attribution split + sim-target lane), simulation progress/cancel/VNC/demo
 canary work, PR345 PRs 1-5, W8-0, W8/W9 in their entirety, W10
 contract hygiene + planner cleanup (PR #11, `2026-05-04`), and W11
-monitor lifecycle split + workflow/storage ahtapot closures (W11-1..W11-8
-on the `week11` working branch, `2026-05-05`) are all landed. Active
+monitor lifecycle split + workflow/storage ahtapot closures (W11-1..W11-8,
+merged via PR #14, `2026-05-05`) are all landed. Active
 phase: W12 executor subpackaging + attribution cleanup
 (`REFACTOR_OPTIMIZATION.md` §11.9). The pull-first candidates inside
 and just past W12:
@@ -51,8 +50,7 @@ and just past W12:
   (`appcore/storage/crud_ops/analysis_jobs.py` ahtapot closure into
   the same-named subpackage with `lifecycle.py` + `steps.py` +
   thin `__init__.py` facade) all landed `2026-05-04`/`2026-05-05` on
-  the `week11` working branch. The branch folds into `main` as a
-  single PR per the W11-3 branch policy deviation. Full W11-N
+  the `week11` working branch and merged via PR #14. Full W11-N
   closure detail in `active-work/W11-monitor-lifecycle.md` and
   `REFACTOR_STATUS.md`.
 + ~~**W11+W12 lifecycle wiring** picks up

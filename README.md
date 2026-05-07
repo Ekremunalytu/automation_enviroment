@@ -1,6 +1,6 @@
 # ExTrace
 
-`Last Updated: 2026-05-05`
+`Last Updated: 2026-05-07`
 
 ExTrace is a VS Code extension analysis platform built around three runtime
 surfaces:
@@ -53,10 +53,10 @@ multi-tenant web platform.
   W8-1 and W8-3.
 - **W8 closed for active work `2026-04-29`** (W8-1..W8-7 + W8-9 landed,
   W8-8 deferred); **W9 closed `2026-05-04`** (PR #9); **W10 closed
-  `2026-05-04`** (PR #11). Active phase: **W11 monitor lifecycle split**
-  — W11-1..W11-5 landed `2026-05-04`/`2026-05-05`; W11-6 (per-strategy
-  `_stop_<strategy>` helpers on `MonitorRuntime.stop()`) is the next
-  pull-first. Tracker: [`active-work/W11-monitor-lifecycle.md`](documents/active-work/W11-monitor-lifecycle.md).
+  `2026-05-04`** (PR #11); **W11 closed `2026-05-05`** and merged via
+  PR #14. Active phase: **W12 executor subpackaging + attribution
+  cleanup**; W12-0 output-signal file-backed redaction must land before
+  W12-1. Tracker: [`active-work/W12-executor-subpackaging.md`](documents/active-work/W12-executor-subpackaging.md).
 - **Canonical source of truth for phase state:**
   [`documents/REFACTOR_STATUS.md`](documents/REFACTOR_STATUS.md).
   Deferred items: [`documents/POST_POC_BACKLOG.md`](documents/POST_POC_BACKLOG.md).

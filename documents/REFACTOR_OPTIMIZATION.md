@@ -1,6 +1,6 @@
 # REFACTOR_OPTIMIZATION
 
-`Last Updated: 2026-05-05`
+`Last Updated: 2026-05-07`
 
 W0-W13 plan dokümanı: stabilizasyon + güvenlik + post-PoC external-review
 integration. **Slim canonical** — full historical content (review pass'leri,
@@ -111,7 +111,7 @@ subpackaging + attribution cleanup (§11.9).
 | Hafta | Etiket | Kapsam (özet) | Kaynak |
 |---|---|---|---|
 | **W8** | Güvenlik sıkılaştırma | VSIX zip-bomb guard, marketplace identity helper, URI trigger argv-form, absolute paths, router regex consolidation, content-sample redaction, ADR 0007 local network binding, manifest log-sanitization | Claude §1/§18; Codex §1; supplementary 2026-04-25 |
-| **W9** | Executor↔Detection boundary | container-packaging ADR (TBD; ADR 0008 if next), dual-import fallback sweep, `signal_policy.py` relocation, `sys.path.insert` audit, container import-mode CI test | Claude §6/§10; Codex §9/§4 |
+| **W9** | Executor↔Detection boundary | ADR 0008 container package-mode invocation, dual-import fallback sweep, `signal_policy.py` relocation, `sys.path.insert` audit, container import-mode CI test | Claude §6/§10; Codex §9/§4 |
 | **W10** | Contract hygiene + Planner split | `schema_version` + DeprecationWarning, `_TriggerPayloadDraft` elimination, `registry.py` 4-way split, `automation_health`/`coverage_*` typing | Codex §1.2/§1.4/§2; Claude §4 |
 | **W11** | Monitor lifecycle split | `monitor_lifecycle.py` 834 LoC → `MonitorRuntime` + `ReportAssembler` + `ScenarioAccountant` + `ExtensionMonitor` facade | Codex §3.1; Claude §3 |
 | **W12** | Executor subpackaging + attribution cleanup | `executor/flows/playwright/` 54 → 5 subpackage; `entrypoint_runner.main` 324→≤200 LoC (W11-3 sonrası post-extraction baseline); attribution facade cleanup | Codex §3.1/§3.2/§4; Claude §2/§3/§5 |
@@ -162,8 +162,8 @@ Status quick glance:
 ### §11.6 — W9 Executor↔Detection Boundary
 
 **Goal:** Paket import topolojisinde `except ImportError` dual-fallback
-pattern'lerinin elimine edilmesi; container-packaging ADR (number TBD;
-ADR 0008 if next available) — paket-mode vs top-level import kararı;
+pattern'lerinin elimine edilmesi; ADR 0008 container package-mode
+kararı; paket-mode vs top-level import kararı;
 `signal_policy.py` lokasyonu; `sys.path.insert` audit; container
 import-mode CI test.
 
@@ -222,8 +222,8 @@ bandında belirsiz kalmıştı. Bu alt-bölüm o boşluğu doldurur:
 Safety floor: `[FOLLOWUP w11-precursor-tests]` (LANDED `2026-05-04`,
 23-case net at `tests/executor/test_playwright_extension_host.py`)
 imported the module at its real path so the split cannot silently
-regress. Backlog item: `[FOLLOWUP w12-extension-host-split-scoping]`
-(`POST_POC_BACKLOG.md:240-256`). Stable ID assignment deferred to
+regress. Backlog item: `[FOLLOWUP w12-extension-host-split-scoping]`.
+Stable ID assignment deferred to
 W12 entry; landing pattern follows W11-7/W11-8 ahtapot closure
 (facade + per-source split + mypy `--strict` re-export, callers
 unchanged).
