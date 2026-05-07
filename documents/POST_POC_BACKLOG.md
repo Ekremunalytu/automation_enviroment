@@ -41,8 +41,11 @@ Use stable IDs in new references; do not cite canonical doc line numbers.
 
 ## W12 Acceptance Items
 
-- **`[FOLLOWUP w12-attribution-naming-overlap]`** — reconcile or rename
-  `background_activation_count` vs `competing_candidate_count`.
+- ~~**`[FOLLOWUP w12-attribution-naming-overlap]`**~~ — closed
+  `2026-05-07` in commit `0cef876` (W12-2 Commit 2). Rename:
+  `background_activation_count` → `target_background_activation_count`;
+  `competing_candidate_count` → `competing_extension_event_count`. UI
+  contract + adapter + view-model + fixtures updated.
 - ~~**`[FOLLOWUP w12-precursor-tests-attribution-links]`**~~ — closed
   `2026-05-07` in commit `5ae0d32`; 26 link-helper cases landed.
 - ~~**`[FOLLOWUP w12-precursor-tests-attribution-events]`**~~ — closed
@@ -50,10 +53,18 @@ Use stable IDs in new references; do not cite canonical doc line numbers.
 - **`[FOLLOWUP w12-extension-host-split-scoping]`** — plan addendum
   closed by PR #15; implementation lands during W12 as the
   `runtime_capture/extension_host.py` ahtapot split.
-- **`[FOLLOWUP coverage-summary-attempted-drift]`** — reduce attempted
-  capability producer paths to one source of truth.
-- **`[FOLLOWUP activation-discovery-strategy-outcome-detail]`** — P3
-  read-side detail loss for per-strategy outcome reporting.
+- ~~**`[FOLLOWUP coverage-summary-attempted-drift]`**~~ — closed
+  `2026-05-07` in commit `9ebc5b5` (W12-2 Commit 3). The assembler
+  syncs top-level `attempted_capabilities` and
+  `heuristic_attempted_capabilities` to the reconciled
+  `coverage_summary["attempted_capabilities"]` so the UI fallback chain
+  resolves to one value.
+- ~~**`[FOLLOWUP activation-discovery-strategy-outcome-detail]`**~~ —
+  closed `2026-05-07` in commit `0981e92` (W12-2 Commit 4, P3). Field
+  upgraded from `activation_discovery_strategies: list[str]` to
+  `activation_discovery_strategy_outcomes: dict[str, str]` with outcome
+  literals `succeeded_with_new_activations` /
+  `succeeded_no_new_activations` / `failed:<ExcClassName>`.
 
 ## Open Items By Area
 

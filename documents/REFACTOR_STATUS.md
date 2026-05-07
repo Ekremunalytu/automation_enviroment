@@ -1,6 +1,6 @@
 # Refactor Status
 
-`Last Updated: 2026-05-07 (W12 active; W12-0 security pull-forward landed)`
+`Last Updated: 2026-05-07 (W12 active; W12-0 + W12-1 + W12-2 landed; W12-3 unblocked)`
 
 Active status board for current closure state. **Slim canonical** — full
 phase history and verbose evidence are frozen under dated snapshots:
@@ -47,11 +47,23 @@ phase history and verbose evidence are frozen under dated snapshots:
   **landed** `2026-05-07` on `week12` in commit `22eb836`.
   `[FOLLOWUP w8-6-output-signals-file-backed-redaction]` closed; W12-1
   unblocked.
+- W12-1 executor subpackaging:
+  **landed** `2026-05-07` on `week12` in commits `b4bd3ee` +
+  `0eb072e` + `0e74beb` + `95a409f`. 54 flat playwright files →
+  ≤10 flat + 8 subpackages (monitor/, stimulus/, workspace/,
+  health/, entrypoint/, vscode/, signals/) plus existing
+  attribution/ + scenarios/ + runtime_capture/. Two new
+  architecture gates landed.
+- W12-2 attribution facade cleanup:
+  **landed** `2026-05-07` on `week12` in commits `37fcaad` +
+  `0cef876` + `9ebc5b5` + `0981e92`. 29 underscore re-exports → 10
+  public names; three companion follow-ups closed (naming-overlap
+  rename, coverage-summary unify, P3 strategy-outcome dict).
 - Working branch: `week12` (single-branch policy for W12).
-- Last known check bar at W12-0 close: `make check-all` 1342 passed /
-  6 skipped / 6 deselected; `make test-security` 194 cases (190
-  baseline + 4 file-backed regressions; harness-marker symmetry tests
-  bring the local suite to 197).
+- Last known check bar at W12-2 close: `make test-local` 1352
+  passed / 6 skipped / 6 deselected (3 pre-existing
+  postgres-port-5433 DB failures unrelated); `make test-security`
+  197 passed.
 
 ## 2026-05-07 Audit Pass
 

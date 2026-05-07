@@ -1,6 +1,6 @@
 # W12 — Executor Subpackaging + Attribution Cleanup (Active Work Tracker)
 
-`Last Updated: 2026-05-07 (W12 active; W12-0 + W12-1 landed; W12-2 unblocked)`
+`Last Updated: 2026-05-07 (W12 active; W12-0 + W12-1 + W12-2 landed; W12-3 unblocked)`
 
 This is the canonical active work tracker for the W12 executor
 subpackaging + attribution cleanup window. Items have stable IDs
@@ -70,15 +70,24 @@ and that archive section.
   references and asserts each `<X>` is either flat or has a
   `__main__.py`. Live-scan still deferred to W12 close (Iteration 6).
   See "Detailed Item Notes" below.
-- **W12-2** — pending. Attribution facade underscore cleanup:
-  `executor/flows/playwright/attribution/__init__.py` 29 underscore
-  re-exports → ~6-7 public names + remaining stay private. Caller
-  migration in `monitor_lifecycle.py`,
-  `monitor_report_assembler.py`, and `monitor_scenario_accountant.py`.
-  Companion backlog items rolled in:
-  `[FOLLOWUP w12-attribution-naming-overlap]`,
-  `[FOLLOWUP coverage-summary-attempted-drift]`, and
-  `[FOLLOWUP activation-discovery-strategy-outcome-detail]` (P3).
+- **W12-2** — landed `2026-05-07` across four commits on `week12`:
+  `37fcaad` (facade rename + caller migration), `0cef876` (naming-overlap
+  rename), `9ebc5b5` (coverage-summary unify), `0981e92` (P3 strategy
+  outcome dict). Attribution facade trimmed from 29 underscore re-exports
+  to 10 public names; caller migration in `monitor/lifecycle.py`,
+  `monitor/report_assembler.py`, `monitor/scenario_accountant.py`,
+  `monitor/types.py`. All three companion follow-ups closed:
+  `[FOLLOWUP w12-attribution-naming-overlap]` (rename to
+  `target_background_activation_count` /
+  `competing_extension_event_count`),
+  `[FOLLOWUP coverage-summary-attempted-drift]` (assembler syncs
+  top-level `attempted_capabilities` from reconciled summary), and
+  `[FOLLOWUP activation-discovery-strategy-outcome-detail]` (P3 — field
+  upgraded from `list[str]` to
+  `activation_discovery_strategy_outcomes: dict[str, str]` with
+  outcome literals `succeeded_with_new_activations` /
+  `succeeded_no_new_activations` / `failed:<ExcClassName>`).
+  See "Detailed Item Notes" below.
 - **W12-3** — pending. `raw_context` discriminated union typing:
   `dict[str, Any]` → `NetworkRawContext` / `FileRawContext` /
   `ProcessRawContext` Pydantic variants under
@@ -142,18 +151,24 @@ number.
   closed `2026-05-07` in commit `5ae0d32`.
 - ~~`[FOLLOWUP w12-precursor-tests-attribution-events]`~~ —
   closed `2026-05-07` in commit `5ae0d32`.
-- `[FOLLOWUP w12-attribution-naming-overlap]`
-  — natural landing W12-2 (`background_activation_count` vs
-  `competing_candidate_count` divergence reconcile).
+- ~~`[FOLLOWUP w12-attribution-naming-overlap]`~~ — closed `2026-05-07`
+  in commit `0cef876` (rename to `target_background_activation_count`
+  / `competing_extension_event_count`).
 - `[FOLLOWUP w12-extension-host-split-scoping]`
   — plan-level addition to slim canonical §11.9.1; closed by PR #15
   (no code change). Implementation deferred to W12 entry; lands as
   ahtapot pattern.
-- `[FOLLOWUP coverage-summary-attempted-drift]`
-  — natural landing W12-2; surgical pull-forward acceptable if a UI
-  surface reads both fields.
-- `[FOLLOWUP activation-discovery-strategy-outcome-detail]`
-  (**P3**) — read-side detail loss; W12-2 territory.
+- ~~`[FOLLOWUP coverage-summary-attempted-drift]`~~ — closed
+  `2026-05-07` in commit `9ebc5b5` (assembler syncs top-level
+  `attempted_capabilities` and `heuristic_attempted_capabilities` from
+  the reconciled `coverage_summary` so the UI fallback chain resolves
+  to one value).
+- ~~`[FOLLOWUP activation-discovery-strategy-outcome-detail]` (P3)~~ —
+  closed `2026-05-07` in commit `0981e92`. Field upgraded from
+  `activation_discovery_strategies: list[str]` to
+  `activation_discovery_strategy_outcomes: dict[str, str]`; helpers
+  emit per-strategy outcome literals (succeeded_with_new_activations
+  / succeeded_no_new_activations / failed:<ExcClassName>).
 - ~~`[FOLLOWUP w8-6-output-signals-file-backed-redaction]`~~ —
   closed `2026-05-07` on `week12` in commit `22eb836` (W12-0
   precursor). One-line fix at `output_signals.py:205` plus seven new
@@ -314,9 +329,95 @@ number.
   enumerates 13 scenarios end-to-end (proves package import +
   scenarios registry resolution survive the relocations).
 
-### W12-2 — Attribution Facade Underscore Cleanup
+### W12-2 — Attribution Facade Underscore Cleanup (landed `2026-05-07`)
 
-(pending)
+- **Scope.** Four commits on `week12`: facade rename + caller migration
+  (`37fcaad`), naming-overlap reconcile (`0cef876`),
+  coverage-summary-attempted-drift unify (`9ebc5b5`), and the P3
+  per-strategy outcome dict (`0981e92`). All three companion backlog
+  items (`[FOLLOWUP w12-attribution-naming-overlap]`,
+  `[FOLLOWUP coverage-summary-attempted-drift]`,
+  `[FOLLOWUP activation-discovery-strategy-outcome-detail]`) closed.
+- **Facade trim.** `executor/flows/playwright/attribution/__init__.py`
+  29 underscore re-exports → 10 public names: `annotate_file_events`,
+  `annotate_network_events`, `annotate_process_events`,
+  `build_evidence_bundle`, `build_risk_signals`, `build_risk_summary`,
+  `build_signal_summary`, `format_epoch_timestamp`, `relative_time`,
+  `scenario_name_for_timestamp`. The four `_indexed_*` shim wrappers
+  were dropped (callers reach `signals.facts` directly). Internal
+  helpers (8 in `events.py`, 7 in `links.py`) stay private. Caller
+  migration: `monitor/lifecycle.py`, `monitor/report_assembler.py`,
+  `monitor/scenario_accountant.py`, `monitor/types.py`. Lazy proxy
+  tuple `_LAZY_ATTRIBUTION_NAMES` in `monitor/__init__.py` shrunk
+  15 → 10 (underscore-free); the eager
+  `from ..signals import build_risk_signals, build_risk_summary,
+  build_signal_summary` was removed so the proxy can route
+  `monitor.build_signal_summary` through the attribution wrapper
+  (which injects `automation_health` + `run_quality` + the lazy
+  `RiskSignal` type).
+- **Architecture gates preserved.**
+  `test_monitor_facade_does_not_eagerly_import_attribution`,
+  `test_monitor_lazy_proxy_completeness`,
+  `test_attribution_does_not_eagerly_import_monitor`,
+  `test_monitor_and_stimulus_subpackages_do_not_cross_import`,
+  `test_executor_playwright_flat_file_count_limit`,
+  `test_python_m_playwright_invocations_have_main_module` — all
+  green; doc strings updated to public names.
+- **Naming overlap (`0cef876`).**
+  `attribution_summary.background_activation_count` →
+  `target_background_activation_count` (target extension's
+  non-foreground activations) and
+  `attribution_summary.competing_candidate_count` →
+  `competing_extension_event_count` (file/network events attributed
+  to other extensions in the target's window). Disjoint populations
+  pinned by new regression `tests/executor/test_annotation_summary.py`.
+  TS contract regen + UI adapter + view-model + 2 fixtures + 1 doc
+  updated; backwards-compat: NONE.
+- **Coverage-summary drift (`9ebc5b5`).**
+  `ReportAssembler.refresh_derived_state` now syncs the top-level
+  `report.attempted_capabilities` and
+  `report.heuristic_attempted_capabilities` to the reconciled
+  `coverage_summary["attempted_capabilities"]` and
+  `coverage_tracks["heuristic"]["summary"]["attempted_capabilities"]`
+  at the end of the refresh, so the executor reconcile path is the
+  single source of truth and the UI fallback chain
+  (`summary.attempted_capabilities` →
+  `official_attempted_capabilities` →
+  `attempted_capabilities`) resolves to one value. Producers
+  upstream of refresh (payload extraction) still seed initial values
+  → those flow into `_reconcile_track`'s `attempted` set, and its
+  filtered output flows back to the top-level fields. New regression
+  `test_refresh_syncs_attempted_capabilities_to_reconciled_summary`
+  in `test_playwright_monitor_report_assembler.py`.
+- **P3 strategy outcome dict (`0981e92`).** Field rename:
+  `activation_discovery_strategies: list[str]` →
+  `activation_discovery_strategy_outcomes: dict[str, str]`. Helpers
+  in `monitor/runtime_state.py` now return
+  `tuple[str, str]` (strategy_id, outcome) where outcome is one of
+  `"succeeded_with_new_activations"`,
+  `"succeeded_no_new_activations"`, or `"failed:<ExcClassName>"`.
+  Callback type `SetDiscoveryStrategiesCallback` →
+  `SetDiscoveryStrategyOutcomesCallback`; assembler setter
+  `set_discovery_strategies` → `set_discovery_strategy_outcomes`.
+  JSON export key follows the rename. Pydantic contract field
+  rename + `dict[str, str]`. New contract test
+  `test_accepts_failed_outcome_with_arbitrary_exception_class`.
+  UI adapter does not currently read this field; TS contract regen
+  deferred to W13 if a UI consumer is added.
+- **Tests.** `make test-local` 1352 passed (3 pre-existing
+  postgres-port-5433 DB failures unrelated). `make test-security`
+  197 passed (unchanged). Targeted attribution + assembler +
+  contracts + architecture suite ~420 cases green.
+- **Live-scan.** Deferred to W12 close (Iteration 6) per W12-1
+  precedent — Docker `automation_executor` container not running
+  locally during W12-2 implementation. Sanity-checked via
+  `python -m executor.flows.playwright.entrypoint --list`
+  (13 scenarios enumerate, paket import + scenarios registry
+  resolution survive the rename).
+- **Schema version.** `ACTIVATION_REPORT_SCHEMA_VERSION` stays
+  `"2.1"` — no released report carries the old field names, so the
+  rename is internal to the W12 PR window. Bump on the W13 PR if a
+  released contract adopts the new names.
 
 ### W12-3 — `raw_context` Discriminated Union Typing
 
