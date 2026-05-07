@@ -251,6 +251,58 @@ def test_refresh_populates_coverage_tuple(monkeypatch) -> None:
     assert report.coverage_tracks == {"official": {"x": 1}}
 
 
+def test_refresh_syncs_attempted_capabilities_to_reconciled_summary(
+    monkeypatch,
+) -> None:
+    """W12-2 [FOLLOWUP coverage-summary-attempted-drift]: reconcile is the
+    single authority for ``attempted_capabilities``.
+
+    The pre-W12-2 dataflow let ``payload.populate_report_from_trigger_payload``
+    seed ``report.attempted_capabilities`` from the analysis_planner output
+    while ``coverage_summary["attempted_capabilities"]`` was rebuilt by
+    ``_reconcile_coverage_verification`` against the matrix-supported set.
+    The two could diverge (analyst-side ``uri_walkthrough`` not in the matrix
+    → seed had 7 entries, summary had 6). After W12-2 the assembler syncs
+    the top-level field to the reconciled summary at the end of every
+    ``refresh_derived_state`` so the UI fallback chain
+    (``summary.attempted_capabilities`` → ``official_attempted_capabilities``
+    → ``attempted_capabilities``) sees the same number everywhere.
+    """
+    _patch_refresh_helpers(monkeypatch)
+    report = _make_report()
+    # Simulate the pre-refresh drift: payload-seeded list with an extra
+    # capability that the matrix-reconciled summary will drop.
+    report.attempted_capabilities = ["cap.read", "cap.write", "uri_walkthrough"]
+    report.heuristic_attempted_capabilities = ["heuristic_extra", "cap.write"]
+
+    # The patched ``_reconcile_coverage_verification`` returns
+    # ``({"summary": "S"}, ...)``; override its return value so the summary
+    # carries an ``attempted_capabilities`` list to sync against.
+    monkeypatch.setattr(
+        monitor_report_assembler,
+        "_reconcile_coverage_verification",
+        lambda _r: (
+            {"summary": "S", "attempted_capabilities": ["cap.read", "cap.write"]},
+            [{"row": 1}],
+            {
+                "official": {"x": 1},
+                "heuristic": {"summary": {"attempted_capabilities": ["cap.write"]}},
+            },
+        ),
+    )
+
+    assembler = ReportAssembler(report=report, report_path=None)
+    assembler.refresh_derived_state()
+
+    assert report.attempted_capabilities == ["cap.read", "cap.write"]
+    assert report.heuristic_attempted_capabilities == ["cap.write"]
+    # And the reconciled coverage_summary remains the authority.
+    assert report.coverage_summary["attempted_capabilities"] == [
+        "cap.read",
+        "cap.write",
+    ]
+
+
 def test_refresh_writes_signal_summary_and_evidence_links(monkeypatch) -> None:
     _patch_refresh_helpers(monkeypatch)
     report = _make_report()
