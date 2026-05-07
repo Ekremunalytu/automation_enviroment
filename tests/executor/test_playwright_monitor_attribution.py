@@ -401,6 +401,95 @@ def test_runtime_attempted_capabilities_ignore_static_payload_bloat() -> None:
     assert report.verification_gap == 1
 
 
+def test_runtime_attempted_includes_activation_seen_promotion() -> None:
+    """W12-2 [FOLLOWUP w12-promoted-attempt-coverage-erasure] regression.
+
+    ``reconcile_event_attempts`` promotes an attempt whose target activated
+    (without full runtime verification) to status ``activation_seen``.
+    Before the fix, the runtime-attempted derivation only counted
+    ``{verified, attempted_only, failed}`` and skipped the promoted state,
+    so the capability was erased from ``attempted_capabilities`` and
+    ``coverage_summary`` -- the report surfaced ``not_attempted`` even
+    though the target reacted to the stimulus. After the fix, the filter
+    routes through ``RUNTIME_EVIDENCE_STATES`` so the promoted capability
+    survives the derivation."""
+    report = monitor.ActivationReport(
+        coverage_tracks={
+            "official": {
+                "summary": {"covered": 1, "partial": 0, "missing": 0},
+                "matrix": [
+                    {
+                        "capability": "debug",
+                        "status": "covered",
+                        "support_status": "covered",
+                    },
+                ],
+            }
+        },
+        coverage_matrix=[
+            {"capability": "debug", "status": "covered", "support_status": "covered"},
+        ],
+        attempted_capabilities=["debug"],
+        event_attempts=[
+            monitor.EventAttemptRecord(
+                attempt_id="dbg",
+                declared_event="onDebugResolve:python",
+                activation_event="onDebugResolve:python",
+                event_family="onDebugResolve",
+                track="official",
+                capability_tags=["debug"],
+                attempted_passes=["target_specific_activation"],
+                status="activation_seen",
+            ),
+        ],
+    )
+
+    assert report.runtime_official_attempted_capabilities == ["debug"]
+
+
+def test_runtime_attempted_includes_target_log_seen_promotion() -> None:
+    """Companion to the activation_seen regression. ``target_log_seen``
+    is the strictly-stronger promotion (target-owned log/output evidence
+    in addition to the activation entry); it must also count as runtime
+    evidence in the attempted-capability derivation."""
+    report = monitor.ActivationReport(
+        coverage_tracks={
+            "official": {
+                "summary": {"covered": 1, "partial": 0, "missing": 0},
+                "matrix": [
+                    {
+                        "capability": "languages_editor",
+                        "status": "covered",
+                        "support_status": "covered",
+                    },
+                ],
+            }
+        },
+        coverage_matrix=[
+            {
+                "capability": "languages_editor",
+                "status": "covered",
+                "support_status": "covered",
+            },
+        ],
+        attempted_capabilities=["languages_editor"],
+        event_attempts=[
+            monitor.EventAttemptRecord(
+                attempt_id="lang",
+                declared_event="workspaceContains:app.py",
+                activation_event="workspaceContains:app.py",
+                event_family="workspaceContains",
+                track="official",
+                capability_tags=["languages_editor"],
+                attempted_passes=["workspace_bootstrap"],
+                status="target_log_seen",
+            ),
+        ],
+    )
+
+    assert report.runtime_official_attempted_capabilities == ["languages_editor"]
+
+
 def test_runtime_verified_capabilities_drive_quality_gap() -> None:
     report = monitor.ActivationReport(
         coverage_tracks={

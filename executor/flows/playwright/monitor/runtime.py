@@ -9,6 +9,8 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
+from packages.analysis_contracts.report_invariants import RUNTIME_EVIDENCE_STATES
+
 from ..health import (
     build_run_quality,
     count_target_activations,
@@ -406,11 +408,18 @@ def _derive_runtime_attempted_capabilities(
     for attempt in getattr(report, "event_attempts", []) or []:
         if str(getattr(attempt, "track", "")).strip() != track:
             continue
-        if str(getattr(attempt, "status", "")).strip() not in {
-            "verified",
-            "attempted_only",
-            "failed",
-        }:
+        # W12-2 [FOLLOWUP w12-promoted-attempt-coverage-erasure]: route
+        # the status filter through the shared RUNTIME_EVIDENCE_STATES
+        # set so the intermediate ``activation_seen`` and
+        # ``target_log_seen`` promotions emitted by
+        # ``reconcile_event_attempts`` (health/reconciliation.py:187,219)
+        # are counted as runtime evidence here, matching the contract
+        # invariant in report_invariants.py:_attempt_has_runtime_evidence.
+        # Without this, a target activation observed without full
+        # verification would erase its capability from
+        # ``attempted_capabilities`` and ``coverage_summary``, surfacing
+        # ``not_attempted`` even though the target reacted.
+        if str(getattr(attempt, "status", "")).strip() not in RUNTIME_EVIDENCE_STATES:
             continue
         attempted_passes = [
             str(pass_name).strip()

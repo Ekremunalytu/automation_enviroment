@@ -38,8 +38,26 @@ Use stable IDs in new references; do not cite canonical doc line numbers.
   end-to-end regressions added under
   `tests/platform/security/test_output_signals_redaction.py`. W12-1
   unblocked.
+- ~~**`[FOLLOWUP w12-promoted-attempt-coverage-erasure]`**~~ —
+  **landed `2026-05-07` on `week12` in commit `<HASH_B>`.**
+  `_derive_runtime_attempted_capabilities` in
+  `executor/flows/playwright/monitor/runtime.py` filtered status to
+  `{verified, attempted_only, failed}`. After
+  `reconcile_event_attempts` (`health/reconciliation.py:187,219`)
+  promoted an attempt to `activation_seen` or `target_log_seen` (target
+  reacted but full verification did not close), `report_assembler.py:128`
+  overwrote `attempted_capabilities` from the runtime view, erasing the
+  promoted capability and surfacing `not_attempted` in
+  `coverage_summary` despite the target reacting. Routed the filter
+  through `RUNTIME_EVIDENCE_STATES` (single source of truth in
+  `packages/analysis_contracts/report_invariants.py`) so promoted
+  states count as runtime evidence here, matching the contract
+  invariant `_attempt_has_runtime_evidence` and the W10-6 docstring.
+  Two regression cases under
+  `tests/executor/test_playwright_monitor_attribution.py`
+  (`test_runtime_attempted_includes_{activation_seen,target_log_seen}_promotion`).
 - ~~**`[FOLLOWUP w12-legacy-strategy-outcomes-migration]`**~~ —
-  **landed `2026-05-07` on `week12` in commit `<HASH>`.**
+  **landed `2026-05-07` on `week12` in commit `<HASH_A>`.**
   W12-2 P3 (`0981e92`) renamed
   `activation_discovery_strategies: list[str]` →
   `activation_discovery_strategy_outcomes: dict[str, str]` under the
