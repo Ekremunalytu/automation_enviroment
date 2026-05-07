@@ -1,6 +1,6 @@
 # Agent Context
 
-`Last Updated: 2026-05-05 (W11 closed)`
+`Last Updated: 2026-05-07 (W12 scaffold)`
 
 Thin routing map for coding agents after `AGENTS.md`. **Stays short.**
 Do not copy phase history here; use `REFACTOR_STATUS.md` (slim canonical).
@@ -24,8 +24,10 @@ Do not copy phase history here; use `REFACTOR_STATUS.md` (slim canonical).
   companion `[FOLLOWUP w8-6-extension-host-output-redaction]`
   landed `2026-05-05` ahead of W11-6. **Active phase:** W12
   Executor Subpackaging + Attribution Cleanup (REFACTOR_OPTIMIZATION
-  §11.9). For current closure state always defer to
-  `REFACTOR_STATUS.md`.
+  §11.9 + §11.9.1). Active tracker:
+  `active-work/W12-executor-subpackaging.md` (stable IDs W12-1..W12-4;
+  pre-W12 precursor gate detailed under "Entry Conditions"). For
+  current closure state always defer to `REFACTOR_STATUS.md`.
 - Architecture: `ARCHITECTURE.md` (slim) + `architecture/` splits.
 - Placement rules: `PROJECT_STRUCTURE.md` (slim) + `structure/` splits.
 - Test lanes: `TESTING.md` (slim) + `testing/` splits.
