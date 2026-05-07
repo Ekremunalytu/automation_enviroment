@@ -491,6 +491,36 @@ class ActivationReport(StrictContractModel):
         migrated["signal_summary"] = migrated.pop("verdict")
         return migrated
 
+    @model_validator(mode="before")
+    @classmethod
+    def _migrate_legacy_strategy_outcomes(cls, data: object) -> object:
+        # W12-2 P3 (closes [FOLLOWUP w12-legacy-strategy-outcomes-migration]):
+        # ``activation_discovery_strategies: list[str]`` was renamed to
+        # ``activation_discovery_strategy_outcomes: dict[str, str]`` under
+        # the same schema_version 2.1. ``StrictContractModel`` sets
+        # ``extra="forbid"``, so any 2.1 report persisted before the
+        # rename (W11-3 .. W12-2 P3 window) raises ``extra_forbidden``
+        # on ingest. Drop the legacy field and synthesize the new dict:
+        # the legacy list only carried "succeeded-and-produced-new"
+        # entries (see field comment on the dict declaration), so each
+        # id maps to ``"succeeded_with_new_activations"``.
+        if not isinstance(data, dict):
+            return data
+        if "activation_discovery_strategies" not in data:
+            return data
+        migrated = dict(data)
+        legacy = migrated.pop("activation_discovery_strategies")
+        if "activation_discovery_strategy_outcomes" not in migrated:
+            if isinstance(legacy, list):
+                migrated["activation_discovery_strategy_outcomes"] = {
+                    str(strategy_id).strip(): "succeeded_with_new_activations"
+                    for strategy_id in legacy
+                    if str(strategy_id).strip()
+                }
+            else:
+                migrated["activation_discovery_strategy_outcomes"] = {}
+        return migrated
+
 
 class TriggerPayload(StrictContractModel):
     analysis_profile: str = "layered_deep"

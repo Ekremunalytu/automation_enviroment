@@ -38,6 +38,22 @@ Use stable IDs in new references; do not cite canonical doc line numbers.
   end-to-end regressions added under
   `tests/platform/security/test_output_signals_redaction.py`. W12-1
   unblocked.
+- ~~**`[FOLLOWUP w12-legacy-strategy-outcomes-migration]`**~~ —
+  **landed `2026-05-07` on `week12` in commit `<HASH>`.**
+  W12-2 P3 (`0981e92`) renamed
+  `activation_discovery_strategies: list[str]` →
+  `activation_discovery_strategy_outcomes: dict[str, str]` under the
+  same `schema_version: "2.1"`. `StrictContractModel(extra="forbid")`
+  rejected every 2.1 report persisted in the W11-3 .. W12-2 P3 window
+  with `extra_forbidden`, breaking the activation-report API
+  (`workflows/activation_reports/router.py:122`) and the marketplace
+  ingest path (`workflows/marketplace/analysis_reports.py:52,121`).
+  Added `_migrate_legacy_strategy_outcomes` before-validator on
+  `ActivationReport`: drops the legacy field and synthesizes the new
+  dict, mapping each id → `"succeeded_with_new_activations"` (the
+  legacy list semantics). 3 regression cases under
+  `tests/platform/contracts/test_activation_discovery_strategies.py`;
+  on-disk pre-rename report `c20ac6f91d4a.json` re-ingests cleanly.
 - ~~**`[FOLLOWUP w8-6-output-signal-channel-summary-redaction]`**~~ —
   **W12-0 dolgusu landed `2026-05-07` on `week12` in commit `b642af7`.**
   `OutputSignalEvent.channel` ve `OutputSignalEvent.summary` hem

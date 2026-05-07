@@ -180,3 +180,55 @@ def test_runner_exit_code_accepts_none_when_runner_never_finalized() -> None:
     parsed = ActivationReport.model_validate(payload)
     assert parsed.runner_exit_code is None
     assert parsed.runner_status == "unknown"
+
+
+# --- W12-2 P3 legacy field migration regressions ---
+
+
+def test_legacy_strategies_field_migrates_to_outcomes_dict() -> None:
+    """Reports persisted between W11-3 and W12-2 P3 carry the legacy
+    ``activation_discovery_strategies: list[str]`` under the same
+    schema_version 2.1. ``StrictContractModel`` (extra=forbid) would
+    reject those reports on ingest unless the before-validator drops
+    the legacy field and synthesizes the new dict. The legacy list
+    only carried "succeeded-and-produced-new" entries, so each id
+    maps to ``"succeeded_with_new_activations"``."""
+    payload = _load_baseline()
+    payload["activation_discovery_strategies"] = [
+        "exthost_log_parse",
+        "running_extensions_ui",
+    ]
+
+    parsed = ActivationReport.model_validate(payload)
+    assert parsed.activation_discovery_strategy_outcomes == {
+        "exthost_log_parse": "succeeded_with_new_activations",
+        "running_extensions_ui": "succeeded_with_new_activations",
+    }
+
+
+def test_legacy_strategies_field_dropped_when_new_field_present() -> None:
+    """Defensive: if both fields are present (e.g. a producer wrote
+    them in parallel during the W12-2 transition), the new field wins
+    and the legacy field is dropped silently."""
+    payload = _load_baseline()
+    payload["activation_discovery_strategies"] = ["legacy_strategy_id"]
+    payload["activation_discovery_strategy_outcomes"] = {
+        "exthost_log_parse": "succeeded_with_new_activations",
+    }
+
+    parsed = ActivationReport.model_validate(payload)
+    assert parsed.activation_discovery_strategy_outcomes == {
+        "exthost_log_parse": "succeeded_with_new_activations",
+    }
+
+
+def test_legacy_strategies_non_list_payload_falls_back_to_empty_dict() -> None:
+    """A malformed legacy field (e.g. None, a string, a dict typed by
+    a buggy producer) is still dropped without raising, because the
+    extra=forbid rejection it triggers would block ingest entirely.
+    The migration coerces it to an empty outcomes dict."""
+    payload = _load_baseline()
+    payload["activation_discovery_strategies"] = None
+
+    parsed = ActivationReport.model_validate(payload)
+    assert parsed.activation_discovery_strategy_outcomes == {}
