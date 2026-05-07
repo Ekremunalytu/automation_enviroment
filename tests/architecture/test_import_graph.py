@@ -432,3 +432,114 @@ def test_monitor_and_stimulus_subpackages_do_not_cross_import() -> None:
         "(W12-1 topology). Share via flat parent helpers instead:\n"
         + "\n".join(deduped)
     )
+
+
+def test_monitor_lazy_proxy_completeness() -> None:
+    """W12-1: every name in the monitor facade's lazy tuples must resolve.
+
+    ``monitor/__init__.py`` defines three tuples — ``_LAZY_ATTRIBUTION_NAMES``,
+    ``_LAZY_LIFECYCLE_NAMES``, ``_LAZY_TYPES_NAMES`` — that the PEP 562
+    ``__getattr__`` walks to proxy access into ``attribution``,
+    ``monitor.lifecycle``, and ``monitor.types`` respectively. A typo in any
+    tuple entry, or a name that no longer exists in its source module,
+    silently produces ``AttributeError`` only at the call site of a future
+    consumer; nothing else catches it. This gate iterates every entry and
+    asserts ``getattr(monitor, name) is getattr(<source>, name)`` so the
+    proxy contract is verified against the real source modules.
+    """
+    from executor.flows.playwright import attribution
+    from executor.flows.playwright import monitor as monitor_pkg
+    from executor.flows.playwright.monitor import lifecycle, types
+
+    sources = (
+        (monitor_pkg._LAZY_ATTRIBUTION_NAMES, attribution, "attribution"),
+        (monitor_pkg._LAZY_LIFECYCLE_NAMES, lifecycle, "monitor.lifecycle"),
+        (monitor_pkg._LAZY_TYPES_NAMES, types, "monitor.types"),
+    )
+
+    violations: list[str] = []
+    for tuple_, source_module, source_label in sources:
+        for name in tuple_:
+            if not hasattr(source_module, name):
+                violations.append(
+                    f"monitor.{name} proxied to {source_label} but {source_label} "
+                    f"has no attribute {name!r}"
+                )
+                continue
+            facade_obj = getattr(monitor_pkg, name)
+            canonical_obj = getattr(source_module, name)
+            if facade_obj is not canonical_obj:
+                violations.append(
+                    f"monitor.{name} is not the same object as "
+                    f"{source_label}.{name} (proxy identity broken)"
+                )
+
+    assert not violations, (
+        "monitor facade lazy proxy contract broken (W12-1 PEP 562 invariant). "
+        "Either fix the tuple in monitor/__init__.py or restore the missing "
+        "name in the source module:\n" + "\n".join(violations)
+    )
+
+
+def test_executor_playwright_flat_file_count_limit() -> None:
+    """W12-1: ``executor/flows/playwright/`` must keep at most 10 flat ``.py``.
+
+    The W12-1 refactor exit criterion is "≤10 flat files at the top of the
+    playwright tree". The current 10 are: ``__init__``, ``annotation``,
+    ``automation``, ``capture``, ``reload_vscode``, ``report_builder``,
+    ``reset_state``, ``triggers``, ``uri_validation``, ``wait_helpers``.
+    ``reload_vscode`` and ``reset_state`` are intentionally flat because
+    ``appcore/api/config.py`` and ``executor/config.py`` reference them as
+    subprocess module paths (string-based). New additions belong in a
+    subpackage (monitor/, stimulus/, workspace/, health/, entrypoint/,
+    vscode/, signals/, attribution/), not at the top level — this gate
+    fails any PR that grows the flat budget past 10.
+    """
+    flat_files = sorted(
+        path.name for path in (REPO_ROOT / "executor/flows/playwright").glob("*.py")
+    )
+    assert len(flat_files) <= 10, (
+        f"executor/flows/playwright/ flat .py count exceeded the W12-1 budget "
+        f"({len(flat_files)} > 10). Move new modules into a subpackage. "
+        f"Current flat files: {flat_files}"
+    )
+
+
+def test_attribution_does_not_eagerly_import_monitor() -> None:
+    """W12-1: ``attribution/__init__.py`` must defer ``monitor`` imports.
+
+    The symmetric counterpart to
+    ``test_monitor_facade_does_not_eagerly_import_attribution``. Attribution
+    needs ``RiskSignal`` (defined in ``monitor.records``) at runtime inside
+    ``_build_risk_signals``; if that import is hoisted to the module top
+    level it re-creates the cycle (``attribution`` → ``monitor.records`` →
+    ``monitor/__init__`` → attribution proxy lookup), since
+    ``monitor/__init__.py`` runs eagerly when any ``monitor.<sub>`` module
+    is loaded. This gate scans only ``tree.body`` so the lazy import inside
+    ``_build_risk_signals`` (a nested ``ImportFrom`` reachable via
+    ``ast.walk`` but not via direct ``tree.body`` iteration) is correctly
+    ignored. Any future PR that moves ``from ..monitor[...] import ...`` to
+    the top level fails here.
+    """
+    facade = REPO_ROOT / "executor/flows/playwright/attribution/__init__.py"
+    tree = ast.parse(facade.read_text(encoding="utf-8"))
+
+    violations: list[str] = []
+    for node in tree.body:
+        if not isinstance(node, ast.ImportFrom):
+            continue
+        if node.level != 2 or node.module is None:
+            continue
+        # Ignore TYPE_CHECKING blocks: those are nested under an ast.If, not
+        # at tree.body — they won't reach this loop.
+        head = node.module.split(".", 1)[0]
+        if head == "monitor":
+            violations.append(f"line {node.lineno}: from ..{node.module} import ...")
+
+    assert not violations, (
+        "attribution/__init__.py imports from monitor at module top level — "
+        "this re-creates the W12-1 attribution↔monitor cycle. Keep the "
+        "RiskSignal (and any other monitor.records) import inside the "
+        "_build_risk_signals function body, or guard it with TYPE_CHECKING "
+        "for type-only references:\n" + "\n".join(violations)
+    )
