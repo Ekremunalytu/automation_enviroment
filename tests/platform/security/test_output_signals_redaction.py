@@ -117,6 +117,71 @@ def test_map_executor_error_public_detail_stays_generic() -> None:
     assert detail.startswith("Automation failed in sandbox.")
 
 
+# --- W12-0: harness-marker parse_output_signal_events end-to-end regressions ---
+#
+# The W10-7 chain test (`test_output_signals_redaction_chain_strips_bearer_token`)
+# pins the `_truncate` → `redact_secrets` composition at the unit level. The
+# tests below close the symmetry gap with the file-backed regressions further
+# down by exercising the real `parse_output_signal_events` entry the runtime
+# goes through, so a regression that drops the redact step inside the harness
+# branch (instead of just inside the helper) is also caught.
+
+
+def _harness_appendline_marker(text: str, ts_ms: int = 1_700_000_000_000) -> str:
+    import json
+
+    return "[extrace-harness] " + json.dumps(
+        {
+            "kind": "output_channel_appendline",
+            "channel": "ExtraceTarget",
+            "text": text,
+            "ts": ts_ms,
+            "collector": "harness_extension",
+        }
+    )
+
+
+def test_parse_output_signal_events_redacts_db_url_in_payload_text() -> None:
+    """End-to-end harness-marker path: a target extension that prints a
+    Postgres URL via ``console.log`` produces an OutputSignalEvent whose
+    ``text`` strips the credential portion before the report is built."""
+    from executor.flows.playwright.output_signals import parse_output_signal_events
+
+    raw = f"connect failed url={_DB_URL_SAMPLE} retries=3"
+    events = parse_output_signal_events(_harness_appendline_marker(raw))
+
+    assert len(events) == 1
+    text = events[0].text
+    assert "supersecret" not in text
+    assert "[REDACTED:db_url]" in text
+
+
+def test_parse_output_signal_events_redacts_aws_key_in_payload_text() -> None:
+    """End-to-end harness-marker path: AWS access keys leaking through
+    ``console.log`` are redacted before the OutputSignalEvent is constructed."""
+    from executor.flows.playwright.output_signals import parse_output_signal_events
+
+    raw = f"executor blew up because {_AWS_SAMPLE} expired"
+    events = parse_output_signal_events(_harness_appendline_marker(raw))
+
+    assert len(events) == 1
+    text = events[0].text
+    assert _AWS_SAMPLE not in text
+    assert "[REDACTED:aws]" in text
+
+
+def test_parse_output_signal_events_benign_payload_unchanged() -> None:
+    """W10-7 round-trip on the harness-marker entry: payloads without any
+    tracked secret pattern survive the redact filter byte-for-byte."""
+    from executor.flows.playwright.output_signals import parse_output_signal_events
+
+    benign = "indexed 1234 symbols"
+    events = parse_output_signal_events(_harness_appendline_marker(benign))
+
+    assert len(events) == 1
+    assert events[0].text == benign
+
+
 # --- W12-0: file-backed read_output_channel_logs redaction regressions ---
 
 

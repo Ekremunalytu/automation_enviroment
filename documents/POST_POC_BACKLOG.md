@@ -28,12 +28,15 @@ Use stable IDs in new references; do not cite canonical doc line numbers.
 
 ## W12 Pull-Forward
 
-- **`[FOLLOWUP w8-6-output-signals-file-backed-redaction]`** — **P1,
-  W12-0, must land before W12-1.** W10-7 redacted the harness-marker
-  output-signal path but missed the file-backed `read_output_channel_logs`
-  path, the primary Output channel source on VS Code 1.105+. Pickup:
-  apply `redact_secrets(_truncate(line))`, update the W10-7 comment to
-  name both paths, and add a file-backed redaction regression.
+- ~~**`[FOLLOWUP w8-6-output-signals-file-backed-redaction]`**~~ —
+  **W12-0 landed `2026-05-07` on `week12` in commit `22eb836`.**
+  `redact_secrets(_truncate(line))` applied at
+  `executor/flows/playwright/output_signals.py:205`; W10-7 source
+  comment updated to name both harness-marker and file-backed paths;
+  four file-backed regression tests + three harness-marker
+  end-to-end regressions added under
+  `tests/platform/security/test_output_signals_redaction.py`. W12-1
+  unblocked.
 
 ## W12 Acceptance Items
 
@@ -107,7 +110,8 @@ Use stable IDs in new references; do not cite canonical doc line numbers.
   by W10-6.
 - ~~**`[FOLLOWUP planner-executor-action-enum]`**~~ — closed by W10-5.
 - ~~**`[FOLLOWUP w8-6-output-signals-redaction]`**~~ — parent closed by
-  W10-7 for the harness-marker path; file-backed sibling remains W12-0.
+  W10-7 for the harness-marker path; file-backed sibling closed by
+  W12-0 (`22eb836`, `2026-05-07`).
 - **`[FOLLOWUP signal-summary-needs-review-categories]`** — refine
   category labels for review-oriented verdicts.
 - ~~**`[FOLLOWUP target-log-lifecycle-instrumentation]`**~~ — landed with

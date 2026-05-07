@@ -1,6 +1,6 @@
 # W12 — Executor Subpackaging + Attribution Cleanup (Active Work Tracker)
 
-`Last Updated: 2026-05-07 (W12 active prep; W12-0 precursor surfaced by 2026-05-07 audit pass)`
+`Last Updated: 2026-05-07 (W12 active; W12-0 landed; W12-1 unblocked)`
 
 This is the canonical active work tracker for the W12 executor
 subpackaging + attribution cleanup window. Items have stable IDs
@@ -17,10 +17,12 @@ and that archive section.
 
 ## Status (Quick Glance)
 
-- **W12 active prep.** Initial scaffold landed `2026-05-07` on the
+- **W12 active.** Initial scaffold landed `2026-05-07` on the
   `chore/pre-w12-prep` branch alongside the §11.9.1 plan addendum.
-  W11 closed `2026-05-05` and merged via PR #14. W12-1 has not started
-  because W12-0 must land first — see "Entry Conditions" below.
+  W11 closed `2026-05-05` and merged via PR #14. W12-0 landed
+  `2026-05-07` on `week12` (`22eb836`); W12-1 unblocked. Single-branch
+  policy: all W12-0..W12-5 land on `week12` and merge to `main` via a
+  single PR at W12 close.
 - **Pre-W12 attribution precursor tests landed.**
   `[FOLLOWUP w12-precursor-tests-attribution-links]` and
   `[FOLLOWUP w12-precursor-tests-attribution-events]` both closed in
@@ -29,17 +31,16 @@ and that archive section.
   `tests/executor/test_playwright_attribution_events.py`. Companion
   plan-level item `[FOLLOWUP w12-extension-host-split-scoping]` closed
   by the §11.9.1 addendum on PR #15 (no code change).
-- **W12-0 (precursor — security pull-forward).**
-  `[FOLLOWUP w8-6-output-signals-file-backed-redaction]`
-  (`POST_POC_BACKLOG.md` Detection / Contracts) is an active W8-6
-  perimeter regression — the file-backed
-  `read_output_channel_logs` path at `output_signals.py:205` builds
-  `OutputSignalEvent` without `redact_secrets`. Land as a standalone
-  pre-W12 PR (single-line fix + sibling redaction test) **before**
-  W12-1 starts; not eligible to ride a refactor PR. Companion
-  comment update at `output_signals.py:117` to acknowledge both the
-  harness-marker and file-backed paths. Surfaced 2026-05-07 audit
-  pass.
+- **W12-0 (precursor — security pull-forward) — landed
+  `2026-05-07` (`22eb836`).**
+  `[FOLLOWUP w8-6-output-signals-file-backed-redaction]` closed.
+  `redact_secrets(_truncate(line))` applied at
+  `executor/flows/playwright/output_signals.py:205`; W10-7 source
+  comment at `:117` updated to name both harness-marker and
+  file-backed paths. Single-branch policy override: W12-0 landed as
+  the first commit on `week12` (commit-level isolation in lieu of a
+  standalone pre-W12 PR), so the refactor commits that follow can
+  still be reverted independently. Surfaced 2026-05-07 audit pass.
 - **W12-1** — pending. Executor subpackaging:
   `executor/flows/playwright/` 54 flat files → 5 subpackage
   ({`monitor/`, `stimulus/`, `workspace/`, `health/`, `entrypoint/`})
@@ -79,9 +80,12 @@ and that archive section.
   `tests/executor/test_playwright_attribution_events.py` 34 cases,
   imported at real module path; safety net for W12-2 attribution
   refactor)
-- W12-0 security pull-forward landed (✗ pending —
-  `[FOLLOWUP w8-6-output-signals-file-backed-redaction]`, single-line
-  fix + regression test before W12-1 starts)
+- W12-0 security pull-forward landed (✓ met `2026-05-07` —
+  `[FOLLOWUP w8-6-output-signals-file-backed-redaction]` closed in
+  commit `22eb836` on `week12`; one-line fix at `output_signals.py:205`
+  plus four file-backed regressions and three harness-marker
+  end-to-end regressions in
+  `tests/platform/security/test_output_signals_redaction.py`)
 - §11.9.1 plan addendum (✓ landed on `chore/pre-w12-prep`) defining
   the `runtime_capture/extension_host.py` split target
 - Working tree clean on `main` (TBD at W12-1 entry)
@@ -127,11 +131,11 @@ number.
   surface reads both fields.
 - `[FOLLOWUP activation-discovery-strategy-outcome-detail]`
   (**P3**) — read-side detail loss; W12-2 territory.
-- `[FOLLOWUP w8-6-output-signals-file-backed-redaction]`
-  (`POST_POC_BACKLOG.md` Detection / Contracts) — **W12-0 precursor.
-  MUST land before W12-1.** Active W8-6 perimeter regression; one-line
-  fix at `output_signals.py:205` + redaction test extension. Surfaced
-  2026-05-07 audit pass.
+- ~~`[FOLLOWUP w8-6-output-signals-file-backed-redaction]`~~ —
+  closed `2026-05-07` on `week12` in commit `22eb836` (W12-0
+  precursor). One-line fix at `output_signals.py:205` plus seven new
+  regression tests (4 file-backed, 3 harness-marker end-to-end) in
+  `tests/platform/security/test_output_signals_redaction.py`.
 - `[FOLLOWUP arch-gate-network-body-preview-redaction]`
   (`POST_POC_BACKLOG.md` Engineering Quality, **P2**) — optional
   W12-1 companion (defense-in-depth structural gate sibling to
@@ -140,10 +144,39 @@ number.
 
 ## Detailed Item Notes (filled as items land)
 
-(Empty until first item lands. Use the same per-item structure as
-`active-work/W11-monitor-lifecycle.md`: scope, target metric,
-implementation notes, test additions, live-scan validation snapshot
-where applicable.)
+### W12-0 — Output-Signals File-Backed Redaction (landed `2026-05-07`)
+
+- **Scope.** Closes
+  `[FOLLOWUP w8-6-output-signals-file-backed-redaction]`. The W10-7
+  sweep covered the harness-marker `parse_output_signal_events` path
+  but missed the file-backed `read_output_channel_logs` path, which
+  is the primary OutputChannel source on VS Code 1.105+ (extensions'
+  `console.log` no longer reaches `exthost.log`; VS Code persists
+  the content directly to
+  `<user-data>/logs/<session>/window<N>/exthost/output_logging_<ts>/<idx>-<channel>.log`).
+- **Fix.** Single-line change at
+  `executor/flows/playwright/output_signals.py:205`
+  (`text = _truncate(line)` → `text = redact_secrets(_truncate(line))`).
+  Source comment at `:117` rewritten to name both paths and call
+  out the W12-0 precedent so future readers see the symmetry rule.
+- **Tests added.** Seven new regressions in
+  `tests/platform/security/test_output_signals_redaction.py`:
+  - File-backed (`read_output_channel_logs`) bearer / db_url / aws
+    (JSON payload) / benign round-trip (4 cases).
+  - Harness-marker end-to-end (`parse_output_signal_events`) db_url
+    / aws / benign round-trip (3 cases) — closes the unit-only
+    coverage gap left by the W10-7 chain test.
+- **Live-scan validation.** Pre/post comparison on
+  `output/activation_report_ms-python.python-2026.5.2026042602-*.json`
+  (13:09 vs 14:53 on `2026-05-07`): runner_status / activated /
+  scenario verdicts / output_signal_events count (12) all
+  identical; no benign harness-diagnostic content was redacted by
+  mistake (no `[REDACTED:*]` tag introduced where none was warranted).
+- **Branch policy note.** Per the user-imposed single-branch policy
+  for W12, W12-0 landed as the first commit on `week12` rather than
+  as a standalone pre-W12 PR (tracker §"W12-0 (precursor)" originally
+  required the latter). Commit-level isolation preserves the
+  cherry-pick / revert ergonomics the standalone-PR rule was after.
 
 ### W12-1 — Executor Subpackaging
 

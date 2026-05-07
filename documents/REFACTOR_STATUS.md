@@ -1,6 +1,6 @@
 # Refactor Status
 
-`Last Updated: 2026-05-07 (W12 active prep; W12-0 security pull-forward pending)`
+`Last Updated: 2026-05-07 (W12 active; W12-0 security pull-forward landed)`
 
 Active status board for current closure state. **Slim canonical** — full
 phase history and verbose evidence are frozen under dated snapshots:
@@ -44,20 +44,25 @@ phase history and verbose evidence are frozen under dated snapshots:
 - §11.9.1 runtime-capture split scoping: **met** (PR #15, no code
   change).
 - W12-0 security pull-forward:
-  **pending** `[FOLLOWUP w8-6-output-signals-file-backed-redaction]`.
-  This must land before W12-1 starts.
-- Working tree clean on `main`: **TBD at W12-1 entry**.
-- Last known W11 exit bar: `make check-all` 1274 passed / 6 skipped /
-  6 deselected; `make test-security` 190 cases.
+  **landed** `2026-05-07` on `week12` in commit `22eb836`.
+  `[FOLLOWUP w8-6-output-signals-file-backed-redaction]` closed; W12-1
+  unblocked.
+- Working branch: `week12` (single-branch policy for W12).
+- Last known check bar at W12-0 close: `make check-all` 1342 passed /
+  6 skipped / 6 deselected; `make test-security` 194 cases (190
+  baseline + 4 file-backed regressions; harness-marker symmetry tests
+  bring the local suite to 197).
 
 ## 2026-05-07 Audit Pass
 
-The audit surfaced six roadmap gaps. One is a W12-0 pull-forward:
+The audit surfaced six roadmap gaps. The W12-0 pull-forward landed
+the same day:
 
-- **P1 / W12-0:** `[FOLLOWUP w8-6-output-signals-file-backed-redaction]`
-  — W10-7 redacted the harness-marker output-signal path but missed the
-  file-backed `read_output_channel_logs` path, the primary source on VS
-  Code 1.105+.
+- ~~**P1 / W12-0:** `[FOLLOWUP w8-6-output-signals-file-backed-redaction]`~~
+  — closed `2026-05-07` on `week12` (`22eb836`). W10-7 redacted the
+  harness-marker output-signal path; W12-0 closes the file-backed
+  `read_output_channel_logs` sibling, the primary source on VS Code
+  1.105+.
 
 The remaining five are tracked in `POST_POC_BACKLOG.md` as P2/P3 work:
 
