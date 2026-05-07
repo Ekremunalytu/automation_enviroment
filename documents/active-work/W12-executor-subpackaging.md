@@ -1,6 +1,6 @@
 # W12 — Executor Subpackaging + Attribution Cleanup (Active Work Tracker)
 
-`Last Updated: 2026-05-07 (W12 active; W12-0 + W12-1 + W12-2 landed; W12-3 unblocked)`
+`Last Updated: 2026-05-07 (W12 active; W12-0 + W12-1 + W12-2 + W12-3 landed; W12-4 unblocked)`
 
 This is the canonical active work tracker for the W12 executor
 subpackaging + attribution cleanup window. Items have stable IDs
@@ -92,12 +92,22 @@ and that archive section.
   outcome literals `succeeded_with_new_activations` /
   `succeeded_no_new_activations` / `failed:<ExcClassName>`).
   See "Detailed Item Notes" below.
-- **W12-3** — pending. `raw_context` discriminated union typing:
-  `dict[str, Any]` → `NetworkRawContext` / `FileRawContext` /
-  `ProcessRawContext` Pydantic variants under
-  `RawContext = Annotated[…, Field(discriminator="event_class")]`.
-  New test file
-  `tests/platform/contracts/test_raw_context_discriminated.py`.
+- **W12-3** — landed `2026-05-07`. `raw_context` discriminated union typing:
+  `EvidenceEvent.raw_context: dict[str, Any]` →
+  `RawContext = Annotated[NetworkRawContext | FileRawContext |
+  ProcessRawContext | ScenarioRawContext | ActivationRawContext |
+  UiBlockerRawContext | OutputChannelRawContext,
+  Field(discriminator="event_class")]`. The literal §11.9 plan named only
+  the three Network/File/Process variants; the W7+W11 `EvidenceEvent`
+  consolidation broadened the live producer surface to seven `kind`s, so
+  the union covers all seven (3 named + 4 extra). New test file
+  `tests/platform/contracts/test_raw_context_discriminated.py` (8 cases).
+  Incidental: `_common.py::event_method` now reads the producer's actual
+  `http_method` key (was looking for the never-emitted `method`); a4
+  workspace-exfil canary stops misfiring on TLS-only fallback paths.
+  Closes the `EvidenceEvent.raw_context` entry of
+  `_PENDING_MIGRATION` in
+  `tests/platform/security/test_content_sample_typing.py`.
 - **W12-4** — pending. `entrypoint/runner.py::main` dispatch extraction:
   `main()` 324 LoC → ≤200 LoC; CLI parse → config → monitor invocation
   → page-reload callback wiring → UI blocker probe move to new
@@ -139,7 +149,7 @@ and that archive section.
       rules isolate the sensitive boundaries
 - [x] `attribution/__init__.py::__all__` lists 10 public names;
       underscore-prefixed helpers are internal-scoped
-- [ ] `raw_context` typed discriminated union; `dict[str, Any]`
+- [x] `raw_context` typed discriminated union; `dict[str, Any]`
       residue = 0 in evidence models
 - [ ] `entrypoint/runner.py::main` 324 LoC → ≤200 LoC; dispatch logic
       in `entrypoint/dispatch.py`
@@ -431,9 +441,61 @@ number.
   rename is internal to the W12 PR window. Bump on the W13 PR if a
   released contract adopts the new names.
 
-### W12-3 — `raw_context` Discriminated Union Typing
+### W12-3 — `raw_context` Discriminated Union Typing (landed `2026-05-07`)
 
-(pending)
+- **Scope.** `EvidenceEvent.raw_context` flipped from `dict[str, Any]` to a
+  Pydantic discriminated union keyed by `event_class`. Variants live in
+  `packages/analysis_contracts/evidence.py` next to the W8-6 `ContentSample`
+  helpers; re-exported from `packages.analysis_contracts`. The literal §11.9
+  plan named only Network/File/Process; in practice the consolidated
+  `EvidenceEvent` carries seven distinct producer kinds (`scenario`,
+  `activation`, `ui_blocker`, `network`, `file`, `process`,
+  `output_channel_appendline`). The union covers all seven so
+  `dict[str, Any]` residue is 0 in evidence models — closing exit-criteria
+  bullet 4.
+- **Producer migration.** Seven `raw_context={...}` sites in
+  `executor/flows/playwright/attribution/links.py` each gained an explicit
+  `"event_class": "<kind>"` literal so the Pydantic discriminator resolves
+  on validate. Dataclass `executor/flows/playwright/monitor/records.py`
+  intentionally stays loose (`dict[str, str | int | float | bool | None]`)
+  since the typed boundary is the Pydantic contract; W13 can tighten the
+  dataclass annotation as a separate item.
+- **Consumer migration.** `packages/analysis_engine/rules/_common.py`
+  `event_type` / `event_method` / `event_message` switched from
+  `dict.get(...)` to `getattr(event.raw_context, ..., "")`. Three fixture
+  payloads updated (test_rule_attribution.py, test_a3_typosquat.py) plus
+  the canary `extensions/malicious/t1-*-canary/activation_report.json`
+  pre-built reports and the offline fallback fixtures under
+  `tests/platform/contracts/fixtures/activation_reports/`. The
+  `_PENDING_MIGRATION` list in `test_content_sample_typing.py` lost its
+  `(EvidenceEvent, "raw_context")` entry; only the W13
+  `extension_host_output` follow-up remains.
+- **Incidental fix (event_method key mismatch).** Producer (`links.py`
+  network site) writes `http_method`; the reader had been looking for
+  `method`, so `event_method()` had collapsed to `""` in production for
+  years — surfaced once typed variants pinned the field set. Switched the
+  reader to `http_method`. The a4 workspace-exfil and demo-runnable
+  canaries now fire on the HTTP-method fallback as the rule comment had
+  always claimed.
+- **Tests.** `make test-local` 1375 passed (W12-2 baseline 1352 + 8 new
+  discriminated cases + 15 latent fixture-aligned passes pulled in via
+  `http_method` fix). `make test-security` 204 passed (8736d14 docs-drift
+  baseline; **unchanged**). `make check-all` green end-to-end. New test
+  `tests/platform/contracts/test_raw_context_discriminated.py` (8 cases)
+  pins discriminator dispatch + per-variant `extra='forbid'` + full
+  `EvidenceEvent` round-trip.
+- **UI contract regen.** `ui/src/lib/types/contracts.ts` regenerated via
+  `scripts/generate_ui_contracts.py` (single-line diff: `raw_context`
+  emits the typed union shape now).
+- **Live-scan.** Deferred to W12 close (Iteration 6) per W12-1 / W12-2
+  precedent. Sanity-checked via
+  `python -m executor.flows.playwright.entrypoint --list` (13 scenarios
+  enumerate).
+- **Schema version.** `ACTIVATION_REPORT_SCHEMA_VERSION` stays `"2.1"`.
+  Re-ingest of pre-W12-3 raw reports is **not supported** (per user
+  decision 2026-05-07): no `kind`→`event_class` before-validator was
+  added; old JSONs will fail validation, which is the expected outcome.
+  Bump on the W13 PR if a released contract adopts the typed shape.
 
 ### W12-4 — `entrypoint/runner.py::main` Dispatch Extraction
 

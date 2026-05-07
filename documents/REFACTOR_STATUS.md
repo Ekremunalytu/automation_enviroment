@@ -1,6 +1,6 @@
 # Refactor Status
 
-`Last Updated: 2026-05-07 (W12 active; W12-0 + W12-1 + W12-2 landed; W12-3 unblocked)`
+`Last Updated: 2026-05-07 (W12 active; W12-0 + W12-1 + W12-2 + W12-3 landed; W12-4 unblocked)`
 
 Active status board for current closure state. **Slim canonical** — full
 phase history and verbose evidence are frozen under dated snapshots:
@@ -60,11 +60,21 @@ phase history and verbose evidence are frozen under dated snapshots:
   `0cef876` + `9ebc5b5` + `0981e92`. 29 underscore re-exports → 10
   public names; three companion follow-ups closed (naming-overlap
   rename, coverage-summary unify, P3 strategy-outcome dict).
+- W12-3 raw_context discriminated union typing:
+  **landed** `2026-05-07` on `week12`. `EvidenceEvent.raw_context:
+  dict[str, Any]` → `RawContext` Pydantic discriminated union under
+  `Field(discriminator="event_class")` covering all 7 producer kinds
+  (3 named in §11.9 + 4 extra surfaced post-W7+W11 consolidation).
+  `_PENDING_MIGRATION` raw_context entry purged; W12 close exit
+  criterion bullet 4 cleared. Incidental fix:
+  `_common.py::event_method` now reads `http_method` (pre-existing
+  latent key mismatch).
 - Working branch: `week12` (single-branch policy for W12).
-- Last known check bar: `make test-local` 1352 passed / 6 skipped / 6
-  deselected at W12-2 close (3 pre-existing postgres-port-5433 DB
-  failures unrelated); `make test-security` 204 passed on the
-  `2026-05-07` docs-drift audit.
+- Last known check bar: `make test-local` 1375 passed / 6 skipped / 6
+  deselected at W12-3 close (W12-2 baseline 1352 + 8 new discriminated
+  cases + 15 latent fixture-aligned passes pulled in by the
+  `event_method` fix); `make test-security` 204 passed (unchanged from
+  the `2026-05-07` docs-drift audit).
 
 ## 2026-05-07 Audit Pass
 

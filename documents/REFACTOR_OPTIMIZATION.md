@@ -114,7 +114,7 @@ subpackaging + attribution cleanup (§11.9).
 | **W9** | Executor↔Detection boundary | ADR 0008 container package-mode invocation, dual-import fallback sweep, `signal_policy.py` relocation, `sys.path.insert` audit, container import-mode CI test | Claude §6/§10; Codex §9/§4 |
 | **W10** | Contract hygiene + Planner split | `schema_version` + DeprecationWarning, `_TriggerPayloadDraft` elimination, `registry.py` 4-way split, `automation_health`/`coverage_*` typing | Codex §1.2/§1.4/§2; Claude §4 |
 | **W11** | Monitor lifecycle split | `monitor_lifecycle.py` 834 LoC → `MonitorRuntime` + `ReportAssembler` + `ScenarioAccountant` + `ExtensionMonitor` facade | Codex §3.1; Claude §3 |
-| **W12** | Executor subpackaging + attribution cleanup | W12-1 landed 2026-05-07 (`b4bd3ee` + follow-ups): `executor/flows/playwright/` 54 → 7 new subpackages + 10 flat (10 package dirs total with existing attribution/scenarios/runtime_capture); W12-2 attribution facade cleanup landed; `entrypoint/runner.py::main` 324→≤200 LoC and `raw_context` typing pending | Codex §3.1/§3.2/§4; Claude §2/§3/§5 |
+| **W12** | Executor subpackaging + attribution cleanup | W12-1 landed 2026-05-07 (`b4bd3ee` + follow-ups): `executor/flows/playwright/` 54 → 7 new subpackages + 10 flat (10 package dirs total with existing attribution/scenarios/runtime_capture); W12-2 attribution facade cleanup landed; W12-3 `raw_context` discriminated union typing landed (3 named + 4 extra variants under `event_class` discriminator); `entrypoint/runner.py::main` 324→≤200 LoC pending | Codex §3.1/§3.2/§4; Claude §2/§3/§5 |
 | **W13** | Test expansion + observability | Benign silence 3→5 fixture, regression locks, `extrace.executor.*` logger consolidation, run-ID stamping | Claude §9/§12; Codex §10/§12 |
 
 ### §11.3 — Haftalar arası bağımlılıklar
@@ -222,7 +222,24 @@ deferred to W12 close.
 `9ebc5b5` + `0981e92`): attribution facade trimmed from 29
 underscore re-exports to 10 public names; naming-overlap,
 coverage-summary, and activation-discovery strategy-outcome follow-ups
-closed. W12-3 `raw_context` typing is unblocked.
+closed. W12-3 `raw_context` typing was unblocked here.
+
+**W12-3 landed 2026-05-07**: `EvidenceEvent.raw_context: dict[str, Any]`
+flipped to `RawContext = Annotated[..., Field(discriminator="event_class")]`
+in `packages/analysis_contracts/evidence.py`. Scope-extension note: the
+literal §11.9 plan named only `NetworkRawContext` / `FileRawContext` /
+`ProcessRawContext`, written for the pre-W7 world where each event class
+carried its own `raw_context`. After the W7+W11 `EvidenceEvent`
+consolidation the live producer (`attribution/links.py`) emits seven
+distinct `kind`s, so the union covers all seven (3 named + 4 extra:
+scenario, activation, ui_blocker, output_channel_appendline) — closing
+exit-criteria bullet 4 with `dict[str, Any]` residue 0. Incidental fix:
+`packages/analysis_engine/rules/_common.py::event_method` migrated from
+the never-emitted `method` key to the producer's actual `http_method`
+(latent bug surfaced once typed variants pinned the field set; a4
+workspace-exfil canary fires correctly on HTTP fallback now). UI TS
+contracts regenerated. W12-4 `entrypoint/runner.py::main` dispatch
+extraction is unblocked.
 
 #### §11.9.1 — `runtime_capture/extension_host.py` Split Scoping
 
