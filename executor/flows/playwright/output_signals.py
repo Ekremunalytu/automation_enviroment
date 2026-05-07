@@ -114,11 +114,15 @@ def parse_output_signal_events(
         if payload.get("collector") != "harness_extension":
             continue
         channel = str(payload.get("channel", "") or "")
-        # W10-7 (closes [FOLLOWUP w8-6-output-signals-redaction]):
-        # OutputSignalEvent.text carries extension-controlled output
-        # channel content. Pipe through redact_secrets at construction so
-        # the persisted ActivationReport never holds raw API keys / DB
-        # URLs / OAuth tokens emitted by the target extension.
+        # W10-7 (closes [FOLLOWUP w8-6-output-signals-redaction]) +
+        # W12-0 (closes [FOLLOWUP w8-6-output-signals-file-backed-redaction]):
+        # OutputSignalEvent.text carries extension-controlled output channel
+        # content. Both this harness-marker source and the file-backed
+        # source (read_output_channel_logs below) pipe through
+        # redact_secrets at construction so the persisted ActivationReport
+        # never holds raw API keys / DB URLs / OAuth tokens emitted by the
+        # target extension. VS Code 1.105+ made the file-backed path the
+        # primary source on production builds.
         text = redact_secrets(_truncate(str(payload.get("text", "") or "")))
         ts_value = payload.get("ts")
         try:
@@ -202,7 +206,7 @@ def read_output_channel_logs(
                     pass
 
             timestamp, rel_time_s = _format_epoch_ms(ts_ms, monitoring_start)
-            text = _truncate(line)
+            text = redact_secrets(_truncate(line))
             events.append(
                 OutputSignalEvent(
                     timestamp=timestamp,
