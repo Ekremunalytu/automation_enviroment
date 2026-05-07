@@ -102,9 +102,3 @@ def setup_dev_environment() -> None:
     ssh_dir = HOME_DIR / ".ssh"
     if ssh_dir.exists():
         ssh_dir.chmod(0o700)
-
-
-if __name__ == "__main__":
-    print("[*] Setting up developer environment...")
-    setup_dev_environment()
-    print("[+] Environment ready: .env, SSH keys, AWS creds, source code, etc.")

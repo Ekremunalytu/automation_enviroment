@@ -54,10 +54,22 @@ and that archive section.
   `test_monitor_facade_does_not_eagerly_import_attribution`
   prevents regression. `__main__.py` shim added at
   `entrypoint/__main__.py` so `python -m
-  executor.flows.playwright.entrypoint` keeps working. Live-scan
-  deferred to W12 close (Iteration 6) — Docker container not
-  available locally; entrypoint module verified runnable via
-  `--list`. See "Detailed Item Notes" below.
+  executor.flows.playwright.entrypoint` keeps working.
+  **2026-05-07 follow-up fix:** `workspace/__main__.py` shim was
+  missing — `executor/container/start.sh:89` invokes
+  `python -m executor.flows.playwright.workspace` to seed the
+  honeypot, but the package conversion left only an
+  `if __name__ == "__main__"` block in `workspace/__init__.py` which
+  is dead code under `-m`, so container boot would fail with
+  `No module named ...workspace.__main__`. Added `workspace/__main__.py`
+  shim, removed the dead block, and locked the invariant with a new
+  architecture gate
+  `test_python_m_playwright_invocations_have_main_module` that scans
+  `executor/container/*.sh`, `appcore/api/config.py`, and
+  `executor/config.py` for `python -m executor.flows.playwright.<X>`
+  references and asserts each `<X>` is either flat or has a
+  `__main__.py`. Live-scan still deferred to W12 close (Iteration 6).
+  See "Detailed Item Notes" below.
 - **W12-2** — pending. Attribution facade underscore cleanup:
   `executor/flows/playwright/attribution/__init__.py` 29 underscore
   re-exports → ~6-7 public names + remaining stay private. Caller
@@ -258,12 +270,39 @@ number.
   from `monitor_support.py` to `monitor/support.py`.
   `test_executor_imports_signals_from_packages` repointed at
   `signals/__init__.py`.
-- **`__main__.py` shim** added at `entrypoint/__main__.py` so
-  `python -m executor.flows.playwright.entrypoint` continues to
-  invoke `main()` (Python's `-m` package semantics require a
-  `__main__.py`; the flat `entrypoint.py`'s `if __name__ ==
-  "__main__"` guard no longer fires once it became
-  `entrypoint/__init__.py`).
+- **`__main__.py` shims** required wherever `python -m` invokes a
+  newly-converted package. Two such targets exist in the runtime
+  tree:
+  - `entrypoint/__main__.py` — added in the W12-1 commit so
+    `python -m executor.flows.playwright.entrypoint` continues to
+    invoke `main()`.
+  - `workspace/__main__.py` — **added 2026-05-07 as a follow-up
+    fix** after the original W12-1 commit shipped without it.
+    `executor/container/start.sh:89` runs
+    `python -m executor.flows.playwright.workspace` to seed the
+    honeypot at container boot; the bare `if __name__ == "__main__"`
+    block left in `workspace/__init__.py` is dead under `-m`
+    semantics (Python looks for `__main__.py`), so the container
+    would have failed boot with
+    `No module named ...workspace.__main__`. The dead `__init__`
+    block was removed; the shim delegates to `setup_dev_environment`.
+  Reasoning: under `python -m <package>`, Python imports
+  `<package>` (running `__init__.py` for side effects only), then
+  imports and executes `<package>.__main__`. The
+  `if __name__ == "__main__"` guard inside `__init__.py` never
+  fires because `__init__` is loaded with `__name__ == "<package>"`,
+  not `"__main__"`.
+- **Architecture gate for `python -m` invocations** added at
+  `tests/architecture/test_import_graph.py::test_python_m_playwright_invocations_have_main_module`.
+  Scans `executor/container/*.sh`, `appcore/api/config.py`, and
+  `executor/config.py` for every `python -m
+  executor.flows.playwright.<X>` reference (shell direct + settings
+  defaults consumed by `executor/host.py` `subprocess.run`),
+  enumerates the targets, and asserts each is either a flat
+  `<X>.py` (case for `reload_vscode`, `reset_state`) or a package
+  with `<X>/__main__.py` (case for `entrypoint`, `workspace`). A
+  future PR converting another flat module to a package without a
+  shim fails this gate before container boot regresses.
 - **Tests.** `make check-all` 1345 passed / 6 skipped / 6 deselected
   (was 1342 baseline at W12-0; +3 from the two new architecture
   gates and one rewriter scaffolding update). `make test-security`

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ast
+import re
 from pathlib import Path
 
 
@@ -542,4 +543,95 @@ def test_attribution_does_not_eagerly_import_monitor() -> None:
         "RiskSignal (and any other monitor.records) import inside the "
         "_build_risk_signals function body, or guard it with TYPE_CHECKING "
         "for type-only references:\n" + "\n".join(violations)
+    )
+
+
+def test_python_m_playwright_invocations_have_main_module() -> None:
+    """W12-1: every ``python -m executor.flows.playwright.<X>`` target must
+    resolve to a runnable module.
+
+    The W12-1 flat→package conversion silently broke
+    ``executor/container/start.sh:89``: the container boot ran
+    ``python3 -m executor.flows.playwright.workspace``, but after the
+    conversion ``workspace`` is a package without a ``__main__.py``, and
+    Python's ``-m`` semantics look for ``__main__.py`` (the
+    ``if __name__ == "__main__"`` block in ``__init__.py`` is dead under
+    ``-m``). The container failed to boot with ``No module named
+    ...workspace.__main__`` — caught only after W12-1 landed.
+
+    This gate scans every ``python -m executor.flows.playwright.<X>``
+    invocation in the runtime tree (start.sh, settings defaults, host
+    wrappers) and asserts each ``<X>`` is either:
+
+    1. A flat module ``executor/flows/playwright/<X>.py``, **or**
+    2. A package ``executor/flows/playwright/<X>/__main__.py``.
+
+    A future PR that converts another flat module to a package without
+    adding ``__main__.py`` fails this gate before it can break boot.
+    """
+    playwright_root = REPO_ROOT / "executor/flows/playwright"
+
+    targets: set[tuple[str, str]] = set()  # (module_name, source_label)
+
+    # 1. start.sh and any other shell script in the container tree.
+    for shell_script in (REPO_ROOT / "executor/container").rglob("*.sh"):
+        text = shell_script.read_text(encoding="utf-8")
+        for line_no, line in enumerate(text.splitlines(), start=1):
+            for match in re.finditer(
+                r"python[0-9.]*\s+-m\s+executor\.flows\.playwright\.([A-Za-z_][A-Za-z_0-9]*)",
+                line,
+            ):
+                targets.add(
+                    (match.group(1), f"{shell_script.relative_to(REPO_ROOT)}:{line_no}")
+                )
+
+    # 2. Settings module defaults (`appcore/api/config.py`,
+    #    `executor/config.py`). These literals get fed to
+    #    `subprocess.run([..., "-m", value, ...])` at runtime in
+    #    `executor/host.py`, so the same -m semantics apply.
+    for settings_file in (
+        REPO_ROOT / "appcore/api/config.py",
+        REPO_ROOT / "executor/config.py",
+    ):
+        text = settings_file.read_text(encoding="utf-8")
+        for line_no, line in enumerate(text.splitlines(), start=1):
+            for match in re.finditer(
+                r'"executor\.flows\.playwright\.([A-Za-z_][A-Za-z_0-9]*)"',
+                line,
+            ):
+                targets.add(
+                    (
+                        match.group(1),
+                        f"{settings_file.relative_to(REPO_ROOT)}:{line_no}",
+                    )
+                )
+
+    assert targets, (
+        "test scaffolding regression: scan found zero `python -m "
+        "executor.flows.playwright.<X>` targets. Either the patterns are "
+        "too narrow or the runtime tree no longer drives the executor "
+        "this way."
+    )
+
+    violations: list[str] = []
+    for module_name, source_label in sorted(targets):
+        flat_path = playwright_root / f"{module_name}.py"
+        package_main = playwright_root / module_name / "__main__.py"
+        if flat_path.exists():
+            continue
+        if package_main.exists():
+            continue
+        violations.append(
+            f"{source_label} runs `python -m executor.flows.playwright."
+            f"{module_name}` but neither {module_name}.py nor "
+            f"{module_name}/__main__.py exists. Add {module_name}/"
+            "__main__.py (a one-line shim that delegates to the package's "
+            "entry function), or change the invocation."
+        )
+
+    assert not violations, (
+        "executor/flows/playwright/ has `python -m` targets that won't "
+        "boot — Python's -m semantics need __main__.py for packages, not "
+        'the __init__.py-level `if __name__ == "__main__"` guard:\n'
+        + "\n".join(violations)
     )
