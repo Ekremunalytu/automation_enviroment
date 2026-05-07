@@ -149,6 +149,7 @@ class ScenarioAccountant:
                 if str(name).strip()
             ]
         )
+        self._validate_scenario_conservation()
 
     # ------------------------------------------------------------------
     # Stimulus passes + prerequisites
@@ -386,6 +387,55 @@ class ScenarioAccountant:
                 trace.status = "completed"
         self._active_scenarios.clear()
         self._synchronize_scenario_truth()
+        self._validate_scenario_conservation()
+
+    def _validate_scenario_conservation(self) -> None:
+        """Enforce W7 §10.7 scenario-dropout honesty as a downstream guard.
+
+        Pin: every entry in ``requested_scenarios`` must appear in exactly
+        one of ``scenarios_run`` / ``failed_scenarios`` / ``skipped_scenarios``.
+        Anything missing is appended to ``skipped_scenarios`` with
+        ``reason_code='unaccounted_dropout'`` so the JSON cannot silently
+        lose a scenario. Upstream layers (planner, ``stimulus_passes``,
+        harness) should still record their own drop reasons; this is the
+        last-mile catch that keeps the W7 §10.7 invariant honest even if
+        an upstream layer leaks. Idempotent — a second call after the
+        missing entries are appended sees an empty difference.
+        """
+        requested = {
+            str(name).strip()
+            for name in self._report.requested_scenarios
+            if str(name).strip()
+        }
+        accounted = (
+            {
+                str(name).strip()
+                for name in self._report.scenarios_run
+                if str(name).strip()
+            }
+            | {
+                str(name).strip()
+                for name in self._report.failed_scenarios
+                if str(name).strip()
+            }
+            | {
+                str(record.name).strip()
+                for record in self._report.skipped_scenarios
+                if str(record.name).strip()
+            }
+        )
+        for name in sorted(requested - accounted):
+            self._report.skipped_scenarios.append(
+                SkippedScenarioRecord(
+                    name=name,
+                    reason_code="unaccounted_dropout",
+                    detail=(
+                        "Scenario was requested but never recorded as run, "
+                        "failed, or skipped by the upstream planner / "
+                        "executor / harness."
+                    ),
+                )
+            )
 
     def _synchronize_scenario_truth(self) -> None:
         self._report.scenarios_run = [
