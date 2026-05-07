@@ -78,7 +78,7 @@ class ExtensionMonitor:
             finalize_scenarios=self._scenario_accountant.finalize_running_scenarios,
             append_activation_log_entries=self._scenario_accountant.append_activation_log_entries,
             refresh_derived_state=self._assembler.refresh_derived_state,
-            set_discovery_strategies=self._assembler.set_discovery_strategies,
+            set_discovery_strategy_outcomes=self._assembler.set_discovery_strategy_outcomes,
             emit_intermediate_state_events=self._scenario_accountant.emit_intermediate_state_events,
         )
 

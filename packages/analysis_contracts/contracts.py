@@ -19,8 +19,10 @@ from pydantic import (
 # bumps are rejected under model_validate(..., context={"strict_schema": True}).
 # W10-4: 1.0 -> 2.0 — automation_health and coverage_summary slots became
 # typed models (AutomationHealth, CoverageSummary) instead of dict[str, Any].
-# W11-3: 2.0 -> 2.1 — activation_discovery_strategies, runner_exit_code,
-# and runner_status added; runner_status keys off RunnerStatusLiteral.
+# W11-3: 2.0 -> 2.1 — activation_discovery_strategies (W12-2 renamed to
+# activation_discovery_strategy_outcomes and reshaped from list[str] to
+# dict[str, str] for per-strategy outcome detail), runner_exit_code, and
+# runner_status added; runner_status keys off RunnerStatusLiteral.
 ACTIVATION_REPORT_SCHEMA_VERSION = "2.1"
 
 
@@ -422,13 +424,15 @@ class ActivationReport(StrictContractModel):
     extension_host_output: str = ""
     log_file: str = ""
     output_signal_events: list[OutputSignalEvent] = Field(default_factory=list)
-    # W11-3: discovery strategies in `MonitorRuntime.stop()` that returned
-    # at least one entry; sorted, deduped, normalized identifiers.
-    # Today's producer set: "exthost_log_parse" (strategy 1 — exthost.log
-    # parse), "running_extensions_ui" (strategy 2 — Running Extensions UI
-    # scrape), "exthost_output_parse" (strategy 3 — extension host stdout
-    # parse).
-    activation_discovery_strategies: list[str] = Field(default_factory=list)
+    # W11-3 producer; W12-2 [FOLLOWUP activation-discovery-strategy-outcome-detail]
+    # upgrades from list[str] (only succeeded-and-produced-new) to
+    # dict[str, str] mapping strategy id -> outcome literal so analysts can
+    # distinguish ran-and-was-redundant, ran-and-failed, and never-reached.
+    # Strategy ids: "exthost_log_parse" (strategy 1), "running_extensions_ui"
+    # (strategy 2), "exthost_output_parse" (strategy 3). Outcome literals:
+    # "succeeded_with_new_activations", "succeeded_no_new_activations",
+    # "failed:<ExcClassName>".
+    activation_discovery_strategy_outcomes: dict[str, str] = Field(default_factory=dict)
     # W11-3: runner exit code (0 / non-zero). `None` if the runner never
     # finalized — the report was persisted before the runner reached its
     # `set_runner_status` call.

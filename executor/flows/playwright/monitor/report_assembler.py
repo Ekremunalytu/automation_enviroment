@@ -39,7 +39,6 @@ so the two views cannot drift.
 from __future__ import annotations
 
 import time
-from collections.abc import Iterable
 from pathlib import Path
 
 from ..attribution import (
@@ -160,15 +159,21 @@ class ReportAssembler:
         self._report.runner_exit_code = exit_code
         self._report.runner_status = "success" if exit_code == 0 else "error"
 
-    def set_discovery_strategies(self, strategies: Iterable[str]) -> None:
-        """Record which discovery strategies produced activations.
+    def set_discovery_strategy_outcomes(self, outcomes: dict[str, str]) -> None:
+        """Record per-strategy discovery outcomes.
 
-        W11-3: producer side of `activation_discovery_strategies`. The
-        runtime collaborator (`MonitorRuntime.stop()`) emits this list
-        once per scan; entries are deduped + sorted for deterministic
-        diffs across re-runs of the same target.
+        W11-3 producer side of ``activation_discovery_strategies`` (legacy
+        ``list[str]``); W12-2 [FOLLOWUP activation-discovery-strategy-outcome-detail]
+        upgrades the field to ``activation_discovery_strategy_outcomes:
+        dict[str, str]`` so analysts can distinguish between
+        ran-and-was-redundant, ran-and-failed, and never-reached. The
+        runtime collaborator (``MonitorRuntime.stop()``) emits this dict
+        once per scan; outcomes use the literals
+        ``"succeeded_with_new_activations"``,
+        ``"succeeded_no_new_activations"``, and
+        ``"failed:<ExcClassName>"``.
         """
-        self._report.activation_discovery_strategies = sorted(set(strategies))
+        self._report.activation_discovery_strategy_outcomes = dict(outcomes)
 
     def persist(self, force: bool) -> None:
         """Write the report if forced or if a debounce threshold tripped.

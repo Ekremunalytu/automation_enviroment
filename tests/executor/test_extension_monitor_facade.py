@@ -58,7 +58,7 @@ class _RecordingRuntime:
         finalize_scenarios: Any,
         append_activation_log_entries: Any,
         refresh_derived_state: Any,
-        set_discovery_strategies: Any,
+        set_discovery_strategy_outcomes: Any,
         emit_intermediate_state_events: Any,
     ) -> None:
         self._page = page
@@ -68,7 +68,7 @@ class _RecordingRuntime:
         self.finalize_scenarios = finalize_scenarios
         self.append_activation_log_entries = append_activation_log_entries
         self.refresh_derived_state = refresh_derived_state
-        self.set_discovery_strategies = set_discovery_strategies
+        self.set_discovery_strategy_outcomes = set_discovery_strategy_outcomes
         self.emit_intermediate_state_events = emit_intermediate_state_events
         self.calls: list[tuple[str, tuple[Any, ...]]] = []
         self.log_offsets: dict[str, int] = {}
@@ -108,7 +108,7 @@ class _RecordingAssembler:
         self.report = report
         self.persist_calls: list[bool] = []
         self.refresh_calls: int = 0
-        self.discovery_strategies_calls: list[list[str]] = []
+        self.discovery_strategy_outcomes_calls: list[dict[str, str]] = []
         self.runner_status_calls: list[int] = []
 
     def persist(self, force: bool) -> None:
@@ -117,8 +117,8 @@ class _RecordingAssembler:
     def refresh_derived_state(self) -> None:
         self.refresh_calls += 1
 
-    def set_discovery_strategies(self, strategies: Any) -> None:
-        self.discovery_strategies_calls.append(list(strategies))
+    def set_discovery_strategy_outcomes(self, outcomes: Any) -> None:
+        self.discovery_strategy_outcomes_calls.append(dict(outcomes))
 
     def set_runner_status(self, exit_code: int) -> None:
         self.runner_status_calls.append(exit_code)
@@ -218,7 +218,7 @@ def _make_facade_with_fakes(
         finalize_scenarios=real_runtime._finalize_scenarios,
         append_activation_log_entries=real_runtime._append_activation_log_entries,
         refresh_derived_state=real_runtime._refresh_derived_state,
-        set_discovery_strategies=real_runtime._set_discovery_strategies,
+        set_discovery_strategy_outcomes=real_runtime._set_discovery_strategy_outcomes,
         emit_intermediate_state_events=real_runtime._emit_intermediate_state_events,
     )
     mon._runtime = rec_runtime  # type: ignore[assignment]
@@ -252,8 +252,8 @@ def test_facade_runtime_callbacks_bind_directly_to_collaborator_methods() -> Non
     assert mon._runtime._persist == mon._assembler.persist
     assert mon._runtime._refresh_derived_state == mon._assembler.refresh_derived_state
     assert (
-        mon._runtime._set_discovery_strategies
-        == mon._assembler.set_discovery_strategies
+        mon._runtime._set_discovery_strategy_outcomes
+        == mon._assembler.set_discovery_strategy_outcomes
     )
     assert (
         mon._runtime._finalize_scenarios

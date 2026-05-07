@@ -591,7 +591,7 @@ def test_refresh_is_idempotent_across_repeated_calls(monkeypatch) -> None:
 
 
 # ---------------------------------------------------------------------------
-# W11-3 setters: set_runner_status / set_discovery_strategies
+# W11-3 setters: set_runner_status / set_discovery_strategy_outcomes (W12-2)
 # ---------------------------------------------------------------------------
 
 
@@ -631,42 +631,46 @@ def test_set_runner_status_nonzero_other_value_still_maps_to_error() -> None:
     assert report.runner_status == "error"
 
 
-def test_set_discovery_strategies_sorts_and_dedupes() -> None:
-    """Producer order from ``MonitorRuntime.stop()`` is not stable
-    across runs (Strategy 2 may or may not produce entries depending
-    on UI scrape success). Sort + dedup at the assembler so analysts
-    diffing two reports of the same target get bitwise-equal lists
-    when the underlying success set is identical."""
+def test_set_discovery_strategy_outcomes_records_dict_verbatim() -> None:
+    """W12-2 [FOLLOWUP activation-discovery-strategy-outcome-detail]:
+    the assembler stores the runtime's outcome dict verbatim (one entry
+    per strategy with the post-W12-2 outcome literals); analysts diffing
+    two reports of the same target get bitwise-equal dicts because dict
+    keys are deterministic strategy ids and values are deterministic
+    literals."""
 
     report = ActivationReport(target_extension_id="publisher.tool")
     assembler = ReportAssembler(report=report, report_path=None)
 
-    assembler.set_discovery_strategies(
-        [
-            "running_extensions_ui",
-            "exthost_log_parse",
-            "exthost_log_parse",
-        ]
+    assembler.set_discovery_strategy_outcomes(
+        {
+            "exthost_log_parse": "succeeded_with_new_activations",
+            "running_extensions_ui": "succeeded_no_new_activations",
+            "exthost_output_parse": "failed:OSError",
+        }
     )
 
-    assert report.activation_discovery_strategies == [
-        "exthost_log_parse",
-        "running_extensions_ui",
-    ]
+    assert report.activation_discovery_strategy_outcomes == {
+        "exthost_log_parse": "succeeded_with_new_activations",
+        "running_extensions_ui": "succeeded_no_new_activations",
+        "exthost_output_parse": "failed:OSError",
+    }
 
 
-def test_set_discovery_strategies_with_empty_iterable_clears_field() -> None:
-    """If every strategy fails the producer emits an empty list; the
-    assembler must overwrite (not preserve) any prior content so the
-    field accurately reflects the most recent stop()."""
+def test_set_discovery_strategy_outcomes_with_empty_dict_clears_field() -> None:
+    """If the runtime emits an empty dict (e.g. helpers patched out in a
+    unit test) the assembler must overwrite any prior content so the field
+    accurately reflects the most recent stop()."""
 
     report = ActivationReport(target_extension_id="publisher.tool")
-    report.activation_discovery_strategies = ["stale_value"]
+    report.activation_discovery_strategy_outcomes = {
+        "exthost_log_parse": "succeeded_with_new_activations",
+    }
     assembler = ReportAssembler(report=report, report_path=None)
 
-    assembler.set_discovery_strategies([])
+    assembler.set_discovery_strategy_outcomes({})
 
-    assert report.activation_discovery_strategies == []
+    assert report.activation_discovery_strategy_outcomes == {}
 
 
 def test_persist_advances_throttle_strictly_monotonically(

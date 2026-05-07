@@ -121,11 +121,13 @@ class ActivationReport:
     monitoring_started_monotonic: float = field(default=0.0, repr=False)
     monitoring_ended_monotonic: float = field(default=0.0, repr=False)
     scenarios_run: list[str] = field(default_factory=list)
-    # W11-3: discovery strategies in MonitorRuntime.stop() that yielded
-    # at least one entry. Mirrors the persisted contract field; the
-    # ReportAssembler writes via set_discovery_strategies after stop's
-    # final strategy completes.
-    activation_discovery_strategies: list[str] = field(default_factory=list)
+    # W11-3 producer; W12-2 [FOLLOWUP activation-discovery-strategy-outcome-detail]
+    # upgrades from list[str] (succeeded-and-produced-net-new) to
+    # dict[str, str] (per-strategy outcome). Outcomes use the literals
+    # ``"succeeded_with_new_activations"``, ``"succeeded_no_new_activations"``,
+    # and ``"failed:<ExcClassName>"``. ReportAssembler writes via
+    # set_discovery_strategy_outcomes after stop's final strategy completes.
+    activation_discovery_strategy_outcomes: dict[str, str] = field(default_factory=dict)
     # W11-3: runner exit code captured by entrypoint_runner just before
     # SystemExit. None when the runner never reaches set_runner_status.
     runner_exit_code: int | None = None

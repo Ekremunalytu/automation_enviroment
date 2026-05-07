@@ -36,8 +36,10 @@ class _RecordingHooks:
         self.finalize_calls: int = 0
         self.append_calls: int = 0
         self.refresh_calls: int = 0
-        # W11-3: list of strategy-id lists shipped via the runtime callback.
-        self.discovery_strategy_calls: list[list[str]] = []
+        # W11-3 / W12-2: dict outcomes shipped via the runtime callback
+        # (post-W12-2 the producer emits dict[str, str] outcome literals
+        # instead of the legacy list[str]).
+        self.discovery_strategy_outcomes_calls: list[dict[str, str]] = []
         # W11-4: counts ``emit_intermediate_state_events`` invocations
         # routed through the runtime → facade-shim → accountant chain.
         self.emit_intermediate_calls: int = 0
@@ -79,8 +81,8 @@ class _RecordingHooks:
         self.refresh_calls += 1
         self.callback_order.append("refresh")
 
-    def set_discovery_strategies(self, strategies: list[str]) -> None:
-        self.discovery_strategy_calls.append(list(strategies))
+    def set_discovery_strategy_outcomes(self, outcomes: dict[str, str]) -> None:
+        self.discovery_strategy_outcomes_calls.append(dict(outcomes))
 
     def emit_intermediate_state_events(self) -> None:
         self.emit_intermediate_calls += 1
@@ -186,7 +188,7 @@ def _build_runtime(
         finalize_scenarios=hooks.finalize_scenarios,
         append_activation_log_entries=hooks.append_activation_log_entries,
         refresh_derived_state=hooks.refresh_derived_state,
-        set_discovery_strategies=hooks.set_discovery_strategies,
+        set_discovery_strategy_outcomes=hooks.set_discovery_strategy_outcomes,
         emit_intermediate_state_events=hooks.emit_intermediate_state_events,
     )
     return runtime, report, hooks
@@ -400,10 +402,19 @@ def test_stop_runs_strategies_and_invokes_collaborator_callbacks(
     # start() persists once with force=True; stop() persists multiple times
     # (post-finalize, after each strategy, and at the end after refresh).
     assert hooks.persist_calls.count(True) >= 4
-    # W11-3: strategy 1 (parse_all_exthost_logs) returned a non-empty
-    # list and strategy 3's parse_activations_from_output returned [],
-    # so only "exthost_log_parse" lands. Pin one shipped emission.
-    assert hooks.discovery_strategy_calls == [["exthost_log_parse"]]
+    # W11-3 / W12-2: per-strategy outcomes — strategy 1 produces ≥1
+    # activation (succeeded_with_new_activations), strategy 2 returns
+    # an empty Running Extensions panel (succeeded_no_new_activations
+    # — ``_FakePage`` has no panel), strategy 3's
+    # parse_activations_from_output returned [] so the merge added no
+    # net-new entries (succeeded_no_new_activations).
+    assert hooks.discovery_strategy_outcomes_calls == [
+        {
+            "exthost_log_parse": "succeeded_with_new_activations",
+            "running_extensions_ui": "succeeded_no_new_activations",
+            "exthost_output_parse": "succeeded_no_new_activations",
+        }
+    ]
 
 
 def test_stop_without_start_falls_back_safely(monkeypatch) -> None:
@@ -575,21 +586,24 @@ def test_stop_emits_all_three_strategies_when_all_succeed(
     runtime.start()
     runtime.stop()
 
-    assert hooks.discovery_strategy_calls == [
-        [
-            "exthost_log_parse",
-            "running_extensions_ui",
-            "exthost_output_parse",
-        ]
+    # W12-2: all three strategies produced their primary data on this
+    # run, so each emits the ``succeeded_with_new_activations`` literal.
+    assert hooks.discovery_strategy_outcomes_calls == [
+        {
+            "exthost_log_parse": "succeeded_with_new_activations",
+            "running_extensions_ui": "succeeded_with_new_activations",
+            "exthost_output_parse": "succeeded_with_new_activations",
+        }
     ]
 
 
-def test_stop_emits_empty_list_when_all_strategies_yield_no_entries(
+def test_stop_emits_no_new_activations_for_every_strategy_when_all_empty(
     monkeypatch,
 ) -> None:
     """All three strategies execute without exception but return empty
-    results; the callback still fires (so the assembler clears any
-    stale value), with an empty list."""
+    primary data; the callback still fires with one entry per strategy
+    so the assembler can distinguish ran-and-was-redundant from
+    never-reached (W12-2 outcome detail)."""
 
     _patch_facade(monkeypatch)  # all defaults return empty results.
 
@@ -597,7 +611,13 @@ def test_stop_emits_empty_list_when_all_strategies_yield_no_entries(
     runtime.start()
     runtime.stop()
 
-    assert hooks.discovery_strategy_calls == [[]]
+    assert hooks.discovery_strategy_outcomes_calls == [
+        {
+            "exthost_log_parse": "succeeded_no_new_activations",
+            "running_extensions_ui": "succeeded_no_new_activations",
+            "exthost_output_parse": "succeeded_no_new_activations",
+        }
+    ]
 
 
 def test_stop_omits_strategy_three_when_output_parse_yields_no_new_entries(
@@ -632,7 +652,16 @@ def test_stop_omits_strategy_three_when_output_parse_yields_no_new_entries(
     runtime.start()
     runtime.stop()
 
-    assert hooks.discovery_strategy_calls == [["exthost_log_parse"]]
+    # W12-2: Strategy 1 produced new entries; Strategy 3 ran clean but
+    # the dedupe-merge added no net-new (succeeded_no_new_activations).
+    # Strategy 2 returns an empty panel (no fixture override).
+    assert hooks.discovery_strategy_outcomes_calls == [
+        {
+            "exthost_log_parse": "succeeded_with_new_activations",
+            "running_extensions_ui": "succeeded_no_new_activations",
+            "exthost_output_parse": "succeeded_no_new_activations",
+        }
+    ]
 
 
 def test_log_offsets_property_reflects_runtime_state(monkeypatch) -> None:
@@ -760,7 +789,7 @@ def test_stop_exthost_log_parse_returns_name_on_activations(
     runtime, report, hooks = _build_runtime()
     result = runtime._stop_exthost_log_parse()
 
-    assert result == "exthost_log_parse"
+    assert result == ("exthost_log_parse", "succeeded_with_new_activations")
     assert report.activated == [activation]
     assert report.log_file_path == str(log_file)
     # Helpers do not persist on their own — orchestration owns the
@@ -769,18 +798,20 @@ def test_stop_exthost_log_parse_returns_name_on_activations(
     assert hooks.persist_calls == []
 
 
-def test_stop_exthost_log_parse_returns_none_on_empty_activated(monkeypatch) -> None:
+def test_stop_exthost_log_parse_returns_no_new_activations_on_empty(
+    monkeypatch,
+) -> None:
     _patch_facade(monkeypatch)  # parse_all_exthost_logs default returns [].
 
     runtime, report, _hooks = _build_runtime()
     result = runtime._stop_exthost_log_parse()
 
-    assert result is None
+    assert result == ("exthost_log_parse", "succeeded_no_new_activations")
     assert report.activated == []
     assert report.log_file_path == ""
 
 
-def test_stop_exthost_log_parse_swallows_oserror_returns_none(monkeypatch) -> None:
+def test_stop_exthost_log_parse_swallows_oserror_reports_failed(monkeypatch) -> None:
     def boom(start_offsets=None):
         raise OSError("log dir unreadable")
 
@@ -789,7 +820,7 @@ def test_stop_exthost_log_parse_swallows_oserror_returns_none(monkeypatch) -> No
     runtime, report, _hooks = _build_runtime()
     result = runtime._stop_exthost_log_parse()
 
-    assert result is None
+    assert result == ("exthost_log_parse", "failed:OSError")
     # ``_report.activated`` is left at its prior value (here: default []).
     assert report.activated == []
 
@@ -813,7 +844,7 @@ def test_stop_exthost_log_parse_writes_log_file_path_only_when_activated_non_emp
     runtime, report, _hooks = _build_runtime()
     result = runtime._stop_exthost_log_parse()
 
-    assert result is None
+    assert result == ("exthost_log_parse", "succeeded_no_new_activations")
     assert report.log_file_path == ""
 
 
@@ -832,17 +863,19 @@ def test_stop_running_extensions_ui_returns_name_on_running_list(monkeypatch) ->
     runtime, report, _hooks = _build_runtime()
     result = runtime._stop_running_extensions_ui()
 
-    assert result == "running_extensions_ui"
+    assert result == ("running_extensions_ui", "succeeded_with_new_activations")
     assert report.running_extensions == [running]
 
 
-def test_stop_running_extensions_ui_returns_none_on_empty(monkeypatch) -> None:
+def test_stop_running_extensions_ui_returns_no_new_activations_on_empty(
+    monkeypatch,
+) -> None:
     _patch_facade(monkeypatch)  # default returns [].
 
     runtime, report, _hooks = _build_runtime()
     result = runtime._stop_running_extensions_ui()
 
-    assert result is None
+    assert result == ("running_extensions_ui", "succeeded_no_new_activations")
     assert report.running_extensions == []
 
 
@@ -858,7 +891,7 @@ def test_stop_running_extensions_ui_invokes_escape_recovery_on_playwright_error(
     runtime, _report, _hooks = _build_runtime(page=page)
     result = runtime._stop_running_extensions_ui()
 
-    assert result is None
+    assert result == ("running_extensions_ui", "failed:_DummyPlaywrightError")
     assert page.keyboard.press_calls == ["Escape"]
     assert page.wait_calls == [300]
 
@@ -879,7 +912,7 @@ def test_stop_running_extensions_ui_swallows_recovery_error(monkeypatch) -> None
     # Must not raise.
     result = runtime._stop_running_extensions_ui()
 
-    assert result is None
+    assert result == ("running_extensions_ui", "failed:_DummyPlaywrightError")
     assert page.keyboard.press_calls == ["Escape"]
 
 
@@ -905,12 +938,12 @@ def test_stop_exthost_output_parse_returns_name_on_net_new_merge(monkeypatch) ->
     runtime, report, _hooks = _build_runtime()
     result = runtime._stop_exthost_output_parse()
 
-    assert result == "exthost_output_parse"
+    assert result == ("exthost_output_parse", "succeeded_with_new_activations")
     assert report.extension_host_output == "raw output blob"
     assert report.activated == [new_entry]
 
 
-def test_stop_exthost_output_parse_returns_none_when_dedupe_yields_no_credit(
+def test_stop_exthost_output_parse_returns_no_new_when_dedupe_yields_no_credit(
     monkeypatch,
 ) -> None:
     """W11-3 dedupe-no-credit semantics — pinned at the helper level so
@@ -936,12 +969,12 @@ def test_stop_exthost_output_parse_returns_none_when_dedupe_yields_no_credit(
     report.activated = [existing]
     result = runtime._stop_exthost_output_parse()
 
-    assert result is None
+    assert result == ("exthost_output_parse", "succeeded_no_new_activations")
     assert report.extension_host_output == "raw output blob"
     assert report.activated == [existing]
 
 
-def test_stop_exthost_output_parse_swallows_oserror_returns_none(monkeypatch) -> None:
+def test_stop_exthost_output_parse_swallows_oserror_reports_failed(monkeypatch) -> None:
     def boom(page=None):
         raise OSError("/proc/<pid>/fd unreadable")
 
@@ -950,7 +983,7 @@ def test_stop_exthost_output_parse_swallows_oserror_returns_none(monkeypatch) ->
     runtime, report, _hooks = _build_runtime()
     result = runtime._stop_exthost_output_parse()
 
-    assert result is None
+    assert result == ("exthost_output_parse", "failed:OSError")
     assert report.extension_host_output == ""
     assert report.activated == []
 

@@ -262,11 +262,13 @@ class _MinimalReportFake:
     def __init__(
         self,
         *,
-        activation_discovery_strategies: list[str],
+        activation_discovery_strategy_outcomes: dict[str, str],
         runner_exit_code: int | None,
         runner_status: str,
     ) -> None:
-        self.activation_discovery_strategies = activation_discovery_strategies
+        self.activation_discovery_strategy_outcomes = (
+            activation_discovery_strategy_outcomes
+        )
         self.runner_exit_code = runner_exit_code
         self.runner_status = runner_status
         # Minimum surface for the rest of build_report_data to succeed.
@@ -318,23 +320,25 @@ class _MinimalReportFake:
 def test_w11_3_fields_round_trip_through_build_report_data_and_save(
     tmp_path: Path,
 ) -> None:
-    """W11-3 producer values must survive ``build_report_data`` → contract
-    validation → ``save_report_payload`` → on-disk JSON.
+    """W11-3 / W12-2 producer values must survive ``build_report_data`` →
+    contract validation → ``save_report_payload`` → on-disk JSON.
 
     Regression pin for the gap surfaced by the first W11-3 live scan,
     where ``ReportAssembler.set_runner_status`` and
-    ``set_discovery_strategies`` mutated the dataclass correctly but the
-    builder's manual ``asdict``-style serializer never read the new
-    fields, so the on-disk payload defaulted them. This test fails on
-    the pre-fix builder and passes once the builder explicitly forwards
-    the three fields.
+    ``set_discovery_strategy_outcomes`` mutated the dataclass correctly
+    but the builder's manual ``asdict``-style serializer never read the
+    new fields, so the on-disk payload defaulted them. W12-2 upgraded
+    the discovery field from ``list[str]`` to ``dict[str, str]`` for
+    per-strategy outcome literals; the builder + on-disk round-trip is
+    pinned for the new shape here.
     """
 
     fake = _MinimalReportFake(
-        activation_discovery_strategies=[
-            "exthost_log_parse",
-            "exthost_output_parse",
-        ],
+        activation_discovery_strategy_outcomes={
+            "exthost_log_parse": "succeeded_with_new_activations",
+            "running_extensions_ui": "succeeded_no_new_activations",
+            "exthost_output_parse": "failed:OSError",
+        },
         runner_exit_code=0,
         runner_status="success",
     )
@@ -359,10 +363,11 @@ def test_w11_3_fields_round_trip_through_build_report_data_and_save(
     )
 
     # Builder dict carries the fields straight through.
-    assert data["activation_discovery_strategies"] == [
-        "exthost_log_parse",
-        "exthost_output_parse",
-    ]
+    assert data["activation_discovery_strategy_outcomes"] == {
+        "exthost_log_parse": "succeeded_with_new_activations",
+        "running_extensions_ui": "succeeded_no_new_activations",
+        "exthost_output_parse": "failed:OSError",
+    }
     assert data["runner_exit_code"] == 0
     assert data["runner_status"] == "success"
 
@@ -371,10 +376,11 @@ def test_w11_3_fields_round_trip_through_build_report_data_and_save(
     out_path = tmp_path / "activation_report.json"
     save_report_payload(out_path, data, announce=False)
     on_disk = json.loads(out_path.read_text(encoding="utf-8"))
-    assert on_disk["activation_discovery_strategies"] == [
-        "exthost_log_parse",
-        "exthost_output_parse",
-    ]
+    assert on_disk["activation_discovery_strategy_outcomes"] == {
+        "exthost_log_parse": "succeeded_with_new_activations",
+        "running_extensions_ui": "succeeded_no_new_activations",
+        "exthost_output_parse": "failed:OSError",
+    }
     assert on_disk["runner_exit_code"] == 0
     assert on_disk["runner_status"] == "success"
 
@@ -389,7 +395,7 @@ def test_w11_3_fields_default_to_unknown_when_producer_skips_setters(
     locked at the serialization boundary."""
 
     fake = _MinimalReportFake(
-        activation_discovery_strategies=[],
+        activation_discovery_strategy_outcomes={},
         runner_exit_code=None,
         runner_status="unknown",
     )
@@ -416,7 +422,7 @@ def test_w11_3_fields_default_to_unknown_when_producer_skips_setters(
     save_report_payload(out_path, data, announce=False)
     on_disk = json.loads(out_path.read_text(encoding="utf-8"))
 
-    assert on_disk["activation_discovery_strategies"] == []
+    assert on_disk["activation_discovery_strategy_outcomes"] == {}
     assert on_disk["runner_exit_code"] is None
     assert on_disk["runner_status"] == "unknown"
 

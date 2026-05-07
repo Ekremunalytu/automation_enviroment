@@ -44,7 +44,7 @@ from .types import ActivationReport
 PersistCallback = Callable[[bool], None]
 RecordAutomationEventCallback = Callable[..., None]
 NoArgCallback = Callable[[], None]
-SetDiscoveryStrategiesCallback = Callable[[list[str]], None]
+SetDiscoveryStrategyOutcomesCallback = Callable[[dict[str, str]], None]
 
 
 class MonitorRuntime:
@@ -69,7 +69,7 @@ class MonitorRuntime:
         finalize_scenarios: NoArgCallback,
         append_activation_log_entries: NoArgCallback,
         refresh_derived_state: NoArgCallback,
-        set_discovery_strategies: SetDiscoveryStrategiesCallback,
+        set_discovery_strategy_outcomes: SetDiscoveryStrategyOutcomesCallback,
         emit_intermediate_state_events: NoArgCallback,
     ) -> None:
         self._page = page
@@ -79,7 +79,7 @@ class MonitorRuntime:
         self._finalize_scenarios = finalize_scenarios
         self._append_activation_log_entries = append_activation_log_entries
         self._refresh_derived_state = refresh_derived_state
-        self._set_discovery_strategies = set_discovery_strategies
+        self._set_discovery_strategy_outcomes = set_discovery_strategy_outcomes
         # W11-4: producer signal for
         # ``[FOLLOWUP target-log-lifecycle-instrumentation]``. Fires after
         # ``refresh_derived_state`` so emitted events reflect the
@@ -238,26 +238,24 @@ class MonitorRuntime:
         _log(f"Monitoring stopped ({self._report.duration_s:.1f}s elapsed)")
         self._persist(True)
 
-        # W11-3: track which discovery strategies returned at least one
-        # entry. The list is shipped to the report via the assembler
-        # callback at the end of stop() so analysts can see which path
-        # produced the activation evidence.
-        # W11-6: each strategy lives on its own ``_stop_<strategy>``
-        # helper so unit tests can pin the per-strategy behavior in
-        # isolation; this orchestration loop preserves the W11-3
-        # strategy-aware persist cadence (one ``_persist(True)`` after
-        # each strategy returns).
-        succeeded_strategies: list[str] = []
+        # W12-2 [FOLLOWUP activation-discovery-strategy-outcome-detail]:
+        # capture per-strategy outcome (succeeded_with_new_activations /
+        # succeeded_no_new_activations / failed:<ExcClass>) instead of the
+        # pre-W12-2 "succeeded-and-produced-net-new" list, so analysts can
+        # tell ran-and-was-redundant / ran-and-failed / never-reached apart.
+        # W11-6 per-strategy helpers now return ``(name, outcome)`` directly;
+        # this orchestration loop just collects the dict and preserves the
+        # W11-3 strategy-aware persist cadence.
+        strategy_outcomes: dict[str, str] = {}
         for helper in (
             self._stop_exthost_log_parse,
             self._stop_running_extensions_ui,
             self._stop_exthost_output_parse,
         ):
-            name = helper()
-            if name is not None:
-                succeeded_strategies.append(name)
+            name, outcome = helper()
+            strategy_outcomes[name] = outcome
             self._persist(True)
-        self._set_discovery_strategies(succeeded_strategies)
+        self._set_discovery_strategy_outcomes(strategy_outcomes)
         self._append_activation_log_entries()
         # PR345 PR5 + W8-0 capture-pipeline fix: merge two source streams
         # before attribution. The legacy stream (parse_output_signal_events)
@@ -302,49 +300,62 @@ class MonitorRuntime:
     # owns the persist-between-strategies cadence; helpers do not
     # persist on their own.
 
-    def _stop_exthost_log_parse(self) -> str | None:
+    def _stop_exthost_log_parse(self) -> tuple[str, str]:
         """Strategy 1: parse Extension Host logs.
 
         Mutates ``_report.activated`` and (only when the parse returns
         a non-empty list) ``_report.log_file_path``. Returns
-        ``"exthost_log_parse"`` on a hit, ``None`` otherwise.
-        ``OSError`` / ``ValueError`` from the parse pipeline are
-        swallowed so a single broken strategy does not break the rest
-        of ``stop()``.
+        ``("exthost_log_parse", outcome)`` where ``outcome`` is one of
+        ``"succeeded_with_new_activations"`` (parse produced ≥1 entry),
+        ``"succeeded_no_new_activations"`` (parse ran clean but returned
+        no entries), or ``"failed:<ExcClassName>"`` (caught
+        ``OSError`` / ``ValueError`` from the parse pipeline).
         """
 
+        name = "exthost_log_parse"
         api = resolve_monitor_api()
         try:
             _log("Strategy 1: Parsing Extension Host logs...")
+            pre_count = len(self._report.activated)
             self._report.activated = api.parse_all_exthost_logs(
                 start_offsets=self._log_offsets
             )
             if self._report.activated:
                 log_files = api.find_exthost_logs()
                 self._report.log_file_path = str(log_files[0]) if log_files else ""
-                return "exthost_log_parse"
+            if len(self._report.activated) > pre_count:
+                return name, "succeeded_with_new_activations"
+            return name, "succeeded_no_new_activations"
         except (OSError, ValueError) as exc:
             _log(f"Strategy 1 failed: {exc}")
-        return None
+            return name, f"failed:{type(exc).__name__}"
 
-    def _stop_running_extensions_ui(self) -> str | None:
+    def _stop_running_extensions_ui(self) -> tuple[str, str]:
         """Strategy 2: scrape the Running Extensions UI panel.
 
         Mutates ``_report.running_extensions``. Returns
-        ``"running_extensions_ui"`` when the panel scrape returns a
-        non-empty list, ``None`` otherwise. On a primary failure the
+        ``("running_extensions_ui", outcome)`` where ``outcome`` is
+        ``"succeeded_with_new_activations"`` (panel scrape returned
+        ≥1 row), ``"succeeded_no_new_activations"`` (scrape ran clean but
+        the panel was empty), or ``"failed:<ExcClassName>"`` (caught
+        ``PlaywrightError`` / ``OSError`` / ``ValueError``). The
+        ``"with_new_activations"`` literal is reused even though Strategy 2
+        does not extend ``_report.activated`` directly — its primary
+        product is ``running_extensions``, and a non-empty scrape is the
+        equivalent of "produced its primary data". On a primary failure the
         panel is dismissed via ``Escape`` + 300ms timeout so the next
-        strategy starts from a clean UI state; both the primary
-        ``PlaywrightError`` / ``OSError`` / ``ValueError`` and the
-        recovery's ``PlaywrightError`` are swallowed.
+        strategy starts from a clean UI state; both the primary failure and
+        the recovery's ``PlaywrightError`` are swallowed.
         """
 
+        name = "running_extensions_ui"
         api = resolve_monitor_api()
         try:
             _log("Strategy 2: Scraping Running Extensions UI...")
             self._report.running_extensions = api.get_running_extensions(self._page)
             if self._report.running_extensions:
-                return "running_extensions_ui"
+                return name, "succeeded_with_new_activations"
+            return name, "succeeded_no_new_activations"
         except (PlaywrightError, OSError, ValueError) as exc:
             _log(f"Strategy 2 failed: {exc}")
             try:
@@ -352,18 +363,22 @@ class MonitorRuntime:
                 self._page.wait_for_timeout(300)
             except PlaywrightError as esc_exc:
                 _log(f"Strategy 2 recovery failed: {esc_exc}")
-        return None
+            return name, f"failed:{type(exc).__name__}"
 
-    def _stop_exthost_output_parse(self) -> str | None:
+    def _stop_exthost_output_parse(self) -> tuple[str, str]:
         """Strategy 3: read Extension Host output and merge new entries.
 
         Mutates ``_report.extension_host_output`` and
-        ``_report.activated``. Returns ``"exthost_output_parse"`` only
-        when the merge produces *net new* activation entries beyond
-        Strategy 1's results — the dedupe-no-credit semantics pinned
-        in W11-3. ``OSError`` is swallowed.
+        ``_report.activated``. Returns ``("exthost_output_parse", outcome)``
+        where ``outcome`` is ``"succeeded_with_new_activations"`` when the
+        merge produces *net new* activation entries beyond Strategy 1's
+        results (the dedupe-no-credit semantics pinned in W11-3),
+        ``"succeeded_no_new_activations"`` when the merge ran clean but the
+        superset already covered everything Strategy 3 saw, or
+        ``"failed:<ExcClassName>"`` (caught ``OSError``).
         """
 
+        name = "exthost_output_parse"
         api = resolve_monitor_api()
         try:
             _log("Strategy 3: Reading Extension Host output...")
@@ -377,10 +392,11 @@ class MonitorRuntime:
                 ),
             )
             if len(self._report.activated) > pre_merge_count:
-                return "exthost_output_parse"
+                return name, "succeeded_with_new_activations"
+            return name, "succeeded_no_new_activations"
         except OSError as exc:
             _log(f"Strategy 3 failed: {exc}")
-        return None
+            return name, f"failed:{type(exc).__name__}"
 
     def __enter__(self) -> MonitorRuntime:
         self.start()
