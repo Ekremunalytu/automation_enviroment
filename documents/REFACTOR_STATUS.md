@@ -50,10 +50,11 @@ phase history and verbose evidence are frozen under dated snapshots:
 - W12-1 executor subpackaging:
   **landed** `2026-05-07` on `week12` in commits `b4bd3ee` +
   `0eb072e` + `0e74beb` + `95a409f`. 54 flat playwright files →
-  ≤10 flat + 8 subpackages (monitor/, stimulus/, workspace/,
+  ≤10 flat + 7 new subpackages (monitor/, stimulus/, workspace/,
   health/, entrypoint/, vscode/, signals/) plus existing
-  attribution/ + scenarios/ + runtime_capture/. Two new
-  architecture gates landed.
+  attribution/ + scenarios/ + runtime_capture/ (10 package dirs
+  total). Architecture gates now cover flat-count, import-cycle, and
+  `python -m` package-shim invariants.
 - W12-2 attribution facade cleanup:
   **landed** `2026-05-07` on `week12` in commits `37fcaad` +
   `0cef876` + `9ebc5b5` + `0981e92`. 29 underscore re-exports → 10
@@ -90,10 +91,6 @@ The remaining five are tracked in `POST_POC_BACKLOG.md` as P2/P3 work:
   manifest-field log emit site or an explicit proactive security gate.
 - `[BUG scenario-dropout-upstream-root-cause]` remains W13-oriented unless
   dropout proves stochastic or misses a live threat category.
-- W12 attribution cleanup picks up
-  `[FOLLOWUP w12-attribution-naming-overlap]`,
-  `[FOLLOWUP coverage-summary-attempted-drift]`, and
-  `[FOLLOWUP activation-discovery-strategy-outcome-detail]`.
 
 ## Read Order
 

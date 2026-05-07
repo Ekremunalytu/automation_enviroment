@@ -1,6 +1,6 @@
 # AGENTS.md
 
-`Last Updated: 2026-05-07 (W12 active prep)`
+`Last Updated: 2026-05-07 (W12 active)`
 
 ## Authority
 

@@ -116,7 +116,7 @@ make demo-canary-offline             # <30 s detection-engine sanity
   "do the scenarios survive a full pass?" not "does this extension
   activate cleanly?"
 - `sim-target` (requires `TARGET=publisher.name`) runs
-  `entrypoint.py --monitor --target-extension-id $(TARGET)` with
+  `python -m executor.flows.playwright.entrypoint --monitor --target-extension-id $(TARGET)` with
   optional `TRIGGERS` / `SCENARIO` passthrough; correct lane for
   "did a normal extension activate cleanly?"
 - Missing `TARGET` exits non-zero with a usage hint.

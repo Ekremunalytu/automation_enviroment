@@ -20,9 +20,9 @@ and that archive section.
 - **W12 active.** Initial scaffold landed `2026-05-07` on the
   `chore/pre-w12-prep` branch alongside the §11.9.1 plan addendum.
   W11 closed `2026-05-05` and merged via PR #14. W12-0 landed
-  `2026-05-07` on `week12` (`22eb836`); W12-1 unblocked. Single-branch
-  policy: all W12-0..W12-5 land on `week12` and merge to `main` via a
-  single PR at W12 close.
+  `2026-05-07` on `week12` (`22eb836`); W12-1 and W12-2 have also
+  landed. Single-branch policy: all W12 work lands on `week12` and
+  merges to `main` via a single PR at W12 close.
 - **Pre-W12 attribution precursor tests landed.**
   `[FOLLOWUP w12-precursor-tests-attribution-links]` and
   `[FOLLOWUP w12-precursor-tests-attribution-events]` both closed in
@@ -34,18 +34,21 @@ and that archive section.
 - **W12-0 (precursor — security pull-forward) — landed
   `2026-05-07` (`22eb836`).**
   `[FOLLOWUP w8-6-output-signals-file-backed-redaction]` closed.
-  `redact_secrets(_truncate(line))` applied at
-  `executor/flows/playwright/output_signals.py:205`; W10-7 source
-  comment at `:117` updated to name both harness-marker and
-  file-backed paths. Single-branch policy override: W12-0 landed as
-  the first commit on `week12` (commit-level isolation in lieu of a
-  standalone pre-W12 PR), so the refactor commits that follow can
-  still be reverted independently. Surfaced 2026-05-07 audit pass.
+  `redact_secrets(_truncate(line))` applied to the file-backed
+  `read_output_channel_logs` path (current post-W12-1 path:
+  `executor/flows/playwright/signals/output.py`; landing path:
+  `output_signals.py`). W10-7 source comment updated to name both
+  harness-marker and file-backed paths. Single-branch policy override:
+  W12-0 landed as the first commit on `week12` (commit-level isolation
+  in lieu of a standalone pre-W12 PR), so the refactor commits that
+  follow can still be reverted independently. Surfaced 2026-05-07 audit
+  pass.
 - **W12-1** — landed `2026-05-07`. Executor subpackaging:
   `executor/flows/playwright/` 54 flat files → 7 new subpackages
   (`monitor/`, `stimulus/`, `workspace/`, `health/`, `entrypoint/`,
   plus `vscode/` and `signals/` to satisfy ≤10 flat) + existing
-  `attribution/` (W7) + 10 flat. Import-graph rule landed:
+  `attribution/`, `scenarios/`, and `runtime_capture/` packages + 10
+  flat. Import-graph rule landed:
   `monitor/` and `stimulus/` cannot import each other (gate
   `test_monitor_and_stimulus_subpackages_do_not_cross_import`).
   Lazy `__getattr__` in `monitor/__init__.py` breaks the
@@ -80,8 +83,9 @@ and that archive section.
   `[FOLLOWUP w12-attribution-naming-overlap]` (rename to
   `target_background_activation_count` /
   `competing_extension_event_count`),
-  `[FOLLOWUP coverage-summary-attempted-drift]` (assembler syncs
-  top-level `attempted_capabilities` from reconciled summary), and
+  `[FOLLOWUP coverage-summary-attempted-drift]` (assembler collapses
+  top-level `attempted_capabilities` to the runtime-derived view before
+  coverage reconcile), and
   `[FOLLOWUP activation-discovery-strategy-outcome-detail]` (P3 — field
   upgraded from `list[str]` to
   `activation_discovery_strategy_outcomes: dict[str, str]` with
@@ -94,7 +98,7 @@ and that archive section.
   `RawContext = Annotated[…, Field(discriminator="event_class")]`.
   New test file
   `tests/platform/contracts/test_raw_context_discriminated.py`.
-- **W12-4** — pending. `entrypoint_runner.main` dispatch extraction:
+- **W12-4** — pending. `entrypoint/runner.py::main` dispatch extraction:
   `main()` 324 LoC → ≤200 LoC; CLI parse → config → monitor invocation
   → page-reload callback wiring → UI blocker probe move to new
   `entrypoint/dispatch.py`. File total currently 494 LoC (`main()`
@@ -114,30 +118,33 @@ and that archive section.
   refactor)
 - W12-0 security pull-forward landed (✓ met `2026-05-07` —
   `[FOLLOWUP w8-6-output-signals-file-backed-redaction]` closed in
-  commit `22eb836` on `week12`; one-line fix at `output_signals.py:205`
-  plus four file-backed regressions and three harness-marker
-  end-to-end regressions in
+  commit `22eb836` on `week12`; file-backed output-signal redaction
+  fix now lives under `signals/output.py` after W12-1, plus four
+  file-backed regressions and three harness-marker end-to-end regressions in
   `tests/platform/security/test_output_signals_redaction.py`)
 - §11.9.1 plan addendum (✓ landed on `chore/pre-w12-prep`) defining
   the `runtime_capture/extension_host.py` split target
-- Working tree clean on `main` (TBD at W12-1 entry)
-- `make check-all` green (`1274` baseline at W11 close;
-  `make test-security` 190 cases)
+- Single W12 branch policy active on `week12` (commit-level isolation
+  for W12-0..W12-4; one PR at W12 close)
+- Entry baseline: `make check-all` green at W11 close (`1274`) and
+  `make test-security` 190 cases; latest W12-2 check bar is recorded
+  in `REFACTOR_STATUS.md`
 
 ## Exit Criteria
 
-- [ ] `executor/flows/playwright/` flat file count 54 → ≤10
-- [ ] 5-subpackage structure ({`monitor`, `stimulus`, `workspace`,
-      `health`, `entrypoint`}/) + `attribution/` (W7) isolated by
-      import-graph rule
-- [ ] `attribution/__init__.py::__all__` lists ~6-7 public names;
-      underscore-prefixed names internal-scoped
+- [x] `executor/flows/playwright/` flat file count 54 → ≤10
+- [x] 7 new subpackages ({`monitor`, `stimulus`, `workspace`, `health`,
+      `entrypoint`, `vscode`, `signals`}/) plus existing
+      `attribution/`, `scenarios/`, and `runtime_capture/`; import-graph
+      rules isolate the sensitive boundaries
+- [x] `attribution/__init__.py::__all__` lists 10 public names;
+      underscore-prefixed helpers are internal-scoped
 - [ ] `raw_context` typed discriminated union; `dict[str, Any]`
       residue = 0 in evidence models
-- [ ] `entrypoint_runner.py::main` 324 LoC → ≤200 LoC; dispatch logic
+- [ ] `entrypoint/runner.py::main` 324 LoC → ≤200 LoC; dispatch logic
       in `entrypoint/dispatch.py`
-- [ ] Import-graph test green (architecture gate); `make check-all`
-      green; `make test-security` green (190 cases preserved)
+- [ ] Import-graph gates green; full W12-close `make check-all` and
+      `make test-security` acceptance bar recorded
 - [ ] Live-scan validation: pre/post bitwise-equal detection-relevant
       fields on a target run (W11-1 / W11-3 / W11-4 pattern)
 
@@ -160,9 +167,9 @@ number.
   ahtapot pattern.
 - ~~`[FOLLOWUP coverage-summary-attempted-drift]`~~ — closed
   `2026-05-07` in commit `9ebc5b5` (assembler syncs top-level
-  `attempted_capabilities` and `heuristic_attempted_capabilities` from
-  the reconciled `coverage_summary` so the UI fallback chain resolves
-  to one value).
+  `attempted_capabilities` and `heuristic_attempted_capabilities` to the
+  runtime-derived `event_attempts` view before coverage reconcile so the
+  top-level report fields and `coverage_summary` resolve to one value).
 - ~~`[FOLLOWUP activation-discovery-strategy-outcome-detail]` (P3)~~ —
   closed `2026-05-07` in commit `0981e92`. Field upgraded from
   `activation_discovery_strategies: list[str]` to
@@ -171,8 +178,8 @@ number.
   / succeeded_no_new_activations / failed:<ExcClassName>).
 - ~~`[FOLLOWUP w8-6-output-signals-file-backed-redaction]`~~ —
   closed `2026-05-07` on `week12` in commit `22eb836` (W12-0
-  precursor). One-line fix at `output_signals.py:205` plus seven new
-  regression tests (4 file-backed, 3 harness-marker end-to-end) in
+  precursor). File-backed redaction fix plus seven new regression
+  tests (4 file-backed, 3 harness-marker end-to-end) in
   `tests/platform/security/test_output_signals_redaction.py`.
 - `[FOLLOWUP arch-gate-network-body-preview-redaction]`
   (`POST_POC_BACKLOG.md` Engineering Quality, **P2**) — optional
@@ -192,11 +199,14 @@ number.
   `console.log` no longer reaches `exthost.log`; VS Code persists
   the content directly to
   `<user-data>/logs/<session>/window<N>/exthost/output_logging_<ts>/<idx>-<channel>.log`).
-- **Fix.** Single-line change at
-  `executor/flows/playwright/output_signals.py:205`
+- **Fix.** Single-line change in the file-backed
+  `read_output_channel_logs` construction path
   (`text = _truncate(line)` → `text = redact_secrets(_truncate(line))`).
-  Source comment at `:117` rewritten to name both paths and call
-  out the W12-0 precedent so future readers see the symmetry rule.
+  Current post-W12-1 path:
+  `executor/flows/playwright/signals/output.py` (landing path was the
+  pre-move `executor/flows/playwright/output_signals.py`). Source
+  comment rewritten to name both paths and call out the W12-0 precedent
+  so future readers see the symmetry rule.
 - **Tests added.** Seven new regressions in
   `tests/platform/security/test_output_signals_redaction.py`:
   - File-backed (`read_output_channel_logs`) bearer / db_url / aws
@@ -219,7 +229,7 @@ number.
 ### W12-1 — Executor Subpackaging (landed `2026-05-07`)
 
 - **Scope.** `executor/flows/playwright/` 53 flat `.py` (54 with
-  `__init__.py`) → 8 subpackages + 10 flat. Subpackages
+  `__init__.py`) → 7 new subpackages + 10 flat. New subpackages
   (`monitor/`, `stimulus/`, `workspace/`, `health/`, `entrypoint/`,
   `vscode/`, `signals/`) plus existing `attribution/` (W7) and
   `scenarios/` (W7) and `runtime_capture/` (W7). Flat leftover
@@ -374,20 +384,21 @@ number.
   TS contract regen + UI adapter + view-model + 2 fixtures + 1 doc
   updated; backwards-compat: NONE.
 - **Coverage-summary drift (`9ebc5b5`).**
-  `ReportAssembler.refresh_derived_state` now syncs the top-level
+  `ReportAssembler.refresh_derived_state` now collapses the top-level
   `report.attempted_capabilities` and
-  `report.heuristic_attempted_capabilities` to the reconciled
-  `coverage_summary["attempted_capabilities"]` and
-  `coverage_tracks["heuristic"]["summary"]["attempted_capabilities"]`
-  at the end of the refresh, so the executor reconcile path is the
-  single source of truth and the UI fallback chain
+  `report.heuristic_attempted_capabilities` to
+  `runtime_official_attempted_capabilities` and
+  `runtime_heuristic_attempted_capabilities` immediately after
+  `event_attempts` reconciliation and before coverage reconcile, so
+  the runtime-derived attempt view is the single source of truth and
+  the UI fallback chain
   (`summary.attempted_capabilities` →
   `official_attempted_capabilities` →
-  `attempted_capabilities`) resolves to one value. Producers
-  upstream of refresh (payload extraction) still seed initial values
-  → those flow into `_reconcile_track`'s `attempted` set, and its
-  filtered output flows back to the top-level fields. New regression
-  `test_refresh_syncs_attempted_capabilities_to_reconciled_summary`
+  `attempted_capabilities`) resolves to one value. Producers upstream
+  of refresh (payload extraction) can still seed initial values, but
+  planned-and-not-attempted capabilities are dropped before reconcile.
+  New regression
+  `test_refresh_syncs_attempted_capabilities_to_runtime_derived`
   in `test_playwright_monitor_report_assembler.py`.
 - **P3 strategy outcome dict (`0981e92`).** Field rename:
   `activation_discovery_strategies: list[str]` →
@@ -423,6 +434,6 @@ number.
 
 (pending)
 
-### W12-4 — `entrypoint_runner.main` Dispatch Extraction
+### W12-4 — `entrypoint/runner.py::main` Dispatch Extraction
 
 (pending)

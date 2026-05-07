@@ -15,7 +15,7 @@ Marketplace workflow drives the executor in this order:
 2. install the target `.vsix`
 3. build a trigger payload unless analysis resolves to scenario-zero
    `skip_automation`
-4. run `entrypoint.py --monitor`
+4. run `python -m executor.flows.playwright.entrypoint --monitor`
 5. export the report and update async job state
 
 Async job steps persisted through `workflows.marketplace.job_service`
@@ -55,11 +55,12 @@ The executor deletes the trigger JSON after loading it.
 
 ## Playwright Module Responsibilities
 
-W12-1 (landed 2026-05-07, commit `b4bd3ee`) reshaped the flat 53-file
-tree into 7 subpackages plus the existing `attribution/`, leaving 10
-flat modules at the top. The descriptions below use the post-W12-1
-layout. The `monitor/` and `entrypoint/` package facades expose the
-same names that the old `monitor.py` / `entrypoint.py` modules did, so
+W12-1 (landed 2026-05-07, commit `b4bd3ee` plus follow-ups) reshaped the
+flat 53-file tree into 7 new subpackages plus the existing
+`attribution/`, `scenarios/`, and `runtime_capture/` packages, leaving
+10 flat modules at the top. The descriptions below use the post-W12-2
+layout. The `monitor/` and `entrypoint/` package facades expose the same
+names that the old `monitor.py` / `entrypoint.py` modules did, so
 external import paths stay stable.
 
 ### Entrypoint (`entrypoint/`)
@@ -92,8 +93,8 @@ external import paths stay stable.
 - `monitor/__init__.py` — facade over the split monitor helpers and
   the `attribution/` subpackage. Owns activation/file/network/log
   collection plus canonical report assembly. Uses a PEP 562
-  `__getattr__` to lazily proxy 18 names from `attribution`,
-  `monitor.lifecycle`, `monitor.types` and break the
+  `__getattr__` to lazily proxy the W12-2 public attribution surface
+  plus selected `monitor.lifecycle` / `monitor.types` names and break the
   `attribution → monitor.records → monitor/__init__ → attribution`
   cycle.
 - `monitor/lifecycle.py`, `monitor/payload.py`, `monitor/records.py`,
@@ -116,13 +117,13 @@ external import paths stay stable.
     `_build_duplicate_file_links`, `_build_noise_links`,
     `_nearest_activation`, `_temporal_confidence`,
     `_dedupe_evidence_links`).
-  - `__init__.py` — flat re-export facade preserving the 29-name
-    underscore-prefixed API + signal-layer shims (`_indexed_target_*`,
-    `_build_risk_signals`, `_build_risk_summary`,
-    `_build_signal_summary`); the `RiskSignal` import lives inside
-    `_build_risk_signals` (lazy) so attribution stays free of a
-    top-level `from ..monitor.records import RiskSignal` (W12-1
-    cycle-break invariant — gated by
+  - `__init__.py` — W12-2 public facade with 10 names
+    (`annotate_*`, `build_*`, timestamp helpers); internal annotation
+    and evidence-link helpers stay private in `events.py` / `links.py`.
+    The `RiskSignal` import lives inside `build_risk_signals` (lazy)
+    so attribution stays free of a top-level
+    `from ..monitor.records import RiskSignal` (W12-1 cycle-break
+    invariant — gated by
     `tests/architecture/test_import_graph.py::test_attribution_does_not_eagerly_import_monitor`).
     `monitor/support.py` keeps a single allow-listed dual-import
     pattern for the top-level executor mode (`playwright/` on

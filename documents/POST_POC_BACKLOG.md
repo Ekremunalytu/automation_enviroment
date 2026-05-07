@@ -55,10 +55,11 @@ Use stable IDs in new references; do not cite canonical doc line numbers.
   `runtime_capture/extension_host.py` ahtapot split.
 - ~~**`[FOLLOWUP coverage-summary-attempted-drift]`**~~ — closed
   `2026-05-07` in commit `9ebc5b5` (W12-2 Commit 3). The assembler
-  syncs top-level `attempted_capabilities` and
-  `heuristic_attempted_capabilities` to the reconciled
-  `coverage_summary["attempted_capabilities"]` so the UI fallback chain
-  resolves to one value.
+  collapses planner-seeded `attempted_capabilities` and
+  `heuristic_attempted_capabilities` to the runtime-derived
+  `event_attempts` view before coverage reconcile, so top-level report
+  fields and `coverage_summary["attempted_capabilities"]` resolve to
+  one value.
 - ~~**`[FOLLOWUP activation-discovery-strategy-outcome-detail]`**~~ —
   closed `2026-05-07` in commit `0981e92` (W12-2 Commit 4, P3). Field
   upgraded from `activation_discovery_strategies: list[str]` to

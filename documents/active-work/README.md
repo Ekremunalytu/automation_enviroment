@@ -23,9 +23,9 @@ points to it.
   - **Active phase.** W12 executor subpackaging +
     attribution cleanup (W12-1..W12-4), slim canonical
     `REFACTOR_OPTIMIZATION.md §11.9` (+ §11.9.1 split scoping for
-    `runtime_capture/extension_host.py`). W12-0 security pull-forward
-    `[FOLLOWUP w8-6-output-signals-file-backed-redaction]` must land
-    before W12-1 starts; attribution precursor tests already landed.
+    `runtime_capture/extension_host.py`). W12-0 security pull-forward,
+    W12-1 executor subpackaging, and W12-2 attribution cleanup have
+    landed; W12-3 is the next unblocked tracker item.
 - `W11-monitor-lifecycle.md`
   - **Past phase.** W11 monitor lifecycle split (W11-1..W11-8) closed
     `2026-05-05`, formerly `REFACTOR_OPTIMIZATION.md §11.8`. Retained
