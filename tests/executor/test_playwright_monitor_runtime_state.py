@@ -2,7 +2,7 @@
 
 These tests pin the runtime state machine extracted from
 ``ExtensionMonitor`` in W11-1. They import at the real module path
-(``executor.flows.playwright.monitor_runtime_state``) rather than
+(``executor.flows.playwright.monitor.runtime_state``) rather than
 through the ``monitor`` facade so that the W12 directory reshuffle
 cannot silently regress this surface.
 
@@ -19,8 +19,8 @@ from typing import Any
 from playwright.sync_api import Error as PlaywrightError
 
 from executor.flows.playwright import monitor
-from executor.flows.playwright.monitor_runtime_state import MonitorRuntime
-from executor.flows.playwright.monitor_types import ActivationReport
+from executor.flows.playwright.monitor.runtime_state import MonitorRuntime
+from executor.flows.playwright.monitor.types import ActivationReport
 
 
 class _DummyPage:
@@ -960,15 +960,15 @@ def test_stop_exthost_output_parse_swallows_oserror_returns_none(monkeypatch) ->
 
 def test_module_path_pins_monitor_runtime_state() -> None:
     """W11-6: ``MonitorRuntime`` lives at
-    ``executor.flows.playwright.monitor_runtime_state``. Pinning this
+    ``executor.flows.playwright.monitor.runtime_state``. Pinning this
     here means the W12 executor subpackaging cannot silently move the
     class out from under the per-strategy helpers without breaking this
     test."""
 
-    from executor.flows.playwright import monitor_runtime_state
+    from executor.flows.playwright.monitor import runtime_state as monitor_runtime_state
 
     assert (
-        MonitorRuntime.__module__ == "executor.flows.playwright.monitor_runtime_state"
+        MonitorRuntime.__module__ == "executor.flows.playwright.monitor.runtime_state"
     )
     assert monitor_runtime_state.MonitorRuntime is MonitorRuntime
     # Helper methods must remain attributes of the class — not free

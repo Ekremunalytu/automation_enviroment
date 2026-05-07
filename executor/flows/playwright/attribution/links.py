@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from ..monitor_records import (
+from ..monitor.records import (
     EvidenceEvent,
     EvidenceLink,
     LogStreamEntry,
@@ -26,7 +26,7 @@ from .events import (
 )
 
 if TYPE_CHECKING:
-    from ..monitor_types import ActivationReport
+    from ..monitor.types import ActivationReport
 
 
 def _build_evidence_bundle(

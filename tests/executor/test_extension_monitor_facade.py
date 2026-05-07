@@ -34,11 +34,11 @@ from __future__ import annotations
 
 from typing import Any, ClassVar
 
-from executor.flows.playwright.monitor_lifecycle import ExtensionMonitor
-from executor.flows.playwright.monitor_report_assembler import ReportAssembler
-from executor.flows.playwright.monitor_runtime_state import MonitorRuntime
-from executor.flows.playwright.monitor_scenario_accountant import ScenarioAccountant
-from executor.flows.playwright.monitor_types import ActivationReport
+from executor.flows.playwright.monitor.lifecycle import ExtensionMonitor
+from executor.flows.playwright.monitor.report_assembler import ReportAssembler
+from executor.flows.playwright.monitor.runtime_state import MonitorRuntime
+from executor.flows.playwright.monitor.scenario_accountant import ScenarioAccountant
+from executor.flows.playwright.monitor.types import ActivationReport
 
 
 class _DummyPage:

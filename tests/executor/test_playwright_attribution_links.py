@@ -18,12 +18,12 @@ from __future__ import annotations
 from datetime import datetime
 
 from executor.flows.playwright.attribution import links
-from executor.flows.playwright.monitor_records import (
+from executor.flows.playwright.monitor.records import (
     EvidenceLink,
     LogStreamEntry,
     ScenarioTrace,
 )
-from executor.flows.playwright.monitor_types import ActivationReport
+from executor.flows.playwright.monitor.types import ActivationReport
 from executor.flows.playwright.runtime_capture.events import (
     ActivationEntry,
     FileEvent,

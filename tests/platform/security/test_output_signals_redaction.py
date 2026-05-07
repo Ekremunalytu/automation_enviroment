@@ -47,7 +47,7 @@ def test_output_signals_redaction_chain_strips_bearer_token() -> None:
     """Mirror the OutputSignalEvent.text construction at
     output_signals.py:115 — _truncate then redact_secrets — and assert
     the bearer token disappears."""
-    from executor.flows.playwright.output_signals import (
+    from executor.flows.playwright.signals.output import (
         _truncate,  # type: ignore[attr-defined]
     )
 
@@ -145,7 +145,7 @@ def test_parse_output_signal_events_redacts_db_url_in_payload_text() -> None:
     """End-to-end harness-marker path: a target extension that prints a
     Postgres URL via ``console.log`` produces an OutputSignalEvent whose
     ``text`` strips the credential portion before the report is built."""
-    from executor.flows.playwright.output_signals import parse_output_signal_events
+    from executor.flows.playwright.signals.output import parse_output_signal_events
 
     raw = f"connect failed url={_DB_URL_SAMPLE} retries=3"
     events = parse_output_signal_events(_harness_appendline_marker(raw))
@@ -159,7 +159,7 @@ def test_parse_output_signal_events_redacts_db_url_in_payload_text() -> None:
 def test_parse_output_signal_events_redacts_aws_key_in_payload_text() -> None:
     """End-to-end harness-marker path: AWS access keys leaking through
     ``console.log`` are redacted before the OutputSignalEvent is constructed."""
-    from executor.flows.playwright.output_signals import parse_output_signal_events
+    from executor.flows.playwright.signals.output import parse_output_signal_events
 
     raw = f"executor blew up because {_AWS_SAMPLE} expired"
     events = parse_output_signal_events(_harness_appendline_marker(raw))
@@ -173,7 +173,7 @@ def test_parse_output_signal_events_redacts_aws_key_in_payload_text() -> None:
 def test_parse_output_signal_events_benign_payload_unchanged() -> None:
     """W10-7 round-trip on the harness-marker entry: payloads without any
     tracked secret pattern survive the redact filter byte-for-byte."""
-    from executor.flows.playwright.output_signals import parse_output_signal_events
+    from executor.flows.playwright.signals.output import parse_output_signal_events
 
     benign = "indexed 1234 symbols"
     events = parse_output_signal_events(_harness_appendline_marker(benign))
@@ -206,7 +206,7 @@ def test_read_output_channel_logs_redacts_bearer_token(tmp_path: Path) -> None:
     primary post-W8-0 source. ``read_output_channel_logs`` must apply
     ``redact_secrets`` at construction so OAuth tokens emitted by the
     target extension never reach the persisted ActivationReport."""
-    from executor.flows.playwright.output_signals import read_output_channel_logs
+    from executor.flows.playwright.signals.output import read_output_channel_logs
 
     _write_output_channel_log(
         tmp_path,
@@ -227,7 +227,7 @@ def test_read_output_channel_logs_redacts_bearer_token(tmp_path: Path) -> None:
 def test_read_output_channel_logs_redacts_db_url(tmp_path: Path) -> None:
     """W12-0 regression: connection strings emitted via console.log →
     Output channel file are scrubbed before reaching ``OutputSignalEvent.text``."""
-    from executor.flows.playwright.output_signals import read_output_channel_logs
+    from executor.flows.playwright.signals.output import read_output_channel_logs
 
     _write_output_channel_log(
         tmp_path,
@@ -252,7 +252,7 @@ def test_read_output_channel_logs_redacts_aws_key_in_json_payload(
     lines (the harness emits diagnostic appendLines as JSON). Redaction
     must run on the full line text post-JSON parse so AWS access keys
     embedded in stringified diagnostics never persist."""
-    from executor.flows.playwright.output_signals import read_output_channel_logs
+    from executor.flows.playwright.signals.output import read_output_channel_logs
 
     json_payload = (
         '{"phase":"activate_enter","ts":1700000001000,'
@@ -278,7 +278,7 @@ def test_read_output_channel_logs_benign_line_unchanged(tmp_path: Path) -> None:
     """W12-0 round-trip: the file-backed redaction layer must not
     introduce semantic drift on non-secret payloads — diagnostic lines
     without any tracked pattern survive byte-for-byte."""
-    from executor.flows.playwright.output_signals import read_output_channel_logs
+    from executor.flows.playwright.signals.output import read_output_channel_logs
 
     benign = "indexed 1234 symbols"
     _write_output_channel_log(

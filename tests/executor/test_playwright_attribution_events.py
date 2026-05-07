@@ -17,7 +17,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from executor.flows.playwright.attribution import events as attribution_events
-from executor.flows.playwright.monitor_records import ScenarioTrace
+from executor.flows.playwright.monitor.records import ScenarioTrace
 from executor.flows.playwright.runtime_capture.events import (
     ActivationEntry,
     FileEvent,

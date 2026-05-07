@@ -2,7 +2,7 @@
 
 These tests pin the report-assembly collaborator extracted from
 ``ExtensionMonitor`` in W11-2. They import at the real module path
-(``executor.flows.playwright.monitor_report_assembler``) rather than
+(``executor.flows.playwright.monitor.report_assembler``) rather than
 through the ``monitor`` facade so that the W12 directory reshuffle
 cannot silently regress this surface.
 
@@ -24,10 +24,12 @@ from typing import Any
 
 import pytest
 
-from executor.flows.playwright import monitor_report_assembler
-from executor.flows.playwright.monitor_report_assembler import ReportAssembler
-from executor.flows.playwright.monitor_records import ScenarioTrace
-from executor.flows.playwright.monitor_types import ActivationReport
+from executor.flows.playwright.monitor import (
+    report_assembler as monitor_report_assembler,
+)
+from executor.flows.playwright.monitor.report_assembler import ReportAssembler
+from executor.flows.playwright.monitor.records import ScenarioTrace
+from executor.flows.playwright.monitor.types import ActivationReport
 
 
 # ---------------------------------------------------------------------------

@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from ..monitor_records import ScenarioTrace
+from ..monitor.records import ScenarioTrace
 from ..runtime_capture._shared import _parse_iso_timestamp
 from ..runtime_capture.events import (
     ActivationEntry,

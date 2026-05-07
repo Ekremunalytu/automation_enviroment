@@ -1,6 +1,6 @@
 # W12 — Executor Subpackaging + Attribution Cleanup (Active Work Tracker)
 
-`Last Updated: 2026-05-07 (W12 active; W12-0 landed; W12-1 unblocked)`
+`Last Updated: 2026-05-07 (W12 active; W12-0 + W12-1 landed; W12-2 unblocked)`
 
 This is the canonical active work tracker for the W12 executor
 subpackaging + attribution cleanup window. Items have stable IDs
@@ -41,12 +41,23 @@ and that archive section.
   the first commit on `week12` (commit-level isolation in lieu of a
   standalone pre-W12 PR), so the refactor commits that follow can
   still be reverted independently. Surfaced 2026-05-07 audit pass.
-- **W12-1** — pending. Executor subpackaging:
-  `executor/flows/playwright/` 54 flat files → 5 subpackage
-  ({`monitor/`, `stimulus/`, `workspace/`, `health/`, `entrypoint/`})
-  - `attribution/` (W7) + remaining flat ≤10. Import-graph rule:
-  `monitor/` and `stimulus/` cannot import each other; cross-talk only
-  via shared helpers. Architecture gate test added per W11-7 pattern.
+- **W12-1** — landed `2026-05-07`. Executor subpackaging:
+  `executor/flows/playwright/` 54 flat files → 7 new subpackages
+  (`monitor/`, `stimulus/`, `workspace/`, `health/`, `entrypoint/`,
+  plus `vscode/` and `signals/` to satisfy ≤10 flat) + existing
+  `attribution/` (W7) + 10 flat. Import-graph rule landed:
+  `monitor/` and `stimulus/` cannot import each other (gate
+  `test_monitor_and_stimulus_subpackages_do_not_cross_import`).
+  Lazy `__getattr__` in `monitor/__init__.py` breaks the
+  attribution↔monitor cycle introduced by `monitor.records`
+  becoming a subpackage member; gate
+  `test_monitor_facade_does_not_eagerly_import_attribution`
+  prevents regression. `__main__.py` shim added at
+  `entrypoint/__main__.py` so `python -m
+  executor.flows.playwright.entrypoint` keeps working. Live-scan
+  deferred to W12 close (Iteration 6) — Docker container not
+  available locally; entrypoint module verified runnable via
+  `--list`. See "Detailed Item Notes" below.
 - **W12-2** — pending. Attribution facade underscore cleanup:
   `executor/flows/playwright/attribution/__init__.py` 29 underscore
   re-exports → ~6-7 public names + remaining stay private. Caller
@@ -178,9 +189,91 @@ number.
   required the latter). Commit-level isolation preserves the
   cherry-pick / revert ergonomics the standalone-PR rule was after.
 
-### W12-1 — Executor Subpackaging
+### W12-1 — Executor Subpackaging (landed `2026-05-07`)
 
-(pending)
+- **Scope.** `executor/flows/playwright/` 53 flat `.py` (54 with
+  `__init__.py`) → 8 subpackages + 10 flat. Subpackages
+  (`monitor/`, `stimulus/`, `workspace/`, `health/`, `entrypoint/`,
+  `vscode/`, `signals/`) plus existing `attribution/` (W7) and
+  `scenarios/` (W7) and `runtime_capture/` (W7). Flat leftover
+  exactly at the ≤10 budget: `__init__.py`, `annotation.py`,
+  `automation.py`, `capture.py`, `reload_vscode.py`,
+  `report_builder.py`, `reset_state.py`, `triggers.py`,
+  `uri_validation.py`, `wait_helpers.py`. Two extra subpackages
+  (`vscode/`, `signals/`) beyond the plan's 5 named were required to
+  satisfy Exit Criteria #1 (≤10 flat) — the named 5 alone would have
+  left ~22 flat siblings. `vscode/` collects the VS Code UI surface
+  (panel, sidebar, editor, keyboard, terminal, commands, settings,
+  debug) plus the CDP connection module; `signals/` collects the
+  signal facade + facts + output redaction. `reload_vscode` and
+  `reset_state` stay flat because `appcore/api/config.py` and
+  `executor/config.py` resolve them as runtime subprocess module
+  paths (changing those config strings would broaden the blast
+  radius unnecessarily).
+- **44 file relocations** via `git mv` preserving rename history
+  (e.g. `monitor_lifecycle.py` → `monitor/lifecycle.py`,
+  `signal_facts.py` → `signals/facts.py`, etc).
+- **Import rewrite.** A scoped Python rewriter (kept in
+  `/tmp/w12_1_rename_imports.py` during the refactor; not committed)
+  walked the whole repo (1852 files scanned) and rewrote three
+  forms: absolute `executor.flows.playwright.OLD` →
+  `executor.flows.playwright.NEW`, relative `from .OLD import` /
+  `from .. OLD import` (location-aware), and aggregator
+  `from . import (...)` / `from executor.flows.playwright import
+  (...)` blocks (splitting renamed names into per-subpackage import
+  lines, preserving local names with `as` aliases where needed).
+  ~63 source files plus ~12 test files updated.
+- **Circular import resolved (W12-1 design pin).** The W7 attribution
+  subpackage and the new monitor subpackage form a bidirectional
+  module-load dep: `attribution.events` / `attribution.links` import
+  `ScenarioTrace` / `EvidenceEvent` / `EvidenceLink` /
+  `RiskSignal` from `..monitor.records`, and `monitor/__init__.py`
+  re-exports the historical `_annotate_*` / `_build_*` /
+  `_format_epoch_timestamp` surface from `..attribution`. Pre-W12-1
+  this was masked because `monitor_records.py` was a flat module —
+  loading it did not trigger a `monitor` package init. After W12-1,
+  `monitor.records` is a submodule of the `monitor/` package, so any
+  load of `monitor.records` runs `monitor/__init__.py` first, which
+  re-enters the partially-loaded `attribution` and raises
+  `ImportError`. **Fix:** PEP 562 `__getattr__` proxy in
+  `monitor/__init__.py` for the attribution surface (15 names) and
+  for `.lifecycle` / `.types` (which themselves eagerly import from
+  `..attribution`). Plus a lazy `from ..monitor.records import
+  RiskSignal` inside `attribution/__init__.py::_build_risk_signals`
+  (the only true runtime use; the rest are TYPE_CHECKING-only since
+  `from __future__ import annotations` makes annotations strings).
+  All callers see the historical flat re-export shape; the cycle is
+  broken.
+- **Architecture gates added.** Two new tests in
+  `tests/architecture/test_import_graph.py`:
+  - `test_monitor_facade_does_not_eagerly_import_attribution` —
+    AST gate that fails if monitor's `__init__.py` re-introduces a
+    top-level `from ..attribution import ...` (would re-create the
+    cycle).
+  - `test_monitor_and_stimulus_subpackages_do_not_cross_import` —
+    enforces the W12-1 topology line: monitor/ and stimulus/ may
+    not directly reference each other; share via flat parent
+    helpers.
+- **Allow-list paths updated.** `_DUAL_IMPORT_ALLOW_LIST` updated
+  from `monitor_support.py` to `monitor/support.py`.
+  `test_executor_imports_signals_from_packages` repointed at
+  `signals/__init__.py`.
+- **`__main__.py` shim** added at `entrypoint/__main__.py` so
+  `python -m executor.flows.playwright.entrypoint` continues to
+  invoke `main()` (Python's `-m` package semantics require a
+  `__main__.py`; the flat `entrypoint.py`'s `if __name__ ==
+  "__main__"` guard no longer fires once it became
+  `entrypoint/__init__.py`).
+- **Tests.** `make check-all` 1345 passed / 6 skipped / 6 deselected
+  (was 1342 baseline at W12-0; +3 from the two new architecture
+  gates and one rewriter scaffolding update). `make test-security`
+  197 passed (unchanged). New 12-test architecture suite all green.
+- **Live-scan.** Deferred to W12 close (Iteration 6) verification —
+  Docker `automation_executor` container not running locally during
+  W12-1 implementation. Sanity-checked instead by invoking
+  `python -m executor.flows.playwright.entrypoint --list` which
+  enumerates 13 scenarios end-to-end (proves package import +
+  scenarios registry resolution survive the relocations).
 
 ### W12-2 — Attribution Facade Underscore Cleanup
 

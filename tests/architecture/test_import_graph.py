@@ -99,7 +99,7 @@ def test_workflows_use_only_executor_control_boundary() -> None:
 
 
 _DUAL_IMPORT_ALLOW_LIST = {
-    "executor/flows/playwright/monitor_support.py",
+    "executor/flows/playwright/monitor/support.py",
 }
 
 _RUNTIME_ROOTS = ("appcore", "executor", "packages", "workflows")
@@ -171,11 +171,11 @@ def test_no_sys_path_manipulation_in_runtime() -> None:
 
 
 def test_executor_imports_signals_from_packages() -> None:
-    facade = REPO_ROOT / "executor/flows/playwright/signals.py"
+    facade = REPO_ROOT / "executor/flows/playwright/signals/__init__.py"
     references = _import_references(facade)
     flat = [ref for _, ref in references if ref.startswith("signal_policy")]
     assert not flat, (
-        "executor/flows/playwright/signals.py still references flat "
+        "executor/flows/playwright/signals/__init__.py still references flat "
         f"signal_policy: {flat}"
     )
     package_refs = [
@@ -184,7 +184,7 @@ def test_executor_imports_signals_from_packages() -> None:
         if ref.startswith("packages.analysis_engine.signals.policy")
     ]
     assert package_refs, (
-        "executor/flows/playwright/signals.py must import from "
+        "executor/flows/playwright/signals/__init__.py must import from "
         "packages.analysis_engine.signals.policy (W9-2 contract)."
     )
 
@@ -352,3 +352,83 @@ def test_analysis_jobs_facade_reexports_match_canonical_modules() -> None:
             f"analysis_jobs.{name} must be the same object as "
             f"lifecycle.{name} (W11-8 re-export invariant)."
         )
+
+
+def test_monitor_facade_does_not_eagerly_import_attribution() -> None:
+    """W12-1: ``monitor/__init__.py`` must defer attribution imports.
+
+    The attribution subpackage transitively imports ``monitor.records``,
+    which (after W12-1 subpackaging) triggers ``monitor/__init__.py`` to
+    load. Eager ``from ..attribution import _annotate_*`` etc. inside the
+    monitor facade re-introduces the import cycle and the partial-module
+    AttributeError it produces. The PEP 562 ``__getattr__`` at the bottom
+    of ``monitor/__init__.py`` proxies the attribution surface lazily so
+    callers still see ``monitor._annotate_file_events`` via the historical
+    flat re-export shape. This gate fails fast if a future PR replaces
+    the lazy proxy with a top-level import — the right answer is to
+    extend ``_LAZY_ATTRIBUTION_NAMES`` and keep ``__getattr__``.
+    """
+    facade = REPO_ROOT / "executor/flows/playwright/monitor/__init__.py"
+    tree = ast.parse(facade.read_text(encoding="utf-8"))
+
+    violations: list[str] = []
+    for node in tree.body:
+        if not isinstance(node, ast.ImportFrom):
+            continue
+        # Detect `from ..attribution import ...` (level==2, module=="attribution").
+        if node.level == 2 and node.module == "attribution":
+            violations.append(f"line {node.lineno}: from ..attribution import ...")
+
+    assert not violations, (
+        "monitor/__init__.py imports attribution eagerly — this re-creates "
+        "the W12-1 attribution↔monitor cycle. Move the imports into the "
+        "_LAZY_ATTRIBUTION_NAMES tuple + __getattr__ proxy at the bottom "
+        "of the module:\n" + "\n".join(violations)
+    )
+
+
+def test_monitor_and_stimulus_subpackages_do_not_cross_import() -> None:
+    """W12-1: ``monitor/`` and ``stimulus/`` must not import from each other.
+
+    The W12-1 subpackaging draws an explicit topology line: monitor
+    observes runtime state, stimulus drives interactions; they share
+    only via flat helpers (``automation``, ``triggers``, ...) at the
+    parent level. A direct ``from ..stimulus import X`` inside
+    ``monitor/`` (or vice versa) collapses that boundary and lets
+    runtime-driver logic leak into the observer surface (or vice
+    versa). This gate fails any PR that introduces such an import.
+    """
+    pairs = (
+        ("executor/flows/playwright/monitor", "stimulus"),
+        ("executor/flows/playwright/stimulus", "monitor"),
+    )
+    violations: list[str] = []
+    for subpkg_dir, banned in pairs:
+        for module_path in _iter_python_files(subpkg_dir):
+            tree = ast.parse(module_path.read_text(encoding="utf-8"))
+            for node in ast.walk(tree):
+                if not isinstance(node, ast.ImportFrom):
+                    continue
+                if node.level == 2 and node.module == banned:
+                    violations.append(
+                        f"{_module_label(module_path)}:{node.lineno} "
+                        f"imports from ..{banned}"
+                    )
+                # Also detect `from ..banned.sub import ...` forms.
+                if (
+                    node.level == 2
+                    and node.module is not None
+                    and node.module.split(".", 1)[0] == banned
+                ):
+                    violations.append(
+                        f"{_module_label(module_path)}:{node.lineno} "
+                        f"imports from ..{node.module}"
+                    )
+
+    # De-duplicate (a single ImportFrom can match both branches above).
+    deduped = sorted(set(violations))
+    assert not deduped, (
+        "monitor/ and stimulus/ subpackages must not import each other "
+        "(W12-1 topology). Share via flat parent helpers instead:\n"
+        + "\n".join(deduped)
+    )

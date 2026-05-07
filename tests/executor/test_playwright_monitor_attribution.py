@@ -1041,7 +1041,7 @@ def test_attempt_has_runtime_evidence_accepts_lifecycle_observation_states() -> 
     as if no stimulus had reached it.
     """
 
-    from executor.flows.playwright import health_runtime_facts
+    from executor.flows.playwright.health import runtime_facts as health_runtime_facts
 
     for status in ("activation_seen", "target_log_seen", "attempted_only", "verified"):
         attempt = monitor.EventAttemptRecord(

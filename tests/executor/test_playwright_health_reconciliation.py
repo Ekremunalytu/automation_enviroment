@@ -22,12 +22,12 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from executor.flows.playwright.health_reconciliation import (
+from executor.flows.playwright.health.reconciliation import (
     reconcile_coverage_verification,
     reconcile_event_attempts,
 )
-from executor.flows.playwright.monitor_records import EventAttemptRecord, LogStreamEntry
-from executor.flows.playwright.monitor_types import ActivationReport
+from executor.flows.playwright.monitor.records import EventAttemptRecord, LogStreamEntry
+from executor.flows.playwright.monitor.types import ActivationReport
 from executor.flows.playwright.runtime_capture.events import (
     ActivationEntry,
     OutputSignalEvent,

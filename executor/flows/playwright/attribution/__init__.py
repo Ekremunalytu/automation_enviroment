@@ -13,14 +13,13 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from ..monitor_records import RiskSignal
-from ..signal_facts import (
+from ..signals import build_risk_signals, build_risk_summary, build_signal_summary
+from ..signals.facts import (
     indexed_target_activations,
     indexed_target_file_events,
     indexed_target_network_events,
     indexed_ui_blockers,
 )
-from ..signals import build_risk_signals, build_risk_summary, build_signal_summary
 from .events import (
     _actor_from_file_source,
     _actor_from_network_event,
@@ -49,8 +48,8 @@ from .links import (
 )
 
 if TYPE_CHECKING:
-    from ..monitor_records import LogStreamEntry
-    from ..monitor_types import ActivationReport
+    from ..monitor.records import LogStreamEntry, RiskSignal
+    from ..monitor.types import ActivationReport
     from ..runtime_capture.events import ActivationEntry, FileEvent, NetworkEvent
 
 
@@ -79,6 +78,11 @@ def _indexed_ui_blockers(
 
 
 def _build_risk_signals(report: ActivationReport) -> list[RiskSignal]:
+    # Lazy import to break the attribution↔monitor facade cycle introduced by
+    # W12-1 subpackaging (attribution loads first; monitor.records lives under
+    # monitor/__init__.py which transitively re-imports attribution).
+    from ..monitor.records import RiskSignal
+
     return build_risk_signals(report, RiskSignal)
 
 

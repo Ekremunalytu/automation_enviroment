@@ -19,14 +19,10 @@ from typing import Any
 
 import pytest
 
-from executor.flows.playwright import (
-    entrypoint_triggers,
-    stimulus_attempts,
-    uri_validation,
-)
+from executor.flows.playwright import uri_validation
+from executor.flows.playwright.entrypoint import triggers as entrypoint_triggers
+from executor.flows.playwright.stimulus import attempts as stimulus_attempts
 from executor.flows.playwright import triggers as trigger_loader
-
-
 # ---------------------------------------------------------------------------
 # validate_uri_scheme
 # ---------------------------------------------------------------------------
