@@ -73,7 +73,7 @@ def build_attribution_summary(
         "strong_target_file_event_count": len(strong_target_file_events(report)),
         "strong_target_network_event_count": len(strong_target_network_events(report)),
         "correlated_only_event_count": len(correlated_only),
-        "background_activation_count": len(background_activations),
-        "competing_candidate_count": len(competing_candidates),
+        "target_background_activation_count": len(background_activations),
+        "competing_extension_event_count": len(competing_candidates),
         "ui_blocker_count": len(getattr(report, "ui_blocker_entries", [])),
     }

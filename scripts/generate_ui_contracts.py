@@ -141,8 +141,8 @@ export interface AttributionSummaryDto {
   strong_target_file_event_count?: number;
   strong_target_network_event_count?: number;
   correlated_only_event_count?: number;
-  background_activation_count?: number;
-  competing_candidate_count?: number;
+  target_background_activation_count?: number;
+  competing_extension_event_count?: number;
   ui_blocker_count?: number;
 }
 

@@ -132,7 +132,7 @@ describe("SimulationPage", () => {
           strong_target_file_event_count: 0,
           strong_target_network_event_count: 0,
           correlated_only_event_count: 1,
-          background_activation_count: 1,
+          target_background_activation_count: 1,
           ui_blocker_count: 0,
         },
         risk_signals: [

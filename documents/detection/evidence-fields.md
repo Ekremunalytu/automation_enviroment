@@ -146,6 +146,13 @@ because the workspace could not be prepared correctly.
 Aggregate ownership for the run. Fields: `target_activation_count`,
 `strong_target_file_event_count`,
 `strong_target_network_event_count`, `correlated_only_event_count`,
-`background_activation_count`, `competing_candidate_count`,
-`ui_blocker_count`. Tells you whether the report rests on strong
-target ownership or mostly timing correlation.
+`target_background_activation_count` (target extension activations
+classified as background — non-foreground triggers like onStartup),
+`competing_extension_event_count` (file/network events that activated
+competing extensions in the same window, not the target),
+`ui_blocker_count`. The split between the two non-target counters tells
+you whether the report rests on strong target ownership or mostly
+timing correlation. W12-2 renamed `background_activation_count` →
+`target_background_activation_count` and `competing_candidate_count`
+→ `competing_extension_event_count` so operators can tell the two
+populations apart at a glance.

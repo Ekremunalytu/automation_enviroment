@@ -48,8 +48,8 @@
     "strong_target_file_event_count": 0,
     "strong_target_network_event_count": 0,
     "correlated_only_event_count": 500,
-    "background_activation_count": 0,
-    "competing_candidate_count": 498,
+    "target_background_activation_count": 0,
+    "competing_extension_event_count": 498,
     "ui_blocker_count": 0
   },
   "risk_signals": [],
@@ -223,8 +223,8 @@
       "strong_target_file_event_count": 0,
       "strong_target_network_event_count": 0,
       "correlated_only_event_count": 500,
-      "background_activation_count": 0,
-      "competing_candidate_count": 498,
+      "target_background_activation_count": 0,
+      "competing_extension_event_count": 498,
       "ui_blocker_count": 0
     },
     "risk_summary": {

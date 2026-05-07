@@ -537,8 +537,12 @@ function buildAttributionSummary(
     strongTargetFileEventCount: Number(summary?.strong_target_file_event_count ?? 0),
     strongTargetNetworkEventCount: Number(summary?.strong_target_network_event_count ?? 0),
     correlatedOnlyEventCount: Number(summary?.correlated_only_event_count ?? 0),
-    backgroundActivationCount: Number(summary?.background_activation_count ?? 0),
-    competingCandidateCount: Number(summary?.competing_candidate_count ?? 0),
+    targetBackgroundActivationCount: Number(
+      summary?.target_background_activation_count ?? 0,
+    ),
+    competingExtensionEventCount: Number(
+      summary?.competing_extension_event_count ?? 0,
+    ),
     uiBlockerCount: Number(summary?.ui_blocker_count ?? 0),
   };
 }
