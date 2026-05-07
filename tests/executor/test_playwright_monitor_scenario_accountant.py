@@ -204,10 +204,21 @@ def test_record_execution_result_pulls_all_four_lists() -> None:
     accountant.record_execution_result(result)
 
     assert report.requested_scenarios == ["s1", "s2"]
-    # Only the (name, reason_code)-complete skip survives the filter.
-    assert len(report.skipped_scenarios) == 1
-    assert isinstance(report.skipped_scenarios[0], SkippedScenarioRecord)
-    assert report.skipped_scenarios[0].name == "s3"
+    # The (name, reason_code)-complete skip from the input survives the
+    # filter; the conservation guard then appends ``s1`` and ``s2`` as
+    # ``unaccounted_dropout`` records because they are in
+    # ``requested_scenarios`` but missing from ``scenarios_run`` (no
+    # traces) and ``failed_scenarios`` (re-derived to ``[]`` here). The
+    # conservation behavior is pinned in dedicated tests below; this
+    # assertion shape only documents the post-condition shape.
+    assert len(report.skipped_scenarios) == 3
+    assert all(
+        isinstance(record, SkippedScenarioRecord) for record in report.skipped_scenarios
+    )
+    by_name = {record.name: record for record in report.skipped_scenarios}
+    assert by_name["s3"].reason_code == "precondition_unmet"
+    assert by_name["s1"].reason_code == "unaccounted_dropout"
+    assert by_name["s2"].reason_code == "unaccounted_dropout"
     assert report.extra_trigger_failures == ["lock_busy"]
     # Note: ``failed_scenarios`` is re-derived from ``scenario_traces``
     # by ``_synchronize_scenario_truth``; with no traces in this fixture
@@ -215,6 +226,153 @@ def test_record_execution_result_pulls_all_four_lists() -> None:
     # failed. Pinned by ``test_record_failed_scenarios_with_no_traces…``
     # above; this assertion stays loose to that contract.
     assert report.failed_scenarios == []
+
+
+# ---------------------------------------------------------------------------
+# Scenario-dropout honesty (W7 §10.7 conservation invariant)
+# ---------------------------------------------------------------------------
+
+
+def _make_exec_result(
+    *,
+    requested: list[str],
+    skipped: list[tuple[str, str, str]] | None = None,
+    failed: list[str] | None = None,
+) -> Any:
+    """Shape-only stand-in for ``AutomationExecutionResult``.
+
+    Only carries the four fields ``record_execution_result`` reads;
+    keeping it inline avoids importing the executor's runtime dataclass
+    just for shape replication.
+    """
+
+    @dataclass
+    class _Skip:
+        name: str
+        reason_code: str
+        detail: str
+
+    @dataclass
+    class _ExecResult:
+        requested_scenarios: list[str]
+        skipped_scenarios: list[_Skip]
+        extra_trigger_failures: list[str]
+        failed_scenarios: list[str]
+
+    return _ExecResult(
+        requested_scenarios=list(requested),
+        skipped_scenarios=[_Skip(*entry) for entry in skipped or []],
+        extra_trigger_failures=[],
+        failed_scenarios=list(failed or []),
+    )
+
+
+def test_record_execution_result_appends_unaccounted_dropouts_as_skipped() -> None:
+    """Reproduces the live ms-python.python regression: 5 requested,
+    3 ran, 0 explicitly skipped/failed → 2 silent dropouts. The
+    conservation guard must surface the 2 missing scenarios as
+    ``skipped_scenarios`` records with reason ``unaccounted_dropout``
+    so the W7 §10.7 honesty invariant holds end-to-end.
+    """
+    accountant, report, _rec = _build_accountant()
+    report.scenario_traces = [
+        ScenarioTrace(name="coding_session", started_at=0.0, status="completed"),
+        ScenarioTrace(name="project_exploration", started_at=0.0, status="completed"),
+        ScenarioTrace(name="terminal_usage", started_at=0.0, status="completed"),
+    ]
+
+    accountant.record_execution_result(
+        _make_exec_result(
+            requested=[
+                "coding_session",
+                "project_exploration",
+                "debug_session",
+                "terminal_usage",
+                "refactor_workflow",
+            ],
+        )
+    )
+
+    by_name = {record.name: record for record in report.skipped_scenarios}
+    assert set(by_name) == {"debug_session", "refactor_workflow"}
+    assert by_name["debug_session"].reason_code == "unaccounted_dropout"
+    assert by_name["refactor_workflow"].reason_code == "unaccounted_dropout"
+    # Conservation invariant: every requested scenario lands in exactly
+    # one of the three accounting buckets.
+    accounted = (
+        set(report.scenarios_run)
+        | set(report.failed_scenarios)
+        | {record.name for record in report.skipped_scenarios}
+    )
+    assert set(report.requested_scenarios) == accounted
+
+
+def test_record_execution_result_conservation_no_op_when_all_accounted() -> None:
+    """If every requested scenario is already in run/failed/skipped, the
+    conservation guard must not append synthetic records — happy-path
+    no-op so a healthy run stays clean.
+    """
+    accountant, report, _rec = _build_accountant()
+    report.scenario_traces = [
+        ScenarioTrace(name="coding_session", started_at=0.0, status="completed"),
+    ]
+
+    accountant.record_execution_result(
+        _make_exec_result(
+            requested=["coding_session", "debug_session"],
+            skipped=[("debug_session", "precondition_unmet", "no debug capability")],
+        )
+    )
+
+    assert len(report.skipped_scenarios) == 1
+    assert report.skipped_scenarios[0].name == "debug_session"
+    assert report.skipped_scenarios[0].reason_code == "precondition_unmet"
+
+
+def test_record_execution_result_conservation_is_idempotent() -> None:
+    """Two consecutive ``record_execution_result`` calls with the same
+    dropout state must not double-append ``unaccounted_dropout`` records
+    — the second call sees the missing scenarios already in
+    ``skipped_scenarios`` (they fold into ``accounted``) and writes
+    nothing further.
+    """
+    accountant, report, _rec = _build_accountant()
+    report.scenario_traces = [
+        ScenarioTrace(name="coding_session", started_at=0.0, status="completed"),
+    ]
+    payload = _make_exec_result(
+        requested=["coding_session", "debug_session"],
+    )
+
+    accountant.record_execution_result(payload)
+    first_pass = len(report.skipped_scenarios)
+    accountant.record_execution_result(payload)
+    second_pass = len(report.skipped_scenarios)
+
+    assert first_pass == 1
+    assert second_pass == 1
+    assert report.skipped_scenarios[0].name == "debug_session"
+    assert report.skipped_scenarios[0].reason_code == "unaccounted_dropout"
+
+
+def test_finalize_running_scenarios_invokes_conservation_guard() -> None:
+    """Conservation must fire from ``finalize_running_scenarios`` too —
+    that is the canonical close-of-monitoring hook. If a scenario was
+    requested but never reached ``record_execution_result`` (e.g., the
+    executor crashed mid-run), the finalize-time guard still surfaces
+    it as ``unaccounted_dropout``.
+    """
+    accountant, report, _rec = _build_accountant()
+    report.requested_scenarios = ["coding_session", "debug_session"]
+    accountant.record_scenario_event("start", "coding_session")
+    accountant.record_scenario_event("end", "coding_session", status="completed")
+    report.monitoring_end = 5.0
+
+    accountant.finalize_running_scenarios()
+
+    by_name = {record.name: record for record in report.skipped_scenarios}
+    assert "debug_session" in by_name
+    assert by_name["debug_session"].reason_code == "unaccounted_dropout"
 
 
 # ---------------------------------------------------------------------------

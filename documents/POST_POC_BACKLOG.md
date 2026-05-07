@@ -203,6 +203,28 @@ when picking an item up.
   Both files import their target module by its real path (not via the
   `monitor` facade) so the W11 facade re-export rearrangement cannot
   silently drift. Surfaced by 2026-05-04 audit pass.
+- ~~**`[BUG silent-scenario-dropout-regression]`**~~ —
+  closed on the `fix/silent-scenario-dropout-honesty` branch
+  (`2026-05-07`). Pins the W7 §10.7 scenario-dropout honesty bar:
+  every entry in `requested_scenarios` must appear in exactly one of
+  `scenarios_run` / `failed_scenarios` / `skipped_scenarios`. Live
+  ms-python.python scans (5 May `33d0f433d092`, 7 May `c20ac6f91d4a`)
+  showed 5 requested but only 3 ran with empty failed/skipped — 2
+  scenarios silently dropped. `ScenarioAccountant` now grows a
+  `_validate_scenario_conservation()` guard called from both
+  `record_execution_result` and `finalize_running_scenarios`; missing
+  scenarios are appended to `skipped_scenarios` with
+  `reason_code='unaccounted_dropout'` so the conservation invariant
+  cannot leak past the accountant. Idempotent — a second call sees the
+  appended records as already-accounted and writes nothing further.
+  Defense-in-depth: upstream layers (planner / `stimulus_passes` /
+  harness) should still record their own drop reasons; this is the
+  last-mile catch. Regression: four cases in
+  `tests/executor/test_playwright_monitor_scenario_accountant.py`
+  (`test_record_execution_result_appends_unaccounted_dropouts_as_skipped`
+  / `…_no_op_when_all_accounted` / `…_is_idempotent` /
+  `test_finalize_running_scenarios_invokes_conservation_guard`).
+  Stable ID retained for inbound code/test references.
 - **`[FOLLOWUP w12-attribution-naming-overlap]`** —
   `attribution_summary.background_activation_count` and
   `attribution_summary.competing_candidate_count` describe overlapping
