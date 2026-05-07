@@ -6,7 +6,7 @@ container entry path. AST gates in `test_import_graph.py` lock the source
 contract (no dual-import fallback, no `sys.path.insert`); this test locks
 the runtime layer the AST gates cannot reach: package-mode invocation must
 succeed inside the live container, and flat-path script invocation
-(`python /home/executor/flows/playwright/entrypoint.py`) must reject.
+(`python /home/executor/flows/playwright/entrypoint/runner.py`) must reject.
 
 Tests skip when docker is unavailable or the executor container is not
 running, so local pre-push remains ergonomic; the live signal triggers
@@ -71,16 +71,20 @@ def test_package_mode_import_succeeds_in_container() -> None:
 @pytest.mark.smoke
 @pytest.mark.integration
 def test_flat_mode_invocation_fails_in_container() -> None:
-    """Defensive: invoking entrypoint as a flat path script must error.
+    """Defensive: invoking a package-internal module as a flat path script must error.
 
-    Sibling imports inside `executor/flows/playwright/` are package-relative
-    after W9-3, so a `python /home/.../entrypoint.py` invocation hits
-    ImportError or ModuleNotFoundError at module load. This regression test
-    breaks if a future change re-introduces flat-path support (sys.path
+    Sibling imports inside `executor/flows/playwright/entrypoint/` are
+    package-relative after W12-1 (post-W9-3 baseline), so a
+    `python /home/.../entrypoint/runner.py` invocation hits ImportError
+    or ModuleNotFoundError at module load. This regression test breaks
+    if a future change re-introduces flat-path support (sys.path
     fallback, dual-import, or absolute-pathed module reference).
     """
     docker_bin = _resolve_executor_container()
-    flat_path = f"{settings.executor.PLAYWRIGHT_FLOW_DIR}/entrypoint.py"
+    # W12-1: entrypoint.py was promoted to entrypoint/ subpackage; runner.py
+    # carries the package-relative imports (`from .cli import build_parser`,
+    # `from .triggers import ...`) that break under flat-script invocation.
+    flat_path = f"{settings.executor.PLAYWRIGHT_FLOW_DIR}/entrypoint/runner.py"
     result = subprocess.run(  # noqa: S603
         [
             docker_bin,
