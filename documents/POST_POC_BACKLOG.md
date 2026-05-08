@@ -345,6 +345,26 @@ Use stable IDs in new references; do not cite canonical doc line numbers.
   **`[FOLLOWUP w8-1-archive-count-bypass]`**, and
   **`[FOLLOWUP w8-1-vsix-compressed-size-limit]`** — remaining W8-1 hardening
   and observability follow-ups.
+- ~~**`[FOLLOWUP w8-1-vsix-entry-count-limit-realistic]`**~~ —
+  closed `2026-05-08` on `week12`. W8-1 baseline `MAX_FILE_COUNT = 2_000`
+  was tripped on real users by Microsoft's `2026-05-08` ms-python.python
+  release (version `2026.5.2026050801`) — modern Python/Pylance/Jupyter
+  bundles ship more entries than the original threshold anticipated.
+  Raised to `50_000` in `workflows/marketplace/client.py:37` with inline
+  rationale linking the size + ratio guards as the load-bearing
+  zip-bomb defense; entry-count remains a complementary DoS guard for
+  the extract loop. Existing 7 test_vsix_hardening cases stay
+  regression-free (they monkeypatch `MAX_FILE_COUNT` locally, so they
+  are decoupled from the constant). Sibling drift surfaced during the
+  audit: ADR 0002 references a `§7.2.6` for VSIX extraction guards but
+  the section was never authored in the ADR body — captured below.
+- **`[FOLLOWUP adr-0002-vsix-extraction-section-missing]`** —
+  W8-1 commit `bd9d1f1` referenced ADR 0002 §7.2.6 for adversarial
+  VSIX extraction limits, but ADR 0002 only contains §1-6 plus the
+  template tail; §7 was never written. Author the missing section
+  (zip-bomb defense rationale, file-count complementary guard, current
+  thresholds) so the cross-ref in `workflows/marketplace/client.py`
+  resolves to actual prose. Lane: `[docs]` `[security-detection]`.
 - **`[FOLLOWUP w8-3-harness-js-scheme]`** — extend URI trigger hardening.
 - ~~**`[FOLLOWUP w8-5-list-endpoint-name-filter]`**~~ — closed
   `2026-04-30`.

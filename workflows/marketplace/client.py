@@ -31,10 +31,24 @@ _VSIX_URL_TEMPLATE = (
 )
 _ACCEPT_HEADER = "application/json;api-version=7.2-preview.1"
 
-# Adversarial-VSIX extraction limits (ADR 0002 §7.2.6).
+# Adversarial-VSIX extraction limits (W8-1 hardening; commit `bd9d1f1`).
+# Two layers of defense:
+#   1. Zip-bomb (resource exhaustion via expansion): MAX_UNCOMPRESSED_SIZE
+#      caps cumulative inflated bytes; MAX_COMPRESSION_RATIO catches
+#      pathological compression. These are the primary guards.
+#   2. Entry-count DoS (extract-loop iteration overhead): MAX_FILE_COUNT.
+#
+# MAX_FILE_COUNT was 2_000 from W8-1 (`2026-04-27`) until the `2026-05-08`
+# Microsoft ms-python release (`2026.5.2026050801`) tripped it on real
+# users — modern bundled extensions ship more entries than the original
+# threshold anticipated. 50_000 is the new target: well above today's
+# heaviest published Python/Pylance/Jupyter releases, while still
+# preventing an adversary from forcing the extract loop to iterate
+# indefinitely (the size + ratio guards remain the load-bearing
+# zip-bomb defense).
 MAX_UNCOMPRESSED_SIZE = 256 * 1024 * 1024
 MAX_COMPRESSION_RATIO = 100
-MAX_FILE_COUNT = 2_000
+MAX_FILE_COUNT = 50_000
 
 
 class VSIXUnpackError(RuntimeError):
