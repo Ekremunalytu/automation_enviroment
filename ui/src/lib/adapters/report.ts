@@ -228,7 +228,7 @@ function fromCanonicalEvent(event: EvidenceEventDto, index: number): EvidenceEve
     artifact,
     artifactShort: short(artifact),
     detail,
-    rawContext: event.raw_context || {},
+    rawContext: (event.raw_context as Record<string, unknown> | undefined) ?? {},
     timestampDisplay: formatTimestamp(event.timestamp || ""),
   };
 }
@@ -365,8 +365,8 @@ function fromScenario(entry: ScenarioTraceDto, index: number): EvidenceEventView
       summary: `Scenario ${entry.name || "unknown"} ${entry.status || "running"}`,
       raw_context: {
         status: entry.status || "running",
-        started_at: entry.started_at ?? null,
-        ended_at: entry.ended_at ?? null,
+        started_at: entry.started_at,
+        ended_at: entry.ended_at,
       },
     },
     index,
