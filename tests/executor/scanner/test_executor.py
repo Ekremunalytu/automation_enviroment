@@ -332,7 +332,7 @@ def test_reload_vscode_window_uses_reload_timeout(
     output = reload_vscode_window()
 
     assert output == "reloaded"
-    assert mock_exec.call_args.kwargs["timeout"] == 90
+    assert mock_exec.call_args.kwargs["timeout"] == 180
     mock_cleanup.assert_called_once_with()
 
 

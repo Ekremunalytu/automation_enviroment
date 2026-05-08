@@ -60,6 +60,7 @@ from packages.analysis_contracts.evidence import (
     RawContext,
     ScenarioRawContext,
     UiBlockerRawContext,
+    redact_multiline_secrets,
     redact_secrets,
 )
 from packages.analysis_contracts.executor_actions import (
@@ -127,6 +128,7 @@ __all__ = [
     "compute_verdict",
     "detection_report_invariant_issues",
     "quantize_confidence",
+    "redact_multiline_secrets",
     "redact_secrets",
     "scenario_trace_names",
     "validate_executor_action",

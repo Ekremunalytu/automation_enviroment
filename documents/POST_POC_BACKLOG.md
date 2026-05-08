@@ -85,30 +85,21 @@ Use stable IDs in new references; do not cite canonical doc line numbers.
   (4 harness-marker + 2 file-backed + 1 benign-channel guard)
   `tests/platform/security/test_output_signals_redaction.py`'ye
   eklendi. W12-3 unblocked.
-- **`[FOLLOWUP w12-0-output-signal-multiline-secret-redaction]`** —
-  **OPEN, P1, pre-W12-4.** W12-0 file-backed yol
-  (`executor/flows/playwright/signals/output.py:204`) `content.splitlines()`
-  ile satır satır okuyup her line'a ayrı `redact_secrets(_truncate(line))`
-  uyguluyor (`signals/output.py:223`). Ama `redact_secrets`'in private-key
-  pattern'i (`packages/analysis_contracts/evidence.py:56-63`) BEGIN…
-  `(?:.|\n)*?`…END span'ı tek string içinde görmeyi bekliyor.
-  `splitlines()` BEGIN / body / END satırlarını ayrı parçalara böldüğü
-  için per-line redaction multi-line PEM'i kaçırıyor; private-key
-  gövdesi (base64) AWS/Bearer/api_key/db_url desenlerine de uymadığı
-  için ham olarak `OutputSignalEvent.text` üzerinden persisted
-  `ActivationReport`'a düşüyor. W12-0'ın açıkça kapattığı file-backed
-  output-signal redaction alanında somut bypass — extension output'u
-  adversarial. Fix: line-by-line redaction'dan önce bounded multi-line
-  pencere (PEM state machine veya sliding window) üzerinde redact
-  çalıştır; pencere bellek tavanını koru, tüm log'u sınırsız
-  birleştirme. Sonra line'lara bölüp eventize et — text'ler zaten
-  redacted olarak event'lere düşsün. Acceptance: yeni multi-line
-  regression case'leri `tests/platform/security/test_output_signals_redaction.py`'a
-  eklenmeli (BEGIN/END/body satırları farklı `appendLine` çağrılarında
-  ve tek `appendLine` içindeki gömülü `\n` ile multi-line yazımda
-  kontrol); existing 4+3 file-backed/harness-marker test geçmeli;
-  `_truncate` rapor boyutunu sınırlamaya devam etmeli. Lane:
-  `[executor-runtime]` `[security-detection]`.
+- ~~**`[FOLLOWUP w12-0-output-signal-multiline-secret-redaction]`**~~ —
+  **CLOSED `2026-05-08`** on `week12`. Fix:
+  `packages/analysis_contracts/evidence.py`'ye `redact_multiline_secrets`
+  helper'ı eklendi (sadece `_CROSS_LINE_CLASSES = {"private_key"}`
+  pattern'lerini uygular); `signals/output.py` her iki yolda
+  (`read_output_channel_logs` + `parse_output_signal_events`)
+  `splitlines()` öncesi pre-pass olarak çağırıyor. Single-line pattern'lar
+  per-marker `redact_secrets`'ta kaldı çünkü whole-input uygulamak JSON
+  marker yapısını bozar (api_key opsiyonel trailing-quote tüketimi
+  kapatan `"`'yu yutar). 4 yeni regression
+  `tests/platform/security/test_output_signals_redaction.py`'ye eklendi
+  (file-backed multi-line PEM block, file-backed PEM with surrounding
+  diagnostic lines, harness-marker cross-marker PEM, harness-marker
+  single-marker embedded-newline PEM). Existing 20 case'in tamamı
+  regression'sız.
 - **`[FOLLOWUP api-docker-base-image-digest-pin]`** —
   **OPEN, P1, pre-W12-4.** `docker/api/Dockerfile:2`
   `FROM python:3.11-slim-bookworm` (sadece tag, digest yok).

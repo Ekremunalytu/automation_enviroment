@@ -36,7 +36,7 @@ import re
 from datetime import datetime
 from pathlib import Path
 
-from packages.analysis_contracts import redact_secrets
+from packages.analysis_contracts import redact_multiline_secrets, redact_secrets
 
 from ..runtime_capture._shared import VSCODE_LOGS_DIR, _parse_iso_timestamp
 from ..runtime_capture.events import ActivationEntry, OutputSignalEvent
@@ -99,7 +99,27 @@ def parse_output_signal_events(
     if not extension_host_output:
         return events
 
-    for line in str(extension_host_output).splitlines():
+    # W12-0 follow-up — closes
+    # [FOLLOWUP w12-0-output-signal-multiline-secret-redaction]. The
+    # private-key pattern in `redact_secrets` matches BEGIN..END across
+    # newlines via `(?:.|\n)*?`, but only inside one string. A per-marker
+    # `redact_secrets(text)` call cannot see a PEM block that an
+    # adversarial extension splits across three separate `appendLine`
+    # writes (BEGIN / body / END become three markers); the body line
+    # (base64) matches no other pattern and would persist verbatim to
+    # ActivationReport. Pre-pass with the cross-line-only helper
+    # `redact_multiline_secrets`. We deliberately do not use the full
+    # `redact_secrets` here: its single-line patterns can corrupt JSON
+    # marker structure (e.g. `api_key`'s optional trailing-quote class
+    # swallows the JSON string's closing `"`, breaking marker parsing).
+    # Trade-off: in the cross-marker PEM case, intermediate marker JSON
+    # consumed inside the BEGIN..END span won't parse — those events
+    # vanish. Accepted because the alternative is leaking the body line.
+    # The per-marker `redact_secrets(_truncate(...))` below stays as
+    # defense-in-depth for single-line secrets (idempotent).
+    sanitized_output = redact_multiline_secrets(str(extension_host_output))
+
+    for line in sanitized_output.splitlines():
         marker_match = _HARNESS_MARKER_RE.search(line)
         if marker_match is None:
             continue
@@ -200,6 +220,21 @@ def read_output_channel_logs(
             mtime_ms = log_path.stat().st_mtime * 1000.0
         except OSError:
             mtime_ms = 0.0
+
+        # W12-0 follow-up — close
+        # [FOLLOWUP w12-0-output-signal-multiline-secret-redaction]:
+        # VS Code 1.105+ persists each appendLine as its own line in the
+        # output_logging file; per-line `redact_secrets(_truncate(line))`
+        # below cannot see a multi-line PEM block whose BEGIN/body/END land
+        # on different lines because the private-key pattern needs the full
+        # span in one string (`(?:.|\n)*?` is lazy across newlines, not
+        # across separate `redact_secrets` calls). Pre-redact the whole file
+        # content with the cross-line-only helper so PEM spans collapse to
+        # `[REDACTED:private_key]` before splitlines, while single-line
+        # patterns stay per-line (full `redact_secrets` would still work
+        # here, but using the narrow helper keeps the contract symmetric
+        # with the harness-marker path above and documents intent).
+        content = redact_multiline_secrets(content)
 
         for raw_line in content.splitlines():
             line = raw_line.strip()

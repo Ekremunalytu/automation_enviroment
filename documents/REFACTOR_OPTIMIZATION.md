@@ -247,15 +247,14 @@ açığa çıkardı; ikisi de `POST_POC_BACKLOG.md` "W12 Pull-Forward"
 bölümünde OPEN olarak takip ediliyor ve W12-4 dispatch extraction'ından
 **önce** landlanacak:
 
-- `[FOLLOWUP w12-0-output-signal-multiline-secret-redaction]` — W12-0
-  file-backed yolu (`signals/output.py:204`) `splitlines()` ile satır
-  satır redact ettiği için multi-line PEM (`evidence.py:56-63`'teki
-  BEGIN…END pattern'i tek string spanı bekler) bypass'lanıyor.
-  Adversarial output channel write'ı persisted `ActivationReport`'a
-  raw private key gövdesi sızdırabilir. Fix: bounded multi-line
-  pencere üzerinde redaction (PEM state machine veya sliding window),
-  sonra line-level eventize. Severity: High; W12-0 scope'una somut
-  bypass.
+- ~~`[FOLLOWUP w12-0-output-signal-multiline-secret-redaction]`~~ —
+  closed `2026-05-08` on `week12`. Cross-line `private_key` pattern'i
+  yeni `redact_multiline_secrets` helper'ı ile her iki yolda
+  (`read_output_channel_logs` + `parse_output_signal_events`) `splitlines()`
+  öncesi pre-pass olarak uygulanıyor. Single-line pattern'lar per-marker /
+  per-line `redact_secrets`'ta kaldı (whole-input uygulamak JSON marker
+  yapısını bozardı). 4 yeni regression case'i, existing 20 case
+  regression'sız.
 - `[FOLLOWUP api-docker-base-image-digest-pin]` — `docker/api/Dockerfile:2`
   tag-only (`FROM python:3.11-slim-bookworm`) kalmış; ADR 0002 §4
   trust table (`documents/adrs/0002-threat-model.md:97`) digest-pin

@@ -112,19 +112,20 @@ and that archive section.
   W12-3 close denetimi iki sertleştirme öğesini açığa çıkardı; ikisi
   de W12-4 dispatch extraction'ından **önce** landlanacak ve W12 close
   acceptance bar'ına dahil:
-  - `[FOLLOWUP w12-0-output-signal-multiline-secret-redaction]` —
-    **OPEN, P1, security-blocker.** W12-0 file-backed yolu
-    (`signals/output.py:204`) `content.splitlines()` ile satır satır
-    `redact_secrets(_truncate(line))` uyguluyor. Ama
-    `redact_secrets`'in private-key pattern'i (`evidence.py:56-63`)
-    BEGIN…`(?:.|\n)*?`…END span'ı tek string'de görmeyi bekliyor;
-    `splitlines()` BEGIN/body/END satırlarını ayrı string'lere böldüğü
-    için per-line redaction multi-line PEM'i kaçırıyor. Adversarial
-    output channel write'ı persisted `ActivationReport`'a raw private
-    key gövdesi (base64) sızdırabilir. Fix: line-level redact öncesi
-    bounded multi-line pencere (PEM state machine veya sliding window)
-    üzerinde redaction. Bellek tavanı korunmalı; tüm log birleştirilmemeli.
-    See "Detailed Item Notes" below.
+  - ~~`[FOLLOWUP w12-0-output-signal-multiline-secret-redaction]`~~ —
+    **CLOSED `2026-05-08`.** Cross-line `private_key` pattern'i artık
+    `redact_multiline_secrets` helper'ı (`evidence.py`'ye eklendi)
+    aracılığıyla iki yolda da pre-pass olarak uygulanıyor:
+    file-backed (`read_output_channel_logs`) ve harness-marker
+    (`parse_output_signal_events`). Single-line pattern'lar (api_key /
+    db_url / aws / bearer) per-marker / per-line `redact_secrets`'ta
+    kaldı çünkü whole-input uygulama JSON marker yapısını bozabiliyor
+    (api_key opsiyonel trailing-quote'u yutar). 4 yeni regression
+    `test_output_signals_redaction.py`'de:
+    file-backed multi-line PEM block, file-backed PEM with surrounding
+    diagnostic lines, harness-marker cross-marker PEM (3 ayrı appendLine),
+    harness-marker single-marker embedded-newline PEM. See "Detailed Item
+    Notes" below.
   - `[FOLLOWUP api-docker-base-image-digest-pin]` — **OPEN, P1,
     ADR-0002-violation.** `docker/api/Dockerfile:2` tag-only
     (`FROM python:3.11-slim-bookworm`); ADR 0002 §4 trust table
@@ -222,10 +223,11 @@ number.
   W12-1 companion (defense-in-depth structural gate sibling to
   the existing AST-gate suite). Land if W12-1 has spare review
   capacity; otherwise defer to W13.
-- `[FOLLOWUP w12-0-output-signal-multiline-secret-redaction]`
-  (`POST_POC_BACKLOG.md` W12 Pull-Forward, **P1, pre-W12-4**) —
-  added `2026-05-07` audit pass; security-blocker. Landed before
-  W12-4 starts.
+- ~~`[FOLLOWUP w12-0-output-signal-multiline-secret-redaction]`~~ —
+  closed `2026-05-08` on `week12`. Multi-line PEM redaction landed via a
+  new `redact_multiline_secrets` helper applied as a pre-pass on both
+  file-backed and harness-marker paths in `signals/output.py`; 4 new
+  regressions in `test_output_signals_redaction.py`.
 - `[FOLLOWUP api-docker-base-image-digest-pin]`
   (`POST_POC_BACKLOG.md` W12 Pull-Forward, **P1, pre-W12-4**) —
   added `2026-05-07` audit pass; ADR 0002 §4 trust-table violation.
@@ -531,14 +533,14 @@ number.
   added; old JSONs will fail validation, which is the expected outcome.
   Bump on the W13 PR if a released contract adopts the typed shape.
 
-### Pre-W12-4 Hardening — Output-Signal Multi-Line Secret Redaction
+### Pre-W12-4 Hardening — Output-Signal Multi-Line Secret Redaction (landed `2026-05-08`)
 
 **Stable ID.** `[FOLLOWUP w12-0-output-signal-multiline-secret-redaction]`
 in `POST_POC_BACKLOG.md` "W12 Pull-Forward". Added `2026-05-07` audit
-pass during W12-3 close.
+pass during W12-3 close; closed `2026-05-08`.
 
-**Status.** Pending — lands before W12-4 starts. Severity: **High**
-(W12-0 scope'una somut bypass; security-blocker).
+**Status.** Landed. Severity: **High** (W12-0 scope'una somut bypass;
+security-blocker — tek geçişte iki yolda da kapatıldı).
 
 **Scope.** W12-0 (`22eb836`) file-backed yolu
 `executor/flows/playwright/signals/output.py:204`'te `content.splitlines()`
@@ -572,37 +574,54 @@ test multi-line PEM senaryosu çalıştırmıyor. W11-6 extension-host log
 tail yolu (`report_builder.py:281-293`) zaten "truncate → expand →
 redact" ile multi-line aware; o yapı `signals/output.py`'a taşınmamış.
 
-**Fix yaklaşımı.**
+**Fix landed.**
 
-1. Line-level redaction'dan önce **bounded multi-line pencere** üzerinde
-   redact çalıştır. PEM state machine (BEGIN gör → END gör → buffer'ı
-   tek string olarak `redact_secrets`'a yolla → emit) veya sliding
-   window (son N satırı buffer'ında tut, BEGIN-END span'ı tamamlanınca
-   redact + emit) iki kabul edilebilir yaklaşım.
-2. Bellek tavanı: pencere boyutu `_truncate` rapor sınırına paralel
-   bounded olsun (sınırsız birleştirme yasak). Tüm log dosyasını tek
-   string'e koymak çıkar yol değil — capture pipeline silent-by-design,
-   ve dosya büyüklüğü adversary kontrolünde.
-3. Window'dan eventize ederken her event'in `text`'i zaten redacted
-   gelsin; `OutputSignalEvent.summary` türetimi
-   (`f"OutputChannel({channel}) appendLine"`) değişmeden çalışır
-   (`channel` zaten W12-0 dolgusunda redact'lanıyor).
+Whole-content pre-pass yaklaşımı seçildi (state machine yerine), iki
+yan kazanım için: (a) `read_text()` zaten content'i tek string'e
+yüklüyor — ek bellek yükü minimal; (b) tek geçiş, gelecek cross-line
+pattern'leri otomatik kapsama girer.
 
-**Acceptance criteria.**
+1. **Yeni helper**: `packages/analysis_contracts/evidence.py`'ye
+   `redact_multiline_secrets(value)` eklendi. `_CROSS_LINE_CLASSES =
+   frozenset({"private_key"})` üzerinden filtreleyerek `_REDACTION_PATTERNS`
+   tablosundaki yalnızca cross-line entry'leri uyguluyor. Single-line
+   pattern'lar (api_key / db_url / aws / bearer) bilerek hariç çünkü
+   whole-input uygulamak yapılı sarmalları (JSON marker payload'ı)
+   bozabiliyor — somut örnek: `api_key` pattern'inin opsiyonel
+   trailing-quote tüketimi (`['\"]?`) JSON string'in kapatan tırnağını
+   yutar → marker parse edilemez.
+2. **`signals/output.py` her iki yolda da pre-pass.**
+   `read_output_channel_logs`'da `content = redact_multiline_secrets(content)`
+   `splitlines()`'tan önce; `parse_output_signal_events`'da
+   `sanitized_output = redact_multiline_secrets(str(extension_host_output))`
+   marker iterasyonundan önce. Per-marker / per-line
+   `redact_secrets(_truncate(...))` defense-in-depth olarak korundu —
+   idempotent.
+3. **Cross-marker bypass trade-off** (yorumlarda dokümante edildi):
+   3 ayrı `appendLine` ile yayılmış PEM denemesinde, redact span'ı
+   ara marker JSON'larını da yutar; o eventler kaybolur. Bu kabul
+   edildi çünkü alternatif body satırını sızdırmak.
 
-- Yeni regression case'leri `tests/platform/security/test_output_signals_redaction.py`'a:
-  - Single `appendLine` çağrısı ile gömülü `\n`'lerden multi-line PEM
-    yazımı (file-backed yol).
-  - Üç ayrı `appendLine` çağrısı ile BEGIN/body/END (file-backed yol).
-  - Aynı senaryolar harness-marker yolunda (defense-in-depth).
-- Tüm yeni case'lerde persisted report'taki `OutputSignalEvent.text`
-  alanı raw PEM gövdesi içermemeli (`-----BEGIN ... PRIVATE KEY-----`
-  veya base64 body satırları); yerine `[REDACTED:private_key]` veya
-  bütünüyle redact edilmiş yer tutucu.
-- Existing 4 file-backed + 3 harness-marker e2e regression testi
-  (W12-0) ve 7 channel/summary case (W12-0 dolgusu, `b642af7`) geçmeli.
-- `_truncate` boyut tavanı korunmalı; pencere bellek limiti rapor
-  boyutunu çok aşmamalı.
+**Acceptance evidence.**
+
+- 4 yeni regression `tests/platform/security/test_output_signals_redaction.py`'da:
+  - `test_read_output_channel_logs_redacts_multiline_pem_block` —
+    file-backed, ardışık BEGIN/body/END satırları.
+  - `test_read_output_channel_logs_multiline_pem_with_surrounding_lines` —
+    file-backed, PEM'in önünde/sonunda noise.
+  - `test_parse_output_signal_events_redacts_cross_marker_pem_block` —
+    harness-marker, 3 ayrı appendLine ile cross-marker PEM.
+  - `test_parse_output_signal_events_single_marker_multiline_pem` —
+    harness-marker, tek appendLine içinde embedded `\n` ile multi-line
+    PEM (canonical happy path).
+- Tüm yeni case'lerde persisted `OutputSignalEvent.text`'te raw PEM
+  marker veya base64 body görünmüyor; `[REDACTED:private_key]`
+  yerleştiriliyor.
+- Existing 20 case (W10-7 + W12-0 file-backed/harness-marker
+  redaction + W12-0 channel/summary follow-up) regression olmadan
+  geçti — özellikle `test_harness_marker_channel_redaction[api_key=...]`
+  helper'ın cross-line-only daraltmasıyla yeniden geçer hale geldi.
+- Test runtime ekstra yük: 0.11s (24 case toplam).
 
 **Lane.** `[executor-runtime]` `[security-detection]`.
 

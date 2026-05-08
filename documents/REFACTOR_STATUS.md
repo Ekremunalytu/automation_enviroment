@@ -1,6 +1,6 @@
 # Refactor Status
 
-`Last Updated: 2026-05-07 (W12 active; W12-0 + W12-1 + W12-2 + W12-3 landed; W12-4 unblocked)`
+`Last Updated: 2026-05-08 (W12 active; W12-0..W12-3 landed + multi-line PEM redaction follow-up closed; W12-4 unblocked once api-docker digest pin lands)`
 
 Active status board for current closure state. **Slim canonical** — full
 phase history and verbose evidence are frozen under dated snapshots:
@@ -86,6 +86,14 @@ the same day:
   harness-marker output-signal path; W12-0 closes the file-backed
   `read_output_channel_logs` sibling, the primary source on VS Code
   1.105+.
+- ~~**P1 / pre-W12-4:** `[FOLLOWUP w12-0-output-signal-multiline-secret-redaction]`~~
+  — closed `2026-05-08` on `week12`. New `redact_multiline_secrets`
+  helper (cross-line patterns only, currently `private_key`) applied as
+  a pre-pass on both `read_output_channel_logs` and
+  `parse_output_signal_events` before `splitlines()`. Single-line
+  patterns stay per-line/per-marker (whole-input application would
+  corrupt JSON marker structure). 4 new regressions; existing 20 case
+  regression-free.
 
 The remaining five are tracked in `POST_POC_BACKLOG.md` as P2/P3 work:
 

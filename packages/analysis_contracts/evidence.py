@@ -91,6 +91,36 @@ def redact_secrets(value: str) -> str:
     return redacted
 
 
+# Secret classes whose patterns can match across newlines and therefore
+# need a whole-input pre-pass when the call site applies `redact_secrets`
+# per-line. Today only `private_key` qualifies — its regex contains
+# `(?:.|\n)*?` between BEGIN and END markers. Single-line classes
+# (`api_key`, `db_url`, `aws`, `bearer`) are intentionally excluded:
+# applying them at the whole-input level can corrupt structured wrappers
+# (e.g., the `api_key` pattern's optional trailing-quote consumption can
+# eat a JSON closing quote). Extend this set if a future pattern carries
+# cross-line semantics.
+_CROSS_LINE_CLASSES: Final[frozenset[str]] = frozenset({"private_key"})
+
+
+def redact_multiline_secrets(value: str) -> str:
+    """Apply only the cross-line redaction patterns to ``value``.
+
+    Use this as a pre-pass on inputs that will subsequently be split into
+    lines and redacted per-line, so cross-line spans (PEM blocks) collapse
+    to their placeholder before single-line redaction runs. Single-line
+    patterns are intentionally not applied here — see
+    ``_CROSS_LINE_CLASSES`` for the rationale. Idempotent.
+    """
+    if not value:
+        return value
+    redacted = value
+    for cls, pattern, replacement in _REDACTION_PATTERNS:
+        if cls in _CROSS_LINE_CLASSES:
+            redacted = pattern.sub(replacement, redacted)
+    return redacted
+
+
 class ContentSample(StrictContractModel):
     """Snippet of extension-controlled content embedded in evidence."""
 

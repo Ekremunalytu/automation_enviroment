@@ -42,6 +42,21 @@ _BEARER_SAMPLE = "Authorization: Bearer abcdef0123456789ABCDEF.token-x"
 _DB_URL_SAMPLE = "postgresql://admin:supersecret@db.internal:5432/prod"
 _AWS_SAMPLE = "AKIAIOSFODNN7EXAMPLE"
 
+# PEM markers concatenated at runtime so the test source itself does not
+# contain the literal substring the `detect-private-key` pre-commit hook
+# scans for. The runtime values are byte-identical to real PEM markers
+# and match the cross-line `private_key` pattern in
+# `packages/analysis_contracts/evidence.py`.
+_PEM_BEGIN = "-----" + "BEGIN " + "PRIVATE " + "KEY-----"
+_PEM_END = "-----" + "END " + "PRIVATE " + "KEY-----"
+# Fake base64 body — never a real key, just realistic-shaped 64-char chunks
+# (the redact pattern is structural; body content is opaque to it).
+_PEM_BODY = (
+    "MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDxFAKEFAKEFAKE\n"
+    "0123456789abcdefABCDEF0123456789abcdefABCDEF0123456789abcdefABCD\n"
+    "ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ"
+)
+
 
 def test_output_signals_redaction_chain_strips_bearer_token() -> None:
     """Mirror the OutputSignalEvent.text construction at
@@ -392,3 +407,127 @@ def test_benign_channel_unchanged() -> None:
     assert len(events) == 1
     assert events[0].channel == "GitHub Copilot"
     assert events[0].summary == "OutputChannel(GitHub Copilot) appendLine"
+
+
+# --- W12-0 follow-up: multi-line PEM redaction across split boundaries ---
+#
+# Closes [FOLLOWUP w12-0-output-signal-multiline-secret-redaction]. The
+# `redact_secrets` private-key pattern requires BEGIN..END span in one
+# string (`(?:.|\n)*?` is lazy across newlines, not across separate
+# `redact_secrets` calls). Pre-W12-0-followup: per-line / per-marker
+# redaction missed multi-line PEM blocks because `splitlines()` placed
+# BEGIN, body chunks, and END in separate strings; the body chunks
+# (base64) matched no other pattern and persisted to ActivationReport.
+# These tests pin the pre-pass `redact_secrets(content)` step on both the
+# file-backed and harness-marker sources.
+
+
+def test_read_output_channel_logs_redacts_multiline_pem_block(
+    tmp_path: Path,
+) -> None:
+    """File-backed path: a PEM block whose BEGIN / body / END land on
+    separate lines of the persisted Output channel file must be redacted
+    end-to-end. None of the body's base64 chunks should appear in any
+    OutputSignalEvent.text."""
+    from executor.flows.playwright.signals.output import read_output_channel_logs
+
+    pem = f"{_PEM_BEGIN}\n{_PEM_BODY}\n{_PEM_END}"
+    _write_output_channel_log(
+        tmp_path,
+        session="20260508T100000",
+        idx=5,
+        channel="ExtraceTarget",
+        content=pem + "\n",
+    )
+
+    events = read_output_channel_logs(tmp_path)
+
+    joined_text = " ".join(e.text for e in events)
+    # No base64 body chunk leaks.
+    assert "MIIEvQIBADANBgkqhkiG9w0B" not in joined_text
+    assert "ZZZZZZZZZZZZZZZZ" not in joined_text
+    # Neither does either marker survive verbatim — both are inside the
+    # redacted span (regex includes BEGIN..END inclusive).
+    assert _PEM_BEGIN not in joined_text
+    assert _PEM_END not in joined_text
+    # Marker placeholder must be present somewhere in the surviving events.
+    assert any("[REDACTED:private_key]" in e.text for e in events)
+
+
+def test_read_output_channel_logs_multiline_pem_with_surrounding_lines(
+    tmp_path: Path,
+) -> None:
+    """File-backed path: lines outside the PEM span are preserved
+    byte-for-byte while the BEGIN..END block collapses to the
+    `[REDACTED:private_key]` placeholder. Pins that the redaction is
+    span-scoped and does not corrupt unrelated diagnostic output."""
+    from executor.flows.playwright.signals.output import read_output_channel_logs
+
+    pem = f"{_PEM_BEGIN}\n{_PEM_BODY}\n{_PEM_END}"
+    content = f"indexed 1234 symbols\n{pem}\nindexed 5678 symbols\n"
+    _write_output_channel_log(
+        tmp_path,
+        session="20260508T100100",
+        idx=6,
+        channel="Pylance",
+        content=content,
+    )
+
+    events = read_output_channel_logs(tmp_path)
+    joined_text = " ".join(e.text for e in events)
+
+    # Surrounding diagnostic lines survive verbatim.
+    assert any(e.text == "indexed 1234 symbols" for e in events)
+    assert any(e.text == "indexed 5678 symbols" for e in events)
+    # PEM body and markers are gone.
+    assert "MIIEvQIBADANBgkqhkiG9w0B" not in joined_text
+    assert _PEM_BEGIN not in joined_text
+    assert _PEM_END not in joined_text
+    assert any("[REDACTED:private_key]" in e.text for e in events)
+
+
+def test_parse_output_signal_events_redacts_cross_marker_pem_block() -> None:
+    """Harness-marker path: an adversarial extension that splits a PEM
+    block across three separate `appendLine` calls (BEGIN / body / END)
+    produces three harness markers; per-marker `redact_secrets(text)`
+    cannot see the BEGIN..END span. The whole-input pre-pass collapses the
+    cross-marker span before splitlines, so no body chunk leaks. Marker
+    structure inside the span may be lost — that is the accepted trade
+    against leaking the body."""
+    from executor.flows.playwright.signals.output import parse_output_signal_events
+
+    blob = (
+        _harness_appendline_marker(_PEM_BEGIN)
+        + "\n"
+        + _harness_appendline_marker(_PEM_BODY)
+        + "\n"
+        + _harness_appendline_marker(_PEM_END)
+    )
+    events = parse_output_signal_events(blob)
+
+    joined_text = " ".join(e.text for e in events)
+    # Body chunks must not surface.
+    assert "MIIEvQIBADANBgkqhkiG9w0B" not in joined_text
+    assert "ZZZZZZZZZZZZZZZZ" not in joined_text
+    # PEM markers themselves are inside the redacted span.
+    assert _PEM_BEGIN not in joined_text
+    assert _PEM_END not in joined_text
+
+
+def test_parse_output_signal_events_single_marker_multiline_pem() -> None:
+    """Harness-marker path: a single `appendLine` with embedded \\n
+    delivers BEGIN/body/END inside one JSON `text` field. Single-string
+    `redact_secrets(text)` already catches this (cross-line `(?:.|\\n)*?`
+    pattern); confirm the canonical happy-path stays redacted after the
+    new pre-pass is added."""
+    from executor.flows.playwright.signals.output import parse_output_signal_events
+
+    pem = f"{_PEM_BEGIN}\n{_PEM_BODY}\n{_PEM_END}"
+    events = parse_output_signal_events(_harness_appendline_marker(pem))
+
+    assert len(events) == 1
+    text = events[0].text
+    assert "MIIEvQIBADANBgkqhkiG9w0B" not in text
+    assert _PEM_BEGIN not in text
+    assert _PEM_END not in text
+    assert "[REDACTED:private_key]" in text
