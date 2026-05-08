@@ -85,6 +85,46 @@ Use stable IDs in new references; do not cite canonical doc line numbers.
   (4 harness-marker + 2 file-backed + 1 benign-channel guard)
   `tests/platform/security/test_output_signals_redaction.py`'ye
   eklendi. W12-3 unblocked.
+- **`[FOLLOWUP w12-0-output-signal-multiline-secret-redaction]`** —
+  **OPEN, P1, pre-W12-4.** W12-0 file-backed yol
+  (`executor/flows/playwright/signals/output.py:204`) `content.splitlines()`
+  ile satır satır okuyup her line'a ayrı `redact_secrets(_truncate(line))`
+  uyguluyor (`signals/output.py:223`). Ama `redact_secrets`'in private-key
+  pattern'i (`packages/analysis_contracts/evidence.py:56-63`) BEGIN…
+  `(?:.|\n)*?`…END span'ı tek string içinde görmeyi bekliyor.
+  `splitlines()` BEGIN / body / END satırlarını ayrı parçalara böldüğü
+  için per-line redaction multi-line PEM'i kaçırıyor; private-key
+  gövdesi (base64) AWS/Bearer/api_key/db_url desenlerine de uymadığı
+  için ham olarak `OutputSignalEvent.text` üzerinden persisted
+  `ActivationReport`'a düşüyor. W12-0'ın açıkça kapattığı file-backed
+  output-signal redaction alanında somut bypass — extension output'u
+  adversarial. Fix: line-by-line redaction'dan önce bounded multi-line
+  pencere (PEM state machine veya sliding window) üzerinde redact
+  çalıştır; pencere bellek tavanını koru, tüm log'u sınırsız
+  birleştirme. Sonra line'lara bölüp eventize et — text'ler zaten
+  redacted olarak event'lere düşsün. Acceptance: yeni multi-line
+  regression case'leri `tests/platform/security/test_output_signals_redaction.py`'a
+  eklenmeli (BEGIN/END/body satırları farklı `appendLine` çağrılarında
+  ve tek `appendLine` içindeki gömülü `\n` ile multi-line yazımda
+  kontrol); existing 4+3 file-backed/harness-marker test geçmeli;
+  `_truncate` rapor boyutunu sınırlamaya devam etmeli. Lane:
+  `[executor-runtime]` `[security-detection]`.
+- **`[FOLLOWUP api-docker-base-image-digest-pin]`** —
+  **OPEN, P1, pre-W12-4.** `docker/api/Dockerfile:2`
+  `FROM python:3.11-slim-bookworm` (sadece tag, digest yok).
+  `executor/container/Dockerfile:8` ise
+  `FROM ubuntu:22.04@sha256:962f6cadeae0ea6284001009daa4cc9a8c37e75d1f5191cf0eb83fe565b63dd7`
+  ile pinned. ADR 0002 §4 trust table (`documents/adrs/0002-threat-model.md:97`)
+  her base image için `FROM image@sha256:...` zorunluyor — bu net bir
+  ADR ihlali. API container FastAPI yüzeyi + Docker socket bridge
+  olduğu için kritik boundary; mutable tag aynı Dockerfile'ın zamanla
+  farklı base image üretmesine yol açabilir. Fix: (a)
+  `docker/api/Dockerfile:2`'yi `FROM python:3.11-slim-bookworm@sha256:...`
+  formuna geçir (mevcut imajın digest'ini `docker pull` ile çekip pinle);
+  (b) yeni AST gate `tests/architecture/test_dockerfile_digest_pin.py`
+  ekle — `docker/` ve `executor/container/` altındaki her `Dockerfile`'ın
+  `FROM` satırı `@sha256:` içermeli. Yeni dependency yok. Lane:
+  `[platform-storage]`.
 
 ## W12 Acceptance Items
 
@@ -163,6 +203,21 @@ Use stable IDs in new references; do not cite canonical doc line numbers.
   scenarios before they reach `ScenarioAccountant`.
 - **`[FOLLOWUP monitor-types-property-recomputation]`** — P3; defer until
   profiling shows repeated expensive property access.
+- **`[FOLLOWUP scenario-accountant-conservation-split]`** — W13-X.
+  `executor/flows/playwright/monitor/scenario_accountant.py` 648 LoC
+  (W11 close baseline ~426; +222 LoC drift since W11). Tek collaborator
+  scenario lifecycle, event-attempt mutation, scenario conservation,
+  activation-log derivation, ve intermediate-state emission'ı taşıyor.
+  Hard-rule ihlali değil ama activation debug'ı sırasında en zor
+  okunan dosyalardan biri olmaya aday — W12-4 runner split'inden sonra
+  executor runtime'daki bir sonraki readability hotspot. W11-1 lifecycle
+  split pattern'ini örnek al: önce precursor tests ekle, sonra
+  conservation/verification helper'ları ile timeline/intermediate-emission
+  helper'larını ayrı modüllere taşı; ana sınıf scenario mutation
+  orchestration'ını tutmaya devam etsin. Davranış değişikliği olmamalı,
+  generic framework / event bus / plugin abstraction eklenmeyecek.
+  W12-4 ve W12-5 ile karıştırma. Severity: Medium. Lane:
+  `[executor-runtime]`.
 
 ### Detection / Contracts
 
@@ -184,12 +239,66 @@ Use stable IDs in new references; do not cite canonical doc line numbers.
   coverage for verdict computation.
 - **A5/A7 adversary fixtures and allow-list artifacts** — keep deferred
   until the relevant security window.
+- **`[FOLLOWUP evidence-event-kind-raw-context-invariant]`** — W13-X.
+  `EvidenceEvent.kind: str` ile `raw_context.event_class` literal'i
+  arasında pairing validator yok (`packages/analysis_contracts/contracts.py:242,266`);
+  Pydantic `kind="network"` + `event_class="file"` kombinasyonunu
+  reddetmez. `packages/analysis_engine/rules/_common.py:37-50` accessor'ları
+  (`event_type`, `event_method`, `event_message`) `getattr(event.raw_context,
+  "...", "")` defensive fallback'larıyla bu boşluğu kapatıyor — yani
+  invariant olmadığı için detection helper'ları savunmacı kalmak zorunda.
+  Eski rapor migrasyonları, UI adapter fallback'leri veya elle üretilen
+  fixture'lar yanlış kombinasyonları sessizce taşıyabilir. Fix: Pydantic
+  v2 `model_validator(mode="after")` ekle, kabul edilen mapping'i açıkça
+  pinle (`network`→`NetworkRawContext`, `file`→`FileRawContext`,
+  `process`→`ProcessRawContext`, `scenario`→`ScenarioRawContext`,
+  `activation`→`ActivationRawContext`, `ui_blocker`→`UiBlockerRawContext`,
+  `output_channel_appendline`→`OutputChannelRawContext`); legacy summary
+  kind'lar intentional olarak farklı context kullanıyorsa explicit
+  allow-list. Test:
+  `tests/platform/contracts/test_raw_context_discriminated.py::test_evidence_event_rejects_kind_event_class_mismatch`.
+  Mevcut canonical reports bozulmamalı. Severity: Medium. Lane:
+  `[security-detection]`.
+- **`[FOLLOWUP planner-selection-readability-audit]`** — W13-X
+  watching item (refactor önerisi YOK).
+  `packages/analysis_planner/selection.py` 497 LoC; üç nested closure-based
+  dispatch fazı (`_apply_activation_event`, `_apply_contributes_metadata`,
+  `_apply_default_fallback`) + mutation-heavy captured callback'lar
+  (`mark_scenario`, `register_attempt`). Bugün tek-pas planner fazı
+  olarak okunuyor — strategy registry / plugin abstraction değil.
+  Sadece yeni activation family eklendiğinde veya planner bug'ı
+  çıktığında ele al; küçük helper fonksiyonlar veya veri tabloları
+  kullanılabilir. Generic framework, event bus, abstract factory, DI
+  container, plugin registry eklenmeyecek. Planner behavior
+  değişmemeli; selection output fixture/testleri korunmalı; yeni mimari
+  katman yaratılmamalı. Severity: Low. Lane: `[security-detection]`.
 
 ### UI
 
 - ~~**`[CLEANUP ui-v3-9]`**~~ and ~~**`[CLEANUP ui-v3-14]`**~~ — closed.
 - **`[FOLLOWUP ui-supplemental-types-retire]`** — retire supplemental UI
   type shims once generated contracts fully cover them.
+- **`[FOLLOWUP ui-raw-context-discriminator-parity]`** — W13-X.
+  Backend `RawContext`'i strict discriminated union
+  (`packages/analysis_contracts/evidence.py:183-191`,
+  `Field(discriminator="event_class")` + variant başına `Literal[...]`).
+  Generated TS contracts (`ui/src/lib/types/contracts.ts:293-350`)
+  ise 7 varyantın hepsinde `event_class?: string;` (optional + wide
+  string) — generator literal'ı düz string'e indiriyor, discriminator
+  parity yok. Ek olarak `ui/src/lib/adapters/report.ts:247,278,318,344,366`
+  legacy fallback fonksiyonları (`fromActivation`, `fromNetwork`,
+  `fromFile`, `fromProcess`, `fromScenario`) `raw_context` literal'ı
+  kuruyor ama hiçbiri `event_class` set etmiyor — bu objeler backend'in
+  strict validator'ından geçemezdi, sadece UI-only oldukları için
+  hayatta kalıyorlar. Backend W12-3 ile strict olmuşken frontend
+  contract bu disiplini yansıtmıyor; ileride typed UI rendering veya
+  filtering eklenirse yanlış event sınıfları sessizce kabul edilir.
+  Fix: (a) `scripts/generate_ui_contracts.py`'yi her variant için
+  `event_class: "network"` (vb.) literal üretecek şekilde güncelle;
+  (b) 5 fallback fonksiyonuna kind ↔ event_class eşleştirmesini ekle.
+  Tests: `ui/src/lib/adapters/report.test.ts::preserves_raw_context_event_class_for_legacy_fallback_events`
+  - generated contract output'unda discriminator literal golden/text
+  assertion. Severity: Medium. Lane: `[ui]`.
 
 ### Engineering Quality
 

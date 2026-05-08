@@ -108,6 +108,32 @@ and that archive section.
   Closes the `EvidenceEvent.raw_context` entry of
   `_PENDING_MIGRATION` in
   `tests/platform/security/test_content_sample_typing.py`.
+- **Pre-W12-4 hardening pull-forward (added `2026-05-07` audit pass).**
+  W12-3 close denetimi iki sertleştirme öğesini açığa çıkardı; ikisi
+  de W12-4 dispatch extraction'ından **önce** landlanacak ve W12 close
+  acceptance bar'ına dahil:
+  - `[FOLLOWUP w12-0-output-signal-multiline-secret-redaction]` —
+    **OPEN, P1, security-blocker.** W12-0 file-backed yolu
+    (`signals/output.py:204`) `content.splitlines()` ile satır satır
+    `redact_secrets(_truncate(line))` uyguluyor. Ama
+    `redact_secrets`'in private-key pattern'i (`evidence.py:56-63`)
+    BEGIN…`(?:.|\n)*?`…END span'ı tek string'de görmeyi bekliyor;
+    `splitlines()` BEGIN/body/END satırlarını ayrı string'lere böldüğü
+    için per-line redaction multi-line PEM'i kaçırıyor. Adversarial
+    output channel write'ı persisted `ActivationReport`'a raw private
+    key gövdesi (base64) sızdırabilir. Fix: line-level redact öncesi
+    bounded multi-line pencere (PEM state machine veya sliding window)
+    üzerinde redaction. Bellek tavanı korunmalı; tüm log birleştirilmemeli.
+    See "Detailed Item Notes" below.
+  - `[FOLLOWUP api-docker-base-image-digest-pin]` — **OPEN, P1,
+    ADR-0002-violation.** `docker/api/Dockerfile:2` tag-only
+    (`FROM python:3.11-slim-bookworm`); ADR 0002 §4 trust table
+    (`documents/adrs/0002-threat-model.md:97`) digest-pin zorunluyor.
+    `executor/container/Dockerfile:8` zaten `@sha256:962f6cad…` ile
+    pinned — API tarafında supply-chain drift. Fix: API Dockerfile'ı
+    digest-pin formuna geçir + AST gate
+    `tests/architecture/test_dockerfile_digest_pin.py` (her Dockerfile
+    `FROM` satırı `@sha256:` içermeli). See "Detailed Item Notes" below.
 - **W12-4** — pending. `entrypoint/runner.py::main` dispatch extraction:
   `main()` 324 LoC → ≤200 LoC; CLI parse → config → monitor invocation
   → page-reload callback wiring → UI blocker probe move to new
@@ -196,6 +222,14 @@ number.
   W12-1 companion (defense-in-depth structural gate sibling to
   the existing AST-gate suite). Land if W12-1 has spare review
   capacity; otherwise defer to W13.
+- `[FOLLOWUP w12-0-output-signal-multiline-secret-redaction]`
+  (`POST_POC_BACKLOG.md` W12 Pull-Forward, **P1, pre-W12-4**) —
+  added `2026-05-07` audit pass; security-blocker. Landed before
+  W12-4 starts.
+- `[FOLLOWUP api-docker-base-image-digest-pin]`
+  (`POST_POC_BACKLOG.md` W12 Pull-Forward, **P1, pre-W12-4**) —
+  added `2026-05-07` audit pass; ADR 0002 §4 trust-table violation.
+  Landed before W12-4 starts.
 
 ## Detailed Item Notes (filled as items land)
 
@@ -496,6 +530,148 @@ number.
   decision 2026-05-07): no `kind`→`event_class` before-validator was
   added; old JSONs will fail validation, which is the expected outcome.
   Bump on the W13 PR if a released contract adopts the typed shape.
+
+### Pre-W12-4 Hardening — Output-Signal Multi-Line Secret Redaction
+
+**Stable ID.** `[FOLLOWUP w12-0-output-signal-multiline-secret-redaction]`
+in `POST_POC_BACKLOG.md` "W12 Pull-Forward". Added `2026-05-07` audit
+pass during W12-3 close.
+
+**Status.** Pending — lands before W12-4 starts. Severity: **High**
+(W12-0 scope'una somut bypass; security-blocker).
+
+**Scope.** W12-0 (`22eb836`) file-backed yolu
+`executor/flows/playwright/signals/output.py:204`'te `content.splitlines()`
+ile satır satır okuyup her line'ı izole `redact_secrets(_truncate(line))`
+çağrısından geçiriyor (`signals/output.py:223`). `redact_secrets`'in
+private-key pattern'i (`packages/analysis_contracts/evidence.py:56-63`):
+
+```python
+re.compile(
+    r"-----BEGIN[ A-Z0-9]*PRIVATE KEY-----"
+    r"(?:.|\n)*?"
+    r"-----END[ A-Z0-9]*PRIVATE KEY-----",
+)
+```
+
+— BEGIN-END çiftini **tek string** içinde görmeyi gerektiriyor; lazy
+`(?:.|\n)*?` aralarındaki body satırlarını yutuyor. `splitlines()`
+BEGIN, body satırları, ve END'i ayrı string parçalarına böldüğü için
+her parça izole redact çağrısı görüyor; hiçbiri tek başına BEGIN-END
+eşleşmesi vermiyor; PEM gövdesi (base64) AWS / Bearer / api_key /
+db_url desenlerine de uymadığı için **hiç maskelenmiyor**. Adversarial
+extension `outputChannel.appendLine("-----BEGIN ... PRIVATE KEY-----")`
+gibi line-by-line çağrılarla veya tek `appendLine` içinde gömülü `\n`
+ile multi-line PEM yazdığında, persisted `ActivationReport`'a raw
+private key gövdesi düşüyor (`OutputSignalEvent.text` üzerinden).
+
+**Why W12-0 didn't catch this.** W12-0 acceptance bar tek-satır
+secret pattern'lerini (AKIA, Bearer, AWS env, api_key=, postgres URL)
+doğrulayan 4 file-backed + 3 harness-marker testiyle kapatıldı; hiçbir
+test multi-line PEM senaryosu çalıştırmıyor. W11-6 extension-host log
+tail yolu (`report_builder.py:281-293`) zaten "truncate → expand →
+redact" ile multi-line aware; o yapı `signals/output.py`'a taşınmamış.
+
+**Fix yaklaşımı.**
+
+1. Line-level redaction'dan önce **bounded multi-line pencere** üzerinde
+   redact çalıştır. PEM state machine (BEGIN gör → END gör → buffer'ı
+   tek string olarak `redact_secrets`'a yolla → emit) veya sliding
+   window (son N satırı buffer'ında tut, BEGIN-END span'ı tamamlanınca
+   redact + emit) iki kabul edilebilir yaklaşım.
+2. Bellek tavanı: pencere boyutu `_truncate` rapor sınırına paralel
+   bounded olsun (sınırsız birleştirme yasak). Tüm log dosyasını tek
+   string'e koymak çıkar yol değil — capture pipeline silent-by-design,
+   ve dosya büyüklüğü adversary kontrolünde.
+3. Window'dan eventize ederken her event'in `text`'i zaten redacted
+   gelsin; `OutputSignalEvent.summary` türetimi
+   (`f"OutputChannel({channel}) appendLine"`) değişmeden çalışır
+   (`channel` zaten W12-0 dolgusunda redact'lanıyor).
+
+**Acceptance criteria.**
+
+- Yeni regression case'leri `tests/platform/security/test_output_signals_redaction.py`'a:
+  - Single `appendLine` çağrısı ile gömülü `\n`'lerden multi-line PEM
+    yazımı (file-backed yol).
+  - Üç ayrı `appendLine` çağrısı ile BEGIN/body/END (file-backed yol).
+  - Aynı senaryolar harness-marker yolunda (defense-in-depth).
+- Tüm yeni case'lerde persisted report'taki `OutputSignalEvent.text`
+  alanı raw PEM gövdesi içermemeli (`-----BEGIN ... PRIVATE KEY-----`
+  veya base64 body satırları); yerine `[REDACTED:private_key]` veya
+  bütünüyle redact edilmiş yer tutucu.
+- Existing 4 file-backed + 3 harness-marker e2e regression testi
+  (W12-0) ve 7 channel/summary case (W12-0 dolgusu, `b642af7`) geçmeli.
+- `_truncate` boyut tavanı korunmalı; pencere bellek limiti rapor
+  boyutunu çok aşmamalı.
+
+**Lane.** `[executor-runtime]` `[security-detection]`.
+
+---
+
+### Pre-W12-4 Hardening — API Docker Base Image Digest Pin
+
+**Stable ID.** `[FOLLOWUP api-docker-base-image-digest-pin]` in
+`POST_POC_BACKLOG.md` "W12 Pull-Forward". Added `2026-05-07` audit
+pass during W12-3 close.
+
+**Status.** Pending — lands before W12-4 starts. Severity: **High**
+(ADR 0002 §4 ihlali; supply-chain drift).
+
+**Scope.**
+
+- `docker/api/Dockerfile:2` — `FROM python:3.11-slim-bookworm`
+  (sadece tag, digest yok).
+- `executor/container/Dockerfile:8` —
+  `FROM ubuntu:22.04@sha256:962f6cadeae0ea6284001009daa4cc9a8c37e75d1f5191cf0eb83fe565b63dd7`
+  (digest-pinned, doğru form).
+- ADR 0002 §4 trust table (`documents/adrs/0002-threat-model.md:97`)
+  her base image için `FROM image@sha256:...` zorunluyor: *"Docker
+  base image | Trusted if SHA-pinned | `FROM image@sha256:...`
+  required"*.
+
+**Why önemli.** API container FastAPI yüzeyi + Docker socket bridge
+olduğu için kritik trust boundary'de. Mutable tag pini, aynı
+Dockerfile'ın zamanla farklı base image üretmesine yol açabilir
+(upstream `python:3.11-slim-bookworm` tag'i zaman içinde farklı
+digest'lere işaret edebilir, hatta hijack edilebilir). Executor
+container kuralı doğru uyguluyor; API tarafı uymuyor.
+
+**Fix kapsamı.**
+
+1. **Dockerfile pin.** `docker/api/Dockerfile:2` mevcut tag'in canlı
+   digest'i ile değiştirilecek:
+
+   ```dockerfile
+   FROM python:3.11-slim-bookworm@sha256:<resolved-digest>
+   ```
+
+   Resolution: `docker pull python:3.11-slim-bookworm`,
+   `docker inspect --format='{{index .RepoDigests 0}}'`. Sonuç
+   commit message'a kaydedilsin.
+2. **AST gate.** Yeni
+   `tests/architecture/test_dockerfile_digest_pin.py` —
+   `docker/` ve `executor/container/` altındaki tüm `Dockerfile`
+   dosyalarını yürüyüp her `FROM` satırının `@sha256:` içerdiğini
+   doğrulasın. Multi-stage builds (`FROM ... AS stage`) dahil tüm
+   `FROM` satırları kapsanmalı; `FROM scratch` istisna olarak
+   allow-list'lensin (gerekiyorsa).
+
+**Acceptance criteria.**
+
+- `docker/api/Dockerfile` `FROM python:3.11-slim-bookworm@sha256:...`
+  formuna geçmeli.
+- `executor/container/Dockerfile` mevcut digest pin korunmalı (regress
+  yok).
+- Yeni AST gate tag-only Dockerfile kullanımını yakalamalı; mevcut
+  digest pin'ler doğrulanmalı.
+- `make check-all` yeşil; yeni dependency yok; `pyproject.toml` ve
+  `requirements*.txt` değişmemeli.
+- ADR 0002 §4 trust table tek satırlık güncelleme gerekiyorsa "API
+  Dockerfile pinned" notu eklenebilir (opsiyonel).
+
+**Lane.** `[platform-storage]`.
+
+---
 
 ### W12-4 — `entrypoint/runner.py::main` Dispatch Extraction
 

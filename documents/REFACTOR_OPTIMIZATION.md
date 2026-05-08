@@ -241,6 +241,30 @@ workspace-exfil canary fires correctly on HTTP fallback now). UI TS
 contracts regenerated. W12-4 `entrypoint/runner.py::main` dispatch
 extraction is unblocked.
 
+**Pre-W12-4 hardening pull-forward (added `2026-05-07` audit pass):**
+W12-3 close sırasında yapılan denetim iki pre-W12-4 sertleştirme öğesini
+açığa çıkardı; ikisi de `POST_POC_BACKLOG.md` "W12 Pull-Forward"
+bölümünde OPEN olarak takip ediliyor ve W12-4 dispatch extraction'ından
+**önce** landlanacak:
+
+- `[FOLLOWUP w12-0-output-signal-multiline-secret-redaction]` — W12-0
+  file-backed yolu (`signals/output.py:204`) `splitlines()` ile satır
+  satır redact ettiği için multi-line PEM (`evidence.py:56-63`'teki
+  BEGIN…END pattern'i tek string spanı bekler) bypass'lanıyor.
+  Adversarial output channel write'ı persisted `ActivationReport`'a
+  raw private key gövdesi sızdırabilir. Fix: bounded multi-line
+  pencere üzerinde redaction (PEM state machine veya sliding window),
+  sonra line-level eventize. Severity: High; W12-0 scope'una somut
+  bypass.
+- `[FOLLOWUP api-docker-base-image-digest-pin]` — `docker/api/Dockerfile:2`
+  tag-only (`FROM python:3.11-slim-bookworm`) kalmış; ADR 0002 §4
+  trust table (`documents/adrs/0002-threat-model.md:97`) digest-pin
+  zorunluyor. `executor/container/Dockerfile:8` zaten
+  `@sha256:962f6cad…` ile pinned — API tarafında supply-chain drift
+  riski. Fix: API Dockerfile'ı digest-pin formuna geçir + AST gate
+  (`tests/architecture/test_dockerfile_digest_pin.py`) ekle. Severity:
+  High; ADR 0002 ihlali.
+
 #### §11.9.1 — `runtime_capture/extension_host.py` Split Scoping
 
 `runtime_capture/extension_host.py` (679 LoC; executor flow tree'deki
@@ -276,6 +300,27 @@ unchanged).
 **Goal:** Benign silence fixture 3→5; stale singleton-lock + `.env`
 gitignore regression tests; `extrace.executor.*` logger consolidation;
 run-ID stamping; W8-W12 regression lock-in.
+
+**W13 candidates added `2026-05-07` audit pass** (full detail in
+`POST_POC_BACKLOG.md`):
+
+- `[FOLLOWUP scenario-accountant-conservation-split]` —
+  `monitor/scenario_accountant.py` 648 LoC (W11-close 426; +222 LoC
+  drift). W11-1 lifecycle split pattern: precursor tests → conservation
+  - intermediate-emission helper extraction. Lane: `[executor-runtime]`.
+- `[FOLLOWUP evidence-event-kind-raw-context-invariant]` —
+  `EvidenceEvent.kind` ↔ `raw_context.event_class` pairing validator
+  yok; `_common.py` accessor'ları getattr fallback'larla bu açığı
+  defensive olarak kapatıyor. Pydantic v2 `model_validator` + explicit
+  mapping. Lane: `[security-detection]`.
+- `[FOLLOWUP ui-raw-context-discriminator-parity]` — Generated TS
+  contracts'ta `event_class?: string` (literal değil); 5 legacy adapter
+  fallback'ı `event_class` set etmiyor. Generator + adapter fix. Lane:
+  `[ui]`.
+- `[FOLLOWUP planner-selection-readability-audit]` — Watching item;
+  `analysis_planner/selection.py` 497 LoC, mutation-heavy closure'lar.
+  Refactor önerisi YOK; sadece yeni activation family veya planner
+  bug'ı tetiklediğinde ele al. Lane: `[security-detection]`.
 
 Detail: archive §11.10.
 
