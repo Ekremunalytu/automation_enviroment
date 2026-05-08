@@ -188,9 +188,9 @@ def install_extension_in_executor(publisher: str, name: str, version: str) -> st
     return result.stdout
 
 
-_RELOAD_TIMEOUT = 90
+_RELOAD_TIMEOUT = 180
 _RESET_TIMEOUT = 90
-_AUTOMATION_TIMEOUT = 600
+_AUTOMATION_TIMEOUT = 1200
 _DEFAULT_SCENARIO = "coding_session"
 _RELOAD_CLEANUP_TIMEOUT = 5
 
