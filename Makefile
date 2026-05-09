@@ -354,6 +354,15 @@ down:
 restart: build up
 	@echo "🔄 Restart complete!"
 
+extensions-reset:
+	@./scripts/reset_extensions.sh
+
+api-fresh: extensions-reset
+	@echo "🚀 Cold-starting API (rebuild + migrate)..."
+	@docker compose up -d --build api
+	@docker exec automation_api alembic upgrade head
+	@echo "✅ Fresh API ready (extensions disk + DB cleared, image rebuilt, migrations applied)."
+
 logs:
 	docker-compose logs -f --tail=100
 
