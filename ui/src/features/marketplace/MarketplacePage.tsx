@@ -502,12 +502,18 @@ type VsixIntegrityBannerProps = {
 };
 
 function VsixIntegrityBanner({ artifact, metrics, onDismiss }: VsixIntegrityBannerProps) {
+  // The banner is the post-download mirror of the threshold-breach popup
+  // — both surfaces flag VSIX-side risk, so we keep the accent rail in
+  // the coral/danger family rather than the green/ok family. Future
+  // refinement (FOLLOWUP vsix-banner-proximity-coloring) can downgrade
+  // to amber/green when metrics sit comfortably below the configured
+  // thresholds.
   return (
     <div
       role="status"
       style={{
         border: `1px solid ${V3.rule}`,
-        borderLeft: `3px solid ${V3.ok}`,
+        borderLeft: `3px solid ${V3.coral}`,
         background: V3.paper2,
         padding: "12px 16px",
         marginBottom: 16,
@@ -524,7 +530,7 @@ function VsixIntegrityBanner({ artifact, metrics, onDismiss }: VsixIntegrityBann
             fontSize: 10,
             letterSpacing: "0.18em",
             textTransform: "uppercase",
-            color: V3.ok,
+            color: V3.coral,
           }}
         >
           ● VSIX integrity
