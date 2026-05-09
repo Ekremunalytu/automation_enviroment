@@ -114,7 +114,7 @@ subpackaging + attribution cleanup (§11.9).
 | **W9** | Executor↔Detection boundary | ADR 0008 container package-mode invocation, dual-import fallback sweep, `signal_policy.py` relocation, `sys.path.insert` audit, container import-mode CI test | Claude §6/§10; Codex §9/§4 |
 | **W10** | Contract hygiene + Planner split | `schema_version` + DeprecationWarning, `_TriggerPayloadDraft` elimination, `registry.py` 4-way split, `automation_health`/`coverage_*` typing | Codex §1.2/§1.4/§2; Claude §4 |
 | **W11** | Monitor lifecycle split | `monitor_lifecycle.py` 834 LoC → `MonitorRuntime` + `ReportAssembler` + `ScenarioAccountant` + `ExtensionMonitor` facade | Codex §3.1; Claude §3 |
-| **W12** | Executor subpackaging + attribution cleanup | W12-1 landed 2026-05-07 (`b4bd3ee` + follow-ups): `executor/flows/playwright/` 54 → 7 new subpackages + 10 flat (10 package dirs total with existing attribution/scenarios/runtime_capture); W12-2 attribution facade cleanup landed; W12-3 `raw_context` discriminated union typing landed (3 named + 4 extra variants under `event_class` discriminator); `entrypoint/runner.py::main` 324→≤200 LoC pending | Codex §3.1/§3.2/§4; Claude §2/§3/§5 |
+| **W12** | Executor subpackaging + attribution cleanup | W12-1 landed 2026-05-07 (`b4bd3ee` + follow-ups): `executor/flows/playwright/` 54 → 7 new subpackages + 10 flat (10 package dirs total with existing attribution/scenarios/runtime_capture); W12-2 attribution facade cleanup landed; W12-3 `raw_context` discriminated union typing landed (3 named + 4 extra variants under `event_class` discriminator); W12-4 landed 2026-05-10: `entrypoint/runner.py::main` 324 → 99 LoC (≤200 LoC budget) via dispatch extraction to new `entrypoint/dispatch.py` (`PageRef` + 6 helper functions). All four W12 work items landed; W12 close acceptance bar pending | Codex §3.1/§3.2/§4; Claude §2/§3/§5 |
 | **W13** | Test expansion + observability | Benign silence 3→5 fixture, regression locks, `extrace.executor.*` logger consolidation, run-ID stamping | Claude §9/§12; Codex §10/§12 |
 
 ### §11.3 — Haftalar arası bağımlılıklar
@@ -238,8 +238,28 @@ exit-criteria bullet 4 with `dict[str, Any]` residue 0. Incidental fix:
 the never-emitted `method` key to the producer's actual `http_method`
 (latent bug surfaced once typed variants pinned the field set; a4
 workspace-exfil canary fires correctly on HTTP fallback now). UI TS
-contracts regenerated. W12-4 `entrypoint/runner.py::main` dispatch
-extraction is unblocked.
+contracts regenerated.
+
+**W12-4 landed 2026-05-10**: `executor/flows/playwright/entrypoint/runner.py::main`
+324 → 99 LoC (limit ≤200) via dispatch extraction to new
+`executor/flows/playwright/entrypoint/dispatch.py` (402 LoC). The new
+module owns the 6-way execution mode dispatch (`demo` /
+`skip_automation` / `layered_passes` / `selected_scenarios` /
+`single_scenario` / default-all `run_all_scenarios`), monitor setup,
+page-callback factory, extra-trigger application, skipped-scenario
+summary, and monitor finalize sequence. `PageRef` mutable wrapper
+crosses the page-rebind invariant (callbacks-after-reload) across
+the module boundary without `nonlocal`. Pattern follows W11-1
+(`monitor_lifecycle.py` 834→split): pure relocation, no behavior
+change, no generic framework / strategy registry / event bus
+introduced. Two new architecture gates pin the readability ratchet:
+`tests/architecture/test_runner_main_loc_budget.py::test_runner_main_under_loc_budget`
+(AST gate, ≤200 LoC) and `::test_runner_main_dispatch_helpers_remain_imported`
+(import-contract pin). Direct unit coverage for the dispatch module
+lives in `tests/executor/test_playwright_dispatch.py`. All four W12
+work items landed; W12 close acceptance bar (full `make check-all`
+plus `make test-security` plus live-scan validation) is the remaining
+exit-criteria gate.
 
 **Pre-W12-4 hardening pull-forward (added `2026-05-07` audit pass):**
 W12-3 close sırasında yapılan denetim iki pre-W12-4 sertleştirme öğesini

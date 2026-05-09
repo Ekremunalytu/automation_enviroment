@@ -1,6 +1,6 @@
 # W12 — Executor Subpackaging + Attribution Cleanup (Active Work Tracker)
 
-`Last Updated: 2026-05-07 (W12 active; W12-0 + W12-1 + W12-2 + W12-3 landed; W12-4 unblocked)`
+`Last Updated: 2026-05-10 (W12 active; W12-0..W12-4 landed; W12 close acceptance bar pending)`
 
 This is the canonical active work tracker for the W12 executor
 subpackaging + attribution cleanup window. Items have stable IDs
@@ -132,12 +132,25 @@ and that archive section.
     formunda; yeni `tests/architecture/test_dockerfile_digest_pin.py`
     gate'i API + executor Dockerfile `FROM` satırlarını pinliyor. See
     "Detailed Item Notes" below.
-- **W12-4** — pending. `entrypoint/runner.py::main` dispatch extraction:
-  `main()` 324 LoC → ≤200 LoC; CLI parse → config → monitor invocation
-  → page-reload callback wiring → UI blocker probe move to new
-  `entrypoint/dispatch.py`. File total currently 494 LoC (`main()`
-  324 + module-level helpers/imports ~170); only `main()` shrinks
-  toward the ≤200 LoC target.
+- **W12-4** — landed `2026-05-10` on `week12`. `entrypoint/runner.py::main`
+  dispatch extraction: `main()` **324 LoC → 99 LoC** (limit ≤200, comfortably
+  under). New `entrypoint/dispatch.py` (402 LoC) owns: `PageRef`
+  mutable page-reference wrapper (replaces `nonlocal page` rebind across
+  module boundary), `setup_monitor`, `make_page_callbacks`,
+  `dispatch_execution` (the 6-way mode dispatch — `demo` /
+  `skip_automation` / `layered_passes` / `selected_scenarios` /
+  `single_scenario` / default-all), `apply_extra_triggers_if_needed`,
+  `summarize_skipped_scenarios_if_needed`, `finalize_monitor_report`,
+  plus the deps-binding helpers `_run_demo_for_deps` /
+  `_run_extra_triggers_for_deps` and the execution-result helpers
+  `_empty_execution_result` / `_normalize_execution_result` (only
+  dispatch path consumes them post-W12-4). `runner.py` total 494 → 196
+  LoC. Two new architecture gates in
+  `tests/architecture/test_runner_main_loc_budget.py`:
+  `test_runner_main_under_loc_budget` (AST gate, 200 LoC ratchet) and
+  `test_runner_main_dispatch_helpers_remain_imported` (pins the
+  contract that dispatch.py owns the heavy lifting). See
+  "Detailed Item Notes" below.
 
 ## Entry Conditions
 
@@ -175,8 +188,8 @@ and that archive section.
       underscore-prefixed helpers are internal-scoped
 - [x] `raw_context` typed discriminated union; `dict[str, Any]`
       residue = 0 in evidence models
-- [ ] `entrypoint/runner.py::main` 324 LoC → ≤200 LoC; dispatch logic
-      in `entrypoint/dispatch.py`
+- [x] `entrypoint/runner.py::main` 324 LoC → ≤200 LoC; dispatch logic
+      in `entrypoint/dispatch.py` (landed `2026-05-10`; `main()` 99 LoC)
 - [ ] Import-graph gates green; full W12-close `make check-all` and
       `make test-security` acceptance bar recorded
 - [ ] Live-scan validation: pre/post bitwise-equal detection-relevant
@@ -786,6 +799,91 @@ container kuralı doğru uyguluyor; API tarafı uymuyor.
 
 ---
 
-### W12-4 — `entrypoint/runner.py::main` Dispatch Extraction
+### W12-4 — `entrypoint/runner.py::main` Dispatch Extraction (landed `2026-05-10`)
 
-(pending)
+- **Scope.** `executor/flows/playwright/entrypoint/runner.py::main`
+  324 LoC → 99 LoC (limit ≤200). Dispatch logic moved to new
+  `executor/flows/playwright/entrypoint/dispatch.py`. Pattern follows
+  W11-1 (`monitor_lifecycle.py` 834→split): pure relocation, no
+  behavior change, no generic framework / strategy registry / event
+  bus introduced. `runner.py` total shrank from 494 LoC → 196 LoC;
+  `dispatch.py` is 402 LoC.
+- **`runner.py` post-W12-4 surface.** Public functions kept so the
+  package `__init__.py` import contract holds: `run_demo`,
+  `create_bait_files`, `default_report_path`, `main`. Private
+  deps-binding helpers used only by `main()` stay too:
+  `_default_report_path_for_deps`, `_create_bait_files_for_deps`,
+  `_resolve_execution_plan_for_deps`,
+  `_reload_window_under_monitoring_for_deps`. The deps-binding
+  helpers consumed only inside the dispatch path
+  (`_run_demo_for_deps`, `_run_extra_triggers_for_deps`) and the
+  execution-result builders (`_empty_execution_result`,
+  `_normalize_execution_result`) moved to `dispatch.py`.
+- **`dispatch.py` exports.** `PageRef` (mutable page-reference
+  wrapper), `setup_monitor`, `make_page_callbacks`,
+  `dispatch_execution`, `apply_extra_triggers_if_needed`,
+  `summarize_skipped_scenarios_if_needed`,
+  `finalize_monitor_report`. The 6-way execution mode condition
+  (`demo` / `skip_automation` / `layered_passes` /
+  `selected_scenarios` / `single_scenario` / default-all
+  `run_all_scenarios`) lives in `dispatch_execution`; ordering and
+  per-mode side effects (`mark_trigger_plan_applied`,
+  `wait_for_idle_observation`, exit-code accumulation) preserved
+  bytewise.
+- **`PageRef` design.** The retry-on-crash callback originally used
+  `nonlocal page` to rebind the live page after a window reload so
+  later `wait_for_idle_observation(page, ...)` calls saw the new
+  page. Crossing module boundaries breaks `nonlocal`; `PageRef.value`
+  is a single-attribute mutable wrapper that the
+  `make_page_callbacks._on_page_reloaded` closure mutates and the
+  rest of `dispatch_execution` reads. Smallest possible abstraction
+  — no framework, no plugin shape.
+- **Exit-code accumulation.** Original `main()` set `exit_code = 1`
+  in five places (one per mode that detected failures, plus the
+  extra-trigger and skipped-summary blocks). Refactored shape uses
+  `exit_code |= partial` (bitwise OR) at the orchestrator level,
+  with `dispatch_execution`, `apply_extra_triggers_if_needed`, and
+  `summarize_skipped_scenarios_if_needed` each returning 0 or 1.
+  Behavior identical because the only non-zero value is 1.
+- **Lazy import in `_run_demo_for_deps`.** `dispatch.py` is loaded
+  during `runner.py`'s import (`runner.py` does
+  `from .dispatch import ...`). A top-level
+  `from .runner import run_demo` in `dispatch.py` would re-enter the
+  partially-loaded runner module. The `_run_demo_for_deps` helper
+  imports `run_demo` lazily inside its body — standard Python
+  cycle-break pattern, documented inline.
+- **Architecture gates added.** Two new tests in
+  `tests/architecture/test_runner_main_loc_budget.py`:
+  - `test_runner_main_under_loc_budget` — AST gate, asserts
+    `main()` body span ≤ 200 LoC. Pattern mirrors
+    `test_executor_playwright_flat_file_count_limit` (W12-1):
+    structural ratchet that fires before the readability hotspot
+    re-emerges.
+  - `test_runner_main_dispatch_helpers_remain_imported` — pins
+    that `runner.py` continues to import the six dispatch helpers
+    (`PageRef`, `apply_extra_triggers_if_needed`,
+    `dispatch_execution`, `finalize_monitor_report`,
+    `setup_monitor`, `summarize_skipped_scenarios_if_needed`).
+    Prevents a future inlining that drops imports without bumping
+    the LoC test in lockstep.
+- **Tests.** `tests/executor/test_playwright_entrypoint.py` 27/27
+  cases green (21 in pre-W12-4 baseline + 6 parameterized
+  expansions); the fake-`deps` SimpleNamespace harness covers the
+  refactor end-to-end without modification because every dispatch
+  helper continues to honor the `*, deps`-injection convention.
+  Architecture suite (12 cases under
+  `tests/architecture/test_import_graph.py` + 1
+  `test_container_entrypoint.py` + 2 new gates) all green. Broad
+  bar: `make test-local` 1402 passed / 6 skipped / 6 deselected
+  (1400 → 1402, the +2 from the new LoC budget gate);
+  `make test-security` 211 passed / 32 warnings (unchanged).
+- **Live-scan.** Deferred to W12 close (Iteration 6) per
+  W12-1/2/3 precedent — Docker `automation_executor` not running
+  locally during W12-4 implementation. Sanity-check via
+  `python -m executor.flows.playwright.entrypoint --list` (13
+  scenarios enumerate; package import + scenarios registry resolve
+  survive the dispatch extraction).
+- **Branch policy note.** Per the W12 single-branch policy, W12-4
+  lands as commits on `week12` rather than as a standalone PR.
+  Commit-level isolation preserves the cherry-pick / revert
+  ergonomics.

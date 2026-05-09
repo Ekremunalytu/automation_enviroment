@@ -1,6 +1,6 @@
 # Refactor Status
 
-`Last Updated: 2026-05-10 (W12 active; pre-W12-4 hardening + local verification recorded)`
+`Last Updated: 2026-05-10 (W12 active; W12-4 dispatch extraction landed; W12 close acceptance bar pending)`
 
 Active status board for current closure state. **Slim canonical** — full
 phase history and verbose evidence are frozen under dated snapshots:
@@ -98,12 +98,26 @@ phase history and verbose evidence are frozen under dated snapshots:
   `ms-python.python@2026.5.2026050801` artifact instead of the stale
   partial `2026.5.2026032701` directory, restoring the no-network
   local-artifact guarantee in `test_analysis_fixture_baselines.py`.
+- W12-4 entrypoint dispatch extraction:
+  **landed** `2026-05-10` on `week12`.
+  `executor/flows/playwright/entrypoint/runner.py::main` 324 LoC →
+  99 LoC (limit ≤200). New `entrypoint/dispatch.py` (402 LoC) owns
+  the 6-way execution mode dispatch, monitor setup, page-callback
+  factory, extra-trigger application, skipped-scenario summary, and
+  monitor finalize sequence. `runner.py` total 494 → 196 LoC. Two new
+  architecture gates pin the readability ratchet:
+  `tests/architecture/test_runner_main_loc_budget.py::test_runner_main_under_loc_budget`
+  (AST gate, ≤200 LoC) and `::test_runner_main_dispatch_helpers_remain_imported`.
+  W12 close exit criterion bullet 5 cleared.
 - Working branch: `week12` (single-branch policy for W12).
-- Last known broad check bar: `make test-local` 1400 passed / 6 skipped / 6
-  deselected on `2026-05-10` after pre-W12-4 hardening closures, the
+- Last known broad check bar: `make test-local` 1402 passed / 6 skipped / 6
+  deselected on `2026-05-10` after the W12-4 dispatch extraction
+  (+2 from the new `test_runner_main_loc_budget` gate); previous bar
+  was 1400 after pre-W12-4 hardening closures, the
   `ms-python.python@2026.5.2026050801` fixture-baseline realignment, and
   the `[FOLLOWUP security-settings-commit-ownership]` rollback +
-  schema-validation pin tests; `make test-security` 211 passed / 32 warnings.
+  schema-validation pin tests; `make test-security` 211 passed / 32 warnings
+  (unchanged across W12-4).
 - Latest focused verification (`2026-05-09`): `make test-security`
   211 passed / 32 warnings; 113 marketplace/security-settings/helper/
   generator/digest tests passed; generated-contract `--check` passed;
