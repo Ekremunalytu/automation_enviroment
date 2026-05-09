@@ -21,6 +21,7 @@ from appcore.contracts.schemas import (
     MarketplaceDownloadRequest,
     MarketplaceDownloadResponse,
     MarketplaceExtension,
+    VsixExtractionMetrics,
 )
 from executor.control import ExecutorError
 from packages.analysis_contracts import ExtensionIdentity
@@ -86,9 +87,14 @@ def download_marketplace_extension(
     db: Session = Depends(get_db),
 ) -> MarketplaceDownloadResponse:
     ext_dir: Path | None = None
+    metrics_collector: dict[str, float] = {}
     try:
         ext_dir = marketplace_client.download_and_extract_vsix(
-            request.publisher, request.name, request.version, db=db
+            request.publisher,
+            request.name,
+            request.version,
+            db=db,
+            metrics_out=metrics_collector,
         )
     except marketplace_client.VSIXUnpackError as exc:
         # Structured 422 so the UI can render a popup naming the specific
@@ -173,6 +179,7 @@ def download_marketplace_extension(
                 f"Extension {request.publisher}.{request.name}@{request.version} "
                 "is already downloaded and ready to analyze."
             ),
+            vsix_metrics=_metrics_payload(metrics_collector),
         )
 
     return MarketplaceDownloadResponse(
@@ -186,6 +193,24 @@ def download_marketplace_extension(
             f"Extension {request.publisher}.{request.name}@{request.version} "
             "downloaded and analyzed successfully."
         ),
+        vsix_metrics=_metrics_payload(metrics_collector),
+    )
+
+
+def _metrics_payload(
+    collected: dict[str, float],
+) -> VsixExtractionMetrics | None:
+    """Promote the mutable dict the marketplace client populates into the
+    typed schema. Returns ``None`` for the idempotent re-download path
+    (extension already on disk) where no fresh metrics were measured."""
+    if not collected:
+        return None
+    return VsixExtractionMetrics(
+        file_count=int(collected.get("file_count", 0)),
+        uncompressed_size=int(collected.get("uncompressed_size", 0)),
+        compressed_size=int(collected.get("compressed_size", 0)),
+        compression_ratio=float(collected.get("compression_ratio", 0.0)),
+        rejected_entry_count=int(collected.get("rejected_entry_count", 0)),
     )
 
 

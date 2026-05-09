@@ -230,6 +230,7 @@ def _extract_vsix_to_dir(
     destination_dir: Path,
     *,
     thresholds: dict[str, int] | None = None,
+    metrics_out: dict[str, float] | None = None,
 ) -> int:
     """Extract a VSIX archive into ``destination_dir`` under safety limits.
 
@@ -241,6 +242,13 @@ def _extract_vsix_to_dir(
     we fall back to the module-level constants. Production callers pass a
     dict loaded from the operator-tunable settings table; tests typically
     rely on the fallback path with a monkeypatched constant.
+
+    ``metrics_out`` (optional, mutated in place) collects the observed
+    extraction metrics — ``file_count`` / ``uncompressed_size`` /
+    ``compressed_size`` / ``compression_ratio`` / ``rejected_entry_count``.
+    The HTTP layer uses these to populate ``MarketplaceDownloadResponse``
+    so the UI can render the "VSIX Integrity" panel and highlight
+    extensions whose footprint approaches the operator-set thresholds.
     """
     max_uncompressed, max_ratio, max_file_count = _resolve_thresholds(thresholds)
 
@@ -325,6 +333,19 @@ def _extract_vsix_to_dir(
             rejected_count,
             destination_dir,
         )
+
+    if metrics_out is not None:
+        ratio = (
+            cumulative_uncompressed / cumulative_compressed
+            if cumulative_compressed > 0
+            else 0.0
+        )
+        metrics_out["file_count"] = file_count
+        metrics_out["uncompressed_size"] = cumulative_uncompressed
+        metrics_out["compressed_size"] = cumulative_compressed
+        metrics_out["compression_ratio"] = round(ratio, 3)
+        metrics_out["rejected_entry_count"] = rejected_count
+
     return rejected_count
 
 
@@ -361,6 +382,7 @@ def download_and_extract_vsix(
     version: str,
     *,
     db: Session | None = None,
+    metrics_out: dict[str, float] | None = None,
 ) -> Path:
     """
     Download and extract a VSIX extension package from the VS Code Marketplace.
@@ -433,7 +455,12 @@ def download_and_extract_vsix(
         thresholds = load_vsix_thresholds(db)
 
     try:
-        _extract_vsix_to_dir(vsix_bytes, partial_dir, thresholds=thresholds)
+        _extract_vsix_to_dir(
+            vsix_bytes,
+            partial_dir,
+            thresholds=thresholds,
+            metrics_out=metrics_out,
+        )
         get_package_json(partial_dir)
     except (OSError, PackageJsonReadError, zipfile.BadZipFile, VSIXUnpackError):
         _cleanup_partial_dir(partial_dir)
