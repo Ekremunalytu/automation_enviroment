@@ -232,6 +232,16 @@ number.
   (`POST_POC_BACKLOG.md` W12 Pull-Forward, **P1, pre-W12-4**) —
   added `2026-05-07` audit pass; ADR 0002 §4 trust-table violation.
   Landed before W12-4 starts.
+- `[FOLLOWUP marketplace-installer-tail-multiline-redaction]`
+  (`POST_POC_BACKLOG.md` W12 Pull-Forward, **P2, pre-W12-4 / W13-X**) —
+  added `2026-05-09` audit pass (Codex review).
+  `workflows/marketplace/analysis_execution.py:80` installer failure
+  helper slice→redact sırasını koruyor; W12-0 fix'in workflow tarafına
+  yansıtılmamış formu — multi-line PEM bypass'a açık. Fix:
+  `redact_multiline_secrets(output)` whole-content pre-pass + tail
+  - `redact_secrets(_truncate(...))`. W12-4 ile beraber landlanabilir
+  veya W13-X olarak ertelenebilir; W12 close acceptance bar'ında
+  zorunlu değil.
 
 ## Detailed Item Notes (filled as items land)
 

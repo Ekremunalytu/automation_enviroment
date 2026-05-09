@@ -1,6 +1,6 @@
 # Post-PoC Backlog
 
-`Last Updated: 2026-05-07 (slimmed after audit pass; full detail archived)`
+`Last Updated: 2026-05-09 (5 new FOLLOWUPs added from Codex review pass; full detail archived)`
 
 Open deferred work after the W0-W7 PoC acceptance bar. **Slim canonical** —
 verbose descriptions, evidence, and older triage notes are frozen in dated
@@ -116,6 +116,30 @@ Use stable IDs in new references; do not cite canonical doc line numbers.
   ekle — `docker/` ve `executor/container/` altındaki her `Dockerfile`'ın
   `FROM` satırı `@sha256:` içermeli. Yeni dependency yok. Lane:
   `[platform-storage]`.
+- **`[FOLLOWUP marketplace-installer-tail-multiline-redaction]`** —
+  **OPEN, P2, pre-W12-4 / W13-X.** Surfaced `2026-05-09` audit pass
+  (Codex review). `workflows/marketplace/analysis_execution.py:80`
+  installer failure helper sırası **slice → redact**:
+  `tail = redact_secrets(output[-500:].strip())`. Single-line token'larda
+  doğru çalışır ama multi-line `private_key` PEM bloku 500 karakterlik
+  pencereyi bölünce (veya pencere içinde BEGIN/END eşleşmesini parçalarsa)
+  `redact_secrets` pattern'i tüm bloku göremez — W12-0 öncesi
+  `signals/output.py`'da kapatılan **tam paralel** bypass. W12-0 fix
+  (`[FOLLOWUP w12-0-output-signal-multiline-secret-redaction]`,
+  `2026-05-08`) `redact_multiline_secrets` pre-pass desenini kurdu;
+  bu callsite o desene migrate edilmedi. Gerçek sızıntı operatöre
+  `code --install-extension` stderr'inin attacker-controlled içerik
+  taşıdığı durumlarda; severity Medium çünkü sızıntı yüzeyi installer
+  hata akışı. Fix: önce
+  `redact_multiline_secrets(output)` whole-content pre-pass, sonra
+  tail (`output[-500:]`), sonra existing `redact_secrets(_truncate(...))`
+  per-tail; mantık `executor/flows/playwright/report_builder.py`'daki
+  W11-6 "trim → expand → redact" desenine paralel olur. Tests:
+  `tests/workflows/marketplace/test_analysis_execution.py::test_install_failure_message_redacts_multiline_pem`
+  - cross-boundary 500-char split case. W11-6 / W12-0 ile
+  yapılan iş bu callsite'a yansıtıldığı için yeni bağımlılık veya
+  helper gerekmiyor. Severity: Medium. Lane:
+  `[marketplace-analysis]` `[security-detection]`.
 
 ## W12 Acceptance Items
 
@@ -175,6 +199,26 @@ Use stable IDs in new references; do not cite canonical doc line numbers.
 - **`[FOLLOWUP w11-8-companion-workflow-orm-bleed]`** — decide DTO
   migration vs documented boundary exception for workflow return types that
   expose storage ORM models.
+- **`[FOLLOWUP security-settings-commit-ownership]`** —
+  **OPEN, P3, W13-X.** Surfaced `2026-05-09` audit pass (Codex review).
+  `workflows/security_settings/service.py:84-85` `save_vsix_thresholds()`
+  CRUD facade üzerinden `upsert_operator_settings_bulk(db, ...)` çağırıp
+  ardından kendisi `db.commit()` yapıyor; AGENTS.md rule 2'nin "write
+  logic CRUD'da" zorunluluğu **ihlal edilmiyor** (write logic
+  `appcore/storage/crud_ops/operator_settings.py:65-77`'de kalmaya
+  devam ediyor) ama transaction boundary workflow tarafında. Mevcut
+  storage deseninde commit ownership genelde CRUD/job lifecycle
+  tarafında (`crud_ops/analysis_jobs/lifecycle.py` örüntüsü).
+  Bugün küçük yüzey; settings alanı büyürse workflow service
+  transaction ownership almaya başlar ve "DB write/commit nerede
+  yapılır?" sınırı bulanıklaşır. Fix seçenekleri: (a) yeni helper
+  `save_operator_settings_bulk_and_commit(db, items, updated_by)`
+  CRUD tarafına; (b) mevcut `upsert_operator_settings_bulk`'a opsiyonel
+  `commit: bool = False` parametresi (varsayılan invariant'ı korur);
+  (c) `[FOLLOWUP w11-8-companion-workflow-orm-bleed]` kapsamına
+  ekleyip DTO/transaction sözleşmesini birlikte revize et. Generic
+  framework / unit-of-work / repository abstraction eklenmeyecek.
+  Severity: Medium-Low. Lane: `[platform-storage]`.
 - **`[FOLLOWUP w8-1-vsix-rejection-log-sanitization]`** — P2; sanitize
   attacker-controlled VSIX entry names before rejection logging.
   Co-tenant of `[FOLLOWUP w8-1-extract-rejection-logging]` (same call
@@ -208,6 +252,27 @@ Use stable IDs in new references; do not cite canonical doc line numbers.
   orchestration'ını tutmaya devam etsin. Davranış değişikliği olmamalı,
   generic framework / event bus / plugin abstraction eklenmeyecek.
   W12-4 ve W12-5 ile karıştırma. Severity: Medium. Lane:
+  `[executor-runtime]`.
+- **`[FOLLOWUP attribution-links-build-evidence-bundle-density]`** —
+  **W13-X watching item, refactor önerisi YOK.** Surfaced `2026-05-09`
+  audit pass (Codex review). `executor/flows/playwright/attribution/links.py`
+  601 LoC; `build_evidence_bundle()` (girişi `links.py:32` civarı)
+  birden çok `EvidenceEvent.kind` / `raw_context.event_class` varyantı
+  ve link üretim mantığını tek yerde topluyor. W12-3 ile `RawContext`
+  union 7 varyanta genişledi; yeni event kind eklendiğinde bu
+  fonksiyonun değiştirilmesi kırılganlığı artırır. Bugün güvenlik
+  açığı veya hard-rule ihlali değil — okunabilirlik watching'i.
+  W12-4 / W12-5 bittikten sonra (en erken W13), küçük explicit helper
+  fonksiyonlarına bölünebilir: network/file/process/output/scenario
+  event builder'ları gibi. Generic framework, registry pattern,
+  abstract factory, plugin abstraction eklenmeyecek; precursor tests
+  (`tests/executor/test_playwright_attribution_links.py` 26 cases)
+  zaten safety net olarak yerinde, bunlar split sonrası
+  bitwise-equal görsel için kullanılabilir.
+  `[FOLLOWUP evidence-event-kind-raw-context-invariant]` (W13-X)
+  ile kardeş — kind↔event_class invariant'ı landlandığında bu
+  fonksiyon zaten daha sıkı tip almış olur, split kararı ona göre
+  yeniden değerlendirilir. Severity: Medium-Low. Lane:
   `[executor-runtime]`.
 
 ### Detection / Contracts
@@ -290,6 +355,45 @@ Use stable IDs in new references; do not cite canonical doc line numbers.
   Tests: `ui/src/lib/adapters/report.test.ts::preserves_raw_context_event_class_for_legacy_fallback_events`
   - generated contract output'unda discriminator literal golden/text
   assertion. Severity: Medium. Lane: `[ui]`.
+- **`[FOLLOWUP vsix-threshold-dto-generator-coverage]`** —
+  **W13-X.** Surfaced `2026-05-09` audit pass (Codex review).
+  `ui/src/lib/types/contracts.ts:1-2` "Generated by
+  scripts/generate_ui_contracts.py. Do not edit this file manually."
+  diyor; ama satır 560-593 arasında `VsixThresholdBoundsDto`,
+  `VsixThresholdsResponseDto`, `VsixThresholdsUpdateRequestDto`,
+  `VsixThresholdBreachDetail` blokları **manuel** eklenmiş — yorumda
+  "Mirrors `workflows.security_settings.router.ThresholdsResponse`"
+  notu var. `scripts/generate_ui_contracts.py:24-59` `TARGET_SCHEMAS`
+  listesinde bu 4 isim **yok**, yani backend Pydantic kaynağından
+  render edilmiyor; bir sonraki `python scripts/generate_ui_contracts.py`
+  çalışması bu blokları silebilir veya backend↔UI drift sessizce
+  birikir. Operator-tunable VSIX hardening
+  iterasyonunda (`bea3bfe` + `733c3bc` + `f15b6c0` + `65f741a`,
+  `2026-05-09`) hızlı landetmek için seçildi; generated-source-of-truth
+  disiplini bozulmuş halde. Fix: (a) backend tarafında
+  `workflows/security_settings/router.py` response/request tiplerini
+  Pydantic modellere çevir (eğer dataclass/TypedDict ise);
+  (b) `TARGET_SCHEMAS`'a 4 ismi ekle; (c) manuel blok'ları `contracts.ts`'den
+  kaldır; (d) generator'ı çalıştırıp diff'in net regen olduğunu
+  doğrula. Alternatif (daha az tercih edilen): generator'a explicit
+  bir "supplemental" bloğu kaynağı ekle. `[FOLLOWUP ui-supplemental-types-retire]`
+  ile yarı-overlap — birlikte landetmek mantıklı. Tests: golden
+  contract output snapshot + UI vitest setup'ında halen tüm tipler
+  resolve ediyor. Severity: Medium. Lane: `[ui]` `[contracts]`.
+- **`[FOLLOWUP settings-page-stale-localstorage-copy]`** —
+  **OPEN, P3, W13-X.** Surfaced `2026-05-09` audit pass (Codex review).
+  `ui/src/features/settings/SettingsPage.tsx:150` ve `:454`
+  hâlâ "changes are persisted to this browser's localStorage until
+  settings API lands" benzeri stale copy taşıyor; aynı sayfada artık
+  `2026-05-09` operator-tunable VSIX iterasyonuyla API-backed Security
+  threshold formu var (`/api/settings/security/thresholds`). Operatöre
+  yanlış mental model veriyor — özellikle threshold ayarlarının kalıcı
+  olduğu durumda copy "geçici localStorage" izlenimi bırakıyor.
+  Fix: copy'i "general preferences may remain local; security
+  thresholds are persisted by the local API" gibi gerçeğe uygun
+  metinle değiştir; `[BACKLOG ui-v3-5]` partial-close notuyla uyumlu.
+  Bir sonraki Settings dokunuşunda inline halledilebilir; ayrı PR
+  şart değil. Severity: Low. Lane: `[ui]`.
 
 ### Engineering Quality
 

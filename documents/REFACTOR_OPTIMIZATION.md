@@ -321,6 +321,31 @@ run-ID stamping; W8-W12 regression lock-in.
   Refactor önerisi YOK; sadece yeni activation family veya planner
   bug'ı tetiklediğinde ele al. Lane: `[security-detection]`.
 
+**W13 candidates added `2026-05-09` audit pass (Codex review):**
+
+- `[FOLLOWUP vsix-threshold-dto-generator-coverage]` — VSIX threshold
+  DTO blokları (`ui/src/lib/types/contracts.ts:560-593`) manuel
+  eklenmiş; `scripts/generate_ui_contracts.py` `TARGET_SCHEMAS`
+  listesinde değil — bir sonraki regen sessizce ezebilir. Backend
+  Pydantic kaynağına taşı + `TARGET_SCHEMAS`'a ekle.
+  `[FOLLOWUP ui-supplemental-types-retire]` ile yarı-overlap.
+  Lane: `[ui]` `[contracts]`.
+- `[FOLLOWUP attribution-links-build-evidence-bundle-density]` —
+  Watching item; `attribution/links.py` 601 LoC, `build_evidence_bundle()`
+  birden çok event-class varyantını tek yerde topluyor. W12-3 union
+  genişledikten sonra fragility arttı; refactor önerisi YOK,
+  `[FOLLOWUP evidence-event-kind-raw-context-invariant]` landlandığında
+  yeniden değerlendir. Lane: `[executor-runtime]`.
+
+**Pre-W12-4 / W13 sürüklenen item:**
+
+- `[FOLLOWUP marketplace-installer-tail-multiline-redaction]` —
+  `workflows/marketplace/analysis_execution.py:80` slice→redact
+  sırası multi-line PEM bypass'a açık (W12-0 desenine paralel).
+  W12-0 fix'in workflow tarafına yansıtılmamış formu;
+  `redact_multiline_secrets` pre-pass + tail. Pre-W12-4 P2 veya
+  W13-X. Lane: `[marketplace-analysis]` `[security-detection]`.
+
 Detail: archive §11.10.
 
 ### §11.11 — Kaynak Cross-Reference Tablosu
