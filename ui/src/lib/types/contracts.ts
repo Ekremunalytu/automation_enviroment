@@ -538,6 +538,14 @@ export interface MarketplaceExtensionDto {
   rating: number;
 }
 
+export interface VsixExtractionMetricsDto {
+  file_count: number;
+  uncompressed_size: number;
+  compressed_size: number;
+  compression_ratio: number;
+  rejected_entry_count: number;
+}
+
 export interface MarketplaceDownloadResponseDto {
   status: string;
   publisher: string;
@@ -546,6 +554,42 @@ export interface MarketplaceDownloadResponseDto {
   extension_dir: string;
   db_id?: number | null;
   message: string;
+  vsix_metrics?: VsixExtractionMetricsDto | null;
+}
+
+// Operator-tunable VSIX hardening thresholds — surfaced by
+// /api/settings/security/thresholds. Mirrors
+// `workflows.security_settings.router.ThresholdsResponse`.
+export interface VsixThresholdBoundsDto {
+  min_value: number;
+  max_value: number;
+}
+
+export interface VsixThresholdsResponseDto {
+  values: Record<string, number>;
+  defaults: Record<string, number>;
+  bounds: Record<string, VsixThresholdBoundsDto>;
+  keys: string[];
+}
+
+export interface VsixThresholdsUpdateRequestDto {
+  values: Record<string, number>;
+  updated_by?: string | null;
+}
+
+// Structured 422 detail returned by /api/marketplace/download when a
+// VSIX extraction trips a hardening threshold. Mirrors the dict raised
+// by `workflows.marketplace.router.download_marketplace_extension`.
+export interface VsixThresholdBreachDetail {
+  error: "vsix_threshold_breach";
+  breach_kind: "entry_count" | "uncompressed_size" | "compression_ratio";
+  threshold_name: string;
+  threshold_value: number;
+  observed_value: number;
+  message: string;
+  publisher: string;
+  name: string;
+  version: string;
 }
 
 export interface AnalyzeJobStepDto {

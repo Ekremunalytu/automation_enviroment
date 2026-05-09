@@ -5,8 +5,10 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 
 import {
   Badge,
+  Dialog,
   EmptyState,
   Eyebrow,
+  GhostButton,
   PageTitle,
   SectionTitle,
   SolidButton,
@@ -15,7 +17,51 @@ import {
 import { rememberJobId } from "../simulation";
 import { ApiError } from "../../lib/api/http";
 import { apiClient } from "../../lib/api/client";
-import type { MarketplaceExtensionDto } from "../../lib/types/contracts";
+import type {
+  MarketplaceDownloadResponseDto,
+  MarketplaceExtensionDto,
+  VsixExtractionMetricsDto,
+  VsixThresholdBreachDetail,
+} from "../../lib/types/contracts";
+
+function formatBytes(bytes: number): string {
+  if (bytes >= 1024 * 1024 * 1024) {
+    return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GiB`;
+  }
+  if (bytes >= 1024 * 1024) {
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MiB`;
+  }
+  if (bytes >= 1024) {
+    return `${(bytes / 1024).toFixed(1)} KiB`;
+  }
+  return `${bytes} B`;
+}
+
+function formatBreachLabel(kind: VsixThresholdBreachDetail["breach_kind"]): string {
+  switch (kind) {
+    case "entry_count":
+      return "File count";
+    case "uncompressed_size":
+      return "Uncompressed size";
+    case "compression_ratio":
+      return "Compression ratio";
+  }
+}
+
+function formatBreachValue(
+  kind: VsixThresholdBreachDetail["breach_kind"],
+  value: number,
+): string {
+  if (kind === "uncompressed_size") return formatBytes(value);
+  if (kind === "compression_ratio") return `${value.toFixed(1)}:1`;
+  return value.toLocaleString();
+}
+
+function isThresholdBreach(detail: unknown): detail is VsixThresholdBreachDetail {
+  if (!detail || typeof detail !== "object") return false;
+  const obj = detail as Record<string, unknown>;
+  return obj.error === "vsix_threshold_breach" && typeof obj.breach_kind === "string";
+}
 
 type ArtifactKey = { publisher: string; name: string; version: string };
 
@@ -39,6 +85,16 @@ export function MarketplacePage() {
   const [ready, setReady] = useState<Record<string, boolean>>({});
   const [downloadsInFlight, setDownloadsInFlight] = useState<Record<string, boolean>>({});
   const [actionError, setActionError] = useState<string | null>(null);
+  const [breachDetail, setBreachDetail] = useState<VsixThresholdBreachDetail | null>(
+    null,
+  );
+  const [lastDownload, setLastDownload] = useState<
+    | {
+        artifact: string;
+        metrics: VsixExtractionMetricsDto;
+      }
+    | null
+  >(null);
   const downloadsInFlightRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
@@ -105,14 +161,28 @@ export function MarketplacePage() {
     downloadMutation.mutate(
       { publisher, name, version },
       {
-        onSuccess: (result) => {
+        onSuccess: (result: MarketplaceDownloadResponseDto) => {
           setReady((current) => ({
             ...current,
             [artifactKey(result)]: true,
           }));
+          if (result.vsix_metrics) {
+            setLastDownload({
+              artifact: artifactKey(result),
+              metrics: result.vsix_metrics,
+            });
+          }
         },
         onError: (error) => {
-          setActionError(error instanceof ApiError ? error.message : "Download failed.");
+          // Threshold-breach 422 → render the dedicated popup instead of
+          // dumping the structured detail JSON into the inline banner.
+          if (error instanceof ApiError && isThresholdBreach(error.detail)) {
+            setBreachDetail(error.detail);
+            return;
+          }
+          setActionError(
+            error instanceof ApiError ? error.message : "Download failed.",
+          );
         },
         onSettled: () => {
           setDownloadPending(key, false);
@@ -310,6 +380,14 @@ export function MarketplacePage() {
           </div>
         ) : null}
 
+        {lastDownload ? (
+          <VsixIntegrityBanner
+            artifact={lastDownload.artifact}
+            metrics={lastDownload.metrics}
+            onDismiss={() => setLastDownload(null)}
+          />
+        ) : null}
+
         {!queryParam ? (
           <EmptyState
             eyebrow="Ready"
@@ -348,6 +426,126 @@ export function MarketplacePage() {
           </div>
         )}
       </section>
+
+      <Dialog
+        open={breachDetail !== null}
+        onClose={() => setBreachDetail(null)}
+        eyebrow="Threshold breach"
+        title={
+          breachDetail
+            ? `${breachDetail.publisher}.${breachDetail.name}@${breachDetail.version} exceeds ${formatBreachLabel(breachDetail.breach_kind).toLowerCase()}`
+            : ""
+        }
+        tone="danger"
+        actions={
+          <>
+            <GhostButton onClick={() => setBreachDetail(null)}>Dismiss</GhostButton>
+            <SolidButton
+              onClick={() => {
+                setBreachDetail(null);
+                navigate("/settings?section=security");
+              }}
+            >
+              Open Security settings
+            </SolidButton>
+          </>
+        }
+      >
+        {breachDetail ? (
+          <>
+            <p style={{ margin: 0 }}>
+              The download was rejected before extraction completed. The VSIX
+              archive trips the configured{" "}
+              <strong style={{ color: V3.ink }}>
+                {formatBreachLabel(breachDetail.breach_kind).toLowerCase()}
+              </strong>{" "}
+              guard, which protects against zip-bomb / DoS extraction patterns.
+              Raise the threshold from{" "}
+              <strong style={{ color: V3.ink }}>Settings → Security</strong> if
+              you trust this publisher and want to proceed.
+            </p>
+            <dl
+              style={{
+                margin: "18px 0 0",
+                display: "grid",
+                gridTemplateColumns: "auto 1fr",
+                rowGap: 8,
+                columnGap: 18,
+                fontFamily: "'JetBrains Mono', monospace",
+                fontSize: 12,
+              }}
+            >
+              <dt style={{ color: V3.ink3 }}>Threshold</dt>
+              <dd style={{ margin: 0, color: V3.ink }}>
+                {formatBreachLabel(breachDetail.breach_kind)} ({breachDetail.threshold_name})
+              </dd>
+              <dt style={{ color: V3.ink3 }}>Configured limit</dt>
+              <dd style={{ margin: 0, color: V3.ink }}>
+                {formatBreachValue(breachDetail.breach_kind, breachDetail.threshold_value)}
+              </dd>
+              <dt style={{ color: V3.ink3 }}>Observed</dt>
+              <dd style={{ margin: 0, color: V3.coral }}>
+                {formatBreachValue(breachDetail.breach_kind, breachDetail.observed_value)}
+              </dd>
+            </dl>
+          </>
+        ) : null}
+      </Dialog>
+    </div>
+  );
+}
+
+type VsixIntegrityBannerProps = {
+  artifact: string;
+  metrics: VsixExtractionMetricsDto;
+  onDismiss: () => void;
+};
+
+function VsixIntegrityBanner({ artifact, metrics, onDismiss }: VsixIntegrityBannerProps) {
+  return (
+    <div
+      role="status"
+      style={{
+        border: `1px solid ${V3.rule}`,
+        borderLeft: `3px solid ${V3.ok}`,
+        background: V3.paper2,
+        padding: "12px 16px",
+        marginBottom: 16,
+        display: "flex",
+        gap: 16,
+        alignItems: "center",
+        flexWrap: "wrap",
+      }}
+    >
+      <div style={{ flex: "1 1 auto", minWidth: 240 }}>
+        <div
+          style={{
+            fontFamily: "'JetBrains Mono', monospace",
+            fontSize: 10,
+            letterSpacing: "0.18em",
+            textTransform: "uppercase",
+            color: V3.ok,
+          }}
+        >
+          ● VSIX integrity
+        </div>
+        <div
+          style={{
+            fontFamily: "'JetBrains Mono', monospace",
+            fontSize: 12,
+            color: V3.ink2,
+            marginTop: 4,
+          }}
+        >
+          {artifact}: {metrics.file_count.toLocaleString()} entries ·{" "}
+          {formatBytes(metrics.uncompressed_size)} uncompressed ·{" "}
+          {metrics.compression_ratio.toFixed(2)}:1 ratio
+          {metrics.rejected_entry_count > 0
+            ? ` · ${metrics.rejected_entry_count} entries skipped`
+            : ""}
+        </div>
+      </div>
+      <GhostButton onClick={onDismiss}>Dismiss</GhostButton>
     </div>
   );
 }

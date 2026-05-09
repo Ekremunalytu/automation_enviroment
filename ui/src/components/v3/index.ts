@@ -14,4 +14,5 @@ export { KVRow } from "./KVRow";
 export { EmptyState } from "./EmptyState";
 export { ProgressBar } from "./ProgressBar";
 export { Crosshair } from "./Crosshair";
+export { Dialog } from "./Dialog";
 export { LogoMark } from "./LogoMark";
