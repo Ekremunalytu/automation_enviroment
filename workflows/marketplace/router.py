@@ -88,8 +88,41 @@ def download_marketplace_extension(
     ext_dir: Path | None = None
     try:
         ext_dir = marketplace_client.download_and_extract_vsix(
-            request.publisher, request.name, request.version
+            request.publisher, request.name, request.version, db=db
         )
+    except marketplace_client.VSIXUnpackError as exc:
+        # Structured 422 so the UI can render a popup naming the specific
+        # threshold and pointing the operator at Settings → Security.
+        # ``breach_kind`` may be ``None`` for legacy callers that raised the
+        # exception before the W12-* hardening pass; fall back to the
+        # opaque message in that case.
+        if exc.breach_kind is None:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        logger.warning(
+            "vsix_threshold_breach kind=%s threshold=%s value=%s observed=%s "
+            "publisher=%s name=%s version=%s",
+            exc.breach_kind,
+            exc.threshold_name,
+            exc.threshold_value,
+            exc.observed_value,
+            request.publisher,
+            request.name,
+            request.version,
+        )
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "error": "vsix_threshold_breach",
+                "breach_kind": exc.breach_kind,
+                "threshold_name": exc.threshold_name,
+                "threshold_value": exc.threshold_value,
+                "observed_value": exc.observed_value,
+                "message": str(exc),
+                "publisher": request.publisher,
+                "name": request.name,
+                "version": request.version,
+            },
+        ) from exc
     except httpx.HTTPError as exc:
         raise HTTPException(
             status_code=502,

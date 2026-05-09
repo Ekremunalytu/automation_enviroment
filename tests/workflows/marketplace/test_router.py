@@ -169,6 +169,75 @@ def _mock_extension(db_id: int = 42) -> MagicMock:
     return ext
 
 
+def test_download_threshold_breach_returns_structured_422(client: TestClient) -> None:
+    """W12-* hardening: when ``download_and_extract_vsix`` raises
+    ``VSIXUnpackError`` with structured breach metadata, the router maps
+    it to HTTP 422 with a JSON detail object the UI popup can consume."""
+    from workflows.marketplace.client import (
+        VSIX_BREACH_ENTRY_COUNT,
+        VSIXUnpackError,
+    )
+
+    err = VSIXUnpackError(
+        "VSIX archive exceeds entry count limit (50000)",
+        breach_kind=VSIX_BREACH_ENTRY_COUNT,
+        threshold_name="vsix_max_file_count",
+        threshold_value=50_000,
+        observed_value=50_001,
+    )
+
+    with patch(
+        "workflows.marketplace.client.download_and_extract_vsix",
+        side_effect=err,
+    ):
+        response = client.post(
+            "/api/marketplace/download",
+            json={
+                "publisher": "ms-python",
+                "name": "python",
+                "version": "2026.5.2026050801",
+            },
+        )
+
+    assert response.status_code == 422
+    detail = response.json()["detail"]
+    assert detail["error"] == "vsix_threshold_breach"
+    assert detail["breach_kind"] == VSIX_BREACH_ENTRY_COUNT
+    assert detail["threshold_name"] == "vsix_max_file_count"
+    assert detail["threshold_value"] == 50_000
+    assert detail["observed_value"] == 50_001
+    assert detail["publisher"] == "ms-python"
+    assert detail["name"] == "python"
+    assert detail["version"] == "2026.5.2026050801"
+
+
+def test_download_legacy_vsix_unpack_error_falls_back_to_string_detail(
+    client: TestClient,
+) -> None:
+    """Older raise sites that do not pass ``breach_kind`` keep the
+    backwards-compat HTTPException with a plain string detail (still 422,
+    so the UI surfaces a generic threshold error rather than 500)."""
+    from workflows.marketplace.client import VSIXUnpackError
+
+    err = VSIXUnpackError("legacy unstructured failure")
+
+    with patch(
+        "workflows.marketplace.client.download_and_extract_vsix",
+        side_effect=err,
+    ):
+        response = client.post(
+            "/api/marketplace/download",
+            json={
+                "publisher": "ms-python",
+                "name": "python",
+                "version": "2025.0.0",
+            },
+        )
+
+    assert response.status_code == 422
+    assert response.json()["detail"] == "legacy unstructured failure"
+
+
 def test_download_success(client: TestClient) -> None:
     """Successful download returns 200 with db_id."""
     ext_path = Path("/app/extensions/ms-python.python-2025.0.0")
