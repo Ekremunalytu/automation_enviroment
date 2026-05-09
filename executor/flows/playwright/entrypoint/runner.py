@@ -4,15 +4,16 @@ from __future__ import annotations
 
 from uuid import uuid4
 
-from playwright.sync_api import Error as PlaywrightError
-
-from ..wait_helpers import wait_for_idle_observation
 from .cli import build_parser
-from .triggers import (
-    reload_window_under_monitoring,
-    resolve_execution_plan,
-    run_extra_triggers,
+from .dispatch import (
+    PageRef,
+    apply_extra_triggers_if_needed,
+    dispatch_execution,
+    finalize_monitor_report,
+    setup_monitor,
+    summarize_skipped_scenarios_if_needed,
 )
+from .triggers import reload_window_under_monitoring, resolve_execution_plan
 
 
 def run_demo(page, *, deps) -> None:
@@ -87,85 +88,11 @@ def _resolve_execution_plan_for_deps(
     return resolve_execution_plan(skip_automation, scenario, trigger_payload)
 
 
-def _run_demo_for_deps(page, *, deps) -> None:
-    override = getattr(deps, "run_demo", None)
-    if callable(override) and override is not run_demo:
-        override(page)
-        return
-    run_demo(page, deps=deps)
-
-
 def _reload_window_under_monitoring_for_deps(browser, page, *, deps):
     override = getattr(deps, "_reload_window_under_monitoring", None)
     if callable(override):
         return override(browser, page)
     return reload_window_under_monitoring(browser, page, deps=deps)
-
-
-def _run_extra_triggers_for_deps(
-    page,
-    trigger_payload,
-    *,
-    deps,
-    automation_event_recorder=None,
-    verification_monitor=None,
-) -> list[str]:
-    override = getattr(deps, "_run_extra_triggers", None)
-    if callable(override):
-        return list(
-            override(
-                page,
-                trigger_payload,
-                automation_event_recorder=automation_event_recorder,
-                verification_monitor=verification_monitor,
-            )
-        )
-    return run_extra_triggers(
-        page,
-        trigger_payload,
-        deps=deps,
-        automation_event_recorder=automation_event_recorder,
-        verification_monitor=verification_monitor,
-    )
-
-
-def _empty_execution_result(*, deps, requested_scenarios: list[str] | None = None):
-    return deps.stimulus.AutomationExecutionResult(
-        requested_scenarios=list(requested_scenarios or [])
-    )
-
-
-def _normalize_execution_result(outcome, *, deps, requested_scenarios: list[str]):
-    if isinstance(outcome, list):
-        result = _empty_execution_result(
-            deps=deps,
-            requested_scenarios=requested_scenarios,
-        )
-        result.failed_scenarios = [
-            str(name).strip() for name in outcome if str(name).strip()
-        ]
-        result.executed_scenarios = list(requested_scenarios)
-        return result
-
-    if outcome is None:
-        return _empty_execution_result(
-            deps=deps,
-            requested_scenarios=requested_scenarios,
-        )
-
-    if not hasattr(outcome, "requested_scenarios") or not getattr(
-        outcome, "requested_scenarios", None
-    ):
-        outcome.requested_scenarios = list(requested_scenarios)
-    if not hasattr(outcome, "executed_scenarios"):
-        outcome.executed_scenarios = []
-    if not hasattr(outcome, "failed_scenarios"):
-        outcome.failed_scenarios = []
-    if not hasattr(outcome, "skipped_scenarios"):
-        outcome.skipped_scenarios = []
-    if not hasattr(outcome, "extra_trigger_failures"):
-        outcome.extra_trigger_failures = []
-    return outcome
 
 
 def main(*, deps) -> None:
@@ -188,7 +115,6 @@ def main(*, deps) -> None:
         print("[+] VS Code is ready")
 
         trigger_payload = None
-        trigger_plan_requested = bool(args.triggers)
         if args.triggers:
             print(f"[*] Loading trigger payload from {args.triggers}...")
             trigger_payload = deps.trigger_loader.load_trigger_file(args.triggers)
@@ -206,43 +132,10 @@ def main(*, deps) -> None:
                 deps=deps,
             )
 
-        mon = None
         try:
-            if args.monitor:
-                print("[*] Starting Extension Host monitoring...")
-                mon = deps.monitor.ExtensionMonitor(
-                    page,
-                    report_path=args.report_path,
-                    target_extension_id=args.target_extension_id,
-                )
-                mon.start()
-                deps.automation.set_scenario_event_reporter(mon.record_scenario_event)
-                mon.report.trigger_plan_requested = trigger_plan_requested
-                mon.report.trigger_plan_path = args.triggers or ""
-                if trigger_payload is not None:
-                    mon.apply_trigger_payload(trigger_payload)
-                    mon.record_automation_event(
-                        "trigger_plan_loaded",
-                        (
-                            "Trigger payload loaded inside the executor: "
-                            f"{len(trigger_payload.selected_scenarios)} selected scenario(s)."
-                        ),
-                        status="completed",
-                    )
-                elif trigger_plan_requested:
-                    mon.mark_trigger_plan_missing(args.triggers or "")
-                    mon.record_automation_event(
-                        "trigger_plan_missing",
-                        "Trigger payload could not be loaded inside the executor.",
-                        status="failed",
-                    )
-                if bait_files_created:
-                    mon.record_automation_event(
-                        "trigger_bait_files",
-                        "Created bait files for trigger coverage: "
-                        + ", ".join(bait_files_created),
-                        status="completed",
-                    )
+            mon = setup_monitor(
+                page, args, trigger_payload, bait_files_created, deps=deps
+            )
 
             if args.reload_before_run:
                 page = _reload_window_under_monitoring_for_deps(
@@ -254,42 +147,13 @@ def main(*, deps) -> None:
             if mon is not None:
                 mon.attach_runtime_tracers()
 
-            def _on_page_reloaded(reloaded_page) -> None:
-                nonlocal page
-                page = reloaded_page
-                if mon is not None:
-                    mon.page = reloaded_page
-
-            def _probe_ui_blocker(current_page, scenario_name: str) -> None:
-                if mon is None:
-                    return
-                try:
-                    text = deps.editor._dismiss_notification(current_page)
-                except (PlaywrightError, RuntimeError, ValueError):
-                    return
-                if not text:
-                    return
-                mon.record_automation_event(
-                    "ui_blocker_detected",
-                    f"Detected UI blocker before scenario {scenario_name!r}: {text}",
-                    status="running",
-                    scenario_name=scenario_name,
-                )
-                mon.record_automation_event(
-                    "ui_blocker_dismissed",
-                    f"Dismissed UI blocker before scenario {scenario_name!r}: {text}",
-                    status="completed",
-                    scenario_name=scenario_name,
-                )
+            page_ref = PageRef(page)
 
             execution_mode, planned_scenarios = _resolve_execution_plan_for_deps(
                 args.skip_automation,
                 args.scenario,
                 trigger_payload,
                 deps=deps,
-            )
-            execution_result = _empty_execution_result(
-                deps=deps, requested_scenarios=planned_scenarios
             )
             if mon is not None:
                 mon.set_trigger_execution_mode(execution_mode)
@@ -305,186 +169,24 @@ def main(*, deps) -> None:
                     status="completed",
                 )
 
-            if args.demo:
-                _run_demo_for_deps(page, deps=deps)
-                execution_result = _empty_execution_result(
-                    deps=deps, requested_scenarios=["demo"]
-                )
-                execution_result.executed_scenarios = ["demo"]
-            elif execution_mode == "skip_automation":
-                print("[*] Skipping automation scenario execution by request...")
-            elif execution_mode == "layered_passes":
-                print("[*] Running layered stimulus plan...")
-                execution_result = _normalize_execution_result(
-                    deps.stimulus.run_stimulus_plan(page, trigger_payload, monitor=mon),
-                    deps=deps,
-                    requested_scenarios=planned_scenarios,
-                )
-                if mon is not None and trigger_payload is not None:
-                    mon.mark_trigger_plan_applied(
-                        scenarios=execution_result.requested_scenarios,
-                        trigger_path=args.triggers,
-                    )
-                    mon.record_automation_event(
-                        "trigger_plan_applied",
-                        "Trigger plan applied as layered passes with "
-                        f"{len(trigger_payload.event_attempts)} event target(s).",
-                        status="completed",
-                    )
-                if execution_result.extra_trigger_failures:
-                    print("[!] Layered extra trigger failures:")
-                    for item in execution_result.extra_trigger_failures:
-                        print(f"  - {item}")
-                    exit_code = 1
-                if mon is not None:
-                    wait_for_idle_observation(
-                        page,
-                        monitor=mon,
-                        event_recorder=mon.record_automation_event,
-                    )
-            elif execution_mode == "selected_scenarios":
-                print(f"[*] Running selected scenarios: {planned_scenarios}")
-                execution_result = _normalize_execution_result(
-                    deps.automation.run_selected_scenarios(
-                        page,
-                        planned_scenarios,
-                        shuffle=args.shuffle,
-                        retry_on_crash=args.retry_on_crash,
-                        browser=browser,
-                        on_page_reloaded=_on_page_reloaded,
-                        ui_blocker_probe=_probe_ui_blocker,
-                    ),
-                    deps=deps,
-                    requested_scenarios=planned_scenarios,
-                )
-                if mon is not None:
-                    mon.mark_trigger_plan_applied(
-                        scenarios=execution_result.requested_scenarios,
-                        trigger_path=args.triggers,
-                    )
-                    mon.record_automation_event(
-                        "trigger_plan_applied",
-                        "Trigger plan selected scenarios for execution: "
-                        + ", ".join(execution_result.requested_scenarios),
-                        status="completed",
-                    )
-                if execution_result.failed_scenarios:
-                    print("[!] Failed scenarios:")
-                    for name in execution_result.failed_scenarios:
-                        print(f"  - {name}")
-                    exit_code = 1
-                if mon is not None:
-                    wait_for_idle_observation(
-                        page,
-                        monitor=mon,
-                        event_recorder=mon.record_automation_event,
-                    )
-            elif execution_mode == "single_scenario":
-                scenario_name = planned_scenarios[0]
-                print(f"[*] Running scenario: {scenario_name}")
-                execution_result = _normalize_execution_result(
-                    deps.automation.run_selected_scenarios(
-                        page,
-                        [scenario_name],
-                        shuffle=False,
-                        retry_on_crash=args.retry_on_crash,
-                        browser=browser,
-                        on_page_reloaded=_on_page_reloaded,
-                        ui_blocker_probe=_probe_ui_blocker,
-                    ),
-                    deps=deps,
-                    requested_scenarios=[scenario_name],
-                )
-                if execution_result.failed_scenarios:
-                    print("[!] Failed scenarios:")
-                    for name in execution_result.failed_scenarios:
-                        print(f"  - {name}")
-                    exit_code = 1
-                elif execution_result.skipped_scenarios:
-                    print("[!] Skipped scenarios:")
-                    for item in execution_result.skipped_scenarios:
-                        print(f"  - {item.name}: {item.reason_code}")
-                    exit_code = 1
-            else:
-                print("[*] Running all automation scenarios...")
-                execution_result = _normalize_execution_result(
-                    deps.automation.run_all_scenarios(
-                        page,
-                        shuffle=args.shuffle,
-                        retry_on_crash=args.retry_on_crash,
-                        browser=browser,
-                        on_page_reloaded=_on_page_reloaded,
-                        ui_blocker_probe=_probe_ui_blocker,
-                    ),
-                    deps=deps,
-                    requested_scenarios=deps.automation.list_scenarios(),
-                )
-                if execution_result.failed_scenarios:
-                    print("[!] Failed scenarios:")
-                    for name in execution_result.failed_scenarios:
-                        print(f"  - {name}")
-                    exit_code = 1
-
-            if trigger_payload and not trigger_payload.stimulus_passes:
-                if mon is not None and not mon.report.trigger_plan_applied:
-                    mon.mark_trigger_plan_applied(
-                        scenarios=execution_result.requested_scenarios
-                        or trigger_payload.selected_scenarios,
-                        trigger_path=args.triggers,
-                    )
-                    mon.record_automation_event(
-                        "trigger_plan_applied",
-                        "Trigger plan was applied through executor-side payload actions.",
-                        status="completed",
-                    )
-                execution_result.extra_trigger_failures = _run_extra_triggers_for_deps(
-                    page,
-                    trigger_payload,
-                    deps=deps,
-                    automation_event_recorder=(
-                        mon.record_automation_event if mon is not None else None
-                    ),
-                    verification_monitor=mon,
-                )
-                if execution_result.extra_trigger_failures:
-                    print("[!] Extra trigger failures:")
-                    for item in execution_result.extra_trigger_failures:
-                        print(f"  - {item}")
-                    exit_code = 1
-
-            if (
-                execution_mode in {"selected_scenarios", "single_scenario"}
-                and execution_result.skipped_scenarios
-                and not execution_result.executed_scenarios
-            ):
-                print("[!] Skipped scenarios:")
-                for item in execution_result.skipped_scenarios:
-                    print(f"  - {item.name}: {item.reason_code}")
-                exit_code = 1
-
-            if mon is not None:
-                print("[*] Collecting monitoring data...")
-                if hasattr(mon, "record_execution_result"):
-                    mon.record_execution_result(execution_result)
-                else:
-                    mon.report.requested_scenarios = list(
-                        execution_result.requested_scenarios
-                    )
-                    mon.report.extra_trigger_failures = list(
-                        execution_result.extra_trigger_failures
-                    )
-                    mon.record_failed_scenarios(execution_result.failed_scenarios)
-                    mon.report.scenarios_run = list(execution_result.executed_scenarios)
-                report = mon.stop()
-                # W11-3: surface the runner outcome on the report before
-                # the final disk write so analysts can correlate the saved
-                # `runner_exit_code` / `runner_status` with the run that
-                # produced the activation evidence. exit_code is finalized
-                # by this point — every code path that mutates it lives
-                # above the `if mon is not None` block.
-                mon.set_runner_status(exit_code)
-                report.print_summary()
-                report.save(args.report_path)
+            execution_result, dispatch_exit = dispatch_execution(
+                page_ref,
+                browser,
+                args,
+                mon,
+                trigger_payload,
+                planned_scenarios,
+                execution_mode,
+                deps=deps,
+            )
+            exit_code |= dispatch_exit
+            exit_code |= apply_extra_triggers_if_needed(
+                page_ref, args, mon, trigger_payload, execution_result, deps=deps
+            )
+            exit_code |= summarize_skipped_scenarios_if_needed(
+                execution_mode, execution_result
+            )
+            finalize_monitor_report(mon, execution_result, exit_code, args)
         finally:
             deps.automation.set_scenario_event_reporter(None)
             deps.vscode.disconnect(browser)
