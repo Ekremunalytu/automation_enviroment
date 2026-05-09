@@ -17,6 +17,7 @@ from appcore.storage.crud_ops.operator_settings import (
     list_operator_settings,
     upsert_operator_setting,
     upsert_operator_settings_bulk,
+    upsert_operator_settings_bulk_and_commit,
 )
 from appcore.storage.crud_ops.reads import (
     get_db_extensions_base_info,
@@ -59,4 +60,5 @@ __all__ = [
     "update_analysis_job_step",
     "upsert_operator_setting",
     "upsert_operator_settings_bulk",
+    "upsert_operator_settings_bulk_and_commit",
 ]

@@ -1,6 +1,6 @@
 # Post-PoC Backlog
 
-`Last Updated: 2026-05-09 (5 new FOLLOWUPs added from Codex review pass; full detail archived)`
+`Last Updated: 2026-05-09 (Codex review follow-ups reconciled)`
 
 Open deferred work after the W0-W7 PoC acceptance bar. **Slim canonical** —
 verbose descriptions, evidence, and older triage notes are frozen in dated
@@ -100,45 +100,42 @@ Use stable IDs in new references; do not cite canonical doc line numbers.
   diagnostic lines, harness-marker cross-marker PEM, harness-marker
   single-marker embedded-newline PEM). Existing 20 case'in tamamı
   regression'sız.
-- **`[FOLLOWUP api-docker-base-image-digest-pin]`** —
-  **OPEN, P1, pre-W12-4.** `docker/api/Dockerfile:2`
-  `FROM python:3.11-slim-bookworm` (sadece tag, digest yok).
+- ~~**`[FOLLOWUP api-docker-base-image-digest-pin]`**~~ —
+  **CLOSED `2026-05-09` on `week12`.** `docker/api/Dockerfile:2`
+  artık `FROM python:3.11-slim-bookworm@sha256:cd67330292a51e2963156f74ff340455d66b2172e9190e99f40dff9357471177`
+  formunda.
   `executor/container/Dockerfile:8` ise
   `FROM ubuntu:22.04@sha256:962f6cadeae0ea6284001009daa4cc9a8c37e75d1f5191cf0eb83fe565b63dd7`
   ile pinned. ADR 0002 §4 trust table (`documents/adrs/0002-threat-model.md:97`)
-  her base image için `FROM image@sha256:...` zorunluyor — bu net bir
-  ADR ihlali. API container FastAPI yüzeyi + Docker socket bridge
-  olduğu için kritik boundary; mutable tag aynı Dockerfile'ın zamanla
-  farklı base image üretmesine yol açabilir. Fix: (a)
-  `docker/api/Dockerfile:2`'yi `FROM python:3.11-slim-bookworm@sha256:...`
-  formuna geçir (mevcut imajın digest'ini `docker pull` ile çekip pinle);
-  (b) yeni AST gate `tests/architecture/test_dockerfile_digest_pin.py`
-  ekle — `docker/` ve `executor/container/` altındaki her `Dockerfile`'ın
-  `FROM` satırı `@sha256:` içermeli. Yeni dependency yok. Lane:
-  `[platform-storage]`.
-- **`[FOLLOWUP marketplace-installer-tail-multiline-redaction]`** —
-  **OPEN, P2, pre-W12-4 / W13-X.** Surfaced `2026-05-09` audit pass
+  her base image için `FROM image@sha256:...` zorunluyor. Fix landed:
+  `docker buildx imagetools inspect python:3.11-slim-bookworm` ile
+  manifest-list digest doğrulandı; yeni
+  `tests/architecture/test_dockerfile_digest_pin.py` gate'i `docker/`
+  ve `executor/container/` altındaki her `Dockerfile` `FROM` satırını
+  `@sha256:` için tarıyor (`scratch` hariç). Focused validation:
+  `pytest tests/architecture/test_dockerfile_digest_pin.py` yeşil.
+  Yeni dependency yok. Lane: `[platform-storage]`.
+- ~~**`[FOLLOWUP marketplace-installer-tail-multiline-redaction]`**~~ —
+  **CLOSED `2026-05-09` on `week12`.** Surfaced `2026-05-09` audit pass
   (Codex review). `workflows/marketplace/analysis_execution.py:80`
-  installer failure helper sırası **slice → redact**:
+  installer failure helper sırası **slice → redact** idi:
   `tail = redact_secrets(output[-500:].strip())`. Single-line token'larda
-  doğru çalışır ama multi-line `private_key` PEM bloku 500 karakterlik
+  çalışıyordu ama multi-line `private_key` PEM bloku 500 karakterlik
   pencereyi bölünce (veya pencere içinde BEGIN/END eşleşmesini parçalarsa)
-  `redact_secrets` pattern'i tüm bloku göremez — W12-0 öncesi
+  `redact_secrets` pattern'i tüm bloku göremiyordu — W12-0 öncesi
   `signals/output.py`'da kapatılan **tam paralel** bypass. W12-0 fix
   (`[FOLLOWUP w12-0-output-signal-multiline-secret-redaction]`,
   `2026-05-08`) `redact_multiline_secrets` pre-pass desenini kurdu;
-  bu callsite o desene migrate edilmedi. Gerçek sızıntı operatöre
-  `code --install-extension` stderr'inin attacker-controlled içerik
-  taşıdığı durumlarda; severity Medium çünkü sızıntı yüzeyi installer
-  hata akışı. Fix: önce
+  bu callsite artık aynı desene migrate edildi: önce
   `redact_multiline_secrets(output)` whole-content pre-pass, sonra
-  tail (`output[-500:]`), sonra existing `redact_secrets(_truncate(...))`
-  per-tail; mantık `executor/flows/playwright/report_builder.py`'daki
+  tail (`output[-500:]`), sonra existing `redact_secrets(...)`
+  per-tail. Mantık `executor/flows/playwright/report_builder.py`'daki
   W11-6 "trim → expand → redact" desenine paralel olur. Tests:
-  `tests/workflows/marketplace/test_analysis_execution.py::test_install_failure_message_redacts_multiline_pem`
-  - cross-boundary 500-char split case. W11-6 / W12-0 ile
-  yapılan iş bu callsite'a yansıtıldığı için yeni bağımlılık veya
-  helper gerekmiyor. Severity: Medium. Lane:
+  `tests/platform/security/test_output_signals_redaction.py`
+  `::test_install_failure_message_redacts_multiline_pem_split_by_tail`
+  cross-boundary 500-char split case'i pinliyor; existing DB URL ve
+  benign tail regressions yeşil kaldı. Yeni bağımlılık yok. Severity:
+  Medium (closed). Lane:
   `[marketplace-analysis]` `[security-detection]`.
 
 ## W12 Acceptance Items
@@ -199,8 +196,9 @@ Use stable IDs in new references; do not cite canonical doc line numbers.
 - **`[FOLLOWUP w11-8-companion-workflow-orm-bleed]`** — decide DTO
   migration vs documented boundary exception for workflow return types that
   expose storage ORM models.
-- **`[FOLLOWUP security-settings-commit-ownership]`** —
-  **OPEN, P3, W13-X.** Surfaced `2026-05-09` audit pass (Codex review).
+- ~~**`[FOLLOWUP security-settings-commit-ownership]`**~~ —
+  **CLOSED `2026-05-09` on `week12`.** Surfaced `2026-05-09` audit pass
+  (Codex review).
   `workflows/security_settings/service.py:84-85` `save_vsix_thresholds()`
   CRUD facade üzerinden `upsert_operator_settings_bulk(db, ...)` çağırıp
   ardından kendisi `db.commit()` yapıyor; AGENTS.md rule 2'nin "write
@@ -211,14 +209,13 @@ Use stable IDs in new references; do not cite canonical doc line numbers.
   tarafında (`crud_ops/analysis_jobs/lifecycle.py` örüntüsü).
   Bugün küçük yüzey; settings alanı büyürse workflow service
   transaction ownership almaya başlar ve "DB write/commit nerede
-  yapılır?" sınırı bulanıklaşır. Fix seçenekleri: (a) yeni helper
-  `save_operator_settings_bulk_and_commit(db, items, updated_by)`
-  CRUD tarafına; (b) mevcut `upsert_operator_settings_bulk`'a opsiyonel
-  `commit: bool = False` parametresi (varsayılan invariant'ı korur);
-  (c) `[FOLLOWUP w11-8-companion-workflow-orm-bleed]` kapsamına
-  ekleyip DTO/transaction sözleşmesini birlikte revize et. Generic
-  framework / unit-of-work / repository abstraction eklenmeyecek.
-  Severity: Medium-Low. Lane: `[platform-storage]`.
+  yapılır?" sınırı bulanıklaşırdı. Fix landed: yeni
+  `appcore.storage.crud_ops.operator_settings.upsert_operator_settings_bulk_and_commit`
+  helper'ı transaction boundary'yi CRUD tarafına aldı; workflow service
+  artık commit çağırmıyor. SQLAlchemy hata yolunda rollback helper içinde.
+  Generic framework / unit-of-work / repository abstraction eklenmedi.
+  Existing `tests/workflows/security_settings/test_router.py` 6/6 yeşil.
+  Severity: Medium-Low (closed). Lane: `[platform-storage]`.
 - **`[FOLLOWUP w8-1-vsix-rejection-log-sanitization]`** — P2; sanitize
   attacker-controlled VSIX entry names before rejection logging.
   Co-tenant of `[FOLLOWUP w8-1-extract-rejection-logging]` (same call
@@ -355,8 +352,9 @@ Use stable IDs in new references; do not cite canonical doc line numbers.
   Tests: `ui/src/lib/adapters/report.test.ts::preserves_raw_context_event_class_for_legacy_fallback_events`
   - generated contract output'unda discriminator literal golden/text
   assertion. Severity: Medium. Lane: `[ui]`.
-- **`[FOLLOWUP vsix-threshold-dto-generator-coverage]`** —
-  **W13-X.** Surfaced `2026-05-09` audit pass (Codex review).
+- ~~**`[FOLLOWUP vsix-threshold-dto-generator-coverage]`**~~ —
+  **CLOSED `2026-05-09` on `week12`.** Surfaced `2026-05-09` audit pass
+  (Codex review).
   `ui/src/lib/types/contracts.ts:1-2` "Generated by
   scripts/generate_ui_contracts.py. Do not edit this file manually."
   diyor; ama satır 560-593 arasında `VsixThresholdBoundsDto`,
@@ -367,21 +365,23 @@ Use stable IDs in new references; do not cite canonical doc line numbers.
   listesinde bu 4 isim **yok**, yani backend Pydantic kaynağından
   render edilmiyor; bir sonraki `python scripts/generate_ui_contracts.py`
   çalışması bu blokları silebilir veya backend↔UI drift sessizce
-  birikir. Operator-tunable VSIX hardening
-  iterasyonunda (`bea3bfe` + `733c3bc` + `f15b6c0` + `65f741a`,
-  `2026-05-09`) hızlı landetmek için seçildi; generated-source-of-truth
-  disiplini bozulmuş halde. Fix: (a) backend tarafında
-  `workflows/security_settings/router.py` response/request tiplerini
-  Pydantic modellere çevir (eğer dataclass/TypedDict ise);
-  (b) `TARGET_SCHEMAS`'a 4 ismi ekle; (c) manuel blok'ları `contracts.ts`'den
-  kaldır; (d) generator'ı çalıştırıp diff'in net regen olduğunu
-  doğrula. Alternatif (daha az tercih edilen): generator'a explicit
-  bir "supplemental" bloğu kaynağı ekle. `[FOLLOWUP ui-supplemental-types-retire]`
-  ile yarı-overlap — birlikte landetmek mantıklı. Tests: golden
-  contract output snapshot + UI vitest setup'ında halen tüm tipler
-  resolve ediyor. Severity: Medium. Lane: `[ui]` `[contracts]`.
-- **`[FOLLOWUP settings-page-stale-localstorage-copy]`** —
-  **OPEN, P3, W13-X.** Surfaced `2026-05-09` audit pass (Codex review).
+  biriktirebilirdi. Fix landed: security threshold request/response
+  schemas `appcore/contracts/schema_defs/security_settings.py` altına
+  taşındı; structured breach detail `VsixThresholdBreachDetail`
+  backend-owned Pydantic model oldu; `scripts/generate_ui_contracts.py`
+  `TARGET_SCHEMAS` + `NAME_OVERRIDES` bu tipleri üretiyor; manual block
+  `contracts.ts`'den kalktı. `observed_value` integer'a daraltılmadı;
+  compression-ratio breach path'i float değerini structured 422 olarak
+  koruyor. Regression:
+  `tests/scripts/test_generate_ui_contracts.py` target-list ve rendered
+  threshold/breach typing'i, `tests/workflows/marketplace/test_router.py`
+  ise float `observed_value` path'ini pinliyor; `python scripts/generate_ui_contracts.py --check`
+  yeşil. `[FOLLOWUP ui-supplemental-types-retire]` hâlâ açık çünkü diğer
+  supplemental UI-only tipler duruyor. Severity: Medium (closed). Lane:
+  `[ui]` `[contracts]`.
+- ~~**`[FOLLOWUP settings-page-stale-localstorage-copy]`**~~ —
+  **CLOSED `2026-05-09` on `week12`.** Surfaced `2026-05-09` audit pass
+  (Codex review).
   `ui/src/features/settings/SettingsPage.tsx:150` ve `:454`
   hâlâ "changes are persisted to this browser's localStorage until
   settings API lands" benzeri stale copy taşıyor; aynı sayfada artık
@@ -389,11 +389,10 @@ Use stable IDs in new references; do not cite canonical doc line numbers.
   threshold formu var (`/api/settings/security/thresholds`). Operatöre
   yanlış mental model veriyor — özellikle threshold ayarlarının kalıcı
   olduğu durumda copy "geçici localStorage" izlenimi bırakıyor.
-  Fix: copy'i "general preferences may remain local; security
-  thresholds are persisted by the local API" gibi gerçeğe uygun
-  metinle değiştir; `[BACKLOG ui-v3-5]` partial-close notuyla uyumlu.
-  Bir sonraki Settings dokunuşunda inline halledilebilir; ayrı PR
-  şart değil. Severity: Low. Lane: `[ui]`.
+  Fix landed: Settings header copy artık "General console options stay
+  in this browser; security thresholds are persisted by the local API"
+  diyor; `SettingsPage.test.tsx` bu copy'yi pinliyor. `[BACKLOG ui-v3-5]`
+  partial-close notuyla uyumlu. Severity: Low (closed). Lane: `[ui]`.
 
 ### Engineering Quality
 

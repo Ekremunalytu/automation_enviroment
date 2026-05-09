@@ -1,6 +1,6 @@
 # Boundary And Dependency-Direction Rules
 
-`Last Updated: 2026-05-05`
+`Last Updated: 2026-05-09`
 
 Detailed boundary, import-graph, and architectural-rule reference. Open
 this when the import graph test fails, when adding a new top-level
@@ -46,6 +46,11 @@ executor/host.py + executor/container/ + executor/flows/
   `xdg-open '<f-string>'` shell-template patterns under `appcore/`,
   `executor/`, `workflows/`, `packages/`. The escape hatch is the
   `# arch-allow: xdg-open-shell-string` pragma.
+- The ADR 0002 architecture test
+  `tests/architecture/test_dockerfile_digest_pin.py` blocks mutable
+  base-image tags in runtime Dockerfiles under `docker/` and
+  `executor/container/`; non-`scratch` `FROM` lines must include
+  `@sha256:`.
 
 ## Storage Rules
 
@@ -63,6 +68,8 @@ executor/host.py + executor/container/ + executor/flows/
 ## Sandbox Rules
 
 - Sandbox execution stays Docker-isolated.
+- Runtime Dockerfiles pin base images by digest; mutable tags are not
+  sufficient for the ADR 0002 trust boundary.
 - Workflows reach the sandbox only through `executor.control`.
 - The harness extension is checksum-verified at executor startup.
 - ADR 0007 (local network binding): every host-facing port defaults to

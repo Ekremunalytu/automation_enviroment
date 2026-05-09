@@ -14,10 +14,14 @@ import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Body, Depends, HTTPException
-from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from appcore.api.deps import get_db
+from appcore.contracts.schemas import (
+    ThresholdBoundsResponse,
+    ThresholdsResponse,
+    ThresholdsUpdateRequest,
+)
 from workflows.security_settings.defaults import (
     THRESHOLD_BOUNDS,
     VSIX_THRESHOLD_DEFAULTS,
@@ -32,27 +36,6 @@ from workflows.security_settings.service import (
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/settings/security", tags=["security-settings"])
-
-
-class ThresholdBoundsResponse(BaseModel):
-    min_value: int
-    max_value: int
-
-
-class ThresholdsResponse(BaseModel):
-    """Current effective thresholds + defaults + bounds (UI render aid)."""
-
-    values: dict[str, int]
-    defaults: dict[str, int]
-    bounds: dict[str, ThresholdBoundsResponse]
-    keys: list[str]
-
-
-class ThresholdsUpdateRequest(BaseModel):
-    """Partial update; only supplied keys are written."""
-
-    values: dict[str, int] = Field(default_factory=dict)
-    updated_by: str | None = Field(default=None, max_length=128)
 
 
 def _build_response(values: dict[str, int]) -> ThresholdsResponse:

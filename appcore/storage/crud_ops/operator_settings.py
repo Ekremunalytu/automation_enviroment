@@ -14,6 +14,7 @@ from collections.abc import Iterable
 
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from appcore.storage.models import OperatorSetting
@@ -77,9 +78,25 @@ def upsert_operator_settings_bulk(
     return rows
 
 
+def upsert_operator_settings_bulk_and_commit(
+    db: Session,
+    items: dict[str, int],
+    updated_by: str | None = None,
+) -> list[OperatorSetting]:
+    """Apply a batch of key/value updates and own the transaction boundary."""
+    try:
+        rows = upsert_operator_settings_bulk(db, items=items, updated_by=updated_by)
+        db.commit()
+    except SQLAlchemyError:
+        db.rollback()
+        raise
+    return rows
+
+
 __all__ = [
     "get_operator_setting",
     "list_operator_settings",
     "upsert_operator_setting",
     "upsert_operator_settings_bulk",
+    "upsert_operator_settings_bulk_and_commit",
 ]

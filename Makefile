@@ -213,6 +213,7 @@ test-security:
 		tests/security/test_benign_silence.py \
 		tests/platform/security \
 		tests/architecture/test_default_bindings.py \
+		tests/architecture/test_dockerfile_digest_pin.py \
 		tests/workflows/marketplace/test_vsix_hardening.py \
 		tests/executor/security/test_uri_trigger_injection.py \
 		tests/workflows/activation_reports/test_router_path_traversal.py

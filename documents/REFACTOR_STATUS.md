@@ -1,6 +1,6 @@
 # Refactor Status
 
-`Last Updated: 2026-05-08 (W12 active; W12-0..W12-3 landed + multi-line PEM redaction follow-up closed; W12-4 unblocked once api-docker digest pin lands)`
+`Last Updated: 2026-05-10 (W12 active; pre-W12-4 hardening + local verification recorded)`
 
 Active status board for current closure state. **Slim canonical** — full
 phase history and verbose evidence are frozen under dated snapshots:
@@ -69,12 +69,46 @@ phase history and verbose evidence are frozen under dated snapshots:
   criterion bullet 4 cleared. Incidental fix:
   `_common.py::event_method` now reads `http_method` (pre-existing
   latent key mismatch).
+- Pre-W12-4 API Docker base image digest pin:
+  **landed** `2026-05-09` on `week12`. `docker/api/Dockerfile` now pins
+  `python:3.11-slim-bookworm` by manifest-list digest, matching ADR 0002
+  and the already-pinned executor container. New architecture gate:
+  `tests/architecture/test_dockerfile_digest_pin.py`.
+- Marketplace installer-tail multiline redaction:
+  **landed** `2026-05-09` on `week12`. `install_failure_message()` now
+  applies `redact_multiline_secrets(output)` before the 500-char tail,
+  so orphaned PEM body lines cannot survive when the tail boundary splits
+  a private-key span. Regression:
+  `test_install_failure_message_redacts_multiline_pem_split_by_tail`.
+- UI contract drift cleanup:
+  **landed** `2026-05-09` on `week12`. VSIX threshold DTOs and structured
+  breach detail now come from backend-owned Pydantic schemas through
+  `scripts/generate_ui_contracts.py`; Settings header copy now distinguishes
+  browser-local general preferences from API-persisted Security thresholds.
+  Structured breach detail preserves compression-ratio float
+  `observed_value` values instead of narrowing them to integers.
+- Security-settings commit ownership cleanup:
+  **landed** `2026-05-09` on `week12`. Operator-settings transaction
+  commit moved into the CRUD facade helper, leaving
+  `workflows/security_settings/service.py` as validation/default merge
+  orchestration only.
+- Baseline fixture drift cleanup:
+  **landed** `2026-05-09` on `week12`. The platform baseline fixture
+  contract now points at the locally complete
+  `ms-python.python@2026.5.2026050801` artifact instead of the stale
+  partial `2026.5.2026032701` directory, restoring the no-network
+  local-artifact guarantee in `test_analysis_fixture_baselines.py`.
 - Working branch: `week12` (single-branch policy for W12).
-- Last known check bar: `make test-local` 1375 passed / 6 skipped / 6
-  deselected at W12-3 close (W12-2 baseline 1352 + 8 new discriminated
-  cases + 15 latent fixture-aligned passes pulled in by the
-  `event_method` fix); `make test-security` 204 passed (unchanged from
-  the `2026-05-07` docs-drift audit).
+- Last known broad check bar: `make test-local` 1400 passed / 6 skipped / 6
+  deselected on `2026-05-10` after pre-W12-4 hardening closures, the
+  `ms-python.python@2026.5.2026050801` fixture-baseline realignment, and
+  the `[FOLLOWUP security-settings-commit-ownership]` rollback +
+  schema-validation pin tests; `make test-security` 211 passed / 32 warnings.
+- Latest focused verification (`2026-05-09`): `make test-security`
+  211 passed / 32 warnings; 113 marketplace/security-settings/helper/
+  generator/digest tests passed; generated-contract `--check` passed;
+  Settings Vitest 4 passed; UI `npm run build` passed with the existing
+  large-chunk warning only.
 
 ## 2026-05-07 Audit Pass
 

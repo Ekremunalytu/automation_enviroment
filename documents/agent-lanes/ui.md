@@ -1,6 +1,6 @@
 # UI Lane
 
-`Last Updated: 2026-05-07`
+`Last Updated: 2026-05-09`
 
 Use this lane for the React/Vite analyst console, frontend contracts, route
 behavior, report views, simulation UI, rules / settings / system surfaces,
@@ -17,7 +17,8 @@ shared v3 primitives, and UI tests.
 - `ui/src/features/simulation/`
 - `ui/src/features/simulation/charts/` — bespoke SVG (`ActivityBars`)
 - `ui/src/features/rules/` — rule library + draft preview
-- `ui/src/features/settings/` — operator preferences (localStorage-backed)
+- `ui/src/features/settings/` — operator preferences (general sections
+  localStorage-backed; Security thresholds API-backed)
 - `ui/src/features/system/` — service health (executor `/health` only)
 - `ui/src/components/v3/` — shared primitive kitaplığı + design tokens
 - `ui/src/components/`

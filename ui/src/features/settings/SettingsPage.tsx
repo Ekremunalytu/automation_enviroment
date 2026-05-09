@@ -147,8 +147,8 @@ export function SettingsPage() {
           the appliance.
         </PageTitle>
         <p style={{ fontSize: 15, color: V3.ink3, marginTop: 18, maxWidth: 560, lineHeight: 1.6 }}>
-          Single-operator preferences. Changes are persisted to this browser&apos;s localStorage
-          until the [BACKLOG ui-v3-5] settings persistence API lands.
+          Single-operator preferences. General console options stay in this browser;
+          security thresholds are persisted by the local API.
         </p>
       </header>
 

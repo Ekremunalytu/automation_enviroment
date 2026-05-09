@@ -80,6 +80,31 @@ def test_install_failure_message_redacts_db_url_in_tail() -> None:
     assert "[REDACTED:db_url]" in msg
 
 
+def test_install_failure_message_redacts_multiline_pem_split_by_tail() -> None:
+    """Installer stderr uses the same operator-visible job-log surface as
+    output signals. A PEM block can be longer than the retained 500-char tail;
+    redact the full output before tailing so the retained suffix cannot carry
+    orphaned body lines.
+    """
+
+    body = "\n".join([_PEM_BODY] * 10)
+    raw = (
+        "prefix before retained tail\n"
+        + f"{_PEM_BEGIN}\n{body}\n{_PEM_END}\n"
+        + "install failed after reading package metadata"
+    )
+    exc = ExecutorError("install failed rc=1", returncode=1, output=raw)
+
+    msg = install_failure_message(exc)
+
+    assert "install failed after reading package metadata" in msg
+    assert "MIIEvQIBADANBgkqhkiG9w0B" not in msg
+    assert "ZZZZZZZZZZZZZZZZ" not in msg
+    assert _PEM_BEGIN not in msg
+    assert _PEM_END not in msg
+    assert "[REDACTED:private_key]" in msg
+
+
 def test_install_failure_message_benign_tail_unchanged() -> None:
     """Empty/no-secret payloads must round-trip unchanged so this
     redaction layer cannot introduce semantic drift on benign output."""

@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import threading
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal, cast
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException
@@ -22,6 +22,7 @@ from appcore.contracts.schemas import (
     MarketplaceDownloadResponse,
     MarketplaceExtension,
     VsixExtractionMetrics,
+    VsixThresholdBreachDetail,
 )
 from executor.control import ExecutorError
 from packages.analysis_contracts import ExtensionIdentity
@@ -100,9 +101,15 @@ def download_marketplace_extension(
         # Structured 422 so the UI can render a popup naming the specific
         # threshold and pointing the operator at Settings → Security.
         # ``breach_kind`` may be ``None`` for legacy callers that raised the
-        # exception before the W12-* hardening pass; fall back to the
-        # opaque message in that case.
-        if exc.breach_kind is None:
+        # exception before the W12-* hardening pass; fall back to the opaque
+        # message if any structured field is missing so the typed 422 is
+        # never half-populated.
+        if (
+            exc.breach_kind is None
+            or exc.threshold_name is None
+            or exc.threshold_value is None
+            or exc.observed_value is None
+        ):
             raise HTTPException(status_code=422, detail=str(exc)) from exc
         logger.warning(
             "vsix_threshold_breach kind=%s threshold=%s value=%s observed=%s "
@@ -115,19 +122,23 @@ def download_marketplace_extension(
             request.name,
             request.version,
         )
+        detail = VsixThresholdBreachDetail(
+            error="vsix_threshold_breach",
+            breach_kind=cast(
+                Literal["entry_count", "uncompressed_size", "compression_ratio"],
+                exc.breach_kind,
+            ),
+            threshold_name=exc.threshold_name,
+            threshold_value=exc.threshold_value,
+            observed_value=exc.observed_value,
+            message=str(exc),
+            publisher=request.publisher,
+            name=request.name,
+            version=request.version,
+        ).model_dump(mode="json")
         raise HTTPException(
             status_code=422,
-            detail={
-                "error": "vsix_threshold_breach",
-                "breach_kind": exc.breach_kind,
-                "threshold_name": exc.threshold_name,
-                "threshold_value": exc.threshold_value,
-                "observed_value": exc.observed_value,
-                "message": str(exc),
-                "publisher": request.publisher,
-                "name": request.name,
-                "version": request.version,
-            },
+            detail=detail,
         ) from exc
     except httpx.HTTPError as exc:
         raise HTTPException(

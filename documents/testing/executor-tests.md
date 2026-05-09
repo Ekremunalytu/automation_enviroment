@@ -1,6 +1,6 @@
 # Executor Tests
 
-`Last Updated: 2026-05-07`
+`Last Updated: 2026-05-09`
 
 `tests/executor/`, including `tests/executor/scanner/`. Lane shape:
 [`../TESTING.md`](../TESTING.md). Layer file map:
@@ -63,6 +63,8 @@ subsystem reference: [`../EXECUTOR_PLAYWRIGHT.md`](../EXECUTOR_PLAYWRIGHT.md).
 - `tests/architecture/test_uri_trigger_shell_pattern.py` (W8-3) —
   AST detector for `xdg-open '<f-string>'` shell-template pattern,
   excluding `executor/flows/playwright/uri_validation.py` and `tests/`.
+- `tests/architecture/test_dockerfile_digest_pin.py` — ADR 0002
+  base-image digest pin gate for API and executor Dockerfiles.
 
 ## Adding An Executor Test
 

@@ -32,6 +32,8 @@ describe("SettingsPage", () => {
 
     expect(screen.getByText(/Configure/u)).toBeInTheDocument();
     expect(screen.getByText(/the appliance/u)).toBeInTheDocument();
+    expect(screen.getByText(/General console options stay in this browser/u)).toBeInTheDocument();
+    expect(screen.getByText(/security thresholds are persisted by the local API/u)).toBeInTheDocument();
     expect(screen.queryByText(/Backend pending/u)).not.toBeInTheDocument();
     for (const label of ["General", "Executor", "Security", "Telemetry", "Danger"]) {
       expect(screen.getByRole("button", { name: new RegExp(`^${label}`, "i") })).toBeInTheDocument();

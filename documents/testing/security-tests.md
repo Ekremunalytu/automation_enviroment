@@ -1,6 +1,6 @@
 # Security Tests
 
-`Last Updated: 2026-05-07`
+`Last Updated: 2026-05-09`
 
 `tests/security/`, `tests/executor/security/`, and
 `tests/platform/security/` (the last two for subsystem-local W8 work).
@@ -47,7 +47,9 @@ Lane shape and overall test guide:
   surfaces. See also
   `tests/platform/security/test_output_signals_redaction.py` (the
   W10-7 regression net for `OutputSignalEvent.text`, executor
-  stderr/stdout tail, and `map_executor_error` exception text).
+  stderr/stdout tail, and `map_executor_error` exception text). W12
+  follow-ups extend that file to file-backed/harness-marker output
+  signals and marketplace installer-tail multiline PEM boundaries.
 - W8-8 manifest-field log sanitization is deferred, so there is no
   current `test_manifest_log_sanitization.py`. When
   `[FOLLOWUP w8-8-manifest-emit-when-needed]` reopens, land the
@@ -65,6 +67,8 @@ Lane shape and overall test guide:
     `tests/security/test_benign_silence.py`
   - W8-6 + W11-6 + W12-0 redaction lanes: `tests/platform/security/`
   - W8-7 ADR 0007 binding gates: `tests/architecture/test_default_bindings.py`
+  - ADR 0002 Docker base-image pinning:
+    `tests/architecture/test_dockerfile_digest_pin.py`
   - W8-1 VSIX zip-bomb hardening: `tests/workflows/marketplace/test_vsix_hardening.py`
   - W8-3 URI trigger injection: `tests/executor/security/test_uri_trigger_injection.py`
   - W8-5 router path traversal: `tests/workflows/activation_reports/test_router_path_traversal.py`

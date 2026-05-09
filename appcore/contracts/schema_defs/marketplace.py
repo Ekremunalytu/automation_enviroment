@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field
 
 from packages.analysis_contracts import DetectionReport
@@ -39,7 +41,21 @@ class VsixExtractionMetrics(BaseModel):
     uncompressed_size: int = Field(ge=0)
     compressed_size: int = Field(ge=0)
     compression_ratio: float = Field(ge=0)
-    rejected_entry_count: int = Field(default=0, ge=0)
+    rejected_entry_count: int = Field(ge=0)
+
+
+class VsixThresholdBreachDetail(BaseModel):
+    """Structured 422 detail for VSIX extraction threshold breaches."""
+
+    error: Literal["vsix_threshold_breach"]
+    breach_kind: Literal["entry_count", "uncompressed_size", "compression_ratio"]
+    threshold_name: str
+    threshold_value: int
+    observed_value: int | float
+    message: str
+    publisher: str
+    name: str
+    version: str
 
 
 class MarketplaceDownloadResponse(BaseModel):
@@ -121,4 +137,5 @@ __all__ = [
     "MarketplaceDownloadResponse",
     "MarketplaceExtension",
     "VsixExtractionMetrics",
+    "VsixThresholdBreachDetail",
 ]

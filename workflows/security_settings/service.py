@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 
 from appcore.storage.crud import (
     list_operator_settings,
-    upsert_operator_settings_bulk,
+    upsert_operator_settings_bulk_and_commit,
 )
 from workflows.security_settings.defaults import (
     THRESHOLD_BOUNDS,
@@ -81,8 +81,7 @@ def save_vsix_thresholds(
                 f"out of allowed range [{bounds.min_value}, {bounds.max_value}]",
             )
 
-    upsert_operator_settings_bulk(db, items=values, updated_by=updated_by)
-    db.commit()
+    upsert_operator_settings_bulk_and_commit(db, items=values, updated_by=updated_by)
     return load_vsix_thresholds(db)
 
 

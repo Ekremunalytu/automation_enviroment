@@ -126,15 +126,12 @@ and that archive section.
     diagnostic lines, harness-marker cross-marker PEM (3 ayrı appendLine),
     harness-marker single-marker embedded-newline PEM. See "Detailed Item
     Notes" below.
-  - `[FOLLOWUP api-docker-base-image-digest-pin]` — **OPEN, P1,
-    ADR-0002-violation.** `docker/api/Dockerfile:2` tag-only
-    (`FROM python:3.11-slim-bookworm`); ADR 0002 §4 trust table
-    (`documents/adrs/0002-threat-model.md:97`) digest-pin zorunluyor.
-    `executor/container/Dockerfile:8` zaten `@sha256:962f6cad…` ile
-    pinned — API tarafında supply-chain drift. Fix: API Dockerfile'ı
-    digest-pin formuna geçir + AST gate
-    `tests/architecture/test_dockerfile_digest_pin.py` (her Dockerfile
-    `FROM` satırı `@sha256:` içermeli). See "Detailed Item Notes" below.
+  - ~~`[FOLLOWUP api-docker-base-image-digest-pin]`~~ — **CLOSED
+    `2026-05-09`.** `docker/api/Dockerfile:2` artık
+    `python:3.11-slim-bookworm@sha256:cd67330292a51e2963156f74ff340455d66b2172e9190e99f40dff9357471177`
+    formunda; yeni `tests/architecture/test_dockerfile_digest_pin.py`
+    gate'i API + executor Dockerfile `FROM` satırlarını pinliyor. See
+    "Detailed Item Notes" below.
 - **W12-4** — pending. `entrypoint/runner.py::main` dispatch extraction:
   `main()` 324 LoC → ≤200 LoC; CLI parse → config → monitor invocation
   → page-reload callback wiring → UI blocker probe move to new
@@ -228,20 +225,15 @@ number.
   new `redact_multiline_secrets` helper applied as a pre-pass on both
   file-backed and harness-marker paths in `signals/output.py`; 4 new
   regressions in `test_output_signals_redaction.py`.
-- `[FOLLOWUP api-docker-base-image-digest-pin]`
+- ~~`[FOLLOWUP api-docker-base-image-digest-pin]`~~
   (`POST_POC_BACKLOG.md` W12 Pull-Forward, **P1, pre-W12-4**) —
-  added `2026-05-07` audit pass; ADR 0002 §4 trust-table violation.
-  Landed before W12-4 starts.
-- `[FOLLOWUP marketplace-installer-tail-multiline-redaction]`
+  closed `2026-05-09`; ADR 0002 §4 base-image pin drift removed.
+- ~~`[FOLLOWUP marketplace-installer-tail-multiline-redaction]`~~
   (`POST_POC_BACKLOG.md` W12 Pull-Forward, **P2, pre-W12-4 / W13-X**) —
-  added `2026-05-09` audit pass (Codex review).
-  `workflows/marketplace/analysis_execution.py:80` installer failure
-  helper slice→redact sırasını koruyor; W12-0 fix'in workflow tarafına
-  yansıtılmamış formu — multi-line PEM bypass'a açık. Fix:
-  `redact_multiline_secrets(output)` whole-content pre-pass + tail
-  - `redact_secrets(_truncate(...))`. W12-4 ile beraber landlanabilir
-  veya W13-X olarak ertelenebilir; W12 close acceptance bar'ında
-  zorunlu değil.
+  closed `2026-05-09`; `install_failure_message()` now applies
+  `redact_multiline_secrets(output)` before tailing, then the existing
+  single-line `redact_secrets(...)` pass. Regression:
+  `test_install_failure_message_redacts_multiline_pem_split_by_tail`.
 
 ## Detailed Item Notes (filled as items land)
 
@@ -698,6 +690,40 @@ contract-side test fixture churn during W12 active work.
   on `ms-python.python@2026.5.2026050801` (download → metrics banner)
   and `vsix_max_file_count=200` synthetic breach (popup with
   Settings deep-link).
+- Follow-up closure `2026-05-09`:
+  `[FOLLOWUP vsix-threshold-dto-generator-coverage]` closed by moving
+  threshold response/request schemas to
+  `appcore/contracts/schema_defs/security_settings.py`, adding backend-owned
+  `VsixThresholdBreachDetail`, regenerating `ui/src/lib/types/contracts.ts`,
+  and adding `tests/scripts/test_generate_ui_contracts.py` plus
+  `python scripts/generate_ui_contracts.py --check`. The breach-detail
+  contract keeps `observed_value` as `int | float` so compression-ratio
+  threshold errors return structured 422s instead of failing validation.
+- Follow-up closure `2026-05-09`:
+  `[FOLLOWUP settings-page-stale-localstorage-copy]` closed by updating the
+  Settings header copy to distinguish browser-local general preferences
+  from API-persisted Security thresholds; `SettingsPage.test.tsx` pins it.
+- Follow-up closure `2026-05-09`:
+  `[FOLLOWUP security-settings-commit-ownership]` closed by moving the
+  operator-settings commit into a CRUD facade helper
+  (`upsert_operator_settings_bulk_and_commit`); workflow service now owns
+  validation/default merge only. Pinned `2026-05-10` by
+  `tests/platform/storage/test_operator_settings.py` (happy path,
+  empty-payload no-op, rollback-on-`SQLAlchemyError`) and by the
+  `ThresholdsResponse`/`ThresholdsUpdateRequest` validation cases appended
+  to `tests/platform/contracts/test_schemas.py`.
+- Verification cleanup `2026-05-09`: broad `make test-local` initially
+  exposed stale platform fixture drift against the partial local
+  `ms-python.python@2026.5.2026032701` directory. The baseline contract now
+  resolves the complete local `ms-python.python@2026.5.2026050801` artifact;
+  the two affected fixture-baseline tests and the full local lane pass
+  (`1393 passed / 6 skipped / 6 deselected`).
+- Verification refresh `2026-05-10`: added pin tests for the
+  `[FOLLOWUP security-settings-commit-ownership]` closure
+  (`tests/platform/storage/test_operator_settings.py` ×3 +
+  `tests/platform/contracts/test_schemas.py` Threshold cases ×4); broad
+  bar advances to `1400 passed / 6 skipped / 6 deselected`,
+  `make test-security` 211 passed.
 
 **Lane.** `[settings]` `[ui-v3]` `[security-detection]`.
 
@@ -709,13 +735,13 @@ contract-side test fixture churn during W12 active work.
 `POST_POC_BACKLOG.md` "W12 Pull-Forward". Added `2026-05-07` audit
 pass during W12-3 close.
 
-**Status.** Pending — lands before W12-4 starts. Severity: **High**
-(ADR 0002 §4 ihlali; supply-chain drift).
+**Status.** Closed `2026-05-09` on `week12`. Severity at discovery:
+**High** (ADR 0002 §4 ihlali; supply-chain drift).
 
 **Scope.**
 
-- `docker/api/Dockerfile:2` — `FROM python:3.11-slim-bookworm`
-  (sadece tag, digest yok).
+- `docker/api/Dockerfile:2` — now
+  `FROM python:3.11-slim-bookworm@sha256:cd67330292a51e2963156f74ff340455d66b2172e9190e99f40dff9357471177`.
 - `executor/container/Dockerfile:8` —
   `FROM ubuntu:22.04@sha256:962f6cadeae0ea6284001009daa4cc9a8c37e75d1f5191cf0eb83fe565b63dd7`
   (digest-pinned, doğru form).
@@ -731,36 +757,28 @@ Dockerfile'ın zamanla farklı base image üretmesine yol açabilir
 digest'lere işaret edebilir, hatta hijack edilebilir). Executor
 container kuralı doğru uyguluyor; API tarafı uymuyor.
 
-**Fix kapsamı.**
+**Fix landed.**
 
-1. **Dockerfile pin.** `docker/api/Dockerfile:2` mevcut tag'in canlı
-   digest'i ile değiştirilecek:
-
-   ```dockerfile
-   FROM python:3.11-slim-bookworm@sha256:<resolved-digest>
-   ```
-
-   Resolution: `docker pull python:3.11-slim-bookworm`,
-   `docker inspect --format='{{index .RepoDigests 0}}'`. Sonuç
-   commit message'a kaydedilsin.
-2. **AST gate.** Yeni
-   `tests/architecture/test_dockerfile_digest_pin.py` —
-   `docker/` ve `executor/container/` altındaki tüm `Dockerfile`
-   dosyalarını yürüyüp her `FROM` satırının `@sha256:` içerdiğini
-   doğrulasın. Multi-stage builds (`FROM ... AS stage`) dahil tüm
-   `FROM` satırları kapsanmalı; `FROM scratch` istisna olarak
-   allow-list'lensin (gerekiyorsa).
+1. **Dockerfile pin.** Digest resolved with
+   `docker buildx imagetools inspect python:3.11-slim-bookworm`
+   (manifest-list digest
+   `sha256:cd67330292a51e2963156f74ff340455d66b2172e9190e99f40dff9357471177`)
+   and applied to `docker/api/Dockerfile:2`.
+2. **Architecture gate.**
+   `tests/architecture/test_dockerfile_digest_pin.py` walks `docker/`
+   and `executor/container/`, checking every `Dockerfile` `FROM` line
+   for `@sha256:`; `FROM scratch` is the only allow-list.
 
 **Acceptance criteria.**
 
 - `docker/api/Dockerfile` `FROM python:3.11-slim-bookworm@sha256:...`
-  formuna geçmeli.
-- `executor/container/Dockerfile` mevcut digest pin korunmalı (regress
-  yok).
-- Yeni AST gate tag-only Dockerfile kullanımını yakalamalı; mevcut
-  digest pin'ler doğrulanmalı.
-- `make check-all` yeşil; yeni dependency yok; `pyproject.toml` ve
-  `requirements*.txt` değişmemeli.
+  formuna geçti.
+- `executor/container/Dockerfile` mevcut digest pin korunuyor (regress yok).
+- Yeni AST gate tag-only Dockerfile kullanımını yakalar; existing digest
+  pins doğrulanır.
+- Focused validation:
+  `pytest tests/architecture/test_dockerfile_digest_pin.py` yeşil.
+- Yeni dependency yok; `pyproject.toml` ve `requirements*.txt` değişmedi.
 - ADR 0002 §4 trust table tek satırlık güncelleme gerekiyorsa "API
   Dockerfile pinned" notu eklenebilir (opsiyonel).
 

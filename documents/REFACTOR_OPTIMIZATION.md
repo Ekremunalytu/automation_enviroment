@@ -255,14 +255,13 @@ bölümünde OPEN olarak takip ediliyor ve W12-4 dispatch extraction'ından
   per-line `redact_secrets`'ta kaldı (whole-input uygulamak JSON marker
   yapısını bozardı). 4 yeni regression case'i, existing 20 case
   regression'sız.
-- `[FOLLOWUP api-docker-base-image-digest-pin]` — `docker/api/Dockerfile:2`
-  tag-only (`FROM python:3.11-slim-bookworm`) kalmış; ADR 0002 §4
-  trust table (`documents/adrs/0002-threat-model.md:97`) digest-pin
-  zorunluyor. `executor/container/Dockerfile:8` zaten
-  `@sha256:962f6cad…` ile pinned — API tarafında supply-chain drift
-  riski. Fix: API Dockerfile'ı digest-pin formuna geçir + AST gate
-  (`tests/architecture/test_dockerfile_digest_pin.py`) ekle. Severity:
-  High; ADR 0002 ihlali.
+- ~~`[FOLLOWUP api-docker-base-image-digest-pin]`~~ — closed
+  `2026-05-09` on `week12`. `docker/api/Dockerfile:2` now pins
+  `python:3.11-slim-bookworm@sha256:cd67330292a51e2963156f74ff340455d66b2172e9190e99f40dff9357471177`
+  formunda;
+  new AST gate `tests/architecture/test_dockerfile_digest_pin.py`
+  covers `docker/` + `executor/container/` Dockerfiles. W12-4 is no
+  longer blocked by this ADR 0002 item.
 
 #### §11.9.1 — `runtime_capture/extension_host.py` Split Scoping
 
@@ -323,13 +322,23 @@ run-ID stamping; W8-W12 regression lock-in.
 
 **W13 candidates added `2026-05-09` audit pass (Codex review):**
 
-- `[FOLLOWUP vsix-threshold-dto-generator-coverage]` — VSIX threshold
+- ~~`[FOLLOWUP vsix-threshold-dto-generator-coverage]`~~ — closed
+  `2026-05-09` on `week12`. VSIX threshold
   DTO blokları (`ui/src/lib/types/contracts.ts:560-593`) manuel
-  eklenmiş; `scripts/generate_ui_contracts.py` `TARGET_SCHEMAS`
-  listesinde değil — bir sonraki regen sessizce ezebilir. Backend
-  Pydantic kaynağına taşı + `TARGET_SCHEMAS`'a ekle.
-  `[FOLLOWUP ui-supplemental-types-retire]` ile yarı-overlap.
-  Lane: `[ui]` `[contracts]`.
+  eklenmişti; artık backend-owned Pydantic schemas +
+  `scripts/generate_ui_contracts.py` `TARGET_SCHEMAS` üretiyor. Manual
+  tail kalktı; generator coverage testi ve `--check` gate'i bu drift'i
+  kilitliyor. `[FOLLOWUP ui-supplemental-types-retire]` açık kalır
+  çünkü diğer supplemental UI-only tipler hâlâ var. Lane: `[ui]`
+  `[contracts]`.
+- ~~`[FOLLOWUP settings-page-stale-localstorage-copy]`~~ — closed
+  `2026-05-09` on `week12`. Settings header copy artık general
+  localStorage tercihleri ile API-persisted Security thresholds'ı ayırıyor;
+  `SettingsPage.test.tsx` regression'ı pinliyor. Lane: `[ui]`.
+- ~~`[FOLLOWUP security-settings-commit-ownership]`~~ — closed
+  `2026-05-09` on `week12`. Operator-settings write transaction boundary
+  workflow service'ten CRUD facade helper'a taşındı; yeni abstraction yok.
+  Lane: `[platform-storage]`.
 - `[FOLLOWUP attribution-links-build-evidence-bundle-density]` —
   Watching item; `attribution/links.py` 601 LoC, `build_evidence_bundle()`
   birden çok event-class varyantını tek yerde topluyor. W12-3 union
@@ -339,12 +348,13 @@ run-ID stamping; W8-W12 regression lock-in.
 
 **Pre-W12-4 / W13 sürüklenen item:**
 
-- `[FOLLOWUP marketplace-installer-tail-multiline-redaction]` —
-  `workflows/marketplace/analysis_execution.py:80` slice→redact
-  sırası multi-line PEM bypass'a açık (W12-0 desenine paralel).
-  W12-0 fix'in workflow tarafına yansıtılmamış formu;
-  `redact_multiline_secrets` pre-pass + tail. Pre-W12-4 P2 veya
-  W13-X. Lane: `[marketplace-analysis]` `[security-detection]`.
+- ~~`[FOLLOWUP marketplace-installer-tail-multiline-redaction]`~~ —
+  closed `2026-05-09` on `week12`. `workflows/marketplace/analysis_execution.py`
+  now applies `redact_multiline_secrets(output)` before the 500-char
+  installer stderr/stdout tail, then the existing single-line
+  `redact_secrets` pass. Regression:
+  `test_install_failure_message_redacts_multiline_pem_split_by_tail`.
+  Lane: `[marketplace-analysis]` `[security-detection]`.
 
 Detail: archive §11.10.
 

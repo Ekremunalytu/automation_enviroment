@@ -144,7 +144,7 @@ export interface DetectionFindingDto {
 }
 
 export interface DetectionReportDto {
-  schema_version?: string;
+  schema_version?: "1";
   activation_report_ref: string;
   analyzed_extension: ExtensionIdentityDto;
   findings?: DetectionFindingDto[];
@@ -291,7 +291,7 @@ export interface OutputSignalEventDto {
 }
 
 export interface NetworkRawContextDto {
-  event_class?: string;
+  event_class?: "network";
   event_type?: string;
   source_ip?: string;
   path?: string;
@@ -307,7 +307,7 @@ export interface NetworkRawContextDto {
 }
 
 export interface FileRawContextDto {
-  event_class?: string;
+  event_class?: "file";
   secondary_path?: string;
   flags?: string;
   observer?: string;
@@ -315,7 +315,7 @@ export interface FileRawContextDto {
 }
 
 export interface ProcessRawContextDto {
-  event_class?: string;
+  event_class?: "process";
   pid: number;
   ppid?: number | null;
   command?: string;
@@ -324,27 +324,27 @@ export interface ProcessRawContextDto {
 }
 
 export interface ScenarioRawContextDto {
-  event_class?: string;
+  event_class?: "scenario";
   status?: string;
   started_at?: number;
   ended_at?: number;
 }
 
 export interface ActivationRawContextDto {
-  event_class?: string;
+  event_class?: "activation";
   success?: boolean;
   duration_ms?: number | null;
   source?: string;
 }
 
 export interface UiBlockerRawContextDto {
-  event_class?: string;
+  event_class?: "ui_blocker";
   status?: string;
   stream?: string;
 }
 
 export interface OutputChannelRawContextDto {
-  event_class?: string;
+  event_class?: "output_channel_appendline";
   channel?: string;
   text?: string;
 }
@@ -546,20 +546,6 @@ export interface VsixExtractionMetricsDto {
   rejected_entry_count: number;
 }
 
-export interface MarketplaceDownloadResponseDto {
-  status: string;
-  publisher: string;
-  name: string;
-  version: string;
-  extension_dir: string;
-  db_id?: number | null;
-  message: string;
-  vsix_metrics?: VsixExtractionMetricsDto | null;
-}
-
-// Operator-tunable VSIX hardening thresholds — surfaced by
-// /api/settings/security/thresholds. Mirrors
-// `workflows.security_settings.router.ThresholdsResponse`.
 export interface VsixThresholdBoundsDto {
   min_value: number;
   max_value: number;
@@ -573,13 +559,10 @@ export interface VsixThresholdsResponseDto {
 }
 
 export interface VsixThresholdsUpdateRequestDto {
-  values: Record<string, number>;
+  values?: Record<string, number>;
   updated_by?: string | null;
 }
 
-// Structured 422 detail returned by /api/marketplace/download when a
-// VSIX extraction trips a hardening threshold. Mirrors the dict raised
-// by `workflows.marketplace.router.download_marketplace_extension`.
 export interface VsixThresholdBreachDetail {
   error: "vsix_threshold_breach";
   breach_kind: "entry_count" | "uncompressed_size" | "compression_ratio";
@@ -590,6 +573,17 @@ export interface VsixThresholdBreachDetail {
   publisher: string;
   name: string;
   version: string;
+}
+
+export interface MarketplaceDownloadResponseDto {
+  status: string;
+  publisher: string;
+  name: string;
+  version: string;
+  extension_dir: string;
+  db_id?: number | null;
+  message: string;
+  vsix_metrics?: VsixExtractionMetricsDto | null;
 }
 
 export interface AnalyzeJobStepDto {

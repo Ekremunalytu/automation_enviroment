@@ -15,7 +15,7 @@ from appcore.contracts.schema_defs.analysis_jobs import (
 )
 from appcore.contracts.schemas import AnalyzeRequest
 from executor.control import ExecutorControl, ExecutorError
-from packages.analysis_contracts import redact_secrets
+from packages.analysis_contracts import redact_multiline_secrets, redact_secrets
 from workflows.marketplace.trigger_service import TriggerPlan
 
 from .analysis_errors import AnalysisCancelledError, TriggerPlanError
@@ -72,12 +72,13 @@ def install_failure_message(exc: ExecutorError) -> str:
     output = (exc.output or "").strip()
     if not output:
         return base
-    # W10-7 (closes [FOLLOWUP w8-6-output-signals-redaction]): the
-    # installer stderr/stdout tail is extension-derived text and ends up
-    # in the job log surface read by operators. Redact API keys / DB
-    # URLs / OAuth tokens before persisting, mirroring the OutputSignalEvent
-    # treatment.
-    tail = redact_secrets(output[-500:].strip())
+    # W10-7 (closes [FOLLOWUP w8-6-output-signals-redaction]) and
+    # [FOLLOWUP marketplace-installer-tail-multiline-redaction]: installer
+    # stderr/stdout is extension-derived text that lands in the operator job log.
+    # Collapse cross-line spans before tailing so a 500-char boundary cannot
+    # split a PEM block away from its BEGIN marker.
+    sanitized_output = redact_multiline_secrets(output)
+    tail = redact_secrets(sanitized_output[-500:].strip())
     return f"{base} Installer output (tail): {tail}"
 
 

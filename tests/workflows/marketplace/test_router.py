@@ -211,6 +211,41 @@ def test_download_threshold_breach_returns_structured_422(client: TestClient) ->
     assert detail["version"] == "2026.5.2026050801"
 
 
+def test_download_threshold_breach_accepts_float_observed_value(
+    client: TestClient,
+) -> None:
+    from workflows.marketplace.client import (
+        VSIX_BREACH_COMPRESSION_RATIO,
+        VSIXUnpackError,
+    )
+
+    err = VSIXUnpackError(
+        "VSIX compression ratio 101.5:1 exceeds limit (100:1)",
+        breach_kind=VSIX_BREACH_COMPRESSION_RATIO,
+        threshold_name="vsix_max_compression_ratio",
+        threshold_value=100,
+        observed_value=101.5,
+    )
+
+    with patch(
+        "workflows.marketplace.client.download_and_extract_vsix",
+        side_effect=err,
+    ):
+        response = client.post(
+            "/api/marketplace/download",
+            json={
+                "publisher": "ms-python",
+                "name": "python",
+                "version": "2026.5.2026050801",
+            },
+        )
+
+    assert response.status_code == 422
+    detail = response.json()["detail"]
+    assert detail["breach_kind"] == VSIX_BREACH_COMPRESSION_RATIO
+    assert detail["observed_value"] == 101.5
+
+
 def test_download_legacy_vsix_unpack_error_falls_back_to_string_detail(
     client: TestClient,
 ) -> None:
