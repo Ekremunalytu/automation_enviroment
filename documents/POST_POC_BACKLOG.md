@@ -365,6 +365,43 @@ Use stable IDs in new references; do not cite canonical doc line numbers.
   (zip-bomb defense rationale, file-count complementary guard, current
   thresholds) so the cross-ref in `workflows/marketplace/client.py`
   resolves to actual prose. Lane: `[docs]` `[security-detection]`.
+- ~~**`[BACKLOG ui-v3-5]` Settings persistence API**~~ —
+  **PARTIALLY CLOSED `2026-05-09`** on `week12`. Backend persistence
+  layer landed for the Security/VSIX-hardening section (new
+  `operator_settings` table + GET/PUT
+  `/api/settings/security/thresholds` + `SecuritySection` form in
+  `SettingsPage.tsx`). Other localStorage-backed sections (general,
+  executor, telemetry) remain client-only — they retire incrementally
+  as their values find a backend consumer. The pre-existing
+  `localStorage["extrace-v3-settings"]` legend on the Settings header
+  was removed since it no longer accurately describes the whole page.
+- **`[FOLLOWUP vsix-integrity-in-activation-report]`** — Stage 9 of
+  the 2026-05-09 operator-tunable VSIX hardening iteration was
+  deferred to keep that iteration shippable. Carry-over scope: persist
+  per-extension VSIX extraction metrics (file_count, uncompressed_size,
+  compression_ratio, rejected_entry_count) on the `Extension` entity
+  (new alembic migration + 4 nullable columns), wire
+  `create_extension_from_directory` to write them, add
+  `ActivationReport.vsix_integrity` (additive optional Pydantic model;
+  no schema_version bump needed), populate it from Extension at report
+  build time (`packages/analysis_engine/runner.py` or
+  `executor/.../report_builder.py`), and render a "VSIX Integrity"
+  subsection on the Reports overview tab (`ui/src/features/reports/`,
+  `ui/src/lib/adapters/report.ts`). Acceptance: Reports page shows
+  metrics with green/amber/red coloring keyed off the live thresholds
+  (use `apiClient.getSecurityThresholds`); pre-existing fixtures with
+  no metrics render as "Metrics unavailable" rather than throwing.
+  Stage-9 risk-score visualization flows naturally from this since the
+  panel is the report-side mirror of the marketplace post-download
+  banner that landed today. Lane: `[ui-v3]` `[security-detection]`
+  `[contracts]`.
+- **`[FOLLOWUP vsix-thresholds-extra-keys]`** — the
+  `operator_settings` table is generic key/value but the W12-* PUT
+  endpoint only accepts the three VSIX threshold keys. Future
+  operator-tunable values (jobTimeout, retention windows, telemetry
+  buffers) should land on the same table; pull in their existing
+  localStorage defaults from `SettingsPage.DEFAULT_SETTINGS` when the
+  first one needs cross-device sync. Lane: `[settings]`.
 - **`[FOLLOWUP w8-3-harness-js-scheme]`** — extend URI trigger hardening.
 - ~~**`[FOLLOWUP w8-5-list-endpoint-name-filter]`**~~ — closed
   `2026-04-30`.

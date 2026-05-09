@@ -627,6 +627,72 @@ pattern'leri otomatik kapsama girer.
 
 ---
 
+### Operator-Tunable VSIX Hardening (landed `2026-05-09`)
+
+**Stable IDs.** Partial close of `[BACKLOG ui-v3-5]` (Settings
+persistence API for the Security section); new follow-up
+`[FOLLOWUP vsix-integrity-in-activation-report]` carries the deferred
+report-side panel into a future iteration.
+
+**Status.** Landed in commits `bea3bfe` (backend foundation),
+`733c3bc` (marketplace structured 422), `f15b6c0` (download metrics
+surfacing), `65f741a` (UI). Out of W12 scope strictly speaking — this
+landed mid-W12 because the 2026-05-08 Microsoft ms-python release
+tripped the original `MAX_FILE_COUNT=2_000` guard on real users (see
+`POST_POC_BACKLOG.md` `[FOLLOWUP w8-1-vsix-entry-count-limit-realistic]`)
+and the operator needed a way to tune the value without a deploy.
+
+**Surfaces shipped.**
+
+- New `operator_settings` key/value table (alembic migration
+  `a1c4f9d2b8e3` → head). Single integer column today; typed sibling
+  column will join when the first non-int setting arrives.
+- `GET/PUT /api/settings/security/thresholds` with per-key bounds
+  validation (`THRESHOLD_BOUNDS`); 422 on out-of-range values.
+- Marketplace download path reads operator-tuned thresholds via
+  `workflows.security_settings.load_vsix_thresholds(db)` per request;
+  module constants stay as the test-friendly fallback for the existing
+  `test_vsix_hardening` cases (decoupled by monkeypatch).
+- `VSIXUnpackError` carries structured `breach_kind` / `threshold_*` /
+  `observed_value` fields; HTTP layer maps to a 422 with a JSON
+  detail object the UI consumes.
+- `MarketplaceDownloadResponse.vsix_metrics` surfaces post-extract
+  metrics (`file_count`, `uncompressed_size`, `compressed_size`,
+  `compression_ratio`, `rejected_entry_count`) for fresh extractions.
+- UI: generic `Dialog` v3 primitive; threshold-breach popup with
+  comparison table + deep-link to `/settings?section=security`;
+  post-download integrity banner; Settings → Security section with
+  bounds-aware form, "Overridden" badge per row, and inline
+  validation error surface.
+
+**Stage-9 deferral.** The Reports-side panel ("VSIX Integrity" on
+ReportsPage) is carried over as
+`[FOLLOWUP vsix-integrity-in-activation-report]`. It needs an
+Extension-entity migration (4 nullable VSIX-metric columns) plus
+populate-on-create plus `ActivationReport.vsix_integrity` additive field
+plus adapter plus UI subsection. Kept out of this iteration to avoid
+contract-side test fixture churn during W12 active work.
+
+**Acceptance evidence.**
+
+- Backend: 6 new `requires_db` cases under
+  `tests/workflows/security_settings/test_router.py`; 2 new cases on
+  `test_vsix_hardening.py` (structured exception fields, per-call
+  thresholds dict override); 2 new cases on `test_router.py`
+  (structured 422, legacy fallback). All 150 marketplace +
+  security-settings tests green.
+- UI: 50/50 vitest cases green including the new deep-link case on
+  `SettingsPage.test.tsx`; `tsc --noEmit` clean.
+- Live verification: rebuilt API container, pre-existing 80 contracts
+  - security cases stay regression-free, browser preview round-trip
+  on `ms-python.python@2026.5.2026050801` (download → metrics banner)
+  and `vsix_max_file_count=200` synthetic breach (popup with
+  Settings deep-link).
+
+**Lane.** `[settings]` `[ui-v3]` `[security-detection]`.
+
+---
+
 ### Pre-W12-4 Hardening — API Docker Base Image Digest Pin
 
 **Stable ID.** `[FOLLOWUP api-docker-base-image-digest-pin]` in
