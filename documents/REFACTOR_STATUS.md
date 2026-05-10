@@ -1,6 +1,6 @@
 # Refactor Status
 
-`Last Updated: 2026-05-10 (W12 active; W12-4 dispatch extraction landed; W12 close acceptance bar pending)`
+`Last Updated: 2026-05-10 (W12 active; W12-5 ahtapot split + body-preview gate landed; W12 close acceptance bar pending)`
 
 Active status board for current closure state. **Slim canonical** — full
 phase history and verbose evidence are frozen under dated snapshots:
@@ -109,15 +109,40 @@ phase history and verbose evidence are frozen under dated snapshots:
   `tests/architecture/test_runner_main_loc_budget.py::test_runner_main_under_loc_budget`
   (AST gate, ≤200 LoC) and `::test_runner_main_dispatch_helpers_remain_imported`.
   W12 close exit criterion bullet 5 cleared.
+- W12-5 extension_host ahtapot split + body-preview redaction gate:
+  **landed** `2026-05-10` on `week12`.
+  `executor/flows/playwright/runtime_capture/extension_host.py`
+  679 LoC → 87 LoC thin facade + 3 focused modules
+  (`extension_host_log_parse.py` 329, `extension_host_strace_parse.py` 106,
+  `extension_host_capture.py` 264). Pattern follows W11-7 and W11-8
+  (verbatim relocation, `from .X import Y as Y` + `__all__`, no
+  generic frameworks). Two new architecture gates pin the facade
+  invariant:
+  `tests/architecture/test_import_graph.py::test_runtime_capture_extension_host_stays_a_thin_facade`
+  (AST shape) and
+  `::test_runtime_capture_extension_host_reexports_match_canonical_modules`
+  (identity check across `__all__`). A third gate
+  `tests/architecture/test_network_body_preview_redaction.py::test_body_preview_assignments_are_redacted`
+  enforces that every `*_body_preview` assignment under
+  `executor/`, `packages/`, or `workflows/` routes through
+  `redact_secrets()`; teeth verified via mutation. Closes
+  `[FOLLOWUP w12-extension-host-split-scoping]` and
+  `[FOLLOWUP arch-gate-network-body-preview-redaction]`.
+  Live-scan bitwise-equal validation deferred to W12 close
+  (Iteration 6) — the executor container has pre-W12-5 code baked
+  in at build time, so bitwise-equal verification needs an image
+  rebuild; this is consistent with the W12-1..W12-4 precedent.
 - Working branch: `week12` (single-branch policy for W12).
-- Last known broad check bar: `make test-local` 1402 passed / 6 skipped / 6
-  deselected on `2026-05-10` after the W12-4 dispatch extraction
-  (+2 from the new `test_runner_main_loc_budget` gate); previous bar
-  was 1400 after pre-W12-4 hardening closures, the
+- Last known broad check bar: `make test-local` 1430 passed / 6 skipped / 6
+  deselected on `2026-05-10` after the W12-5 extension_host ahtapot split
+  - body-preview redaction gate (+3 from the new W12-5 architecture gates);
+  previous bar was 1402 after the W12-4 dispatch extraction (+2 from the
+  `test_runner_main_loc_budget` gate); pre-W12-4 bar was 1400 after the
+  hardening closures, the
   `ms-python.python@2026.5.2026050801` fixture-baseline realignment, and
   the `[FOLLOWUP security-settings-commit-ownership]` rollback +
   schema-validation pin tests; `make test-security` 211 passed / 32 warnings
-  (unchanged across W12-4).
+  (unchanged across W12-4 and W12-5).
 - Latest focused verification (`2026-05-09`): `make test-security`
   211 passed / 32 warnings; 113 marketplace/security-settings/helper/
   generator/digest tests passed; generated-contract `--check` passed;

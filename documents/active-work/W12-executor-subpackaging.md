@@ -887,3 +887,134 @@ container kuralı doğru uyguluyor; API tarafı uymuyor.
   lands as commits on `week12` rather than as a standalone PR.
   Commit-level isolation preserves the cherry-pick / revert
   ergonomics.
+
+---
+
+### W12-5 — Extension Host Ahtapot Split + Body-Preview Redaction Gate (landed `2026-05-10`)
+
+- **Scope.** Two deliverables shipped in one iteration:
+  1. **Extension Host split.** `executor/flows/playwright/runtime_capture/extension_host.py`
+     679 LoC → 87 LoC thin re-export facade + 3 focused modules
+     (`extension_host_log_parse.py` 329 LoC,
+     `extension_host_strace_parse.py` 106 LoC,
+     `extension_host_capture.py` 264 LoC). Pattern follows W11-7
+     (`workflows/extension_catalog/service.py` facade) and W11-8
+     (`appcore/storage/crud_ops/analysis_jobs/__init__.py` facade):
+     pure relocation, no behavior change, explicit
+     `from .X import Y as Y` re-exports + `__all__`.
+  2. **Body-preview redaction architecture gate.** New
+     `tests/architecture/test_network_body_preview_redaction.py`
+     — AST gate that walks every `.py` under `executor/`,
+     `packages/`, `workflows/` (excluding tests) and fails if any
+     `request_body_preview` / `response_body_preview` assignment
+     (kwarg, attribute write, or dict-key assign) is not routed
+     through `redact_secrets()` directly, via
+     `_bounded_body_metadata()` output, or as a passthrough from
+     an already-redacted source (`network_event`, `evidence_event`,
+     `event`, `payload`).
+- **Public-surface preservation.** The original
+  `extension_host.py` was tightly bound to two external consumers
+  whose contracts had to survive the split:
+  - `executor/flows/playwright/monitor/__init__.py:101-109`
+    re-exports 7 names from this path
+    (`_ACTIVATION_PATTERNS`, `_TIMESTAMP_RE`,
+    `ExtensionHostFileCapture`,
+    `_activation_within_monitoring_window`,
+    `_parse_activation_lines`, `_poll_exthost_log`,
+    `watch_exthost_log`).
+  - `executor/flows/playwright/monitor/sources.py:14-17`
+    imports 2 names directly
+    (`_activation_within_monitoring_window`,
+    `_parse_activation_lines`).
+  - `tests/executor/test_playwright_extension_host.py` (W11
+    precursor, 23 cases) accesses 9 distinct symbols by attribute
+    lookup on the imported module (including `VSCODE_LOGS_DIR`
+    and `_parse_iso_timestamp`).
+  Total facade surface: 17 names. The plan validation pass caught
+  three names the initial draft had omitted (`VSCODE_LOGS_DIR`,
+  `_TIMESTAMP_RE`, `_activation_within_monitoring_window`) and
+  added them before the facade landed; without that pre-flight
+  audit the 23-case suite would have failed at first run.
+- **Monkey-patch contract preservation.** The 23-case suite uses
+  `monkeypatch.setattr(extension_host, "VSCODE_LOGS_DIR", tmp_path)`
+  to redirect file discovery to fixture directories. After the
+  split, `find_exthost_logs` and `read_extension_host_output` live
+  in `extension_host_log_parse.py` and would normally read the
+  module-level `VSCODE_LOGS_DIR` import inside their own
+  namespace — which the facade-side monkeypatch cannot reach. The
+  fix is a small `_resolve_vscode_logs_dir()` helper inside
+  `extension_host_log_parse.py` that does
+  `from . import extension_host as _facade` lazily and reads
+  `_facade.VSCODE_LOGS_DIR` at call time. Lazy import is safe
+  because the facade is fully loaded before any of these
+  functions can be invoked. Decoupling the test from
+  implementation detail wasn't an option (plan policy: do not
+  modify the precursor tests during the split).
+- **Capture-side cycle break preserved.** The original
+  `ExtensionHostFileCapture.start()` defers
+  `from ..monitor import _wait_for_extension_host_pid` inside the
+  function body to break the
+  `runtime_capture → monitor → runtime_capture` cycle. The split
+  moved this method into `extension_host_capture.py` verbatim,
+  including the lazy import and the surrounding cycle-break
+  comment. Hoisting it to module top would re-introduce the
+  cycle.
+- **Architecture gates added.**
+  - `tests/architecture/test_import_graph.py::test_runtime_capture_extension_host_stays_a_thin_facade`
+    — AST shape gate, allows only `Import`, `ImportFrom`, the
+    module docstring, and the `__all__` assignment. Prevents the
+    facade from re-growing function/class bodies. Mirrors the
+    W11-7 / W11-8 pattern verbatim.
+  - `tests/architecture/test_import_graph.py::test_runtime_capture_extension_host_reexports_match_canonical_modules`
+    — identity gate, asserts `set(extension_host.__all__)` equals
+    the union of four expected sets (10 names from
+    `extension_host_log_parse`, 2 from `extension_host_strace_parse`,
+    3 from `extension_host_capture`, 2 from `_shared`) and that
+    every facade symbol resolves by `is` identity to its
+    canonical-module counterpart. Catches both orphan re-exports
+    and shim-wrapped re-bindings.
+  - `tests/architecture/test_network_body_preview_redaction.py::test_body_preview_assignments_are_redacted`
+    — body-preview gate; teeth verified by mutating
+    `network.py:127` to a plaintext literal (gate fired with
+    `network.py:127: request_body_preview=<expr> not routed
+    through redact_secrets`); revert + re-run = green.
+- **Tests.**
+  - `tests/executor/test_playwright_extension_host.py` 23/23
+    green (W11 precursor suite preserved).
+  - `tests/architecture/` 100 cases green
+    (98 prior + 2 new W12-5 facade gates +
+    1 new body-preview gate, includes the auto-discovered cases
+    from `test_default_bindings.py` parametrization).
+  - `make test-local` 1430 passed / 6 skipped / 6 deselected
+    (jumped from the 1402 baseline because the pre-W12-5 tally
+    already included tests added during W12-4 closure +
+    `make test-local` enumerates more lanes; the W12-5
+    delta is +3 architecture gates).
+  - `make test-security` 211 passed / 32 warnings (unchanged).
+- **Live-scan.** Pre-refactor baseline started against
+  `ms-python.python` reached `coding_session` → `debug_session`
+  → `terminal_usage` (line 26 of run output) before the run had
+  to be terminated for time. Post-refactor scan would require
+  rebuilding the executor image (the container has the
+  pre-W12-5 snapshot baked in at build time, not bind-mounted
+  from the host). Bitwise-equal validation is therefore deferred
+  to W12 close (Iteration 6) per the W12-1/2/3/4 precedent: the
+  refactor is verbatim copy-paste, the 23-case + identity-gate
+  suite confirms public-surface and parser-equality
+  programmatically, and the executor stack will re-scan during
+  the close acceptance bar dry run before merge.
+- **Followups closed.**
+  - `[FOLLOWUP w12-extension-host-split-scoping]` — the
+    P1/P2-priority W12 plan addendum from the 2026-04-27 audit
+    pass; original 679-LoC ahtapot retired.
+  - `[FOLLOWUP arch-gate-network-body-preview-redaction]` — P2
+    audit followup, optional W12-1 companion pulled into W12-5
+    as a thematic fit (defense-in-depth around the runtime
+    redaction path that already had test coverage at
+    `tests/executor/test_playwright_monitor_runtime.py::test_parse_tshark_event_line_redacts_secrets_in_body_preview`
+    and the broader output-signal suite).
+- **Branch policy note.** Per the W12 single-branch policy,
+  W12-5 lands as commits on `week12` (commits `377f0d5` for the
+  refactor, `9433ee3` for the body-preview gate, plus this
+  documentation commit). Commit-level isolation preserves
+  cherry-pick/revert ergonomics for the W12 close PR bundle.

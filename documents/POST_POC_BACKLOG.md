@@ -149,9 +149,13 @@ Use stable IDs in new references; do not cite canonical doc line numbers.
   `2026-05-07` in commit `5ae0d32`; 26 link-helper cases landed.
 - ~~**`[FOLLOWUP w12-precursor-tests-attribution-events]`**~~ — closed
   `2026-05-07` in commit `5ae0d32`; 34 event-helper cases landed.
-- **`[FOLLOWUP w12-extension-host-split-scoping]`** — plan addendum
-  closed by PR #15; implementation lands during W12 as the
-  `runtime_capture/extension_host.py` ahtapot split.
+- ~~**`[FOLLOWUP w12-extension-host-split-scoping]`**~~ — closed
+  `2026-05-10` in commit `377f0d5` (W12-5 ahtapot split).
+  `runtime_capture/extension_host.py` 679 LoC → 87 LoC thin
+  facade + 3 focused modules (`extension_host_log_parse.py`,
+  `extension_host_strace_parse.py`, `extension_host_capture.py`).
+  Two new architecture gates pin the facade invariant
+  (AST shape + re-export identity).
 - ~~**`[FOLLOWUP coverage-summary-attempted-drift]`**~~ — closed
   `2026-05-07` in commit `9ebc5b5` (W12-2 Commit 3). The assembler
   collapses planner-seeded `attempted_capabilities` and
@@ -398,8 +402,14 @@ Use stable IDs in new references; do not cite canonical doc line numbers.
 
 - **`[FOLLOWUP ci-reintroduction]`** — restore CI/docs-check after the
   runner-image drift is understood.
-- **`[FOLLOWUP arch-gate-network-body-preview-redaction]`** — P2; AST gate
-  ensuring body-preview assignments stay behind `redact_secrets`.
+- ~~**`[FOLLOWUP arch-gate-network-body-preview-redaction]`**~~ —
+  closed `2026-05-10` in commit `9433ee3` (W12-5 companion gate).
+  New `tests/architecture/test_network_body_preview_redaction.py`
+  walks the AST of every module under `executor/`, `packages/`,
+  `workflows/` and fails if any `*_body_preview` assignment is not
+  routed through `redact_secrets()` — directly, via
+  `_bounded_body_metadata()` output, or as a passthrough from an
+  already-redacted source. Teeth verified via mutation test.
 
 ### Repo Hygiene
 
