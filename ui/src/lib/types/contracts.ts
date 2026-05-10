@@ -30,8 +30,8 @@ export interface AttributionSummaryDto {
   strong_target_file_event_count?: number;
   strong_target_network_event_count?: number;
   correlated_only_event_count?: number;
-  background_activation_count?: number;
-  competing_candidate_count?: number;
+  target_background_activation_count?: number;
+  competing_extension_event_count?: number;
   ui_blocker_count?: number;
 }
 
@@ -144,7 +144,7 @@ export interface DetectionFindingDto {
 }
 
 export interface DetectionReportDto {
-  schema_version?: string;
+  schema_version?: "1";
   activation_report_ref: string;
   analyzed_extension: ExtensionIdentityDto;
   findings?: DetectionFindingDto[];
@@ -197,7 +197,7 @@ export interface EvidenceEventDto {
   artifact_class?: string;
   sensitive?: boolean;
   summary?: string;
-  raw_context?: Record<string, unknown>;
+  raw_context?: NetworkRawContextDto | FileRawContextDto | ProcessRawContextDto | ScenarioRawContextDto | ActivationRawContextDto | UiBlockerRawContextDto | OutputChannelRawContextDto;
 }
 
 export interface EvidenceLinkDto {
@@ -288,6 +288,65 @@ export interface OutputSignalEventDto {
   attribution_status?: string;
   attribution_basis?: string;
   summary?: string;
+}
+
+export interface NetworkRawContextDto {
+  event_class?: "network";
+  event_type?: string;
+  source_ip?: string;
+  path?: string;
+  http_method?: string;
+  http_status_code?: number | null;
+  http_content_type?: string;
+  request_body_sha256?: string;
+  request_body_preview?: string;
+  request_body_truncated?: boolean;
+  response_body_sha256?: string;
+  response_body_preview?: string;
+  response_body_truncated?: boolean;
+}
+
+export interface FileRawContextDto {
+  event_class?: "file";
+  secondary_path?: string;
+  flags?: string;
+  observer?: string;
+  source?: string;
+}
+
+export interface ProcessRawContextDto {
+  event_class?: "process";
+  pid: number;
+  ppid?: number | null;
+  command?: string;
+  arguments_preview?: string;
+  cwd?: string;
+}
+
+export interface ScenarioRawContextDto {
+  event_class?: "scenario";
+  status?: string;
+  started_at?: number;
+  ended_at?: number;
+}
+
+export interface ActivationRawContextDto {
+  event_class?: "activation";
+  success?: boolean;
+  duration_ms?: number | null;
+  source?: string;
+}
+
+export interface UiBlockerRawContextDto {
+  event_class?: "ui_blocker";
+  status?: string;
+  stream?: string;
+}
+
+export interface OutputChannelRawContextDto {
+  event_class?: "output_channel_appendline";
+  channel?: string;
+  text?: string;
 }
 
 export interface RuleExecutionRecordDto {
@@ -463,7 +522,7 @@ export interface ActivationReportDto {
   extension_host_output?: string;
   log_file?: string;
   output_signal_events?: OutputSignalEventDto[];
-  activation_discovery_strategies?: string[];
+  activation_discovery_strategy_outcomes?: Record<string, string>;
   runner_exit_code?: number | null;
   runner_status?: "success" | "error" | "unknown";
   _metadata?: ActivationReportMetadataDto | null;
@@ -479,6 +538,43 @@ export interface MarketplaceExtensionDto {
   rating: number;
 }
 
+export interface VsixExtractionMetricsDto {
+  file_count: number;
+  uncompressed_size: number;
+  compressed_size: number;
+  compression_ratio: number;
+  rejected_entry_count: number;
+}
+
+export interface VsixThresholdBoundsDto {
+  min_value: number;
+  max_value: number;
+}
+
+export interface VsixThresholdsResponseDto {
+  values: Record<string, number>;
+  defaults: Record<string, number>;
+  bounds: Record<string, VsixThresholdBoundsDto>;
+  keys: string[];
+}
+
+export interface VsixThresholdsUpdateRequestDto {
+  values?: Record<string, number>;
+  updated_by?: string | null;
+}
+
+export interface VsixThresholdBreachDetail {
+  error: "vsix_threshold_breach";
+  breach_kind: "entry_count" | "uncompressed_size" | "compression_ratio";
+  threshold_name: string;
+  threshold_value: number;
+  observed_value: number;
+  message: string;
+  publisher: string;
+  name: string;
+  version: string;
+}
+
 export interface MarketplaceDownloadResponseDto {
   status: string;
   publisher: string;
@@ -487,6 +583,7 @@ export interface MarketplaceDownloadResponseDto {
   extension_dir: string;
   db_id?: number | null;
   message: string;
+  vsix_metrics?: VsixExtractionMetricsDto | null;
 }
 
 export interface AnalyzeJobStepDto {

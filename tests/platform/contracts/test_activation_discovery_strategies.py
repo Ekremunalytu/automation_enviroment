@@ -1,8 +1,11 @@
-"""W11-3 contract tests.
+"""W11-3 + W12-2 contract tests.
 
-Pin the three schema-2.1 additions:
-* ``activation_discovery_strategies`` — list[str], populated by
-  ``MonitorRuntime.stop()`` via the ``ReportAssembler`` callback.
+Pin the three schema-2.1 additions (W12-2 upgrades the discovery field):
+* ``activation_discovery_strategy_outcomes`` — dict[str, str], populated
+  by ``MonitorRuntime.stop()`` via the ``ReportAssembler`` callback.
+  Outcomes use the literals ``"succeeded_with_new_activations"``,
+  ``"succeeded_no_new_activations"``, and ``"failed:<ExcClassName>"``
+  (the W12-2 outcome-detail upgrade from W11-3's list[str]).
 * ``runner_exit_code`` — int | None, populated by ``entrypoint_runner``
   immediately before ``SystemExit``.
 * ``runner_status`` — RunnerStatusLiteral, derived from exit_code by
@@ -58,29 +61,31 @@ def test_default_construction_initializes_w11_3_fields() -> None:
         log_streams={},
     )
 
-    assert report.activation_discovery_strategies == []
+    assert report.activation_discovery_strategy_outcomes == {}
     assert report.runner_exit_code is None
     assert report.runner_status == "unknown"
 
 
-def test_round_trip_with_w11_3_fields_populated() -> None:
+def test_round_trip_with_w12_2_fields_populated() -> None:
     """Producer-shaped payload with all three new fields set survives
     validate -> dump -> validate without loss."""
     payload = _load_baseline()
-    payload["activation_discovery_strategies"] = [
-        "exthost_log_parse",
-        "exthost_output_parse",
-    ]
+    payload["activation_discovery_strategy_outcomes"] = {
+        "exthost_log_parse": "succeeded_with_new_activations",
+        "running_extensions_ui": "succeeded_no_new_activations",
+        "exthost_output_parse": "failed:OSError",
+    }
     payload["runner_exit_code"] = 0
     payload["runner_status"] = "success"
 
     parsed = ActivationReport.model_validate(payload)
     dumped = parsed.model_dump(mode="json")
 
-    assert dumped["activation_discovery_strategies"] == [
-        "exthost_log_parse",
-        "exthost_output_parse",
-    ]
+    assert dumped["activation_discovery_strategy_outcomes"] == {
+        "exthost_log_parse": "succeeded_with_new_activations",
+        "running_extensions_ui": "succeeded_no_new_activations",
+        "exthost_output_parse": "failed:OSError",
+    }
     assert dumped["runner_exit_code"] == 0
     assert dumped["runner_status"] == "success"
 
@@ -123,12 +128,33 @@ def test_rejects_non_int_runner_exit_code() -> None:
         ActivationReport.model_validate(payload)
 
 
-def test_rejects_non_list_activation_discovery_strategies() -> None:
+def test_rejects_non_dict_activation_discovery_strategy_outcomes() -> None:
     payload = _load_baseline()
-    payload["activation_discovery_strategies"] = "exthost_log_parse"
+    payload["activation_discovery_strategy_outcomes"] = "exthost_log_parse"
 
     with pytest.raises(ValidationError):
         ActivationReport.model_validate(payload)
+
+
+def test_accepts_failed_outcome_with_arbitrary_exception_class() -> None:
+    """W12-2: ``failed:<ExcClassName>`` outcome literal carries the caught
+    exception's class name verbatim. The contract field type is plain
+    ``dict[str, str]`` so the literal validation lives on the producer
+    side; this contract test just confirms the schema accepts the format
+    the producer emits (e.g. ``failed:TimeoutError``,
+    ``failed:ProcessLookupError``)."""
+    payload = _load_baseline()
+    payload["activation_discovery_strategy_outcomes"] = {
+        "exthost_log_parse": "failed:TimeoutError",
+        "running_extensions_ui": "failed:PlaywrightError",
+        "exthost_output_parse": "failed:ProcessLookupError",
+    }
+
+    parsed = ActivationReport.model_validate(payload)
+    assert (
+        parsed.activation_discovery_strategy_outcomes["exthost_log_parse"]
+        == "failed:TimeoutError"
+    )
 
 
 def test_strict_contract_model_extras_still_forbidden() -> None:
@@ -154,3 +180,55 @@ def test_runner_exit_code_accepts_none_when_runner_never_finalized() -> None:
     parsed = ActivationReport.model_validate(payload)
     assert parsed.runner_exit_code is None
     assert parsed.runner_status == "unknown"
+
+
+# --- W12-2 P3 legacy field migration regressions ---
+
+
+def test_legacy_strategies_field_migrates_to_outcomes_dict() -> None:
+    """Reports persisted between W11-3 and W12-2 P3 carry the legacy
+    ``activation_discovery_strategies: list[str]`` under the same
+    schema_version 2.1. ``StrictContractModel`` (extra=forbid) would
+    reject those reports on ingest unless the before-validator drops
+    the legacy field and synthesizes the new dict. The legacy list
+    only carried "succeeded-and-produced-new" entries, so each id
+    maps to ``"succeeded_with_new_activations"``."""
+    payload = _load_baseline()
+    payload["activation_discovery_strategies"] = [
+        "exthost_log_parse",
+        "running_extensions_ui",
+    ]
+
+    parsed = ActivationReport.model_validate(payload)
+    assert parsed.activation_discovery_strategy_outcomes == {
+        "exthost_log_parse": "succeeded_with_new_activations",
+        "running_extensions_ui": "succeeded_with_new_activations",
+    }
+
+
+def test_legacy_strategies_field_dropped_when_new_field_present() -> None:
+    """Defensive: if both fields are present (e.g. a producer wrote
+    them in parallel during the W12-2 transition), the new field wins
+    and the legacy field is dropped silently."""
+    payload = _load_baseline()
+    payload["activation_discovery_strategies"] = ["legacy_strategy_id"]
+    payload["activation_discovery_strategy_outcomes"] = {
+        "exthost_log_parse": "succeeded_with_new_activations",
+    }
+
+    parsed = ActivationReport.model_validate(payload)
+    assert parsed.activation_discovery_strategy_outcomes == {
+        "exthost_log_parse": "succeeded_with_new_activations",
+    }
+
+
+def test_legacy_strategies_non_list_payload_falls_back_to_empty_dict() -> None:
+    """A malformed legacy field (e.g. None, a string, a dict typed by
+    a buggy producer) is still dropped without raising, because the
+    extra=forbid rejection it triggers would block ingest entirely.
+    The migration coerces it to an empty outcomes dict."""
+    payload = _load_baseline()
+    payload["activation_discovery_strategies"] = None
+
+    parsed = ActivationReport.model_validate(payload)
+    assert parsed.activation_discovery_strategy_outcomes == {}

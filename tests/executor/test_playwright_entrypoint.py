@@ -976,3 +976,31 @@ def test_main_resets_reporter_and_disconnects_when_execution_raises(
     assert reporter_calls[0] is not None
     assert reporter_calls[-1] is None
     assert disconnect_calls == [browser]
+
+
+# ---------------------------------------------------------------------------
+# PageRef — mutable wrapper for cross-module page rebinding (W12-4)
+# ---------------------------------------------------------------------------
+
+
+def test_page_ref_mutation_is_visible_across_callback_boundary() -> None:
+    """Pinning the W12-4 ``PageRef`` invariant.
+
+    The retry-on-crash callback inside ``make_page_callbacks`` lives in a
+    different module than the dispatch loop that consumes ``page_ref.value``.
+    The original ``runner.main`` used ``nonlocal page`` to publish the rebind;
+    after the W12-4 split, ``PageRef.value`` must carry the same observable
+    semantics so the dispatch loop sees the post-reload page object.
+    """
+    from executor.flows.playwright.entrypoint.dispatch import PageRef
+
+    initial_page = object()
+    reloaded_page = object()
+    ref = PageRef(initial_page)
+
+    def reload_callback() -> None:
+        ref.value = reloaded_page
+
+    assert ref.value is initial_page
+    reload_callback()
+    assert ref.value is reloaded_page

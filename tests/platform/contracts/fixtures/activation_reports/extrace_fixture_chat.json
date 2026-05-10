@@ -31,7 +31,7 @@
       "rel_time_s": 0.1,
       "summary": "Activated extrace.fixture-chat",
       "raw_context": {
-        "event_type": "activated"
+        "event_class": "activation"
       }
     },
     {

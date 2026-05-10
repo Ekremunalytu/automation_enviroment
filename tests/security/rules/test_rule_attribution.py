@@ -42,7 +42,7 @@ def _a1_events(
             "kind": "extension_host",
             "rel_time_s": 0.0,
             "summary": "Activated extrace.target",
-            "raw_context": {"event_type": "activated"},
+            "raw_context": {"event_class": "activation"},
         },
         {
             "event_id": "file-0001",
@@ -64,7 +64,11 @@ def _a1_events(
             "summary": "Outbound POST to collector",
             "is_target_extension_event": is_target,
             "attribution_status": attribution,
-            "raw_context": {"event_type": "http_request", "method": "POST"},
+            "raw_context": {
+                "event_class": "network",
+                "event_type": "http_request",
+                "http_method": "POST",
+            },
         },
     ]
 
@@ -101,7 +105,7 @@ def _a4_events(
             "kind": "extension_host",
             "rel_time_s": 0.0,
             "summary": "Activated extrace.target",
-            "raw_context": {"event_type": "activated"},
+            "raw_context": {"event_class": "activation"},
         },
         {
             "event_id": "file-0001",
@@ -123,7 +127,11 @@ def _a4_events(
             "summary": "Outbound workspace upload",
             "is_target_extension_event": is_target,
             "attribution_status": attribution,
-            "raw_context": {"event_type": "http_request", "method": "POST"},
+            "raw_context": {
+                "event_class": "network",
+                "event_type": "http_request",
+                "http_method": "POST",
+            },
         },
     ]
 
@@ -147,7 +155,7 @@ def _a2_events(
             "kind": "extension_host",
             "rel_time_s": 0.0,
             "summary": "Activated extrace.target",
-            "raw_context": {"event_type": "activated"},
+            "raw_context": {"event_class": "activation"},
         },
     ]
     for index, rel_time in enumerate(rel_times, start=1):
@@ -161,7 +169,10 @@ def _a2_events(
                 "summary": "Outbound TLS beacon",
                 "is_target_extension_event": is_target,
                 "attribution_status": attribution,
-                "raw_context": {"event_type": event_type},
+                "raw_context": {
+                    "event_class": "network",
+                    "event_type": event_type,
+                },
             }
         )
     return events

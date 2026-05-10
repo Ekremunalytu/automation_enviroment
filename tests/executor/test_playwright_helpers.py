@@ -5,22 +5,22 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
-from executor.flows.playwright import keyboard
+from executor.flows.playwright.vscode import keyboard as keyboard
 import pytest
 
 from executor.flows.playwright import (
     automation,
     capture,
-    commands,
-    debug,
-    editor,
-    panel,
-    settings,
-    sidebar,
-    terminal,
     triggers,
     vscode,
 )
+from executor.flows.playwright.vscode import commands as commands
+from executor.flows.playwright.vscode import debug as debug
+from executor.flows.playwright.vscode import editor as editor
+from executor.flows.playwright.vscode import panel as panel
+from executor.flows.playwright.vscode import settings as settings
+from executor.flows.playwright.vscode import sidebar as sidebar
+from executor.flows.playwright.vscode import terminal as terminal
 
 
 class _FakeKeyboard:

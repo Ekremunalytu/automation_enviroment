@@ -19,8 +19,10 @@ from pydantic import (
 # bumps are rejected under model_validate(..., context={"strict_schema": True}).
 # W10-4: 1.0 -> 2.0 — automation_health and coverage_summary slots became
 # typed models (AutomationHealth, CoverageSummary) instead of dict[str, Any].
-# W11-3: 2.0 -> 2.1 — activation_discovery_strategies, runner_exit_code,
-# and runner_status added; runner_status keys off RunnerStatusLiteral.
+# W11-3: 2.0 -> 2.1 — activation_discovery_strategies (W12-2 renamed to
+# activation_discovery_strategy_outcomes and reshaped from list[str] to
+# dict[str, str] for per-strategy outcome detail), runner_exit_code, and
+# runner_status added; runner_status keys off RunnerStatusLiteral.
 ACTIVATION_REPORT_SCHEMA_VERSION = "2.1"
 
 
@@ -47,6 +49,10 @@ from packages.analysis_contracts.automation import (  # noqa: E402
     AutomationHealthStatusLiteral,  # noqa: F401  (re-exported via __init__)
 )
 from packages.analysis_contracts.coverage import CoverageSummary  # noqa: E402
+from packages.analysis_contracts.evidence import (  # noqa: E402
+    RawContext,
+    ScenarioRawContext,
+)
 
 
 class ActivationEntry(StrictContractModel):
@@ -257,7 +263,7 @@ class EvidenceEvent(StrictContractModel):
     artifact_class: str = ""
     sensitive: bool = False
     summary: str = ""
-    raw_context: dict[str, Any] = Field(default_factory=dict)
+    raw_context: RawContext = Field(default_factory=ScenarioRawContext)
 
 
 class ProcessEvent(StrictContractModel):
@@ -422,13 +428,15 @@ class ActivationReport(StrictContractModel):
     extension_host_output: str = ""
     log_file: str = ""
     output_signal_events: list[OutputSignalEvent] = Field(default_factory=list)
-    # W11-3: discovery strategies in `MonitorRuntime.stop()` that returned
-    # at least one entry; sorted, deduped, normalized identifiers.
-    # Today's producer set: "exthost_log_parse" (strategy 1 — exthost.log
-    # parse), "running_extensions_ui" (strategy 2 — Running Extensions UI
-    # scrape), "exthost_output_parse" (strategy 3 — extension host stdout
-    # parse).
-    activation_discovery_strategies: list[str] = Field(default_factory=list)
+    # W11-3 producer; W12-2 [FOLLOWUP activation-discovery-strategy-outcome-detail]
+    # upgrades from list[str] (only succeeded-and-produced-new) to
+    # dict[str, str] mapping strategy id -> outcome literal so analysts can
+    # distinguish ran-and-was-redundant, ran-and-failed, and never-reached.
+    # Strategy ids: "exthost_log_parse" (strategy 1), "running_extensions_ui"
+    # (strategy 2), "exthost_output_parse" (strategy 3). Outcome literals:
+    # "succeeded_with_new_activations", "succeeded_no_new_activations",
+    # "failed:<ExcClassName>".
+    activation_discovery_strategy_outcomes: dict[str, str] = Field(default_factory=dict)
     # W11-3: runner exit code (0 / non-zero). `None` if the runner never
     # finalized — the report was persisted before the runner reached its
     # `set_runner_status` call.
@@ -485,6 +493,36 @@ class ActivationReport(StrictContractModel):
             return data
         migrated = dict(data)
         migrated["signal_summary"] = migrated.pop("verdict")
+        return migrated
+
+    @model_validator(mode="before")
+    @classmethod
+    def _migrate_legacy_strategy_outcomes(cls, data: object) -> object:
+        # W12-2 P3 (closes [FOLLOWUP w12-legacy-strategy-outcomes-migration]):
+        # ``activation_discovery_strategies: list[str]`` was renamed to
+        # ``activation_discovery_strategy_outcomes: dict[str, str]`` under
+        # the same schema_version 2.1. ``StrictContractModel`` sets
+        # ``extra="forbid"``, so any 2.1 report persisted before the
+        # rename (W11-3 .. W12-2 P3 window) raises ``extra_forbidden``
+        # on ingest. Drop the legacy field and synthesize the new dict:
+        # the legacy list only carried "succeeded-and-produced-new"
+        # entries (see field comment on the dict declaration), so each
+        # id maps to ``"succeeded_with_new_activations"``.
+        if not isinstance(data, dict):
+            return data
+        if "activation_discovery_strategies" not in data:
+            return data
+        migrated = dict(data)
+        legacy = migrated.pop("activation_discovery_strategies")
+        if "activation_discovery_strategy_outcomes" not in migrated:
+            if isinstance(legacy, list):
+                migrated["activation_discovery_strategy_outcomes"] = {
+                    str(strategy_id).strip(): "succeeded_with_new_activations"
+                    for strategy_id in legacy
+                    if str(strategy_id).strip()
+                }
+            else:
+                migrated["activation_discovery_strategy_outcomes"] = {}
         return migrated
 
 

@@ -14,6 +14,7 @@ from executor.binary_paths import (
     docker_path,
 )
 from executor.config import settings
+from packages.analysis_contracts.evidence import redact_secrets
 from packages.marketplace_identity import safe_marketplace_slug
 
 
@@ -180,17 +181,24 @@ def install_extension_in_executor(publisher: str, name: str, version: str) -> st
         try:
             result = _docker_exec(cmd)
         except ExecutorError as retry_exc:
+            # Retry-path message embeds raw subprocess output from the first
+            # attempt; redact before it lands on the persisted job.error_detail
+            # surface (workflows/marketplace/analysis_service.py persists
+            # str(exc) verbatim).
+            raw_message = (
+                f"{retry_exc}; first attempt output: {first_exc.output[-200:].strip()}"
+            )
             raise ExecutorError(
-                f"{retry_exc}; first attempt output: {first_exc.output[-200:].strip()}",
+                redact_secrets(raw_message),
                 returncode=retry_exc.returncode,
                 output=retry_exc.output,
             ) from retry_exc
     return result.stdout
 
 
-_RELOAD_TIMEOUT = 90
+_RELOAD_TIMEOUT = 180
 _RESET_TIMEOUT = 90
-_AUTOMATION_TIMEOUT = 600
+_AUTOMATION_TIMEOUT = 1200
 _DEFAULT_SCENARIO = "coding_session"
 _RELOAD_CLEANUP_TIMEOUT = 5
 
@@ -225,7 +233,11 @@ def _last_reload_output_line(output: str) -> str | None:
 def _reload_error_message(exc: ExecutorError) -> str:
     detail = _last_reload_output_line(exc.output)
     if detail:
-        return f"{exc}; last reload output: {detail}"
+        # ``detail`` is the last non-empty line of the raw subprocess output
+        # and may include extension-controlled secret material (PEM/AWS/Bearer/
+        # api_key/db_url). Redact before the message reaches str(exc) → the
+        # persisted job.error_detail surface.
+        return redact_secrets(f"{exc}; last reload output: {detail}")
     return str(exc)
 
 

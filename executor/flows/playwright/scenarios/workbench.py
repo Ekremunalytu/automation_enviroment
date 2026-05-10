@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from playwright.sync_api import Page
 
-from .. import editor, keyboard, panel, settings, sidebar
+from ..vscode import editor, keyboard, panel, settings, sidebar
 from .common import log
 
 

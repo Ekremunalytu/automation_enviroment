@@ -1,5 +1,5 @@
 # Use a smaller, secure base image
-FROM python:3.11-slim-bookworm
+FROM python:3.11-slim-bookworm@sha256:cd67330292a51e2963156f74ff340455d66b2172e9190e99f40dff9357471177
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \

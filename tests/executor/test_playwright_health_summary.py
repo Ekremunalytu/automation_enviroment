@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from executor.flows.playwright.health_summary import (
+from executor.flows.playwright.health.summary import (
     build_automation_health,
     build_run_quality,
 )
-from executor.flows.playwright.monitor_records import LogStreamEntry, ScenarioTrace
-from executor.flows.playwright.monitor_types import ActivationReport
+from executor.flows.playwright.monitor.records import LogStreamEntry, ScenarioTrace
+from executor.flows.playwright.monitor.types import ActivationReport
 from executor.flows.playwright.runtime_capture.events import ActivationEntry
 
 
@@ -282,7 +282,7 @@ def test_harness_verification_unconfirmed_attempt_propagates_to_health_reasons()
     ``degraded``; run_quality stays ``medium`` because this is a
     partial-evidence signal, not a run failure.
     """
-    from executor.flows.playwright.monitor_records import EventAttemptRecord
+    from executor.flows.playwright.monitor.records import EventAttemptRecord
 
     report = _partial_evidence_report(
         execution_mode="layered_passes",

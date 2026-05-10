@@ -5,7 +5,7 @@ from __future__ import annotations
 from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import Page
 
-from .. import commands, debug, editor, panel, sidebar, terminal
+from ..vscode import commands, debug, editor, panel, sidebar, terminal
 from .common import log
 
 

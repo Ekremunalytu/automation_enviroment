@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from ..monitor_records import ScenarioTrace
+from ..monitor.records import ScenarioTrace
 from ..runtime_capture._shared import _parse_iso_timestamp
 from ..runtime_capture.events import (
     ActivationEntry,
@@ -15,13 +15,13 @@ from ..runtime_capture.events import (
 )
 
 
-def _format_epoch_timestamp(epoch: float | None) -> str:
+def format_epoch_timestamp(epoch: float | None) -> str:
     if epoch is None or epoch <= 0:
         return ""
     return datetime.fromtimestamp(epoch).isoformat(timespec="milliseconds")
 
 
-def _relative_time(
+def relative_time(
     event_epoch: float | None,
     monitoring_start: float,
 ) -> float | None:
@@ -258,7 +258,7 @@ def _upgrade_inotify_correlations(file_events: list[FileEvent]) -> list[FileEven
     return file_events
 
 
-def _scenario_name_for_timestamp(
+def scenario_name_for_timestamp(
     timestamp: str,
     rel_time_s: float | None,
     scenario_traces: list[ScenarioTrace],
@@ -273,7 +273,7 @@ def _scenario_name_for_timestamp(
     return ""
 
 
-def _annotate_network_events(
+def annotate_network_events(
     network_events: list[NetworkEvent],
     activations: list[ActivationEntry],
     scenario_traces: list[ScenarioTrace],
@@ -286,7 +286,7 @@ def _annotate_network_events(
             network_event.rel_time_s,
             0.0,
         )
-        scenario_name = _scenario_name_for_timestamp(
+        scenario_name = scenario_name_for_timestamp(
             network_event.timestamp,
             network_event.rel_time_s,
             scenario_traces,
@@ -342,7 +342,7 @@ def _annotate_network_events(
     return annotated
 
 
-def _annotate_file_events(
+def annotate_file_events(
     file_events: list[FileEvent],
     activations: list[ActivationEntry],
     scenario_traces: list[ScenarioTrace],
@@ -423,7 +423,7 @@ def _annotate_file_events(
     return _upgrade_inotify_correlations(annotated)
 
 
-def _annotate_process_events(
+def annotate_process_events(
     process_events: list[ProcessEvent],
     activations: list[ActivationEntry],
     scenario_traces: list[ScenarioTrace],
@@ -458,7 +458,7 @@ def _annotate_process_events(
             observer="strace",
         )
         summary = process_event.summary
-        scenario_name = _scenario_name_for_timestamp(
+        scenario_name = scenario_name_for_timestamp(
             process_event.timestamp,
             process_event.rel_time_s,
             scenario_traces,

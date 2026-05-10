@@ -9,15 +9,7 @@ from typing import Any
 from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import Page
 
-from . import (
-    commands,
-    editor,
-    keyboard,
-    settings,  # noqa: F401
-    sidebar,  # noqa: F401
-    terminal,  # noqa: F401
-    vscode,
-)
+from . import vscode
 from .scenarios.common import log as _log
 from .scenarios.editing import (  # noqa: F401
     scenario_coding_session,
@@ -43,11 +35,19 @@ from .scenarios.workbench import (  # noqa: F401
     scenario_search_workflow,
     scenario_settings_modification,
 )
-from .stimulus_types import (
+from .stimulus.types import (
     HARNESS_COMMAND_UNAVAILABLE_REASON,
     AutomationExecutionResult,
     HarnessUnavailableError,
     SkippedScenarioRecord,
+)
+from .vscode import (
+    commands,
+    editor,
+    keyboard,
+    settings,  # noqa: F401
+    sidebar,  # noqa: F401
+    terminal,  # noqa: F401
 )
 
 ScenarioEventReporter = Callable[[str, str, str, dict[str, Any] | None], None]

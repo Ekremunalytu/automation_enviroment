@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from executor.flows.playwright import keyboard
+from executor.flows.playwright.vscode import keyboard as keyboard
 import pytest
 
-from executor.flows.playwright import commands
+from executor.flows.playwright.vscode import commands as commands
 
 
 class _FakeKeyboard:

@@ -102,8 +102,8 @@ flowchart LR
   network canary; §10.7 checklist closed 11/11.
 - Post-W7 `attribution/` subpackage split moves annotation/classification
   (`attribution/events.py`) and evidence-link builders
-  (`attribution/links.py`) behind a flat re-export facade but preserves
-  the 29-name underscore-prefixed API and all evidence semantics above.
+  (`attribution/links.py`) behind a re-export facade. W12-2 trims that
+  facade to 10 public names while preserving the evidence semantics above.
 - Remaining stretch classes (A5 malicious update, A7 VS Code API abuse)
   live in `POST_POC_BACKLOG.md`.
 

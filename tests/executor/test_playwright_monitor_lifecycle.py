@@ -559,11 +559,11 @@ def test_target_extension_host_stream_invariant_rejects_non_target_entries() -> 
     """
     import pytest
 
-    from executor.flows.playwright.monitor_lifecycle import (
+    from executor.flows.playwright.monitor.lifecycle import (
         _assert_target_stream_invariant,
     )
-    from executor.flows.playwright.monitor_records import LogStreamEntry
-    from executor.flows.playwright.monitor_types import (
+    from executor.flows.playwright.monitor.records import LogStreamEntry
+    from executor.flows.playwright.monitor.types import (
         ActivationReport,
         _DEMOTE_WARNING_EMITTED,
     )

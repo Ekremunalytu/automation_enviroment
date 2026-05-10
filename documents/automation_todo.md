@@ -60,9 +60,12 @@ and just past W12:
   automation timeline (wired into `MonitorRuntime.stop()` after
   `refresh_derived_state`); see
   `active-work/W11-monitor-lifecycle.md`.
-+ **W12 attribution facade cleanup** (`§11.9`) picks up
++ ~~**W12 attribution facade cleanup** (`§11.9`) picks up
   `[FOLLOWUP w12-attribution-naming-overlap]` and
-  `[FOLLOWUP coverage-summary-attempted-drift]`. Surfaced by
+  `[FOLLOWUP coverage-summary-attempted-drift]`~~ — closed
+  `2026-05-07` with W12-2. The coverage drift fix collapses
+  planner-seeded attempted capabilities to the runtime-derived
+  `event_attempts` view before coverage reconcile. Surfaced by
   2026-05-04 manual UI scan.
 + Docker-based A1 canary structural diff smoke (`make exec-up && make
   exec-run` against `t1-a1-credential-read-to-network-canary`); closes

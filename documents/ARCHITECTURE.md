@@ -1,6 +1,6 @@
 # ExTrace Architecture
 
-`Last Updated: 2026-05-05`
+`Last Updated: 2026-05-07`
 
 System shape, runtime surfaces, and module map. **Slim canonical** —
 detailed request flows under
@@ -86,9 +86,12 @@ catalog data + analysis-job metadata is `appcore/storage/crud.py`.
 - `host.py` — Docker exec, retry/cleanup behavior.
 - `container/` — Docker image, `start.sh`, shared `launch_vscode.sh`.
 - `flows/playwright/` — VS Code automation, trigger loading, the
-  `monitor.py` facade, lifecycle/source/runtime helpers, attribution
-  subpackage. **Detail:** `EXECUTOR_PLAYWRIGHT.md` (slim) →
-  `executor/playwright-flow.md` for in-flow specifics.
+  `monitor/` package (facade in `monitor/__init__.py`),
+  lifecycle/source/runtime helpers, plus the `stimulus/`, `health/`,
+  `entrypoint/`, `vscode/`, `workspace/`, `signals/` subpackages and
+  the existing `attribution/` subpackage (W12-1, 2026-05-07). Top
+  level keeps ≤10 flat modules. **Detail:** `EXECUTOR_PLAYWRIGHT.md`
+  (slim) → `executor/playwright-flow.md` for in-flow specifics.
 - `flows/playwright/attribution/` — events.py + links.py + facade
   re-export.
 - `flows/playwright/runtime_capture/` — network/filesystem/extension-host
@@ -98,10 +101,10 @@ catalog data + analysis-job metadata is `appcore/storage/crud.py`.
 
 ### `ui/` — analyst SPA
 
-App shell + features (`marketplace`, `simulation`, `reports`, `rules`,
-`settings`, `system`); shared v3 primitives under `ui/src/components/v3/`
-mirrored in `ui/tailwind.config.js`. UI v3 redesign minimal-completion
-landed `2026-04-29` (`REFACTOR_STATUS.md`).
+App shell + features (`evidence`, `marketplace`, `simulation`, `reports`,
+`rules`, `settings`, `system`); shared v3 primitives under
+`ui/src/components/v3/` mirrored in `ui/tailwind.config.js`. UI v3
+redesign minimal-completion landed `2026-04-29` (`REFACTOR_STATUS.md`).
 
 ## Canonical Boundaries (summary)
 
@@ -157,7 +160,7 @@ map:
 - `tests/workflows/` — activation reports, extension catalog,
   marketplace.
 - `tests/executor/` — Playwright + executor-host.
-- `tests/scanner/` — Docker exec wrapper.
+- `tests/executor/scanner/` — Docker exec wrapper.
 - `tests/security/` — malicious-fixture hygiene + PoC canary contracts.
 - `tests/smoke/` — end-to-end marketplace analysis against the executor
   container.

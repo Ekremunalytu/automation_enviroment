@@ -134,8 +134,8 @@ export interface AttributionSummaryView {
   strongTargetFileEventCount: number;
   strongTargetNetworkEventCount: number;
   correlatedOnlyEventCount: number;
-  backgroundActivationCount: number;
-  competingCandidateCount: number;
+  targetBackgroundActivationCount: number;
+  competingExtensionEventCount: number;
   uiBlockerCount: number;
 }
 

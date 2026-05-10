@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field
 
 from packages.analysis_contracts import DetectionReport
@@ -25,6 +27,37 @@ class MarketplaceDownloadRequest(BaseModel):
     version: str = Field(..., min_length=1)
 
 
+class VsixExtractionMetrics(BaseModel):
+    """Observed VSIX extraction metrics, surfaced post-download.
+
+    The UI compares ``file_count`` / ``uncompressed_size`` /
+    ``compression_ratio`` against the operator-set thresholds (returned
+    by ``GET /api/settings/security/thresholds``) to highlight
+    extensions whose footprint approaches the configured limits.
+    Renders as the "VSIX Integrity" panel on the Reports page.
+    """
+
+    file_count: int = Field(ge=0)
+    uncompressed_size: int = Field(ge=0)
+    compressed_size: int = Field(ge=0)
+    compression_ratio: float = Field(ge=0)
+    rejected_entry_count: int = Field(ge=0)
+
+
+class VsixThresholdBreachDetail(BaseModel):
+    """Structured 422 detail for VSIX extraction threshold breaches."""
+
+    error: Literal["vsix_threshold_breach"]
+    breach_kind: Literal["entry_count", "uncompressed_size", "compression_ratio"]
+    threshold_name: str
+    threshold_value: int
+    observed_value: int | float
+    message: str
+    publisher: str
+    name: str
+    version: str
+
+
 class MarketplaceDownloadResponse(BaseModel):
     status: str
     publisher: str
@@ -33,6 +66,10 @@ class MarketplaceDownloadResponse(BaseModel):
     extension_dir: str
     db_id: int | None = None
     message: str
+    # ``None`` when the extension was already extracted on disk and the
+    # download path was a no-op idempotent return (no fresh metrics to
+    # measure). Populated on every fresh extraction.
+    vsix_metrics: VsixExtractionMetrics | None = None
 
 
 class AnalyzeRequest(BaseModel):
@@ -99,4 +136,6 @@ __all__ = [
     "MarketplaceDownloadRequest",
     "MarketplaceDownloadResponse",
     "MarketplaceExtension",
+    "VsixExtractionMetrics",
+    "VsixThresholdBreachDetail",
 ]

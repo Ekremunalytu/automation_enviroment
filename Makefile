@@ -213,6 +213,7 @@ test-security:
 		tests/security/test_benign_silence.py \
 		tests/platform/security \
 		tests/architecture/test_default_bindings.py \
+		tests/architecture/test_dockerfile_digest_pin.py \
 		tests/workflows/marketplace/test_vsix_hardening.py \
 		tests/executor/security/test_uri_trigger_injection.py \
 		tests/workflows/activation_reports/test_router_path_traversal.py
@@ -353,6 +354,15 @@ down:
 
 restart: build up
 	@echo "🔄 Restart complete!"
+
+extensions-reset:
+	@./scripts/reset_extensions.sh
+
+api-fresh: extensions-reset
+	@echo "🚀 Cold-starting API (rebuild + migrate)..."
+	@docker compose up -d --build api
+	@docker exec automation_api alembic upgrade head
+	@echo "✅ Fresh API ready (extensions disk + DB cleared, image rebuilt, migrations applied)."
 
 logs:
 	docker-compose logs -f --tail=100

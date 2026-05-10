@@ -3,7 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 from types import SimpleNamespace
 
-from executor.flows.playwright import stimulus, stimulus_attempts
+from executor.flows.playwright import stimulus
+from executor.flows.playwright.stimulus import attempts as stimulus_attempts
 from packages.analysis_contracts import TriggerPayload
 
 
@@ -773,7 +774,7 @@ def test_ensure_harness_ready_returns_when_marker_valid(tmp_path: Path) -> None:
 def test_ensure_harness_ready_raises_missing_when_marker_absent(tmp_path: Path) -> None:
     import pytest
 
-    from executor.flows.playwright.stimulus_types import (
+    from executor.flows.playwright.stimulus.types import (
         HARNESS_READY_MARKER_MISSING_REASON,
         HarnessUnavailableError,
     )
@@ -791,7 +792,7 @@ def test_ensure_harness_ready_raises_invalid_when_marker_unparseable(
 ) -> None:
     import pytest
 
-    from executor.flows.playwright.stimulus_types import (
+    from executor.flows.playwright.stimulus.types import (
         HARNESS_READY_MARKER_INVALID_REASON,
         HarnessUnavailableError,
     )
@@ -812,7 +813,7 @@ def test_ensure_harness_ready_raises_invalid_when_required_field_missing(
 
     import pytest
 
-    from executor.flows.playwright.stimulus_types import (
+    from executor.flows.playwright.stimulus.types import (
         HARNESS_READY_MARKER_INVALID_REASON,
         HarnessUnavailableError,
     )
@@ -842,7 +843,7 @@ def test_ensure_harness_ready_raises_stale_when_epoch_mismatches(
 ) -> None:
     import pytest
 
-    from executor.flows.playwright.stimulus_types import (
+    from executor.flows.playwright.stimulus.types import (
         HARNESS_READY_MARKER_STALE_REASON,
         HarnessUnavailableError,
     )
@@ -938,7 +939,7 @@ def test_ensure_harness_ready_with_recovery_succeeds_on_second_poll(
 def test_ensure_harness_ready_with_recovery_exhausts_budget(tmp_path: Path) -> None:
     import pytest
 
-    from executor.flows.playwright.stimulus_types import (
+    from executor.flows.playwright.stimulus.types import (
         HARNESS_READY_MARKER_MISSING_REASON,
         HarnessUnavailableError,
     )
@@ -960,7 +961,7 @@ def test_ensure_harness_ready_with_recovery_does_not_retry_stale(
     """STALE is a corruption signal: retry would observe the same defect."""
     import pytest
 
-    from executor.flows.playwright.stimulus_types import (
+    from executor.flows.playwright.stimulus.types import (
         HARNESS_READY_MARKER_STALE_REASON,
         HarnessUnavailableError,
     )
@@ -984,7 +985,7 @@ def test_ensure_harness_ready_with_recovery_does_not_retry_stale(
 
 
 def test_health_summary_reason_labels_cover_w8_0_codes() -> None:
-    from executor.flows.playwright.health_summary import automation_reason_to_text
+    from executor.flows.playwright.health.summary import automation_reason_to_text
 
     for code in (
         "harness_ready_marker_missing",

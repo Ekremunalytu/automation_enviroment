@@ -73,7 +73,8 @@ Must vs Stretch. See `REFACTOR_OPTIMIZATION.md` §10 for Must/Stretch split and
 - **Pre-W6 cleanup (complete, 2026-04-20):** dormant root directories removed,
   marketplace trigger planning narrowed to `TriggerPlan`, and
   `executor/flows/playwright/monitor.py` reduced to a facade over split helper
-  modules.
+  modules (the flat `monitor.py` later became `monitor/__init__.py` in W12-1,
+  2026-05-07).
 
 **PoC Must classes (ADR 0002):** A1 credential stealer, A2 cryptominer, A4
 remote-loader, A6 package.json script abuse — **rules landed**. **Stretch

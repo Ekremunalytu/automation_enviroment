@@ -62,6 +62,6 @@ def test_attempted_passes_alone_count_as_runtime_evidence() -> None:
 def test_executor_helper_imports_the_same_constant() -> None:
     """Defends against a future refactor that re-introduces a local
     state set inside the executor helper."""
-    from executor.flows.playwright import health_runtime_facts
+    from executor.flows.playwright.health import runtime_facts as health_runtime_facts
 
     assert health_runtime_facts.RUNTIME_EVIDENCE_STATES is RUNTIME_EVIDENCE_STATES

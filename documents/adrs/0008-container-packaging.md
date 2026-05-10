@@ -33,9 +33,10 @@ Bu drift'in birkaç yan etkisi:
   confidence tier'ları), bu kod framework-agnostic `packages/` altına
   ait. Ancak `executor/`'dan `packages/`'a relocation, paket-mode import
   sözleşmesi olmadan yapılırsa flat-mode çalışmaz hale getirir.
-- **W10/W11 modülerleştirme borç biriktirir** — `monitor_lifecycle.py`
-  split (W11) ve `registry.py` 4-way split (W10) sırasında her yeni dosya
-  dual-import bloğu taşımak zorundadır.
+- **W10/W11 modülerleştirme borç biriktirir** — `monitor/lifecycle.py`
+  split (W11; flat `monitor_lifecycle.py` W12-1'de subpackage'a taşındı)
+  ve `registry.py` 4-way split (W10) sırasında her yeni dosya dual-import
+  bloğu taşımak zorundadır.
 - **`pkill -f` cleanup file-path'e bağımlı** — `executor/host.py:201,
   211` cleanup çağrıları `settings.executor.RELOAD_SCRIPT_PATH` /
   `ENTRYPOINT_PATH` literal'ları üzerinden process command-line'ı arıyor.
@@ -194,8 +195,9 @@ döner (false-positive baseline doğrulaması).
   - 39 source files converted to package-relative imports
     (`from . import …` / `from .X import Y`).
   - 17 dual-import fallbacks (`try: from .X / except: from X`) removed;
-    one allow-listed: `executor/flows/playwright/monitor_support.py`
-    (legitimate `importlib.import_module` ImportError catch).
+    one allow-listed: `executor/flows/playwright/monitor/support.py`
+    (path post-W12-1; legitimate `importlib.import_module` ImportError
+    catch).
   - 6 `sys.path.insert` removals across runtime tree: `entrypoint`,
     `reload_vscode`, `reset_state`, `report_builder`, `triggers`,
     `workspace`.
@@ -223,7 +225,7 @@ realizes the design as proposed; deviations from the original plan:
 - `sys.path.insert` audit (W9-4) merged into W9-3 because the AST gate
   `test_no_sys_path_manipulation_in_runtime` was the binding artifact
   and runtime-tree was already touched in the dual-import sweep.
-- `monitor_support.py` retained one legitimate `except ImportError`
+- `monitor/support.py` retained one legitimate `except ImportError`
   via explicit allow-list rather than refactor; the catch wraps
   `importlib.import_module(...)` for dynamic facade resolution and is
   semantically distinct from the dual-import fallback pattern the

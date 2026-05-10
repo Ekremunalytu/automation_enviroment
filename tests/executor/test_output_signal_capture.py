@@ -12,7 +12,7 @@ import json
 from pathlib import Path
 
 from executor.flows.playwright import monitor
-from executor.flows.playwright.output_signals import (
+from executor.flows.playwright.signals.output import (
     ATTRIBUTION_WINDOW_S,
     annotate_output_signal_events,
     merge_output_signal_events,

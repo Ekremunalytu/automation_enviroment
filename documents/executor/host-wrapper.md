@@ -1,6 +1,6 @@
 # Host Wrapper + Container Boot
 
-`Last Updated: 2026-04-29`
+`Last Updated: 2026-05-09`
 
 `executor/host.py`, `executor/control.py`, container boot sequence,
 scan-between restart, API integration. Top-level executor doc:
@@ -87,12 +87,15 @@ Summary dict carries `terminated_vscode_processes`,
   (`connection refused`, `ipc hook`, `singleton`,
   `renderer process gone`, `target crashed`, …).
 - `workflows/marketplace/analysis_execution.py::install_failure_message`
-  appends the last 500 chars of stderr to the failure line so the next
-  regression of this class is diagnosable from the report alone.
+  runs a whole-output multiline-secret pre-pass, then appends the last
+  500 chars of stderr/stdout to the failure line so the next regression
+  of this class is diagnosable from the report alone without leaking
+  orphaned PEM body lines.
 
 Coverage: `tests/executor/test_reset_state.py`,
-`tests/scanner/test_executor.py`,
-`tests/workflows/marketplace/test_analysis_execution_helpers.py`.
+`tests/executor/scanner/test_executor.py`,
+`tests/workflows/marketplace/test_analysis_execution_helpers.py`,
+`tests/platform/security/test_output_signals_redaction.py`.
 
 ## API Integration
 

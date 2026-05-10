@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import threading
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal, cast
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException
@@ -21,6 +21,8 @@ from appcore.contracts.schemas import (
     MarketplaceDownloadRequest,
     MarketplaceDownloadResponse,
     MarketplaceExtension,
+    VsixExtractionMetrics,
+    VsixThresholdBreachDetail,
 )
 from executor.control import ExecutorError
 from packages.analysis_contracts import ExtensionIdentity
@@ -86,10 +88,58 @@ def download_marketplace_extension(
     db: Session = Depends(get_db),
 ) -> MarketplaceDownloadResponse:
     ext_dir: Path | None = None
+    metrics_collector: dict[str, float] = {}
     try:
         ext_dir = marketplace_client.download_and_extract_vsix(
-            request.publisher, request.name, request.version
+            request.publisher,
+            request.name,
+            request.version,
+            db=db,
+            metrics_out=metrics_collector,
         )
+    except marketplace_client.VSIXUnpackError as exc:
+        # Structured 422 so the UI can render a popup naming the specific
+        # threshold and pointing the operator at Settings → Security.
+        # ``breach_kind`` may be ``None`` for legacy callers that raised the
+        # exception before the W12-* hardening pass; fall back to the opaque
+        # message if any structured field is missing so the typed 422 is
+        # never half-populated.
+        if (
+            exc.breach_kind is None
+            or exc.threshold_name is None
+            or exc.threshold_value is None
+            or exc.observed_value is None
+        ):
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        logger.warning(
+            "vsix_threshold_breach kind=%s threshold=%s value=%s observed=%s "
+            "publisher=%s name=%s version=%s",
+            exc.breach_kind,
+            exc.threshold_name,
+            exc.threshold_value,
+            exc.observed_value,
+            request.publisher,
+            request.name,
+            request.version,
+        )
+        detail = VsixThresholdBreachDetail(
+            error="vsix_threshold_breach",
+            breach_kind=cast(
+                Literal["entry_count", "uncompressed_size", "compression_ratio"],
+                exc.breach_kind,
+            ),
+            threshold_name=exc.threshold_name,
+            threshold_value=exc.threshold_value,
+            observed_value=exc.observed_value,
+            message=str(exc),
+            publisher=request.publisher,
+            name=request.name,
+            version=request.version,
+        ).model_dump(mode="json")
+        raise HTTPException(
+            status_code=422,
+            detail=detail,
+        ) from exc
     except httpx.HTTPError as exc:
         raise HTTPException(
             status_code=502,
@@ -140,6 +190,7 @@ def download_marketplace_extension(
                 f"Extension {request.publisher}.{request.name}@{request.version} "
                 "is already downloaded and ready to analyze."
             ),
+            vsix_metrics=_metrics_payload(metrics_collector),
         )
 
     return MarketplaceDownloadResponse(
@@ -153,6 +204,24 @@ def download_marketplace_extension(
             f"Extension {request.publisher}.{request.name}@{request.version} "
             "downloaded and analyzed successfully."
         ),
+        vsix_metrics=_metrics_payload(metrics_collector),
+    )
+
+
+def _metrics_payload(
+    collected: dict[str, float],
+) -> VsixExtractionMetrics | None:
+    """Promote the mutable dict the marketplace client populates into the
+    typed schema. Returns ``None`` for the idempotent re-download path
+    (extension already on disk) where no fresh metrics were measured."""
+    if not collected:
+        return None
+    return VsixExtractionMetrics(
+        file_count=int(collected.get("file_count", 0)),
+        uncompressed_size=int(collected.get("uncompressed_size", 0)),
+        compressed_size=int(collected.get("compressed_size", 0)),
+        compression_ratio=float(collected.get("compression_ratio", 0.0)),
+        rejected_entry_count=int(collected.get("rejected_entry_count", 0)),
     )
 
 

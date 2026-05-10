@@ -3,7 +3,7 @@
 These tests pin the scenario / event-attempt accounting collaborator
 extracted from ``ExtensionMonitor`` in W11-4. They import at the real
 module path
-(``executor.flows.playwright.monitor_scenario_accountant``)
+(``executor.flows.playwright.monitor.scenario_accountant``)
 rather than through the ``monitor`` facade so that the W12 directory
 reshuffle cannot silently regress this surface.
 
@@ -22,14 +22,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from executor.flows.playwright.monitor_records import (
+from executor.flows.playwright.monitor.records import (
     EventAttemptRecord,
     LogStreamEntry,
     ScenarioTrace,
     SkippedScenarioRecord,
 )
-from executor.flows.playwright.monitor_scenario_accountant import ScenarioAccountant
-from executor.flows.playwright.monitor_types import ActivationReport
+from executor.flows.playwright.monitor.scenario_accountant import ScenarioAccountant
+from executor.flows.playwright.monitor.types import ActivationReport
 from executor.flows.playwright.runtime_capture.events import ActivationEntry
 
 
@@ -784,7 +784,7 @@ def test_emit_intermediate_state_events_fires_after_real_reconciliation() -> Non
     not exercise on its own.
     """
 
-    from executor.flows.playwright.health_reconciliation import (
+    from executor.flows.playwright.health.reconciliation import (
         reconcile_event_attempts,
     )
 
@@ -945,7 +945,7 @@ def test_record_prerequisite_result_updates_existing_record() -> None:
 
 
 def _patch_target_log_count(monkeypatch, count: int) -> None:
-    from executor.flows.playwright import monitor_scenario_accountant as accountant_mod
+    from executor.flows.playwright.monitor import scenario_accountant as accountant_mod
 
     monkeypatch.setattr(
         accountant_mod,

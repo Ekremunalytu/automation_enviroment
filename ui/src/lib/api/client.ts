@@ -5,6 +5,8 @@ import type {
   MarketplaceDownloadResponseDto,
   MarketplaceExtensionDto,
   ReportListItemDto,
+  VsixThresholdsResponseDto,
+  VsixThresholdsUpdateRequestDto,
 } from "../types/contracts";
 import { requestJson } from "./http";
 
@@ -74,5 +76,24 @@ export const apiClient = {
   },
   getHealth(signal?: AbortSignal) {
     return requestJson<{ status: string; service: string }>("/health", { signal });
+  },
+  getSecurityThresholds(signal?: AbortSignal) {
+    return requestJson<VsixThresholdsResponseDto>(
+      "/api/settings/security/thresholds",
+      { signal },
+    );
+  },
+  updateSecurityThresholds(
+    payload: VsixThresholdsUpdateRequestDto,
+    signal?: AbortSignal,
+  ) {
+    return requestJson<VsixThresholdsResponseDto>(
+      "/api/settings/security/thresholds",
+      {
+        method: "PUT",
+        body: JSON.stringify(payload),
+        signal,
+      },
+    );
   },
 };

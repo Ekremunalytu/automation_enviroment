@@ -7,6 +7,11 @@ from appcore.contracts.schema_defs.analysis_jobs import (
     AnalysisJobStepUpdate,
 )
 from appcore.contracts.schema_defs.marketplace import AnalyzeJobStepProgress
+from appcore.contracts.schema_defs.security_settings import (
+    ThresholdBoundsResponse,
+    ThresholdsResponse,
+    ThresholdsUpdateRequest,
+)
 from appcore.contracts.schemas import (
     ExtensionContributesSchema,
     ExtensionSchema,
@@ -246,3 +251,33 @@ def test_analyze_job_step_progress_dto_accepts_zero_total() -> None:
     progress = AnalyzeJobStepProgress(completed=0, total=0)
     assert progress.completed == 0
     assert progress.total == 0
+
+
+def test_thresholds_response_round_trips_with_typed_bounds() -> None:
+    payload = {
+        "values": {"vsix_max_file_count": 75_000},
+        "defaults": {"vsix_max_file_count": 50_000},
+        "bounds": {"vsix_max_file_count": {"min_value": 1, "max_value": 200_000}},
+        "keys": ["vsix_max_file_count"],
+    }
+    parsed = ThresholdsResponse.model_validate(payload)
+    assert parsed.bounds["vsix_max_file_count"] == ThresholdBoundsResponse(
+        min_value=1, max_value=200_000
+    )
+    assert parsed.model_dump(mode="json") == payload
+
+
+def test_thresholds_response_requires_all_fields() -> None:
+    with pytest.raises(ValidationError):
+        ThresholdsResponse.model_validate({"values": {}, "defaults": {}, "bounds": {}})
+
+
+def test_thresholds_update_request_defaults_values_to_empty_dict() -> None:
+    req = ThresholdsUpdateRequest()
+    assert req.values == {}
+    assert req.updated_by is None
+
+
+def test_thresholds_update_request_rejects_overlong_updated_by() -> None:
+    with pytest.raises(ValidationError):
+        ThresholdsUpdateRequest(updated_by="x" * 129)

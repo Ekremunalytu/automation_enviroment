@@ -1,6 +1,6 @@
 # Executor Playwright Architecture
 
-`Last Updated: 2026-05-05`
+`Last Updated: 2026-05-07`
 
 ExTrace's dynamic-analysis sandbox: full VS Code GUI session inside
 Docker, driven by Playwright, exporting artifact-first analysis results
@@ -84,11 +84,14 @@ executor/
     Dockerfile, start.sh, launch_vscode.sh, requirements.txt
   flows/
     harness_extension/ local helper extension
-    playwright/        VS Code automation, attribution/, runtime_capture/, scenarios/
+    playwright/        VS Code automation packages:
+      attribution/, entrypoint/, health/, monitor/, runtime_capture/,
+      scenarios/, signals/, stimulus/, vscode/, workspace/
 ```
 
-Full file inventory: `ls executor/flows/playwright/`. Module
-responsibility map: `executor/playwright-flow.md`.
+Full file inventory: `ls executor/flows/playwright/`. The W12 top-level
+budget is ≤10 flat `.py` files; package responsibilities are mapped in
+`executor/playwright-flow.md`.
 
 ## Operational Commands
 
@@ -116,7 +119,7 @@ make demo-canary-offline             # <30 s detection-engine sanity
   "do the scenarios survive a full pass?" not "does this extension
   activate cleanly?"
 - `sim-target` (requires `TARGET=publisher.name`) runs
-  `entrypoint.py --monitor --target-extension-id $(TARGET)` with
+  `python -m executor.flows.playwright.entrypoint --monitor --target-extension-id $(TARGET)` with
   optional `TRIGGERS` / `SCENARIO` passthrough; correct lane for
   "did a normal extension activate cleanly?"
 - Missing `TARGET` exits non-zero with a usage hint.

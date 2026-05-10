@@ -17,8 +17,7 @@
       "rel_time_s": 0.4,
       "summary": "showQuickPick: Sign in to continue",
       "raw_context": {
-        "event_type": "ui_prompt",
-        "message": "showQuickPick credential prompt"
+        "event_class": "activation"
       }
     },
     {
@@ -27,7 +26,7 @@
       "rel_time_s": 1.0,
       "summary": "Activated extrace.t1-a6-ui-spoof-canary",
       "raw_context": {
-        "event_type": "activated"
+        "event_class": "activation"
       }
     }
   ],

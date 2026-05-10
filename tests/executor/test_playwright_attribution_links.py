@@ -18,12 +18,12 @@ from __future__ import annotations
 from datetime import datetime
 
 from executor.flows.playwright.attribution import links
-from executor.flows.playwright.monitor_records import (
+from executor.flows.playwright.monitor.records import (
     EvidenceLink,
     LogStreamEntry,
     ScenarioTrace,
 )
-from executor.flows.playwright.monitor_types import ActivationReport
+from executor.flows.playwright.monitor.types import ActivationReport
 from executor.flows.playwright.runtime_capture.events import (
     ActivationEntry,
     FileEvent,
@@ -412,7 +412,7 @@ def test_build_noise_links_emits_blocked_by_ui_for_blocker_entries() -> None:
 def test_build_evidence_bundle_empty_report_returns_empty_events_and_links() -> None:
     report = ActivationReport(target_extension_id="ext.target", monitoring_start=0.0)
 
-    events, link_list = links._build_evidence_bundle(report)
+    events, link_list = links.build_evidence_bundle(report)
 
     assert events == []
     assert link_list == []
@@ -450,7 +450,7 @@ def test_build_evidence_bundle_round_trips_activation_with_scenario_link() -> No
         activated=[activation],
     )
 
-    events, link_list = links._build_evidence_bundle(report)
+    events, link_list = links.build_evidence_bundle(report)
 
     kinds = {event.kind for event in events}
     assert "scenario" in kinds

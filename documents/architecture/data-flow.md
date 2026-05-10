@@ -54,10 +54,11 @@ Notes:
 3. `workflows.marketplace.trigger_service`
 4. `executor.control`
 5. `executor.host`
-6. `executor/flows/playwright/entrypoint.py`
-7. `executor/flows/playwright/monitor.py` (facade over `attribution/`,
-   `runtime_capture/`, `signals.py`, `signal_facts.py`, scenario/health
-   helpers)
+6. `executor/flows/playwright/entrypoint/` (package; CLI shim in
+   `entrypoint/__main__.py`)
+7. `executor/flows/playwright/monitor/` (package facade in
+   `monitor/__init__.py` over `attribution/`, `runtime_capture/`,
+   `signals/__init__.py`, `signals/facts.py`, scenario/health helpers)
 8. `executor/flows/playwright/report_builder.py`
 9. `output/activation_report_*.json`
 

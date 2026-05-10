@@ -1,6 +1,6 @@
 # Post-PoC Backlog
 
-`Last Updated: 2026-05-07 (slimmed after audit pass; full detail archived)`
+`Last Updated: 2026-05-10 (W12 close-out: UI Dockerfile digest pin closed; close-out test coverage landed)`
 
 Open deferred work after the W0-W7 PoC acceptance bar. **Slim canonical** —
 verbose descriptions, evidence, and older triage notes are frozen in dated
@@ -28,28 +28,154 @@ Use stable IDs in new references; do not cite canonical doc line numbers.
 
 ## W12 Pull-Forward
 
-- **`[FOLLOWUP w8-6-output-signals-file-backed-redaction]`** — **P1,
-  W12-0, must land before W12-1.** W10-7 redacted the harness-marker
-  output-signal path but missed the file-backed `read_output_channel_logs`
-  path, the primary Output channel source on VS Code 1.105+. Pickup:
-  apply `redact_secrets(_truncate(line))`, update the W10-7 comment to
-  name both paths, and add a file-backed redaction regression.
+- ~~**`[FOLLOWUP w8-6-output-signals-file-backed-redaction]`**~~ —
+  **W12-0 landed `2026-05-07` on `week12` in commit `22eb836`.**
+  `redact_secrets(_truncate(line))` applied at
+  `executor/flows/playwright/signals/output.py:209` (path post-W12-1;
+  was `output_signals.py:205` at W12-0 landing); W10-7 source
+  comment updated to name both harness-marker and file-backed paths;
+  four file-backed regression tests + three harness-marker
+  end-to-end regressions added under
+  `tests/platform/security/test_output_signals_redaction.py`. W12-1
+  unblocked.
+- ~~**`[FOLLOWUP w12-promoted-attempt-coverage-erasure]`**~~ —
+  **landed `2026-05-07` on `week12` in commit `422a647`.**
+  `_derive_runtime_attempted_capabilities` in
+  `executor/flows/playwright/monitor/runtime.py` filtered status to
+  `{verified, attempted_only, failed}`. After
+  `reconcile_event_attempts` (`health/reconciliation.py:187,219`)
+  promoted an attempt to `activation_seen` or `target_log_seen` (target
+  reacted but full verification did not close), `report_assembler.py:128`
+  overwrote `attempted_capabilities` from the runtime view, erasing the
+  promoted capability and surfacing `not_attempted` in
+  `coverage_summary` despite the target reacting. Routed the filter
+  through `RUNTIME_EVIDENCE_STATES` (single source of truth in
+  `packages/analysis_contracts/report_invariants.py`) so promoted
+  states count as runtime evidence here, matching the contract
+  invariant `_attempt_has_runtime_evidence` and the W10-6 docstring.
+  Two regression cases under
+  `tests/executor/test_playwright_monitor_attribution.py`
+  (`test_runtime_attempted_includes_{activation_seen,target_log_seen}_promotion`).
+- ~~**`[FOLLOWUP w12-legacy-strategy-outcomes-migration]`**~~ —
+  **landed `2026-05-07` on `week12` in commit `ba1accb`.**
+  W12-2 P3 (`0981e92`) renamed
+  `activation_discovery_strategies: list[str]` →
+  `activation_discovery_strategy_outcomes: dict[str, str]` under the
+  same `schema_version: "2.1"`. `StrictContractModel(extra="forbid")`
+  rejected every 2.1 report persisted in the W11-3 .. W12-2 P3 window
+  with `extra_forbidden`, breaking the activation-report API
+  (`workflows/activation_reports/router.py:122`) and the marketplace
+  ingest path (`workflows/marketplace/analysis_reports.py:52,121`).
+  Added `_migrate_legacy_strategy_outcomes` before-validator on
+  `ActivationReport`: drops the legacy field and synthesizes the new
+  dict, mapping each id → `"succeeded_with_new_activations"` (the
+  legacy list semantics). 3 regression cases under
+  `tests/platform/contracts/test_activation_discovery_strategies.py`;
+  on-disk pre-rename report `c20ac6f91d4a.json` re-ingests cleanly.
+- ~~**`[FOLLOWUP w8-6-output-signal-channel-summary-redaction]`**~~ —
+  **W12-0 dolgusu landed `2026-05-07` on `week12` in commit `b642af7`.**
+  `OutputSignalEvent.channel` ve `OutputSignalEvent.summary` hem
+  harness-marker (`signals/output.py:~116`) hem de file-backed
+  (`signals/output.py:~180`) source'larda
+  `redact_secrets(_truncate(...))` pipeline'ından geçiyor; `summary`
+  alan değeri `f"OutputChannel({channel}) appendLine"` olduğu için
+  redact'lı channel'ı otomatik miras alır. Adversarial extension
+  `vscode.window.createOutputChannel("AKIA...")` çağırarak persisted
+  ActivationReport'a secret sızdıramıyor. 7 yeni regression case'i
+  (4 harness-marker + 2 file-backed + 1 benign-channel guard)
+  `tests/platform/security/test_output_signals_redaction.py`'ye
+  eklendi. W12-3 unblocked.
+- ~~**`[FOLLOWUP w12-0-output-signal-multiline-secret-redaction]`**~~ —
+  **CLOSED `2026-05-08`** on `week12`. Fix:
+  `packages/analysis_contracts/evidence.py`'ye `redact_multiline_secrets`
+  helper'ı eklendi (sadece `_CROSS_LINE_CLASSES = {"private_key"}`
+  pattern'lerini uygular); `signals/output.py` her iki yolda
+  (`read_output_channel_logs` + `parse_output_signal_events`)
+  `splitlines()` öncesi pre-pass olarak çağırıyor. Single-line pattern'lar
+  per-marker `redact_secrets`'ta kaldı çünkü whole-input uygulamak JSON
+  marker yapısını bozar (api_key opsiyonel trailing-quote tüketimi
+  kapatan `"`'yu yutar). 4 yeni regression
+  `tests/platform/security/test_output_signals_redaction.py`'ye eklendi
+  (file-backed multi-line PEM block, file-backed PEM with surrounding
+  diagnostic lines, harness-marker cross-marker PEM, harness-marker
+  single-marker embedded-newline PEM). Existing 20 case'in tamamı
+  regression'sız.
+- ~~**`[FOLLOWUP api-docker-base-image-digest-pin]`**~~ —
+  **CLOSED `2026-05-09` on `week12`.** `docker/api/Dockerfile:2`
+  artık `FROM python:3.11-slim-bookworm@sha256:cd67330292a51e2963156f74ff340455d66b2172e9190e99f40dff9357471177`
+  formunda.
+  `executor/container/Dockerfile:8` ise
+  `FROM ubuntu:22.04@sha256:962f6cadeae0ea6284001009daa4cc9a8c37e75d1f5191cf0eb83fe565b63dd7`
+  ile pinned. ADR 0002 §4 trust table (`documents/adrs/0002-threat-model.md:97`)
+  her base image için `FROM image@sha256:...` zorunluyor. Fix landed:
+  `docker buildx imagetools inspect python:3.11-slim-bookworm` ile
+  manifest-list digest doğrulandı; yeni
+  `tests/architecture/test_dockerfile_digest_pin.py` gate'i `docker/`
+  ve `executor/container/` altındaki her `Dockerfile` `FROM` satırını
+  `@sha256:` için tarıyor (`scratch` hariç). Focused validation:
+  `pytest tests/architecture/test_dockerfile_digest_pin.py` yeşil.
+  Yeni dependency yok. Lane: `[platform-storage]`.
+- ~~**`[FOLLOWUP ui-docker-base-image-digest-pin]`**~~ — **CLOSED
+  `2026-05-10`** on `week12` in commit `a27eb84`. `ui/Dockerfile` stages
+  `node:20-alpine` and `nginx:1.27-alpine` now pinned by manifest-list
+  digest (`@sha256:fb4cd1...` / `@sha256:65645c...`);
+  `tests/architecture/test_dockerfile_digest_pin.py::DOCKERFILE_ROOTS`
+  extended with `ROOT / "ui"`. ADR 0002 §4 trust table now 100% closed
+  (3/3 runtime images). Lane: `[ui]` `[docs-maintenance]`.
+- ~~**`[FOLLOWUP marketplace-installer-tail-multiline-redaction]`**~~ —
+  **CLOSED `2026-05-09` on `week12`.** Surfaced `2026-05-09` audit pass
+  (Codex review). `workflows/marketplace/analysis_execution.py:80`
+  installer failure helper sırası **slice → redact** idi:
+  `tail = redact_secrets(output[-500:].strip())`. Single-line token'larda
+  çalışıyordu ama multi-line `private_key` PEM bloku 500 karakterlik
+  pencereyi bölünce (veya pencere içinde BEGIN/END eşleşmesini parçalarsa)
+  `redact_secrets` pattern'i tüm bloku göremiyordu — W12-0 öncesi
+  `signals/output.py`'da kapatılan **tam paralel** bypass. W12-0 fix
+  (`[FOLLOWUP w12-0-output-signal-multiline-secret-redaction]`,
+  `2026-05-08`) `redact_multiline_secrets` pre-pass desenini kurdu;
+  bu callsite artık aynı desene migrate edildi: önce
+  `redact_multiline_secrets(output)` whole-content pre-pass, sonra
+  tail (`output[-500:]`), sonra existing `redact_secrets(...)`
+  per-tail. Mantık `executor/flows/playwright/report_builder.py`'daki
+  W11-6 "trim → expand → redact" desenine paralel olur. Tests:
+  `tests/platform/security/test_output_signals_redaction.py`
+  `::test_install_failure_message_redacts_multiline_pem_split_by_tail`
+  cross-boundary 500-char split case'i pinliyor; existing DB URL ve
+  benign tail regressions yeşil kaldı. Yeni bağımlılık yok. Severity:
+  Medium (closed). Lane:
+  `[marketplace-analysis]` `[security-detection]`.
 
 ## W12 Acceptance Items
 
-- **`[FOLLOWUP w12-attribution-naming-overlap]`** — reconcile or rename
-  `background_activation_count` vs `competing_candidate_count`.
+- ~~**`[FOLLOWUP w12-attribution-naming-overlap]`**~~ — closed
+  `2026-05-07` in commit `0cef876` (W12-2 Commit 2). Rename:
+  `background_activation_count` → `target_background_activation_count`;
+  `competing_candidate_count` → `competing_extension_event_count`. UI
+  contract + adapter + view-model + fixtures updated.
 - ~~**`[FOLLOWUP w12-precursor-tests-attribution-links]`**~~ — closed
   `2026-05-07` in commit `5ae0d32`; 26 link-helper cases landed.
 - ~~**`[FOLLOWUP w12-precursor-tests-attribution-events]`**~~ — closed
   `2026-05-07` in commit `5ae0d32`; 34 event-helper cases landed.
-- **`[FOLLOWUP w12-extension-host-split-scoping]`** — plan addendum
-  closed by PR #15; implementation lands during W12 as the
-  `runtime_capture/extension_host.py` ahtapot split.
-- **`[FOLLOWUP coverage-summary-attempted-drift]`** — reduce attempted
-  capability producer paths to one source of truth.
-- **`[FOLLOWUP activation-discovery-strategy-outcome-detail]`** — P3
-  read-side detail loss for per-strategy outcome reporting.
+- ~~**`[FOLLOWUP w12-extension-host-split-scoping]`**~~ — closed
+  `2026-05-10` in commit `377f0d5` (W12-5 ahtapot split).
+  `runtime_capture/extension_host.py` 679 LoC → 87 LoC thin
+  facade + 3 focused modules (`extension_host_log_parse.py`,
+  `extension_host_strace_parse.py`, `extension_host_capture.py`).
+  Two new architecture gates pin the facade invariant
+  (AST shape + re-export identity).
+- ~~**`[FOLLOWUP coverage-summary-attempted-drift]`**~~ — closed
+  `2026-05-07` in commit `9ebc5b5` (W12-2 Commit 3). The assembler
+  collapses planner-seeded `attempted_capabilities` and
+  `heuristic_attempted_capabilities` to the runtime-derived
+  `event_attempts` view before coverage reconcile, so top-level report
+  fields and `coverage_summary["attempted_capabilities"]` resolve to
+  one value.
+- ~~**`[FOLLOWUP activation-discovery-strategy-outcome-detail]`**~~ —
+  closed `2026-05-07` in commit `0981e92` (W12-2 Commit 4, P3). Field
+  upgraded from `activation_discovery_strategies: list[str]` to
+  `activation_discovery_strategy_outcomes: dict[str, str]` with outcome
+  literals `succeeded_with_new_activations` /
+  `succeeded_no_new_activations` / `failed:<ExcClassName>`.
 
 ## Open Items By Area
 
@@ -81,6 +207,26 @@ Use stable IDs in new references; do not cite canonical doc line numbers.
 - **`[FOLLOWUP w11-8-companion-workflow-orm-bleed]`** — decide DTO
   migration vs documented boundary exception for workflow return types that
   expose storage ORM models.
+- ~~**`[FOLLOWUP security-settings-commit-ownership]`**~~ —
+  **CLOSED `2026-05-09` on `week12`.** Surfaced `2026-05-09` audit pass
+  (Codex review).
+  `workflows/security_settings/service.py:84-85` `save_vsix_thresholds()`
+  CRUD facade üzerinden `upsert_operator_settings_bulk(db, ...)` çağırıp
+  ardından kendisi `db.commit()` yapıyor; AGENTS.md rule 2'nin "write
+  logic CRUD'da" zorunluluğu **ihlal edilmiyor** (write logic
+  `appcore/storage/crud_ops/operator_settings.py:65-77`'de kalmaya
+  devam ediyor) ama transaction boundary workflow tarafında. Mevcut
+  storage deseninde commit ownership genelde CRUD/job lifecycle
+  tarafında (`crud_ops/analysis_jobs/lifecycle.py` örüntüsü).
+  Bugün küçük yüzey; settings alanı büyürse workflow service
+  transaction ownership almaya başlar ve "DB write/commit nerede
+  yapılır?" sınırı bulanıklaşırdı. Fix landed: yeni
+  `appcore.storage.crud_ops.operator_settings.upsert_operator_settings_bulk_and_commit`
+  helper'ı transaction boundary'yi CRUD tarafına aldı; workflow service
+  artık commit çağırmıyor. SQLAlchemy hata yolunda rollback helper içinde.
+  Generic framework / unit-of-work / repository abstraction eklenmedi.
+  Existing `tests/workflows/security_settings/test_router.py` 6/6 yeşil.
+  Severity: Medium-Low (closed). Lane: `[platform-storage]`.
 - **`[FOLLOWUP w8-1-vsix-rejection-log-sanitization]`** — P2; sanitize
   attacker-controlled VSIX entry names before rejection logging.
   Co-tenant of `[FOLLOWUP w8-1-extract-rejection-logging]` (same call
@@ -100,6 +246,64 @@ Use stable IDs in new references; do not cite canonical doc line numbers.
   scenarios before they reach `ScenarioAccountant`.
 - **`[FOLLOWUP monitor-types-property-recomputation]`** — P3; defer until
   profiling shows repeated expensive property access.
+- **`[FOLLOWUP scenario-accountant-conservation-split]`** — W13-X.
+  `executor/flows/playwright/monitor/scenario_accountant.py` 648 LoC
+  (W11 close baseline ~426; +222 LoC drift since W11). Tek collaborator
+  scenario lifecycle, event-attempt mutation, scenario conservation,
+  activation-log derivation, ve intermediate-state emission'ı taşıyor.
+  Hard-rule ihlali değil ama activation debug'ı sırasında en zor
+  okunan dosyalardan biri olmaya aday — W12-4 runner split'inden sonra
+  executor runtime'daki bir sonraki readability hotspot. W11-1 lifecycle
+  split pattern'ini örnek al: önce precursor tests ekle, sonra
+  conservation/verification helper'ları ile timeline/intermediate-emission
+  helper'larını ayrı modüllere taşı; ana sınıf scenario mutation
+  orchestration'ını tutmaya devam etsin. Davranış değişikliği olmamalı,
+  generic framework / event bus / plugin abstraction eklenmeyecek.
+  W12-4 ve W12-5 ile karıştırma. Severity: Medium. Lane:
+  `[executor-runtime]`.
+- **`[FOLLOWUP execute-attempt-rebloat-watch]`** — **W13-X watching
+  item, refactor önerisi YOK.** Surfaced `2026-05-10` Codex audit pass.
+  `executor/flows/playwright/stimulus/attempts.py::execute_attempt`
+  bugün branch zinciri sayısı kabul edilebilir; yeni action family
+  eklenecekse explicit helper extraction yap (W11-1 lifecycle split
+  pattern: precursor tests → küçük helper'lar). Bugün split önerisi
+  YOK; sadece her yeni action family commit'inde LoC + cyclomatic
+  ratchet kontrolü. Generic framework, action registry, plugin
+  abstraction eklenmeyecek. Severity: Low. Lane: `[executor-runtime]`.
+- **`[FOLLOWUP dispatch-execution-rebloat-watch]`** — **W13-X watching
+  item, refactor önerisi YOK.** Surfaced `2026-05-10` Codex audit pass.
+  W12-4 sonrası `executor/flows/playwright/entrypoint/dispatch.py`
+  402 LoC; `dispatch_execution()` 6-way mode dispatch'i tek yerde
+  topluyor. `runner.py::main` 99 LoC budget altına çekildiği için
+  yeni execution mode eklenmesi muhtemelen burayı şişirir. Bugün
+  hard-rule ihlali değil; `tests/architecture/
+  test_runner_main_loc_budget.py` paterninde benzer bir
+  `test_dispatch_execution_under_loc_budget` ratchet **eklemekten
+  önce** somut bir şişme görmeyi bekle. Yeni mode/branch eklenirse
+  helper extraction (`_dispatch_demo`, `_dispatch_layered_passes`
+  vs.) yap. Generic framework / strategy registry eklenmeyecek.
+  Severity: Low. Lane: `[executor-runtime]`.
+- **`[FOLLOWUP attribution-links-build-evidence-bundle-density]`** —
+  **W13-X watching item, refactor önerisi YOK.** Surfaced `2026-05-09`
+  audit pass (Codex review). `executor/flows/playwright/attribution/links.py`
+  601 LoC; `build_evidence_bundle()` (girişi `links.py:32` civarı)
+  birden çok `EvidenceEvent.kind` / `raw_context.event_class` varyantı
+  ve link üretim mantığını tek yerde topluyor. W12-3 ile `RawContext`
+  union 7 varyanta genişledi; yeni event kind eklendiğinde bu
+  fonksiyonun değiştirilmesi kırılganlığı artırır. Bugün güvenlik
+  açığı veya hard-rule ihlali değil — okunabilirlik watching'i.
+  W12-4 / W12-5 bittikten sonra (en erken W13), küçük explicit helper
+  fonksiyonlarına bölünebilir: network/file/process/output/scenario
+  event builder'ları gibi. Generic framework, registry pattern,
+  abstract factory, plugin abstraction eklenmeyecek; precursor tests
+  (`tests/executor/test_playwright_attribution_links.py` 26 cases)
+  zaten safety net olarak yerinde, bunlar split sonrası
+  bitwise-equal görsel için kullanılabilir.
+  `[FOLLOWUP evidence-event-kind-raw-context-invariant]` (W13-X)
+  ile kardeş — kind↔event_class invariant'ı landlandığında bu
+  fonksiyon zaten daha sıkı tip almış olur, split kararı ona göre
+  yeniden değerlendirilir. Severity: Medium-Low. Lane:
+  `[executor-runtime]`.
 
 ### Detection / Contracts
 
@@ -107,7 +311,8 @@ Use stable IDs in new references; do not cite canonical doc line numbers.
   by W10-6.
 - ~~**`[FOLLOWUP planner-executor-action-enum]`**~~ — closed by W10-5.
 - ~~**`[FOLLOWUP w8-6-output-signals-redaction]`**~~ — parent closed by
-  W10-7 for the harness-marker path; file-backed sibling remains W12-0.
+  W10-7 for the harness-marker path; file-backed sibling closed by
+  W12-0 (`22eb836`, `2026-05-07`).
 - **`[FOLLOWUP signal-summary-needs-review-categories]`** — refine
   category labels for review-oriented verdicts.
 - ~~**`[FOLLOWUP target-log-lifecycle-instrumentation]`**~~ — landed with
@@ -120,19 +325,135 @@ Use stable IDs in new references; do not cite canonical doc line numbers.
   coverage for verdict computation.
 - **A5/A7 adversary fixtures and allow-list artifacts** — keep deferred
   until the relevant security window.
+- **`[FOLLOWUP evidence-event-kind-raw-context-invariant]`** — W13-X.
+  `EvidenceEvent.kind: str` ile `raw_context.event_class` literal'i
+  arasında pairing validator yok (`packages/analysis_contracts/contracts.py:242,266`);
+  Pydantic `kind="network"` + `event_class="file"` kombinasyonunu
+  reddetmez. `packages/analysis_engine/rules/_common.py:37-50` accessor'ları
+  (`event_type`, `event_method`, `event_message`) `getattr(event.raw_context,
+  "...", "")` defensive fallback'larıyla bu boşluğu kapatıyor — yani
+  invariant olmadığı için detection helper'ları savunmacı kalmak zorunda.
+  Eski rapor migrasyonları, UI adapter fallback'leri veya elle üretilen
+  fixture'lar yanlış kombinasyonları sessizce taşıyabilir. Fix: Pydantic
+  v2 `model_validator(mode="after")` ekle, kabul edilen mapping'i açıkça
+  pinle (`network`→`NetworkRawContext`, `file`→`FileRawContext`,
+  `process`→`ProcessRawContext`, `scenario`→`ScenarioRawContext`,
+  `activation`→`ActivationRawContext`, `ui_blocker`→`UiBlockerRawContext`,
+  `output_channel_appendline`→`OutputChannelRawContext`); legacy summary
+  kind'lar intentional olarak farklı context kullanıyorsa explicit
+  allow-list. Test:
+  `tests/platform/contracts/test_raw_context_discriminated.py::test_evidence_event_rejects_kind_event_class_mismatch`.
+  Mevcut canonical reports bozulmamalı. Severity: Medium. Lane:
+  `[security-detection]`.
+- **`[FOLLOWUP planner-selection-readability-audit]`** — W13-X
+  watching item (refactor önerisi YOK).
+  `packages/analysis_planner/selection.py` 497 LoC; üç nested closure-based
+  dispatch fazı (`_apply_activation_event`, `_apply_contributes_metadata`,
+  `_apply_default_fallback`) + mutation-heavy captured callback'lar
+  (`mark_scenario`, `register_attempt`). Bugün tek-pas planner fazı
+  olarak okunuyor — strategy registry / plugin abstraction değil.
+  Sadece yeni activation family eklendiğinde veya planner bug'ı
+  çıktığında ele al; küçük helper fonksiyonlar veya veri tabloları
+  kullanılabilir. Generic framework, event bus, abstract factory, DI
+  container, plugin registry eklenmeyecek. Planner behavior
+  değişmemeli; selection output fixture/testleri korunmalı; yeni mimari
+  katman yaratılmamalı. Severity: Low. Lane: `[security-detection]`.
 
 ### UI
 
 - ~~**`[CLEANUP ui-v3-9]`**~~ and ~~**`[CLEANUP ui-v3-14]`**~~ — closed.
 - **`[FOLLOWUP ui-supplemental-types-retire]`** — retire supplemental UI
   type shims once generated contracts fully cover them.
+- **`[FOLLOWUP ui-raw-context-discriminator-parity]`** — W13-X.
+  Backend `RawContext`'i strict discriminated union
+  (`packages/analysis_contracts/evidence.py:183-191`,
+  `Field(discriminator="event_class")` + variant başına `Literal[...]`).
+  Generated TS contracts (`ui/src/lib/types/contracts.ts:293-350`)
+  ise 7 varyantın hepsinde `event_class?: string;` (optional + wide
+  string) — generator literal'ı düz string'e indiriyor, discriminator
+  parity yok. Ek olarak `ui/src/lib/adapters/report.ts:247,278,318,344,366`
+  legacy fallback fonksiyonları (`fromActivation`, `fromNetwork`,
+  `fromFile`, `fromProcess`, `fromScenario`) `raw_context` literal'ı
+  kuruyor ama hiçbiri `event_class` set etmiyor — bu objeler backend'in
+  strict validator'ından geçemezdi, sadece UI-only oldukları için
+  hayatta kalıyorlar. Backend W12-3 ile strict olmuşken frontend
+  contract bu disiplini yansıtmıyor; ileride typed UI rendering veya
+  filtering eklenirse yanlış event sınıfları sessizce kabul edilir.
+  Fix: (a) `scripts/generate_ui_contracts.py`'yi her variant için
+  `event_class: "network"` (vb.) literal üretecek şekilde güncelle;
+  (b) 5 fallback fonksiyonuna kind ↔ event_class eşleştirmesini ekle.
+  Tests: `ui/src/lib/adapters/report.test.ts::preserves_raw_context_event_class_for_legacy_fallback_events`
+  - generated contract output'unda discriminator literal golden/text
+  assertion. Severity: Medium. Lane: `[ui]`.
+- ~~**`[FOLLOWUP vsix-threshold-dto-generator-coverage]`**~~ —
+  **CLOSED `2026-05-09` on `week12`.** Surfaced `2026-05-09` audit pass
+  (Codex review).
+  `ui/src/lib/types/contracts.ts:1-2` "Generated by
+  scripts/generate_ui_contracts.py. Do not edit this file manually."
+  diyor; ama satır 560-593 arasında `VsixThresholdBoundsDto`,
+  `VsixThresholdsResponseDto`, `VsixThresholdsUpdateRequestDto`,
+  `VsixThresholdBreachDetail` blokları **manuel** eklenmiş — yorumda
+  "Mirrors `workflows.security_settings.router.ThresholdsResponse`"
+  notu var. `scripts/generate_ui_contracts.py:24-59` `TARGET_SCHEMAS`
+  listesinde bu 4 isim **yok**, yani backend Pydantic kaynağından
+  render edilmiyor; bir sonraki `python scripts/generate_ui_contracts.py`
+  çalışması bu blokları silebilir veya backend↔UI drift sessizce
+  biriktirebilirdi. Fix landed: security threshold request/response
+  schemas `appcore/contracts/schema_defs/security_settings.py` altına
+  taşındı; structured breach detail `VsixThresholdBreachDetail`
+  backend-owned Pydantic model oldu; `scripts/generate_ui_contracts.py`
+  `TARGET_SCHEMAS` + `NAME_OVERRIDES` bu tipleri üretiyor; manual block
+  `contracts.ts`'den kalktı. `observed_value` integer'a daraltılmadı;
+  compression-ratio breach path'i float değerini structured 422 olarak
+  koruyor. Regression:
+  `tests/scripts/test_generate_ui_contracts.py` target-list ve rendered
+  threshold/breach typing'i, `tests/workflows/marketplace/test_router.py`
+  ise float `observed_value` path'ini pinliyor; `python scripts/generate_ui_contracts.py --check`
+  yeşil. `[FOLLOWUP ui-supplemental-types-retire]` hâlâ açık çünkü diğer
+  supplemental UI-only tipler duruyor. Severity: Medium (closed). Lane:
+  `[ui]` `[contracts]`.
+- ~~**`[FOLLOWUP settings-page-stale-localstorage-copy]`**~~ —
+  **CLOSED `2026-05-09` on `week12`.** Surfaced `2026-05-09` audit pass
+  (Codex review).
+  `ui/src/features/settings/SettingsPage.tsx:150` ve `:454`
+  hâlâ "changes are persisted to this browser's localStorage until
+  settings API lands" benzeri stale copy taşıyor; aynı sayfada artık
+  `2026-05-09` operator-tunable VSIX iterasyonuyla API-backed Security
+  threshold formu var (`/api/settings/security/thresholds`). Operatöre
+  yanlış mental model veriyor — özellikle threshold ayarlarının kalıcı
+  olduğu durumda copy "geçici localStorage" izlenimi bırakıyor.
+  Fix landed: Settings header copy artık "General console options stay
+  in this browser; security thresholds are persisted by the local API"
+  diyor; `SettingsPage.test.tsx` bu copy'yi pinliyor. `[BACKLOG ui-v3-5]`
+  partial-close notuyla uyumlu. Severity: Low (closed). Lane: `[ui]`.
 
 ### Engineering Quality
 
 - **`[FOLLOWUP ci-reintroduction]`** — restore CI/docs-check after the
   runner-image drift is understood.
-- **`[FOLLOWUP arch-gate-network-body-preview-redaction]`** — P2; AST gate
-  ensuring body-preview assignments stay behind `redact_secrets`.
+- **`[FOLLOWUP w8-4-variable-indirect-subprocess-coverage]`** — W13-X.
+  Surfaced `2026-05-10` Codex audit pass. The `tests/architecture/
+  test_absolute_binary_paths.py` gate enforces absolute-path discipline
+  for direct `subprocess.Popen([...])` calls inside the executor tree,
+  but variable-indirect command heads — `["tshark", ...]`,
+  `["strace", ...]`, `["inotifywait", ...]` in
+  `executor/flows/playwright/runtime_capture/{network.py,
+  extension_host_capture.py,filesystem.py}` — bypass it because the
+  list literal lives next to the `Popen` call rather than inside it.
+  Extend the existing AST gate (do **not** write a new generic scanner)
+  so it walks list-literal command heads bound to a `_CMD = [...]`
+  local immediately before a `subprocess.Popen` call, or pin the head
+  string to an explicit allowlist (`tshark`, `strace`, `inotifywait`,
+  `nsenter`) sourced from `executor/binary_paths.py`. Severity: Medium.
+  Lane: `[security-detection]`.
+- ~~**`[FOLLOWUP arch-gate-network-body-preview-redaction]`**~~ —
+  closed `2026-05-10` in commit `9433ee3` (W12-5 companion gate).
+  New `tests/architecture/test_network_body_preview_redaction.py`
+  walks the AST of every module under `executor/`, `packages/`,
+  `workflows/` and fails if any `*_body_preview` assignment is not
+  routed through `redact_secrets()` — directly, via
+  `_bounded_body_metadata()` output, or as a passthrough from an
+  already-redacted source. Teeth verified via mutation test.
 
 ### Repo Hygiene
 
@@ -181,6 +502,63 @@ Use stable IDs in new references; do not cite canonical doc line numbers.
   **`[FOLLOWUP w8-1-archive-count-bypass]`**, and
   **`[FOLLOWUP w8-1-vsix-compressed-size-limit]`** — remaining W8-1 hardening
   and observability follow-ups.
+- ~~**`[FOLLOWUP w8-1-vsix-entry-count-limit-realistic]`**~~ —
+  closed `2026-05-08` on `week12`. W8-1 baseline `MAX_FILE_COUNT = 2_000`
+  was tripped on real users by Microsoft's `2026-05-08` ms-python.python
+  release (version `2026.5.2026050801`) — modern Python/Pylance/Jupyter
+  bundles ship more entries than the original threshold anticipated.
+  Raised to `50_000` in `workflows/marketplace/client.py:37` with inline
+  rationale linking the size + ratio guards as the load-bearing
+  zip-bomb defense; entry-count remains a complementary DoS guard for
+  the extract loop. Existing 7 test_vsix_hardening cases stay
+  regression-free (they monkeypatch `MAX_FILE_COUNT` locally, so they
+  are decoupled from the constant). Sibling drift surfaced during the
+  audit: ADR 0002 references a `§7.2.6` for VSIX extraction guards but
+  the section was never authored in the ADR body — captured below.
+- **`[FOLLOWUP adr-0002-vsix-extraction-section-missing]`** —
+  W8-1 commit `bd9d1f1` referenced ADR 0002 §7.2.6 for adversarial
+  VSIX extraction limits, but ADR 0002 only contains §1-6 plus the
+  template tail; §7 was never written. Author the missing section
+  (zip-bomb defense rationale, file-count complementary guard, current
+  thresholds) so the cross-ref in `workflows/marketplace/client.py`
+  resolves to actual prose. Lane: `[docs]` `[security-detection]`.
+- ~~**`[BACKLOG ui-v3-5]` Settings persistence API**~~ —
+  **PARTIALLY CLOSED `2026-05-09`** on `week12`. Backend persistence
+  layer landed for the Security/VSIX-hardening section (new
+  `operator_settings` table + GET/PUT
+  `/api/settings/security/thresholds` + `SecuritySection` form in
+  `SettingsPage.tsx`). Other localStorage-backed sections (general,
+  executor, telemetry) remain client-only — they retire incrementally
+  as their values find a backend consumer. The pre-existing
+  `localStorage["extrace-v3-settings"]` legend on the Settings header
+  was removed since it no longer accurately describes the whole page.
+- **`[FOLLOWUP vsix-integrity-in-activation-report]`** — Stage 9 of
+  the 2026-05-09 operator-tunable VSIX hardening iteration was
+  deferred to keep that iteration shippable. Carry-over scope: persist
+  per-extension VSIX extraction metrics (file_count, uncompressed_size,
+  compression_ratio, rejected_entry_count) on the `Extension` entity
+  (new alembic migration + 4 nullable columns), wire
+  `create_extension_from_directory` to write them, add
+  `ActivationReport.vsix_integrity` (additive optional Pydantic model;
+  no schema_version bump needed), populate it from Extension at report
+  build time (`packages/analysis_engine/runner.py` or
+  `executor/.../report_builder.py`), and render a "VSIX Integrity"
+  subsection on the Reports overview tab (`ui/src/features/reports/`,
+  `ui/src/lib/adapters/report.ts`). Acceptance: Reports page shows
+  metrics with green/amber/red coloring keyed off the live thresholds
+  (use `apiClient.getSecurityThresholds`); pre-existing fixtures with
+  no metrics render as "Metrics unavailable" rather than throwing.
+  Stage-9 risk-score visualization flows naturally from this since the
+  panel is the report-side mirror of the marketplace post-download
+  banner that landed today. Lane: `[ui-v3]` `[security-detection]`
+  `[contracts]`.
+- **`[FOLLOWUP vsix-thresholds-extra-keys]`** — the
+  `operator_settings` table is generic key/value but the W12-* PUT
+  endpoint only accepts the three VSIX threshold keys. Future
+  operator-tunable values (jobTimeout, retention windows, telemetry
+  buffers) should land on the same table; pull in their existing
+  localStorage defaults from `SettingsPage.DEFAULT_SETTINGS` when the
+  first one needs cross-device sync. Lane: `[settings]`.
 - **`[FOLLOWUP w8-3-harness-js-scheme]`** — extend URI trigger hardening.
 - ~~**`[FOLLOWUP w8-5-list-endpoint-name-filter]`**~~ — closed
   `2026-04-30`.

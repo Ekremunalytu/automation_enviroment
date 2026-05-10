@@ -158,7 +158,7 @@ the underlying API call.
 PR5 contributes evidence in two places:
 
 - **Lifecycle reconciliation (landed with PR5).**
-  ``health_reconciliation._target_log_stream_summaries`` excludes
+  ``health.reconciliation._target_log_stream_summaries`` excludes
   ``kind == "activation"`` log entries (the activation entry alone is
   not a separate post-activation signal) and harvests
   ``ActivationReport.output_signal_events`` whose

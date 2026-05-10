@@ -1,6 +1,9 @@
-import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useSearchParams } from "react-router-dom";
 
 import {
+  Badge,
   Eyebrow,
   Field,
   GhostButton,
@@ -9,6 +12,16 @@ import {
   SolidButton,
   V3,
 } from "../../components/v3";
+import { ApiError } from "../../lib/api/http";
+import { apiClient } from "../../lib/api/client";
+import type { VsixThresholdsUpdateRequestDto } from "../../lib/types/contracts";
+
+const VSIX_THRESHOLDS_QUERY_KEY = ["security-thresholds"] as const;
+const VSIX_KEYS = {
+  size: "vsix_max_uncompressed_size",
+  ratio: "vsix_max_compression_ratio",
+  count: "vsix_max_file_count",
+} as const;
 
 const STORAGE_KEY = "extrace-v3-settings";
 
@@ -47,14 +60,25 @@ const DEFAULT_SETTINGS: SettingsState = {
   buffer: "2048 events",
 };
 
-type SectionId = "general" | "executor" | "telemetry" | "danger";
+type SectionId = "general" | "executor" | "security" | "telemetry" | "danger";
 
 const SECTIONS: { id: SectionId; label: string; hint: string }[] = [
   { id: "general", label: "General", hint: "Console & appearance" },
   { id: "executor", label: "Executor", hint: "Sandbox runtime" },
+  { id: "security", label: "Security", hint: "VSIX hardening" },
   { id: "telemetry", label: "Telemetry", hint: "Stream & retention" },
   { id: "danger", label: "Danger", hint: "Reset & purge" },
 ];
+
+function isSectionId(value: unknown): value is SectionId {
+  return (
+    value === "general" ||
+    value === "executor" ||
+    value === "security" ||
+    value === "telemetry" ||
+    value === "danger"
+  );
+}
 
 function loadSettings(): SettingsState {
   try {
@@ -68,11 +92,31 @@ function loadSettings(): SettingsState {
 }
 
 export function SettingsPage() {
-  const [section, setSection] = useState<SectionId>("general");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const sectionFromUrl = searchParams.get("section");
+  const [section, setSectionState] = useState<SectionId>(
+    isSectionId(sectionFromUrl) ? sectionFromUrl : "general",
+  );
   const initial = useMemo(() => loadSettings(), []);
   const [settings, setSettings] = useState<SettingsState>(initial);
   const [persisted, setPersisted] = useState<SettingsState>(initial);
   const dirty = JSON.stringify(settings) !== JSON.stringify(persisted);
+
+  const setSection = (next: SectionId) => {
+    setSectionState(next);
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set("section", next);
+    setSearchParams(nextParams, { replace: true });
+  };
+
+  // React to deep-link navigation (e.g. the Marketplace download popup
+  // sending the operator straight to ?section=security).
+  useEffect(() => {
+    if (isSectionId(sectionFromUrl) && sectionFromUrl !== section) {
+      setSectionState(sectionFromUrl);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sectionFromUrl]);
 
   const update = <K extends keyof SettingsState>(key: K, value: SettingsState[K]) => {
     setSettings((prev) => ({ ...prev, [key]: value }));
@@ -103,8 +147,8 @@ export function SettingsPage() {
           the appliance.
         </PageTitle>
         <p style={{ fontSize: 15, color: V3.ink3, marginTop: 18, maxWidth: 560, lineHeight: 1.6 }}>
-          Single-operator preferences. Changes are persisted to this browser&apos;s localStorage
-          until the [BACKLOG ui-v3-5] settings persistence API lands.
+          Single-operator preferences. General console options stay in this browser;
+          security thresholds are persisted by the local API.
         </p>
       </header>
 
@@ -291,6 +335,8 @@ export function SettingsPage() {
             </>
           ) : null}
 
+          {section === "security" ? <SecuritySection /> : null}
+
           {section === "telemetry" ? (
             <>
               <SectionTitle>Telemetry stream</SectionTitle>
@@ -373,27 +419,290 @@ export function SettingsPage() {
             </>
           ) : null}
 
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "flex-end",
-              gap: 10,
-              paddingTop: 14,
-              borderTop: `1px solid ${V3.rule}`,
-            }}
-          >
-            <GhostButton onClick={discard} disabled={!dirty}>
-              Discard
-            </GhostButton>
-            <SolidButton onClick={save} disabled={!dirty}>
-              Save changes
-            </SolidButton>
-          </div>
+          {section === "security" ? null : (
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: 10,
+                paddingTop: 14,
+                borderTop: `1px solid ${V3.rule}`,
+              }}
+            >
+              <GhostButton onClick={discard} disabled={!dirty}>
+                Discard
+              </GhostButton>
+              <SolidButton onClick={save} disabled={!dirty}>
+                Save changes
+              </SolidButton>
+            </div>
+          )}
         </div>
       </section>
     </div>
   );
 }
+
+function bytesToMib(bytes: number): number {
+  return Math.round((bytes / (1024 * 1024)) * 100) / 100;
+}
+
+function mibToBytes(mib: number): number {
+  return Math.round(mib * 1024 * 1024);
+}
+
+function SecuritySection() {
+  const queryClient = useQueryClient();
+  const thresholdsQuery = useQuery({
+    queryKey: VSIX_THRESHOLDS_QUERY_KEY,
+    queryFn: ({ signal }) => apiClient.getSecurityThresholds(signal),
+    staleTime: 30_000,
+  });
+
+  const persisted = thresholdsQuery.data;
+  const [draft, setDraft] = useState<Record<string, string>>({});
+  const [feedback, setFeedback] = useState<{ kind: "ok" | "error"; text: string } | null>(
+    null,
+  );
+
+  // Reset the draft whenever the server snapshot changes (initial load,
+  // post-save echo, or a refetch).
+  useEffect(() => {
+    if (!persisted) return;
+    setDraft({
+      [VSIX_KEYS.size]: String(bytesToMib(persisted.values[VSIX_KEYS.size] ?? 0)),
+      [VSIX_KEYS.ratio]: String(persisted.values[VSIX_KEYS.ratio] ?? 0),
+      [VSIX_KEYS.count]: String(persisted.values[VSIX_KEYS.count] ?? 0),
+    });
+  }, [persisted]);
+
+  const updateMutation = useMutation({
+    mutationFn: (payload: VsixThresholdsUpdateRequestDto) =>
+      apiClient.updateSecurityThresholds(payload),
+    onSuccess: (next) => {
+      queryClient.setQueryData(VSIX_THRESHOLDS_QUERY_KEY, next);
+      setFeedback({ kind: "ok", text: "Saved." });
+    },
+    onError: (error) => {
+      setFeedback({
+        kind: "error",
+        text: error instanceof ApiError ? error.message : "Update failed.",
+      });
+    },
+  });
+
+  // Order matters: error must come BEFORE the loading fallback. React Query
+  // surfaces a failed first fetch as `isLoading=false, isError=true,
+  // data=undefined`, so the previous order (`isLoading || !persisted` first)
+  // collapsed every error into "Loading…" forever — the operator landing
+  // here from a VSIX threshold-breach popup never saw the real cause when
+  // the API was unreachable.
+  if (thresholdsQuery.isError) {
+    return (
+      <>
+        <SectionTitle>Security</SectionTitle>
+        <p style={{ color: V3.coral, fontSize: 13 }}>
+          Could not load thresholds: {String(thresholdsQuery.error)}
+        </p>
+      </>
+    );
+  }
+
+  if (thresholdsQuery.isLoading || !persisted) {
+    return (
+      <>
+        <SectionTitle>Security</SectionTitle>
+        <p style={{ color: V3.ink3, fontSize: 13 }}>
+          Loading operator-tunable VSIX hardening thresholds…
+        </p>
+      </>
+    );
+  }
+
+  const draftValues: Record<string, number> = {
+    [VSIX_KEYS.size]: mibToBytes(parseFloat(draft[VSIX_KEYS.size] || "0") || 0),
+    [VSIX_KEYS.ratio]: Math.round(parseFloat(draft[VSIX_KEYS.ratio] || "0") || 0),
+    [VSIX_KEYS.count]: Math.round(parseFloat(draft[VSIX_KEYS.count] || "0") || 0),
+  };
+
+  const dirty = Object.entries(draftValues).some(
+    ([key, value]) => value !== persisted.values[key],
+  );
+
+  const onSave = () => {
+    setFeedback(null);
+    const changed: Record<string, number> = {};
+    for (const [key, value] of Object.entries(draftValues)) {
+      if (value !== persisted.values[key]) changed[key] = value;
+    }
+    if (Object.keys(changed).length === 0) return;
+    updateMutation.mutate({ values: changed });
+  };
+
+  const onDiscard = () => {
+    if (!persisted) return;
+    setDraft({
+      [VSIX_KEYS.size]: String(bytesToMib(persisted.values[VSIX_KEYS.size] ?? 0)),
+      [VSIX_KEYS.ratio]: String(persisted.values[VSIX_KEYS.ratio] ?? 0),
+      [VSIX_KEYS.count]: String(persisted.values[VSIX_KEYS.count] ?? 0),
+    });
+    setFeedback(null);
+  };
+
+  const fields = [
+    {
+      key: VSIX_KEYS.size,
+      label: "Max uncompressed size",
+      desc: "Cumulative inflated bytes ceiling. Primary zip-bomb defense.",
+      unit: "MiB",
+      bounds: persisted.bounds[VSIX_KEYS.size],
+      defaultValue: persisted.defaults[VSIX_KEYS.size],
+      effective: persisted.values[VSIX_KEYS.size],
+      transform: bytesToMib,
+    },
+    {
+      key: VSIX_KEYS.ratio,
+      label: "Max compression ratio",
+      desc: "Catches pathological compression (zip-bomb signature).",
+      unit: ":1",
+      bounds: persisted.bounds[VSIX_KEYS.ratio],
+      defaultValue: persisted.defaults[VSIX_KEYS.ratio],
+      effective: persisted.values[VSIX_KEYS.ratio],
+      transform: (n: number) => n,
+    },
+    {
+      key: VSIX_KEYS.count,
+      label: "Max file count",
+      desc: "Caps the extract-loop iteration count (DoS guard).",
+      unit: "entries",
+      bounds: persisted.bounds[VSIX_KEYS.count],
+      defaultValue: persisted.defaults[VSIX_KEYS.count],
+      effective: persisted.values[VSIX_KEYS.count],
+      transform: (n: number) => n,
+    },
+  ] as const;
+
+  return (
+    <>
+      <SectionTitle>VSIX hardening</SectionTitle>
+      <p style={{ fontSize: 13.5, color: V3.ink3, lineHeight: 1.55, maxWidth: 640 }}>
+        Operator-tunable thresholds that gate marketplace downloads. The size +
+        ratio guards form the primary zip-bomb defense; the entry-count guard
+        caps extract-loop iteration. Raising a value lets larger or more
+        complex VSIX archives through — only do so for trusted publishers.
+      </p>
+
+      <div
+        style={{
+          border: `1px solid ${V3.rule}`,
+          background: V3.paper2,
+        }}
+      >
+        <div
+          style={{
+            padding: "14px 20px",
+            borderBottom: `1px solid ${V3.rule}`,
+            background: V3.paper3,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 16,
+          }}
+        >
+          <Eyebrow>Thresholds</Eyebrow>
+          <Badge tone="accent">Backend-persisted</Badge>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column" }}>
+          {fields.map((field, index) => {
+            const overridden = field.effective !== field.defaultValue;
+            const min = field.transform(field.bounds.min_value);
+            const max = field.transform(field.bounds.max_value);
+            return (
+              <div
+                key={field.key}
+                style={{
+                  ...ROW_STYLE,
+                  borderBottom: index < fields.length - 1 ? `1px solid ${V3.rule}` : "none",
+                }}
+              >
+                <RowLabel k={field.label} desc={field.desc} />
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <Field
+                      mono
+                      value={draft[field.key] ?? ""}
+                      onChange={(value) =>
+                        setDraft((current) => ({ ...current, [field.key]: value }))
+                      }
+                      inputStyle={{ maxWidth: 180 }}
+                    />
+                    <span
+                      style={{
+                        fontFamily: "'JetBrains Mono', monospace",
+                        fontSize: 11,
+                        color: V3.ink3,
+                      }}
+                    >
+                      {field.unit}
+                    </span>
+                    {overridden ? <Badge tone="warn">Overridden</Badge> : null}
+                  </div>
+                  <span
+                    style={{
+                      fontFamily: "'JetBrains Mono', monospace",
+                      fontSize: 10.5,
+                      color: V3.ink4,
+                    }}
+                  >
+                    range {min.toLocaleString()}…{max.toLocaleString()} ·
+                    default {field.transform(field.defaultValue).toLocaleString()}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {feedback ? (
+        <div
+          role={feedback.kind === "error" ? "alert" : "status"}
+          style={{
+            border: `1px solid ${feedback.kind === "ok" ? V3.ok : V3.coral}`,
+            background: feedback.kind === "ok" ? V3.okBg : V3.dangerBg,
+            color: feedback.kind === "ok" ? V3.ok : V3.coral,
+            padding: "10px 14px",
+            fontSize: 12.5,
+            fontFamily: "'JetBrains Mono', monospace",
+          }}
+        >
+          {feedback.text}
+        </div>
+      ) : null}
+
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "flex-end",
+          gap: 10,
+          paddingTop: 14,
+          borderTop: `1px solid ${V3.rule}`,
+        }}
+      >
+        <GhostButton onClick={onDiscard} disabled={!dirty || updateMutation.isPending}>
+          Discard
+        </GhostButton>
+        <SolidButton
+          onClick={onSave}
+          disabled={!dirty || updateMutation.isPending}
+        >
+          {updateMutation.isPending ? "Saving…" : "Save thresholds"}
+        </SolidButton>
+      </div>
+    </>
+  );
+}
+
 
 function Group({ label, children }: { label: string; children: ReactNode }) {
   return (

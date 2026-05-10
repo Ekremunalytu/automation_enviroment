@@ -2,11 +2,21 @@ import { getApiBaseUrl } from "./runtime";
 
 export class ApiError extends Error {
   status: number;
+  /**
+   * The original `detail` field from a FastAPI error response, when one
+   * was present. May be a string (legacy / generic errors) or a
+   * structured object (e.g. the VSIX threshold-breach 422 surfaced by
+   * /api/marketplace/download). Callers that want to render specific
+   * UI for a typed payload should `instanceof ApiError`-check then
+   * narrow `detail` themselves.
+   */
+  detail?: unknown;
 
-  constructor(message: string, status: number) {
+  constructor(message: string, status: number, detail?: unknown) {
     super(message);
     this.name = "ApiError";
     this.status = status;
+    this.detail = detail;
   }
 }
 
@@ -28,13 +38,21 @@ export async function requestJson<T>(path: string, init?: RequestInit): Promise<
 
   if (!response.ok) {
     let message = response.statusText;
+    let detail: unknown;
     try {
       const payload = await response.json();
-      message = typeof payload.detail === "string" ? payload.detail : JSON.stringify(payload);
+      detail = (payload as { detail?: unknown }).detail;
+      if (typeof detail === "string") {
+        message = detail;
+      } else if (detail !== undefined) {
+        message = JSON.stringify(detail);
+      } else {
+        message = JSON.stringify(payload);
+      }
     } catch {
       message = await response.text();
     }
-    throw new ApiError(message || "Request failed", response.status);
+    throw new ApiError(message || "Request failed", response.status, detail);
   }
 
   return (await response.json()) as T;

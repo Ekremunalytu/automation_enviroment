@@ -228,7 +228,7 @@ function fromCanonicalEvent(event: EvidenceEventDto, index: number): EvidenceEve
     artifact,
     artifactShort: short(artifact),
     detail,
-    rawContext: event.raw_context || {},
+    rawContext: (event.raw_context as Record<string, unknown> | undefined) ?? {},
     timestampDisplay: formatTimestamp(event.timestamp || ""),
   };
 }
@@ -365,8 +365,8 @@ function fromScenario(entry: ScenarioTraceDto, index: number): EvidenceEventView
       summary: `Scenario ${entry.name || "unknown"} ${entry.status || "running"}`,
       raw_context: {
         status: entry.status || "running",
-        started_at: entry.started_at ?? null,
-        ended_at: entry.ended_at ?? null,
+        started_at: entry.started_at,
+        ended_at: entry.ended_at,
       },
     },
     index,
@@ -537,8 +537,12 @@ function buildAttributionSummary(
     strongTargetFileEventCount: Number(summary?.strong_target_file_event_count ?? 0),
     strongTargetNetworkEventCount: Number(summary?.strong_target_network_event_count ?? 0),
     correlatedOnlyEventCount: Number(summary?.correlated_only_event_count ?? 0),
-    backgroundActivationCount: Number(summary?.background_activation_count ?? 0),
-    competingCandidateCount: Number(summary?.competing_candidate_count ?? 0),
+    targetBackgroundActivationCount: Number(
+      summary?.target_background_activation_count ?? 0,
+    ),
+    competingExtensionEventCount: Number(
+      summary?.competing_extension_event_count ?? 0,
+    ),
     uiBlockerCount: Number(summary?.ui_blocker_count ?? 0),
   };
 }

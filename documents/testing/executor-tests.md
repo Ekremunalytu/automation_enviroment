@@ -1,13 +1,13 @@
 # Executor Tests
 
-`Last Updated: 2026-05-05`
+`Last Updated: 2026-05-09`
 
-`tests/executor/` and `tests/scanner/`. Lane shape:
+`tests/executor/`, including `tests/executor/scanner/`. Lane shape:
 [`../TESTING.md`](../TESTING.md). Layer file map:
 [`../structure/test-layout.md`](../structure/test-layout.md). Executor
 subsystem reference: [`../EXECUTOR_PLAYWRIGHT.md`](../EXECUTOR_PLAYWRIGHT.md).
 
-## `tests/scanner/`
+## `tests/executor/scanner/`
 
 - `test_executor.py` — Docker exec wrapper:
   retry-after-reload, non-transient no-retry guard, reload-failure
@@ -63,6 +63,8 @@ subsystem reference: [`../EXECUTOR_PLAYWRIGHT.md`](../EXECUTOR_PLAYWRIGHT.md).
 - `tests/architecture/test_uri_trigger_shell_pattern.py` (W8-3) —
   AST detector for `xdg-open '<f-string>'` shell-template pattern,
   excluding `executor/flows/playwright/uri_validation.py` and `tests/`.
+- `tests/architecture/test_dockerfile_digest_pin.py` — ADR 0002
+  base-image digest pin gate for API and executor Dockerfiles.
 
 ## Adding An Executor Test
 
@@ -71,5 +73,5 @@ subsystem reference: [`../EXECUTOR_PLAYWRIGHT.md`](../EXECUTOR_PLAYWRIGHT.md).
   (attribution / lifecycle / package-import / runtime).
 - New reset orchestration step → `test_reset_state.py`.
 - New executor-side adversarial defense → `tests/executor/security/`.
-- New Docker exec wrapper change → `tests/scanner/test_executor.py`.
+- New Docker exec wrapper change → `tests/executor/scanner/test_executor.py`.
 - New cross-cutting architecture detector → `tests/architecture/`.

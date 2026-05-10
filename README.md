@@ -55,8 +55,10 @@ multi-tenant web platform.
   W8-8 deferred); **W9 closed `2026-05-04`** (PR #9); **W10 closed
   `2026-05-04`** (PR #11); **W11 closed `2026-05-05`** and merged via
   PR #14. Active phase: **W12 executor subpackaging + attribution
-  cleanup**; W12-0 output-signal file-backed redaction must land before
-  W12-1. Tracker: [`active-work/W12-executor-subpackaging.md`](documents/active-work/W12-executor-subpackaging.md).
+  cleanup**; W12-0 file-backed output-signal redaction, W12-1 executor
+  subpackaging, and W12-2 attribution facade cleanup have landed on
+  `week12`; W12-3 `raw_context` typing is unblocked. Tracker:
+  [`active-work/W12-executor-subpackaging.md`](documents/active-work/W12-executor-subpackaging.md).
 - **Canonical source of truth for phase state:**
   [`documents/REFACTOR_STATUS.md`](documents/REFACTOR_STATUS.md).
   Deferred items: [`documents/POST_POC_BACKLOG.md`](documents/POST_POC_BACKLOG.md).
@@ -89,13 +91,15 @@ workflow code:
   - `control.py`: workflow-visible sandbox boundary.
   - `container/`: Docker image, entrypoint (`start.sh`), and the shared
     `launch_vscode.sh` script used at boot and by scan-between resets.
-  - `flows/playwright/`: Playwright automation helpers, entrypoint,
-    `monitor.py` facade, `attribution/` subpackage (events + evidence
-    link builders), and sibling scenario/runtime-capture helper modules.
+  - `flows/playwright/`: Playwright automation helpers, package-mode
+    `entrypoint/`, `monitor/` facade, attribution/scenario/runtime-capture
+    packages, and focused helper packages for health, stimulus, workspace,
+    VS Code UI, and signals.
 - `ui/`
   - Primary analyst-facing React SPA built with Vite and Tailwind.
   - `src/app/`: shell and route composition.
-  - `src/features/`: `marketplace`, `reports`, `simulation`.
+  - `src/features/`: `evidence`, `marketplace`, `reports`, `rules`,
+    `settings`, `simulation`, `system`.
   - `src/lib/`: API client, adapters, generated contract types, and shared
     frontend helpers.
 
@@ -137,7 +141,7 @@ The repository now uses canonical imports only:
 3. `workflows.marketplace.job_service`
 4. `executor.control` boundary
 5. `executor.host` Docker exec wrapper
-6. `executor/flows/playwright/entrypoint.py`
+6. `python -m executor.flows.playwright.entrypoint`
 7. Reports written under `output/`
 8. Async job metadata persisted in PostgreSQL `analysis_jobs`
 
@@ -244,14 +248,14 @@ workflows/                  Canonical business workflows
 executor/
   control.py               Workflow-visible sandbox boundary
   container/               Sandbox image and startup scripts
-  flows/playwright/        VS Code GUI automation
+  flows/playwright/        VS Code GUI automation packages
 ui/                         React + Vite analyst console
 tests/
   architecture/            Import-graph and boundary checks
   platform/                Shared platform tests
   workflows/               Workflow tests
   executor/                Playwright runtime tests
-  scanner/                 Docker exec wrapper tests
+    scanner/               Docker exec wrapper tests
   security/                Malicious-fixture scaffold checks
   smoke/                   End-to-end marketplace analysis tests
   ui tests live under ui/src/**/*.test.ts(x)

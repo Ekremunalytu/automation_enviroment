@@ -2,14 +2,14 @@
 
 These tests pin the report-assembly collaborator extracted from
 ``ExtensionMonitor`` in W11-2. They import at the real module path
-(``executor.flows.playwright.monitor_report_assembler``) rather than
+(``executor.flows.playwright.monitor.report_assembler``) rather than
 through the ``monitor`` facade so that the W12 directory reshuffle
 cannot silently regress this surface.
 
 ``refresh_derived_state`` calls into seven module-level helpers
-(``_annotate_*``, ``derive_verified_capabilities``,
+(``annotate_*``, ``derive_verified_capabilities``,
 ``reconcile_event_attempts``, ``summarize_event_attempts_for_report``,
-``_reconcile_coverage_verification``, ``_build_signal_summary``); each
+``_reconcile_coverage_verification``, ``build_signal_summary``); each
 test monkeypatches the helper at the assembler's import path so the
 assembler's call shape and assignment behavior are pinned without
 re-exercising the helpers themselves (those have their own test
@@ -24,10 +24,12 @@ from typing import Any
 
 import pytest
 
-from executor.flows.playwright import monitor_report_assembler
-from executor.flows.playwright.monitor_report_assembler import ReportAssembler
-from executor.flows.playwright.monitor_records import ScenarioTrace
-from executor.flows.playwright.monitor_types import ActivationReport
+from executor.flows.playwright.monitor import (
+    report_assembler as monitor_report_assembler,
+)
+from executor.flows.playwright.monitor.report_assembler import ReportAssembler
+from executor.flows.playwright.monitor.records import ScenarioTrace
+from executor.flows.playwright.monitor.types import ActivationReport
 
 
 # ---------------------------------------------------------------------------
@@ -44,14 +46,14 @@ def _patch_refresh_helpers(monkeypatch) -> dict[str, list[Any]]:
     report field.
     """
     calls: dict[str, list[Any]] = {
-        "_annotate_network_events": [],
-        "_annotate_file_events": [],
-        "_annotate_process_events": [],
+        "annotate_network_events": [],
+        "annotate_file_events": [],
+        "annotate_process_events": [],
         "derive_verified_capabilities": [],
         "reconcile_event_attempts": [],
         "summarize_event_attempts_for_report": [],
         "_reconcile_coverage_verification": [],
-        "_build_signal_summary": [],
+        "build_signal_summary": [],
     }
 
     def _record(name: str, ret: Any):
@@ -63,18 +65,18 @@ def _patch_refresh_helpers(monkeypatch) -> dict[str, list[Any]]:
 
     monkeypatch.setattr(
         monitor_report_assembler,
-        "_annotate_network_events",
-        _record("_annotate_network_events", ["net-out"]),
+        "annotate_network_events",
+        _record("annotate_network_events", ["net-out"]),
     )
     monkeypatch.setattr(
         monitor_report_assembler,
-        "_annotate_file_events",
-        _record("_annotate_file_events", ["file-out"]),
+        "annotate_file_events",
+        _record("annotate_file_events", ["file-out"]),
     )
     monkeypatch.setattr(
         monitor_report_assembler,
-        "_annotate_process_events",
-        _record("_annotate_process_events", ["proc-out"]),
+        "annotate_process_events",
+        _record("annotate_process_events", ["proc-out"]),
     )
     # Two of the attempted capabilities will be in the derived set so we can
     # assert official vs heuristic split logic.
@@ -103,13 +105,13 @@ def _patch_refresh_helpers(monkeypatch) -> dict[str, list[Any]]:
     )
     monkeypatch.setattr(
         monitor_report_assembler,
-        "_build_signal_summary",
-        _record("_build_signal_summary", {"signal": "sig"}),
+        "build_signal_summary",
+        _record("build_signal_summary", {"signal": "sig"}),
     )
 
     # ``canonical_evidence_links`` is a derived property that walks the
     # (now stubbed) event lists; with sentinel return values like
-    # ``["net-out"]`` it would crash inside ``_build_evidence_bundle``.
+    # ``["net-out"]`` it would crash inside ``build_evidence_bundle``.
     # Pin the property to a deterministic value so the assembler's
     # ``evidence_links = report.canonical_evidence_links`` line is
     # exercised without dragging the real bundle builder in.
@@ -169,13 +171,13 @@ def test_refresh_calls_three_event_annotators_with_report_state(monkeypatch) -> 
 
     # Each annotator received the matching events list, the activation list,
     # the scenario traces, and the target_extension_id — in that order.
-    assert len(calls["_annotate_network_events"]) == 1
-    args, _ = calls["_annotate_network_events"][0]
+    assert len(calls["annotate_network_events"]) == 1
+    args, _ = calls["annotate_network_events"][0]
     assert args[1] is report.activated
     assert args[2] is report.scenario_traces
     assert args[3] == "publisher.tool"
-    assert len(calls["_annotate_file_events"]) == 1
-    assert len(calls["_annotate_process_events"]) == 1
+    assert len(calls["annotate_file_events"]) == 1
+    assert len(calls["annotate_process_events"]) == 1
 
 
 def test_refresh_writes_annotator_returns_back_onto_report(monkeypatch) -> None:
@@ -247,6 +249,59 @@ def test_refresh_populates_coverage_tuple(monkeypatch) -> None:
     assert report.coverage_summary == {"summary": "S"}
     assert report.coverage_matrix == [{"row": 1}]
     assert report.coverage_tracks == {"official": {"x": 1}}
+
+
+def test_refresh_syncs_attempted_capabilities_to_runtime_derived(
+    monkeypatch,
+) -> None:
+    """W12-2 [FOLLOWUP coverage-summary-attempted-drift]: the assembler
+    must collapse the planner-seeded ``attempted_capabilities`` into the
+    runtime-derived view (event_attempts → capability_tags) BEFORE
+    reconcile runs.
+
+    The pre-W12-2 dataflow let ``payload.populate_report_from_trigger_payload``
+    seed ``report.attempted_capabilities`` from the analysis_planner output;
+    ``report_builder.py`` writes the on-disk ``attempted_capabilities``
+    field from ``runtime_official_attempted_capabilities`` (event_attempts
+    derive), but the reconciled ``coverage_summary["attempted_capabilities"]``
+    flowed from ``official_attempted_capabilities`` (matrix-filtered planner
+    seed). Live 2026-05-07 scan: ``uri_walkthrough`` was planned but never
+    attempted → JSON top-level had 6 entries, ``coverage_summary`` had 7.
+    Post-fix, the assembler reassigns ``attempted_capabilities`` to
+    ``runtime_official_attempted_capabilities`` BEFORE reconcile so both
+    aliases resolve to the same runtime-derived list.
+    """
+    _patch_refresh_helpers(monkeypatch)
+    report = _make_report()
+    # Simulate the pre-refresh drift: payload-seeded list carries an extra
+    # capability (``uri_walkthrough``) that never made it into event_attempts,
+    # so the runtime-derived view drops it.
+    report.attempted_capabilities = ["cap.read", "cap.write", "uri_walkthrough"]
+    report.heuristic_attempted_capabilities = ["heuristic_extra", "cap.write"]
+
+    # Stub the runtime-derived properties so the test does not depend on
+    # the full ``_derive_runtime_attempted_capabilities`` event-attempt
+    # walker — that path is exercised in test_playwright_helpers /
+    # test_playwright_monitor_report_assembler runtime-derive tests.
+    monkeypatch.setattr(
+        ActivationReport,
+        "runtime_official_attempted_capabilities",
+        property(lambda self: ["cap.read", "cap.write"]),
+    )
+    monkeypatch.setattr(
+        ActivationReport,
+        "runtime_heuristic_attempted_capabilities",
+        property(lambda self: ["cap.write"]),
+    )
+
+    assembler = ReportAssembler(report=report, report_path=None)
+    assembler.refresh_derived_state()
+
+    # Top-level fields are runtime-derived now; ``uri_walkthrough`` is
+    # gone because it was planner-seeded but never attempted.
+    assert report.attempted_capabilities == ["cap.read", "cap.write"]
+    assert "uri_walkthrough" not in report.attempted_capabilities
+    assert report.heuristic_attempted_capabilities == ["cap.write"]
 
 
 def test_refresh_writes_signal_summary_and_evidence_links(monkeypatch) -> None:
@@ -537,7 +592,7 @@ def test_refresh_is_idempotent_across_repeated_calls(monkeypatch) -> None:
 
 
 # ---------------------------------------------------------------------------
-# W11-3 setters: set_runner_status / set_discovery_strategies
+# W11-3 setters: set_runner_status / set_discovery_strategy_outcomes (W12-2)
 # ---------------------------------------------------------------------------
 
 
@@ -577,42 +632,46 @@ def test_set_runner_status_nonzero_other_value_still_maps_to_error() -> None:
     assert report.runner_status == "error"
 
 
-def test_set_discovery_strategies_sorts_and_dedupes() -> None:
-    """Producer order from ``MonitorRuntime.stop()`` is not stable
-    across runs (Strategy 2 may or may not produce entries depending
-    on UI scrape success). Sort + dedup at the assembler so analysts
-    diffing two reports of the same target get bitwise-equal lists
-    when the underlying success set is identical."""
+def test_set_discovery_strategy_outcomes_records_dict_verbatim() -> None:
+    """W12-2 [FOLLOWUP activation-discovery-strategy-outcome-detail]:
+    the assembler stores the runtime's outcome dict verbatim (one entry
+    per strategy with the post-W12-2 outcome literals); analysts diffing
+    two reports of the same target get bitwise-equal dicts because dict
+    keys are deterministic strategy ids and values are deterministic
+    literals."""
 
     report = ActivationReport(target_extension_id="publisher.tool")
     assembler = ReportAssembler(report=report, report_path=None)
 
-    assembler.set_discovery_strategies(
-        [
-            "running_extensions_ui",
-            "exthost_log_parse",
-            "exthost_log_parse",
-        ]
+    assembler.set_discovery_strategy_outcomes(
+        {
+            "exthost_log_parse": "succeeded_with_new_activations",
+            "running_extensions_ui": "succeeded_no_new_activations",
+            "exthost_output_parse": "failed:OSError",
+        }
     )
 
-    assert report.activation_discovery_strategies == [
-        "exthost_log_parse",
-        "running_extensions_ui",
-    ]
+    assert report.activation_discovery_strategy_outcomes == {
+        "exthost_log_parse": "succeeded_with_new_activations",
+        "running_extensions_ui": "succeeded_no_new_activations",
+        "exthost_output_parse": "failed:OSError",
+    }
 
 
-def test_set_discovery_strategies_with_empty_iterable_clears_field() -> None:
-    """If every strategy fails the producer emits an empty list; the
-    assembler must overwrite (not preserve) any prior content so the
-    field accurately reflects the most recent stop()."""
+def test_set_discovery_strategy_outcomes_with_empty_dict_clears_field() -> None:
+    """If the runtime emits an empty dict (e.g. helpers patched out in a
+    unit test) the assembler must overwrite any prior content so the field
+    accurately reflects the most recent stop()."""
 
     report = ActivationReport(target_extension_id="publisher.tool")
-    report.activation_discovery_strategies = ["stale_value"]
+    report.activation_discovery_strategy_outcomes = {
+        "exthost_log_parse": "succeeded_with_new_activations",
+    }
     assembler = ReportAssembler(report=report, report_path=None)
 
-    assembler.set_discovery_strategies([])
+    assembler.set_discovery_strategy_outcomes({})
 
-    assert report.activation_discovery_strategies == []
+    assert report.activation_discovery_strategy_outcomes == {}
 
 
 def test_persist_advances_throttle_strictly_monotonically(

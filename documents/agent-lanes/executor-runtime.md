@@ -1,6 +1,6 @@
 # Executor Runtime Lane
 
-`Last Updated: 2026-05-05`
+`Last Updated: 2026-05-07`
 
 Use this lane for Docker executor behavior, Playwright automation, the harness
 extension, runtime capture, reset/reload behavior, and executor runbooks.
@@ -13,7 +13,7 @@ extension, runtime capture, reset/reload behavior, and executor runbooks.
 - `executor/flows/harness_extension/`
 - `executor/flows/playwright/`
 - `tests/executor/`
-- `tests/scanner/test_executor.py`
+- `tests/executor/scanner/test_executor.py`
 - `documents/EXECUTOR_PLAYWRIGHT.md`
 
 ## Invariants
@@ -35,7 +35,7 @@ extension, runtime capture, reset/reload behavior, and executor runbooks.
 ## Tests And Checks
 
 - `.venv/bin/pytest tests/executor/`
-- `.venv/bin/pytest tests/scanner/test_executor.py`
+- `.venv/bin/pytest tests/executor/scanner/test_executor.py`
 - `make exec-up`
 - `make sim-target TARGET=publisher.name`
 - `make demo-canary`

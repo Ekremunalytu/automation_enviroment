@@ -12,6 +12,13 @@ from appcore.storage.crud_ops.analysis_jobs import (
     update_analysis_job,
     update_analysis_job_step,
 )
+from appcore.storage.crud_ops.operator_settings import (
+    get_operator_setting,
+    list_operator_settings,
+    upsert_operator_setting,
+    upsert_operator_settings_bulk,
+    upsert_operator_settings_bulk_and_commit,
+)
 from appcore.storage.crud_ops.reads import (
     get_db_extensions_base_info,
     get_extension_by_id,
@@ -45,8 +52,13 @@ __all__ = [
     "get_extension_contributes_commands",
     "get_extension_scripts",
     "get_extensions_all_info",
+    "get_operator_setting",
+    "list_operator_settings",
     "recover_interrupted_analysis_jobs",
     "search_extension_by_name",
     "update_analysis_job",
     "update_analysis_job_step",
+    "upsert_operator_setting",
+    "upsert_operator_settings_bulk",
+    "upsert_operator_settings_bulk_and_commit",
 ]

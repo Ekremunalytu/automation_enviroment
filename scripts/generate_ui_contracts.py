@@ -38,6 +38,13 @@ TARGET_SCHEMAS: list[str] = [
     "FileEvent",
     "ProcessEvent",
     "OutputSignalEvent",
+    "NetworkRawContext",
+    "FileRawContext",
+    "ProcessRawContext",
+    "ScenarioRawContext",
+    "ActivationRawContext",
+    "UiBlockerRawContext",
+    "OutputChannelRawContext",
     "RuleExecutionRecord",
     "RuleExecutionStatus",
     "RuleLifecycle",
@@ -53,6 +60,11 @@ TARGET_SCHEMAS: list[str] = [
     "ActivationReportMetadata",
     "ActivationReportResponse",
     "MarketplaceExtension",
+    "VsixExtractionMetrics",
+    "ThresholdBoundsResponse",
+    "ThresholdsResponse",
+    "ThresholdsUpdateRequest",
+    "VsixThresholdBreachDetail",
     "MarketplaceDownloadResponse",
     "AnalyzeJobStep",
     "AnalyzeJobStepProgress",
@@ -76,6 +88,13 @@ NAME_OVERRIDES: dict[str, str] = {
     "FileEvent": "FileEventDto",
     "ProcessEvent": "ProcessEventDto",
     "OutputSignalEvent": "OutputSignalEventDto",
+    "NetworkRawContext": "NetworkRawContextDto",
+    "FileRawContext": "FileRawContextDto",
+    "ProcessRawContext": "ProcessRawContextDto",
+    "ScenarioRawContext": "ScenarioRawContextDto",
+    "ActivationRawContext": "ActivationRawContextDto",
+    "UiBlockerRawContext": "UiBlockerRawContextDto",
+    "OutputChannelRawContext": "OutputChannelRawContextDto",
     "RuleExecutionRecord": "RuleExecutionRecordDto",
     "RuleExecutionStatus": "RuleExecutionStatusDto",
     "RuleLifecycle": "RuleLifecycleDto",
@@ -91,6 +110,10 @@ NAME_OVERRIDES: dict[str, str] = {
     "ActivationReportMetadata": "ActivationReportMetadataDto",
     "ActivationReportResponse": "ActivationReportDto",
     "MarketplaceExtension": "MarketplaceExtensionDto",
+    "ThresholdBoundsResponse": "VsixThresholdBoundsDto",
+    "ThresholdsResponse": "VsixThresholdsResponseDto",
+    "ThresholdsUpdateRequest": "VsixThresholdsUpdateRequestDto",
+    "VsixThresholdBreachDetail": "VsixThresholdBreachDetail",
     "MarketplaceDownloadResponse": "MarketplaceDownloadResponseDto",
     "AnalyzeJobStep": "AnalyzeJobStepDto",
     "AnalyzeJobStatusResponse": "AnalyzeJobStatusDto",
@@ -110,6 +133,10 @@ FIELD_TYPE_OVERRIDES: dict[tuple[str, str], str] = {
     ("ActivationReportResponse", "official_event_coverage"): "EventCoverageDto",
     ("ActivationReportResponse", "heuristic_workflow_coverage"): "EventCoverageDto",
     ("ActivationReportResponse", "log_streams"): "LogStreamsDto",
+    ("VsixThresholdBreachDetail", "error"): '"vsix_threshold_breach"',
+    ("VsixThresholdBreachDetail", "breach_kind"): (
+        '"entry_count" | "uncompressed_size" | "compression_ratio"'
+    ),
 }
 
 SUPPLEMENTAL_TYPES = """export interface AutomationHealthDto {
@@ -141,8 +168,8 @@ export interface AttributionSummaryDto {
   strong_target_file_event_count?: number;
   strong_target_network_event_count?: number;
   correlated_only_event_count?: number;
-  background_activation_count?: number;
-  competing_candidate_count?: number;
+  target_background_activation_count?: number;
+  competing_extension_event_count?: number;
   ui_blocker_count?: number;
 }
 
@@ -234,7 +261,7 @@ def _load_extra_schema_providers() -> dict[str, type[BaseModel] | type[Enum]]:
         return EXTRA_SCHEMA_PROVIDERS
 
     detection_module = importlib.import_module("packages.analysis_contracts.detection")
-    provider_names = [
+    detection_provider_names = [
         "AdversaryClass",
         "Confidence",
         "DetectionFinding",
@@ -247,9 +274,16 @@ def _load_extra_schema_providers() -> dict[str, type[BaseModel] | type[Enum]]:
         "Severity",
         "Verdict",
     ]
+    contract_module = importlib.import_module("appcore.contracts.schemas")
+    contract_provider_names = [
+        "VsixThresholdBreachDetail",
+    ]
     EXTRA_SCHEMA_PROVIDERS = {
-        name: getattr(detection_module, name) for name in provider_names
+        name: getattr(detection_module, name) for name in detection_provider_names
     }
+    EXTRA_SCHEMA_PROVIDERS.update(
+        {name: getattr(contract_module, name) for name in contract_provider_names}
+    )
     return EXTRA_SCHEMA_PROVIDERS
 
 
@@ -335,6 +369,9 @@ def _schema_to_ts_type(
     enum_values = schema.get("enum")
     if isinstance(enum_values, list) and enum_values:
         return _normalize_union([_quoted_literal(item) for item in enum_values])
+
+    if "const" in schema:
+        return _quoted_literal(schema["const"])
 
     any_of = schema.get("anyOf")
     if isinstance(any_of, list) and any_of:

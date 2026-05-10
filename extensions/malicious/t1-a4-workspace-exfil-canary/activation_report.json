@@ -17,7 +17,7 @@
       "rel_time_s": 0.0,
       "summary": "Activated extrace.t1-a4-workspace-exfil-canary",
       "raw_context": {
-        "event_type": "activated"
+        "event_class": "activation"
       }
     },
     {
@@ -41,8 +41,9 @@
       "is_target_extension_event": true,
       "attribution_status": "strong",
       "raw_context": {
+        "event_class": "network",
         "event_type": "http_request",
-        "method": "POST"
+        "http_method": "POST"
       }
     }
   ],

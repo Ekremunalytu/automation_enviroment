@@ -35,19 +35,26 @@ def is_benign_domain(host: str) -> bool:
 
 
 def event_type(event: EvidenceEvent) -> str:
-    raw_context = event.raw_context if isinstance(event.raw_context, dict) else {}
-    value = raw_context.get("event_type", "")
-    return str(value).strip().lower()
+    # W12-3: raw_context is a typed Pydantic discriminated union; only the
+    # NetworkRawContext variant carries `event_type`. Other variants return
+    # "" via getattr's default.
+    return str(getattr(event.raw_context, "event_type", "")).strip().lower()
 
 
 def event_method(event: EvidenceEvent) -> str:
-    raw_context = event.raw_context if isinstance(event.raw_context, dict) else {}
-    return str(raw_context.get("method", "")).strip().upper()
+    # W12-3 incidental fix: producer (`attribution/links.py` network site)
+    # writes `http_method`; this reader used to look for `method`, so the
+    # value collapsed to "" in production for years — surfaced once typed
+    # variants pinned the field set. NetworkRawContext is the only variant
+    # carrying `http_method`; other variants return "" via getattr's default.
+    return str(getattr(event.raw_context, "http_method", "")).strip().upper()
 
 
 def event_message(event: EvidenceEvent) -> str:
-    raw_context = event.raw_context if isinstance(event.raw_context, dict) else {}
-    message = raw_context.get("message", "")
+    # W12-3: no producer writes a `message` key into raw_context today; this
+    # reader has always collapsed to `event.summary` in production. Kept for
+    # explicitness so a future variant adding `message` slots in cleanly.
+    message = getattr(event.raw_context, "message", "")
     return " ".join(
         part for part in [event.summary.strip(), str(message).strip()] if part
     ).strip()

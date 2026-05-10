@@ -88,8 +88,41 @@ def test_file_count_rejected(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) ->
     members = [(f"extension/file_{i:03d}.txt", b"x") for i in range(10)]
     vsix = _build_vsix(members)
 
-    with pytest.raises(VSIXUnpackError, match="entry count"):
+    with pytest.raises(VSIXUnpackError, match="entry count") as excinfo:
         marketplace_client._extract_vsix_to_dir(vsix, tmp_path)
+
+    # W12-* hardening: VSIXUnpackError now carries structured breach
+    # metadata so the HTTP layer can render a popup naming the specific
+    # threshold; the message-level match above pins backwards-compat.
+    err = excinfo.value
+    assert err.breach_kind == marketplace_client.VSIX_BREACH_ENTRY_COUNT
+    assert err.threshold_name == "vsix_max_file_count"
+    assert err.threshold_value == 5
+    assert err.observed_value == 6  # the 6th entry trips the > limit branch
+
+
+def test_extract_with_operator_threshold_dict_overrides_module_constants(
+    tmp_path: Path,
+) -> None:
+    """When thresholds dict is supplied, module-level constants are not
+    consulted — operator-tuned values take effect for that call."""
+    members = [(f"extension/file_{i:03d}.txt", b"x") for i in range(10)]
+    vsix = _build_vsix(members)
+
+    # Module constants are wide enough (50_000) to accept; the per-call
+    # dict tightens to 5 and trips the breach.
+    with pytest.raises(VSIXUnpackError) as excinfo:
+        marketplace_client._extract_vsix_to_dir(
+            vsix,
+            tmp_path,
+            thresholds={
+                "vsix_max_uncompressed_size": 256 * 1024 * 1024,
+                "vsix_max_compression_ratio": 100,
+                "vsix_max_file_count": 5,
+            },
+        )
+    assert excinfo.value.threshold_value == 5
+    assert excinfo.value.breach_kind == marketplace_client.VSIX_BREACH_ENTRY_COUNT
 
 
 def test_path_traversal_still_blocked(tmp_path: Path) -> None:

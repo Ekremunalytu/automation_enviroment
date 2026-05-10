@@ -35,7 +35,7 @@ def _fixture_identity(name: str, version: str) -> tuple[str, str, str]:
 
 
 BASELINE_EXTENSION_FIXTURES = [
-    ("ms-python", "python", "2026.5.2026032701"),
+    ("ms-python", "python", "2026.5.2026050801"),
     _fixture_identity("fixture-chat", "0.0.1"),
     _fixture_identity("fixture-theme", "0.0.1"),
 ]

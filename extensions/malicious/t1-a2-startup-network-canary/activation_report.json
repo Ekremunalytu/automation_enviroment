@@ -17,7 +17,7 @@
       "rel_time_s": 0.0,
       "summary": "Activated extrace.t1-a2-startup-network-canary",
       "raw_context": {
-        "event_type": "activated"
+        "event_class": "activation"
       }
     },
     {
@@ -30,6 +30,7 @@
       "is_target_extension_event": true,
       "attribution_status": "strong",
       "raw_context": {
+        "event_class": "network",
         "event_type": "tls_sni"
       }
     },
@@ -43,6 +44,7 @@
       "is_target_extension_event": true,
       "attribution_status": "strong",
       "raw_context": {
+        "event_class": "network",
         "event_type": "tls_sni"
       }
     },
@@ -56,6 +58,7 @@
       "is_target_extension_event": true,
       "attribution_status": "strong",
       "raw_context": {
+        "event_class": "network",
         "event_type": "tls_sni"
       }
     },
@@ -69,6 +72,7 @@
       "is_target_extension_event": true,
       "attribution_status": "strong",
       "raw_context": {
+        "event_class": "network",
         "event_type": "tls_sni"
       }
     }

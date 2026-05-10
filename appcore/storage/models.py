@@ -16,6 +16,7 @@ from appcore.storage.model_defs.extension import (
     ExtensionCapabilities,
     ExtensionScripts,
 )
+from appcore.storage.model_defs.operator_setting import OperatorSetting
 
 __all__ = [
     "AnalysisJob",
@@ -30,5 +31,6 @@ __all__ = [
     "ExtensionContributesMenus",
     "ExtensionContributesTerminal",
     "ExtensionScripts",
+    "OperatorSetting",
     "capability_support_enum",
 ]
