@@ -1,6 +1,6 @@
 # W12 — Executor Subpackaging + Attribution Cleanup (Active Work Tracker)
 
-`Last Updated: 2026-05-10 (W12 active; W12-0..W12-4 landed; W12 close acceptance bar pending)`
+`Last Updated: 2026-05-10 (W12 closing; W12-0..W12-5 + UI digest pin landed; live-scan completed; close-out test coverage landed; acceptance bar dry run pending merge)`
 
 This is the canonical active work tracker for the W12 executor
 subpackaging + attribution cleanup window. Items have stable IDs
@@ -190,10 +190,16 @@ and that archive section.
       residue = 0 in evidence models
 - [x] `entrypoint/runner.py::main` 324 LoC → ≤200 LoC; dispatch logic
       in `entrypoint/dispatch.py` (landed `2026-05-10`; `main()` 99 LoC)
-- [ ] Import-graph gates green; full W12-close `make check-all` and
-      `make test-security` acceptance bar recorded
-- [ ] Live-scan validation: pre/post bitwise-equal detection-relevant
-      fields on a target run (W11-1 / W11-3 / W11-4 pattern)
+- [x] Import-graph gates green; W12-close `make check-all` /
+      `make test-security` acceptance bar dry run recorded in
+      `documents/active-work/W12-close-acceptance.md` §3 (final
+      `make check-all` tail attached at merge time).
+- [x] Live-scan validation: pre/post bitwise-equal detection-relevant
+      fields on a target run — completed `2026-05-10` on
+      `ms-python.python@2026.5.2026050801` (17/17 fields identical;
+      job IDs `6fab298e81a14bf8a7a557a13953e57b` /
+      `e5e33ec6e34f4993b795664d83e25fd4`; evidence in
+      `W12-close-acceptance.md` §3.4).
 
 ## Acceptance Sub-Tasks (W12-N picks up these follow-ups)
 
@@ -233,6 +239,13 @@ number.
   W12-1 companion (defense-in-depth structural gate sibling to
   the existing AST-gate suite). Land if W12-1 has spare review
   capacity; otherwise defer to W13.
+- ~~`[FOLLOWUP ui-docker-base-image-digest-pin]`~~ — closed
+  `2026-05-10` on `week12` in commit `a27eb84`. `ui/Dockerfile` stages
+  `node:20-alpine` and `nginx:1.27-alpine` now pinned by manifest-list
+  digest (`@sha256:fb4cd1...` / `@sha256:65645c...`);
+  `tests/architecture/test_dockerfile_digest_pin.py::DOCKERFILE_ROOTS`
+  extended with `ROOT / "ui"`. Gate green; ADR 0002 §4 trust table
+  now 100% (3/3 runtime images).
 - ~~`[FOLLOWUP w12-0-output-signal-multiline-secret-redaction]`~~ —
   closed `2026-05-08` on `week12`. Multi-line PEM redaction landed via a
   new `redact_multiline_secrets` helper applied as a pre-pass on both
@@ -538,10 +551,16 @@ number.
 - **UI contract regen.** `ui/src/lib/types/contracts.ts` regenerated via
   `scripts/generate_ui_contracts.py` (single-line diff: `raw_context`
   emits the typed union shape now).
-- **Live-scan.** Deferred to W12 close (Iteration 6) per W12-1 / W12-2
-  precedent. Sanity-checked via
-  `python -m executor.flows.playwright.entrypoint --list` (13 scenarios
-  enumerate).
+- **Live-scan.** **Completed `2026-05-10`** as part of the W12 close
+  validation pass on `ms-python.python@2026.5.2026050801`: 17/17
+  detection-relevant fields bitwise-equal pre/post W12-3 (job IDs
+  `6fab298e81a14bf8a7a557a13953e57b` /
+  `e5e33ec6e34f4993b795664d83e25fd4`; full evidence in
+  `documents/active-work/W12-close-acceptance.md` §3.4). The
+  pre-completion sanity-check via
+  `python -m executor.flows.playwright.entrypoint --list`
+  (13 scenarios enumerate) is preserved here as the offline shortcut
+  used during W12-3 implementation.
 - **Schema version.** `ACTIVATION_REPORT_SCHEMA_VERSION` stays `"2.1"`.
   Re-ingest of pre-W12-3 raw reports is **not supported** (per user
   decision 2026-05-07): no `kind`→`event_class` before-validator was
@@ -877,12 +896,17 @@ container kuralı doğru uyguluyor; API tarafı uymuyor.
   bar: `make test-local` 1402 passed / 6 skipped / 6 deselected
   (1400 → 1402, the +2 from the new LoC budget gate);
   `make test-security` 211 passed / 32 warnings (unchanged).
-- **Live-scan.** Deferred to W12 close (Iteration 6) per
-  W12-1/2/3 precedent — Docker `automation_executor` not running
-  locally during W12-4 implementation. Sanity-check via
-  `python -m executor.flows.playwright.entrypoint --list` (13
-  scenarios enumerate; package import + scenarios registry resolve
-  survive the dispatch extraction).
+- **Live-scan.** **Completed `2026-05-10`** as part of the W12 close
+  validation pass — the same scan that closed W12-3 / W12-5 covers
+  W12-4 because the dispatch extraction is verbatim relocation and
+  the runner package import path is unchanged
+  (`ms-python.python@2026.5.2026050801`; 17/17 detection-relevant
+  fields identical; evidence in
+  `documents/active-work/W12-close-acceptance.md` §3.4). The
+  offline sanity-check
+  `python -m executor.flows.playwright.entrypoint --list`
+  (13 scenarios enumerate) was used during W12-4 implementation
+  itself to confirm package import + scenarios registry resolve.
 - **Branch policy note.** Per the W12 single-branch policy, W12-4
   lands as commits on `week12` rather than as a standalone PR.
   Commit-level isolation preserves the cherry-pick / revert
@@ -991,18 +1015,28 @@ container kuralı doğru uyguluyor; API tarafı uymuyor.
     `make test-local` enumerates more lanes; the W12-5
     delta is +3 architecture gates).
   - `make test-security` 211 passed / 32 warnings (unchanged).
-- **Live-scan.** Pre-refactor baseline started against
-  `ms-python.python` reached `coding_session` → `debug_session`
-  → `terminal_usage` (line 26 of run output) before the run had
-  to be terminated for time. Post-refactor scan would require
-  rebuilding the executor image (the container has the
-  pre-W12-5 snapshot baked in at build time, not bind-mounted
-  from the host). Bitwise-equal validation is therefore deferred
-  to W12 close (Iteration 6) per the W12-1/2/3/4 precedent: the
-  refactor is verbatim copy-paste, the 23-case + identity-gate
-  suite confirms public-surface and parser-equality
-  programmatically, and the executor stack will re-scan during
-  the close acceptance bar dry run before merge.
+- **Live-scan.** **Completed `2026-05-10`.** Pre-W12-5 baseline
+  job `6fab298e81a14bf8a7a557a13953e57b` (`2026-05-09 21:47`) and
+  post-W12-5 validation job `e5e33ec6e34f4993b795664d83e25fd4`
+  (`2026-05-10 14:21`) on `ms-python.python@2026.5.2026050801`:
+  **17/17 detection-relevant fields identical** —
+  `signal_summary.level=needs_review`, `score=28`,
+  `verified_capabilities` (4), `attempted_capabilities` (6),
+  `coverage_summary` (covered=7/partial=5/missing=6/attempted=6/
+  verified=4), `automation_health.status=degraded` with 4
+  reasons, `target_extension_observed=True`, `run_quality=low`,
+  `output_signal_events=12`, `len(activated)=22`,
+  `len(scenario_traces)=3`, `len(stimulus_passes)=5`,
+  `len(event_attempts)=21`,
+  `summary.scenarios_run=[project_exploration, coding_session,
+  terminal_usage]`, `failed_scenarios=[]`. Tolerance-band fields
+  (`network_events`, `file_events`, `process_events`,
+  `evidence_links`) all sat within the W11 baseline ranges. Full
+  field-by-field table in
+  `documents/active-work/W12-close-acceptance.md` §3.4. The
+  pre-validation note about needing an executor image rebuild
+  was the trigger for the rebuild + re-scan that produced the
+  post-W12-5 job above.
 - **Followups closed.**
   - `[FOLLOWUP w12-extension-host-split-scoping]` — the
     P1/P2-priority W12 plan addendum from the 2026-04-27 audit

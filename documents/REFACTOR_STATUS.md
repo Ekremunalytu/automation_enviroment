@@ -1,6 +1,6 @@
 # Refactor Status
 
-`Last Updated: 2026-05-10 (W12 active; W12-5 ahtapot split + body-preview gate landed; W12 close acceptance bar pending)`
+`Last Updated: 2026-05-10 (W12 closing; all W12-N landed; live-scan validated; UI digest pin closed; acceptance bar dry run pending merge)`
 
 Active status board for current closure state. **Slim canonical** — full
 phase history and verbose evidence are frozen under dated snapshots:
@@ -32,8 +32,14 @@ phase history and verbose evidence are frozen under dated snapshots:
   eight §11.8 scope items landed: monitor split W11-1..W11-6,
   workflow-side ahtapot closure W11-7, storage-side ahtapot closure
   W11-8, plus the bundled W11 acceptance sub-tasks.
-- **Active phase: W12 executor subpackaging + attribution cleanup.**
-  Tracker: [`active-work/W12-executor-subpackaging.md`](active-work/W12-executor-subpackaging.md).
+- **Active phase: W12 closing — executor subpackaging + attribution cleanup.**
+  All five W12-N work items landed (W12-0..W12-5); live-scan
+  bitwise-equal validation completed `2026-05-10`; UI Dockerfile
+  base-image digest pin closed `2026-05-10`. Acceptance bar dry run
+  pending merge to `main`. Tracker:
+  [`active-work/W12-executor-subpackaging.md`](active-work/W12-executor-subpackaging.md);
+  acceptance bar:
+  [`active-work/W12-close-acceptance.md`](active-work/W12-close-acceptance.md).
 
 ## W12 Entry Snapshot
 
@@ -128,10 +134,31 @@ phase history and verbose evidence are frozen under dated snapshots:
   `redact_secrets()`; teeth verified via mutation. Closes
   `[FOLLOWUP w12-extension-host-split-scoping]` and
   `[FOLLOWUP arch-gate-network-body-preview-redaction]`.
-  Live-scan bitwise-equal validation deferred to W12 close
-  (Iteration 6) — the executor container has pre-W12-5 code baked
-  in at build time, so bitwise-equal verification needs an image
-  rebuild; this is consistent with the W12-1..W12-4 precedent.
+  **Live-scan bitwise-equal validation completed `2026-05-10`** on
+  `ms-python.python@2026.5.2026050801`: 17/17 detection-relevant
+  fields identical pre/post W12-5 (job IDs
+  `6fab298e81a14bf8a7a557a13953e57b` /
+  `e5e33ec6e34f4993b795664d83e25fd4`; full evidence in
+  `documents/active-work/W12-close-acceptance.md` §3.4).
+- **UI Dockerfile base-image digest pin (W12-close item)**
+  landed `2026-05-10`. `ui/Dockerfile` `node:20-alpine` and
+  `nginx:1.27-alpine` stages now pinned by manifest-list digest
+  (`@sha256:fb4cd1...` / `@sha256:65645c...`);
+  `tests/architecture/test_dockerfile_digest_pin.py` extended so
+  `DOCKERFILE_ROOTS` covers `ui/` alongside `docker/` and
+  `executor/container/`. ADR 0002 §4 trust table now 100% (3/3
+  runtime images).
+- **W12 close-out test coverage** landed `2026-05-10`. Five
+  runtime/integration tests (~14 cases) fill the W12-4/W12-5
+  coverage gap left by the AST gates:
+  `ExtensionHostFileCapture` start/stop integration (5 cases in a
+  new `tests/executor/test_playwright_extension_host_capture.py`),
+  strace edge cases + log_parse lazy-resolver invariant (+5 in
+  `test_playwright_extension_host.py`), network body-preview
+  runtime redaction (5 cases in a new
+  `tests/executor/test_network_body_redaction.py`), and the W12-4
+  `PageRef` cross-module rebind (+1 in
+  `test_playwright_entrypoint.py`).
 - Working branch: `week12` (single-branch policy for W12).
 - Last known broad check bar: `make test-local` 1430 passed / 6 skipped / 6
   deselected on `2026-05-10` after the W12-5 extension_host ahtapot split

@@ -1,6 +1,6 @@
 # AGENTS.md
 
-`Last Updated: 2026-05-07 (W12 active)`
+`Last Updated: 2026-05-10 (W12 closing — acceptance bar verification in progress)`
 
 ## Authority
 
@@ -18,9 +18,16 @@
 - W0-W7 closed `2026-04-23`; PR345 and W8-0 landed `2026-04-27`.
 - **W8 closed `2026-04-29`; W9 closed `2026-05-04` via PR #9; W10
   closed `2026-05-04` via PR #11; W11 closed `2026-05-05` and merged
-  via PR #14.** Active phase: **W12 - Executor Subpackaging +
-  Attribution Cleanup** (`REFACTOR_OPTIMIZATION.md` §11.9; tracker:
-  `active-work/W12-executor-subpackaging.md`). Past W8/W11 trackers
+  via PR #14.** Active phase: **W12 closing — Executor Subpackaging
+  - Attribution Cleanup**. All five W12 work items landed (W12-0
+  output-signal redaction, W12-1 subpackaging, W12-2 attribution
+  facade, W12-3 raw_context union, W12-4 dispatch extraction, W12-5
+  extension_host ahtapot split + body-preview gate); UI Dockerfile
+  digest pin + close-out tests landed `2026-05-10`; live-scan
+  bitwise-equal validation completed `2026-05-10`. Acceptance bar
+  dry run pending merge to `main`. (`REFACTOR_OPTIMIZATION.md` §11.9;
+  tracker: `active-work/W12-executor-subpackaging.md`; acceptance
+  bar: `active-work/W12-close-acceptance.md`.) Past W8/W11 trackers
   stay available only because code/tests reference stable IDs.
 - ADR 0007 local-network-binding is **Accepted and implemented**; loopback
   defaults + `EXTRACE_ALLOW_LAN` are pinned by `test_default_bindings.py`.

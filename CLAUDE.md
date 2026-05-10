@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-`Last Updated: 2026-05-07 (W12 active)`
+`Last Updated: 2026-05-10 (W12 closing — acceptance bar verification in progress)`
 
 This file is intentionally a thin pointer. Do not duplicate phase summaries or
 architecture maps here; that caused drift.
@@ -29,11 +29,15 @@ architecture maps here; that caused drift.
   (slim canonical).
 - W8-W13 planning is owned by `documents/REFACTOR_OPTIMIZATION.md` section 11;
   W11 closed `2026-05-05` and merged into `main` via PR #14. Active phase:
-  W12 executor subpackaging +
-  attribution cleanup (REFACTOR_OPTIMIZATION §11.9). Past trackers:
-  `documents/active-work/W11-monitor-lifecycle.md` (stable IDs
-  W11-1..W11-8); `documents/active-work/W8-security.md` (closed
-  `2026-04-29`).
+  **W12 closing** — all five W12-N work items landed
+  (W12-0..W12-5), live-scan validation completed `2026-05-10`,
+  W12-close-acceptance bar dry run pending merge to `main`
+  (REFACTOR_OPTIMIZATION §11.9; tracker
+  `documents/active-work/W12-executor-subpackaging.md`;
+  acceptance bar `documents/active-work/W12-close-acceptance.md`).
+  Past trackers: `documents/active-work/W11-monitor-lifecycle.md`
+  (stable IDs W11-1..W11-8); `documents/active-work/W8-security.md`
+  (closed `2026-04-29`).
 - `documents/archive/` is frozen reference; not on the default read path.
   Open only when a slim canonical explicitly points there.
 

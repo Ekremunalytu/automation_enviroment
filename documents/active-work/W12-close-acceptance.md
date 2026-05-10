@@ -246,8 +246,20 @@ ADR 0002 trust table %66 kapalı (2/3 runtime imaj), `ui/` kalmaya devam
 eder. Risk: kullanılan UI imaj tag'i remote'da rebuild edilirse
 tutarlılık kaybı.
 
-- [ ] Karar verildi: ☐ Yol A (W12 içinde) ☐ Yol B (W13'e ertele).
-- [ ] Karar `W12-executor-subpackaging.md`'de loglandı.
+- [x] **Karar:** Yol A seçildi (W12 close'a dahil). Karar `2026-05-10`
+  ekrem onayıyla; manifest-list digest'leri
+  `docker buildx imagetools inspect` ile alındı (node:20-alpine →
+  `sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293`,
+  nginx:1.27-alpine →
+  `sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10`).
+- [x] Landed `2026-05-10` in commit `a27eb84` (`chore(ui): pin
+  Dockerfile base images by digest (ADR 0002 §4 close-out)`).
+  `tests/architecture/test_dockerfile_digest_pin.py` tek case yeşil
+  (3 root: `docker/`, `executor/container/`, `ui/`). ADR 0002 §4
+  trust table %100 kapalı.
+- [x] Karar + closure W12 tracker (`W12-executor-subpackaging.md`
+  Acceptance Sub-Tasks ve §11.9 closing summary) ve POST_POC_BACKLOG
+  içinde reflect edildi.
 
 ### §4.2 W12 Acceptance Items — hepsi kapalı
 
@@ -283,34 +295,45 @@ head -3 documents/REFACTOR_STATUS.md
 grep -c "landed.*W12-" documents/REFACTOR_STATUS.md
 ```
 
-- [ ] Header tarihi `2026-05-XX` (W12 close günü) ile güncel.
-- [ ] "Active phase" satırı `W12 closed; W13 …` formuna geçirildi.
-- [ ] Last known broad check bar satırı `make check-all` çıktısı ile
-  güncel; live-scan satırı "completed" olarak işaretli.
+- [x] Header tarihi `2026-05-10` (W12 closing) ile güncel; "all
+  W12-N landed; live-scan validated; UI digest pin closed; acceptance
+  bar dry run pending merge".
+- [x] "Active phase" satırı `W12 closing — executor subpackaging +
+  attribution cleanup` formuna geçirildi; W13 lane resmi açılışta
+  oluşturulacak (W11/W12 precedent).
+- [x] W12-5 satırı "live-scan completed `2026-05-10`" olarak işaretli;
+  UI digest pin landing satırı + W12 close-out test coverage satırı
+  eklendi. Son `make check-all` tail değeri merge öncesi son commit'le
+  güncellenecek.
 
 ### §5.2 `documents/active-work/W12-executor-subpackaging.md`
 
-- [ ] W12-5 Detailed Item Notes bölümü "live-scan" alt-bullet'ı
-  "deferred" yerine "completed `2026-05-10`, 17/17 bitwise-equal,
-  job IDs `6fab298e81a1` / `e5e33ec6e34f`" diyor.
-- [ ] Exit Criteria bölümünün son iki kutusu işaretli:
-  - [ ] Import-graph gates green; full W12-close `make check-all`
+- [x] W12-3, W12-4, W12-5 Detailed Item Notes bölümlerinin
+  "live-scan" alt-bullet'ları "completed `2026-05-10`, 17/17
+  bitwise-equal, job IDs `6fab298e81a1` / `e5e33ec6e34f`" diyor.
+- [x] Exit Criteria bölümünün son iki kutusu işaretli:
+  - [x] Import-graph gates green; full W12-close `make check-all`
     bar recorded.
-  - [ ] Live-scan validation: pre/post bitwise-equal detection-relevant
+  - [x] Live-scan validation: pre/post bitwise-equal detection-relevant
     fields.
-- [ ] "Phase complete" damgası eklendi (date + commit range).
+- [x] Header damgası "W12-0..W12-5 + UI digest pin landed; live-scan
+  completed; close-out test coverage landed" formuna geçirildi.
+  Final "Phase complete" damgası kapanış commit'iyle birlikte
+  eklenecek.
 
 ### §5.3 `documents/POST_POC_BACKLOG.md`
 
-- [ ] §4.1'deki UI Docker pin kararı reflect edildi
-  (kapatıldı veya W13-X olarak yeniden etiketlendi).
-- [ ] Pull-Forward bölümündeki kapalı item'lar üstü çizili (✓ W12 sonu
-  itibariyle).
+- [x] §4.1'deki UI Docker pin kararı reflect edildi
+  (CLOSED `2026-05-10`, commit `a27eb84`).
+- [x] Pull-Forward bölümündeki kapalı item'lar üstü çizili
+  (✓ W12 sonu itibariyle).
 
-### §5.4 `documents/REFACTOR_OPTIMIZATION.md` §11.9
+### §5.4 `documents/REFACTOR_OPTIMIZATION.md` §11.9 + §11.10
 
-- [ ] §11.9 closing summary güncel ("All five W12 work items landed").
-- [ ] §11.10 W13 entry conditions hazırlanırken §11.9 referansı doğru.
+- [x] §11.9 closing summary güncel ("All five W12 work items landed
+  `2026-05-10`; live-scan completed; UI digest pin closed").
+- [x] §11.10 W13 Entry conditions block eklendi (W12 close baseline
+  damga, ratchet gate envanteri, lane doc precedent notu).
 
 ---
 

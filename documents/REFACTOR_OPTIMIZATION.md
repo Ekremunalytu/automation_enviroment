@@ -282,6 +282,25 @@ bölümünde OPEN olarak takip ediliyor ve W12-4 dispatch extraction'ından
   new AST gate `tests/architecture/test_dockerfile_digest_pin.py`
   covers `docker/` + `executor/container/` Dockerfiles. W12-4 is no
   longer blocked by this ADR 0002 item.
+- ~~`[FOLLOWUP ui-docker-base-image-digest-pin]`~~ — closed
+  `2026-05-10` on `week12` in commit `a27eb84`. `ui/Dockerfile`
+  `node:20-alpine` and `nginx:1.27-alpine` stages now pinned by
+  manifest-list digest;
+  `tests/architecture/test_dockerfile_digest_pin.py::DOCKERFILE_ROOTS`
+  extended with `ROOT / "ui"`. ADR 0002 §4 trust table is now 100%
+  closed (3/3 runtime images: `docker/api/`,
+  `executor/container/`, `ui/`).
+
+**W12 close summary (`2026-05-10`).** All five W12 work items
+(W12-0..W12-5) plus the pre-W12-4 hardening pull-forwards landed.
+Live-scan bitwise-equal validation completed `2026-05-10` on
+`ms-python.python@2026.5.2026050801` (17/17 detection-relevant
+fields identical pre/post W12-5; full evidence in
+`documents/active-work/W12-close-acceptance.md` §3.4). Five W12
+close-out test files (~14 cases) landed `2026-05-10` to fill the
+runtime-coverage gaps that the W12-4/W12-5 architecture gates left
+structural-only. UI digest pin closed same day. Acceptance bar dry
+run pending merge to `main`.
 
 #### §11.9.1 — `runtime_capture/extension_host.py` Split Scoping
 
@@ -314,6 +333,34 @@ W12 entry; landing pattern follows W11-7/W11-8 ahtapot closure
 unchanged).
 
 ### §11.10 — W13 Test Expansion + Observability
+
+**Entry conditions (W12 close baseline, recorded `2026-05-10`).**
+
+- W12 closed and merged to `main` via `week12 → main` PR (PR `<#>` —
+  filled in at merge time).
+- `make check-all` green at the W12 close baseline (commit `<sha>` —
+  filled in after the final close commit; expected
+  `make test-local` ~1444 passed / 6 skipped / 6 deselected,
+  `make test-security` 211 passed / 32 warnings).
+- `tests/architecture/` ~103 cases green; the W12 ratchet gates that
+  W13 work must keep passing:
+  `test_executor_playwright_flat_file_count_limit` (W12-1, ≤10 flat),
+  `test_runner_main_under_loc_budget` (W12-4, ≤200 LoC for `main()`),
+  `test_runtime_capture_extension_host_stays_a_thin_facade` and
+  `test_runtime_capture_extension_host_reexports_match_canonical_modules`
+  (W12-5 facade invariants),
+  `test_body_preview_assignments_are_redacted` (W12-5 redaction
+  defense), and
+  `test_all_runtime_dockerfiles_pin_base_images_by_digest`
+  (ADR 0002 §4 trust, `ui/` included as of `2026-05-10`).
+- Live-scan bitwise-equal baseline established on
+  `ms-python.python@2026.5.2026050801` (job IDs in
+  `documents/active-work/W12-close-acceptance.md` §3.4); W13 split
+  candidates can use this as the pre-refactor reference.
+- W13 lane document
+  (`documents/active-work/W13-<scope>.md`) created at W13 official
+  open. W11/W12 precedent: tracker is born at phase entry (with
+  stable IDs), not preemptively, so the file does not exist yet.
 
 **Goal:** Benign silence fixture 3→5; stale singleton-lock + `.env`
 gitignore regression tests; `extrace.executor.*` logger consolidation;

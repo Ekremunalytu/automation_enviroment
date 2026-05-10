@@ -1,6 +1,6 @@
 # Post-PoC Backlog
 
-`Last Updated: 2026-05-09 (Codex review follow-ups reconciled)`
+`Last Updated: 2026-05-10 (W12 close-out: UI Dockerfile digest pin closed; close-out test coverage landed)`
 
 Open deferred work after the W0-W7 PoC acceptance bar. **Slim canonical** —
 verbose descriptions, evidence, and older triage notes are frozen in dated
@@ -115,6 +115,13 @@ Use stable IDs in new references; do not cite canonical doc line numbers.
   `@sha256:` için tarıyor (`scratch` hariç). Focused validation:
   `pytest tests/architecture/test_dockerfile_digest_pin.py` yeşil.
   Yeni dependency yok. Lane: `[platform-storage]`.
+- ~~**`[FOLLOWUP ui-docker-base-image-digest-pin]`**~~ — **CLOSED
+  `2026-05-10`** on `week12` in commit `a27eb84`. `ui/Dockerfile` stages
+  `node:20-alpine` and `nginx:1.27-alpine` now pinned by manifest-list
+  digest (`@sha256:fb4cd1...` / `@sha256:65645c...`);
+  `tests/architecture/test_dockerfile_digest_pin.py::DOCKERFILE_ROOTS`
+  extended with `ROOT / "ui"`. ADR 0002 §4 trust table now 100% closed
+  (3/3 runtime images). Lane: `[ui]` `[docs-maintenance]`.
 - ~~**`[FOLLOWUP marketplace-installer-tail-multiline-redaction]`**~~ —
   **CLOSED `2026-05-09` on `week12`.** Surfaced `2026-05-09` audit pass
   (Codex review). `workflows/marketplace/analysis_execution.py:80`
