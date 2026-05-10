@@ -29,10 +29,12 @@
 | W12-4 | `entrypoint/runner.py::main` 324→99 LoC dispatch extraction | ✅ landed | `1dde578` + `adaf792` (`2026-05-10`) |
 | W12-5 | `runtime_capture/extension_host.py` 679→87 LoC ahtapot split + body-preview gate | ✅ landed | `377f0d5` + `9433ee3` + `63f5254` (`2026-05-10`) |
 
-**Test bar (en son ölçüm):**
+**Test bar (en son ölçüm — W12 close commit, post-Codex-fix re-run `2026-05-10`):**
 
-- `make test-local` 1430 passed / 6 skipped / 6 deselected (`2026-05-10` post-W12-5).
-- `make test-security` 211 passed / 32 warnings (W12-4'ten beri değişmedi).
+- `make check-all` ✅ green (postgres_test container active).
+- `make test-local` **1452 passed** / 6 skipped / 6 deselected / 75 warnings (+5 over the dry-run `1447`: 5 mutation-verified regression cases in `tests/security/test_executor_host_error_redaction.py` from Codex audit fix `e42e79c`).
+- `make test-security` **211 passed** / 32 warnings (Codex fix sonrası değişmedi).
+- `tests/architecture/` **76 passed** / 2 deselected.
 
 **Live-scan validation:** 17/17 detection-relevant field bitwise-equal,
 `ms-python.python` üzerinde W12-5 öncesi (`6fab298e81a1...`,
@@ -165,9 +167,10 @@ wc -l executor/flows/playwright/runtime_capture/extension_host*.py
 make test-local 2>&1 | tail -10
 ```
 
-- [x] **Çıktı:** `1447 passed, 6 skipped, 6 deselected` (`2026-05-10`,
-  W12-5 `1430` baseline + 14 W12 close-out test case + 3 fixture
-  parametrik).
+- [x] **Çıktı:** `1452 passed, 6 skipped, 6 deselected` (`2026-05-10`
+  post-Codex-fix re-run; +5 over the W12-close dry-run `1447`:
+  5 cases in `tests/security/test_executor_host_error_redaction.py`
+  added in commit `e42e79c`).
 - [x] 0 failed.
 - [x] Yeni warning kategorisi yok (mevcut 75 warning Pydantic deprecation,
   bunlar `[FOLLOWUP pydantic-schema-version-deprecation]` altında).
@@ -198,13 +201,15 @@ make check-all 2>&1 | tail -15
 5. `ui-boundaries` — `cd ui && npm run lint:boundaries`.
 6. `test` — full pytest with DB.
 
-- [x] **`make check-all` yeşil.** `2026-05-10` dry-run koşusu.
+- [x] **`make check-all` yeşil.** `2026-05-10` post-Codex-fix re-run
+  (postgres_test container up; full bar koşuldu).
 - [x] Son satır: `✅ All checks (including security) passed!` —
   doğrulandı.
 - [x] Kayıt: çıktı tail'i `documents/REFACTOR_STATUS.md` "Last known
-  broad check bar" satırına ve bu dokümana yazıldı; `1447 passed /
-  6 skipped / 6 deselected` + `211 passed / 32 warnings` kayıt
-  altında.
+  broad check bar" satırına ve bu dokümana yazıldı; **`1452 passed /
+  6 skipped / 6 deselected / 75 warnings`** + `211 passed / 32
+  warnings` + `76 passed / 2 deselected` kayıt altında. Earlier
+  dry-run `1447` checkpoint kayıtlı (Codex-fix öncesi).
 
 ### §3.4 Live-scan validation (tamamlandı `2026-05-10`)
 
@@ -380,8 +385,8 @@ git status
 git diff --stat
 ```
 
-- [ ] Working tree temiz (uncommitted change yok).
-- [ ] Stash boş (`git stash list`).
+- [x] Working tree temiz (uncommitted change yok) — `git status` doğrulandı `2026-05-10`.
+- [x] Stash boş (`git stash list`) — boş, `2026-05-10`.
 
 ### §6.2 Commit ordering doğru
 
@@ -398,10 +403,10 @@ W12 commit'leri ters kronolojik sırayla görünmeli, her W12-N için
 377f0d5 refactor(executor): W12-5 ahtapot split extension_host into 3 modules
 ```
 
-- [ ] Her W12-N için en az bir refactor + en az bir docs commit'i var.
-- [ ] No `WIP` / `tmp` / `debug` commit'i.
-- [ ] No `--amend`'lenmiş veya force-pushlanmış commit yok.
-- [ ] `Co-Authored-By:` trailer'ları tutarlı.
+- [x] Her W12-N için en az bir refactor + en az bir docs commit'i var.
+- [x] No `WIP` / `tmp` / `debug` commit'i.
+- [x] No `--amend`'lenmiş veya force-pushlanmış commit yok.
+- [x] `Co-Authored-By:` trailer'ları tutarlı.
 
 ### §6.3 W12 commit envanteri
 
@@ -409,8 +414,8 @@ W12 commit'leri ters kronolojik sırayla görünmeli, her W12-N için
 git log --oneline --no-merges main..week12 | wc -l
 ```
 
-- [ ] Beklenen commit sayısı kayıt altında (ör. ~25-30 commit).
-- [ ] Her commit message conventional commit formatında (`type(scope): subject`).
+- [x] Beklenen commit sayısı kayıt altında — `git log --oneline main..week12 | wc -l` → **51** commit (W11 PR #14 precedent ~63 dosya / W12 51 commit benzer).
+- [x] Her commit message conventional commit formatında (`type(scope): subject`).
 
 ---
 

@@ -1,6 +1,6 @@
 # W12 — Executor Subpackaging + Attribution Cleanup (Active Work Tracker)
 
-`Last Updated: 2026-05-10 (W12 closing; W12-0..W12-5 + UI digest pin landed; live-scan completed; close-out test coverage landed; acceptance bar dry run pending merge)`
+`Last Updated: 2026-05-10 (W12 closed; post-Codex-fix make check-all green; tracker frozen for stable-ID reference; week12 → main PR pending)`
 
 This is the canonical active work tracker for the W12 executor
 subpackaging + attribution cleanup window. Items have stable IDs
@@ -17,12 +17,25 @@ and that archive section.
 
 ## Status (Quick Glance)
 
-- **W12 active.** Initial scaffold landed `2026-05-07` on the
-  `chore/pre-w12-prep` branch alongside the §11.9.1 plan addendum.
-  W11 closed `2026-05-05` and merged via PR #14. W12-0 landed
-  `2026-05-07` on `week12` (`22eb836`); W12-1 and W12-2 have also
-  landed. Single-branch policy: all W12 work lands on `week12` and
-  merges to `main` via a single PR at W12 close.
+- **W12 closed `2026-05-10`.** All seven scope items landed on
+  `week12`: W12-0 (security pull-forward), W12-1 (executor
+  subpackaging), W12-2 (attribution facade cleanup), W12-3
+  (raw_context discriminated union), W12-4 (entrypoint dispatch
+  extraction), W12-5 (extension_host ahtapot split + body-preview
+  gate), plus UI Dockerfile digest pin, W12 close-out test coverage,
+  and Codex audit CRITICAL fix (`executor/host.py` retry/reload
+  subprocess-output redaction in commit `e42e79c`). Final exit bar
+  (post-Codex-fix re-run): `make check-all` ✅ green; `make test-local`
+  1452 passed / 6 skipped / 6 deselected / 75 warnings;
+  `make test-security` 211 passed / 32 warnings;
+  `tests/architecture/` 76 passed / 2 deselected. Live-scan
+  bitwise-equal validation on `ms-python.python@2026.5.2026050801`
+  confirmed (17/17 detection-relevant fields, job IDs `6fab298e81a1`
+  / `e5e33ec6e34f`). Authoritative current-state pointer:
+  [`documents/REFACTOR_STATUS.md`](../REFACTOR_STATUS.md).
+  Single-branch policy: `week12 → main` via single PR (W11 PR #14
+  precedent). Tracker frozen for stable-ID (`W12-1`..`W12-5`)
+  reference.
 - **Pre-W12 attribution precursor tests landed.**
   `[FOLLOWUP w12-precursor-tests-attribution-links]` and
   `[FOLLOWUP w12-precursor-tests-attribution-events]` both closed in

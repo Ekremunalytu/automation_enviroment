@@ -1,6 +1,6 @@
 # Refactor Status
 
-`Last Updated: 2026-05-10 (W12 closing; all W12-N landed; live-scan validated; UI digest pin closed; acceptance bar dry run pending merge)`
+`Last Updated: 2026-05-10 (W12 closed; post-Codex-fix make check-all green; week12 → main PR pending)`
 
 Active status board for current closure state. **Slim canonical** — full
 phase history and verbose evidence are frozen under dated snapshots:
@@ -32,14 +32,26 @@ phase history and verbose evidence are frozen under dated snapshots:
   eight §11.8 scope items landed: monitor split W11-1..W11-6,
   workflow-side ahtapot closure W11-7, storage-side ahtapot closure
   W11-8, plus the bundled W11 acceptance sub-tasks.
-- **Active phase: W12 closing — executor subpackaging + attribution cleanup.**
-  All five W12-N work items landed (W12-0..W12-5); live-scan
-  bitwise-equal validation completed `2026-05-10`; UI Dockerfile
-  base-image digest pin closed `2026-05-10`. Acceptance bar dry run
-  pending merge to `main`. Tracker:
-  [`active-work/W12-executor-subpackaging.md`](active-work/W12-executor-subpackaging.md);
-  acceptance bar:
-  [`active-work/W12-close-acceptance.md`](active-work/W12-close-acceptance.md).
+- **W12 closed `2026-05-10` — executor subpackaging + attribution cleanup.**
+  All five W12-N work items landed (W12-0..W12-5) plus UI Dockerfile
+  digest pin, W12 close-out test coverage, and Codex audit CRITICAL
+  fix (`executor/host.py` retry/reload subprocess-output redaction).
+  Live-scan bitwise-equal validation completed; post-Codex-fix
+  `make check-all` green: `make test-local` 1452 passed / 6 skipped /
+  6 deselected / 75 warnings; `make test-security` 211 passed / 32
+  warnings; `tests/architecture/` 76 passed / 2 deselected.
+  `week12 → main` PR pending. Tracker:
+  [`active-work/W12-executor-subpackaging.md`](active-work/W12-executor-subpackaging.md)
+  (frozen post-close); acceptance bar:
+  [`active-work/W12-close-acceptance.md`](active-work/W12-close-acceptance.md)
+  (to be moved to archive at merge).
+- **Active phase: W13 — Test Expansion + Observability.** Entry
+  baseline established `2026-05-10` (`make check-all` green at the
+  W12 close commit; W12 architecture ratchet gates inventoried in
+  `REFACTOR_OPTIMIZATION.md` §11.10). W13 lane document
+  (`active-work/W13-test-expansion-observability.md`) opens with the
+  post-merge cleanup PR per W11/W12 precedent (tracker is born at
+  phase entry, not preemptively).
 
 ## W12 Entry Snapshot
 
@@ -159,26 +171,25 @@ phase history and verbose evidence are frozen under dated snapshots:
   `tests/executor/test_network_body_redaction.py`), and the W12-4
   `PageRef` cross-module rebind (+1 in
   `test_playwright_entrypoint.py`).
-- Working branch: `week12` (single-branch policy for W12).
 - Last known broad check bar: `make check-all` ✅ green on
-  `2026-05-10` (W12 close dry run); `make test-local` 1447 passed / 6
-  skipped / 6 deselected (+17 over the post-W12-5 `1430` baseline:
-  +14 from the W12 close-out test files in commit `84c239e` and +3
-  from architecture-suite parametrize expansion); `make test-security`
-  211 passed / 32 warnings (unchanged across W12-4, W12-5 and the
-  close-out commits). Earlier checkpoints: W12-5 close `1430`, W12-4
-  close `1402`, pre-W12-4 hardening close `1400`.
+  `2026-05-10` post-Codex-fix re-run (W12 close baseline);
+  `make test-local` 1452 passed / 6 skipped / 6 deselected / 75
+  warnings (+5 over the W12-close-acceptance dry-run `1447`: 5
+  mutation-verified regression cases in
+  `tests/security/test_executor_host_error_redaction.py` from the
+  Codex audit fix `e42e79c`); `make test-security` 211 passed / 32
+  warnings (unchanged); `tests/architecture/` 76 passed / 2
+  deselected. Earlier checkpoints: W12 dry-run `1447` (pre-Codex-fix
+  re-run), W12-5 close `1430`, W12-4 close `1402`, pre-W12-4
+  hardening close `1400`.
 - **Codex audit close-out** `2026-05-10` (commit `e42e79c`):
   CRITICAL leak in `executor/host.py` retry-error messages closed
   (`redact_secrets()` wrap; 5 mutation-verified regression cases in
   `tests/security/test_executor_host_error_redaction.py`).
-  DB-independent lane re-verification post-fix:
-  `tests/{security,architecture,executor,platform}` 1065 passed / 0
-  failed / 71 skipped (DB-required) / 2 deselected;
-  `make test-security` 211 passed unchanged.
-  `make check-all` re-run requires postgres_test container — Docker
-  daemon was down at the time of the audit close, so the full bar
-  will be re-recorded on the next docker-up + check-all sweep.
+  Post-fix full `make check-all` ✅ green on the W12 close commit
+  (postgres_test container active; `1452 passed / 6 skipped / 6
+  deselected / 75 warnings`; `211 passed` security; `76 passed / 2
+  deselected` architecture).
 - Latest focused verification (`2026-05-09`): `make test-security`
   211 passed / 32 warnings; 113 marketplace/security-settings/helper/
   generator/digest tests passed; generated-contract `--check` passed;
