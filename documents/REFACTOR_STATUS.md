@@ -1,6 +1,6 @@
 # Refactor Status
 
-`Last Updated: 2026-05-10 (W12 closed; post-Codex-fix make check-all green; week12 → main PR pending)`
+`Last Updated: 2026-05-10 (W12 closed; merged via PR #18 (33a0852); W13 — Test Expansion + Observability open)`
 
 Active status board for current closure state. **Slim canonical** — full
 phase history and verbose evidence are frozen under dated snapshots:
@@ -32,26 +32,28 @@ phase history and verbose evidence are frozen under dated snapshots:
   eight §11.8 scope items landed: monitor split W11-1..W11-6,
   workflow-side ahtapot closure W11-7, storage-side ahtapot closure
   W11-8, plus the bundled W11 acceptance sub-tasks.
-- **W12 closed `2026-05-10` — executor subpackaging + attribution cleanup.**
-  All five W12-N work items landed (W12-0..W12-5) plus UI Dockerfile
-  digest pin, W12 close-out test coverage, and Codex audit CRITICAL
-  fix (`executor/host.py` retry/reload subprocess-output redaction).
+- **W12 closed `2026-05-10` and merged via PR #18 (`33a0852`)** —
+  executor subpackaging + attribution cleanup. All five W12-N work
+  items landed (W12-0..W12-5) plus UI Dockerfile digest pin, W12
+  close-out test coverage, and Codex audit CRITICAL fix
+  (`executor/host.py` retry/reload subprocess-output redaction).
   Live-scan bitwise-equal validation completed; post-Codex-fix
-  `make check-all` green: `make test-local` 1452 passed / 6 skipped /
-  6 deselected / 75 warnings; `make test-security` 211 passed / 32
-  warnings; `tests/architecture/` 76 passed / 2 deselected.
-  `week12 → main` PR pending. Tracker:
-  [`active-work/W12-executor-subpackaging.md`](active-work/W12-executor-subpackaging.md)
-  (frozen post-close); acceptance bar:
-  [`active-work/W12-close-acceptance.md`](active-work/W12-close-acceptance.md)
-  (to be moved to archive at merge).
+  `make check-all` green at the close commit (`e8a9926`):
+  `make test-local` 1452 passed / 6 skipped / 6 deselected / 75
+  warnings; `make test-security` 211 passed / 32 warnings;
+  `tests/architecture/` 76 passed / 2 deselected. Tracker frozen
+  for stable-ID reference:
+  [`active-work/W12-executor-subpackaging.md`](active-work/W12-executor-subpackaging.md);
+  acceptance bar archived at
+  [`archive/active-work/W12-close-acceptance-completed-2026-05-10.md`](archive/active-work/W12-close-acceptance-completed-2026-05-10.md).
 - **Active phase: W13 — Test Expansion + Observability.** Entry
-  baseline established `2026-05-10` (`make check-all` green at the
-  W12 close commit; W12 architecture ratchet gates inventoried in
-  `REFACTOR_OPTIMIZATION.md` §11.10). W13 lane document
-  (`active-work/W13-test-expansion-observability.md`) opens with the
-  post-merge cleanup PR per W11/W12 precedent (tracker is born at
-  phase entry, not preemptively).
+  baseline established `2026-05-10` post-W12 merge (`make check-all`
+  green at close commit `e8a9926`; W12 architecture ratchet gates
+  inventoried in `REFACTOR_OPTIMIZATION.md` §11.10). W13 lane
+  document:
+  [`active-work/W13-test-expansion-observability.md`](active-work/W13-test-expansion-observability.md).
+  Stable IDs (`W13-1`, `W13-2`, ...) assigned at first item pull per
+  W11/W12 precedent.
 
 ## W12 Entry Snapshot
 

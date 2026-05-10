@@ -447,16 +447,16 @@ PR body şu bölümleri içermeli:
 
 ### §7.3 PR pre-merge gates
 
-- [ ] PR description draft'ı `git log --oneline main..week12` ile
-  cross-check'lendi.
-- [ ] Reviewer assignment yapıldı (gerekirse).
-- [ ] Eğer CI varsa son commit'te yeşil status.
-- [ ] Branch `week12` push edildi (`git push origin week12`).
+- [x] PR description draft'ı `git log --oneline main..week12` ile
+  cross-check'lendi (51 commit, W12-N grupları PR body'de).
+- [x] Reviewer assignment: solo project — atlandı.
+- [x] CI yeşil: Bandit Security Scan ✓ (19s) + Trivy Container Scan ✓ (49s) — `2026-05-10`.
+- [x] Branch `week12` push edildi (`git push -u origin week12`); pre-push hook lokal `make check-all`'ı yeniden ✓ olarak çalıştırdı.
 
 ### §7.4 Merge sonrası
 
-- [ ] `main`'e merge yapıldıktan sonra `week12` silindi (local + remote).
-- [ ] Tag opsiyonel: `v0.W12-close` (eğer release scheme uygulanıyorsa).
+- [x] `main`'e merge yapıldı (`gh pr merge 18 --merge --delete-branch`); `week12` remote + local silindi.
+- [ ] Tag opsiyonel: `v0.W12-close` — release scheme uygulanmıyor, atlandı.
 
 ---
 
@@ -534,7 +534,7 @@ W12 close kapanış adımı:
 5. `documents/REFACTOR_OPTIMIZATION.md` §11.10 (W13 plan) review için
    açıldı.
 
-- [ ] **W12 closed** — kapanış commit'i atıldı, `main`'e merge edildi.
+- [x] **W12 closed `2026-05-10`** — kapanış commit'i `e8a9926` atıldı; `main`'e PR #18 ile merge edildi (merge commit `33a0852`); `week12` branch'i silindi; bu doküman `documents/archive/active-work/W12-close-acceptance-completed-2026-05-10.md` olarak arşive taşınıyor.
 
 ---
 

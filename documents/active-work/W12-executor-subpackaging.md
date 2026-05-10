@@ -1,6 +1,6 @@
 # W12 — Executor Subpackaging + Attribution Cleanup (Active Work Tracker)
 
-`Last Updated: 2026-05-10 (W12 closed; post-Codex-fix make check-all green; tracker frozen for stable-ID reference; week12 → main PR pending)`
+`Last Updated: 2026-05-10 (W12 closed; merged via PR #18 (33a0852); tracker frozen for stable-ID reference)`
 
 This is the canonical active work tracker for the W12 executor
 subpackaging + attribution cleanup window. Items have stable IDs
@@ -33,9 +33,9 @@ and that archive section.
   confirmed (17/17 detection-relevant fields, job IDs `6fab298e81a1`
   / `e5e33ec6e34f`). Authoritative current-state pointer:
   [`documents/REFACTOR_STATUS.md`](../REFACTOR_STATUS.md).
-  Single-branch policy: `week12 → main` via single PR (W11 PR #14
-  precedent). Tracker frozen for stable-ID (`W12-1`..`W12-5`)
-  reference.
+  Single-branch policy honored: `week12 → main` merged via PR #18
+  (`33a0852`) on `2026-05-10` (W11 PR #14 precedent). Tracker frozen
+  for stable-ID (`W12-1`..`W12-5`) reference.
 - **Pre-W12 attribution precursor tests landed.**
   `[FOLLOWUP w12-precursor-tests-attribution-links]` and
   `[FOLLOWUP w12-precursor-tests-attribution-events]` both closed in

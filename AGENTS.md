@@ -1,6 +1,6 @@
 # AGENTS.md
 
-`Last Updated: 2026-05-10 (W12 closing — acceptance bar verification in progress)`
+`Last Updated: 2026-05-10 (W12 closed via PR #18; W13 — Test Expansion + Observability open)`
 
 ## Authority
 
@@ -18,17 +18,15 @@
 - W0-W7 closed `2026-04-23`; PR345 and W8-0 landed `2026-04-27`.
 - **W8 closed `2026-04-29`; W9 closed `2026-05-04` via PR #9; W10
   closed `2026-05-04` via PR #11; W11 closed `2026-05-05` and merged
-  via PR #14.** Active phase: **W12 closing — Executor Subpackaging
-  and Attribution Cleanup**. All five W12 work items landed (W12-0
-  output-signal redaction, W12-1 subpackaging, W12-2 attribution
-  facade, W12-3 raw_context union, W12-4 dispatch extraction, W12-5
-  extension_host ahtapot split + body-preview gate); UI Dockerfile
-  digest pin + close-out tests landed `2026-05-10`; live-scan
-  bitwise-equal validation completed `2026-05-10`. Acceptance bar
-  dry run pending merge to `main`. (`REFACTOR_OPTIMIZATION.md` §11.9;
-  tracker: `active-work/W12-executor-subpackaging.md`; acceptance
-  bar: `active-work/W12-close-acceptance.md`.) Past W8/W11 trackers
-  stay available only because code/tests reference stable IDs.
+  via PR #14; W12 closed `2026-05-10` and merged via PR #18
+  (`33a0852`).** Active phase: **W13 — Test Expansion + Observability**
+  (`REFACTOR_OPTIMIZATION.md` §11.10; tracker:
+  `active-work/W13-test-expansion-observability.md`). Entry baseline:
+  post-Codex-fix `make check-all` green at the W12 close commit
+  (`make test-local` 1452 passed / 6 skipped / 6 deselected;
+  `make test-security` 211 passed; `tests/architecture/` 76 passed).
+  Past W8/W11/W12 trackers stay available only because code/tests
+  reference stable IDs (W8-1..W8-9, W11-1..W11-8, W12-0..W12-5).
 - ADR 0007 local-network-binding is **Accepted and implemented**; loopback
   defaults + `EXTRACE_ALLOW_LAN` are pinned by `test_default_bindings.py`.
 
