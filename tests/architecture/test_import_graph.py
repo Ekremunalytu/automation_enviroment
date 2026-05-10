@@ -636,3 +636,132 @@ def test_python_m_playwright_invocations_have_main_module() -> None:
         'the __init__.py-level `if __name__ == "__main__"` guard:\n'
         + "\n".join(violations)
     )
+
+
+def test_runtime_capture_extension_host_stays_a_thin_facade() -> None:
+    """W12-5: ``runtime_capture/extension_host.py`` must remain re-export only.
+
+    The original 679-LoC module bundled three responsibilities — log parsing,
+    strace parsing, and capture orchestration. After the W12-5 split those
+    live in ``extension_host_log_parse.py``, ``extension_host_strace_parse.py``,
+    and ``extension_host_capture.py``. The facade survives because:
+
+    - ``monitor/__init__.py`` re-exports 7 names from this path
+    - ``monitor/sources.py`` imports 2 names from this path
+    - the 23-case W11 precursor suite
+      (``tests/executor/test_playwright_extension_host.py``) accesses
+      9 names via attribute lookup on the imported module.
+
+    Future logic must land in the focused modules, not here.
+    """
+    facade = REPO_ROOT / "executor/flows/playwright/runtime_capture/extension_host.py"
+    tree = ast.parse(facade.read_text(encoding="utf-8"))
+
+    allowed_node_types: tuple[type[ast.AST], ...] = (
+        ast.Import,
+        ast.ImportFrom,
+    )
+    violations: list[str] = []
+    for node in tree.body:
+        if (
+            isinstance(node, ast.Expr)
+            and isinstance(node.value, ast.Constant)
+            and isinstance(node.value.value, str)
+        ):
+            continue
+        if (
+            isinstance(node, ast.Assign)
+            and len(node.targets) == 1
+            and isinstance(node.targets[0], ast.Name)
+            and node.targets[0].id == "__all__"
+        ):
+            continue
+        if isinstance(node, allowed_node_types):
+            continue
+        violations.append(f"line {node.lineno}: {type(node).__name__}")
+
+    assert not violations, (
+        "executor/flows/playwright/runtime_capture/extension_host.py must stay "
+        "a thin re-export facade (W12-5 ahtapot closure invariant). Move new "
+        "logic into extension_host_log_parse.py, extension_host_strace_parse.py, "
+        "or extension_host_capture.py:\n" + "\n".join(violations)
+    )
+
+
+def test_runtime_capture_extension_host_reexports_match_canonical_modules() -> None:
+    """W12-5: every name in ``extension_host.__all__`` must come from the focused modules.
+
+    Pins the contract that the facade's re-exported set is exactly what
+    ``extension_host_log_parse.py``, ``extension_host_strace_parse.py``,
+    ``extension_host_capture.py`` and ``_shared.py`` provide — no orphan
+    re-exports, no shim-wrapped versions of public symbols.
+    """
+    from executor.flows.playwright.runtime_capture import (
+        _shared,
+        extension_host,
+        extension_host_capture,
+        extension_host_log_parse,
+        extension_host_strace_parse,
+    )
+
+    expected_in_log_parse = {
+        "_ACTIVATION_PATTERNS",
+        "_LIFECYCLE_MARKER_PATTERNS",
+        "_TIMESTAMP_RE",
+        "_activation_within_monitoring_window",
+        "_parse_activation_lines",
+        "find_exthost_logs",
+        "parse_activations_from_log",
+        "parse_activations_from_output",
+        "parse_all_exthost_logs",
+        "read_extension_host_output",
+    }
+    expected_in_strace_parse = {
+        "_PROCESS_EVENT_RE",
+        "parse_strace_process_event_line",
+    }
+    expected_in_capture = {
+        "ExtensionHostFileCapture",
+        "_poll_exthost_log",
+        "watch_exthost_log",
+    }
+    expected_in_shared = {
+        "VSCODE_LOGS_DIR",
+        "_parse_iso_timestamp",
+    }
+
+    union = (
+        expected_in_log_parse
+        | expected_in_strace_parse
+        | expected_in_capture
+        | expected_in_shared
+    )
+    assert set(extension_host.__all__) == union, (
+        "extension_host.__all__ must equal the union of the canonical modules' "
+        f"public sets. Got: {set(extension_host.__all__)}, expected: {union}"
+    )
+
+    for name in expected_in_log_parse:
+        assert getattr(extension_host, name) is getattr(
+            extension_host_log_parse, name
+        ), (
+            f"extension_host.{name} must be the same object as "
+            f"extension_host_log_parse.{name} (W12-5 re-export invariant)."
+        )
+    for name in expected_in_strace_parse:
+        assert getattr(extension_host, name) is getattr(
+            extension_host_strace_parse, name
+        ), (
+            f"extension_host.{name} must be the same object as "
+            f"extension_host_strace_parse.{name} (W12-5 re-export invariant)."
+        )
+    for name in expected_in_capture:
+        assert getattr(extension_host, name) is getattr(extension_host_capture, name), (
+            f"extension_host.{name} must be the same object as "
+            f"extension_host_capture.{name} (W12-5 re-export invariant)."
+        )
+    for name in expected_in_shared:
+        assert getattr(extension_host, name) is getattr(_shared, name), (
+            f"extension_host.{name} must be the same object as "
+            f"_shared.{name} (W12-5 re-export invariant)."
+        )
