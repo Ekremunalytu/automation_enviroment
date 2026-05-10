@@ -113,6 +113,15 @@ class ActivationReport:
     file_capture_error: str = ""
     file_capture_diagnostics: dict[str, Any] = field(default_factory=dict)
     extension_host_output: str = ""
+    # W13-1 (Codex H6): per-launch HMAC secret loaded by the entrypoint
+    # from /results/_extrace_harness_python_secret (written by
+    # launch_vscode.sh). When non-empty, reconciliation requires every
+    # ``[extrace-harness] {phase:"complete"}`` marker to carry a valid
+    # HMAC-SHA256 nonce; missing or invalid signatures route the attempt
+    # through ``_mark_unverified_harness_attempt`` (fail-closed). Empty
+    # value preserves the pre-W13-1 contract for unit tests that
+    # construct reports without the orchestration handshake.
+    expected_harness_nonce: str = field(default="", repr=False)
     log_file_path: str = ""
     log_offsets_snapshot: dict[str, int] = field(default_factory=dict, repr=False)
     target_extension_id: str = ""

@@ -3,8 +3,13 @@
 
 from __future__ import annotations
 
+import contextlib
+import hashlib
+import hmac
 import json
+import os
 import re
+from pathlib import Path
 from typing import Any
 
 from .runtime_facts import (
@@ -16,6 +21,81 @@ from .runtime_facts import (
 from .summary import derive_verified_capabilities
 
 _HARNESS_MARKER_RE = re.compile(r"\[extrace-harness\]\s+(?P<payload>\{.*\})")
+
+# W13-1 (Codex H6): file path the harness orchestration writes the per-
+# launch HMAC secret to. ``launch_vscode.sh`` produces this file before
+# every VS Code start (boot and reset); ``load_harness_python_secret``
+# reads it once and unlinks so the same-UID target extension cannot
+# reach the value via the bind-mounted ``/results`` directory after the
+# Python orchestration has consumed it.
+HARNESS_PYTHON_SECRET_PATH = Path(
+    os.environ.get(
+        "EXECUTOR_HARNESS_PYTHON_SECRET_PATH",
+        "/results/_extrace_harness_python_secret",
+    )
+)
+
+
+def load_harness_python_secret(
+    path: Path = HARNESS_PYTHON_SECRET_PATH,
+) -> str:
+    """Read the per-launch harness HMAC secret then unlink the file.
+
+    Returns the stripped secret string, or empty string if the file is
+    missing or unreadable. Always attempts the unlink regardless of read
+    success so a half-written or stale file from a prior boot does not
+    survive into the target's window. The Python caller (typically
+    ``setup_monitor``) holds the returned value in memory and stamps it
+    onto ``ActivationReport.expected_harness_nonce``.
+    """
+    secret = ""
+    try:
+        secret = path.read_text(encoding="utf-8").strip()
+    except (FileNotFoundError, OSError):
+        secret = ""
+    with contextlib.suppress(FileNotFoundError, OSError):
+        path.unlink()
+    return secret
+
+
+def _verify_harness_marker_signature(
+    payload: dict[str, Any],
+    expected_nonce: str,
+) -> bool:
+    """W13-1 (Codex H6): authenticate a ``[extrace-harness]`` marker payload.
+
+    Computes HMAC-SHA256 over ``canonical_json(payload \\ {"nonce"})`` using
+    ``expected_nonce`` (loaded from ``/results/_extrace_harness_python_secret``
+    by the entrypoint) and compares against ``payload["nonce"]`` in constant
+    time. The canonical form is sorted-keys JSON without whitespace, in
+    lockstep with ``markers.js::_canonicalPayloadBytes`` and the
+    ``_w13_1_canonical_payload`` test helper. Same-UID target extensions
+    cannot reach the secret, so a forged marker without a matching
+    signature is rejected.
+
+    Fail-closed semantics: empty ``expected_nonce``, missing/non-string
+    ``nonce`` in payload, or invalid signature all return False. The
+    empty-nonce branch preserves the pre-W13-1 unit-test contract where
+    ``ActivationReport`` is constructed without the orchestration
+    handshake; production paths run with a populated secret and reject
+    unsigned markers.
+    """
+    if not expected_nonce:
+        return False
+    received = payload.get("nonce")
+    if not isinstance(received, str) or not received:
+        return False
+    canonical = json.dumps(
+        {k: v for k, v in payload.items() if k != "nonce"},
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    expected_sig = hmac.new(
+        expected_nonce.encode("utf-8"),
+        canonical,
+        hashlib.sha256,
+    ).hexdigest()
+    return hmac.compare_digest(received, expected_sig)
 
 
 def _harness_trace_records_by_attempt(report: Any) -> dict[str, list[dict[str, Any]]]:
@@ -40,10 +120,26 @@ def _harness_trace_records_by_attempt(report: Any) -> dict[str, list[dict[str, A
 def _attempt_has_harness_completion_trace(
     attempt: Any,
     traces_by_attempt: dict[str, list[dict[str, Any]]],
+    expected_nonce: str = "",
 ) -> bool:
+    """W13-1: a ``phase=="complete"`` trace counts only when its HMAC nonce
+    verifies under ``expected_nonce``. Empty ``expected_nonce`` means the
+    report was built without the orchestration handshake (unit-test
+    construction or pre-W13-1 baseline) and the call short-circuits to the
+    legacy phase-only check so the existing test surface stays GREEN. In
+    production, ``setup_monitor`` populates ``expected_harness_nonce``
+    from the file ``launch_vscode.sh`` writes, so the empty branch never
+    triggers and forged markers without signatures are rejected.
+    """
     attempt_id = str(getattr(attempt, "attempt_id", "")).strip()
     if not attempt_id:
         return False
+    if expected_nonce:
+        return any(
+            str(trace.get("phase", "")).strip() == "complete"
+            and _verify_harness_marker_signature(trace, expected_nonce)
+            for trace in traces_by_attempt.get(attempt_id, [])
+        )
     return any(
         str(trace.get("phase", "")).strip() == "complete"
         for trace in traces_by_attempt.get(attempt_id, [])
@@ -298,6 +394,12 @@ def reconcile_event_attempts(report: Any) -> list[Any]:
     derived_verified_capabilities = set(derive_verified_capabilities(report))
     harness_traces = _harness_trace_records_by_attempt(report)
     target_log_summaries = _target_log_stream_summaries(report, target_id)
+    # W13-1 (Codex H6): the orchestration secret is stamped onto the
+    # report by ``setup_monitor`` after lifecycle.py constructs it.
+    # Empty value here means the report was built without the
+    # handshake (unit tests, pre-W13-1 baseline replay); the helper
+    # short-circuits to the legacy phase-only check in that case.
+    expected_harness_nonce = str(getattr(report, "expected_harness_nonce", "") or "")
 
     for attempt in attempts:
         activation_event = str(getattr(attempt, "activation_event", "")).strip()
@@ -330,7 +432,7 @@ def reconcile_event_attempts(report: Any) -> list[Any]:
             capability_tags & derived_verified_capabilities
         )
         execution_closed = _attempt_has_harness_completion_trace(
-            attempt, harness_traces
+            attempt, harness_traces, expected_harness_nonce
         )
 
         if not contracts:

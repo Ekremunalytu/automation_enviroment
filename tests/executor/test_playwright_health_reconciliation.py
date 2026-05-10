@@ -25,8 +25,6 @@ import hmac
 import json
 from types import SimpleNamespace
 
-import pytest
-
 from executor.flows.playwright.health.reconciliation import (
     reconcile_coverage_verification,
     reconcile_event_attempts,
@@ -343,11 +341,6 @@ def test_reconcile_event_attempts_harness_attempt_without_completion_trace_unver
 # ---------------------------------------------------------------------------
 
 
-_W13_1_PENDING = pytest.mark.skip(
-    reason="W13-1 implementation pending — sub-commit 4 lands the verifier"
-)
-
-
 def _w13_1_canonical_payload(payload: dict[str, object]) -> bytes:
     """HMAC input shape (frozen by sub-commit 4 design decision).
 
@@ -369,7 +362,6 @@ def _w13_1_sign(payload: dict[str, object], secret: str) -> str:
     ).hexdigest()
 
 
-@_W13_1_PENDING
 def test_reconcile_w13_1_rejects_forged_complete_marker_without_nonce() -> None:
     """A ``[extrace-harness] {phase:"complete"}`` line lacking ``nonce`` is rejected.
 
@@ -420,7 +412,6 @@ def test_reconcile_w13_1_rejects_forged_complete_marker_without_nonce() -> None:
     assert attempts[0].failure_reason_code == "harness_verification_unconfirmed"
 
 
-@_W13_1_PENDING
 def test_reconcile_w13_1_rejects_forged_complete_marker_with_invalid_nonce() -> None:
     """A marker with a syntactically present but cryptographically invalid nonce is rejected."""
     secret = "secret-loaded-from-results-handshake"  # noqa: S105 — test fixture, simulates orchestration handshake
@@ -466,7 +457,6 @@ def test_reconcile_w13_1_rejects_forged_complete_marker_with_invalid_nonce() -> 
     assert attempts[0].failure_reason_code == "harness_verification_unconfirmed"
 
 
-@_W13_1_PENDING
 def test_reconcile_w13_1_accepts_genuine_complete_marker_with_valid_nonce() -> None:
     """A marker carrying a correct HMAC under the orchestration secret verifies the attempt.
 
