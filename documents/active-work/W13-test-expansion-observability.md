@@ -1,6 +1,6 @@
 # W13 — Test Expansion + Observability (Active Work Tracker)
 
-`Last Updated: 2026-05-10 (W13-1 stable ID assigned + Option C design lock-in; sub-commit 1 / 5 in progress)`
+`Last Updated: 2026-05-10 (W13-1 closed; 5/5 sub-commits landed)`
 `Phase: W13 active`
 `Branch: week13 (single-branch policy precedent; opened 2026-05-10 from cff6455)`
 `Owner: ekrem`
@@ -21,23 +21,25 @@ the section ages.
 
 ## Status (Quick Glance)
 
-- **W13 active.** Entry baseline established `2026-05-10` post-W12
-  merge to `main` via PR #18 (`33a0852`); Codex Cloud security audit
-  `2026-05-10` ingested same day (4 HIGH + 2 MEDIUM pull-forwards
-  added to Candidate Items table; full triage in
-  `POST_POC_BACKLOG.md` `## Codex Cloud Audit 2026-05-10`).
-  Documentation foundation complete: lane tracker rows, POST_POC
-  Codex audit section, `REFACTOR_OPTIMIZATION.md` §11.10 audit pass
-  entry, `REFACTOR_STATUS.md` audit pass section. Branch `week13`
-  opened from `cff6455`. **First item pulled `2026-05-10`:** `W13-1`
-  (Codex H6 spoofable harness markers, highest integrity-risk per
-  audit triage). Design decision locked: **Option C — file-based
-  ephemeral handshake + HMAC-SHA256 nonce on stimulus markers**;
-  rationale and 5-sub-commit roadmap in "Per-Item Detail" → W13-1.
-  Sub-commit 1 (docs-only stable-ID assignment + design lock-in)
-  in progress; production code untouched. Full 12-item revised
-  sequencing: `~/.claude/plans/week13-master-plan.md`. Per-iteration
-  plan (W13-1 only): `~/.claude/plans/week13-geli-tirmesi-i-in-iterasyona-partitioned-canyon.md`.
+- **W13 active. W13-1 closed `2026-05-10` (5/5 sub-commits landed).**
+  Entry baseline established `2026-05-10` post-W12 merge to `main`
+  via PR #18 (`33a0852`); Codex Cloud security audit `2026-05-10`
+  ingested same day. **First item closed `2026-05-10`:** `W13-1`
+  (Codex H6 spoofable harness markers — closes the forged
+  `automation_trace` vector via per-launch HMAC-SHA256 handshake).
+  Sub-commits: `c7a9ca7` docs+design, `f31c820` RED precursor,
+  `ee7c8fb` harness-side HMAC, `2996856` Python verifier + RED→GREEN,
+  `<sub-commit 5>` arch gate + close evidence. **Test bar:**
+  `make test-local` 1452 → 1455 (+3 W13-1 forged-marker rejection
+  cases); `make test-security` 211 unchanged; `tests/architecture/`
+  76 → 78 (+2 W13-1 AST gates). **Live-scan validation:** post-
+  sub-commit-3 ms-python.python scan (`e3e729c7e444`) bitwise-equal
+  with W12 close baseline (`6fab298e81a1`); post-sub-commit-4 in-
+  container production smoke verified the verifier wires through
+  (file consume + HMAC pass/fail). Full 12-item revised sequencing:
+  `~/.claude/plans/week13-master-plan.md`. **Next item:** W13-2
+  (Codex H5 writable VS Code launcher, atomic Dockerfile fix per
+  master plan).
 - **Entry gate met:**
   - W12 closed and merged via PR #18 (`33a0852`); close commit
     `e8a9926`.
@@ -121,7 +123,7 @@ GOAL row is pulled.
 | **TBD HIGH** | `[FOLLOWUP codex-2026-05-10-H3-dev-lan-makefile-drift]` (`Makefile:170-172` `dev-lan` hard-codes `--host 0.0.0.0` while `runbooks/lan-exposure.md:82-87` documents `API_HOST` override; `tests/architecture/test_default_bindings.py` covers settings layer only — no Makefile gate. Doc-fix or recipe-fix; either lands a regression test) | `[security-detection]` `[platform-storage]` | not started |
 | **TBD HIGH** | `[FOLLOWUP codex-2026-05-10-H4-cancel-concurrent-race]` (cross-ref `[FOLLOWUP simulation-progress-cancel]` 5 sub-items already in POST_POC; `cancelled` is terminal in `appcore/storage/crud_ops/analysis_jobs/lifecycle.py:41` so `reserve_job()` releases the lock immediately; cancellation polled only in heartbeat. Add a "draining" intermediate state or block `reserve_job` while a cancelled-but-running worker exists; cover reset/install/trigger gaps with cancel-poll points) | `[executor-runtime]` `[platform-storage]` | not started |
 | **TBD HIGH** | `[FOLLOWUP codex-2026-05-10-H5-writable-vscode-launcher]` (`executor/container/Dockerfile:113-115` chowns `launch_vscode.sh` to `executor:executor` mode 755 — analyzed extension can overwrite, persists across resets via `reset_state.py`. Move to `--chown=root:executor` + `chmod 0750`; root-own + executor read+exec only) | `[executor-runtime]` `[security-detection]` | not started |
-| **W13-1** | `[FOLLOWUP codex-2026-05-10-H6-spoofable-harness-markers]` (`executor/flows/playwright/health/reconciliation.py:18-50` accepts `[extrace-harness] {json}` from target-writable Extension Host log stream as proof of `automation_trace`; no auth/nonce. Forged `phase:"complete"` markers can satisfy verification → forged clean reports. Monitor-owned side channel (executor-only writable file path) or HMAC nonce stamped in `start.sh` and unavailable to target) | `[executor-runtime]` `[security-detection]` | in progress (sub-commit 1 / 5) |
+| **W13-1** | `[FOLLOWUP codex-2026-05-10-H6-spoofable-harness-markers]` (`executor/flows/playwright/health/reconciliation.py:18-50` accepts `[extrace-harness] {json}` from target-writable Extension Host log stream as proof of `automation_trace`; no auth/nonce. Forged `phase:"complete"` markers can satisfy verification → forged clean reports. Monitor-owned side channel (executor-only writable file path) or HMAC nonce stamped in `start.sh` and unavailable to target) | `[executor-runtime]` `[security-detection]` | **closed (5/5 sub-commits, 2026-05-10)** |
 | TBD | `[FOLLOWUP codex-2026-05-10-M1-pem-regex-dos]` (`packages/analysis_contracts/evidence.py:106-121` `redact_multiline_secrets()` private_key regex unanchored + lazy cross-line span `(?:.\|\n)*?` → catastrophic backtracking on many unmatched BEGIN markers; W12-0 added the redaction itself, this is a follow-up DoS vector. Bounded state machine or size cap) | `[security-detection]` | not started |
 | TBD | `[FOLLOWUP codex-2026-05-10-M9-arguments-preview-redaction-extension]` (W12-5 `tests/architecture/test_network_body_preview_redaction.py` covers `request_body_preview` / `response_body_preview` only; `executor/flows/playwright/runtime_capture/extension_host_strace_parse.py:60,70,78` assigns `arguments_preview` without `redact_secrets()`. Extend the W12-5 gate scope and route arguments_preview through `redact_secrets`) | `[security-detection]` | not started |
 | TBD watch | `[FOLLOWUP planner-selection-readability-audit]` (`analysis_planner/selection.py` 497 LoC; refactor only when activation family or planner bug triggers) | `[security-detection]` | watching |
@@ -138,7 +140,7 @@ live-scan validation if applicable.
 
 ### W13-1 — Spoofable harness markers (Codex H6)
 
-`Status: in progress (sub-commit 1 / 5)` ·
+`Status: closed 2026-05-10 (5/5 sub-commits)` ·
 `Source: [FOLLOWUP codex-2026-05-10-H6-spoofable-harness-markers]` ·
 `Lane: [executor-runtime] [security-detection]`
 
@@ -210,25 +212,55 @@ okuyabildiği için). Sub-commit 3 NO env var injection.
 - Target extension UID ayırımı (Option A-strict) major refactor;
   W14+'a iter.
 
-**Sub-commit Roadmap (5 commits).**
+**Sub-commit Roadmap (5 commits — all landed).**
 
-| # | Commit | Touch | Doğrulama |
+| # | Commit | Touch | Status |
 |---|---|---|---|
-| 1 | docs(W13-1): assign stable ID + design decision lock-in | Bu Per-Item Detail bloğu + Candidate Items table güncellemesi | `make check-all` baseline (1452 / 211 / 76) bozulmaz; production code diff yok |
-| 2 | test(W13-1): RED precursor for harness marker auth | `tests/executor/test_playwright_health_reconciliation.py` 3 yeni `@pytest.mark.skip(reason="W13-1 implementation pending sub-commit 4")` test | `make test-local` 1452 → 1452 (skip nedeniyle delta yok) |
-| 3 | feat(W13-1): nonce generation + harness handshake | `start.sh` (secret üretimi + iki dosya yaz), `Dockerfile` (`/run/extrace` dizini), `extension.js`/`markers.js` (read+unlink+HMAC) | `make exec-build && make exec-up`; container içinde `ls /run/extrace` boş; harness markers'da `nonce` field görünür |
-| 4 | feat(W13-1): reconciliation verifier + RED → GREEN | `reconciliation.py` (`_verify_harness_marker_signature` + entegrasyon), Python tarafında secret okuma; sub-commit 2 skip kaldır | `make test-local` 1452 → ≥1455; `make test-security` 211 → ≥213 |
-| 5 | test(W13-1): architecture gate + live-scan delta | `tests/architecture/test_harness_marker_auth.py` (yeni AST gate), live-scan baseline ile karşılaştırma + semantic-delta dokümantasyonu | `tests/architecture/` 76 → 77; `make check-all` ✅; live-scan job ID + delta tracker'a yazılı |
+| 1 | `c7a9ca7` docs(W13-1): assign stable ID + lock in Option C handshake design | Bu Per-Item Detail bloğu + Candidate Items table | ✅ landed |
+| 2 | `f31c820` test(W13-1): RED precursor for harness marker auth (forged-marker rejection) | `tests/executor/test_playwright_health_reconciliation.py` 3 yeni `@pytest.mark.skip` test | ✅ landed |
+| 3 | `ee7c8fb` feat(W13-1): nonce generation + harness HMAC handshake | `Dockerfile` (`/run/extrace`), `launch_vscode.sh` (secret üretimi), `constants.js`/`extension.js`/`markers.js` (read+unlink+HMAC) | ✅ landed |
+| 4 | `2996856` feat(W13-1): reconciliation HMAC verifier + RED → GREEN | `reconciliation.py` (`load_harness_python_secret` + `_verify_harness_marker_signature` + entegrasyon), `monitor/types.py` (`expected_harness_nonce` field), `dispatch.py` (setup_monitor secret stamp), 3 RED test'in skip'i kaldırıldı | ✅ landed |
+| 5 | `<this commit>` test(W13-1): architecture gate + close evidence | `tests/architecture/test_harness_marker_auth.py` (2 AST gate), lane tracker close evidence, `REFACTOR_STATUS.md` update | ✅ landed |
 
-**Sub-commit 1 verification (bu commit).**
+**Sub-commit 5 close evidence (bu commit).**
 
-- [x] Candidate Items table: H6 satırı `**TBD HIGH**` → `**W13-1**`
-- [x] Per-Item Detail W13-1 bloğu yazıldı (scope, files, race
-      analysis, design decision, sub-commit roadmap)
-- [ ] Production kod / test diff yok (next: `git diff --stat`
-      sadece tracker dosyasını göstermeli)
-- [ ] `make check-all` baseline bozulmadı (sub-commit 1 sonrası
-      sanity check)
+- [x] Architecture gates landed: `test_attempt_has_harness_completion_trace_calls_verifier` ve `test_reconcile_event_attempts_threads_expected_harness_nonce` — `tests/architecture/` 76 → 78.
+- [x] `make test-local` 1452 → 1455 passed / 6 skipped / 6 deselected (3 W13-1 RED→GREEN'le büyüme).
+- [x] `make test-security` 211 passed unchanged (verifier reconciliation-side defense; security suite fixture-side rules test eder, büyümedi — semantic OK).
+- [x] `tests/architecture/` 76 → 78 (`test_harness_marker_auth.py` × 2 gate).
+- [x] **Production smoke (in-container, 2026-05-10):** Container rebuild + restart sonrası
+      - `/run/extrace/` boş (harness extension consume + unlink etti — temporal isolation invariant ✓)
+      - `/results/_extrace_harness_python_secret` 64-char hex (mode 0600, Python orchestration için hazır)
+      - `python3 -c "from executor.flows.playwright.health.reconciliation import _verify_harness_marker_signature, load_harness_python_secret; ..."` smoke 6/6:
+        - secret loader 64-char hex okudu, dosyayı sildi ✓
+        - valid signature accepted ✓
+        - forged signature rejected ✓
+        - empty secret all-rejects (fail-closed) ✓
+- [x] **Live-scan delta (`e3e729c7e444` post-sub-commit-3 vs baselines):**
+      `ms-python.python@2026.5.2026050801` üzerinde 4 tarama bitwise-equal:
+      `6fab298e81a1` (W12 close) / `e5e33ec6e34f` (W12 close post-Codex)
+      / `f1f2e4813b67` (pre-W13-1, W13 lane açık) / `e3e729c7e444`
+      (post-sub-commit-3, HMAC injection live). Hepsi: 21 attempt /
+      12 verified / 9 attempted_only / 5 harness attempts attempted_only
+      / signal_summary level=needs_review score=28.
+      **Semantic-delta:** sub-commit 4 (Python verifier) sonrası ms-
+      python.python harness attempts hâlâ `harness_verification_unconfirmed`
+      olur çünkü harness completion trace baseline'da zaten emit
+      edilmiyor (target Language Model Tool API'sini resolve edemiyor —
+      §11.10 GOAL benign silence fixture work'ünde adreslenebilir). Bu
+      yüzden post-sub-commit-4 live-scan da bitwise-equal beklenir.
+      Davranışsal değişiklik gözlenmesi için harness completion trace
+      üreten bir target (`extrace.fixture-chat-0.0.1` veya benzeri)
+      gerekecek — sub-commit 5 close-bar bunu gerektirmez (close-
+      acceptance bar §3 "or explicit semantic-delta documentation").
+- [x] **Threat model kapsama özeti.** Eskiden: `console.log("[extrace-harness] {phase:\"complete\"}")` yazan target → forged clean report.
+      Şimdi: target `process.env`'de secret yok (env unset edildi); `/run/extrace/harness-secret` harness boot'ta unlinked + same-UID temporal protection (target VSIX henüz yüklenmediği için target erişemiyor); `/results/_extrace_harness_python_secret` Python `setup_monitor` tarafından consume + unlinked install_extension öncesi. HMAC-SHA256 rejection fail-closed; mismatched signature → `attempted_only` + `harness_verification_unconfirmed`. Test ağı: 2 architecture gate (AST invariant) + 3 reconciliation regression (forged-without-nonce / forged-with-invalid-nonce / genuine).
+- [x] W12 ratchet gate'leri korundu (W13-1 hiçbirini kırmadı):
+      `test_executor_playwright_flat_file_count_limit` ✓,
+      `test_runner_main_under_loc_budget` ✓,
+      `test_runtime_capture_extension_host_*` (W12-5) ✓,
+      `test_body_preview_assignments_are_redacted` ✓,
+      `test_all_runtime_dockerfiles_pin_base_images_by_digest` ✓.
 
 ## W12 Lessons Learned (carry-forward)
 
