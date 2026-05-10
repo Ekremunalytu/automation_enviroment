@@ -101,6 +101,16 @@ RUN useradd -m -s /bin/bash executor \
 RUN mkdir -p /workspace /results /extensions-input \
     && chown -R executor:executor /workspace /results /extensions-input
 
+# W13-1 (Codex H6): per-launch harness HMAC secret lives under /run/extrace.
+# launch_vscode.sh writes the file mode 0400 before each VS Code start;
+# the harness extension's activate() reads-and-unlinks it before the
+# Python orchestration installs the target VSIX, so the same-UID target
+# extension never sees the path populated. The directory itself is mode
+# 0700 owned by executor.
+RUN mkdir -p /run/extrace \
+    && chown executor:executor /run/extrace \
+    && chmod 0700 /run/extrace
+
 # Set up VS Code user data directory
 RUN mkdir -p /home/executor/.vscode \
     && chown -R executor:executor /home/executor/.vscode

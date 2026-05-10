@@ -22,6 +22,34 @@ VSCODE_LOG_LEVEL="${EXECUTOR_VSCODE_LOG_LEVEL:-trace}"
 VSCODE_USER_DATA_DIR="${EXECUTOR_VSCODE_USER_DATA_DIR:-/home/executor/.vscode}"
 HARNESS_EXT_PATH="${EXECUTOR_HARNESS_EXT_PATH:-/home/executor/flows/harness_extension}"
 WORKSPACE_PATH="${EXECUTOR_WORKSPACE_PATH:-/workspace}"
+HARNESS_SECRET_PATH="${EXECUTOR_HARNESS_SECRET_PATH:-/run/extrace/harness-secret}"
+HARNESS_PYTHON_SECRET_PATH="${EXECUTOR_HARNESS_PYTHON_SECRET_PATH:-/results/_extrace_harness_python_secret}"
+
+# W13-1 (Codex H6): generate a fresh per-launch HMAC secret and stage it
+# on two paths before VS Code (and therefore the harness extension)
+# starts. The harness reads + unlinks ${HARNESS_SECRET_PATH} the moment
+# its activate() runs, before the Python orchestration installs the
+# analyzed (target) extension; the same-UID target therefore never sees
+# the secret on disk. ${HARNESS_PYTHON_SECRET_PATH} lives under /results
+# (bind-mounted to the host) so the Python orchestration can read the
+# value via the host filesystem and use it to verify HMAC nonces on
+# stimulus markers. This script is invoked from both start.sh (boot)
+# and executor.flows.playwright.reset_state (between scans), so each
+# VS Code lifetime gets its own secret.
+HARNESS_SECRET_VALUE="$(head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n')"
+umask 077
+mkdir -p "$(dirname "${HARNESS_SECRET_PATH}")"
+# rm -f covers the reset path: on the second launch, a stale 0400 file
+# from a prior boot (if the harness skipped its unlink, e.g. crash)
+# would otherwise reject the truncating redirect.
+rm -f "${HARNESS_SECRET_PATH}"
+printf '%s' "${HARNESS_SECRET_VALUE}" > "${HARNESS_SECRET_PATH}"
+chmod 0400 "${HARNESS_SECRET_PATH}"
+mkdir -p "$(dirname "${HARNESS_PYTHON_SECRET_PATH}")"
+rm -f "${HARNESS_PYTHON_SECRET_PATH}"
+printf '%s' "${HARNESS_SECRET_VALUE}" > "${HARNESS_PYTHON_SECRET_PATH}"
+chmod 0600 "${HARNESS_PYTHON_SECRET_PATH}"
+unset HARNESS_SECRET_VALUE  # never let the value reach VS Code's child env
 
 if ! command -v code >/dev/null 2>&1; then
     echo "ERROR: VS Code CLI binary 'code' is not installed in the executor image." >&2
