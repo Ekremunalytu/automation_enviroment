@@ -118,11 +118,16 @@ RUN mkdir -p /home/executor/.vscode \
 # Create index.html symlink for noVNC
 RUN ln -s /usr/share/novnc/vnc.html /usr/share/novnc/index.html
 
-# Copy startup + VS Code launch scripts (shared between boot and reset_state)
+# Copy startup + VS Code launch scripts (shared between boot and reset_state).
+# W13-2 (Codex H5): launch_vscode.sh is re-executed by reset_state.py on every
+# analysis reset; if owned by executor it could be overwritten by a target
+# extension running under the same UID and would persist across resets. Lock
+# it to root:executor 0750 so executor retains read+exec but cannot modify.
 COPY executor/container/start.sh /usr/local/bin/start.sh
 COPY executor/container/launch_vscode.sh /home/executor/container/launch_vscode.sh
-RUN chmod 755 /usr/local/bin/start.sh /home/executor/container/launch_vscode.sh \
-    && chown executor:executor /home/executor/container/launch_vscode.sh
+RUN chmod 755 /usr/local/bin/start.sh \
+    && chmod 0750 /home/executor/container/launch_vscode.sh \
+    && chown root:executor /home/executor/container/launch_vscode.sh
 
 # Copy Playwright automation scripts and shared contract package needed at runtime.
 # ADR 0008: regular-package layout — `executor` and `executor.flows` are real
