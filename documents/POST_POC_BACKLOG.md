@@ -1,6 +1,6 @@
 # Post-PoC Backlog
 
-`Last Updated: 2026-05-10 (W12 close-out items closed; Codex Cloud audit 2026-05-10 ingested — 4 HIGH pulled forward + 2 MEDIUM pull-forward + ~10 backlog + 2 posture + 1 WONT-FIX + 9 verified-closed audit trail; H6 closed via W13-1 same day; H5 closed via W13-2 same day; H4 W13-3 opened same day — draining-state design locked in)`
+`Last Updated: 2026-05-10 (W12 close-out items closed; Codex Cloud audit 2026-05-10 ingested — 4 HIGH pulled forward + 2 MEDIUM pull-forward + ~10 backlog + 2 posture + 1 WONT-FIX + 9 verified-closed audit trail; H6 closed via W13-1 same day; H5 closed via W13-2 same day; H4 closed via W13-3 same day — two-phase cancel with cancelling state + 5 worker poll points + 6 architecture gates)`
 
 Open deferred work after the W0-W7 PoC acceptance bar. **Slim canonical** —
 verbose descriptions, evidence, and older triage notes are frozen in dated
@@ -42,26 +42,57 @@ items receive `W13-N` IDs at first pull per W11/W12 precedent.
   covers settings layer only, no Makefile gate. Either fix the recipe
   to honor `API_HOST` or update the runbook + add Makefile gate. Lane:
   `[security-detection]` `[platform-storage]`.
-- **`[FOLLOWUP codex-2026-05-10-H4-cancel-concurrent-race]`** — H4.
+- ~~**`[FOLLOWUP codex-2026-05-10-H4-cancel-concurrent-race]`**~~ — H4.
   Cross-ref existing `[FOLLOWUP simulation-progress-cancel]` 5
-  sub-items. Adds Codex evidence: `cancelled` is in
-  `_TERMINAL_JOB_STATUSES`, so `reserve_job()` releases the lock
-  immediately while a cancelled-but-running worker can still drive the
-  shared executor + `/results`. Cancellation polled only inside
-  monitoring heartbeat — gaps before/after reset, install, trigger
-  building, and just before completion. Add a `draining` intermediate
-  state or block `reserve_job` while a cancelled worker exists; cover
-  the gaps with cancel-poll points. Lane: `[executor-runtime]`
-  `[platform-storage]`. **W13-3 opened `2026-05-10` (in progress)** —
-  Option A locked in (draining state): yeni `cancelling` non-terminal
-  state `ACTIVE_ANALYSIS_JOB_STATUSES`'e dahil + partial unique index
-  (Alembic migration), CRUD `cancel_analysis_job` → `cancelling`, yeni
-  `finalize_cancelled_analysis_job` (`cancelling → cancelled`),
-  `execute_analysis_request`'in 5 hot-zone'una `raise_if_cancelled`
-  helper. Reverse-side reserve_job heuristic (Option B) reddedildi.
-  Sub-commit roadmap (6 commits) ve full evidence:
+  sub-items. `cancelled` was in `_TERMINAL_JOB_STATUSES`, so
+  `reserve_job()` released the lock immediately while a
+  cancelled-but-running worker could still drive the shared executor
+  - `/results`. Cancellation polled only inside monitoring heartbeat
+  — gaps before/after reset, install, trigger building, and just
+  before completion. **Closed via W13-3 (`2026-05-10`,
+  `1b9657c`/`4db412b`/`c4447d4`/`112321c`/`efd50c1`/(W13-3.6 close
+  commit)):** Option A locked in (draining state). New `cancelling`
+  non-terminal status sits between `running` and `cancelled`;
+  `ACTIVE_ANALYSIS_JOB_STATUSES` extends to include it and the partial
+  unique index `WHERE` clause widens accordingly (Alembic revision
+  `c8a2d4e91f5b`, reversible downgrade). CRUD `cancel_analysis_job`
+  transitions `running → cancelling` (step records untouched,
+  `requested_cancel_at = now()`, `finished_at` NOT set); idempotent on
+  cancelling. New `finalize_cancelled_analysis_job` transitions
+  `cancelling → cancelled` once the worker drains
+  (reuses `_interrupt_job` for step finalize + finished_at; rejects
+  any other source state). `complete_analysis_job` +
+  `fail_analysis_job` reject the `cancelling` source state — cancel
+  intent is authoritative. `analysis_execution.raise_if_cancelled`
+  helper raises `AnalysisCancelledError` when `cancel_check` reports
+  the signal; `execute_analysis_request` calls it before every major
+  phase boundary (ensure_vsix, _reset_sandbox, _install_extension,
+  _build_triggers, _run_monitoring) so cancel propagates within
+  milliseconds rather than waiting on the 5-second heartbeat tick.
+  `analysis_service.run_analysis_job` exception handler invokes
+  `job_service.finalize_cancelled_job` on both AnalysisCancelledError
+  and the `is_job_cancelled`-true hard-error path (KeyError +
+  JobNotCancellableError swallowed). `is_job_cancelled` widens to
+  `status in ("cancelled", "cancelling")` so the worker sees the
+  signal during the drain. Reverse-side reserve_job heuristic
+  (Option B) rejected — timing/grace-window not testable. Test
+  surface: 6 architecture gates in
+  `tests/architecture/test_cancel_poll_points.py` (× 2) +
+  `tests/architecture/test_job_state_invariants.py` (× 4); 5 CRUD
+  regressions in `tests/platform/storage/test_analysis_jobs_lifecycle.py`;
+  2 router regressions in `tests/workflows/marketplace/test_router.py`;
+  top-level integration in
+  `tests/platform/storage/test_analysis_jobs.py`
+  (test_cancel_then_finalize_marks_..., `_drive_to_cancelled` helper
+  updated, is_job_cancelled True-window widened). **Test bar:**
+  `make test-local` 1460 → 1467 passed / 6 skipped / 8 deselected;
+  `make test-security` 211 passed unchanged; `tests/architecture/`
+  81 → 87. **Migration round-trip:** `alembic upgrade head` →
+  `c8a2d4e91f5b` applied; `alembic downgrade -1` + `alembic upgrade
+  head` reverses + restores cleanly. Lane: `[executor-runtime]`
+  `[platform-storage]`. See
   `documents/active-work/W13-test-expansion-observability.md` →
-  Per-Item Detail → W13-3.
+  Per-Item Detail → W13-3 for full evidence.
 - ~~**`[FOLLOWUP codex-2026-05-10-H5-writable-vscode-launcher]`**~~ — H5.
   `executor/container/Dockerfile` chowned `launch_vscode.sh` to
   `executor:executor` mode 755 — analyzed extension could overwrite, and
@@ -434,9 +465,9 @@ future Codex re-runs can confirm closure persists:
 - **`[FOLLOWUP simulation-progress-cancel] dedupe-step-progress-schemas`**
   — reconcile `AnalysisJobStepProgress` vs `AnalyzeJobStepProgress`.
   **W13-3 dağılım:** W14'e iter (kontrat hijyeni, race fix ile bağımsız).
-- **`[FOLLOWUP simulation-progress-cancel] is-job-cancelled-session-churn`**
+- ~~**`[FOLLOWUP simulation-progress-cancel] is-job-cancelled-session-churn`**~~
   — revisit fresh DB session polling if profiling shows pressure.
-  **W13-3 dağılım:** W13-3.5'te kapanır — `raise_if_cancelled` helper'ı 5 ek site'a girince session churn artma riski; `cancel_check` lambda'sı shared `Session` parametresi alarak ya da short-circuit cache'leyerek opt-in optimize edilir.
+  **Closed via W13-3.5 (`2026-05-10`, `efd50c1`):** `is_job_cancelled` worker poll primitive'i `analysis_service.run_analysis_job` içinde lambda olarak tek noktada tanımlı; 5 yeni `_raise_if_cancelled(cancel_check)` poll point + heartbeat thread aynı lambda'yı paylaşır. Mevcut `_run_in_session` short-circuit pattern korunur (caller `db=session` geçirdiğinde fresh session yaratılmaz); yalnızca worker thread'in kendi DB session'u kullanıldığından profiling-driven optimizasyon gerekmedi.
 - **`[FOLLOWUP simulation-progress-cancel] heartbeat-refactor`** — extract
   heartbeat polling/JSON/cancel logic into a testable helper.
   **W13-3 dağılım:** W14'e iter (testable helper extraction, race fix'ten bağımsız).

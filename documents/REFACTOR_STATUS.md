@@ -1,6 +1,6 @@
 # Refactor Status
 
-`Last Updated: 2026-05-10 (W12 closed; merged via PR #18 (33a0852); W13 — Test Expansion + Observability open on branch week13; Codex Cloud audit 2026-05-10 ingested — 4 HIGH + 2 MEDIUM pulled forward to W13 acceptance bar; W13-1 closed same day — Codex H6 spoofable harness markers; W13-2 closed same day — Codex H5 writable VS Code launcher → root:executor 0750; W13-3 opened same day — Codex H4 cancel concurrent race, draining-state design locked in)`
+`Last Updated: 2026-05-10 (W12 closed; merged via PR #18 (33a0852); W13 — Test Expansion + Observability open on branch week13; Codex Cloud audit 2026-05-10 ingested — 4 HIGH + 2 MEDIUM pulled forward to W13 acceptance bar; W13-1 closed same day — Codex H6 spoofable harness markers; W13-2 closed same day — Codex H5 writable VS Code launcher → root:executor 0750; W13-3 closed same day — Codex H4 cancel concurrent race, draining-state two-phase cancel + 5 worker poll points + 6 architecture gates)`
 
 Active status board for current closure state. **Slim canonical** — full
 phase history and verbose evidence are frozen under dated snapshots:
@@ -106,32 +106,50 @@ phase history and verbose evidence are frozen under dated snapshots:
   `Permission denied`. Tracker:
   [`active-work/W13-test-expansion-observability.md`](active-work/W13-test-expansion-observability.md)
   → Per-Item Detail → W13-2.
-- **W13-3 opened `2026-05-10` (design lock-in commit landing).**
-  Codex H4 cancel concurrent race —
-  `appcore/storage/crud_ops/analysis_jobs/lifecycle.py:41`
-  `_TERMINAL_JOB_STATUSES` `cancelled`'ı terminal sayıyor;
-  `reserve_job()` cancel anında lock'u serbest bırakırken worker
-  thread arka planda shared executor + `/results` üzerinde
-  yazmaya devam edebiliyor → iki job concurrent. İkinci açık:
-  cancel polling sadece `_run_monitoring_heartbeat` içinde
-  (5sn interval); reset/install/build_triggers/completion
-  barrier'larında poll yok. **Karar (Option A — draining state):**
-  Yeni non-terminal `cancelling` state ekle
-  (`queued → running → cancelling → cancelled`); `cancelling`'i
-  `ACTIVE_ANALYSIS_JOB_STATUSES`'e dahil et + partial unique
-  index'in `WHERE`'ine koy (Alembic migration); CRUD
-  `cancel_analysis_job` `cancelling`'e geçer, worker drain'i
-  bitince yeni `finalize_cancelled_analysis_job` `cancelled`'a
-  taşır (idempotent). `execute_analysis_request`'in 5
-  hot-zone'una `raise_if_cancelled` helper'ı eklenir. Reverse-side
-  reserve_job heuristic (Option B) reddedildi — testable değil,
-  scheduler/worker durum kanallarını ikilştirir. **Cross-ref:**
-  `[FOLLOWUP simulation-progress-cancel]` 4 açık sub-item'ın 1'i
-  (`is-job-cancelled-session-churn`) W13-3.5'te kapanır, 3'ü W14'e
-  iter. **Sub-commit roadmap (6 commits):** docs lock-in (this),
-  RED precursor race tests, schema + Alembic migration, CRUD
-  two-phase cancel + finalize, worker cancel-poll points, gates +
-  close evidence. Tracker:
+- **W13-3 closed `2026-05-10` (6/6 sub-commits)** — Codex H4
+  cancel concurrent race. Non-terminal `cancelling` state inserted
+  between `running` and `cancelled`
+  (`queued → running → cancelling → cancelled`);
+  `ACTIVE_ANALYSIS_JOB_STATUSES` extends to include it and the
+  partial unique index `WHERE` clause widens accordingly (Alembic
+  revision `c8a2d4e91f5b`, reversible downgrade). CRUD
+  `cancel_analysis_job` now signals drain only — `running →
+  cancelling`, step records untouched, `requested_cancel_at = now()`,
+  `finished_at` NOT set; idempotent on `cancelling`. New
+  `finalize_cancelled_analysis_job` promotes `cancelling →
+  cancelled` (re-uses `_interrupt_job` for step finalize +
+  `finished_at`); `complete_analysis_job` and `fail_analysis_job`
+  reject `cancelling` source state so cancel intent is
+  authoritative. `analysis_execution.raise_if_cancelled(cancel_check)`
+  helper added; `execute_analysis_request` calls it at 5 hot-zone
+  boundaries (ensure_vsix,_reset_sandbox,_install_extension,
+  _build_triggers,_run_monitoring) so cancel propagates within
+  milliseconds of the API call rather than waiting for the 5-second
+  heartbeat tick. `analysis_service.run_analysis_job` exception
+  handler drives terminal via `job_service.finalize_cancelled_job`
+  on both AnalysisCancelledError and the
+  `is_job_cancelled`-true hard-error path (KeyError +
+  JobNotCancellableError swallowed for idempotency / test fixtures).
+  `is_job_cancelled` widens to `status in ("cancelled", "cancelling")`
+  so the worker sees the signal during drain. Sub-commits
+  `1b9657c` (docs design lock-in), `4db412b` (RED precursor — 5
+  CRUD + 2 router skipped), `c4447d4` (schema + Alembic migration),
+  `112321c` (CRUD two-phase cancel; 5 RED→GREEN), `efd50c1`
+  (worker cancel-poll points + service finalization; 2 RED→GREEN),
+  (this commit) (architecture gates + close evidence). **Test
+  bar:** `make test-local` 1460 → 1467 passed / 6 skipped / 8
+  deselected (+7 W13-3 lifecycle + router regressions);
+  `make test-security` 211 passed unchanged;
+  `tests/architecture/` 81 → 87 (+6 W13-3 gate split across
+  `test_cancel_poll_points.py` × 2 and
+  `test_job_state_invariants.py` × 4). **Migration round-trip
+  (2026-05-10):** alembic upgrade head → `c8a2d4e91f5b` applied
+  on dev DB; downgrade reverses cleanly with cancelling rows
+  force-finalized to cancelled. **Cross-ref:**
+  `[FOLLOWUP simulation-progress-cancel]` parent + 4 sub-items —
+  `is-job-cancelled-session-churn` closed in W13-3.5; 3 W14'e iter
+  (heartbeat-sandbox-reset-off-thread, dedupe-step-progress-schemas,
+  heartbeat-refactor). Tracker:
   [`active-work/W13-test-expansion-observability.md`](active-work/W13-test-expansion-observability.md)
   → Per-Item Detail → W13-3.
 
