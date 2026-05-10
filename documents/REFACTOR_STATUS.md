@@ -1,6 +1,6 @@
 # Refactor Status
 
-`Last Updated: 2026-05-10 (W12 closed; merged via PR #18 (33a0852); W13 — Test Expansion + Observability open on branch week13; Codex Cloud audit 2026-05-10 ingested — 4 HIGH + 2 MEDIUM pulled forward to W13 acceptance bar; W13-1 closed same day — Codex H6 spoofable harness markers via per-launch HMAC handshake)`
+`Last Updated: 2026-05-10 (W12 closed; merged via PR #18 (33a0852); W13 — Test Expansion + Observability open on branch week13; Codex Cloud audit 2026-05-10 ingested — 4 HIGH + 2 MEDIUM pulled forward to W13 acceptance bar; W13-1 closed same day — Codex H6 spoofable harness markers; W13-2 closed same day — Codex H5 writable VS Code launcher → root:executor 0750)`
 
 Active status board for current closure state. **Slim canonical** — full
 phase history and verbose evidence are frozen under dated snapshots:
@@ -79,6 +79,27 @@ phase history and verbose evidence are frozen under dated snapshots:
   76 → 79. Tracker:
   [`active-work/W13-test-expansion-observability.md`](active-work/W13-test-expansion-observability.md)
   → Per-Item Detail → W13-1.
+- **W13-2 closed `2026-05-10` (3/3 sub-commits)** — Codex H5
+  writable VS Code launcher. `executor/container/Dockerfile`
+  `launch_vscode.sh` from `executor:executor 0755` to
+  `root:executor 0750` (rwxr-x---). Target extension running under
+  the same `executor` UID can no longer overwrite the script;
+  `reset_state.py::launch_vscode()`'s `subprocess.run(["bash",
+  str(_VSCODE_LAUNCH_SCRIPT)])` retains read+exec via the group
+  bit, so the boot + reset launch chain is unaffected. Sub-commits
+  `07a68ad` (RED precursor — 2 arch gates,
+  `tests/architecture/test_executor_runtime_script_permissions.py`;
+  gate 1 RED, gate 2 PASS as start.sh is already root-owned),
+  `75efad7` (Dockerfile chmod RUN split + chown root:executor;
+  RED → GREEN), close-out (this commit) docs sweep + container
+  smoke evidence. **Test bar:** `make test-local` 1458 → 1460
+  (+2 W13-2 AST gates); `make test-security` 211 unchanged;
+  `tests/architecture/` 79 → 81. **Container smoke:** post-build
+  `stat -c '%U:%G %a'` → `root:executor 750`; executor write
+  attempt `Permission denied` (exit 2); functional ENTRYPOINT
+  invocation succeeds (VS Code PID 101 in `docker logs`). Tracker:
+  [`active-work/W13-test-expansion-observability.md`](active-work/W13-test-expansion-observability.md)
+  → Per-Item Detail → W13-2.
 
 ## W12 Entry Snapshot
 

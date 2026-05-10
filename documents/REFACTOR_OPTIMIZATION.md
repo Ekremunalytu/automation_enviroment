@@ -468,10 +468,18 @@ ownership is by-design per W12-1 layout).
   `cancelled` is terminal so `reserve_job()` releases the lock while
   a cancelled-but-running worker can still drive shared executor +
   /results. Lane: `[executor-runtime]` `[platform-storage]`.
-- `[FOLLOWUP codex-2026-05-10-H5-writable-vscode-launcher]` —
-  `executor/container/Dockerfile` chowns `launch_vscode.sh` to
-  `executor:executor` mode 755, persistent executor hook attack vector;
-  fix is `--chown=root:executor` + `chmod 0750`. Lane:
+- ~~`[FOLLOWUP codex-2026-05-10-H5-writable-vscode-launcher]`~~ —
+  `executor/container/Dockerfile` chowned `launch_vscode.sh` to
+  `executor:executor` mode 755, persistent executor hook attack vector.
+  **Closed via W13-2 (`2026-05-10`, `07a68ad`/`75efad7` + close-out):**
+  Dockerfile RUN block split, `launch_vscode.sh` now `chown
+  root:executor` + `chmod 0750` (rwxr-x---); executor user retains
+  read+exec via the group bit, loses owner-write so a same-UID target
+  extension cannot overwrite the script. Test surface: 2 architecture
+  gates in `tests/architecture/test_executor_runtime_script_permissions.py`;
+  container smoke verified `root:executor 750` post-build with
+  `Permission denied` on executor write. See W13 lane tracker →
+  Per-Item Detail → W13-2 for full evidence. Lane:
   `[executor-runtime]` `[security-detection]`.
 - ~~`[FOLLOWUP codex-2026-05-10-H6-spoofable-harness-markers]`~~ —
   `health/reconciliation.py` accepts `[extrace-harness]` markers

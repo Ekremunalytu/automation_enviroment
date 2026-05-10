@@ -1,6 +1,6 @@
 # W13 — Test Expansion + Observability (Active Work Tracker)
 
-`Last Updated: 2026-05-10 (W13-1 closed; 5/5 sub-commits landed + pre-push setup_monitor wiring gate)`
+`Last Updated: 2026-05-10 (W13-2 closed — Codex H5 writable VS Code launcher; 3/3 sub-commits landed)`
 `Phase: W13 active`
 `Branch: week13 (single-branch policy precedent; opened 2026-05-10 from cff6455)`
 `Owner: ekrem`
@@ -21,30 +21,31 @@ the section ages.
 
 ## Status (Quick Glance)
 
-- **W13 active. W13-1 closed `2026-05-10` (5/5 sub-commits landed).**
+- **W13 active. W13-2 closed `2026-05-10` (3/3 sub-commits landed).**
   Entry baseline established `2026-05-10` post-W12 merge to `main`
   via PR #18 (`33a0852`); Codex Cloud security audit `2026-05-10`
-  ingested same day. **First item closed `2026-05-10`:** `W13-1`
-  (Codex H6 spoofable harness markers — closes the forged
-  `automation_trace` vector via per-launch HMAC-SHA256 handshake).
-  Sub-commits: `c7a9ca7` docs+design, `f31c820` RED precursor,
-  `ee7c8fb` harness-side HMAC, `2996856` Python verifier + RED→GREEN,
-  `6a80a87` arch gate + close evidence; pre-push close-out adds the
-  third arch gate covering `setup_monitor` secret-load + report stamp.
-  **Test bar:** `make test-local` 1452 → 1458 (+3 W13-1 forged-marker
-  rejection cases under
-  `tests/executor/test_playwright_health_reconciliation.py` +
-  +3 W13-1 AST gates under
-  `tests/architecture/test_harness_marker_auth.py`, both surfaced by
-  `pytest -v`); `make test-security` 211 unchanged; `tests/architecture/`
-  76 → 79 (+3 W13-1 AST gates). **Live-scan validation:** post-
-  sub-commit-3 ms-python.python scan (`e3e729c7e444`) bitwise-equal
-  with W12 close baseline (`6fab298e81a1`); post-sub-commit-4 in-
-  container production smoke verified the verifier wires through
-  (file consume + HMAC pass/fail). Full 12-item revised sequencing:
-  `~/.claude/plans/week13-master-plan.md`. **Next item:** W13-2
-  (Codex H5 writable VS Code launcher, atomic Dockerfile fix per
-  master plan).
+  ingested same day. **W13-1 closed `2026-05-10`:** Codex H6
+  spoofable harness markers (per-launch HMAC-SHA256 handshake).
+  **W13-2 closed `2026-05-10`:** Codex H5 writable VS Code launcher
+  — `executor/container/Dockerfile` `launch_vscode.sh` from
+  `executor:executor` 0755 to `root:executor` 0750. Sub-commits:
+  `07a68ad` RED precursor (2 arch gates, 1 RED + 1 PASS),
+  `75efad7` Dockerfile fix (chmod 0750 + chown root:executor;
+  RED → GREEN), close-out (this commit) docs sweep + container
+  smoke evidence. **Test bar:** `make test-local` 1458 → 1460
+  (+2 W13-2 AST gates under
+  `tests/architecture/test_executor_runtime_script_permissions.py`);
+  `make test-security` 211 unchanged; `tests/architecture/` 79 →
+  81 (+2 W13-2 gates). **Container smoke:** after `make exec-build
+  && make exec-up`, `docker exec automation_executor stat -c '%U:%G
+  %a' /home/executor/container/launch_vscode.sh` → `root:executor
+  750`; `start.sh` → `root:root 755` (defense-in-depth ratchet
+  pinned). Negative test: executor user `echo >>`
+  → `Permission denied` (exit 2). Positive test: `head -1` reads
+  `#!/bin/bash`, `test -x` passes, `start.sh` ENTRYPOINT successfully
+  invokes `bash launch_vscode.sh` at boot (VS Code PID 101 confirmed
+  in container logs). **Next item:** W13-3 (Codex H4 cancel
+  concurrent race, multi-component scope per master plan).
 - **Entry gate met:**
   - W12 closed and merged via PR #18 (`33a0852`); close commit
     `e8a9926`.
@@ -127,7 +128,7 @@ GOAL row is pulled.
 | TBD | `[§11.10 GOAL]` W8-W12 regression lock-in (umbrella for any regression coverage missing on W8-W12 landed work; concrete sub-items pulled from `POST_POC_BACKLOG.md` deferrals as W13 progresses; close-pass evaluates which followups are bundled vs deferred to W14+) | (multi) | not started |
 | **TBD HIGH** | `[FOLLOWUP codex-2026-05-10-H3-dev-lan-makefile-drift]` (`Makefile:170-172` `dev-lan` hard-codes `--host 0.0.0.0` while `runbooks/lan-exposure.md:82-87` documents `API_HOST` override; `tests/architecture/test_default_bindings.py` covers settings layer only — no Makefile gate. Doc-fix or recipe-fix; either lands a regression test) | `[security-detection]` `[platform-storage]` | not started |
 | **TBD HIGH** | `[FOLLOWUP codex-2026-05-10-H4-cancel-concurrent-race]` (cross-ref `[FOLLOWUP simulation-progress-cancel]` 5 sub-items already in POST_POC; `cancelled` is terminal in `appcore/storage/crud_ops/analysis_jobs/lifecycle.py:41` so `reserve_job()` releases the lock immediately; cancellation polled only in heartbeat. Add a "draining" intermediate state or block `reserve_job` while a cancelled-but-running worker exists; cover reset/install/trigger gaps with cancel-poll points) | `[executor-runtime]` `[platform-storage]` | not started |
-| **TBD HIGH** | `[FOLLOWUP codex-2026-05-10-H5-writable-vscode-launcher]` (`executor/container/Dockerfile:113-115` chowns `launch_vscode.sh` to `executor:executor` mode 755 — analyzed extension can overwrite, persists across resets via `reset_state.py`. Move to `--chown=root:executor` + `chmod 0750`; root-own + executor read+exec only) | `[executor-runtime]` `[security-detection]` | not started |
+| **W13-2** | `[FOLLOWUP codex-2026-05-10-H5-writable-vscode-launcher]` (`executor/container/Dockerfile:121-128` chowns `launch_vscode.sh` to `executor:executor` mode 755 — analyzed extension can overwrite, persists across resets via `reset_state.py`. Moved to `chown root:executor` + `chmod 0750`; root-own + executor read+exec only) | `[executor-runtime]` `[security-detection]` | **closed (3/3 sub-commits, 2026-05-10)** |
 | **W13-1** | `[FOLLOWUP codex-2026-05-10-H6-spoofable-harness-markers]` (`executor/flows/playwright/health/reconciliation.py:18-50` accepts `[extrace-harness] {json}` from target-writable Extension Host log stream as proof of `automation_trace`; no auth/nonce. Forged `phase:"complete"` markers can satisfy verification → forged clean reports. Monitor-owned side channel (executor-only writable file path) or HMAC nonce stamped in `start.sh` and unavailable to target) | `[executor-runtime]` `[security-detection]` | **closed (5/5 sub-commits, 2026-05-10)** |
 | TBD | `[FOLLOWUP codex-2026-05-10-M1-pem-regex-dos]` (`packages/analysis_contracts/evidence.py:106-121` `redact_multiline_secrets()` private_key regex unanchored + lazy cross-line span `(?:.\|\n)*?` → catastrophic backtracking on many unmatched BEGIN markers; W12-0 added the redaction itself, this is a follow-up DoS vector. Bounded state machine or size cap) | `[security-detection]` | not started |
 | TBD | `[FOLLOWUP codex-2026-05-10-M9-arguments-preview-redaction-extension]` (W12-5 `tests/architecture/test_network_body_preview_redaction.py` covers `request_body_preview` / `response_body_preview` only; `executor/flows/playwright/runtime_capture/extension_host_strace_parse.py:60,70,78` assigns `arguments_preview` without `redact_secrets()`. Extend the W12-5 gate scope and route arguments_preview through `redact_secrets`) | `[security-detection]` | not started |
@@ -267,6 +268,60 @@ okuyabildiği için). Sub-commit 3 NO env var injection.
       `test_runtime_capture_extension_host_*` (W12-5) ✓,
       `test_body_preview_assignments_are_redacted` ✓,
       `test_all_runtime_dockerfiles_pin_base_images_by_digest` ✓.
+
+### W13-2 — Writable VS Code launcher (Codex H5)
+
+`Status: closed 2026-05-10 (3/3 sub-commits)` ·
+`Source: [FOLLOWUP codex-2026-05-10-H5-writable-vscode-launcher]` ·
+`Lane: [executor-runtime] [security-detection]`
+
+**Goal.** `executor/container/Dockerfile` `launch_vscode.sh`'i
+`executor:executor` 0755 ile bırakıyordu. `reset_state.py::launch_vscode()`
+her reset'te `subprocess.run(["bash", str(_VSCODE_LAUNCH_SCRIPT)])`
+çağırdığı için, target extension aynı `executor` UID'sinde Extension
+Host process'inde çalışırken script'i overwrite edebilir, modified
+versiyonu sonraki reset'te re-execute olur → executor UID'sinde
+arbitrary command execution + persistence. W13-2 script'i `root:executor`
+0750'e taşıyarak owner-write yetkisini kaldırır; executor user
+read+exec yetkisini group bit (`r-x`) üzerinden korur.
+
+**Critical files.**
+
+- [executor/container/Dockerfile:121-128](../../executor/container/Dockerfile) — chmod/chown ratchet (RUN bloğu split: `chmod 755 start.sh`, `chmod 0750 launch_vscode.sh`, `chown root:executor launch_vscode.sh`).
+- [executor/flows/playwright/reset_state.py:148-170](../../executor/flows/playwright/reset_state.py) — `launch_vscode()` `subprocess.run(["bash", str(_VSCODE_LAUNCH_SCRIPT)])` (kod değişmez; permission değişikliği executor read+exec'i kırmaz çünkü group bit set'li).
+- [executor/container/start.sh:116-126](../../executor/container/start.sh) — boot-time launch invocation (kod değişmez; aynı dosya `bash` ile çalıştırılır, executor UID'sinde okur+çalıştırır).
+- [tests/architecture/test_executor_runtime_script_permissions.py](../../tests/architecture/test_executor_runtime_script_permissions.py) — yeni dosya; iki AST/regex gate.
+
+**Sub-commit Roadmap (3 commits — all landed).**
+
+| # | Commit | Touch | Status |
+|---|---|---|---|
+| 1 | `07a68ad` test(W13-2): RED precursor for launch_vscode.sh permission ratchet | `tests/architecture/test_executor_runtime_script_permissions.py` (yeni dosya, 2 gate; gate 1 launch_vscode.sh root:executor 0750 zorunlu — RED, gate 2 start.sh chown executor:* yasak — defense-in-depth, zaten PASS) | ✅ landed |
+| 2 | `75efad7` feat(W13-2): root-own + 0750 launch_vscode.sh in Dockerfile | `executor/container/Dockerfile:121-128` (chmod RUN bloğu split: 755 start.sh + 0750 launch_vscode.sh; chown executor:executor → root:executor) | ✅ landed |
+| 3 | (this commit) test(W13-2): close evidence + lane tracker + status update | Lane tracker, `REFACTOR_STATUS.md`, `POST_POC_BACKLOG.md` § Codex Cloud Audit, `REFACTOR_OPTIMIZATION.md` §11.10 | ✅ landed |
+
+**Sub-commit 3 close evidence (this commit).**
+
+- [x] Architecture gates landed: `test_launch_vscode_is_root_owned_and_executor_read_only` (chown executor:*forbidden + chown root:* required + chmod 755 forbidden + chmod 0750 required), `test_start_sh_remains_root_owned` (chown executor:* on start.sh forbidden, defense-in-depth ratchet) — `tests/architecture/` 79 → 81. Sub-commit 1 doğruladı: gate 1 RED, gate 2 PASS; sub-commit 2 sonrası gate 1 GREEN.
+- [x] `make test-local` 1458 → 1460 passed / 6 skipped / 6 deselected (+2 W13-2 AST gates; sayım `pytest tests/architecture/ --co -q | wc -l` ile doğrulandı: 81/83 collected).
+- [x] `make test-security` 211 passed / 32 warnings unchanged (W13-2 yalnızca container build-time permission değiştirir; runtime fixture-side rules aynı).
+- [x] `tests/architecture/` 79 → 81 (+2 W13-2 gate).
+- [x] **Container smoke (in-container, 2026-05-10):** Container rebuild (`make exec-build`) + `make exec-up` sonrası
+      - `docker exec automation_executor stat -c '%U:%G %a' /home/executor/container/launch_vscode.sh` → `root:executor 750` ✓
+      - `docker exec automation_executor stat -c '%U:%G %a' /usr/local/bin/start.sh` → `root:root 755` ✓ (defense-in-depth ratchet pinned)
+      - `docker exec automation_executor whoami` → `executor` (uid 1000); same UID context as target VSIX would run.
+      - **Negative (write):** `docker exec automation_executor sh -c 'echo "x" >> /home/executor/container/launch_vscode.sh'` → `Permission denied` (exit 2) ✓ — Codex H5 vector kapatıldı.
+      - **Positive (read):** `head -1` `#!/bin/bash` ✓
+      - **Positive (exec bit):** `test -x` passed ✓
+      - **Functional:** Container ENTRYPOINT (`start.sh`) successfully invoked `bash launch_vscode.sh` at boot — VS Code PID 101 confirmed in `docker logs` (`/usr/share/code/code --no-sandbox … --remote-debugging-port=9222 …`); group-bit read+exec yetkisi launch chain'i kırmadı.
+- [x] **Threat model coverage özeti.** Eskiden: target extension `fs.writeFile("/home/executor/container/launch_vscode.sh", malicious_bash)` çağırabilirdi (owner write executor:executor); reset sonrası `subprocess.run(["bash", str(_VSCODE_LAUNCH_SCRIPT)])` modified script'i re-execute eder, persistence across analyses. Şimdi: dosya `root:executor 0750` (`-rwxr-x---`) — owner = root, group = executor, world = none; executor user yalnızca read+exec yetkisinde, write `Permission denied`. Test ağı: 2 architecture gate (text-parse Dockerfile invariant — chmod regex + chown regex hem positive hem negative; W12-5 `test_dockerfile_digest_pin.py` pattern'i). Container smoke (negative + positive + functional) defense'i runtime'da pinler.
+- [x] W12 ratchet gate'leri korundu (W13-2 hiçbirini kırmadı):
+      `test_executor_playwright_flat_file_count_limit` ✓,
+      `test_runner_main_under_loc_budget` ✓,
+      `test_runtime_capture_extension_host_*` (W12-5) ✓,
+      `test_body_preview_assignments_are_redacted` ✓,
+      `test_all_runtime_dockerfiles_pin_base_images_by_digest` ✓.
+- [x] W13-1 ratchet gate'leri korundu: `test_harness_marker_auth.py` 3/3 ✓ (`tests/architecture/` total run'da yeşil).
 
 ## W12 Lessons Learned (carry-forward)
 

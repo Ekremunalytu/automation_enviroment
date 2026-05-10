@@ -1,6 +1,6 @@
 # Post-PoC Backlog
 
-`Last Updated: 2026-05-10 (W12 close-out items closed; Codex Cloud audit 2026-05-10 ingested — 4 HIGH pulled forward + 2 MEDIUM pull-forward + ~10 backlog + 2 posture + 1 WONT-FIX + 9 verified-closed audit trail; H6 closed via W13-1 same day)`
+`Last Updated: 2026-05-10 (W12 close-out items closed; Codex Cloud audit 2026-05-10 ingested — 4 HIGH pulled forward + 2 MEDIUM pull-forward + ~10 backlog + 2 posture + 1 WONT-FIX + 9 verified-closed audit trail; H6 closed via W13-1 same day; H5 closed via W13-2 same day)`
 
 Open deferred work after the W0-W7 PoC acceptance bar. **Slim canonical** —
 verbose descriptions, evidence, and older triage notes are frozen in dated
@@ -53,13 +53,23 @@ items receive `W13-N` IDs at first pull per W11/W12 precedent.
   state or block `reserve_job` while a cancelled worker exists; cover
   the gaps with cancel-poll points. Lane: `[executor-runtime]`
   `[platform-storage]`.
-- **`[FOLLOWUP codex-2026-05-10-H5-writable-vscode-launcher]`** — H5.
-  `executor/container/Dockerfile` chowns `launch_vscode.sh` to
-  `executor:executor` mode 755 — analyzed extension can overwrite, and
+- ~~**`[FOLLOWUP codex-2026-05-10-H5-writable-vscode-launcher]`**~~ — H5.
+  `executor/container/Dockerfile` chowned `launch_vscode.sh` to
+  `executor:executor` mode 755 — analyzed extension could overwrite, and
   `reset_state.py` + `start.sh` re-execute the script across resets
-  → persistent executor hook. Move to `--chown=root:executor` +
-  `chmod 0750` (root-owned, executor read+exec only). Lane:
-  `[executor-runtime]` `[security-detection]`.
+  → persistent executor hook. **Closed via W13-2 (`2026-05-10`,
+  `07a68ad`/`75efad7` + close-out):** Dockerfile RUN block split so
+  `start.sh` keeps `chmod 755` and `launch_vscode.sh` becomes
+  `chmod 0750` + `chown root:executor` (rwxr-x---); executor user
+  retains read+exec via the group bit so the boot + reset launch chain
+  is unaffected, but loses owner-write so a same-UID target extension
+  cannot overwrite the script. Test surface: 2 architecture gates in
+  `tests/architecture/test_executor_runtime_script_permissions.py`
+  (launch_vscode.sh permission invariant + start.sh root-own ratchet
+  defense-in-depth). Container smoke: post-build `stat` →
+  `root:executor 750`; executor write attempt `Permission denied`
+  (exit 2); ENTRYPOINT-driven boot still launches VS Code (PID 101
+  in `docker logs`). Lane: `[executor-runtime]` `[security-detection]`.
 - ~~**`[FOLLOWUP codex-2026-05-10-H6-spoofable-harness-markers]`**~~ —
   H6. `executor/flows/playwright/health/reconciliation.py` accepts
   `[extrace-harness] {json}` from the target-writable Extension Host
