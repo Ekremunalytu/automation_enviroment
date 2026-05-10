@@ -1,6 +1,6 @@
 # Post-PoC Backlog
 
-`Last Updated: 2026-05-10 (W12 close-out items closed; Codex Cloud audit 2026-05-10 ingested — 4 HIGH pulled forward + 2 MEDIUM pull-forward + ~10 backlog + 2 posture + 1 WONT-FIX + 9 verified-closed audit trail; H6 closed via W13-1 same day; H5 closed via W13-2 same day)`
+`Last Updated: 2026-05-10 (W12 close-out items closed; Codex Cloud audit 2026-05-10 ingested — 4 HIGH pulled forward + 2 MEDIUM pull-forward + ~10 backlog + 2 posture + 1 WONT-FIX + 9 verified-closed audit trail; H6 closed via W13-1 same day; H5 closed via W13-2 same day; H4 W13-3 opened same day — draining-state design locked in)`
 
 Open deferred work after the W0-W7 PoC acceptance bar. **Slim canonical** —
 verbose descriptions, evidence, and older triage notes are frozen in dated
@@ -52,7 +52,16 @@ items receive `W13-N` IDs at first pull per W11/W12 precedent.
   building, and just before completion. Add a `draining` intermediate
   state or block `reserve_job` while a cancelled worker exists; cover
   the gaps with cancel-poll points. Lane: `[executor-runtime]`
-  `[platform-storage]`.
+  `[platform-storage]`. **W13-3 opened `2026-05-10` (in progress)** —
+  Option A locked in (draining state): yeni `cancelling` non-terminal
+  state `ACTIVE_ANALYSIS_JOB_STATUSES`'e dahil + partial unique index
+  (Alembic migration), CRUD `cancel_analysis_job` → `cancelling`, yeni
+  `finalize_cancelled_analysis_job` (`cancelling → cancelled`),
+  `execute_analysis_request`'in 5 hot-zone'una `raise_if_cancelled`
+  helper. Reverse-side reserve_job heuristic (Option B) reddedildi.
+  Sub-commit roadmap (6 commits) ve full evidence:
+  `documents/active-work/W13-test-expansion-observability.md` →
+  Per-Item Detail → W13-3.
 - ~~**`[FOLLOWUP codex-2026-05-10-H5-writable-vscode-launcher]`**~~ — H5.
   `executor/container/Dockerfile` chowned `launch_vscode.sh` to
   `executor:executor` mode 755 — analyzed extension could overwrite, and
@@ -421,12 +430,16 @@ future Codex re-runs can confirm closure persists:
 
 - **`[FOLLOWUP simulation-progress-cancel] heartbeat-sandbox-reset-off-thread`**
   — move sandbox reset out of the daemon heartbeat thread.
+  **W13-3 dağılım:** W14'e iter (heartbeat refactor scope, race fix'ten bağımsız).
 - **`[FOLLOWUP simulation-progress-cancel] dedupe-step-progress-schemas`**
   — reconcile `AnalysisJobStepProgress` vs `AnalyzeJobStepProgress`.
+  **W13-3 dağılım:** W14'e iter (kontrat hijyeni, race fix ile bağımsız).
 - **`[FOLLOWUP simulation-progress-cancel] is-job-cancelled-session-churn`**
   — revisit fresh DB session polling if profiling shows pressure.
+  **W13-3 dağılım:** W13-3.5'te kapanır — `raise_if_cancelled` helper'ı 5 ek site'a girince session churn artma riski; `cancel_check` lambda'sı shared `Session` parametresi alarak ya da short-circuit cache'leyerek opt-in optimize edilir.
 - **`[FOLLOWUP simulation-progress-cancel] heartbeat-refactor`** — extract
   heartbeat polling/JSON/cancel logic into a testable helper.
+  **W13-3 dağılım:** W14'e iter (testable helper extraction, race fix'ten bağımsız).
 - **`analysis_service._open_job_session`** — move `SessionLocal` import
   back to module top once the startup-cycle constraint is gone.
 - **`run_analysis_job` exception narrowing** — replace broad handling with

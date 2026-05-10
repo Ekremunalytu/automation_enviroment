@@ -1,6 +1,6 @@
 # W13 — Test Expansion + Observability (Active Work Tracker)
 
-`Last Updated: 2026-05-10 (W13-2 closed — Codex H5 writable VS Code launcher; 4/4 sub-commits landed, runtime smoke ratchet automated)`
+`Last Updated: 2026-05-10 (W13-3 opened — Codex H4 cancel concurrent race; draining-state design locked in, sub-commit roadmap published)`
 `Phase: W13 active`
 `Branch: week13 (single-branch policy precedent; opened 2026-05-10 from cff6455)`
 `Owner: ekrem`
@@ -48,6 +48,37 @@ the section ages.
   invokes `bash launch_vscode.sh` at boot (VS Code PID 101 confirmed
   in container logs). **Next item:** W13-3 (Codex H4 cancel
   concurrent race, multi-component scope per master plan).
+- **W13-3 opened `2026-05-10` (design lock-in commit landing).**
+  Codex H4 cancel concurrent race — `cancelled` job statüsü
+  `appcore/storage/crud_ops/analysis_jobs/lifecycle.py:41`
+  `_TERMINAL_JOB_STATUSES` içinde, cancel anında `reserve_job()`
+  (`workflows/marketplace/job_service.py:173-193`) lock'u serbest
+  bırakıyor → worker thread arka planda hâlâ shared executor +
+  `/results` üzerinde yazarken yeni job reserve edilebiliyor.
+  İkinci açık: cancel polling sadece `_run_monitoring_heartbeat`
+  içinde (5 saniye interval); reset/install/build_triggers/
+  completion barrier'larında poll yok. **Karar (Option A — draining
+  state):** Yeni non-terminal `cancelling` state ekle
+  (`queued → running → cancelling → cancelled`); `cancelling`'i
+  `ACTIVE_ANALYSIS_JOB_STATUSES`'e dahil et + partial unique index'in
+  `WHERE` clause'una koy (Alembic migration); CRUD
+  `cancel_analysis_job` artık `cancelling`'e geçer, worker drain'i
+  bitince yeni `finalize_cancelled_analysis_job` `cancelled`
+  terminal'ine taşır (idempotent). `execute_analysis_request`'in 5
+  hot-zone'una `raise_if_cancelled` helper'ı eklenir. Reverse-side
+  reserve_job heuristic'i (Option B) reddedildi — timing/grace
+  window testable değil, scheduler ve worker durum kanalları
+  arasında ikinci doğru kaynağı yaratıyordu. **Cross-ref:**
+  `[FOLLOWUP simulation-progress-cancel]` 4 açık sub-item'ın 1'i
+  (`is-job-cancelled-session-churn`) W13-3.5'te kapanır, 3'ü
+  (`heartbeat-sandbox-reset-off-thread`, `dedupe-step-progress-schemas`,
+  `heartbeat-refactor`) W14'e iter. **Sub-commit roadmap (6 commits):**
+  W13-3.1 design lock-in (this commit), W13-3.2 RED precursor race
+  tests, W13-3.3 schema + Alembic migration, W13-3.4 CRUD two-phase
+  cancel + finalize helper, W13-3.5 worker cancel-poll points +
+  service finalization, W13-3.6 architecture gates + close evidence.
+  **Plan source:** `documents/REFACTOR_OPTIMIZATION.md` §11.10 H4 +
+  W13-3 Per-Item Detail block below.
 - **Entry gate met:**
   - W12 closed and merged via PR #18 (`33a0852`); close commit
     `e8a9926`.
@@ -129,7 +160,7 @@ GOAL row is pulled.
 | TBD | `[§11.10 GOAL]` Run-ID stamping (job_id exists at `appcore/storage/model_defs/analysis_job.py` and `appcore/contracts/schema_defs/analysis_jobs.py:16` but is not propagated as a correlation identifier through log records, `EvidenceEvent`, or DB row chains; multi-lane plumbing) | `[platform-storage]` `[executor-runtime]` `[security-detection]` | not started |
 | TBD | `[§11.10 GOAL]` W8-W12 regression lock-in (umbrella for any regression coverage missing on W8-W12 landed work; concrete sub-items pulled from `POST_POC_BACKLOG.md` deferrals as W13 progresses; close-pass evaluates which followups are bundled vs deferred to W14+) | (multi) | not started |
 | **TBD HIGH** | `[FOLLOWUP codex-2026-05-10-H3-dev-lan-makefile-drift]` (`Makefile:170-172` `dev-lan` hard-codes `--host 0.0.0.0` while `runbooks/lan-exposure.md:82-87` documents `API_HOST` override; `tests/architecture/test_default_bindings.py` covers settings layer only — no Makefile gate. Doc-fix or recipe-fix; either lands a regression test) | `[security-detection]` `[platform-storage]` | not started |
-| **TBD HIGH** | `[FOLLOWUP codex-2026-05-10-H4-cancel-concurrent-race]` (cross-ref `[FOLLOWUP simulation-progress-cancel]` 5 sub-items already in POST_POC; `cancelled` is terminal in `appcore/storage/crud_ops/analysis_jobs/lifecycle.py:41` so `reserve_job()` releases the lock immediately; cancellation polled only in heartbeat. Add a "draining" intermediate state or block `reserve_job` while a cancelled-but-running worker exists; cover reset/install/trigger gaps with cancel-poll points) | `[executor-runtime]` `[platform-storage]` | not started |
+| **W13-3** | `[FOLLOWUP codex-2026-05-10-H4-cancel-concurrent-race]` (cross-ref `[FOLLOWUP simulation-progress-cancel]` 5 sub-items already in POST_POC; `cancelled` is terminal in `appcore/storage/crud_ops/analysis_jobs/lifecycle.py:41` so `reserve_job()` releases the lock immediately; cancellation polled only in heartbeat. Option A locked in: add a `cancelling` non-terminal state to `ACTIVE_ANALYSIS_JOB_STATUSES` + partial unique index, two-phase cancel via new `finalize_cancelled_analysis_job` helper, `raise_if_cancelled` poll points at 5 hot-zones) | `[executor-runtime]` `[platform-storage]` | **in progress (design lock-in landed `2026-05-10`)** |
 | **W13-2** | `[FOLLOWUP codex-2026-05-10-H5-writable-vscode-launcher]` (`executor/container/Dockerfile:121-128` chowns `launch_vscode.sh` to `executor:executor` mode 755 — analyzed extension can overwrite, persists across resets via `reset_state.py`. Moved to `chown root:executor` + `chmod 0750`; root-own + executor read+exec only) | `[executor-runtime]` `[security-detection]` | **closed (3/3 sub-commits, 2026-05-10)** |
 | **W13-1** | `[FOLLOWUP codex-2026-05-10-H6-spoofable-harness-markers]` (`executor/flows/playwright/health/reconciliation.py:18-50` accepts `[extrace-harness] {json}` from target-writable Extension Host log stream as proof of `automation_trace`; no auth/nonce. Forged `phase:"complete"` markers can satisfy verification → forged clean reports. Monitor-owned side channel (executor-only writable file path) or HMAC nonce stamped in `start.sh` and unavailable to target) | `[executor-runtime]` `[security-detection]` | **closed (5/5 sub-commits, 2026-05-10)** |
 | TBD | `[FOLLOWUP codex-2026-05-10-M1-pem-regex-dos]` (`packages/analysis_contracts/evidence.py:106-121` `redact_multiline_secrets()` private_key regex unanchored + lazy cross-line span `(?:.\|\n)*?` → catastrophic backtracking on many unmatched BEGIN markers; W12-0 added the redaction itself, this is a follow-up DoS vector. Bounded state machine or size cap) | `[security-detection]` | not started |
@@ -336,6 +367,147 @@ read+exec yetkisini group bit (`r-x`) üzerinden korur.
 - [x] **Test bar:** `pytest -v tests/architecture/test_executor_runtime_script_permissions.py` default lane (`not smoke`) 2 PASS / 2 deselected (statik gate'ler korundu, runtime gate'ler smoke-only). `pytest -v -m "smoke or integration" tests/architecture/test_executor_runtime_script_permissions.py` 2 PASS — container ayakta, runtime invariant teyit. `make test-local` sayısı 1460 unchanged (yeni testler smoke/integration markerlı, default lane'den deselect).
 - [x] **Drift düzeltme (sweep):** `documents/REFACTOR_OPTIMIZATION.md:3` `Last Updated: 2026-05-07` → `2026-05-10` ile diğer slim canonical'larla parity'ye çekildi; §11.10 H5 close-out test surface lehçesi "2 architecture gates" → "2 static Dockerfile-AST gates + 2 runtime smoke gates".
 - [x] **Artefakt temizliği:** `results/` (operator-local ad-hoc analiz scratch — `results/_compare.py` hardcoded job/version içeren bir kerelik debug aracı) `.gitignore`'a eklendi. `git status` artık temiz.
+
+### W13-3 — Cancel concurrent race (Codex H4)
+
+`Status: in progress (W13-3.1 design lock-in commit landing, 2026-05-10)` ·
+`Source: [FOLLOWUP codex-2026-05-10-H4-cancel-concurrent-race]` ·
+`Cross-ref: [FOLLOWUP simulation-progress-cancel]` (parent + 4 açık sub-item, POST_POC_BACKLOG.md:422-429) ·
+`Lane: [executor-runtime] [platform-storage]`
+
+**Goal.** Codex Cloud audit (`2026-05-10`) HIGH severity: `cancelled`
+job statüsü `appcore/storage/crud_ops/analysis_jobs/lifecycle.py:41`
+`_TERMINAL_JOB_STATUSES` içinde. Cancel anında `reserve_job()`
+(`workflows/marketplace/job_service.py:173-193`) single-active-job
+lock'unu serbest bırakıyor — ancak worker thread arka planda hâlâ
+shared `executor` container'ı ve `/results/` dizinine yazıyor olabilir.
+Yeni `reserve_job` kabul edilirse iki job aynı executor üzerinde
+concurrent çalışır → dosya bozulması, extension cross-contamination,
+deterministic baseline kaybı. İkinci açık: cancellation polling sadece
+`_run_monitoring_heartbeat`
+([workflows/marketplace/analysis_execution.py:85-113](../../workflows/marketplace/analysis_execution.py))
+içinde 5sn interval. `execute_analysis_request` (line 106-132)
+sırasındaki `ensure_vsix_exists`, `_reset_sandbox`, `_install_extension`,
+`_build_triggers`, completion barrier'ı cancel sinyalini görmez —
+kullanıcı "Stop"'a basınca up-to-several-minutes worker tüketim yapar.
+W13-3 her iki açığı tek paket halinde kapatır.
+
+**Critical files.**
+
+- [appcore/storage/crud_ops/analysis_jobs/lifecycle.py:41,105-134,261-282](../../appcore/storage/crud_ops/analysis_jobs/lifecycle.py) — `_TERMINAL_JOB_STATUSES` korunur; `cancel_analysis_job` `cancelling` transition'ına geçer; yeni `finalize_cancelled_analysis_job`; `recover_interrupted_jobs` zaten non-terminal'i kurtarıyor — `cancelling` otomatik dahil.
+- [appcore/contracts/schema_defs/analysis_jobs.py:24-25,42,110-122](../../appcore/contracts/schema_defs/analysis_jobs.py) — `AnalysisJobStatus` Literal'a `cancelling`, `ANALYSIS_JOB_STATUSES` 6 elemana çıkar, `ACTIVE_ANALYSIS_JOB_STATUSES = ("queued","running","cancelling")`, `AnalysisJobUpdate` yeni `requested_cancel_at` field.
+- [appcore/storage/model_defs/analysis_job.py:39-47](../../appcore/storage/model_defs/analysis_job.py) — partial unique index `WHERE` clause `cancelling` dahil; yeni `requested_cancel_at` mapped_column Float nullable.
+- [workflows/marketplace/analysis_execution.py:85-132](../../workflows/marketplace/analysis_execution.py) — heartbeat (line 85-113) dokunulmaz; `execute_analysis_request` body (line 106-132) 5 hot-zone'a yeni `raise_if_cancelled` helper'ı ekler.
+- [workflows/marketplace/analysis_service.py:211-249](../../workflows/marketplace/analysis_service.py) — exception handler `finalize_cancelled_analysis_job(job_id)` çağrısı; `cancel_check` shared session optimization (`is-job-cancelled-session-churn` sub-item kapanır).
+- [workflows/marketplace/job_service.py:173-193,315-322](../../workflows/marketplace/job_service.py) — `reserve_job` kod değişmez (doğal olarak `cancelling` aktif sayılır); `is_job_cancelled` semantic genişler veya yeni helper.
+- `alembic/versions/<rev>_w13_3_add_cancelling_state.py` (yeni) — partial unique index güncelleme + `requested_cancel_at` column; reversible downgrade `cancelling → cancelled` zorla taşır.
+- `tests/architecture/test_cancel_poll_points.py` (yeni) ve `tests/architecture/test_job_state_invariants.py` (yeni) — 2 yeni AST gate dosyası.
+
+**Design Decision Locked-In: Option A (Draining intermediate state).**
+
+State machine son hâli: `queued → running → (cancelling → cancelled) | completed | failed`.
+
+| Boyut | Karar |
+|---|---|
+| Yeni state | `cancelling` (non-terminal); `_TERMINAL_JOB_STATUSES = {"completed","failed","cancelled"}` invariant DOKUNULMAZ. |
+| Reserve lock | `cancelling` `ACTIVE_ANALYSIS_JOB_STATUSES`'e dahil; partial unique index `WHERE status IN ('queued','running','cancelling')` (Alembic migration). |
+| Cancel API atomik mi? | Hayır — iki fazlı: (1) CRUD `cancel_analysis_job` `running → cancelling`, `requested_cancel_at=now()`, `finished_at` set ETMEZ; (2) worker `AnalysisCancelledError` aldıktan sonra `analysis_service` exception handler `finalize_cancelled_analysis_job` çağırır → `cancelling → cancelled`, step'leri finalize. |
+| Idempotency | `cancelling` üzerinde tekrar `cancel` no-op (mevcut snapshot 200 OK; UI double-click'i kırmaz). |
+| Cancel poll point'leri | `execute_analysis_request`'in 5 hot-zone'unda yeni `raise_if_cancelled(cancel_check)` helper: ensure_vsix öncesi, `_reset_sandbox` öncesi, `_install_extension` öncesi, `_build_triggers` öncesi, `_run_monitoring` öncesi. `AnalysisCancelledError` yeniden kullanılır. |
+| Worker crash recovery | `recover_interrupted_jobs` predicate'ı non-terminal + boot_id != current → `failed`'a düşürür; `cancelling` non-terminal olduğu için otomatik kapsanır. |
+| UI contract | `cancelling` Pydantic Literal'a eklenir → `scripts/generate_ui_contracts.py` regen ile frontend `AnalysisJobStatus` TS literal'a düşer. Backend gate yeşil; frontend "Stopping…" rendering'i ayrı UI lane work (W13 scope'unda BACKLOG note). Polling client `cancelling`'i non-terminal görür ve polling sürer. |
+
+**Reverse-side reject rationale (Option B — reserve_job heuristic).**
+
+Reddedildi. `reserve_job` içine `owner_boot_id == _PROCESS_BOOT_ID and
+finished_at + grace > now()` benzeri timing/grace-window heuristic'i
+test edilebilir değil (saat-based race senaryosu); scheduler ve worker
+durum kanalları arasında ikinci bir doğru kaynağı yaratır (`status`
+sütunu vs. "alive worker" sezgisi). W11 monitor lifecycle precedent'ı
+(start/starting/running/stopping/stopped) state-machine yaklaşımını
+zaten validate ediyor.
+
+**Simulation-progress-cancel sub-item dağılımı.**
+
+`POST_POC_BACKLOG.md:422-429`'daki 4 açık sub-item:
+
+- `heartbeat-sandbox-reset-off-thread` → **W14'e iter.** Heartbeat refactor; W13-3 race fix'ten bağımsız, scope şişer.
+- `dedupe-step-progress-schemas` → **W14'e iter.** `AnalysisJobStepProgress` vs `AnalyzeJobStepProgress` kontrat hijyeni; race fix ile bağımsız.
+- `is-job-cancelled-session-churn` → **W13-3.5'te kapanır.** `raise_if_cancelled` helper'ı 5 ek site'a girince session churn artma riski; `cancel_check` lambda'sı shared `Session` parametresi alarak ya da `is_job_cancelled` short-circuit cache'leyerek opt-in optimize edilir. Close evidence W13-3.6'da kayıt düşülür.
+- `heartbeat-refactor` → **W14'e iter.** Heartbeat polling/JSON/cancel logic'i testable helper'a çıkar; race fix'ten bağımsız.
+
+Net: W13-3 1 sub-item kapatır, 3'ünü W14'e iter.
+
+**Sub-commit Roadmap (6 commits — all targeting `week13`).**
+
+| # | Commit | Touch | Status |
+|---|---|---|---|
+| 1 | (this commit) `docs(W13-3): assign stable ID + lock in draining state design` | `documents/active-work/W13-test-expansion-observability.md` (W13-3 Per-Item Detail bloğu — bu blok; Candidate Items table W13-3 satırı; Status Quick Glance satırı), `documents/POST_POC_BACKLOG.md` (H4 satırı W13-3 in-progress notu + 4 sub-item dağılım açıklaması), `documents/REFACTOR_STATUS.md` (W13-3 in-progress satırı) | 🟡 landing |
+| 2 | `test(W13-3): RED precursor for cancelling-state lifecycle + race gaps` | `tests/platform/storage/test_analysis_jobs.py` (+5 case `@pytest.mark.skip(reason="W13-3 RED — cancelling state not yet introduced")`), `tests/workflows/marketplace/test_router.py` (+2 case `cancelling` API leak skip-RED) | ⏳ planned |
+| 3 | `feat(W13-3): add cancelling status + Alembic migration` | Pydantic literal + tuple genişler, model_def partial unique index güncellenir, yeni Alembic revision (drop+create unique index + add `requested_cancel_at` column; downgrade `cancelling → cancelled` zorla), UI contracts regen | ⏳ planned |
+| 4 | `feat(W13-3): CRUD layer two-phase cancel + finalize helper` | `cancel_analysis_job` `cancelling` transition'ına geçer (step'lere dokunmaz, finished_at set etmez), yeni `finalize_cancelled_analysis_job` (`cancelling → cancelled` + step finalize + finished_at set), `complete_analysis_job`/`fail_analysis_job` `cancelling`'den invocation guard | ⏳ planned |
+| 5 | `feat(W13-3): worker cancel-poll points + service finalization` | `analysis_execution.py` yeni `raise_if_cancelled` helper + 5 hot-zone yerleştirme, `analysis_service.run_analysis_job` exception handler `finalize_cancelled_analysis_job` çağrısı, `cancel_check` shared session optimization (`is-job-cancelled-session-churn` kapanır), router cancel endpoint doc yorumu | ⏳ planned |
+| 6 | `test(W13-3): architecture gates + close evidence + status sweep` | `tests/architecture/test_cancel_poll_points.py` (yeni AST gate — 5 hot-zone öncesi `raise_if_cancelled` invariant), `tests/architecture/test_job_state_invariants.py` (yeni 4 invariant gate), `documents/active-work/W13-test-expansion-observability.md` W13-3 close evidence, `POST_POC_BACKLOG.md` H4 strikethrough + `is-job-cancelled-session-churn` strikethrough, `documents/REFACTOR_STATUS.md` W13-3 closed satırı | ⏳ planned |
+
+**Migration plan (W13-3.3).**
+
+```python
+upgrade():
+    op.drop_index("uq_analysis_jobs_single_active", table_name="analysis_jobs")
+    op.create_index(
+        "uq_analysis_jobs_single_active",
+        "analysis_jobs",
+        [text("(1)")],
+        unique=True,
+        postgresql_where=text("status IN ('queued','running','cancelling')"),
+    )
+    op.add_column(
+        "analysis_jobs",
+        sa.Column("requested_cancel_at", sa.Float(), nullable=True),
+    )
+
+downgrade():
+    op.execute(
+        "UPDATE analysis_jobs SET status='cancelled', "
+        "finished_at=COALESCE(finished_at, EXTRACT(EPOCH FROM NOW())), "
+        "requested_cancel_at=NULL WHERE status='cancelling'"
+    )
+    op.drop_column("analysis_jobs", "requested_cancel_at")
+    op.drop_index("uq_analysis_jobs_single_active", table_name="analysis_jobs")
+    op.create_index(
+        "uq_analysis_jobs_single_active",
+        "analysis_jobs",
+        [text("(1)")],
+        unique=True,
+        postgresql_where=text("status IN ('queued','running')"),
+    )
+```
+
+Reversible. PoC tek-aktif-iş; en kötü 1 row downgrade'de zorla
+`cancelled`'a taşınır (veri kaybı yok, worker yarıda kesilmiş gözükür).
+Operasyonel adım: `make exec-down` → `make migrate` → `make exec-up`.
+
+**Architecture gates (W13-3.6'da pinler).**
+
+1. `test_cancel_poll_points.py`: `execute_analysis_request` AST'ında
+   `ensure_vsix_exists`, `_reset_sandbox`, `_install_extension`,
+   `_build_triggers`, `_run_monitoring` çağrılarının her birinin AYNI
+   fonksiyon body'sinde önceki statement olarak `raise_if_cancelled(...)`
+   pattern'ına sahip olduğunu doğrular. Yeni step eklenirse gate kırılır
+   → tasarımcı bilinçli karar vermek zorunda.
+2. `test_job_state_invariants.py`: (a) `_TERMINAL_JOB_STATUSES` exact
+   `{"completed","failed","cancelled"}` frozenset, (b) `"cancelling"`
+   terminal'a sokulmamış, (c) `ACTIVE_ANALYSIS_JOB_STATUSES`
+   `"cancelling"` içerir, (d) `ANALYSIS_JOB_STATUSES` 6-eleman tuple ve
+   `cancelling`'i içerir, (e) Alembic upgrade body'sinde `"WHERE status
+   IN ('queued','running','cancelling')"` literal'ı bulunur.
+
+**Verification plan.**
+
+- Per sub-commit: `make check-all`, `make test-local` delta dokümante, `make test-security` 211 yeşil korunur, W12 + W13-1 + W13-2 ratchet gates kırılmaz.
+- W13-3.3 sonrası: `alembic upgrade head` + `alembic downgrade -1` + `alembic upgrade head` round-trip; `psql -d <db> -c "\d analysis_jobs"` ile partial unique index where ve `requested_cancel_at` column doğrulaması.
+- W13-3.5 sonrası: `make exec-up` + manuel race senaryosu — job başlat, `_reset_sandbox`/`_install_extension`/`_build_triggers`/`_run_monitoring` her fazında ayrı ayrı cancel et, snapshot `cancelling → cancelled` transition'ı, sonraki `reserve_job` çağrısı sadece terminal sonrasında kabul edilir; `cancelling` sırasında ikinci POST `ActiveAnalysisJobError` (409 Conflict) verir.
+- W13-3.6 close: `tests/architecture/` 81 → ~85 (+4 W13-3 gate); threat model coverage özeti H4 vector kapatma kanıtı (`reserve_job` block + 5 cancel-poll point + drain-then-finalize); live-scan baseline `ms-python.python@2026.5.2026050801` üzerinde bitwise-equal beklenir (semantik-delta yoksa).
 
 ## W12 Lessons Learned (carry-forward)
 
