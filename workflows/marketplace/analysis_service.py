@@ -38,6 +38,9 @@ from workflows.marketplace.analysis_execution import (
     install_extension as _install_extension,
 )
 from workflows.marketplace.analysis_execution import (
+    raise_if_cancelled as _raise_if_cancelled,
+)
+from workflows.marketplace.analysis_execution import (
     reset_sandbox as _reset_sandbox,
 )
 from workflows.marketplace.analysis_execution import (
@@ -106,9 +109,19 @@ def execute_analysis_request(
     if executor_control is None:
         executor_control = default_executor_control
     reporter = _StepReporter(progress_callback)
+    # W13-3 (Codex H4): cancel-poll points cover the gaps between the
+    # 5-second heartbeat ticks. Each major phase boundary checks the
+    # signal so a cancellation never has to wait for `_reset_sandbox` /
+    # `_install_extension` / `_build_triggers` to complete before
+    # propagating, and the worker drains within milliseconds of the
+    # cancel API call.
+    _raise_if_cancelled(cancel_check)
     ensure_vsix_exists(request)
+    _raise_if_cancelled(cancel_check)
     _reset_sandbox(reporter, executor_control)
+    _raise_if_cancelled(cancel_check)
     install_output = _install_extension(request, reporter, executor_control)
+    _raise_if_cancelled(cancel_check)
     trigger_plan = _build_triggers(
         db,
         request,
@@ -117,6 +130,7 @@ def execute_analysis_request(
         trigger_plan_type=TriggerPlan,
     )
     report_name = report_name or job_service.build_report_name(request, uuid4().hex)
+    _raise_if_cancelled(cancel_check)
     automation_output, finalize_message = _run_monitoring(
         request,
         report_name,
@@ -220,6 +234,25 @@ def run_analysis_job(job_id: str, request: AnalyzeRequest) -> None:
             cancel_check=cancel_check,
         )
     except AnalysisCancelledError:
+        # W13-3 (Codex H4): worker observed the cancel signal at one of
+        # the cancel-poll points (or via the monitoring heartbeat) and
+        # has drained the in-flight step. Promote the row from the
+        # non-terminal `cancelling` drain state to terminal `cancelled`
+        # so the partial-unique-index lock releases and reserve_job can
+        # admit the next job. The CRUD helper is idempotent on terminal
+        # states via JobNotCancellableError, so a duplicate transition
+        # cannot regress the row.
+        try:
+            job_service.finalize_cancelled_job(job_id)
+        except (job_service.JobNotCancellableError, KeyError):
+            # Idempotent: row may already be terminal (duplicate
+            # finalize) or already gone (test fixtures / very late
+            # worker exit). Either way nothing to clean up.
+            logger.debug(
+                "finalize_cancelled_job skipped for job %s (already terminal "
+                "or absent).",
+                job_id,
+            )
         return
     except (TypeError, AttributeError) as exc:
         job_service.fail_job(
@@ -237,6 +270,19 @@ def run_analysis_job(job_id: str, request: AnalyzeRequest) -> None:
         ValueError,
     ) as exc:
         if job_service.is_job_cancelled(job_id):
+            # W13-3: cancel signal arrived during a hard error in the
+            # worker thread. Treat the row as draining and finalize to
+            # terminal `cancelled` rather than `failed` — the user's
+            # cancel intent is authoritative over an incidental
+            # downstream error.
+            try:
+                job_service.finalize_cancelled_job(job_id)
+            except (job_service.JobNotCancellableError, KeyError):
+                logger.debug(
+                    "finalize_cancelled_job skipped for job %s (already "
+                    "terminal or absent) from error path.",
+                    job_id,
+                )
             return
         job_service.fail_job(
             job_id,

@@ -53,6 +53,23 @@ class StepReporter:
             self._progress_callback(step_name, status, message, error_code, progress)
 
 
+def raise_if_cancelled(cancel_check: Callable[[], bool] | None) -> None:
+    """Raise ``AnalysisCancelledError`` when ``cancel_check`` reports a signal.
+
+    W13-3 (Codex H4): the analysis worker polls this at every major phase
+    boundary in ``execute_analysis_request`` (ensure_vsix, reset_sandbox,
+    install_extension, build_triggers, run_monitoring) so cancellation does
+    not have to wait for the 5-second heartbeat tick — the worker drops
+    out of its current step within milliseconds of the cancel signal,
+    bounded by the next phase boundary at worst. ``cancel_check`` is the
+    same lambda the heartbeat thread uses; ``None`` is a no-op so the
+    helper is safe in code paths where cancellation is not wired (tests,
+    local scripts).
+    """
+    if cancel_check is not None and cancel_check():
+        raise AnalysisCancelledError("Analysis cancelled by user.")
+
+
 def monitoring_failure_message(exc: ExecutorError) -> str:
     detail = str(exc).strip()
     if not detail:
@@ -346,6 +363,7 @@ __all__ = [
     "install_extension",
     "install_failure_message",
     "monitoring_failure_message",
+    "raise_if_cancelled",
     "reset_sandbox",
     "run_monitoring",
 ]

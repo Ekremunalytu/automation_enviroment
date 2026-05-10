@@ -2126,26 +2126,13 @@ def test_cancel_analysis_job_terminal_returns_409(
 
 
 # ---------------------------------------------------------------------------
-# W13-3 (Codex H4) — RED precursor: `cancelling` non-terminal state exposed
-# through the cancel + status endpoints. See
-# `documents/active-work/W13-test-expansion-observability.md` → Per-Item
-# Detail → W13-3 (Design Decision Locked-In: Option A — draining state).
-#
-# Today the /cancel endpoint returns a terminal `cancelled` snapshot
-# atomically. Post-W13-3 it returns a `cancelling` snapshot (worker still
-# draining); polling clients keep polling until the row transitions to
-# `cancelled`. Skipped until W13-3.3 (schema) + W13-3.4 (CRUD) + W13-3.5
-# (worker integration) land.
+# W13-3 (Codex H4) — `cancelling` non-terminal state exposed through the
+# cancel + status endpoints. Originally W13-3.2 @pytest.mark.skip RED
+# precursors; W13-3.5 (worker integration + AnalyzeJobStatusResponse
+# Pydantic literal extension from W13-3.3) makes both cases green.
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.skip(
-    reason=(
-        "W13-3 RED precursor: cancel endpoint must return a 200 with a "
-        "`cancelling` (non-terminal) snapshot once the draining-state "
-        "design lands (W13-3.5)."
-    )
-)
 def test_cancel_analysis_job_returns_200_with_cancelling_snapshot(
     client: TestClient,
 ) -> None:
@@ -2197,14 +2184,6 @@ def test_cancel_analysis_job_returns_200_with_cancelling_snapshot(
     mock_cancel.assert_called_once()
 
 
-@pytest.mark.skip(
-    reason=(
-        "W13-3 RED precursor: status endpoint must expose `cancelling` for "
-        "polling clients so the UI can render a 'Stopping…' state while the "
-        "worker drains. Requires W13-3.3 schema + W13-3.5 service "
-        "finalization."
-    )
-)
 def test_status_endpoint_exposes_cancelling_state_for_polling_clients(
     client: TestClient,
 ) -> None:
