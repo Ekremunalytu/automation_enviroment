@@ -1,6 +1,6 @@
 # REFACTOR_OPTIMIZATION
 
-`Last Updated: 2026-05-07`
+`Last Updated: 2026-05-10 (W13-1 + W13-2 closed same day — Codex H6 + H5; §11.10 pull-forwards integrated)`
 
 W0-W13 plan dokümanı: stabilizasyon + güvenlik + post-PoC external-review
 integration. **Slim canonical** — full historical content (review pass'leri,
@@ -475,12 +475,14 @@ ownership is by-design per W12-1 layout).
   Dockerfile RUN block split, `launch_vscode.sh` now `chown
   root:executor` + `chmod 0750` (rwxr-x---); executor user retains
   read+exec via the group bit, loses owner-write so a same-UID target
-  extension cannot overwrite the script. Test surface: 2 architecture
-  gates in `tests/architecture/test_executor_runtime_script_permissions.py`;
-  container smoke verified `root:executor 750` post-build with
-  `Permission denied` on executor write. See W13 lane tracker →
-  Per-Item Detail → W13-2 for full evidence. Lane:
-  `[executor-runtime]` `[security-detection]`.
+  extension cannot overwrite the script. Test surface: 2 static
+  Dockerfile-AST gates + 2 runtime smoke gates in
+  `tests/architecture/test_executor_runtime_script_permissions.py`
+  (runtime gates `stat` ownership/mode and assert executor-UID `>>` write
+  is rejected with `Permission denied`; skip when docker unavailable so
+  local pre-push remains ergonomic). See W13 lane tracker → Per-Item
+  Detail → W13-2 for full evidence. Lane: `[executor-runtime]`
+  `[security-detection]`.
 - ~~`[FOLLOWUP codex-2026-05-10-H6-spoofable-harness-markers]`~~ —
   `health/reconciliation.py` accepts `[extrace-harness]` markers
   from target-writable Extension Host log stream as proof of

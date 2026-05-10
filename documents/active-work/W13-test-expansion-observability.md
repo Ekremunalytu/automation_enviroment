@@ -1,6 +1,6 @@
 # W13 — Test Expansion + Observability (Active Work Tracker)
 
-`Last Updated: 2026-05-10 (W13-2 closed — Codex H5 writable VS Code launcher; 3/3 sub-commits landed)`
+`Last Updated: 2026-05-10 (W13-2 closed — Codex H5 writable VS Code launcher; 4/4 sub-commits landed, runtime smoke ratchet automated)`
 `Phase: W13 active`
 `Branch: week13 (single-branch policy precedent; opened 2026-05-10 from cff6455)`
 `Owner: ekrem`
@@ -21,7 +21,7 @@ the section ages.
 
 ## Status (Quick Glance)
 
-- **W13 active. W13-2 closed `2026-05-10` (3/3 sub-commits landed).**
+- **W13 active. W13-2 closed `2026-05-10` (4/4 sub-commits landed).**
   Entry baseline established `2026-05-10` post-W12 merge to `main`
   via PR #18 (`33a0852`); Codex Cloud security audit `2026-05-10`
   ingested same day. **W13-1 closed `2026-05-10`:** Codex H6
@@ -31,8 +31,10 @@ the section ages.
   `executor:executor` 0755 to `root:executor` 0750. Sub-commits:
   `07a68ad` RED precursor (2 arch gates, 1 RED + 1 PASS),
   `75efad7` Dockerfile fix (chmod 0750 + chown root:executor;
-  RED → GREEN), close-out (this commit) docs sweep + container
-  smoke evidence. **Test bar:** `make test-local` 1458 → 1460
+  RED → GREEN), `22938ef` close-out docs sweep + manual container
+  smoke evidence, pre-push runtime ratchet (this commit) automates
+  the manual smoke proof as 2 pytest smoke/integration gates +
+  `.gitignore` `results/` scratch + §11.10 date sweep. **Test bar:** `make test-local` 1458 → 1460
   (+2 W13-2 AST gates under
   `tests/architecture/test_executor_runtime_script_permissions.py`);
   `make test-security` 211 unchanged; `tests/architecture/` 79 →
@@ -271,7 +273,7 @@ okuyabildiği için). Sub-commit 3 NO env var injection.
 
 ### W13-2 — Writable VS Code launcher (Codex H5)
 
-`Status: closed 2026-05-10 (3/3 sub-commits)` ·
+`Status: closed 2026-05-10 (4/4 sub-commits)` ·
 `Source: [FOLLOWUP codex-2026-05-10-H5-writable-vscode-launcher]` ·
 `Lane: [executor-runtime] [security-detection]`
 
@@ -290,15 +292,16 @@ read+exec yetkisini group bit (`r-x`) üzerinden korur.
 - [executor/container/Dockerfile:121-128](../../executor/container/Dockerfile) — chmod/chown ratchet (RUN bloğu split: `chmod 755 start.sh`, `chmod 0750 launch_vscode.sh`, `chown root:executor launch_vscode.sh`).
 - [executor/flows/playwright/reset_state.py:148-170](../../executor/flows/playwright/reset_state.py) — `launch_vscode()` `subprocess.run(["bash", str(_VSCODE_LAUNCH_SCRIPT)])` (kod değişmez; permission değişikliği executor read+exec'i kırmaz çünkü group bit set'li).
 - [executor/container/start.sh:116-126](../../executor/container/start.sh) — boot-time launch invocation (kod değişmez; aynı dosya `bash` ile çalıştırılır, executor UID'sinde okur+çalıştırır).
-- [tests/architecture/test_executor_runtime_script_permissions.py](../../tests/architecture/test_executor_runtime_script_permissions.py) — yeni dosya; iki AST/regex gate.
+- [tests/architecture/test_executor_runtime_script_permissions.py](../../tests/architecture/test_executor_runtime_script_permissions.py) — 2 statik Dockerfile-AST gate + 2 runtime smoke gate (`test_launch_vscode_runtime_ownership_and_mode_smoke`, `test_executor_cannot_overwrite_launch_vscode_smoke`); helper `_resolve_executor_container` `test_container_entrypoint.py:26-45`'in birebir kopyası (paylaşılan conftest fixture'ına çıkarmak W13-2 scope dışı).
 
-**Sub-commit Roadmap (3 commits — all landed).**
+**Sub-commit Roadmap (4 commits — all landed).**
 
 | # | Commit | Touch | Status |
 |---|---|---|---|
 | 1 | `07a68ad` test(W13-2): RED precursor for launch_vscode.sh permission ratchet | `tests/architecture/test_executor_runtime_script_permissions.py` (yeni dosya, 2 gate; gate 1 launch_vscode.sh root:executor 0750 zorunlu — RED, gate 2 start.sh chown executor:* yasak — defense-in-depth, zaten PASS) | ✅ landed |
 | 2 | `75efad7` feat(W13-2): root-own + 0750 launch_vscode.sh in Dockerfile | `executor/container/Dockerfile:121-128` (chmod RUN bloğu split: 755 start.sh + 0750 launch_vscode.sh; chown executor:executor → root:executor) | ✅ landed |
-| 3 | (this commit) test(W13-2): close evidence + lane tracker + status update | Lane tracker, `REFACTOR_STATUS.md`, `POST_POC_BACKLOG.md` § Codex Cloud Audit, `REFACTOR_OPTIMIZATION.md` §11.10 | ✅ landed |
+| 3 | `22938ef` test(W13-2): close evidence + lane tracker + status sweep | Lane tracker, `REFACTOR_STATUS.md`, `POST_POC_BACKLOG.md` § Codex Cloud Audit, `REFACTOR_OPTIMIZATION.md` §11.10 | ✅ landed |
+| 4 | (this commit) test(W13-2): runtime smoke ratchet + .gitignore + §11.10 date sweep | `tests/architecture/test_executor_runtime_script_permissions.py` (+2 smoke/integration gate); `.gitignore` (`results/` scratch ignored); `documents/REFACTOR_OPTIMIZATION.md` (Last Updated `2026-05-07` → `2026-05-10` + §11.10 H5 test surface lehçesi); `documents/REFACTOR_STATUS.md` + W13 lane tracker close-evidence güncellemesi | ✅ landed |
 
 **Sub-commit 3 close evidence (this commit).**
 
@@ -322,6 +325,17 @@ read+exec yetkisini group bit (`r-x`) üzerinden korur.
       `test_body_preview_assignments_are_redacted` ✓,
       `test_all_runtime_dockerfiles_pin_base_images_by_digest` ✓.
 - [x] W13-1 ratchet gate'leri korundu: `test_harness_marker_auth.py` 3/3 ✓ (`tests/architecture/` total run'da yeşil).
+
+**Sub-commit 4 close evidence (this commit — pre-push runtime ratchet).**
+
+- [x] Container smoke proof'u manuel `docker exec` çağrılarından pytest gate'lerine çevrildi — `tests/architecture/test_executor_runtime_script_permissions.py`'ye 2 yeni `@pytest.mark.smoke @pytest.mark.integration` test eklendi:
+      - `test_launch_vscode_runtime_ownership_and_mode_smoke` — container içinde `stat -c '%U:%G %a' /home/executor/container/launch_vscode.sh` çıktısını `"root:executor 750"` literal'e karşı assert eder. Statik Dockerfile gate'i tamamlar: RUN sırası bozulursa veya post-COPY chown silinirse statik gate hâlâ pass eder ama runtime gate yakalar.
+      - `test_executor_cannot_overwrite_launch_vscode_smoke` — Codex H5'in gerçek exploit vektörünü doğrular: `USER executor` (Dockerfile:145) default UID'sinde `docker exec automation_executor bash -c 'echo evil >> /home/executor/container/launch_vscode.sh'` çağrısı `returncode != 0` + stderr `"Permission denied"` döner. Image cache veya overlay drift senaryolarını yakalar.
+- [x] Helper `_resolve_executor_container()` `test_container_entrypoint.py:26-45`'ten birebir kopyalandı; container provisioning değişirse "keep in sync" yorumu işaret ediyor. Conftest fixture'a çıkarma W13-2 scope dışı (statik+runtime sync'i bozmamak için bilinçli karar).
+- [x] Skip pattern: `docker` yoksa veya `automation_executor` running değilse iki gate de `pytest.skip` — yerel pre-push ergonomisi korunur, CI'de `make exec-up` provision sonrası live signal verir.
+- [x] **Test bar:** `pytest -v tests/architecture/test_executor_runtime_script_permissions.py` default lane (`not smoke`) 2 PASS / 2 deselected (statik gate'ler korundu, runtime gate'ler smoke-only). `pytest -v -m "smoke or integration" tests/architecture/test_executor_runtime_script_permissions.py` 2 PASS — container ayakta, runtime invariant teyit. `make test-local` sayısı 1460 unchanged (yeni testler smoke/integration markerlı, default lane'den deselect).
+- [x] **Drift düzeltme (sweep):** `documents/REFACTOR_OPTIMIZATION.md:3` `Last Updated: 2026-05-07` → `2026-05-10` ile diğer slim canonical'larla parity'ye çekildi; §11.10 H5 close-out test surface lehçesi "2 architecture gates" → "2 static Dockerfile-AST gates + 2 runtime smoke gates".
+- [x] **Artefakt temizliği:** `results/` (operator-local ad-hoc analiz scratch — `results/_compare.py` hardcoded job/version içeren bir kerelik debug aracı) `.gitignore`'a eklendi. `git status` artık temiz.
 
 ## W12 Lessons Learned (carry-forward)
 

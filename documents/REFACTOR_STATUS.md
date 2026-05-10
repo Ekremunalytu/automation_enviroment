@@ -79,7 +79,7 @@ phase history and verbose evidence are frozen under dated snapshots:
   76 → 79. Tracker:
   [`active-work/W13-test-expansion-observability.md`](active-work/W13-test-expansion-observability.md)
   → Per-Item Detail → W13-1.
-- **W13-2 closed `2026-05-10` (3/3 sub-commits)** — Codex H5
+- **W13-2 closed `2026-05-10` (4/4 sub-commits)** — Codex H5
   writable VS Code launcher. `executor/container/Dockerfile`
   `launch_vscode.sh` from `executor:executor 0755` to
   `root:executor 0750` (rwxr-x---). Target extension running under
@@ -91,13 +91,19 @@ phase history and verbose evidence are frozen under dated snapshots:
   `tests/architecture/test_executor_runtime_script_permissions.py`;
   gate 1 RED, gate 2 PASS as start.sh is already root-owned),
   `75efad7` (Dockerfile chmod RUN split + chown root:executor;
-  RED → GREEN), close-out (this commit) docs sweep + container
-  smoke evidence. **Test bar:** `make test-local` 1458 → 1460
-  (+2 W13-2 AST gates); `make test-security` 211 unchanged;
-  `tests/architecture/` 79 → 81. **Container smoke:** post-build
-  `stat -c '%U:%G %a'` → `root:executor 750`; executor write
-  attempt `Permission denied` (exit 2); functional ENTRYPOINT
-  invocation succeeds (VS Code PID 101 in `docker logs`). Tracker:
+  RED → GREEN), `22938ef` (close-out docs sweep + container
+  smoke evidence), pre-push runtime ratchet (this commit) — 2
+  pytest smoke gates that automate the manual `stat` + executor
+  write-deny check + `.gitignore` `results/` scratch + §11.10
+  date sweep. **Test bar:** `make test-local` 1458 → 1460
+  (+2 W13-2 static AST gates; runtime smoke gates are
+  smoke/integration-marked, default lane deselects them);
+  `tests/architecture/` smoke lane 0 → 2 pytest gates;
+  `make test-security` 211 unchanged. **Container smoke (now
+  pytest-asserted):** `test_launch_vscode_runtime_ownership_and_mode_smoke`
+  asserts `root:executor 750`; `test_executor_cannot_overwrite_launch_vscode_smoke`
+  asserts executor-UID append to `launch_vscode.sh` → rc != 0 +
+  `Permission denied`. Tracker:
   [`active-work/W13-test-expansion-observability.md`](active-work/W13-test-expansion-observability.md)
   → Per-Item Detail → W13-2.
 
