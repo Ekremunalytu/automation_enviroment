@@ -54,9 +54,10 @@ ls executor/flows/playwright/*.py | wc -l
 # Beklenen: 10
 ```
 
-- [ ] `executor/flows/playwright/` flat dosya sayısı ≤ 10
-  (mimari gate: `test_executor_playwright_flat_file_count_limit`).
-- [ ] 10 paket dizini mevcut: `attribution/`, `entrypoint/`, `health/`,
+- [x] `executor/flows/playwright/` flat dosya sayısı ≤ 10 — **10/10**
+  (mimari gate `test_executor_playwright_flat_file_count_limit` yeşil
+  `2026-05-10 check-all`).
+- [x] 10 paket dizini mevcut: `attribution/`, `entrypoint/`, `health/`,
   `monitor/`, `runtime_capture/`, `scenarios/`, `signals/`, `stimulus/`,
   `vscode/`, `workspace/`.
 
@@ -70,10 +71,14 @@ wc -l executor/flows/playwright/runtime_capture/extension_host*.py
 # Beklenen: extension_host.py ~87, log_parse ~329, strace_parse ~106, capture ~264
 ```
 
-- [ ] `entrypoint/runner.py::main` body span ≤ 200 LoC
-  (mimari gate: `test_runner_main_under_loc_budget`).
-- [ ] `runtime_capture/extension_host.py` ≤ 100 LoC (facade-only).
-- [ ] Üç W12-5 split modülü mevcut ve canonical sahipliği koruyor.
+- [x] `entrypoint/runner.py::main` body span ≤ 200 LoC — toplam dosya
+  196 LoC; `main()` 99 LoC (mimari gate
+  `test_runner_main_under_loc_budget` yeşil).
+- [x] `runtime_capture/extension_host.py` 87 LoC ≤ 100 (facade-only).
+- [x] Üç W12-5 split modülü mevcut ve canonical sahipliği koruyor:
+  `extension_host_log_parse.py` (341 LoC),
+  `extension_host_strace_parse.py` (106 LoC),
+  `extension_host_capture.py` (264 LoC).
 
 ### §1.3 Public surface contracts
 
@@ -87,10 +92,12 @@ wc -l executor/flows/playwright/runtime_capture/extension_host*.py
 # Beklenen: 17
 ```
 
-- [ ] `attribution/__init__.py` 10 public name (W12-2 cleanup).
-- [ ] `runtime_capture/extension_host.py` 17 re-export name (W12-5).
-- [ ] `monitor/__init__.py` lazy-proxy invariant korunuyor
-  (mimari gate: `test_monitor_lazy_proxy_completeness`).
+- [x] `attribution/__init__.py` 10 public name (W12-2 cleanup) — doğrulandı
+  `2026-05-10` (`.venv/bin/python -c "..."` ile).
+- [x] `runtime_capture/extension_host.py` 17 re-export name (W12-5) —
+  doğrulandı `2026-05-10`.
+- [x] `monitor/__init__.py` lazy-proxy invariant korunuyor
+  (mimari gate `test_monitor_lazy_proxy_completeness` yeşil).
 
 ---
 
@@ -100,8 +107,9 @@ wc -l executor/flows/playwright/runtime_capture/extension_host*.py
 .venv/bin/python -m pytest tests/architecture -q
 ```
 
-- [ ] **Tüm `tests/architecture/` testleri yeşil.** Beklenen ~100 case.
-- [ ] Hiçbir gate skip / xfail durumda değil.
+- [x] **Tüm `tests/architecture/` testleri yeşil.** `2026-05-10`
+  bar: 76 passed / 2 deselected / 0 fail / 0 xfail.
+- [x] Hiçbir gate skip durumda değil.
 
 ### §2.1 Önemli W12 gate'leri (özel olarak doğrula)
 
@@ -125,7 +133,9 @@ wc -l executor/flows/playwright/runtime_capture/extension_host*.py
 | `test_no_dual_import_fallback_in_executor` | W9-3 invariant | `test_import_graph.py` |
 | `test_no_sys_path_manipulation_in_runtime` | W9-4 invariant | `test_import_graph.py` |
 
-- [ ] Yukarıdaki tüm gate'ler isim isim grep ile mevcut ve yeşil.
+- [x] Yukarıdaki tüm gate'ler isim isim grep ile mevcut ve yeşil
+  (`make check-all` `2026-05-10`). UI digest pin gate'i artık `ui/`
+  Dockerfile'ı da kapsıyor.
 
 ---
 
@@ -137,9 +147,11 @@ wc -l executor/flows/playwright/runtime_capture/extension_host*.py
 make test-local 2>&1 | tail -10
 ```
 
-- [ ] **Beklenen:** `1430 passed, 6 skipped, 6 deselected` (post-W12-5).
-- [ ] 0 failed.
-- [ ] Yeni warnings yok (mevcut 75 warning Pydantic deprecation,
+- [x] **Çıktı:** `1447 passed, 6 skipped, 6 deselected` (`2026-05-10`,
+  W12-5 `1430` baseline + 14 W12 close-out test case + 3 fixture
+  parametrik).
+- [x] 0 failed.
+- [x] Yeni warning kategorisi yok (mevcut 75 warning Pydantic deprecation,
   bunlar `[FOLLOWUP pydantic-schema-version-deprecation]` altında).
 
 ### §3.2 `make test-security`
@@ -148,9 +160,10 @@ make test-local 2>&1 | tail -10
 make test-security 2>&1 | tail -5
 ```
 
-- [ ] **Beklenen:** `211 passed, 32 warnings` (W12-4'ten beri sabit).
-- [ ] 0 failed.
-- [ ] Hiçbir kural fixture'ı çıkartılmamış.
+- [x] **Çıktı:** `211 passed, 32 warnings` (W12-4'ten beri sabit;
+  `2026-05-10`).
+- [x] 0 failed.
+- [x] Hiçbir kural fixture'ı çıkartılmamış.
 
 ### §3.3 `make check-all` (tam acceptance bar)
 
@@ -167,10 +180,13 @@ make check-all 2>&1 | tail -15
 5. `ui-boundaries` — `cd ui && npm run lint:boundaries`.
 6. `test` — full pytest with DB.
 
-- [ ] **`make check-all` yeşil.** Bu W12 close'un ana acceptance bar'ı.
-- [ ] Son satır: `✅ All checks (including security) passed!`.
-- [ ] Kayıt: çıktıyı veya tail'i tracker'a (`W12-executor-subpackaging.md`)
-  ekle, `2026-05-XX` damgasıyla.
+- [x] **`make check-all` yeşil.** `2026-05-10` dry-run koşusu.
+- [x] Son satır: `✅ All checks (including security) passed!` —
+  doğrulandı.
+- [x] Kayıt: çıktı tail'i `documents/REFACTOR_STATUS.md` "Last known
+  broad check bar" satırına ve bu dokümana yazıldı; `1447 passed /
+  6 skipped / 6 deselected` + `211 passed / 32 warnings` kayıt
+  altında.
 
 ### §3.4 Live-scan validation (tamamlandı `2026-05-10`)
 

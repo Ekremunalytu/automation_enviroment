@@ -19,7 +19,7 @@
 - **W8 closed `2026-04-29`; W9 closed `2026-05-04` via PR #9; W10
   closed `2026-05-04` via PR #11; W11 closed `2026-05-05` and merged
   via PR #14.** Active phase: **W12 closing — Executor Subpackaging
-  - Attribution Cleanup**. All five W12 work items landed (W12-0
+  and Attribution Cleanup**. All five W12 work items landed (W12-0
   output-signal redaction, W12-1 subpackaging, W12-2 attribution
   facade, W12-3 raw_context union, W12-4 dispatch extraction, W12-5
   extension_host ahtapot split + body-preview gate); UI Dockerfile

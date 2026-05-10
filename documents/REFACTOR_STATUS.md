@@ -160,16 +160,14 @@ phase history and verbose evidence are frozen under dated snapshots:
   `PageRef` cross-module rebind (+1 in
   `test_playwright_entrypoint.py`).
 - Working branch: `week12` (single-branch policy for W12).
-- Last known broad check bar: `make test-local` 1430 passed / 6 skipped / 6
-  deselected on `2026-05-10` after the W12-5 extension_host ahtapot split
-  - body-preview redaction gate (+3 from the new W12-5 architecture gates);
-  previous bar was 1402 after the W12-4 dispatch extraction (+2 from the
-  `test_runner_main_loc_budget` gate); pre-W12-4 bar was 1400 after the
-  hardening closures, the
-  `ms-python.python@2026.5.2026050801` fixture-baseline realignment, and
-  the `[FOLLOWUP security-settings-commit-ownership]` rollback +
-  schema-validation pin tests; `make test-security` 211 passed / 32 warnings
-  (unchanged across W12-4 and W12-5).
+- Last known broad check bar: `make check-all` ✅ green on
+  `2026-05-10` (W12 close dry run); `make test-local` 1447 passed / 6
+  skipped / 6 deselected (+17 over the post-W12-5 `1430` baseline:
+  +14 from the W12 close-out test files in commit `84c239e` and +3
+  from architecture-suite parametrize expansion); `make test-security`
+  211 passed / 32 warnings (unchanged across W12-4, W12-5 and the
+  close-out commits). Earlier checkpoints: W12-5 close `1430`, W12-4
+  close `1402`, pre-W12-4 hardening close `1400`.
 - Latest focused verification (`2026-05-09`): `make test-security`
   211 passed / 32 warnings; 113 marketplace/security-settings/helper/
   generator/digest tests passed; generated-contract `--check` passed;
