@@ -1,6 +1,6 @@
 # W13 — Test Expansion + Observability (Active Work Tracker)
 
-`Last Updated: 2026-05-10 (W13-1 closed; 5/5 sub-commits landed)`
+`Last Updated: 2026-05-10 (W13-1 closed; 5/5 sub-commits landed + pre-push setup_monitor wiring gate)`
 `Phase: W13 active`
 `Branch: week13 (single-branch policy precedent; opened 2026-05-10 from cff6455)`
 `Owner: ekrem`
@@ -29,10 +29,15 @@ the section ages.
   `automation_trace` vector via per-launch HMAC-SHA256 handshake).
   Sub-commits: `c7a9ca7` docs+design, `f31c820` RED precursor,
   `ee7c8fb` harness-side HMAC, `2996856` Python verifier + RED→GREEN,
-  `<sub-commit 5>` arch gate + close evidence. **Test bar:**
-  `make test-local` 1452 → 1455 (+3 W13-1 forged-marker rejection
-  cases); `make test-security` 211 unchanged; `tests/architecture/`
-  76 → 78 (+2 W13-1 AST gates). **Live-scan validation:** post-
+  `6a80a87` arch gate + close evidence; pre-push close-out adds the
+  third arch gate covering `setup_monitor` secret-load + report stamp.
+  **Test bar:** `make test-local` 1452 → 1458 (+3 W13-1 forged-marker
+  rejection cases under
+  `tests/executor/test_playwright_health_reconciliation.py` +
+  +3 W13-1 AST gates under
+  `tests/architecture/test_harness_marker_auth.py`, both surfaced by
+  `pytest -v`); `make test-security` 211 unchanged; `tests/architecture/`
+  76 → 79 (+3 W13-1 AST gates). **Live-scan validation:** post-
   sub-commit-3 ms-python.python scan (`e3e729c7e444`) bitwise-equal
   with W12 close baseline (`6fab298e81a1`); post-sub-commit-4 in-
   container production smoke verified the verifier wires through
@@ -220,14 +225,15 @@ okuyabildiği için). Sub-commit 3 NO env var injection.
 | 2 | `f31c820` test(W13-1): RED precursor for harness marker auth (forged-marker rejection) | `tests/executor/test_playwright_health_reconciliation.py` 3 yeni `@pytest.mark.skip` test | ✅ landed |
 | 3 | `ee7c8fb` feat(W13-1): nonce generation + harness HMAC handshake | `Dockerfile` (`/run/extrace`), `launch_vscode.sh` (secret üretimi), `constants.js`/`extension.js`/`markers.js` (read+unlink+HMAC) | ✅ landed |
 | 4 | `2996856` feat(W13-1): reconciliation HMAC verifier + RED → GREEN | `reconciliation.py` (`load_harness_python_secret` + `_verify_harness_marker_signature` + entegrasyon), `monitor/types.py` (`expected_harness_nonce` field), `dispatch.py` (setup_monitor secret stamp), 3 RED test'in skip'i kaldırıldı | ✅ landed |
-| 5 | `<this commit>` test(W13-1): architecture gate + close evidence | `tests/architecture/test_harness_marker_auth.py` (2 AST gate), lane tracker close evidence, `REFACTOR_STATUS.md` update | ✅ landed |
+| 5 | `6a80a87` test(W13-1): architecture gate + close evidence | `tests/architecture/test_harness_marker_auth.py` (2 AST gate), lane tracker close evidence, `REFACTOR_STATUS.md` update | ✅ landed |
+| 5+ | pre-push close-out: `setup_monitor` wiring gate | `tests/architecture/test_harness_marker_auth.py::test_setup_monitor_loads_and_stamps_harness_python_secret` (3rd AST gate); doc drift fixes across `POST_POC_BACKLOG.md`, `REFACTOR_OPTIMIZATION.md` §11.10, `REFACTOR_STATUS.md`, this lane tracker | ✅ landed |
 
 **Sub-commit 5 close evidence (bu commit).**
 
-- [x] Architecture gates landed: `test_attempt_has_harness_completion_trace_calls_verifier` ve `test_reconcile_event_attempts_threads_expected_harness_nonce` — `tests/architecture/` 76 → 78.
-- [x] `make test-local` 1452 → 1455 passed / 6 skipped / 6 deselected (3 W13-1 RED→GREEN'le büyüme).
+- [x] Architecture gates landed: `test_attempt_has_harness_completion_trace_calls_verifier`, `test_reconcile_event_attempts_threads_expected_harness_nonce`, ve pre-push eklenen `test_setup_monitor_loads_and_stamps_harness_python_secret` — `tests/architecture/` 76 → 79. Üçüncü gate, `dispatch.setup_monitor`'ün `load_harness_python_secret()` çağrısı + `report.expected_harness_nonce` atamasını yitirmesini engeller; aksi takdirde reconciliation sessizce legacy phase-only check'e düşer ve H6 tekrar açılır.
+- [x] `make test-local` 1452 → 1458 passed / 6 skipped / 6 deselected (3 W13-1 RED→GREEN reconciliation cases + 3 W13-1 AST gates; architecture testleri `pytest -v` collection'ında zaten test-local'a dahil).
 - [x] `make test-security` 211 passed unchanged (verifier reconciliation-side defense; security suite fixture-side rules test eder, büyümedi — semantic OK).
-- [x] `tests/architecture/` 76 → 78 (`test_harness_marker_auth.py` × 2 gate).
+- [x] `tests/architecture/` 76 → 79 (`test_harness_marker_auth.py` × 3 gate).
 - [x] **Production smoke (in-container, 2026-05-10):** Container rebuild + restart sonrası
       - `/run/extrace/` boş (harness extension consume + unlink etti — temporal isolation invariant ✓)
       - `/results/_extrace_harness_python_secret` 64-char hex (mode 0600, Python orchestration için hazır)
@@ -254,7 +260,7 @@ okuyabildiği için). Sub-commit 3 NO env var injection.
       gerekecek — sub-commit 5 close-bar bunu gerektirmez (close-
       acceptance bar §3 "or explicit semantic-delta documentation").
 - [x] **Threat model kapsama özeti.** Eskiden: `console.log("[extrace-harness] {phase:\"complete\"}")` yazan target → forged clean report.
-      Şimdi: target `process.env`'de secret yok (env unset edildi); `/run/extrace/harness-secret` harness boot'ta unlinked + same-UID temporal protection (target VSIX henüz yüklenmediği için target erişemiyor); `/results/_extrace_harness_python_secret` Python `setup_monitor` tarafından consume + unlinked install_extension öncesi. HMAC-SHA256 rejection fail-closed; mismatched signature → `attempted_only` + `harness_verification_unconfirmed`. Test ağı: 2 architecture gate (AST invariant) + 3 reconciliation regression (forged-without-nonce / forged-with-invalid-nonce / genuine).
+      Şimdi: target `process.env`'de secret yok (env unset edildi); `/run/extrace/harness-secret` harness boot'ta unlinked + same-UID temporal protection (target VSIX henüz yüklenmediği için target erişemiyor); `/results/_extrace_harness_python_secret` Python `setup_monitor` tarafından consume + unlinked install_extension öncesi. HMAC-SHA256 rejection fail-closed; mismatched signature → `attempted_only` + `harness_verification_unconfirmed`. Test ağı: 3 architecture gate (AST invariant — verifier call, nonce thread, `setup_monitor` wiring) + 3 reconciliation regression (forged-without-nonce / forged-with-invalid-nonce / genuine).
 - [x] W12 ratchet gate'leri korundu (W13-1 hiçbirini kırmadı):
       `test_executor_playwright_flat_file_count_limit` ✓,
       `test_runner_main_under_loc_budget` ✓,

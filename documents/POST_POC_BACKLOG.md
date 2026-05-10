@@ -1,6 +1,6 @@
 # Post-PoC Backlog
 
-`Last Updated: 2026-05-10 (W12 close-out items closed; Codex Cloud audit 2026-05-10 ingested — 4 HIGH pulled forward + 2 MEDIUM pull-forward + ~10 backlog + 2 posture + 1 WONT-FIX + 9 verified-closed audit trail)`
+`Last Updated: 2026-05-10 (W12 close-out items closed; Codex Cloud audit 2026-05-10 ingested — 4 HIGH pulled forward + 2 MEDIUM pull-forward + ~10 backlog + 2 posture + 1 WONT-FIX + 9 verified-closed audit trail; H6 closed via W13-1 same day)`
 
 Open deferred work after the W0-W7 PoC acceptance bar. **Slim canonical** —
 verbose descriptions, evidence, and older triage notes are frozen in dated
@@ -11,9 +11,9 @@ snapshots:
 - previous full snapshot:
   [`archive/backlog/POST_POC_BACKLOG_full_2026-05-04.md`](archive/backlog/POST_POC_BACKLOG_full_2026-05-04.md)
 
-W8, W9, W10, and W11 are closed. Active phase: **W12 executor
-subpackaging + attribution cleanup**, tracked in
-[`active-work/W12-executor-subpackaging.md`](active-work/W12-executor-subpackaging.md).
+W8, W9, W10, W11, and W12 are closed. Active phase: **W13 test
+expansion + observability**, tracked in
+[`active-work/W13-test-expansion-observability.md`](active-work/W13-test-expansion-observability.md).
 
 ## Stable IDs Are A Contract
 
@@ -60,15 +60,24 @@ items receive `W13-N` IDs at first pull per W11/W12 precedent.
   → persistent executor hook. Move to `--chown=root:executor` +
   `chmod 0750` (root-owned, executor read+exec only). Lane:
   `[executor-runtime]` `[security-detection]`.
-- **`[FOLLOWUP codex-2026-05-10-H6-spoofable-harness-markers]`** —
+- ~~**`[FOLLOWUP codex-2026-05-10-H6-spoofable-harness-markers]`**~~ —
   H6. `executor/flows/playwright/health/reconciliation.py` accepts
   `[extrace-harness] {json}` from the target-writable Extension Host
   log stream as proof of `automation_trace`; no auth/nonce. Forged
   `phase:"complete"` markers can satisfy verification → forged clean
-  reports. Monitor-owned side channel (executor-only writable file
-  path) or HMAC nonce stamped in `start.sh` and unavailable to
-  target. Largest-impact integrity finding in this audit. Lane:
-  `[executor-runtime]` `[security-detection]`.
+  reports. **Closed via W13-1 (`2026-05-10`,
+  `c7a9ca7`/`f31c820`/`ee7c8fb`/`2996856`/`6a80a87`):** per-launch
+  HMAC-SHA256 handshake (Option C) — `launch_vscode.sh` mints a
+  32-byte secret, harness extension reads + unlinks
+  `/run/extrace/harness-secret` on activate before the target VSIX
+  installs, Python orchestration loads + unlinks
+  `/results/_extrace_harness_python_secret` in `setup_monitor` and
+  stamps `ActivationReport.expected_harness_nonce`; reconciliation
+  rejects unsigned/forged markers via constant-time HMAC compare.
+  Test surface: 3 reconciliation regressions in
+  `tests/executor/test_playwright_health_reconciliation.py`,
+  3 AST gates in `tests/architecture/test_harness_marker_auth.py`.
+  Lane: `[executor-runtime]` `[security-detection]`.
 
 ### Pull-forward to W13 (MEDIUM OPEN — surfaces where W12 work stopped short)
 

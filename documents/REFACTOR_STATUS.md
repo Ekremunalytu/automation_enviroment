@@ -1,6 +1,6 @@
 # Refactor Status
 
-`Last Updated: 2026-05-10 (W12 closed; merged via PR #18 (33a0852); W13 — Test Expansion + Observability open on branch week13; Codex Cloud audit 2026-05-10 ingested — 4 HIGH + 2 MEDIUM pulled forward to W13 acceptance bar)`
+`Last Updated: 2026-05-10 (W12 closed; merged via PR #18 (33a0852); W13 — Test Expansion + Observability open on branch week13; Codex Cloud audit 2026-05-10 ingested — 4 HIGH + 2 MEDIUM pulled forward to W13 acceptance bar; W13-1 closed same day — Codex H6 spoofable harness markers via per-launch HMAC handshake)`
 
 Active status board for current closure state. **Slim canonical** — full
 phase history and verbose evidence are frozen under dated snapshots:
@@ -54,6 +54,31 @@ phase history and verbose evidence are frozen under dated snapshots:
   [`active-work/W13-test-expansion-observability.md`](active-work/W13-test-expansion-observability.md).
   Stable IDs (`W13-1`, `W13-2`, ...) assigned at first item pull per
   W11/W12 precedent.
+- **W13-1 closed `2026-05-10` (5/5 sub-commits)** — Codex H6
+  spoofable harness markers. Per-launch HMAC-SHA256 handshake
+  (Option C): `launch_vscode.sh` mints a 32-byte secret on every
+  VS Code start (boot + reset), harness extension reads + unlinks
+  `/run/extrace/harness-secret` on activate before the target VSIX
+  installs (temporal isolation invariant), Python orchestration
+  loads + unlinks `/results/_extrace_harness_python_secret` in
+  `dispatch.setup_monitor` and stamps
+  `ActivationReport.expected_harness_nonce`; reconciliation
+  authenticates every `[extrace-harness] {phase:"complete"}` marker
+  via constant-time HMAC compare and rejects unsigned/forged
+  payloads (fail-closed). Sub-commits `c7a9ca7` (design),
+  `f31c820` (RED precursor), `ee7c8fb` (harness-side HMAC),
+  `2996856` (Python verifier + RED→GREEN), `6a80a87` (architecture
+  gates + close evidence), plus pre-push close-out adding the
+  `setup_monitor` wiring gate so secret-load + report stamp can no
+  longer regress silently. **Test bar:** `make test-local`
+  1452 → 1458 (+3 forged-marker rejections in
+  `tests/executor/test_playwright_health_reconciliation.py`,
+  +3 AST gates in
+  `tests/architecture/test_harness_marker_auth.py`);
+  `make test-security` 211 unchanged; `tests/architecture/`
+  76 → 79. Tracker:
+  [`active-work/W13-test-expansion-observability.md`](active-work/W13-test-expansion-observability.md)
+  → Per-Item Detail → W13-1.
 
 ## W12 Entry Snapshot
 

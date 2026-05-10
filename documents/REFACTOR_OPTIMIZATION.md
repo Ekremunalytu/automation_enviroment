@@ -473,11 +473,14 @@ ownership is by-design per W12-1 layout).
   `executor:executor` mode 755, persistent executor hook attack vector;
   fix is `--chown=root:executor` + `chmod 0750`. Lane:
   `[executor-runtime]` `[security-detection]`.
-- `[FOLLOWUP codex-2026-05-10-H6-spoofable-harness-markers]` —
+- ~~`[FOLLOWUP codex-2026-05-10-H6-spoofable-harness-markers]`~~ —
   `health/reconciliation.py` accepts `[extrace-harness]` markers
   from target-writable Extension Host log stream as proof of
   `automation_trace`; no auth/nonce. Largest-impact integrity finding
-  in this audit. Lane: `[executor-runtime]` `[security-detection]`.
+  in this audit. **Closed via W13-1 (`2026-05-10`,
+  `c7a9ca7`..`6a80a87`):** per-launch HMAC-SHA256 handshake (Option
+  C); see W13 lane tracker → Per-Item Detail → W13-1 for full
+  evidence. Lane: `[executor-runtime]` `[security-detection]`.
 
 - **MEDIUM pull-forward (W13 lane tracker rows added):**
   `[FOLLOWUP codex-2026-05-10-M1-pem-regex-dos]` — W12-0
