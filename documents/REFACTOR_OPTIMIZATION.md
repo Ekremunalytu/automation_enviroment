@@ -387,6 +387,31 @@ run-ID stamping; W8-W12 regression lock-in.
   Refactor önerisi YOK; sadece yeni activation family veya planner
   bug'ı tetiklediğinde ele al. Lane: `[security-detection]`.
 
+**W12-close audit pass (Codex review, `2026-05-10`):**
+
+- `[CRITICAL]` `executor/host.py` install-retry + `_reload_error_message`
+  paths embedded raw subprocess output into the `ExecutorError` message
+  surface, which `analysis_service.py` persisted to `job.error_detail`
+  via `str(exc)`. Fix landed same day: both call sites wrapped with
+  `redact_secrets()`; 5 mutation-verified regression cases in
+  `tests/security/test_executor_host_error_redaction.py`. ADR
+  AGENTS.md "Treat extension input ... as adversarial" reaffirmed at
+  the marketplace job-failure boundary.
+- `[FOLLOWUP w8-4-variable-indirect-subprocess-coverage]` — W13-X.
+  `tests/architecture/test_absolute_binary_paths.py` doesn't reach
+  variable-indirect command heads (`tshark`, `strace`, `inotifywait`
+  in `runtime_capture/`); extend the existing AST gate (no new
+  generic scanner). Lane: `[security-detection]`.
+- `[FOLLOWUP execute-attempt-rebloat-watch]` — W13-X watching.
+  `stimulus/attempts.py::execute_attempt` branch chain growth watching
+  item; refactor only when a new action family is added. Lane:
+  `[executor-runtime]`.
+- `[FOLLOWUP dispatch-execution-rebloat-watch]` — W13-X watching.
+  W12-4 leaves `entrypoint/dispatch.py` (402 LoC) as the new largest
+  entrypoint module; add a `test_dispatch_execution_under_loc_budget`
+  ratchet only after a concrete bloat is observed. Lane:
+  `[executor-runtime]`.
+
 **W13 candidates added `2026-05-09` audit pass (Codex review):**
 
 - ~~`[FOLLOWUP vsix-threshold-dto-generator-coverage]`~~ — closed

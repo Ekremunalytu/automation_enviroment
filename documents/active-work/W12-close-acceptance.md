@@ -39,6 +39,24 @@
 `2026-05-09 21:47`) ve W12-5 sonrası (`e5e33ec6e34f...`,
 `2026-05-10 14:21`) tarama karşılaştırması ile (bkz. §3.4).
 
+**Codex audit pass (`2026-05-10`):** kapanış öncesi son review
+denetimi bir CRITICAL bug ortaya çıkardı: `executor/host.py`'da hem
+install retry path hem `_reload_error_message` helper'ı, ham subprocess
+output'unu `ExecutorError` mesajına embed ediyordu; bu mesaj
+`workflows/marketplace/analysis_service.py:243`'teki `str(exc)`
+üzerinden persist edilen `job.error_detail` alanına ulaşıyordu
+(`appcore/storage/crud_ops/analysis_jobs/lifecycle.py:226`).
+Extension-controlled subprocess stderr içindeki PEM/Bearer/AKIA/db_url
+secret'ları doğrudan DB'ye düşebilirdi. Fix landed: iki çağrı
+`redact_secrets()` ile sarıldı; 5 regression case'i
+`tests/security/test_executor_host_error_redaction.py`'a eklendi
+(mutation-verified — fix kaldırılınca Bearer-leak case'i fail eder).
+Audit ayrıca 3 W13 watching item ortaya çıkardı (`[FOLLOWUP
+w8-4-variable-indirect-subprocess-coverage]`, `[FOLLOWUP
+execute-attempt-rebloat-watch]`, `[FOLLOWUP
+dispatch-execution-rebloat-watch]`); hepsi `POST_POC_BACKLOG.md`'de
+W13-X olarak izleniyor.
+
 ---
 
 ## §1. Kod Durumu — LoC Bütçeleri ve Yapısal Hedefler

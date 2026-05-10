@@ -261,6 +261,28 @@ Use stable IDs in new references; do not cite canonical doc line numbers.
   generic framework / event bus / plugin abstraction eklenmeyecek.
   W12-4 ve W12-5 ile karıştırma. Severity: Medium. Lane:
   `[executor-runtime]`.
+- **`[FOLLOWUP execute-attempt-rebloat-watch]`** — **W13-X watching
+  item, refactor önerisi YOK.** Surfaced `2026-05-10` Codex audit pass.
+  `executor/flows/playwright/stimulus/attempts.py::execute_attempt`
+  bugün branch zinciri sayısı kabul edilebilir; yeni action family
+  eklenecekse explicit helper extraction yap (W11-1 lifecycle split
+  pattern: precursor tests → küçük helper'lar). Bugün split önerisi
+  YOK; sadece her yeni action family commit'inde LoC + cyclomatic
+  ratchet kontrolü. Generic framework, action registry, plugin
+  abstraction eklenmeyecek. Severity: Low. Lane: `[executor-runtime]`.
+- **`[FOLLOWUP dispatch-execution-rebloat-watch]`** — **W13-X watching
+  item, refactor önerisi YOK.** Surfaced `2026-05-10` Codex audit pass.
+  W12-4 sonrası `executor/flows/playwright/entrypoint/dispatch.py`
+  402 LoC; `dispatch_execution()` 6-way mode dispatch'i tek yerde
+  topluyor. `runner.py::main` 99 LoC budget altına çekildiği için
+  yeni execution mode eklenmesi muhtemelen burayı şişirir. Bugün
+  hard-rule ihlali değil; `tests/architecture/
+  test_runner_main_loc_budget.py` paterninde benzer bir
+  `test_dispatch_execution_under_loc_budget` ratchet **eklemekten
+  önce** somut bir şişme görmeyi bekle. Yeni mode/branch eklenirse
+  helper extraction (`_dispatch_demo`, `_dispatch_layered_passes`
+  vs.) yap. Generic framework / strategy registry eklenmeyecek.
+  Severity: Low. Lane: `[executor-runtime]`.
 - **`[FOLLOWUP attribution-links-build-evidence-bundle-density]`** —
   **W13-X watching item, refactor önerisi YOK.** Surfaced `2026-05-09`
   audit pass (Codex review). `executor/flows/playwright/attribution/links.py`
@@ -409,6 +431,21 @@ Use stable IDs in new references; do not cite canonical doc line numbers.
 
 - **`[FOLLOWUP ci-reintroduction]`** — restore CI/docs-check after the
   runner-image drift is understood.
+- **`[FOLLOWUP w8-4-variable-indirect-subprocess-coverage]`** — W13-X.
+  Surfaced `2026-05-10` Codex audit pass. The `tests/architecture/
+  test_absolute_binary_paths.py` gate enforces absolute-path discipline
+  for direct `subprocess.Popen([...])` calls inside the executor tree,
+  but variable-indirect command heads — `["tshark", ...]`,
+  `["strace", ...]`, `["inotifywait", ...]` in
+  `executor/flows/playwright/runtime_capture/{network.py,
+  extension_host_capture.py,filesystem.py}` — bypass it because the
+  list literal lives next to the `Popen` call rather than inside it.
+  Extend the existing AST gate (do **not** write a new generic scanner)
+  so it walks list-literal command heads bound to a `_CMD = [...]`
+  local immediately before a `subprocess.Popen` call, or pin the head
+  string to an explicit allowlist (`tshark`, `strace`, `inotifywait`,
+  `nsenter`) sourced from `executor/binary_paths.py`. Severity: Medium.
+  Lane: `[security-detection]`.
 - ~~**`[FOLLOWUP arch-gate-network-body-preview-redaction]`**~~ —
   closed `2026-05-10` in commit `9433ee3` (W12-5 companion gate).
   New `tests/architecture/test_network_body_preview_redaction.py`
