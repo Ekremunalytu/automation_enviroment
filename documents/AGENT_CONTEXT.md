@@ -1,6 +1,6 @@
 # Agent Context
 
-`Last Updated: 2026-05-07 (W12 scaffold)`
+`Last Updated: 2026-05-10 (W13 scaffold; W12 closed via PR #18)`
 
 Thin routing map for coding agents after `AGENTS.md`. **Stays short.**
 Do not copy phase history here; use `REFACTOR_STATUS.md` (slim canonical).
@@ -13,12 +13,12 @@ Do not copy phase history here; use `REFACTOR_STATUS.md` (slim canonical).
   full backlog under `archive/backlog/`).
 - W8-W13 plan: `REFACTOR_OPTIMIZATION.md` section 11 (slim canonical;
   full text under `archive/plans/`).
-- W8-W11 are closed; W11 merged via PR #14. Past W8/W11 trackers remain
-  only for stable IDs referenced by code/tests. **Active phase:** W12
-  Executor Subpackaging + Attribution Cleanup (`REFACTOR_OPTIMIZATION.md`
-  §11.9 + §11.9.1). Active tracker:
-  `active-work/W12-executor-subpackaging.md`. For current closure state
-  always defer to `REFACTOR_STATUS.md`.
+- W8-W12 are closed; W11 merged via PR #14; W12 merged via PR #18
+  (`33a0852`). Past W8/W11/W12 trackers remain only for stable IDs
+  referenced by code/tests. **Active phase:** W13 — Test Expansion +
+  Observability (`REFACTOR_OPTIMIZATION.md` §11.10). Active tracker:
+  `active-work/W13-test-expansion-observability.md`. For current
+  closure state always defer to `REFACTOR_STATUS.md`.
 - Architecture: `ARCHITECTURE.md` (slim) + `architecture/` splits.
 - Placement rules: `PROJECT_STRUCTURE.md` (slim) + `structure/` splits.
 - Test lanes: `TESTING.md` (slim) + `testing/` splits.

@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-`Last Updated: 2026-05-10 (W12 closing — acceptance bar verification in progress)`
+`Last Updated: 2026-05-10 (W12 closed via PR #18; W13 — Test Expansion + Observability open)`
 
 This file is intentionally a thin pointer. Do not duplicate phase summaries or
 architecture maps here; that caused drift.
@@ -27,17 +27,18 @@ architecture maps here; that caused drift.
 - Current state is owned by `documents/REFACTOR_STATUS.md` (slim canonical).
 - Deferred and pull-next work is owned by `documents/POST_POC_BACKLOG.md`
   (slim canonical).
-- W8-W13 planning is owned by `documents/REFACTOR_OPTIMIZATION.md` section 11;
-  W11 closed `2026-05-05` and merged into `main` via PR #14. Active phase:
-  **W12 closing** — all five W12-N work items landed
-  (W12-0..W12-5), live-scan validation completed `2026-05-10`,
-  W12-close-acceptance bar dry run pending merge to `main`
-  (REFACTOR_OPTIMIZATION §11.9; tracker
-  `documents/active-work/W12-executor-subpackaging.md`;
-  acceptance bar `documents/active-work/W12-close-acceptance.md`).
-  Past trackers: `documents/active-work/W11-monitor-lifecycle.md`
-  (stable IDs W11-1..W11-8); `documents/active-work/W8-security.md`
-  (closed `2026-04-29`).
+- W8-W13 planning is owned by `documents/REFACTOR_OPTIMIZATION.md` section 11.
+  W11 closed `2026-05-05` and merged via PR #14; W12 closed `2026-05-10`
+  and merged into `main` via PR #18 (`33a0852`). Active phase:
+  **W13 — Test Expansion + Observability** (REFACTOR_OPTIMIZATION
+  §11.10; tracker
+  `documents/active-work/W13-test-expansion-observability.md`).
+  Past trackers (stable-ID reference only):
+  `documents/active-work/W12-executor-subpackaging.md`
+  (W12-0..W12-5);
+  `documents/active-work/W11-monitor-lifecycle.md`
+  (W11-1..W11-8);
+  `documents/active-work/W8-security.md` (closed `2026-04-29`).
 - `documents/archive/` is frozen reference; not on the default read path.
   Open only when a slim canonical explicitly points there.
 
