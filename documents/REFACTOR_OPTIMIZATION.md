@@ -448,6 +448,74 @@ run-ID stamping; W8-W12 regression lock-in.
   `test_install_failure_message_redacts_multiline_pem_split_by_tail`.
   Lane: `[marketplace-analysis]` `[security-detection]`.
 
+**W13 candidates added `2026-05-10` Codex Cloud audit pass** (full
+detail in `POST_POC_BACKLOG.md` `## Codex Cloud Audit 2026-05-10`):
+
+38 findings exported `2026-05-10T15:50:38Z` against historical
+commits Feb-May 2026; triaged against HEAD `cff6455` on `week13`.
+~12 verified-closed by W8/W9/W11/W12 work (audit trail kept), ~4
+HIGH OPEN pulled forward to W13, ~10 MEDIUM/UI OPEN added to
+backlog, 2 posture-decision items, 1 WONT-FIX (M14a — workspace.py
+ownership is by-design per W12-1 layout).
+
+- **HIGH pull-forward (W13 lane tracker rows added):**
+  `[FOLLOWUP codex-2026-05-10-H3-dev-lan-makefile-drift]` —
+  `Makefile dev-lan` recipe hard-codes `--host 0.0.0.0` while the
+  `lan-exposure.md` runbook documents an `API_HOST` override that
+  the recipe ignores. Lane: `[security-detection]` `[platform-storage]`.
+- `[FOLLOWUP codex-2026-05-10-H4-cancel-concurrent-race]` — cross-ref
+  existing `[FOLLOWUP simulation-progress-cancel]` 5 sub-items;
+  `cancelled` is terminal so `reserve_job()` releases the lock while
+  a cancelled-but-running worker can still drive shared executor +
+  /results. Lane: `[executor-runtime]` `[platform-storage]`.
+- `[FOLLOWUP codex-2026-05-10-H5-writable-vscode-launcher]` —
+  `executor/container/Dockerfile` chowns `launch_vscode.sh` to
+  `executor:executor` mode 755, persistent executor hook attack vector;
+  fix is `--chown=root:executor` + `chmod 0750`. Lane:
+  `[executor-runtime]` `[security-detection]`.
+- `[FOLLOWUP codex-2026-05-10-H6-spoofable-harness-markers]` —
+  `health/reconciliation.py` accepts `[extrace-harness]` markers
+  from target-writable Extension Host log stream as proof of
+  `automation_trace`; no auth/nonce. Largest-impact integrity finding
+  in this audit. Lane: `[executor-runtime]` `[security-detection]`.
+
+- **MEDIUM pull-forward (W13 lane tracker rows added):**
+  `[FOLLOWUP codex-2026-05-10-M1-pem-regex-dos]` — W12-0
+  `redact_multiline_secrets()` regex unanchored + lazy → catastrophic
+  backtracking DoS; W12-0 added the redaction, this is a follow-up
+  on the same code. Lane: `[security-detection]`.
+- `[FOLLOWUP codex-2026-05-10-M9-arguments-preview-redaction-extension]` —
+  W12-5 body-preview redaction gate scope `*_body_preview` only;
+  `arguments_preview` in `extension_host_strace_parse.py` not
+  redacted. Extend W12-5 gate. Lane: `[security-detection]`.
+
+- **MEDIUM/UI backlog (post-W13 candidates, listed in
+  `POST_POC_BACKLOG.md`):** M4+M7 (output ts range validation),
+  M5 (epoch propagation through docker exec), M10 (sync analyze
+  endpoint TypeError catch), M11 (report health malformed-types
+  guard), M12 (workspace.py symlink check order), M13 (network
+  URI/summary redaction — pair with M9), M14b (CDP port default
+  disabled), U1+U2+U3 (UI event spread cap), U6 (Relations graph
+  cap), U4+U12 (Makefile shell quoting), U8 (activationEvents
+  bounds), I1 (env.example truthy doc drift), I2 (UI /health
+  proxy path), I4 (lifecycle "for <id>" regex bug).
+
+- **Posture decision (PoC-stage acceptance vs auth introduction):**
+  U10+U11 (`/getExtensionsBaseInfo`, `/getExtensionsAllInfo`,
+  `/searchExtension`, `/createExtension` unauthenticated). Codify
+  in ADR or fix before W14.
+
+- **WONT-FIX:** M14a (`workspace/__init__.py` `executor:executor`
+  ownership is by-design per W12-1 package layout; conflated with
+  H5 launcher).
+
+- **Verified-closed by W8/W9/W11/W12 (no action; audit trail in
+  `POST_POC_BACKLOG.md`):** H1 (W9 sys.path debt), H7 (W8-5 regex
+  gate), M3 (W9), M6 (W8-0 + W11-4), M8 (W11-4), U5 (max-distance
+  cutoff), U7+U9 (W12 defensive typing), I3 (W11-1 conditional
+  unlink). H2 partial-closed (W9 closed pattern; defense-in-depth
+  `--workdir /home` pin still possible but low-priority).
+
 Detail: archive §11.10.
 
 ### §11.11 — Kaynak Cross-Reference Tablosu

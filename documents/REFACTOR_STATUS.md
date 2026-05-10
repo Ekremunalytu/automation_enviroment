@@ -1,6 +1,6 @@
 # Refactor Status
 
-`Last Updated: 2026-05-10 (W12 closed; merged via PR #18 (33a0852); W13 — Test Expansion + Observability open)`
+`Last Updated: 2026-05-10 (W12 closed; merged via PR #18 (33a0852); W13 — Test Expansion + Observability open on branch week13; Codex Cloud audit 2026-05-10 ingested — 4 HIGH + 2 MEDIUM pulled forward to W13 acceptance bar)`
 
 Active status board for current closure state. **Slim canonical** — full
 phase history and verbose evidence are frozen under dated snapshots:
@@ -224,6 +224,33 @@ The remaining five are tracked in `POST_POC_BACKLOG.md` as P2/P3 work:
 - `[FOLLOWUP arch-gate-network-body-preview-redaction]`
 - `[CLEANUP pre-commit-python-version-alignment]`
 - `[FOLLOWUP w8-9-network-body-boundary-split-secret-test]`
+
+## 2026-05-10 Codex Cloud Audit Pass
+
+External Codex Cloud security scan exported `2026-05-10T15:50:38Z`,
+38 findings against historical commits Feb-May 2026. Triaged against
+HEAD `cff6455` on `week13`. Full evidence and per-finding closure
+status in `POST_POC_BACKLOG.md` `## Codex Cloud Audit 2026-05-10`;
+W13 plan integration in `REFACTOR_OPTIMIZATION.md` §11.10
+"W13 candidates added 2026-05-10 Codex Cloud audit pass".
+
+- **Verified closed by W8/W9/W11/W12 (~12):** H1, H7, M3, M6, M8,
+  U5, U7, U9, I3 (audit trail kept; no action).
+- **Pulled forward to W13 (4 HIGH OPEN + 2 MEDIUM):** H3, H4, H5,
+  H6, M1, M9 — rows added to W13 lane tracker Candidate Items table
+  prefixed `TBD HIGH` (HIGH four) or plain `TBD` (MEDIUM two).
+- **Backlog (post-W13 candidates, ~10):** M4+M7, M5, M10, M11, M12,
+  M13, M14b, U1+U2+U3, U6, U4+U12, U8, plus quick fixes I1, I2, I4.
+- **Posture decision (ADR or auth introduction):** U10+U11
+  (unauthenticated catalog endpoints; PoC-stage acceptance via
+  `EXTRACE_ALLOW_LAN`).
+- **WONT-FIX (1):** M14a (workspace.py ownership is by-design per
+  W12-1 layout; conflated with H5).
+
+W12 close baseline (`make check-all` green at `e8a9926`) is unaffected
+by these findings; W13 acceptance bar must additionally close at least
+the 4 HIGH and 2 MEDIUM pull-forwards before close, with optional
+backlog items pulled per W13-N capacity.
 
 ## Current Deferrals
 

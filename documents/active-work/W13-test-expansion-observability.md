@@ -1,8 +1,8 @@
 # W13 — Test Expansion + Observability (Active Work Tracker)
 
-`Last Updated: 2026-05-10 (W13 scaffold; entry baseline established post-W12 merge)`
+`Last Updated: 2026-05-10 (W13 scaffold; entry baseline established post-W12 merge; §11.10 GOAL items promoted to Candidate Items table; Codex Cloud audit 2026-05-10 ingested — 4 HIGH + 2 MEDIUM pull-forwards added; branch week13 opened from cff6455)`
 `Phase: W13 active`
-`Branch: TBD (single-branch policy precedent: week13)`
+`Branch: week13 (single-branch policy precedent; opened 2026-05-10 from cff6455)`
 `Owner: ekrem`
 
 This is the canonical active work tracker for the W13 Test Expansion +
@@ -22,8 +22,18 @@ the section ages.
 ## Status (Quick Glance)
 
 - **W13 active.** Entry baseline established `2026-05-10` post-W12
-  merge to `main` via PR #18 (`33a0852`). No work item pulled yet —
-  this tracker is a scaffold; first item pull will assign `W13-1`.
+  merge to `main` via PR #18 (`33a0852`); Codex Cloud security audit
+  `2026-05-10` ingested same day (4 HIGH + 2 MEDIUM pull-forwards
+  added to Candidate Items table; full triage in
+  `POST_POC_BACKLOG.md` `## Codex Cloud Audit 2026-05-10`).
+  Documentation foundation complete: lane tracker rows, POST_POC
+  Codex audit section, `REFACTOR_OPTIMIZATION.md` §11.10 audit pass
+  entry, `REFACTOR_STATUS.md` audit pass section. Branch `week13`
+  opened from `cff6455`. No implementation commit yet — first item
+  pull will assign `W13-1` (planned: H6 spoofable harness markers,
+  highest integrity risk per audit triage; see
+  `~/.claude/plans/week13-master-plan.md` for full 12-item revised
+  sequencing).
 - **Entry gate met:**
   - W12 closed and merged via PR #18 (`33a0852`); close commit
     `e8a9926`.
@@ -67,9 +77,15 @@ Benign silence fixture 3→5; stale singleton-lock + `.env` gitignore
 regression tests; `extrace.executor.*` logger consolidation; run-ID
 stamping; W8-W12 regression lock-in.
 
-Beyond the original §11.10 goal text, the `2026-05-07` and `2026-05-09`
-audit passes plus the W12-close Codex review surfaced additional
-candidates (see "Candidate Items" below).
+Beyond the original §11.10 goal text, three audit passes surfaced
+additional candidates (see "Candidate Items" below): `2026-05-07`
+internal audit, `2026-05-09` Codex review, and `2026-05-10` Codex
+Cloud security scan. The `2026-05-10` audit's 4 HIGH OPEN findings
+(H3 dev-lan Makefile drift, H4 cancel concurrent race, H5 writable
+VS Code launcher, H6 spoofable harness markers) plus 2 MEDIUM
+pull-forwards (M1 PEM regex DoS, M9 arguments_preview redaction) are
+**W13 acceptance-bar mandates** per `REFACTOR_STATUS.md` `## 2026-05-10
+Codex Cloud Audit Pass` — they must close before W13 close.
 
 ## Candidate Items (stable IDs assigned at first pull)
 
@@ -78,12 +94,32 @@ Pulled from `POST_POC_BACKLOG.md` §11.10 candidates and
 backlog state; `W13-N` IDs filled in as items move from "not started"
 to "in progress".
 
+Items prefixed `[§11.10 GOAL]` are sourced from the §11.10 goal
+paragraph (`REFACTOR_OPTIMIZATION.md` lines 365-367) and have no
+`[FOLLOWUP …]` ID in `POST_POC_BACKLOG.md`; the remaining `[FOLLOWUP
+…]` rows are audit-pass candidates (`2026-05-07` / `2026-05-09` /
+W12-close Codex). Initial-state evidence for the GOAL rows recorded
+`2026-05-10` via Explore survey: see "Per-Item Detail" once the first
+GOAL row is pulled.
+
 | ID | Item | Lane | Status |
 |---|---|---|---|
 | TBD | `[FOLLOWUP scenario-accountant-conservation-split]` (`monitor/scenario_accountant.py` 648 LoC; W11-1 lifecycle split pattern) | `[executor-runtime]` | not started |
 | TBD | `[FOLLOWUP evidence-event-kind-raw-context-invariant]` (`EvidenceEvent.kind` ↔ `raw_context.event_class` Pydantic v2 `model_validator`) | `[security-detection]` | not started |
 | TBD | `[FOLLOWUP ui-raw-context-discriminator-parity]` (TS `event_class` literal generation + 5 legacy adapter fixups) | `[ui]` `[contracts]` | not started |
 | TBD | `[FOLLOWUP w8-4-variable-indirect-subprocess-coverage]` (extend `tests/architecture/test_absolute_binary_paths.py` for `tshark`/`strace`/`inotifywait`) | `[security-detection]` | not started |
+| TBD | `[§11.10 GOAL]` Benign silence fixture 3→5 (current 2 fixtures: `extrace.fixture-chat-0.0.1`, `extrace.fixture-theme-0.0.1`; consumers `tests/security/test_benign_silence.py:6-17` + `tests/platform/contracts/test_analysis_fixture_baselines.py:38-40`; need 3 new fixture extensions + baseline JSONs) | `[security-detection]` | not started |
+| TBD | `[§11.10 GOAL]` Stale singleton-lock recovery integration test (`cleanup_singleton_locks()` at `executor/flows/playwright/reset_state.py:131-145`; existing 3 unit cases in `tests/executor/test_reset_state.py:70-168` cover cleanup mechanics but not the lock-held → reset → recovery scenario) | `[executor-runtime]` | not started |
+| TBD | `[§11.10 GOAL]` `.env` gitignore regression test (`.gitignore` already pins `*.env` / `.env` / `!.env.example` and `.env.example` is tracked; no architecture gate exists today — new `tests/architecture/test_env_gitignore.py` via `git check-ignore`) | `[security-detection]` | not started |
+| TBD | `[§11.10 GOAL]` `extrace.executor.*` logger consolidation (discovery first — initial grep found zero `getLogger("extrace*` / `getLogger('extrace*` matches; W13-6 may scope out if no fragmentation exists, or pull canonical naming if any is found) | `[platform-storage]` | not started |
+| TBD | `[§11.10 GOAL]` Run-ID stamping (job_id exists at `appcore/storage/model_defs/analysis_job.py` and `appcore/contracts/schema_defs/analysis_jobs.py:16` but is not propagated as a correlation identifier through log records, `EvidenceEvent`, or DB row chains; multi-lane plumbing) | `[platform-storage]` `[executor-runtime]` `[security-detection]` | not started |
+| TBD | `[§11.10 GOAL]` W8-W12 regression lock-in (umbrella for any regression coverage missing on W8-W12 landed work; concrete sub-items pulled from `POST_POC_BACKLOG.md` deferrals as W13 progresses; close-pass evaluates which followups are bundled vs deferred to W14+) | (multi) | not started |
+| **TBD HIGH** | `[FOLLOWUP codex-2026-05-10-H3-dev-lan-makefile-drift]` (`Makefile:170-172` `dev-lan` hard-codes `--host 0.0.0.0` while `runbooks/lan-exposure.md:82-87` documents `API_HOST` override; `tests/architecture/test_default_bindings.py` covers settings layer only — no Makefile gate. Doc-fix or recipe-fix; either lands a regression test) | `[security-detection]` `[platform-storage]` | not started |
+| **TBD HIGH** | `[FOLLOWUP codex-2026-05-10-H4-cancel-concurrent-race]` (cross-ref `[FOLLOWUP simulation-progress-cancel]` 5 sub-items already in POST_POC; `cancelled` is terminal in `appcore/storage/crud_ops/analysis_jobs/lifecycle.py:41` so `reserve_job()` releases the lock immediately; cancellation polled only in heartbeat. Add a "draining" intermediate state or block `reserve_job` while a cancelled-but-running worker exists; cover reset/install/trigger gaps with cancel-poll points) | `[executor-runtime]` `[platform-storage]` | not started |
+| **TBD HIGH** | `[FOLLOWUP codex-2026-05-10-H5-writable-vscode-launcher]` (`executor/container/Dockerfile:113-115` chowns `launch_vscode.sh` to `executor:executor` mode 755 — analyzed extension can overwrite, persists across resets via `reset_state.py`. Move to `--chown=root:executor` + `chmod 0750`; root-own + executor read+exec only) | `[executor-runtime]` `[security-detection]` | not started |
+| **TBD HIGH** | `[FOLLOWUP codex-2026-05-10-H6-spoofable-harness-markers]` (`executor/flows/playwright/health/reconciliation.py:18-50` accepts `[extrace-harness] {json}` from target-writable Extension Host log stream as proof of `automation_trace`; no auth/nonce. Forged `phase:"complete"` markers can satisfy verification → forged clean reports. Monitor-owned side channel (executor-only writable file path) or HMAC nonce stamped in `start.sh` and unavailable to target) | `[executor-runtime]` `[security-detection]` | not started |
+| TBD | `[FOLLOWUP codex-2026-05-10-M1-pem-regex-dos]` (`packages/analysis_contracts/evidence.py:106-121` `redact_multiline_secrets()` private_key regex unanchored + lazy cross-line span `(?:.\|\n)*?` → catastrophic backtracking on many unmatched BEGIN markers; W12-0 added the redaction itself, this is a follow-up DoS vector. Bounded state machine or size cap) | `[security-detection]` | not started |
+| TBD | `[FOLLOWUP codex-2026-05-10-M9-arguments-preview-redaction-extension]` (W12-5 `tests/architecture/test_network_body_preview_redaction.py` covers `request_body_preview` / `response_body_preview` only; `executor/flows/playwright/runtime_capture/extension_host_strace_parse.py:60,70,78` assigns `arguments_preview` without `redact_secrets()`. Extend the W12-5 gate scope and route arguments_preview through `redact_secrets`) | `[security-detection]` | not started |
 | TBD watch | `[FOLLOWUP planner-selection-readability-audit]` (`analysis_planner/selection.py` 497 LoC; refactor only when activation family or planner bug triggers) | `[security-detection]` | watching |
 | TBD watch | `[FOLLOWUP attribution-links-build-evidence-bundle-density]` (`attribution/links.py` 601 LoC; reassess after evidence-event-kind invariant lands) | `[executor-runtime]` | watching |
 | TBD watch | `[FOLLOWUP execute-attempt-rebloat-watch]` (`stimulus/attempts.py::execute_attempt` chain growth; refactor only when new action family added) | `[executor-runtime]` | watching |

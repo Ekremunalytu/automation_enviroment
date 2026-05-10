@@ -1,6 +1,6 @@
 # Post-PoC Backlog
 
-`Last Updated: 2026-05-10 (W12 close-out: UI Dockerfile digest pin closed; close-out test coverage landed)`
+`Last Updated: 2026-05-10 (W12 close-out items closed; Codex Cloud audit 2026-05-10 ingested — 4 HIGH pulled forward + 2 MEDIUM pull-forward + ~10 backlog + 2 posture + 1 WONT-FIX + 9 verified-closed audit trail)`
 
 Open deferred work after the W0-W7 PoC acceptance bar. **Slim canonical** —
 verbose descriptions, evidence, and older triage notes are frozen in dated
@@ -25,6 +25,225 @@ Do not rename existing IDs. Code/tests currently reference:
 - this filename from `packages/analysis_contracts/contracts.py`
 
 Use stable IDs in new references; do not cite canonical doc line numbers.
+
+## Codex Cloud Audit 2026-05-10
+
+Snapshot of Codex Cloud findings exported `2026-05-10T15:50:38Z`
+(38 findings against historical commits Feb-May 2026; triaged against
+HEAD `cff6455` on `week13` `2026-05-10`). Audit trail; pull-eligible
+items receive `W13-N` IDs at first pull per W11/W12 precedent.
+
+### Pull-forward to W13 (HIGH OPEN — see W13 lane tracker for tabular row)
+
+- **`[FOLLOWUP codex-2026-05-10-H3-dev-lan-makefile-drift]`** —
+  H3. `Makefile` `dev-lan` recipe hard-codes `--host 0.0.0.0`;
+  `documents/runbooks/lan-exposure.md` documents `API_HOST` override
+  that the recipe ignores; `tests/architecture/test_default_bindings.py`
+  covers settings layer only, no Makefile gate. Either fix the recipe
+  to honor `API_HOST` or update the runbook + add Makefile gate. Lane:
+  `[security-detection]` `[platform-storage]`.
+- **`[FOLLOWUP codex-2026-05-10-H4-cancel-concurrent-race]`** — H4.
+  Cross-ref existing `[FOLLOWUP simulation-progress-cancel]` 5
+  sub-items. Adds Codex evidence: `cancelled` is in
+  `_TERMINAL_JOB_STATUSES`, so `reserve_job()` releases the lock
+  immediately while a cancelled-but-running worker can still drive the
+  shared executor + `/results`. Cancellation polled only inside
+  monitoring heartbeat — gaps before/after reset, install, trigger
+  building, and just before completion. Add a `draining` intermediate
+  state or block `reserve_job` while a cancelled worker exists; cover
+  the gaps with cancel-poll points. Lane: `[executor-runtime]`
+  `[platform-storage]`.
+- **`[FOLLOWUP codex-2026-05-10-H5-writable-vscode-launcher]`** — H5.
+  `executor/container/Dockerfile` chowns `launch_vscode.sh` to
+  `executor:executor` mode 755 — analyzed extension can overwrite, and
+  `reset_state.py` + `start.sh` re-execute the script across resets
+  → persistent executor hook. Move to `--chown=root:executor` +
+  `chmod 0750` (root-owned, executor read+exec only). Lane:
+  `[executor-runtime]` `[security-detection]`.
+- **`[FOLLOWUP codex-2026-05-10-H6-spoofable-harness-markers]`** —
+  H6. `executor/flows/playwright/health/reconciliation.py` accepts
+  `[extrace-harness] {json}` from the target-writable Extension Host
+  log stream as proof of `automation_trace`; no auth/nonce. Forged
+  `phase:"complete"` markers can satisfy verification → forged clean
+  reports. Monitor-owned side channel (executor-only writable file
+  path) or HMAC nonce stamped in `start.sh` and unavailable to
+  target. Largest-impact integrity finding in this audit. Lane:
+  `[executor-runtime]` `[security-detection]`.
+
+### Pull-forward to W13 (MEDIUM OPEN — surfaces where W12 work stopped short)
+
+- **`[FOLLOWUP codex-2026-05-10-M1-pem-regex-dos]`** — M1.
+  `redact_multiline_secrets()` (`packages/analysis_contracts/evidence.py`)
+  private_key regex unanchored + lazy `(?:.|\n)*?` → catastrophic
+  backtracking on many unmatched BEGIN markers, stalling final report
+  generation until the docker exec automation timeout. W12-0 added
+  the redaction itself; Codex new-finding `2026-05-10` flags this as
+  a follow-up DoS vector on the same code. Bounded state machine or
+  size/window-limited scan. Lane: `[security-detection]`.
+- **`[FOLLOWUP codex-2026-05-10-M9-arguments-preview-redaction-extension]`** —
+  M9. W12-5 architecture gate
+  `tests/architecture/test_network_body_preview_redaction.py` covers
+  `*_body_preview` only;
+  `executor/flows/playwright/runtime_capture/extension_host_strace_parse.py`
+  assigns `arguments_preview` without `redact_secrets()`. Extend the
+  W12-5 gate scope to include `arguments_preview` and route assignments
+  through `redact_secrets()`. Lane: `[security-detection]`.
+
+### Backlog (post-W13 candidates)
+
+- **`[FOLLOWUP codex-2026-05-10-M4-M7-output-ts-range-validation]`** —
+  M4 + M7. `read_output_channel_logs()` and
+  `parse_output_signal_events()` parse extension-controlled `ts` field
+  and pass to `datetime.fromtimestamp()` without finite/range guard;
+  `monitor_lifecycle` invokes outside try/except. Malicious VSIX with
+  `ts: 1e999` → `OverflowError` aborts final report. Add finite +
+  range check before `fromtimestamp`. Lane: `[security-detection]`
+  `[executor-runtime]`.
+- **`[FOLLOWUP codex-2026-05-10-M5-epoch-docker-exec-propagation]`** —
+  M5. `EXTRACE_EPOCH_RUN_ID` set in `start.sh` but `executor/host.py`
+  `docker exec` only injects `PYTHONUNBUFFERED` — epoch not propagated
+  → `expected_epoch_run_id` empty → stale-marker check disabled. Empty
+  epoch markers always accepted. Add env propagation in `host.py`
+  docker exec invocation. Lane: `[executor-runtime]`.
+- **`[FOLLOWUP codex-2026-05-10-M10-sync-analyze-typeerror-catch]`** —
+  M10. Async `run_analysis_job` catches `(TypeError, AttributeError)`
+  but sync `/api/marketplace/analyze` endpoint does not; malformed
+  `contributes.customEditors` raises uncaught from planner. Add same
+  catch wrapper at sync endpoint. Lane: `[platform-storage]`.
+- **`[FOLLOWUP codex-2026-05-10-M11-report-health-malformed-types]`** —
+  M11. `analysis_reports.py::_build_report_messages()` calls
+  `int(automation_health.get("target_activation_count"))` without
+  type-guard; malicious extension writes `"not-an-int"` → ValueError
+  fails the job. Pydantic schema for `automation_health` or
+  defensive try/except. Lane: `[platform-storage]`.
+- **`[FOLLOWUP codex-2026-05-10-M12-workspace-symlink-check-order]`** —
+  M12. `executor/flows/playwright/workspace/__init__.py::clean_workspace()`
+  checks `is_dir()` before `is_symlink()` — directory symlink fails
+  `shutil.rmtree`. `reset_state.py::_clear_directory()` (canonical
+  reset path) has correct symlink-first order, but the orphan
+  `clean_workspace()` is still vulnerable in isolation. Either delete
+  `clean_workspace()` if unused or fix the order. Lane:
+  `[executor-runtime]`.
+- **`[FOLLOWUP codex-2026-05-10-M13-network-uri-summary-redaction]`** —
+  M13. `runtime_capture/network.py` `path` and `summary` fields
+  assigned directly from `http.request.uri` and `_ws.col.Info` without
+  `redact_secrets()` — bearer tokens / API keys in query strings leak
+  to reports + unauthenticated API. W12-5 gate scope is `*_body_preview`
+  only. Extend redaction + gate to URI/summary fields (pair with M9
+  fix). Lane: `[security-detection]`.
+- **`[FOLLOWUP codex-2026-05-10-M14b-cdp-port-default-disabled]`** —
+  M14b. VS Code `--remote-debugging-port=9222` enabled by default in
+  `executor/container/launch_vscode.sh` and `start.sh`; CDP has no
+  built-in auth, reachable from same container by analyzed extensions.
+  Disable by default; opt-in via `EXECUTOR_CDP_PORT=...` env when
+  debugging. Lane: `[executor-runtime]` `[security-detection]`.
+- **`[FOLLOWUP codex-2026-05-10-U1-U2-U3-ui-event-spread-cap]`** —
+  U1+U2+U3. `EventDensityStrip` allocates `Array.from({length:
+  bucketCount})` from unbounded `rel_time_s`; `EventTimeline` uses
+  `Math.max(...allEvents.map(e=>e.t))` (RangeError ~130k entries);
+  `ActivityBars` same spread risk. Iterative min/max + event-count cap
+  - contracts.py `rel_time_s: float = Field(le=86400)`. Lane: `[ui]`
+  `[contracts]`.
+- **`[FOLLOWUP codex-2026-05-10-U6-relations-graph-cap]`** — U6.
+  `InspectorSections.tsx` Relations tab passes full `inspector.related`
+  array into ECharts force-directed graph with no cap (the existing
+  `slice(0,8)` only caps direct-links display, not the graph). Add
+  cap (max N nodes / edges) and confidence clamp. Lane: `[ui]`.
+- **`[FOLLOWUP codex-2026-05-10-U4-U12-makefile-shell-quoting]`** —
+  U4 (MEDIUM) + U12 (LOW). `make sim-target` and `sim-run` recipes
+  use `$(TARGET)` / `$(SCENARIO)` unquoted; metacharacters in operator
+  input → host shell injection. Quote with `printf %q` or pre-validate
+  variable contents. Lane: `[engineering-quality]`.
+- **`[FOLLOWUP codex-2026-05-10-U8-activationevents-bounds]`** — U8.
+  `appcore/contracts/schema_defs/catalog.py::ExtensionActivationEventsSchema`
+  `event_type: str` has no `Field(max_length=...)`; list count
+  unbounded; DB `event_type` indexed as unbounded String → btree
+  failure for very long values + memory/CPU exhaustion at ingestion.
+  Add `Field(max_length=128)` + list cap + alembic migration to
+  `String(128)`. Lane: `[contracts]` `[platform-storage]`.
+
+### Quick fixes (XS scope, can land alongside any W13-N)
+
+- **`[FOLLOWUP codex-2026-05-10-I1-env-example-truthy-drift]`** — I1.
+  `.env.example` says `EXTRACE_SKIP_JOB_RECOVERY=on` is truthy but
+  `main.py` only recognizes `1`/`true`/`yes`. Doc fix in
+  `.env.example`. Lane: `[engineering-quality]` `[docs]`.
+- **`[FOLLOWUP codex-2026-05-10-I2-ui-health-proxy]`** — I2.
+  `ui/src/lib/api/client.ts::getHealth()` calls `/health`; nginx
+  proxies `/api/*` only → falls through to index.html → UI parses
+  HTML as JSON. Change path to `/api/health` (or extend nginx config).
+  Lane: `[ui]`.
+- **`[FOLLOWUP codex-2026-05-10-I4-lifecycle-for-id-regex]`** — I4.
+  `runtime_capture/extension_host_log_parse.py` regex
+  `.*?(?P<id>[\w.\-]+)` non-greedy captures `id="for"` instead of the
+  actual extension id in `"activate entered for sample.publisher"`
+  format. Add `for\s+` literal token requirement; pin with regression
+  test using both formats. Lane: `[security-detection]`.
+
+### Posture decisions (ADR rather than code fix)
+
+- **`[FOLLOWUP codex-2026-05-10-U10-U11-unauth-catalog-endpoints]`** —
+  U10 + U11. `/getExtensionsBaseInfo`, `/getExtensionsAllInfo`,
+  `/searchExtension`, `/createExtension` registered without
+  authentication. AGENTS.md threat model already accepts LAN-reachable
+  unauthenticated API as PoC posture (`make dev-lan` flow), but Codex
+  flags this. Decide: codify in ADR (PoC-stage acceptance, with
+  `EXTRACE_ALLOW_LAN` gate as the explicit operator opt-in) or
+  introduce auth before W14. Lane: `[security-detection]`
+  `[platform-storage]`.
+
+### Verified-closed by W8-W12 work (audit trail; no action)
+
+For audit completeness — these are no-action items, recorded so
+future Codex re-runs can confirm closure persists:
+
+- **H1** — Workspace can shadow trusted contract imports → closed by
+  W9 ADR 0008 package-mode pivot (PR #9 `d67944d`); `sys.path.insert`
+  debt removed across executor tree.
+- **H7** — Executor-writable report symlinks → closed by W8-5 regex
+  gate `ACTIVATION_REPORT_NAME_RE` + `resolve()` deduplication in
+  `workflows/activation_reports/router.py`. Symlink-specific test
+  case still missing — could be added under
+  `tests/workflows/activation_reports/test_router_path_traversal.py`.
+- **M2** — VSIX rejection logging DoS → cross-ref existing
+  `[FOLLOWUP w8-1-vsix-rejection-log-sanitization]` (P2; below);
+  Codex evidence confirms still open.
+- **M3** — Workspace Python path hijack of signal policy → closed
+  by W9 (PYTHONPATH=/home + signal_policy moved to packages/).
+- **M6** — Harness diagnostics misattribution → closed by W8-0
+  deterministic harness readiness + W11-4 target-log lifecycle
+  instrumentation.
+- **M8** — Target logs globally misattributed → closed by W11-4.
+- **U5** — Typosquat CPU DoS → closed by `_MAX_TYPOSQUAT_DISTANCE = 2`
+  early-cutoff in `a3_typosquat.py`. (Length cap on
+  `target_extension_expected` would be additional defense-in-depth
+  but not strictly necessary.)
+- **U7** — Reserved manifest fields crash → closed by defensive
+  `isinstance(untrusted, dict)` typing in
+  `workflows/extension_catalog/manifest_parser.py`.
+- **U9** — Malformed `capabilities` field crash → closed by same
+  defensive typing as U7.
+- **I3** — Recovery retry deletes valid late marker → closed by W11-1
+  lifecycle split refactor (conditional unlink based on reason).
+
+### Partial closures (need follow-up listed above)
+
+- **H2** — Executor entrypoints hijack via `/workspace` cwd. Pattern
+  closed by W9 (no more `sys.path.insert` debt) but `executor/host.py`
+  `docker exec` does not pin `--workdir /home`. Low residual risk
+  given W9 import hygiene, but the defense-in-depth fix is one line.
+  Tracked as `[FOLLOWUP codex-2026-05-10-H2-docker-exec-workdir-pin]`
+  (not pulled — defense-in-depth, low priority unless an exploitable
+  path resurfaces).
+
+### WONT-FIX
+
+- **M14a** — `executor/flows/playwright/workspace/__init__.py`
+  ownership `executor:executor`. By-design per W12-1 package layout —
+  the executor user owns its automation flows tree; this is not the
+  same as H5 (which is a launcher script that should be root-owned).
+  Codex conflates the two surfaces; rejected with reason recorded
+  here.
 
 ## W12 Pull-Forward
 
