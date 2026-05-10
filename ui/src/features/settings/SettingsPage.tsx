@@ -491,23 +491,29 @@ function SecuritySection() {
     },
   });
 
-  if (thresholdsQuery.isLoading || !persisted) {
-    return (
-      <>
-        <SectionTitle>Security</SectionTitle>
-        <p style={{ color: V3.ink3, fontSize: 13 }}>
-          Loading operator-tunable VSIX hardening thresholds…
-        </p>
-      </>
-    );
-  }
-
+  // Order matters: error must come BEFORE the loading fallback. React Query
+  // surfaces a failed first fetch as `isLoading=false, isError=true,
+  // data=undefined`, so the previous order (`isLoading || !persisted` first)
+  // collapsed every error into "Loading…" forever — the operator landing
+  // here from a VSIX threshold-breach popup never saw the real cause when
+  // the API was unreachable.
   if (thresholdsQuery.isError) {
     return (
       <>
         <SectionTitle>Security</SectionTitle>
         <p style={{ color: V3.coral, fontSize: 13 }}>
           Could not load thresholds: {String(thresholdsQuery.error)}
+        </p>
+      </>
+    );
+  }
+
+  if (thresholdsQuery.isLoading || !persisted) {
+    return (
+      <>
+        <SectionTitle>Security</SectionTitle>
+        <p style={{ color: V3.ink3, fontSize: 13 }}>
+          Loading operator-tunable VSIX hardening thresholds…
         </p>
       </>
     );
