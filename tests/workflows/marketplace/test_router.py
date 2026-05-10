@@ -2125,6 +2125,135 @@ def test_cancel_analysis_job_terminal_returns_409(
     assert terminal_status in detail
 
 
+# ---------------------------------------------------------------------------
+# W13-3 (Codex H4) — RED precursor: `cancelling` non-terminal state exposed
+# through the cancel + status endpoints. See
+# `documents/active-work/W13-test-expansion-observability.md` → Per-Item
+# Detail → W13-3 (Design Decision Locked-In: Option A — draining state).
+#
+# Today the /cancel endpoint returns a terminal `cancelled` snapshot
+# atomically. Post-W13-3 it returns a `cancelling` snapshot (worker still
+# draining); polling clients keep polling until the row transitions to
+# `cancelled`. Skipped until W13-3.3 (schema) + W13-3.4 (CRUD) + W13-3.5
+# (worker integration) land.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skip(
+    reason=(
+        "W13-3 RED precursor: cancel endpoint must return a 200 with a "
+        "`cancelling` (non-terminal) snapshot once the draining-state "
+        "design lands (W13-3.5)."
+    )
+)
+def test_cancel_analysis_job_returns_200_with_cancelling_snapshot(
+    client: TestClient,
+) -> None:
+    cancelling_snapshot = {
+        "job_id": "job-w13-3-drain",
+        "status": "cancelling",
+        "publisher": "ms-python",
+        "name": "python",
+        "version": "2025.0.0",
+        "scenario": None,
+        "current_step": "run_monitoring",
+        "message": "Cancel signalled; worker draining.",
+        "steps": [
+            {"name": "reset_sandbox", "status": "completed", "message": "ok"},
+            {"name": "install_extension", "status": "completed", "message": "ok"},
+            {"name": "build_triggers", "status": "completed", "message": "ok"},
+            {
+                "name": "run_monitoring",
+                "status": "running",
+                "message": "Sandbox automation is still running inside the executor.",
+            },
+            {"name": "finalize_report", "status": "pending", "message": "Queued."},
+        ],
+        "report_path": "activation_report.json",
+        "install_output": None,
+        "automation_output": None,
+        "error_detail": "Cancelled by user.",
+        "error_code": "cancelled_by_user",
+        "created_at": 1.0,
+        "started_at": 2.0,
+        "finished_at": None,  # draining — not yet terminal
+        "updated_at": 3.0,
+        "requested_cancel_at": 3.0,
+    }
+    with patch(
+        "workflows.marketplace.router.job_service.cancel_job",
+        return_value=cancelling_snapshot,
+    ) as mock_cancel:
+        response = client.post("/api/marketplace/analyze/job-w13-3-drain/cancel")
+
+    assert response.status_code == 200
+    body = response.json()
+    # The cancel API is no longer atomic-terminal: it signals a drain.
+    assert body["status"] == "cancelling"
+    assert body["finished_at"] is None
+    assert body["error_code"] == "cancelled_by_user"
+    # Step records are NOT yet finalized — worker still owns them.
+    assert body["steps"][3]["status"] == "running"
+    mock_cancel.assert_called_once()
+
+
+@pytest.mark.skip(
+    reason=(
+        "W13-3 RED precursor: status endpoint must expose `cancelling` for "
+        "polling clients so the UI can render a 'Stopping…' state while the "
+        "worker drains. Requires W13-3.3 schema + W13-3.5 service "
+        "finalization."
+    )
+)
+def test_status_endpoint_exposes_cancelling_state_for_polling_clients(
+    client: TestClient,
+) -> None:
+    cancelling_snapshot = {
+        "job_id": "job-w13-3-poll",
+        "status": "cancelling",
+        "publisher": "ms-python",
+        "name": "python",
+        "version": "2025.0.0",
+        "scenario": None,
+        "current_step": "install_extension",
+        "message": "Cancel signalled; worker draining install_extension.",
+        "steps": [
+            {"name": "reset_sandbox", "status": "completed", "message": "ok"},
+            {
+                "name": "install_extension",
+                "status": "running",
+                "message": "Installing extension VSIX.",
+            },
+            {"name": "build_triggers", "status": "pending", "message": "Queued."},
+            {"name": "run_monitoring", "status": "pending", "message": "Queued."},
+            {"name": "finalize_report", "status": "pending", "message": "Queued."},
+        ],
+        "report_path": "activation_report.json",
+        "install_output": None,
+        "automation_output": None,
+        "error_detail": "Cancelled by user.",
+        "error_code": "cancelled_by_user",
+        "created_at": 1.0,
+        "started_at": 2.0,
+        "finished_at": None,
+        "updated_at": 3.0,
+        "requested_cancel_at": 3.0,
+    }
+    with patch(
+        "workflows.marketplace.router.job_service.get_job_snapshot",
+        return_value=cancelling_snapshot,
+    ):
+        response = client.get("/api/marketplace/analyze/job-w13-3-poll")
+
+    assert response.status_code == 200
+    body = response.json()
+    # The polling-client contract: `cancelling` reaches the wire (UI can
+    # render "Stopping…"); polling loop keeps polling because the row is
+    # not yet terminal.
+    assert body["status"] == "cancelling"
+    assert body["finished_at"] is None
+
+
 def test_cancel_analysis_job_unknown_returns_404(client: TestClient) -> None:
     with patch(
         "workflows.marketplace.router.job_service.cancel_job",

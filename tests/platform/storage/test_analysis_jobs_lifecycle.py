@@ -332,6 +332,148 @@ def test_recover_interrupted_analysis_jobs_returns_zero_when_owner_matches(
     assert refetched.status == "running"  # untouched
 
 
+# ---------------------------------------------------------------------------
+# W13-3 (Codex H4) — RED precursor tests for cancel concurrent race
+#
+# Goal: introduce a non-terminal `cancelling` status between `running` and
+# `cancelled`. `cancel_analysis_job` transitions `running -> cancelling`
+# (worker still draining); a new `finalize_cancelled_analysis_job` helper
+# transitions `cancelling -> cancelled` once the worker drained. The
+# partial unique index `uq_analysis_jobs_single_active` widens its WHERE
+# clause to include `cancelling`, so `reserve_job` blocks while a
+# cancelled-but-still-running worker exists.
+#
+# These tests reference the post-W13-3 contract. They are skipped until
+# the schema (W13-3.3) + CRUD (W13-3.4) sub-commits land; W13-3.4's
+# close evidence removes the skip and the cases must pass GREEN.
+#
+# See documents/active-work/W13-test-expansion-observability.md →
+# Per-Item Detail → W13-3 (Design Decision Locked-In: Option A).
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skip(
+    reason=(
+        "W13-3 RED precursor: `cancelling` non-terminal state not yet "
+        "introduced (W13-3.3/3.4 will add it). Today cancel_analysis_job "
+        "drops straight to terminal `cancelled`."
+    )
+)
+def test_cancel_during_running_transitions_to_cancelling_not_cancelled(
+    db_session: Session,
+) -> None:
+    job = _persist_active(db_session, current_step="run_monitoring")
+    _force_step_status(db_session, job, "run_monitoring", "running")
+
+    draining = lifecycle.cancel_analysis_job(db_session, job.job_id)
+
+    # W13-3 contract: cancel signals drain start, not termination.
+    assert draining.status == "cancelling"
+    assert draining.finished_at is None
+    # `requested_cancel_at` records when the drain was signalled.
+    assert getattr(draining, "requested_cancel_at", None) is not None
+    # Steps are not yet finalized — worker still drains.
+    assert draining.steps[3]["status"] == "running"
+    assert draining.error_code == "cancelled_by_user"
+
+
+@pytest.mark.skip(
+    reason=(
+        "W13-3 RED precursor: idempotent cancel-on-cancelling no-op requires "
+        "the `cancelling` state to exist (W13-3.3/3.4)."
+    )
+)
+def test_cancel_during_cancelling_is_idempotent_no_op(
+    db_session: Session,
+) -> None:
+    job = _persist_active(db_session, current_step="run_monitoring")
+    _force_step_status(db_session, job, "run_monitoring", "running")
+    first = lifecycle.cancel_analysis_job(db_session, job.job_id)
+    assert first.status == "cancelling"
+
+    # Second cancel on a draining job must not raise (UI double-click
+    # tolerance) and must not regress `requested_cancel_at`.
+    second = lifecycle.cancel_analysis_job(db_session, job.job_id)
+    assert second.status == "cancelling"
+    assert second.requested_cancel_at == first.requested_cancel_at  # type: ignore[attr-defined]
+    assert second.finished_at is None
+
+
+@pytest.mark.skip(
+    reason=(
+        "W13-3 RED precursor: `finalize_cancelled_analysis_job` helper not "
+        "yet introduced (W13-3.4)."
+    )
+)
+def test_finalize_cancelled_only_from_cancelling_raises_otherwise(
+    db_session: Session,
+) -> None:
+    job = _persist_active(db_session, current_step="run_monitoring")
+    _force_step_status(db_session, job, "run_monitoring", "running")
+    # The drain-finalize helper transitions cancelling -> cancelled and
+    # finalizes the step records; it must reject any other source state so
+    # the two-phase contract cannot be short-circuited.
+    finalize = lifecycle.finalize_cancelled_analysis_job  # type: ignore[attr-defined]
+
+    with pytest.raises(lifecycle.JobNotCancellableError):
+        finalize(db_session, job.job_id)  # job is still running; must reject
+
+    lifecycle.cancel_analysis_job(db_session, job.job_id)
+    finalized = finalize(db_session, job.job_id)
+
+    assert finalized.status == "cancelled"
+    assert finalized.finished_at is not None
+    assert finalized.steps[3]["status"] == "cancelled"
+    assert finalized.steps[4]["status"] == "skipped"
+
+
+@pytest.mark.skip(
+    reason=(
+        "W13-3 RED precursor: `complete_analysis_job` guard against "
+        "cancelling source state requires W13-3.4 CRUD changes."
+    )
+)
+def test_complete_analysis_job_rejected_from_cancelling(
+    db_session: Session,
+) -> None:
+    job = _persist_active(db_session, current_step="run_monitoring")
+    _force_step_status(db_session, job, "run_monitoring", "running")
+    lifecycle.cancel_analysis_job(db_session, job.job_id)
+
+    # A drained worker that successfully finished its happy-path AFTER
+    # being signalled to cancel must not be allowed to complete the job —
+    # the cancellation was authoritative.
+    with pytest.raises(lifecycle.JobNotCancellableError):
+        lifecycle.complete_analysis_job(
+            db_session,
+            job.job_id,
+            AnalysisJobUpdate(message="late completion", report_path="r.json"),
+        )
+
+
+@pytest.mark.skip(
+    reason=(
+        "W13-3 RED precursor: `get_active_analysis_job` must surface "
+        "cancelling rows once they are added to ACTIVE_ANALYSIS_JOB_STATUSES "
+        "(W13-3.3)."
+    )
+)
+def test_get_active_analysis_job_returns_cancelling_row(
+    db_session: Session,
+) -> None:
+    job = _persist_active(db_session, current_step="run_monitoring")
+    _force_step_status(db_session, job, "run_monitoring", "running")
+    lifecycle.cancel_analysis_job(db_session, job.job_id)
+
+    # While the worker drains, the row holds the single-active slot so
+    # reserve_job sees an ActiveAnalysisJobError and refuses to admit a
+    # second job over the shared executor.
+    active = lifecycle.get_active_analysis_job(db_session)
+    assert active is not None
+    assert active.job_id == job.job_id
+    assert active.status == "cancelling"
+
+
 def test_module_path_pins_lifecycle_surface() -> None:
     """Pin the lifecycle module's public surface against silent W12 reshuffle.
 
