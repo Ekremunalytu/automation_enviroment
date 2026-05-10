@@ -1,6 +1,6 @@
 # Post-PoC Backlog
 
-`Last Updated: 2026-05-10 (W12 close-out items closed; Codex Cloud audit 2026-05-10 ingested — 4 HIGH pulled forward + 2 MEDIUM pull-forward + ~10 backlog + 2 posture + 1 WONT-FIX + 9 verified-closed audit trail; H6 closed via W13-1 same day; H5 closed via W13-2 same day; H4 closed via W13-3 same day — two-phase cancel with cancelling state + 5 worker poll points + 6 architecture gates)`
+`Last Updated: 2026-05-11 (W12 close-out items closed; Codex Cloud audit 2026-05-10 ingested — 4 HIGH pulled forward + 2 MEDIUM pull-forward + ~10 backlog + 2 posture + 1 WONT-FIX + 9 verified-closed audit trail; H6 closed via W13-1 2026-05-10; H5 closed via W13-2 2026-05-10; H4 closed via W13-3 2026-05-10 — two-phase cancel with cancelling state + 5 worker poll points + 6 architecture gates; W13-4 opened 2026-05-11 —`[FOLLOWUP w13-3-close-pass-cancellation-test-hardening]` behavioral coverage layer over W13-3 AST gates + `analysis-job-stuck.md`runbook drift fix)`
 
 Open deferred work after the W0-W7 PoC acceptance bar. **Slim canonical** —
 verbose descriptions, evidence, and older triage notes are frozen in dated
@@ -93,6 +93,33 @@ items receive `W13-N` IDs at first pull per W11/W12 precedent.
   `[platform-storage]`. See
   `documents/active-work/W13-test-expansion-observability.md` →
   Per-Item Detail → W13-3 for full evidence.
+  **Post-close evaluation (W13-3.6 → W13-4 spawned `2026-05-11`):**
+  W13-3'ün 6 architecture gate'i AST invariant'larını pinler ama
+  davranış kanıtı vermez (5 poll-point gerçekten raise mı, cancel↔complete
+  DB race serialize mi, stuck cancelling boot_id sweep ile finalize mi,
+  alembic round-trip data loss yok mu, exception handler iki dalda da
+  finalize çağırıyor mu, finalize negative idempotent mi). Plus runbook
+  drift: `documents/runbooks/analysis-job-stuck.md:42` 4-status literal
+  pre-W13-3 schemasını gösteriyor. Yeni FOLLOWUP açıldı:
+  `[FOLLOWUP w13-3-close-pass-cancellation-test-hardening]` (W13-4
+  stable ID; saf test+doc paketi, production code dokunulmaz).
+- **`[FOLLOWUP w13-3-close-pass-cancellation-test-hardening]`** —
+  W13-3 6 architecture gates pin AST invariants only; behavioral
+  coverage layer eksik (5 poll-point raise, cancel↔complete race,
+  stuck-cancelling recovery, alembic round-trip, exception handler
+  integ, finalize negative). Plus runbook drift in
+  `documents/runbooks/analysis-job-stuck.md`. **In progress as W13-4
+  (`2026-05-11`, 1/8 sub-commits, branch `week13`):** saf test+doc
+  paketi; production code (`raise_if_cancelled`, `cancel_analysis_job`,
+  `finalize_cancelled_analysis_job`, `is_job_cancelled`,
+  `recover_interrupted_jobs`, alembic `c8a2d4e91f5b`) dokunulmaz —
+  zaten doğru implementasyonlar, gap test kanıt eksiği. Sub-commit
+  roadmap (8 commits) + per-commit test bar projection (`make
+  test-local` 1467 → ~1481, +14 davranışsal case;
+  `tests/architecture/` 87 unchanged) tracker'da W13-4 Per-Item
+  Detail bloğunda. Lane: `[platform-storage]` `[executor-runtime]`.
+  See `documents/active-work/W13-test-expansion-observability.md` →
+  Per-Item Detail → W13-4.
 - ~~**`[FOLLOWUP codex-2026-05-10-H5-writable-vscode-launcher]`**~~ — H5.
   `executor/container/Dockerfile` chowned `launch_vscode.sh` to
   `executor:executor` mode 755 — analyzed extension could overwrite, and

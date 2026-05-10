@@ -1,6 +1,6 @@
 # W13 — Test Expansion + Observability (Active Work Tracker)
 
-`Last Updated: 2026-05-10 (W13-3 closed — Codex H4 cancel concurrent race; 6/6 sub-commits landed, draining-state two-phase cancel with 5 worker poll points + 6 new architecture gates)`
+`Last Updated: 2026-05-11 (W13-4 opened — cancellation lifecycle hardening; W13-3 close baseline pinned 6 architecture gates that lock AST invariants, W13-4 adds behavioral coverage for 5 poll-point raise paths, cancel↔complete DB race, stuck-cancelling boot_id recovery, Alembic round-trip data motion, exception handler finalize integration, finalize negative + runbook drift fix in`analysis-job-stuck.md`)`
 `Phase: W13 active`
 `Branch: week13 (single-branch policy precedent; opened 2026-05-10 from cff6455)`
 `Owner: ekrem`
@@ -95,6 +95,39 @@ the section ages.
   forbid cancelling source state). **Plan source:**
   `documents/REFACTOR_OPTIMIZATION.md` §11.10 H4 + W13-3 Per-Item
   Detail block below.
+- **W13-4 opened `2026-05-11` (cancellation lifecycle hardening,
+  spawned from W13-3 close-pass evaluation).** W13-3 close baseline
+  pinned 6 architecture gates (`tests/architecture/test_cancel_poll_points.py`
+  × 2 + `tests/architecture/test_job_state_invariants.py` × 4) but
+  these lock **AST invariants** only — they catch a refactor that
+  removes a `_raise_if_cancelled` call at a hot-zone boundary or
+  changes the `_TERMINAL_JOB_STATUSES` frozenset, but they do not
+  prove the helper actually raises at runtime, that the CRUD
+  cancel↔complete race is serializable at the DB layer, or that the
+  `recover_interrupted_jobs` boot_id sweep finalizes a stuck
+  `cancelling` row. Plus a runbook drift: `documents/runbooks/analysis-job-stuck.md:42`
+  still lists the 4-status `Literal["queued","running","completed","failed"]`
+  pre-W13-3 schema and has no operator playbook for the new
+  non-terminal `cancelling` state. **Karar:** open W13-4 as a pure
+  test + doc package (no production code changes), spawn a new
+  `[FOLLOWUP w13-3-close-pass-cancellation-test-hardening]` POST_POC
+  pointer, and gate W13-5 (next pull from `[FOLLOWUP codex-2026-05-10-H3-dev-lan-makefile-drift]`)
+  on W13-4 close. **Sub-commit roadmap (8 commits):** W13-4.1
+  scope lock-in (this commit) + RED precursor catalogue, W13-4.2
+  RED precursor skip-marked test files (5 poll-point + 2 race +
+  1 recovery + 1 alembic + 2 exception handler + 2 finalize negative
+  = 13 skipped cases), W13-4.3 GREEN poll-point behavioral (5
+  RED→GREEN), W13-4.4 GREEN cancel↔complete race + concurrent
+  cancel/finalize (2 RED→GREEN), W13-4.5 GREEN alembic round-trip
+  and stuck-cancelling boot_id recovery and exception handler integ
+  (4 RED→GREEN), W13-4.6 GREEN finalize negative (2 RED→GREEN),
+  W13-4.7 runbook revizyon (drift fix + Stuck-in-cancelling
+  diagnose/recover bölümü), W13-4.8 close evidence + status sweep.
+  **Test bar projection:** `make test-local` 1467 → ~1481 (+14
+  davranışsal case across 4 yeni dosya + 2 extend), `make test-security`
+  211 unchanged, `tests/architecture/` 87 unchanged (yeni AST gate
+  yok; behavioral coverage farklı kategori). **W13-3 close evidence
+  satırları dokunulmaz** — 1467 sayısı tarihsel olarak doğru kalır.
 - **Entry gate met:**
   - W12 closed and merged via PR #18 (`33a0852`); close commit
     `e8a9926`.
@@ -176,6 +209,7 @@ GOAL row is pulled.
 | TBD | `[§11.10 GOAL]` Run-ID stamping (job_id exists at `appcore/storage/model_defs/analysis_job.py` and `appcore/contracts/schema_defs/analysis_jobs.py:16` but is not propagated as a correlation identifier through log records, `EvidenceEvent`, or DB row chains; multi-lane plumbing) | `[platform-storage]` `[executor-runtime]` `[security-detection]` | not started |
 | TBD | `[§11.10 GOAL]` W8-W12 regression lock-in (umbrella for any regression coverage missing on W8-W12 landed work; concrete sub-items pulled from `POST_POC_BACKLOG.md` deferrals as W13 progresses; close-pass evaluates which followups are bundled vs deferred to W14+) | (multi) | not started |
 | **TBD HIGH** | `[FOLLOWUP codex-2026-05-10-H3-dev-lan-makefile-drift]` (`Makefile:170-172` `dev-lan` hard-codes `--host 0.0.0.0` while `runbooks/lan-exposure.md:82-87` documents `API_HOST` override; `tests/architecture/test_default_bindings.py` covers settings layer only — no Makefile gate. Doc-fix or recipe-fix; either lands a regression test) | `[security-detection]` `[platform-storage]` | not started |
+| **W13-4** | `[FOLLOWUP w13-3-close-pass-cancellation-test-hardening]` (W13-3 6 architecture gates pin AST invariants only — no behavioral coverage exists for: 5 poll-point raise paths actually firing inside `execute_analysis_request`, cancel↔complete DB-level race serialization under `with_for_update()`, stuck-`cancelling` boot_id recovery via `recover_interrupted_jobs` (design intent: `cancelling`→`failed` by boot_id mismatch), Alembic `c8a2d4e91f5b` upgrade/downgrade data motion, `run_analysis_job` exception handler driving `finalize_cancelled_job` on both `AnalysisCancelledError` and `is_job_cancelled`-true hard-error paths, finalize negative (absent + already-cancelled idempotency). Plus runbook drift: `documents/runbooks/analysis-job-stuck.md:42` 4-status literal stale post-W13-3, no playbook for stuck-cancelling) | `[platform-storage]` `[executor-runtime]` | **in progress (1/8 sub-commits, opened 2026-05-11)** |
 | **W13-3** | `[FOLLOWUP codex-2026-05-10-H4-cancel-concurrent-race]` (cross-ref `[FOLLOWUP simulation-progress-cancel]` 5 sub-items already in POST_POC; `cancelled` was terminal in `appcore/storage/crud_ops/analysis_jobs/lifecycle.py:41` so `reserve_job()` released the lock immediately; cancellation polled only in heartbeat. Option A: `cancelling` non-terminal state added to `ACTIVE_ANALYSIS_JOB_STATUSES` + partial unique index, two-phase cancel via new `finalize_cancelled_analysis_job` helper, `_raise_if_cancelled` poll points at 5 hot-zones) | `[executor-runtime]` `[platform-storage]` | **closed (6/6 sub-commits, 2026-05-10)** |
 | **W13-2** | `[FOLLOWUP codex-2026-05-10-H5-writable-vscode-launcher]` (`executor/container/Dockerfile:121-128` chowns `launch_vscode.sh` to `executor:executor` mode 755 — analyzed extension can overwrite, persists across resets via `reset_state.py`. Moved to `chown root:executor` + `chmod 0750`; root-own + executor read+exec only) | `[executor-runtime]` `[security-detection]` | **closed (3/3 sub-commits, 2026-05-10)** |
 | **W13-1** | `[FOLLOWUP codex-2026-05-10-H6-spoofable-harness-markers]` (`executor/flows/playwright/health/reconciliation.py:18-50` accepts `[extrace-harness] {json}` from target-writable Extension Host log stream as proof of `automation_trace`; no auth/nonce. Forged `phase:"complete"` markers can satisfy verification → forged clean reports. Monitor-owned side channel (executor-only writable file path) or HMAC nonce stamped in `start.sh` and unavailable to target) | `[executor-runtime]` `[security-detection]` | **closed (5/5 sub-commits, 2026-05-10)** |
@@ -537,6 +571,99 @@ Operasyonel adım: `make exec-down` → `make migrate` → `make exec-up`.
 - [x] W12 ratchet gate'leri korundu: `test_executor_playwright_flat_file_count_limit` ✓, `test_runner_main_under_loc_budget` ✓, `test_runtime_capture_extension_host_stays_a_thin_facade` ✓, `test_runtime_capture_extension_host_reexports_match_canonical_modules` ✓, `test_body_preview_assignments_are_redacted` ✓, `test_all_runtime_dockerfiles_pin_base_images_by_digest` ✓.
 - [x] W13-1 ratchet gate'leri korundu: `test_harness_marker_auth.py` 3/3 ✓ (`test_attempt_has_harness_completion_trace_calls_verifier`, `test_reconcile_event_attempts_threads_expected_harness_nonce`, `test_setup_monitor_loads_and_stamps_harness_python_secret`).
 - [x] W13-2 ratchet gate'leri korundu: `test_executor_runtime_script_permissions.py` 2 static + 2 smoke = 4/4 ✓ (default lane'de 2, smoke lane'de +2; W13-3 statik AST gate'leri ile çakışma yok).
+
+### W13-4 — Cancellation lifecycle hardening (W13-3 close-pass)
+
+`Status: in progress 2026-05-11 (1/8 sub-commits)` ·
+`Source: [FOLLOWUP w13-3-close-pass-cancellation-test-hardening]` ·
+`Cross-ref: W13-3 close evidence above (6/6 sub-commits 2026-05-10)` ·
+`Lane: [platform-storage] [executor-runtime]`
+
+**Bağlam.** W13-3 (Codex H4 cancel concurrent race) `2026-05-10`'da
+6/6 sub-commit ile kapandı. Close evidence W13-3.6'da landed 6
+architecture gate (`tests/architecture/test_cancel_poll_points.py` × 2,
+`tests/architecture/test_job_state_invariants.py` × 4) **statik AST
+invariant'larını** pinler: `_raise_if_cancelled` çağrısı 5 hot-zone
+helper'ından önce yer alır mı, `_TERMINAL_JOB_STATUSES` tam olarak
+`{completed, failed, cancelled}` mı, Alembic upgrade body'sinde doğru
+WHERE clause var mı. Bu gate'ler refactor regression'larını yakalar
+ama **davranış** kanıtı vermez: poll'ların gerçekten raise ettiği,
+cancel↔complete race'inin serialize olduğu, stuck `cancelling`
+row'unun boot_id sweep ile finalize edildiği, Alembic'in upgrade +
+downgrade arasında veri kaybetmediği, `run_analysis_job` exception
+handler'ın `finalize_cancelled_job`'u doğru iki dalda da çağırdığı
+test edilmedi.
+
+Plus drift: `documents/runbooks/analysis-job-stuck.md:42` hâlâ
+pre-W13-3 4-üye `Literal["queued","running","completed","failed"]`
+listeliyor (gerçek 6: cancelling + cancelled eklendi). Last Updated
+`2026-04-24` — W13-3 öncesinden. Operatörün "stuck cancelling"
+durumunda yapacağı diagnose/recover adımı yok.
+
+**Karar.** Saf test + doc paketi olarak yeni stable ID `W13-4` aç.
+W13-3 reopen edilmez (W13-1/W13-2/W13-3 stable-ID convention'ı
+bozulmaz; close evidence satırları tarihsel doğru kalır). Production
+kodu değişmez — `_raise_if_cancelled` / `cancel_analysis_job` /
+`finalize_cancelled_analysis_job` / `is_job_cancelled` /
+`recover_interrupted_jobs` zaten doğru implementasyonlar; gap test
+kanıt eksiği.
+
+**Critical files.**
+
+- [appcore/storage/crud_ops/analysis_jobs/lifecycle.py:105-203,255-339,342-363](../../appcore/storage/crud_ops/analysis_jobs/lifecycle.py) — `cancel_analysis_job` (cancelling transition + idempotent), `finalize_cancelled_analysis_job` (cancelling→cancelled + JobNotCancellableError guard), `complete_analysis_job` + `fail_analysis_job` cancelling source state guards, `recover_interrupted_analysis_jobs` boot_id sweep.
+- [workflows/marketplace/analysis_execution.py:56-70,360-369](../../workflows/marketplace/analysis_execution.py) — `raise_if_cancelled` helper + `__all__` export.
+- [workflows/marketplace/analysis_service.py](../../workflows/marketplace/analysis_service.py) — `execute_analysis_request` 5 cancel-poll point + `run_analysis_job` exception handler dalları (AnalysisCancelledError + is_job_cancelled-true hard error).
+- [workflows/marketplace/job_service.py](../../workflows/marketplace/job_service.py) — `is_job_cancelled` (cancelling+cancelled dahil) + `finalize_cancelled_job` wrapper.
+- [alembic/versions/c8a2d4e91f5b_add_cancelling_status_to_analysis_jobs.py](../../alembic/versions/c8a2d4e91f5b_add_cancelling_status_to_analysis_jobs.py) — upgrade (DROP/CREATE partial index + add column) + downgrade (force-finalize cancelling→cancelled, shrink WHERE clause).
+- [documents/runbooks/analysis-job-stuck.md:42](../../documents/runbooks/analysis-job-stuck.md) — drift fix (W13-4.7).
+
+**Sub-commit roadmap.**
+
+| # | Commit | Konu | Test/doc dosyaları |
+|---|--------|------|-------------------|
+| 1 | (this commit) `docs(W13-4): assign stable ID + lock in cancellation lifecycle hardening scope` | W13 tracker, REFACTOR_STATUS, POST_POC pointer + this Per-Item Detail block | tracker, `REFACTOR_STATUS.md`, `POST_POC_BACKLOG.md` |
+| 2 | `test(W13-4): RED precursor for cancellation lifecycle behavioral coverage` | 13 skip-marked test (5 poll-point + 2 race + 1 recovery + 1 alembic + 2 exception + 2 negative) | `tests/workflows/marketplace/test_analysis_execution_poll_points.py` (yeni), `tests/platform/storage/test_analysis_jobs_concurrency.py` (yeni), `tests/platform/storage/test_alembic_cancelling_migration.py` (yeni), `tests/workflows/marketplace/test_run_analysis_job_finalize.py` (yeni), `tests/platform/storage/test_analysis_jobs_lifecycle.py` (extend) |
+| 3 | `test(W13-4): GREEN poll-point behavioral (5 RED→GREEN)` | `test_analysis_execution_poll_points.py` skip kaldır + 5 case GREEN | (above) |
+| 4 | `test(W13-4): GREEN cancel↔complete race + concurrent cancel/finalize (2 RED→GREEN)` | `test_analysis_jobs_concurrency.py` skip kaldır + 2 case GREEN | (above) |
+| 5 | `test(W13-4): GREEN alembic round-trip + stuck-cancelling recovery + exception handler integ (4 RED→GREEN)` | `test_alembic_cancelling_migration.py` (1) + `test_analysis_jobs_concurrency.py` recovery (1) + `test_run_analysis_job_finalize.py` (2) skip kaldır + GREEN | (above) |
+| 6 | `test(W13-4): GREEN finalize negative (2 RED→GREEN)` | `test_analysis_jobs_lifecycle.py` skip kaldır + 2 negative case GREEN | (above) |
+| 7 | `docs(W13-4): runbook revision for cancelling state — Stuck in cancelling diagnose/recover` | `documents/runbooks/analysis-job-stuck.md` literal fix + new section + Step 2 SQL widening + code references update | runbook only |
+| 8 | `test(W13-4): close evidence + status sweep` | tracker close evidence, REFACTOR_STATUS bump, POST_POC pointer strikethrough | tracker, `REFACTOR_STATUS.md`, `POST_POC_BACKLOG.md` |
+
+**Verification (per sub-commit).**
+
+- `make check-all` (lint + type + arch gate'ler) yeşil her commit'te.
+- `make test-local` delta her commit message'da dokümante:
+  - W13-4.2 sonrası: 1467 → 1467 (RED'ler skip; sayım değişmez).
+  - W13-4.3 sonrası: 1467 → 1472 (+5 poll-point).
+  - W13-4.4 sonrası: 1472 → 1474 (+2 race/concurrent).
+  - W13-4.5 sonrası: 1474 → 1478 (+4 alembic+recovery+exception).
+  - W13-4.6 sonrası: 1478 → 1480 (+2 negative).
+  - W13-4.8 close target: 1467 → ~1481 (+14 davranışsal case).
+- `make test-security` 211 unchanged (test+doc paketi, security fixture lane'i etkilemez).
+- `tests/architecture/` 87 unchanged (yeni AST gate yok).
+- W12 + W13-1 + W13-2 + W13-3 ratchet gate'leri kırılmaz.
+
+**W13-4.4 (alembic round-trip) sonrası manuel:**
+
+```bash
+alembic upgrade head && alembic downgrade -1 && alembic upgrade head
+psql -d <db> -c "\d analysis_jobs" | grep -E "requested_cancel_at|uq_analysis_jobs_single_active"
+```
+
+**W13-4.7 (runbook revizyon) review.**
+
+- Drift yok: `grep -n 'Literal\[' documents/runbooks/*.md` çıktısı schema (`appcore/contracts/schema_defs/analysis_jobs.py:24-25,42`) ile bire bir eşleşmeli.
+- Yeni "Stuck in cancelling" bölümünün SQL'i `tests/platform/storage/test_analysis_jobs_concurrency.py` recovery testiyle aynı semantiği yansıtmalı (cancelling → failed by boot_id mismatch beklenen davranış).
+
+**W13-4.1 close evidence (this commit).**
+
+- [x] Stable ID `W13-4` atandı, scope kilitlendi (saf test + doc paketi).
+- [x] Tracker güncellendi: header `Last Updated 2026-05-11`; Status (Quick Glance) yeni W13-4 opened bullet'ı; Candidate Items table'a `W13-4` satırı eklendi (W13-3 satırından önce); bu Per-Item Detail bloğu eklendi.
+- [x] `documents/REFACTOR_STATUS.md` güncellendi: header bump + Active phase bölümüne W13-4 in-progress satırı.
+- [x] `documents/POST_POC_BACKLOG.md` güncellendi: H4 close evidence bloğunun sonuna "Post-close evaluation" paragrafı + yeni `[FOLLOWUP w13-3-close-pass-cancellation-test-hardening]` pointer.
+- [x] `make check-all` yeşil; W13-3 close evidence sayıları (1467 / 211 / 87) **dokunulmaz** kaldı (W13-4.1 saf doc).
+- [x] W12 + W13-1 + W13-2 + W13-3 ratchet gate'leri korundu.
 
 ## W12 Lessons Learned (carry-forward)
 

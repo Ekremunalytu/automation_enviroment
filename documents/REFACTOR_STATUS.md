@@ -1,6 +1,6 @@
 # Refactor Status
 
-`Last Updated: 2026-05-10 (W12 closed; merged via PR #18 (33a0852); W13 — Test Expansion + Observability open on branch week13; Codex Cloud audit 2026-05-10 ingested — 4 HIGH + 2 MEDIUM pulled forward to W13 acceptance bar; W13-1 closed same day — Codex H6 spoofable harness markers; W13-2 closed same day — Codex H5 writable VS Code launcher → root:executor 0750; W13-3 closed same day — Codex H4 cancel concurrent race, draining-state two-phase cancel + 5 worker poll points + 6 architecture gates)`
+`Last Updated: 2026-05-11 (W12 closed; merged via PR #18 (33a0852); W13 — Test Expansion + Observability open on branch week13; Codex Cloud audit 2026-05-10 ingested — 4 HIGH + 2 MEDIUM pulled forward to W13 acceptance bar; W13-1 closed 2026-05-10 — Codex H6 spoofable harness markers; W13-2 closed 2026-05-10 — Codex H5 writable VS Code launcher → root:executor 0750; W13-3 closed 2026-05-10 — Codex H4 cancel concurrent race, draining-state two-phase cancel + 5 worker poll points + 6 architecture gates; W13-4 opened 2026-05-11 — cancellation lifecycle hardening, behavioral coverage layer over W13-3 AST gates + runbook drift fix in`analysis-job-stuck.md`)`
 
 Active status board for current closure state. **Slim canonical** — full
 phase history and verbose evidence are frozen under dated snapshots:
@@ -152,6 +152,40 @@ phase history and verbose evidence are frozen under dated snapshots:
   heartbeat-refactor). Tracker:
   [`active-work/W13-test-expansion-observability.md`](active-work/W13-test-expansion-observability.md)
   → Per-Item Detail → W13-3.
+- **W13-4 opened `2026-05-11` (in progress, 1/8 sub-commits)** —
+  cancellation lifecycle hardening, spawned from W13-3 close-pass
+  evaluation. W13-3 close baseline pinned 6 architecture gates that
+  lock AST invariants only (`tests/architecture/test_cancel_poll_points.py`
+  × 2 + `tests/architecture/test_job_state_invariants.py` × 4); W13-4
+  layers behavioral coverage on top: 5 poll-point raise paths actually
+  firing inside `execute_analysis_request`, cancel↔complete DB-level
+  race serialization under `with_for_update()`, stuck-`cancelling`
+  boot_id recovery via `recover_interrupted_jobs` (cancelling→failed
+  by boot_id mismatch is the documented design intent), Alembic
+  `c8a2d4e91f5b` upgrade/downgrade data motion, `run_analysis_job`
+  exception handler driving `finalize_cancelled_job` on both
+  `AnalysisCancelledError` and `is_job_cancelled`-true hard-error
+  paths, finalize negative (absent + already-cancelled idempotency).
+  Plus runbook drift fix: `documents/runbooks/analysis-job-stuck.md:42`
+  4-status `Literal` → 6-status (cancelling + cancelled added by
+  W13-3) + new "Stuck in `cancelling`" diagnose/recover section.
+  Pure test + doc package: no production code changes (W13-3 landed
+  the production paths correctly; gap is test evidence). **Sub-commit
+  roadmap (8 commits):** W13-4.1 (this commit) scope lock-in +
+  POST_POC pointer, W13-4.2 RED precursor (13 skip-marked cases
+  across 4 new + 1 extended test files), W13-4.3 GREEN poll-point
+  behavioral (5 RED→GREEN), W13-4.4 GREEN cancel↔complete race +
+  concurrent cancel/finalize (2 RED→GREEN), W13-4.5 GREEN alembic
+  round-trip + stuck-cancelling recovery + exception handler integ
+  (4 RED→GREEN), W13-4.6 GREEN finalize negative (2 RED→GREEN),
+  W13-4.7 runbook revision, W13-4.8 close evidence + status sweep.
+  **Test bar projection:** `make test-local` 1467 → ~1481 (+14
+  davranışsal case); `make test-security` 211 unchanged;
+  `tests/architecture/` 87 unchanged. **W13-3 close evidence sayıları
+  dokunulmaz** (1467 historic). Gates W13-5 (`[FOLLOWUP codex-2026-05-10-H3-dev-lan-makefile-drift]`)
+  on W13-4 close. Tracker:
+  [`active-work/W13-test-expansion-observability.md`](active-work/W13-test-expansion-observability.md)
+  → Per-Item Detail → W13-4.
 
 ## W12 Entry Snapshot
 
