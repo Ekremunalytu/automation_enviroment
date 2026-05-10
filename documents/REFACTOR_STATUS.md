@@ -168,6 +168,17 @@ phase history and verbose evidence are frozen under dated snapshots:
   211 passed / 32 warnings (unchanged across W12-4, W12-5 and the
   close-out commits). Earlier checkpoints: W12-5 close `1430`, W12-4
   close `1402`, pre-W12-4 hardening close `1400`.
+- **Codex audit close-out** `2026-05-10` (commit `e42e79c`):
+  CRITICAL leak in `executor/host.py` retry-error messages closed
+  (`redact_secrets()` wrap; 5 mutation-verified regression cases in
+  `tests/security/test_executor_host_error_redaction.py`).
+  DB-independent lane re-verification post-fix:
+  `tests/{security,architecture,executor,platform}` 1065 passed / 0
+  failed / 71 skipped (DB-required) / 2 deselected;
+  `make test-security` 211 passed unchanged.
+  `make check-all` re-run requires postgres_test container — Docker
+  daemon was down at the time of the audit close, so the full bar
+  will be re-recorded on the next docker-up + check-all sweep.
 - Latest focused verification (`2026-05-09`): `make test-security`
   211 passed / 32 warnings; 113 marketplace/security-settings/helper/
   generator/digest tests passed; generated-contract `--check` passed;
