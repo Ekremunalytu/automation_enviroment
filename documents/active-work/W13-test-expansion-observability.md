@@ -1,6 +1,6 @@
 # W13 — Test Expansion + Observability (Active Work Tracker)
 
-`Last Updated: 2026-05-10 (W13 scaffold; entry baseline established post-W12 merge; §11.10 GOAL items promoted to Candidate Items table; Codex Cloud audit 2026-05-10 ingested — 4 HIGH + 2 MEDIUM pull-forwards added; branch week13 opened from cff6455)`
+`Last Updated: 2026-05-10 (W13-1 stable ID assigned + Option C design lock-in; sub-commit 1 / 5 in progress)`
 `Phase: W13 active`
 `Branch: week13 (single-branch policy precedent; opened 2026-05-10 from cff6455)`
 `Owner: ekrem`
@@ -29,11 +29,15 @@ the section ages.
   Documentation foundation complete: lane tracker rows, POST_POC
   Codex audit section, `REFACTOR_OPTIMIZATION.md` §11.10 audit pass
   entry, `REFACTOR_STATUS.md` audit pass section. Branch `week13`
-  opened from `cff6455`. No implementation commit yet — first item
-  pull will assign `W13-1` (planned: H6 spoofable harness markers,
-  highest integrity risk per audit triage; see
-  `~/.claude/plans/week13-master-plan.md` for full 12-item revised
-  sequencing).
+  opened from `cff6455`. **First item pulled `2026-05-10`:** `W13-1`
+  (Codex H6 spoofable harness markers, highest integrity-risk per
+  audit triage). Design decision locked: **Option C — file-based
+  ephemeral handshake + HMAC-SHA256 nonce on stimulus markers**;
+  rationale and 5-sub-commit roadmap in "Per-Item Detail" → W13-1.
+  Sub-commit 1 (docs-only stable-ID assignment + design lock-in)
+  in progress; production code untouched. Full 12-item revised
+  sequencing: `~/.claude/plans/week13-master-plan.md`. Per-iteration
+  plan (W13-1 only): `~/.claude/plans/week13-geli-tirmesi-i-in-iterasyona-partitioned-canyon.md`.
 - **Entry gate met:**
   - W12 closed and merged via PR #18 (`33a0852`); close commit
     `e8a9926`.
@@ -117,7 +121,7 @@ GOAL row is pulled.
 | **TBD HIGH** | `[FOLLOWUP codex-2026-05-10-H3-dev-lan-makefile-drift]` (`Makefile:170-172` `dev-lan` hard-codes `--host 0.0.0.0` while `runbooks/lan-exposure.md:82-87` documents `API_HOST` override; `tests/architecture/test_default_bindings.py` covers settings layer only — no Makefile gate. Doc-fix or recipe-fix; either lands a regression test) | `[security-detection]` `[platform-storage]` | not started |
 | **TBD HIGH** | `[FOLLOWUP codex-2026-05-10-H4-cancel-concurrent-race]` (cross-ref `[FOLLOWUP simulation-progress-cancel]` 5 sub-items already in POST_POC; `cancelled` is terminal in `appcore/storage/crud_ops/analysis_jobs/lifecycle.py:41` so `reserve_job()` releases the lock immediately; cancellation polled only in heartbeat. Add a "draining" intermediate state or block `reserve_job` while a cancelled-but-running worker exists; cover reset/install/trigger gaps with cancel-poll points) | `[executor-runtime]` `[platform-storage]` | not started |
 | **TBD HIGH** | `[FOLLOWUP codex-2026-05-10-H5-writable-vscode-launcher]` (`executor/container/Dockerfile:113-115` chowns `launch_vscode.sh` to `executor:executor` mode 755 — analyzed extension can overwrite, persists across resets via `reset_state.py`. Move to `--chown=root:executor` + `chmod 0750`; root-own + executor read+exec only) | `[executor-runtime]` `[security-detection]` | not started |
-| **TBD HIGH** | `[FOLLOWUP codex-2026-05-10-H6-spoofable-harness-markers]` (`executor/flows/playwright/health/reconciliation.py:18-50` accepts `[extrace-harness] {json}` from target-writable Extension Host log stream as proof of `automation_trace`; no auth/nonce. Forged `phase:"complete"` markers can satisfy verification → forged clean reports. Monitor-owned side channel (executor-only writable file path) or HMAC nonce stamped in `start.sh` and unavailable to target) | `[executor-runtime]` `[security-detection]` | not started |
+| **W13-1** | `[FOLLOWUP codex-2026-05-10-H6-spoofable-harness-markers]` (`executor/flows/playwright/health/reconciliation.py:18-50` accepts `[extrace-harness] {json}` from target-writable Extension Host log stream as proof of `automation_trace`; no auth/nonce. Forged `phase:"complete"` markers can satisfy verification → forged clean reports. Monitor-owned side channel (executor-only writable file path) or HMAC nonce stamped in `start.sh` and unavailable to target) | `[executor-runtime]` `[security-detection]` | in progress (sub-commit 1 / 5) |
 | TBD | `[FOLLOWUP codex-2026-05-10-M1-pem-regex-dos]` (`packages/analysis_contracts/evidence.py:106-121` `redact_multiline_secrets()` private_key regex unanchored + lazy cross-line span `(?:.\|\n)*?` → catastrophic backtracking on many unmatched BEGIN markers; W12-0 added the redaction itself, this is a follow-up DoS vector. Bounded state machine or size cap) | `[security-detection]` | not started |
 | TBD | `[FOLLOWUP codex-2026-05-10-M9-arguments-preview-redaction-extension]` (W12-5 `tests/architecture/test_network_body_preview_redaction.py` covers `request_body_preview` / `response_body_preview` only; `executor/flows/playwright/runtime_capture/extension_host_strace_parse.py:60,70,78` assigns `arguments_preview` without `redact_secrets()`. Extend the W12-5 gate scope and route arguments_preview through `redact_secrets`) | `[security-detection]` | not started |
 | TBD watch | `[FOLLOWUP planner-selection-readability-audit]` (`analysis_planner/selection.py` 497 LoC; refactor only when activation family or planner bug triggers) | `[security-detection]` | watching |
@@ -127,7 +131,104 @@ GOAL row is pulled.
 
 ## Per-Item Detail
 
-(Empty until the first item is pulled. Pattern from `W12-executor-subpackaging.md`: each `W13-N` block records landing date, commit hashes, module locations new/modified, LoC changes, tests added/modified at real module import paths, live-scan validation if applicable.)
+Pattern from `W12-executor-subpackaging.md`: each `W13-N` block
+records landing date, commit hashes, module locations new/modified,
+LoC changes, tests added/modified at real module import paths,
+live-scan validation if applicable.
+
+### W13-1 — Spoofable harness markers (Codex H6)
+
+`Status: in progress (sub-commit 1 / 5)` ·
+`Source: [FOLLOWUP codex-2026-05-10-H6-spoofable-harness-markers]` ·
+`Lane: [executor-runtime] [security-detection]`
+
+**Goal.** `automation_trace` doğrulaması bugün `[extrace-harness]
+{phase:"complete"}` markers'ına auth-suz güveniyor. Markers target-writable
+Extension Host stdout'undan akıyor (target extension ve harness aynı
+`executor:executor` UID'sinde aynı Extension Host process'inde) →
+forged "complete" marker → forged clean report. W13-1 nonce-based
+auth ekleyerek bu vector'ü kapatır.
+
+**Critical files.**
+
+- `executor/flows/playwright/health/reconciliation.py:18-50` — `_HARNESS_MARKER_RE`, `_harness_trace_records_by_attempt`, `_attempt_has_harness_completion_trace` (`phase=="complete"` tek kontrolü, line 47-49).
+- `executor/flows/harness_extension/extension.js:144-179` — `extrace.harness.runCurrentStimulus` command callback; `emitHarnessMarker("complete", {…})` line 162-167.
+- `executor/flows/harness_extension/markers.js:15-23` — `emitHarnessMarker` uses `console.log("[extrace-harness] " + JSON.stringify({kind:"stimulus", phase, …details}))`. Auth field eklenecek nokta burası.
+- `executor/flows/harness_extension/markers.js:38-52` — `writeHarnessReadyMarker` mevcut atomik file-handshake (W8-0). Sub-commit 3 secret loading bunu emsal alacak.
+- `executor/flows/harness_extension/package.json:11-14` — `activationEvents: ["onStartupFinished"]` → harness target VSIX install'dan önce activate olur.
+- `executor/container/start.sh:25-27, 116-127` — `EXTRACE_EPOCH_RUN_ID` üretimi + VS Code launch noktası; secret üretimi line 28 civarına eklenecek.
+- `executor/container/Dockerfile:97-130` — `USER executor` (line 130). `/run/extrace` dizini için yeni RUN satırı eklenecek (sub-commit 3).
+- `tests/executor/test_playwright_health_reconciliation.py:290-364` — mevcut harness test'leri (sadece happy-path + missing-marker; forged scenario yok).
+
+**Discovery — Race Window Analysis (analytical, 2026-05-10).**
+
+Container ölçümü yapılmadı; race window'un Python orchestration
+sırası tarafından enforce edildiği analitik olarak doğrulanır:
+
+| Phase | Aktör | Aksiyon | Secret durumu |
+|---|---|---|---|
+| A | `start.sh` (executor UID, container PID 1) | Container boot, `EXTRACE_EPOCH_RUN_ID` export, VS Code launch (line 116-127) | Secret üretilir + dosyaya yazılır (sub-commit 3 ekleyecek). Target extension dosyada/diskte yok. |
+| B | VS Code Extension Host | `onStartupFinished` activation event | Harness `activate()` çağrılır. Target extension hâlâ disk'te yok. |
+| C | Harness `extension.js:53-204` | `activate()` çalıştırır, `writeHarnessReadyMarker()` ile `READY_PATH`'e yazar | Harness secret dosyasını **read + unlink** eder (sub-commit 3). Target hâlâ disk'te yok. |
+| D | Python (host) | `_ensure_harness_ready_with_recovery()` ile READY_PATH polling | Python kendi secret kopyasını okur (orchestration). Target VSIX hâlâ install edilmemiş. |
+| E | Python | `install_extension(target_vsix)` | Target extension diske eklenir. Secret dosyaları zaten silinmiş. |
+| F | VS Code Extension Host | Target extension `activate()` (kendi `activationEvents`'ine göre) | Target attempt `node:fs.readFile("/run/extrace/harness-secret")` → `ENOENT`. Secret hafızada sadece harness'ta + Python'da. |
+
+**Bulgu:** `installExtension`'ın `harness ready marker` sonrası
+çağrılması Python orchestration tarafında deterministik. Race window
+**saniyeler mertebesinde** (VS Code init + Extension Host start +
+harness activate ≈ 1-3 sn; Python install_extension RPC roundtrip ≈
+hundreds of ms). Dolayısıyla harness'ın secret dosyasını unlink
+etmesi ile target'in attach etmesi arasında **sıralı garanti** var.
+
+**Same-UID limit kabul edildi:** `executor:executor` user her ikisini
+çalıştırır; mode 0400/0600 dosya izinleri target'a karşı korumaz.
+Korumanın temeli **temporal isolation** (dosya silinmiş olduğu için
+target erişemez), **path mode izolasyonu değil**. Bu plan'ın
+güvenliği için kritik bir invariant: secret dosyası MUTLAKA target
+activate olmadan unlink edilmeli.
+
+**Design Decision Locked-In: Option C (file-based ephemeral handshake).**
+
+| Boyut | Karar |
+|---|---|
+| Secret nereden? | `start.sh` `head -c 32 /dev/urandom \| od -An -tx1 \| tr -d ' \n'` (32 byte hex, 64-char string). EXTRACE_EPOCH_RUN_ID'ye ek; ondan farklı. |
+| Container'da nereye yazılır? | `/run/extrace/harness-secret` mode 0400 owned by executor (aynı UID; izin temporal değil dizin yapısal — sub-commit 3 detayı). |
+| Python'a nasıl ulaşır? | İkinci dosya `/results/_harness_python_secret` mode 0600 owned by executor; Python `_ensure_harness_ready_with_recovery` içinde READY marker poll'üne paralel okur, **belleğe alır, dosyayı unlink eder.** Python install_extension'ı bu adımdan sonra çağırır. |
+| Harness'ta nereye gider? | `extension.js` `activate()` başında `_HARNESS_NONCE_SECRET` constant; sync read + sync unlink. Harness extension dışında bir yerde tutulmaz. Memory-only. |
+| Marker auth nasıl? | `emitHarnessMarker(phase, details)` payload'ına `nonce: HMAC-SHA256(canonical_json(details + phase + attempt_id), _HARNESS_NONCE_SECRET).hex()` ekler. Python tarafı aynı HMAC'i hesaplayıp eşleştirir. |
+| Stale marker rejection? | Mevcut `epoch_run_id` field korunur (W8-0 kontratı, additive). HMAC computation `epoch_run_id`'yi de input'a alır → cross-container replay attack bağışıklığı. |
+
+**Ayrı bir karar:** Env var path KULLANILMAYACAK (target `process.env`
+okuyabildiği için). Sub-commit 3 NO env var injection.
+
+**Out-of-scope:**
+
+- M5 (`executor/host.py:62` docker exec env propagation) bu plan
+  tarafından unblock edilmez ama bağımlı değildir; W14 backlog'da
+  kalır.
+- Target extension UID ayırımı (Option A-strict) major refactor;
+  W14+'a iter.
+
+**Sub-commit Roadmap (5 commits).**
+
+| # | Commit | Touch | Doğrulama |
+|---|---|---|---|
+| 1 | docs(W13-1): assign stable ID + design decision lock-in | Bu Per-Item Detail bloğu + Candidate Items table güncellemesi | `make check-all` baseline (1452 / 211 / 76) bozulmaz; production code diff yok |
+| 2 | test(W13-1): RED precursor for harness marker auth | `tests/executor/test_playwright_health_reconciliation.py` 3 yeni `@pytest.mark.skip(reason="W13-1 implementation pending sub-commit 4")` test | `make test-local` 1452 → 1452 (skip nedeniyle delta yok) |
+| 3 | feat(W13-1): nonce generation + harness handshake | `start.sh` (secret üretimi + iki dosya yaz), `Dockerfile` (`/run/extrace` dizini), `extension.js`/`markers.js` (read+unlink+HMAC) | `make exec-build && make exec-up`; container içinde `ls /run/extrace` boş; harness markers'da `nonce` field görünür |
+| 4 | feat(W13-1): reconciliation verifier + RED → GREEN | `reconciliation.py` (`_verify_harness_marker_signature` + entegrasyon), Python tarafında secret okuma; sub-commit 2 skip kaldır | `make test-local` 1452 → ≥1455; `make test-security` 211 → ≥213 |
+| 5 | test(W13-1): architecture gate + live-scan delta | `tests/architecture/test_harness_marker_auth.py` (yeni AST gate), live-scan baseline ile karşılaştırma + semantic-delta dokümantasyonu | `tests/architecture/` 76 → 77; `make check-all` ✅; live-scan job ID + delta tracker'a yazılı |
+
+**Sub-commit 1 verification (bu commit).**
+
+- [x] Candidate Items table: H6 satırı `**TBD HIGH**` → `**W13-1**`
+- [x] Per-Item Detail W13-1 bloğu yazıldı (scope, files, race
+      analysis, design decision, sub-commit roadmap)
+- [ ] Production kod / test diff yok (next: `git diff --stat`
+      sadece tracker dosyasını göstermeli)
+- [ ] `make check-all` baseline bozulmadı (sub-commit 1 sonrası
+      sanity check)
 
 ## W12 Lessons Learned (carry-forward)
 
