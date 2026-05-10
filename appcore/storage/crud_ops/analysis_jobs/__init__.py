@@ -23,6 +23,9 @@ from .lifecycle import (
     fail_analysis_job as fail_analysis_job,
 )
 from .lifecycle import (
+    finalize_cancelled_analysis_job as finalize_cancelled_analysis_job,
+)
+from .lifecycle import (
     get_active_analysis_job as get_active_analysis_job,
 )
 from .lifecycle import (
@@ -44,6 +47,7 @@ __all__ = [
     "complete_analysis_job",
     "create_analysis_job",
     "fail_analysis_job",
+    "finalize_cancelled_analysis_job",
     "get_active_analysis_job",
     "get_analysis_job",
     "recover_interrupted_analysis_jobs",

@@ -109,12 +109,81 @@ def cancel_analysis_job(
     *,
     error_code: str = "cancelled_by_user",
 ) -> AnalysisJob:
+    """Signal a drain on a running job.
+
+    W13-3 (Codex H4): cancel is two-phased. This call flips a running
+    job to the non-terminal ``cancelling`` state, records
+    ``requested_cancel_at``, but does NOT touch step records or
+    ``finished_at`` — the worker thread is still draining the shared
+    executor + ``/results/``. ``finalize_cancelled_analysis_job`` (called
+    by the analysis service exception handler once the worker observes
+    ``AnalysisCancelledError``) performs the terminal transition.
+
+    Idempotent on ``cancelling``: a second cancel returns the existing
+    snapshot unchanged so a UI double-click cannot regress
+    ``requested_cancel_at``. Terminal states still raise
+    ``JobNotCancellableError`` (closing the cancel-after-finish race
+    landed pre-W13).
+    """
     stmt = select(AnalysisJob).where(AnalysisJob.job_id == job_id).with_for_update()
     job = db.scalars(stmt).first()
     if job is None:
         raise KeyError(job_id)
 
     if job.status in _TERMINAL_JOB_STATUSES:
+        raise JobNotCancellableError(job_id, job.status)
+
+    if job.status == "cancelling":
+        # Idempotent: drain was already signalled. Do not reset
+        # ``requested_cancel_at`` so the audit trail keeps the original
+        # signal timestamp.
+        return job
+
+    now = time.time()
+    job.status = "cancelling"
+    job.message = detail
+    job.error_detail = detail
+    job.error_code = error_code
+    job.requested_cancel_at = now
+    job.updated_at = now
+
+    try:
+        db.commit()
+        db.refresh(job)
+        return job
+    except SQLAlchemyError:
+        db.rollback()
+        raise
+
+
+def finalize_cancelled_analysis_job(
+    db: Session,
+    job_id: str,
+    detail: str = "Cancelled by user.",
+    *,
+    error_code: str = "cancelled_by_user",
+) -> AnalysisJob:
+    """Complete the two-phase cancel: ``cancelling`` -> terminal ``cancelled``.
+
+    W13-3 (Codex H4): the worker thread observes ``AnalysisCancelledError``,
+    drains its in-flight step, and the analysis service exception handler
+    calls this to finalize the row — step records are marked cancelled,
+    trailing pending steps go to skipped, ``finished_at`` is set, and the
+    partial-unique-index lock is released so ``reserve_job`` can admit
+    the next job.
+
+    Only valid from the ``cancelling`` state; any other source state
+    raises ``JobNotCancellableError`` so the two-phase contract cannot be
+    short-circuited (e.g. a worker successfully completing AFTER the
+    cancel signal must not be allowed to overwrite the drain with
+    ``completed``).
+    """
+    stmt = select(AnalysisJob).where(AnalysisJob.job_id == job_id).with_for_update()
+    job = db.scalars(stmt).first()
+    if job is None:
+        raise KeyError(job_id)
+
+    if job.status != "cancelling":
         raise JobNotCancellableError(job_id, job.status)
 
     _interrupt_job(
@@ -189,6 +258,11 @@ def fail_analysis_job(
     failure: AnalysisJobFailure,
 ) -> AnalysisJob:
     job = _get_analysis_job_or_raise(db, job_id)
+    # W13-3: a worker that hits a hard error during drain must not flip a
+    # cancelling row into `failed` — the cancel signal is authoritative,
+    # the row goes terminal through finalize_cancelled_analysis_job.
+    if job.status == "cancelling":
+        raise JobNotCancellableError(job_id, job.status)
     steps = _job_steps(job)
     current_step = job.current_step
     failed_index: int | None = None
@@ -244,6 +318,13 @@ def complete_analysis_job(
 ) -> AnalysisJob:
     job = _get_analysis_job_or_raise(db, job_id)
 
+    # W13-3: a worker that finished the happy-path AFTER receiving the
+    # cancel signal must not promote the row to `completed`. The cancel
+    # signal is authoritative; the row goes terminal through
+    # finalize_cancelled_analysis_job.
+    if job.status == "cancelling":
+        raise JobNotCancellableError(job_id, job.status)
+
     for field_name, value in update.model_dump(exclude_unset=True).items():
         setattr(job, field_name, value)
     job.status = "completed"
@@ -288,6 +369,7 @@ __all__ = [
     "complete_analysis_job",
     "create_analysis_job",
     "fail_analysis_job",
+    "finalize_cancelled_analysis_job",
     "get_active_analysis_job",
     "get_analysis_job",
     "recover_interrupted_analysis_jobs",

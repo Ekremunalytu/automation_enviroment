@@ -35,6 +35,7 @@ from appcore.storage.crud import (
     complete_analysis_job,
     create_analysis_job,
     fail_analysis_job,
+    finalize_cancelled_analysis_job,
     get_active_analysis_job,
     get_analysis_job,
     recover_interrupted_analysis_jobs,
@@ -313,11 +314,46 @@ def cancel_job(
 
 
 def is_job_cancelled(job_id: str, db: Session | None = None) -> bool:
+    """Return True once a cancel signal has been received for ``job_id``.
+
+    W13-3 (Codex H4): semantics widened from terminal-only to "cancel
+    signalled". The worker poll primitive must see the signal during the
+    drain window (`status == "cancelling"`) so the next cancel-poll point
+    raises ``AnalysisCancelledError``; once the drain completes the row
+    transitions to terminal `cancelled` and this still returns True.
+    Unknown rows still return False — the worker uses this to gate
+    behavior, and a missing snapshot must not crash the heartbeat.
+    """
+
     def operation(session: Session) -> bool:
         job = get_analysis_job(session, job_id)
         if job is None:
             return False
-        return job.status == "cancelled"
+        return job.status in ("cancelled", "cancelling")
+
+    return _run_in_session(db, operation)
+
+
+def finalize_cancelled_job(
+    job_id: str,
+    *,
+    detail: str = "Cancelled by user.",
+    db: Session | None = None,
+    error_code: str = "cancelled_by_user",
+) -> dict[str, Any]:
+    """Promote a draining job to terminal `cancelled` (W13-3.4 helper).
+
+    Worker-facing wrapper around
+    ``lifecycle.finalize_cancelled_analysis_job``. Called from
+    ``analysis_service.run_analysis_job`` once the worker observes
+    ``AnalysisCancelledError`` and the in-flight step has been drained.
+    """
+
+    def operation(session: Session) -> dict[str, Any]:
+        job = finalize_cancelled_analysis_job(
+            session, job_id, detail, error_code=error_code
+        )
+        return _public_snapshot(job)
 
     return _run_in_session(db, operation)
 
@@ -363,6 +399,7 @@ __all__ = [
     "create_job_snapshot",
     "empty_job_steps",
     "fail_job",
+    "finalize_cancelled_job",
     "get_active_job_snapshot",
     "get_active_persisted_job_snapshot",
     "get_job_snapshot",

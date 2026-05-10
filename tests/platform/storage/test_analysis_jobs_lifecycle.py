@@ -16,6 +16,7 @@ from uuid import uuid4
 
 import pytest
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.attributes import flag_modified
 
 from appcore.contracts.schema_defs.analysis_jobs import (
     AnalysisJobCreateSnapshot,
@@ -100,7 +101,14 @@ def _persist_active(
 def _force_step_status(
     db: Session, job: AnalysisJob, step_name: str, status: str
 ) -> None:
-    """Mutate a single step's status on a persisted job (test fixture helper)."""
+    """Mutate a single step's status on a persisted job (test fixture helper).
+
+    JSONB mutation needs `flag_modified` — without it SQLAlchemy may skip
+    the column on commit because the bound dict is the same object. The
+    pre-W13-3 cancel path masked this because `_interrupt_job` rewrote
+    the column on cancel anyway; W13-3 keeps step records untouched, so
+    the mutation has to be persisted faithfully now.
+    """
     steps: list[dict[str, Any]] = list(job.steps)
     for index, step in enumerate(steps):
         if step["name"] == step_name:
@@ -109,6 +117,7 @@ def _force_step_status(
             steps[index] = step
             break
     job.steps = steps
+    flag_modified(job, "steps")
     job.current_step = step_name
     job.status = "running"
     db.commit()
@@ -205,26 +214,35 @@ def test_complete_analysis_job_sets_status_completed(db_session: Session) -> Non
     assert completed.report_path == "final.json"
 
 
-def test_cancel_analysis_job_marks_current_step_cancelled_and_skips_pending(
+def test_cancel_then_finalize_marks_current_step_cancelled_and_skips_pending(
     db_session: Session,
 ) -> None:
+    # W13-3: cancel signals drain (`cancelling`), finalize promotes to
+    # terminal `cancelled` with step records finalized. The earlier
+    # single-phase cancel collapses into this two-phase sequence.
     job = _persist_active(db_session, current_step="run_monitoring")
     _force_step_status(db_session, job, "run_monitoring", "running")
 
-    cancelled = lifecycle.cancel_analysis_job(db_session, job.job_id)
+    draining = lifecycle.cancel_analysis_job(db_session, job.job_id)
+    assert draining.status == "cancelling"
+    # While draining the step records are untouched — worker still owns them.
+    assert draining.steps[3]["status"] == "running"
+    assert draining.finished_at is None
 
-    assert cancelled.status == "cancelled"
-    assert cancelled.error_code == "cancelled_by_user"
-    assert cancelled.error_detail == "Cancelled by user."
-    assert cancelled.current_step == "run_monitoring"
+    finalized = lifecycle.finalize_cancelled_analysis_job(db_session, job.job_id)
+
+    assert finalized.status == "cancelled"
+    assert finalized.error_code == "cancelled_by_user"
+    assert finalized.error_detail == "Cancelled by user."
+    assert finalized.current_step == "run_monitoring"
     # `run_monitoring` is index 3; the trailing `finalize_report` step (index 4)
     # was pending and must be marked skipped.
-    steps_dump = cancelled.steps
+    steps_dump = finalized.steps
     assert steps_dump[3]["status"] == "cancelled"
     assert steps_dump[3]["progress"] is None
     assert steps_dump[4]["status"] == "skipped"
     assert "cancelled" in steps_dump[4]["message"].lower()
-    assert cancelled.finished_at is not None
+    assert finalized.finished_at is not None
 
 
 @pytest.mark.parametrize(
@@ -232,7 +250,7 @@ def test_cancel_analysis_job_marks_current_step_cancelled_and_skips_pending(
     [
         "complete",
         "fail",
-        "cancel",
+        "cancel_then_finalize",
     ],
 )
 def test_cancel_analysis_job_raises_for_terminal_status(
@@ -251,8 +269,12 @@ def test_cancel_analysis_job_raises_for_terminal_status(
             snapshot.job_id,
             AnalysisJobFailure(detail="boom"),
         )
-    elif terminal_driver == "cancel":
+    elif terminal_driver == "cancel_then_finalize":
+        # W13-3 two-phase cancel: first call signals drain; second call
+        # would be idempotent — drive the row terminal via finalize so
+        # the third cancel can be tested against the terminal raise.
         lifecycle.cancel_analysis_job(db_session, snapshot.job_id)
+        lifecycle.finalize_cancelled_analysis_job(db_session, snapshot.job_id)
 
     with pytest.raises(lifecycle.JobNotCancellableError) as exc_info:
         lifecycle.cancel_analysis_job(db_session, snapshot.job_id)
@@ -333,32 +355,23 @@ def test_recover_interrupted_analysis_jobs_returns_zero_when_owner_matches(
 
 
 # ---------------------------------------------------------------------------
-# W13-3 (Codex H4) — RED precursor tests for cancel concurrent race
+# W13-3 (Codex H4) — two-phase cancel + finalize regression coverage.
 #
-# Goal: introduce a non-terminal `cancelling` status between `running` and
-# `cancelled`. `cancel_analysis_job` transitions `running -> cancelling`
-# (worker still draining); a new `finalize_cancelled_analysis_job` helper
-# transitions `cancelling -> cancelled` once the worker drained. The
-# partial unique index `uq_analysis_jobs_single_active` widens its WHERE
-# clause to include `cancelling`, so `reserve_job` blocks while a
-# cancelled-but-still-running worker exists.
+# `cancel_analysis_job` signals drain (`running -> cancelling`);
+# `finalize_cancelled_analysis_job` promotes the drained row to terminal
+# (`cancelling -> cancelled`). The partial unique index
+# `uq_analysis_jobs_single_active` widens its WHERE clause to include
+# `cancelling`, so `reserve_job` blocks while a cancelled-but-still-running
+# worker exists.
 #
-# These tests reference the post-W13-3 contract. They are skipped until
-# the schema (W13-3.3) + CRUD (W13-3.4) sub-commits land; W13-3.4's
-# close evidence removes the skip and the cases must pass GREEN.
+# Originally landed as W13-3.2 @pytest.mark.skip RED precursors; W13-3.4
+# delivers the CRUD side (this commit) and the skip decorators come off.
 #
 # See documents/active-work/W13-test-expansion-observability.md →
 # Per-Item Detail → W13-3 (Design Decision Locked-In: Option A).
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.skip(
-    reason=(
-        "W13-3 RED precursor: `cancelling` non-terminal state not yet "
-        "introduced (W13-3.3/3.4 will add it). Today cancel_analysis_job "
-        "drops straight to terminal `cancelled`."
-    )
-)
 def test_cancel_during_running_transitions_to_cancelling_not_cancelled(
     db_session: Session,
 ) -> None:
@@ -377,12 +390,6 @@ def test_cancel_during_running_transitions_to_cancelling_not_cancelled(
     assert draining.error_code == "cancelled_by_user"
 
 
-@pytest.mark.skip(
-    reason=(
-        "W13-3 RED precursor: idempotent cancel-on-cancelling no-op requires "
-        "the `cancelling` state to exist (W13-3.3/3.4)."
-    )
-)
 def test_cancel_during_cancelling_is_idempotent_no_op(
     db_session: Session,
 ) -> None:
@@ -399,12 +406,6 @@ def test_cancel_during_cancelling_is_idempotent_no_op(
     assert second.finished_at is None
 
 
-@pytest.mark.skip(
-    reason=(
-        "W13-3 RED precursor: `finalize_cancelled_analysis_job` helper not "
-        "yet introduced (W13-3.4)."
-    )
-)
 def test_finalize_cancelled_only_from_cancelling_raises_otherwise(
     db_session: Session,
 ) -> None:
@@ -427,12 +428,6 @@ def test_finalize_cancelled_only_from_cancelling_raises_otherwise(
     assert finalized.steps[4]["status"] == "skipped"
 
 
-@pytest.mark.skip(
-    reason=(
-        "W13-3 RED precursor: `complete_analysis_job` guard against "
-        "cancelling source state requires W13-3.4 CRUD changes."
-    )
-)
 def test_complete_analysis_job_rejected_from_cancelling(
     db_session: Session,
 ) -> None:
@@ -451,13 +446,6 @@ def test_complete_analysis_job_rejected_from_cancelling(
         )
 
 
-@pytest.mark.skip(
-    reason=(
-        "W13-3 RED precursor: `get_active_analysis_job` must surface "
-        "cancelling rows once they are added to ACTIVE_ANALYSIS_JOB_STATUSES "
-        "(W13-3.3)."
-    )
-)
 def test_get_active_analysis_job_returns_cancelling_row(
     db_session: Session,
 ) -> None:
@@ -487,6 +475,7 @@ def test_module_path_pins_lifecycle_surface() -> None:
         "complete_analysis_job",
         "create_analysis_job",
         "fail_analysis_job",
+        "finalize_cancelled_analysis_job",
         "get_active_analysis_job",
         "get_analysis_job",
         "recover_interrupted_analysis_jobs",
