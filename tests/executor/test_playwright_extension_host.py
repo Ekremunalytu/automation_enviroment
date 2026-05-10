@@ -249,6 +249,74 @@ def test_parse_strace_process_event_line_chdir_updates_cwd_table() -> None:
     assert cwd_by_pid[100] == "/workspace/work"
 
 
+def test_parse_strace_bounded_arguments_preview_truncates_long_args() -> None:
+    """Arguments past the 256-byte budget are clipped with ellipsis (W12-5)."""
+    long_arg = "A" * 400
+    line = (
+        f'[pid 100] 1700000003.000 execve("/usr/bin/node", '
+        f'["node", "{long_arg}"], 0x...) = 0'
+    )
+
+    event = extension_host.parse_strace_process_event_line(
+        line,
+        monitoring_start=0.0,
+        root_pid=100,
+        ppid_by_pid={},
+        cwd_by_pid={},
+    )
+
+    assert event is not None
+    assert event.operation == "exec"
+    # Preview honors the 256-byte budget and signals truncation with an ellipsis.
+    assert len(event.arguments_preview) == 256
+    assert event.arguments_preview.endswith("...")
+
+
+def test_parse_strace_clone_with_non_numeric_child_pid_returns_none() -> None:
+    """A malformed clone return (e.g. ``= ?``) must not raise; just drop the line."""
+    event = extension_host.parse_strace_process_event_line(
+        "[pid 100] 1700000004.000 clone(child_stack=NULL) = ?",
+        monitoring_start=0.0,
+        root_pid=100,
+        ppid_by_pid={},
+        cwd_by_pid={},
+    )
+
+    assert event is None
+
+
+def test_parse_strace_process_event_line_roundtrip_clone_then_execve() -> None:
+    """Clone registers ppid; the subsequent execve on the child resolves it."""
+    ppid_by_pid: dict[int, int | None] = {}
+    cwd_by_pid: dict[int, str] = {100: "/workspace"}
+
+    spawn = extension_host.parse_strace_process_event_line(
+        "[pid 100] 1700000005.000 clone(child_stack=NULL) = 4242",
+        monitoring_start=0.0,
+        root_pid=100,
+        ppid_by_pid=ppid_by_pid,
+        cwd_by_pid=cwd_by_pid,
+    )
+
+    assert spawn is not None
+    assert spawn.operation == "spawn"
+    assert ppid_by_pid[4242] == 100
+
+    exec_event = extension_host.parse_strace_process_event_line(
+        '[pid 4242] 1700000005.500 execve("/usr/bin/node", ["node", "child.js"], 0x...) = 0',
+        monitoring_start=0.0,
+        root_pid=100,
+        ppid_by_pid=ppid_by_pid,
+        cwd_by_pid=cwd_by_pid,
+    )
+
+    assert exec_event is not None
+    assert exec_event.operation == "exec"
+    assert exec_event.pid == 4242
+    # ppid resolution flows from the clone-side side effect on ppid_by_pid.
+    assert exec_event.ppid == 100
+
+
 # ---------------------------------------------------------------------------
 # find_exthost_logs / parse_all_exthost_logs — filesystem discovery
 # ---------------------------------------------------------------------------
@@ -374,6 +442,58 @@ def test_extension_host_file_capture_stop_without_start_returns_empty_events() -
     cap = extension_host.ExtensionHostFileCapture(monitoring_start=0.0)
     # ``stop()`` must be safe to call even when ``start()`` was never invoked.
     assert cap.stop() == []
+
+
+# ---------------------------------------------------------------------------
+# log_parse internal helpers (W12-5 split safety net)
+# ---------------------------------------------------------------------------
+
+
+def test_resolve_vscode_logs_dir_reads_facade_value_lazily(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """The W12-5 lazy facade lookup must honor a monkey-patched VSCODE_LOGS_DIR.
+
+    23-case W11 precursor suite already monkey-patches
+    ``extension_host.VSCODE_LOGS_DIR`` to redirect file discovery into a
+    fixture directory. Post-W12-5, ``find_exthost_logs`` lives in
+    ``extension_host_log_parse`` but reads ``VSCODE_LOGS_DIR`` through the
+    facade via a lazy ``_resolve_vscode_logs_dir`` helper. This test pins
+    the lazy-lookup invariant so a future cleanup that hoists the import
+    would fire here before the precursor suite breaks.
+    """
+    from executor.flows.playwright.runtime_capture import (
+        extension_host_log_parse,
+    )
+
+    monkeypatch.setattr(extension_host, "VSCODE_LOGS_DIR", tmp_path)
+    assert extension_host_log_parse._resolve_vscode_logs_dir() == tmp_path
+
+
+def test_activation_within_monitoring_window_includes_event_at_exact_start() -> None:
+    """An activation whose timestamp equals ``monitoring_start`` is kept."""
+    monitoring_start = extension_host._parse_iso_timestamp("2026-01-01 10:00:00.000")
+    assert monitoring_start is not None
+
+    entries = extension_host.parse_activations_from_output(
+        "[2026-01-01 10:00:00.000] eager activation publisher.boundary",
+        monitoring_start=monitoring_start,
+    )
+
+    assert [e.extension_id for e in entries] == ["publisher.boundary"]
+
+
+def test_activation_within_monitoring_window_drops_event_just_before_start() -> None:
+    """A 1ms-earlier activation is dropped — boundary check is inclusive on the right."""
+    monitoring_start = extension_host._parse_iso_timestamp("2026-01-01 10:00:00.000")
+    assert monitoring_start is not None
+
+    entries = extension_host.parse_activations_from_output(
+        "[2026-01-01 09:59:59.999] eager activation publisher.early",
+        monitoring_start=monitoring_start,
+    )
+
+    assert entries == []
 
 
 # ---------------------------------------------------------------------------
