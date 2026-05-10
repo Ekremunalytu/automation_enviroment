@@ -21,8 +21,21 @@ ANALYSIS_JOB_STEP_STATUSES = (
     "failed",
     "cancelled",
 )
-ANALYSIS_JOB_STATUSES = ("queued", "running", "completed", "failed", "cancelled")
-ACTIVE_ANALYSIS_JOB_STATUSES = ("queued", "running")
+ANALYSIS_JOB_STATUSES = (
+    "queued",
+    "running",
+    "cancelling",
+    "completed",
+    "failed",
+    "cancelled",
+)
+# W13-3: `cancelling` is non-terminal (worker still drains shared executor /
+# `/results/`); keeping it in the active set blocks `reserve_job` until the
+# new `finalize_cancelled_analysis_job` helper transitions the row to the
+# terminal `cancelled` state. Matches the partial unique index in
+# `model_defs/analysis_job.py` and the `WHERE` clause in the Alembic
+# revision `c8a2d4e91f5b_add_cancelling_status_to_analysis_jobs.py`.
+ACTIVE_ANALYSIS_JOB_STATUSES = ("queued", "running", "cancelling")
 
 AnalysisJobStepName = Literal[
     "reset_sandbox",
@@ -39,7 +52,14 @@ AnalysisJobStepStatus = Literal[
     "failed",
     "cancelled",
 ]
-AnalysisJobStatus = Literal["queued", "running", "completed", "failed", "cancelled"]
+AnalysisJobStatus = Literal[
+    "queued",
+    "running",
+    "cancelling",
+    "completed",
+    "failed",
+    "cancelled",
+]
 
 
 class AnalysisJobStepProgress(BaseModel):
@@ -96,6 +116,10 @@ class AnalysisJobCreateSnapshot(BaseModel):
     started_at: float | None = Field(default=None, ge=0)
     finished_at: float | None = Field(default=None, ge=0)
     updated_at: float = Field(ge=0)
+    # W13-3: when a `running` job receives a cancel signal it transitions to
+    # the non-terminal `cancelling` state and this column records when the
+    # drain was requested. Stays `None` for jobs that complete normally.
+    requested_cancel_at: float | None = Field(default=None, ge=0)
 
     @model_validator(mode="after")
     def validate_steps(self) -> AnalysisJobCreateSnapshot:
@@ -120,6 +144,7 @@ class AnalysisJobUpdate(BaseModel):
     error_code: str | None = None
     started_at: float | None = Field(default=None, ge=0)
     finished_at: float | None = Field(default=None, ge=0)
+    requested_cancel_at: float | None = Field(default=None, ge=0)
 
     @model_validator(mode="after")
     def validate_has_changes(self) -> AnalysisJobUpdate:
