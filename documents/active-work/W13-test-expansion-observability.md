@@ -1,6 +1,6 @@
 # W13 — Test Expansion + Observability (Active Work Tracker)
 
-`Last Updated: 2026-05-11 (W13-6 closed — Codex M9 arguments_preview redaction extension; 3/5 sub-commits landed via 94f7fa4/70ad721/9f8ecb4, this commit is sub-commit 4; factory-internal redaction at _bounded_arguments_preview() routes through redact_secrets() before truncate; new architecture gate test_arguments_preview_redaction.py 2/2 ✓ + parametrized regression 5/5 ✓; W13-5 closed prior — 5/5 sub-commits, dev-lan Makefile drift / Codex H3)`
+`Last Updated: 2026-05-11 (W13-7 opened — Codex M1 PEM regex DoS; design locks bounded scanner for private_key cross-line span in redact_multiline_secrets(); empirical pre-fix latency confirmed ~361ms on 200 BEGIN + 1KB body adversarial input; sub-commit 1 docs landing; W13-6 closed prior — 5/5 sub-commits, M9 arguments_preview redaction extension)`
 `Phase: W13 active`
 `Branch: week13 (single-branch policy precedent; opened 2026-05-10 from cff6455)`
 `Owner: ekrem`
@@ -23,7 +23,7 @@ the section ages.
 
 ## Status (Quick Glance)
 
-- **W13 active. W13-1..W13-6 are closed.** Entry baseline was
+- **W13 active. W13-1..W13-6 are closed; W13-7 is in progress.** Entry baseline was
   established `2026-05-10` after W12 merged via PR #18 (`33a0852`).
   Codex Cloud security audit `2026-05-10` was ingested the same day.
 - **W13-1 closed `2026-05-10` (5/5 sub-commits).** Codex H6
@@ -84,9 +84,27 @@ the section ages.
   passed. Production code diff scoped to
   `executor/flows/playwright/runtime_capture/extension_host_strace_parse.py`
   (+4 net: 1 import + 1 comment + 2 statements in factory body).
-- **Next pull after W13-6:** M1 PEM regex DoS expected as W13-7 (bounded
-  scanner / size cap on `redact_multiline_secrets()` private_key cross-line
-  span; [evidence.py:56-63,106-121](../../packages/analysis_contracts/evidence.py)).
+- **W13-7 opened `2026-05-11`.** Codex M1 PEM regex DoS pulled.
+  Design locked-in to **bounded scanner** for the `private_key`
+  cross-line span in [`redact_multiline_secrets()`](../../packages/analysis_contracts/evidence.py)
+  ([line 106-121](../../packages/analysis_contracts/evidence.py)):
+  the body fix replaces the lazy `(?:.|\n)*?` quantifier between BEGIN
+  and END markers with a manual linear scanner that caps the BEGIN→END
+  window at 16 KB (real PEM keys are <4 KB; the cap leaves comfortable
+  headroom while preventing pathological backtracking on adversarial
+  Extension-Host stdout). Empirical pre-fix measurement:
+  `python -c "import re,time; ..."` 200 BEGIN markers + 1 KB body each
+  with no END → `pattern.sub()` 361 ms; with bounded scanner the same
+  input is expected <10 ms. New timing test pinned at
+  `tests/platform/security/test_output_signals_redaction.py::test_redact_multiline_secrets_rejects_catastrophic_pem_pattern`
+  asserts the post-fix latency budget. Sub-commit Roadmap: 5 commits
+  (docs + RED + GREEN + close + align canonicals). Sub-commit 1 (this
+  commit) is pure documentation.
+- **Next pull after W13-7:** W13 close-out PR `week13 → main`
+  (W13-1..W13-7 ratchet'leri; 6 yeni gate, 5 W13-6 regression case,
+  ve 1 W13-7 timing case = 8 net architecture pin; plus the
+  body-preview / arguments_preview / private-key chain of redaction
+  defense). No further MEDIUM Codex acceptance items remain.
 - **Entry gate met:**
   - W12 closed and merged via PR #18 (`33a0852`); close commit
     `e8a9926`.
@@ -170,7 +188,7 @@ GOAL row is pulled.
 | **W13-3** | `[FOLLOWUP codex-2026-05-10-H4-cancel-concurrent-race]` (cross-ref `[FOLLOWUP simulation-progress-cancel]` 5 sub-items already in POST_POC; `cancelled` was terminal in `appcore/storage/crud_ops/analysis_jobs/lifecycle.py:41` so `reserve_job()` released the lock immediately; cancellation polled only in heartbeat. Option A: `cancelling` non-terminal state added to `ACTIVE_ANALYSIS_JOB_STATUSES` + partial unique index, two-phase cancel via new `finalize_cancelled_analysis_job` helper, `_raise_if_cancelled` poll points at 5 hot-zones) | `[executor-runtime]` `[platform-storage]` | **closed (6/6 sub-commits, 2026-05-10)** |
 | **W13-2** | `[FOLLOWUP codex-2026-05-10-H5-writable-vscode-launcher]` (`executor/container/Dockerfile:121-128` chowns `launch_vscode.sh` to `executor:executor` mode 755 — analyzed extension can overwrite, persists across resets via `reset_state.py`. Moved to `chown root:executor` + `chmod 0750`; root-own + executor read+exec only) | `[executor-runtime]` `[security-detection]` | **closed (3/3 sub-commits, 2026-05-10)** |
 | **W13-1** | `[FOLLOWUP codex-2026-05-10-H6-spoofable-harness-markers]` (`executor/flows/playwright/health/reconciliation.py:18-50` accepts `[extrace-harness] {json}` from target-writable Extension Host log stream as proof of `automation_trace`; no auth/nonce. Forged `phase:"complete"` markers can satisfy verification → forged clean reports. Monitor-owned side channel (executor-only writable file path) or HMAC nonce stamped in `start.sh` and unavailable to target) | `[executor-runtime]` `[security-detection]` | **closed (5/5 sub-commits, 2026-05-10)** |
-| TBD | `[FOLLOWUP codex-2026-05-10-M1-pem-regex-dos]` (`packages/analysis_contracts/evidence.py:106-121` `redact_multiline_secrets()` private_key regex unanchored + lazy cross-line span `(?:.\|\n)*?` → catastrophic backtracking on many unmatched BEGIN markers; W12-0 added the redaction itself, this is a follow-up DoS vector. Bounded state machine or size cap) | `[security-detection]` | not started |
+| **W13-7** | `[FOLLOWUP codex-2026-05-10-M1-pem-regex-dos]` (`packages/analysis_contracts/evidence.py:106-121` `redact_multiline_secrets()` private_key regex unanchored + lazy cross-line span `(?:.\|\n)*?` → catastrophic backtracking on many unmatched BEGIN markers; W12-0 added the redaction itself, this is a follow-up DoS vector. Bounded scanner: manual linear pass with 16 KB BEGIN→END window cap — preserves semantic for real PEM keys, prevents pathological scan on adversarial Extension-Host stdout. Timing-based RED test pins post-fix latency budget) | `[security-detection]` | **in progress (2026-05-11)** |
 | **W13-6** | `[FOLLOWUP codex-2026-05-10-M9-arguments-preview-redaction-extension]` (W12-5 `tests/architecture/test_network_body_preview_redaction.py` covers `request_body_preview` / `response_body_preview` only; `executor/flows/playwright/runtime_capture/extension_host_strace_parse.py:60,70,78` assigns `arguments_preview` without `redact_secrets()`. Replica architecture gate (new `tests/architecture/test_arguments_preview_redaction.py` — factory body invariant + routing invariant) + factory-internal redaction inside `_bounded_arguments_preview()` so 3 call sites stay GREEN unchanged + parametrized regression covering 5 secret classes) | `[security-detection]` `[executor-runtime]` | **closed (5/5 sub-commits, 2026-05-11)** |
 | TBD watch | `[FOLLOWUP planner-selection-readability-audit]` (`analysis_planner/selection.py` 497 LoC; refactor only when activation family or planner bug triggers) | `[security-detection]` | watching |
 | TBD watch | `[FOLLOWUP attribution-links-build-evidence-bundle-density]` (`attribution/links.py` 601 LoC; reassess after evidence-event-kind invariant lands) | `[executor-runtime]` | watching |
@@ -1068,6 +1086,159 @@ Reddedildi. Path B her 3 callsite'a (line 60, 70, 78) `redact_secrets(_bounded_a
   cross-line span `(?:.|\n)*?` → catastrophic backtracking on many
   unmatched BEGIN markers. W13-7 olarak çekilecek (bounded scanner
   veya size cap; W13-5 / W13-6 sub-commit roadmap pattern'i).
+
+### W13-7 — PEM regex DoS bounded scanner (Codex M1)
+
+`Status: in progress (opened 2026-05-11)` ·
+`Source: [FOLLOWUP codex-2026-05-10-M1-pem-regex-dos]` ·
+`Lane: [security-detection]`
+
+**Bağlam.** Codex Cloud audit (`2026-05-10`) MEDIUM severity bulgusu:
+[packages/analysis_contracts/evidence.py:56-63](../../packages/analysis_contracts/evidence.py)
+`private_key` regex pattern'i unanchored + lazy `(?:.|\n)*?` cross-line
+span içeriyor:
+
+```python
+re.compile(
+    r"-----BEGIN[ A-Z0-9]*PRIVATE KEY-----"
+    r"(?:.|\n)*?"
+    r"-----END[ A-Z0-9]*PRIVATE KEY-----",
+)
+```
+
+Bu pattern, `redact_multiline_secrets()` ([line 106-121](../../packages/analysis_contracts/evidence.py))
+içinden `pattern.sub()` ile çağrıldığında, BEGIN marker'ı bulup END
+ararken çok sayıda eşleşmemiş BEGIN markerlı adversarial input üzerinde
+quadratic O(N×L) tarama yapar. Her BEGIN pozisyonundan ileriye doğru
+END ararken `(?:.|\n)*?` lazy quantifier'ı tüm pozisyon
+kombinasyonlarını dener. Sonuç: target extension stdout'una
+`-----BEGIN PRIVATE KEY-----` literal'leri stuff etmek
+`redact_multiline_secrets()` latency'sini sub-saniye seviyesine
+çıkarabilir; çağrı 3 yerden geliyor (analysis pipeline başına 3×
+sub() çağrısı).
+
+**Empirik latency ölçümü (`2026-05-11`, pre-fix).**
+
+```python
+import re, time
+pattern = re.compile(
+    r"-----BEGIN[ A-Z0-9]*PRIVATE KEY-----"
+    r"(?:.|\n)*?"
+    r"-----END[ A-Z0-9]*PRIVATE KEY-----"
+)
+mal = ('-----BEGIN PRIVATE KEY-----\n' + 'x' * 1000) * 200  # 200 BEGIN, no END
+elapsed = time.perf_counter(); pattern.sub('[REDACTED:pk]', mal); print(time.perf_counter() - elapsed)
+# → 361.21 ms / call
+```
+
+500 BEGIN + 5KB/each + no END ölçeklenirse latency saniyeye çıkar.
+Production hot-path'te bu, target extension'ın kasıtlı tetiklediği
+DoS vector'üdür.
+
+**W12-0 kontekst.** Bu regex W12-0 (`2026-05-07`) altında output-signal
+redaction için eklenmişti. Codex Cloud audit (`2026-05-10`) `aynı kodu`
+DoS açısından işaretledi; W13-7 follow-up'ı bu vector'ü kapatır.
+
+**Critical files.**
+
+- [packages/analysis_contracts/evidence.py:56-63](../../packages/analysis_contracts/evidence.py) — `_REDACTION_PATTERNS` tuple içindeki `private_key` regex (lazy `(?:.|\n)*?`). Pattern dokümante kalır (single-line single-call davranışı tüketicisiz olduğu için fonksiyonel değil — `_CROSS_LINE_CLASSES`'in tek üyesi).
+- [packages/analysis_contracts/evidence.py:106-121](../../packages/analysis_contracts/evidence.py) — `redact_multiline_secrets()` body. Bu fonksiyon yeniden yazılır: private_key sınıfı için bounded scanner ile değiştirilir; diğer single-line pattern'ler `_CROSS_LINE_CLASSES`'da olmadığı için zaten skip.
+- [executor/flows/playwright/signals/output.py:39,120,237](../../executor/flows/playwright/signals/output.py) — `redact_multiline_secrets` 2 callsite. **Dokunulmaz** — yalnızca çağrı imzası korunur (`str -> str` davranışı identik, semantik korunur).
+- [workflows/marketplace/analysis_execution.py:18,97](../../workflows/marketplace/analysis_execution.py) — `redact_multiline_secrets` 1 callsite. **Dokunulmaz**.
+- [tests/platform/security/test_output_signals_redaction.py](../../tests/platform/security/test_output_signals_redaction.py) — mevcut 4 PEM case (W12-0 happy path + cross-line variants) korunur, regression eder. Yeni timing case sub-commit 2'de eklenir.
+
+**Design decision locked-in: bounded scanner (regex'siz cross-line iterasyon).**
+
+`redact_multiline_secrets()` private_key sınıfı için manuel linear scanner kullanılır:
+
+```python
+_PRIVATE_KEY_BEGIN_RE = re.compile(r"-----BEGIN[ A-Z0-9]*PRIVATE KEY-----")
+_PRIVATE_KEY_END_RE = re.compile(r"-----END[ A-Z0-9]*PRIVATE KEY-----")
+_PRIVATE_KEY_MAX_BODY = 16 * 1024  # 16 KB cap — real PEM keys are <4 KB
+
+def _redact_private_key_bounded(value: str) -> str:
+    placeholder = "[REDACTED:private_key]"
+    out, pos = [], 0
+    while True:
+        begin = _PRIVATE_KEY_BEGIN_RE.search(value, pos)
+        if begin is None:
+            out.append(value[pos:])
+            break
+        out.append(value[pos:begin.start()])
+        end_search_start = begin.end()
+        end_search_end = min(end_search_start + _PRIVATE_KEY_MAX_BODY, len(value))
+        end = _PRIVATE_KEY_END_RE.search(value, end_search_start, end_search_end)
+        if end is None:
+            out.append(begin.group())
+            pos = begin.end()
+        else:
+            out.append(placeholder)
+            pos = end.end()
+    return "".join(out)
+```
+
+| Boyut | Karar |
+|---|---|
+| Complexity | O(L) — string'i en fazla 1× tararız; her BEGIN'de en fazla 16 KB window scan. Adversarial input'la quadratic explosion yok. |
+| Window cap | 16 KB. Real PEM private keys (RSA 4096, EC, Ed25519) <4 KB; X.509 cert chain'leri <8 KB. 16 KB güvenli marj — gerçek-dünya redaction'ı bozmaz, pathological case'i sınırlar. |
+| Semantic drift | Cap dışındaki END'i bulamayan BEGIN, `[REDACTED:private_key]`'a swap edilmez (BEGIN literal kalır). Bu davranış değişikliği — mevcut regex bütün uzaklıktaki END'i de bulurdu (yavaş olsa da). **Trade-off:** real-world key boyutlarında pratik fark yok; adversarial 16 KB+ "spread" key blocks artık partial-redact olur. Audit risk düşük (gerçek 16 KB+ tek-parça PEM yok). |
+| Regex pattern tuple | `_REDACTION_PATTERNS` içindeki `private_key` entry'si dokümantasyon amaçlı kalır (signature semantik kayıt); `redact_secrets()` zaten cross-line sınıfını skip eder. `redact_multiline_secrets()` body'sinde regex.sub() değil bounded scanner çağrılır. |
+| Public API change? | Yok. `redact_multiline_secrets(value: str) → str` signature ve "no key, no diff" semantiği korunur. |
+| Production diff size? | Tek dosya, ~40 satır net (yeni helper + body değişikliği + 2 yeni private regex tanımı). |
+
+**Reverse-side reject rationale (Path B — re.UNICODE flag / atomic group).**
+
+Reddedildi. Python `re` modülü atomic group / possessive quantifier desteklemiyor (Python 3.11+ `re` yeni `*+` syntax'ı var ama runtime semantik test gerek + 3.12 compat audit). Alternative pattern: `(?>.|\n)*?` (atomic non-capturing) Python `re`'de syntax error. `regex` 3rd-party kütüphanesini introduce etmek `pyproject.toml` + dependency policy violation (AGENTS.md "Do not introduce dependencies without explicit approval"). Path A bounded scanner stdlib `re` ile kalır, dependency yok.
+
+**Reverse-side reject rationale (Path C — size cap olarak truncate input).**
+
+Reddedildi. Input boyutunu redaction'dan önce N MB'a cap'lemek (`value[:MAX]`) DoS'u çözer ama legitimate uzun stdout'u (örn. büyük marketplace VSIX install log'u, valid PEM dahil) keser. Bounded scanner yalnızca BEGIN→END window'unu sınırlar, geri kalan stream'i normal işler — daha temiz.
+
+**Sub-commit Roadmap (5 commits — all targeting `week13`).**
+
+| # | Commit | Touch | Status |
+|---|---|---|---|
+| 1 | `docs(W13-7): assign stable ID + lock in PEM bounded scanner scope` | `documents/active-work/W13-test-expansion-observability.md`, `documents/REFACTOR_STATUS.md`, `documents/POST_POC_BACKLOG.md` | in progress (this commit) |
+| 2 | `test(W13-7): RED precursor for PEM regex DoS bounded latency` | `tests/platform/security/test_output_signals_redaction.py` (1 yeni timing case, skip-marked) | not started |
+| 3 | `feat(W13-7): redact_multiline_secrets uses bounded scanner (RED→GREEN)` | `packages/analysis_contracts/evidence.py` (yeni `_PRIVATE_KEY_BEGIN_RE` / `_PRIVATE_KEY_END_RE` / `_PRIVATE_KEY_MAX_BODY` constants + `_redact_private_key_bounded` helper + `redact_multiline_secrets` body değişikliği), `tests/platform/security/test_output_signals_redaction.py` (skip kaldır × 1) | not started |
+| 4 | `docs(W13-7): close evidence + status sweep` | tracker close evidence + final hash table, `REFACTOR_STATUS.md` W13-7 row → closed, `POST_POC_BACKLOG.md` M1 strikethrough | not started |
+| 5 | `docs(W13-7): align lagging canonicals with W13-7 closure` | `REFACTOR_OPTIMIZATION.md` §11.10 W13-7 closed bullet + §11.14 exit criteria, `documents/active-work/README.md` next-pull pointer, `documents/automation_todo.md` header bump, `CLAUDE.md` + `AGENTS.md` header parity | not started |
+
+**Architecture gate (W13-7.2/W13-7.3'te pinler).**
+
+Tek timing-based behavioral test (mevcut `tests/platform/security/test_output_signals_redaction.py` içine eklenir):
+
+| # | Case adı | Pin |
+|---|---|---|
+| 1 | `test_redact_multiline_secrets_rejects_catastrophic_pem_pattern` | Adversarial input (200 BEGIN markers + 1 KB body each + no END → ~200 KB) → `redact_multiline_secrets()` latency'si <100 ms olmalı; placeholder doğrudan yokluk garantisi (BEGIN→END yok → redaction beklemiyoruz; eğer çıktıda hâlâ BEGIN literal'leri varsa benign — bounded scanner cap'i sebebiyle). Pre-fix: ~361 ms (FAIL). Post-fix bounded scanner: <10 ms (PASS). |
+
+Plus, mevcut 4 PEM case (`test_install_failure_message_redacts_multiline_pem_split_by_tail`,
+`test_read_output_channel_logs_redacts_multiline_pem_block`,
+`test_read_output_channel_logs_multiline_pem_with_surrounding_lines`,
+`test_parse_output_signal_events_redacts_cross_marker_pem_block`,
+`test_parse_output_signal_events_single_marker_multiline_pem`)
+regression eder — bounded scanner identik replacement semantics yapar, mevcut tests pass.
+
+**Verification plan.**
+
+- W13-7.2 sonrası: `make test-local` 1505 → 1506 collected (+1 skipped); `tests/platform/security/` koleksiyonu +1.
+- W13-7.3 sonrası: `make test-local` 1506 collected, **+1 passed** (skip kaldırıldı, 1499 → 1499 net... wait: 1498 passed + 1 newly passed = 1499 passed total post-fix). Mevcut 4 PEM case unchanged.
+- W13-7.4 sonrası: doc-only commit; sayılar değişmez.
+- W13-7.5 sonrası: `make check-all` yeşil; W12 5/5 + W13-1 3/3 + W13-2 4/4 + W13-3 6/6 + W13-5 6/6 + W13-6 2/2 + 5 regression ratchet gate'leri intact; W13-7 1 yeni timing case yeşil.
+- `make test-security` 211 → 212 (yeni case `tests/platform/security/` lane'inde, security path listesinde — [Makefile:206-216](../../Makefile)).
+- Production code diff hedefi: yalnızca [evidence.py](../../packages/analysis_contracts/evidence.py) (3 yeni constant + 1 yeni helper + 1 fonksiyon body değişikliği).
+- Manuel adversarial smoke: `python -c "from packages.analysis_contracts.evidence import redact_multiline_secrets; import time; mal='-----BEGIN PRIVATE KEY-----\n' + 'x'*1000; mal=mal*200; t=time.perf_counter(); r=redact_multiline_secrets(mal); print(time.perf_counter()-t)"` < 50 ms beklenir.
+
+**W13-7.1 close evidence (this commit).**
+
+- [x] Stable ID `W13-7` atandı, scope kilitlendi (Path A bounded scanner; Path B atomic-group reddedildi — Python `re` desteklemiyor; Path C input cap reddedildi — legitimate uzun stream'i bozar).
+- [x] Tracker güncellendi: header `Last Updated 2026-05-11` (W13-7 opened note); Status (Quick Glance) yeni W13-7 opened bullet'ı + W13-1..W13-6 closed; next-pull = W13 close-out PR; Candidate Items table'da M1 satırı `**W13-7**` `in progress (2026-05-11)`; bu Per-Item Detail bloğu eklendi.
+- [x] `documents/REFACTOR_STATUS.md` güncellendi: header bump + W13 Status table'da M1 satırı `W13-7 in progress`.
+- [x] `documents/POST_POC_BACKLOG.md` güncellendi: header bump + W13 Pull-Forward table'da M1 satırı `in progress as W13-7`.
+- [x] Empirik pre-fix ReDoS latency ölçüldü (`2026-05-11`): 200 BEGIN markers + 1 KB body each + no END ile `pattern.sub()` 361 ms. Bounded scanner sub-commit 3 sonrası post-fix latency'sini sub-commit 2'nin timing case'i pinler.
+- [x] Baseline metrikleri (W13-6 close evidence ile birebir): `make test-local` 1505 collected / 8 deselected; `tests/architecture/` 95 collected / 4 deselected (smoke); `make test-security` 211 sabit (yeni timing case `tests/platform/security/` lane'inde — sub-commit 2 sonrasında 212'ye çıkar).
+- [x] W12 + W13-1 + W13-2 + W13-3 + W13-4 + W13-5 + W13-6 ratchet gate'leri intact kalır (bu commit pure doc).
+- [x] Production code dokunulmaz (`appcore/`, `workflows/`, `executor/`, `packages/`, `ui/`, `alembic/`).
 
 ## W12 Lessons Learned (carry-forward)
 

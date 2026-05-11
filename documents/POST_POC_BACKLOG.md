@@ -1,6 +1,6 @@
 # Post-PoC Backlog
 
-`Last Updated: 2026-05-11 (W13-6 closed — Codex M9 arguments_preview redaction extension closed via factory-internal redaction at _bounded_arguments_preview(); 2 new arch gates + 5 regression cases; M1 remains W13 acceptance-bar open as W13-7 next pull; W13-5 closed prior)`
+`Last Updated: 2026-05-11 (W13-7 opened — Codex M1 PEM regex DoS in progress; bounded scanner design for private_key cross-line span in redact_multiline_secrets(); W13-6 closed prior via factory-internal redaction; W13 acceptance-bar after W13-7 closes: no MEDIUM Codex items remain)`
 
 Open deferred work after the W0-W7 PoC acceptance bar. **Slim canonical** —
 verbose descriptions, evidence, and older triage notes are frozen in dated
@@ -34,7 +34,7 @@ Use stable IDs in new references; do not cite canonical doc line numbers.
 | `[FOLLOWUP codex-2026-05-10-H4-cancel-concurrent-race]` | closed via W13-3 | two-phase `cancelling` state + worker poll points |
 | `[FOLLOWUP codex-2026-05-10-H5-writable-vscode-launcher]` | closed via W13-2 | `launch_vscode.sh` root-owned 0750 |
 | `[FOLLOWUP codex-2026-05-10-H6-spoofable-harness-markers]` | closed via W13-1 | per-launch HMAC marker verification |
-| `[FOLLOWUP codex-2026-05-10-M1-pem-regex-dos]` | open | replace catastrophic multiline private-key regex with bounded scanner/window |
+| `[FOLLOWUP codex-2026-05-10-M1-pem-regex-dos]` | in progress as W13-7 | bounded scanner for private_key cross-line span in `redact_multiline_secrets()` + 16 KB BEGIN→END window cap; empirical pre-fix latency 361 ms on 200 BEGIN + 1 KB body adversarial input, post-fix <10 ms target |
 | ~~`[FOLLOWUP codex-2026-05-10-M9-arguments-preview-redaction-extension]`~~ | closed via W13-6 | factory-internal redaction at `_bounded_arguments_preview()` + new replica architecture gate `tests/architecture/test_arguments_preview_redaction.py` (2/2 ✓ — factory body invariant + routing invariant) + parametrized regression covering aws/bearer/api_key/db_url/private_key (5/5 ✓) |
 | `[FOLLOWUP w13-3-close-pass-cancellation-test-hardening]` | closed via W13-4 | behavioral coverage + `analysis-job-stuck` runbook update |
 | `[FOLLOWUP w13-4-alembic-roundtrip-programmatic]` | deferred | needs fresh-DB-per-test Alembic fixture |
