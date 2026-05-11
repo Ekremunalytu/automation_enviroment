@@ -1,6 +1,6 @@
 # Refactor Status
 
-`Last Updated: 2026-05-11 (W13 active; W13-1..W13-5 closed; next pull is M1 PEM regex DoS or M9 arguments_preview redaction)`
+`Last Updated: 2026-05-11 (W13 active; W13-1..W13-5 closed; W13-6 in progress — Codex M9 arguments_preview redaction extension, sub-commit 1 docs landing)`
 
 Active status board for current closure state. **Slim canonical** — verbose
 phase evidence is frozen under dated snapshots:
@@ -48,6 +48,17 @@ phase evidence is frozen under dated snapshots:
   `make test-security` 211 unchanged; `tests/architecture/` 87 → 93.
   Production code untouched (`appcore/`, `workflows/`, `executor/`,
   `packages/`, `ui/`, `alembic/` all zero diff over W13-5 range).
+- **W13-6 in progress (opened `2026-05-11`).** Codex M9
+  `arguments_preview` redaction extension pulled. Design locked-in:
+  factory-internal redaction at
+  `executor/flows/playwright/runtime_capture/extension_host_strace_parse.py:102-106`
+  (`_bounded_arguments_preview()` routes its result through
+  `redact_secrets()` before truncation). New architecture gate
+  `tests/architecture/test_arguments_preview_redaction.py` replicates
+  the W12-5 body-preview AST pattern with
+  `TARGET_FIELD_NAMES = {"arguments_preview"}`. Sub-commit Roadmap:
+  5 commits (docs + RED + GREEN + close + align). Sub-commit 1
+  (docs only) landing now.
 
 ## W13 Status
 
@@ -58,8 +69,8 @@ phase evidence is frozen under dated snapshots:
 | W13-3 | `[FOLLOWUP codex-2026-05-10-H4-cancel-concurrent-race]` | closed `2026-05-10`; two-phase `cancelling` cancel state + 5 worker poll points; `make test-local` 1460 -> 1467; architecture 81 -> 87 |
 | W13-4 | `[FOLLOWUP w13-3-close-pass-cancellation-test-hardening]` | closed `2026-05-11`; behavioral cancellation coverage + runbook fix; `make test-local` 1473 -> 1485; `make test-security` 211 unchanged; architecture 87 unchanged |
 | W13-5 | `[FOLLOWUP codex-2026-05-10-H3-dev-lan-makefile-drift]` | closed `2026-05-11`; Path A recipe-fix (`Makefile:172` `$${API_HOST:-0.0.0.0}`); `make test-local` 1492 → 1498 (+6 passed); architecture 87 → 93; production code untouched |
-| TBD | `[FOLLOWUP codex-2026-05-10-M1-pem-regex-dos]` | W13 acceptance-bar MEDIUM, open; pull-eligible as W13-6/W13-7 |
-| TBD | `[FOLLOWUP codex-2026-05-10-M9-arguments-preview-redaction-extension]` | W13 acceptance-bar MEDIUM, open; pull-eligible as W13-6/W13-7 |
+| W13-6 | `[FOLLOWUP codex-2026-05-10-M9-arguments-preview-redaction-extension]` | in progress (opened `2026-05-11`); factory-internal redaction at `_bounded_arguments_preview()`; new arch gate `test_arguments_preview_redaction.py` replicates W12-5 pattern |
+| TBD | `[FOLLOWUP codex-2026-05-10-M1-pem-regex-dos]` | W13 acceptance-bar MEDIUM, open; pull-eligible as W13-7 |
 
 ## Current Deferrals
 

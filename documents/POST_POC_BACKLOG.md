@@ -1,6 +1,6 @@
 # Post-PoC Backlog
 
-`Last Updated: 2026-05-11 (W13-5 closed — H3 dev-lan Makefile recipe-fix landed; M1/M9 remain W13 acceptance-bar open; doc drift fixes closed I1 + three cleanup docstring items)`
+`Last Updated: 2026-05-11 (W13-6 opened — Codex M9 arguments_preview redaction extension in progress; factory-internal redaction at _bounded_arguments_preview(); M1 remains W13 acceptance-bar open; W13-5 closed prior)`
 
 Open deferred work after the W0-W7 PoC acceptance bar. **Slim canonical** —
 verbose descriptions, evidence, and older triage notes are frozen in dated
@@ -35,7 +35,7 @@ Use stable IDs in new references; do not cite canonical doc line numbers.
 | `[FOLLOWUP codex-2026-05-10-H5-writable-vscode-launcher]` | closed via W13-2 | `launch_vscode.sh` root-owned 0750 |
 | `[FOLLOWUP codex-2026-05-10-H6-spoofable-harness-markers]` | closed via W13-1 | per-launch HMAC marker verification |
 | `[FOLLOWUP codex-2026-05-10-M1-pem-regex-dos]` | open | replace catastrophic multiline private-key regex with bounded scanner/window |
-| `[FOLLOWUP codex-2026-05-10-M9-arguments-preview-redaction-extension]` | open | redact `arguments_preview`; extend W12-5 architecture gate |
+| `[FOLLOWUP codex-2026-05-10-M9-arguments-preview-redaction-extension]` | in progress as W13-6 | factory-internal redaction at `_bounded_arguments_preview()` + new replica architecture gate `tests/architecture/test_arguments_preview_redaction.py` (W12-5 pattern) |
 | `[FOLLOWUP w13-3-close-pass-cancellation-test-hardening]` | closed via W13-4 | behavioral coverage + `analysis-job-stuck` runbook update |
 | `[FOLLOWUP w13-4-alembic-roundtrip-programmatic]` | deferred | needs fresh-DB-per-test Alembic fixture |
 
