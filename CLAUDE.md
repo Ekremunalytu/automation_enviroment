@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-`Last Updated: 2026-05-10 (W12 closed via PR #18; W13 — Test Expansion + Observability open)`
+`Last Updated: 2026-05-11 (W12 closed via PR #18; W13 — Test Expansion + Observability open; W13-1..W13-4 closed)`
 
 This file is intentionally a thin pointer. Do not duplicate phase summaries or
 architecture maps here; that caused drift.
