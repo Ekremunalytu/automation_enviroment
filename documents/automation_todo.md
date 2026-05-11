@@ -31,11 +31,10 @@ expansion + observability (§11.10), tracked in
 
 Source of truth: `POST_POC_BACKLOG.md` for pullable work and
 `REFACTOR_STATUS.md` for landed closure evidence. W8-W12 are closed;
-W13-1..W13-6 are closed. The next W13 pull is
-`[FOLLOWUP codex-2026-05-10-M1-pem-regex-dos]` as W13-7
-(W13-6 closed M9 `arguments_preview` redaction via factory-internal
-redaction at `_bounded_arguments_preview()`; M1 is the remaining
-W13 acceptance-bar candidate).
+W13-1..W13-7 are closed — every MEDIUM/HIGH Codex Cloud audit
+acceptance-bar item (H3 via W13-5, H4 via W13-3, H5 via W13-2,
+H6 via W13-1, M1 via W13-7, M9 via W13-6) landed. Next step is the
+W13 end-of-phase close-out PR `week13 → main` (W12 PR #18 pattern).
 
 + **W11 (`REFACTOR_OPTIMIZATION.md` §11.8) monitor lifecycle split —
   CLOSED `2026-05-05`.** W11-1 `MonitorRuntime` (PR #12, `84d51ae`),

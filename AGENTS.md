@@ -1,6 +1,6 @@
 # AGENTS.md
 
-`Last Updated: 2026-05-11 (W12 closed via PR #18; W13 — Test Expansion + Observability open; W13-1..W13-6 closed)`
+`Last Updated: 2026-05-11 (W12 closed via PR #18; W13 — Test Expansion + Observability open; W13-1..W13-7 closed — acceptance bar cleared, ready for close-out PR)`
 
 ## Authority
 
@@ -21,21 +21,28 @@
   via PR #14; W12 closed `2026-05-10` and merged via PR #18
   (`33a0852`).** Active phase: **W13 — Test Expansion + Observability**
   (`REFACTOR_OPTIMIZATION.md` §11.10; tracker:
-  `active-work/W13-test-expansion-observability.md`). W13-1..W13-6
-  closed; W13 next-pull is M1 PEM regex DoS as W13-7 (M9
-  `arguments_preview` redaction closed via W13-6 — factory-internal
-  redaction at `_bounded_arguments_preview()`). Entry baseline:
+  `active-work/W13-test-expansion-observability.md`). W13-1..W13-7
+  closed — every MEDIUM/HIGH Codex Cloud audit acceptance-bar item
+  (H3 via W13-5, H4 via W13-3, H5 via W13-2, H6 via W13-1, M1 via
+  W13-7, M9 via W13-6) landed. Next step is the W13 end-of-phase
+  close-out PR `week13 → main` (W12 PR #18 pattern). Entry baseline:
   post-Codex-fix `make check-all` green at the W12 close commit
   (`make test-local` 1452 passed / 6 skipped / 6 deselected;
   `make test-security` 211 passed; `tests/architecture/` 76 passed).
-  W13-5 close (`2026-05-11`): `make test-local` 1492 → 1498
-  collected (+6 passed); `make test-security` 211 unchanged;
+  W13-5 close (`2026-05-11`): `make test-local` 1492 → 1498 collected
+  (+6 passed); `make test-security` 211 unchanged;
   `tests/architecture/` 87 → 93. W13-6 close (`2026-05-11`):
   `make test-local` 1498 → 1505 collected (+7 passed);
   `make test-security` 211 unchanged; `tests/architecture/` 93 → 95;
   production diff scoped to `executor/flows/playwright/runtime_capture/extension_host_strace_parse.py`
-  (+4 net lines in the factory body). Past W8/W11/W12 trackers stay
-  available only because code/tests reference stable IDs
+  (+4 net lines in the factory body). W13-7 close (`2026-05-11`):
+  `make test-local` 1505 → 1506 collected (+1 passed);
+  `make test-security` 211 → 212; `tests/architecture/` 95 unchanged;
+  production diff scoped to `packages/analysis_contracts/evidence.py`
+  (+45 net lines: 4 constants, 1 helper `_redact_private_key_bounded`,
+  `redact_multiline_secrets` body refactored to a bounded linear
+  scanner with a 16 KB BEGIN→END window cap). Past W8/W11/W12 trackers
+  stay available only because code/tests reference stable IDs
   (W8-1..W8-9, W11-1..W11-8, W12-0..W12-5).
 - ADR 0007 local-network-binding is **Accepted and implemented**; loopback
   defaults + `EXTRACE_ALLOW_LAN` are pinned by `test_default_bindings.py`.

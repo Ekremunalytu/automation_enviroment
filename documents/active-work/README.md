@@ -20,10 +20,11 @@ points to it.
 ## Files
 
 - `W13-test-expansion-observability.md`
-  - **Active phase.** W13 test expansion + observability. W13-1..W13-6
-    closed; W13 next-pull is `[FOLLOWUP codex-2026-05-10-M1-pem-regex-dos]`
-    as W13-7 (M9 `arguments_preview` redaction closed via W13-6 —
-    factory-internal redaction at `_bounded_arguments_preview()`).
+  - **Active phase.** W13 test expansion + observability. W13-1..W13-7
+    closed — every MEDIUM/HIGH Codex Cloud audit acceptance-bar item
+    (H3 via W13-5, H4 via W13-3, H5 via W13-2, H6 via W13-1, M1 via
+    W13-7, M9 via W13-6) landed. Next step is the W13 end-of-phase
+    close-out PR `week13 → main` (W12 PR #18 pattern).
 - `W12-executor-subpackaging.md`
   - **Past phase.** W12 executor subpackaging + attribution cleanup
     (W12-0..W12-5) closed `2026-05-10` and merged via PR #18.

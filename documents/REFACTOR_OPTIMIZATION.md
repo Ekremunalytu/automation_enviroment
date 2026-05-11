@@ -1,6 +1,6 @@
 # REFACTOR_OPTIMIZATION
 
-`Last Updated: 2026-05-11 (W13 active; W13-1..W13-6 closed; §11.10 current acceptance bar aligned — only M1 remains)`
+`Last Updated: 2026-05-11 (W13 active; W13-1..W13-7 closed — every MEDIUM/HIGH Codex Cloud acceptance-bar item landed; §11.10 + §11.14 reflect cleared bar; ready for W13 close-out PR week13 → main)`
 
 W0-W13 plan document: stabilization + security + post-PoC external-review
 integration. **Slim canonical** — full historical content is frozen under
@@ -64,7 +64,7 @@ PR #14; W12 closed `2026-05-10` via PR #18; W13 is active.
 | W10 | Contract hygiene + planner cleanup | closed `2026-05-04`; PR #11 |
 | W11 | Monitor lifecycle split | closed `2026-05-05`; PR #14 |
 | W12 | Executor subpackaging + attribution cleanup | closed `2026-05-10`; PR #18 |
-| W13 | Test expansion + observability | active; W13-1..W13-6 closed |
+| W13 | Test expansion + observability | active; W13-1..W13-7 closed (acceptance bar cleared) |
 
 ### §11.3 — Haftalar arası bağımlılıklar
 
@@ -151,9 +151,9 @@ Audit pull-forwards:
 - W13-4 closed `[FOLLOWUP w13-3-close-pass-cancellation-test-hardening]`.
 - W13-5 closed `[FOLLOWUP codex-2026-05-10-H3-dev-lan-makefile-drift]`.
 - W13-6 closed `[FOLLOWUP codex-2026-05-10-M9-arguments-preview-redaction-extension]`.
-- W13-7 next: M1 PEM regex DoS.
-- Still open for W13 acceptance:
-  `[FOLLOWUP codex-2026-05-10-M1-pem-regex-dos]`.
+- W13-7 closed `[FOLLOWUP codex-2026-05-10-M1-pem-regex-dos]`.
+- No MEDIUM/HIGH Codex acceptance items remain open. Ready for the
+  W13 close-out PR (`week13 → main`).
 
 Original §11.10 candidates that remain open are tracked in
 `POST_POC_BACKLOG.md` and the W13 tracker Candidate Items table.
@@ -179,7 +179,7 @@ work generally starts from `security-detection`, `executor-runtime`,
 Before W13 closes:
 
 - H3, M1, and M9 are either closed or explicitly deferred with acceptance
-  rationale. (H3 closed via W13-5; M9 closed via W13-6; M1 open as W13-7.)
+  rationale. (H3 closed via W13-5; M9 closed via W13-6; M1 closed via W13-7.)
 - W13 tracker has final close evidence and current test counts.
 - `REFACTOR_STATUS.md`, `POST_POC_BACKLOG.md`, `documents/README.md`, and
   relevant lane docs point to the same active/closed state.
