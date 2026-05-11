@@ -486,3 +486,71 @@ def test_module_path_pins_lifecycle_surface() -> None:
             f"lifecycle.{name} missing — W11-8 surface invariant broken."
         )
     assert set(lifecycle.__all__) == expected
+
+
+# ---------------------------------------------------------------------------
+# W13-4 (cancellation lifecycle hardening) — finalize negative cases.
+#
+# `finalize_cancelled_analysis_job` is the single terminal writer on the
+# cancel path. W13-3 added it as a two-phase helper but didn't pin its
+# negative contracts:
+#
+#  - Absent job_id → KeyError (matches the existing
+#    `cancel_analysis_job` and `update_analysis_job` contract for
+#    unknown ids).
+#  - Already-terminal source state → JobNotCancellableError (matches
+#    the `cancel_analysis_job` terminal-state contract; double-finalize
+#    must be a contract-level raise so the worker exception handler's
+#    `try/except (JobNotCancellableError, KeyError)` swallow in
+#    `analysis_service.run_analysis_job:247-255` is well-defined).
+#
+# W13-4.2 lands these as @pytest.mark.skip RED precursors; W13-4.6
+# removes the skip decorators (no production code change — the
+# guards already exist in lifecycle.py:181-187).
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skip(reason="W13-4.2 RED precursor; activated in W13-4.6")
+def test_finalize_cancelled_raises_keyerror_for_unknown_id(
+    db_session: Session,
+) -> None:
+    """``finalize_cancelled_analysis_job`` on a non-existent job_id raises
+    ``KeyError`` (matches the existing absent-row contract for the rest
+    of the lifecycle helpers — see ``cancel_analysis_job`` line 290).
+    """
+    with pytest.raises(KeyError):
+        lifecycle.finalize_cancelled_analysis_job(db_session, "does-not-exist")
+
+
+@pytest.mark.skip(reason="W13-4.2 RED precursor; activated in W13-4.6")
+def test_finalize_cancelled_idempotent_on_double_finalize(
+    db_session: Session,
+) -> None:
+    """A second ``finalize_cancelled_analysis_job`` after the row is already
+    terminal raises ``JobNotCancellableError`` (not silently no-op).
+
+    Production swallows this in
+    ``workflows/marketplace/analysis_service.py:247-255`` — the
+    ``try/except (JobNotCancellableError, KeyError)`` makes the
+    worker-side dispatch idempotent. This test pins the *contract*
+    layer: the helper itself MUST raise (so a caller without the
+    swallow can detect the double-write attempt), and the row MUST
+    NOT be mutated by the second call.
+    """
+    job = _persist_active(db_session, current_step="run_monitoring")
+    _force_step_status(db_session, job, "run_monitoring", "running")
+    lifecycle.cancel_analysis_job(db_session, job.job_id)
+    first = lifecycle.finalize_cancelled_analysis_job(db_session, job.job_id)
+    assert first.status == "cancelled"
+    first_finished_at = first.finished_at
+
+    with pytest.raises(lifecycle.JobNotCancellableError) as exc_info:
+        lifecycle.finalize_cancelled_analysis_job(db_session, job.job_id)
+
+    assert exc_info.value.status == "cancelled"  # already terminal source state
+
+    # Row state preserved exactly; second call did not mutate.
+    refetched = lifecycle.get_analysis_job(db_session, job.job_id)
+    assert refetched is not None
+    assert refetched.status == "cancelled"
+    assert refetched.finished_at == first_finished_at
