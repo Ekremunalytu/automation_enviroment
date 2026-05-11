@@ -1,6 +1,6 @@
 # W13 — Test Expansion + Observability (Active Work Tracker)
 
-`Last Updated: 2026-05-11 (W13-5 opened — dev-lan Makefile drift / Codex H3; scope locked = Makefile:172 recipe-fix + new test_makefile_dev_recipes.py architecture gate + lan-exposure runbook §Host-mode revision; 5-commit roadmap on week13; production code untouched)`
+`Last Updated: 2026-05-11 (W13-5 closed — dev-lan Makefile drift / Codex H3; 5/5 sub-commits landed; +6 architecture gates net; Makefile:172 recipe-fix + lan-exposure §Host-mode revision; production code untouched; W13 next-pull is M1 PEM regex DoS or M9 arguments_preview redaction)`
 `Phase: W13 active`
 `Branch: week13 (single-branch policy precedent; opened 2026-05-10 from cff6455)`
 `Owner: ekrem`
@@ -44,18 +44,21 @@ the section ages.
   1473 → 1485, `make test-security` 211 unchanged, `tests/architecture/`
   87 unchanged. One Alembic behavioral round-trip case deferred as
   `[FOLLOWUP w13-4-alembic-roundtrip-programmatic]`.
-- **W13-5 opened `2026-05-11`.** Pulls
-  `[FOLLOWUP codex-2026-05-10-H3-dev-lan-makefile-drift]`. Recipe-fix
-  path: `Makefile:172` `--host 0.0.0.0` → `--host $${API_HOST:-0.0.0.0}`
-  so `API_HOST=… make dev-lan` actually narrows the bind socket and
-  uvicorn ↔ `APISettings.HOST` drift closes. Adds new architecture gate
-  `tests/architecture/test_makefile_dev_recipes.py` (6 cases — `dev` +
-  `run` loopback literals, `dev-lan` `EXTRACE_ALLOW_LAN=1` set, `dev-lan`
-  `API_HOST` override form, `dev-lan` default-to-wildcard fallback,
-  `dev-lan` ADR 0007 banner literal). Updates
-  `documents/runbooks/lan-exposure.md` §Host-mode to remove the drift
-  caveat. Production code untouched (`appcore/api/config.py` post-init
-  semantics already correct since W8-7).
+- **W13-5 closed `2026-05-11` (5/5 sub-commits).** dev-lan Makefile
+  drift (Codex H3) closed via Path A recipe-fix: `Makefile:172`
+  `--host 0.0.0.0` → `--host $${API_HOST:-0.0.0.0}` so
+  `API_HOST=… make dev-lan` narrows the uvicorn bind socket
+  alongside the settings layer. New architecture gate
+  `tests/architecture/test_makefile_dev_recipes.py` 6/6 ✓
+  (`dev` + `run` loopback literals, `dev-lan` `EXTRACE_ALLOW_LAN=1`,
+  `dev-lan` `API_HOST` override form, `dev-lan` default-to-wildcard
+  fallback, `dev-lan` ADR 0007 banner literal).
+  `documents/runbooks/lan-exposure.md` §Host-mode drift caveat
+  removed. Final bar: `make test-local` 1492 → 1498 collected
+  (+6 passed), `make test-security` 211 unchanged,
+  `tests/architecture/` 87 → 93. Production code untouched
+  (`appcore/`, `workflows/`, `executor/`, `packages/`, `ui/`,
+  `alembic/` all zero diff over W13-5 range `1b637a1..HEAD`).
 - **Next pull after W13-5:** Medium W13 acceptance-bar candidates remain
   M1 PEM regex DoS and M9 `arguments_preview` redaction.
 - **Entry gate met:**
@@ -136,7 +139,7 @@ GOAL row is pulled.
 | TBD | `[§11.10 GOAL]` `extrace.executor.*` logger consolidation (discovery first — initial grep found zero `getLogger("extrace*` / `getLogger('extrace*` matches; W13-6 may scope out if no fragmentation exists, or pull canonical naming if any is found) | `[platform-storage]` | not started |
 | TBD | `[§11.10 GOAL]` Run-ID stamping (job_id exists at `appcore/storage/model_defs/analysis_job.py` and `appcore/contracts/schema_defs/analysis_jobs.py:16` but is not propagated as a correlation identifier through log records, `EvidenceEvent`, or DB row chains; multi-lane plumbing) | `[platform-storage]` `[executor-runtime]` `[security-detection]` | not started |
 | TBD | `[§11.10 GOAL]` W8-W12 regression lock-in (umbrella for any regression coverage missing on W8-W12 landed work; concrete sub-items pulled from `POST_POC_BACKLOG.md` deferrals as W13 progresses; close-pass evaluates which followups are bundled vs deferred to W14+) | (multi) | not started |
-| **W13-5** | `[FOLLOWUP codex-2026-05-10-H3-dev-lan-makefile-drift]` (`Makefile:170-172` `dev-lan` hard-codes `--host 0.0.0.0` while `runbooks/lan-exposure.md:82-87` documents `API_HOST` override; `tests/architecture/test_default_bindings.py` covers settings layer only — no Makefile gate. Path A recipe-fix selected: `--host $${API_HOST:-0.0.0.0}` + new `tests/architecture/test_makefile_dev_recipes.py` regression gate + lan-exposure §Host-mode drift caveat removal) | `[security-detection]` `[platform-storage]` | **in progress (2026-05-11)** |
+| **W13-5** | `[FOLLOWUP codex-2026-05-10-H3-dev-lan-makefile-drift]` (`Makefile:170-172` `dev-lan` hard-codes `--host 0.0.0.0` while `runbooks/lan-exposure.md:82-87` documents `API_HOST` override; `tests/architecture/test_default_bindings.py` covers settings layer only — no Makefile gate. Path A recipe-fix landed: `--host $${API_HOST:-0.0.0.0}` + new `tests/architecture/test_makefile_dev_recipes.py` regression gate + lan-exposure §Host-mode drift caveat removal) | `[security-detection]` `[platform-storage]` | **closed (5/5 sub-commits, 2026-05-11)** |
 | **W13-4** | `[FOLLOWUP w13-3-close-pass-cancellation-test-hardening]` (W13-3 6 architecture gates pin AST invariants only — no behavioral coverage exists for: 5 poll-point raise paths actually firing inside `execute_analysis_request`, cancel↔complete DB-level race serialization under `with_for_update()`, stuck-`cancelling` boot_id recovery via `recover_interrupted_jobs` (design intent: `cancelling`→`failed` by boot_id mismatch), Alembic `c8a2d4e91f5b` upgrade/downgrade data motion, `run_analysis_job` exception handler driving `finalize_cancelled_job` on both `AnalysisCancelledError` and `is_job_cancelled`-true hard-error paths, finalize negative (absent + already-cancelled idempotency). Plus runbook drift: `documents/runbooks/analysis-job-stuck.md:42` 4-status literal stale post-W13-3, no playbook for stuck-cancelling) | `[platform-storage]` `[executor-runtime]` | **closed (8/8 sub-commits, 2026-05-11)** |
 | **W13-3** | `[FOLLOWUP codex-2026-05-10-H4-cancel-concurrent-race]` (cross-ref `[FOLLOWUP simulation-progress-cancel]` 5 sub-items already in POST_POC; `cancelled` was terminal in `appcore/storage/crud_ops/analysis_jobs/lifecycle.py:41` so `reserve_job()` released the lock immediately; cancellation polled only in heartbeat. Option A: `cancelling` non-terminal state added to `ACTIVE_ANALYSIS_JOB_STATUSES` + partial unique index, two-phase cancel via new `finalize_cancelled_analysis_job` helper, `_raise_if_cancelled` poll points at 5 hot-zones) | `[executor-runtime]` `[platform-storage]` | **closed (6/6 sub-commits, 2026-05-10)** |
 | **W13-2** | `[FOLLOWUP codex-2026-05-10-H5-writable-vscode-launcher]` (`executor/container/Dockerfile:121-128` chowns `launch_vscode.sh` to `executor:executor` mode 755 — analyzed extension can overwrite, persists across resets via `reset_state.py`. Moved to `chown root:executor` + `chmod 0750`; root-own + executor read+exec only) | `[executor-runtime]` `[security-detection]` | **closed (3/3 sub-commits, 2026-05-10)** |
@@ -775,7 +778,7 @@ maliyeti de aşağı çeker.
 - `make test-security` 211 sabit boyunca (yeni test architecture lane'inde; security lane'i [Makefile:206-216](../../Makefile) test-security path listesinde yok).
 - Production code untouched audit: `git diff --stat week13~5..HEAD -- appcore/ workflows/ executor/ packages/` boş çıkmalı.
 
-**W13-5.1 close evidence (this commit).**
+**W13-5.1 close evidence (`1b637a1`).**
 
 - [x] Stable ID `W13-5` atandı, scope kilitlendi (Path A recipe-fix).
 - [x] Tracker güncellendi: header `Last Updated 2026-05-11` (W13-5 opened note); Status (Quick Glance) yeni W13-5 opened bullet'ı; Candidate Items table'da W13-5 satırı `in progress (2026-05-11)`; bu Per-Item Detail bloğu eklendi.
@@ -784,6 +787,81 @@ maliyeti de aşağı çeker.
 - [x] Baseline metrikleri yakalandı (W13-4 close evidence ile birebir): `pytest --collect-only -m "not smoke"` 1492 collected / 8 deselected; `tests/architecture/` 87 collected / 4 deselected (smoke); `make test-security` 211 trust (W13-4'te ölçüldü).
 - [x] W12 + W13-1 + W13-2 + W13-3 + W13-4 ratchet gate'leri intact kalır (bu commit pure doc).
 - [x] Production code dokunulmaz (`appcore/`, `workflows/`, `executor/`, `packages/`).
+
+**Sub-commit landings (final hash table).**
+
+| # | Commit | Konu | Test/doc dosyaları |
+|---|--------|------|-------------------|
+| 1 | `1b637a1` `docs(W13-5): assign stable ID + lock in dev-lan recipe scope` | Stable ID atama, scope kilitleme (Path A), Per-Item Detail bloğu açma | tracker, `REFACTOR_STATUS.md`, `POST_POC_BACKLOG.md` |
+| 2 | `e67a2ff` `test(W13-5): RED precursor for Makefile dev-recipe binding gate` | 6 skip-marked case, parser helper (`_recipe_bodies`, `_body_text`) | `tests/architecture/test_makefile_dev_recipes.py` (NEW, 171 lines) |
+| 3 | `70bc3d7` `feat(W13-5): Makefile dev-lan honors API_HOST override (RED→GREEN)` | `Makefile:172` 1-line recipe fix + 6 skip kaldırma + ruff hook unused `import pytest` cleanup | `Makefile`, `tests/architecture/test_makefile_dev_recipes.py` |
+| 4 | `6aa4c36` `docs(W13-5): runbook revision — dev-lan API_HOST override semantic` | `lan-exposure.md` §Host-mode drift caveat removal + §Code References extension (yeni test dosyası entry'si) + Last Updated parenthetical | `documents/runbooks/lan-exposure.md` |
+| 5 | (this) `docs(W13-5): close evidence + status sweep` | Tracker close evidence + final hash table; `REFACTOR_STATUS.md` W13 table closed; `POST_POC_BACKLOG.md` H3 strikethrough; `REFACTOR_OPTIMIZATION.md` §11.10 W13-5 closed bullet; `CLAUDE.md` + `AGENTS.md` header parity; `documents/active-work/README.md` next-pull pointer | tracker, `REFACTOR_STATUS.md`, `POST_POC_BACKLOG.md`, `REFACTOR_OPTIMIZATION.md`, `CLAUDE.md`, `AGENTS.md`, `documents/active-work/README.md` |
+
+**W13-5.5 close evidence (this commit).**
+
+- [x] **Test bar (final).** `make test-local` collect 1492 → 1498
+  (+6 passed cases — `test_dev_recipe_binds_loopback_literal`,
+  `test_run_recipe_binds_loopback_literal`,
+  `test_dev_lan_recipe_sets_extrace_allow_lan`,
+  `test_dev_lan_recipe_honors_api_host_override`,
+  `test_dev_lan_recipe_defaults_to_wildcard_host`,
+  `test_dev_lan_recipe_emits_adr_0007_warning`); 8 deselected
+  unchanged. `make test-security` 211 sabit (yeni test
+  architecture lane'inde; `make test-security` path listesinde
+  yok). `tests/architecture/` 87 → 93 passed / 4 deselected
+  (smoke unchanged).
+- [x] **Production code dokunulmaz.** `git diff --stat
+  week13~4..HEAD -- appcore/ workflows/ executor/ packages/ ui/
+  alembic/` boş — yalnız `Makefile` (1 satır), 1 yeni test dosyası
+  ve 4 doc dosyası dokundu.
+- [x] **Architecture gate'leri korundu.** W12: 5/5 ✓
+  (`test_executor_playwright_flat_file_count_limit`,
+  `test_runner_main_under_loc_budget`,
+  `test_runtime_capture_extension_host_*` × 2,
+  `test_body_preview_assignments_are_redacted`,
+  `test_all_runtime_dockerfiles_pin_base_images_by_digest`).
+  W13-1: 3/3 ✓ (`test_harness_marker_auth.py`).
+  W13-2: 4/4 ✓ (`test_executor_runtime_script_permissions.py`
+  static + smoke).
+  W13-3: 6/6 ✓ (`test_cancel_poll_points.py` × 2 +
+  `test_job_state_invariants.py` × 4).
+  **W13-5: 6/6 ✓** (`test_makefile_dev_recipes.py`).
+- [x] **Threat coverage özeti.** Eskiden:
+  `API_HOST=192.168.1.10 make dev-lan` çağrısı uvicorn'u `0.0.0.0`'a
+  binder, `APISettings.HOST` ise post-init explicit-override
+  branch'inden geçip `192.168.1.10`'a yerleşirdi — uvicorn ↔
+  settings drift'i kalıcı, operatör darayım dediği halde wildcard'a
+  açık kalır; tek sinyal runbook'taki caveat. Şimdi: Makefile shell
+  parameter expansion `${API_HOST:-0.0.0.0}` env override'ı uvicorn
+  `--host` argümanına doğrudan iletir; `--host 0.0.0.0` literal'i
+  recipe'de yok, drift kapanır. Hem settings (`APISettings.HOST`,
+  test_default_bindings.py 14 case) hem recipe
+  (`test_makefile_dev_recipes.py` 6 case) katmanları birbirini
+  yansıtır.
+- [x] **Slim canonical doc sweep.** Tracker (this file),
+  `REFACTOR_STATUS.md`, `POST_POC_BACKLOG.md`,
+  `REFACTOR_OPTIMIZATION.md` §11.10,
+  `documents/active-work/README.md`, `CLAUDE.md`, `AGENTS.md`
+  header parity güncellendi. Slim canonical satır sayıları 200
+  altında — W13-5 için ayrı archive snapshot zorunlu değil
+  (W13-4'ün `2026-05-11` snapshot'ı fresh).
+- [x] **Branch policy korundu.** Tüm 5 commit `week13` üzerinde;
+  yeni branch açılmadı. W12 patterni (tüm W12-N alt-iterasyonlar
+  tek PR #18 ile main'e merge) W13-N için de geçerli — W13 close-out
+  PR'ı M1/M9 (veya açıkça defer) sonrasında tek paket olarak açılır.
+- [x] **Sıradaki iterasyon hazır.** W13 acceptance-bar'da kalan
+  MEDIUM kalemler: `[FOLLOWUP codex-2026-05-10-M1-pem-regex-dos]`
+  (`packages/analysis_contracts/evidence.py:106-121`
+  `redact_multiline_secrets()` private_key regex unanchored + lazy
+  cross-line span → catastrophic backtracking; bounded scanner /
+  size cap),
+  `[FOLLOWUP codex-2026-05-10-M9-arguments-preview-redaction-extension]`
+  (`executor/flows/playwright/runtime_capture/extension_host_strace_parse.py:60,70,78`
+  `arguments_preview` `redact_secrets()` route'undan geçmiyor;
+  W12-5 architecture gate scope'unu genişlet). Her ikisi de
+  paralel branch'lerde land edilebilir veya W13-6/W13-7 olarak
+  çekilir.
 
 ## W12 Lessons Learned (carry-forward)
 

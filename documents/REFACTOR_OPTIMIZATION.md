@@ -149,7 +149,8 @@ Audit pull-forwards:
 - W13-2 closed `[FOLLOWUP codex-2026-05-10-H5-writable-vscode-launcher]`.
 - W13-3 closed `[FOLLOWUP codex-2026-05-10-H4-cancel-concurrent-race]`.
 - W13-4 closed `[FOLLOWUP w13-3-close-pass-cancellation-test-hardening]`.
-- W13-5 next: `[FOLLOWUP codex-2026-05-10-H3-dev-lan-makefile-drift]`.
+- W13-5 closed `[FOLLOWUP codex-2026-05-10-H3-dev-lan-makefile-drift]`.
+- W13-6 next: M1 PEM regex DoS or M9 `arguments_preview` redaction.
 - Still open for W13 acceptance: `[FOLLOWUP codex-2026-05-10-M1-pem-regex-dos]`
   and `[FOLLOWUP codex-2026-05-10-M9-arguments-preview-redaction-extension]`.
 

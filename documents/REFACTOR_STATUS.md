@@ -1,6 +1,6 @@
 # Refactor Status
 
-`Last Updated: 2026-05-11 (W13 active; W13-1..W13-4 closed; W13-5 in progress — H3 dev-lan Makefile recipe-fix + new architecture gate)`
+`Last Updated: 2026-05-11 (W13 active; W13-1..W13-5 closed; next pull is M1 PEM regex DoS or M9 arguments_preview redaction)`
 
 Active status board for current closure state. **Slim canonical** — verbose
 phase evidence is frozen under dated snapshots:
@@ -39,13 +39,15 @@ phase evidence is frozen under dated snapshots:
   [`active-work/W13-test-expansion-observability.md`](active-work/W13-test-expansion-observability.md).
   W13 acceptance-bar pull-forwards are H3, H4, H5, H6, M1, and M9 from the
   Codex Cloud audit `2026-05-10`; H4/H5/H6 are already closed.
-- **W13-5 opened `2026-05-11`.** Pulls
-  `[FOLLOWUP codex-2026-05-10-H3-dev-lan-makefile-drift]`. Path A
-  recipe-fix: `Makefile:172` `--host 0.0.0.0` →
-  `--host $${API_HOST:-0.0.0.0}` + new architecture gate
-  `tests/architecture/test_makefile_dev_recipes.py` (6 cases) +
-  `documents/runbooks/lan-exposure.md` §Host-mode revision. 5-commit
-  roadmap on `week13`; production code untouched.
+- **W13-5 closed `2026-05-11` (5/5 sub-commits).** dev-lan Makefile
+  drift (Codex H3) closed via Path A recipe-fix: `Makefile:172`
+  `--host 0.0.0.0` → `--host $${API_HOST:-0.0.0.0}`. New architecture
+  gate `tests/architecture/test_makefile_dev_recipes.py` 6/6 ✓.
+  `documents/runbooks/lan-exposure.md` §Host-mode drift caveat
+  removed. Final bar: `make test-local` 1492 → 1498 (+6 passed);
+  `make test-security` 211 unchanged; `tests/architecture/` 87 → 93.
+  Production code untouched (`appcore/`, `workflows/`, `executor/`,
+  `packages/`, `ui/`, `alembic/` all zero diff over W13-5 range).
 
 ## W13 Status
 
@@ -55,9 +57,9 @@ phase evidence is frozen under dated snapshots:
 | W13-2 | `[FOLLOWUP codex-2026-05-10-H5-writable-vscode-launcher]` | closed `2026-05-10`; `launch_vscode.sh` root-owned 0750; `make test-local` 1458 -> 1460; architecture 79 -> 81 |
 | W13-3 | `[FOLLOWUP codex-2026-05-10-H4-cancel-concurrent-race]` | closed `2026-05-10`; two-phase `cancelling` cancel state + 5 worker poll points; `make test-local` 1460 -> 1467; architecture 81 -> 87 |
 | W13-4 | `[FOLLOWUP w13-3-close-pass-cancellation-test-hardening]` | closed `2026-05-11`; behavioral cancellation coverage + runbook fix; `make test-local` 1473 -> 1485; `make test-security` 211 unchanged; architecture 87 unchanged |
-| W13-5 | `[FOLLOWUP codex-2026-05-10-H3-dev-lan-makefile-drift]` | **in progress (opened `2026-05-11`)**; Path A recipe-fix + new `tests/architecture/test_makefile_dev_recipes.py` (6 cases) + `lan-exposure.md` §Host-mode revision; 5-commit roadmap on `week13` |
-| TBD | `[FOLLOWUP codex-2026-05-10-M1-pem-regex-dos]` | W13 acceptance-bar MEDIUM, open |
-| TBD | `[FOLLOWUP codex-2026-05-10-M9-arguments-preview-redaction-extension]` | W13 acceptance-bar MEDIUM, open |
+| W13-5 | `[FOLLOWUP codex-2026-05-10-H3-dev-lan-makefile-drift]` | closed `2026-05-11`; Path A recipe-fix (`Makefile:172` `$${API_HOST:-0.0.0.0}`); `make test-local` 1492 → 1498 (+6 passed); architecture 87 → 93; production code untouched |
+| TBD | `[FOLLOWUP codex-2026-05-10-M1-pem-regex-dos]` | W13 acceptance-bar MEDIUM, open; pull-eligible as W13-6/W13-7 |
+| TBD | `[FOLLOWUP codex-2026-05-10-M9-arguments-preview-redaction-extension]` | W13 acceptance-bar MEDIUM, open; pull-eligible as W13-6/W13-7 |
 
 ## Current Deferrals
 

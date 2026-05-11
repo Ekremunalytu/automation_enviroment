@@ -20,9 +20,10 @@ points to it.
 ## Files
 
 - `W13-test-expansion-observability.md`
-  - **Active phase.** W13 test expansion + observability. W13-1..W13-4
-    are closed; W13-5 is pull-eligible from
-    `[FOLLOWUP codex-2026-05-10-H3-dev-lan-makefile-drift]`.
+  - **Active phase.** W13 test expansion + observability. W13-1..W13-5
+    closed; W13 next-pull is `[FOLLOWUP codex-2026-05-10-M1-pem-regex-dos]`
+    or `[FOLLOWUP codex-2026-05-10-M9-arguments-preview-redaction-extension]`
+    (MEDIUM acceptance-bar items; W13-6/W13-7 stable IDs pending).
 - `W12-executor-subpackaging.md`
   - **Past phase.** W12 executor subpackaging + attribution cleanup
     (W12-0..W12-5) closed `2026-05-10` and merged via PR #18.

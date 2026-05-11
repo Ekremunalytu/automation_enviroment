@@ -1,6 +1,6 @@
 # AGENTS.md
 
-`Last Updated: 2026-05-11 (W12 closed via PR #18; W13 — Test Expansion + Observability open; W13-1..W13-4 closed)`
+`Last Updated: 2026-05-11 (W12 closed via PR #18; W13 — Test Expansion + Observability open; W13-1..W13-5 closed)`
 
 ## Authority
 
@@ -21,12 +21,16 @@
   via PR #14; W12 closed `2026-05-10` and merged via PR #18
   (`33a0852`).** Active phase: **W13 — Test Expansion + Observability**
   (`REFACTOR_OPTIMIZATION.md` §11.10; tracker:
-  `active-work/W13-test-expansion-observability.md`). Entry baseline:
-  post-Codex-fix `make check-all` green at the W12 close commit
-  (`make test-local` 1452 passed / 6 skipped / 6 deselected;
-  `make test-security` 211 passed; `tests/architecture/` 76 passed).
-  Past W8/W11/W12 trackers stay available only because code/tests
-  reference stable IDs (W8-1..W8-9, W11-1..W11-8, W12-0..W12-5).
+  `active-work/W13-test-expansion-observability.md`). W13-1..W13-5
+  closed; W13 next-pull is M1 PEM regex DoS or M9 `arguments_preview`
+  redaction. Entry baseline: post-Codex-fix `make check-all` green at
+  the W12 close commit (`make test-local` 1452 passed / 6 skipped /
+  6 deselected; `make test-security` 211 passed; `tests/architecture/`
+  76 passed). W13-5 close (`2026-05-11`): `make test-local` 1492 →
+  1498 collected (+6 passed); `make test-security` 211 unchanged;
+  `tests/architecture/` 87 → 93. Past W8/W11/W12 trackers stay
+  available only because code/tests reference stable IDs
+  (W8-1..W8-9, W11-1..W11-8, W12-0..W12-5).
 - ADR 0007 local-network-binding is **Accepted and implemented**; loopback
   defaults + `EXTRACE_ALLOW_LAN` are pinned by `test_default_bindings.py`.
 

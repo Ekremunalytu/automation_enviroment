@@ -1,6 +1,6 @@
 # Post-PoC Backlog
 
-`Last Updated: 2026-05-11 (W13-5 in progress — H3 dev-lan Makefile recipe-fix scope locked; M1/M9 remain W13 acceptance-bar open; doc drift fixes closed I1 + three cleanup docstring items)`
+`Last Updated: 2026-05-11 (W13-5 closed — H3 dev-lan Makefile recipe-fix landed; M1/M9 remain W13 acceptance-bar open; doc drift fixes closed I1 + three cleanup docstring items)`
 
 Open deferred work after the W0-W7 PoC acceptance bar. **Slim canonical** —
 verbose descriptions, evidence, and older triage notes are frozen in dated
@@ -30,7 +30,7 @@ Use stable IDs in new references; do not cite canonical doc line numbers.
 
 | Stable ID | Status | Note |
 |---|---|---|
-| `[FOLLOWUP codex-2026-05-10-H3-dev-lan-makefile-drift]` | **in progress as W13-5** (opened `2026-05-11`) | Path A recipe-fix: `Makefile:172` `--host 0.0.0.0` → `--host $${API_HOST:-0.0.0.0}` + new `tests/architecture/test_makefile_dev_recipes.py` (6 cases) + `lan-exposure.md` §Host-mode caveat removal |
+| ~~`[FOLLOWUP codex-2026-05-10-H3-dev-lan-makefile-drift]`~~ | closed via W13-5 | Path A recipe-fix: `Makefile:172` `--host $${API_HOST:-0.0.0.0}` + 6 architecture gates landed (`tests/architecture/test_makefile_dev_recipes.py`) + `lan-exposure.md` §Host-mode caveat removed |
 | `[FOLLOWUP codex-2026-05-10-H4-cancel-concurrent-race]` | closed via W13-3 | two-phase `cancelling` state + worker poll points |
 | `[FOLLOWUP codex-2026-05-10-H5-writable-vscode-launcher]` | closed via W13-2 | `launch_vscode.sh` root-owned 0750 |
 | `[FOLLOWUP codex-2026-05-10-H6-spoofable-harness-markers]` | closed via W13-1 | per-launch HMAC marker verification |
