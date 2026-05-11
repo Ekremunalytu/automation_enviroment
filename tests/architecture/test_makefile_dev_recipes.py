@@ -38,7 +38,6 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-import pytest
 
 REPO_ROOT = Path(__file__).parents[2]
 MAKEFILE_PATH = REPO_ROOT / "Makefile"
@@ -86,7 +85,6 @@ def _body_text(recipe: str) -> str:
     return "\n".join(bodies[recipe])
 
 
-@pytest.mark.skip(reason="W13-5 RED precursor — Makefile recipe-fix pending")
 def test_dev_recipe_binds_loopback_literal() -> None:
     body = _body_text("dev")
     assert "--host 127.0.0.1" in body, (
@@ -95,7 +93,6 @@ def test_dev_recipe_binds_loopback_literal() -> None:
     )
 
 
-@pytest.mark.skip(reason="W13-5 RED precursor — Makefile recipe-fix pending")
 def test_run_recipe_binds_loopback_literal() -> None:
     body = _body_text("run")
     assert "--host 127.0.0.1" in body, (
@@ -104,7 +101,6 @@ def test_run_recipe_binds_loopback_literal() -> None:
     )
 
 
-@pytest.mark.skip(reason="W13-5 RED precursor — Makefile recipe-fix pending")
 def test_dev_lan_recipe_sets_extrace_allow_lan() -> None:
     """`make dev-lan` is the host-mode opt-in surface. The recipe
     must flip `EXTRACE_ALLOW_LAN=1` so APISettings.model_post_init
@@ -118,7 +114,6 @@ def test_dev_lan_recipe_sets_extrace_allow_lan() -> None:
     )
 
 
-@pytest.mark.skip(reason="W13-5 RED precursor — Makefile recipe-fix pending")
 def test_dev_lan_recipe_honors_api_host_override() -> None:
     """W13-5 closes the H3 drift by replacing `--host 0.0.0.0`
     literal with `--host $${API_HOST:-0.0.0.0}` (Make `$$` escape
@@ -138,7 +133,6 @@ def test_dev_lan_recipe_honors_api_host_override() -> None:
     )
 
 
-@pytest.mark.skip(reason="W13-5 RED precursor — Makefile recipe-fix pending")
 def test_dev_lan_recipe_defaults_to_wildcard_host() -> None:
     """When `API_HOST` is unset the shell expansion must fall back
     to `0.0.0.0`. This pins LAN intent at the recipe level: an
@@ -153,7 +147,6 @@ def test_dev_lan_recipe_defaults_to_wildcard_host() -> None:
     )
 
 
-@pytest.mark.skip(reason="W13-5 RED precursor — Makefile recipe-fix pending")
 def test_dev_lan_recipe_emits_adr_0007_warning() -> None:
     """The recipe's stdout banner is the only in-process signal that
     the loopback default has been bypassed (runbook §Configure
