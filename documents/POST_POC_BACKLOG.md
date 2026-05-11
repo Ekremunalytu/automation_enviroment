@@ -1,6 +1,6 @@
 # Post-PoC Backlog
 
-`Last Updated: 2026-05-11 (W12 close-out items closed; Codex Cloud audit 2026-05-10 ingested — 4 HIGH pulled forward + 2 MEDIUM pull-forward + ~10 backlog + 2 posture + 1 WONT-FIX + 9 verified-closed audit trail; H6 closed via W13-1 2026-05-10; H5 closed via W13-2 2026-05-10; H4 closed via W13-3 2026-05-10 — two-phase cancel with cancelling state + 5 worker poll points + 6 architecture gates; W13-4 opened 2026-05-11 —`[FOLLOWUP w13-3-close-pass-cancellation-test-hardening]` behavioral coverage layer over W13-3 AST gates + `analysis-job-stuck.md`runbook drift fix)`
+`Last Updated: 2026-05-11 (W12 close-out items closed; Codex Cloud audit 2026-05-10 ingested — 4 HIGH pulled forward + 2 MEDIUM pull-forward + ~10 backlog + 2 posture + 1 WONT-FIX + 9 verified-closed audit trail; H6 closed via W13-1 2026-05-10; H5 closed via W13-2 2026-05-10; H4 closed via W13-3 2026-05-10 — two-phase cancel with cancelling state + 5 worker poll points + 6 architecture gates; W13-4 closed 2026-05-11 — cancellation lifecycle hardening 8/8 sub-commits + 12 net behavioral cases + runbook drift fix; alembic programmatic round-trip deferred as`[FOLLOWUP w13-4-alembic-roundtrip-programmatic]`)`
 
 Open deferred work after the W0-W7 PoC acceptance bar. **Slim canonical** —
 verbose descriptions, evidence, and older triage notes are frozen in dated
@@ -103,23 +103,39 @@ items receive `W13-N` IDs at first pull per W11/W12 precedent.
   pre-W13-3 schemasını gösteriyor. Yeni FOLLOWUP açıldı:
   `[FOLLOWUP w13-3-close-pass-cancellation-test-hardening]` (W13-4
   stable ID; saf test+doc paketi, production code dokunulmaz).
-- **`[FOLLOWUP w13-3-close-pass-cancellation-test-hardening]`** —
+- ~~**`[FOLLOWUP w13-3-close-pass-cancellation-test-hardening]`**~~ —
   W13-3 6 architecture gates pin AST invariants only; behavioral
-  coverage layer eksik (5 poll-point raise, cancel↔complete race,
+  coverage layer eksikti (5 poll-point raise, cancel↔complete race,
   stuck-cancelling recovery, alembic round-trip, exception handler
   integ, finalize negative). Plus runbook drift in
-  `documents/runbooks/analysis-job-stuck.md`. **In progress as W13-4
-  (`2026-05-11`, 5/8 sub-commits, branch `week13`):** saf test+doc
-  paketi; production code (`raise_if_cancelled`, `cancel_analysis_job`,
+  `documents/runbooks/analysis-job-stuck.md`. **Closed via W13-4
+  (`2026-05-11`, 8/8 sub-commits, branch `week13`):**
+  `050317e`/`422684b`/`234ad50`/`bc8f562`/`247611c`/`04feea3`/
+  `5d7ac21`/(W13-4.8 close commit). Saf test+doc paketi; production
+  code (`raise_if_cancelled`, `cancel_analysis_job`,
   `finalize_cancelled_analysis_job`, `is_job_cancelled`,
-  `recover_interrupted_jobs`, alembic `c8a2d4e91f5b`) dokunulmaz —
-  zaten doğru implementasyonlar, gap test kanıt eksiği. Sub-commit
-  roadmap (8 commits) + per-commit test bar projection (`make
-  test-local` 1473 → ~1485, +10 davranışsal case net;
-  `tests/architecture/` 87 unchanged) tracker'da W13-4 Per-Item
-  Detail bloğunda. Lane: `[platform-storage]` `[executor-runtime]`.
-  See `documents/active-work/W13-test-expansion-observability.md` →
-  Per-Item Detail → W13-4.
+  `recover_interrupted_jobs`, alembic `c8a2d4e91f5b`) hiç değişmedi —
+  zaten doğru implementasyonlar, gap test kanıt eksiğiydi.
+  **Test bar:** `make test-local` 1473 → 1485 passed (+12 net case:
+  5 poll-point + 2 race + 1 recovery + 2 exception handler + 2
+  finalize negative; alembic round-trip 1 case
+  `[FOLLOWUP w13-4-alembic-roundtrip-programmatic]` olarak deferred);
+  7 skipped (6 baseline + 1 alembic); 8 deselected;
+  `make test-security` 211 unchanged; `tests/architecture/` 87
+  unchanged. **Runbook drift fix:**
+  `documents/runbooks/analysis-job-stuck.md` Last Updated bumped, Job
+  state machine literal aligned with schema (6-tuple), new
+  state-transition diagram, NEW § Stuck in cancelling section
+  (Symptom + Diagnose SQL + 3-step Recover playbook), § Recover
+  Step 2 SQL widened, § Code References extended.
+  **Implicit follow-up:** W13-4.4 activation surfaced
+  `complete_analysis_job` lacking `with_for_update()` (cancel has it);
+  documented as a race-window in
+  `tests/platform/storage/test_analysis_jobs_concurrency.py` and
+  flagged for the existing `[FOLLOWUP analysis-jobs-race]` W14+ pull.
+  Lane: `[platform-storage]` `[executor-runtime]`. See
+  `documents/active-work/W13-test-expansion-observability.md` →
+  Per-Item Detail → W13-4 for full evidence.
 - **`[FOLLOWUP w13-4-alembic-roundtrip-programmatic]`** —
   W13-4.5 spawned this deferral. Programmatic alembic upgrade/downgrade
   test (`tests/platform/storage/test_alembic_cancelling_migration.py::test_migration_c8a2d4e91f5b_round_trip_preserves_cancelling_rows`)

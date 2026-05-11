@@ -1,6 +1,6 @@
 # Refactor Status
 
-`Last Updated: 2026-05-11 (W12 closed; merged via PR #18 (33a0852); W13 — Test Expansion + Observability open on branch week13; Codex Cloud audit 2026-05-10 ingested — 4 HIGH + 2 MEDIUM pulled forward to W13 acceptance bar; W13-1 closed 2026-05-10 — Codex H6 spoofable harness markers; W13-2 closed 2026-05-10 — Codex H5 writable VS Code launcher → root:executor 0750; W13-3 closed 2026-05-10 — Codex H4 cancel concurrent race, draining-state two-phase cancel + 5 worker poll points + 6 architecture gates; W13-4 opened 2026-05-11 — cancellation lifecycle hardening, behavioral coverage layer over W13-3 AST gates + runbook drift fix in`analysis-job-stuck.md`)`
+`Last Updated: 2026-05-11 (W12 closed; merged via PR #18 (33a0852); W13 — Test Expansion + Observability open on branch week13; Codex Cloud audit 2026-05-10 ingested — 4 HIGH + 2 MEDIUM pulled forward to W13 acceptance bar; W13-1 closed 2026-05-10 — Codex H6 spoofable harness markers; W13-2 closed 2026-05-10 — Codex H5 writable VS Code launcher → root:executor 0750; W13-3 closed 2026-05-10 — Codex H4 cancel concurrent race, draining-state two-phase cancel + 5 worker poll points + 6 architecture gates; W13-4 closed 2026-05-11 — cancellation lifecycle hardening 8/8 sub-commits + 12 net behavioral cases +`analysis-job-stuck.md` runbook drift fix; alembic programmatic round-trip deferred as `[FOLLOWUP w13-4-alembic-roundtrip-programmatic]`)`
 
 Active status board for current closure state. **Slim canonical** — full
 phase history and verbose evidence are frozen under dated snapshots:
@@ -152,7 +152,7 @@ phase history and verbose evidence are frozen under dated snapshots:
   heartbeat-refactor). Tracker:
   [`active-work/W13-test-expansion-observability.md`](active-work/W13-test-expansion-observability.md)
   → Per-Item Detail → W13-3.
-- **W13-4 opened `2026-05-11` (in progress, 1/8 sub-commits)** —
+- **W13-4 closed `2026-05-11` (8/8 sub-commits)** —
   cancellation lifecycle hardening, spawned from W13-3 close-pass
   evaluation. W13-3 close baseline pinned 6 architecture gates that
   lock AST invariants only (`tests/architecture/test_cancel_poll_points.py`
@@ -179,10 +179,30 @@ phase history and verbose evidence are frozen under dated snapshots:
   round-trip + stuck-cancelling recovery + exception handler integ
   (4 RED→GREEN), W13-4.6 GREEN finalize negative (2 RED→GREEN),
   W13-4.7 runbook revision, W13-4.8 close evidence + status sweep.
-  **Test bar projection:** `make test-local` 1467 → ~1481 (+14
-  davranışsal case); `make test-security` 211 unchanged;
-  `tests/architecture/` 87 unchanged. **W13-3 close evidence sayıları
-  dokunulmaz** (1467 historic). Gates W13-5 (`[FOLLOWUP codex-2026-05-10-H3-dev-lan-makefile-drift]`)
+  **Test bar (final):** `make test-local` 1473 (W13-4 open baseline,
+  corrected from W13-3.6 close evidence's 1467) → 1485 (W13-4 close)
+  = +12 net behavioral cases (5 poll-point + 2 race + 1 recovery +
+  2 exception handler + 2 finalize negative). Skipped 6 (baseline)
+  - 1 (alembic deferred) = 7 total. `make test-security` 211
+  unchanged; `tests/architecture/` 87 unchanged (W13-4 is pure
+  behavioral lane, not a ratchet lane). **Sub-commits:** `050317e`
+  (scope lock-in), `422684b` (RED precursor 13 cases), `234ad50`
+  (GREEN poll-point ×5), `bc8f562` (GREEN race + concurrent ×2),
+  `247611c` (GREEN recovery + exception handler ×3 + alembic
+  deferral), `04feea3` (GREEN finalize negative ×2), `5d7ac21`
+  (runbook revision), (this commit) close evidence. **Deferred
+  follow-ups (POST_POC):**
+  `[FOLLOWUP w13-4-alembic-roundtrip-programmatic]` (programmatic
+  alembic upgrade/downgrade behavioral case requires
+  fresh-DB-per-test fixture pattern; W13-3.6 manual round-trip +
+  `test_job_state_invariants.py:114-140` static literal pinning
+  remain authoritative). Implicit follow-up surfaced during
+  W13-4.4 activation: `complete_analysis_job` lacks
+  `with_for_update()` while `cancel_analysis_job` has it; the W14+
+  candidate `[FOLLOWUP analysis-jobs-race]` in POST_POC_BACKLOG
+  pre-existed and now has documented race-window evidence in
+  `tests/platform/storage/test_analysis_jobs_concurrency.py`.
+  Gates W13-5 (`[FOLLOWUP codex-2026-05-10-H3-dev-lan-makefile-drift]`)
   on W13-4 close. Tracker:
   [`active-work/W13-test-expansion-observability.md`](active-work/W13-test-expansion-observability.md)
   → Per-Item Detail → W13-4.
