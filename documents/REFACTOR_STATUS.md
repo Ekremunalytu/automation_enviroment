@@ -1,6 +1,6 @@
 # Refactor Status
 
-`Last Updated: 2026-05-11 (W13 active; W13-1..W13-6 closed; W13-7 in progress — Codex M1 PEM regex DoS, bounded scanner design, sub-commit 1 docs landing)`
+`Last Updated: 2026-05-11 (W13 active; W13-1..W13-7 closed — every MEDIUM/HIGH Codex Cloud acceptance-bar item landed; next step is W13 end-of-phase close-out PR week13 → main)`
 
 Active status board for current closure state. **Slim canonical** — verbose
 phase evidence is frozen under dated snapshots:
@@ -61,18 +61,24 @@ phase evidence is frozen under dated snapshots:
   `make test-local` 1498 → 1505 collected, +7 passed; `make test-security`
   211 unchanged; `tests/architecture/` 93 → 95 passed. Production code
   diff scoped to a single file (+4 net lines in the factory body).
-- **W13-7 in progress (opened `2026-05-11`).** Codex M1 PEM regex DoS
-  pulled. Design locked-in: bounded scanner for private_key cross-line
-  span in `redact_multiline_secrets()`
-  (`packages/analysis_contracts/evidence.py:106-121`). Empirical pre-fix
-  measurement: 200 BEGIN markers + 1 KB body each + no END → `pattern.sub()`
-  361 ms. Bounded scanner replaces the lazy `(?:.|\n)*?` quantifier with
-  a manual linear pass and a 16 KB BEGIN→END window cap; real PEM keys
-  (<4 KB) keep redacting normally, adversarial input no longer triggers
-  quadratic backtracking. New timing test
-  `test_redact_multiline_secrets_rejects_catastrophic_pem_pattern` pins
-  the post-fix latency budget (<100 ms). Sub-commit Roadmap: 5 commits
-  (docs + RED + GREEN + close + align). Sub-commit 1 (docs only) landing now.
+- **W13-7 closed `2026-05-11` (5/5 sub-commits).** Codex M1 PEM regex
+  DoS closed via bounded scanner for the private_key cross-line span in
+  `redact_multiline_secrets()` (`packages/analysis_contracts/evidence.py`).
+  New `_redact_private_key_bounded()` helper does a linear O(L) scan
+  with a 16 KB BEGIN→END window cap, replacing the lazy regex pattern.
+  Empirical latency: pre-fix 361 ms → post-fix 1.29 ms on 200 BEGIN +
+  1 KB body adversarial input (~280× speedup). W12-0's 4 PEM regression
+  cases continue to pass — bounded scanner is replacement-semantics
+  identical for real PEM input. New timing test
+  `test_redact_multiline_secrets_rejects_catastrophic_pem_pattern` 1/1 ✓.
+  Final bar: `make test-local` 1505 → 1506 collected, +1 passed
+  (1499 passed total); `make test-security` 211 → 212; `tests/architecture/`
+  95 unchanged. Production code diff scoped to a single file (+45 net
+  lines in `evidence.py`).
+- **W13 acceptance bar cleared.** H3 closed via W13-5, H4 via W13-3,
+  H5 via W13-2, H6 via W13-1, M1 via W13-7, M9 via W13-6. No further
+  MEDIUM/HIGH Codex acceptance items remain. Ready for the W13
+  end-of-phase close-out PR (`week13 → main`).
 
 ## W13 Status
 
@@ -84,7 +90,7 @@ phase evidence is frozen under dated snapshots:
 | W13-4 | `[FOLLOWUP w13-3-close-pass-cancellation-test-hardening]` | closed `2026-05-11`; behavioral cancellation coverage + runbook fix; `make test-local` 1473 -> 1485; `make test-security` 211 unchanged; architecture 87 unchanged |
 | W13-5 | `[FOLLOWUP codex-2026-05-10-H3-dev-lan-makefile-drift]` | closed `2026-05-11`; Path A recipe-fix (`Makefile:172` `$${API_HOST:-0.0.0.0}`); `make test-local` 1492 → 1498 (+6 passed); architecture 87 → 93; production code untouched |
 | W13-6 | `[FOLLOWUP codex-2026-05-10-M9-arguments-preview-redaction-extension]` | closed `2026-05-11`; factory-internal redaction at `_bounded_arguments_preview()`; new arch gate `test_arguments_preview_redaction.py` 2/2 ✓ + parametrized regression 5/5 ✓; `make test-local` 1498 → 1505 (+7 passed); architecture 93 → 95; production diff +4 net |
-| W13-7 | `[FOLLOWUP codex-2026-05-10-M1-pem-regex-dos]` | in progress (opened `2026-05-11`); bounded scanner for private_key cross-line span in `redact_multiline_secrets()`; 16 KB BEGIN→END window cap; pre-fix 361 ms on adversarial input, post-fix <10 ms expected |
+| W13-7 | `[FOLLOWUP codex-2026-05-10-M1-pem-regex-dos]` | closed `2026-05-11`; bounded scanner for private_key cross-line span in `redact_multiline_secrets()` (16 KB window cap); new timing case 1/1 ✓; `make test-local` 1505 → 1506 (+1 passed); `make test-security` 211 → 212; pre-fix 361 ms → post-fix 1.29 ms (~280× speedup); production diff +45 net |
 
 ## Current Deferrals
 
