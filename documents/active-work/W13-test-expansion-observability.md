@@ -1,9 +1,11 @@
 # W13 — Test Expansion + Observability (Active Work Tracker)
 
-`Last Updated: 2026-05-11 (W13-4 closed — cancellation lifecycle hardening; 8/8 sub-commits landed; +12 behavioral test cases net (5 poll-point + 2 race + 1 recovery + 2 exception handler + 2 finalize negative); 1 alembic round-trip case deferred as [FOLLOWUP w13-4-alembic-roundtrip-programmatic]; runbook drift fix landed for`analysis-job-stuck.md`with new § Stuck in cancelling diagnose/recover playbook)`
+`Last Updated: 2026-05-11 (W13-4 closed — cancellation lifecycle hardening; 8/8 sub-commits landed; +12 behavioral test cases net; 1 alembic round-trip case deferred as [FOLLOWUP w13-4-alembic-roundtrip-programmatic]; runbook drift fix landed for analysis-job-stuck.md)`
 `Phase: W13 active`
 `Branch: week13 (single-branch policy precedent; opened 2026-05-10 from cff6455)`
 `Owner: ekrem`
+
+> **Trimmed 2026-05-11** alongside the W13-4 close-out documentation sweep: verbose design-rationale prose and per-commit verification minutiae for the closed W13-1..W13-4 sub-commits were lifted out of the active narrative. Stable evidence — sub-commit hashes, deferred follow-ups, test-bar deltas — is retained inline; the full prose remains accessible via `git log` history on the `050317e..01bf761` range.
 
 This is the canonical active work tracker for the W13 Test Expansion +
 Observability window. Items receive stable IDs (`W13-1`, `W13-2`, ...)
@@ -21,113 +23,31 @@ the section ages.
 
 ## Status (Quick Glance)
 
-- **W13 active. W13-2 closed `2026-05-10` (4/4 sub-commits landed).**
-  Entry baseline established `2026-05-10` post-W12 merge to `main`
-  via PR #18 (`33a0852`); Codex Cloud security audit `2026-05-10`
-  ingested same day. **W13-1 closed `2026-05-10`:** Codex H6
-  spoofable harness markers (per-launch HMAC-SHA256 handshake).
-  **W13-2 closed `2026-05-10`:** Codex H5 writable VS Code launcher
-  — `executor/container/Dockerfile` `launch_vscode.sh` from
-  `executor:executor` 0755 to `root:executor` 0750. Sub-commits:
-  `07a68ad` RED precursor (2 arch gates, 1 RED + 1 PASS),
-  `75efad7` Dockerfile fix (chmod 0750 + chown root:executor;
-  RED → GREEN), `22938ef` close-out docs sweep + manual container
-  smoke evidence, pre-push runtime ratchet (this commit) automates
-  the manual smoke proof as 2 pytest smoke/integration gates +
-  `.gitignore` `results/` scratch + §11.10 date sweep. **Test bar:** `make test-local` 1458 → 1460
-  (+2 W13-2 AST gates under
-  `tests/architecture/test_executor_runtime_script_permissions.py`);
-  `make test-security` 211 unchanged; `tests/architecture/` 79 →
-  81 (+2 W13-2 gates). **Container smoke:** after `make exec-build
-  && make exec-up`, `docker exec automation_executor stat -c '%U:%G
-  %a' /home/executor/container/launch_vscode.sh` → `root:executor
-  750`; `start.sh` → `root:root 755` (defense-in-depth ratchet
-  pinned). Negative test: executor user `echo >>`
-  → `Permission denied` (exit 2). Positive test: `head -1` reads
-  `#!/bin/bash`, `test -x` passes, `start.sh` ENTRYPOINT successfully
-  invokes `bash launch_vscode.sh` at boot (VS Code PID 101 confirmed
-  in container logs). **Next item:** W13-3 (Codex H4 cancel
-  concurrent race, multi-component scope per master plan).
-- **W13-3 closed `2026-05-10` (6/6 sub-commits landed).**
-  Codex H4 cancel concurrent race — `cancelled` job statüsü
-  `appcore/storage/crud_ops/analysis_jobs/lifecycle.py:41`
-  `_TERMINAL_JOB_STATUSES` içinde, cancel anında `reserve_job()`
-  (`workflows/marketplace/job_service.py:173-193`) lock'u serbest
-  bırakıyor → worker thread arka planda hâlâ shared executor +
-  `/results` üzerinde yazarken yeni job reserve edilebiliyor.
-  İkinci açık: cancel polling sadece `_run_monitoring_heartbeat`
-  içinde (5 saniye interval); reset/install/build_triggers/
-  completion barrier'larında poll yok. **Karar (Option A — draining
-  state):** Yeni non-terminal `cancelling` state ekle
-  (`queued → running → cancelling → cancelled`); `cancelling`'i
-  `ACTIVE_ANALYSIS_JOB_STATUSES`'e dahil et + partial unique index'in
-  `WHERE` clause'una koy (Alembic migration); CRUD
-  `cancel_analysis_job` artık `cancelling`'e geçer, worker drain'i
-  bitince yeni `finalize_cancelled_analysis_job` `cancelled`
-  terminal'ine taşır (idempotent). `execute_analysis_request`'in 5
-  hot-zone'una `raise_if_cancelled` helper'ı eklenir. Reverse-side
-  reserve_job heuristic'i (Option B) reddedildi — timing/grace
-  window testable değil, scheduler ve worker durum kanalları
-  arasında ikinci doğru kaynağı yaratıyordu. **Cross-ref:**
-  `[FOLLOWUP simulation-progress-cancel]` 4 açık sub-item'ın 1'i
-  (`is-job-cancelled-session-churn`) W13-3.5'te kapanır, 3'ü
-  (`heartbeat-sandbox-reset-off-thread`, `dedupe-step-progress-schemas`,
-  `heartbeat-refactor`) W14'e iter. **Sub-commit roadmap (6 commits):**
-  W13-3.1 `1b9657c` design lock-in, W13-3.2 `4db412b` RED precursor
-  race tests (5 CRUD + 2 router skipped), W13-3.3 `c4447d4` schema +
-  Alembic migration (`c8a2d4e91f5b`), W13-3.4 `112321c` CRUD
-  two-phase cancel + finalize helper (RED 5/5 GREEN), W13-3.5
-  `efd50c1` worker cancel-poll points + service finalization (RED
-  2/2 GREEN), W13-3.6 (this commit) architecture gates + close
-  evidence. **Test bar:** `make test-local` 1460 → 1467 (+7 W13-3
-  cases), `make test-security` 211 unchanged, `tests/architecture/`
-  81 → 87 (+6 W13-3 gate). **Migration round-trip:** alembic upgrade
-  head → c8a2d4e91f5b applied, `requested_cancel_at` column + WHERE
-  clause extension; downgrade reverses cleanly with cancelling rows
-  force-finalized to cancelled (PoC tek-aktif-iş ortamı, en kötü 1
-  row data motion). **Threat coverage:** Codex H4 vector kapatma
-  kanıtı — `reserve_job` DB-level block (partial unique index
-  cancelling dahil) + 5 cancel-poll point (ensure_vsix,
-  _reset_sandbox,_install_extension,_build_triggers,
-  _run_monitoring öncesi) + drain-then-finalize
-  (`finalize_cancelled_analysis_job` cancelling → cancelled
-  terminal, idempotent on terminal/absent; complete + fail guards
-  forbid cancelling source state). **Plan source:**
-  `documents/REFACTOR_OPTIMIZATION.md` §11.10 H4 + W13-3 Per-Item
-  Detail block below.
-- **W13-4 closed `2026-05-11` (8/8 sub-commits landed).** Cancellation
-  lifecycle hardening, spawned from W13-3 close-pass evaluation. W13-3 close baseline
-  pinned 6 architecture gates (`tests/architecture/test_cancel_poll_points.py`
-  × 2 + `tests/architecture/test_job_state_invariants.py` × 4) but
-  these lock **AST invariants** only — they catch a refactor that
-  removes a `_raise_if_cancelled` call at a hot-zone boundary or
-  changes the `_TERMINAL_JOB_STATUSES` frozenset, but they do not
-  prove the helper actually raises at runtime, that the CRUD
-  cancel↔complete race is serializable at the DB layer, or that the
-  `recover_interrupted_jobs` boot_id sweep finalizes a stuck
-  `cancelling` row. Plus a runbook drift: `documents/runbooks/analysis-job-stuck.md:42`
-  still lists the 4-status `Literal["queued","running","completed","failed"]`
-  pre-W13-3 schema and has no operator playbook for the new
-  non-terminal `cancelling` state. **Karar:** open W13-4 as a pure
-  test + doc package (no production code changes), spawn a new
-  `[FOLLOWUP w13-3-close-pass-cancellation-test-hardening]` POST_POC
-  pointer, and gate W13-5 (next pull from `[FOLLOWUP codex-2026-05-10-H3-dev-lan-makefile-drift]`)
-  on W13-4 close. **Sub-commit roadmap (8 commits):** W13-4.1
-  scope lock-in (this commit) + RED precursor catalogue, W13-4.2
-  RED precursor skip-marked test files (5 poll-point + 2 race +
-  1 recovery + 1 alembic + 2 exception handler + 2 finalize negative
-  = 13 skipped cases), W13-4.3 GREEN poll-point behavioral (5
-  RED→GREEN), W13-4.4 GREEN cancel↔complete race + concurrent
-  cancel/finalize (2 RED→GREEN), W13-4.5 GREEN alembic round-trip
-  and stuck-cancelling boot_id recovery and exception handler integ
-  (4 RED→GREEN), W13-4.6 GREEN finalize negative (2 RED→GREEN),
-  W13-4.7 runbook revizyon (drift fix + Stuck-in-cancelling
-  diagnose/recover bölümü), W13-4.8 close evidence + status sweep.
-  **Test bar projection:** `make test-local` 1467 → ~1481 (+14
-  davranışsal case across 4 yeni dosya + 2 extend), `make test-security`
-  211 unchanged, `tests/architecture/` 87 unchanged (yeni AST gate
-  yok; behavioral coverage farklı kategori). **W13-3 close evidence
-  satırları dokunulmaz** — 1467 sayısı tarihsel olarak doğru kalır.
+- **W13 active. W13-1..W13-4 are closed.** Entry baseline was
+  established `2026-05-10` after W12 merged via PR #18 (`33a0852`).
+  Codex Cloud security audit `2026-05-10` was ingested the same day.
+- **W13-1 closed `2026-05-10` (5/5 sub-commits).** Codex H6
+  spoofable harness markers closed with a per-launch HMAC-SHA256
+  handshake. `make test-local` 1452 → 1458; `tests/architecture/`
+  76 → 79; `make test-security` 211 unchanged.
+- **W13-2 closed `2026-05-10` (4/4 sub-commits).** Codex H5 writable
+  VS Code launcher closed by moving `launch_vscode.sh` to
+  `root:executor` 0750 plus static and runtime permission gates.
+  `make test-local` 1458 → 1460; `tests/architecture/` 79 → 81.
+- **W13-3 closed `2026-05-10` (6/6 sub-commits).** Codex H4 cancel
+  concurrent race closed with non-terminal `cancelling`, widened
+  active-job lock, two-phase finalize, and 5 worker poll points.
+  `make test-local` 1460 → 1467; `tests/architecture/` 81 → 87.
+- **W13-4 closed `2026-05-11` (8/8 sub-commits).** Cancellation
+  lifecycle hardening added behavioral proof over W13-3's AST gates
+  and fixed `analysis-job-stuck.md`. Final bar: `make test-local`
+  1473 → 1485, `make test-security` 211 unchanged, `tests/architecture/`
+  87 unchanged. One Alembic behavioral round-trip case deferred as
+  `[FOLLOWUP w13-4-alembic-roundtrip-programmatic]`.
+- **Next pull:** W13-5 from
+  `[FOLLOWUP codex-2026-05-10-H3-dev-lan-makefile-drift]`. Medium
+  W13 acceptance-bar candidates remain M1 PEM regex DoS and M9
+  `arguments_preview` redaction.
 - **Entry gate met:**
   - W12 closed and merged via PR #18 (`33a0852`); close commit
     `e8a9926`.
@@ -141,7 +61,7 @@ the section ages.
     `ms-python.python@2026.5.2026050801` (job IDs
     `6fab298e81a14bf8a7a557a13953e57b` /
     `e5e33ec6e34f4993b795664d83e25fd4`); recorded in the archived
-    `W12-close-acceptance.md` §3.4.
+    `W12-close-acceptance-completed-2026-05-10.md` §3.4.
 
 ## Entry Conditions Met (mirroring `REFACTOR_OPTIMIZATION.md` §11.10)
 
@@ -174,12 +94,10 @@ stamping; W8-W12 regression lock-in.
 Beyond the original §11.10 goal text, three audit passes surfaced
 additional candidates (see "Candidate Items" below): `2026-05-07`
 internal audit, `2026-05-09` Codex review, and `2026-05-10` Codex
-Cloud security scan. The `2026-05-10` audit's 4 HIGH OPEN findings
-(H3 dev-lan Makefile drift, H4 cancel concurrent race, H5 writable
-VS Code launcher, H6 spoofable harness markers) plus 2 MEDIUM
-pull-forwards (M1 PEM regex DoS, M9 arguments_preview redaction) are
-**W13 acceptance-bar mandates** per `REFACTOR_STATUS.md` `## 2026-05-10
-Codex Cloud Audit Pass` — they must close before W13 close.
+Cloud security scan. The `2026-05-10` audit pulled four HIGH findings
+and two MEDIUM findings into the W13 acceptance bar. H4/H5/H6 are now
+closed via W13-3/W13-2/W13-1; H3, M1, and M9 remain open W13
+acceptance-bar work.
 
 ## Candidate Items (stable IDs assigned at first pull)
 
@@ -382,9 +300,9 @@ read+exec yetkisini group bit (`r-x`) üzerinden korur.
 | 1 | `07a68ad` test(W13-2): RED precursor for launch_vscode.sh permission ratchet | `tests/architecture/test_executor_runtime_script_permissions.py` (yeni dosya, 2 gate; gate 1 launch_vscode.sh root:executor 0750 zorunlu — RED, gate 2 start.sh chown executor:* yasak — defense-in-depth, zaten PASS) | ✅ landed |
 | 2 | `75efad7` feat(W13-2): root-own + 0750 launch_vscode.sh in Dockerfile | `executor/container/Dockerfile:121-128` (chmod RUN bloğu split: 755 start.sh + 0750 launch_vscode.sh; chown executor:executor → root:executor) | ✅ landed |
 | 3 | `22938ef` test(W13-2): close evidence + lane tracker + status sweep | Lane tracker, `REFACTOR_STATUS.md`, `POST_POC_BACKLOG.md` § Codex Cloud Audit, `REFACTOR_OPTIMIZATION.md` §11.10 | ✅ landed |
-| 4 | (this commit) test(W13-2): runtime smoke ratchet + .gitignore + §11.10 date sweep | `tests/architecture/test_executor_runtime_script_permissions.py` (+2 smoke/integration gate); `.gitignore` (`results/` scratch ignored); `documents/REFACTOR_OPTIMIZATION.md` (Last Updated `2026-05-07` → `2026-05-10` + §11.10 H5 test surface lehçesi); `documents/REFACTOR_STATUS.md` + W13 lane tracker close-evidence güncellemesi | ✅ landed |
+| 4 | `44b5bc1` test(W13-2): runtime smoke ratchet + .gitignore + §11.10 date sweep | `tests/architecture/test_executor_runtime_script_permissions.py` (+2 smoke/integration gate); `.gitignore` (`results/` scratch ignored); `documents/REFACTOR_OPTIMIZATION.md` (Last Updated `2026-05-07` → `2026-05-10` + §11.10 H5 test surface lehçesi); `documents/REFACTOR_STATUS.md` + W13 lane tracker close-evidence güncellemesi | ✅ landed |
 
-**Sub-commit 3 close evidence (this commit).**
+**Sub-commit 3 close evidence (`22938ef`).**
 
 - [x] Architecture gates landed: `test_launch_vscode_is_root_owned_and_executor_read_only` (chown executor:*forbidden + chown root:* required + chmod 755 forbidden + chmod 0750 required), `test_start_sh_remains_root_owned` (chown executor:* on start.sh forbidden, defense-in-depth ratchet) — `tests/architecture/` 79 → 81. Sub-commit 1 doğruladı: gate 1 RED, gate 2 PASS; sub-commit 2 sonrası gate 1 GREEN.
 - [x] `make test-local` 1458 → 1460 passed / 6 skipped / 6 deselected (+2 W13-2 AST gates; sayım `pytest tests/architecture/ --co -q | wc -l` ile doğrulandı: 81/83 collected).
@@ -407,7 +325,7 @@ read+exec yetkisini group bit (`r-x`) üzerinden korur.
       `test_all_runtime_dockerfiles_pin_base_images_by_digest` ✓.
 - [x] W13-1 ratchet gate'leri korundu: `test_harness_marker_auth.py` 3/3 ✓ (`tests/architecture/` total run'da yeşil).
 
-**Sub-commit 4 close evidence (this commit — pre-push runtime ratchet).**
+**Sub-commit 4 close evidence (`44b5bc1` — pre-push runtime ratchet).**
 
 - [x] Container smoke proof'u manuel `docker exec` çağrılarından pytest gate'lerine çevrildi — `tests/architecture/test_executor_runtime_script_permissions.py`'ye 2 yeni `@pytest.mark.smoke @pytest.mark.integration` test eklendi:
       - `test_launch_vscode_runtime_ownership_and_mode_smoke` — container içinde `stat -c '%U:%G %a' /home/executor/container/launch_vscode.sh` çıktısını `"root:executor 750"` literal'e karşı assert eder. Statik Dockerfile gate'i tamamlar: RUN sırası bozulursa veya post-COPY chown silinirse statik gate hâlâ pass eder ama runtime gate yakalar.
@@ -422,7 +340,7 @@ read+exec yetkisini group bit (`r-x`) üzerinden korur.
 
 `Status: closed 2026-05-10 (6/6 sub-commits)` ·
 `Source: [FOLLOWUP codex-2026-05-10-H4-cancel-concurrent-race]` ·
-`Cross-ref: [FOLLOWUP simulation-progress-cancel]` (parent + 4 açık sub-item, POST_POC_BACKLOG.md:422-429; `is-job-cancelled-session-churn` W13-3.5'te kapandı) ·
+`Cross-ref: [FOLLOWUP simulation-progress-cancel]` (parent + 4 sub-items by stable ID; `is-job-cancelled-session-churn` W13-3.5'te kapandı) ·
 `Lane: [executor-runtime] [platform-storage]`
 
 **Goal.** Codex Cloud audit (`2026-05-10`) HIGH severity: `cancelled`
@@ -479,7 +397,7 @@ zaten validate ediyor.
 
 **Simulation-progress-cancel sub-item dağılımı.**
 
-`POST_POC_BACKLOG.md:422-429`'daki 4 açık sub-item:
+`POST_POC_BACKLOG.md` içindeki stable-ID sub-item dağılımı:
 
 - `heartbeat-sandbox-reset-off-thread` → **W14'e iter.** Heartbeat refactor; W13-3 race fix'ten bağımsız, scope şişer.
 - `dedupe-step-progress-schemas` → **W14'e iter.** `AnalysisJobStepProgress` vs `AnalyzeJobStepProgress` kontrat hijyeni; race fix ile bağımsız.
@@ -497,7 +415,7 @@ Net: W13-3 1 sub-item kapatır, 3'ünü W14'e iter.
 | 3 | `c4447d4` `feat(W13-3): add cancelling status + Alembic migration` | `appcore/contracts/schema_defs/analysis_jobs.py` (Pydantic literal + tuple), `appcore/storage/model_defs/analysis_job.py` (column + partial unique index), `alembic/versions/c8a2d4e91f5b_add_cancelling_status_to_analysis_jobs.py` (new — DROP/CREATE index + add column; reversible downgrade) | ✅ landed |
 | 4 | `112321c` `feat(W13-3): CRUD layer two-phase cancel + finalize helper` | `appcore/storage/crud_ops/analysis_jobs/lifecycle.py` (`cancel_analysis_job` cancelling transition, idempotent on cancelling; new `finalize_cancelled_analysis_job`; complete/fail guards), `appcore/storage/crud.py` + `appcore/storage/crud_ops/analysis_jobs/__init__.py` re-exports, `workflows/marketplace/job_service.py` (`is_job_cancelled` semantic widens to cancelling+cancelled; new `finalize_cancelled_job` wrapper), 5 RED→GREEN regressions | ✅ landed |
 | 5 | `efd50c1` `feat(W13-3): worker cancel-poll points + service finalization` | `workflows/marketplace/analysis_execution.py` (new `raise_if_cancelled` helper), `workflows/marketplace/analysis_service.py` (5 cancel-poll points in `execute_analysis_request` + `finalize_cancelled_job` in `run_analysis_job` exception handler — both cancel path and is_job_cancelled-true error path), 2 router RED→GREEN | ✅ landed |
-| 6 | (this commit) `test(W13-3): architecture gates + close evidence + status sweep` | `tests/architecture/test_cancel_poll_points.py` (new — 2 AST gates: 5-phase poll invariant + raise_if_cancelled public name), `tests/architecture/test_job_state_invariants.py` (new — 4 state-machine invariants pinning _TERMINAL_JOB_STATUSES, ACTIVE_ANALYSIS_JOB_STATUSES, ANALYSIS_JOB_STATUSES tuple, Alembic WHERE clause), `documents/active-work/W13-test-expansion-observability.md` close evidence, `documents/POST_POC_BACKLOG.md` H4 + `is-job-cancelled-session-churn` strikethrough, `documents/REFACTOR_STATUS.md` W13-3 closed satırı | ✅ landed |
+| 6 | `8259041` `test(W13-3): architecture gates + close evidence + status sweep` | `tests/architecture/test_cancel_poll_points.py` (new — 2 AST gates: 5-phase poll invariant + raise_if_cancelled public name), `tests/architecture/test_job_state_invariants.py` (new — 4 state-machine invariants pinning _TERMINAL_JOB_STATUSES, ACTIVE_ANALYSIS_JOB_STATUSES, ANALYSIS_JOB_STATUSES tuple, Alembic WHERE clause), `documents/active-work/W13-test-expansion-observability.md` close evidence, `documents/POST_POC_BACKLOG.md` H4 + `is-job-cancelled-session-churn` strikethrough, `documents/REFACTOR_STATUS.md` W13-3 closed satırı | ✅ landed |
 
 **Migration plan (W13-3.3).**
 
@@ -559,7 +477,7 @@ Operasyonel adım: `make exec-down` → `make migrate` → `make exec-up`.
 - W13-3.5 sonrası: `make exec-up` + manuel race senaryosu — job başlat, `_reset_sandbox`/`_install_extension`/`_build_triggers`/`_run_monitoring` her fazında ayrı ayrı cancel et, snapshot `cancelling → cancelled` transition'ı, sonraki `reserve_job` çağrısı sadece terminal sonrasında kabul edilir; `cancelling` sırasında ikinci POST `ActiveAnalysisJobError` (409 Conflict) verir.
 - W13-3.6 close: `tests/architecture/` 81 → ~85 (+4 W13-3 gate); threat model coverage özeti H4 vector kapatma kanıtı (`reserve_job` block + 5 cancel-poll point + drain-then-finalize); live-scan baseline `ms-python.python@2026.5.2026050801` üzerinde bitwise-equal beklenir (semantik-delta yoksa).
 
-**W13-3.6 close evidence (this commit).**
+**W13-3.6 close evidence (`8259041`).**
 
 - [x] Architecture gates landed: `tests/architecture/test_cancel_poll_points.py` (2 gate — `test_every_major_phase_is_preceded_by_a_cancel_poll` AST-walks `execute_analysis_request` body ve 5 hot-zone helper'ından önce `_raise_if_cancelled(cancel_check)` çağrısı zorunlu kılar; `test_raise_if_cancelled_helper_is_publicly_named` `analysis_execution.__all__`'da helper'ın export edildiğini pinler). `tests/architecture/test_job_state_invariants.py` (4 gate — `_TERMINAL_JOB_STATUSES` exact frozenset eşitliği `{"completed","failed","cancelled"}` + `cancelling` terminal'a sokulmamış; `ACTIVE_ANALYSIS_JOB_STATUSES` `cancelling` içerir ve `{"queued","running","cancelling"}` setiyle eşittir; `ANALYSIS_JOB_STATUSES` 6-eleman canonical; Alembic upgrade body'sinde `"WHERE status IN ('queued', 'running', 'cancelling')"` + downgrade body'sinde `"WHERE status IN ('queued', 'running')"` literal'ları). `tests/architecture/` 81 → 87 (+6 W13-3 gate, 2 dosya).
 - [x] `make test-local` 1460 → 1467 passed / 6 skipped / 8 deselected / 75 warnings. Delta: +7 W13-3 test (5 CRUD lifecycle + 2 router); RED→GREEN geçişi W13-3.4 (CRUD) ve W13-3.5'te (router) tamamlandı, hiçbir test deselect değil.
@@ -621,28 +539,25 @@ kanıt eksiği.
 
 | # | Commit | Konu | Test/doc dosyaları |
 |---|--------|------|-------------------|
-| 1 | (this commit) `docs(W13-4): assign stable ID + lock in cancellation lifecycle hardening scope` | W13 tracker, REFACTOR_STATUS, POST_POC pointer + this Per-Item Detail block | tracker, `REFACTOR_STATUS.md`, `POST_POC_BACKLOG.md` |
+| 1 | `050317e` `docs(W13-4): assign stable ID + lock in cancellation lifecycle hardening scope` | W13 tracker, REFACTOR_STATUS, POST_POC pointer + this Per-Item Detail block | tracker, `REFACTOR_STATUS.md`, `POST_POC_BACKLOG.md` |
 | 2 | `test(W13-4): RED precursor for cancellation lifecycle behavioral coverage` | 13 skip-marked test (5 poll-point + 2 race + 1 recovery + 1 alembic + 2 exception + 2 negative) | `tests/workflows/marketplace/test_analysis_execution_poll_points.py` (yeni), `tests/platform/storage/test_analysis_jobs_concurrency.py` (yeni), `tests/platform/storage/test_alembic_cancelling_migration.py` (yeni), `tests/workflows/marketplace/test_run_analysis_job_finalize.py` (yeni), `tests/platform/storage/test_analysis_jobs_lifecycle.py` (extend) |
 | 3 | `test(W13-4): GREEN poll-point behavioral (5 RED→GREEN)` | `test_analysis_execution_poll_points.py` skip kaldır + 5 case GREEN | (above) |
 | 4 | `test(W13-4): GREEN cancel↔complete race + concurrent cancel/finalize (2 RED→GREEN)` | `test_analysis_jobs_concurrency.py` skip kaldır + 2 case GREEN | (above) |
 | 5 | `test(W13-4): GREEN alembic round-trip + stuck-cancelling recovery + exception handler integ (4 RED→GREEN)` | `test_alembic_cancelling_migration.py` (1) + `test_analysis_jobs_concurrency.py` recovery (1) + `test_run_analysis_job_finalize.py` (2) skip kaldır + GREEN | (above) |
 | 6 | `test(W13-4): GREEN finalize negative (2 RED→GREEN)` | `test_analysis_jobs_lifecycle.py` skip kaldır + 2 negative case GREEN | (above) |
 | 7 | `docs(W13-4): runbook revision for cancelling state — Stuck in cancelling diagnose/recover` | `documents/runbooks/analysis-job-stuck.md` literal fix + new section + Step 2 SQL widening + code references update | runbook only |
-| 8 | `test(W13-4): close evidence + status sweep` | tracker close evidence, REFACTOR_STATUS bump, POST_POC pointer strikethrough | tracker, `REFACTOR_STATUS.md`, `POST_POC_BACKLOG.md` |
+| 8 | `01bf761` `docs(W13-4): close evidence + status sweep` | tracker close evidence, REFACTOR_STATUS bump, POST_POC pointer strikethrough | tracker, `REFACTOR_STATUS.md`, `POST_POC_BACKLOG.md` |
 
-**Verification (per sub-commit).**
+**Verification (final).**
 
-- `make check-all` (lint + type + arch gate'ler) yeşil her commit'te.
-- `make test-local` delta her commit message'da dokümante:
-  - W13-4.2 sonrası: 1467 → 1467 (RED'ler skip; sayım değişmez).
-  - W13-4.3 sonrası: 1467 → 1472 (+5 poll-point).
-  - W13-4.4 sonrası: 1472 → 1474 (+2 race/concurrent).
-  - W13-4.5 sonrası: 1474 → 1478 (+4 alembic+recovery+exception).
-  - W13-4.6 sonrası: 1478 → 1480 (+2 negative).
-  - W13-4.8 close target: 1467 → ~1481 (+14 davranışsal case).
-- `make test-security` 211 unchanged (test+doc paketi, security fixture lane'i etkilemez).
-- `tests/architecture/` 87 unchanged (yeni AST gate yok).
-- W12 + W13-1 + W13-2 + W13-3 ratchet gate'leri kırılmaz.
+- `make test-local` 1473 (corrected W13-4 open baseline) → 1485
+  passed / 7 skipped / 8 deselected / 75 warnings.
+- Net +12 behavioral cases: +5 poll-point, +2 race/concurrent,
+  +1 recovery, +2 exception handler, +2 finalize negative.
+- `make test-security` 211 unchanged.
+- `tests/architecture/` 87 unchanged; W13-4 added behavioral coverage,
+  not new AST gates.
+- W12 + W13-1 + W13-2 + W13-3 ratchet gates remained intact.
 
 **W13-4.4 (alembic round-trip) sonrası manuel:**
 
@@ -656,7 +571,7 @@ psql -d <db> -c "\d analysis_jobs" | grep -E "requested_cancel_at|uq_analysis_jo
 - Drift yok: `grep -n 'Literal\[' documents/runbooks/*.md` çıktısı schema (`appcore/contracts/schema_defs/analysis_jobs.py:24-25,42`) ile bire bir eşleşmeli.
 - Yeni "Stuck in cancelling" bölümünün SQL'i `tests/platform/storage/test_analysis_jobs_concurrency.py` recovery testiyle aynı semantiği yansıtmalı (cancelling → failed by boot_id mismatch beklenen davranış).
 
-**W13-4.1 close evidence (this commit).**
+**W13-4.1 close evidence (`050317e`).**
 
 - [x] Stable ID `W13-4` atandı, scope kilitlendi (saf test + doc paketi).
 - [x] Tracker güncellendi: header `Last Updated 2026-05-11`; Status (Quick Glance) yeni W13-4 opened bullet'ı; Candidate Items table'a `W13-4` satırı eklendi (W13-3 satırından önce); bu Per-Item Detail bloğu eklendi.
@@ -676,9 +591,9 @@ psql -d <db> -c "\d analysis_jobs" | grep -E "requested_cancel_at|uq_analysis_jo
 | 5 | `247611c` `test(W13-4): GREEN recovery + exception handler integ; defer alembic round-trip` | 3 RED→GREEN (recovery + 2 exception handler) + alembic test re-skip + yeni POST_POC `[FOLLOWUP w13-4-alembic-roundtrip-programmatic]` | `test_analysis_jobs_concurrency.py`, `test_run_analysis_job_finalize.py`, `test_alembic_cancelling_migration.py`, `POST_POC_BACKLOG.md` |
 | 6 | `04feea3` `test(W13-4): GREEN finalize negative — absent + double-finalize (2 RED→GREEN)` | 2 skip kaldırıldı | `test_analysis_jobs_lifecycle.py` |
 | 7 | `5d7ac21` `docs(W13-4): runbook revision — cancelling state diagnose/recover playbook` | header + Job state machine literal (4→6 üye) + state-transition diagram + § Recover Step 2 SQL widening + NEW § Stuck in cancelling section + § Code References extension | `documents/runbooks/analysis-job-stuck.md` |
-| 8 | (this commit) `docs(W13-4): close evidence + status sweep` | tracker close evidence, REFACTOR_STATUS bump, POST_POC pointer strikethrough | tracker, `REFACTOR_STATUS.md`, `POST_POC_BACKLOG.md` |
+| 8 | `01bf761` `docs(W13-4): close evidence + status sweep` | tracker close evidence, REFACTOR_STATUS bump, POST_POC pointer strikethrough | tracker, `REFACTOR_STATUS.md`, `POST_POC_BACKLOG.md` |
 
-**W13-4.8 close evidence (this commit).**
+**W13-4.8 close evidence (`01bf761`).**
 
 - [x] **Behavioral coverage delta (final).** `make test-local`
   1473 (W13-4 open baseline) → 1485 (W13-4 close) = +12 net cases:
@@ -687,8 +602,8 @@ psql -d <db> -c "\d analysis_jobs" | grep -E "requested_cancel_at|uq_analysis_jo
   negative. Skipped 6 (baseline) + 1 (alembic deferred) = 7 total.
   W13-3 close evidence "1460 → 1467" baseline appears stale — actual
   baseline at W13-4 open was 1473; pytest discovery counts diverged
-  silently between W13-3.6 close commit and W13-4.1 (this commit
-  adopts the corrected baseline going forward; W13-3 historical
+  silently between W13-3.6 close commit and W13-4.1. W13-4.8 adopts
+  the corrected baseline going forward; W13-3 historical
   numbers are not retroactively edited).
 - [x] **Test bar:** `make test-local` 1485 passed / 7 skipped / 8
   deselected / 75 warnings; `make test-security` 211 passed
@@ -768,7 +683,8 @@ psql -d <db> -c "\d analysis_jobs" | grep -E "requested_cancel_at|uq_analysis_jo
 
 ## W12 Lessons Learned (carry-forward)
 
-From `W12-close-acceptance.md` §8.3 (now archived). Three operational
+From `W12-close-acceptance-completed-2026-05-10.md` §8.3 (now archived).
+Three operational
 lessons to keep in mind when planning W13 splits and validations:
 
 1. **Container build cache must be reset between W13-N iterations.**

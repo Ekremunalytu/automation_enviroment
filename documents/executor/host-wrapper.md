@@ -1,6 +1,6 @@
 # Host Wrapper + Container Boot
 
-`Last Updated: 2026-05-09`
+`Last Updated: 2026-05-11`
 
 `executor/host.py`, `executor/control.py`, container boot sequence,
 scan-between restart, API integration. Top-level executor doc:
@@ -120,11 +120,13 @@ Job snapshots include an `owner_boot_id`; if the API process restarts
 while a job is still marked active, the next load converts that job
 into a failed, interrupted state.
 
-### Cancel Heartbeat
+### Cancel Lifecycle
 
-The monitoring heartbeat in `analysis_execution.py` polls
-`is_job_cancelled` every 5 s and triggers
-`executor_control.reset_sandbox(reload_window=True)` on cancel; the
-resulting `ExecutorError` is converted to `AnalysisCancelledError` so
-`run_analysis_job` returns silently. Open hygiene gaps tracked in
-`POST_POC_BACKLOG.md` `[FOLLOWUP simulation-progress-cancel]` parent.
+W13-3 made async cancel two-phase. API cancel holds the pessimistic lock and
+marks `running -> cancelling`, which keeps the partial unique active-job lock
+in place. Worker-side poll points in `analysis_execution.py` check before
+reset/install/trigger/monitoring phases; the monitoring heartbeat keeps
+polling once monitoring starts. Once the worker drains, `run_analysis_job`
+calls `finalize_cancelled_job`, promoting the row to terminal `cancelled`.
+Stuck active rows, including `cancelling`, are recovered to `failed` on the
+next API boot.

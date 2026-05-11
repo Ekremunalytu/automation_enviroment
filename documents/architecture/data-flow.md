@@ -1,6 +1,6 @@
 # Request Flows
 
-`Last Updated: 2026-04-29`
+`Last Updated: 2026-05-11`
 
 Step-by-step traces for the five canonical request flows. Open this when
 debugging an end-to-end path or adding a new flow that crosses
@@ -73,11 +73,14 @@ Async job mode persists step-tracked metadata in PostgreSQL
 - Returns the job snapshot (`404` on missing, `409` on terminal-state)
   via `cancel_analysis_job` under a `with_for_update()` pessimistic
   lock.
-- The monitoring heartbeat in `analysis_execution.py` polls
-  `is_job_cancelled` every 5 s and triggers
-  `executor_control.reset_sandbox` on cancel.
-- `run_analysis_job` converts the resulting `ExecutorError` to
-  `AnalysisCancelledError` and returns silently.
+- W13-3 made cancel two-phase: `running -> cancelling` records
+  `requested_cancel_at` while keeping the row non-terminal and active.
+- `analysis_execution.py` checks cancellation before the major executor
+  phases and the monitoring heartbeat keeps polling during monitoring.
+- `run_analysis_job` finalizes observed cancel signals through
+  `finalize_cancelled_analysis_job`, producing terminal `cancelled`;
+  dead active jobs, including stuck `cancelling`, are recovered to
+  `failed` on the next API boot.
 
 ### Notes
 

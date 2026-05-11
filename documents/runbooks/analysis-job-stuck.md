@@ -244,8 +244,9 @@ UPDATE analysis_jobs
 
 - **API process restart during an active job.** Handled by
   [workflows/marketplace/job_service.py:315 `recover_interrupted_jobs()`](../../workflows/marketplace/job_service.py).
-  On API boot, scans `analysis_jobs` for `status in ('queued','running')`
-  with a *different* `owner_boot_id` (per-process UUID) and marks them
+  On API boot, scans `analysis_jobs` for active statuses
+  (`queued`, `running`, `cancelling`) with a *different*
+  `owner_boot_id` (per-process UUID) and marks them
   failed with the message "Analysis job was interrupted by an API restart.
   Start a new run." If you see this message, it means the API was bounced
   while you had a job in flight — the job cannot be salvaged, start a new

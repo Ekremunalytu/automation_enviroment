@@ -1,6 +1,6 @@
 # ExTrace Architecture
 
-`Last Updated: 2026-05-07`
+`Last Updated: 2026-05-11`
 
 System shape, runtime surfaces, and module map. **Slim canonical** —
 detailed request flows under
@@ -74,9 +74,10 @@ catalog data + analysis-job metadata is `appcore/storage/crud.py`.
 - `activation_reports/` — file-backed listing/retrieval under
   `/api/activations`.
 - `marketplace/` — search/download, layered trigger planning, sync +
-  async analysis, job snapshot persistence, cancel flow
-  (`analysis_execution.py` heartbeat polls cancel + reset_sandbox;
-  `cancel_analysis_job` carries pessimistic lock CRUD).
+  async analysis, job snapshot persistence, and two-phase cancel flow
+  (`cancel_analysis_job` marks `running -> cancelling`; worker poll
+  points/heartbeat observe the signal; `finalize_cancelled_analysis_job`
+  releases the active-job lock).
 
 ### `executor/` — sandbox control + runtime
 

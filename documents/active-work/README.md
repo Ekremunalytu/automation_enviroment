@@ -1,6 +1,6 @@
 # Active Work
 
-`Last Updated: 2026-05-07`
+`Last Updated: 2026-05-11`
 
 Slim canonical files for **active engineering work tracking**. Each file is
 a stable contract: code comments and tests reference items here by stable
@@ -19,13 +19,14 @@ points to it.
 
 ## Files
 
+- `W13-test-expansion-observability.md`
+  - **Active phase.** W13 test expansion + observability. W13-1..W13-4
+    are closed; W13-5 is pull-eligible from
+    `[FOLLOWUP codex-2026-05-10-H3-dev-lan-makefile-drift]`.
 - `W12-executor-subpackaging.md`
-  - **Active phase.** W12 executor subpackaging +
-    attribution cleanup (W12-1..W12-4), slim canonical
-    `REFACTOR_OPTIMIZATION.md §11.9` (+ §11.9.1 split scoping for
-    `runtime_capture/extension_host.py`). W12-0 security pull-forward,
-    W12-1 executor subpackaging, and W12-2 attribution cleanup have
-    landed; W12-3 is the next unblocked tracker item.
+  - **Past phase.** W12 executor subpackaging + attribution cleanup
+    (W12-0..W12-5) closed `2026-05-10` and merged via PR #18.
+    Retained for stable-ID references; do not renumber.
 - `W11-monitor-lifecycle.md`
   - **Past phase.** W11 monitor lifecycle split (W11-1..W11-8) closed
     `2026-05-05`, formerly `REFACTOR_OPTIMIZATION.md §11.8`. Retained

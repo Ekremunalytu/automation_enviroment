@@ -1,6 +1,6 @@
 # Testing Guide
 
-`Last Updated: 2026-05-07`
+`Last Updated: 2026-05-11`
 
 Test layers, fixtures, and commands. **Slim canonical** — per-domain
 deep dives split out:
@@ -67,8 +67,8 @@ make-test-security-lane-composition]`.
 ## Commands (Quick Reference)
 
 ```bash
-make test-local                      # default Python suite (1400 passed 2026-05-10), with postgres_test
-make test-security                   # cross-tree security lane (211 passed 2026-05-10)
+make test-local                      # default Python suite (1485 passed 2026-05-11), with postgres_test
+make test-security                   # cross-tree security lane (211 passed 2026-05-11)
 make check-all                       # ruff + mypy + bandit + ui-types-check + ui-boundaries + pytest
 make sim-target TARGET=publisher.name [TRIGGERS=...] [SCENARIO=...]
 make demo-canary                     # full canary demo
@@ -129,15 +129,13 @@ CDP reconnect stalls are the dominant failure mode).
   workbench stability still needs real smoke.
 - SPA TypeScript contracts are generated, but request client + adapters
   hand-written — drift if generation is skipped.
-- `make test-security` → 211 cases green as of the `2026-05-10`
-  pre-W12-4 hardening closure pass. The 45-case figure was the
+- `make test-security` → 211 cases green as of the `2026-05-11`
+  W13-4 close pass. The 45-case figure was the
   entry-gate baseline at `2026-04-27` (post-PR345 + W8-0 lock-in). Live `make
   test-security-live` + Docker-based A1 canary structural diff are
   user-side regression gates for the capture pipeline.
-- `make test-local` → 1400 passed / 6 skipped / 6 deselected as of the
-  `2026-05-10` local verification pass (1393 baseline + 7 new pins:
-  three for the operator-settings transaction-owning helper and four
-  for `ThresholdsResponse`/`ThresholdsUpdateRequest` validation). The
+- `make test-local` → 1485 passed / 7 skipped / 8 deselected as of the
+  `2026-05-11` W13-4 close verification pass. The
   platform baseline fixture contract currently resolves
   `ms-python.python@2026.5.2026050801` from local artifacts without
   network access.

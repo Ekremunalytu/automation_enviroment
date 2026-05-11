@@ -1,6 +1,6 @@
 # Runbook: LAN Exposure (`EXTRACE_ALLOW_LAN`)
 
-`Last Updated: 2026-04-29`
+`Last Updated: 2026-05-11`
 
 This runbook covers the deliberate, opt-in path to expose ExTrace services
 on the operator host's LAN interfaces. Per ADR 0007, every host-facing
@@ -82,9 +82,12 @@ flag is not active and the process is still loopback-bound.
 The `APISettings.model_post_init` hook in
 [appcore/api/config.py](../../appcore/api/config.py) substitutes
 `HOST=0.0.0.0` and (if you did not set an explicit allow-list) restores
-`CORS_ALLOW_ORIGINS=*`. Explicit `API_HOST=...` and
-`API_CORS_ALLOW_ORIGINS=...` overrides win over the substitution; the
-hook only swaps when the field still holds the loopback default.
+`CORS_ALLOW_ORIGINS=*` when the app settings still hold the loopback
+defaults. The `make dev-lan` recipe currently passes `uvicorn --host
+0.0.0.0` directly, so `API_HOST=... make dev-lan` does **not** narrow the
+socket bind; use `make dev`/direct uvicorn for a custom host, or pull
+`[FOLLOWUP codex-2026-05-10-H3-dev-lan-makefile-drift]` to change the
+recipe and add a regression gate.
 
 ### Docker (`make up`)
 
@@ -107,9 +110,9 @@ the deviation and the operator's hardening evidence (proxy hostname,
 firewall rule ID), and gate the test via a CI variable if your fork
 ships a non-default operator profile.
 
-CDP (port 9222) stays behind the `debug` Compose profile regardless of
-`EXTRACE_ALLOW_LAN` — start it with `make up-debug` only when you need
-host-side CDP inspection on the operator host itself.
+Host-side CDP exposure (port 9222) stays behind the `debug` Compose
+profile regardless of `EXTRACE_ALLOW_LAN` — start it with `make up-debug`
+only when you need host-side CDP inspection on the operator host itself.
 
 ## Verify
 

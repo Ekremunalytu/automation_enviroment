@@ -1,6 +1,6 @@
 """
-core/config.py
-==============
+appcore/api/config.py
+=====================
 
 Application Configuration Management
 -------------------------------------

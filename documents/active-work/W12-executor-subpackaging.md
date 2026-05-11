@@ -205,14 +205,14 @@ and that archive section.
       in `entrypoint/dispatch.py` (landed `2026-05-10`; `main()` 99 LoC)
 - [x] Import-graph gates green; W12-close `make check-all` /
       `make test-security` acceptance bar dry run recorded in
-      `documents/active-work/W12-close-acceptance.md` §3 (final
+      `documents/archive/active-work/W12-close-acceptance-completed-2026-05-10.md` §3 (final
       `make check-all` tail attached at merge time).
 - [x] Live-scan validation: pre/post bitwise-equal detection-relevant
       fields on a target run — completed `2026-05-10` on
       `ms-python.python@2026.5.2026050801` (17/17 fields identical;
       job IDs `6fab298e81a14bf8a7a557a13953e57b` /
       `e5e33ec6e34f4993b795664d83e25fd4`; evidence in
-      `W12-close-acceptance.md` §3.4).
+      `W12-close-acceptance-completed-2026-05-10.md` §3.4).
 
 ## Acceptance Sub-Tasks (W12-N picks up these follow-ups)
 
@@ -569,7 +569,7 @@ number.
   detection-relevant fields bitwise-equal pre/post W12-3 (job IDs
   `6fab298e81a14bf8a7a557a13953e57b` /
   `e5e33ec6e34f4993b795664d83e25fd4`; full evidence in
-  `documents/active-work/W12-close-acceptance.md` §3.4). The
+  `documents/archive/active-work/W12-close-acceptance-completed-2026-05-10.md` §3.4). The
   pre-completion sanity-check via
   `python -m executor.flows.playwright.entrypoint --list`
   (13 scenarios enumerate) is preserved here as the offline shortcut
@@ -915,7 +915,7 @@ container kuralı doğru uyguluyor; API tarafı uymuyor.
   the runner package import path is unchanged
   (`ms-python.python@2026.5.2026050801`; 17/17 detection-relevant
   fields identical; evidence in
-  `documents/active-work/W12-close-acceptance.md` §3.4). The
+  `documents/archive/active-work/W12-close-acceptance-completed-2026-05-10.md` §3.4). The
   offline sanity-check
   `python -m executor.flows.playwright.entrypoint --list`
   (13 scenarios enumerate) was used during W12-4 implementation
@@ -1046,7 +1046,7 @@ container kuralı doğru uyguluyor; API tarafı uymuyor.
   (`network_events`, `file_events`, `process_events`,
   `evidence_links`) all sat within the W11 baseline ranges. Full
   field-by-field table in
-  `documents/active-work/W12-close-acceptance.md` §3.4. The
+  `documents/archive/active-work/W12-close-acceptance-completed-2026-05-10.md` §3.4. The
   pre-validation note about needing an executor image rebuild
   was the trigger for the rebuild + re-scan that produced the
   post-W12-5 job above.

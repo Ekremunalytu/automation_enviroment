@@ -1,6 +1,6 @@
 # Pipeline Roadmap
 
-`Last Updated: 2026-05-05`
+`Last Updated: 2026-05-11`
 
 This is the short staged view of the analysis pipeline. For the current
 backlog, use `automation_todo.md`; for active priorities, use
@@ -21,15 +21,14 @@ acceptance-green automation + detection path. **Post-W7 hardening on
 restart, the `attribution/` subpackage split, and the `sim-target`
 Makefile lane without changing pipeline shape. **Post-W7 simulation
 UX + reliability on `2026-04-25`** added weighted simulation progress,
-the full-stack analysis cancel flow
-(`POST /api/marketplace/analyze/{job_id}/cancel` →
-`cancel_analysis_job` CRUD → heartbeat cancel poll →
-`executor_control.reset_sandbox`), the VNC harness ready-marker fix
+the first full-stack analysis cancel flow. W13-3 later hardened it into a
+two-phase `cancelling` lifecycle with hot-zone poll points and worker-side
+finalization. The VNC harness ready-marker fix
 (`vscode.py::reload_workbench_window` unlinks the marker before reload;
 harness `activate()` awaits the write), and the
 `t1-demo-runnable-canary` + rule + `make demo-canary` lanes — none
-change pipeline shape but the cancel branch adds a new heartbeat
-side-effect surface that operators must understand. **PR345 and W8-0 on
+change pipeline shape but cancel remains an operator-visible lifecycle
+surface. **PR345 and W8-0 on
 `2026-04-27`** sharpened target activation lifecycle evidence and harness
 readiness diagnostics without changing the high-level pipeline shape.
 

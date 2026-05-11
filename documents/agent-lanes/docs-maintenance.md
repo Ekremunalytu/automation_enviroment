@@ -1,6 +1,6 @@
 # Documentation Maintenance Lane
 
-`Last Updated: 2026-05-07`
+`Last Updated: 2026-05-11`
 
 Use this lane for README, ADR, runbook, roadmap, testing-guide, and
 agent-doc updates.
@@ -25,8 +25,8 @@ agent-doc updates.
   work; **stable item IDs** (`[FOLLOWUP <id>]`) are a contract — code
   comments and tests reference them. Do not rename.
 - `REFACTOR_OPTIMIZATION.md` section 11 owns W8-W13 planning. Active
-  W12 tracker: `documents/active-work/W12-executor-subpackaging.md`.
-  Past W8/W11 trackers remain only for stable IDs. Inbound references:
+  W13 tracker: `documents/active-work/W13-test-expansion-observability.md`.
+  Past W8/W11/W12 trackers remain only for stable IDs. Inbound references:
   - `executor/flows/playwright/uri_validation.py:9` →
     `active-work/W8-security.md` item W8-3.
   - `tests/security/test_canary_end_to_end.py:8` → preserves the
@@ -112,7 +112,8 @@ Slim canonical doc word counts (×1.3 ≈ tokens). Verify with
            documents/DETECTION_SEMANTICS.md \
            documents/EXECUTOR_PLAYWRIGHT.md \
            documents/active-work/W8-security.md \
-           documents/active-work/W12-executor-subpackaging.md; do
+           documents/active-work/W12-executor-subpackaging.md \
+           documents/active-work/W13-test-expansion-observability.md; do
     printf "%-55s %d words ~%d tokens\n" \
       "$f" "$(wc -w < $f)" "$(($(wc -w < $f) * 13 / 10))"
   done
