@@ -351,7 +351,6 @@ def test_concurrent_cancel_finalize_idempotent(
         inspect.close()
 
 
-@pytest.mark.skip(reason="W13-4.2 RED precursor; activated in W13-4.5")
 def test_recover_interrupted_jobs_finalizes_stuck_cancelling_to_failed(
     db_session: Session,
 ) -> None:

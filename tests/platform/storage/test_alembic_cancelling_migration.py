@@ -56,7 +56,22 @@ def alembic_round_trip_safety(test_engine: Any) -> Generator[None, None, None]:
         command.upgrade(cfg, "head")
 
 
-@pytest.mark.skip(reason="W13-4.2 RED precursor; activated in W13-4.5")
+@pytest.mark.skip(
+    reason=(
+        "W13-4.5 deferred to W14+ as "
+        "[FOLLOWUP w13-4-alembic-roundtrip-programmatic]: programmatic "
+        "alembic upgrade/downgrade against the session-scoped test_engine "
+        "leaves alembic_version + schema state inconsistent on failure, "
+        "poisoning subsequent tests. W13-3.6 close evidence documents "
+        "manual `alembic upgrade head && alembic downgrade -1 && "
+        "alembic upgrade head` round-trip; "
+        "tests/architecture/test_job_state_invariants.py:114-140 pins "
+        "the migration body's WHERE clause literals statically. The "
+        "behavioral data-motion gap remains as a deferred candidate "
+        "pending a fresh-DB-per-test fixture (e.g. throwaway schema or "
+        "templated test DB)."
+    )
+)
 def test_migration_c8a2d4e91f5b_round_trip_preserves_cancelling_rows(
     test_engine: Any,
     alembic_round_trip_safety: None,

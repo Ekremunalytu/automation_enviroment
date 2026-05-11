@@ -32,7 +32,6 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
-import pytest
 
 from appcore.contracts.schemas import AnalyzeRequest
 from executor.control import ExecutorError
@@ -50,7 +49,6 @@ def _request() -> AnalyzeRequest:
     )
 
 
-@pytest.mark.skip(reason="W13-4.2 RED precursor; activated in W13-4.5")
 def test_run_analysis_job_finalizes_on_analysis_cancelled_error() -> None:
     """``AnalysisCancelledError`` path: handler calls ``finalize_cancelled_job`` exactly once.
 
@@ -102,7 +100,6 @@ def test_run_analysis_job_finalizes_on_analysis_cancelled_error() -> None:
     open_session.return_value.close.assert_called_once()
 
 
-@pytest.mark.skip(reason="W13-4.2 RED precursor; activated in W13-4.5")
 def test_run_analysis_job_finalizes_on_hard_error_with_cancel_signal() -> None:
     """Hard-error path: ``ExecutorError`` + ``is_job_cancelled``=True → finalize, NOT fail.
 

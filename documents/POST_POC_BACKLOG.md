@@ -109,17 +109,34 @@ items receive `W13-N` IDs at first pull per W11/W12 precedent.
   stuck-cancelling recovery, alembic round-trip, exception handler
   integ, finalize negative). Plus runbook drift in
   `documents/runbooks/analysis-job-stuck.md`. **In progress as W13-4
-  (`2026-05-11`, 1/8 sub-commits, branch `week13`):** saf test+doc
+  (`2026-05-11`, 5/8 sub-commits, branch `week13`):** saf test+doc
   paketi; production code (`raise_if_cancelled`, `cancel_analysis_job`,
   `finalize_cancelled_analysis_job`, `is_job_cancelled`,
   `recover_interrupted_jobs`, alembic `c8a2d4e91f5b`) dokunulmaz —
   zaten doğru implementasyonlar, gap test kanıt eksiği. Sub-commit
   roadmap (8 commits) + per-commit test bar projection (`make
-  test-local` 1467 → ~1481, +14 davranışsal case;
+  test-local` 1473 → ~1485, +10 davranışsal case net;
   `tests/architecture/` 87 unchanged) tracker'da W13-4 Per-Item
   Detail bloğunda. Lane: `[platform-storage]` `[executor-runtime]`.
   See `documents/active-work/W13-test-expansion-observability.md` →
   Per-Item Detail → W13-4.
+- **`[FOLLOWUP w13-4-alembic-roundtrip-programmatic]`** —
+  W13-4.5 spawned this deferral. Programmatic alembic upgrade/downgrade
+  test (`tests/platform/storage/test_alembic_cancelling_migration.py::test_migration_c8a2d4e91f5b_round_trip_preserves_cancelling_rows`)
+  exists as a skip-marked scaffold but cannot run safely against the
+  session-scoped `test_engine` fixture in `tests/conftest.py:59-90` —
+  the engine uses `Base.metadata.create_all` (not alembic upgrade) so
+  the `alembic_version` table starts empty, and a partial-failure
+  downgrade leaves schema + version state inconsistent, poisoning
+  subsequent tests. PoC ships with W13-3.6 close evidence's manual
+  `alembic upgrade head && alembic downgrade -1 && alembic upgrade
+  head` round-trip + `tests/architecture/test_job_state_invariants.py:114-140`
+  static literal pinning of the migration body's WHERE clause; the
+  behavioral data-motion gap remains. Resolution requires a
+  fresh-DB-per-test fixture (throwaway PostgreSQL schema or templated
+  test DB) which is its own infrastructure work. Lane:
+  `[platform-storage]`. Pull when the test-fixture pattern is needed
+  for other migration round-trips too.
 - ~~**`[FOLLOWUP codex-2026-05-10-H5-writable-vscode-launcher]`**~~ — H5.
   `executor/container/Dockerfile` chowned `launch_vscode.sh` to
   `executor:executor` mode 755 — analyzed extension could overwrite, and
