@@ -34,7 +34,7 @@ from pathlib import Path
 import pytest
 
 from executor.control import ExecutorError
-from packages.analysis_contracts import redact_secrets
+from packages.analysis_contracts import redact_multiline_secrets, redact_secrets
 from workflows.marketplace.analysis_execution import install_failure_message
 from workflows.marketplace.analysis_service import map_executor_error
 
@@ -556,3 +556,54 @@ def test_parse_output_signal_events_single_marker_multiline_pem() -> None:
     assert _PEM_BEGIN not in text
     assert _PEM_END not in text
     assert "[REDACTED:private_key]" in text
+
+
+# --- W13-7: PEM regex DoS — bounded latency on adversarial input ---
+#
+# Codex Cloud audit (2026-05-10) MEDIUM finding M1: the cross-line
+# `private_key` regex in `packages/analysis_contracts/evidence.py:56-63`
+# uses a lazy `(?:.|\n)*?` quantifier between BEGIN and END markers.
+# When `redact_multiline_secrets()` runs `pattern.sub()` over Extension-Host
+# stdout that contains many unmatched BEGIN markers, the engine retries
+# from each BEGIN position searching forward for an END, producing
+# O(N*L) latency. Empirical pre-fix measurement (2026-05-11):
+# 200 BEGIN markers + 1 KB body each + no END → ~361 ms per call.
+#
+# This timing test pins the post-fix latency budget. W13-7 sub-commit 3
+# replaces the regex.sub() with a bounded linear scanner.
+
+
+@pytest.mark.skip(
+    reason="W13-7 RED precursor — redact_multiline_secrets() still uses the "
+    "lazy cross-line regex; sub-commit 3 lands the bounded scanner."
+)
+def test_redact_multiline_secrets_rejects_catastrophic_pem_pattern() -> None:
+    """W13-7 — bounded scanner must keep adversarial PEM input under 100 ms.
+
+    The adversarial payload is 200 unmatched BEGIN markers (each on its
+    own line, padded with 1 KB of body bytes) and no terminating END.
+    Pre-fix pattern.sub() takes ~361 ms because the lazy quantifier
+    retries forward from each BEGIN; the bounded scanner finishes in
+    a single linear pass (<10 ms expected). The 100 ms ceiling
+    leaves comfortable CI margin.
+    """
+    import time
+
+    adversarial = ("".join([_PEM_BEGIN, "\n", "x" * 1000, "\n"])) * 200
+
+    start = time.perf_counter()
+    result = redact_multiline_secrets(adversarial)
+    elapsed = time.perf_counter() - start
+
+    assert elapsed < 0.100, (
+        f"redact_multiline_secrets() took {elapsed * 1000:.1f} ms on the "
+        "W13-7 adversarial PEM payload (200 BEGIN markers, no END, "
+        "~200 KB input). The bounded scanner must complete this scan in "
+        "under 100 ms; the pre-fix lazy-regex path runs ~361 ms."
+    )
+    # Sanity: no END marker means no redaction span — bounded scanner
+    # leaves BEGIN markers in place rather than swallowing them.
+    assert "[REDACTED:private_key]" not in result, (
+        "Without an END marker the bounded scanner must not redact "
+        f"(got: {result[:200]!r}...)."
+    )
