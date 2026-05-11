@@ -23,7 +23,7 @@ the section ages.
 
 ## Status (Quick Glance)
 
-- **W13 active. W13-1..W13-4 are closed.** Entry baseline was
+- **W13 active. W13-1..W13-5 are closed.** Entry baseline was
   established `2026-05-10` after W12 merged via PR #18 (`33a0852`).
   Codex Cloud security audit `2026-05-10` was ingested the same day.
 - **W13-1 closed `2026-05-10` (5/5 sub-commits).** Codex H6

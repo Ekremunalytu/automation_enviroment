@@ -31,11 +31,10 @@ expansion + observability (§11.10), tracked in
 
 Source of truth: `POST_POC_BACKLOG.md` for pullable work and
 `REFACTOR_STATUS.md` for landed closure evidence. W8-W12 are closed;
-W13-1..W13-4 are closed. The next W13 pull is expected to start with
-`[FOLLOWUP codex-2026-05-10-H3-dev-lan-makefile-drift]`, while
-`[FOLLOWUP codex-2026-05-10-M1-pem-regex-dos]` and
-`[FOLLOWUP codex-2026-05-10-M9-arguments-preview-redaction-extension]`
-remain W13 acceptance-bar candidates.
+W13-1..W13-5 are closed. The next W13 pull is expected to start with
+`[FOLLOWUP codex-2026-05-10-M1-pem-regex-dos]` or
+`[FOLLOWUP codex-2026-05-10-M9-arguments-preview-redaction-extension]`,
+which remain W13 acceptance-bar candidates.
 
 + **W11 (`REFACTOR_OPTIMIZATION.md` §11.8) monitor lifecycle split —
   CLOSED `2026-05-05`.** W11-1 `MonitorRuntime` (PR #12, `84d51ae`),

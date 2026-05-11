@@ -1,6 +1,6 @@
 # REFACTOR_OPTIMIZATION
 
-`Last Updated: 2026-05-11 (W13 active; W13-1..W13-4 closed; §11.10 current acceptance bar aligned)`
+`Last Updated: 2026-05-11 (W13 active; W13-1..W13-5 closed; §11.10 current acceptance bar aligned)`
 
 W0-W13 plan document: stabilization + security + post-PoC external-review
 integration. **Slim canonical** — full historical content is frozen under
@@ -64,7 +64,7 @@ PR #14; W12 closed `2026-05-10` via PR #18; W13 is active.
 | W10 | Contract hygiene + planner cleanup | closed `2026-05-04`; PR #11 |
 | W11 | Monitor lifecycle split | closed `2026-05-05`; PR #14 |
 | W12 | Executor subpackaging + attribution cleanup | closed `2026-05-10`; PR #18 |
-| W13 | Test expansion + observability | active; W13-1..W13-4 closed |
+| W13 | Test expansion + observability | active; W13-1..W13-5 closed |
 
 ### §11.3 — Haftalar arası bağımlılıklar
 
