@@ -1,6 +1,6 @@
 # Agent Context
 
-`Last Updated: 2026-05-10 (W13 scaffold; W12 closed via PR #18)`
+`Last Updated: 2026-05-11 (W13-1..W13-7 closed — acceptance bar cleared; next step is W13 close-out PR week13 → main)`
 
 Thin routing map for coding agents after `AGENTS.md`. **Stays short.**
 Do not copy phase history here; use `REFACTOR_STATUS.md` (slim canonical).
