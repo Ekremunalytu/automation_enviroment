@@ -1,6 +1,6 @@
 # Runbook: LAN Exposure (`EXTRACE_ALLOW_LAN`)
 
-`Last Updated: 2026-05-11`
+`Last Updated: 2026-05-11 (W13-5 — §Host-mode drift caveat removed; dev-lan recipe now honours API_HOST override via ${API_HOST:-0.0.0.0} shell expansion; new architecture gate at tests/architecture/test_makefile_dev_recipes.py)`
 
 This runbook covers the deliberate, opt-in path to expose ExTrace services
 on the operator host's LAN interfaces. Per ADR 0007, every host-facing
@@ -83,11 +83,24 @@ The `APISettings.model_post_init` hook in
 [appcore/api/config.py](../../appcore/api/config.py) substitutes
 `HOST=0.0.0.0` and (if you did not set an explicit allow-list) restores
 `CORS_ALLOW_ORIGINS=*` when the app settings still hold the loopback
-defaults. The `make dev-lan` recipe currently passes `uvicorn --host
-0.0.0.0` directly, so `API_HOST=... make dev-lan` does **not** narrow the
-socket bind; use `make dev`/direct uvicorn for a custom host, or pull
-`[FOLLOWUP codex-2026-05-10-H3-dev-lan-makefile-drift]` to change the
-recipe and add a regression gate.
+defaults. The `make dev-lan` recipe passes `uvicorn --host
+${API_HOST:-0.0.0.0}` (W13-5 recipe-fix, `2026-05-11`), so an
+`API_HOST=…` env override narrows the uvicorn bind socket alongside
+the settings layer: `API_HOST=192.168.1.10 make dev-lan` binds uvicorn
+to `192.168.1.10` and `APISettings.HOST` resolves to the same value
+via the explicit-override branch of the post-init hook. When `API_HOST`
+is unset the shell parameter expansion falls back to `0.0.0.0`, so
+plain `make dev-lan` still widens the bind to every interface — that
+is the entire point of the `dev-lan` target.
+
+The recipe-level invariant is pinned by
+[`tests/architecture/test_makefile_dev_recipes.py`](../../tests/architecture/test_makefile_dev_recipes.py)
+(`dev` + `run` loopback literals, `dev-lan` `EXTRACE_ALLOW_LAN=1` set,
+`dev-lan` `${API_HOST:-0.0.0.0}` form, `dev-lan` wildcard default,
+`dev-lan` ADR 0007 banner literal). The settings-level invariant is
+pinned by [`tests/architecture/test_default_bindings.py`](../../tests/architecture/test_default_bindings.py)
+(`test_explicit_host_override_wins_over_lan_substitution`). Both
+layers must stay aligned.
 
 ### Docker (`make up`)
 
@@ -164,8 +177,16 @@ edited `docker-compose.yml`, restore the `127.0.0.1:` prefixes from
   under `profiles: ["debug"]`.
 - [.env.example](../../.env.example) — security notice block describing
   the loopback default and the opt-in path.
-- [Makefile](../../Makefile) — `dev`, `dev-lan`, `up`, `up-debug` targets.
+- [Makefile](../../Makefile) — `dev`, `dev-lan`, `run`, `up`,
+  `up-debug` targets. `dev-lan` uses `--host ${API_HOST:-0.0.0.0}`
+  shell parameter expansion so the env override reaches uvicorn.
 - [tests/architecture/test_default_bindings.py](../../tests/architecture/test_default_bindings.py)
-  — regression gate for the loopback / opt-in / compose discipline.
+  — regression gate for the settings layer (HOST default, CORS
+  defaults, EXTRACE_ALLOW_LAN truthy/falsy, explicit-override wins,
+  compose host-IP prefix discipline, CDP debug-profile gate).
+- [tests/architecture/test_makefile_dev_recipes.py](../../tests/architecture/test_makefile_dev_recipes.py)
+  — W13-5 regression gate for the Makefile recipe layer (`dev` +
+  `run` loopback literals, `dev-lan` opt-in semantics, ADR 0007
+  banner). Both gates must stay aligned with this runbook.
 - [documents/adrs/0007-local-network-binding.md](../adrs/0007-local-network-binding.md)
   — decision record this runbook implements.
