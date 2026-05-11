@@ -510,7 +510,6 @@ def test_module_path_pins_lifecycle_surface() -> None:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.skip(reason="W13-4.2 RED precursor; activated in W13-4.6")
 def test_finalize_cancelled_raises_keyerror_for_unknown_id(
     db_session: Session,
 ) -> None:
@@ -522,7 +521,6 @@ def test_finalize_cancelled_raises_keyerror_for_unknown_id(
         lifecycle.finalize_cancelled_analysis_job(db_session, "does-not-exist")
 
 
-@pytest.mark.skip(reason="W13-4.2 RED precursor; activated in W13-4.6")
 def test_finalize_cancelled_idempotent_on_double_finalize(
     db_session: Session,
 ) -> None:
