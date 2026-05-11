@@ -1,6 +1,6 @@
 # Post-PoC Backlog
 
-`Last Updated: 2026-05-11 (W13-6 opened — Codex M9 arguments_preview redaction extension in progress; factory-internal redaction at _bounded_arguments_preview(); M1 remains W13 acceptance-bar open; W13-5 closed prior)`
+`Last Updated: 2026-05-11 (W13-6 closed — Codex M9 arguments_preview redaction extension closed via factory-internal redaction at _bounded_arguments_preview(); 2 new arch gates + 5 regression cases; M1 remains W13 acceptance-bar open as W13-7 next pull; W13-5 closed prior)`
 
 Open deferred work after the W0-W7 PoC acceptance bar. **Slim canonical** —
 verbose descriptions, evidence, and older triage notes are frozen in dated
@@ -35,7 +35,7 @@ Use stable IDs in new references; do not cite canonical doc line numbers.
 | `[FOLLOWUP codex-2026-05-10-H5-writable-vscode-launcher]` | closed via W13-2 | `launch_vscode.sh` root-owned 0750 |
 | `[FOLLOWUP codex-2026-05-10-H6-spoofable-harness-markers]` | closed via W13-1 | per-launch HMAC marker verification |
 | `[FOLLOWUP codex-2026-05-10-M1-pem-regex-dos]` | open | replace catastrophic multiline private-key regex with bounded scanner/window |
-| `[FOLLOWUP codex-2026-05-10-M9-arguments-preview-redaction-extension]` | in progress as W13-6 | factory-internal redaction at `_bounded_arguments_preview()` + new replica architecture gate `tests/architecture/test_arguments_preview_redaction.py` (W12-5 pattern) |
+| ~~`[FOLLOWUP codex-2026-05-10-M9-arguments-preview-redaction-extension]`~~ | closed via W13-6 | factory-internal redaction at `_bounded_arguments_preview()` + new replica architecture gate `tests/architecture/test_arguments_preview_redaction.py` (2/2 ✓ — factory body invariant + routing invariant) + parametrized regression covering aws/bearer/api_key/db_url/private_key (5/5 ✓) |
 | `[FOLLOWUP w13-3-close-pass-cancellation-test-hardening]` | closed via W13-4 | behavioral coverage + `analysis-job-stuck` runbook update |
 | `[FOLLOWUP w13-4-alembic-roundtrip-programmatic]` | deferred | needs fresh-DB-per-test Alembic fixture |
 

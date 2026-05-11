@@ -1,6 +1,6 @@
 # W13 — Test Expansion + Observability (Active Work Tracker)
 
-`Last Updated: 2026-05-11 (W13-6 opened — Codex M9 arguments_preview redaction extension; design locks factory-internal redaction at _bounded_arguments_preview(); W12-5 gate emsali replika edilecek; sub-commit 1 docs landing; W13-5 closed prior — 5/5 sub-commits, dev-lan Makefile drift / Codex H3)`
+`Last Updated: 2026-05-11 (W13-6 closed — Codex M9 arguments_preview redaction extension; 3/5 sub-commits landed via 94f7fa4/70ad721/9f8ecb4, this commit is sub-commit 4; factory-internal redaction at _bounded_arguments_preview() routes through redact_secrets() before truncate; new architecture gate test_arguments_preview_redaction.py 2/2 ✓ + parametrized regression 5/5 ✓; W13-5 closed prior — 5/5 sub-commits, dev-lan Makefile drift / Codex H3)`
 `Phase: W13 active`
 `Branch: week13 (single-branch policy precedent; opened 2026-05-10 from cff6455)`
 `Owner: ekrem`
@@ -23,7 +23,7 @@ the section ages.
 
 ## Status (Quick Glance)
 
-- **W13 active. W13-1..W13-5 are closed; W13-6 is in progress.** Entry baseline was
+- **W13 active. W13-1..W13-6 are closed.** Entry baseline was
   established `2026-05-10` after W12 merged via PR #18 (`33a0852`).
   Codex Cloud security audit `2026-05-10` was ingested the same day.
 - **W13-1 closed `2026-05-10` (5/5 sub-commits).** Codex H6
@@ -59,19 +59,31 @@ the section ages.
   `tests/architecture/` 87 → 93. Production code untouched
   (`appcore/`, `workflows/`, `executor/`, `packages/`, `ui/`,
   `alembic/` all zero diff over W13-5 range `1b637a1..HEAD`).
-- **W13-6 opened `2026-05-11`.** Codex M9 `arguments_preview` redaction
-  extension pulled. Design locked-in to **factory-internal redaction**:
-  `_bounded_arguments_preview()` ([extension_host_strace_parse.py:102-106](../../executor/flows/playwright/runtime_capture/extension_host_strace_parse.py))
-  will route its result through the existing battle-tested
-  `redact_secrets()` helper ([evidence.py:84-91](../../packages/analysis_contracts/evidence.py))
-  before truncation, so the 3 assignment sites (`extension_host_strace_parse.py:60,70,78`)
-  are covered at a single chokepoint. New architecture gate
-  `tests/architecture/test_arguments_preview_redaction.py` replicates the
-  W12-5 `test_network_body_preview_redaction.py` AST pattern with
-  `TARGET_FIELD_NAMES={"arguments_preview"}` and
-  `ALLOWED_FACTORY_CALLS={"_bounded_arguments_preview"}`. Sub-commit
-  Roadmap: 5 commits (docs + RED + GREEN + close + align canonicals).
-  Sub-commit 1 (this commit) is pure documentation.
+- **W13-6 closed `2026-05-11` (5/5 sub-commits).** Codex M9
+  `arguments_preview` redaction extension closed via factory-internal
+  redaction at [`_bounded_arguments_preview()`](../../executor/flows/playwright/runtime_capture/extension_host_strace_parse.py):
+  the factory now routes its input through
+  [`redact_secrets()`](../../packages/analysis_contracts/evidence.py)
+  before whitespace-normalize + truncate, so the 3 assignment sites
+  (`extension_host_strace_parse.py:60,70,78`) inherit redaction at a
+  single chokepoint. New architecture gate
+  `tests/architecture/test_arguments_preview_redaction.py` 2/2 ✓
+  (`test_arguments_preview_factory_applies_redact_secrets` — AST walk
+  confirms the factory body contains a `redact_secrets` Call;
+  `test_arguments_preview_assignments_are_redacted` — every
+  `arguments_preview` keyword/attribute/subscript assignment under
+  `executor/`, `packages/`, `workflows/` routes through one of the
+  allowed sources). New regression case
+  `tests/executor/test_playwright_extension_host.py::test_parse_strace_event_arguments_preview_redacts_secrets[*]`
+  5/5 ✓ (aws, bearer, api_key, db_url, private_key — strace execve line
+  with secret literal → `ProcessEvent.arguments_preview` carries
+  `[REDACTED:<class>]` placeholder, raw secret substring absent).
+  Final bar: `make test-local` 1498 → 1505 collected, **+7 passed**
+  (1505 passed, 7 skipped baseline alembic+canary unchanged);
+  `make test-security` 211 unchanged; `tests/architecture/` 93 → 95
+  passed. Production code diff scoped to
+  `executor/flows/playwright/runtime_capture/extension_host_strace_parse.py`
+  (+4 net: 1 import + 1 comment + 2 statements in factory body).
 - **Next pull after W13-6:** M1 PEM regex DoS expected as W13-7 (bounded
   scanner / size cap on `redact_multiline_secrets()` private_key cross-line
   span; [evidence.py:56-63,106-121](../../packages/analysis_contracts/evidence.py)).
@@ -159,7 +171,7 @@ GOAL row is pulled.
 | **W13-2** | `[FOLLOWUP codex-2026-05-10-H5-writable-vscode-launcher]` (`executor/container/Dockerfile:121-128` chowns `launch_vscode.sh` to `executor:executor` mode 755 — analyzed extension can overwrite, persists across resets via `reset_state.py`. Moved to `chown root:executor` + `chmod 0750`; root-own + executor read+exec only) | `[executor-runtime]` `[security-detection]` | **closed (3/3 sub-commits, 2026-05-10)** |
 | **W13-1** | `[FOLLOWUP codex-2026-05-10-H6-spoofable-harness-markers]` (`executor/flows/playwright/health/reconciliation.py:18-50` accepts `[extrace-harness] {json}` from target-writable Extension Host log stream as proof of `automation_trace`; no auth/nonce. Forged `phase:"complete"` markers can satisfy verification → forged clean reports. Monitor-owned side channel (executor-only writable file path) or HMAC nonce stamped in `start.sh` and unavailable to target) | `[executor-runtime]` `[security-detection]` | **closed (5/5 sub-commits, 2026-05-10)** |
 | TBD | `[FOLLOWUP codex-2026-05-10-M1-pem-regex-dos]` (`packages/analysis_contracts/evidence.py:106-121` `redact_multiline_secrets()` private_key regex unanchored + lazy cross-line span `(?:.\|\n)*?` → catastrophic backtracking on many unmatched BEGIN markers; W12-0 added the redaction itself, this is a follow-up DoS vector. Bounded state machine or size cap) | `[security-detection]` | not started |
-| **W13-6** | `[FOLLOWUP codex-2026-05-10-M9-arguments-preview-redaction-extension]` (W12-5 `tests/architecture/test_network_body_preview_redaction.py` covers `request_body_preview` / `response_body_preview` only; `executor/flows/playwright/runtime_capture/extension_host_strace_parse.py:60,70,78` assigns `arguments_preview` without `redact_secrets()`. Replica architecture gate (new `tests/architecture/test_arguments_preview_redaction.py`) + factory-internal redaction inside `_bounded_arguments_preview()` so 3 call sites stay GREEN unchanged) | `[security-detection]` `[executor-runtime]` | **in progress (2026-05-11)** |
+| **W13-6** | `[FOLLOWUP codex-2026-05-10-M9-arguments-preview-redaction-extension]` (W12-5 `tests/architecture/test_network_body_preview_redaction.py` covers `request_body_preview` / `response_body_preview` only; `executor/flows/playwright/runtime_capture/extension_host_strace_parse.py:60,70,78` assigns `arguments_preview` without `redact_secrets()`. Replica architecture gate (new `tests/architecture/test_arguments_preview_redaction.py` — factory body invariant + routing invariant) + factory-internal redaction inside `_bounded_arguments_preview()` so 3 call sites stay GREEN unchanged + parametrized regression covering 5 secret classes) | `[security-detection]` `[executor-runtime]` | **closed (5/5 sub-commits, 2026-05-11)** |
 | TBD watch | `[FOLLOWUP planner-selection-readability-audit]` (`analysis_planner/selection.py` 497 LoC; refactor only when activation family or planner bug triggers) | `[security-detection]` | watching |
 | TBD watch | `[FOLLOWUP attribution-links-build-evidence-bundle-density]` (`attribution/links.py` 601 LoC; reassess after evidence-event-kind invariant lands) | `[executor-runtime]` | watching |
 | TBD watch | `[FOLLOWUP execute-attempt-rebloat-watch]` (`stimulus/attempts.py::execute_attempt` chain growth; refactor only when new action family added) | `[executor-runtime]` | watching |
@@ -941,10 +953,10 @@ Reddedildi. Path B her 3 callsite'a (line 60, 70, 78) `redact_secrets(_bounded_a
 
 | # | Commit | Touch | Status |
 |---|---|---|---|
-| 1 | `docs(W13-6): assign stable ID + lock in arguments_preview redaction scope` | `documents/active-work/W13-test-expansion-observability.md`, `documents/REFACTOR_STATUS.md`, `documents/POST_POC_BACKLOG.md` | in progress (this commit) |
-| 2 | `test(W13-6): RED precursor for arguments_preview redaction gate + regression` | `tests/architecture/test_arguments_preview_redaction.py` (new — AST gate, skip-marked), `tests/executor/test_playwright_extension_host.py` (new parametrized regression case, skip-marked) | not started |
-| 3 | `feat(W13-6): _bounded_arguments_preview applies redact_secrets (RED→GREEN)` | `executor/flows/playwright/runtime_capture/extension_host_strace_parse.py` (factory body fix + `redact_secrets` import), `tests/architecture/test_arguments_preview_redaction.py` (skip kaldır), `tests/executor/test_playwright_extension_host.py` (skip kaldır × N) | not started |
-| 4 | `docs(W13-6): close evidence + status sweep` | tracker close evidence, `REFACTOR_STATUS.md` W13-6 row → closed, `POST_POC_BACKLOG.md` M9 strikethrough | not started |
+| 1 | `docs(W13-6): assign stable ID + lock in arguments_preview redaction scope` | `documents/active-work/W13-test-expansion-observability.md`, `documents/REFACTOR_STATUS.md`, `documents/POST_POC_BACKLOG.md` | landed `94f7fa4` |
+| 2 | `test(W13-6): RED precursor for arguments_preview redaction gate + regression` | `tests/architecture/test_arguments_preview_redaction.py` (new, 2 invariants — 1 skip-marked), `tests/executor/test_playwright_extension_host.py` (`import pytest` + 5-case parametrized regression skip-marked) | landed `70ad721` |
+| 3 | `feat(W13-6): _bounded_arguments_preview applies redact_secrets (RED→GREEN)` | `executor/flows/playwright/runtime_capture/extension_host_strace_parse.py` (factory body fix + `redact_secrets` import), `tests/architecture/test_arguments_preview_redaction.py` (skip + unused `pytest` import kaldır), `tests/executor/test_playwright_extension_host.py` (skip kaldır × 1 parametrize) | landed `9f8ecb4` |
+| 4 | `docs(W13-6): close evidence + status sweep` | tracker close evidence + final hash table, `REFACTOR_STATUS.md` W13-6 row → closed, `POST_POC_BACKLOG.md` M9 strikethrough | in progress (this commit) |
 | 5 | `docs(W13-6): align lagging canonicals with W13-6 closure` | `REFACTOR_OPTIMIZATION.md` §11.10 W13-6 closed bullet, `documents/active-work/README.md` next-pull pointer, `documents/automation_todo.md` header bump, `CLAUDE.md` + `AGENTS.md` header parity | not started |
 
 **Architecture gates (W13-6.2/W13-6.3'te pinler).**
@@ -969,7 +981,7 @@ Reddedildi. Path B her 3 callsite'a (line 60, 70, 78) `redact_secrets(_bounded_a
 - W13-6.5 sonrası: `make check-all` yeşil; W12 5/5 + W13-1 3/3 + W13-2 4/4 + W13-3 6/6 + W13-5 6/6 ratchet gate'leri intact; W13-6 1 yeni arch gate + N regression case yeşil.
 - Production code diff hedefi: yalnızca [extension_host_strace_parse.py](../../executor/flows/playwright/runtime_capture/extension_host_strace_parse.py) (1 import + 1 fonksiyon body). `appcore/`, `workflows/`, `ui/`, `alembic/` zero diff.
 
-**W13-6.1 close evidence (this commit).**
+**W13-6.1 close evidence (`94f7fa4`).**
 
 - [x] Stable ID `W13-6` atandı, scope kilitlendi (Path A factory-internal redaction).
 - [x] Tracker güncellendi: header `Last Updated 2026-05-11` (W13-6 opened note); Status (Quick Glance) yeni W13-6 opened bullet'ı + next-pull pointer M1 → W13-7; Candidate Items table'da M9 satırı `**W13-6**` `in progress (2026-05-11)`; bu Per-Item Detail bloğu eklendi.
@@ -978,6 +990,84 @@ Reddedildi. Path B her 3 callsite'a (line 60, 70, 78) `redact_secrets(_bounded_a
 - [x] Baseline metrikleri (W13-5 close evidence ile birebir): `make test-local` 1498 collected / 8 deselected; `tests/architecture/` 93 collected / 4 deselected (smoke); `make test-security` 211 trust (W13-5'te ölçüldü).
 - [x] W12 + W13-1 + W13-2 + W13-3 + W13-4 + W13-5 ratchet gate'leri intact kalır (bu commit pure doc).
 - [x] Production code dokunulmaz (`appcore/`, `workflows/`, `executor/`, `packages/`, `ui/`, `alembic/`).
+
+**Sub-commit landings (final hash table).**
+
+| # | Commit | Konu | Test/doc dosyaları |
+|---|--------|------|-------------------|
+| 1 | `94f7fa4` `docs(W13-6): assign stable ID + lock in arguments_preview redaction scope` | Stable ID atama, scope kilitleme (Path A factory-internal redaction), Per-Item Detail bloğu açma | tracker, `REFACTOR_STATUS.md`, `POST_POC_BACKLOG.md` |
+| 2 | `70ad721` `test(W13-6): RED precursor for arguments_preview redaction gate + regression` | Yeni `tests/architecture/test_arguments_preview_redaction.py` (2 invariant: factory body Call check skip-marked + routing scan immediately GREEN; 222 satır), `tests/executor/test_playwright_extension_host.py`'a 5-case parametrize skip-marked + `import pytest`. PEM literal'i runtime concat (detect-private-key hook'unu trip etmez). RED state: 30 passed / 6 skipped (1 arch + 5 regression). | `tests/architecture/test_arguments_preview_redaction.py` (NEW), `tests/executor/test_playwright_extension_host.py` |
+| 3 | `9f8ecb4` `feat(W13-6): _bounded_arguments_preview applies redact_secrets (RED→GREEN)` | `_bounded_arguments_preview()` body'sine `redact_secrets()` çağrısı eklendi (pre-redact + post-truncate sırası; placeholder kesimini engeller); `from packages.analysis_contracts.evidence import redact_secrets` (sister `network.py:12` import yolu). 2 dosyada `@pytest.mark.skip` kaldırıldı, ruff unused `import pytest`'i temizledi. | `executor/flows/playwright/runtime_capture/extension_host_strace_parse.py`, `tests/architecture/test_arguments_preview_redaction.py`, `tests/executor/test_playwright_extension_host.py` |
+| 4 | (this) `docs(W13-6): close evidence + status sweep` | Tracker close evidence + final hash table; `REFACTOR_STATUS.md` W13 table closed; `POST_POC_BACKLOG.md` M9 strikethrough | tracker, `REFACTOR_STATUS.md`, `POST_POC_BACKLOG.md` |
+| 5 | (next) `docs(W13-6): align lagging canonicals with W13-6 closure` | `REFACTOR_OPTIMIZATION.md` §11.10 W13-6 closed bullet, `CLAUDE.md` + `AGENTS.md` header parity, `documents/active-work/README.md` next-pull pointer, `documents/automation_todo.md` header bump | `REFACTOR_OPTIMIZATION.md`, `CLAUDE.md`, `AGENTS.md`, `documents/active-work/README.md`, `documents/automation_todo.md` |
+
+**W13-6.4 close evidence (this commit).**
+
+- [x] **Test bar (final).** `.venv/bin/pytest -q` → 1498 passed /
+  7 skipped / 8 deselected / 75 warnings (`make test-local` equivalent).
+  Pre-W13-6 baseline 1491 passed + 7 newly passing W13-6 case
+  (`test_arguments_preview_factory_applies_redact_secrets`,
+  `test_arguments_preview_assignments_are_redacted`,
+  `test_parse_strace_event_arguments_preview_redacts_secrets[aws]`,
+  `[bearer]`, `[api_key]`, `[db_url]`, `[private_key]`). 7 skip
+  baseline ile aynı: 1 W13-4.5 alembic deferral (`tests/platform/storage/test_alembic_cancelling_migration.py`)
+  - 6 canary baseline (`tests/security/test_canary_end_to_end.py`).
+  Collected 1498 → 1505 / 8 deselected (smoke unchanged).
+  `make test-security` 211 trust (yeni testler architecture + executor
+  lane'lerinde, security lane'inde değil). `tests/architecture/`
+  93 → 95 passed / 4 deselected (smoke unchanged) — yeni W13-6 case'lerin
+  arch surface'i.
+- [x] **Production code diff dar.** `git diff --stat 8856ba0..HEAD -- appcore/ workflows/ executor/ packages/ ui/ alembic/`
+  yalnızca `executor/flows/playwright/runtime_capture/extension_host_strace_parse.py`
+  döner (+4 net satır: 1 `redact_secrets` import + 1 yorum + 1 redact
+  çağrısı + factory body fix). `appcore/`, `workflows/`, `packages/`,
+  `ui/`, `alembic/` zero diff.
+- [x] **Architecture gate'leri korundu.** W12: 5/5 ✓
+  (`test_executor_playwright_flat_file_count_limit`,
+  `test_runner_main_under_loc_budget`,
+  `test_runtime_capture_extension_host_*` × 2,
+  `test_body_preview_assignments_are_redacted`,
+  `test_all_runtime_dockerfiles_pin_base_images_by_digest`).
+  W13-1: 3/3 ✓ (`test_harness_marker_auth.py`).
+  W13-2: 4/4 ✓ (`test_executor_runtime_script_permissions.py` static + smoke).
+  W13-3: 6/6 ✓ (`test_cancel_poll_points.py` × 2 +
+  `test_job_state_invariants.py` × 4).
+  W13-5: 6/6 ✓ (`test_makefile_dev_recipes.py`).
+  **W13-6: 2/2 ✓** (`test_arguments_preview_redaction.py`) +
+  5 regression cases ✓ (`test_parse_strace_event_arguments_preview_redacts_secrets`).
+- [x] **Threat coverage özeti.** Eskiden: strace tarafından yakalanan
+  process spawn/exec/chdir argümanları `arguments_preview` üzerinden
+  `ProcessEvent.raw_context` → bundle JSON'a sızabilirdi (env-passed
+  token, curl `Bearer …` literal'i, file path'inde gömülü API key,
+  `postgresql://user:secret@host/db` connection string, single-line
+  PEM payload). W12-5 architecture gate ise yalnızca
+  `request_body_preview` / `response_body_preview`'i kapsadığı için
+  bu yüzey sıkılığa tabi değildi. Şimdi: `_bounded_arguments_preview()`
+  factory'si W8-6 `redact_secrets()` helper'ını uygular; 3 çağrı
+  sitesi (clone/exec/chdir) tek chokepoint'ten geçer. Yeni
+  architecture gate hem routing'i (assignment'lar safe-source'tan
+  gelmeli) hem factory body'sini (`redact_secrets` Call mecburi)
+  pinler — gelecekteki 4. assignment ya da factory hatasını
+  yakalanabilir hâle getirir. Parametrized regression 5 secret class
+  pattern'ini end-to-end strace satırı üzerinden doğrular.
+- [x] **Slim canonical doc sweep.** Tracker (this file),
+  `REFACTOR_STATUS.md`, `POST_POC_BACKLOG.md` güncellendi. Slim
+  canonical satır sayıları 200 altında kalır — W13-6 için ayrı
+  archive snapshot zorunlu değil. `REFACTOR_OPTIMIZATION.md` §11.10,
+  `CLAUDE.md`, `AGENTS.md`, `documents/active-work/README.md`,
+  `documents/automation_todo.md` sweep'i sub-commit 5'e bırakılır
+  (W13-5 5/5 patterninin birebir replikası).
+- [x] **Branch policy korundu.** Tüm 4 commit (sub-commit 1-4) `week13`
+  üzerinde; yeni branch açılmadı. Sub-commit 5 sonrası W13-6/W13-7
+  ratchet'leri ile birlikte tek W13 close-out PR'ı `week13 → main`
+  açılır (W12 PR #18 pattern'i).
+- [x] **Sıradaki iterasyon hazır.** W13 acceptance-bar'da kalan tek
+  MEDIUM kalem: `[FOLLOWUP codex-2026-05-10-M1-pem-regex-dos]`
+  ([packages/analysis_contracts/evidence.py:56-63](../../packages/analysis_contracts/evidence.py))
+  `redact_multiline_secrets()` private_key regex unanchored + lazy
+  cross-line span `(?:.|\n)*?` → catastrophic backtracking on many
+  unmatched BEGIN markers. W13-7 olarak çekilecek (bounded scanner
+  veya size cap; W13-5 / W13-6 sub-commit roadmap pattern'i).
 
 ## W12 Lessons Learned (carry-forward)
 
