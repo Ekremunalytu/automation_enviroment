@@ -69,14 +69,14 @@ def _cancel_after_n_false_returns(n: int) -> Callable[[], bool]:
 def _make_trigger_plan() -> TriggerPlan:
     """Minimal TriggerPlan satisfying ``execute_analysis_request`` consumers."""
     return TriggerPlan(
+        trigger_container_path=None,
         selected_scenarios=[],
         skip_automation=True,
-        trigger_container_path=None,
+        reason_code="test_no_op_plan",
         message="test trigger plan",
     )
 
 
-@pytest.mark.skip(reason="W13-4.2 RED precursor; activated in W13-4.3")
 def test_raises_on_cancel_before_ensure_vsix_exists() -> None:
     """Poll point #1: cancel signal observed *before* ``ensure_vsix_exists``."""
     cancel_check = _cancel_after_n_false_returns(0)
@@ -103,7 +103,6 @@ def test_raises_on_cancel_before_ensure_vsix_exists() -> None:
     monitor.assert_not_called()
 
 
-@pytest.mark.skip(reason="W13-4.2 RED precursor; activated in W13-4.3")
 def test_raises_on_cancel_before_reset_sandbox() -> None:
     """Poll point #2: ``ensure_vsix_exists`` runs, then cancel before ``_reset_sandbox``."""
     cancel_check = _cancel_after_n_false_returns(1)
@@ -129,7 +128,6 @@ def test_raises_on_cancel_before_reset_sandbox() -> None:
     monitor.assert_not_called()
 
 
-@pytest.mark.skip(reason="W13-4.2 RED precursor; activated in W13-4.3")
 def test_raises_on_cancel_before_install_extension() -> None:
     """Poll point #3: ensure + reset run, then cancel before ``_install_extension``."""
     cancel_check = _cancel_after_n_false_returns(2)
@@ -155,7 +153,6 @@ def test_raises_on_cancel_before_install_extension() -> None:
     monitor.assert_not_called()
 
 
-@pytest.mark.skip(reason="W13-4.2 RED precursor; activated in W13-4.3")
 def test_raises_on_cancel_before_build_triggers() -> None:
     """Poll point #4: ensure + reset + install run, then cancel before ``_build_triggers``."""
     cancel_check = _cancel_after_n_false_returns(3)
@@ -183,7 +180,6 @@ def test_raises_on_cancel_before_build_triggers() -> None:
     monitor.assert_not_called()
 
 
-@pytest.mark.skip(reason="W13-4.2 RED precursor; activated in W13-4.3")
 def test_raises_on_cancel_before_run_monitoring() -> None:
     """Poll point #5: 4 phases run, then cancel before ``_run_monitoring``."""
     cancel_check = _cancel_after_n_false_returns(4)
