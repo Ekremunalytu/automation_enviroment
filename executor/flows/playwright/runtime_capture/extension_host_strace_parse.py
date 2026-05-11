@@ -5,6 +5,8 @@ from __future__ import annotations
 import re
 from datetime import datetime
 
+from packages.analysis_contracts.evidence import redact_secrets
+
 from .events import ProcessEvent
 
 _PROCESS_EVENT_RE = re.compile(
@@ -100,7 +102,11 @@ def parse_strace_process_event_line(
 
 
 def _bounded_arguments_preview(raw: str) -> str:
-    preview = " ".join(raw.split())
+    # W13-6: redact secrets before truncation so the cap can never cut through
+    # a placeholder, and so the three call sites (clone/exec/chdir) inherit
+    # redaction at this single chokepoint.
+    redacted = redact_secrets(raw)
+    preview = " ".join(redacted.split())
     if len(preview) <= _PROCESS_ARGUMENT_PREVIEW:
         return preview
     return preview[: _PROCESS_ARGUMENT_PREVIEW - 3] + "..."

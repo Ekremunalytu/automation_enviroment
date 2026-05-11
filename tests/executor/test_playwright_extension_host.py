@@ -274,10 +274,6 @@ def test_parse_strace_bounded_arguments_preview_truncates_long_args() -> None:
     assert event.arguments_preview.endswith("...")
 
 
-@pytest.mark.skip(
-    reason="W13-6 RED precursor — _bounded_arguments_preview() does not yet "
-    "route through redact_secrets(); sub-commit 3 lands the factory fix."
-)
 @pytest.mark.parametrize(
     ("secret_class", "secret_literal", "expected_placeholder", "forbidden_substring"),
     [

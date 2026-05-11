@@ -42,7 +42,6 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCAN_ROOTS = ("executor", "packages", "workflows")
@@ -178,10 +177,6 @@ def _factory_body_has_redact_call(module_tree: ast.AST) -> bool:
     return False
 
 
-@pytest.mark.skip(
-    reason="W13-6 RED precursor — _bounded_arguments_preview() factory does "
-    "not yet route through redact_secrets(); sub-commit 3 lands the body fix."
-)
 def test_arguments_preview_factory_applies_redact_secrets() -> None:
     """The redacting factory must itself call ``redact_secrets()``.
 
