@@ -573,10 +573,6 @@ def test_parse_output_signal_events_single_marker_multiline_pem() -> None:
 # replaces the regex.sub() with a bounded linear scanner.
 
 
-@pytest.mark.skip(
-    reason="W13-7 RED precursor — redact_multiline_secrets() still uses the "
-    "lazy cross-line regex; sub-commit 3 lands the bounded scanner."
-)
 def test_redact_multiline_secrets_rejects_catastrophic_pem_pattern() -> None:
     """W13-7 — bounded scanner must keep adversarial PEM input under 100 ms.
 
