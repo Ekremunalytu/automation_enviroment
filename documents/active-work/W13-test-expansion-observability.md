@@ -1011,7 +1011,7 @@ Reddedildi. Path B her 3 callsite'a (line 60, 70, 78) `redact_secrets(_bounded_a
   `test_parse_strace_event_arguments_preview_redacts_secrets[aws]`,
   `[bearer]`, `[api_key]`, `[db_url]`, `[private_key]`). 7 skip
   baseline ile aynı: 1 W13-4.5 alembic deferral (`tests/platform/storage/test_alembic_cancelling_migration.py`)
-  - 6 canary baseline (`tests/security/test_canary_end_to_end.py`).
+  plus 6 canary baseline (`tests/security/test_canary_end_to_end.py`).
   Collected 1498 → 1505 / 8 deselected (smoke unchanged).
   `make test-security` 211 trust (yeni testler architecture + executor
   lane'lerinde, security lane'inde değil). `tests/architecture/`

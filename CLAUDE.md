@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-`Last Updated: 2026-05-11 (W12 closed via PR #18; W13 — Test Expansion + Observability open; W13-1..W13-5 closed)`
+`Last Updated: 2026-05-11 (W12 closed via PR #18; W13 — Test Expansion + Observability open; W13-1..W13-6 closed)`
 
 This file is intentionally a thin pointer. Do not duplicate phase summaries or
 architecture maps here; that caused drift.
@@ -33,8 +33,9 @@ architecture maps here; that caused drift.
   **W13 — Test Expansion + Observability** (REFACTOR_OPTIMIZATION
   §11.10; tracker
   `documents/active-work/W13-test-expansion-observability.md`).
-  W13-1..W13-5 closed; W13 next-pull is M1 PEM regex DoS or M9
-  `arguments_preview` redaction (W13-6/W13-7 stable IDs pending).
+  W13-1..W13-6 closed; W13 next-pull is M1 PEM regex DoS as W13-7
+  (M9 `arguments_preview` redaction closed via W13-6 — factory-internal
+  redaction at `_bounded_arguments_preview()`).
   Past trackers (stable-ID reference only):
   `documents/active-work/W12-executor-subpackaging.md`
   (W12-0..W12-5);
