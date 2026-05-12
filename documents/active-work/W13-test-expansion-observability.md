@@ -1,7 +1,7 @@
 # W13 — Test Expansion + Observability (Active Work Tracker)
 
-`Last Updated: 2026-05-12 (W13-11 closed 2026-05-12 (6/6 sub-commits — design+impl+arch gate+regression fix+doc sweep) — Path A host-side eager-consume + env var passthrough; W13-12 closed 2026-05-12 (5/5 sub-commits + post-landing drift sweep + 3 behavioral pins — `ActivationReport.harness_handshake_required: bool` fail-closed; final bar test-local 1537 → 1539 (+2 main) → 1542 (+3 post-landing) / tests/architecture/ 112 → 115 (+3)); W13-13 remains CLOSE-GATE not started)`
-`Phase: W13 active — CLOSE-GATE HOLD on W13-13 (W13-11 + W13-12 closed)`
+`Last Updated: 2026-05-13 (W13-11 closed 2026-05-12 (6/6 sub-commits — design+impl+arch gate+regression fix+doc sweep) — Path A host-side eager-consume + env var passthrough; W13-12 closed 2026-05-12 (5/5 sub-commits + post-landing drift sweep + 3 behavioral pins — `ActivationReport.harness_handshake_required: bool` fail-closed; final bar test-local 1537 → 1539 (+2 main) → 1542 (+3 post-landing) / tests/architecture/ 112 → 115 (+3)); W13-13 in-progress 2026-05-13 — Path B worker-entry `with_for_update()` snapshot lock design locked-in)`
+`Phase: W13 active — W13-13 in-progress 2026-05-13 (W13-11 + W13-12 closed; close-gate clearance pending W13-13 GREEN)`
 `Branch: week13 (single-branch policy precedent; opened 2026-05-10 from cff6455)`
 `Owner: ekrem`
 
@@ -2416,10 +2416,37 @@ Production code diff: 3 dosya, +~25 net satır (field + branch + callsite + flag
 
 ### W13-13 — Worker-start cancel-race CAS (close-gate for W13-3 H4)
 
-`Status: CLOSE-GATE — not started 2026-05-11 (Codex Cloud second-opinion review); scope rebased 2026-05-12 — F4 README sweep + regex pin landed early in W13-11 push (sub-commits 8 + 12)` ·
+`Status: in-progress 2026-05-13 (Path B worker-entry snapshot design locked-in; sub-commit 1 docs lockdown landed; scope rebased 2026-05-12 — F4 README sweep + regex pin landed early in W13-11 push sub-commits 8 + 12)` ·
 `Source: [CLOSE-GATE codex-second-opinion-F3-worker-start-cancel-race-CAS]` ·
 `Lane: [platform-storage] [executor-runtime]` ·
 `Blocks: week13 → main close-out PR`
+
+**Design Decision Locked-In (2026-05-13): Path B — worker-entry snapshot lock.**
+
+| Boyut | Karar |
+|---|---|
+| Lock primitive | `select(AnalysisJob).where(AnalysisJob.job_id == job_id).with_for_update()` — aynı row-level lock idiom `lifecycle.cancel_analysis_job:128` ve `finalize_cancelled_analysis_job:181`'de zaten kullanılıyor; SQLAlchemy 2.x atomic transition deseni. |
+| Branch contract | row missing → log warning + `db.rollback()` + return; status ∈ `_TERMINAL_JOB_STATUSES` → log info + `db.rollback()` + return; status == `"cancelling"` → `finalize_cancelled_analysis_job(db, ...)` + return; status == `"queued"` → atomic transition `running` + `db.commit()` + proceed. |
+| Finalize helper choice | **lifecycle helper direct** (`from appcore.storage.crud_ops.analysis_jobs.lifecycle import finalize_cancelled_analysis_job`), **NOT** `job_service.finalize_cancelled_job` wrapper. Reason: wrapper opens its own session via `_run_in_session(None, ...)`; would deadlock against entry-block row lock. W13-3 exception handler (analysis_service.py:247-267) keeps using wrapper because by then entry-block transaction is closed. Asymmetry documented inline at impl. |
+| Session lifecycle | Single `_open_job_session()` reused across entry block AND analysis flow. Existing `finally: db.close()` (analysis_service.py:304) stays in charge. Outer `try/except Exception: db.rollback(); raise` around entry block protects against transient SQLAlchemy errors before main analysis try/except takes over. |
+| `report_name` derivation | Read off the locked row (`job.report_path or job_service.build_report_name(request, job_id)`). Replaces pre-impl separate `get_job_snapshot` round-trip — fewer trips, same authoritative value. |
+| Architecture gate invariants | **INV1**: `run_analysis_job`'s first DB-touching statement must be a `with_for_update()`-bearing call (AST source-order check). **INV2**: `finalize_cancelled_analysis_job` (lifecycle helper, by `ast.Name.id`) must be called BEFORE first `execute_analysis_request` call. Locks both the ordering and the deadlock-avoidance asymmetry. |
+
+**Out-of-scope:**
+
+- Path A (compare-and-set `update_job` parameter) — rejected; would force duplicating the finalize-cancelled path outside the existing exception handler (see "Path A alternatifi (reddedilen)" below).
+- Threading-based race-fixture tests — rejected; the race is encoded by pre-positioning row state (queued / cancelling / terminal) and calling `run_analysis_job` synchronously. Architecture gate is the structural enforcer of lock-ordering invariants.
+- `[FOLLOWUP analysis-jobs-race]` (`complete_analysis_job` / `cancel_analysis_job` race window) — separate W14+ deferral.
+
+**Sub-commit Roadmap (5 main + optional self-stamp; mirrors W13-12 close-pass shape).**
+
+| # | Type | Touch | Status |
+|---|---|---|---|
+| 1 | `docs(W13-13)` assign in-progress + lock Path B design | tracker (this section + Last Updated + Phase banner) + `CLAUDE.md` banner + `documents/REFACTOR_STATUS.md` (Last Updated + W13-13 row) | landing |
+| 2 | `test(W13-13)` RED precursor — 3 behavioral cases | `tests/platform/storage/test_analysis_jobs_cancel_at_worker_entry.py` (new) | pending |
+| 3 | `feat(W13-13)` Path B worker-entry snapshot lock | `workflows/marketplace/analysis_service.py` (run_analysis_job:198-211) | pending |
+| 4 | `test(W13-13)` architecture gate INV1 + INV2 | `tests/architecture/test_run_analysis_job_entry_snapshot.py` (new) | pending |
+| 5 | `docs(W13-13)` close evidence + 10-site drift sweep | tracker close evidence block + `CLAUDE.md` + `AGENTS.md` + `documents/REFACTOR_STATUS.md` + `documents/REFACTOR_OPTIMIZATION.md` + `documents/POST_POC_BACKLOG.md` + `documents/AGENT_CONTEXT.md` + `documents/active-work/README.md` + `documents/active-work/W14-codex-acceptance-observability.md` + `README.md` | pending |
 
 **Sorun.** W13-3 iki-fazlı cancel `running → cancelling → cancelled`
 state machine'i kuruyor; `cancel_analysis_job` (`lifecycle.py:128-156`)
