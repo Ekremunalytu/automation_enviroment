@@ -211,8 +211,10 @@ the section ages.
   **closed `2026-05-12` (5/5 sub-commits: `8782630` docs lockdown ·
   `d30a50f` RED tests · `c98f350` feat impl · `a2c4aa2` arch gate ·
   `e7752a1` close sweep; post-landing additions on same branch:
-  `3a89c09` self-stamp sub-commit 5 SHA in tracker; post-close drift
-  sweep + behavioral pin commits to follow).** Codex F2:
+  `3a89c09` self-stamp sub-commit 5 SHA in tracker · `9c80f25`
+  post-close drift sweep (10 sites) · `0d3e343` post-close behavioral
+  pins (signature priority + malformed trace + e2e attestation)).**
+  Codex F2:
   [`reconciliation.py:137-146`](../../executor/flows/playwright/health/reconciliation.py:137)
   fell back to legacy phase-only check when `expected_nonce` was
   empty; [`load_harness_python_secret()`](../../executor/flows/playwright/health/reconciliation.py:51)
