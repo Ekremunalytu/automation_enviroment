@@ -60,10 +60,12 @@ multi-tenant web platform.
   closed (benign silence fixture, `.env` gitignore gate, singleton-lock
   recovery); **W13-11 HMAC python secret target-install race closed
   `2026-05-12`** (Path A host-side eager-consume + env var passthrough,
-  6/6 sub-commits + defense-in-depth + README sweep). W13-12 (fail-closed
-  harness handshake) + W13-13 (worker-start cancel-race CAS) still
-  CLOSE-GATE hold; close-out PR `week13 → main` BLOCKED until W13-12/13
-  GREEN. Tracker:
+  6/6 sub-commits + defense-in-depth + README sweep); **W13-12 fail-closed
+  harness handshake closed `2026-05-12`** (5/5 sub-commits;
+  `ActivationReport.harness_handshake_required: bool` + fail-closed branch
+  + 3-fact AST gate; test bar 1537 → 1539 / 112 → 115). W13-13
+  (worker-start cancel-race CAS) still CLOSE-GATE hold; close-out PR
+  `week13 → main` BLOCKED until W13-13 GREEN. Tracker:
   [`active-work/W13-test-expansion-observability.md`](documents/active-work/W13-test-expansion-observability.md).
 - **Canonical source of truth for phase state:**
   [`documents/REFACTOR_STATUS.md`](documents/REFACTOR_STATUS.md).

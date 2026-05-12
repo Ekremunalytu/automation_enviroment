@@ -41,11 +41,12 @@ points to it.
     W13-10 closed (singleton-lock recovery integration test 2/2 ✓).
     **CLOSE-GATE `2026-05-11`** — Codex Cloud second-opinion review
     surfaced 3 P1 close-pass items: W13-11 HMAC python secret
-    target-install race (close-pass for W13-1 H6), W13-12 fail-closed
-    harness handshake (close-pass for W13-1 H6, depends on W13-11),
-    W13-13 worker-start cancel-race CAS + README drift sweep
-    (close-pass for W13-3 H4). Close-out PR `week13 → main` BLOCKED
-    until W13-11/12/13 GREEN. Original §11.10 TBD umbrellas (logger
+    target-install race (close-pass for W13-1 H6) **closed `2026-05-12`**,
+    W13-12 fail-closed harness handshake (close-pass for W13-1 H6)
+    **closed `2026-05-12`**, W13-13 worker-start cancel-race CAS
+    (close-pass for W13-3 H4 — README sweep + regex pin landed early
+    in W13-11 push) still pending. Close-out PR `week13 → main` BLOCKED
+    until W13-13 GREEN. Original §11.10 TBD umbrellas (logger
     consolidation, run-ID stamping, W8-W12 regression lock-in)
     deferred to W14 — see W14 tracker above.
 - `W12-executor-subpackaging.md`

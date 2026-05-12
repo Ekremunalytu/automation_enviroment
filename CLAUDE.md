@@ -40,12 +40,14 @@ architecture maps here; that caused drift.
   race — close-pass for W13-1 H6; **closed `2026-05-12`** 6/6
   sub-commits — Path A host-side eager-consume + env var passthrough),
   W13-12 (fail-closed harness handshake — close-pass for W13-1 H6,
-  depends on W13-11), W13-13 (worker-start cancel-race CAS —
+  depends on W13-11; **closed `2026-05-12`** 5/5 sub-commits —
+  `ActivationReport.harness_handshake_required: bool` + fail-closed
+  branch + 3-fact AST gate), W13-13 (worker-start cancel-race CAS —
   close-pass for W13-3 H4; original W13-13 scope included F4 README
   drift sweep + `tests/architecture/test_readme_phase_pointer.py`
   regex pin, both landed early in W13-11 push `2026-05-12` to keep the
   README sweep paired with its banner-cascade fix-up). Close-out PR
-  `week13 → main` BLOCKED until W13-12/13 GREEN. Items pulled in-window
+  `week13 → main` BLOCKED until W13-13 GREEN. Items pulled in-window
   (not W14) to preserve audit-trail integrity for originally W13-claimed
   H6 + H4 closures.
   **Next phase: W14 — Codex M-class Acceptance + Observability** (staging;
@@ -56,8 +58,9 @@ architecture maps here; that caused drift.
   correctness analysis-jobs-race + evidence-event-kind invariant,
   W14-5 logger consolidation + run-ID stamping + codex-automation-5
   fingerprint, W14-6 W8-W12 regression lock-in umbrella). Entry gate
-  W13-12/13 close-gate clearance + close-out PR merge'de tetiklenir
-  (W13-11 zaten closed `2026-05-12`); stable ID'ler ilk pull'da atanır.
+  W13-13 close-gate clearance + close-out PR merge'de tetiklenir
+  (W13-11 ve W13-12 zaten closed `2026-05-12`); stable ID'ler ilk
+  pull'da atanır.
   Past trackers (stable-ID reference only):
   `documents/active-work/W12-executor-subpackaging.md`
   (W12-0..W12-5);

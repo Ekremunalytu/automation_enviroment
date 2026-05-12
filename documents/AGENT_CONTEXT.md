@@ -1,6 +1,6 @@
 # Agent Context
 
-`Last Updated: 2026-05-12 (W13-1..W13-7 closed — acceptance bar cleared; W13-8 closed — §11.10 GOAL benign silence fixture 3→5 GREEN, 5/5 ✓; W13-9 closed — .env gitignore architecture gate 10/10 ✓; W13-10 closed — singleton-lock recovery integration test 2/2 ✓; W13-11 closed`2026-05-12`(6/6 sub-commits) — Path A host-side eager-consume + env var passthrough close-pass for W13-1 H6; W13-12/13 CLOSE-GATE still pending; close-out PR week13 → main BLOCKED until W13-12/13 GREEN)`
+`Last Updated: 2026-05-12 (W13-1..W13-7 closed — acceptance bar cleared; W13-8 closed — §11.10 GOAL benign silence fixture 3→5 GREEN, 5/5 ✓; W13-9 closed — .env gitignore architecture gate 10/10 ✓; W13-10 closed — singleton-lock recovery integration test 2/2 ✓; W13-11 closed`2026-05-12`(6/6 sub-commits) — Path A host-side eager-consume + env var passthrough close-pass for W13-1 H6; W13-12 closed`2026-05-12`(5/5 sub-commits) — fail-closed harness handshake close-pass for W13-1 H6 (`harness_handshake_required: bool` + fail-closed branch + 3-fact AST gate; test bar 1537 → 1539 / 112 → 115); W13-13 CLOSE-GATE still pending; close-out PR week13 → main BLOCKED until W13-13 GREEN)`
 
 Thin routing map for coding agents after `AGENTS.md`. **Stays short.**
 Do not copy phase history here; use `REFACTOR_STATUS.md` (slim canonical).

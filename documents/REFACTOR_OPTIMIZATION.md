@@ -1,6 +1,6 @@
 # REFACTOR_OPTIMIZATION
 
-`Last Updated: 2026-05-12 (W13 active — W13-1..W13-7 closed acceptance bar; W13-8/9/10 closed §11.10 GOAL pulls; W13-11 HMAC python secret target-install race closed 2026-05-12 (6/6 main sub-commits + 7 post-landing additions in same push: 9a2ba76 self-stamp + doc fix-up + defense-in-depth b/c/a + README regex pin (steal-from-W13-13) + tracker test bar update; final bar test-local 1521 → 1537 / tests/architecture/ 105 → 112) — Path A host-side eager-consume + env var passthrough; CLOSE-GATE HOLD remains on W13-12 fail-closed harness handshake / W13-13 worker-start cancel-race CAS (README sweep + regex pin already landed in W13-11 push); close-out PR week13 → main BLOCKED until W13-12/13 GREEN; §12 W14 staging scope pre-entry, activates after close-gate clearance + close-out merge)`
+`Last Updated: 2026-05-12 (W13 active — W13-1..W13-7 closed acceptance bar; W13-8/9/10 closed §11.10 GOAL pulls; W13-11 HMAC python secret target-install race closed 2026-05-12 (6/6 main sub-commits + 7 post-landing additions in same push: 9a2ba76 self-stamp + doc fix-up + defense-in-depth b/c/a + README regex pin (steal-from-W13-13) + tracker test bar update; final bar test-local 1521 → 1537 / tests/architecture/ 105 → 112) — Path A host-side eager-consume + env var passthrough; W13-12 fail-closed harness handshake closed 2026-05-12 (5/5 sub-commits — `harness_handshake_required: bool` + fail-closed branch + 3-fact AST gate; final bar test-local 1537 → 1539 / tests/architecture/ 112 → 115); CLOSE-GATE HOLD remains on W13-13 worker-start cancel-race CAS (README sweep + regex pin already landed in W13-11 push); close-out PR week13 → main BLOCKED until W13-13 GREEN; §12 W14 staging scope pre-entry, activates after close-gate clearance + close-out merge)`
 
 W0-W14 plan document: stabilization + security + post-PoC external-review
 integration + W14 acceptance + observability continuation. **Slim canonical**
@@ -203,14 +203,24 @@ review on `week13`):
   harness_python_secret=...)` → docker exec
   `-e EXECUTOR_HARNESS_PYTHON_SECRET_VALUE=<hex>` env var.
   `load_harness_python_secret()` env-priority. E4 docker exec argv
-  mask. W13-1 nonce gate intact. W13-12 immediate follow-up required
-  for full fail-closed semantics.
-- W13-12 (`[CLOSE-GATE codex-second-opinion-F2-fail-closed-harness-handshake]`)
-  — close-pass for W13-1 H6. `reconciliation.py:137-146` legacy
-  phase-only fallback when `expected_nonce` empty; `load_harness_python_secret`
-  returns `""` on any read failure → production silently degrades to
-  spoofable behavior. Fix direction: `ActivationReport.harness_handshake_required: bool`
-  with fail-closed production semantics.
+  mask. W13-1 nonce gate intact. W13-12 immediate follow-up closed
+  `2026-05-12` (see W13-12 row below + `REFACTOR_STATUS.md` §11.10
+  status table row 216).
+- ~~W13-12~~ (`[CLOSE-GATE codex-second-opinion-F2-fail-closed-harness-handshake]`)
+  — **closed `2026-05-12`** (5/5 sub-commits: 8782630 docs lockdown ·
+  d30a50f RED tests · c98f350 feat impl · a2c4aa2 arch gate · e7752a1
+  close sweep). Close-pass for W13-1 H6. Internal monitor
+  `ActivationReport.harness_handshake_required: bool` field stamped
+  `True` by `setup_monitor`; `_attempt_has_harness_completion_trace`
+  fail-closed branch fires on empty `expected_nonce` +
+  `handshake_required=True` (eager-consume miss in residual failure
+  modes — `FileNotFoundError`/`OSError`/bind-mount race). Test path
+  default `False` preserves pre-W13-1 phase-only contract for unit
+  fixtures. 3-fact AST gate (`test_setup_monitor_handshake_required.py`)
+  pins stamp/read/thread invariants. Final bar: `make test-local`
+  1537 → 1539 (+2); `tests/architecture/` 112 → 115 (+3). W13-1
+  regression suite zero-diff. Close-out PR merge blocker reduces to
+  W13-13 only.
 - W13-13 (`[CLOSE-GATE codex-second-opinion-F3-worker-start-cancel-race-CAS]`)
   — close-pass for W13-3 H4. `analysis_service.run_analysis_job:194`
   unconditional `update_job(status="running")` regresses `queued →
@@ -222,11 +232,11 @@ review on `week13`):
   regex pin landed early in the W13-11 push (sub-commits 8 + 12) to
   keep the README sweep paired with its banner-cascade fix-up.
 
-Close-out PR `week13 → main` is BLOCKED until W13-12/13 reach
-GREEN (W13-11 closed `2026-05-12`). These items are pulled in-window
-(not deferred to W14) because they directly fix bypass surfaces in the
-originally W13-claimed H6 + H4 closures — keeping them in-window
-preserves audit-trail integrity.
+Close-out PR `week13 → main` is BLOCKED until W13-13 reaches GREEN
+(W13-11 and W13-12 both closed `2026-05-12`). These items are pulled
+in-window (not deferred to W14) because they directly fix bypass
+surfaces in the originally W13-claimed H6 + H4 closures — keeping
+them in-window preserves audit-trail integrity.
 
 ### §11.11 — Cross-Reference
 
@@ -257,13 +267,14 @@ Before W13 closes:
 - **Close-gate (added `2026-05-11`): W13-11/12/13 close-pass items
   GREEN.** Codex Cloud second-opinion review identified 3 P1 bypass
   surfaces in the originally W13-claimed H6 + H4 closures (W13-11 HMAC
-  python secret target-install race — **closed `2026-05-12`**, W13-12
-  fail-closed harness handshake, W13-13 worker-start cancel-race CAS
-  — F4 README drift sweep + regex pin originally bundled in W13-13
-  scope landed early in W13-11 push `2026-05-12`). Close-out PR
-  `week13 → main` is held until W13-12/13 reach GREEN — keeping the
-  fixes in-window preserves audit-trail integrity (history shows H6/H4
-  work as a coherent iteration family rather than a deferred follow-up).
+  python secret target-install race — **closed `2026-05-12`**; W13-12
+  fail-closed harness handshake — **closed `2026-05-12`**; W13-13
+  worker-start cancel-race CAS — F4 README drift sweep + regex pin
+  originally bundled in W13-13 scope landed early in W13-11 push
+  `2026-05-12`). Close-out PR `week13 → main` is held until W13-13
+  reaches GREEN — keeping the fixes in-window preserves audit-trail
+  integrity (history shows H6/H4 work as a coherent iteration family
+  rather than a deferred follow-up).
 
 ## §12 — W14 Codex M-class Acceptance + Observability (2026-05-11 staging)
 

@@ -1,6 +1,6 @@
 # W13 — Test Expansion + Observability (Active Work Tracker)
 
-`Last Updated: 2026-05-12 (W13-11 closed 2026-05-12 (6/6 sub-commits — design+impl+arch gate+regression fix+doc sweep) — Path A host-side eager-consume + env var passthrough; W13-12 closed 2026-05-12 (5/5 sub-commits — `ActivationReport.harness_handshake_required: bool` fail-closed; final bar test-local 1537 → 1539 (+2) / tests/architecture/ 112 → 115 (+3)); W13-13 remains CLOSE-GATE not started)`
+`Last Updated: 2026-05-12 (W13-11 closed 2026-05-12 (6/6 sub-commits — design+impl+arch gate+regression fix+doc sweep) — Path A host-side eager-consume + env var passthrough; W13-12 closed 2026-05-12 (5/5 sub-commits + post-landing drift sweep + 3 behavioral pins — `ActivationReport.harness_handshake_required: bool` fail-closed; final bar test-local 1537 → 1539 (+2 main) → 1542 (+3 post-landing) / tests/architecture/ 112 → 115 (+3)); W13-13 remains CLOSE-GATE not started)`
 `Phase: W13 active — CLOSE-GATE HOLD on W13-13 (W13-11 + W13-12 closed)`
 `Branch: week13 (single-branch policy precedent; opened 2026-05-10 from cff6455)`
 `Owner: ekrem`
@@ -204,24 +204,41 @@ the section ages.
   redaction case in `tests/security/test_executor_host_error_redaction.py`);
   `tests/architecture/` 105 → 110 (+5: 3 W13-11 sequence/threading invariants
   - 2 collateral arch additions). W13-12 (fail-closed
-  handshake) immediate follow-up required for full fail-closed semantics;
-  W13-11 alone landed worst case = pre-W13-11 status quo (no new
-  regression). Per-Item Detail block below preserved as closure
-  evidence.
+  handshake) immediate follow-up closed `2026-05-12` (5/5 sub-commits;
+  see W13-12 block below). Per-Item Detail block below preserved as
+  closure evidence.
 - **W13-12 — Fail-closed harness handshake (close-pass for W13-1).**
-  Codex F2:
+  **closed `2026-05-12` (5/5 sub-commits: `8782630` docs lockdown ·
+  `d30a50f` RED tests · `c98f350` feat impl · `a2c4aa2` arch gate ·
+  `e7752a1` close sweep; post-landing additions on same branch:
+  `3a89c09` self-stamp sub-commit 5 SHA in tracker; post-close drift
+  sweep + behavioral pin commits to follow).** Codex F2:
   [`reconciliation.py:137-146`](../../executor/flows/playwright/health/reconciliation.py:137)
-  falls back to legacy phase-only check when `expected_nonce` is
+  fell back to legacy phase-only check when `expected_nonce` was
   empty; [`load_harness_python_secret()`](../../executor/flows/playwright/health/reconciliation.py:51)
   returns `""` on any read failure (FileNotFoundError, OSError, perm
-  glitch, race with reset_state). Production paths must fail closed
-  when handshake is required but missing. Fix direction: add explicit
-  `ActivationReport.harness_handshake_required: bool` flag (default
-  True at production construction site `setup_monitor` after W13-11
-  lands, False in pre-W13-1 unit-test construction); modify
-  `_attempt_has_harness_completion_trace` so empty `expected_nonce`
-  AND `harness_handshake_required=True` returns False (no verification).
-  Legacy phase-only branch retained for tests only.
+  glitch, race with reset_state). Resolved by adding
+  `ActivationReport.harness_handshake_required: bool` field on the
+  internal monitor dataclass
+  ([`monitor/types.py:133`](../../executor/flows/playwright/monitor/types.py:133));
+  `setup_monitor` stamps it `True`
+  ([`entrypoint/dispatch.py:137`](../../executor/flows/playwright/entrypoint/dispatch.py:137));
+  `_attempt_has_harness_completion_trace`
+  ([`reconciliation.py:137-182`](../../executor/flows/playwright/health/reconciliation.py:137))
+  gained a `handshake_required` keyword-only parameter + fail-closed
+  branch (empty nonce + required=True → return False). Test fixtures
+  keep the default `False` so the pre-W13-1 phase-only regression
+  surface stays GREEN. 3-fact AST gate
+  ([`tests/architecture/test_setup_monitor_handshake_required.py`](../../tests/architecture/test_setup_monitor_handshake_required.py))
+  pins stamp/read/thread invariants. Post-landing behavioral pins
+  ([`tests/security/test_harness_handshake_required.py`](../../tests/security/test_harness_handshake_required.py))
+  cover signature-path priority, malformed-trace fail-closed, and
+  end-to-end attestation. Final bar: `make test-local` 1537 → 1539
+  (+2 main sub-commits) → 1542 (+3 post-landing behavioral pins);
+  `tests/architecture/` 112 → 115 (+3); `make test-security` 215
+  unchanged (lane composition). W13-1 regression suite
+  (`test_playwright_health_reconciliation.py` 21/21) + W13-1/W13-11
+  architecture gates zero-diff.
 - **W13-13 — Worker-start cancel-race CAS (close-pass for W13-3; F4 README
   sweep + regex pin moved to W13-11 push `2026-05-12`).**
   Codex F3:
