@@ -1,6 +1,6 @@
 # Refactor Status
 
-`Last Updated: 2026-05-13 (W13 active; W13-1..W13-10 sub-iters closed; W13-11 closed 2026-05-12 (6/6 sub-commits — design+impl+arch gate+regression fix+doc sweep) — Path A host-side eager-consume + env var passthrough; W13-12 closed 2026-05-12 (5/5 sub-commits — `ActivationReport.harness_handshake_required: bool` fail-closed); W13-13 in-progress 2026-05-13 — Path B worker-entry `with_for_update()` snapshot design locked-in (sub-commit 1 docs lockdown landed); close-out PR week13 → main BLOCKED until W13-13 GREEN; W14 staging pre-entry)`
+`Last Updated: 2026-05-13 (W13 closed 2026-05-13 — W13-1..W13-13 all GREEN; W13-11 closed 2026-05-12 (6/6 sub-commits) — Path A host-side eager-consume + env var passthrough; W13-12 closed 2026-05-12 (5/5 sub-commits) — `ActivationReport.harness_handshake_required: bool` fail-closed; W13-13 closed 2026-05-13 (5/5 sub-commits — d2ba495 docs · 02c4374 RED · 33deb46 feat · 60bb0cd arch gate · TBD close sweep) — Path B worker-entry `with_for_update()` snapshot lock; final bar test-local 1542 → 1547 (+5) / tests/architecture/ 115 → 117 (+2); close-out PR week13 → main READY (close-gate cleared); W14 staging entry gate triggers on close-out merge)`
 
 Active status board for current closure state. **Slim canonical** — verbose
 phase evidence is frozen under dated snapshots:
@@ -178,14 +178,42 @@ phase evidence is frozen under dated snapshots:
     regex pin were landed early in the W13-11 push (sub-commits 8 +
     12) so the README sweep stays paired with the banner-cascade
     fix-up. W13-13 elde kalan iş = worker-start cancel-race CAS only.
-- W13 close-out PR `week13 → main` **BLOCKED** until W13-13 GREEN
-  (W13-11 and W13-12 both closed `2026-05-12`). All chosen §11.10
-  GOAL pulls (W13-8, W13-9, W13-10) remain GREEN; close-out language
-  for W13-1..W13-12 stays literally true at sub-iter granularity. The
-  close-gate items are pulled in-window (not W14) because they fix
-  bypass surfaces in originally W13-claimed H6 + H4 closures. Original §11.10 candidates that remain not-started
-  (logger consolidation, run-ID stamping, W8-W12 regression lock-in
-  umbrella) iterate into W14.
+- **W13-13 closed `2026-05-13` (5/5 sub-commits).** Codex F3
+  worker-start cancel-race CAS close-pass for W13-3 H4 closed via
+  Path B worker-entry `with_for_update()` snapshot lock in
+  `workflows/marketplace/analysis_service.py::run_analysis_job`. The
+  pre-W13-13 unconditional `update_job(status="running")` is replaced
+  by an entry-block `select(AnalysisJob).where(...).with_for_update()`
+  read that branches on observed status: row missing → log + return;
+  terminal → log + return; `cancelling` → `finalize_cancelled_analysis_job(db, ...)`
+  via the lifecycle CRUD helper directly (the wrapper would deadlock
+  against the held row lock) + return; `queued` → atomic mutation +
+  `db.commit()` + proceed with the existing analysis flow. New
+  architecture gate `tests/architecture/test_run_analysis_job_entry_snapshot.py`
+  pins INV1 (first DB action must bear `with_for_update()`) + INV2
+  (lifecycle helper, not wrapper, called before `execute_analysis_request`).
+  New behavioral coverage `tests/platform/storage/test_analysis_jobs_cancel_at_worker_entry.py`
+  3/3 ✓ (cancel-finalize, queued happy-path, terminal short-circuit).
+  W13-4 `test_run_analysis_job_finalize.py` flipped from
+  `update_job.assert_called_once()` to `assert_not_called()` to reflect
+  Path B's contract that the worker entry no longer routes the queued
+  -> running transition through the wrapper. Final bar: `make test-local`
+  1542 → **1547** (+5: 3 behavioral + 2 arch); `tests/architecture/`
+  115 → **117** (+2); 2 pre-existing env-only VSIX fixture failures
+  in `test_analysis_fixture_baselines.py` unchanged (reproduce on
+  HEAD~5 = pre-W13-13). W13-3 regression suite intact
+  (`test_analysis_jobs_lifecycle.py` 25/25 ✓, `test_cancel_poll_points.py`
+  2/2 ✓); W13-1/W13-11/W13-12 architecture gates zero-diff. Production
+  code diff scoped to 1 file (`analysis_service.py` +163 -93). Close-out
+  PR `week13 → main` merge blocker **CLEARED**.
+- W13 close-out PR `week13 → main` is **READY** (close-gate cleared
+  `2026-05-13`). W13-1..W13-13 all GREEN; close-out language stays
+  literally true at sub-iter granularity. The close-gate items
+  (W13-11/W13-12/W13-13) were pulled in-window (not W14) to preserve
+  audit-trail integrity for originally W13-claimed H6 + H4 closures.
+  Original §11.10 candidates that remain not-started (logger
+  consolidation, run-ID stamping, W8-W12 regression lock-in umbrella)
+  iterate into W14.
 - **Next phase: W14 — Codex M-class Acceptance + Observability** (staging).
   Scope authored `2026-05-11` in
   [`active-work/W14-codex-acceptance-observability.md`](active-work/W14-codex-acceptance-observability.md);
@@ -214,7 +242,7 @@ phase evidence is frozen under dated snapshots:
 | W13-10 | `[§11.10 GOAL]` Stale singleton-lock recovery integration test | closed `2026-05-11`; 2 new integration cases in `tests/executor/test_reset_state.py` 13/13 ✓ (full 3-lock-held → reset → all removed + unrelated preserved; partial 2-of-3-held → reset → partial removed). Pre-W13-10 unit cases stubbed `cleanup_singleton_locks` inside `reset_executor_state`; W13-10 exercises real cleanup integration; `make test-local` 1519 → 1521 collected (+2 passed); production code untouched |
 | W13-11 | `[CLOSE-GATE codex-second-opinion-F1-hmac-python-secret-target-install-race]` close-pass for W13-1 H6 | **closed `2026-05-12` (6/6 sub-commits + 6 post-landing additions in same push: 9a2ba76 self-stamp · doc fix-up · defense-in-depth b/c/a · README regex pin steal-from-W13-13)**; Path A host-side eager-consume + env var passthrough — `workflows/marketplace/analysis_service.py` `_reset_sandbox` → `executor_control.consume_harness_python_secret()` → `_install_extension`; host reads bind-mounted `Path(settings.project.OUTPUT_DIR) / "_extrace_harness_python_secret"` + unlinks, threads through `run_playwright_automation(..., harness_python_secret=...)` → docker exec `-e EXECUTOR_HARNESS_PYTHON_SECRET_VALUE=<hex>` env var. `load_harness_python_secret()` env-priority. `setup_monitor` call unchanged. E4 docker exec argv mask. Final bar: `make test-local` 1521 → **1537** (+16: 10 from 6/6 sub-commits + 6 from defense-in-depth b/c/a + d = 1 + 1 + 2 + 2); `make test-security` 215 unchanged (lane composition; E4 redaction extensions in `tests/security/test_executor_host_error_redaction.py` count toward test-local only); `tests/architecture/` 105 → **112** (+7: 5 from 6/6 + 2 from (d) README regex pin sub-commit 12). W13-12 immediate follow-up closed `2026-05-12` (see W13-12 row below); merge blocker for `week13 → main` cleared once W13-13 also GREEN. |
 | W13-12 | `[CLOSE-GATE codex-second-opinion-F2-fail-closed-harness-handshake]` close-pass for W13-1 H6 | **closed `2026-05-12` (5/5 sub-commits — 8782630 docs lockdown · d30a50f RED tests · c98f350 feat impl · a2c4aa2 arch gate · e7752a1 close sweep; post-landing on same branch: 3a89c09 self-stamp · 9c80f25 drift sweep · 0d3e343 behavioral pins)**; `ActivationReport.harness_handshake_required: bool` on internal monitor dataclass + `_attempt_has_harness_completion_trace` fail-closed branch + `setup_monitor` stamps True; 2 new RED→GREEN cases in `tests/security/test_harness_handshake_required.py` + 3-fact AST gate in `tests/architecture/test_setup_monitor_handshake_required.py`. Post-landing behavioral pins (`0d3e343`) added 3 cases to `tests/security/test_harness_handshake_required.py`: signature-path priority, malformed-trace fail-closed, end-to-end attestation. Final bar: `make test-local` 1537 → 1539 (+2 main) → 1542 (+3 post-landing) (2 pre-existing env-only VSIX fixture failures in `test_analysis_fixture_baselines.py` unchanged, not W13-12 related); `tests/architecture/` 112 → 115 (+3, unchanged post-landing); W13-1 regression suite (`test_playwright_health_reconciliation.py` 21/21) + W13-1/W13-11 architecture gates (`test_harness_marker_auth.py` 3/3 + `test_harness_secret_eager_consume.py` 3/3) zero-diff. Close-out PR `week13 → main` merge blocker reduces to W13-13 only. |
-| W13-13 | `[CLOSE-GATE codex-second-opinion-F3-worker-start-cancel-race-CAS]` close-pass for W13-3 H4 (scope rebased `2026-05-12` — F4 README sweep + regex pin landed in W13-11 push) | **in-progress `2026-05-13`** (Codex Cloud second-opinion `2026-05-11`); merge blocker; Path B worker entry `with_for_update()` snapshot design **locked-in** — `cancelling` görürse `finalize_cancelled_analysis_job(db, ...)` (lifecycle helper, NOT wrapper — deadlock avoidance) + return (W13-3 two-phase symmetric exit); terminal `_TERMINAL_JOB_STATUSES` görürse log + rollback + return; row missing → log + rollback + return; `queued` → atomic transition under lock. `update_job(status="running")` koşulsuzluğu kapanır. Sub-commit 1 (docs lockdown) landed `2026-05-13`; sub-commits 2-5 (RED behavioral + feat impl + arch gate INV1/INV2 + close evidence drift sweep) pending. README.md:58 W13 phase pointer drift sweep + `tests/architecture/test_readme_phase_pointer.py` regex pin already landed in the W13-11 push `2026-05-12` (sub-commits 8 + 12) to keep the README sweep paired with its banner-cascade fix-up. |
+| W13-13 | `[CLOSE-GATE codex-second-opinion-F3-worker-start-cancel-race-CAS]` close-pass for W13-3 H4 (scope rebased `2026-05-12` — F4 README sweep + regex pin landed in W13-11 push) | **closed `2026-05-13` (5/5 sub-commits — `d2ba495` docs lockdown · `02c4374` RED behavioral · `33deb46` feat impl · `60bb0cd` arch gate · TBD close evidence + 10-site drift sweep)**; Path B worker-entry `select(AnalysisJob).where(...).with_for_update()` snapshot lock in `workflows/marketplace/analysis_service.py::run_analysis_job`; entry block branches: row missing → log + return; terminal → log + return; `cancelling` → `finalize_cancelled_analysis_job(db, ...)` (lifecycle helper directly, NOT wrapper — deadlock avoidance documented inline) + return; `queued` → atomic mutation + commit + proceed. 3 new RED→GREEN behavioral cases in `tests/platform/storage/test_analysis_jobs_cancel_at_worker_entry.py` + 2-fact AST gate in `tests/architecture/test_run_analysis_job_entry_snapshot.py` (INV1 first DB action bears `with_for_update()`; INV2 lifecycle helper called before `execute_analysis_request`). W13-4 `update_job.assert_called_once()` flipped to `assert_not_called()` to reflect Path B contract. Final bar: `make test-local` 1542 → **1547** (+5); `tests/architecture/` 115 → **117** (+2); 2 pre-existing env-only VSIX fixture failures unchanged (not W13-13 related); W13-3 + W13-4 + W13-1/W13-11/W13-12 regression suites zero-diff. Production diff scoped to 1 file (`analysis_service.py` +163 -93). Close-out PR `week13 → main` merge blocker **CLEARED**. |
 
 ## Current Deferrals
 

@@ -1,6 +1,6 @@
 # ExTrace
 
-`Last Updated: 2026-05-12`
+`Last Updated: 2026-05-13`
 
 ExTrace is a VS Code extension analysis platform built around three runtime
 surfaces:
@@ -55,17 +55,20 @@ multi-tenant web platform.
   W8-8 deferred); **W9 closed `2026-05-04`** (PR #9); **W10 closed
   `2026-05-04`** (PR #11); **W11 closed `2026-05-05`** and merged via
   PR #14; **W12 closed `2026-05-10`** and merged via PR #18 (`33a0852`).
-  Active phase: **W13 Test Expansion + Observability**.
-  W13-1..W13-7 acceptance-bar closed; W13-8/9/10 §11.10 GOAL pulls
-  closed (benign silence fixture, `.env` gitignore gate, singleton-lock
-  recovery); **W13-11 HMAC python secret target-install race closed
-  `2026-05-12`** (Path A host-side eager-consume + env var passthrough,
-  6/6 sub-commits + defense-in-depth + README sweep); **W13-12 fail-closed
-  harness handshake closed `2026-05-12`** (5/5 sub-commits;
-  `ActivationReport.harness_handshake_required: bool` + fail-closed branch
-  + 3-fact AST gate; test bar 1537 → 1539 / 112 → 115). W13-13
-  (worker-start cancel-race CAS) still CLOSE-GATE hold; close-out PR
-  `week13 → main` BLOCKED until W13-13 GREEN. Tracker:
+  **W13 Test Expansion + Observability closed `2026-05-13`** (W13-1..W13-13
+  all GREEN). W13-1..W13-7 acceptance-bar closed; W13-8/9/10 §11.10 GOAL
+  pulls closed (benign silence fixture, `.env` gitignore gate,
+  singleton-lock recovery); **W13-11 HMAC python secret target-install
+  race closed `2026-05-12`** (Path A host-side eager-consume + env var
+  passthrough, 6/6 sub-commits + defense-in-depth + README sweep);
+  **W13-12 fail-closed harness handshake closed `2026-05-12`** (5/5
+  sub-commits; `ActivationReport.harness_handshake_required: bool` +
+  fail-closed branch + 3-fact AST gate; test bar 1537 → 1542);
+  **W13-13 worker-start cancel-race CAS closed `2026-05-13`** (5/5
+  sub-commits — Path B worker-entry `with_for_update()` snapshot lock
+  + lifecycle-helper-not-wrapper deadlock avoidance + 2-fact AST gate;
+  test bar 1542 → 1547 / tests/architecture/ 115 → 117). Close-out PR
+  `week13 → main` **READY** (close-gate cleared `2026-05-13`). Tracker:
   [`active-work/W13-test-expansion-observability.md`](documents/active-work/W13-test-expansion-observability.md).
 - **Canonical source of truth for phase state:**
   [`documents/REFACTOR_STATUS.md`](documents/REFACTOR_STATUS.md).

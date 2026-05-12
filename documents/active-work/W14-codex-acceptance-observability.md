@@ -1,7 +1,7 @@
 # W14 — Codex M-class Acceptance + Observability (Active Work Tracker)
 
-`Last Updated: 2026-05-12 (W14 staging — skeleton authored alongside W13 close-out preparation; W13-11 close-gate closed 2026-05-12 — Path A + defense-in-depth (a/b/c) + README sweep steal-from-W13-13; W13-12 close-gate closed 2026-05-12 — fail-closed harness handshake (5/5 sub-commits; harness_handshake_required: bool + fail-closed branch + 3-fact AST gate); W13-13 (cancel-race CAS only — README sweep + regex pin already landed in W13-11 push) still pending; no W14-N stable ID pulled yet; tracker activates after full W13 close-gate clearance + week13 → main close-out PR merges + week14 branch cut from main)`
-`Phase: W14 staging (pre-entry — awaits W13-13 close-gate clearance + close-out PR merge)`
+`Last Updated: 2026-05-13 (W14 staging — skeleton authored alongside W13 close-out preparation; W13-11 close-gate closed 2026-05-12 — Path A + defense-in-depth (a/b/c) + README sweep steal-from-W13-13; W13-12 close-gate closed 2026-05-12 — fail-closed harness handshake (5/5 sub-commits; harness_handshake_required: bool + fail-closed branch + 3-fact AST gate); W13-13 close-gate closed 2026-05-13 — Path B worker-entry `with_for_update()` snapshot lock (5/5 sub-commits; lifecycle-helper-not-wrapper deadlock avoidance + 2-fact AST gate; final bar 1542 → 1547 / 115 → 117); **W13 close-gate cleared**; no W14-N stable ID pulled yet; tracker activates after week13 → main close-out PR merges + week14 branch cut from main)`
+`Phase: W14 staging (pre-entry — W13 close-gate cleared `2026-05-13`; remaining trigger is close-out PR merge)`
 `Branch: week14 (to be cut from main after PR #N landing W13)`
 `Owner: ekrem`
 
@@ -29,11 +29,12 @@ list.
   yet. Tracker activates when the `week13 → main` close-out PR merges and
   the `week14` branch is cut from `main`.
 + **Entry gate (target).** When met, opens W14-1:
-  + W13 close-gate cleared: W13-11 (HMAC python secret eager-consume) ✓
-    closed `2026-05-12`; W13-12 (fail-closed harness handshake) ✓
-    closed `2026-05-12`; W13-13 (worker-start cancel-race CAS — README
-    sweep + regex pin already landed in W13-11 push `2026-05-12`) still
-    GREEN required.
+  + W13 close-gate cleared ✓ (`2026-05-13`): W13-11 (HMAC python secret
+    eager-consume) ✓ closed `2026-05-12`; W13-12 (fail-closed harness
+    handshake) ✓ closed `2026-05-12`; W13-13 (worker-start cancel-race
+    CAS — Path B worker-entry `with_for_update()` snapshot lock;
+    README sweep + regex pin already landed in W13-11 push
+    `2026-05-12`) ✓ closed `2026-05-13`.
   + `week13 → main` close-out PR merged (close-out PR includes
     W13-11/12/13 close-pass fixes + W13-1..W13-10 sub-iter ratchet'leri
     + §11.10 GOAL pulls).
@@ -63,10 +64,12 @@ list.
 
 ## Entry Conditions (target — to be ticked at W14 open)
 
-+ [ ] W13 close-gate cleared: W13-11 (HMAC python secret eager-consume) ✓
-  closed `2026-05-12`; W13-12 (fail-closed harness handshake) ✓
-  closed `2026-05-12`; W13-13 (worker-start cancel-race CAS only —
-  README sweep + regex pin landed in W13-11 push `2026-05-12`) ☐.
++ [x] W13 close-gate cleared `2026-05-13`: W13-11 (HMAC python secret
+  eager-consume) ✓ closed `2026-05-12`; W13-12 (fail-closed harness
+  handshake) ✓ closed `2026-05-12`; W13-13 (worker-start cancel-race
+  CAS — Path B worker-entry `with_for_update()` snapshot lock; README
+  sweep + regex pin already landed in W13-11 push `2026-05-12`) ✓
+  closed `2026-05-13`.
 + [ ] W13 closed and merged to `main` via `week13 → main` PR
   (close-out PR includes W13-1..W13-13 ratchet bundle).
 + [ ] `make check-all` green at the W13 close baseline; expected
