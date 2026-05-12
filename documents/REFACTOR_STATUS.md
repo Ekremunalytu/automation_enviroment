@@ -1,6 +1,6 @@
 # Refactor Status
 
-`Last Updated: 2026-05-12 (W13 active; W13-1..W13-10 sub-iters closed; W13-11 closed 2026-05-12 (6/6 sub-commits — design+impl+arch gate+regression fix+doc sweep) — Path A host-side eager-consume + env var passthrough; W13-12 in progress 2026-05-12 (sub-commit 1/5 — design lockdown) — `ActivationReport.harness_handshake_required: bool` fail-closed; W13-13 remains CLOSE-GATE not started; close-out PR week13 → main BLOCKED until W13-12/13 GREEN; W14 staging pre-entry)`
+`Last Updated: 2026-05-12 (W13 active; W13-1..W13-10 sub-iters closed; W13-11 closed 2026-05-12 (6/6 sub-commits — design+impl+arch gate+regression fix+doc sweep) — Path A host-side eager-consume + env var passthrough; W13-12 closed 2026-05-12 (5/5 sub-commits — `ActivationReport.harness_handshake_required: bool` fail-closed); W13-13 remains CLOSE-GATE not started; close-out PR week13 → main BLOCKED until W13-13 GREEN; W14 staging pre-entry)`
 
 Active status board for current closure state. **Slim canonical** — verbose
 phase evidence is frozen under dated snapshots:
@@ -120,6 +120,33 @@ phase evidence is frozen under dated snapshots:
   bar: `make test-local` 1519 → 1521 collected (+2 passed);
   `tests/architecture/` 105 unchanged; `make test-security` 212
   unchanged.
+- **W13-12 closed `2026-05-12` (5/5 sub-commits).** Codex F2
+  fail-closed harness handshake close-pass for W13-1 H6 closed via
+  explicit `harness_handshake_required: bool` flag on the internal
+  monitor `ActivationReport` dataclass
+  (`executor/flows/playwright/monitor/types.py:124`, alongside
+  `expected_harness_nonce`). Production paths set the flag `True` at
+  `setup_monitor` time (`dispatch.py:129`); `_attempt_has_harness_completion_trace`
+  grows a keyword-only `handshake_required` argument with a new
+  fail-closed branch — empty `expected_nonce` + `handshake_required=True`
+  refuses to fall back to the legacy phase-only check (target
+  extensions can forge `[extrace-harness] {phase:"complete"}`).
+  `reconcile_event_attempts` reads the flag via `getattr(...,False)`
+  and threads it as the kwarg. Test fixtures that construct
+  `ActivationReport` directly keep the default `False`, preserving
+  the pre-W13-1 phase-only contract. 2 new RED→GREEN cases in
+  `tests/security/test_harness_handshake_required.py` (production
+  fail-closed + legacy phase-only baseline). 3-fact AST gate in
+  `tests/architecture/test_setup_monitor_handshake_required.py`
+  (setup_monitor stamps True + reconcile reads via getattr + threads
+  kwarg). Final bar: `make test-local` 1537 → 1539 (+2; 2
+  pre-existing env-only VSIX fixture failures in
+  `test_analysis_fixture_baselines.py` reproduce on HEAD~4 = pre-W13-12,
+  not W13-12 related); `tests/architecture/` 112 → 115 (+3); W13-1
+  regression suite (`test_playwright_health_reconciliation.py` 21/21)
+  + W13-1/W13-11 architecture gates intact. Production diff scoped to
+  3 files (+~25 net lines). Close-out PR `week13 → main` merge blocker
+  reduces to W13-13 only.
 - **CLOSE-GATE HOLD `2026-05-11`.** Codex Cloud second-opinion review
   on `week13` surfaced 3 P1 close-pass items pulled as W13 sub-iters
   (preserving audit-trail integrity for the originally W13-claimed
@@ -131,12 +158,15 @@ phase evidence is frozen under dated snapshots:
     install→setup_monitor window → forges HMAC-signed harness markers.
     Fix direction (Path A): eager-consume in executor bootstrap.
   - **W13-12** — `[CLOSE-GATE codex-second-opinion-F2-fail-closed-harness-handshake]`.
-    Close-pass for W13-1 H6. `reconciliation.py:137-146` legacy
-    phase-only fallback when `expected_nonce` empty; production
-    sessizce spoofable mode'a düşer. Fix:
-    `ActivationReport.harness_handshake_required: bool` with
-    fail-closed production semantics. Depends on W13-11 (eager-consume
-    guarantees secret presence).
+    Close-pass for W13-1 H6. **Closed `2026-05-12` (5/5 sub-commits).**
+    `reconciliation.py:137-146` legacy phase-only fallback when
+    `expected_nonce` empty closed via explicit
+    `harness_handshake_required: bool` on internal monitor
+    ActivationReport dataclass + production `setup_monitor` stamps
+    `True` + fail-closed branch in
+    `_attempt_has_harness_completion_trace`. W13-11 eager-consume
+    guarantees secret presence on happy path; W13-12 covers residual
+    failure modes (FileNotFoundError, OSError, bind-mount race).
   - **W13-13** — `[CLOSE-GATE codex-second-opinion-F3-worker-start-cancel-race-CAS]`.
     Close-pass for W13-3 H4. `analysis_service.run_analysis_job:194`
     unconditional `update_job(status="running")` regresses `queued →
@@ -148,12 +178,12 @@ phase evidence is frozen under dated snapshots:
     regex pin were landed early in the W13-11 push (sub-commits 8 +
     12) so the README sweep stays paired with the banner-cascade
     fix-up. W13-13 elde kalan iş = worker-start cancel-race CAS only.
-- W13 close-out PR `week13 → main` **BLOCKED** until W13-11/12/13
-  GREEN. All chosen §11.10 GOAL pulls (W13-8, W13-9, W13-10) remain
-  GREEN; close-out language for W13-1..W13-10 stays literally true at
-  sub-iter granularity. The close-gate items are pulled in-window (not
-  W14) because they fix bypass surfaces in originally W13-claimed H6 +
-  H4 closures. Original §11.10 candidates that remain not-started
+- W13 close-out PR `week13 → main` **BLOCKED** until W13-13 GREEN
+  (W13-11 and W13-12 both closed `2026-05-12`). All chosen §11.10
+  GOAL pulls (W13-8, W13-9, W13-10) remain GREEN; close-out language
+  for W13-1..W13-12 stays literally true at sub-iter granularity. The
+  close-gate items are pulled in-window (not W14) because they fix
+  bypass surfaces in originally W13-claimed H6 + H4 closures. Original §11.10 candidates that remain not-started
   (logger consolidation, run-ID stamping, W8-W12 regression lock-in
   umbrella) iterate into W14.
 - **Next phase: W14 — Codex M-class Acceptance + Observability** (staging).
@@ -183,7 +213,7 @@ phase evidence is frozen under dated snapshots:
 | W13-9 | `[§11.10 GOAL]` `.env` gitignore regression test | closed `2026-05-11`; new architecture gate `tests/architecture/test_env_gitignore.py` 10/10 ✓ (.env literal + *.env wildcard + virtualenv dirs + !.env.example negative exception + template presence via `git check-ignore --no-index`); `make test-local` 1509 → 1519 collected (+10 passed); `tests/architecture/` 95 → 105 collected (+10 passed); production code untouched (`.gitignore` already correct) |
 | W13-10 | `[§11.10 GOAL]` Stale singleton-lock recovery integration test | closed `2026-05-11`; 2 new integration cases in `tests/executor/test_reset_state.py` 13/13 ✓ (full 3-lock-held → reset → all removed + unrelated preserved; partial 2-of-3-held → reset → partial removed). Pre-W13-10 unit cases stubbed `cleanup_singleton_locks` inside `reset_executor_state`; W13-10 exercises real cleanup integration; `make test-local` 1519 → 1521 collected (+2 passed); production code untouched |
 | W13-11 | `[CLOSE-GATE codex-second-opinion-F1-hmac-python-secret-target-install-race]` close-pass for W13-1 H6 | **closed `2026-05-12` (6/6 sub-commits + 6 post-landing additions in same push: 9a2ba76 self-stamp · doc fix-up · defense-in-depth b/c/a · README regex pin steal-from-W13-13)**; Path A host-side eager-consume + env var passthrough — `workflows/marketplace/analysis_service.py` `_reset_sandbox` → `executor_control.consume_harness_python_secret()` → `_install_extension`; host reads bind-mounted `Path(settings.project.OUTPUT_DIR) / "_extrace_harness_python_secret"` + unlinks, threads through `run_playwright_automation(..., harness_python_secret=...)` → docker exec `-e EXECUTOR_HARNESS_PYTHON_SECRET_VALUE=<hex>` env var. `load_harness_python_secret()` env-priority. `setup_monitor` call unchanged. E4 docker exec argv mask. Final bar: `make test-local` 1521 → **1537** (+16: 10 from 6/6 sub-commits + 6 from defense-in-depth b/c/a + d = 1 + 1 + 2 + 2); `make test-security` 215 unchanged (lane composition; E4 redaction extensions in `tests/security/test_executor_host_error_redaction.py` count toward test-local only); `tests/architecture/` 105 → **112** (+7: 5 from 6/6 + 2 from (d) README regex pin sub-commit 12). W13-12 immediate follow-up required for full fail-closed semantics; merge blocker for `week13 → main` cleared once W13-12/13 also GREEN. |
-| W13-12 | `[CLOSE-GATE codex-second-opinion-F2-fail-closed-harness-handshake]` close-pass for W13-1 H6 | **in progress `2026-05-12` (sub-commit 1/5 — design lockdown)**; merge blocker; depends on W13-11 (closed); `ActivationReport.harness_handshake_required: bool` field on internal monitor dataclass ([monitor/types.py:124](../executor/flows/playwright/monitor/types.py)) — W13-1 deseni takipçisi — + `_attempt_has_harness_completion_trace` fail-closed when production handshake required but `expected_nonce` empty. Legacy phase-only branch retained for tests only. Sub-commit map: (1) docs lockdown · (2) RED tests · (3) impl (RED → GREEN) · (4) arch gate · (5) close evidence. |
+| W13-12 | `[CLOSE-GATE codex-second-opinion-F2-fail-closed-harness-handshake]` close-pass for W13-1 H6 | **closed `2026-05-12` (5/5 sub-commits — 8782630 docs lockdown · d30a50f RED tests · c98f350 feat impl · a2c4aa2 arch gate · sub-commit 5 close sweep)**; `ActivationReport.harness_handshake_required: bool` on internal monitor dataclass + `_attempt_has_harness_completion_trace` fail-closed branch + `setup_monitor` stamps True; 2 new RED→GREEN cases in `tests/security/test_harness_handshake_required.py` + 3-fact AST gate in `tests/architecture/test_setup_monitor_handshake_required.py`. Final bar: `make test-local` 1537 → 1539 (+2; 2 pre-existing env-only VSIX fixture failures in `test_analysis_fixture_baselines.py` unchanged, not W13-12 related); `tests/architecture/` 112 → 115 (+3); W13-1 regression suite (`test_playwright_health_reconciliation.py` 21/21) + W13-1/W13-11 architecture gates (`test_harness_marker_auth.py` 3/3 + `test_harness_secret_eager_consume.py` 3/3) zero-diff. Close-out PR `week13 → main` merge blocker reduces to W13-13 only. |
 | W13-13 | `[CLOSE-GATE codex-second-opinion-F3-worker-start-cancel-race-CAS]` close-pass for W13-3 H4 (scope rebased `2026-05-12` — F4 README sweep + regex pin landed in W13-11 push) | **CLOSE-GATE — not started** (Codex Cloud second-opinion `2026-05-11`); merge blocker; Path B worker entry `with_for_update()` snapshot — `cancelling` görürse `finalize_cancelled_analysis_job` + return (W13-3 two-phase symmetric exit). `update_job(status="running")` koşulsuzluğu kapanır. README.md:58 W13 phase pointer drift sweep + `tests/architecture/test_readme_phase_pointer.py` regex pin already landed in the W13-11 push `2026-05-12` (sub-commits 8 + 12) to keep the README sweep paired with its banner-cascade fix-up. |
 
 ## Current Deferrals

@@ -1,7 +1,7 @@
 # W13 — Test Expansion + Observability (Active Work Tracker)
 
-`Last Updated: 2026-05-12 (W13-11 closed 2026-05-12 (6/6 sub-commits — design+impl+arch gate+regression fix+doc sweep) — Path A host-side eager-consume + env var passthrough; W13-12 in progress 2026-05-12 (sub-commit 1/5 — design lockdown) — `ActivationReport.harness_handshake_required: bool` fail-closed; W13-13 remains CLOSE-GATE not started)`
-`Phase: W13 active — CLOSE-GATE HOLD on W13-12 (in progress 1/5) + W13-13 (W13-11 closed)`
+`Last Updated: 2026-05-12 (W13-11 closed 2026-05-12 (6/6 sub-commits — design+impl+arch gate+regression fix+doc sweep) — Path A host-side eager-consume + env var passthrough; W13-12 closed 2026-05-12 (5/5 sub-commits — `ActivationReport.harness_handshake_required: bool` fail-closed; final bar test-local 1537 → 1539 (+2) / tests/architecture/ 112 → 115 (+3)); W13-13 remains CLOSE-GATE not started)`
+`Phase: W13 active — CLOSE-GATE HOLD on W13-13 (W13-11 + W13-12 closed)`
 `Branch: week13 (single-branch policy precedent; opened 2026-05-10 from cff6455)`
 `Owner: ekrem`
 
@@ -335,7 +335,7 @@ GOAL row is pulled.
 | TBD watch | `[FOLLOWUP execute-attempt-rebloat-watch]` (`stimulus/attempts.py::execute_attempt` chain growth; refactor only when new action family added) | `[executor-runtime]` | watching |
 | TBD watch | `[FOLLOWUP dispatch-execution-rebloat-watch]` (`entrypoint/dispatch.py` 402 LoC W12-4 ratchet; add `test_dispatch_execution_under_loc_budget` only after concrete bloat) | `[executor-runtime]` | watching |
 | ~~**W13-11**~~ | `[CLOSE-GATE codex-second-opinion-F1-hmac-python-secret-target-install-race]` close-pass for W13-1 H6 (Path A host-side eager-consume — `workflows/marketplace/analysis_service.py::execute_analysis_request` calls `executor_control.consume_harness_python_secret()` between `_reset_sandbox()` and `_install_extension()`, reads bind-mounted `Path(settings.project.OUTPUT_DIR) / "_extrace_harness_python_secret"` + unlinks, threads through `run_playwright_automation(..., harness_python_secret=...)` → docker exec `-e EXECUTOR_HARNESS_PYTHON_SECRET_VALUE=<hex>` env var. `load_harness_python_secret()` env-priority. `setup_monitor` call unchanged. E4 docker exec argv mask.) | `[executor-runtime]` `[security-detection]` | **closed `2026-05-12`** (6/6 sub-commits) |
-| **W13-12** | `[CLOSE-GATE codex-second-opinion-F2-fail-closed-harness-handshake]` close-pass for W13-1 H6 (`reconciliation.py:137-146` legacy phase-only fallback when `expected_nonce` empty; `load_harness_python_secret()` returns `""` on any read failure → production sessizce spoofable mode'a düşer. Fix: `ActivationReport.harness_handshake_required: bool` ayrımı; production paths empty `expected_nonce` + handshake required → False döndürür, harness verification unconfirmed.) | `[security-detection]` `[executor-runtime]` | **in progress `2026-05-12` (sub-commit 1/5 — design lockdown)**; merge blocker for `week13 → main` cleared once W13-12/13 GREEN |
+| ~~**W13-12**~~ | `[CLOSE-GATE codex-second-opinion-F2-fail-closed-harness-handshake]` close-pass for W13-1 H6 (`reconciliation.py:137-146` legacy phase-only fallback when `expected_nonce` empty; `load_harness_python_secret()` returns `""` on any read failure → production sessizce spoofable mode'a düşer. Closed via `harness_handshake_required: bool` on internal monitor ActivationReport dataclass + `_attempt_has_harness_completion_trace` fail-closed branch + `setup_monitor` stamps True + 3-fact AST gate.) | `[security-detection]` `[executor-runtime]` | **closed `2026-05-12` (5/5 sub-commits — `8782630` docs lockdown · `d30a50f` RED tests · `c98f350` feat impl · `a2c4aa2` arch gate · sub-commit 5 close sweep)** |
 | **W13-13** | `[CLOSE-GATE codex-second-opinion-F3-worker-start-cancel-race-CAS]` close-pass for W13-3 H4 (scope rebased `2026-05-12` — F4 README sweep + regex pin landed in W13-11 push) (`analysis_service.run_analysis_job:194` unconditional `update_job(status="running")` cancelling üzerine yazar → kullanıcı cancel sinyali kaybolur. Path B: worker entry'sinde `with_for_update()` snapshot; `cancelling`/terminal görürse `finalize_cancelled_analysis_job` + return — W13-3 two-phase symmetric exit. README.md:58 `W13-1..W13-4 closed, W13-5 expected` drifti W13-11 push sub-commit 8'de sweep edildi + `tests/architecture/test_readme_phase_pointer.py` regex pin sub-commit 12'de landed.) | `[platform-storage]` `[executor-runtime]` | **CLOSE-GATE — not started** (Codex Cloud second-opinion `2026-05-11`; merge blocker for `week13 → main`) |
 
 ## Per-Item Detail
@@ -2268,10 +2268,10 @@ polish + W13-13 scope rebase olarak ayrı kategori.
 
 ### W13-12 — Fail-closed harness handshake (close-gate for W13-1 H6)
 
-`Status: in progress 2026-05-12 (sub-commit 1/5 — design lockdown)` ·
+`Status: closed 2026-05-12 (5/5 sub-commits)` ·
 `Source: [CLOSE-GATE codex-second-opinion-F2-fail-closed-harness-handshake]` ·
 `Lane: [security-detection] [executor-runtime]` ·
-`Blocks: week13 → main close-out PR` ·
+`Blocks: week13 → main close-out PR (now reduced to W13-13 only)` ·
 `Depends: W13-11 GREEN (closed 2026-05-12 — eager-consume guarantees secret presence)`
 
 **Sorun.**
@@ -2347,7 +2347,7 @@ def _attempt_has_harness_completion_trace(
   behavior'u korur)
 - Production `setup_monitor` call site explicit `True` set eder
 
-**Sub-commit dizisi (planned — 5/5, locked in 2026-05-12 sub-commit 1).**
+**Sub-commit dizisi (landed — 5/5, locked in 2026-05-12 sub-commit 1).**
 
 > Implementation file note: `expected_harness_nonce` field aslında
 > internal monitor dataclass'ında ([executor/flows/playwright/monitor/types.py:124](../../executor/flows/playwright/monitor/types.py))
@@ -2355,38 +2355,43 @@ def _attempt_has_harness_completion_trace(
 > ([packages/analysis_contracts/contracts.py:370](../../packages/analysis_contracts/contracts.py))
 > ingest contract, runtime handshake invariant'ı internal'da. Yeni
 > `harness_handshake_required` field W13-1 deseninin tam takipçisi olarak
-> aynı internal dataclass'a eklenir; public Pydantic surface'a değmez.
+> aynı internal dataclass'a eklendi; public Pydantic surface'a değmedi.
 
-1. *(SHA TBD)* `docs(W13-12): assign in-progress status + lock in fail-closed handshake design`
+1. `8782630` `docs(W13-12): assign in-progress status + lock in fail-closed handshake design`
    — bu blok (sub-commit dizisi + design lockdown) + tracker header +
    REFACTOR_STATUS banner + POST_POC_BACKLOG banner. Pure docs.
-2. *(SHA TBD)* `test(W13-12): RED precursor — production fail-closed + legacy phase-only baseline`
+2. `d30a50f` `test(W13-12): RED precursor — production fail-closed + legacy phase-only baseline`
    — yeni `tests/security/test_harness_handshake_required.py` (2 case,
-   `@pytest.mark.skip` ile). Sub-commit 3'te skip kaldırılır.
-3. *(SHA TBD)* `feat(W13-12): harness_handshake_required field + signature + callsite + dispatch flag (RED → GREEN)`
+   `@pytest.mark.skip` ile). Sub-commit 3'te skip kaldırıldı.
+3. `c98f350` `feat(W13-12): harness_handshake_required field + signature + callsite + dispatch flag (RED → GREEN)`
    — 3 production dosyası:
    ([monitor/types.py:124](../../executor/flows/playwright/monitor/types.py)) +1 field,
    ([reconciliation.py:137,419](../../executor/flows/playwright/health/reconciliation.py)) signature/callsite,
    ([dispatch.py:129](../../executor/flows/playwright/entrypoint/dispatch.py)) `mon.report.harness_handshake_required = True`.
-   Sub-commit 2 skip'leri kaldırılır.
-4. *(SHA TBD)* `test(W13-12): architecture gate — setup_monitor stamps harness_handshake_required=True`
+   Sub-commit 2 skip'leri kaldırıldı.
+4. `a2c4aa2` `test(W13-12): architecture gate — setup_monitor + reconciliation threading invariants`
    — yeni `tests/architecture/test_setup_monitor_handshake_required.py`
-   AST walker (`test_harness_marker_auth.py:142` deseni).
-5. *(SHA TBD)* `docs(W13-12): close evidence + post-close doc sweep`
+   3-fact AST gate (`test_harness_marker_auth.py:142` deseni
+   genişletildi: setup_monitor stamps True + reconcile reads via
+   getattr + threads kwarg). Plan'da öngörülen +1 case yerine +3 case
+   landed (W13-1 3-fact precedent).
+5. *(SHA TBD — this commit)* `docs(W13-12): close evidence + post-close doc sweep`
    — REFACTOR_STATUS row → closed; W13-12 §status → closed; CLAUDE.md
    banner W13-12 GREEN; POST_POC_BACKLOG W13-12 satırı strike-through;
    final bar numaraları stamp.
 
-**Beklenen test bar deltası.**
+**Test bar deltası (actual).**
 
-| Lane | Pre-W13-12 (post-W13-11) | Post-W13-12 beklenen | Delta nedeni |
+| Lane | Pre-W13-12 (post-W13-11) | Post-W13-12 actual | Delta nedeni |
 |---|---|---|---|
-| `make test-local` | 1537 | 1537 (lane unchanged) | yeni 2 security case `tests/security/` altında — `test-local` lane bunları kapsamıyor (W13-11 deseni) |
-| `make test-security` | 215 | 217 (+2) | yeni `test_harness_handshake_required.py` 2 case |
-| `tests/architecture/` | 112 | 113 (+1) | yeni `test_setup_monitor_handshake_required.py` 1 case |
-| `make check-all` | green | green | lint/type/style invariant |
+| `make test-local` | 1537 | 1539 (+2; 2 pre-existing env-only VSIX fixture failures unchanged) | yeni 2 security case + 3 architecture case `test-local` lane'de pytest default collection altında koşar; 5 case ekleniyor ama 2 pre-existing failure (`test_analysis_fixture_baselines.py` VSIX fixture missing — HEAD~4 = pre-W13-12 state'inde de reproduce) ile karşılaşıldı |
+| `make test-security` | 215 | 215 (lane composition unchanged) | yeni `test_harness_handshake_required.py` curated `test-security` Makefile lane'inin parçası değil — W13-11 deseninin (E4 redaction case) tam takipçisi |
+| `tests/architecture/` | 112 | 115 (+3) | yeni `test_setup_monitor_handshake_required.py` 3 case (setup_monitor stamps + reconcile reads + threads kwarg) |
+| W13-1 regression (`test_playwright_health_reconciliation.py`) | 21/21 | 21/21 | zero-diff — test fixtures keep default False, legacy phase-only branch hâlâ tetiklenir |
+| W13-1 arch gate (`test_harness_marker_auth.py`) | 3/3 | 3/3 | zero-diff |
+| W13-11 arch gate (`test_harness_secret_eager_consume.py`) | 3/3 | 3/3 | zero-diff |
 
-Final stamp sub-commit 5'te yapılır.
+Production code diff: 3 dosya, +~25 net satır (field + branch + callsite + flag).
 
 ---
 
