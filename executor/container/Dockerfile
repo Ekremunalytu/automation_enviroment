@@ -101,6 +101,16 @@ RUN useradd -m -s /bin/bash executor \
 RUN mkdir -p /workspace /results /extensions-input \
     && chown -R executor:executor /workspace /results /extensions-input
 
+# W13-1 (Codex H6): per-launch harness HMAC secret lives under /run/extrace.
+# launch_vscode.sh writes the file mode 0400 before each VS Code start;
+# the harness extension's activate() reads-and-unlinks it before the
+# Python orchestration installs the target VSIX, so the same-UID target
+# extension never sees the path populated. The directory itself is mode
+# 0700 owned by executor.
+RUN mkdir -p /run/extrace \
+    && chown executor:executor /run/extrace \
+    && chmod 0700 /run/extrace
+
 # Set up VS Code user data directory
 RUN mkdir -p /home/executor/.vscode \
     && chown -R executor:executor /home/executor/.vscode
@@ -108,11 +118,16 @@ RUN mkdir -p /home/executor/.vscode \
 # Create index.html symlink for noVNC
 RUN ln -s /usr/share/novnc/vnc.html /usr/share/novnc/index.html
 
-# Copy startup + VS Code launch scripts (shared between boot and reset_state)
+# Copy startup + VS Code launch scripts (shared between boot and reset_state).
+# W13-2 (Codex H5): launch_vscode.sh is re-executed by reset_state.py on every
+# analysis reset; if owned by executor it could be overwritten by a target
+# extension running under the same UID and would persist across resets. Lock
+# it to root:executor 0750 so executor retains read+exec but cannot modify.
 COPY executor/container/start.sh /usr/local/bin/start.sh
 COPY executor/container/launch_vscode.sh /home/executor/container/launch_vscode.sh
-RUN chmod 755 /usr/local/bin/start.sh /home/executor/container/launch_vscode.sh \
-    && chown executor:executor /home/executor/container/launch_vscode.sh
+RUN chmod 755 /usr/local/bin/start.sh \
+    && chmod 0750 /home/executor/container/launch_vscode.sh \
+    && chown root:executor /home/executor/container/launch_vscode.sh
 
 # Copy Playwright automation scripts and shared contract package needed at runtime.
 # ADR 0008: regular-package layout — `executor` and `executor.flows` are real

@@ -29,6 +29,33 @@ _FIXTURE_REPORTS = {
         / "activation_reports"
         / "extrace_fixture_theme.json"
     ),
+    "extrace.fixture-snippet-0.0.1": (
+        REPO_ROOT
+        / "tests"
+        / "platform"
+        / "contracts"
+        / "fixtures"
+        / "activation_reports"
+        / "extrace_fixture_snippet.json"
+    ),
+    "extrace.fixture-keybinding-0.0.1": (
+        REPO_ROOT
+        / "tests"
+        / "platform"
+        / "contracts"
+        / "fixtures"
+        / "activation_reports"
+        / "extrace_fixture_keybinding.json"
+    ),
+    "extrace.fixture-cmd-0.0.1": (
+        REPO_ROOT
+        / "tests"
+        / "platform"
+        / "contracts"
+        / "fixtures"
+        / "activation_reports"
+        / "extrace_fixture_cmd.json"
+    ),
 }
 
 

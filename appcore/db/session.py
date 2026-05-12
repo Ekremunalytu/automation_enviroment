@@ -134,8 +134,8 @@ Example Transaction:
         db.add(new_item)      # Staged, not sent to DB
         db.add(another_item)  # Staged, not sent to DB
         db.commit()           # Both items inserted atomically
-    except Exception:
-        db.rollback()         # Discard changes on error
+    except SQLAlchemyError:
+        db.rollback()         # Discard changes on database error
     finally:
         db.close()            # Always return to pool
 

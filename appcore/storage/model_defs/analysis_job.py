@@ -35,6 +35,11 @@ class AnalysisJob(Base):
     started_at: Mapped[float | None] = mapped_column(Float, nullable=True)
     finished_at: Mapped[float | None] = mapped_column(Float, nullable=True)
     updated_at: Mapped[float] = mapped_column(Float, nullable=False)
+    # W13-3 (Codex H4): when `cancel_analysis_job` flips `running` to the new
+    # non-terminal `cancelling` state, this column records when the drain was
+    # signalled. Keeps the partial unique index honest — only one active row
+    # (queued/running/cancelling) at any time.
+    requested_cancel_at: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     __table_args__ = (
         Index("ix_analysis_jobs_status", "status"),
@@ -42,7 +47,7 @@ class AnalysisJob(Base):
             "uq_analysis_jobs_single_active",
             text("(1)"),
             unique=True,
-            postgresql_where=text("status IN ('queued', 'running')"),
+            postgresql_where=text("status IN ('queued', 'running', 'cancelling')"),
         ),
     )
 

@@ -99,26 +99,75 @@ def redact_secrets(value: str) -> str:
 # applying them at the whole-input level can corrupt structured wrappers
 # (e.g., the `api_key` pattern's optional trailing-quote consumption can
 # eat a JSON closing quote). Extend this set if a future pattern carries
-# cross-line semantics.
+# cross-line semantics — and add explicit routing in
+# ``redact_multiline_secrets`` for the new class.
 _CROSS_LINE_CLASSES: Final[frozenset[str]] = frozenset({"private_key"})
+
+# W13-7: bounded scanner for the cross-line `private_key` class.
+# The lazy `(?:.|\n)*?` quantifier in `_REDACTION_PATTERNS` produces
+# quadratic O(N*L) latency on adversarial input — e.g. target-extension
+# stdout stuffed with unmatched BEGIN markers. The scanner below replaces
+# `pattern.sub()` for this class with a single linear pass and a 16 KB
+# BEGIN→END window cap. Real PEM keys (RSA-4096 ~4 KB, X.509 chains
+# ~8 KB) fit comfortably inside the cap; adversarial input past the cap
+# is left partially un-redacted (BEGIN literal stays) rather than
+# triggering catastrophic backtracking.
+_PRIVATE_KEY_BEGIN_RE: Final[re.Pattern[str]] = re.compile(
+    r"-----BEGIN[ A-Z0-9]*PRIVATE KEY-----"
+)
+_PRIVATE_KEY_END_RE: Final[re.Pattern[str]] = re.compile(
+    r"-----END[ A-Z0-9]*PRIVATE KEY-----"
+)
+_PRIVATE_KEY_MAX_BODY: Final[int] = 16 * 1024
+_PRIVATE_KEY_PLACEHOLDER: Final[str] = "[REDACTED:private_key]"
+
+
+def _redact_private_key_bounded(value: str) -> str:
+    """Replace each BEGIN..END private-key span with a placeholder.
+
+    Linear O(L) scan with a 16 KB BEGIN→END window cap. When a BEGIN
+    marker has no matching END within the window, leave the BEGIN literal
+    in place rather than risking a runaway scan. Idempotent.
+    """
+    if not value:
+        return value
+    parts: list[str] = []
+    pos = 0
+    while True:
+        begin = _PRIVATE_KEY_BEGIN_RE.search(value, pos)
+        if begin is None:
+            parts.append(value[pos:])
+            return "".join(parts)
+        parts.append(value[pos : begin.start()])
+        end_search_start = begin.end()
+        end_search_end = min(end_search_start + _PRIVATE_KEY_MAX_BODY, len(value))
+        end = _PRIVATE_KEY_END_RE.search(value, end_search_start, end_search_end)
+        if end is None:
+            parts.append(begin.group())
+            pos = begin.end()
+        else:
+            parts.append(_PRIVATE_KEY_PLACEHOLDER)
+            pos = end.end()
 
 
 def redact_multiline_secrets(value: str) -> str:
-    """Apply only the cross-line redaction patterns to ``value``.
+    """Apply only the cross-line redaction passes to ``value``.
 
     Use this as a pre-pass on inputs that will subsequently be split into
     lines and redacted per-line, so cross-line spans (PEM blocks) collapse
     to their placeholder before single-line redaction runs. Single-line
     patterns are intentionally not applied here — see
     ``_CROSS_LINE_CLASSES`` for the rationale. Idempotent.
+
+    W13-7: the ``private_key`` span is handled by ``_redact_private_key_bounded``
+    (linear O(L) scanner, 16 KB window cap) rather than the legacy lazy
+    regex, which is vulnerable to catastrophic backtracking on adversarial
+    input. If new cross-line classes are added to ``_CROSS_LINE_CLASSES``,
+    add their explicit routing here.
     """
     if not value:
         return value
-    redacted = value
-    for cls, pattern, replacement in _REDACTION_PATTERNS:
-        if cls in _CROSS_LINE_CLASSES:
-            redacted = pattern.sub(replacement, redacted)
-    return redacted
+    return _redact_private_key_bounded(value)
 
 
 class ContentSample(StrictContractModel):

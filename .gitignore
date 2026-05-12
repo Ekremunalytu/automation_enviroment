@@ -34,12 +34,17 @@ coverage.xml
 
 # Project Specific
 output/
+# Ad-hoc analiz çıktıları / activation_report scratch (operator-local).
+results/
 # extensions/ stores marketplace-downloaded VSIXes and extracted payloads; keep
 # them out of git but track the security fixtures the CI lane depends on.
 extensions/*
 !extensions/malicious/
 !extensions/extrace.fixture-chat-0.0.1/
 !extensions/extrace.fixture-theme-0.0.1/
+!extensions/extrace.fixture-snippet-0.0.1/
+!extensions/extrace.fixture-keybinding-0.0.1/
+!extensions/extrace.fixture-cmd-0.0.1/
 .env
 !.env.example
 node_modules/

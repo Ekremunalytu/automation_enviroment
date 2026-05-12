@@ -39,8 +39,9 @@ export async function requestJson<T>(path: string, init?: RequestInit): Promise<
   if (!response.ok) {
     let message = response.statusText;
     let detail: unknown;
+    const bodyText = await response.text();
     try {
-      const payload = await response.json();
+      const payload = JSON.parse(bodyText);
       detail = (payload as { detail?: unknown }).detail;
       if (typeof detail === "string") {
         message = detail;
@@ -50,7 +51,7 @@ export async function requestJson<T>(path: string, init?: RequestInit): Promise<
         message = JSON.stringify(payload);
       }
     } catch {
-      message = await response.text();
+      message = bodyText;
     }
     throw new ApiError(message || "Request failed", response.status, detail);
   }

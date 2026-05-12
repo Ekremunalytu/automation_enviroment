@@ -1,0 +1,29 @@
+{
+  "name": "fixture-keybinding",
+  "displayName": "ExTrace Fixture Keybinding",
+  "description": "Deterministic local declarative-keybinding fixture for benign-silence regression coverage.",
+  "version": "0.0.1",
+  "publisher": "extrace",
+  "engines": {
+    "vscode": "^1.116.0"
+  },
+  "categories": [
+    "Keymaps"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "extrace.fixture-keybinding.noop",
+        "title": "ExTrace Fixture Keybinding No-Op"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "extrace.fixture-keybinding.noop",
+        "key": "ctrl+f12",
+        "mac": "cmd+f12",
+        "when": "editorTextFocus"
+      }
+    ]
+  }
+}

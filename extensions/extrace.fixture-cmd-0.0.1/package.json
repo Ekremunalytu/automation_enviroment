@@ -1,0 +1,25 @@
+{
+  "name": "fixture-cmd",
+  "displayName": "ExTrace Fixture Cmd",
+  "description": "Deterministic local command-activated fixture for benign-silence regression coverage.",
+  "version": "0.0.1",
+  "publisher": "extrace",
+  "engines": {
+    "vscode": "^1.116.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onCommand:extrace.fixture-cmd.run"
+  ],
+  "main": "./extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "extrace.fixture-cmd.run",
+        "title": "ExTrace Fixture Cmd Run"
+      }
+    ]
+  }
+}

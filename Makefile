@@ -169,7 +169,7 @@ dev:
 
 dev-lan:
 	@echo "⚠️  ADR 0007 — LAN binding requested. Read documents/runbooks/lan-exposure.md first."
-	EXTRACE_ALLOW_LAN=1 $(VENV)/uvicorn main:app --reload --host 0.0.0.0
+	EXTRACE_ALLOW_LAN=1 $(VENV)/uvicorn main:app --reload --host $${API_HOST:-0.0.0.0}
 
 run:
 	$(VENV)/uvicorn main:app --host 127.0.0.1

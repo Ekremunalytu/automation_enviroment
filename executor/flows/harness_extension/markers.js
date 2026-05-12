@@ -1,7 +1,43 @@
+const crypto = require("node:crypto");
 const fs = require("node:fs/promises");
 const path = require("node:path");
 
 const { CONTEXT_PATH, HARNESS_RUN_COMMAND_ID, READY_PATH } = require("./constants");
+
+// W13-1 (Codex H6): in-memory copy of the per-launch HMAC secret. Set
+// by extension.js::activate() after reading and unlinking
+// HARNESS_SECRET_PATH; never re-read from disk. If the read fails the
+// value stays empty and emit functions skip signing — Python-side
+// reconciliation will reject unsigned markers (fail-closed).
+let _harnessNonceSecret = "";
+
+function setHarnessNonceSecret(secret) {
+  _harnessNonceSecret = typeof secret === "string" ? secret : "";
+}
+
+// HMAC input shape mirrors tests/executor/test_playwright_health_reconciliation.py
+// _w13_1_canonical_payload: sorted-keys JSON without whitespace, the
+// ``nonce`` key itself excluded so the signature covers the unsigned
+// envelope. Keep this in lockstep with the Python verifier (sub-commit 4).
+function _canonicalPayloadBytes(payload) {
+  const filtered = {};
+  for (const key of Object.keys(payload).sort()) {
+    if (key === "nonce") continue;
+    filtered[key] = payload[key];
+  }
+  return JSON.stringify(filtered);
+}
+
+function _signedPayload(payload) {
+  if (!_harnessNonceSecret) {
+    return payload;
+  }
+  const signature = crypto
+    .createHmac("sha256", _harnessNonceSecret)
+    .update(_canonicalPayloadBytes(payload))
+    .digest("hex");
+  return { ...payload, nonce: signature };
+}
 
 async function readHarnessContext() {
   try {
@@ -14,11 +50,13 @@ async function readHarnessContext() {
 
 function emitHarnessMarker(phase, details) {
   console.log(
-    `[extrace-harness] ${JSON.stringify({
-      kind: "stimulus",
-      phase,
-      ...details,
-    })}`
+    `[extrace-harness] ${JSON.stringify(
+      _signedPayload({
+        kind: "stimulus",
+        phase,
+        ...details,
+      })
+    )}`
   );
 }
 
@@ -27,7 +65,7 @@ function emitHarnessMarker(phase, details) {
 // in particular the ``kind`` field. Reuses the [extrace-harness] prefix
 // the existing _HARNESS_MARKER_RE consumes on the Python side.
 function emitHarnessEvent(payload) {
-  console.log(`[extrace-harness] ${JSON.stringify(payload)}`);
+  console.log(`[extrace-harness] ${JSON.stringify(_signedPayload(payload))}`);
 }
 
 // W8-0: marker payload schema version. Bumped only when the contract
@@ -55,5 +93,6 @@ module.exports = {
   emitHarnessEvent,
   emitHarnessMarker,
   readHarnessContext,
+  setHarnessNonceSecret,
   writeHarnessReadyMarker,
 };

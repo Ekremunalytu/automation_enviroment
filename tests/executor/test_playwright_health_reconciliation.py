@@ -20,7 +20,11 @@ lands an attempt in one of these states is pinned by at least one test.
 
 from __future__ import annotations
 
+import hashlib
+import hmac
+import json
 from types import SimpleNamespace
+
 
 from executor.flows.playwright.health.reconciliation import (
     reconcile_coverage_verification,
@@ -316,6 +320,194 @@ def test_reconcile_event_attempts_harness_attempt_without_completion_trace_unver
     assert attempts[0].failure_reason_code == "harness_verification_unconfirmed"
 
 
+# ---------------------------------------------------------------------------
+# W13-1 (Codex H6) — RED precursor tests for spoofable harness markers
+#
+# Goal: harness completion markers must carry an HMAC-SHA256 ``nonce`` field
+# computed over a canonical payload using a per-container secret loaded by
+# the Python orchestration before ``install_extension`` runs (see
+# ``documents/active-work/W13-test-expansion-observability.md`` →
+# Per-Item Detail → W13-1, Option C). Without it, a target extension can
+# write the literal ``[extrace-harness] {phase:"complete"}`` string to
+# stdout and forge ``automation_trace`` proof.
+#
+# These tests reference the future contract:
+#   - ``ActivationReport.expected_harness_nonce: str`` (new field, sub-commit 3)
+#   - ``_verify_harness_marker_signature(payload, expected_nonce)`` helper in
+#     ``health/reconciliation.py`` (sub-commit 4)
+#
+# All three are skipped until sub-commit 4 lands the verifier; sub-commit 4
+# removes the skip markers and the cases must pass GREEN. The ``test_local``
+# baseline is unaffected by skipped cases (1452 → 1452 expected).
+# ---------------------------------------------------------------------------
+
+
+def _w13_1_canonical_payload(payload: dict[str, object]) -> bytes:
+    """HMAC input shape (frozen by sub-commit 4 design decision).
+
+    Sorted keys, no whitespace, UTF-8. The ``nonce`` key itself is excluded so
+    callers compute HMAC over the unsigned envelope and append the signature.
+    """
+    return json.dumps(
+        {k: v for k, v in payload.items() if k != "nonce"},
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+
+
+def _w13_1_sign(payload: dict[str, object], secret: str) -> str:
+    return hmac.new(
+        secret.encode("utf-8"),
+        _w13_1_canonical_payload(payload),
+        hashlib.sha256,
+    ).hexdigest()
+
+
+def test_reconcile_w13_1_rejects_forged_complete_marker_without_nonce() -> None:
+    """A ``[extrace-harness] {phase:"complete"}`` line lacking ``nonce`` is rejected.
+
+    Today's behaviour (pre-W13-1): the line satisfies ``automation_trace`` and
+    flips the attempt to ``verified``. Post-W13-1: missing ``nonce`` →
+    ``_verify_harness_marker_signature`` returns False → harness completion
+    trace not counted → attempt routes through
+    ``_mark_unverified_harness_attempt`` and surfaces
+    ``harness_verification_unconfirmed``.
+    """
+    report = ActivationReport(
+        activated=[
+            ActivationEntry(
+                extension_id="publisher.tool",
+                activation_event="onLanguageModelTool:test",
+                timestamp="2026-01-01 10:00:00.000",
+                source="log",
+            )
+        ],
+        target_extension_id="publisher.tool",
+        # Note: ``expected_harness_nonce`` is the future field added in
+        # sub-commit 3; without it on the report, the verifier defaults to
+        # rejecting unsigned markers (fail-closed).
+        extension_host_output=(
+            '[extrace-harness] {"kind":"stimulus","phase":"complete",'
+            '"attempt_id":"harness","family":"onLanguageModelTool",'
+            '"activation_event":"onLanguageModelTool:test"}\n'
+        ),
+        event_attempts=[
+            EventAttemptRecord(
+                attempt_id="harness",
+                declared_event="onLanguageModelTool:test",
+                activation_event="onLanguageModelTool:test",
+                event_family="onLanguageModelTool",
+                executor_action="harness:run_current_stimulus",
+                attempted_passes=["target_specific_activation"],
+                capability_tags=["chat"],
+                verification_contract=["activation_log_prefix", "automation_trace"],
+            )
+        ],
+    )
+    # Sub-commit 3 will add this field to ActivationReport.
+    report.expected_harness_nonce = "secret-loaded-from-results-handshake"  # type: ignore[attr-defined]
+
+    attempts = reconcile_event_attempts(report)
+
+    assert attempts[0].status == "attempted_only"
+    assert attempts[0].failure_reason_code == "harness_verification_unconfirmed"
+
+
+def test_reconcile_w13_1_rejects_forged_complete_marker_with_invalid_nonce() -> None:
+    """A marker with a syntactically present but cryptographically invalid nonce is rejected."""
+    secret = "secret-loaded-from-results-handshake"  # noqa: S105 — test fixture, simulates orchestration handshake
+    payload = {
+        "kind": "stimulus",
+        "phase": "complete",
+        "attempt_id": "harness",
+        "family": "onLanguageModelTool",
+        "activation_event": "onLanguageModelTool:test",
+        # Forged nonce: 64-hex-char string but not the actual HMAC over the
+        # payload. Target extension can produce arbitrary hex strings.
+        "nonce": "0" * 64,
+    }
+    report = ActivationReport(
+        activated=[
+            ActivationEntry(
+                extension_id="publisher.tool",
+                activation_event="onLanguageModelTool:test",
+                timestamp="2026-01-01 10:00:00.000",
+                source="log",
+            )
+        ],
+        target_extension_id="publisher.tool",
+        extension_host_output=f"[extrace-harness] {json.dumps(payload)}\n",
+        event_attempts=[
+            EventAttemptRecord(
+                attempt_id="harness",
+                declared_event="onLanguageModelTool:test",
+                activation_event="onLanguageModelTool:test",
+                event_family="onLanguageModelTool",
+                executor_action="harness:run_current_stimulus",
+                attempted_passes=["target_specific_activation"],
+                capability_tags=["chat"],
+                verification_contract=["activation_log_prefix", "automation_trace"],
+            )
+        ],
+    )
+    report.expected_harness_nonce = secret  # type: ignore[attr-defined]
+
+    attempts = reconcile_event_attempts(report)
+
+    assert attempts[0].status == "attempted_only"
+    assert attempts[0].failure_reason_code == "harness_verification_unconfirmed"
+
+
+def test_reconcile_w13_1_accepts_genuine_complete_marker_with_valid_nonce() -> None:
+    """A marker carrying a correct HMAC under the orchestration secret verifies the attempt.
+
+    Regression baseline for the genuine path: same canonical payload format
+    as the rejection cases above, plus a valid signature → status flips to
+    ``verified`` (matches today's behaviour for the no-nonce path; W13-1
+    preserves it under the auth gate).
+    """
+    secret = "secret-loaded-from-results-handshake"  # noqa: S105 — test fixture, simulates orchestration handshake
+    payload: dict[str, object] = {
+        "kind": "stimulus",
+        "phase": "complete",
+        "attempt_id": "harness",
+        "family": "onLanguageModelTool",
+        "activation_event": "onLanguageModelTool:test",
+    }
+    payload["nonce"] = _w13_1_sign(payload, secret)
+
+    report = ActivationReport(
+        activated=[
+            ActivationEntry(
+                extension_id="publisher.tool",
+                activation_event="onLanguageModelTool:test",
+                timestamp="2026-01-01 10:00:00.000",
+                source="log",
+            )
+        ],
+        target_extension_id="publisher.tool",
+        extension_host_output=f"[extrace-harness] {json.dumps(payload)}\n",
+        event_attempts=[
+            EventAttemptRecord(
+                attempt_id="harness",
+                declared_event="onLanguageModelTool:test",
+                activation_event="onLanguageModelTool:test",
+                event_family="onLanguageModelTool",
+                executor_action="harness:run_current_stimulus",
+                attempted_passes=["target_specific_activation"],
+                capability_tags=["chat"],
+                verification_contract=["activation_log_prefix", "automation_trace"],
+            )
+        ],
+    )
+    report.expected_harness_nonce = secret  # type: ignore[attr-defined]
+
+    attempts = reconcile_event_attempts(report)
+
+    assert attempts[0].status == "verified"
+    assert attempts[0].failure_reason_code == ""
+
+
 def test_reconcile_event_attempts_falls_back_to_attempted_only_for_non_harness_no_evidence() -> (
     None
 ):
@@ -506,3 +698,106 @@ def test_reconcile_coverage_verification_falls_back_to_top_level_summary_and_mat
     assert summary["label"] == "fallback"
     assert summary["attempted"] == 1
     assert summary["verified"] == 1
+
+
+# ---------------------------------------------------------------------------
+# W13-11 — load_harness_python_secret env-priority unit cases
+# ---------------------------------------------------------------------------
+#
+# Codex F1 close-pass for W13-1 H6. Production paths receive the per-launch
+# HMAC secret via ``EXECUTOR_HARNESS_PYTHON_SECRET_VALUE``, populated on the
+# host by ``executor.host.consume_harness_python_secret_eager`` before the
+# analyzed VSIX is admitted. The legacy file branch is preserved as a
+# fallback for unit-test paths that construct ``ActivationReport`` directly
+# without going through host-side eager-consume.
+#
+# These cases pin the three states (env present, env absent + file present,
+# both absent) plus the defense-in-depth invariant that the file is unlinked
+# even when env wins — so a stale file from a crashed eager-consume cannot
+# leak into the next launch cycle.
+
+
+def test_load_harness_python_secret_prefers_env_var_over_file(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    """Env var wins over file; file is still unlinked (defense-in-depth)."""
+    from executor.flows.playwright.health.reconciliation import (
+        load_harness_python_secret,
+    )
+
+    monkeypatch.setenv(
+        "EXECUTOR_HARNESS_PYTHON_SECRET_VALUE",
+        "env-value-hex-string",
+    )
+    secret_path = tmp_path / "_extrace_harness_python_secret"
+    secret_path.write_text(
+        "file-value-hex-string",
+        encoding="utf-8",
+    )
+
+    secret = load_harness_python_secret(path=secret_path)
+
+    assert secret == "env-value-hex-string", (  # noqa: S105 — test fixture
+        "env var must take precedence over the legacy file — this is the "
+        "W13-11 invariant that lets host-side eager-consume bypass the "
+        "container-internal /results read."
+    )
+    assert not secret_path.exists(), (
+        "even when env wins, load_harness_python_secret must still unlink "
+        "the legacy file so a stale file from a crashed eager-consume "
+        "cannot persist into the next launch cycle (defense-in-depth)."
+    )
+
+
+def test_load_harness_python_secret_legacy_file_when_env_absent(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    """Env unset + file present → file value read and unlinked (legacy path)."""
+    from executor.flows.playwright.health.reconciliation import (
+        load_harness_python_secret,
+    )
+
+    monkeypatch.delenv("EXECUTOR_HARNESS_PYTHON_SECRET_VALUE", raising=False)
+    secret_path = tmp_path / "_extrace_harness_python_secret"
+    secret_path.write_text(
+        "file-value-hex-string",
+        encoding="utf-8",
+    )
+
+    secret = load_harness_python_secret(path=secret_path)
+
+    assert secret == "file-value-hex-string", (  # noqa: S105 — test fixture
+        "with no env var the legacy file path must remain functional — "
+        "this is what keeps the existing test surface (W13-1 unit cases) "
+        "GREEN and provides the fail-soft fallback for production edge "
+        "cases (consume crashed mid-run, etc.)."
+    )
+    assert not secret_path.exists(), "legacy path also unlinks after read."
+
+
+def test_load_harness_python_secret_empty_when_both_absent(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    """Env unset + file absent → empty string (W13-12 fail-closed enforcement point)."""
+    from executor.flows.playwright.health.reconciliation import (
+        load_harness_python_secret,
+    )
+
+    monkeypatch.delenv("EXECUTOR_HARNESS_PYTHON_SECRET_VALUE", raising=False)
+    # No file written; tmp_path is empty.
+    secret_path = tmp_path / "_extrace_harness_python_secret"
+
+    secret = load_harness_python_secret(path=secret_path)
+
+    assert secret == "", (
+        "with no env and no file the secret is empty — production paths "
+        "must NOT reach this state once W13-12 lands fail-closed enforcement "
+        "(empty expected_nonce + handshake_required=True → no harness "
+        "completion trace can satisfy automation_trace). Pre-W13-12 the "
+        "empty branch falls back to phase-only acceptance (spoofable). "
+        "W13-11 reaches this state only via worst-case pre-W13-11 "
+        "status quo (no eager-consume, no launch_vscode.sh)."
+    )

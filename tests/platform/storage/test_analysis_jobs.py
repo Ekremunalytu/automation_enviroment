@@ -116,9 +116,11 @@ def test_complete_job_persists_final_outputs(db_session: Session) -> None:
     assert completed["finished_at"] is not None
 
 
-def test_cancel_job_marks_current_step_cancelled_and_skips_remaining(
+def test_cancel_then_finalize_marks_current_step_cancelled_and_skips_remaining(
     db_session: Session,
 ) -> None:
+    # W13-3 (Codex H4): cancel signals drain only; finalize is what drives
+    # the row terminal and finalizes step records.
     job = job_service.reserve_job(_request(), db=db_session)
     job_service.update_job_step(
         job["job_id"],
@@ -130,6 +132,13 @@ def test_cancel_job_marks_current_step_cancelled_and_skips_remaining(
     )
 
     job_service.cancel_job(job["job_id"], db=db_session)
+    draining = job_service.get_persisted_job_snapshot(job["job_id"], db=db_session)
+    assert draining["status"] == "cancelling"
+    assert draining["finished_at"] is None
+    # Step records untouched while the worker drains.
+    assert draining["steps"][3]["status"] == "running"
+
+    job_service.finalize_cancelled_job(job["job_id"], db=db_session)
     cancelled = job_service.get_persisted_job_snapshot(job["job_id"], db=db_session)
 
     assert cancelled["status"] == "cancelled"
@@ -162,7 +171,10 @@ def _drive_to_failed(job_id: str, db: Session) -> None:
 
 
 def _drive_to_cancelled(job_id: str, db: Session) -> None:
+    # W13-3: cancel + finalize together push the row through `cancelling`
+    # to terminal `cancelled`.
     job_service.cancel_job(job_id, db=db)
+    job_service.finalize_cancelled_job(job_id, db=db)
 
 
 @pytest.mark.parametrize(
@@ -259,14 +271,15 @@ def test_update_job_step_clears_progress_when_status_becomes_skipped(
     assert snapshot["steps"][3]["progress"] is None
 
 
-def test_is_job_cancelled_returns_true_only_for_cancelled_status(
+def test_is_job_cancelled_returns_true_once_cancel_signal_received(
     db_session: Session,
 ) -> None:
     """is_job_cancelled is the polling primitive used by the analysis worker to
-    decide whether to keep running. It must return True only for the cancelled
-    terminal state — not for queued/running/completed/failed."""
+    decide whether to keep running. W13-3 (Codex H4) widens the True window to
+    cover both the drain phase (`cancelling`) and the terminal `cancelled`
+    state so the next cancel-poll point raises during the drain."""
     job = job_service.reserve_job(_request(), db=db_session)
-    # queued: not cancelled
+    # queued: cancel signal not received
     assert job_service.is_job_cancelled(job["job_id"], db=db_session) is False
 
     job_service.update_job(
@@ -277,7 +290,12 @@ def test_is_job_cancelled_returns_true_only_for_cancelled_status(
     )
     assert job_service.is_job_cancelled(job["job_id"], db=db_session) is False
 
+    # Cancel signal received: drain phase, True (worker should raise on next poll)
     job_service.cancel_job(job["job_id"], db=db_session)
+    assert job_service.is_job_cancelled(job["job_id"], db=db_session) is True
+
+    # Terminal cancelled (after worker drained): still True
+    job_service.finalize_cancelled_job(job["job_id"], db=db_session)
     assert job_service.is_job_cancelled(job["job_id"], db=db_session) is True
 
 

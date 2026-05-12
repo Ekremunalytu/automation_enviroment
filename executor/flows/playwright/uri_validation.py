@@ -18,12 +18,11 @@ ALLOWED_URI_SCHEMES: frozenset[str] = frozenset(
     {"vscode", "vscode-insiders", "http", "https"}
 )
 
-# Inline constant: this module runs inside the executor container as a
-# path-based script (sys.path injects /home/executor/flows/playwright/),
-# so cross-package imports like ``executor.binary_paths`` are not
-# resolvable at runtime. ``executor/binary_paths.py`` mirrors this value
-# for host-side host.py callers; an architecture invariant in
-# ``tests/executor/test_absolute_paths.py`` checks the two stay in sync.
+# Inline constant: this module is also imported directly as ``uri_validation``
+# by the executor compatibility tests, so keep the runtime helper independent
+# from the host-side ``executor.binary_paths`` module. That module mirrors this
+# value, and ``tests/executor/test_absolute_paths.py`` checks the two stay in
+# sync.
 XDG_OPEN_PATH = "/usr/bin/xdg-open"
 
 DEFAULT_TIMEOUT_S = 5.0

@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import logging
+import time
 from collections.abc import Callable
 from pathlib import Path
 from uuid import uuid4
 
 from fastapi import HTTPException
+from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -16,6 +18,11 @@ from appcore.contracts.schema_defs.analysis_jobs import (
     AnalysisJobStepStatus,
 )
 from appcore.contracts.schemas import AnalyzeRequest, AnalyzeResponse
+from appcore.storage.crud_ops.analysis_jobs.lifecycle import (
+    _TERMINAL_JOB_STATUSES,
+    finalize_cancelled_analysis_job,
+)
+from appcore.storage.models import AnalysisJob
 from executor.control import (
     ExecutorControl,
     ExecutorError,
@@ -36,6 +43,9 @@ from workflows.marketplace.analysis_execution import (
 )
 from workflows.marketplace.analysis_execution import (
     install_extension as _install_extension,
+)
+from workflows.marketplace.analysis_execution import (
+    raise_if_cancelled as _raise_if_cancelled,
 )
 from workflows.marketplace.analysis_execution import (
     reset_sandbox as _reset_sandbox,
@@ -106,9 +116,29 @@ def execute_analysis_request(
     if executor_control is None:
         executor_control = default_executor_control
     reporter = _StepReporter(progress_callback)
+    # W13-3 (Codex H4): cancel-poll points cover the gaps between the
+    # 5-second heartbeat ticks. Each major phase boundary checks the
+    # signal so a cancellation never has to wait for `_reset_sandbox` /
+    # `_install_extension` / `_build_triggers` to complete before
+    # propagating, and the worker drains within milliseconds of the
+    # cancel API call.
+    _raise_if_cancelled(cancel_check)
     ensure_vsix_exists(request)
+    _raise_if_cancelled(cancel_check)
     _reset_sandbox(reporter, executor_control)
+    _raise_if_cancelled(cancel_check)
+    # W13-11 (Codex F1 close-pass for W13-1 H6): host-side eager-consume
+    # of the per-launch HMAC python secret. ``_reset_sandbox`` has just
+    # restarted VS Code so ``launch_vscode.sh`` wrote a fresh secret to
+    # ``/results/_extrace_harness_python_secret`` (0600 executor:executor).
+    # We read+unlink it here BEFORE the analyzed VSIX is admitted, so
+    # the same-UID target cannot reach the file during the prior
+    # install -> setup_monitor window. The value is held in this
+    # frame's memory and threaded into ``_run_monitoring`` below.
+    harness_python_secret = executor_control.consume_harness_python_secret()
+    _raise_if_cancelled(cancel_check)
     install_output = _install_extension(request, reporter, executor_control)
+    _raise_if_cancelled(cancel_check)
     trigger_plan = _build_triggers(
         db,
         request,
@@ -117,6 +147,7 @@ def execute_analysis_request(
         trigger_plan_type=TriggerPlan,
     )
     report_name = report_name or job_service.build_report_name(request, uuid4().hex)
+    _raise_if_cancelled(cancel_check)
     automation_output, finalize_message = _run_monitoring(
         request,
         report_name,
@@ -129,6 +160,7 @@ def execute_analysis_request(
         build_report_messages=_build_report_messages,
         cancel_check=cancel_check,
         on_cancel_signal=on_cancel_signal,
+        harness_python_secret=harness_python_secret,
     )
 
     return AnalyzeResponse(
@@ -171,79 +203,170 @@ def map_executor_error(exc: ExecutorError) -> HTTPException:
 
 
 def run_analysis_job(job_id: str, request: AnalyzeRequest) -> None:
-    report_name = job_service.get_job_snapshot(job_id)[
-        "report_path"
-    ] or job_service.build_report_name(
-        request,
-        job_id,
-    )
-    job_service.update_job(
-        job_id,
-        status="running",
-        message="Starting sandbox analysis.",
-        report_path=report_name,
-        started_at=job_service.now(),
-    )
-
+    # W13-13 (CLOSE-GATE codex-second-opinion-F3): Path B worker-entry
+    # snapshot lock closes the cancel-race seam at the
+    # router -> worker-thread boundary. ``cancel_analysis_job`` atomically
+    # flips a queued row to ``cancelling`` under ``with_for_update()``;
+    # if that cancel lands between the ``reserve_job`` commit
+    # (router.py:243) and the worker thread arriving here
+    # (router.py:255-262), the row is in ``cancelling``. The pre-W13-13
+    # unconditional ``update_job(status="running")`` would overwrite the
+    # drain state and the cancel intent would be lost. Path B: take a
+    # ``with_for_update()`` row lock at entry, branch on observed status,
+    # then commit-or-finalize atomically under the lock — symmetric with
+    # the W13-3 ``AnalysisCancelledError`` handler below.
+    #
+    # Lifecycle helper vs wrapper. The entry-block ``cancelling`` branch
+    # calls ``finalize_cancelled_analysis_job(db, ...)`` directly (the
+    # lifecycle CRUD helper) rather than ``job_service.finalize_cancelled_job(job_id)``
+    # (the wrapper). The wrapper opens its own ``SessionLocal()`` via
+    # ``_run_in_session`` and would deadlock against the row lock held
+    # on this ``db`` session. The exception handler below keeps using
+    # the wrapper because by the time it runs the entry-block transaction
+    # has already committed (``queued -> running``) and released the lock.
     db = _open_job_session()
-
-    def progress_update(
-        step: AnalysisJobStepName,
-        status: AnalysisJobStepStatus,
-        message: str,
-        error_code: str | None = None,
-        progress: dict[str, int] | None = None,
-    ) -> None:
-        try:
-            job_service.update_job_step(
-                job_id,
-                step,
-                status,
-                message,
-                error_code=error_code,
-                progress=progress,
-            )
-        except KeyError:
-            # Job row vanished (very unlikely outside tests); swallow so the
-            # automation thread doesn't crash on a missing snapshot.
-            logger.warning("Progress update dropped: job %s no longer exists.", job_id)
-
-    def cancel_check() -> bool:
-        return job_service.is_job_cancelled(job_id)
-
     try:
-        result = execute_analysis_request(
-            request,
-            db,
-            progress_callback=progress_update,
-            report_name=report_name,
-            cancel_check=cancel_check,
+        stmt = (
+            select(AnalysisJob)
+            .where(AnalysisJob.job_id == job_id)
+            .with_for_update()
         )
-    except AnalysisCancelledError:
-        return
-    except (TypeError, AttributeError) as exc:
-        job_service.fail_job(
-            job_id,
-            str(exc),
-            error_code=getattr(exc, "error_code", None),
-        )
-        raise
-    except (
-        FileNotFoundError,
-        ExecutorError,
-        TriggerPlanError,
-        OSError,
-        SQLAlchemyError,
-        ValueError,
-    ) as exc:
-        if job_service.is_job_cancelled(job_id):
+        job = db.scalars(stmt).first()
+        if job is None:
+            logger.warning(
+                "Worker entry: job %s vanished before snapshot lock; exiting.",
+                job_id,
+            )
             return
-        job_service.fail_job(
-            job_id,
-            str(exc),
-            error_code=getattr(exc, "error_code", None),
+        if job.status in _TERMINAL_JOB_STATUSES:
+            logger.info(
+                "Worker entry: job %s already terminal (%s); exiting "
+                "without running.",
+                job_id,
+                job.status,
+            )
+            return
+        if job.status == "cancelling":
+            # User cancelled in the reserve_job -> worker-entry window.
+            # Finalize directly via the lifecycle helper under the held
+            # row lock (see asymmetry note above).
+            try:
+                finalize_cancelled_analysis_job(
+                    db, job_id, "Cancelled before worker started."
+                )
+            except (job_service.JobNotCancellableError, KeyError):
+                # Race: another writer drove the row terminal between
+                # the SELECT and the finalize. Idempotent — nothing to
+                # clean up.
+                logger.debug(
+                    "Worker entry: finalize_cancelled_analysis_job "
+                    "skipped for job %s (already terminal or absent).",
+                    job_id,
+                )
+            return
+        # status == "queued": atomic transition under the lock.
+        report_name = job.report_path or job_service.build_report_name(
+            request, job_id
         )
-        return
+        now = time.time()
+        job.status = "running"
+        job.started_at = now
+        job.message = "Starting sandbox analysis."
+        job.report_path = report_name
+        job.updated_at = now
+        db.commit()
+
+        def progress_update(
+            step: AnalysisJobStepName,
+            status: AnalysisJobStepStatus,
+            message: str,
+            error_code: str | None = None,
+            progress: dict[str, int] | None = None,
+        ) -> None:
+            try:
+                job_service.update_job_step(
+                    job_id,
+                    step,
+                    status,
+                    message,
+                    error_code=error_code,
+                    progress=progress,
+                )
+            except KeyError:
+                # Job row vanished (very unlikely outside tests); swallow so the
+                # automation thread doesn't crash on a missing snapshot.
+                logger.warning(
+                    "Progress update dropped: job %s no longer exists.", job_id
+                )
+
+        def cancel_check() -> bool:
+            return job_service.is_job_cancelled(job_id)
+
+        try:
+            result = execute_analysis_request(
+                request,
+                db,
+                progress_callback=progress_update,
+                report_name=report_name,
+                cancel_check=cancel_check,
+            )
+        except AnalysisCancelledError:
+            # W13-3 (Codex H4): worker observed the cancel signal at one of
+            # the cancel-poll points (or via the monitoring heartbeat) and
+            # has drained the in-flight step. Promote the row from the
+            # non-terminal `cancelling` drain state to terminal `cancelled`
+            # so the partial-unique-index lock releases and reserve_job can
+            # admit the next job. The CRUD helper is idempotent on terminal
+            # states via JobNotCancellableError, so a duplicate transition
+            # cannot regress the row.
+            try:
+                job_service.finalize_cancelled_job(job_id)
+            except (job_service.JobNotCancellableError, KeyError):
+                # Idempotent: row may already be terminal (duplicate
+                # finalize) or already gone (test fixtures / very late
+                # worker exit). Either way nothing to clean up.
+                logger.debug(
+                    "finalize_cancelled_job skipped for job %s (already terminal "
+                    "or absent).",
+                    job_id,
+                )
+            return
+        except (TypeError, AttributeError) as exc:
+            job_service.fail_job(
+                job_id,
+                str(exc),
+                error_code=getattr(exc, "error_code", None),
+            )
+            raise
+        except (
+            FileNotFoundError,
+            ExecutorError,
+            TriggerPlanError,
+            OSError,
+            SQLAlchemyError,
+            ValueError,
+        ) as exc:
+            if job_service.is_job_cancelled(job_id):
+                # W13-3: cancel signal arrived during a hard error in the
+                # worker thread. Treat the row as draining and finalize to
+                # terminal `cancelled` rather than `failed` — the user's
+                # cancel intent is authoritative over an incidental
+                # downstream error.
+                try:
+                    job_service.finalize_cancelled_job(job_id)
+                except (job_service.JobNotCancellableError, KeyError):
+                    logger.debug(
+                        "finalize_cancelled_job skipped for job %s (already "
+                        "terminal or absent) from error path.",
+                        job_id,
+                    )
+                return
+            job_service.fail_job(
+                job_id,
+                str(exc),
+                error_code=getattr(exc, "error_code", None),
+            )
+            return
     finally:
         db.close()
 

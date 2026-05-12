@@ -1,6 +1,6 @@
 # Development Priorities
 
-`Last Updated: 2026-05-05`
+`Last Updated: 2026-05-11`
 
 This is the short priority list for current work. It assumes the project stays
 a single-user sandbox appliance on one machine or one Docker host.
@@ -53,10 +53,9 @@ Must vs Stretch. See `REFACTOR_OPTIMIZATION.md` §10 for Must/Stretch split and
   landings on the `feat/simulation-progress-cancel` branch: (1) weighted
   simulation progress (UI phase weights + heartbeat scenario sub-progress,
   monotonic 0-100 % climb instead of 20 % chunks); (2) full-stack
-  analysis cancel flow (`POST /api/marketplace/analyze/{job_id}/cancel`
-  - `cancel_analysis_job` CRUD with `with_for_update()` lock + heartbeat
-  cancel poll + `executor_control.reset_sandbox` tear-down + Stop button
-  in `SimulationPage.tsx`); (3) VNC harness ready-marker fix
+  analysis cancel flow (later hardened in W13-3 into non-terminal
+  `cancelling`, worker poll points, and explicit finalization); (3) VNC
+  harness ready-marker fix
   (`vscode.py::reload_workbench_window` deletes the marker before reload;
   harness `activate()` is async and awaits the marker write); (4) the
   `t1-demo-runnable-canary` declawed fixture + `demo_runnable_canary.py`

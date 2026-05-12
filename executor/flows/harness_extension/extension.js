@@ -1,13 +1,40 @@
+const fs = require("node:fs");
 const vscode = require("vscode");
 
+const { HARNESS_SECRET_PATH } = require("./constants");
 const {
   emitHarnessEvent,
   emitHarnessMarker,
   readHarnessContext,
+  setHarnessNonceSecret,
   writeHarnessReadyMarker,
 } = require("./markers");
 const { LocalAuthProvider, LocalFileSystemProvider } = require("./providers");
 const { dispatchStimulus, ensureCommentThread } = require("./stimulus_dispatch");
+
+// W13-1 (Codex H6): pull the per-launch HMAC secret out of the
+// executor-only file and immediately unlink it, so by the time the
+// Python orchestration installs the analyzed (target) extension and
+// the target's `activate()` runs, the file no longer exists. Same-UID
+// path mode would not isolate target from harness; the protection is
+// temporal — the file lives only in the window between
+// launch_vscode.sh writing it and the harness reading it. ENOENT is a
+// soft failure: emit functions fall back to unsigned markers and the
+// Python verifier rejects the run as unverified (fail-closed).
+function consumeHarnessNonceSecret() {
+  let secret = "";
+  try {
+    secret = fs.readFileSync(HARNESS_SECRET_PATH, "utf8").trim();
+  } catch (_err) {
+    secret = "";
+  }
+  try {
+    fs.unlinkSync(HARNESS_SECRET_PATH);
+  } catch (_err) {
+    // Already gone; nothing to do.
+  }
+  setHarnessNonceSecret(secret);
+}
 
 // PR345 PR5: capture target-owned output-channel writes by wrapping
 // vscode.window.createOutputChannel before any non-harness extension
@@ -51,6 +78,11 @@ function installOutputChannelHook() {
 }
 
 async function activate(context) {
+  // W13-1: must run first — populates the in-memory HMAC secret used by
+  // every subsequent emitHarnessMarker / emitHarnessEvent call,
+  // including the diagnostic appendLine writes done through
+  // the OutputChannel hook installed below.
+  consumeHarnessNonceSecret();
   installOutputChannelHook();
   // W8-0: dedicated diagnostic channel. Created AFTER the hook so its
   // appendLine writes are captured as OutputSignalEvent (kind=

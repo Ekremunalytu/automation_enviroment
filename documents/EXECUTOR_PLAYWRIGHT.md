@@ -1,6 +1,6 @@
 # Executor Playwright Architecture
 
-`Last Updated: 2026-05-07`
+`Last Updated: 2026-05-11`
 
 ExTrace's dynamic-analysis sandbox: full VS Code GUI session inside
 Docker, driven by Playwright, exporting artifact-first analysis results
@@ -56,12 +56,11 @@ update ADR 0002 §4 in the same change set.
   reload); harness extension's `activate()` is `async` and awaits
   `writeHarnessReadyMarker()` so a write failure surfaces a clean
   `HarnessUnavailableError` timeout.
-- Monitoring heartbeat in
-  `workflows/marketplace/analysis_execution.py` polls
-  `is_job_cancelled` every 5 s and triggers
-  `executor_control.reset_sandbox(reload_window=True)` on cancel —
-  resulting `ExecutorError` converts to `AnalysisCancelledError` so
-  `run_analysis_job` returns silently.
+- W13-3 cancel flow is two-phase: API cancel marks `running ->
+  cancelling`; `workflows/marketplace/analysis_execution.py` polls
+  before reset/install/trigger/monitoring phases and during the
+  monitoring heartbeat; `run_analysis_job` finalizes the drained row to
+  terminal `cancelled`.
 - `t1-demo-runnable-canary` fixture exercises a declawed end-to-end
   path (localhost-only POST + workspace-local file write + explicit
   `onCommand` activation) for the new `make demo-canary` lane.
@@ -166,8 +165,8 @@ Frontend files: `ui/src/features/{marketplace,simulation,reports}/`.
 - Only one background analysis job is allowed at a time.
 - ADR 0007 (local network binding) is **Accepted and implemented**
   `2026-04-29` via W8-7 — default-profile compose ports carry the
-  `127.0.0.1:` prefix; the CDP port runs only under the `debug`
-  compose profile (executor-cdp sidecar); LAN exposure is opt-in via
+  `127.0.0.1:` prefix; host-side CDP exposure runs only under the
+  `debug` compose profile (executor-cdp sidecar); LAN exposure is opt-in via
   `EXTRACE_ALLOW_LAN=1` (host) plus manual compose port editing per
   `documents/runbooks/lan-exposure.md`. Pinned by
   `tests/architecture/test_default_bindings.py`.

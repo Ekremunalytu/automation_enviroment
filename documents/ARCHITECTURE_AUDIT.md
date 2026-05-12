@@ -1,6 +1,6 @@
 # Architecture Audit
 
-`Last Updated: 2026-04-25`
+`Last Updated: 2026-05-11`
 
 This is the short health summary for the current architecture. Use
 `ARCHITECTURE.md` for structure and flows; use `docs/risks.md` for the live
@@ -30,8 +30,8 @@ risk register. Post-PoC deferred items live in `POST_POC_BACKLOG.md`.
 - Long-running analyses are observable and interruptible end-to-end:
   the simulation UI reports weighted phase progress + per-scenario
   sub-progress, and `POST /api/marketplace/analyze/{job_id}/cancel`
-  walks pessimistic-locked CRUD → heartbeat cancel poll →
-  `executor_control.reset_sandbox` instead of leaving the operator to
+  uses a W13 two-phase lifecycle (`running -> cancelling -> cancelled`)
+  with hot-zone worker poll points instead of leaving the operator to
   kill the process.
 - The harness extension's reload path no longer races a stale ready
   marker: `vscode.py::reload_workbench_window` unlinks the marker

@@ -9,6 +9,9 @@ from executor.host import (
     cleanup_trigger_file,
 )
 from executor.host import (
+    consume_harness_python_secret_eager as _consume_harness_python_secret_eager,
+)
+from executor.host import (
     install_extension_in_executor as _install_extension_in_executor,
 )
 from executor.host import reload_vscode_window as _reload_vscode_window
@@ -38,6 +41,7 @@ class ExecutorControl:
         skip_automation: bool = False,
         reload_before_run: bool = False,
         target_extension_id: str | None = None,
+        harness_python_secret: str | None = None,
     ) -> str:
         return _run_playwright_automation(
             report_path=report_path,
@@ -46,7 +50,20 @@ class ExecutorControl:
             skip_automation=skip_automation,
             reload_before_run=reload_before_run,
             target_extension_id=target_extension_id,
+            harness_python_secret=harness_python_secret,
         )
+
+    def consume_harness_python_secret(self) -> str | None:
+        """W13-11 (Codex F1): host-side eager-consume of the per-launch HMAC secret.
+
+        Delegates to ``executor.host.consume_harness_python_secret_eager``;
+        kept on ``ExecutorControl`` so callers in workflows do not import
+        ``executor.host`` directly. Returns the secret string when the
+        file exists and passes the mode guard, ``None`` otherwise (the
+        downstream caller then omits the env var and reconciliation
+        falls back to its legacy file path).
+        """
+        return _consume_harness_python_secret_eager()
 
     def cleanup_trigger(self, trigger_container_path: str | None) -> None:
         cleanup_trigger_file(trigger_container_path)

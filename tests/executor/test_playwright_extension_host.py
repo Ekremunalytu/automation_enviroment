@@ -15,6 +15,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from executor.flows.playwright.runtime_capture import extension_host
 from executor.flows.playwright.runtime_capture.events import ActivationEntry
 
@@ -270,6 +272,83 @@ def test_parse_strace_bounded_arguments_preview_truncates_long_args() -> None:
     # Preview honors the 256-byte budget and signals truncation with an ellipsis.
     assert len(event.arguments_preview) == 256
     assert event.arguments_preview.endswith("...")
+
+
+@pytest.mark.parametrize(
+    ("secret_class", "secret_literal", "expected_placeholder", "forbidden_substring"),
+    [
+        (
+            "aws",
+            "AKIAIOSFODNN7EXAMPLE",
+            "[REDACTED:aws]",
+            "AKIAIOSFODNN7EXAMPLE",
+        ),
+        (
+            "bearer",
+            "Bearer abcdef12345678",
+            "[REDACTED:bearer]",
+            "abcdef12345678",
+        ),
+        (
+            "api_key",
+            "api_key=abc123def456ghi",
+            "[REDACTED:api_key]",
+            "abc123def456ghi",
+        ),
+        (
+            "db_url",
+            "postgresql://user:hunter2@host/db",
+            "[REDACTED:db_url]",
+            "user:hunter2",
+        ),
+        (
+            "private_key",
+            # PEM markers built at runtime so the test source does not trip
+            # `detect-private-key` (mirrors the pattern at
+            # `tests/platform/security/test_output_signals_redaction.py:50-51`).
+            "-----" + "BEGIN " + "PRIVATE " + "KEY-----"
+            "abcdEFGH"
+            "-----" + "END " + "PRIVATE " + "KEY-----",
+            "[REDACTED:private_key]",
+            "BEGIN " + "PRIVATE " + "KEY",
+        ),
+    ],
+)
+def test_parse_strace_event_arguments_preview_redacts_secrets(
+    secret_class: str,
+    secret_literal: str,
+    expected_placeholder: str,
+    forbidden_substring: str,
+) -> None:
+    """W13-6 — strace-parsed ``arguments_preview`` must route through ``redact_secrets()``.
+
+    Each secret class lives inside a quoted strace argument; the parser strips
+    the outer quotes and joins the remaining items into ``arguments_preview``.
+    After W13-6 ``_bounded_arguments_preview()`` applies ``redact_secrets``
+    before truncation, so the redaction placeholder must appear and the raw
+    secret body must not.
+    """
+    line = (
+        f'[pid 100] 1700000003.000 execve("/usr/bin/node", '
+        f'["node", "{secret_literal}"], 0x...) = 0'
+    )
+
+    event = extension_host.parse_strace_process_event_line(
+        line,
+        monitoring_start=0.0,
+        root_pid=100,
+        ppid_by_pid={},
+        cwd_by_pid={},
+    )
+
+    assert event is not None
+    assert event.operation == "exec"
+    assert expected_placeholder in event.arguments_preview, (
+        f"{secret_class} placeholder missing from preview: {event.arguments_preview!r}"
+    )
+    assert forbidden_substring not in event.arguments_preview, (
+        f"{secret_class} raw secret leaked into preview: {event.arguments_preview!r}"
+    )
 
 
 def test_parse_strace_clone_with_non_numeric_child_pid_returns_none() -> None:

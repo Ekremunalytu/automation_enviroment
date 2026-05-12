@@ -1,6 +1,6 @@
 # Risk Register
 
-`Last Updated: 2026-05-05`
+`Last Updated: 2026-05-11`
 
 This register reflects the current post-W8-0 architecture and the remaining
 post-PoC hardening risks.
@@ -107,8 +107,8 @@ Why it matters:
   bind loopback (`API_HOST=127.0.0.1`,
   `CORS_ALLOW_ORIGINS=http://localhost:3000`,
   `CORS_ALLOW_CREDENTIALS=False`); default-profile compose `ports:`
-  entries carry the `127.0.0.1:` prefix; the CDP port runs only under
-  the `debug` compose profile via the `executor-cdp` sidecar.
+  entries carry the `127.0.0.1:` prefix; host-side CDP exposure runs
+  only under the `debug` compose profile via the `executor-cdp` sidecar.
 - LAN exposure now requires both `EXTRACE_ALLOW_LAN=1` (host-side
   uvicorn/CORS substitution in `model_post_init`) **and** manual
   compose port edits per `documents/runbooks/lan-exposure.md`.

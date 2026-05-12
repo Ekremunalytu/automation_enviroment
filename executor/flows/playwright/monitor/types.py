@@ -113,6 +113,24 @@ class ActivationReport:
     file_capture_error: str = ""
     file_capture_diagnostics: dict[str, Any] = field(default_factory=dict)
     extension_host_output: str = ""
+    # W13-1 (Codex H6): per-launch HMAC secret loaded by the entrypoint
+    # from /results/_extrace_harness_python_secret (written by
+    # launch_vscode.sh). When non-empty, reconciliation requires every
+    # ``[extrace-harness] {phase:"complete"}`` marker to carry a valid
+    # HMAC-SHA256 nonce; missing or invalid signatures route the attempt
+    # through ``_mark_unverified_harness_attempt`` (fail-closed). Empty
+    # value preserves the pre-W13-1 contract for unit tests that
+    # construct reports without the orchestration handshake.
+    expected_harness_nonce: str = field(default="", repr=False)
+    # W13-12 (Codex F2 close-pass for W13-1 H6): production paths set this
+    # True at ``setup_monitor`` time so an empty ``expected_harness_nonce``
+    # (eager-consume miss, FileNotFoundError, OSError, bind-mount race)
+    # routes through fail-closed in
+    # ``_attempt_has_harness_completion_trace`` instead of the legacy
+    # phase-only branch. Test fixtures that construct ActivationReport
+    # directly (without setup_monitor) keep the default ``False`` so the
+    # pre-W13-1 regression surface stays GREEN.
+    harness_handshake_required: bool = field(default=False, repr=False)
     log_file_path: str = ""
     log_offsets_snapshot: dict[str, int] = field(default_factory=dict, repr=False)
     target_extension_id: str = ""

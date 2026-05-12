@@ -1,0 +1,49 @@
+{
+  "report_version": 2,
+  "target_extension_expected": "extrace.fixture-cmd",
+  "target_extension_observed": true,
+  "automation_health": {
+    "status": "healthy",
+    "reasons": [],
+    "trigger_requested": true,
+    "trigger_loaded": true,
+    "trigger_applied": true,
+    "target_activation_count": 1
+  },
+  "signal_summary": {
+    "level": "benign",
+    "score": 6,
+    "note": "Deterministic benign command-activated fixture."
+  },
+  "summary": {
+    "target_extension_version": "0.0.1",
+    "scenarios_run": [
+      "command_palette"
+    ],
+    "failed_scenarios": [],
+    "trigger_plan_applied": true
+  },
+  "scenario_traces": [],
+  "evidence_events": [
+    {
+      "event_id": "activation-0001",
+      "kind": "extension_host",
+      "rel_time_s": 0.1,
+      "summary": "Activated extrace.fixture-cmd",
+      "raw_context": {
+        "event_class": "activation"
+      }
+    },
+    {
+      "event_id": "log-0001",
+      "kind": "log",
+      "rel_time_s": 1.0,
+      "summary": "Command handler invoked with deterministic fixture noop"
+    }
+  ],
+  "network_events": [],
+  "file_events": [],
+  "log_streams": {
+    "automation": []
+  }
+}

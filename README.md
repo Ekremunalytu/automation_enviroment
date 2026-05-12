@@ -1,6 +1,6 @@
 # ExTrace
 
-`Last Updated: 2026-05-07`
+`Last Updated: 2026-05-13`
 
 ExTrace is a VS Code extension analysis platform built around three runtime
 surfaces:
@@ -29,9 +29,9 @@ multi-tenant web platform.
 - ADR 0007 local-network-binding is Accepted **and implemented (W8-7,
   `2026-04-29`)** — `appcore/api/config.py` defaults bind `127.0.0.1`,
   CORS allow-list replaces the wildcard, every `docker-compose.yml`
-  `ports:` entry carries an explicit `127.0.0.1:` prefix, and CDP (port
-  9222) is gated behind the Compose `debug` profile. To expose services
-  on the LAN, follow `documents/runbooks/lan-exposure.md` and set
+  `ports:` entry carries an explicit `127.0.0.1:` prefix, and host-side
+  CDP exposure is gated behind the Compose `debug` profile. To expose
+  services on the LAN, follow `documents/runbooks/lan-exposure.md` and set
   `EXTRACE_ALLOW_LAN=1` (host-mode `make dev-lan`) or edit the compose
   file directly.
 
@@ -54,11 +54,24 @@ multi-tenant web platform.
 - **W8 closed for active work `2026-04-29`** (W8-1..W8-7 + W8-9 landed,
   W8-8 deferred); **W9 closed `2026-05-04`** (PR #9); **W10 closed
   `2026-05-04`** (PR #11); **W11 closed `2026-05-05`** and merged via
-  PR #14. Active phase: **W12 executor subpackaging + attribution
-  cleanup**; W12-0 file-backed output-signal redaction, W12-1 executor
-  subpackaging, and W12-2 attribution facade cleanup have landed on
-  `week12`; W12-3 `raw_context` typing is unblocked. Tracker:
-  [`active-work/W12-executor-subpackaging.md`](documents/active-work/W12-executor-subpackaging.md).
+  PR #14; **W12 closed `2026-05-10`** and merged via PR #18 (`33a0852`).
+  **W13 Test Expansion + Observability closed `2026-05-13`** (W13-1..W13-13
+  all GREEN). W13-1..W13-7 acceptance-bar closed; W13-8/9/10 §11.10 GOAL
+  pulls closed (benign silence fixture, `.env` gitignore gate,
+  singleton-lock recovery); **W13-11 HMAC python secret target-install
+  race closed `2026-05-12`** (Path A host-side eager-consume + env var
+  passthrough, 6/6 sub-commits + defense-in-depth + README sweep);
+  **W13-12 fail-closed harness handshake closed `2026-05-12`** (5/5
+  sub-commits; `ActivationReport.harness_handshake_required: bool` +
+  fail-closed branch + 3-fact AST gate; test bar 1537 → 1542);
+  **W13-13 worker-start cancel-race CAS closed `2026-05-13`** (5/5
+  sub-commits + post-landing — Path B worker-entry `with_for_update()`
+  snapshot lock + lifecycle-helper-not-wrapper deadlock avoidance +
+  2-fact AST gate + 4 post-landing behavioral pins (vanished row +
+  finalize idempotency + failed/cancelled terminal); test bar 1542 →
+  1547 → 1551 / tests/architecture/ 115 → 117). Close-out PR
+  `week13 → main` **READY** (close-gate cleared `2026-05-13`). Tracker:
+  [`active-work/W13-test-expansion-observability.md`](documents/active-work/W13-test-expansion-observability.md).
 - **Canonical source of truth for phase state:**
   [`documents/REFACTOR_STATUS.md`](documents/REFACTOR_STATUS.md).
   Deferred items: [`documents/POST_POC_BACKLOG.md`](documents/POST_POC_BACKLOG.md).
@@ -188,6 +201,11 @@ Notes:
 - `POST /api/marketplace/analyze/start`
 - `GET /api/marketplace/analyze/{job_id}`
 - `POST /api/marketplace/analyze/{job_id}/cancel`
+
+### Operator Settings
+
+- `GET /api/settings/security/thresholds`
+- `PUT /api/settings/security/thresholds`
 
 ## Local Development
 

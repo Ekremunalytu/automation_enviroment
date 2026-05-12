@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from playwright.sync_api import Error as PlaywrightError
 
+from ..health.reconciliation import load_harness_python_secret
 from ..wait_helpers import wait_for_idle_observation
 from .triggers import run_extra_triggers
 
@@ -118,6 +119,22 @@ def setup_monitor(page, args, trigger_payload, bait_files_created, *, deps):
         report_path=args.report_path,
         target_extension_id=args.target_extension_id,
     )
+    # W13-1 (Codex H6): consume the per-launch HMAC secret
+    # ``launch_vscode.sh`` wrote (and unlink it) before the analyzed
+    # target VSIX has any chance to read /results. The value is held
+    # only in this process's memory via the report field; reconciliation
+    # uses it to authenticate harness completion markers. Empty value
+    # (file missing or unreadable) keeps reconciliation in fail-closed
+    # mode — no harness attempt is verified by trace alone.
+    mon.report.expected_harness_nonce = load_harness_python_secret()
+    # W13-12 (Codex F2 close-pass): production paths must fail-closed
+    # when the eager-consumed secret is unavailable. Empty
+    # expected_harness_nonce above + this flag → reconciliation refuses
+    # to count harness completion traces by phase alone (target
+    # extensions can forge that line). Test fixtures that construct
+    # ActivationReport directly keep the default False so the pre-W13-1
+    # phase-only regression surface stays GREEN.
+    mon.report.harness_handshake_required = True
     mon.start()
     deps.automation.set_scenario_event_reporter(mon.record_scenario_event)
     trigger_plan_requested = bool(args.triggers)

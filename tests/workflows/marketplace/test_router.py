@@ -1472,6 +1472,112 @@ def test_execute_analysis_request_fails_when_layered_evidence_is_missing(
     assert progress_events[-1][3] == "trigger_apply_failed"
 
 
+# ---------------------------------------------------------------------------
+# W13-11 defense-in-depth (b): orchestration-level runtime invariant.
+#
+# The AST/sequence architecture gate
+# (``tests/architecture/test_harness_secret_eager_consume.py::
+#  test_execute_analysis_request_consumes_secret_before_install``) pins the
+# call order ``_reset_sandbox -> consume_harness_python_secret ->
+# _install_extension`` at parse time. The behavioral unit test
+# (``tests/executor/test_harness_secret_eager_consume.py::
+#  test_eager_consume_returns_secret_and_unlinks_file``) pins the helper's
+# unlink side effect on the bind-mounted path. This orchestration test ties
+# the two together at runtime: when the real ``consume_harness_python_secret_eager``
+# helper is wired through ``ExecutorControl.consume_harness_python_secret``
+# and ``execute_analysis_request`` runs end-to-end, the bind-mount secret
+# file must be absent at the instant ``executor_control.install_extension``
+# is invoked. Without this guarantee the same-UID target VSIX would see a
+# readable secret file during its activation window — the W13-11 close-pass
+# F1 surface.
+# ---------------------------------------------------------------------------
+
+
+def test_execute_analysis_request_unlinks_secret_before_install(
+    tmp_path: Path,
+) -> None:
+    """W13-11 (b) defense-in-depth — runtime invariant.
+
+    ``execute_analysis_request`` must call ``executor_control.consume_harness_python_secret``
+    (which goes through the real ``consume_harness_python_secret_eager``
+    helper) BEFORE ``executor_control.install_extension`` is invoked, and
+    the helper's unlink side effect must have completed by then. This pins
+    the contract at orchestration runtime, complementing the AST sequence
+    gate and the unit-level unlink behavioral case.
+    """
+    from executor import host as host_module
+
+    request = AnalyzeRequest(**ANALYZE_PAYLOAD)
+
+    # Pre-populate the bind-mount file at the chmod the producer
+    # (``launch_vscode.sh:51``) writes. The real eager-consume helper
+    # honors the mode guard and will unlink on success.
+    secret_value = "deadbeefcafe9999" * 4  # 64 chars hex.
+    secret_path = tmp_path / "_extrace_harness_python_secret"
+    secret_path.write_text(secret_value, encoding="utf-8")
+    secret_path.chmod(0o600)
+
+    captured_state: dict[str, object] = {}
+
+    def real_consume() -> str | None:
+        # Route the production helper through the test tmp_path rather than
+        # the default ``settings.project.OUTPUT_DIR`` resolution so the
+        # test does not depend on a writable bind-mount target.
+        return host_module.consume_harness_python_secret_eager(host_path=secret_path)
+
+    def install_capture(publisher: str, name: str, version: str) -> str:
+        # Sample bind-mount file state at the precise moment the orchestration
+        # admits the analyzed VSIX. Pre-W13-11 this would see the secret file
+        # present (race window open). Post-W13-11 the eager-consume above
+        # must have unlinked it.
+        captured_state["secret_present_at_install"] = secret_path.exists()
+        captured_state["consume_returned"] = secret_value
+        # Raise to short-circuit the rest of the orchestration; we have all
+        # the invariants we need to assert.
+        raise ExecutorError(
+            "intentional early exit — invariant captured",
+            returncode=1,
+            output="",
+        )
+
+    executor_control = _make_executor_control()
+    executor_control.consume_harness_python_secret.side_effect = real_consume
+    executor_control.install_extension.side_effect = install_capture
+
+    with (
+        patch("workflows.marketplace.analysis_service.ensure_vsix_exists"),
+        pytest.raises(ExecutorError),
+    ):
+        analysis_service.execute_analysis_request(
+            request,
+            db=MagicMock(),
+            executor_control=executor_control,
+        )
+
+    # Order is correct: consume_harness_python_secret was invoked before
+    # install_extension (spec'd MagicMock would have failed if not).
+    executor_control.consume_harness_python_secret.assert_called_once()
+    executor_control.install_extension.assert_called_once()
+
+    assert captured_state.get("secret_present_at_install") is False, (
+        "W13-11 (b) defense-in-depth invariant broken: bind-mounted "
+        "HMAC secret file was still present on disk at the instant "
+        "executor_control.install_extension was invoked. The AST "
+        "sequence gate said consume runs before install; this runtime "
+        "test says the unlink side effect must have completed by then. "
+        "If this asserts, the eager-consume helper succeeded at "
+        "reading the secret but failed to unlink, re-opening the "
+        "same-UID install -> setup_monitor race window that W13-11 "
+        "closed."
+    )
+    assert captured_state.get("consume_returned") == secret_value, (
+        "Sanity guard: the real eager-consume helper must have "
+        "returned the secret string we pre-wrote — otherwise the "
+        "install_capture side_effect ran before consume completed "
+        "and the invariant above is meaningless."
+    )
+
+
 def test_run_analysis_job_marks_failure_and_closes_session() -> None:
     """Background jobs should persist failure details when execution aborts."""
     request = AnalyzeRequest(**ANALYZE_PAYLOAD)
@@ -1863,6 +1969,9 @@ def test_theme_fixture_analysis_uses_scenario_zero_flow(
             assert reload_window is True
             return "Sandbox reset."
 
+        def consume_harness_python_secret(self) -> str | None:
+            return None
+
         def install_extension(
             self, install_publisher: str, install_name: str, install_version: str
         ) -> str:
@@ -1882,12 +1991,14 @@ def test_theme_fixture_analysis_uses_scenario_zero_flow(
             skip_automation: bool = False,
             reload_before_run: bool = False,
             target_extension_id: str | None = None,
+            harness_python_secret: str | None = None,
         ) -> str:
             assert scenario is None
             assert trigger_container_path is None
             assert skip_automation is True
             assert reload_before_run is True
             assert target_extension_id == f"{publisher}.{name}"
+            assert harness_python_secret is None
             resolved_report_path = tmp_path / Path(report_path).name
             resolved_report_path.write_text(
                 json.dumps(report_payload, indent=2),
@@ -2123,6 +2234,114 @@ def test_cancel_analysis_job_terminal_returns_409(
     detail = response.json()["detail"].lower()
     assert "terminal status" in detail
     assert terminal_status in detail
+
+
+# ---------------------------------------------------------------------------
+# W13-3 (Codex H4) — `cancelling` non-terminal state exposed through the
+# cancel + status endpoints. Originally W13-3.2 @pytest.mark.skip RED
+# precursors; W13-3.5 (worker integration + AnalyzeJobStatusResponse
+# Pydantic literal extension from W13-3.3) makes both cases green.
+# ---------------------------------------------------------------------------
+
+
+def test_cancel_analysis_job_returns_200_with_cancelling_snapshot(
+    client: TestClient,
+) -> None:
+    cancelling_snapshot = {
+        "job_id": "job-w13-3-drain",
+        "status": "cancelling",
+        "publisher": "ms-python",
+        "name": "python",
+        "version": "2025.0.0",
+        "scenario": None,
+        "current_step": "run_monitoring",
+        "message": "Cancel signalled; worker draining.",
+        "steps": [
+            {"name": "reset_sandbox", "status": "completed", "message": "ok"},
+            {"name": "install_extension", "status": "completed", "message": "ok"},
+            {"name": "build_triggers", "status": "completed", "message": "ok"},
+            {
+                "name": "run_monitoring",
+                "status": "running",
+                "message": "Sandbox automation is still running inside the executor.",
+            },
+            {"name": "finalize_report", "status": "pending", "message": "Queued."},
+        ],
+        "report_path": "activation_report.json",
+        "install_output": None,
+        "automation_output": None,
+        "error_detail": "Cancelled by user.",
+        "error_code": "cancelled_by_user",
+        "created_at": 1.0,
+        "started_at": 2.0,
+        "finished_at": None,  # draining — not yet terminal
+        "updated_at": 3.0,
+        "requested_cancel_at": 3.0,
+    }
+    with patch(
+        "workflows.marketplace.router.job_service.cancel_job",
+        return_value=cancelling_snapshot,
+    ) as mock_cancel:
+        response = client.post("/api/marketplace/analyze/job-w13-3-drain/cancel")
+
+    assert response.status_code == 200
+    body = response.json()
+    # The cancel API is no longer atomic-terminal: it signals a drain.
+    assert body["status"] == "cancelling"
+    assert body["finished_at"] is None
+    assert body["error_code"] == "cancelled_by_user"
+    # Step records are NOT yet finalized — worker still owns them.
+    assert body["steps"][3]["status"] == "running"
+    mock_cancel.assert_called_once()
+
+
+def test_status_endpoint_exposes_cancelling_state_for_polling_clients(
+    client: TestClient,
+) -> None:
+    cancelling_snapshot = {
+        "job_id": "job-w13-3-poll",
+        "status": "cancelling",
+        "publisher": "ms-python",
+        "name": "python",
+        "version": "2025.0.0",
+        "scenario": None,
+        "current_step": "install_extension",
+        "message": "Cancel signalled; worker draining install_extension.",
+        "steps": [
+            {"name": "reset_sandbox", "status": "completed", "message": "ok"},
+            {
+                "name": "install_extension",
+                "status": "running",
+                "message": "Installing extension VSIX.",
+            },
+            {"name": "build_triggers", "status": "pending", "message": "Queued."},
+            {"name": "run_monitoring", "status": "pending", "message": "Queued."},
+            {"name": "finalize_report", "status": "pending", "message": "Queued."},
+        ],
+        "report_path": "activation_report.json",
+        "install_output": None,
+        "automation_output": None,
+        "error_detail": "Cancelled by user.",
+        "error_code": "cancelled_by_user",
+        "created_at": 1.0,
+        "started_at": 2.0,
+        "finished_at": None,
+        "updated_at": 3.0,
+        "requested_cancel_at": 3.0,
+    }
+    with patch(
+        "workflows.marketplace.router.job_service.get_job_snapshot",
+        return_value=cancelling_snapshot,
+    ):
+        response = client.get("/api/marketplace/analyze/job-w13-3-poll")
+
+    assert response.status_code == 200
+    body = response.json()
+    # The polling-client contract: `cancelling` reaches the wire (UI can
+    # render "Stopping…"); polling loop keeps polling because the row is
+    # not yet terminal.
+    assert body["status"] == "cancelling"
+    assert body["finished_at"] is None
 
 
 def test_cancel_analysis_job_unknown_returns_404(client: TestClient) -> None:

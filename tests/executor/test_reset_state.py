@@ -268,3 +268,108 @@ def test_reset_executor_state_orchestrates_restart_in_correct_order(
     assert summary["terminated_vscode_processes"] == 1
     assert summary["removed_singleton_locks"] == 2
     assert summary["relaunched_vscode_pid"] == 555
+
+
+def test_reset_executor_state_recovers_from_held_singleton_locks_end_to_end(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """W13-10 — stale singleton-lock recovery integration test.
+
+    Existing unit cases at lines 137-176 cover ``cleanup_singleton_locks()``
+    in isolation; the orchestration case at lines 223-270 stubs
+    ``cleanup_singleton_locks`` and only asserts call ordering.
+
+    Neither exercises the *integration*: a previous VS Code session
+    crashed leaving all three Chromium singleton sentinels in place,
+    ``reset_executor_state()`` runs end-to-end, and the lock files
+    actually disappear from the filesystem while the rest of the
+    reset pipeline still completes normally.
+
+    Without this gate, a future regression that stubs out
+    ``cleanup_singleton_locks`` inside ``reset_executor_state`` (or
+    accidentally skips the call) would leave a stuck VS Code that
+    refuses to relaunch. Failure mode is silent at unit-test level
+    because the orchestration test only checks call ordering against
+    stubs.
+    """
+    extensions_dir = tmp_path / "extensions"
+    logs_dir = tmp_path / "logs"
+    workspace_dir = tmp_path / "workspace"
+    config_dir = tmp_path / "Code"
+    extensions_dir.mkdir()
+    logs_dir.mkdir()
+    workspace_dir.mkdir()
+    config_dir.mkdir()
+
+    (extensions_dir / "leftover-extension").mkdir()
+    (logs_dir / "stale-session").mkdir()
+
+    (config_dir / "SingletonLock").write_text("")
+    (config_dir / "SingletonCookie").write_text("")
+    (config_dir / "SingletonSocket").write_text("")
+    (config_dir / "Preferences").write_text("keep me")
+
+    monkeypatch.setattr(reset_state, "EXTENSIONS_DIR", extensions_dir)
+    monkeypatch.setattr(reset_state, "LOGS_DIR", logs_dir)
+    monkeypatch.setattr(reset_state, "CHROMIUM_CONFIG_DIR", config_dir)
+    monkeypatch.setattr(reset_state.workspace, "WORKSPACE_DIR", workspace_dir)
+    monkeypatch.setattr(reset_state.workspace, "clean_workspace", lambda: None)
+    monkeypatch.setattr(reset_state.workspace, "setup_dev_environment", lambda: None)
+    monkeypatch.setattr(reset_state, "terminate_vscode", lambda: [])
+    monkeypatch.setattr(reset_state, "launch_vscode", lambda: 9999)
+
+    summary = reset_state.reset_executor_state()
+
+    assert summary["removed_singleton_locks"] == 3
+    assert summary["removed_extensions"] == 1
+    assert summary["removed_logs"] == 1
+    assert summary["relaunched_vscode_pid"] == 9999
+
+    remaining = sorted(p.name for p in config_dir.iterdir())
+    assert remaining == ["Preferences"], (
+        f"Expected only ['Preferences'] to survive cleanup, found {remaining}. "
+        "All three Chromium singleton sentinels must be removed by "
+        "reset_executor_state() so the next launch_vscode() does not bail "
+        "out with a stuck-lock error."
+    )
+
+
+def test_reset_executor_state_recovery_handles_partial_singleton_lock_set(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """W13-10 — recovery is robust when only some singleton files exist.
+
+    A crash may leave only one or two of the three sentinels behind
+    (Chromium writes them in a specific order). Recovery must still
+    succeed end-to-end: the present sentinels are removed, the absent
+    ones do not cause an error, and the reset pipeline completes
+    normally with the partial removed-count reflected in the summary.
+    """
+    extensions_dir = tmp_path / "extensions"
+    logs_dir = tmp_path / "logs"
+    workspace_dir = tmp_path / "workspace"
+    config_dir = tmp_path / "Code"
+    extensions_dir.mkdir()
+    logs_dir.mkdir()
+    workspace_dir.mkdir()
+    config_dir.mkdir()
+
+    (config_dir / "SingletonLock").write_text("")
+    (config_dir / "SingletonSocket").write_text("")
+
+    monkeypatch.setattr(reset_state, "EXTENSIONS_DIR", extensions_dir)
+    monkeypatch.setattr(reset_state, "LOGS_DIR", logs_dir)
+    monkeypatch.setattr(reset_state, "CHROMIUM_CONFIG_DIR", config_dir)
+    monkeypatch.setattr(reset_state.workspace, "WORKSPACE_DIR", workspace_dir)
+    monkeypatch.setattr(reset_state.workspace, "clean_workspace", lambda: None)
+    monkeypatch.setattr(reset_state.workspace, "setup_dev_environment", lambda: None)
+    monkeypatch.setattr(reset_state, "terminate_vscode", lambda: [])
+    monkeypatch.setattr(reset_state, "launch_vscode", lambda: 1234)
+
+    summary = reset_state.reset_executor_state()
+
+    assert summary["removed_singleton_locks"] == 2
+    assert summary["relaunched_vscode_pid"] == 1234
+    assert sorted(p.name for p in config_dir.iterdir()) == []

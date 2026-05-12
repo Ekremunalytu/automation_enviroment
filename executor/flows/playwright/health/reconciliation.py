@@ -3,8 +3,13 @@
 
 from __future__ import annotations
 
+import contextlib
+import hashlib
+import hmac
 import json
+import os
 import re
+from pathlib import Path
 from typing import Any
 
 from .runtime_facts import (
@@ -16,6 +21,98 @@ from .runtime_facts import (
 from .summary import derive_verified_capabilities
 
 _HARNESS_MARKER_RE = re.compile(r"\[extrace-harness\]\s+(?P<payload>\{.*\})")
+
+# W13-1 (Codex H6): file path the harness orchestration writes the per-
+# launch HMAC secret to. ``launch_vscode.sh`` produces this file before
+# every VS Code start (boot and reset); ``load_harness_python_secret``
+# reads it once and unlinks so the same-UID target extension cannot
+# reach the value via the bind-mounted ``/results`` directory after the
+# Python orchestration has consumed it.
+HARNESS_PYTHON_SECRET_PATH = Path(
+    os.environ.get(
+        "EXECUTOR_HARNESS_PYTHON_SECRET_PATH",
+        "/results/_extrace_harness_python_secret",
+    )
+)
+
+
+def load_harness_python_secret(
+    path: Path = HARNESS_PYTHON_SECRET_PATH,
+) -> str:
+    """Read the per-launch harness HMAC secret then unlink the file.
+
+    W13-11 (Codex F1 close-pass for W13-1 H6): production paths receive
+    the secret via the ``EXECUTOR_HARNESS_PYTHON_SECRET_VALUE`` env var
+    populated on the host by
+    ``executor.host.consume_harness_python_secret_eager`` BEFORE the
+    analyzed VSIX is admitted to the executor sandbox. The env var is
+    read first; the legacy file fallback is preserved for unit-test
+    paths that construct ``ActivationReport`` directly without going
+    through host-side eager-consume.
+
+    Returns the stripped secret string, or empty string if neither
+    source provides one. Always attempts the unlink (even on env hit)
+    so a stale file from a crashed eager-consume cannot persist into
+    the next launch cycle.
+    """
+    env_value = os.environ.get("EXECUTOR_HARNESS_PYTHON_SECRET_VALUE", "").strip()
+    if env_value:
+        # Defense-in-depth: even when env wins, attempt to unlink the
+        # legacy file in case ``launch_vscode.sh`` ran but eager-consume
+        # crashed before reaping it — keeps the target-readable window
+        # from persisting across reset cycles.
+        with contextlib.suppress(FileNotFoundError, OSError):
+            path.unlink()
+        return env_value
+    # Legacy path — preserved verbatim for test compatibility.
+    secret = ""
+    try:
+        secret = path.read_text(encoding="utf-8").strip()
+    except (FileNotFoundError, OSError):
+        secret = ""
+    with contextlib.suppress(FileNotFoundError, OSError):
+        path.unlink()
+    return secret
+
+
+def _verify_harness_marker_signature(
+    payload: dict[str, Any],
+    expected_nonce: str,
+) -> bool:
+    """W13-1 (Codex H6): authenticate a ``[extrace-harness]`` marker payload.
+
+    Computes HMAC-SHA256 over ``canonical_json(payload \\ {"nonce"})`` using
+    ``expected_nonce`` (loaded from ``/results/_extrace_harness_python_secret``
+    by the entrypoint) and compares against ``payload["nonce"]`` in constant
+    time. The canonical form is sorted-keys JSON without whitespace, in
+    lockstep with ``markers.js::_canonicalPayloadBytes`` and the
+    ``_w13_1_canonical_payload`` test helper. Same-UID target extensions
+    cannot reach the secret, so a forged marker without a matching
+    signature is rejected.
+
+    Fail-closed semantics: empty ``expected_nonce``, missing/non-string
+    ``nonce`` in payload, or invalid signature all return False. The
+    empty-nonce branch preserves the pre-W13-1 unit-test contract where
+    ``ActivationReport`` is constructed without the orchestration
+    handshake; production paths run with a populated secret and reject
+    unsigned markers.
+    """
+    if not expected_nonce:
+        return False
+    received = payload.get("nonce")
+    if not isinstance(received, str) or not received:
+        return False
+    canonical = json.dumps(
+        {k: v for k, v in payload.items() if k != "nonce"},
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    expected_sig = hmac.new(
+        expected_nonce.encode("utf-8"),
+        canonical,
+        hashlib.sha256,
+    ).hexdigest()
+    return hmac.compare_digest(received, expected_sig)
 
 
 def _harness_trace_records_by_attempt(report: Any) -> dict[str, list[dict[str, Any]]]:
@@ -40,9 +137,44 @@ def _harness_trace_records_by_attempt(report: Any) -> dict[str, list[dict[str, A
 def _attempt_has_harness_completion_trace(
     attempt: Any,
     traces_by_attempt: dict[str, list[dict[str, Any]]],
+    expected_nonce: str = "",
+    *,
+    handshake_required: bool = False,
 ) -> bool:
+    """W13-1 / W13-12: a ``phase=="complete"`` trace counts only when its
+    HMAC nonce verifies under ``expected_nonce``. Empty ``expected_nonce``
+    means the report was built without an orchestration handshake.
+
+    Three branches:
+
+    1. ``expected_nonce`` non-empty → require valid HMAC signature on the
+       ``phase=="complete"`` trace (W13-1 contract).
+    2. ``expected_nonce`` empty AND ``handshake_required=True`` → fail-
+       closed (W13-12). Production paths set ``handshake_required`` via
+       ``ActivationReport.harness_handshake_required`` at ``setup_monitor``
+       time. An empty ``expected_nonce`` here means the eager-consume
+       (W13-11) miss-fired (``FileNotFoundError``, ``OSError``, bind-mount
+       race); we refuse to fall back to phase-only because a target
+       extension can forge ``[extrace-harness] {phase:"complete"}``.
+    3. ``expected_nonce`` empty AND ``handshake_required=False`` → legacy
+       phase-only check (test path). Unit fixtures construct
+       ``ActivationReport`` directly without the orchestration handshake;
+       keeping the phase-only branch preserves the pre-W13-1 contract for
+       those fixtures.
+    """
     attempt_id = str(getattr(attempt, "attempt_id", "")).strip()
     if not attempt_id:
+        return False
+    if expected_nonce:
+        return any(
+            str(trace.get("phase", "")).strip() == "complete"
+            and _verify_harness_marker_signature(trace, expected_nonce)
+            for trace in traces_by_attempt.get(attempt_id, [])
+        )
+    if handshake_required:
+        # W13-12: production handshake required but secret unavailable →
+        # fail-closed. Eager-consume (W13-11) guarantees presence on the
+        # happy path; this branch covers the residual failure modes.
         return False
     return any(
         str(trace.get("phase", "")).strip() == "complete"
@@ -298,6 +430,20 @@ def reconcile_event_attempts(report: Any) -> list[Any]:
     derived_verified_capabilities = set(derive_verified_capabilities(report))
     harness_traces = _harness_trace_records_by_attempt(report)
     target_log_summaries = _target_log_stream_summaries(report, target_id)
+    # W13-1 (Codex H6): the orchestration secret is stamped onto the
+    # report by ``setup_monitor`` after lifecycle.py constructs it.
+    # Empty value here means the report was built without the
+    # handshake (unit tests, pre-W13-1 baseline replay); the helper
+    # short-circuits to the legacy phase-only check in that case.
+    expected_harness_nonce = str(getattr(report, "expected_harness_nonce", "") or "")
+    # W13-12 (Codex F2 close-pass): production paths set this True at
+    # ``setup_monitor`` time so an empty ``expected_harness_nonce``
+    # (eager-consume miss / OSError / race) routes the helper through
+    # fail-closed instead of the legacy phase-only branch. Test fixtures
+    # leave it False to preserve pre-W13-1 phase-only behavior.
+    handshake_required = bool(
+        getattr(report, "harness_handshake_required", False)
+    )
 
     for attempt in attempts:
         activation_event = str(getattr(attempt, "activation_event", "")).strip()
@@ -330,7 +476,10 @@ def reconcile_event_attempts(report: Any) -> list[Any]:
             capability_tags & derived_verified_capabilities
         )
         execution_closed = _attempt_has_harness_completion_trace(
-            attempt, harness_traces
+            attempt,
+            harness_traces,
+            expected_harness_nonce,
+            handshake_required=handshake_required,
         )
 
         if not contracts:
