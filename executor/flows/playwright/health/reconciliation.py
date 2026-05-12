@@ -41,13 +41,30 @@ def load_harness_python_secret(
 ) -> str:
     """Read the per-launch harness HMAC secret then unlink the file.
 
-    Returns the stripped secret string, or empty string if the file is
-    missing or unreadable. Always attempts the unlink regardless of read
-    success so a half-written or stale file from a prior boot does not
-    survive into the target's window. The Python caller (typically
-    ``setup_monitor``) holds the returned value in memory and stamps it
-    onto ``ActivationReport.expected_harness_nonce``.
+    W13-11 (Codex F1 close-pass for W13-1 H6): production paths receive
+    the secret via the ``EXECUTOR_HARNESS_PYTHON_SECRET_VALUE`` env var
+    populated on the host by
+    ``executor.host.consume_harness_python_secret_eager`` BEFORE the
+    analyzed VSIX is admitted to the executor sandbox. The env var is
+    read first; the legacy file fallback is preserved for unit-test
+    paths that construct ``ActivationReport`` directly without going
+    through host-side eager-consume.
+
+    Returns the stripped secret string, or empty string if neither
+    source provides one. Always attempts the unlink (even on env hit)
+    so a stale file from a crashed eager-consume cannot persist into
+    the next launch cycle.
     """
+    env_value = os.environ.get("EXECUTOR_HARNESS_PYTHON_SECRET_VALUE", "").strip()
+    if env_value:
+        # Defense-in-depth: even when env wins, attempt to unlink the
+        # legacy file in case ``launch_vscode.sh`` ran but eager-consume
+        # crashed before reaping it — keeps the target-readable window
+        # from persisting across reset cycles.
+        with contextlib.suppress(FileNotFoundError, OSError):
+            path.unlink()
+        return env_value
+    # Legacy path — preserved verbatim for test compatibility.
     secret = ""
     try:
         secret = path.read_text(encoding="utf-8").strip()

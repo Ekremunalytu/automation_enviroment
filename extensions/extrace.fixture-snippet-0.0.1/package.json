@@ -1,0 +1,21 @@
+{
+  "name": "fixture-snippet",
+  "displayName": "ExTrace Fixture Snippet",
+  "description": "Deterministic local declarative-snippet fixture for benign-silence regression coverage.",
+  "version": "0.0.1",
+  "publisher": "extrace",
+  "engines": {
+    "vscode": "^1.116.0"
+  },
+  "categories": [
+    "Snippets"
+  ],
+  "contributes": {
+    "snippets": [
+      {
+        "language": "plaintext",
+        "path": "./snippets/extrace-fixture-snippets.json"
+      }
+    ]
+  }
+}

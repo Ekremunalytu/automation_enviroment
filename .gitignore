@@ -42,6 +42,9 @@ extensions/*
 !extensions/malicious/
 !extensions/extrace.fixture-chat-0.0.1/
 !extensions/extrace.fixture-theme-0.0.1/
+!extensions/extrace.fixture-snippet-0.0.1/
+!extensions/extrace.fixture-keybinding-0.0.1/
+!extensions/extrace.fixture-cmd-0.0.1/
 .env
 !.env.example
 node_modules/

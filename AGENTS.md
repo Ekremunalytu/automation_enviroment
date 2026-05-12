@@ -1,6 +1,6 @@
 # AGENTS.md
 
-`Last Updated: 2026-05-11 (W12 closed via PR #18; W13 — Test Expansion + Observability open; W13-1..W13-7 closed — acceptance bar cleared, ready for close-out PR)`
+`Last Updated: 2026-05-12 (W12 closed via PR #18; W13 — Test Expansion + Observability open; W13-1..W13-7 closed — acceptance bar cleared; W13-8/9/10 §11.10 GOAL pulls closed (benign silence fixture 3→5 / .env gitignore gate / singleton-lock recovery); W13-11 HMAC python secret target-install race closed 2026-05-12 — Path A host-side eager-consume + env var passthrough (6/6 main sub-commits) + 7 post-landing additions in same push (defense-in-depth b/c/a + README sweep + regex pin steal-from-W13-13 + tracker test bar updates); final bar test-local 1521 → 1537 / tests/architecture/ 105 → 112; W13-12 fail-closed harness handshake + W13-13 worker-start cancel-race CAS CLOSE-GATE hold; close-out PR week13 → main BLOCKED until W13-12/13 GREEN)`
 
 ## Authority
 

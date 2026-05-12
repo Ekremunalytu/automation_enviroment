@@ -1,10 +1,10 @@
 # REFACTOR_OPTIMIZATION
 
-`Last Updated: 2026-05-11 (W13 active; W13-1..W13-7 closed — every MEDIUM/HIGH Codex Cloud acceptance-bar item landed; §11.10 + §11.14 reflect cleared bar; ready for W13 close-out PR week13 → main)`
+`Last Updated: 2026-05-12 (W13 active — W13-1..W13-7 closed acceptance bar; W13-8/9/10 closed §11.10 GOAL pulls; W13-11 HMAC python secret target-install race closed 2026-05-12 (6/6 main sub-commits + 7 post-landing additions in same push: 9a2ba76 self-stamp + doc fix-up + defense-in-depth b/c/a + README regex pin (steal-from-W13-13) + tracker test bar update; final bar test-local 1521 → 1537 / tests/architecture/ 105 → 112) — Path A host-side eager-consume + env var passthrough; CLOSE-GATE HOLD remains on W13-12 fail-closed harness handshake / W13-13 worker-start cancel-race CAS (README sweep + regex pin already landed in W13-11 push); close-out PR week13 → main BLOCKED until W13-12/13 GREEN; §12 W14 staging scope pre-entry, activates after close-gate clearance + close-out merge)`
 
-W0-W13 plan document: stabilization + security + post-PoC external-review
-integration. **Slim canonical** — full historical content is frozen under
-dated snapshots:
+W0-W14 plan document: stabilization + security + post-PoC external-review
+integration + W14 acceptance + observability continuation. **Slim canonical**
+— full historical content is frozen under dated snapshots:
 
 - latest full snapshot:
   [`archive/plans/REFACTOR_OPTIMIZATION_full_2026-05-11.md`](archive/plans/REFACTOR_OPTIMIZATION_full_2026-05-11.md)
@@ -19,6 +19,9 @@ dated snapshots:
   [`active-work/W8-security.md`](active-work/W8-security.md).
 - §11.6 - §11.10 → W9-W13 weekly briefs.
 - §11.11 - §11.14 → cross-ref, rejected, lane, and exit criteria summaries.
+- §12 → W14 Codex M-class Acceptance + Observability (staging, activates on
+  W13 close-out PR merge). Tracker:
+  [`active-work/W14-codex-acceptance-observability.md`](active-work/W14-codex-acceptance-observability.md).
 
 ## §10 — W0-W7 PoC Stabilization Window (closed 2026-04-23)
 
@@ -152,11 +155,78 @@ Audit pull-forwards:
 - W13-5 closed `[FOLLOWUP codex-2026-05-10-H3-dev-lan-makefile-drift]`.
 - W13-6 closed `[FOLLOWUP codex-2026-05-10-M9-arguments-preview-redaction-extension]`.
 - W13-7 closed `[FOLLOWUP codex-2026-05-10-M1-pem-regex-dos]`.
-- No MEDIUM/HIGH Codex acceptance items remain open. Ready for the
-  W13 close-out PR (`week13 → main`).
+- No MEDIUM/HIGH Codex acceptance items remain open. Codex Cloud
+  audit (2026-05-10) acceptance bar fully cleared.
+
+§11.10 GOAL pulls (post-acceptance-bar):
+
+- W13-8 closed `[§11.10 GOAL] Benign silence fixture 3→5`. 3 new
+  fixture extensions authored under `extensions/`
+  (`extrace.fixture-snippet-0.0.1` declarative snippets,
+  `extrace.fixture-keybinding-0.0.1` declarative keybindings,
+  `extrace.fixture-cmd-0.0.1` `onCommand:` activation), matching
+  baseline activation reports added, and `_FIXTURE_REPORTS` /
+  `BASELINE_EXTENSION_FIXTURES` / `expected_activation_event_types`
+  extended. `tests/security/test_benign_silence.py` 5/5 ✓ (3 RED
+  skip decorators removed); `make test-security` 212 → 215 (+3
+  passed). Production code untouched.
+- W13-9 closed `[§11.10 GOAL] .env gitignore regression test`. New
+  architecture gate `tests/architecture/test_env_gitignore.py` 10/10
+  ✓ pins the `.env` / `*.env` / virtualenv / `!.env.example` rule
+  set via `git check-ignore`. Underlying `.gitignore` was already
+  correct; pre-W13-9 there was no architecture gate locking the
+  invariant.
+- W13-10 closed `[§11.10 GOAL] Stale singleton-lock recovery
+  integration test`. 2 new integration cases in
+  `tests/executor/test_reset_state.py` (13/13 ✓) exercise
+  `cleanup_singleton_locks()` integration inside
+  `reset_executor_state()` with real held-lock filesystem state
+  (full-set and partial-set variants). Pre-W13-10 unit cases stubbed
+  the cleanup; W13-10 covers the integration gap.
 
 Original §11.10 candidates that remain open are tracked in
-`POST_POC_BACKLOG.md` and the W13 tracker Candidate Items table.
+`POST_POC_BACKLOG.md` and the W13 tracker Candidate Items table. The
+close-out PR (`week13 → main`) bundles whichever §11.10 GOAL pulls
+have reached GREEN at the cut-off; the remainder iter into W14.
+
+§11.10 close-gate (added `2026-05-11` after Codex Cloud second-opinion
+review on `week13`):
+
+- ~~W13-11~~ (`[CLOSE-GATE codex-second-opinion-F1-hmac-python-secret-target-install-race]`)
+  — **closed `2026-05-12`** (6/6 sub-commits). Close-pass for W13-1 H6.
+  Path A host-side eager-consume + env var passthrough landed:
+  `workflows/marketplace/analysis_service.py::execute_analysis_request`
+  calls `executor_control.consume_harness_python_secret()` between
+  `_reset_sandbox()` and `_install_extension()`, reads bind-mounted
+  `Path(settings.project.OUTPUT_DIR) / "_extrace_harness_python_secret"`
+  - unlinks, threads through `run_playwright_automation(...,
+  harness_python_secret=...)` → docker exec
+  `-e EXECUTOR_HARNESS_PYTHON_SECRET_VALUE=<hex>` env var.
+  `load_harness_python_secret()` env-priority. E4 docker exec argv
+  mask. W13-1 nonce gate intact. W13-12 immediate follow-up required
+  for full fail-closed semantics.
+- W13-12 (`[CLOSE-GATE codex-second-opinion-F2-fail-closed-harness-handshake]`)
+  — close-pass for W13-1 H6. `reconciliation.py:137-146` legacy
+  phase-only fallback when `expected_nonce` empty; `load_harness_python_secret`
+  returns `""` on any read failure → production silently degrades to
+  spoofable behavior. Fix direction: `ActivationReport.harness_handshake_required: bool`
+  with fail-closed production semantics.
+- W13-13 (`[CLOSE-GATE codex-second-opinion-F3-worker-start-cancel-race-CAS]`)
+  — close-pass for W13-3 H4. `analysis_service.run_analysis_job:194`
+  unconditional `update_job(status="running")` regresses `queued →
+  cancelling` to `running`, losing user cancel intent. Fix direction
+  (Path B): worker entry `with_for_update()` snapshot +
+  `finalize_cancelled_analysis_job` if `cancelling` observed.
+  **Scope rebased `2026-05-12`** — original F4 README phase pointer
+  drift sweep + `tests/architecture/test_readme_phase_pointer.py`
+  regex pin landed early in the W13-11 push (sub-commits 8 + 12) to
+  keep the README sweep paired with its banner-cascade fix-up.
+
+Close-out PR `week13 → main` is BLOCKED until W13-12/13 reach
+GREEN (W13-11 closed `2026-05-12`). These items are pulled in-window
+(not deferred to W14) because they directly fix bypass surfaces in the
+originally W13-claimed H6 + H4 closures — keeping them in-window
+preserves audit-trail integrity.
 
 ### §11.11 — Cross-Reference
 
@@ -184,3 +254,96 @@ Before W13 closes:
 - `REFACTOR_STATUS.md`, `POST_POC_BACKLOG.md`, `documents/README.md`, and
   relevant lane docs point to the same active/closed state.
 - Slim canonicals remain short; verbose evidence is archived first.
+- **Close-gate (added `2026-05-11`): W13-11/12/13 close-pass items
+  GREEN.** Codex Cloud second-opinion review identified 3 P1 bypass
+  surfaces in the originally W13-claimed H6 + H4 closures (W13-11 HMAC
+  python secret target-install race — **closed `2026-05-12`**, W13-12
+  fail-closed harness handshake, W13-13 worker-start cancel-race CAS
+  — F4 README drift sweep + regex pin originally bundled in W13-13
+  scope landed early in W13-11 push `2026-05-12`). Close-out PR
+  `week13 → main` is held until W13-12/13 reach GREEN — keeping the
+  fixes in-window preserves audit-trail integrity (history shows H6/H4
+  work as a coherent iteration family rather than a deferred follow-up).
+
+## §12 — W14 Codex M-class Acceptance + Observability (2026-05-11 staging)
+
+§12 opens once `week13 → main` close-out PR merges and `week14` is cut from
+`main`. Until then, this section is **read-only staging scope**; the active
+tracker [`active-work/W14-codex-acceptance-observability.md`](active-work/W14-codex-acceptance-observability.md)
+mirrors this scope and activates on entry-gate satisfaction.
+
+### §12.0 — Neden ayrı §12
+
+§11 W8-W13 external-review integration penceresini sınırlar (W12 close
+2026-05-10, W13 acceptance bar 2026-05-11). W14 yeni bir tema: Codex
+M-class acceptance-bar pull-forward devamı + §11.10 GOAL umbrella'larının
+ertelenen kısmı. §12 ayrı tutuluyor ki §11 audit trail'i (`2026-05-10`
+Codex Cloud audit, H/M class çekim sırası) donmuş kalsın.
+
+### §12.1 — Entry Gate (hedef)
+
+W14 entry gate, W13 close-out PR'ı merge edildiğinde tetiklenir:
+
+- `week13 → main` close-out PR merged (W12 PR #18 cut-off pattern).
+- `make check-all` ✅ green at W13 close commit; hedef baseline:
+  `make test-local` 1521 / `make test-security` 215 /
+  `tests/architecture/` 105.
+- W14 tracker'da "Entry Conditions Met" checklist tamamlanır.
+
+### §12.2 — W14 alt-iterasyon dağılımı
+
+W13'ün 10 sub-iter ritmi yerine, 6 sub-iter kohezyon kümelerine bölünür.
+İlk pull anında `W14-N` stable ID atanır (W11/W12/W13 precedent).
+
+| Iter | Tema | Stable ID(s) |
+|---|---|---|
+| W14-1 | BLOCKER araştırma — scenario-dropout kök neden | `[BUG scenario-dropout-upstream-root-cause]` |
+| W14-2 | Codex M-class — input validation | `[FOLLOWUP codex-2026-05-10-M4-M7-output-ts-range-validation]` + `[FOLLOWUP codex-2026-05-10-M11-report-health-malformed-types]` |
+| W14-3 | Codex M-class — dış yüzey sertleştirme | `[FOLLOWUP codex-2026-05-10-M13-network-uri-summary-redaction]` + `[FOLLOWUP codex-2026-05-10-M14b-cdp-port-default-disabled]` + `[FOLLOWUP codex-2026-05-10-U4-U12-makefile-shell-quoting]` |
+| W14-4 | Doğruluk + concurrency | `[FOLLOWUP analysis-jobs-race]` + `[FOLLOWUP evidence-event-kind-raw-context-invariant]` |
+| W14-5 | §11.10 GOAL devamı — Logger consolidation + run-ID stamping + executor runtime fingerprint | `[GOAL w14-logger-consolidation]` + `[GOAL w14-run-id-stamping]` + `[FOLLOWUP codex-automation-5]` |
+| W14-6 | §11.10 GOAL devamı — W8-W12 regression lock-in umbrella | `[FOLLOWUP arch-gate-executor-control-outbound]` + `[FOLLOWUP arch-gate-bare-binary-pragma-ratchet]` + `[FOLLOWUP w8-4-variable-indirect-subprocess-coverage]` |
+
+Sıralama gerekçesi: W14-1 önce — CRITICAL BUG W14 scope'unu genişletebilir
+veya HIGH'a indirebilir. Sonra düşük-risk M-class (W14-2), W13-6 redaction
+zincirinin devamı (W14-3), correctness/concurrency (W14-4), altyapı GOAL
+pulls (W14-5, W14-6). W14-5, W14-6'dan önce gelir çünkü logger
+consolidation regression lock-in gate'lerinde test enstrümantasyonuna girdi
+olur.
+
+### §12.3 — Non-goals (W14)
+
+Aşağıdaki kalemler W14 scope'unda DEĞİL — W15+'a düşer. Stable ID'leri
+[`POST_POC_BACKLOG.md`](POST_POC_BACKLOG.md) altında açık kalır:
+
+- Codex M-class: M5 (W14-5 yan ürünü değilse), M10, M12, U1-U3, U6, U8,
+  I2, I4
+- Posture decision: `[FOLLOWUP codex-2026-05-10-U10-U11-unauth-catalog-endpoints]`
+  — W14 öncesi ADR oturumu, plan değil karar
+- Watching items: `planner-selection-readability-audit`,
+  `attribution-links-build-evidence-bundle-density`,
+  `execute-attempt-rebloat-watch`, `dispatch-execution-rebloat-watch` —
+  LoC bütçesi aşılana kadar dokunma
+- UI follow-up'ları: `ui-raw-context-discriminator-parity`,
+  `vsix-integrity-in-activation-report` → W14-4 backend invariant landed
+  olunca UI parity ayrı pull
+- Refactor: `scenario-accountant-conservation-split` (W14-1 kök neden
+  netleştikten sonra ayrı pull adayı; W14-1 PR'ına dahil edilmez)
+- Automation/verification: `[FOLLOWUP codex-automation-6]` (UI failure
+  taxonomy) + `[FOLLOWUP capability-verification-gap]` — W14 temasıyla
+  örtüşmüyor; ikincisi `NEEDS-DESIGN`. `codex-automation-5` ise W14-5'e
+  katlandı (run-ID stamping ile sibling)
+
+### §12.4 — Exit Criteria (W14-End)
+
+W14 kapanır şu koşullar sağlandığında:
+
+- W14-1 BLOCKER kalemi ya kapanır ya da HIGH'a indirilip dokümante edilir.
+- W14-2..W14-6 ya kapanır ya da slim canonical'da explicit deferral
+  rasyoneli ile W15'e taşınır.
+- W14 tracker final close evidence + current test counts tutar.
+- `REFACTOR_STATUS.md`, `POST_POC_BACKLOG.md`, `documents/active-work/README.md`
+  ve ilgili lane docs aynı active/closed state'i gösterir.
+- Slim canonicals kısa kalır; verbose evidence önce arşivlenir.
+- `week14 → main` close-out PR W12 PR #18 / W13 close-out cut-off pattern'ini
+  izler.

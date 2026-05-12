@@ -261,6 +261,7 @@ def run_monitoring(
     ],
     cancel_check: Callable[[], bool] | None = None,
     on_cancel_signal: Callable[[], None] | None = None,
+    harness_python_secret: str | None = None,
 ) -> tuple[str, str]:
     total_scenarios = len(trigger_plan.selected_scenarios)
     reporter.emit(
@@ -318,6 +319,7 @@ def run_monitoring(
             skip_automation=trigger_plan.skip_automation,
             reload_before_run=True,
             target_extension_id=f"{request.publisher}.{request.name}",
+            harness_python_secret=harness_python_secret,
         )
     except ExecutorError as exc:
         if cancel_triggered.is_set():

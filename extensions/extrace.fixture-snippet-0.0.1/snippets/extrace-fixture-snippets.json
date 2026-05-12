@@ -1,0 +1,11 @@
+{
+  "ExTrace Fixture Snippet Marker": {
+    "scope": "plaintext",
+    "prefix": "extrace-fixture-marker",
+    "body": [
+      "extrace fixture snippet body line one",
+      "extrace fixture snippet body line two"
+    ],
+    "description": "Deterministic plaintext snippet emitted by the benign-silence fixture extension."
+  }
+}

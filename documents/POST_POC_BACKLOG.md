@@ -1,6 +1,6 @@
 # Post-PoC Backlog
 
-`Last Updated: 2026-05-11 (W13-7 closed — Codex M1 PEM regex DoS closed via bounded scanner in redact_multiline_secrets() (16 KB window cap); pre-fix 361 ms → post-fix 1.29 ms; W13 acceptance bar cleared — H3/H4/H5/H6/M1/M9 all landed; next step is W13 close-out PR)`
+`Last Updated: 2026-05-12 (W13-1..W13-10 sub-iters all closed; W13-11 closed 2026-05-12 (6/6 sub-commits — design+impl+arch gate+regression fix+doc sweep) — Path A host-side eager-consume + env var passthrough; W13-12/13 remain CLOSE-GATE not started; close-out PR week13 → main BLOCKED until W13-12/13 GREEN)`
 
 Open deferred work after the W0-W7 PoC acceptance bar. **Slim canonical** —
 verbose descriptions, evidence, and older triage notes are frozen in dated
@@ -11,9 +11,13 @@ snapshots:
 - previous full snapshot:
   [`archive/backlog/POST_POC_BACKLOG_full_2026-05-07.md`](archive/backlog/POST_POC_BACKLOG_full_2026-05-07.md)
 
-W8, W9, W10, W11, and W12 are closed. Active phase: **W13 test expansion +
-observability**, tracked in
-[`active-work/W13-test-expansion-observability.md`](active-work/W13-test-expansion-observability.md).
+W8, W9, W10, W11, and W12 are closed. W13 acceptance bar + §11.10 GOAL pulls
+are closed; close-out PR `week13 → main` pending. Next active phase: **W14
+Codex M-class Acceptance + Observability**, staged in
+[`active-work/W14-codex-acceptance-observability.md`](active-work/W14-codex-acceptance-observability.md);
+predecessor tracker
+[`active-work/W13-test-expansion-observability.md`](active-work/W13-test-expansion-observability.md)
+remains active until the W13 close-out PR merges.
 
 ## Stable IDs Are A Contract
 
@@ -38,32 +42,56 @@ Use stable IDs in new references; do not cite canonical doc line numbers.
 | ~~`[FOLLOWUP codex-2026-05-10-M9-arguments-preview-redaction-extension]`~~ | closed via W13-6 | factory-internal redaction at `_bounded_arguments_preview()` + new replica architecture gate `tests/architecture/test_arguments_preview_redaction.py` (2/2 ✓ — factory body invariant + routing invariant) + parametrized regression covering aws/bearer/api_key/db_url/private_key (5/5 ✓) |
 | `[FOLLOWUP w13-3-close-pass-cancellation-test-hardening]` | closed via W13-4 | behavioral coverage + `analysis-job-stuck` runbook update |
 | `[FOLLOWUP w13-4-alembic-roundtrip-programmatic]` | deferred | needs fresh-DB-per-test Alembic fixture |
+| ~~`[CLOSE-GATE codex-second-opinion-F1-hmac-python-secret-target-install-race]`~~ (W13-11) | **closed `2026-05-12`** (6/6 sub-commits) | Close-pass for W13-1 H6. Codex Cloud second-opinion `2026-05-11`. Path A host-side eager-consume + env var passthrough; `executor_control.consume_harness_python_secret()` between `_reset_sandbox` and `_install_extension`; `EXECUTOR_HARNESS_PYTHON_SECRET_VALUE` env threading + E4 docker exec argv mask. W13-12 immediate follow-up required for full fail-closed semantics. |
+| **`[CLOSE-GATE codex-second-opinion-F2-fail-closed-harness-handshake]`** (W13-12) | **CLOSE-GATE — not started** | Close-pass for W13-1 H6. Codex Cloud second-opinion `2026-05-11`. Depends on W13-11. Merge blocker. |
+| **`[CLOSE-GATE codex-second-opinion-F3-worker-start-cancel-race-CAS]`** (W13-13) | **CLOSE-GATE — not started** | Close-pass for W13-3 H4 + F4 README drift sweep. Codex Cloud second-opinion `2026-05-11`. Merge blocker. |
+
+## W14 Pull-Forward Acceptance Bar
+
+Skeleton scope authored `2026-05-11` alongside W13 close-out preparation;
+activates on `week13 → main` PR merge. Stable IDs `W14-N` assigned at
+first pull (W11/W12/W13 precedent). Full per-iter detail lives in
+[`active-work/W14-codex-acceptance-observability.md`](active-work/W14-codex-acceptance-observability.md).
+
+| Iter | Stable ID(s) | Status | Note |
+|---|---|---|---|
+| W14-1 | `[BUG scenario-dropout-upstream-root-cause]` | scoped — not started | BLOCKER triage; deterministik repro fixture + kök neden tespiti; eğer stokastik HIGH'a indir |
+| W14-2 | `[FOLLOWUP codex-2026-05-10-M4-M7-output-ts-range-validation]` + `[FOLLOWUP codex-2026-05-10-M11-report-health-malformed-types]` | scoped — not started | Input validation cluster; W13-6 parametrize regression deseni; bundle pull |
+| W14-3 | `[FOLLOWUP codex-2026-05-10-M13-network-uri-summary-redaction]` + `[FOLLOWUP codex-2026-05-10-M14b-cdp-port-default-disabled]` + `[FOLLOWUP codex-2026-05-10-U4-U12-makefile-shell-quoting]` | scoped — not started | Dış yüzey sertleştirme; M13 W13-6 factory-internal redaction deseninin tekrarı; U4-U12 W13-5 recipe-fix deseni |
+| W14-4 | `[FOLLOWUP analysis-jobs-race]` + `[FOLLOWUP evidence-event-kind-raw-context-invariant]` | scoped — not started | Doğruluk + concurrency; analysis-jobs-race CRITICAL (W13-4.4 race window dokümante); evidence-event-kind test stub hazır |
+| W14-5 | `[GOAL w14-logger-consolidation]` + `[GOAL w14-run-id-stamping]` (yeni stable ID'ler) + `[FOLLOWUP codex-automation-5]` | scoped — not started | §11.10 GOAL devamı W13'ten devreden + automation runtime fingerprint (sibling tema); M5 (`epoch-docker-exec-propagation`) doğal yan ürün adayı |
+| W14-6 | `[FOLLOWUP arch-gate-executor-control-outbound]` + `[FOLLOWUP arch-gate-bare-binary-pragma-ratchet]` + `[FOLLOWUP w8-4-variable-indirect-subprocess-coverage]` | scoped — not started | §11.10 GOAL devamı — W8-W12 regression lock-in umbrella; AST-tabanlı 3 yeni arch gate |
 
 ## Codex Cloud Audit Backlog
 
 ### Post-W13 Candidates
 
-- `[FOLLOWUP codex-2026-05-10-M4-M7-output-ts-range-validation]` —
+Items annotated `(W14-N)` are pulled into the W14 acceptance bar above;
+remaining items iter into W15+.
+
+- `[FOLLOWUP codex-2026-05-10-M4-M7-output-ts-range-validation]` **(W14-2)** —
   guard extension-controlled timestamps before `datetime.fromtimestamp()`.
 - `[FOLLOWUP codex-2026-05-10-M5-epoch-docker-exec-propagation]` —
   propagate `EXTRACE_EPOCH_RUN_ID` through `executor/host.py` docker exec.
+  Doğal yan ürün adayı W14-5 (logger consolidation + run-ID stamping);
+  çekilmezse W15'e düşer.
 - `[FOLLOWUP codex-2026-05-10-M10-sync-analyze-typeerror-catch]` —
-  align sync `/api/marketplace/analyze` error catch with async path.
-- `[FOLLOWUP codex-2026-05-10-M11-report-health-malformed-types]` —
+  align sync `/api/marketplace/analyze` error catch with async path. W15+.
+- `[FOLLOWUP codex-2026-05-10-M11-report-health-malformed-types]` **(W14-2)** —
   type-guard `automation_health` report-message conversion.
 - `[FOLLOWUP codex-2026-05-10-M12-workspace-symlink-check-order]` —
-  delete or fix orphan `clean_workspace()` symlink handling.
-- `[FOLLOWUP codex-2026-05-10-M13-network-uri-summary-redaction]` —
+  delete or fix orphan `clean_workspace()` symlink handling. W15+.
+- `[FOLLOWUP codex-2026-05-10-M13-network-uri-summary-redaction]` **(W14-3)** —
   redact network URI/path/summary fields; pair with M9.
-- `[FOLLOWUP codex-2026-05-10-M14b-cdp-port-default-disabled]` —
+- `[FOLLOWUP codex-2026-05-10-M14b-cdp-port-default-disabled]` **(W14-3)** —
   disable in-container CDP by default or require explicit opt-in.
-- `[FOLLOWUP codex-2026-05-10-U1-U2-U3-ui-event-spread-cap]` —
+- `[FOLLOWUP codex-2026-05-10-U1-U2-U3-ui-event-spread-cap]` — W15+;
   cap UI event density/timeline spread operations.
-- `[FOLLOWUP codex-2026-05-10-U6-relations-graph-cap]` — cap relations
+- `[FOLLOWUP codex-2026-05-10-U6-relations-graph-cap]` — W15+; cap relations
   graph nodes/edges.
-- `[FOLLOWUP codex-2026-05-10-U4-U12-makefile-shell-quoting]` — quote or
-  validate Makefile operator variables.
-- `[FOLLOWUP codex-2026-05-10-U8-activationevents-bounds]` — cap activation
+- `[FOLLOWUP codex-2026-05-10-U4-U12-makefile-shell-quoting]` **(W14-3)** —
+  quote or validate Makefile operator variables.
+- `[FOLLOWUP codex-2026-05-10-U8-activationevents-bounds]` — W15+; cap activation
   event strings/list size and migrate DB field length.
 
 ### Quick Fixes
@@ -97,8 +125,8 @@ evidence.
 - ~~`[FOLLOWUP simulation-progress-cancel] is-job-cancelled-session-churn`~~ —
   closed via W13-3.
 - `[FOLLOWUP simulation-progress-cancel] heartbeat-refactor`
-- `[FOLLOWUP analysis-jobs-race]` — W13-4.4 documented the remaining
-  `complete_analysis_job` race window; pull W14+.
+- `[FOLLOWUP analysis-jobs-race]` **(W14-4)** — W13-4.4 documented the
+  remaining `complete_analysis_job` race window; CRITICAL race surface.
 - `[FOLLOWUP analysis-thread-supervisor]`
 - `[FOLLOWUP job-service-typevar-audit]`
 - `[FOLLOWUP sqlalchemy-error-subtype-logging]`
@@ -106,10 +134,13 @@ evidence.
 
 ### Contracts / Reports / Detection
 
-- `[BUG scenario-dropout-upstream-root-cause]`
+- `[BUG scenario-dropout-upstream-root-cause]` **(W14-1)** — BLOCKER triage;
+  W14 entry-point iterasyonu.
 - `[BUG silent-scenario-dropout-regression]`
-- `[FOLLOWUP scenario-accountant-conservation-split]`
-- `[FOLLOWUP evidence-event-kind-raw-context-invariant]`
+- `[FOLLOWUP scenario-accountant-conservation-split]` — W14-1 kök neden
+  tespitinden sonra ayrı pull adayı; W14-1 PR'ına dahil edilmez.
+- `[FOLLOWUP evidence-event-kind-raw-context-invariant]` **(W14-4)** — test
+  stub hazır: `test_evidence_event_rejects_kind_event_class_mismatch`.
 - `[FOLLOWUP event-attempt-verification-status-validator]`
 - `[FOLLOWUP report-invariants-runtime-evidence-drift]`
 - `[FOLLOWUP compute-verdict-table-driven-test]`
@@ -136,9 +167,12 @@ evidence.
 ### Engineering Quality
 
 - `[FOLLOWUP ci-reintroduction]`
-- `[FOLLOWUP w8-4-variable-indirect-subprocess-coverage]`
-- `[FOLLOWUP arch-gate-executor-control-outbound]`
-- `[FOLLOWUP arch-gate-bare-binary-pragma-ratchet]`
+- `[FOLLOWUP w8-4-variable-indirect-subprocess-coverage]` **(W14-6)** —
+  W8-W12 regression lock-in umbrella üyesi.
+- `[FOLLOWUP arch-gate-executor-control-outbound]` **(W14-6)** — W8-W12
+  regression lock-in umbrella üyesi.
+- `[FOLLOWUP arch-gate-bare-binary-pragma-ratchet]` **(W14-6)** — W8-W12
+  regression lock-in umbrella üyesi.
 - `[CLEANUP report-builder-naming]`
 - `[CLEANUP monitor-runtime-naming-overlap]`
 - `[CLEANUP env-example-extrace-vars]`
@@ -162,9 +196,13 @@ evidence.
 - `[FOLLOWUP w8-8-manifest-emit-when-needed]`
 - `[FOLLOWUP w8-8-trigger-sweep-as-test]`
 - `[FOLLOWUP w8-9-network-body-boundary-split-secret-test]`
-- `[FOLLOWUP codex-automation-5]`
-- `[FOLLOWUP codex-automation-6]`
-- `[FOLLOWUP capability-verification-gap]`
+- `[FOLLOWUP codex-automation-5]` **(W14-5)** — executor runtime
+  fingerprint in automation output; run-ID stamping ile sibling tema,
+  aynı PR ailesinde çekilir.
+- `[FOLLOWUP codex-automation-6]` — UI failure taxonomy for operator
+  clarity; W14 temasıyla örtüşmüyor, W15+.
+- `[FOLLOWUP capability-verification-gap]` — W15+; triyajda `NEEDS-DESIGN`,
+  W14-6'nın AST-tabanlı arch gate ritmine girmiyor.
 - `[FOLLOWUP adr-0002-vsix-extraction-section-missing]`
 
 ## Closed/Archived Groups

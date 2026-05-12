@@ -38,7 +38,29 @@ BASELINE_EXTENSION_FIXTURES = [
     ("ms-python", "python", "2026.5.2026050801"),
     _fixture_identity("fixture-chat", "0.0.1"),
     _fixture_identity("fixture-theme", "0.0.1"),
+    _fixture_identity("fixture-snippet", "0.0.1"),
+    _fixture_identity("fixture-keybinding", "0.0.1"),
+    _fixture_identity("fixture-cmd", "0.0.1"),
 ]
+
+
+# Per-fixture lower bound on the activation event-type set surfaced by
+# `parse_activation_events()`. Module-level so the architecture parity
+# gate (`tests/architecture/test_baseline_fixture_manifest_parity.py`)
+# can pin this dict's key set against `BASELINE_EXTENSION_FIXTURES`.
+EXPECTED_ACTIVATION_EVENT_TYPES: dict[str, set[str]] = {
+    "ms-python.python": {
+        "onLanguage",
+        "workspaceContains",
+        "onLanguageModelTool",
+        "onTerminalShellIntegration",
+    },
+    "extrace.fixture-chat": {"onChatParticipant"},
+    "extrace.fixture-theme": set(),
+    "extrace.fixture-snippet": set(),
+    "extrace.fixture-keybinding": set(),
+    "extrace.fixture-cmd": {"onCommand"},
+}
 
 
 def _load_fixture(path: Path) -> dict[str, object]:
@@ -105,19 +127,24 @@ def test_activation_report_fixture_exposes_minimum_shape() -> None:
     assert ActivationReport.model_validate(round_tripped) == parsed
 
 
-def test_color_theme_activation_report_fixture_supports_zero_scenario_semantics() -> (
-    None
-):
+@pytest.mark.parametrize(
+    "fixture_filename,target_id",
+    [
+        ("extrace_fixture_theme.json", "extrace.fixture-theme"),
+        ("extrace_fixture_snippet.json", "extrace.fixture-snippet"),
+        ("extrace_fixture_keybinding.json", "extrace.fixture-keybinding"),
+    ],
+)
+def test_non_executable_fixtures_support_zero_scenario_semantics(
+    fixture_filename: str, target_id: str
+) -> None:
     fixture_path = (
-        Path(__file__).parent
-        / "fixtures"
-        / "activation_reports"
-        / "extrace_fixture_theme.json"
+        Path(__file__).parent / "fixtures" / "activation_reports" / fixture_filename
     )
 
     report = _load_fixture(fixture_path)
 
-    assert report["target_extension_expected"] == "extrace.fixture-theme"
+    assert report["target_extension_expected"] == target_id
     assert report["trigger_execution_mode"] == "skip_automation"
     assert report["summary"]["scenarios_run"] == []
     assert report["summary"]["failed_scenarios"] == []
@@ -218,17 +245,6 @@ def test_baseline_extension_fixtures_resolve_from_local_artifacts_without_networ
 
 
 def test_baseline_extension_fixtures_round_trip_through_extension_schema() -> None:
-    expected_activation_event_types = {
-        "ms-python.python": {
-            "onLanguage",
-            "workspaceContains",
-            "onLanguageModelTool",
-            "onTerminalShellIntegration",
-        },
-        "extrace.fixture-chat": {"onChatParticipant"},
-        "extrace.fixture-theme": set(),
-    }
-
     for publisher, name, version in BASELINE_EXTENSION_FIXTURES:
         extension_id = f"{publisher}.{name}"
         extension_dir = _EXTENSIONS_DIR / f"{extension_id}-{version}"
@@ -243,7 +259,7 @@ def test_baseline_extension_fixtures_round_trip_through_extension_schema() -> No
 
         assert vsix_path.exists(), f"VSIX fixture missing for {extension_id}@{version}"
         assert ExtensionSchema.model_validate(round_tripped) == parsed
-        assert parsed_event_types >= expected_activation_event_types[extension_id]
+        assert parsed_event_types >= EXPECTED_ACTIVATION_EVENT_TYPES[extension_id]
         assert len(activation_events) == len(package_json.get("activationEvents", []))
         assert all(
             "event_type" in item and "event_value" in item for item in activation_events
@@ -256,6 +272,11 @@ def test_baseline_extension_fixtures_round_trip_through_extension_schema() -> No
         if extension_id == "extrace.fixture-theme":
             assert contributes["themes"][0]["label"] == "ExTrace Fixture Theme"
             assert activation_events == []
+        if extension_id == "extrace.fixture-cmd":
+            assert package_json["activationEvents"] == [
+                "onCommand:extrace.fixture-cmd.run"
+            ]
+            assert contributes["commands"][0]["command_id"] == "extrace.fixture-cmd.run"
 
 
 def test_trigger_payload_fixture_exposes_minimum_shape() -> None:

@@ -25,6 +25,7 @@ import hmac
 import json
 from types import SimpleNamespace
 
+
 from executor.flows.playwright.health.reconciliation import (
     reconcile_coverage_verification,
     reconcile_event_attempts,
@@ -697,3 +698,106 @@ def test_reconcile_coverage_verification_falls_back_to_top_level_summary_and_mat
     assert summary["label"] == "fallback"
     assert summary["attempted"] == 1
     assert summary["verified"] == 1
+
+
+# ---------------------------------------------------------------------------
+# W13-11 — load_harness_python_secret env-priority unit cases
+# ---------------------------------------------------------------------------
+#
+# Codex F1 close-pass for W13-1 H6. Production paths receive the per-launch
+# HMAC secret via ``EXECUTOR_HARNESS_PYTHON_SECRET_VALUE``, populated on the
+# host by ``executor.host.consume_harness_python_secret_eager`` before the
+# analyzed VSIX is admitted. The legacy file branch is preserved as a
+# fallback for unit-test paths that construct ``ActivationReport`` directly
+# without going through host-side eager-consume.
+#
+# These cases pin the three states (env present, env absent + file present,
+# both absent) plus the defense-in-depth invariant that the file is unlinked
+# even when env wins — so a stale file from a crashed eager-consume cannot
+# leak into the next launch cycle.
+
+
+def test_load_harness_python_secret_prefers_env_var_over_file(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    """Env var wins over file; file is still unlinked (defense-in-depth)."""
+    from executor.flows.playwright.health.reconciliation import (
+        load_harness_python_secret,
+    )
+
+    monkeypatch.setenv(
+        "EXECUTOR_HARNESS_PYTHON_SECRET_VALUE",
+        "env-value-hex-string",
+    )
+    secret_path = tmp_path / "_extrace_harness_python_secret"
+    secret_path.write_text(
+        "file-value-hex-string",
+        encoding="utf-8",
+    )
+
+    secret = load_harness_python_secret(path=secret_path)
+
+    assert secret == "env-value-hex-string", (  # noqa: S105 — test fixture
+        "env var must take precedence over the legacy file — this is the "
+        "W13-11 invariant that lets host-side eager-consume bypass the "
+        "container-internal /results read."
+    )
+    assert not secret_path.exists(), (
+        "even when env wins, load_harness_python_secret must still unlink "
+        "the legacy file so a stale file from a crashed eager-consume "
+        "cannot persist into the next launch cycle (defense-in-depth)."
+    )
+
+
+def test_load_harness_python_secret_legacy_file_when_env_absent(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    """Env unset + file present → file value read and unlinked (legacy path)."""
+    from executor.flows.playwright.health.reconciliation import (
+        load_harness_python_secret,
+    )
+
+    monkeypatch.delenv("EXECUTOR_HARNESS_PYTHON_SECRET_VALUE", raising=False)
+    secret_path = tmp_path / "_extrace_harness_python_secret"
+    secret_path.write_text(
+        "file-value-hex-string",
+        encoding="utf-8",
+    )
+
+    secret = load_harness_python_secret(path=secret_path)
+
+    assert secret == "file-value-hex-string", (  # noqa: S105 — test fixture
+        "with no env var the legacy file path must remain functional — "
+        "this is what keeps the existing test surface (W13-1 unit cases) "
+        "GREEN and provides the fail-soft fallback for production edge "
+        "cases (consume crashed mid-run, etc.)."
+    )
+    assert not secret_path.exists(), "legacy path also unlinks after read."
+
+
+def test_load_harness_python_secret_empty_when_both_absent(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    """Env unset + file absent → empty string (W13-12 fail-closed enforcement point)."""
+    from executor.flows.playwright.health.reconciliation import (
+        load_harness_python_secret,
+    )
+
+    monkeypatch.delenv("EXECUTOR_HARNESS_PYTHON_SECRET_VALUE", raising=False)
+    # No file written; tmp_path is empty.
+    secret_path = tmp_path / "_extrace_harness_python_secret"
+
+    secret = load_harness_python_secret(path=secret_path)
+
+    assert secret == "", (
+        "with no env and no file the secret is empty — production paths "
+        "must NOT reach this state once W13-12 lands fail-closed enforcement "
+        "(empty expected_nonce + handshake_required=True → no harness "
+        "completion trace can satisfy automation_trace). Pre-W13-12 the "
+        "empty branch falls back to phase-only acceptance (spoofable). "
+        "W13-11 reaches this state only via worst-case pre-W13-11 "
+        "status quo (no eager-consume, no launch_vscode.sh)."
+    )

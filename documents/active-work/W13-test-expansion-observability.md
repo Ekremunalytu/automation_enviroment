@@ -1,7 +1,7 @@
 # W13 — Test Expansion + Observability (Active Work Tracker)
 
-`Last Updated: 2026-05-11 (W13-7 closed — Codex M1 PEM regex DoS; 3/5 sub-commits landed via bf9f110/9844192/3b16c01, this commit is sub-commit 4; bounded scanner replaces lazy regex.sub() for cross-line private_key class; empirical latency 361 ms → 1.29 ms on 200 BEGIN + 1 KB body adversarial input (~280× speedup); 4 W12-0 PEM regression cases + 1 W13-7 timing case all PASS; W13-6 closed prior — 5/5 sub-commits, M9 arguments_preview redaction extension)`
-`Phase: W13 active`
+`Last Updated: 2026-05-12 (W13-11 closed 2026-05-12 (6/6 sub-commits — design+impl+arch gate+regression fix+doc sweep) — Path A host-side eager-consume + env var passthrough; W13-12/13 remain CLOSE-GATE not started)`
+`Phase: W13 active — CLOSE-GATE HOLD on W13-12/13 (W13-11 closed)`
 `Branch: week13 (single-branch policy precedent; opened 2026-05-10 from cff6455)`
 `Owner: ekrem`
 
@@ -105,11 +105,146 @@ the section ages.
 - **W13 acceptance bar cleared.** H3 closed via W13-5, H4 via W13-3,
   H5 via W13-2, H6 via W13-1, M1 via W13-7, M9 via W13-6. No further
   MEDIUM/HIGH Codex acceptance items remain.
-- **Next pull after W13-7:** W13 close-out PR `week13 → main`
-  (W13-1..W13-7 ratchet'leri; 6 yeni W13-5 Makefile gate + 2 W13-6
-  arguments_preview gate + 1 W13-7 timing case = 9 net architecture
-  pin; plus the body-preview / arguments_preview / private-key chain
-  of redaction defense).
+- **W13-8 closed `2026-05-11` (4/4 sub-commits).** §11.10 GOAL
+  benign silence fixture 3→5 GREEN landed. Three new fixture
+  extensions authored under `extensions/`:
+  `extrace.fixture-snippet-0.0.1` (declarative `contributes.snippets`,
+  zero-scenario profile), `extrace.fixture-keybinding-0.0.1`
+  (declarative `contributes.keybindings`, zero-scenario profile),
+  `extrace.fixture-cmd-0.0.1` (`onCommand:` activation + `registerCommand`
+  handler, activation-enabled profile). Matching baseline activation
+  reports added under
+  `tests/platform/contracts/fixtures/activation_reports/` (theme-clone
+  for snippet/keybinding, chat-clone for cmd).
+  [`tests/security/helpers.py:13-32`](../../tests/security/helpers.py)
+  `_FIXTURE_REPORTS` extended +3 entries;
+  [`tests/platform/contracts/test_analysis_fixture_baselines.py:37-44`](../../tests/platform/contracts/test_analysis_fixture_baselines.py)
+  `BASELINE_EXTENSION_FIXTURES` extended +3 entries and
+  `expected_activation_event_types` (line 221-233) extended +3 entries
+  (snippet/keybinding: `set()`, cmd: `{"onCommand"}`). The 3
+  skip-marked RED cases in
+  [`tests/security/test_benign_silence.py`](../../tests/security/test_benign_silence.py)
+  are now active (5/5 silence assertions ✓).
+  [`.gitignore`](../../.gitignore) extended +3 allow rules for the new
+  fixture directories (chat/theme pattern preserved);
+  [`scripts/reset_extensions.sh`](../../scripts/reset_extensions.sh)
+  `KEEP[]` extended +6 entries (3 dirs + 3 `.vsix`).
+  Production code untouched (`appcore/`, `workflows/`, `executor/`,
+  `packages/`, `ui/`, `alembic/` zero diff). Final bar:
+  `make test-local` 1514 passed / 7 skipped / 8 deselected (3 W13-8
+  RED skips removed; baseline alembic+canary 7 skips preserved);
+  `make test-security` 212 → 215 (+3 passed);
+  `tests/architecture/` 105 unchanged.
+  **W13 acceptance bar remains cleared** — benign silence is a
+  §11.10 GOAL, not an audit acceptance-bar item.
+- **W13-9 closed `2026-05-11`.** §11.10 GOAL `.env` gitignore
+  regression test landed via new architecture gate
+  [`tests/architecture/test_env_gitignore.py`](../../tests/architecture/test_env_gitignore.py)
+  (10/10 ✓). Coverage: `.env` literal and `*.env` wildcard rules
+  pinned across repo-root and nested paths (5 cases); virtualenv
+  directory rules (`.venv/`, `env/`, `venv/`) pinned via
+  inside-the-dir paths (3 cases); `.env.example` negative exception
+  pinned (1 case); `.env.example` template presence pinned (1
+  case). Underlying `.gitignore` was already correct — pre-W13-9
+  there was no architecture gate locking the invariant, so a future
+  edit to `.gitignore` lines 5-8 / 45-46 could have landed silently.
+  Production code untouched (`appcore/`, `workflows/`, `executor/`,
+  `packages/`, `ui/`, `alembic/` zero diff). Final bar:
+  `make test-local` 1509 → 1519 collected, +10 passed;
+  `tests/architecture/` 95 → 105 collected, +10 passed;
+  `make test-security` 212 unchanged.
+- **W13-10 closed `2026-05-11`.** §11.10 GOAL stale singleton-lock
+  recovery integration test landed via 2 new cases in
+  [`tests/executor/test_reset_state.py`](../../tests/executor/test_reset_state.py)
+  (13/13 ✓). Pre-W13-10 state: 3 unit cases covered
+  `cleanup_singleton_locks()` in isolation, and 1 orchestration case
+  asserted call ordering but stubbed `cleanup_singleton_locks` —
+  neither exercised the integration (real cleanup inside
+  `reset_executor_state()` with held lock files on disk). New cases:
+  `test_reset_executor_state_recovers_from_held_singleton_locks_end_to_end`
+  (full 3-lock-held → reset → all 3 removed + unrelated file
+  preserved) and `test_reset_executor_state_recovery_handles_partial_singleton_lock_set`
+  (2-of-3 held → reset → 2 removed + summary reflects partial count).
+  Production code untouched (`appcore/`, `workflows/`, `executor/`,
+  `packages/`, `ui/`, `alembic/` zero diff). Final bar:
+  `make test-local` 1519 → 1521 collected, +2 passed;
+  `tests/architecture/` 105 unchanged; `make test-security` 212
+  unchanged.
+- **CLOSE-GATE HOLD `2026-05-11`.** Codex Cloud second-opinion review
+  on `week13` surfaced 3 P1 close-pass items that REOPEN portions of
+  the W13-1 H6 and W13-3 H4 close claims. Close-out PR `week13 → main`
+  is held until W13-11/12/13 are GREEN. The acceptance-bar closure
+  language (W13-1..W13-7) and §11.10 GOAL closure language (W13-8 /
+  W13-9 / W13-10) remain literally true at sub-iter granularity, but
+  the **W13-end overall exit criteria** (§11.14) require the close-pass
+  fixes before merge. The 3 items are pulled as W13 sub-iters (not
+  W14) because they directly fix bypass surfaces in the originally
+  W13-claimed H6 + H4 closures — keeping them in-window preserves
+  audit-trail integrity (history shows the H6/H4 work as a single
+  iteration family rather than a deferred follow-up).
+- **W13-11 closed `2026-05-12` (6/6 sub-commits).** Codex F1
+  HMAC python secret target-install race close-pass for W13-1 H6.
+  Path A host-side eager-consume + env var passthrough landed:
+  `workflows/marketplace/analysis_service.py::execute_analysis_request`
+  now calls `executor_control.consume_harness_python_secret()` between
+  `_reset_sandbox()` and `_install_extension()`, reads bind-mounted
+  `Path(settings.project.OUTPUT_DIR) / "_extrace_harness_python_secret"`
+  with mode guard (0600 expected) + unlinks, holds string in host
+  memory, threads through `run_playwright_automation(..., harness_python_secret=...)`
+  → docker exec `-e EXECUTOR_HARNESS_PYTHON_SECRET_VALUE=<hex>` env var
+  for the entrypoint container. `load_harness_python_secret()` is now
+  env-priority (env first, legacy file fallback for test compat;
+  defense-in-depth file unlink even on env hit). `setup_monitor` call
+  site at `dispatch.py:129` unchanged — W13-1 arch gate intact. E4
+  docker exec argv mask added (`_mask_harness_secret_in_message`
+  scrubs `EXECUTOR_HARNESS_PYTHON_SECRET_VALUE=<hex>` from
+  ExecutorError messages). Final bar: `make test-local` 1521 → 1531
+  (+10: 5 behavioral + 3 reconciliation + 1 redaction + 1 new cancel-poll-point);
+  `make test-security` 215 unchanged (lane composition excludes new E4
+  redaction case in `tests/security/test_executor_host_error_redaction.py`);
+  `tests/architecture/` 105 → 110 (+5: 3 W13-11 sequence/threading invariants
+  - 2 collateral arch additions). W13-12 (fail-closed
+  handshake) immediate follow-up required for full fail-closed semantics;
+  W13-11 alone landed worst case = pre-W13-11 status quo (no new
+  regression). Per-Item Detail block below preserved as closure
+  evidence.
+- **W13-12 — Fail-closed harness handshake (close-pass for W13-1).**
+  Codex F2:
+  [`reconciliation.py:137-146`](../../executor/flows/playwright/health/reconciliation.py:137)
+  falls back to legacy phase-only check when `expected_nonce` is
+  empty; [`load_harness_python_secret()`](../../executor/flows/playwright/health/reconciliation.py:51)
+  returns `""` on any read failure (FileNotFoundError, OSError, perm
+  glitch, race with reset_state). Production paths must fail closed
+  when handshake is required but missing. Fix direction: add explicit
+  `ActivationReport.harness_handshake_required: bool` flag (default
+  True at production construction site `setup_monitor` after W13-11
+  lands, False in pre-W13-1 unit-test construction); modify
+  `_attempt_has_harness_completion_trace` so empty `expected_nonce`
+  AND `harness_handshake_required=True` returns False (no verification).
+  Legacy phase-only branch retained for tests only.
+- **W13-13 — Worker-start cancel-race CAS (close-pass for W13-3; F4 README
+  sweep + regex pin moved to W13-11 push `2026-05-12`).**
+  Codex F3:
+  [`run_analysis_job`](../../workflows/marketplace/analysis_service.py:194)
+  unconditionally calls `update_job(status="running")` as its first
+  action. If a user cancels between `reserve_job` returning and the
+  worker thread entering `run_analysis_job`, `cancel_analysis_job`
+  ([`lifecycle.py:128-156`](../../appcore/storage/crud_ops/analysis_jobs/lifecycle.py:128))
+  atomically takes the row from `queued` to `cancelling`, then the
+  worker's unconditional `running` write regresses the cancel intent
+  and the cancel signal is lost. Fix direction (Path B):
+  `with_for_update()` snapshot in worker entry before any state
+  transition; if `cancelling` or terminal observed → call
+  `finalize_cancelled_analysis_job` and return (W13-3 two-phase
+  symmetric exit). Path A alternative: add `expected_status` parameter
+  to `update_job` for compare-and-set (`UPDATE … WHERE status='queued'`),
+  worker returns on 0-row-affected. **Scope rebased `2026-05-12`**:
+  Codex F4 README drift ([`README.md:58`](../../README.md:58) stalled
+  at "W13-1..W13-4 closed, W13-5 expected") sweep + paired
+  `tests/architecture/test_readme_phase_pointer.py` regex pin both
+  landed early in the W13-11 push (sub-commits 8 + 12) so the sweep
+  stays paired with its banner-cascade fix-up. W13-13 elde kalan iş =
+  worker-start cancel-race CAS only.
 - **Entry gate met:**
   - W12 closed and merged via PR #18 (`33a0852`); close commit
     `e8a9926`.
@@ -182,12 +317,12 @@ GOAL row is pulled.
 | TBD | `[FOLLOWUP evidence-event-kind-raw-context-invariant]` (`EvidenceEvent.kind` ↔ `raw_context.event_class` Pydantic v2 `model_validator`) | `[security-detection]` | not started |
 | TBD | `[FOLLOWUP ui-raw-context-discriminator-parity]` (TS `event_class` literal generation + 5 legacy adapter fixups) | `[ui]` `[contracts]` | not started |
 | TBD | `[FOLLOWUP w8-4-variable-indirect-subprocess-coverage]` (extend `tests/architecture/test_absolute_binary_paths.py` for `tshark`/`strace`/`inotifywait`) | `[security-detection]` | not started |
-| TBD | `[§11.10 GOAL]` Benign silence fixture 3→5 (current 2 fixtures: `extrace.fixture-chat-0.0.1`, `extrace.fixture-theme-0.0.1`; consumers `tests/security/test_benign_silence.py:6-17` + `tests/platform/contracts/test_analysis_fixture_baselines.py:38-40`; need 3 new fixture extensions + baseline JSONs) | `[security-detection]` | not started |
-| TBD | `[§11.10 GOAL]` Stale singleton-lock recovery integration test (`cleanup_singleton_locks()` at `executor/flows/playwright/reset_state.py:131-145`; existing 3 unit cases in `tests/executor/test_reset_state.py:70-168` cover cleanup mechanics but not the lock-held → reset → recovery scenario) | `[executor-runtime]` | not started |
-| TBD | `[§11.10 GOAL]` `.env` gitignore regression test (`.gitignore` already pins `*.env` / `.env` / `!.env.example` and `.env.example` is tracked; no architecture gate exists today — new `tests/architecture/test_env_gitignore.py` via `git check-ignore`) | `[security-detection]` | not started |
-| TBD | `[§11.10 GOAL]` `extrace.executor.*` logger consolidation (discovery first — initial grep found zero `getLogger("extrace*` / `getLogger('extrace*` matches; W13-6 may scope out if no fragmentation exists, or pull canonical naming if any is found) | `[platform-storage]` | not started |
-| TBD | `[§11.10 GOAL]` Run-ID stamping (job_id exists at `appcore/storage/model_defs/analysis_job.py` and `appcore/contracts/schema_defs/analysis_jobs.py:16` but is not propagated as a correlation identifier through log records, `EvidenceEvent`, or DB row chains; multi-lane plumbing) | `[platform-storage]` `[executor-runtime]` `[security-detection]` | not started |
-| TBD | `[§11.10 GOAL]` W8-W12 regression lock-in (umbrella for any regression coverage missing on W8-W12 landed work; concrete sub-items pulled from `POST_POC_BACKLOG.md` deferrals as W13 progresses; close-pass evaluates which followups are bundled vs deferred to W14+) | (multi) | not started |
+| **W13-8** | `[§11.10 GOAL]` Benign silence fixture 3→5 | `[security-detection]` | **closed `2026-05-11` (4/4 sub-commits); 3 new fixture extensions (snippet/keybinding/cmd) + baseline JSONs + helpers/baselines registration; `tests/security/test_benign_silence.py` 5/5 ✓; `make test-local` 1514 passed / 7 skipped (RED 3 skips removed); `make test-security` 212 → 215 (+3 passed); `tests/architecture/` 105 unchanged; production code zero diff** |
+| **W13-10** | `[§11.10 GOAL]` Stale singleton-lock recovery integration test (`cleanup_singleton_locks()` at `executor/flows/playwright/reset_state.py:131-145`; existing 3 unit cases in `tests/executor/test_reset_state.py:70-168` cover cleanup mechanics but not the lock-held → reset → recovery scenario; orchestration case at lines 223-270 stubs `cleanup_singleton_locks` and asserts only call ordering. W13-10 adds 2 integration cases that exercise the real cleanup inside `reset_executor_state()`: full-set held + partial-set held) | `[executor-runtime]` | **closed (1/1 commit, 2026-05-11)** |
+| **W13-9** | `[§11.10 GOAL]` `.env` gitignore regression test (`.gitignore` already pins `*.env` / `.env` / `!.env.example` and `.env.example` is tracked; no architecture gate existed pre-W13-9; new `tests/architecture/test_env_gitignore.py` 10/10 ✓ via `git check-ignore`) | `[security-detection]` | **closed (1/1 commit, 2026-05-11)** |
+| TBD | `[§11.10 GOAL]` `extrace.executor.*` logger consolidation (discovery first — initial grep found zero `getLogger("extrace*` / `getLogger('extrace*` matches; W13-6 may scope out if no fragmentation exists, or pull canonical naming if any is found) | `[platform-storage]` | **deferred to W14+** (not started at W13 close-out cut-off `2026-05-11`; W12 PR #18 pattern) |
+| TBD | `[§11.10 GOAL]` Run-ID stamping (job_id exists at `appcore/storage/model_defs/analysis_job.py` and `appcore/contracts/schema_defs/analysis_jobs.py:16` but is not propagated as a correlation identifier through log records, `EvidenceEvent`, or DB row chains; multi-lane plumbing) | `[platform-storage]` `[executor-runtime]` `[security-detection]` | **deferred to W14+** (not started at W13 close-out cut-off `2026-05-11`; W12 PR #18 pattern) |
+| TBD | `[§11.10 GOAL]` W8-W12 regression lock-in (umbrella for any regression coverage missing on W8-W12 landed work; concrete sub-items pulled from `POST_POC_BACKLOG.md` deferrals as W13 progresses; close-pass evaluates which followups are bundled vs deferred to W14+) | (multi) | **deferred to W14+** (not started at W13 close-out cut-off `2026-05-11`; W12 PR #18 pattern) |
 | **W13-5** | `[FOLLOWUP codex-2026-05-10-H3-dev-lan-makefile-drift]` (`Makefile:170-172` `dev-lan` hard-codes `--host 0.0.0.0` while `runbooks/lan-exposure.md:82-87` documents `API_HOST` override; `tests/architecture/test_default_bindings.py` covers settings layer only — no Makefile gate. Path A recipe-fix landed: `--host $${API_HOST:-0.0.0.0}` + new `tests/architecture/test_makefile_dev_recipes.py` regression gate + lan-exposure §Host-mode drift caveat removal) | `[security-detection]` `[platform-storage]` | **closed (5/5 sub-commits, 2026-05-11)** |
 | **W13-4** | `[FOLLOWUP w13-3-close-pass-cancellation-test-hardening]` (W13-3 6 architecture gates pin AST invariants only — no behavioral coverage exists for: 5 poll-point raise paths actually firing inside `execute_analysis_request`, cancel↔complete DB-level race serialization under `with_for_update()`, stuck-`cancelling` boot_id recovery via `recover_interrupted_jobs` (design intent: `cancelling`→`failed` by boot_id mismatch), Alembic `c8a2d4e91f5b` upgrade/downgrade data motion, `run_analysis_job` exception handler driving `finalize_cancelled_job` on both `AnalysisCancelledError` and `is_job_cancelled`-true hard-error paths, finalize negative (absent + already-cancelled idempotency). Plus runbook drift: `documents/runbooks/analysis-job-stuck.md:42` 4-status literal stale post-W13-3, no playbook for stuck-cancelling) | `[platform-storage]` `[executor-runtime]` | **closed (8/8 sub-commits, 2026-05-11)** |
 | **W13-3** | `[FOLLOWUP codex-2026-05-10-H4-cancel-concurrent-race]` (cross-ref `[FOLLOWUP simulation-progress-cancel]` 5 sub-items already in POST_POC; `cancelled` was terminal in `appcore/storage/crud_ops/analysis_jobs/lifecycle.py:41` so `reserve_job()` released the lock immediately; cancellation polled only in heartbeat. Option A: `cancelling` non-terminal state added to `ACTIVE_ANALYSIS_JOB_STATUSES` + partial unique index, two-phase cancel via new `finalize_cancelled_analysis_job` helper, `_raise_if_cancelled` poll points at 5 hot-zones) | `[executor-runtime]` `[platform-storage]` | **closed (6/6 sub-commits, 2026-05-10)** |
@@ -199,6 +334,9 @@ GOAL row is pulled.
 | TBD watch | `[FOLLOWUP attribution-links-build-evidence-bundle-density]` (`attribution/links.py` 601 LoC; reassess after evidence-event-kind invariant lands) | `[executor-runtime]` | watching |
 | TBD watch | `[FOLLOWUP execute-attempt-rebloat-watch]` (`stimulus/attempts.py::execute_attempt` chain growth; refactor only when new action family added) | `[executor-runtime]` | watching |
 | TBD watch | `[FOLLOWUP dispatch-execution-rebloat-watch]` (`entrypoint/dispatch.py` 402 LoC W12-4 ratchet; add `test_dispatch_execution_under_loc_budget` only after concrete bloat) | `[executor-runtime]` | watching |
+| ~~**W13-11**~~ | `[CLOSE-GATE codex-second-opinion-F1-hmac-python-secret-target-install-race]` close-pass for W13-1 H6 (Path A host-side eager-consume — `workflows/marketplace/analysis_service.py::execute_analysis_request` calls `executor_control.consume_harness_python_secret()` between `_reset_sandbox()` and `_install_extension()`, reads bind-mounted `Path(settings.project.OUTPUT_DIR) / "_extrace_harness_python_secret"` + unlinks, threads through `run_playwright_automation(..., harness_python_secret=...)` → docker exec `-e EXECUTOR_HARNESS_PYTHON_SECRET_VALUE=<hex>` env var. `load_harness_python_secret()` env-priority. `setup_monitor` call unchanged. E4 docker exec argv mask.) | `[executor-runtime]` `[security-detection]` | **closed `2026-05-12`** (6/6 sub-commits) |
+| **W13-12** | `[CLOSE-GATE codex-second-opinion-F2-fail-closed-harness-handshake]` close-pass for W13-1 H6 (`reconciliation.py:137-146` legacy phase-only fallback when `expected_nonce` empty; `load_harness_python_secret()` returns `""` on any read failure → production sessizce spoofable mode'a düşer. Fix: `ActivationReport.harness_handshake_required: bool` ayrımı; production paths empty `expected_nonce` + handshake required → False döndürür, harness verification unconfirmed.) | `[security-detection]` `[executor-runtime]` | **CLOSE-GATE — not started** (Codex Cloud second-opinion `2026-05-11`; merge blocker for `week13 → main`) |
+| **W13-13** | `[CLOSE-GATE codex-second-opinion-F3-worker-start-cancel-race-CAS]` close-pass for W13-3 H4 (scope rebased `2026-05-12` — F4 README sweep + regex pin landed in W13-11 push) (`analysis_service.run_analysis_job:194` unconditional `update_job(status="running")` cancelling üzerine yazar → kullanıcı cancel sinyali kaybolur. Path B: worker entry'sinde `with_for_update()` snapshot; `cancelling`/terminal görürse `finalize_cancelled_analysis_job` + return — W13-3 two-phase symmetric exit. README.md:58 `W13-1..W13-4 closed, W13-5 expected` drifti W13-11 push sub-commit 8'de sweep edildi + `tests/architecture/test_readme_phase_pointer.py` regex pin sub-commit 12'de landed.) | `[platform-storage]` `[executor-runtime]` | **CLOSE-GATE — not started** (Codex Cloud second-opinion `2026-05-11`; merge blocker for `week13 → main`) |
 
 ## Per-Item Detail
 
@@ -1331,6 +1469,1001 @@ regression eder — bounded scanner identik replacement semantics yapar, mevcut 
   H6 (W13-1), M1 (W13-7), M9 (W13-6) — Codex Cloud audit (2026-05-10)
   4 HIGH + 2 MEDIUM bulgusu tamamen kapatıldı. Bundan sonra W14+
   planning'e geçilebilir; bu phase end-of-phase manifestoya hazır.
+
+### W13-8 — Benign silence fixture 3→5 (§11.10 GOAL)
+
+`Status: in progress (opened 2026-05-11)` ·
+`Source: [§11.10 GOAL] Benign silence fixture 3→5` ·
+`Lane: [security-detection]`
+
+**Bağlam.** `REFACTOR_OPTIMIZATION.md` §11.10 GOAL listesinin ilk
+sırasında yer alan "Benign silence fixture 3→5" item'ı, W13-1..W13-7
+Codex Cloud acceptance-bar closure'undan sonraki ilk GOAL pull'u.
+Mevcut benign-silence coverage iki fixture'la sınırlı:
+
+- [`extensions/extrace.fixture-chat-0.0.1/`](../../extensions/extrace.fixture-chat-0.0.1)
+  — chat participant katkı noktası, `onChatParticipant:` aktivasyonu
+  ile target_extension_observed=true, scenario-running profil
+  (mevcut baseline JSON `tests/platform/contracts/fixtures/activation_reports/extrace_fixture_chat.json`
+  — 50 satır, `signal_summary.score=6`, `automation_health.target_activation_count=1`).
+- [`extensions/extrace.fixture-theme-0.0.1/`](../../extensions/extrace.fixture-theme-0.0.1)
+  — color theme katkı noktası, hiçbir aktivasyon event'i yok,
+  zero-scenario profil (mevcut baseline JSON
+  `tests/platform/contracts/fixtures/activation_reports/extrace_fixture_theme.json`
+  — 145 satır, `trigger_execution_mode="skip_automation"`,
+  `scenario_traces=[]`, `signal_summary.score=8`).
+
+Bu iki fixture sırasıyla "aktivasyon-enabled + scenario-running" ve
+"zero-scenario + skip_automation" uç durumlarını kapsıyor; ama
+benign-silence regression coverage'ı yalnızca iki kategoride ratchet
+yapıyor. Codex Cloud audit'in W12-0 redaction + W13-6 arguments_preview
+redaction + W13-7 PEM bounded scanner zinciri ile yeni eklenen yüksek-
+hassasiyet detection kuralları, regression yüzeyi olarak iki fixture'ı
+çok dar bırakır: yeni bir false-positive regression nadir bir
+contribution kategorisinde patlarsa silence assertion'ı yakalamayabilir.
+
+**Critical files.**
+
+- [tests/security/test_benign_silence.py:6-17](../../tests/security/test_benign_silence.py) — şu an 2 silence assertion (chat + theme). W13-8 sub-commit 2 (RED) bu dosyaya 3 yeni skip-marked test ekler. GREEN sub-commit skip decorator'larını kaldırır.
+- [tests/security/helpers.py:13-32](../../tests/security/helpers.py) — `_FIXTURE_REPORTS` fallback dict, 2 entry. **GREEN sub-commit'te güncellenir** (3 yeni entry); RED sub-commit'te dokunulmaz çünkü skip decorator test body'sini çalıştırmaz, helper lookup tetiklenmez.
+- [tests/platform/contracts/test_analysis_fixture_baselines.py:37-41](../../tests/platform/contracts/test_analysis_fixture_baselines.py) — `BASELINE_EXTENSION_FIXTURES` tuple, 3 entry (`ms-python.python` + 2 extrace fixture). **GREEN sub-commit'te güncellenir** (3 yeni `_fixture_identity()` entry); RED'de eklense `test_baseline_extension_fixtures_resolve_from_local_artifacts_without_network` fail eder (lokal extension klasörü yok).
+- `tests/platform/contracts/fixtures/activation_reports/` — şu an 3 baseline JSON (`ms_python_python.json`, `extrace_fixture_chat.json`, `extrace_fixture_theme.json`). **GREEN sub-commit'te 3 yeni baseline JSON yazılır** (`extrace_fixture_snippet.json`, `extrace_fixture_keybinding.json`, `extrace_fixture_cmd.json`).
+- `extensions/extrace.fixture-{snippet,keybinding,cmd}-0.0.1/` — **GREEN sub-commit'te author'lanır**. RED'de yok.
+
+**Fixture seçim gerekçesi (RED scope-lock).**
+
+VS Code katkı noktaları (contribution points) arasından, mevcut chat+theme
+çiftiyle birlikte aktivasyon profili çeşitlendirmesi sağlayan üç sınıf
+seçildi. Her biri benign silence baseline'ında farklı bir code path tetikler:
+
+| # | Identity (RED placeholder) | Kategori | Activation profili | Beklenen baseline tipi |
+|---|---|---|---|---|
+| 1 | `extrace.fixture-snippet-0.0.1` | `contributes.snippets` | declarative-only, aktivasyon event yok | zero-scenario (theme'e yakın `trigger_execution_mode=skip_automation`) |
+| 2 | `extrace.fixture-keybinding-0.0.1` | `contributes.keybindings` | declarative-only, aktivasyon event yok | zero-scenario (theme'e yakın) |
+| 3 | `extrace.fixture-cmd-0.0.1` | `contributes.commands` + `onCommand:` | `onCommand:extrace.fixture-cmd.run` aktivasyonu, registerCommand handler | activation-enabled (chat'e yakın `target_activation_count=1`) |
+
+Bu seçim **RED commit'inde scope-lock**'lanır. GREEN sub-commit'inde
+fixture extension'ları gerçek author edilirken adlar revize edilebilir
+(skip reason `"names may be revised in GREEN"` notu içerir); ama
+çeşitlendirme niyeti (2 declarative zero-scenario + 1 activation-enabled)
+korunur. Alternatif sınıflar (status bar, tree view, webview, language
+configuration) GREEN audit'inde değerlendirilir; W13-8 yalnızca üç
+kategoride ratchet yapar — §11.10 GOAL'ın "3→5" kontratı buna izin verir.
+
+**Reverse-side reject rationale (Path B — 3 fixture'ı tek yeni
+extension dizininde toplama).**
+
+Reddedildi. Tek extension'da hem `contributes.snippets` hem
+`contributes.keybindings` hem `contributes.commands` + `onCommand:`
+tanımlamak teknik olarak geçerlidir; ama benign-silence regression'da
+"hangi katkı noktası sessizlik invariant'ını kırdı?" sorusuna cevap
+veren ayrı `bundle.detection_report.findings` snapshot'ları gerekir.
+Üç ayrı fixture, üç ayrı baseline JSON, üç ayrı assertion — her biri
+diğerlerinden bağımsız regression sinyali verir. Tek-fixture
+yaklaşımı assertion bulanıklaştırır.
+
+**Reverse-side reject rationale (Path C — `BASELINE_EXTENSION_FIXTURES`
+tuple'una RED'de eklemek).**
+
+Reddedildi. Tuple'a şimdi entry eklenirse
+`test_baseline_extension_fixtures_resolve_from_local_artifacts_without_network`
+([line 207-216](../../tests/platform/contracts/test_analysis_fixture_baselines.py))
+collection'da fail eder: test gövdesi `download_and_extract_vsix()`
+çağırır, lokal `/extensions/extrace.fixture-snippet-0.0.1/` klasörü
+olmadığı için `FileNotFoundError`. Bu test skip-mark'lanmazsa W13-1..W13-7
+acceptance-bar ratchet'i kırılır. Tuple güncellemesi GREEN sub-commit'e
+geçer; o sub-commit fixture klasörlerini aynı atomic commit'te oluşturur.
+
+**Sub-commit Roadmap (4 commits — all targeting `week13`).**
+
+| # | Commit | Touch | Status |
+|---|---|---|---|
+| 1 | `docs(W13-8): assign stable ID + scope benign silence fixture 3→5` | `documents/active-work/W13-test-expansion-observability.md` (this file) | closed `2026-05-11` |
+| 2 | `test(W13-8): RED precursor for 3 benign silence fixtures (skip-marked)` (`5524646`) | `tests/security/test_benign_silence.py` (3 yeni skip-marked test + `pytest` import) | closed `2026-05-11` |
+| 3 | `feat(W13-8): author 3 benign silence fixture extensions + baseline JSONs (RED→GREEN)` (`4d49cbe`) | `extensions/extrace.fixture-{snippet,keybinding,cmd}-0.0.1/` (yeni — package.json + per-category source/manifest), `tests/platform/contracts/fixtures/activation_reports/extrace_fixture_{snippet,keybinding,cmd}.json` (yeni), `tests/security/helpers.py` (`_FIXTURE_REPORTS` 3 yeni entry), `tests/platform/contracts/test_analysis_fixture_baselines.py` (`BASELINE_EXTENSION_FIXTURES` 3 yeni `_fixture_identity()` + `expected_activation_event_types` 3 yeni entry), `tests/security/test_benign_silence.py` (3 skip decorator kaldır), `.gitignore` (3 allow rule), `scripts/reset_extensions.sh` (KEEP[] +6 entry) | closed `2026-05-11` |
+| 4 | `docs(W13-8): close evidence + status sweep` | tracker close evidence + final hash table, `REFACTOR_STATUS.md` W13-8 row → closed, `POST_POC_BACKLOG.md` header refresh, `REFACTOR_OPTIMIZATION.md` §11.10 GOAL satır update, `CLAUDE.md` header parity | closed `2026-05-11` (this commit) |
+
+W13-7'nin 5-commit yapısına göre W13-8 4-commit'te biter: §11.10 GOAL
+post-acceptance-bar olduğu için ayrı "align lagging canonicals" sweep'i
+gerekmez — kapalı acceptance-bar item'larına slim canonical refparity
+zaten `2026-05-11` tarihli.
+
+**Architecture gate (W13-8.3'te pinler).**
+
+GREEN sub-commit'te `tests/security/test_benign_silence.py`'a eklenen 3
+yeni test (skip decorator'ları kaldırılmış hâliyle):
+
+| # | Case adı | Pin |
+|---|---|---|
+| 1 | `test_benign_snippet_fixture_remains_silent` | `analyze_fixture(extensions/extrace.fixture-snippet-0.0.1)` → `bundle.detection_report.findings == []` + `verdict == "clean"`. Declarative snippets fixture detection sinyali üretmemeli (zero-scenario semantic'i theme ile aynı kategoride). |
+| 2 | `test_benign_keybinding_fixture_remains_silent` | `analyze_fixture(extensions/extrace.fixture-keybinding-0.0.1)` → aynı invariant. Declarative keybindings da zero-scenario; aktivasyon event'i yok. |
+| 3 | `test_benign_cmd_fixture_remains_silent` | `analyze_fixture(extensions/extrace.fixture-cmd-0.0.1)` → aynı invariant. `onCommand:` aktivasyonlu fixture; scenario-running profil (chat ile aynı kategoride). |
+
+Plus mevcut 2 case (`test_benign_chat_fixture_remains_silent`,
+`test_benign_theme_fixture_remains_silent`) regression eder — yeni
+fixture'lar mevcut detection rule'ları tetiklerse bu iki case kırılmaz
+ama yeni eklenenler kırılır; yeni rule'lar açılırsa hangi katkı
+noktasının fixture'ında patladığını her test ayrı sinyalle bildirir.
+
+**Verification plan.**
+
+- W13-8.1 sonrası (this commit): doc-only commit; sayılar değişmez.
+  `make test-local` 1506 collected, `make test-security` 212 collected,
+  `tests/architecture/` 95 collected — hepsi aynı.
+- W13-8.2 sonrası (RED scaffold): `make test-local` 1506 → 1509 collected
+  (+3 skipped). `tests/security/test_benign_silence.py` 2 → 5 collected
+  (2 passed + 3 skipped). Skip reason'ları `"W13-8 RED precursor"` prefix'i
+  taşır. `make test-security` 212 → 215 collected (+3 skipped; benign
+  silence `tests/security/` lane'inde — [Makefile:206-216](../../Makefile)).
+  `tests/architecture/` 95 unchanged.
+- W13-8.3 sonrası (GREEN): `make test-local` 1509 collected,
+  **+3 passed** (1499 → 1502 passed); 7 skip baseline 4'e iner
+  (3 W13-8 skip kalkar, baseline alembic+canary 4 kalır). `make test-security`
+  212 → 215 (+3 passed). `tests/architecture/` 95 unchanged. Fixture
+  extension dizinleri (`extensions/extrace.fixture-{snippet,keybinding,cmd}-0.0.1/`)
+  oluşur; 3 yeni baseline JSON eklenir; `_FIXTURE_REPORTS` ve
+  `BASELINE_EXTENSION_FIXTURES` 3'er entry artar.
+- W13-8.4 sonrası: doc-only; sayılar 8.3'le aynı.
+- Production code dokunulmaz tüm sub-commit'lerde (`appcore/`, `workflows/`,
+  `executor/`, `packages/`, `ui/`, `alembic/` zero diff). Yalnızca
+  fixture extension'lar `extensions/` altında eklenir — bu prod code
+  değil, test fixture'ıdır (mevcut chat+theme fixture'ları da
+  `extensions/` altındadır).
+
+**W13-8.1 close evidence (this commit).**
+
+- [x] Stable ID `W13-8` atandı, scope kilitlendi (3 placeholder fixture
+  identity: snippet/keybinding/cmd; 2 declarative zero-scenario + 1
+  activation-enabled axis çeşitlendirmesi).
+- [x] Tracker güncellendi: header `Last Updated 2026-05-11` (W13-8 opened
+  note); Status (Quick Glance) yeni W13-8 opened bullet'ı; next-pull
+  yenilendi (W13-8 GREEN → W13 close-out PR); Candidate Items table'da
+  §11.10 GOAL benign silence satırı `**W13-8**` `in progress`; bu
+  Per-Item Detail bloğu eklendi.
+- [x] Sub-commit roadmap kilitlendi: 4 commit (this docs, RED scaffold,
+  RED→GREEN fixture authoring, close-evidence sweep).
+- [x] Path B (tek-fixture multi-contribution) ve Path C (`BASELINE_EXTENSION_FIXTURES`
+  tuple'unu RED'de güncellemek) reddedildi; gerekçeler kayıt altında.
+- [x] W12 + W13-1..W13-7 ratchet gate'leri intact kalır (bu commit pure doc).
+- [x] Production code dokunulmaz (`appcore/`, `workflows/`, `executor/`,
+  `packages/`, `ui/`, `alembic/`).
+- [x] Branch policy korundu: commit `week13` üzerinde; yeni branch
+  açılmadı. Sonraki sub-commit'ler de aynı branch'te kalır.
+
+**W13-8.2 close evidence (`5524646`).**
+
+- [x] RED scaffold landed: `tests/security/test_benign_silence.py`'a 3
+  yeni skip-marked test eklendi (`test_benign_snippet_fixture_remains_silent`,
+  `test_benign_keybinding_fixture_remains_silent`,
+  `test_benign_cmd_fixture_remains_silent`); her biri
+  `@pytest.mark.skip(reason="W13-8 RED precursor — … not yet authored …")`
+  decorator'lu.
+- [x] `make test-local` 1506 → 1509 collected (+3 skipped); skip reason
+  prefix'i `"W13-8 RED precursor"` tutarlı.
+- [x] `make test-security` 212 → 215 collected (+3 skipped — benign
+  silence tests/security/ lane'inde).
+- [x] `tests/architecture/` 95 unchanged.
+- [x] Production code zero diff (yalnız test scaffold).
+
+**W13-8.3 close evidence (`4d49cbe`).**
+
+- [x] Üç fixture extension authored:
+  - `extensions/extrace.fixture-snippet-0.0.1/` — `categories: ["Snippets"]`,
+    `contributes.snippets: [{language: plaintext, path: ./snippets/extrace-fixture-snippets.json}]`,
+    NO `activationEvents`, NO `main`. `snippets/extrace-fixture-snippets.json`
+    minimal plaintext snippet body.
+  - `extensions/extrace.fixture-keybinding-0.0.1/` — `categories: ["Keymaps"]`,
+    `contributes.commands: [{command: extrace.fixture-keybinding.noop, title: …}]`
+    - `contributes.keybindings: [{key: ctrl+f12, mac: cmd+f12, when: editorTextFocus,
+    command: extrace.fixture-keybinding.noop}]`, NO `activationEvents`, NO `main`
+    (declarative-only; aktivasyon event'i yok).
+  - `extensions/extrace.fixture-cmd-0.0.1/` — `categories: ["Other"]`,
+    `activationEvents: ["onCommand:extrace.fixture-cmd.run"]`, `main: ./extension.js`,
+    `contributes.commands: [{command: extrace.fixture-cmd.run, title: …}]`;
+    `extension.js` — `vscode.commands.registerCommand("extrace.fixture-cmd.run", …)`
+    deterministic noop (chat fixture pattern'i).
+- [x] Üç baseline activation report yazıldı (`tests/platform/contracts/fixtures/activation_reports/`):
+  `extrace_fixture_snippet.json` ve `extrace_fixture_keybinding.json` —
+  `extrace_fixture_theme.json` klonu (`trigger_execution_mode=skip_automation`,
+  `scenario_traces=[]`, `signal_summary.score=8`, contribution-spesifik note);
+  `extrace_fixture_cmd.json` — `extrace_fixture_chat.json` klonu
+  (`target_activation_count=1`, `signal_summary.score=6`,
+  evidence_events activation + command handler invocation).
+- [x] Üç `.vsix` paket local'de oluşturuldu (`zip -0 -r` ile,
+  `extension/` prefix; mevcut chat/theme `.vsix` pattern'i ile aynı
+  compression=store yapısı). `.vsix` dosyaları git-tracked değil —
+  mevcut chat/theme `.vsix`'leri de gitignored (line 39-40 convention).
+- [x] `tests/security/helpers.py:13-56` — `_FIXTURE_REPORTS` dict'ine 3
+  yeni entry (snippet/keybinding/cmd → ilgili baseline JSON path).
+- [x] `tests/platform/contracts/test_analysis_fixture_baselines.py:37-44` —
+  `BASELINE_EXTENSION_FIXTURES` listesine 3 yeni `_fixture_identity()`
+  entry. Line 221-233 — `expected_activation_event_types` dict'ine 3
+  yeni entry: `snippet: set()`, `keybinding: set()`, `cmd: {"onCommand"}`.
+  Bu dict round-trip testinde her `BASELINE_EXTENSION_FIXTURES` entry
+  için lookup yapar; eksik key'de `KeyError`. Tracker'ın 8.3 scope'unda
+  açıkça çağrılmamıştı; round-trip test invariant'ından çıkarsanan
+  zorunlu touch.
+- [x] `tests/security/test_benign_silence.py` — 3 `@pytest.mark.skip`
+  decorator'u kaldırıldı; `pytest` import'u artık kullanılmıyor,
+  pruned. 5/5 silence assertion ✓.
+- [x] `.gitignore:43-47` — 3 allow rule (`!extensions/extrace.fixture-{snippet,keybinding,cmd}-0.0.1/`)
+  chat/theme pattern'i ile aynı. W13-9 `.env` gitignore architecture
+  gate `test_env_gitignore.py` 10/10 ✓ unchanged.
+- [x] `scripts/reset_extensions.sh:22-35` — `KEEP[]` listesine 6 yeni
+  entry (3 dir adı + 3 `.vsix` adı) — `make extensions-reset` yeni
+  fixture'ları silmesin.
+- [x] Üç gate green:
+  - `make test-local`: 1514 passed / 7 skipped / 8 deselected / 78 warnings.
+    Pre-state'ten 3 W13-8 RED skip'i PASS'a geçti; 7 baseline skip
+    (alembic 1 + canary 6) korundu.
+  - `make test-security`: 215 passed / 35 warnings (212 → 215, +3).
+  - `make check-all`: ✅ All checks (including security) passed
+    (ruff + ruff-format + mypy + bandit + arch + full pytest).
+    `tests/architecture/` 105 unchanged (109 collected, 4 deselected).
+- [x] Round-trip testi (`test_baseline_extension_fixtures_round_trip_through_extension_schema`)
+  6 fixture (3 mevcut + 3 yeni) için iterasyonda `vsix_path.exists()`
+  ve `expected_activation_event_types` lookup'ları geçti. Resolve testi
+  (`test_baseline_extension_fixtures_resolve_from_local_artifacts_without_network`)
+  3 yeni extension dizini için lokal artifact resolve etti; network
+  çağrısı yapılmadı (httpx.Client `side_effect=AssertionError` ile
+  patched).
+- [x] Production code dokunulmaz (`appcore/`, `workflows/`, `executor/`,
+  `packages/`, `ui/`, `alembic/` zero diff).
+- [x] Branch policy korundu: `week13` üzerinde; yeni branch açılmadı;
+  PR/merge açılmadı.
+
+**W13-8.4 close evidence (this commit).**
+
+- [x] Tracker güncellendi: header `Last Updated 2026-05-11` (W13-8
+  closed note); Status (Quick Glance) W13-8 closed bullet'ı + next-pull
+  yenilendi (W13 close-out PR `week13 → main`); Candidate Items
+  table'da §11.10 GOAL benign silence satırı `**W13-8**` `closed`;
+  sub-commit roadmap tablosu hash'lerle doluruldu (8.2 = `5524646`,
+  8.3 = `4d49cbe`); W13-8.2/8.3/8.4 close evidence blokları eklendi.
+- [x] `REFACTOR_STATUS.md` — W13-8 closed bullet (line ~81), Status
+  tablosu W13-8 row'u `closed`, close-out PR pre-condition cümlesi
+  "all chosen §11.10 GOAL pulls closed" haline güncellendi.
+- [x] `POST_POC_BACKLOG.md` — header status özeti `W13-8 closed`
+  yansıtacak şekilde refresh edildi.
+- [x] `REFACTOR_OPTIMIZATION.md §11.10` — W13-8 opened bullet'ı
+  closed bullet'ına çevrildi.
+- [x] `CLAUDE.md` — header `Last Updated` satırı W13-8 closed olarak
+  refresh edildi.
+- [x] Doc-only commit; test sayıları 8.3'le aynı (1514 passed, 215
+  security, 105 architecture).
+- [x] Production code zero diff.
+- [x] Branch policy korundu: `week13` üzerinde; PR/merge açılmadı —
+  W13 close-out PR `week13 → main` kullanıcı onayı bekler.
+
+**W13-8 post-close coverage sweep (`908caac` + `7104eca` doc drift).**
+
+W13-8.4 (`523d626`) kapatma sonrası bir drift hunt'la 4 doc drift
+(`AGENT_CONTEXT.md`, `active-work/README.md`, `TESTING.md`,
+`agent-lanes/security-detection.md`) ve 3 eksik test invariant'ı
+tespit edildi:
+
+- `7104eca docs(W13-8): post-close-out doc drift sweep` — 4 lagging
+  canonical reference (AGENT_CONTEXT.md header, active-work/README.md
+  W13-8 row, TESTING.md test counts, security-detection lane header)
+  W13-8 closed durumuyla parite'ye getirildi.
+- `908caac test(W13-8): pin missing W13-8 fixture invariants` — 3
+  test gap'i kapatıldı:
+  - **Gap 2** (must-have): `extrace.fixture-cmd` için
+    `test_baseline_extension_fixtures_round_trip_through_extension_schema`'a
+    inline assertion eklendi
+    (`activationEvents == ["onCommand:extrace.fixture-cmd.run"]` +
+    `contributes.commands[0].command_id == "extrace.fixture-cmd.run"`).
+  - **Gap 1** (cheap nice-to-have): theme-only
+    `test_color_theme_activation_report_fixture_supports_zero_scenario_semantics`,
+    parametrize edilip `test_non_executable_fixtures_support_zero_scenario_semantics`
+    olarak yeniden adlandırıldı; theme + snippet + keybinding 3
+    parametrize case altında pin'lendi.
+  - **Gap 5** (must-have): `BASELINE_EXTENSION_FIXTURES` ↔
+    `EXPECTED_ACTIVATION_EVENT_TYPES` parity invariant'ı için yeni
+    architecture gate
+    `tests/architecture/test_baseline_fixture_manifest_parity.py`
+    2/2 ✓ — missing-key + orphan-key drift'lerini named failure ile
+    yakalar (W13-8 GREEN authoring'inde bu footgun'a takılmamak için).
+
+Post-sweep final bar: `make test-local` 1514 → 1518 passed (delta of
+four cases: two parametrize zero-scenario plus two architecture
+parity); `make test-security` 215 unchanged; `tests/architecture/`
+105 → 107 collected (two parity cases added). `make check-all`
+green. Production code zero diff. Branch policy korundu — `week13`
+üzerinde, PR/merge yok.
+
+### W13-9 — `.env` gitignore regression test (§11.10 GOAL)
+
+`Status: closed (2026-05-11, 1/1 commit)` ·
+`Source: [§11.10 GOAL] .env gitignore regression test` ·
+`Lane: [security-detection]`
+
+**Bağlam.** §11.10 GOAL listesinde "`.env` gitignore regression test"
+item'ı. `.gitignore` zaten doğru rule'lara sahip (line 5-7
+`.venv/` / `env/` / `venv/` virtualenv dirs, line 8 `*.env` wildcard,
+line 45 `.env` literal, line 46 `!.env.example` negative exception)
+ve `.env.example` template repo'da tracked, ama hiçbir architecture
+gate bu invariant'ı pin'lemiyordu. Bir gelecekte `.gitignore`'a
+yapılan kazara bir edit (ör. line 46 `!.env.example`'ı silmek veya
+line 8 wildcard'ı daraltmak) onboarding'i sessizce kırabilirdi.
+
+W13-9, `git check-ignore` semantik'ini kullanan tek dosyalık bir
+mimari gate ekler. Hiçbir production code'a dokunmaz; underlying
+behavior zaten doğru.
+
+**Critical files.**
+
+- [`.gitignore`](../../.gitignore) line 5-8, 45-46 — gate'in
+  doğruladığı kural seti. **Dokunulmaz**.
+- [`.env.example`](../../.env.example) — negative-exception
+  rule'unun anlamlı olabilmesi için repo'da bulunması zorunlu
+  template. **Dokunulmaz**.
+- [`tests/architecture/test_env_gitignore.py`](../../tests/architecture/test_env_gitignore.py) — **YENİ**. `git check-ignore --no-index <path>` çağırır + exit code (0=ignored, 1=tracked) üzerinden assertion yapar. Parametrized 8 case + 2 standalone case = 10 toplam.
+
+**Test surface (`tests/architecture/test_env_gitignore.py`).**
+
+| # | Test | Pin |
+|---|---|---|
+| 1-5 | `test_secret_bearing_paths_are_gitignored[.env / foo.env / bar.env / subdir/.env / nested/deeper/.env]` | `.env` literal (line 45) ve `*.env` wildcard (line 8) repo-root ve nested path'lerde |
+| 6-8 | `test_secret_bearing_paths_are_gitignored[.venv/lib/python3.12/site-packages/foo.py / env/bin/python / venv/bin/activate]` | Virtualenv dir rules (line 5-7) inside-the-dir path'leri ile (directory-only `xxx/` semantik'i fs-state'e bağımlı olmadan doğrulanır) |
+| 9 | `test_dotenv_example_template_is_tracked` | Negative exception (line 46) `*.env` ve `.env` rule'larını override eder |
+| 10 | `test_dotenv_example_file_actually_exists_in_tree` | `.env.example` template aslında repo'da; rule doğru olsa bile dosya silinirse onboarding kırılır |
+
+**Reverse-side reject rationale (Path B — pytest `tmp_path` ile yeni
+git repo + symlink check).**
+
+Reddedildi. Test temiz bir tmp_path'te yeni bir git repo oluşturup
+`.gitignore`'u kopyalayıp orada `git check-ignore` çalıştırabilirdi.
+Bu izolasyon iyi olurdu ama karmaşıklık ekler ve aslında repo'nun
+kendi `.gitignore`'unu doğrulamıyor. Path A doğrudan REPO_ROOT
+üzerinde `git check-ignore --no-index` çağırır — `--no-index`
+flag'i index'i bypass eder, `.gitignore` rule'larını saf olarak
+değerlendirir. Test deterministik kalır + repo'nun gerçek
+`.gitignore`'unu kapsar.
+
+**Reverse-side reject rationale (Path C — pure `pathspec` library
+parsing).**
+
+Reddedildi. `pathspec` 3rd-party library `pyproject.toml`'a
+dependency eklemeyi gerektirir; AGENTS.md "Do not introduce
+dependencies without explicit approval" kuralını ihlal eder.
+`git check-ignore` zaten subprocess'le erişilebilir; ek dependency
+yok.
+
+**Sub-commit Roadmap (1 commit).**
+
+| # | Commit | Touch | Status |
+|---|---|---|---|
+| 1 | (this) `test(W13-9): .env gitignore architecture gate (GREEN)` | `tests/architecture/test_env_gitignore.py` (new), `documents/active-work/W13-test-expansion-observability.md` (W13-9 stable ID + Per-Item Detail) | landed |
+
+W13-9 GREEN-immediate olduğu için (underlying `.gitignore` zaten
+doğru, test bir gap'i kapatıyor) tek commit yeterli. W13-7 5-commit
+yapısı production fix gerektiriyordu; W13-9 yalnızca test coverage
+gap'i kapatır.
+
+**Architecture gate (W13-9'da pinler).**
+
+Yukarıdaki test surface tablosu, eklenen 10 case'i tam dokümante eder.
+Tüm 10 case W13-9 commit'inde GREEN landlar (pre-existing `.gitignore`
+zaten doğru; test sadece invariant'ı doğrular).
+
+**Verification plan.**
+
+- W13-9 sonrası: `make test-local` 1509 → 1519 collected, +10 passed
+  (W13-8 RED'in 3 skipped'i sabit). `tests/architecture/` 95 → 105
+  collected, +10 passed. `make test-security` 212 unchanged
+  (architecture lane ayrı).
+- Manuel doğrulama: `git check-ignore -v .env .env.example` döner
+  `.gitignore:45:.env .env` (ignored) + `.env.example` (no output,
+  exit 1).
+- Production code diff sıfır (`appcore/`, `workflows/`, `executor/`,
+  `packages/`, `ui/`, `alembic/`).
+
+**W13-9.1 close evidence (this commit).**
+
+- [x] Stable ID `W13-9` atandı, scope kilitlendi (tek commit GREEN).
+- [x] Yeni mimari gate `tests/architecture/test_env_gitignore.py`
+  10/10 ✓ (`.env` literal/wildcard, virtualenv dirs, negative
+  exception, template presence).
+- [x] Underlying `.gitignore` dokunulmadı — pre-W13-9 davranışı doğruydu;
+  W13-9 invariant'ı pin'ler.
+- [x] Production code dokunulmaz (`appcore/`, `workflows/`, `executor/`,
+  `packages/`, `ui/`, `alembic/`).
+- [x] W12 + W13-1..W13-7 ratchet gate'leri intact; W13-8 RED scaffold
+  intact (3 skip-marked case sabit).
+- [x] Branch policy korundu: commit `week13` üzerinde; yeni branch
+  açılmadı.
+- [x] Tracker güncellendi: header `Last Updated 2026-05-11` (W13-9
+  closed note); Status (Quick Glance) yeni W13-9 closed bullet'ı +
+  next-pull yenilendi (W13-10); Candidate Items table'da §11.10 GOAL
+  `.env` gitignore satırı `**W13-9**` `closed`; bu Per-Item Detail
+  bloğu eklendi.
+
+### W13-10 — Stale singleton-lock recovery integration test (§11.10 GOAL)
+
+`Status: closed (2026-05-11, 1/1 commit)` ·
+`Source: [§11.10 GOAL] Stale singleton-lock recovery integration test` ·
+`Lane: [executor-runtime]`
+
+**Bağlam.** §11.10 GOAL listesinde "Stale singleton-lock recovery
+integration test" item'ı. Mevcut test surface
+[`tests/executor/test_reset_state.py`](../../tests/executor/test_reset_state.py)
+şu coverage'a sahipti:
+
+- Lines 137-176: 3 unit case `cleanup_singleton_locks()`'u izole olarak
+  doğrular (happy path, missing dir, partial files).
+- Lines 19-67: `test_reset_executor_state_clears_extensions_and_logs`
+  reset orkestrayonunu test eder ama `cleanup_singleton_locks`
+  fonksiyonunu stub'lar (`_stub_vscode_lifecycle` line 14-16,
+  `lambda: 0` döndürür).
+- Lines 223-270: `test_reset_executor_state_orchestrates_restart_in_correct_order`
+  call ordering'i (terminate → cleanup → launch) doğrular ama yine
+  `cleanup_singleton_locks`'u stub'lar.
+
+Eksik olan: **integration test** — gerçek lock dosyaları diskte
+varken `reset_executor_state()` end-to-end çalışır, lock dosyaları
+gerçekten temizlenir, geri kalan reset pipeline normal tamamlanır.
+
+Bu gap önemli çünkü VS Code crash sonrası singleton lock dosyaları
+diskte kalır (`/home/executor/.config/Code/SingletonLock`,
+`SingletonCookie`, `SingletonSocket`). Bir sonraki `code` invocation
+bu dosyaları görürse "Another instance is already running" hatasıyla
+bail eder. `reset_executor_state()` bunu önler — ama integration
+test'i olmadan, gelecekteki bir refactor (örn. `cleanup_singleton_locks`
+çağrısını conditional hale getirmek) sessizce regression çıkarabilirdi.
+Unit-test seviyesinde stub'lar tarafından maskelendiği için yakalanmaz.
+
+**Critical files.**
+
+- [`executor/flows/playwright/reset_state.py:131-145`](../../executor/flows/playwright/reset_state.py) — `cleanup_singleton_locks()` helper. **Dokunulmaz** — underlying davranış zaten doğru, W13-10 invariant'ı pin'ler.
+- [`executor/flows/playwright/reset_state.py:173-191`](../../executor/flows/playwright/reset_state.py) — `reset_executor_state()` orchestrator. **Dokunulmaz** — call sequence intact (line 182: `removed_locks = cleanup_singleton_locks()` korunur).
+- [`tests/executor/test_reset_state.py`](../../tests/executor/test_reset_state.py) — 2 yeni integration test eklenir, mevcut 11 case dokunulmaz (270 → 384 satır, +114 satır net).
+
+**Test surface (eklenen 2 case).**
+
+| # | Test | Pin |
+|---|---|---|
+| 1 | `test_reset_executor_state_recovers_from_held_singleton_locks_end_to_end` | Setup: tmp_path/Code/ içinde 3 singleton dosyası (SingletonLock/Cookie/Socket) + 1 unrelated dosya (Preferences). Stubs: terminate_vscode + launch_vscode + workspace fonksiyonları (cleanup_singleton_locks **STUB'LANMAZ**). Assert: summary["removed_singleton_locks"] == 3, summary["relaunched_vscode_pid"] == 9999 (stub return), config_dir.iterdir() == ["Preferences"] (sadece unrelated kalır). |
+| 2 | `test_reset_executor_state_recovery_handles_partial_singleton_lock_set` | Setup: tmp_path/Code/ içinde 2 singleton dosyası (SingletonLock + SingletonSocket, SingletonCookie eksik). Assert: summary["removed_singleton_locks"] == 2, config_dir boş kaldı (partial set tamamen temizlendi, eksik dosya hata vermedi). |
+
+**Reverse-side reject rationale (Path B — real VS Code process
+spawn yapan end-to-end test).**
+
+Reddedildi. Real VS Code spawn etmek (`code` binary subprocess +
+`--remote-debugging-port` flag) macOS/Linux/CI'da non-portable; ayrıca
+multi-second runtime ekler. W13-10 integration test'in seviyesi
+"reset_executor_state() ile real cleanup_singleton_locks() entegrasyonu"
+— VS Code lifecycle terminate/launch zaten 11 mevcut case'de
+detaylıca cover edilmiş. Stubbing `terminate_vscode` + `launch_vscode`
+test scope'unu cleanup_singleton_locks integration'ına daraltır.
+
+**Reverse-side reject rationale (Path C — `cleanup_singleton_locks`
+fonksiyonunu `reset_executor_state` içinde inline yapmak).**
+
+Reddedildi. Şu anki ayrılım doğru: `cleanup_singleton_locks()` ayrı
+fonksiyon, unit-testable. Inline yapmak unit-test coverage'ını
+kaybeder; ayrıca yardımcı fonksiyon olarak başka contexts'de
+çağrılabiliyor (örn. CLI `__main__` block line 195'te
+`summary["removed_singleton_locks"]` yazdırılır). W13-10 ayrılımı
+korur, sadece integration coverage gap'i kapatır.
+
+**Sub-commit Roadmap (1 commit).**
+
+| # | Commit | Touch | Status |
+|---|---|---|---|
+| 1 | (this) `test(W13-10): stale singleton-lock recovery integration test (GREEN)` | `tests/executor/test_reset_state.py` (+114 satır net, 2 yeni case), `documents/active-work/W13-test-expansion-observability.md` (W13-10 stable ID + Per-Item Detail) | landed |
+
+W13-9 ile aynı pattern: GREEN-immediate olduğu için tek commit
+yeterli; production fix gerekmiyor, yalnızca integration test gap'i
+kapatılıyor.
+
+**Verification plan.**
+
+- W13-10 sonrası: `make test-local` 1519 → 1521 collected, +2 passed
+  (W13-8 RED'in 3 skipped'i sabit). `tests/executor/test_reset_state.py`
+  11 → 13 collected, +2 passed. `tests/architecture/` 105 unchanged
+  (architecture lane'inde değil — executor lane).
+  `make test-security` 212 unchanged.
+- Production code diff sıfır (`appcore/`, `workflows/`, `executor/`,
+  `packages/`, `ui/`, `alembic/`).
+
+**W13-10.1 close evidence (this commit).**
+
+- [x] Stable ID `W13-10` atandı, scope kilitlendi (tek commit GREEN,
+  2 yeni integration case).
+- [x] Yeni integration test 2/2 ✓ (full-set held, partial-set held).
+  Mevcut 11 case intact — total 13/13 ✓.
+- [x] Underlying `reset_state.py` dokunulmadı — pre-W13-10 davranışı
+  doğruydu; W13-10 invariant'ı pin'ler.
+- [x] Production code dokunulmaz (`appcore/`, `workflows/`, `executor/`,
+  `packages/`, `ui/`, `alembic/`).
+- [x] W12 + W13-1..W13-7 ratchet gate'leri intact; W13-8 RED scaffold
+  intact (3 skip-marked case sabit); W13-9 mimari gate intact (10/10 ✓).
+- [x] Branch policy korundu: commit `week13` üzerinde; yeni branch
+  açılmadı.
+- [x] Tracker güncellendi: header `Last Updated 2026-05-11` (W13-10
+  closed note); Status (Quick Glance) yeni W13-10 closed bullet'ı +
+  next-pull yenilendi (W13-8 GREEN); Candidate Items table'da §11.10
+  GOAL singleton-lock recovery satırı `**W13-10**` `closed`; bu
+  Per-Item Detail bloğu eklendi.
+
+### W13-11 — HMAC python secret target-install race (close-gate for W13-1 H6)
+
+`Status: closed 2026-05-12 (6/6 main sub-commits — ccb8aee docs · d87b2ae RED · 68b2259 feat impl · d2f888f arch gate · 9e08fcc regression fix · 135a6b7 doc sweep; + 7 post-landing additions in same push: 9a2ba76 self-stamp · 2a84908 doc fix-up (banner alignment + W13-13 scope rebase) · fe7e19e test (b) integration negative · b1154a0 test (c) env no-leak · c35b7ed test (a) E4 completeness · 723eeeb test (d) README regex pin · TBD tracker test bar update)` ·
+`Source: [CLOSE-GATE codex-second-opinion-F1-hmac-python-secret-target-install-race]` ·
+`Lane: [executor-runtime] [security-detection]` ·
+`Blocks: week13 → main close-out PR`
+
+**Sorun.** W13-1 HMAC handshake'in target-side imza üretimini engellemek
+için iki secret üretiyor:
+
+| Path | Mod / sahip | Tüketici | Yaşam süresi |
+|---|---|---|---|
+| `/run/extrace/harness-secret` | 0400 (executor user) tmpfs | Harness ext `activate()` → okur+unlink immediate | Çok kısa — VS Code boot ↔ harness activate arası |
+| `/results/_extrace_harness_python_secret` | 0600 executor:executor (bind-mount) | `setup_monitor()` → okur+unlink | **Geniş — VS Code boot ↔ setup_monitor arası** |
+
+Python verifier secret'ı `setup_monitor()` (`dispatch.py:setup_monitor`)
+içinde tüketiliyor, yani install_extension'dan SONRA. Aradaki pencere:
+
+```text
+t0  launch_vscode.sh writes /results/_extrace_harness_python_secret (0600)
+t1  VS Code starts, harness ext activate() → /run/extrace secret consume + unlink
+t2  Workflow → install_extension() admits target VSIX            ← target readable
+t3  Target activation event fires (workspace open, onStartupFinished, etc.)
+t4  Python dispatch.py:setup_monitor() → /results secret consume + unlink
+```
+
+`t2..t4` aralığında target extension executor user UID'siyle koşuyor; aynı
+UID 0600 dosyayı okuyabilir. Target dosyayı okuduktan sonra HMAC-signed
+sahte `[extrace-harness] {"phase":"complete","nonce":"<calculated>"}`
+marker üretebiliyor — W13-1'in tam olarak kapatmak istediği bypass geri
+geliyor, sadece bu sefer imzalı.
+
+**Fix yönü (Path A — host-side eager-consume + env var passthrough).**
+Secret consume'u container içinden host-side'a çekiyoruz. Host
+(`workflows/marketplace/analysis_service.py::execute_analysis_request`)
+`_reset_sandbox()` çağrısından SONRA, `_install_extension()` çağrısından
+ÖNCE bind-mounted dosyayı (`Path(settings.project.OUTPUT_DIR) /
+"_extrace_harness_python_secret"`) okuyup unlink ediyor; secret string
+host process memory'sinde tutulup `run_playwright_automation()`'a
+`harness_python_secret` kw-arg olarak iletiliyor, oradan docker exec
+`-e EXECUTOR_HARNESS_PYTHON_SECRET_VALUE=<hex>` env var olarak entrypoint
+container'ına geçiyor. `load_harness_python_secret()` env-priority oluyor
+(env önce, file fallback sonra). Bind-mount mapping
+`${EXECUTOR_OUTPUT_HOST_PATH:-./output}:${EXECUTOR_OUTPUT_CONTAINER_PATH:-/results}`
+([`docker-compose.yml:90-92`](../../docker-compose.yml:90)) doğrulandı;
+[`executor/host.py:51-52`](../../executor/host.py:51) `_docker_exec_target_path()`
+zaten bu pattern'i production'da kullanıyor.
+
+**Akış değişimi.**
+
+Bugün:
+
+```text
+ensure_vsix_exists → _reset_sandbox → _install_extension → _build_triggers → _run_monitoring
+                       (secret yazılır)   (target admit)                        (setup_monitor secret okur)
+                                          ↑ RACE WINDOW
+```
+
+Sonrası:
+
+```text
+ensure_vsix_exists → _reset_sandbox → consume_harness_python_secret_eager → _install_extension → _build_triggers → _run_monitoring(harness_python_secret=...)
+                       (secret yazılır)   (host-side read+unlink)               (target admit, dosya YOK)         (env var → entrypoint)
+```
+
+**Etkilenen yollar.**
+
+- [`executor/host.py`](../../executor/host.py)
+  — yeni `consume_harness_python_secret_eager()` helper (mode-guard'lı,
+  fail-soft); `_run_docker_exec` imzasına `extra_env: dict[str,str] | None`
+  parametresi (kw-only, default-None geriye uyumlu); env-value masking
+  helper (E4 mitigation — exception path'inde `' '.join(cmd)` argv'ye
+  embed ediliyor, saf hex `_REDACTION_PATTERNS` tarafından yakalanmıyor);
+  `run_playwright_automation` imzasına `harness_python_secret: str | None`
+  kw-arg.
+- [`executor/control.py`](../../executor/control.py)
+  — yeni `ExecutorControl.consume_harness_python_secret()` method;
+  `run_automation` imzasına kw-arg pass-through.
+- [`executor/flows/playwright/health/reconciliation.py:39-58`](../../executor/flows/playwright/health/reconciliation.py:39)
+  — `load_harness_python_secret()` env-priority: önce
+  `os.environ.get("EXECUTOR_HARNESS_PYTHON_SECRET_VALUE")`, sonra file
+  fallback (legacy unit-test compatibility). Env hit'te bile dosya
+  unlink edilir (defense-in-depth: eager-consume crash sonrası
+  `launch_vscode.sh`'in yazdığı stale dosya bir sonraki cycle'a sızmasın).
+- [`workflows/marketplace/analysis_service.py:118-146`](../../workflows/marketplace/analysis_service.py:118)
+  — `_reset_sandbox()` sonrası `harness_python_secret = executor_control.consume_harness_python_secret()`
+  call site; `_run_monitoring()`'e kw-arg ile threading.
+- [`workflows/marketplace/analysis_execution.py:183-207`](../../workflows/marketplace/analysis_execution.py:183)
+  — `run_monitoring()` `harness_python_secret` kw-arg pass-through →
+  `executor_control.run_automation()`.
+- [`executor/container/launch_vscode.sh:39-52`](../../executor/container/launch_vscode.sh:39)
+  — **DEĞİŞMEZ** (dual-write korunur; eager-consume sadece dosya yaşam
+  süresini kısaltır, atomicity'yi bozmaz).
+- [`executor/flows/playwright/entrypoint/dispatch.py:129`](../../executor/flows/playwright/entrypoint/dispatch.py:129)
+  — **DEĞİŞMEZ** (`setup_monitor` `load_harness_python_secret()` çağrısı
+  korunur; iç davranış değişir ama imza+contract aynı → W13-1
+  architecture gate intact).
+
+**Kritik tasarım kararları.**
+
+1. **Mode guard var, ownership guard yok.** `launch_vscode.sh:51` 0600
+   yazıyor; eager-consume `stat.S_IMODE != 0o600` ise warn-and-unlink-but-return-None.
+   Ownership guard atlanır çünkü macOS Docker Desktop bind-mount UID
+   mapping farkı yaratıyor.
+2. **`load_harness_python_secret` imzası değişmez.** Sadece iç davranış
+   (env önce, file sonra). W13-1 architecture gate
+   (`test_harness_marker_auth.py::test_setup_monitor_loads_and_stamps_harness_python_secret`)
+   `setup_monitor` body'sinde `load_harness_python_secret()` çağrısı +
+   `expected_harness_nonce` stamp invariant'ını pin'liyor — kırılmaz.
+3. **Defense-in-depth: env hit'te bile dosyayı unlink et.** Eager-consume
+   crash sonrası `launch_vscode.sh`'in yazdığı stale dosya bir sonraki
+   cycle'a sızmasın.
+4. **E4 docker exec argv leak fix gerekli.**
+   [`host.py:74,90,97`](../../executor/host.py:74) `' '.join(cmd)`
+   exception mesajına embed ediyor. 64-char saf hex `_REDACTION_PATTERNS`
+   (aws/bearer/private_key/api_key/db_url) tarafından **yakalanmaz** —
+   yeni env var masking helper'ı sub-commit 3'te.
+5. **Race-safety verified.** W13-10 singleton-lock
+   ([`appcore/storage/crud_ops/analysis_jobs/lifecycle.py:172`](../../appcore/storage/crud_ops/analysis_jobs/lifecycle.py:172))
+   paralel analizi engelliyor → `consume_harness_python_secret_eager`
+   race-free; concurrent test gerekmiyor.
+
+**Reddedilen alternatifler.**
+
+- **A.2 container-side bootstrap exec** (6/10) — doğru ama gereksiz
+  round-trip + output redaction zorunluluğu; bind-mount path zaten
+  production'da çalışıyor.
+- **A.3 root-owned 0400 `/run/extrace/python-secret`** (3/10) —
+  container USER veya CAP_DAC_READ_SEARCH gerekir, ADR 0008 ile çelişir.
+- **A.4 host-only generation** (4/10) — `launch_vscode.sh` dual-write
+  atomicity'sini bozar, harness ext `activate()` yarış koşulu açar.
+
+**Test surface (planlanan, 4 dosya / +9 case).**
+
+- Yeni: `tests/architecture/test_harness_secret_eager_consume.py`
+  (link path-only; dosya henüz yok, sub-commit 4'te oluşur)
+  — 3 AST gate (W13-1 `test_harness_marker_auth.py` pattern referansı):
+  Gate 1 `execute_analysis_request` body sequence (`_reset_sandbox` →
+  `consume_harness_python_secret` → `_install_extension`); Gate 2
+  `run_playwright_automation` body'sinde `"EXECUTOR_HARNESS_PYTHON_SECRET_VALUE"`
+  literal + `harness_python_secret` param read; Gate 3
+  `load_harness_python_secret` env var read line'ı `path.read_text(...)`
+  öncesi (env-priority sequence).
+- Yeni: `tests/executor/test_harness_secret_eager_consume.py`
+  (link path-only; dosya henüz yok, sub-commit 2 RED + sub-commit 3 GREEN)
+  — 5 behavioral case: (1) happy path consume+unlink, (2) race window
+  kapalı post-consume `FileNotFoundError`, (3) missing file `None` +
+  `extra_env=None`, (4) wrong mode (0644) reject + cleanup, (5) end-to-end
+  env var threading mock `_run_docker_exec`.
+- Extension: [`tests/executor/test_playwright_health_reconciliation.py`](../../tests/executor/test_playwright_health_reconciliation.py)
+  — 3 new case: env-priority over file, legacy file when env absent,
+  empty-when-both-absent.
+- Extension: [`tests/security/test_executor_host_error_redaction.py`](../../tests/security/test_executor_host_error_redaction.py)
+  — 1 new case: `test_run_playwright_automation_redacts_harness_secret_env_var_in_error_message`
+  (E4 mitigation pinli).
+- Test izolasyonu: [`tests/executor/conftest.py`](../../tests/executor/conftest.py)
+  autouse fixture `monkeypatch.delenv("EXECUTOR_HARNESS_PYTHON_SECRET_VALUE", raising=False)`.
+- Mevcut W13-1 regression suite (`test_reconcile_w13_1_*`,
+  `test_harness_marker_auth.py`) intact kalır — etkilenmez.
+
+**Sub-commit dizisi (landed — 6/6 ana + 6 post-landing fix-up/extension = 12 toplam, W13-1 5-commit deseninden +7).**
+
+1. `ccb8aee` `docs(W13-11): assign stable ID + lock in Path A eager-consume design`
+   — bu blok + REFACTOR_STATUS banner + POST_POC_BACKLOG banner. Pure
+   docs.
+2. `d87b2ae` `test(W13-11): RED precursor — eager-consume behavioral + reconciliation
+   env-priority cases` — 4 test dosyası, hepsi `@pytest.mark.skip` ile.
+3. `68b2259` `feat(W13-11): host-side eager-consume + env var passthrough (RED →
+   GREEN)` — 5 production dosyası; sub-commit 2 skip'leri kaldırılır;
+   E4 masking helper dahil.
+4. `d2f888f` `test(W13-11): architecture gate — sequence invariants + env var
+   threading` — `tests/architecture/test_harness_secret_eager_consume.py`
+   skip kaldır.
+5. `9e08fcc` `test(W13-11): align cancel poll-point offsets + ScenarioZero
+   mock for eager-consume` — `test_analysis_execution_poll_points.py` n=2..n=4
+   offset shift + 1 yeni `cancel_before_consume_harness_python_secret` case;
+   `test_router.py::ScenarioZeroExecutorControl` mock surface'a
+   `consume_harness_python_secret` + `run_automation` kw `harness_python_secret`
+   eklendi. Plan'da öngörülmemiş regression — sub-commit 3 yeni poll
+   point ekledi, AST gate kapsadı ama bu iki behavioral/mock test'i
+   ayrı surface'tan etkilendi.
+6. `135a6b7` `docs(W13-11): close evidence + post-close doc drift sweep`
+   — 9 doc dosyası (REFACTOR_STATUS, POST_POC_BACKLOG, W13/W14 tracker,
+   CLAUDE.md, AGENT_CONTEXT, TESTING, agent-lanes/security-detection,
+   REFACTOR_OPTIMIZATION §11.10). W13-12 follow-up required notu eklendi.
+7. `9a2ba76` `docs(W13-11): stamp sub-commit 6 hash in tracker (post-landing fix-up)`
+   — sub-commit 6 SHA'sının kendi gövdesinde stamp edilememesi nedeniyle
+   ayrı bir self-stamp fix-up commit'i.
+8. *(SHA stamped in next post-landing fix-up)* `docs(W13-11): banner alignment + W13-13 scope rebase (steal README sweep + regex pin)`
+   — push öncesi drift fix-up: AGENTS.md banner W13-10 sonrası
+   2026-05-11'de takılmıştı, CLAUDE.md parite hizalandı; README.md L3 +
+   L58-61 7 sub-iter geride takılmıştı (W13-1..W13-4 closed dilinde),
+   W13-1..W13-11 closure + W13-12/13 hold özetiyle güncellendi; W13-13
+   scope rebase cascade — README sweep + paired regex pin originally
+   W13-13 scope (F4) idi, sub-commit 8 + 12'de W13-11 push'una çekildi.
+   Cascade referansları CLAUDE.md / REFACTOR_STATUS / REFACTOR_OPTIMIZATION
+   §11.10 + §11.14 / W13 tracker (bu section + W13-13 section + F4 satırı)
+   / W14 tracker entry gate'te güncellendi. Kod / test değişimi yok.
+9. *(SHA stamped in next post-landing fix-up)* `test(W13-11): runtime invariant — secret unlinked before _install_extension call (defense-in-depth b)`
+   — `tests/executor/test_harness_secret_eager_consume.py` extension:
+   AST/sequence arch gate (`test_execute_analysis_request_consumes_secret_before_install`)
+   ve mevcut unit-level unlink test'ini (`test_eager_consume_returns_secret_and_unlinks_file`)
+   tamamlayan integration-level runtime invariant — `execute_analysis_request`
+   mock'unda `_install_extension` çağrı anında secret file ERİŞİLEMEZ
+   olduğunu pinler.
+10. *(SHA stamped in next post-landing fix-up)* `test(W13-11): env var no-leak on docker exec success path (defense-in-depth c)`
+    — `tests/executor/test_harness_secret_eager_consume.py` extension:
+    happy-path subprocess.run sonucu (rc=0) için captured stdout/stderr'in
+    secret hex değerini içermediğini pinler. Mevcut redaction test sadece
+    exception path'i kontrol ediyordu (E4); başarı yolu defensive lock.
+11. *(SHA stamped in next post-landing fix-up)* `test(W13-11): E4 redaction completeness across rc != 0 + report-missing paths (defense-in-depth a)`
+    — `tests/security/test_executor_host_error_redaction.py` extension:
+    `_mask_harness_secret_in_message` mevcut tek case (timeout path) ek
+    olarak rc != 0 non-retryable (`host.py:132-139`), rc != 0 retryable
+    transport error after retries (`host.py:141-148`), ve
+    `run_playwright_automation` report-missing ExecutorError
+    (`host.py:456-463`) path'lerinde de redaction'ı pinler.
+12. *(SHA stamped in next post-landing fix-up)* `test(W13-11): README phase pointer regex pin (steal-from-W13-13)`
+    — yeni `tests/architecture/test_readme_phase_pointer.py`: README'nin
+    "Current Phase" section'ı `REFACTOR_STATUS.md`'nin `Last Updated`
+    header'ıyla tutarlı kalmak zorunda (W13-N max'i regex extract +
+    sweep ile aynı baseline). Original W13-13 F4 plan'ında paired
+    sweep test'iydi; sub-commit 8'in sweep'iyle paired olarak burada
+    landed.
+
+**Test bar (closed — gerçek delta).**
+| Metrik | Önce | 6/6 sonra | Post-landing additions (sub-commits 9-12) | Δ post-landing | Final |
+|---|---|---|---|---|---|
+| `make test-local` | 1521 | 1531 | +(b) 1 + (c) 1 + (a) 2 + (d) 2 | **+6** | **1537** |
+| `make test-security` | 215 | 215 (lane unchanged) | (a)'s 2 cases live in `tests/security/test_executor_host_error_redaction.py` — Makefile `test-security` lane excludes that file, so its 8 cases (6 W10 redaction + 2 W13-11 E4 + 1 prior timeout-path case = 8 toplam) count toward `test-local` only | **0** (lane composition unchanged) | **215** |
+| `tests/architecture/` | 105 | 110 | +(d) 2 cases (`test_readme_phase_pointer_not_behind_refactor_status` + `test_readme_phase_pointer_explicitly_mentions_latest_status_w13_n`) | **+2** | **112** |
+| Production diff (net LoC) | — | +251 / -101 (host.py +140 / control.py +17 / reconciliation.py +29 / analysis_service.py +11 / analysis_execution.py +2 — `68b2259`) | post-landing zero production diff (test + doc only) | — | unchanged |
+
+**Exit kriterleri (closed 2026-05-12).**
+
+- [x] 6 sub-commit landed (`ccb8aee` docs · `d87b2ae` RED · `68b2259` feat impl · `d2f888f` arch gate · `9e08fcc` regression fix · `135a6b7` doc sweep). Plan W13-1 5-commit deseninden 6'ya genişletildi: W13-11 sub-commit 3 sequence shift'i (consume poll point #3) `test_analysis_execution_poll_points.py` n=2..n=4 offset'lerini ve `test_router.py::ScenarioZeroExecutorControl` mock surface'ını etkiledi; düzeltme `9e08fcc`'de ayrı sub-commit olarak landed (W13-12/13 close-gate öncesi atomic bisection için).
+- [x] 9 yeni test case GREEN (3 arch + 5 behavioral + 3 reconciliation +
+  1 redaction = 12 collected; 9 production-yeni, 3'ü mevcut dosyalara
+  extension)
+- [x] E4 redaction regression pinli (`_mask_harness_secret_in_message`
+  in `executor/host.py`; arch gate threads `EXECUTOR_HARNESS_PYTHON_SECRET_VALUE`)
+- [x] `make test-local` 1521 → 1531 (+10) / `make test-security` 215 unchanged (lane composition; E4 redaction case lives in `tests/security/test_executor_host_error_redaction.py` outside Makefile lane) / `tests/architecture/` 105 → 110 (+5)
+- [x] W13-1 regression suite (`test_reconcile_w13_1_*`,
+  `test_harness_marker_auth.py`) intact
+- [x] W13-12 immediate follow-up not düşüldü (silent fail-closed gap'i W13-12
+  kapatacak; W13-11 alone landed worst case = pre-W13-11 status quo, yeni
+  regression yok). Close-out PR `week13 → main` W13-12/13 GREEN olmadan
+  açılamaz.
+
+**Post-landing additions (sub-commits 7-12, push `2026-05-12`).** Plan
+6/6 ana sub-commit (acceptance bar) closed olduktan sonra push öncesi
+banner-cascade + defense-in-depth kümesi:
+
+- `9a2ba76` (7) — sub-commit 6 self-stamp fix-up (post-landing doc fix).
+- *(SHA TBD)* (8) — `docs(W13-11)` banner alignment + W13-13 scope
+  rebase cascade. AGENTS.md / README.md / CLAUDE.md / REFACTOR_STATUS /
+  REFACTOR_OPTIMIZATION §11.10 + §11.14 / W13 tracker (bu section +
+  W13-13 section + F4 satırı + summary list) / W14 tracker entry gate.
+  W13-13 scope'undan F4 README sweep + paired regex pin (sub-commit
+  12) çekildi; W13-13 elde kalan iş = cancel-race CAS only.
+- *(SHA TBD)* (9) — `test(W13-11)` defense-in-depth (b) integration
+  negative: orchestration-level runtime invariant for secret-unlinked-
+  before-_install_extension.
+- *(SHA TBD)* (10) — `test(W13-11)` defense-in-depth (c) env var
+  no-leak on docker exec success path (happy-path stream defensive
+  lock).
+- *(SHA TBD)* (11) — `test(W13-11)` defense-in-depth (a) E4 redaction
+  completeness across rc != 0 non-retryable / retryable / report-
+  missing error paths.
+- *(SHA TBD)* (12) — `test(W13-11)` README phase pointer regex pin
+  paired with sub-commit 8 sweep (steal-from-W13-13).
+
+Post-landing additions zero production diff; sadece test surface +
+docs. Bu kümeyi W13-11 acceptance bar exit kriterlerine **eklenmez**
+(close 2026-05-12'de zaten karşılandı) — push-time defense-in-depth
+polish + W13-13 scope rebase olarak ayrı kategori.
+
+---
+
+### W13-12 — Fail-closed harness handshake (close-gate for W13-1 H6)
+
+`Status: CLOSE-GATE — not started 2026-05-11 (Codex Cloud second-opinion review)` ·
+`Source: [CLOSE-GATE codex-second-opinion-F2-fail-closed-harness-handshake]` ·
+`Lane: [security-detection] [executor-runtime]` ·
+`Blocks: week13 → main close-out PR` ·
+`Depends: W13-11 GREEN (eager-consume guarantees secret presence)`
+
+**Sorun.**
+[`_attempt_has_harness_completion_trace`](../../executor/flows/playwright/health/reconciliation.py:120)
+empty `expected_nonce` durumunda legacy phase-only check'e düşüyor
+(satır 143-146):
+
+```python
+return any(
+    str(trace.get("phase", "")).strip() == "complete"
+    for trace in traces_by_attempt.get(attempt_id, [])
+)
+```
+
+Docstring iddiası: production'da `setup_monitor` her zaman secret'ı
+populate eder, bu branch sadece unit-test construction'da tetiklenir.
+Ancak [`load_harness_python_secret()`](../../executor/flows/playwright/health/reconciliation.py:51)
+her okuma hatasında `""` döndürüyor: `FileNotFoundError`,
+`OSError`, permission glitch, bind-mount race, eager-consume timing
+hatası. Production secret eksikse sistem sessizce eski spoofable
+moda düşüyor — fail-open.
+
+**Etkilenen yollar.**
+
+- [`reconciliation.py:120-146`](../../executor/flows/playwright/health/reconciliation.py:120)
+  — `_attempt_has_harness_completion_trace`
+- [`packages/analysis_contracts/contracts.py`](../../packages/analysis_contracts/contracts.py)
+  — `ActivationReport` field eklenir
+- [`dispatch.py:setup_monitor`](../../executor/flows/playwright/entrypoint/dispatch.py:112)
+  — production construction site flag'i `True` set eder
+- Mevcut W13-1 test'leri (`ActivationReport`'u manuel inşa eden) flag'i
+  `False` set eder veya default'u test-friendly bırakılır
+
+**Fix yönü.** `ActivationReport.harness_handshake_required: bool` field
+(default değer = production-side `setup_monitor` set eder).
+`_attempt_has_harness_completion_trace` imzası:
+
+```python
+def _attempt_has_harness_completion_trace(
+    attempt: Any,
+    traces_by_attempt: dict[str, list[dict[str, Any]]],
+    expected_nonce: str = "",
+    *,
+    handshake_required: bool = False,  # production = True, test = False
+) -> bool:
+    # ...
+    if expected_nonce:
+        return any(... and _verify_harness_marker_signature(trace, expected_nonce))
+    if handshake_required:
+        return False  # fail-closed — handshake required but missing
+    return any(str(trace.get("phase", "")) == "complete" for trace in ...)
+```
+
+`reconcile_event_attempts` callsite report'tan flag'i okur:
+`handshake_required=bool(getattr(report, "harness_handshake_required", False))`.
+
+**Test surface (planlanan).**
+
+- Yeni: `tests/security/test_harness_handshake_required.py`
+  — production flag set + expected_nonce empty → forged marker reject
+  (W13-12 invariant)
+- Mevcut W13-1 unit suite: `harness_handshake_required=False`
+  default'unda kalmalı; explicit'leştirilmiş construction site flag'i
+  ekler.
+- Architecture gate: production `setup_monitor`'un her çağrısı
+  `harness_handshake_required=True` set etmek zorunda (AST walk).
+
+**Exit kriterleri.**
+
+- Yeni 1 test + 1 arch gate green
+- `ActivationReport` schema +1 field
+- W13-1 mevcut regression suite zero-diff (default `False` legacy
+  behavior'u korur)
+- Production `setup_monitor` call site explicit `True` set eder
+
+---
+
+### W13-13 — Worker-start cancel-race CAS (close-gate for W13-3 H4)
+
+`Status: CLOSE-GATE — not started 2026-05-11 (Codex Cloud second-opinion review); scope rebased 2026-05-12 — F4 README sweep + regex pin landed early in W13-11 push (sub-commits 8 + 12)` ·
+`Source: [CLOSE-GATE codex-second-opinion-F3-worker-start-cancel-race-CAS]` ·
+`Lane: [platform-storage] [executor-runtime]` ·
+`Blocks: week13 → main close-out PR`
+
+**Sorun.** W13-3 iki-fazlı cancel `running → cancelling → cancelled`
+state machine'i kuruyor; `cancel_analysis_job` (`lifecycle.py:128-156`)
+`with_for_update()` ile atomik `queued/running → cancelling`. Ancak
+async start endpoint'i [`router.py:243,255-262`](../../workflows/marketplace/router.py:243)
+queued job snapshot döndürdükten sonra worker thread'i ayrı akışta
+spawn ediyor. Worker'ın ilk eylemi
+[`run_analysis_job:194-200`](../../workflows/marketplace/analysis_service.py:194)
+**koşulsuz** `update_job(status="running", started_at=...)`.
+
+Yarış:
+
+```text
+t0  POST /analyze/start → reserve_job → status="queued", commit, lock release
+t1  threading.Thread(target=run_analysis_job).start()
+t2  HTTP response: {"status": "queued", ...}
+t3  POST /analyze/<id>/cancel → cancel_analysis_job: queued → cancelling (atomic)
+t4  Worker enters run_analysis_job → update_job(status="running")
+      ↑ cancelling üzerine yazar; cancel intent kaybolur
+t5  cancel_check() → is_job_cancelled → False (status="running")
+t6  Worker scan'i tamamlar; user cancel'in farkında değil
+```
+
+`update_job` compare-and-set yok — sadece naive assignment. W13-3'ün
+"cancel intent authoritative" sözleşmesini bu yarış bozuyor.
+
+**Etkilenen yollar.**
+
+- [`workflows/marketplace/analysis_service.py:187-200`](../../workflows/marketplace/analysis_service.py:187)
+  — worker entry
+- [`appcore/storage/crud_ops/analysis_jobs/lifecycle.py:128-204`](../../appcore/storage/crud_ops/analysis_jobs/lifecycle.py:128)
+  — `cancel_analysis_job` + `finalize_cancelled_analysis_job` zaten
+  doğru, sadece worker entry tarafında karşılık eksik
+- [`workflows/marketplace/job_service.py`](../../workflows/marketplace/job_service.py)
+  — `update_job` (kontrol: compare-and-set ekle veya worker
+  entry'sinde manual snapshot check)
+- [`README.md:58`](../../README.md:58) — F4 doc drift sweep
+
+**Fix yönü (Path B — worker entry snapshot check).** Worker entry'sinde
+`with_for_update()` snapshot:
+
+```python
+def run_analysis_job(job_id, request):
+    db = _open_job_session()
+    with db.begin():
+        stmt = select(AnalysisJob).where(AnalysisJob.job_id == job_id).with_for_update()
+        job = db.scalars(stmt).first()
+        if job is None:
+            logger.warning("Job %s vanished before worker entry", job_id)
+            return
+        if job.status in _TERMINAL_JOB_STATUSES:
+            logger.info("Job %s already terminal (%s); worker exits", job_id, job.status)
+            return
+        if job.status == "cancelling":
+            # User cancelled before worker started; finalize directly
+            finalize_cancelled_analysis_job(db, job_id, "Cancelled before worker started.")
+            return
+        # queued → running (atomic under lock)
+        job.status = "running"
+        job.started_at = time.time()
+        # commit happens at with db.begin() exit
+    # ... rest of run_analysis_job
+```
+
+W13-3'ün two-phase exit deseniyle tam simetri: cancel signal worker
+entry'sinde de honored.
+
+**Path A alternatifi (reddedilen).** `update_job` `expected_status`
+parametresi compare-and-set yapar (`UPDATE … WHERE status='queued'`).
+0-row-affected ise worker erken çıkar. Daha küçük diff ama
+`finalize_cancelled_analysis_job` çağrısını mevcut exception handler
+path'inden ayrı bir entry-point handler'ına ihtiyaç duyar — code
+duplication. Path B daha temiz.
+
+**F4 — README drift sweep — REBASED to W13-11 push `2026-05-12`.**
+[`README.md:58`](../../README.md:58) "W13-1..W13-4 closed, W13-5 expected"
+drift'i W13-11 push sub-commit 8 (doc fix-up + W13-13 scope rebase
+cascade) içinde sweep edildi; paired regex pin
+`tests/architecture/test_readme_phase_pointer.py` sub-commit 12'de landed.
+Tarihsel kayıt için orijinal W13-13 plan metni aşağıda korunur:
+[`README.md:58`](../../README.md:58) hâlâ
+"W13-1..W13-4 closed, W13-5 expected" satırını taşıyor. Same commit'te
+W13-1..W13-13 close-out state'ine güncellenir; W14 staging pointer'ı da
+README ana README'sine eklenir (slim canonical drift örüntüsü).
+
+**Test surface (planlanan).**
+
+- Yeni behavioral: `tests/platform/storage/test_analysis_jobs_cancel_at_worker_entry.py`
+  — concurrent fixture: cancel between reserve_job and worker entry;
+  invariant: cancel intent honored, worker exits without running scan.
+- Yeni architecture gate `tests/architecture/test_run_analysis_job_entry_snapshot.py`
+  — AST walk: `run_analysis_job`'un ilk DB action'ı `select(...).with_for_update()`
+  veya equivalent guarded transition; unconditional `update_job(status="running")`
+  yasak.
+- Mevcut W13-3 test suite intact kalır (cancel during running, queued
+  reservation, two-phase finalize).
+- README literal regression: yeni `tests/architecture/test_readme_phase_pointer.py`
+  → README'deki "active phase" satırı `REFACTOR_STATUS.md`'nin
+  `Last Updated` header'ıyla tutarlı kalmak zorunda (regex pin).
+
+**Exit kriterleri.**
+
+- 2 yeni behavioral + 2 yeni arch gate green
+- Worker entry race kapanır; W13-3 cancel intent authoritative
+  sözleşmesi tam korunur
+- README ve W13/W14 phase pointer'ları drift-free
+- W13-3 mevcut close evidence supplement edilir
+
+---
 
 ## W12 Lessons Learned (carry-forward)
 

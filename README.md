@@ -1,6 +1,6 @@
 # ExTrace
 
-`Last Updated: 2026-05-11`
+`Last Updated: 2026-05-12`
 
 ExTrace is a VS Code extension analysis platform built around three runtime
 surfaces:
@@ -55,9 +55,15 @@ multi-tenant web platform.
   W8-8 deferred); **W9 closed `2026-05-04`** (PR #9); **W10 closed
   `2026-05-04`** (PR #11); **W11 closed `2026-05-05`** and merged via
   PR #14; **W12 closed `2026-05-10`** and merged via PR #18 (`33a0852`).
-  Active phase: **W13 Test Expansion + Observability**; W13-1..W13-4
-  are closed and W13-5 is expected to pull
-  `[FOLLOWUP codex-2026-05-10-H3-dev-lan-makefile-drift]`. Tracker:
+  Active phase: **W13 Test Expansion + Observability**.
+  W13-1..W13-7 acceptance-bar closed; W13-8/9/10 §11.10 GOAL pulls
+  closed (benign silence fixture, `.env` gitignore gate, singleton-lock
+  recovery); **W13-11 HMAC python secret target-install race closed
+  `2026-05-12`** (Path A host-side eager-consume + env var passthrough,
+  6/6 sub-commits + defense-in-depth + README sweep). W13-12 (fail-closed
+  harness handshake) + W13-13 (worker-start cancel-race CAS) still
+  CLOSE-GATE hold; close-out PR `week13 → main` BLOCKED until W13-12/13
+  GREEN. Tracker:
   [`active-work/W13-test-expansion-observability.md`](documents/active-work/W13-test-expansion-observability.md).
 - **Canonical source of truth for phase state:**
   [`documents/REFACTOR_STATUS.md`](documents/REFACTOR_STATUS.md).

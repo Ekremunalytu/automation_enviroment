@@ -19,12 +19,35 @@ points to it.
 
 ## Files
 
+- `W14-codex-acceptance-observability.md`
+  - **Staging phase (pre-entry — blocked behind W13 close-gate).** W14
+    Codex M-class Acceptance + Observability. 6 sub-iter scoped
+    (`W14-1..W14-6`): BLOCKER scenario-dropout araştırması, Codex
+    M-class input validation (M4-M7 + M11), dış yüzey sertleştirme
+    (M13 + M14b + U4-U12), correctness/concurrency (analysis-jobs-race
+    - evidence-event-kind invariant), §11.10 GOAL devamı (logger
+    consolidation + run-ID stamping + codex-automation-5 fingerprint),
+    W8-W12 regression lock-in umbrella. Entry gate W13-11/12/13
+    close-gate clearance + close-out PR merge'de tetiklenir; stable
+    ID'ler ilk pull'da atanır (W11/W12/W13 precedent). Slim canonical:
+    [`REFACTOR_OPTIMIZATION.md §12`](../REFACTOR_OPTIMIZATION.md).
 - `W13-test-expansion-observability.md`
-  - **Active phase.** W13 test expansion + observability. W13-1..W13-7
-    closed — every MEDIUM/HIGH Codex Cloud audit acceptance-bar item
-    (H3 via W13-5, H4 via W13-3, H5 via W13-2, H6 via W13-1, M1 via
-    W13-7, M9 via W13-6) landed. Next step is the W13 end-of-phase
-    close-out PR `week13 → main` (W12 PR #18 pattern).
+  - **Active phase — CLOSE-GATE HOLD on W13-11/12/13.** W13 test
+    expansion + observability. W13-1..W13-7 closed — every MEDIUM/HIGH
+    Codex Cloud audit acceptance-bar item (H3 via W13-5, H4 via W13-3,
+    H5 via W13-2, H6 via W13-1, M1 via W13-7, M9 via W13-6) landed.
+    §11.10 GOAL pulls: W13-8 closed (benign silence fixture 3→5 GREEN,
+    5/5 ✓), W13-9 closed (`.env` gitignore architecture gate 10/10 ✓),
+    W13-10 closed (singleton-lock recovery integration test 2/2 ✓).
+    **CLOSE-GATE `2026-05-11`** — Codex Cloud second-opinion review
+    surfaced 3 P1 close-pass items: W13-11 HMAC python secret
+    target-install race (close-pass for W13-1 H6), W13-12 fail-closed
+    harness handshake (close-pass for W13-1 H6, depends on W13-11),
+    W13-13 worker-start cancel-race CAS + README drift sweep
+    (close-pass for W13-3 H4). Close-out PR `week13 → main` BLOCKED
+    until W13-11/12/13 GREEN. Original §11.10 TBD umbrellas (logger
+    consolidation, run-ID stamping, W8-W12 regression lock-in)
+    deferred to W14 — see W14 tracker above.
 - `W12-executor-subpackaging.md`
   - **Past phase.** W12 executor subpackaging + attribution cleanup
     (W12-0..W12-5) closed `2026-05-10` and merged via PR #18.

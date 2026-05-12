@@ -27,6 +27,12 @@ KEEP=(
   "extrace.fixture-chat-0.0.1.vsix"
   "extrace.fixture-theme-0.0.1"
   "extrace.fixture-theme-0.0.1.vsix"
+  "extrace.fixture-snippet-0.0.1"
+  "extrace.fixture-snippet-0.0.1.vsix"
+  "extrace.fixture-keybinding-0.0.1"
+  "extrace.fixture-keybinding-0.0.1.vsix"
+  "extrace.fixture-cmd-0.0.1"
+  "extrace.fixture-cmd-0.0.1.vsix"
 )
 
 is_kept() {

@@ -1,6 +1,6 @@
 # Refactor Status
 
-`Last Updated: 2026-05-11 (W13 active; W13-1..W13-7 closed — every MEDIUM/HIGH Codex Cloud acceptance-bar item landed; next step is W13 end-of-phase close-out PR week13 → main)`
+`Last Updated: 2026-05-12 (W13 active; W13-1..W13-10 sub-iters closed; W13-11 closed 2026-05-12 (6/6 sub-commits — design+impl+arch gate+regression fix+doc sweep) — Path A host-side eager-consume + env var passthrough; W13-12/13 remain CLOSE-GATE not started; close-out PR week13 → main BLOCKED until W13-12/13 GREEN; W14 staging pre-entry)`
 
 Active status board for current closure state. **Slim canonical** — verbose
 phase evidence is frozen under dated snapshots:
@@ -77,8 +77,96 @@ phase evidence is frozen under dated snapshots:
   lines in `evidence.py`).
 - **W13 acceptance bar cleared.** H3 closed via W13-5, H4 via W13-3,
   H5 via W13-2, H6 via W13-1, M1 via W13-7, M9 via W13-6. No further
-  MEDIUM/HIGH Codex acceptance items remain. Ready for the W13
-  end-of-phase close-out PR (`week13 → main`).
+  MEDIUM/HIGH Codex acceptance items remain.
+- **W13-8 closed `2026-05-11` (4/4 sub-commits).** First §11.10 GOAL
+  pull after the Codex acceptance-bar closure: benign silence fixture
+  3→5 GREEN landed. 3 new fixture extensions authored under
+  `extensions/` (`extrace.fixture-snippet-0.0.1` declarative snippets,
+  `extrace.fixture-keybinding-0.0.1` declarative keybindings,
+  `extrace.fixture-cmd-0.0.1` `onCommand:` activation). Matching
+  baseline activation reports (theme-clone for snippet/keybinding,
+  chat-clone for cmd) added under
+  `tests/platform/contracts/fixtures/activation_reports/`.
+  `tests/security/helpers.py` `_FIXTURE_REPORTS` +3 entries;
+  `tests/platform/contracts/test_analysis_fixture_baselines.py`
+  `BASELINE_EXTENSION_FIXTURES` +3 entries and
+  `expected_activation_event_types` +3 entries.
+  `tests/security/test_benign_silence.py` 5/5 ✓ (3 skip decorators
+  removed). `.gitignore` +3 allow rules and `scripts/reset_extensions.sh`
+  `KEEP[]` extended. Final bar: `make test-local` 1514 passed /
+  7 skipped / 8 deselected (3 W13-8 RED skips removed; baseline
+  alembic+canary 7 skips preserved); `make test-security` 212 → 215
+  (+3 passed); `tests/architecture/` 105 unchanged. Production code
+  untouched (`appcore/`, `workflows/`, `executor/`, `packages/`,
+  `ui/`, `alembic/` zero diff).
+- **W13-9 closed `2026-05-11` (1/1 commit).** §11.10 GOAL `.env`
+  gitignore regression test landed via new architecture gate
+  `tests/architecture/test_env_gitignore.py` (10/10 ✓). Coverage:
+  `.env` literal + `*.env` wildcard rules + virtualenv dir rules
+  via inside-the-dir paths + `.env.example` negative-exception +
+  template presence. Production code untouched; underlying
+  `.gitignore` already correct (W13-9 pins the invariant). Final
+  bar: `make test-local` 1509 → 1519 collected (+10 passed);
+  `tests/architecture/` 95 → 105 collected (+10 passed);
+  `make test-security` 212 unchanged.
+- **W13-10 closed `2026-05-11` (1/1 commit).** §11.10 GOAL stale
+  singleton-lock recovery integration test landed via 2 new cases in
+  `tests/executor/test_reset_state.py` (13/13 ✓). Pre-W13-10 gap:
+  unit cases covered `cleanup_singleton_locks()` in isolation and
+  the orchestration case stubbed it; neither exercised the real
+  cleanup inside `reset_executor_state()` with held lock files on
+  disk. New cases assert end-to-end recovery (full 3-lock-held +
+  partial 2-of-3-held variants). Production code untouched. Final
+  bar: `make test-local` 1519 → 1521 collected (+2 passed);
+  `tests/architecture/` 105 unchanged; `make test-security` 212
+  unchanged.
+- **CLOSE-GATE HOLD `2026-05-11`.** Codex Cloud second-opinion review
+  on `week13` surfaced 3 P1 close-pass items pulled as W13 sub-iters
+  (preserving audit-trail integrity for the originally W13-claimed
+  H6 + H4 closures):
+  - **W13-11** — `[CLOSE-GATE codex-second-opinion-F1-hmac-python-secret-target-install-race]`.
+    Close-pass for W13-1 H6. `/results/_extrace_harness_python_secret`
+    0600 executor:executor consumed only inside `setup_monitor` after
+    `install_extension`; same-UID target reads file during
+    install→setup_monitor window → forges HMAC-signed harness markers.
+    Fix direction (Path A): eager-consume in executor bootstrap.
+  - **W13-12** — `[CLOSE-GATE codex-second-opinion-F2-fail-closed-harness-handshake]`.
+    Close-pass for W13-1 H6. `reconciliation.py:137-146` legacy
+    phase-only fallback when `expected_nonce` empty; production
+    sessizce spoofable mode'a düşer. Fix:
+    `ActivationReport.harness_handshake_required: bool` with
+    fail-closed production semantics. Depends on W13-11 (eager-consume
+    guarantees secret presence).
+  - **W13-13** — `[CLOSE-GATE codex-second-opinion-F3-worker-start-cancel-race-CAS]`.
+    Close-pass for W13-3 H4. `analysis_service.run_analysis_job:194`
+    unconditional `update_job(status="running")` regresses `queued →
+    cancelling` to `running` — cancel intent kaybolur. Fix direction
+    (Path B): worker entry `with_for_update()` snapshot +
+    `finalize_cancelled_analysis_job` if `cancelling` observed.
+    **Scope rebased `2026-05-12`** — original F4 README phase pointer
+    drift sweep + `tests/architecture/test_readme_phase_pointer.py`
+    regex pin were landed early in the W13-11 push (sub-commits 8 +
+    12) so the README sweep stays paired with the banner-cascade
+    fix-up. W13-13 elde kalan iş = worker-start cancel-race CAS only.
+- W13 close-out PR `week13 → main` **BLOCKED** until W13-11/12/13
+  GREEN. All chosen §11.10 GOAL pulls (W13-8, W13-9, W13-10) remain
+  GREEN; close-out language for W13-1..W13-10 stays literally true at
+  sub-iter granularity. The close-gate items are pulled in-window (not
+  W14) because they fix bypass surfaces in originally W13-claimed H6 +
+  H4 closures. Original §11.10 candidates that remain not-started
+  (logger consolidation, run-ID stamping, W8-W12 regression lock-in
+  umbrella) iterate into W14.
+- **Next phase: W14 — Codex M-class Acceptance + Observability** (staging).
+  Scope authored `2026-05-11` in
+  [`active-work/W14-codex-acceptance-observability.md`](active-work/W14-codex-acceptance-observability.md);
+  plan source [`REFACTOR_OPTIMIZATION.md §12`](REFACTOR_OPTIMIZATION.md).
+  6 sub-iter scoped (`W14-1..W14-6`): BLOCKER scenario-dropout araştırması,
+  Codex M-class input validation (M4-M7 + M11), dış yüzey sertleştirme
+  (M13 + M14b + U4-U12), correctness/concurrency (analysis-jobs-race +
+  evidence-event-kind invariant), §11.10 GOAL devamı (logger consolidation
+  - run-ID stamping), W8-W12 regression lock-in umbrella. Entry gate W13
+  close-out PR merge'de tetiklenir; stable ID'ler ilk pull'da atanır
+  (W11/W12/W13 precedent).
 
 ## W13 Status
 
@@ -91,6 +179,12 @@ phase evidence is frozen under dated snapshots:
 | W13-5 | `[FOLLOWUP codex-2026-05-10-H3-dev-lan-makefile-drift]` | closed `2026-05-11`; Path A recipe-fix (`Makefile:172` `$${API_HOST:-0.0.0.0}`); `make test-local` 1492 → 1498 (+6 passed); architecture 87 → 93; production code untouched |
 | W13-6 | `[FOLLOWUP codex-2026-05-10-M9-arguments-preview-redaction-extension]` | closed `2026-05-11`; factory-internal redaction at `_bounded_arguments_preview()`; new arch gate `test_arguments_preview_redaction.py` 2/2 ✓ + parametrized regression 5/5 ✓; `make test-local` 1498 → 1505 (+7 passed); architecture 93 → 95; production diff +4 net |
 | W13-7 | `[FOLLOWUP codex-2026-05-10-M1-pem-regex-dos]` | closed `2026-05-11`; bounded scanner for private_key cross-line span in `redact_multiline_secrets()` (16 KB window cap); new timing case 1/1 ✓; `make test-local` 1505 → 1506 (+1 passed); `make test-security` 211 → 212; pre-fix 361 ms → post-fix 1.29 ms (~280× speedup); production diff +45 net |
+| W13-8 | `[§11.10 GOAL]` Benign silence fixture 3→5 | closed `2026-05-11` (4/4 sub-commits); 3 new fixture extensions (snippet/keybinding/cmd) authored under `extensions/` + 3 baseline activation reports + helpers/baselines registration; `tests/security/test_benign_silence.py` 5/5 ✓ (RED 3 skips removed); `make test-local` 1514 passed / 7 skipped / 8 deselected; `make test-security` 212 → 215 (+3 passed); `tests/architecture/` 105 unchanged; production code zero diff |
+| W13-9 | `[§11.10 GOAL]` `.env` gitignore regression test | closed `2026-05-11`; new architecture gate `tests/architecture/test_env_gitignore.py` 10/10 ✓ (.env literal + *.env wildcard + virtualenv dirs + !.env.example negative exception + template presence via `git check-ignore --no-index`); `make test-local` 1509 → 1519 collected (+10 passed); `tests/architecture/` 95 → 105 collected (+10 passed); production code untouched (`.gitignore` already correct) |
+| W13-10 | `[§11.10 GOAL]` Stale singleton-lock recovery integration test | closed `2026-05-11`; 2 new integration cases in `tests/executor/test_reset_state.py` 13/13 ✓ (full 3-lock-held → reset → all removed + unrelated preserved; partial 2-of-3-held → reset → partial removed). Pre-W13-10 unit cases stubbed `cleanup_singleton_locks` inside `reset_executor_state`; W13-10 exercises real cleanup integration; `make test-local` 1519 → 1521 collected (+2 passed); production code untouched |
+| W13-11 | `[CLOSE-GATE codex-second-opinion-F1-hmac-python-secret-target-install-race]` close-pass for W13-1 H6 | **closed `2026-05-12` (6/6 sub-commits + 6 post-landing additions in same push: 9a2ba76 self-stamp · doc fix-up · defense-in-depth b/c/a · README regex pin steal-from-W13-13)**; Path A host-side eager-consume + env var passthrough — `workflows/marketplace/analysis_service.py` `_reset_sandbox` → `executor_control.consume_harness_python_secret()` → `_install_extension`; host reads bind-mounted `Path(settings.project.OUTPUT_DIR) / "_extrace_harness_python_secret"` + unlinks, threads through `run_playwright_automation(..., harness_python_secret=...)` → docker exec `-e EXECUTOR_HARNESS_PYTHON_SECRET_VALUE=<hex>` env var. `load_harness_python_secret()` env-priority. `setup_monitor` call unchanged. E4 docker exec argv mask. Final bar: `make test-local` 1521 → **1537** (+16: 10 from 6/6 sub-commits + 6 from defense-in-depth b/c/a + d = 1 + 1 + 2 + 2); `make test-security` 215 unchanged (lane composition; E4 redaction extensions in `tests/security/test_executor_host_error_redaction.py` count toward test-local only); `tests/architecture/` 105 → **112** (+7: 5 from 6/6 + 2 from (d) README regex pin sub-commit 12). W13-12 immediate follow-up required for full fail-closed semantics; merge blocker for `week13 → main` cleared once W13-12/13 also GREEN. |
+| W13-12 | `[CLOSE-GATE codex-second-opinion-F2-fail-closed-harness-handshake]` close-pass for W13-1 H6 | **CLOSE-GATE — not started** (Codex Cloud second-opinion `2026-05-11`); merge blocker; depends on W13-11; `ActivationReport.harness_handshake_required: bool` field + `_attempt_has_harness_completion_trace` fail-closed when production handshake required but `expected_nonce` empty. Legacy phase-only branch retained for tests only. |
+| W13-13 | `[CLOSE-GATE codex-second-opinion-F3-worker-start-cancel-race-CAS]` close-pass for W13-3 H4 (scope rebased `2026-05-12` — F4 README sweep + regex pin landed in W13-11 push) | **CLOSE-GATE — not started** (Codex Cloud second-opinion `2026-05-11`); merge blocker; Path B worker entry `with_for_update()` snapshot — `cancelling` görürse `finalize_cancelled_analysis_job` + return (W13-3 two-phase symmetric exit). `update_job(status="running")` koşulsuzluğu kapanır. README.md:58 W13 phase pointer drift sweep + `tests/architecture/test_readme_phase_pointer.py` regex pin already landed in the W13-11 push `2026-05-12` (sub-commits 8 + 12) to keep the README sweep paired with its banner-cascade fix-up. |
 
 ## Current Deferrals
 
@@ -108,5 +202,6 @@ phase evidence is frozen under dated snapshots:
 
 When updating this file, keep it as a slim closure board. Put verbose
 evidence in `documents/archive/status/`, keep pull-next detail in
-`POST_POC_BACKLOG.md`, and keep active W13 mechanics in
-`active-work/W13-test-expansion-observability.md`.
+`POST_POC_BACKLOG.md`, keep active W13 mechanics in
+`active-work/W13-test-expansion-observability.md`, and W14 staging scope in
+`active-work/W14-codex-acceptance-observability.md`.

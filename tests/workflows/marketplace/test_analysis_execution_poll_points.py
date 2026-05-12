@@ -1,9 +1,10 @@
 """W13-4 (cancellation lifecycle hardening): behavioral coverage for the
-5 W13-3 cancel-poll points in ``execute_analysis_request``.
+6 W13-3 + W13-11 cancel-poll points in ``execute_analysis_request``.
 
 W13-3 landed `tests/architecture/test_cancel_poll_points.py::test_every_major_phase_is_preceded_by_a_cancel_poll`
 which AST-walks ``execute_analysis_request`` body and asserts every
 hot-zone helper (``ensure_vsix_exists``, ``_reset_sandbox``,
+``executor_control.consume_harness_python_secret`` (W13-11),
 ``_install_extension``, ``_build_triggers``, ``_run_monitoring``) is
 immediately preceded by a ``_raise_if_cancelled(cancel_check)`` call.
 That gate catches refactor regression but not behavior: it cannot prove
@@ -51,12 +52,14 @@ def _request() -> AnalyzeRequest:
 def _cancel_after_n_false_returns(n: int) -> Callable[[], bool]:
     """Return a ``cancel_check`` callable: ``False`` ``n`` times, then ``True``.
 
-    The W13-3 wiring calls ``cancel_check`` once per poll point in
-    ``execute_analysis_request``. ``n=0`` fires at poll point #1 (before
-    ``ensure_vsix_exists``); ``n=1`` fires at poll point #2 (between
-    ``ensure_vsix_exists`` and ``_reset_sandbox``); and so on through
-    ``n=4`` which fires at poll point #5 (between ``_build_triggers``
-    and ``_run_monitoring``).
+    The W13-3 + W13-11 wiring calls ``cancel_check`` once per poll point
+    in ``execute_analysis_request``. ``n=0`` fires at poll point #1
+    (before ``ensure_vsix_exists``); ``n=1`` fires at poll point #2
+    (before ``_reset_sandbox``); ``n=2`` fires at poll point #3 (before
+    ``executor_control.consume_harness_python_secret``, added by W13-11);
+    ``n=3`` fires at poll point #4 (before ``_install_extension``); and
+    so on through ``n=5`` which fires at poll point #6 (between
+    ``_build_triggers`` and ``_run_monitoring``).
     """
     sequence = iter([False] * n + [True] * 50)
 
@@ -128,9 +131,37 @@ def test_raises_on_cancel_before_reset_sandbox() -> None:
     monitor.assert_not_called()
 
 
-def test_raises_on_cancel_before_install_extension() -> None:
-    """Poll point #3: ensure + reset run, then cancel before ``_install_extension``."""
+def test_raises_on_cancel_before_consume_harness_python_secret() -> None:
+    """Poll point #3 (W13-11): ensure + reset run, then cancel before
+    ``executor_control.consume_harness_python_secret``."""
     cancel_check = _cancel_after_n_false_returns(2)
+    executor_control = MagicMock()
+
+    with (
+        patch.object(analysis_service, "ensure_vsix_exists") as ensure,
+        patch.object(analysis_service, "_reset_sandbox") as reset,
+        patch.object(analysis_service, "_install_extension") as install,
+        patch.object(analysis_service, "_build_triggers") as build,
+        patch.object(analysis_service, "_run_monitoring") as monitor,
+        pytest.raises(AnalysisCancelledError),
+    ):
+        analysis_service.execute_analysis_request(
+            _request(),
+            executor_control,
+            cancel_check=cancel_check,
+        )
+
+    ensure.assert_called_once()
+    reset.assert_called_once()
+    executor_control.consume_harness_python_secret.assert_not_called()
+    install.assert_not_called()
+    build.assert_not_called()
+    monitor.assert_not_called()
+
+
+def test_raises_on_cancel_before_install_extension() -> None:
+    """Poll point #4: ensure + reset + consume run, then cancel before ``_install_extension``."""
+    cancel_check = _cancel_after_n_false_returns(3)
 
     with (
         patch.object(analysis_service, "ensure_vsix_exists") as ensure,
@@ -154,8 +185,8 @@ def test_raises_on_cancel_before_install_extension() -> None:
 
 
 def test_raises_on_cancel_before_build_triggers() -> None:
-    """Poll point #4: ensure + reset + install run, then cancel before ``_build_triggers``."""
-    cancel_check = _cancel_after_n_false_returns(3)
+    """Poll point #5: ensure + reset + consume + install run, then cancel before ``_build_triggers``."""
+    cancel_check = _cancel_after_n_false_returns(4)
 
     with (
         patch.object(analysis_service, "ensure_vsix_exists") as ensure,
@@ -181,8 +212,8 @@ def test_raises_on_cancel_before_build_triggers() -> None:
 
 
 def test_raises_on_cancel_before_run_monitoring() -> None:
-    """Poll point #5: 4 phases run, then cancel before ``_run_monitoring``."""
-    cancel_check = _cancel_after_n_false_returns(4)
+    """Poll point #6: 5 phases run, then cancel before ``_run_monitoring``."""
+    cancel_check = _cancel_after_n_false_returns(5)
 
     with (
         patch.object(analysis_service, "ensure_vsix_exists") as ensure,

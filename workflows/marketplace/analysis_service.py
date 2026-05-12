@@ -120,6 +120,16 @@ def execute_analysis_request(
     _raise_if_cancelled(cancel_check)
     _reset_sandbox(reporter, executor_control)
     _raise_if_cancelled(cancel_check)
+    # W13-11 (Codex F1 close-pass for W13-1 H6): host-side eager-consume
+    # of the per-launch HMAC python secret. ``_reset_sandbox`` has just
+    # restarted VS Code so ``launch_vscode.sh`` wrote a fresh secret to
+    # ``/results/_extrace_harness_python_secret`` (0600 executor:executor).
+    # We read+unlink it here BEFORE the analyzed VSIX is admitted, so
+    # the same-UID target cannot reach the file during the prior
+    # install -> setup_monitor window. The value is held in this
+    # frame's memory and threaded into ``_run_monitoring`` below.
+    harness_python_secret = executor_control.consume_harness_python_secret()
+    _raise_if_cancelled(cancel_check)
     install_output = _install_extension(request, reporter, executor_control)
     _raise_if_cancelled(cancel_check)
     trigger_plan = _build_triggers(
@@ -143,6 +153,7 @@ def execute_analysis_request(
         build_report_messages=_build_report_messages,
         cancel_check=cancel_check,
         on_cancel_signal=on_cancel_signal,
+        harness_python_secret=harness_python_secret,
     )
 
     return AnalyzeResponse(
