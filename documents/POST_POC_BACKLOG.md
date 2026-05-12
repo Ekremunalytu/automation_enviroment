@@ -1,6 +1,6 @@
 # Post-PoC Backlog
 
-`Last Updated: 2026-05-12 (W13-1..W13-10 sub-iters all closed; W13-11 closed 2026-05-12 (6/6 sub-commits — design+impl+arch gate+regression fix+doc sweep) — Path A host-side eager-consume + env var passthrough; W13-12/13 remain CLOSE-GATE not started; close-out PR week13 → main BLOCKED until W13-12/13 GREEN)`
+`Last Updated: 2026-05-12 (W13-1..W13-10 sub-iters all closed; W13-11 closed 2026-05-12 (6/6 sub-commits — design+impl+arch gate+regression fix+doc sweep) — Path A host-side eager-consume + env var passthrough; W13-12 in progress 2026-05-12 (sub-commit 1/5 — design lockdown) — `ActivationReport.harness_handshake_required: bool` fail-closed; W13-13 remains CLOSE-GATE not started; close-out PR week13 → main BLOCKED until W13-12/13 GREEN)`
 
 Open deferred work after the W0-W7 PoC acceptance bar. **Slim canonical** —
 verbose descriptions, evidence, and older triage notes are frozen in dated
@@ -43,7 +43,7 @@ Use stable IDs in new references; do not cite canonical doc line numbers.
 | `[FOLLOWUP w13-3-close-pass-cancellation-test-hardening]` | closed via W13-4 | behavioral coverage + `analysis-job-stuck` runbook update |
 | `[FOLLOWUP w13-4-alembic-roundtrip-programmatic]` | deferred | needs fresh-DB-per-test Alembic fixture |
 | ~~`[CLOSE-GATE codex-second-opinion-F1-hmac-python-secret-target-install-race]`~~ (W13-11) | **closed `2026-05-12`** (6/6 sub-commits) | Close-pass for W13-1 H6. Codex Cloud second-opinion `2026-05-11`. Path A host-side eager-consume + env var passthrough; `executor_control.consume_harness_python_secret()` between `_reset_sandbox` and `_install_extension`; `EXECUTOR_HARNESS_PYTHON_SECRET_VALUE` env threading + E4 docker exec argv mask. W13-12 immediate follow-up required for full fail-closed semantics. |
-| **`[CLOSE-GATE codex-second-opinion-F2-fail-closed-harness-handshake]`** (W13-12) | **CLOSE-GATE — not started** | Close-pass for W13-1 H6. Codex Cloud second-opinion `2026-05-11`. Depends on W13-11. Merge blocker. |
+| **`[CLOSE-GATE codex-second-opinion-F2-fail-closed-harness-handshake]`** (W13-12) | **in progress `2026-05-12`** (sub-commit 1/5 — design lockdown) | Close-pass for W13-1 H6. Codex Cloud second-opinion `2026-05-11`. Depends on W13-11 (closed). Merge blocker. `ActivationReport.harness_handshake_required: bool` field on internal monitor dataclass + `_attempt_has_harness_completion_trace` fail-closed when handshake required but `expected_nonce` empty. |
 | **`[CLOSE-GATE codex-second-opinion-F3-worker-start-cancel-race-CAS]`** (W13-13) | **CLOSE-GATE — not started** | Close-pass for W13-3 H4 + F4 README drift sweep. Codex Cloud second-opinion `2026-05-11`. Merge blocker. |
 
 ## W14 Pull-Forward Acceptance Bar
