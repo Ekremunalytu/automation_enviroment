@@ -224,7 +224,7 @@ review on `week13`):
 - ~~W13-13 (`[CLOSE-GATE codex-second-opinion-F3-worker-start-cancel-race-CAS]`)~~
   — **closed `2026-05-13` (5/5 sub-commits — `d2ba495` docs lockdown ·
   `02c4374` RED behavioral · `33deb46` feat impl · `60bb0cd` arch
-  gate · TBD close evidence + 10-site drift sweep)**. Close-pass for
+  gate · `8912596` close evidence + 10-site drift sweep)**. Close-pass for
   W13-3 H4. Path B worker-entry
   `select(AnalysisJob).where(...).with_for_update()` snapshot lock in
   `workflows/marketplace/analysis_service.py::run_analysis_job`
