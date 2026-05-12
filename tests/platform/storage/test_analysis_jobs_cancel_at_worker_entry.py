@@ -249,3 +249,176 @@ def test_worker_observes_already_terminal_exits_silently(
     assert refetched is not None
     assert refetched.status == "completed"
     assert refetched.finished_at == pre_finished_at
+
+
+# ----------------------------------------------------------------------
+# W13-13 post-landing behavioral pins (mirror W13-12 0d3e343 precedent).
+#
+# The 3 RED→GREEN cases above pin the primary cancel-race seam. These
+# additional pins close defense-in-depth gaps the architecture gate
+# can't directly express:
+#
+#   (a) Vanished-row branch — the defensive ``if job is None`` early
+#       return has no behavioral coverage. A row could vanish between
+#       reserve_job and worker entry via test-fixture cleanup or an
+#       aggressive stale-boot sweep racing the worker.
+#   (b) Idempotent finalize race — the entry-block ``cancelling``
+#       branch wraps ``finalize_cancelled_analysis_job`` in
+#       ``except (JobNotCancellableError, KeyError)``. If another
+#       writer drives the row terminal between the SELECT...FOR UPDATE
+#       and the finalize call, the worker must still exit cleanly.
+#   (c) ``failed`` terminal short-circuit — only ``completed`` is
+#       tested above; the other 2 terminal states (``failed``,
+#       ``cancelled``) share the same code path but are not pinned.
+#   (d) ``cancelled`` terminal short-circuit — same rationale as (c).
+# ----------------------------------------------------------------------
+
+
+def test_worker_handles_vanished_row_at_worker_entry(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Vanished-row branch (a): worker that arrives on a missing row must exit cleanly.
+
+    The Path B entry block has a defensive ``if job is None`` branch
+    that logs a warning and returns. The architecture gate cannot
+    distinguish this from the terminal short-circuit at AST level; the
+    behavioral test pins that an entirely-missing ``job_id`` does not
+    propagate ``KeyError`` out of the worker thread (which would crash
+    the daemon thread silently in production).
+    """
+    _route_job_service_to(db_session, monkeypatch)
+
+    def _trap(*args: Any, **kwargs: Any) -> AnalyzeResponse:
+        raise AssertionError(
+            "execute_analysis_request must NOT run when the job row is missing."
+        )
+
+    monkeypatch.setattr(analysis_service, "execute_analysis_request", _trap)
+    monkeypatch.setattr(
+        analysis_service, "_open_job_session", lambda: db_session
+    )
+
+    # No row was ever created — the entry block's SELECT returns None.
+    analysis_service.run_analysis_job("does-not-exist-uuid", _request())
+
+    # Sentinel: the function returned cleanly (no exception bubbled up,
+    # no scan ran). The row stays absent.
+    assert lifecycle.get_analysis_job(db_session, "does-not-exist-uuid") is None
+
+
+def test_worker_entry_finalize_idempotent_when_race_lands_terminal(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Idempotent finalize race (b): JobNotCancellableError in entry-block cancelling branch is swallowed.
+
+    Models the race where another writer (e.g. a stale-boot sweep or a
+    second worker spawn) drives the row terminal AFTER the entry-block
+    SELECT...FOR UPDATE observes ``cancelling`` but BEFORE
+    ``finalize_cancelled_analysis_job`` commits the
+    ``cancelling -> cancelled`` transition. The lifecycle helper would
+    raise ``JobNotCancellableError`` against the (now-terminal) row;
+    the entry block's ``except (JobNotCancellableError, KeyError)``
+    must catch it and exit cleanly. Without this defensive wrap, the
+    worker thread crashes with an uncaught exception (silent daemon
+    failure in production).
+    """
+    _route_job_service_to(db_session, monkeypatch)
+
+    snapshot = _snapshot(status="queued")
+    lifecycle.create_analysis_job(db_session, snapshot)
+    lifecycle.cancel_analysis_job(db_session, snapshot.job_id)
+
+    def _trap(*args: Any, **kwargs: Any) -> AnalyzeResponse:
+        raise AssertionError(
+            "execute_analysis_request must NOT run on the cancelling branch."
+        )
+
+    # Simulate the race: the entry block's SELECT sees ``cancelling``,
+    # then the lifecycle helper raises JobNotCancellableError because a
+    # concurrent writer drove the row terminal under the lock.
+    def _finalize_raises_terminal(*args: Any, **kwargs: Any) -> Any:
+        raise lifecycle.JobNotCancellableError(snapshot.job_id, "cancelled")
+
+    monkeypatch.setattr(analysis_service, "execute_analysis_request", _trap)
+    monkeypatch.setattr(
+        analysis_service, "_open_job_session", lambda: db_session
+    )
+    monkeypatch.setattr(
+        analysis_service,
+        "finalize_cancelled_analysis_job",
+        _finalize_raises_terminal,
+    )
+
+    # Must NOT propagate JobNotCancellableError; entry block's
+    # defensive except clause swallows it.
+    analysis_service.run_analysis_job(snapshot.job_id, _request())
+
+    # The row is still ``cancelling`` (the helper raised before
+    # committing the terminal transition); but the worker exited
+    # without running the scan — correct behavior under the race.
+    refetched = lifecycle.get_analysis_job(db_session, snapshot.job_id)
+    assert refetched is not None
+    assert refetched.status == "cancelling"
+
+
+@pytest.mark.parametrize(
+    "terminal_driver,expected_status",
+    [
+        pytest.param("fail", "failed", id="failed"),
+        pytest.param("cancel_then_finalize", "cancelled", id="cancelled"),
+    ],
+)
+def test_worker_terminal_short_circuit_covers_all_terminal_statuses(
+    db_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+    terminal_driver: str,
+    expected_status: str,
+) -> None:
+    """Terminal short-circuit (c) + (d): worker exits silently for ``failed`` + ``cancelled``.
+
+    The ``completed`` variant is pinned above. Parametrizes the other
+    two members of ``_TERMINAL_JOB_STATUSES`` so all three terminal
+    states are behaviorally covered. ``failed`` is reached via
+    ``lifecycle.fail_analysis_job``; ``cancelled`` via the W13-3
+    two-phase ``cancel_analysis_job -> finalize_cancelled_analysis_job``
+    chain. Both must short-circuit the worker without invoking
+    ``execute_analysis_request`` and without mutating the row.
+    """
+    _route_job_service_to(db_session, monkeypatch)
+
+    from appcore.contracts.schema_defs.analysis_jobs import AnalysisJobFailure
+
+    snapshot = _snapshot(status="queued")
+    lifecycle.create_analysis_job(db_session, snapshot)
+
+    if terminal_driver == "fail":
+        lifecycle.fail_analysis_job(
+            db_session,
+            snapshot.job_id,
+            AnalysisJobFailure(detail="boom", error_code="install_failed"),
+        )
+    elif terminal_driver == "cancel_then_finalize":
+        lifecycle.cancel_analysis_job(db_session, snapshot.job_id)
+        lifecycle.finalize_cancelled_analysis_job(db_session, snapshot.job_id)
+
+    pre_state = lifecycle.get_analysis_job(db_session, snapshot.job_id)
+    assert pre_state is not None
+    assert pre_state.status == expected_status
+    pre_finished_at = pre_state.finished_at
+
+    def _trap(*args: Any, **kwargs: Any) -> AnalyzeResponse:
+        raise AssertionError(
+            f"execute_analysis_request must NOT run on a {expected_status} row."
+        )
+
+    monkeypatch.setattr(analysis_service, "execute_analysis_request", _trap)
+    monkeypatch.setattr(
+        analysis_service, "_open_job_session", lambda: db_session
+    )
+
+    analysis_service.run_analysis_job(snapshot.job_id, _request())
+
+    refetched = lifecycle.get_analysis_job(db_session, snapshot.job_id)
+    assert refetched is not None
+    assert refetched.status == expected_status
+    assert refetched.finished_at == pre_finished_at
