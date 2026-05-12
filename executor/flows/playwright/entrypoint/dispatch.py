@@ -127,6 +127,14 @@ def setup_monitor(page, args, trigger_payload, bait_files_created, *, deps):
     # (file missing or unreadable) keeps reconciliation in fail-closed
     # mode — no harness attempt is verified by trace alone.
     mon.report.expected_harness_nonce = load_harness_python_secret()
+    # W13-12 (Codex F2 close-pass): production paths must fail-closed
+    # when the eager-consumed secret is unavailable. Empty
+    # expected_harness_nonce above + this flag → reconciliation refuses
+    # to count harness completion traces by phase alone (target
+    # extensions can forge that line). Test fixtures that construct
+    # ActivationReport directly keep the default False so the pre-W13-1
+    # phase-only regression surface stays GREEN.
+    mon.report.harness_handshake_required = True
     mon.start()
     deps.automation.set_scenario_event_reporter(mon.record_scenario_event)
     trigger_plan_requested = bool(args.triggers)

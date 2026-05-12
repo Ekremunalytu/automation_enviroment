@@ -22,8 +22,6 @@ adds the field + branch + dispatch flag and removes the skip markers.
 
 from __future__ import annotations
 
-import pytest
-
 from executor.flows.playwright.health.reconciliation import reconcile_event_attempts
 from executor.flows.playwright.monitor.records import EventAttemptRecord
 from executor.flows.playwright.monitor.types import ActivationReport
@@ -64,10 +62,6 @@ def _build_harness_attempt_report() -> ActivationReport:
     )
 
 
-@pytest.mark.skip(
-    reason="W13-12 sub-commit 3 adds harness_handshake_required field; "
-    "sub-commit 3 removes this skip marker."
-)
 def test_production_handshake_required_rejects_unsigned_complete_marker_when_secret_empty() -> None:
     """Production fail-closed invariant.
 
@@ -91,10 +85,6 @@ def test_production_handshake_required_rejects_unsigned_complete_marker_when_sec
     assert attempts[0].failure_reason_code == "harness_verification_unconfirmed"
 
 
-@pytest.mark.skip(
-    reason="W13-12 sub-commit 3 adds harness_handshake_required field; "
-    "sub-commit 3 removes this skip marker."
-)
 def test_test_path_default_false_preserves_legacy_phase_only_check() -> None:
     """Baseline regression: unit fixtures must keep pre-W13-12 behavior.
 

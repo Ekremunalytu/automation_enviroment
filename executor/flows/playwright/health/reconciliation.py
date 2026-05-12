@@ -138,15 +138,29 @@ def _attempt_has_harness_completion_trace(
     attempt: Any,
     traces_by_attempt: dict[str, list[dict[str, Any]]],
     expected_nonce: str = "",
+    *,
+    handshake_required: bool = False,
 ) -> bool:
-    """W13-1: a ``phase=="complete"`` trace counts only when its HMAC nonce
-    verifies under ``expected_nonce``. Empty ``expected_nonce`` means the
-    report was built without the orchestration handshake (unit-test
-    construction or pre-W13-1 baseline) and the call short-circuits to the
-    legacy phase-only check so the existing test surface stays GREEN. In
-    production, ``setup_monitor`` populates ``expected_harness_nonce``
-    from the file ``launch_vscode.sh`` writes, so the empty branch never
-    triggers and forged markers without signatures are rejected.
+    """W13-1 / W13-12: a ``phase=="complete"`` trace counts only when its
+    HMAC nonce verifies under ``expected_nonce``. Empty ``expected_nonce``
+    means the report was built without an orchestration handshake.
+
+    Three branches:
+
+    1. ``expected_nonce`` non-empty → require valid HMAC signature on the
+       ``phase=="complete"`` trace (W13-1 contract).
+    2. ``expected_nonce`` empty AND ``handshake_required=True`` → fail-
+       closed (W13-12). Production paths set ``handshake_required`` via
+       ``ActivationReport.harness_handshake_required`` at ``setup_monitor``
+       time. An empty ``expected_nonce`` here means the eager-consume
+       (W13-11) miss-fired (``FileNotFoundError``, ``OSError``, bind-mount
+       race); we refuse to fall back to phase-only because a target
+       extension can forge ``[extrace-harness] {phase:"complete"}``.
+    3. ``expected_nonce`` empty AND ``handshake_required=False`` → legacy
+       phase-only check (test path). Unit fixtures construct
+       ``ActivationReport`` directly without the orchestration handshake;
+       keeping the phase-only branch preserves the pre-W13-1 contract for
+       those fixtures.
     """
     attempt_id = str(getattr(attempt, "attempt_id", "")).strip()
     if not attempt_id:
@@ -157,6 +171,11 @@ def _attempt_has_harness_completion_trace(
             and _verify_harness_marker_signature(trace, expected_nonce)
             for trace in traces_by_attempt.get(attempt_id, [])
         )
+    if handshake_required:
+        # W13-12: production handshake required but secret unavailable →
+        # fail-closed. Eager-consume (W13-11) guarantees presence on the
+        # happy path; this branch covers the residual failure modes.
+        return False
     return any(
         str(trace.get("phase", "")).strip() == "complete"
         for trace in traces_by_attempt.get(attempt_id, [])
@@ -417,6 +436,14 @@ def reconcile_event_attempts(report: Any) -> list[Any]:
     # handshake (unit tests, pre-W13-1 baseline replay); the helper
     # short-circuits to the legacy phase-only check in that case.
     expected_harness_nonce = str(getattr(report, "expected_harness_nonce", "") or "")
+    # W13-12 (Codex F2 close-pass): production paths set this True at
+    # ``setup_monitor`` time so an empty ``expected_harness_nonce``
+    # (eager-consume miss / OSError / race) routes the helper through
+    # fail-closed instead of the legacy phase-only branch. Test fixtures
+    # leave it False to preserve pre-W13-1 phase-only behavior.
+    handshake_required = bool(
+        getattr(report, "harness_handshake_required", False)
+    )
 
     for attempt in attempts:
         activation_event = str(getattr(attempt, "activation_event", "")).strip()
@@ -449,7 +476,10 @@ def reconcile_event_attempts(report: Any) -> list[Any]:
             capability_tags & derived_verified_capabilities
         )
         execution_closed = _attempt_has_harness_completion_trace(
-            attempt, harness_traces, expected_harness_nonce
+            attempt,
+            harness_traces,
+            expected_harness_nonce,
+            handshake_required=handshake_required,
         )
 
         if not contracts:
