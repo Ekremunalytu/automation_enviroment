@@ -91,8 +91,12 @@ def test_run_analysis_job_finalizes_on_analysis_cancelled_error() -> None:
     ):
         analysis_service.run_analysis_job(job_id, _request())
 
-    # Initial running state was set then handler dispatched finalize.
-    update_job.assert_called_once()
+    # W13-13 Path B: the worker entry no longer routes the queued -> running
+    # transition through ``job_service.update_job``; it mutates the locked
+    # row directly under ``with_for_update()`` and ``db.commit()``s. So
+    # the wrapper helper must NOT be called on the cancel-handler path.
+    # The handler still dispatches ``finalize_cancelled_job`` exactly once.
+    update_job.assert_not_called()
     finalize.assert_called_once_with(job_id)
     fail_job.assert_not_called()
     complete_job.assert_not_called()
