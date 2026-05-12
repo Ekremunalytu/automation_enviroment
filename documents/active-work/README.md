@@ -45,8 +45,9 @@ points to it.
     python secret target-install race **closed `2026-05-12`**, W13-12
     fail-closed harness handshake **closed `2026-05-12`**, W13-13
     worker-start cancel-race CAS **closed `2026-05-13`** (Path B
-    worker-entry `with_for_update()` snapshot lock; F4 README sweep +
-    regex pin landed early in W13-11 push). Close-out PR `week13 →
+    worker-entry `with_for_update()` snapshot lock + 4 post-landing
+    behavioral pins; F4 README sweep + regex pin landed early in W13-11
+    push). Close-out PR `week13 →
     main` **READY** (close-gate cleared `2026-05-13`). Original §11.10
     TBD umbrellas (logger consolidation, run-ID stamping, W8-W12
     regression lock-in) deferred to W14 — see W14 tracker above.

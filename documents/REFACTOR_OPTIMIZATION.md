@@ -1,6 +1,6 @@
 # REFACTOR_OPTIMIZATION
 
-`Last Updated: 2026-05-13 (W13 closed 2026-05-13 — W13-1..W13-13 all GREEN; W13-1..W13-7 closed acceptance bar; W13-8/9/10 closed §11.10 GOAL pulls; W13-11 HMAC python secret target-install race closed 2026-05-12 (6/6 sub-commits) — Path A host-side eager-consume + env var passthrough; W13-12 fail-closed harness handshake closed 2026-05-12 (5/5 sub-commits — `harness_handshake_required: bool` + fail-closed branch + 3-fact AST gate; final bar test-local 1537 → 1539 → 1542 / 112 → 115); W13-13 worker-start cancel-race CAS closed 2026-05-13 (5/5 sub-commits — Path B worker-entry `with_for_update()` snapshot lock + lifecycle-helper-not-wrapper deadlock avoidance + 2-fact AST gate; final bar test-local 1542 → 1547 (+5) / 115 → 117 (+2)); close-out PR week13 → main READY (close-gate cleared); §12 W14 staging scope pre-entry, activates after close-out merge)`
+`Last Updated: 2026-05-13 (W13 closed 2026-05-13 — W13-1..W13-13 all GREEN; W13-1..W13-7 closed acceptance bar; W13-8/9/10 closed §11.10 GOAL pulls; W13-11 HMAC python secret target-install race closed 2026-05-12 (6/6 sub-commits) — Path A host-side eager-consume + env var passthrough; W13-12 fail-closed harness handshake closed 2026-05-12 (5/5 sub-commits — `harness_handshake_required: bool` + fail-closed branch + 3-fact AST gate; final bar test-local 1537 → 1539 → 1542 / 112 → 115); W13-13 worker-start cancel-race CAS closed 2026-05-13 (5/5 sub-commits + post-landing — Path B worker-entry `with_for_update()` snapshot lock + lifecycle-helper-not-wrapper deadlock avoidance + 2-fact AST gate + 4 post-landing behavioral pins (vanished row + finalize idempotency + failed/cancelled terminal); final bar test-local 1542 → 1547 (+5 main) → 1551 (+4 post-landing) / 115 → 117 (+2)); close-out PR week13 → main READY (close-gate cleared); §12 W14 staging scope pre-entry, activates after close-out merge)`
 
 W0-W14 plan document: stabilization + security + post-PoC external-review
 integration + W14 acceptance + observability continuation. **Slim canonical**
@@ -222,9 +222,11 @@ review on `week13`):
   regression suite zero-diff. Close-out PR merge blocker reduces to
   W13-13 only.
 - ~~W13-13 (`[CLOSE-GATE codex-second-opinion-F3-worker-start-cancel-race-CAS]`)~~
-  — **closed `2026-05-13` (5/5 sub-commits — `d2ba495` docs lockdown ·
-  `02c4374` RED behavioral · `33deb46` feat impl · `60bb0cd` arch
-  gate · `8912596` close evidence + 10-site drift sweep)**. Close-pass for
+  — **closed `2026-05-13` (5/5 sub-commits + post-landing — `d2ba495`
+  docs lockdown · `02c4374` RED behavioral · `33deb46` feat impl ·
+  `60bb0cd` arch gate · `8912596` close evidence + 10-site drift sweep
+  · `826f91c` self-stamp · `26a2025` post-landing behavioral pins
+  (vanished row + finalize idempotency + failed/cancelled terminal))**. Close-pass for
   W13-3 H4. Path B worker-entry
   `select(AnalysisJob).where(...).with_for_update()` snapshot lock in
   `workflows/marketplace/analysis_service.py::run_analysis_job`
@@ -245,9 +247,16 @@ review on `week13`):
   `tests/workflows/marketplace/test_run_analysis_job_finalize.py`
   `update_job.assert_called_once()` flipped to `assert_not_called()`
   to reflect Path B's contract that the worker entry no longer routes
-  the queued → running transition through the wrapper. Final bar:
-  `make test-local` 1542 → **1547** (+5); `tests/architecture/` 115 →
-  **117** (+2); W13-3 + W13-4 + W13-1/W13-11/W13-12 regression suites
+  the queued → running transition through the wrapper. Post-landing
+  pins (`26a2025`) add 4 behavioral cases that close defense-in-depth
+  gaps the architecture gate cannot express at AST level: (a)
+  vanished-row branch (`if job is None`); (b) finalize idempotency
+  under race (`except JobNotCancellableError, KeyError` in cancelling
+  branch); (c) + (d) parametrized terminal short-circuit for ``failed``
+  + ``cancelled`` (main test only covers ``completed``). Final bar:
+  `make test-local` 1542 → **1547** (+5 main) → **1551** (+4
+  post-landing); `tests/architecture/` 115 → **117** (+2; unchanged
+  post-landing); W13-3 + W13-4 + W13-1/W13-11/W13-12 regression suites
   zero-diff; 2 pre-existing env-only VSIX fixture failures in
   `test_analysis_fixture_baselines.py` unchanged (reproduce on HEAD~5
   = pre-W13-13). Production diff scoped to 1 file

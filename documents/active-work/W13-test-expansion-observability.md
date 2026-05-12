@@ -1,6 +1,6 @@
 # W13 — Test Expansion + Observability (Active Work Tracker)
 
-`Last Updated: 2026-05-13 (W13-11 closed 2026-05-12 (6/6 sub-commits — design+impl+arch gate+regression fix+doc sweep) — Path A host-side eager-consume + env var passthrough; W13-12 closed 2026-05-12 (5/5 sub-commits + post-landing drift sweep + 3 behavioral pins — `ActivationReport.harness_handshake_required: bool` fail-closed; final bar test-local 1537 → 1539 (+2 main) → 1542 (+3 post-landing) / tests/architecture/ 112 → 115 (+3)); W13-13 closed 2026-05-13 (5/5 sub-commits — d2ba495 docs lockdown · 02c4374 RED behavioral · 33deb46 feat impl · 60bb0cd arch gate · `8912596` close evidence + 10-site drift sweep; Path B worker-entry `with_for_update()` snapshot lock; final bar test-local 1542 → 1547 (+5) / tests/architecture/ 115 → 117 (+2); W13 close-gate cleared))`
+`Last Updated: 2026-05-13 (W13-11 closed 2026-05-12 (6/6 sub-commits — design+impl+arch gate+regression fix+doc sweep) — Path A host-side eager-consume + env var passthrough; W13-12 closed 2026-05-12 (5/5 sub-commits + post-landing drift sweep + 3 behavioral pins — `ActivationReport.harness_handshake_required: bool` fail-closed; final bar test-local 1537 → 1539 (+2 main) → 1542 (+3 post-landing) / tests/architecture/ 112 → 115 (+3)); W13-13 closed 2026-05-13 (5/5 sub-commits + post-landing pins — d2ba495 docs lockdown · 02c4374 RED behavioral · 33deb46 feat impl · 60bb0cd arch gate · `8912596` close evidence + 10-site drift sweep · `826f91c` self-stamp · `26a2025` post-landing behavioral pins (vanished row + finalize idempotency + failed/cancelled terminal); Path B worker-entry `with_for_update()` snapshot lock; final bar test-local 1542 → 1547 (+5 main) → 1551 (+4 post-landing) / tests/architecture/ 115 → 117 (+2); W13 close-gate cleared))`
 `Phase: W13 closed 2026-05-13 — W13-1..W13-13 all GREEN; close-out PR week13 → main pending`
 `Branch: week13 (single-branch policy precedent; opened 2026-05-10 from cff6455)`
 `Owner: ekrem`
@@ -2416,7 +2416,7 @@ Production code diff: 3 dosya, +~25 net satır (field + branch + callsite + flag
 
 ### W13-13 — Worker-start cancel-race CAS (close-gate for W13-3 H4)
 
-`Status: closed 2026-05-13 (5/5 sub-commits — d2ba495 docs lockdown · 02c4374 RED behavioral · 33deb46 feat impl · 60bb0cd arch gate · `8912596` close evidence + 10-site drift sweep; Path B worker-entry with_for_update snapshot lock; scope rebased 2026-05-12 — F4 README sweep + regex pin landed early in W13-11 push sub-commits 8 + 12)` ·
+`Status: closed 2026-05-13 (5/5 sub-commits + post-landing additions in same push — d2ba495 docs lockdown · 02c4374 RED behavioral · 33deb46 feat impl · 60bb0cd arch gate · 8912596 close evidence + 10-site drift sweep · 826f91c self-stamp · 26a2025 post-landing behavioral pins; Path B worker-entry with_for_update snapshot lock; scope rebased 2026-05-12 — F4 README sweep + regex pin landed early in W13-11 push sub-commits 8 + 12)` ·
 `Source: [CLOSE-GATE codex-second-opinion-F3-worker-start-cancel-race-CAS]` ·
 `Lane: [platform-storage] [executor-runtime]` ·
 `Blocks: week13 → main close-out PR (cleared 2026-05-13)`
@@ -2461,12 +2461,14 @@ Sub-commit SHA table.
 | 3 | `33deb46` | `feat(W13-13)` | worker-entry `with_for_update()` snapshot lock — Path B (RED → GREEN); imports `select` + `_TERMINAL_JOB_STATUSES` + `finalize_cancelled_analysis_job` + `AnalysisJob` + `time`; entry block branches: row missing → log + return; terminal → log + return; `cancelling` → `finalize_cancelled_analysis_job(db, ...)` + return; `queued` → atomic mutation + commit + proceed. W13-4 `update_job.assert_called_once()` flipped to `assert_not_called()` (Path B contract: wrapper not called at entry) |
 | 4 | `60bb0cd` | `test(W13-13)` | architecture gate — `run_analysis_job` entry-block lock ordering + lifecycle helper (2 AST invariants in `tests/architecture/test_run_analysis_job_entry_snapshot.py`: INV1 first-DB-action is the lock; INV2 lifecycle-helper-not-wrapper before execute) |
 | 5 | `8912596` | `docs(W13-13)` | close evidence + 10-site drift sweep — W13 close-gate cleared (10 sites: README.md, CLAUDE.md, AGENTS.md, REFACTOR_STATUS.md, REFACTOR_OPTIMIZATION.md, POST_POC_BACKLOG.md, AGENT_CONTEXT.md, this tracker, active-work/README.md, W14-codex-acceptance-observability.md) |
+| 5+ | `826f91c` | `docs(W13-13)` | self-stamp sub-commit 5 SHA across tracker + banners (post-landing fix-up — 5 sites: this tracker, REFACTOR_STATUS.md, POST_POC_BACKLOG.md, REFACTOR_OPTIMIZATION.md, CLAUDE.md) |
+| 5+ | `26a2025` | `test(W13-13)` | post-close behavioral pins — 4 cases close defense-in-depth gaps the architecture gate cannot express at AST level: (a) vanished-row early-return branch (`if job is None`); (b) finalize idempotency under race (`except JobNotCancellableError, KeyError` in cancelling branch); (c) + (d) parametrized terminal short-circuit for ``failed`` + ``cancelled`` (main test only covers ``completed``). Test-local 1547 → 1551 (+4); tests/architecture/ 117 unchanged. Mirrors W13-12 `0d3e343` post-landing pin precedent. |
 
 Test bar.
 
-- `make test-local` 1542 → **1547** (+5: 3 W13-13 behavioral + 2 W13-13 arch gate); 2 pre-existing env-only VSIX fixture failures in
+- `make test-local` 1542 → **1547** (+5 main: 3 W13-13 behavioral + 2 W13-13 arch gate) → **1551** (+4 post-landing pins on same push: vanished-row + finalize idempotency + failed/cancelled terminal short-circuit); 2 pre-existing env-only VSIX fixture failures in
   `test_analysis_fixture_baselines.py` reproduce on HEAD~5 = pre-W13-13, not W13-13 related.
-- `tests/architecture/` 115 → **117** (+2: `test_run_analysis_job_entry_snapshot.py`).
+- `tests/architecture/` 115 → **117** (+2: `test_run_analysis_job_entry_snapshot.py`; unchanged post-landing — pins are behavioral, not structural).
 - W13-3 regression suite intact: `tests/platform/storage/test_analysis_jobs_lifecycle.py` 25/25 ✓ (cancel/finalize state machine);
   `tests/architecture/test_cancel_poll_points.py` 2/2 ✓ (5 cancel-poll points in `execute_analysis_request`).
 - W13-4 regression suite intact: `tests/workflows/marketplace/test_run_analysis_job_finalize.py` 2/2 ✓ (cancellation + hard-error exception-handler dispatch — `update_job.assert_called_once()` flipped to `assert_not_called()` to reflect Path B contract).

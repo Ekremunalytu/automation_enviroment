@@ -65,9 +65,11 @@ multi-tenant web platform.
   sub-commits; `ActivationReport.harness_handshake_required: bool` +
   fail-closed branch + 3-fact AST gate; test bar 1537 → 1542);
   **W13-13 worker-start cancel-race CAS closed `2026-05-13`** (5/5
-  sub-commits — Path B worker-entry `with_for_update()` snapshot lock
-  + lifecycle-helper-not-wrapper deadlock avoidance + 2-fact AST gate;
-  test bar 1542 → 1547 / tests/architecture/ 115 → 117). Close-out PR
+  sub-commits + post-landing — Path B worker-entry `with_for_update()`
+  snapshot lock + lifecycle-helper-not-wrapper deadlock avoidance +
+  2-fact AST gate + 4 post-landing behavioral pins (vanished row +
+  finalize idempotency + failed/cancelled terminal); test bar 1542 →
+  1547 → 1551 / tests/architecture/ 115 → 117). Close-out PR
   `week13 → main` **READY** (close-gate cleared `2026-05-13`). Tracker:
   [`active-work/W13-test-expansion-observability.md`](documents/active-work/W13-test-expansion-observability.md).
 - **Canonical source of truth for phase state:**
