@@ -1,6 +1,6 @@
 # Refactor Status
 
-`Last Updated: 2026-05-13 (W14 active; W14-1 BLOCKER -> HIGH downgraded; W14-2 closed via bde17be; W14-3 closed via 941250d; W14-4 closed; week14 branch cut from main at 69251f1; W13 close-out PR #20 week13 -> main merged via 772deb3)`
+`Last Updated: 2026-05-13 (W14 active; W14-1 BLOCKER -> HIGH downgraded; W14-2 closed via bde17be; W14-3 closed via 941250d; W14-4 closed; W14-5 closed via dc79f61+9c095d2+db25d5f; W14-6 closed via 2adad43+b031803+e42a448; week14 branch cut from main at 69251f1; W13 close-out PR #20 week13 -> main merged via 772deb3; W14 sub-iter slate complete, close-out PR week14 -> main next)`
 
 Active status board for current closure state. **Slim canonical** — verbose
 phase evidence is frozen under dated snapshots:
@@ -67,7 +67,17 @@ phase evidence is frozen under dated snapshots:
   via `941250d`. W14-4 (analysis-jobs-race lock symmetry on
   `complete_analysis_job` / `fail_analysis_job` + EvidenceEvent
   kind↔event_class invariant via closed 9-kind allowlist) closed
-  `2026-05-13`. W14-5, W14-6 scoped but not pulled.
+  `2026-05-13`. W14-5 (`extrace.*` logger consolidation + run-ID
+  stamping + executor runtime fingerprint emit) closed `2026-05-13`
+  via `dc79f61` + `9c095d2` + `db25d5f`; ADR 0010 landed; M5
+  (`epoch-docker-exec-propagation`) auto-closed as natural byproduct
+  of sub-commit 2. W14-6 (regression lock-in umbrella:
+  bare-binary-path pragma ratchet + `executor.control` outbound
+  surface gate + variable-indirect subprocess coverage) closed
+  `2026-05-13` via `2adad43` + `b031803` + `e42a448`; pragma baseline
+  lowered 7 → 6 in-window via inotifywait/tshark/strace absolute-path
+  migration. W14 sub-iter slate complete (W14-1..W14-6); close-out PR
+  `week14 -> main` is the next milestone.
 
 ## W13 Status Summary
 

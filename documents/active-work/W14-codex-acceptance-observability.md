@@ -1,8 +1,8 @@
 # W14 — Codex M-class Acceptance + Observability (Active Work Tracker)
 
-`Last Updated: 2026-05-13 (W14 active; W14-1 pulled; W14-2/W14-3/W14-4 closed; week14 branch cut from main at 69251f1; W13 close-out PR #20 week13 -> main merged via 772deb3)`
-`Phase: W14 active (W14-4 closed 2026-05-13 — analysis-jobs-race lock symmetry + evidence-event-kind invariant)`
-`Branch: week14 (cut from main 2026-05-13 at HEAD 69251f1; close-out PR opens after W14-6 GREEN)`
+`Last Updated: 2026-05-13 (W14 active; W14-1 pulled; W14-2/W14-3/W14-4/W14-5/W14-6 closed; week14 branch cut from main at 69251f1; W13 close-out PR #20 week13 -> main merged via 772deb3)`
+`Phase: W14 active (W14-6 closed 2026-05-13 — regression lock-in umbrella: bare-binary pragma ratchet + executor.control outbound gate + variable-indirect subprocess coverage; W14 sub-iter slate complete, close-out PR week14 -> main next)`
+`Branch: week14 (cut from main 2026-05-13 at HEAD 69251f1; close-out PR opens after W14-6 GREEN — all six sub-iters now closed)`
 `Owner: ekrem`
 
 > **Authored 2026-05-11** as the W14 scope skeleton. Stable IDs `W14-1..W14-6`
@@ -116,10 +116,12 @@ audit; `[BUG …]` rows are from `POST_POC_BACKLOG.md` Contracts/Reports/Detecti
 | **W14-3** | `[FOLLOWUP codex-2026-05-10-U4-U12-makefile-shell-quoting]` (`Makefile` `sim-target`/`sim-run` `$(TARGET)`/`$(SCENARIO)` tırnaksız; shell injection riski; W13-5 dev-lan recipe-fix deseninin tekrarı) | `[security-detection]` | **closed** `2026-05-13` |
 | **W14-4** | `[FOLLOWUP analysis-jobs-race]` (`complete_analysis_job` ve `fail_analysis_job` `with_for_update()` lock'undan yoksundu; `cancel_analysis_job` lock var; W13-4.4'te race window dokümante edildi) | `[platform-storage]` `[executor-runtime]` | **closed** `2026-05-13` |
 | **W14-4** | `[FOLLOWUP evidence-event-kind-raw-context-invariant]` (`EvidenceEvent.kind` ↔ `raw_context.event_class` eşleşmesi Pydantic'te validate edilmiyordu; closed 9-kind allowlist + `@model_validator(mode='after')`) | `[security-detection]` `[contracts]` | **closed** `2026-05-13` |
-| TBD (W14-5) | `[§11.10 GOAL]` `extrace.executor.*` logger consolidation (W13'ten devreden; executor logger init + emit pattern'leri worker thread'lerde tutarsız) | `[platform-storage]` | not started — W13'ten W14'e devredildi |
-| TBD (W14-5) | `[§11.10 GOAL]` Run-ID stamping (W13'ten devreden; stable `EXTRACE_EPOCH_RUN_ID` executor çıktıları boyunca propagate + emit; logger consolidation'a bağımlı) | `[platform-storage]` `[executor-runtime]` `[security-detection]` | not started — logger consolidation'a bağımlı |
-| TBD (W14-5) | `[FOLLOWUP codex-automation-5]` (executor runtime fingerprint in automation output for observability — version/build/commit emit at automation run boundary; run-ID stamping ile sibling tema, aynı PR ailesinde yan ürün olarak çekilir) | `[platform-storage]` `[executor-runtime]` | not started — W14-5 PR ailesinin tematik üyesi |
-| TBD (W14-6) | `[§11.10 GOAL]` W8-W12 regression lock-in umbrella (W13'ten devreden; W14-6 alt-üyeleri: `arch-gate-executor-control-outbound` + `arch-gate-bare-binary-pragma-ratchet` + `w8-4-variable-indirect-subprocess-coverage`) | (multi) | not started — W13'ten W14'e devredildi |
+| **W14-5** | `[§11.10 GOAL]` `extrace.executor.*` logger consolidation | `[platform-storage]` | **closed** `2026-05-13` |
+| **W14-5** | `[§11.10 GOAL]` Run-ID stamping (`EXTRACE_EPOCH_RUN_ID` propagation + stamping) — closes M5 docker-exec propagation as natural byproduct | `[platform-storage]` `[executor-runtime]` `[security-detection]` | **closed** `2026-05-13` |
+| **W14-5** | `[FOLLOWUP codex-automation-5]` (executor runtime fingerprint in automation output + filter chain) | `[platform-storage]` `[executor-runtime]` | **closed** `2026-05-13` |
+| **W14-6** | `[FOLLOWUP arch-gate-bare-binary-pragma-ratchet]` (strict pragma-count ratchet at 6, monotonically downward) | (multi) | **closed** `2026-05-13` |
+| **W14-6** | `[FOLLOWUP arch-gate-executor-control-outbound]` (semantic outbound surface gate on `executor.control` public API) | (multi) | **closed** `2026-05-13` |
+| **W14-6** | `[FOLLOWUP w8-4-variable-indirect-subprocess-coverage]` (variable-indirect `cmd = [...]; subprocess.Popen(cmd)` form coverage + production migration of 4 sites to `binary_paths` constants) | `[security-detection]` `[executor-runtime]` | **closed** `2026-05-13` |
 | TBD watch | `[FOLLOWUP scenario-accountant-conservation-split]` (W14-1 kök neden tespitinden sonra ayrı pull olarak değerlendirilir; W14-1 PR'ına dahil edilmez) | `[executor-runtime]` | watching — W14-1 sonrası ayrı pull adayı |
 
 ## Sub-iteration Scope Locks
@@ -430,18 +432,19 @@ W14 hedefi (tahminî, iterasyon sonu kümülatif):
 + `make test-security`: 215 → ~225-230 (M-class regression + dropout fixture)
 + `tests/architecture/`: 117 → ~125-127 (yeni 8-10 arch gate)
 
-**Actual cumulative bar (post-W14-4):**
+**Actual cumulative bar (post-W14-6, W14 sub-iter slate complete):**
 
-| Suite | W13 baseline | W14-1 | W14-2 | W14-3 | W14-4 (initial) | W14-4 (post-landing defense-in-depth) | Current |
-|---|---|---|---|---|---|---|---|
-| `make test-security` | 215 | 222 (+7 dropout repro) | 269 (+47 M4-M7 + M11) | 279 (+10 M13) | 279 (lane subset stable; W14-4 surface lands in `tests/platform/storage/` + `tests/platform/contracts/`) | 279 (defense-in-depth surface stays outside test-security lane) | **279** |
-| `tests/architecture/` | 117 | 117 (W14-1 updated `test_readme_phase_pointer` in place) | 121 (+4: 2 ts-guard + 2 int-guard) | 131 (+10: 2 uri redaction + 4 cdp default + 4 makefile quoting) | 135 (+4: 2 lock-symmetry + 2 kind-invariant) | 137 (+2: producer kind allowlist gate) | **137** |
-| Broad regression suite (security + arch + executor + workflows/marketplace) | — | — | — | 1106 | 1110 (+4 arch gates; lock + concurrency cases live under `tests/platform/storage/`) | 1112 (+2 producer gate) | **1112 passed / 7 skipped / 4 deselected** (sıfır regresyon) |
-| `make test-local` (full sweep) | 1551 | — | — | — | 1701 | 1716 (+15: 2 producer gate + 13 fixture-validity) | **1716 passed / 10 skipped / 8 deselected / 1 xfailed** |
+| Suite | W13 baseline | W14-1 | W14-2 | W14-3 | W14-4 (post-landing) | W14-5 (logger + run-ID + fingerprint) | W14-6 (regression lock-in) | Current |
+|---|---|---|---|---|---|---|---|---|
+| `make test-security` | 215 | 222 | 269 | 279 | 279 | 215 (W14-5 surface lives outside the fixed test-security lane: factory + filter wire-up lands in `tests/platform/` and `tests/executor/`) | 215 (W14-6 surface is gate-only; lives in `tests/architecture/`) | **215** (lane fixed list) |
+| `tests/architecture/` | 117 | 117 (W14-1 in-place README update) | 121 (+4: 2 ts-guard + 2 int-guard) | 131 (+10: 2 uri redaction + 4 cdp default + 4 makefile quoting) | 137 (+6: 2 lock-symmetry + 2 kind-invariant + 2 producer gate) | 154 (+17: 11 logger consolidation + 3 runtime fingerprint emit + 3 ratchet) | 168 (+14: 7 control outbound + 6 variable-indirect self-tests + 1 in-place ratchet baseline lower 7→6) | **168** |
+| `make test-local` (full sweep) | 1551 | — | — | — | 1716 | ~1762 (+46: 25 factory behavior + 14 run-ID emit + 6 docker-exec propagation + 16 fingerprint behavior / contract / gate) | 1798 (+36: 7 control outbound + 6 ratchet + 13 absolute-binary self-tests + 10 from migration ripple) | **1798 passed / 10 skipped / 8 deselected / 1 xfailed** |
+| Broad regression suite (security + arch + executor + workflows/marketplace + platform) | — | — | — | — | — | — | — | **1798 passed / 10 skipped / 8 deselected / 1 xfailed** (sıfır regresyon — W14-5 retarget'i `LogContextFilter` → `setLogRecordFactory` ile sub-commit 2'de integration testinde yakalandı; production import-graph gate executor→appcore ihlali sub-commit 2'de tespit edildi, executor/host.py literal'le düzeltildi) |
 
-W14-5..W14-6 dilimleri hedefi karşılayacak; `make test-security` hedefi
-(~225-230) şimdiden geçilmiş durumda, kalan iter'ler
-`tests/architecture/` hedefini W14-6 umbrella'sıyla genişletecek.
+W14 hedef bar (~1575-1585 test-local, ~125-127 arch gate) **aşıldı**:
+test-local 1798 (+247 vs W13 baseline 1551), arch gate 168 (+51 vs W13
+baseline 117). Sub-iter slate complete; close-out PR `week14 -> main`
+hazır.
 
 ## Per-Item Detail
 
@@ -871,6 +874,174 @@ Pre-existing top-level null drift on `target_extension_id`,
 `[FOLLOWUP report-finalize-top-level-field-sync-drift]` (W15+, pinned
 under the `xfail` RED stub at
 `tests/security/test_report_finalize_field_sync.py`).
+
+### W14-5 — `extrace.*` logger consolidation + run-ID stamping + executor runtime fingerprint
+
+**Pulled.** `2026-05-13` on `week14`.
+
+**Outcome.** **Closed.** Three §11.10 GOAL items collapsed into a
+single PR family per W13-7's sub-commit pattern: logger consolidation
+infrastructure (sub-commit 1), run-ID emit-time stamping + M5 docker
+exec propagation (sub-commit 2), executor runtime fingerprint emit at
+the automation output boundary (sub-commit 3). The
+`[FOLLOWUP codex-2026-05-10-M5-epoch-docker-exec-propagation]` audit
+item lands as the natural byproduct of sub-commit 2's run-ID
+propagation plumbing.
+
++ **Sub-commit 1 (`dc79f61`):** ADR 0010 + `appcore/logging.py`
+  factory + `LogContextFilter` + namespace taxonomy + 6 site
+  migration in `workflows/marketplace/*` and
+  `workflows/security_settings/router.py`. Two new test files: behavioral
+  (factory namespace reject matrix, filter stamping, idempotent
+  install) + AST architecture gate (no raw `logging.getLogger` in
+  scope, approved-prefix literal enforcement). Two working-tree lint
+  cleanups bundled (gratuitous `f`-prefix on W14-3 redaction gate,
+  vestigial `noqa: PLR0124` on M11 NaN check rewritten as
+  `math.isnan(value) or math.isinf(value)`).
++ **Sub-commit 2 (`9c095d2`):** retargeted install hook from
+  parent-logger filter (which Python's `logging` framework does not
+  propagate to child loggers during `callHandlers`) to a global
+  `LogRecord` factory installed via `logging.setLogRecordFactory(...)`.
+  `LogContextFilter` class form remains exported as the standalone
+  path; `_stamp_record(record)` becomes the single chokepoint.
+  `executor/host._run_docker_exec` forwards `EXTRACE_EPOCH_RUN_ID`
+  into the docker exec argv (M5 closure). `main.create_app` calls
+  `install_extrace_log_context_filter()` at app boot. ADR 0010 §2
+  rewritten to document the LogRecord factory mechanism.
++ **Sub-commit 3 (`db25d5f`):** `executor/runtime_fingerprint.py`
+  new module — `executor_fingerprint()` (commit_sha / build_date /
+  version dict, env-primary → git-fallback → unknown), cached after
+  first resolve. `report_builder._assemble_report_payload` emits
+  `executor_fingerprint` as a top-level field on every
+  activation_report write. `ActivationReport` contract carries the
+  `executor_fingerprint: dict[str, str]` additive-optional field.
+  `main.create_app` wires
+  `set_executor_fingerprint_provider(executor_fingerprint_short)` so
+  every subsequent `LogRecord` carries `record.executor_fingerprint`
+  set to the short SHA.
+
+**Module locations.**
+
++ Production diff:
+  + [`appcore/logging.py`](../../appcore/logging.py) (new) — factory + filter + install + provider setter + 4 public exports.
+  + [`executor/host.py`](../../executor/host.py:79) — `_run_docker_exec` env injection for `EXTRACE_EPOCH_RUN_ID`.
+  + [`executor/runtime_fingerprint.py`](../../executor/runtime_fingerprint.py) (new) — fingerprint module + `_reset_fingerprint_cache` test hook.
+  + [`executor/flows/playwright/report_builder.py`](../../executor/flows/playwright/report_builder.py) — fingerprint emit at automation output boundary.
+  + [`packages/analysis_contracts/contracts.py`](../../packages/analysis_contracts/contracts.py) — `ActivationReport.executor_fingerprint` field.
+  + [`main.py`](../../main.py) — install hook + fingerprint provider wiring inside `create_app`.
+  + Six logger migration sites: [`workflows/marketplace/client.py`](../../workflows/marketplace/client.py), [`router.py`](../../workflows/marketplace/router.py), [`trigger_service.py`](../../workflows/marketplace/trigger_service.py), [`analysis_execution.py`](../../workflows/marketplace/analysis_execution.py), [`analysis_service.py`](../../workflows/marketplace/analysis_service.py), [`workflows/security_settings/router.py`](../../workflows/security_settings/router.py).
+  + Two working-tree lint cleanups: [`workflows/marketplace/analysis_reports.py`](../../workflows/marketplace/analysis_reports.py) (`math.isnan(value)` rewrite), [`tests/architecture/test_network_uri_summary_redaction.py`](../../tests/architecture/test_network_uri_summary_redaction.py) (gratuitous `f`-prefix removed).
++ Behavioral / architecture test surface:
+  + [`tests/platform/test_extrace_logging.py`](../../tests/platform/test_extrace_logging.py) — 25 cases (factory namespace, filter stamping, idempotent install, factory chaining).
+  + [`tests/platform/test_run_id_stamping.py`](../../tests/platform/test_run_id_stamping.py) — 7 cases (end-to-end emit chain, deep-child propagation, per-record freshness, `create_app` install hook regression).
+  + [`tests/executor/test_docker_exec_run_id_propagation.py`](../../tests/executor/test_docker_exec_run_id_propagation.py) — 6 cases (run-ID forwarded when set, omitted when unset / empty, coexists with W13-11 harness secret, argv ordering pinned, other `EXTRACE_*` vars do not leak).
+  + [`tests/executor/test_runtime_fingerprint.py`](../../tests/executor/test_runtime_fingerprint.py) — 13 cases (source priority + failure modes + cache idempotency + short-form truncation).
+  + [`tests/architecture/test_logger_consolidation.py`](../../tests/architecture/test_logger_consolidation.py) — 12 cases (no-raw-getLogger gate, approved-prefix literal gate, vacuous-truth guard, `_stamp_record` chokepoint references, filter + factory delegation, 6 detector self-tests, run-ID env literal pin, docker-exec propagation pin).
+  + [`tests/architecture/test_runtime_fingerprint_emit.py`](../../tests/architecture/test_runtime_fingerprint_emit.py) — 3 cases (module exports canonical callables, report_builder imports + invokes fingerprint, ActivationReport contract pins the field).
++ ADR landed: [`documents/adrs/0010-extrace-executor-logger-consolidation.md`](../adrs/0010-extrace-executor-logger-consolidation.md).
+
+**Test deltas.** `tests/architecture/` 137 → 154 (+17 cases across
+the new logger consolidation gate + runtime fingerprint emit gate);
+`make test-local` 1716 → ~1762 (+46 cases across factory behavior,
+run-ID emit pipeline, docker-exec propagation, fingerprint behavior +
+contract + emit). `make test-security` lane subset stays at 215
+since the W14-5 surface lives in `tests/platform/` and
+`tests/executor/`, outside the fixed lane.
+
+**Discoveries during integration.**
+
+1. **Python `logging` framework filter propagation.** Sub-commit 1
+   originally wired `LogContextFilter` onto the `extrace` parent
+   logger. Sub-commit 2's integration test
+   (`test_factory_logger_emit_carries_run_id_via_parent_filter`)
+   immediately surfaced that Python's `Logger.callHandlers()` walks
+   parents for *handlers* during propagation but does not re-run
+   their *filters* — so a filter on a parent logger only fires when
+   records originate at that logger. Retargeted to
+   `logging.setLogRecordFactory(...)` which runs at LogRecord
+   creation, before any handler / filter walks, and catches every
+   emit globally. The factory wrapper chains any pre-installed
+   third-party factory so observability integrations downstream are
+   not clobbered. The public API name
+   (`install_extrace_log_context_filter`) is preserved for callers;
+   only the internal mechanism moved.
+2. **Import-graph gate.** Sub-commit 2's first iteration imported
+   `RUN_ID_ENV_VAR` from `appcore.logging` inside `executor/host.py`
+   — this immediately violated the existing
+   `test_executor_avoids_workflow_and_appcore_imports` gate
+   (`executor/` may not import `appcore/`). Replaced with a local
+   `Final[str]` constant in `host.py`, with a comment pointing to
+   the canonical `appcore.logging.RUN_ID_ENV_VAR` source and the
+   import-graph gate that forbids centralization.
+
+**Follow-on closures.**
+
++ `[GOAL w14-logger-consolidation]` ✓ closed
++ `[GOAL w14-run-id-stamping]` ✓ closed
++ `[FOLLOWUP codex-automation-5]` ✓ closed
++ `[FOLLOWUP codex-2026-05-10-M5-epoch-docker-exec-propagation]` ✓
+  closed (natural byproduct of sub-commit 2)
+
+### W14-6 — W8-W12 regression lock-in umbrella (3 AST gates + 1 migration)
+
+**Pulled.** `2026-05-13` on `week14`.
+
+**Outcome.** **Closed.** Three §11.10 GOAL items closed under a
+single bundled pull with sub-commit-per-theme pattern. All three
+are AST-level architecture gates locking in invariants that were
+load-bearing but unenforced before W14-6.
+
++ **Sub-commit 4 (`2adad43`) — `arch-gate-bare-binary-pragma-ratchet`:**
+  Strict ratchet on the `# arch-allow: bare-binary-path` pragma
+  count. Baseline at the start of W14-6: **7 pragmas** across 4
+  files (editor.py ×3, reset_state.py ×2, monitor/runtime.py ×1,
+  extension_host_capture.py ×1). Sub-commit 6's migration lowered
+  the final baseline to **6**. Three test cases pin total-count,
+  per-file distribution, and a self-test guarding the counter
+  helper itself.
++ **Sub-commit 5 (`b031803`) — `arch-gate-executor-control-outbound`:**
+  Semantic gate on the `executor/control.py` public surface. Walks
+  every public method on every public class (and every module-level
+  public function), inspects argument + return annotations, and
+  asserts no forbidden-implementation token appears. Forbidden set:
+  `{docker, playwright, aiohttp, Page, Browser, Frame, Locator}`.
+  The current 6-method `ExecutorControl` surface passes as-is;
+  posture pins the existing hardened state rather than driving a new
+  migration. Three production invariants + 4 detector self-tests.
++ **Sub-commit 6 (`e42a448`) — `w8-4-variable-indirect-subprocess-coverage`:**
+  Extends `test_absolute_binary_paths.py` from literal-only to
+  variable-indirect form (`cmd = ["bare", ...]; subprocess.Popen(cmd)`).
+  New `_collect_list_assignments(scope)` + `_detects_bare_binary_via_variable_indirect(call, scope_assignments)`
+  helpers walk function-scope `cmd = [...]` map and look up Name
+  first-args. Production migration ships in the same commit: adds
+  `INOTIFYWAIT_PATH` / `TSHARK_PATH` / `STRACE_PATH` constants to
+  `executor.binary_paths`, retargets four sites in
+  `runtime_capture/{filesystem,network,extension_host_capture}.py`,
+  removes one pragma on `extension_host_capture.py:186` (the inline
+  inotifywait literal now references `INOTIFYWAIT_PATH`), and lowers
+  the W14-6.a baseline 7 → 6 in the same commit so the ratchet
+  trends monotonically downward.
+
+**Module locations.**
+
++ [`tests/architecture/test_bare_binary_pragma_ratchet.py`](../../tests/architecture/test_bare_binary_pragma_ratchet.py) (new, 3 cases).
++ [`tests/architecture/test_executor_control_outbound.py`](../../tests/architecture/test_executor_control_outbound.py) (new, 7 cases).
++ [`tests/architecture/test_absolute_binary_paths.py`](../../tests/architecture/test_absolute_binary_paths.py) — extended in place; +6 self-test cases for the variable-indirect form.
++ Production migration: [`executor/binary_paths.py`](../../executor/binary_paths.py), [`executor/flows/playwright/runtime_capture/filesystem.py`](../../executor/flows/playwright/runtime_capture/filesystem.py), [`network.py`](../../executor/flows/playwright/runtime_capture/network.py), [`extension_host_capture.py`](../../executor/flows/playwright/runtime_capture/extension_host_capture.py).
+
+**Test deltas.** `tests/architecture/` 154 → 168 (+14 cases across
+the 3 new gates and the in-place extension); `make test-local` 1762
+→ 1798 (+36, mostly from the new arch gates plus migration ripple
+through the runtime_capture suite).
+
+**Follow-on closures.**
+
++ `[FOLLOWUP arch-gate-bare-binary-pragma-ratchet]` ✓ closed
++ `[FOLLOWUP arch-gate-executor-control-outbound]` ✓ closed
++ `[FOLLOWUP w8-4-variable-indirect-subprocess-coverage]` ✓ closed
+
+W14 sub-iter slate is complete (W14-1..W14-6); close-out PR
+`week14 -> main` is the next milestone.
 
 ## W13 Lessons Learned (carry-forward)
 

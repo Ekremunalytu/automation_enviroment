@@ -59,8 +59,8 @@ Stable IDs `W14-N` are assigned at first pull (W11/W12/W13 precedent). Full per-
 | W14-2 | `[FOLLOWUP codex-2026-05-10-M4-M7-output-ts-range-validation]` + `[FOLLOWUP codex-2026-05-10-M11-report-health-malformed-types]` | **closed** `2026-05-13` | Input validation cluster landed on `week14`: M4-M7 via `_coerce_safe_epoch_s` chokepoint at `executor/flows/playwright/signals/output.py`; M11 via `_safe_int_coerce` helper at `workflows/marketplace/analysis_reports.py`. 2 arch gates + 51 behavioral regression cases. |
 | W14-3 | `[FOLLOWUP codex-2026-05-10-M13-network-uri-summary-redaction]` + `[FOLLOWUP codex-2026-05-10-M14b-cdp-port-default-disabled]` + `[FOLLOWUP codex-2026-05-10-U4-U12-makefile-shell-quoting]` | **closed** `2026-05-13` | External surface hardening cluster landed on `week14`: M13 via `redact_secrets()` routing for `NetworkEvent.path` + `summary` at `runtime_capture/network.py`; M14b via empty default + conditional CDP flag across `launch_vscode.sh`/`start.sh`/`docker-compose.yml`/`Makefile up-debug` (posture: opt-in `EXECUTOR_CDP_PORT`); U4-U12 via validation + quoted expansion in `Makefile` `sim-target`/`sim-run`. 3 arch gates + 10 behavioral cases. |
 | W14-4 | `[FOLLOWUP analysis-jobs-race]` + `[FOLLOWUP evidence-event-kind-raw-context-invariant]` | **closed** `2026-05-13` | Doğruluk + concurrency cluster landed on `week14`. analysis-jobs-race: `complete_analysis_job` + `fail_analysis_job` now acquire `select(...).with_for_update()` and gate against `_TERMINAL_JOB_STATUSES` (W13-3 lock-discipline mirror). evidence-event-kind: `EvidenceEvent` carries a closed 9-kind allowlist (`_EVIDENCE_EVENT_KIND_TO_EVENT_CLASS`) + `@model_validator(mode='after')` raising on mismatch or unknown kind. 2 arch gates (+4 cases) + 65 behavioral cases (9 positive + 54 mismatch + 1 unknown + 1 default-rc edge) + 3 new concurrency cases + 5 drifted fixtures repaired. |
-| W14-5 | `[GOAL w14-logger-consolidation]` + `[GOAL w14-run-id-stamping]` (yeni stable ID'ler) + `[FOLLOWUP codex-automation-5]` | scoped — not started | §11.10 GOAL devamı W13'ten devreden + automation runtime fingerprint (sibling tema); M5 (`epoch-docker-exec-propagation`) doğal yan ürün adayı |
-| W14-6 | `[FOLLOWUP arch-gate-executor-control-outbound]` + `[FOLLOWUP arch-gate-bare-binary-pragma-ratchet]` + `[FOLLOWUP w8-4-variable-indirect-subprocess-coverage]` | scoped — not started | §11.10 GOAL devamı — W8-W12 regression lock-in umbrella; AST-tabanlı 3 yeni arch gate |
+| W14-5 | `[GOAL w14-logger-consolidation]` + `[GOAL w14-run-id-stamping]` + `[FOLLOWUP codex-automation-5]` + `[FOLLOWUP codex-2026-05-10-M5-epoch-docker-exec-propagation]` (byproduct) | **closed** `2026-05-13` | §11.10 GOAL devamı landed on `week14` via sub-commits `dc79f61` + `9c095d2` + `db25d5f`. `appcore/logging.py` factory + `LogContextFilter` + ADR 0010 + 6 workflow logger migrations (sub-commit 1); `setLogRecordFactory(...)` retarget + `EXTRACE_EPOCH_RUN_ID` propagation across docker exec boundary (sub-commit 2; closes M5 as natural byproduct); `executor/runtime_fingerprint.py` + automation output emit + ActivationReport contract field + filter provider wiring (sub-commit 3). 17 new arch cases + ~46 new behavioral cases. |
+| W14-6 | `[FOLLOWUP arch-gate-bare-binary-pragma-ratchet]` + `[FOLLOWUP arch-gate-executor-control-outbound]` + `[FOLLOWUP w8-4-variable-indirect-subprocess-coverage]` | **closed** `2026-05-13` | §11.10 GOAL devamı — W8-W12 regression lock-in umbrella landed on `week14` via sub-commits `2adad43` + `b031803` + `e42a448`. Pragma ratchet (baseline lowered 7 → 6 by sub-commit 6's absolute-path migration of `inotifywait` / `tshark` / `strace`); `executor.control` outbound surface gate with closed forbidden-token set `{docker, playwright, aiohttp, Page, Browser, Frame, Locator}`; variable-indirect subprocess coverage extends `test_absolute_binary_paths.py` to catch `cmd = ["bare", ...]; subprocess.Popen(cmd)` shape. 14 new arch cases + 4 production migrations + 1 pragma deletion. |
 
 ## Codex Cloud Audit Backlog
 
@@ -76,10 +76,17 @@ remaining items iter into W15+.
   out-of-window finites) before calling ``datetime.fromtimestamp()``. Gated by
   `tests/architecture/test_output_signal_ts_guard.py`; behavioral coverage in
   `tests/security/test_output_signal_ts_range.py`.
-- `[FOLLOWUP codex-2026-05-10-M5-epoch-docker-exec-propagation]` —
-  propagate `EXTRACE_EPOCH_RUN_ID` through `executor/host.py` docker exec.
-  Doğal yan ürün adayı W14-5 (logger consolidation + run-ID stamping);
-  çekilmezse W15'e düşer.
+- ~~`[FOLLOWUP codex-2026-05-10-M5-epoch-docker-exec-propagation]`~~ —
+  **closed `2026-05-13`** via W14-5 sub-commit 2 (`9c095d2`) on `week14`.
+  `executor.host._run_docker_exec` now forwards `EXTRACE_EPOCH_RUN_ID`
+  into the docker exec argv as `-e EXTRACE_EPOCH_RUN_ID=<host-value>`
+  when the host process has a non-empty value. Argv ordering pinned
+  (`PYTHONUNBUFFERED` → `EXTRACE_EPOCH_RUN_ID` → caller `extra_env`).
+  Empty / unset values are not forwarded so no spurious env arg
+  reaches the container. Gated by
+  `tests/architecture/test_logger_consolidation.py::test_run_docker_exec_propagates_run_id_env`
+  + 6 behavioral cases in
+  `tests/executor/test_docker_exec_run_id_propagation.py`.
 - `[FOLLOWUP codex-2026-05-10-M10-sync-analyze-typeerror-catch]` —
   align sync `/api/marketplace/analyze` error catch with async path. W15+.
 - ~~`[FOLLOWUP codex-2026-05-10-M11-report-health-malformed-types]`~~ — **closed
@@ -267,12 +274,34 @@ evidence.
 ### Engineering Quality
 
 - `[FOLLOWUP ci-reintroduction]`
-- `[FOLLOWUP w8-4-variable-indirect-subprocess-coverage]` **(W14-6)** —
-  W8-W12 regression lock-in umbrella üyesi.
-- `[FOLLOWUP arch-gate-executor-control-outbound]` **(W14-6)** — W8-W12
-  regression lock-in umbrella üyesi.
-- `[FOLLOWUP arch-gate-bare-binary-pragma-ratchet]` **(W14-6)** — W8-W12
-  regression lock-in umbrella üyesi.
+- ~~`[FOLLOWUP w8-4-variable-indirect-subprocess-coverage]`~~ —
+  **closed `2026-05-13`** via W14-6 sub-commit 6 (`e42a448`) on
+  `week14`. ``test_absolute_binary_paths.py`` extended in place with
+  `_collect_list_assignments(scope)` + `_detects_bare_binary_via_variable_indirect`
+  helpers; four production sites in `runtime_capture/{filesystem,
+  network,extension_host_capture}.py` migrated to
+  ``executor.binary_paths.INOTIFYWAIT_PATH`` / `TSHARK_PATH` /
+  `STRACE_PATH` constants; one pragma deletion on
+  ``extension_host_capture.py:186`` lowered the W14-6.a ratchet
+  baseline 7 → 6.
+- ~~`[FOLLOWUP arch-gate-executor-control-outbound]`~~ —
+  **closed `2026-05-13`** via W14-6 sub-commit 5 (`b031803`) on
+  `week14`. New AST gate
+  ``tests/architecture/test_executor_control_outbound.py`` walks
+  every public method on every public class in ``executor/control.py``
+  and asserts no forbidden-implementation token
+  (`{docker, playwright, aiohttp, Page, Browser, Frame, Locator}`)
+  appears in argument or return annotations. Current 6-method
+  ``ExecutorControl`` surface passes as-is; gate pins the existing
+  hardened posture.
+- ~~`[FOLLOWUP arch-gate-bare-binary-pragma-ratchet]`~~ —
+  **closed `2026-05-13`** via W14-6 sub-commit 4 (`2adad43`) on
+  `week14`. New gate
+  ``tests/architecture/test_bare_binary_pragma_ratchet.py`` pins
+  pragma total count + per-file distribution at the post-W14-6.c
+  baseline of 6 (lowered from 7 by sub-commit 6's migration). Three
+  cases: total-count, per-file distribution, counter helper
+  self-test.
 - `[CLEANUP report-builder-naming]`
 - `[CLEANUP monitor-runtime-naming-overlap]`
 - `[CLEANUP env-example-extrace-vars]`
@@ -339,9 +368,21 @@ evidence.
 - `[FOLLOWUP w8-8-manifest-emit-when-needed]`
 - `[FOLLOWUP w8-8-trigger-sweep-as-test]`
 - `[FOLLOWUP w8-9-network-body-boundary-split-secret-test]`
-- `[FOLLOWUP codex-automation-5]` **(W14-5)** — executor runtime
-  fingerprint in automation output; run-ID stamping ile sibling tema,
-  aynı PR ailesinde çekilir.
+- ~~`[FOLLOWUP codex-automation-5]`~~ — **closed `2026-05-13`** via
+  W14-5 sub-commit 3 (`db25d5f`) on `week14`.
+  `executor/runtime_fingerprint.py` module ships `executor_fingerprint()`
+  (commit_sha / build_date / version dict, env-primary →
+  `git rev-parse --short HEAD` fallback → `"unknown"` final fallback,
+  module-level cache); `report_builder._assemble_report_payload` emits
+  it as a top-level field on every activation_report write;
+  `ActivationReport` contract carries the
+  `executor_fingerprint: dict[str, str]` additive-optional field;
+  `main.create_app` wires
+  `set_executor_fingerprint_provider(executor_fingerprint_short)` into
+  the W14-5 logger filter chain. Gated by
+  `tests/architecture/test_runtime_fingerprint_emit.py` (3 cases);
+  behavioral coverage in `tests/executor/test_runtime_fingerprint.py`
+  (13 cases).
 - `[FOLLOWUP codex-automation-6]` — UI failure taxonomy for operator
   clarity; W14 temasıyla örtüşmüyor, W15+.
 - `[FOLLOWUP capability-verification-gap]` — W15+; triyajda `NEEDS-DESIGN`,

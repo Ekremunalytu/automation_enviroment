@@ -1,6 +1,6 @@
 # REFACTOR_OPTIMIZATION
 
-`Last Updated: 2026-05-13 (W13 closed; PR #20 week13 -> main merged via 772deb3; §12 W14 active on week14 branch cut 69251f1 — W14-1 BLOCKER → HIGH, W14-2/W14-3/W14-4 closed; W14-5/W14-6 scoped)`
+`Last Updated: 2026-05-13 (W13 closed; PR #20 week13 -> main merged via 772deb3; §12 W14 active on week14 branch cut 69251f1 — W14-1 BLOCKER → HIGH, W14-2/W14-3/W14-4/W14-5/W14-6 closed; W14 sub-iter slate complete; close-out PR week14 -> main next)`
 
 W0-W14 plan document: stabilization + security + post-PoC external-review
 integration + W14 acceptance + observability continuation. **Slim canonical**
@@ -27,8 +27,13 @@ integration + W14 acceptance + observability continuation. **Slim canonical**
   M11) closed via `bde17be`; W14-3 (M13 + M14b + U4-U12) closed via
   `941250d`; W14-4 (analysis-jobs-race + EvidenceEvent kind
   invariant) closed via `03b32bc`; W14-5 (logger consolidation +
-  run-ID stamping) and W14-6 (W8-W12 regression lock-in umbrella)
-  scoped but not pulled. Tracker:
+  run-ID stamping + executor runtime fingerprint + ADR 0010 + M5
+  byproduct) closed via `dc79f61` + `9c095d2` + `db25d5f`; W14-6
+  (regression lock-in umbrella: bare-binary pragma ratchet +
+  executor.control outbound surface gate + variable-indirect
+  subprocess coverage with binary_paths migration) closed via
+  `2adad43` + `b031803` + `e42a448`. W14 sub-iter slate complete;
+  close-out PR `week14 -> main` is the next milestone. Tracker:
   [`active-work/W14-codex-acceptance-observability.md`](active-work/W14-codex-acceptance-observability.md).
 
 ## §10 — W0-W7 PoC Stabilization Window (closed 2026-04-23)
@@ -217,8 +222,8 @@ state as of `2026-05-13`:
 | W14-2 | closed (M4-M7 + M11 input validation) | `bde17be` |
 | W14-3 | closed (M13 + M14b + U4-U12 external surface) | `941250d` |
 | W14-4 | closed (analysis-jobs-race + EvidenceEvent kind invariant) | `03b32bc` |
-| W14-5 | scoped — not pulled | — |
-| W14-6 | scoped — not pulled | — |
+| W14-5 | closed (logger consolidation + run-ID stamping + executor runtime fingerprint; ADR 0010; M5 byproduct) | `dc79f61` + `9c095d2` + `db25d5f` |
+| W14-6 | closed (regression lock-in umbrella: bare-binary pragma ratchet + executor.control outbound gate + variable-indirect subprocess coverage with binary_paths migration) | `2adad43` + `b031803` + `e42a448` |
 
 ### §12.0 — Neden ayrı §12
 

@@ -83,7 +83,16 @@ multi-tenant web platform.
   `2026-05-13` via `941250d`; W14-4 (analysis-jobs-race lock symmetry on
   `complete_analysis_job` / `fail_analysis_job` + EvidenceEvent
   kind↔event_class invariant via closed 9-kind allowlist) closed
-  `2026-05-13`. Remaining `W14-N` stable IDs fill in at first pull.
+  `2026-05-13`; W14-5 (`extrace.*` logger consolidation +
+  `EXTRACE_EPOCH_RUN_ID` stamping + executor runtime fingerprint emit
+  at automation output; ADR 0010 landed; M5 docker-exec propagation
+  auto-closed as natural byproduct) closed `2026-05-13` via `dc79f61`
+  + `9c095d2` + `db25d5f`; W14-6 (regression lock-in umbrella:
+  bare-binary pragma ratchet + executor.control outbound surface gate
+  + variable-indirect subprocess coverage with `binary_paths`
+  migration) closed `2026-05-13` via `2adad43` + `b031803` + `e42a448`.
+  W14 sub-iter slate complete; close-out PR `week14 -> main` is the
+  next milestone.
 - **Canonical source of truth for phase state:**
   [`documents/REFACTOR_STATUS.md`](documents/REFACTOR_STATUS.md).
   Deferred items: [`documents/POST_POC_BACKLOG.md`](documents/POST_POC_BACKLOG.md).
