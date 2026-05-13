@@ -131,6 +131,6 @@ def test_path_and_summary_assignments_route_through_redact_secrets() -> None:
 
     assert not violations, (
         "Every NetworkEvent path= / summary= keyword assignment must route "
-        f"through redact_secrets() (W14-3 M13 invariant). Violations:\n"
+        "through redact_secrets() (W14-3 M13 invariant). Violations:\n"
         + "\n".join(violations)
     )

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 import threading
 from pathlib import Path
 from typing import Any, Literal, cast
@@ -24,6 +23,7 @@ from appcore.contracts.schemas import (
     VsixExtractionMetrics,
     VsixThresholdBreachDetail,
 )
+from appcore.logging import get_extrace_logger
 from executor.control import ExecutorError
 from packages.analysis_contracts import ExtensionIdentity
 from workflows.extension_catalog.manifest_reader import PackageJsonReadError
@@ -49,7 +49,7 @@ from workflows.marketplace.job_service import (
 )
 
 settings = app_settings
-logger = logging.getLogger(__name__)
+logger = get_extrace_logger("extrace.workflows.marketplace.router")
 
 router = APIRouter(prefix="/api", tags=["marketplace"])
 

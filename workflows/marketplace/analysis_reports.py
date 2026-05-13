@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 from pathlib import Path
 from typing import Any
 
@@ -50,10 +51,7 @@ def _safe_int_coerce(value: Any, *, default: int = 0) -> int:
                 return int(stripped)
             except ValueError:
                 return int(float(stripped))
-        if isinstance(value, float) and (
-            not (value == value)  # noqa: PLR0124 — explicit NaN check
-            or value in (float("inf"), float("-inf"))
-        ):
+        if isinstance(value, float) and (math.isnan(value) or math.isinf(value)):
             return default
         return int(value)
     except (TypeError, ValueError, OverflowError):
