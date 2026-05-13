@@ -1,6 +1,6 @@
 # Refactor Status
 
-`Last Updated: 2026-05-13 (W14 active; W14-1 pulled; week14 branch cut from main at 69251f1; W13 close-out PR #20 week13 -> main merged via 772deb3)`
+`Last Updated: 2026-05-13 (W14 active; W14-1 in progress (BLOCKER -> HIGH downgraded); W14-2 closed via bde17be; W14-3 closed via 941250d; week14 branch cut from main at 69251f1; W13 close-out PR #20 week13 -> main merged via 772deb3)`
 
 Active status board for current closure state. **Slim canonical** — verbose
 phase evidence is frozen under dated snapshots:
@@ -55,9 +55,16 @@ phase evidence is frozen under dated snapshots:
   (M13 + M14b + U4-U12), correctness/concurrency (analysis-jobs-race +
   evidence-event-kind invariant), §11.10 GOAL devamı (logger consolidation
   - run-ID stamping), W8-W12 regression lock-in umbrella. W14-1 pulled
-  `2026-05-13` — BLOCKER triage of `[BUG scenario-dropout-upstream-root-cause]`
-  in progress. Remaining `W14-N` stable IDs fill in at first pull
-  (W11/W12/W13 precedent).
+  `2026-05-13`; BLOCKER `[BUG scenario-dropout-upstream-root-cause]`
+  triage landed deterministic repro matrix
+  (`tests/security/test_scenario_dropout_repro.py`) + conservation guard
+  (`scenario_accountant.py:392-438`), severity downgraded BLOCKER -> HIGH
+  the same day; upstream emit-site split moved to
+  `[FOLLOWUP scenario-accountant-conservation-split]`. W14-2 (M4-M7
+  output-ts range + M11 report-health malformed types) closed `2026-05-13`
+  via `bde17be`. W14-3 (M13 network URI/summary redaction + M14b CDP
+  default-disabled + U4-U12 Makefile shell-quoting) closed `2026-05-13`
+  via `941250d`. W14-4, W14-5, W14-6 scoped but not pulled.
 
 ## W13 Status Summary
 

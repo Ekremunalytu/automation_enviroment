@@ -430,6 +430,18 @@ W14 hedefi (tahminî, iterasyon sonu kümülatif):
 + `make test-security`: 215 → ~225-230 (M-class regression + dropout fixture)
 + `tests/architecture/`: 117 → ~125-127 (yeni 8-10 arch gate)
 
+**Actual cumulative bar (post-W14-3, pre-W14-4):**
+
+| Suite | W13 baseline | W14-1 | W14-2 | W14-3 | Current |
+|---|---|---|---|---|---|
+| `make test-security` | 215 | 222 (+7 dropout repro) | 269 (+47 M4-M7 + M11) | 279 (+10 M13) | **279** |
+| `tests/architecture/` | 117 | 117 (W14-1 updated `test_readme_phase_pointer` in place) | 121 (+4: 2 ts-guard + 2 int-guard) | 131 (+10: 2 uri redaction + 4 cdp default + 4 makefile quoting) | **131** |
+| Broad regression suite (security + arch + executor + workflows/marketplace) | — | — | — | — | **1106 passed / 7 skipped / 4 deselected** (sıfır regresyon) |
+
+W14-4..W14-6 dilimleri hedefi karşılayacak (`make test-security` ~225-230
+hedefi şimdiden geçilmiş durumda; remaining iter'ler `tests/architecture/`
+hedefini W14-6 umbrella'sıyla kapatacak).
+
 ## Per-Item Detail
 
 Pattern from `W13-test-expansion-observability.md`: each `W14-N` block
@@ -511,6 +523,27 @@ trace) as a separate W15+ candidate. The W14-1 stochastic-bound
 conclusion (`upstream root cause may vary by extension class, but the
 last-mile guard always catches the dropout`) is the rationale for
 declining to inline that refactor here.
+
+**Production validation.** UI-launched scan
+`activation_report_ms-python.python-2026.5.2026051301-c71107e2ff84.json`
+(`2026-05-13` 15:36, post-W14-3 working tree) provides live-scan parity
+for the `vec_ms_python_python` repro vector: 5 requested scenarios
+(`coding_session`, `project_exploration`, `debug_session`,
+`terminal_usage`, `refactor_workflow`) → 3 ran (`scenario_traces` filled
+for the first, second, fourth) → 2 `unaccounted_dropout` records for
+`debug_session` and `refactor_workflow` with the exact `reason_code` +
+`detail` strings the fixture pins. This is the production-ground-truth
+match that converted the BLOCKER triage into a downgrade-with-evidence
+rather than a downgrade-by-conjecture.
+
+The scan also surfaced a separate pre-existing finalize-time field-sync
+drift (`target_extension_id`, `monitoring_start` / `monitoring_end`,
+`scenarios_run`, `harness_handshake_required` all serialized as `null`
+despite the underlying evidence being present). Hand-off:
+`[FOLLOWUP report-finalize-top-level-field-sync-drift]` in
+`POST_POC_BACKLOG.md` Contracts/Reports/Detection; W15+ candidate; not
+a W14 regression (pre-W14 W13 close-out smoke `9d327b30b60f` exhibits
+the same nulls).
 
 ### W14-2 — Codex M-class input validation cluster (M4-M7 + M11)
 

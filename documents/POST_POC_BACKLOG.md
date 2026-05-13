@@ -1,6 +1,6 @@
 # Post-PoC Backlog
 
-`Last Updated: 2026-05-13 (W13 closed; PR #20 week13 -> main MERGED via 772deb3; W14 staged in active-work/W14-codex-acceptance-observability.md)`
+`Last Updated: 2026-05-13 (W14 active on week14; W14-1 in progress (BLOCKER -> HIGH); W14-2 closed via bde17be; W14-3 closed via 941250d; off-roadmap hygiene candidates added: rule-registry-side-effect-loader, compose-image-mutable-ref-pin, gh-action-trivy-version-pin, test-import-graph-policy-dump-split, report-finalize-top-level-field-sync-drift)`
 
 Open deferred work after the W0-W7 PoC acceptance bar. **Slim canonical** —
 verbose descriptions, evidence, and older triage notes are frozen in dated
@@ -179,6 +179,32 @@ evidence.
   (planner / `stimulus_passes` / `dispatch._normalize_execution_result`
   scenario-level trace + reason-code propagation). Separate pull, not in any
   W14 sub-iter. Candidate W15+ depending on operator-observability priority.
+- `[FOLLOWUP report-finalize-top-level-field-sync-drift]` — production
+  scan output (`activation_report_*.json`) carries `null` for several
+  top-level `ActivationReport` fields even when the underlying evidence is
+  present: `target_extension_id` (file name carries the id),
+  `monitoring_start` / `monitoring_end` (per-event `started_at` /
+  `ended_at` epochs are populated in `scenario_traces`), `scenarios_run`
+  (despite `scenario_traces` being filled and
+  `_synchronize_scenario_truth` deriving the list per
+  `executor/flows/playwright/monitor/scenario_accountant.py:441-452`), and
+  `harness_handshake_required` (W13-12 invariant; `setup_monitor` stamps
+  `True` at `executor/flows/playwright/entrypoint/dispatch.py:137` but
+  the persisted JSON shows `null`). Pre-W14 W13 close-out smoke scan
+  (`activation_report_ms-python.python-2026.5.2026050801-9d327b30b60f.json`,
+  `2026-05-13` 00:46) exhibits the same nulls — **not a W14 regression**,
+  a finalize / `report.save()` drift surfaced during the W14-3 post-pull
+  scan review (current scan: `c71107e2ff84`, `2026-05-13` 15:36).
+  Same-scan UI flow unaffected (consumes derived `automation_health`
+  which populates correctly: status, target_activation_count,
+  skipped_scenarios all present); downstream analyzers reading top-level
+  fields directly are the blocked surface. Investigation hook: trace
+  `ExtensionMonitor.stop()` → `report.save()` ordering relative to
+  `_synchronize_scenario_truth` and the `setup_monitor` flag writes; the
+  Pydantic v2 model also defaults each of these to `None`, so a
+  pre-save synchronization pass is the likely fix shape. Lane:
+  `[contracts]` `[platform-storage]`. W15+ hygiene; not a W14 sub-iter
+  candidate.
 - `[FOLLOWUP evidence-event-kind-raw-context-invariant]` **(W14-4)** — RED
   stub adı planlandı: `test_evidence_event_rejects_kind_event_class_mismatch`;
   stub henüz yazılmadı.
@@ -193,6 +219,17 @@ evidence.
 - `[FOLLOWUP attribution-links-build-evidence-bundle-density]`
 - `[FOLLOWUP execute-attempt-rebloat-watch]`
 - `[FOLLOWUP dispatch-execution-rebloat-watch]`
+- `[CLEANUP rule-registry-side-effect-loader]` — `packages/analysis_engine/rules/registry.py`
+  carries a `_REGISTRY` global dict + `importlib.import_module()` side-effect
+  loader + `_BUILTINS_LOADED` flag + `clear_registry()` test helper for the
+  six builtin rules (A1/A2/A3/A4/A6 + `demo_runnable_canary`). Each rule
+  module top-level-calls `register(...)`. A flat
+  `RULES: tuple[DetectionRule, ...] = (...)` would suffice for the current
+  cardinality and avoid global mutable state plus test-side `clear_registry()`
+  churn; the auto-register pattern only earns its weight when ADR 0003
+  deferred rules (A5 update / A7 VS Code API abuse) are pulled in from the
+  backlog. Low-Medium risk: overengineering relative to current scope, not a
+  defect. W15+ hygiene candidate.
 
 ### UI / Settings
 
@@ -224,6 +261,49 @@ evidence.
 - ~~`[CLEANUP uri-validation-stale-sys-path-comment]`~~ — closed
   `2026-05-11`.
 - `[CLEANUP pre-commit-python-version-alignment]`
+- `[FOLLOWUP compose-image-mutable-ref-pin]` — `docker-compose.yml:121`
+  `image: alpine/socat:latest` mutable tag on the `executor-cdp` debug
+  sidecar. The sidecar lives under `profiles: ["debug"]` so the default
+  `docker compose up` does not start it; supply-chain hygiene argument is
+  reproducibility, not active exploit. `tests/architecture/test_dockerfile_digest_pin.py`
+  walks `DOCKERFILE_ROOTS = (docker, executor/container, ui)` and pins
+  `FROM` lines via `@sha256:` only — compose image refs are out of that
+  gate's scope. Pin to a digest (`alpine/socat@sha256:...`) and extend the
+  gate to cover compose `image:` keys when this is pulled. Low-Medium risk;
+  W15+ hygiene.
+- `[FOLLOWUP gh-action-trivy-version-pin]` — `.github/workflows/security.yml:71`
+  `uses: aquasecurity/trivy-action@master` mutable ref. Same file's other
+  actions are version-pinned: `actions/checkout@v4`, `actions/setup-python@v5`,
+  `actions/upload-artifact@v4`. Pin Trivy to a tag or SHA (`@0.20.0` /
+  `@<sha>`). Distinct from `[FOLLOWUP ci-reintroduction]` (which gates
+  broader CI expansion); this is hygiene for an already-active workflow.
+  Low-Medium risk; W15+ hygiene.
+- `[CLEANUP test-import-graph-policy-dump-split]` —
+  `tests/architecture/test_import_graph.py` carries 18 distinct architectural
+  test functions in 767 LoC (`test_packages_remain_framework_agnostic`,
+  `test_executor_avoids_workflow_and_appcore_imports`,
+  `test_workflows_use_only_executor_control_boundary`,
+  `test_no_dual_import_fallback_in_executor`,
+  `test_no_sys_path_manipulation_in_runtime`,
+  `test_executor_imports_signals_from_packages`,
+  `test_extension_catalog_service_stays_a_thin_facade`,
+  `test_extension_catalog_service_reexports_match_canonical_modules`,
+  `test_analysis_jobs_facade_stays_thin`,
+  `test_analysis_jobs_facade_reexports_match_canonical_modules`,
+  `test_monitor_facade_does_not_eagerly_import_attribution`,
+  `test_monitor_and_stimulus_subpackages_do_not_cross_import`,
+  `test_monitor_lazy_proxy_completeness`,
+  `test_executor_playwright_flat_file_count_limit`,
+  `test_attribution_does_not_eagerly_import_monitor`,
+  `test_python_m_playwright_invocations_have_main_module`,
+  `test_runtime_capture_extension_host_stays_a_thin_facade`,
+  `test_runtime_capture_extension_host_reexports_match_canonical_modules`).
+  Beyond pure "import graph" — facade locks, package-mode invocation, monitor
+  lazy proxy, flat-file budget all live here. W14-6 adds three more AST gates
+  to this surface. Thematic split into e.g.
+  `test_import_isolation.py` / `test_facade_locks.py` /
+  `test_executor_invocation.py` / `test_monitor_stimulus_boundary.py`
+  improves discoverability when a new gate is added. Low risk; W15+ hygiene.
 
 ### Test + Observability
 

@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-`Last Updated: 2026-05-13 (W14 active; W14-1 pulled; week14 branch cut from main at 69251f1; W13 close-out PR #20 week13 -> main merged via 772deb3)`
+`Last Updated: 2026-05-13 (W14 active; W14-1 in progress (BLOCKER -> HIGH); W14-2 closed via bde17be; W14-3 closed via 941250d; week14 branch cut from main at 69251f1; W13 close-out PR #20 week13 -> main merged via 772deb3)`
 
 This file is intentionally a thin pointer. Do not duplicate phase summaries or
 architecture maps here; that caused drift.
@@ -33,8 +33,13 @@ architecture maps here; that caused drift.
   Observability** is active on the `week14` branch (cut from `main` at
   `69251f1` on `2026-05-13`); see
   `documents/active-work/W14-codex-acceptance-observability.md`. W14-1
-  pulled `2026-05-13`; remaining `W14-N` stable IDs fill in at first pull.
-  Past trackers are stable-ID references only: W13, W12, W11, and W8.
+  pulled `2026-05-13` and BLOCKER triage downgraded to HIGH the same day
+  (conservation guard landed; upstream emit-site split tracked under
+  `[FOLLOWUP scenario-accountant-conservation-split]`). W14-2 (M4-M7 +
+  M11 input validation) closed `2026-05-13` via `bde17be`. W14-3 (M13 +
+  M14b + U4-U12 external-surface hardening) closed `2026-05-13` via
+  `941250d`. W14-4..W14-6 scoped but not pulled. Past trackers are
+  stable-ID references only: W13, W12, W11, and W8.
 - `documents/archive/` is frozen reference; not on the default read path.
   Open only when a slim canonical explicitly points there.
 

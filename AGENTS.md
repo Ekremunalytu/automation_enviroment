@@ -1,6 +1,6 @@
 # AGENTS.md
 
-`Last Updated: 2026-05-13 (W13 closed; PR #20 week13 -> main merged via 772deb3; W14 staging via REFACTOR_OPTIMIZATION.md §12 + active-work/W14-codex-acceptance-observability.md; awaiting explicit W14 pull / week14 branch cut)`
+`Last Updated: 2026-05-13 (W13 closed via PR #20 -> 772deb3; W14 active on week14 branch cut from main at 69251f1; W14-1 in progress (BLOCKER -> HIGH downgraded), W14-2 closed via bde17be, W14-3 closed via 941250d; W14-4..W14-6 scoped but not pulled)`
 
 ## Authority
 
@@ -21,11 +21,14 @@
   via PR #14; W12 closed `2026-05-10` and merged via PR #18
   (`33a0852`); W13 closed `2026-05-13` and merged via PR #20
   (`772deb3`).** Active phase is **W14 — Codex M-class Acceptance +
-  Observability** in staging: plan `documents/REFACTOR_OPTIMIZATION.md`
+  Observability** active on the `week14` branch (cut from `main` at
+  `69251f1` on `2026-05-13`): plan `documents/REFACTOR_OPTIMIZATION.md`
   §12, tracker `documents/active-work/W14-codex-acceptance-observability.md`.
-  Entry was triggered by the W13 close-out merge; remaining trigger is an
-  explicit W14 pull / `week14` branch cut from `main`. Past
-  W8/W11/W12/W13 trackers remain stable-ID references only.
+  W14-1 pulled `2026-05-13` and BLOCKER downgraded to HIGH the same day
+  (conservation guard landed). W14-2 (M4-M7 + M11) closed `2026-05-13`
+  via `bde17be`. W14-3 (M13 + M14b + U4-U12) closed `2026-05-13` via
+  `941250d`. W14-4..W14-6 scoped but not pulled. Past W8/W11/W12/W13
+  trackers remain stable-ID references only.
 - ADR 0007 local-network-binding is **Accepted and implemented**; loopback
   defaults + `EXTRACE_ALLOW_LAN` are pinned by `test_default_bindings.py`.
 
