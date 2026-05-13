@@ -63,6 +63,16 @@ EXPECTED_ACTIVATION_EVENT_TYPES: dict[str, set[str]] = {
 }
 
 
+_ALL_BASELINE_VSIX_PRESENT = all(
+    (_EXTENSIONS_DIR / f"{publisher}.{name}-{version}.vsix").exists()
+    for publisher, name, version in BASELINE_EXTENSION_FIXTURES
+)
+_BASELINE_VSIX_SKIP_REASON = (
+    "Baseline VSIX fixtures unavailable in this environment (env-only lane; "
+    "CI installs the fixtures, local checkouts may not have them)"
+)
+
+
 def _load_fixture(path: Path) -> dict[str, object]:
     payload = json.loads(path.read_text(encoding="utf-8"))
     assert isinstance(payload, dict)
@@ -231,6 +241,9 @@ def test_event_attempt_lifecycle_states_cover_current_runtime_emitters() -> None
     )
 
 
+@pytest.mark.skipif(
+    not _ALL_BASELINE_VSIX_PRESENT, reason=_BASELINE_VSIX_SKIP_REASON
+)
 @patch("workflows.marketplace.client.httpx.Client", side_effect=AssertionError)
 def test_baseline_extension_fixtures_resolve_from_local_artifacts_without_network(
     _mock_http_client: object,
@@ -244,6 +257,9 @@ def test_baseline_extension_fixtures_resolve_from_local_artifacts_without_networ
         assert resolved.exists()
 
 
+@pytest.mark.skipif(
+    not _ALL_BASELINE_VSIX_PRESENT, reason=_BASELINE_VSIX_SKIP_REASON
+)
 def test_baseline_extension_fixtures_round_trip_through_extension_schema() -> None:
     for publisher, name, version in BASELINE_EXTENSION_FIXTURES:
         extension_id = f"{publisher}.{name}"
