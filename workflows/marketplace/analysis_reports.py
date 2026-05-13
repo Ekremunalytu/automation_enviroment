@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
 from pydantic import ValidationError
 
@@ -13,6 +14,50 @@ from packages.analysis_contracts import ActivationReport, ExtensionIdentity
 from packages.analysis_engine import run_detection
 
 from .analysis_errors import ActivationReportLoadError, TriggerPlanError
+
+
+def _safe_int_coerce(value: Any, *, default: int = 0) -> int:
+    """Coerce an extension-controlled scalar to ``int``.
+
+    Closes the M11 audit gap (`[FOLLOWUP
+    codex-2026-05-10-M11-report-health-malformed-types]`):
+    ``automation_health`` is parsed from JSON written inside the sandboxed
+    analyzed extension; a malicious extension can place a non-numeric
+    string, list, dict, ``NaN``, or out-of-range value where the report
+    builder previously called ``int(...)`` directly. The raw ``int()``
+    call raises ``ValueError`` / ``TypeError`` / ``OverflowError`` and the
+    enclosing analysis job fails. Returning ``default`` on every coercion
+    failure keeps ``build_report_messages`` total — the report is exported
+    with a neutral count instead of the job blowing up.
+
+    String inputs honor an explicit ``int(stripped)`` parse first, then
+    fall back to ``int(float(stripped))`` so ``"3.0"`` / ``"3e2"`` shapes
+    are still counted. ``NaN`` / ``±inf`` floats short-circuit to default
+    before the cast (``int()`` raises ``ValueError`` on them). The single
+    outer ``except (TypeError, ValueError, OverflowError)`` is the
+    defense-in-depth net that catches every coercion failure the per-type
+    branches don't pre-empt — including ``int(<list>)`` /
+    ``int(<dict>)`` / ``int(<custom-class>)``.
+    """
+    if value is None:
+        return default
+    try:
+        if isinstance(value, str):
+            stripped = value.strip()
+            if not stripped:
+                return default
+            try:
+                return int(stripped)
+            except ValueError:
+                return int(float(stripped))
+        if isinstance(value, float) and (
+            not (value == value)  # noqa: PLR0124 — explicit NaN check
+            or value in (float("inf"), float("-inf"))
+        ):
+            return default
+        return int(value)
+    except (TypeError, ValueError, OverflowError):
+        return default
 
 
 def load_report_payload(report_name: str) -> dict[str, object] | None:
@@ -189,7 +234,9 @@ def build_report_messages(
     trigger_requested = bool(automation_health.get("trigger_requested", False))
     trigger_loaded = bool(automation_health.get("trigger_loaded", False))
     trigger_applied = bool(automation_health.get("trigger_applied", False))
-    target_count = int(automation_health.get("target_activation_count", 0) or 0)
+    target_count = _safe_int_coerce(
+        automation_health.get("target_activation_count"), default=0
+    )
     failed_scenarios = automation_health.get("failed_scenarios", [])
     failed_count = len(failed_scenarios) if isinstance(failed_scenarios, list) else 0
     skipped_scenarios = automation_health.get("skipped_scenarios", [])

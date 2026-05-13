@@ -109,8 +109,8 @@ audit; `[BUG …]` rows are from `POST_POC_BACKLOG.md` Contracts/Reports/Detecti
 | ID | Item | Lane | Status |
 |---|---|---|---|
 | **W14-1** | `[BUG scenario-dropout-upstream-root-cause]` (senaryolar `ScenarioAccountant`'a ulaşmadan planner / stimulus_passes / harness dispatch dizisinde düşüyor; son-metre conservation guard `unaccounted_dropout` raporluyor ama kök neden açık) | `[executor-runtime]` `[security-detection]` | **in progress** — BLOCKER triage; pulled `2026-05-13` on `week14` branch |
-| TBD (W14-2) | `[FOLLOWUP codex-2026-05-10-M4-M7-output-ts-range-validation]` (extension-controlled `ts` field guard sız `datetime.fromtimestamp()`'a giriyor; OverflowError DoS vector) | `[security-detection]` | not started |
-| TBD (W14-2) | `[FOLLOWUP codex-2026-05-10-M11-report-health-malformed-types]` (`_build_report_messages()` `int(automation_health.get(...))` ValueError'a açık) | `[security-detection]` | not started |
+| **W14-2** | `[FOLLOWUP codex-2026-05-10-M4-M7-output-ts-range-validation]` (extension-controlled `ts` field guard sız `datetime.fromtimestamp()`'a giriyor; OverflowError DoS vector) | `[security-detection]` | **closed** `2026-05-13` |
+| **W14-2** | `[FOLLOWUP codex-2026-05-10-M11-report-health-malformed-types]` (`_build_report_messages()` `int(automation_health.get(...))` ValueError'a açık) | `[security-detection]` | **closed** `2026-05-13` |
 | TBD (W14-3) | `[FOLLOWUP codex-2026-05-10-M13-network-uri-summary-redaction]` (network capture event'lerinin `path` + `summary` alanları secret sızdırıyor; W12-5 gate sadece `*_body_preview`'i kapsıyor; W13-6 factory-internal redaction deseninin tekrarı) | `[security-detection]` `[executor-runtime]` | not started |
 | TBD (W14-3) | `[FOLLOWUP codex-2026-05-10-M14b-cdp-port-default-disabled]` (VS Code `--remote-debugging-port=9222` auth'suz default-on, container'dan erişilebilir) | `[executor-runtime]` `[security-detection]` | not started — posture decision: default-disabled vs explicit opt-in env var |
 | TBD (W14-3) | `[FOLLOWUP codex-2026-05-10-U4-U12-makefile-shell-quoting]` (`Makefile` `sim-target`/`sim-run` `$(TARGET)`/`$(SCENARIO)` tırnaksız; shell injection riski; W13-5 dev-lan recipe-fix deseninin tekrarı) | `[security-detection]` | not started |
@@ -511,6 +511,76 @@ trace) as a separate W15+ candidate. The W14-1 stochastic-bound
 conclusion (`upstream root cause may vary by extension class, but the
 last-mile guard always catches the dropout`) is the rationale for
 declining to inline that refactor here.
+
+### W14-2 — Codex M-class input validation cluster (M4-M7 + M11)
+
+**Pulled.** `2026-05-13` on `week14`.
+
+**Outcome.** **Closed.** Two Codex audit M-class items landed under a
+single bundled pull, both following the W13-6 parametrize-regression +
+arch-gate pattern:
+
++ **M4 + M7 (output ts range validation)** — `_coerce_safe_epoch_s()`
+  added as the single chokepoint in
+  `executor/flows/playwright/signals/output.py`. The helper rejects
+  ``inf`` / ``NaN`` and bounds the epoch within
+  ``[_MIN_SAFE_EPOCH_S, _MAX_SAFE_EPOCH_S]`` (1970-01-01 .. 3000-01-01,
+  inside every platform's ``time_t`` ceiling). ``_format_epoch_ms`` now
+  routes every extension-controlled ``ts`` through it before invoking
+  ``datetime.fromtimestamp()``. Both consuming sites
+  (``parse_output_signal_events`` harness-marker JSON and
+  ``read_output_channel_logs`` VS Code 1.105+ file-backed) inherit the
+  guard at the single chokepoint.
++ **M11 (report-message malformed types)** — `_safe_int_coerce()`
+  defensive helper added to `workflows/marketplace/analysis_reports.py`;
+  `build_report_messages` now coerces
+  ``automation_health.get("target_activation_count")`` through it,
+  defaulting to ``0`` on every coercion failure. The helper has a final
+  ``except (TypeError, ValueError, OverflowError)`` net so list / dict /
+  custom-class inputs cannot escape with a raised exception.
+
+**Sub-commits (self-stamped post-landing).**
+
+| Sub-commit | Theme | SHA |
+|---|---|---|
+| 1 | M4-M7 + M11 production patches, behavioral regression cases (51 cases), and 2 AST architecture gates | TBD (self-stamped post-landing) |
+| 2 | Self-stamp sub-commit 1 SHA + tracker / backlog close-out | (this commit) |
+
+**Module locations.**
+
++ Production diff:
+  + [`executor/flows/playwright/signals/output.py`](../../executor/flows/playwright/signals/output.py)
+    — added ``math`` import, ``_MIN_SAFE_EPOCH_S`` / ``_MAX_SAFE_EPOCH_S``
+    module constants, ``_coerce_safe_epoch_s()`` helper, and routed
+    ``_format_epoch_ms`` through the helper. Diff ~25 net LoC.
+  + [`workflows/marketplace/analysis_reports.py`](../../workflows/marketplace/analysis_reports.py)
+    — added ``typing.Any`` import, ``_safe_int_coerce()`` helper, and
+    rewrote the ``target_count`` cast in ``build_report_messages``. Diff
+    ~25 net LoC.
++ Behavioral regression coverage:
+  + [`tests/security/test_output_signal_ts_range.py`](../../tests/security/test_output_signal_ts_range.py)
+    — 18 cases (coercion matrix × 9, ``_format_epoch_ms`` adversarial-ts
+    matrix × 6, plus alignment / idempotency / boundary pins).
+  + [`tests/security/test_report_messages_malformed_types.py`](../../tests/security/test_report_messages_malformed_types.py)
+    — 29 cases (``_safe_int_coerce`` matrix × 20,
+    ``build_report_messages`` adversarial-target-count matrix × 6, plus
+    non-zero-default and valid-target preservation pins).
++ Architecture gates (AST, modeled on W13-6
+  ``test_arguments_preview_redaction.py``):
+  + [`tests/architecture/test_output_signal_ts_guard.py`](../../tests/architecture/test_output_signal_ts_guard.py)
+    — 2 cases (body invariant on ``_coerce_safe_epoch_s`` + routing gate
+    on every ``datetime.fromtimestamp(...)`` call site).
+  + [`tests/architecture/test_report_messages_int_guard.py`](../../tests/architecture/test_report_messages_int_guard.py)
+    — 2 cases (exception-trio catch on ``_safe_int_coerce`` body + no
+    raw ``int(automation_health.get(...))`` patterns inside
+    ``build_report_messages``).
+
+**Test deltas.** `make test-security` 222 → 269 (+47 behavioral cases:
++18 M4-M7 + +29 M11). `tests/architecture/` 117 → 121 (+4 AST cases
+spread across 2 new gate modules).
+
+**No follow-up deferral.** Both audit items collapse to closed in
+`POST_POC_BACKLOG.md` — no W15+ remnant.
 
 ## W13 Lessons Learned (carry-forward)
 

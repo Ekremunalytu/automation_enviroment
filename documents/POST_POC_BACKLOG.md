@@ -56,7 +56,7 @@ Stable IDs `W14-N` are assigned at first pull (W11/W12/W13 precedent). Full per-
 | Iter | Stable ID(s) | Status | Note |
 |---|---|---|---|
 | W14-1 | `[BUG scenario-dropout-upstream-root-cause]` | in progress — downgraded HIGH `2026-05-13` | BLOCKER triage landed on `week14` (deterministic repro matrix at `tests/security/test_scenario_dropout_repro.py` covers 5 known dropout vectors; conservation guard at `scenario_accountant.py:392-438` is the deterministic fix-of-record). Upstream emit-site work tracked under `[FOLLOWUP scenario-accountant-conservation-split]` |
-| W14-2 | `[FOLLOWUP codex-2026-05-10-M4-M7-output-ts-range-validation]` + `[FOLLOWUP codex-2026-05-10-M11-report-health-malformed-types]` | scoped — not started | Input validation cluster; W13-6 parametrize regression deseni; bundle pull |
+| W14-2 | `[FOLLOWUP codex-2026-05-10-M4-M7-output-ts-range-validation]` + `[FOLLOWUP codex-2026-05-10-M11-report-health-malformed-types]` | **closed** `2026-05-13` | Input validation cluster landed on `week14`: M4-M7 via `_coerce_safe_epoch_s` chokepoint at `executor/flows/playwright/signals/output.py`; M11 via `_safe_int_coerce` helper at `workflows/marketplace/analysis_reports.py`. 2 arch gates + 51 behavioral regression cases. |
 | W14-3 | `[FOLLOWUP codex-2026-05-10-M13-network-uri-summary-redaction]` + `[FOLLOWUP codex-2026-05-10-M14b-cdp-port-default-disabled]` + `[FOLLOWUP codex-2026-05-10-U4-U12-makefile-shell-quoting]` | scoped — not started | Dış yüzey sertleştirme; M13 W13-6 factory-internal redaction deseninin tekrarı; U4-U12 W13-5 recipe-fix deseni |
 | W14-4 | `[FOLLOWUP analysis-jobs-race]` + `[FOLLOWUP evidence-event-kind-raw-context-invariant]` | scoped — not started | Doğruluk + concurrency; analysis-jobs-race CRITICAL (W13-4.4 race window dokümante); evidence-event-kind RED stub adı planlandı, henüz yazılmadı |
 | W14-5 | `[GOAL w14-logger-consolidation]` + `[GOAL w14-run-id-stamping]` (yeni stable ID'ler) + `[FOLLOWUP codex-automation-5]` | scoped — not started | §11.10 GOAL devamı W13'ten devreden + automation runtime fingerprint (sibling tema); M5 (`epoch-docker-exec-propagation`) doğal yan ürün adayı |
@@ -69,16 +69,27 @@ Stable IDs `W14-N` are assigned at first pull (W11/W12/W13 precedent). Full per-
 Items annotated `(W14-N)` are pulled into the W14 acceptance bar above;
 remaining items iter into W15+.
 
-- `[FOLLOWUP codex-2026-05-10-M4-M7-output-ts-range-validation]` **(W14-2)** —
-  guard extension-controlled timestamps before `datetime.fromtimestamp()`.
+- ~~`[FOLLOWUP codex-2026-05-10-M4-M7-output-ts-range-validation]`~~ — **closed
+  `2026-05-13`** via W14-2 on `week14`. `_coerce_safe_epoch_s` chokepoint added
+  to `executor/flows/playwright/signals/output.py`; ``_format_epoch_ms`` now
+  sanitizes every extension-controlled ``ts`` (including ``inf`` / ``NaN`` /
+  out-of-window finites) before calling ``datetime.fromtimestamp()``. Gated by
+  `tests/architecture/test_output_signal_ts_guard.py`; behavioral coverage in
+  `tests/security/test_output_signal_ts_range.py`.
 - `[FOLLOWUP codex-2026-05-10-M5-epoch-docker-exec-propagation]` —
   propagate `EXTRACE_EPOCH_RUN_ID` through `executor/host.py` docker exec.
   Doğal yan ürün adayı W14-5 (logger consolidation + run-ID stamping);
   çekilmezse W15'e düşer.
 - `[FOLLOWUP codex-2026-05-10-M10-sync-analyze-typeerror-catch]` —
   align sync `/api/marketplace/analyze` error catch with async path. W15+.
-- `[FOLLOWUP codex-2026-05-10-M11-report-health-malformed-types]` **(W14-2)** —
-  type-guard `automation_health` report-message conversion.
+- ~~`[FOLLOWUP codex-2026-05-10-M11-report-health-malformed-types]`~~ — **closed
+  `2026-05-13`** via W14-2 on `week14`. `_safe_int_coerce` helper added to
+  `workflows/marketplace/analysis_reports.py`; `build_report_messages` now
+  routes ``automation_health.get("target_activation_count")`` through it,
+  defaulting to ``0`` on every coercion failure (``TypeError`` / ``ValueError``
+  / ``OverflowError``). Gated by
+  `tests/architecture/test_report_messages_int_guard.py`; behavioral coverage
+  in `tests/security/test_report_messages_malformed_types.py`.
 - `[FOLLOWUP codex-2026-05-10-M12-workspace-symlink-check-order]` —
   delete or fix orphan `clean_workspace()` symlink handling. W15+.
 - `[FOLLOWUP codex-2026-05-10-M13-network-uri-summary-redaction]` **(W14-3)** —

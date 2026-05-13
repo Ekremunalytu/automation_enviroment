@@ -32,6 +32,7 @@ remains in the report as an unattributed observation.
 from __future__ import annotations
 
 import json
+import math
 import re
 from datetime import datetime
 from pathlib import Path
@@ -62,6 +63,38 @@ def _truncate(text: str) -> str:
     return text[:_MAX_TEXT_LEN]
 
 
+# W14-2 (M4 + M7): epoch range bounds for safe ``datetime.fromtimestamp()``.
+# Extension-controlled ``ts`` values that fall outside this window — or are
+# ``inf`` / ``nan`` — get coerced to epoch 0 so the report stays parseable.
+# Lower bound is the Unix epoch (1970-01-01); upper bound sits well past
+# Y2038 but inside every platform's ``time_t`` ceiling, so the coercion is
+# the single chokepoint that converts a DoS-shaped ``ts: 1e999`` into a
+# valid (but neutral) timestamp.
+_MIN_SAFE_EPOCH_S = 0.0
+_MAX_SAFE_EPOCH_S = 32503680000.0  # 3000-01-01
+
+
+def _coerce_safe_epoch_s(epoch_s: float) -> float:
+    """Sanitize an extension-controlled epoch into a fromtimestamp-safe value.
+
+    Closes the M4 + M7 audit gap (`[FOLLOWUP
+    codex-2026-05-10-M4-M7-output-ts-range-validation]`): both
+    ``parse_output_signal_events`` and ``read_output_channel_logs`` feed
+    ``_format_epoch_ms`` with ``ts`` fields parsed from harness-marker JSON
+    or VS Code's per-window output logs. A malicious VSIX can write
+    ``ts: 1e999`` (becomes ``float("inf")``), ``NaN``, or otherwise
+    out-of-range values that abort ``datetime.fromtimestamp()`` with
+    ``OverflowError`` / ``OSError`` / ``ValueError`` and tear down the
+    final report. Returning epoch 0 on failure keeps the report parseable
+    while still flagging the event as undated.
+    """
+    if not math.isfinite(epoch_s):
+        return 0.0
+    if epoch_s < _MIN_SAFE_EPOCH_S or epoch_s > _MAX_SAFE_EPOCH_S:
+        return 0.0
+    return epoch_s
+
+
 def _format_epoch_ms(
     value_ms: float, monitoring_start: float
 ) -> tuple[str, float | None]:
@@ -72,8 +105,12 @@ def _format_epoch_ms(
     ``_parse_iso_timestamp``) treats timestamps as local-naive. Emitting
     UTC here would create a TZ offset between event and activation
     epochs that defeats the attribution window.
+
+    W14-2 (M4 + M7): the epoch passed to ``datetime.fromtimestamp()`` is
+    sanitized through ``_coerce_safe_epoch_s`` so extension-controlled
+    ``ts`` values cannot abort the call with ``OverflowError``.
     """
-    epoch_s = float(value_ms) / 1000.0
+    epoch_s = _coerce_safe_epoch_s(float(value_ms) / 1000.0)
     timestamp = datetime.fromtimestamp(epoch_s).isoformat(timespec="milliseconds")
     rel_time_s: float | None = None
     if monitoring_start > 0:
