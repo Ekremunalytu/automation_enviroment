@@ -743,7 +743,7 @@ established by earlier audit pulls.
 
 | Sub-commit | Theme | SHA |
 |---|---|---|
-| 1 | analysis-jobs-race lock + terminal guard on `complete_analysis_job` / `fail_analysis_job`; `EvidenceEvent` kind↔event_class invariant + `_EVIDENCE_EVENT_KIND_TO_EVENT_CLASS` allowlist; 65 behavioral cases (9 positive + 54 mismatch + 1 unknown-kind + 1 default-rc edge); 3 new concurrency cases (`complete-vs-fail`, `double-complete`, `double-fail`); existing concurrency-test docstring tightening + exactly-one-winner assertion; 2 new AST architecture gates; fixture drift repair (file-kind events with missing raw_context in 3 malicious-canary activation_report.json + inline test_rule_attribution / test_router fixtures); tracker / backlog / status / CLAUDE / AGENTS sweep | (pending sub-commit 1) |
+| 1 | analysis-jobs-race lock + terminal guard on `complete_analysis_job` / `fail_analysis_job`; `EvidenceEvent` kind↔event_class invariant + `_EVIDENCE_EVENT_KIND_TO_EVENT_CLASS` allowlist; 65 behavioral cases (9 positive + 54 mismatch + 1 unknown-kind + 1 default-rc edge); 3 new concurrency cases (`complete-vs-fail`, `double-complete`, `double-fail`); existing concurrency-test docstring tightening + exactly-one-winner assertion; 2 new AST architecture gates; fixture drift repair (file-kind events with missing raw_context in 3 malicious-canary activation_report.json + inline test_rule_attribution / test_router fixtures); tracker / backlog / status / CLAUDE / AGENTS sweep | `03b32bc` |
 | 2 | Self-stamp sub-commit 1 SHA in this table | (this commit) |
 
 **Module locations.**
