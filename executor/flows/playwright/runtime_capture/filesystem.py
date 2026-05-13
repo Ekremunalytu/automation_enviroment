@@ -9,6 +9,8 @@ import time
 from collections.abc import Callable
 from datetime import datetime
 
+from executor.binary_paths import INOTIFYWAIT_PATH
+
 from ._shared import (
     _FILE_WATCH_PATHS,
     _is_relevant_file_path,
@@ -178,7 +180,7 @@ class FileSystemCapture:
             return
 
         cmd = [
-            "inotifywait",
+            INOTIFYWAIT_PATH,
             "-m",
             "-r",
             "--format",

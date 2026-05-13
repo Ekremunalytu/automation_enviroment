@@ -17,7 +17,7 @@ and per-file distribution so any growth fails CI and forces an
 explicit migration to absolute paths (W8-4 spirit) or an explicit
 baseline bump in this file.
 
-Baseline as of W14-6 (`2026-05-13` on `week14`):
+Baseline as of W14-6 (`2026-05-13` on `week14`, post sub-commit 6):
 
 - ``executor/flows/playwright/vscode/editor.py`` — 3 pragmas
   (xdotool invocations: window focus + key send + window list).
@@ -25,10 +25,12 @@ Baseline as of W14-6 (`2026-05-13` on `week14`):
   (pgrep / bash invocations during sandbox reset).
 - ``executor/flows/playwright/monitor/runtime.py`` — 1 pragma
   (``ps`` invocation in runtime probe).
-- ``executor/flows/playwright/runtime_capture/extension_host_capture.py``
-  — 1 pragma (``inotifywait`` invocation).
 
-Total: **7 pragmas**.
+Total: **6 pragmas**. Sub-commit 6 lowered the baseline from 7 → 6 by
+migrating ``runtime_capture/extension_host_capture.py``'s inotifywait
+site to ``executor.binary_paths.INOTIFYWAIT_PATH`` (the line-186
+pragma was removed in the same commit; ``inotify-tools`` is installed
+in the executor container at the canonical Debian path).
 
 Pragma reduction is the desired direction. If a future PR migrates
 one of these sites to ``executor.binary_paths.*`` constants (or adds
@@ -46,13 +48,12 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 SCANNED_DIR = "executor"
 PRAGMA = "arch-allow: bare-binary-path"
 
-_BASELINE_PRAGMA_COUNT: Final[int] = 7
+_BASELINE_PRAGMA_COUNT: Final[int] = 6
 
 _EXPECTED_PRAGMA_DISTRIBUTION: Final[dict[str, int]] = {
     "executor/flows/playwright/vscode/editor.py": 3,
     "executor/flows/playwright/reset_state.py": 2,
     "executor/flows/playwright/monitor/runtime.py": 1,
-    "executor/flows/playwright/runtime_capture/extension_host_capture.py": 1,
 }
 
 

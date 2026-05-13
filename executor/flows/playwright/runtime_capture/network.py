@@ -9,6 +9,7 @@ from collections.abc import Callable
 from datetime import datetime
 from typing import TypedDict
 
+from executor.binary_paths import TSHARK_PATH
 from packages.analysis_contracts.evidence import redact_secrets
 
 from ._shared import _first_non_empty, _log
@@ -226,7 +227,7 @@ class NetworkCapture:
     def start(self) -> None:
         """Start background tshark capture."""
         cmd = [
-            "tshark",
+            TSHARK_PATH,
             "-l",
             "-n",
             "-Q",
