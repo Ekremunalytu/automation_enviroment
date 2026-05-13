@@ -31,13 +31,19 @@ the cached dict. ``_reset_fingerprint_cache()`` is a test-only hook.
 
 from __future__ import annotations
 
+import datetime as _dt
 import os
 import subprocess
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Final
 
 from executor.binary_paths import HostBinaryNotFoundError
+
+# Python 3.10 executor compatibility: `datetime.UTC` arrived in Python 3.11.
+# `getattr` keeps the import site valid on the older runtime, mirroring the
+# established pattern in `packages/analysis_engine/runner.py`.
+datetime = _dt.datetime
+UTC = getattr(_dt, "UTC", _dt.timezone.utc)  # noqa: UP017
 
 _BUILD_COMMIT_ENV_VAR: Final[str] = "EXTRACE_BUILD_COMMIT_SHA"
 _BUILD_DATE_ENV_VAR: Final[str] = "EXTRACE_BUILD_DATE"

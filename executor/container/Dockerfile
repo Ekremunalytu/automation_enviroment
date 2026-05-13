@@ -134,6 +134,14 @@ RUN chmod 755 /usr/local/bin/start.sh \
 # packages (not PEP 420 namespace) so the canonical `python -m
 # executor.flows.playwright.X` invocation resolves deterministically.
 COPY --chown=executor:executor executor/flows /home/executor/flows
+# W14-6.c + W14-5.3: ship the `executor`-root runtime modules that
+# `executor/flows/...` imports as `executor.binary_paths` (subprocess
+# absolute-path constants) and `executor.runtime_fingerprint`
+# (automation-output build fingerprint). `executor/host.py`,
+# `executor/config.py`, `executor/control.py` are host-side only and
+# intentionally not shipped into the executor container.
+COPY --chown=executor:executor executor/binary_paths.py /home/executor/binary_paths.py
+COPY --chown=executor:executor executor/runtime_fingerprint.py /home/executor/runtime_fingerprint.py
 COPY --chown=executor:executor packages /home/packages
 RUN touch /home/executor/__init__.py /home/executor/flows/__init__.py \
     && chown executor:executor /home/executor/__init__.py /home/executor/flows/__init__.py
