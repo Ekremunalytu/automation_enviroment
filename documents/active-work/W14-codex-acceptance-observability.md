@@ -1,16 +1,15 @@
 # W14 — Codex M-class Acceptance + Observability (Active Work Tracker)
 
-`Last Updated: 2026-05-13 (W14 staging; W13 close-gate cleared; PR #20 week13 -> main MERGED via 772deb3; no W14-N stable ID pulled yet; tracker activates after week14 branch cut from main)`
-`Phase: W14 staging (entry triggered — W13 close-gate cleared 2026-05-13; close-out PR #20 MERGED 2026-05-13 via 772deb3; remaining trigger is week14 branch cut from main)`
-`Branch: week14 (to be cut from main; close-out PR #20 already merged 2026-05-13 via 772deb3)`
+`Last Updated: 2026-05-13 (W14 active; W14-1 pulled; week14 branch cut from main at 69251f1)`
+`Phase: W14 active (W14-1 pulled 2026-05-13 — scenario-dropout-upstream-root-cause BLOCKER triage)`
+`Branch: week14 (cut from main 2026-05-13 at HEAD 69251f1; close-out PR opens after W14-6 GREEN)`
 `Owner: ekrem`
 
 > **Authored 2026-05-11** as the W14 scope skeleton. Stable IDs `W14-1..W14-6`
-> are reserved by the iteration plan but **assigned only at first pull** per
-> the W11/W12/W13 precedent (`REFACTOR_OPTIMIZATION.md` §12.0). No production
-> code or test surface has landed under this tracker yet. The W13 close-out PR
-> is merged; this file remains **staging context** until the explicit W14 pull /
-> `week14` branch cut.
+> are reserved by the iteration plan and **assigned at first pull** per the
+> W11/W12/W13 precedent (`REFACTOR_OPTIMIZATION.md` §12.0). W14-1 pulled
+> `2026-05-13` on the `week14` branch cut from `main` at `69251f1`. Remaining
+> sub-iter IDs (`W14-2`..`W14-6`) fill in as each is pulled.
 
 This is the canonical active work tracker for the W14 Codex M-class Acceptance + Observability window. Items receive stable IDs (`W14-1`, `W14-2`, ...)
 **at first pull**, not preemptively, per the W11/W12/W13 precedent.
@@ -23,10 +22,10 @@ list.
 
 ## Status (Quick Glance)
 
-+ **W14 staging — entry triggered.** Six sub-iterations scoped; no stable ID pulled
-  yet. Close-out PR #20 (`week13 -> main`) **MERGED** `2026-05-13` via
-  `772deb3`; tracker activates when the `week14` branch is cut from `main`.
-+ **Entry gate (target).** When met, opens W14-1:
++ **W14 active — W14-1 pulled.** Six sub-iterations scoped; W14-1 in progress
+  on the `week14` branch (cut from `main` at `69251f1` on `2026-05-13`).
+  Close-out PR #20 (`week13 -> main`) **MERGED** `2026-05-13` via `772deb3`.
++ **Entry gate (met).** Opens W14-1:
   + W13 close-gate cleared ✓ (`2026-05-13`): W13-11 (HMAC python secret
     eager-consume) ✓ closed `2026-05-12`; W13-12 (fail-closed harness
     handshake) ✓ closed `2026-05-12`; W13-13 (worker-start cancel-race
@@ -77,8 +76,9 @@ list.
 + [x] W13 ratchet gates pinned: W13-1..W13-7 acceptance-bar gates,
   W13-8/9/10 §11.10 GOAL gates, plus the W13-11/12/13 close-gate
   gates added during the close-pass.
-+ [ ] W14 lane document (this file) header is updated to mark phase open
-  per W11/W12/W13 precedent.
++ [x] W14 lane document (this file) header updated to `Phase: W14 active`
+  per W11/W12/W13 precedent (`2026-05-13`; `week14` branch cut from `main`
+  at `69251f1`).
 
 ## Goal (per `REFACTOR_OPTIMIZATION.md` §12)
 
@@ -108,7 +108,7 @@ audit; `[BUG …]` rows are from `POST_POC_BACKLOG.md` Contracts/Reports/Detecti
 
 | ID | Item | Lane | Status |
 |---|---|---|---|
-| TBD (W14-1) | `[BUG scenario-dropout-upstream-root-cause]` (senaryolar `ScenarioAccountant`'a ulaşmadan planner / stimulus_passes / harness dispatch dizisinde düşüyor; son-metre conservation guard `unaccounted_dropout` raporluyor ama kök neden açık) | `[executor-runtime]` `[security-detection]` | not started — BLOCKER triage; deterministik repro fixture + kök neden tespiti; eğer stokastik olduğu kanıtlanırsa HIGH'a indir + dokümante et |
+| **W14-1** | `[BUG scenario-dropout-upstream-root-cause]` (senaryolar `ScenarioAccountant`'a ulaşmadan planner / stimulus_passes / harness dispatch dizisinde düşüyor; son-metre conservation guard `unaccounted_dropout` raporluyor ama kök neden açık) | `[executor-runtime]` `[security-detection]` | **in progress** — BLOCKER triage; pulled `2026-05-13` on `week14` branch |
 | TBD (W14-2) | `[FOLLOWUP codex-2026-05-10-M4-M7-output-ts-range-validation]` (extension-controlled `ts` field guard sız `datetime.fromtimestamp()`'a giriyor; OverflowError DoS vector) | `[security-detection]` | not started |
 | TBD (W14-2) | `[FOLLOWUP codex-2026-05-10-M11-report-health-malformed-types]` (`_build_report_messages()` `int(automation_health.get(...))` ValueError'a açık) | `[security-detection]` | not started |
 | TBD (W14-3) | `[FOLLOWUP codex-2026-05-10-M13-network-uri-summary-redaction]` (network capture event'lerinin `path` + `summary` alanları secret sızdırıyor; W12-5 gate sadece `*_body_preview`'i kapsıyor; W13-6 factory-internal redaction deseninin tekrarı) | `[security-detection]` `[executor-runtime]` | not started |

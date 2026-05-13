@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-`Last Updated: 2026-05-13 (W13 closed; PR #20 week13 -> main merged via 772deb3; W14 staging via REFACTOR_OPTIMIZATION.md §12 + active-work/W14-codex-acceptance-observability.md; awaiting explicit W14 pull / week14 branch cut)`
+`Last Updated: 2026-05-13 (W14 active; W14-1 pulled; week14 branch cut from main at 69251f1)`
 
 This file is intentionally a thin pointer. Do not duplicate phase summaries or
 architecture maps here; that caused drift.
@@ -30,11 +30,11 @@ architecture maps here; that caused drift.
 - W8-W13 planning is owned by `documents/REFACTOR_OPTIMIZATION.md` section 11;
   W14 by section 12. W13 closed `2026-05-13`; PR #20 `week13 -> main`
   merged via `772deb3`. **Active phase: W14 — Codex M-class Acceptance +
-  Observability** is staging in
-  `documents/active-work/W14-codex-acceptance-observability.md`; stable IDs
-  are assigned at first pull and the remaining trigger is an explicit W14 pull
-  / `week14` branch cut from `main`. Past trackers are stable-ID references
-  only: W13, W12, W11, and W8.
+  Observability** is active on the `week14` branch (cut from `main` at
+  `69251f1` on `2026-05-13`); see
+  `documents/active-work/W14-codex-acceptance-observability.md`. W14-1
+  pulled `2026-05-13`; remaining `W14-N` stable IDs fill in at first pull.
+  Past trackers are stable-ID references only: W13, W12, W11, and W8.
 - `documents/archive/` is frozen reference; not on the default read path.
   Open only when a slim canonical explicitly points there.
 

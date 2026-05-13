@@ -1,6 +1,6 @@
 # Refactor Status
 
-`Last Updated: 2026-05-13 (W13 closed; PR #20 week13 -> main merged via 772deb3; W14 staging entry gate triggered by close-out merge; awaiting explicit W14 pull / week14 branch cut)`
+`Last Updated: 2026-05-13 (W14 active; W14-1 pulled; week14 branch cut from main at 69251f1)`
 
 Active status board for current closure state. **Slim canonical** — verbose
 phase evidence is frozen under dated snapshots:
@@ -45,18 +45,19 @@ phase evidence is frozen under dated snapshots:
   `tests/architecture/` 117 passed. W13-11/12/13 were pulled in-window from
   the close-gate review to preserve H6/H4 audit-trail integrity; remaining
   §11.10 umbrellas moved to W14.
-- **Active phase: W14 — Codex M-class Acceptance + Observability** (staging).
-  Scope authored `2026-05-11` in
+- **Active phase: W14 — Codex M-class Acceptance + Observability** (active;
+  `week14` branch cut from `main` at `69251f1` on `2026-05-13`). Scope
+  authored `2026-05-11` in
   [`active-work/W14-codex-acceptance-observability.md`](active-work/W14-codex-acceptance-observability.md);
   plan source [`REFACTOR_OPTIMIZATION.md §12`](REFACTOR_OPTIMIZATION.md).
   6 sub-iter scoped (`W14-1..W14-6`): BLOCKER scenario-dropout araştırması,
   Codex M-class input validation (M4-M7 + M11), dış yüzey sertleştirme
   (M13 + M14b + U4-U12), correctness/concurrency (analysis-jobs-race +
   evidence-event-kind invariant), §11.10 GOAL devamı (logger consolidation
-  - run-ID stamping), W8-W12 regression lock-in umbrella. Entry gate W13
-  close-out PR merge'de tetiklenir; stable ID'ler ilk pull'da atanır
-  (W11/W12/W13 precedent). Remaining trigger is an explicit W14 pull /
-  `week14` branch cut from `main`.
+  - run-ID stamping), W8-W12 regression lock-in umbrella. W14-1 pulled
+  `2026-05-13` — BLOCKER triage of `[BUG scenario-dropout-upstream-root-cause]`
+  in progress. Remaining `W14-N` stable IDs fill in at first pull
+  (W11/W12/W13 precedent).
 
 ## W13 Status Summary
 
@@ -76,8 +77,9 @@ phase evidence is frozen under dated snapshots:
 - `[FOLLOWUP simulation-progress-cancel]` remaining subitems:
   `heartbeat-sandbox-reset-off-thread`, `dedupe-step-progress-schemas`, and
   `heartbeat-refactor` iterate after W13-3.
-- `[BUG scenario-dropout-upstream-root-cause]` is W14-1 BLOCKER triage unless
-  dropout proves stochastic or misses a live threat category.
+- `[BUG scenario-dropout-upstream-root-cause]` is W14-1 (pulled `2026-05-13`;
+  in progress) — BLOCKER triage unless dropout proves stochastic or misses a
+  live threat category.
 
 ## Read Order
 
