@@ -1,6 +1,6 @@
 # Refactor Status
 
-`Last Updated: 2026-05-13 (W14 active; W14-1 BLOCKER -> HIGH downgraded; W14-2 closed via bde17be; W14-3 closed via 941250d; W14-4 closed; W14-5 closed via dc79f61+9c095d2+db25d5f; W14-6 closed via 2adad43+b031803+e42a448; W14 sub-iter slate complete; W14-7 post-slate hotfix closed via df925f8+c11ebd8 — container-shipping regression + Python 3.10 UTC compat; week14 branch cut from main at 69251f1; W13 close-out PR #20 week13 -> main merged via 772deb3; close-out PR week14 -> main next)`
+`Last Updated: 2026-05-13 (W14 active; W14-1 BLOCKER -> HIGH downgraded; W14-2 closed via bde17be; W14-3 closed via 941250d; W14-4 closed; W14-5 closed via dc79f61+9c095d2+db25d5f; W14-6 closed via 2adad43+b031803+e42a448; W14 sub-iter slate complete; W14-7 post-slate hotfix closed via df925f8+c11ebd8 — container-shipping regression + Python 3.10 UTC compat; W14-8 post-slate preventive gate closed via 5638f82 — forbids Python 3.11+ API imports in container-shipped paths; week14 branch cut from main at 69251f1; W13 close-out PR #20 week13 -> main merged via 772deb3; close-out PR week14 -> main next)`
 
 Active status board for current closure state. **Slim canonical** — verbose
 phase evidence is frozen under dated snapshots:
@@ -87,8 +87,17 @@ phase evidence is frozen under dated snapshots:
   Python 3.10 compat shim; regression gate at
   `tests/architecture/test_executor_container_shipping.py` pins the
   import-graph ↔ Dockerfile invariant (+2 arch cases →
-  `tests/architecture/` 168 → 170). Close-out PR `week14 -> main` is
-  the next milestone.
+  `tests/architecture/` 168 → 170). **W14-8 post-slate preventive
+  gate** closed `2026-05-13` via `5638f82` — adds
+  `tests/architecture/test_executor_container_python_compat.py`
+  that AST-scans every container-shipped Python file for the most
+  common Python 3.11+ API imports (`from datetime import UTC`,
+  `from typing import {Self|NotRequired|Required|LiteralString|
+  TypeVarTuple|Unpack|ExceptionGroup|BaseExceptionGroup}`, `import
+  tomllib`) so the next 3.10/3.11+ divergence fails CI before the
+  docker build; per-import `# arch-allow: py311-api` pragma for rare
+  overrides (+1 arch case → `tests/architecture/` 170 → 171).
+  Close-out PR `week14 -> main` is the next milestone.
 
 ## W13 Status Summary
 

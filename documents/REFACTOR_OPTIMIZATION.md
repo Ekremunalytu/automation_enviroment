@@ -1,6 +1,6 @@
 # REFACTOR_OPTIMIZATION
 
-`Last Updated: 2026-05-13 (W13 closed; PR #20 week13 -> main merged via 772deb3; §12 W14 active on week14 branch cut 69251f1 — W14-1 BLOCKER → HIGH, W14-2/W14-3/W14-4/W14-5/W14-6 closed; W14 sub-iter slate complete; W14-7 post-slate hotfix closed via df925f8+c11ebd8 — container-shipping regression + Python 3.10 UTC compat; close-out PR week14 -> main next)`
+`Last Updated: 2026-05-13 (W13 closed; PR #20 week13 -> main merged via 772deb3; §12 W14 active on week14 branch cut 69251f1 — W14-1 BLOCKER → HIGH, W14-2/W14-3/W14-4/W14-5/W14-6 closed; W14 sub-iter slate complete; W14-7 post-slate hotfix closed via df925f8+c11ebd8 — container-shipping regression + Python 3.10 UTC compat; W14-8 post-slate preventive gate closed via 5638f82 — forbids Python 3.11+ API imports in container-shipped paths; close-out PR week14 -> main next)`
 
 W0-W14 plan document: stabilization + security + post-PoC external-review
 integration + W14 acceptance + observability continuation. **Slim canonical**
@@ -39,7 +39,16 @@ integration + W14 acceptance + observability continuation. **Slim canonical**
   compat shim aligned with `packages/analysis_engine/runner.py:26`)
   and `c11ebd8` (regression gate
   `tests/architecture/test_executor_container_shipping.py`, +2 arch
-  cases). Close-out PR `week14 -> main` is the next milestone. Tracker:
+  cases). **W14-8 post-slate preventive gate** closed `2026-05-13`
+  via `5638f82` — adds
+  `tests/architecture/test_executor_container_python_compat.py`
+  AST-scanning container-shipped paths for Python 3.11+ API
+  imports (`from datetime import UTC`, `from typing import
+  {Self|NotRequired|Required|LiteralString|TypeVarTuple|Unpack|
+  ExceptionGroup|BaseExceptionGroup}`, `import tomllib`) with
+  per-import `# arch-allow: py311-api` pragma for rare overrides
+  (+1 arch case). Close-out PR `week14 -> main` is the next
+  milestone. Tracker:
   [`active-work/W14-codex-acceptance-observability.md`](active-work/W14-codex-acceptance-observability.md).
 
 ## §10 — W0-W7 PoC Stabilization Window (closed 2026-04-23)
@@ -231,6 +240,7 @@ state as of `2026-05-13`:
 | W14-5 | closed (logger consolidation + run-ID stamping + executor runtime fingerprint; ADR 0010; M5 byproduct) | `dc79f61` + `9c095d2` + `db25d5f` |
 | W14-6 | closed (regression lock-in umbrella: bare-binary pragma ratchet + executor.control outbound gate + variable-indirect subprocess coverage with binary_paths migration) | `2adad43` + `b031803` + `e42a448` |
 | W14-7 | closed post-slate (container-shipping regression + Python 3.10 UTC compat — Dockerfile COPY gap for `executor/binary_paths.py` + `executor/runtime_fingerprint.py` exposed via post-`2cbdca0` production smoke retry; W14-5.3's `from datetime import UTC` swapped to `getattr(_dt, "UTC", _dt.timezone.utc)` shim; +2 arch gate cases pinning import-graph ↔ Dockerfile invariant) | `df925f8` + `c11ebd8` |
+| W14-8 | closed post-slate, preventive (AST gate forbidding Python 3.11+ API imports in container-shipped paths — `from datetime import UTC`, `from typing import {Self|NotRequired|Required|LiteralString|TypeVarTuple|Unpack|ExceptionGroup|BaseExceptionGroup}`, `import tomllib`; per-import `# arch-allow: py311-api` pragma for rare overrides; closes the second loop of the W14-7 regression class) | `5638f82` |
 
 ### §12.0 — Neden ayrı §12
 
