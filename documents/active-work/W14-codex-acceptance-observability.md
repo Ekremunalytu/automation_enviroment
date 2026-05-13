@@ -460,8 +460,8 @@ becomes a W15+ candidate.
 | Sub-commit | Theme | SHA |
 |---|---|---|
 | 1 | Branch cut + tracker activation (header sweep across `CLAUDE.md`, `REFACTOR_STATUS.md`, this file) | `34aeeb2` |
-| 2 | Repro fixture + README phase pointer gate update | TBD (self-stamped post-landing) |
-| 3 | Close evidence + BUG downgrade + Per-Item Detail block | TBD (self-stamped post-landing) |
+| 2 | Repro fixture + README phase pointer gate + BUG downgrade + Per-Item Detail close evidence | `0c8bd02` |
+| 3 | Self-stamp sub-commits 1 + 2 SHAs in this table | (this commit) |
 
 **Module locations.**
 
