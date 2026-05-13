@@ -1,8 +1,8 @@
 # W14 — Codex M-class Acceptance + Observability (Active Work Tracker)
 
-`Last Updated: 2026-05-13 (W14 staging — skeleton authored alongside W13 close-out preparation; W13-11 close-gate closed 2026-05-12 — Path A + defense-in-depth (a/b/c) + README sweep steal-from-W13-13; W13-12 close-gate closed 2026-05-12 — fail-closed harness handshake (5/5 sub-commits; harness_handshake_required: bool + fail-closed branch + 3-fact AST gate); W13-13 close-gate closed 2026-05-13 — Path B worker-entry `with_for_update()` snapshot lock (5/5 sub-commits + post-landing; lifecycle-helper-not-wrapper deadlock avoidance + 2-fact AST gate + 4 post-landing behavioral pins; final bar 1542 → 1547 → 1551 / 115 → 117); **W13 close-gate cleared**; no W14-N stable ID pulled yet; tracker activates after week13 → main close-out PR merges + week14 branch cut from main)`
-`Phase: W14 staging (pre-entry — W13 close-gate cleared `2026-05-13`; remaining trigger is close-out PR merge)`
-`Branch: week14 (to be cut from main after PR #N landing W13)`
+`Last Updated: 2026-05-13 (W14 staging — skeleton authored alongside W13 close-out preparation; W13-11 close-gate closed 2026-05-12 — Path A + defense-in-depth (a/b/c) + README sweep steal-from-W13-13; W13-12 close-gate closed 2026-05-12 — fail-closed harness handshake (5/5 sub-commits; harness_handshake_required: bool + fail-closed branch + 3-fact AST gate); W13-13 close-gate closed 2026-05-13 — Path B worker-entry `with_for_update()` snapshot lock (5/5 sub-commits + post-landing; lifecycle-helper-not-wrapper deadlock avoidance + 2-fact AST gate + 4 post-landing behavioral pins; final bar 1542 → 1547 → 1551 / 115 → 117); **W13 close-gate cleared**; close-out PR #20 (week13 → main) MERGED 2026-05-13 via 772deb3; no W14-N stable ID pulled yet; tracker activates after week14 branch cut from main)`
+`Phase: W14 staging (pre-entry — W13 close-gate cleared `2026-05-13`; close-out PR #20 MERGED `2026-05-13` via `772deb3`; remaining trigger is week14 branch cut from main)`
+`Branch: week14 (to be cut from main; close-out PR #20 already merged `2026-05-13` via `772deb3`)`
 `Owner: ekrem`
 
 > **Authored 2026-05-11** as the W14 scope skeleton. Stable IDs `W14-1..W14-6`
@@ -26,8 +26,8 @@ list.
 ## Status (Quick Glance)
 
 + **W14 staging — pre-entry.** Six sub-iterations scoped; no stable ID pulled
-  yet. Tracker activates when the `week13 → main` close-out PR merges and
-  the `week14` branch is cut from `main`.
+  yet. Close-out PR #20 (`week13 → main`) **MERGED** `2026-05-13` via
+  `772deb3`; tracker activates when the `week14` branch is cut from `main`.
 + **Entry gate (target).** When met, opens W14-1:
   + W13 close-gate cleared ✓ (`2026-05-13`): W13-11 (HMAC python secret
     eager-consume) ✓ closed `2026-05-12`; W13-12 (fail-closed harness
@@ -35,9 +35,9 @@ list.
     CAS — Path B worker-entry `with_for_update()` snapshot lock;
     README sweep + regex pin already landed in W13-11 push
     `2026-05-12`) ✓ closed `2026-05-13`.
-  + `week13 → main` close-out PR merged (close-out PR includes
-    W13-11/12/13 close-pass fixes + W13-1..W13-10 sub-iter ratchet'leri
-    + §11.10 GOAL pulls).
+  + `week13 → main` close-out PR #20 **MERGED** `2026-05-13` via
+    `772deb3` ✓ (close-out PR included W13-11/12/13 close-pass fixes
+    + W13-1..W13-10 sub-iter ratchet'leri + §11.10 GOAL pulls).
   + `make check-all` ✅ green at the W13 close commit (target baseline
     after close-gate: `make test-local` ~1530+ / `make test-security`
     ~220+ / `tests/architecture/` ~110+ — exact deltas depend on
@@ -70,8 +70,9 @@ list.
   CAS — Path B worker-entry `with_for_update()` snapshot lock; README
   sweep + regex pin already landed in W13-11 push `2026-05-12`) ✓
   closed `2026-05-13`.
-+ [ ] W13 closed and merged to `main` via `week13 → main` PR
-  (close-out PR includes W13-1..W13-13 ratchet bundle).
++ [x] W13 closed and merged to `main` via close-out PR #20
+  (`772deb3`, `2026-05-13`); close-out PR included W13-1..W13-13
+  ratchet bundle.
 + [ ] `make check-all` green at the W13 close baseline; expected
   post-close-gate targets: `make test-local` ~1530+ /
   `make test-security` ~220+ / `tests/architecture/` ~110+ (W13-11

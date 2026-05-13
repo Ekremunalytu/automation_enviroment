@@ -28,9 +28,10 @@ points to it.
     - evidence-event-kind invariant), §11.10 GOAL devamı (logger
     consolidation + run-ID stamping + codex-automation-5 fingerprint),
     W8-W12 regression lock-in umbrella. Entry gate W13 close-gate
-    cleared `2026-05-13`; remaining trigger is close-out PR `week13 →
-    main` merge; stable ID'ler ilk pull'da atanır (W11/W12/W13
-    precedent). Slim canonical:
+    cleared `2026-05-13` + close-out PR #20 (`week13 → main`)
+    **MERGED** `2026-05-13` via `772deb3`; remaining trigger is
+    `week14` branch cut from `main`; stable ID'ler ilk pull'da atanır
+    (W11/W12/W13 precedent). Slim canonical:
     [`REFACTOR_OPTIMIZATION.md §12`](../REFACTOR_OPTIMIZATION.md).
 - `W13-test-expansion-observability.md`
   - **Past phase — closed `2026-05-13` (W13-1..W13-13 all GREEN).** W13

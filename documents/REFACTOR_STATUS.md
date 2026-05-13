@@ -1,6 +1,6 @@
 # Refactor Status
 
-`Last Updated: 2026-05-13 (W13 closed 2026-05-13 — W13-1..W13-13 all GREEN; W13-11 closed 2026-05-12 (6/6 sub-commits) — Path A host-side eager-consume + env var passthrough; W13-12 closed 2026-05-12 (5/5 sub-commits) — `ActivationReport.harness_handshake_required: bool` fail-closed; W13-13 closed 2026-05-13 (5/5 sub-commits + post-landing — d2ba495 docs · 02c4374 RED · 33deb46 feat · 60bb0cd arch gate · 8912596 close sweep · 826f91c self-stamp · 26a2025 post-landing behavioral pins) — Path B worker-entry `with_for_update()` snapshot lock; final bar test-local 1542 → 1547 (+5 main) → 1551 (+4 post-landing) / tests/architecture/ 115 → 117 (+2); close-out PR week13 → main READY (close-gate cleared); W14 staging entry gate triggers on close-out merge)`
+`Last Updated: 2026-05-13 (W13 closed 2026-05-13 — W13-1..W13-13 all GREEN; W13-11 closed 2026-05-12 (6/6 sub-commits) — Path A host-side eager-consume + env var passthrough; W13-12 closed 2026-05-12 (5/5 sub-commits) — `ActivationReport.harness_handshake_required: bool` fail-closed; W13-13 closed 2026-05-13 (5/5 sub-commits + post-landing — d2ba495 docs · 02c4374 RED · 33deb46 feat · 60bb0cd arch gate · 8912596 close sweep · 826f91c self-stamp · 26a2025 post-landing behavioral pins) — Path B worker-entry `with_for_update()` snapshot lock; final bar test-local 1542 → 1547 (+5 main) → 1551 (+4 post-landing) / tests/architecture/ 115 → 117 (+2); close-out PR #20 (week13 → main) MERGED 2026-05-13 via 772deb3 (close-gate cleared pre-merge); W14 staging entry gate triggered by close-out merge — awaiting explicit pull)`
 
 Active status board for current closure state. **Slim canonical** — verbose
 phase evidence is frozen under dated snapshots:
@@ -206,8 +206,8 @@ phase evidence is frozen under dated snapshots:
   2/2 ✓); W13-1/W13-11/W13-12 architecture gates zero-diff. Production
   code diff scoped to 1 file (`analysis_service.py` +163 -93). Close-out
   PR `week13 → main` merge blocker **CLEARED**.
-- W13 close-out PR `week13 → main` is **READY** (close-gate cleared
-  `2026-05-13`). W13-1..W13-13 all GREEN; close-out language stays
+- W13 close-out PR #20 `week13 → main` is **MERGED** `2026-05-13`
+  via `772deb3` (close-gate cleared pre-merge). W13-1..W13-13 all GREEN; close-out language stays
   literally true at sub-iter granularity. The close-gate items
   (W13-11/W13-12/W13-13) were pulled in-window (not W14) to preserve
   audit-trail integrity for originally W13-claimed H6 + H4 closures.

@@ -1,6 +1,6 @@
 # Post-PoC Backlog
 
-`Last Updated: 2026-05-13 (W13 closed 2026-05-13 — W13-1..W13-13 all GREEN; W13-11 closed 2026-05-12 (6/6 sub-commits) — Path A host-side eager-consume + env var passthrough; W13-12 closed 2026-05-12 (5/5 sub-commits) — `ActivationReport.harness_handshake_required: bool` fail-closed; W13-13 closed 2026-05-13 (5/5 sub-commits + post-landing — Path B worker-entry `with_for_update()` snapshot lock + 4 behavioral pins (vanished row + finalize idempotency + failed/cancelled terminal); final bar test-local 1542 → 1547 → 1551 / tests/architecture/ 115 → 117); close-out PR week13 → main READY (close-gate cleared))`
+`Last Updated: 2026-05-13 (W13 closed 2026-05-13 — W13-1..W13-13 all GREEN; W13-11 closed 2026-05-12 (6/6 sub-commits) — Path A host-side eager-consume + env var passthrough; W13-12 closed 2026-05-12 (5/5 sub-commits) — `ActivationReport.harness_handshake_required: bool` fail-closed; W13-13 closed 2026-05-13 (5/5 sub-commits + post-landing — Path B worker-entry `with_for_update()` snapshot lock + 4 behavioral pins (vanished row + finalize idempotency + failed/cancelled terminal); final bar test-local 1542 → 1547 → 1551 / tests/architecture/ 115 → 117); close-out PR #20 (week13 → main) MERGED 2026-05-13 via 772deb3 (close-gate cleared pre-merge))`
 
 Open deferred work after the W0-W7 PoC acceptance bar. **Slim canonical** —
 verbose descriptions, evidence, and older triage notes are frozen in dated
@@ -11,13 +11,13 @@ snapshots:
 - previous full snapshot:
   [`archive/backlog/POST_POC_BACKLOG_full_2026-05-07.md`](archive/backlog/POST_POC_BACKLOG_full_2026-05-07.md)
 
-W8, W9, W10, W11, and W12 are closed. W13 acceptance bar + §11.10 GOAL pulls
-are closed; close-out PR `week13 → main` pending. Next active phase: **W14
+W8, W9, W10, W11, W12, and W13 are closed. W13 acceptance bar + §11.10 GOAL pulls
+closed; close-out PR #20 `week13 → main` **MERGED** `2026-05-13` via `772deb3`. Next active phase: **W14
 Codex M-class Acceptance + Observability**, staged in
 [`active-work/W14-codex-acceptance-observability.md`](active-work/W14-codex-acceptance-observability.md);
 predecessor tracker
 [`active-work/W13-test-expansion-observability.md`](active-work/W13-test-expansion-observability.md)
-remains active until the W13 close-out PR merges.
+is now archived in-place (close-evidence retained for audit-trail).
 
 ## Stable IDs Are A Contract
 

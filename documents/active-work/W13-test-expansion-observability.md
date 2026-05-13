@@ -1,7 +1,7 @@
 # W13 — Test Expansion + Observability (Active Work Tracker)
 
 `Last Updated: 2026-05-13 (W13-11 closed 2026-05-12 (6/6 sub-commits — design+impl+arch gate+regression fix+doc sweep) — Path A host-side eager-consume + env var passthrough; W13-12 closed 2026-05-12 (5/5 sub-commits + post-landing drift sweep + 3 behavioral pins — `ActivationReport.harness_handshake_required: bool` fail-closed; final bar test-local 1537 → 1539 (+2 main) → 1542 (+3 post-landing) / tests/architecture/ 112 → 115 (+3)); W13-13 closed 2026-05-13 (5/5 sub-commits + post-landing pins — d2ba495 docs lockdown · 02c4374 RED behavioral · 33deb46 feat impl · 60bb0cd arch gate · `8912596` close evidence + 10-site drift sweep · `826f91c` self-stamp · `26a2025` post-landing behavioral pins (vanished row + finalize idempotency + failed/cancelled terminal); Path B worker-entry `with_for_update()` snapshot lock; final bar test-local 1542 → 1547 (+5 main) → 1551 (+4 post-landing) / tests/architecture/ 115 → 117 (+2); W13 close-gate cleared))`
-`Phase: W13 closed 2026-05-13 — W13-1..W13-13 all GREEN; close-out PR week13 → main pending`
+`Phase: W13 closed 2026-05-13 — W13-1..W13-13 all GREEN; close-out PR #20 (week13 → main) MERGED 2026-05-13 via 772deb3`
 `Branch: week13 (single-branch policy precedent; opened 2026-05-10 from cff6455)`
 `Owner: ekrem`
 
@@ -2502,11 +2502,15 @@ Tarihsel kayıt için orijinal status satırı + sub-commit roadmap matrix (`Des
 
 | # | Type | Touch | Status |
 |---|---|---|---|
-| 1 | `docs(W13-13)` assign in-progress + lock Path B design | tracker (this section + Last Updated + Phase banner) + `CLAUDE.md` banner + `documents/REFACTOR_STATUS.md` (Last Updated + W13-13 row) | landing |
-| 2 | `test(W13-13)` RED precursor — 3 behavioral cases | `tests/platform/storage/test_analysis_jobs_cancel_at_worker_entry.py` (new) | pending |
-| 3 | `feat(W13-13)` Path B worker-entry snapshot lock | `workflows/marketplace/analysis_service.py` (run_analysis_job:198-211) | pending |
-| 4 | `test(W13-13)` architecture gate INV1 + INV2 | `tests/architecture/test_run_analysis_job_entry_snapshot.py` (new) | pending |
-| 5 | `docs(W13-13)` close evidence + 10-site drift sweep | tracker close evidence block + `CLAUDE.md` + `AGENTS.md` + `documents/REFACTOR_STATUS.md` + `documents/REFACTOR_OPTIMIZATION.md` + `documents/POST_POC_BACKLOG.md` + `documents/AGENT_CONTEXT.md` + `documents/active-work/README.md` + `documents/active-work/W14-codex-acceptance-observability.md` + `README.md` | pending |
+| 1 | `docs(W13-13)` assign in-progress + lock Path B design | tracker (this section + Last Updated + Phase banner) + `CLAUDE.md` banner + `documents/REFACTOR_STATUS.md` (Last Updated + W13-13 row) | landed `d2ba495` |
+| 2 | `test(W13-13)` RED precursor — 3 behavioral cases | `tests/platform/storage/test_analysis_jobs_cancel_at_worker_entry.py` (new) | landed `02c4374` |
+| 3 | `feat(W13-13)` Path B worker-entry snapshot lock | `workflows/marketplace/analysis_service.py` (run_analysis_job:198-211) | landed `33deb46` |
+| 4 | `test(W13-13)` architecture gate INV1 + INV2 | `tests/architecture/test_run_analysis_job_entry_snapshot.py` (new) | landed `60bb0cd` |
+| 5 | `docs(W13-13)` close evidence + 10-site drift sweep | tracker close evidence block + `CLAUDE.md` + `AGENTS.md` + `documents/REFACTOR_STATUS.md` + `documents/REFACTOR_OPTIMIZATION.md` + `documents/POST_POC_BACKLOG.md` + `documents/AGENT_CONTEXT.md` + `documents/active-work/README.md` + `documents/active-work/W14-codex-acceptance-observability.md` + `README.md` | landed `8912596` |
+| 6 | `docs(W13-13)` self-stamp sub-commit 5 SHA (post-landing fix-up) | tracker + banner cascade | landed `826f91c` |
+| 7 | `test(W13-13)` post-close behavioral pins — vanished row + finalize idempotency + failed/cancelled terminal | `tests/platform/storage/test_analysis_jobs_cancel_at_worker_entry.py` (+4 cases) | landed `26a2025` |
+| 8 | `docs(W13-13)` self-stamp post-landing SHAs + 10-site banner sweep | tracker + banner cascade | landed `db7ade8` |
+| M | merge close-out PR #20 (week13 → main) | `main` | merged `2026-05-13` via `772deb3` |
 
 **Sorun.** W13-3 iki-fazlı cancel `running → cancelling → cancelled`
 state machine'i kuruyor; `cancel_analysis_job` (`lifecycle.py:128-156`)

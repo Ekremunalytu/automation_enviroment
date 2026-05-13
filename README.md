@@ -69,8 +69,9 @@ multi-tenant web platform.
   snapshot lock + lifecycle-helper-not-wrapper deadlock avoidance +
   2-fact AST gate + 4 post-landing behavioral pins (vanished row +
   finalize idempotency + failed/cancelled terminal); test bar 1542 →
-  1547 → 1551 / tests/architecture/ 115 → 117). Close-out PR
-  `week13 → main` **READY** (close-gate cleared `2026-05-13`). Tracker:
+  1547 → 1551 / tests/architecture/ 115 → 117). Close-out PR #20
+  `week13 → main` **MERGED** `2026-05-13` via `772deb3` (close-gate
+  cleared pre-merge). Tracker:
   [`active-work/W13-test-expansion-observability.md`](documents/active-work/W13-test-expansion-observability.md).
 - **Canonical source of truth for phase state:**
   [`documents/REFACTOR_STATUS.md`](documents/REFACTOR_STATUS.md).
