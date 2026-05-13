@@ -41,6 +41,9 @@ APPROVED_PREFIXES: tuple[str, ...] = (
     "extrace.packages.",
 )
 FACTORY_FUNCTION_NAME = "get_extrace_logger"
+LOGGING_MODULE_PATH = REPO_ROOT / "appcore" / "logging.py"
+HOST_MODULE_PATH = REPO_ROOT / "executor" / "host.py"
+RUN_ID_ENV_LITERAL = "EXTRACE_EPOCH_RUN_ID"
 
 
 def _is_logging_get_logger_call(node: ast.Call) -> bool:
@@ -233,3 +236,163 @@ def test_string_literal_first_arg_returns_none_for_name_arg() -> None:
         node for node in ast.walk(tree) if isinstance(node, ast.Call)
     )
     assert _string_literal_first_arg(call) is None
+
+
+# ---------------------------------------------------------------------------
+# Invariant 3 (W14-5 sub-commit 2) — LogContextFilter body stamps run_id
+# from the canonical env var literal so the structured-field contract
+# holds even if the constant import is refactored.
+# ---------------------------------------------------------------------------
+
+
+def _function_body_references_run_id_env_literal(func: ast.FunctionDef) -> bool:
+    for node in ast.walk(func):
+        if isinstance(node, ast.Constant) and node.value == RUN_ID_ENV_LITERAL:
+            return True
+        if isinstance(node, ast.Name) and node.id == "RUN_ID_ENV_VAR":
+            return True
+    return False
+
+
+def _function_body_sets_record_run_id(func: ast.FunctionDef) -> bool:
+    for node in ast.walk(func):
+        if not isinstance(node, ast.Assign):
+            continue
+        for target in node.targets:
+            if (
+                isinstance(target, ast.Attribute)
+                and target.attr == "run_id"
+                and isinstance(target.value, ast.Name)
+                and target.value.id == "record"
+            ):
+                return True
+    return False
+
+
+def test_stamp_record_body_stamps_run_id_from_env_literal() -> None:
+    """The ``_stamp_record`` helper in ``appcore/logging.py`` is the
+    single chokepoint shared by the W14-5 ``LogContextFilter.filter``
+    method and the ``_make_extrace_log_record_factory`` LogRecord
+    factory wrapper. Both call sites delegate to ``_stamp_record``;
+    if a future refactor inlines them or drops the env var reference,
+    this gate fires before silent regression lands.
+    """
+    tree = ast.parse(LOGGING_MODULE_PATH.read_text(encoding="utf-8"))
+    stamp_fn: ast.FunctionDef | None = None
+    for stmt in tree.body:
+        if isinstance(stmt, ast.FunctionDef) and stmt.name == "_stamp_record":
+            stamp_fn = stmt
+            break
+    assert stamp_fn is not None, (
+        "_stamp_record() helper must exist in appcore/logging.py — "
+        "it is the single chokepoint for the W14-5 structured-field "
+        "contract shared by the filter form and the LogRecord factory."
+    )
+
+    assert _function_body_references_run_id_env_literal(stamp_fn), (
+        "_stamp_record() must reference EXTRACE_EPOCH_RUN_ID "
+        "(via RUN_ID_ENV_VAR constant or string literal) so run-ID "
+        "stamping cannot silently drop. W14-5 sub-commit 2 invariant."
+    )
+    assert _function_body_sets_record_run_id(stamp_fn), (
+        "_stamp_record() must assign to record.run_id so "
+        "the structured-field contract on the LogRecord is satisfied. "
+        "W14-5 sub-commit 2 invariant."
+    )
+
+
+def test_log_context_filter_and_factory_both_route_through_stamp_record() -> None:
+    """The ``LogContextFilter.filter`` method and the
+    ``_make_extrace_log_record_factory`` closure must both delegate
+    to ``_stamp_record`` so the structured-field contract has exactly
+    one chokepoint. Inlining either path would diverge the W14-5
+    contract from the central helper.
+    """
+    tree = ast.parse(LOGGING_MODULE_PATH.read_text(encoding="utf-8"))
+
+    def _delegates_to_stamp_record(func: ast.FunctionDef) -> bool:
+        for node in ast.walk(func):
+            if (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Name)
+                and node.func.id == "_stamp_record"
+            ):
+                return True
+        return False
+
+    filter_method: ast.FunctionDef | None = None
+    factory_outer: ast.FunctionDef | None = None
+    for node in ast.walk(tree):
+        if (
+            isinstance(node, ast.FunctionDef)
+            and node.name == "filter"
+            and any(
+                isinstance(parent_class, ast.ClassDef)
+                and parent_class.name == "LogContextFilter"
+                for parent_class in ast.walk(tree)
+                if isinstance(parent_class, ast.ClassDef)
+                and node in parent_class.body
+            )
+        ):
+            filter_method = node
+        if (
+            isinstance(node, ast.FunctionDef)
+            and node.name == "_make_extrace_log_record_factory"
+        ):
+            factory_outer = node
+
+    assert filter_method is not None, (
+        "LogContextFilter.filter must exist in appcore/logging.py."
+    )
+    assert factory_outer is not None, (
+        "_make_extrace_log_record_factory must exist in appcore/logging.py."
+    )
+    assert _delegates_to_stamp_record(filter_method), (
+        "LogContextFilter.filter must call _stamp_record(record) so "
+        "the structured-field contract stays in a single chokepoint."
+    )
+    assert _delegates_to_stamp_record(factory_outer), (
+        "_make_extrace_log_record_factory must call _stamp_record(record) "
+        "inside the wrapper so the factory and the filter form share "
+        "the same stamping logic."
+    )
+
+
+# ---------------------------------------------------------------------------
+# Invariant 4 (W14-5 sub-commit 2 — M5 byproduct) — _run_docker_exec
+# propagates EXTRACE_EPOCH_RUN_ID across the docker exec boundary.
+# ---------------------------------------------------------------------------
+
+
+def test_run_docker_exec_propagates_run_id_env() -> None:
+    tree = ast.parse(HOST_MODULE_PATH.read_text(encoding="utf-8"))
+    run_docker_exec: ast.FunctionDef | None = None
+    for node in ast.walk(tree):
+        if (
+            isinstance(node, ast.FunctionDef)
+            and node.name == "_run_docker_exec"
+        ):
+            run_docker_exec = node
+            break
+    assert run_docker_exec is not None, (
+        "executor.host._run_docker_exec must exist — the docker exec "
+        "wrapper is the M5 propagation seam."
+    )
+
+    body_text = ast.unparse(run_docker_exec)
+    assert (
+        "RUN_ID_ENV_VAR" in body_text or RUN_ID_ENV_LITERAL in body_text
+    ), (
+        "_run_docker_exec must reference EXTRACE_EPOCH_RUN_ID "
+        "(via RUN_ID_ENV_VAR constant or literal) so the host-side "
+        "run-ID propagates across the docker exec boundary. "
+        "W14-5 sub-commit 2 — closes "
+        "[FOLLOWUP codex-2026-05-10-M5-epoch-docker-exec-propagation]."
+    )
+    assert (
+        "env_args" in body_text or "-e" in body_text
+    ), (
+        "_run_docker_exec must inject the run-ID into the docker exec "
+        "argv (typically by appending to ``env_args`` so it becomes a "
+        "``-e EXTRACE_EPOCH_RUN_ID=...`` arg). W14-5 sub-commit 2."
+    )

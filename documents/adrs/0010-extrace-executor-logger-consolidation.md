@@ -70,18 +70,20 @@ yeni bir prefix eklemek `appcore/logging.py:_APPROVED_PREFIXES` +
 `tests/architecture/test_logger_consolidation.py:APPROVED_PREFIXES`
 güncellemesi + bu ADR'a satır eklemeyi gerektirir.
 
-### 2. Tek factory + tek filter
+### 2. Tek factory + tek LogRecord stamping mekanizması
 
-`appcore/logging.py` üç public sembol export eder:
+`appcore/logging.py` aşağıdaki public sembolleri export eder:
 
 - `get_extrace_logger(name) -> logging.Logger`
-- `LogContextFilter` (logging.Filter alt sınıfı)
+- `LogContextFilter` (logging.Filter alt sınıfı; standalone kullanım için)
 - `install_extrace_log_context_filter() -> None`
+- `set_executor_fingerprint_provider(provider)` (W14-5 sub-commit 3)
 
 `get_extrace_logger("extrace.workflows.marketplace.client")` çağrısı,
 `logging.getLogger(...)`'in doğrudan eşdeğeridir; tek farkı namespace
-validation yapmasıdır. `LogContextFilter` her `LogRecord`'a üç structured
-alan stamp'ler:
+validation yapmasıdır.
+
+**Structured-field contract.** Her `LogRecord` üç alan stamp alır:
 
 - `record.run_id` — `EXTRACE_EPOCH_RUN_ID` env var'ının emit anındaki
   değeri (yoksa boş string).
@@ -93,8 +95,34 @@ alan stamp'ler:
   caller `extra={"thread_name": ...}` ile explicit override
   etmemişse).
 
-`install_extrace_log_context_filter()` filter'ı `extrace` parent
-logger'ına bağlar. Idempotent: tekrar çağrı no-op.
+**Stamping mekanizması: global LogRecord factory.**
+`install_extrace_log_context_filter()` Python `logging` framework'ünün
+`setLogRecordFactory(...)` hook'unu kullanarak her `LogRecord`'u
+yaratıldığı anda stamp'ler. Idempotent: wrapper factory üzerinde
+`_is_extrace_factory=True` sentinel taşıdığı için tekrar çağrı
+no-op. Mevcut bir third-party factory varsa (örn. başka bir
+gözlemlenebilirlik kütüphanesi) onu da chain'ler — base factory'nin
+ürettiği attribute'lar korunur, W14-5 alanları üstüne stamp edilir.
+
+**Neden parent-logger filter değil.** Python `logging` framework'ü
+`Logger.callHandlers()` sırasında parent logger'lara propagate
+ederken parent'in `filters` listesini çalıştırmaz — sadece
+`handlers`'ı çalıştırır. Bu, `extrace` parent'ina bir filter
+eklemenin child logger'ların emit'lerinde **etkili olmadığı**
+anlamına gelir (filter sadece kayıt o logger'da originate olduğunda
+çalışır). W14-5 sub-commit 1 ilk olarak parent-logger filter
+yaklaşımını denedi; sub-commit 2 W14-5'in entegrasyon testleri
+yazılırken bu Python davranışı keşfedildi ve install hook'u
+`setLogRecordFactory(...)` chokepoint'ine retarget edildi. Tek
+emit-time chokepoint olduğu için LogRecord factory her child
+logger'ı, her thread'i, her propagation path'ini kapsar.
+
+**`LogContextFilter` class'ı neden hala var.** Stamping logic'i
+factory ve filter form'larında ortak bir helper (`_stamp_record`)
+üzerinden gider. Filter form'u, factory'nin global override'ından
+bağımsız olarak belirli bir handler'a iliştirmek isteyen veya
+tek bir test'in factory'yi izole etmek isteyen caller'lar için
+korunur.
 
 ### 3. Migration scope
 

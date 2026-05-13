@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import contextlib
+import os
 import re
 import stat
 import subprocess
 import time
 from pathlib import Path
+from typing import Final
 
 from executor.binary_paths import (
     CODE_PATH,
@@ -19,6 +21,15 @@ from executor.binary_paths import (
 from executor.config import settings
 from packages.analysis_contracts.evidence import redact_secrets
 from packages.marketplace_identity import safe_marketplace_slug
+
+# W14-5 (M5: `[FOLLOWUP codex-2026-05-10-M5-epoch-docker-exec-propagation]`):
+# Literal mirrors `appcore.logging.RUN_ID_ENV_VAR` and the same name
+# used by `executor/container/start.sh:29` and
+# `executor/flows/playwright/stimulus/attempts.py:153`. Duplicated by
+# design — the import-graph gate forbids `executor/` from importing
+# `appcore.*`, and centralizing the literal would require a `packages/`
+# detour for a single-token constant.
+RUN_ID_ENV_VAR: Final[str] = "EXTRACE_EPOCH_RUN_ID"
 
 
 class ExecutorError(Exception):
@@ -90,6 +101,15 @@ def _run_docker_exec(
     # matches the existing convention and lets a single masking helper
     # cover both stdout and exception messages.
     env_args: list[str] = []
+    # W14-5 (M5: `[FOLLOWUP codex-2026-05-10-M5-epoch-docker-exec-propagation]`):
+    # propagate ``EXTRACE_EPOCH_RUN_ID`` across the docker exec boundary
+    # so emit on the container side carries the same run-ID as host-side
+    # emit. Allows operator log correlation per scan without explicit
+    # plumbing at every call site. An empty / unset value is not
+    # forwarded (no spurious `-e EXTRACE_EPOCH_RUN_ID=` arg).
+    host_run_id = os.environ.get(RUN_ID_ENV_VAR, "")
+    if host_run_id:
+        env_args.extend(["-e", f"{RUN_ID_ENV_VAR}={host_run_id}"])
     if extra_env:
         for key, value in extra_env.items():
             env_args.extend(["-e", f"{key}={value}"])

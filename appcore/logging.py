@@ -62,41 +62,80 @@ def get_extrace_logger(name: str) -> logging.Logger:
     return logging.getLogger(name)
 
 
-class LogContextFilter(logging.Filter):
-    """Stamp every ``LogRecord`` with the W14-5 structured-field contract.
+def _stamp_record(record: logging.LogRecord) -> None:
+    """Apply the W14-5 structured-field contract to ``record``.
 
-    - ``record.run_id`` — value of ``EXTRACE_EPOCH_RUN_ID`` at emit time,
-      or the empty string when the env var is unset.
-    - ``record.executor_fingerprint`` — short fingerprint string supplied
-      by the registered provider (W14-5 sub-commit 3 wires
+    - ``record.run_id`` — value of ``EXTRACE_EPOCH_RUN_ID`` at emit
+      time, or the empty string when the env var is unset.
+    - ``record.executor_fingerprint`` — short fingerprint string
+      supplied by the registered provider (W14-5 sub-commit 3 wires
       ``executor.runtime_fingerprint.executor_fingerprint``); empty
       string when no provider is registered.
-    - ``record.thread_name`` — current thread name (only added when not
-      already present, so explicit ``extra={"thread_name": ...}``
+    - ``record.thread_name`` — current thread name (only added when
+      not already present, so explicit ``extra={"thread_name": ...}``
       overrides win).
+    """
+    record.run_id = os.environ.get(RUN_ID_ENV_VAR, "")
+    provider = _fingerprint_provider
+    record.executor_fingerprint = provider() if provider is not None else ""
+    if not hasattr(record, "thread_name"):
+        record.thread_name = threading.current_thread().name
+
+
+class LogContextFilter(logging.Filter):
+    """Standalone filter form of the W14-5 structured-field contract.
+
+    Use this form to stamp records on a specific handler when the
+    global ``LogRecord`` factory installed by
+    :func:`install_extrace_log_context_filter` is not in scope (e.g.
+    inside isolated tests, or when a third-party logging integration
+    has already overridden the factory). In production code the
+    global factory is the preferred path — it stamps every record at
+    creation time, before any handler / filter runs, so child loggers
+    inherit the contract automatically (the standard ``logging``
+    framework does not propagate filters from parent loggers to
+    children during ``callHandlers``).
     """
 
     def filter(self, record: logging.LogRecord) -> bool:
-        record.run_id = os.environ.get(RUN_ID_ENV_VAR, "")
-        provider = _fingerprint_provider
-        record.executor_fingerprint = provider() if provider is not None else ""
-        if not hasattr(record, "thread_name"):
-            record.thread_name = threading.current_thread().name
+        _stamp_record(record)
         return True
 
 
-def install_extrace_log_context_filter() -> None:
-    """Attach :class:`LogContextFilter` to the ``extrace`` parent logger.
+def _make_extrace_log_record_factory(base_factory):
+    """Wrap ``base_factory`` so every produced ``LogRecord`` is stamped
+    with the W14-5 structured-field contract before it is returned."""
 
-    Idempotent: re-running is a no-op. Call from executor entry points
-    and the FastAPI startup hook so every emit under the ``extrace.*``
-    namespace carries the structured-field contract.
+    def _extrace_factory(*args, **kwargs) -> logging.LogRecord:
+        record = base_factory(*args, **kwargs)
+        _stamp_record(record)
+        return record
+
+    _extrace_factory._is_extrace_factory = True  # type: ignore[attr-defined]
+    return _extrace_factory
+
+
+def install_extrace_log_context_filter() -> None:
+    """Install the W14-5 ``LogRecord`` factory so every record carries
+    the structured-field contract.
+
+    Idempotent: subsequent calls no-op if the factory is already in
+    place (the wrapper carries an ``_is_extrace_factory`` sentinel).
+    Call from executor entry points and the FastAPI startup hook so
+    every emit under the ``extrace.*`` namespace inherits the run-ID
+    and fingerprint stamping without per-call wiring.
+
+    The function name preserves W14-5 sub-commit 1's API contract;
+    sub-commit 2 retargets the implementation from a parent-logger
+    filter (which the Python ``logging`` framework does not propagate
+    to child loggers during ``callHandlers``) to a global
+    ``LogRecord`` factory — the only emit-time chokepoint that
+    actually catches every record.
     """
-    extrace_root = logging.getLogger(EXTRACE_LOGGER_ROOT)
-    for existing in extrace_root.filters:
-        if isinstance(existing, LogContextFilter):
-            return
-    extrace_root.addFilter(LogContextFilter())
+    current = logging.getLogRecordFactory()
+    if getattr(current, "_is_extrace_factory", False):
+        return
+    logging.setLogRecordFactory(_make_extrace_log_record_factory(current))
 
 
 def set_executor_fingerprint_provider(provider: Callable[[], str] | None) -> None:

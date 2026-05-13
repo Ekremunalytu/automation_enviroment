@@ -19,7 +19,6 @@ import logging
 import pytest
 
 from appcore.logging import (
-    EXTRACE_LOGGER_ROOT,
     RUN_ID_ENV_VAR,
     LogContextFilter,
     LoggerNamespaceError,
@@ -167,53 +166,89 @@ def test_log_context_filter_preserves_explicit_thread_name() -> None:
 
 
 # ---------------------------------------------------------------------------
-# install_extrace_log_context_filter idempotency
+# install_extrace_log_context_filter idempotency (W14-5 sub-commit 2: the
+# install hook wires the LogRecord factory so emit-time stamping catches
+# every record. Earlier sub-commit 1 wired a parent-logger filter which
+# the Python logging framework does not propagate to children during
+# ``callHandlers``; the factory is the actual emit-time chokepoint.)
 # ---------------------------------------------------------------------------
 
 
 @pytest.fixture()
-def _reset_extrace_filters():
-    extrace = logging.getLogger(EXTRACE_LOGGER_ROOT)
-    original_filters = list(extrace.filters)
-    extrace.filters = []
+def _reset_log_record_factory():
+    original_factory = logging.getLogRecordFactory()
     try:
-        yield extrace
+        yield original_factory
     finally:
-        extrace.filters = original_filters
+        logging.setLogRecordFactory(original_factory)
 
 
-def test_install_extrace_log_context_filter_attaches_filter(
-    _reset_extrace_filters,
+def test_install_extrace_log_context_filter_swaps_log_record_factory(
+    _reset_log_record_factory,
 ) -> None:
     install_extrace_log_context_filter()
-    matched = [
-        f for f in _reset_extrace_filters.filters if isinstance(f, LogContextFilter)
-    ]
-    assert len(matched) == 1
+    factory = logging.getLogRecordFactory()
+    assert getattr(factory, "_is_extrace_factory", False) is True
 
 
 def test_install_extrace_log_context_filter_is_idempotent(
-    _reset_extrace_filters,
+    _reset_log_record_factory,
 ) -> None:
     install_extrace_log_context_filter()
+    first_factory = logging.getLogRecordFactory()
     install_extrace_log_context_filter()
     install_extrace_log_context_filter()
-    matched = [
-        f for f in _reset_extrace_filters.filters if isinstance(f, LogContextFilter)
-    ]
-    assert len(matched) == 1
+    second_factory = logging.getLogRecordFactory()
+    assert first_factory is second_factory
 
 
-def test_install_extrace_log_context_filter_propagates_to_children(
-    _reset_extrace_filters, monkeypatch: pytest.MonkeyPatch
+def test_installed_factory_stamps_records_with_run_id(
+    _reset_log_record_factory, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """A child logger under ``extrace.*`` must inherit the parent filter
-    so emit-time the structured fields are stamped end-to-end."""
+    """The installed factory must stamp ``run_id`` on every produced
+    record, regardless of which logger created it."""
     install_extrace_log_context_filter()
-    monkeypatch.setenv(RUN_ID_ENV_VAR, "epoch-child-propagation")
+    monkeypatch.setenv(RUN_ID_ENV_VAR, "epoch-factory-stamp")
 
-    child = get_extrace_logger("extrace.executor.host")
-    record = _make_record(name=child.name)
-    for filt in _reset_extrace_filters.filters:
-        filt.filter(record)
-    assert record.run_id == "epoch-child-propagation"
+    factory = logging.getLogRecordFactory()
+    record = factory(
+        "extrace.executor.host",
+        logging.WARNING,
+        __file__,
+        1,
+        "msg",
+        (),
+        None,
+    )
+    assert record.run_id == "epoch-factory-stamp"
+
+
+def test_installed_factory_chains_third_party_factory(
+    _reset_log_record_factory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """If a third-party LogRecord factory was installed before the
+    extrace install hook, the extrace wrapper must call it first so
+    its attributes survive — then stamp the W14-5 fields on top.
+    """
+
+    def _third_party(*args, **kwargs):
+        record = logging.LogRecord(*args, **kwargs)
+        record.third_party_marker = "present"
+        return record
+
+    logging.setLogRecordFactory(_third_party)
+    install_extrace_log_context_filter()
+    monkeypatch.setenv(RUN_ID_ENV_VAR, "epoch-chained")
+
+    factory = logging.getLogRecordFactory()
+    record = factory(
+        "extrace.executor.host",
+        logging.INFO,
+        __file__,
+        1,
+        "msg",
+        (),
+        None,
+    )
+    assert record.third_party_marker == "present"
+    assert record.run_id == "epoch-chained"

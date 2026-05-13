@@ -8,6 +8,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from sqlalchemy.exc import SQLAlchemyError
 
 from appcore.api.config import settings
+from appcore.logging import install_extrace_log_context_filter
 from workflows.activation_reports.router import router as activation_reports_router
 from workflows.extension_catalog.router import router as extension_catalog_router
 from workflows.marketplace.job_service import recover_interrupted_jobs
@@ -36,6 +37,10 @@ def should_recover_interrupted_jobs() -> bool:
 def create_app(*, recover_jobs: bool = True) -> FastAPI:
     """Application factory — creates and configures the FastAPI instance."""
     validate_runtime_settings()
+    # W14-5: install the `extrace.*` LogContextFilter early so every log
+    # record emitted across the app lifetime carries the W14-5 structured
+    # field contract (run_id, executor_fingerprint). Idempotent.
+    install_extrace_log_context_filter()
     application = FastAPI(
         title=settings.project.NAME,
         description=settings.project.DESCRIPTION,
