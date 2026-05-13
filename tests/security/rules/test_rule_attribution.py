@@ -53,6 +53,7 @@ def _a1_events(
             "summary": "Credential file read",
             "is_target_extension_event": is_target,
             "attribution_status": attribution,
+            "raw_context": {"event_class": "file"},
         },
         {
             "event_id": "network-0001",
@@ -116,6 +117,7 @@ def _a4_events(
             "summary": "Workspace secret read",
             "is_target_extension_event": is_target,
             "attribution_status": attribution,
+            "raw_context": {"event_class": "file"},
         },
         {
             "event_id": "network-0001",

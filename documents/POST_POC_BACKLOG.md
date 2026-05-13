@@ -58,7 +58,7 @@ Stable IDs `W14-N` are assigned at first pull (W11/W12/W13 precedent). Full per-
 | W14-1 | `[BUG scenario-dropout-upstream-root-cause]` | in progress — downgraded HIGH `2026-05-13` | BLOCKER triage landed on `week14` (deterministic repro matrix at `tests/security/test_scenario_dropout_repro.py` covers 5 known dropout vectors; conservation guard at `scenario_accountant.py:392-438` is the deterministic fix-of-record). Upstream emit-site work tracked under `[FOLLOWUP scenario-accountant-conservation-split]` |
 | W14-2 | `[FOLLOWUP codex-2026-05-10-M4-M7-output-ts-range-validation]` + `[FOLLOWUP codex-2026-05-10-M11-report-health-malformed-types]` | **closed** `2026-05-13` | Input validation cluster landed on `week14`: M4-M7 via `_coerce_safe_epoch_s` chokepoint at `executor/flows/playwright/signals/output.py`; M11 via `_safe_int_coerce` helper at `workflows/marketplace/analysis_reports.py`. 2 arch gates + 51 behavioral regression cases. |
 | W14-3 | `[FOLLOWUP codex-2026-05-10-M13-network-uri-summary-redaction]` + `[FOLLOWUP codex-2026-05-10-M14b-cdp-port-default-disabled]` + `[FOLLOWUP codex-2026-05-10-U4-U12-makefile-shell-quoting]` | **closed** `2026-05-13` | External surface hardening cluster landed on `week14`: M13 via `redact_secrets()` routing for `NetworkEvent.path` + `summary` at `runtime_capture/network.py`; M14b via empty default + conditional CDP flag across `launch_vscode.sh`/`start.sh`/`docker-compose.yml`/`Makefile up-debug` (posture: opt-in `EXECUTOR_CDP_PORT`); U4-U12 via validation + quoted expansion in `Makefile` `sim-target`/`sim-run`. 3 arch gates + 10 behavioral cases. |
-| W14-4 | `[FOLLOWUP analysis-jobs-race]` + `[FOLLOWUP evidence-event-kind-raw-context-invariant]` | scoped — not started | Doğruluk + concurrency; analysis-jobs-race CRITICAL (W13-4.4 race window dokümante); evidence-event-kind RED stub adı planlandı, henüz yazılmadı |
+| W14-4 | `[FOLLOWUP analysis-jobs-race]` + `[FOLLOWUP evidence-event-kind-raw-context-invariant]` | **closed** `2026-05-13` | Doğruluk + concurrency cluster landed on `week14`. analysis-jobs-race: `complete_analysis_job` + `fail_analysis_job` now acquire `select(...).with_for_update()` and gate against `_TERMINAL_JOB_STATUSES` (W13-3 lock-discipline mirror). evidence-event-kind: `EvidenceEvent` carries a closed 9-kind allowlist (`_EVIDENCE_EVENT_KIND_TO_EVENT_CLASS`) + `@model_validator(mode='after')` raising on mismatch or unknown kind. 2 arch gates (+4 cases) + 65 behavioral cases (9 positive + 54 mismatch + 1 unknown + 1 default-rc edge) + 3 new concurrency cases + 5 drifted fixtures repaired. |
 | W14-5 | `[GOAL w14-logger-consolidation]` + `[GOAL w14-run-id-stamping]` (yeni stable ID'ler) + `[FOLLOWUP codex-automation-5]` | scoped — not started | §11.10 GOAL devamı W13'ten devreden + automation runtime fingerprint (sibling tema); M5 (`epoch-docker-exec-propagation`) doğal yan ürün adayı |
 | W14-6 | `[FOLLOWUP arch-gate-executor-control-outbound]` + `[FOLLOWUP arch-gate-bare-binary-pragma-ratchet]` + `[FOLLOWUP w8-4-variable-indirect-subprocess-coverage]` | scoped — not started | §11.10 GOAL devamı — W8-W12 regression lock-in umbrella; AST-tabanlı 3 yeni arch gate |
 
@@ -156,8 +156,15 @@ evidence.
 - ~~`[FOLLOWUP simulation-progress-cancel] is-job-cancelled-session-churn`~~ —
   closed via W13-3.
 - `[FOLLOWUP simulation-progress-cancel] heartbeat-refactor`
-- `[FOLLOWUP analysis-jobs-race]` **(W14-4)** — W13-4.4 documented the
-  remaining `complete_analysis_job` race window; CRITICAL race surface.
+- ~~`[FOLLOWUP analysis-jobs-race]`~~ **closed via W14-4 `2026-05-13`** —
+  W13-4.4 documented the `complete_analysis_job` race window (CRITICAL).
+  W14-4 closes by extending the W13-3 lock discipline:
+  `complete_analysis_job` (`lifecycle.py:319`) and `fail_analysis_job`
+  (`lifecycle.py:260`) now acquire `select(...).with_for_update()` and
+  raise `JobNotCancellableError` on any `_TERMINAL_JOB_STATUSES` source
+  state in addition to the existing `cancelling` guard. Concurrent
+  writers serialize through the lock and exactly one commits the
+  terminal transition.
 - `[FOLLOWUP analysis-thread-supervisor]`
 - `[FOLLOWUP job-service-typevar-audit]`
 - `[FOLLOWUP sqlalchemy-error-subtype-logging]`
@@ -208,9 +215,21 @@ evidence.
   pre-save synchronization pass is the likely fix shape. Lane:
   `[contracts]` `[platform-storage]`. W15+ hygiene; not a W14 sub-iter
   candidate.
-- `[FOLLOWUP evidence-event-kind-raw-context-invariant]` **(W14-4)** — RED
-  stub adı planlandı: `test_evidence_event_rejects_kind_event_class_mismatch`;
-  stub henüz yazılmadı.
+- ~~`[FOLLOWUP evidence-event-kind-raw-context-invariant]`~~ **closed via
+  W14-4 `2026-05-13`** — `EvidenceEvent` now carries a
+  `@model_validator(mode='after')` enforcing a closed 9-kind allowlist
+  (`_EVIDENCE_EVENT_KIND_TO_EVENT_CLASS` in
+  `packages/analysis_contracts/contracts.py`): 7 strict 1:1 producer
+  kinds + 2 alias kinds (`extension_host` → `activation`,
+  `log` → `scenario`). Mismatched pairs and unknown kinds raise
+  `ValueError` at ingest; downstream rule helpers in
+  `_common.py` no longer mask silent drift via getattr defaults. RED
+  stub `test_evidence_event_rejects_kind_event_class_mismatch` plus
+  positive / unknown / default-rc edge cases (65 total) landed at
+  `tests/platform/contracts/test_raw_context_discriminated.py`. 5
+  drifted fixtures repaired in-PR (3 malicious-canary
+  `activation_report.json` + 2 inline test builders) — the same drift
+  surface the audit flagged.
 - `[FOLLOWUP event-attempt-verification-status-validator]`
 - `[FOLLOWUP report-invariants-runtime-evidence-drift]`
 - `[FOLLOWUP compute-verdict-table-driven-test]`

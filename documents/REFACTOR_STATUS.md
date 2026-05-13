@@ -1,6 +1,6 @@
 # Refactor Status
 
-`Last Updated: 2026-05-13 (W14 active; W14-1 in progress (BLOCKER -> HIGH downgraded); W14-2 closed via bde17be; W14-3 closed via 941250d; week14 branch cut from main at 69251f1; W13 close-out PR #20 week13 -> main merged via 772deb3)`
+`Last Updated: 2026-05-13 (W14 active; W14-1 BLOCKER -> HIGH downgraded; W14-2 closed via bde17be; W14-3 closed via 941250d; W14-4 closed; week14 branch cut from main at 69251f1; W13 close-out PR #20 week13 -> main merged via 772deb3)`
 
 Active status board for current closure state. **Slim canonical** — verbose
 phase evidence is frozen under dated snapshots:
@@ -64,7 +64,10 @@ phase evidence is frozen under dated snapshots:
   output-ts range + M11 report-health malformed types) closed `2026-05-13`
   via `bde17be`. W14-3 (M13 network URI/summary redaction + M14b CDP
   default-disabled + U4-U12 Makefile shell-quoting) closed `2026-05-13`
-  via `941250d`. W14-4, W14-5, W14-6 scoped but not pulled.
+  via `941250d`. W14-4 (analysis-jobs-race lock symmetry on
+  `complete_analysis_job` / `fail_analysis_job` + EvidenceEvent
+  kind↔event_class invariant via closed 9-kind allowlist) closed
+  `2026-05-13`. W14-5, W14-6 scoped but not pulled.
 
 ## W13 Status Summary
 
@@ -79,8 +82,9 @@ phase evidence is frozen under dated snapshots:
 
 - `[FOLLOWUP w13-4-alembic-roundtrip-programmatic]` — programmatic Alembic
   upgrade/downgrade test remains deferred pending a fresh-DB-per-test fixture.
-- `[FOLLOWUP analysis-jobs-race]` — W13-4.4 documented the
-  `complete_analysis_job` / `cancel_analysis_job` race window; pull W14+.
+- `[FOLLOWUP analysis-jobs-race]` — **closed** by W14-4 on `2026-05-13`;
+  `complete_analysis_job` + `fail_analysis_job` now acquire
+  `with_for_update()` and gate against `_TERMINAL_JOB_STATUSES`.
 - `[FOLLOWUP simulation-progress-cancel]` remaining subitems:
   `heartbeat-sandbox-reset-off-thread`, `dedupe-step-progress-schemas`, and
   `heartbeat-refactor` iterate after W13-3.

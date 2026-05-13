@@ -77,8 +77,13 @@ multi-tenant web platform.
   on the `week14` branch (cut from `main` at `69251f1` on `2026-05-13`); see
   [`active-work/W14-codex-acceptance-observability.md`](documents/active-work/W14-codex-acceptance-observability.md).
   W14-1 pulled `2026-05-13` — BLOCKER triage of
-  `[BUG scenario-dropout-upstream-root-cause]`. Remaining `W14-N` stable IDs
-  fill in at first pull.
+  `[BUG scenario-dropout-upstream-root-cause]` (downgraded to HIGH same day).
+  W14-2 (M4-M7 + M11 input validation) closed `2026-05-13` via `bde17be`;
+  W14-3 (M13 + M14b + U4-U12 external-surface hardening) closed
+  `2026-05-13` via `941250d`; W14-4 (analysis-jobs-race lock symmetry on
+  `complete_analysis_job` / `fail_analysis_job` + EvidenceEvent
+  kind↔event_class invariant via closed 9-kind allowlist) closed
+  `2026-05-13`. Remaining `W14-N` stable IDs fill in at first pull.
 - **Canonical source of truth for phase state:**
   [`documents/REFACTOR_STATUS.md`](documents/REFACTOR_STATUS.md).
   Deferred items: [`documents/POST_POC_BACKLOG.md`](documents/POST_POC_BACKLOG.md).

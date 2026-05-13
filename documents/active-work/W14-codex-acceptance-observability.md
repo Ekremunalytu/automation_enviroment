@@ -1,7 +1,7 @@
 # W14 — Codex M-class Acceptance + Observability (Active Work Tracker)
 
-`Last Updated: 2026-05-13 (W14 active; W14-1 pulled; week14 branch cut from main at 69251f1; W13 close-out PR #20 week13 -> main merged via 772deb3)`
-`Phase: W14 active (W14-1 pulled 2026-05-13 — scenario-dropout-upstream-root-cause BLOCKER triage)`
+`Last Updated: 2026-05-13 (W14 active; W14-1 pulled; W14-2/W14-3/W14-4 closed; week14 branch cut from main at 69251f1; W13 close-out PR #20 week13 -> main merged via 772deb3)`
+`Phase: W14 active (W14-4 closed 2026-05-13 — analysis-jobs-race lock symmetry + evidence-event-kind invariant)`
 `Branch: week14 (cut from main 2026-05-13 at HEAD 69251f1; close-out PR opens after W14-6 GREEN)`
 `Owner: ekrem`
 
@@ -114,8 +114,8 @@ audit; `[BUG …]` rows are from `POST_POC_BACKLOG.md` Contracts/Reports/Detecti
 | **W14-3** | `[FOLLOWUP codex-2026-05-10-M13-network-uri-summary-redaction]` (network capture event'lerinin `path` + `summary` alanları secret sızdırıyor; W12-5 gate sadece `*_body_preview`'i kapsıyor; W13-6 factory-internal redaction deseninin tekrarı) | `[security-detection]` `[executor-runtime]` | **closed** `2026-05-13` |
 | **W14-3** | `[FOLLOWUP codex-2026-05-10-M14b-cdp-port-default-disabled]` (VS Code `--remote-debugging-port=9222` auth'suz default-on, container'dan erişilebilir) | `[executor-runtime]` `[security-detection]` | **closed** `2026-05-13` — posture: default-disabled + opt-in via `EXECUTOR_CDP_PORT` env var |
 | **W14-3** | `[FOLLOWUP codex-2026-05-10-U4-U12-makefile-shell-quoting]` (`Makefile` `sim-target`/`sim-run` `$(TARGET)`/`$(SCENARIO)` tırnaksız; shell injection riski; W13-5 dev-lan recipe-fix deseninin tekrarı) | `[security-detection]` | **closed** `2026-05-13` |
-| TBD (W14-4) | `[FOLLOWUP analysis-jobs-race]` (`complete_analysis_job` `with_for_update()` lock'undan yoksun; `cancel_analysis_job` lock var; W13-4.4'te race window dokümante edildi) | `[platform-storage]` `[executor-runtime]` | not started — CRITICAL race window |
-| TBD (W14-4) | `[FOLLOWUP evidence-event-kind-raw-context-invariant]` (`EvidenceEvent.kind` ↔ `raw_context.event_class` eşleşmesi Pydantic'te validate edilmiyor; RED stub adı planlandı: `test_evidence_event_rejects_kind_event_class_mismatch`) | `[security-detection]` `[contracts]` | not started — RED stub henüz yazılmadı |
+| **W14-4** | `[FOLLOWUP analysis-jobs-race]` (`complete_analysis_job` ve `fail_analysis_job` `with_for_update()` lock'undan yoksundu; `cancel_analysis_job` lock var; W13-4.4'te race window dokümante edildi) | `[platform-storage]` `[executor-runtime]` | **closed** `2026-05-13` |
+| **W14-4** | `[FOLLOWUP evidence-event-kind-raw-context-invariant]` (`EvidenceEvent.kind` ↔ `raw_context.event_class` eşleşmesi Pydantic'te validate edilmiyordu; closed 9-kind allowlist + `@model_validator(mode='after')`) | `[security-detection]` `[contracts]` | **closed** `2026-05-13` |
 | TBD (W14-5) | `[§11.10 GOAL]` `extrace.executor.*` logger consolidation (W13'ten devreden; executor logger init + emit pattern'leri worker thread'lerde tutarsız) | `[platform-storage]` | not started — W13'ten W14'e devredildi |
 | TBD (W14-5) | `[§11.10 GOAL]` Run-ID stamping (W13'ten devreden; stable `EXTRACE_EPOCH_RUN_ID` executor çıktıları boyunca propagate + emit; logger consolidation'a bağımlı) | `[platform-storage]` `[executor-runtime]` `[security-detection]` | not started — logger consolidation'a bağımlı |
 | TBD (W14-5) | `[FOLLOWUP codex-automation-5]` (executor runtime fingerprint in automation output for observability — version/build/commit emit at automation run boundary; run-ID stamping ile sibling tema, aynı PR ailesinde yan ürün olarak çekilir) | `[platform-storage]` `[executor-runtime]` | not started — W14-5 PR ailesinin tematik üyesi |
@@ -430,17 +430,18 @@ W14 hedefi (tahminî, iterasyon sonu kümülatif):
 + `make test-security`: 215 → ~225-230 (M-class regression + dropout fixture)
 + `tests/architecture/`: 117 → ~125-127 (yeni 8-10 arch gate)
 
-**Actual cumulative bar (post-W14-3, pre-W14-4):**
+**Actual cumulative bar (post-W14-4):**
 
-| Suite | W13 baseline | W14-1 | W14-2 | W14-3 | Current |
-|---|---|---|---|---|---|
-| `make test-security` | 215 | 222 (+7 dropout repro) | 269 (+47 M4-M7 + M11) | 279 (+10 M13) | **279** |
-| `tests/architecture/` | 117 | 117 (W14-1 updated `test_readme_phase_pointer` in place) | 121 (+4: 2 ts-guard + 2 int-guard) | 131 (+10: 2 uri redaction + 4 cdp default + 4 makefile quoting) | **131** |
-| Broad regression suite (security + arch + executor + workflows/marketplace) | — | — | — | — | **1106 passed / 7 skipped / 4 deselected** (sıfır regresyon) |
+| Suite | W13 baseline | W14-1 | W14-2 | W14-3 | W14-4 | Current |
+|---|---|---|---|---|---|---|
+| `make test-security` | 215 | 222 (+7 dropout repro) | 269 (+47 M4-M7 + M11) | 279 (+10 M13) | 279 (lane subset stable; W14-4 surface lands in `tests/platform/storage/` + `tests/platform/contracts/`) | **279** |
+| `tests/architecture/` | 117 | 117 (W14-1 updated `test_readme_phase_pointer` in place) | 121 (+4: 2 ts-guard + 2 int-guard) | 131 (+10: 2 uri redaction + 4 cdp default + 4 makefile quoting) | 135 (+4: 2 lock-symmetry + 2 kind-invariant) | **135** |
+| Broad regression suite (security + arch + executor + workflows/marketplace) | — | — | — | 1106 | 1110 (+4 arch gates; lock + concurrency cases live under `tests/platform/storage/`) | **1110 passed / 7 skipped / 4 deselected** (sıfır regresyon) |
+| `make test-local` (full sweep) | 1551 | — | — | — | — | **1701 passed / 10 skipped / 8 deselected / 1 xfailed** |
 
-W14-4..W14-6 dilimleri hedefi karşılayacak (`make test-security` ~225-230
-hedefi şimdiden geçilmiş durumda; remaining iter'ler `tests/architecture/`
-hedefini W14-6 umbrella'sıyla kapatacak).
+W14-5..W14-6 dilimleri hedefi karşılayacak; `make test-security` hedefi
+(~225-230) şimdiden geçilmiş durumda, kalan iter'ler
+`tests/architecture/` hedefini W14-6 umbrella'sıyla genişletecek.
 
 ## Per-Item Detail
 
@@ -702,6 +703,120 @@ modules: 2 + 4 + 4).
 
 **No follow-up deferral.** All three audit items collapse to closed in
 `POST_POC_BACKLOG.md` — no W15+ remnant.
+
+### W14-4 — analysis-jobs-race lock symmetry + evidence-event-kind invariant
+
+**Pulled.** `2026-05-13` on `week14`.
+
+**Outcome.** **Closed.** Two correctness items landed under a single
+bundled pull. Both follow the W13-3 / W13-6 invariant-and-test pattern
+established by earlier audit pulls.
+
++ **`[FOLLOWUP analysis-jobs-race]`** (CRITICAL) — `complete_analysis_job`
+  and `fail_analysis_job` now acquire `select(...).with_for_update()`
+  before any state check (mirroring the W13-3 lock discipline at
+  `lifecycle.py:128` / `:181`) and gate against the full
+  `_TERMINAL_JOB_STATUSES` frozenset in addition to the existing
+  `cancelling` guard. Pre-W14-4 a concurrent loser could pass its
+  cached snapshot status check and silently overwrite the winner's
+  terminal write; post-fix the second writer reads the new status
+  under the lock and raises `JobNotCancellableError`. The pre-existing
+  `test_cancel_vs_complete_concurrent_write_final_state_is_consistent`
+  test docstring's "future hardening pass" caveat (lines 183-195) is
+  removed and the assertion tightened to require exactly one winner.
++ **`[FOLLOWUP evidence-event-kind-raw-context-invariant]`** (HIGH) —
+  `EvidenceEvent` now carries a `@model_validator(mode='after')`
+  decorated method that enforces a closed 9-kind allowlist
+  (`_EVIDENCE_EVENT_KIND_TO_EVENT_CLASS` in
+  [packages/analysis_contracts/contracts.py](../../packages/analysis_contracts/contracts.py)).
+  The allowlist contains the 7 strict 1:1 producer kinds plus 2 alias
+  kinds (`extension_host` → `activation`, `log` → `scenario`) that
+  reuse an existing raw_context variant. Pre-W14-4 a producer drift
+  like `kind="network"` + `event_class="file"` was silently accepted
+  and downstream rule helpers in
+  `packages/analysis_engine/rules/_common.py` masked the mismatch via
+  getattr defaults, producing false-negative detections. The closed
+  allowlist also surfaces unrecognized kinds so a future producer
+  cannot drift past ingest.
+
+**Sub-commits (self-stamped post-landing).**
+
+| Sub-commit | Theme | SHA |
+|---|---|---|
+| 1 | analysis-jobs-race lock + terminal guard on `complete_analysis_job` / `fail_analysis_job`; `EvidenceEvent` kind↔event_class invariant + `_EVIDENCE_EVENT_KIND_TO_EVENT_CLASS` allowlist; 65 behavioral cases (9 positive + 54 mismatch + 1 unknown-kind + 1 default-rc edge); 3 new concurrency cases (`complete-vs-fail`, `double-complete`, `double-fail`); existing concurrency-test docstring tightening + exactly-one-winner assertion; 2 new AST architecture gates; fixture drift repair (file-kind events with missing raw_context in 3 malicious-canary activation_report.json + inline test_rule_attribution / test_router fixtures); tracker / backlog / status / CLAUDE / AGENTS sweep | (pending sub-commit 1) |
+| 2 | Self-stamp sub-commit 1 SHA in this table | (this commit) |
+
+**Module locations.**
+
++ Production diff:
+  + [appcore/storage/crud_ops/analysis_jobs/lifecycle.py](../../appcore/storage/crud_ops/analysis_jobs/lifecycle.py)
+    — `complete_analysis_job` (`:314`) and `fail_analysis_job`
+    (`:255`) both rewritten to acquire `with_for_update()` first and
+    raise on `_TERMINAL_JOB_STATUSES`. Diff ~30 net LoC.
+  + [packages/analysis_contracts/contracts.py](../../packages/analysis_contracts/contracts.py)
+    — added `collections.abc.Mapping` import, the
+    `_EVIDENCE_EVENT_KIND_TO_EVENT_CLASS` module-level constant, and
+    the `EvidenceEvent._kind_matches_raw_context_event_class`
+    `@model_validator(mode='after')`. Diff ~45 net LoC.
++ Behavioral regression coverage:
+  + [tests/platform/contracts/test_raw_context_discriminated.py](../../tests/platform/contracts/test_raw_context_discriminated.py)
+    — `_evidence_payload` helper extended with a `kind` parameter; all
+    existing variant tests updated to pass matching `kind`; 65 new
+    cases (9 positive parametrize × full allowlist + 54 mismatch
+    matrix + 1 unknown-kind reject + 1 default-rc edge).
+  + [tests/platform/storage/test_analysis_jobs_concurrency.py](../../tests/platform/storage/test_analysis_jobs_concurrency.py)
+    — `test_cancel_vs_complete_concurrent_write_final_state_is_consistent`
+    docstring + assertions tightened to require exactly one winner;
+    3 new cases (`test_concurrent_complete_vs_fail_exactly_one_winner`,
+    `test_double_complete_rejected_after_completed`,
+    `test_double_fail_rejected_after_failed`).
++ Architecture gates:
+  + [tests/architecture/test_analysis_jobs_lock_symmetry.py](../../tests/architecture/test_analysis_jobs_lock_symmetry.py)
+    — 2 AST cases (lock body invariant on `complete_analysis_job` +
+    `fail_analysis_job`; terminal-status guard on the same two
+    functions).
+  + [tests/architecture/test_evidence_event_kind_invariant.py](../../tests/architecture/test_evidence_event_kind_invariant.py)
+    — 2 AST cases (allowlist key pin on
+    `_EVIDENCE_EVENT_KIND_TO_EVENT_CLASS` + body invariant on the
+    `@model_validator(mode='after')` decorated method inside
+    `EvidenceEvent`).
++ Fixture drift repair (silent producer drift that the new invariant
+  surfaced — the fixtures already had `kind` set but were missing
+  `raw_context` so they defaulted to the scenario variant; the
+  invariant correctly rejected the mismatched pair, and the fix is to
+  populate the expected `raw_context.event_class`):
+  + [extensions/malicious/t1-a1-credential-read-canary/activation_report.json](../../extensions/malicious/t1-a1-credential-read-canary/activation_report.json)
+  + [extensions/malicious/t1-a4-workspace-exfil-canary/activation_report.json](../../extensions/malicious/t1-a4-workspace-exfil-canary/activation_report.json)
+  + [extensions/malicious/t1-demo-runnable-canary/activation_report.json](../../extensions/malicious/t1-demo-runnable-canary/activation_report.json)
+    (2 events)
+  + [tests/security/rules/test_rule_attribution.py](../../tests/security/rules/test_rule_attribution.py)
+    (inline `_a1_events()` + `_a4_events()` file builders)
+  + [tests/workflows/activation_reports/test_router.py](../../tests/workflows/activation_reports/test_router.py)
+    (`test_get_latest_activation` evidence event)
+
+**Test deltas.** `tests/architecture/` 131 → 135 (+4: 2 lock-symmetry +
+2 kind-invariant). `make test-local` lands at 1701 passed / 10 skipped
+/ 8 deselected / 1 xfailed (W13 baseline 1551; W14-4 added the 65
+invariant cases + 3 concurrency cases on top of W14-1/2/3 cumulative).
+Broad regression suite (security + arch + executor +
+workflows/marketplace) lands at 1110 passed (W14-3 baseline 1106;
+delta is the 4 new arch gates — the behavioral lock + concurrency
+cases live under `tests/platform/storage/` outside this subset).
+
+**No follow-up deferral for the audit items.** Both
+`[FOLLOWUP analysis-jobs-race]` and
+`[FOLLOWUP evidence-event-kind-raw-context-invariant]` collapse to
+closed in `POST_POC_BACKLOG.md`. The W15+ UI follow-up
+`[FOLLOWUP ui-raw-context-discriminator-parity]` remains a watching
+item — UI invariant parity is a separate pull now that the backend
+contract is hard-pinned.
+
+**Production validation.** `make test-security` 215 lane stays green
+(the W14-4 surface lives in `tests/platform/storage/` and
+`tests/platform/contracts/`, outside the fixed test-security lane).
+`make test-local` 1701 green confirms the full sweep — including the
+once-drifted canary fixtures that the new invariant correctly
+rejected pre-fix and now ingest cleanly post-fix.
 
 ## W13 Lessons Learned (carry-forward)
 

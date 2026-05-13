@@ -1,6 +1,6 @@
 # AGENTS.md
 
-`Last Updated: 2026-05-13 (W13 closed via PR #20 -> 772deb3; W14 active on week14 branch cut from main at 69251f1; W14-1 in progress (BLOCKER -> HIGH downgraded), W14-2 closed via bde17be, W14-3 closed via 941250d; W14-4..W14-6 scoped but not pulled)`
+`Last Updated: 2026-05-13 (W13 closed via PR #20 -> 772deb3; W14 active on week14 branch cut from main at 69251f1; W14-1 BLOCKER -> HIGH downgraded, W14-2 closed via bde17be, W14-3 closed via 941250d, W14-4 closed; W14-5/W14-6 scoped but not pulled)`
 
 ## Authority
 
@@ -27,8 +27,10 @@
   W14-1 pulled `2026-05-13` and BLOCKER downgraded to HIGH the same day
   (conservation guard landed). W14-2 (M4-M7 + M11) closed `2026-05-13`
   via `bde17be`. W14-3 (M13 + M14b + U4-U12) closed `2026-05-13` via
-  `941250d`. W14-4..W14-6 scoped but not pulled. Past W8/W11/W12/W13
-  trackers remain stable-ID references only.
+  `941250d`. W14-4 (analysis-jobs-race lock symmetry + EvidenceEvent
+  kind↔event_class invariant) closed `2026-05-13`. W14-5, W14-6 scoped
+  but not pulled. Past W8/W11/W12/W13 trackers remain stable-ID
+  references only.
 - ADR 0007 local-network-binding is **Accepted and implemented**; loopback
   defaults + `EXTRACE_ALLOW_LAN` are pinned by `test_default_bindings.py`.
 

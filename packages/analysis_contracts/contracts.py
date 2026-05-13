@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import warnings
+from collections.abc import Mapping
 from typing import Any, Literal
 
 from pydantic import (
@@ -239,6 +240,30 @@ class EventAttemptRecord(StrictContractModel):
         return value
 
 
+# W14-4 [FOLLOWUP evidence-event-kind-raw-context-invariant]: the closed
+# mapping from `EvidenceEvent.kind` (finer-grained producer category) to
+# `raw_context.event_class` (the discriminated-union variant tag). Most
+# kinds map 1:1 to a dedicated raw_context variant
+# (`executor/flows/playwright/attribution/links.py` is the canonical
+# producer of those 7); ``extension_host`` and ``log`` are alias kinds
+# that share an existing raw_context variant because no dedicated
+# variant exists yet. The validator below uses this mapping as the
+# allowlist — new kinds must be added here explicitly so producer drift
+# fails at ingest instead of being masked downstream by getattr defaults
+# in `packages/analysis_engine/rules/_common.py`.
+_EVIDENCE_EVENT_KIND_TO_EVENT_CLASS: Mapping[str, str] = {
+    "scenario": "scenario",
+    "activation": "activation",
+    "extension_host": "activation",
+    "log": "scenario",
+    "ui_blocker": "ui_blocker",
+    "network": "network",
+    "file": "file",
+    "process": "process",
+    "output_channel_appendline": "output_channel_appendline",
+}
+
+
 class EvidenceEvent(StrictContractModel):
     event_id: str
     kind: str
@@ -264,6 +289,34 @@ class EvidenceEvent(StrictContractModel):
     sensitive: bool = False
     summary: str = ""
     raw_context: RawContext = Field(default_factory=ScenarioRawContext)
+
+    @model_validator(mode="after")
+    def _kind_matches_raw_context_event_class(self) -> EvidenceEvent:
+        # W14-4 [FOLLOWUP evidence-event-kind-raw-context-invariant]:
+        # ``kind`` must belong to the closed
+        # ``_EVIDENCE_EVENT_KIND_TO_EVENT_CLASS`` allowlist and the
+        # mapping target must equal ``raw_context.event_class``. Before
+        # this validator the two fields could drift silently (e.g.
+        # ``kind="network"`` + ``event_class="file"``) and downstream
+        # rule helpers in
+        # ``packages/analysis_engine/rules/_common.py`` masked the
+        # mismatch via getattr defaults, producing false-negative
+        # detections. The closed allowlist also surfaces unrecognized
+        # producer kinds so a future drift cannot escape ingest.
+        expected = _EVIDENCE_EVENT_KIND_TO_EVENT_CLASS.get(self.kind)
+        if expected is None:
+            raise ValueError(
+                f"EvidenceEvent.kind={self.kind!r} is not a recognized "
+                f"kind; expected one of "
+                f"{sorted(_EVIDENCE_EVENT_KIND_TO_EVENT_CLASS)}"
+            )
+        if expected != self.raw_context.event_class:
+            raise ValueError(
+                f"EvidenceEvent.kind={self.kind!r} expects "
+                f"raw_context.event_class={expected!r} but got "
+                f"{self.raw_context.event_class!r}"
+            )
+        return self
 
 
 class ProcessEvent(StrictContractModel):

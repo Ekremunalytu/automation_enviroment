@@ -69,7 +69,10 @@
       "path": "/workspace/.extrace-demo/secrets.env",
       "summary": "Read declawed workspace canary file",
       "is_target_extension_event": true,
-      "attribution_status": "strong"
+      "attribution_status": "strong",
+      "raw_context": {
+        "event_class": "file"
+      }
     },
     {
       "event_id": "file-0002",
@@ -79,7 +82,10 @@
       "path": "/home/executor/.ssh/id_rsa",
       "summary": "Synthetic credential-path read used only by offline detection fixture",
       "is_target_extension_event": true,
-      "attribution_status": "strong"
+      "attribution_status": "strong",
+      "raw_context": {
+        "event_class": "file"
+      }
     },
     {
       "event_id": "network-0001",
