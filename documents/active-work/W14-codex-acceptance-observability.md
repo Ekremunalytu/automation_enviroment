@@ -1,6 +1,6 @@
 # W14 — Codex M-class Acceptance + Observability (Active Work Tracker)
 
-`Last Updated: 2026-05-13 (W14 active; W14-1 pulled; week14 branch cut from main at 69251f1)`
+`Last Updated: 2026-05-13 (W14 active; W14-1 pulled; week14 branch cut from main at 69251f1; W13 close-out PR #20 week13 -> main merged via 772deb3)`
 `Phase: W14 active (W14-1 pulled 2026-05-13 — scenario-dropout-upstream-root-cause BLOCKER triage)`
 `Branch: week14 (cut from main 2026-05-13 at HEAD 69251f1; close-out PR opens after W14-6 GREEN)`
 `Owner: ekrem`
@@ -435,7 +435,82 @@ W14 hedefi (tahminî, iterasyon sonu kümülatif):
 Pattern from `W13-test-expansion-observability.md`: each `W14-N` block
 records landing date, commit hashes, module locations new/modified, LoC
 changes, tests added/modified at real module import paths, live-scan
-validation if applicable. **Blocks added at first pull** — currently empty.
+validation if applicable. Blocks are added at first pull.
+
+### W14-1 — `[BUG scenario-dropout-upstream-root-cause]` (BLOCKER → HIGH downgrade)
+
+**Pulled.** `2026-05-13` on `week14` (cut from `main` at `69251f1`).
+
+**Outcome.** **Downgraded BLOCKER → HIGH** with stochastic-bound rationale.
+The last-mile conservation guard
+(`executor/flows/playwright/monitor/scenario_accountant.py:392-438`,
+`_validate_scenario_conservation`) is the deterministic fix-of-record:
+every entry in `requested_scenarios` that is missing from
+`scenarios_run | failed_scenarios | skipped_scenarios` is appended to
+`skipped_scenarios` with `reason_code='unaccounted_dropout'` so the W7
+§10.7 honesty invariant holds end-to-end. Upstream emit-site work
+(planner / `stimulus_passes` / `dispatch._normalize_execution_result`
+scenario-level trace + reason-code propagation) is intentionally
+deferred to `[FOLLOWUP scenario-accountant-conservation-split]` per the
+W14-1 scope lock ("kök neden tespiti + refactor karışmamalı"), and
+becomes a W15+ candidate.
+
+**Sub-commits (self-stamped post-landing).**
+
+| Sub-commit | Theme | SHA |
+|---|---|---|
+| 1 | Branch cut + tracker activation (header sweep across `CLAUDE.md`, `REFACTOR_STATUS.md`, this file) | `34aeeb2` |
+| 2 | Repro fixture + README phase pointer gate update | TBD (self-stamped post-landing) |
+| 3 | Close evidence + BUG downgrade + Per-Item Detail block | TBD (self-stamped post-landing) |
+
+**Module locations.**
+
++ Test surface added: [`tests/security/test_scenario_dropout_repro.py`](../../tests/security/test_scenario_dropout_repro.py)
+  — 7 cases (5-row parametrize matrix + idempotency pin + finalize-time
+  conservation pin). Imports at real module paths
+  (`executor.flows.playwright.monitor.scenario_accountant`,
+  `executor.flows.playwright.monitor.records`,
+  `executor.flows.playwright.monitor.types`).
++ Architecture gate updated: [`tests/architecture/test_readme_phase_pointer.py`](../../tests/architecture/test_readme_phase_pointer.py)
+  — `"W14 staging"` token expectation flipped to `"W14 active"` for the
+  W14-1 pull; W13 close-out tokens (`PR #20`, `week13 -> main`, `772deb3`)
+  preserved in the banner so the close-out fact does not drift while W14
+  iterates.
++ Slim canonical sweep: [`documents/REFACTOR_STATUS.md`](../REFACTOR_STATUS.md),
+  [`documents/POST_POC_BACKLOG.md`](../POST_POC_BACKLOG.md),
+  [`CLAUDE.md`](../../CLAUDE.md), [`README.md`](../../README.md) — phase
+  banner + W14-1 status line updated.
+
+**Test deltas.** `make test-security` 215 → 222 (`+7` repro fixture
+cases). `tests/architecture/` 117 (gate count unchanged; existing
+README-phase gate updated in place rather than replaced).
+
+**Production-code touched.** None — W14-1 is triage-only by scope lock.
+The 648-LoC `scenario_accountant.py` refactor and any upstream
+trace-instrumentation belong to the deferred follow-up
+`[FOLLOWUP scenario-accountant-conservation-split]`.
+
+**Repro matrix coverage** (`tests/security/test_scenario_dropout_repro.py::_DROPOUT_VECTORS`):
+
+| Vector ID | Requested | Ran | Failed | Explicit skip codes | Expected `unaccounted_dropout` |
+|---|---|---|---|---|---|
+| `vec_ms_python_python` | 5 | 3 | 0 | — | `{debug_session, refactor_workflow}` |
+| `vec_stimulus_collapse` | 3 | 0 | 0 | — | `{x1, x2, x3}` |
+| `vec_all_accounted` | 2 | 2 | 0 | — | `∅` |
+| `vec_all_explicit_skip` | 2 | 0 | 0 | `harness_unavailable` ×2 | `∅` |
+| `vec_partial_failed` | 3 | 1 | 1 | `precondition_unmet` ×1 | `∅` |
+
+**Plus** an idempotency case (`second record_execution_result must not
+double-append`) and a finalize-time case (`finalize_running_scenarios`
+also invokes the conservation guard).
+
+**Future work hand-off.** `[FOLLOWUP scenario-accountant-conservation-split]`
+in `POST_POC_BACKLOG.md` Contracts/Reports/Detection section now carries
+the upstream emit-site work (planner / stimulus / dispatch scenario-level
+trace) as a separate W15+ candidate. The W14-1 stochastic-bound
+conclusion (`upstream root cause may vary by extension class, but the
+last-mile guard always catches the dropout`) is the rationale for
+declining to inline that refactor here.
 
 ## W13 Lessons Learned (carry-forward)
 

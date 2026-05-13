@@ -55,7 +55,7 @@ Stable IDs `W14-N` are assigned at first pull (W11/W12/W13 precedent). Full per-
 
 | Iter | Stable ID(s) | Status | Note |
 |---|---|---|---|
-| W14-1 | `[BUG scenario-dropout-upstream-root-cause]` | scoped — not started | BLOCKER triage; deterministik repro fixture + kök neden tespiti; eğer stokastik HIGH'a indir |
+| W14-1 | `[BUG scenario-dropout-upstream-root-cause]` | in progress — downgraded HIGH `2026-05-13` | BLOCKER triage landed on `week14` (deterministic repro matrix at `tests/security/test_scenario_dropout_repro.py` covers 5 known dropout vectors; conservation guard at `scenario_accountant.py:392-438` is the deterministic fix-of-record). Upstream emit-site work tracked under `[FOLLOWUP scenario-accountant-conservation-split]` |
 | W14-2 | `[FOLLOWUP codex-2026-05-10-M4-M7-output-ts-range-validation]` + `[FOLLOWUP codex-2026-05-10-M11-report-health-malformed-types]` | scoped — not started | Input validation cluster; W13-6 parametrize regression deseni; bundle pull |
 | W14-3 | `[FOLLOWUP codex-2026-05-10-M13-network-uri-summary-redaction]` + `[FOLLOWUP codex-2026-05-10-M14b-cdp-port-default-disabled]` + `[FOLLOWUP codex-2026-05-10-U4-U12-makefile-shell-quoting]` | scoped — not started | Dış yüzey sertleştirme; M13 W13-6 factory-internal redaction deseninin tekrarı; U4-U12 W13-5 recipe-fix deseni |
 | W14-4 | `[FOLLOWUP analysis-jobs-race]` + `[FOLLOWUP evidence-event-kind-raw-context-invariant]` | scoped — not started | Doğruluk + concurrency; analysis-jobs-race CRITICAL (W13-4.4 race window dokümante); evidence-event-kind RED stub adı planlandı, henüz yazılmadı |
@@ -134,11 +134,23 @@ evidence.
 
 ### Contracts / Reports / Detection
 
-- `[BUG scenario-dropout-upstream-root-cause]` **(W14-1)** — BLOCKER triage;
-  W14 entry-point iterasyonu.
+- `[BUG scenario-dropout-upstream-root-cause]` **(W14-1; downgraded BLOCKER → HIGH
+  `2026-05-13`)** — W14-1 BLOCKER triage on `week14` landed the deterministic
+  repro matrix at `tests/security/test_scenario_dropout_repro.py` (5 vectors:
+  `vec_ms_python_python`, `vec_stimulus_collapse`, `vec_all_accounted`,
+  `vec_all_explicit_skip`, `vec_partial_failed`). The last-mile conservation
+  guard at `executor/flows/playwright/monitor/scenario_accountant.py:392-438`
+  (`_validate_scenario_conservation`) is the fix-of-record: every dropout is
+  caught and labelled `unaccounted_dropout` so the W7 §10.7 honesty invariant
+  holds end-to-end. Upstream emit-site work (planner / `stimulus_passes` /
+  `dispatch._normalize_execution_result`) is **stochastic-bound** and tracked
+  separately under `[FOLLOWUP scenario-accountant-conservation-split]`.
 - `[BUG silent-scenario-dropout-regression]`
-- `[FOLLOWUP scenario-accountant-conservation-split]` — W14-1 kök neden
-  tespitinden sonra ayrı pull adayı; W14-1 PR'ına dahil edilmez.
+- `[FOLLOWUP scenario-accountant-conservation-split]` — W14-1 close-out
+  recategorized this as the canonical follow-up for upstream emit-site work
+  (planner / `stimulus_passes` / `dispatch._normalize_execution_result`
+  scenario-level trace + reason-code propagation). Separate pull, not in any
+  W14 sub-iter. Candidate W15+ depending on operator-observability priority.
 - `[FOLLOWUP evidence-event-kind-raw-context-invariant]` **(W14-4)** — RED
   stub adı planlandı: `test_evidence_event_rejects_kind_event_class_mismatch`;
   stub henüz yazılmadı.
