@@ -70,13 +70,18 @@ multi-tenant web platform.
   2-fact AST gate + 4 post-landing behavioral pins (vanished row +
   finalize idempotency + failed/cancelled terminal); test bar 1542 →
   1547 → 1551 / tests/architecture/ 115 → 117). Close-out PR #20
-  `week13 → main` **MERGED** `2026-05-13` via `772deb3` (close-gate
-  cleared pre-merge). Tracker:
+  `week13 -> main` **MERGED** `2026-05-13` via `772deb3` (close-gate
+  cleared pre-merge). Past tracker:
   [`active-work/W13-test-expansion-observability.md`](documents/active-work/W13-test-expansion-observability.md).
+  **Active phase: W14 — Codex M-class Acceptance + Observability** is staged
+  in [`active-work/W14-codex-acceptance-observability.md`](documents/active-work/W14-codex-acceptance-observability.md);
+  entry was triggered by the PR #20 merge and now awaits an explicit W14 pull /
+  `week14` branch cut from `main`.
 - **Canonical source of truth for phase state:**
   [`documents/REFACTOR_STATUS.md`](documents/REFACTOR_STATUS.md).
   Deferred items: [`documents/POST_POC_BACKLOG.md`](documents/POST_POC_BACKLOG.md).
   W8-W13 plan: [`documents/REFACTOR_OPTIMIZATION.md` §11](documents/REFACTOR_OPTIMIZATION.md).
+  W14 plan: [`documents/REFACTOR_OPTIMIZATION.md` §12](documents/REFACTOR_OPTIMIZATION.md).
 
 ## Current Architecture
 
@@ -291,8 +296,8 @@ docs/                       Targeted risk notes
   maintenance
 - `documents/README.md`: context-light guide for choosing which project docs to
   load first
-- `documents/REFACTOR_STATUS.md`: phase closure history (W4-W7) and the
-  post-W7 hardening follow-ups
+- `documents/REFACTOR_STATUS.md`: slim current-state closure board and phase
+  handoff history
 - `documents/POST_POC_BACKLOG.md`: deferred work items and the pull-next list
 - `documents/ARCHITECTURE.md`: canonical architecture and boundaries
 - `documents/DETECTION_SEMANTICS.md`: meaning and calculation rules for
@@ -306,5 +311,6 @@ docs/                       Targeted risk notes
   assumptions
 - `documents/VSCODE_API_COVERAGE_AUDIT.md`: capability support and
   trigger/verification gaps
-- `documents/automation_todo.md`: active task backlog
+- `documents/automation_todo.md`: legacy/off-path backlog notes; current
+  pull-next truth is `documents/POST_POC_BACKLOG.md` plus the active tracker
 - `docs/risks.md`: current risk register

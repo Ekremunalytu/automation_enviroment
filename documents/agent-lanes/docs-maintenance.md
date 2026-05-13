@@ -1,17 +1,14 @@
 # Documentation Maintenance Lane
 
-`Last Updated: 2026-05-11`
+`Last Updated: 2026-05-13`
 
 Use this lane for README, ADR, runbook, roadmap, testing-guide, and
 agent-doc updates.
 
 ## Start Here
 
-- `AGENTS.md`
-- `documents/AGENT_CONTEXT.md`
-- `documents/README.md`
-- the specific doc being updated
-- code/tests/config that prove each claim
+Read `AGENTS.md`, `documents/AGENT_CONTEXT.md`, `documents/README.md`, the
+target doc, and the code/tests/config proving each claim.
 
 ## Invariants
 
@@ -24,14 +21,10 @@ agent-doc updates.
 - `POST_POC_BACKLOG.md` (slim canonical) owns deferred and pull-next
   work; **stable item IDs** (`[FOLLOWUP <id>]`) are a contract — code
   comments and tests reference them. Do not rename.
-- `REFACTOR_OPTIMIZATION.md` section 11 owns W8-W13 planning. Active
-  W13 tracker: `documents/active-work/W13-test-expansion-observability.md`.
-  Past W8/W11/W12 trackers remain only for stable IDs. Inbound references:
-  - `executor/flows/playwright/uri_validation.py:9` →
-    `active-work/W8-security.md` item W8-3.
-  - `tests/security/test_canary_end_to_end.py:8` → preserves the
-    `REFACTOR_OPTIMIZATION.md §10.7` heading (W7 PoC acceptance bar,
-    not a W8 ID).
+- `REFACTOR_OPTIMIZATION.md` section 11 owns closed W8-W13 planning;
+  section 12 owns active W14 planning. Active W14 tracker:
+  `documents/active-work/W14-codex-acceptance-observability.md`. Past
+  W8/W11/W12/W13 trackers remain only for stable IDs.
 - ADR 0007 enforcement landed `2026-04-29` via W8-7 — loopback
   defaults plus `EXTRACE_ALLOW_LAN` opt-in are pinned by
   `tests/architecture/test_default_bindings.py`. Do not regress to
@@ -39,11 +32,9 @@ agent-doc updates.
 
 ### Archive + Active-Work Discipline
 
-- Historical content goes under `documents/archive/` and is off the
-  default read path.
-- Active in-flight work goes under `documents/active-work/<file>.md`;
-  open only when a lane points there.
-- Review snapshots live directly under `documents/archive/reviews/`.
+- Historical content goes under `documents/archive/` and stays off the
+  default read path. Active work goes under `documents/active-work/<file>.md`.
+  Review snapshots live directly under `documents/archive/reviews/`.
 - If a slim canonical grows past budget, add a dated full snapshot under
   `documents/archive/<area>/`, then re-trim the canonical.
 
@@ -81,51 +72,17 @@ Slim canonical doc word counts (×1.3 ≈ tokens). Verify with
 - `git diff --check -- AGENTS.md CLAUDE.md README.md documents docs`
 - `pre-commit run markdownlint --files <changed markdown files>`
 - `pre-commit run markdown-link-check --files <changed markdown files>`
-- Drift grep:
-
-  ```bash
-  rg -n "PR345-blocked|PR5-ADR-blocked|ADR-0007-Proposed|ADR-0006-as-container-packaging" \
-    AGENTS.md CLAUDE.md README.md documents docs \
-    --glob '!documents/agent-lanes/docs-maintenance.md'
-  ```
-
-- Anchor / line-ref guard:
-
-  ```bash
-  rg -n "POST_POC_BACKLOG\.md[ :]+[L]?[0-9]+" \
-    AGENTS.md CLAUDE.md README.md documents docs \
-    --glob '!documents/archive/**'  # must be empty outside archive snapshots
-  rg -n "documents/(claude_code_review|codex_project_review)\.md|\]\((claude_code_review|codex_project_review)\.md\)" \
-    --type md --glob '!documents/archive/**'
-  # → bad legacy review paths only; archive/reviews/* links are allowed
-  ```
-
-- Budget sanity (slim canonical):
-
-  ```bash
-  for f in documents/REFACTOR_OPTIMIZATION.md \
-           documents/REFACTOR_STATUS.md \
-           documents/POST_POC_BACKLOG.md \
-           documents/ARCHITECTURE.md \
-           documents/PROJECT_STRUCTURE.md \
-           documents/TESTING.md \
-           documents/DETECTION_SEMANTICS.md \
-           documents/EXECUTOR_PLAYWRIGHT.md \
-           documents/active-work/W8-security.md \
-           documents/active-work/W12-executor-subpackaging.md \
-           documents/active-work/W13-test-expansion-observability.md; do
-    printf "%-55s %d words ~%d tokens\n" \
-      "$f" "$(wc -w < $f)" "$(($(wc -w < $f) * 13 / 10))"
-  done
-  ```
+- Legacy drift grep: search old status tokens such as `PR345-blocked`,
+  `PR5-ADR-blocked`, `ADR-0007-Proposed`, and
+  `ADR-0006-as-container-packaging` outside this lane.
+- Anchor guard: `POST_POC_BACKLOG.md` line-number links must be empty outside
+  archive snapshots; legacy review links must point under `archive/reviews/`.
+- Budget sanity: run `wc -w` on changed slim canonicals and multiply by 1.3.
 
 ## Avoid
 
-- Broad rewrites that do not reduce drift or context cost.
-- Copying long phase summaries into multiple files.
-- Adding a new top-level doc under `documents/` when an existing slim
-  canonical can absorb it, or when a subdir split is the right home.
-- Reverting the README "Read First" list to send agents into
-  `ARCHITECTURE.md` / `PROJECT_STRUCTURE.md` / `TESTING.md` by default —
-  those moved to "Load Only If The Task Needs It" intentionally.
+- Broad rewrites or copied phase summaries that do not reduce drift/context cost.
+- New root docs when a slim canonical, split, active-work file, or archive
+  snapshot is the right home.
+- Reverting the README "Read First" lazy-load pattern.
 - Changing runtime code during a docs-only pass.

@@ -1,6 +1,6 @@
 # Documents Guide
 
-`Last Updated: 2026-05-11`
+`Last Updated: 2026-05-13`
 
 This folder is split into a small canonical core, specialized reference docs,
 and a frozen archive. **Do not preload the entire folder.** Open subsystem
@@ -8,11 +8,14 @@ docs only when the lane doc says so.
 
 Current status: [`REFACTOR_STATUS.md`](REFACTOR_STATUS.md). Deferrals:
 [`POST_POC_BACKLOG.md`](POST_POC_BACKLOG.md). W8-W13 plan:
-[`REFACTOR_OPTIMIZATION.md`](REFACTOR_OPTIMIZATION.md) §11. Active W13
-tracker: [`active-work/W13-test-expansion-observability.md`](active-work/W13-test-expansion-observability.md).
-Closed stable-ID trackers: [`active-work/W8-security.md`](active-work/W8-security.md)
-[`active-work/W11-monitor-lifecycle.md`](active-work/W11-monitor-lifecycle.md), and
-[`active-work/W12-executor-subpackaging.md`](active-work/W12-executor-subpackaging.md).
+[`REFACTOR_OPTIMIZATION.md`](REFACTOR_OPTIMIZATION.md) §11. Active W14 plan:
+[`REFACTOR_OPTIMIZATION.md`](REFACTOR_OPTIMIZATION.md) §12. Active W14
+tracker:
+[`active-work/W14-codex-acceptance-observability.md`](active-work/W14-codex-acceptance-observability.md).
+Closed stable-ID trackers: [`active-work/W8-security.md`](active-work/W8-security.md),
+[`active-work/W11-monitor-lifecycle.md`](active-work/W11-monitor-lifecycle.md),
+[`active-work/W12-executor-subpackaging.md`](active-work/W12-executor-subpackaging.md), and
+[`active-work/W13-test-expansion-observability.md`](active-work/W13-test-expansion-observability.md).
 
 Security posture is fixed by ADRs 0002-0005 plus ADRs 0007-0008. ADR 0007
 loopback defaults are pinned by

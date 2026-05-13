@@ -20,7 +20,7 @@ points to it.
 ## Files
 
 - `W14-codex-acceptance-observability.md`
-  - **Staging phase (pre-entry — awaiting close-out PR merge).** W14
+  - **Staging phase (entry triggered — awaiting explicit pull / branch cut).** W14
     Codex M-class Acceptance + Observability. 6 sub-iter scoped
     (`W14-1..W14-6`): BLOCKER scenario-dropout araştırması, Codex
     M-class input validation (M4-M7 + M11), dış yüzey sertleştirme
@@ -28,7 +28,7 @@ points to it.
     - evidence-event-kind invariant), §11.10 GOAL devamı (logger
     consolidation + run-ID stamping + codex-automation-5 fingerprint),
     W8-W12 regression lock-in umbrella. Entry gate W13 close-gate
-    cleared `2026-05-13` + close-out PR #20 (`week13 → main`)
+    cleared `2026-05-13` + close-out PR #20 (`week13 -> main`)
     **MERGED** `2026-05-13` via `772deb3`; remaining trigger is
     `week14` branch cut from `main`; stable ID'ler ilk pull'da atanır
     (W11/W12/W13 precedent). Slim canonical:
@@ -48,8 +48,8 @@ points to it.
     worker-start cancel-race CAS **closed `2026-05-13`** (Path B
     worker-entry `with_for_update()` snapshot lock + 4 post-landing
     behavioral pins; F4 README sweep + regex pin landed early in W13-11
-    push). Close-out PR `week13 →
-    main` **READY** (close-gate cleared `2026-05-13`). Original §11.10
+    push). Close-out PR `week13 -> main` **MERGED** `2026-05-13`
+    via `772deb3`. Original §11.10
     TBD umbrellas (logger consolidation, run-ID stamping, W8-W12
     regression lock-in) deferred to W14 — see W14 tracker above.
     Retained on the read path because code comments reference items

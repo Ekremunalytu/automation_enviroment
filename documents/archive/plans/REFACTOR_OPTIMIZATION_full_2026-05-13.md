@@ -8,8 +8,6 @@ integration + W14 acceptance + observability continuation. **Slim canonical**
 
 - latest full snapshot:
   [`archive/plans/REFACTOR_OPTIMIZATION_full_2026-05-13.md`](archive/plans/REFACTOR_OPTIMIZATION_full_2026-05-13.md)
-- previous full snapshot:
-  [`archive/plans/REFACTOR_OPTIMIZATION_full_2026-05-11.md`](archive/plans/REFACTOR_OPTIMIZATION_full_2026-05-11.md)
 - older snapshot:
   [`archive/plans/REFACTOR_OPTIMIZATION_full_2026-04-29.md`](archive/plans/REFACTOR_OPTIMIZATION_full_2026-04-29.md)
 
@@ -140,22 +138,141 @@ focused runtime-capture modules.
 
 ### §11.10 — W13 Test Expansion + Observability
 
-Entry conditions were met `2026-05-10`; W13 closed `2026-05-13` and merged
-via PR #20 (`772deb3`). Tracker:
+Entry conditions were met `2026-05-10`: W12 closed and merged; W12 close
+baseline `make check-all` was green at close commit `e8a9926`
+(`make test-local` 1452 / `make test-security` 211 /
+`tests/architecture/` 76). Active tracker:
 [`active-work/W13-test-expansion-observability.md`](active-work/W13-test-expansion-observability.md).
 
-Summary:
+Goal: benign silence fixture breadth, stale singleton-lock and `.env`
+regression gates, executor logger/run-ID observability, and W8-W12 regression
+lock-in.
 
-| Scope | Status |
-|---|---|
-| Acceptance bar | W13-1..W13-7 closed H3/H4/H5/H6/M1/M9 from the 2026-05-10 Codex Cloud audit. |
-| §11.10 GOAL pulls | W13-8 benign silence fixture 3->5, W13-9 `.env` gitignore gate, and W13-10 singleton-lock recovery closed. |
-| Close-gate pulls | W13-11 HMAC python secret target-install race, W13-12 fail-closed harness handshake, and W13-13 worker-start cancel-race CAS closed in-window. |
-| Final bar | `make test-local` 1551 passed / 10 skipped / 8 deselected; `make test-security` 215 passed; `tests/architecture/` 117 passed. |
+Audit pull-forwards:
 
-Original §11.10 candidates still open are tracked in `POST_POC_BACKLOG.md`
-and the W14 tracker. Close-out PR #20 already merged; the remaining
-§11.10 GOAL umbrellas iterate into W14.
+- W13-1 closed `[FOLLOWUP codex-2026-05-10-H6-spoofable-harness-markers]`.
+- W13-2 closed `[FOLLOWUP codex-2026-05-10-H5-writable-vscode-launcher]`.
+- W13-3 closed `[FOLLOWUP codex-2026-05-10-H4-cancel-concurrent-race]`.
+- W13-4 closed `[FOLLOWUP w13-3-close-pass-cancellation-test-hardening]`.
+- W13-5 closed `[FOLLOWUP codex-2026-05-10-H3-dev-lan-makefile-drift]`.
+- W13-6 closed `[FOLLOWUP codex-2026-05-10-M9-arguments-preview-redaction-extension]`.
+- W13-7 closed `[FOLLOWUP codex-2026-05-10-M1-pem-regex-dos]`.
+- No MEDIUM/HIGH Codex acceptance items remain open. Codex Cloud
+  audit (2026-05-10) acceptance bar fully cleared.
+
+§11.10 GOAL pulls (post-acceptance-bar):
+
+- W13-8 closed `[§11.10 GOAL] Benign silence fixture 3→5`. 3 new
+  fixture extensions authored under `extensions/`
+  (`extrace.fixture-snippet-0.0.1` declarative snippets,
+  `extrace.fixture-keybinding-0.0.1` declarative keybindings,
+  `extrace.fixture-cmd-0.0.1` `onCommand:` activation), matching
+  baseline activation reports added, and `_FIXTURE_REPORTS` /
+  `BASELINE_EXTENSION_FIXTURES` / `expected_activation_event_types`
+  extended. `tests/security/test_benign_silence.py` 5/5 ✓ (3 RED
+  skip decorators removed); `make test-security` 212 → 215 (+3
+  passed). Production code untouched.
+- W13-9 closed `[§11.10 GOAL] .env gitignore regression test`. New
+  architecture gate `tests/architecture/test_env_gitignore.py` 10/10
+  ✓ pins the `.env` / `*.env` / virtualenv / `!.env.example` rule
+  set via `git check-ignore`. Underlying `.gitignore` was already
+  correct; pre-W13-9 there was no architecture gate locking the
+  invariant.
+- W13-10 closed `[§11.10 GOAL] Stale singleton-lock recovery
+  integration test`. 2 new integration cases in
+  `tests/executor/test_reset_state.py` (13/13 ✓) exercise
+  `cleanup_singleton_locks()` integration inside
+  `reset_executor_state()` with real held-lock filesystem state
+  (full-set and partial-set variants). Pre-W13-10 unit cases stubbed
+  the cleanup; W13-10 covers the integration gap.
+
+Original §11.10 candidates that remain open are tracked in
+`POST_POC_BACKLOG.md` and the W14 tracker. Close-out PR #20 already merged;
+the remaining §11.10 GOAL umbrellas iterate into W14.
+
+§11.10 close-gate (added `2026-05-11` after Codex Cloud second-opinion
+review on `week13`):
+
+- ~~W13-11~~ (`[CLOSE-GATE codex-second-opinion-F1-hmac-python-secret-target-install-race]`)
+  — **closed `2026-05-12`** (6/6 sub-commits). Close-pass for W13-1 H6.
+  Path A host-side eager-consume + env var passthrough landed:
+  `workflows/marketplace/analysis_service.py::execute_analysis_request`
+  calls `executor_control.consume_harness_python_secret()` between
+  `_reset_sandbox()` and `_install_extension()`, reads bind-mounted
+  `Path(settings.project.OUTPUT_DIR) / "_extrace_harness_python_secret"`
+  - unlinks, threads through `run_playwright_automation(...,
+  harness_python_secret=...)` → docker exec
+  `-e EXECUTOR_HARNESS_PYTHON_SECRET_VALUE=<hex>` env var.
+  `load_harness_python_secret()` env-priority. E4 docker exec argv
+  mask. W13-1 nonce gate intact. W13-12 immediate follow-up closed
+  `2026-05-12` (see W13-12 row below + `REFACTOR_STATUS.md` §11.10
+  status table row 216).
+- ~~W13-12~~ (`[CLOSE-GATE codex-second-opinion-F2-fail-closed-harness-handshake]`)
+  — **closed `2026-05-12`** (5/5 sub-commits: 8782630 docs lockdown ·
+  d30a50f RED tests · c98f350 feat impl · a2c4aa2 arch gate · e7752a1
+  close sweep). Close-pass for W13-1 H6. Internal monitor
+  `ActivationReport.harness_handshake_required: bool` field stamped
+  `True` by `setup_monitor`; `_attempt_has_harness_completion_trace`
+  fail-closed branch fires on empty `expected_nonce` +
+  `handshake_required=True` (eager-consume miss in residual failure
+  modes — `FileNotFoundError`/`OSError`/bind-mount race). Test path
+  default `False` preserves pre-W13-1 phase-only contract for unit
+  fixtures. 3-fact AST gate (`test_setup_monitor_handshake_required.py`)
+  pins stamp/read/thread invariants. Final bar: `make test-local`
+  1537 → 1539 (+2); `tests/architecture/` 112 → 115 (+3). W13-1
+  regression suite zero-diff. Close-out PR merge blocker reduces to
+  W13-13 only.
+- ~~W13-13 (`[CLOSE-GATE codex-second-opinion-F3-worker-start-cancel-race-CAS]`)~~
+  — **closed `2026-05-13` (5/5 sub-commits + post-landing — `d2ba495`
+  docs lockdown · `02c4374` RED behavioral · `33deb46` feat impl ·
+  `60bb0cd` arch gate · `8912596` close evidence + 10-site drift sweep
+  · `826f91c` self-stamp · `26a2025` post-landing behavioral pins
+  (vanished row + finalize idempotency + failed/cancelled terminal))**. Close-pass for
+  W13-3 H4. Path B worker-entry
+  `select(AnalysisJob).where(...).with_for_update()` snapshot lock in
+  `workflows/marketplace/analysis_service.py::run_analysis_job`
+  replaces the unconditional `update_job(status="running")` write.
+  Entry block branches: row missing → log + return; terminal → log +
+  return; `cancelling` → `finalize_cancelled_analysis_job(db, ...)`
+  via the lifecycle CRUD helper directly (the
+  `job_service.finalize_cancelled_job` wrapper would deadlock against
+  the held row lock — asymmetry documented inline and pinned by INV2
+  of the architecture gate) + return; `queued` → atomic mutation +
+  commit + proceed with the existing analysis flow. 3 new RED→GREEN
+  behavioral cases in
+  `tests/platform/storage/test_analysis_jobs_cancel_at_worker_entry.py`
+  - 2-fact AST gate in
+  `tests/architecture/test_run_analysis_job_entry_snapshot.py` (INV1
+  first-DB-action is the lock; INV2 lifecycle helper called before
+  `execute_analysis_request`). W13-4
+  `tests/workflows/marketplace/test_run_analysis_job_finalize.py`
+  `update_job.assert_called_once()` flipped to `assert_not_called()`
+  to reflect Path B's contract that the worker entry no longer routes
+  the queued → running transition through the wrapper. Post-landing
+  pins (`26a2025`) add 4 behavioral cases that close defense-in-depth
+  gaps the architecture gate cannot express at AST level: (a)
+  vanished-row branch (`if job is None`); (b) finalize idempotency
+  under race (`except JobNotCancellableError, KeyError` in cancelling
+  branch); (c) + (d) parametrized terminal short-circuit for ``failed``
+  - ``cancelled`` (main test only covers ``completed``). Final bar:
+  `make test-local` 1542 → **1547** (+5 main) → **1551** (+4
+  post-landing); `tests/architecture/` 115 → **117** (+2; unchanged
+  post-landing); W13-3 + W13-4 + W13-1/W13-11/W13-12 regression suites
+  zero-diff; 2 pre-existing env-only VSIX fixture failures in
+  `test_analysis_fixture_baselines.py` unchanged (reproduce on HEAD~5
+  = pre-W13-13). Production diff scoped to 1 file
+  (`analysis_service.py` +163 -93). **Scope rebased `2026-05-12`** —
+  original F4 README phase pointer drift sweep +
+  `tests/architecture/test_readme_phase_pointer.py` regex pin landed
+  early in the W13-11 push (sub-commits 8 + 12) to keep the README
+  sweep paired with its banner-cascade fix-up.
+
+Close-out PR #20 `week13 → main` is **MERGED** `2026-05-13` via
+`772deb3` (close-gate cleared pre-merge; W13-11/W13-12 closed
+`2026-05-12`, W13-13 closed `2026-05-13`). These items were pulled
+in-window (not deferred to W14) because they directly fix bypass
+surfaces in the originally W13-claimed H6 + H4 closures — keeping
+them in-window preserves audit-trail integrity.
 
 ### §11.11 — Cross-Reference
 
@@ -191,7 +308,7 @@ W13 closed once:
   **closed `2026-05-12`**; W13-13 worker-start cancel-race CAS —
   **closed `2026-05-13`**; F4 README drift sweep + regex pin
   originally bundled in W13-13 scope landed early in W13-11 push
-  `2026-05-12`). Close-out PR #20 `week13 -> main` **MERGED**
+  `2026-05-12`). Close-out PR #20 `week13 → main` **MERGED**
   `2026-05-13` via `772deb3` — all fixes in-window preserve audit-trail
   integrity (history shows H6/H4 work as a coherent iteration family
   rather than a deferred follow-up).
@@ -260,8 +377,8 @@ Aşağıdaki kalemler W14 scope'unda DEĞİL — W15+'a düşer. Stable ID'leri
   `execute-attempt-rebloat-watch`, `dispatch-execution-rebloat-watch` —
   LoC bütçesi aşılana kadar dokunma
 - UI follow-up'ları: `ui-raw-context-discriminator-parity`,
-  `vsix-integrity-in-activation-report` → W14-4 backend invariant tamamlandıktan
-  sonra UI parity ayrı pull
+  `vsix-integrity-in-activation-report` → W14-4 backend invariant lands
+  olunca UI parity ayrı pull
 - Refactor: `scenario-accountant-conservation-split` (W14-1 kök neden
   netleştikten sonra ayrı pull adayı; W14-1 PR'ına dahil edilmez)
 - Automation/verification: `[FOLLOWUP codex-automation-6]` (UI failure

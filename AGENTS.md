@@ -1,6 +1,6 @@
 # AGENTS.md
 
-`Last Updated: 2026-05-13 (W12 closed via PR #18; W13 — Test Expansion + Observability closed 2026-05-13 (W13-1..W13-13 all GREEN); W13-1..W13-7 closed — acceptance bar cleared; W13-8/9/10 §11.10 GOAL pulls closed (benign silence fixture 3→5 / .env gitignore gate / singleton-lock recovery); W13-11 HMAC python secret target-install race closed 2026-05-12 — Path A host-side eager-consume + env var passthrough (6/6 main sub-commits + 7 post-landing additions in same push); final bar test-local 1521 → 1537 / tests/architecture/ 105 → 112; W13-12 fail-closed harness handshake closed 2026-05-12 (5/5 sub-commits + 3 behavioral pins; final bar 1537 → 1539 → 1542 / 112 → 115); W13-13 worker-start cancel-race CAS closed 2026-05-13 (5/5 sub-commits + post-landing — Path B worker-entry `with_for_update()` snapshot lock + lifecycle-helper-not-wrapper deadlock avoidance + 2-fact AST gate + 4 post-landing behavioral pins; final bar 1542 → 1547 → 1551 / 115 → 117); close-out PR #20 (week13 → main) MERGED 2026-05-13 via 772deb3 (close-gate cleared pre-merge))`
+`Last Updated: 2026-05-13 (W13 closed; PR #20 week13 -> main merged via 772deb3; W14 staging via REFACTOR_OPTIMIZATION.md §12 + active-work/W14-codex-acceptance-observability.md; awaiting explicit W14 pull / week14 branch cut)`
 
 ## Authority
 
@@ -19,31 +19,13 @@
 - **W8 closed `2026-04-29`; W9 closed `2026-05-04` via PR #9; W10
   closed `2026-05-04` via PR #11; W11 closed `2026-05-05` and merged
   via PR #14; W12 closed `2026-05-10` and merged via PR #18
-  (`33a0852`).** Active phase: **W13 — Test Expansion + Observability**
-  (`REFACTOR_OPTIMIZATION.md` §11.10; tracker:
-  `active-work/W13-test-expansion-observability.md`). W13-1..W13-7
-  closed — every MEDIUM/HIGH Codex Cloud audit acceptance-bar item
-  (H3 via W13-5, H4 via W13-3, H5 via W13-2, H6 via W13-1, M1 via
-  W13-7, M9 via W13-6) landed. Next step is the W13 end-of-phase
-  close-out PR `week13 → main` (W12 PR #18 pattern). Entry baseline:
-  post-Codex-fix `make check-all` green at the W12 close commit
-  (`make test-local` 1452 passed / 6 skipped / 6 deselected;
-  `make test-security` 211 passed; `tests/architecture/` 76 passed).
-  W13-5 close (`2026-05-11`): `make test-local` 1492 → 1498 collected
-  (+6 passed); `make test-security` 211 unchanged;
-  `tests/architecture/` 87 → 93. W13-6 close (`2026-05-11`):
-  `make test-local` 1498 → 1505 collected (+7 passed);
-  `make test-security` 211 unchanged; `tests/architecture/` 93 → 95;
-  production diff scoped to `executor/flows/playwright/runtime_capture/extension_host_strace_parse.py`
-  (+4 net lines in the factory body). W13-7 close (`2026-05-11`):
-  `make test-local` 1505 → 1506 collected (+1 passed);
-  `make test-security` 211 → 212; `tests/architecture/` 95 unchanged;
-  production diff scoped to `packages/analysis_contracts/evidence.py`
-  (+45 net lines: 4 constants, 1 helper `_redact_private_key_bounded`,
-  `redact_multiline_secrets` body refactored to a bounded linear
-  scanner with a 16 KB BEGIN→END window cap). Past W8/W11/W12 trackers
-  stay available only because code/tests reference stable IDs
-  (W8-1..W8-9, W11-1..W11-8, W12-0..W12-5).
+  (`33a0852`); W13 closed `2026-05-13` and merged via PR #20
+  (`772deb3`).** Active phase is **W14 — Codex M-class Acceptance +
+  Observability** in staging: plan `documents/REFACTOR_OPTIMIZATION.md`
+  §12, tracker `documents/active-work/W14-codex-acceptance-observability.md`.
+  Entry was triggered by the W13 close-out merge; remaining trigger is an
+  explicit W14 pull / `week14` branch cut from `main`. Past
+  W8/W11/W12/W13 trackers remain stable-ID references only.
 - ADR 0007 local-network-binding is **Accepted and implemented**; loopback
   defaults + `EXTRACE_ALLOW_LAN` are pinned by `test_default_bindings.py`.
 

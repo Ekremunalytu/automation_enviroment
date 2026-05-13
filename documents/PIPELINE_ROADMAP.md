@@ -1,12 +1,11 @@
 # Pipeline Roadmap
 
-`Last Updated: 2026-05-11`
+`Last Updated: 2026-05-13`
 
-This is the short staged view of the analysis pipeline. For the current
-backlog, use `automation_todo.md`; for active priorities, use
-`DEVELOPMENT_PRIORITIES.md`; for the 7-week window, use
-`REFACTOR_OPTIMIZATION.md` §10. For post-PoC deferrals, use
-`POST_POC_BACKLOG.md`.
+This is the short staged view of the analysis pipeline. For current pullable
+work, use `POST_POC_BACKLOG.md` plus the active tracker; for active priorities,
+use `DEVELOPMENT_PRIORITIES.md`; for the closed PoC window, use
+`REFACTOR_OPTIMIZATION.md` §10.
 
 Week 4 closure was validated on `2026-04-20`. W5 detection foundations
 (contracts, A1/A2/A4/A6 rules, T1 canaries, `make test-security`) landed
@@ -81,8 +80,8 @@ flowchart LR
     buffer; allow-list at
     `packages/analysis_engine/allowlists/popular_extensions.txt`)
   - `extensions/malicious/` T1 canary manifests for A1/A2/A3/A4/A6
-  - `tests/security/` plus `make test-security` (CI) and
-    `make test-security-live` (break-glass)
+  - `tests/security/` plus local `make test-security` and break-glass
+    `make test-security-live`
 - `DetectionReport` lives alongside `ActivationReport` per ADR 0003; verdicts
   are a deterministic rollup of findings, with `RuleExecutionStatus.ERROR`
   degrading automation health to `inconclusive` before rollup.

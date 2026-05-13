@@ -1,9 +1,9 @@
 # Risk Register
 
-`Last Updated: 2026-05-11`
+`Last Updated: 2026-05-13`
 
-This register reflects the current post-W8-0 architecture and the remaining
-post-PoC hardening risks.
+This register reflects the current post-W13 close-out architecture and the
+remaining post-PoC hardening risks.
 
 ## Active Risks
 
@@ -20,8 +20,10 @@ Why it matters:
 
 - The product promise depends on requested scenarios being reported honestly as
   executed, failed, or skipped with an explainable reason.
-- W6 closes the silent-dropout bug class, but future planner/runtime/report
-  drift would immediately mislead analysts if this surface regresses.
+- W6 added the scenario truth ledger, but the current backlog still tracks
+  `[BUG scenario-dropout-upstream-root-cause]` as W14-1 BLOCKER triage.
+  Planner/runtime/report drift would immediately mislead analysts if this
+  surface regresses.
 
 ### P1 - Runtime capture remains intentionally bounded
 

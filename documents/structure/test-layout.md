@@ -65,8 +65,8 @@ UI tests live under `ui/src/**/*.test.ts(x)` (Vitest + Testing Library).
   `tests/architecture/`, `tests/workflows/`).
 - `make test-security` — `tests/security/`. W8-1 + W8-3 land in
   subsystem-local lanes (`tests/workflows/marketplace/test_vsix_*`,
-  `tests/executor/security/test_uri_trigger_*`); see
-  `POST_POC_BACKLOG.md` "make test-security lane composition" item.
+  `tests/executor/security/test_uri_trigger_*`); cross-tree composition
+  landed during W8 acceptance.
 - `make check-all` — ruff + mypy + bandit + ui-types-check +
   ui-boundaries + pytest.
 - `make test-security-live` — T2/T3 lane; gated by ADR 0004 isolation.

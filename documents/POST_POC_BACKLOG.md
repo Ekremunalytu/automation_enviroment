@@ -1,6 +1,6 @@
 # Post-PoC Backlog
 
-`Last Updated: 2026-05-13 (W13 closed 2026-05-13 — W13-1..W13-13 all GREEN; W13-11 closed 2026-05-12 (6/6 sub-commits) — Path A host-side eager-consume + env var passthrough; W13-12 closed 2026-05-12 (5/5 sub-commits) — `ActivationReport.harness_handshake_required: bool` fail-closed; W13-13 closed 2026-05-13 (5/5 sub-commits + post-landing — Path B worker-entry `with_for_update()` snapshot lock + 4 behavioral pins (vanished row + finalize idempotency + failed/cancelled terminal); final bar test-local 1542 → 1547 → 1551 / tests/architecture/ 115 → 117); close-out PR #20 (week13 → main) MERGED 2026-05-13 via 772deb3 (close-gate cleared pre-merge))`
+`Last Updated: 2026-05-13 (W13 closed; PR #20 week13 -> main MERGED via 772deb3; W14 staged in active-work/W14-codex-acceptance-observability.md)`
 
 Open deferred work after the W0-W7 PoC acceptance bar. **Slim canonical** —
 verbose descriptions, evidence, and older triage notes are frozen in dated
@@ -12,7 +12,7 @@ snapshots:
   [`archive/backlog/POST_POC_BACKLOG_full_2026-05-07.md`](archive/backlog/POST_POC_BACKLOG_full_2026-05-07.md)
 
 W8, W9, W10, W11, W12, and W13 are closed. W13 acceptance bar + §11.10 GOAL pulls
-closed; close-out PR #20 `week13 → main` **MERGED** `2026-05-13` via `772deb3`. Next active phase: **W14
+closed; close-out PR #20 `week13 -> main` **MERGED** `2026-05-13` via `772deb3`. Next active phase: **W14
 Codex M-class Acceptance + Observability**, staged in
 [`active-work/W14-codex-acceptance-observability.md`](active-work/W14-codex-acceptance-observability.md);
 predecessor tracker
@@ -44,13 +44,13 @@ Use stable IDs in new references; do not cite canonical doc line numbers.
 | `[FOLLOWUP w13-4-alembic-roundtrip-programmatic]` | deferred | needs fresh-DB-per-test Alembic fixture |
 | ~~`[CLOSE-GATE codex-second-opinion-F1-hmac-python-secret-target-install-race]`~~ (W13-11) | **closed `2026-05-12`** (6/6 sub-commits) | Close-pass for W13-1 H6. Codex Cloud second-opinion `2026-05-11`. Path A host-side eager-consume + env var passthrough; `executor_control.consume_harness_python_secret()` between `_reset_sandbox` and `_install_extension`; `EXECUTOR_HARNESS_PYTHON_SECRET_VALUE` env threading + E4 docker exec argv mask. W13-12 immediate follow-up closed `2026-05-12` (see W13-12 row below). |
 | ~~`[CLOSE-GATE codex-second-opinion-F2-fail-closed-harness-handshake]`~~ (W13-12) | **closed `2026-05-12`** (5/5 sub-commits + post-landing: 3a89c09 self-stamp · 9c80f25 drift sweep · 0d3e343 behavioral pins) | Close-pass for W13-1 H6. Codex Cloud second-opinion `2026-05-11`. `harness_handshake_required: bool` on internal monitor ActivationReport dataclass + `setup_monitor` stamps True + fail-closed branch in `_attempt_has_harness_completion_trace` + 3-fact AST gate + 3 post-landing behavioral pins (signature priority / malformed trace fail-closed / e2e attestation). Final bar: test-local 1537 → 1539 (+2 main) → 1542 (+3 post-landing); tests/architecture/ 112 → 115 (+3); W13-1 regression suite zero-diff. Close-out PR merge blocker reduces to W13-13 only. |
-| ~~`[CLOSE-GATE codex-second-opinion-F3-worker-start-cancel-race-CAS]`~~ (W13-13) | **closed `2026-05-13`** (5/5 sub-commits + post-landing — `d2ba495` docs lockdown · `02c4374` RED behavioral · `33deb46` feat impl · `60bb0cd` arch gate · `8912596` close evidence + 10-site drift sweep; post-landing: `826f91c` self-stamp · `26a2025` post-landing behavioral pins (vanished row + finalize idempotency + failed/cancelled terminal)) | Close-pass for W13-3 H4 (F4 README drift sweep + regex pin already landed in W13-11 push `2026-05-12`). Codex Cloud second-opinion `2026-05-11`. Path B worker-entry `select(AnalysisJob).where(...).with_for_update()` snapshot lock in `workflows/marketplace/analysis_service.py::run_analysis_job` closes the cancel-race seam at the router → worker-thread boundary. Entry block branches: row missing → log + return; terminal → log + return; `cancelling` → `finalize_cancelled_analysis_job(db, ...)` via lifecycle helper directly (wrapper would deadlock against held row lock) + return; `queued` → atomic transition + commit + proceed. 3 new RED→GREEN behavioral cases + 2-fact AST gate (INV1 first-DB-action is the lock; INV2 lifecycle helper called before `execute_analysis_request`) + 4 post-landing behavioral pins (vanished row + finalize idempotency under race + parametrized terminal short-circuit for ``failed`` + ``cancelled``). W13-4 `update_job.assert_called_once()` flipped to `assert_not_called()` (Path B contract). Final bar: test-local 1542 → **1547** (+5 main) → **1551** (+4 post-landing); tests/architecture/ 115 → **117** (+2; unchanged post-landing); W13-3 + W13-4 + W13-1/W13-11/W13-12 regression suites zero-diff. Production smoke `2026-05-13`: UI scan `9d327b30b60f...` (ms-python.python@2026.5.2026050801) completed cleanly via Path B happy-path (reserve→start 35ms; 22 activations; Target observed=True). Close-out PR `week13 → main` merge blocker **CLEARED**. |
+| ~~`[CLOSE-GATE codex-second-opinion-F3-worker-start-cancel-race-CAS]`~~ (W13-13) | **closed `2026-05-13`** (5/5 sub-commits + post-landing — `d2ba495` docs lockdown · `02c4374` RED behavioral · `33deb46` feat impl · `60bb0cd` arch gate · `8912596` close evidence + 10-site drift sweep; post-landing: `826f91c` self-stamp · `26a2025` post-landing behavioral pins (vanished row + finalize idempotency + failed/cancelled terminal)) | Close-pass for W13-3 H4 (F4 README drift sweep + regex pin already landed in W13-11 push `2026-05-12`). Codex Cloud second-opinion `2026-05-11`. Path B worker-entry `select(AnalysisJob).where(...).with_for_update()` snapshot lock in `workflows/marketplace/analysis_service.py::run_analysis_job` closes the cancel-race seam at the router → worker-thread boundary. Entry block branches: row missing → log + return; terminal → log + return; `cancelling` → `finalize_cancelled_analysis_job(db, ...)` via lifecycle helper directly (wrapper would deadlock against held row lock) + return; `queued` → atomic transition + commit + proceed. 3 new RED→GREEN behavioral cases + 2-fact AST gate (INV1 first-DB-action is the lock; INV2 lifecycle helper called before `execute_analysis_request`) + 4 post-landing behavioral pins (vanished row + finalize idempotency under race + parametrized terminal short-circuit for ``failed`` + ``cancelled``). W13-4 `update_job.assert_called_once()` flipped to `assert_not_called()` (Path B contract). Final bar: test-local 1542 → **1547** (+5 main) → **1551** (+4 post-landing); tests/architecture/ 115 → **117** (+2; unchanged post-landing); W13-3 + W13-4 + W13-1/W13-11/W13-12 regression suites zero-diff. Production smoke `2026-05-13`: UI scan `9d327b30b60f...` (`ms-python.python@2026.5.2026050801`) completed cleanly via Path B happy-path (reserve→start 35ms; 22 activations; Target observed=True). Close-out PR `week13 → main` merge blocker **CLEARED**. |
 
 ## W14 Pull-Forward Acceptance Bar
 
 Skeleton scope authored `2026-05-11` alongside W13 close-out preparation;
-activates on `week13 → main` PR merge. Stable IDs `W14-N` assigned at
-first pull (W11/W12/W13 precedent). Full per-iter detail lives in
+entry was triggered by PR #20 `week13 -> main` merge on `2026-05-13`.
+Stable IDs `W14-N` are assigned at first pull (W11/W12/W13 precedent). Full per-iter detail lives in
 [`active-work/W14-codex-acceptance-observability.md`](active-work/W14-codex-acceptance-observability.md).
 
 | Iter | Stable ID(s) | Status | Note |
@@ -58,7 +58,7 @@ first pull (W11/W12/W13 precedent). Full per-iter detail lives in
 | W14-1 | `[BUG scenario-dropout-upstream-root-cause]` | scoped — not started | BLOCKER triage; deterministik repro fixture + kök neden tespiti; eğer stokastik HIGH'a indir |
 | W14-2 | `[FOLLOWUP codex-2026-05-10-M4-M7-output-ts-range-validation]` + `[FOLLOWUP codex-2026-05-10-M11-report-health-malformed-types]` | scoped — not started | Input validation cluster; W13-6 parametrize regression deseni; bundle pull |
 | W14-3 | `[FOLLOWUP codex-2026-05-10-M13-network-uri-summary-redaction]` + `[FOLLOWUP codex-2026-05-10-M14b-cdp-port-default-disabled]` + `[FOLLOWUP codex-2026-05-10-U4-U12-makefile-shell-quoting]` | scoped — not started | Dış yüzey sertleştirme; M13 W13-6 factory-internal redaction deseninin tekrarı; U4-U12 W13-5 recipe-fix deseni |
-| W14-4 | `[FOLLOWUP analysis-jobs-race]` + `[FOLLOWUP evidence-event-kind-raw-context-invariant]` | scoped — not started | Doğruluk + concurrency; analysis-jobs-race CRITICAL (W13-4.4 race window dokümante); evidence-event-kind test stub hazır |
+| W14-4 | `[FOLLOWUP analysis-jobs-race]` + `[FOLLOWUP evidence-event-kind-raw-context-invariant]` | scoped — not started | Doğruluk + concurrency; analysis-jobs-race CRITICAL (W13-4.4 race window dokümante); evidence-event-kind RED stub adı planlandı, henüz yazılmadı |
 | W14-5 | `[GOAL w14-logger-consolidation]` + `[GOAL w14-run-id-stamping]` (yeni stable ID'ler) + `[FOLLOWUP codex-automation-5]` | scoped — not started | §11.10 GOAL devamı W13'ten devreden + automation runtime fingerprint (sibling tema); M5 (`epoch-docker-exec-propagation`) doğal yan ürün adayı |
 | W14-6 | `[FOLLOWUP arch-gate-executor-control-outbound]` + `[FOLLOWUP arch-gate-bare-binary-pragma-ratchet]` + `[FOLLOWUP w8-4-variable-indirect-subprocess-coverage]` | scoped — not started | §11.10 GOAL devamı — W8-W12 regression lock-in umbrella; AST-tabanlı 3 yeni arch gate |
 
@@ -139,8 +139,9 @@ evidence.
 - `[BUG silent-scenario-dropout-regression]`
 - `[FOLLOWUP scenario-accountant-conservation-split]` — W14-1 kök neden
   tespitinden sonra ayrı pull adayı; W14-1 PR'ına dahil edilmez.
-- `[FOLLOWUP evidence-event-kind-raw-context-invariant]` **(W14-4)** — test
-  stub hazır: `test_evidence_event_rejects_kind_event_class_mismatch`.
+- `[FOLLOWUP evidence-event-kind-raw-context-invariant]` **(W14-4)** — RED
+  stub adı planlandı: `test_evidence_event_rejects_kind_event_class_mismatch`;
+  stub henüz yazılmadı.
 - `[FOLLOWUP event-attempt-verification-status-validator]`
 - `[FOLLOWUP report-invariants-runtime-evidence-drift]`
 - `[FOLLOWUP compute-verdict-table-driven-test]`

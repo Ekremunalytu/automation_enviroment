@@ -1,20 +1,18 @@
 # W14 — Codex M-class Acceptance + Observability (Active Work Tracker)
 
-`Last Updated: 2026-05-13 (W14 staging — skeleton authored alongside W13 close-out preparation; W13-11 close-gate closed 2026-05-12 — Path A + defense-in-depth (a/b/c) + README sweep steal-from-W13-13; W13-12 close-gate closed 2026-05-12 — fail-closed harness handshake (5/5 sub-commits; harness_handshake_required: bool + fail-closed branch + 3-fact AST gate); W13-13 close-gate closed 2026-05-13 — Path B worker-entry `with_for_update()` snapshot lock (5/5 sub-commits + post-landing; lifecycle-helper-not-wrapper deadlock avoidance + 2-fact AST gate + 4 post-landing behavioral pins; final bar 1542 → 1547 → 1551 / 115 → 117); **W13 close-gate cleared**; close-out PR #20 (week13 → main) MERGED 2026-05-13 via 772deb3; no W14-N stable ID pulled yet; tracker activates after week14 branch cut from main)`
-`Phase: W14 staging (pre-entry — W13 close-gate cleared `2026-05-13`; close-out PR #20 MERGED `2026-05-13` via `772deb3`; remaining trigger is week14 branch cut from main)`
-`Branch: week14 (to be cut from main; close-out PR #20 already merged `2026-05-13` via `772deb3`)`
+`Last Updated: 2026-05-13 (W14 staging; W13 close-gate cleared; PR #20 week13 -> main MERGED via 772deb3; no W14-N stable ID pulled yet; tracker activates after week14 branch cut from main)`
+`Phase: W14 staging (entry triggered — W13 close-gate cleared 2026-05-13; close-out PR #20 MERGED 2026-05-13 via 772deb3; remaining trigger is week14 branch cut from main)`
+`Branch: week14 (to be cut from main; close-out PR #20 already merged 2026-05-13 via 772deb3)`
 `Owner: ekrem`
 
 > **Authored 2026-05-11** as the W14 scope skeleton. Stable IDs `W14-1..W14-6`
 > are reserved by the iteration plan but **assigned only at first pull** per
 > the W11/W12/W13 precedent (`REFACTOR_OPTIMIZATION.md` §12.0). No production
-> code or test surface lands under this tracker until the W13 close-out PR is
-> merged. Until then, this file is **read-only context** describing the
-> agreed W14 scope and pull sequence.
+> code or test surface has landed under this tracker yet. The W13 close-out PR
+> is merged; this file remains **staging context** until the explicit W14 pull /
+> `week14` branch cut.
 
-This is the canonical active work tracker for the W14 Codex M-class Acceptance
-
-+ Observability window. Items receive stable IDs (`W14-1`, `W14-2`, ...)
+This is the canonical active work tracker for the W14 Codex M-class Acceptance + Observability window. Items receive stable IDs (`W14-1`, `W14-2`, ...)
 **at first pull**, not preemptively, per the W11/W12/W13 precedent.
 
 This file mirrors the structure of
@@ -25,8 +23,8 @@ list.
 
 ## Status (Quick Glance)
 
-+ **W14 staging — pre-entry.** Six sub-iterations scoped; no stable ID pulled
-  yet. Close-out PR #20 (`week13 → main`) **MERGED** `2026-05-13` via
++ **W14 staging — entry triggered.** Six sub-iterations scoped; no stable ID pulled
+  yet. Close-out PR #20 (`week13 -> main`) **MERGED** `2026-05-13` via
   `772deb3`; tracker activates when the `week14` branch is cut from `main`.
 + **Entry gate (target).** When met, opens W14-1:
   + W13 close-gate cleared ✓ (`2026-05-13`): W13-11 (HMAC python secret
@@ -35,14 +33,14 @@ list.
     CAS — Path B worker-entry `with_for_update()` snapshot lock;
     README sweep + regex pin already landed in W13-11 push
     `2026-05-12`) ✓ closed `2026-05-13`.
-  + `week13 → main` close-out PR #20 **MERGED** `2026-05-13` via
+  + `week13 -> main` close-out PR #20 **MERGED** `2026-05-13` via
     `772deb3` ✓ (close-out PR included W13-11/12/13 close-pass fixes
     + W13-1..W13-10 sub-iter ratchet'leri + §11.10 GOAL pulls).
-  + `make check-all` ✅ green at the W13 close commit (target baseline
-    after close-gate: `make test-local` ~1530+ / `make test-security`
-    ~220+ / `tests/architecture/` ~110+ — exact deltas depend on
-    W13-11/12/13 test surface).
-  + This tracker's "Entry Conditions Met" checklist is completed.
+  + W13 final/post-merge baseline recorded: `make test-local` 1551 passed /
+    10 skipped / 8 deselected; `make test-security` 215 passed;
+    `tests/architecture/` 117 passed.
+  + Close-out prerequisites are recorded; the W14-open checklist completes
+    at the explicit branch cut / first pull.
 + **Sub-iteration scope (locked, IDs assigned at pull).**
 
 | Iter | Tema | Stable ID(s) | Tahminî efor |
@@ -73,14 +71,10 @@ list.
 + [x] W13 closed and merged to `main` via close-out PR #20
   (`772deb3`, `2026-05-13`); close-out PR included W13-1..W13-13
   ratchet bundle.
-+ [ ] `make check-all` green at the W13 close baseline; expected
-  post-close-gate targets: `make test-local` ~1530+ /
-  `make test-security` ~220+ / `tests/architecture/` ~110+ (W13-11
-  eager-consume regression + arch gate; W13-12 fail-closed regression
-  + arch gate; W13-13 cancel-race behavioral + arch gate; README
-  pointer gate landed in W13-11 push `2026-05-12` —
-  `tests/architecture/test_readme_phase_pointer.py`).
-+ [ ] W13 ratchet gates pinned: W13-1..W13-7 acceptance-bar gates,
++ [x] W13 final/post-merge baseline recorded: `make test-local` 1551
+  passed / 10 skipped / 8 deselected; `make test-security` 215 passed;
+  `tests/architecture/` 117 passed.
++ [x] W13 ratchet gates pinned: W13-1..W13-7 acceptance-bar gates,
   W13-8/9/10 §11.10 GOAL gates, plus the W13-11/12/13 close-gate
   gates added during the close-pass.
 + [ ] W14 lane document (this file) header is updated to mark phase open
@@ -102,7 +96,7 @@ Two complementary thrusts:
 
 Plus two correctness pull-forwards: `analysis-jobs-race` (CRITICAL, lock
 asymmetry documented in W13-4.4) and `evidence-event-kind-raw-context-invariant`
-(HIGH, Pydantic model_validator with test stub already prepared).
+(HIGH, Pydantic model_validator target; RED stub still needs to be authored).
 
 ## Candidate Items (stable IDs assigned at first pull)
 
@@ -121,7 +115,7 @@ audit; `[BUG …]` rows are from `POST_POC_BACKLOG.md` Contracts/Reports/Detecti
 | TBD (W14-3) | `[FOLLOWUP codex-2026-05-10-M14b-cdp-port-default-disabled]` (VS Code `--remote-debugging-port=9222` auth'suz default-on, container'dan erişilebilir) | `[executor-runtime]` `[security-detection]` | not started — posture decision: default-disabled vs explicit opt-in env var |
 | TBD (W14-3) | `[FOLLOWUP codex-2026-05-10-U4-U12-makefile-shell-quoting]` (`Makefile` `sim-target`/`sim-run` `$(TARGET)`/`$(SCENARIO)` tırnaksız; shell injection riski; W13-5 dev-lan recipe-fix deseninin tekrarı) | `[security-detection]` | not started |
 | TBD (W14-4) | `[FOLLOWUP analysis-jobs-race]` (`complete_analysis_job` `with_for_update()` lock'undan yoksun; `cancel_analysis_job` lock var; W13-4.4'te race window dokümante edildi) | `[platform-storage]` `[executor-runtime]` | not started — CRITICAL race window |
-| TBD (W14-4) | `[FOLLOWUP evidence-event-kind-raw-context-invariant]` (`EvidenceEvent.kind` ↔ `raw_context.event_class` eşleşmesi Pydantic'te validate edilmiyor; test stub hazır: `test_evidence_event_rejects_kind_event_class_mismatch`) | `[security-detection]` `[contracts]` | not started — test stub mevcut |
+| TBD (W14-4) | `[FOLLOWUP evidence-event-kind-raw-context-invariant]` (`EvidenceEvent.kind` ↔ `raw_context.event_class` eşleşmesi Pydantic'te validate edilmiyor; RED stub adı planlandı: `test_evidence_event_rejects_kind_event_class_mismatch`) | `[security-detection]` `[contracts]` | not started — RED stub henüz yazılmadı |
 | TBD (W14-5) | `[§11.10 GOAL]` `extrace.executor.*` logger consolidation (W13'ten devreden; executor logger init + emit pattern'leri worker thread'lerde tutarsız) | `[platform-storage]` | not started — W13'ten W14'e devredildi |
 | TBD (W14-5) | `[§11.10 GOAL]` Run-ID stamping (W13'ten devreden; stable `EXTRACE_EPOCH_RUN_ID` executor çıktıları boyunca propagate + emit; logger consolidation'a bağımlı) | `[platform-storage]` `[executor-runtime]` `[security-detection]` | not started — logger consolidation'a bağımlı |
 | TBD (W14-5) | `[FOLLOWUP codex-automation-5]` (executor runtime fingerprint in automation output for observability — version/build/commit emit at automation run boundary; run-ID stamping ile sibling tema, aynı PR ailesinde yan ürün olarak çekilir) | `[platform-storage]` `[executor-runtime]` | not started — W14-5 PR ailesinin tematik üyesi |
@@ -279,8 +273,9 @@ ikinci yarısı Pydantic v2 `model_validator` ekler.
 
 + analysis-jobs-race: `tests/platform/storage/test_analysis_jobs_concurrency.py`'ye
   complete+cancel paralel oturum case'i (W13-3'ün cancel race deseni)
-+ evidence-event-kind: test stub zaten hazır
-  (`test_evidence_event_rejects_kind_event_class_mismatch`); Pydantic
++ evidence-event-kind: RED stub adı planlandı
+  (`test_evidence_event_rejects_kind_event_class_mismatch`); stub henüz
+  yazılmadı. Pydantic
   model_validator + 4 kind variant × bozuk eşleşme = 16 reject case
 
 **Exit kriterleri.**
@@ -425,15 +420,15 @@ desenleri (parse, traverse, assert).
 
 ## Test Baseline (target deltas)
 
-W13 final bar (giriş referansı): `make test-local` 1521 passed /
-7 skipped / 8 deselected; `make test-security` 215 passed;
-`tests/architecture/` 105 passed.
+W13 final/post-merge bar (giriş referansı): `make test-local` 1551 passed /
+10 skipped / 8 deselected; `make test-security` 215 passed;
+`tests/architecture/` 117 passed.
 
 W14 hedefi (tahminî, iterasyon sonu kümülatif):
 
-+ `make test-local`: 1521 → ~1545-1555 (+24-34 yeni case)
++ `make test-local`: 1551 → ~1575-1585 (+24-34 yeni case)
 + `make test-security`: 215 → ~225-230 (M-class regression + dropout fixture)
-+ `tests/architecture/`: 105 → ~115-118 (yeni 8-10 arch gate)
++ `tests/architecture/`: 117 → ~125-127 (yeni 8-10 arch gate)
 
 ## Per-Item Detail
 
@@ -467,9 +462,9 @@ Three operational lessons to keep in mind when planning W14 splits:
 + Plan source: [REFACTOR_OPTIMIZATION.md §12](../REFACTOR_OPTIMIZATION.md).
 + Backlog: [POST_POC_BACKLOG.md](../POST_POC_BACKLOG.md) — `[FOLLOWUP …]`
   items + `W14 Pull-Forward Acceptance Bar` tablosu.
-+ Predecessor lane (active until close-out PR merges):
++ Predecessor lane (closed; stable-ID evidence only):
   [W13-test-expansion-observability.md](W13-test-expansion-observability.md)
-  (stable IDs `W13-1`..`W13-10`).
+  (stable IDs `W13-1`..`W13-13`).
 + Older predecessor lanes (frozen, stable-ID-only):
   [W12-executor-subpackaging.md](W12-executor-subpackaging.md)
   (`W12-0`..`W12-5`),

@@ -1,7 +1,7 @@
 # W13 — Test Expansion + Observability (Active Work Tracker)
 
-`Last Updated: 2026-05-13 (W13-11 closed 2026-05-12 (6/6 sub-commits — design+impl+arch gate+regression fix+doc sweep) — Path A host-side eager-consume + env var passthrough; W13-12 closed 2026-05-12 (5/5 sub-commits + post-landing drift sweep + 3 behavioral pins — `ActivationReport.harness_handshake_required: bool` fail-closed; final bar test-local 1537 → 1539 (+2 main) → 1542 (+3 post-landing) / tests/architecture/ 112 → 115 (+3)); W13-13 closed 2026-05-13 (5/5 sub-commits + post-landing pins — d2ba495 docs lockdown · 02c4374 RED behavioral · 33deb46 feat impl · 60bb0cd arch gate · `8912596` close evidence + 10-site drift sweep · `826f91c` self-stamp · `26a2025` post-landing behavioral pins (vanished row + finalize idempotency + failed/cancelled terminal); Path B worker-entry `with_for_update()` snapshot lock; final bar test-local 1542 → 1547 (+5 main) → 1551 (+4 post-landing) / tests/architecture/ 115 → 117 (+2); W13 close-gate cleared))`
-`Phase: W13 closed 2026-05-13 — W13-1..W13-13 all GREEN; close-out PR #20 (week13 → main) MERGED 2026-05-13 via 772deb3`
+`Last Updated: 2026-05-13 (W13 closed; W13-1..W13-13 all GREEN; PR #20 week13 -> main MERGED via 772deb3; post-merge PM-1/PM-2 tail landed, including env-only VSIX baseline skipif conversion)`
+`Phase: W13 closed 2026-05-13 — W13-1..W13-13 all GREEN; close-out PR #20 (week13 -> main) MERGED 2026-05-13 via 772deb3`
 `Branch: week13 (single-branch policy precedent; opened 2026-05-10 from cff6455)`
 `Owner: ekrem`
 
@@ -1092,7 +1092,9 @@ kapsıyor (`TARGET_FIELD_NAMES = {"request_body_preview", "response_body_preview
 [line 34](../../tests/architecture/test_network_body_preview_redaction.py));
 `arguments_preview` aynı sıkılığa tabi değil. Bulgunun açık hedefi:
 "redact `arguments_preview`; extend W12-5 architecture gate"
-([POST_POC_BACKLOG.md:38](../POST_POC_BACKLOG.md)). W8-6 (`2026-04-29`)
+([POST_POC_BACKLOG.md](../POST_POC_BACKLOG.md) stable ID
+`[FOLLOWUP codex-2026-05-10-M9-arguments-preview-redaction-extension]`).
+W8-6 (`2026-04-29`)
 `redact_secrets()` helper'ı zaten battle-tested (5 secret class: aws,
 bearer, private_key, api_key, db_url; idempotent) — yeniden kullanmaya
 hazır.
@@ -2477,7 +2479,7 @@ Test bar.
 
 Production code diff scoped to 1 file (`workflows/marketplace/analysis_service.py`: +163 -93 across the entry block + imports). The downstream analysis flow inside `run_analysis_job` is structurally unchanged — the existing `AnalysisCancelledError` / hard-error handlers and `finally: db.close()` continue to govern the rest of the function.
 
-Tarihsel kayıt için orijinal status satırı + sub-commit roadmap matrix (`Design Decision Locked-In` callout + Out-of-scope listesi) bu section'da yerli kalır. Close-out PR `week13 → main` artık AÇIK — W13-1..W13-13 hepsi GREEN.
+Tarihsel kayıt için orijinal status satırı + sub-commit roadmap matrix (`Design Decision Locked-In` callout + Out-of-scope listesi) bu section'da yerli kalır. Close-out PR `week13 -> main` MERGED `2026-05-13` via `772deb3` — W13-1..W13-13 hepsi GREEN.
 
 ---
 

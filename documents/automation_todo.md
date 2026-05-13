@@ -1,6 +1,6 @@
 # Dynamic Analysis Backlog
 
-`Last Updated: 2026-05-11`
+`Last Updated: 2026-05-13`
 
 This is the short actionable backlog for the sandbox pipeline. It complements
 `DEVELOPMENT_PRIORITIES.md`, `PIPELINE_ROADMAP.md`, and the canonical
@@ -18,23 +18,18 @@ flow, the VNC harness ready-marker fix, and the
 `make demo-canary-offline` Makefile lanes; review follow-ups are
 tagged `[FOLLOWUP simulation-progress-cancel]` in
 `POST_POC_BACKLOG.md`. PR345 target activation lifecycle and W8-0
-deterministic harness readiness gate both landed on `2026-04-27`;
-**W8 closed for active work `2026-04-29`** (W8-1..W8-7 + W8-9 landed,
-W8-8 deferred under named triggers); **W9 closed `2026-05-04` via
-PR #9**; **W10 closed `2026-05-04` via PR #11**;
-**W11 closed `2026-05-05`** and merged via PR #14; **W12 closed
-`2026-05-10`** and merged via PR #18. Active phase is W13 test
-expansion + observability (§11.10), tracked in
-[`active-work/W13-test-expansion-observability.md`](active-work/W13-test-expansion-observability.md).
+deterministic harness readiness gate both landed on `2026-04-27`.
+W8-W13 are closed; W13 merged via PR #20 (`772deb3`) on `2026-05-13`.
+Active phase is W14 Codex M-class Acceptance + Observability, staged in
+[`active-work/W14-codex-acceptance-observability.md`](active-work/W14-codex-acceptance-observability.md).
 
 ## Now (next-iteration pull)
 
 Source of truth: `POST_POC_BACKLOG.md` for pullable work and
-`REFACTOR_STATUS.md` for landed closure evidence. W8-W12 are closed;
-W13-1..W13-7 are closed — every MEDIUM/HIGH Codex Cloud audit
-acceptance-bar item (H3 via W13-5, H4 via W13-3, H5 via W13-2,
-H6 via W13-1, M1 via W13-7, M9 via W13-6) landed. Next step is the
-W13 end-of-phase close-out PR `week13 → main` (W12 PR #18 pattern).
+`REFACTOR_STATUS.md` for landed closure evidence. W8-W13 are closed;
+W13-1..W13-13 all GREEN and PR #20 `week13 -> main` merged
+`2026-05-13`. Next step is an explicit W14 pull / `week14` branch cut from
+`main`.
 
 + **W11 (`REFACTOR_OPTIMIZATION.md` §11.8) monitor lifecycle split —
   CLOSED `2026-05-05`.** W11-1 `MonitorRuntime` (PR #12, `84d51ae`),
@@ -80,8 +75,8 @@ W13 end-of-phase close-out PR `week13 → main` (W12 PR #18 pattern).
   `[FOLLOWUP simulation-progress-cancel]` entries.
 + ADR 0006 §5 full `target_extension_observed` conjunction tightening
   (currently only the additive OR clause landed in PR5). Deferred so
-  baseline fixtures don't churn; planned as a focused follow-up before
-  W8-W13 closes.
+  baseline fixtures don't churn; promote through `POST_POC_BACKLOG.md`
+  before treating it as active work.
 
 ## Next (post-PoC value-adds)
 
