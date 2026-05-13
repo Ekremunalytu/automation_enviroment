@@ -497,6 +497,16 @@ class ActivationReport(StrictContractModel):
     # W11-3: derived from runner_exit_code; `success` for 0, `error` for
     # any non-zero, `unknown` if the runner never finalized.
     runner_status: RunnerStatusLiteral = "unknown"
+    # W14-5 sub-commit 3 ([FOLLOWUP codex-automation-5]): executor build
+    # fingerprint (commit_sha / build_date / version) emitted at the
+    # automation output boundary so a scan report carries its producer
+    # revision. Default-empty so legacy fixtures (schema_version 2.1
+    # written before W14-5) still validate; the producer
+    # (`executor.runtime_fingerprint.executor_fingerprint`) populates
+    # the three keys on every new write. Schema version stays at 2.1 —
+    # the field is additive-optional and does not change the legacy
+    # contract's required shape.
+    executor_fingerprint: dict[str, str] = Field(default_factory=dict)
 
     @model_validator(mode="before")
     @classmethod

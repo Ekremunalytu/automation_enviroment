@@ -10,6 +10,7 @@ from typing import Any
 
 from pydantic import ValidationError
 
+from executor.runtime_fingerprint import executor_fingerprint
 from packages.analysis_contracts import redact_secrets
 from packages.analysis_contracts.contracts import (
     ACTIVATION_REPORT_SCHEMA_VERSION,
@@ -400,6 +401,11 @@ def build_report_data(
         ),
         "runner_exit_code": getattr(report, "runner_exit_code", None),
         "runner_status": getattr(report, "runner_status", "unknown"),
+        # W14-5 sub-commit 3 ([FOLLOWUP codex-automation-5]): executor
+        # build fingerprint at automation output boundary. Cached after
+        # first resolve; subsequent writes during the same process
+        # lifetime return the cached dict without re-running `git`.
+        "executor_fingerprint": executor_fingerprint(),
     }
 
 

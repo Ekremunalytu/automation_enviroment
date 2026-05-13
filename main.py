@@ -8,7 +8,11 @@ from fastapi.middleware.gzip import GZipMiddleware
 from sqlalchemy.exc import SQLAlchemyError
 
 from appcore.api.config import settings
-from appcore.logging import install_extrace_log_context_filter
+from appcore.logging import (
+    install_extrace_log_context_filter,
+    set_executor_fingerprint_provider,
+)
+from executor.runtime_fingerprint import executor_fingerprint_short
 from workflows.activation_reports.router import router as activation_reports_router
 from workflows.extension_catalog.router import router as extension_catalog_router
 from workflows.marketplace.job_service import recover_interrupted_jobs
@@ -41,6 +45,11 @@ def create_app(*, recover_jobs: bool = True) -> FastAPI:
     # record emitted across the app lifetime carries the W14-5 structured
     # field contract (run_id, executor_fingerprint). Idempotent.
     install_extrace_log_context_filter()
+    # W14-5 sub-commit 3: wire the executor runtime fingerprint provider
+    # into the appcore.logging filter chain. The provider is registered
+    # at app boot so every subsequent log record carries the short
+    # commit SHA without per-call wiring.
+    set_executor_fingerprint_provider(executor_fingerprint_short)
     application = FastAPI(
         title=settings.project.NAME,
         description=settings.project.DESCRIPTION,
