@@ -617,8 +617,8 @@ W13-5 patterns established by earlier audit pulls.
 
 | Sub-commit | Theme | SHA |
 |---|---|---|
-| 1 | M13 + M14b + U4-U12 production patches, behavioral regression cases (10 cases), and 3 content/AST architecture gates (10 cases) | TBD (self-stamped post-landing) |
-| 2 | Self-stamp sub-commit 1 SHA + tracker / backlog close-out | (this commit) |
+| 1 | M13 + M14b + U4-U12 production patches, 10 behavioral regression cases, 10 content/AST architecture gate cases, and tracker / backlog close-out | `941250d` |
+| 2 | Self-stamp sub-commit 1 SHA in this table | (this commit) |
 
 **Module locations.**
 
