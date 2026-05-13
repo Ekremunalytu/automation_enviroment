@@ -432,12 +432,12 @@ W14 hedefi (tahminî, iterasyon sonu kümülatif):
 
 **Actual cumulative bar (post-W14-4):**
 
-| Suite | W13 baseline | W14-1 | W14-2 | W14-3 | W14-4 | Current |
-|---|---|---|---|---|---|---|
-| `make test-security` | 215 | 222 (+7 dropout repro) | 269 (+47 M4-M7 + M11) | 279 (+10 M13) | 279 (lane subset stable; W14-4 surface lands in `tests/platform/storage/` + `tests/platform/contracts/`) | **279** |
-| `tests/architecture/` | 117 | 117 (W14-1 updated `test_readme_phase_pointer` in place) | 121 (+4: 2 ts-guard + 2 int-guard) | 131 (+10: 2 uri redaction + 4 cdp default + 4 makefile quoting) | 135 (+4: 2 lock-symmetry + 2 kind-invariant) | **135** |
-| Broad regression suite (security + arch + executor + workflows/marketplace) | — | — | — | 1106 | 1110 (+4 arch gates; lock + concurrency cases live under `tests/platform/storage/`) | **1110 passed / 7 skipped / 4 deselected** (sıfır regresyon) |
-| `make test-local` (full sweep) | 1551 | — | — | — | — | **1701 passed / 10 skipped / 8 deselected / 1 xfailed** |
+| Suite | W13 baseline | W14-1 | W14-2 | W14-3 | W14-4 (initial) | W14-4 (post-landing defense-in-depth) | Current |
+|---|---|---|---|---|---|---|---|
+| `make test-security` | 215 | 222 (+7 dropout repro) | 269 (+47 M4-M7 + M11) | 279 (+10 M13) | 279 (lane subset stable; W14-4 surface lands in `tests/platform/storage/` + `tests/platform/contracts/`) | 279 (defense-in-depth surface stays outside test-security lane) | **279** |
+| `tests/architecture/` | 117 | 117 (W14-1 updated `test_readme_phase_pointer` in place) | 121 (+4: 2 ts-guard + 2 int-guard) | 131 (+10: 2 uri redaction + 4 cdp default + 4 makefile quoting) | 135 (+4: 2 lock-symmetry + 2 kind-invariant) | 137 (+2: producer kind allowlist gate) | **137** |
+| Broad regression suite (security + arch + executor + workflows/marketplace) | — | — | — | 1106 | 1110 (+4 arch gates; lock + concurrency cases live under `tests/platform/storage/`) | 1112 (+2 producer gate) | **1112 passed / 7 skipped / 4 deselected** (sıfır regresyon) |
+| `make test-local` (full sweep) | 1551 | — | — | — | 1701 | 1716 (+15: 2 producer gate + 13 fixture-validity) | **1716 passed / 10 skipped / 8 deselected / 1 xfailed** |
 
 W14-5..W14-6 dilimleri hedefi karşılayacak; `make test-security` hedefi
 (~225-230) şimdiden geçilmiş durumda, kalan iter'ler
@@ -811,12 +811,66 @@ closed in `POST_POC_BACKLOG.md`. The W15+ UI follow-up
 item — UI invariant parity is a separate pull now that the backend
 contract is hard-pinned.
 
+**Defense-in-depth coverage (post-landing).** Two follow-up gates
+added the same day to close the producer / fixture surfaces the
+audit highlighted:
+
++ [tests/architecture/test_evidence_event_kind_allowlist_producer.py](../../tests/architecture/test_evidence_event_kind_allowlist_producer.py)
+  (2 AST cases) — every `EvidenceEvent(...)` constructor in
+  `executor/flows/playwright/attribution/links.py` must pass a
+  string-literal `kind=` that lives in
+  `_EVIDENCE_EVENT_KIND_TO_EVENT_CLASS`. Producer-side mirror of the
+  ingest-side validator gate.
++ [tests/platform/contracts/test_fixture_report_validity.py](../../tests/platform/contracts/test_fixture_report_validity.py)
+  (13 cases: 12 parametrized fixture loads + 1 surface-non-empty pin)
+  — every commit-included `activation_report.json` under
+  `tests/platform/contracts/fixtures/activation_reports/` and
+  `extensions/malicious/*/` is loaded through
+  `ActivationReport.model_validate` so a future hand-authored fixture
+  drift surfaces on local test runs instead of in unrelated security
+  tests (which is how W14-4 first surfaced the 5 drifted events).
+
+`tests/architecture/` 135 → 137 (+2 producer gate);
+`tests/platform/contracts/` adds 13 new fixture-validity cases.
+
 **Production validation.** `make test-security` 215 lane stays green
 (the W14-4 surface lives in `tests/platform/storage/` and
 `tests/platform/contracts/`, outside the fixed test-security lane).
 `make test-local` 1701 green confirms the full sweep — including the
 once-drifted canary fixtures that the new invariant correctly
 rejected pre-fix and now ingest cleanly post-fix.
+
+Live-scan parity recorded `2026-05-13` 16:47 on the post-W14-4
+`week14` working tree against
+`activation_report_ms-python.python-2026.5.2026051301-d7e9a1c09fe4.json`
+(UI-launched scan against `ms-python.python@2026.5.2026051301`):
+
++ `ActivationReport.model_validate` accepts the payload cleanly with
+  the W14-4 validator engaged. 2817 evidence_events validated; 0
+  kind↔event_class mismatches detected (every producer pair already
+  matches the closed allowlist).
++ W14-3 redaction holds end-to-end: 173 network events scanned
+  against the five common secret shapes (`Bearer `, `AKIA`,
+  `sk_live_`, `ghp_`, `ssh-rsa`) — 0 leaks across `NetworkEvent.path`
+  and `NetworkEvent.summary`.
++ W14-1 conservation guard fired correctly: 5 requested scenarios →
+  3 ran (`coding_session`, `project_exploration`, `terminal_usage`)
+  → 2 `unaccounted_dropout` records for `debug_session` and
+  `refactor_workflow`, exact match with the
+  `vec_ms_python_python` fixture pinned in
+  `tests/security/test_scenario_dropout_repro.py`.
++ `runner_status=success`, `runner_exit_code=0`,
+  `target_extension_observed=True`,
+  `automation_health.status='degraded'` for the correct reason set
+  (`skipped_scenarios_present`, `verification_gap_present`, etc.).
+
+Pre-existing top-level null drift on `target_extension_id`,
+`monitoring_start` / `monitoring_end`, `scenarios_run`, and
+`harness_handshake_required` matches the pre-W14-4 scan byte-for-byte
+— **not a W14-4 regression**, tracked separately as
+`[FOLLOWUP report-finalize-top-level-field-sync-drift]` (W15+, pinned
+under the `xfail` RED stub at
+`tests/security/test_report_finalize_field_sync.py`).
 
 ## W13 Lessons Learned (carry-forward)
 

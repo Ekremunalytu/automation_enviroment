@@ -1,6 +1,6 @@
 # REFACTOR_OPTIMIZATION
 
-`Last Updated: 2026-05-13 (W13 closed; PR #20 week13 -> main merged via 772deb3; §12 W14 staging entry triggered by close-out merge; awaiting explicit W14 pull / week14 branch cut)`
+`Last Updated: 2026-05-13 (W13 closed; PR #20 week13 -> main merged via 772deb3; §12 W14 active on week14 branch cut 69251f1 — W14-1 BLOCKER → HIGH, W14-2/W14-3/W14-4 closed; W14-5/W14-6 scoped)`
 
 W0-W14 plan document: stabilization + security + post-PoC external-review
 integration + W14 acceptance + observability continuation. **Slim canonical**
@@ -21,9 +21,14 @@ integration + W14 acceptance + observability continuation. **Slim canonical**
   [`active-work/W8-security.md`](active-work/W8-security.md).
 - §11.6 - §11.10 → W9-W13 weekly briefs.
 - §11.11 - §11.14 → cross-ref, rejected, lane, and exit criteria summaries.
-- §12 → W14 Codex M-class Acceptance + Observability (staging; entry was
-  triggered by the W13 close-out PR merge; activates on explicit W14 pull).
-  Tracker:
+- §12 → W14 Codex M-class Acceptance + Observability (active on the
+  `week14` branch cut from `main` at `69251f1` on `2026-05-13`).
+  W14-1 BLOCKER → HIGH downgrade landed same day; W14-2 (M4-M7 +
+  M11) closed via `bde17be`; W14-3 (M13 + M14b + U4-U12) closed via
+  `941250d`; W14-4 (analysis-jobs-race + EvidenceEvent kind
+  invariant) closed via `03b32bc`; W14-5 (logger consolidation +
+  run-ID stamping) and W14-6 (W8-W12 regression lock-in umbrella)
+  scoped but not pulled. Tracker:
   [`active-work/W14-codex-acceptance-observability.md`](active-work/W14-codex-acceptance-observability.md).
 
 ## §10 — W0-W7 PoC Stabilization Window (closed 2026-04-23)
@@ -196,13 +201,24 @@ W13 closed once:
   integrity (history shows H6/H4 work as a coherent iteration family
   rather than a deferred follow-up).
 
-## §12 — W14 Codex M-class Acceptance + Observability (2026-05-11 staging)
+## §12 — W14 Codex M-class Acceptance + Observability (active 2026-05-13)
 
-§12 opens once `week14` is cut from `main` (close-out PR #20 already merged
-`2026-05-13` via `772deb3`). Until the branch cut, this section is **read-only
-staging scope**; the active tracker
+§12 opened with the `week14` branch cut from `main` at `69251f1` on
+`2026-05-13` (close-out PR #20 already merged the same day via
+`772deb3`). The active tracker
 [`active-work/W14-codex-acceptance-observability.md`](active-work/W14-codex-acceptance-observability.md)
-mirrors this scope and activates on explicit pull.
+carries per-iter Per-Item Detail evidence (sub-commits, module
+locations, test deltas, production validation). Sub-iter closure
+state as of `2026-05-13`:
+
+| Iter | Status | Landing commit |
+|---|---|---|
+| W14-1 | BLOCKER → HIGH downgrade (stochastic-bound rationale) | `0c8bd02` |
+| W14-2 | closed (M4-M7 + M11 input validation) | `bde17be` |
+| W14-3 | closed (M13 + M14b + U4-U12 external surface) | `941250d` |
+| W14-4 | closed (analysis-jobs-race + EvidenceEvent kind invariant) | `03b32bc` |
+| W14-5 | scoped — not pulled | — |
+| W14-6 | scoped — not pulled | — |
 
 ### §12.0 — Neden ayrı §12
 

@@ -1,6 +1,6 @@
 # Runbook: Analysis Job Stuck or Failed Unexpectedly
 
-`Last Updated: 2026-05-11 (W13-3 cancelling-state addition; W13-4 close-pass runbook revision)`
+`Last Updated: 2026-05-13 (W13-3 cancelling-state addition; W13-4 close-pass runbook revision; W14-4 complete/fail lock symmetry)`
 
 ## Symptom
 
@@ -263,7 +263,7 @@ UPDATE analysis_jobs
 
 - [appcore/storage/model_defs/analysis_job.py](../../appcore/storage/model_defs/analysis_job.py) — DB schema (W13-3 added `requested_cancel_at` column + widened `uq_analysis_jobs_single_active` partial unique index `WHERE` clause to include `cancelling`)
 - [appcore/contracts/schema_defs/analysis_jobs.py](../../appcore/contracts/schema_defs/analysis_jobs.py) — status + step types (W13-3: `AnalysisJobStatus` Literal + `ANALYSIS_JOB_STATUSES` tuple now 6 members; `ACTIVE_ANALYSIS_JOB_STATUSES` includes `cancelling`)
-- [appcore/storage/crud_ops/analysis_jobs/lifecycle.py](../../appcore/storage/crud_ops/analysis_jobs/lifecycle.py) — `cancel_analysis_job` (running → cancelling), `finalize_cancelled_analysis_job` (cancelling → cancelled), `recover_interrupted_analysis_jobs` (boot_id sweep)
+- [appcore/storage/crud_ops/analysis_jobs/lifecycle.py](../../appcore/storage/crud_ops/analysis_jobs/lifecycle.py) — `cancel_analysis_job` (running → cancelling), `finalize_cancelled_analysis_job` (cancelling → cancelled), `complete_analysis_job` + `fail_analysis_job` (W14-4: now acquire `select(...).with_for_update()` and gate against `_TERMINAL_JOB_STATUSES` before mutating, mirroring the W13-3 cancel/finalize lock discipline so concurrent terminal writers serialize exactly-one-winner instead of silently overwriting), `recover_interrupted_analysis_jobs` (boot_id sweep)
 - [alembic/versions/c8a2d4e91f5b_add_cancelling_status_to_analysis_jobs.py](../../alembic/versions/c8a2d4e91f5b_add_cancelling_status_to_analysis_jobs.py) — W13-3 migration; downgrade force-finalizes `cancelling` rows to `cancelled` before tightening the partial unique index
 - [workflows/marketplace/router.py](../../workflows/marketplace/router.py) — `GET /api/marketplace/analyze/{job_id}` endpoint, `POST /api/marketplace/analyze/{job_id}/cancel`
 - [workflows/marketplace/job_service.py](../../workflows/marketplace/job_service.py) — step reporter, boot-id ownership, `is_job_cancelled` (cancelled+cancelling), `finalize_cancelled_job` wrapper, `recover_interrupted_jobs`
