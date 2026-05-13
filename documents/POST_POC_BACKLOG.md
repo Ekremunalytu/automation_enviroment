@@ -100,13 +100,16 @@ remaining items iter into W15+.
   `tests/architecture/test_network_uri_summary_redaction.py`; behavioral
   coverage in `tests/security/test_network_uri_summary_redaction.py`.
 - ~~`[FOLLOWUP codex-2026-05-10-M14b-cdp-port-default-disabled]`~~ — **closed
-  `2026-05-13`** via W14-3 on `week14`. Posture decision: opt-in via
-  `EXECUTOR_CDP_PORT` env var. Empty default propagates through
-  `launch_vscode.sh`, `start.sh`, and the executor service entry in
-  `docker-compose.yml`; the launch wrapper appends the
-  `--remote-debugging-port` flag only when the value is non-empty.
-  `make up-debug` explicitly sets `EXECUTOR_CDP_PORT=9222` before
-  invoking compose so the debug profile UX stays unchanged. Gated by
+  `2026-05-13`** via W14-3 on `week14`. Posture decision formalized as
+  [`ADR 0009: CDP Default-Disabled in the Executor Container`](adrs/0009-cdp-default-disabled.md)
+  (container-internal complement to ADR 0007 §4 which already gated
+  host→container exposure). Opt-in via `EXECUTOR_CDP_PORT` env var.
+  Empty default propagates through `launch_vscode.sh`, `start.sh`, and
+  the executor service entry in `docker-compose.yml`; the launch
+  wrapper appends the `--remote-debugging-port` flag only when the
+  value is non-empty. `make up-debug` explicitly sets
+  `EXECUTOR_CDP_PORT=9222` before invoking compose so the debug
+  profile UX stays unchanged. Gated by
   `tests/architecture/test_cdp_port_default.py`.
 - `[FOLLOWUP codex-2026-05-10-U1-U2-U3-ui-event-spread-cap]` — W15+;
   cap UI event density/timeline spread operations.

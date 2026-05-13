@@ -632,13 +632,17 @@ W13-5 patterns established by earlier audit pulls.
   funnel inside ``parse_tshark_event_line`` at
   `executor/flows/playwright/runtime_capture/network.py:99-122`.
 + **M14b (CDP port default-disabled)** — posture decision: **opt-in via
-  `EXECUTOR_CDP_PORT` env var**. ``launch_vscode.sh``, ``start.sh``,
-  and ``docker-compose.yml`` all default the env var to empty; the
-  launch wrapper appends ``--remote-debugging-port=...`` to the ``code``
-  invocation only when the value is non-empty. The ``make up-debug``
-  Makefile lane now explicitly sets ``EXECUTOR_CDP_PORT=9222`` before
-  invoking compose, so the debug profile keeps the previous UX while
-  routine ``make up`` boots stay CDP-closed.
+  `EXECUTOR_CDP_PORT` env var**. Formalized in
+  [`ADR 0009: CDP Default-Disabled in the Executor Container`](../adrs/0009-cdp-default-disabled.md)
+  as the container-internal complement to ADR 0007 §4 (which already
+  gated host→container exposure via the `debug` Compose profile).
+  ``launch_vscode.sh``, ``start.sh``, and ``docker-compose.yml`` all
+  default the env var to empty; the launch wrapper appends
+  ``--remote-debugging-port=...`` to the ``code`` invocation only when
+  the value is non-empty. The ``make up-debug`` Makefile lane now
+  explicitly sets ``EXECUTOR_CDP_PORT=9222`` before invoking compose,
+  so the debug profile keeps the previous UX while routine ``make up``
+  boots stay CDP-closed.
 + **U4-U12 (Makefile sim-target / sim-run shell quoting)** — both
   recipes now (a) validate operator-supplied variables against strict
   character classes (``[A-Za-z0-9._-]+`` for TARGET,
