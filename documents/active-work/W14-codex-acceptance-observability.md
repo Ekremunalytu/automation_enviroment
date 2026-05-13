@@ -543,8 +543,8 @@ arch-gate pattern:
 
 | Sub-commit | Theme | SHA |
 |---|---|---|
-| 1 | M4-M7 + M11 production patches, behavioral regression cases (51 cases), and 2 AST architecture gates | TBD (self-stamped post-landing) |
-| 2 | Self-stamp sub-commit 1 SHA + tracker / backlog close-out | (this commit) |
+| 1 | M4-M7 + M11 production patches, behavioral regression cases (51 cases), 2 AST architecture gates, and tracker / backlog close-out | `bde17be` |
+| 2 | Self-stamp sub-commit 1 SHA in this table | (this commit) |
 
 **Module locations.**
 
