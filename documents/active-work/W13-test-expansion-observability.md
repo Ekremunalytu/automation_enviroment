@@ -2511,6 +2511,8 @@ Tarihsel kayıt için orijinal status satırı + sub-commit roadmap matrix (`Des
 | 7 | `test(W13-13)` post-close behavioral pins — vanished row + finalize idempotency + failed/cancelled terminal | `tests/platform/storage/test_analysis_jobs_cancel_at_worker_entry.py` (+4 cases) | landed `26a2025` |
 | 8 | `docs(W13-13)` self-stamp post-landing SHAs + 10-site banner sweep | tracker + banner cascade | landed `db7ade8` |
 | M | merge close-out PR #20 (week13 → main) | `main` | merged `2026-05-13` via `772deb3` |
+| PM-1 | `docs(W13)` post-merge close-out sweep (READY/pending → MERGED across 10 sites + W14 entry-gate semantics) | `CLAUDE.md` + `AGENTS.md` + `README.md` + `documents/REFACTOR_STATUS.md` + `documents/REFACTOR_OPTIMIZATION.md` + `documents/POST_POC_BACKLOG.md` + `documents/AGENT_CONTEXT.md` + `documents/active-work/README.md` + `documents/active-work/W13-test-expansion-observability.md` (this file — Phase banner + W13-13 sub-commit table self-stamp) + `documents/active-work/W14-codex-acceptance-observability.md` | landed `3243656` (main-only; post-merge tail) |
+| PM-2 | `test(W13)` skipif env-only baseline VSIX fixtures — convert 2 hard-fails to collection-time skips | `tests/platform/contracts/test_analysis_fixture_baselines.py` (module constant `_ALL_BASELINE_VSIX_PRESENT` + 2 decorators) | landed `ca628b4` (main-only; post-merge tail). `make test-local` bar: 1551 PASS + 2 FAIL + 8 SKIP → 1551 PASS + 0 FAIL + 10 SKIP, exit code 0 (was 1) |
 
 **Sorun.** W13-3 iki-fazlı cancel `running → cancelling → cancelled`
 state machine'i kuruyor; `cancel_analysis_job` (`lifecycle.py:128-156`)
