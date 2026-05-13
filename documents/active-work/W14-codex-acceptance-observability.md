@@ -1,8 +1,8 @@
 # W14 — Codex M-class Acceptance + Observability (Active Work Tracker)
 
-`Last Updated: 2026-05-13 (W14 active; W14-1 pulled; W14-2/W14-3/W14-4/W14-5/W14-6 closed; week14 branch cut from main at 69251f1; W13 close-out PR #20 week13 -> main merged via 772deb3)`
-`Phase: W14 active (W14-6 closed 2026-05-13 — regression lock-in umbrella: bare-binary pragma ratchet + executor.control outbound gate + variable-indirect subprocess coverage; W14 sub-iter slate complete, close-out PR week14 -> main next)`
-`Branch: week14 (cut from main 2026-05-13 at HEAD 69251f1; close-out PR opens after W14-6 GREEN — all six sub-iters now closed)`
+`Last Updated: 2026-05-13 (W14 sub-iter slate complete (W14-1..W14-6) + W14-7 post-slate hotfix closed; W14-1 closed via 0c8bd02 (BLOCKER -> HIGH; upstream split -> W15+); W14-2 closed via bde17be; W14-3 closed via 941250d; W14-4 closed via 03b32bc; W14-5 closed via dc79f61+9c095d2+db25d5f; W14-6 closed via 2adad43+b031803+e42a448; W14-7 closed via df925f8+c11ebd8 — container-shipping regression + Python 3.10 UTC compat; week14 branch cut from main at 69251f1; W13 close-out PR #20 week13 -> main merged via 772deb3; close-out PR week14 -> main next)`
+`Phase: W14 active (W14-6 closed 2026-05-13 — regression lock-in umbrella: bare-binary pragma ratchet + executor.control outbound gate + variable-indirect subprocess coverage; W14 sub-iter slate complete; W14-7 post-slate hotfix closed 2026-05-13 via df925f8+c11ebd8 — container-shipping regression + Python 3.10 UTC compat; close-out PR week14 -> main next)`
+`Branch: week14 (cut from main 2026-05-13 at HEAD 69251f1; close-out PR opens after W14-6 GREEN — all six sub-iters closed + W14-7 post-slate hotfix closed)`
 `Owner: ekrem`
 
 > **Authored 2026-05-11** as the W14 scope skeleton. Stable IDs `W14-1..W14-6`
@@ -22,9 +22,18 @@ list.
 
 ## Status (Quick Glance)
 
-+ **W14 active — W14-1 pulled.** Six sub-iterations scoped; W14-1 in progress
-  on the `week14` branch (cut from `main` at `69251f1` on `2026-05-13`).
-  Close-out PR #20 (`week13 -> main`) **MERGED** `2026-05-13` via `772deb3`.
++ **W14 sub-iter slate complete (W14-1..W14-6) + W14-7 post-slate hotfix closed.**
+  All six sub-iterations closed on the `week14` branch (cut from `main`
+  at `69251f1` on `2026-05-13`); post-slate production smoke surfaced
+  two W14-shipped regressions (W14-6.c `executor/binary_paths.py` and
+  W14-5.3 `executor/runtime_fingerprint.py` not COPY'd into the
+  executor container; W14-5.3 also used `from datetime import UTC`
+  which Python 3.10 rejects) — W14-7 hotfixed via `df925f8` (fix) +
+  `c11ebd8` (regression gate). Close-out PR `week14 -> main` is the
+  next milestone. Per-iter SHA matrix in the "Per-Item Detail" section
+  below; bottom-of-file summary at the `W14 sub-iter slate is complete`
+  line. Predecessor close-out PR #20 (`week13 -> main`) **MERGED**
+  `2026-05-13` via `772deb3`.
 + **Entry gate (met).** Opens W14-1:
   + W13 close-gate cleared ✓ (`2026-05-13`): W13-11 (HMAC python secret
     eager-consume) ✓ closed `2026-05-12`; W13-12 (fail-closed harness
@@ -108,7 +117,7 @@ audit; `[BUG …]` rows are from `POST_POC_BACKLOG.md` Contracts/Reports/Detecti
 
 | ID | Item | Lane | Status |
 |---|---|---|---|
-| **W14-1** | `[BUG scenario-dropout-upstream-root-cause]` (senaryolar `ScenarioAccountant`'a ulaşmadan planner / stimulus_passes / harness dispatch dizisinde düşüyor; son-metre conservation guard `unaccounted_dropout` raporluyor ama kök neden açık) | `[executor-runtime]` `[security-detection]` | **in progress** — BLOCKER triage; pulled `2026-05-13` on `week14` branch |
+| **W14-1** | `[BUG scenario-dropout-upstream-root-cause]` (senaryolar `ScenarioAccountant`'a ulaşmadan planner / stimulus_passes / harness dispatch dizisinde düşüyor; son-metre conservation guard `unaccounted_dropout` raporluyor ama kök neden açık) | `[executor-runtime]` `[security-detection]` | **closed (W14 scope)** `2026-05-13` via `0c8bd02` — BLOCKER → HIGH; upstream emit-site split tracked under `[FOLLOWUP scenario-accountant-conservation-split]` (W15+) |
 | **W14-2** | `[FOLLOWUP codex-2026-05-10-M4-M7-output-ts-range-validation]` (extension-controlled `ts` field guard sız `datetime.fromtimestamp()`'a giriyor; OverflowError DoS vector) | `[security-detection]` | **closed** `2026-05-13` |
 | **W14-2** | `[FOLLOWUP codex-2026-05-10-M11-report-health-malformed-types]` (`_build_report_messages()` `int(automation_health.get(...))` ValueError'a açık) | `[security-detection]` | **closed** `2026-05-13` |
 | **W14-3** | `[FOLLOWUP codex-2026-05-10-M13-network-uri-summary-redaction]` (network capture event'lerinin `path` + `summary` alanları secret sızdırıyor; W12-5 gate sadece `*_body_preview`'i kapsıyor; W13-6 factory-internal redaction deseninin tekrarı) | `[security-detection]` `[executor-runtime]` | **closed** `2026-05-13` |
@@ -122,6 +131,7 @@ audit; `[BUG …]` rows are from `POST_POC_BACKLOG.md` Contracts/Reports/Detecti
 | **W14-6** | `[FOLLOWUP arch-gate-bare-binary-pragma-ratchet]` (strict pragma-count ratchet at 6, monotonically downward) | (multi) | **closed** `2026-05-13` |
 | **W14-6** | `[FOLLOWUP arch-gate-executor-control-outbound]` (semantic outbound surface gate on `executor.control` public API) | (multi) | **closed** `2026-05-13` |
 | **W14-6** | `[FOLLOWUP w8-4-variable-indirect-subprocess-coverage]` (variable-indirect `cmd = [...]; subprocess.Popen(cmd)` form coverage + production migration of 4 sites to `binary_paths` constants) | `[security-detection]` `[executor-runtime]` | **closed** `2026-05-13` |
+| **W14-7** | `[FOLLOWUP w14-container-shipping-regression]` (post-slate hotfix: W14-6.c `executor/binary_paths.py` + W14-5.3 `executor/runtime_fingerprint.py` not COPY'd into executor container → `ModuleNotFoundError` at first import; W14-5.3 also used `from datetime import UTC` rejected by Python 3.10 executor container) | `[executor-runtime]` `[platform-storage]` | **closed (post-slate)** `2026-05-13` via `df925f8`+`c11ebd8` |
 | TBD watch | `[FOLLOWUP scenario-accountant-conservation-split]` (W14-1 kök neden tespitinden sonra ayrı pull olarak değerlendirilir; W14-1 PR'ına dahil edilmez) | `[executor-runtime]` | watching — W14-1 sonrası ayrı pull adayı |
 
 ## Sub-iteration Scope Locks
@@ -432,19 +442,19 @@ W14 hedefi (tahminî, iterasyon sonu kümülatif):
 + `make test-security`: 215 → ~225-230 (M-class regression + dropout fixture)
 + `tests/architecture/`: 117 → ~125-127 (yeni 8-10 arch gate)
 
-**Actual cumulative bar (post-W14-6, W14 sub-iter slate complete):**
+**Actual cumulative bar (post-W14-6 sub-iter slate complete + W14-7 post-slate hotfix):**
 
-| Suite | W13 baseline | W14-1 | W14-2 | W14-3 | W14-4 (post-landing) | W14-5 (logger + run-ID + fingerprint) | W14-6 (regression lock-in) | Current |
-|---|---|---|---|---|---|---|---|---|
-| `make test-security` | 215 | 222 | 269 | 279 | 279 | 215 (W14-5 surface lives outside the fixed test-security lane: factory + filter wire-up lands in `tests/platform/` and `tests/executor/`) | 215 (W14-6 surface is gate-only; lives in `tests/architecture/`) | **215** (lane fixed list) |
-| `tests/architecture/` | 117 | 117 (W14-1 in-place README update) | 121 (+4: 2 ts-guard + 2 int-guard) | 131 (+10: 2 uri redaction + 4 cdp default + 4 makefile quoting) | 137 (+6: 2 lock-symmetry + 2 kind-invariant + 2 producer gate) | 154 (+17: 11 logger consolidation + 3 runtime fingerprint emit + 3 ratchet) | 168 (+14: 7 control outbound + 6 variable-indirect self-tests + 1 in-place ratchet baseline lower 7→6) | **168** |
-| `make test-local` (full sweep) | 1551 | — | — | — | 1716 | ~1762 (+46: 25 factory behavior + 14 run-ID emit + 6 docker-exec propagation + 16 fingerprint behavior / contract / gate) | 1798 (+36: 7 control outbound + 6 ratchet + 13 absolute-binary self-tests + 10 from migration ripple) | **1798 passed / 10 skipped / 8 deselected / 1 xfailed** |
-| Broad regression suite (security + arch + executor + workflows/marketplace + platform) | — | — | — | — | — | — | — | **1798 passed / 10 skipped / 8 deselected / 1 xfailed** (sıfır regresyon — W14-5 retarget'i `LogContextFilter` → `setLogRecordFactory` ile sub-commit 2'de integration testinde yakalandı; production import-graph gate executor→appcore ihlali sub-commit 2'de tespit edildi, executor/host.py literal'le düzeltildi) |
+| Suite | W13 baseline | W14-1 | W14-2 | W14-3 | W14-4 (post-landing) | W14-5 (logger + run-ID + fingerprint) | W14-6 (regression lock-in) | W14-7 (post-slate hotfix) | Current |
+|---|---|---|---|---|---|---|---|---|---|
+| `make test-security` | 215 | 222 | 269 | 279 | 279 | 215 (W14-5 surface lives outside the fixed test-security lane: factory + filter wire-up lands in `tests/platform/` and `tests/executor/`) | 215 (W14-6 surface is gate-only; lives in `tests/architecture/`) | 215 (W14-7 surface is gate-only; lives in `tests/architecture/`) | **215** (lane fixed list) |
+| `tests/architecture/` | 117 | 117 (W14-1 in-place README update) | 121 (+4: 2 ts-guard + 2 int-guard) | 131 (+10: 2 uri redaction + 4 cdp default + 4 makefile quoting) | 137 (+6: 2 lock-symmetry + 2 kind-invariant + 2 producer gate) | 154 (+17: 11 logger consolidation + 3 runtime fingerprint emit + 3 ratchet) | 168 (+14: 7 control outbound + 6 variable-indirect self-tests + 1 in-place ratchet baseline lower 7→6) | 170 (+2: container-shipping gate `test_executor_container_shipping`) | **170** |
+| `make test-local` (full sweep) | 1551 | — | — | — | 1716 | ~1762 (+46: 25 factory behavior + 14 run-ID emit + 6 docker-exec propagation + 16 fingerprint behavior / contract / gate) | 1798 (+36: 7 control outbound + 6 ratchet + 13 absolute-binary self-tests + 10 from migration ripple) | 1800 (+2: container-shipping gate) | **1800 passed / 10 skipped / 8 deselected / 1 xfailed** |
+| Broad regression suite (security + arch + executor + workflows/marketplace + platform) | — | — | — | — | — | — | — | — | **1800 passed / 10 skipped / 8 deselected / 1 xfailed** (sıfır regresyon — W14-5 retarget'i `LogContextFilter` → `setLogRecordFactory` ile sub-commit 2'de integration testinde yakalandı; production import-graph gate executor→appcore ihlali sub-commit 2'de tespit edildi, executor/host.py literal'le düzeltildi; W14-7 post-slate hotfix import-graph + Dockerfile COPY gap'i 2 yeni arch case ile pin'lendi) |
 
 W14 hedef bar (~1575-1585 test-local, ~125-127 arch gate) **aşıldı**:
-test-local 1798 (+247 vs W13 baseline 1551), arch gate 168 (+51 vs W13
-baseline 117). Sub-iter slate complete; close-out PR `week14 -> main`
-hazır.
+test-local 1800 (+249 vs W13 baseline 1551), arch gate 170 (+53 vs W13
+baseline 117). Sub-iter slate complete + W14-7 post-slate hotfix closed;
+close-out PR `week14 -> main` hazır.
 
 ## Per-Item Detail
 
@@ -1040,8 +1050,105 @@ through the runtime_capture suite).
 + `[FOLLOWUP arch-gate-executor-control-outbound]` ✓ closed
 + `[FOLLOWUP w8-4-variable-indirect-subprocess-coverage]` ✓ closed
 
-W14 sub-iter slate is complete (W14-1..W14-6); close-out PR
-`week14 -> main` is the next milestone.
+### W14-7 — Post-slate hotfix: container shipping regression + Python 3.10 UTC compat
+
+**Pulled.** `2026-05-13` on `week14`, after the close-out doc sweep
+commit (`2cbdca0`). Production smoke retry on
+`ms-python.python@2026.5.2026051301` failed at `run_monitoring` with
+"Automation exited before writing the requested report"; UI stuck at
+"Installing extension in sandbox / 5%". Triage traced the failure
+back to two W14 sub-commits, surfacing only inside the running
+executor container.
+
+**Outcome.** **Closed.** Two-commit fix (`df925f8` fix +
+`c11ebd8` regression gate) lands the container COPY directives and
+pins the import-graph ↔ Dockerfile invariant.
+
+**Root causes.**
+
+1. **W14-6.c (`e42a448`) — missing executor-root COPY in Dockerfile.**
+   The variable-indirect subprocess coverage commit added
+   `executor/binary_paths.py` and migrated
+   `executor/flows/playwright/runtime_capture/{filesystem,network,extension_host_capture}.py`
+   to import it as `from executor.binary_paths import INOTIFYWAIT_PATH /
+   TSHARK_PATH / STRACE_PATH`. `executor/container/Dockerfile` only
+   `COPY executor/flows /home/executor/flows` — the new root module
+   was not shipped. First container import raised
+   `ModuleNotFoundError: No module named 'executor.binary_paths'`. By
+   transitive closure, `executor/flows/playwright/report_builder.py`
+   (W14-5.3) also fails because it imports
+   `executor.runtime_fingerprint`, which itself imports
+   `executor.binary_paths.HostBinaryNotFoundError`.
+
+2. **W14-5.3 (`db25d5f`) — Python 3.11 datetime API in container-shipped code.**
+   `executor/runtime_fingerprint.py` used
+   `from datetime import UTC` (Python 3.11+ API). The executor
+   container ships Python 3.10 (`ubuntu:22.04` base image), where
+   `datetime.UTC` does not exist. The repo already has the
+   established compat pattern at
+   [`packages/analysis_engine/runner.py:26`](../../packages/analysis_engine/runner.py:26)
+   (`UTC = getattr(_dt, "UTC", _dt.timezone.utc)  # noqa: UP017`).
+   W14-5.3 missed it; the test suite did not catch the regression
+   because tests run on the host's Python 3.11+.
+
+**Fix (`df925f8`).**
+
++ [`executor/container/Dockerfile`](../../executor/container/Dockerfile) +2 COPY lines:
+  + `COPY --chown=executor:executor executor/binary_paths.py /home/executor/binary_paths.py`
+  + `COPY --chown=executor:executor executor/runtime_fingerprint.py /home/executor/runtime_fingerprint.py`
+  + Sibling host-only modules (`host.py`, `config.py`, `control.py`)
+    are intentionally not shipped (run inside the API container,
+    orchestrate the executor container via `docker exec`).
++ [`executor/runtime_fingerprint.py`](../../executor/runtime_fingerprint.py) switch to the established compat shim:
+  ```python
+  import datetime as _dt
+  datetime = _dt.datetime
+  UTC = getattr(_dt, "UTC", _dt.timezone.utc)  # noqa: UP017
+  ```
+
+**Regression gate (`c11ebd8`).**
+
+[`tests/architecture/test_executor_container_shipping.py`](../../tests/architecture/test_executor_container_shipping.py)
+parses `executor/container/Dockerfile` for the canonical
+`COPY [--chown=...] executor/<name>.py /home/executor/<name>.py`
+pattern, AST-walks every `executor/flows/**/*.py` and every shipped
+executor-root file for absolute `from executor.<root>` imports, and
+asserts every imported root is shipped — pinning the invariant
+against the next root-module addition. A companion case verifies
+every COPY directive references a file that exists on the host.
+
+**Validation.** Post-rebuild in-container smoke:
+`python3 -m executor.flows.playwright.entrypoint --monitor
+--report-path /results/_smoke_fix.json --target-extension-id
+ms-python.python --skip-automation` writes a clean report with
+`runner_status=success`, `runner_exit_code=0`, and the
+`executor_fingerprint` field present (commit_sha=unknown when `.git`
+is not in the container — graceful fallback intact; build_date +
+version emit correctly).
+
+**Test deltas.** `tests/architecture/` 168 → 170 (+2:
+`test_executor_flows_imports_are_shipped_into_container` +
+`test_shipped_root_modules_exist_on_host`); `make test-local` 1798 →
+1800 (+2 from the same gate).
+
+**Out-of-scope.** The `install_extension` 300s timeout observed on
+the cold-start retry (VS Code CLI's IPC ack hang when installing
+`ms-python.python@2026.5.2026051301` together with its
+auto-installed dependencies `ms-python.debugpy` +
+`ms-python.vscode-python-envs` on a fresh container) is a
+pre-existing fragility predating W14 and is NOT a W14-7 regression.
+A separate follow-up (`[FOLLOWUP install-extension-cold-start-ipc-hang]`)
+can be carried forward to W15+ if operators want to deepen the
+install path; W14-7 itself does not depend on it (verification path
+uses `--skip-automation`).
+
+**Follow-on closures.**
+
++ `[FOLLOWUP w14-container-shipping-regression]` ✓ closed
+
+W14 sub-iter slate is complete (W14-1..W14-6); W14-7 post-slate
+hotfix closed via `df925f8` + `c11ebd8`; close-out PR `week14 ->
+main` is the next milestone.
 
 ## W13 Lessons Learned (carry-forward)
 

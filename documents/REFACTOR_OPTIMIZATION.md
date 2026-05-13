@@ -1,6 +1,6 @@
 # REFACTOR_OPTIMIZATION
 
-`Last Updated: 2026-05-13 (W13 closed; PR #20 week13 -> main merged via 772deb3; §12 W14 active on week14 branch cut 69251f1 — W14-1 BLOCKER → HIGH, W14-2/W14-3/W14-4/W14-5/W14-6 closed; W14 sub-iter slate complete; close-out PR week14 -> main next)`
+`Last Updated: 2026-05-13 (W13 closed; PR #20 week13 -> main merged via 772deb3; §12 W14 active on week14 branch cut 69251f1 — W14-1 BLOCKER → HIGH, W14-2/W14-3/W14-4/W14-5/W14-6 closed; W14 sub-iter slate complete; W14-7 post-slate hotfix closed via df925f8+c11ebd8 — container-shipping regression + Python 3.10 UTC compat; close-out PR week14 -> main next)`
 
 W0-W14 plan document: stabilization + security + post-PoC external-review
 integration + W14 acceptance + observability continuation. **Slim canonical**
@@ -32,8 +32,14 @@ integration + W14 acceptance + observability continuation. **Slim canonical**
   (regression lock-in umbrella: bare-binary pragma ratchet +
   executor.control outbound surface gate + variable-indirect
   subprocess coverage with binary_paths migration) closed via
-  `2adad43` + `b031803` + `e42a448`. W14 sub-iter slate complete;
-  close-out PR `week14 -> main` is the next milestone. Tracker:
+  `2adad43` + `b031803` + `e42a448`. W14 sub-iter slate complete.
+  **W14-7 post-slate hotfix** closed `2026-05-13` via `df925f8` (fix:
+  Dockerfile COPY for `executor/binary_paths.py` +
+  `executor/runtime_fingerprint.py` + Python 3.10 `datetime.UTC`
+  compat shim aligned with `packages/analysis_engine/runner.py:26`)
+  and `c11ebd8` (regression gate
+  `tests/architecture/test_executor_container_shipping.py`, +2 arch
+  cases). Close-out PR `week14 -> main` is the next milestone. Tracker:
   [`active-work/W14-codex-acceptance-observability.md`](active-work/W14-codex-acceptance-observability.md).
 
 ## §10 — W0-W7 PoC Stabilization Window (closed 2026-04-23)
@@ -224,6 +230,7 @@ state as of `2026-05-13`:
 | W14-4 | closed (analysis-jobs-race + EvidenceEvent kind invariant) | `03b32bc` |
 | W14-5 | closed (logger consolidation + run-ID stamping + executor runtime fingerprint; ADR 0010; M5 byproduct) | `dc79f61` + `9c095d2` + `db25d5f` |
 | W14-6 | closed (regression lock-in umbrella: bare-binary pragma ratchet + executor.control outbound gate + variable-indirect subprocess coverage with binary_paths migration) | `2adad43` + `b031803` + `e42a448` |
+| W14-7 | closed post-slate (container-shipping regression + Python 3.10 UTC compat — Dockerfile COPY gap for `executor/binary_paths.py` + `executor/runtime_fingerprint.py` exposed via post-`2cbdca0` production smoke retry; W14-5.3's `from datetime import UTC` swapped to `getattr(_dt, "UTC", _dt.timezone.utc)` shim; +2 arch gate cases pinning import-graph ↔ Dockerfile invariant) | `df925f8` + `c11ebd8` |
 
 ### §12.0 — Neden ayrı §12
 

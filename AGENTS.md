@@ -1,6 +1,6 @@
 # AGENTS.md
 
-`Last Updated: 2026-05-13 (W13 closed via PR #20 -> 772deb3; W14 active on week14 branch cut from main at 69251f1; W14-1 BLOCKER -> HIGH downgraded, W14-2 closed via bde17be, W14-3 closed via 941250d, W14-4 closed, W14-5 closed via dc79f61+9c095d2+db25d5f, W14-6 closed via 2adad43+b031803+e42a448; W14 sub-iter slate complete; close-out PR week14 -> main next)`
+`Last Updated: 2026-05-13 (W13 closed via PR #20 -> 772deb3; W14 active on week14 branch cut from main at 69251f1; W14-1 BLOCKER -> HIGH downgraded, W14-2 closed via bde17be, W14-3 closed via 941250d, W14-4 closed, W14-5 closed via dc79f61+9c095d2+db25d5f, W14-6 closed via 2adad43+b031803+e42a448; W14 sub-iter slate complete; W14-7 post-slate hotfix closed via df925f8+c11ebd8 — container-shipping regression + Python 3.10 UTC compat; close-out PR week14 -> main next)`
 
 ## Authority
 
@@ -35,9 +35,13 @@
   lock-in umbrella: bare-binary pragma ratchet + executor.control
   outbound surface gate + variable-indirect subprocess coverage with
   binary_paths migration) closed `2026-05-13` via `2adad43` + `b031803`
-  + `e42a448`. W14 sub-iter slate complete; close-out PR
-  `week14 -> main` is the next milestone. Past W8/W11/W12/W13 trackers
-  remain stable-ID references only.
+  + `e42a448`. W14 sub-iter slate complete. **W14-7 post-slate
+  hotfix** closed `2026-05-13` via `df925f8` (Dockerfile COPY for
+  `executor/binary_paths.py` + `executor/runtime_fingerprint.py` +
+  Python 3.10 `datetime.UTC` compat shim) and `c11ebd8` (regression
+  gate `tests/architecture/test_executor_container_shipping.py`).
+  Close-out PR `week14 -> main` is the next milestone. Past
+  W8/W11/W12/W13 trackers remain stable-ID references only.
 - ADR 0007 local-network-binding is **Accepted and implemented**; loopback
   defaults + `EXTRACE_ALLOW_LAN` are pinned by `test_default_bindings.py`.
 
