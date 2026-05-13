@@ -57,7 +57,7 @@ Stable IDs `W14-N` are assigned at first pull (W11/W12/W13 precedent). Full per-
 |---|---|---|---|
 | W14-1 | `[BUG scenario-dropout-upstream-root-cause]` | in progress — downgraded HIGH `2026-05-13` | BLOCKER triage landed on `week14` (deterministic repro matrix at `tests/security/test_scenario_dropout_repro.py` covers 5 known dropout vectors; conservation guard at `scenario_accountant.py:392-438` is the deterministic fix-of-record). Upstream emit-site work tracked under `[FOLLOWUP scenario-accountant-conservation-split]` |
 | W14-2 | `[FOLLOWUP codex-2026-05-10-M4-M7-output-ts-range-validation]` + `[FOLLOWUP codex-2026-05-10-M11-report-health-malformed-types]` | **closed** `2026-05-13` | Input validation cluster landed on `week14`: M4-M7 via `_coerce_safe_epoch_s` chokepoint at `executor/flows/playwright/signals/output.py`; M11 via `_safe_int_coerce` helper at `workflows/marketplace/analysis_reports.py`. 2 arch gates + 51 behavioral regression cases. |
-| W14-3 | `[FOLLOWUP codex-2026-05-10-M13-network-uri-summary-redaction]` + `[FOLLOWUP codex-2026-05-10-M14b-cdp-port-default-disabled]` + `[FOLLOWUP codex-2026-05-10-U4-U12-makefile-shell-quoting]` | scoped — not started | Dış yüzey sertleştirme; M13 W13-6 factory-internal redaction deseninin tekrarı; U4-U12 W13-5 recipe-fix deseni |
+| W14-3 | `[FOLLOWUP codex-2026-05-10-M13-network-uri-summary-redaction]` + `[FOLLOWUP codex-2026-05-10-M14b-cdp-port-default-disabled]` + `[FOLLOWUP codex-2026-05-10-U4-U12-makefile-shell-quoting]` | **closed** `2026-05-13` | External surface hardening cluster landed on `week14`: M13 via `redact_secrets()` routing for `NetworkEvent.path` + `summary` at `runtime_capture/network.py`; M14b via empty default + conditional CDP flag across `launch_vscode.sh`/`start.sh`/`docker-compose.yml`/`Makefile up-debug` (posture: opt-in `EXECUTOR_CDP_PORT`); U4-U12 via validation + quoted expansion in `Makefile` `sim-target`/`sim-run`. 3 arch gates + 10 behavioral cases. |
 | W14-4 | `[FOLLOWUP analysis-jobs-race]` + `[FOLLOWUP evidence-event-kind-raw-context-invariant]` | scoped — not started | Doğruluk + concurrency; analysis-jobs-race CRITICAL (W13-4.4 race window dokümante); evidence-event-kind RED stub adı planlandı, henüz yazılmadı |
 | W14-5 | `[GOAL w14-logger-consolidation]` + `[GOAL w14-run-id-stamping]` (yeni stable ID'ler) + `[FOLLOWUP codex-automation-5]` | scoped — not started | §11.10 GOAL devamı W13'ten devreden + automation runtime fingerprint (sibling tema); M5 (`epoch-docker-exec-propagation`) doğal yan ürün adayı |
 | W14-6 | `[FOLLOWUP arch-gate-executor-control-outbound]` + `[FOLLOWUP arch-gate-bare-binary-pragma-ratchet]` + `[FOLLOWUP w8-4-variable-indirect-subprocess-coverage]` | scoped — not started | §11.10 GOAL devamı — W8-W12 regression lock-in umbrella; AST-tabanlı 3 yeni arch gate |
@@ -92,16 +92,33 @@ remaining items iter into W15+.
   in `tests/security/test_report_messages_malformed_types.py`.
 - `[FOLLOWUP codex-2026-05-10-M12-workspace-symlink-check-order]` —
   delete or fix orphan `clean_workspace()` symlink handling. W15+.
-- `[FOLLOWUP codex-2026-05-10-M13-network-uri-summary-redaction]` **(W14-3)** —
-  redact network URI/path/summary fields; pair with M9.
-- `[FOLLOWUP codex-2026-05-10-M14b-cdp-port-default-disabled]` **(W14-3)** —
-  disable in-container CDP by default or require explicit opt-in.
+- ~~`[FOLLOWUP codex-2026-05-10-M13-network-uri-summary-redaction]`~~ — **closed
+  `2026-05-13`** via W14-3 on `week14`. `NetworkEvent.path` and
+  `NetworkEvent.summary` now route through ``redact_secrets()`` at the
+  same chokepoint that already covers ``*_body_preview`` (W12-5) and
+  ``arguments_preview`` (W13-6). Gated by
+  `tests/architecture/test_network_uri_summary_redaction.py`; behavioral
+  coverage in `tests/security/test_network_uri_summary_redaction.py`.
+- ~~`[FOLLOWUP codex-2026-05-10-M14b-cdp-port-default-disabled]`~~ — **closed
+  `2026-05-13`** via W14-3 on `week14`. Posture decision: opt-in via
+  `EXECUTOR_CDP_PORT` env var. Empty default propagates through
+  `launch_vscode.sh`, `start.sh`, and the executor service entry in
+  `docker-compose.yml`; the launch wrapper appends the
+  `--remote-debugging-port` flag only when the value is non-empty.
+  `make up-debug` explicitly sets `EXECUTOR_CDP_PORT=9222` before
+  invoking compose so the debug profile UX stays unchanged. Gated by
+  `tests/architecture/test_cdp_port_default.py`.
 - `[FOLLOWUP codex-2026-05-10-U1-U2-U3-ui-event-spread-cap]` — W15+;
   cap UI event density/timeline spread operations.
 - `[FOLLOWUP codex-2026-05-10-U6-relations-graph-cap]` — W15+; cap relations
   graph nodes/edges.
-- `[FOLLOWUP codex-2026-05-10-U4-U12-makefile-shell-quoting]` **(W14-3)** —
-  quote or validate Makefile operator variables.
+- ~~`[FOLLOWUP codex-2026-05-10-U4-U12-makefile-shell-quoting]`~~ — **closed
+  `2026-05-13`** via W14-3 on `week14`. Both `sim-target` and `sim-run`
+  recipes now (a) validate operator-supplied `TARGET` / `SCENARIO` /
+  `TRIGGERS` against strict character classes before any expansion
+  reaches the shell, and (b) double-quote every Make-variable
+  interpolation inside the `docker exec` command line. Gated by
+  `tests/architecture/test_makefile_sim_quoting.py`.
 - `[FOLLOWUP codex-2026-05-10-U8-activationevents-bounds]` — W15+; cap activation
   event strings/list size and migrate DB field length.
 

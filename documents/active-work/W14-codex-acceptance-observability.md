@@ -111,9 +111,9 @@ audit; `[BUG …]` rows are from `POST_POC_BACKLOG.md` Contracts/Reports/Detecti
 | **W14-1** | `[BUG scenario-dropout-upstream-root-cause]` (senaryolar `ScenarioAccountant`'a ulaşmadan planner / stimulus_passes / harness dispatch dizisinde düşüyor; son-metre conservation guard `unaccounted_dropout` raporluyor ama kök neden açık) | `[executor-runtime]` `[security-detection]` | **in progress** — BLOCKER triage; pulled `2026-05-13` on `week14` branch |
 | **W14-2** | `[FOLLOWUP codex-2026-05-10-M4-M7-output-ts-range-validation]` (extension-controlled `ts` field guard sız `datetime.fromtimestamp()`'a giriyor; OverflowError DoS vector) | `[security-detection]` | **closed** `2026-05-13` |
 | **W14-2** | `[FOLLOWUP codex-2026-05-10-M11-report-health-malformed-types]` (`_build_report_messages()` `int(automation_health.get(...))` ValueError'a açık) | `[security-detection]` | **closed** `2026-05-13` |
-| TBD (W14-3) | `[FOLLOWUP codex-2026-05-10-M13-network-uri-summary-redaction]` (network capture event'lerinin `path` + `summary` alanları secret sızdırıyor; W12-5 gate sadece `*_body_preview`'i kapsıyor; W13-6 factory-internal redaction deseninin tekrarı) | `[security-detection]` `[executor-runtime]` | not started |
-| TBD (W14-3) | `[FOLLOWUP codex-2026-05-10-M14b-cdp-port-default-disabled]` (VS Code `--remote-debugging-port=9222` auth'suz default-on, container'dan erişilebilir) | `[executor-runtime]` `[security-detection]` | not started — posture decision: default-disabled vs explicit opt-in env var |
-| TBD (W14-3) | `[FOLLOWUP codex-2026-05-10-U4-U12-makefile-shell-quoting]` (`Makefile` `sim-target`/`sim-run` `$(TARGET)`/`$(SCENARIO)` tırnaksız; shell injection riski; W13-5 dev-lan recipe-fix deseninin tekrarı) | `[security-detection]` | not started |
+| **W14-3** | `[FOLLOWUP codex-2026-05-10-M13-network-uri-summary-redaction]` (network capture event'lerinin `path` + `summary` alanları secret sızdırıyor; W12-5 gate sadece `*_body_preview`'i kapsıyor; W13-6 factory-internal redaction deseninin tekrarı) | `[security-detection]` `[executor-runtime]` | **closed** `2026-05-13` |
+| **W14-3** | `[FOLLOWUP codex-2026-05-10-M14b-cdp-port-default-disabled]` (VS Code `--remote-debugging-port=9222` auth'suz default-on, container'dan erişilebilir) | `[executor-runtime]` `[security-detection]` | **closed** `2026-05-13` — posture: default-disabled + opt-in via `EXECUTOR_CDP_PORT` env var |
+| **W14-3** | `[FOLLOWUP codex-2026-05-10-U4-U12-makefile-shell-quoting]` (`Makefile` `sim-target`/`sim-run` `$(TARGET)`/`$(SCENARIO)` tırnaksız; shell injection riski; W13-5 dev-lan recipe-fix deseninin tekrarı) | `[security-detection]` | **closed** `2026-05-13` |
 | TBD (W14-4) | `[FOLLOWUP analysis-jobs-race]` (`complete_analysis_job` `with_for_update()` lock'undan yoksun; `cancel_analysis_job` lock var; W13-4.4'te race window dokümante edildi) | `[platform-storage]` `[executor-runtime]` | not started — CRITICAL race window |
 | TBD (W14-4) | `[FOLLOWUP evidence-event-kind-raw-context-invariant]` (`EvidenceEvent.kind` ↔ `raw_context.event_class` eşleşmesi Pydantic'te validate edilmiyor; RED stub adı planlandı: `test_evidence_event_rejects_kind_event_class_mismatch`) | `[security-detection]` `[contracts]` | not started — RED stub henüz yazılmadı |
 | TBD (W14-5) | `[§11.10 GOAL]` `extrace.executor.*` logger consolidation (W13'ten devreden; executor logger init + emit pattern'leri worker thread'lerde tutarsız) | `[platform-storage]` | not started — W13'ten W14'e devredildi |
@@ -580,6 +580,90 @@ arch-gate pattern:
 spread across 2 new gate modules).
 
 **No follow-up deferral.** Both audit items collapse to closed in
+`POST_POC_BACKLOG.md` — no W15+ remnant.
+
+### W14-3 — Codex M-class external surface hardening (M13 + M14b + U4-U12)
+
+**Pulled.** `2026-05-13` on `week14`.
+
+**Outcome.** **Closed.** Three Codex audit M-class items landed under
+a single bundled pull. All three target adversary-reachable external
+surfaces (network capture report fields, the in-container CDP socket,
+operator-supplied Makefile variables) and follow the W12-5 / W13-6 /
+W13-5 patterns established by earlier audit pulls.
+
++ **M13 (network URI/summary redaction)** — `NetworkEvent.path` and
+  `NetworkEvent.summary` now route through ``redact_secrets()`` at the
+  same chokepoint that already covers ``*_body_preview`` (W12-5) and
+  ``arguments_preview`` (W13-6). Production diff is a 2-line redaction
+  funnel inside ``parse_tshark_event_line`` at
+  `executor/flows/playwright/runtime_capture/network.py:99-122`.
++ **M14b (CDP port default-disabled)** — posture decision: **opt-in via
+  `EXECUTOR_CDP_PORT` env var**. ``launch_vscode.sh``, ``start.sh``,
+  and ``docker-compose.yml`` all default the env var to empty; the
+  launch wrapper appends ``--remote-debugging-port=...`` to the ``code``
+  invocation only when the value is non-empty. The ``make up-debug``
+  Makefile lane now explicitly sets ``EXECUTOR_CDP_PORT=9222`` before
+  invoking compose, so the debug profile keeps the previous UX while
+  routine ``make up`` boots stay CDP-closed.
++ **U4-U12 (Makefile sim-target / sim-run shell quoting)** — both
+  recipes now (a) validate operator-supplied variables against strict
+  character classes (``[A-Za-z0-9._-]+`` for TARGET,
+  ``[A-Za-z0-9_]+`` for SCENARIO, ``[A-Za-z0-9./_-]+`` for TRIGGERS)
+  before any expansion reaches the shell, and (b) double-quote every
+  Make-variable interpolation inside the ``docker exec`` command line.
+
+**Sub-commits (self-stamped post-landing).**
+
+| Sub-commit | Theme | SHA |
+|---|---|---|
+| 1 | M13 + M14b + U4-U12 production patches, behavioral regression cases (10 cases), and 3 content/AST architecture gates (10 cases) | TBD (self-stamped post-landing) |
+| 2 | Self-stamp sub-commit 1 SHA + tracker / backlog close-out | (this commit) |
+
+**Module locations.**
+
++ Production diff:
+  + [`executor/flows/playwright/runtime_capture/network.py`](../../executor/flows/playwright/runtime_capture/network.py)
+    — added `summary_raw` / `redacted_path` local variables sourced
+    from ``redact_secrets()`` calls; ``NetworkEvent`` constructor now
+    sources both fields from those locals. Diff ~12 net LoC.
+  + [`executor/container/launch_vscode.sh`](../../executor/container/launch_vscode.sh)
+    — `CDP_PORT` defaults to empty; the ``code`` invocation builds a
+    `CDP_FLAG=()` array that is non-empty only when `CDP_PORT` is set.
+    Diff ~14 net LoC.
+  + [`executor/container/start.sh`](../../executor/container/start.sh)
+    — same empty default; CDP banner conditionally reports
+    ``disabled (set EXECUTOR_CDP_PORT to opt in)``. Diff ~6 net LoC.
+  + [`docker-compose.yml`](../../docker-compose.yml) — executor
+    service `EXECUTOR_CDP_PORT` env source defaults to empty (the
+    `executor-cdp` debug-profile sidecar keeps its own 9222 fallback
+    because the Makefile lane explicitly sets the env var). Diff ~6
+    net LoC.
+  + [`Makefile`](../../Makefile) — `up-debug` recipe exports
+    `EXECUTOR_CDP_PORT=9222`; `sim-target` and `sim-run` recipes carry
+    new validation + quoted expansion. Diff ~22 net LoC.
++ Behavioral regression coverage:
+  + [`tests/security/test_network_uri_summary_redaction.py`](../../tests/security/test_network_uri_summary_redaction.py)
+    — 10 cases (3-row × 2-field × `_SECRET_CLASSES` parametrize matrix
+    covering `aws` / `api_key` / `db_url` URLs through both `path` and
+    `summary`, plus a bearer-in-info-column case, multi-secret URI,
+    and 2 preserve / non-secret pins).
++ Architecture gates:
+  + [`tests/architecture/test_network_uri_summary_redaction.py`](../../tests/architecture/test_network_uri_summary_redaction.py)
+    — 2 AST cases (module imports `redact_secrets` invariant + every
+    `path=` / `summary=` keyword routes through the redactor).
+  + [`tests/architecture/test_cdp_port_default.py`](../../tests/architecture/test_cdp_port_default.py)
+    — 4 content cases (launch script empty default + conditional CDP
+    flag append + start script mirror + docker-compose empty default).
+  + [`tests/architecture/test_makefile_sim_quoting.py`](../../tests/architecture/test_makefile_sim_quoting.py)
+    — 4 content cases (sim-target validation + sim-target quoting +
+    sim-run validation + sim-run quoting).
+
+**Test deltas.** `make test-security` 269 → 279 (+10 M13 behavioral
+cases). `tests/architecture/` 121 → 131 (+10 cases across 3 new gate
+modules: 2 + 4 + 4).
+
+**No follow-up deferral.** All three audit items collapse to closed in
 `POST_POC_BACKLOG.md` — no W15+ remnant.
 
 ## W13 Lessons Learned (carry-forward)

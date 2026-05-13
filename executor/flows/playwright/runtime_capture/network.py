@@ -96,9 +96,17 @@ def parse_tshark_event_line(
     if monitoring_start > 0:
         rel_time_s = round(max(timestamp_epoch - monitoring_start, 0.0), 3)
 
-    summary = info or " ".join(
+    # W14-3 (M13): URI / summary fields carry extension-controlled query
+    # strings; bearer tokens, API keys, OAuth params can ride in
+    # `?api_key=...` style URLs that previously surfaced verbatim in
+    # ActivationReport network events. Route both fields through the same
+    # `redact_secrets()` chokepoint that already covers `*_body_preview`
+    # (W12-5) and `arguments_preview` (W13-6).
+    summary_raw = info or " ".join(
         part for part in [event_type, host or destination_ip, http_uri] if part
     )
+    summary = redact_secrets(summary_raw)
+    redacted_path = redact_secrets(http_uri)
 
     if not any([source_ip, destination_ip, host, summary]):
         return None
@@ -119,7 +127,7 @@ def parse_tshark_event_line(
         destination_ip=destination_ip,
         destination_port=destination_port,
         host=host,
-        path=http_uri,
+        path=redacted_path,
         http_method=http_method,
         http_status_code=http_status_code,
         http_content_type=http_content_type,

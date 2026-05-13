@@ -11,7 +11,11 @@ SCREEN_VALUE="${EXECUTOR_SCREEN:-1920x1080x24}"
 VNC_HOST_VALUE="${EXECUTOR_VNC_HOST:-localhost}"
 VNC_PORT_VALUE="${EXECUTOR_VNC_PORT:-5900}"
 NOVNC_PORT_VALUE="${EXECUTOR_NOVNC_PORT:-6080}"
-CDP_PORT="${EXECUTOR_CDP_PORT:-9222}"
+# W14-3 (M14b): CDP is opt-in; an empty default keeps the unauthenticated
+# debug port closed in routine `make up` boots. Operators who need CDP
+# (e.g. `make up-debug`) set EXECUTOR_CDP_PORT explicitly in the
+# environment before container start.
+CDP_PORT="${EXECUTOR_CDP_PORT:-}"
 STARTUP_SLEEP_SECONDS="${EXECUTOR_STARTUP_SLEEP_SECONDS:-1}"
 PLAYWRIGHT_FLOW_DIR="${EXECUTOR_PLAYWRIGHT_FLOW_DIR:-/home/executor/flows/playwright}"
 HARNESS_SHA256_MANIFEST="${EXECUTOR_HARNESS_SHA256_MANIFEST:-/home/executor/flows/harness_extension.sha256}"
@@ -119,7 +123,9 @@ SETTINGS
 # of the detached VS Code process on stdout.
 VSCODE_LAUNCH_SCRIPT="${EXECUTOR_VSCODE_LAUNCH_SCRIPT:-/home/executor/container/launch_vscode.sh}"
 VSCODE_LOG_LEVEL="${EXECUTOR_VSCODE_LOG_LEVEL:-trace}"
-echo "Starting VS Code (CDP on localhost:${CDP_PORT}, log level: ${VSCODE_LOG_LEVEL})..."
+CDP_BANNER="${CDP_PORT:+localhost:${CDP_PORT}}"
+CDP_BANNER="${CDP_BANNER:-disabled (set EXECUTOR_CDP_PORT to opt in)}"
+echo "Starting VS Code (CDP: ${CDP_BANNER}, log level: ${VSCODE_LOG_LEVEL})..."
 VSCODE_PID="$(EXECUTOR_CDP_PORT="${CDP_PORT}" \
               EXECUTOR_VSCODE_LOG_LEVEL="${VSCODE_LOG_LEVEL}" \
               bash "${VSCODE_LAUNCH_SCRIPT}")"
@@ -142,7 +148,7 @@ echo "================================================"
 echo " ExTrace Executor Ready"
 echo " noVNC : http://localhost:${NOVNC_PORT_VALUE}"
 echo " VNC   : ${VNC_HOST_VALUE}:${VNC_PORT_VALUE}"
-echo " CDP   : localhost:${CDP_PORT}"
+echo " CDP   : ${CDP_BANNER}"
 echo " Display: ${DISPLAY_VALUE} (${SCREEN_VALUE})"
 echo "================================================"
 
