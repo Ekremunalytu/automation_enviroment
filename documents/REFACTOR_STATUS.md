@@ -118,14 +118,17 @@ phase evidence is frozen under dated snapshots:
 - `[FOLLOWUP simulation-progress-cancel]` remaining subitems:
   `heartbeat-sandbox-reset-off-thread`, `dedupe-step-progress-schemas`, and
   `heartbeat-refactor` iterate after W13-3.
-- `[BUG scenario-dropout-upstream-root-cause]` is W14-1 (pulled `2026-05-13`;
-  in progress) — BLOCKER triage unless dropout proves stochastic or misses a
-  live threat category.
+- `[BUG scenario-dropout-upstream-root-cause]` — **closed** by W14-1 on
+  `2026-05-13` via `0c8bd02` (deterministic repro matrix landed + conservation
+  guard; severity downgraded BLOCKER -> HIGH same day; upstream emit-site
+  split deferred under `[FOLLOWUP scenario-accountant-conservation-split]`).
 
 ## Read Order
 
 When updating this file, keep it as a slim closure board. Put verbose
 evidence in `documents/archive/status/`, keep pull-next detail in
 `POST_POC_BACKLOG.md`, keep closed W13 mechanics in
-`active-work/W13-test-expansion-observability.md`, and active W14 staging scope
-in `active-work/W14-codex-acceptance-observability.md`.
+`active-work/W13-test-expansion-observability.md`, and W14 close-out scope
+(sub-iter slate complete + post-slate hotfixes closed; close-out PR
+`week14 -> main` next) in
+`active-work/W14-codex-acceptance-observability.md`.

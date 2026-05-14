@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-`Last Updated: 2026-05-13 (W14 active; W14-1 BLOCKER -> HIGH; W14-2 closed via bde17be; W14-3 closed via 941250d; W14-4 closed; W14-5 closed via dc79f61+9c095d2+db25d5f; W14-6 closed via 2adad43+b031803+e42a448; W14 sub-iter slate complete; W14-7 post-slate hotfix closed via df925f8+c11ebd8 — container-shipping regression + Python 3.10 UTC compat; W14-8 post-slate preventive gate closed via 5638f82 — forbids Python 3.11+ API imports in container-shipped paths; week14 branch cut from main at 69251f1; W13 close-out PR #20 week13 -> main merged via 772deb3; W14 close-out PR week14 -> main next)`
+`Last Updated: 2026-05-14 (W14 sub-iter slate complete + post-slate hotfixes closed; close-out hygiene pass applied — Ruff lint, UI contract sync, markdown formatting, doc truth-state alignment, new regression gates (make markdownlint + ADR code fence arch test); W14-1 BLOCKER -> HIGH via 0c8bd02; W14-2 closed via bde17be; W14-3 closed via 941250d; W14-4 closed; W14-5 closed via dc79f61+9c095d2+db25d5f; W14-6 closed via 2adad43+b031803+e42a448; W14-7 post-slate hotfix closed via df925f8+c11ebd8 — container-shipping regression + Python 3.10 UTC compat; W14-8 post-slate preventive gate closed via 5638f82 — forbids Python 3.11+ API imports in container-shipped paths; week14 branch cut from main at 69251f1; W13 close-out PR #20 week13 -> main merged via 772deb3; W14 close-out PR week14 -> main next)`
 
 This file is intentionally a thin pointer. Do not duplicate phase summaries or
 architecture maps here; that caused drift.
