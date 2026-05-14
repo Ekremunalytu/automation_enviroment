@@ -525,6 +525,7 @@ export interface ActivationReportDto {
   activation_discovery_strategy_outcomes?: Record<string, string>;
   runner_exit_code?: number | null;
   runner_status?: "success" | "error" | "unknown";
+  executor_fingerprint?: Record<string, string>;
   _metadata?: ActivationReportMetadataDto | null;
 }
 

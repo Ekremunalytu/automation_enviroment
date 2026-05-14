@@ -73,9 +73,7 @@ def _collect_evidence_event_kind_literals() -> list[tuple[int, str | None]]:
         if not isinstance(node, ast.Call):
             continue
         callee = node.func
-        if isinstance(callee, ast.Name) and callee.id == CONSTRUCTOR_NAME:
-            sites.append((node.lineno, _kind_literal_from_call(node)))
-        elif (
+        if (isinstance(callee, ast.Name) and callee.id == CONSTRUCTOR_NAME) or (
             isinstance(callee, ast.Attribute)
             and callee.attr == CONSTRUCTOR_NAME
         ):

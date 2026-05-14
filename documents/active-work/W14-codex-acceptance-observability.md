@@ -869,7 +869,7 @@ Live-scan parity recorded `2026-05-13` 16:47 on the post-W14-4
   kind↔event_class mismatches detected (every producer pair already
   matches the closed allowlist).
 + W14-3 redaction holds end-to-end: 173 network events scanned
-  against the five common secret shapes (`Bearer `, `AKIA`,
+  against the five common secret shapes (`Bearer`, `AKIA`,
   `sk_live_`, `ghp_`, `ssh-rsa`) — 0 leaks across `NetworkEvent.path`
   and `NetworkEvent.summary`.
 + W14-1 conservation guard fired correctly: 5 requested scenarios →
@@ -1106,6 +1106,7 @@ pins the import-graph ↔ Dockerfile invariant.
     are intentionally not shipped (run inside the API container,
     orchestrate the executor container via `docker exec`).
 + [`executor/runtime_fingerprint.py`](../../executor/runtime_fingerprint.py) switch to the established compat shim:
+
   ```python
   import datetime as _dt
   datetime = _dt.datetime

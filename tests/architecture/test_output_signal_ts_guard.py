@@ -81,9 +81,7 @@ def _argument_is_routed_through_coercer(
 ) -> bool:
     if _is_coercer_call(arg):
         return True
-    if isinstance(arg, ast.Name) and arg.id in coercer_vars:
-        return True
-    return False
+    return isinstance(arg, ast.Name) and arg.id in coercer_vars
 
 
 def test_safe_epoch_coercer_caps_at_safe_window() -> None:

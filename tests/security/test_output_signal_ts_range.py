@@ -126,7 +126,7 @@ def test_coerce_safe_epoch_s_safe_boundary_inclusive() -> None:
     """W14-2: the lower bound (0.0) and upper bound (_MAX_SAFE_EPOCH_S) must
     both be accepted as-is — the window is closed, not half-open.
     """
-    assert _coerce_safe_epoch_s(_MIN := 0.0) == 0.0
+    assert _coerce_safe_epoch_s(0.0) == 0.0
     assert _coerce_safe_epoch_s(_MAX_SAFE_EPOCH_S) == _MAX_SAFE_EPOCH_S
     # Sanity: math.isfinite stays True on boundary values
     assert math.isfinite(_MAX_SAFE_EPOCH_S)

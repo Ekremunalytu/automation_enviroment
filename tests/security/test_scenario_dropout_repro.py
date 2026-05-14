@@ -192,7 +192,7 @@ def test_scenario_dropout_repro_matrix(
     Non-empty ``expected_dropouts`` rows MUST surface each missing scenario
     with ``reason_code='unaccounted_dropout'``. Empty rows MUST keep
     ``unaccounted_dropout`` out of the report (no false positives). The W7
-    §10.7 conservation invariant (``requested ⊆ run ∪ failed ∪ skipped``) MUST
+    §10.7 conservation invariant (``requested ⊆ run U failed U skipped``) MUST
     hold for every row.
     """
     accountant, report = _build_accountant()

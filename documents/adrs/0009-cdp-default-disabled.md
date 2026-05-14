@@ -100,13 +100,13 @@ up-debug:
 
 `start.sh` reports the active posture in its readiness banner:
 
-```
+```text
 CDP   : disabled (set EXECUTOR_CDP_PORT to opt in)
 ```
 
 becomes
 
-```
+```text
 CDP   : localhost:9222
 ```
 

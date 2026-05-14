@@ -14,7 +14,7 @@ land verbatim in the persisted ActivationReport.
 W14-3 routes both fields through the same ``redact_secrets()`` chokepoint
 that already covers ``*_body_preview`` (W12-5) and ``arguments_preview``
 (W13-6). The parametrize matrix below pins one tshark line per supported
-secret class × both target fields, so any future regression that bypasses
+secret class x both target fields, so any future regression that bypasses
 the redaction fires here BEFORE the operator-visible report leaks.
 
 Pattern modeled on W13-6
@@ -183,7 +183,7 @@ def test_network_event_redaction_handles_multiple_secret_classes_in_one_uri() ->
     in sequence; the path field inherits the same behavior.
     """
     multi_secret_uri = (
-        "/v1/data?api_key=super-secret-token-12345abcd&trace=AKIAIOSFODNN7EXAMPLE"
+        "/v1/data?api_key=super-secret-token-12345abcd&trace=AKIAIOSFODNN7EXAMPLE"  # noqa: S105
     )
     event = parse_tshark_event_line(_tshark_line(multi_secret_uri))
     assert event is not None
