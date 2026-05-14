@@ -336,3 +336,140 @@ def test_helper_has_branch_for_every_taxonomy_class() -> None:
         "status code or the helper raises the unmapped-class "
         "AssertionError at runtime. W15-1 invariant."
     )
+
+
+# ---------------------------------------------------------------------------
+# Invariant 5 — vacuous-truth guard: the sync endpoint's single except
+# handler body must dispatch through the helper, not an open-coded
+# HTTPException. Without this, a refactor could keep the tuple-based
+# except clause (passing invariant 2) while routing the exception to a
+# hand-rolled status map that drifts from the helper.
+# ---------------------------------------------------------------------------
+
+
+def _walk_calls_in_handler_body(handler: ast.ExceptHandler) -> list[ast.Call]:
+    """Walk only the handler body (not other handlers / try-else)."""
+    calls: list[ast.Call] = []
+    for stmt in handler.body:
+        for node in ast.walk(stmt):
+            if isinstance(node, ast.Call):
+                calls.append(node)
+    return calls
+
+
+def test_sync_endpoint_handler_body_dispatches_through_helper() -> None:
+    """``analyze_extension``'s except clause body must raise via
+    :func:`analyze_error_to_http_response` (not an open-coded
+    ``HTTPException(...)``). Invariant 2 only pins the *type expression*
+    of the except clause; this invariant pins the *dispatch* — without
+    it a refactor could keep the canonical tuple while routing the
+    caught exception through a hand-rolled status map.
+    """
+    tree = _module_tree(ROUTER_PATH)
+    fn = _find_function(tree, SYNC_ENDPOINT_NAME)
+    assert fn is not None, f"{SYNC_ENDPOINT_NAME} must exist."
+
+    try_nodes = [n for n in ast.walk(fn) if isinstance(n, ast.Try)]
+    assert try_nodes, "Invariant 2 ensures this; defensive only."
+    handler = try_nodes[0].handlers[0]
+
+    helper_called = False
+    open_coded_http_exceptions: list[int] = []
+    for call in _walk_calls_in_handler_body(handler):
+        func = call.func
+        if isinstance(func, ast.Name) and func.id == HELPER_NAME:
+            helper_called = True
+        # Detect open-coded HTTPException(...) constructors. Direct call
+        # of the ``HTTPException`` name only — ``raise X from exc``
+        # appears as an outer Raise statement, not as a Call node here.
+        if isinstance(func, ast.Name) and func.id == "HTTPException":
+            open_coded_http_exceptions.append(call.lineno)
+
+    assert helper_called, (
+        f"{SYNC_ENDPOINT_NAME}'s except clause body must call "
+        f"``{HELPER_NAME}(exc)`` so the sync surface dispatch stays "
+        "pinned to the same status-map source-of-truth as the helper. "
+        "W15-1 invariant 5 (vacuous-truth guard for invariant 2)."
+    )
+    assert not open_coded_http_exceptions, (
+        f"{SYNC_ENDPOINT_NAME}'s except clause body raises HTTPException "
+        f"directly at lines {open_coded_http_exceptions}; all status "
+        f"mapping must flow through ``{HELPER_NAME}`` so the sync "
+        "surface cannot drift from the helper's documented contract. "
+        "W15-1 invariant 5."
+    )
+
+
+# ---------------------------------------------------------------------------
+# Invariant 6 — the helper's ExecutorError branch must delegate to
+# ``map_executor_error`` so the structured ``error_id`` + secret-
+# redaction contract from W10-7 / W12-* is preserved. Without this
+# invariant, a refactor could replace the delegation with a plain
+# ``HTTPException(status_code=502, detail=str(exc))`` — same status,
+# but the redaction guarantee is silently lost.
+# ---------------------------------------------------------------------------
+
+
+def test_helper_executor_branch_delegates_to_map_executor_error() -> None:
+    """The ``ExecutorError`` branch of :func:`analyze_error_to_http_response`
+    must call ``map_executor_error(exc)`` (not construct an HTTPException
+    inline). ``map_executor_error`` enforces the
+    [W10-7] secret-redacted detail + structured ``error_id`` contract;
+    inlining the 502 mapping would silently regress it.
+    """
+    tree = _module_tree(ANALYSIS_SERVICE_PATH)
+    fn = _find_function(tree, HELPER_NAME)
+    assert fn is not None and isinstance(fn, ast.FunctionDef)
+
+    # Locate the ``if isinstance(exc, ExecutorError):`` branch and walk
+    # only its body. We do NOT scan the whole helper body because the
+    # other branches MUST construct HTTPExceptions inline — that is the
+    # documented status map. Only the ExecutorError branch is special.
+    executor_branch_body: list[ast.stmt] | None = None
+    for stmt in fn.body:
+        if not isinstance(stmt, ast.If):
+            continue
+        test = stmt.test
+        if not (isinstance(test, ast.Call) and isinstance(test.func, ast.Name)
+                and test.func.id == "isinstance"):
+            continue
+        if len(test.args) < 2:
+            continue
+        second = test.args[1]
+        if isinstance(second, ast.Name) and second.id == "ExecutorError":
+            executor_branch_body = stmt.body
+            break
+
+    assert executor_branch_body is not None, (
+        f"{HELPER_NAME} must have an ``if isinstance(exc, ExecutorError):`` "
+        "branch as its first dispatch (so the W10-7 redaction contract "
+        "is preserved before the generic 502 branches). Invariant 6."
+    )
+
+    delegates_to_map_executor_error = False
+    open_coded_http_exception_lines: list[int] = []
+    for stmt in executor_branch_body:
+        for node in ast.walk(stmt):
+            if not isinstance(node, ast.Call):
+                continue
+            func = node.func
+            if isinstance(func, ast.Name):
+                if func.id == "map_executor_error":
+                    delegates_to_map_executor_error = True
+                elif func.id == "HTTPException":
+                    open_coded_http_exception_lines.append(node.lineno)
+
+    assert delegates_to_map_executor_error, (
+        f"{HELPER_NAME}'s ExecutorError branch must call "
+        "``map_executor_error(exc)`` so the W10-7 secret-redacted "
+        "detail + structured error_id contract is preserved. Inlining a "
+        "plain HTTPException(502, str(exc)) would leak raw executor "
+        "output through the response detail. W15-1 invariant 6."
+    )
+    assert not open_coded_http_exception_lines, (
+        f"{HELPER_NAME}'s ExecutorError branch contains a direct "
+        f"HTTPException(...) call at lines {open_coded_http_exception_lines}. "
+        "The branch must delegate to ``map_executor_error`` rather than "
+        "construct the response inline — bypassing the delegation drops "
+        "the W10-7 redaction contract. W15-1 invariant 6."
+    )

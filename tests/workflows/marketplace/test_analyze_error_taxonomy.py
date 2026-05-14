@@ -75,6 +75,11 @@ HELPER_CASES: tuple[tuple[Exception, int], ...] = (
     (TypeError("unsupported operand"), 500),
     # AttributeError → 500 (programming-class error).
     (AttributeError("missing attribute 'foo'"), 500),
+    # Subclass dispatch — PermissionError extends OSError so the helper's
+    # OSError branch must match it (Python isinstance MRO). The async
+    # worker's recoverable tuple catches it the same way; this case
+    # pins that the sync helper does not require exact type identity.
+    (PermissionError("EACCES on /workspace/.wallet"), 502),
 )
 
 

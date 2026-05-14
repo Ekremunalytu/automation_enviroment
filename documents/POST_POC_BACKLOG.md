@@ -121,16 +121,38 @@ Closed (one-line audit trail):
 - `[BUG scenario-dropout-upstream-root-cause]` — **closed via W14-1
   `2026-05-13`** (BLOCKER → HIGH); conservation guard at
   `scenario_accountant.py:392-438` is the fix-of-record.
-- `[BUG silent-scenario-dropout-regression]`
+- `[BUG silent-scenario-dropout-regression]` — **observation `2026-05-14`:**
+  vuran versiyonu UI tarama'da gözlendi
+  (`output/activation_report_ms-python.python-2026.5.2026051301-d2e24db709bd.json`,
+  `15:15`): 5 requested scenario'dan 2'si (`debug_session`,
+  `refactor_workflow`) `unaccounted_dropout` ile `skipped_scenarios`
+  listesinde raporlandı; 3'ü (`project_exploration`, `coding_session`,
+  `terminal_usage`) `status: completed`. Conservation guard
+  (`scenario_accountant.py:392-438`) beklendiği gibi yakaladı; upstream
+  emit-site fix hâlâ açık (`[FOLLOWUP scenario-accountant-conservation-split]`).
 - `[FOLLOWUP scenario-accountant-conservation-split]` — upstream emit-site
   work (planner / `stimulus_passes` / `dispatch._normalize_execution_result`);
-  separate pull, W15+ candidate.
+  separate pull, W15+ candidate. **Observed in production
+  `2026-05-14`:** debug_session + refactor_workflow drop edildiğinde
+  `run_quality: low`, `automation_health.status: degraded`,
+  `verification_gap: 2` (debug + terminal_tasks capability'leri verify
+  edilemedi — dropout'un türevi). `signal_summary.level: needs_review`
+  (score 28) — extension için risk_signals 0 olmasına rağmen attribution
+  korelatif kaldığı için manuel review öneriliyor.
 - `[FOLLOWUP report-finalize-top-level-field-sync-drift]` — production
   scan `activation_report_*.json` carries `null` for several top-level
   fields (`target_extension_id`, `monitoring_start`/`monitoring_end`,
   `scenarios_run`, `harness_handshake_required`) despite underlying
   evidence being present. Not a W14 regression — finalize / `report.save()`
   ordering drift. W15+ hygiene. Full investigation hook in archive.
+  **Observation `2026-05-14`:** aynı drift sınıfının yeni bir tezahürü
+  gözlendi — `attribution_summary.target_activation_count = 1` raporlanırken
+  `evidence_events` listesinde `kind=activation, is_target_extension_event=True`
+  hiç yok; ancak `target_extension_host` log stream'inde 1 entry mevcut
+  (`Activated ms-python.python via workspaceContains:requirements.txt`).
+  İki agregasyon kaynağı aynı aktivasyon için farklı target-flag verdiği
+  için top-level sayım stream-türevli, evidence-kind sayımı 0 — finalize
+  ordering veya target-flag computation drift'i.
 - `[FOLLOWUP event-attempt-verification-status-validator]`
 - `[FOLLOWUP report-invariants-runtime-evidence-drift]`
 - `[FOLLOWUP compute-verdict-table-driven-test]`

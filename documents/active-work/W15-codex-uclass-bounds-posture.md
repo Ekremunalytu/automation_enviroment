@@ -617,13 +617,16 @@ W14 final baseline (re-recorded `2026-05-14` at W15-1 pull on `week15`):
 
 W15-1 actual deltas (`2026-05-14` via `c58c365`):
 
-+ `tests/architecture/` 172 → **176** (+4 cases — new file
++ `tests/architecture/` 172 → **178** (+6 cases — new file
   `test_analyze_error_taxonomy_parity.py`: tuple decomposition, sync
   single-clause discipline, async references both subset tuples,
-  helper class-branch coverage).
+  helper class-branch coverage, sync handler-body dispatch through
+  helper [vacuous-truth], ExecutorError branch delegates to
+  `map_executor_error` [W10-7 redaction contract]).
 + New behavioral file `tests/workflows/marketplace/test_analyze_error_taxonomy.py`
-  with **+19 cases** (9 helper status map + 1 unmapped-class guard +
-  1 vacuous-truth coverage check + 8 endpoint round-trip).
+  with **+21 cases** (10 helper status map incl. PermissionError
+  subclass-dispatch + 1 unmapped-class guard + 1 vacuous-truth
+  coverage check + 9 endpoint round-trip).
 + Existing 66 `tests/workflows/marketplace/test_router.py` cases
   unchanged (no regression in the sync surface contract).
 
@@ -631,7 +634,7 @@ W15 target deltas (per sub-iter):
 
 | Iter | `tests/architecture/` delta | Behavioral test delta | Net |
 |---|---|---|---|
-| W15-1 ✅ | **+4 (actual)** sync-async parity (4 invariants) | +19 case (helper + endpoint parametrize) | **closed +4 gates** |
+| W15-1 ✅ | **+6 (actual)** sync-async parity (6 invariants — 4 initial + 2 post-W15-1 strengthening: handler-body dispatch + ExecutorError delegation) | +21 case (helper + endpoint parametrize + PermissionError subclass) | **closed +6 gates** |
 | W15-2 | +0 or +1 (workspace TOCTOU gate, fix path'inde) | +1 dosya (~3-5 case, fix path'inde) | +0/+1 gate |
 | W15-3 | +1 (activationEvents bounds gate) | +1 dosya (~6-10 case) | +1 gate |
 | W15-4 | +0 (UI-side, architecture gate yok) | +3 dosya UI vitest (~15-24 case) | +0 arch |
@@ -674,14 +677,38 @@ arch gate + behavioral test).
 
 **Tests added.**
 
-+ `tests/architecture/test_analyze_error_taxonomy_parity.py` × **4** (AST
-  invariants — tuple decomposition, sync single-clause discipline,
-  async references both subset tuples, helper class-branch coverage).
-+ `tests/workflows/marketplace/test_analyze_error_taxonomy.py` × **19**
-  (parametrized helper status map ×9 + unmapped-class
-  defensive guard ×1 + vacuous-truth coverage check ×1 + endpoint
-  round-trip via TestClient ×8 — ExecutorError detail covered by
-  existing tests so excluded from the endpoint parametrize).
++ `tests/architecture/test_analyze_error_taxonomy_parity.py` × **6** AST
+  invariants:
+    1. Tuple decomposition (`ANALYZE_ERROR_TYPES = ANALYZE_RECOVERABLE_ERROR_TYPES + ANALYZE_PROGRAMMING_ERROR_TYPES`).
+    2. Sync `analyze_extension` single-clause discipline (only
+       `except ANALYZE_ERROR_TYPES`).
+    3. Async `run_analysis_job` references both subset tuples.
+    4. Helper has isinstance branch for every taxonomy class.
+    5. **(post-W15-1)** Vacuous-truth — sync handler body dispatches
+       through `analyze_error_to_http_response`; no open-coded
+       `HTTPException(...)` inside the except body. Prevents a refactor
+       from keeping invariant 2 (canonical tuple) while routing the
+       caught exception through a hand-rolled status map.
+    6. **(post-W15-1)** ExecutorError branch in the helper delegates to
+       `map_executor_error` — pins the W10-7 secret-redacted detail +
+       structured `error_id` contract so the branch cannot regress into
+       a plain inline `HTTPException(502, str(exc))`.
++ `tests/workflows/marketplace/test_analyze_error_taxonomy.py` × **21**
+  cases:
+  + Parametrized helper status map × **10** (9 taxonomy classes +
+    `PermissionError` subclass-dispatch case — verifies `isinstance`
+    MRO so `PermissionError` lands on the `OSError` 502 branch
+    without an exact-type match).
+  + Unmapped-class defensive guard × 1
+    (synthetic `RuntimeError` subclass trips the helper's
+    `AssertionError`).
+  + Vacuous-truth coverage check × 1 (every class in
+    `ANALYZE_ERROR_TYPES` appears at least once in `HELPER_CASES`).
+  + Endpoint round-trip via TestClient × **9** (HELPER_CASES minus
+    ExecutorError — its detail body is asserted by existing
+    `test_analyze_install_failure_502` /
+    `test_analyze_automation_failure_502`; `PermissionError` included
+    and routes to 502 end-to-end).
 
 **Production diff.** +50 net LoC in `analysis_service.py` (tuples +
 helper + import + `__all__`); −10 net LoC in `router.py` (four-clause
