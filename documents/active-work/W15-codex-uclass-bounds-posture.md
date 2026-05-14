@@ -1,8 +1,8 @@
 # W15 — Codex U-class Close-Out + UI Bounds + Posture (Active Work Tracker)
 
-`Last Updated: 2026-05-14 (W15 scope skeleton authored; W15 not yet open; W14 close-out PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d; W13 close-out PR #20 week13 -> main MERGED 2026-05-13 via 772deb3)`
-`Phase: W15 planned (entry conditions met; branch + first pull pending)`
-`Branch: TBD (will be cut from main at HEAD = PR #21 merge 4e03c8d when W15-1 is pulled)`
+`Last Updated: 2026-05-14 (W15 active; week15 cut from main HEAD 7cc2921 on 2026-05-14; W15-1 closed via c58c365 — sync analyze error taxonomy parity, M10; W14 close-out PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d; W13 close-out PR #20 week13 -> main MERGED 2026-05-13 via 772deb3)`
+`Phase: W15 active (W15-1 closed; W15-2..W15-7 pending)`
+`Branch: week15 (cut from main HEAD 7cc2921 on 2026-05-14)`
 `Owner: ekrem`
 
 > **Authored 2026-05-14** as the W15 scope skeleton. Stable IDs `W15-1..W15-7`
@@ -23,31 +23,38 @@ list.
 
 ## Status (Quick Glance)
 
-+ **W15 planned — scope skeleton authored `2026-05-14`; not yet open.**
-  W14 close-out PR #21 (`week14 -> main`) **MERGED** `2026-05-14` via
-  `4e03c8d`; all W14-1..W14-8 closed. W15 entry conditions are met but
-  the branch is not yet cut and no sub-iter is pulled. First pull is
-  W15-1 (M10 sync-analyze TypeError catch); the `week15` branch is cut
-  from `main` at HEAD `4e03c8d` when W15-1 is pulled.
-+ **Entry gate (met).** Opens W15-1:
++ **W15 active — `week15` branch cut from `main` HEAD `7cc2921` on
+  `2026-05-14`.** W15-1 closed `2026-05-14` via `c58c365` (sync analyze
+  error taxonomy parity, M10 close); W15-2..W15-7 pending sequential
+  pull. W14 close-out PR #21 (`week14 -> main`) **MERGED** `2026-05-14`
+  via `4e03c8d`; all W14-1..W14-8 closed. W15 base differs from the
+  scope-skeleton plan note (`4e03c8d`) because the `7cc2921`
+  ("docs(W15): scope skeleton + …") commit on `main` carries the W15
+  tracker itself and must be in-branch for the lane file to exist;
+  cutting from `4e03c8d` would have required re-applying the skeleton
+  on the branch.
++ **Entry gate (met + branch open).** W15-1 pulled:
   + W14 close-out PR #21 ✓ **MERGED** `2026-05-14` via `4e03c8d`
     (close-out PR included W14-1..W14-8 sub-iter ratchet'leri +
     close-out hygiene pass — Ruff lint, UI contract sync, markdown
     formatting, doc truth-state alignment, `make markdownlint` gate,
     ADR code fence arch test).
-  + W14 final/post-merge baseline (carried from W14 tracker, frozen at
-    close-out): `tests/architecture/` 171 passed (post-W14-8 +
-    close-out hygiene). `make test-local` and `make test-security`
-    baselines unchanged from W13 final (1551 / 215) unless the W14
-    close-out hygiene PR drift'i incremented them — to be re-recorded
-    at W15-1 pull.
-  + Close-out prerequisites are recorded; the W15-open checklist
-    completes at the explicit branch cut / first pull.
+  + W14 final/post-merge baseline (re-recorded `2026-05-14` at W15-1
+    pull on `week15`): `tests/architecture/` **172 passed** (W14 final
+    171 + close-out hygiene ADR-code-fence gate = 172; the W14 tracker
+    listed 171 because the hygiene gate counted as a separate +1 and
+    was added at the close-out PR rather than within the W14-8
+    landing). `make test-security` **215 passed** (unchanged from W13
+    final). `make test-local` not re-run at pull (requires Docker
+    postgres_test; behavioral coverage validated via targeted suites
+    — see W15-1 Per-Item Detail for verification scope).
+  + Close-out prerequisites recorded; W15-open checklist complete at
+    `2026-05-14` branch cut.
 + **Sub-iteration scope (locked, IDs assigned at pull).**
 
 | Iter | Tema | Stable ID(s) | Tahminî efor |
 |---|---|---|---|
-| **W15-1** | Sync analyze error taxonomy alignment | `[FOLLOWUP codex-2026-05-10-M10-sync-analyze-typeerror-catch]` | 1 oturum |
+| **W15-1** ✅ | Sync analyze error taxonomy alignment — closed `2026-05-14` via `c58c365` | `[FOLLOWUP codex-2026-05-10-M10-sync-analyze-typeerror-catch]` | 1 oturum |
 | **W15-2** | Workspace symlink check order / orphan removal | `[FOLLOWUP codex-2026-05-10-M12-workspace-symlink-check-order]` | 1 oturum |
 | **W15-3** | `activationEvents` bounds + DB field-length migration | `[FOLLOWUP codex-2026-05-10-U8-activationevents-bounds]` | 2 oturum (migration sequencing) |
 | **W15-4** | UI bounds bundle: event spread / timeline / relations graph cap | `[FOLLOWUP codex-2026-05-10-U1-U2-U3-ui-event-spread-cap]` + `[FOLLOWUP codex-2026-05-10-U6-relations-graph-cap]` | 1-2 oturum |
@@ -65,7 +72,7 @@ list.
   geç çekilir. W15-7 en son: W14-6 pattern'i — regression lock-in
   umbrella ratchet/pin türü kalemler en sonda toplanır.
 
-## Entry Conditions (target — to be ticked at W15 open)
+## Entry Conditions (ticked at W15 open `2026-05-14`)
 
 + [x] W14 closed and merged to `main` via close-out PR #21 (`4e03c8d`,
   `2026-05-14`); close-out PR included W14-1..W14-8 ratchet bundle +
@@ -74,14 +81,19 @@ list.
   (W14-7 container-shipping regression + W14-8 preventive Python 3.11+
   API gate) closed `2026-05-13`.
 + [x] W14 final architecture gate count recorded: `tests/architecture/`
-  171 (W14-8 lifted 170 → 171; close-out hygiene PR added `make
-  markdownlint` + ADR code fence arch test as separate gates).
-+ [ ] W14 final/post-merge `make test-local` + `make test-security`
-  baseline re-recorded (held over from W13 final 1551 / 215 unless
-  close-out hygiene PR drift'i bunu değiştirdi — `make test-local`'ı
-  W15-1 pull öncesi koş, sayıları bu doc'ta sabitle).
-+ [ ] W15 lane document (this file) header updated to `Phase: W15 active`
-  per W11/W12/W13/W14 precedent at the explicit branch cut / first pull.
+  **172** (W14-8 lifted 170 → 171; close-out hygiene PR ADR code fence
+  arch test added the +1 separately counted as 171 → 172 on the
+  post-merge baseline; `make markdownlint` is a Make-target gate, not
+  a pytest case). Re-recorded at W15-1 pull on `week15`.
++ [x] W14 final/post-merge `make test-security` re-recorded **215
+  passed** (unchanged from W13 final). `make test-local` not re-run
+  at pull (requires Docker postgres_test); behavioral parity for
+  W15-1 validated via targeted suites — full `make test-local`
+  baseline re-record deferred to the next sub-iter that exercises
+  cross-module behavior (or to the W15 close-out hygiene pass).
++ [x] W15 lane document (this file) header updated to `Phase: W15 active`
+  per W11/W12/W13/W14 precedent at the explicit branch cut / first pull
+  (`2026-05-14`).
 
 ## Goal (per `REFACTOR_OPTIMIZATION.md` §13)
 
@@ -118,7 +130,7 @@ audit; `[FOLLOWUP compose-image-mutable-ref-pin]` and
 
 | ID | Item | Lane | Status |
 |---|---|---|---|
-| **W15-1** | `[FOLLOWUP codex-2026-05-10-M10-sync-analyze-typeerror-catch]` (sync `/api/marketplace/analyze` entry, async path ile error taxonomy uyumsuz — async tarafı pydantic ValidationError + 4xx döner, sync tarafı generic Exception'a düşüp 500 emit ediyor; aynı request shape iki farklı status alıyor) | `[platform-storage]` `[security-detection]` | not started |
+| **W15-1** | `[FOLLOWUP codex-2026-05-10-M10-sync-analyze-typeerror-catch]` (sync `/api/marketplace/analyze` entry, async path ile error taxonomy uyumsuz — async tarafı pydantic ValidationError + 4xx döner, sync tarafı generic Exception'a düşüp 500 emit ediyor; aynı request shape iki farklı status alıyor) | `[platform-storage]` `[security-detection]` | **closed `2026-05-14` via `c58c365`** |
 | **W15-2** | `[FOLLOWUP codex-2026-05-10-M12-workspace-symlink-check-order]` (`clean_workspace()` orphan symlink handling — check sırası TOCTOU window'u açıyor; ya kontrol sırası fix edilir ya da dead code olarak silinir; W14 audit'inde dokunulmadı) | `[executor-runtime]` `[security-detection]` | not started |
 | **W15-3** | `[FOLLOWUP codex-2026-05-10-U8-activationevents-bounds]` (`activationEvents` liste/string boyutu unbounded; oversized manifest DoS + DB row inflation; cap + Alembic field-length migration ister) | `[security-detection]` `[platform-storage]` | not started — DB migration sequencing requires standalone pull |
 | **W15-4** | `[FOLLOWUP codex-2026-05-10-U1-U2-U3-ui-event-spread-cap]` (UI event density / timeline spread / count operations unbounded; large activation report → UI freeze) | `[ui]` | not started |
@@ -324,8 +336,10 @@ indicator.
    component'in input boundary'sinde slice.
 5. UI vitest: cap enforcement + truncation indicator.
 
-**Test paterni.** UI vitest (existing `ui/src/**/*.test.ts(x)` deseni)
-+ snapshot for truncation indicator.
+**Test paterni.**
+
++ UI vitest (existing `ui/src/**/*.test.ts(x)` deseni).
++ Snapshot for truncation indicator.
 
 **Exit kriterleri.**
 
@@ -451,6 +465,7 @@ tornaya alınamaz; iyi düşünülmüş gerekçe + threat-model bağı şart.
 
 **(a) Compose image pin.** `docker/docker-compose.yml` (veya repo root
 `docker-compose.yml`):
+
 + `postgres:16-alpine` → `postgres@sha256:...`
 + `alpine/socat:latest` → `alpine/socat@sha256:...` (debug profile
   içinde; opt-in)
@@ -461,6 +476,7 @@ da kapsayacak şekilde **extend** (yeni gate açma; mevcut gate'in
 scope'unu genişlet — bu W14-6 "extend, do not duplicate" disiplini).
 
 **(b) GH action pin.** `.github/workflows/security.yml`:
+
 + `aquasecurity/trivy-action@master` → `aquasecurity/trivy-action@<SHA>`
   veya `aquasecurity/trivy-action@v0.X.Y` (workflow'un diğer action'larıyla
   aynı pattern).
@@ -472,6 +488,7 @@ ihtiyacı doğrula).
 
 **(c) Doc preamble truth-state refresh.** W14 close-out PR #21 merge
 sonrası 4 canonical preamble'ı refresh:
+
 + `CLAUDE.md` (line 3)
 + `AGENTS.md` (line 3)
 + `documents/REFACTOR_STATUS.md` (line 3)
@@ -588,19 +605,33 @@ ayrı, W16+).
 
 ## Test Baseline (target deltas)
 
-W14 final baseline (post-W14-8 + close-out hygiene PR):
-+ `tests/architecture/` 171 passed (W14-8 lifted 170 → 171; close-out
-  hygiene PR added `make markdownlint` + ADR code fence gates —
-  re-record at W15-1 pull).
-+ `make test-local` + `make test-security` baseline carried from W13
-  final 1551 / 215 unless close-out hygiene PR drift'i bunu
-  değiştirdi — re-record at W15-1 pull.
+W14 final baseline (re-recorded `2026-05-14` at W15-1 pull on `week15`):
+
++ `tests/architecture/` **172 passed** (W14-8 lifted 170 → 171;
+  close-out hygiene PR ADR-code-fence gate counts as the post-merge
+  +1 to 172).
++ `make test-security` **215 passed** (unchanged from W13 final).
++ `make test-local` not re-run at pull (Docker postgres_test required);
+  full re-record deferred to next sub-iter that exercises cross-module
+  behavior or to W15 close-out hygiene.
+
+W15-1 actual deltas (`2026-05-14` via `c58c365`):
+
++ `tests/architecture/` 172 → **176** (+4 cases — new file
+  `test_analyze_error_taxonomy_parity.py`: tuple decomposition, sync
+  single-clause discipline, async references both subset tuples,
+  helper class-branch coverage).
++ New behavioral file `tests/workflows/marketplace/test_analyze_error_taxonomy.py`
+  with **+19 cases** (9 helper status map + 1 unmapped-class guard +
+  1 vacuous-truth coverage check + 8 endpoint round-trip).
++ Existing 66 `tests/workflows/marketplace/test_router.py` cases
+  unchanged (no regression in the sync surface contract).
 
 W15 target deltas (per sub-iter):
 
 | Iter | `tests/architecture/` delta | Behavioral test delta | Net |
 |---|---|---|---|
-| W15-1 | +1 (sync-async parity gate) | +1 dosya (~5-8 case) | +1 gate |
+| W15-1 ✅ | **+4 (actual)** sync-async parity (4 invariants) | +19 case (helper + endpoint parametrize) | **closed +4 gates** |
 | W15-2 | +0 or +1 (workspace TOCTOU gate, fix path'inde) | +1 dosya (~3-5 case, fix path'inde) | +0/+1 gate |
 | W15-3 | +1 (activationEvents bounds gate) | +1 dosya (~6-10 case) | +1 gate |
 | W15-4 | +0 (UI-side, architecture gate yok) | +3 dosya UI vitest (~15-24 case) | +0 arch |
@@ -615,19 +646,79 @@ bottom-of-file summary'ye eklenir).
 
 ## Per-Item Detail (filled in as sub-iters close)
 
-Boş; W15-1 pull'da ilk entry eklenir. W14 deseni:
+### W15-1 — Sync analyze error taxonomy parity with async path — closed `2026-05-14` via `c58c365`
 
-```
-### W15-N — <başlık> — closed <date> via <SHA>
+**Stable ID(s).** `[FOLLOWUP codex-2026-05-10-M10-sync-analyze-typeerror-catch]`.
 
-**Stable ID(s).** `<id>`.
-**Landing commit(s).** `<SHA>` (+ ardıl varsa).
-**Module locations.** `<file:line>` listesi.
-**Tests added.** `<test_file>` ×N case.
-**Production diff.** `<net LoC>` net.
-**Verification.** `make test-local` / `make test-security` /
-`tests/architecture/` sayıları.
-```
+**Landing commit(s).** `c58c365` (single atomic commit — production +
+arch gate + behavioral test).
+
+**Module locations.**
+
++ `workflows/marketplace/analysis_service.py:77-103` — three module-level
+  tuples `ANALYZE_RECOVERABLE_ERROR_TYPES`,
+  `ANALYZE_PROGRAMMING_ERROR_TYPES`, `ANALYZE_ERROR_TYPES` (union as
+  `BinOp(Add)` over the two subset names).
++ `workflows/marketplace/analysis_service.py:218-256` —
+  `analyze_error_to_http_response(exc)` helper with isinstance branches
+  for ExecutorError (delegates to `map_executor_error`),
+  FileNotFoundError, ActivationReportLoadError/TriggerPlanError/OSError/
+  SQLAlchemyError, ValueError, TypeError/AttributeError.
++ `workflows/marketplace/analysis_service.py:368-379` — async
+  `run_analysis_job` except clauses migrated to
+  `ANALYZE_PROGRAMMING_ERROR_TYPES` / `ANALYZE_RECOVERABLE_ERROR_TYPES`
+  (replaces the prior open-coded six-class + two-class tuples).
++ `workflows/marketplace/router.py:328-345` — sync `analyze_extension`
+  collapses the prior four-clause except into one
+  `except ANALYZE_ERROR_TYPES` over the helper.
+
+**Tests added.**
+
++ `tests/architecture/test_analyze_error_taxonomy_parity.py` × **4** (AST
+  invariants — tuple decomposition, sync single-clause discipline,
+  async references both subset tuples, helper class-branch coverage).
++ `tests/workflows/marketplace/test_analyze_error_taxonomy.py` × **19**
+  (parametrized helper status map ×9 + unmapped-class
+  defensive guard ×1 + vacuous-truth coverage check ×1 + endpoint
+  round-trip via TestClient ×8 — ExecutorError detail covered by
+  existing tests so excluded from the endpoint parametrize).
+
+**Production diff.** +50 net LoC in `analysis_service.py` (tuples +
+helper + import + `__all__`); −10 net LoC in `router.py` (four-clause
+except collapsed; unused imports dropped). Net +40 LoC production +592
+LoC including tests/docs.
+
+**Verification.**
+
++ `make test-security` **215 passed** (no drift; W13 / W14 baseline).
++ `pytest tests/architecture/` **176 passed** (W14 final 172 + W15-1
+  +4).
++ `pytest tests/workflows/marketplace/test_router.py` 66 passed, 1
+  skipped (fixture-availability skip, unrelated).
++ `pytest tests/workflows/marketplace/test_analyze_error_taxonomy.py`
+  19 passed.
++ `ruff check workflows/marketplace/ tests/architecture/test_analyze_error_taxonomy_parity.py tests/workflows/marketplace/test_analyze_error_taxonomy.py` — clean.
++ `make test-local` not re-run (Docker postgres_test required); full
+  baseline re-record deferred to a later sub-iter that needs the
+  Docker-backed lane, or to W15 close-out hygiene.
+
+**Status map (mirrors async `fail_job` semantics).**
+
+| Exception | Sync (pre-W15-1) | Sync (post-W15-1) | Async (run_analysis_job) |
+|---|---|---|---|
+| ExecutorError | 502 (map_executor_error) | 502 (unchanged via helper delegation) | fail_job |
+| FileNotFoundError | 404 | 404 | fail_job (recoverable) |
+| ActivationReportLoadError | 502 | 502 (helper matches before ValueError branch) | fail_job (recoverable; via ValueError catch) |
+| TriggerPlanError | 502 | 502 | fail_job (recoverable) |
+| OSError | **500 (bubble)** | **502** | fail_job (recoverable) |
+| SQLAlchemyError | **500 (bubble)** | **502** | fail_job (recoverable) |
+| ValueError | **500 (bubble — non-ARLE)** | **400** | fail_job (recoverable) |
+| TypeError | **500 (bubble)** | **500 (explicit)** | fail_job + re-raise (programming) |
+| AttributeError | **500 (bubble)** | **500 (explicit)** | fail_job + re-raise (programming) |
+
+**Consciously excluded (defers to W16+).** Error-message-content
+operator-facing standard for the M10 follow-up → tracked under
+`[FOLLOWUP codex-automation-6]` (UI failure taxonomy, NEEDS-DESIGN).
 
 ## Close-Out (when W15 ends)
 
