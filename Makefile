@@ -12,7 +12,7 @@ include .env
 export
 endif
 
-.PHONY: help install install-dev install-hooks lint lint-check format typecheck \
+.PHONY: help install install-dev install-hooks lint lint-check markdownlint format typecheck \
         security test test-unit test-integration test-smoke test-security test-security-ci-guard test-security-live test-cov test-local test-ci check check-all all clean \
         dev dev-lan run build rebuild up up-debug down logs ps restart status \
         migrate migrate-create venv-check \
@@ -144,6 +144,19 @@ lint-check:
 	@echo "🔍 Running Ruff linter (check only, no fix)..."
 	$(VENV)/ruff check .
 	@echo "✅ Lint check complete!"
+
+markdownlint:  ## Run markdownlint without auto-fix (CI-safe; matches pre-commit rule set, no mangle)
+	@echo "🔍 Running markdownlint (no --fix; matches pre-commit rule set)..."
+	@npx --yes markdownlint-cli@0.41.0 \
+		--config .markdownlint.json \
+		--ignore 'extensions/**' \
+		--ignore 'alembic/README*' \
+		--ignore 'documents/archive/**' \
+		--ignore 'node_modules/**' \
+		--ignore 'ui/node_modules/**' \
+		--ignore '.venv/**' \
+		'**/*.md'
+	@echo "✅ Markdown lint check complete!"
 
 format:
 	@echo "🎨 Formatting code with Ruff..."
@@ -309,7 +322,7 @@ check: lint typecheck test
 	@echo "✅ All checks passed!"
 	@echo "═══════════════════════════════════════════════════════════════"
 
-check-all: lint typecheck security ui-types-check ui-boundaries test
+check-all: lint typecheck security ui-types-check ui-boundaries markdownlint test
 	@echo ""
 	@echo "═══════════════════════════════════════════════════════════════"
 	@echo "✅ All checks (including security) passed!"
