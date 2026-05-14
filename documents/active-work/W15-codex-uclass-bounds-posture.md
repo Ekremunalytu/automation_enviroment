@@ -1,7 +1,7 @@
 # W15 — Codex U-class Close-Out + UI Bounds + Posture (Active Work Tracker)
 
-`Last Updated: 2026-05-14 (W15 active; week15 cut from main HEAD 7cc2921 on 2026-05-14; W15-1 closed via c58c365 — sync analyze error taxonomy parity, M10; W14 close-out PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d; W13 close-out PR #20 week13 -> main MERGED 2026-05-13 via 772deb3)`
-`Phase: W15 active (W15-1 closed; W15-2..W15-7 pending)`
+`Last Updated: 2026-05-14 (W15 active; week15 cut from main HEAD 7cc2921 on 2026-05-14; W15-1 closed via c58c365 — sync analyze error taxonomy parity, M10; W15-2 closed via 765cde7 — clean_workspace is_symlink-before-rmtree, M12; W14 close-out PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d; W13 close-out PR #20 week13 -> main MERGED 2026-05-13 via 772deb3)`
+`Phase: W15 active (W15-1, W15-2 closed; W15-3..W15-7 pending)`
 `Branch: week15 (cut from main HEAD 7cc2921 on 2026-05-14)`
 `Owner: ekrem`
 
@@ -25,14 +25,15 @@ list.
 
 + **W15 active — `week15` branch cut from `main` HEAD `7cc2921` on
   `2026-05-14`.** W15-1 closed `2026-05-14` via `c58c365` (sync analyze
-  error taxonomy parity, M10 close); W15-2..W15-7 pending sequential
-  pull. W14 close-out PR #21 (`week14 -> main`) **MERGED** `2026-05-14`
-  via `4e03c8d`; all W14-1..W14-8 closed. W15 base differs from the
-  scope-skeleton plan note (`4e03c8d`) because the `7cc2921`
-  ("docs(W15): scope skeleton + …") commit on `main` carries the W15
-  tracker itself and must be in-branch for the lane file to exist;
-  cutting from `4e03c8d` would have required re-applying the skeleton
-  on the branch.
+  error taxonomy parity, M10 close); W15-2 closed `2026-05-14` via
+  `765cde7` (`clean_workspace` is_symlink-before-rmtree, M12 close);
+  W15-3..W15-7 pending sequential pull. W14 close-out PR #21
+  (`week14 -> main`) **MERGED** `2026-05-14` via `4e03c8d`; all
+  W14-1..W14-8 closed. W15 base differs from the scope-skeleton plan
+  note (`4e03c8d`) because the `7cc2921` ("docs(W15): scope skeleton
+  + …") commit on `main` carries the W15 tracker itself and must be
+  in-branch for the lane file to exist; cutting from `4e03c8d` would
+  have required re-applying the skeleton on the branch.
 + **Entry gate (met + branch open).** W15-1 pulled:
   + W14 close-out PR #21 ✓ **MERGED** `2026-05-14` via `4e03c8d`
     (close-out PR included W14-1..W14-8 sub-iter ratchet'leri +
@@ -55,7 +56,7 @@ list.
 | Iter | Tema | Stable ID(s) | Tahminî efor |
 |---|---|---|---|
 | **W15-1** ✅ | Sync analyze error taxonomy alignment — closed `2026-05-14` via `c58c365` | `[FOLLOWUP codex-2026-05-10-M10-sync-analyze-typeerror-catch]` | 1 oturum |
-| **W15-2** | Workspace symlink check order / orphan removal | `[FOLLOWUP codex-2026-05-10-M12-workspace-symlink-check-order]` | 1 oturum |
+| **W15-2** ✅ | Workspace symlink check order / orphan removal — closed `2026-05-14` via `765cde7` | `[FOLLOWUP codex-2026-05-10-M12-workspace-symlink-check-order]` | 1 oturum |
 | **W15-3** | `activationEvents` bounds + DB field-length migration | `[FOLLOWUP codex-2026-05-10-U8-activationevents-bounds]` | 2 oturum (migration sequencing) |
 | **W15-4** | UI bounds bundle: event spread / timeline / relations graph cap | `[FOLLOWUP codex-2026-05-10-U1-U2-U3-ui-event-spread-cap]` + `[FOLLOWUP codex-2026-05-10-U6-relations-graph-cap]` | 1-2 oturum |
 | **W15-5** | Quick fixes bundle: UI `/health` proxy + lifecycle `for <id>` regex | `[FOLLOWUP codex-2026-05-10-I2-ui-health-proxy]` + `[FOLLOWUP codex-2026-05-10-I4-lifecycle-for-id-regex]` | 1 oturum |
@@ -131,7 +132,7 @@ audit; `[FOLLOWUP compose-image-mutable-ref-pin]` and
 | ID | Item | Lane | Status |
 |---|---|---|---|
 | **W15-1** | `[FOLLOWUP codex-2026-05-10-M10-sync-analyze-typeerror-catch]` (sync `/api/marketplace/analyze` entry, async path ile error taxonomy uyumsuz — async tarafı pydantic ValidationError + 4xx döner, sync tarafı generic Exception'a düşüp 500 emit ediyor; aynı request shape iki farklı status alıyor) | `[platform-storage]` `[security-detection]` | **closed `2026-05-14` via `c58c365`** |
-| **W15-2** | `[FOLLOWUP codex-2026-05-10-M12-workspace-symlink-check-order]` (`clean_workspace()` orphan symlink handling — check sırası TOCTOU window'u açıyor; ya kontrol sırası fix edilir ya da dead code olarak silinir; W14 audit'inde dokunulmadı) | `[executor-runtime]` `[security-detection]` | not started |
+| **W15-2** | `[FOLLOWUP codex-2026-05-10-M12-workspace-symlink-check-order]` (`clean_workspace()` orphan symlink handling — check sırası TOCTOU window'u açıyor; ya kontrol sırası fix edilir ya da dead code olarak silinir; W14 audit'inde dokunulmadı) | `[executor-runtime]` `[security-detection]` | **closed `2026-05-14` via `765cde7`** (path b: fix — `clean_workspace` mevcut `_clear_directory` desenine hizalandı; live caller `reset_state.py:176`'da olduğu için dead-code removal yolu açık değildi) |
 | **W15-3** | `[FOLLOWUP codex-2026-05-10-U8-activationevents-bounds]` (`activationEvents` liste/string boyutu unbounded; oversized manifest DoS + DB row inflation; cap + Alembic field-length migration ister) | `[security-detection]` `[platform-storage]` | not started — DB migration sequencing requires standalone pull |
 | **W15-4** | `[FOLLOWUP codex-2026-05-10-U1-U2-U3-ui-event-spread-cap]` (UI event density / timeline spread / count operations unbounded; large activation report → UI freeze) | `[ui]` | not started |
 | **W15-4** | `[FOLLOWUP codex-2026-05-10-U6-relations-graph-cap]` (relations graph node-edge count unbounded; large extension reports UI graph render'ı yavaşlatıyor) | `[ui]` | not started |
@@ -630,12 +631,26 @@ W15-1 actual deltas (`2026-05-14` via `c58c365`):
 + Existing 66 `tests/workflows/marketplace/test_router.py` cases
   unchanged (no regression in the sync surface contract).
 
+W15-2 actual deltas (`2026-05-14` via `765cde7`):
+
++ `tests/architecture/` 178 → **180** (+2 cases — new file
+  `test_workspace_symlink_check_order.py`: AST line-order invariant
+  pinning `is_symlink`/`islink`/`lstat` before `shutil.rmtree` across
+  both workspace cleanup chokepoints; vacuous-truth guard pinning the
+  helpers table to declared module paths).
++ New behavioral file `tests/security/test_workspace_symlink_toctou.py`
+  with **+5 cases** (real file / real dir / symlink-to-external-dir /
+  symlink-to-external-file / dangling symlink fixtures via
+  `tmp_path` + monkeypatched `WORKSPACE_DIR`).
++ Existing `tests/executor/test_workspace.py` + `test_reset_state.py`
+  unchanged (no regression in the workspace contract).
+
 W15 target deltas (per sub-iter):
 
 | Iter | `tests/architecture/` delta | Behavioral test delta | Net |
 |---|---|---|---|
 | W15-1 ✅ | **+6 (actual)** sync-async parity (6 invariants — 4 initial + 2 post-W15-1 strengthening: handler-body dispatch + ExecutorError delegation) | +21 case (helper + endpoint parametrize + PermissionError subclass) | **closed +6 gates** |
-| W15-2 | +0 or +1 (workspace TOCTOU gate, fix path'inde) | +1 dosya (~3-5 case, fix path'inde) | +0/+1 gate |
+| W15-2 ✅ | **+2 (actual)** workspace cleanup symlink-check order + helpers-table pin | +5 case (real file/dir + 3 adversarial symlink fixtures) | **closed +2 gates** |
 | W15-3 | +1 (activationEvents bounds gate) | +1 dosya (~6-10 case) | +1 gate |
 | W15-4 | +0 (UI-side, architecture gate yok) | +3 dosya UI vitest (~15-24 case) | +0 arch |
 | W15-5 | +0 (UI vitest + Python unit test) | +1 UI + +1 unit (~6-10 case) | +0 arch |
@@ -746,6 +761,92 @@ LoC including tests/docs.
 **Consciously excluded (defers to W16+).** Error-message-content
 operator-facing standard for the M10 follow-up → tracked under
 `[FOLLOWUP codex-automation-6]` (UI failure taxonomy, NEEDS-DESIGN).
+
+### W15-2 — Workspace cleanup `is_symlink` ordering — closed `2026-05-14` via `765cde7`
+
+**Stable ID(s).** `[FOLLOWUP codex-2026-05-10-M12-workspace-symlink-check-order]`.
+
+**Landing commit(s).** `765cde7` (single atomic commit covering
+production code, the arch gate, and the behavioral test).
+
+**Path taken.** (b) **fix** — not (a) dead-code removal.
+``rg -n "clean_workspace" --type py`` showed a live production caller
+at ``executor/flows/playwright/reset_state.py:176`` (plus 6 test
+references in ``tests/executor/test_reset_state.py``); the helper is
+not orphan code so the removal path was not available.
+
+**Root cause.** Pre-W15-2 ``clean_workspace`` branched on ``is_dir()``
+(which follows symlinks) before falling through to ``shutil.rmtree``:
+
+```python
+for child in WORKSPACE_DIR.iterdir():
+    if child.is_dir():
+        shutil.rmtree(child)   # raises OSError on a symlink in Py ≥3.7
+    else:
+        child.unlink()
+```
+
+A symlink-to-directory inside the workspace caused
+``shutil.rmtree(child)`` to raise ``OSError`` (Python ≥3.7 refuses to
+rmtree a symlink), leaving the workspace partially cleaned. The
+adversarial broader concern is that the symlink target is
+operator-controlled state outside the workspace that automation
+cleanup must never touch.
+
+**Module locations.**
+
++ `executor/flows/playwright/workspace/__init__.py:74-92` —
+  ``clean_workspace`` now mirrors the established
+  ``_clear_directory`` pattern (``reset_state.py:43-55``):
+  ``is_symlink() or is_file()`` -> ``unlink()`` (link entry removed,
+  target untouched); else -> ``shutil.rmtree`` (safe because the
+  symlink branch has already filtered out symlinks).
+  ``Path.is_symlink()`` is backed by ``lstat`` and does not follow
+  the link.
+
+**Tests added.**
+
++ `tests/architecture/test_workspace_symlink_check_order.py` × **2**
+  AST invariants:
+    1. Every cleanup chokepoint in ``WORKSPACE_HELPERS`` (currently
+       ``clean_workspace`` + ``_clear_directory``) classifies
+       symlink-ness via ``is_symlink`` / ``islink`` / ``lstat`` at an
+       earlier AST line number than its earliest ``shutil.rmtree``
+       call.
+    2. Vacuous-truth — every helper named in ``WORKSPACE_HELPERS``
+       must resolve to a real ``FunctionDef`` at its declared module
+       path (rename detection).
++ `tests/security/test_workspace_symlink_toctou.py` × **5** behavioral
+  cases:
+  + Real file removal (sanity).
+  + Real dir recursive removal (sanity).
+  + Symlink-to-external-dir: link unlinked, target dir + contents
+    survive byte-equal.
+  + Symlink-to-external-file: link unlinked, target file content
+    survives byte-equal.
+  + Dangling symlink: unlinked without raising
+    (post-W15-2 is intentional via ``is_symlink`` branch; pre-W15-2
+    worked by accident via the ``unlink()`` fall-through).
+
+**Production diff.** +9 net LoC in
+``executor/flows/playwright/workspace/__init__.py`` (8 LoC comment
+explaining the invariant + 2 LoC fix replacing 2 LoC; net +9 because
+the pre-state had no comment).
+
+**Verification.**
+
++ `pytest tests/architecture/test_workspace_symlink_check_order.py`
+  2 passed.
++ `pytest tests/security/test_workspace_symlink_toctou.py` 5 passed.
++ `pytest tests/executor/test_workspace.py tests/executor/test_reset_state.py`
+  14 passed (no regression in workspace contract).
++ `pytest tests/architecture/` collects **180** (W15-1 final 178 + 2).
++ `ruff check executor/flows/playwright/workspace/ tests/architecture/test_workspace_symlink_check_order.py tests/security/test_workspace_symlink_toctou.py` — clean.
+
+**Consciously excluded (defers to W16+).** Generic TOCTOU sweep across
+all workspace helpers; this PR is scoped only to the M12 path.
+``[FOLLOWUP w8-9-network-body-boundary-split-secret-test]`` is a
+separate concern.
 
 ## Close-Out (when W15 ends)
 

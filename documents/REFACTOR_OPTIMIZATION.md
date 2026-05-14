@@ -204,7 +204,7 @@ pending.
 | Iter | Status | Landing commit |
 |---|---|---|
 | W15-1 | **closed `2026-05-14`** (sync analyze error taxonomy alignment — M10) | `c58c365` |
-| W15-2 | planned (workspace symlink check order / orphan removal — M12) | — |
+| W15-2 | **closed `2026-05-14`** (workspace symlink check order / orphan removal — M12; path b: fix) | `765cde7` |
 | W15-3 | planned (`activationEvents` bounds + DB field-length Alembic migration — U8) | — |
 | W15-4 | planned (UI bounds bundle: event spread / timeline / relations graph cap — U1-U3 + U6) | — |
 | W15-5 | planned (quick fixes bundle: UI `/health` proxy + lifecycle `for <id>` regex — I2 + I4) | — |
