@@ -73,11 +73,20 @@ def create_bait_files(filenames: list[str]) -> list[Path]:
 
 def clean_workspace() -> None:
     """Remove all contents of the workspace directory."""
+    # W15-2 (Codex 2026-05-10 M12 close-out): check ``is_symlink()`` first
+    # so an adversarial symlink in the workspace is unlinked rather than
+    # dereferenced. ``Path.is_symlink()`` is backed by ``lstat`` and
+    # does not follow the link; mirrors the established cleanup pattern
+    # at ``reset_state.py:_clear_directory``. Without the check, a
+    # symlink-to-directory crashes ``shutil.rmtree`` (Python ≥3.7
+    # refuses to rmtree a symlink) and leaves the workspace partially
+    # cleaned; the broader concern is that the symlink target is
+    # untrusted operator-controlled state.
     for child in WORKSPACE_DIR.iterdir():
-        if child.is_dir():
-            shutil.rmtree(child)
-        else:
+        if child.is_symlink() or child.is_file():
             child.unlink()
+        else:
+            shutil.rmtree(child)
 
 
 def setup_dev_environment() -> None:
