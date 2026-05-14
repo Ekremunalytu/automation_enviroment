@@ -1,6 +1,6 @@
 # Development Priorities
 
-`Last Updated: 2026-05-13`
+`Last Updated: 2026-05-14`
 
 This is the short priority list for current work. It assumes the project stays
 a single-user sandbox appliance on one machine or one Docker host.
@@ -8,9 +8,9 @@ a single-user sandbox appliance on one machine or one Docker host.
 If any older planning note clashes with the active refactor track, follow
 `REFACTOR_STATUS.md` for current closure state and
 `REFACTOR_OPTIMIZATION.md` §11 for the closed W8-W13 external-review window
-or §12 for active W14 staging. Post-PoC deferrals live in
-`POST_POC_BACKLOG.md`. Keep changes biased toward cleanliness, stability, and
-overall code quality.
+or §12 for W14 close-out (sub-iter slate complete; close-out PR
+`week14 -> main` next). Post-PoC deferrals live in `POST_POC_BACKLOG.md`.
+Keep changes biased toward cleanliness, stability, and overall code quality.
 
 ## Current Window (7 weeks, 2026-04-17 -> 2026-04-23; closed)
 

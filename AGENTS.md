@@ -1,6 +1,6 @@
 # AGENTS.md
 
-`Last Updated: 2026-05-13 (W13 closed; PR #20 week13 -> main merged via 772deb3; W14 staging via REFACTOR_OPTIMIZATION.md §12 + active-work/W14-codex-acceptance-observability.md; awaiting explicit W14 pull / week14 branch cut)`
+`Last Updated: 2026-05-13 (W13 closed via PR #20 -> 772deb3; W14 active on week14 branch cut from main at 69251f1; W14-1 BLOCKER -> HIGH downgraded, W14-2 closed via bde17be, W14-3 closed via 941250d, W14-4 closed, W14-5 closed via dc79f61+9c095d2+db25d5f, W14-6 closed via 2adad43+b031803+e42a448; W14 sub-iter slate complete; W14-7 post-slate hotfix closed via df925f8+c11ebd8 — container-shipping regression + Python 3.10 UTC compat; W14-8 post-slate preventive gate closed via 5638f82 — forbids Python 3.11+ API imports in container-shipped paths; close-out PR week14 -> main next)`
 
 ## Authority
 
@@ -21,11 +21,33 @@
   via PR #14; W12 closed `2026-05-10` and merged via PR #18
   (`33a0852`); W13 closed `2026-05-13` and merged via PR #20
   (`772deb3`).** Active phase is **W14 — Codex M-class Acceptance +
-  Observability** in staging: plan `documents/REFACTOR_OPTIMIZATION.md`
+  Observability** active on the `week14` branch (cut from `main` at
+  `69251f1` on `2026-05-13`): plan `documents/REFACTOR_OPTIMIZATION.md`
   §12, tracker `documents/active-work/W14-codex-acceptance-observability.md`.
-  Entry was triggered by the W13 close-out merge; remaining trigger is an
-  explicit W14 pull / `week14` branch cut from `main`. Past
-  W8/W11/W12/W13 trackers remain stable-ID references only.
+  W14-1 pulled `2026-05-13` and BLOCKER downgraded to HIGH the same day
+  (conservation guard landed). W14-2 (M4-M7 + M11) closed `2026-05-13`
+  via `bde17be`. W14-3 (M13 + M14b + U4-U12) closed `2026-05-13` via
+  `941250d`. W14-4 (analysis-jobs-race lock symmetry + EvidenceEvent
+  kind↔event_class invariant) closed `2026-05-13`. W14-5 (logger
+  consolidation + run-ID stamping + executor runtime fingerprint;
+  ADR 0010 landed; M5 docker-exec propagation auto-closed) closed
+  `2026-05-13` via `dc79f61` + `9c095d2` + `db25d5f`. W14-6 (regression
+  lock-in umbrella: bare-binary pragma ratchet + executor.control
+  outbound surface gate + variable-indirect subprocess coverage with
+  binary_paths migration) closed `2026-05-13` via `2adad43` + `b031803`
+  + `e42a448`. W14 sub-iter slate complete. **W14-7 post-slate
+  hotfix** closed `2026-05-13` via `df925f8` (Dockerfile COPY for
+  `executor/binary_paths.py` + `executor/runtime_fingerprint.py` +
+  Python 3.10 `datetime.UTC` compat shim) and `c11ebd8` (regression
+  gate `tests/architecture/test_executor_container_shipping.py`).
+  **W14-8 post-slate preventive gate** closed `2026-05-13` via
+  `5638f82` — adds
+  `tests/architecture/test_executor_container_python_compat.py`,
+  AST-scans every container-shipped Python file for Python 3.11+
+  API imports so the next 3.10/3.11+ divergence fails CI before
+  the docker build. Close-out PR `week14 -> main` is the next
+  milestone. Past W8/W11/W12/W13 trackers remain stable-ID
+  references only.
 - ADR 0007 local-network-binding is **Accepted and implemented**; loopback
   defaults + `EXTRACE_ALLOW_LAN` are pinned by `test_default_bindings.py`.
 

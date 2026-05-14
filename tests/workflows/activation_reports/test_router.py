@@ -107,7 +107,13 @@ def test_get_latest_activation(client: TestClient, mock_output_dir: Path):
         build_valid_report(
             target_extension_expected="second.publisher",
             report_version=2,
-            evidence_events=[{"event_id": "activation-0001", "kind": "activation"}],
+            evidence_events=[
+                {
+                    "event_id": "activation-0001",
+                    "kind": "activation",
+                    "raw_context": {"event_class": "activation"},
+                }
+            ],
             evidence_links=[],
         ),
     )

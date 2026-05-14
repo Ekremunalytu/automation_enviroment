@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import io
-import logging
 import os
 import shutil
 import zipfile
@@ -18,13 +17,14 @@ if TYPE_CHECKING:
 
 from appcore.api.config import settings
 from appcore.contracts.schemas import MarketplaceExtension
+from appcore.logging import get_extrace_logger
 from packages.marketplace_identity import safe_marketplace_slug
 from workflows.extension_catalog.manifest_reader import (
     PackageJsonReadError,
     get_package_json,
 )
 
-logger = logging.getLogger(__name__)
+logger = get_extrace_logger("extrace.workflows.marketplace.client")
 
 _MARKETPLACE_API = (
     "https://marketplace.visualstudio.com/_apis/public/gallery/extensionquery"

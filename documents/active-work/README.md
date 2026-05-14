@@ -20,17 +20,19 @@ points to it.
 ## Files
 
 - `W14-codex-acceptance-observability.md`
-  - **Staging phase (entry triggered — awaiting explicit pull / branch cut).** W14
-    Codex M-class Acceptance + Observability. 6 sub-iter scoped
+  - **Active phase — sub-iter slate complete `2026-05-13` (W14-1..W14-6 closed
+    + W14-7/W14-8 post-slate hotfixes closed); close-out PR `week14 -> main`
+    next.** W14 Codex M-class Acceptance + Observability. 6 sub-iter scoped
     (`W14-1..W14-6`): BLOCKER scenario-dropout araştırması, Codex
     M-class input validation (M4-M7 + M11), dış yüzey sertleştirme
     (M13 + M14b + U4-U12), correctness/concurrency (analysis-jobs-race
     - evidence-event-kind invariant), §11.10 GOAL devamı (logger
     consolidation + run-ID stamping + codex-automation-5 fingerprint),
-    W8-W12 regression lock-in umbrella. Entry gate W13 close-gate
-    cleared `2026-05-13` + close-out PR #20 (`week13 -> main`)
-    **MERGED** `2026-05-13` via `772deb3`; remaining trigger is
-    `week14` branch cut from `main`; stable ID'ler ilk pull'da atanır
+    W8-W12 regression lock-in umbrella. Plus post-slate hotfixes:
+    `W14-7` (container-shipping regression + Python 3.10 UTC compat),
+    `W14-8` (preventive AST gate forbidding Python 3.11+ API imports in
+    container-shipped paths). Branch cut completed `2026-05-13` at
+    `69251f1`; W14-1..W14-8 stable ID'leri pull sırasında atandı
     (W11/W12/W13 precedent). Slim canonical:
     [`REFACTOR_OPTIMIZATION.md §12`](../REFACTOR_OPTIMIZATION.md).
 - `W13-test-expansion-observability.md`

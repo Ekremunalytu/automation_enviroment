@@ -10,7 +10,6 @@ Endpoints:
 
 from __future__ import annotations
 
-import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Body, Depends, HTTPException
@@ -22,6 +21,7 @@ from appcore.contracts.schemas import (
     ThresholdsResponse,
     ThresholdsUpdateRequest,
 )
+from appcore.logging import get_extrace_logger
 from workflows.security_settings.defaults import (
     THRESHOLD_BOUNDS,
     VSIX_THRESHOLD_DEFAULTS,
@@ -33,7 +33,7 @@ from workflows.security_settings.service import (
     save_vsix_thresholds,
 )
 
-logger = logging.getLogger(__name__)
+logger = get_extrace_logger("extrace.workflows.security_settings.router")
 
 router = APIRouter(prefix="/api/settings/security", tags=["security-settings"])
 

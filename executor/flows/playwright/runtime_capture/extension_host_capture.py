@@ -9,6 +9,8 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+from executor.binary_paths import INOTIFYWAIT_PATH, STRACE_PATH
+
 from ._shared import _log
 from .events import ActivationEntry, FileEvent, ProcessEvent
 from .extension_host_log_parse import _ACTIVATION_PATTERNS, find_exthost_logs
@@ -71,7 +73,7 @@ class ExtensionHostFileCapture:
         self._ppid_by_pid[pid] = None
         self.diagnostics["selected_pid"] = pid
         cmd = [
-            "strace",
+            STRACE_PATH,
             "-f",
             "-ttt",
             "-s",
@@ -183,9 +185,8 @@ def watch_exthost_log(
     proc: subprocess.Popen[str] | None = None
 
     try:
-        # arch-allow: bare-binary-path  # W8-4-followup: see POST_POC_BACKLOG.md
         proc = subprocess.Popen(  # nosec B603,B607
-            ["inotifywait", "-m", "-e", "modify", str(log_path)],
+            [INOTIFYWAIT_PATH, "-m", "-e", "modify", str(log_path)],
             stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL,
             text=True,

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass
 from typing import Any
 
@@ -10,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from appcore.api.config import settings
 from appcore.contracts.schemas import AnalyzeRequest
+from appcore.logging import get_extrace_logger
 from appcore.storage.crud import (
     get_extension_activation_events,
     get_extension_capabilities,
@@ -17,7 +17,7 @@ from appcore.storage.crud import (
 )
 from packages.analysis_planner import select_scenarios, write_trigger_file
 
-logger = logging.getLogger(__name__)
+logger = get_extrace_logger("extrace.workflows.marketplace.trigger_service")
 
 _NON_EXECUTABLE_CONTRIBUTE_FIELDS = (
     "themes",

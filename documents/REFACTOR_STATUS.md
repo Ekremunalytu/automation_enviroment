@@ -1,6 +1,6 @@
 # Refactor Status
 
-`Last Updated: 2026-05-13 (W13 closed; PR #20 week13 -> main merged via 772deb3; W14 staging entry gate triggered by close-out merge; awaiting explicit W14 pull / week14 branch cut)`
+`Last Updated: 2026-05-13 (W14 active; W14-1 BLOCKER -> HIGH downgraded; W14-2 closed via bde17be; W14-3 closed via 941250d; W14-4 closed; W14-5 closed via dc79f61+9c095d2+db25d5f; W14-6 closed via 2adad43+b031803+e42a448; W14 sub-iter slate complete; W14-7 post-slate hotfix closed via df925f8+c11ebd8 — container-shipping regression + Python 3.10 UTC compat; W14-8 post-slate preventive gate closed via 5638f82 — forbids Python 3.11+ API imports in container-shipped paths; week14 branch cut from main at 69251f1; W13 close-out PR #20 week13 -> main merged via 772deb3; close-out PR week14 -> main next)`
 
 Active status board for current closure state. **Slim canonical** — verbose
 phase evidence is frozen under dated snapshots:
@@ -45,18 +45,59 @@ phase evidence is frozen under dated snapshots:
   `tests/architecture/` 117 passed. W13-11/12/13 were pulled in-window from
   the close-gate review to preserve H6/H4 audit-trail integrity; remaining
   §11.10 umbrellas moved to W14.
-- **Active phase: W14 — Codex M-class Acceptance + Observability** (staging).
-  Scope authored `2026-05-11` in
+- **Active phase: W14 — Codex M-class Acceptance + Observability** (active;
+  `week14` branch cut from `main` at `69251f1` on `2026-05-13`). Scope
+  authored `2026-05-11` in
   [`active-work/W14-codex-acceptance-observability.md`](active-work/W14-codex-acceptance-observability.md);
   plan source [`REFACTOR_OPTIMIZATION.md §12`](REFACTOR_OPTIMIZATION.md).
   6 sub-iter scoped (`W14-1..W14-6`): BLOCKER scenario-dropout araştırması,
   Codex M-class input validation (M4-M7 + M11), dış yüzey sertleştirme
   (M13 + M14b + U4-U12), correctness/concurrency (analysis-jobs-race +
   evidence-event-kind invariant), §11.10 GOAL devamı (logger consolidation
-  - run-ID stamping), W8-W12 regression lock-in umbrella. Entry gate W13
-  close-out PR merge'de tetiklenir; stable ID'ler ilk pull'da atanır
-  (W11/W12/W13 precedent). Remaining trigger is an explicit W14 pull /
-  `week14` branch cut from `main`.
+  - run-ID stamping), W8-W12 regression lock-in umbrella. W14-1 pulled
+  `2026-05-13`; BLOCKER `[BUG scenario-dropout-upstream-root-cause]`
+  triage landed deterministic repro matrix
+  (`tests/security/test_scenario_dropout_repro.py`) + conservation guard
+  (`scenario_accountant.py:392-438`), severity downgraded BLOCKER -> HIGH
+  the same day; upstream emit-site split moved to
+  `[FOLLOWUP scenario-accountant-conservation-split]`. W14-2 (M4-M7
+  output-ts range + M11 report-health malformed types) closed `2026-05-13`
+  via `bde17be`. W14-3 (M13 network URI/summary redaction + M14b CDP
+  default-disabled + U4-U12 Makefile shell-quoting) closed `2026-05-13`
+  via `941250d`. W14-4 (analysis-jobs-race lock symmetry on
+  `complete_analysis_job` / `fail_analysis_job` + EvidenceEvent
+  kind↔event_class invariant via closed 9-kind allowlist) closed
+  `2026-05-13`. W14-5 (`extrace.*` logger consolidation + run-ID
+  stamping + executor runtime fingerprint emit) closed `2026-05-13`
+  via `dc79f61` + `9c095d2` + `db25d5f`; ADR 0010 landed; M5
+  (`epoch-docker-exec-propagation`) auto-closed as natural byproduct
+  of sub-commit 2. W14-6 (regression lock-in umbrella:
+  bare-binary-path pragma ratchet + `executor.control` outbound
+  surface gate + variable-indirect subprocess coverage) closed
+  `2026-05-13` via `2adad43` + `b031803` + `e42a448`; pragma baseline
+  lowered 7 → 6 in-window via inotifywait/tshark/strace absolute-path
+  migration. W14 sub-iter slate complete (W14-1..W14-6). **W14-7
+  post-slate hotfix** closed `2026-05-13` via `df925f8` + `c11ebd8`:
+  production smoke retry on `ms-python.python@2026.5.2026051301`
+  exposed that W14-6.c added `executor/binary_paths.py` and W14-5.3
+  added `executor/runtime_fingerprint.py` without updating the
+  executor Dockerfile COPY directives → container
+  `ModuleNotFoundError`. Fix ships the two missing root modules and
+  swaps W14-5.3's `from datetime import UTC` for the established
+  Python 3.10 compat shim; regression gate at
+  `tests/architecture/test_executor_container_shipping.py` pins the
+  import-graph ↔ Dockerfile invariant (+2 arch cases →
+  `tests/architecture/` 168 → 170). **W14-8 post-slate preventive
+  gate** closed `2026-05-13` via `5638f82` — adds
+  `tests/architecture/test_executor_container_python_compat.py`
+  that AST-scans every container-shipped Python file for the most
+  common Python 3.11+ API imports (`from datetime import UTC`,
+  `from typing import {Self|NotRequired|Required|LiteralString|
+  TypeVarTuple|Unpack|ExceptionGroup|BaseExceptionGroup}`, `import
+  tomllib`) so the next 3.10/3.11+ divergence fails CI before the
+  docker build; per-import `# arch-allow: py311-api` pragma for rare
+  overrides (+1 arch case → `tests/architecture/` 170 → 171).
+  Close-out PR `week14 -> main` is the next milestone.
 
 ## W13 Status Summary
 
@@ -71,18 +112,23 @@ phase evidence is frozen under dated snapshots:
 
 - `[FOLLOWUP w13-4-alembic-roundtrip-programmatic]` — programmatic Alembic
   upgrade/downgrade test remains deferred pending a fresh-DB-per-test fixture.
-- `[FOLLOWUP analysis-jobs-race]` — W13-4.4 documented the
-  `complete_analysis_job` / `cancel_analysis_job` race window; pull W14+.
+- `[FOLLOWUP analysis-jobs-race]` — **closed** by W14-4 on `2026-05-13`;
+  `complete_analysis_job` + `fail_analysis_job` now acquire
+  `with_for_update()` and gate against `_TERMINAL_JOB_STATUSES`.
 - `[FOLLOWUP simulation-progress-cancel]` remaining subitems:
   `heartbeat-sandbox-reset-off-thread`, `dedupe-step-progress-schemas`, and
   `heartbeat-refactor` iterate after W13-3.
-- `[BUG scenario-dropout-upstream-root-cause]` is W14-1 BLOCKER triage unless
-  dropout proves stochastic or misses a live threat category.
+- `[BUG scenario-dropout-upstream-root-cause]` — **closed** by W14-1 on
+  `2026-05-13` via `0c8bd02` (deterministic repro matrix landed + conservation
+  guard; severity downgraded BLOCKER -> HIGH same day; upstream emit-site
+  split deferred under `[FOLLOWUP scenario-accountant-conservation-split]`).
 
 ## Read Order
 
 When updating this file, keep it as a slim closure board. Put verbose
 evidence in `documents/archive/status/`, keep pull-next detail in
 `POST_POC_BACKLOG.md`, keep closed W13 mechanics in
-`active-work/W13-test-expansion-observability.md`, and active W14 staging scope
-in `active-work/W14-codex-acceptance-observability.md`.
+`active-work/W13-test-expansion-observability.md`, and W14 close-out scope
+(sub-iter slate complete + post-slate hotfixes closed; close-out PR
+`week14 -> main` next) in
+`active-work/W14-codex-acceptance-observability.md`.

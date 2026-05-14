@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 import threading
 from collections.abc import Callable
 
@@ -14,13 +13,14 @@ from appcore.contracts.schema_defs.analysis_jobs import (
     AnalysisJobStepStatus,
 )
 from appcore.contracts.schemas import AnalyzeRequest
+from appcore.logging import get_extrace_logger
 from executor.control import ExecutorControl, ExecutorError
 from packages.analysis_contracts import redact_multiline_secrets, redact_secrets
 from workflows.marketplace.trigger_service import TriggerPlan
 
 from .analysis_errors import AnalysisCancelledError, TriggerPlanError
 
-logger = logging.getLogger(__name__)
+logger = get_extrace_logger("extrace.workflows.marketplace.analysis_execution")
 
 
 ProgressCallback = Callable[

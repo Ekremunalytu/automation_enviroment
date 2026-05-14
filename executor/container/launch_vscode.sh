@@ -17,7 +17,14 @@
 
 set -euo pipefail
 
-CDP_PORT="${EXECUTOR_CDP_PORT:-9222}"
+# W14-3 (M14b): CDP is now strictly opt-in. The legacy "default-on 9222"
+# behavior reachable from same-container analyzed extensions is gone; an
+# operator who needs CDP must explicitly set EXECUTOR_CDP_PORT (the
+# `make up-debug` lane in the Makefile sets it for the `debug` compose
+# profile). Empty value below means "no remote debugging flag is passed
+# to `code`", so VS Code starts without exposing the unauthenticated CDP
+# interface that previously rode along even in default `make up`.
+CDP_PORT="${EXECUTOR_CDP_PORT:-}"
 VSCODE_LOG_LEVEL="${EXECUTOR_VSCODE_LOG_LEVEL:-trace}"
 VSCODE_USER_DATA_DIR="${EXECUTOR_VSCODE_USER_DATA_DIR:-/home/executor/.vscode}"
 HARNESS_EXT_PATH="${EXECUTOR_HARNESS_EXT_PATH:-/home/executor/flows/harness_extension}"
@@ -60,10 +67,17 @@ fi
 # the caller exiting (matters when reset_state.py relaunches VS Code —
 # otherwise the freshly-launched process would get SIGHUP'd along with
 # the reset script).
+# W14-3 (M14b): the CDP flag is conditionally appended only when
+# ${CDP_PORT} is non-empty so VS Code stays unreachable on the debug
+# port in default boots.
+CDP_FLAG=()
+if [ -n "${CDP_PORT}" ]; then
+    CDP_FLAG=(--remote-debugging-port="${CDP_PORT}")
+fi
 setsid code --no-sandbox \
     --user-data-dir "${VSCODE_USER_DATA_DIR}" \
     --extensionDevelopmentPath="${HARNESS_EXT_PATH}" \
-    --remote-debugging-port="${CDP_PORT}" \
+    "${CDP_FLAG[@]}" \
     --log "${VSCODE_LOG_LEVEL}" \
     "${WORKSPACE_PATH}" \
     </dev/null >/dev/null 2>&1 &

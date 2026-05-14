@@ -104,8 +104,12 @@ repos:
     rev: v0.41.0
     hooks:
       - id: markdownlint
-        args: ["--config", ".markdownlint.json", "--fix"]
-        exclude: ^(extensions/|alembic/README)
+        # W14 close-out: dropped --fix so the hook fails loud rather than
+        # mangling docs in-place (ADR 0009 lost its code-fence language
+        # info because prior --fix runs re-emitted bare fences; the
+        # `make markdownlint` target mirrors this gate for CI/local use).
+        args: ["--config", ".markdownlint.json"]
+        exclude: ^(extensions/|alembic/README|documents/archive/)
 
   - repo: https://github.com/tcort/markdown-link-check
     rev: v3.12.2

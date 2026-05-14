@@ -28,7 +28,10 @@
       "path": "/home/executor/.ssh/id_rsa",
       "summary": "Credential file read",
       "is_target_extension_event": true,
-      "attribution_status": "strong"
+      "attribution_status": "strong",
+      "raw_context": {
+        "event_class": "file"
+      }
     },
     {
       "event_id": "network-0001",

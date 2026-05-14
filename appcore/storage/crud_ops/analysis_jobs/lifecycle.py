@@ -257,11 +257,25 @@ def fail_analysis_job(
     job_id: str,
     failure: AnalysisJobFailure,
 ) -> AnalysisJob:
-    job = _get_analysis_job_or_raise(db, job_id)
+    # W14-4: acquire row-level exclusive lock before the status check so
+    # concurrent fail/complete writers cannot both pass their guards and
+    # overwrite each other's terminal write (race window documented in
+    # `test_analysis_jobs_concurrency.py:171` pre-W14-4). Mirrors the
+    # `cancel_analysis_job` / `finalize_cancelled_analysis_job` lock
+    # discipline at lifecycle.py:128 and :181.
+    stmt = select(AnalysisJob).where(AnalysisJob.job_id == job_id).with_for_update()
+    job = db.scalars(stmt).first()
+    if job is None:
+        raise KeyError(job_id)
     # W13-3: a worker that hits a hard error during drain must not flip a
     # cancelling row into `failed` — the cancel signal is authoritative,
     # the row goes terminal through finalize_cancelled_analysis_job.
     if job.status == "cancelling":
+        raise JobNotCancellableError(job_id, job.status)
+    # W14-4: a row already in a terminal state must not be re-failed —
+    # the second writer would silently overwrite the original terminal
+    # detail. Mirrors the cancel guard at lifecycle.py:133.
+    if job.status in _TERMINAL_JOB_STATUSES:
         raise JobNotCancellableError(job_id, job.status)
     steps = _job_steps(job)
     current_step = job.current_step
@@ -316,13 +330,26 @@ def complete_analysis_job(
     job_id: str,
     update: AnalysisJobUpdate,
 ) -> AnalysisJob:
-    job = _get_analysis_job_or_raise(db, job_id)
+    # W14-4: acquire row-level exclusive lock before the status check so a
+    # concurrent cancel/fail writer cannot pass its own guard and overwrite
+    # the completion. Mirrors the `cancel_analysis_job` /
+    # `finalize_cancelled_analysis_job` lock discipline at
+    # lifecycle.py:128 and :181.
+    stmt = select(AnalysisJob).where(AnalysisJob.job_id == job_id).with_for_update()
+    job = db.scalars(stmt).first()
+    if job is None:
+        raise KeyError(job_id)
 
     # W13-3: a worker that finished the happy-path AFTER receiving the
     # cancel signal must not promote the row to `completed`. The cancel
     # signal is authoritative; the row goes terminal through
     # finalize_cancelled_analysis_job.
     if job.status == "cancelling":
+        raise JobNotCancellableError(job_id, job.status)
+    # W14-4: a row already in a terminal state must not be re-completed —
+    # the second writer would silently overwrite the original terminal
+    # detail. Mirrors the cancel guard at lifecycle.py:133.
+    if job.status in _TERMINAL_JOB_STATUSES:
         raise JobNotCancellableError(job_id, job.status)
 
     for field_name, value in update.model_dump(exclude_unset=True).items():

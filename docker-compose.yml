@@ -86,7 +86,13 @@ services:
       EXECUTOR_VNC_HOST: ${EXECUTOR_VNC_HOST:-localhost}
       EXECUTOR_VNC_PORT: ${EXECUTOR_VNC_PORT:-5900}
       EXECUTOR_NOVNC_PORT: ${EXECUTOR_NOVNC_PORT:-6080}
-      EXECUTOR_CDP_PORT: ${EXECUTOR_CDP_PORT:-9222}
+      # W14-3 (M14b): CDP is opt-in; an unset EXECUTOR_CDP_PORT keeps the
+      # executor's in-container VS Code from binding the unauthenticated
+      # remote-debugging port. The host-side `executor-cdp` sidecar
+      # (debug profile, lines below) ALSO requires this variable to be
+      # set in the operator's environment before `make up-debug` /
+      # `docker compose --profile debug up` will forward anything.
+      EXECUTOR_CDP_PORT: ${EXECUTOR_CDP_PORT:-}
       EXECUTOR_STARTUP_SLEEP_SECONDS: ${EXECUTOR_STARTUP_SLEEP_SECONDS:-1}
       EXECUTOR_VSCODE_LOG_LEVEL: ${EXECUTOR_VSCODE_LOG_LEVEL:-trace}
     volumes:

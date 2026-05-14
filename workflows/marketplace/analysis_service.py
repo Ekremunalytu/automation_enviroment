@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 import time
 from collections.abc import Callable
 from pathlib import Path
@@ -18,6 +17,7 @@ from appcore.contracts.schema_defs.analysis_jobs import (
     AnalysisJobStepStatus,
 )
 from appcore.contracts.schemas import AnalyzeRequest, AnalyzeResponse
+from appcore.logging import get_extrace_logger
 from appcore.storage.crud_ops.analysis_jobs.lifecycle import (
     _TERMINAL_JOB_STATUSES,
     finalize_cancelled_analysis_job,
@@ -71,7 +71,7 @@ from workflows.marketplace.analysis_reports import (
 )
 from workflows.marketplace.trigger_service import TriggerPlan, build_trigger_payload
 
-logger = logging.getLogger(__name__)
+logger = get_extrace_logger("extrace.workflows.marketplace.analysis_service")
 
 
 def _open_job_session() -> Session:

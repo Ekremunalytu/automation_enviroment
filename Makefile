@@ -12,7 +12,7 @@ include .env
 export
 endif
 
-.PHONY: help install install-dev install-hooks lint lint-check format typecheck \
+.PHONY: help install install-dev install-hooks lint lint-check markdownlint format typecheck \
         security test test-unit test-integration test-smoke test-security test-security-ci-guard test-security-live test-cov test-local test-ci check check-all all clean \
         dev dev-lan run build rebuild up up-debug down logs ps restart status \
         migrate migrate-create venv-check \
@@ -144,6 +144,19 @@ lint-check:
 	@echo "🔍 Running Ruff linter (check only, no fix)..."
 	$(VENV)/ruff check .
 	@echo "✅ Lint check complete!"
+
+markdownlint:  ## Run markdownlint without auto-fix (CI-safe; matches pre-commit rule set, no mangle)
+	@echo "🔍 Running markdownlint (no --fix; matches pre-commit rule set)..."
+	@npx --yes markdownlint-cli@0.41.0 \
+		--config .markdownlint.json \
+		--ignore 'extensions/**' \
+		--ignore 'alembic/README*' \
+		--ignore 'documents/archive/**' \
+		--ignore 'node_modules/**' \
+		--ignore 'ui/node_modules/**' \
+		--ignore '.venv/**' \
+		'**/*.md'
+	@echo "✅ Markdown lint check complete!"
 
 format:
 	@echo "🎨 Formatting code with Ruff..."
@@ -309,7 +322,7 @@ check: lint typecheck test
 	@echo "✅ All checks passed!"
 	@echo "═══════════════════════════════════════════════════════════════"
 
-check-all: lint typecheck security ui-types-check ui-boundaries test
+check-all: lint typecheck security ui-types-check ui-boundaries markdownlint test
 	@echo ""
 	@echo "═══════════════════════════════════════════════════════════════"
 	@echo "✅ All checks (including security) passed!"
@@ -343,7 +356,10 @@ up:
 
 up-debug:
 	@echo "🐛 Starting containers with debug profile (CDP port 9222 exposed)..."
-	@docker-compose --profile debug up -d
+	@# W14-3 (M14b): explicitly set EXECUTOR_CDP_PORT so the executor's
+	@# in-container VS Code attaches the --remote-debugging-port flag.
+	@# Default `make up` leaves the env var empty and CDP stays closed.
+	@EXECUTOR_CDP_PORT=9222 docker-compose --profile debug up -d
 	@docker-compose --profile debug ps
 	@echo "✅ Debug-profile containers running. CDP available on 127.0.0.1:9222."
 
@@ -440,12 +456,30 @@ sim-target: exec-up
 		echo "❌ Please provide a TARGET. Usage: make sim-target TARGET=publisher.name [TRIGGERS=/path/to/payload.json] [SCENARIO=<name>]"; \
 		exit 1; \
 	fi
+	@# W14-3 (U4-U12): validate operator-supplied variables before they
+	@# flow into the `docker exec` command line. Make variables are NEVER
+	@# shell-escaped by Make itself, so an unvalidated `TARGET=foo;rm -rf /`
+	@# would word-split inside the recipe's shell and execute side
+	@# commands. Restricting each variable to its expected character class
+	@# (extension ids are `publisher.name`-shaped; scenario ids are
+	@# alphanumeric+underscore; trigger paths are filesystem paths) keeps
+	@# the unquoted positional pass below safe in addition to the
+	@# defense-in-depth quoting.
+	@printf '%s' "$(TARGET)" | grep -qE '^[A-Za-z0-9._-]+$$' || { \
+		echo "❌ TARGET must match [A-Za-z0-9._-]+ (got: $(TARGET))"; exit 1; \
+	}
+	@if [ -n "$(SCENARIO)" ] && ! printf '%s' "$(SCENARIO)" | grep -qE '^[A-Za-z0-9_]+$$'; then \
+		echo "❌ SCENARIO must match [A-Za-z0-9_]+ (got: $(SCENARIO))"; exit 1; \
+	fi
+	@if [ -n "$(TRIGGERS)" ] && ! printf '%s' "$(TRIGGERS)" | grep -qE '^[A-Za-z0-9./_-]+$$'; then \
+		echo "❌ TRIGGERS must match [A-Za-z0-9./_-]+ (got: $(TRIGGERS))"; exit 1; \
+	fi
 	@echo "🤖 Running target-extension smoke for $(TARGET)..."
 	docker exec -e PYTHONUNBUFFERED=1 -i automation_executor python3 -m executor.flows.playwright.entrypoint \
 		--monitor \
-		--target-extension-id $(TARGET) \
-		$(if $(TRIGGERS),--triggers $(TRIGGERS),) \
-		$(if $(SCENARIO),--scenario $(SCENARIO),)
+		--target-extension-id "$(TARGET)" \
+		$(if $(TRIGGERS),--triggers "$(TRIGGERS)",) \
+		$(if $(SCENARIO),--scenario "$(SCENARIO)",)
 
 sim-demo: exec-up
 	@echo "🤖 Running quick demo scenario..."
@@ -460,8 +494,14 @@ sim-run: exec-up
 		echo "❌ Please provide a SCENARIO. Usage: make sim-run SCENARIO=coding_session"; \
 		exit 1; \
 	fi
+	@# W14-3 (U4-U12): see sim-target above for the rationale. Scenario ids
+	@# are alphanumeric+underscore by convention; reject everything else
+	@# before letting the value reach `docker exec`.
+	@printf '%s' "$(SCENARIO)" | grep -qE '^[A-Za-z0-9_]+$$' || { \
+		echo "❌ SCENARIO must match [A-Za-z0-9_]+ (got: $(SCENARIO))"; exit 1; \
+	}
 	@echo "🤖 Running scenario: $(SCENARIO)..."
-	docker exec -e PYTHONUNBUFFERED=1 -i automation_executor python3 -m executor.flows.playwright.entrypoint --monitor --scenario $(SCENARIO)
+	docker exec -e PYTHONUNBUFFERED=1 -i automation_executor python3 -m executor.flows.playwright.entrypoint --monitor --scenario "$(SCENARIO)"
 
 demo-canary: exec-up
 	@echo "🤖 Installing safe runnable demo canary into executor..."

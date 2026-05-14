@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-`Last Updated: 2026-05-13 (W13 closed; PR #20 week13 -> main merged via 772deb3; W14 staging via REFACTOR_OPTIMIZATION.md §12 + active-work/W14-codex-acceptance-observability.md; awaiting explicit W14 pull / week14 branch cut)`
+`Last Updated: 2026-05-14 (W14 sub-iter slate complete + post-slate hotfixes closed; close-out hygiene pass applied — Ruff lint, UI contract sync, markdown formatting, doc truth-state alignment, new regression gates (make markdownlint + ADR code fence arch test); W14-1 BLOCKER -> HIGH via 0c8bd02; W14-2 closed via bde17be; W14-3 closed via 941250d; W14-4 closed; W14-5 closed via dc79f61+9c095d2+db25d5f; W14-6 closed via 2adad43+b031803+e42a448; W14-7 post-slate hotfix closed via df925f8+c11ebd8 — container-shipping regression + Python 3.10 UTC compat; W14-8 post-slate preventive gate closed via 5638f82 — forbids Python 3.11+ API imports in container-shipped paths; week14 branch cut from main at 69251f1; W13 close-out PR #20 week13 -> main merged via 772deb3; W14 close-out PR week14 -> main next)`
 
 This file is intentionally a thin pointer. Do not duplicate phase summaries or
 architecture maps here; that caused drift.
@@ -30,10 +30,38 @@ architecture maps here; that caused drift.
 - W8-W13 planning is owned by `documents/REFACTOR_OPTIMIZATION.md` section 11;
   W14 by section 12. W13 closed `2026-05-13`; PR #20 `week13 -> main`
   merged via `772deb3`. **Active phase: W14 — Codex M-class Acceptance +
-  Observability** is staging in
-  `documents/active-work/W14-codex-acceptance-observability.md`; stable IDs
-  are assigned at first pull and the remaining trigger is an explicit W14 pull
-  / `week14` branch cut from `main`. Past trackers are stable-ID references
+  Observability** is active on the `week14` branch (cut from `main` at
+  `69251f1` on `2026-05-13`); see
+  `documents/active-work/W14-codex-acceptance-observability.md`. W14-1
+  pulled `2026-05-13` and BLOCKER triage downgraded to HIGH the same day
+  (conservation guard landed; upstream emit-site split tracked under
+  `[FOLLOWUP scenario-accountant-conservation-split]`). W14-2 (M4-M7 +
+  M11 input validation) closed `2026-05-13` via `bde17be`. W14-3 (M13 +
+  M14b + U4-U12 external-surface hardening) closed `2026-05-13` via
+  `941250d`. W14-4 (analysis-jobs-race lock symmetry on `complete` /
+  `fail` + EvidenceEvent kind↔event_class invariant) closed
+  `2026-05-13`. W14-5 (`extrace.*` logger consolidation + run-ID stamping
+  + executor runtime fingerprint emit; ADR 0010 landed; M5 docker-exec
+  propagation auto-closed as natural byproduct) closed `2026-05-13` via
+  `dc79f61` + `9c095d2` + `db25d5f`. W14-6 (regression lock-in umbrella:
+  bare-binary pragma ratchet + `executor.control` outbound surface gate
+  + variable-indirect subprocess coverage with binary_paths migration)
+  closed `2026-05-13` via `2adad43` + `b031803` + `e42a448`. W14
+  sub-iter slate complete. **W14-7 post-slate hotfix** closed
+  `2026-05-13` via `df925f8` (fix: ship `executor/binary_paths.py` +
+  `executor/runtime_fingerprint.py` into the executor container +
+  Python 3.10 `datetime.UTC` compat shim aligned with
+  `packages/analysis_engine/runner.py:26`) and `c11ebd8` (regression
+  gate `tests/architecture/test_executor_container_shipping.py`,
+  +2 cases). **W14-8 post-slate preventive gate** closed
+  `2026-05-13` via `5638f82`
+  (`tests/architecture/test_executor_container_python_compat.py`) —
+  AST-scans container-shipped paths for Python 3.11+ API imports
+  (`from datetime import UTC`, `from typing import {Self|NotRequired|
+  …|ExceptionGroup}`, `import tomllib`) so the next 3.10/3.11+
+  divergence fails CI before the docker build; per-import pragma
+  `# arch-allow: py311-api` for rare overrides. Close-out PR
+  `week14 -> main` next. Past trackers are stable-ID references
   only: W13, W12, W11, and W8.
 - `documents/archive/` is frozen reference; not on the default read path.
   Open only when a slim canonical explicitly points there.

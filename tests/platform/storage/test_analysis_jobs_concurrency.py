@@ -36,6 +36,15 @@ removes the skip on race + concurrent (both depend on the existing
 test (depends on the existing ``recover_interrupted_analysis_jobs``
 sweep wired into ``ACTIVE_ANALYSIS_JOB_STATUSES``, which W13-3
 extended to include ``cancelling``).
+
+W14-4 [FOLLOWUP analysis-jobs-race] extends the W13-3 lock discipline
+to ``complete_analysis_job`` and ``fail_analysis_job``: both now
+acquire ``with_for_update()`` and gate against
+``_TERMINAL_JOB_STATUSES`` so the cancel ↔ complete and complete ↔
+fail races land an exactly-one-winner contract (no more silently-
+overwritten terminal writes). The new ``complete vs fail`` concurrent
+case plus the sequential double-complete / double-fail rejections at
+the bottom of this file pin the post-fix surface.
 """
 
 from __future__ import annotations
@@ -53,6 +62,7 @@ from sqlalchemy.orm.attributes import flag_modified
 
 from appcore.contracts.schema_defs.analysis_jobs import (
     AnalysisJobCreateSnapshot,
+    AnalysisJobFailure,
     AnalysisJobStepRecord,
     AnalysisJobUpdate,
 )
@@ -180,24 +190,14 @@ def test_cancel_vs_complete_concurrent_write_final_state_is_consistent(
     ``cancel_analysis_job`` and ``complete_analysis_job`` on the same
     row.
 
-    **Known race window.** ``cancel_analysis_job`` acquires
-    ``with_for_update()`` (``lifecycle.py:128``) but ``complete_analysis_job``
-    does NOT — it reads the row via ``_get_analysis_job_or_raise`` which
-    issues a plain ``SELECT``. Under sufficiently overlapping timing both
-    writers can pass their respective ``status`` checks before either
-    commits, in which case the LAST writer wins (and the loser's write
-    is silently overwritten). PoC accepts this because single-active-job
-    enforcement (``reserve_job``) keeps cancel + complete from
-    *normally* arriving concurrently — the API surface is gated by the
-    partial unique index. A future hardening pass (W14+ candidate:
-    ``[FOLLOWUP analysis-jobs-race]``) can add ``with_for_update()`` to
-    ``complete_analysis_job``/``fail_analysis_job``; at that point the
-    assertions below tighten to require exactly one winner.
-
-    What this test pins right now: regardless of which writer commits
-    last, the final row is in ONE consistent terminal/draining state
-    (no hybrid like ``(cancelling, finished_at_set)``), and at least
-    one writer succeeded.
+    **W14-4 post-fix contract.** ``complete_analysis_job`` now acquires
+    ``with_for_update()`` (``lifecycle.py:319`` post-W14-4) and gates
+    against ``_TERMINAL_JOB_STATUSES`` in addition to the existing
+    ``cancelling`` guard, mirroring the cancel lock discipline at
+    ``lifecycle.py:128``. Exactly one writer commits a state change;
+    the other observes the new status under the lock and raises
+    ``JobNotCancellableError``. Pre-W14-4 the loser's write was
+    silently overwritten because complete used a plain ``SELECT``.
     """
     job_id = _persist_running_for_concurrency(concurrent_session_factory)
 
@@ -237,18 +237,15 @@ def test_cancel_vs_complete_concurrent_write_final_state_is_consistent(
         futures = [pool.submit(_cancel), pool.submit(_complete)]
         outcomes = {fut.result()[0] for fut in as_completed(futures)}
 
-    # At least one writer must succeed (no double-rejection deadlock).
-    assert outcomes & {"cancel:ok", "complete:ok"}, (
-        f"At least one of cancel/complete must succeed; got {outcomes}"
-    )
-
-    # If cancel rejects, complete must have won (and vice versa) —
-    # rejection is only emitted via JobNotCancellableError which
-    # requires the OTHER writer to have committed first.
-    if "cancel:rejected" in outcomes:
-        assert "complete:ok" in outcomes
-    if "complete:rejected" in outcomes:
-        assert "cancel:ok" in outcomes
+    # W14-4: exactly-one-winner contract. ``with_for_update()`` plus the
+    # ``_TERMINAL_JOB_STATUSES`` / ``cancelling`` guards on both
+    # writers serialize them so one observes the other's commit under
+    # the lock and raises. ``{cancel:ok, complete:ok}`` is impossible
+    # post-fix (pre-W14-4 it was the silently-overwritten race shape).
+    assert outcomes in (
+        {"cancel:ok", "complete:rejected"},
+        {"cancel:rejected", "complete:ok"},
+    ), f"expected exactly one winner, got {outcomes}"
 
     # Final state invariant: exactly one of the contracted terminal/draining
     # states; ``cancelling`` never has ``finished_at`` (W13-3 invariant);
@@ -257,7 +254,7 @@ def test_cancel_vs_complete_concurrent_write_final_state_is_consistent(
     try:
         final = lifecycle.get_analysis_job(inspect, job_id)
         assert final is not None
-        assert final.status in {"cancelling", "cancelled", "completed"}, (
+        assert final.status in {"cancelling", "completed"}, (
             f"unexpected final status {final.status!r}"
         )
         if final.status == "cancelling":
@@ -399,3 +396,170 @@ def test_recover_interrupted_jobs_finalizes_stuck_cancelling_to_failed(
     # trailing pending → skipped) regardless of source state.
     assert refetched.steps[3]["status"] == "failed"
     assert refetched.finished_at is not None
+
+
+# ---------------------------------------------------------------------------
+# W14-4 [FOLLOWUP analysis-jobs-race]
+# ---------------------------------------------------------------------------
+
+
+def test_concurrent_complete_vs_fail_exactly_one_winner(
+    concurrent_session_factory: sessionmaker[Session],
+) -> None:
+    """W14-4: ``complete`` and ``fail`` racing on the same ``running`` row
+    serialize through ``with_for_update()``; exactly one commits the
+    terminal transition, the other observes the new terminal status
+    under the lock and raises ``JobNotCancellableError``.
+
+    Pre-W14-4 both functions used a plain ``SELECT`` and the loser's
+    write was silently overwritten. The post-fix lock + terminal guard
+    at ``lifecycle.py:260`` (fail) and ``lifecycle.py:319`` (complete)
+    closes this race window. Mirrors ``test_cancel_vs_complete_…``
+    above for the symmetric writer pair.
+    """
+    job_id = _persist_running_for_concurrency(concurrent_session_factory)
+
+    def _complete() -> str:
+        session = concurrent_session_factory()
+        try:
+            lifecycle.complete_analysis_job(
+                session,
+                job_id,
+                AnalysisJobUpdate(
+                    message="happy completion", finished_at=time.time()
+                ),
+            )
+            return "complete:ok"
+        except lifecycle.JobNotCancellableError:
+            return "complete:rejected"
+        finally:
+            session.close()
+
+    def _fail() -> str:
+        session = concurrent_session_factory()
+        try:
+            lifecycle.fail_analysis_job(
+                session,
+                job_id,
+                AnalysisJobFailure(detail="installer crashed", error_code="install_failed"),
+            )
+            return "fail:ok"
+        except lifecycle.JobNotCancellableError:
+            return "fail:rejected"
+        finally:
+            session.close()
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        futures = [pool.submit(_complete), pool.submit(_fail)]
+        outcomes = {fut.result() for fut in as_completed(futures)}
+
+    assert outcomes in (
+        {"complete:ok", "fail:rejected"},
+        {"complete:rejected", "fail:ok"},
+    ), f"expected exactly one winner, got {outcomes}"
+
+    inspect = concurrent_session_factory()
+    try:
+        final = lifecycle.get_analysis_job(inspect, job_id)
+        assert final is not None
+        assert final.status in {"completed", "failed"}, (
+            f"unexpected final status {final.status!r}"
+        )
+        assert final.finished_at is not None
+    finally:
+        inspect.close()
+
+
+def test_double_complete_rejected_after_completed(
+    concurrent_session_factory: sessionmaker[Session],
+) -> None:
+    """W14-4 sequential: completing a row twice raises on the second call.
+
+    Pre-W14-4 the second complete silently overwrote the first's
+    ``finished_at`` and ``message``. The post-fix terminal-state guard
+    at ``lifecycle.py:319`` raises ``JobNotCancellableError`` instead.
+    """
+    job_id = _persist_running_for_concurrency(concurrent_session_factory)
+
+    first = concurrent_session_factory()
+    try:
+        finalized = lifecycle.complete_analysis_job(
+            first,
+            job_id,
+            AnalysisJobUpdate(message="first", finished_at=time.time()),
+        )
+        assert finalized.status == "completed"
+        original_finished_at = finalized.finished_at
+        original_message = finalized.message
+    finally:
+        first.close()
+
+    second = concurrent_session_factory()
+    try:
+        with pytest.raises(lifecycle.JobNotCancellableError) as exc_info:
+            lifecycle.complete_analysis_job(
+                second,
+                job_id,
+                AnalysisJobUpdate(message="second", finished_at=time.time()),
+            )
+        assert exc_info.value.status == "completed"
+    finally:
+        second.close()
+
+    inspect = concurrent_session_factory()
+    try:
+        refetched = lifecycle.get_analysis_job(inspect, job_id)
+        assert refetched is not None
+        assert refetched.status == "completed"
+        assert refetched.finished_at == original_finished_at
+        assert refetched.message == original_message
+    finally:
+        inspect.close()
+
+
+def test_double_fail_rejected_after_failed(
+    concurrent_session_factory: sessionmaker[Session],
+) -> None:
+    """W14-4 sequential: failing a row twice raises on the second call.
+
+    Symmetric to ``test_double_complete_rejected_after_completed`` —
+    the post-fix terminal-state guard at ``lifecycle.py:260`` rejects
+    the second fail; the row keeps the original ``error_detail`` /
+    ``error_code`` from the first writer.
+    """
+    job_id = _persist_running_for_concurrency(concurrent_session_factory)
+
+    first = concurrent_session_factory()
+    try:
+        finalized = lifecycle.fail_analysis_job(
+            first,
+            job_id,
+            AnalysisJobFailure(detail="first failure", error_code="install_failed"),
+        )
+        assert finalized.status == "failed"
+        original_detail = finalized.error_detail
+        original_code = finalized.error_code
+    finally:
+        first.close()
+
+    second = concurrent_session_factory()
+    try:
+        with pytest.raises(lifecycle.JobNotCancellableError) as exc_info:
+            lifecycle.fail_analysis_job(
+                second,
+                job_id,
+                AnalysisJobFailure(detail="second failure", error_code="other_error"),
+            )
+        assert exc_info.value.status == "failed"
+    finally:
+        second.close()
+
+    inspect = concurrent_session_factory()
+    try:
+        refetched = lifecycle.get_analysis_job(inspect, job_id)
+        assert refetched is not None
+        assert refetched.status == "failed"
+        assert refetched.error_detail == original_detail
+        assert refetched.error_code == original_code
+    finally:
+        inspect.close()

@@ -73,10 +73,26 @@ multi-tenant web platform.
   `week13 -> main` **MERGED** `2026-05-13` via `772deb3` (close-gate
   cleared pre-merge). Past tracker:
   [`active-work/W13-test-expansion-observability.md`](documents/active-work/W13-test-expansion-observability.md).
-  **Active phase: W14 — Codex M-class Acceptance + Observability** is staged
-  in [`active-work/W14-codex-acceptance-observability.md`](documents/active-work/W14-codex-acceptance-observability.md);
-  entry was triggered by the PR #20 merge and now awaits an explicit W14 pull /
-  `week14` branch cut from `main`.
+  **Active phase: W14 — Codex M-class Acceptance + Observability** is active
+  on the `week14` branch (cut from `main` at `69251f1` on `2026-05-13`); see
+  [`active-work/W14-codex-acceptance-observability.md`](documents/active-work/W14-codex-acceptance-observability.md).
+  W14-1 pulled `2026-05-13` — BLOCKER triage of
+  `[BUG scenario-dropout-upstream-root-cause]` (downgraded to HIGH same day).
+  W14-2 (M4-M7 + M11 input validation) closed `2026-05-13` via `bde17be`;
+  W14-3 (M13 + M14b + U4-U12 external-surface hardening) closed
+  `2026-05-13` via `941250d`; W14-4 (analysis-jobs-race lock symmetry on
+  `complete_analysis_job` / `fail_analysis_job` + EvidenceEvent
+  kind↔event_class invariant via closed 9-kind allowlist) closed
+  `2026-05-13`; W14-5 (`extrace.*` logger consolidation +
+  `EXTRACE_EPOCH_RUN_ID` stamping + executor runtime fingerprint emit
+  at automation output; ADR 0010 landed; M5 docker-exec propagation
+  auto-closed as natural byproduct) closed `2026-05-13` via `dc79f61`
+  + `9c095d2` + `db25d5f`; W14-6 (regression lock-in umbrella:
+  bare-binary pragma ratchet + executor.control outbound surface gate
+  + variable-indirect subprocess coverage with `binary_paths`
+  migration) closed `2026-05-13` via `2adad43` + `b031803` + `e42a448`.
+  W14 sub-iter slate complete; close-out PR `week14 -> main` is the
+  next milestone.
 - **Canonical source of truth for phase state:**
   [`documents/REFACTOR_STATUS.md`](documents/REFACTOR_STATUS.md).
   Deferred items: [`documents/POST_POC_BACKLOG.md`](documents/POST_POC_BACKLOG.md).
