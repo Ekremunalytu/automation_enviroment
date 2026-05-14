@@ -1,6 +1,6 @@
 # Active Work
 
-`Last Updated: 2026-05-13`
+`Last Updated: 2026-05-14`
 
 Slim canonical files for **active engineering work tracking**. Each file is
 a stable contract: code comments and tests reference items here by stable
@@ -19,10 +19,26 @@ points to it.
 
 ## Files
 
+- `W15-codex-uclass-bounds-posture.md`
+  - **Active phase — scope skeleton authored `2026-05-14`; branch + first
+    pull pending.** W15 Codex U-class Close-Out + UI Bounds + Posture.
+    7 sub-iter scoped (`W15-1..W15-7`): sync analyze error taxonomy
+    alignment (M10), workspace symlink check order / orphan removal
+    (M12), `activationEvents` bounds + DB field-length Alembic migration
+    (U8), UI bounds bundle (U1-U3 + U6), quick fixes bundle (I2 + I4),
+    unauthenticated catalog endpoints posture (ADR 0011 — U10-U11),
+    regression lock-in umbrella (compose image pin +
+    `aquasecurity/trivy-action` version pin + W14 post-merge doc
+    preamble truth-state refresh). Branch cut + W15-1 pull pending;
+    `week15` cut from `main` at HEAD `4e03c8d` when W15-1 is pulled.
+    W15-1..W15-7 stable ID'leri pull sırasında atanacak (W11/W12/W13/W14
+    precedent). Slim canonical:
+    [`REFACTOR_OPTIMIZATION.md §13`](../REFACTOR_OPTIMIZATION.md).
 - `W14-codex-acceptance-observability.md`
-  - **Active phase — sub-iter slate complete `2026-05-13` (W14-1..W14-6 closed
-    + W14-7/W14-8 post-slate hotfixes closed); close-out PR `week14 -> main`
-    next.** W14 Codex M-class Acceptance + Observability. 6 sub-iter scoped
+  - **Past phase — closed `2026-05-13` (W14-1..W14-6 closed + W14-7/W14-8
+    post-slate hotfixes closed) and merged via close-out PR #21
+    `week14 -> main` on `2026-05-14` via `4e03c8d`.** W14 Codex M-class
+    Acceptance + Observability. 6 sub-iter scoped
     (`W14-1..W14-6`): BLOCKER scenario-dropout araştırması, Codex
     M-class input validation (M4-M7 + M11), dış yüzey sertleştirme
     (M13 + M14b + U4-U12), correctness/concurrency (analysis-jobs-race
@@ -33,8 +49,9 @@ points to it.
     `W14-8` (preventive AST gate forbidding Python 3.11+ API imports in
     container-shipped paths). Branch cut completed `2026-05-13` at
     `69251f1`; W14-1..W14-8 stable ID'leri pull sırasında atandı
-    (W11/W12/W13 precedent). Slim canonical:
-    [`REFACTOR_OPTIMIZATION.md §12`](../REFACTOR_OPTIMIZATION.md).
+    (W11/W12/W13 precedent). Retained on the read path because code
+    comments reference items by `W14-<n>` ID — do not renumber. Slim
+    canonical: [`REFACTOR_OPTIMIZATION.md §12`](../REFACTOR_OPTIMIZATION.md).
 - `W13-test-expansion-observability.md`
   - **Past phase — closed `2026-05-13` (W13-1..W13-13 all GREEN).** W13
     test expansion + observability. W13-1..W13-7 closed — every

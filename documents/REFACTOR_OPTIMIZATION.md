@@ -189,4 +189,90 @@ W14 kapanır şu koşullar sağlandığında:
 - `REFACTOR_STATUS.md`, `POST_POC_BACKLOG.md`, `active-work/README.md`,
   ve ilgili lane docs aynı active/closed state'i gösterir. **DONE** (close-out hygiene PR).
 - Slim canonicals kısa kalır; verbose evidence önce arşivlenir. **DONE** (snapshot `2026-05-14`).
-- `week14 → main` close-out PR W12 PR #18 / W13 close-out cut-off pattern'ini izler. **NEXT**.
+- `week14 → main` close-out PR W12 PR #18 / W13 close-out cut-off pattern'ini izler. **DONE** (PR #21 merged `2026-05-14` via `4e03c8d`).
+
+## §13 — W15 Codex U-class Close-Out + UI Bounds + Posture (planned 2026-05-14)
+
+§13 will open with the `week15` branch cut from `main` at HEAD `4e03c8d`
+(W14 close-out PR #21 merge) when W15-1 is pulled. Active tracker:
+[`active-work/W15-codex-uclass-bounds-posture.md`](active-work/W15-codex-uclass-bounds-posture.md)
+carries per-iter scope locks, candidate items, and (as work lands)
+Per-Item Detail evidence (sub-commits, module locations, test deltas).
+The scope skeleton was authored `2026-05-14`; branch + first pull
+pending.
+
+| Iter | Status | Landing commit |
+|---|---|---|
+| W15-1 | planned (sync analyze error taxonomy alignment — M10) | — |
+| W15-2 | planned (workspace symlink check order / orphan removal — M12) | — |
+| W15-3 | planned (`activationEvents` bounds + DB field-length Alembic migration — U8) | — |
+| W15-4 | planned (UI bounds bundle: event spread / timeline / relations graph cap — U1-U3 + U6) | — |
+| W15-5 | planned (quick fixes bundle: UI `/health` proxy + lifecycle `for <id>` regex — I2 + I4) | — |
+| W15-6 | planned (unauthenticated catalog endpoints posture — ADR 0011 — U10-U11) | — |
+| W15-7 | planned (regression lock-in umbrella: compose image pin + GH action pin + doc preamble truth-state refresh) | — |
+
+### §13.0 — Neden ayrı §13
+
+§11 W8-W13 external-review integration penceresini sınırlar; §12 W14
+Codex M-class acceptance + observability penceresini kapatır. §13 yeni
+bir tema: Codex 2026-05-10 audit'inin geri kalan U-class + I-class +
+tail M-class kalemlerini kapatır (audit kapanışı), bir architectural
+posture decision (ADR 0011) verir, ve W14 close-out audit'inin
+immediate hijyen finding'lerini regression lock-in altında bağlar.
+§13 ayrı tutuluyor ki §12 audit trail'i (W14 close-out date'leri ve
+SHA'leri) donmuş kalsın.
+
+### §13.1-§13.2 — Entry + Sub-iter Distribution
+
+W15 entry triggered by W14 close-out PR #21 merge (`4e03c8d`,
+`2026-05-14`). Sub-iter sequencing rationale: W15-1 + W15-2 önce —
+düşük blast radius, izole; sonra W15-3 (DB migration sequencing
+standalone pull ister); sonra UI bundle W15-4; quick fixes bundle
+W15-5; ADR-pending posture W15-6 (ADR önce, kod sonra); regression
+lock-in umbrella W15-7 en son (W14-6 paterni). Stable ID → iter
+eşlemesi `POST_POC_BACKLOG.md`'de W15 Pull-Forward tablosunda
+(W15-1 pull'da açılır).
+
+### §13.3 — Non-goals (W15)
+
+W16+'a düşen kalemler stable ID'leri `POST_POC_BACKLOG.md` altında
+açık kalır:
+
+- `[FOLLOWUP scenario-accountant-conservation-split]` (W14-1 root-cause
+  downgrade hâlâ geçerli; direct trigger yok, defer).
+- `[FOLLOWUP report-finalize-top-level-field-sync-drift]` (production
+  scan-driven investigation; izole pull olur, W15 temasıyla uyumsuz).
+- `[CLEANUP rule-registry-side-effect-loader]` (ADR 0003 deferred rules
+  A5/A7 landed olunca).
+- `[CLEANUP test-import-graph-policy-dump-split]` (test dosyası
+  okunabilirliği; W15 arc'ına yakışmıyor).
+- `[FOLLOWUP codex-automation-6]`, `[FOLLOWUP capability-verification-gap]`
+  (`NEEDS-DESIGN`; W16+ design pass'i gerek).
+- `[FOLLOWUP simulation-progress-cancel]` alt-kalemleri (heartbeat refactor
+  familyası; ayrı umbrella ister).
+- Watching items: `planner-selection-readability-audit`,
+  `attribution-links-build-evidence-bundle-density`,
+  `execute-attempt-rebloat-watch`, `dispatch-execution-rebloat-watch`
+  (LoC bütçesi aşılana kadar dokunma).
+- `[FOLLOWUP ci-reintroduction]` (geniş GH Actions CI reintroduction;
+  W15-7 yalnızca tek action pin'i ele alır).
+
+### §13.4 — Exit Criteria (W15-End)
+
+W15 kapanır şu koşullar sağlandığında:
+
+- W15-1..W15-7 kapanır ya da deferral rasyoneli ile W16'ya taşınır.
+- W15 tracker final close evidence + current test counts tutar
+  (`tests/architecture/` 171 → hedef 174-175).
+- `REFACTOR_STATUS.md`, `POST_POC_BACKLOG.md`, `active-work/README.md`,
+  ve ilgili lane docs aynı active/closed state'i gösterir.
+- W15-6 verirse: ADR 0011 (unauthenticated catalog endpoints posture)
+  accepted + implemented date'i ile landed.
+- W15-7 verirse: compose image refs + GH action ref digest/version
+  pinned + 4 canonical preamble truth-state refresh.
+- Slim canonicals kısa kalır; verbose evidence önce arşivlenir.
+- `week15 → main` close-out PR W12 PR #18 / W13 PR #20 / W14 PR #21
+  cut-off pattern'ini izler.
+- Close-out hygiene pass (W14 paterni): Ruff lint, UI contract sync,
+  markdown formatting, doc truth-state alignment, (varsa) yeni
+  regression gate'ler.
