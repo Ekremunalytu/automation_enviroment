@@ -24,7 +24,6 @@ from appcore.contracts.schemas import (
     VsixThresholdBreachDetail,
 )
 from appcore.logging import get_extrace_logger
-from executor.control import ExecutorError
 from packages.analysis_contracts import ExtensionIdentity
 from workflows.extension_catalog.manifest_reader import PackageJsonReadError
 from workflows.extension_catalog.service import (
@@ -36,11 +35,11 @@ from workflows.marketplace import client as marketplace_client
 from workflows.marketplace import job_service
 from workflows.marketplace.analysis_errors import ActivationReportLoadError
 from workflows.marketplace.analysis_service import (
-    TriggerPlanError,
+    ANALYZE_ERROR_TYPES,
+    analyze_error_to_http_response,
     build_analysis_bundle_from_report_name,
     ensure_vsix_exists,
     execute_analysis_request,
-    map_executor_error,
     run_analysis_job,
 )
 from workflows.marketplace.job_service import (
@@ -330,13 +329,14 @@ def analyze_extension(
     request: AnalyzeRequest,
     db: Session = Depends(get_db),
 ) -> AnalyzeResponse:
+    # W15-1 (Codex 2026-05-10 M10 close-out): single except clause over the
+    # closed ``ANALYZE_ERROR_TYPES`` taxonomy so the sync entry and the
+    # async ``run_analysis_job`` worker handle the same exception classes.
+    # The helper maps each class to the status code that mirrors the async
+    # ``fail_job`` semantics; arch parity gate
+    # ``tests/architecture/test_analyze_error_taxonomy_parity.py`` pins both
+    # surfaces to the same source-of-truth tuples.
     try:
         return execute_analysis_request(request, db)
-    except FileNotFoundError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except ActivationReportLoadError as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
-    except TriggerPlanError as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
-    except ExecutorError as exc:
-        raise map_executor_error(exc) from exc
+    except ANALYZE_ERROR_TYPES as exc:
+        raise analyze_error_to_http_response(exc) from exc
