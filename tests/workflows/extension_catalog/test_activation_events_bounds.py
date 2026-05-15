@@ -119,3 +119,51 @@ def test_parse_activation_events_skips_oversized_event_value() -> None:
     parsed = parse_activation_events(package_json)
     assert parsed is not None
     assert parsed == [{"event_type": "onLanguage", "event_value": "python"}]
+
+
+# ---------------------------------------------------------------------------
+# Parser-level edge cases — type-guard regression + oversized no-colon
+# branch + exact-boundary slice. Pins the pre-existing tolerant style so a
+# future refactor that "tightens" the parser cannot regress legitimate
+# inputs.
+# ---------------------------------------------------------------------------
+
+
+def test_parse_activation_events_returns_none_for_missing_key() -> None:
+    """A manifest with no ``activationEvents`` key returns ``None``
+    (regression guard against the type-guard branch order).
+    """
+    assert parse_activation_events({}) is None
+
+
+def test_parse_activation_events_returns_none_for_non_list_value() -> None:
+    """A manifest whose ``activationEvents`` value is not a list (e.g. a
+    raw string) returns ``None`` rather than partial parse.
+    """
+    assert parse_activation_events({"activationEvents": "onStartupFinished"}) is None
+
+
+def test_parse_activation_events_skips_oversized_no_colon_event() -> None:
+    """A no-colon event whose length exceeds the event_type cap is
+    skipped (mirrors the colon branch's oversize-skip; otherwise the
+    raw string would land in event_type past the Pydantic cap).
+    """
+    package_json = {
+        "activationEvents": [
+            "x" * 65,             # no colon, over event_type cap -> skipped
+            "onStartupFinished",  # no colon, under cap -> kept
+        ]
+    }
+    parsed = parse_activation_events(package_json)
+    assert parsed == [{"event_type": "onStartupFinished", "event_value": None}]
+
+
+def test_parse_activation_events_at_boundary_512_is_unchanged() -> None:
+    """Exactly 512 events should pass through the slice unmodified —
+    the slice is `[:512]`, not `[:511]`.
+    """
+    events = [f"onCommand:cmd.run.{i}" for i in range(512)]
+    package_json = {"activationEvents": events}
+    parsed = parse_activation_events(package_json)
+    assert parsed is not None
+    assert len(parsed) == 512

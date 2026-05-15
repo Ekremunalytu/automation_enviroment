@@ -648,7 +648,8 @@ extended `2026-05-15` after rebuild+scan verification):
   idempotency on empty workspace, mixed-contents stress matrix).
 + Existing `tests/executor/test_workspace.py` + `test_reset_state.py`
   unchanged (no regression in the workspace contract).
-+ **W15-3 actual deltas (`2026-05-15` via `3512a7c`):**
++ **W15-3 actual deltas (`2026-05-15` via `3512a7c`; behavioral
+  coverage extended post-rebuild verification):**
   + `tests/architecture/` 180 → **186** (+6 cases — new file
     `test_activationevents_bounds.py`: three Pydantic
     `max_length` invariants
@@ -661,16 +662,59 @@ extended `2026-05-15` after rebuild+scan verification):
     pinning class/field/column names to declared module paths).
   + New behavioral file
     `tests/workflows/extension_catalog/test_activation_events_bounds.py`
-    with **+8 cases** (3 boundary acceptance at 64 / 1024 / 512;
-    3 one-over rejection raising `ValidationError`; 2
-    parser-level defense-in-depth — `parse_activation_events`
-    slices a 600-event list at 512 and silently skips an event
-    whose `event_value` exceeds 1024 chars).
+    with **+12 cases** (8 initial: 3 boundary acceptance at
+    64 / 1024 / 512 + 3 one-over rejection raising
+    `ValidationError` + 2 parser-level defense-in-depth — slice
+    a 600-event list at 512, skip an event whose `event_value`
+    exceeds 1024 chars; +4 edge cases post-rebuild: missing
+    `activationEvents` key returns `None`, non-list value
+    returns `None`, no-colon event over the `event_type` cap is
+    skipped, exact-512 list passes the slice unmodified).
   + Existing `tests/workflows/extension_catalog/` 67 passed, no
     regression in the catalog ingestion contract.
   + Manual Alembic round-trip (postgres_test) deferred to operator
     at land; programmatic round-trip stays under
     `[FOLLOWUP w13-4-alembic-roundtrip-programmatic]`.
++ **Production verification `2026-05-15` 12:16** — operator
+  rebuilt the API container via `make rebuild` (after the
+  Makefile fix at `203d653` made `rebuild` recreate-aware) and
+  ran a fresh UI scan against
+  `ms-python.python@2026.5.2026051301`. Result identical to the
+  `2026-05-14` 15:15 baseline (and to the `2026-05-15` 09:51 /
+  11:26 mid-iter checkpoints) on every critical field
+  (`target_extension_observed True`, `risk_signals 0`,
+  `run_quality low`, `signal_summary.score 28` /
+  `level needs_review`, `automation_health.status degraded`
+  with the same 4 reasons, same 5 requested / 3 traced / 0
+  failed / 2 skipped scenarios, same `verification_gap 2`,
+  same 22 `activated` entries with byte-equal
+  `(extension_id, activation_event)` sequence, 21 event
+  attempts, 12 output signal events). Numerical jitter within
+  the established peer-extension noise window
+  (`evidence_events` 2804, `network_events` 163, `file_events`
+  2541, `process_events` 63 — all inside the
+  ±0.1-6 % envelope of the four-scan baseline). No drift
+  attributable to the W15-3 changes; deployment is green.
+  + Recorded cold-start anomaly at `2026-05-15` 12:01 (first
+    scan ~5 min post-recreate): `signal_summary.score` 14,
+    `activated` 20, inflated `file_events 3685` /
+    `evidence_events 3971` / `network_events 207`, depressed
+    `process_events 44`. Resolved by the 12:16 follow-up scan
+    once peer extensions completed activation. Tracked as a
+    post-rebuild stabilization characteristic; unrelated to
+    W15-3 cap behavior.
++ **Runtime cap verification (container introspection,
+  `2026-05-15` 11:54).** Inside the rebuilt
+  `automation_api` container:
+  `workflows.extension_catalog.manifest_parser._MAX_ACTIVATION_EVENTS == 512`,
+  `_MAX_ACTIVATION_EVENT_TYPE_LEN == 64`,
+  `_MAX_ACTIVATION_EVENT_VALUE_LEN == 1024`;
+  Pydantic field metadata reports
+  `MaxLen(64)` / `MaxLen(1024)` / `MaxLen(512)` on
+  `event_type` / `event_value` /
+  `ExtensionDetailSchema.activation_events`; `alembic current`
+  resolves to `e7c0a8f3b9d2 (head)` (the W15-3 migration was
+  auto-applied at container start).
 + **Production verification `2026-05-15` 09:51** — operator rebuilt
   the executor container (image carrying `week15` HEAD with W15-1 +
   W15-2 in it) and ran a fresh UI scan against
@@ -691,7 +735,7 @@ W15 target deltas (per sub-iter):
 |---|---|---|---|
 | W15-1 ✅ | **+6 (actual)** sync-async parity (6 invariants — 4 initial + 2 post-W15-1 strengthening: handler-body dispatch + ExecutorError delegation) | +21 case (helper + endpoint parametrize + PermissionError subclass) | **closed +6 gates** |
 | W15-2 ✅ | **+2 (actual)** workspace cleanup symlink-check order + helpers-table pin | +8 case (5 initial: real file/dir + 3 adversarial symlink fixtures; +3 edge: nested symlink in real subdir + idempotency + mixed-contents stress) | **closed +2 gates** |
-| W15-3 ✅ | **+6 (actual)** activationEvents bounds gate (3 Pydantic `max_length` + 2 SQLAlchemy `String(N)` + 1 vacuous-truth target table) | +8 case (3 boundary OK + 3 one-over reject + 2 parser-level defense-in-depth) | **closed +6 gates** |
+| W15-3 ✅ | **+6 (actual)** activationEvents bounds gate (3 Pydantic `max_length` + 2 SQLAlchemy `String(N)` + 1 vacuous-truth target table) | +12 case (3 boundary OK + 3 one-over reject + 2 parser-level defense-in-depth + 4 parser-level edge cases: 2 type-guard regression + 1 oversized no-colon skip + 1 exact-512 boundary) | **closed +6 gates** |
 | W15-4 | +0 (UI-side, architecture gate yok) | +3 dosya UI vitest (~15-24 case) | +0 arch |
 | W15-5 | +0 (UI vitest + Python unit test) | +1 UI + +1 unit (~6-10 case) | +0 arch |
 | W15-6 | +1 (catalog endpoint posture gate) | (posture'a göre) | +1 gate |
@@ -974,7 +1018,7 @@ loose enough never to reject a real extension.
        path (rename detector; forces a table update on rename so
        invariants 1-5 cannot pass vacuously).
 + `tests/workflows/extension_catalog/test_activation_events_bounds.py`
-  × **8** cases:
+  × **12** cases:
   + Boundary acceptance × 3 (`event_type` at 64 chars;
     `event_value` at 1024 chars; list at 512 entries — all
     accepted by Pydantic).
@@ -985,6 +1029,13 @@ loose enough never to reject a real extension.
     512 after parser slice; an event whose `event_value` would
     exceed the per-string cap is silently dropped, matching the
     existing tolerant `continue` style for non-`str` events).
+  + Parser-level edge cases × 4 (added post-rebuild
+    verification): missing `activationEvents` key returns
+    `None`; non-list `activationEvents` value (e.g. a raw
+    string) returns `None`; a no-colon event over the
+    `event_type` cap is skipped (mirrors the colon branch's
+    oversize-skip); an exact-512 list passes the parser slice
+    unmodified (pins `[:512]`, not `[:511]`).
 
 **Cap rationale (recorded for posterity).**
 
