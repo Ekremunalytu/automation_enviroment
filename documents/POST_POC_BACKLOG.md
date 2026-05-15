@@ -66,13 +66,10 @@ Detail evidence in the W14 tracker + archive snapshot.
 
 ### Post-W13 Candidates
 
-W14-pulled items are above. Remaining for W15+:
+W14- and W15-pulled items are below. Remaining for W15+:
 
-- `[FOLLOWUP codex-2026-05-10-M10-sync-analyze-typeerror-catch]` — align sync `/api/marketplace/analyze` error catch with async path.
-- `[FOLLOWUP codex-2026-05-10-M12-workspace-symlink-check-order]` — delete or fix orphan `clean_workspace()` symlink handling.
 - `[FOLLOWUP codex-2026-05-10-U1-U2-U3-ui-event-spread-cap]` — cap UI event density/timeline spread operations.
 - `[FOLLOWUP codex-2026-05-10-U6-relations-graph-cap]` — cap relations graph nodes/edges.
-- `[FOLLOWUP codex-2026-05-10-U8-activationevents-bounds]` — cap activation event strings/list size + DB field length migration.
 
 Closed via W14 (one-line audit trail; full rationale in archive):
 
@@ -82,6 +79,12 @@ Closed via W14 (one-line audit trail; full rationale in archive):
 - `[FOLLOWUP codex-2026-05-10-M13-network-uri-summary-redaction]` — W14-3.
 - `[FOLLOWUP codex-2026-05-10-M14b-cdp-port-default-disabled]` — W14-3 (see ADR 0009).
 - `[FOLLOWUP codex-2026-05-10-U4-U12-makefile-shell-quoting]` — W14-3.
+
+Closed via W15 (one-line audit trail; full rationale in W15 tracker Per-Item Detail):
+
+- `[FOLLOWUP codex-2026-05-10-M10-sync-analyze-typeerror-catch]` — W15-1 (`c58c365`).
+- `[FOLLOWUP codex-2026-05-10-M12-workspace-symlink-check-order]` — W15-2 (`765cde7`, path b fix).
+- `[FOLLOWUP codex-2026-05-10-U8-activationevents-bounds]` — W15-3.
 
 ### Quick Fixes
 

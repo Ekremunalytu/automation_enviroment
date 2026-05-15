@@ -1,7 +1,7 @@
 # W15 — Codex U-class Close-Out + UI Bounds + Posture (Active Work Tracker)
 
-`Last Updated: 2026-05-14 (W15 active; week15 cut from main HEAD 7cc2921 on 2026-05-14; W15-1 closed via c58c365 — sync analyze error taxonomy parity, M10; W15-2 closed via 765cde7 — clean_workspace is_symlink-before-rmtree, M12; W14 close-out PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d; W13 close-out PR #20 week13 -> main MERGED 2026-05-13 via 772deb3)`
-`Phase: W15 active (W15-1, W15-2 closed; W15-3..W15-7 pending)`
+`Last Updated: 2026-05-15 (W15 active; week15 cut from main HEAD 7cc2921 on 2026-05-14; W15-1 closed via c58c365 — sync analyze error taxonomy parity, M10; W15-2 closed via 765cde7 — clean_workspace is_symlink-before-rmtree, M12; W15-3 closed via 3512a7c — activationEvents bounds + Alembic field-length migration, U8; W14 close-out PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d; W13 close-out PR #20 week13 -> main MERGED 2026-05-13 via 772deb3)`
+`Phase: W15 active (W15-1, W15-2, W15-3 closed; W15-4..W15-7 pending)`
 `Branch: week15 (cut from main HEAD 7cc2921 on 2026-05-14)`
 `Owner: ekrem`
 
@@ -27,7 +27,9 @@ list.
   `2026-05-14`.** W15-1 closed `2026-05-14` via `c58c365` (sync analyze
   error taxonomy parity, M10 close); W15-2 closed `2026-05-14` via
   `765cde7` (`clean_workspace` is_symlink-before-rmtree, M12 close);
-  W15-3..W15-7 pending sequential pull. W14 close-out PR #21
+  W15-3 closed `2026-05-15` via `3512a7c` (activationEvents bounds +
+  Alembic field-length migration, U8 close); W15-4..W15-7 pending
+  sequential pull. W14 close-out PR #21
   (`week14 -> main`) **MERGED** `2026-05-14` via `4e03c8d`; all
   W14-1..W14-8 closed. W15 base differs from the scope-skeleton plan
   note (`4e03c8d`) because the `7cc2921` ("docs(W15): scope skeleton
@@ -57,7 +59,7 @@ list.
 |---|---|---|---|
 | **W15-1** ✅ | Sync analyze error taxonomy alignment — closed `2026-05-14` via `c58c365` | `[FOLLOWUP codex-2026-05-10-M10-sync-analyze-typeerror-catch]` | 1 oturum |
 | **W15-2** ✅ | Workspace symlink check order / orphan removal — closed `2026-05-14` via `765cde7` | `[FOLLOWUP codex-2026-05-10-M12-workspace-symlink-check-order]` | 1 oturum |
-| **W15-3** | `activationEvents` bounds + DB field-length migration | `[FOLLOWUP codex-2026-05-10-U8-activationevents-bounds]` | 2 oturum (migration sequencing) |
+| **W15-3** ✅ | `activationEvents` bounds + DB field-length migration — closed `2026-05-15` via `3512a7c` | `[FOLLOWUP codex-2026-05-10-U8-activationevents-bounds]` | 1 oturum (tek-PR uygulandı) |
 | **W15-4** | UI bounds bundle: event spread / timeline / relations graph cap | `[FOLLOWUP codex-2026-05-10-U1-U2-U3-ui-event-spread-cap]` + `[FOLLOWUP codex-2026-05-10-U6-relations-graph-cap]` | 1-2 oturum |
 | **W15-5** | Quick fixes bundle: UI `/health` proxy + lifecycle `for <id>` regex | `[FOLLOWUP codex-2026-05-10-I2-ui-health-proxy]` + `[FOLLOWUP codex-2026-05-10-I4-lifecycle-for-id-regex]` | 1 oturum |
 | **W15-6** | Unauthenticated catalog endpoints posture (ADR 0011) | `[FOLLOWUP codex-2026-05-10-U10-U11-unauth-catalog-endpoints]` | 2 oturum (ADR + implementation) |
@@ -133,7 +135,7 @@ audit; `[FOLLOWUP compose-image-mutable-ref-pin]` and
 |---|---|---|---|
 | **W15-1** | `[FOLLOWUP codex-2026-05-10-M10-sync-analyze-typeerror-catch]` (sync `/api/marketplace/analyze` entry, async path ile error taxonomy uyumsuz — async tarafı pydantic ValidationError + 4xx döner, sync tarafı generic Exception'a düşüp 500 emit ediyor; aynı request shape iki farklı status alıyor) | `[platform-storage]` `[security-detection]` | **closed `2026-05-14` via `c58c365`** |
 | **W15-2** | `[FOLLOWUP codex-2026-05-10-M12-workspace-symlink-check-order]` (`clean_workspace()` orphan symlink handling — check sırası TOCTOU window'u açıyor; ya kontrol sırası fix edilir ya da dead code olarak silinir; W14 audit'inde dokunulmadı) | `[executor-runtime]` `[security-detection]` | **closed `2026-05-14` via `765cde7`** (path b: fix — `clean_workspace` mevcut `_clear_directory` desenine hizalandı; live caller `reset_state.py:176`'da olduğu için dead-code removal yolu açık değildi) |
-| **W15-3** | `[FOLLOWUP codex-2026-05-10-U8-activationevents-bounds]` (`activationEvents` liste/string boyutu unbounded; oversized manifest DoS + DB row inflation; cap + Alembic field-length migration ister) | `[security-detection]` `[platform-storage]` | not started — DB migration sequencing requires standalone pull |
+| **W15-3** | `[FOLLOWUP codex-2026-05-10-U8-activationevents-bounds]` (`activationEvents` liste/string boyutu unbounded; oversized manifest DoS + DB row inflation; cap + Alembic field-length migration ister) | `[security-detection]` `[platform-storage]` | **closed `2026-05-15` via `3512a7c`** (Pydantic schema + manifest_parser defense-in-depth + DB column shrink + Alembic migration; +6 arch gates + 8 behavioral cases) |
 | **W15-4** | `[FOLLOWUP codex-2026-05-10-U1-U2-U3-ui-event-spread-cap]` (UI event density / timeline spread / count operations unbounded; large activation report → UI freeze) | `[ui]` | not started |
 | **W15-4** | `[FOLLOWUP codex-2026-05-10-U6-relations-graph-cap]` (relations graph node-edge count unbounded; large extension reports UI graph render'ı yavaşlatıyor) | `[ui]` | not started |
 | **W15-5** | `[FOLLOWUP codex-2026-05-10-I2-ui-health-proxy]` (UI client `/health` fetch'i nginx `/api/*` proxy'sini bypass ediyor olabilir; reverse-proxy posture'a uyumsuz; verify + fix) | `[ui]` `[platform-storage]` | not started |
@@ -646,6 +648,29 @@ extended `2026-05-15` after rebuild+scan verification):
   idempotency on empty workspace, mixed-contents stress matrix).
 + Existing `tests/executor/test_workspace.py` + `test_reset_state.py`
   unchanged (no regression in the workspace contract).
++ **W15-3 actual deltas (`2026-05-15` via `3512a7c`):**
+  + `tests/architecture/` 180 → **186** (+6 cases — new file
+    `test_activationevents_bounds.py`: three Pydantic
+    `max_length` invariants
+    (`ExtensionActivationEventsSchema.event_type` → 64,
+    `ExtensionActivationEventsSchema.event_value` → 1024,
+    `ExtensionDetailSchema.activation_events` → 512); two
+    SQLAlchemy `String(N)` column invariants
+    (`ExtensionActivationEvents.event_type` → `String(64)`,
+    `event_value` → `String(1024)`); one vacuous-truth guard
+    pinning class/field/column names to declared module paths).
+  + New behavioral file
+    `tests/workflows/extension_catalog/test_activation_events_bounds.py`
+    with **+8 cases** (3 boundary acceptance at 64 / 1024 / 512;
+    3 one-over rejection raising `ValidationError`; 2
+    parser-level defense-in-depth — `parse_activation_events`
+    slices a 600-event list at 512 and silently skips an event
+    whose `event_value` exceeds 1024 chars).
+  + Existing `tests/workflows/extension_catalog/` 67 passed, no
+    regression in the catalog ingestion contract.
+  + Manual Alembic round-trip (postgres_test) deferred to operator
+    at land; programmatic round-trip stays under
+    `[FOLLOWUP w13-4-alembic-roundtrip-programmatic]`.
 + **Production verification `2026-05-15` 09:51** — operator rebuilt
   the executor container (image carrying `week15` HEAD with W15-1 +
   W15-2 in it) and ran a fresh UI scan against
@@ -666,7 +691,7 @@ W15 target deltas (per sub-iter):
 |---|---|---|---|
 | W15-1 ✅ | **+6 (actual)** sync-async parity (6 invariants — 4 initial + 2 post-W15-1 strengthening: handler-body dispatch + ExecutorError delegation) | +21 case (helper + endpoint parametrize + PermissionError subclass) | **closed +6 gates** |
 | W15-2 ✅ | **+2 (actual)** workspace cleanup symlink-check order + helpers-table pin | +8 case (5 initial: real file/dir + 3 adversarial symlink fixtures; +3 edge: nested symlink in real subdir + idempotency + mixed-contents stress) | **closed +2 gates** |
-| W15-3 | +1 (activationEvents bounds gate) | +1 dosya (~6-10 case) | +1 gate |
+| W15-3 ✅ | **+6 (actual)** activationEvents bounds gate (3 Pydantic `max_length` + 2 SQLAlchemy `String(N)` + 1 vacuous-truth target table) | +8 case (3 boundary OK + 3 one-over reject + 2 parser-level defense-in-depth) | **closed +6 gates** |
 | W15-4 | +0 (UI-side, architecture gate yok) | +3 dosya UI vitest (~15-24 case) | +0 arch |
 | W15-5 | +0 (UI vitest + Python unit test) | +1 UI + +1 unit (~6-10 case) | +0 arch |
 | W15-6 | +1 (catalog endpoint posture gate) | (posture'a göre) | +1 gate |
@@ -874,6 +899,146 @@ the pre-state had no comment).
 all workspace helpers; this PR is scoped only to the M12 path.
 ``[FOLLOWUP w8-9-network-body-boundary-split-secret-test]`` is a
 separate concern.
+
+### W15-3 — `activationEvents` size caps + DB field-length migration — closed `2026-05-15` via `3512a7c`
+
+**Stable ID(s).** `[FOLLOWUP codex-2026-05-10-U8-activationevents-bounds]`.
+
+**Landing commit(s).** `3512a7c` (single atomic commit covering
+production code on three surfaces, the Alembic migration, the
+architecture gate, and the behavioral test).
+
+**Root cause.** Pre-W15-3 the VS Code manifest field `activationEvents`
+was unbounded across three ingestion surfaces — the Pydantic ingest
+schema (`ExtensionActivationEventsSchema`,
+`ExtensionDetailSchema.activation_events`), the manifest pre-parser
+(`workflows/extension_catalog/manifest_parser.py:parse_activation_events`),
+and the DB columns
+(`ExtensionActivationEvents.event_type` / `event_value` both declared
+plain `String`). A hostile manifest could push gigabyte-scale data
+through ingestion, inflating DB rows and slowing parse. VS Code spec
+documents no numeric limits; production fixtures under
+`tests/platform/contracts/fixtures/activation_reports/` show
+single-digit list lengths and ≤50-char events, so every cap below is
+loose enough never to reject a real extension.
+
+**Module locations.**
+
++ `appcore/contracts/schema_defs/catalog.py:29-33` —
+  `ExtensionActivationEventsSchema.event_type` declared
+  `Field(..., max_length=64)`; `event_value` declared
+  `Field(default=None, max_length=1024)`.
++ `appcore/contracts/schema_defs/catalog.py:187-189` —
+  `ExtensionDetailSchema.activation_events` declared
+  `Field(default_factory=list, max_length=512)` (Pydantic v2 list
+  cap).
++ `workflows/extension_catalog/manifest_parser.py:8-14` —
+  module-level mirror constants `_MAX_ACTIVATION_EVENTS = 512`,
+  `_MAX_ACTIVATION_EVENT_TYPE_LEN = 64`,
+  `_MAX_ACTIVATION_EVENT_VALUE_LEN = 1024`.
++ `workflows/extension_catalog/manifest_parser.py:82-103` —
+  defense-in-depth pre-filter: slice `activation_events[:512]`
+  before the parse loop; inside the loop, `continue` if the event's
+  split (`event_type`, `event_value`) would exceed the per-string
+  caps. Stops oversized inputs from reaching Pydantic at all;
+  Pydantic remains the safety net for any path bypassing this
+  parser.
++ `appcore/storage/model_defs/extension.py:152-153` —
+  `ExtensionActivationEvents.event_type` declared
+  `mapped_column(String(64), nullable=False, index=True)`;
+  `event_value` declared
+  `mapped_column(String(1024), nullable=True)`.
++ `alembic/versions/e7c0a8f3b9d2_bound_activation_events_columns.py`
+  — upgrade alters `event_type` / `event_value` via
+  `op.alter_column(..., type_=sa.String(64|1024),
+  postgresql_using='substring(col, 1, N)')`; downgrade restores
+  unbounded `sa.String()` types.
+
+**Tests added.**
+
++ `tests/architecture/test_activationevents_bounds.py` × **6** AST
+  invariants:
+    1. `ExtensionActivationEventsSchema.event_type` declared with
+       `Field(..., max_length=64)`.
+    2. `ExtensionActivationEventsSchema.event_value` declared with
+       `Field(..., max_length=1024)`.
+    3. `ExtensionDetailSchema.activation_events` declared with
+       `Field(..., max_length=512)` on a list-typed field.
+    4. DB column `event_type` declared as
+       `mapped_column(String(64), ...)` in `model_defs/extension.py`.
+    5. DB column `event_value` declared as
+       `mapped_column(String(1024), ...)` in
+       `model_defs/extension.py`.
+    6. Vacuous-truth — every (class, attribute) target above must
+       resolve to a real annotated field at its declared module
+       path (rename detector; forces a table update on rename so
+       invariants 1-5 cannot pass vacuously).
++ `tests/workflows/extension_catalog/test_activation_events_bounds.py`
+  × **8** cases:
+  + Boundary acceptance × 3 (`event_type` at 64 chars;
+    `event_value` at 1024 chars; list at 512 entries — all
+    accepted by Pydantic).
+  + One-over rejection × 3 (each axis trips `ValidationError`:
+    `event_type` 65 chars, `event_value` 1025 chars, list of
+    513).
+  + Parser-level defense-in-depth × 2 (a 600-event list returns
+    512 after parser slice; an event whose `event_value` would
+    exceed the per-string cap is silently dropped, matching the
+    existing tolerant `continue` style for non-`str` events).
+
+**Cap rationale (recorded for posterity).**
+
++ `event_type` 64: VS Code event taxonomy ~25 names, longest known
+  ~30 chars; 2× buffer; matches the 64-char tag-field precedent at
+  `packages/analysis_contracts/evidence.py:180`.
++ `event_value` 1024: worst-case legitimate
+  `onCommand:<publisher>.<name>.<command>` ≈ 260 chars (npm
+  package-name rules bound publisher + name at 214 chars; extras
+  land under 260); 4× buffer; comfortably above any sensible
+  `workspaceContains` glob.
++ list 512: heavy real-world extensions top out ~100 events
+  (language packs, multi-feature toolkits); 5× margin keeps the
+  99.9th-percentile tolerant; worst-case payload
+  512 × (64 + 1 + 1024) ≈ 545 KiB — bounded, three orders of
+  magnitude under gigabyte-scale.
+
+**Verification.**
+
++ `pytest tests/architecture/test_activationevents_bounds.py` 6
+  passed.
++ `pytest tests/workflows/extension_catalog/test_activation_events_bounds.py`
+  8 passed.
++ `pytest tests/architecture/` collects **186** (W15-2 final 180 +
+  6).
++ `pytest tests/workflows/extension_catalog/` 67 passed, 0 failed —
+  no regression in the catalog ingestion contract.
++ `ruff check
+  appcore/contracts/schema_defs/catalog.py
+  appcore/storage/model_defs/extension.py
+  workflows/extension_catalog/manifest_parser.py
+  alembic/versions/e7c0a8f3b9d2_bound_activation_events_columns.py
+  tests/architecture/test_activationevents_bounds.py
+  tests/workflows/extension_catalog/test_activation_events_bounds.py`
+  — clean.
++ Manual Alembic round-trip against `postgres_test` (operator-run
+  at land): `\d extension_activation_events` should show
+  `event_type character varying(64) NOT NULL` and
+  `event_value character varying(1024)`; downgrade should restore
+  unbounded `character varying` types.
+
+**Consciously excluded (defers to W16+).**
+
++ `TriggerScenarioDetail.activation_events`
+  (`packages/analysis_contracts/contracts.py:408`) — a different
+  surface (per-scenario analysis *output*, not manifest
+  *ingest*). No Codex audit row points here; W16+ candidate only
+  if a future audit flags it.
++ Other unbounded manifest fields (`displayName`, `description`,
+  `keywords`, `categories`, `icon`, `main`, `browser`) — Codex
+  audit item U8 is `activationEvents`-only; W16+ candidate if a
+  future audit surfaces a generalised manifest field bounds sweep.
++ Programmatic Alembic round-trip test — explicit defer under
+  `[FOLLOWUP w13-4-alembic-roundtrip-programmatic]`.
 
 ## Close-Out (when W15 ends)
 
