@@ -631,7 +631,8 @@ W15-1 actual deltas (`2026-05-14` via `c58c365`):
 + Existing 66 `tests/workflows/marketplace/test_router.py` cases
   unchanged (no regression in the sync surface contract).
 
-W15-2 actual deltas (`2026-05-14` via `765cde7`):
+W15-2 actual deltas (`2026-05-14` via `765cde7`; behavioral coverage
+extended `2026-05-15` after rebuild+scan verification):
 
 + `tests/architecture/` 178 → **180** (+2 cases — new file
   `test_workspace_symlink_check_order.py`: AST line-order invariant
@@ -639,18 +640,32 @@ W15-2 actual deltas (`2026-05-14` via `765cde7`):
   both workspace cleanup chokepoints; vacuous-truth guard pinning the
   helpers table to declared module paths).
 + New behavioral file `tests/security/test_workspace_symlink_toctou.py`
-  with **+5 cases** (real file / real dir / symlink-to-external-dir /
-  symlink-to-external-file / dangling symlink fixtures via
-  `tmp_path` + monkeypatched `WORKSPACE_DIR`).
+  with **+8 cases** (5 initial: real file / real dir /
+  symlink-to-external-dir / symlink-to-external-file / dangling
+  symlink; 3 post-rebuild edge cases: nested symlink in real subdir,
+  idempotency on empty workspace, mixed-contents stress matrix).
 + Existing `tests/executor/test_workspace.py` + `test_reset_state.py`
   unchanged (no regression in the workspace contract).
++ **Production verification `2026-05-15` 09:51** — operator rebuilt
+  the executor container (image carrying `week15` HEAD with W15-1 +
+  W15-2 in it) and ran a fresh UI scan against
+  `ms-python.python@2026.5.2026051301`. Result identical to the
+  `2026-05-14` 15:15 baseline on every critical field
+  (target_extension_observed True, risk_signals 0, run_quality low,
+  signal_summary.score 28, automation_health.status degraded with the
+  same 4 reasons, same 3 completed scenarios + same 2 dropouts,
+  same 2 capability verification gaps). Metric jitter ±2% on event
+  counts; ``correlated_only_event_count`` 41 → 31 — minor improvement
+  (peer-extension noise timing) but not a regression direction. No
+  drift attributable to the W15-1 / W15-2 changes; deployment is
+  green.
 
 W15 target deltas (per sub-iter):
 
 | Iter | `tests/architecture/` delta | Behavioral test delta | Net |
 |---|---|---|---|
 | W15-1 ✅ | **+6 (actual)** sync-async parity (6 invariants — 4 initial + 2 post-W15-1 strengthening: handler-body dispatch + ExecutorError delegation) | +21 case (helper + endpoint parametrize + PermissionError subclass) | **closed +6 gates** |
-| W15-2 ✅ | **+2 (actual)** workspace cleanup symlink-check order + helpers-table pin | +5 case (real file/dir + 3 adversarial symlink fixtures) | **closed +2 gates** |
+| W15-2 ✅ | **+2 (actual)** workspace cleanup symlink-check order + helpers-table pin | +8 case (5 initial: real file/dir + 3 adversarial symlink fixtures; +3 edge: nested symlink in real subdir + idempotency + mixed-contents stress) | **closed +2 gates** |
 | W15-3 | +1 (activationEvents bounds gate) | +1 dosya (~6-10 case) | +1 gate |
 | W15-4 | +0 (UI-side, architecture gate yok) | +3 dosya UI vitest (~15-24 case) | +0 arch |
 | W15-5 | +0 (UI vitest + Python unit test) | +1 UI + +1 unit (~6-10 case) | +0 arch |
@@ -816,7 +831,7 @@ cleanup must never touch.
     2. Vacuous-truth — every helper named in ``WORKSPACE_HELPERS``
        must resolve to a real ``FunctionDef`` at its declared module
        path (rename detection).
-+ `tests/security/test_workspace_symlink_toctou.py` × **5** behavioral
++ `tests/security/test_workspace_symlink_toctou.py` × **8** behavioral
   cases:
   + Real file removal (sanity).
   + Real dir recursive removal (sanity).
@@ -827,6 +842,18 @@ cleanup must never touch.
   + Dangling symlink: unlinked without raising
     (post-W15-2 is intentional via ``is_symlink`` branch; pre-W15-2
     worked by accident via the ``unlink()`` fall-through).
+  + Nested symlink inside real subdir: ``shutil.rmtree`` recurses
+    into the real subdir without following an inner
+    symlink-to-external (pins Python's default ``followlinks=False``
+    contract; guards against a future refactor to
+    ``rmtree(..., followlinks=True)`` or ``os.walk(followlinks=True)``).
+  + Idempotency: calling ``clean_workspace`` twice on an empty
+    workspace is a no-op (pins the contract so a future refactor
+    cannot add a "must be non-empty" precondition).
+  + Mixed-contents stress: regular file + real dir + symlink-to-dir
+    + symlink-to-file + dangling symlink in a single workspace; one
+    cleanup pass removes every entry and preserves every external
+    target byte-equal.
 
 **Production diff.** +9 net LoC in
 ``executor/flows/playwright/workspace/__init__.py`` (8 LoC comment

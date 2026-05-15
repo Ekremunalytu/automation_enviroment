@@ -130,6 +130,12 @@ Closed (one-line audit trail):
   `terminal_usage`) `status: completed`. Conservation guard
   (`scenario_accountant.py:392-438`) beklendiği gibi yakaladı; upstream
   emit-site fix hâlâ açık (`[FOLLOWUP scenario-accountant-conservation-split]`).
+  **Second confirmation `2026-05-15` 09:51** (`e801c8d9c8b1.json`,
+  post-rebuild against `week15` HEAD `c0c6066` which carries W15-1 +
+  W15-2): identical drop set — same 2 scenarios, same `reason_code`,
+  same downstream symptoms. The dropout is **deterministic** across
+  runs and **not** a side effect of the W15-1/W15-2 changes; the
+  upstream emit-site bug class is reproducible without retry.
 - `[FOLLOWUP scenario-accountant-conservation-split]` — upstream emit-site
   work (planner / `stimulus_passes` / `dispatch._normalize_execution_result`);
   separate pull, W15+ candidate. **Observed in production
@@ -138,7 +144,10 @@ Closed (one-line audit trail):
   `verification_gap: 2` (debug + terminal_tasks capability'leri verify
   edilemedi — dropout'un türevi). `signal_summary.level: needs_review`
   (score 28) — extension için risk_signals 0 olmasına rağmen attribution
-  korelatif kaldığı için manuel review öneriliyor.
+  korelatif kaldığı için manuel review öneriliyor. **Deterministic
+  confirmation `2026-05-15` 09:51** — bir saatlik rebuild + ikinci
+  scan aynı state'i raporladı; root cause non-intermittent, repro
+  fixture senkron çekilebilir.
 - `[FOLLOWUP report-finalize-top-level-field-sync-drift]` — production
   scan `activation_report_*.json` carries `null` for several top-level
   fields (`target_extension_id`, `monitoring_start`/`monitoring_end`,
