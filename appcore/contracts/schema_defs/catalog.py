@@ -29,8 +29,8 @@ class ExtensionScriptsSchema(BaseModel):
 class ExtensionActivationEventsSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True, extra="ignore")
 
-    event_type: str
-    event_value: str | None = None
+    event_type: str = Field(..., max_length=64)
+    event_value: str | None = Field(default=None, max_length=1024)
 
 
 class ExtensionContributesKeybindingsSchema(BaseModel):
@@ -185,7 +185,7 @@ class ExtensionDetailSchema(ExtensionSchema):
     capabilities: ExtensionCapabilitiesSchema | None = None
     scripts: list[ExtensionScriptsSchema] = Field(default_factory=list)
     activation_events: list[ExtensionActivationEventsSchema] = Field(
-        default_factory=list
+        default_factory=list, max_length=512
     )
     contributes: ExtensionContributesSchema | None = None
 

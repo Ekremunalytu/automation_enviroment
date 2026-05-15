@@ -4,6 +4,15 @@ from __future__ import annotations
 
 from typing import Any
 
+# Mirror of the caps on ``ExtensionActivationEventsSchema`` /
+# ``ExtensionDetailSchema.activation_events`` — kept here so the parser
+# can short-circuit hostile manifests before Pydantic walks an
+# adversarial list. Pydantic remains the safety net for any path that
+# bypasses this parser.
+_MAX_ACTIVATION_EVENTS = 512
+_MAX_ACTIVATION_EVENT_TYPE_LEN = 64
+_MAX_ACTIVATION_EVENT_VALUE_LEN = 1024
+
 
 def parse_capabilities(package_json: dict[str, Any]) -> dict[str, Any] | None:
     capabilities = package_json.get("capabilities")
@@ -78,14 +87,23 @@ def parse_activation_events(
     if not activation_events or not isinstance(activation_events, list):
         return None
 
+    activation_events = activation_events[:_MAX_ACTIVATION_EVENTS]
+
     parsed_events = []
     for event in activation_events:
         if not isinstance(event, str):
             continue
         if ":" not in event:
+            if len(event) > _MAX_ACTIVATION_EVENT_TYPE_LEN:
+                continue
             parsed_events.append({"event_type": event, "event_value": None})
             continue
         event_type, event_value = event.split(":", 1)
+        if (
+            len(event_type) > _MAX_ACTIVATION_EVENT_TYPE_LEN
+            or len(event_value) > _MAX_ACTIVATION_EVENT_VALUE_LEN
+        ):
+            continue
         parsed_events.append({"event_type": event_type, "event_value": event_value})
 
     return parsed_events if parsed_events else None
