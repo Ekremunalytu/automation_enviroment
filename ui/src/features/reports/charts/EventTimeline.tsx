@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 
 import { RISK_COLOR, V3, type Risk } from "../../../components/v3";
+import { DISPLAY_CAPS, applyDisplayCap, formatTruncationLabel } from "../../../lib/displayCaps";
 
 type TimelineEvent = {
   id: string;
@@ -61,7 +62,7 @@ export function EventTimeline({ events, selectedId, onSelect, height = 240 }: Ev
   const cursorRef = useRef(0);
   const hasEventsRef = useRef(false);
 
-  const allEvents = useMemo(
+  const normalizedEvents = useMemo(
     () =>
       events
         .flatMap<NormalizedTimelineEvent>((event) => {
@@ -80,6 +81,15 @@ export function EventTimeline({ events, selectedId, onSelect, height = 240 }: Ev
         .sort((left, right) => left.t - right.t),
     [events],
   );
+
+  const cappedEvents = useMemo(
+    () => applyDisplayCap(normalizedEvents, DISPLAY_CAPS.TIMELINE_EVENTS),
+    [normalizedEvents],
+  );
+  const allEvents = cappedEvents.visible;
+  const truncationLabel = cappedEvents.truncated
+    ? formatTruncationLabel(cappedEvents, "events")
+    : "";
 
   const maxT = useMemo(() => Math.max(1, ...allEvents.map((event) => event.t)) + 2, [allEvents]);
   const selectedEvent = allEvents.find((event) => event.id === selectedId);
@@ -209,17 +219,41 @@ export function EventTimeline({ events, selectedId, onSelect, height = 240 }: Ev
         >
           {playing ? "❚❚ pause" : "▶ scan"}
         </button>
-        <span
+        <div
           style={{
-            fontFamily: "'JetBrains Mono', monospace",
-            fontSize: 10.5,
-            color: V3.ink3,
-            letterSpacing: "0.06em",
             marginLeft: "auto",
+            display: "flex",
+            alignItems: "center",
+            gap: 14,
+            flexWrap: "wrap",
+            justifyContent: "flex-end",
           }}
         >
-          t = {(activeCursor * maxT).toFixed(1)}s / {maxT.toFixed(1)}s · {allEvents.length} events · {highRiskCount} high-risk
-        </span>
+          {truncationLabel ? (
+            <span
+              data-testid="timeline-truncation-indicator"
+              style={{
+                fontFamily: "'JetBrains Mono', monospace",
+                fontSize: 10.5,
+                color: V3.ink3,
+                letterSpacing: "0.06em",
+                textTransform: "lowercase",
+              }}
+            >
+              {truncationLabel}
+            </span>
+          ) : null}
+          <span
+            style={{
+              fontFamily: "'JetBrains Mono', monospace",
+              fontSize: 10.5,
+              color: V3.ink3,
+              letterSpacing: "0.06em",
+            }}
+          >
+            t = {(activeCursor * maxT).toFixed(1)}s / {maxT.toFixed(1)}s · {allEvents.length} events · {highRiskCount} high-risk
+          </span>
+        </div>
       </div>
 
       <svg
@@ -336,6 +370,7 @@ export function EventTimeline({ events, selectedId, onSelect, height = 240 }: Ev
           return (
             <g
               key={event.id}
+              data-testid="timeline-event-marker"
               style={{ cursor: onSelect ? "pointer" : "default" }}
               onMouseEnter={() => setHoverId(event.id)}
               onMouseLeave={() => setHoverId((current) => (current === event.id ? null : current))}

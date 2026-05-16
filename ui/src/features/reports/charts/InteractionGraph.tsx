@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 
 import { RISK_COLOR, V3, type Risk } from "../../../components/v3";
+import { DISPLAY_CAPS } from "../../../lib/displayCaps";
 
 export type InteractionGroupChild = {
   id: string;
@@ -36,13 +37,12 @@ const ROOT_DIM = { width: 200, height: 80 };
 const CATEGORY_DIM = { width: 240, height: 64 };
 const LEAF_DIM = { width: 180, height: 48 };
 const MIN_LEAF_SPACING = 58;
-const LEAF_CAP = 6;
 
 export function InteractionGraph({ data, height = 480 }: InteractionGraphProps) {
   const layout = useMemo(() => {
-    const groups = data.groups.slice(0, 5).map((group) => {
+    const groups = data.groups.slice(0, DISPLAY_CAPS.RELATIONS_GROUPS).map((group) => {
       const childCount = group.children.length;
-      const visible = group.children.slice(0, LEAF_CAP);
+      const visible = group.children.slice(0, DISPLAY_CAPS.RELATIONS_LEAVES_PER_GROUP);
       const overflow = childCount - visible.length;
       if (overflow > 0 && visible.length > 0) {
         const last = visible[visible.length - 1];
