@@ -68,8 +68,8 @@ Detail evidence in the W14 tracker + archive snapshot.
 
 W14- and W15-pulled items are below. Remaining for W15+:
 
-- `[FOLLOWUP codex-2026-05-10-U1-U2-U3-ui-event-spread-cap]` — cap UI event density/timeline spread operations.
-- `[FOLLOWUP codex-2026-05-10-U6-relations-graph-cap]` — cap relations graph nodes/edges.
+_(W15-4 closed both surviving U-class entries on `2026-05-16`; the open
+list is empty until the next Codex audit pass.)_
 
 Closed via W14 (one-line audit trail; full rationale in archive):
 
@@ -82,9 +82,11 @@ Closed via W14 (one-line audit trail; full rationale in archive):
 
 Closed via W15 (one-line audit trail; full rationale in W15 tracker Per-Item Detail):
 
-- `[FOLLOWUP codex-2026-05-10-M10-sync-analyze-typeerror-catch]` — W15-1 (`c58c365`).
+- `[FOLLOWUP codex-2026-05-10-M10-sync-analyze-typeerror-catch]` — W15-1 (`c58c365`); post-slate typing annotation hotfix follow-up landed `2026-05-16` via `976dc96`.
 - `[FOLLOWUP codex-2026-05-10-M12-workspace-symlink-check-order]` — W15-2 (`765cde7`, path b fix).
-- `[FOLLOWUP codex-2026-05-10-U8-activationevents-bounds]` — W15-3.
+- `[FOLLOWUP codex-2026-05-10-U8-activationevents-bounds]` — W15-3 (`3512a7c`).
+- `[FOLLOWUP codex-2026-05-10-U1-U2-U3-ui-event-spread-cap]` — W15-4 (`89e13e3`).
+- `[FOLLOWUP codex-2026-05-10-U6-relations-graph-cap]` — W15-4 (`89e13e3`).
 
 ### Quick Fixes
 

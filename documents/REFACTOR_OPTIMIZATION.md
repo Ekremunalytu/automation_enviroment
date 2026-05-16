@@ -206,7 +206,7 @@ pending.
 | W15-1 | **closed `2026-05-14`** (sync analyze error taxonomy alignment — M10) | `c58c365` |
 | W15-2 | **closed `2026-05-14`** (workspace symlink check order / orphan removal — M12; path b: fix) | `765cde7` |
 | W15-3 | **closed `2026-05-15`** (`activationEvents` bounds + DB field-length Alembic migration — U8) | `3512a7c` |
-| W15-4 | planned (UI bounds bundle: event spread / timeline / relations graph cap — U1-U3 + U6) | — |
+| W15-4 | **closed `2026-05-16`** (UI bounds bundle: timeline / density strip / relations graph caps with truncation indicators — U1-U3 + U6; new `ui/src/lib/displayCaps.ts` helper; extracted `EventDensityStrip` from `ReportsPage`; 21 vitest cases; `+0` arch gates per UI-side cap policy. **W15-1 post-slate typing hotfix** `976dc96` landed in the same close-out window — `ANALYZE_*_ERROR_TYPES` annotation narrowed from `BaseException` to `Exception` after the W15-4 close-out `make typecheck` surfaced the mismatch at `workflows/marketplace/router.py:341`; W14-7 hotfix precedent.) | `89e13e3` (+ `976dc96`) |
 | W15-5 | planned (quick fixes bundle: UI `/health` proxy + lifecycle `for <id>` regex — I2 + I4) | — |
 | W15-6 | planned (unauthenticated catalog endpoints posture — ADR 0011 — U10-U11) | — |
 | W15-7 | planned (regression lock-in umbrella: compose image pin + GH action pin + doc preamble truth-state refresh) | — |

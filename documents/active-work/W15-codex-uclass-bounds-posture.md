@@ -1,7 +1,7 @@
 # W15 — Codex U-class Close-Out + UI Bounds + Posture (Active Work Tracker)
 
-`Last Updated: 2026-05-15 (W15 active; week15 cut from main HEAD 7cc2921 on 2026-05-14; W15-1 closed via c58c365 — sync analyze error taxonomy parity, M10; W15-2 closed via 765cde7 — clean_workspace is_symlink-before-rmtree, M12; W15-3 closed via 3512a7c — activationEvents bounds + Alembic field-length migration, U8; W14 close-out PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d; W13 close-out PR #20 week13 -> main MERGED 2026-05-13 via 772deb3)`
-`Phase: W15 active (W15-1, W15-2, W15-3 closed; W15-4..W15-7 pending)`
+`Last Updated: 2026-05-16 (W15 active; week15 cut from main HEAD 7cc2921 on 2026-05-14; W15-1 closed via c58c365 — sync analyze error taxonomy parity, M10; W15-2 closed via 765cde7 — clean_workspace is_symlink-before-rmtree, M12; W15-3 closed via 3512a7c — activationEvents bounds + Alembic field-length migration, U8; W15-4 closed via 89e13e3 — UI bounds bundle (timeline/density/relations graph caps with truncation indicators), U1/U2/U3 + U6; W15-1 post-slate typing hotfix via 976dc96 — ANALYZE_*_ERROR_TYPES annotation BaseException → Exception narrowing (surfaced by W15-4 close-out mypy gate); W14 close-out PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d; W13 close-out PR #20 week13 -> main MERGED 2026-05-13 via 772deb3)`
+`Phase: W15 active (W15-1, W15-2, W15-3, W15-4 closed; W15-5..W15-7 pending)`
 `Branch: week15 (cut from main HEAD 7cc2921 on 2026-05-14)`
 `Owner: ekrem`
 
@@ -28,7 +28,15 @@ list.
   error taxonomy parity, M10 close); W15-2 closed `2026-05-14` via
   `765cde7` (`clean_workspace` is_symlink-before-rmtree, M12 close);
   W15-3 closed `2026-05-15` via `3512a7c` (activationEvents bounds +
-  Alembic field-length migration, U8 close); W15-4..W15-7 pending
+  Alembic field-length migration, U8 close); W15-4 closed `2026-05-16`
+  via `89e13e3` (UI bounds bundle: `EventTimeline` / `EventDensityStrip`
+  / `InteractionsSection` caps + truncation indicators driven by new
+  `ui/src/lib/displayCaps.ts`; U1/U2/U3 + U6 close; 21 new vitest cases
+  across 3 files; `+0` arch gates per tracker exit criteria); W15-1
+  post-slate typing hotfix landed `2026-05-16` via `976dc96`
+  (`ANALYZE_*_ERROR_TYPES` annotation `tuple[type[BaseException], …]`
+  → `tuple[type[Exception], …]`, surfaced by W15-4 close-out
+  `make typecheck`; W14-7 hotfix precedent); W15-5..W15-7 pending
   sequential pull. W14 close-out PR #21
   (`week14 -> main`) **MERGED** `2026-05-14` via `4e03c8d`; all
   W14-1..W14-8 closed. W15 base differs from the scope-skeleton plan
@@ -60,7 +68,7 @@ list.
 | **W15-1** ✅ | Sync analyze error taxonomy alignment — closed `2026-05-14` via `c58c365` | `[FOLLOWUP codex-2026-05-10-M10-sync-analyze-typeerror-catch]` | 1 oturum |
 | **W15-2** ✅ | Workspace symlink check order / orphan removal — closed `2026-05-14` via `765cde7` | `[FOLLOWUP codex-2026-05-10-M12-workspace-symlink-check-order]` | 1 oturum |
 | **W15-3** ✅ | `activationEvents` bounds + DB field-length migration — closed `2026-05-15` via `3512a7c` | `[FOLLOWUP codex-2026-05-10-U8-activationevents-bounds]` | 1 oturum (tek-PR uygulandı) |
-| **W15-4** | UI bounds bundle: event spread / timeline / relations graph cap | `[FOLLOWUP codex-2026-05-10-U1-U2-U3-ui-event-spread-cap]` + `[FOLLOWUP codex-2026-05-10-U6-relations-graph-cap]` | 1-2 oturum |
+| **W15-4** ✅ | UI bounds bundle: timeline + density strip + relations graph caps with truncation indicators — closed `2026-05-16` via `89e13e3` (+ W15-1 typing hotfix `976dc96`) | `[FOLLOWUP codex-2026-05-10-U1-U2-U3-ui-event-spread-cap]` + `[FOLLOWUP codex-2026-05-10-U6-relations-graph-cap]` | 1 oturum (tek-PR uygulandı) |
 | **W15-5** | Quick fixes bundle: UI `/health` proxy + lifecycle `for <id>` regex | `[FOLLOWUP codex-2026-05-10-I2-ui-health-proxy]` + `[FOLLOWUP codex-2026-05-10-I4-lifecycle-for-id-regex]` | 1 oturum |
 | **W15-6** | Unauthenticated catalog endpoints posture (ADR 0011) | `[FOLLOWUP codex-2026-05-10-U10-U11-unauth-catalog-endpoints]` | 2 oturum (ADR + implementation) |
 | **W15-7** | Regression lock-in umbrella: compose image pin + GH action pin + doc preamble refresh | `[FOLLOWUP compose-image-mutable-ref-pin]` + `[FOLLOWUP gh-action-trivy-version-pin]` + (post-W14 audit) doc-preamble truth-state refresh | 1 oturum |
@@ -136,8 +144,8 @@ audit; `[FOLLOWUP compose-image-mutable-ref-pin]` and
 | **W15-1** | `[FOLLOWUP codex-2026-05-10-M10-sync-analyze-typeerror-catch]` (sync `/api/marketplace/analyze` entry, async path ile error taxonomy uyumsuz — async tarafı pydantic ValidationError + 4xx döner, sync tarafı generic Exception'a düşüp 500 emit ediyor; aynı request shape iki farklı status alıyor) | `[platform-storage]` `[security-detection]` | **closed `2026-05-14` via `c58c365`** |
 | **W15-2** | `[FOLLOWUP codex-2026-05-10-M12-workspace-symlink-check-order]` (`clean_workspace()` orphan symlink handling — check sırası TOCTOU window'u açıyor; ya kontrol sırası fix edilir ya da dead code olarak silinir; W14 audit'inde dokunulmadı) | `[executor-runtime]` `[security-detection]` | **closed `2026-05-14` via `765cde7`** (path b: fix — `clean_workspace` mevcut `_clear_directory` desenine hizalandı; live caller `reset_state.py:176`'da olduğu için dead-code removal yolu açık değildi) |
 | **W15-3** | `[FOLLOWUP codex-2026-05-10-U8-activationevents-bounds]` (`activationEvents` liste/string boyutu unbounded; oversized manifest DoS + DB row inflation; cap + Alembic field-length migration ister) | `[security-detection]` `[platform-storage]` | **closed `2026-05-15` via `3512a7c`** (Pydantic schema + manifest_parser defense-in-depth + DB column shrink + Alembic migration; +6 arch gates + 8 behavioral cases) |
-| **W15-4** | `[FOLLOWUP codex-2026-05-10-U1-U2-U3-ui-event-spread-cap]` (UI event density / timeline spread / count operations unbounded; large activation report → UI freeze) | `[ui]` | not started |
-| **W15-4** | `[FOLLOWUP codex-2026-05-10-U6-relations-graph-cap]` (relations graph node-edge count unbounded; large extension reports UI graph render'ı yavaşlatıyor) | `[ui]` | not started |
+| **W15-4** | `[FOLLOWUP codex-2026-05-10-U1-U2-U3-ui-event-spread-cap]` (UI event density / timeline spread / count operations unbounded; large activation report → UI freeze) | `[ui]` | **closed `2026-05-16` via `89e13e3`** (`EventTimeline` + extracted `EventDensityStrip` apply `applyDisplayCap` post-filter at `DISPLAY_CAPS.TIMELINE_EVENTS=800` / `EVENT_DENSITY_EVENTS=800`; truncation indicators emit `+N more · showing first 800 of M events · filter to narrow` and `+N events truncated · density reflects first 800 of M`) |
+| **W15-4** | `[FOLLOWUP codex-2026-05-10-U6-relations-graph-cap]` (relations graph node-edge count unbounded; large extension reports UI graph render'ı yavaşlatıyor) | `[ui]` | **closed `2026-05-16` via `89e13e3`** (`InteractionsSection` adds `+N groups not shown` Eyebrow in `Panel right` slot when `graph.groups.length` exceeds `DISPLAY_CAPS.RELATIONS_GROUPS=5`; `InteractionGraph` literal `5` and `LEAF_CAP=6` swapped for value-preserving `DISPLAY_CAPS.RELATIONS_GROUPS` / `DISPLAY_CAPS.RELATIONS_LEAVES_PER_GROUP` imports — existing `+${overflow} more` leaf indicator untouched) |
 | **W15-5** | `[FOLLOWUP codex-2026-05-10-I2-ui-health-proxy]` (UI client `/health` fetch'i nginx `/api/*` proxy'sini bypass ediyor olabilir; reverse-proxy posture'a uyumsuz; verify + fix) | `[ui]` `[platform-storage]` | not started |
 | **W15-5** | `[FOLLOWUP codex-2026-05-10-I4-lifecycle-for-id-regex]` (lifecycle `"for <id>"` regex çok geniş; daraltma — log-noise + false-positive parser drift'i) | `[platform-storage]` | not started |
 | **W15-6** | `[FOLLOWUP codex-2026-05-10-U10-U11-unauth-catalog-endpoints]` (auth posture decision; ADR 0011 — single-host appliance scope altında catalog endpoint'leri auth'suz mu, marker-based mı? Karar ADR ile, sonra koda uygulanır) | `[platform-storage]` `[security-detection]` | not started — ADR pending |
@@ -1090,6 +1098,206 @@ loose enough never to reject a real extension.
   future audit surfaces a generalised manifest field bounds sweep.
 + Programmatic Alembic round-trip test — explicit defer under
   `[FOLLOWUP w13-4-alembic-roundtrip-programmatic]`.
+
+### W15-4 — UI bounds bundle: timeline / density strip / relations graph caps — closed `2026-05-16` via `89e13e3`
+
+**Stable ID(s).** `[FOLLOWUP codex-2026-05-10-U1-U2-U3-ui-event-spread-cap]`,
+plus `[FOLLOWUP codex-2026-05-10-U6-relations-graph-cap]`.
+
+**Landing commit(s).**
+
++ `89e13e3` — UI implementation: new `ui/src/lib/displayCaps.ts`
+  helper + constants, `EventTimeline` cap + indicator, extracted
+  `EventDensityStrip` with cap + indicator, `ReportsPage` import
+  swap and `+N groups not shown` Eyebrow in
+  `InteractionsSection`, `InteractionGraph` literal-to-`DISPLAY_CAPS`
+  swap, and 3 new vitest files (`displayCaps.test.ts`,
+  `EventTimeline.test.tsx`, `EventDensityStrip.test.tsx`).
++ `976dc96` — post-slate W15-1 typing hotfix surfaced by the W15-4
+  close-out `make typecheck` run; tightens
+  `ANALYZE_*_ERROR_TYPES` annotations from
+  `tuple[type[BaseException], ...]` to `tuple[type[Exception], ...]`
+  in `workflows/marketplace/analysis_service.py` so the helper
+  `analyze_error_to_http_response(exc: Exception)` accepts the
+  except-bound `exc` at
+  `workflows/marketplace/router.py:341`. Zero runtime behavior
+  change (tuple members are all `Exception` subclasses already);
+  W14-7 hotfix precedent (`df925f8`).
+
+**Root cause.** Pre-W15-4 the three UI views in the extension
+activation report had no display-side cap. Production scan
+`output/activation_report_ms-python.python-…-e260e3e13dab.json`
+(2026-05-16 19:43) carries **2,803 `evidence_events`** + **3,813
+`evidence_links`** — comfortably enough to freeze the SVG renders.
+`EventTimeline` rendered every event as its own `<g>` marker;
+`EventDensityStrip` (inline in `ReportsPage`) fed every event into
+`Math.ceil(maxT)` 1-second buckets;
+`InteractionsSection`'s `Panel "Interaction graph"` surfaced the
+existing leaf-overflow indicator (`InteractionGraph.tsx:55`) but no
+top-level groups overflow indicator. Backend report-side trim was
+out of scope per the W15-4 scope lock (W14-2 ts bound + W14-3
+summary redaction already handled the report-side caps; W15-4 is
+view-policy only).
+
+**Module locations.**
+
++ `ui/src/lib/displayCaps.ts` (new, 44 LOC) —
+  `DISPLAY_CAPS` const-asserted object exporting
+  `TIMELINE_EVENTS=800`, `EVENT_DENSITY_EVENTS=800`,
+  `RELATIONS_GROUPS=5`, `RELATIONS_LEAVES_PER_GROUP=6` (last two
+  value-preserving against the existing `InteractionGraph.tsx`
+  literals so the swap is semantic-identity); generic
+  `applyDisplayCap<T>(items, cap): CappedList<T>` slice-with-
+  overflow primitive (handles `cap=0` defensively and preserves
+  array reference identity when below the cap); standardised
+  `formatTruncationLabel(c, noun?='items')` for the timeline-style
+  copy `+N more · showing first X of Y NOUN · filter to narrow`.
++ `ui/src/features/reports/charts/EventTimeline.tsx:64-95` —
+  `allEvents` memo split into `normalizedEvents` (filter +
+  chronological sort) → `cappedEvents = applyDisplayCap(…, 800)`;
+  visible markers carry `data-testid="timeline-event-marker"`;
+  header `<span>` wrapped in a flex container with truncation
+  indicator span (`data-testid="timeline-truncation-indicator"`)
+  emitted via `formatTruncationLabel(…, "events")` only when
+  `cappedEvents.truncated`.
++ `ui/src/features/reports/charts/EventDensityStrip.tsx` (new
+  extract, 116 LOC) — pure refactor of the inline
+  `EventDensityStrip` previously at
+  `ReportsPage.tsx:674-745` plus `applyDisplayCap(events, 800)`
+  before bucket computation; bucket buttons carry
+  `data-testid="density-bucket"`; truncation row at the end
+  (`data-testid="density-truncation-indicator"`) reads
+  `+N events truncated · density reflects first 800 of M` only
+  when `capped.truncated`.
++ `ui/src/features/reports/ReportsPage.tsx` — inline
+  `EventDensityStrip` removed (-72 LOC), `./charts/EventDensityStrip`
+  import added; `InteractionsSection` (around line 529-575) adds
+  `right` slot on the "Interaction graph" `Panel` carrying an
+  `Eyebrow` wrapped in
+  `<span data-testid="interaction-groups-truncation-indicator">`
+  when `graph.groups.length > DISPLAY_CAPS.RELATIONS_GROUPS`
+  (copy: `+N groups not shown`).
++ `ui/src/features/reports/charts/InteractionGraph.tsx:39-45` —
+  removed local `const LEAF_CAP = 6;`; `data.groups.slice(0, 5)`
+  → `slice(0, DISPLAY_CAPS.RELATIONS_GROUPS)` and
+  `group.children.slice(0, LEAF_CAP)` →
+  `slice(0, DISPLAY_CAPS.RELATIONS_LEAVES_PER_GROUP)`. Existing
+  `+${overflow} more` leaf-meta merge (line 47-58) untouched.
+
+**Cap rationale (recorded for posterity).**
+
++ `TIMELINE_EVENTS=800` / `EVENT_DENSITY_EVENTS=800` — midpoint of
+  the tracker's 500-1000 band; comfortably above typical-report
+  ranges (W14-2 ts-bound report fixtures sit in the low hundreds)
+  yet ≪ the 2,803-event production scan so the indicator surfaces
+  on real-world freezes. Even number for bucket math.
++ `RELATIONS_GROUPS=5` / `RELATIONS_LEAVES_PER_GROUP=6` — preserves
+  the existing `InteractionGraph.tsx` `.slice(0, 5)` and
+  `LEAF_CAP = 6` semantics. The InteractionGraph cap pattern was
+  the W15-4 UX template; centralising the constants avoids drift
+  between the layout (component-side) and the new groups-overflow
+  indicator (caller-side in `InteractionsSection`).
+
+**Post-filter ordering invariant.** Caps are applied **after**
+the existing UI filter chain (`filterEvidenceEvents` →
+`timelineEvents`) and after the chart-side
+chronological/normalisation memos — never inside the DTO
+adapter (`ui/src/lib/adapters/report.ts`). Preserves user filter
+intent: a filter that narrows to 300 events shows all 300; the
+cap only kicks in when the filtered total exceeds 800.
+
+**Tests added.**
+
++ `ui/src/lib/displayCaps.test.ts` × **8** cases (pure helper):
+  `applyDisplayCap` below cap returns input reference;
+  boundary `count === cap` (truncated:false); above cap slice +
+  overflow math; empty input; `cap=0` defensive path;
+  `formatTruncationLabel` not-truncated returns empty string;
+  truncated includes `+N`, locale-formatted totals, default noun
+  and "filter to narrow"; `DISPLAY_CAPS` constants pin
+  `RELATIONS_GROUPS=5` / `RELATIONS_LEAVES_PER_GROUP=6`
+  value-preserving.
++ `ui/src/features/reports/charts/EventTimeline.test.tsx` × **7**
+  cases (component, testing-library/react): empty events →
+  empty-state branch, no indicator; below cap → all markers, no
+  indicator; above cap → exactly cap markers; above cap →
+  indicator with `+N more` / `first 800 of M`; boundary
+  `count === cap` → indicator absent; cap applied after sort
+  (rerender with two `selectedId` values to surface in-visible
+  vs dropped-tail event labels); non-finite `relTimeS` filtered
+  out before cap.
++ `ui/src/features/reports/charts/EventDensityStrip.test.tsx` ×
+  **6** cases: empty events → placeholder buckets, no indicator;
+  bucket count reflects post-cap maxT (outlier event at t=100s
+  dropped); below cap → no truncation row; above cap →
+  truncation row with `+N events truncated` and "density
+  reflects first 800"; boundary `count === cap` → row absent;
+  bucket click fires `onSelect` with first-event-in-bucket id.
+
+Total: **21** new vitest cases (tracker target band 15-24).
+
+**Verification.**
+
++ `cd ui && npm test` → **72/72 passed** (51 prior + 21 new).
++ `cd ui && npm run build` (tsc -b + vite) → clean.
++ `cd ui && npm run lint` → W15-4 files clean; one **pre-existing**
+  error remains in `ui/src/features/settings/SettingsPage.tsx:472`
+  (`react-hooks/set-state-in-effect`) from commit `65f741a`
+  (`2026-05-09`) — out of W15-4 scope and not introduced by this
+  iteration; the `make check-all` umbrella does not invoke
+  `npm run lint`, so W15-1/W15-2/W15-3 close-outs also did not
+  surface it. Candidate for W15-5 quick-fixes bundle or a
+  dedicated UI-lint hygiene follow-up.
++ `make ui-types-check` (generated contract drift guard) → clean
+  (`contracts.ts` not modified by W15-4).
++ `make ui-boundaries` → "UI feature boundaries are clean."
++ `make check-all` (lint + typecheck + security +
+  ui-types-check + ui-boundaries + markdownlint + test) →
+  **1857 passed / 10 skipped / 1 xfailed** (the W15-1 typing
+  hotfix at `976dc96` unblocks the `make typecheck` gate that
+  this run surfaced; pre-fix run reported a single
+  `arg-type` error at `workflows/marketplace/router.py:342`).
+
+**Production parity (regression guard).** Latest scan
+`output/activation_report_ms-python.python-…-e260e3e13dab.json`
+(2026-05-16 19:43; 2,803 `evidence_events`, 3,813
+`evidence_links`, 2,543 `file_events`, 157 `network_events`,
+70 `process_events`) compared against the W15-3 close baseline
+scan
+`output/activation_report_ms-python.python-…-774ec11fc136.json`
+(2026-05-15 12:16; 2,804 / 3,801 / 2,541 / 163 / 63
+respectively) shows **identical** verdict / quality / coverage
+metrics across the entire 60-key top-level shape:
+`runner_status=success`, `runner_exit_code=0`,
+`target_extension_observed=true`, `trigger_plan_applied=true`,
+`verification_gap=2`, `run_quality=low`,
+`automation_health=degraded`, `signal_summary.level=needs_review`
+with `score=28`, `risk_summary.total_signals=0`,
+`coverage_summary` 7/5/6, `attempted=6`, `verified=4`. Event-
+count deltas (≤ ±0.4%) are within natural run-to-run variance
+(network jitter, FS timing, process scheduling); no W15-4-
+attributable pipeline drift.
+
+**Consciously excluded (defers to W15+).**
+
++ `evidence_links` cap — W15-4 caps event-class density (timeline +
+  density bucket feed) and graph-group/leaf rendering, but
+  `evidence_links` array (3,813 on the production scan) is not
+  rendered as its own list; it feeds the
+  `Inspector`/relations-graph-edges path. If a future audit flags
+  edge-render freezes, that's a separate W15+ pull.
++ Backend report-side trim — explicitly out of scope per the
+  W15-4 scope lock (W14-2 + W14-3 already addressed the
+  backend-side caps; W15-4 is presentation-policy only).
++ Centralising the existing `LEAF_CAP=6` literal *behaviour* — the
+  swap to `DISPLAY_CAPS.RELATIONS_LEAVES_PER_GROUP` is value-
+  preserving; tightening the leaf cap further is a UX decision
+  belonging to a future W15+ pull.
++ Generic UI-side lint hygiene sweep — the pre-existing
+  `SettingsPage.tsx:472` `react-hooks/set-state-in-effect` error
+  (commit `65f741a`, 2026-05-09) is real but unrelated to W15-4
+  scope (event spread / timeline / relations). Track as a W15-5
+  candidate or a dedicated quick fix.
 
 ## Close-Out (when W15 ends)
 
