@@ -87,7 +87,7 @@ logger = get_extrace_logger("extrace.workflows.marketplace.analysis_service")
 # except clause; the helper ``analyze_error_to_http_response`` maps each
 # class to an HTTPException with a status code that mirrors the async
 # ``fail_job`` semantics.
-ANALYZE_RECOVERABLE_ERROR_TYPES: tuple[type[BaseException], ...] = (
+ANALYZE_RECOVERABLE_ERROR_TYPES: tuple[type[Exception], ...] = (
     FileNotFoundError,
     ExecutorError,
     TriggerPlanError,
@@ -95,11 +95,11 @@ ANALYZE_RECOVERABLE_ERROR_TYPES: tuple[type[BaseException], ...] = (
     SQLAlchemyError,
     ValueError,
 )
-ANALYZE_PROGRAMMING_ERROR_TYPES: tuple[type[BaseException], ...] = (
+ANALYZE_PROGRAMMING_ERROR_TYPES: tuple[type[Exception], ...] = (
     TypeError,
     AttributeError,
 )
-ANALYZE_ERROR_TYPES: tuple[type[BaseException], ...] = (
+ANALYZE_ERROR_TYPES: tuple[type[Exception], ...] = (
     ANALYZE_RECOVERABLE_ERROR_TYPES + ANALYZE_PROGRAMMING_ERROR_TYPES
 )
 
