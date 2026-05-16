@@ -1,6 +1,6 @@
 # Post-PoC Backlog
 
-`Last Updated: 2026-05-14 (W14 sub-iter slate complete + W14-7/W14-8 post-slate hotfixes closed; close-out PR week14 -> main next; off-roadmap hygiene candidates: rule-registry-side-effect-loader, compose-image-mutable-ref-pin, gh-action-trivy-version-pin, test-import-graph-policy-dump-split, report-finalize-top-level-field-sync-drift)`
+`Last Updated: 2026-05-16 (W14 closed via PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d; W15 active on week15 branch cut from main HEAD 7cc2921 on 2026-05-14; W15-1/W15-2/W15-3/W15-4 closed (M10/M12/U8/U1/U2/U3/U6); W15-1 typing hotfix via 976dc96; W15-5..W15-7 pending; W15 mid-iter hygiene 2026-05-16: doc-preamble consistency arch gate + off-roadmap hygiene candidates: rule-registry-side-effect-loader, compose-image-mutable-ref-pin, gh-action-trivy-version-pin, test-import-graph-policy-dump-split, report-finalize-top-level-field-sync-drift, health-reconciliation-responsibility-split, marketplace-router-test-suite-split, analysis-job-worker-entry-crud-ownership)`
 
 Open deferred work after the W0-W7 PoC acceptance bar. **Slim canonical** —
 verbose closure rationales, evidence paragraphs, and per-iter Note columns
@@ -12,10 +12,13 @@ stable ID + landing commit; full context in the snapshot.
 - previous full snapshot:
   [`archive/backlog/POST_POC_BACKLOG_full_2026-05-11.md`](archive/backlog/POST_POC_BACKLOG_full_2026-05-11.md)
 
-W8-W13 are closed; W13 close-out PR #20 `week13 -> main` **MERGED**
-`2026-05-13` via `772deb3`. W14 sub-iter slate complete (W14-1..W14-6 +
-W14-7/W14-8 post-slate hotfixes); close-out PR `week14 -> main` next.
-W14 tracker: [`active-work/W14-codex-acceptance-observability.md`](active-work/W14-codex-acceptance-observability.md).
+W8-W14 are closed; W13 close-out PR #20 `week13 -> main` **MERGED**
+`2026-05-13` via `772deb3`; W14 close-out PR #21 `week14 -> main`
+**MERGED** `2026-05-14` via `4e03c8d`. **W15 active** on `week15`
+branch (cut from `main` HEAD `7cc2921` on `2026-05-14`); W15-1..W15-4
+closed (M10/M12/U8/U1/U2/U3/U6 Codex audit pulls), W15-5..W15-7
+pending. W14 tracker: [`active-work/W14-codex-acceptance-observability.md`](active-work/W14-codex-acceptance-observability.md);
+W15 tracker: [`active-work/W15-codex-uclass-bounds-posture.md`](active-work/W15-codex-uclass-bounds-posture.md).
 
 ## Stable IDs Are A Contract
 

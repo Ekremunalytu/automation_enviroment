@@ -1,6 +1,6 @@
 # REFACTOR_OPTIMIZATION
 
-`Last Updated: 2026-05-14 (W14 sub-iter slate complete + W14-7/W14-8 post-slate hotfixes closed; close-out PR week14 -> main next)`
+`Last Updated: 2026-05-16 (W14 closed via PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d; W15 active on week15 branch cut from main HEAD 7cc2921 on 2026-05-14; W15-1/W15-2/W15-3/W15-4 closed (M10/M12/U8/U1/U2/U3/U6); W15-5..W15-7 pending; §13 W15 plan source entry triggered by W14 merge; W15 mid-iter hygiene 2026-05-16: doc-preamble consistency arch gate + 3 new audit findings in POST_POC_BACKLOG)`
 
 W0-W14 plan document: stabilization + security + post-PoC external-review
 integration + W14 acceptance + observability continuation. **Slim canonical**
@@ -119,15 +119,15 @@ audit item: M14a (workspace ownership by design). Lane routing via
 `AGENT_CONTEXT.md`. W13 exit criteria met `2026-05-13` (H3/M1/M9
 closed + close-gate W13-11/12/13 GREEN + close-out PR #20 merged).
 
-## §12 — W14 Codex M-class Acceptance + Observability (sub-iter slate complete 2026-05-13)
+## §12 — W14 Codex M-class Acceptance + Observability (closed 2026-05-14)
 
 §12 opened with the `week14` branch cut from `main` at `69251f1` on
-`2026-05-13` (close-out PR #20 merged the same day via `772deb3`).
-Active tracker:
+`2026-05-13` (close-out PR #20 merged the same day via `772deb3`) and
+closed when PR #21 `week14 -> main` merged on `2026-05-14` via
+`4e03c8d`. Frozen tracker:
 [`active-work/W14-codex-acceptance-observability.md`](active-work/W14-codex-acceptance-observability.md)
 carries per-iter Per-Item Detail evidence (sub-commits, module
-locations, test deltas, production validation). Close-out PR
-`week14 -> main` is next.
+locations, test deltas, production validation).
 
 | Iter | Status | Landing commit |
 |---|---|---|
@@ -191,15 +191,21 @@ W14 kapanır şu koşullar sağlandığında:
 - Slim canonicals kısa kalır; verbose evidence önce arşivlenir. **DONE** (snapshot `2026-05-14`).
 - `week14 → main` close-out PR W12 PR #18 / W13 close-out cut-off pattern'ini izler. **DONE** (PR #21 merged `2026-05-14` via `4e03c8d`).
 
-## §13 — W15 Codex U-class Close-Out + UI Bounds + Posture (planned 2026-05-14)
+## §13 — W15 Codex U-class Close-Out + UI Bounds + Posture (active 2026-05-14)
 
-§13 will open with the `week15` branch cut from `main` at HEAD `4e03c8d`
-(W14 close-out PR #21 merge) when W15-1 is pulled. Active tracker:
+§13 opened with the `week15` branch cut from `main` HEAD `7cc2921` on
+`2026-05-14` (W14 close-out PR #21 merged at `4e03c8d`; W15 base
+includes the `7cc2921` scope-skeleton commit). Active tracker:
 [`active-work/W15-codex-uclass-bounds-posture.md`](active-work/W15-codex-uclass-bounds-posture.md)
-carries per-iter scope locks, candidate items, and (as work lands)
-Per-Item Detail evidence (sub-commits, module locations, test deltas).
-The scope skeleton was authored `2026-05-14`; branch + first pull
-pending.
+carries per-iter scope locks, candidate items, and Per-Item Detail
+evidence (sub-commits, module locations, test deltas). Mid-iter status
+`2026-05-16`: W15-1..W15-4 closed (M10/M12/U8/U1/U2/U3/U6); W15-1
+post-slate typing hotfix landed; W15-5..W15-7 pending. Mid-iter
+hygiene pass `2026-05-16` pulled forward the W15-7 doc-preamble
+subset — six canonical doc preambles refreshed and
+`tests/architecture/test_doc_preamble_consistency.py` added; three
+new audit findings appended to `POST_POC_BACKLOG.md`. Remaining
+W15-7 items (compose image pin + GH-action pin) still not started.
 
 | Iter | Status | Landing commit |
 |---|---|---|

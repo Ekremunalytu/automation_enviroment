@@ -1,6 +1,6 @@
 # Agent Context
 
-`Last Updated: 2026-05-14 (W14 sub-iter slate complete: W14-1..W14-6 + W14-7/W14-8 post-slate hotfixes closed; close-out PR week14 -> main next)`
+`Last Updated: 2026-05-16 (W14 closed via PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d; W15 active on week15 branch cut from main HEAD 7cc2921 on 2026-05-14; W15-1/W15-2/W15-3/W15-4 closed (M10/M12/U8/U1/U2/U3/U6); W15-1 typing hotfix via 976dc96; W15-5..W15-7 pending; W15 mid-iter hygiene 2026-05-16: doc-preamble consistency arch gate + 3 new audit findings in POST_POC_BACKLOG)`
 
 Thin routing map for coding agents after `AGENTS.md`. **Stays short.**
 Do not copy phase history here; use `REFACTOR_STATUS.md` (slim canonical).
@@ -14,12 +14,13 @@ Do not copy phase history here; use `REFACTOR_STATUS.md` (slim canonical).
 - W8-W13 plan: `REFACTOR_OPTIMIZATION.md` section 11; W14 plan:
   `REFACTOR_OPTIMIZATION.md` section 12 (slim canonical; full text under
   `archive/plans/`).
-- W8-W13 are closed; W13 merged via PR #20 (`772deb3`). Past W8/W11/W12/W13
-  trackers remain only for stable IDs referenced by code/tests. **Active
-  phase:** W14 — Codex M-class Acceptance + Observability (sub-iter slate
-  complete; close-out PR `week14 -> main` next).
-  Active tracker: `active-work/W14-codex-acceptance-observability.md`.
-  For current closure state always defer to `REFACTOR_STATUS.md`.
+- W8-W14 are closed; W13 merged via PR #20 (`772deb3`); W14 merged via
+  PR #21 (`4e03c8d`). Past W8/W11/W12/W13/W14 trackers remain only for
+  stable IDs referenced by code/tests. **Active phase:** W15 — Codex
+  U-class Close-Out + UI Bounds + Posture (W15-1..W15-4 closed;
+  W15-5..W15-7 pending). Active tracker:
+  `active-work/W15-codex-uclass-bounds-posture.md`. For current closure
+  state always defer to `REFACTOR_STATUS.md`.
 - Architecture: `ARCHITECTURE.md` (slim) + `architecture/` splits.
 - Placement rules: `PROJECT_STRUCTURE.md` (slim) + `structure/` splits.
 - Test lanes: `TESTING.md` (slim) + `testing/` splits.
