@@ -1,6 +1,6 @@
 # W15 — Codex U-class Close-Out + UI Bounds + Posture (Active Work Tracker)
 
-`Last Updated: 2026-05-16 (W15 active; week15 cut from main HEAD 7cc2921 on 2026-05-14; W15-1 closed via c58c365 — sync analyze error taxonomy parity, M10; W15-2 closed via 765cde7 — clean_workspace is_symlink-before-rmtree, M12; W15-3 closed via 3512a7c — activationEvents bounds + Alembic field-length migration, U8; W15-4 closed via 89e13e3 — UI bounds bundle (timeline/density/relations graph caps with truncation indicators), U1/U2/U3 + U6; W15-1 post-slate typing hotfix via 976dc96 — ANALYZE_*_ERROR_TYPES annotation BaseException → Exception narrowing (surfaced by W15-4 close-out mypy gate); W14 close-out PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d; W13 close-out PR #20 week13 -> main MERGED 2026-05-13 via 772deb3)`
+`Last Updated: 2026-05-16 (W15 active; week15 cut from main HEAD 7cc2921 on 2026-05-14; W15-1 closed via c58c365 — sync analyze error taxonomy parity, M10; W15-2 closed via 765cde7 — clean_workspace is_symlink-before-rmtree, M12; W15-3 closed via 3512a7c — activationEvents bounds + Alembic field-length migration, U8; W15-4 closed via 89e13e3 — UI bounds bundle (timeline/density/relations graph caps with truncation indicators), U1/U2/U3 + U6; W15-1 post-slate typing hotfix via 976dc96 — ANALYZE_*_ERROR_TYPES annotation BaseException → Exception narrowing (surfaced by W15-4 close-out mypy gate); W15 mid-iter hygiene 2026-05-16 via 878da2c — seven canonical/newcomer-facing doc preambles refreshed to W15 truth-state + doc-preamble consistency arch gate + README phase-pointer test W14 → W15 with W14 close-out merge tracking; W15-7 partial close (compose-image-pin + gh-action-trivy-pin still pending); three new audit findings appended to POST_POC_BACKLOG — health-reconciliation-responsibility-split, marketplace-router-test-suite-split, analysis-job-worker-entry-crud-ownership; W14 close-out PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d; W13 close-out PR #20 week13 -> main MERGED 2026-05-13 via 772deb3)`
 `Phase: W15 active (W15-1, W15-2, W15-3, W15-4 closed; W15-5..W15-7 pending)`
 `Branch: week15 (cut from main HEAD 7cc2921 on 2026-05-14)`
 `Owner: ekrem`
@@ -37,7 +37,26 @@ list.
   (`ANALYZE_*_ERROR_TYPES` annotation `tuple[type[BaseException], …]`
   → `tuple[type[Exception], …]`, surfaced by W15-4 close-out
   `make typecheck`; W14-7 hotfix precedent); W15-5..W15-7 pending
-  sequential pull. W14 close-out PR #21
+  sequential pull. **W15 mid-iter hygiene `2026-05-16`:** W15-7
+  doc-preamble truth-state refresh alt kümesi pull-forward edildi
+  (W15-5'in queue'da olduğu noktada eski W14 preamble'ları üzerine
+  inşa etmemek için). Yedi canonical / newcomer-facing doc preamble'ı
+  W15 truth-state'e refresh edildi (`CLAUDE.md`, `AGENTS.md`,
+  `README.md`, `documents/AGENT_CONTEXT.md`,
+  `documents/REFACTOR_STATUS.md`, `documents/POST_POC_BACKLOG.md`,
+  `documents/REFACTOR_OPTIMIZATION.md`); yeni cross-doc consistency
+  arch gate `tests/architecture/test_doc_preamble_consistency.py`
+  eklendi; mevcut `tests/architecture/test_readme_phase_pointer.py`
+  W14'den W15'e taşındı ve W14 close-out merge fact'ini takip eden
+  ek bir behavioral case W13-precedent ile simetrik olarak eklendi
+  (`tests/architecture/` 186 → 188 passing). Üç yeni audit finding
+  `POST_POC_BACKLOG.md`'a eklendi:
+  `[FOLLOWUP health-reconciliation-responsibility-split]` (Engineering
+  Quality), `[CLEANUP marketplace-router-test-suite-split]`
+  (Engineering Quality), ve `[FOLLOWUP analysis-job-worker-entry-crud-ownership]`
+  (Workflow / Platform). W15-7 umbrella'sının kalan alt kalemleri
+  (`compose-image-mutable-ref-pin` + `gh-action-trivy-version-pin`)
+  hâlâ pending — W15-7 finalize'da kapanacak. W14 close-out PR #21
   (`week14 -> main`) **MERGED** `2026-05-14` via `4e03c8d`; all
   W14-1..W14-8 closed. W15 base differs from the scope-skeleton plan
   note (`4e03c8d`) because the `7cc2921` ("docs(W15): scope skeleton
@@ -151,7 +170,7 @@ audit; `[FOLLOWUP compose-image-mutable-ref-pin]` and
 | **W15-6** | `[FOLLOWUP codex-2026-05-10-U10-U11-unauth-catalog-endpoints]` (auth posture decision; ADR 0011 — single-host appliance scope altında catalog endpoint'leri auth'suz mu, marker-based mı? Karar ADR ile, sonra koda uygulanır) | `[platform-storage]` `[security-detection]` | not started — ADR pending |
 | **W15-7** | `[FOLLOWUP compose-image-mutable-ref-pin]` (`docker-compose.yml` `postgres:16-alpine` + `alpine/socat:latest` mutable tag'ler; SHA digest pin'e geç; `test_dockerfile_digest_pin.py`'ı compose `image:` anahtarlarını kapsayacak şekilde **extend**) | `[platform-storage]` | not started |
 | **W15-7** | `[FOLLOWUP gh-action-trivy-version-pin]` (`.github/workflows/security.yml` `aquasecurity/trivy-action@master` mutable ref; version pin) | `[platform-storage]` | not started |
-| **W15-7** | (post-W14 close-out audit immediate finding) doc preamble truth-state refresh — `CLAUDE.md`, `AGENTS.md`, `documents/REFACTOR_STATUS.md`, `documents/POST_POC_BACKLOG.md` "close-out PR week14 -> main next" cümleleri W14 merge'den sonra refresh edilmedi (refresh PR #21'in close-out hygiene commit'inde kısmen yapıldı; W15 close-out hygiene'da finalize) | `[docs-maintenance]` | not started |
+| **W15-7** | (post-W14 close-out audit immediate finding) doc preamble truth-state refresh — `CLAUDE.md`, `AGENTS.md`, `documents/REFACTOR_STATUS.md`, `documents/POST_POC_BACKLOG.md`, `documents/AGENT_CONTEXT.md`, `documents/REFACTOR_OPTIMIZATION.md`, `README.md` "close-out PR week14 -> main next" cümleleri W14 merge'den sonra refresh edilmedi (refresh PR #21'in close-out hygiene commit'inde kısmen yapıldı; W15 close-out hygiene'da finalize) | `[docs-maintenance]` | **mid-iter partial close `2026-05-16` via `878da2c`** — yedi canonical/newcomer-facing doc preamble refresh + cross-doc consistency arch gate (`test_doc_preamble_consistency.py`) + README phase-pointer test W14 → W15 + W14 close-out merge tracking case; compose-image-mutable-ref-pin + gh-action-trivy-version-pin alt kalemleri hâlâ pending (W15-7 finalize) |
 | TBD watch | `[FOLLOWUP install-extension-cold-start-ipc-hang]` (W14-7 doğrulama sırasında ortaya çıkan VS Code IPC ack timeout; W14-7 fix'i bu yola dokunmadı; W15+ aday — direct trigger yok) | `[executor-runtime]` | watching — defer |
 
 ## Sub-iteration Scope Locks

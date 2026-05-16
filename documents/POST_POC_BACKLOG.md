@@ -118,6 +118,19 @@ code evidence.
 - `[FOLLOWUP job-service-typevar-audit]`
 - `[FOLLOWUP sqlalchemy-error-subtype-logging]`
 - `[FOLLOWUP w11-8-companion-workflow-orm-bleed]`
+- `[FOLLOWUP analysis-job-worker-entry-crud-ownership]` —
+  `workflows/marketplace/analysis_service.py` worker-entry block (lines
+  296-346) issues `SELECT ... FOR UPDATE` + row mutate + `db.commit()`
+  directly against `AnalysisJob`, bypassing the `appcore/storage/crud.py`
+  write facade (`AGENTS.md:57` hard rule). Documented intentional
+  exception — comment block at :280-295 explains the wrapper would
+  deadlock against the lifecycle wrapper's own `SessionLocal()`. Right
+  fix is a row-lock-aware lifecycle CRUD primitive in
+  `appcore/storage/crud_ops/analysis_jobs/lifecycle.py`, not collapsing
+  the existing helper. Concurrency-sensitive — any rewrite must preserve
+  the row-lock-on-entry → branch-on-status → atomic-finalize CAS pattern
+  landed in W13-13 (`worker-start-cancel-race-CAS` close-gate). W15+
+  hygiene; new audit finding `2026-05-16`.
 
 Closed (one-line audit trail):
 
@@ -222,6 +235,30 @@ Closed: `[FOLLOWUP evidence-event-kind-raw-context-invariant]` — W14-4
   split (`test_import_isolation.py` / `test_facade_locks.py` /
   `test_executor_invocation.py` / `test_monitor_stimulus_boundary.py`)
   improves discoverability. W15+ hygiene.
+- `[FOLLOWUP health-reconciliation-responsibility-split]` —
+  `executor/flows/playwright/health/reconciliation.py` (682 LoC) carries
+  security-sensitive (HMAC marker verification at :78, fail-closed
+  harness handshake decisions, harness Python secret loading at :39) +
+  report-accuracy (event-attempt reconciliation at :414, coverage
+  reconciliation at :581) decisions in one module. Risk class:
+  change-safety drift — the same file owns both fail-closed security
+  gates (W13-1 / Codex H6 HMAC anchor) and report-coverage classification.
+  A future small edit could regress security or report fidelity without
+  the reviewer noticing the cross-concern coupling. Recommendation:
+  map responsibility boundaries first (which functions own which risk
+  class), validate test coverage on both sides, then do a behavior-
+  preserving extraction. **Do not auto-refactor**; W13-1 HMAC gates
+  must not regress. W15+ hygiene; new audit finding `2026-05-16`.
+- `[CLEANUP marketplace-router-test-suite-split]` —
+  `tests/workflows/marketplace/test_router.py` (2374 LoC). Title
+  docstring at :5 implies search/download scope but file spans analyze
+  (:744), trigger planning (:778), background job persistence (:1581),
+  and async job endpoint (:2080). Test-maintenance burden only — no
+  runtime risk. Recommended: classify-then-split by domain
+  (search/download + sync analyze + trigger planning + background job
+  lifecycle + async job endpoint) with behavior-preserving moves.
+  Not a W15 priority; W16+ hygiene candidate. New audit finding
+  `2026-05-16`.
 
 Closed (one-line audit trail):
 
