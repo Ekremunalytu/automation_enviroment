@@ -68,11 +68,14 @@ def _classify(pattern_source: str) -> str:
       ``returned|completed`` without either anchor. These are the W15-5
       I4 patterns that must use the strict id shape.
     """
-    if "\\(" in pattern_source and "\\(?P<id>" not in pattern_source:
-        # Look for ``\(`` (escaped open-paren as a literal) followed by
-        # ``(?P<id>`` within a short window — the ``activate(<id>)`` form.
-        if re.search(r"\\\(\s*\(\?P<id>", pattern_source):
-            return "paren"
+    # Look for ``\(`` (escaped open-paren as a literal) followed by
+    # ``(?P<id>`` within a short window — the ``activate(<id>)`` form.
+    if (
+        "\\(" in pattern_source
+        and "\\(?P<id>" not in pattern_source
+        and re.search(r"\\\(\s*\(\?P<id>", pattern_source)
+    ):
+        return "paren"
     if re.search(r"\(\?:for\|by\|from\)\\s\+\(\?P<id>", pattern_source):
         return "keyword"
     if _UNANCHORED_ACTIVATE_ENTERED.search(pattern_source) or _UNANCHORED_ACTIVATE_EXIT.search(
