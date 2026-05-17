@@ -2,7 +2,9 @@ name: automation_enviroment
 
 services:
   postgres:
-    image: postgres:16-alpine
+    # ADR 0002 §4 — image digest pinned 2026-05-17 (postgres:16-alpine →
+    # 16.14-alpine3.23 manifest list). W15-7 trust-boundary extension.
+    image: postgres:16-alpine@sha256:16bc17c64a573ef34162af9298258d1aec548232985b33ed7b1eac33ba35c229
     container_name: automation_db
     restart: unless-stopped
     command: [ "postgres", "-p", "${POSTGRES_DOCKER_PORT:-5432}" ]
@@ -118,7 +120,9 @@ services:
   # The socat forwarder reaches the executor container by Docker network
   # name so we don't need to widen the executor service's own ports list.
   executor-cdp:
-    image: alpine/socat:latest
+    # ADR 0002 §4 — image digest pinned 2026-05-17 (alpine/socat:1.8.0.3
+    # manifest list; equals :latest at pin time). W15-7 trust-boundary extension.
+    image: alpine/socat:1.8.0.3@sha256:bfd2550379212e087dc18db2f4611f43477be4b575d660c8f18c5b9a1b2e2757
     container_name: automation_executor_cdp
     profiles: ["debug"]
     command:
@@ -148,7 +152,8 @@ services:
       - api
 
   postgres_test:
-    image: postgres:16-alpine
+    # ADR 0002 §4 — same digest as primary postgres service above (W15-7).
+    image: postgres:16-alpine@sha256:16bc17c64a573ef34162af9298258d1aec548232985b33ed7b1eac33ba35c229
     container_name: automation_db_test
     restart: unless-stopped
     command: [ "postgres", "-p", "${POSTGRES_TEST_DOCKER_PORT:-5432}" ]
