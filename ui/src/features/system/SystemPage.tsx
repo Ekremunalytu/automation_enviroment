@@ -121,7 +121,7 @@ export function SystemPage() {
       ["status", health.data?.status ?? "—"],
       ["service", health.data?.service ?? "—"],
       ["sample rate", "5s"],
-      ["source", "/health"],
+      ["source", "/api/health"],
     ],
     log: health.isError
       ? ["health.fetch · failed", String(health.error)]
@@ -156,7 +156,7 @@ export function SystemPage() {
         </PageTitle>
         <p style={{ fontSize: 15, color: V3.ink3, marginTop: 18, maxWidth: 580, lineHeight: 1.6 }}>
           Live state of the appliance. Only the executor service polls the real{" "}
-          <code style={{ fontFamily: "'JetBrains Mono', monospace", color: V3.coral }}>/health</code>{" "}
+          <code style={{ fontFamily: "'JetBrains Mono', monospace", color: V3.coral }}>/api/health</code>{" "}
           endpoint; catalog, sandbox, and telemetry render mock values until [BACKLOG ui-v3-6]
           delivers per-service health and telemetry endpoints.
         </p>

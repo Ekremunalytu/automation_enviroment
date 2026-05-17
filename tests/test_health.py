@@ -33,6 +33,28 @@ class TestHealthCheck:
         assert "info" in data
         assert "paths" in data
 
+    def test_legacy_health_endpoint(self, client: TestClient) -> None:
+        """Legacy root /health route preserved for external monitoring back-compat."""
+        response = client.get("/health")
+        assert response.status_code == 200
+        body = response.json()
+        assert body["status"] == settings.api.HEALTH_STATUS
+        assert body["service"] == settings.project.NAME
+
+    def test_api_health_endpoint(self, client: TestClient) -> None:
+        """W15-5 I2: /api/health flows through the nginx /api/* proxy block."""
+        response = client.get("/api/health")
+        assert response.status_code == 200
+        body = response.json()
+        assert body["status"] == settings.api.HEALTH_STATUS
+        assert body["service"] == settings.project.NAME
+
+    def test_api_health_matches_legacy_payload(self, client: TestClient) -> None:
+        """Both health routes return identical bodies — single source of truth."""
+        legacy = client.get("/health").json()
+        proxied = client.get("/api/health").json()
+        assert legacy == proxied
+
 
 class TestAPIEndpoints:
     """Basic API endpoint tests."""

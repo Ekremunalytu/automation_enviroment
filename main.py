@@ -8,6 +8,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from sqlalchemy.exc import SQLAlchemyError
 
 from appcore.api.config import settings
+from appcore.api.health_router import router as health_router
 from appcore.logging import (
     install_extrace_log_context_filter,
     set_executor_fingerprint_provider,
@@ -78,6 +79,7 @@ def create_app(*, recover_jobs: bool = True) -> FastAPI:
     application.include_router(activation_reports_router)
     application.include_router(marketplace_router)
     application.include_router(security_settings_router)
+    application.include_router(health_router)
 
     if recover_jobs:
         try:
