@@ -36,16 +36,23 @@
   **W15-1 post-slate typing hotfix** landed `2026-05-16` via `976dc96`
   (`ANALYZE_*_ERROR_TYPES` annotation `tuple[type[BaseException], …]` →
   `tuple[type[Exception], …]` narrowing surfaced by W15-4 close-out
-  mypy gate). W15-5..W15-7 pending sequential pull. **W15 mid-iter
-  hygiene `2026-05-16`:** W15-7 doc-preamble subset pulled forward;
-  six canonical doc preambles refreshed and
-  `tests/architecture/test_doc_preamble_consistency.py` added; three
-  new audit findings (`health-reconciliation-responsibility-split`,
+  mypy gate). W15-5 closed `2026-05-17` via `43d6438` (I2 + I4 quick
+  fixes bundle). W15-6 closed `2026-05-17` via `be52520` — ADR 0011
+  Accepted and implemented (Option A; ADR 0002 NOT amended). **W15-7
+  closed `2026-05-17`** — compose image SHA pin via `54e7a93` + test
+  extension via `7ebbbfb` (`tests/architecture/` 196 → 198) + GH
+  action trivy pin via `452f1a1` (`aquasecurity/trivy-action@v0.36.0`)
+  + close-out docs commit + hygiene `7ff31d9`; early pulls `a7a876e`
+  + `2573e35`. **W15 mid-iter hygiene `2026-05-16`:** W15-7
+  doc-preamble subset pulled forward; six canonical doc preambles
+  refreshed and `tests/architecture/test_doc_preamble_consistency.py`
+  added; three new audit findings
+  (`health-reconciliation-responsibility-split`,
   `marketplace-router-test-suite-split`,
   `analysis-job-worker-entry-crud-ownership`) appended to
-  `POST_POC_BACKLOG.md`. Remaining W15-7 items (compose image pin +
-  GH-action pin) still pending. Past W8/W11/W12/W13/W14 trackers
-  remain stable-ID references only.
+  `POST_POC_BACKLOG.md` — all defer to W16+ per §13.3 Non-goals.
+  `week15 -> main` close-out PR pending separate user action.
+  Past W8/W11/W12/W13/W14 trackers remain stable-ID references only.
 - ADR 0007 local-network-binding is **Accepted and implemented**; loopback
   defaults + `EXTRACE_ALLOW_LAN` are pinned by `test_default_bindings.py`.
 

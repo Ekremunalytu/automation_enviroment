@@ -81,13 +81,21 @@ multi-tenant web platform.
   **W15-1 post-slate typing hotfix** landed `2026-05-16` via `976dc96`
   (`ANALYZE_*_ERROR_TYPES` annotation narrowed `BaseException` →
   `Exception` after the W15-4 close-out `make typecheck` surfaced the
-  mismatch). W15-5..W15-7 pending sequential pull. **W15 mid-iter
-  hygiene `2026-05-16`** refreshed six canonical doc preambles to W15
-  truth-state, added `tests/architecture/test_doc_preamble_consistency.py`,
-  and appended three new audit findings to `POST_POC_BACKLOG.md`
+  mismatch). W15-5 closed `2026-05-17` via `43d6438` (I2 + I4 quick
+  fixes bundle). W15-6 closed `2026-05-17` via `be52520` — ADR 0011
+  unauthenticated catalog endpoints posture Accepted (Option A; ADR
+  0002 NOT amended). **W15-7 closed `2026-05-17`** — compose image
+  SHA pin via `54e7a93` + test extension via `7ebbbfb` + trivy pin
+  via `452f1a1` (`aquasecurity/trivy-action@v0.36.0`) + close-out
+  docs + hygiene `7ff31d9`; early pulls `a7a876e` + `2573e35`. **W15
+  mid-iter hygiene `2026-05-16`** refreshed six canonical doc
+  preambles to W15 truth-state, added
+  `tests/architecture/test_doc_preamble_consistency.py`, and
+  appended three new audit findings to `POST_POC_BACKLOG.md`
   (`health-reconciliation-responsibility-split`,
   `marketplace-router-test-suite-split`,
-  `analysis-job-worker-entry-crud-ownership`).
+  `analysis-job-worker-entry-crud-ownership`) — all defer to W16+.
+  `week15 -> main` close-out PR pending separate user action.
 - **Canonical source of truth for phase state:**
   [`documents/REFACTOR_STATUS.md`](documents/REFACTOR_STATUS.md).
   Deferred items: [`documents/POST_POC_BACKLOG.md`](documents/POST_POC_BACKLOG.md).

@@ -48,15 +48,34 @@ architecture maps here; that caused drift.
   typing hotfix** landed `2026-05-16` via `976dc96`
   (`ANALYZE_*_ERROR_TYPES` annotation `tuple[type[BaseException], …]`
   → `tuple[type[Exception], …]` narrowing surfaced by W15-4 close-out
-  mypy gate; W14-7 hotfix precedent). W15-5..W15-7 pending sequential
-  pull. **W15 mid-iter hygiene `2026-05-16`:** W15-7 doc-preamble
-  subset pulled forward; six canonical doc preambles refreshed to W15
+  mypy gate; W14-7 hotfix precedent). W15-5 closed `2026-05-17` via
+  `43d6438` (I2 UI `/health` proxy + I4 lifecycle `for <id>` regex;
+  +14 behavioral cases). W15-6 closed `2026-05-17` via `be52520`
+  (Proposed at `e41722e`) — ADR 0011 unauthenticated catalog endpoints
+  posture Accepted and implemented (Option A; new
+  `tests/architecture/test_catalog_endpoint_posture.py` gate with 3
+  AST invariants; `tests/architecture/` 188 → 191; ADR 0002 NOT
+  amended). **W15-7 closed `2026-05-17`** — regression lock-in
+  umbrella: compose image SHA pin via `54e7a93`
+  (`postgres:16-alpine` + `alpine/socat:1.8.0.3` manifest digest;
+  ADR 0002 §4 extension to compose `image:` surface) + test
+  extension via `7ebbbfb` (`test_dockerfile_digest_pin.py` extended
+  with `COMPOSE_FILES` + vacuous-truth guard; `tests/architecture/`
+  196 → 198) + GH action trivy version pin via `452f1a1`
+  (`aquasecurity/trivy-action@v0.36.0` tag-pin) + final canonical
+  preamble truth-state refresh via close-out docs commit;
+  close-out hygiene via `7ff31d9` (Ruff SIM102 fix on
+  `test_lifecycle_marker_id_shape.py`); W15-7 early pulls `a7a876e`
+  (I2/I4 regression gates) + `2573e35` (post-W15-6 drift fixes).
+  **W15 mid-iter hygiene `2026-05-16`:** W15-7 doc-preamble subset
+  pulled forward; six canonical doc preambles refreshed to W15
   truth-state and `tests/architecture/test_doc_preamble_consistency.py`
   added; three new audit findings appended to `POST_POC_BACKLOG.md` —
   `[FOLLOWUP health-reconciliation-responsibility-split]`,
   `[CLEANUP marketplace-router-test-suite-split]`,
-  `[FOLLOWUP analysis-job-worker-entry-crud-ownership]`. Remaining
-  W15-7 items (compose image pin + GH-action pin) still pending. Past
+  `[FOLLOWUP analysis-job-worker-entry-crud-ownership]` — all defer
+  to W16+ per §13.3 Non-goals. `week15 -> main` close-out PR pending
+  separate user action (not part of W15-7 commit scope). Past
   trackers are stable-ID references only: W14, W13, W12, W11, and W8.
 - `documents/archive/` is frozen reference; not on the default read path.
   Open only when a slim canonical explicitly points there.
