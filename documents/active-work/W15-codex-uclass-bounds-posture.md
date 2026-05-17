@@ -1,7 +1,7 @@
 # W15 — Codex U-class Close-Out + UI Bounds + Posture (Active Work Tracker)
 
-`Last Updated: 2026-05-17 (W15 active; week15 cut from main HEAD 7cc2921 on 2026-05-14; W15-1 closed via c58c365 — sync analyze error taxonomy parity, M10; W15-2 closed via 765cde7 — clean_workspace is_symlink-before-rmtree, M12; W15-3 closed via 3512a7c — activationEvents bounds + Alembic field-length migration, U8; W15-4 closed via 89e13e3 — UI bounds bundle (timeline/density/relations graph caps with truncation indicators), U1/U2/U3 + U6; W15-5 closed 2026-05-17 via 43d6438 — quick fixes bundle: UI /health proxy (I2: additive backend /api/health route via new appcore/api/health_router.py prefix=/api + UI client.ts /health → /api/health; legacy root /health preserved) + lifecycle "for <id>" regex (I4: two _LIFECYCLE_MARKER_PATTERNS entries narrowed for \s+ anchor + publisher.name id shape); W15-1 post-slate typing hotfix via 976dc96 — ANALYZE_*_ERROR_TYPES annotation BaseException → Exception narrowing (surfaced by W15-4 close-out mypy gate); W15 mid-iter hygiene 2026-05-16 via 878da2c — seven canonical/newcomer-facing doc preambles refreshed to W15 truth-state + doc-preamble consistency arch gate + README phase-pointer test W14 → W15 with W14 close-out merge tracking; W15-7 partial close (compose-image-pin + gh-action-trivy-pin still pending); three new audit findings appended to POST_POC_BACKLOG — health-reconciliation-responsibility-split, marketplace-router-test-suite-split, analysis-job-worker-entry-crud-ownership; W14 close-out PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d; W13 close-out PR #20 week13 -> main MERGED 2026-05-13 via 772deb3)`
-`Phase: W15 active (W15-1..W15-5 closed; W15-6..W15-7 pending)`
+`Last Updated: 2026-05-17 (W15 active; week15 cut from main HEAD 7cc2921 on 2026-05-14; W15-1 closed via c58c365 — sync analyze error taxonomy parity, M10; W15-2 closed via 765cde7 — clean_workspace is_symlink-before-rmtree, M12; W15-3 closed via 3512a7c — activationEvents bounds + Alembic field-length migration, U8; W15-4 closed via 89e13e3 — UI bounds bundle (timeline/density/relations graph caps with truncation indicators), U1/U2/U3 + U6; W15-5 closed 2026-05-17 via 43d6438 — quick fixes bundle: UI /health proxy I2 + lifecycle "for <id>" regex I4; W15-6 closed 2026-05-17 via be52520 — ADR 0011 unauthenticated catalog endpoints posture (Accepted and implemented; Proposed at e41722e); workflows/extension_catalog/router.py module docstring + router construction-site comment cite ADR 0011; new tests/architecture/test_catalog_endpoint_posture.py gate locks three AST invariants (docstring cite + no auth dependency + endpoint-count lock at 12); ADR 0002 NOT amended (Option A); U10/U11 audit row closes; W15-1 post-slate typing hotfix via 976dc96 — ANALYZE_*_ERROR_TYPES annotation BaseException → Exception narrowing (surfaced by W15-4 close-out mypy gate); W15 mid-iter hygiene 2026-05-16 via 878da2c — seven canonical/newcomer-facing doc preambles refreshed to W15 truth-state + doc-preamble consistency arch gate + README phase-pointer test W14 → W15 with W14 close-out merge tracking; W15-7 partial close (compose-image-pin + gh-action-trivy-pin still pending); three new audit findings appended to POST_POC_BACKLOG — health-reconciliation-responsibility-split, marketplace-router-test-suite-split, analysis-job-worker-entry-crud-ownership; W14 close-out PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d; W13 close-out PR #20 week13 -> main MERGED 2026-05-13 via 772deb3)`
+`Phase: W15 active (W15-1..W15-6 closed; W15-7 pending)`
 `Branch: week15 (cut from main HEAD 7cc2921 on 2026-05-14)`
 `Owner: ekrem`
 
@@ -47,11 +47,25 @@ list.
   `+0` arch gates per tracker exit criteria — W14-6
   "extend, do not duplicate" check found no existing extendable
   gate for either fix, new gates deferred to W15-7 close-out
-  hygiene); W15-1 post-slate typing hotfix landed `2026-05-16` via
-  `976dc96` (`ANALYZE_*_ERROR_TYPES` annotation
-  `tuple[type[BaseException], …]` → `tuple[type[Exception], …]`,
-  surfaced by W15-4 close-out `make typecheck`; W14-7 hotfix
-  precedent); W15-6..W15-7 pending sequential pull. **W15 mid-iter
+  hygiene); W15-6 closed `2026-05-17` via `be52520` (ADR 0011
+  Accepted and implemented — Proposed at `e41722e`, Accepted at
+  `be52520`; Option A: catalog endpoints remain unauthenticated
+  under three preconditions — single-host appliance scope (ADR 0001),
+  loopback bind default (ADR 0007 §1), and operator-side hardening
+  for LAN exposure per `documents/runbooks/lan-exposure.md`;
+  `workflows/extension_catalog/router.py` module docstring + router
+  construction-site comment cite ADR 0011 verbatim; new
+  `tests/architecture/test_catalog_endpoint_posture.py` gate locks
+  three AST invariants — docstring cite, no auth dependency, and
+  endpoint-count lock at 12; `tests/architecture/` 188 → 191 passing
+  (+1 gate file, +3 test functions); ADR 0002 NOT amended — ADR 0011
+  cites §4 row 102 + §5 as load-bearing prerequisites); W15-1
+  post-slate typing hotfix landed `2026-05-16` via `976dc96`
+  (`ANALYZE_*_ERROR_TYPES` annotation `tuple[type[BaseException], …]`
+  → `tuple[type[Exception], …]`, surfaced by W15-4 close-out
+  `make typecheck`; W14-7 hotfix precedent); W15-7 pending —
+  regression lock-in umbrella (compose image SHA pin + GH action
+  trivy version pin + final preamble refresh). **W15 mid-iter
   hygiene `2026-05-16`:** W15-7
   doc-preamble truth-state refresh alt kümesi pull-forward edildi
   (W15-5'in queue'da olduğu noktada eski W14 preamble'ları üzerine
@@ -104,7 +118,7 @@ list.
 | **W15-3** ✅ | `activationEvents` bounds + DB field-length migration — closed `2026-05-15` via `3512a7c` | `[FOLLOWUP codex-2026-05-10-U8-activationevents-bounds]` | 1 oturum (tek-PR uygulandı) |
 | **W15-4** ✅ | UI bounds bundle: timeline + density strip + relations graph caps with truncation indicators — closed `2026-05-16` via `89e13e3` (+ W15-1 typing hotfix `976dc96`) | `[FOLLOWUP codex-2026-05-10-U1-U2-U3-ui-event-spread-cap]` + `[FOLLOWUP codex-2026-05-10-U6-relations-graph-cap]` | 1 oturum (tek-PR uygulandı) |
 | **W15-5** ✅ | Quick fixes bundle: UI `/health` proxy (I2) + lifecycle `for <id>` regex (I4) — closed `2026-05-17` via `43d6438` | `[FOLLOWUP codex-2026-05-10-I2-ui-health-proxy]` + `[FOLLOWUP codex-2026-05-10-I4-lifecycle-for-id-regex]` | 1 oturum (tek-PR uygulandı) |
-| **W15-6** | Unauthenticated catalog endpoints posture (ADR 0011) | `[FOLLOWUP codex-2026-05-10-U10-U11-unauth-catalog-endpoints]` | 2 oturum (ADR + implementation) |
+| **W15-6** ✅ | Unauthenticated catalog endpoints posture (ADR 0011) — closed `2026-05-17` via `be52520` (Proposed at `e41722e`) | `[FOLLOWUP codex-2026-05-10-U10-U11-unauth-catalog-endpoints]` | 2 oturum (ADR + implementation) |
 | **W15-7** | Regression lock-in umbrella: compose image pin + GH action pin + doc preamble refresh | `[FOLLOWUP compose-image-mutable-ref-pin]` + `[FOLLOWUP gh-action-trivy-version-pin]` + (post-W14 audit) doc-preamble truth-state refresh | 1 oturum |
 
 + **Pull sequence rationale.** W15-1 ve W15-2 önce — düşük blast radius,
@@ -182,7 +196,7 @@ audit; `[FOLLOWUP compose-image-mutable-ref-pin]` and
 | **W15-4** | `[FOLLOWUP codex-2026-05-10-U6-relations-graph-cap]` (relations graph node-edge count unbounded; large extension reports UI graph render'ı yavaşlatıyor) | `[ui]` | **closed `2026-05-16` via `89e13e3`** (`InteractionsSection` adds `+N groups not shown` Eyebrow in `Panel right` slot when `graph.groups.length` exceeds `DISPLAY_CAPS.RELATIONS_GROUPS=5`; `InteractionGraph` literal `5` and `LEAF_CAP=6` swapped for value-preserving `DISPLAY_CAPS.RELATIONS_GROUPS` / `DISPLAY_CAPS.RELATIONS_LEAVES_PER_GROUP` imports — existing `+${overflow} more` leaf indicator untouched) |
 | **W15-5** | `[FOLLOWUP codex-2026-05-10-I2-ui-health-proxy]` (UI client `/health` fetch'i nginx `/api/*` proxy'sini bypass ediyor olabilir; reverse-proxy posture'a uyumsuz; verify + fix) | `[ui]` `[platform-storage]` | **closed `2026-05-17` via `43d6438`** (additive backend `/api/health` route via new `appcore/api/health_router.py` mounted with `prefix="/api"`; UI `apiClient.getHealth` migrated `/health` → `/api/health`; legacy root `/health` preserved for external-monitoring back-compat) |
 | **W15-5** | `[FOLLOWUP codex-2026-05-10-I4-lifecycle-for-id-regex]` (lifecycle `"for <id>"` regex çok geniş; daraltma — log-noise + false-positive parser drift'i) | `[executor-runtime]` | **closed `2026-05-17` via `43d6438`** (two `_LIFECYCLE_MARKER_PATTERNS` entries in `extension_host_log_parse.py` tightened — `\s*…\.*?` → `\s+…(?:\s+for)?\s+` anchor; id capture `[\w.\-]+` → `[\w-]+\.[\w.\-]+` enforcing `<publisher>.<name>` VS Code marketplace id shape; narrow `(<id>)` parenthesis form + register patterns preserved untouched) |
-| **W15-6** | `[FOLLOWUP codex-2026-05-10-U10-U11-unauth-catalog-endpoints]` (auth posture decision; ADR 0011 — single-host appliance scope altında catalog endpoint'leri auth'suz mu, marker-based mı? Karar ADR ile, sonra koda uygulanır) | `[platform-storage]` `[security-detection]` | not started — ADR pending |
+| **W15-6** | `[FOLLOWUP codex-2026-05-10-U10-U11-unauth-catalog-endpoints]` (auth posture decision; ADR 0011 — single-host appliance scope altında catalog endpoint'leri auth'suz mu, marker-based mı? Karar ADR ile, sonra koda uygulanır) | `[platform-storage]` `[security-detection]` | **closed `2026-05-17` via `be52520`** (Option A — remain unauthenticated; ADR 0011 Accepted and implemented; Proposed at `e41722e`; `workflows/extension_catalog/router.py` module docstring + router construction-site comment cite ADR 0011; new `tests/architecture/test_catalog_endpoint_posture.py` with three AST invariants (docstring cite + no auth dependency + endpoint-count lock at 12); ADR 0002 NOT amended) |
 | **W15-7** | `[FOLLOWUP compose-image-mutable-ref-pin]` (`docker-compose.yml` `postgres:16-alpine` + `alpine/socat:latest` mutable tag'ler; SHA digest pin'e geç; `test_dockerfile_digest_pin.py`'ı compose `image:` anahtarlarını kapsayacak şekilde **extend**) | `[platform-storage]` | not started |
 | **W15-7** | `[FOLLOWUP gh-action-trivy-version-pin]` (`.github/workflows/security.yml` `aquasecurity/trivy-action@master` mutable ref; version pin) | `[platform-storage]` | not started |
 | **W15-7** | (post-W14 close-out audit immediate finding) doc preamble truth-state refresh — `CLAUDE.md`, `AGENTS.md`, `documents/REFACTOR_STATUS.md`, `documents/POST_POC_BACKLOG.md`, `documents/AGENT_CONTEXT.md`, `documents/REFACTOR_OPTIMIZATION.md`, `README.md` "close-out PR week14 -> main next" cümleleri W14 merge'den sonra refresh edilmedi (refresh PR #21'in close-out hygiene commit'inde kısmen yapıldı; W15 close-out hygiene'da finalize) | `[docs-maintenance]` | **mid-iter partial close `2026-05-16` via `878da2c`** — yedi canonical/newcomer-facing doc preamble refresh + cross-doc consistency arch gate (`test_doc_preamble_consistency.py`) + README phase-pointer test W14 → W15 + W14 close-out merge tracking case; compose-image-mutable-ref-pin + gh-action-trivy-version-pin alt kalemleri hâlâ pending (W15-7 finalize) |
@@ -780,7 +794,7 @@ W15 target deltas (per sub-iter):
 | W15-3 ✅ | **+6 (actual)** activationEvents bounds gate (3 Pydantic `max_length` + 2 SQLAlchemy `String(N)` + 1 vacuous-truth target table) | +12 case (3 boundary OK + 3 one-over reject + 2 parser-level defense-in-depth + 4 parser-level edge cases: 2 type-guard regression + 1 oversized no-colon skip + 1 exact-512 boundary) | **closed +6 gates** |
 | W15-4 | +0 (UI-side, architecture gate yok) | +3 dosya UI vitest (~15-24 case) | +0 arch |
 | W15-5 ✅ | **+0 (actual)** matches forecast — W14-6 "extend, do not duplicate" check (no existing `apiClient` URL prefix gate, no existing `_LIFECYCLE_MARKER_PATTERNS` shape gate) deferred new gates to W15-7 close-out hygiene | **+14 case** (3 backend pytest in `tests/test_health.py` — legacy `/health` + new `/api/health` + payload-equality cross-check; 2 UI vitest in new `ui/src/lib/api/client.test.ts` — fetch-spy URL discipline; 9 parser unit in `tests/executor/test_playwright_extension_host.py` — 4 positive parametrize for the tightened `<publisher>.<name>` shape + 5 negative parametrize for the pre-W15-5 false-positive shapes the loose regex tolerated) | **closed +0 gates** |
-| W15-6 | +1 (catalog endpoint posture gate) | (posture'a göre) | +1 gate |
+| W15-6 ✅ | **+1 (actual)** new gate file `test_catalog_endpoint_posture.py` with 3 AST test functions (docstring cite + no auth dependency + endpoint-count lock at 12); W14-6 "extend, do not duplicate" check found no extendable gate covering router posture invariants | **+3 case** (matches +1 gate file accounting; pytest reports 188 → 191 reflecting the three function instances) | **closed +1 gate** (Option A — ADR 0011 Accepted; ADR 0002 NOT amended) |
 | W15-7 | +0 (mevcut gate extension) | (extension, yeni dosya yok) | +0 (extension) |
 | **Total** | **+3 ile +4 arası** | **~35-60 behavioral case** | `tests/architecture/` 171 → **174-175** |
 
@@ -1603,6 +1617,117 @@ activation record. Post-rebuild fresh-scan inspection should
 confirm the `marker_type`-bearing entry count stays within the
 established natural-jitter band against the W15-4
 post-rebuild baseline scan.
+
+### W15-6 — Unauthenticated catalog endpoints posture (ADR 0011) — closed `2026-05-17` via `be52520`
+
+**Stable ID(s).** `[FOLLOWUP codex-2026-05-10-U10-U11-unauth-catalog-endpoints]`.
+
+**Landing commit(s).** Proposed at `e41722e`
+(`docs(W15-6): ADR 0011 — unauthenticated catalog endpoints
+posture (Proposed)`); Accepted and implemented at `be52520`
+(`feat+test(W15-6): catalog posture docstring + arch gate (ADR
+0011)`). Follow-up `docs(W15-6): close` commit lands the tracker
+narrative, §13 row, backlog audit trail close, and the canonical
+preamble refresh per the W15-3/W15-4/W15-5 close-docs precedent.
+
+**Posture decision.** **Option A** — catalog endpoints remain
+unauthenticated under three preconditions cited in ADR 0011:
+
+1. Single-host appliance scope (ADR 0001) is unchanged.
+2. Loopback bind default (ADR 0007 §1) is unchanged.
+3. LAN exposure (`EXTRACE_ALLOW_LAN=1` opt-in) requires
+   operator-side hardening per
+   `documents/runbooks/lan-exposure.md`.
+
+The Codex Cloud audit `2026-05-10` raised the posture question
+under `U10/U11 unauth-catalog-endpoints`. ADR 0002 §5 already
+sets the single-operator boundary; §4 row 102 already routes
+operator-host network exposure through ADR 0007's
+`EXTRACE_ALLOW_LAN` single audited opt-in. The UI does not call
+catalog endpoints (`ui/src/lib/api/client.ts` audit at HEAD
+`4999cab` shows only `/api/activations/*`, `/api/marketplace/*`,
+`/api/settings/*`, and `/api/health` are reachable from the UI).
+Adding per-request auth would defend against an adversary class
+the threat model does not name; the cost is real, the benefit
+is conjectural. Forward path to Option B (per-request HMAC
+marker auth) preserved as a follow-on — ADR 0011 Follow-On
+section enumerates the triggers (ADR 0001 amendment, ADR 0002
+§1 adversary class addition, CDP `debug` default-on).
+
+**Module locations.**
+
+- ADR: [`documents/adrs/0011-unauthenticated-catalog-endpoints-posture.md`](../adrs/0011-unauthenticated-catalog-endpoints-posture.md).
+- Code anchor: [`workflows/extension_catalog/router.py`](../../workflows/extension_catalog/router.py)
+  module docstring (lines 1-10) + inline comment at the
+  `router = APIRouter(tags=["core"])` construction site (lines 33-37).
+- Architecture gate: [`tests/architecture/test_catalog_endpoint_posture.py`](../../tests/architecture/test_catalog_endpoint_posture.py)
+  (new file).
+
+**Gate invariants (three AST tests).**
+
+1. `test_catalog_router_module_cites_adr_0011` — module docstring
+   contains the substring `ADR 0011`. Sessiz doc decay'i
+   engeller.
+2. `test_catalog_router_has_no_auth_dependency` — AST walk of the
+   `APIRouter(...)` `ast.Call` rejects any `dependencies=[...]`
+   kwarg whose list/tuple element callable names match
+   `^(auth|require_|verify_|hmac_|marker_).*`. Option B'ye sessiz
+   drift'i engeller.
+3. `test_catalog_router_endpoint_count_locked` — `@router.<verb>`
+   decorator count is locked at **12** (11 catalog endpoints +
+   `/` root). Yeni endpoint eklemek bu gate'i kırar → ADR 0011
+   amendment review zorunluluğu.
+
+**Tests.**
+
+- `pytest tests/architecture/test_catalog_endpoint_posture.py -v`
+  → 3 passed (3 AST test functions in the new gate file).
+- `pytest tests/architecture/ -q` → 191 passed / 4 deselected
+  (W15-5 baseline 188 + 3 new functions from the gate file).
+- `pytest tests/workflows/extension_catalog/test_router.py
+  tests/test_health.py -q` → 42 passed (no behavioral
+  regression on the catalog or `/health` surfaces).
+- `make test-security` → 215 passed (unchanged from W15-5).
+- `make markdownlint` → clean (ADR + tracker + backlog).
+- `pytest tests/architecture/test_adr_code_fence_language.py -v`
+  → 1 passed (ADR markdown discipline).
+- `pytest tests/architecture/test_doc_preamble_consistency.py -v`
+  → 1 passed (canonical preambles agree on `W15 active`).
+
+**Gate accounting.** `+1 gate file` per the W14-6 "extend, do
+not duplicate" convention; `+3` test functions per the pytest
+function count. Tracker target deltas table records both.
+
+**Tracker drift fix.** Tracker text referenced
+`documents/decision-records/0011-...` for the ADR path; actual
+repo directory is `documents/adrs/` (ADRs 0001..0010 all
+located there). Drift noted in the W15-6 §2.1 close evidence;
+ADR landed at the correct path.
+
+**Threat model amendment.** ADR 0002 is **not** amended. Option
+A re-uses the existing §4 row 102 (operator-host network
+interfaces, ADR 0007) and §5 (analyst operating environment)
+assumptions without restating; ADR 0011 cites them as
+load-bearing prerequisites in its `Related:` header and
+Decision section.
+
+**Bilinçli hariç (W16+ aday).** Per-request HTTP HMAC marker
+auth (Option B) is the natural follow-on if the threat model
+expands. ADR 0011 Follow-On section explicitly states this is
+an adaptation, not a copy, of the W13-1 launch-scoped HMAC —
+HTTP-request auth requires header signing, time-window nonce,
+replay protection, and a secret-distribution channel for
+non-UI clients. Reverse-proxy auth at the
+`EXTRACE_ALLOW_LAN=1` boundary remains the canonical control
+surface per `documents/runbooks/lan-exposure.md`; per-route
+HMAC is the defense-in-depth complement, not a replacement.
+
+**Risk profile (post-landing).** **Low.** Zero behavioral code
+change — module docstring + inline comment + new test file.
+No DB schema, no migration, no executor sandbox boundary, no
+contracts surface, no UI consumer impact (UI does not call
+catalog endpoints). Posture is now locked by code + gate +
+ADR; future drift surfaces at PR time, not at audit time.
 
 W15 kapanır şu koşullar sağlandığında:
 
