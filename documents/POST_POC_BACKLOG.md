@@ -1,6 +1,6 @@
 # Post-PoC Backlog
 
-`Last Updated: 2026-05-17 (W14 closed via PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d; W15 active on week15 branch cut from main HEAD 7cc2921 on 2026-05-14; W15-1/W15-2/W15-3/W15-4/W15-5/W15-6 closed (M10/M12/U8/U1/U2/U3/U6/I2/I4/U10/U11); W15-6 closed 2026-05-17 via be52520 — ADR 0011 unauthenticated catalog endpoints posture Accepted and implemented (Option A); W15-1 typing hotfix via 976dc96; W15-7 pending — compose image SHA pin + GH action trivy version pin + final preamble refresh; W15 mid-iter hygiene 2026-05-16: doc-preamble consistency arch gate + off-roadmap hygiene candidates: rule-registry-side-effect-loader, compose-image-mutable-ref-pin, gh-action-trivy-version-pin, test-import-graph-policy-dump-split, report-finalize-top-level-field-sync-drift, health-reconciliation-responsibility-split, marketplace-router-test-suite-split, analysis-job-worker-entry-crud-ownership)`
+`Last Updated: 2026-05-17 (W14 closed via PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d; W15 active on week15 branch cut from main HEAD 7cc2921 on 2026-05-14; W15-1/W15-2/W15-3/W15-4/W15-5/W15-6 closed (M10/M12/U8/U1/U2/U3/U6/I2/I4/U10/U11); W15-6 closed 2026-05-17 via be52520 — ADR 0011 unauthenticated catalog endpoints posture Accepted and implemented (Option A); W15-1 typing hotfix via 976dc96; W15-7 closed 2026-05-17 — compose image SHA pin via 54e7a93 + test extension via 7ebbbfb (tests/architecture/ 196 → 198) + GH action trivy version pin via 452f1a1 (aquasecurity/trivy-action@v0.36.0) + final preamble refresh; W15 mid-iter hygiene 2026-05-16: doc-preamble consistency arch gate + off-roadmap hygiene candidates: rule-registry-side-effect-loader, test-import-graph-policy-dump-split, report-finalize-top-level-field-sync-drift, health-reconciliation-responsibility-split, marketplace-router-test-suite-split, analysis-job-worker-entry-crud-ownership)`
 
 Open deferred work after the W0-W7 PoC acceptance bar. **Slim canonical** —
 verbose closure rationales, evidence paragraphs, and per-iter Note columns
@@ -225,13 +225,6 @@ Closed: `[FOLLOWUP evidence-event-kind-raw-context-invariant]` — W14-4
 - `[CLEANUP postgres-version-fact-drift]`
 - `[CLEANUP adr-0007-runbook-wording-drift]`
 - `[CLEANUP pre-commit-python-version-alignment]`
-- `[FOLLOWUP compose-image-mutable-ref-pin]` — `docker-compose.yml:121`
-  `alpine/socat:latest` mutable tag on `executor-cdp` debug sidecar
-  (`profiles: ["debug"]`, not in default `up`). Pin to digest + extend
-  `test_dockerfile_digest_pin.py` to cover compose `image:` keys. W15+.
-- `[FOLLOWUP gh-action-trivy-version-pin]` — `.github/workflows/security.yml:71`
-  `aquasecurity/trivy-action@master` mutable ref. Same workflow's other
-  actions are version-pinned. W15+.
 - `[CLEANUP test-import-graph-policy-dump-split]` — `test_import_graph.py`
   carries 18 distinct architectural test functions in 767 LoC; thematic
   split (`test_import_isolation.py` / `test_facade_locks.py` /
@@ -270,6 +263,8 @@ Closed (one-line audit trail):
 - `[CLEANUP appcore-config-stale-docstring]` — `2026-05-11`.
 - `[CLEANUP session-docstring-except-exception]` — `2026-05-11`.
 - `[CLEANUP uri-validation-stale-sys-path-comment]` — `2026-05-11`.
+- `[FOLLOWUP compose-image-mutable-ref-pin]` — W15-7 (`54e7a93` compose pin + `7ebbbfb` test extension; postgres:16-alpine + alpine/socat:1.8.0.3 manifest digest pin; `tests/architecture/` 196 → 198).
+- `[FOLLOWUP gh-action-trivy-version-pin]` — W15-7 (`452f1a1`; `aquasecurity/trivy-action@v0.36.0` version tag pin matching repo `actions/*@vN` precedent).
 
 ### Test + Observability
 

@@ -1,6 +1,6 @@
 # ExTrace
 
-`Last Updated: 2026-05-17 (W15 active — W15-1..W15-6 closed; W15-7 pending — compose image SHA pin + GH action trivy version pin + final preamble refresh)`
+`Last Updated: 2026-05-17 (W15 active — W15-1..W15-6 closed; W15-7 closed 2026-05-17 — compose image SHA pin (54e7a93) + test extension (7ebbbfb) + GH action trivy version pin (452f1a1; aquasecurity/trivy-action@v0.36.0) + final preamble refresh)`
 
 ExTrace is a VS Code extension analysis platform built around three runtime
 surfaces:

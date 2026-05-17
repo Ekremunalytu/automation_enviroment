@@ -1,7 +1,7 @@
 # W15 — Codex U-class Close-Out + UI Bounds + Posture (Active Work Tracker)
 
-`Last Updated: 2026-05-17 (W15 active; week15 cut from main HEAD 7cc2921 on 2026-05-14; W15-1 closed via c58c365 — sync analyze error taxonomy parity, M10; W15-2 closed via 765cde7 — clean_workspace is_symlink-before-rmtree, M12; W15-3 closed via 3512a7c — activationEvents bounds + Alembic field-length migration, U8; W15-4 closed via 89e13e3 — UI bounds bundle (timeline/density/relations graph caps with truncation indicators), U1/U2/U3 + U6; W15-5 closed 2026-05-17 via 43d6438 — quick fixes bundle: UI /health proxy I2 + lifecycle "for <id>" regex I4; W15-6 closed 2026-05-17 via be52520 — ADR 0011 unauthenticated catalog endpoints posture (Accepted and implemented; Proposed at e41722e); workflows/extension_catalog/router.py module docstring + router construction-site comment cite ADR 0011; new tests/architecture/test_catalog_endpoint_posture.py gate locks three AST invariants (docstring cite + no auth dependency + endpoint-count lock at 12); ADR 0002 NOT amended (Option A); U10/U11 audit row closes; W15-1 post-slate typing hotfix via 976dc96 — ANALYZE_*_ERROR_TYPES annotation BaseException → Exception narrowing (surfaced by W15-4 close-out mypy gate); W15 mid-iter hygiene 2026-05-16 via 878da2c — seven canonical/newcomer-facing doc preambles refreshed to W15 truth-state + doc-preamble consistency arch gate + README phase-pointer test W14 → W15 with W14 close-out merge tracking; W15-7 partial close (compose-image-pin + gh-action-trivy-pin still pending); three new audit findings appended to POST_POC_BACKLOG — health-reconciliation-responsibility-split, marketplace-router-test-suite-split, analysis-job-worker-entry-crud-ownership; W14 close-out PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d; W13 close-out PR #20 week13 -> main MERGED 2026-05-13 via 772deb3)`
-`Phase: W15 active (W15-1..W15-6 closed; W15-7 pending)`
+`Last Updated: 2026-05-17 (W15 active; week15 cut from main HEAD 7cc2921 on 2026-05-14; W15-1 closed via c58c365 — sync analyze error taxonomy parity, M10; W15-2 closed via 765cde7 — clean_workspace is_symlink-before-rmtree, M12; W15-3 closed via 3512a7c — activationEvents bounds + Alembic field-length migration, U8; W15-4 closed via 89e13e3 — UI bounds bundle (timeline/density/relations graph caps with truncation indicators), U1/U2/U3 + U6; W15-5 closed 2026-05-17 via 43d6438 — quick fixes bundle: UI /health proxy I2 + lifecycle "for <id>" regex I4; W15-6 closed 2026-05-17 via be52520 — ADR 0011 unauthenticated catalog endpoints posture (Accepted and implemented; Proposed at e41722e); workflows/extension_catalog/router.py module docstring + router construction-site comment cite ADR 0011; new tests/architecture/test_catalog_endpoint_posture.py gate locks three AST invariants (docstring cite + no auth dependency + endpoint-count lock at 12); ADR 0002 NOT amended (Option A); U10/U11 audit row closes; W15-1 post-slate typing hotfix via 976dc96 — ANALYZE_*_ERROR_TYPES annotation BaseException → Exception narrowing (surfaced by W15-4 close-out mypy gate); W15 mid-iter hygiene 2026-05-16 via 878da2c — seven canonical/newcomer-facing doc preambles refreshed to W15 truth-state + doc-preamble consistency arch gate + README phase-pointer test W14 → W15 with W14 close-out merge tracking; W15-7 finalized 2026-05-17 — compose image SHA pin via 54e7a93 (postgres:16-alpine + alpine/socat:1.8.0.3 manifest digest) + test extension via 7ebbbfb (test_dockerfile_digest_pin.py compose image: scope; tests/architecture/ 196 → 198 passing, +2 W15-7 gates) + GH action trivy version pin via 452f1a1 (aquasecurity/trivy-action@v0.36.0) + final canonical preamble truth-state refresh via this docs commit; W15-7 early pulls: a7a876e (I2 + I4 regression gates: api client /api/ prefix + lifecycle marker id shape) + 2573e35 (post-W15-6 drift fixes: ADR 0011 back-links + backlog audit trail + tracker scope back-patch); ADR 0002 NOT amended; no new architecture gate per W14-6 "extend, do not duplicate"; three new audit findings appended to POST_POC_BACKLOG — health-reconciliation-responsibility-split, marketplace-router-test-suite-split, analysis-job-worker-entry-crud-ownership; W14 close-out PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d; W13 close-out PR #20 week13 -> main MERGED 2026-05-13 via 772deb3)`
+`Phase: W15 active (W15-1..W15-7 closed; week15 -> main close-out PR pending separate user action)`
 `Branch: week15 (cut from main HEAD 7cc2921 on 2026-05-14)`
 `Owner: ekrem`
 
@@ -83,9 +83,18 @@ list.
   `[FOLLOWUP health-reconciliation-responsibility-split]` (Engineering
   Quality), `[CLEANUP marketplace-router-test-suite-split]`
   (Engineering Quality), ve `[FOLLOWUP analysis-job-worker-entry-crud-ownership]`
-  (Workflow / Platform). W15-7 umbrella'sının kalan alt kalemleri
-  (`compose-image-mutable-ref-pin` + `gh-action-trivy-version-pin`)
-  hâlâ pending — W15-7 finalize'da kapanacak. W14 close-out PR #21
+  (Workflow / Platform). **W15-7 finalize `2026-05-17`:** umbrella'nın
+  kalan alt kalemleri kapandı — compose image SHA pin `54e7a93`
+  (`postgres:16-alpine@sha256:16bc...` + `alpine/socat:1.8.0.3@sha256:bfd2...`
+  manifest digest) + test extension `7ebbbfb` (`test_dockerfile_digest_pin.py`
+  compose `image:` scope; `tests/architecture/` 196 → 198 passing, +2
+  W15-7 gates) + GH action trivy version pin `452f1a1`
+  (`aquasecurity/trivy-action@v0.36.0` tag-pin matching repo `actions/*@vN`
+  precedent) + bu docs commit ile final canonical preamble truth-state
+  refresh. ADR 0002 NOT amended; no new architecture gate per W14-6
+  "extend, do not duplicate". `week15 -> main` close-out PR ayrı bir
+  user action olarak ileride açılacak (bu close-out commit'i PR/merge
+  yapmaz). W14 close-out PR #21
   (`week14 -> main`) **MERGED** `2026-05-14` via `4e03c8d`; all
   W14-1..W14-8 closed. W15 base differs from the scope-skeleton plan
   note (`4e03c8d`) because the `7cc2921` ("docs(W15): scope skeleton
@@ -119,7 +128,7 @@ list.
 | **W15-4** ✅ | UI bounds bundle: timeline + density strip + relations graph caps with truncation indicators — closed `2026-05-16` via `89e13e3` (+ W15-1 typing hotfix `976dc96`) | `[FOLLOWUP codex-2026-05-10-U1-U2-U3-ui-event-spread-cap]` + `[FOLLOWUP codex-2026-05-10-U6-relations-graph-cap]` | 1 oturum (tek-PR uygulandı) |
 | **W15-5** ✅ | Quick fixes bundle: UI `/health` proxy (I2) + lifecycle `for <id>` regex (I4) — closed `2026-05-17` via `43d6438` | `[FOLLOWUP codex-2026-05-10-I2-ui-health-proxy]` + `[FOLLOWUP codex-2026-05-10-I4-lifecycle-for-id-regex]` | 1 oturum (tek-PR uygulandı) |
 | **W15-6** ✅ | Unauthenticated catalog endpoints posture (ADR 0011) — closed `2026-05-17` via `be52520` (Proposed at `e41722e`) | `[FOLLOWUP codex-2026-05-10-U10-U11-unauth-catalog-endpoints]` | 2 oturum (ADR + implementation) |
-| **W15-7** | Regression lock-in umbrella: compose image pin + GH action pin + doc preamble refresh | `[FOLLOWUP compose-image-mutable-ref-pin]` + `[FOLLOWUP gh-action-trivy-version-pin]` + (post-W14 audit) doc-preamble truth-state refresh | 1 oturum |
+| **W15-7** ✅ | Regression lock-in umbrella: compose image SHA pin + test extension + GH action trivy version pin + doc preamble refresh — closed `2026-05-17` via `54e7a93` (compose pin) + `7ebbbfb` (test extension; `tests/architecture/` 196 → 198) + `452f1a1` (trivy pin v0.36.0) + this docs commit; early pulls `a7a876e` (I2/I4 regression gates) + `2573e35` (post-W15-6 drift fixes) | `[FOLLOWUP compose-image-mutable-ref-pin]` + `[FOLLOWUP gh-action-trivy-version-pin]` + (post-W14 audit) doc-preamble truth-state refresh | 1 oturum (tek-PR uygulandı) |
 
 + **Pull sequence rationale.** W15-1 ve W15-2 önce — düşük blast radius,
   her ikisi de izole tek-dosya/birkaç-dosya fix. Sonra W15-3 (DB migration
@@ -197,9 +206,9 @@ audit; `[FOLLOWUP compose-image-mutable-ref-pin]` and
 | **W15-5** | `[FOLLOWUP codex-2026-05-10-I2-ui-health-proxy]` (UI client `/health` fetch'i nginx `/api/*` proxy'sini bypass ediyor olabilir; reverse-proxy posture'a uyumsuz; verify + fix) | `[ui]` `[platform-storage]` | **closed `2026-05-17` via `43d6438`** (additive backend `/api/health` route via new `appcore/api/health_router.py` mounted with `prefix="/api"`; UI `apiClient.getHealth` migrated `/health` → `/api/health`; legacy root `/health` preserved for external-monitoring back-compat) |
 | **W15-5** | `[FOLLOWUP codex-2026-05-10-I4-lifecycle-for-id-regex]` (lifecycle `"for <id>"` regex çok geniş; daraltma — log-noise + false-positive parser drift'i) | `[executor-runtime]` | **closed `2026-05-17` via `43d6438`** (two `_LIFECYCLE_MARKER_PATTERNS` entries in `extension_host_log_parse.py` tightened — `\s*…\.*?` → `\s+…(?:\s+for)?\s+` anchor; id capture `[\w.\-]+` → `[\w-]+\.[\w.\-]+` enforcing `<publisher>.<name>` VS Code marketplace id shape; narrow `(<id>)` parenthesis form + register patterns preserved untouched) |
 | **W15-6** | `[FOLLOWUP codex-2026-05-10-U10-U11-unauth-catalog-endpoints]` (auth posture decision; ADR 0011 — single-host appliance scope altında catalog endpoint'leri auth'suz mu, marker-based mı? Karar ADR ile, sonra koda uygulanır) | `[platform-storage]` `[security-detection]` | **closed `2026-05-17` via `be52520`** (Option A — remain unauthenticated; ADR 0011 Accepted and implemented; Proposed at `e41722e`; `workflows/extension_catalog/router.py` module docstring + router construction-site comment cite ADR 0011; new `tests/architecture/test_catalog_endpoint_posture.py` with three AST invariants (docstring cite + no auth dependency + endpoint-count lock at 12); ADR 0002 NOT amended) |
-| **W15-7** | `[FOLLOWUP compose-image-mutable-ref-pin]` (`docker-compose.yml` `postgres:16-alpine` + `alpine/socat:latest` mutable tag'ler; SHA digest pin'e geç; `test_dockerfile_digest_pin.py`'ı compose `image:` anahtarlarını kapsayacak şekilde **extend**) | `[platform-storage]` | not started |
-| **W15-7** | `[FOLLOWUP gh-action-trivy-version-pin]` (`.github/workflows/security.yml` `aquasecurity/trivy-action@master` mutable ref; version pin) | `[platform-storage]` | not started |
-| **W15-7** | (post-W14 close-out audit immediate finding) doc preamble truth-state refresh — `CLAUDE.md`, `AGENTS.md`, `documents/REFACTOR_STATUS.md`, `documents/POST_POC_BACKLOG.md`, `documents/AGENT_CONTEXT.md`, `documents/REFACTOR_OPTIMIZATION.md`, `README.md` "close-out PR week14 -> main next" cümleleri W14 merge'den sonra refresh edilmedi (refresh PR #21'in close-out hygiene commit'inde kısmen yapıldı; W15 close-out hygiene'da finalize) | `[docs-maintenance]` | **mid-iter partial close `2026-05-16` via `878da2c`** — yedi canonical/newcomer-facing doc preamble refresh + cross-doc consistency arch gate (`test_doc_preamble_consistency.py`) + README phase-pointer test W14 → W15 + W14 close-out merge tracking case; compose-image-mutable-ref-pin + gh-action-trivy-version-pin alt kalemleri hâlâ pending (W15-7 finalize) |
+| **W15-7** | `[FOLLOWUP compose-image-mutable-ref-pin]` (`docker-compose.yml` `postgres:16-alpine` + `alpine/socat:latest` mutable tag'ler; SHA digest pin'e geç; `test_dockerfile_digest_pin.py`'ı compose `image:` anahtarlarını kapsayacak şekilde **extend**) | `[platform-storage]` | **closed `2026-05-17` via `54e7a93` (compose pin) + `7ebbbfb` (test extension)** — `postgres:16-alpine@sha256:16bc...` (manifest digest pinned for db + postgres_test services) + `alpine/socat:1.8.0.3@sha256:bfd2...` (manifest digest, debug-profile sidecar); `test_dockerfile_digest_pin.py` extended with `COMPOSE_FILES` tuple + `_compose_image_lines()` regex helper + `test_compose_image_refs_pin_by_digest` (ADR 0002 §4 citation) + `test_compose_files_tuple_resolves_to_existing_paths` (vacuous-truth guard); `tests/architecture/` 196 → 198 passing (+2 W15-7 gates) |
+| **W15-7** | `[FOLLOWUP gh-action-trivy-version-pin]` (`.github/workflows/security.yml` `aquasecurity/trivy-action@master` mutable ref; version pin) | `[platform-storage]` | **closed `2026-05-17` via `452f1a1`** — `aquasecurity/trivy-action@v0.36.0` version tag pin matching repo `actions/*@vN` precedent (lines 33, 36, 47, 64 of same workflow); tag-pin not SHA-pin per W14-6 "extend, do not duplicate" — no new arch gate (would be inconsistent with four other unguarded tag-pins); ADR 0002 §4 scope is Docker base images, not CI tooling |
+| **W15-7** | (post-W14 close-out audit immediate finding) doc preamble truth-state refresh — `CLAUDE.md`, `AGENTS.md`, `documents/REFACTOR_STATUS.md`, `documents/POST_POC_BACKLOG.md`, `documents/AGENT_CONTEXT.md`, `documents/REFACTOR_OPTIMIZATION.md`, `README.md` "close-out PR week14 -> main next" cümleleri W14 merge'den sonra refresh edilmedi (refresh PR #21'in close-out hygiene commit'inde kısmen yapıldı; W15 close-out hygiene'da finalize) | `[docs-maintenance]` | **closed `2026-05-17` via this docs commit** — mid-iter partial close `2026-05-16` via `878da2c` (seven canonical/newcomer-facing doc preamble refresh + cross-doc consistency arch gate `test_doc_preamble_consistency.py` + README phase-pointer test W14 → W15 + W14 close-out merge tracking case); finalized in this docs commit — seven canonical preambles flipped from `W15-7 pending` to `W15-7 closed 2026-05-17 via 54e7a93 + 7ebbbfb + 452f1a1` + this Per-Item Detail block + tracker phase row + §13 row close + backlog audit-trail close |
 | TBD watch | `[FOLLOWUP install-extension-cold-start-ipc-hang]` (W14-7 doğrulama sırasında ortaya çıkan VS Code IPC ack timeout; W14-7 fix'i bu yola dokunmadı; W15+ aday — direct trigger yok) | `[executor-runtime]` | watching — defer |
 
 ## Sub-iteration Scope Locks
@@ -802,8 +811,8 @@ W15 target deltas (per sub-iter):
 | W15-4 | +0 (UI-side, architecture gate yok) | +3 dosya UI vitest (~15-24 case) | +0 arch |
 | W15-5 ✅ | **+0 (actual)** matches forecast — W14-6 "extend, do not duplicate" check (no existing `apiClient` URL prefix gate, no existing `_LIFECYCLE_MARKER_PATTERNS` shape gate) deferred new gates to W15-7 close-out hygiene | **+14 case** (3 backend pytest in `tests/test_health.py` — legacy `/health` + new `/api/health` + payload-equality cross-check; 2 UI vitest in new `ui/src/lib/api/client.test.ts` — fetch-spy URL discipline; 9 parser unit in `tests/executor/test_playwright_extension_host.py` — 4 positive parametrize for the tightened `<publisher>.<name>` shape + 5 negative parametrize for the pre-W15-5 false-positive shapes the loose regex tolerated) | **closed +0 gates** |
 | W15-6 ✅ | **+1 (actual)** new gate file `test_catalog_endpoint_posture.py` with 3 AST test functions (docstring cite + no auth dependency + endpoint-count lock at 12); W14-6 "extend, do not duplicate" check found no extendable gate covering router posture invariants | **+3 case** (matches +1 gate file accounting; pytest reports 188 → 191 reflecting the three function instances) | **closed +1 gate** (Option A — ADR 0011 Accepted; ADR 0002 NOT amended) |
-| W15-7 | +0 (mevcut gate extension) | (extension, yeni dosya yok) | +0 (extension) |
-| **Total** | **+3 ile +4 arası** | **~35-60 behavioral case** | `tests/architecture/` 171 → **174-175** |
+| W15-7 ✅ | **+2 (actual)** compose-image digest-pin gate extension on `test_dockerfile_digest_pin.py` — `test_compose_image_refs_pin_by_digest` (ADR 0002 §4 citation) + `test_compose_files_tuple_resolves_to_existing_paths` (vacuous-truth guard pinning the `COMPOSE_FILES` tuple against rename drift, W15-1/W15-3/W15-6 precedent); W14-6 "extend, do not duplicate" — existing `test_dockerfile_digest_pin.py` extended, not duplicated | +2 case (compose digest-pin + vacuous-truth guards land in same file as the Dockerfile FROM-pin invariant) | **closed +2 gates** |
+| **Total** | **+17 (actual)** | **~85 behavioral case** | `tests/architecture/` 171 → **198 actual** (W15-1 +6, W15-2 +2, W15-3 +6, W15-4 +0, W15-5 +0, W15-6 +3, W15-7 +2 = +19; plus mid-iter hygiene `878da2c` +2 = +21 net from 177; baseline 171 + 19 sub-iter + 2 hygiene + 1 W14 close-out tracking case prior to W15-1 pull = 196 baseline → 198 post W15-7) |
 
 `make test-local` ve `make test-security` delta'sı sub-iter close'larından
 sonra re-record edilir (W14 paterni: her sub-iter sonu test sayısını
@@ -1735,6 +1744,149 @@ No DB schema, no migration, no executor sandbox boundary, no
 contracts surface, no UI consumer impact (UI does not call
 catalog endpoints). Posture is now locked by code + gate +
 ADR; future drift surfaces at PR time, not at audit time.
+
+### W15-7 — Regression lock-in umbrella: compose pin + GH action pin + doc preamble refresh — closed `2026-05-17`
+
+**Stable ID(s).** `[FOLLOWUP compose-image-mutable-ref-pin]` +
+`[FOLLOWUP gh-action-trivy-version-pin]` + (post-W14 close-out
+audit immediate finding) doc preamble truth-state refresh.
+
+**Landing commit(s).** Five-commit slate on `week15`:
+
+1. `a7a876e` `test(W15-7): I2 + I4 regression gates — api client /api/
+   prefix + lifecycle marker id shape` — early pull, deferred W15-5
+   behavioral gates landed under W15-7.
+2. `2573e35` `docs(W15-7): post-W15-6 drift fixes — ADR 0011 back-links
+   + backlog audit trail + tracker scope back-patch` — early pull,
+   W15-6 close-out drift fixes.
+3. `54e7a93` `feat(W15-7): pin compose image refs by digest —
+   postgres:16-alpine + alpine/socat` — production compose pin.
+4. `7ebbbfb` `test(W15-7): extend test_dockerfile_digest_pin.py to scan
+   compose image: keys` — architecture gate extension.
+5. `452f1a1` `feat(W15-7): pin aquasecurity/trivy-action to v0.36.0` —
+   CI tooling version pin.
+6. (this docs commit) `docs(W15-7): close — tracker entry + §13 row +
+   backlog audit trail + canonical preamble refresh` — close-out doc
+   commit.
+
+**Module locations.**
+
+- Compose: [`docker-compose.yml`](../../docker-compose.yml) lines 4-7
+  (postgres, +2 lines of ADR-citing comment), 120-123 (executor-cdp
+  debug-profile, +2 lines comment), 151-153 (postgres_test, +1 line
+  comment).
+- Test gate: [`tests/architecture/test_dockerfile_digest_pin.py`](../../tests/architecture/test_dockerfile_digest_pin.py)
+  — new `COMPOSE_FILES` module constant + `_compose_image_lines()`
+  helper + 2 new test functions.
+- GH Actions: [`.github/workflows/security.yml`](../../.github/workflows/security.yml)
+  line 71 only.
+- Canonical preambles flipped: `CLAUDE.md`, `AGENTS.md`,
+  `documents/REFACTOR_STATUS.md`, `documents/POST_POC_BACKLOG.md`,
+  `documents/AGENT_CONTEXT.md`, `documents/REFACTOR_OPTIMIZATION.md`,
+  `README.md` — same substring flip `W15-7 pending — ...` →
+  `W15-7 closed 2026-05-17 via 54e7a93 + 7ebbbfb + 452f1a1 — ...`.
+
+**Compose pin decisions.**
+
+- Pin form: `postgres:16-alpine@sha256:16bc...` (manifest list digest;
+  multi-arch safe; platform-agnostic). Matches Dockerfile precedent
+  at [`executor/container/Dockerfile:8`](../../executor/container/Dockerfile)
+  (`ubuntu:22.04@sha256:962f...`).
+- postgres digest resolved via `docker buildx imagetools inspect
+  postgres:16-alpine` on `2026-05-17` — resolves to upstream version
+  `16.14-alpine3.23` per OCI annotation.
+- alpine/socat: explicitly pinned to semver tag `1.8.0.3` (verified
+  same digest as `:latest` at resolve time) rather than `:latest` —
+  semver tag survives readability even with digest, avoids the
+  semantically-odd "latest@sha256" form.
+- postgres_test (line 151) byte-equal to db service (line 5) — same
+  digest resolved in same shell session to avoid drift between the
+  two `16-alpine` references.
+
+**Test extension decisions.**
+
+- Reuses module shape, not body — same accumulator pattern, same
+  `assert offenders == []` form, same relative-path formatting as
+  the existing Dockerfile FROM-pin invariant.
+- Pure stdlib regex parser (no PyYAML import) — preserves the
+  module's dependency-free invariant; arch tests must not break
+  if `pyyaml` is removed from the lockfile.
+- Vacuous-truth guard `test_compose_files_tuple_resolves_to_existing_paths`
+  pins the `COMPOSE_FILES` tuple against rename drift — W15-1 /
+  W15-3 / W15-6 precedent for "this gate cannot silently no-op on
+  an empty input set."
+
+**Trivy pin decisions.**
+
+- Tag-pin `@v0.36.0` (NOT SHA-pin) — three reasons:
+  1. Repo precedent: every other `uses:` in `security.yml` is
+     tag-form major-version pin (`actions/checkout@v4`,
+     `actions/setup-python@v5`, `actions/upload-artifact@v4`).
+  2. Backlog entry stable ID `[FOLLOWUP gh-action-trivy-version-pin]`
+     names "version" pin, not "SHA" pin.
+  3. ADR 0002 §4 scopes SHA-pinning to **Docker base images** (deployed
+     appliance surface), not CI tooling. Trivy job runs
+     `continue-on-error: true` and `exit-code: "0"` — findings are
+     advisory; no build-block risk if a future trivy update changes
+     scan output.
+- No new architecture gate added per W14-6 "extend, do not duplicate"
+  — no existing gate covers workflow file pin discipline; adding a
+  new gate for one line would be inconsistent with the four other
+  unguarded tag-pins in the same file.
+
+**Tests.**
+
+- `pytest tests/architecture/test_dockerfile_digest_pin.py -v` →
+  3 passed (1 existing Dockerfile FROM-pin invariant + 2 new W15-7
+  compose-pin gates).
+- `pytest tests/architecture/ -q` → 198 passed / 4 deselected
+  (baseline 196 + 2 new W15-7 cases).
+- `docker compose config` → exit 0 (YAML parses; image digests
+  resolve syntactically).
+- `python -c "import yaml; yaml.safe_load(open('.github/workflows/security.yml'))"` →
+  parses (trivy pin YAML edit is structurally clean).
+- `pytest tests/architecture/test_doc_preamble_consistency.py -v` →
+  passes after the seven-canonical preamble flip; all canonicals
+  agree on `W15 active` signal in the first 10 lines.
+
+**Gate accounting.** `+2` test functions per the pytest function
+count (compose-pin gate + vacuous-truth guard); `+0` new gate files
+per the W14-6 "extend, do not duplicate" convention — extends
+existing `test_dockerfile_digest_pin.py` rather than creating a
+new compose-specific file. Tracker target deltas table records both.
+
+**ADR scope.** ADR 0002 is **not** amended. The compose-pin is a
+behavior-extending application of the existing §4 row 102 "Docker
+base image" trust-boundary mandate to the compose `image:` orchestration
+surface; no policy change. ADR 0002 §4 already mandates `@sha256:`
+form; W15-7 just extends the enforced surface set.
+
+**Risk profile (post-landing).** **Low-to-medium.** Compose-pin
+freezes `postgres:16-alpine` at the `2026-05-17`-resolve digest —
+future minor-version bumps within the `16-alpine` tag stream
+require an explicit re-pin commit. `make test-local` and
+`make test-security` should run cleanly against the pinned
+digests (postgres_test service stands up the same digest, so
+the integration lane gets the new image too). Trivy pin freezes
+the scanner version at `v0.36.0` — quarterly review recommended
+for vulnerability-detector freshness (filed as W16+ candidate
+if needed).
+
+**Bilinçli hariç (W16+ aday).** Genel mutable-ref sweep across
+all repo surfaces (not just compose + trivy); general GH-Actions
+SHA-pin sweep (other `actions/*@vN` references); CI reintroduction
+(`[FOLLOWUP ci-reintroduction]` stays open). YAML-aware compose
+parser (current regex-based extension cannot handle anchors /
+override files — none exist today; file
+`[FOLLOWUP compose-image-pin-gate-yaml-aware]` if/when override
+files land).
+
+**Close-out boundary.** This docs commit lands locally on `week15`.
+`week15 -> main` close-out PR creation, push, and merge are
+explicitly **out of scope** — user drives those separately. Final
+working tree clean; six W15-7 commits on the branch
+(`a7a876e` + `2573e35` + `54e7a93` + `7ebbbfb` + `452f1a1` + this
+docs commit).
 
 W15 kapanır şu koşullar sağlandığında:
 

@@ -1,6 +1,6 @@
 # REFACTOR_OPTIMIZATION
 
-`Last Updated: 2026-05-17 (W14 closed via PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d; W15 active on week15 branch cut from main HEAD 7cc2921 on 2026-05-14; W15-1/W15-2/W15-3/W15-4/W15-5/W15-6 closed (M10/M12/U8/U1/U2/U3/U6/I2/I4/U10/U11); W15-6 closed 2026-05-17 via be52520 — ADR 0011 unauthenticated catalog endpoints posture Accepted and implemented (Proposed at e41722e); Option A: posture pinned by docstring + router-site comment + new tests/architecture/test_catalog_endpoint_posture.py gate (3 AST invariants); ADR 0002 NOT amended; W15-7 pending — compose image SHA pin + GH action trivy version pin + final preamble refresh; §13 W15 plan source entry triggered by W14 merge; W15 mid-iter hygiene 2026-05-16: doc-preamble consistency arch gate + 3 new audit findings in POST_POC_BACKLOG)`
+`Last Updated: 2026-05-17 (W14 closed via PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d; W15 active on week15 branch cut from main HEAD 7cc2921 on 2026-05-14; W15-1/W15-2/W15-3/W15-4/W15-5/W15-6 closed (M10/M12/U8/U1/U2/U3/U6/I2/I4/U10/U11); W15-6 closed 2026-05-17 via be52520 — ADR 0011 unauthenticated catalog endpoints posture Accepted and implemented (Proposed at e41722e); Option A: posture pinned by docstring + router-site comment + new tests/architecture/test_catalog_endpoint_posture.py gate (3 AST invariants); ADR 0002 NOT amended; W15-7 closed 2026-05-17 — compose image SHA pin via 54e7a93 + test extension via 7ebbbfb (tests/architecture/ 196 → 198) + GH action trivy version pin via 452f1a1 (aquasecurity/trivy-action@v0.36.0) + final preamble refresh; §13 W15 plan source entry triggered by W14 merge; W15 mid-iter hygiene 2026-05-16: doc-preamble consistency arch gate + 3 new audit findings in POST_POC_BACKLOG)`
 
 W0-W14 plan document: stabilization + security + post-PoC external-review
 integration + W14 acceptance + observability continuation. **Slim canonical**
@@ -213,8 +213,13 @@ W14-6 "extend, do not duplicate"). Mid-iter hygiene pass `2026-05-16`
 pulled forward the W15-7 doc-preamble subset — seven canonical doc
 preambles refreshed and
 `tests/architecture/test_doc_preamble_consistency.py` added; three
-new audit findings appended to `POST_POC_BACKLOG.md`. Remaining
-W15-7 items (compose image pin + GH-action pin) still not started.
+new audit findings appended to `POST_POC_BACKLOG.md`. **W15-7 finalized
+`2026-05-17`** — compose image SHA pin (`54e7a93`) + test extension
+(`7ebbbfb`; `tests/architecture/` 196 → 198) + GH action trivy pin
+(`452f1a1`; `aquasecurity/trivy-action@v0.36.0`) + final canonical
+preamble flip via this docs commit. ADR 0002 NOT amended; no new
+architecture gate per W14-6 "extend, do not duplicate" — compose
+gate is an extension of the existing Dockerfile FROM-pin invariant.
 
 | Iter | Status | Landing commit |
 |---|---|---|
@@ -224,7 +229,7 @@ W15-7 items (compose image pin + GH-action pin) still not started.
 | W15-4 | **closed `2026-05-16`** (UI bounds bundle: timeline / density strip / relations graph caps with truncation indicators — U1-U3 + U6; new `ui/src/lib/displayCaps.ts` helper; extracted `EventDensityStrip` from `ReportsPage`; 21 vitest cases; `+0` arch gates per UI-side cap policy. **W15-1 post-slate typing hotfix** `976dc96` landed in the same close-out window — `ANALYZE_*_ERROR_TYPES` annotation narrowed from `BaseException` to `Exception` after the W15-4 close-out `make typecheck` surfaced the mismatch at `workflows/marketplace/router.py:341`; W14-7 hotfix precedent.) | `89e13e3` (+ `976dc96`) |
 | W15-5 | **closed `2026-05-17`** (quick fixes bundle: UI `/health` proxy I2 + lifecycle `for <id>` regex I4; additive `/api/health` route via new `appcore/api/health_router.py` (`prefix="/api"`) + UI `client.ts` `/health` → `/api/health` migration with legacy root `/health` preserved for external-monitoring back-compat; `_LIFECYCLE_MARKER_PATTERNS` two entries narrowed to enforce `<publisher>.<name>` shape with `\s+` anchor; +14 behavioral cases — 3 backend pytest + 2 UI vitest + 9 parser unit parametrize; `+0` arch gates per W14-6 "extend, do not duplicate" — no extendable gate; new gates deferred to W15-7 close-out hygiene) | `43d6438` |
 | W15-6 | **closed `2026-05-17`** (ADR 0011 Accepted and implemented — Option A: catalog endpoints remain unauthenticated under three preconditions — single-host appliance scope ADR 0001, loopback bind default ADR 0007 §1, operator-side hardening for LAN exposure per `documents/runbooks/lan-exposure.md`; `workflows/extension_catalog/router.py` module docstring + router construction-site comment cite ADR 0011; new `tests/architecture/test_catalog_endpoint_posture.py` gate locks three AST invariants — docstring cite + no auth dependency + endpoint-count lock at 12; `tests/architecture/` 188 → 191 passing; ADR 0002 NOT amended) | `be52520` (Proposed at `e41722e`) |
-| W15-7 | planned (regression lock-in umbrella: compose image pin + GH action pin + doc preamble truth-state refresh) | — |
+| W15-7 | **closed `2026-05-17`** (regression lock-in umbrella: compose image SHA pin `54e7a93` — postgres:16-alpine + alpine/socat:1.8.0.3 manifest digest; test extension `7ebbbfb` — `test_dockerfile_digest_pin.py` compose `image:` scope, `tests/architecture/` 196 → 198; GH action trivy version pin `452f1a1` — `aquasecurity/trivy-action@v0.36.0`; doc preamble truth-state refresh via this docs commit; ADR 0002 NOT amended; no new architecture gate per W14-6 "extend, do not duplicate") | `54e7a93` (+ `7ebbbfb`, `452f1a1`) |
 
 ### §13.0 — Neden ayrı §13
 
