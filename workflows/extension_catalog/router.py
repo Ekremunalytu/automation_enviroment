@@ -1,4 +1,14 @@
-"""Extension catalog workflow router."""
+"""Extension catalog workflow router.
+
+Posture: unauthenticated. See ADR 0011 — catalog endpoints are
+reachable without auth under the single-host appliance scope
+(ADR 0001) and loopback bind default (ADR 0007). LAN exposure
+requires ``EXTRACE_ALLOW_LAN=1`` plus operator-side hardening
+per ``documents/runbooks/lan-exposure.md`` (firewall rules,
+authenticating reverse proxy, CORS allow-list, rotated PostgreSQL
+password). A posture shift to per-request auth requires an
+ADR 0011 amendment, not a silent code change.
+"""
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import ValidationError
@@ -24,6 +34,11 @@ from workflows.extension_catalog import lifecycle
 # Router Configuration
 # =============================================================================
 
+# ADR 0011 — Unauthenticated catalog endpoints posture.
+# No ``Depends(...)`` auth dependency attached; the trusted-environment
+# assumption is enforced upstream by ADR 0001 + ADR 0007. A future
+# posture shift to per-request auth requires an ADR 0011 amendment
+# and lands the dependency at this construction site.
 router = APIRouter(tags=["core"])
 
 

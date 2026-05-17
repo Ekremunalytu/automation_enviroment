@@ -1,7 +1,10 @@
 # ADR 0011: Unauthenticated Catalog Endpoints Posture
 
-- Status: Proposed
+- Status: Accepted and implemented (`2026-05-17`)
 - Date: 2026-05-17
+- Accepted + Implemented: 2026-05-17 via W15-6 on the `week15` branch.
+  See the Implementation section below and
+  `documents/active-work/W15-codex-uclass-bounds-posture.md`.
 - Related: ADR 0001 (Single-Host Appliance), ADR 0002 (Threat Model
   §4 Trust Boundaries / §5 Analyst Operating Environment),
   ADR 0007 (Local Network Binding Discipline)
@@ -196,24 +199,28 @@ the norm).
 
 ## Implementation
 
-To be landed on `week15` as W15-6.
+Landed `2026-05-17` on `week15` (W15-6).
 
 - `workflows/extension_catalog/router.py` — module docstring states
-  the posture and cites ADR 0011; an inline comment at the
-  `router = APIRouter(...)` construction site documents that the
-  absence of an auth `Depends(...)` is intentional and locked by
-  this ADR + the architecture gate.
-- `tests/architecture/test_catalog_endpoint_posture.py` (new) — three
-  AST-level invariants:
-  - The router module docstring contains the substring `ADR 0011`
-    so doc decay cannot silently strand the posture rationale.
-  - The `APIRouter(...)` construction site does not attach a
-    `dependencies=[...]` kwarg with auth-like names (regex
-    `^(auth|require_|verify_|hmac_|marker_).*`). Silent drift to
-    Option B via a one-liner is prevented.
-  - The decorator count for `@router.<verb>` is locked at twelve
-    (eleven listed endpoints plus `/` root). A new endpoint added
-    later fails the gate, forcing an ADR 0011 amendment review.
+  the posture and cites ADR 0011 verbatim; an inline comment at the
+  `router = APIRouter(tags=["core"])` construction site (line 33-37)
+  documents that the absence of an auth `Depends(...)` is
+  intentional and locked by this ADR + the architecture gate.
+  Behavioral code unchanged.
+- `tests/architecture/test_catalog_endpoint_posture.py` (new) —
+  three AST-level invariants:
+  - `test_catalog_router_module_cites_adr_0011` — the router module
+    docstring contains the substring `ADR 0011` so doc decay
+    cannot silently strand the posture rationale.
+  - `test_catalog_router_has_no_auth_dependency` — the
+    `APIRouter(...)` construction site does not attach a
+    `dependencies=[...]` kwarg whose callable names match the
+    auth-like regex `^(auth|require_|verify_|hmac_|marker_).*`.
+    Silent drift to Option B via a one-liner is prevented.
+  - `test_catalog_router_endpoint_count_locked` — the decorator
+    count for `@router.<verb>` is locked at twelve (eleven listed
+    endpoints plus `/` root). A new endpoint added later fails the
+    gate, forcing an ADR 0011 amendment review.
 - `documents/POST_POC_BACKLOG.md` — `[FOLLOWUP
   codex-2026-05-10-U10-U11-unauth-catalog-endpoints]` moves from
   open to Verified Closed Audit Trail.
@@ -222,6 +229,18 @@ To be landed on `week15` as W15-6.
   environment) as load-bearing prerequisites without restating
   them.
 
-Implementation lands at Status `Accepted and implemented` after the
-gate and code anchors pass `pytest tests/architecture/` (target
-189 passed) and `make markdownlint`.
+Verification at landing time:
+
+- `pytest tests/architecture/test_catalog_endpoint_posture.py -v`
+  → 3 passed.
+- `pytest tests/architecture/ -q` → 191 passed / 4 deselected
+  (W15-5 baseline 188 + 3 new gate cases from the new file).
+- `pytest tests/workflows/extension_catalog/test_router.py
+  tests/test_health.py -q` → 42 passed (no behavioral regression).
+- `make test-security` → 215 passed.
+- `make markdownlint` → clean.
+
+The gate-count delta is `+1 gate file` (`test_catalog_endpoint_
+posture.py`) with three test functions; the W14-6 "extend, do not
+duplicate" check applied — no existing gate covered router posture
+invariants, so a new file is appropriate.
