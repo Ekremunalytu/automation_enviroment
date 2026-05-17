@@ -63,10 +63,14 @@ list.
   post-slate typing hotfix landed `2026-05-16` via `976dc96`
   (`ANALYZE_*_ERROR_TYPES` annotation `tuple[type[BaseException], …]`
   → `tuple[type[Exception], …]`, surfaced by W15-4 close-out
-  `make typecheck`; W14-7 hotfix precedent); W15-7 pending —
-  regression lock-in umbrella (compose image SHA pin + GH action
-  trivy version pin + final preamble refresh). **W15 mid-iter
-  hygiene `2026-05-16`:** W15-7
+  `make typecheck`; W14-7 hotfix precedent); W15-7 closed
+  `2026-05-17` — regression lock-in umbrella (compose image SHA
+  pin via `54e7a93` + test extension via `7ebbbfb` +
+  `aquasecurity/trivy-action@v0.36.0` via `452f1a1` + final
+  canonical preamble flip via close-out docs commit + close-out
+  hygiene via `7ff31d9`; `tests/architecture/` 196 → 198 passing,
+  +2 W15-7 gates; W15-7 early pulls `a7a876e` + `2573e35`).
+  **W15 mid-iter hygiene `2026-05-16`:** W15-7
   doc-preamble truth-state refresh alt kümesi pull-forward edildi
   (W15-5'in queue'da olduğu noktada eski W14 preamble'ları üzerine
   inşa etmemek için). Yedi canonical / newcomer-facing doc preamble'ı

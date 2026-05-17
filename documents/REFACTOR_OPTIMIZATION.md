@@ -199,9 +199,9 @@ includes the `7cc2921` scope-skeleton commit). Active tracker:
 [`active-work/W15-codex-uclass-bounds-posture.md`](active-work/W15-codex-uclass-bounds-posture.md)
 carries per-iter scope locks, candidate items, and Per-Item Detail
 evidence (sub-commits, module locations, test deltas). Mid-iter status
-`2026-05-17`: W15-1..W15-6 closed
-(M10/M12/U8/U1/U2/U3/U6/I2/I4/U10/U11); W15-1 post-slate typing
-hotfix landed; W15-7 pending. W15-6 closed `2026-05-17` via
+`2026-05-17`: W15-1..W15-7 closed
+(M10/M12/U8/U1/U2/U3/U6/I2/I4/U10/U11 + W15-7 regression lock-in);
+W15-1 post-slate typing hotfix landed. W15-6 closed `2026-05-17` via
 `be52520` (ADR 0011 Accepted and implemented — Option A:
 unauthenticated catalog endpoints posture pinned under
 single-host + loopback default + opt-in-LAN preconditions;

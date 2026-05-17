@@ -1,6 +1,6 @@
 # Active Work
 
-`Last Updated: 2026-05-14`
+`Last Updated: 2026-05-17`
 
 Slim canonical files for **active engineering work tracking**. Each file is
 a stable contract: code comments and tests reference items here by stable
@@ -20,19 +20,31 @@ points to it.
 ## Files
 
 - `W15-codex-uclass-bounds-posture.md`
-  - **Active phase — scope skeleton authored `2026-05-14`; branch + first
-    pull pending.** W15 Codex U-class Close-Out + UI Bounds + Posture.
-    7 sub-iter scoped (`W15-1..W15-7`): sync analyze error taxonomy
-    alignment (M10), workspace symlink check order / orphan removal
-    (M12), `activationEvents` bounds + DB field-length Alembic migration
-    (U8), UI bounds bundle (U1-U3 + U6), quick fixes bundle (I2 + I4),
-    unauthenticated catalog endpoints posture (ADR 0011 — U10-U11),
-    regression lock-in umbrella (compose image pin +
-    `aquasecurity/trivy-action` version pin + W14 post-merge doc
-    preamble truth-state refresh). Branch cut + W15-1 pull pending;
-    `week15` cut from `main` at HEAD `4e03c8d` when W15-1 is pulled.
-    W15-1..W15-7 stable ID'leri pull sırasında atanacak (W11/W12/W13/W14
-    precedent). Slim canonical:
+  - **Active phase — W15-1..W15-7 closed `2026-05-17`; `week15 -> main`
+    close-out PR pending separate user action.** W15 Codex U-class
+    Close-Out + UI Bounds + Posture. 7 sub-iter slate
+    (`W15-1..W15-7`): sync analyze error taxonomy alignment
+    (M10 via `c58c365`), workspace symlink check order / orphan
+    removal (M12 via `765cde7`), `activationEvents` bounds + DB
+    field-length Alembic migration (U8 via `3512a7c`), UI bounds
+    bundle (U1-U3 + U6 via `89e13e3`), quick fixes bundle
+    (I2 + I4 via `43d6438`), unauthenticated catalog endpoints
+    posture (ADR 0011 — U10-U11 via `be52520`, Proposed at
+    `e41722e`), regression lock-in umbrella (compose image SHA pin
+    via `54e7a93` + test extension via `7ebbbfb` +
+    `aquasecurity/trivy-action@v0.36.0` via `452f1a1` + canonical
+    preamble truth-state refresh via close-out docs commit; W15-7
+    early pulls `a7a876e` + `2573e35`; close-out hygiene `7ff31d9`).
+    W15-1 post-slate typing hotfix `976dc96`. W15 mid-iter hygiene
+    `878da2c` added cross-doc preamble consistency arch gate.
+    `week15` cut from `main` at HEAD `7cc2921` on `2026-05-14`
+    (W14 close-out merge `4e03c8d` + the W15 scope-skeleton commit
+    `7cc2921` carrying this tracker). `tests/architecture/` 171
+    baseline → 198 final (+17 sub-iter + 2 mid-iter hygiene + 8
+    W15-7 early-pull regression cases on extension paths).
+    Retained on the read path as the active tracker until the
+    `week15 -> main` close-out PR merges and the next phase opens.
+    Slim canonical:
     [`REFACTOR_OPTIMIZATION.md §13`](../REFACTOR_OPTIMIZATION.md).
 - `W14-codex-acceptance-observability.md`
   - **Past phase — closed `2026-05-13` (W14-1..W14-6 closed + W14-7/W14-8
