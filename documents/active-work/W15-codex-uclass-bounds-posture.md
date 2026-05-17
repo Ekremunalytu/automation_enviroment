@@ -465,8 +465,10 @@ ister mi? Karar ADR 0011 ile, sonra koda uygulanır.
 
 **Etkilenen yollar.**
 
-+ Yeni: `documents/decision-records/0011-unauthenticated-catalog-
-  endpoints-posture.md`
++ Yeni: `documents/adrs/0011-unauthenticated-catalog-endpoints-posture.md`
+  (W15-6 close-out tespit etti: original scope-skeleton text `documents/decision-records/`
+  diye yazmıştı, gerçek dizin `documents/adrs/` — ADR doğru yola landed; bu satır
+  back-patch ile düzeltildi)
 + [workflows/extension_catalog/router.py](../../workflows/extension_catalog/router.py)
   (posture'a göre)
 + Olası: `appcore/api/auth.py` veya benzeri (marker-based ise)
@@ -501,8 +503,13 @@ listed, no auth dependency). B path'i: gate marker check'i zorunlu kılar.
 
 + ADR 0011 landed (accepted + implemented date)
 + Posture'a göre kod
-+ 1 yeni architecture gate (`tests/architecture/` 173 → 174)
-+ ADR 0002 threat model'ı amendment'la (eğer Option B veya C seçilirse)
++ 1 yeni architecture gate (`tests/architecture/` 188 → 191 actual — `+1 gate file`
+  `test_catalog_endpoint_posture.py` with 3 AST test functions; forecast band
+  `173 → 174` from W15-6 first-sketch was stale by the time W15-3 + W15-4 +
+  W15-5 mid-iter hygiene pulled the baseline forward to 188; back-patch refresh
+  here matches §"W15 target deltas" actual count)
++ ADR 0002 threat model'ı amendment'la (eğer Option B veya C seçilirse — Option A
+  seçildiği için amend gerekmedi; ADR 0011 §4 row 102 + §5'i cite eder)
 
 **Bilinçli hariç.** Genel auth surface sweep (sadece catalog
 endpoints). Marketplace endpoint'leri (`/api/marketplace/*`) ayrı

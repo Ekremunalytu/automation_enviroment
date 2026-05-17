@@ -103,9 +103,11 @@ Closed via W15 (one-line audit trail; full rationale in W15 tracker Per-Item Det
 
 ### Verified Closed Audit Trail
 
-H1, H7, M3, M6, M8, U5, U7, U9, I3, M14a, plus H4/H5/H6 are closed or
-WONT-FIX as recorded in the full snapshot. Do not re-open without fresh
-code evidence.
+H1, H7, M3, M6, M8, U5, U7, U9, U10, U11, I1, I2, I3, I4, M14a, plus
+H4/H5/H6 are closed or WONT-FIX as recorded in the full snapshot. W15-5
+closed I2 + I4 via `43d6438`; W15-6 closed U10 + U11 via `be52520`
+(ADR 0011 Accepted; Option A). Do not re-open without fresh code
+evidence.
 
 ## Current Open Items By Area
 

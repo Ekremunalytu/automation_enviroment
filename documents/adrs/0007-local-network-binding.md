@@ -172,6 +172,12 @@ host-bound CDP port without the `debug` profile.
 - `.env.example` is rewritten so the security notice describes both the
   loopback default and the `EXTRACE_ALLOW_LAN` opt-in, instead of leaving
   enforcement to the operator alone.
+- ADR 0011 (`2026-05-17`, W15-6) cites §1 (Loopback by default) as one
+  of three load-bearing preconditions for keeping catalog endpoints
+  unauthenticated. The `documents/runbooks/lan-exposure.md` pre-flight
+  checklist remains the canonical control surface for LAN exposure —
+  reverse-proxy auth covers every API surface uniformly. Any amendment
+  to §1 that drops the loopback default must also revisit ADR 0011.
 
 ## Implementation
 
