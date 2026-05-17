@@ -1,6 +1,6 @@
 # REFACTOR_OPTIMIZATION
 
-`Last Updated: 2026-05-16 (W14 closed via PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d; W15 active on week15 branch cut from main HEAD 7cc2921 on 2026-05-14; W15-1/W15-2/W15-3/W15-4 closed (M10/M12/U8/U1/U2/U3/U6); W15-5..W15-7 pending; §13 W15 plan source entry triggered by W14 merge; W15 mid-iter hygiene 2026-05-16: doc-preamble consistency arch gate + 3 new audit findings in POST_POC_BACKLOG)`
+`Last Updated: 2026-05-17 (W14 closed via PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d; W15 active on week15 branch cut from main HEAD 7cc2921 on 2026-05-14; W15-1/W15-2/W15-3/W15-4/W15-5 closed (M10/M12/U8/U1/U2/U3/U6/I2/I4); W15-5 closed 2026-05-17 via 43d6438 — quick fixes bundle: UI /health proxy + lifecycle for <id> regex tightening; W15-6..W15-7 pending; §13 W15 plan source entry triggered by W14 merge; W15 mid-iter hygiene 2026-05-16: doc-preamble consistency arch gate + 3 new audit findings in POST_POC_BACKLOG)`
 
 W0-W14 plan document: stabilization + security + post-PoC external-review
 integration + W14 acceptance + observability continuation. **Slim canonical**
@@ -199,13 +199,16 @@ includes the `7cc2921` scope-skeleton commit). Active tracker:
 [`active-work/W15-codex-uclass-bounds-posture.md`](active-work/W15-codex-uclass-bounds-posture.md)
 carries per-iter scope locks, candidate items, and Per-Item Detail
 evidence (sub-commits, module locations, test deltas). Mid-iter status
-`2026-05-16`: W15-1..W15-4 closed (M10/M12/U8/U1/U2/U3/U6); W15-1
-post-slate typing hotfix landed; W15-5..W15-7 pending. Mid-iter
-hygiene pass `2026-05-16` pulled forward the W15-7 doc-preamble
-subset — six canonical doc preambles refreshed and
-`tests/architecture/test_doc_preamble_consistency.py` added; three
-new audit findings appended to `POST_POC_BACKLOG.md`. Remaining
-W15-7 items (compose image pin + GH-action pin) still not started.
+`2026-05-17`: W15-1..W15-5 closed (M10/M12/U8/U1/U2/U3/U6/I2/I4);
+W15-1 post-slate typing hotfix landed; W15-6..W15-7 pending. W15-5
+closed `2026-05-17` via `43d6438` (quick fixes bundle: UI `/health`
+proxy I2 + lifecycle `for <id>` regex I4; `+0` arch gates per W14-6
+"extend, do not duplicate"). Mid-iter hygiene pass `2026-05-16`
+pulled forward the W15-7 doc-preamble subset — seven canonical doc
+preambles refreshed and `tests/architecture/test_doc_preamble_
+consistency.py` added; three new audit findings appended to
+`POST_POC_BACKLOG.md`. Remaining W15-7 items (compose image pin +
+GH-action pin) still not started.
 
 | Iter | Status | Landing commit |
 |---|---|---|
@@ -213,7 +216,7 @@ W15-7 items (compose image pin + GH-action pin) still not started.
 | W15-2 | **closed `2026-05-14`** (workspace symlink check order / orphan removal — M12; path b: fix) | `765cde7` |
 | W15-3 | **closed `2026-05-15`** (`activationEvents` bounds + DB field-length Alembic migration — U8) | `3512a7c` |
 | W15-4 | **closed `2026-05-16`** (UI bounds bundle: timeline / density strip / relations graph caps with truncation indicators — U1-U3 + U6; new `ui/src/lib/displayCaps.ts` helper; extracted `EventDensityStrip` from `ReportsPage`; 21 vitest cases; `+0` arch gates per UI-side cap policy. **W15-1 post-slate typing hotfix** `976dc96` landed in the same close-out window — `ANALYZE_*_ERROR_TYPES` annotation narrowed from `BaseException` to `Exception` after the W15-4 close-out `make typecheck` surfaced the mismatch at `workflows/marketplace/router.py:341`; W14-7 hotfix precedent.) | `89e13e3` (+ `976dc96`) |
-| W15-5 | planned (quick fixes bundle: UI `/health` proxy + lifecycle `for <id>` regex — I2 + I4) | — |
+| W15-5 | **closed `2026-05-17`** (quick fixes bundle: UI `/health` proxy I2 + lifecycle `for <id>` regex I4; additive `/api/health` route via new `appcore/api/health_router.py` (`prefix="/api"`) + UI `client.ts` `/health` → `/api/health` migration with legacy root `/health` preserved for external-monitoring back-compat; `_LIFECYCLE_MARKER_PATTERNS` two entries narrowed to enforce `<publisher>.<name>` shape with `\s+` anchor; +14 behavioral cases — 3 backend pytest + 2 UI vitest + 9 parser unit parametrize; `+0` arch gates per W14-6 "extend, do not duplicate" — no extendable gate; new gates deferred to W15-7 close-out hygiene) | `43d6438` |
 | W15-6 | planned (unauthenticated catalog endpoints posture — ADR 0011 — U10-U11) | — |
 | W15-7 | planned (regression lock-in umbrella: compose image pin + GH action pin + doc preamble truth-state refresh) | — |
 

@@ -1,7 +1,7 @@
 # W15 — Codex U-class Close-Out + UI Bounds + Posture (Active Work Tracker)
 
-`Last Updated: 2026-05-16 (W15 active; week15 cut from main HEAD 7cc2921 on 2026-05-14; W15-1 closed via c58c365 — sync analyze error taxonomy parity, M10; W15-2 closed via 765cde7 — clean_workspace is_symlink-before-rmtree, M12; W15-3 closed via 3512a7c — activationEvents bounds + Alembic field-length migration, U8; W15-4 closed via 89e13e3 — UI bounds bundle (timeline/density/relations graph caps with truncation indicators), U1/U2/U3 + U6; W15-1 post-slate typing hotfix via 976dc96 — ANALYZE_*_ERROR_TYPES annotation BaseException → Exception narrowing (surfaced by W15-4 close-out mypy gate); W15 mid-iter hygiene 2026-05-16 via 878da2c — seven canonical/newcomer-facing doc preambles refreshed to W15 truth-state + doc-preamble consistency arch gate + README phase-pointer test W14 → W15 with W14 close-out merge tracking; W15-7 partial close (compose-image-pin + gh-action-trivy-pin still pending); three new audit findings appended to POST_POC_BACKLOG — health-reconciliation-responsibility-split, marketplace-router-test-suite-split, analysis-job-worker-entry-crud-ownership; W14 close-out PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d; W13 close-out PR #20 week13 -> main MERGED 2026-05-13 via 772deb3)`
-`Phase: W15 active (W15-1, W15-2, W15-3, W15-4 closed; W15-5..W15-7 pending)`
+`Last Updated: 2026-05-17 (W15 active; week15 cut from main HEAD 7cc2921 on 2026-05-14; W15-1 closed via c58c365 — sync analyze error taxonomy parity, M10; W15-2 closed via 765cde7 — clean_workspace is_symlink-before-rmtree, M12; W15-3 closed via 3512a7c — activationEvents bounds + Alembic field-length migration, U8; W15-4 closed via 89e13e3 — UI bounds bundle (timeline/density/relations graph caps with truncation indicators), U1/U2/U3 + U6; W15-5 closed 2026-05-17 via 43d6438 — quick fixes bundle: UI /health proxy (I2: additive backend /api/health route via new appcore/api/health_router.py prefix=/api + UI client.ts /health → /api/health; legacy root /health preserved) + lifecycle "for <id>" regex (I4: two _LIFECYCLE_MARKER_PATTERNS entries narrowed for \s+ anchor + publisher.name id shape); W15-1 post-slate typing hotfix via 976dc96 — ANALYZE_*_ERROR_TYPES annotation BaseException → Exception narrowing (surfaced by W15-4 close-out mypy gate); W15 mid-iter hygiene 2026-05-16 via 878da2c — seven canonical/newcomer-facing doc preambles refreshed to W15 truth-state + doc-preamble consistency arch gate + README phase-pointer test W14 → W15 with W14 close-out merge tracking; W15-7 partial close (compose-image-pin + gh-action-trivy-pin still pending); three new audit findings appended to POST_POC_BACKLOG — health-reconciliation-responsibility-split, marketplace-router-test-suite-split, analysis-job-worker-entry-crud-ownership; W14 close-out PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d; W13 close-out PR #20 week13 -> main MERGED 2026-05-13 via 772deb3)`
+`Phase: W15 active (W15-1..W15-5 closed; W15-6..W15-7 pending)`
 `Branch: week15 (cut from main HEAD 7cc2921 on 2026-05-14)`
 `Owner: ekrem`
 
@@ -32,12 +32,27 @@ list.
   via `89e13e3` (UI bounds bundle: `EventTimeline` / `EventDensityStrip`
   / `InteractionsSection` caps + truncation indicators driven by new
   `ui/src/lib/displayCaps.ts`; U1/U2/U3 + U6 close; 21 new vitest cases
-  across 3 files; `+0` arch gates per tracker exit criteria); W15-1
-  post-slate typing hotfix landed `2026-05-16` via `976dc96`
-  (`ANALYZE_*_ERROR_TYPES` annotation `tuple[type[BaseException], …]`
-  → `tuple[type[Exception], …]`, surfaced by W15-4 close-out
-  `make typecheck`; W14-7 hotfix precedent); W15-5..W15-7 pending
-  sequential pull. **W15 mid-iter hygiene `2026-05-16`:** W15-7
+  across 3 files; `+0` arch gates per tracker exit criteria); W15-5
+  closed `2026-05-17` via `43d6438` (quick fixes bundle: I2 UI
+  `/health` proxy fix via new `appcore/api/health_router.py`
+  (`prefix="/api"`) + `ui/src/lib/api/client.ts` `/health` →
+  `/api/health` migration with legacy root `/health` preserved for
+  external-monitoring back-compat; I4 lifecycle `for <id>` regex
+  tightening — two `_LIFECYCLE_MARKER_PATTERNS` entries in
+  `executor/flows/playwright/runtime_capture/extension_host_log_parse.py`
+  narrowed from `\s*…\.*?(?P<id>[\w.\-]+)` to
+  `\s+…(?:\s+for)?\s+(?P<id>[\w-]+\.[\w.\-]+)` enforcing the VS Code
+  marketplace `<publisher>.<name>` id shape; +14 behavioral cases
+  (3 backend pytest + 2 UI vitest + 9 parser unit parametrize);
+  `+0` arch gates per tracker exit criteria — W14-6
+  "extend, do not duplicate" check found no existing extendable
+  gate for either fix, new gates deferred to W15-7 close-out
+  hygiene); W15-1 post-slate typing hotfix landed `2026-05-16` via
+  `976dc96` (`ANALYZE_*_ERROR_TYPES` annotation
+  `tuple[type[BaseException], …]` → `tuple[type[Exception], …]`,
+  surfaced by W15-4 close-out `make typecheck`; W14-7 hotfix
+  precedent); W15-6..W15-7 pending sequential pull. **W15 mid-iter
+  hygiene `2026-05-16`:** W15-7
   doc-preamble truth-state refresh alt kümesi pull-forward edildi
   (W15-5'in queue'da olduğu noktada eski W14 preamble'ları üzerine
   inşa etmemek için). Yedi canonical / newcomer-facing doc preamble'ı
@@ -88,7 +103,7 @@ list.
 | **W15-2** ✅ | Workspace symlink check order / orphan removal — closed `2026-05-14` via `765cde7` | `[FOLLOWUP codex-2026-05-10-M12-workspace-symlink-check-order]` | 1 oturum |
 | **W15-3** ✅ | `activationEvents` bounds + DB field-length migration — closed `2026-05-15` via `3512a7c` | `[FOLLOWUP codex-2026-05-10-U8-activationevents-bounds]` | 1 oturum (tek-PR uygulandı) |
 | **W15-4** ✅ | UI bounds bundle: timeline + density strip + relations graph caps with truncation indicators — closed `2026-05-16` via `89e13e3` (+ W15-1 typing hotfix `976dc96`) | `[FOLLOWUP codex-2026-05-10-U1-U2-U3-ui-event-spread-cap]` + `[FOLLOWUP codex-2026-05-10-U6-relations-graph-cap]` | 1 oturum (tek-PR uygulandı) |
-| **W15-5** | Quick fixes bundle: UI `/health` proxy + lifecycle `for <id>` regex | `[FOLLOWUP codex-2026-05-10-I2-ui-health-proxy]` + `[FOLLOWUP codex-2026-05-10-I4-lifecycle-for-id-regex]` | 1 oturum |
+| **W15-5** ✅ | Quick fixes bundle: UI `/health` proxy (I2) + lifecycle `for <id>` regex (I4) — closed `2026-05-17` via `43d6438` | `[FOLLOWUP codex-2026-05-10-I2-ui-health-proxy]` + `[FOLLOWUP codex-2026-05-10-I4-lifecycle-for-id-regex]` | 1 oturum (tek-PR uygulandı) |
 | **W15-6** | Unauthenticated catalog endpoints posture (ADR 0011) | `[FOLLOWUP codex-2026-05-10-U10-U11-unauth-catalog-endpoints]` | 2 oturum (ADR + implementation) |
 | **W15-7** | Regression lock-in umbrella: compose image pin + GH action pin + doc preamble refresh | `[FOLLOWUP compose-image-mutable-ref-pin]` + `[FOLLOWUP gh-action-trivy-version-pin]` + (post-W14 audit) doc-preamble truth-state refresh | 1 oturum |
 
@@ -165,8 +180,8 @@ audit; `[FOLLOWUP compose-image-mutable-ref-pin]` and
 | **W15-3** | `[FOLLOWUP codex-2026-05-10-U8-activationevents-bounds]` (`activationEvents` liste/string boyutu unbounded; oversized manifest DoS + DB row inflation; cap + Alembic field-length migration ister) | `[security-detection]` `[platform-storage]` | **closed `2026-05-15` via `3512a7c`** (Pydantic schema + manifest_parser defense-in-depth + DB column shrink + Alembic migration; +6 arch gates + 8 behavioral cases) |
 | **W15-4** | `[FOLLOWUP codex-2026-05-10-U1-U2-U3-ui-event-spread-cap]` (UI event density / timeline spread / count operations unbounded; large activation report → UI freeze) | `[ui]` | **closed `2026-05-16` via `89e13e3`** (`EventTimeline` + extracted `EventDensityStrip` apply `applyDisplayCap` post-filter at `DISPLAY_CAPS.TIMELINE_EVENTS=800` / `EVENT_DENSITY_EVENTS=800`; truncation indicators emit `+N more · showing first 800 of M events · filter to narrow` and `+N events truncated · density reflects first 800 of M`) |
 | **W15-4** | `[FOLLOWUP codex-2026-05-10-U6-relations-graph-cap]` (relations graph node-edge count unbounded; large extension reports UI graph render'ı yavaşlatıyor) | `[ui]` | **closed `2026-05-16` via `89e13e3`** (`InteractionsSection` adds `+N groups not shown` Eyebrow in `Panel right` slot when `graph.groups.length` exceeds `DISPLAY_CAPS.RELATIONS_GROUPS=5`; `InteractionGraph` literal `5` and `LEAF_CAP=6` swapped for value-preserving `DISPLAY_CAPS.RELATIONS_GROUPS` / `DISPLAY_CAPS.RELATIONS_LEAVES_PER_GROUP` imports — existing `+${overflow} more` leaf indicator untouched) |
-| **W15-5** | `[FOLLOWUP codex-2026-05-10-I2-ui-health-proxy]` (UI client `/health` fetch'i nginx `/api/*` proxy'sini bypass ediyor olabilir; reverse-proxy posture'a uyumsuz; verify + fix) | `[ui]` `[platform-storage]` | not started |
-| **W15-5** | `[FOLLOWUP codex-2026-05-10-I4-lifecycle-for-id-regex]` (lifecycle `"for <id>"` regex çok geniş; daraltma — log-noise + false-positive parser drift'i) | `[platform-storage]` | not started |
+| **W15-5** | `[FOLLOWUP codex-2026-05-10-I2-ui-health-proxy]` (UI client `/health` fetch'i nginx `/api/*` proxy'sini bypass ediyor olabilir; reverse-proxy posture'a uyumsuz; verify + fix) | `[ui]` `[platform-storage]` | **closed `2026-05-17` via `43d6438`** (additive backend `/api/health` route via new `appcore/api/health_router.py` mounted with `prefix="/api"`; UI `apiClient.getHealth` migrated `/health` → `/api/health`; legacy root `/health` preserved for external-monitoring back-compat) |
+| **W15-5** | `[FOLLOWUP codex-2026-05-10-I4-lifecycle-for-id-regex]` (lifecycle `"for <id>"` regex çok geniş; daraltma — log-noise + false-positive parser drift'i) | `[executor-runtime]` | **closed `2026-05-17` via `43d6438`** (two `_LIFECYCLE_MARKER_PATTERNS` entries in `extension_host_log_parse.py` tightened — `\s*…\.*?` → `\s+…(?:\s+for)?\s+` anchor; id capture `[\w.\-]+` → `[\w-]+\.[\w.\-]+` enforcing `<publisher>.<name>` VS Code marketplace id shape; narrow `(<id>)` parenthesis form + register patterns preserved untouched) |
 | **W15-6** | `[FOLLOWUP codex-2026-05-10-U10-U11-unauth-catalog-endpoints]` (auth posture decision; ADR 0011 — single-host appliance scope altında catalog endpoint'leri auth'suz mu, marker-based mı? Karar ADR ile, sonra koda uygulanır) | `[platform-storage]` `[security-detection]` | not started — ADR pending |
 | **W15-7** | `[FOLLOWUP compose-image-mutable-ref-pin]` (`docker-compose.yml` `postgres:16-alpine` + `alpine/socat:latest` mutable tag'ler; SHA digest pin'e geç; `test_dockerfile_digest_pin.py`'ı compose `image:` anahtarlarını kapsayacak şekilde **extend**) | `[platform-storage]` | not started |
 | **W15-7** | `[FOLLOWUP gh-action-trivy-version-pin]` (`.github/workflows/security.yml` `aquasecurity/trivy-action@master` mutable ref; version pin) | `[platform-storage]` | not started |
@@ -764,7 +779,7 @@ W15 target deltas (per sub-iter):
 | W15-2 ✅ | **+2 (actual)** workspace cleanup symlink-check order + helpers-table pin | +8 case (5 initial: real file/dir + 3 adversarial symlink fixtures; +3 edge: nested symlink in real subdir + idempotency + mixed-contents stress) | **closed +2 gates** |
 | W15-3 ✅ | **+6 (actual)** activationEvents bounds gate (3 Pydantic `max_length` + 2 SQLAlchemy `String(N)` + 1 vacuous-truth target table) | +12 case (3 boundary OK + 3 one-over reject + 2 parser-level defense-in-depth + 4 parser-level edge cases: 2 type-guard regression + 1 oversized no-colon skip + 1 exact-512 boundary) | **closed +6 gates** |
 | W15-4 | +0 (UI-side, architecture gate yok) | +3 dosya UI vitest (~15-24 case) | +0 arch |
-| W15-5 | +0 (UI vitest + Python unit test) | +1 UI + +1 unit (~6-10 case) | +0 arch |
+| W15-5 ✅ | **+0 (actual)** matches forecast — W14-6 "extend, do not duplicate" check (no existing `apiClient` URL prefix gate, no existing `_LIFECYCLE_MARKER_PATTERNS` shape gate) deferred new gates to W15-7 close-out hygiene | **+14 case** (3 backend pytest in `tests/test_health.py` — legacy `/health` + new `/api/health` + payload-equality cross-check; 2 UI vitest in new `ui/src/lib/api/client.test.ts` — fetch-spy URL discipline; 9 parser unit in `tests/executor/test_playwright_extension_host.py` — 4 positive parametrize for the tightened `<publisher>.<name>` shape + 5 negative parametrize for the pre-W15-5 false-positive shapes the loose regex tolerated) | **closed +0 gates** |
 | W15-6 | +1 (catalog endpoint posture gate) | (posture'a göre) | +1 gate |
 | W15-7 | +0 (mevcut gate extension) | (extension, yeni dosya yok) | +0 (extension) |
 | **Total** | **+3 ile +4 arası** | **~35-60 behavioral case** | `tests/architecture/` 171 → **174-175** |
@@ -1318,7 +1333,276 @@ attributable pipeline drift.
   scope (event spread / timeline / relations). Track as a W15-5
   candidate or a dedicated quick fix.
 
-## Close-Out (when W15 ends)
+### W15-5 — Quick fixes bundle: UI `/health` proxy + lifecycle `"for <id>"` regex — closed `2026-05-17` via `43d6438`
+
+**Stable ID(s).** `[FOLLOWUP codex-2026-05-10-I2-ui-health-proxy]`
++ `[FOLLOWUP codex-2026-05-10-I4-lifecycle-for-id-regex]`.
+
+**Landing commit(s).** `43d6438` (single atomic commit covering
+both I2 + I4 production code, the UI client URL migration, the
+backend health-router module, and the behavioral tests for both
+fixes). Follow-up `docs(W15-5): close` commit lands the tracker
+narrative + §13 row + backlog audit trail per the
+W15-1..W15-4 two-commit precedent (`c58c365` → `1bbb54d`,
+`765cde7` → `c0c6066`, `3512a7c` → `74242c7`, `89e13e3` → `e1318eb`).
+
+**Root cause (I2).** Pre-W15-5 the UI `apiClient.getHealth()` issued a
+`fetch("/health", …)` call directly from
+`ui/src/lib/api/client.ts:78`. All 12 other `apiClient` methods used
+the `/api/*` prefix that nginx's `location /api/` block in
+`ui/nginx/default.conf.template:13-20` proxies to the API container
+(`${API_PROXY_PASS}` ≈ `http://api:8000`). The bare `/health` path
+matched no nginx proxy block, so in production it fell through
+`try_files $uri $uri/ /index.html` and either returned the SPA
+fallback HTML or a `try_files`-resolved 404 — the UI healthcheck
+silently broke whenever served from nginx. Docker healthchecks were
+not load-bearing for the root `/health` HTTP path (`docker-compose.yml`
+3 healthchecks use `pg_isready` for postgres / postgres_test and the
+executor noVNC port 6080 — none HTTP-GET the API `/health` route);
+external monitoring (if any) is the only remaining consumer, so the
+legacy route is preserved as a back-compat surface.
+
+**Root cause (I4).** Two of the six `_LIFECYCLE_MARKER_PATTERNS`
+entries in
+`executor/flows/playwright/runtime_capture/extension_host_log_parse.py`
+used `\s*` (zero-or-more) between the verb and the next token and
+`.*?(?P<id>[\w.\-]+)` (non-greedy any-char) to capture the id, with
+no shape constraint on the id beyond `[\w.\-]+`. The pattern would
+match log lines such as `activate returned 200` (capturing the
+status code as the id) or `activate entered 12:34:56.789` (capturing
+a timestamp). The four other patterns in the list were already
+narrow — two enforced an `activate(<id>)` parenthesis form, and two
+`register` patterns required an explicit `(?:for|by|from)` keyword
+between the command/provider name and the id, so they were left
+untouched. Post-W15-5 the two broad patterns require explicit
+whitespace after the lifecycle verb (`\s+` instead of `\s*…\.*?`)
+and constrain the id to the VS Code marketplace
+`<publisher>.<name>` shape via `[\w-]+\.[\w.\-]+` (forces at least
+one literal `.` and a non-dot leading character).
+
+**Module locations.**
+
++ `appcore/api/health_router.py` (new, 20 LOC) —
+  `router = APIRouter(prefix="/api", tags=["health"])`;
+  `@router.get("/health")` returns
+  `{"status": settings.api.HEALTH_STATUS, "service": settings.project.NAME}`
+  — identical body to the legacy
+  `workflows.extension_catalog.router.health_check`.
++ `main.py:18,82` — `from appcore.api.health_router import router as health_router`
+  and `application.include_router(health_router)` appended after
+  the existing four router includes; existing include of
+  `extension_catalog_router` (which still owns root `/health`)
+  untouched.
++ `ui/src/lib/api/client.ts:78` —
+  `requestJson<...>("/health", { signal })` → `"/api/health"`;
+  all 13 `apiClient.*` methods now uniformly use the `/api/*`
+  prefix.
++ `ui/src/features/system/SystemPage.tsx:124,159` — display
+  labels updated `/health` → `/api/health` for honesty (the
+  Eyebrow chip and the inline `<code>` reference both surface
+  the URL string to operators inspecting the system page).
++ `workflows/extension_catalog/router.py:46-49` — **untouched**
+  per the additive-fix path; the root `/health` route remains
+  for external-monitoring back-compat.
++ `executor/flows/playwright/runtime_capture/extension_host_log_parse.py:54-58,68-76` —
+  two `_LIFECYCLE_MARKER_PATTERNS` regex entries tightened
+  (see "Root cause (I4)" above for the verbatim before/after
+  shape).
++ `executor/flows/playwright/runtime_capture/extension_host_log_parse.py:49-53,59-67,77-92` —
+  **untouched**; narrow `(<id>)` parenthesis-form patterns and
+  `register command|<Provider> for|by|from <id>` patterns kept
+  as-is (already anchored by parenthesis or explicit keyword).
+
+**Approach decisions (alternatives weighed).**
+
++ I2 path A (taken). Additive backend `/api/health` route via a
+  new dedicated `appcore/api/health_router.py` module with
+  `prefix="/api"`. Lowest blast radius — pure additive surface,
+  no migration of any existing route; UI uniformity restored;
+  legacy `/health` preserved.
++ I2 path B (rejected). Mount `extension_catalog_router` under
+  `prefix="/api"`. Would have migrated ALL 10+ routes on the
+  router (`/`, `/health`, `/searchExtension`,
+  `/getExtensionsBaseInfo`, `/getExtensionsAllInfo`,
+  `/createExtension`, `/deleteExtension`,
+  `/getExtensionScripts`, `/getExtensionActivationEvents`,
+  `/getExtensionCapabilities`, `/getExtensionContributesAll`,
+  `/getExtensionContributesCommands`) under `/api/*`, breaking
+  any external integration that hit the bare paths. Out-of-scope
+  blast.
++ I2 path C (rejected). Add `location = /health` proxy block to
+  nginx only; leave UI client unchanged. Preserves the
+  `/api/*`-non-uniform UI surface and contradicts the W15-5
+  scope intent ("UI tüm fetch'leri `/api/*` prefix'i üzerinden
+  yapsın").
++ I2 path D (rejected). Add `@router.get("/api/health")` to
+  `extension_catalog_router`. Domain-mixing — the extension
+  catalog router should not own the health endpoint.
++ I4 path A (rejected). Require literal `for` keyword between
+  the lifecycle verb and the id. Misses the
+  `"activate entered <id>"` variant the source comment
+  documents (line 54).
++ I4 path B (taken). `\s+` anchor + optional `(?:\s+for)?` +
+  id constrained to `[\w-]+\.[\w.\-]+`. Both eliminates the
+  unbounded `.*?` span AND constrains the id to a real
+  `<publisher>.<name>` shape (peer-extension ids on the same
+  log line also satisfy the publisher.name shape, but the
+  `\s+` anchor now forces them to immediately follow the verb
+  rather than appearing anywhere on the line).
++ I4 path C (rejected). Constrain only the id shape, keep
+  `.*?`. Less invasive but leaves the unbounded `.*?` span;
+  any peer-extension `<publisher>.<name>` token on the line
+  would still match.
+
+**Tests added.**
+
++ `tests/test_health.py` × **3** cases (extends existing
+  `TestHealthCheck` class):
+  + `test_legacy_health_endpoint` — root `/health` returns 200
+    with the expected `status` + `service` body (pre-W15-5 the
+    file did not cover this route at all even though it existed
+    in `extension_catalog_router`).
+  + `test_api_health_endpoint` — new `/api/health` returns 200
+    with the same shape.
+  + `test_api_health_matches_legacy_payload` — both routes
+    return byte-identical JSON; pins the single-source-of-truth
+    contract (any future divergence would surface here).
++ `ui/src/lib/api/client.test.ts` (new, 36 LOC) × **2** cases:
+  + `getHealth() targets /api/health, not /health (nginx /api/*
+    proxy)` — `vi.spyOn(global, "fetch")` + string-match against
+    `/\/api\/health$/`, plus an explicit endsWith-`/health`-without-
+    `/api/health` guard.
+  + `getHealth() emits the bare /api/health path under the
+    default (empty) base URL` — exact-string match
+    `expect(urlString).toBe("/api/health")` (pins the empty-base-
+    URL default branch of `getApiBaseUrl()` in
+    `ui/src/lib/api/runtime.ts`).
++ `tests/executor/test_playwright_extension_host.py` × **9**
+  cases (parametrize-style extension of the existing
+  `test_parse_activations_from_output_emits_lifecycle_marker_types`
+  test's scope):
+  + Positive × **4** (`test_lifecycle_marker_tightened_positive_cases`,
+    parametrized): `"activateFunction entered for ms-python.python"`
+    → `(id=ms-python.python, marker=activate_fn_entry, ms=None)`;
+    `"activate entered redhat.vscode-yaml"` →
+    `(redhat.vscode-yaml, activate_fn_entry, None)`;
+    `"activate returned for ms-python.python in 42 ms"` →
+    `(ms-python.python, activate_fn_exit, 42)`;
+    `"activate completed dbaeumer.vscode-eslint"` →
+    `(dbaeumer.vscode-eslint, activate_fn_exit, None)`.
+  + Negative × **5** (`test_lifecycle_marker_tightened_rejects_broad_matches`,
+    parametrized — asserts the lifecycle markers list is empty):
+    `"activate entered"` (no id at all — the pre-W15-5 loose
+    regex returned no id either because `entered.*?(?P<id>…)`
+    required a trailing token, but this case pins the contract);
+    `"activate returned 200"` (id lacks dot — pre-W15-5 would
+    have captured `200`); `"activate entered 12:34:56.789"`
+    (timestamp shape — pre-W15-5 would have captured the
+    timestamp tail); `"activating ms-python.python"` (wrong
+    verb — `\s+` anchor was implicit pre-W15-5 too via
+    `entered`/`returned`/`completed` literal but is reasserted);
+    `"activated returned ms-python.python"` (wrong verb prefix
+    `activated` — pre-W15-5 would have matched because the
+    regex did not require word-boundary before `activate`; the
+    tightened `\s+` anchor blocks this).
+
+Total: **+14** new test cases (above the tracker forecast band
+~6-10 — the parametrize matrices expanded the negative coverage
+to defend against multiple specific log-noise shapes).
+
+**Production diff.** `+20 LOC` new
+`appcore/api/health_router.py`; `+2 LOC` `main.py` (import +
+include); `+1 LOC / -1 LOC` `ui/src/lib/api/client.ts`
+(`/health` → `/api/health`); `+2 LOC / -2 LOC`
+`SystemPage.tsx` (two display labels); `+5 LOC / -3 LOC`
+`extension_host_log_parse.py` (regex tightening with explanatory
+comments). Net production diff `~+24 LOC`; tests `+13 LOC` in
+`test_health.py`, `+36 LOC` new `client.test.ts`, `+70 LOC`
+`test_playwright_extension_host.py`. Total `~+143 LOC`
+production + tests.
+
+**Verification.**
+
++ `pytest tests/test_health.py tests/executor/test_playwright_extension_host.py`
+  **51 passed** (8 in `test_health.py` — 5 prior + 3 W15-5;
+  43 in `test_playwright_extension_host.py` — 34 prior + 9
+  W15-5).
++ `pytest tests/architecture/` collects **188 passed, 4
+  deselected** — unchanged from the mid-iter hygiene baseline
+  (186 → 188 was the `878da2c` doc-preamble consistency gate +
+  README phase-pointer extension); W15-5 adds `+0` gates per
+  the W14-6 "extend, do not duplicate" check (no existing
+  `apiClient` URL prefix or `_LIFECYCLE_MARKER_PATTERNS` shape
+  gate to extend; new gates deferred to W15-7 close-out hygiene
+  per the W15-5 plan).
++ `make test-security` **215 passed, 35 warnings** — unchanged
+  from W13 / W14 / W15-1..W15-4 baseline; no security surface
+  touched.
++ `cd ui && npm test -- --run` — **74 passed across 18 files**
+  (72 prior + 2 new in `client.test.ts`).
++ `cd ui && npx tsc --noEmit` — clean (no TypeScript errors).
++ `make typecheck` — **Success: no issues found in 356 source
+  files** (Python mypy; W15-5 touched 3 source files —
+  `main.py`, `appcore/api/health_router.py`, and
+  `extension_host_log_parse.py` — all clean).
++ `ruff check appcore/api/health_router.py main.py
+  executor/flows/playwright/runtime_capture/extension_host_log_parse.py
+  tests/test_health.py tests/executor/test_playwright_extension_host.py`
+  — `All checks passed!`.
+
+**Consciously excluded (defers to W16+ or W15-7 close-out
+hygiene).**
+
++ Sweep of all `apiClient` methods for the `/api/*` prefix —
+  only `getHealth` had the bare path; the other 12 methods were
+  already correct, so a generic AST gate is deferred to W15-7
+  close-out hygiene if useful (low value; the broken case is
+  fixed and the pattern is socially obvious — every method goes
+  through `requestJson(path, …)` with a string-literal path that
+  shows up in code review).
++ Removal of the legacy root `/health` route on
+  `extension_catalog_router` — kept for external-monitoring
+  back-compat; removal would need a deprecation window and an
+  inventory of consumers (Docker healthchecks not affected per
+  the verification above, but external monitoring may exist).
++ Nginx config change — `location /api/` already proxies
+  `/api/health` correctly; no nginx edit needed. A separate
+  `location = /health` proxy block (path C) was explicitly
+  rejected in favor of additive backend.
++ Tightening of the `register command` / `register <Provider>`
+  patterns at line 77-92 — already anchored by explicit
+  `(?:for|by|from)` keyword; W15-5 scoped to the
+  `activate entered` / `activate returned|completed` entry/exit
+  patterns only.
++ Stricter VS Code marketplace id validator (e.g.
+  `[a-z0-9][a-z0-9-]*\.[a-z0-9][a-z0-9.-]*`) — W15-5 enforces
+  only the `<publisher>.<name>` dot-bearing shape; full
+  marketplace naming rules belong to a generic id-validator
+  W16+ candidate if a future audit flags it.
++ Pre-existing `SettingsPage.tsx:472`
+  `react-hooks/set-state-in-effect` lint error (flagged at
+  W15-4 close-out as a W15-5 candidate) — W15-5 scope locked
+  to I2 + I4 quick fixes only; the SettingsPage lint error
+  remains for a dedicated UI-lint hygiene follow-up. Adding it
+  here would have widened the close-out beyond the planned
+  bundle.
+
+**Risk profile (post-landing).** **Low.** Both fixes are
+additive or scope-tightening; neither touches DB migration,
+ADR security posture, executor sandbox boundary, or the
+contracts surface. The I4 false-negative risk (a legacy
+single-token extension id — e.g. a built-in VS Code extension
+without the `<publisher>.<name>` shape — slipping past the
+tightened lifecycle pattern) is mitigated by the existing
+`_ACTIVATION_PATTERNS` family (line 15-39), which still uses
+the loose `[\w.\-]+` id capture and remains the primary
+activation-detection path; `_LIFECYCLE_MARKER_PATTERNS` only
+enriches activation entries with a `marker_type` field, so a
+miss degrades enrichment quality rather than dropping the
+activation record. Post-rebuild fresh-scan inspection should
+confirm the `marker_type`-bearing entry count stays within the
+established natural-jitter band against the W15-4
+post-rebuild baseline scan.
 
 W15 kapanır şu koşullar sağlandığında:
 
