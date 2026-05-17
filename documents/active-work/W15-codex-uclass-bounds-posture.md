@@ -1335,8 +1335,8 @@ attributable pipeline drift.
 
 ### W15-5 — Quick fixes bundle: UI `/health` proxy + lifecycle `"for <id>"` regex — closed `2026-05-17` via `43d6438`
 
-**Stable ID(s).** `[FOLLOWUP codex-2026-05-10-I2-ui-health-proxy]`
-+ `[FOLLOWUP codex-2026-05-10-I4-lifecycle-for-id-regex]`.
+**Stable ID(s).** `[FOLLOWUP codex-2026-05-10-I2-ui-health-proxy]` +
+`[FOLLOWUP codex-2026-05-10-I4-lifecycle-for-id-regex]`.
 
 **Landing commit(s).** `43d6438` (single atomic commit covering
 both I2 + I4 production code, the UI client URL migration, the
