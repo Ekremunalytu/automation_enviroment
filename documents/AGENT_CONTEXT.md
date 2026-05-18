@@ -1,6 +1,6 @@
 # Agent Context
 
-`Last Updated: 2026-05-18 (W15 closed via PR #22 week15 -> main MERGED 2026-05-18 via 6161472 — W15-1..W15-7 sub-iter slate + W15-1 post-slate typing hotfix + close-out hygiene pass; W16 active on main branch per user direction — no separate week16 branch; W16 scope: 6+1 sub-iter — scenario-accountant emit-site fix (W16-1), analysis-job-worker-entry CRUD ownership (W16-2), report-finalize top-level field sync drift (W16-3), health-reconciliation responsibility split (W16-4), simulation-progress-cancel family closeout (W16-5), hygiene splits + Alembic round-trip fixture (W16-6), close-out (W16-7); plan source REFACTOR_OPTIMIZATION.md §14; W14 closed via PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d)`
+`Last Updated: 2026-05-18 (W16 active — close-out commit landed 2026-05-18; week16 -> main close-out PR pending. W16-0..W16-7 sub-iter slate complete: W16-0 doc-reconcile (0e243ca + d78aa9c); W16-1 scenario-accountant emit-site fix (HIGH prod regression W14-1 carry-over, 01f910a + a4a050e); W16-2 analysis-job worker-entry CRUD ownership (W15 audit, 9d6d110 + c8b7811); W16-3 report-finalize null-leakage half (W14 carry-over, fa430f2 + e3d4a0c; attribution-count-parity split to W17+); W16-4 health-reconciliation responsibility split (W15 audit, 304b99f + 384d276); W16-5 simulation-progress-cancel scope reduction (e21a05c); W16-6 hygiene splits + Alembic fresh-DB fixture (d40bb01); W16-7 close-out hygiene + canonical preamble refresh. Final W16 bar: tests/architecture/ 199 passed; make test-security 217 passed; full suite 1890 passed. Plan REFACTOR_OPTIMIZATION.md §14, frozen tracker active-work/W16-regression-and-audit-closeout.md. W15 closed via PR #22 MERGED 2026-05-18 via 6161472; W14 closed via PR #21 MERGED 2026-05-14 via 4e03c8d)`
 
 Thin routing map for coding agents after `AGENTS.md`. **Stays short.**
 Do not copy phase history here; use `REFACTOR_STATUS.md` (slim canonical).
@@ -21,9 +21,10 @@ Do not copy phase history here; use `REFACTOR_STATUS.md` (slim canonical).
   `2026-05-18`**. Past W8/W11/W12/W13/W14/W15 trackers remain only for
   stable IDs referenced by code/tests. **Active phase:** W16 —
   Carry-Over Closeout + Audit Findings + Production Regression (active
-  `2026-05-18` **on `main` per user direction — no separate `week16`
-  branch**; sub-iter commits land directly on `main` and the W16
-  tracker freezes at scope close). Active tracker:
+  `2026-05-18` **on the `week16` branch per user direction (W11-W15
+  paterni restored 2026-05-18 via W16-0 doc reconcile)**; sub-iter
+  commits land on `week16` and the close-out is merged into `main`
+  via a `week16 -> main` PR). Active tracker:
   `active-work/W16-regression-and-audit-closeout.md`. For current
   closure state always defer to `REFACTOR_STATUS.md`.
 - Architecture: `ARCHITECTURE.md` (slim) + `architecture/` splits.

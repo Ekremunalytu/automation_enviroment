@@ -43,6 +43,17 @@ flip to expect the specific code instead of ``unaccounted_dropout``.
 
 See [`documents/active-work/W14-codex-acceptance-observability.md`](../../documents/active-work/W14-codex-acceptance-observability.md)
 §"W14-1 scope" for the BLOCKER triage decision record.
+
+W16-1 (active 2026-05-18) closes the dispatch-layer half of that emit-site:
+``_normalize_execution_result``'s ``outcome is None`` branch at
+``executor/flows/playwright/entrypoint/dispatch.py`` now emits
+``dispatch_outcome_none`` for each requested scenario, so the downstream
+conservation guard no longer has to fall back to ``unaccounted_dropout`` when
+the dispatcher collapsed. ``test_dispatch_outcome_none_emits_specific_reason_code``
+below pins that upstream instrumentation directly. The existing
+accountant-boundary vectors retain their last-mile fallback semantics for the
+remaining (non-dispatch) silent drop sites — planner or future
+``stimulus.passes`` layers that fail to record a specific reason.
 """
 
 from __future__ import annotations
@@ -283,3 +294,89 @@ def test_scenario_dropout_repro_finalize_running_also_runs_conservation() -> Non
     skipped_by_name = {r.name: r for r in report.skipped_scenarios}
     assert "debug_session" in skipped_by_name
     assert skipped_by_name["debug_session"].reason_code == "unaccounted_dropout"
+
+
+# ---------------------------------------------------------------------------
+# W16-1 upstream emit-site instrumentation pin
+# ---------------------------------------------------------------------------
+
+
+def test_dispatch_outcome_none_emits_specific_reason_code() -> None:
+    """W16-1: ``_normalize_execution_result`` MUST emit a specific
+    ``dispatch_outcome_none`` reason for every requested scenario when the
+    stimulus dispatcher returns ``None``.
+
+    Pre-W16-1, the outcome=None branch built an empty
+    ``AutomationExecutionResult`` with no ``skipped_scenarios`` entries; the
+    downstream ``ScenarioAccountant._validate_scenario_conservation`` last-mile
+    guard then back-filled each missing scenario with the generic
+    ``unaccounted_dropout`` reason. That is what ``vec_stimulus_collapse``
+    above pins at the accountant boundary. W16-1 closes the upstream half of
+    the bug class so the dispatch normalizer itself records *why* the
+    scenarios disappeared — production observers see ``dispatch_outcome_none``
+    in ``skipped_scenarios`` rather than a downstream-only fallback.
+
+    Production motivation: ``debug_session`` + ``refactor_workflow``
+    deterministic dropouts observed in ``activation_report_*.json`` on
+    2026-05-14 + 2026-05-15. See W14-1 / W16-1 trackers.
+    """
+    from executor.flows.playwright import stimulus as stimulus_module
+    from executor.flows.playwright.entrypoint.dispatch import (
+        _normalize_execution_result,
+    )
+
+    class _StubDeps:
+        stimulus = stimulus_module
+
+    deps = _StubDeps()
+    requested = ["debug_session", "refactor_workflow", "coding_session"]
+
+    result = _normalize_execution_result(
+        None, deps=deps, requested_scenarios=requested
+    )
+
+    assert list(result.requested_scenarios) == requested
+    assert list(result.executed_scenarios) == []
+    assert list(result.failed_scenarios) == []
+    assert list(result.extra_trigger_failures) == []
+
+    skip_by_name = {item.name: item for item in result.skipped_scenarios}
+    assert set(skip_by_name) == set(requested), (
+        f"every requested scenario must surface; expected={sorted(requested)}, "
+        f"got={sorted(skip_by_name)}"
+    )
+    for name in requested:
+        assert skip_by_name[name].reason_code == "dispatch_outcome_none", (
+            f"{name}: expected dispatch_outcome_none, got "
+            f"{skip_by_name[name].reason_code!r}"
+        )
+        assert skip_by_name[name].detail, (
+            f"{name}: detail must be populated for analyst readability"
+        )
+
+
+def test_dispatch_outcome_none_emits_nothing_when_no_requested_scenarios() -> None:
+    """W16-1: with an empty ``requested_scenarios`` the normalizer's outcome=None
+    branch MUST still return cleanly and MUST NOT fabricate phantom entries.
+
+    Edge case for ``--skip-automation`` / demo / empty-payload modes that pass
+    an empty list to the normalizer. The upstream instrumentation MUST behave
+    as a no-op for those modes — fabricating a synthetic skip record for a
+    scenario that was never requested would itself be a conservation violation.
+    """
+    from executor.flows.playwright import stimulus as stimulus_module
+    from executor.flows.playwright.entrypoint.dispatch import (
+        _normalize_execution_result,
+    )
+
+    class _StubDeps:
+        stimulus = stimulus_module
+
+    result = _normalize_execution_result(
+        None, deps=_StubDeps(), requested_scenarios=[]
+    )
+
+    assert list(result.requested_scenarios) == []
+    assert list(result.skipped_scenarios) == []
+    assert list(result.executed_scenarios) == []
+    assert list(result.failed_scenarios) == []

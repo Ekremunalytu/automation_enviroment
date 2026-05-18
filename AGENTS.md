@@ -1,6 +1,6 @@
 # AGENTS.md
 
-`Last Updated: 2026-05-18 (W15 closed via PR #22 week15 -> main MERGED 2026-05-18 via 6161472 — W15-1..W15-7 sub-iter slate + W15-1 post-slate typing hotfix + close-out hygiene pass; W16 active on main branch per user direction — no separate week16 branch; W16 scope: 6+1 sub-iter — scenario-accountant emit-site fix (W16-1, HIGH prod regression), analysis-job-worker-entry CRUD ownership (W16-2), report-finalize top-level field sync drift (W16-3), health-reconciliation responsibility split (W16-4), simulation-progress-cancel family closeout (W16-5), hygiene splits + Alembic round-trip fixture (W16-6), close-out (W16-7); plan source REFACTOR_OPTIMIZATION.md §14; W14 closed via PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d; W13 closed via PR #20 -> 772deb3 on 2026-05-13)`
+`Last Updated: 2026-05-18 (W16 active — close-out commit landed 2026-05-18; week16 -> main close-out PR pending. W16-0..W16-7 sub-iter slate complete: W16-0 doc-reconcile (0e243ca + d78aa9c); W16-1 scenario-accountant emit-site fix (HIGH prod regression W14-1 carry-over, 01f910a + a4a050e); W16-2 analysis-job worker-entry CRUD ownership (W15 audit, 9d6d110 + c8b7811); W16-3 report-finalize null-leakage half (W14 carry-over, fa430f2 + e3d4a0c; attribution-count-parity split to W17+); W16-4 health-reconciliation responsibility split (W15 audit, 304b99f + 384d276); W16-5 simulation-progress-cancel scope reduction (1 rejected, 2 deferred to W17+, e21a05c); W16-6 hygiene splits + Alembic fresh-DB fixture (d40bb01); W16-7 close-out hygiene + canonical preamble refresh. Final W16 bar: tests/architecture/ 199 passed; make test-security 217 passed; full suite 1890 passed. W15 closed via PR #22 week15 -> main MERGED 2026-05-18 via 6161472; W14 closed via PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d; W13 closed via PR #20 -> 772deb3 on 2026-05-13)`
 
 ## Authority
 
@@ -29,23 +29,28 @@
   trivy version pin + close-out lint hygiene). Frozen tracker:
   `documents/active-work/W15-codex-uclass-bounds-posture.md`.
   **Active phase is W16 — Carry-Over Closeout + Audit Findings +
-  Production Regression**, active `2026-05-18` on `main` **(no
-  separate `week16` branch per user direction — sub-iter commits
-  land directly on `main` and the W16 tracker freezes at scope
-  close)**: plan `documents/REFACTOR_OPTIMIZATION.md` §14, tracker
+  Production Regression**, **close-out commit landed `2026-05-18`
+  on the `week16` branch; `week16 -> main` close-out PR pending
+  (W11-W15 paterni restored via W16-0 doc reconcile)**: plan
+  `documents/REFACTOR_OPTIMIZATION.md` §14, frozen tracker
   `documents/active-work/W16-regression-and-audit-closeout.md`.
-  W16 scope (6+1 sub-iter, severity-leading): W16-1 scenario-accountant
-  upstream emit-site fix (W14-1 root-cause split; HIGH prod regression
-  observed `2026-05-14` + `2026-05-15`); W16-2 analysis-job-worker-entry
-  CRUD ownership (W15 audit finding); W16-3 report-finalize top-level
-  field sync drift (W14 carry-over); W16-4 health-reconciliation
-  responsibility split (W15 audit finding, W13-1 HMAC gates preserved);
-  W16-5 simulation-progress-cancel family closeout (W11+ umbrella, 3
-  sub-items); W16-6 hygiene splits + Alembic round-trip fixture; W16-7
-  close-out hygiene. Final W15 post-merge bar (re-recorded at W16-1
-  pull): `tests/architecture/` **198 passed** (+26 from W14 final 172);
-  `make test-security` **215 passed**. Past W8/W11/W12/W13/W14/W15
-  trackers remain stable-ID references only.
+  **W16-0..W16-7 sub-iter slate complete:** W16-0 doc-reconcile
+  (`0e243ca` + `d78aa9c`); W16-1 scenario-accountant upstream emit-site
+  fix (W14-1 root-cause split; HIGH prod regression `2026-05-14` +
+  `2026-05-15`; `01f910a` + `a4a050e`); W16-2 analysis-job-worker-entry
+  CRUD ownership (W15 audit; W13-13 CAS preserved byte-identically;
+  `9d6d110` + `c8b7811`); W16-3 report-finalize null-leakage half
+  (W14 carry-over; attribution-count-parity split to W17+ as
+  `[FOLLOWUP attribution-count-parity]`; `fa430f2` + `e3d4a0c`); W16-4
+  health-reconciliation responsibility split (W15 audit; W13-1 HMAC +
+  W13-12 fail-closed gates preserved; `304b99f` + `384d276`); W16-5
+  simulation-progress-cancel scope reduction (1 rejected, 2 deferred
+  to W17+ pending lifecycle harness; `e21a05c`); W16-6 hygiene splits +
+  Alembic fresh-DB fixture (`d40bb01`); W16-7 close-out hygiene +
+  canonical preamble refresh. Final W16 bar: `tests/architecture/`
+  **199 passed** (W15 final 172, +27); `make test-security` **217
+  passed** (W13 final 215, +2); full suite **1890 passed, 9 skipped**.
+  Past W8/W11/W12/W13/W14/W15 trackers remain stable-ID references only.
 - ADR 0007 local-network-binding is **Accepted and implemented**; loopback
   defaults + `EXTRACE_ALLOW_LAN` are pinned by `test_default_bindings.py`.
 

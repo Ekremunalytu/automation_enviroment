@@ -44,6 +44,13 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 RECONCILIATION_PATH = (
     REPO_ROOT / "executor" / "flows" / "playwright" / "health" / "reconciliation.py"
 )
+# W16-4: ``_attempt_has_harness_completion_trace`` moved to handshake.py
+# alongside the W13-1 security primitives in security.py. The gate paths
+# below are re-targeted; ``RECONCILIATION_PATH`` is kept for the
+# ``reconcile_event_attempts`` invariant that still lives there.
+HANDSHAKE_PATH = (
+    REPO_ROOT / "executor" / "flows" / "playwright" / "health" / "handshake.py"
+)
 DISPATCH_PATH = (
     REPO_ROOT / "executor" / "flows" / "playwright" / "entrypoint" / "dispatch.py"
 )
@@ -68,14 +75,21 @@ def _function_calls(func: ast.FunctionDef) -> set[str]:
 
 
 def test_attempt_has_harness_completion_trace_calls_verifier() -> None:
-    """W13-1: phase-only acceptance was the spoofing surface; signature is mandatory."""
-    tree = ast.parse(RECONCILIATION_PATH.read_text(encoding="utf-8"))
+    """W13-1: phase-only acceptance was the spoofing surface; signature is mandatory.
+
+    W16-4 re-target: ``_attempt_has_harness_completion_trace`` lives in
+    ``handshake.py`` alongside the W13-12 fail-closed dispatch logic;
+    ``_verify_harness_marker_signature`` lives in ``security.py`` and is
+    imported into handshake.py. The AST walk now parses handshake.py and
+    asserts the verifier call survives the import boundary.
+    """
+    tree = ast.parse(HANDSHAKE_PATH.read_text(encoding="utf-8"))
     func = _find_function(
-        tree, "_attempt_has_harness_completion_trace", RECONCILIATION_PATH
+        tree, "_attempt_has_harness_completion_trace", HANDSHAKE_PATH
     )
     calls = _function_calls(func)
     assert "_verify_harness_marker_signature" in calls, (
-        f"{RECONCILIATION_PATH.relative_to(REPO_ROOT)}: "
+        f"{HANDSHAKE_PATH.relative_to(REPO_ROOT)}: "
         "_attempt_has_harness_completion_trace must call "
         "_verify_harness_marker_signature so harness completion traces "
         "are authenticated against the per-launch HMAC nonce. "

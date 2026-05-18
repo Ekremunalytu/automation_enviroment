@@ -507,6 +507,29 @@ class ActivationReport(StrictContractModel):
     # the field is additive-optional and does not change the legacy
     # contract's required shape.
     executor_fingerprint: dict[str, str] = Field(default_factory=dict)
+    # W16-3: top-level field sync drift closeout. Pre-W16-3 these five
+    # analyst-facing scalars existed on the in-memory ActivationReport
+    # (executor/flows/playwright/monitor/types.py) but had no contract
+    # slot — the strict-forbid contract validation in
+    # ``executor/flows/playwright/report_builder.save_report_payload``
+    # silently dropped them on save, so downstream analyzers that read
+    # top-level fields directly saw the rows as missing/null even
+    # though the underlying evidence (scenario_traces,
+    # automation_health, dispatch.setup_monitor's
+    # ``harness_handshake_required=True`` stamp) was present in the
+    # same payload. The five additions below close the
+    # [FOLLOWUP report-finalize-top-level-field-sync-drift] backlog
+    # entry. Defaults match the in-memory dataclass defaults so legacy
+    # fixtures keep validating; ``build_report_data`` populates them
+    # from the live report on every new write. Schema version stays at
+    # 2.1 — the fields are additive-optional and do not change the
+    # legacy contract's required shape (same precedent as
+    # ``executor_fingerprint``).
+    target_extension_id: str = ""
+    monitoring_start: float = 0.0
+    monitoring_end: float = 0.0
+    scenarios_run: list[str] = Field(default_factory=list)
+    harness_handshake_required: bool = False
 
     @model_validator(mode="before")
     @classmethod

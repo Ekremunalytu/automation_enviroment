@@ -1,6 +1,6 @@
 # Post-PoC Backlog
 
-`Last Updated: 2026-05-18 (W15 closed via PR #22 week15 -> main MERGED 2026-05-18 via 6161472 — W15-1..W15-7 sub-iter slate + W15-1 post-slate typing hotfix + close-out hygiene pass; W16 active on main branch per user direction — no separate week16 branch; W16 Pull-Forward planned: scenario-accountant-conservation-split (W16-1, W14-1 carry-over HIGH prod regression), analysis-job-worker-entry-crud-ownership (W16-2, W15 audit finding), report-finalize-top-level-field-sync-drift (W16-3, W14 carry-over), health-reconciliation-responsibility-split (W16-4, W15 audit finding), simulation-progress-cancel family 3 sub-items (W16-5, W11+ umbrella), hygiene splits + w13-4-alembic-roundtrip-programmatic (W16-6); W14 closed via PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d)`
+`Last Updated: 2026-05-18 (W16 active — close-out commit landed 2026-05-18; week16 -> main close-out PR pending. W16 Pull-Forward CLOSED: scenario-accountant-conservation-split (W16-1, 01f910a), analysis-job-worker-entry-crud-ownership (W16-2, 9d6d110), report-finalize-top-level-field-sync-drift null-leakage half (W16-3, fa430f2; attribution-count-parity half SPLIT to W17+ as [FOLLOWUP attribution-count-parity]), health-reconciliation-responsibility-split (W16-4, 304b99f), simulation-progress-cancel scope reduction (W16-5 doc-only e21a05c — dedupe-step-progress-schemas REJECTED; heartbeat-sandbox-reset-off-thread + heartbeat-refactor DEFERRED to W17+), marketplace-router-test-suite-split + test-import-graph-policy-dump-split + w13-4-alembic-roundtrip-programmatic (W16-6, d40bb01). Final W16 bar: tests/architecture/ 199 passed; make test-security 217 passed; full suite 1890 passed. W15 closed via PR #22 MERGED 2026-05-18 via 6161472; W14 closed via PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d)`
 
 Open deferred work after the W0-W7 PoC acceptance bar. **Slim canonical** —
 verbose closure rationales, evidence paragraphs, and per-iter Note columns
@@ -16,8 +16,9 @@ W8-W15 are closed; W13 close-out PR #20 `week13 -> main` **MERGED**
 `2026-05-13` via `772deb3`; W14 close-out PR #21 `week14 -> main`
 **MERGED** `2026-05-14` via `4e03c8d`; **W15 close-out PR #22
 `week15 -> main` MERGED `2026-05-18` via `6161472`**. **W16 active**
-on `main` (no separate `week16` branch per user direction); W16-1..W16-7
-planned (pull-forward table below). W14 tracker:
+on the `week16` branch (per user direction 2026-05-18; W11-W15 paterni
+restored via W16-0 doc reconcile); W16-1..W16-7 planned (pull-forward
+table below). W14 tracker:
 [`active-work/W14-codex-acceptance-observability.md`](active-work/W14-codex-acceptance-observability.md);
 W15 tracker (frozen):
 [`active-work/W15-codex-uclass-bounds-posture.md`](active-work/W15-codex-uclass-bounds-posture.md);
@@ -86,19 +87,21 @@ per-iter Per-Item Detail evidence in the W15 tracker + archive snapshot.
 
 ## W16 Pull-Forward Acceptance Bar (planned)
 
-W16 active on `main` per user direction (no separate `week16` branch).
-Stable IDs reserved by §14 plan; each row assigned **at first pull** per
-the W11/W12/W13/W14/W15 precedent.
+W16 active on the `week16` branch (per user direction 2026-05-18;
+W11-W15 paterni restored via W16-0 doc reconcile). Stable IDs reserved
+by §14 plan; each row assigned **at first pull** per the
+W11/W12/W13/W14/W15 precedent. Close-out merges into `main` via a
+`week16 -> main` PR.
 
 | Iter | Stable ID(s) (planned) | Landing commit |
 |---|---|---|
-| W16-1 | `[FOLLOWUP scenario-accountant-conservation-split]` (W14-1 root-cause split; HIGH prod regression) | _pending pull_ |
-| W16-2 | `[FOLLOWUP analysis-job-worker-entry-crud-ownership]` (W15 audit finding; row-lock-aware lifecycle CRUD primitive) | _pending pull_ |
-| W16-3 | `[FOLLOWUP report-finalize-top-level-field-sync-drift]` (W14 production scan-driven investigation) | _pending pull_ |
-| W16-4 | `[FOLLOWUP health-reconciliation-responsibility-split]` (W15 audit finding; behavior-preserving extraction; W13-1 HMAC gates preserved) | _pending pull_ |
-| W16-5 | `[FOLLOWUP simulation-progress-cancel] heartbeat-sandbox-reset-off-thread` + `dedupe-step-progress-schemas` + `heartbeat-refactor` (W11+ umbrella closeout) | _pending pull_ |
-| W16-6 | `[CLEANUP marketplace-router-test-suite-split]` + `[CLEANUP test-import-graph-policy-dump-split]` + `[FOLLOWUP w13-4-alembic-roundtrip-programmatic]` | _pending pull_ |
-| W16-7 | close-out hygiene + canonical preamble refresh (no `week16 -> main` PR per main-branch direction) | _pending pull_ |
+| W16-1 | `[FOLLOWUP scenario-accountant-conservation-split]` (W14-1 root-cause split; HIGH prod regression — dispatch-layer outcome=None emit-site closed) | `01f910a` |
+| W16-2 | `[FOLLOWUP analysis-job-worker-entry-crud-ownership]` (W15 audit finding; row-lock-aware lifecycle CRUD primitive — closed at facade boundary) | `9d6d110` |
+| W16-3 | `[FOLLOWUP report-finalize-top-level-field-sync-drift]` (W14 production scan-driven investigation — null-leakage half closed at contract seam; attribution-count parity split to follow-up) | `fa430f2` |
+| W16-4 | `[FOLLOWUP health-reconciliation-responsibility-split]` (W15 audit finding; behavior-preserving extraction; W13-1 HMAC + W13-12 fail-closed gates preserved) | `304b99f` |
+| W16-5 | `[FOLLOWUP simulation-progress-cancel]` umbrella (3 sub-items) — scope reduced: `dedupe-step-progress-schemas` **rejected** (distinct surface roles), `heartbeat-sandbox-reset-off-thread` + `heartbeat-refactor` **deferred to W17+** (lifecycle harness prerequisite). | documented in tracker (no code commit) |
+| W16-6 | `[CLEANUP marketplace-router-test-suite-split]` (2374 LoC → 5 endpoint-grouped files) + `[CLEANUP test-import-graph-policy-dump-split]` (767 LoC → 4 thematic files) + `[FOLLOWUP w13-4-alembic-roundtrip-programmatic]` (skip removed; `fresh_alembic_engine` per-test throwaway Postgres DB) | `d40bb01` |
+| W16-7 | close-out hygiene + canonical preamble refresh + W16 tracker freeze + `week16 -> main` close-out PR (W11-W15 paterni restored) | _close-out commit landed 2026-05-18; PR pending_ |
 
 ## Codex Cloud Audit Backlog
 
@@ -148,26 +151,74 @@ evidence.
 
 ### Workflow / Platform
 
-- `[FOLLOWUP simulation-progress-cancel] heartbeat-sandbox-reset-off-thread` — **pulled to W16-5** (heartbeat umbrella closeout).
-- `[FOLLOWUP simulation-progress-cancel] dedupe-step-progress-schemas` — **pulled to W16-5** (heartbeat umbrella closeout).
-- `[FOLLOWUP simulation-progress-cancel] heartbeat-refactor` — **pulled to W16-5** (heartbeat umbrella closeout).
+- `[FOLLOWUP simulation-progress-cancel] heartbeat-sandbox-reset-off-thread` — **W16-5 deferred to W17+**. The sandbox-reset call currently fires on the analysis worker thread in
+  `workflows/marketplace/analysis_execution.py`; moving it onto the
+  monitoring heartbeat thread (or any sibling background thread) is
+  concurrency-sensitive — it interacts with the W13-3 two-phase cancel
+  contract, the W13-13 worker-entry CAS, and the W16-2 facade's row
+  lock discipline. A safe move needs a lifecycle harness that drives
+  start/reset/cancel/finalize against a real DB session and a real
+  Playwright page mock; that harness does not exist yet (see also the
+  W14-3 RED stub note that surfaced the same gap for report-finalize).
+  W16 scope cap keeps the carry-over closeout window narrow; the
+  thread move belongs in a dedicated sub-iter with the harness as a
+  prerequisite.
+- `[FOLLOWUP simulation-progress-cancel] dedupe-step-progress-schemas` — **W16-5 rejected** after investigation. The two schemas
+  (`appcore/contracts/schema_defs/analysis_jobs.AnalysisJobStepProgress`
+  with `extra="forbid"`; `appcore/contracts/schema_defs/marketplace.AnalyzeJobStepProgress`
+  with the default lenient Pydantic config) carry identical field
+  shape (`completed: int >= 0`, `total: int >= 0`) but serve distinct
+  surface roles: the internal storage layer needs the strict variant
+  to catch typos at write time, while the public API surface drives
+  TypeScript binding generation via `scripts/generate_ui_contracts.py`
+  (line 70's `"AnalyzeJobStepProgress"` allowlist) and downstream
+  external consumers may expect leniency for forward-compatibility.
+  Aliasing the marketplace symbol to the analysis_jobs class would
+  flip the public API to `extra="forbid"` silently (changes
+  `__pydantic_config__.extra` on the same `__qualname__`) and the
+  emitted TS binding's class name would shift to
+  `AnalysisJobStepProgress`. Both are observable changes for callers
+  outside the codebase. The dedupe value (35 LoC eliminated) does not
+  justify the surface-role coupling or the breaking risk; the audit
+  finding stays open as documentation but no schema change lands.
+- `[FOLLOWUP simulation-progress-cancel] heartbeat-refactor` — **W16-5
+  deferred to W17+**. Bundled with `heartbeat-sandbox-reset-off-thread`
+  above; the same lifecycle harness is the prerequisite. The current
+  heartbeat shape
+  (`workflows/marketplace/analysis_execution._run_monitoring_heartbeat`
+  L102-128 + thread setup L287-313) is functional and exercises every
+  cancel-poll branch; the audit-driven refactor is a clarity gain
+  rather than a correctness fix, so deferring without behavioral
+  consequence is safe.
 - `[FOLLOWUP analysis-thread-supervisor]`
 - `[FOLLOWUP job-service-typevar-audit]`
 - `[FOLLOWUP sqlalchemy-error-subtype-logging]`
 - `[FOLLOWUP w11-8-companion-workflow-orm-bleed]` (W17+; DTO desen kararı ayrı ADR ister).
-- `[FOLLOWUP analysis-job-worker-entry-crud-ownership]` — **pulled to W16-2**.
-  `workflows/marketplace/analysis_service.py` worker-entry block (lines
-  296-346) issues `SELECT ... FOR UPDATE` + row mutate + `db.commit()`
-  directly against `AnalysisJob`, bypassing the `appcore/storage/crud.py`
-  write facade (`AGENTS.md:57` hard rule). Documented intentional
-  exception — comment block at :280-295 explains the wrapper would
-  deadlock against the lifecycle wrapper's own `SessionLocal()`. Right
-  fix is a row-lock-aware lifecycle CRUD primitive in
-  `appcore/storage/crud_ops/analysis_jobs/lifecycle.py`, not collapsing
-  the existing helper. Concurrency-sensitive — any rewrite must preserve
-  the row-lock-on-entry → branch-on-status → atomic-finalize CAS pattern
-  landed in W13-13 (`worker-start-cancel-race-CAS` close-gate). W15+
-  hygiene; new audit finding `2026-05-16`.
+- `[FOLLOWUP analysis-job-worker-entry-crud-ownership]` — **closed at
+  W16-2** via `9d6d110`. New row-lock-aware lifecycle CRUD primitive
+  `claim_queued_analysis_job_at_worker_entry` (+ `WorkerEntryOutcome`
+  enum + `WorkerEntryClaim` dataclass) extracted to
+  `appcore/storage/crud_ops/analysis_jobs/lifecycle.py`;
+  `workflows/marketplace/analysis_service.run_analysis_job` body
+  refactored to dispatch on the returned outcome instead of issuing
+  inline `SELECT ... FOR UPDATE` + branch + `db.commit()`. `AGENTS.md:57`
+  hard rule compliance restored. W13-13 CAS pattern preserved
+  byte-identically (row-lock-on-entry → branch-on-status → atomic
+  finalize-or-promote); the W13-13 lock-asymmetry rationale (direct
+  `finalize_cancelled_analysis_job` call vs. wrapper deadlock) moved
+  from the caller docstring into the facade docstring. **Architecture
+  gate** at `tests/architecture/test_run_analysis_job_entry_snapshot.py`
+  re-targeted on the facade boundary per W14-6 "extend, do not
+  duplicate" (INV1: claim helper is the first DB action in
+  `run_analysis_job`; INV2: claim helper body contains both
+  `with_for_update()` and `finalize_cancelled_analysis_job` AST call
+  sites). All 6 W13-13 behavioral pins in
+  `tests/platform/storage/test_analysis_jobs_cancel_at_worker_entry.py`
+  stay green; one monkeypatch target moved from `analysis_service` to
+  `lifecycle` because the W16-2 refactor removed the bare-name binding
+  from the analysis_service module scope. Lifecycle surface pin
+  (`test_module_path_pins_lifecycle_surface`) extended with the three
+  new public exports.
 
 Closed (one-line audit trail):
 
@@ -194,32 +245,76 @@ Closed (one-line audit trail):
   same downstream symptoms. The dropout is **deterministic** across
   runs and **not** a side effect of the W15-1/W15-2 changes; the
   upstream emit-site bug class is reproducible without retry.
-- `[FOLLOWUP scenario-accountant-conservation-split]` — **pulled to W16-1** (HIGH prod regression, severity-leading W16 item). Upstream emit-site
-  work (planner / `stimulus_passes` / `dispatch._normalize_execution_result`);
-  separate pull, W15+ candidate. **Observed in production
-  `2026-05-14`:** debug_session + refactor_workflow drop edildiğinde
-  `run_quality: low`, `automation_health.status: degraded`,
-  `verification_gap: 2` (debug + terminal_tasks capability'leri verify
-  edilemedi — dropout'un türevi). `signal_summary.level: needs_review`
-  (score 28) — extension için risk_signals 0 olmasına rağmen attribution
+- `[FOLLOWUP scenario-accountant-conservation-split]` — **dispatch
+  layer closed at W16-1** via `01f910a` (HIGH prod regression,
+  severity-leading W16 item). `dispatch._normalize_execution_result`
+  outcome=None branch now emits `dispatch_outcome_none` (`reason_code`
+  + non-empty `detail`) for each requested scenario instead of leaving
+  them to the downstream
+  `ScenarioAccountant._validate_scenario_conservation` last-mile
+  guard's `unaccounted_dropout` fallback. Adjacent emit-site audit
+  (W16-1 closure context): `executor/flows/playwright/stimulus/passes.py`
+  already records specific reasons (`prerequisite_blocked`,
+  `unsupported_activation_surface`, `unknown_scenario`) at L102-158
+  per W11+; `executor/flows/playwright/automation.py` accounts every
+  requested scenario by design (no silent drops at L275-365); planner
+  (`executor/flows/playwright/entrypoint/triggers.py:22-38`) does not
+  drop. Any new `unaccounted_dropout` surface would indicate an
+  undiscovered emit-site, not the dispatch outcome=None bug class
+  (now closed). **Observed in production `2026-05-14`:** debug_session
+  + refactor_workflow drop edildiğinde `run_quality: low`,
+  `automation_health.status: degraded`, `verification_gap: 2`
+  (debug + terminal_tasks capability'leri verify edilemedi —
+  dropout'un türevi). `signal_summary.level: needs_review` (score 28)
+  — extension için risk_signals 0 olmasına rağmen attribution
   korelatif kaldığı için manuel review öneriliyor. **Deterministic
   confirmation `2026-05-15` 09:51** — bir saatlik rebuild + ikinci
   scan aynı state'i raporladı; root cause non-intermittent, repro
-  fixture senkron çekilebilir.
-- `[FOLLOWUP report-finalize-top-level-field-sync-drift]` — **pulled to W16-3** (couples with W16-1 scenario-accountant fix; finalize ordering). Production
-  scan `activation_report_*.json` carries `null` for several top-level
-  fields (`target_extension_id`, `monitoring_start`/`monitoring_end`,
-  `scenarios_run`, `harness_handshake_required`) despite underlying
-  evidence being present. Not a W14 regression — finalize / `report.save()`
-  ordering drift. W15+ hygiene. Full investigation hook in archive.
-  **Observation `2026-05-14`:** aynı drift sınıfının yeni bir tezahürü
-  gözlendi — `attribution_summary.target_activation_count = 1` raporlanırken
-  `evidence_events` listesinde `kind=activation, is_target_extension_event=True`
-  hiç yok; ancak `target_extension_host` log stream'inde 1 entry mevcut
-  (`Activated ms-python.python via workspaceContains:requirements.txt`).
-  İki agregasyon kaynağı aynı aktivasyon için farklı target-flag verdiği
-  için top-level sayım stream-türevli, evidence-kind sayımı 0 — finalize
-  ordering veya target-flag computation drift'i.
+  fixture senkron çekilebilir. **W16-1 test pins:**
+  `test_dispatch_outcome_none_emits_specific_reason_code` +
+  `test_dispatch_outcome_none_emits_nothing_when_no_requested_scenarios`
+  (`tests/security/test_scenario_dropout_repro.py`).
+- `[FOLLOWUP report-finalize-top-level-field-sync-drift]` — **null-leakage
+  half closed at W16-3** via `fa430f2` (W14 production scan-driven
+  investigation). Root cause: the five analyst-facing scalars existed
+  on the in-memory ``ActivationReport`` dataclass but had no slot on
+  the strict-forbid contract
+  (`packages/analysis_contracts/contracts.py` ``ActivationReport`` —
+  ``StrictContractModel`` with ``extra='forbid'``). The save path in
+  ``executor/flows/playwright/report_builder.save_report_payload``
+  parses ``build_report_data`` output through
+  ``_validate_report_against_contract`` and persists
+  ``parsed.model_dump(mode='json')``; any field not on the contract
+  was silently dropped at validation time. W16-3 adds the five fields
+  as additive-optional schema slots (schema version unchanged at 2.1
+  — same precedent as W14-5's ``executor_fingerprint`` extension) and
+  populates them in ``build_report_data`` with explicit
+  ``float()`` / ``list()`` / ``bool()`` coercions so a future writer
+  cannot re-introduce the leak. Pin:
+  `tests/security/test_report_finalize_field_sync.py` (5 round-trip
+  tests; pre-W16-3 the file held an xfail-marked RED stub that
+  predicted a heavier lifecycle harness would be needed; W16-3
+  discovered the root cause at the contract seam and replaced the
+  stub with direct save() round-trip pins). The attribution-count
+  parity drift from the same `2026-05-14` observation is in a
+  different code path (`build_signal_summary` /
+  `attribution_summary` producer side) and lives under
+  `[FOLLOWUP attribution-count-parity]` (new entry below).
+- `[FOLLOWUP attribution-count-parity]` — **W16-3 split**.
+  W14 production scan `2026-05-14`:
+  `attribution_summary.target_activation_count = 1` raporlanırken
+  `evidence_events` listesinde `kind=activation,
+  is_target_extension_event=True` hiç yok; ancak
+  `target_extension_host` log stream'inde 1 entry mevcut
+  (`Activated ms-python.python via
+  workspaceContains:requirements.txt`). İki agregasyon kaynağı aynı
+  aktivasyon için farklı target-flag verdiği için top-level sayım
+  stream-türevli, evidence-kind sayımı 0 — `build_signal_summary` /
+  `attribution_summary` producer-side drift. W16-3 (`fa430f2`) closed
+  the contract-seam null-leakage half; this entry tracks the remaining
+  evidence-vs-stream divergence. W17+ candidate; needs investigation
+  hook into the attribution_summary producer to align the two
+  counters.
 - `[FOLLOWUP event-attempt-verification-status-validator]`
 - `[FOLLOWUP report-invariants-runtime-evidence-drift]`
 - `[FOLLOWUP compute-verdict-table-driven-test]`
@@ -266,18 +361,43 @@ Closed: `[FOLLOWUP evidence-event-kind-raw-context-invariant]` — W14-4
   (`test_import_isolation.py` / `test_facade_locks.py` /
   `test_executor_invocation.py` / `test_monitor_stimulus_boundary.py`)
   improves discoverability.
-- `[FOLLOWUP health-reconciliation-responsibility-split]` — **pulled to W16-4**
-  (behavior-preserving extraction; W13-1 HMAC gates must not regress).
-  `executor/flows/playwright/health/reconciliation.py` (682 LoC) carries
-  security-sensitive (HMAC marker verification at :78, fail-closed
-  harness handshake decisions, harness Python secret loading at :39) +
-  report-accuracy (event-attempt reconciliation at :414, coverage
-  reconciliation at :581) decisions in one module. Risk class:
-  change-safety drift — the same file owns both fail-closed security
-  gates (W13-1 / Codex H6 HMAC anchor) and report-coverage classification.
-  A future small edit could regress security or report fidelity without
-  the reviewer noticing the cross-concern coupling. Recommendation:
-  map responsibility boundaries first (which functions own which risk
+- `[FOLLOWUP health-reconciliation-responsibility-split]` — **closed at
+  W16-4** via `304b99f` (behavior-preserving extraction; W13-1 HMAC
+  + W13-12 fail-closed gates preserved). The 682-LoC monolith
+  `executor/flows/playwright/health/reconciliation.py` split into three
+  responsibility-aligned siblings:
+  - `security.py` (~125 LoC, new): `HARNESS_PYTHON_SECRET_PATH`,
+    `load_harness_python_secret` (W13-11 env-priority + defense-in-depth
+    unlink), `_verify_harness_marker_signature` (W13-1 HMAC-SHA256
+    constant-time compare).
+  - `handshake.py` (~100 LoC, new): `_HARNESS_MARKER_RE`,
+    `_harness_trace_records_by_attempt`,
+    `_attempt_has_harness_completion_trace` (W13-12 three-branch dispatch
+    — HMAC verify / fail-closed / legacy phase-only).
+  - `reconciliation.py` (~440 LoC, slimmed from 682): event-attempt
+    verification state machine + coverage track reconciler.
+  Architecture gates re-targeted (W14-6 extend-not-duplicate; no new
+  gate files): `tests/architecture/test_harness_marker_auth.py` parses
+  `handshake.py` for the `_attempt_has_harness_completion_trace ->
+  _verify_harness_marker_signature` wiring;
+  `tests/architecture/test_harness_secret_eager_consume.py` gate 3
+  parses `security.py` for the env-priority ordering. Test-side import
+  paths updated: `dispatch.py` + 3 inline test imports moved from
+  `..health.reconciliation` to `..health.security`. Risk-class
+  separation: a future small edit can now target a single
+  responsibility (security primitives, handshake dispatch, or event-
+  attempt state machine) without the reviewer needing to reason across
+  the cross-concern coupling that the pre-W16-4 monolith carried.
+  Pre-W16-4 rationale retained below for the audit trail (W15 mid-iter
+  finding context).
+
+  _Pre-W16-4 audit context (preserved verbatim):_
+  Risk class: change-safety drift — the same file owned both
+  fail-closed security gates (W13-1 / Codex H6 HMAC anchor) and
+  report-coverage classification. A future small edit could regress
+  security or report fidelity without the reviewer noticing the
+  cross-concern coupling. Recommendation: map responsibility
+  boundaries first (which functions own which risk
   class), validate test coverage on both sides, then do a behavior-
   preserving extraction. **Do not auto-refactor**; W13-1 HMAC gates
   must not regress. W15+ hygiene; new audit finding `2026-05-16`.

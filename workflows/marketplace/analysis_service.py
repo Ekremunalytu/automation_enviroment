@@ -2,13 +2,11 @@
 
 from __future__ import annotations
 
-import time
 from collections.abc import Callable
 from pathlib import Path
 from uuid import uuid4
 
 from fastapi import HTTPException
-from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -19,10 +17,9 @@ from appcore.contracts.schema_defs.analysis_jobs import (
 from appcore.contracts.schemas import AnalyzeRequest, AnalyzeResponse
 from appcore.logging import get_extrace_logger
 from appcore.storage.crud_ops.analysis_jobs.lifecycle import (
-    _TERMINAL_JOB_STATUSES,
-    finalize_cancelled_analysis_job,
+    WorkerEntryOutcome,
+    claim_queued_analysis_job_at_worker_entry,
 )
-from appcore.storage.models import AnalysisJob
 from executor.control import (
     ExecutorControl,
     ExecutorError,
@@ -272,78 +269,74 @@ def analyze_error_to_http_response(exc: Exception) -> HTTPException:
 
 
 def run_analysis_job(job_id: str, request: AnalyzeRequest) -> None:
-    # W13-13 (CLOSE-GATE codex-second-opinion-F3): Path B worker-entry
-    # snapshot lock closes the cancel-race seam at the
-    # router -> worker-thread boundary. ``cancel_analysis_job`` atomically
-    # flips a queued row to ``cancelling`` under ``with_for_update()``;
-    # if that cancel lands between the ``reserve_job`` commit
-    # (router.py:243) and the worker thread arriving here
-    # (router.py:255-262), the row is in ``cancelling``. The pre-W13-13
-    # unconditional ``update_job(status="running")`` would overwrite the
-    # drain state and the cancel intent would be lost. Path B: take a
-    # ``with_for_update()`` row lock at entry, branch on observed status,
-    # then commit-or-finalize atomically under the lock — symmetric with
-    # the W13-3 ``AnalysisCancelledError`` handler below.
+    # W13-13 (CLOSE-GATE codex-second-opinion-F3) + W16-2 (AGENTS.md:57
+    # facade compliance): the worker-entry seam is owned by the
+    # lifecycle CRUD facade. ``claim_queued_analysis_job_at_worker_entry``
+    # takes a ``select(...).with_for_update()`` row lock, branches on
+    # observed status, and either finalizes a ``cancelling`` row in
+    # place (calling ``finalize_cancelled_analysis_job`` under the held
+    # lock — avoiding the wrapper's nested ``SessionLocal()`` deadlock)
+    # or atomically promotes ``queued -> running``. The W13-3
+    # ``AnalysisCancelledError`` handler below continues to use
+    # ``job_service.finalize_cancelled_job`` because by the time it
+    # fires the entry-block transaction has already committed and
+    # released the lock.
     #
-    # Lifecycle helper vs wrapper. The entry-block ``cancelling`` branch
-    # calls ``finalize_cancelled_analysis_job(db, ...)`` directly (the
-    # lifecycle CRUD helper) rather than ``job_service.finalize_cancelled_job(job_id)``
-    # (the wrapper). The wrapper opens its own ``SessionLocal()`` via
-    # ``_run_in_session`` and would deadlock against the row lock held
-    # on this ``db`` session. The exception handler below keeps using
-    # the wrapper because by the time it runs the entry-block transaction
-    # has already committed (``queued -> running``) and released the lock.
+    # Only the ``CLAIMED`` outcome continues to the analysis flow;
+    # every other outcome (ROW_MISSING / ALREADY_TERMINAL /
+    # CANCELLING_FINALIZED / CANCELLING_RACE) returns immediately.
+    # Pre-W16-2 this dispatch lived inline in source order; the
+    # architecture gate
+    # ``tests/architecture/test_run_analysis_job_entry_snapshot.py``
+    # now enforces the facade boundary instead of the inline AST shape.
     db = _open_job_session()
     try:
-        stmt = (
-            select(AnalysisJob)
-            .where(AnalysisJob.job_id == job_id)
-            .with_for_update()
+        claim = claim_queued_analysis_job_at_worker_entry(
+            db,
+            job_id,
+            fallback_report_name=job_service.build_report_name(
+                request, job_id
+            ),
+            cancel_detail="Cancelled before worker started.",
         )
-        job = db.scalars(stmt).first()
-        if job is None:
+        if claim.outcome is WorkerEntryOutcome.ROW_MISSING:
             logger.warning(
                 "Worker entry: job %s vanished before snapshot lock; exiting.",
                 job_id,
             )
             return
-        if job.status in _TERMINAL_JOB_STATUSES:
+        if claim.outcome is WorkerEntryOutcome.ALREADY_TERMINAL:
+            terminal_status = claim.job.status if claim.job else "unknown"
             logger.info(
                 "Worker entry: job %s already terminal (%s); exiting "
                 "without running.",
                 job_id,
-                job.status,
+                terminal_status,
             )
             return
-        if job.status == "cancelling":
+        if claim.outcome is WorkerEntryOutcome.CANCELLING_FINALIZED:
             # User cancelled in the reserve_job -> worker-entry window.
-            # Finalize directly via the lifecycle helper under the held
-            # row lock (see asymmetry note above).
-            try:
-                finalize_cancelled_analysis_job(
-                    db, job_id, "Cancelled before worker started."
-                )
-            except (job_service.JobNotCancellableError, KeyError):
-                # Race: another writer drove the row terminal between
-                # the SELECT and the finalize. Idempotent — nothing to
-                # clean up.
-                logger.debug(
-                    "Worker entry: finalize_cancelled_analysis_job "
-                    "skipped for job %s (already terminal or absent).",
-                    job_id,
-                )
+            # The lifecycle facade finalized the drain under the held
+            # row lock; nothing more for this thread to do.
             return
-        # status == "queued": atomic transition under the lock.
-        report_name = job.report_path or job_service.build_report_name(
-            request, job_id
+        if claim.outcome is WorkerEntryOutcome.CANCELLING_RACE:
+            # Race: another writer drove the row terminal between the
+            # entry-block SELECT...FOR UPDATE and the in-place finalize.
+            # Idempotent — nothing to clean up.
+            logger.debug(
+                "Worker entry: finalize_cancelled_analysis_job "
+                "skipped for job %s (already terminal or absent).",
+                job_id,
+            )
+            return
+        # WorkerEntryOutcome.CLAIMED: row transitioned ``queued -> running``
+        # under the held lock and the transition committed. Pull the
+        # caller-visible report_path from the claim so the downstream
+        # analysis flow uses the same name the facade wrote to the row.
+        assert claim.report_path is not None, (
+            "WorkerEntryOutcome.CLAIMED MUST populate report_path"
         )
-        now = time.time()
-        job.status = "running"
-        job.started_at = now
-        job.message = "Starting sandbox analysis."
-        job.report_path = report_name
-        job.updated_at = now
-        db.commit()
+        report_name = claim.report_path
 
         def progress_update(
             step: AnalysisJobStepName,

@@ -1,6 +1,6 @@
 # ExTrace
 
-`Last Updated: 2026-05-18 (W15 closed via PR #22 week15 -> main MERGED 2026-05-18 via 6161472 — W15-1..W15-7 sub-iter slate + W15-1 post-slate typing hotfix + close-out hygiene pass; W16 active on main branch per user direction — no separate week16 branch; W16 scope: 6+1 sub-iter — scenario-accountant emit-site fix (W16-1), analysis-job-worker-entry CRUD ownership (W16-2), report-finalize top-level field sync drift (W16-3), health-reconciliation responsibility split (W16-4), simulation-progress-cancel family closeout (W16-5), hygiene splits + Alembic round-trip fixture (W16-6), close-out (W16-7); plan REFACTOR_OPTIMIZATION.md §14, tracker active-work/W16-regression-and-audit-closeout.md)`
+`Last Updated: 2026-05-18 (W16 active — close-out commit landed 2026-05-18; week16 -> main close-out PR pending. W16-0..W16-7 sub-iter slate complete: W16-1 scenario-accountant emit-site fix (HIGH prod regression, 01f910a); W16-2 analysis-job worker-entry CRUD ownership (9d6d110); W16-3 report-finalize null-leakage half (fa430f2); W16-4 health-reconciliation responsibility split (304b99f); W16-5 simulation-progress-cancel scope reduction (1 rejected, 2 deferred to W17+, e21a05c); W16-6 hygiene splits + Alembic fresh-DB fixture (d40bb01); W16-7 close-out hygiene. Final W16 bar: tests/architecture/ 199 passed; make test-security 217 passed; full suite 1890 passed. Plan REFACTOR_OPTIMIZATION.md §14, frozen tracker active-work/W16-regression-and-audit-closeout.md. W15 closed via PR #22 MERGED 2026-05-18 via 6161472)`
 
 ExTrace is a VS Code extension analysis platform built around three runtime
 surfaces:
@@ -70,21 +70,22 @@ multi-tenant web platform.
   hygiene). Frozen tracker:
   [`active-work/W15-codex-uclass-bounds-posture.md`](documents/active-work/W15-codex-uclass-bounds-posture.md).
   **Active phase: W16 — Carry-Over Closeout + Audit Findings +
-  Production Regression** is active `2026-05-18` **on `main` per user
-  direction — no separate `week16` branch is opened; sub-iter commits
-  land directly on `main` and the W16 tracker freezes at scope close**.
-  See
+  Production Regression** — close-out commit landed `2026-05-18` on
+  the `week16` branch; `week16 -> main` close-out PR pending. Frozen
+  tracker:
   [`active-work/W16-regression-and-audit-closeout.md`](documents/active-work/W16-regression-and-audit-closeout.md).
-  W16 scope (6+1 sub-iter, severity-leading): W16-1 scenario-accountant
-  upstream emit-site fix (W14-1 root-cause split; HIGH prod regression
-  observed `2026-05-14` + `2026-05-15`); W16-2 analysis-job-worker-entry
-  CRUD ownership (W15 audit finding); W16-3 report-finalize top-level
-  field sync drift (W14 carry-over); W16-4 health-reconciliation
-  responsibility split (W15 audit finding; W13-1 HMAC gates preserved);
-  W16-5 simulation-progress-cancel family closeout (W11+ umbrella, 3
-  sub-items); W16-6 hygiene splits + Alembic round-trip fixture; W16-7
-  close-out hygiene + canonical preamble refresh (no `week16 -> main`
-  PR per main-branch direction).
+  W16-0..W16-7 sub-iter slate complete: W16-1 scenario-accountant
+  emit-site fix (HIGH prod regression W14-1 carry-over; `01f910a`);
+  W16-2 analysis-job worker-entry CRUD ownership (W15 audit; `9d6d110`);
+  W16-3 report-finalize null-leakage half (W14 carry-over;
+  attribution-count-parity split to W17+; `fa430f2`); W16-4
+  health-reconciliation responsibility split (W15 audit; W13-1 HMAC
+  gates preserved; `304b99f`); W16-5 simulation-progress-cancel
+  scope reduction (1 rejected, 2 deferred to W17+; `e21a05c`); W16-6
+  hygiene splits + Alembic fresh-DB fixture (`d40bb01`); W16-7
+  close-out hygiene + canonical preamble refresh. Final W16 bar:
+  `tests/architecture/` **199 passed**; `make test-security` **217
+  passed**; full suite **1890 passed**.
 - **Canonical source of truth for phase state:**
   [`documents/REFACTOR_STATUS.md`](documents/REFACTOR_STATUS.md).
   Deferred items: [`documents/POST_POC_BACKLOG.md`](documents/POST_POC_BACKLOG.md).

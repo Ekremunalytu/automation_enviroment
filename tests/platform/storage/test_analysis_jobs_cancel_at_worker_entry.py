@@ -343,8 +343,14 @@ def test_worker_entry_finalize_idempotent_when_race_lands_terminal(
     monkeypatch.setattr(
         analysis_service, "_open_job_session", lambda: db_session
     )
+    # W16-2: ``finalize_cancelled_analysis_job`` no longer lives on
+    # ``analysis_service`` (the W16-2 facade refactor moved the call
+    # site into the lifecycle CRUD primitive
+    # ``claim_queued_analysis_job_at_worker_entry``). Patch the lifecycle
+    # module directly — the claim helper resolves the bare name through
+    # its own module scope, so the monkeypatch is observed there.
     monkeypatch.setattr(
-        analysis_service,
+        lifecycle,
         "finalize_cancelled_analysis_job",
         _finalize_raises_terminal,
     )

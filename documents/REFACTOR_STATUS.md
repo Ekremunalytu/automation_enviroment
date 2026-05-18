@@ -1,6 +1,6 @@
 # Refactor Status
 
-`Last Updated: 2026-05-18 (W15 closed via PR #22 week15 -> main MERGED 2026-05-18 via 6161472 — W15-1..W15-7 sub-iter slate + W15-1 post-slate typing hotfix + close-out hygiene pass; W16 active on main branch per user direction — no separate week16 branch; W16 scope: 6+1 sub-iter — scenario-accountant emit-site fix (W16-1, HIGH prod regression W14-1 carry-over), analysis-job-worker-entry CRUD ownership (W16-2), report-finalize top-level field sync drift (W16-3), health-reconciliation responsibility split (W16-4), simulation-progress-cancel family closeout (W16-5), hygiene splits + Alembic round-trip fixture (W16-6), close-out (W16-7); plan source REFACTOR_OPTIMIZATION.md §14; W14 closed via PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d; W13 close-out PR #20 week13 -> main merged 2026-05-13 via 772deb3)`
+`Last Updated: 2026-05-18 (W16 active — close-out commit landed 2026-05-18; week16 -> main close-out PR pending. W16-0..W16-7 sub-iter slate complete: W16-0 doc-reconcile (0e243ca + d78aa9c); W16-1 scenario-accountant emit-site fix (HIGH prod regression W14-1 carry-over, 01f910a + a4a050e); W16-2 analysis-job worker-entry CRUD ownership (W15 audit, 9d6d110 + c8b7811); W16-3 report-finalize null-leakage half (W14 carry-over, fa430f2 + e3d4a0c; attribution-count-parity split to W17+); W16-4 health-reconciliation responsibility split (W15 audit, 304b99f + 384d276); W16-5 simulation-progress-cancel scope reduction (1 rejected, 2 deferred to W17+, e21a05c); W16-6 hygiene splits + Alembic fresh-DB fixture (d40bb01); W16-7 close-out hygiene + canonical preamble refresh. Final W16 bar: tests/architecture/ 199 passed (W15 final 172, +27); make test-security 217 passed (W13 final 215, +2); full suite 1890 passed. W15 closed via PR #22 week15 -> main MERGED 2026-05-18 via 6161472; W14 closed via PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d; W13 close-out PR #20 week13 -> main merged 2026-05-13 via 772deb3)`
 
 Active status board for current closure state. **Slim canonical** — verbose
 phase evidence is frozen under dated snapshots:
@@ -88,8 +88,9 @@ phase evidence is frozen under dated snapshots:
   gates +26); `make test-security` **215 passed** (unchanged from W13
   final).
 - **Active phase: W16 — Carry-Over Closeout + Audit Findings +
-  Production Regression** (active `2026-05-18`; **on `main` per user
-  direction — no separate `week16` branch**). Scope authored
+  Production Regression** (active `2026-05-18`; **on the `week16`
+  branch per user direction 2026-05-18 (W11-W15 paterni restored via
+  W16-0 doc reconcile)**). Scope authored
   `2026-05-18` in
   [`active-work/W16-regression-and-audit-closeout.md`](active-work/W16-regression-and-audit-closeout.md);
   plan source [`REFACTOR_OPTIMIZATION.md §14`](REFACTOR_OPTIMIZATION.md).
@@ -100,9 +101,41 @@ phase evidence is frozen under dated snapshots:
   top-level field sync drift), W11+ heartbeat umbrella closeout
   (`simulation-progress-cancel` family 3 sub-items), hygiene splits
   (marketplace-router + test-import-graph) + Alembic round-trip
-  fixture, and close-out hygiene. **No `week16 -> main` PR per
-  main-branch direction**; sub-iter commits land directly on `main`
-  and the W16 tracker freezes at scope close.
+  fixture, and close-out hygiene. **Close-out via `week16 -> main`
+  PR** (W11-W15 paterni restored 2026-05-18); sub-iter commits land
+  on `week16` and the W16 tracker freezes at scope close. **W16-1
+  pulled `2026-05-18` via `01f910a`** (dispatch outcome=None emit-site
+  closed; `[FOLLOWUP scenario-accountant-conservation-split]` marked
+  dispatch-layer-closed in `POST_POC_BACKLOG.md`). **W16-2 pulled
+  `2026-05-18` via `9d6d110`** (analysis-job worker-entry CRUD
+  ownership facade extracted to
+  `appcore/storage/crud_ops/analysis_jobs/lifecycle.claim_queued_analysis_job_at_worker_entry`;
+  AGENTS.md:57 compliance restored, W13-13 CAS preserved
+  byte-identically; arch gate re-targeted on the facade boundary).
+  **W16-3 pulled `2026-05-18` via `fa430f2`** (W14 production-scan
+  carry-over; null-leakage half of report-finalize top-level field
+  sync drift closed at the strict-forbid contract seam — 5
+  additive-optional fields on `ActivationReport` + `build_report_data`
+  populates them. Attribution-count-parity half split to
+  `[FOLLOWUP attribution-count-parity]`). **W16-4 pulled `2026-05-18`
+  via `304b99f`** (W15 mid-iter audit finding;
+  `executor/flows/playwright/health/reconciliation.py` 682 LoC split
+  into `security.py` (W13-1 HMAC primitives) + `handshake.py` (W13-12
+  fail-closed dispatch) + slimmed `reconciliation.py` (event-attempt
+  state machine + coverage reconciler); arch gates re-targeted per
+  W14-6 extend-not-duplicate; W13-1 + W13-12 behavioral pins all
+  green). **W16-5 documented `2026-05-18` (scope reduced, no code
+  commit)** — `[FOLLOWUP simulation-progress-cancel]` umbrella's 3
+  sub-items re-classified: `dedupe-step-progress-schemas` rejected
+  (distinct pydantic surface roles); `heartbeat-sandbox-reset-off-thread`
+  + `heartbeat-refactor` deferred to W17+ (lifecycle harness
+  prerequisite). **W16-6 closed `2026-05-18` via `d40bb01`** (test
+  hygiene splits + Alembic fresh-DB fixture: marketplace router 2374
+  LoC → 5 endpoint-grouped files; import-graph 767 LoC → 4 thematic
+  files; W13-4.5 skip removed via `fresh_alembic_engine` per-test
+  throwaway Postgres DB; ruff clean). **W16-7 close-out commit landed
+  `2026-05-18`** (canonical preamble refresh across 7 docs + W16
+  tracker freeze + `week16 -> main` PR pending).
 
 ## W13 Status Summary
 
@@ -123,18 +156,31 @@ phase evidence is frozen under dated snapshots:
   `with_for_update()` and gate against `_TERMINAL_JOB_STATUSES`.
 - `[FOLLOWUP simulation-progress-cancel]` remaining subitems
   (`heartbeat-sandbox-reset-off-thread`, `dedupe-step-progress-schemas`,
-  `heartbeat-refactor`) — **pulled to W16-5** (umbrella closeout).
+  `heartbeat-refactor`) — **W16-5 documented `2026-05-18` (scope
+  reduced; no code commit)**: `dedupe-step-progress-schemas`
+  **rejected** (distinct surface roles between strict storage variant
+  and lenient public/UI variant; aliasing would couple them);
+  `heartbeat-sandbox-reset-off-thread` + `heartbeat-refactor`
+  **deferred to W17+** (lifecycle harness prerequisite).
 - `[BUG scenario-dropout-upstream-root-cause]` — **closed** by W14-1 on
   `2026-05-13` via `0c8bd02` (deterministic repro matrix landed + conservation
   guard; severity downgraded BLOCKER -> HIGH same day; upstream emit-site
   split **pulled to W16-1** under `[FOLLOWUP scenario-accountant-conservation-split]`).
 - `[FOLLOWUP analysis-job-worker-entry-crud-ownership]` — W15 mid-iter audit
-  finding, **pulled to W16-2** (row-lock-aware lifecycle CRUD primitive).
+  finding, **closed at W16-2** via `9d6d110` (row-lock-aware lifecycle CRUD
+  primitive `claim_queued_analysis_job_at_worker_entry` extracted; W13-13
+  CAS preserved; AGENTS.md:57 compliance restored).
 - `[FOLLOWUP health-reconciliation-responsibility-split]` — W15 mid-iter
-  audit finding, **pulled to W16-4** (behavior-preserving extraction with
+  audit finding, **closed at W16-4** via `304b99f` (responsibility-aligned
+  three-way split: security.py + handshake.py + slimmed reconciliation.py;
+  W13-1 HMAC + W13-12 fail-closed gates preserved). Pre-W16-4 description
+  (behavior-preserving extraction with
   W13-1 HMAC gates preserved).
 - `[FOLLOWUP report-finalize-top-level-field-sync-drift]` — W14 production
-  scan-driven investigation, **pulled to W16-3** (finalize ordering /
+  scan-driven investigation, **null-leakage half closed at W16-3** via
+  `fa430f2` (contract-seam additive fields + build_report_data populates;
+  attribution-count-parity half split to a new follow-up). Pre-W16-3
+  description (finalize ordering /
   `report.save()` drift).
 - `[CLEANUP marketplace-router-test-suite-split]` + `[CLEANUP test-import-graph-policy-dump-split]`
   — **pulled to W16-6** (hygiene splits bundle).
@@ -150,5 +196,6 @@ keep closed W15 mechanics (Codex U-class close-out + UI bounds +
 posture; W15-1..W15-7 closed; merged via PR #22 on `2026-05-18`) in
 `active-work/W15-codex-uclass-bounds-posture.md`, and keep active
 W16 scope (carry-over closeout + W15 audit findings + production
-regression; **on `main` per user direction, no separate week16
-branch**) in `active-work/W16-regression-and-audit-closeout.md`.
+regression; **on the `week16` branch per user direction 2026-05-18,
+W11-W15 paterni restored via W16-0 doc reconcile**) in
+`active-work/W16-regression-and-audit-closeout.md`.
