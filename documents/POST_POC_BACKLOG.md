@@ -97,7 +97,7 @@ W11/W12/W13/W14/W15 precedent. Close-out merges into `main` via a
 |---|---|---|
 | W16-1 | `[FOLLOWUP scenario-accountant-conservation-split]` (W14-1 root-cause split; HIGH prod regression — dispatch-layer outcome=None emit-site closed) | `01f910a` |
 | W16-2 | `[FOLLOWUP analysis-job-worker-entry-crud-ownership]` (W15 audit finding; row-lock-aware lifecycle CRUD primitive — closed at facade boundary) | `9d6d110` |
-| W16-3 | `[FOLLOWUP report-finalize-top-level-field-sync-drift]` (W14 production scan-driven investigation) | _pending pull_ |
+| W16-3 | `[FOLLOWUP report-finalize-top-level-field-sync-drift]` (W14 production scan-driven investigation — null-leakage half closed at contract seam; attribution-count parity split to follow-up) | `fa430f2` |
 | W16-4 | `[FOLLOWUP health-reconciliation-responsibility-split]` (W15 audit finding; behavior-preserving extraction; W13-1 HMAC gates preserved) | _pending pull_ |
 | W16-5 | `[FOLLOWUP simulation-progress-cancel] heartbeat-sandbox-reset-off-thread` + `dedupe-step-progress-schemas` + `heartbeat-refactor` (W11+ umbrella closeout) | _pending pull_ |
 | W16-6 | `[CLEANUP marketplace-router-test-suite-split]` + `[CLEANUP test-import-graph-policy-dump-split]` + `[FOLLOWUP w13-4-alembic-roundtrip-programmatic]` | _pending pull_ |
@@ -238,20 +238,47 @@ Closed (one-line audit trail):
   `test_dispatch_outcome_none_emits_specific_reason_code` +
   `test_dispatch_outcome_none_emits_nothing_when_no_requested_scenarios`
   (`tests/security/test_scenario_dropout_repro.py`).
-- `[FOLLOWUP report-finalize-top-level-field-sync-drift]` — **pulled to W16-3** (couples with W16-1 scenario-accountant fix; finalize ordering). Production
-  scan `activation_report_*.json` carries `null` for several top-level
-  fields (`target_extension_id`, `monitoring_start`/`monitoring_end`,
-  `scenarios_run`, `harness_handshake_required`) despite underlying
-  evidence being present. Not a W14 regression — finalize / `report.save()`
-  ordering drift. W15+ hygiene. Full investigation hook in archive.
-  **Observation `2026-05-14`:** aynı drift sınıfının yeni bir tezahürü
-  gözlendi — `attribution_summary.target_activation_count = 1` raporlanırken
-  `evidence_events` listesinde `kind=activation, is_target_extension_event=True`
-  hiç yok; ancak `target_extension_host` log stream'inde 1 entry mevcut
-  (`Activated ms-python.python via workspaceContains:requirements.txt`).
-  İki agregasyon kaynağı aynı aktivasyon için farklı target-flag verdiği
-  için top-level sayım stream-türevli, evidence-kind sayımı 0 — finalize
-  ordering veya target-flag computation drift'i.
+- `[FOLLOWUP report-finalize-top-level-field-sync-drift]` — **null-leakage
+  half closed at W16-3** via `fa430f2` (W14 production scan-driven
+  investigation). Root cause: the five analyst-facing scalars existed
+  on the in-memory ``ActivationReport`` dataclass but had no slot on
+  the strict-forbid contract
+  (`packages/analysis_contracts/contracts.py` ``ActivationReport`` —
+  ``StrictContractModel`` with ``extra='forbid'``). The save path in
+  ``executor/flows/playwright/report_builder.save_report_payload``
+  parses ``build_report_data`` output through
+  ``_validate_report_against_contract`` and persists
+  ``parsed.model_dump(mode='json')``; any field not on the contract
+  was silently dropped at validation time. W16-3 adds the five fields
+  as additive-optional schema slots (schema version unchanged at 2.1
+  — same precedent as W14-5's ``executor_fingerprint`` extension) and
+  populates them in ``build_report_data`` with explicit
+  ``float()`` / ``list()`` / ``bool()`` coercions so a future writer
+  cannot re-introduce the leak. Pin:
+  `tests/security/test_report_finalize_field_sync.py` (5 round-trip
+  tests; pre-W16-3 the file held an xfail-marked RED stub that
+  predicted a heavier lifecycle harness would be needed; W16-3
+  discovered the root cause at the contract seam and replaced the
+  stub with direct save() round-trip pins). The attribution-count
+  parity drift from the same `2026-05-14` observation is in a
+  different code path (`build_signal_summary` /
+  `attribution_summary` producer side) and lives under
+  `[FOLLOWUP attribution-count-parity]` (new entry below).
+- `[FOLLOWUP attribution-count-parity]` — **W16-3 split**.
+  W14 production scan `2026-05-14`:
+  `attribution_summary.target_activation_count = 1` raporlanırken
+  `evidence_events` listesinde `kind=activation,
+  is_target_extension_event=True` hiç yok; ancak
+  `target_extension_host` log stream'inde 1 entry mevcut
+  (`Activated ms-python.python via
+  workspaceContains:requirements.txt`). İki agregasyon kaynağı aynı
+  aktivasyon için farklı target-flag verdiği için top-level sayım
+  stream-türevli, evidence-kind sayımı 0 — `build_signal_summary` /
+  `attribution_summary` producer-side drift. W16-3 (`fa430f2`) closed
+  the contract-seam null-leakage half; this entry tracks the remaining
+  evidence-vs-stream divergence. W17+ candidate; needs investigation
+  hook into the attribution_summary producer to align the two
+  counters.
 - `[FOLLOWUP event-attempt-verification-status-validator]`
 - `[FOLLOWUP report-invariants-runtime-evidence-drift]`
 - `[FOLLOWUP compute-verdict-table-driven-test]`

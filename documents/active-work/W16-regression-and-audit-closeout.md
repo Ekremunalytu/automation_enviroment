@@ -1,7 +1,7 @@
 # W16 — Carry-Over Closeout + Audit Findings + Production Regression (Active Work Tracker)
 
-`Last Updated: 2026-05-18 (W16 active on week16 branch (per user direction 2026-05-18; W11-W15 paterni restored via W16-0 doc reconcile); W15 closed via PR #22 week15 -> main MERGED 2026-05-18 via 6161472; W16 scope authored 2026-05-18 against main HEAD 6161472; 7 sub-iter (W16-1..W16-7) reserved by §14 plan and assigned at first pull per W11/W12/W13/W14/W15 precedent; W16-1 pulled 2026-05-18 via 01f910a (dispatch outcome=None emit-site closed); W16-2 pulled 2026-05-18 via 9d6d110 (analysis-job worker-entry CRUD ownership facade extracted; AGENTS.md:57 compliance restored, W13-13 CAS preserved); W16-3..W16-7 pending)`
-`Phase: W16 active (W16-1 pulled 01f910a; W16-2 pulled 9d6d110; W16-3..W16-7 reserved, none yet pulled; commits land on week16 branch, close-out via week16 -> main PR — W11-W15 paterni restored 2026-05-18 via W16-0)`
+`Last Updated: 2026-05-18 (W16 active on week16 branch (per user direction 2026-05-18; W11-W15 paterni restored via W16-0 doc reconcile); W15 closed via PR #22 week15 -> main MERGED 2026-05-18 via 6161472; W16 scope authored 2026-05-18 against main HEAD 6161472; 7 sub-iter (W16-1..W16-7) reserved by §14 plan and assigned at first pull per W11/W12/W13/W14/W15 precedent; W16-1 pulled 2026-05-18 via 01f910a (dispatch outcome=None emit-site closed); W16-2 pulled 2026-05-18 via 9d6d110 (analysis-job worker-entry CRUD ownership facade extracted; AGENTS.md:57 compliance restored, W13-13 CAS preserved); W16-3 pulled 2026-05-18 via fa430f2 (report-finalize top-level null-leakage closed at strict-forbid contract seam; attribution-count parity drift split to follow-up); W16-4..W16-7 pending)`
+`Phase: W16 active (W16-1 pulled 01f910a; W16-2 pulled 9d6d110; W16-3 pulled fa430f2; W16-4..W16-7 reserved, none yet pulled; commits land on week16 branch, close-out via week16 -> main PR — W11-W15 paterni restored 2026-05-18 via W16-0)`
 `Branch: week16 (per user direction 2026-05-18; W11-W15 paterni restored via W16-0 doc reconcile; close-out merges into main via week16 -> main PR)`
 `Owner: ekrem`
 
@@ -55,7 +55,17 @@ Detail trimmed until each sub-iter is pulled (drift kontrolü).
   `SELECT ... FOR UPDATE` + commit. `AGENTS.md:57` compliance
   restored; W13-13 CAS preserved byte-identically; arch gate
   re-targeted on the facade boundary per W14-6 extend-not-duplicate.
-  W16-3..W16-7 remain `[planned]` until the corresponding pull lands.
+- **W16-3 pulled `2026-05-18` via `fa430f2`** (W14 production scan
+  carry-over; finalize / `report.save()` drift). Null-leakage half
+  closed at the strict-forbid contract seam: 5 additive-optional
+  fields (`target_extension_id`, `monitoring_start`, `monitoring_end`,
+  `scenarios_run`, `harness_handshake_required`) added to
+  `packages/analysis_contracts/contracts.ActivationReport`;
+  `build_report_data` populates them with explicit type coercions.
+  Pre-W16-3 RED stub replaced with 5 round-trip pins (xfail removed).
+  The attribution-count-parity half of the W14 observation split to
+  `[FOLLOWUP attribution-count-parity]` (W17+ candidate). W16-4..W16-7
+  remain `[planned]` until the corresponding pull lands.
 
 ## Sub-Iter Scope (planned)
 
@@ -267,11 +277,90 @@ re-target, test deltas).
 
 ### W16-3 — report-finalize top-level field sync drift
 
-_[Placeholder — filled at pull. Will document: finalize ordering
-analysis (`appcore/.../reports/finalize.py` or candidate module),
-top-level field population fix, regression gate
-(`tests/.../test_report_top_level_fields.py`), production replay
-evidence, test deltas, landing commit.]_
+**Pulled `2026-05-18` via `fa430f2`** (W14 production scan-driven
+investigation; null-leakage half closed).
+
+**Root cause located W16-3.** The W14-3 post-pull review predicted a
+finalize / `report.save()` ordering drift and an
+`ExtensionMonitor.start()`/`stop()` lifecycle harness as the test
+seam. Investigation found a different, simpler root cause: the five
+analyst-facing scalars (`target_extension_id`, `monitoring_start`,
+`monitoring_end`, `scenarios_run`, `harness_handshake_required`)
+existed on the in-memory `ActivationReport` dataclass
+(`executor/flows/playwright/monitor/types.py`) but had **no slot on
+the strict-forbid contract**
+(`packages/analysis_contracts/contracts.ActivationReport` —
+`StrictContractModel` with `extra='forbid'`). The save path
+(`executor/flows/playwright/report_builder.save_report_payload`)
+parses `build_report_data` output through
+`_validate_report_against_contract` and persists
+`parsed.model_dump(mode='json')`; fields without a contract slot were
+silently dropped at validation time, surfacing as missing/`null` keys
+in the persisted JSON — independent of finalize ordering.
+
+**Module locations:**
+- `packages/analysis_contracts/contracts.py:509-535` — 5
+  additive-optional contract slots added inline next to the W14-5
+  `executor_fingerprint` extension (same `additive-optional /
+  schema-version-unchanged` precedent).
+- `executor/flows/playwright/report_builder.py:308-329` —
+  `build_report_data` populates the 5 new keys from the live report
+  with explicit `float()` / `list()` / `bool()` coercions so a future
+  writer that drifts a value to `None` cannot re-introduce the leak.
+  Also keeps the pre-existing `target_extension_expected` alias
+  populated so downstream readers using either name see the same
+  value.
+
+**Test deltas:**
+- `tests/security/test_report_finalize_field_sync.py` —
+  pre-W16-3 the file held one `xfail`-marked RED stub predicting a
+  heavier `ExtensionMonitor.start()`/`stop()` lifecycle harness.
+  W16-3 replaces it with 5 direct save-path round-trip pins:
+  - `test_save_persists_target_extension_id_top_level` — top-level
+    field survives + pre-existing alias stays populated.
+  - `test_save_persists_monitoring_start_end_top_level` — non-null
+    floats.
+  - `test_save_persists_scenarios_run_derived_list` — list (not
+    `None`), order preserved.
+  - `test_save_persists_harness_handshake_required_flag` — literal
+    `True` (not `null`).
+  - `test_save_defaults_preserve_legacy_fixture_shape` — empty
+    `ActivationReport` round-trips with the 5 W16-3 defaults; legacy
+    fixture shape preserved under strict-forbid validation.
+
+**Pre-merge test counts (W16-3 close):**
+- `tests/security/test_report_finalize_field_sync.py`: **5 passed**
+  (pre-W16-3: 1 xfail stub; replaced).
+- `tests/workflows/marketplace/test_run_analysis_job_finalize.py +
+  tests/executor/test_playwright_monitor_lifecycle.py +
+  tests/executor/test_playwright_monitor_scenario_accountant.py +
+  packages/analysis_contracts/`: **66 passed** (no regression).
+- `make test-security`: **217 passed** (the new file is outside the
+  make rule's narrow allowlist; direct-pytest verification above
+  pins the new contract).
+
+**Schema-version stance:** unchanged at `2.1`. The 5 fields are
+additive-optional with defaults matching the in-memory dataclass
+defaults so legacy fixtures (and any callsite that constructs
+`ActivationReport` without stamping the new fields) keep validating.
+Precedent: W14-5 `executor_fingerprint` extension.
+
+**Out-of-scope split:** the second W14 production observation
+(`attribution_summary.target_activation_count = 1` while
+`evidence_events` had no `kind=activation,
+is_target_extension_event=True` entry) is in a different code path
+(`build_signal_summary` + `attribution_summary` producer side).
+Split to `[FOLLOWUP attribution-count-parity]` (new entry in
+`POST_POC_BACKLOG.md`; W17+ candidate).
+
+**Landing commit:** `fa430f2`.
+
+**Audit trail:** `[FOLLOWUP report-finalize-top-level-field-sync-drift]`
+in `POST_POC_BACKLOG.md` marked **null-leakage half closed at W16-3**
+with the closure details (contract additive fields, build_report_data
+coercions, RED-stub replacement). Adjacent
+`[FOLLOWUP attribution-count-parity]` entry added below it captures
+the remaining drift.
 
 ### W16-4 — health-reconciliation responsibility split
 

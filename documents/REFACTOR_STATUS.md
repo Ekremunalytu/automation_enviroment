@@ -112,7 +112,12 @@ phase evidence is frozen under dated snapshots:
   `appcore/storage/crud_ops/analysis_jobs/lifecycle.claim_queued_analysis_job_at_worker_entry`;
   AGENTS.md:57 compliance restored, W13-13 CAS preserved
   byte-identically; arch gate re-targeted on the facade boundary).
-  W16-3..W16-7 remain pending.
+  **W16-3 pulled `2026-05-18` via `fa430f2`** (W14 production-scan
+  carry-over; null-leakage half of report-finalize top-level field
+  sync drift closed at the strict-forbid contract seam — 5
+  additive-optional fields on `ActivationReport` + `build_report_data`
+  populates them. Attribution-count-parity half split to
+  `[FOLLOWUP attribution-count-parity]`). W16-4..W16-7 remain pending.
 
 ## W13 Status Summary
 
@@ -146,7 +151,10 @@ phase evidence is frozen under dated snapshots:
   audit finding, **pulled to W16-4** (behavior-preserving extraction with
   W13-1 HMAC gates preserved).
 - `[FOLLOWUP report-finalize-top-level-field-sync-drift]` — W14 production
-  scan-driven investigation, **pulled to W16-3** (finalize ordering /
+  scan-driven investigation, **null-leakage half closed at W16-3** via
+  `fa430f2` (contract-seam additive fields + build_report_data populates;
+  attribution-count-parity half split to a new follow-up). Pre-W16-3
+  description (finalize ordering /
   `report.save()` drift).
 - `[CLEANUP marketplace-router-test-suite-split]` + `[CLEANUP test-import-graph-policy-dump-split]`
   — **pulled to W16-6** (hygiene splits bundle).
