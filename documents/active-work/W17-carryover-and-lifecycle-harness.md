@@ -1,7 +1,7 @@
 # W17 — Carry-Over Closeout + Lifecycle Harness Yatırımı + Hygiene Sweep (Active Work Tracker)
 
-`Last Updated: 2026-05-18 (W17 active — W17-0 closed via 4508c2e (doc reconcile + tracker open + arch gate transition); W17-1 closed via 8c26d02 (attribution-count-parity producer-side fix at build_evidence_bundle activation emit-site + 4 invariant tests). Remaining slate W17-2..W17-6 reserved by iteration plan; stable IDs assigned at first pull per W11/W12/W13/W14/W15/W16 precedent)`
-`Phase: W17 active — W17-0 + W17-1 closed; W17-2 next (lifecycle harness scaffold)`
+`Last Updated: 2026-05-18 (W17 active — W17-0 closed via 4508c2e (doc reconcile + tracker open + arch gate transition); W17-1 closed via 8c26d02 (attribution-count-parity producer-side fix at build_evidence_bundle activation emit-site + 4 invariant tests); W17-2 closed via ff98235 (lifecycle harness scaffold: LifecycleHarness class + lifecycle_harness fixture + cancel-via-heartbeat smoke test pinning thread identity + reload_window=True kwargs). Remaining slate W17-3..W17-6 reserved by iteration plan; stable IDs assigned at first pull per W11/W12/W13/W14/W15/W16 precedent)`
+`Phase: W17 active — W17-0 + W17-1 + W17-2 closed; W17-3 next (heartbeat-sandbox-reset-off-thread — harness-gated)`
 `Branch: week17 (per user direction 2026-05-18; W11-W16 paterni preserved — sub-iter commits land on week17, close-out merges into main via week17 -> main PR)`
 `Owner: ekrem`
 
@@ -56,6 +56,30 @@ is the template structurally followed here.
   (`test_build_evidence_bundle_target_activation_parity_invariant`)
   that drives a mixed activated list (target + non-target + target)
   and asserts evidence-side and attribution_summary counts equal.
+- **W17-2 closed `2026-05-18` via `ff98235`** — lifecycle harness
+  scaffold landed at
+  `tests/workflows/marketplace/test_lifecycle_harness.py`.
+  `LifecycleHarness` class composes the session-scoped `test_engine`
+  with a per-test UUID-keyed `AnalysisJob` row and a mocked
+  `ExecutorControl` whose `reset_sandbox` side_effect records every
+  call along with `threading.current_thread().name`. Methods cover
+  the W17-3-relevant surface: `persist_queued_job`,
+  `claim_worker_entry` (W13-13/W16-2 worker-entry CAS),
+  `signal_cancel`, `start_heartbeat`/`stop_heartbeat` (daemon thread
+  named `harness-monitoring-heartbeat` running
+  `_run_monitoring_heartbeat` with controllable `cancel_check` and
+  `on_cancel`), `wait_for_reset_calls`, `reset_calls`,
+  `read_job_status`, `cleanup`. `lifecycle_harness` pytest fixture
+  binds the rig to `test_engine` and runs cleanup on teardown. Smoke
+  test pins (a) cancel-driven `reset_sandbox` fires from the
+  heartbeat thread (not the main test thread), (b) call kwargs
+  match production wiring (`reload_window=True`), and (c) the
+  worker-entry CAS transitioned `queued → running`
+  (`WorkerEntryOutcome.CLAIMED`). Intentional scope cuts: harness
+  does NOT drive `run_analysis_job` end-to-end and does NOT use
+  `fresh_alembic_engine` (W16-6 fixture) — per-test isolation comes
+  from UUID-keyed rows + cleanup delete, which is sufficient for
+  concurrency assertions and lighter than fresh-DB-per-test.
 
 ## Sub-Iter Scope (Authored 2026-05-18)
 
@@ -140,7 +164,45 @@ strict-forbid contract round-trip pins.
 `POST_POC_BACKLOG.md` marked **closed at W17-1** with closure
 details. W17-2 (lifecycle harness scaffold) is next.
 
-### Remaining (W17-2..W17-6)
+### W17-2 — Lifecycle harness scaffold
+
+**Pulled `2026-05-18` via `ff98235`** (W17-3 enabler; the W16-5
+deferral's lifecycle-harness prerequisite).
+`tests/workflows/marketplace/test_lifecycle_harness.py` introduces
+`LifecycleHarness` + `lifecycle_harness` fixture + a single
+plumbing smoke test that pins the production-wiring shape of the
+cancel-driven `reset_sandbox` call: thread identity
+(`harness-monitoring-heartbeat`), kwargs (`reload_window=True`),
+and the worker-entry CAS state transition
+(`queued → running` under `WorkerEntryOutcome.CLAIMED`).
+
+**Extension points for W17-3** (documented in module docstring):
+
+- Parallel reset: both worker thread + heartbeat issue
+  `reset_sandbox` concurrently — verify lock ordering does not
+  deadlock.
+- Reset idempotency: two back-to-back resets from different
+  threads do not corrupt the executor surface.
+- Reset-during-finalize: heartbeat fires cancel while worker is in
+  `finalize_report`; DB row must end in `cancelled` (not
+  `completed`) and executor reset must not run twice.
+
+**Composition.** Session-scoped `test_engine` (rolled-back +
+re-bootstrapped per session in `tests/conftest.py`) + per-test
+UUID-keyed `AnalysisJob` row + `MagicMock(spec=...)`-style
+`ExecutorControl` with a side_effect that records every
+`reset_sandbox` call with calling-thread name. The session
+factory is bound to the engine directly (`sessionmaker(bind=engine,
+future=True, autoflush=False, expire_on_commit=False)`) so the
+harness can open and close short transactions explicitly without
+fighting the `db_session` connection-scoped rollback fixture.
+
+**Verification.** `tests/workflows/` + `tests/architecture/` +
+`tests/platform/storage/test_analysis_jobs_lifecycle.py` 554
+passed together; full non-smoke suite 1899 passed, 9 skipped, 4
+deselected (W17-1 final 1898 passed; +1 new harness smoke).
+
+### Remaining (W17-3..W17-6)
 
 Stable IDs receive Per-Item Detail entries here as each is pulled.
 

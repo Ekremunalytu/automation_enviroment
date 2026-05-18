@@ -448,7 +448,7 @@ passed**; full suite **1893 passed, 9 skipped**.
 |---|---|---|
 | W17-0 | **closed `2026-05-18`** via `4508c2e` (doc-direction reconcile — `week17` branch + `week17 -> main` close-out PR wording across canonical docs; W11-W16 paterni preserved; README phase-pointer arch gate transition W14→W15→W16 paterni W16→W17'ye uygulandı) | `4508c2e` |
 | W17-1 | **closed `2026-05-18`** via `8c26d02` (`[FOLLOWUP attribution-count-parity]` W16-3 carry-over; `build_evidence_bundle` activation emit-site stamps `is_target_extension_event` byte-identical with `count_target_activations` predicate; 4 invariant tests including W17-1 contract pin) | `8c26d02` |
-| W17-2 | reserved | Lifecycle harness scaffold (enabler for W17-3 + W17-4) |
+| W17-2 | **closed `2026-05-18`** via `ff98235` (W17-3 enabler — `LifecycleHarness` + `lifecycle_harness` fixture at `tests/workflows/marketplace/test_lifecycle_harness.py`; smoke pins cancel-via-heartbeat path with thread identity assertion + production-wiring kwargs; scope cuts: no end-to-end `run_analysis_job` drive, no `fresh_alembic_engine` — UUID-keyed rows + cleanup-delete suffice) | `ff98235` |
 | W17-3 | reserved | `heartbeat-sandbox-reset-off-thread` (carry-over W16-5 deferral; harness-gated) |
 | W17-4 | reserved | `heartbeat-refactor` (carry-over W16-5 deferral; W17-3 üzerine) |
 | W17-5 | reserved | Hygiene cleanup batch (3-5 `[CLEANUP]` items) |
