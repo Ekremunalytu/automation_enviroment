@@ -1,7 +1,7 @@
 # W17 — Carry-Over Closeout + Lifecycle Harness Yatırımı + Hygiene Sweep (Active Work Tracker)
 
-`Last Updated: 2026-05-18 (W17 active — W17-0 closed via 4508c2e (doc reconcile + tracker open + arch gate transition); W17-1 closed via 8c26d02 (attribution-count-parity producer-side fix at build_evidence_bundle activation emit-site + 4 invariant tests); W17-2 closed via ff98235 (lifecycle harness scaffold: LifecycleHarness class + lifecycle_harness fixture + cancel-via-heartbeat smoke test pinning thread identity + reload_window=True kwargs). Remaining slate W17-3..W17-6 reserved by iteration plan; stable IDs assigned at first pull per W11/W12/W13/W14/W15/W16 precedent)`
-`Phase: W17 active — W17-0 + W17-1 + W17-2 closed; W17-3 next (heartbeat-sandbox-reset-off-thread — harness-gated)`
+`Last Updated: 2026-05-18 (W17 active — W17-0 closed via 4508c2e; W17-1 closed via 8c26d02; W17-2 closed via ff98235; W17-3 + W17-4 scope-reduced doc-only — DESIGN-NEEDED for thread-relocation refactor shape (worker-thread step-1 reset is HARD SYNC POINT for W13-11 HMAC secret); deferred to W18 dedicated sub-iter that opens with an ADR / §16 plan entry. Remaining slate W17-5 (hygiene cleanup batch) + W17-6 (close-out hygiene) per iteration plan; stable IDs assigned at first pull per W11/W12/W13/W14/W15/W16 precedent)`
+`Phase: W17 active — W17-0 + W17-1 + W17-2 closed; W17-3 + W17-4 scope-reduced (W16-5 paterni); W17-5 next (hygiene cleanup batch)`
 `Branch: week17 (per user direction 2026-05-18; W11-W16 paterni preserved — sub-iter commits land on week17, close-out merges into main via week17 -> main PR)`
 `Owner: ekrem`
 
@@ -202,7 +202,61 @@ fighting the `db_session` connection-scoped rollback fixture.
 passed together; full non-smoke suite 1899 passed, 9 skipped, 4
 deselected (W17-1 final 1898 passed; +1 new harness smoke).
 
-### Remaining (W17-3..W17-6)
+### W17-3 — `heartbeat-sandbox-reset-off-thread` (scope-reduced 2026-05-18, doc-only)
+
+**Scope reduced.** No code commit ships under W17-3. The W17-2
+lifecycle harness prerequisite is now MET, but the W17-3 design
+intent surfaced as **DESIGN-NEEDED** mid-pull:
+
+The W16-5 deferral note framed W17-3 as "move sandbox-reset call
+from worker thread to monitoring heartbeat thread". On close
+inspection of
+`workflows/marketplace/analysis_service.execute_analysis_request`
+(L155 + L157-164 doc-block), the worker-thread `_reset_sandbox`
+call is a **hard sync point** before
+`consume_harness_python_secret`: the reset restarts VS Code,
+which writes the per-launch HMAC python secret to
+`/results/_extrace_harness_python_secret`; the secret MUST be
+consumed under the worker frame's memory before the analyzed VSIX
+is admitted (W13-11 / Codex F1 close-pass for W13-1 H6). The
+monitoring heartbeat thread itself only starts at step 4
+(`_run_monitoring`, after install + triggers), so it cannot host
+the step-1 reset without a pipeline-ordering refactor.
+
+Several plausible refactor shapes exist:
+
+1. Dedicated reset thread started before step 1 (worker blocks on
+   future); pipeline ordering preserved but adds a third
+   coordinator thread.
+2. Merge heartbeat's cancel-path reset with step-1 reset via a
+   queue; heartbeat starts earlier and is the sole reset issuer.
+3. Restructure pipeline so heartbeat starts at step 1 and gates
+   subsequent steps via signals; deepest change.
+
+Each option has a different invariant cost (W13-1 HMAC marker
+wiring vs. W13-3 two-phase cancel vs. W13-13 worker-entry CAS vs.
+W16-2 facade row lock). Picking one inside W17 without an
+explicit design pass would gamble on a refactor shape whose
+constraints the deferral note did not specify.
+
+**Audit trail.** W17-3 (and W17-4, bundled below) deferred to W18
+with W16-5 paterni — doc-only commit, audit trail updated in
+`POST_POC_BACKLOG.md`. W18 opens with an ADR / §16 plan entry
+naming the chosen refactor shape and the invariant preservation
+strategy. The W17-2 harness module docstring already enumerates
+the three W17-3 extension points (parallel reset / idempotency /
+reset-during-finalize) so W18 inherits the rig with zero
+bootstrap cost.
+
+### W17-4 — `heartbeat-refactor` (scope-reduced 2026-05-18, doc-only, bundled with W17-3)
+
+**Scope reduced.** Bundled with W17-3 per the original W16-5
+bundling. Refactoring the heartbeat shape in isolation before
+deciding whether the thread will also host the step-1 reset
+would land throw-away work. W18 pulls both together once the
+W17-3 refactor shape is named.
+
+### Remaining (W17-5..W17-6)
 
 Stable IDs receive Per-Item Detail entries here as each is pulled.
 

@@ -117,8 +117,8 @@ Close-out merges into `main` via a `week17 -> main` PR.
 | W17-0 | doc-direction reconcile — `week17` branch + `week17 -> main` close-out PR wording across canonical docs; W11-W16 paterni preserved | `4508c2e` |
 | W17-1 | `[FOLLOWUP attribution-count-parity]` (W16-3 carry-over; producer-side fix at `build_evidence_bundle` activation emit-site — `is_target_extension_event` stamp; 4 invariant tests including parity contract pin) | `8c26d02` |
 | W17-2 | lifecycle harness scaffold (W17-3/4 enabler) — `LifecycleHarness` + `lifecycle_harness` fixture at `tests/workflows/marketplace/test_lifecycle_harness.py` composing `test_engine` + per-test UUID `AnalysisJob` row + mocked `ExecutorControl` (reset_sandbox call recorder w/ thread identity) + spawnable `_run_monitoring_heartbeat` thread; smoke test pins cancel-via-heartbeat path (thread = `harness-monitoring-heartbeat`, kwargs = `reload_window=True`, CAS = `WorkerEntryOutcome.CLAIMED`). Scope cut: harness does NOT drive `run_analysis_job` end-to-end, does NOT use `fresh_alembic_engine` (UUID-keyed rows + cleanup-delete suffice). W17-3 extension points listed in module docstring. | `ff98235` |
-| W17-3 | `[FOLLOWUP simulation-progress-cancel] heartbeat-sandbox-reset-off-thread` (W16-5 carry-over, harness-gated; W13-1 HMAC + W13-12 fail-closed + W13-13 CAS pattern byte-identical) | reserved |
-| W17-4 | `[FOLLOWUP simulation-progress-cancel] heartbeat-refactor` (W16-5 carry-over, W17-3 üzerine, byte-identical clarity refactor) | reserved |
+| W17-3 | `[FOLLOWUP simulation-progress-cancel] heartbeat-sandbox-reset-off-thread` — **scope-reduced 2026-05-18 (doc-only)**: harness prerequisite (W17-2) met, but the refactor shape is **DESIGN-NEEDED** (worker-thread step-1 reset is a HARD SYNC POINT for W13-11 HMAC secret; heartbeat thread starts only at step 4; multiple plausible refactor shapes have different invariant cost). Deferred to W18 dedicated sub-iter that opens with a design ADR / §16 plan entry. | _deferred to W18 (doc-only this iter)_ |
+| W17-4 | `[FOLLOWUP simulation-progress-cancel] heartbeat-refactor` — **scope-reduced 2026-05-18 (doc-only)**: bundled with W17-3 thread-relocation design decision; refactoring heartbeat shape in isolation before deciding the thread destination would land throw-away work. W18 pulls both together. | _deferred to W18 (doc-only this iter)_ |
 | W17-5 | hygiene cleanup batch — aday set `[CLEANUP env-example-extrace-vars]` + `[CLEANUP postgres-version-fact-drift]` + `[CLEANUP adr-0007-runbook-wording-drift]` + `[CLEANUP pre-commit-python-version-alignment]` + `[CLEANUP report-builder-naming]` (alt: `[CLEANUP monitor-runtime-naming-overlap]`); final seçim W17-5 entry'de | reserved |
 | W17-6 | close-out hygiene + canonical preamble refresh across 7 docs + §15 self-stamp post-merge W17 final bar + backlog item statuses (closed items → DONE/CLOSED audit trail) + `week17 -> main` close-out PR | reserved |
 
@@ -170,18 +170,42 @@ evidence.
 
 ### Workflow / Platform
 
-- `[FOLLOWUP simulation-progress-cancel] heartbeat-sandbox-reset-off-thread` — **W16-5 deferred to W17+**. The sandbox-reset call currently fires on the analysis worker thread in
-  `workflows/marketplace/analysis_execution.py`; moving it onto the
-  monitoring heartbeat thread (or any sibling background thread) is
-  concurrency-sensitive — it interacts with the W13-3 two-phase cancel
-  contract, the W13-13 worker-entry CAS, and the W16-2 facade's row
-  lock discipline. A safe move needs a lifecycle harness that drives
-  start/reset/cancel/finalize against a real DB session and a real
-  Playwright page mock; that harness does not exist yet (see also the
-  W14-3 RED stub note that surfaced the same gap for report-finalize).
-  W16 scope cap keeps the carry-over closeout window narrow; the
-  thread move belongs in a dedicated sub-iter with the harness as a
-  prerequisite.
+- `[FOLLOWUP simulation-progress-cancel] heartbeat-sandbox-reset-off-thread` — **W17-3 scope-reduced; deferred to W18+** (W16-5 paterni; doc-only commit). Harness prerequisite is now MET (W17-2 landed `ff98235`
+  with `LifecycleHarness` + `lifecycle_harness` fixture + cancel-via-
+  heartbeat smoke), but the W17-3 design intent surfaced as
+  **DESIGN-NEEDED**: the deferral note says "move sandbox-reset call
+  from worker thread to heartbeat thread", yet the worker-thread
+  `_reset_sandbox` call (`workflows/marketplace/analysis_service.py:155`)
+  is a HARD SYNC POINT before
+  `consume_harness_python_secret` (W13-11 / Codex F1 close-pass for
+  W13-1 H6) — the reset restarts VS Code which writes the per-launch
+  HMAC python secret to
+  `/results/_extrace_harness_python_secret`; the secret MUST be
+  consumed before the analyzed VSIX is admitted. The monitoring
+  heartbeat thread itself only starts at step 4 (`_run_monitoring`,
+  after install + triggers), so it cannot host the step-1 reset
+  without a pipeline ordering refactor. Several plausible refactor
+  shapes exist (dedicated reset thread started before step 1; merge
+  heartbeat's cancel-path reset with step-1 reset via a queue;
+  restructure pipeline to start heartbeat earlier) and the choice
+  has different invariant cost: W13-1 HMAC marker wiring vs. W13-3
+  two-phase cancel vs. W13-13 worker-entry CAS vs. W16-2 facade row
+  lock. **W17 scope cap** keeps W17 focused on attribution-parity +
+  harness + hygiene; the thread relocation belongs in a dedicated
+  W18 sub-iter that opens with a design-decision ADR (or §16 plan
+  entry) naming the chosen refactor shape and the invariant
+  preservation strategy. The lifecycle harness at
+  `tests/workflows/marketplace/test_lifecycle_harness.py` is ready
+  for W18 — its module docstring already enumerates the three
+  W17-3 extension points (parallel reset / idempotency /
+  reset-during-finalize) so W18 inherits the rig with zero
+  bootstrap cost. Pre-W17-3 description retained (original W16-5
+  deferral context): The sandbox-reset call currently fires on the
+  analysis worker thread in `workflows/marketplace/analysis_execution.py`;
+  moving it onto the monitoring heartbeat thread (or any sibling
+  background thread) is concurrency-sensitive — it interacts with
+  the W13-3 two-phase cancel contract, the W13-13 worker-entry CAS,
+  and the W16-2 facade's row lock discipline.
 - `[FOLLOWUP simulation-progress-cancel] dedupe-step-progress-schemas` — **W16-5 rejected** after investigation. The two schemas
   (`appcore/contracts/schema_defs/analysis_jobs.AnalysisJobStepProgress`
   with `extra="forbid"`; `appcore/contracts/schema_defs/marketplace.AnalyzeJobStepProgress`
@@ -200,15 +224,22 @@ evidence.
   outside the codebase. The dedupe value (35 LoC eliminated) does not
   justify the surface-role coupling or the breaking risk; the audit
   finding stays open as documentation but no schema change lands.
-- `[FOLLOWUP simulation-progress-cancel] heartbeat-refactor` — **W16-5
-  deferred to W17+**. Bundled with `heartbeat-sandbox-reset-off-thread`
-  above; the same lifecycle harness is the prerequisite. The current
+- `[FOLLOWUP simulation-progress-cancel] heartbeat-refactor` — **W17-4
+  scope-reduced; deferred to W18+** (bundled with
+  `heartbeat-sandbox-reset-off-thread` above; W16-5 paterni). The
+  W17-2 harness prerequisite is now MET, but the heartbeat-refactor
+  clarity gain is **bundled with the W17-3 thread-relocation
+  design decision** — refactoring the heartbeat shape in isolation
+  before deciding whether the thread will also host the step-1
+  reset would land throw-away work. W18 pulls both together once
+  the W17-3 refactor shape is named in an ADR / §16 plan entry.
+  Pre-W17-4 description retained (W16-5 deferral context): Current
   heartbeat shape
   (`workflows/marketplace/analysis_execution._run_monitoring_heartbeat`
-  L102-128 + thread setup L287-313) is functional and exercises every
-  cancel-poll branch; the audit-driven refactor is a clarity gain
-  rather than a correctness fix, so deferring without behavioral
-  consequence is safe.
+  L102-128 + thread setup L287-313) is functional and exercises
+  every cancel-poll branch; the audit-driven refactor is a clarity
+  gain rather than a correctness fix, so deferring without
+  behavioral consequence is safe.
 - `[FOLLOWUP analysis-thread-supervisor]`
 - `[FOLLOWUP job-service-typevar-audit]`
 - `[FOLLOWUP sqlalchemy-error-subtype-logging]`
