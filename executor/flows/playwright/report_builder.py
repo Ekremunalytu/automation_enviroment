@@ -305,8 +305,27 @@ def build_report_data(
         "schema_version": ACTIVATION_REPORT_SCHEMA_VERSION,
         "report_version": getattr(report, "report_version", 2),
         "target_extension_expected": getattr(report, "target_extension_id", ""),
+        # W16-3: analyst-facing top-level alias (same string value as
+        # ``target_extension_expected``; downstream readers had been
+        # blocked on the absence of this canonical name).
+        "target_extension_id": getattr(report, "target_extension_id", ""),
         "target_extension_observed": getattr(
             report, "target_extension_observed", False
+        ),
+        # W16-3: top-level field sync drift closeout — surface the
+        # in-memory ``ActivationReport`` scalars that
+        # ``MonitorRuntime.start()``/``.stop()`` stamp on entry/exit and
+        # that ``dispatch.setup_monitor`` flips True for any monitored
+        # run. Pre-W16-3 these were dropped at the strict-forbid
+        # contract validation seam (no slot on
+        # ``packages/analysis_contracts/contracts.ActivationReport``),
+        # so downstream analyzers reading the top-level fields saw them
+        # as missing/null even with evidence present.
+        "monitoring_start": float(getattr(report, "monitoring_start", 0.0) or 0.0),
+        "monitoring_end": float(getattr(report, "monitoring_end", 0.0) or 0.0),
+        "scenarios_run": list(getattr(report, "scenarios_run", []) or []),
+        "harness_handshake_required": bool(
+            getattr(report, "harness_handshake_required", False)
         ),
         "trigger_plan_requested": bool(
             getattr(report, "trigger_plan_requested", False)
