@@ -1,7 +1,7 @@
 # W17 — Carry-Over Closeout + Lifecycle Harness Yatırımı + Hygiene Sweep (Active Work Tracker)
 
-`Last Updated: 2026-05-18 (W17 authored — scope skeleton against main HEAD 1b6d43f / W16 close-out merge commit; sub-iter slate W17-0..W17-6 reserved by iteration plan; stable IDs assigned at first pull per W11/W12/W13/W14/W15/W16 precedent)`
-`Phase: W17 active — authoring (sub-iter pulls land sequentially on week17)`
+`Last Updated: 2026-05-18 (W17 active — W17-0 closed via 4508c2e (doc reconcile + tracker open + arch gate transition); W17-1 closed via 8c26d02 (attribution-count-parity producer-side fix at build_evidence_bundle activation emit-site + 4 invariant tests). Remaining slate W17-2..W17-6 reserved by iteration plan; stable IDs assigned at first pull per W11/W12/W13/W14/W15/W16 precedent)`
+`Phase: W17 active — W17-0 + W17-1 closed; W17-2 next (lifecycle harness scaffold)`
 `Branch: week17 (per user direction 2026-05-18; W11-W16 paterni preserved — sub-iter commits land on week17, close-out merges into main via week17 -> main PR)`
 `Owner: ekrem`
 
@@ -35,9 +35,27 @@ is the template structurally followed here.
   `make test-security` **220 passed** (+5 from W13 final 215, three
   added post-PR as `unaccounted_dropout` surface pins matching the
   live-scan shape); full suite **1893 passed, 9 skipped**.
-- **W17-0 in progress `2026-05-18`** — doc-direction reconcile +
-  W17 tracker authored against canonical docs (this commit lands as
-  the first commit on `week17`).
+- **W17-0 closed `2026-05-18` via `4508c2e`** — canonical preamble
+  refresh across 7 docs + new W17 tracker + new §15 W17 plan section
+  in `REFACTOR_OPTIMIZATION.md` + new W17 Pull-Forward table in
+  `POST_POC_BACKLOG.md` + README phase-pointer arch gate transition
+  (W14→W15 paterni applied to W16→W17: new
+  `test_readme_phase_pointer_mentions_w16_closeout_merge` + bumped
+  `test_readme_phase_pointer_tracks_active_w17_status`).
+- **W17-1 closed `2026-05-18` via `8c26d02`** — producer-side fix at
+  `build_evidence_bundle` activation emit-site
+  (`executor/flows/playwright/attribution/links.py`): captures
+  `target_extension_id` once at the function entry and stamps
+  `is_target_extension_event=bool(target_extension_id and
+  activation.extension_id == target_extension_id)` on each
+  `EvidenceEvent(kind="activation", ...)`. Mirrors
+  `count_target_activations`'s empty-id guard so the two predicates
+  are byte-identical at all inputs. 4 new invariant tests in
+  `tests/executor/test_playwright_attribution_links.py` including the
+  W17-1 contract pin
+  (`test_build_evidence_bundle_target_activation_parity_invariant`)
+  that drives a mixed activated list (target + non-target + target)
+  and asserts evidence-side and attribution_summary counts equal.
 
 ## Sub-Iter Scope (Authored 2026-05-18)
 
@@ -53,8 +71,78 @@ is the template structurally followed here.
 
 ## Per-Item Detail
 
-Stable IDs `W17-1..W17-6` get Per-Item Detail entries here as each is
-pulled. Currently scope skeleton only (W17-0 authoring).
+### W17-1 — `attribution-count-parity` closeout
+
+**Pulled `2026-05-18` via `8c26d02`** (W16-3 carry-over; producer-side
+emit-site fix). The W14 production scan `2026-05-14` observed
+`attribution_summary.target_activation_count = 1` while the
+evidence-side counter
+(`kind=activation,is_target_extension_event=True`) read 0 for the
+same persisted run, even though `target_extension_host` log stream
+had the matching `Activated ms-python.python via
+workspaceContains:requirements.txt` entry. Both compute paths saw
+the same activation but applied different (and inconsistent) target
+flags.
+
+**Root cause.** `build_evidence_bundle` in
+`executor/flows/playwright/attribution/links.py` walked
+`report.activated[]` and emitted one
+`EvidenceEvent(kind="activation", ...)` per entry but never stamped
+`is_target_extension_event`. Other kinds (network / file / process /
+output_channel_appendline) forward the flag from the upstream typed
+event (links.py:173/218/264/302); the activation branch was the only
+producer-side hole.
+
+**Fix.** Capture `target_extension_id = report.target_extension_id`
+at the top of `build_evidence_bundle` and, in the activation loop,
+compute `is_target_activation = bool(target_extension_id and
+activation.extension_id == target_extension_id)` and pass it as
+`is_target_extension_event=is_target_activation` to the
+`EvidenceEvent` constructor. The empty-id guard mirrors
+`count_target_activations`'s own `if not target_extension_id:
+return 0` so the two predicates are byte-identical at the empty-id
+boundary as well.
+
+**Tests (Phase 3 invariant).** 4 new tests in
+`tests/executor/test_playwright_attribution_links.py`:
+
+- `test_build_evidence_bundle_activation_event_flags_target_extension`
+  — target activation → `is_target_extension_event=True`.
+- `test_build_evidence_bundle_activation_event_does_not_flag_non_target`
+  — non-target activation in a targeted report →
+  `is_target_extension_event=False`.
+- `test_build_evidence_bundle_activation_event_unflagged_when_no_target_set`
+  — empty `target_extension_id` keeps flag False.
+- `test_build_evidence_bundle_target_activation_parity_invariant`
+  — the W17-1 contract pin: with a mixed activated list (target +
+  non-target + target), the count of
+  `kind=activation,is_target_extension_event=True` events equals
+  `count_target_activations(activated, target_id)`. Both counters
+  derive from the same predicate.
+
+**Out-of-scope (intentional).** The downstream `attribution_summary`
+producer (`executor/flows/playwright/annotation.py`
+`build_attribution_summary`) and `automation_health` producer
+(`executor/flows/playwright/health/summary.py`
+`build_automation_health`) both call `count_target_activations` and
+were already byte-identical at the extension_id predicate level.
+W17-1 fixes the evidence-side hole so the *third* counter (evidence
+stream) joins the parity. No other emit-sites change.
+
+**Verification.** Full non-smoke suite **1898 passed, 9 skipped, 4
+deselected** (W16 final 1893 passed; +4 W17-1 tests + 1 W17-0
+W16-close-out-fact gate = +5). `tests/architecture/` 200 passed;
+`tests/executor/` + `tests/security/` green; no regression in
+W16-3's `tests/security/test_report_finalize_field_sync.py`
+strict-forbid contract round-trip pins.
+
+**Audit trail.** `[FOLLOWUP attribution-count-parity]` in
+`POST_POC_BACKLOG.md` marked **closed at W17-1** with closure
+details. W17-2 (lifecycle harness scaffold) is next.
+
+### Remaining (W17-2..W17-6)
+
+Stable IDs receive Per-Item Detail entries here as each is pulled.
 
 ## Exit Criteria (W17-End)
 

@@ -114,8 +114,8 @@ Close-out merges into `main` via a `week17 -> main` PR.
 
 | Iter | Stable ID(s) (planned) | Landing commit |
 |---|---|---|
-| W17-0 | doc-direction reconcile — `week17` branch + `week17 -> main` close-out PR wording across canonical docs; W11-W16 paterni preserved | _in progress 2026-05-18_ |
-| W17-1 | `[FOLLOWUP attribution-count-parity]` (W16-3 carry-over; producer-side parity at `target_activation_count` vs evidence-kind count; report-finalize / `attribution_summary`) | reserved |
+| W17-0 | doc-direction reconcile — `week17` branch + `week17 -> main` close-out PR wording across canonical docs; W11-W16 paterni preserved | `4508c2e` |
+| W17-1 | `[FOLLOWUP attribution-count-parity]` (W16-3 carry-over; producer-side fix at `build_evidence_bundle` activation emit-site — `is_target_extension_event` stamp; 4 invariant tests including parity contract pin) | `8c26d02` |
 | W17-2 | lifecycle harness scaffold (enabler for W17-3/4 — `start → reset → cancel → finalize` against real Postgres DB via `fresh_alembic_engine` + Playwright mock; `tests/integration/lifecycle_harness/` likely home; W17's heaviest parça) | reserved |
 | W17-3 | `[FOLLOWUP simulation-progress-cancel] heartbeat-sandbox-reset-off-thread` (W16-5 carry-over, harness-gated; W13-1 HMAC + W13-12 fail-closed + W13-13 CAS pattern byte-identical) | reserved |
 | W17-4 | `[FOLLOWUP simulation-progress-cancel] heartbeat-refactor` (W16-5 carry-over, W17-3 üzerine, byte-identical clarity refactor) | reserved |
@@ -319,21 +319,36 @@ Closed (one-line audit trail):
   different code path (`build_signal_summary` /
   `attribution_summary` producer side) and lives under
   `[FOLLOWUP attribution-count-parity]` (new entry below).
-- `[FOLLOWUP attribution-count-parity]` — **W16-3 split**.
-  W14 production scan `2026-05-14`:
-  `attribution_summary.target_activation_count = 1` raporlanırken
-  `evidence_events` listesinde `kind=activation,
-  is_target_extension_event=True` hiç yok; ancak
-  `target_extension_host` log stream'inde 1 entry mevcut
-  (`Activated ms-python.python via
-  workspaceContains:requirements.txt`). İki agregasyon kaynağı aynı
-  aktivasyon için farklı target-flag verdiği için top-level sayım
-  stream-türevli, evidence-kind sayımı 0 — `build_signal_summary` /
-  `attribution_summary` producer-side drift. W16-3 (`fa430f2`) closed
-  the contract-seam null-leakage half; this entry tracks the remaining
-  evidence-vs-stream divergence. W17+ candidate; needs investigation
-  hook into the attribution_summary producer to align the two
-  counters.
+- `[FOLLOWUP attribution-count-parity]` — **closed at W17-1** via
+  `8c26d02` (W14 production scan `2026-05-14` evidence-vs-stream
+  divergence half; W16-3 split). Root cause located at
+  `executor/flows/playwright/attribution/links.py`
+  `build_evidence_bundle`: the activation emit-site walked
+  `report.activated[]` and emitted one `EvidenceEvent(kind="activation",
+  ...)` per entry but never stamped `is_target_extension_event` —
+  the only producer-side hole among the kind branches (network /
+  file / process / output_channel_appendline all forward
+  `is_target_extension_event` from the upstream typed event at
+  links.py:173/218/264/302). Fix captures `target_extension_id =
+  report.target_extension_id` at function entry and stamps
+  `is_target_extension_event=bool(target_extension_id and
+  activation.extension_id == target_extension_id)` on each
+  activation `EvidenceEvent`. Mirrors `count_target_activations`'s
+  empty-id guard so the two predicates are byte-identical at all
+  inputs. 4 new invariant tests in
+  `tests/executor/test_playwright_attribution_links.py` including
+  the W17-1 contract pin
+  (`test_build_evidence_bundle_target_activation_parity_invariant`).
+  Pre-W17-1 description (W16-3 split context): W14 production scan
+  `2026-05-14`: `attribution_summary.target_activation_count = 1`
+  raporlanırken `evidence_events` listesinde
+  `kind=activation,is_target_extension_event=True` hiç yok; ancak
+  `target_extension_host` log stream'inde 1 entry mevcut. İki
+  agregasyon kaynağı aynı aktivasyon için farklı target-flag verdiği
+  için top-level sayım stream-türevli, evidence-kind sayımı 0.
+  W16-3 (`fa430f2`) closed the contract-seam null-leakage half; W17-1
+  closes the evidence-vs-stream divergence half at the producer
+  emit-site.
 - `[FOLLOWUP event-attempt-verification-status-validator]`
 - `[FOLLOWUP report-invariants-runtime-evidence-drift]`
 - `[FOLLOWUP compute-verdict-table-driven-test]`
