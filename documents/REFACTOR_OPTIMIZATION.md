@@ -323,8 +323,8 @@ tracker:
 carries per-iter scope locks, candidate items, and Per-Item Detail
 evidence (sub-commits, module locations, test deltas). Final W16 bar:
 `tests/architecture/` **199 passed** (W15 final 172, +27);
-`make test-security` **217 passed** (W13 final 215, +2); full suite
-**1890 passed, 9 skipped**.
+`make test-security` **220 passed** (W13 final 215, +5); full suite
+**1893 passed, 9 skipped**.
 
 | Iter | Status | Landing commit |
 |---|---|---|
