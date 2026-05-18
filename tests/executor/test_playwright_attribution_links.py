@@ -463,3 +463,138 @@ def test_build_evidence_bundle_round_trips_activation_with_scenario_link() -> No
     ]
     assert len(occurred_in_scenario) == 1
     assert occurred_in_scenario[0].confidence == 1.0
+
+
+# ---------------------------------------------------------------------------
+# W17-1 attribution-count-parity — kind="activation" evidence events must
+# stamp ``is_target_extension_event`` whenever the activation matches
+# ``report.target_extension_id``. Before W17-1, ``build_evidence_bundle``
+# never set the flag for activation events, so evidence-side counters
+# (e.g. ``kind=activation,is_target_extension_event=True``) read zero
+# even when ``count_target_activations(report.activated, ...)`` matched.
+# W14 production scan ``2026-05-14`` surfaced the drift; W16-3 split the
+# parity half out as ``[FOLLOWUP attribution-count-parity]``; W17-1 closes
+# it at the producer emit-site.
+# ---------------------------------------------------------------------------
+
+
+def test_build_evidence_bundle_activation_event_flags_target_extension() -> None:
+    """A ``kind="activation"`` event for the target extension is flagged."""
+    activation = ActivationEntry(
+        extension_id="ms-python.python",
+        timestamp="2026-05-14T10:00:00.000",
+        source="log",
+        activation_event="workspaceContains:requirements.txt",
+    )
+    report = ActivationReport(
+        target_extension_id="ms-python.python",
+        monitoring_start=1700_000_000.0,
+        activated=[activation],
+    )
+
+    events, _ = links.build_evidence_bundle(report)
+
+    activation_events = [event for event in events if event.kind == "activation"]
+    assert len(activation_events) == 1
+    assert activation_events[0].is_target_extension_event is True
+
+
+def test_build_evidence_bundle_activation_event_does_not_flag_non_target() -> None:
+    """A ``kind="activation"`` event for a non-target extension stays unflagged."""
+    activation = ActivationEntry(
+        extension_id="other.extension",
+        timestamp="2026-05-14T10:00:00.000",
+        source="log",
+    )
+    report = ActivationReport(
+        target_extension_id="ms-python.python",
+        monitoring_start=1700_000_000.0,
+        activated=[activation],
+    )
+
+    events, _ = links.build_evidence_bundle(report)
+
+    activation_events = [event for event in events if event.kind == "activation"]
+    assert len(activation_events) == 1
+    assert activation_events[0].is_target_extension_event is False
+
+
+def test_build_evidence_bundle_activation_event_unflagged_when_no_target_set() -> None:
+    """Empty ``target_extension_id`` keeps the flag False (mirrors count_target_activations guard)."""
+    activation = ActivationEntry(
+        extension_id="ms-python.python",
+        timestamp="2026-05-14T10:00:00.000",
+        source="log",
+    )
+    report = ActivationReport(
+        target_extension_id="",
+        monitoring_start=1700_000_000.0,
+        activated=[activation],
+    )
+
+    events, _ = links.build_evidence_bundle(report)
+
+    activation_events = [event for event in events if event.kind == "activation"]
+    assert len(activation_events) == 1
+    assert activation_events[0].is_target_extension_event is False
+
+
+def test_build_evidence_bundle_target_activation_parity_invariant() -> None:
+    """W17-1 parity invariant: count of target-flagged ``kind="activation"``
+    evidence events equals ``count_target_activations(report.activated, target_id)``.
+
+    This is the W17-1 contract pin closing
+    ``[FOLLOWUP attribution-count-parity]`` (W14 production scan
+    ``2026-05-14`` divergence: ``attribution_summary.target_activation_count = 1``
+    while ``kind=activation,is_target_extension_event=True`` count was 0).
+    Both counters now derive from the same predicate
+    (``entry.extension_id == report.target_extension_id``).
+    """
+    from executor.flows.playwright.health.summary import count_target_activations
+
+    target_id = "ms-python.python"
+    activated = [
+        ActivationEntry(
+            extension_id=target_id,
+            timestamp="2026-05-14T10:00:01.000",
+            source="log",
+            activation_event="workspaceContains:requirements.txt",
+        ),
+        ActivationEntry(
+            extension_id="other.extension",
+            timestamp="2026-05-14T10:00:02.000",
+            source="log",
+        ),
+        ActivationEntry(
+            extension_id=target_id,
+            timestamp="2026-05-14T10:00:03.000",
+            source="log",
+            activation_event="onStartupFinished",
+        ),
+    ]
+    report = ActivationReport(
+        target_extension_id=target_id,
+        monitoring_start=1700_000_000.0,
+        activated=activated,
+    )
+
+    events, _ = links.build_evidence_bundle(report)
+    target_flagged_evidence = [
+        event
+        for event in events
+        if event.kind == "activation" and event.is_target_extension_event
+    ]
+
+    summary_target_count = count_target_activations(activated, target_id)
+    evidence_target_count = len(target_flagged_evidence)
+
+    assert summary_target_count == 2
+    assert evidence_target_count == summary_target_count, (
+        "W17-1 parity invariant violated: "
+        f"attribution_summary.target_activation_count={summary_target_count} "
+        f"but kind=activation,is_target_extension_event=True count="
+        f"{evidence_target_count}. Both counters must derive from the same "
+        "predicate (entry.extension_id == report.target_extension_id) so "
+        "downstream rule helpers in packages/analysis_engine/rules/_common.py "
+        "(``is_target_owned`` / ``target_file_events``) see the same truth."
+    )
