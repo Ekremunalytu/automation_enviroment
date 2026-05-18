@@ -106,8 +106,13 @@ phase evidence is frozen under dated snapshots:
   on `week16` and the W16 tracker freezes at scope close. **W16-1
   pulled `2026-05-18` via `01f910a`** (dispatch outcome=None emit-site
   closed; `[FOLLOWUP scenario-accountant-conservation-split]` marked
-  dispatch-layer-closed in `POST_POC_BACKLOG.md`); W16-2..W16-7
-  remain pending.
+  dispatch-layer-closed in `POST_POC_BACKLOG.md`). **W16-2 pulled
+  `2026-05-18` via `9d6d110`** (analysis-job worker-entry CRUD
+  ownership facade extracted to
+  `appcore/storage/crud_ops/analysis_jobs/lifecycle.claim_queued_analysis_job_at_worker_entry`;
+  AGENTS.md:57 compliance restored, W13-13 CAS preserved
+  byte-identically; arch gate re-targeted on the facade boundary).
+  W16-3..W16-7 remain pending.
 
 ## W13 Status Summary
 
@@ -134,7 +139,9 @@ phase evidence is frozen under dated snapshots:
   guard; severity downgraded BLOCKER -> HIGH same day; upstream emit-site
   split **pulled to W16-1** under `[FOLLOWUP scenario-accountant-conservation-split]`).
 - `[FOLLOWUP analysis-job-worker-entry-crud-ownership]` — W15 mid-iter audit
-  finding, **pulled to W16-2** (row-lock-aware lifecycle CRUD primitive).
+  finding, **closed at W16-2** via `9d6d110` (row-lock-aware lifecycle CRUD
+  primitive `claim_queued_analysis_job_at_worker_entry` extracted; W13-13
+  CAS preserved; AGENTS.md:57 compliance restored).
 - `[FOLLOWUP health-reconciliation-responsibility-split]` — W15 mid-iter
   audit finding, **pulled to W16-4** (behavior-preserving extraction with
   W13-1 HMAC gates preserved).

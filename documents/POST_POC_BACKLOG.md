@@ -96,7 +96,7 @@ W11/W12/W13/W14/W15 precedent. Close-out merges into `main` via a
 | Iter | Stable ID(s) (planned) | Landing commit |
 |---|---|---|
 | W16-1 | `[FOLLOWUP scenario-accountant-conservation-split]` (W14-1 root-cause split; HIGH prod regression — dispatch-layer outcome=None emit-site closed) | `01f910a` |
-| W16-2 | `[FOLLOWUP analysis-job-worker-entry-crud-ownership]` (W15 audit finding; row-lock-aware lifecycle CRUD primitive) | _pending pull_ |
+| W16-2 | `[FOLLOWUP analysis-job-worker-entry-crud-ownership]` (W15 audit finding; row-lock-aware lifecycle CRUD primitive — closed at facade boundary) | `9d6d110` |
 | W16-3 | `[FOLLOWUP report-finalize-top-level-field-sync-drift]` (W14 production scan-driven investigation) | _pending pull_ |
 | W16-4 | `[FOLLOWUP health-reconciliation-responsibility-split]` (W15 audit finding; behavior-preserving extraction; W13-1 HMAC gates preserved) | _pending pull_ |
 | W16-5 | `[FOLLOWUP simulation-progress-cancel] heartbeat-sandbox-reset-off-thread` + `dedupe-step-progress-schemas` + `heartbeat-refactor` (W11+ umbrella closeout) | _pending pull_ |
@@ -158,19 +158,31 @@ evidence.
 - `[FOLLOWUP job-service-typevar-audit]`
 - `[FOLLOWUP sqlalchemy-error-subtype-logging]`
 - `[FOLLOWUP w11-8-companion-workflow-orm-bleed]` (W17+; DTO desen kararı ayrı ADR ister).
-- `[FOLLOWUP analysis-job-worker-entry-crud-ownership]` — **pulled to W16-2**.
-  `workflows/marketplace/analysis_service.py` worker-entry block (lines
-  296-346) issues `SELECT ... FOR UPDATE` + row mutate + `db.commit()`
-  directly against `AnalysisJob`, bypassing the `appcore/storage/crud.py`
-  write facade (`AGENTS.md:57` hard rule). Documented intentional
-  exception — comment block at :280-295 explains the wrapper would
-  deadlock against the lifecycle wrapper's own `SessionLocal()`. Right
-  fix is a row-lock-aware lifecycle CRUD primitive in
-  `appcore/storage/crud_ops/analysis_jobs/lifecycle.py`, not collapsing
-  the existing helper. Concurrency-sensitive — any rewrite must preserve
-  the row-lock-on-entry → branch-on-status → atomic-finalize CAS pattern
-  landed in W13-13 (`worker-start-cancel-race-CAS` close-gate). W15+
-  hygiene; new audit finding `2026-05-16`.
+- `[FOLLOWUP analysis-job-worker-entry-crud-ownership]` — **closed at
+  W16-2** via `9d6d110`. New row-lock-aware lifecycle CRUD primitive
+  `claim_queued_analysis_job_at_worker_entry` (+ `WorkerEntryOutcome`
+  enum + `WorkerEntryClaim` dataclass) extracted to
+  `appcore/storage/crud_ops/analysis_jobs/lifecycle.py`;
+  `workflows/marketplace/analysis_service.run_analysis_job` body
+  refactored to dispatch on the returned outcome instead of issuing
+  inline `SELECT ... FOR UPDATE` + branch + `db.commit()`. `AGENTS.md:57`
+  hard rule compliance restored. W13-13 CAS pattern preserved
+  byte-identically (row-lock-on-entry → branch-on-status → atomic
+  finalize-or-promote); the W13-13 lock-asymmetry rationale (direct
+  `finalize_cancelled_analysis_job` call vs. wrapper deadlock) moved
+  from the caller docstring into the facade docstring. **Architecture
+  gate** at `tests/architecture/test_run_analysis_job_entry_snapshot.py`
+  re-targeted on the facade boundary per W14-6 "extend, do not
+  duplicate" (INV1: claim helper is the first DB action in
+  `run_analysis_job`; INV2: claim helper body contains both
+  `with_for_update()` and `finalize_cancelled_analysis_job` AST call
+  sites). All 6 W13-13 behavioral pins in
+  `tests/platform/storage/test_analysis_jobs_cancel_at_worker_entry.py`
+  stay green; one monkeypatch target moved from `analysis_service` to
+  `lifecycle` because the W16-2 refactor removed the bare-name binding
+  from the analysis_service module scope. Lifecycle surface pin
+  (`test_module_path_pins_lifecycle_surface`) extended with the three
+  new public exports.
 
 Closed (one-line audit trail):
 

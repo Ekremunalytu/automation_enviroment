@@ -1,7 +1,7 @@
 # W16 — Carry-Over Closeout + Audit Findings + Production Regression (Active Work Tracker)
 
-`Last Updated: 2026-05-18 (W16 active on week16 branch (per user direction 2026-05-18; W11-W15 paterni restored via W16-0 doc reconcile); W15 closed via PR #22 week15 -> main MERGED 2026-05-18 via 6161472; W16 scope authored 2026-05-18 against main HEAD 6161472; 7 sub-iter (W16-1..W16-7) reserved by §14 plan and assigned at first pull per W11/W12/W13/W14/W15 precedent; W16-1 pulled 2026-05-18 via 01f910a (dispatch outcome=None emit-site closed); W16-2..W16-7 pending)`
-`Phase: W16 active (W16-1 pulled 01f910a; W16-2..W16-7 reserved, none yet pulled; commits land on week16 branch, close-out via week16 -> main PR — W11-W15 paterni restored 2026-05-18 via W16-0)`
+`Last Updated: 2026-05-18 (W16 active on week16 branch (per user direction 2026-05-18; W11-W15 paterni restored via W16-0 doc reconcile); W15 closed via PR #22 week15 -> main MERGED 2026-05-18 via 6161472; W16 scope authored 2026-05-18 against main HEAD 6161472; 7 sub-iter (W16-1..W16-7) reserved by §14 plan and assigned at first pull per W11/W12/W13/W14/W15 precedent; W16-1 pulled 2026-05-18 via 01f910a (dispatch outcome=None emit-site closed); W16-2 pulled 2026-05-18 via 9d6d110 (analysis-job worker-entry CRUD ownership facade extracted; AGENTS.md:57 compliance restored, W13-13 CAS preserved); W16-3..W16-7 pending)`
+`Phase: W16 active (W16-1 pulled 01f910a; W16-2 pulled 9d6d110; W16-3..W16-7 reserved, none yet pulled; commits land on week16 branch, close-out via week16 -> main PR — W11-W15 paterni restored 2026-05-18 via W16-0)`
 `Branch: week16 (per user direction 2026-05-18; W11-W15 paterni restored via W16-0 doc reconcile; close-out merges into main via week16 -> main PR)`
 `Owner: ekrem`
 
@@ -43,9 +43,19 @@ Detail trimmed until each sub-iter is pulled (drift kontrolü).
   `POST_POC_BACKLOG.md` Current Open Items + W16 Pull-Forward table.
 - **W16-1 pulled `2026-05-18` via `01f910a`** (HIGH prod regression,
   severity-leading). Dispatch outcome=None upstream emit-site closed
-  at `executor/flows/playwright/entrypoint/dispatch.py` (`dispatch_outcome_none`
-  reason_code now emitted per requested scenario). W16-2..W16-7
-  remain `[planned]` until the corresponding pull lands.
+  at `executor/flows/playwright/entrypoint/dispatch.py`
+  (`dispatch_outcome_none` reason_code now emitted per requested
+  scenario).
+- **W16-2 pulled `2026-05-18` via `9d6d110`** (W15 mid-iter audit
+  finding; concurrency-sensitive). Worker-entry CRUD primitive
+  extracted to
+  `appcore/storage/crud_ops/analysis_jobs/lifecycle.claim_queued_analysis_job_at_worker_entry`;
+  `workflows/marketplace/analysis_service.run_analysis_job` now
+  dispatches on `WorkerEntryOutcome` instead of issuing inline
+  `SELECT ... FOR UPDATE` + commit. `AGENTS.md:57` compliance
+  restored; W13-13 CAS preserved byte-identically; arch gate
+  re-targeted on the facade boundary per W14-6 extend-not-duplicate.
+  W16-3..W16-7 remain `[planned]` until the corresponding pull lands.
 
 ## Sub-Iter Scope (planned)
 
@@ -173,12 +183,87 @@ the pre-W16-1 truth-state.
 
 ### W16-2 — analysis-job worker-entry CRUD ownership
 
-_[Placeholder — filled at pull. Will document: new
-`appcore/storage/crud_ops/analysis_jobs/lifecycle.py` row-lock-aware
-primitive design, worker-entry block migration at
-`workflows/marketplace/analysis_service.py:296-346`, W13-13 CAS
-preservation evidence, new `tests/architecture/test_crud_facade_ownership.py`
-gate (if applicable), test deltas, landing commit.]_
+**Pulled `2026-05-18` via `9d6d110`** (W15 mid-iter audit finding;
+AGENTS.md:57 hard-rule violation closed).
+
+**Scope:** Lift the W13-13 worker-entry CAS primitive out of
+`workflows/marketplace/analysis_service.run_analysis_job` (where it
+was 50+ LoC of inline `SELECT ... FOR UPDATE` + branch + `db.commit()`)
+into the lifecycle CRUD facade at
+`appcore/storage/crud_ops/analysis_jobs/lifecycle.py`. Behavior is
+byte-identical; the change is a pure facade extraction.
+
+**Module locations (post-W16-2):**
+- `appcore/storage/crud_ops/analysis_jobs/lifecycle.py` — new primitive
+  `claim_queued_analysis_job_at_worker_entry(db, job_id, *, fallback_report_name, cancel_detail)`
+  returning a `WorkerEntryClaim(outcome, job, report_path)` dataclass.
+  Outcome enum has five members: `CLAIMED`, `ALREADY_TERMINAL`,
+  `ROW_MISSING`, `CANCELLING_FINALIZED`, `CANCELLING_RACE`. Lock
+  discipline mirrors `cancel_analysis_job` / `fail_analysis_job` /
+  `complete_analysis_job` (W14-4 lock symmetry).
+- `appcore/storage/crud_ops/analysis_jobs/__init__.py` — re-exports
+  `WorkerEntryClaim`, `WorkerEntryOutcome`,
+  `claim_queued_analysis_job_at_worker_entry` (W11-8 facade thinness).
+- `workflows/marketplace/analysis_service.py` — `run_analysis_job`
+  body refactored: dispatch on `claim.outcome`; only `CLAIMED`
+  continues to the analysis flow. Direct imports `select`, `AnalysisJob`,
+  `_TERMINAL_JOB_STATUSES`, `finalize_cancelled_analysis_job` dropped
+  (no longer needed at the caller). Docstring updated to record the
+  W16-2 facade move and point at the relocated architecture gate.
+
+**Lock-asymmetry note (preserved):** The `cancelling` branch inside the
+facade calls `finalize_cancelled_analysis_job` (the lifecycle helper)
+directly under the held lock. The wrapper `job_service.finalize_cancelled_job`
+opens its own `SessionLocal()` via `_run_in_session` and would
+deadlock against the row lock. The W13-3 exception handler downstream
+of the entry block keeps using the wrapper because by then the
+entry-block transaction has committed.
+
+**Architecture gate (W14-6 extend-not-duplicate):**
+`tests/architecture/test_run_analysis_job_entry_snapshot.py` rewritten
+in place (no new gate file). Two AST invariants now target the facade
+boundary:
+
+- **INV1** — `run_analysis_job`'s first DB action MUST be a call to
+  `claim_queued_analysis_job_at_worker_entry`; no other CRUD helper in
+  `_DB_TOUCH_NAMES` may precede it in source order.
+- **INV2** — the lifecycle facade
+  `claim_queued_analysis_job_at_worker_entry` MUST itself contain
+  both a `with_for_update()` call site (row lock) and a
+  `finalize_cancelled_analysis_job` call site (cancel-branch finalize
+  under the held lock).
+
+**Test deltas:**
+- `tests/architecture/test_run_analysis_job_entry_snapshot.py` — 2
+  tests rewritten (no count change).
+- `tests/platform/storage/test_analysis_jobs_cancel_at_worker_entry.py`
+  — 6 W13-13 behavioral pins all stay green; one `monkeypatch.setattr`
+  target moved from `analysis_service` to `lifecycle` because the
+  W16-2 refactor removed `finalize_cancelled_analysis_job` from the
+  analysis_service module scope.
+- `tests/platform/storage/test_analysis_jobs_lifecycle.py::test_module_path_pins_lifecycle_surface`
+  — `expected` set extended with 3 new public exports
+  (`WorkerEntryClaim`, `WorkerEntryOutcome`,
+  `claim_queued_analysis_job_at_worker_entry`); docstring notes the
+  W16-2 surface extension.
+
+**Pre-merge test counts (W16-2 close):**
+- `tests/architecture/`: **198 passed** (unchanged from W15 final;
+  W14-6 extend-not-duplicate observed — arch gate file is the same).
+- `tests/platform/storage/`: **89 passed, 1 skip** (W13-4 alembic skip
+  unchanged; will close at W16-6).
+- `tests/workflows/marketplace/test_run_analysis_job_finalize.py +
+  test_router.py`: **68 passed, 1 skip** (VSIX fixture infra,
+  unchanged).
+- `make test-security`: **217 passed** (W15 final 215 + W16-1's 2
+  new dispatch-outcome-none tests).
+
+**Landing commit:** `9d6d110`.
+
+**Audit trail:** `[FOLLOWUP analysis-job-worker-entry-crud-ownership]`
+in `POST_POC_BACKLOG.md` marked **closed at W16-2** with the closure
+details (facade location, lock-asymmetry preservation, arch gate
+re-target, test deltas).
 
 ### W16-3 — report-finalize top-level field sync drift
 
