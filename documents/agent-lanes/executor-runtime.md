@@ -1,6 +1,6 @@
 # Executor Runtime Lane
 
-`Last Updated: 2026-05-11`
+**Last Updated:** 2026-05-17 (W15 close — W15-2 closed 2026-05-14 via 765cde7: `clean_workspace` is_symlink-before-rmtree (M12) — symlink check precedes rmtree to prevent traversal to operator-controlled targets outside the sandbox workspace; W15-5 closed 2026-05-17 via 43d6438: lifecycle marker id shape regex tightening (I4) — `_LIFECYCLE_MARKER_PATTERNS` enforce strict `[\w-]+\.[\w.\-]+` publisher.name shape, unanchored patterns reject status codes / timestamps / arbitrary substrings as id captures; behavioral coverage in `tests/security/test_workspace_symlink_toctou.py` + architecture gate `tests/architecture/test_lifecycle_marker_id_shape.py` (3 invariants).)
 
 Use this lane for Docker executor behavior, Playwright automation, the harness
 extension, runtime capture, reset/reload behavior, and executor runbooks.

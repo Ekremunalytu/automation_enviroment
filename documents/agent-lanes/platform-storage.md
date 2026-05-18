@@ -1,6 +1,6 @@
 # Platform And Storage Lane
 
-`Last Updated: 2026-05-05`
+**Last Updated:** 2026-05-17 (W15 close — W15-3 closed 2026-05-15 via 3512a7c: `activationEvents` bounds + Alembic field-length migration (U8) — Pydantic Field caps in `appcore/contracts/schema_defs/catalog.py` (event_type 64, event_value 1024, list 512), SQLAlchemy column caps in `appcore/storage/model_defs/extension.py`, new Alembic migration alters existing extension manifest columns to bounded widths; `tests/architecture/test_activationevents_bounds.py` AST gate pins both Pydantic Field + SQLAlchemy column invariants; DoS prevention on extension manifest parsing under adversarial event payloads.)
 
 Use this lane for FastAPI app wiring, settings, dependencies, shared contracts,
 SQLAlchemy models, CRUD, and migrations.
