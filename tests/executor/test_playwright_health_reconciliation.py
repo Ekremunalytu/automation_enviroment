@@ -722,7 +722,7 @@ def test_load_harness_python_secret_prefers_env_var_over_file(
     monkeypatch,
 ) -> None:
     """Env var wins over file; file is still unlinked (defense-in-depth)."""
-    from executor.flows.playwright.health.reconciliation import (
+    from executor.flows.playwright.health.security import (
         load_harness_python_secret,
     )
 
@@ -755,7 +755,7 @@ def test_load_harness_python_secret_legacy_file_when_env_absent(
     monkeypatch,
 ) -> None:
     """Env unset + file present → file value read and unlinked (legacy path)."""
-    from executor.flows.playwright.health.reconciliation import (
+    from executor.flows.playwright.health.security import (
         load_harness_python_secret,
     )
 
@@ -782,7 +782,7 @@ def test_load_harness_python_secret_empty_when_both_absent(
     monkeypatch,
 ) -> None:
     """Env unset + file absent → empty string (W13-12 fail-closed enforcement point)."""
-    from executor.flows.playwright.health.reconciliation import (
+    from executor.flows.playwright.health.security import (
         load_harness_python_secret,
     )
 

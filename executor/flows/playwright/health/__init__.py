@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 from .reconciliation import (
-    derive_verified_capabilities,
     reconcile_coverage_verification,
     reconcile_event_attempts,
 )
@@ -14,6 +13,7 @@ from .summary import (
     build_log_health,
     build_run_quality,
     count_target_activations,
+    derive_verified_capabilities,
     is_background_activation,
     summarize_event_attempts_for_report,
 )

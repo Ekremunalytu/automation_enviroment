@@ -45,8 +45,11 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 ANALYSIS_SERVICE_PATH = REPO_ROOT / "workflows" / "marketplace" / "analysis_service.py"
 HOST_PATH = REPO_ROOT / "executor" / "host.py"
-RECONCILIATION_PATH = (
-    REPO_ROOT / "executor" / "flows" / "playwright" / "health" / "reconciliation.py"
+# W16-4: ``load_harness_python_secret`` moved from reconciliation.py to
+# security.py alongside the W13-1 HMAC primitives. Gate 3 below now
+# parses security.py instead.
+SECURITY_PATH = (
+    REPO_ROOT / "executor" / "flows" / "playwright" / "health" / "security.py"
 )
 
 
@@ -150,9 +153,13 @@ def test_run_playwright_automation_threads_secret_env_var() -> None:
 
 
 def test_load_harness_python_secret_prefers_env_var_over_file() -> None:
-    """W13-11 Gate 3: load_harness_python_secret reads EXECUTOR_HARNESS_PYTHON_SECRET_VALUE before any file read."""
-    tree = ast.parse(RECONCILIATION_PATH.read_text(encoding="utf-8"))
-    func = _find_function(tree, "load_harness_python_secret", RECONCILIATION_PATH)
+    """W13-11 Gate 3: load_harness_python_secret reads EXECUTOR_HARNESS_PYTHON_SECRET_VALUE before any file read.
+
+    W16-4 re-target: the function moved to ``security.py`` alongside the
+    W13-1 HMAC verifier. AST walk now parses the new module path.
+    """
+    tree = ast.parse(SECURITY_PATH.read_text(encoding="utf-8"))
+    func = _find_function(tree, "load_harness_python_secret", SECURITY_PATH)
 
     env_read_line: int | None = None
     file_read_line: int | None = None

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from playwright.sync_api import Error as PlaywrightError
 
-from ..health.reconciliation import load_harness_python_secret
+from ..health.security import load_harness_python_secret
 from ..wait_helpers import wait_for_idle_observation
 from .triggers import run_extra_triggers
 
