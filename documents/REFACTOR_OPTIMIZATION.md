@@ -1,6 +1,6 @@
 # REFACTOR_OPTIMIZATION
 
-`Last Updated: 2026-05-18 (W16 active — close-out commit landed 2026-05-18; week16 -> main close-out PR pending. §14 W16 plan source — sub-iter slate fully delivered: W16-0 doc-reconcile (0e243ca + d78aa9c); W16-1 scenario-accountant emit-site fix (HIGH prod regression W14-1 carry-over, 01f910a + a4a050e); W16-2 analysis-job worker-entry CRUD ownership (W15 audit, 9d6d110 + c8b7811); W16-3 report-finalize null-leakage half (W14 carry-over, fa430f2 + e3d4a0c; attribution-count-parity split to W17+ as [FOLLOWUP attribution-count-parity]); W16-4 health-reconciliation responsibility split (W15 audit, 304b99f + 384d276); W16-5 simulation-progress-cancel scope reduction (1 rejected, 2 deferred to W17+, e21a05c); W16-6 hygiene splits + Alembic fresh-DB fixture (d40bb01); W16-7 close-out hygiene + canonical preamble refresh. Final W16 bar: tests/architecture/ 199 passed (W15 final 172, +27); make test-security 217 passed (W13 final 215, +2); full suite 1890 passed. W15 closed via PR #22 week15 -> main MERGED 2026-05-18 via 6161472; W14 closed via PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d)`
+`Last Updated: 2026-05-18 (W16 active — phase work complete; W16 closed via PR #23 week16 -> main MERGED 2026-05-18 via 1b6d43f. §14 W16 plan source — sub-iter slate fully delivered: W16-0 doc-reconcile (0e243ca + d78aa9c); W16-1 scenario-accountant emit-site fix (HIGH prod regression W14-1 carry-over, 01f910a + a4a050e); W16-2 analysis-job worker-entry CRUD ownership (W15 audit, 9d6d110 + c8b7811); W16-3 report-finalize null-leakage half (W14 carry-over, fa430f2 + e3d4a0c; attribution-count-parity split to W17+ as [FOLLOWUP attribution-count-parity]); W16-4 health-reconciliation responsibility split (W15 audit, 304b99f + 384d276); W16-5 simulation-progress-cancel scope reduction (1 rejected, 2 deferred to W17+, e21a05c); W16-6 hygiene splits + Alembic fresh-DB fixture (d40bb01); W16-7 close-out hygiene + canonical preamble refresh (8bf3c6b) + post-PR unaccounted_dropout surface pin (78f080e). Final W16 bar: tests/architecture/ 199 passed (W15 final 172, +27); make test-security 220 passed (W13 final 215, +5 — W16-7-followup +3 unaccounted_dropout surface pins); full suite 1893 passed. W15 closed via PR #22 week15 -> main MERGED 2026-05-18 via 6161472; W14 closed via PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d)`
 
 W0-W14 plan document: stabilization + security + post-PoC external-review
 integration + W14 acceptance + observability continuation. **Slim canonical**
@@ -311,7 +311,7 @@ W15 kapanır şu koşullar sağlandığında:
   ADR 0011 catalog endpoint posture gate + compose image SHA pin +
   GH action trivy version pin).
 
-## §14 — W16 Carry-Over Closeout + Audit Findings + Production Regression (close-out commit landed 2026-05-18; `week16 -> main` PR pending)
+## §14 — W16 Carry-Over Closeout + Audit Findings + Production Regression (closed 2026-05-18, merged 2026-05-18 via PR #23)
 
 §14 opened with the W15 close-out PR #22 `week15 -> main` merge on
 `2026-05-18` via `6161472`. **Per user direction (2026-05-18) W16
@@ -335,7 +335,7 @@ evidence (sub-commits, module locations, test deltas). Final W16 bar:
 | W16-4 | **closed `2026-05-18`** (health-reconciliation responsibility split — W15 audit finding; `health/reconciliation.py` 682 LoC behavior-preservingly extracted into `health/security.py` + `health/handshake.py` + leaner `health/reconciliation.py`; W13-1 HMAC + W13-12 fail-closed gates green; +1 arch gate) | `304b99f` (+ `384d276`) |
 | W16-5 | **scope reduced `2026-05-18`** (doc-only commit — `dedupe-step-progress-schemas` REJECTED on distinct-surface-roles rationale; `heartbeat-sandbox-reset-off-thread` + `heartbeat-refactor` DEFERRED to W17+ pending lifecycle harness; audit trail updated in `POST_POC_BACKLOG.md`) | `e21a05c` (doc-only) |
 | W16-6 | **closed `2026-05-18`** (test hygiene + Alembic fixture bundle: `marketplace-router-test-suite-split` 2374 LoC → 5 endpoint-grouped files; `test-import-graph-policy-dump-split` 767 LoC → 4 thematic files; `w13-4-alembic-roundtrip-programmatic` skip removed + `fresh_alembic_engine` per-test throwaway Postgres DB fixture; ruff clean; 67/18 test IDs preserved via collect-only diff) | `d40bb01` |
-| W16-7 | **close-out commit landed `2026-05-18`; PR pending** (canonical preamble refresh across 7 docs + W16 tracker freeze + final test bar recorded; `week16 -> main` PR to follow) | this commit |
+| W16-7 | **closed `2026-05-18`** (canonical preamble refresh across 7 docs + W16 tracker freeze + final test bar recorded; PR #23 `week16 -> main` MERGED `2026-05-18` via `1b6d43f`; post-PR top-up `78f080e` added 3 `unaccounted_dropout` surface round-trip pins matching the W16 live-scan shape — security lane 217 → 220) | `8bf3c6b` (+ `78f080e` post-PR) |
 
 ### §14.0 — Neden ayrı §14
 

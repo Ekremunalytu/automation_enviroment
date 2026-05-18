@@ -1,6 +1,6 @@
 # AGENTS.md
 
-`Last Updated: 2026-05-18 (W16 active — close-out commit landed 2026-05-18; week16 -> main close-out PR pending. W16-0..W16-7 sub-iter slate complete: W16-0 doc-reconcile (0e243ca + d78aa9c); W16-1 scenario-accountant emit-site fix (HIGH prod regression W14-1 carry-over, 01f910a + a4a050e); W16-2 analysis-job worker-entry CRUD ownership (W15 audit, 9d6d110 + c8b7811); W16-3 report-finalize null-leakage half (W14 carry-over, fa430f2 + e3d4a0c; attribution-count-parity split to W17+); W16-4 health-reconciliation responsibility split (W15 audit, 304b99f + 384d276); W16-5 simulation-progress-cancel scope reduction (1 rejected, 2 deferred to W17+, e21a05c); W16-6 hygiene splits + Alembic fresh-DB fixture (d40bb01); W16-7 close-out hygiene + canonical preamble refresh. Final W16 bar: tests/architecture/ 199 passed; make test-security 217 passed; full suite 1890 passed. W15 closed via PR #22 week15 -> main MERGED 2026-05-18 via 6161472; W14 closed via PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d; W13 closed via PR #20 -> 772deb3 on 2026-05-13)`
+`Last Updated: 2026-05-18 (W16 active — phase work complete; W16 closed via PR #23 week16 -> main MERGED 2026-05-18 via 1b6d43f. W16-0..W16-7 sub-iter slate complete: W16-0 doc-reconcile (0e243ca + d78aa9c); W16-1 scenario-accountant emit-site fix (HIGH prod regression W14-1 carry-over, 01f910a + a4a050e); W16-2 analysis-job worker-entry CRUD ownership (W15 audit, 9d6d110 + c8b7811); W16-3 report-finalize null-leakage half (W14 carry-over, fa430f2 + e3d4a0c; attribution-count-parity split to W17+); W16-4 health-reconciliation responsibility split (W15 audit, 304b99f + 384d276); W16-5 simulation-progress-cancel scope reduction (1 rejected, 2 deferred to W17+, e21a05c); W16-6 hygiene splits + Alembic fresh-DB fixture (d40bb01); W16-7 close-out hygiene + canonical preamble refresh (8bf3c6b) + post-PR unaccounted_dropout surface pin (78f080e). Final W16 bar: tests/architecture/ 199 passed; make test-security 220 passed (W13 final 215, +5 — W16-7-followup +3 unaccounted_dropout surface pins); full suite 1893 passed. W15 closed via PR #22 week15 -> main MERGED 2026-05-18 via 6161472; W14 closed via PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d; W13 closed via PR #20 -> 772deb3 on 2026-05-13)`
 
 ## Authority
 
@@ -29,8 +29,8 @@
   trivy version pin + close-out lint hygiene). Frozen tracker:
   `documents/active-work/W15-codex-uclass-bounds-posture.md`.
   **Active phase is W16 — Carry-Over Closeout + Audit Findings +
-  Production Regression**, **close-out commit landed `2026-05-18`
-  on the `week16` branch; `week16 -> main` close-out PR pending
+  Production Regression**, **phase work complete; W16 closed via
+  PR #23 `week16 -> main` MERGED `2026-05-18` via `1b6d43f`
   (W11-W15 paterni restored via W16-0 doc reconcile)**: plan
   `documents/REFACTOR_OPTIMIZATION.md` §14, frozen tracker
   `documents/active-work/W16-regression-and-audit-closeout.md`.
@@ -47,10 +47,12 @@
   simulation-progress-cancel scope reduction (1 rejected, 2 deferred
   to W17+ pending lifecycle harness; `e21a05c`); W16-6 hygiene splits +
   Alembic fresh-DB fixture (`d40bb01`); W16-7 close-out hygiene +
-  canonical preamble refresh. Final W16 bar: `tests/architecture/`
-  **199 passed** (W15 final 172, +27); `make test-security` **217
-  passed** (W13 final 215, +2); full suite **1890 passed, 9 skipped**.
-  Past W8/W11/W12/W13/W14/W15 trackers remain stable-ID references only.
+  canonical preamble refresh (`8bf3c6b`) + post-PR `unaccounted_dropout`
+  surface pin (`78f080e`). Final W16 bar: `tests/architecture/`
+  **199 passed** (W15 final 172, +27); `make test-security` **220
+  passed** (W13 final 215, +5 — W16-7-followup +3 `unaccounted_dropout`
+  surface pins); full suite **1893 passed, 9 skipped**.
+  Past W8/W11/W12/W13/W14/W15/W16 trackers remain stable-ID references only.
 - ADR 0007 local-network-binding is **Accepted and implemented**; loopback
   defaults + `EXTRACE_ALLOW_LAN` are pinned by `test_default_bindings.py`.
 

@@ -1,6 +1,6 @@
 # ExTrace
 
-`Last Updated: 2026-05-18 (W16 active — close-out commit landed 2026-05-18; week16 -> main close-out PR pending. W16-0..W16-7 sub-iter slate complete: W16-1 scenario-accountant emit-site fix (HIGH prod regression, 01f910a); W16-2 analysis-job worker-entry CRUD ownership (9d6d110); W16-3 report-finalize null-leakage half (fa430f2); W16-4 health-reconciliation responsibility split (304b99f); W16-5 simulation-progress-cancel scope reduction (1 rejected, 2 deferred to W17+, e21a05c); W16-6 hygiene splits + Alembic fresh-DB fixture (d40bb01); W16-7 close-out hygiene. Final W16 bar: tests/architecture/ 199 passed; make test-security 217 passed; full suite 1890 passed. Plan REFACTOR_OPTIMIZATION.md §14, frozen tracker active-work/W16-regression-and-audit-closeout.md. W15 closed via PR #22 MERGED 2026-05-18 via 6161472)`
+`Last Updated: 2026-05-18 (W16 active — phase work complete; W16 closed via PR #23 week16 -> main MERGED 2026-05-18 via 1b6d43f. W16-0..W16-7 sub-iter slate complete: W16-1 scenario-accountant emit-site fix (HIGH prod regression, 01f910a); W16-2 analysis-job worker-entry CRUD ownership (9d6d110); W16-3 report-finalize null-leakage half (fa430f2); W16-4 health-reconciliation responsibility split (304b99f); W16-5 simulation-progress-cancel scope reduction (1 rejected, 2 deferred to W17+, e21a05c); W16-6 hygiene splits + Alembic fresh-DB fixture (d40bb01); W16-7 close-out hygiene (8bf3c6b) + post-PR unaccounted_dropout surface pin (78f080e). Final W16 bar: tests/architecture/ 199 passed; make test-security 220 passed (+3 W16-7-followup unaccounted_dropout pins); full suite 1893 passed. Plan REFACTOR_OPTIMIZATION.md §14, frozen tracker active-work/W16-regression-and-audit-closeout.md. W15 closed via PR #22 MERGED 2026-05-18 via 6161472)`
 
 ExTrace is a VS Code extension analysis platform built around three runtime
 surfaces:
@@ -70,8 +70,8 @@ multi-tenant web platform.
   hygiene). Frozen tracker:
   [`active-work/W15-codex-uclass-bounds-posture.md`](documents/active-work/W15-codex-uclass-bounds-posture.md).
   **Active phase: W16 — Carry-Over Closeout + Audit Findings +
-  Production Regression** — close-out commit landed `2026-05-18` on
-  the `week16` branch; `week16 -> main` close-out PR pending. Frozen
+  Production Regression** — phase work complete; W16 closed via PR
+  #23 `week16 -> main` MERGED `2026-05-18` via `1b6d43f`. Frozen
   tracker:
   [`active-work/W16-regression-and-audit-closeout.md`](documents/active-work/W16-regression-and-audit-closeout.md).
   W16-0..W16-7 sub-iter slate complete: W16-1 scenario-accountant
@@ -83,9 +83,11 @@ multi-tenant web platform.
   gates preserved; `304b99f`); W16-5 simulation-progress-cancel
   scope reduction (1 rejected, 2 deferred to W17+; `e21a05c`); W16-6
   hygiene splits + Alembic fresh-DB fixture (`d40bb01`); W16-7
-  close-out hygiene + canonical preamble refresh. Final W16 bar:
-  `tests/architecture/` **199 passed**; `make test-security` **217
-  passed**; full suite **1890 passed**.
+  close-out hygiene + canonical preamble refresh (`8bf3c6b`) +
+  post-PR `unaccounted_dropout` surface pin (`78f080e`). Final W16
+  bar: `tests/architecture/` **199 passed**; `make test-security`
+  **220 passed** (+3 W16-7-followup `unaccounted_dropout` surface
+  pins); full suite **1893 passed**.
 - **Canonical source of truth for phase state:**
   [`documents/REFACTOR_STATUS.md`](documents/REFACTOR_STATUS.md).
   Deferred items: [`documents/POST_POC_BACKLOG.md`](documents/POST_POC_BACKLOG.md).
