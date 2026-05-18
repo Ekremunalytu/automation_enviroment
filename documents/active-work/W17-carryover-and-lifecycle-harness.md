@@ -1,7 +1,7 @@
 # W17 — Carry-Over Closeout + Lifecycle Harness Yatırımı + Hygiene Sweep (Active Work Tracker)
 
-`Last Updated: 2026-05-18 (W17 active — phase work complete; close-out via week17 -> main PR pending (no push per user direction 2026-05-18). W17-0..W17-6 sub-iter slate complete: W17-0 doc-reconcile (4508c2e); W17-1 attribution-count-parity (8c26d02 + 0a8f59e self-stamp); W17-2 lifecycle harness scaffold (ff98235 + 44f96c5 self-stamp); W17-3 + W17-4 scope-reduced doc-only (c4c0646 DESIGN-NEEDED, deferred to W18); W17-5 hygiene single-item (394d40d + 0cbe1d0 self-stamp; postgres-version-fact-drift closed in seed_project_2; other 4 cleanup candidates deferred to W18+); W17-6 close-out hygiene this commit (canonical preamble refresh across 7 docs + §15 self-stamp + W17 tracker freeze). Final W17 bar: tests/architecture/ 200 passed (W16 final 199, +1); make test-security 217 passed; full suite 1899 passed, 9 skipped, 4 deselected (+6 from W16 final 1893))`
-`Phase: W17 active — phase work complete; W17-0..W17-6 all closed or scope-resolved; close-out via week17 -> main PR pending (no push per user direction)`
+`Last Updated: 2026-05-18 (W17 active — phase work complete + W17-7 post-slate hotfix batch (W14-7/W14-8 paterni) landed; close-out via week17 -> main PR pending (no push per user direction 2026-05-18). W17-0..W17-7 sub-iter slate: W17-0 doc-reconcile (4508c2e); W17-1 attribution-count-parity (8c26d02 + 0a8f59e); W17-2 lifecycle harness scaffold (ff98235 + 44f96c5); W17-3 + W17-4 scope-reduced doc-only (c4c0646 DESIGN-NEEDED, deferred to W18); W17-5 hygiene single-item (394d40d + 0cbe1d0); W17-6 close-out hygiene (21f7c68); W17-7 post-slate hotfix batch (bf983eb Makefile test-security enrollment 217→220 + fc88678 .env.example EXTRACE_EPOCH_RUN_ID + 326dac8 ADR 0007 runbook wording alignment + 51dba29 .pre-commit-config.yaml python version gap docs). Final W17 bar: tests/architecture/ 200 passed (W16 final 199, +1); make test-security 220 passed (W17-7a Makefile enrollment fix; +3 from 217); full suite 1899 passed, 9 skipped, 4 deselected (+6 from W16 final 1893))`
+`Phase: W17 active — phase work complete + W17-7 post-slate hotfix batch landed; W17-0..W17-7 all closed or scope-resolved; close-out via week17 -> main PR pending (no push per user direction)`
 `Branch: week17 (per user direction 2026-05-18; W11-W16 paterni preserved — sub-iter commits land on week17, close-out merges into main via week17 -> main PR)`
 `Owner: ekrem`
 
@@ -287,11 +287,73 @@ under-specified fixes.
 deselected (W17-4 final 1899 unchanged — fixture-content edit, no
 new tests).
 
-### Remaining (W17-6)
+### W17-6 — Close-out hygiene (closed 2026-05-18 via 21f7c68)
 
-W17-6 close-out hygiene: canonical preamble refresh across 7 docs
-+ §15 self-stamp post-merge W17 final bar + backlog item statuses
-(closed items → DONE/CLOSED audit trail).
+Canonical preamble refresh across 7 docs + §15 self-stamp +
+W17 tracker freeze. Close-out PR `week17 -> main` pending per
+user "push yapma" direction.
+
+### W17-7 — Post-slate hotfix batch (closed 2026-05-18, W14-7/W14-8 paterni)
+
+After W17-6 close-out, four small drift items were pulled
+opportunistically per user direction (analogous to W14-7
+container-shipping regression + W14-8 Python 3.11+ forbid gate
+landing after W14-6 close-out):
+
+- **W17-7a** (`bf983eb`) — `make test-security` Makefile target
+  hardcoded file list missed
+  `tests/security/test_unaccounted_dropout_surface.py` (added in
+  W16-7-followup `78f080e`). Enrolled the file between
+  `test_benign_silence.py` and `tests/platform/security` to
+  preserve grouping. Target now reports **220 passed** (was 217),
+  matching the W16-7-followup audit trail's 220 claim.
+- **W17-7b** (`fc88678`) — `[CLEANUP env-example-extrace-vars]`
+  closeout. Added a commented `EXTRACE_EPOCH_RUN_ID=` entry to
+  `.env.example`'s OPTIONAL EXTRACE OVERRIDES block. The env var
+  is W14-5 sub-commit 2 wiring (log run-id stamping; propagated
+  across docker exec boundary) but was never documented in
+  `.env.example` alongside `EXTRACE_VSCODE_SETTINGS_JSON` /
+  `EXTRACE_SKIP_JOB_RECOVERY`. `EXTRACE_LOGGER_ROOT` is a Python
+  `Final[str]` constant, not an env var (skipped).
+- **W17-7c** (`326dac8`) — `[CLEANUP adr-0007-runbook-wording-drift]`
+  closeout. Two wording-drift points: ADR §2 called the runbook
+  "short" (now 192 lines), and ADR §2 + §Follow-On both enumerated
+  the runbook's pre-flight items as 4 entries (firewall, reverse
+  proxy, CORS allow-list, rotated POSTGRES_PASSWORD) while the
+  current runbook lists 5 (added "Re-read the threat model"
+  post-W8-7). Fix: drop the "short" qualifier, list all 5
+  items, declare the runbook the canonical source of truth so
+  future evolution does not re-drift the ADR. ADR Context line
+  numbers (pre-W8-7 historical state) intentionally NOT touched.
+- **W17-7d** (`51dba29`) — `[CLEANUP pre-commit-python-version-alignment]`
+  closeout. Investigation surfaced three different Python
+  versions in play (3.10 executor container / 3.11 API container
+  + pyproject / 3.12 dev env + pre-commit), not a simple drift.
+  Lint tools (ruff/mypy/bandit) read their own `target-version`
+  / `python_version` from pyproject.toml — pre-commit's
+  interpreter only affects whether hooks RUN, not what they
+  lint for. Fix: header comment block in `.pre-commit-config.yaml`
+  documenting the three versions + rationale for pinning 3.12 +
+  the chain that makes the gap safe
+  (`test_executor_container_python_compat` arch gate). No
+  interpreter change.
+
+**Updated W17 final bar (post-W17-7):**
+- `tests/architecture/` **200 passed** (unchanged)
+- `make test-security` **220 passed** (W17-7a fix: 217 → 220)
+- Full non-smoke suite **1899 passed, 9 skipped, 4 deselected**
+  (unchanged — W17-7 commits are doc/config only + Makefile
+  target file list edit)
+
+**Audit trail.** W17-7 closes 3 backlog `[CLEANUP]` items and 1
+Makefile-target hygiene gap. Two of the four `[CLEANUP]` items
+originally deferred at W17-5 close
+(`env-example-extrace-vars`, `adr-0007-runbook-wording-drift`,
+`pre-commit-python-version-alignment`) are now closed — the
+remaining one (`report-builder-naming` / alt
+`monitor-runtime-naming-overlap`) stays on backlog because it
+needs deeper module-rename investigation not in scope for a
+post-slate hotfix batch.
 
 ## Exit Criteria (W17-End)
 
