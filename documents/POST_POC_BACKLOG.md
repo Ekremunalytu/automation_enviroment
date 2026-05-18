@@ -444,6 +444,34 @@ Closed: `[FOLLOWUP codex-automation-5]` — W14-5.3 (`db25d5f`); executor
 runtime fingerprint module + automation output emit + ActivationReport
 `executor_fingerprint` field.
 
+### Product Vision (Post-Extrace)
+
+- `[GOAL marketplace-user-scan-and-notify]` — Tüketici-yönlü marketplace
+  akışı. **Extrace bitiminden sonra** ele alınacak; şu an yalnızca vizyon
+  notu — kod / tracker yok. Dört yetenek halkası:
+  1. **Kullanıcı taraması (request)**: kullanıcı marketplace içinde bir
+     eklenti gördüğünde "tara" isteği atabilir; istek mevcut analiz
+     pipeline'ına (W16-2 lifecycle CRUD + `workflows/marketplace/router.py`
+     `/api/marketplace/analyze/start`) bağlanır.
+  2. **Kurulum kapısı (gate)**: tarama sonucu güvenli ise kurulum
+     izni verilir, güvensiz ise engellenir. Karar eşiği + appeal yolu
+     ayrıca tasarlanacak.
+  3. **Ekip raporu e-postası**: her tarama olayında ekibe e-posta —
+     zaman damgası, taramayı isteyen kullanıcı, eklenti kimliği +
+     sürümü, çalıştırılan adımlar, üretilen risk bulguları.
+  4. **Retroaktif uyarı e-postası**: bir eklenti sonradan zararlı
+     olarak işaretlendiğinde, o eklentiyi daha önce kuran kullanıcılara
+     ve onların ekiplerine bilgi e-postası gönderilir (kurulum
+     envanteri ↔ risk re-değerlendirme bağlantısı gerekir).
+
+  Bu kalem pull edildiğinde tracker doğal yeri:
+  `documents/agent-lanes/marketplace-analysis.md` veya yeni bir
+  `documents/active-work/<iter>-marketplace-user-flow.md`.
+  Sürüklenen prior art: `workflows/marketplace/router.py`,
+  `analysis_service.py`, `job_service.py`, `client.py`; UI tarafında
+  `/marketplace?q=…` (ui/README). E-posta + retroaktif envanter
+  altyapısı şu anda yok — yeni bileşenler.
+
 ## Closed/Archived Groups
 
 Full close evidence in the latest archive snapshot for:
