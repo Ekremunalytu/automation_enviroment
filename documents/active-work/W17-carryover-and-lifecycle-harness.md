@@ -1,7 +1,7 @@
 # W17 — Carry-Over Closeout + Lifecycle Harness Yatırımı + Hygiene Sweep (Active Work Tracker)
 
-`Last Updated: 2026-05-18 (W17 active — phase work complete + W17-7 post-slate hotfix batch (W14-7/W14-8 paterni) landed; close-out via week17 -> main PR pending (no push per user direction 2026-05-18). W17-0..W17-7 sub-iter slate: W17-0 doc-reconcile (4508c2e); W17-1 attribution-count-parity (8c26d02 + 0a8f59e); W17-2 lifecycle harness scaffold (ff98235 + 44f96c5); W17-3 + W17-4 scope-reduced doc-only (c4c0646 DESIGN-NEEDED, deferred to W18); W17-5 hygiene single-item (394d40d + 0cbe1d0); W17-6 close-out hygiene (21f7c68); W17-7 post-slate hotfix batch (bf983eb Makefile test-security enrollment 217→220 + fc88678 .env.example EXTRACE_EPOCH_RUN_ID + 326dac8 ADR 0007 runbook wording alignment + 51dba29 .pre-commit-config.yaml python version gap docs). Final W17 bar: tests/architecture/ 200 passed (W16 final 199, +1); make test-security 220 passed (W17-7a Makefile enrollment fix; +3 from 217); full suite 1899 passed, 9 skipped, 4 deselected (+6 from W16 final 1893))`
-`Phase: W17 active — phase work complete + W17-7 post-slate hotfix batch landed; W17-0..W17-7 all closed or scope-resolved; close-out via week17 -> main PR pending (no push per user direction)`
+`Last Updated: 2026-05-18 (W17 active — phase work complete + W17-7 post-slate hotfix batch (W14-7/W14-8 paterni) landed; close-out via week17 -> main PR pending (close-out PR not yet opened; branch is pushed — 2026-05-18). W17-0..W17-7 sub-iter slate: W17-0 doc-reconcile (4508c2e); W17-1 attribution-count-parity (8c26d02 + 0a8f59e); W17-2 lifecycle harness scaffold (ff98235 + 44f96c5); W17-3 + W17-4 scope-reduced doc-only (c4c0646 DESIGN-NEEDED, deferred to W18); W17-5 hygiene single-item (394d40d + 0cbe1d0); W17-6 close-out hygiene (21f7c68); W17-7 post-slate hotfix batch (bf983eb Makefile test-security enrollment 217→220 + fc88678 .env.example EXTRACE_EPOCH_RUN_ID + 326dac8 ADR 0007 runbook wording alignment + 51dba29 .pre-commit-config.yaml python version gap docs). Final W17 bar: tests/architecture/ 200 passed (W16 final 199, +1); make test-security 220 passed (W17-7a Makefile enrollment fix; +3 from 217); full suite 1899 passed, 9 skipped, 4 deselected (+6 from W16 final 1893))`
+`Phase: W17 active — phase work complete + W17-7 post-slate hotfix batch landed; W17-0..W17-7 all closed or scope-resolved; close-out via week17 -> main PR pending (close-out PR not yet opened; branch is pushed)`
 `Branch: week17 (per user direction 2026-05-18; W11-W16 paterni preserved — sub-iter commits land on week17, close-out merges into main via week17 -> main PR)`
 `Owner: ekrem`
 
@@ -290,8 +290,8 @@ new tests).
 ### W17-6 — Close-out hygiene (closed 2026-05-18 via 21f7c68)
 
 Canonical preamble refresh across 7 docs + §15 self-stamp +
-W17 tracker freeze. Close-out PR `week17 -> main` pending per
-user "push yapma" direction.
+W17 tracker freeze. Close-out PR `week17 -> main` not yet
+opened (branch is pushed).
 
 ### W17-7 — Post-slate hotfix batch (closed 2026-05-18, W14-7/W14-8 paterni)
 
@@ -355,6 +355,47 @@ remaining one (`report-builder-naming` / alt
 needs deeper module-rename investigation not in scope for a
 post-slate hotfix batch.
 
+### W17-7-followup — Post-W17-7 doc-truth alignment (closed 2026-05-18)
+
+Pre-close-out-PR sanity sweep surfaced two doc-drift cohorts that
+post-dated the W17-7 self-stamp:
+
+- **Push-state drift** — 17 occurrences across 8 docs (CLAUDE.md,
+  README.md, AGENTS.md, REFACTOR_STATUS.md, AGENT_CONTEXT.md,
+  POST_POC_BACKLOG.md, REFACTOR_OPTIMIZATION.md, this tracker) of
+  variants on `(no push per user direction 2026-05-18)` /
+  `("push yapma" user direction)`. The "no push" qualifier was
+  lifted earlier on `2026-05-18` (branch pushed to `origin/week17`
+  at HEAD `2b95afd`) but the preamble + body lines were never
+  refreshed. All 17 occurrences rewritten to the canonical
+  `(close-out PR not yet opened; branch is pushed — 2026-05-18)` /
+  `(close-out PR not yet opened; branch is pushed)` form.
+- **Makefile-target hygiene drift** — REFACTOR_STATUS.md,
+  POST_POC_BACKLOG.md, and REFACTOR_OPTIMIZATION.md preambles still
+  claimed `W16-7-followup +3 ... not yet enrolled — flagged for W18`
+  even though W17-7a (`bf983eb`) had already enrolled
+  `test_unaccounted_dropout_surface.py` in `make test-security`
+  (217 → 220). All three preambles updated to the post-W17-7a
+  narrative carried by CLAUDE.md / W17 tracker.
+- **Exit criteria truth-align** — `## Exit Criteria` W17-2 bullet
+  rewritten to acknowledge that the reset-during-finalize edge case
+  ships with W17-3 (now deferred to W18 per `c4c0646`
+  DESIGN-NEEDED), matching the existing scope cut already documented
+  in `test_lifecycle_harness.py:27` docstring and W17-3 detail
+  block. No new test added — adding one would breach W17-2's
+  intentional `no run_analysis_job end-to-end` scope cut.
+
+**No source code change.** Test surface unchanged. Final W17 bar
+unchanged from W17-7 (`tests/architecture/` 200, `make test-security`
+220, full suite 1899 / 9 skipped / 4 deselected).
+
+**Why a W17-7-followup entry instead of amending W17-7.** W16-7-followup
+paterni (`78f080e` post-PR `unaccounted_dropout` surface pin landed
+as its own audit-trail entry under W16-7): post-slate doc-truth
+alignment lands as its own subsection so the PR diff is read top-down
+without ambiguity about which fix closed which drift. Doc-only, no
+behavior change.
+
 ## Exit Criteria (W17-End)
 
 W17 kapanır şu koşullar sağlandığında:
@@ -362,9 +403,14 @@ W17 kapanır şu koşullar sağlandığında:
 - W17-1..W17-6 kapanır ya da deferral rasyoneli ile W18'ye taşınır.
 - W17-1 producer-side parity invariant runtime'da yakalanır
   (`tests/architecture/` veya report-invariants test ailesinde +1 gate).
-- W17-2 harness happy-path smoke + cancel-mid-flight +
-  reset-during-finalize edge case'leri yeşil; harness'ın kendi smoke
-  testi (lifecycle açılıp kapanıyor mu) `make test-local` altında.
+- W17-2 harness happy-path smoke + cancel-mid-flight yeşil
+  (`test_lifecycle_harness_smoke_cancel_triggers_heartbeat_reset`);
+  reset-during-finalize edge case'i W17-3 thread-relocation refactor
+  ile birlikte W18'e deferred (bkz. `c4c0646` DESIGN-NEEDED rasyoneli
+  + bu trackerda §W17-3 detay bloğu + `test_lifecycle_harness.py:27`
+  docstring); harness scaffold bu edge case'i destekleyecek surface'a
+  sahip ancak test W18'de yazılacak. Harness'ın kendi smoke testi
+  (lifecycle açılıp kapanıyor mu) `make test-local` altında yeşil.
 - W17-3 davranış paritesi: sandbox-reset thread relocation sonrası
   W13-1 HMAC + W13-12 fail-closed davranışı + W13-13 CAS pattern
   regress etmez; harness altında lock ordering + idempotency yeşil.
