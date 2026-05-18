@@ -11,7 +11,16 @@ from .lifecycle import (
     JobNotCancellableError as JobNotCancellableError,
 )
 from .lifecycle import (
+    WorkerEntryClaim as WorkerEntryClaim,
+)
+from .lifecycle import (
+    WorkerEntryOutcome as WorkerEntryOutcome,
+)
+from .lifecycle import (
     cancel_analysis_job as cancel_analysis_job,
+)
+from .lifecycle import (
+    claim_queued_analysis_job_at_worker_entry as claim_queued_analysis_job_at_worker_entry,
 )
 from .lifecycle import (
     complete_analysis_job as complete_analysis_job,
@@ -43,7 +52,10 @@ from .steps import (
 
 __all__ = [
     "JobNotCancellableError",
+    "WorkerEntryClaim",
+    "WorkerEntryOutcome",
     "cancel_analysis_job",
+    "claim_queued_analysis_job_at_worker_entry",
     "complete_analysis_job",
     "create_analysis_job",
     "fail_analysis_job",

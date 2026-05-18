@@ -10,6 +10,8 @@ strictly `lifecycle -> steps` to keep the subpackage acyclic (W11-8).
 from __future__ import annotations
 
 import time
+from dataclasses import dataclass
+from enum import Enum
 from typing import Literal
 
 from sqlalchemy import select
@@ -203,6 +205,144 @@ def finalize_cancelled_analysis_job(
         raise
 
 
+class WorkerEntryOutcome(Enum):
+    """Result classification for ``claim_queued_analysis_job_at_worker_entry``.
+
+    W16-2 (AGENTS.md:57 hard rule compliance): the five outcomes form a
+    complete partition over the row's observable state at worker entry.
+    Callers MUST treat every non-``CLAIMED`` outcome as a terminal-exit
+    signal — the worker thread MUST NOT proceed with analysis execution.
+    """
+
+    CLAIMED = "claimed"
+    ALREADY_TERMINAL = "already_terminal"
+    ROW_MISSING = "row_missing"
+    CANCELLING_FINALIZED = "cancelling_finalized"
+    CANCELLING_RACE = "cancelling_race"
+
+
+@dataclass(frozen=True)
+class WorkerEntryClaim:
+    """Outcome + row snapshot returned by the worker-entry CRUD primitive.
+
+    ``job`` is the row as observed under the SELECT...FOR UPDATE lock
+    (or ``None`` for ``ROW_MISSING``). For ``CLAIMED`` it is the
+    post-commit in-place row with ``status='running'`` and ``started_at``
+    stamped. ``report_path`` is the report name to use for downstream
+    instrumentation; populated for ``CLAIMED`` (with the caller-supplied
+    fallback if the row had none) and mirrors ``job.report_path`` for
+    the other non-missing outcomes.
+    """
+
+    outcome: WorkerEntryOutcome
+    job: AnalysisJob | None
+    report_path: str | None
+
+
+def claim_queued_analysis_job_at_worker_entry(
+    db: Session,
+    job_id: str,
+    *,
+    fallback_report_name: str,
+    cancel_detail: str = "Cancelled before worker started.",
+) -> WorkerEntryClaim:
+    """W13-13 (CLOSE-GATE codex-second-opinion-F3) worker-entry CAS primitive.
+
+    Lifted out of
+    ``workflows.marketplace.analysis_service.run_analysis_job`` at W16-2
+    so the worker-entry seam no longer issues
+    ``select(AnalysisJob).where(...).with_for_update()`` + ``db.commit()``
+    directly from a workflow module (AGENTS.md:57 — writes route through
+    the CRUD facade). Behavior is byte-identical with the pre-W16-2
+    inline implementation; the W13-13 behavioral suite
+    (``tests/platform/storage/test_analysis_jobs_cancel_at_worker_entry.py``)
+    and the W13-13 architecture gate
+    (``tests/architecture/test_run_analysis_job_entry_snapshot.py``,
+    updated at W16-2 to enforce the facade boundary instead of the
+    inline AST shape) both pin the contract.
+
+    Sequence under the caller-supplied ``db`` session:
+
+    * Take ``select(AnalysisJob).where(AnalysisJob.job_id == job_id)
+      .with_for_update()`` row lock.
+    * Row missing -> ``WorkerEntryOutcome.ROW_MISSING``
+      (``job=None``).
+    * Row in ``_TERMINAL_JOB_STATUSES`` -> ``ALREADY_TERMINAL`` (no
+      mutation).
+    * Row in ``"cancelling"`` -> call
+      ``finalize_cancelled_analysis_job(db, job_id, cancel_detail)``
+      under the held lock; on success return ``CANCELLING_FINALIZED``;
+      on ``JobNotCancellableError`` / ``KeyError`` (concurrent writer
+      drove the row terminal under the same lock window) return
+      ``CANCELLING_RACE``. The caller MUST treat both as terminal-exit.
+    * Row in ``"queued"`` -> stamp ``status='running'``, ``started_at``,
+      ``message``, ``report_path``, ``updated_at`` and ``db.commit()``
+      under the lock. Returns ``CLAIMED``.
+
+    Lock-asymmetry note (preserved from the pre-W16-2 docstring on
+    ``run_analysis_job``): the ``cancelling`` branch must call the
+    lifecycle helper ``finalize_cancelled_analysis_job`` directly, not
+    the ``job_service.finalize_cancelled_job`` wrapper. The wrapper
+    opens its own ``SessionLocal()`` via ``_run_in_session`` which would
+    deadlock against the row lock held on this ``db``. The downstream
+    W13-3 exception handler still uses the wrapper because by then the
+    entry-block transaction has already committed and released the lock.
+    """
+    stmt = (
+        select(AnalysisJob)
+        .where(AnalysisJob.job_id == job_id)
+        .with_for_update()
+    )
+    job = db.scalars(stmt).first()
+    if job is None:
+        return WorkerEntryClaim(
+            outcome=WorkerEntryOutcome.ROW_MISSING,
+            job=None,
+            report_path=None,
+        )
+    if job.status in _TERMINAL_JOB_STATUSES:
+        return WorkerEntryClaim(
+            outcome=WorkerEntryOutcome.ALREADY_TERMINAL,
+            job=job,
+            report_path=job.report_path,
+        )
+    if job.status == "cancelling":
+        try:
+            finalize_cancelled_analysis_job(db, job_id, cancel_detail)
+            return WorkerEntryClaim(
+                outcome=WorkerEntryOutcome.CANCELLING_FINALIZED,
+                job=job,
+                report_path=job.report_path,
+            )
+        except (JobNotCancellableError, KeyError):
+            return WorkerEntryClaim(
+                outcome=WorkerEntryOutcome.CANCELLING_RACE,
+                job=job,
+                report_path=job.report_path,
+            )
+    # status == "queued" by elimination: ACTIVE statuses are
+    # queued/running/cancelling; running/cancelling already returned
+    # above and the schema's ACTIVE set is closed. Atomic transition
+    # under the held lock.
+    report_name = job.report_path or fallback_report_name
+    now = time.time()
+    job.status = "running"
+    job.started_at = now
+    job.message = "Starting sandbox analysis."
+    job.report_path = report_name
+    job.updated_at = now
+    try:
+        db.commit()
+    except SQLAlchemyError:
+        db.rollback()
+        raise
+    return WorkerEntryClaim(
+        outcome=WorkerEntryOutcome.CLAIMED,
+        job=job,
+        report_path=report_name,
+    )
+
+
 def create_analysis_job(
     db: Session,
     snapshot: AnalysisJobCreateSnapshot,
@@ -392,7 +532,10 @@ def recover_interrupted_analysis_jobs(
 
 __all__ = [
     "JobNotCancellableError",
+    "WorkerEntryClaim",
+    "WorkerEntryOutcome",
     "cancel_analysis_job",
+    "claim_queued_analysis_job_at_worker_entry",
     "complete_analysis_job",
     "create_analysis_job",
     "fail_analysis_job",

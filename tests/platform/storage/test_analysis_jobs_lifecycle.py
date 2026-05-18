@@ -463,15 +463,23 @@ def test_get_active_analysis_job_returns_cancelling_row(
 
 
 def test_module_path_pins_lifecycle_surface() -> None:
-    """Pin the lifecycle module's public surface against silent W12 reshuffle.
+    """Pin the lifecycle module's public surface against silent reshuffle.
 
     If a future refactor moves any of these names off ``lifecycle`` (e.g.
     onto a free function file or back into the facade), this fails so the
-    move is intentional.
+    move is intentional. W16-2 (2026-05-18) extended the surface with the
+    worker-entry CRUD primitive ``claim_queued_analysis_job_at_worker_entry``
+    plus its result types ``WorkerEntryClaim`` / ``WorkerEntryOutcome``,
+    moving the W13-13 row-lock-aware ``queued -> running`` cancel-aware
+    transition out of ``workflows.marketplace.analysis_service`` for
+    AGENTS.md:57 compliance.
     """
     expected = {
         "JobNotCancellableError",
+        "WorkerEntryClaim",
+        "WorkerEntryOutcome",
         "cancel_analysis_job",
+        "claim_queued_analysis_job_at_worker_entry",
         "complete_analysis_job",
         "create_analysis_job",
         "fail_analysis_job",
@@ -483,7 +491,7 @@ def test_module_path_pins_lifecycle_surface() -> None:
     }
     for name in expected:
         assert hasattr(lifecycle, name), (
-            f"lifecycle.{name} missing — W11-8 surface invariant broken."
+            f"lifecycle.{name} missing — W11-8/W16-2 surface invariant broken."
         )
     assert set(lifecycle.__all__) == expected
 
