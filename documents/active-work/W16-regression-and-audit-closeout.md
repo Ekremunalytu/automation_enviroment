@@ -1,7 +1,7 @@
 # W16 — Carry-Over Closeout + Audit Findings + Production Regression (Active Work Tracker)
 
-`Last Updated: 2026-05-18 (W16 active on week16 branch (per user direction 2026-05-18; W11-W15 paterni restored via W16-0 doc reconcile); W15 closed via PR #22 week15 -> main MERGED 2026-05-18 via 6161472; W16 scope authored 2026-05-18 against main HEAD 6161472; 7 sub-iter (W16-1..W16-7) reserved by §14 plan and assigned at first pull per W11/W12/W13/W14/W15 precedent; W16-1 pulled 2026-05-18 via 01f910a (dispatch outcome=None emit-site closed); W16-2 pulled 2026-05-18 via 9d6d110 (analysis-job worker-entry CRUD ownership facade extracted; AGENTS.md:57 compliance restored, W13-13 CAS preserved); W16-3 pulled 2026-05-18 via fa430f2 (report-finalize top-level null-leakage closed at strict-forbid contract seam; attribution-count parity drift split to follow-up); W16-4 pulled 2026-05-18 via 304b99f (health/reconciliation.py 682 LoC split into security.py + handshake.py + slimmed reconciliation.py; W13-1 HMAC + W13-12 fail-closed gates preserved); W16-5 documented 2026-05-18 (scope reduced: dedupe-step-progress-schemas rejected after investigation, heartbeat-sandbox-reset-off-thread + heartbeat-refactor deferred to W17+ pending lifecycle harness; no code commit); W16-6..W16-7 pending)`
-`Phase: W16 active (W16-1 pulled 01f910a; W16-2 pulled 9d6d110; W16-3 pulled fa430f2; W16-4 pulled 304b99f; W16-5 documented (scope reduced); W16-6..W16-7 reserved, none yet pulled; commits land on week16 branch, close-out via week16 -> main PR — W11-W15 paterni restored 2026-05-18 via W16-0)`
+`Last Updated: 2026-05-18 (W16 active — close-out commit landed 2026-05-18; week16 -> main close-out PR pending. W16-0..W16-7 sub-iter slate complete: W16-0 doc-reconcile (0e243ca + d78aa9c); W16-1 pulled 01f910a (dispatch outcome=None emit-site closed) + a4a050e self-stamp; W16-2 pulled 9d6d110 (analysis-job worker-entry CRUD ownership facade extracted; AGENTS.md:57 compliance restored, W13-13 CAS preserved byte-identically) + c8b7811 self-stamp; W16-3 pulled fa430f2 (report-finalize null-leakage closed at strict-forbid contract seam; attribution-count-parity SPLIT to W17+ as [FOLLOWUP attribution-count-parity]) + e3d4a0c self-stamp; W16-4 pulled 304b99f (health/reconciliation.py 682 LoC split into security/handshake/reconciliation; W13-1 HMAC + W13-12 fail-closed gates preserved) + 384d276 self-stamp; W16-5 doc-only scope reduction e21a05c (1 rejected: dedupe-step-progress-schemas distinct surface roles; 2 deferred to W17+: heartbeat-sandbox-reset-off-thread + heartbeat-refactor pending lifecycle harness); W16-6 pulled d40bb01 (test hygiene splits + Alembic fresh-DB fixture: marketplace router 2374 LoC → 5 endpoint-grouped files, import-graph 767 LoC → 4 thematic files, w13-4-alembic-roundtrip-programmatic skip removed via fresh_alembic_engine per-test throwaway Postgres DB); W16-7 close-out commit (canonical preamble refresh + W16 tracker freeze; this commit). Final W16 bar: tests/architecture/ 199 passed (W15 final 172, +27); make test-security 217 passed (W13 final 215, +2); full suite 1890 passed. W15 closed via PR #22 MERGED 2026-05-18 via 6161472)`
+`Phase: W16 close-out commit landed; week16 -> main PR pending (W16-0..W16-7 all closed or scope-resolved)`
 `Branch: week16 (per user direction 2026-05-18; W11-W15 paterni restored via W16-0 doc reconcile; close-out merges into main via week16 -> main PR)`
 `Owner: ekrem`
 
@@ -147,6 +147,7 @@ W14-1 boundary vectors in
 semantics on purpose.
 
 **Module locations:**
+
 - `executor/flows/playwright/entrypoint/dispatch.py:91-118` —
   outcome=None branch with the W16-1 instrumentation.
 - `executor/flows/playwright/stimulus/types.py:48-51` +
@@ -160,6 +161,7 @@ semantics on purpose.
   to the report without modification.
 
 **Adjacent emit-site audit (W16-1 closure context):**
+
 - `executor/flows/playwright/stimulus/passes.py:102-158` — already
   records specific reasons (`prerequisite_blocked`,
   `unsupported_activation_surface`, `unknown_scenario`) per W11+
@@ -174,6 +176,7 @@ indicate an undiscovered emit-site, not the dispatch outcome=None bug
 class (now closed).
 
 **Test deltas (`tests/security/test_scenario_dropout_repro.py`, +97 LoC):**
+
 - Module docstring W16-1 closure note appended (W14-1 record-of-state
   retained above it).
 - `test_dispatch_outcome_none_emits_specific_reason_code` —
@@ -185,6 +188,7 @@ class (now closed).
   preserved for non-dispatch sites).
 
 **Pre-merge test counts (W16-1 close):**
+
 - `tests/security/test_scenario_dropout_repro.py`: **9 passed**
   (W14-1 close: 7 passed).
 - `tests/executor/test_playwright_monitor_scenario_accountant.py`:
@@ -223,6 +227,7 @@ into the lifecycle CRUD facade at
 byte-identical; the change is a pure facade extraction.
 
 **Module locations (post-W16-2):**
+
 - `appcore/storage/crud_ops/analysis_jobs/lifecycle.py` — new primitive
   `claim_queued_analysis_job_at_worker_entry(db, job_id, *, fallback_report_name, cancel_detail)`
   returning a `WorkerEntryClaim(outcome, job, report_path)` dataclass.
@@ -263,6 +268,7 @@ boundary:
   under the held lock).
 
 **Test deltas:**
+
 - `tests/architecture/test_run_analysis_job_entry_snapshot.py` — 2
   tests rewritten (no count change).
 - `tests/platform/storage/test_analysis_jobs_cancel_at_worker_entry.py`
@@ -277,6 +283,7 @@ boundary:
   W16-2 surface extension.
 
 **Pre-merge test counts (W16-2 close):**
+
 - `tests/architecture/`: **198 passed** (unchanged from W15 final;
   W14-6 extend-not-duplicate observed — arch gate file is the same).
 - `tests/platform/storage/`: **89 passed, 1 skip** (W13-4 alembic skip
@@ -318,6 +325,7 @@ silently dropped at validation time, surfacing as missing/`null` keys
 in the persisted JSON — independent of finalize ordering.
 
 **Module locations:**
+
 - `packages/analysis_contracts/contracts.py:509-535` — 5
   additive-optional contract slots added inline next to the W14-5
   `executor_fingerprint` extension (same `additive-optional /
@@ -331,6 +339,7 @@ in the persisted JSON — independent of finalize ordering.
   value.
 
 **Test deltas:**
+
 - `tests/security/test_report_finalize_field_sync.py` —
   pre-W16-3 the file held one `xfail`-marked RED stub predicting a
   heavier `ExtensionMonitor.start()`/`stop()` lifecycle harness.
@@ -348,6 +357,7 @@ in the persisted JSON — independent of finalize ordering.
     fixture shape preserved under strict-forbid validation.
 
 **Pre-merge test counts (W16-3 close):**
+
 - `tests/security/test_report_finalize_field_sync.py`: **5 passed**
   (pre-W16-3: 1 xfail stub; replaced).
 - `tests/workflows/marketplace/test_run_analysis_job_finalize.py +
@@ -391,6 +401,7 @@ gates all stay green on byte-identical behavior.
 
 **Submodule layout (post-W16-4, under
 `executor/flows/playwright/health/`):**
+
 - `security.py` (~125 LoC, new): `HARNESS_PYTHON_SECRET_PATH`,
   `load_harness_python_secret` (W13-11 env-priority + defense-in-depth
   unlink), `_verify_harness_marker_signature` (W13-1 HMAC-SHA256
@@ -417,6 +428,7 @@ gates all stay green on byte-identical behavior.
 
 **Architecture gates re-targeted (W14-6 extend-not-duplicate; no new
 gate files):**
+
 - `tests/architecture/test_harness_marker_auth.py`: `HANDSHAKE_PATH`
   constant added; `test_attempt_has_harness_completion_trace_calls_verifier`
   now parses `handshake.py` instead of `reconciliation.py`. The other
@@ -432,6 +444,7 @@ gate files):**
   `run_playwright_automation`) are unaffected.
 
 **Test-side import path updates (callers follow the symbol move):**
+
 - `executor/flows/playwright/entrypoint/dispatch.py`:
   `load_harness_python_secret` import moved from
   `..health.reconciliation` to `..health.security`.
@@ -451,6 +464,7 @@ but would still trip the structural gate; the responsibility
 separation makes the wiring more readable rather than less safe.
 
 **Pre-merge test counts (W16-4 close):**
+
 - `tests/architecture/`: **199 passed** (W15 final 198, +1 — a
   pre-existing AST gate that scans `health/` subpackages picked up
   the new module paths and registered an additional parametrized
@@ -536,6 +550,7 @@ rather than a correctness fix, so deferring without behavioral
 consequence is safe.
 
 **Module locations (for the deferred items' future pull):**
+
 - `workflows/marketplace/analysis_execution.py:102-128` —
   `_run_monitoring_heartbeat` (heartbeat loop body).
 - `workflows/marketplace/analysis_execution.py:287-313` — heartbeat

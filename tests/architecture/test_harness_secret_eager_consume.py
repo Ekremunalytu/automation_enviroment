@@ -182,7 +182,7 @@ def test_load_harness_python_secret_prefers_env_var_over_file() -> None:
             file_read_line = node.lineno
 
     assert env_read_line is not None, (
-        f"{RECONCILIATION_PATH.relative_to(REPO_ROOT)}: "
+        f"{SECURITY_PATH.relative_to(REPO_ROOT)}: "
         "load_harness_python_secret must read EXECUTOR_HARNESS_PYTHON_SECRET_VALUE "
         "from os.environ — this is how the host-side eager-consumed secret "
         "reaches the container-side verifier. Without it the function falls "
@@ -190,13 +190,13 @@ def test_load_harness_python_secret_prefers_env_var_over_file() -> None:
         "target VSIX may have already consumed (Codex F1)."
     )
     assert file_read_line is not None, (
-        f"{RECONCILIATION_PATH.relative_to(REPO_ROOT)}: "
+        f"{SECURITY_PATH.relative_to(REPO_ROOT)}: "
         "load_harness_python_secret must still support the legacy file "
         "fallback for unit-test paths that construct ActivationReport "
         "directly without going through host-side eager-consume."
     )
     assert env_read_line < file_read_line, (
-        f"{RECONCILIATION_PATH.relative_to(REPO_ROOT)}: "
+        f"{SECURITY_PATH.relative_to(REPO_ROOT)}: "
         f"env-priority broken — env read at line {env_read_line}, "
         f"file read at line {file_read_line}. The env var must be checked "
         "first so the host-supplied secret wins over any stale file that "

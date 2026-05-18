@@ -1,6 +1,6 @@
 # REFACTOR_OPTIMIZATION
 
-`Last Updated: 2026-05-18 (W15 closed via PR #22 week15 -> main MERGED 2026-05-18 via 6161472 — W15-1..W15-7 sub-iter slate + W15-1 post-slate typing hotfix + close-out hygiene pass (doc preamble truth-state refresh across 7 canonical docs + close-out lint hygiene via 7ff31d9 + ADR 0011 catalog endpoint posture gate + compose image SHA pin + GH action trivy version pin); W16 active on week16 branch (per user direction 2026-05-18; W11-W15 paterni restored via W16-0 doc reconcile); §14 W16 plan source entry triggered by W15 merge; W16 scope: 6+1 sub-iter — scenario-accountant emit-site fix (W16-1, HIGH prod regression W14-1 carry-over), analysis-job-worker-entry CRUD ownership (W16-2, W15 audit finding), report-finalize top-level field sync drift (W16-3, W14 carry-over), health-reconciliation responsibility split (W16-4, W15 audit finding), simulation-progress-cancel family closeout (W16-5, W11+ umbrella 3/3 remaining), hygiene splits + Alembic round-trip fixture (W16-6), close-out (W16-7); W14 closed via PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d)`
+`Last Updated: 2026-05-18 (W16 active — close-out commit landed 2026-05-18; week16 -> main close-out PR pending. §14 W16 plan source — sub-iter slate fully delivered: W16-0 doc-reconcile (0e243ca + d78aa9c); W16-1 scenario-accountant emit-site fix (HIGH prod regression W14-1 carry-over, 01f910a + a4a050e); W16-2 analysis-job worker-entry CRUD ownership (W15 audit, 9d6d110 + c8b7811); W16-3 report-finalize null-leakage half (W14 carry-over, fa430f2 + e3d4a0c; attribution-count-parity split to W17+ as [FOLLOWUP attribution-count-parity]); W16-4 health-reconciliation responsibility split (W15 audit, 304b99f + 384d276); W16-5 simulation-progress-cancel scope reduction (1 rejected, 2 deferred to W17+, e21a05c); W16-6 hygiene splits + Alembic fresh-DB fixture (d40bb01); W16-7 close-out hygiene + canonical preamble refresh. Final W16 bar: tests/architecture/ 199 passed (W15 final 172, +27); make test-security 217 passed (W13 final 215, +2); full suite 1890 passed. W15 closed via PR #22 week15 -> main MERGED 2026-05-18 via 6161472; W14 closed via PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d)`
 
 W0-W14 plan document: stabilization + security + post-PoC external-review
 integration + W14 acceptance + observability continuation. **Slim canonical**
@@ -311,26 +311,31 @@ W15 kapanır şu koşullar sağlandığında:
   ADR 0011 catalog endpoint posture gate + compose image SHA pin +
   GH action trivy version pin).
 
-## §14 — W16 Carry-Over Closeout + Audit Findings + Production Regression (active 2026-05-18)
+## §14 — W16 Carry-Over Closeout + Audit Findings + Production Regression (close-out commit landed 2026-05-18; `week16 -> main` PR pending)
 
 §14 opened with the W15 close-out PR #22 `week15 -> main` merge on
 `2026-05-18` via `6161472`. **Per user direction (2026-05-18) W16
 lives on a `week16` branch (W11-W15 paterni restored via W16-0 doc
 reconcile); close-out merges into `main` via a `week16 -> main` PR.**
-Active tracker:
+W16-0..W16-7 sub-iter slate fully delivered on `2026-05-18`. Frozen
+tracker:
 [`active-work/W16-regression-and-audit-closeout.md`](active-work/W16-regression-and-audit-closeout.md)
 carries per-iter scope locks, candidate items, and Per-Item Detail
-evidence (sub-commits, module locations, test deltas).
+evidence (sub-commits, module locations, test deltas). Final W16 bar:
+`tests/architecture/` **199 passed** (W15 final 172, +27);
+`make test-security` **217 passed** (W13 final 215, +2); full suite
+**1890 passed, 9 skipped**.
 
-| Iter | Theme | Stable ID(s) (planned) |
+| Iter | Status | Landing commit |
 |---|---|---|
-| W16-1 | scenario-accountant upstream emit-site fix (HIGH prod regression) | `[FOLLOWUP scenario-accountant-conservation-split]` (W14-1 root-cause split; deterministic dropout observed `2026-05-14` + `2026-05-15`) |
-| W16-2 | analysis-job worker-entry CRUD ownership | `[FOLLOWUP analysis-job-worker-entry-crud-ownership]` (W15 mid-iter audit finding; row-lock-aware lifecycle primitive in `appcore/storage/crud_ops/analysis_jobs/lifecycle.py`, preserving W13-13 CAS) |
-| W16-3 | report-finalize top-level field sync drift | `[FOLLOWUP report-finalize-top-level-field-sync-drift]` (W14 production scan-driven investigation; finalize ordering / `report.save()` drift) |
-| W16-4 | health-reconciliation responsibility split | `[FOLLOWUP health-reconciliation-responsibility-split]` (W15 mid-iter audit finding; behavior-preserving extraction, W13-1 HMAC gates must not regress) |
-| W16-5 | simulation-progress-cancel family closeout (3 sub-items) | `[FOLLOWUP simulation-progress-cancel] heartbeat-sandbox-reset-off-thread` + `dedupe-step-progress-schemas` + `heartbeat-refactor` (W11+ umbrella) |
-| W16-6 | hygiene splits + Alembic round-trip fixture | `[CLEANUP marketplace-router-test-suite-split]` + `[CLEANUP test-import-graph-policy-dump-split]` + `[FOLLOWUP w13-4-alembic-roundtrip-programmatic]` |
-| W16-7 | close-out hygiene + canonical preamble refresh | Doc preamble refresh + §14 tracker freeze + `week16 -> main` close-out PR (W11-W15 paterni restored) |
+| W16-0 | **closed `2026-05-18`** (doc-direction reconcile — `week16` branch + `week16 -> main` close-out PR wording across canonical docs; W11-W15 paterni restored) | `0e243ca` (+ `d78aa9c` followup) |
+| W16-1 | **closed `2026-05-18`** (scenario-accountant upstream emit-site fix — HIGH prod regression `2026-05-14`/`2026-05-15`; `dispatch_outcome_none` reason_code surface introduced + W14-1 root-cause closed at the dispatcher layer; +2 security tests green) | `01f910a` (+ `a4a050e`) |
+| W16-2 | **closed `2026-05-18`** (analysis-job worker-entry CRUD ownership — W15 audit finding; `claim_queued_analysis_job_at_worker_entry` lifecycle facade extracted in `appcore/storage/crud_ops/analysis_jobs/lifecycle.py`; W13-13 CAS preserved byte-identically; AGENTS.md L57 compliance restored) | `9d6d110` (+ `c8b7811`) |
+| W16-3 | **closed `2026-05-18`** (report-finalize null-leakage half — W14 production scan; 5 contract-seam additive fields + `build_report_data` coercions, 5 round-trip pins green. Attribution-count-parity half **SPLIT to W17+** as `[FOLLOWUP attribution-count-parity]`) | `fa430f2` (+ `e3d4a0c`) |
+| W16-4 | **closed `2026-05-18`** (health-reconciliation responsibility split — W15 audit finding; `health/reconciliation.py` 682 LoC behavior-preservingly extracted into `health/security.py` + `health/handshake.py` + leaner `health/reconciliation.py`; W13-1 HMAC + W13-12 fail-closed gates green; +1 arch gate) | `304b99f` (+ `384d276`) |
+| W16-5 | **scope reduced `2026-05-18`** (doc-only commit — `dedupe-step-progress-schemas` REJECTED on distinct-surface-roles rationale; `heartbeat-sandbox-reset-off-thread` + `heartbeat-refactor` DEFERRED to W17+ pending lifecycle harness; audit trail updated in `POST_POC_BACKLOG.md`) | `e21a05c` (doc-only) |
+| W16-6 | **closed `2026-05-18`** (test hygiene + Alembic fixture bundle: `marketplace-router-test-suite-split` 2374 LoC → 5 endpoint-grouped files; `test-import-graph-policy-dump-split` 767 LoC → 4 thematic files; `w13-4-alembic-roundtrip-programmatic` skip removed + `fresh_alembic_engine` per-test throwaway Postgres DB fixture; ruff clean; 67/18 test IDs preserved via collect-only diff) | `d40bb01` |
+| W16-7 | **close-out commit landed `2026-05-18`; PR pending** (canonical preamble refresh across 7 docs + W16 tracker freeze + final test bar recorded; `week16 -> main` PR to follow) | this commit |
 
 ### §14.0 — Neden ayrı §14
 

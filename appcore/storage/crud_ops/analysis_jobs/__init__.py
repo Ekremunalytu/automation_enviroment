@@ -20,7 +20,7 @@ from .lifecycle import (
     cancel_analysis_job as cancel_analysis_job,
 )
 from .lifecycle import (
-    claim_queued_analysis_job_at_worker_entry as claim_queued_analysis_job_at_worker_entry,
+    claim_queued_analysis_job_at_worker_entry as claim_queued_analysis_job_at_worker_entry,  # noqa: E501
 )
 from .lifecycle import (
     complete_analysis_job as complete_analysis_job,

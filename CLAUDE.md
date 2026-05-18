@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-`Last Updated: 2026-05-18 (W15 closed via PR #22 week15 -> main MERGED 2026-05-18 via 6161472 — W15-1..W15-7 sub-iter slate + W15-1 post-slate typing hotfix + close-out hygiene pass (doc preamble truth-state refresh across 7 canonical docs, ADR 0011 catalog endpoint posture gate, compose image SHA pin, GH action trivy version pin); W16 active on week16 branch (per user direction 2026-05-18; W11-W15 paterni restored via W16-0 doc reconcile); W16 scope: 6+1 sub-iter — scenario-accountant emit-site fix (W16-1, HIGH prod regression W14-1 carry-over), analysis-job-worker-entry CRUD ownership (W16-2, W15 audit finding), report-finalize top-level field sync drift (W16-3, W14 carry-over), health-reconciliation responsibility split (W16-4, W15 audit finding), simulation-progress-cancel family closeout (W16-5, W11+ umbrella 3 sub-items), hygiene splits + Alembic round-trip fixture (W16-6), close-out (W16-7); plan source REFACTOR_OPTIMIZATION.md §14, active tracker active-work/W16-regression-and-audit-closeout.md; W14 closed via PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d; W13 close-out PR #20 week13 -> main merged 2026-05-13 via 772deb3)`
+`Last Updated: 2026-05-18 (W16 active — close-out commit landed 2026-05-18; week16 -> main close-out PR pending. W16-0..W16-7 sub-iter slate complete: W16-0 doc-reconcile (0e243ca + d78aa9c); W16-1 scenario-accountant emit-site fix (HIGH prod regression W14-1 carry-over, 01f910a + a4a050e); W16-2 analysis-job worker-entry CRUD ownership (W15 audit, 9d6d110 + c8b7811); W16-3 report-finalize null-leakage half (W14 carry-over, fa430f2 + e3d4a0c; attribution-count-parity split to W17+ as [FOLLOWUP attribution-count-parity]); W16-4 health-reconciliation responsibility split (W15 audit, 304b99f + 384d276); W16-5 simulation-progress-cancel scope reduction (1 rejected, 2 deferred to W17+, e21a05c); W16-6 hygiene splits + Alembic fresh-DB fixture (d40bb01); W16-7 close-out hygiene + canonical preamble refresh. Final W16 bar: tests/architecture/ 199 passed (W15 final 172, +27); make test-security 217 passed (W13 final 215, +2); full suite 1890 passed. W15 closed via PR #22 week15 -> main MERGED 2026-05-18 via 6161472; W14 closed via PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d; W13 close-out PR #20 week13 -> main merged 2026-05-13 via 772deb3)`
 
 This file is intentionally a thin pointer. Do not duplicate phase summaries or
 architecture maps here; that caused drift.
@@ -37,33 +37,38 @@ architecture maps here; that caused drift.
   gate, compose image SHA pin, GH action trivy version pin). Frozen
   tracker: `documents/active-work/W15-codex-uclass-bounds-posture.md`.
   **Active phase: W16 — Carry-Over Closeout + Audit Findings +
-  Production Regression**, active `2026-05-18` **on the `week16`
-  branch per user direction (W11-W15 paterni restored 2026-05-18 via
-  W16-0 doc reconcile); sub-iter commits land on `week16` and the
-  close-out is merged into `main` via a `week16 -> main` PR**.
-  Active tracker:
-  `documents/active-work/W16-regression-and-audit-closeout.md`. W16
-  scope (6+1 sub-iter, severity-leading): W16-1 scenario-accountant
+  Production Regression**, **close-out commit landed `2026-05-18`
+  on the `week16` branch; `week16 -> main` close-out PR pending
+  (W11-W15 paterni restored). W16-0..W16-7 sub-iter slate complete:**
+  W16-0 doc-reconcile (`0e243ca` + `d78aa9c`); W16-1 scenario-accountant
   upstream emit-site fix (W14-1 root-cause split; HIGH prod regression
-  observed `2026-05-14` + `2026-05-15`); W16-2 analysis-job-worker-entry
-  CRUD ownership (W15 audit finding; row-lock-aware lifecycle CRUD
-  primitive, preserve W13-13 CAS); W16-3 report-finalize top-level
-  field sync drift (W14 production scan-driven investigation; couples
-  with W16-1); W16-4 health-reconciliation responsibility split (W15
-  audit finding; behavior-preserving extraction, W13-1 HMAC gates
-  preserved); W16-5 simulation-progress-cancel family closeout (W11+
-  umbrella, 3 sub-items: `heartbeat-sandbox-reset-off-thread` +
-  `dedupe-step-progress-schemas` + `heartbeat-refactor`); W16-6 hygiene
-  splits + Alembic round-trip fixture
-  (`marketplace-router-test-suite-split` 2374 LoC +
-  `test-import-graph-policy-dump-split` 767 LoC +
-  `w13-4-alembic-roundtrip-programmatic` fresh-DB-per-test fixture);
-  W16-7 close-out hygiene + canonical preamble refresh +
-  `week16 -> main` close-out PR (W11-W15 paterni restored). Final W15 post-merge
-  bar (re-recorded at W16-1 pull): `tests/architecture/` **198 passed**
-  (+26 from W14 final 172); `make test-security` **215 passed**
-  (unchanged from W13 final). Past trackers are stable-ID references
-  only: W15, W14, W13, W12, W11, and W8.
+  observed `2026-05-14` + `2026-05-15`; `01f910a` + `a4a050e`); W16-2
+  analysis-job-worker-entry CRUD ownership (W15 audit finding;
+  row-lock-aware lifecycle CRUD primitive, W13-13 CAS preserved
+  byte-identically; `9d6d110` + `c8b7811`); W16-3 report-finalize
+  null-leakage half (W14 production scan-driven investigation; 5
+  contract-seam additive fields + `build_report_data` coercions;
+  attribution-count-parity half split to `[FOLLOWUP attribution-count-parity]`
+  W17+; `fa430f2` + `e3d4a0c`); W16-4 health-reconciliation
+  responsibility split (W15 audit finding; behavior-preserving
+  extraction to `health/{security,handshake,reconciliation}.py`,
+  W13-1 HMAC + W13-12 fail-closed gates preserved; `304b99f` +
+  `384d276`); W16-5 simulation-progress-cancel scope reduction
+  (`dedupe-step-progress-schemas` rejected on distinct-surface-roles
+  rationale; `heartbeat-sandbox-reset-off-thread` +
+  `heartbeat-refactor` deferred to W17+ pending lifecycle harness;
+  doc-only `e21a05c`); W16-6 hygiene splits + Alembic fresh-DB fixture
+  (`marketplace-router-test-suite-split` 2374 LoC → 5 endpoint-grouped
+  files; `test-import-graph-policy-dump-split` 767 LoC → 4 thematic
+  files; `w13-4-alembic-roundtrip-programmatic` skip removed + fresh
+  Postgres DB per test via `fresh_alembic_engine` fixture; `d40bb01`);
+  W16-7 close-out hygiene + canonical preamble refresh. Frozen tracker:
+  `documents/active-work/W16-regression-and-audit-closeout.md`. Final
+  W16 bar (recorded at W16-7 close-out): `tests/architecture/` **199
+  passed** (W15 final 172, +27); `make test-security` **217 passed**
+  (W13 final 215, +2); full suite **1890 passed, 9 skipped**. Past
+  trackers are stable-ID references only: W15, W14, W13, W12, W11, and
+  W8.
 - `documents/archive/` is frozen reference; not on the default read path.
   Open only when a slim canonical explicitly points there.
 

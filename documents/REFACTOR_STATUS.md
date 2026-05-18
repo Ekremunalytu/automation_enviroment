@@ -1,6 +1,6 @@
 # Refactor Status
 
-`Last Updated: 2026-05-18 (W15 closed via PR #22 week15 -> main MERGED 2026-05-18 via 6161472 — W15-1..W15-7 sub-iter slate + W15-1 post-slate typing hotfix + close-out hygiene pass; W16 active on week16 branch (per user direction 2026-05-18; W11-W15 paterni restored via W16-0 doc reconcile); W16 scope: 6+1 sub-iter — scenario-accountant emit-site fix (W16-1, HIGH prod regression W14-1 carry-over), analysis-job-worker-entry CRUD ownership (W16-2), report-finalize top-level field sync drift (W16-3), health-reconciliation responsibility split (W16-4), simulation-progress-cancel family closeout (W16-5), hygiene splits + Alembic round-trip fixture (W16-6), close-out (W16-7); plan source REFACTOR_OPTIMIZATION.md §14; W14 closed via PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d; W13 close-out PR #20 week13 -> main merged 2026-05-13 via 772deb3)`
+`Last Updated: 2026-05-18 (W16 active — close-out commit landed 2026-05-18; week16 -> main close-out PR pending. W16-0..W16-7 sub-iter slate complete: W16-0 doc-reconcile (0e243ca + d78aa9c); W16-1 scenario-accountant emit-site fix (HIGH prod regression W14-1 carry-over, 01f910a + a4a050e); W16-2 analysis-job worker-entry CRUD ownership (W15 audit, 9d6d110 + c8b7811); W16-3 report-finalize null-leakage half (W14 carry-over, fa430f2 + e3d4a0c; attribution-count-parity split to W17+); W16-4 health-reconciliation responsibility split (W15 audit, 304b99f + 384d276); W16-5 simulation-progress-cancel scope reduction (1 rejected, 2 deferred to W17+, e21a05c); W16-6 hygiene splits + Alembic fresh-DB fixture (d40bb01); W16-7 close-out hygiene + canonical preamble refresh. Final W16 bar: tests/architecture/ 199 passed (W15 final 172, +27); make test-security 217 passed (W13 final 215, +2); full suite 1890 passed. W15 closed via PR #22 week15 -> main MERGED 2026-05-18 via 6161472; W14 closed via PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d; W13 close-out PR #20 week13 -> main merged 2026-05-13 via 772deb3)`
 
 Active status board for current closure state. **Slim canonical** — verbose
 phase evidence is frozen under dated snapshots:
@@ -129,7 +129,13 @@ phase evidence is frozen under dated snapshots:
   sub-items re-classified: `dedupe-step-progress-schemas` rejected
   (distinct pydantic surface roles); `heartbeat-sandbox-reset-off-thread`
   + `heartbeat-refactor` deferred to W17+ (lifecycle harness
-  prerequisite). W16-6..W16-7 remain pending.
+  prerequisite). **W16-6 closed `2026-05-18` via `d40bb01`** (test
+  hygiene splits + Alembic fresh-DB fixture: marketplace router 2374
+  LoC → 5 endpoint-grouped files; import-graph 767 LoC → 4 thematic
+  files; W13-4.5 skip removed via `fresh_alembic_engine` per-test
+  throwaway Postgres DB; ruff clean). **W16-7 close-out commit landed
+  `2026-05-18`** (canonical preamble refresh across 7 docs + W16
+  tracker freeze + `week16 -> main` PR pending).
 
 ## W13 Status Summary
 
