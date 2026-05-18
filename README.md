@@ -1,6 +1,6 @@
 # ExTrace
 
-`Last Updated: 2026-05-18 (W16 active — phase work complete; W16 closed via PR #23 week16 -> main MERGED 2026-05-18 via 1b6d43f. W16-0..W16-7 sub-iter slate complete: W16-1 scenario-accountant emit-site fix (HIGH prod regression, 01f910a); W16-2 analysis-job worker-entry CRUD ownership (9d6d110); W16-3 report-finalize null-leakage half (fa430f2); W16-4 health-reconciliation responsibility split (304b99f); W16-5 simulation-progress-cancel scope reduction (1 rejected, 2 deferred to W17+, e21a05c); W16-6 hygiene splits + Alembic fresh-DB fixture (d40bb01); W16-7 close-out hygiene (8bf3c6b) + post-PR unaccounted_dropout surface pin (78f080e). Final W16 bar: tests/architecture/ 199 passed; make test-security 220 passed (+3 W16-7-followup unaccounted_dropout pins); full suite 1893 passed. Plan REFACTOR_OPTIMIZATION.md §14, frozen tracker active-work/W16-regression-and-audit-closeout.md. W15 closed via PR #22 MERGED 2026-05-18 via 6161472)`
+`Last Updated: 2026-05-18 (W17 active — authoring on week17 branch per user direction; W16 closed via PR #23 week16 -> main MERGED 2026-05-18 via 1b6d43f. W17-0 doc-reconcile in progress; W17-1..W17-6 reserved: attribution-count-parity closeout (W16-3 carry-over), lifecycle harness scaffold (enabler), heartbeat-sandbox-reset-off-thread (W16-5 carry-over), heartbeat-refactor (W16-5 carry-over), hygiene cleanup batch, close-out hygiene + §15 self-stamp. Plan REFACTOR_OPTIMIZATION.md §15; active tracker active-work/W17-carryover-and-lifecycle-harness.md. W16-0..W16-7 sub-iter slate complete: W16-1 scenario-accountant emit-site fix (01f910a); W16-2 analysis-job worker-entry CRUD ownership (9d6d110); W16-3 report-finalize null-leakage half (fa430f2; attribution-count-parity split to W17); W16-4 health-reconciliation responsibility split (304b99f); W16-5 simulation-progress-cancel scope reduction (1 rejected, 2 deferred to W17, e21a05c); W16-6 hygiene splits + Alembic fresh-DB fixture (d40bb01); W16-7 close-out hygiene (8bf3c6b) + post-PR unaccounted_dropout surface pin (78f080e). Final W16 bar: tests/architecture/ 199 passed; make test-security 220 passed; full suite 1893 passed. Frozen tracker active-work/W16-regression-and-audit-closeout.md. W15 closed via PR #22 MERGED 2026-05-18 via 6161472)`
 
 ExTrace is a VS Code extension analysis platform built around three runtime
 surfaces:
@@ -69,25 +69,34 @@ multi-tenant web platform.
   image SHA pin + GH action trivy version pin + close-out lint
   hygiene). Frozen tracker:
   [`active-work/W15-codex-uclass-bounds-posture.md`](documents/active-work/W15-codex-uclass-bounds-posture.md).
-  **Active phase: W16 — Carry-Over Closeout + Audit Findings +
-  Production Regression** — phase work complete; W16 closed via PR
-  #23 `week16 -> main` MERGED `2026-05-18` via `1b6d43f`. Frozen
-  tracker:
+  **W16 — Carry-Over Closeout + Audit Findings + Production Regression
+  closed `2026-05-18`** and merged via PR #23 `week16 -> main`
+  (`1b6d43f`). Frozen tracker:
   [`active-work/W16-regression-and-audit-closeout.md`](documents/active-work/W16-regression-and-audit-closeout.md).
   W16-0..W16-7 sub-iter slate complete: W16-1 scenario-accountant
-  emit-site fix (HIGH prod regression W14-1 carry-over; `01f910a`);
-  W16-2 analysis-job worker-entry CRUD ownership (W15 audit; `9d6d110`);
-  W16-3 report-finalize null-leakage half (W14 carry-over;
-  attribution-count-parity split to W17+; `fa430f2`); W16-4
-  health-reconciliation responsibility split (W15 audit; W13-1 HMAC
-  gates preserved; `304b99f`); W16-5 simulation-progress-cancel
-  scope reduction (1 rejected, 2 deferred to W17+; `e21a05c`); W16-6
-  hygiene splits + Alembic fresh-DB fixture (`d40bb01`); W16-7
-  close-out hygiene + canonical preamble refresh (`8bf3c6b`) +
-  post-PR `unaccounted_dropout` surface pin (`78f080e`). Final W16
-  bar: `tests/architecture/` **199 passed**; `make test-security`
-  **220 passed** (+3 W16-7-followup `unaccounted_dropout` surface
-  pins); full suite **1893 passed**.
+  emit-site fix (`01f910a`); W16-2 analysis-job worker-entry CRUD
+  ownership (`9d6d110`); W16-3 report-finalize null-leakage half
+  (`fa430f2`; attribution-count-parity split to W17); W16-4
+  health-reconciliation responsibility split (`304b99f`); W16-5
+  simulation-progress-cancel scope reduction (1 rejected, 2 deferred
+  to W17; `e21a05c`); W16-6 hygiene splits + Alembic fresh-DB fixture
+  (`d40bb01`); W16-7 close-out hygiene (`8bf3c6b`) + post-PR
+  `unaccounted_dropout` surface pin (`78f080e`). Final W16 bar:
+  `tests/architecture/` **199 passed**; `make test-security`
+  **220 passed**; full suite **1893 passed**.
+  **Active phase: W17 — Carry-Over Closeout + Lifecycle Harness
+  Yatırımı + Hygiene Sweep** — active `2026-05-18` on the `week17`
+  branch (per user direction; W11-W16 paterni preserved). Active
+  tracker:
+  [`active-work/W17-carryover-and-lifecycle-harness.md`](documents/active-work/W17-carryover-and-lifecycle-harness.md).
+  Sub-iter slate `W17-0..W17-6` reserved: doc reconcile (in progress),
+  `attribution-count-parity` closeout (W16-3 carry-over), lifecycle
+  harness scaffold (enabler for W17-3/4 — real Postgres DB +
+  Playwright mock), `heartbeat-sandbox-reset-off-thread` (W16-5
+  carry-over, harness-gated), `heartbeat-refactor` (W16-5 carry-over,
+  byte-identical), hygiene cleanup batch (3-5 `[CLEANUP]` items),
+  close-out hygiene + canonical preamble refresh + §15 self-stamp.
+  Close-out via `week17 -> main` PR.
 - **Canonical source of truth for phase state:**
   [`documents/REFACTOR_STATUS.md`](documents/REFACTOR_STATUS.md).
   Deferred items: [`documents/POST_POC_BACKLOG.md`](documents/POST_POC_BACKLOG.md).
@@ -95,6 +104,7 @@ multi-tenant web platform.
   W14 plan: [`documents/REFACTOR_OPTIMIZATION.md` §12](documents/REFACTOR_OPTIMIZATION.md).
   W15 plan: [`documents/REFACTOR_OPTIMIZATION.md` §13](documents/REFACTOR_OPTIMIZATION.md).
   W16 plan: [`documents/REFACTOR_OPTIMIZATION.md` §14](documents/REFACTOR_OPTIMIZATION.md).
+  W17 plan: [`documents/REFACTOR_OPTIMIZATION.md` §15](documents/REFACTOR_OPTIMIZATION.md).
 
 ## Current Architecture
 

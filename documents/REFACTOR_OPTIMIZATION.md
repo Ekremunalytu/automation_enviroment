@@ -1,6 +1,6 @@
 # REFACTOR_OPTIMIZATION
 
-`Last Updated: 2026-05-18 (W16 active — phase work complete; W16 closed via PR #23 week16 -> main MERGED 2026-05-18 via 1b6d43f. §14 W16 plan source — sub-iter slate fully delivered: W16-0 doc-reconcile (0e243ca + d78aa9c); W16-1 scenario-accountant emit-site fix (HIGH prod regression W14-1 carry-over, 01f910a + a4a050e); W16-2 analysis-job worker-entry CRUD ownership (W15 audit, 9d6d110 + c8b7811); W16-3 report-finalize null-leakage half (W14 carry-over, fa430f2 + e3d4a0c; attribution-count-parity split to W17+ as [FOLLOWUP attribution-count-parity]); W16-4 health-reconciliation responsibility split (W15 audit, 304b99f + 384d276); W16-5 simulation-progress-cancel scope reduction (1 rejected, 2 deferred to W17+, e21a05c); W16-6 hygiene splits + Alembic fresh-DB fixture (d40bb01); W16-7 close-out hygiene + canonical preamble refresh (8bf3c6b) + post-PR unaccounted_dropout surface pin (78f080e). Final W16 bar: tests/architecture/ 199 passed (W15 final 172, +27); make test-security 220 passed (W13 final 215, +5 — W16-7-followup +3 unaccounted_dropout surface pins); full suite 1893 passed. W15 closed via PR #22 week15 -> main MERGED 2026-05-18 via 6161472; W14 closed via PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d)`
+`Last Updated: 2026-05-18 (W17 active — authoring on week17 branch per user direction; W16 closed via PR #23 week16 -> main MERGED 2026-05-18 via 1b6d43f. §15 W17 plan source — sub-iter slate W17-0..W17-6 reserved: W17-0 doc-reconcile (in progress); W17-1 attribution-count-parity closeout (W16-3 carry-over); W17-2 lifecycle harness scaffold (enabler); W17-3 heartbeat-sandbox-reset-off-thread (W16-5 carry-over, harness-gated); W17-4 heartbeat-refactor (W16-5 carry-over, byte-identical); W17-5 hygiene cleanup batch; W17-6 close-out hygiene + §15 self-stamp. Entry gate post-merge bar (recorded at W16-7 + post-PR 78f080e): tests/architecture/ 199 passed; make test-security 220 passed; full suite 1893 passed, 9 skipped. §14 W16 plan source — sub-iter slate fully delivered: W16-0 doc-reconcile (0e243ca + d78aa9c); W16-1 scenario-accountant emit-site fix (HIGH prod regression W14-1 carry-over, 01f910a + a4a050e); W16-2 analysis-job worker-entry CRUD ownership (W15 audit, 9d6d110 + c8b7811); W16-3 report-finalize null-leakage half (W14 carry-over, fa430f2 + e3d4a0c; attribution-count-parity split to W17 as [FOLLOWUP attribution-count-parity]); W16-4 health-reconciliation responsibility split (W15 audit, 304b99f + 384d276); W16-5 simulation-progress-cancel scope reduction (1 rejected, 2 deferred to W17 — heartbeat-sandbox-reset-off-thread + heartbeat-refactor, e21a05c); W16-6 hygiene splits + Alembic fresh-DB fixture (d40bb01); W16-7 close-out hygiene + canonical preamble refresh (8bf3c6b) + post-PR unaccounted_dropout surface pin (78f080e). W15 closed via PR #22 week15 -> main MERGED 2026-05-18 via 6161472; W14 closed via PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d)`
 
 W0-W14 plan document: stabilization + security + post-PoC external-review
 integration + W14 acceptance + observability continuation. **Slim canonical**
@@ -31,10 +31,13 @@ row with stable ID + landing commit; full context in the snapshot.
   `6161472`.** Frozen tracker:
   [`active-work/W15-codex-uclass-bounds-posture.md`](active-work/W15-codex-uclass-bounds-posture.md).
 - §14 → W16 Carry-Over Closeout + Audit Findings + Production
-  Regression — **active `2026-05-18` on the `week16` branch (per user
-  direction; W11-W15 paterni restored via W16-0 doc reconcile).**
-  Active tracker:
+  Regression — **closed `2026-05-18`; PR #23 `week16 -> main`
+  merged via `1b6d43f` on `2026-05-18`.** Frozen tracker:
   [`active-work/W16-regression-and-audit-closeout.md`](active-work/W16-regression-and-audit-closeout.md).
+- §15 → W17 Carry-Over Closeout + Lifecycle Harness Yatırımı +
+  Hygiene Sweep — **active `2026-05-18` on the `week17` branch (per
+  user direction; W11-W16 paterni preserved).** Active tracker:
+  [`active-work/W17-carryover-and-lifecycle-harness.md`](active-work/W17-carryover-and-lifecycle-harness.md).
 
 ## §10 — W0-W7 PoC Stabilization Window (closed 2026-04-23)
 
@@ -427,3 +430,122 @@ W16 kapanır şu koşullar sağlandığında:
   çalışır; sub-iter commits `week16` branch'inde land eder; close-out
   `week16 -> main` PR ile merge edilir; W16 tracker scope kapanışında
   frozen olur (W11-W15 paterni).
+
+## §15 — W17 Carry-Over Closeout + Lifecycle Harness Yatırımı + Hygiene Sweep (active 2026-05-18 on week17 branch)
+
+§15 opened with the W16 close-out PR #23 `week16 -> main` merge on
+`2026-05-18` via `1b6d43f`. **Per user direction (2026-05-18) W17
+lives on a `week17` branch (W11-W16 paterni preserved); close-out
+merges into `main` via a `week17 -> main` PR.** Active tracker:
+[`active-work/W17-carryover-and-lifecycle-harness.md`](active-work/W17-carryover-and-lifecycle-harness.md)
+carries per-iter scope locks, candidate items, and Per-Item Detail
+evidence (assigned at first pull). Entry gate post-merge bar
+(recorded at W16-7 close-out + post-PR `78f080e` top-up):
+`tests/architecture/` **199 passed**; `make test-security` **220
+passed**; full suite **1893 passed, 9 skipped**.
+
+| Iter | Status | Theme |
+|---|---|---|
+| W17-0 | **in progress `2026-05-18`** (doc-direction reconcile — `week17` branch + `week17 -> main` close-out PR wording across canonical docs; W11-W16 paterni preserved) | doc-only |
+| W17-1 | reserved | `attribution-count-parity` closeout (carry-over W16-3) |
+| W17-2 | reserved | Lifecycle harness scaffold (enabler for W17-3 + W17-4) |
+| W17-3 | reserved | `heartbeat-sandbox-reset-off-thread` (carry-over W16-5 deferral; harness-gated) |
+| W17-4 | reserved | `heartbeat-refactor` (carry-over W16-5 deferral; W17-3 üzerine) |
+| W17-5 | reserved | Hygiene cleanup batch (3-5 `[CLEANUP]` items) |
+| W17-6 | reserved | Close-out hygiene + canonical preamble refresh + §15 self-stamp |
+
+### §15.0 — Neden ayrı §15
+
+§14 W16 carry-over + audit findings + production regression
+penceresini kapatır (W14-1 emit-site fix, W15 audit closeouts,
+W14 finalize-drift null half, marketplace router + import graph
+hygiene splits, alembic fresh-DB fixture); §15 yeni bir tema:
+W16'dan doğrudan devreden üç kalem (attribution-count-parity,
+heartbeat-sandbox-reset-off-thread, heartbeat-refactor) + bu
+heartbeat trio'yu açan **lifecycle harness yatırımı**. §15 ayrı
+tutuluyor ki §14 audit trail'i (W16 sub-iter close date'leri
+ve commit'leri) donmuş kalsın.
+
+### §15.1-§15.2 — Entry + Sub-iter Distribution
+
+W17 entry triggered by W16 close-out PR #23 merge (`1b6d43f`,
+`2026-05-18`). Sub-iter sequencing rationale: W17-0 doc reconcile
+önce — W11-W16 paterni preservation. W17-1 attribution-count-parity
+ikinci — küçük bounded subsystem (report-finalize / attribution_summary
+producer side), W17-2 başlamadan kapanmalı (sequencing constraint
+risk note). W17-2 lifecycle harness scaffold üçüncü — W17-3/4 ön
+koşulu, W17'nin en ağır parçası; balon olursa scope reduction
+kararı (W16-5 paterni). W17-3 heartbeat-sandbox-reset thread
+relocation harness sonrası — concurrency-sensitive, W13-1 HMAC
++ W13-12 fail-closed + W13-13 CAS pattern regress etmemeli
+(W16-4 davranış-koruma paterni). W17-4 byte-identical clarity
+refactor W17-3 üzerine. W17-5 hygiene cleanup batch düşük-risk,
+paralel; W17-6 close-out hygiene + §15 self-stamp W14/W15/W16
+paterni.
+
+Stable ID → iter eşlemesi `POST_POC_BACKLOG.md`'de W17 Pull-Forward
+tablosunda (W17-1 pull'da açılır).
+
+Per user direction (2026-05-18) W17 lives on a `week17` branch
+(W11-W16 paterni preserved); sub-iter commits land on `week17`
+and the W17 close-out is merged into `main` via a `week17 -> main`
+PR.
+
+### §15.3 — Non-goals (W17)
+
+W18+'a düşen kalemler stable ID'leri `POST_POC_BACKLOG.md` altında
+açık kalır:
+
+- `[GOAL marketplace-user-scan-and-notify]` (W16 close-out'ta
+  eklendi `92eda39`; ayrı bir tracker + ADR-scale design pass
+  ister — consumer-facing marketplace flow 4-halka: user scan
+  request, installation gate, team report email, retroactive
+  alert email; W18+).
+- `[FOLLOWUP w11-8-companion-workflow-orm-bleed]` (W16 non-goal
+  taşıma; W17+'a düşmüştü, W17 scope dışı tutuluyor).
+- `[CLEANUP rule-registry-side-effect-loader]` (ADR 0003 A5/A7
+  deferred rules landed olunca).
+- `[FOLLOWUP codex-automation-6]`, `[FOLLOWUP capability-verification-gap]`
+  (`NEEDS-DESIGN`; W18+).
+- Watching items: `planner-selection-readability-audit`,
+  `attribution-links-build-evidence-bundle-density`,
+  `execute-attempt-rebloat-watch`, `dispatch-execution-rebloat-watch`
+  (LoC bütçesi aşılana kadar dokunma).
+- `[FOLLOWUP ci-reintroduction]` (geniş GH Actions CI reintroduction;
+  W17 scope'a alınmıyor — harness yatırımı W17 ana yükü).
+- W16'da kapanan tüm kalemler — `POST_POC_BACKLOG.md`'de kapanış
+  audit trail'i korunmuştur, yeniden pull değil.
+
+### §15.4 — Exit Criteria (W17-End)
+
+W17 kapanır şu koşullar sağlandığında:
+
+- W17-1..W17-6 kapanır ya da deferral rasyoneli ile W18'ye taşınır.
+- W17 tracker final close evidence + current test counts tutar
+  (`tests/architecture/` hedef 199 → ~201+; W17-1 invariant +
+  W17-2 harness smoke ekleyince).
+- W17-1 producer-side parity: `target_activation_count` ve evidence-
+  kind count tek bir doğruluk kaynağından beslenir; runtime invariant
+  test'i parity'yi yakalar.
+- W17-2 harness: happy-path lifecycle (`start → reset → cancel →
+  finalize`) smoke testi yeşil; cancel-mid-flight ve reset-during-
+  finalize edge case'leri yeşil; harness `make test-local` altında
+  çalışır.
+- W17-3 davranış paritesi: sandbox-reset thread relocation sonrası
+  W13-1 HMAC marker gates + W13-12 fail-closed dispatch + W13-13
+  CAS pattern regress etmez (W17-2 harness altında doğrulanır).
+- W17-4 byte-identical: heartbeat clarity refactor sonrası harness
+  davranış paritesi yeşil.
+- W17-5 hygiene cleanup: 3-5 `[CLEANUP]` kalem `POST_POC_BACKLOG.md`'de
+  DONE/CLOSED audit trail ile işaretli.
+- `REFACTOR_STATUS.md`, `POST_POC_BACKLOG.md`,
+  `active-work/README.md`, ve ilgili lane docs aynı active/closed
+  state'i gösterir.
+- Slim canonicals kısa kalır; verbose evidence önce arşivlenir.
+- Close-out hygiene pass (W14/W15/W16 paterni): Ruff lint, UI
+  contract sync, markdown formatting, doc truth-state alignment,
+  (varsa) yeni regression gate'ler.
+- Per user direction (2026-05-18): W17 `week17` branch'inde
+  çalışır; sub-iter commits `week17` branch'inde land eder; close-out
+  `week17 -> main` PR ile merge edilir; W17 tracker scope kapanışında
+  frozen olur (W11-W16 paterni).

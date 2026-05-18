@@ -1,6 +1,6 @@
 # Refactor Status
 
-`Last Updated: 2026-05-18 (W16 active — phase work complete; W16 closed via PR #23 week16 -> main MERGED 2026-05-18 via 1b6d43f. W16-0..W16-7 sub-iter slate complete: W16-0 doc-reconcile (0e243ca + d78aa9c); W16-1 scenario-accountant emit-site fix (HIGH prod regression W14-1 carry-over, 01f910a + a4a050e); W16-2 analysis-job worker-entry CRUD ownership (W15 audit, 9d6d110 + c8b7811); W16-3 report-finalize null-leakage half (W14 carry-over, fa430f2 + e3d4a0c; attribution-count-parity split to W17+); W16-4 health-reconciliation responsibility split (W15 audit, 304b99f + 384d276); W16-5 simulation-progress-cancel scope reduction (1 rejected, 2 deferred to W17+, e21a05c); W16-6 hygiene splits + Alembic fresh-DB fixture (d40bb01); W16-7 close-out hygiene + canonical preamble refresh (8bf3c6b) + post-PR unaccounted_dropout surface pin (78f080e). Final W16 bar: tests/architecture/ 199 passed (W15 final 172, +27); make test-security 220 passed (W13 final 215, +5 — W16-7-followup +3 unaccounted_dropout surface pins); full suite 1893 passed. W15 closed via PR #22 week15 -> main MERGED 2026-05-18 via 6161472; W14 closed via PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d; W13 close-out PR #20 week13 -> main merged 2026-05-13 via 772deb3)`
+`Last Updated: 2026-05-18 (W17 active — authoring on week17 branch per user direction; W16 closed via PR #23 week16 -> main MERGED 2026-05-18 via 1b6d43f. W17-0 doc-reconcile in progress; W17-1..W17-6 reserved: attribution-count-parity closeout (W16-3 carry-over), lifecycle harness scaffold (enabler), heartbeat-sandbox-reset-off-thread (W16-5 carry-over), heartbeat-refactor (W16-5 carry-over), hygiene cleanup batch, close-out hygiene + §15 self-stamp. Entry gate post-merge bar: tests/architecture/ 199 passed; make test-security 220 passed; full suite 1893 passed, 9 skipped. W16-0..W16-7 sub-iter slate complete: W16-0 doc-reconcile (0e243ca + d78aa9c); W16-1 scenario-accountant emit-site fix (HIGH prod regression W14-1 carry-over, 01f910a + a4a050e); W16-2 analysis-job worker-entry CRUD ownership (W15 audit, 9d6d110 + c8b7811); W16-3 report-finalize null-leakage half (W14 carry-over, fa430f2 + e3d4a0c; attribution-count-parity split to W17); W16-4 health-reconciliation responsibility split (W15 audit, 304b99f + 384d276); W16-5 simulation-progress-cancel scope reduction (1 rejected, 2 deferred to W17, e21a05c); W16-6 hygiene splits + Alembic fresh-DB fixture (d40bb01); W16-7 close-out hygiene + canonical preamble refresh (8bf3c6b) + post-PR unaccounted_dropout surface pin (78f080e). W15 closed via PR #22 week15 -> main MERGED 2026-05-18 via 6161472; W14 closed via PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d; W13 close-out PR #20 week13 -> main merged 2026-05-13 via 772deb3)`
 
 Active status board for current closure state. **Slim canonical** — verbose
 phase evidence is frozen under dated snapshots:
@@ -87,10 +87,9 @@ phase evidence is frozen under dated snapshots:
   `tests/architecture/` **198 passed** (W14 final 172 + W15 sub-iter
   gates +26); `make test-security` **215 passed** (unchanged from W13
   final).
-- **Active phase: W16 — Carry-Over Closeout + Audit Findings +
-  Production Regression** (active `2026-05-18`; **on the `week16`
-  branch per user direction 2026-05-18 (W11-W15 paterni restored via
-  W16-0 doc reconcile)**). Scope authored
+- **W16 closed `2026-05-18` and merged via PR #23 (`1b6d43f`)** —
+  Carry-Over Closeout + Audit Findings + Production Regression
+  window. Scope authored
   `2026-05-18` in
   [`active-work/W16-regression-and-audit-closeout.md`](active-work/W16-regression-and-audit-closeout.md);
   plan source [`REFACTOR_OPTIMIZATION.md §14`](REFACTOR_OPTIMIZATION.md).
@@ -139,7 +138,24 @@ phase evidence is frozen under dated snapshots:
   `unaccounted_dropout` surface round-trip pins matching the live
   scan shape — security lane 217 → 220). **W16 merged into `main`
   via PR #23 `week16 -> main` on `2026-05-18` at merge commit
-  `1b6d43f`.**
+  `1b6d43f`.** Frozen tracker:
+  [`active-work/W16-regression-and-audit-closeout.md`](active-work/W16-regression-and-audit-closeout.md).
+- **Active phase: W17 — Carry-Over Closeout + Lifecycle Harness
+  Yatırımı + Hygiene Sweep** (active `2026-05-18`; **on the `week17`
+  branch per user direction 2026-05-18 (W11-W16 paterni preserved)**).
+  Scope authored `2026-05-18` in
+  [`active-work/W17-carryover-and-lifecycle-harness.md`](active-work/W17-carryover-and-lifecycle-harness.md);
+  plan source [`REFACTOR_OPTIMIZATION.md §15`](REFACTOR_OPTIMIZATION.md).
+  7 sub-iter reserved (`W17-0..W17-6`): doc reconcile (in progress),
+  attribution-count-parity closeout (W16-3 carry-over),
+  lifecycle harness scaffold (enabler for W17-3/4), heartbeat-sandbox-
+  reset-off-thread (W16-5 carry-over, harness-gated), heartbeat-refactor
+  (W16-5 carry-over, byte-identical), hygiene cleanup batch (3-5
+  `[CLEANUP]` items), close-out hygiene + canonical preamble refresh
+  + §15 self-stamp. **Close-out via `week17 -> main` PR** (W11-W16
+  paterni preserved); sub-iter commits land on `week17` and the W17
+  tracker freezes at scope close. **W17-0 in progress** — doc-direction
+  reconcile across 7 canonical docs.
 
 ## W13 Status Summary
 

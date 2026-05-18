@@ -1,6 +1,6 @@
 # Post-PoC Backlog
 
-`Last Updated: 2026-05-18 (W16 active — phase work complete; W16 closed via PR #23 week16 -> main MERGED 2026-05-18 via 1b6d43f. W16 Pull-Forward CLOSED: scenario-accountant-conservation-split (W16-1, 01f910a), analysis-job-worker-entry-crud-ownership (W16-2, 9d6d110), report-finalize-top-level-field-sync-drift null-leakage half (W16-3, fa430f2; attribution-count-parity half SPLIT to W17+ as [FOLLOWUP attribution-count-parity]), health-reconciliation-responsibility-split (W16-4, 304b99f), simulation-progress-cancel scope reduction (W16-5 doc-only e21a05c — dedupe-step-progress-schemas REJECTED; heartbeat-sandbox-reset-off-thread + heartbeat-refactor DEFERRED to W17+), marketplace-router-test-suite-split + test-import-graph-policy-dump-split + w13-4-alembic-roundtrip-programmatic (W16-6, d40bb01), close-out hygiene (W16-7, 8bf3c6b) + post-PR unaccounted_dropout surface pin (78f080e). Final W16 bar: tests/architecture/ 199 passed; make test-security 220 passed (+3 W16-7-followup unaccounted_dropout pins); full suite 1893 passed. W15 closed via PR #22 MERGED 2026-05-18 via 6161472; W14 closed via PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d)`
+`Last Updated: 2026-05-18 (W17 active — authoring on week17 branch per user direction; W16 closed via PR #23 week16 -> main MERGED 2026-05-18 via 1b6d43f. W17 Pull-Forward RESERVED: attribution-count-parity (W16-3 carry-over → W17-1), heartbeat-sandbox-reset-off-thread (W16-5 carry-over → W17-3 harness-gated), heartbeat-refactor (W16-5 carry-over → W17-4 byte-identical); also reserved: W17-2 lifecycle harness scaffold (enabler), W17-5 hygiene cleanup batch, W17-6 close-out hygiene + §15 self-stamp. Entry gate post-merge bar: tests/architecture/ 199 passed; make test-security 220 passed; full suite 1893 passed, 9 skipped. W16 Pull-Forward CLOSED: scenario-accountant-conservation-split (W16-1, 01f910a), analysis-job-worker-entry-crud-ownership (W16-2, 9d6d110), report-finalize-top-level-field-sync-drift null-leakage half (W16-3, fa430f2; attribution-count-parity half SPLIT to W17 as [FOLLOWUP attribution-count-parity]), health-reconciliation-responsibility-split (W16-4, 304b99f), simulation-progress-cancel scope reduction (W16-5 doc-only e21a05c — dedupe-step-progress-schemas REJECTED; heartbeat-sandbox-reset-off-thread + heartbeat-refactor DEFERRED to W17), marketplace-router-test-suite-split + test-import-graph-policy-dump-split + w13-4-alembic-roundtrip-programmatic (W16-6, d40bb01), close-out hygiene (W16-7, 8bf3c6b) + post-PR unaccounted_dropout surface pin (78f080e). W15 closed via PR #22 MERGED 2026-05-18 via 6161472; W14 closed via PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d)`
 
 Open deferred work after the W0-W7 PoC acceptance bar. **Slim canonical** —
 verbose closure rationales, evidence paragraphs, and per-iter Note columns
@@ -12,18 +12,21 @@ stable ID + landing commit; full context in the snapshot.
 - previous full snapshot:
   [`archive/backlog/POST_POC_BACKLOG_full_2026-05-11.md`](archive/backlog/POST_POC_BACKLOG_full_2026-05-11.md)
 
-W8-W15 are closed; W13 close-out PR #20 `week13 -> main` **MERGED**
+W8-W16 are closed; W13 close-out PR #20 `week13 -> main` **MERGED**
 `2026-05-13` via `772deb3`; W14 close-out PR #21 `week14 -> main`
-**MERGED** `2026-05-14` via `4e03c8d`; **W15 close-out PR #22
-`week15 -> main` MERGED `2026-05-18` via `6161472`**. **W16 active**
-on the `week16` branch (per user direction 2026-05-18; W11-W15 paterni
-restored via W16-0 doc reconcile); W16-1..W16-7 planned (pull-forward
+**MERGED** `2026-05-14` via `4e03c8d`; W15 close-out PR #22
+`week15 -> main` **MERGED** `2026-05-18` via `6161472`; **W16 close-out
+PR #23 `week16 -> main` MERGED `2026-05-18` via `1b6d43f`**.
+**W17 active** on the `week17` branch (per user direction 2026-05-18;
+W11-W16 paterni preserved); W17-1..W17-6 reserved (pull-forward
 table below). W14 tracker:
 [`active-work/W14-codex-acceptance-observability.md`](active-work/W14-codex-acceptance-observability.md);
 W15 tracker (frozen):
 [`active-work/W15-codex-uclass-bounds-posture.md`](active-work/W15-codex-uclass-bounds-posture.md);
-W16 tracker (active):
-[`active-work/W16-regression-and-audit-closeout.md`](active-work/W16-regression-and-audit-closeout.md).
+W16 tracker (frozen):
+[`active-work/W16-regression-and-audit-closeout.md`](active-work/W16-regression-and-audit-closeout.md);
+W17 tracker (active):
+[`active-work/W17-carryover-and-lifecycle-harness.md`](active-work/W17-carryover-and-lifecycle-harness.md).
 
 ## Stable IDs Are A Contract
 
@@ -85,13 +88,12 @@ per-iter Per-Item Detail evidence in the W15 tracker + archive snapshot.
 | W15-6 | `[FOLLOWUP codex-2026-05-10-U10-U11-unauth-catalog-endpoints]` (ADR 0011 Accepted + implemented, Option A) | `be52520` (Proposed at `e41722e`) |
 | W15-7 | `[FOLLOWUP compose-image-mutable-ref-pin]` + `[FOLLOWUP gh-action-trivy-version-pin]` + close-out hygiene | `54e7a93` + `7ebbbfb` + `452f1a1` + `7ff31d9` (early pulls `a7a876e` + `2573e35`) |
 
-## W16 Pull-Forward Acceptance Bar (planned)
+## W16 Pull-Forward Acceptance Bar
 
-W16 active on the `week16` branch (per user direction 2026-05-18;
-W11-W15 paterni restored via W16-0 doc reconcile). Stable IDs reserved
-by §14 plan; each row assigned **at first pull** per the
-W11/W12/W13/W14/W15 precedent. Close-out merges into `main` via a
-`week16 -> main` PR.
+W16 closed `2026-05-18` and merged via PR #23 `week16 -> main`
+(`1b6d43f`). All rows below are closed audit trail; full Per-Item
+Detail evidence in the frozen tracker
+[`active-work/W16-regression-and-audit-closeout.md`](active-work/W16-regression-and-audit-closeout.md).
 
 | Iter | Stable ID(s) (planned) | Landing commit |
 |---|---|---|
@@ -102,6 +104,23 @@ W11/W12/W13/W14/W15 precedent. Close-out merges into `main` via a
 | W16-5 | `[FOLLOWUP simulation-progress-cancel]` umbrella (3 sub-items) — scope reduced: `dedupe-step-progress-schemas` **rejected** (distinct surface roles), `heartbeat-sandbox-reset-off-thread` + `heartbeat-refactor` **deferred to W17+** (lifecycle harness prerequisite). | documented in tracker (no code commit) |
 | W16-6 | `[CLEANUP marketplace-router-test-suite-split]` (2374 LoC → 5 endpoint-grouped files) + `[CLEANUP test-import-graph-policy-dump-split]` (767 LoC → 4 thematic files) + `[FOLLOWUP w13-4-alembic-roundtrip-programmatic]` (skip removed; `fresh_alembic_engine` per-test throwaway Postgres DB) | `d40bb01` |
 | W16-7 | close-out hygiene + canonical preamble refresh + W16 tracker freeze + `week16 -> main` close-out PR + post-PR `unaccounted_dropout` surface pin (security lane 217 → 220) | `8bf3c6b` + `78f080e` (post-PR top-up); PR #23 MERGED `2026-05-18` via `1b6d43f` |
+
+## W17 Pull-Forward Acceptance Bar (planned)
+
+W17 active on the `week17` branch (per user direction 2026-05-18;
+W11-W16 paterni preserved). Stable IDs reserved by §15 plan; each row
+assigned **at first pull** per the W11/W12/W13/W14/W15/W16 precedent.
+Close-out merges into `main` via a `week17 -> main` PR.
+
+| Iter | Stable ID(s) (planned) | Landing commit |
+|---|---|---|
+| W17-0 | doc-direction reconcile — `week17` branch + `week17 -> main` close-out PR wording across canonical docs; W11-W16 paterni preserved | _in progress 2026-05-18_ |
+| W17-1 | `[FOLLOWUP attribution-count-parity]` (W16-3 carry-over; producer-side parity at `target_activation_count` vs evidence-kind count; report-finalize / `attribution_summary`) | reserved |
+| W17-2 | lifecycle harness scaffold (enabler for W17-3/4 — `start → reset → cancel → finalize` against real Postgres DB via `fresh_alembic_engine` + Playwright mock; `tests/integration/lifecycle_harness/` likely home; W17's heaviest parça) | reserved |
+| W17-3 | `[FOLLOWUP simulation-progress-cancel] heartbeat-sandbox-reset-off-thread` (W16-5 carry-over, harness-gated; W13-1 HMAC + W13-12 fail-closed + W13-13 CAS pattern byte-identical) | reserved |
+| W17-4 | `[FOLLOWUP simulation-progress-cancel] heartbeat-refactor` (W16-5 carry-over, W17-3 üzerine, byte-identical clarity refactor) | reserved |
+| W17-5 | hygiene cleanup batch — aday set `[CLEANUP env-example-extrace-vars]` + `[CLEANUP postgres-version-fact-drift]` + `[CLEANUP adr-0007-runbook-wording-drift]` + `[CLEANUP pre-commit-python-version-alignment]` + `[CLEANUP report-builder-naming]` (alt: `[CLEANUP monitor-runtime-naming-overlap]`); final seçim W17-5 entry'de | reserved |
+| W17-6 | close-out hygiene + canonical preamble refresh across 7 docs + §15 self-stamp post-merge W17 final bar + backlog item statuses (closed items → DONE/CLOSED audit trail) + `week17 -> main` close-out PR | reserved |
 
 ## Codex Cloud Audit Backlog
 
