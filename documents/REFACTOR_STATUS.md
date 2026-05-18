@@ -103,7 +103,11 @@ phase evidence is frozen under dated snapshots:
   (marketplace-router + test-import-graph) + Alembic round-trip
   fixture, and close-out hygiene. **Close-out via `week16 -> main`
   PR** (W11-W15 paterni restored 2026-05-18); sub-iter commits land
-  on `week16` and the W16 tracker freezes at scope close.
+  on `week16` and the W16 tracker freezes at scope close. **W16-1
+  pulled `2026-05-18` via `01f910a`** (dispatch outcome=None emit-site
+  closed; `[FOLLOWUP scenario-accountant-conservation-split]` marked
+  dispatch-layer-closed in `POST_POC_BACKLOG.md`); W16-2..W16-7
+  remain pending.
 
 ## W13 Status Summary
 

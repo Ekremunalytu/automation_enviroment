@@ -1,7 +1,7 @@
 # W16 — Carry-Over Closeout + Audit Findings + Production Regression (Active Work Tracker)
 
-`Last Updated: 2026-05-18 (W16 active on week16 branch (per user direction 2026-05-18; W11-W15 paterni restored via W16-0 doc reconcile); W15 closed via PR #22 week15 -> main MERGED 2026-05-18 via 6161472; W16 scope authored 2026-05-18 against main HEAD 6161472; 7 sub-iter (W16-1..W16-7) reserved by §14 plan and assigned at first pull per W11/W12/W13/W14/W15 precedent; first pull pending)`
-`Phase: W16 active (W16-1..W16-7 reserved, none yet pulled; commits land on week16 branch, close-out via week16 -> main PR — W11-W15 paterni restored 2026-05-18 via W16-0)`
+`Last Updated: 2026-05-18 (W16 active on week16 branch (per user direction 2026-05-18; W11-W15 paterni restored via W16-0 doc reconcile); W15 closed via PR #22 week15 -> main MERGED 2026-05-18 via 6161472; W16 scope authored 2026-05-18 against main HEAD 6161472; 7 sub-iter (W16-1..W16-7) reserved by §14 plan and assigned at first pull per W11/W12/W13/W14/W15 precedent; W16-1 pulled 2026-05-18 via 01f910a (dispatch outcome=None emit-site closed); W16-2..W16-7 pending)`
+`Phase: W16 active (W16-1 pulled 01f910a; W16-2..W16-7 reserved, none yet pulled; commits land on week16 branch, close-out via week16 -> main PR — W11-W15 paterni restored 2026-05-18 via W16-0)`
 `Branch: week16 (per user direction 2026-05-18; W11-W15 paterni restored via W16-0 doc reconcile; close-out merges into main via week16 -> main PR)`
 `Owner: ekrem`
 
@@ -41,9 +41,11 @@ Detail trimmed until each sub-iter is pulled (drift kontrolü).
   `simulation-progress-cancel` family,
   `w13-4-alembic-roundtrip-programmatic`) listed in
   `POST_POC_BACKLOG.md` Current Open Items + W16 Pull-Forward table.
-- **First pull pending.** Severity-leading order (W16-1: HIGH prod
-  regression first). All seven sub-iter rows below remain `[planned]`
-  until the corresponding pull lands.
+- **W16-1 pulled `2026-05-18` via `01f910a`** (HIGH prod regression,
+  severity-leading). Dispatch outcome=None upstream emit-site closed
+  at `executor/flows/playwright/entrypoint/dispatch.py` (`dispatch_outcome_none`
+  reason_code now emitted per requested scenario). W16-2..W16-7
+  remain `[planned]` until the corresponding pull lands.
 
 ## Sub-Iter Scope (planned)
 
@@ -87,11 +89,87 @@ Production Validation, Notes. Stable ID line is added on pull commit.
 
 ### W16-1 — scenario-accountant upstream emit-site fix
 
-_[Placeholder — filled at pull. Will document: deterministic repro
-fixture (red), emit-site fix (green), candidate modules
-(`workflows/marketplace/dispatch._normalize_execution_result`,
-`workflows/.../stimulus_passes/*`, `packages/.../scenario_accountant.py`),
-expected production replay outcome, test deltas, landing commit.]_
+**Pulled `2026-05-18` via `01f910a`** (severity-leading W16 item; HIGH
+prod regression). Closes the dispatch-layer half of the W14-1
+carry-over emit-site.
+
+**Scope:** `_normalize_execution_result` outcome=None branch
+(`executor/flows/playwright/entrypoint/dispatch.py:91-118` post-fix)
+now constructs a
+`SkippedScenarioRecord(reason_code="dispatch_outcome_none", detail=...)`
+for each requested scenario instead of leaving them to the downstream
+conservation guard's `unaccounted_dropout` fallback. The W14-1
+last-mile guard
+(`ScenarioAccountant._validate_scenario_conservation`,
+`executor/flows/playwright/monitor/scenario_accountant.py:392-438`)
+remains as the catch-all for any non-dispatch silent drop sites; the
+W14-1 boundary vectors in
+`tests/security/test_scenario_dropout_repro.py` retain their pre-W16-1
+semantics on purpose.
+
+**Module locations:**
+- `executor/flows/playwright/entrypoint/dispatch.py:91-118` —
+  outcome=None branch with the W16-1 instrumentation.
+- `executor/flows/playwright/stimulus/types.py:48-51` +
+  `executor/flows/playwright/stimulus/__init__.py:85,93` —
+  `SkippedScenarioRecord` already exported via stimulus
+  `__init__.py`; the dispatch normalizer constructs it via
+  `deps.stimulus.SkippedScenarioRecord` (no schema change).
+- `executor/flows/playwright/monitor/scenario_accountant.py:124-152`
+  (`record_execution_result`) — unchanged; consumes the result's
+  `skipped_scenarios` by `getattr` so the new entries flow through
+  to the report without modification.
+
+**Adjacent emit-site audit (W16-1 closure context):**
+- `executor/flows/playwright/stimulus/passes.py:102-158` — already
+  records specific reasons (`prerequisite_blocked`,
+  `unsupported_activation_surface`, `unknown_scenario`) per W11+
+  wiring.
+- `executor/flows/playwright/automation.py:275-365` — accounts every
+  requested scenario by design (no silent drops).
+- `executor/flows/playwright/entrypoint/triggers.py:22-38` — planner
+  selects but does not drop scenarios.
+
+The remaining surface for new `unaccounted_dropout` observations would
+indicate an undiscovered emit-site, not the dispatch outcome=None bug
+class (now closed).
+
+**Test deltas (`tests/security/test_scenario_dropout_repro.py`, +97 LoC):**
+- Module docstring W16-1 closure note appended (W14-1 record-of-state
+  retained above it).
+- `test_dispatch_outcome_none_emits_specific_reason_code` —
+  3 requested scenarios produce 3 `SkippedScenarioRecord`s with
+  `reason_code='dispatch_outcome_none'` + non-empty `detail`.
+- `test_dispatch_outcome_none_emits_nothing_when_no_requested_scenarios`
+  — empty `requested_scenarios` = no-op (no phantom records).
+- Existing W14-1 vectors stay green (last-mile fallback semantics
+  preserved for non-dispatch sites).
+
+**Pre-merge test counts (W16-1 close):**
+- `tests/security/test_scenario_dropout_repro.py`: **9 passed**
+  (W14-1 close: 7 passed).
+- `tests/executor/test_playwright_monitor_scenario_accountant.py`:
+  **48 passed** (unchanged).
+- `tests/executor/test_playwright_dispatch.py +
+  test_playwright_entrypoint.py`: **53 passed** (unchanged).
+- `tests/architecture/` + `make test-security` full sweep recorded
+  at W16-7 close-out per W14/W15 paterni.
+
+**Production replay coverage:** Bug class observed `2026-05-14`
+(15:15, `ms-python.python` 2026.5.2026051301) + `2026-05-15` 09:51
+(deterministic `debug_session` + `refactor_workflow` drop with
+`unaccounted_dropout` reason_code) is closed at the dispatch
+outcome=None layer; production-only confirmation deferred to the
+next live executor run (no new fixture artifact at W16-1 commit).
+
+**Landing commit:** `01f910a` (test + instrumentation co-landed; no
+separate red-then-green sub-commits because the new tests pin the
+post-W16-1 contract directly).
+
+**Audit trail:** `[FOLLOWUP scenario-accountant-conservation-split]`
+in `POST_POC_BACKLOG.md` marked **dispatch layer closed at W16-1**;
+surrounding W14-1 production-observation prose retained to preserve
+the pre-W16-1 truth-state.
 
 ### W16-2 — analysis-job worker-entry CRUD ownership
 

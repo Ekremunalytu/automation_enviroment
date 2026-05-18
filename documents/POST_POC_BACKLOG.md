@@ -95,7 +95,7 @@ W11/W12/W13/W14/W15 precedent. Close-out merges into `main` via a
 
 | Iter | Stable ID(s) (planned) | Landing commit |
 |---|---|---|
-| W16-1 | `[FOLLOWUP scenario-accountant-conservation-split]` (W14-1 root-cause split; HIGH prod regression) | _pending pull_ |
+| W16-1 | `[FOLLOWUP scenario-accountant-conservation-split]` (W14-1 root-cause split; HIGH prod regression — dispatch-layer outcome=None emit-site closed) | `01f910a` |
 | W16-2 | `[FOLLOWUP analysis-job-worker-entry-crud-ownership]` (W15 audit finding; row-lock-aware lifecycle CRUD primitive) | _pending pull_ |
 | W16-3 | `[FOLLOWUP report-finalize-top-level-field-sync-drift]` (W14 production scan-driven investigation) | _pending pull_ |
 | W16-4 | `[FOLLOWUP health-reconciliation-responsibility-split]` (W15 audit finding; behavior-preserving extraction; W13-1 HMAC gates preserved) | _pending pull_ |
@@ -197,18 +197,35 @@ Closed (one-line audit trail):
   same downstream symptoms. The dropout is **deterministic** across
   runs and **not** a side effect of the W15-1/W15-2 changes; the
   upstream emit-site bug class is reproducible without retry.
-- `[FOLLOWUP scenario-accountant-conservation-split]` — **pulled to W16-1** (HIGH prod regression, severity-leading W16 item). Upstream emit-site
-  work (planner / `stimulus_passes` / `dispatch._normalize_execution_result`);
-  separate pull, W15+ candidate. **Observed in production
-  `2026-05-14`:** debug_session + refactor_workflow drop edildiğinde
-  `run_quality: low`, `automation_health.status: degraded`,
-  `verification_gap: 2` (debug + terminal_tasks capability'leri verify
-  edilemedi — dropout'un türevi). `signal_summary.level: needs_review`
-  (score 28) — extension için risk_signals 0 olmasına rağmen attribution
+- `[FOLLOWUP scenario-accountant-conservation-split]` — **dispatch
+  layer closed at W16-1** via `01f910a` (HIGH prod regression,
+  severity-leading W16 item). `dispatch._normalize_execution_result`
+  outcome=None branch now emits `dispatch_outcome_none` (`reason_code`
+  + non-empty `detail`) for each requested scenario instead of leaving
+  them to the downstream
+  `ScenarioAccountant._validate_scenario_conservation` last-mile
+  guard's `unaccounted_dropout` fallback. Adjacent emit-site audit
+  (W16-1 closure context): `executor/flows/playwright/stimulus/passes.py`
+  already records specific reasons (`prerequisite_blocked`,
+  `unsupported_activation_surface`, `unknown_scenario`) at L102-158
+  per W11+; `executor/flows/playwright/automation.py` accounts every
+  requested scenario by design (no silent drops at L275-365); planner
+  (`executor/flows/playwright/entrypoint/triggers.py:22-38`) does not
+  drop. Any new `unaccounted_dropout` surface would indicate an
+  undiscovered emit-site, not the dispatch outcome=None bug class
+  (now closed). **Observed in production `2026-05-14`:** debug_session
+  + refactor_workflow drop edildiğinde `run_quality: low`,
+  `automation_health.status: degraded`, `verification_gap: 2`
+  (debug + terminal_tasks capability'leri verify edilemedi —
+  dropout'un türevi). `signal_summary.level: needs_review` (score 28)
+  — extension için risk_signals 0 olmasına rağmen attribution
   korelatif kaldığı için manuel review öneriliyor. **Deterministic
   confirmation `2026-05-15` 09:51** — bir saatlik rebuild + ikinci
   scan aynı state'i raporladı; root cause non-intermittent, repro
-  fixture senkron çekilebilir.
+  fixture senkron çekilebilir. **W16-1 test pins:**
+  `test_dispatch_outcome_none_emits_specific_reason_code` +
+  `test_dispatch_outcome_none_emits_nothing_when_no_requested_scenarios`
+  (`tests/security/test_scenario_dropout_repro.py`).
 - `[FOLLOWUP report-finalize-top-level-field-sync-drift]` — **pulled to W16-3** (couples with W16-1 scenario-accountant fix; finalize ordering). Production
   scan `activation_report_*.json` carries `null` for several top-level
   fields (`target_extension_id`, `monitoring_start`/`monitoring_end`,
