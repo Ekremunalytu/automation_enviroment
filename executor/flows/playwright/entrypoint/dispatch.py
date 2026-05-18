@@ -89,10 +89,32 @@ def _normalize_execution_result(outcome, *, deps, requested_scenarios: list[str]
         return result
 
     if outcome is None:
-        return _empty_execution_result(
+        # W16-1: stimulus dispatch collapsed (run_stimulus_plan /
+        # run_selected_scenarios / run_all_scenarios returned None) and
+        # every requested scenario is about to silently vanish. Emit a
+        # specific ``dispatch_outcome_none`` reason for each one so the
+        # downstream ``ScenarioAccountant._validate_scenario_conservation``
+        # last-mile guard no longer has to fall back to the generic
+        # ``unaccounted_dropout`` label. This is the upstream emit-site
+        # fix for the W14-1 carry-over bug class observed deterministically
+        # in production on 2026-05-14 + 2026-05-15.
+        result = _empty_execution_result(
             deps=deps,
             requested_scenarios=requested_scenarios,
         )
+        result.skipped_scenarios = [
+            deps.stimulus.SkippedScenarioRecord(
+                name=str(name).strip(),
+                reason_code="dispatch_outcome_none",
+                detail=(
+                    "Stimulus dispatcher returned None; every requested "
+                    "scenario silently dropped at the dispatch normalizer."
+                ),
+            )
+            for name in requested_scenarios
+            if str(name).strip()
+        ]
+        return result
 
     if not hasattr(outcome, "requested_scenarios") or not getattr(
         outcome, "requested_scenarios", None
