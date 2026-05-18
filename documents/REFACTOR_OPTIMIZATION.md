@@ -1,6 +1,6 @@
 # REFACTOR_OPTIMIZATION
 
-`Last Updated: 2026-05-18 (W17 active — authoring on week17 branch per user direction; W16 closed via PR #23 week16 -> main MERGED 2026-05-18 via 1b6d43f. §15 W17 plan source — sub-iter slate W17-0..W17-6 reserved: W17-0 doc-reconcile (in progress); W17-1 attribution-count-parity closeout (W16-3 carry-over); W17-2 lifecycle harness scaffold (enabler); W17-3 heartbeat-sandbox-reset-off-thread (W16-5 carry-over, harness-gated); W17-4 heartbeat-refactor (W16-5 carry-over, byte-identical); W17-5 hygiene cleanup batch; W17-6 close-out hygiene + §15 self-stamp. Entry gate post-merge bar (recorded at W16-7 + post-PR 78f080e): tests/architecture/ 199 passed; make test-security 220 passed; full suite 1893 passed, 9 skipped. §14 W16 plan source — sub-iter slate fully delivered: W16-0 doc-reconcile (0e243ca + d78aa9c); W16-1 scenario-accountant emit-site fix (HIGH prod regression W14-1 carry-over, 01f910a + a4a050e); W16-2 analysis-job worker-entry CRUD ownership (W15 audit, 9d6d110 + c8b7811); W16-3 report-finalize null-leakage half (W14 carry-over, fa430f2 + e3d4a0c; attribution-count-parity split to W17 as [FOLLOWUP attribution-count-parity]); W16-4 health-reconciliation responsibility split (W15 audit, 304b99f + 384d276); W16-5 simulation-progress-cancel scope reduction (1 rejected, 2 deferred to W17 — heartbeat-sandbox-reset-off-thread + heartbeat-refactor, e21a05c); W16-6 hygiene splits + Alembic fresh-DB fixture (d40bb01); W16-7 close-out hygiene + canonical preamble refresh (8bf3c6b) + post-PR unaccounted_dropout surface pin (78f080e). W15 closed via PR #22 week15 -> main MERGED 2026-05-18 via 6161472; W14 closed via PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d)`
+`Last Updated: 2026-05-18 (W17 active — phase work complete; close-out via week17 -> main PR pending (no push per user direction 2026-05-18); W16 closed via PR #23 week16 -> main MERGED 2026-05-18 via 1b6d43f. §15 W17 plan source — sub-iter slate W17-0..W17-6 complete: W17-0 doc-reconcile (4508c2e); W17-1 attribution-count-parity closeout (8c26d02 + 0a8f59e self-stamp); W17-2 lifecycle harness scaffold (ff98235 + 44f96c5 self-stamp); W17-3 + W17-4 scope-reduced doc-only (c4c0646 — DESIGN-NEEDED for thread-relocation refactor shape; deferred to W18); W17-5 hygiene single-item (394d40d postgres-version-fact-drift + 0cbe1d0 self-stamp; other 4 candidates deferred to W18+ pull-as-found); W17-6 close-out hygiene + canonical preamble refresh. Final W17 bar: tests/architecture/ 200 passed (W16 final 199, +1 from W17-0 W16 close-out fact gate); make test-security 217 passed (hardcoded Makefile target list; W16-7-followup test_unaccounted_dropout_surface.py +3 not yet in the list — flagged for W18 makefile-target hygiene); full suite 1899 passed, 9 skipped, 4 deselected (W16 final 1893, +6: 4 W17-1 invariant tests + 1 W17-0 README phase-pointer gate + 1 W17-2 harness smoke). §14 W16 plan source — sub-iter slate fully delivered: W16-0 doc-reconcile (0e243ca + d78aa9c); W16-1 scenario-accountant emit-site fix (HIGH prod regression W14-1 carry-over, 01f910a + a4a050e); W16-2 analysis-job worker-entry CRUD ownership (W15 audit, 9d6d110 + c8b7811); W16-3 report-finalize null-leakage half (W14 carry-over, fa430f2 + e3d4a0c; attribution-count-parity split to W17 as [FOLLOWUP attribution-count-parity]); W16-4 health-reconciliation responsibility split (W15 audit, 304b99f + 384d276); W16-5 simulation-progress-cancel scope reduction (1 rejected, 2 deferred to W17 — heartbeat-sandbox-reset-off-thread + heartbeat-refactor, e21a05c); W16-6 hygiene splits + Alembic fresh-DB fixture (d40bb01); W16-7 close-out hygiene + canonical preamble refresh (8bf3c6b) + post-PR unaccounted_dropout surface pin (78f080e). W15 closed via PR #22 week15 -> main MERGED 2026-05-18 via 6161472; W14 closed via PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d)`
 
 W0-W14 plan document: stabilization + security + post-PoC external-review
 integration + W14 acceptance + observability continuation. **Slim canonical**
@@ -35,8 +35,10 @@ row with stable ID + landing commit; full context in the snapshot.
   merged via `1b6d43f` on `2026-05-18`.** Frozen tracker:
   [`active-work/W16-regression-and-audit-closeout.md`](active-work/W16-regression-and-audit-closeout.md).
 - §15 → W17 Carry-Over Closeout + Lifecycle Harness Yatırımı +
-  Hygiene Sweep — **active `2026-05-18` on the `week17` branch (per
-  user direction; W11-W16 paterni preserved).** Active tracker:
+  Hygiene Sweep — **phase work complete `2026-05-18` on the
+  `week17` branch (per user direction; W11-W16 paterni preserved);
+  close-out via `week17 -> main` PR pending (no push per user
+  direction).** Active tracker:
   [`active-work/W17-carryover-and-lifecycle-harness.md`](active-work/W17-carryover-and-lifecycle-harness.md).
 
 ## §10 — W0-W7 PoC Stabilization Window (closed 2026-04-23)
@@ -431,18 +433,25 @@ W16 kapanır şu koşullar sağlandığında:
   `week16 -> main` PR ile merge edilir; W16 tracker scope kapanışında
   frozen olur (W11-W15 paterni).
 
-## §15 — W17 Carry-Over Closeout + Lifecycle Harness Yatırımı + Hygiene Sweep (active 2026-05-18 on week17 branch)
+## §15 — W17 Carry-Over Closeout + Lifecycle Harness Yatırımı + Hygiene Sweep (phase work complete 2026-05-18 on week17 branch; close-out PR pending)
 
 §15 opened with the W16 close-out PR #23 `week16 -> main` merge on
 `2026-05-18` via `1b6d43f`. **Per user direction (2026-05-18) W17
 lives on a `week17` branch (W11-W16 paterni preserved); close-out
-merges into `main` via a `week17 -> main` PR.** Active tracker:
+merges into `main` via a `week17 -> main` PR — PR creation
+**pending** ("push yapma" user direction `2026-05-18`).** Active
+tracker:
 [`active-work/W17-carryover-and-lifecycle-harness.md`](active-work/W17-carryover-and-lifecycle-harness.md)
 carries per-iter scope locks, candidate items, and Per-Item Detail
-evidence (assigned at first pull). Entry gate post-merge bar
-(recorded at W16-7 close-out + post-PR `78f080e` top-up):
-`tests/architecture/` **199 passed**; `make test-security` **220
-passed**; full suite **1893 passed, 9 skipped**.
+evidence. W17-0..W17-6 sub-iter slate complete `2026-05-18`. Final
+W17 bar (recorded at W17-6 close-out): `tests/architecture/` **200
+passed** (W16 final 199, +1 from W17-0 README phase-pointer gate
+transition); `make test-security` **217 passed** (hardcoded
+Makefile target list; W16-7-followup `test_unaccounted_dropout_surface.py`
++3 not yet in the list — flagged for W18 makefile-target hygiene);
+full suite **1899 passed, 9 skipped, 4 deselected** (W16 final
+1893, +6: 4 W17-1 invariant tests + 1 W17-0 README phase-pointer
+gate + 1 W17-2 harness smoke).
 
 | Iter | Status | Theme |
 |---|---|---|
@@ -452,7 +461,7 @@ passed**; full suite **1893 passed, 9 skipped**.
 | W17-3 | **scope-reduced `2026-05-18`** (doc-only commit — DESIGN-NEEDED for thread-relocation refactor shape; W17-2 harness prerequisite met but worker-thread step-1 reset is a HARD SYNC POINT for W13-11 HMAC secret consume, and the heartbeat thread starts only at step 4 — multiple plausible refactor shapes have different invariant cost; deferred to W18 dedicated sub-iter opening with ADR / §16 plan entry) | _deferred to W18 (doc-only)_ |
 | W17-4 | **scope-reduced `2026-05-18`** (doc-only commit — bundled with W17-3 thread-relocation design decision; refactoring heartbeat shape in isolation would land throw-away work) | _deferred to W18 (doc-only)_ |
 | W17-5 | **closed `2026-05-18`** via `394d40d` (`[CLEANUP postgres-version-fact-drift]` half closed at `seed_project_2.py` synthetic-fixture `postgres:15 -> postgres:16-alpine` stack alignment; other 4 candidate `[CLEANUP]` items deferred to W18+ opportunistic pull-as-found — they lack inline scope descriptions in the backlog and need per-item owner discovery) | `394d40d` |
-| W17-6 | reserved | Close-out hygiene + canonical preamble refresh + §15 self-stamp |
+| W17-6 | **closed `2026-05-18`** (close-out hygiene: canonical preamble refresh across 7 docs + §15 self-stamp post-final-bar + W17 tracker freeze; close-out via `week17 -> main` PR pending per user "push yapma" direction `2026-05-18`) | this commit |
 
 ### §15.0 — Neden ayrı §15
 

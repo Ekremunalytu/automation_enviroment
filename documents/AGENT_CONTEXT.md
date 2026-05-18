@@ -1,6 +1,6 @@
 # Agent Context
 
-`Last Updated: 2026-05-18 (W17 active — authoring on week17 branch per user direction; W16 closed via PR #23 week16 -> main MERGED 2026-05-18 via 1b6d43f. W17-0 doc-reconcile in progress; W17-1..W17-6 reserved: attribution-count-parity closeout (W16-3 carry-over), lifecycle harness scaffold (enabler), heartbeat-sandbox-reset-off-thread (W16-5 carry-over), heartbeat-refactor (W16-5 carry-over), hygiene cleanup batch, close-out hygiene + §15 self-stamp. Plan REFACTOR_OPTIMIZATION.md §15, active tracker active-work/W17-carryover-and-lifecycle-harness.md. Entry gate post-merge bar: tests/architecture/ 199 passed; make test-security 220 passed; full suite 1893 passed, 9 skipped. W16-0..W16-7 sub-iter slate complete: W16-1 scenario-accountant emit-site fix (01f910a); W16-2 analysis-job worker-entry CRUD ownership (9d6d110); W16-3 report-finalize null-leakage half (fa430f2; attribution-count-parity split to W17); W16-4 health-reconciliation responsibility split (304b99f); W16-5 simulation-progress-cancel scope reduction (1 rejected, 2 deferred to W17, e21a05c); W16-6 hygiene splits + Alembic fresh-DB fixture (d40bb01); W16-7 close-out hygiene (8bf3c6b) + post-PR unaccounted_dropout surface pin (78f080e). Frozen tracker active-work/W16-regression-and-audit-closeout.md. W15 closed via PR #22 MERGED 2026-05-18 via 6161472; W14 closed via PR #21 MERGED 2026-05-14 via 4e03c8d)`
+`Last Updated: 2026-05-18 (W17 active — phase work complete; close-out via week17 -> main PR pending (no push per user direction 2026-05-18); W16 closed via PR #23 week16 -> main MERGED 2026-05-18 via 1b6d43f. W17-0..W17-6 sub-iter slate complete: W17-0 doc-reconcile (4508c2e); W17-1 attribution-count-parity (8c26d02 + 0a8f59e); W17-2 lifecycle harness scaffold (ff98235 + 44f96c5); W17-3 + W17-4 scope-reduced (c4c0646 DESIGN-NEEDED, deferred to W18); W17-5 hygiene single-item (394d40d + 0cbe1d0); W17-6 close-out this commit. Plan REFACTOR_OPTIMIZATION.md §15, active tracker active-work/W17-carryover-and-lifecycle-harness.md. Final W17 bar: tests/architecture/ 200 passed; make test-security 217 passed; full suite 1899 passed, 9 skipped, 4 deselected (+6 from W16 final 1893). W16-0..W16-7 sub-iter slate complete: W16-1 scenario-accountant emit-site fix (01f910a); W16-2 analysis-job worker-entry CRUD ownership (9d6d110); W16-3 report-finalize null-leakage half (fa430f2; attribution-count-parity split to W17); W16-4 health-reconciliation responsibility split (304b99f); W16-5 simulation-progress-cancel scope reduction (1 rejected, 2 deferred to W17, e21a05c); W16-6 hygiene splits + Alembic fresh-DB fixture (d40bb01); W16-7 close-out hygiene (8bf3c6b) + post-PR unaccounted_dropout surface pin (78f080e). Frozen tracker active-work/W16-regression-and-audit-closeout.md. W15 closed via PR #22 MERGED 2026-05-18 via 6161472; W14 closed via PR #21 MERGED 2026-05-14 via 4e03c8d)`
 
 Thin routing map for coding agents after `AGENTS.md`. **Stays short.**
 Do not copy phase history here; use `REFACTOR_STATUS.md` (slim canonical).
@@ -22,11 +22,11 @@ Do not copy phase history here; use `REFACTOR_STATUS.md` (slim canonical).
   `2026-05-18`; **W16 merged via PR #23 (`1b6d43f`) on `2026-05-18`**.
   Past W8/W11/W12/W13/W14/W15/W16 trackers remain only for stable IDs
   referenced by code/tests. **Active phase:** W17 — Carry-Over
-  Closeout + Lifecycle Harness Yatırımı + Hygiene Sweep (active
-  `2026-05-18` **on the `week17` branch per user direction (W11-W16
-  paterni preserved 2026-05-18)**; sub-iter commits land on `week17`
-  and the close-out is merged into `main` via a `week17 -> main` PR).
-  Active tracker:
+  Closeout + Lifecycle Harness Yatırımı + Hygiene Sweep (**phase
+  work complete `2026-05-18`** on the `week17` branch per user
+  direction (W11-W16 paterni preserved 2026-05-18); **close-out via
+  `week17 -> main` PR pending** (no push per user "push yapma"
+  direction `2026-05-18`)). Active tracker:
   `active-work/W17-carryover-and-lifecycle-harness.md`. For current
   closure state always defer to `REFACTOR_STATUS.md`.
 - Architecture: `ARCHITECTURE.md` (slim) + `architecture/` splits.
