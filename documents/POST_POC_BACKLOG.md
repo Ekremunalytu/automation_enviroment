@@ -98,7 +98,7 @@ W11/W12/W13/W14/W15 precedent. Close-out merges into `main` via a
 | W16-1 | `[FOLLOWUP scenario-accountant-conservation-split]` (W14-1 root-cause split; HIGH prod regression — dispatch-layer outcome=None emit-site closed) | `01f910a` |
 | W16-2 | `[FOLLOWUP analysis-job-worker-entry-crud-ownership]` (W15 audit finding; row-lock-aware lifecycle CRUD primitive — closed at facade boundary) | `9d6d110` |
 | W16-3 | `[FOLLOWUP report-finalize-top-level-field-sync-drift]` (W14 production scan-driven investigation — null-leakage half closed at contract seam; attribution-count parity split to follow-up) | `fa430f2` |
-| W16-4 | `[FOLLOWUP health-reconciliation-responsibility-split]` (W15 audit finding; behavior-preserving extraction; W13-1 HMAC gates preserved) | _pending pull_ |
+| W16-4 | `[FOLLOWUP health-reconciliation-responsibility-split]` (W15 audit finding; behavior-preserving extraction; W13-1 HMAC + W13-12 fail-closed gates preserved) | `304b99f` |
 | W16-5 | `[FOLLOWUP simulation-progress-cancel] heartbeat-sandbox-reset-off-thread` + `dedupe-step-progress-schemas` + `heartbeat-refactor` (W11+ umbrella closeout) | _pending pull_ |
 | W16-6 | `[CLEANUP marketplace-router-test-suite-split]` + `[CLEANUP test-import-graph-policy-dump-split]` + `[FOLLOWUP w13-4-alembic-roundtrip-programmatic]` | _pending pull_ |
 | W16-7 | close-out hygiene + canonical preamble refresh + `week16 -> main` close-out PR (W11-W15 paterni restored) | _pending pull_ |
@@ -325,18 +325,43 @@ Closed: `[FOLLOWUP evidence-event-kind-raw-context-invariant]` — W14-4
   (`test_import_isolation.py` / `test_facade_locks.py` /
   `test_executor_invocation.py` / `test_monitor_stimulus_boundary.py`)
   improves discoverability.
-- `[FOLLOWUP health-reconciliation-responsibility-split]` — **pulled to W16-4**
-  (behavior-preserving extraction; W13-1 HMAC gates must not regress).
-  `executor/flows/playwright/health/reconciliation.py` (682 LoC) carries
-  security-sensitive (HMAC marker verification at :78, fail-closed
-  harness handshake decisions, harness Python secret loading at :39) +
-  report-accuracy (event-attempt reconciliation at :414, coverage
-  reconciliation at :581) decisions in one module. Risk class:
-  change-safety drift — the same file owns both fail-closed security
-  gates (W13-1 / Codex H6 HMAC anchor) and report-coverage classification.
-  A future small edit could regress security or report fidelity without
-  the reviewer noticing the cross-concern coupling. Recommendation:
-  map responsibility boundaries first (which functions own which risk
+- `[FOLLOWUP health-reconciliation-responsibility-split]` — **closed at
+  W16-4** via `304b99f` (behavior-preserving extraction; W13-1 HMAC
+  + W13-12 fail-closed gates preserved). The 682-LoC monolith
+  `executor/flows/playwright/health/reconciliation.py` split into three
+  responsibility-aligned siblings:
+  - `security.py` (~125 LoC, new): `HARNESS_PYTHON_SECRET_PATH`,
+    `load_harness_python_secret` (W13-11 env-priority + defense-in-depth
+    unlink), `_verify_harness_marker_signature` (W13-1 HMAC-SHA256
+    constant-time compare).
+  - `handshake.py` (~100 LoC, new): `_HARNESS_MARKER_RE`,
+    `_harness_trace_records_by_attempt`,
+    `_attempt_has_harness_completion_trace` (W13-12 three-branch dispatch
+    — HMAC verify / fail-closed / legacy phase-only).
+  - `reconciliation.py` (~440 LoC, slimmed from 682): event-attempt
+    verification state machine + coverage track reconciler.
+  Architecture gates re-targeted (W14-6 extend-not-duplicate; no new
+  gate files): `tests/architecture/test_harness_marker_auth.py` parses
+  `handshake.py` for the `_attempt_has_harness_completion_trace ->
+  _verify_harness_marker_signature` wiring;
+  `tests/architecture/test_harness_secret_eager_consume.py` gate 3
+  parses `security.py` for the env-priority ordering. Test-side import
+  paths updated: `dispatch.py` + 3 inline test imports moved from
+  `..health.reconciliation` to `..health.security`. Risk-class
+  separation: a future small edit can now target a single
+  responsibility (security primitives, handshake dispatch, or event-
+  attempt state machine) without the reviewer needing to reason across
+  the cross-concern coupling that the pre-W16-4 monolith carried.
+  Pre-W16-4 rationale retained below for the audit trail (W15 mid-iter
+  finding context).
+
+  _Pre-W16-4 audit context (preserved verbatim):_
+  Risk class: change-safety drift — the same file owned both
+  fail-closed security gates (W13-1 / Codex H6 HMAC anchor) and
+  report-coverage classification. A future small edit could regress
+  security or report fidelity without the reviewer noticing the
+  cross-concern coupling. Recommendation: map responsibility
+  boundaries first (which functions own which risk
   class), validate test coverage on both sides, then do a behavior-
   preserving extraction. **Do not auto-refactor**; W13-1 HMAC gates
   must not regress. W15+ hygiene; new audit finding `2026-05-16`.

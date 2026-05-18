@@ -1,7 +1,7 @@
 # W16 — Carry-Over Closeout + Audit Findings + Production Regression (Active Work Tracker)
 
-`Last Updated: 2026-05-18 (W16 active on week16 branch (per user direction 2026-05-18; W11-W15 paterni restored via W16-0 doc reconcile); W15 closed via PR #22 week15 -> main MERGED 2026-05-18 via 6161472; W16 scope authored 2026-05-18 against main HEAD 6161472; 7 sub-iter (W16-1..W16-7) reserved by §14 plan and assigned at first pull per W11/W12/W13/W14/W15 precedent; W16-1 pulled 2026-05-18 via 01f910a (dispatch outcome=None emit-site closed); W16-2 pulled 2026-05-18 via 9d6d110 (analysis-job worker-entry CRUD ownership facade extracted; AGENTS.md:57 compliance restored, W13-13 CAS preserved); W16-3 pulled 2026-05-18 via fa430f2 (report-finalize top-level null-leakage closed at strict-forbid contract seam; attribution-count parity drift split to follow-up); W16-4..W16-7 pending)`
-`Phase: W16 active (W16-1 pulled 01f910a; W16-2 pulled 9d6d110; W16-3 pulled fa430f2; W16-4..W16-7 reserved, none yet pulled; commits land on week16 branch, close-out via week16 -> main PR — W11-W15 paterni restored 2026-05-18 via W16-0)`
+`Last Updated: 2026-05-18 (W16 active on week16 branch (per user direction 2026-05-18; W11-W15 paterni restored via W16-0 doc reconcile); W15 closed via PR #22 week15 -> main MERGED 2026-05-18 via 6161472; W16 scope authored 2026-05-18 against main HEAD 6161472; 7 sub-iter (W16-1..W16-7) reserved by §14 plan and assigned at first pull per W11/W12/W13/W14/W15 precedent; W16-1 pulled 2026-05-18 via 01f910a (dispatch outcome=None emit-site closed); W16-2 pulled 2026-05-18 via 9d6d110 (analysis-job worker-entry CRUD ownership facade extracted; AGENTS.md:57 compliance restored, W13-13 CAS preserved); W16-3 pulled 2026-05-18 via fa430f2 (report-finalize top-level null-leakage closed at strict-forbid contract seam; attribution-count parity drift split to follow-up); W16-4 pulled 2026-05-18 via 304b99f (health/reconciliation.py 682 LoC split into security.py + handshake.py + slimmed reconciliation.py; W13-1 HMAC + W13-12 fail-closed gates preserved); W16-5..W16-7 pending)`
+`Phase: W16 active (W16-1 pulled 01f910a; W16-2 pulled 9d6d110; W16-3 pulled fa430f2; W16-4 pulled 304b99f; W16-5..W16-7 reserved, none yet pulled; commits land on week16 branch, close-out via week16 -> main PR — W11-W15 paterni restored 2026-05-18 via W16-0)`
 `Branch: week16 (per user direction 2026-05-18; W11-W15 paterni restored via W16-0 doc reconcile; close-out merges into main via week16 -> main PR)`
 `Owner: ekrem`
 
@@ -64,8 +64,17 @@ Detail trimmed until each sub-iter is pulled (drift kontrolü).
   `build_report_data` populates them with explicit type coercions.
   Pre-W16-3 RED stub replaced with 5 round-trip pins (xfail removed).
   The attribution-count-parity half of the W14 observation split to
-  `[FOLLOWUP attribution-count-parity]` (W17+ candidate). W16-4..W16-7
-  remain `[planned]` until the corresponding pull lands.
+  `[FOLLOWUP attribution-count-parity]` (W17+ candidate).
+- **W16-4 pulled `2026-05-18` via `304b99f`** (W15 mid-iter audit
+  finding; behavior-preserving extraction). `executor/flows/playwright/health/reconciliation.py`
+  (682 LoC) split into three responsibility-aligned siblings:
+  `security.py` (W13-1 HMAC primitives + W13-11 env-priority secret
+  load), `handshake.py` (W13-12 fail-closed dispatch), and slimmed
+  `reconciliation.py` (event-attempt verification state machine +
+  coverage track reconciler). Architecture gates re-targeted per
+  W14-6 extend-not-duplicate; W13-1 + W13-12 behavioral pins all stay
+  green. W16-5..W16-7 remain `[planned]` until the corresponding
+  pull lands.
 
 ## Sub-Iter Scope (planned)
 
@@ -364,13 +373,95 @@ the remaining drift.
 
 ### W16-4 — health-reconciliation responsibility split
 
-_[Placeholder — filled at pull. Will document: responsibility map
-(security_gates vs reconciliation vs coverage), test-coverage
-validation on both sides, behavior-preserving extraction plan,
-new submodules under `executor/flows/playwright/health/`,
-W13-1 HMAC marker gate regression evidence, new
-`tests/architecture/test_health_module_boundaries.py` gate (if
-applicable), test deltas, landing commit.]_
+**Pulled `2026-05-18` via `304b99f`** (W15 mid-iter audit finding;
+behavior-preserving extraction). The 682-LoC monolith
+`executor/flows/playwright/health/reconciliation.py` is split into
+three responsibility-aligned siblings; W13-1 HMAC + W13-12 fail-closed
+gates all stay green on byte-identical behavior.
+
+**Submodule layout (post-W16-4, under
+`executor/flows/playwright/health/`):**
+- `security.py` (~125 LoC, new): `HARNESS_PYTHON_SECRET_PATH`,
+  `load_harness_python_secret` (W13-11 env-priority + defense-in-depth
+  unlink), `_verify_harness_marker_signature` (W13-1 HMAC-SHA256
+  constant-time compare). Owns the secret-handling + signature
+  verification responsibility class.
+- `handshake.py` (~100 LoC, new): `_HARNESS_MARKER_RE`,
+  `_harness_trace_records_by_attempt`,
+  `_attempt_has_harness_completion_trace` (W13-12 three-branch dispatch
+  — HMAC verify, fail-closed, legacy phase-only). Imports
+  `_verify_harness_marker_signature` from `security.py` at module
+  scope; the import boundary preserves the W13-1 wiring gate's AST
+  walk semantics.
+- `reconciliation.py` (~440 LoC, slimmed from 682): the event-attempt
+  verification state machine (`reconcile_event_attempts` +
+  `_mark_attempt_*` helpers + activation matchers) and the coverage
+  track reconciler (`reconcile_coverage_verification`,
+  `_reconcile_track`). Imports from `handshake.py` + `security.py` +
+  `runtime_facts` + `summary`.
+- `__init__.py`: preserves every public re-export
+  (`reconcile_event_attempts`, `reconcile_coverage_verification`,
+  `derive_verified_capabilities`); `derive_verified_capabilities` now
+  sourced direct from `summary` instead of via the
+  `reconciliation -> summary` re-export hop.
+
+**Architecture gates re-targeted (W14-6 extend-not-duplicate; no new
+gate files):**
+- `tests/architecture/test_harness_marker_auth.py`: `HANDSHAKE_PATH`
+  constant added; `test_attempt_has_harness_completion_trace_calls_verifier`
+  now parses `handshake.py` instead of `reconciliation.py`. The other
+  two gates (`reconcile_event_attempts` reads `expected_harness_nonce`;
+  `setup_monitor` calls `load_harness_python_secret`) keep their
+  `RECONCILIATION_PATH` / `DISPATCH_PATH` targets — those invariants
+  did not move.
+- `tests/architecture/test_harness_secret_eager_consume.py`:
+  `SECURITY_PATH` constant added; gate 3
+  (`test_load_harness_python_secret_prefers_env_var_over_file`) parses
+  `security.py` instead of `reconciliation.py`. Gates 1 and 2 (call
+  ordering in `execute_analysis_request`, env var threading in
+  `run_playwright_automation`) are unaffected.
+
+**Test-side import path updates (callers follow the symbol move):**
+- `executor/flows/playwright/entrypoint/dispatch.py`:
+  `load_harness_python_secret` import moved from
+  `..health.reconciliation` to `..health.security`.
+- `tests/executor/test_playwright_health_reconciliation.py`: 3 inline
+  W13-11 env-priority test imports (lines 725, 758, 785) moved from
+  `..health.reconciliation` to `..health.security`. Top-level imports
+  (`reconcile_event_attempts`, `reconcile_coverage_verification`) are
+  unchanged — those symbols still live in `reconciliation.py`.
+
+**Lock-asymmetry preservation (W13-1 wiring):** the verifier call site
+inside `_attempt_has_harness_completion_trace` survives the import
+boundary unchanged — the AST walk in `test_harness_marker_auth` still
+finds the `Name` node because `handshake.py` imports
+`_verify_harness_marker_signature` at module scope. Swapping the
+import for the wrapper would not deadlock here (no row lock involved),
+but would still trip the structural gate; the responsibility
+separation makes the wiring more readable rather than less safe.
+
+**Pre-merge test counts (W16-4 close):**
+- `tests/architecture/`: **199 passed** (W15 final 198, +1 — a
+  pre-existing AST gate that scans `health/` subpackages picked up
+  the new module paths and registered an additional parametrized
+  case; no behavioral regression, no test removed).
+- `tests/executor/test_playwright_health_reconciliation.py +
+  tests/architecture/test_harness_marker_auth.py +
+  tests/architecture/test_harness_secret_eager_consume.py +
+  tests/security/test_harness_handshake_required.py`: **225 passed**
+  (combined sub-slice).
+- `make test-security`: **217 passed** (unchanged from W16-3 close).
+- `tests/workflows/marketplace/`: **176 passed, 1 skip** (VSIX
+  fixture infra, unchanged).
+
+**Landing commit:** `304b99f`.
+
+**Audit trail:** `[FOLLOWUP health-reconciliation-responsibility-split]`
+in `POST_POC_BACKLOG.md` marked **closed at W16-4** with the closure
+details (submodule layout, gate re-target paths, lock-asymmetry
+preservation, test counts). The pre-W16-4 W15 mid-iter audit context
+prose is retained verbatim beneath the closure paragraph for the
+historical record.
 
 ### W16-5 — simulation-progress-cancel family closeout
 

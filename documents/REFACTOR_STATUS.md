@@ -117,7 +117,14 @@ phase evidence is frozen under dated snapshots:
   sync drift closed at the strict-forbid contract seam — 5
   additive-optional fields on `ActivationReport` + `build_report_data`
   populates them. Attribution-count-parity half split to
-  `[FOLLOWUP attribution-count-parity]`). W16-4..W16-7 remain pending.
+  `[FOLLOWUP attribution-count-parity]`). **W16-4 pulled `2026-05-18`
+  via `304b99f`** (W15 mid-iter audit finding;
+  `executor/flows/playwright/health/reconciliation.py` 682 LoC split
+  into `security.py` (W13-1 HMAC primitives) + `handshake.py` (W13-12
+  fail-closed dispatch) + slimmed `reconciliation.py` (event-attempt
+  state machine + coverage reconciler); arch gates re-targeted per
+  W14-6 extend-not-duplicate; W13-1 + W13-12 behavioral pins all
+  green). W16-5..W16-7 remain pending.
 
 ## W13 Status Summary
 
@@ -148,7 +155,10 @@ phase evidence is frozen under dated snapshots:
   primitive `claim_queued_analysis_job_at_worker_entry` extracted; W13-13
   CAS preserved; AGENTS.md:57 compliance restored).
 - `[FOLLOWUP health-reconciliation-responsibility-split]` — W15 mid-iter
-  audit finding, **pulled to W16-4** (behavior-preserving extraction with
+  audit finding, **closed at W16-4** via `304b99f` (responsibility-aligned
+  three-way split: security.py + handshake.py + slimmed reconciliation.py;
+  W13-1 HMAC + W13-12 fail-closed gates preserved). Pre-W16-4 description
+  (behavior-preserving extraction with
   W13-1 HMAC gates preserved).
 - `[FOLLOWUP report-finalize-top-level-field-sync-drift]` — W14 production
   scan-driven investigation, **null-leakage half closed at W16-3** via
