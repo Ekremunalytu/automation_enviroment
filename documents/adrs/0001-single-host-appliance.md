@@ -51,3 +51,8 @@ The following rules apply:
   model still stands for W5 security work
 - promote any post-W5 runtime changes only if the repo is stable enough to
   absorb them
+- ADR 0011 (`2026-05-17`, W15-6) cites this ADR as one of three load-bearing
+  preconditions for keeping catalog endpoints unauthenticated. Any future
+  amendment dropping the single-host scope (multi-tenant or hosted SaaS
+  shift) must also revisit ADR 0011 — the trusted-environment assumption
+  for the catalog router is encoded as a cross-link there.

@@ -1,6 +1,6 @@
 # Refactor Status
 
-`Last Updated: 2026-05-13 (W14 active; W14-1 BLOCKER -> HIGH downgraded; W14-2 closed via bde17be; W14-3 closed via 941250d; W14-4 closed; W14-5 closed via dc79f61+9c095d2+db25d5f; W14-6 closed via 2adad43+b031803+e42a448; W14 sub-iter slate complete; W14-7 post-slate hotfix closed via df925f8+c11ebd8 — container-shipping regression + Python 3.10 UTC compat; W14-8 post-slate preventive gate closed via 5638f82 — forbids Python 3.11+ API imports in container-shipped paths; week14 branch cut from main at 69251f1; W13 close-out PR #20 week13 -> main merged via 772deb3; close-out PR week14 -> main next)`
+`Last Updated: 2026-05-17 (W14 closed via PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d — W14-1..W14-8 sub-iter slate + post-slate hotfixes + close-out hygiene pass; W15 active on week15 branch cut from main HEAD 7cc2921 on 2026-05-14; W15-1 closed via c58c365 — sync analyze error taxonomy parity (M10); W15-2 closed via 765cde7 — clean_workspace is_symlink-before-rmtree (M12); W15-3 closed via 3512a7c — activationEvents bounds + Alembic migration (U8); W15-4 closed via 89e13e3 — UI bounds bundle (U1/U2/U3 + U6); W15-5 closed 2026-05-17 via 43d6438 — quick fixes bundle (I2 UI /health proxy + I4 lifecycle for <id> regex); W15-6 closed 2026-05-17 via be52520 — ADR 0011 unauthenticated catalog endpoints posture Accepted and implemented (Option A; Proposed at e41722e); W15-1 post-slate typing hotfix via 976dc96 — ANALYZE_ERROR_TYPES annotation narrowed; W15-7 closed 2026-05-17 — compose image SHA pin via 54e7a93 + test extension via 7ebbbfb (tests/architecture/ 196 → 198) + GH action trivy version pin via 452f1a1 (aquasecurity/trivy-action@v0.36.0) + final preamble refresh; W13 close-out PR #20 week13 -> main merged 2026-05-13 via 772deb3; W15 mid-iter hygiene 2026-05-16: doc-preamble consistency arch gate added + 3 new audit findings in POST_POC_BACKLOG)`
 
 Active status board for current closure state. **Slim canonical** — verbose
 phase evidence is frozen under dated snapshots:
@@ -45,59 +45,79 @@ phase evidence is frozen under dated snapshots:
   `tests/architecture/` 117 passed. W13-11/12/13 were pulled in-window from
   the close-gate review to preserve H6/H4 audit-trail integrity; remaining
   §11.10 umbrellas moved to W14.
-- **Active phase: W14 — Codex M-class Acceptance + Observability** (active;
-  `week14` branch cut from `main` at `69251f1` on `2026-05-13`). Scope
-  authored `2026-05-11` in
-  [`active-work/W14-codex-acceptance-observability.md`](active-work/W14-codex-acceptance-observability.md);
-  plan source [`REFACTOR_OPTIMIZATION.md §12`](REFACTOR_OPTIMIZATION.md).
-  6 sub-iter scoped (`W14-1..W14-6`): BLOCKER scenario-dropout araştırması,
-  Codex M-class input validation (M4-M7 + M11), dış yüzey sertleştirme
-  (M13 + M14b + U4-U12), correctness/concurrency (analysis-jobs-race +
-  evidence-event-kind invariant), §11.10 GOAL devamı (logger consolidation
-  - run-ID stamping), W8-W12 regression lock-in umbrella. W14-1 pulled
-  `2026-05-13`; BLOCKER `[BUG scenario-dropout-upstream-root-cause]`
-  triage landed deterministic repro matrix
-  (`tests/security/test_scenario_dropout_repro.py`) + conservation guard
-  (`scenario_accountant.py:392-438`), severity downgraded BLOCKER -> HIGH
-  the same day; upstream emit-site split moved to
-  `[FOLLOWUP scenario-accountant-conservation-split]`. W14-2 (M4-M7
-  output-ts range + M11 report-health malformed types) closed `2026-05-13`
-  via `bde17be`. W14-3 (M13 network URI/summary redaction + M14b CDP
-  default-disabled + U4-U12 Makefile shell-quoting) closed `2026-05-13`
-  via `941250d`. W14-4 (analysis-jobs-race lock symmetry on
-  `complete_analysis_job` / `fail_analysis_job` + EvidenceEvent
-  kind↔event_class invariant via closed 9-kind allowlist) closed
-  `2026-05-13`. W14-5 (`extrace.*` logger consolidation + run-ID
-  stamping + executor runtime fingerprint emit) closed `2026-05-13`
-  via `dc79f61` + `9c095d2` + `db25d5f`; ADR 0010 landed; M5
-  (`epoch-docker-exec-propagation`) auto-closed as natural byproduct
-  of sub-commit 2. W14-6 (regression lock-in umbrella:
-  bare-binary-path pragma ratchet + `executor.control` outbound
-  surface gate + variable-indirect subprocess coverage) closed
-  `2026-05-13` via `2adad43` + `b031803` + `e42a448`; pragma baseline
-  lowered 7 → 6 in-window via inotifywait/tshark/strace absolute-path
-  migration. W14 sub-iter slate complete (W14-1..W14-6). **W14-7
-  post-slate hotfix** closed `2026-05-13` via `df925f8` + `c11ebd8`:
-  production smoke retry on `ms-python.python@2026.5.2026051301`
-  exposed that W14-6.c added `executor/binary_paths.py` and W14-5.3
-  added `executor/runtime_fingerprint.py` without updating the
-  executor Dockerfile COPY directives → container
-  `ModuleNotFoundError`. Fix ships the two missing root modules and
-  swaps W14-5.3's `from datetime import UTC` for the established
-  Python 3.10 compat shim; regression gate at
-  `tests/architecture/test_executor_container_shipping.py` pins the
-  import-graph ↔ Dockerfile invariant (+2 arch cases →
-  `tests/architecture/` 168 → 170). **W14-8 post-slate preventive
-  gate** closed `2026-05-13` via `5638f82` — adds
-  `tests/architecture/test_executor_container_python_compat.py`
-  that AST-scans every container-shipped Python file for the most
-  common Python 3.11+ API imports (`from datetime import UTC`,
-  `from typing import {Self|NotRequired|Required|LiteralString|
-  TypeVarTuple|Unpack|ExceptionGroup|BaseExceptionGroup}`, `import
-  tomllib`) so the next 3.10/3.11+ divergence fails CI before the
-  docker build; per-import `# arch-allow: py311-api` pragma for rare
-  overrides (+1 arch case → `tests/architecture/` 170 → 171).
-  Close-out PR `week14 -> main` is the next milestone.
+- **W14 closed `2026-05-14` and merged via PR #21 (`4e03c8d`).** Tracker:
+  [`active-work/W14-codex-acceptance-observability.md`](active-work/W14-codex-acceptance-observability.md).
+  W14-1..W14-8 are all GREEN: W14-1 BLOCKER `[BUG scenario-dropout-upstream-
+  root-cause]` triage downgraded to HIGH (`0c8bd02`); W14-2 (M4-M7 + M11
+  input validation) `bde17be`; W14-3 (M13 + M14b + U4-U12 external-surface
+  hardening) `941250d`; W14-4 (analysis-jobs-race lock symmetry +
+  EvidenceEvent kind↔event_class 9-kind allowlist) `03b32bc`; W14-5 (logger
+  consolidation + run-ID stamping + executor runtime fingerprint; ADR 0010;
+  M5 docker-exec propagation byproduct) `dc79f61` + `9c095d2` + `db25d5f`;
+  W14-6 (regression lock-in umbrella: bare-binary pragma ratchet +
+  `executor.control` outbound gate + variable-indirect subprocess coverage)
+  `2adad43` + `b031803` + `e42a448`; W14-7 post-slate hotfix
+  (container-shipping regression + Python 3.10 UTC compat) `df925f8` +
+  `c11ebd8`; W14-8 post-slate preventive gate (Python 3.11+ API forbid)
+  `5638f82`. Final post-merge bar (re-recorded at W15-1 pull on `week15`):
+  `tests/architecture/` 172 passed (171 from W14-8 + 1 ADR code fence gate
+  added at close-out hygiene); `make test-security` 215 passed (unchanged
+  from W13 final).
+- **Active phase: W15 — Codex U-class Close-Out + UI Bounds + Posture**
+  (active; `week15` branch cut from `main` HEAD `7cc2921` on `2026-05-14`).
+  Scope authored `2026-05-14` in
+  [`active-work/W15-codex-uclass-bounds-posture.md`](active-work/W15-codex-uclass-bounds-posture.md);
+  plan source [`REFACTOR_OPTIMIZATION.md §13`](REFACTOR_OPTIMIZATION.md).
+  7 sub-iter scoped (`W15-1..W15-7`): Codex U-class + I-class acceptance-bar
+  pull-forward (close-out of `2026-05-10` audit), unauth catalog endpoints
+  posture decision (ADR 0011 pending), and post-W14 regression lock-in
+  umbrella (compose image pin + GH-action pin + doc preamble refresh).
+  W15-1 closed `2026-05-14` via `c58c365` (sync analyze error taxonomy
+  parity, M10 close; `tests/architecture/test_analyze_error_taxonomy_parity.py`
+  + behavioral parametrize). W15-2 closed `2026-05-14` via `765cde7`
+  (`clean_workspace` is_symlink-before-rmtree, M12 close; path-b fix
+  hizalanan `_clear_directory` deseni). W15-3 closed `2026-05-15` via
+  `3512a7c` (`activationEvents` bounds + Alembic field-length migration,
+  U8 close; +6 arch gates + 8 behavioral cases). W15-4 closed `2026-05-16`
+  via `89e13e3` (UI bounds bundle: `EventTimeline` / `EventDensityStrip` /
+  `InteractionsSection` caps with truncation indicators, U1/U2/U3 + U6
+  close; 21 new vitest cases across 3 files). **W15-1 post-slate typing
+  hotfix** landed `2026-05-16` via `976dc96` (`ANALYZE_*_ERROR_TYPES`
+  annotation `tuple[type[BaseException], …]` → `tuple[type[Exception], …]`
+  narrowing surfaced by W15-4 close-out mypy gate; W14-7 hotfix precedent).
+  W15-5 closed `2026-05-17` via `43d6438` (UI `/health` proxy I2 +
+  lifecycle `for <id>` regex I4; +14 behavioral cases; `+0` arch gates
+  per W14-6 "extend, do not duplicate"). W15-6 closed `2026-05-17` via
+  `be52520` (Proposed at `e41722e`) — ADR 0011 unauthenticated catalog
+  endpoints posture (Option A); new `tests/architecture/test_catalog_endpoint_posture.py`
+  gate with 3 AST invariants; `tests/architecture/` 188 → 191; ADR 0002
+  NOT amended. **W15-7 closed `2026-05-17`** — compose image SHA pin via
+  `54e7a93` (`postgres:16-alpine` + `alpine/socat:1.8.0.3` manifest
+  digest; ADR 0002 §4 extension to compose `image:` surface) + test
+  extension via `7ebbbfb` (`test_dockerfile_digest_pin.py` extended
+  with `COMPOSE_FILES` tuple + vacuous-truth guard; `tests/architecture/`
+  196 → 198) + GH action trivy pin via `452f1a1`
+  (`aquasecurity/trivy-action@v0.36.0` tag-pin matching repo
+  `actions/*@vN` precedent) + final preamble flip via the close-out
+  docs commit; close-out hygiene via `7ff31d9` (Ruff SIM102
+  collapsible-if surfaced by `make lint-check`). W15-7 early pulls:
+  `a7a876e` (I2/I4 regression gates) + `2573e35` (post-W15-6 drift
+  fixes). **W15 mid-iter hygiene `2026-05-16`:** W15-7 doc-preamble
+  subset pulled forward; six canonical doc preambles (this file +
+  `CLAUDE.md` + `AGENTS.md` + `documents/AGENT_CONTEXT.md` +
+  `documents/POST_POC_BACKLOG.md` + `documents/REFACTOR_OPTIMIZATION.md`,
+  plus `README.md`) refreshed to W15 truth-state;
+  `tests/architecture/test_doc_preamble_consistency.py` added
+  (cross-doc active-phase consistency gate) and
+  `tests/architecture/test_readme_phase_pointer.py` updated from W14
+  to W15 + extended with a W14-close-out-merge tracking test
+  symmetric with the existing W13-close-out test. Three new audit
+  findings appended to `POST_POC_BACKLOG.md` —
+  `[FOLLOWUP health-reconciliation-responsibility-split]`,
+  `[CLEANUP marketplace-router-test-suite-split]`,
+  `[FOLLOWUP analysis-job-worker-entry-crud-ownership]` — all defer to
+  W16+ per §13.3 Non-goals. **`week15 -> main` close-out PR pending
+  separate user action** (not part of W15-7 commit scope).
 
 ## W13 Status Summary
 
@@ -128,7 +148,9 @@ phase evidence is frozen under dated snapshots:
 When updating this file, keep it as a slim closure board. Put verbose
 evidence in `documents/archive/status/`, keep pull-next detail in
 `POST_POC_BACKLOG.md`, keep closed W13 mechanics in
-`active-work/W13-test-expansion-observability.md`, and W14 close-out scope
-(sub-iter slate complete + post-slate hotfixes closed; close-out PR
-`week14 -> main` next) in
-`active-work/W14-codex-acceptance-observability.md`.
+`active-work/W13-test-expansion-observability.md`, keep closed W14
+mechanics (sub-iter slate + post-slate hotfixes + close-out hygiene)
+in `active-work/W14-codex-acceptance-observability.md`, and keep
+active W15 scope (Codex U-class close-out + UI bounds + posture;
+W15-1..W15-7 closed; `week15 -> main` close-out PR pending separate
+user action) in `active-work/W15-codex-uclass-bounds-posture.md`.

@@ -1,6 +1,6 @@
 # AGENTS.md
 
-`Last Updated: 2026-05-13 (W13 closed via PR #20 -> 772deb3; W14 active on week14 branch cut from main at 69251f1; W14-1 BLOCKER -> HIGH downgraded, W14-2 closed via bde17be, W14-3 closed via 941250d, W14-4 closed, W14-5 closed via dc79f61+9c095d2+db25d5f, W14-6 closed via 2adad43+b031803+e42a448; W14 sub-iter slate complete; W14-7 post-slate hotfix closed via df925f8+c11ebd8 — container-shipping regression + Python 3.10 UTC compat; W14-8 post-slate preventive gate closed via 5638f82 — forbids Python 3.11+ API imports in container-shipped paths; close-out PR week14 -> main next)`
+`Last Updated: 2026-05-17 (W13 closed via PR #20 -> 772deb3 on 2026-05-13; W14 closed via PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d — W14-1..W14-8 sub-iter slate + post-slate hotfixes + close-out hygiene pass; W15 active on week15 branch cut from main HEAD 7cc2921 on 2026-05-14; W15-1 closed via c58c365 — sync analyze error taxonomy parity (M10); W15-2 closed via 765cde7 — clean_workspace is_symlink-before-rmtree (M12); W15-3 closed via 3512a7c — activationEvents bounds + Alembic migration (U8); W15-4 closed via 89e13e3 — UI bounds bundle (U1/U2/U3 + U6); W15-5 closed 2026-05-17 via 43d6438 — quick fixes bundle (I2 UI /health proxy + I4 lifecycle for <id> regex); W15-6 closed 2026-05-17 via be52520 — ADR 0011 unauthenticated catalog endpoints posture Accepted and implemented (Option A; Proposed at e41722e); W15-1 post-slate typing hotfix via 976dc96 — ANALYZE_ERROR_TYPES annotation narrowed; W15-7 closed 2026-05-17 — compose image SHA pin via 54e7a93 + test extension via 7ebbbfb (tests/architecture/ 196 → 198) + GH action trivy version pin via 452f1a1 (aquasecurity/trivy-action@v0.36.0) + final preamble refresh; W15 mid-iter hygiene 2026-05-16: doc-preamble consistency arch gate + 3 new audit findings in POST_POC_BACKLOG)`
 
 ## Authority
 
@@ -20,34 +20,39 @@
   closed `2026-05-04` via PR #11; W11 closed `2026-05-05` and merged
   via PR #14; W12 closed `2026-05-10` and merged via PR #18
   (`33a0852`); W13 closed `2026-05-13` and merged via PR #20
-  (`772deb3`).** Active phase is **W14 — Codex M-class Acceptance +
-  Observability** active on the `week14` branch (cut from `main` at
-  `69251f1` on `2026-05-13`): plan `documents/REFACTOR_OPTIMIZATION.md`
-  §12, tracker `documents/active-work/W14-codex-acceptance-observability.md`.
-  W14-1 pulled `2026-05-13` and BLOCKER downgraded to HIGH the same day
-  (conservation guard landed). W14-2 (M4-M7 + M11) closed `2026-05-13`
-  via `bde17be`. W14-3 (M13 + M14b + U4-U12) closed `2026-05-13` via
-  `941250d`. W14-4 (analysis-jobs-race lock symmetry + EvidenceEvent
-  kind↔event_class invariant) closed `2026-05-13`. W14-5 (logger
-  consolidation + run-ID stamping + executor runtime fingerprint;
-  ADR 0010 landed; M5 docker-exec propagation auto-closed) closed
-  `2026-05-13` via `dc79f61` + `9c095d2` + `db25d5f`. W14-6 (regression
-  lock-in umbrella: bare-binary pragma ratchet + executor.control
-  outbound surface gate + variable-indirect subprocess coverage with
-  binary_paths migration) closed `2026-05-13` via `2adad43` + `b031803`
-  + `e42a448`. W14 sub-iter slate complete. **W14-7 post-slate
-  hotfix** closed `2026-05-13` via `df925f8` (Dockerfile COPY for
-  `executor/binary_paths.py` + `executor/runtime_fingerprint.py` +
-  Python 3.10 `datetime.UTC` compat shim) and `c11ebd8` (regression
-  gate `tests/architecture/test_executor_container_shipping.py`).
-  **W14-8 post-slate preventive gate** closed `2026-05-13` via
-  `5638f82` — adds
-  `tests/architecture/test_executor_container_python_compat.py`,
-  AST-scans every container-shipped Python file for Python 3.11+
-  API imports so the next 3.10/3.11+ divergence fails CI before
-  the docker build. Close-out PR `week14 -> main` is the next
-  milestone. Past W8/W11/W12/W13 trackers remain stable-ID
-  references only.
+  (`772deb3`); W14 closed `2026-05-14` and merged via PR #21
+  (`4e03c8d`).** Active phase is **W15 — Codex U-class Close-Out +
+  UI Bounds + Posture** active on the `week15` branch (cut from `main`
+  HEAD `7cc2921` on `2026-05-14`): plan
+  `documents/REFACTOR_OPTIMIZATION.md` §13, tracker
+  `documents/active-work/W15-codex-uclass-bounds-posture.md`. W15-1
+  closed `2026-05-14` via `c58c365` (sync analyze error taxonomy
+  parity, M10 close). W15-2 closed `2026-05-14` via `765cde7`
+  (`clean_workspace` is_symlink-before-rmtree, M12 close). W15-3
+  closed `2026-05-15` via `3512a7c` (`activationEvents` bounds +
+  Alembic field-length migration, U8 close). W15-4 closed `2026-05-16`
+  via `89e13e3` (UI bounds bundle: timeline + density strip + relations
+  graph caps with truncation indicators; U1/U2/U3 + U6 close).
+  **W15-1 post-slate typing hotfix** landed `2026-05-16` via `976dc96`
+  (`ANALYZE_*_ERROR_TYPES` annotation `tuple[type[BaseException], …]` →
+  `tuple[type[Exception], …]` narrowing surfaced by W15-4 close-out
+  mypy gate). W15-5 closed `2026-05-17` via `43d6438` (I2 + I4 quick
+  fixes bundle). W15-6 closed `2026-05-17` via `be52520` — ADR 0011
+  Accepted and implemented (Option A; ADR 0002 NOT amended). **W15-7
+  closed `2026-05-17`** — compose image SHA pin via `54e7a93` + test
+  extension via `7ebbbfb` (`tests/architecture/` 196 → 198) + GH
+  action trivy pin via `452f1a1` (`aquasecurity/trivy-action@v0.36.0`)
+  + close-out docs commit + hygiene `7ff31d9`; early pulls `a7a876e`
+  + `2573e35`. **W15 mid-iter hygiene `2026-05-16`:** W15-7
+  doc-preamble subset pulled forward; six canonical doc preambles
+  refreshed and `tests/architecture/test_doc_preamble_consistency.py`
+  added; three new audit findings
+  (`health-reconciliation-responsibility-split`,
+  `marketplace-router-test-suite-split`,
+  `analysis-job-worker-entry-crud-ownership`) appended to
+  `POST_POC_BACKLOG.md` — all defer to W16+ per §13.3 Non-goals.
+  `week15 -> main` close-out PR pending separate user action.
+  Past W8/W11/W12/W13/W14 trackers remain stable-ID references only.
 - ADR 0007 local-network-binding is **Accepted and implemented**; loopback
   defaults + `EXTRACE_ALLOW_LAN` are pinned by `test_default_bindings.py`.
 

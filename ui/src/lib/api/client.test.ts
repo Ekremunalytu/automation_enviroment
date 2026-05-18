@@ -1,0 +1,41 @@
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import { apiClient } from "./client";
+
+function jsonResponse(body: unknown): Response {
+  return new Response(JSON.stringify(body), {
+    status: 200,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
+describe("apiClient URL discipline (W15-5 I2)", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("getHealth() targets /api/health, not /health (nginx /api/* proxy)", async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(jsonResponse({ status: "ok", service: "test" }));
+
+    await apiClient.getHealth();
+
+    expect(fetchSpy).toHaveBeenCalledOnce();
+    const [calledUrl] = fetchSpy.mock.calls[0];
+    const urlString = String(calledUrl);
+    expect(urlString).toMatch(/\/api\/health$/);
+    expect(urlString.endsWith("/health") && !urlString.includes("/api/health")).toBe(false);
+  });
+
+  it("getHealth() emits the bare /api/health path under the default (empty) base URL", async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(jsonResponse({ status: "ok", service: "test" }));
+
+    await apiClient.getHealth();
+
+    const [calledUrl] = fetchSpy.mock.calls[0];
+    expect(String(calledUrl)).toBe("/api/health");
+  });
+});

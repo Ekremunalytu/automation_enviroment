@@ -346,7 +346,10 @@ build:
 rebuild:
 	@echo "🔨 Rebuilding all Docker images (no cache)..."
 	@BUILDKIT_PROGRESS=plain docker-compose build --no-cache 2>&1
-	@echo "✅ Rebuild complete!"
+	@echo "🔄 Recreating containers to pick up the new images..."
+	@docker-compose up -d --force-recreate
+	@docker-compose ps
+	@echo "✅ Rebuild + recreate complete!"
 
 up:
 	@echo "🚀 Starting all containers..."

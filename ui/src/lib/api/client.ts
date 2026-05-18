@@ -75,7 +75,7 @@ export const apiClient = {
     );
   },
   getHealth(signal?: AbortSignal) {
-    return requestJson<{ status: string; service: string }>("/health", { signal });
+    return requestJson<{ status: string; service: string }>("/api/health", { signal });
   },
   getSecurityThresholds(signal?: AbortSignal) {
     return requestJson<VsixThresholdsResponseDto>(

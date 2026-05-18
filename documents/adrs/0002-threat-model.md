@@ -150,3 +150,11 @@ Output handling therefore inherits a tainted status:
 - Re-evaluate this ADR after the first production detection release. If
   advanced evasion becomes a recurring blocker, promote it via a new ADR
   rather than silently expanding scope.
+- ADR 0011 (`2026-05-17`, W15-6) cites §4 row 102 (operator host network
+  interfaces, ADR 0007) and §5 (analyst operating environment) as
+  load-bearing prerequisites for the unauthenticated catalog endpoints
+  posture. Any amendment to §1 that introduces an adversary class
+  targeting the operator from inside their own host (e.g., a same-host
+  extension reaching the API over the docker bridge) must also revisit
+  ADR 0011 — the catalog router posture is encoded as a cross-link
+  there.

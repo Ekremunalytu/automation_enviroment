@@ -52,8 +52,13 @@ _LIFECYCLE_MARKER_PATTERNS: list[tuple[re.Pattern[str], str]] = [
         "activate_fn_entry",
     ),
     # "activateFunction entered for <id>" / "activate entered <id>"
+    # W15-5 I4: require an explicit \s+ anchor and the VS Code extension-id
+    # shape ``<publisher>.<name>`` to keep the previously loose ``.*?`` from
+    # capturing peer ids or timestamps as the activation target.
     (
-        re.compile(r"activate(?:Function)?\s*entered.*?(?P<id>[\w.\-]+)"),
+        re.compile(
+            r"activate(?:Function)?\s+entered(?:\s+for)?\s+(?P<id>[\w-]+\.[\w.\-]+)"
+        ),
         "activate_fn_entry",
     ),
     # "activate(<id>) returned in 42ms" / "activate(<id>) completed"
@@ -66,11 +71,12 @@ _LIFECYCLE_MARKER_PATTERNS: list[tuple[re.Pattern[str], str]] = [
         "activate_fn_exit",
     ),
     # "activate returned for <id> in <N>ms" / "activate completed <id>"
+    # W15-5 I4: same tightening — explicit \s+ anchor + publisher.name id shape.
     (
         re.compile(
-            r"activate(?:Function)?\s*"
-            r"(?:returned|completed).*?(?P<id>[\w.\-]+)"
-            r"(?:.*?in\s+(?P<ms>\d+)\s*ms)?"
+            r"activate(?:Function)?\s+"
+            r"(?:returned|completed)(?:\s+for)?\s+(?P<id>[\w-]+\.[\w.\-]+)"
+            r"(?:\s+in\s+(?P<ms>\d+)\s*ms)?"
         ),
         "activate_fn_exit",
     ),

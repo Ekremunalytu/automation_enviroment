@@ -32,6 +32,7 @@ from packages.analysis_contracts import redact_secrets
 from workflows.marketplace import client as marketplace_client
 from workflows.marketplace import job_service
 from workflows.marketplace.analysis_errors import (
+    ActivationReportLoadError,
     AnalysisCancelledError,
     TriggerPlanError,
 )
@@ -72,6 +73,35 @@ from workflows.marketplace.analysis_reports import (
 from workflows.marketplace.trigger_service import TriggerPlan, build_trigger_payload
 
 logger = get_extrace_logger("extrace.workflows.marketplace.analysis_service")
+
+
+# W15-1 (Codex 2026-05-10 M10 close-out): the analyze pipeline raises this
+# closed taxonomy into both the sync ``POST /api/marketplace/analyze``
+# endpoint and the async job worker. Both surfaces must catch the same set
+# so the same request shape never receives two different status codes.
+# ``ANALYZE_PROGRAMMING_ERROR_TYPES`` and ``ANALYZE_RECOVERABLE_ERROR_TYPES``
+# are kept as separate tuples because the async worker treats them
+# differently (recoverable -> ``fail_job`` then ``return``; programming-class
+# -> ``fail_job`` then ``raise`` so the worker thread surfaces the bug). The
+# union ``ANALYZE_ERROR_TYPES`` is what the sync entry catches as a single
+# except clause; the helper ``analyze_error_to_http_response`` maps each
+# class to an HTTPException with a status code that mirrors the async
+# ``fail_job`` semantics.
+ANALYZE_RECOVERABLE_ERROR_TYPES: tuple[type[Exception], ...] = (
+    FileNotFoundError,
+    ExecutorError,
+    TriggerPlanError,
+    OSError,
+    SQLAlchemyError,
+    ValueError,
+)
+ANALYZE_PROGRAMMING_ERROR_TYPES: tuple[type[Exception], ...] = (
+    TypeError,
+    AttributeError,
+)
+ANALYZE_ERROR_TYPES: tuple[type[Exception], ...] = (
+    ANALYZE_RECOVERABLE_ERROR_TYPES + ANALYZE_PROGRAMMING_ERROR_TYPES
+)
 
 
 def _open_job_session() -> Session:
@@ -199,6 +229,45 @@ def map_executor_error(exc: ExecutorError) -> HTTPException:
     return HTTPException(
         status_code=502,
         detail=f"{public_detail} (error_id={error_id})",
+    )
+
+
+def analyze_error_to_http_response(exc: Exception) -> HTTPException:
+    """Map an ``ANALYZE_ERROR_TYPES`` member to its HTTPException counterpart.
+
+    Status map (mirrors the async ``fail_job`` semantics so the same
+    request shape returns the same status on both surfaces):
+
+    - ``ExecutorError`` -> 502 (delegates to :func:`map_executor_error`
+      for the structured ``error_id`` redaction contract).
+    - ``FileNotFoundError`` -> 404 (missing prerequisite resource).
+    - ``ActivationReportLoadError`` / ``TriggerPlanError`` / ``OSError``
+      / ``SQLAlchemyError`` -> 502 (upstream / infrastructure faults).
+    - ``ValueError`` (other than ``ActivationReportLoadError`` which is
+      checked first) -> 400 (client-side data problems).
+    - ``TypeError`` / ``AttributeError`` -> 500 (programming-class error
+      surfaced explicitly so the body shape is consistent with the rest
+      of the taxonomy instead of FastAPI's default 500 page).
+    """
+    if isinstance(exc, ExecutorError):
+        return map_executor_error(exc)
+    if isinstance(exc, FileNotFoundError):
+        return HTTPException(status_code=404, detail=str(exc))
+    # ActivationReportLoadError is a ValueError subclass — match it before
+    # the generic ValueError branch so it lands on 502 (upstream-report
+    # failure), not 400 (client input).
+    if isinstance(
+        exc,
+        (ActivationReportLoadError, TriggerPlanError, OSError, SQLAlchemyError),
+    ):
+        return HTTPException(status_code=502, detail=str(exc))
+    if isinstance(exc, ValueError):
+        return HTTPException(status_code=400, detail=str(exc))
+    if isinstance(exc, (TypeError, AttributeError)):
+        return HTTPException(status_code=500, detail=str(exc))
+    raise AssertionError(
+        f"Unmapped analyze error class: {type(exc).__name__}; update "
+        "ANALYZE_ERROR_TYPES and analyze_error_to_http_response together."
     )
 
 
@@ -331,21 +400,14 @@ def run_analysis_job(job_id: str, request: AnalyzeRequest) -> None:
                     job_id,
                 )
             return
-        except (TypeError, AttributeError) as exc:
+        except ANALYZE_PROGRAMMING_ERROR_TYPES as exc:
             job_service.fail_job(
                 job_id,
                 str(exc),
                 error_code=getattr(exc, "error_code", None),
             )
             raise
-        except (
-            FileNotFoundError,
-            ExecutorError,
-            TriggerPlanError,
-            OSError,
-            SQLAlchemyError,
-            ValueError,
-        ) as exc:
+        except ANALYZE_RECOVERABLE_ERROR_TYPES as exc:
             if job_service.is_job_cancelled(job_id):
                 # W13-3: cancel signal arrived during a hard error in the
                 # worker thread. Treat the row as draining and finalize to
@@ -374,7 +436,11 @@ def run_analysis_job(job_id: str, request: AnalyzeRequest) -> None:
 
 
 __all__ = [
+    "ANALYZE_ERROR_TYPES",
+    "ANALYZE_PROGRAMMING_ERROR_TYPES",
+    "ANALYZE_RECOVERABLE_ERROR_TYPES",
     "TriggerPlanError",
+    "analyze_error_to_http_response",
     "build_analysis_bundle_from_report_name",
     "ensure_vsix_exists",
     "execute_analysis_request",

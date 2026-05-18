@@ -1,6 +1,6 @@
 # Post-PoC Backlog
 
-`Last Updated: 2026-05-14 (W14 sub-iter slate complete + W14-7/W14-8 post-slate hotfixes closed; close-out PR week14 -> main next; off-roadmap hygiene candidates: rule-registry-side-effect-loader, compose-image-mutable-ref-pin, gh-action-trivy-version-pin, test-import-graph-policy-dump-split, report-finalize-top-level-field-sync-drift)`
+`Last Updated: 2026-05-17 (W14 closed via PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d; W15 active on week15 branch cut from main HEAD 7cc2921 on 2026-05-14; W15-1/W15-2/W15-3/W15-4/W15-5/W15-6 closed (M10/M12/U8/U1/U2/U3/U6/I2/I4/U10/U11); W15-6 closed 2026-05-17 via be52520 — ADR 0011 unauthenticated catalog endpoints posture Accepted and implemented (Option A); W15-1 typing hotfix via 976dc96; W15-7 closed 2026-05-17 — compose image SHA pin via 54e7a93 + test extension via 7ebbbfb (tests/architecture/ 196 → 198) + GH action trivy version pin via 452f1a1 (aquasecurity/trivy-action@v0.36.0) + final preamble refresh; W15 mid-iter hygiene 2026-05-16: doc-preamble consistency arch gate + off-roadmap hygiene candidates: rule-registry-side-effect-loader, test-import-graph-policy-dump-split, report-finalize-top-level-field-sync-drift, health-reconciliation-responsibility-split, marketplace-router-test-suite-split, analysis-job-worker-entry-crud-ownership)`
 
 Open deferred work after the W0-W7 PoC acceptance bar. **Slim canonical** —
 verbose closure rationales, evidence paragraphs, and per-iter Note columns
@@ -12,10 +12,13 @@ stable ID + landing commit; full context in the snapshot.
 - previous full snapshot:
   [`archive/backlog/POST_POC_BACKLOG_full_2026-05-11.md`](archive/backlog/POST_POC_BACKLOG_full_2026-05-11.md)
 
-W8-W13 are closed; W13 close-out PR #20 `week13 -> main` **MERGED**
-`2026-05-13` via `772deb3`. W14 sub-iter slate complete (W14-1..W14-6 +
-W14-7/W14-8 post-slate hotfixes); close-out PR `week14 -> main` next.
-W14 tracker: [`active-work/W14-codex-acceptance-observability.md`](active-work/W14-codex-acceptance-observability.md).
+W8-W14 are closed; W13 close-out PR #20 `week13 -> main` **MERGED**
+`2026-05-13` via `772deb3`; W14 close-out PR #21 `week14 -> main`
+**MERGED** `2026-05-14` via `4e03c8d`. **W15 active** on `week15`
+branch (cut from `main` HEAD `7cc2921` on `2026-05-14`); W15-1..W15-4
+closed (M10/M12/U8/U1/U2/U3/U6 Codex audit pulls), W15-5..W15-7
+pending. W14 tracker: [`active-work/W14-codex-acceptance-observability.md`](active-work/W14-codex-acceptance-observability.md);
+W15 tracker: [`active-work/W15-codex-uclass-bounds-posture.md`](active-work/W15-codex-uclass-bounds-posture.md).
 
 ## Stable IDs Are A Contract
 
@@ -66,13 +69,10 @@ Detail evidence in the W14 tracker + archive snapshot.
 
 ### Post-W13 Candidates
 
-W14-pulled items are above. Remaining for W15+:
+W14- and W15-pulled items are below. Remaining for W15+:
 
-- `[FOLLOWUP codex-2026-05-10-M10-sync-analyze-typeerror-catch]` — align sync `/api/marketplace/analyze` error catch with async path.
-- `[FOLLOWUP codex-2026-05-10-M12-workspace-symlink-check-order]` — delete or fix orphan `clean_workspace()` symlink handling.
-- `[FOLLOWUP codex-2026-05-10-U1-U2-U3-ui-event-spread-cap]` — cap UI event density/timeline spread operations.
-- `[FOLLOWUP codex-2026-05-10-U6-relations-graph-cap]` — cap relations graph nodes/edges.
-- `[FOLLOWUP codex-2026-05-10-U8-activationevents-bounds]` — cap activation event strings/list size + DB field length migration.
+_(W15-4 closed both surviving U-class entries on `2026-05-16`; the open
+list is empty until the next Codex audit pass.)_
 
 Closed via W14 (one-line audit trail; full rationale in archive):
 
@@ -83,21 +83,31 @@ Closed via W14 (one-line audit trail; full rationale in archive):
 - `[FOLLOWUP codex-2026-05-10-M14b-cdp-port-default-disabled]` — W14-3 (see ADR 0009).
 - `[FOLLOWUP codex-2026-05-10-U4-U12-makefile-shell-quoting]` — W14-3.
 
+Closed via W15 (one-line audit trail; full rationale in W15 tracker Per-Item Detail):
+
+- `[FOLLOWUP codex-2026-05-10-M10-sync-analyze-typeerror-catch]` — W15-1 (`c58c365`); post-slate typing annotation hotfix follow-up landed `2026-05-16` via `976dc96`.
+- `[FOLLOWUP codex-2026-05-10-M12-workspace-symlink-check-order]` — W15-2 (`765cde7`, path b fix).
+- `[FOLLOWUP codex-2026-05-10-U8-activationevents-bounds]` — W15-3 (`3512a7c`).
+- `[FOLLOWUP codex-2026-05-10-U1-U2-U3-ui-event-spread-cap]` — W15-4 (`89e13e3`).
+- `[FOLLOWUP codex-2026-05-10-U6-relations-graph-cap]` — W15-4 (`89e13e3`).
+
 ### Quick Fixes
 
 - `[FOLLOWUP codex-2026-05-10-I1-env-example-truthy-drift]` — closed `2026-05-11`.
-- `[FOLLOWUP codex-2026-05-10-I2-ui-health-proxy]` — UI client `/health` may bypass nginx `/api/*` proxy.
-- `[FOLLOWUP codex-2026-05-10-I4-lifecycle-for-id-regex]` — tighten lifecycle `"for <id>"` regex.
+- `[FOLLOWUP codex-2026-05-10-I2-ui-health-proxy]` — W15-5 (`43d6438`).
+- `[FOLLOWUP codex-2026-05-10-I4-lifecycle-for-id-regex]` — W15-5 (`43d6438`).
 
 ### Posture Decisions
 
-- `[FOLLOWUP codex-2026-05-10-U10-U11-unauth-catalog-endpoints]` — auth posture decision for unauthenticated catalog endpoints (ADR pending).
+- `[FOLLOWUP codex-2026-05-10-U10-U11-unauth-catalog-endpoints]` — W15-6 (`be52520`, ADR 0011 Accepted; Option A).
 
 ### Verified Closed Audit Trail
 
-H1, H7, M3, M6, M8, U5, U7, U9, I3, M14a, plus H4/H5/H6 are closed or
-WONT-FIX as recorded in the full snapshot. Do not re-open without fresh
-code evidence.
+H1, H7, M3, M6, M8, U5, U7, U9, U10, U11, I1, I2, I3, I4, M14a, plus
+H4/H5/H6 are closed or WONT-FIX as recorded in the full snapshot. W15-5
+closed I2 + I4 via `43d6438`; W15-6 closed U10 + U11 via `be52520`
+(ADR 0011 Accepted; Option A). Do not re-open without fresh code
+evidence.
 
 ## Current Open Items By Area
 
@@ -110,6 +120,19 @@ code evidence.
 - `[FOLLOWUP job-service-typevar-audit]`
 - `[FOLLOWUP sqlalchemy-error-subtype-logging]`
 - `[FOLLOWUP w11-8-companion-workflow-orm-bleed]`
+- `[FOLLOWUP analysis-job-worker-entry-crud-ownership]` —
+  `workflows/marketplace/analysis_service.py` worker-entry block (lines
+  296-346) issues `SELECT ... FOR UPDATE` + row mutate + `db.commit()`
+  directly against `AnalysisJob`, bypassing the `appcore/storage/crud.py`
+  write facade (`AGENTS.md:57` hard rule). Documented intentional
+  exception — comment block at :280-295 explains the wrapper would
+  deadlock against the lifecycle wrapper's own `SessionLocal()`. Right
+  fix is a row-lock-aware lifecycle CRUD primitive in
+  `appcore/storage/crud_ops/analysis_jobs/lifecycle.py`, not collapsing
+  the existing helper. Concurrency-sensitive — any rewrite must preserve
+  the row-lock-on-entry → branch-on-status → atomic-finalize CAS pattern
+  landed in W13-13 (`worker-start-cancel-race-CAS` close-gate). W15+
+  hygiene; new audit finding `2026-05-16`.
 
 Closed (one-line audit trail):
 
@@ -121,16 +144,47 @@ Closed (one-line audit trail):
 - `[BUG scenario-dropout-upstream-root-cause]` — **closed via W14-1
   `2026-05-13`** (BLOCKER → HIGH); conservation guard at
   `scenario_accountant.py:392-438` is the fix-of-record.
-- `[BUG silent-scenario-dropout-regression]`
+- `[BUG silent-scenario-dropout-regression]` — **observation `2026-05-14`:**
+  vuran versiyonu UI tarama'da gözlendi
+  (`output/activation_report_ms-python.python-2026.5.2026051301-d2e24db709bd.json`,
+  `15:15`): 5 requested scenario'dan 2'si (`debug_session`,
+  `refactor_workflow`) `unaccounted_dropout` ile `skipped_scenarios`
+  listesinde raporlandı; 3'ü (`project_exploration`, `coding_session`,
+  `terminal_usage`) `status: completed`. Conservation guard
+  (`scenario_accountant.py:392-438`) beklendiği gibi yakaladı; upstream
+  emit-site fix hâlâ açık (`[FOLLOWUP scenario-accountant-conservation-split]`).
+  **Second confirmation `2026-05-15` 09:51** (`e801c8d9c8b1.json`,
+  post-rebuild against `week15` HEAD `c0c6066` which carries W15-1 +
+  W15-2): identical drop set — same 2 scenarios, same `reason_code`,
+  same downstream symptoms. The dropout is **deterministic** across
+  runs and **not** a side effect of the W15-1/W15-2 changes; the
+  upstream emit-site bug class is reproducible without retry.
 - `[FOLLOWUP scenario-accountant-conservation-split]` — upstream emit-site
   work (planner / `stimulus_passes` / `dispatch._normalize_execution_result`);
-  separate pull, W15+ candidate.
+  separate pull, W15+ candidate. **Observed in production
+  `2026-05-14`:** debug_session + refactor_workflow drop edildiğinde
+  `run_quality: low`, `automation_health.status: degraded`,
+  `verification_gap: 2` (debug + terminal_tasks capability'leri verify
+  edilemedi — dropout'un türevi). `signal_summary.level: needs_review`
+  (score 28) — extension için risk_signals 0 olmasına rağmen attribution
+  korelatif kaldığı için manuel review öneriliyor. **Deterministic
+  confirmation `2026-05-15` 09:51** — bir saatlik rebuild + ikinci
+  scan aynı state'i raporladı; root cause non-intermittent, repro
+  fixture senkron çekilebilir.
 - `[FOLLOWUP report-finalize-top-level-field-sync-drift]` — production
   scan `activation_report_*.json` carries `null` for several top-level
   fields (`target_extension_id`, `monitoring_start`/`monitoring_end`,
   `scenarios_run`, `harness_handshake_required`) despite underlying
   evidence being present. Not a W14 regression — finalize / `report.save()`
   ordering drift. W15+ hygiene. Full investigation hook in archive.
+  **Observation `2026-05-14`:** aynı drift sınıfının yeni bir tezahürü
+  gözlendi — `attribution_summary.target_activation_count = 1` raporlanırken
+  `evidence_events` listesinde `kind=activation, is_target_extension_event=True`
+  hiç yok; ancak `target_extension_host` log stream'inde 1 entry mevcut
+  (`Activated ms-python.python via workspaceContains:requirements.txt`).
+  İki agregasyon kaynağı aynı aktivasyon için farklı target-flag verdiği
+  için top-level sayım stream-türevli, evidence-kind sayımı 0 — finalize
+  ordering veya target-flag computation drift'i.
 - `[FOLLOWUP event-attempt-verification-status-validator]`
 - `[FOLLOWUP report-invariants-runtime-evidence-drift]`
 - `[FOLLOWUP compute-verdict-table-driven-test]`
@@ -171,18 +225,35 @@ Closed: `[FOLLOWUP evidence-event-kind-raw-context-invariant]` — W14-4
 - `[CLEANUP postgres-version-fact-drift]`
 - `[CLEANUP adr-0007-runbook-wording-drift]`
 - `[CLEANUP pre-commit-python-version-alignment]`
-- `[FOLLOWUP compose-image-mutable-ref-pin]` — `docker-compose.yml:121`
-  `alpine/socat:latest` mutable tag on `executor-cdp` debug sidecar
-  (`profiles: ["debug"]`, not in default `up`). Pin to digest + extend
-  `test_dockerfile_digest_pin.py` to cover compose `image:` keys. W15+.
-- `[FOLLOWUP gh-action-trivy-version-pin]` — `.github/workflows/security.yml:71`
-  `aquasecurity/trivy-action@master` mutable ref. Same workflow's other
-  actions are version-pinned. W15+.
 - `[CLEANUP test-import-graph-policy-dump-split]` — `test_import_graph.py`
   carries 18 distinct architectural test functions in 767 LoC; thematic
   split (`test_import_isolation.py` / `test_facade_locks.py` /
   `test_executor_invocation.py` / `test_monitor_stimulus_boundary.py`)
   improves discoverability. W15+ hygiene.
+- `[FOLLOWUP health-reconciliation-responsibility-split]` —
+  `executor/flows/playwright/health/reconciliation.py` (682 LoC) carries
+  security-sensitive (HMAC marker verification at :78, fail-closed
+  harness handshake decisions, harness Python secret loading at :39) +
+  report-accuracy (event-attempt reconciliation at :414, coverage
+  reconciliation at :581) decisions in one module. Risk class:
+  change-safety drift — the same file owns both fail-closed security
+  gates (W13-1 / Codex H6 HMAC anchor) and report-coverage classification.
+  A future small edit could regress security or report fidelity without
+  the reviewer noticing the cross-concern coupling. Recommendation:
+  map responsibility boundaries first (which functions own which risk
+  class), validate test coverage on both sides, then do a behavior-
+  preserving extraction. **Do not auto-refactor**; W13-1 HMAC gates
+  must not regress. W15+ hygiene; new audit finding `2026-05-16`.
+- `[CLEANUP marketplace-router-test-suite-split]` —
+  `tests/workflows/marketplace/test_router.py` (2374 LoC). Title
+  docstring at :5 implies search/download scope but file spans analyze
+  (:744), trigger planning (:778), background job persistence (:1581),
+  and async job endpoint (:2080). Test-maintenance burden only — no
+  runtime risk. Recommended: classify-then-split by domain
+  (search/download + sync analyze + trigger planning + background job
+  lifecycle + async job endpoint) with behavior-preserving moves.
+  Not a W15 priority; W16+ hygiene candidate. New audit finding
+  `2026-05-16`.
 
 Closed (one-line audit trail):
 
@@ -192,6 +263,8 @@ Closed (one-line audit trail):
 - `[CLEANUP appcore-config-stale-docstring]` — `2026-05-11`.
 - `[CLEANUP session-docstring-except-exception]` — `2026-05-11`.
 - `[CLEANUP uri-validation-stale-sys-path-comment]` — `2026-05-11`.
+- `[FOLLOWUP compose-image-mutable-ref-pin]` — W15-7 (`54e7a93` compose pin + `7ebbbfb` test extension; postgres:16-alpine + alpine/socat:1.8.0.3 manifest digest pin; `tests/architecture/` 196 → 198).
+- `[FOLLOWUP gh-action-trivy-version-pin]` — W15-7 (`452f1a1`; `aquasecurity/trivy-action@v0.36.0` version tag pin matching repo `actions/*@vN` precedent).
 
 ### Test + Observability
 

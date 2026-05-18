@@ -1,6 +1,6 @@
 # Marketplace And Analysis Lane
 
-`Last Updated: 2026-05-07`
+**Last Updated:** 2026-05-17 (W15 close — W15-1 closed 2026-05-14 via c58c365 + typing hotfix 976dc96 on 2026-05-16: sync analyze error taxonomy parity, M10 — `ANALYZE_*_ERROR_TYPES` tuple gates sync `/analyze` exception handling to async worker parity; W15-6 closed 2026-05-17 via be52520 (Proposed at e41722e): ADR 0011 unauthenticated catalog endpoints posture Accepted and implemented, Option A; `tests/architecture/test_catalog_endpoint_posture.py` gate adds 3 AST invariants — module docstring cites ADR 0011, APIRouter has no auth dependency, endpoint count locked at 12 — `tests/architecture/` 188 → 191; ADR 0002 NOT amended.)
 
 Use this lane for marketplace search/download, sandbox analysis orchestration,
 async analysis jobs, cancellation, trigger planning, and report handoff.

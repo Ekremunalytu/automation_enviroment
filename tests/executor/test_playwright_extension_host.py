@@ -92,6 +92,89 @@ def test_parse_activations_from_output_emits_lifecycle_marker_types() -> None:
     assert "provider_register" in markers
 
 
+# ---------------------------------------------------------------------------
+# W15-5 I4 — tightened ``activate entered/returned <id>`` lifecycle markers
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "line, expected_id, expected_marker, expected_ms",
+    [
+        # entry — explicit "for" keyword
+        (
+            "[2026-01-01 10:00:00.100] activateFunction entered for ms-python.python",
+            "ms-python.python",
+            "activate_fn_entry",
+            None,
+        ),
+        # entry — no "for" keyword (legacy variant preserved)
+        (
+            "[2026-01-01 10:00:00.110] activate entered redhat.vscode-yaml",
+            "redhat.vscode-yaml",
+            "activate_fn_entry",
+            None,
+        ),
+        # exit — "returned for <id> in <N>ms" with ms capture
+        (
+            "[2026-01-01 10:00:00.200] activate returned for ms-python.python in 42 ms",
+            "ms-python.python",
+            "activate_fn_exit",
+            42,
+        ),
+        # exit — "completed <id>" no "for", no ms
+        (
+            "[2026-01-01 10:00:00.300] activate completed dbaeumer.vscode-eslint",
+            "dbaeumer.vscode-eslint",
+            "activate_fn_exit",
+            None,
+        ),
+    ],
+)
+def test_lifecycle_marker_tightened_positive_cases(
+    line: str,
+    expected_id: str,
+    expected_marker: str,
+    expected_ms: int | None,
+) -> None:
+    """W15-5 I4: real publisher.name ids still match after the regex tightening."""
+    entries = extension_host.parse_activations_from_output(line)
+
+    assert len(entries) == 1
+    entry = entries[0]
+    assert entry.extension_id == expected_id
+    assert entry.marker_type == expected_marker
+    assert entry.duration_ms == expected_ms
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        # No id at all — pre-W15-5 the loose `.*?(?P<id>[\w.\-]+)` could capture
+        # any trailing token; tightened regex requires a publisher.name shape.
+        "[2026-01-01 10:00:00.000] activate entered",
+        # id lacks a dot — `200` is not `<publisher>.<name>`.
+        "[2026-01-01 10:00:00.000] activate returned 200",
+        # Timestamp-like trailing token; `12:34:56.789` is not [\w-]+\.[\w.-]+
+        # because the `:` characters fall outside the id charset.
+        "[2026-01-01 10:00:00.000] activate entered 12:34:56.789",
+        # Different verb ("activating", "activated") — only literal
+        # "entered" / "returned" / "completed" should match.
+        "[2026-01-01 10:00:00.000] activating ms-python.python",
+        "[2026-01-01 10:00:00.000] activated returned ms-python.python",
+    ],
+)
+def test_lifecycle_marker_tightened_rejects_broad_matches(line: str) -> None:
+    """W15-5 I4: broad false-positive shapes the pre-W15-5 regex tolerated."""
+    entries = extension_host.parse_activations_from_output(line)
+    lifecycle_markers = [
+        e.marker_type
+        for e in entries
+        if e.marker_type in {"activate_fn_entry", "activate_fn_exit"}
+    ]
+
+    assert lifecycle_markers == []
+
+
 def test_parse_activations_from_output_filters_by_monitoring_start() -> None:
     """Entries whose timestamp predates ``monitoring_start`` are dropped."""
     # Pick a monitoring start at noon UTC; one entry is before, one after.

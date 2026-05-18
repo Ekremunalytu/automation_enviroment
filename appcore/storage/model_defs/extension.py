@@ -149,8 +149,8 @@ class ExtensionActivationEvents(Base):
         nullable=False,
         index=True,
     )
-    event_type: Mapped[str] = mapped_column(String, nullable=False, index=True)
-    event_value: Mapped[str | None] = mapped_column(String, nullable=True)
+    event_type: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    event_value: Mapped[str | None] = mapped_column(String(1024), nullable=True)
 
     extension: Mapped[Extension] = relationship(
         "Extension", back_populates="activation_events"
