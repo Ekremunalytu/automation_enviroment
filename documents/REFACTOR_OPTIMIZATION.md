@@ -1,6 +1,6 @@
 # REFACTOR_OPTIMIZATION
 
-`Last Updated: 2026-05-18 (W15 closed via PR #22 week15 -> main MERGED 2026-05-18 via 6161472 — W15-1..W15-7 sub-iter slate + W15-1 post-slate typing hotfix + close-out hygiene pass (doc preamble truth-state refresh across 7 canonical docs + close-out lint hygiene via 7ff31d9 + ADR 0011 catalog endpoint posture gate + compose image SHA pin + GH action trivy version pin); W16 active on main branch (per user direction — no separate week16 branch); §14 W16 plan source entry triggered by W15 merge; W16 scope: 6+1 sub-iter — scenario-accountant emit-site fix (W16-1, HIGH prod regression W14-1 carry-over), analysis-job-worker-entry CRUD ownership (W16-2, W15 audit finding), report-finalize top-level field sync drift (W16-3, W14 carry-over), health-reconciliation responsibility split (W16-4, W15 audit finding), simulation-progress-cancel family closeout (W16-5, W11+ umbrella 3/3 remaining), hygiene splits + Alembic round-trip fixture (W16-6), close-out (W16-7); W14 closed via PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d)`
+`Last Updated: 2026-05-18 (W15 closed via PR #22 week15 -> main MERGED 2026-05-18 via 6161472 — W15-1..W15-7 sub-iter slate + W15-1 post-slate typing hotfix + close-out hygiene pass (doc preamble truth-state refresh across 7 canonical docs + close-out lint hygiene via 7ff31d9 + ADR 0011 catalog endpoint posture gate + compose image SHA pin + GH action trivy version pin); W16 active on week16 branch (per user direction 2026-05-18; W11-W15 paterni restored via W16-0 doc reconcile); §14 W16 plan source entry triggered by W15 merge; W16 scope: 6+1 sub-iter — scenario-accountant emit-site fix (W16-1, HIGH prod regression W14-1 carry-over), analysis-job-worker-entry CRUD ownership (W16-2, W15 audit finding), report-finalize top-level field sync drift (W16-3, W14 carry-over), health-reconciliation responsibility split (W16-4, W15 audit finding), simulation-progress-cancel family closeout (W16-5, W11+ umbrella 3/3 remaining), hygiene splits + Alembic round-trip fixture (W16-6), close-out (W16-7); W14 closed via PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d)`
 
 W0-W14 plan document: stabilization + security + post-PoC external-review
 integration + W14 acceptance + observability continuation. **Slim canonical**
@@ -31,8 +31,9 @@ row with stable ID + landing commit; full context in the snapshot.
   `6161472`.** Frozen tracker:
   [`active-work/W15-codex-uclass-bounds-posture.md`](active-work/W15-codex-uclass-bounds-posture.md).
 - §14 → W16 Carry-Over Closeout + Audit Findings + Production
-  Regression — **active `2026-05-18` on `main` (no separate week16
-  branch per user direction).** Active tracker:
+  Regression — **active `2026-05-18` on the `week16` branch (per user
+  direction; W11-W15 paterni restored via W16-0 doc reconcile).**
+  Active tracker:
   [`active-work/W16-regression-and-audit-closeout.md`](active-work/W16-regression-and-audit-closeout.md).
 
 ## §10 — W0-W7 PoC Stabilization Window (closed 2026-04-23)
@@ -313,8 +314,10 @@ W15 kapanır şu koşullar sağlandığında:
 ## §14 — W16 Carry-Over Closeout + Audit Findings + Production Regression (active 2026-05-18)
 
 §14 opened with the W15 close-out PR #22 `week15 -> main` merge on
-`2026-05-18` via `6161472`. **Per user direction W16 stays on `main`
-— no separate `week16` branch is opened.** Active tracker:
+`2026-05-18` via `6161472`. **Per user direction (2026-05-18) W16
+lives on a `week16` branch (W11-W15 paterni restored via W16-0 doc
+reconcile); close-out merges into `main` via a `week16 -> main` PR.**
+Active tracker:
 [`active-work/W16-regression-and-audit-closeout.md`](active-work/W16-regression-and-audit-closeout.md)
 carries per-iter scope locks, candidate items, and Per-Item Detail
 evidence (sub-commits, module locations, test deltas).
@@ -327,7 +330,7 @@ evidence (sub-commits, module locations, test deltas).
 | W16-4 | health-reconciliation responsibility split | `[FOLLOWUP health-reconciliation-responsibility-split]` (W15 mid-iter audit finding; behavior-preserving extraction, W13-1 HMAC gates must not regress) |
 | W16-5 | simulation-progress-cancel family closeout (3 sub-items) | `[FOLLOWUP simulation-progress-cancel] heartbeat-sandbox-reset-off-thread` + `dedupe-step-progress-schemas` + `heartbeat-refactor` (W11+ umbrella) |
 | W16-6 | hygiene splits + Alembic round-trip fixture | `[CLEANUP marketplace-router-test-suite-split]` + `[CLEANUP test-import-graph-policy-dump-split]` + `[FOLLOWUP w13-4-alembic-roundtrip-programmatic]` |
-| W16-7 | close-out hygiene + canonical preamble refresh | Doc preamble refresh + §14 tracker freeze (no `week16 -> main` PR per main-branch direction) |
+| W16-7 | close-out hygiene + canonical preamble refresh | Doc preamble refresh + §14 tracker freeze + `week16 -> main` close-out PR (W11-W15 paterni restored) |
 
 ### §14.0 — Neden ayrı §14
 
@@ -356,9 +359,10 @@ paterni.
 Stable ID → iter eşlemesi `POST_POC_BACKLOG.md`'de W16 Pull-Forward
 tablosunda (W16-1 pull'da açılır).
 
-Per user direction W16 stays on `main` — no separate `week16`
-branch is opened; sub-iter commits land directly on `main` and the
-W16 tracker freezes when scope closes (no `week16 -> main` PR).
+Per user direction (2026-05-18) W16 lives on a `week16` branch
+(W11-W15 paterni restored via W16-0 doc reconcile); sub-iter commits
+land on `week16` and the W16 close-out is merged into `main` via a
+`week16 -> main` PR.
 
 ### §14.3 — Non-goals (W16)
 
@@ -414,6 +418,7 @@ W16 kapanır şu koşullar sağlandığında:
 - Close-out hygiene pass (W14/W15 paterni): Ruff lint, UI contract
   sync, markdown formatting, doc truth-state alignment, (varsa)
   yeni regression gate'ler.
-- Per user direction: W16 `main` üzerinde kalır — `week16 -> main`
-  close-out PR yok; sub-iter commits doğrudan `main`'e land eder
-  ve W16 tracker scope kapanışında frozen olur.
+- Per user direction (2026-05-18 restored): W16 `week16` branch'inde
+  çalışır; sub-iter commits `week16` branch'inde land eder; close-out
+  `week16 -> main` PR ile merge edilir; W16 tracker scope kapanışında
+  frozen olur (W11-W15 paterni).

@@ -1,8 +1,8 @@
 # W16 — Carry-Over Closeout + Audit Findings + Production Regression (Active Work Tracker)
 
-`Last Updated: 2026-05-18 (W16 active on main per user direction — no separate week16 branch; W15 closed via PR #22 week15 -> main MERGED 2026-05-18 via 6161472; W16 scope authored 2026-05-18 against main HEAD 6161472; 7 sub-iter (W16-1..W16-7) reserved by §14 plan and assigned at first pull per W11/W12/W13/W14/W15 precedent; first pull pending)`
-`Phase: W16 active (W16-1..W16-7 reserved, none yet pulled; no separate branch — commits land directly on main, tracker freezes at scope close)`
-`Branch: main (per user direction; no week16 branch is opened)`
+`Last Updated: 2026-05-18 (W16 active on week16 branch (per user direction 2026-05-18; W11-W15 paterni restored via W16-0 doc reconcile); W15 closed via PR #22 week15 -> main MERGED 2026-05-18 via 6161472; W16 scope authored 2026-05-18 against main HEAD 6161472; 7 sub-iter (W16-1..W16-7) reserved by §14 plan and assigned at first pull per W11/W12/W13/W14/W15 precedent; first pull pending)`
+`Phase: W16 active (W16-1..W16-7 reserved, none yet pulled; commits land on week16 branch, close-out via week16 -> main PR — W11-W15 paterni restored 2026-05-18 via W16-0)`
+`Branch: week16 (per user direction 2026-05-18; W11-W15 paterni restored via W16-0 doc reconcile; close-out merges into main via week16 -> main PR)`
 `Owner: ekrem`
 
 > **Authored 2026-05-18** as the W16 scope skeleton against `main` HEAD
@@ -25,9 +25,10 @@ Detail trimmed until each sub-iter is pulled (drift kontrolü).
 
 ## Status (Quick Glance)
 
-- **W16 active — on `main` per user direction.** No separate `week16`
-  branch is opened; sub-iter commits land directly on `main`, and this
-  tracker freezes when scope closes (no `week16 -> main` close-out PR).
+- **W16 active — on `week16` branch per user direction (2026-05-18;
+  W11-W15 paterni restored via W16-0 doc reconcile).** Sub-iter
+  commits land on `week16`; close-out merges into `main` via a
+  `week16 -> main` PR.
 - **Entry gate (met).** W15 close-out PR #22 `week15 -> main` MERGED
   `2026-05-18` via `6161472`; W15 final post-merge bar:
   `tests/architecture/` **198 passed** (+26 from W14 final 172);
@@ -54,7 +55,7 @@ Detail trimmed until each sub-iter is pulled (drift kontrolü).
 | W16-4 | health-reconciliation responsibility split | `[FOLLOWUP health-reconciliation-responsibility-split]` (W15 audit finding `2026-05-16`; `executor/flows/playwright/health/reconciliation.py` 682 LoC, HMAC marker verification @:78 + fail-closed handshake @:39 + event reconciliation @:414 + coverage @:581 tek modülde) | Behavior-preserving extraction. W13-1 HMAC gates + W13-12 fail-closed handshake davranışı regress etmemeli. Önce responsibility map (hangi fonksiyon hangi risk class'ı sahipleniyor) + test coverage validation, sonra extract. Do not auto-refactor. |
 | W16-5 | simulation-progress-cancel family closeout (3 sub-items) | `[FOLLOWUP simulation-progress-cancel] heartbeat-sandbox-reset-off-thread` + `dedupe-step-progress-schemas` + `heartbeat-refactor` (W11+ umbrella; W13-3 cancel-after-finish race kapandı, 3 alt-kalem açık) | Üç haftalık umbrella'yı toplu kapatır. Çoklu lane spanning; bir alt-iter'da bundle olmazsa W17/W18'e tekrar düşer. |
 | W16-6 | hygiene splits + Alembic round-trip fixture | `[CLEANUP marketplace-router-test-suite-split]` (`tests/workflows/marketplace/test_router.py` 2374 LoC → 5 domain dosyası) + `[CLEANUP test-import-graph-policy-dump-split]` (`test_import_graph.py` 767 LoC → 4 tematik dosya) + `[FOLLOWUP w13-4-alembic-roundtrip-programmatic]` (fresh-DB-per-test fixture, `test_alembic_cancelling_migration.py::test_forward_backward_cancelling` `pytest.skip` kalkar) | Test-maintenance + infrastructure hygiene. Runtime risk yok; behavior-preserving moves + new fixture. Paralel yapılabilir. |
-| W16-7 | close-out hygiene + canonical preamble refresh | Doc preamble truth-state refresh (CLAUDE.md, AGENTS.md, README.md, AGENT_CONTEXT.md, REFACTOR_STATUS.md, POST_POC_BACKLOG.md, REFACTOR_OPTIMIZATION.md) + Ruff lint + markdown formatting + UI contract sync + (varsa) yeni regression gate'ler + §14 tracker freeze | W14/W15 paterni. Tracker scope kapanışında frozen olur. **No `week16 -> main` PR per main-branch direction**; sub-iter commits doğrudan `main`'e land eder. |
+| W16-7 | close-out hygiene + canonical preamble refresh | Doc preamble truth-state refresh (CLAUDE.md, AGENTS.md, README.md, AGENT_CONTEXT.md, REFACTOR_STATUS.md, POST_POC_BACKLOG.md, REFACTOR_OPTIMIZATION.md) + Ruff lint + markdown formatting + UI contract sync + (varsa) yeni regression gate'ler + §14 tracker freeze | W14/W15 paterni. Tracker scope kapanışında frozen olur. **Close-out `week16 -> main` PR** (W11-W15 paterni restored 2026-05-18); sub-iter commits `week16` branch'inde land eder. |
 
 ## Pre-Lock Entry Conditions
 
@@ -141,8 +142,8 @@ landing commit(s).]_
 _[Placeholder — filled at pull. Will document: doc preamble
 truth-state refresh across 7 canonical docs (W15 paterni), Ruff
 lint, markdown formatting, UI contract sync, (varsa) yeni regression
-gate'ler, tracker freeze evidence, landing commit. **No
-`week16 -> main` PR per main-branch direction.**]_
+gate'ler, tracker freeze evidence, landing commit. **Close-out via
+`week16 -> main` PR** (W11-W15 paterni restored 2026-05-18).]_
 
 ## Exit Criteria (W16-End)
 
@@ -174,16 +175,18 @@ sağlandığında:
 - Close-out hygiene pass (W14/W15 paterni): Ruff lint, UI contract
   sync, markdown formatting, doc truth-state alignment, (varsa)
   yeni regression gate'ler.
-- Per user direction: W16 `main` üzerinde kalır — `week16 -> main`
-  close-out PR yok; tracker scope kapanışında frozen olur.
+- Per user direction (2026-05-18 restored): W16 `week16` branch'inde
+  çalışır; close-out `week16 -> main` PR ile merge edilir; W16 tracker
+  scope kapanışında frozen olur (W11-W15 paterni).
 
 ## Notes
 
-- **Branching policy (user direction):** W16 stays on `main`. No
-  separate `week16` branch is opened; sub-iter commits land directly
-  on `main`. This differs from the W11/W12/W13/W14/W15 paterni; the
-  per-iter close-out merge step is replaced by tracker freezing at
-  scope close.
+- **Branching policy (user direction, 2026-05-18 restored):** W16
+  lives on a `week16` branch; sub-iter commits land on `week16`;
+  close-out is merged into `main` via a `week16 -> main` PR
+  (W11/W12/W13/W14/W15 paterni restored). The doc-reconcile pass
+  landed as W16-0 (first commit on `week16`); earlier preamble text
+  that said W16 would stay on `main` is superseded.
 - **Stable ID assignment:** Sub-iter IDs (`W16-1`..`W16-7`) are
   assigned at first pull, not preemptively. The Sub-Iter Scope table
   above is a plan, not a commitment — order and contents may shift

@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-`Last Updated: 2026-05-18 (W15 closed via PR #22 week15 -> main MERGED 2026-05-18 via 6161472 — W15-1..W15-7 sub-iter slate + W15-1 post-slate typing hotfix + close-out hygiene pass (doc preamble truth-state refresh across 7 canonical docs, ADR 0011 catalog endpoint posture gate, compose image SHA pin, GH action trivy version pin); W16 active on main branch per user direction — no separate week16 branch; W16 scope: 6+1 sub-iter — scenario-accountant emit-site fix (W16-1, HIGH prod regression W14-1 carry-over), analysis-job-worker-entry CRUD ownership (W16-2, W15 audit finding), report-finalize top-level field sync drift (W16-3, W14 carry-over), health-reconciliation responsibility split (W16-4, W15 audit finding), simulation-progress-cancel family closeout (W16-5, W11+ umbrella 3 sub-items), hygiene splits + Alembic round-trip fixture (W16-6), close-out (W16-7); plan source REFACTOR_OPTIMIZATION.md §14, active tracker active-work/W16-regression-and-audit-closeout.md; W14 closed via PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d; W13 close-out PR #20 week13 -> main merged 2026-05-13 via 772deb3)`
+`Last Updated: 2026-05-18 (W15 closed via PR #22 week15 -> main MERGED 2026-05-18 via 6161472 — W15-1..W15-7 sub-iter slate + W15-1 post-slate typing hotfix + close-out hygiene pass (doc preamble truth-state refresh across 7 canonical docs, ADR 0011 catalog endpoint posture gate, compose image SHA pin, GH action trivy version pin); W16 active on week16 branch (per user direction 2026-05-18; W11-W15 paterni restored via W16-0 doc reconcile); W16 scope: 6+1 sub-iter — scenario-accountant emit-site fix (W16-1, HIGH prod regression W14-1 carry-over), analysis-job-worker-entry CRUD ownership (W16-2, W15 audit finding), report-finalize top-level field sync drift (W16-3, W14 carry-over), health-reconciliation responsibility split (W16-4, W15 audit finding), simulation-progress-cancel family closeout (W16-5, W11+ umbrella 3 sub-items), hygiene splits + Alembic round-trip fixture (W16-6), close-out (W16-7); plan source REFACTOR_OPTIMIZATION.md §14, active tracker active-work/W16-regression-and-audit-closeout.md; W14 closed via PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d; W13 close-out PR #20 week13 -> main merged 2026-05-13 via 772deb3)`
 
 This file is intentionally a thin pointer. Do not duplicate phase summaries or
 architecture maps here; that caused drift.
@@ -37,9 +37,10 @@ architecture maps here; that caused drift.
   gate, compose image SHA pin, GH action trivy version pin). Frozen
   tracker: `documents/active-work/W15-codex-uclass-bounds-posture.md`.
   **Active phase: W16 — Carry-Over Closeout + Audit Findings +
-  Production Regression**, active `2026-05-18` **on `main` per user
-  direction — no separate `week16` branch is opened; sub-iter commits
-  land directly on `main` and the W16 tracker freezes at scope close**.
+  Production Regression**, active `2026-05-18` **on the `week16`
+  branch per user direction (W11-W15 paterni restored 2026-05-18 via
+  W16-0 doc reconcile); sub-iter commits land on `week16` and the
+  close-out is merged into `main` via a `week16 -> main` PR**.
   Active tracker:
   `documents/active-work/W16-regression-and-audit-closeout.md`. W16
   scope (6+1 sub-iter, severity-leading): W16-1 scenario-accountant
@@ -57,8 +58,8 @@ architecture maps here; that caused drift.
   (`marketplace-router-test-suite-split` 2374 LoC +
   `test-import-graph-policy-dump-split` 767 LoC +
   `w13-4-alembic-roundtrip-programmatic` fresh-DB-per-test fixture);
-  W16-7 close-out hygiene + canonical preamble refresh (no
-  `week16 -> main` PR per main-branch direction). Final W15 post-merge
+  W16-7 close-out hygiene + canonical preamble refresh +
+  `week16 -> main` close-out PR (W11-W15 paterni restored). Final W15 post-merge
   bar (re-recorded at W16-1 pull): `tests/architecture/` **198 passed**
   (+26 from W14 final 172); `make test-security` **215 passed**
   (unchanged from W13 final). Past trackers are stable-ID references
