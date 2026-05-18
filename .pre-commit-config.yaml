@@ -1,6 +1,24 @@
 # Pre-commit hooks configuration
 # Install: pre-commit install
 # Run all: pre-commit run --all-files
+#
+# Python version note (W17-7d, 2026-05-18):
+# The hooks below run on ``python3.12`` (default_language_version), which
+# is intentionally NEWER than the project's stated runtime floors:
+#
+#   - ``executor/container/Dockerfile`` ships Ubuntu 22.04 + python3.10
+#     (gated by ``tests/architecture/test_executor_container_python_compat.py``
+#     — forbids 3.11+ APIs in executor-shipped files).
+#   - ``docker/api/Dockerfile`` ships ``python:3.11-slim-bookworm``.
+#   - ``pyproject.toml`` declares ``requires-python = ">=3.11"`` plus ruff
+#     ``target-version = "py311"`` and mypy ``python_version = "3.11"``.
+#
+# The hooks (ruff, mypy, bandit) read their own ``target-version`` /
+# ``python_version`` knobs from ``pyproject.toml`` to decide which language
+# level to lint against — so the interpreter pre-commit uses to RUN the
+# hooks does not affect lint output. We pin 3.12 here because every active
+# developer environment has 3.12 available locally; pinning 3.11 would
+# require devs to install a second interpreter for no behavioural gain.
 
 default_language_version:
   python: python3.12

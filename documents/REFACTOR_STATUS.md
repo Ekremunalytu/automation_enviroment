@@ -1,6 +1,6 @@
 # Refactor Status
 
-`Last Updated: 2026-05-18 (W16 active — phase work complete; W16 closed via PR #23 week16 -> main MERGED 2026-05-18 via 1b6d43f. W16-0..W16-7 sub-iter slate complete: W16-0 doc-reconcile (0e243ca + d78aa9c); W16-1 scenario-accountant emit-site fix (HIGH prod regression W14-1 carry-over, 01f910a + a4a050e); W16-2 analysis-job worker-entry CRUD ownership (W15 audit, 9d6d110 + c8b7811); W16-3 report-finalize null-leakage half (W14 carry-over, fa430f2 + e3d4a0c; attribution-count-parity split to W17+); W16-4 health-reconciliation responsibility split (W15 audit, 304b99f + 384d276); W16-5 simulation-progress-cancel scope reduction (1 rejected, 2 deferred to W17+, e21a05c); W16-6 hygiene splits + Alembic fresh-DB fixture (d40bb01); W16-7 close-out hygiene + canonical preamble refresh (8bf3c6b) + post-PR unaccounted_dropout surface pin (78f080e). Final W16 bar: tests/architecture/ 199 passed (W15 final 172, +27); make test-security 220 passed (W13 final 215, +5 — W16-7-followup +3 unaccounted_dropout surface pins); full suite 1893 passed. W15 closed via PR #22 week15 -> main MERGED 2026-05-18 via 6161472; W14 closed via PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d; W13 close-out PR #20 week13 -> main merged 2026-05-13 via 772deb3)`
+`Last Updated: 2026-05-18 (W17 active — phase work complete; close-out via week17 -> main PR pending (close-out PR not yet opened; branch is pushed — 2026-05-18); W16 closed via PR #23 week16 -> main MERGED 2026-05-18 via 1b6d43f. W17-0..W17-6 sub-iter slate complete: W17-0 doc-reconcile (4508c2e); W17-1 attribution-count-parity closeout (8c26d02 + 0a8f59e self-stamp); W17-2 lifecycle harness scaffold (ff98235 + 44f96c5 self-stamp); W17-3 + W17-4 scope-reduced doc-only (c4c0646 — DESIGN-NEEDED for thread-relocation refactor shape, deferred to W18); W17-5 hygiene single-item (394d40d postgres-version-fact-drift + 0cbe1d0 self-stamp; other 4 cleanup candidates deferred to W18+); W17-6 close-out hygiene. Final W17 bar: tests/architecture/ 200 passed (W16 final 199, +1 from W17-0 W16 close-out fact gate); make test-security 220 passed (Makefile target list; W17-7a bf983eb enrolled test_unaccounted_dropout_surface.py — 217 → 220 recovers the W16-7-followup audit-trail count); full suite 1899 passed, 9 skipped, 4 deselected (W16 final 1893, +6: 4 W17-1 + 1 W17-0 + 1 W17-2). W16-0..W16-7 sub-iter slate complete: W16-0 doc-reconcile (0e243ca + d78aa9c); W16-1 scenario-accountant emit-site fix (HIGH prod regression W14-1 carry-over, 01f910a + a4a050e); W16-2 analysis-job worker-entry CRUD ownership (W15 audit, 9d6d110 + c8b7811); W16-3 report-finalize null-leakage half (W14 carry-over, fa430f2 + e3d4a0c; attribution-count-parity split to W17); W16-4 health-reconciliation responsibility split (W15 audit, 304b99f + 384d276); W16-5 simulation-progress-cancel scope reduction (1 rejected, 2 deferred to W17, e21a05c); W16-6 hygiene splits + Alembic fresh-DB fixture (d40bb01); W16-7 close-out hygiene + canonical preamble refresh (8bf3c6b) + post-PR unaccounted_dropout surface pin (78f080e). W15 closed via PR #22 week15 -> main MERGED 2026-05-18 via 6161472; W14 closed via PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d; W13 close-out PR #20 week13 -> main merged 2026-05-13 via 772deb3)`
 
 Active status board for current closure state. **Slim canonical** — verbose
 phase evidence is frozen under dated snapshots:
@@ -87,10 +87,9 @@ phase evidence is frozen under dated snapshots:
   `tests/architecture/` **198 passed** (W14 final 172 + W15 sub-iter
   gates +26); `make test-security` **215 passed** (unchanged from W13
   final).
-- **Active phase: W16 — Carry-Over Closeout + Audit Findings +
-  Production Regression** (active `2026-05-18`; **on the `week16`
-  branch per user direction 2026-05-18 (W11-W15 paterni restored via
-  W16-0 doc reconcile)**). Scope authored
+- **W16 closed `2026-05-18` and merged via PR #23 (`1b6d43f`)** —
+  Carry-Over Closeout + Audit Findings + Production Regression
+  window. Scope authored
   `2026-05-18` in
   [`active-work/W16-regression-and-audit-closeout.md`](active-work/W16-regression-and-audit-closeout.md);
   plan source [`REFACTOR_OPTIMIZATION.md §14`](REFACTOR_OPTIMIZATION.md).
@@ -139,7 +138,45 @@ phase evidence is frozen under dated snapshots:
   `unaccounted_dropout` surface round-trip pins matching the live
   scan shape — security lane 217 → 220). **W16 merged into `main`
   via PR #23 `week16 -> main` on `2026-05-18` at merge commit
-  `1b6d43f`.**
+  `1b6d43f`.** Frozen tracker:
+  [`active-work/W16-regression-and-audit-closeout.md`](active-work/W16-regression-and-audit-closeout.md).
+- **Active phase: W17 — Carry-Over Closeout + Lifecycle Harness
+  Yatırımı + Hygiene Sweep** (active `2026-05-18`; **phase work
+  complete; close-out via `week17 -> main` PR pending (no push per
+  user direction 2026-05-18); on the `week17` branch (W11-W16
+  paterni preserved).** Scope authored + executed `2026-05-18` in
+  [`active-work/W17-carryover-and-lifecycle-harness.md`](active-work/W17-carryover-and-lifecycle-harness.md);
+  plan source [`REFACTOR_OPTIMIZATION.md §15`](REFACTOR_OPTIMIZATION.md).
+  W17-0..W17-6 sub-iter slate complete: W17-0 doc-reconcile
+  (`4508c2e`); W17-1 attribution-count-parity closeout (`8c26d02`
+  + `0a8f59e` self-stamp — `build_evidence_bundle` activation
+  emit-site stamps `is_target_extension_event` byte-identical with
+  `count_target_activations` predicate; 4 invariant tests including
+  W17-1 parity contract pin); W17-2 lifecycle harness scaffold
+  (`ff98235` + `44f96c5` self-stamp — `LifecycleHarness` +
+  `lifecycle_harness` fixture at `tests/workflows/marketplace/test_lifecycle_harness.py`;
+  W17-3 enabler with cancel-via-heartbeat smoke pinning thread
+  identity and `reload_window=True` kwargs); W17-3 + W17-4
+  scope-reduced doc-only (`c4c0646` — DESIGN-NEEDED for
+  thread-relocation refactor shape because worker-thread step-1
+  reset is a HARD SYNC POINT for W13-11 HMAC secret consume and
+  the heartbeat thread starts only at step 4; multiple plausible
+  refactor shapes have different invariant cost; deferred to W18
+  dedicated sub-iter opening with ADR / §16 plan entry); W17-5
+  hygiene single-item (`394d40d` `[CLEANUP postgres-version-fact-drift]`
+  closeout at `seed_project_2.py` synthetic-fixture
+  `postgres:15 → postgres:16-alpine` stack alignment + `0cbe1d0`
+  self-stamp; other 4 cleanup candidates deferred to W18+
+  opportunistic pull-as-found — they lack inline scope descriptions
+  and need per-item owner discovery); W17-6 close-out hygiene this
+  commit (canonical preamble refresh across 7 docs + §15 self-stamp
+  + W17 tracker freeze). Final W17 bar: `tests/architecture/`
+  **200 passed** (W16 final 199, +1 from W17-0 W16 close-out fact
+  gate); `make test-security` **220 passed** (Makefile target list;
+  W17-7a `bf983eb` enrolled `test_unaccounted_dropout_surface.py`
+  in the hardcoded file list — 217 → 220 recovers the
+  W16-7-followup audit-trail count); full suite **1899 passed,
+  9 skipped, 4 deselected** (W16 final 1893, +6).
 
 ## W13 Status Summary
 

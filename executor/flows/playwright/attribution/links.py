@@ -35,6 +35,14 @@ def build_evidence_bundle(
     events: list[EvidenceEvent] = []
     links: list[EvidenceLink] = list(report.evidence_links)
     monitoring_start = report.monitoring_start
+    # W17-1 attribution-count-parity: the activation emit-site below stamps
+    # ``is_target_extension_event`` on ``kind="activation"`` evidence events.
+    # The previous emit-site never set the flag, so evidence-side counters
+    # (e.g. ``kind=activation,is_target_extension_event=True``) read zero
+    # even when ``count_target_activations(report.activated, ...)`` matched
+    # — surfaced by the W14 production scan ``2026-05-14`` and split out of
+    # W16-3 as ``[FOLLOWUP attribution-count-parity]``.
+    target_extension_id = report.target_extension_id
 
     scenario_entries: list[tuple[str, ScenarioTrace]] = []
     activation_entries: list[tuple[str, ActivationEntry, float | None]] = []
@@ -79,6 +87,10 @@ def build_evidence_bundle(
             monitoring_start,
         )
         activation_entries.append((event_id, activation, event_epoch))
+        is_target_activation = bool(
+            target_extension_id
+            and activation.extension_id == target_extension_id
+        )
         events.append(
             EvidenceEvent(
                 event_id=event_id,
@@ -91,6 +103,7 @@ def build_evidence_bundle(
                 actor="extension",
                 extension_id=activation.extension_id,
                 activation_event=activation.activation_event,
+                is_target_extension_event=is_target_activation,
                 summary=(
                     f"Activation {activation.extension_id}"
                     + (

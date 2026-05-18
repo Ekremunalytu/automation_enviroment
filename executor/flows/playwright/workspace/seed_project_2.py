@@ -73,7 +73,7 @@ WORKSPACE_FILES = {
     "      - redis\n"
     "\n"
     "  db:\n"
-    "    image: postgres:15\n"
+    "    image: postgres:16-alpine\n"
     "    environment:\n"
     "      POSTGRES_USER: extrace_user\n"
     "      POSTGRES_PASSWORD: Xk9$$mP2vL7nQ\n"

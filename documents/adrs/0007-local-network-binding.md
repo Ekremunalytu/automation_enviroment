@@ -92,10 +92,14 @@ mappings carry literal `127.0.0.1:` prefixes and require manual editing per
 [`runbooks/lan-exposure.md`](../runbooks/lan-exposure.md). No other variable
 enables LAN exposure.
 
-A short `documents/runbooks/lan-exposure.md` runbook documents what an
-operator must additionally harden before flipping the flag (firewall rules,
-authenticating reverse proxy in front of the API, CORS allow-list, rotated
-PostgreSQL password).
+The [`documents/runbooks/lan-exposure.md`](../runbooks/lan-exposure.md)
+runbook owns the operator-side pre-flight checklist for what must be
+hardened before flipping the flag (firewall rules, authenticating reverse
+proxy in front of the API, explicit CORS allow-list, rotated PostgreSQL
+password, and a re-read of the ADR 0002 threat model with the widened
+trust boundary in mind). Runbook content is the canonical source of
+truth — the items above are paraphrased and may evolve as the
+operator-side trust posture is sharpened.
 
 ### 3. CORS is allow-list by default
 
@@ -201,8 +205,9 @@ Landed `2026-04-29` on `feat/w8-7-lan-binding-defaults` (W8-7).
   `debug` profile (CDP exposed via the sidecar).
 - `documents/runbooks/lan-exposure.md` — operator-side pre-flight
   checklist (firewall rules, reverse-proxy auth, explicit CORS
-  allow-list, rotated PostgreSQL password) that must precede any LAN
-  exposure.
+  allow-list, rotated PostgreSQL password, ADR 0002 threat-model
+  re-read) that must precede any LAN exposure. The runbook is the
+  canonical control surface; the items above are summarized.
 - `tests/architecture/test_default_bindings.py` — 14 cases pinning
   loopback defaults, the truthy/falsy semantics of `EXTRACE_ALLOW_LAN`,
   the compose host-IP prefix discipline, and the CDP `debug`-profile

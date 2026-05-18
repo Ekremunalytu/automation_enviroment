@@ -1,6 +1,6 @@
 # Post-PoC Backlog
 
-`Last Updated: 2026-05-18 (W16 active — phase work complete; W16 closed via PR #23 week16 -> main MERGED 2026-05-18 via 1b6d43f. W16 Pull-Forward CLOSED: scenario-accountant-conservation-split (W16-1, 01f910a), analysis-job-worker-entry-crud-ownership (W16-2, 9d6d110), report-finalize-top-level-field-sync-drift null-leakage half (W16-3, fa430f2; attribution-count-parity half SPLIT to W17+ as [FOLLOWUP attribution-count-parity]), health-reconciliation-responsibility-split (W16-4, 304b99f), simulation-progress-cancel scope reduction (W16-5 doc-only e21a05c — dedupe-step-progress-schemas REJECTED; heartbeat-sandbox-reset-off-thread + heartbeat-refactor DEFERRED to W17+), marketplace-router-test-suite-split + test-import-graph-policy-dump-split + w13-4-alembic-roundtrip-programmatic (W16-6, d40bb01), close-out hygiene (W16-7, 8bf3c6b) + post-PR unaccounted_dropout surface pin (78f080e). Final W16 bar: tests/architecture/ 199 passed; make test-security 220 passed (+3 W16-7-followup unaccounted_dropout pins); full suite 1893 passed. W15 closed via PR #22 MERGED 2026-05-18 via 6161472; W14 closed via PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d)`
+`Last Updated: 2026-05-18 (W17 active — phase work complete; close-out via week17 -> main PR pending (close-out PR not yet opened; branch is pushed — 2026-05-18); W16 closed via PR #23 week16 -> main MERGED 2026-05-18 via 1b6d43f. W17 Pull-Forward CLOSED: attribution-count-parity (W17-1, 8c26d02; producer-side fix at build_evidence_bundle activation emit-site); lifecycle harness scaffold (W17-2, ff98235; LifecycleHarness + lifecycle_harness fixture); heartbeat-sandbox-reset-off-thread + heartbeat-refactor SCOPE-REDUCED (W17-3 + W17-4 doc-only c4c0646; DESIGN-NEEDED, deferred to W18); postgres-version-fact-drift (W17-5, 394d40d; seed_project_2 synthetic-fixture stack alignment); other 4 cleanup candidates deferred to W18+ pull-as-found; W17-6 close-out hygiene this commit. Final W17 bar: tests/architecture/ 200 passed; make test-security 220 passed (W17-7a bf983eb enrolled test_unaccounted_dropout_surface.py — 217 → 220); full suite 1899 passed, 9 skipped, 4 deselected (+6 from W16 final 1893). W16 Pull-Forward CLOSED: scenario-accountant-conservation-split (W16-1, 01f910a), analysis-job-worker-entry-crud-ownership (W16-2, 9d6d110), report-finalize-top-level-field-sync-drift null-leakage half (W16-3, fa430f2; attribution-count-parity half SPLIT to W17 as [FOLLOWUP attribution-count-parity]), health-reconciliation-responsibility-split (W16-4, 304b99f), simulation-progress-cancel scope reduction (W16-5 doc-only e21a05c — dedupe-step-progress-schemas REJECTED; heartbeat-sandbox-reset-off-thread + heartbeat-refactor DEFERRED to W17), marketplace-router-test-suite-split + test-import-graph-policy-dump-split + w13-4-alembic-roundtrip-programmatic (W16-6, d40bb01), close-out hygiene (W16-7, 8bf3c6b) + post-PR unaccounted_dropout surface pin (78f080e). W15 closed via PR #22 MERGED 2026-05-18 via 6161472; W14 closed via PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d)`
 
 Open deferred work after the W0-W7 PoC acceptance bar. **Slim canonical** —
 verbose closure rationales, evidence paragraphs, and per-iter Note columns
@@ -12,18 +12,23 @@ stable ID + landing commit; full context in the snapshot.
 - previous full snapshot:
   [`archive/backlog/POST_POC_BACKLOG_full_2026-05-11.md`](archive/backlog/POST_POC_BACKLOG_full_2026-05-11.md)
 
-W8-W15 are closed; W13 close-out PR #20 `week13 -> main` **MERGED**
+W8-W16 are closed; W13 close-out PR #20 `week13 -> main` **MERGED**
 `2026-05-13` via `772deb3`; W14 close-out PR #21 `week14 -> main`
-**MERGED** `2026-05-14` via `4e03c8d`; **W15 close-out PR #22
-`week15 -> main` MERGED `2026-05-18` via `6161472`**. **W16 active**
-on the `week16` branch (per user direction 2026-05-18; W11-W15 paterni
-restored via W16-0 doc reconcile); W16-1..W16-7 planned (pull-forward
-table below). W14 tracker:
+**MERGED** `2026-05-14` via `4e03c8d`; W15 close-out PR #22
+`week15 -> main` **MERGED** `2026-05-18` via `6161472`; **W16 close-out
+PR #23 `week16 -> main` MERGED `2026-05-18` via `1b6d43f`**.
+**W17 phase work complete `2026-05-18`** on the `week17` branch (per
+user direction 2026-05-18; W11-W16 paterni preserved); **close-out
+via `week17 -> main` PR pending** (close-out PR not yet opened; branch
+is pushed — `2026-05-18`). W17-0..W17-6 sub-iter slate landed
+(pull-forward table below). W14 tracker:
 [`active-work/W14-codex-acceptance-observability.md`](active-work/W14-codex-acceptance-observability.md);
 W15 tracker (frozen):
 [`active-work/W15-codex-uclass-bounds-posture.md`](active-work/W15-codex-uclass-bounds-posture.md);
-W16 tracker (active):
-[`active-work/W16-regression-and-audit-closeout.md`](active-work/W16-regression-and-audit-closeout.md).
+W16 tracker (frozen):
+[`active-work/W16-regression-and-audit-closeout.md`](active-work/W16-regression-and-audit-closeout.md);
+W17 tracker (active):
+[`active-work/W17-carryover-and-lifecycle-harness.md`](active-work/W17-carryover-and-lifecycle-harness.md).
 
 ## Stable IDs Are A Contract
 
@@ -85,13 +90,12 @@ per-iter Per-Item Detail evidence in the W15 tracker + archive snapshot.
 | W15-6 | `[FOLLOWUP codex-2026-05-10-U10-U11-unauth-catalog-endpoints]` (ADR 0011 Accepted + implemented, Option A) | `be52520` (Proposed at `e41722e`) |
 | W15-7 | `[FOLLOWUP compose-image-mutable-ref-pin]` + `[FOLLOWUP gh-action-trivy-version-pin]` + close-out hygiene | `54e7a93` + `7ebbbfb` + `452f1a1` + `7ff31d9` (early pulls `a7a876e` + `2573e35`) |
 
-## W16 Pull-Forward Acceptance Bar (planned)
+## W16 Pull-Forward Acceptance Bar
 
-W16 active on the `week16` branch (per user direction 2026-05-18;
-W11-W15 paterni restored via W16-0 doc reconcile). Stable IDs reserved
-by §14 plan; each row assigned **at first pull** per the
-W11/W12/W13/W14/W15 precedent. Close-out merges into `main` via a
-`week16 -> main` PR.
+W16 closed `2026-05-18` and merged via PR #23 `week16 -> main`
+(`1b6d43f`). All rows below are closed audit trail; full Per-Item
+Detail evidence in the frozen tracker
+[`active-work/W16-regression-and-audit-closeout.md`](active-work/W16-regression-and-audit-closeout.md).
 
 | Iter | Stable ID(s) (planned) | Landing commit |
 |---|---|---|
@@ -102,6 +106,26 @@ W11/W12/W13/W14/W15 precedent. Close-out merges into `main` via a
 | W16-5 | `[FOLLOWUP simulation-progress-cancel]` umbrella (3 sub-items) — scope reduced: `dedupe-step-progress-schemas` **rejected** (distinct surface roles), `heartbeat-sandbox-reset-off-thread` + `heartbeat-refactor` **deferred to W17+** (lifecycle harness prerequisite). | documented in tracker (no code commit) |
 | W16-6 | `[CLEANUP marketplace-router-test-suite-split]` (2374 LoC → 5 endpoint-grouped files) + `[CLEANUP test-import-graph-policy-dump-split]` (767 LoC → 4 thematic files) + `[FOLLOWUP w13-4-alembic-roundtrip-programmatic]` (skip removed; `fresh_alembic_engine` per-test throwaway Postgres DB) | `d40bb01` |
 | W16-7 | close-out hygiene + canonical preamble refresh + W16 tracker freeze + `week16 -> main` close-out PR + post-PR `unaccounted_dropout` surface pin (security lane 217 → 220) | `8bf3c6b` + `78f080e` (post-PR top-up); PR #23 MERGED `2026-05-18` via `1b6d43f` |
+
+## W17 Pull-Forward Acceptance Bar
+
+W17 phase work complete `2026-05-18` on the `week17` branch (per user
+direction 2026-05-18; W11-W16 paterni preserved); close-out via
+`week17 -> main` PR pending (close-out PR not yet opened; branch is
+pushed). All rows below are closed audit trail; full Per-Item
+Detail evidence in the active tracker
+[`active-work/W17-carryover-and-lifecycle-harness.md`](active-work/W17-carryover-and-lifecycle-harness.md).
+
+| Iter | Stable ID(s) (planned) | Landing commit |
+|---|---|---|
+| W17-0 | doc-direction reconcile — `week17` branch + `week17 -> main` close-out PR wording across canonical docs; W11-W16 paterni preserved | `4508c2e` |
+| W17-1 | `[FOLLOWUP attribution-count-parity]` (W16-3 carry-over; producer-side fix at `build_evidence_bundle` activation emit-site — `is_target_extension_event` stamp; 4 invariant tests including parity contract pin) | `8c26d02` |
+| W17-2 | lifecycle harness scaffold (W17-3/4 enabler) — `LifecycleHarness` + `lifecycle_harness` fixture at `tests/workflows/marketplace/test_lifecycle_harness.py` composing `test_engine` + per-test UUID `AnalysisJob` row + mocked `ExecutorControl` (reset_sandbox call recorder w/ thread identity) + spawnable `_run_monitoring_heartbeat` thread; smoke test pins cancel-via-heartbeat path (thread = `harness-monitoring-heartbeat`, kwargs = `reload_window=True`, CAS = `WorkerEntryOutcome.CLAIMED`). Scope cut: harness does NOT drive `run_analysis_job` end-to-end, does NOT use `fresh_alembic_engine` (UUID-keyed rows + cleanup-delete suffice). W17-3 extension points listed in module docstring. | `ff98235` |
+| W17-3 | `[FOLLOWUP simulation-progress-cancel] heartbeat-sandbox-reset-off-thread` — **scope-reduced 2026-05-18 (doc-only)**: harness prerequisite (W17-2) met, but the refactor shape is **DESIGN-NEEDED** (worker-thread step-1 reset is a HARD SYNC POINT for W13-11 HMAC secret; heartbeat thread starts only at step 4; multiple plausible refactor shapes have different invariant cost). Deferred to W18 dedicated sub-iter that opens with a design ADR / §16 plan entry. | _deferred to W18 (doc-only this iter)_ |
+| W17-4 | `[FOLLOWUP simulation-progress-cancel] heartbeat-refactor` — **scope-reduced 2026-05-18 (doc-only)**: bundled with W17-3 thread-relocation design decision; refactoring heartbeat shape in isolation before deciding the thread destination would land throw-away work. W18 pulls both together. | _deferred to W18 (doc-only this iter)_ |
+| W17-5 | hygiene cleanup batch — `[CLEANUP postgres-version-fact-drift]` closed (`seed_project_2.py` synthetic-fixture `postgres:15 -> postgres:16-alpine` stack alignment); other four candidates (`env-example-extrace-vars`, `adr-0007-runbook-wording-drift`, `pre-commit-python-version-alignment`, `report-builder-naming` / alt: `monitor-runtime-naming-overlap`) deferred to W18+ opportunistic pull-as-found (lack inline scope descriptions, need per-item owner discovery) | `394d40d` |
+| W17-6 | **closed `2026-05-18`** via `21f7c68` (close-out hygiene: canonical preamble refresh across 7 docs + §15 self-stamp + final W17 bar recorded + backlog item statuses updated; close-out PR `week17 -> main` not yet opened; branch is pushed) | `21f7c68` |
+| W17-7 | **closed `2026-05-18`** post-slate hotfix batch (W14-7/W14-8 paterni): W17-7a `bf983eb` Makefile `test-security` target enrolls `test_unaccounted_dropout_surface.py` (217 → 220 — recovers the W16-7-followup audit-trail count); W17-7b `fc88678` `.env.example` adds `EXTRACE_EPOCH_RUN_ID` (W14-5 log run-id stamping env var, was missing); W17-7c `326dac8` ADR 0007 runbook references aligned with current `lan-exposure.md` (drops "short" qualifier, lists all 5 pre-flight items, declares runbook canonical); W17-7d `51dba29` `.pre-commit-config.yaml` header comment block documenting the intentional Python version gap (3 versions in play: 3.10 executor / 3.11 API+pyproject / 3.12 dev+pre-commit) | `bf983eb` + `fc88678` + `326dac8` + `51dba29` |
 
 ## Codex Cloud Audit Backlog
 
@@ -151,18 +175,42 @@ evidence.
 
 ### Workflow / Platform
 
-- `[FOLLOWUP simulation-progress-cancel] heartbeat-sandbox-reset-off-thread` — **W16-5 deferred to W17+**. The sandbox-reset call currently fires on the analysis worker thread in
-  `workflows/marketplace/analysis_execution.py`; moving it onto the
-  monitoring heartbeat thread (or any sibling background thread) is
-  concurrency-sensitive — it interacts with the W13-3 two-phase cancel
-  contract, the W13-13 worker-entry CAS, and the W16-2 facade's row
-  lock discipline. A safe move needs a lifecycle harness that drives
-  start/reset/cancel/finalize against a real DB session and a real
-  Playwright page mock; that harness does not exist yet (see also the
-  W14-3 RED stub note that surfaced the same gap for report-finalize).
-  W16 scope cap keeps the carry-over closeout window narrow; the
-  thread move belongs in a dedicated sub-iter with the harness as a
-  prerequisite.
+- `[FOLLOWUP simulation-progress-cancel] heartbeat-sandbox-reset-off-thread` — **W17-3 scope-reduced; deferred to W18+** (W16-5 paterni; doc-only commit). Harness prerequisite is now MET (W17-2 landed `ff98235`
+  with `LifecycleHarness` + `lifecycle_harness` fixture + cancel-via-
+  heartbeat smoke), but the W17-3 design intent surfaced as
+  **DESIGN-NEEDED**: the deferral note says "move sandbox-reset call
+  from worker thread to heartbeat thread", yet the worker-thread
+  `_reset_sandbox` call (`workflows/marketplace/analysis_service.py:155`)
+  is a HARD SYNC POINT before
+  `consume_harness_python_secret` (W13-11 / Codex F1 close-pass for
+  W13-1 H6) — the reset restarts VS Code which writes the per-launch
+  HMAC python secret to
+  `/results/_extrace_harness_python_secret`; the secret MUST be
+  consumed before the analyzed VSIX is admitted. The monitoring
+  heartbeat thread itself only starts at step 4 (`_run_monitoring`,
+  after install + triggers), so it cannot host the step-1 reset
+  without a pipeline ordering refactor. Several plausible refactor
+  shapes exist (dedicated reset thread started before step 1; merge
+  heartbeat's cancel-path reset with step-1 reset via a queue;
+  restructure pipeline to start heartbeat earlier) and the choice
+  has different invariant cost: W13-1 HMAC marker wiring vs. W13-3
+  two-phase cancel vs. W13-13 worker-entry CAS vs. W16-2 facade row
+  lock. **W17 scope cap** keeps W17 focused on attribution-parity +
+  harness + hygiene; the thread relocation belongs in a dedicated
+  W18 sub-iter that opens with a design-decision ADR (or §16 plan
+  entry) naming the chosen refactor shape and the invariant
+  preservation strategy. The lifecycle harness at
+  `tests/workflows/marketplace/test_lifecycle_harness.py` is ready
+  for W18 — its module docstring already enumerates the three
+  W17-3 extension points (parallel reset / idempotency /
+  reset-during-finalize) so W18 inherits the rig with zero
+  bootstrap cost. Pre-W17-3 description retained (original W16-5
+  deferral context): The sandbox-reset call currently fires on the
+  analysis worker thread in `workflows/marketplace/analysis_execution.py`;
+  moving it onto the monitoring heartbeat thread (or any sibling
+  background thread) is concurrency-sensitive — it interacts with
+  the W13-3 two-phase cancel contract, the W13-13 worker-entry CAS,
+  and the W16-2 facade's row lock discipline.
 - `[FOLLOWUP simulation-progress-cancel] dedupe-step-progress-schemas` — **W16-5 rejected** after investigation. The two schemas
   (`appcore/contracts/schema_defs/analysis_jobs.AnalysisJobStepProgress`
   with `extra="forbid"`; `appcore/contracts/schema_defs/marketplace.AnalyzeJobStepProgress`
@@ -181,15 +229,22 @@ evidence.
   outside the codebase. The dedupe value (35 LoC eliminated) does not
   justify the surface-role coupling or the breaking risk; the audit
   finding stays open as documentation but no schema change lands.
-- `[FOLLOWUP simulation-progress-cancel] heartbeat-refactor` — **W16-5
-  deferred to W17+**. Bundled with `heartbeat-sandbox-reset-off-thread`
-  above; the same lifecycle harness is the prerequisite. The current
+- `[FOLLOWUP simulation-progress-cancel] heartbeat-refactor` — **W17-4
+  scope-reduced; deferred to W18+** (bundled with
+  `heartbeat-sandbox-reset-off-thread` above; W16-5 paterni). The
+  W17-2 harness prerequisite is now MET, but the heartbeat-refactor
+  clarity gain is **bundled with the W17-3 thread-relocation
+  design decision** — refactoring the heartbeat shape in isolation
+  before deciding whether the thread will also host the step-1
+  reset would land throw-away work. W18 pulls both together once
+  the W17-3 refactor shape is named in an ADR / §16 plan entry.
+  Pre-W17-4 description retained (W16-5 deferral context): Current
   heartbeat shape
   (`workflows/marketplace/analysis_execution._run_monitoring_heartbeat`
-  L102-128 + thread setup L287-313) is functional and exercises every
-  cancel-poll branch; the audit-driven refactor is a clarity gain
-  rather than a correctness fix, so deferring without behavioral
-  consequence is safe.
+  L102-128 + thread setup L287-313) is functional and exercises
+  every cancel-poll branch; the audit-driven refactor is a clarity
+  gain rather than a correctness fix, so deferring without
+  behavioral consequence is safe.
 - `[FOLLOWUP analysis-thread-supervisor]`
 - `[FOLLOWUP job-service-typevar-audit]`
 - `[FOLLOWUP sqlalchemy-error-subtype-logging]`
@@ -300,21 +355,36 @@ Closed (one-line audit trail):
   different code path (`build_signal_summary` /
   `attribution_summary` producer side) and lives under
   `[FOLLOWUP attribution-count-parity]` (new entry below).
-- `[FOLLOWUP attribution-count-parity]` — **W16-3 split**.
-  W14 production scan `2026-05-14`:
-  `attribution_summary.target_activation_count = 1` raporlanırken
-  `evidence_events` listesinde `kind=activation,
-  is_target_extension_event=True` hiç yok; ancak
-  `target_extension_host` log stream'inde 1 entry mevcut
-  (`Activated ms-python.python via
-  workspaceContains:requirements.txt`). İki agregasyon kaynağı aynı
-  aktivasyon için farklı target-flag verdiği için top-level sayım
-  stream-türevli, evidence-kind sayımı 0 — `build_signal_summary` /
-  `attribution_summary` producer-side drift. W16-3 (`fa430f2`) closed
-  the contract-seam null-leakage half; this entry tracks the remaining
-  evidence-vs-stream divergence. W17+ candidate; needs investigation
-  hook into the attribution_summary producer to align the two
-  counters.
+- `[FOLLOWUP attribution-count-parity]` — **closed at W17-1** via
+  `8c26d02` (W14 production scan `2026-05-14` evidence-vs-stream
+  divergence half; W16-3 split). Root cause located at
+  `executor/flows/playwright/attribution/links.py`
+  `build_evidence_bundle`: the activation emit-site walked
+  `report.activated[]` and emitted one `EvidenceEvent(kind="activation",
+  ...)` per entry but never stamped `is_target_extension_event` —
+  the only producer-side hole among the kind branches (network /
+  file / process / output_channel_appendline all forward
+  `is_target_extension_event` from the upstream typed event at
+  links.py:173/218/264/302). Fix captures `target_extension_id =
+  report.target_extension_id` at function entry and stamps
+  `is_target_extension_event=bool(target_extension_id and
+  activation.extension_id == target_extension_id)` on each
+  activation `EvidenceEvent`. Mirrors `count_target_activations`'s
+  empty-id guard so the two predicates are byte-identical at all
+  inputs. 4 new invariant tests in
+  `tests/executor/test_playwright_attribution_links.py` including
+  the W17-1 contract pin
+  (`test_build_evidence_bundle_target_activation_parity_invariant`).
+  Pre-W17-1 description (W16-3 split context): W14 production scan
+  `2026-05-14`: `attribution_summary.target_activation_count = 1`
+  raporlanırken `evidence_events` listesinde
+  `kind=activation,is_target_extension_event=True` hiç yok; ancak
+  `target_extension_host` log stream'inde 1 entry mevcut. İki
+  agregasyon kaynağı aynı aktivasyon için farklı target-flag verdiği
+  için top-level sayım stream-türevli, evidence-kind sayımı 0.
+  W16-3 (`fa430f2`) closed the contract-seam null-leakage half; W17-1
+  closes the evidence-vs-stream divergence half at the producer
+  emit-site.
 - `[FOLLOWUP event-attempt-verification-status-validator]`
 - `[FOLLOWUP report-invariants-runtime-evidence-drift]`
 - `[FOLLOWUP compute-verdict-table-driven-test]`
@@ -351,10 +421,55 @@ Closed: `[FOLLOWUP evidence-event-kind-raw-context-invariant]` — W14-4
 - `[FOLLOWUP ci-reintroduction]`
 - `[CLEANUP report-builder-naming]`
 - `[CLEANUP monitor-runtime-naming-overlap]`
-- `[CLEANUP env-example-extrace-vars]`
-- `[CLEANUP postgres-version-fact-drift]`
-- `[CLEANUP adr-0007-runbook-wording-drift]`
-- `[CLEANUP pre-commit-python-version-alignment]`
+- `[CLEANUP env-example-extrace-vars]` — **closed at W17-7b** via
+  `fc88678`. `EXTRACE_EPOCH_RUN_ID` (W14-5 sub-commit 2 wiring;
+  log run-id stamping; propagated across docker exec boundary)
+  was the only EXTRACE_-prefixed env var used in source code
+  (`appcore/logging.py:36`) but missing from `.env.example`.
+  Added a commented `EXTRACE_EPOCH_RUN_ID=` entry to the OPTIONAL
+  EXTRACE OVERRIDES block with operator-facing scope notes.
+  (`EXTRACE_LOGGER_ROOT` matched the grep but is a Python
+  `Final[str]` constant, not an env var — skipped.)
+- `[CLEANUP postgres-version-fact-drift]` — **closed at W17-5** via
+  `394d40d`. `executor/flows/playwright/workspace/seed_project_2.py:76`
+  synthetic-fixture `docker-compose.yml` string bumped from
+  `image: postgres:15` to `image: postgres:16-alpine` so the synthetic
+  project surface aligns with the rest of the stack (CONTRIBUTING.md /
+  README.md / `docker-compose.yml` all on postgres:16-alpine; W15-7
+  digest-pinned the production compose at `54e7a93`). No test pins
+  the fixture's postgres tag — verified by grep before edit; full
+  non-smoke suite 1899 passed unchanged.
+- `[CLEANUP adr-0007-runbook-wording-drift]` — **closed at W17-7c**
+  via `326dac8`. Two wording-drift points fixed: ADR 0007 §2
+  called the runbook "short" (now 192 lines), and the ADR §2
+  prose + §Implementation §Follow-On bullet both enumerated the
+  runbook's pre-flight items as 4 entries while the current
+  runbook §Pre-Flight Checklist has 5 (item 5 "Re-read the threat
+  model" added post-W8-7). Fix at both occurrences: drop the
+  "short" qualifier, list all 5 items, declare the runbook the
+  canonical source of truth so future evolution does not re-drift
+  the ADR. ADR Context-section line numbers (pre-W8-7 historical
+  state, immutable record) intentionally NOT updated.
+- `[CLEANUP pre-commit-python-version-alignment]` — **closed at
+  W17-7d** via `51dba29` (documentation-only resolution).
+  Investigation surfaced three deliberate Python versions in play
+  across the codebase (3.10 executor container shipped via
+  `executor/container/Dockerfile` + gated by
+  `tests/architecture/test_executor_container_python_compat.py`;
+  3.11 API container shipped via `docker/api/Dockerfile` +
+  `pyproject.toml` `requires-python = ">=3.11"` + ruff
+  `target-version="py311"` + mypy `python_version="3.11"`; 3.12
+  dev env + pre-commit interpreter). The lint tools read their
+  own `target-version` / `python_version` from `pyproject.toml`,
+  so pre-commit's interpreter does not affect lint output —
+  only the W14-8 arch gate
+  (`test_executor_container_python_compat`) and the per-tool
+  pyproject targets gate the language-level surface. Fix: header
+  comment block in `.pre-commit-config.yaml` documenting the
+  three versions + rationale for pinning python3.12 (every dev
+  env has it; pinning 3.11 would require devs to install a
+  second interpreter for no behavioural gain). No interpreter
+  or hook version change.
 - `[CLEANUP test-import-graph-policy-dump-split]` — **pulled to W16-6**
   (hygiene splits bundle). `test_import_graph.py` carries 18 distinct
   architectural test functions in 767 LoC; thematic split

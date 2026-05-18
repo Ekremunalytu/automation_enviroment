@@ -224,6 +224,7 @@ test-security:
 		tests/security/rules \
 		tests/security/test_rule_validation.py \
 		tests/security/test_benign_silence.py \
+		tests/security/test_unaccounted_dropout_surface.py \
 		tests/platform/security \
 		tests/architecture/test_default_bindings.py \
 		tests/architecture/test_dockerfile_digest_pin.py \
