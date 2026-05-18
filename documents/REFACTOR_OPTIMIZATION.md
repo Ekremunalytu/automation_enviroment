@@ -451,7 +451,7 @@ passed**; full suite **1893 passed, 9 skipped**.
 | W17-2 | **closed `2026-05-18`** via `ff98235` (W17-3 enabler — `LifecycleHarness` + `lifecycle_harness` fixture at `tests/workflows/marketplace/test_lifecycle_harness.py`; smoke pins cancel-via-heartbeat path with thread identity assertion + production-wiring kwargs; scope cuts: no end-to-end `run_analysis_job` drive, no `fresh_alembic_engine` — UUID-keyed rows + cleanup-delete suffice) | `ff98235` |
 | W17-3 | **scope-reduced `2026-05-18`** (doc-only commit — DESIGN-NEEDED for thread-relocation refactor shape; W17-2 harness prerequisite met but worker-thread step-1 reset is a HARD SYNC POINT for W13-11 HMAC secret consume, and the heartbeat thread starts only at step 4 — multiple plausible refactor shapes have different invariant cost; deferred to W18 dedicated sub-iter opening with ADR / §16 plan entry) | _deferred to W18 (doc-only)_ |
 | W17-4 | **scope-reduced `2026-05-18`** (doc-only commit — bundled with W17-3 thread-relocation design decision; refactoring heartbeat shape in isolation would land throw-away work) | _deferred to W18 (doc-only)_ |
-| W17-5 | reserved | Hygiene cleanup batch (3-5 `[CLEANUP]` items) |
+| W17-5 | **closed `2026-05-18`** via `394d40d` (`[CLEANUP postgres-version-fact-drift]` half closed at `seed_project_2.py` synthetic-fixture `postgres:15 -> postgres:16-alpine` stack alignment; other 4 candidate `[CLEANUP]` items deferred to W18+ opportunistic pull-as-found — they lack inline scope descriptions in the backlog and need per-item owner discovery) | `394d40d` |
 | W17-6 | reserved | Close-out hygiene + canonical preamble refresh + §15 self-stamp |
 
 ### §15.0 — Neden ayrı §15

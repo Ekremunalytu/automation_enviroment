@@ -1,7 +1,7 @@
 # W17 — Carry-Over Closeout + Lifecycle Harness Yatırımı + Hygiene Sweep (Active Work Tracker)
 
-`Last Updated: 2026-05-18 (W17 active — W17-0 closed via 4508c2e; W17-1 closed via 8c26d02; W17-2 closed via ff98235; W17-3 + W17-4 scope-reduced doc-only — DESIGN-NEEDED for thread-relocation refactor shape (worker-thread step-1 reset is HARD SYNC POINT for W13-11 HMAC secret); deferred to W18 dedicated sub-iter that opens with an ADR / §16 plan entry. Remaining slate W17-5 (hygiene cleanup batch) + W17-6 (close-out hygiene) per iteration plan; stable IDs assigned at first pull per W11/W12/W13/W14/W15/W16 precedent)`
-`Phase: W17 active — W17-0 + W17-1 + W17-2 closed; W17-3 + W17-4 scope-reduced (W16-5 paterni); W17-5 next (hygiene cleanup batch)`
+`Last Updated: 2026-05-18 (W17 active — W17-0 closed via 4508c2e; W17-1 closed via 8c26d02; W17-2 closed via ff98235; W17-3 + W17-4 scope-reduced doc-only — DESIGN-NEEDED, deferred to W18; W17-5 closed via 394d40d (single-item closeout — postgres-version-fact-drift in seed_project_2 synthetic fixture; other 4 candidate cleanups deferred to W18+ pull-as-found). Remaining slate W17-6 (close-out hygiene). Stable IDs assigned at first pull per W11/W12/W13/W14/W15/W16 precedent)`
+`Phase: W17 active — W17-0..W17-5 closed or scope-resolved; W17-6 next (close-out hygiene + canonical preamble refresh + §15 self-stamp + week17 -> main close-out PR)`
 `Branch: week17 (per user direction 2026-05-18; W11-W16 paterni preserved — sub-iter commits land on week17, close-out merges into main via week17 -> main PR)`
 `Owner: ekrem`
 
@@ -256,9 +256,42 @@ deciding whether the thread will also host the step-1 reset
 would land throw-away work. W18 pulls both together once the
 W17-3 refactor shape is named.
 
-### Remaining (W17-5..W17-6)
+### W17-5 — Hygiene cleanup batch (single-item closeout)
 
-Stable IDs receive Per-Item Detail entries here as each is pulled.
+**Pulled `2026-05-18` via `394d40d`** (narrow scope —
+`[CLEANUP postgres-version-fact-drift]` only).
+`executor/flows/playwright/workspace/seed_project_2.py:76` carried
+a hardcoded `image: postgres:15` string in its embedded
+`docker-compose.yml` synthetic-fixture content while the rest of
+the codebase (`CONTRIBUTING.md:24`, `README.md:245`,
+`docker-compose.yml`'s db + postgres_test services) all reference
+`postgres:16-alpine` (digest-pinned at the production compose level
+since W15-7 `54e7a93`). The synthetic compose is written into the
+sandbox workspace at runtime as a fake "production project" the
+analyzed extension operates on; no test pins the fixture's
+postgres tag, so the bump is observation-only and rule helpers
+that scan the workspace for compose patterns see a postgres image
+string matching the host stack.
+
+**Other four candidate cleanups deferred to W18+ opportunistic
+pull-as-found** (`env-example-extrace-vars`,
+`adr-0007-runbook-wording-drift`,
+`pre-commit-python-version-alignment`, `report-builder-naming` /
+alt: `monitor-runtime-naming-overlap`). Each lacks an inline scope
+description in `POST_POC_BACKLOG.md` and needs per-item owner
+discovery before a safe edit can land — the W17-5 scope cap keeps
+the close-out window narrow rather than gambling on multiple
+under-specified fixes.
+
+**Verification.** Full non-smoke suite 1899 passed, 9 skipped, 4
+deselected (W17-4 final 1899 unchanged — fixture-content edit, no
+new tests).
+
+### Remaining (W17-6)
+
+W17-6 close-out hygiene: canonical preamble refresh across 7 docs
++ §15 self-stamp post-merge W17 final bar + backlog item statuses
+(closed items → DONE/CLOSED audit trail).
 
 ## Exit Criteria (W17-End)
 

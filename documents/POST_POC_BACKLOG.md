@@ -119,7 +119,7 @@ Close-out merges into `main` via a `week17 -> main` PR.
 | W17-2 | lifecycle harness scaffold (W17-3/4 enabler) — `LifecycleHarness` + `lifecycle_harness` fixture at `tests/workflows/marketplace/test_lifecycle_harness.py` composing `test_engine` + per-test UUID `AnalysisJob` row + mocked `ExecutorControl` (reset_sandbox call recorder w/ thread identity) + spawnable `_run_monitoring_heartbeat` thread; smoke test pins cancel-via-heartbeat path (thread = `harness-monitoring-heartbeat`, kwargs = `reload_window=True`, CAS = `WorkerEntryOutcome.CLAIMED`). Scope cut: harness does NOT drive `run_analysis_job` end-to-end, does NOT use `fresh_alembic_engine` (UUID-keyed rows + cleanup-delete suffice). W17-3 extension points listed in module docstring. | `ff98235` |
 | W17-3 | `[FOLLOWUP simulation-progress-cancel] heartbeat-sandbox-reset-off-thread` — **scope-reduced 2026-05-18 (doc-only)**: harness prerequisite (W17-2) met, but the refactor shape is **DESIGN-NEEDED** (worker-thread step-1 reset is a HARD SYNC POINT for W13-11 HMAC secret; heartbeat thread starts only at step 4; multiple plausible refactor shapes have different invariant cost). Deferred to W18 dedicated sub-iter that opens with a design ADR / §16 plan entry. | _deferred to W18 (doc-only this iter)_ |
 | W17-4 | `[FOLLOWUP simulation-progress-cancel] heartbeat-refactor` — **scope-reduced 2026-05-18 (doc-only)**: bundled with W17-3 thread-relocation design decision; refactoring heartbeat shape in isolation before deciding the thread destination would land throw-away work. W18 pulls both together. | _deferred to W18 (doc-only this iter)_ |
-| W17-5 | hygiene cleanup batch — aday set `[CLEANUP env-example-extrace-vars]` + `[CLEANUP postgres-version-fact-drift]` + `[CLEANUP adr-0007-runbook-wording-drift]` + `[CLEANUP pre-commit-python-version-alignment]` + `[CLEANUP report-builder-naming]` (alt: `[CLEANUP monitor-runtime-naming-overlap]`); final seçim W17-5 entry'de | reserved |
+| W17-5 | hygiene cleanup batch — `[CLEANUP postgres-version-fact-drift]` closed (`seed_project_2.py` synthetic-fixture `postgres:15 -> postgres:16-alpine` stack alignment); other four candidates (`env-example-extrace-vars`, `adr-0007-runbook-wording-drift`, `pre-commit-python-version-alignment`, `report-builder-naming` / alt: `monitor-runtime-naming-overlap`) deferred to W18+ opportunistic pull-as-found (lack inline scope descriptions, need per-item owner discovery) | `394d40d` |
 | W17-6 | close-out hygiene + canonical preamble refresh across 7 docs + §15 self-stamp post-merge W17 final bar + backlog item statuses (closed items → DONE/CLOSED audit trail) + `week17 -> main` close-out PR | reserved |
 
 ## Codex Cloud Audit Backlog
@@ -417,7 +417,15 @@ Closed: `[FOLLOWUP evidence-event-kind-raw-context-invariant]` — W14-4
 - `[CLEANUP report-builder-naming]`
 - `[CLEANUP monitor-runtime-naming-overlap]`
 - `[CLEANUP env-example-extrace-vars]`
-- `[CLEANUP postgres-version-fact-drift]`
+- `[CLEANUP postgres-version-fact-drift]` — **closed at W17-5** via
+  `394d40d`. `executor/flows/playwright/workspace/seed_project_2.py:76`
+  synthetic-fixture `docker-compose.yml` string bumped from
+  `image: postgres:15` to `image: postgres:16-alpine` so the synthetic
+  project surface aligns with the rest of the stack (CONTRIBUTING.md /
+  README.md / `docker-compose.yml` all on postgres:16-alpine; W15-7
+  digest-pinned the production compose at `54e7a93`). No test pins
+  the fixture's postgres tag — verified by grep before edit; full
+  non-smoke suite 1899 passed unchanged.
 - `[CLEANUP adr-0007-runbook-wording-drift]`
 - `[CLEANUP pre-commit-python-version-alignment]`
 - `[CLEANUP test-import-graph-policy-dump-split]` — **pulled to W16-6**
