@@ -124,7 +124,12 @@ phase evidence is frozen under dated snapshots:
   fail-closed dispatch) + slimmed `reconciliation.py` (event-attempt
   state machine + coverage reconciler); arch gates re-targeted per
   W14-6 extend-not-duplicate; W13-1 + W13-12 behavioral pins all
-  green). W16-5..W16-7 remain pending.
+  green). **W16-5 documented `2026-05-18` (scope reduced, no code
+  commit)** — `[FOLLOWUP simulation-progress-cancel]` umbrella's 3
+  sub-items re-classified: `dedupe-step-progress-schemas` rejected
+  (distinct pydantic surface roles); `heartbeat-sandbox-reset-off-thread`
+  + `heartbeat-refactor` deferred to W17+ (lifecycle harness
+  prerequisite). W16-6..W16-7 remain pending.
 
 ## W13 Status Summary
 
@@ -145,7 +150,12 @@ phase evidence is frozen under dated snapshots:
   `with_for_update()` and gate against `_TERMINAL_JOB_STATUSES`.
 - `[FOLLOWUP simulation-progress-cancel]` remaining subitems
   (`heartbeat-sandbox-reset-off-thread`, `dedupe-step-progress-schemas`,
-  `heartbeat-refactor`) — **pulled to W16-5** (umbrella closeout).
+  `heartbeat-refactor`) — **W16-5 documented `2026-05-18` (scope
+  reduced; no code commit)**: `dedupe-step-progress-schemas`
+  **rejected** (distinct surface roles between strict storage variant
+  and lenient public/UI variant; aliasing would couple them);
+  `heartbeat-sandbox-reset-off-thread` + `heartbeat-refactor`
+  **deferred to W17+** (lifecycle harness prerequisite).
 - `[BUG scenario-dropout-upstream-root-cause]` — **closed** by W14-1 on
   `2026-05-13` via `0c8bd02` (deterministic repro matrix landed + conservation
   guard; severity downgraded BLOCKER -> HIGH same day; upstream emit-site

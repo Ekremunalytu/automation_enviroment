@@ -1,7 +1,7 @@
 # W16 — Carry-Over Closeout + Audit Findings + Production Regression (Active Work Tracker)
 
-`Last Updated: 2026-05-18 (W16 active on week16 branch (per user direction 2026-05-18; W11-W15 paterni restored via W16-0 doc reconcile); W15 closed via PR #22 week15 -> main MERGED 2026-05-18 via 6161472; W16 scope authored 2026-05-18 against main HEAD 6161472; 7 sub-iter (W16-1..W16-7) reserved by §14 plan and assigned at first pull per W11/W12/W13/W14/W15 precedent; W16-1 pulled 2026-05-18 via 01f910a (dispatch outcome=None emit-site closed); W16-2 pulled 2026-05-18 via 9d6d110 (analysis-job worker-entry CRUD ownership facade extracted; AGENTS.md:57 compliance restored, W13-13 CAS preserved); W16-3 pulled 2026-05-18 via fa430f2 (report-finalize top-level null-leakage closed at strict-forbid contract seam; attribution-count parity drift split to follow-up); W16-4 pulled 2026-05-18 via 304b99f (health/reconciliation.py 682 LoC split into security.py + handshake.py + slimmed reconciliation.py; W13-1 HMAC + W13-12 fail-closed gates preserved); W16-5..W16-7 pending)`
-`Phase: W16 active (W16-1 pulled 01f910a; W16-2 pulled 9d6d110; W16-3 pulled fa430f2; W16-4 pulled 304b99f; W16-5..W16-7 reserved, none yet pulled; commits land on week16 branch, close-out via week16 -> main PR — W11-W15 paterni restored 2026-05-18 via W16-0)`
+`Last Updated: 2026-05-18 (W16 active on week16 branch (per user direction 2026-05-18; W11-W15 paterni restored via W16-0 doc reconcile); W15 closed via PR #22 week15 -> main MERGED 2026-05-18 via 6161472; W16 scope authored 2026-05-18 against main HEAD 6161472; 7 sub-iter (W16-1..W16-7) reserved by §14 plan and assigned at first pull per W11/W12/W13/W14/W15 precedent; W16-1 pulled 2026-05-18 via 01f910a (dispatch outcome=None emit-site closed); W16-2 pulled 2026-05-18 via 9d6d110 (analysis-job worker-entry CRUD ownership facade extracted; AGENTS.md:57 compliance restored, W13-13 CAS preserved); W16-3 pulled 2026-05-18 via fa430f2 (report-finalize top-level null-leakage closed at strict-forbid contract seam; attribution-count parity drift split to follow-up); W16-4 pulled 2026-05-18 via 304b99f (health/reconciliation.py 682 LoC split into security.py + handshake.py + slimmed reconciliation.py; W13-1 HMAC + W13-12 fail-closed gates preserved); W16-5 documented 2026-05-18 (scope reduced: dedupe-step-progress-schemas rejected after investigation, heartbeat-sandbox-reset-off-thread + heartbeat-refactor deferred to W17+ pending lifecycle harness; no code commit); W16-6..W16-7 pending)`
+`Phase: W16 active (W16-1 pulled 01f910a; W16-2 pulled 9d6d110; W16-3 pulled fa430f2; W16-4 pulled 304b99f; W16-5 documented (scope reduced); W16-6..W16-7 reserved, none yet pulled; commits land on week16 branch, close-out via week16 -> main PR — W11-W15 paterni restored 2026-05-18 via W16-0)`
 `Branch: week16 (per user direction 2026-05-18; W11-W15 paterni restored via W16-0 doc reconcile; close-out merges into main via week16 -> main PR)`
 `Owner: ekrem`
 
@@ -73,8 +73,18 @@ Detail trimmed until each sub-iter is pulled (drift kontrolü).
   `reconciliation.py` (event-attempt verification state machine +
   coverage track reconciler). Architecture gates re-targeted per
   W14-6 extend-not-duplicate; W13-1 + W13-12 behavioral pins all stay
-  green. W16-5..W16-7 remain `[planned]` until the corresponding
-  pull lands.
+  green.
+- **W16-5 documented `2026-05-18` (scope reduced, no code commit).**
+  The `[FOLLOWUP simulation-progress-cancel]` umbrella's three sub-
+  items were investigated and re-classified rather than bundled:
+  `dedupe-step-progress-schemas` **rejected** (the two pydantic models
+  serve distinct surface roles — internal strict storage vs public API
+  + UI TS binding lenient; aliasing would couple them);
+  `heartbeat-sandbox-reset-off-thread` + `heartbeat-refactor`
+  **deferred to W17+** (concurrency-sensitive thread move + clarity
+  refactor; both need a lifecycle harness that does not exist yet).
+  `POST_POC_BACKLOG.md` entries updated with the closure rationale.
+  W16-6..W16-7 remain `[planned]` until the corresponding pull lands.
 
 ## Sub-Iter Scope (planned)
 
@@ -465,11 +475,83 @@ historical record.
 
 ### W16-5 — simulation-progress-cancel family closeout
 
-_[Placeholder — filled at pull. Will document each of 3 sub-items:
-`heartbeat-sandbox-reset-off-thread`, `dedupe-step-progress-schemas`,
-`heartbeat-refactor` — module locations, refactor rationale,
-test deltas, umbrella closeout audit trail in `POST_POC_BACKLOG.md`,
-landing commit(s).]_
+**Documented `2026-05-18` (scope reduced; no code commit).** The
+W11+ umbrella's three sub-items were investigated during the W16-5
+pull and re-classified rather than bundled together. The decision
+audit trail below records why each sub-item moved off the W16-5
+slate.
+
+**dedupe-step-progress-schemas — rejected after investigation.**
+Two pydantic models carry identical field shape
+(`completed: int >= 0`, `total: int >= 0`):
+
+- `appcore/contracts/schema_defs/analysis_jobs.AnalysisJobStepProgress`
+  with `model_config = ConfigDict(extra="forbid")` — the internal
+  storage layer's strict variant. Used by
+  `appcore/storage/crud_ops/analysis_jobs/lifecycle.py` and the
+  `tests/platform/storage/test_analysis_jobs_steps.py` write
+  contracts; the strict mode catches typos at write time before they
+  reach the database.
+- `appcore/contracts/schema_defs/marketplace.AnalyzeJobStepProgress`
+  with the default lenient Pydantic config. Used by the public API
+  surface (`AnalyzeJobStep.progress` field on the marketplace router
+  response models) and explicitly listed in
+  `scripts/generate_ui_contracts.py:70`'s allowlist as a source
+  symbol for TypeScript binding emission.
+
+Aliasing the marketplace symbol to the analysis_jobs class would
+silently flip the public API to `extra="forbid"` (changes the
+`__pydantic_config__.extra` semantics on the same `__qualname__`)
+and the emitted TS binding's class name would shift from
+`AnalyzeJobStepProgress` to `AnalysisJobStepProgress`. Both are
+observable changes for callers outside the codebase. The dedupe
+value (~35 LoC eliminated) does not justify the surface-role
+coupling or the breaking risk. Audit finding stays open as
+documentation; no schema change lands.
+
+**heartbeat-sandbox-reset-off-thread — deferred to W17+.** The
+sandbox-reset call currently fires on the analysis worker thread in
+`workflows/marketplace/analysis_execution.py`; moving it onto the
+monitoring heartbeat thread (or any sibling background thread) is
+concurrency-sensitive — it interacts with the W13-3 two-phase cancel
+contract, the W13-13 worker-entry CAS, and the W16-2 facade's row
+lock discipline. A safe move needs a lifecycle harness that drives
+start / reset / cancel / finalize against a real DB session and a
+real Playwright page mock; that harness does not exist yet (the
+same gap surfaced for report-finalize at W14-3 and was sidestepped
+at W16-3 by finding the root cause at the contract seam — that
+sidestep is not available here because the thread-placement question
+is a runtime concurrency property, not a serialization one). The
+W16 carry-over closeout window is intentionally narrow; the thread
+move belongs in a dedicated sub-iter with the harness as a
+prerequisite.
+
+**heartbeat-refactor — deferred to W17+.** Bundled with
+`heartbeat-sandbox-reset-off-thread` above; the same lifecycle
+harness is the prerequisite. The current heartbeat shape
+(`workflows/marketplace/analysis_execution._run_monitoring_heartbeat`
+L102-128 + thread setup L287-313) is functional and exercises every
+cancel-poll branch; the audit-driven refactor is a clarity gain
+rather than a correctness fix, so deferring without behavioral
+consequence is safe.
+
+**Module locations (for the deferred items' future pull):**
+- `workflows/marketplace/analysis_execution.py:102-128` —
+  `_run_monitoring_heartbeat` (heartbeat loop body).
+- `workflows/marketplace/analysis_execution.py:287-313` — heartbeat
+  thread setup (Event + Thread + `_heartbeat_on_cancel` callback).
+- `workflows/marketplace/analysis_service.py` — `_reset_sandbox`
+  callsite (currently on the worker thread).
+- `executor/control.py` — sandbox reset entry point.
+
+**Landing commit:** the W16-5 doc-only audit trail update lands as
+part of the same self-stamp commit that touches
+`POST_POC_BACKLOG.md` + `REFACTOR_STATUS.md`; no source code commit
+ships under W16-5.
+
+**Audit trail:** all three sub-items in `POST_POC_BACKLOG.md` carry
+the closure rationale (rejected / deferred-to-W17+) so a future
+pull can pick the deferred work up without re-deriving the analysis.
 
 ### W16-6 — hygiene splits + Alembic round-trip fixture
 

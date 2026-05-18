@@ -99,7 +99,7 @@ W11/W12/W13/W14/W15 precedent. Close-out merges into `main` via a
 | W16-2 | `[FOLLOWUP analysis-job-worker-entry-crud-ownership]` (W15 audit finding; row-lock-aware lifecycle CRUD primitive — closed at facade boundary) | `9d6d110` |
 | W16-3 | `[FOLLOWUP report-finalize-top-level-field-sync-drift]` (W14 production scan-driven investigation — null-leakage half closed at contract seam; attribution-count parity split to follow-up) | `fa430f2` |
 | W16-4 | `[FOLLOWUP health-reconciliation-responsibility-split]` (W15 audit finding; behavior-preserving extraction; W13-1 HMAC + W13-12 fail-closed gates preserved) | `304b99f` |
-| W16-5 | `[FOLLOWUP simulation-progress-cancel] heartbeat-sandbox-reset-off-thread` + `dedupe-step-progress-schemas` + `heartbeat-refactor` (W11+ umbrella closeout) | _pending pull_ |
+| W16-5 | `[FOLLOWUP simulation-progress-cancel]` umbrella (3 sub-items) — scope reduced: `dedupe-step-progress-schemas` **rejected** (distinct surface roles), `heartbeat-sandbox-reset-off-thread` + `heartbeat-refactor` **deferred to W17+** (lifecycle harness prerequisite). | documented in tracker (no code commit) |
 | W16-6 | `[CLEANUP marketplace-router-test-suite-split]` + `[CLEANUP test-import-graph-policy-dump-split]` + `[FOLLOWUP w13-4-alembic-roundtrip-programmatic]` | _pending pull_ |
 | W16-7 | close-out hygiene + canonical preamble refresh + `week16 -> main` close-out PR (W11-W15 paterni restored) | _pending pull_ |
 
@@ -151,9 +151,45 @@ evidence.
 
 ### Workflow / Platform
 
-- `[FOLLOWUP simulation-progress-cancel] heartbeat-sandbox-reset-off-thread` — **pulled to W16-5** (heartbeat umbrella closeout).
-- `[FOLLOWUP simulation-progress-cancel] dedupe-step-progress-schemas` — **pulled to W16-5** (heartbeat umbrella closeout).
-- `[FOLLOWUP simulation-progress-cancel] heartbeat-refactor` — **pulled to W16-5** (heartbeat umbrella closeout).
+- `[FOLLOWUP simulation-progress-cancel] heartbeat-sandbox-reset-off-thread` — **W16-5 deferred to W17+**. The sandbox-reset call currently fires on the analysis worker thread in
+  `workflows/marketplace/analysis_execution.py`; moving it onto the
+  monitoring heartbeat thread (or any sibling background thread) is
+  concurrency-sensitive — it interacts with the W13-3 two-phase cancel
+  contract, the W13-13 worker-entry CAS, and the W16-2 facade's row
+  lock discipline. A safe move needs a lifecycle harness that drives
+  start/reset/cancel/finalize against a real DB session and a real
+  Playwright page mock; that harness does not exist yet (see also the
+  W14-3 RED stub note that surfaced the same gap for report-finalize).
+  W16 scope cap keeps the carry-over closeout window narrow; the
+  thread move belongs in a dedicated sub-iter with the harness as a
+  prerequisite.
+- `[FOLLOWUP simulation-progress-cancel] dedupe-step-progress-schemas` — **W16-5 rejected** after investigation. The two schemas
+  (`appcore/contracts/schema_defs/analysis_jobs.AnalysisJobStepProgress`
+  with `extra="forbid"`; `appcore/contracts/schema_defs/marketplace.AnalyzeJobStepProgress`
+  with the default lenient Pydantic config) carry identical field
+  shape (`completed: int >= 0`, `total: int >= 0`) but serve distinct
+  surface roles: the internal storage layer needs the strict variant
+  to catch typos at write time, while the public API surface drives
+  TypeScript binding generation via `scripts/generate_ui_contracts.py`
+  (line 70's `"AnalyzeJobStepProgress"` allowlist) and downstream
+  external consumers may expect leniency for forward-compatibility.
+  Aliasing the marketplace symbol to the analysis_jobs class would
+  flip the public API to `extra="forbid"` silently (changes
+  `__pydantic_config__.extra` on the same `__qualname__`) and the
+  emitted TS binding's class name would shift to
+  `AnalysisJobStepProgress`. Both are observable changes for callers
+  outside the codebase. The dedupe value (35 LoC eliminated) does not
+  justify the surface-role coupling or the breaking risk; the audit
+  finding stays open as documentation but no schema change lands.
+- `[FOLLOWUP simulation-progress-cancel] heartbeat-refactor` — **W16-5
+  deferred to W17+**. Bundled with `heartbeat-sandbox-reset-off-thread`
+  above; the same lifecycle harness is the prerequisite. The current
+  heartbeat shape
+  (`workflows/marketplace/analysis_execution._run_monitoring_heartbeat`
+  L102-128 + thread setup L287-313) is functional and exercises every
+  cancel-poll branch; the audit-driven refactor is a clarity gain
+  rather than a correctness fix, so deferring without behavioral
+  consequence is safe.
 - `[FOLLOWUP analysis-thread-supervisor]`
 - `[FOLLOWUP job-service-typevar-audit]`
 - `[FOLLOWUP sqlalchemy-error-subtype-logging]`
