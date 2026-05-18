@@ -1,8 +1,8 @@
 # W15 — Codex U-class Close-Out + UI Bounds + Posture (Active Work Tracker)
 
 `Last Updated: 2026-05-17 (W15 active; week15 cut from main HEAD 7cc2921 on 2026-05-14; W15-1 closed via c58c365 — sync analyze error taxonomy parity, M10; W15-2 closed via 765cde7 — clean_workspace is_symlink-before-rmtree, M12; W15-3 closed via 3512a7c — activationEvents bounds + Alembic field-length migration, U8; W15-4 closed via 89e13e3 — UI bounds bundle (timeline/density/relations graph caps with truncation indicators), U1/U2/U3 + U6; W15-5 closed 2026-05-17 via 43d6438 — quick fixes bundle: UI /health proxy I2 + lifecycle "for <id>" regex I4; W15-6 closed 2026-05-17 via be52520 — ADR 0011 unauthenticated catalog endpoints posture (Accepted and implemented; Proposed at e41722e); workflows/extension_catalog/router.py module docstring + router construction-site comment cite ADR 0011; new tests/architecture/test_catalog_endpoint_posture.py gate locks three AST invariants (docstring cite + no auth dependency + endpoint-count lock at 12); ADR 0002 NOT amended (Option A); U10/U11 audit row closes; W15-1 post-slate typing hotfix via 976dc96 — ANALYZE_*_ERROR_TYPES annotation BaseException → Exception narrowing (surfaced by W15-4 close-out mypy gate); W15 mid-iter hygiene 2026-05-16 via 878da2c — seven canonical/newcomer-facing doc preambles refreshed to W15 truth-state + doc-preamble consistency arch gate + README phase-pointer test W14 → W15 with W14 close-out merge tracking; W15-7 finalized 2026-05-17 — compose image SHA pin via 54e7a93 (postgres:16-alpine + alpine/socat:1.8.0.3 manifest digest) + test extension via 7ebbbfb (test_dockerfile_digest_pin.py compose image: scope; tests/architecture/ 196 → 198 passing, +2 W15-7 gates) + GH action trivy version pin via 452f1a1 (aquasecurity/trivy-action@v0.36.0) + final canonical preamble truth-state refresh via this docs commit; W15-7 early pulls: a7a876e (I2 + I4 regression gates: api client /api/ prefix + lifecycle marker id shape) + 2573e35 (post-W15-6 drift fixes: ADR 0011 back-links + backlog audit trail + tracker scope back-patch); ADR 0002 NOT amended; no new architecture gate per W14-6 "extend, do not duplicate"; three new audit findings appended to POST_POC_BACKLOG — health-reconciliation-responsibility-split, marketplace-router-test-suite-split, analysis-job-worker-entry-crud-ownership; W14 close-out PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d; W13 close-out PR #20 week13 -> main MERGED 2026-05-13 via 772deb3)`
-`Phase: W15 active (W15-1..W15-7 closed; week15 -> main close-out PR pending separate user action)`
-`Branch: week15 (cut from main HEAD 7cc2921 on 2026-05-14)`
+`Phase: W15 closed 2026-05-17 and merged via PR #22 (6161472) on 2026-05-18 — W15-1..W15-7 all GREEN; tracker frozen for stable-ID reference only`
+`Branch: week15 (cut from main HEAD 7cc2921 on 2026-05-14; merged into main 2026-05-18 via 6161472)`
 `Owner: ekrem`
 
 > **Authored 2026-05-14** as the W15 scope skeleton. Stable IDs `W15-1..W15-7`
@@ -23,8 +23,11 @@ list.
 
 ## Status (Quick Glance)
 
-+ **W15 active — `week15` branch cut from `main` HEAD `7cc2921` on
-  `2026-05-14`.** W15-1 closed `2026-05-14` via `c58c365` (sync analyze
++ **W15 closed `2026-05-17` and merged via PR #22 (`6161472`) on
+  `2026-05-18`** — `week15` branch was cut from `main` HEAD `7cc2921` on
+  `2026-05-14` and merged into `main` on `2026-05-18` via `6161472`. All
+  W15-1..W15-7 sub-iters GREEN; this tracker is now frozen for stable-ID
+  reference only. W15-1 closed `2026-05-14` via `c58c365` (sync analyze
   error taxonomy parity, M10 close); W15-2 closed `2026-05-14` via
   `765cde7` (`clean_workspace` is_symlink-before-rmtree, M12 close);
   W15-3 closed `2026-05-15` via `3512a7c` (activationEvents bounds +

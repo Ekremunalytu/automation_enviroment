@@ -1,6 +1,6 @@
 # Post-PoC Backlog
 
-`Last Updated: 2026-05-17 (W14 closed via PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d; W15 active on week15 branch cut from main HEAD 7cc2921 on 2026-05-14; W15-1/W15-2/W15-3/W15-4/W15-5/W15-6 closed (M10/M12/U8/U1/U2/U3/U6/I2/I4/U10/U11); W15-6 closed 2026-05-17 via be52520 — ADR 0011 unauthenticated catalog endpoints posture Accepted and implemented (Option A); W15-1 typing hotfix via 976dc96; W15-7 closed 2026-05-17 — compose image SHA pin via 54e7a93 + test extension via 7ebbbfb (tests/architecture/ 196 → 198) + GH action trivy version pin via 452f1a1 (aquasecurity/trivy-action@v0.36.0) + final preamble refresh; W15 mid-iter hygiene 2026-05-16: doc-preamble consistency arch gate + off-roadmap hygiene candidates: rule-registry-side-effect-loader, test-import-graph-policy-dump-split, report-finalize-top-level-field-sync-drift, health-reconciliation-responsibility-split, marketplace-router-test-suite-split, analysis-job-worker-entry-crud-ownership)`
+`Last Updated: 2026-05-18 (W15 closed via PR #22 week15 -> main MERGED 2026-05-18 via 6161472 — W15-1..W15-7 sub-iter slate + W15-1 post-slate typing hotfix + close-out hygiene pass; W16 active on main branch per user direction — no separate week16 branch; W16 Pull-Forward planned: scenario-accountant-conservation-split (W16-1, W14-1 carry-over HIGH prod regression), analysis-job-worker-entry-crud-ownership (W16-2, W15 audit finding), report-finalize-top-level-field-sync-drift (W16-3, W14 carry-over), health-reconciliation-responsibility-split (W16-4, W15 audit finding), simulation-progress-cancel family 3 sub-items (W16-5, W11+ umbrella), hygiene splits + w13-4-alembic-roundtrip-programmatic (W16-6); W14 closed via PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d)`
 
 Open deferred work after the W0-W7 PoC acceptance bar. **Slim canonical** —
 verbose closure rationales, evidence paragraphs, and per-iter Note columns
@@ -12,13 +12,17 @@ stable ID + landing commit; full context in the snapshot.
 - previous full snapshot:
   [`archive/backlog/POST_POC_BACKLOG_full_2026-05-11.md`](archive/backlog/POST_POC_BACKLOG_full_2026-05-11.md)
 
-W8-W14 are closed; W13 close-out PR #20 `week13 -> main` **MERGED**
+W8-W15 are closed; W13 close-out PR #20 `week13 -> main` **MERGED**
 `2026-05-13` via `772deb3`; W14 close-out PR #21 `week14 -> main`
-**MERGED** `2026-05-14` via `4e03c8d`. **W15 active** on `week15`
-branch (cut from `main` HEAD `7cc2921` on `2026-05-14`); W15-1..W15-4
-closed (M10/M12/U8/U1/U2/U3/U6 Codex audit pulls), W15-5..W15-7
-pending. W14 tracker: [`active-work/W14-codex-acceptance-observability.md`](active-work/W14-codex-acceptance-observability.md);
-W15 tracker: [`active-work/W15-codex-uclass-bounds-posture.md`](active-work/W15-codex-uclass-bounds-posture.md).
+**MERGED** `2026-05-14` via `4e03c8d`; **W15 close-out PR #22
+`week15 -> main` MERGED `2026-05-18` via `6161472`**. **W16 active**
+on `main` (no separate `week16` branch per user direction); W16-1..W16-7
+planned (pull-forward table below). W14 tracker:
+[`active-work/W14-codex-acceptance-observability.md`](active-work/W14-codex-acceptance-observability.md);
+W15 tracker (frozen):
+[`active-work/W15-codex-uclass-bounds-posture.md`](active-work/W15-codex-uclass-bounds-posture.md);
+W16 tracker (active):
+[`active-work/W16-regression-and-audit-closeout.md`](active-work/W16-regression-and-audit-closeout.md).
 
 ## Stable IDs Are A Contract
 
@@ -64,6 +68,37 @@ Detail evidence in the W14 tracker + archive snapshot.
 | W14-6 | `[FOLLOWUP arch-gate-bare-binary-pragma-ratchet]` + `[FOLLOWUP arch-gate-executor-control-outbound]` + `[FOLLOWUP w8-4-variable-indirect-subprocess-coverage]` | `2adad43` + `b031803` + `e42a448` |
 | W14-7 | `[FOLLOWUP w14-container-shipping-regression]` (post-slate hotfix) | `df925f8` + `c11ebd8` |
 | W14-8 | `[FOLLOWUP w14-container-python-compat-gate]` (post-slate preventive) | `5638f82` |
+
+## W15 Pull-Forward Acceptance Bar
+
+All W15 sub-iters closed and merged via PR #22 on `2026-05-18` (`6161472`);
+per-iter Per-Item Detail evidence in the W15 tracker + archive snapshot.
+
+| Iter | Stable ID(s) | Landing commit |
+|---|---|---|
+| W15-1 | `[FOLLOWUP codex-2026-05-10-M10-sync-analyze-typeerror-catch]` + post-slate typing hotfix | `c58c365` + `976dc96` |
+| W15-2 | `[FOLLOWUP codex-2026-05-10-M12-workspace-symlink-check-order]` | `765cde7` |
+| W15-3 | `[FOLLOWUP codex-2026-05-10-U8-activationevents-bounds]` | `3512a7c` |
+| W15-4 | `[FOLLOWUP codex-2026-05-10-U1-U2-U3-ui-event-spread-cap]` + `[FOLLOWUP codex-2026-05-10-U6-relations-graph-cap]` | `89e13e3` |
+| W15-5 | `[FOLLOWUP codex-2026-05-10-I2-ui-health-proxy]` + `[FOLLOWUP codex-2026-05-10-I4-lifecycle-for-id-regex]` | `43d6438` |
+| W15-6 | `[FOLLOWUP codex-2026-05-10-U10-U11-unauth-catalog-endpoints]` (ADR 0011 Accepted + implemented, Option A) | `be52520` (Proposed at `e41722e`) |
+| W15-7 | `[FOLLOWUP compose-image-mutable-ref-pin]` + `[FOLLOWUP gh-action-trivy-version-pin]` + close-out hygiene | `54e7a93` + `7ebbbfb` + `452f1a1` + `7ff31d9` (early pulls `a7a876e` + `2573e35`) |
+
+## W16 Pull-Forward Acceptance Bar (planned)
+
+W16 active on `main` per user direction (no separate `week16` branch).
+Stable IDs reserved by §14 plan; each row assigned **at first pull** per
+the W11/W12/W13/W14/W15 precedent.
+
+| Iter | Stable ID(s) (planned) | Landing commit |
+|---|---|---|
+| W16-1 | `[FOLLOWUP scenario-accountant-conservation-split]` (W14-1 root-cause split; HIGH prod regression) | _pending pull_ |
+| W16-2 | `[FOLLOWUP analysis-job-worker-entry-crud-ownership]` (W15 audit finding; row-lock-aware lifecycle CRUD primitive) | _pending pull_ |
+| W16-3 | `[FOLLOWUP report-finalize-top-level-field-sync-drift]` (W14 production scan-driven investigation) | _pending pull_ |
+| W16-4 | `[FOLLOWUP health-reconciliation-responsibility-split]` (W15 audit finding; behavior-preserving extraction; W13-1 HMAC gates preserved) | _pending pull_ |
+| W16-5 | `[FOLLOWUP simulation-progress-cancel] heartbeat-sandbox-reset-off-thread` + `dedupe-step-progress-schemas` + `heartbeat-refactor` (W11+ umbrella closeout) | _pending pull_ |
+| W16-6 | `[CLEANUP marketplace-router-test-suite-split]` + `[CLEANUP test-import-graph-policy-dump-split]` + `[FOLLOWUP w13-4-alembic-roundtrip-programmatic]` | _pending pull_ |
+| W16-7 | close-out hygiene + canonical preamble refresh (no `week16 -> main` PR per main-branch direction) | _pending pull_ |
 
 ## Codex Cloud Audit Backlog
 
@@ -113,14 +148,14 @@ evidence.
 
 ### Workflow / Platform
 
-- `[FOLLOWUP simulation-progress-cancel] heartbeat-sandbox-reset-off-thread`
-- `[FOLLOWUP simulation-progress-cancel] dedupe-step-progress-schemas`
-- `[FOLLOWUP simulation-progress-cancel] heartbeat-refactor`
+- `[FOLLOWUP simulation-progress-cancel] heartbeat-sandbox-reset-off-thread` — **pulled to W16-5** (heartbeat umbrella closeout).
+- `[FOLLOWUP simulation-progress-cancel] dedupe-step-progress-schemas` — **pulled to W16-5** (heartbeat umbrella closeout).
+- `[FOLLOWUP simulation-progress-cancel] heartbeat-refactor` — **pulled to W16-5** (heartbeat umbrella closeout).
 - `[FOLLOWUP analysis-thread-supervisor]`
 - `[FOLLOWUP job-service-typevar-audit]`
 - `[FOLLOWUP sqlalchemy-error-subtype-logging]`
-- `[FOLLOWUP w11-8-companion-workflow-orm-bleed]`
-- `[FOLLOWUP analysis-job-worker-entry-crud-ownership]` —
+- `[FOLLOWUP w11-8-companion-workflow-orm-bleed]` (W17+; DTO desen kararı ayrı ADR ister).
+- `[FOLLOWUP analysis-job-worker-entry-crud-ownership]` — **pulled to W16-2**.
   `workflows/marketplace/analysis_service.py` worker-entry block (lines
   296-346) issues `SELECT ... FOR UPDATE` + row mutate + `db.commit()`
   directly against `AnalysisJob`, bypassing the `appcore/storage/crud.py`
@@ -159,7 +194,7 @@ Closed (one-line audit trail):
   same downstream symptoms. The dropout is **deterministic** across
   runs and **not** a side effect of the W15-1/W15-2 changes; the
   upstream emit-site bug class is reproducible without retry.
-- `[FOLLOWUP scenario-accountant-conservation-split]` — upstream emit-site
+- `[FOLLOWUP scenario-accountant-conservation-split]` — **pulled to W16-1** (HIGH prod regression, severity-leading W16 item). Upstream emit-site
   work (planner / `stimulus_passes` / `dispatch._normalize_execution_result`);
   separate pull, W15+ candidate. **Observed in production
   `2026-05-14`:** debug_session + refactor_workflow drop edildiğinde
@@ -171,7 +206,7 @@ Closed (one-line audit trail):
   confirmation `2026-05-15` 09:51** — bir saatlik rebuild + ikinci
   scan aynı state'i raporladı; root cause non-intermittent, repro
   fixture senkron çekilebilir.
-- `[FOLLOWUP report-finalize-top-level-field-sync-drift]` — production
+- `[FOLLOWUP report-finalize-top-level-field-sync-drift]` — **pulled to W16-3** (couples with W16-1 scenario-accountant fix; finalize ordering). Production
   scan `activation_report_*.json` carries `null` for several top-level
   fields (`target_extension_id`, `monitoring_start`/`monitoring_end`,
   `scenarios_run`, `harness_handshake_required`) despite underlying
@@ -225,12 +260,14 @@ Closed: `[FOLLOWUP evidence-event-kind-raw-context-invariant]` — W14-4
 - `[CLEANUP postgres-version-fact-drift]`
 - `[CLEANUP adr-0007-runbook-wording-drift]`
 - `[CLEANUP pre-commit-python-version-alignment]`
-- `[CLEANUP test-import-graph-policy-dump-split]` — `test_import_graph.py`
-  carries 18 distinct architectural test functions in 767 LoC; thematic
-  split (`test_import_isolation.py` / `test_facade_locks.py` /
+- `[CLEANUP test-import-graph-policy-dump-split]` — **pulled to W16-6**
+  (hygiene splits bundle). `test_import_graph.py` carries 18 distinct
+  architectural test functions in 767 LoC; thematic split
+  (`test_import_isolation.py` / `test_facade_locks.py` /
   `test_executor_invocation.py` / `test_monitor_stimulus_boundary.py`)
-  improves discoverability. W15+ hygiene.
-- `[FOLLOWUP health-reconciliation-responsibility-split]` —
+  improves discoverability.
+- `[FOLLOWUP health-reconciliation-responsibility-split]` — **pulled to W16-4**
+  (behavior-preserving extraction; W13-1 HMAC gates must not regress).
   `executor/flows/playwright/health/reconciliation.py` (682 LoC) carries
   security-sensitive (HMAC marker verification at :78, fail-closed
   harness handshake decisions, harness Python secret loading at :39) +
@@ -244,8 +281,8 @@ Closed: `[FOLLOWUP evidence-event-kind-raw-context-invariant]` — W14-4
   class), validate test coverage on both sides, then do a behavior-
   preserving extraction. **Do not auto-refactor**; W13-1 HMAC gates
   must not regress. W15+ hygiene; new audit finding `2026-05-16`.
-- `[CLEANUP marketplace-router-test-suite-split]` —
-  `tests/workflows/marketplace/test_router.py` (2374 LoC). Title
+- `[CLEANUP marketplace-router-test-suite-split]` — **pulled to W16-6**
+  (hygiene splits bundle). `tests/workflows/marketplace/test_router.py` (2374 LoC). Title
   docstring at :5 implies search/download scope but file spans analyze
   (:744), trigger planning (:778), background job persistence (:1581),
   and async job endpoint (:2080). Test-maintenance burden only — no

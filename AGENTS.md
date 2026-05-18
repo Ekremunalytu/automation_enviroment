@@ -1,6 +1,6 @@
 # AGENTS.md
 
-`Last Updated: 2026-05-17 (W13 closed via PR #20 -> 772deb3 on 2026-05-13; W14 closed via PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d — W14-1..W14-8 sub-iter slate + post-slate hotfixes + close-out hygiene pass; W15 active on week15 branch cut from main HEAD 7cc2921 on 2026-05-14; W15-1 closed via c58c365 — sync analyze error taxonomy parity (M10); W15-2 closed via 765cde7 — clean_workspace is_symlink-before-rmtree (M12); W15-3 closed via 3512a7c — activationEvents bounds + Alembic migration (U8); W15-4 closed via 89e13e3 — UI bounds bundle (U1/U2/U3 + U6); W15-5 closed 2026-05-17 via 43d6438 — quick fixes bundle (I2 UI /health proxy + I4 lifecycle for <id> regex); W15-6 closed 2026-05-17 via be52520 — ADR 0011 unauthenticated catalog endpoints posture Accepted and implemented (Option A; Proposed at e41722e); W15-1 post-slate typing hotfix via 976dc96 — ANALYZE_ERROR_TYPES annotation narrowed; W15-7 closed 2026-05-17 — compose image SHA pin via 54e7a93 + test extension via 7ebbbfb (tests/architecture/ 196 → 198) + GH action trivy version pin via 452f1a1 (aquasecurity/trivy-action@v0.36.0) + final preamble refresh; W15 mid-iter hygiene 2026-05-16: doc-preamble consistency arch gate + 3 new audit findings in POST_POC_BACKLOG)`
+`Last Updated: 2026-05-18 (W15 closed via PR #22 week15 -> main MERGED 2026-05-18 via 6161472 — W15-1..W15-7 sub-iter slate + W15-1 post-slate typing hotfix + close-out hygiene pass; W16 active on main branch per user direction — no separate week16 branch; W16 scope: 6+1 sub-iter — scenario-accountant emit-site fix (W16-1, HIGH prod regression), analysis-job-worker-entry CRUD ownership (W16-2), report-finalize top-level field sync drift (W16-3), health-reconciliation responsibility split (W16-4), simulation-progress-cancel family closeout (W16-5), hygiene splits + Alembic round-trip fixture (W16-6), close-out (W16-7); plan source REFACTOR_OPTIMIZATION.md §14; W14 closed via PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d; W13 closed via PR #20 -> 772deb3 on 2026-05-13)`
 
 ## Authority
 
@@ -21,38 +21,31 @@
   via PR #14; W12 closed `2026-05-10` and merged via PR #18
   (`33a0852`); W13 closed `2026-05-13` and merged via PR #20
   (`772deb3`); W14 closed `2026-05-14` and merged via PR #21
-  (`4e03c8d`).** Active phase is **W15 — Codex U-class Close-Out +
-  UI Bounds + Posture** active on the `week15` branch (cut from `main`
-  HEAD `7cc2921` on `2026-05-14`): plan
-  `documents/REFACTOR_OPTIMIZATION.md` §13, tracker
-  `documents/active-work/W15-codex-uclass-bounds-posture.md`. W15-1
-  closed `2026-05-14` via `c58c365` (sync analyze error taxonomy
-  parity, M10 close). W15-2 closed `2026-05-14` via `765cde7`
-  (`clean_workspace` is_symlink-before-rmtree, M12 close). W15-3
-  closed `2026-05-15` via `3512a7c` (`activationEvents` bounds +
-  Alembic field-length migration, U8 close). W15-4 closed `2026-05-16`
-  via `89e13e3` (UI bounds bundle: timeline + density strip + relations
-  graph caps with truncation indicators; U1/U2/U3 + U6 close).
-  **W15-1 post-slate typing hotfix** landed `2026-05-16` via `976dc96`
-  (`ANALYZE_*_ERROR_TYPES` annotation `tuple[type[BaseException], …]` →
-  `tuple[type[Exception], …]` narrowing surfaced by W15-4 close-out
-  mypy gate). W15-5 closed `2026-05-17` via `43d6438` (I2 + I4 quick
-  fixes bundle). W15-6 closed `2026-05-17` via `be52520` — ADR 0011
-  Accepted and implemented (Option A; ADR 0002 NOT amended). **W15-7
-  closed `2026-05-17`** — compose image SHA pin via `54e7a93` + test
-  extension via `7ebbbfb` (`tests/architecture/` 196 → 198) + GH
-  action trivy pin via `452f1a1` (`aquasecurity/trivy-action@v0.36.0`)
-  + close-out docs commit + hygiene `7ff31d9`; early pulls `a7a876e`
-  + `2573e35`. **W15 mid-iter hygiene `2026-05-16`:** W15-7
-  doc-preamble subset pulled forward; six canonical doc preambles
-  refreshed and `tests/architecture/test_doc_preamble_consistency.py`
-  added; three new audit findings
-  (`health-reconciliation-responsibility-split`,
-  `marketplace-router-test-suite-split`,
-  `analysis-job-worker-entry-crud-ownership`) appended to
-  `POST_POC_BACKLOG.md` — all defer to W16+ per §13.3 Non-goals.
-  `week15 -> main` close-out PR pending separate user action.
-  Past W8/W11/W12/W13/W14 trackers remain stable-ID references only.
+  (`4e03c8d`); W15 closed `2026-05-17` and merged via PR #22
+  (`6161472`) on `2026-05-18`** — W15-1..W15-7 sub-iter slate +
+  W15-1 post-slate typing hotfix + close-out hygiene pass (doc
+  preamble truth-state refresh across 7 canonical docs + ADR 0011
+  catalog endpoint posture gate + compose image SHA pin + GH action
+  trivy version pin + close-out lint hygiene). Frozen tracker:
+  `documents/active-work/W15-codex-uclass-bounds-posture.md`.
+  **Active phase is W16 — Carry-Over Closeout + Audit Findings +
+  Production Regression**, active `2026-05-18` on `main` **(no
+  separate `week16` branch per user direction — sub-iter commits
+  land directly on `main` and the W16 tracker freezes at scope
+  close)**: plan `documents/REFACTOR_OPTIMIZATION.md` §14, tracker
+  `documents/active-work/W16-regression-and-audit-closeout.md`.
+  W16 scope (6+1 sub-iter, severity-leading): W16-1 scenario-accountant
+  upstream emit-site fix (W14-1 root-cause split; HIGH prod regression
+  observed `2026-05-14` + `2026-05-15`); W16-2 analysis-job-worker-entry
+  CRUD ownership (W15 audit finding); W16-3 report-finalize top-level
+  field sync drift (W14 carry-over); W16-4 health-reconciliation
+  responsibility split (W15 audit finding, W13-1 HMAC gates preserved);
+  W16-5 simulation-progress-cancel family closeout (W11+ umbrella, 3
+  sub-items); W16-6 hygiene splits + Alembic round-trip fixture; W16-7
+  close-out hygiene. Final W15 post-merge bar (re-recorded at W16-1
+  pull): `tests/architecture/` **198 passed** (+26 from W14 final 172);
+  `make test-security` **215 passed**. Past W8/W11/W12/W13/W14/W15
+  trackers remain stable-ID references only.
 - ADR 0007 local-network-binding is **Accepted and implemented**; loopback
   defaults + `EXTRACE_ALLOW_LAN` are pinned by `test_default_bindings.py`.
 

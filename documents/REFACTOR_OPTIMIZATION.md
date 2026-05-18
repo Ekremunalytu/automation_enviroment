@@ -1,6 +1,6 @@
 # REFACTOR_OPTIMIZATION
 
-`Last Updated: 2026-05-17 (W14 closed via PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d; W15 active on week15 branch cut from main HEAD 7cc2921 on 2026-05-14; W15-1/W15-2/W15-3/W15-4/W15-5/W15-6 closed (M10/M12/U8/U1/U2/U3/U6/I2/I4/U10/U11); W15-6 closed 2026-05-17 via be52520 — ADR 0011 unauthenticated catalog endpoints posture Accepted and implemented (Proposed at e41722e); Option A: posture pinned by docstring + router-site comment + new tests/architecture/test_catalog_endpoint_posture.py gate (3 AST invariants); ADR 0002 NOT amended; W15-7 closed 2026-05-17 — compose image SHA pin via 54e7a93 + test extension via 7ebbbfb (tests/architecture/ 196 → 198) + GH action trivy version pin via 452f1a1 (aquasecurity/trivy-action@v0.36.0) + final preamble refresh; §13 W15 plan source entry triggered by W14 merge; W15 mid-iter hygiene 2026-05-16: doc-preamble consistency arch gate + 3 new audit findings in POST_POC_BACKLOG)`
+`Last Updated: 2026-05-18 (W15 closed via PR #22 week15 -> main MERGED 2026-05-18 via 6161472 — W15-1..W15-7 sub-iter slate + W15-1 post-slate typing hotfix + close-out hygiene pass (doc preamble truth-state refresh across 7 canonical docs + close-out lint hygiene via 7ff31d9 + ADR 0011 catalog endpoint posture gate + compose image SHA pin + GH action trivy version pin); W16 active on main branch (per user direction — no separate week16 branch); §14 W16 plan source entry triggered by W15 merge; W16 scope: 6+1 sub-iter — scenario-accountant emit-site fix (W16-1, HIGH prod regression W14-1 carry-over), analysis-job-worker-entry CRUD ownership (W16-2, W15 audit finding), report-finalize top-level field sync drift (W16-3, W14 carry-over), health-reconciliation responsibility split (W16-4, W15 audit finding), simulation-progress-cancel family closeout (W16-5, W11+ umbrella 3/3 remaining), hygiene splits + Alembic round-trip fixture (W16-6), close-out (W16-7); W14 closed via PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d)`
 
 W0-W14 plan document: stabilization + security + post-PoC external-review
 integration + W14 acceptance + observability continuation. **Slim canonical**
@@ -22,10 +22,18 @@ row with stable ID + landing commit; full context in the snapshot.
 - §11.5 → W8 tracker pointer.
 - §11.6 - §11.10 → W9-W13 weekly closure summaries.
 - §11.11 - §11.14 → cross-ref, rejected, lane, and exit summaries.
-- §12 → W14 Codex M-class Acceptance + Observability — **sub-iter slate
-  complete; W14-7/W14-8 post-slate hotfixes closed; close-out PR
-  `week14 -> main` next.** Tracker:
+- §12 → W14 Codex M-class Acceptance + Observability — **closed
+  `2026-05-14`; PR #21 `week14 -> main` merged via `4e03c8d`.**
+  Frozen tracker:
   [`active-work/W14-codex-acceptance-observability.md`](active-work/W14-codex-acceptance-observability.md).
+- §13 → W15 Codex U-class Close-Out + UI Bounds + Posture — **closed
+  `2026-05-17`; PR #22 `week15 -> main` merged `2026-05-18` via
+  `6161472`.** Frozen tracker:
+  [`active-work/W15-codex-uclass-bounds-posture.md`](active-work/W15-codex-uclass-bounds-posture.md).
+- §14 → W16 Carry-Over Closeout + Audit Findings + Production
+  Regression — **active `2026-05-18` on `main` (no separate week16
+  branch per user direction).** Active tracker:
+  [`active-work/W16-regression-and-audit-closeout.md`](active-work/W16-regression-and-audit-closeout.md).
 
 ## §10 — W0-W7 PoC Stabilization Window (closed 2026-04-23)
 
@@ -191,14 +199,15 @@ W14 kapanır şu koşullar sağlandığında:
 - Slim canonicals kısa kalır; verbose evidence önce arşivlenir. **DONE** (snapshot `2026-05-14`).
 - `week14 → main` close-out PR W12 PR #18 / W13 close-out cut-off pattern'ini izler. **DONE** (PR #21 merged `2026-05-14` via `4e03c8d`).
 
-## §13 — W15 Codex U-class Close-Out + UI Bounds + Posture (active 2026-05-14)
+## §13 — W15 Codex U-class Close-Out + UI Bounds + Posture (closed 2026-05-17, merged 2026-05-18 via PR #22)
 
 §13 opened with the `week15` branch cut from `main` HEAD `7cc2921` on
 `2026-05-14` (W14 close-out PR #21 merged at `4e03c8d`; W15 base
-includes the `7cc2921` scope-skeleton commit). Active tracker:
+includes the `7cc2921` scope-skeleton commit) and closed when PR #22
+`week15 -> main` merged on `2026-05-18` via `6161472`. Frozen tracker:
 [`active-work/W15-codex-uclass-bounds-posture.md`](active-work/W15-codex-uclass-bounds-posture.md)
 carries per-iter scope locks, candidate items, and Per-Item Detail
-evidence (sub-commits, module locations, test deltas). Mid-iter status
+evidence (sub-commits, module locations, test deltas). Final status
 `2026-05-17`: W15-1..W15-7 closed
 (M10/M12/U8/U1/U2/U3/U6/I2/I4/U10/U11 + W15-7 regression lock-in);
 W15-1 post-slate typing hotfix landed. W15-6 closed `2026-05-17` via
@@ -292,7 +301,119 @@ W15 kapanır şu koşullar sağlandığında:
   pinned + 4 canonical preamble truth-state refresh.
 - Slim canonicals kısa kalır; verbose evidence önce arşivlenir.
 - `week15 → main` close-out PR W12 PR #18 / W13 PR #20 / W14 PR #21
-  cut-off pattern'ini izler.
+  cut-off pattern'ini izler. **DONE** (PR #22 merged `2026-05-18` via
+  `6161472`).
 - Close-out hygiene pass (W14 paterni): Ruff lint, UI contract sync,
   markdown formatting, doc truth-state alignment, (varsa) yeni
-  regression gate'ler.
+  regression gate'ler. **DONE** (doc preamble truth-state refresh
+  across 7 canonical docs + close-out lint hygiene via `7ff31d9` +
+  ADR 0011 catalog endpoint posture gate + compose image SHA pin +
+  GH action trivy version pin).
+
+## §14 — W16 Carry-Over Closeout + Audit Findings + Production Regression (active 2026-05-18)
+
+§14 opened with the W15 close-out PR #22 `week15 -> main` merge on
+`2026-05-18` via `6161472`. **Per user direction W16 stays on `main`
+— no separate `week16` branch is opened.** Active tracker:
+[`active-work/W16-regression-and-audit-closeout.md`](active-work/W16-regression-and-audit-closeout.md)
+carries per-iter scope locks, candidate items, and Per-Item Detail
+evidence (sub-commits, module locations, test deltas).
+
+| Iter | Theme | Stable ID(s) (planned) |
+|---|---|---|
+| W16-1 | scenario-accountant upstream emit-site fix (HIGH prod regression) | `[FOLLOWUP scenario-accountant-conservation-split]` (W14-1 root-cause split; deterministic dropout observed `2026-05-14` + `2026-05-15`) |
+| W16-2 | analysis-job worker-entry CRUD ownership | `[FOLLOWUP analysis-job-worker-entry-crud-ownership]` (W15 mid-iter audit finding; row-lock-aware lifecycle primitive in `appcore/storage/crud_ops/analysis_jobs/lifecycle.py`, preserving W13-13 CAS) |
+| W16-3 | report-finalize top-level field sync drift | `[FOLLOWUP report-finalize-top-level-field-sync-drift]` (W14 production scan-driven investigation; finalize ordering / `report.save()` drift) |
+| W16-4 | health-reconciliation responsibility split | `[FOLLOWUP health-reconciliation-responsibility-split]` (W15 mid-iter audit finding; behavior-preserving extraction, W13-1 HMAC gates must not regress) |
+| W16-5 | simulation-progress-cancel family closeout (3 sub-items) | `[FOLLOWUP simulation-progress-cancel] heartbeat-sandbox-reset-off-thread` + `dedupe-step-progress-schemas` + `heartbeat-refactor` (W11+ umbrella) |
+| W16-6 | hygiene splits + Alembic round-trip fixture | `[CLEANUP marketplace-router-test-suite-split]` + `[CLEANUP test-import-graph-policy-dump-split]` + `[FOLLOWUP w13-4-alembic-roundtrip-programmatic]` |
+| W16-7 | close-out hygiene + canonical preamble refresh | Doc preamble refresh + §14 tracker freeze (no `week16 -> main` PR per main-branch direction) |
+
+### §14.0 — Neden ayrı §14
+
+§13 W15 Codex U-class + posture penceresini kapatır (audit kapanışı,
+ADR 0011, compose pin + GH action pin); §14 yeni bir tema: production
+regression closeout (W14-1 carry-over) + W15 mid-iter audit
+findings + W11/W14 carry-over closeouts (heartbeat family, alembic
+round-trip, top-level field sync drift). §14 ayrı tutuluyor ki §13
+audit trail'i (W15 sub-iter close date'leri ve commit'leri) donmuş
+kalsın.
+
+### §14.1-§14.2 — Entry + Sub-iter Distribution
+
+W16 entry triggered by W15 close-out PR #22 merge (`6161472`,
+`2026-05-18`). Sub-iter sequencing rationale: W16-1 önce —
+production'da deterministik regression (`2026-05-14` + `2026-05-15`
+observations), severity-leading. Sonra W16-2 (CRUD ownership;
+concurrency-sensitive, W13-13 CAS pattern bağlantısı). W16-3 W16-1
+ile coupling (finalize ordering temizliği, scenario dropout fix
+sonrası doğal devam). W16-4 behavior-preserving extraction —
+W13-1 HMAC gates regress etmemeli. W16-5 üç haftalık umbrella'yı
+toplu kapatır. W16-6 hygiene splits + alembic fixture paralel
+yapılabilir; runtime risk yok. W16-7 close-out hygiene W14/W15
+paterni.
+
+Stable ID → iter eşlemesi `POST_POC_BACKLOG.md`'de W16 Pull-Forward
+tablosunda (W16-1 pull'da açılır).
+
+Per user direction W16 stays on `main` — no separate `week16`
+branch is opened; sub-iter commits land directly on `main` and the
+W16 tracker freezes when scope closes (no `week16 -> main` PR).
+
+### §14.3 — Non-goals (W16)
+
+W17+'a düşen kalemler stable ID'leri `POST_POC_BACKLOG.md` altında
+açık kalır:
+
+- `[FOLLOWUP w11-8-companion-workflow-orm-bleed]` (DTO desen kararı
+  önce ayrı bir ADR ister; W17+ design pass).
+- `[CLEANUP rule-registry-side-effect-loader]` (ADR 0003 deferred
+  rules A5/A7 landed olunca).
+- `[FOLLOWUP codex-automation-6]`, `[FOLLOWUP capability-verification-gap]`
+  (`NEEDS-DESIGN`; W17+).
+- Watching items: `planner-selection-readability-audit`,
+  `attribution-links-build-evidence-bundle-density`,
+  `execute-attempt-rebloat-watch`, `dispatch-execution-rebloat-watch`
+  (LoC bütçesi aşılana kadar dokunma).
+- `[FOLLOWUP ci-reintroduction]` (geniş GH Actions CI reintroduction;
+  W15-7 yalnızca tek action pin'i ele aldı, W16'da pull etmez).
+- W15'te kapanan tüm kalemler (M10/M12/U1/U2/U3/U6/U8/I2/I4/U10/U11 +
+  compose pin + trivy pin) — `POST_POC_BACKLOG.md`'de kapanış audit
+  trail'i korunmuştur, yeniden pull değil.
+
+### §14.4 — Exit Criteria (W16-End)
+
+W16 kapanır şu koşullar sağlandığında:
+
+- W16-1..W16-7 kapanır ya da deferral rasyoneli ile W17'ye taşınır.
+- W16 tracker final close evidence + current test counts tutar
+  (`tests/architecture/` hedef 198 → ~205+; W16-2 + W16-4 yeni
+  arch gate eklerse).
+- W16-1 production replay: `activation_report_*.json` fixture'ında
+  `debug_session` + `refactor_workflow` scenario'ları deterministik
+  drop etmiyor; `[FOLLOWUP scenario-accountant-conservation-split]`
+  POST_POC_BACKLOG'da kapanış audit trail'i ile işaretlenir.
+- W16-3 production replay: `target_extension_id`, `monitoring_*`,
+  `scenarios_run`, `harness_handshake_required` top-level field'ler
+  non-null populate edilir; finalize ordering drift kapanır.
+- W16-4 davranış paritesi: `executor/flows/playwright/health/`
+  paketinde security_gates + reconciliation responsibility split,
+  W13-1 HMAC marker gates + fail-closed handshake davranışı
+  regress etmez.
+- W16-5 umbrella: `[FOLLOWUP simulation-progress-cancel]` family
+  3 alt-kalemi kapanır; umbrella POST_POC_BACKLOG'da CLOSED
+  işaretlenir.
+- W16-6 hygiene: `tests/workflows/marketplace/test_router.py` →
+  domain bazlı splits; `tests/architecture/test_import_graph.py`
+  → tematik splits; `test_alembic_cancelling_migration.py`
+  `pytest.skip` kalkar (fresh-DB fixture aktif).
+- `REFACTOR_STATUS.md`, `POST_POC_BACKLOG.md`,
+  `active-work/README.md`, ve ilgili lane docs aynı active/closed
+  state'i gösterir.
+- Slim canonicals kısa kalır; verbose evidence önce arşivlenir.
+- Close-out hygiene pass (W14/W15 paterni): Ruff lint, UI contract
+  sync, markdown formatting, doc truth-state alignment, (varsa)
+  yeni regression gate'ler.
+- Per user direction: W16 `main` üzerinde kalır — `week16 -> main`
+  close-out PR yok; sub-iter commits doğrudan `main`'e land eder
+  ve W16 tracker scope kapanışında frozen olur.

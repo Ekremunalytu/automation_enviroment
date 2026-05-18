@@ -1,6 +1,6 @@
 # ExTrace
 
-`Last Updated: 2026-05-17 (W15 active — W15-1..W15-6 closed; W15-7 closed 2026-05-17 — compose image SHA pin (54e7a93) + test extension (7ebbbfb) + GH action trivy version pin (452f1a1; aquasecurity/trivy-action@v0.36.0) + final preamble refresh)`
+`Last Updated: 2026-05-18 (W15 closed via PR #22 week15 -> main MERGED 2026-05-18 via 6161472 — W15-1..W15-7 sub-iter slate + W15-1 post-slate typing hotfix + close-out hygiene pass; W16 active on main branch per user direction — no separate week16 branch; W16 scope: 6+1 sub-iter — scenario-accountant emit-site fix (W16-1), analysis-job-worker-entry CRUD ownership (W16-2), report-finalize top-level field sync drift (W16-3), health-reconciliation responsibility split (W16-4), simulation-progress-cancel family closeout (W16-5), hygiene splits + Alembic round-trip fixture (W16-6), close-out (W16-7); plan REFACTOR_OPTIMIZATION.md §14, tracker active-work/W16-regression-and-audit-closeout.md)`
 
 ExTrace is a VS Code extension analysis platform built around three runtime
 surfaces:
@@ -55,53 +55,43 @@ multi-tenant web platform.
   W8-8 deferred); **W9 closed `2026-05-04`** (PR #9); **W10 closed
   `2026-05-04`** (PR #11); **W11 closed `2026-05-05`** and merged via
   PR #14; **W12 closed `2026-05-10`** and merged via PR #18 (`33a0852`).
-  **W13 Test Expansion + Observability closed `2026-05-13`**
-  (W13-1..W13-13 all GREEN). Close-out PR #20 `week13 -> main` **MERGED**
-  `2026-05-13` via `772deb3` (close-gate cleared pre-merge). Past
-  tracker:
+  **W13 — Test Expansion + Observability closed `2026-05-13`** and
+  merged via PR #20 `week13 -> main` (`772deb3`). Frozen tracker:
   [`active-work/W13-test-expansion-observability.md`](documents/active-work/W13-test-expansion-observability.md).
   **W14 — Codex M-class Acceptance + Observability closed `2026-05-14`**
-  (W14-1..W14-6 sub-iter slate + W14-7/W14-8 post-slate hotfixes +
-  close-out hygiene pass landed: Ruff lint, UI contract sync, markdown
-  formatting, doc truth-state alignment, `make markdownlint` regression
-  gate, ADR code fence arch test). Close-out PR #21 `week14 -> main`
-  **MERGED** `2026-05-14` via `4e03c8d`. Frozen tracker:
+  and merged via PR #21 `week14 -> main` (`4e03c8d`). Frozen tracker:
   [`active-work/W14-codex-acceptance-observability.md`](documents/active-work/W14-codex-acceptance-observability.md).
-  **Active phase: W15 — Codex U-class Close-Out + UI Bounds + Posture**
-  is active on the `week15` branch (cut from `main` HEAD `7cc2921` on
-  `2026-05-14`); see
+  **W15 — Codex U-class Close-Out + UI Bounds + Posture closed
+  `2026-05-17` and merged via PR #22 `week15 -> main` (`6161472`) on `2026-05-18`**
+  — W15-1..W15-7 sub-iter slate + W15-1 post-slate typing hotfix +
+  close-out hygiene pass (doc preamble truth-state refresh across 7
+  canonical docs + ADR 0011 catalog endpoint posture gate + compose
+  image SHA pin + GH action trivy version pin + close-out lint
+  hygiene). Frozen tracker:
   [`active-work/W15-codex-uclass-bounds-posture.md`](documents/active-work/W15-codex-uclass-bounds-posture.md).
-  W15-1 closed `2026-05-14` via `c58c365` (sync analyze error taxonomy
-  parity, M10 close); W15-2 closed `2026-05-14` via `765cde7`
-  (`clean_workspace` is_symlink-before-rmtree, M12 close); W15-3 closed
-  `2026-05-15` via `3512a7c` (`activationEvents` bounds + Alembic
-  field-length migration, U8 close); W15-4 closed `2026-05-16` via
-  `89e13e3` (UI bounds bundle: timeline / density strip / relations
-  graph caps with truncation indicators, U1/U2/U3 + U6 close);
-  **W15-1 post-slate typing hotfix** landed `2026-05-16` via `976dc96`
-  (`ANALYZE_*_ERROR_TYPES` annotation narrowed `BaseException` →
-  `Exception` after the W15-4 close-out `make typecheck` surfaced the
-  mismatch). W15-5 closed `2026-05-17` via `43d6438` (I2 + I4 quick
-  fixes bundle). W15-6 closed `2026-05-17` via `be52520` — ADR 0011
-  unauthenticated catalog endpoints posture Accepted (Option A; ADR
-  0002 NOT amended). **W15-7 closed `2026-05-17`** — compose image
-  SHA pin via `54e7a93` + test extension via `7ebbbfb` + trivy pin
-  via `452f1a1` (`aquasecurity/trivy-action@v0.36.0`) + close-out
-  docs + hygiene `7ff31d9`; early pulls `a7a876e` + `2573e35`. **W15
-  mid-iter hygiene `2026-05-16`** refreshed six canonical doc
-  preambles to W15 truth-state, added
-  `tests/architecture/test_doc_preamble_consistency.py`, and
-  appended three new audit findings to `POST_POC_BACKLOG.md`
-  (`health-reconciliation-responsibility-split`,
-  `marketplace-router-test-suite-split`,
-  `analysis-job-worker-entry-crud-ownership`) — all defer to W16+.
-  `week15 -> main` close-out PR pending separate user action.
+  **Active phase: W16 — Carry-Over Closeout + Audit Findings +
+  Production Regression** is active `2026-05-18` **on `main` per user
+  direction — no separate `week16` branch is opened; sub-iter commits
+  land directly on `main` and the W16 tracker freezes at scope close**.
+  See
+  [`active-work/W16-regression-and-audit-closeout.md`](documents/active-work/W16-regression-and-audit-closeout.md).
+  W16 scope (6+1 sub-iter, severity-leading): W16-1 scenario-accountant
+  upstream emit-site fix (W14-1 root-cause split; HIGH prod regression
+  observed `2026-05-14` + `2026-05-15`); W16-2 analysis-job-worker-entry
+  CRUD ownership (W15 audit finding); W16-3 report-finalize top-level
+  field sync drift (W14 carry-over); W16-4 health-reconciliation
+  responsibility split (W15 audit finding; W13-1 HMAC gates preserved);
+  W16-5 simulation-progress-cancel family closeout (W11+ umbrella, 3
+  sub-items); W16-6 hygiene splits + Alembic round-trip fixture; W16-7
+  close-out hygiene + canonical preamble refresh (no `week16 -> main`
+  PR per main-branch direction).
 - **Canonical source of truth for phase state:**
   [`documents/REFACTOR_STATUS.md`](documents/REFACTOR_STATUS.md).
   Deferred items: [`documents/POST_POC_BACKLOG.md`](documents/POST_POC_BACKLOG.md).
   W8-W13 plan: [`documents/REFACTOR_OPTIMIZATION.md` §11](documents/REFACTOR_OPTIMIZATION.md).
   W14 plan: [`documents/REFACTOR_OPTIMIZATION.md` §12](documents/REFACTOR_OPTIMIZATION.md).
   W15 plan: [`documents/REFACTOR_OPTIMIZATION.md` §13](documents/REFACTOR_OPTIMIZATION.md).
+  W16 plan: [`documents/REFACTOR_OPTIMIZATION.md` §14](documents/REFACTOR_OPTIMIZATION.md).
 
 ## Current Architecture
 
