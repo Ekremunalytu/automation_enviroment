@@ -1,6 +1,6 @@
 # Post-PoC Backlog
 
-`Last Updated: 2026-05-18 (W15 closed via PR #22 week15 -> main MERGED 2026-05-18 via 6161472 — W15-1..W15-7 sub-iter slate + W15-1 post-slate typing hotfix + close-out hygiene pass; W16 active on main branch per user direction — no separate week16 branch; W16 Pull-Forward planned: scenario-accountant-conservation-split (W16-1, W14-1 carry-over HIGH prod regression), analysis-job-worker-entry-crud-ownership (W16-2, W15 audit finding), report-finalize-top-level-field-sync-drift (W16-3, W14 carry-over), health-reconciliation-responsibility-split (W16-4, W15 audit finding), simulation-progress-cancel family 3 sub-items (W16-5, W11+ umbrella), hygiene splits + w13-4-alembic-roundtrip-programmatic (W16-6); W14 closed via PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d)`
+`Last Updated: 2026-05-18 (W15 closed via PR #22 week15 -> main MERGED 2026-05-18 via 6161472 — W15-1..W15-7 sub-iter slate + W15-1 post-slate typing hotfix + close-out hygiene pass; W16 active on week16 branch (per user direction 2026-05-18; W11-W15 paterni restored via W16-0 doc reconcile); W16 Pull-Forward planned: scenario-accountant-conservation-split (W16-1, W14-1 carry-over HIGH prod regression), analysis-job-worker-entry-crud-ownership (W16-2, W15 audit finding), report-finalize-top-level-field-sync-drift (W16-3, W14 carry-over), health-reconciliation-responsibility-split (W16-4, W15 audit finding), simulation-progress-cancel family 3 sub-items (W16-5, W11+ umbrella), hygiene splits + w13-4-alembic-roundtrip-programmatic (W16-6); W14 closed via PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d)`
 
 Open deferred work after the W0-W7 PoC acceptance bar. **Slim canonical** —
 verbose closure rationales, evidence paragraphs, and per-iter Note columns
@@ -16,8 +16,9 @@ W8-W15 are closed; W13 close-out PR #20 `week13 -> main` **MERGED**
 `2026-05-13` via `772deb3`; W14 close-out PR #21 `week14 -> main`
 **MERGED** `2026-05-14` via `4e03c8d`; **W15 close-out PR #22
 `week15 -> main` MERGED `2026-05-18` via `6161472`**. **W16 active**
-on `main` (no separate `week16` branch per user direction); W16-1..W16-7
-planned (pull-forward table below). W14 tracker:
+on the `week16` branch (per user direction 2026-05-18; W11-W15 paterni
+restored via W16-0 doc reconcile); W16-1..W16-7 planned (pull-forward
+table below). W14 tracker:
 [`active-work/W14-codex-acceptance-observability.md`](active-work/W14-codex-acceptance-observability.md);
 W15 tracker (frozen):
 [`active-work/W15-codex-uclass-bounds-posture.md`](active-work/W15-codex-uclass-bounds-posture.md);
@@ -86,9 +87,11 @@ per-iter Per-Item Detail evidence in the W15 tracker + archive snapshot.
 
 ## W16 Pull-Forward Acceptance Bar (planned)
 
-W16 active on `main` per user direction (no separate `week16` branch).
-Stable IDs reserved by §14 plan; each row assigned **at first pull** per
-the W11/W12/W13/W14/W15 precedent.
+W16 active on the `week16` branch (per user direction 2026-05-18;
+W11-W15 paterni restored via W16-0 doc reconcile). Stable IDs reserved
+by §14 plan; each row assigned **at first pull** per the
+W11/W12/W13/W14/W15 precedent. Close-out merges into `main` via a
+`week16 -> main` PR.
 
 | Iter | Stable ID(s) (planned) | Landing commit |
 |---|---|---|
@@ -98,7 +101,7 @@ the W11/W12/W13/W14/W15 precedent.
 | W16-4 | `[FOLLOWUP health-reconciliation-responsibility-split]` (W15 audit finding; behavior-preserving extraction; W13-1 HMAC gates preserved) | _pending pull_ |
 | W16-5 | `[FOLLOWUP simulation-progress-cancel] heartbeat-sandbox-reset-off-thread` + `dedupe-step-progress-schemas` + `heartbeat-refactor` (W11+ umbrella closeout) | _pending pull_ |
 | W16-6 | `[CLEANUP marketplace-router-test-suite-split]` + `[CLEANUP test-import-graph-policy-dump-split]` + `[FOLLOWUP w13-4-alembic-roundtrip-programmatic]` | _pending pull_ |
-| W16-7 | close-out hygiene + canonical preamble refresh (no `week16 -> main` PR per main-branch direction) | _pending pull_ |
+| W16-7 | close-out hygiene + canonical preamble refresh + `week16 -> main` close-out PR (W11-W15 paterni restored) | _pending pull_ |
 
 ## Codex Cloud Audit Backlog
 

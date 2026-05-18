@@ -1,6 +1,6 @@
 # Refactor Status
 
-`Last Updated: 2026-05-18 (W15 closed via PR #22 week15 -> main MERGED 2026-05-18 via 6161472 — W15-1..W15-7 sub-iter slate + W15-1 post-slate typing hotfix + close-out hygiene pass; W16 active on main branch per user direction — no separate week16 branch; W16 scope: 6+1 sub-iter — scenario-accountant emit-site fix (W16-1, HIGH prod regression W14-1 carry-over), analysis-job-worker-entry CRUD ownership (W16-2), report-finalize top-level field sync drift (W16-3), health-reconciliation responsibility split (W16-4), simulation-progress-cancel family closeout (W16-5), hygiene splits + Alembic round-trip fixture (W16-6), close-out (W16-7); plan source REFACTOR_OPTIMIZATION.md §14; W14 closed via PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d; W13 close-out PR #20 week13 -> main merged 2026-05-13 via 772deb3)`
+`Last Updated: 2026-05-18 (W15 closed via PR #22 week15 -> main MERGED 2026-05-18 via 6161472 — W15-1..W15-7 sub-iter slate + W15-1 post-slate typing hotfix + close-out hygiene pass; W16 active on week16 branch (per user direction 2026-05-18; W11-W15 paterni restored via W16-0 doc reconcile); W16 scope: 6+1 sub-iter — scenario-accountant emit-site fix (W16-1, HIGH prod regression W14-1 carry-over), analysis-job-worker-entry CRUD ownership (W16-2), report-finalize top-level field sync drift (W16-3), health-reconciliation responsibility split (W16-4), simulation-progress-cancel family closeout (W16-5), hygiene splits + Alembic round-trip fixture (W16-6), close-out (W16-7); plan source REFACTOR_OPTIMIZATION.md §14; W14 closed via PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d; W13 close-out PR #20 week13 -> main merged 2026-05-13 via 772deb3)`
 
 Active status board for current closure state. **Slim canonical** — verbose
 phase evidence is frozen under dated snapshots:
@@ -88,8 +88,9 @@ phase evidence is frozen under dated snapshots:
   gates +26); `make test-security` **215 passed** (unchanged from W13
   final).
 - **Active phase: W16 — Carry-Over Closeout + Audit Findings +
-  Production Regression** (active `2026-05-18`; **on `main` per user
-  direction — no separate `week16` branch**). Scope authored
+  Production Regression** (active `2026-05-18`; **on the `week16`
+  branch per user direction 2026-05-18 (W11-W15 paterni restored via
+  W16-0 doc reconcile)**). Scope authored
   `2026-05-18` in
   [`active-work/W16-regression-and-audit-closeout.md`](active-work/W16-regression-and-audit-closeout.md);
   plan source [`REFACTOR_OPTIMIZATION.md §14`](REFACTOR_OPTIMIZATION.md).
@@ -100,9 +101,9 @@ phase evidence is frozen under dated snapshots:
   top-level field sync drift), W11+ heartbeat umbrella closeout
   (`simulation-progress-cancel` family 3 sub-items), hygiene splits
   (marketplace-router + test-import-graph) + Alembic round-trip
-  fixture, and close-out hygiene. **No `week16 -> main` PR per
-  main-branch direction**; sub-iter commits land directly on `main`
-  and the W16 tracker freezes at scope close.
+  fixture, and close-out hygiene. **Close-out via `week16 -> main`
+  PR** (W11-W15 paterni restored 2026-05-18); sub-iter commits land
+  on `week16` and the W16 tracker freezes at scope close.
 
 ## W13 Status Summary
 
@@ -150,5 +151,6 @@ keep closed W15 mechanics (Codex U-class close-out + UI bounds +
 posture; W15-1..W15-7 closed; merged via PR #22 on `2026-05-18`) in
 `active-work/W15-codex-uclass-bounds-posture.md`, and keep active
 W16 scope (carry-over closeout + W15 audit findings + production
-regression; **on `main` per user direction, no separate week16
-branch**) in `active-work/W16-regression-and-audit-closeout.md`.
+regression; **on the `week16` branch per user direction 2026-05-18,
+W11-W15 paterni restored via W16-0 doc reconcile**) in
+`active-work/W16-regression-and-audit-closeout.md`.

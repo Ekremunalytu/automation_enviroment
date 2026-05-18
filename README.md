@@ -1,6 +1,6 @@
 # ExTrace
 
-`Last Updated: 2026-05-18 (W15 closed via PR #22 week15 -> main MERGED 2026-05-18 via 6161472 — W15-1..W15-7 sub-iter slate + W15-1 post-slate typing hotfix + close-out hygiene pass; W16 active on main branch per user direction — no separate week16 branch; W16 scope: 6+1 sub-iter — scenario-accountant emit-site fix (W16-1), analysis-job-worker-entry CRUD ownership (W16-2), report-finalize top-level field sync drift (W16-3), health-reconciliation responsibility split (W16-4), simulation-progress-cancel family closeout (W16-5), hygiene splits + Alembic round-trip fixture (W16-6), close-out (W16-7); plan REFACTOR_OPTIMIZATION.md §14, tracker active-work/W16-regression-and-audit-closeout.md)`
+`Last Updated: 2026-05-18 (W15 closed via PR #22 week15 -> main MERGED 2026-05-18 via 6161472 — W15-1..W15-7 sub-iter slate + W15-1 post-slate typing hotfix + close-out hygiene pass; W16 active on week16 branch (per user direction 2026-05-18; W11-W15 paterni restored via W16-0 doc reconcile); W16 scope: 6+1 sub-iter — scenario-accountant emit-site fix (W16-1), analysis-job-worker-entry CRUD ownership (W16-2), report-finalize top-level field sync drift (W16-3), health-reconciliation responsibility split (W16-4), simulation-progress-cancel family closeout (W16-5), hygiene splits + Alembic round-trip fixture (W16-6), close-out (W16-7); plan REFACTOR_OPTIMIZATION.md §14, tracker active-work/W16-regression-and-audit-closeout.md)`
 
 ExTrace is a VS Code extension analysis platform built around three runtime
 surfaces:
@@ -70,9 +70,10 @@ multi-tenant web platform.
   hygiene). Frozen tracker:
   [`active-work/W15-codex-uclass-bounds-posture.md`](documents/active-work/W15-codex-uclass-bounds-posture.md).
   **Active phase: W16 — Carry-Over Closeout + Audit Findings +
-  Production Regression** is active `2026-05-18` **on `main` per user
-  direction — no separate `week16` branch is opened; sub-iter commits
-  land directly on `main` and the W16 tracker freezes at scope close**.
+  Production Regression** is active `2026-05-18` **on the `week16`
+  branch per user direction (W11-W15 paterni restored 2026-05-18 via
+  W16-0 doc reconcile); sub-iter commits land on `week16` and the
+  close-out is merged into `main` via a `week16 -> main` PR**.
   See
   [`active-work/W16-regression-and-audit-closeout.md`](documents/active-work/W16-regression-and-audit-closeout.md).
   W16 scope (6+1 sub-iter, severity-leading): W16-1 scenario-accountant
@@ -83,8 +84,8 @@ multi-tenant web platform.
   responsibility split (W15 audit finding; W13-1 HMAC gates preserved);
   W16-5 simulation-progress-cancel family closeout (W11+ umbrella, 3
   sub-items); W16-6 hygiene splits + Alembic round-trip fixture; W16-7
-  close-out hygiene + canonical preamble refresh (no `week16 -> main`
-  PR per main-branch direction).
+  close-out hygiene + canonical preamble refresh + `week16 -> main`
+  close-out PR (W11-W15 paterni restored).
 - **Canonical source of truth for phase state:**
   [`documents/REFACTOR_STATUS.md`](documents/REFACTOR_STATUS.md).
   Deferred items: [`documents/POST_POC_BACKLOG.md`](documents/POST_POC_BACKLOG.md).
