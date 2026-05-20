@@ -1,6 +1,6 @@
 # Post-PoC Backlog
 
-`Last Updated: 2026-05-18 (W17 active — phase work complete; W17 closed via PR #25 week17 -> main MERGED 2026-05-18 via bff565d; W16 closed via PR #23 week16 -> main MERGED 2026-05-18 via 1b6d43f. W17 Pull-Forward CLOSED: attribution-count-parity (W17-1, 8c26d02; producer-side fix at build_evidence_bundle activation emit-site); lifecycle harness scaffold (W17-2, ff98235; LifecycleHarness + lifecycle_harness fixture); heartbeat-sandbox-reset-off-thread + heartbeat-refactor SCOPE-REDUCED (W17-3 + W17-4 doc-only c4c0646; DESIGN-NEEDED, deferred to W18); postgres-version-fact-drift (W17-5, 394d40d; seed_project_2 synthetic-fixture stack alignment); other 4 cleanup candidates deferred to W18+ pull-as-found; W17-6 close-out hygiene this commit. Final W17 bar: tests/architecture/ 200 passed; make test-security 220 passed (W17-7a bf983eb enrolled test_unaccounted_dropout_surface.py — 217 → 220); full suite 1899 passed, 9 skipped, 4 deselected (+6 from W16 final 1893). W16 Pull-Forward CLOSED: scenario-accountant-conservation-split (W16-1, 01f910a), analysis-job-worker-entry-crud-ownership (W16-2, 9d6d110), report-finalize-top-level-field-sync-drift null-leakage half (W16-3, fa430f2; attribution-count-parity half SPLIT to W17 as [FOLLOWUP attribution-count-parity]), health-reconciliation-responsibility-split (W16-4, 304b99f), simulation-progress-cancel scope reduction (W16-5 doc-only e21a05c — dedupe-step-progress-schemas REJECTED; heartbeat-sandbox-reset-off-thread + heartbeat-refactor DEFERRED to W17), marketplace-router-test-suite-split + test-import-graph-policy-dump-split + w13-4-alembic-roundtrip-programmatic (W16-6, d40bb01), close-out hygiene (W16-7, 8bf3c6b) + post-PR unaccounted_dropout surface pin (78f080e). W15 closed via PR #22 MERGED 2026-05-18 via 6161472; W14 closed via PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d)`
+`Last Updated: 2026-05-19 (W18 candidates intake 2026-05-19 — `[GOAL container-hardening-baseline]` (W18 pull-target; threat-model-içi, sıfır production-kod değişikliği, ADR 0002 amendment veya yeni ADR 0008 ile yazılı hale gelir) + `[GOAL sandbox-evasion-defense-mvp]` (deferred W18+; ADR 0002 §3 ile çatışıyor — yeni ADR + sandbox-detection canary fixture prerequisite) added under Engineering Quality; first hardening-track candidates ahead of W18-0 doc-reconcile. W17 active — phase work complete; W17 closed via PR #25 week17 -> main MERGED 2026-05-18 via bff565d; W16 closed via PR #23 week16 -> main MERGED 2026-05-18 via 1b6d43f. W17 Pull-Forward CLOSED: attribution-count-parity (W17-1, 8c26d02; producer-side fix at build_evidence_bundle activation emit-site); lifecycle harness scaffold (W17-2, ff98235; LifecycleHarness + lifecycle_harness fixture); heartbeat-sandbox-reset-off-thread + heartbeat-refactor SCOPE-REDUCED (W17-3 + W17-4 doc-only c4c0646; DESIGN-NEEDED, deferred to W18); postgres-version-fact-drift (W17-5, 394d40d; seed_project_2 synthetic-fixture stack alignment); other 4 cleanup candidates deferred to W18+ pull-as-found; W17-6 close-out hygiene this commit. Final W17 bar: tests/architecture/ 200 passed; make test-security 220 passed (W17-7a bf983eb enrolled test_unaccounted_dropout_surface.py — 217 → 220); full suite 1899 passed, 9 skipped, 4 deselected (+6 from W16 final 1893). W16 Pull-Forward CLOSED: scenario-accountant-conservation-split (W16-1, 01f910a), analysis-job-worker-entry-crud-ownership (W16-2, 9d6d110), report-finalize-top-level-field-sync-drift null-leakage half (W16-3, fa430f2; attribution-count-parity half SPLIT to W17 as [FOLLOWUP attribution-count-parity]), health-reconciliation-responsibility-split (W16-4, 304b99f), simulation-progress-cancel scope reduction (W16-5 doc-only e21a05c — dedupe-step-progress-schemas REJECTED; heartbeat-sandbox-reset-off-thread + heartbeat-refactor DEFERRED to W17), marketplace-router-test-suite-split + test-import-graph-policy-dump-split + w13-4-alembic-roundtrip-programmatic (W16-6, d40bb01), close-out hygiene (W16-7, 8bf3c6b) + post-PR unaccounted_dropout surface pin (78f080e). W15 closed via PR #22 MERGED 2026-05-18 via 6161472; W14 closed via PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d)`
 
 Open deferred work after the W0-W7 PoC acceptance bar. **Slim canonical** —
 verbose closure rationales, evidence paragraphs, and per-iter Note columns
@@ -421,6 +421,87 @@ Closed: `[FOLLOWUP evidence-event-kind-raw-context-invariant]` — W14-4
 - `[FOLLOWUP ci-reintroduction]`
 - `[CLEANUP report-builder-naming]`
 - `[CLEANUP monitor-runtime-naming-overlap]`
+- `[GOAL container-hardening-baseline]` — **W18 candidate (intake
+  2026-05-19; external security-posture review).** Mevcut Docker
+  konteyner izolasyonunu ADR 0002 §1/§2 ("malicious extension
+  contained on dev host") hedefini daha sıkı karşılayacak şekilde
+  sıkılaştırmak: `cap_drop: ALL` + audit edilmiş minimum re-add
+  (bugün `docker-compose.yml:103-105`'de `NET_RAW + SYS_PTRACE`
+  yazılı gerekçe olmadan **eklenmiş** — `SYS_PTRACE` için
+  necessity araştırması ve `NET_RAW` için executor capture
+  contract dokümantasyonu ön-şart); `security_opt:
+  [no-new-privileges:true, seccomp:custom-profile]` ve proje sahipli
+  `docker/seccomp.json` (host-escape primitif syscall'larını —
+  `ptrace`, `unshare`, `bpf`, `mount`, `pivot_root` — VS Code +
+  analiz edilen extension surface için gereksiz olanlar — engeller);
+  `read_only: true` root FS + açık `tmpfs` mount'lar (`/tmp`, log
+  dirs, VS Code cache); `pids_limit` + `mem_limit` + `cpus` resource
+  tavanları (fork-bomb / DoS sınırı). Non-root `USER executor`
+  direktifi Dockerfile'da zaten doğru, korunur. **Mimari etki:
+  sıfır production-kod değişikliği** — pure infra config +
+  `tests/architecture/` altında 1 compose-property-invariant pin +
+  `tests/platform/security/` altında 1 seccomp-profile-sanity pin +
+  manuel konteyner-içi smoke. Threat model genişletmesi GEREKMİYOR;
+  mevcut ADR 0002 §1/§2 hedefini daha iyi karşılar. Küçük bir
+  **ADR 0002 amendment** veya yeni **`ADR 0008: Container Isolation
+  Baseline`** ile posture karar yazılı hale getirilir. **Riskler:**
+  (a) read-only root FS bilinmeyen bir yazma yolunu kırabilir
+  (tmpfs mount ile düzeltilir); (b) seccomp profili dar/geniş
+  dengesi — çok dar = analiz edilen extension çalışmaz; çok geniş =
+  koruma yok; (c) `cap_add: SYS_PTRACE`'in gerekçesi bulunamazsa
+  kaldırılır (test surface'ı debug-ergonomy düşüşüne karşı
+  hassaslaşır). **W18 prerequisite:** yok — `week17 -> main`
+  close-out merge'ünden sonra hemen pull-edilebilir; W17-3/W17-4
+  deferred refactor'la rekabet etmez (farklı dosya seti).
+  `[GOAL sandbox-evasion-defense-mvp]` ile bilinçli olarak ayrı
+  tutuldu: bu entry threat-model-içi hardening, oraki entry
+  threat-model genişletmesi gerektiriyor.
+- `[GOAL sandbox-evasion-defense-mvp]` — **deferred W18+ candidate
+  (intake 2026-05-19; pull only if W18 capacity allows after
+  `[GOAL container-hardening-baseline]` closes and the W17-3/W17-4
+  heartbeat refactor lands; otherwise W19+).** Playwright + xdotool
+  katmanında "bu bir sandbox'tır" sinyallerini yumuşatmak —
+  birincil hedef analiz edilen extension'ın sandbox tespit edip
+  dormant'a düşmesini engellemek (false-negative riskini düşürür,
+  birincil mission'a doğrudan hizmet eder). MVP scope: (1) klavye
+  gecikmelerine jitter — `executor/flows/playwright/vscode/editor.py:41`
+  hardcoded `xdotool --delay 30` rastgele 20-85ms aralığına;
+  `page.keyboard.type(delay=10/20)` çağrıları (aynı dosya
+  satır 58/114) da rastgeleleştirilir; (2) Playwright Chromium
+  başlatma argümanlarına `--disable-blink-features=AutomationControlled`
+  (gerçek bağlantı `reload_vscode.py:141` `connect_over_cdp()` —
+  ya CDP-tarafı stealth ya da launch arg ekleme route'u; bu adım
+  ADR'da netleştirilecek); (3) opsiyonel `playwright-stealth`
+  paketi veya equivalent inline JS injection (Canvas/WebGL/UA
+  fingerprint maskelemesi). **ADR 0002 §3 ile DOĞRUDAN ÇATIŞIYOR**
+  — orada "Advanced sandbox evasion: Playwright CDP fingerprinting,
+  detection of harness extension presence, detection of the
+  analyzer via `navigator.webdriver` or equivalent" açıkça
+  **OUT-OF-SCOPE** yazılı. Bu nedenle **kod yazımından önce yeni
+  bir ADR şart**: (a) yeni threat actor sınıfı (sandbox-aware
+  malicious extension) tanımı, (b) defense surface scope (hangi
+  fingerprint vektörü modelleniyor — sadece `navigator.webdriver`
+  + timing mi, yoksa tüm Canvas/WebGL/UA dahil mi?), (c) **ongoing
+  maintenance commitment** kabulü (Chromium her sürümde yeni
+  fingerprint vektörü ekliyor; stealth kodu *sessiz* şekilde
+  bozulabilir). **Mimari etki: cross-cutting kod değişikliği** —
+  `executor/flows/playwright/` altında 8-15 dokunuş noktası
+  (her klavye/mouse/timing call), yeni utility modülü
+  (`extrace/stealth/jitter.py` veya benzeri), opsiyonel
+  `playwright-stealth` dependency. **Kritik prerequisite (landing
+  öncesi):** sandbox-detection canary fixture —
+  `tests/security/test_sandbox_evasion_canary.py` benzeri bir
+  test, `navigator.webdriver`, timing predictability, ve diğer
+  probe'ları simüle eden bir kontrollü "extension"; bu fixture
+  GREEN kalmadan stealth değişikliği landing yapma, yoksa Chromium
+  sürüm yükselişinde sessizce bozulur ve fark edilmez. **MAC
+  spoofing (`--mac-address`) + `/.dockerenv` masking deliberate
+  olarak dışarıda** — daha agresif, daha kırılgan, eğer
+  yapılırsa ayrı bir iteryon. **"Vakit kalırsa"** rasyoneli: W18
+  birincil scope hardening + W17-3/W17-4 deferred refactor; bu
+  entry üçüncü sırada, kapasite yetmezse W19'a kayar — ADR taslağı
+  W18 içinde drafted olabilir, implementation W19'a düşse de
+  threat model genişletmesi düşünme süresinden faydalanır.
 - `[CLEANUP env-example-extrace-vars]` — **closed at W17-7b** via
   `fc88678`. `EXTRACE_EPOCH_RUN_ID` (W14-5 sub-commit 2 wiring;
   log run-id stamping; propagated across docker exec boundary)
