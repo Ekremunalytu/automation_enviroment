@@ -1,6 +1,6 @@
 # Post-PoC Backlog
 
-`Last Updated: 2026-05-18 (W17 active — phase work complete; close-out via week17 -> main PR pending (close-out PR not yet opened; branch is pushed — 2026-05-18); W16 closed via PR #23 week16 -> main MERGED 2026-05-18 via 1b6d43f. W17 Pull-Forward CLOSED: attribution-count-parity (W17-1, 8c26d02; producer-side fix at build_evidence_bundle activation emit-site); lifecycle harness scaffold (W17-2, ff98235; LifecycleHarness + lifecycle_harness fixture); heartbeat-sandbox-reset-off-thread + heartbeat-refactor SCOPE-REDUCED (W17-3 + W17-4 doc-only c4c0646; DESIGN-NEEDED, deferred to W18); postgres-version-fact-drift (W17-5, 394d40d; seed_project_2 synthetic-fixture stack alignment); other 4 cleanup candidates deferred to W18+ pull-as-found; W17-6 close-out hygiene this commit. Final W17 bar: tests/architecture/ 200 passed; make test-security 220 passed (W17-7a bf983eb enrolled test_unaccounted_dropout_surface.py — 217 → 220); full suite 1899 passed, 9 skipped, 4 deselected (+6 from W16 final 1893). W16 Pull-Forward CLOSED: scenario-accountant-conservation-split (W16-1, 01f910a), analysis-job-worker-entry-crud-ownership (W16-2, 9d6d110), report-finalize-top-level-field-sync-drift null-leakage half (W16-3, fa430f2; attribution-count-parity half SPLIT to W17 as [FOLLOWUP attribution-count-parity]), health-reconciliation-responsibility-split (W16-4, 304b99f), simulation-progress-cancel scope reduction (W16-5 doc-only e21a05c — dedupe-step-progress-schemas REJECTED; heartbeat-sandbox-reset-off-thread + heartbeat-refactor DEFERRED to W17), marketplace-router-test-suite-split + test-import-graph-policy-dump-split + w13-4-alembic-roundtrip-programmatic (W16-6, d40bb01), close-out hygiene (W16-7, 8bf3c6b) + post-PR unaccounted_dropout surface pin (78f080e). W15 closed via PR #22 MERGED 2026-05-18 via 6161472; W14 closed via PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d)`
+`Last Updated: 2026-05-18 (W17 active — phase work complete; W17 closed via PR #25 week17 -> main MERGED 2026-05-18 via bff565d; W16 closed via PR #23 week16 -> main MERGED 2026-05-18 via 1b6d43f. W17 Pull-Forward CLOSED: attribution-count-parity (W17-1, 8c26d02; producer-side fix at build_evidence_bundle activation emit-site); lifecycle harness scaffold (W17-2, ff98235; LifecycleHarness + lifecycle_harness fixture); heartbeat-sandbox-reset-off-thread + heartbeat-refactor SCOPE-REDUCED (W17-3 + W17-4 doc-only c4c0646; DESIGN-NEEDED, deferred to W18); postgres-version-fact-drift (W17-5, 394d40d; seed_project_2 synthetic-fixture stack alignment); other 4 cleanup candidates deferred to W18+ pull-as-found; W17-6 close-out hygiene this commit. Final W17 bar: tests/architecture/ 200 passed; make test-security 220 passed (W17-7a bf983eb enrolled test_unaccounted_dropout_surface.py — 217 → 220); full suite 1899 passed, 9 skipped, 4 deselected (+6 from W16 final 1893). W16 Pull-Forward CLOSED: scenario-accountant-conservation-split (W16-1, 01f910a), analysis-job-worker-entry-crud-ownership (W16-2, 9d6d110), report-finalize-top-level-field-sync-drift null-leakage half (W16-3, fa430f2; attribution-count-parity half SPLIT to W17 as [FOLLOWUP attribution-count-parity]), health-reconciliation-responsibility-split (W16-4, 304b99f), simulation-progress-cancel scope reduction (W16-5 doc-only e21a05c — dedupe-step-progress-schemas REJECTED; heartbeat-sandbox-reset-off-thread + heartbeat-refactor DEFERRED to W17), marketplace-router-test-suite-split + test-import-graph-policy-dump-split + w13-4-alembic-roundtrip-programmatic (W16-6, d40bb01), close-out hygiene (W16-7, 8bf3c6b) + post-PR unaccounted_dropout surface pin (78f080e). W15 closed via PR #22 MERGED 2026-05-18 via 6161472; W14 closed via PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d)`
 
 Open deferred work after the W0-W7 PoC acceptance bar. **Slim canonical** —
 verbose closure rationales, evidence paragraphs, and per-iter Note columns
@@ -18,10 +18,10 @@ W8-W16 are closed; W13 close-out PR #20 `week13 -> main` **MERGED**
 `week15 -> main` **MERGED** `2026-05-18` via `6161472`; **W16 close-out
 PR #23 `week16 -> main` MERGED `2026-05-18` via `1b6d43f`**.
 **W17 phase work complete `2026-05-18`** on the `week17` branch (per
-user direction 2026-05-18; W11-W16 paterni preserved); **close-out
-via `week17 -> main` PR pending** (close-out PR not yet opened; branch
-is pushed — `2026-05-18`). W17-0..W17-6 sub-iter slate landed
-(pull-forward table below). W14 tracker:
+user direction 2026-05-18; W11-W16 paterni preserved); **W17 closed
+via PR #25 `week17 -> main` MERGED `2026-05-18` via `bff565d`**.
+W17-0..W17-7 sub-iter slate landed (pull-forward table below).
+W14 tracker:
 [`active-work/W14-codex-acceptance-observability.md`](active-work/W14-codex-acceptance-observability.md);
 W15 tracker (frozen):
 [`active-work/W15-codex-uclass-bounds-posture.md`](active-work/W15-codex-uclass-bounds-posture.md);
@@ -110,10 +110,10 @@ Detail evidence in the frozen tracker
 ## W17 Pull-Forward Acceptance Bar
 
 W17 phase work complete `2026-05-18` on the `week17` branch (per user
-direction 2026-05-18; W11-W16 paterni preserved); close-out via
-`week17 -> main` PR pending (close-out PR not yet opened; branch is
-pushed). All rows below are closed audit trail; full Per-Item
-Detail evidence in the active tracker
+direction 2026-05-18; W11-W16 paterni preserved); W17 closed via
+PR #25 `week17 -> main` MERGED `2026-05-18` via `bff565d`. All rows
+below are closed audit trail; full Per-Item Detail evidence in the
+frozen tracker
 [`active-work/W17-carryover-and-lifecycle-harness.md`](active-work/W17-carryover-and-lifecycle-harness.md).
 
 | Iter | Stable ID(s) (planned) | Landing commit |
