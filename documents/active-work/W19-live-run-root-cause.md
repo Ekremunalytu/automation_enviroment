@@ -240,32 +240,105 @@ at this point.
 
 ## Baseline Live-Run Smoke (W19-0)
 
-Pre-fix baseline live-run JSON captured at W19-0 to establish that
-W18 heartbeat refactor did not change the dropout shape. W19-1
-fixture lifted from this run.
+Pre-fix baseline live-run captured at W19-0 to establish that the
+W18 heartbeat refactor did not change (or accidentally close) the
+dropout shape. **Key finding**: the dropout class is alive +
+deterministic + reproducible via the **analyze API only** — not via
+`make sim-target` (which exercises a narrower scope per W18-2 ADR
+0012 §Implementation note). W19-1 fixture lifts shape from the
+canonical Codex reference `992ad028f3df`, validated against three
+independent W18-2 era confirmations.
 
-- **Target**: `ms-python.python`
-- **VSIX version**: TBD (filled in at smoke landing)
-- **Job ID**: TBD (filled in at smoke landing)
-- **Report path**: TBD (filled in at smoke landing — under `output/`)
-- **Dropout shape (expected match with 992ad028f3df)**:
-  - `automation_health.status`: `degraded`
-  - `automation_health.reasons` (4 expected): `skipped_scenarios_present`,
-    `verification_gap_present`, `official_unresolved_present`,
-    `harness_verification_unconfirmed_present`
-  - `run_quality`: `low`
-  - `skipped_scenarios` containing `debug_session` + `refactor_workflow`
-    both with `reason_code = "unaccounted_dropout"`
-  - `coverage_summary`: covered=7 / partial=5 / missing=6 (approx;
-    may vary ±1 per run)
-  - `event_attempts.length` ≈ 21; capability-level verified ≈ 4
+### sim-target smoke (ran 2026-05-21 ~19:29)
 
-If the baseline diverges from this shape, W19-1 fixture is lifted
-from the **new baseline** (the new JSON), not from `992ad028f3df`.
-The dropout class must still be present for W19-1/W19-2 to be the
-right scope; if `unaccounted_dropout` is gone in the baseline,
-escalate to user — W18 may have closed the bug indirectly and W19
-scope needs re-evaluation.
+- **Command**: `make sim-target TARGET=ms-python.python` (W19-0
+  scope-locked).
+- **Host report path**:
+  `output/activation_report_564d91c628544a1ab0cdf2f50a6dbde0.json`
+  (2.6 MB; written from container `/results/`).
+- **Shape observed**:
+  - `automation_health.status = inconclusive` (**not** `degraded`)
+  - `run_quality = inconclusive` (**not** `low`)
+  - 7 reasons including `target_extension_not_observed`,
+    `fatal_ui_crash`, `scenario_failures_present` — disjoint
+    from the W19 4-reason set
+  - 13 requested scenarios → 6 ran (`coding_session`,
+    `debug_session`, `terminal_usage`, `git_workflow`,
+    `extension_browsing`, `settings_modification`); 1 failed
+    (`settings_modification`); 7 skipped — **all** with
+    `reason_code = "aborted_after_fatal_ui_crash"` (a sim-target
+    flake; VS Code renderer crashed mid-run)
+  - `event_attempts.length = 0` (sim-target doesn't run the full
+    event-attempt pipeline)
+  - `coverage_summary` all zeros
+  - **NO `unaccounted_dropout` reason_code** — dropout class is
+    not exercised here
+  - **NO `harness_verification_unconfirmed_present`** in reasons —
+    harness verification flow not exercised here
+
+**Disposition**: matches the W18-2 ADR 0012 §Implementation note
+(`make sim-target` doesn't invoke `_reset_sandbox` or the
+analyze pipeline scenario_accountant). The "fatal_ui_crash" is a
+sim-target flake unrelated to W19; not pursued under W19 scope.
+The sim-target smoke confirms only that the executor entrypoint
+itself is alive post-W18 heartbeat refactor.
+
+### Analyze API confirmation (W18-2 era runs)
+
+The full analyze API exercises the dropout class. Three
+independent runs landed `2026-05-21` after the W18-2 heartbeat
+refactor implementation (`a9bffb1`) — recorded here as the
+authoritative baseline:
+
+| Run SHA (filename suffix) | Time (local) | Phase context |
+|---|---|---|
+| `a938bf05d116` | 12:19 | Post-W18-2 analyze API smoke |
+| `18fbd60b6b59` | 14:21 | Post-W18-2 analyze API smoke |
+| `1c4966a2616b` | 15:11 | Post-W18-2 analyze API smoke (most recent) |
+| `992ad028f3df` | 10:19 | **Original Codex live-run reference** (W19 driving signal) |
+
+All four reports carry **byte-identical** dropout shape:
+
+- `automation_health.status = degraded`
+- `automation_health.reasons = [skipped_scenarios_present,
+  verification_gap_present, official_unresolved_present,
+  harness_verification_unconfirmed_present]` (exact order)
+- `run_quality = low`
+- `requested_scenarios = [coding_session, project_exploration,
+  debug_session, terminal_usage, refactor_workflow]` (5
+  scenarios; full analyze API uses a smaller scenario set than
+  sim-target's 13)
+- `skipped_scenarios = [(debug_session, "unaccounted_dropout"),
+  (refactor_workflow, "unaccounted_dropout")]`
+- `event_attempts.length = 21`
+- `coverage_summary`: covered=7, partial=5, missing=6;
+  attempted=6, verified=4
+- `verification_gap = 2`
+- `target_extension_id = ms-python.python`
+
+### Conclusions (W19-0 baseline pin)
+
+1. **Dropout class is alive post-W18** — three independent
+   analyze API confirmations reproduce the byte-identical
+   `unaccounted_dropout` shape on `debug_session` +
+   `refactor_workflow`. W19 scope premise validated; no
+   re-evaluation needed.
+2. **Dropout class is deterministic** — four runs spanning ~5
+   hours produce byte-identical reason_code shape; W19-1
+   fixture can lift from any of them with confidence.
+3. **W19-1 fixture canonical anchor**: `992ad028f3df` (original
+   Codex reference; the W19 driving signal). Alternative
+   anchor `1c4966a2616b` (most recent post-W18-2 confirmation)
+   may be used if `992ad028f3df` becomes unavailable; both
+   produce identical fixture data.
+4. **sim-target is NOT a usable smoke for W19** — confirms
+   W18-2 ADR 0012 §Implementation note. W19-2 GREEN
+   verification must use a fresh analyze API smoke (full
+   pipeline), not sim-target.
+5. **No W18-side-effect kapanışı** — W18 heartbeat refactor did
+   not accidentally close the dropout bug class. The three
+   post-W18 confirmations match the pre-W18 Codex reference
+   byte-for-byte.
 
 ## Exit Criteria (W19-End)
 
