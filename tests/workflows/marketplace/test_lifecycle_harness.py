@@ -24,15 +24,28 @@ controllable ``cancel_check``, flips the cancel flag, and asserts:
 * The job row transitioned ``queued → running`` under the worker-entry
   CAS (``WorkerEntryOutcome.CLAIMED``).
 
-W17-3 extends the harness with concurrency tests:
+W17-3 was scope-reduced (`c4c0646`, doc-only) on `2026-05-18`; the
+extension work carried forward to W18-3 per ADR 0012
+(``documents/adrs/0012-heartbeat-thread-relocation.md``, Option A1
+"dedicated sandbox-reset coordinator thread for step-1 reset").
+**W18-3 will extend this harness** with the three concurrency tests
+enumerated below; ADR 0012 §"Follow-On (W18-3 test surface)" pins
+the exact test names and assertion shapes so W18-2 implementation
+respects the surface this docstring describes:
 
-* Parallel reset: both worker thread + heartbeat issue ``reset_sandbox``
-  concurrently — verify lock ordering does not deadlock.
-* Reset idempotency: two back-to-back resets from different threads do
-  not corrupt the executor surface.
-* Reset-during-finalize: heartbeat fires cancel while worker is in
-  ``finalize_report``; the DB row must end in ``cancelled`` (not
-  ``completed``) and the executor reset must not run twice.
+* Parallel reset (``test_lifecycle_harness_parallel_reset_does_not_deadlock``):
+  both the W18-2 sandbox-reset coordinator thread + the existing
+  heartbeat thread issue ``reset_sandbox`` concurrently — verify
+  lock ordering does not deadlock, total reset count = 2 (not
+  collapsed), thread identities match production names.
+* Reset idempotency (``test_lifecycle_harness_reset_idempotency``):
+  two back-to-back resets from different threads do not corrupt the
+  executor surface (HMAC secret file state, sandbox PID set,
+  ``executor:executor`` ownership unchanged on re-create).
+* Reset-during-finalize (``test_lifecycle_harness_reset_during_finalize``):
+  heartbeat fires cancel while worker is in ``finalize_report``;
+  the DB row must end in ``cancelled`` (not ``completed``) and the
+  executor reset must not run twice after the finalize-start barrier.
 
 Scope cuts (intentional W17-2 minimal scope):
 

@@ -39,9 +39,12 @@ row with stable ID + landing commit; full context in the snapshot.
   merged via `bff565d` on `2026-05-18`.** Frozen tracker:
   [`active-work/W17-carryover-and-lifecycle-harness.md`](active-work/W17-carryover-and-lifecycle-harness.md).
 - §16 → W18 Heartbeat Refactor — **active as of `2026-05-21`; W18-0
-  doc-reconcile in progress on the `week18` branch (per user
-  direction 2026-05-21; W11-W17 paterni preserved).** Active tracker:
-  [`active-work/W18-heartbeat-refactor.md`](active-work/W18-heartbeat-refactor.md).
+  doc-reconcile closed (`89d0c9b`); W18-1 ADR 0012 landed
+  (`acf6cc9` — Option A1 accepted, pending W18-2 implementation); on
+  the `week18` branch (per user direction 2026-05-21; W11-W17
+  paterni preserved).** Active tracker:
+  [`active-work/W18-heartbeat-refactor.md`](active-work/W18-heartbeat-refactor.md);
+  ADR: [`adrs/0012-heartbeat-thread-relocation.md`](adrs/0012-heartbeat-thread-relocation.md).
 - §17-§20 → W19-W22 (planning state, authored `2026-05-21`).
   Multi-iter roadmap source-of-truth:
   [`active-work/W18-W22-roadmap.md`](active-work/W18-W22-roadmap.md).
