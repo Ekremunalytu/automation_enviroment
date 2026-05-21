@@ -1,7 +1,7 @@
 # W18 — Heartbeat Refactor (Active Work Tracker)
 
-`Last Updated: 2026-05-21 (W18-3 closed via 92b310d — 3 new lifecycle harness extension tests landed: test_lifecycle_harness_parallel_reset_does_not_deadlock + test_lifecycle_harness_reset_idempotency + test_lifecycle_harness_reset_during_finalize (per ADR 0012 §Follow-On). W18-3 final bar: 4 lifecycle harness tests pass (W17-2 smoke byte-identical + 3 new W18-3); full suite 1903 passed, 9 skipped, 8 deselected (W18-2 baseline 1900 + 3 W18-3 tests; W18 tracker Exit Criteria target 1903 met). Pre-commit hooks active on this clone since 306d744 — W18-3 commit ran through ruff/ruff-format/mypy/bandit gates at commit time. W18-2 closed via a9bffb1 (heartbeat refactor implementation — step-1 reset off worker thread via dedicated coordinator, ADR 0012 Option A1, function-extension shape). W18-1 closed via acf6cc9 (ADR 0012 Option A1 Accepted) + 73d8a5c (followup doc-truth). W18-0 closed via 89d0c9b. W17 closed via PR #25 week17 -> main MERGED 2026-05-18 via bff565d. §16 W18 plan source — sub-iter slate W18-0..W18-4 reserved; only W18-4 (close-out PR) remains.)`
-`Phase: W18 active (W18-0/W18-1/W18-2/W18-3 closed; W18-4 next — close-out hygiene + PR week18 -> main)`
+`Last Updated: 2026-05-21 (W18 active — phase work complete; W18-0..W18-4 sub-iter slate landed on the week18 branch (per user direction; W11-W17 paterni preserved); close-out PR week18 -> main not yet opened (branch is pushed). W18-4 close-out hygiene this commit — 8-doc canonical preamble refresh + REFACTOR_OPTIMIZATION.md §16 W18 self-stamp + §16-§20 combined header split into §16 W18 closed + §17-§20 W19-W22 planning + this tracker freeze. W18 sub-iter audit trail (all closed): W18-0 doc-reconcile (89d0c9b); W18-1 ADR 0012 Option A1 accepted (acf6cc9 + 73d8a5c followup); W18-2 heartbeat refactor implementation — step-1 reset off worker thread via dedicated _run_reset_off_thread coordinator (a9bffb1 + 78ed7cc ADR self-stamp + b5b64b6 ruff-format + 306d744 full-repo lint sweep with pre-commit install); W18-3 lifecycle harness extension tests — parallel reset / idempotency / reset-during-finalize (92b310d + 32d9905 self-stamp); W18-4 close-out hygiene this commit. Final W18 bar: tests/architecture/ 201 passed (W17 final 200 + W18-0 README phase-pointer arch gate W17->W18 transition); make test-security 220 passed (unchanged from W17); full suite 1903 passed, 9 skipped, 8 deselected (W17 final 1899 + W18-0 +1 + W18-3 +3 lifecycle harness extension tests). W17 closed via PR #25 week17 -> main MERGED 2026-05-18 via bff565d. §16 W18 plan source in REFACTOR_OPTIMIZATION.md; §17-§20 W19-W22 multi-iter roadmap source-of-truth: documents/active-work/W18-W22-roadmap.md. Close-out PR week18 -> main open + post-merge audit (W17-7-followup dab4679 paterni) scope-deferred per user direction 2026-05-21.)`
+`Phase: W18 close-out hygiene landed (W18-0..W18-4 all closed); close-out PR week18 -> main not yet opened (branch is pushed); tracker frozen at this commit`
 `Branch: week18 (per user direction 2026-05-21; W11-W17 paterni preserved — sub-iter commits land on week18, close-out merges into main via week18 -> main PR)`
 `Owner: ekrem`
 
@@ -99,6 +99,23 @@ is the template structurally followed here.
   + heartbeat thread spawn at `analysis_execution.py:287-313`
   byte-identical. ADR 0012 self-stamped via this commit (Status →
   `Accepted and implemented`, Implementation section filled).
+- **W18-4 closed `2026-05-21` via this commit** — close-out hygiene:
+  8-doc canonical preamble refresh (`CLAUDE.md` / `AGENTS.md` /
+  `README.md` / `documents/AGENT_CONTEXT.md` /
+  `documents/REFACTOR_STATUS.md` / `documents/POST_POC_BACKLOG.md`
+  / `documents/REFACTOR_OPTIMIZATION.md` anchor map + §16-§20 split
+  + W18 self-stamp / this tracker) + `documents/active-work/README.md`
+  Last Updated bump + this tracker preamble + Phase line flip to
+  `close-out hygiene landed` + new W18-4 bullet here + W18-4
+  Per-Item Detail block below. **Scope dışı (kullanıcı yönü
+  2026-05-21 "pr açma"):** close-out PR `week18 -> main` open
+  (deferred); post-merge audit commit (W17-7-followup `dab4679`
+  paterni — ayrı commit; PR merge SHA gerek). Final W18 bar
+  recorded across all 8 docs: `tests/architecture/` **201 passed**;
+  `make test-security` **220 passed**; full suite **1903 passed,
+  9 skipped, 8 deselected**. `pre-commit run --all-files` **15/15
+  hook PASS** at landing (ruff / ruff-format / mypy / bandit /
+  markdownlint + 9 generic checks).
 
 ## Sub-Iter Scope (Authored 2026-05-21)
 
@@ -398,13 +415,139 @@ exercise the coordinator without driving the full
 W18-2 tracker; opened as the explicit consumer of the W17-2 docstring
 L36-48 forward-contract enumeration) closed by this commit.
 
-### W18-4
+### W18-4 — Close-out hygiene (closed 2026-05-21 via this commit)
 
-Stable ID W18-4 gets a Per-Item Detail entry here when pulled. Slot
-reserved for the close-out PR (`week18 -> main`) per the W17-6
-(`8bf3c6b`) + W17-7-followup (`dab4679`) paterni — 7-doc canonical
-preamble refresh + §16 self-stamp + tracker freeze + PR open
-against `main`.
+**Pulled `2026-05-21`** (close-out hygiene per W17-6 `21f7c68` +
+W16-7 `8bf3c6b` paterni). Doc-only commit — zero production code,
+test, or schema change. Final commit of the W18-0..W18-4 slate;
+freezes this tracker.
+
+**Scope (delivered):**
+
+- **8-doc canonical preamble refresh** (W17-6 paterni applied):
+  - `CLAUDE.md` — preamble line 3 (long backtick block W18 final
+    bar) + "Active phase: W18" body paragraph (line 96+) flipped
+    from "W18-0 in progress" / "Sub-iter slate reserved" to "phase
+    work complete; W18-0..W18-4 fully delivered" with sub-iter
+    SHAs.
+  - `AGENTS.md` — preamble line 3 + body line 31 "Active phase is
+    W16" drift closed (flipped to "Active phase: W18 — Heartbeat
+    Refactor — phase work complete..."); W16/W17 audit trail
+    collapsed to one-line summaries pointing at frozen trackers.
+  - `README.md` — preamble line 3 + body Current Phase block W18
+    bullet (line 107+) flipped to W18 close-out state; arch gate
+    `test_readme_phase_pointer_tracks_active_w18_status` tokens
+    (`W18`, `active-work/W18-heartbeat-refactor.md`, `week18`)
+    preserved; arch gate `test_readme_phase_pointer_mentions_w17_closeout_merge`
+    tokens (`PR #25`, `week17 -> main`, `bff565d`) preserved.
+  - `documents/AGENT_CONTEXT.md` — preamble line 3 + body
+    "Active phase" bullet flipped; "W8-W17 are closed" expanded to
+    "W8-W17/W18 are closed"; section pointer line updated to
+    "section 16 (W18) + sections 17-20 (W19-W22)".
+  - `documents/REFACTOR_STATUS.md` — preamble line 3 + Current State
+    W18 bullet (line 178+) flipped to "W18 closed for phase work";
+    sub-iter SHAs added.
+  - `documents/POST_POC_BACKLOG.md` — preamble line 3 + new
+    `## W18 Pull-Forward Acceptance Bar` subsection inserted above
+    the renamed `## W19-W22 Roadmap Acceptance Bar (planning)`
+    table (was: `W18-W22 Roadmap Acceptance Bar`); W18-1 + W18-2 +
+    W18-3 rows removed from planning table (moved to W18
+    Pull-Forward).
+  - `documents/REFACTOR_OPTIMIZATION.md` — Anchor Map `§16 → W18`
+    bullet flipped from "active as of 2026-05-21; W18-0 closed;
+    W18-1 ADR landed pending W18-2" to "phase work complete;
+    W18-0..W18-4 sub-iter slate fully delivered" + `§17-§20`
+    bullet renamed from `§17-§20 → W19-W22 (planning state)` to
+    `§17-§20 → W19-W22 Multi-iter ... Roadmap (planning state,
+    split out at W18-4 close-out)`; **§16-§20 combined section
+    header split** into:
+    - `## §16 — W18 Heartbeat Refactor (close-out PR week18 -> main
+      not yet opened; branch is pushed; sub-iter slate complete
+      2026-05-21)` with new W18 iter status table (W18-0..W18-4 with
+      landing commit SHAs) + §16.0 (Neden ayrı §16) + §16.1-§16.2
+      (Entry + Sub-iter Distribution) + §16.3 (Non-goals — W19+
+      items) + §16.4 (Exit Criteria — checklist showing 8/10
+      checked, 2 close-out PR + post-merge audit unchecked per user
+      direction).
+    - `## §17-§20 — W19-W22 Capability + Otomasyon Sağlık + Coverage
+      Promotion Roadmap (planning)` with §17-§20.0..§17-§20.4 sub-
+      sections retaining the W19-W22 planning prose (Driving Signal,
+      three capability layers, Driving Plan dosyası, Exit Criteria
+      summary) — W18 mentions stripped.
+  - `documents/active-work/README.md` — Last Updated bump
+    (`2026-05-17` → `2026-05-21 W18 close-out`).
+- **This tracker freeze** (W17-6 `21f7c68` paterni):
+  - Preamble line 3 flipped to W18 close-out state.
+  - Phase line 4 flipped from `W18 active (W18-0/W18-1/W18-2/W18-3
+    closed; W18-4 next)` to `W18 close-out hygiene landed; close-out
+    PR week18 -> main not yet opened (branch is pushed); tracker
+    frozen at this commit`.
+  - New W18-4 bullet in Status (Quick Glance).
+  - This Per-Item Detail block expanded from a "Stable ID W18-4
+    gets a Per-Item Detail entry here when pulled" placeholder
+    to the full record.
+
+**Scope NOT delivered (deferred per user direction `2026-05-21`
+"pr açma"):**
+
+- **Close-out PR `week18 -> main` open** — `gh pr create --base main
+  --head week18 ...` skipped; user signals when ready. Branch is
+  already pushed to `origin/week18` (the W18-2 commit `306d744`
+  added `pre-commit install` and pushed before this W18-4 commit
+  was authored).
+- **Post-merge audit commit** (W17-7-followup `dab4679` paterni)
+  — depends on PR merge SHA. Lands as a SEPARATE commit after the
+  user opens the PR and merges; flips `REFACTOR_STATUS.md` banner
+  + this tracker's Phase line to `W18 closed — PR #X week18 -> main
+  MERGED YYYY-MM-DD via <SHA>` form.
+
+**Number reconciliation: tests/architecture/ canonical count is 201,
+not 208.** W18-2's Per-Item Detail block (committed at `a9bffb1`)
+claims `tests/architecture/ → 208 passed (W18-0 baseline 201 +
+adjacent passes in the lifecycle test module)` but the lifecycle
+harness tests live under `tests/workflows/marketplace/`, NOT
+`tests/architecture/`. Direct re-run at W18-4 commit time:
+`.venv/bin/pytest tests/architecture/ -q` → **201 passed,
+4 deselected**. The W18-2 self-stamp's 208 figure was an error
+(not corrected via amend to avoid history rewrite — W18-2 commits
+are pushed and may be referenced elsewhere); W18-4 going forward
+uses the correct **201** across all 8 canonical doc preambles +
+§16 self-stamp + this tracker. Math:
+W17 final 200 + W18-0 +1 (README phase-pointer arch gate W17→W18
+transition + new W17 close-out fact gate
+`test_readme_phase_pointer_mentions_w17_closeout_merge`,
+net +1 because the previous-active gate was renamed not added)
+= W18-0 baseline 201; W18-2 doc-only adds no architecture tests;
+W18-3 adds 3 lifecycle harness tests under
+`tests/workflows/marketplace/`, not `tests/architecture/`. Net
+W18 final = **201**.
+
+**Verification (recorded at landing this commit):**
+
+- `.venv/bin/pytest tests/architecture/ -q` → **201 passed,
+  4 deselected** (unchanged from W18-0; W18-2/W18-3/W18-4 added
+  zero architecture tests).
+- `.venv/bin/pytest tests/architecture/test_doc_preamble_consistency.py
+  tests/architecture/test_readme_phase_pointer.py -v` → **7 passed**
+  (1 doc preamble consistency gate + 6 README phase-pointer gates
+  including the W17 close-out fact gate from W18-0 + the W18 active
+  status gate from W18-0).
+- `make test-security` → **220 passed** (unchanged from W17).
+- `.venv/bin/pytest -q` full suite → **1903 passed, 9 skipped,
+  8 deselected** (W17 final 1899 + W18-0 +1 + W18-3 +3; unchanged
+  from W18-3 close at `32d9905`).
+- `pre-commit run --all-files` → **15/15 hook PASS** at landing
+  (ruff / ruff-format / mypy / bandit / markdownlint /
+  Markdown Link Check + 9 generic checks: trailing whitespace,
+  EOF, yaml, json, toml, large files, merge conflicts, private
+  key, case conflicts).
+
+**Audit trail.** Close-out hygiene per W17-6 (`21f7c68`) + W16-7
+(`8bf3c6b`) paterni. W18-4 closes the W18-0..W18-4 sub-iter slate;
+no new follow-up items opened. W19+ scope dışı items enumerated in
+`REFACTOR_OPTIMIZATION.md` §16.3 (Non-goals — W18) point at
+`POST_POC_BACKLOG.md` W19-W22 Roadmap Acceptance Bar (planning)
+table for stable IDs.
 
 ## Exit Criteria (W18-End)
 

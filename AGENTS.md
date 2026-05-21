@@ -1,6 +1,6 @@
 # AGENTS.md
 
-`Last Updated: 2026-05-21 (W18 active — W18-0 doc-reconcile in progress on the week18 branch per user direction 2026-05-21 (W11-W17 paterni preserved); §16 W18 plan source. W17 closed via PR #25 week17 -> main MERGED 2026-05-18 via bff565d; W16 closed via PR #23 week16 -> main MERGED 2026-05-18 via 1b6d43f. W17-0..W17-7 sub-iter slate complete: W17-0 doc-reconcile (4508c2e); W17-1 attribution-count-parity (8c26d02 + 0a8f59e); W17-2 lifecycle harness scaffold (ff98235 + 44f96c5); W17-3 + W17-4 scope-reduced (c4c0646 DESIGN-NEEDED, deferred to W18 — closes via W18-1 ADR + W18-2 implementation); W17-5 hygiene single-item (394d40d + 0cbe1d0); W17-6 close-out (21f7c68); W17-7 post-slate hotfix batch (bf983eb + fc88678 + 326dac8 + 51dba29); W17-7-followup post-PR doc-truth alignment (dab4679). Final W17 bar (unchanged): tests/architecture/ 200 passed; make test-security 220 passed; full suite 1899 passed, 9 skipped, 4 deselected (+6 from W16 final 1893). W18 active tracker: documents/active-work/W18-heartbeat-refactor.md; W18-W22 multi-iter roadmap source-of-truth: documents/active-work/W18-W22-roadmap.md (5-iter slate: W18 heartbeat refactor / W19 dropout + harness verification / W20 coverage promotion easy / W21 coverage promotion mid / W22 chat policy + sandbox ADR). W16-0..W16-7 sub-iter slate complete: W16-1 scenario-accountant emit-site fix (01f910a + a4a050e); W16-2 analysis-job worker-entry CRUD ownership (9d6d110 + c8b7811); W16-3 report-finalize null-leakage half (fa430f2 + e3d4a0c; attribution-count-parity split to W17); W16-4 health-reconciliation responsibility split (304b99f + 384d276); W16-5 simulation-progress-cancel scope reduction (1 rejected, 2 deferred to W17, e21a05c); W16-6 hygiene splits + Alembic fresh-DB fixture (d40bb01); W16-7 close-out hygiene (8bf3c6b) + post-PR unaccounted_dropout surface pin (78f080e). W15 closed via PR #22 MERGED 2026-05-18 via 6161472; W14 closed via PR #21 MERGED 2026-05-14 via 4e03c8d; W13 closed via PR #20 -> 772deb3 on 2026-05-13)`
+`Last Updated: 2026-05-21 (W18 active — phase work complete; W18-0..W18-4 sub-iter slate landed on the week18 branch (per user direction 2026-05-21; W11-W17 paterni preserved); close-out PR week18 -> main not yet opened (branch is pushed). §16 W18 plan source + §17-§20 W19-W22 multi-iter roadmap (split out at W18-4 close-out). W18 sub-iter audit trail: W18-0 doc-reconcile (89d0c9b); W18-1 ADR 0012 Option A1 accepted (acf6cc9 + 73d8a5c followup doc-truth); W18-2 heartbeat refactor implementation — step-1 reset off worker thread via dedicated coordinator (a9bffb1 + 78ed7cc ADR self-stamp + b5b64b6 ruff-format followup + 306d744 full-repo lint sweep with pre-commit install); W18-3 lifecycle harness extension tests — parallel reset / idempotency / reset-during-finalize (92b310d + 32d9905 self-stamp); W18-4 close-out hygiene this commit — 8-doc canonical preamble refresh + §16 W18 self-stamp + W18 tracker freeze. Final W18 bar: tests/architecture/ 201 passed (W17 final 200 + W18-0 README phase-pointer arch gate W17->W18 transition); make test-security 220 passed (unchanged from W17); full suite 1903 passed, 9 skipped, 8 deselected (W17 final 1899 + W18-0 +1 + W18-3 +3 lifecycle harness extension tests). W17 closed via PR #25 week17 -> main MERGED 2026-05-18 via bff565d; W16 closed via PR #23 week16 -> main MERGED 2026-05-18 via 1b6d43f. W17-0..W17-7 sub-iter slate complete (frozen): W17-0 doc-reconcile (4508c2e); W17-1 attribution-count-parity (8c26d02 + 0a8f59e); W17-2 lifecycle harness scaffold (ff98235 + 44f96c5); W17-3 + W17-4 scope-reduced doc-only (c4c0646 DESIGN-NEEDED — closed via W18-1 ADR + W18-2 implementation); W17-5 hygiene single-item (394d40d + 0cbe1d0); W17-6 close-out (21f7c68); W17-7 post-slate hotfix batch (bf983eb + fc88678 + 326dac8 + 51dba29); W17-7-followup post-PR doc-truth alignment (dab4679). Final W17 bar (unchanged): tests/architecture/ 200 passed; make test-security 220 passed; full suite 1899 passed, 9 skipped, 4 deselected (+6 from W16 final 1893). W18 frozen tracker: documents/active-work/W18-heartbeat-refactor.md; W18-W22 multi-iter roadmap source-of-truth: documents/active-work/W18-W22-roadmap.md (5-iter slate: W18 heartbeat refactor / W19 dropout + harness verification / W20 coverage promotion easy / W21 coverage promotion mid / W22 chat policy + sandbox ADR). W16-0..W16-7 sub-iter slate complete (frozen): W16-1 scenario-accountant emit-site fix (01f910a + a4a050e); W16-2 analysis-job worker-entry CRUD ownership (9d6d110 + c8b7811); W16-3 report-finalize null-leakage half (fa430f2 + e3d4a0c; attribution-count-parity split to W17); W16-4 health-reconciliation responsibility split (304b99f + 384d276); W16-5 simulation-progress-cancel scope reduction (1 rejected, 2 deferred to W17, e21a05c); W16-6 hygiene splits + Alembic fresh-DB fixture (d40bb01); W16-7 close-out hygiene (8bf3c6b) + post-PR unaccounted_dropout surface pin (78f080e). W15 closed via PR #22 MERGED 2026-05-18 via 6161472; W14 closed via PR #21 MERGED 2026-05-14 via 4e03c8d; W13 closed via PR #20 -> 772deb3 on 2026-05-13)`
 
 ## Authority
 
@@ -28,31 +28,44 @@
   catalog endpoint posture gate + compose image SHA pin + GH action
   trivy version pin + close-out lint hygiene). Frozen tracker:
   `documents/active-work/W15-codex-uclass-bounds-posture.md`.
-  **Active phase is W16 — Carry-Over Closeout + Audit Findings +
-  Production Regression**, **phase work complete; W16 closed via
-  PR #23 `week16 -> main` MERGED `2026-05-18` via `1b6d43f`
-  (W11-W15 paterni restored via W16-0 doc reconcile)**: plan
-  `documents/REFACTOR_OPTIMIZATION.md` §14, frozen tracker
-  `documents/active-work/W16-regression-and-audit-closeout.md`.
-  **W16-0..W16-7 sub-iter slate complete:** W16-0 doc-reconcile
-  (`0e243ca` + `d78aa9c`); W16-1 scenario-accountant upstream emit-site
-  fix (W14-1 root-cause split; HIGH prod regression `2026-05-14` +
-  `2026-05-15`; `01f910a` + `a4a050e`); W16-2 analysis-job-worker-entry
-  CRUD ownership (W15 audit; W13-13 CAS preserved byte-identically;
-  `9d6d110` + `c8b7811`); W16-3 report-finalize null-leakage half
-  (W14 carry-over; attribution-count-parity split to W17+ as
-  `[FOLLOWUP attribution-count-parity]`; `fa430f2` + `e3d4a0c`); W16-4
-  health-reconciliation responsibility split (W15 audit; W13-1 HMAC +
-  W13-12 fail-closed gates preserved; `304b99f` + `384d276`); W16-5
-  simulation-progress-cancel scope reduction (1 rejected, 2 deferred
-  to W17+ pending lifecycle harness; `e21a05c`); W16-6 hygiene splits +
-  Alembic fresh-DB fixture (`d40bb01`); W16-7 close-out hygiene +
-  canonical preamble refresh (`8bf3c6b`) + post-PR `unaccounted_dropout`
-  surface pin (`78f080e`). Final W16 bar: `tests/architecture/`
-  **199 passed** (W15 final 172, +27); `make test-security` **220
-  passed** (W13 final 215, +5 — W16-7-followup +3 `unaccounted_dropout`
-  surface pins); full suite **1893 passed, 9 skipped**.
-  Past W8/W11/W12/W13/W14/W15/W16 trackers remain stable-ID references only.
+  **Active phase: W18 — Heartbeat Refactor — phase work complete on
+  the `week18` branch (per user direction 2026-05-21; W11-W17 paterni
+  preserved); close-out PR `week18 -> main` not yet opened (branch
+  is pushed)**: plan `documents/REFACTOR_OPTIMIZATION.md` §16, frozen
+  tracker `documents/active-work/W18-heartbeat-refactor.md`.
+  **W18-0..W18-4 sub-iter slate fully delivered:** W18-0
+  doc-reconcile (`89d0c9b`); W18-1 ADR 0012 Option A1 accepted
+  (`acf6cc9` + `73d8a5c` followup — dedicated sandbox-reset
+  coordinator, function-extension shape; invariant cost trade-offs
+  against W13-1 HMAC eager-consume / W13-3 two-phase cancel /
+  W13-13 CAS / W16-2 facade lock preserved byte-identical); W18-2
+  heartbeat refactor implementation — step-1 reset off worker thread
+  via dedicated `_run_reset_off_thread` coordinator (`a9bffb1` +
+  `78ed7cc` ADR self-stamp + `b5b64b6` ruff-format followup +
+  `306d744` full-repo lint sweep + `pre-commit install`; W17-2
+  harness smoke passes byte-identical); W18-3 lifecycle harness
+  extension tests — parallel reset / idempotency / reset-during-
+  finalize (`92b310d` + `32d9905` self-stamp; per ADR 0012
+  §Follow-On); W18-4 close-out hygiene this commit — 8-doc canonical
+  preamble refresh + §16 W18 self-stamp + W18 tracker freeze. Final
+  W18 bar: `tests/architecture/` **201 passed** (W17 final 200, +1
+  from W18-0 README phase-pointer arch gate W17->W18 transition);
+  `make test-security` **220 passed** (unchanged from W17); full
+  suite **1903 passed, 9 skipped, 8 deselected** (W17 final 1899,
+  +4: W18-0 README arch gate + 3 W18-3 lifecycle harness extension
+  tests). **Previous phase: W17 — Carry-Over Closeout + Lifecycle
+  Harness Yatırımı + Hygiene Sweep — closed via PR #25
+  `week17 -> main` MERGED `2026-05-18` via `bff565d`** (W17-0..W17-7
+  full audit trail in frozen tracker
+  `documents/active-work/W17-carryover-and-lifecycle-harness.md`;
+  W17-3/W17-4 DESIGN-NEEDED heartbeat thread relocation deferral
+  closed via W18-1 ADR + W18-2 implementation). **W16 closed via
+  PR #23 `week16 -> main` MERGED `2026-05-18` via `1b6d43f`** —
+  Carry-Over Closeout + Audit Findings + Production Regression
+  (W16-0..W16-7 audit trail in frozen tracker
+  `documents/active-work/W16-regression-and-audit-closeout.md`).
+  Past W8/W11/W12/W13/W14/W15/W16/W17/W18 trackers remain stable-ID
+  references only.
 - ADR 0007 local-network-binding is **Accepted and implemented**; loopback
   defaults + `EXTRACE_ALLOW_LAN` are pinned by `test_default_bindings.py`.
 
