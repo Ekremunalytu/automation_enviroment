@@ -1,8 +1,8 @@
 # W18-W22 — Capability + Otomasyon Sağlık + Coverage Promotion Roadmap (Planning Tracker)
 
-`Last Updated: 2026-05-21 (planning state; W18 not yet entered. Source plan authored 2026-05-21 with Codex live-run validation + GPT review (3 rounds) — plan file at /Users/ekrem/.claude/plans/senden-projemdeki-capabilites-ve-mellow-valley.md. W17 closed via PR #25 week17 -> main MERGED 2026-05-18 via bff565d. W18 entry gate: this roadmap doc opens, §16 W18 plan entry stub lands in REFACTOR_OPTIMIZATION.md, POST_POC_BACKLOG.md W18-W22 Roadmap section listed with new stable IDs reserved. Sub-iter commits land on weekN branches per W11-W17 paterni; close-out merges via weekN -> main PR.)`
-`Phase: pre-W18 (planning; W18 not yet started)`
-`Branch: main (no week18 branch yet — branch opens with W18-0 doc-reconcile commit per W11-W17 paterni)`
+`Last Updated: 2026-05-21 (W18 active — W18-0 doc-reconcile in progress on the week18 branch per user direction 2026-05-21 (W11-W17 paterni preserved); §16 W18 plan source. W18 entered 2026-05-21 via W18-0 doc-reconcile (this tracker status banner refresh + new W18 active-work tracker active-work/W18-heartbeat-refactor.md + canonical preamble bumps across 7 docs + README phase-pointer arch gate transition W17→W18). W19-W22 remain in planning state. Source plan authored 2026-05-21 with Codex live-run validation + GPT review (3 rounds) — plan file at /Users/ekrem/.claude/plans/senden-projemdeki-capabilites-ve-mellow-valley.md. W17 closed via PR #25 week17 -> main MERGED 2026-05-18 via bff565d. Sub-iter commits land on weekN branches per W11-W17 paterni; close-out merges via weekN -> main PR.)`
+`Phase: W18 active (W18-0 in progress)`
+`Branch: week18 (per user direction 2026-05-21; W11-W17 paterni preserved — sub-iter commits land on week18, close-out merges into main via week18 -> main PR)`
 `Owner: ekrem`
 
 > **Authored 2026-05-21** as a multi-iter (W18-W22) roadmap against
@@ -29,8 +29,11 @@ W17 tracker structure).
 
 ## Status (Quick Glance)
 
-- **W18 not yet entered.** Entry gate: this roadmap doc + §16 stub +
-  POST_POC_BACKLOG W18-W22 section landed.
+- **W18 active 2026-05-21.** Entered via W18-0 doc-reconcile on the
+  `week18` branch (per user direction 2026-05-21; W11-W17 paterni
+  preserved). W18 active tracker:
+  [`W18-heartbeat-refactor.md`](W18-heartbeat-refactor.md). W19-W22
+  remain in planning state.
 - **Driving signal (live run, 2026-05-21)**: `ms-python.python`
   @ `992ad028f3df` reports `automation_health.status=degraded`,
   `run_quality=low`, 4 reasons (`skipped_scenarios_present`,

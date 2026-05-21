@@ -1,6 +1,6 @@
 # ExTrace
 
-`Last Updated: 2026-05-18 (W17 active — phase work complete; W17 closed via PR #25 week17 -> main MERGED 2026-05-18 via bff565d; W16 closed via PR #23 week16 -> main MERGED 2026-05-18 via 1b6d43f. W17-0..W17-6 sub-iter slate complete: W17-0 doc-reconcile (4508c2e); W17-1 attribution-count-parity (8c26d02 + 0a8f59e); W17-2 lifecycle harness scaffold (ff98235 + 44f96c5); W17-3 + W17-4 scope-reduced (c4c0646 DESIGN-NEEDED, deferred to W18); W17-5 hygiene single-item (394d40d + 0cbe1d0); W17-6 close-out this commit. Final W17 bar: tests/architecture/ 200 passed; make test-security 220 passed; full suite 1899 passed, 9 skipped, 4 deselected (+6 from W16 final 1893). Plan REFACTOR_OPTIMIZATION.md §15; active tracker active-work/W17-carryover-and-lifecycle-harness.md. W16-0..W16-7 sub-iter slate complete: W16-1 scenario-accountant emit-site fix (01f910a); W16-2 analysis-job worker-entry CRUD ownership (9d6d110); W16-3 report-finalize null-leakage half (fa430f2; attribution-count-parity split to W17); W16-4 health-reconciliation responsibility split (304b99f); W16-5 simulation-progress-cancel scope reduction (1 rejected, 2 deferred to W17, e21a05c); W16-6 hygiene splits + Alembic fresh-DB fixture (d40bb01); W16-7 close-out hygiene (8bf3c6b) + post-PR unaccounted_dropout surface pin (78f080e). Final W16 bar: tests/architecture/ 199 passed; make test-security 220 passed; full suite 1893 passed. Frozen tracker active-work/W16-regression-and-audit-closeout.md. W15 closed via PR #22 MERGED 2026-05-18 via 6161472)`
+`Last Updated: 2026-05-21 (W18 active — W18-0 doc-reconcile in progress on the week18 branch per user direction 2026-05-21 (W11-W17 paterni preserved); §16 W18 plan source. W17 closed via PR #25 week17 -> main MERGED 2026-05-18 via bff565d; W16 closed via PR #23 week16 -> main MERGED 2026-05-18 via 1b6d43f. W17-0..W17-7 sub-iter slate complete (frozen): W17-0 doc-reconcile (4508c2e); W17-1 attribution-count-parity (8c26d02 + 0a8f59e); W17-2 lifecycle harness scaffold (ff98235 + 44f96c5); W17-3 + W17-4 scope-reduced (c4c0646 DESIGN-NEEDED, deferred to W18 — closes via W18-1 ADR + W18-2 implementation); W17-5 hygiene single-item (394d40d + 0cbe1d0); W17-6 close-out (21f7c68); W17-7 post-slate hotfix batch (bf983eb + fc88678 + 326dac8 + 51dba29); W17-7-followup post-PR doc-truth alignment (dab4679). Final W17 bar (unchanged): tests/architecture/ 200 passed; make test-security 220 passed; full suite 1899 passed, 9 skipped, 4 deselected (+6 from W16 final 1893). W18 active tracker: documents/active-work/W18-heartbeat-refactor.md; W18-W22 multi-iter roadmap source-of-truth: documents/active-work/W18-W22-roadmap.md. Plan REFACTOR_OPTIMIZATION.md §16 (W18) + §16-§20 multi-iter roadmap; frozen W17 tracker active-work/W17-carryover-and-lifecycle-harness.md. W16-0..W16-7 sub-iter slate complete: W16-1 scenario-accountant emit-site fix (01f910a); W16-2 analysis-job worker-entry CRUD ownership (9d6d110); W16-3 report-finalize null-leakage half (fa430f2; attribution-count-parity split to W17); W16-4 health-reconciliation responsibility split (304b99f); W16-5 simulation-progress-cancel scope reduction (1 rejected, 2 deferred to W17, e21a05c); W16-6 hygiene splits + Alembic fresh-DB fixture (d40bb01); W16-7 close-out hygiene (8bf3c6b) + post-PR unaccounted_dropout surface pin (78f080e). Frozen tracker active-work/W16-regression-and-audit-closeout.md. W15 closed via PR #22 MERGED 2026-05-18 via 6161472)`
 
 ExTrace is a VS Code extension analysis platform built around three runtime
 surfaces:
@@ -84,22 +84,47 @@ multi-tenant web platform.
   `unaccounted_dropout` surface pin (`78f080e`). Final W16 bar:
   `tests/architecture/` **199 passed**; `make test-security`
   **220 passed**; full suite **1893 passed**.
-  **Active phase: W17 — Carry-Over Closeout + Lifecycle Harness
-  Yatırımı + Hygiene Sweep — phase work complete `2026-05-18`** on
-  the `week17` branch (per user direction; W11-W16 paterni
-  preserved); **W17 closed via PR #25 `week17 -> main` MERGED
-  `2026-05-18` via `bff565d`**. Frozen tracker:
+  **Previous phase: W17 — Carry-Over Closeout + Lifecycle Harness
+  Yatırımı + Hygiene Sweep — closed `2026-05-18`** on the `week17`
+  branch (per user direction; W11-W16 paterni preserved);
+  **W17 closed via PR #25 `week17 -> main` MERGED `2026-05-18`
+  via `bff565d`**. Frozen tracker:
   [`active-work/W17-carryover-and-lifecycle-harness.md`](documents/active-work/W17-carryover-and-lifecycle-harness.md).
-  W17-0..W17-6 sub-iter slate complete: W17-0 doc-reconcile
+  W17-0..W17-7 sub-iter slate complete: W17-0 doc-reconcile
   (`4508c2e`); W17-1 attribution-count-parity (`8c26d02`); W17-2
   lifecycle harness scaffold (`ff98235`); W17-3 + W17-4
   scope-reduced doc-only (`c4c0646` — DESIGN-NEEDED for
-  thread-relocation refactor shape, deferred to W18); W17-5 hygiene
+  thread-relocation refactor shape, deferred to W18 — **closes via
+  W18-1 ADR + W18-2 implementation**); W17-5 hygiene
   single-item (`394d40d` `[CLEANUP postgres-version-fact-drift]`;
   other 4 cleanup candidates deferred to W18+); W17-6 close-out
-  hygiene this commit. Final W17 bar: `tests/architecture/`
-  **200 passed**; `make test-security` **220 passed**; full suite
-  **1899 passed, 9 skipped, 4 deselected**.
+  hygiene (`21f7c68`); W17-7 post-slate hotfix batch
+  (`bf983eb` + `fc88678` + `326dac8` + `51dba29`); W17-7-followup
+  post-PR doc-truth alignment (`dab4679`). Final W17 bar:
+  `tests/architecture/` **200 passed**; `make test-security`
+  **220 passed**; full suite **1899 passed, 9 skipped,
+  4 deselected**.
+  **Active phase: W18 — Heartbeat Refactor — W18-0 doc-reconcile
+  in progress on the `week18` branch (per user direction 2026-05-21;
+  W11-W17 paterni preserved); §16 W18 plan source**: sub-iter slate
+  W18-0..W18-4 reserved per §16 plan — W18-0 doc-reconcile this
+  commit; W18-1 ADR
+  `documents/adrs/0012-heartbeat-thread-relocation.md` (3 plausible
+  refactor shapes — dedicated reset thread / unified reset queue /
+  pipeline restructure; NO CODE); W18-2 heartbeat refactor
+  implementation (W17-2 harness smoke MUST still pass
+  byte-identically); W18-3 lifecycle harness extension tests
+  (parallel reset + idempotency + reset-during-finalize per W17-2
+  module docstring L27-35); W18-4 close-out PR `week18 -> main`.
+  Active tracker:
+  [`active-work/W18-heartbeat-refactor.md`](documents/active-work/W18-heartbeat-refactor.md).
+  Driving signal: Codex live-run validation 2026-05-21 of
+  `ms-python.python` @ `992ad028f3df` reports
+  `automation_health.status=degraded` + `run_quality=low` while
+  static W17 final bar (1899/200/220) remains 🟢; W18 closes the
+  W17-3/W17-4 DESIGN-NEEDED heartbeat thread relocation deferral.
+  W19-W22 follow-on iters per multi-iter roadmap at
+  [`active-work/W18-W22-roadmap.md`](documents/active-work/W18-W22-roadmap.md).
 - **Canonical source of truth for phase state:**
   [`documents/REFACTOR_STATUS.md`](documents/REFACTOR_STATUS.md).
   Deferred items: [`documents/POST_POC_BACKLOG.md`](documents/POST_POC_BACKLOG.md).
@@ -108,6 +133,7 @@ multi-tenant web platform.
   W15 plan: [`documents/REFACTOR_OPTIMIZATION.md` §13](documents/REFACTOR_OPTIMIZATION.md).
   W16 plan: [`documents/REFACTOR_OPTIMIZATION.md` §14](documents/REFACTOR_OPTIMIZATION.md).
   W17 plan: [`documents/REFACTOR_OPTIMIZATION.md` §15](documents/REFACTOR_OPTIMIZATION.md).
+  W18-W22 plan: [`documents/REFACTOR_OPTIMIZATION.md` §16-§20](documents/REFACTOR_OPTIMIZATION.md).
 
 ## Current Architecture
 
