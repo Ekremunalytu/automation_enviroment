@@ -152,7 +152,7 @@ def execute_analysis_request(
     _raise_if_cancelled(cancel_check)
     ensure_vsix_exists(request)
     _raise_if_cancelled(cancel_check)
-    _reset_sandbox(reporter, executor_control)
+    _reset_sandbox(reporter, executor_control, cancel_check=cancel_check)
     _raise_if_cancelled(cancel_check)
     # W13-11 (Codex F1 close-pass for W13-1 H6): host-side eager-consume
     # of the per-launch HMAC python secret. ``_reset_sandbox`` has just
