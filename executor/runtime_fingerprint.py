@@ -106,7 +106,9 @@ def _resolve_version() -> str:
 
 
 def _build_fingerprint() -> dict[str, str]:
-    commit = _resolve_commit_sha_from_env() or _resolve_commit_sha_from_git() or _UNKNOWN
+    commit = (
+        _resolve_commit_sha_from_env() or _resolve_commit_sha_from_git() or _UNKNOWN
+    )
     return {
         "commit_sha": commit,
         "build_date": _resolve_build_date(),

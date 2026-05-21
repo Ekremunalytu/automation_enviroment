@@ -89,6 +89,7 @@ büyük değişiklik taşımak risk; W21+'a ayrı pull.
 | W18-4 | Close-out hygiene | Pattern W17-6 | Canonical preamble refresh + §16 self-stamp + tracker section freeze + PR `week18 -> main` |
 
 **W18 acceptance**:
+
 - Static suite tamamı yeşil (test sayıları non-binding estimate)
 - Manual: `make exec-up` + `make sim-target TARGET=ms-python.python` smoke — heartbeat refactor regression yok
 - W13-11 HMAC secret consume invariant'ı bozulmaz (existing test'ler PASS)
@@ -111,6 +112,7 @@ büyük değişiklik taşımak risk; W21+'a ayrı pull.
 | W19-6 | — | Close-out hygiene | — | PR `week19 -> main` |
 
 **W19 acceptance (live-run-driven)**:
+
 - **Must-pass**: yeni `make sim-target TARGET=ms-python.python` çıktısında `unaccounted_dropout == 0`
 - **Must-pass**: supported harness event'lerde `harness_verification_unconfirmed` reason'ı düşer
 - **Expected**: `run_quality` `low` → `medium`
@@ -135,6 +137,7 @@ heuristic-covered, eksik olan official-track verification.
 | W20-5 | Close-out hygiene | — | PR `week20 -> main` |
 
 **W20 acceptance**:
+
 - Static suite yeşil (sayısal estimate non-binding)
 - Live: official-track `coverage_summary.missing_capabilities` listesinden `scm` + `settings` düşer (6 → 4)
 - Activation event spec crosswalk raporu backlog'a yazılı
@@ -156,6 +159,7 @@ heuristic-covered, eksik olan official-track verification.
 | W21-5 | Close-out hygiene | — | PR `week21 -> main` |
 
 **W21 acceptance**:
+
 - Her iki track missing `chat` dışında 0 — **must-pass**
 - Workspace_trust defer edilirse missing `chat` + `workspace_trust` dışında 0 (defer audit'lenir)
 - Container manual smoke ✅ — **stretch (yalnız W21-4 pull edildiyse)**
@@ -178,6 +182,7 @@ heuristic-covered, eksik olan official-track verification.
 | W22-7 | Close-out hygiene | — | PR `week22 -> main` |
 
 **W22 acceptance**:
+
 - **Must-pass**: chat ADR Accepted + local-only path implemented **or** deferred-with-blocker; W22-3 + W22-4/5 yeşil
 - **Expected** (chat implemented + W21 workspace_trust kapatıldıysa): her iki track missing == 0
 - **Stretch**: `automation_health.status == 'healthy'` + `run_quality == 'high'`
@@ -260,18 +265,18 @@ nedenle W19, W20, W21, W22 close-out'larında ek olarak:
 
 ### W19 başlangıcında (live-run-driven)
 
-2. **Dropout emit-site lokasyonu**: `debug_session`/`refactor_workflow`'un `unaccounted_dropout` üzerinden düştüğü path. W16-1 fix'ten kalan path mi, yeni emit-site mi? W19-1 fixture pin'lendikten sonra W19-2 çözer.
-3. **Harness verification scheme**: Per-event nonce mi, batch confirmation mi? `runtime_capture/` tasarımı W19-3'te.
+1. **Dropout emit-site lokasyonu**: `debug_session`/`refactor_workflow`'un `unaccounted_dropout` üzerinden düştüğü path. W16-1 fix'ten kalan path mi, yeni emit-site mi? W19-1 fixture pin'lendikten sonra W19-2 çözer.
+2. **Harness verification scheme**: Per-event nonce mi, batch confirmation mi? `runtime_capture/` tasarımı W19-3'te.
 
 ### W20 başlangıcında
 
-4. **Activation event spec crosswalk (W20-0)**: 5 "missing" event ismi (`onMemento`, `onTerminalQuickFixRequest`, `onChat`, `onAuthenticationProvider`, `onRendererScript`) GPT review'de resmi spec'te görünmedi. Crosswalk gerçek gap çıkarırsa W22-6'da implement.
-5. **Container hardening konumlandırması**: W21-4'te ertelenmiş. W18 erken biterse W18-4 olarak çekilebilir mi — karar W18-3 sonrası.
+1. **Activation event spec crosswalk (W20-0)**: 5 "missing" event ismi (`onMemento`, `onTerminalQuickFixRequest`, `onChat`, `onAuthenticationProvider`, `onRendererScript`) GPT review'de resmi spec'te görünmedi. Crosswalk gerçek gap çıkarırsa W22-6'da implement.
+2. **Container hardening konumlandırması**: W21-4'te ertelenmiş. W18 erken biterse W18-4 olarak çekilebilir mi — karar W18-3 sonrası.
 
 ### W22 başlangıcında
 
-6. **Chat policy (W22-1 ADR)**: Mock LM endpoint mi, harness-side stub mı? Dış servis çağırma yasağı net.
-7. **Sandbox-evasion (W22-4 ADR)**: Implementation kapasite. Şu an plan: sadece ADR + canary, kod W23+.
+1. **Chat policy (W22-1 ADR)**: Mock LM endpoint mi, harness-side stub mı? Dış servis çağırma yasağı net.
+2. **Sandbox-evasion (W22-4 ADR)**: Implementation kapasite. Şu an plan: sadece ADR + canary, kod W23+.
 
 ---
 

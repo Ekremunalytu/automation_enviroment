@@ -46,7 +46,6 @@ def _module_label(module_path: Path) -> str:
     return module_path.relative_to(REPO_ROOT).as_posix()
 
 
-
 _DUAL_IMPORT_ALLOW_LIST = {
     "executor/flows/playwright/monitor/support.py",
 }
@@ -136,4 +135,3 @@ def test_executor_imports_signals_from_packages() -> None:
         "executor/flows/playwright/signals/__init__.py must import from "
         "packages.analysis_engine.signals.policy (W9-2 contract)."
     )
-

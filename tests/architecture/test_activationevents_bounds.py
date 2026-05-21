@@ -25,12 +25,8 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
-CATALOG_SCHEMA = (
-    REPO_ROOT / "appcore" / "contracts" / "schema_defs" / "catalog.py"
-)
-EXTENSION_MODEL = (
-    REPO_ROOT / "appcore" / "storage" / "model_defs" / "extension.py"
-)
+CATALOG_SCHEMA = REPO_ROOT / "appcore" / "contracts" / "schema_defs" / "catalog.py"
+EXTENSION_MODEL = REPO_ROOT / "appcore" / "storage" / "model_defs" / "extension.py"
 
 # Expected caps on Pydantic fields: (file, class_name, field_name, max_length).
 PYDANTIC_FIELD_CAPS: tuple[tuple[Path, str, str, int], ...] = (

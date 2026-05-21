@@ -41,12 +41,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 NETWORK_MODULE = (
-    REPO_ROOT
-    / "executor"
-    / "flows"
-    / "playwright"
-    / "runtime_capture"
-    / "network.py"
+    REPO_ROOT / "executor" / "flows" / "playwright" / "runtime_capture" / "network.py"
 )
 TARGET_FIELDS = {"path", "summary"}
 ALLOWED_REDACT_CALLS = {"redact_secrets"}

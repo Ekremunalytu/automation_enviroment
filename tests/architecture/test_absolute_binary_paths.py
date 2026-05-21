@@ -447,11 +447,7 @@ def test_variable_indirect_assignment_outside_function_scope_skipped() -> None:
     constants belong in ``executor.binary_paths``. If the test
     fixture below ever lands in production code, the architecture
     review should catch it by hand, not via this gate."""
-    source = (
-        "import subprocess\n"
-        'cmd = ["inotifywait", "-m"]\n'
-        "subprocess.Popen(cmd)\n"
-    )
+    source = 'import subprocess\ncmd = ["inotifywait", "-m"]\nsubprocess.Popen(cmd)\n'
     # The variable-indirect resolver only walks function bodies, so
     # module-level cmd assignments are not tracked. The Name first-arg
     # gets the "opaque variable" treatment and the gate skips.

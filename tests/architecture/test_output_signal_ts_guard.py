@@ -76,9 +76,7 @@ def _collect_coercer_local_names(func_node: ast.AST) -> set[str]:
     return coercer_vars
 
 
-def _argument_is_routed_through_coercer(
-    arg: ast.AST, coercer_vars: set[str]
-) -> bool:
+def _argument_is_routed_through_coercer(arg: ast.AST, coercer_vars: set[str]) -> bool:
     if _is_coercer_call(arg):
         return True
     return isinstance(arg, ast.Name) and arg.id in coercer_vars

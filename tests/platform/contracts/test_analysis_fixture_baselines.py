@@ -241,9 +241,7 @@ def test_event_attempt_lifecycle_states_cover_current_runtime_emitters() -> None
     )
 
 
-@pytest.mark.skipif(
-    not _ALL_BASELINE_VSIX_PRESENT, reason=_BASELINE_VSIX_SKIP_REASON
-)
+@pytest.mark.skipif(not _ALL_BASELINE_VSIX_PRESENT, reason=_BASELINE_VSIX_SKIP_REASON)
 @patch("workflows.marketplace.client.httpx.Client", side_effect=AssertionError)
 def test_baseline_extension_fixtures_resolve_from_local_artifacts_without_network(
     _mock_http_client: object,
@@ -257,9 +255,7 @@ def test_baseline_extension_fixtures_resolve_from_local_artifacts_without_networ
         assert resolved.exists()
 
 
-@pytest.mark.skipif(
-    not _ALL_BASELINE_VSIX_PRESENT, reason=_BASELINE_VSIX_SKIP_REASON
-)
+@pytest.mark.skipif(not _ALL_BASELINE_VSIX_PRESENT, reason=_BASELINE_VSIX_SKIP_REASON)
 def test_baseline_extension_fixtures_round_trip_through_extension_schema() -> None:
     for publisher, name, version in BASELINE_EXTENSION_FIXTURES:
         extension_id = f"{publisher}.{name}"

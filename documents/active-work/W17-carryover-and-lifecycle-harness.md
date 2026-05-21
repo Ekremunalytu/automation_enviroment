@@ -12,8 +12,8 @@
 > first pull** per the W11/W12/W13/W14/W15/W16 precedent
 > (`REFACTOR_OPTIMIZATION.md` §15.0).
 
-This is the canonical active work tracker for the W17 Carry-Over Closeout
-+ Lifecycle Harness + Hygiene Sweep window. Items receive stable IDs
+This is the canonical active work tracker for the W17 Carry-Over Closeout +
+Lifecycle Harness + Hygiene Sweep window. Items receive stable IDs
 (`W17-1`, `W17-2`, …) **at first pull**, not preemptively, per the
 W11/W12/W13/W14/W15/W16 precedent.
 
@@ -339,6 +339,7 @@ landing after W14-6 close-out):
   interpreter change.
 
 **Updated W17 final bar (post-W17-7):**
+
 - `tests/architecture/` **200 passed** (unchanged)
 - `make test-security` **220 passed** (W17-7a fix: 217 → 220)
 - Full non-smoke suite **1899 passed, 9 skipped, 4 deselected**

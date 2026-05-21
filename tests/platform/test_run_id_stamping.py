@@ -94,9 +94,7 @@ def test_run_id_propagates_to_deep_child_logger_emit(
     must inherit the filter via the standard Python logging hierarchy."""
     monkeypatch.setenv(RUN_ID_ENV_VAR, "epoch-deep-child")
 
-    deep = get_extrace_logger(
-        "extrace.executor.flows.playwright.monitor.runtime"
-    )
+    deep = get_extrace_logger("extrace.executor.flows.playwright.monitor.runtime")
     deep.warning("deep emit")
 
     assert _wired_extrace_chain.records[-1].run_id == "epoch-deep-child"
@@ -165,9 +163,7 @@ def test_filter_stamps_record_regardless_of_log_level(
     logger.warning("warning emit")
     logger.error("error emit")
 
-    assert all(
-        r.run_id == "epoch-multi-level" for r in _wired_extrace_chain.records
-    )
+    assert all(r.run_id == "epoch-multi-level" for r in _wired_extrace_chain.records)
 
 
 # ---------------------------------------------------------------------------

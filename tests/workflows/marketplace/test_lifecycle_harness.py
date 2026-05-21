@@ -303,8 +303,7 @@ def test_lifecycle_harness_smoke_cancel_triggers_heartbeat_reset(
 
     calls = lifecycle_harness.reset_calls
     assert len(calls) == 1, (
-        f"Expected exactly one cancel-driven sandbox reset; got {len(calls)}: "
-        f"{calls!r}"
+        f"Expected exactly one cancel-driven sandbox reset; got {len(calls)}: {calls!r}"
     )
     assert calls[0]["thread"] == LifecycleHarness.HEARTBEAT_THREAD_NAME, (
         "Cancel-driven reset_sandbox must fire from the monitoring heartbeat "

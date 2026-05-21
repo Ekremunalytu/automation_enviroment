@@ -49,9 +49,7 @@ import ast
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-ANALYSIS_SERVICE_PATH = (
-    REPO_ROOT / "workflows" / "marketplace" / "analysis_service.py"
-)
+ANALYSIS_SERVICE_PATH = REPO_ROOT / "workflows" / "marketplace" / "analysis_service.py"
 ROUTER_PATH = REPO_ROOT / "workflows" / "marketplace" / "router.py"
 
 ANALYZE_ERROR_TYPES_NAME = "ANALYZE_ERROR_TYPES"
@@ -430,8 +428,11 @@ def test_helper_executor_branch_delegates_to_map_executor_error() -> None:
         if not isinstance(stmt, ast.If):
             continue
         test = stmt.test
-        if not (isinstance(test, ast.Call) and isinstance(test.func, ast.Name)
-                and test.func.id == "isinstance"):
+        if not (
+            isinstance(test, ast.Call)
+            and isinstance(test.func, ast.Name)
+            and test.func.id == "isinstance"
+        ):
             continue
         if len(test.args) < 2:
             continue

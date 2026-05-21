@@ -331,9 +331,7 @@ def test_dispatch_outcome_none_emits_specific_reason_code() -> None:
     deps = _StubDeps()
     requested = ["debug_session", "refactor_workflow", "coding_session"]
 
-    result = _normalize_execution_result(
-        None, deps=deps, requested_scenarios=requested
-    )
+    result = _normalize_execution_result(None, deps=deps, requested_scenarios=requested)
 
     assert list(result.requested_scenarios) == requested
     assert list(result.executed_scenarios) == []
@@ -372,9 +370,7 @@ def test_dispatch_outcome_none_emits_nothing_when_no_requested_scenarios() -> No
     class _StubDeps:
         stimulus = stimulus_module
 
-    result = _normalize_execution_result(
-        None, deps=_StubDeps(), requested_scenarios=[]
-    )
+    result = _normalize_execution_result(None, deps=_StubDeps(), requested_scenarios=[])
 
     assert list(result.requested_scenarios) == []
     assert list(result.skipped_scenarios) == []

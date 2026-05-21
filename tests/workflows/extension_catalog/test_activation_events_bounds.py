@@ -46,9 +46,7 @@ def _base_extension_payload() -> dict:
 
 
 def test_event_type_at_boundary_64_chars_is_accepted() -> None:
-    schema = ExtensionActivationEventsSchema(
-        event_type="x" * 64, event_value=None
-    )
+    schema = ExtensionActivationEventsSchema(event_type="x" * 64, event_value=None)
     assert len(schema.event_type) == 64
 
 
@@ -79,9 +77,7 @@ def test_event_type_one_over_boundary_raises_validation_error() -> None:
 
 def test_event_value_one_over_boundary_raises_validation_error() -> None:
     with pytest.raises(ValidationError):
-        ExtensionActivationEventsSchema(
-            event_type="onCommand", event_value="x" * 1025
-        )
+        ExtensionActivationEventsSchema(event_type="onCommand", event_value="x" * 1025)
 
 
 def test_activation_events_list_one_over_boundary_raises_validation_error() -> None:
@@ -97,9 +93,7 @@ def test_activation_events_list_one_over_boundary_raises_validation_error() -> N
 
 
 def test_parse_activation_events_slices_oversized_list_at_512() -> None:
-    package_json = {
-        "activationEvents": [f"onCommand:cmd.run.{i}" for i in range(600)]
-    }
+    package_json = {"activationEvents": [f"onCommand:cmd.run.{i}" for i in range(600)]}
     parsed = parse_activation_events(package_json)
     assert parsed is not None
     assert len(parsed) == 512
@@ -113,7 +107,7 @@ def test_parse_activation_events_skips_oversized_event_value() -> None:
     package_json = {
         "activationEvents": [
             "onCommand:" + ("x" * 1025),  # over per-string cap -> skipped
-            "onLanguage:python",          # well under cap -> kept
+            "onLanguage:python",  # well under cap -> kept
         ]
     }
     parsed = parse_activation_events(package_json)
@@ -150,7 +144,7 @@ def test_parse_activation_events_skips_oversized_no_colon_event() -> None:
     """
     package_json = {
         "activationEvents": [
-            "x" * 65,             # no colon, over event_type cap -> skipped
+            "x" * 65,  # no colon, over event_type cap -> skipped
             "onStartupFinished",  # no colon, under cap -> kept
         ]
     }

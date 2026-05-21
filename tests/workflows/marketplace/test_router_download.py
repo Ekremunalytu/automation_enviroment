@@ -409,4 +409,3 @@ def test_download_http_status_error_502(client: TestClient) -> None:
         )
 
     assert response.status_code == 502
-

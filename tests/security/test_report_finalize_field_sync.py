@@ -88,8 +88,12 @@ def _populated_report() -> ActivationReport:
     report.monitoring_end = 1700_000_050.0
     report.harness_handshake_required = True
     report.scenario_traces = [
-        ScenarioTrace(name="coding_session", started_at=1700_000_001.0, status="completed"),
-        ScenarioTrace(name="debug_session", started_at=1700_000_020.0, status="completed"),
+        ScenarioTrace(
+            name="coding_session", started_at=1700_000_001.0, status="completed"
+        ),
+        ScenarioTrace(
+            name="debug_session", started_at=1700_000_020.0, status="completed"
+        ),
     ]
     # ``_synchronize_scenario_truth`` is what derives ``scenarios_run``
     # from ``scenario_traces`` on the live path. The lifecycle harness

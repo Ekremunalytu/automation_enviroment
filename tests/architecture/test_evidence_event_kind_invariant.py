@@ -31,9 +31,7 @@ import ast
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-CONTRACTS_MODULE = (
-    REPO_ROOT / "packages" / "analysis_contracts" / "contracts.py"
-)
+CONTRACTS_MODULE = REPO_ROOT / "packages" / "analysis_contracts" / "contracts.py"
 MODEL_CLASS = "EvidenceEvent"
 VALIDATOR_DECORATOR = "model_validator"
 VALIDATOR_MODE_KEYWORD = "mode"
@@ -70,7 +68,9 @@ def _find_class(module_tree: ast.Module, name: str) -> ast.ClassDef:
     )
 
 
-def _find_module_assignment(module_tree: ast.Module, name: str) -> ast.Assign | ast.AnnAssign:
+def _find_module_assignment(
+    module_tree: ast.Module, name: str
+) -> ast.Assign | ast.AnnAssign:
     for stmt in module_tree.body:
         if isinstance(stmt, ast.Assign):
             for target in stmt.targets:
@@ -95,10 +95,7 @@ def _decorator_is_model_validator_after(decorator: ast.expr) -> bool:
     callee = decorator.func
     if isinstance(callee, ast.Name) and callee.id != VALIDATOR_DECORATOR:
         return False
-    if (
-        isinstance(callee, ast.Attribute)
-        and callee.attr != VALIDATOR_DECORATOR
-    ):
+    if isinstance(callee, ast.Attribute) and callee.attr != VALIDATOR_DECORATOR:
         return False
     for keyword in decorator.keywords:
         if keyword.arg == VALIDATOR_MODE_KEYWORD and isinstance(
@@ -166,9 +163,9 @@ def test_evidence_event_kind_allowlist_pinned() -> None:
     )
     keys: set[str] = set()
     for key_node in value.keys:
-        assert isinstance(key_node, ast.Constant) and isinstance(
-            key_node.value, str
-        ), f"{ALLOWLIST_NAME} keys must be string constants"
+        assert isinstance(key_node, ast.Constant) and isinstance(key_node.value, str), (
+            f"{ALLOWLIST_NAME} keys must be string constants"
+        )
         keys.add(key_node.value)
     missing = REQUIRED_ALLOWLIST_KEYS - keys
     assert not missing, (
@@ -202,9 +199,7 @@ def test_evidence_event_kind_invariant_validator_exists() -> None:
         )
         references_event_class = _function_references_attribute(
             stmt,
-            lambda n: _self_chained_attribute(
-                n, RAW_CONTEXT_ATTR, EVENT_CLASS_ATTR
-            ),
+            lambda n: _self_chained_attribute(n, RAW_CONTEXT_ATTR, EVENT_CLASS_ATTR),
         )
         references_allowlist = _function_references_allowlist(stmt)
         raises_value_error = _function_has_raise_value_error(stmt)

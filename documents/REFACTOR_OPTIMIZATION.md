@@ -495,8 +495,8 @@ producer side), W17-2 başlamadan kapanmalı (sequencing constraint
 risk note). W17-2 lifecycle harness scaffold üçüncü — W17-3/4 ön
 koşulu, W17'nin en ağır parçası; balon olursa scope reduction
 kararı (W16-5 paterni). W17-3 heartbeat-sandbox-reset thread
-relocation harness sonrası — concurrency-sensitive, W13-1 HMAC
-+ W13-12 fail-closed + W13-13 CAS pattern regress etmemeli
+relocation harness sonrası — concurrency-sensitive, W13-1 HMAC +
+W13-12 fail-closed + W13-13 CAS pattern regress etmemeli
 (W16-4 davranış-koruma paterni). W17-4 byte-identical clarity
 refactor W17-3 üzerine. W17-5 hygiene cleanup batch düşük-risk,
 paralel; W17-6 close-out hygiene + §15 self-stamp W14/W15/W16
@@ -641,6 +641,7 @@ ve W18 başlangıcında cevaplanacak açık sorular tracker dosyasında:
 [`active-work/W18-W22-roadmap.md`](active-work/W18-W22-roadmap.md)
 
 Plan dosyası 3 review turundan geçti:
+
 1. Initial Codex live-run validation (live rapor doğrulaması + capability taxonomy gap teyidi)
 2. GPT round-1 (üç hat ayrımı, W19-1 xfail/RED pattern, harness verification ayrı boyut)
 3. GPT round-2/3 (W20'nin 13 sub-iter'a patlaması, W20→W22 ayırma, `healthy/degraded/inconclusive` enum doğrulaması, ADR yolu `documents/adrs/` doğrulaması, `OFFICIAL_EVENT_REGISTRY` 29 sayısı, `onWebviewPanel` restore semantics, manifest source-of-truth, `confirmation_source` schema impact, `workspace_trust` defer fallback, chat-conditional W22 acceptance)

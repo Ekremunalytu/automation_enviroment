@@ -113,9 +113,9 @@ def _files_to_scan(shipped_root: set[str]) -> list[Path]:
 
 
 def test_executor_flows_imports_are_shipped_into_container() -> None:
-    assert (
-        _flows_shipped_as_directory()
-    ), "executor/container/Dockerfile must `COPY executor/flows /home/executor/flows`."
+    assert _flows_shipped_as_directory(), (
+        "executor/container/Dockerfile must `COPY executor/flows /home/executor/flows`."
+    )
     shipped = _shipped_root_modules()
     scan_files = _files_to_scan(shipped)
     references = _imported_executor_root_modules(scan_files)

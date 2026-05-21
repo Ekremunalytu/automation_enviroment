@@ -288,11 +288,7 @@ def claim_queued_analysis_job_at_worker_entry(
     W13-3 exception handler still uses the wrapper because by then the
     entry-block transaction has already committed and released the lock.
     """
-    stmt = (
-        select(AnalysisJob)
-        .where(AnalysisJob.job_id == job_id)
-        .with_for_update()
-    )
+    stmt = select(AnalysisJob).where(AnalysisJob.job_id == job_id).with_for_update()
     job = db.scalars(stmt).first()
     if job is None:
         return WorkerEntryClaim(

@@ -31,9 +31,7 @@ import ast
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-REPORTS_MODULE = (
-    REPO_ROOT / "workflows" / "marketplace" / "analysis_reports.py"
-)
+REPORTS_MODULE = REPO_ROOT / "workflows" / "marketplace" / "analysis_reports.py"
 COERCER_NAME = "_safe_int_coerce"
 BUILDER_NAME = "build_report_messages"
 
@@ -126,8 +124,7 @@ def test_int_calls_in_report_builder_route_through_coercer() -> None:
             builder_func = node
             break
     assert builder_func is not None, (
-        f"{BUILDER_NAME}() must be defined in "
-        f"{REPORTS_MODULE.relative_to(REPO_ROOT)}."
+        f"{BUILDER_NAME}() must be defined in {REPORTS_MODULE.relative_to(REPO_ROOT)}."
     )
 
     violations: list[str] = []

@@ -58,16 +58,9 @@ import ast
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-ANALYSIS_SERVICE_PATH = (
-    REPO_ROOT / "workflows" / "marketplace" / "analysis_service.py"
-)
+ANALYSIS_SERVICE_PATH = REPO_ROOT / "workflows" / "marketplace" / "analysis_service.py"
 LIFECYCLE_PATH = (
-    REPO_ROOT
-    / "appcore"
-    / "storage"
-    / "crud_ops"
-    / "analysis_jobs"
-    / "lifecycle.py"
+    REPO_ROOT / "appcore" / "storage" / "crud_ops" / "analysis_jobs" / "lifecycle.py"
 )
 
 # CRUD-helper names whose appearance BEFORE the facade call
@@ -160,8 +153,9 @@ def test_run_analysis_job_dispatches_to_claim_facade_at_worker_entry() -> None:
 
     first_claim_idx = _first_index_matching(
         func.body,
-        lambda call: _call_target_name(call)
-        == "claim_queued_analysis_job_at_worker_entry",
+        lambda call: (
+            _call_target_name(call) == "claim_queued_analysis_job_at_worker_entry"
+        ),
     )
     assert first_claim_idx is not None, (
         f"{ANALYSIS_SERVICE_PATH.relative_to(REPO_ROOT)}: "
@@ -233,8 +227,7 @@ def test_claim_facade_holds_lock_and_calls_finalize_directly() -> None:
     has_finalize = (
         _first_index_matching(
             func.body,
-            lambda call: _call_target_name(call)
-            == "finalize_cancelled_analysis_job",
+            lambda call: _call_target_name(call) == "finalize_cancelled_analysis_job",
         )
         is not None
     )

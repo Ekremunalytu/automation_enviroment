@@ -88,8 +88,7 @@ def build_evidence_bundle(
         )
         activation_entries.append((event_id, activation, event_epoch))
         is_target_activation = bool(
-            target_extension_id
-            and activation.extension_id == target_extension_id
+            target_extension_id and activation.extension_id == target_extension_id
         )
         events.append(
             EvidenceEvent(

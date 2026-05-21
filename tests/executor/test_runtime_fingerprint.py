@@ -44,9 +44,7 @@ def test_commit_sha_falls_back_to_git_when_env_var_missing(
     monkeypatch.delenv(rf._BUILD_COMMIT_ENV_VAR, raising=False)
 
     def _fake_run(*args: Any, **kwargs: Any) -> subprocess.CompletedProcess[str]:
-        return SimpleNamespace(
-            returncode=0, stdout="cafebabe\n", stderr=""
-        )  # type: ignore[return-value]
+        return SimpleNamespace(returncode=0, stdout="cafebabe\n", stderr="")  # type: ignore[return-value]
 
     monkeypatch.setattr(rf.subprocess, "run", _fake_run)
     fp = rf.executor_fingerprint()
