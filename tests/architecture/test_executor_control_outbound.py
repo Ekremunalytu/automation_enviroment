@@ -86,9 +86,13 @@ def _collect_public_function_signatures(
         if text:
             pairs.append((f"arg:{arg.arg}", text))
     if args.vararg is not None and args.vararg.annotation is not None:
-        pairs.append((f"vararg:{args.vararg.arg}", _annotation_text(args.vararg.annotation)))
+        pairs.append(
+            (f"vararg:{args.vararg.arg}", _annotation_text(args.vararg.annotation))
+        )
     if args.kwarg is not None and args.kwarg.annotation is not None:
-        pairs.append((f"kwarg:{args.kwarg.arg}", _annotation_text(args.kwarg.annotation)))
+        pairs.append(
+            (f"kwarg:{args.kwarg.arg}", _annotation_text(args.kwarg.annotation))
+        )
     return_text = _annotation_text(func.returns)
     if return_text:
         pairs.append(("return", return_text))
@@ -236,8 +240,7 @@ def test_default_executor_control_singleton_is_pinned() -> None:
 
 def test_detector_flags_docker_token_in_annotation() -> None:
     assert (
-        _annotation_contains_forbidden_token("docker.client.DockerClient")
-        == "docker"
+        _annotation_contains_forbidden_token("docker.client.DockerClient") == "docker"
     )
 
 
@@ -270,9 +273,7 @@ def test_public_method_collector_skips_self_arg() -> None:
     src = "class Foo:\n    def bar(self, x: int) -> bool: ...\n"
     tree = ast.parse(src)
     cls = next(node for node in tree.body if isinstance(node, ast.ClassDef))
-    method = next(
-        stmt for stmt in cls.body if isinstance(stmt, ast.FunctionDef)
-    )
+    method = next(stmt for stmt in cls.body if isinstance(stmt, ast.FunctionDef))
     labels = [label for label, _ in _collect_public_function_signatures(method)]
     assert "arg:self" not in labels
     assert "arg:x" in labels

@@ -84,9 +84,7 @@ def test_attempt_has_harness_completion_trace_calls_verifier() -> None:
     asserts the verifier call survives the import boundary.
     """
     tree = ast.parse(HANDSHAKE_PATH.read_text(encoding="utf-8"))
-    func = _find_function(
-        tree, "_attempt_has_harness_completion_trace", HANDSHAKE_PATH
-    )
+    func = _find_function(tree, "_attempt_has_harness_completion_trace", HANDSHAKE_PATH)
     calls = _function_calls(func)
     assert "_verify_harness_marker_signature" in calls, (
         f"{HANDSHAKE_PATH.relative_to(REPO_ROOT)}: "

@@ -425,9 +425,7 @@ def test_concurrent_complete_vs_fail_exactly_one_winner(
             lifecycle.complete_analysis_job(
                 session,
                 job_id,
-                AnalysisJobUpdate(
-                    message="happy completion", finished_at=time.time()
-                ),
+                AnalysisJobUpdate(message="happy completion", finished_at=time.time()),
             )
             return "complete:ok"
         except lifecycle.JobNotCancellableError:
@@ -441,7 +439,9 @@ def test_concurrent_complete_vs_fail_exactly_one_winner(
             lifecycle.fail_analysis_job(
                 session,
                 job_id,
-                AnalysisJobFailure(detail="installer crashed", error_code="install_failed"),
+                AnalysisJobFailure(
+                    detail="installer crashed", error_code="install_failed"
+                ),
             )
             return "fail:ok"
         except lifecycle.JobNotCancellableError:

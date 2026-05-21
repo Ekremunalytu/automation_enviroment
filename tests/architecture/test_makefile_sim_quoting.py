@@ -78,12 +78,10 @@ def test_sim_target_validates_operator_variables() -> None:
         "character class (W14-3 U4)."
     )
     assert "grep -qE '^[A-Za-z0-9_]+$$'" in body, (
-        "`sim-target` must validate SCENARIO with [A-Za-z0-9_]+ when set "
-        "(W14-3 U6)."
+        "`sim-target` must validate SCENARIO with [A-Za-z0-9_]+ when set (W14-3 U6)."
     )
     assert "grep -qE '^[A-Za-z0-9./_-]+$$'" in body, (
-        "`sim-target` must validate TRIGGERS with [A-Za-z0-9./_-]+ when "
-        "set (W14-3 U5)."
+        "`sim-target` must validate TRIGGERS with [A-Za-z0-9./_-]+ when set (W14-3 U5)."
     )
 
 

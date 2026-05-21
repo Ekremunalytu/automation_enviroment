@@ -128,4 +128,3 @@ def test_search_returns_empty_list(client: TestClient) -> None:
 
     assert response.status_code == 200
     assert response.json() == []
-

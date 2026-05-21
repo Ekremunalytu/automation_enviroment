@@ -297,9 +297,7 @@ def reconcile_event_attempts(report: Any) -> list[Any]:
     # (eager-consume miss / OSError / race) routes the helper through
     # fail-closed instead of the legacy phase-only branch. Test fixtures
     # leave it False to preserve pre-W13-1 phase-only behavior.
-    handshake_required = bool(
-        getattr(report, "harness_handshake_required", False)
-    )
+    handshake_required = bool(getattr(report, "harness_handshake_required", False))
 
     for attempt in attempts:
         activation_event = str(getattr(attempt, "activation_event", "")).strip()

@@ -48,7 +48,9 @@ LOOSE_ID_CAPTURE = r"(?P<id>[\w.\-]+)"
 
 _PAREN_ANCHOR = re.compile(r"\\\(\s*\(\?P<id>")
 _KEYWORD_ANCHOR = re.compile(r"\(\?:for\|by\|from\)\\s\+\(\?P<id>")
-_UNANCHORED_ACTIVATE_ENTERED = re.compile(r"entered(?:\(\?:\\s\+for\)\?)?\\s\+\(\?P<id>")
+_UNANCHORED_ACTIVATE_ENTERED = re.compile(
+    r"entered(?:\(\?:\\s\+for\)\?)?\\s\+\(\?P<id>"
+)
 _UNANCHORED_ACTIVATE_EXIT = re.compile(
     r"(?:returned\|completed)(?:\(\?:\\s\+for\)\?)?\\s\+\(\?P<id>"
 )
@@ -78,9 +80,9 @@ def _classify(pattern_source: str) -> str:
         return "paren"
     if re.search(r"\(\?:for\|by\|from\)\\s\+\(\?P<id>", pattern_source):
         return "keyword"
-    if _UNANCHORED_ACTIVATE_ENTERED.search(pattern_source) or _UNANCHORED_ACTIVATE_EXIT.search(
+    if _UNANCHORED_ACTIVATE_ENTERED.search(
         pattern_source
-    ):
+    ) or _UNANCHORED_ACTIVATE_EXIT.search(pattern_source):
         return "unanchored"
     # Fallback: if none of the anchors classify it, treat as unanchored so
     # the strict-id assertion fires defensively rather than silently
@@ -103,7 +105,11 @@ def test_lifecycle_marker_patterns_unanchored_entries_use_strict_id_shape() -> N
         "deliberately, delete this gate too."
     )
 
-    classifications: dict[str, list[str]] = {"paren": [], "keyword": [], "unanchored": []}
+    classifications: dict[str, list[str]] = {
+        "paren": [],
+        "keyword": [],
+        "unanchored": [],
+    }
     for compiled, marker_type in _LIFECYCLE_MARKER_PATTERNS:
         source = compiled.pattern
         bucket = _classify(source)

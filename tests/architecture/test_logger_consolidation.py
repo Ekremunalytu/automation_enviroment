@@ -151,8 +151,7 @@ def test_factory_call_sites_use_approved_prefix_literal() -> None:
     assert not violations, (
         "get_extrace_logger(...) calls must pass a string literal starting "
         "with one of the approved area prefixes "
-        f"({APPROVED_PREFIXES}). See ADR 0010. Violations:\n"
-        + "\n".join(violations)
+        f"({APPROVED_PREFIXES}). See ADR 0010. Violations:\n" + "\n".join(violations)
     )
 
 
@@ -223,18 +222,14 @@ def test_detector_matches_factory_call_via_attribute() -> None:
 def test_string_literal_first_arg_returns_value() -> None:
     src = "get_extrace_logger('extrace.executor.host')\n"
     tree = ast.parse(src)
-    call = next(
-        node for node in ast.walk(tree) if isinstance(node, ast.Call)
-    )
+    call = next(node for node in ast.walk(tree) if isinstance(node, ast.Call))
     assert _string_literal_first_arg(call) == "extrace.executor.host"
 
 
 def test_string_literal_first_arg_returns_none_for_name_arg() -> None:
     src = "get_extrace_logger(some_var)\n"
     tree = ast.parse(src)
-    call = next(
-        node for node in ast.walk(tree) if isinstance(node, ast.Call)
-    )
+    call = next(node for node in ast.walk(tree) if isinstance(node, ast.Call))
     assert _string_literal_first_arg(call) is None
 
 
@@ -330,8 +325,7 @@ def test_log_context_filter_and_factory_both_route_through_stamp_record() -> Non
                 isinstance(parent_class, ast.ClassDef)
                 and parent_class.name == "LogContextFilter"
                 for parent_class in ast.walk(tree)
-                if isinstance(parent_class, ast.ClassDef)
-                and node in parent_class.body
+                if isinstance(parent_class, ast.ClassDef) and node in parent_class.body
             )
         ):
             filter_method = node
@@ -368,10 +362,7 @@ def test_run_docker_exec_propagates_run_id_env() -> None:
     tree = ast.parse(HOST_MODULE_PATH.read_text(encoding="utf-8"))
     run_docker_exec: ast.FunctionDef | None = None
     for node in ast.walk(tree):
-        if (
-            isinstance(node, ast.FunctionDef)
-            and node.name == "_run_docker_exec"
-        ):
+        if isinstance(node, ast.FunctionDef) and node.name == "_run_docker_exec":
             run_docker_exec = node
             break
     assert run_docker_exec is not None, (
@@ -380,18 +371,14 @@ def test_run_docker_exec_propagates_run_id_env() -> None:
     )
 
     body_text = ast.unparse(run_docker_exec)
-    assert (
-        "RUN_ID_ENV_VAR" in body_text or RUN_ID_ENV_LITERAL in body_text
-    ), (
+    assert "RUN_ID_ENV_VAR" in body_text or RUN_ID_ENV_LITERAL in body_text, (
         "_run_docker_exec must reference EXTRACE_EPOCH_RUN_ID "
         "(via RUN_ID_ENV_VAR constant or literal) so the host-side "
         "run-ID propagates across the docker exec boundary. "
         "W14-5 sub-commit 2 — closes "
         "[FOLLOWUP codex-2026-05-10-M5-epoch-docker-exec-propagation]."
     )
-    assert (
-        "env_args" in body_text or "-e" in body_text
-    ), (
+    assert "env_args" in body_text or "-e" in body_text, (
         "_run_docker_exec must inject the run-ID into the docker exec "
         "argv (typically by appending to ``env_args`` so it becomes a "
         "``-e EXTRACE_EPOCH_RUN_ID=...`` arg). W14-5 sub-commit 2."

@@ -159,9 +159,54 @@ def _run_monitoring_heartbeat(
             )
 
 
+COORDINATOR_THREAD_NAME = "analysis-sandbox-reset-coordinator"
+_COORDINATOR_POLL_INTERVAL_S = 0.1
+
+
+def _run_reset_off_thread(
+    executor_control: ExecutorControl,
+    cancel_check: Callable[[], bool] | None,
+) -> None:
+    """ADR 0012 Option A1: run step-1 setup reset on a dedicated coordinator
+    thread so the worker frame stays responsive to cancel within ~100ms
+    (W13-3 boundary cadence) rather than blocking on reset duration. The
+    cancel-path teardown reset on the heartbeat thread is unaffected and
+    keeps the W17-2 smoke pin (`"harness-monitoring-heartbeat"` +
+    `reload_window=True`) byte-identical.
+    """
+    done = threading.Event()
+    holder: dict[str, BaseException | None] = {"exc": None}
+
+    def _target() -> None:
+        try:
+            executor_control.reset_sandbox()
+        except (
+            ExecutorError,
+            RuntimeError,
+            OSError,
+            ValueError,
+            AttributeError,
+        ) as exc:
+            holder["exc"] = exc
+        finally:
+            done.set()
+
+    thread = threading.Thread(
+        target=_target,
+        daemon=True,
+        name=COORDINATOR_THREAD_NAME,
+    )
+    thread.start()
+    while not done.wait(timeout=_COORDINATOR_POLL_INTERVAL_S):
+        raise_if_cancelled(cancel_check)
+    if holder["exc"] is not None:
+        raise holder["exc"]
+
+
 def reset_sandbox(
     reporter: StepReporter,
     executor_control: ExecutorControl,
+    cancel_check: Callable[[], bool] | None = None,
 ) -> None:
     reporter.emit(
         "reset_sandbox",
@@ -169,7 +214,7 @@ def reset_sandbox(
         "Resetting executor sandbox to a clean baseline.",
     )
     try:
-        executor_control.reset_sandbox()
+        _run_reset_off_thread(executor_control, cancel_check)
     except ExecutorError:
         reporter.emit(
             "reset_sandbox",
@@ -360,6 +405,7 @@ def run_monitoring(
 
 
 __all__ = [
+    "COORDINATOR_THREAD_NAME",
     "StepReporter",
     "build_triggers",
     "install_extension",

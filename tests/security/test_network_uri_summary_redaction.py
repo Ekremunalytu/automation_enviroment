@@ -204,9 +204,7 @@ def test_network_event_summary_redacts_bearer_token_from_info_column() -> None:
     raw bearer token before the report is persisted.
     """
     bearer_info = "GET /v1/data HTTP/1.1 | Authorization: Bearer abcdefghij1234567890"
-    event = parse_tshark_event_line(
-        _tshark_line("/v1/data", info=bearer_info)
-    )
+    event = parse_tshark_event_line(_tshark_line("/v1/data", info=bearer_info))
     assert event is not None
     assert "[REDACTED:bearer]" in event.summary
     assert "abcdefghij1234567890" not in event.summary

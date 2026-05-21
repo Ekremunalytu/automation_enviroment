@@ -139,8 +139,7 @@ def test_workspace_cleanup_helpers_check_symlink_before_rmtree() -> None:
     assert not violations, (
         "Workspace cleanup helpers must check is_symlink() before "
         "calling shutil.rmtree() to prevent following adversarial "
-        "symlinks (W15-2, Codex 2026-05-10 M12). Violations:\n"
-        + "\n".join(violations)
+        "symlinks (W15-2, Codex 2026-05-10 M12). Violations:\n" + "\n".join(violations)
     )
 
 

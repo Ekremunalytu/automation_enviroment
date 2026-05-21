@@ -1,8 +1,8 @@
 # W18-W22 — Capability + Otomasyon Sağlık + Coverage Promotion Roadmap (Planning Tracker)
 
-`Last Updated: 2026-05-21 (planning state; W18 not yet entered. Source plan authored 2026-05-21 with Codex live-run validation + GPT review (3 rounds) — plan file at /Users/ekrem/.claude/plans/senden-projemdeki-capabilites-ve-mellow-valley.md. W17 closed via PR #25 week17 -> main MERGED 2026-05-18 via bff565d. W18 entry gate: this roadmap doc opens, §16 W18 plan entry stub lands in REFACTOR_OPTIMIZATION.md, POST_POC_BACKLOG.md W18-W22 Roadmap section listed with new stable IDs reserved. Sub-iter commits land on weekN branches per W11-W17 paterni; close-out merges via weekN -> main PR.)`
-`Phase: pre-W18 (planning; W18 not yet started)`
-`Branch: main (no week18 branch yet — branch opens with W18-0 doc-reconcile commit per W11-W17 paterni)`
+`Last Updated: 2026-05-21 (W18 active — phase work complete on the week18 branch (per user direction 2026-05-21; W11-W17 paterni preserved); close-out PR week18 -> main not yet opened (branch is pushed); §16 W18 plan source. W18-0..W18-4 sub-iter slate fully delivered 2026-05-21: W18-0 doc-reconcile (89d0c9b); W18-1 ADR 0012 Option A1 accepted (acf6cc9 + 73d8a5c followup); W18-2 heartbeat refactor implementation — step-1 reset off worker thread via dedicated coordinator (a9bffb1 + 78ed7cc + b5b64b6 + 306d744); W18-3 lifecycle harness extension tests — parallel reset / idempotency / reset-during-finalize (92b310d + 32d9905); W18-4 close-out hygiene (3f4f95a). W19-W22 remain in planning state. Source plan authored 2026-05-21 with Codex live-run validation + GPT review (3 rounds) — plan file at /Users/ekrem/.claude/plans/senden-projemdeki-capabilites-ve-mellow-valley.md. W17 closed via PR #25 week17 -> main MERGED 2026-05-18 via bff565d. Sub-iter commits land on weekN branches per W11-W17 paterni; close-out merges via weekN -> main PR.)`
+`Phase: W18 close-out hygiene landed (W18-0..W18-4 all closed); close-out PR week18 -> main not yet opened (branch is pushed)`
+`Branch: week18 (per user direction 2026-05-21; W11-W17 paterni preserved — sub-iter commits land on week18, close-out merges into main via week18 -> main PR)`
 `Owner: ekrem`
 
 > **Authored 2026-05-21** as a multi-iter (W18-W22) roadmap against
@@ -29,8 +29,13 @@ W17 tracker structure).
 
 ## Status (Quick Glance)
 
-- **W18 not yet entered.** Entry gate: this roadmap doc + §16 stub +
-  POST_POC_BACKLOG W18-W22 section landed.
+- **W18 active — phase work complete 2026-05-21.** Sub-iter slate
+  W18-0..W18-4 fully delivered on the `week18` branch (per user
+  direction 2026-05-21; W11-W17 paterni preserved); close-out PR
+  `week18 -> main` not yet opened (branch is pushed). W18 active
+  tracker (frozen at W18-4):
+  [`W18-heartbeat-refactor.md`](W18-heartbeat-refactor.md). W19-W22
+  remain in planning state.
 - **Driving signal (live run, 2026-05-21)**: `ms-python.python`
   @ `992ad028f3df` reports `automation_health.status=degraded`,
   `run_quality=low`, 4 reasons (`skipped_scenarios_present`,
@@ -86,6 +91,7 @@ büyük değişiklik taşımak risk; W21+'a ayrı pull.
 | W18-4 | Close-out hygiene | Pattern W17-6 | Canonical preamble refresh + §16 self-stamp + tracker section freeze + PR `week18 -> main` |
 
 **W18 acceptance**:
+
 - Static suite tamamı yeşil (test sayıları non-binding estimate)
 - Manual: `make exec-up` + `make sim-target TARGET=ms-python.python` smoke — heartbeat refactor regression yok
 - W13-11 HMAC secret consume invariant'ı bozulmaz (existing test'ler PASS)
@@ -108,6 +114,7 @@ büyük değişiklik taşımak risk; W21+'a ayrı pull.
 | W19-6 | — | Close-out hygiene | — | PR `week19 -> main` |
 
 **W19 acceptance (live-run-driven)**:
+
 - **Must-pass**: yeni `make sim-target TARGET=ms-python.python` çıktısında `unaccounted_dropout == 0`
 - **Must-pass**: supported harness event'lerde `harness_verification_unconfirmed` reason'ı düşer
 - **Expected**: `run_quality` `low` → `medium`
@@ -132,6 +139,7 @@ heuristic-covered, eksik olan official-track verification.
 | W20-5 | Close-out hygiene | — | PR `week20 -> main` |
 
 **W20 acceptance**:
+
 - Static suite yeşil (sayısal estimate non-binding)
 - Live: official-track `coverage_summary.missing_capabilities` listesinden `scm` + `settings` düşer (6 → 4)
 - Activation event spec crosswalk raporu backlog'a yazılı
@@ -153,6 +161,7 @@ heuristic-covered, eksik olan official-track verification.
 | W21-5 | Close-out hygiene | — | PR `week21 -> main` |
 
 **W21 acceptance**:
+
 - Her iki track missing `chat` dışında 0 — **must-pass**
 - Workspace_trust defer edilirse missing `chat` + `workspace_trust` dışında 0 (defer audit'lenir)
 - Container manual smoke ✅ — **stretch (yalnız W21-4 pull edildiyse)**
@@ -175,6 +184,7 @@ heuristic-covered, eksik olan official-track verification.
 | W22-7 | Close-out hygiene | — | PR `week22 -> main` |
 
 **W22 acceptance**:
+
 - **Must-pass**: chat ADR Accepted + local-only path implemented **or** deferred-with-blocker; W22-3 + W22-4/5 yeşil
 - **Expected** (chat implemented + W21 workspace_trust kapatıldıysa): her iki track missing == 0
 - **Stretch**: `automation_health.status == 'healthy'` + `run_quality == 'high'`
@@ -257,18 +267,18 @@ nedenle W19, W20, W21, W22 close-out'larında ek olarak:
 
 ### W19 başlangıcında (live-run-driven)
 
-2. **Dropout emit-site lokasyonu**: `debug_session`/`refactor_workflow`'un `unaccounted_dropout` üzerinden düştüğü path. W16-1 fix'ten kalan path mi, yeni emit-site mi? W19-1 fixture pin'lendikten sonra W19-2 çözer.
-3. **Harness verification scheme**: Per-event nonce mi, batch confirmation mi? `runtime_capture/` tasarımı W19-3'te.
+1. **Dropout emit-site lokasyonu**: `debug_session`/`refactor_workflow`'un `unaccounted_dropout` üzerinden düştüğü path. W16-1 fix'ten kalan path mi, yeni emit-site mi? W19-1 fixture pin'lendikten sonra W19-2 çözer.
+2. **Harness verification scheme**: Per-event nonce mi, batch confirmation mi? `runtime_capture/` tasarımı W19-3'te.
 
 ### W20 başlangıcında
 
-4. **Activation event spec crosswalk (W20-0)**: 5 "missing" event ismi (`onMemento`, `onTerminalQuickFixRequest`, `onChat`, `onAuthenticationProvider`, `onRendererScript`) GPT review'de resmi spec'te görünmedi. Crosswalk gerçek gap çıkarırsa W22-6'da implement.
-5. **Container hardening konumlandırması**: W21-4'te ertelenmiş. W18 erken biterse W18-4 olarak çekilebilir mi — karar W18-3 sonrası.
+1. **Activation event spec crosswalk (W20-0)**: 5 "missing" event ismi (`onMemento`, `onTerminalQuickFixRequest`, `onChat`, `onAuthenticationProvider`, `onRendererScript`) GPT review'de resmi spec'te görünmedi. Crosswalk gerçek gap çıkarırsa W22-6'da implement.
+2. **Container hardening konumlandırması**: W21-4'te ertelenmiş. W18 erken biterse W18-4 olarak çekilebilir mi — karar W18-3 sonrası.
 
 ### W22 başlangıcında
 
-6. **Chat policy (W22-1 ADR)**: Mock LM endpoint mi, harness-side stub mı? Dış servis çağırma yasağı net.
-7. **Sandbox-evasion (W22-4 ADR)**: Implementation kapasite. Şu an plan: sadece ADR + canary, kod W23+.
+1. **Chat policy (W22-1 ADR)**: Mock LM endpoint mi, harness-side stub mı? Dış servis çağırma yasağı net.
+2. **Sandbox-evasion (W22-4 ADR)**: Implementation kapasite. Şu an plan: sadece ADR + canary, kod W23+.
 
 ---
 

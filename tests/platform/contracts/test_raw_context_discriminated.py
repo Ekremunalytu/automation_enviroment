@@ -61,18 +61,20 @@ _KIND_TO_EXPECTED_EVENT_CLASS: tuple[tuple[str, str, type, dict[str, object]], .
     ("file", "file", FileRawContext, {}),
     ("process", "process", ProcessRawContext, {"pid": 1}),
     ("ui_blocker", "ui_blocker", UiBlockerRawContext, {}),
-    ("output_channel_appendline", "output_channel_appendline", OutputChannelRawContext, {}),
+    (
+        "output_channel_appendline",
+        "output_channel_appendline",
+        OutputChannelRawContext,
+        {},
+    ),
 )
 
 _ALL_KINDS: tuple[str, ...] = tuple(kind for kind, _, _ in _KIND_TO_VARIANT)
 _ALL_EVENT_CLASSES: tuple[str, ...] = tuple(
-    dict.fromkeys(
-        event_class for _, event_class, _, _ in _KIND_TO_EXPECTED_EVENT_CLASS
-    )
+    dict.fromkeys(event_class for _, event_class, _, _ in _KIND_TO_EXPECTED_EVENT_CLASS)
 )
 _EXTRAS_FOR_EVENT_CLASS: dict[str, dict[str, object]] = {
-    event_class: extra
-    for _, event_class, _, extra in _KIND_TO_EXPECTED_EVENT_CLASS
+    event_class: extra for _, event_class, _, extra in _KIND_TO_EXPECTED_EVENT_CLASS
 }
 
 
@@ -285,9 +287,7 @@ def test_evidence_event_rejects_unknown_kind() -> None:
     """
     with pytest.raises(ValidationError) as exc_info:
         EvidenceEvent.model_validate(
-            _evidence_payload(
-                {"event_class": "scenario"}, kind="unrecognized_kind"
-            )
+            _evidence_payload({"event_class": "scenario"}, kind="unrecognized_kind")
         )
     assert "is not a recognized kind" in str(exc_info.value), str(exc_info.value)
 
@@ -301,6 +301,4 @@ def test_evidence_event_rejects_missing_raw_context_when_kind_set() -> None:
     """
     with pytest.raises(ValidationError) as exc_info:
         EvidenceEvent.model_validate({"event_id": "evt-0002", "kind": "network"})
-    assert "expects raw_context.event_class" in str(exc_info.value), str(
-        exc_info.value
-    )
+    assert "expects raw_context.event_class" in str(exc_info.value), str(exc_info.value)

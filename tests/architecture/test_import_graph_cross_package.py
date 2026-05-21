@@ -48,7 +48,6 @@ def _module_label(module_path: Path) -> str:
     return module_path.relative_to(REPO_ROOT).as_posix()
 
 
-
 def test_monitor_and_stimulus_subpackages_do_not_cross_import() -> None:
     """W12-1: ``monitor/`` and ``stimulus/`` must not import from each other.
 
@@ -94,8 +93,6 @@ def test_monitor_and_stimulus_subpackages_do_not_cross_import() -> None:
         "(W12-1 topology). Share via flat parent helpers instead:\n"
         + "\n".join(deduped)
     )
-
-
 
 
 def test_executor_playwright_flat_file_count_limit() -> None:

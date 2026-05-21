@@ -79,9 +79,7 @@ def _request() -> AnalyzeRequest:
     )
 
 
-def _route_job_service_to(
-    db_session: Session, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def _route_job_service_to(db_session: Session, monkeypatch: pytest.MonkeyPatch) -> None:
     """Route every ``job_service._run_in_session(None, op)`` call to ``db_session``.
 
     Fresh ``SessionLocal()`` callsites used by ``job_service.get_job_snapshot``,
@@ -92,9 +90,7 @@ def _route_job_service_to(
     pre-positioned row state stays visible across every helper hop.
     """
 
-    def _patched(
-        db: Session | None, operation: Callable[[Session], Any]
-    ) -> Any:
+    def _patched(db: Session | None, operation: Callable[[Session], Any]) -> Any:
         return operation(db if db is not None else db_session)
 
     monkeypatch.setattr(job_service, "_run_in_session", _patched)
@@ -147,9 +143,7 @@ def test_cancel_between_reserve_and_worker_entry_finalizes_without_running(
         )
 
     monkeypatch.setattr(analysis_service, "execute_analysis_request", _trap)
-    monkeypatch.setattr(
-        analysis_service, "_open_job_session", lambda: db_session
-    )
+    monkeypatch.setattr(analysis_service, "_open_job_session", lambda: db_session)
 
     analysis_service.run_analysis_job(snapshot.job_id, _request())
 
@@ -187,9 +181,7 @@ def test_worker_observes_queued_and_runs(
         return _stub_executor_returning_success(request)
 
     monkeypatch.setattr(analysis_service, "execute_analysis_request", _stub)
-    monkeypatch.setattr(
-        analysis_service, "_open_job_session", lambda: db_session
-    )
+    monkeypatch.setattr(analysis_service, "_open_job_session", lambda: db_session)
 
     analysis_service.run_analysis_job(snapshot.job_id, _request())
 
@@ -234,14 +226,10 @@ def test_worker_observes_already_terminal_exits_silently(
     pre_finished_at = pre_state.finished_at
 
     def _trap(*args: Any, **kwargs: Any) -> AnalyzeResponse:
-        raise AssertionError(
-            "execute_analysis_request must NOT run on a terminal row."
-        )
+        raise AssertionError("execute_analysis_request must NOT run on a terminal row.")
 
     monkeypatch.setattr(analysis_service, "execute_analysis_request", _trap)
-    monkeypatch.setattr(
-        analysis_service, "_open_job_session", lambda: db_session
-    )
+    monkeypatch.setattr(analysis_service, "_open_job_session", lambda: db_session)
 
     analysis_service.run_analysis_job(snapshot.job_id, _request())
 
@@ -294,9 +282,7 @@ def test_worker_handles_vanished_row_at_worker_entry(
         )
 
     monkeypatch.setattr(analysis_service, "execute_analysis_request", _trap)
-    monkeypatch.setattr(
-        analysis_service, "_open_job_session", lambda: db_session
-    )
+    monkeypatch.setattr(analysis_service, "_open_job_session", lambda: db_session)
 
     # No row was ever created — the entry block's SELECT returns None.
     analysis_service.run_analysis_job("does-not-exist-uuid", _request())
@@ -340,9 +326,7 @@ def test_worker_entry_finalize_idempotent_when_race_lands_terminal(
         raise lifecycle.JobNotCancellableError(snapshot.job_id, "cancelled")
 
     monkeypatch.setattr(analysis_service, "execute_analysis_request", _trap)
-    monkeypatch.setattr(
-        analysis_service, "_open_job_session", lambda: db_session
-    )
+    monkeypatch.setattr(analysis_service, "_open_job_session", lambda: db_session)
     # W16-2: ``finalize_cancelled_analysis_job`` no longer lives on
     # ``analysis_service`` (the W16-2 facade refactor moved the call
     # site into the lifecycle CRUD primitive
@@ -418,9 +402,7 @@ def test_worker_terminal_short_circuit_covers_all_terminal_statuses(
         )
 
     monkeypatch.setattr(analysis_service, "execute_analysis_request", _trap)
-    monkeypatch.setattr(
-        analysis_service, "_open_job_session", lambda: db_session
-    )
+    monkeypatch.setattr(analysis_service, "_open_job_session", lambda: db_session)
 
     analysis_service.run_analysis_job(snapshot.job_id, _request())
 

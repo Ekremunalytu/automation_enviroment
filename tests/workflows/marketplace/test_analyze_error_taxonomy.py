@@ -138,9 +138,7 @@ def test_taxonomy_classes_are_covered_by_helper_cases() -> None:
 # the redaction contract; we don't re-prove that here. The remaining
 # eight cases each map cleanly to ``str(exc)`` detail.
 ENDPOINT_CASES: tuple[tuple[Exception, int], ...] = tuple(
-    (exc, status)
-    for exc, status in HELPER_CASES
-    if not isinstance(exc, ExecutorError)
+    (exc, status) for exc, status in HELPER_CASES if not isinstance(exc, ExecutorError)
 )
 
 

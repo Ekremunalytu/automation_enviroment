@@ -113,8 +113,7 @@ def test_activation_report_contract_pins_executor_fingerprint_field() -> None:
             activation_report = node
             break
     assert activation_report is not None, (
-        "ActivationReport class must exist in "
-        "packages/analysis_contracts/contracts.py."
+        "ActivationReport class must exist in packages/analysis_contracts/contracts.py."
     )
 
     found = False

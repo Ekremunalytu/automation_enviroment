@@ -146,7 +146,7 @@ follow ADR 0004: T1 canaries run in CI; T3 live samples never do.
 - Test layout: [`documents/TESTING.md`](documents/TESTING.md).
 - Executor / sandbox internals: [`documents/EXECUTOR_PLAYWRIGHT.md`](documents/EXECUTOR_PLAYWRIGHT.md).
 - Detection semantics: [`documents/DETECTION_SEMANTICS.md`](documents/DETECTION_SEMANTICS.md).
-- Current risks: [`docs/risks.md`](docs/risks.md) and [`problems.md`](problems.md).
+- Current risks: [`docs/risks.md`](docs/risks.md).
 - Recovering from a specific failure mode (stuck job, fatal UI crash,
   scan-between install failure, live capture regression):
   [`documents/runbooks/`](documents/runbooks/).

@@ -46,7 +46,6 @@ def _module_label(module_path: Path) -> str:
     return module_path.relative_to(REPO_ROOT).as_posix()
 
 
-
 def test_extension_catalog_service_stays_a_thin_facade() -> None:
     """W11-7: `workflows/extension_catalog/service.py` must remain re-export only.
 
@@ -246,8 +245,6 @@ def test_monitor_facade_does_not_eagerly_import_attribution() -> None:
     )
 
 
-
-
 def test_monitor_lazy_proxy_completeness() -> None:
     """W12-1: every name in the monitor facade's lazy tuples must resolve.
 
@@ -293,5 +290,3 @@ def test_monitor_lazy_proxy_completeness() -> None:
         "Either fix the tuple in monitor/__init__.py or restore the missing "
         "name in the source module:\n" + "\n".join(violations)
     )
-
-

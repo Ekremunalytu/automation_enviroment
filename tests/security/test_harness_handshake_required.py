@@ -70,7 +70,9 @@ def _build_harness_attempt_report() -> ActivationReport:
     )
 
 
-def test_production_handshake_required_rejects_unsigned_complete_marker_when_secret_empty() -> None:
+def test_production_handshake_required_rejects_unsigned_complete_marker_when_secret_empty() -> (
+    None
+):
     """Production fail-closed invariant.
 
     ``expected_harness_nonce=""`` simulates an eager-consume failure (the
@@ -84,8 +86,8 @@ def test_production_handshake_required_rejects_unsigned_complete_marker_when_sec
     ``harness_verification_unconfirmed``.
     """
     report = _build_harness_attempt_report()
-    report.expected_harness_nonce = ""              # eager-consume failed
-    report.harness_handshake_required = True        # production path
+    report.expected_harness_nonce = ""  # eager-consume failed
+    report.harness_handshake_required = True  # production path
 
     attempts = reconcile_event_attempts(report)
 
@@ -151,8 +153,8 @@ def test_production_handshake_required_with_valid_signature_verifies_attempt() -
 
     report = _build_harness_attempt_report()
     report.extension_host_output = f"[extrace-harness] {json.dumps(payload)}\n"
-    report.expected_harness_nonce = secret          # eager-consume succeeded
-    report.harness_handshake_required = True        # production path
+    report.expected_harness_nonce = secret  # eager-consume succeeded
+    report.harness_handshake_required = True  # production path
 
     attempts = reconcile_event_attempts(report)
 
@@ -177,8 +179,8 @@ def test_production_handshake_required_rejects_malformed_complete_marker() -> No
         '[extrace-harness] {"kind":"stimulus","phase":"complete",'
         '"attempt_id":"harness"'  # truncated — missing closing brace + comma
     )
-    report.expected_harness_nonce = ""              # eager-consume failed
-    report.harness_handshake_required = True        # production path
+    report.expected_harness_nonce = ""  # eager-consume failed
+    report.harness_handshake_required = True  # production path
 
     attempts = reconcile_event_attempts(report)
 
@@ -186,7 +188,9 @@ def test_production_handshake_required_rejects_malformed_complete_marker() -> No
     assert attempts[0].failure_reason_code == "harness_verification_unconfirmed"
 
 
-def test_setup_monitor_stamps_harness_handshake_required_on_real_report(tmp_path) -> None:
+def test_setup_monitor_stamps_harness_handshake_required_on_real_report(
+    tmp_path,
+) -> None:
     """End-to-end attestation: ``setup_monitor`` stamps the real dataclass field.
 
     The 3-fact AST gate (``tests/architecture/test_setup_monitor_handshake_required.py``)

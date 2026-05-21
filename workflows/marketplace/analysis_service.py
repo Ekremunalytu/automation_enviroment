@@ -152,7 +152,7 @@ def execute_analysis_request(
     _raise_if_cancelled(cancel_check)
     ensure_vsix_exists(request)
     _raise_if_cancelled(cancel_check)
-    _reset_sandbox(reporter, executor_control)
+    _reset_sandbox(reporter, executor_control, cancel_check=cancel_check)
     _raise_if_cancelled(cancel_check)
     # W13-11 (Codex F1 close-pass for W13-1 H6): host-side eager-consume
     # of the per-launch HMAC python secret. ``_reset_sandbox`` has just
@@ -294,9 +294,7 @@ def run_analysis_job(job_id: str, request: AnalyzeRequest) -> None:
         claim = claim_queued_analysis_job_at_worker_entry(
             db,
             job_id,
-            fallback_report_name=job_service.build_report_name(
-                request, job_id
-            ),
+            fallback_report_name=job_service.build_report_name(request, job_id),
             cancel_detail="Cancelled before worker started.",
         )
         if claim.outcome is WorkerEntryOutcome.ROW_MISSING:
@@ -308,8 +306,7 @@ def run_analysis_job(job_id: str, request: AnalyzeRequest) -> None:
         if claim.outcome is WorkerEntryOutcome.ALREADY_TERMINAL:
             terminal_status = claim.job.status if claim.job else "unknown"
             logger.info(
-                "Worker entry: job %s already terminal (%s); exiting "
-                "without running.",
+                "Worker entry: job %s already terminal (%s); exiting without running.",
                 job_id,
                 terminal_status,
             )

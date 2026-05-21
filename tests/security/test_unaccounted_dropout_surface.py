@@ -78,9 +78,7 @@ def _report_with_two_unaccounted_dropouts() -> ActivationReport:
     ]
     report.scenario_traces = [
         ScenarioTrace(name="coding_session", started_at=0.0, status="completed"),
-        ScenarioTrace(
-            name="project_exploration", started_at=0.0, status="completed"
-        ),
+        ScenarioTrace(name="project_exploration", started_at=0.0, status="completed"),
         ScenarioTrace(name="terminal_usage", started_at=0.0, status="completed"),
     ]
     report.skipped_scenarios = [

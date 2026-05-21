@@ -1,6 +1,6 @@
 # REFACTOR_OPTIMIZATION
 
-`Last Updated: 2026-05-18 (W17 active — phase work complete; W17 closed via PR #25 week17 -> main MERGED 2026-05-18 via bff565d; W16 closed via PR #23 week16 -> main MERGED 2026-05-18 via 1b6d43f. §15 W17 plan source — sub-iter slate W17-0..W17-6 complete: W17-0 doc-reconcile (4508c2e); W17-1 attribution-count-parity closeout (8c26d02 + 0a8f59e self-stamp); W17-2 lifecycle harness scaffold (ff98235 + 44f96c5 self-stamp); W17-3 + W17-4 scope-reduced doc-only (c4c0646 — DESIGN-NEEDED for thread-relocation refactor shape; deferred to W18); W17-5 hygiene single-item (394d40d postgres-version-fact-drift + 0cbe1d0 self-stamp; other 4 candidates deferred to W18+ pull-as-found); W17-6 close-out hygiene + canonical preamble refresh. Final W17 bar: tests/architecture/ 200 passed (W16 final 199, +1 from W17-0 W16 close-out fact gate); make test-security 220 passed (hardcoded Makefile target list; W17-7a bf983eb enrolled test_unaccounted_dropout_surface.py — 217 → 220 recovers the W16-7-followup audit-trail count); full suite 1899 passed, 9 skipped, 4 deselected (W16 final 1893, +6: 4 W17-1 invariant tests + 1 W17-0 README phase-pointer gate + 1 W17-2 harness smoke). §14 W16 plan source — sub-iter slate fully delivered: W16-0 doc-reconcile (0e243ca + d78aa9c); W16-1 scenario-accountant emit-site fix (HIGH prod regression W14-1 carry-over, 01f910a + a4a050e); W16-2 analysis-job worker-entry CRUD ownership (W15 audit, 9d6d110 + c8b7811); W16-3 report-finalize null-leakage half (W14 carry-over, fa430f2 + e3d4a0c; attribution-count-parity split to W17 as [FOLLOWUP attribution-count-parity]); W16-4 health-reconciliation responsibility split (W15 audit, 304b99f + 384d276); W16-5 simulation-progress-cancel scope reduction (1 rejected, 2 deferred to W17 — heartbeat-sandbox-reset-off-thread + heartbeat-refactor, e21a05c); W16-6 hygiene splits + Alembic fresh-DB fixture (d40bb01); W16-7 close-out hygiene + canonical preamble refresh (8bf3c6b) + post-PR unaccounted_dropout surface pin (78f080e). W15 closed via PR #22 week15 -> main MERGED 2026-05-18 via 6161472; W14 closed via PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d)`
+`Last Updated: 2026-05-21 (W18 active — phase work complete; W18-0..W18-4 sub-iter slate landed on the week18 branch (per user direction 2026-05-21; W11-W17 paterni preserved); close-out PR week18 -> main not yet opened (branch is pushed); §16 W18 plan source + §17-§20 W19-W22 multi-iter roadmap source. Sub-iter audit trail (all closed): W18-0 doc-reconcile (89d0c9b); W18-1 ADR documents/adrs/0012-heartbeat-thread-relocation.md Option A1 accepted (acf6cc9 + 73d8a5c followup doc-truth); W18-2 heartbeat refactor implementation — step-1 reset off worker thread via dedicated coordinator (a9bffb1 + 78ed7cc ADR self-stamp + b5b64b6 ruff-format + 306d744 full-repo lint sweep with pre-commit install); W18-3 lifecycle harness extension tests — parallel reset / idempotency / reset-during-finalize (92b310d + 32d9905 self-stamp); W18-4 close-out hygiene (3f4f95a) — 8-doc canonical preamble refresh + §16 self-stamp + tracker freeze. Driving signal: Codex live-run validation 2026-05-21 of ms-python.python @ 992ad028f3df reports automation_health.status=degraded + run_quality=low while static W17 final bar (1899/200/220) is green. W17 closed via PR #25 week17 -> main MERGED 2026-05-18 via bff565d; W16 closed via PR #23 week16 -> main MERGED 2026-05-18 via 1b6d43f. §15 W17 plan source — sub-iter slate W17-0..W17-7 complete (frozen): W17-0 doc-reconcile (4508c2e); W17-1 attribution-count-parity closeout (8c26d02 + 0a8f59e self-stamp); W17-2 lifecycle harness scaffold (ff98235 + 44f96c5 self-stamp); W17-3 + W17-4 scope-reduced doc-only (c4c0646 — DESIGN-NEEDED for thread-relocation refactor shape; deferred to W18 — closes via W18-1 ADR + W18-2 implementation); W17-5 hygiene single-item (394d40d postgres-version-fact-drift + 0cbe1d0 self-stamp; other 4 candidates deferred to W18+ pull-as-found); W17-6 close-out hygiene + canonical preamble refresh (21f7c68); W17-7 post-slate hotfix batch (bf983eb + fc88678 + 326dac8 + 51dba29); W17-7-followup post-PR doc-truth alignment (dab4679). Final W17 bar (unchanged): tests/architecture/ 200 passed (W16 final 199, +1 from W17-0 W16 close-out fact gate); make test-security 220 passed (hardcoded Makefile target list; W17-7a bf983eb enrolled test_unaccounted_dropout_surface.py — 217 → 220 recovers the W16-7-followup audit-trail count); full suite 1899 passed, 9 skipped, 4 deselected (W16 final 1893, +6: 4 W17-1 invariant tests + 1 W17-0 README phase-pointer gate + 1 W17-2 harness smoke). W18 active tracker: active-work/W18-heartbeat-refactor.md; W18-W22 multi-iter roadmap source-of-truth: active-work/W18-W22-roadmap.md. §14 W16 plan source — sub-iter slate fully delivered: W16-0 doc-reconcile (0e243ca + d78aa9c); W16-1 scenario-accountant emit-site fix (HIGH prod regression W14-1 carry-over, 01f910a + a4a050e); W16-2 analysis-job worker-entry CRUD ownership (W15 audit, 9d6d110 + c8b7811); W16-3 report-finalize null-leakage half (W14 carry-over, fa430f2 + e3d4a0c; attribution-count-parity split to W17 as [FOLLOWUP attribution-count-parity]); W16-4 health-reconciliation responsibility split (W15 audit, 304b99f + 384d276); W16-5 simulation-progress-cancel scope reduction (1 rejected, 2 deferred to W17 — heartbeat-sandbox-reset-off-thread + heartbeat-refactor, e21a05c); W16-6 hygiene splits + Alembic fresh-DB fixture (d40bb01); W16-7 close-out hygiene + canonical preamble refresh (8bf3c6b) + post-PR unaccounted_dropout surface pin (78f080e). W15 closed via PR #22 week15 -> main MERGED 2026-05-18 via 6161472; W14 closed via PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d)`
 
 W0-W14 plan document: stabilization + security + post-PoC external-review
 integration + W14 acceptance + observability continuation. **Slim canonical**
@@ -38,6 +38,24 @@ row with stable ID + landing commit; full context in the snapshot.
   Hygiene Sweep — **closed `2026-05-18`; PR #25 `week17 -> main`
   merged via `bff565d` on `2026-05-18`.** Frozen tracker:
   [`active-work/W17-carryover-and-lifecycle-harness.md`](active-work/W17-carryover-and-lifecycle-harness.md).
+- §16 → W18 Heartbeat Refactor — **phase work complete on
+  `2026-05-21`; close-out PR `week18 -> main` not yet opened
+  (branch is pushed); W18-0..W18-4 sub-iter slate fully delivered**
+  (W18-0 `89d0c9b` + W18-1 ADR 0012 Option A1 accepted `acf6cc9` +
+  `73d8a5c` followup doc-truth + W18-2 implementation `a9bffb1` +
+  `78ed7cc` ADR self-stamp + `b5b64b6` ruff-format + `306d744`
+  full-repo lint sweep + `pre-commit install` + W18-3 lifecycle
+  harness extension tests `92b310d` + `32d9905` self-stamp + W18-4
+  close-out hygiene this commit); on the `week18` branch (per user
+  direction `2026-05-21`; W11-W17 paterni preserved). Frozen
+  tracker:
+  [`active-work/W18-heartbeat-refactor.md`](active-work/W18-heartbeat-refactor.md);
+  ADR: [`adrs/0012-heartbeat-thread-relocation.md`](adrs/0012-heartbeat-thread-relocation.md).
+- §17-§20 → W19-W22 Multi-iter Capability + Otomasyon Sağlık +
+  Coverage Promotion Roadmap (planning state, authored
+  `2026-05-21`; split out at W18-4 close-out). Multi-iter roadmap
+  source-of-truth:
+  [`active-work/W18-W22-roadmap.md`](active-work/W18-W22-roadmap.md).
 
 ## §10 — W0-W7 PoC Stabilization Window (closed 2026-04-23)
 
@@ -485,8 +503,8 @@ producer side), W17-2 başlamadan kapanmalı (sequencing constraint
 risk note). W17-2 lifecycle harness scaffold üçüncü — W17-3/4 ön
 koşulu, W17'nin en ağır parçası; balon olursa scope reduction
 kararı (W16-5 paterni). W17-3 heartbeat-sandbox-reset thread
-relocation harness sonrası — concurrency-sensitive, W13-1 HMAC
-+ W13-12 fail-closed + W13-13 CAS pattern regress etmemeli
+relocation harness sonrası — concurrency-sensitive, W13-1 HMAC +
+W13-12 fail-closed + W13-13 CAS pattern regress etmemeli
 (W16-4 davranış-koruma paterni). W17-4 byte-identical clarity
 refactor W17-3 üzerine. W17-5 hygiene cleanup batch düşük-risk,
 paralel; W17-6 close-out hygiene + §15 self-stamp W14/W15/W16
@@ -559,36 +577,191 @@ W17 kapanır şu koşullar sağlandığında:
   `week17 -> main` PR ile merge edilir; W17 tracker scope kapanışında
   frozen olur (W11-W16 paterni).
 
-## §16-§20 — W18-W22 Capability + Otomasyon Sağlık + Coverage Promotion Roadmap (planning state, authored 2026-05-21)
+## §16 — W18 Heartbeat Refactor (close-out PR week18 -> main not yet opened; branch is pushed; sub-iter slate complete 2026-05-21)
 
-Beş iter'lı multi-iter roadmap planning state'inde dokümante edildi.
-Roadmap kaynak gerçek dosyası (W18-W22 sub-iter slate'i +
-acceptance gate'leri + critical files + ADR yolları + açık karar
-noktaları) burada:
+§16 opened with the W17 close-out PR #25 `week17 -> main` merge on
+`2026-05-18` via `bff565d`. **Per user direction (2026-05-21) W18
+lives on a `week18` branch (W11-W17 paterni preserved); close-out
+PR `week18 -> main` not yet opened (branch is pushed); post-merge
+audit scope-deferred per same user direction.** W18-0..W18-4
+sub-iter slate fully delivered on `2026-05-21`. Frozen tracker:
+[`active-work/W18-heartbeat-refactor.md`](active-work/W18-heartbeat-refactor.md)
+carries per-iter scope locks, Per-Item Detail evidence (sub-commits,
+ADR map, test deltas). Driving signal: Codex live-run validation
+`2026-05-21` of `ms-python.python` @ `992ad028f3df` reports
+`automation_health.status=degraded` + `run_quality=low` while
+static W17 final bar (1899/200/220) remains 🟢; W18 closes the
+W17-3/W17-4 DESIGN-NEEDED heartbeat thread relocation deferral via
+ADR 0012 Option A1 (dedicated sandbox-reset coordinator for the
+step-1 setup reset; cancel-path teardown reset stays on the
+heartbeat thread; function-extension shape; ~42 LOC across
+`workflows/marketplace/analysis_execution.py` +
+`analysis_service.py`). Final W18 bar (recorded at W18-4 close-out
+hygiene): `tests/architecture/` **201 passed** (W17 final 200 +
+W18-0 README phase-pointer arch gate W17->W18 transition);
+`make test-security` **220 passed** (unchanged from W17); full
+suite **1903 passed, 9 skipped, 8 deselected** (W17 final 1899 +
+W18-0 +1 + W18-3 +3 lifecycle harness extension tests).
+
+| Iter | Status | Theme |
+|---|---|---|
+| W18-0 | **closed `2026-05-21`** via `89d0c9b` (doc-reconcile — `week18` branch + `week18 -> main` close-out PR wording across canonical docs; W11-W17 paterni preserved; new W18 active-work tracker + README phase-pointer arch gate transition W17→W18 + new W17 close-out fact gate `test_readme_phase_pointer_mentions_w17_closeout_merge`) | `89d0c9b` |
+| W18-1 | **closed `2026-05-21`** via `acf6cc9` + `73d8a5c` followup doc-truth (ADR 0012 [`documents/adrs/0012-heartbeat-thread-relocation.md`](adrs/0012-heartbeat-thread-relocation.md) Option A1 Accepted — dedicated sandbox-reset coordinator for the step-1 setup reset; cancel-path teardown reset stays on the heartbeat thread; invariant cost trade-offs against W13-1 HMAC eager-consume / W13-3 two-phase cancel / W13-13 worker-entry CAS / W16-2 facade row lock all preserved byte-identical; W17-2 harness smoke pin preserved; NO CODE) | `acf6cc9` + `73d8a5c` |
+| W18-2 | **closed `2026-05-21`** via `a9bffb1` + `78ed7cc` ADR self-stamp + `b5b64b6` ruff-format followup + `306d744` full-repo lint sweep + `pre-commit install` (heartbeat refactor implementation — step-1 reset moved off the worker thread via a dedicated `_run_reset_off_thread` coordinator; function-extension shape `~42 LOC`; new public `COORDINATOR_THREAD_NAME = "analysis-sandbox-reset-coordinator"` constant; W17-2 harness smoke passes byte-identical: thread identity `harness-monitoring-heartbeat` + `reload_window=True` kwargs + worker-entry CAS `WorkerEntryOutcome.CLAIMED`; three AST/behavioral gates pinning the bare `_reset_sandbox(...)` Name call at `analysis_service.py:155` preserved; ADR 0012 self-stamped via `78ed7cc`) | `a9bffb1` + `78ed7cc` + `b5b64b6` + `306d744` |
+| W18-3 | **closed `2026-05-21`** via `92b310d` + `32d9905` self-stamp (3 lifecycle harness extension tests landed in `tests/workflows/marketplace/test_lifecycle_harness.py` per ADR 0012 §"Follow-On (W18-3 test surface)": `test_lifecycle_harness_parallel_reset_does_not_deadlock` (pins ADR §Consequences (Negative) bullet 2 "no deadlock" risk), `test_lifecycle_harness_reset_idempotency` (pins coordinator-thread name + setup-reset no-kwargs contract), `test_lifecycle_harness_reset_during_finalize` (pins post-finalize-barrier invariant); test-only commit; no production code change; ADR 0012 §Implementation self-stamped via `32d9905`) | `92b310d` + `32d9905` |
+| W18-4 | **closed `2026-05-21`** via this commit (close-out hygiene: 8-doc canonical preamble refresh + §16 W18 self-stamp post-final-bar + §16-§20 combined header split into §16 W18 closed + §17-§20 W19-W22 planning + W18 tracker freeze; W17-6 paterni `21f7c68` applied; close-out PR `week18 -> main` open + post-merge audit scope-deferred per user direction `2026-05-21`) | this commit |
+
+### §16.0 — Neden ayrı §16
+
+§15 W17 carry-over kapanış penceresini kapatır (attribution parity,
+lifecycle harness scaffold, heartbeat trio DESIGN-NEEDED deferral,
+hygiene single-item). §16 yeni bir tema: **W17-3/W17-4
+DESIGN-NEEDED heartbeat thread relocation deferral'ını kapatma** —
+W17-2 harness scaffold üzerine inşa edilen ADR 0012 Option A1
+implementation + W18-3 follow-on extension tests. §16 ayrı tutuluyor
+ki §15 audit trail (W17 sub-iter close date'leri ve commit'leri)
+donmuş kalsın; W18-4 close-out'ta §16 self-stamped olur
+(W14/W15/W16/W17 paterni). W18-4 close-out aynı zamanda §16-§20
+combined header'ı §16 (W18 closed) + §17-§20 (W19-W22 planning)
+olarak böler — §17-§20 multi-iter roadmap bağımsız planlama bloğu
+olarak kalır.
+
+### §16.1-§16.2 — Entry + Sub-iter Distribution
+
+W18 entry triggered by W17 close-out PR #25 merge (`bff565d`,
+`2026-05-18`) + Codex live-run validation (`2026-05-21`) reporting
+`automation_health.status=degraded`. Sub-iter sequencing rationale:
+W18-0 doc-reconcile önce — W11-W17 paterni preservation + README
+phase-pointer arch gate transition (W17→W18) + new W17 close-out
+fact gate. W18-1 ADR ikinci — kod yazılmadan önce 3 refactor shape
+arasından seçim yapılır ve invariant cost trade-offs tablosu
+dokümante edilir (W13-1 / W13-3 / W13-13 / W16-2 invariant'ları);
+NO CODE. W18-2 implementation üçüncü — seçilen shape (Option A1)
+function-extension olarak hayata geçirilir (class-tabanlı
+coordinator yerine çünkü 3 AST/behavioral gate `_reset_sandbox`
+bare Name call'unu pin'liyor); W17-2 harness smoke MUST pass
+byte-identically. W18-3 extension tests dördüncü — implementation
+landed sonra tests yazılır ki assertion'lar gerçek davranışı
+yansıtsın (W17-1 emit-site fix tests paterni). W18-4 close-out
+hygiene + §16 self-stamp + §16-§20 split + W18 tracker freeze
+beşinci — W14/W15/W16/W17 paterni.
+
+Stable ID → iter eşlemesi `POST_POC_BACKLOG.md`'de W18 Pull-Forward
+Acceptance Bar (closed) tablosunda + W19-W22 Roadmap Acceptance Bar
+(planning) tablosunda.
+
+Per user direction (`2026-05-21`) W18 lives on a `week18` branch
+(W11-W17 paterni preserved); sub-iter commits land on `week18` and
+the W18 close-out PR `week18 -> main` open + post-merge audit
+scope-deferred per same user direction.
+
+### §16.3 — Non-goals (W18)
+
+W19+'a düşen kalemler stable ID'leri `POST_POC_BACKLOG.md` /
+W19-W22 Roadmap Acceptance Bar (planning) tablosunda:
+
+- `[BUG scenario-unaccounted-dropout-regression-fixture]` +
+  `[BUG scenario-unaccounted-dropout-debug-refactor]` (W19-1 + W19-2;
+  Hat-1 executor muhasebe bug — `unaccounted_dropout` fix).
+- `[GOAL harness-verification-contract-event-level]` +
+  `[FOLLOWUP harness-verification-debug-events]` +
+  `[FOLLOWUP harness-verification-terminal-and-lm-tool]`
+  (W19-3..W19-5; Hat-2 harness verification gap — declared ≠
+  verified).
+- `[RESEARCH activation-event-spec-crosswalk]` +
+  `[GOAL taxonomy-scm-official-promotion]` +
+  `[GOAL taxonomy-settings-official-promotion]` (W20-0..W20-2;
+  Hat-3 coverage promotion easy tier).
+- `[GOAL taxonomy-testing-coverage]` + `[GOAL taxonomy-comments-coverage]`
+  + `[GOAL taxonomy-workspace-trust-coverage]` (W21-1..W21-3; mid
+  tier).
+- `[GOAL container-hardening-baseline]` (W21-4 stretch; W18 candidate
+  intake reassigned to W21 per multi-iter roadmap).
+- `[GOAL taxonomy-chat-policy-adr]` + `[GOAL taxonomy-chat-coverage]`
+  + `[FOLLOWUP attribution-count-parity-process-events]` +
+  `[FOLLOWUP attribution-count-parity-output-channel]` +
+  `[GOAL sandbox-evasion-defense-mvp]` +
+  `[GOAL sandbox-evasion-canary-fixture]` +
+  `[GOAL activation-event-spec-gap-followup]` (W22-1..W22-6; hard
+  tier + attribution depth + sandbox evasion ADR).
+- W17'de kapanan tüm kalemler — `POST_POC_BACKLOG.md` W17
+  Pull-Forward Acceptance Bar'da kapanış audit trail'i korunmuştur,
+  yeniden pull değil.
+
+### §16.4 — Exit Criteria (W18-End)
+
+W18 kapanır şu koşullar sağlandığında (TÜMÜ SAĞLANDI `2026-05-21`
+ya da deferral rasyoneli ile W19+'a taşındı):
+
+- [x] W18-0..W18-4 kapanır ya da deferral rasyoneli ile W19'a taşınır.
+- [x] W18-1 ADR `documents/adrs/0012-heartbeat-thread-relocation.md`
+  Accepted (Option A1 — 3 refactor shape arasından dedicated
+  sandbox-reset coordinator seçildi; invariant-cost trade-offs
+  against W13-1 / W13-3 / W13-13 / W16-2 dokümante edildi).
+- [x] W18-2 heartbeat refactor lands: W17-2 harness smoke
+  (`test_lifecycle_harness_smoke_cancel_triggers_heartbeat_reset`)
+  PASS — thread identity (`harness-monitoring-heartbeat`) +
+  `reload_window=True` kwargs unchanged. W13-11 HMAC eager-consume
+  invariant regression yok.
+- [x] W18-3 üç yeni harness extension testi PASS: parallel reset +
+  reset idempotency + reset-during-finalize.
+- [x] `REFACTOR_STATUS.md`, `POST_POC_BACKLOG.md`,
+  `active-work/README.md`, ve ilgili lane docs aynı active/closed
+  state'i gösterir (W18-4 close-out hygiene this commit).
+- [x] W18 final bar: `make test-security` **220 passed**;
+  `tests/architecture/` **201 passed** (W17 final 200 + W18-0
+  README arch gate transition); full suite **1903 passed, 9
+  skipped, 8 deselected** (W17 final 1899 + W18-0 +1 + W18-3 +3).
+- [x] Live-run regression check (`ms-python.python` end-to-end
+  analyze API + 2× UI scan): `automation_health.status=degraded`
+  byte-identical with W17 baseline; **0 NEW reasons** (`degraded`
+  kalır — W19 düşürecek).
+- [x] Close-out hygiene pass: Ruff lint, UI contract sync, markdown
+  formatting, doc truth-state alignment (`pre-commit run --all-files`
+  15/15 hook PASS at landing).
+- [x] Per user direction (`2026-05-21`): W18 `week18` branch'inde
+  çalışır; sub-iter commits `week18` branch'inde land eder; W18
+  tracker scope kapanışında frozen olur (W11-W17 paterni).
+- [ ] Close-out PR `week18 -> main` open (deferred per user
+  direction; opens when user signals).
+- [ ] Post-merge audit (deferred per user direction; lands as
+  separate commit after PR merges — W17-7-followup `dab4679`
+  paterni).
+
+## §17-§20 — W19-W22 Capability + Otomasyon Sağlık + Coverage Promotion Roadmap (planning)
+
+Dört iter'lı multi-iter roadmap planning state'inde dokümante edildi
+(W18-4 close-out'ta §16'dan ayrıldı). Roadmap kaynak gerçek dosyası
+(W19-W22 sub-iter slate'i + acceptance gate'leri + critical files +
+ADR yolları + açık karar noktaları) burada:
 
 [`active-work/W18-W22-roadmap.md`](active-work/W18-W22-roadmap.md)
 
-### §16.0 — Neden ayrı §16-§20 (multi-iter window)
+### §17-§20.0 — Neden ayrı §17-§20 (multi-iter window)
 
-§15 W17 carry-over kapanış penceresini kapatır (attribution
-parity, lifecycle harness scaffold, heartbeat trio DESIGN-NEEDED
-deferral, hygiene single-item). §16-§20 yeni bir tema: **Codex
-live-run validation (`ms-python.python` 2026-05-21) raporladığı
-`automation_health.status=degraded` + `run_quality=low` durumunu
-kapatma** — static suite W17 final'inde yeşil (1899/200/220), ama
-canlı run health'i düşük. GPT review (3 tur) plan dosyasını üç
-hat'a ayırdı (executor muhasebe bug / harness verification gap /
-coverage matrix promotion) ve W18-W22 sıralamasını üretti:
+§16 W18 heartbeat refactor kapanış penceresini kapatır (ADR 0012
+Option A1 + implementation + harness extension tests). §17-§20
+yeni bir tema: **Codex live-run validation (`ms-python.python`
+`2026-05-21`) raporladığı `automation_health.status=degraded` +
+`run_quality=low` durumunu W18'in çözmediği üç hat ile kapatma** —
+W18 sadece W17-3/W17-4 deferral'ını çözer; live-run health
+düşüklüğünün üç bağımsız nedeni (executor muhasebe bug / harness
+verification gap / coverage matrix promotion) W19-W22'a düşer. GPT
+review (3 tur) plan dosyasını üç hat'a ayırdı ve W19-W22
+sıralamasını üretti:
 
-- **§16 — W18**: Heartbeat refactor (W17-3/W17-4 DESIGN-NEEDED kapanışı + ADR `documents/adrs/0012-heartbeat-thread-relocation.md`)
 - **§17 — W19**: Live run kök neden — dropout fix (Hat-1) + harness verification (Hat-2)
 - **§18 — W20**: Coverage promotion round 1 (easy wins: `scm` + `settings` official promotion)
 - **§19 — W21**: Coverage promotion round 2 (mid tier: `testing`, `comments`, `workspace_trust`); container hardening **stretch**
 - **§20 — W22**: Coverage promotion round 3 (hard tier: `chat` policy ADR + implementation) + attribution depth + sandbox-evasion ADR draft
 
-§16-§20 ayrı tutuluyor ki §15 audit trail (W17 sub-iter close date'leri ve commit'leri) donmuş kalsın; her iter kapandığında §N self-stamped olur (W14/W15/W16/W17 paterni).
+§17-§20 birlikte tutuluyor (multi-iter planning window) çünkü
+W19-W22 üç bağımsız hat'ın iterasyonel ilerleyişi; her iter
+kapandığında §N self-stamped olur (W14/W15/W16/W17/W18 paterni);
+§17 / §18 / §19 / §20 iter kapanışlarında ayrı ayrı self-stamped
+olur.
 
-### §16.1-§20.1 — Driving Signal (live run, 2026-05-21)
+### §17-§20.1 — Driving Signal (live run, 2026-05-21)
 
 `ms-python.python` @ `992ad028f3df`
 ([output/activation_report_ms-python.python-2026.5.2026052001-992ad028f3df.json](../output/activation_report_ms-python.python-2026.5.2026052001-992ad028f3df.json),
@@ -605,7 +778,13 @@ coverage matrix promotion) ve W18-W22 sıralamasını üretti:
 Status enum kontratı: `{healthy, degraded, inconclusive}`
 ([summary.py:260,378](../executor/flows/playwright/health/summary.py)).
 
-### §16.2-§20.2 — Üç katmanlı capability modeli
+W18 analyze API + UI scan smoke (close-out gate, recorded at
+W18-2/W18-3 landings): `automation_health.status=degraded`
+byte-identical with W17 baseline + **0 NEW reasons** ✓
+(W18 doesn't drop the live-run state; that's W19'un Hat-1 + Hat-2
+işi).
+
+### §17-§20.2 — Üç katmanlı capability modeli
 
 Plan üç ayrı "capability" katmanını tespit etti — sırasıyla aksiyon
 gerektiriyor (A ve B) ya da spec uyumlu (C):
@@ -622,31 +801,31 @@ gerektiriyor (A ve B) ya da spec uyumlu (C):
   ([catalog.py:12](../appcore/contracts/schema_defs/catalog.py))
   `untrusted_*` + `virtual_*` — VSCode-spec uyumlu, **gap yok**.
 
-### §16.3-§20.3 — Driving Plan dosyası
+### §17-§20.3 — Driving Plan dosyası
 
 Tüm sub-iter slate'i, acceptance kriterleri (must-pass / expected /
-stretch), live-run gate'leri, critical file paths, ADR yolları,
-ve W18 başlangıcında cevaplanacak açık sorular tracker dosyasında:
+stretch), live-run gate'leri, critical file paths, ADR yolları, ve
+W19 başlangıcında cevaplanacak açık sorular tracker dosyasında:
 
 [`active-work/W18-W22-roadmap.md`](active-work/W18-W22-roadmap.md)
 
 Plan dosyası 3 review turundan geçti:
+
 1. Initial Codex live-run validation (live rapor doğrulaması + capability taxonomy gap teyidi)
 2. GPT round-1 (üç hat ayrımı, W19-1 xfail/RED pattern, harness verification ayrı boyut)
 3. GPT round-2/3 (W20'nin 13 sub-iter'a patlaması, W20→W22 ayırma, `healthy/degraded/inconclusive` enum doğrulaması, ADR yolu `documents/adrs/` doğrulaması, `OFFICIAL_EVENT_REGISTRY` 29 sayısı, `onWebviewPanel` restore semantics, manifest source-of-truth, `confirmation_source` schema impact, `workspace_trust` defer fallback, chat-conditional W22 acceptance)
 
-W18-0 doc-reconcile sub-iter'i açıldığında bu §16 plan entry'si
-her iter için ayrı self-stamped section'lar ekler (W14/W15/W16/W17
+W19-0 doc-reconcile sub-iter'i açıldığında bu §17-§20 plan entry'si
+her iter için ayrı self-stamped section'lar ekler (W14/W15/W16/W17/W18
 paterni).
 
-### §16.4-§20.4 — Exit Criteria summary
+### §17-§20.4 — Exit Criteria summary
 
 Her iter için tam exit criteria
 [`active-work/W18-W22-roadmap.md`](active-work/W18-W22-roadmap.md)
 "Sub-Iter Scope" bölümlerinde + "Live-Run Acceptance Gate" bölümünde.
 Özet:
 
-- **W18 exit**: Heartbeat refactor regression-free, W13-11 HMAC invariant pas, `make sim-target` smoke düzgün.
 - **W19 exit (live-run-driven)**: `unaccounted_dropout == 0` (must-pass), supported harness event'lerde `harness_verification_unconfirmed` reason'ı düşer (must-pass), `run_quality` low → medium (expected).
 - **W20 exit**: official-track missing'ten `scm` + `settings` düşer (6 → 4); coverage matrix contract tests yeşil; activation event spec crosswalk raporu yazılı.
 - **W21 exit**: her iki track missing `chat` dışında 0 (`workspace_trust` defer edilirse + `workspace_trust`).

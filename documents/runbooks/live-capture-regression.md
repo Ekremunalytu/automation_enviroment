@@ -16,9 +16,9 @@ Offline detection tests stay green but live-capture tests break:
   `event_type = "tls_client_hello"` (or a regression re-introduced the old
   vocabulary where only `tls_sni` existed).
 
-This is the **most fragile detection path** in the project (see
-[problems.md](../../problems.md) High Priority #2). A regression here is
-silent under `make test-security` because that lane uses mock fixtures —
+This is the **most fragile detection path** in the project. A regression
+here is silent under `make test-security` because that lane uses mock
+fixtures —
 only `test-security-live` exercises the tshark-to-rule wiring.
 
 ## Immediate Triage

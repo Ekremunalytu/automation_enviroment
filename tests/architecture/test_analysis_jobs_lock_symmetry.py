@@ -28,12 +28,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 LIFECYCLE_MODULE = (
-    REPO_ROOT
-    / "appcore"
-    / "storage"
-    / "crud_ops"
-    / "analysis_jobs"
-    / "lifecycle.py"
+    REPO_ROOT / "appcore" / "storage" / "crud_ops" / "analysis_jobs" / "lifecycle.py"
 )
 TERMINAL_STATUSES_NAME = "_TERMINAL_JOB_STATUSES"
 LOCK_METHOD = "with_for_update"

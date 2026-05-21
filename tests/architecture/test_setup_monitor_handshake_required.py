@@ -99,7 +99,9 @@ def test_setup_monitor_stamps_harness_handshake_required_true() -> None:
     )
 
 
-def test_reconcile_event_attempts_reads_harness_handshake_required_from_report() -> None:
+def test_reconcile_event_attempts_reads_harness_handshake_required_from_report() -> (
+    None
+):
     """``reconcile_event_attempts`` must read the flag via ``getattr(report, ...)``.
 
     A direct attribute access (``report.harness_handshake_required``)
@@ -127,7 +129,7 @@ def test_reconcile_event_attempts_reads_harness_handshake_required_from_report()
     assert reads_via_getattr, (
         f"{RECONCILIATION_PATH.relative_to(REPO_ROOT)}: "
         "reconcile_event_attempts must read ``harness_handshake_required`` "
-        "from the report via ``getattr(report, \"harness_handshake_required\", "
+        'from the report via ``getattr(report, "harness_handshake_required", '
         "False)``. Without this read the fail-closed branch in "
         "``_attempt_has_harness_completion_trace`` is never reached and "
         "Codex F2 is silently re-opened."

@@ -1,6 +1,6 @@
 # Refactor Status
 
-`Last Updated: 2026-05-21 (W18-W22 multi-iter roadmap landed in planning state — driven by Codex live-run validation 2026-05-21 of ms-python.python @ 992ad028f3df reporting automation_health.status=degraded + run_quality=low while static W17 final bar is green. Roadmap source-of-truth: documents/active-work/W18-W22-roadmap.md. §16-§20 plan entry stub in REFACTOR_OPTIMIZATION.md; POST_POC_BACKLOG.md W18-W22 Acceptance Bar with planned stable IDs added. Plan went through 3 review rounds (Codex live-run + GPT × 2). W18 not yet entered. W17 closed via PR #25 week17 -> main MERGED 2026-05-18 via bff565d. Final W17 bar (unchanged): tests/architecture/ 200 passed; make test-security 220 passed; full suite 1899 passed, 9 skipped, 4 deselected. Full W16/W17 sub-iter audit trail in respective frozen trackers; full preamble history pre-2026-05-21 in archive snapshots.)`
+`Last Updated: 2026-05-21 (W18 active — phase work complete; W18-0..W18-4 sub-iter slate landed on the week18 branch (per user direction 2026-05-21; W11-W17 paterni preserved); close-out PR week18 -> main not yet opened (branch is pushed); §16 W18 plan source + §17-§20 W19-W22 multi-iter roadmap (split at W18-4 close-out). W18 sub-iter audit trail: W18-0 doc-reconcile (89d0c9b); W18-1 ADR 0012 Option A1 (acf6cc9 + 73d8a5c followup); W18-2 heartbeat refactor implementation — step-1 reset off worker thread via dedicated coordinator (a9bffb1 + 78ed7cc ADR self-stamp + b5b64b6 ruff-format + 306d744 full-repo lint sweep with pre-commit install); W18-3 lifecycle harness extension tests — parallel reset / idempotency / reset-during-finalize (92b310d + 32d9905 self-stamp); W18-4 close-out hygiene this commit — 8-doc canonical preamble refresh + §16 W18 self-stamp + W18 tracker freeze. Final W18 bar: tests/architecture/ 201 passed (W17 final 200 + W18-0 README phase-pointer arch gate W17->W18 transition); make test-security 220 passed (unchanged from W17); full suite 1903 passed, 9 skipped, 8 deselected (W17 final 1899 + W18-0 +1 + W18-3 +3 lifecycle harness extension tests). Driving signal: Codex live-run validation 2026-05-21 of ms-python.python @ 992ad028f3df reporting automation_health.status=degraded + run_quality=low while static W17 final bar is green; W18 closes W17-3/W17-4 DESIGN-NEEDED heartbeat thread relocation deferral via ADR 0012 Option A1. Roadmap source-of-truth: documents/active-work/W18-W22-roadmap.md; W18 frozen tracker: documents/active-work/W18-heartbeat-refactor.md. §16 W18 plan + §17-§20 W19-W22 plan in REFACTOR_OPTIMIZATION.md; POST_POC_BACKLOG.md W18 Pull-Forward Acceptance Bar (closed) + W19-W22 Roadmap Acceptance Bar (planning). Plan went through 3 review rounds (Codex live-run + GPT × 2). W17 closed via PR #25 week17 -> main MERGED 2026-05-18 via bff565d; W16 closed via PR #23 week16 -> main MERGED 2026-05-18 via 1b6d43f; W15 closed via PR #22 week15 -> main MERGED 2026-05-18 via 6161472; W14 closed via PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d; W13 close-out PR #20 week13 -> main merged 2026-05-13 via 772deb3. Final W17 bar (unchanged): tests/architecture/ 200 passed; make test-security 220 passed; full suite 1899 passed, 9 skipped, 4 deselected. Full W16/W17/W18 sub-iter audit trail in respective frozen trackers; full preamble history pre-2026-05-21 in archive snapshots.)`
 
 Active status board for current closure state. **Slim canonical** — verbose
 phase evidence is frozen under dated snapshots:
@@ -175,8 +175,42 @@ phase evidence is frozen under dated snapshots:
   in the hardcoded file list — 217 → 220 recovers the
   W16-7-followup audit-trail count); full suite **1899 passed,
   9 skipped, 4 deselected** (W16 final 1893, +6).
-- **W18-W22 multi-iter roadmap landed in planning state
-  `2026-05-21`** (W18 not yet entered). Driving signal: Codex
+- **W18 closed for phase work `2026-05-21` — Heartbeat Refactor on
+  the `week18` branch** (per user direction 2026-05-21; W11-W17
+  paterni preserved); close-out PR `week18 -> main` not yet opened
+  (branch is pushed). §16 W18 plan source; frozen tracker:
+  [`active-work/W18-heartbeat-refactor.md`](active-work/W18-heartbeat-refactor.md).
+  W18-0..W18-4 sub-iter slate fully delivered: W18-0 doc-reconcile
+  (`89d0c9b`) + W18-1 ADR
+  `documents/adrs/0012-heartbeat-thread-relocation.md` Option A1
+  Accepted (`acf6cc9` + `73d8a5c` followup doc-truth — dedicated
+  sandbox-reset coordinator with cancel-path teardown reset staying
+  on the heartbeat thread; invariant cost trade-offs against W13-1
+  HMAC / W13-3 two-phase cancel / W13-13 CAS / W16-2 facade lock
+  all preserved byte-identical) + W18-2 heartbeat refactor
+  implementation (`a9bffb1` + `78ed7cc` ADR self-stamp + `b5b64b6`
+  ruff-format followup + `306d744` full-repo lint sweep +
+  `pre-commit install`) — step-1 reset moved off the worker thread
+  via a dedicated `_run_reset_off_thread` coordinator (function-
+  extension shape, ~42 LOC; W17-2 harness smoke passes byte-
+  identical: thread identity `harness-monitoring-heartbeat` +
+  `reload_window=True` kwargs + worker-entry CAS
+  `WorkerEntryOutcome.CLAIMED`) + W18-3 lifecycle harness extension
+  tests (`92b310d` + `32d9905` self-stamp) — parallel reset / reset
+  idempotency / reset-during-finalize tests landed per ADR 0012
+  §Follow-On (W17-2 module docstring L27-35 forward contract) +
+  W18-4 close-out hygiene this commit — 8-doc canonical preamble
+  refresh + §16 W18 self-stamp + W18 tracker freeze. Final W18 bar:
+  `tests/architecture/` **201 passed** (W17 final 200 + W18-0 README
+  phase-pointer arch gate W17->W18 transition); `make test-security`
+  **220 passed** (unchanged from W17); full suite **1903 passed,
+  9 skipped, 8 deselected** (W17 final 1899 + W18-0 +1 + W18-3 +3
+  lifecycle harness extension tests). W18 closed the W17-3/W17-4
+  `DESIGN-NEEDED` heartbeat thread relocation deferral via ADR 0012
+  Option A1. Close-out PR `week18 -> main` open + post-merge audit
+  are scope-deferred per user direction 2026-05-21.
+- **W19-W22 multi-iter roadmap planning state** (authored
+  `2026-05-21`; W18 entered 2026-05-21). Driving signal: Codex
   live-run validation of `ms-python.python` @ `992ad028f3df`
   reports `automation_health.status=degraded` + `run_quality=low`
   while static W17 final bar (1899/200/220) remains 🟢. Plan
@@ -186,10 +220,8 @@ phase evidence is frozen under dated snapshots:
   capabilities missing in official track) and three capability
   layers (A: 29-entry activation event registry, B: 18-bucket
   taxonomy, C: VSCode manifest capabilities — spec-compliant).
-  Five-iter slate: **W18** heartbeat refactor (W17-3
-  DESIGN-NEEDED close + ADR
-  `documents/adrs/0012-heartbeat-thread-relocation.md`); **W19**
-  live-run kök neden — dropout fix + harness verification
+  Five-iter slate: **W18** heartbeat refactor (active 2026-05-21);
+  **W19** live-run kök neden — dropout fix + harness verification
   contract event-level; **W20** coverage promotion round 1
   (easy: `scm` + `settings` official promotion + spec
   crosswalk); **W21** coverage promotion round 2 (mid:
@@ -198,7 +230,7 @@ phase evidence is frozen under dated snapshots:
   policy ADR + implementation) + attribution depth + sandbox-
   evasion ADR draft. Roadmap source-of-truth:
   [`active-work/W18-W22-roadmap.md`](active-work/W18-W22-roadmap.md).
-  §16-§20 plan entry stub at
+  §16-§20 plan at
   [`REFACTOR_OPTIMIZATION.md`](REFACTOR_OPTIMIZATION.md);
   reserved stable IDs at `POST_POC_BACKLOG.md` "W18-W22
   Roadmap Acceptance Bar". Plan went through 3 review rounds

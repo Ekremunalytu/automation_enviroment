@@ -24,15 +24,28 @@ controllable ``cancel_check``, flips the cancel flag, and asserts:
 * The job row transitioned ``queued → running`` under the worker-entry
   CAS (``WorkerEntryOutcome.CLAIMED``).
 
-W17-3 extends the harness with concurrency tests:
+W17-3 was scope-reduced (`c4c0646`, doc-only) on `2026-05-18`; the
+extension work carried forward to W18-3 per ADR 0012
+(``documents/adrs/0012-heartbeat-thread-relocation.md``, Option A1
+"dedicated sandbox-reset coordinator thread for step-1 reset").
+**W18-3 will extend this harness** with the three concurrency tests
+enumerated below; ADR 0012 §"Follow-On (W18-3 test surface)" pins
+the exact test names and assertion shapes so W18-2 implementation
+respects the surface this docstring describes:
 
-* Parallel reset: both worker thread + heartbeat issue ``reset_sandbox``
-  concurrently — verify lock ordering does not deadlock.
-* Reset idempotency: two back-to-back resets from different threads do
-  not corrupt the executor surface.
-* Reset-during-finalize: heartbeat fires cancel while worker is in
-  ``finalize_report``; the DB row must end in ``cancelled`` (not
-  ``completed``) and the executor reset must not run twice.
+* Parallel reset (``test_lifecycle_harness_parallel_reset_does_not_deadlock``):
+  both the W18-2 sandbox-reset coordinator thread + the existing
+  heartbeat thread issue ``reset_sandbox`` concurrently — verify
+  lock ordering does not deadlock, total reset count = 2 (not
+  collapsed), thread identities match production names.
+* Reset idempotency (``test_lifecycle_harness_reset_idempotency``):
+  two back-to-back resets from different threads do not corrupt the
+  executor surface (HMAC secret file state, sandbox PID set,
+  ``executor:executor`` ownership unchanged on re-create).
+* Reset-during-finalize (``test_lifecycle_harness_reset_during_finalize``):
+  heartbeat fires cancel while worker is in ``finalize_report``;
+  the DB row must end in ``cancelled`` (not ``completed``) and the
+  executor reset must not run twice after the finalize-start barrier.
 
 Scope cuts (intentional W17-2 minimal scope):
 
@@ -70,7 +83,11 @@ from appcore.storage.crud_ops.analysis_jobs.lifecycle import (
     WorkerEntryOutcome,
 )
 from appcore.storage.models import AnalysisJob
-from workflows.marketplace.analysis_execution import _run_monitoring_heartbeat
+from workflows.marketplace.analysis_execution import (
+    COORDINATOR_THREAD_NAME,
+    _run_monitoring_heartbeat,
+    _run_reset_off_thread,
+)
 
 pytestmark = pytest.mark.requires_db
 
@@ -290,8 +307,7 @@ def test_lifecycle_harness_smoke_cancel_triggers_heartbeat_reset(
 
     calls = lifecycle_harness.reset_calls
     assert len(calls) == 1, (
-        f"Expected exactly one cancel-driven sandbox reset; got {len(calls)}: "
-        f"{calls!r}"
+        f"Expected exactly one cancel-driven sandbox reset; got {len(calls)}: {calls!r}"
     )
     assert calls[0]["thread"] == LifecycleHarness.HEARTBEAT_THREAD_NAME, (
         "Cancel-driven reset_sandbox must fire from the monitoring heartbeat "
@@ -304,4 +320,175 @@ def test_lifecycle_harness_smoke_cancel_triggers_heartbeat_reset(
         "matches production wiring in analysis_execution.py "
         "(_heartbeat_on_cancel closure). Got kwargs="
         f"{calls[0]['kwargs']!r}."
+    )
+
+
+def test_lifecycle_harness_parallel_reset_does_not_deadlock(
+    lifecycle_harness: LifecycleHarness,
+) -> None:
+    """W18-3: coordinator + heartbeat concurrent ``reset_sandbox`` must complete.
+
+    ADR 0012 Option A1 introduces a second `reset_sandbox` caller (the
+    sandbox-reset coordinator thread at step 1) alongside the existing
+    heartbeat cancel-path caller. This test fires both concurrently and
+    asserts:
+
+    - Both complete within a generous timeout (no deadlock).
+    - The total reset call count is exactly 2 (no implicit collapsing).
+    - The two calls carry distinct thread identities — one from the
+      coordinator thread name, one from the heartbeat (harness mirror).
+    - Per-thread kwargs match production wiring: coordinator passes no
+      kwargs (setup reset), heartbeat passes ``reload_window=True``
+      (teardown reset).
+
+    The "no deadlock" property is the headline ADR 0012 §Consequences
+    (Negative) bullet 2 risk; this is the test that pins it.
+    """
+    lifecycle_harness.persist_queued_job()
+    claim = lifecycle_harness.claim_worker_entry()
+    assert claim.outcome is WorkerEntryOutcome.CLAIMED
+
+    lifecycle_harness.start_heartbeat(interval_s=0.05)
+
+    coord_thread = threading.Thread(
+        target=_run_reset_off_thread,
+        args=(lifecycle_harness.executor_control, None),
+        name="harness-parallel-reset-driver",
+    )
+    coord_thread.start()
+    lifecycle_harness.signal_cancel()
+
+    coord_thread.join(timeout=5.0)
+    assert not coord_thread.is_alive(), (
+        "Coordinator driver did not complete within 5s — heartbeat + "
+        "coordinator deadlock suspected; see ADR 0012 §Consequences "
+        "(Negative) bullet 2."
+    )
+
+    lifecycle_harness.wait_for_reset_calls(count=2, timeout=5.0)
+    lifecycle_harness.stop_heartbeat()
+
+    calls = lifecycle_harness.reset_calls
+    assert len(calls) == 2, (
+        f"Expected exactly 2 concurrent reset calls; got {len(calls)}: {calls!r}"
+    )
+
+    thread_names = sorted({c["thread"] for c in calls})
+    assert COORDINATOR_THREAD_NAME in thread_names, (
+        f"Coordinator thread name {COORDINATOR_THREAD_NAME!r} not present in "
+        f"recorded calls; got {thread_names}."
+    )
+    assert LifecycleHarness.HEARTBEAT_THREAD_NAME in thread_names, (
+        f"Heartbeat thread name {LifecycleHarness.HEARTBEAT_THREAD_NAME!r} "
+        f"not present in recorded calls; got {thread_names}."
+    )
+
+    by_thread = {c["thread"]: c for c in calls}
+    assert by_thread[COORDINATOR_THREAD_NAME]["kwargs"] == {}, (
+        "Coordinator-driven setup reset must call reset_sandbox() with no "
+        f"kwargs (ADR 0012 §Sub-decisions); got "
+        f"{by_thread[COORDINATOR_THREAD_NAME]['kwargs']!r}."
+    )
+    assert by_thread[LifecycleHarness.HEARTBEAT_THREAD_NAME]["kwargs"] == {
+        "reload_window": True
+    }, (
+        "Heartbeat cancel-path reset must call reset_sandbox(reload_window=True) "
+        f"byte-identical with W17-2 smoke; got "
+        f"{by_thread[LifecycleHarness.HEARTBEAT_THREAD_NAME]['kwargs']!r}."
+    )
+
+
+def test_lifecycle_harness_reset_idempotency(
+    lifecycle_harness: LifecycleHarness,
+) -> None:
+    """W18-3: back-to-back coordinator-driven resets must both reach the executor.
+
+    ADR 0012 §Consequences (Negative) bullet 2 raised the question of
+    whether ``executor_control.reset_sandbox()`` is callable twice
+    in succession without losing one of the calls or corrupting the
+    executor surface. This test fires two back-to-back coordinator
+    resets and asserts:
+
+    - Both calls register on the executor surface (count == 2; no
+      collapsing).
+    - Both calls originate from the coordinator thread name (each
+      invocation spawns a fresh thread with the production name).
+    - Each call is a setup-reset (no kwargs), matching the coordinator
+      contract.
+    - The MagicMock ``call_count`` matches the recorded list length —
+      pins the "caller surface registers exactly what we observed"
+      idempotency property.
+    """
+    lifecycle_harness.persist_queued_job()
+    claim = lifecycle_harness.claim_worker_entry()
+    assert claim.outcome is WorkerEntryOutcome.CLAIMED
+
+    _run_reset_off_thread(lifecycle_harness.executor_control, None)
+    _run_reset_off_thread(lifecycle_harness.executor_control, None)
+
+    calls = lifecycle_harness.reset_calls
+    assert len(calls) == 2, (
+        f"Expected exactly 2 reset calls (one per invocation); "
+        f"got {len(calls)}: {calls!r}"
+    )
+    for i, call in enumerate(calls):
+        assert call["thread"] == COORDINATOR_THREAD_NAME, (
+            f"Call {i} must originate from the coordinator thread "
+            f"{COORDINATOR_THREAD_NAME!r}; got {call['thread']!r}."
+        )
+        assert call["kwargs"] == {}, (
+            f"Coordinator setup-reset must pass no kwargs; call {i} got "
+            f"{call['kwargs']!r}."
+        )
+
+    assert lifecycle_harness.executor_control.reset_sandbox.call_count == 2, (
+        "Executor surface call count must equal the recorded list length — "
+        "no implicit collapsing or duplication."
+    )
+
+
+def test_lifecycle_harness_reset_during_finalize(
+    lifecycle_harness: LifecycleHarness,
+) -> None:
+    """W18-3: post-finalize-barrier cancel must not trigger any reset.
+
+    Production ordering at ``analysis_execution.run_monitoring``: the
+    heartbeat thread is stopped via ``heartbeat_stop.set()`` and joined
+    in the ``finally`` block BEFORE the surrounding ``finalize_report``
+    work runs. This test simulates that barrier:
+
+    - Heartbeat starts.
+    - Heartbeat is stopped (matches the production
+      ``heartbeat_stop.set() + join()`` barrier).
+    - A cancel signal fires AFTER the barrier (a cancel API call that
+      arrives during finalize).
+
+    Assertion: no ``reset_sandbox`` call is observed post-barrier
+    (count == 0). The dead heartbeat thread cannot poll the cancel
+    flag, so no teardown reset fires. The DB row stays in its current
+    state because no finalize-transition wiring was driven here.
+    """
+    lifecycle_harness.persist_queued_job()
+    claim = lifecycle_harness.claim_worker_entry()
+    assert claim.outcome is WorkerEntryOutcome.CLAIMED
+
+    lifecycle_harness.start_heartbeat(interval_s=0.05)
+    lifecycle_harness.stop_heartbeat()
+    lifecycle_harness.signal_cancel()
+
+    # Give any phantom thread a chance to misbehave: heartbeat poll
+    # interval is 0.05s, so an order-of-magnitude wait surfaces any
+    # post-join activity.
+    time.sleep(0.5)
+
+    calls = lifecycle_harness.reset_calls
+    assert len(calls) == 0, (
+        "Post-finalize-barrier cancel must not trigger any reset_sandbox "
+        f"call (heartbeat thread is dead); got {len(calls)} call(s): "
+        f"{calls!r}."
+    )
+    assert lifecycle_harness.read_job_status() == "running", (
+        "DB row must remain 'running' since no cancel-finalize transition "
+        "was driven here; the barrier test verifies the absence of side "
+        "effects only."
     )

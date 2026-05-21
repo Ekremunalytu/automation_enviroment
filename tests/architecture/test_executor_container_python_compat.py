@@ -159,7 +159,7 @@ def test_executor_container_shipped_code_avoids_python_311_apis() -> None:
             "into the executor container (Python 3.10). Replace with a compat "
             "shim — the established pattern is at "
             "`packages/analysis_engine/runner.py:26` "
-            "(`UTC = getattr(_dt, \"UTC\", _dt.timezone.utc)  # noqa: UP017`). "
+            '(`UTC = getattr(_dt, "UTC", _dt.timezone.utc)  # noqa: UP017`). '
             "If a specific call site is genuinely safe at runtime in 3.10 "
             "(e.g., guarded by a version check), tag the import with "
             "`# arch-allow: py311-api`.\n"

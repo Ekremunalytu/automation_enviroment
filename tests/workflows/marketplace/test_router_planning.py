@@ -233,4 +233,3 @@ def test_build_trigger_payload_passes_commands_and_custom_editors() -> None:
         capability_metadata=None,
     )
     mock_write.assert_called_once()
-

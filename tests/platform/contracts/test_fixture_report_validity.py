@@ -41,8 +41,14 @@ def _collect_fixture_reports() -> list[Path]:
     (local-only, not committed).
     """
     contract_fixtures = sorted(
-        (REPO_ROOT / "tests" / "platform" / "contracts" / "fixtures"
-         / "activation_reports").glob("*.json")
+        (
+            REPO_ROOT
+            / "tests"
+            / "platform"
+            / "contracts"
+            / "fixtures"
+            / "activation_reports"
+        ).glob("*.json")
     )
     malicious_canaries = sorted(
         REPO_ROOT.glob("extensions/malicious/*/activation_report.json")

@@ -37,12 +37,7 @@ from packages.analysis_contracts.contracts import (
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 ATTRIBUTION_MODULE = (
-    REPO_ROOT
-    / "executor"
-    / "flows"
-    / "playwright"
-    / "attribution"
-    / "links.py"
+    REPO_ROOT / "executor" / "flows" / "playwright" / "attribution" / "links.py"
 )
 CONSTRUCTOR_NAME = "EvidenceEvent"
 KIND_KEYWORD = "kind"
@@ -74,8 +69,7 @@ def _collect_evidence_event_kind_literals() -> list[tuple[int, str | None]]:
             continue
         callee = node.func
         if (isinstance(callee, ast.Name) and callee.id == CONSTRUCTOR_NAME) or (
-            isinstance(callee, ast.Attribute)
-            and callee.attr == CONSTRUCTOR_NAME
+            isinstance(callee, ast.Attribute) and callee.attr == CONSTRUCTOR_NAME
         ):
             sites.append((node.lineno, _kind_literal_from_call(node)))
     return sites
