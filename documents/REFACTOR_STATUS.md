@@ -1,6 +1,6 @@
 # Refactor Status
 
-`Last Updated: 2026-05-18 (W17 active — phase work complete; W17 closed via PR #25 week17 -> main MERGED 2026-05-18 via bff565d; W16 closed via PR #23 week16 -> main MERGED 2026-05-18 via 1b6d43f. W17-0..W17-6 sub-iter slate complete: W17-0 doc-reconcile (4508c2e); W17-1 attribution-count-parity closeout (8c26d02 + 0a8f59e self-stamp); W17-2 lifecycle harness scaffold (ff98235 + 44f96c5 self-stamp); W17-3 + W17-4 scope-reduced doc-only (c4c0646 — DESIGN-NEEDED for thread-relocation refactor shape, deferred to W18); W17-5 hygiene single-item (394d40d postgres-version-fact-drift + 0cbe1d0 self-stamp; other 4 cleanup candidates deferred to W18+); W17-6 close-out hygiene. Final W17 bar: tests/architecture/ 200 passed (W16 final 199, +1 from W17-0 W16 close-out fact gate); make test-security 220 passed (Makefile target list; W17-7a bf983eb enrolled test_unaccounted_dropout_surface.py — 217 → 220 recovers the W16-7-followup audit-trail count); full suite 1899 passed, 9 skipped, 4 deselected (W16 final 1893, +6: 4 W17-1 + 1 W17-0 + 1 W17-2). W16-0..W16-7 sub-iter slate complete: W16-0 doc-reconcile (0e243ca + d78aa9c); W16-1 scenario-accountant emit-site fix (HIGH prod regression W14-1 carry-over, 01f910a + a4a050e); W16-2 analysis-job worker-entry CRUD ownership (W15 audit, 9d6d110 + c8b7811); W16-3 report-finalize null-leakage half (W14 carry-over, fa430f2 + e3d4a0c; attribution-count-parity split to W17); W16-4 health-reconciliation responsibility split (W15 audit, 304b99f + 384d276); W16-5 simulation-progress-cancel scope reduction (1 rejected, 2 deferred to W17, e21a05c); W16-6 hygiene splits + Alembic fresh-DB fixture (d40bb01); W16-7 close-out hygiene + canonical preamble refresh (8bf3c6b) + post-PR unaccounted_dropout surface pin (78f080e). W15 closed via PR #22 week15 -> main MERGED 2026-05-18 via 6161472; W14 closed via PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d; W13 close-out PR #20 week13 -> main merged 2026-05-13 via 772deb3)`
+`Last Updated: 2026-05-21 (W18-W22 multi-iter roadmap landed in planning state — driven by Codex live-run validation 2026-05-21 of ms-python.python @ 992ad028f3df reporting automation_health.status=degraded + run_quality=low while static W17 final bar is green. Roadmap source-of-truth: documents/active-work/W18-W22-roadmap.md. §16-§20 plan entry stub in REFACTOR_OPTIMIZATION.md; POST_POC_BACKLOG.md W18-W22 Acceptance Bar with planned stable IDs added. Plan went through 3 review rounds (Codex live-run + GPT × 2). W18 not yet entered. W17 closed via PR #25 week17 -> main MERGED 2026-05-18 via bff565d. Final W17 bar (unchanged): tests/architecture/ 200 passed; make test-security 220 passed; full suite 1899 passed, 9 skipped, 4 deselected. Full W16/W17 sub-iter audit trail in respective frozen trackers; full preamble history pre-2026-05-21 in archive snapshots.)`
 
 Active status board for current closure state. **Slim canonical** — verbose
 phase evidence is frozen under dated snapshots:
@@ -175,6 +175,34 @@ phase evidence is frozen under dated snapshots:
   in the hardcoded file list — 217 → 220 recovers the
   W16-7-followup audit-trail count); full suite **1899 passed,
   9 skipped, 4 deselected** (W16 final 1893, +6).
+- **W18-W22 multi-iter roadmap landed in planning state
+  `2026-05-21`** (W18 not yet entered). Driving signal: Codex
+  live-run validation of `ms-python.python` @ `992ad028f3df`
+  reports `automation_health.status=degraded` + `run_quality=low`
+  while static W17 final bar (1899/200/220) remains 🟢. Plan
+  identifies three independent problem hatları (executor
+  muhasebe bug → `unaccounted_dropout`; harness verification gap
+  → declared ≠ verified; coverage matrix promotion → 6
+  capabilities missing in official track) and three capability
+  layers (A: 29-entry activation event registry, B: 18-bucket
+  taxonomy, C: VSCode manifest capabilities — spec-compliant).
+  Five-iter slate: **W18** heartbeat refactor (W17-3
+  DESIGN-NEEDED close + ADR
+  `documents/adrs/0012-heartbeat-thread-relocation.md`); **W19**
+  live-run kök neden — dropout fix + harness verification
+  contract event-level; **W20** coverage promotion round 1
+  (easy: `scm` + `settings` official promotion + spec
+  crosswalk); **W21** coverage promotion round 2 (mid:
+  `testing`, `comments`, `workspace_trust`; container hardening
+  stretch); **W22** coverage promotion round 3 (hard: `chat`
+  policy ADR + implementation) + attribution depth + sandbox-
+  evasion ADR draft. Roadmap source-of-truth:
+  [`active-work/W18-W22-roadmap.md`](active-work/W18-W22-roadmap.md).
+  §16-§20 plan entry stub at
+  [`REFACTOR_OPTIMIZATION.md`](REFACTOR_OPTIMIZATION.md);
+  reserved stable IDs at `POST_POC_BACKLOG.md` "W18-W22
+  Roadmap Acceptance Bar". Plan went through 3 review rounds
+  (Codex live-run + GPT × 2).
 
 ## W13 Status Summary
 

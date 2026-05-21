@@ -558,3 +558,96 @@ W17 kapanır şu koşullar sağlandığında:
   çalışır; sub-iter commits `week17` branch'inde land eder; close-out
   `week17 -> main` PR ile merge edilir; W17 tracker scope kapanışında
   frozen olur (W11-W16 paterni).
+
+## §16-§20 — W18-W22 Capability + Otomasyon Sağlık + Coverage Promotion Roadmap (planning state, authored 2026-05-21)
+
+Beş iter'lı multi-iter roadmap planning state'inde dokümante edildi.
+Roadmap kaynak gerçek dosyası (W18-W22 sub-iter slate'i +
+acceptance gate'leri + critical files + ADR yolları + açık karar
+noktaları) burada:
+
+[`active-work/W18-W22-roadmap.md`](active-work/W18-W22-roadmap.md)
+
+### §16.0 — Neden ayrı §16-§20 (multi-iter window)
+
+§15 W17 carry-over kapanış penceresini kapatır (attribution
+parity, lifecycle harness scaffold, heartbeat trio DESIGN-NEEDED
+deferral, hygiene single-item). §16-§20 yeni bir tema: **Codex
+live-run validation (`ms-python.python` 2026-05-21) raporladığı
+`automation_health.status=degraded` + `run_quality=low` durumunu
+kapatma** — static suite W17 final'inde yeşil (1899/200/220), ama
+canlı run health'i düşük. GPT review (3 tur) plan dosyasını üç
+hat'a ayırdı (executor muhasebe bug / harness verification gap /
+coverage matrix promotion) ve W18-W22 sıralamasını üretti:
+
+- **§16 — W18**: Heartbeat refactor (W17-3/W17-4 DESIGN-NEEDED kapanışı + ADR `documents/adrs/0012-heartbeat-thread-relocation.md`)
+- **§17 — W19**: Live run kök neden — dropout fix (Hat-1) + harness verification (Hat-2)
+- **§18 — W20**: Coverage promotion round 1 (easy wins: `scm` + `settings` official promotion)
+- **§19 — W21**: Coverage promotion round 2 (mid tier: `testing`, `comments`, `workspace_trust`); container hardening **stretch**
+- **§20 — W22**: Coverage promotion round 3 (hard tier: `chat` policy ADR + implementation) + attribution depth + sandbox-evasion ADR draft
+
+§16-§20 ayrı tutuluyor ki §15 audit trail (W17 sub-iter close date'leri ve commit'leri) donmuş kalsın; her iter kapandığında §N self-stamped olur (W14/W15/W16/W17 paterni).
+
+### §16.1-§20.1 — Driving Signal (live run, 2026-05-21)
+
+`ms-python.python` @ `992ad028f3df`
+([output/activation_report_ms-python.python-2026.5.2026052001-992ad028f3df.json](../output/activation_report_ms-python.python-2026.5.2026052001-992ad028f3df.json),
+7.4M):
+
+- `automation_health.status = degraded`
+- `run_quality = low`
+- `automation_health.reasons = [skipped_scenarios_present, verification_gap_present, official_unresolved_present, harness_verification_unconfirmed_present]`
+- `coverage_summary` (official track) `covered=7 / partial=5 / missing=6`; missing = `[scm, settings, chat, comments, testing, workspace_trust]`
+- `event_attempts = 21`; capability-level `verified = 4`
+- `skipped_scenarios = [debug_session, refactor_workflow]` (her ikisi `unaccounted_dropout` reason)
+- `harness_handshake_required = True`
+
+Status enum kontratı: `{healthy, degraded, inconclusive}`
+([summary.py:260,378](../executor/flows/playwright/health/summary.py)).
+
+### §16.2-§20.2 — Üç katmanlı capability modeli
+
+Plan üç ayrı "capability" katmanını tespit etti — sırasıyla aksiyon
+gerektiriyor (A ve B) ya da spec uyumlu (C):
+
+- **Katman A — Activation events**: `OFFICIAL_EVENT_REGISTRY` 29 entry
+  ([test_registry_split_regression.py:101](../tests/platform/contracts/test_registry_split_regression.py)).
+  4 shallow trigger (`onView`, `onWebviewPanel` restore semantics,
+  `onAuthenticationRequest`, `onChatParticipant`). W20-0 spec
+  crosswalk araştırması ile gerçek gap doğrulanır.
+- **Katman B — Capability taxonomy**: 18 bucket
+  ([capabilities.py:8-27](../packages/analysis_planner/capabilities.py)).
+  Heuristic 14/4 covered/missing, official 12/6 covered/missing.
+- **Katman C — Manifest capability**: `ExtensionCapabilitiesSchema`
+  ([catalog.py:12](../appcore/contracts/schema_defs/catalog.py))
+  `untrusted_*` + `virtual_*` — VSCode-spec uyumlu, **gap yok**.
+
+### §16.3-§20.3 — Driving Plan dosyası
+
+Tüm sub-iter slate'i, acceptance kriterleri (must-pass / expected /
+stretch), live-run gate'leri, critical file paths, ADR yolları,
+ve W18 başlangıcında cevaplanacak açık sorular tracker dosyasında:
+
+[`active-work/W18-W22-roadmap.md`](active-work/W18-W22-roadmap.md)
+
+Plan dosyası 3 review turundan geçti:
+1. Initial Codex live-run validation (live rapor doğrulaması + capability taxonomy gap teyidi)
+2. GPT round-1 (üç hat ayrımı, W19-1 xfail/RED pattern, harness verification ayrı boyut)
+3. GPT round-2/3 (W20'nin 13 sub-iter'a patlaması, W20→W22 ayırma, `healthy/degraded/inconclusive` enum doğrulaması, ADR yolu `documents/adrs/` doğrulaması, `OFFICIAL_EVENT_REGISTRY` 29 sayısı, `onWebviewPanel` restore semantics, manifest source-of-truth, `confirmation_source` schema impact, `workspace_trust` defer fallback, chat-conditional W22 acceptance)
+
+W18-0 doc-reconcile sub-iter'i açıldığında bu §16 plan entry'si
+her iter için ayrı self-stamped section'lar ekler (W14/W15/W16/W17
+paterni).
+
+### §16.4-§20.4 — Exit Criteria summary
+
+Her iter için tam exit criteria
+[`active-work/W18-W22-roadmap.md`](active-work/W18-W22-roadmap.md)
+"Sub-Iter Scope" bölümlerinde + "Live-Run Acceptance Gate" bölümünde.
+Özet:
+
+- **W18 exit**: Heartbeat refactor regression-free, W13-11 HMAC invariant pas, `make sim-target` smoke düzgün.
+- **W19 exit (live-run-driven)**: `unaccounted_dropout == 0` (must-pass), supported harness event'lerde `harness_verification_unconfirmed` reason'ı düşer (must-pass), `run_quality` low → medium (expected).
+- **W20 exit**: official-track missing'ten `scm` + `settings` düşer (6 → 4); coverage matrix contract tests yeşil; activation event spec crosswalk raporu yazılı.
+- **W21 exit**: her iki track missing `chat` dışında 0 (`workspace_trust` defer edilirse + `workspace_trust`).
+- **W22 exit**: chat ADR Accepted + path implemented **or** deferred-with-blocker; sandbox ADR + canary GREEN; her iki track missing == 0 (chat implemented path seçildiyse).

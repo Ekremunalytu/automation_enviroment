@@ -127,6 +127,51 @@ frozen tracker
 | W17-6 | **closed `2026-05-18`** via `21f7c68` (close-out hygiene: canonical preamble refresh across 7 docs + §15 self-stamp + final W17 bar recorded + backlog item statuses updated; close-out PR `week17 -> main` not yet opened; branch is pushed) | `21f7c68` |
 | W17-7 | **closed `2026-05-18`** post-slate hotfix batch (W14-7/W14-8 paterni): W17-7a `bf983eb` Makefile `test-security` target enrolls `test_unaccounted_dropout_surface.py` (217 → 220 — recovers the W16-7-followup audit-trail count); W17-7b `fc88678` `.env.example` adds `EXTRACE_EPOCH_RUN_ID` (W14-5 log run-id stamping env var, was missing); W17-7c `326dac8` ADR 0007 runbook references aligned with current `lan-exposure.md` (drops "short" qualifier, lists all 5 pre-flight items, declares runbook canonical); W17-7d `51dba29` `.pre-commit-config.yaml` header comment block documenting the intentional Python version gap (3 versions in play: 3.10 executor / 3.11 API+pyproject / 3.12 dev+pre-commit) | `bf983eb` + `fc88678` + `326dac8` + `51dba29` |
 
+## W18-W22 Roadmap Acceptance Bar (planning state, authored 2026-05-21)
+
+W18 not yet entered. Multi-iter roadmap planning landed via this
+commit per user direction (2026-05-21). Driving signal: Codex
+live-run validation of `ms-python.python` @ `992ad028f3df`
+(2026-05-21 10:10) → `automation_health.status=degraded`,
+`run_quality=low`. Static W17 final bar (1899/200/220) remains
+🟢; runtime health is the W18-W22 target.
+
+Plan source-of-truth: [`active-work/W18-W22-roadmap.md`](active-work/W18-W22-roadmap.md). Full sub-iter scope, acceptance gates, ADR paths, and critical files there. Plan went through 3 review rounds (Codex live-run + GPT × 2).
+
+Stable IDs `W18-1..W22-7` are reserved and assigned at first pull per W11-W17 precedent. Aşağıdaki satırlar **planned**, henüz açılmadı:
+
+| Iter | Planned Stable ID(s) | Theme |
+|---|---|---|
+| W18-1 | `[FOLLOWUP simulation-progress-cancel] heartbeat-sandbox-reset-off-thread` (W17-3 carry-over; ADR `documents/adrs/0012-heartbeat-thread-relocation.md`) | Heartbeat thread relocation design |
+| W18-2 | (W18-1 cont.) | Heartbeat refactor implementation |
+| W18-3 | `[FOLLOWUP w17-2-harness-extension-tests]` (new) | Lifecycle harness extension tests |
+| W19-1 | `[BUG scenario-unaccounted-dropout-regression-fixture]` (new) | Live-run dropout regression fixture (xfail/RED) |
+| W19-2 | `[BUG scenario-unaccounted-dropout-debug-refactor]` (new) | Dropout emit-site fix (Hat-1; W16-1 paterni) |
+| W19-3 | `[GOAL harness-verification-contract-event-level]` (new) | Harness verification contract event-level |
+| W19-4 | `[FOLLOWUP harness-verification-debug-events]` (new) | `onDebug*` nonce confirmation |
+| W19-5 | `[FOLLOWUP harness-verification-terminal-and-lm-tool]` (new) | `onTerminalShellIntegration` + `onLanguageModelTool:*` confirmation |
+| W20-0 | `[RESEARCH activation-event-spec-crosswalk]` (new) | Activation event spec ↔ registry ↔ manifest corpus crosswalk |
+| W20-1 | `[GOAL taxonomy-scm-official-promotion]` (new) | `scm` official-track `missing → covered` |
+| W20-2 | `[GOAL taxonomy-settings-official-promotion]` (new) | `settings` official-track `missing → covered` |
+| W20-3 | `[GOAL coverage-matrix-contract-tests]` (new) | Coverage matrix invariant tests |
+| W20-4 | `[DESIGN taxonomy-comments-testing-readiness]` (new) | W21 implementation şablonu (doc-only) |
+| W21-1 | `[GOAL taxonomy-testing-coverage]` (new) | `testing` her iki track → covered |
+| W21-2 | `[GOAL taxonomy-comments-coverage]` (new) | `comments` her iki track → covered |
+| W21-3 | `[GOAL taxonomy-workspace-trust-coverage]` (new) | `workspace_trust` her iki track → covered (scope-explode → W22 defer) |
+| W21-4 | `[GOAL container-hardening-baseline]` (existing W18 candidate) — **stretch in W21**, fallback W22+ | Container hardening + ADR `documents/adrs/0013-container-isolation-baseline.md` |
+| W22-1 | `[GOAL taxonomy-chat-policy-adr]` (new) | Chat policy ADR `documents/adrs/0014-chat-and-language-model-tool-policy.md` |
+| W22-2 | `[GOAL taxonomy-chat-coverage]` (new) | `chat` her iki track → covered (ADR Accepted sonra) |
+| W22-3 | `[FOLLOWUP attribution-count-parity-process-events]` + `[FOLLOWUP attribution-count-parity-output-channel]` (new) | Attribution depth ProcessEvent + OutputChannelAppendLine |
+| W22-4 | `[GOAL sandbox-evasion-defense-mvp]` (existing W18 candidate) — ADR draft only | Sandbox-evasion defense ADR `documents/adrs/0015-...` |
+| W22-5 | `[GOAL sandbox-evasion-canary-fixture]` (new) | `tests/security/test_sandbox_evasion_canary.py` |
+| W22-6 | `[GOAL activation-event-spec-gap-followup]` (new) | W20-0 crosswalk gerçek gap çıkardıysa implement |
+
+**Plan motivation reference**:
+- Live `ms-python.python` rapor: `output/activation_report_ms-python.python-2026.5.2026052001-992ad028f3df.json`
+- `CAPABILITY_TAXONOMY` source: [`packages/analysis_planner/capabilities.py:8-27`](../packages/analysis_planner/capabilities.py)
+- `OFFICIAL_EVENT_REGISTRY` count pin (29): [`tests/platform/contracts/test_registry_split_regression.py:101`](../tests/platform/contracts/test_registry_split_regression.py)
+- Status enum (`healthy/degraded/inconclusive`): [`executor/flows/playwright/health/summary.py:260,378`](../executor/flows/playwright/health/summary.py)
+
 ## Codex Cloud Audit Backlog
 
 ### Post-W13 Candidates
