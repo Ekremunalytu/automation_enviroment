@@ -1,7 +1,7 @@
 # W18-W22 — Capability + Otomasyon Sağlık + Coverage Promotion Roadmap (Planning Tracker)
 
-`Last Updated: 2026-05-21 (W18 active — phase work complete on the week18 branch (per user direction 2026-05-21; W11-W17 paterni preserved); close-out PR week18 -> main not yet opened (branch is pushed); §16 W18 plan source. W18-0..W18-4 sub-iter slate fully delivered 2026-05-21: W18-0 doc-reconcile (89d0c9b); W18-1 ADR 0012 Option A1 accepted (acf6cc9 + 73d8a5c followup); W18-2 heartbeat refactor implementation — step-1 reset off worker thread via dedicated coordinator (a9bffb1 + 78ed7cc + b5b64b6 + 306d744); W18-3 lifecycle harness extension tests — parallel reset / idempotency / reset-during-finalize (92b310d + 32d9905); W18-4 close-out hygiene (3f4f95a). W19-W22 remain in planning state. Source plan authored 2026-05-21 with Codex live-run validation + GPT review (3 rounds) — plan file at /Users/ekrem/.claude/plans/senden-projemdeki-capabilites-ve-mellow-valley.md. W17 closed via PR #25 week17 -> main MERGED 2026-05-18 via bff565d. Sub-iter commits land on weekN branches per W11-W17 paterni; close-out merges via weekN -> main PR.)`
-`Phase: W18 close-out hygiene landed (W18-0..W18-4 all closed); close-out PR week18 -> main not yet opened (branch is pushed)`
+`Last Updated: 2026-05-21 (W18 active — closed via PR #26 week18 -> main MERGED 2026-05-21 via 9874e79; W18-0..W18-4 sub-iter slate fully delivered on the week18 branch (per user direction 2026-05-21; W11-W17 paterni preserved); W18-4-followup post-merge audit landed this commit; §16 W18 plan source. W18 sub-iter audit trail: W18-0 doc-reconcile (89d0c9b); W18-1 ADR 0012 Option A1 accepted (acf6cc9 + 73d8a5c followup); W18-2 heartbeat refactor implementation — step-1 reset off worker thread via dedicated coordinator (a9bffb1 + 78ed7cc + b5b64b6 + 306d744); W18-3 lifecycle harness extension tests — parallel reset / idempotency / reset-during-finalize (92b310d + 32d9905); W18-4 close-out hygiene (3f4f95a); W18-4-followup (e1043e5) — 4 W18-2 invariant pins + 2 pre-existing doc drift fixes. W19-W22 remain in planning state. Source plan authored 2026-05-21 with Codex live-run validation + GPT review (3 rounds) — plan file at /Users/ekrem/.claude/plans/senden-projemdeki-capabilites-ve-mellow-valley.md. W17 closed via PR #25 week17 -> main MERGED 2026-05-18 via bff565d. Sub-iter commits land on weekN branches per W11-W17 paterni; close-out merges via weekN -> main PR.)`
+`Phase: W18 closed — PR #26 week18 -> main MERGED 2026-05-21 via 9874e79`
 `Branch: week18 (per user direction 2026-05-21; W11-W17 paterni preserved — sub-iter commits land on week18, close-out merges into main via week18 -> main PR)`
 `Owner: ekrem`
 
@@ -29,11 +29,12 @@ W17 tracker structure).
 
 ## Status (Quick Glance)
 
-- **W18 active — phase work complete 2026-05-21.** Sub-iter slate
-  W18-0..W18-4 fully delivered on the `week18` branch (per user
-  direction 2026-05-21; W11-W17 paterni preserved); close-out PR
-  `week18 -> main` not yet opened (branch is pushed). W18 active
-  tracker (frozen at W18-4):
+- **W18 active — closed 2026-05-21 via PR #26 `week18 -> main`
+  MERGED `2026-05-21` via `9874e79`.** Sub-iter slate W18-0..W18-4
+  fully delivered on the `week18` branch (per user direction
+  2026-05-21; W11-W17 paterni preserved); W18-4-followup (`e1043e5`)
+  added 4 W18-2 invariant pins + 2 pre-existing doc drift fixes
+  before merge. W18 active tracker (frozen at W18-4):
   [`W18-heartbeat-refactor.md`](W18-heartbeat-refactor.md). W19-W22
   remain in planning state.
 - **Driving signal (live run, 2026-05-21)**: `ms-python.python`

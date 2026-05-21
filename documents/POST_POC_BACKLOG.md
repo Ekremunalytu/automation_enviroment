@@ -1,6 +1,6 @@
 # Post-PoC Backlog
 
-`Last Updated: 2026-05-21 (W18 active — phase work complete; W18-0..W18-4 sub-iter slate landed on the week18 branch (per user direction 2026-05-21; W11-W17 paterni preserved); close-out PR week18 -> main not yet opened (branch is pushed); §16 W18 plan source + §17-§20 W19-W22 multi-iter roadmap (split at W18-4 close-out). W18 Pull-Forward CLOSED: ADR 0012 Option A1 heartbeat thread relocation (W18-1, acf6cc9 + 73d8a5c followup — dedicated sandbox-reset coordinator, function-extension shape); heartbeat refactor implementation step-1 reset off worker thread (W18-2, a9bffb1 + 78ed7cc ADR self-stamp + b5b64b6 ruff-format + 306d744 full-repo lint sweep + pre-commit install — W17-3/W17-4 DESIGN-NEEDED carry-over closed); lifecycle harness extension tests parallel reset / idempotency / reset-during-finalize (W18-3, 92b310d + 32d9905 self-stamp; [FOLLOWUP w17-2-harness-extension-tests] closed). W18 candidate intake (2026-05-19): [GOAL container-hardening-baseline] (threat-model-içi, sıfır production-kod değişikliği, ADR 0002 amendment veya yeni ADR 0008 ile yazılı hale gelir; **scheduled per multi-iter roadmap as W21-4 stretch**) + [GOAL sandbox-evasion-defense-mvp] (ADR 0002 §3 ile çatışıyor — yeni ADR + sandbox-detection canary fixture prerequisite; **scheduled per multi-iter roadmap as W22-4 ADR draft + W22-5 canary fixture**) added under Engineering Quality. Final W18 bar: tests/architecture/ 201 passed (W17 final 200 + W18-0 README phase-pointer arch gate W17->W18 transition); make test-security 220 passed (unchanged); full suite 1903 passed, 9 skipped, 8 deselected (W17 final 1899 + W18-0 +1 + W18-3 +3). W17 closed via PR #25 week17 -> main MERGED 2026-05-18 via bff565d; W16 closed via PR #23 week16 -> main MERGED 2026-05-18 via 1b6d43f. W17 Pull-Forward CLOSED: attribution-count-parity (W17-1, 8c26d02; producer-side fix at build_evidence_bundle activation emit-site); lifecycle harness scaffold (W17-2, ff98235; LifecycleHarness + lifecycle_harness fixture); heartbeat-sandbox-reset-off-thread + heartbeat-refactor SCOPE-REDUCED (W17-3 + W17-4 doc-only c4c0646; DESIGN-NEEDED, closed via W18-1 ADR + W18-2 implementation); postgres-version-fact-drift (W17-5, 394d40d; seed_project_2 synthetic-fixture stack alignment); other 4 cleanup candidates deferred to W18+ pull-as-found; W17-6 close-out hygiene (21f7c68). Final W17 bar (unchanged): tests/architecture/ 200 passed; make test-security 220 passed (W17-7a bf983eb enrolled test_unaccounted_dropout_surface.py — 217 → 220); full suite 1899 passed, 9 skipped, 4 deselected (+6 from W16 final 1893). W16 Pull-Forward CLOSED: scenario-accountant-conservation-split (W16-1, 01f910a), analysis-job-worker-entry-crud-ownership (W16-2, 9d6d110), report-finalize-top-level-field-sync-drift null-leakage half (W16-3, fa430f2; attribution-count-parity half SPLIT to W17 as [FOLLOWUP attribution-count-parity]), health-reconciliation-responsibility-split (W16-4, 304b99f), simulation-progress-cancel scope reduction (W16-5 doc-only e21a05c — dedupe-step-progress-schemas REJECTED; heartbeat-sandbox-reset-off-thread + heartbeat-refactor DEFERRED to W17), marketplace-router-test-suite-split + test-import-graph-policy-dump-split + w13-4-alembic-roundtrip-programmatic (W16-6, d40bb01), close-out hygiene (W16-7, 8bf3c6b) + post-PR unaccounted_dropout surface pin (78f080e). W15 closed via PR #22 MERGED 2026-05-18 via 6161472; W14 closed via PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d)`
+`Last Updated: 2026-05-21 (W18 active — closed via PR #26 week18 -> main MERGED 2026-05-21 via 9874e79; W18-0..W18-4 sub-iter slate (per user direction 2026-05-21; W11-W17 paterni preserved); W18-4-followup post-merge audit landed this commit; §16 W18 plan source + §17-§20 W19-W22 multi-iter roadmap (split at W18-4 close-out). W18 Pull-Forward CLOSED: ADR 0012 Option A1 heartbeat thread relocation (W18-1, acf6cc9 + 73d8a5c followup — dedicated sandbox-reset coordinator, function-extension shape); heartbeat refactor implementation step-1 reset off worker thread (W18-2, a9bffb1 + 78ed7cc ADR self-stamp + b5b64b6 ruff-format + 306d744 full-repo lint sweep + pre-commit install — W17-3/W17-4 DESIGN-NEEDED carry-over closed); lifecycle harness extension tests parallel reset / idempotency / reset-during-finalize (W18-3, 92b310d + 32d9905 self-stamp; [FOLLOWUP w17-2-harness-extension-tests] closed); W18-4-followup invariant pins (e1043e5, 4 W18-2 invariant pins at tests/workflows/marketplace/test_coordinator_invariants.py + 2 pre-existing doc drift fixes). W18 candidate intake (2026-05-19): [GOAL container-hardening-baseline] (threat-model-içi, sıfır production-kod değişikliği, ADR 0002 amendment veya yeni ADR 0008 ile yazılı hale gelir; **scheduled per multi-iter roadmap as W21-4 stretch**) + [GOAL sandbox-evasion-defense-mvp] (ADR 0002 §3 ile çatışıyor — yeni ADR + sandbox-detection canary fixture prerequisite; **scheduled per multi-iter roadmap as W22-4 ADR draft + W22-5 canary fixture**) added under Engineering Quality. Final W18 bar: tests/architecture/ 201 passed (W17 final 200 + W18-0 README phase-pointer arch gate W17->W18 transition); make test-security 220 passed (unchanged); full suite 1907 passed, 9 skipped, 8 deselected (W17 final 1899 + W18-0 +1 + W18-3 +3 + W18-4-followup +4 via e1043e5). W17 closed via PR #25 week17 -> main MERGED 2026-05-18 via bff565d; W16 closed via PR #23 week16 -> main MERGED 2026-05-18 via 1b6d43f. W17 Pull-Forward CLOSED: attribution-count-parity (W17-1, 8c26d02; producer-side fix at build_evidence_bundle activation emit-site); lifecycle harness scaffold (W17-2, ff98235; LifecycleHarness + lifecycle_harness fixture); heartbeat-sandbox-reset-off-thread + heartbeat-refactor SCOPE-REDUCED (W17-3 + W17-4 doc-only c4c0646; DESIGN-NEEDED, closed via W18-1 ADR + W18-2 implementation); postgres-version-fact-drift (W17-5, 394d40d; seed_project_2 synthetic-fixture stack alignment); other 4 cleanup candidates deferred to W18+ pull-as-found; W17-6 close-out hygiene (21f7c68). Final W17 bar (unchanged): tests/architecture/ 200 passed; make test-security 220 passed (W17-7a bf983eb enrolled test_unaccounted_dropout_surface.py — 217 → 220); full suite 1899 passed, 9 skipped, 4 deselected (+6 from W16 final 1893). W16 Pull-Forward CLOSED: scenario-accountant-conservation-split (W16-1, 01f910a), analysis-job-worker-entry-crud-ownership (W16-2, 9d6d110), report-finalize-top-level-field-sync-drift null-leakage half (W16-3, fa430f2; attribution-count-parity half SPLIT to W17 as [FOLLOWUP attribution-count-parity]), health-reconciliation-responsibility-split (W16-4, 304b99f), simulation-progress-cancel scope reduction (W16-5 doc-only e21a05c — dedupe-step-progress-schemas REJECTED; heartbeat-sandbox-reset-off-thread + heartbeat-refactor DEFERRED to W17), marketplace-router-test-suite-split + test-import-graph-policy-dump-split + w13-4-alembic-roundtrip-programmatic (W16-6, d40bb01), close-out hygiene (W16-7, 8bf3c6b) + post-PR unaccounted_dropout surface pin (78f080e). W15 closed via PR #22 MERGED 2026-05-18 via 6161472; W14 closed via PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d)`
 
 Open deferred work after the W0-W7 PoC acceptance bar. **Slim canonical** —
 verbose closure rationales, evidence paragraphs, and per-iter Note columns
@@ -12,23 +12,26 @@ stable ID + landing commit; full context in the snapshot.
 - previous full snapshot:
   [`archive/backlog/POST_POC_BACKLOG_full_2026-05-11.md`](archive/backlog/POST_POC_BACKLOG_full_2026-05-11.md)
 
-W8-W16 are closed; W13 close-out PR #20 `week13 -> main` **MERGED**
+W8-W18 are closed; W13 close-out PR #20 `week13 -> main` **MERGED**
 `2026-05-13` via `772deb3`; W14 close-out PR #21 `week14 -> main`
 **MERGED** `2026-05-14` via `4e03c8d`; W15 close-out PR #22
-`week15 -> main` **MERGED** `2026-05-18` via `6161472`; **W16 close-out
-PR #23 `week16 -> main` MERGED `2026-05-18` via `1b6d43f`**.
-**W17 phase work complete `2026-05-18`** on the `week17` branch (per
-user direction 2026-05-18; W11-W16 paterni preserved); **W17 closed
-via PR #25 `week17 -> main` MERGED `2026-05-18` via `bff565d`**.
-W17-0..W17-7 sub-iter slate landed (pull-forward table below).
-W14 tracker:
+`week15 -> main` **MERGED** `2026-05-18` via `6161472`; W16 close-out
+PR #23 `week16 -> main` **MERGED** `2026-05-18` via `1b6d43f`;
+W17 close-out PR #25 `week17 -> main` **MERGED** `2026-05-18` via
+`bff565d`; **W18 close-out PR #26 `week18 -> main` MERGED `2026-05-21`
+via `9874e79`**.
+W17-0..W17-7 sub-iter slate landed (pull-forward table below);
+W18-0..W18-4 sub-iter slate + W18-4-followup post-merge audit
+landed (pull-forward table below). W14 tracker:
 [`active-work/W14-codex-acceptance-observability.md`](active-work/W14-codex-acceptance-observability.md);
 W15 tracker (frozen):
 [`active-work/W15-codex-uclass-bounds-posture.md`](active-work/W15-codex-uclass-bounds-posture.md);
 W16 tracker (frozen):
 [`active-work/W16-regression-and-audit-closeout.md`](active-work/W16-regression-and-audit-closeout.md);
-W17 tracker (active):
-[`active-work/W17-carryover-and-lifecycle-harness.md`](active-work/W17-carryover-and-lifecycle-harness.md).
+W17 tracker (frozen):
+[`active-work/W17-carryover-and-lifecycle-harness.md`](active-work/W17-carryover-and-lifecycle-harness.md);
+W18 tracker (frozen):
+[`active-work/W18-heartbeat-refactor.md`](active-work/W18-heartbeat-refactor.md).
 
 ## Stable IDs Are A Contract
 
@@ -142,13 +145,16 @@ tracker
 | W18-1 | `[FOLLOWUP simulation-progress-cancel] heartbeat-sandbox-reset-off-thread` (W17-3 carry-over; ADR 0012 `documents/adrs/0012-heartbeat-thread-relocation.md` Option A1 Accepted — dedicated sandbox-reset coordinator with cancel-path teardown reset staying on the heartbeat thread; invariant cost trade-offs against W13-1 HMAC / W13-3 two-phase cancel / W13-13 CAS / W16-2 facade lock all preserved byte-identical) + followup doc-truth alignment | `acf6cc9` + `73d8a5c` |
 | W18-2 | `[FOLLOWUP simulation-progress-cancel] heartbeat-refactor` (W17-4 carry-over; ADR 0012 Option A1 implementation — step-1 reset moved off the worker thread via dedicated `_run_reset_off_thread` coordinator; function-extension shape, ~42 LOC; W17-2 harness smoke passes byte-identical; three AST/behavioral gates pinning the bare `_reset_sandbox(...)` Name call at `analysis_service.py:155` preserved) + ADR self-stamp + ruff-format followup + full-repo lint sweep + pre-commit install | `a9bffb1` + `78ed7cc` + `b5b64b6` + `306d744` |
 | W18-3 | `[FOLLOWUP w17-2-harness-extension-tests]` — lifecycle harness extension tests landed in `tests/workflows/marketplace/test_lifecycle_harness.py` per ADR 0012 §Follow-On: `test_lifecycle_harness_parallel_reset_does_not_deadlock` + `test_lifecycle_harness_reset_idempotency` + `test_lifecycle_harness_reset_during_finalize` (W17-2 module docstring L27-35 forward contract); test-only commit + self-stamp | `92b310d` + `32d9905` |
-| W18-4 | close-out hygiene + canonical preamble refresh + §16 W18 self-stamp + W18 tracker freeze (W17-6 paterni `21f7c68`); close-out PR `week18 -> main` open + post-merge audit scope-deferred per user direction `2026-05-21` | this commit |
+| W18-4 | close-out hygiene + canonical preamble refresh + §16 W18 self-stamp + W18 tracker freeze (W17-6 paterni `21f7c68`) | `3f4f95a` |
+| W18-4-followup | 4 W18-2 invariant pins at `tests/workflows/marketplace/test_coordinator_invariants.py` + 2 pre-existing doc drift fixes (signature default / poll-interval bound / cancel-propagation behavior / reporter thread-isolation) | `e1043e5` |
+| W18-post-merge | PR #26 merge `9874e79` doc-truth alignment: 8-doc canonical preamble refresh + §16 close-out audit-trail entry + W18 tracker `Phase:` freeze stamp (W17-post-merge `bf6ec3e` paterni — direct commit on `main`, no PR) | this commit |
 
 Final W18 bar: `tests/architecture/` **201 passed** (W17 final 200,
 +1 from W18-0 README phase-pointer arch gate W17→W18 transition);
 `make test-security` **220 passed** (unchanged from W17); full suite
-**1903 passed, 9 skipped, 8 deselected** (W17 final 1899, +4: W18-0
-README arch gate + 3 W18-3 lifecycle harness extension tests).
+**1907 passed, 9 skipped, 8 deselected** (W17 final 1899, +8: W18-0
+README arch gate + 3 W18-3 lifecycle harness extension tests + 4
+W18-4-followup W18-2 invariant tests via `e1043e5`).
 
 ## W19-W22 Roadmap Acceptance Bar (planning)
 

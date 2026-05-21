@@ -1,6 +1,6 @@
 # Active Work
 
-`Last Updated: 2026-05-21 (W18 active — phase work complete; W18-0..W18-4 sub-iter slate landed on the week18 branch (per user direction; W11-W17 paterni preserved); close-out PR week18 -> main not yet opened (branch is pushed). W18 frozen tracker: W18-heartbeat-refactor.md. W17 closed via PR #25 week17 -> main MERGED 2026-05-18 via bff565d; W16 closed via PR #23 week16 -> main MERGED 2026-05-18 via 1b6d43f. Final W18 bar: tests/architecture/ 201 passed; make test-security 220 passed; full suite 1903 passed, 9 skipped, 8 deselected.)`
+`Last Updated: 2026-05-21 (W18 active — closed via PR #26 week18 -> main MERGED 2026-05-21 via 9874e79; W18-0..W18-4 sub-iter slate landed on the week18 branch (per user direction; W11-W17 paterni preserved); W18-4-followup post-merge audit landed this commit. W18 frozen tracker: W18-heartbeat-refactor.md. W17 closed via PR #25 week17 -> main MERGED 2026-05-18 via bff565d; W16 closed via PR #23 week16 -> main MERGED 2026-05-18 via 1b6d43f. Final W18 bar: tests/architecture/ 201 passed; make test-security 220 passed; full suite 1907 passed, 9 skipped, 8 deselected.)`
 
 Slim canonical files for **active engineering work tracking**. Each file is
 a stable contract: code comments and tests reference items here by stable
