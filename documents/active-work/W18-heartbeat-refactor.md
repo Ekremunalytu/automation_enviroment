@@ -1,7 +1,7 @@
 # W18 — Heartbeat Refactor (Active Work Tracker)
 
-`Last Updated: 2026-05-21 (W18-2 closed via a9bffb1 — heartbeat refactor implementation landed: step-1 reset off worker thread via dedicated coordinator (ADR 0012 Option A1, function-extension shape). W18-2 final bar: tests/architecture/ 208 passed; make test-security 220 passed; full suite 1900 passed, 9 skipped, 8 deselected (W17 baseline 1899/9/4; +1 from W18-0 phase-pointer flip; skip count unchanged); analyze API end-to-end smoke job 364a8d13… ms-python.python@2026.5.2026051501 — all 5 steps completed, automation_health.status=degraded byte-identical with W17 baseline, **0 NEW reasons** vs baseline (gate passes). W18-1 closed via acf6cc9 (ADR 0012 Option A1) + 73d8a5c (followup doc-truth). W18-0 closed via 89d0c9b. W17 closed via PR #25 week17 -> main MERGED 2026-05-18 via bff565d. §16 W18 plan source — sub-iter slate W18-0..W18-4 reserved; W18-3 + W18-4 still open.)`
-`Phase: W18 active (W18-0/W18-1/W18-2 closed; W18-3 next — lifecycle harness extension tests)`
+`Last Updated: 2026-05-21 (W18-3 closed via 92b310d — 3 new lifecycle harness extension tests landed: test_lifecycle_harness_parallel_reset_does_not_deadlock + test_lifecycle_harness_reset_idempotency + test_lifecycle_harness_reset_during_finalize (per ADR 0012 §Follow-On). W18-3 final bar: 4 lifecycle harness tests pass (W17-2 smoke byte-identical + 3 new W18-3); full suite 1903 passed, 9 skipped, 8 deselected (W18-2 baseline 1900 + 3 W18-3 tests; W18 tracker Exit Criteria target 1903 met). Pre-commit hooks active on this clone since 306d744 — W18-3 commit ran through ruff/ruff-format/mypy/bandit gates at commit time. W18-2 closed via a9bffb1 (heartbeat refactor implementation — step-1 reset off worker thread via dedicated coordinator, ADR 0012 Option A1, function-extension shape). W18-1 closed via acf6cc9 (ADR 0012 Option A1 Accepted) + 73d8a5c (followup doc-truth). W18-0 closed via 89d0c9b. W17 closed via PR #25 week17 -> main MERGED 2026-05-18 via bff565d. §16 W18 plan source — sub-iter slate W18-0..W18-4 reserved; only W18-4 (close-out PR) remains.)`
+`Phase: W18 active (W18-0/W18-1/W18-2/W18-3 closed; W18-4 next — close-out hygiene + PR week18 -> main)`
 `Branch: week18 (per user direction 2026-05-21; W11-W17 paterni preserved — sub-iter commits land on week18, close-out merges into main via week18 -> main PR)`
 `Owner: ekrem`
 
@@ -64,6 +64,23 @@ is the template structurally followed here.
   heartbeat thread. Followup doc-truth alignment via `73d8a5c`
   (§16 anchor map drift + W17-2 harness module docstring W17-3→W18-3
   reference flip + ADR 0012 backlink in W17-2 docstring). NO CODE.
+- **W18-3 closed `2026-05-21` via `92b310d`** — three new lifecycle
+  harness extension tests landed in
+  [`tests/workflows/marketplace/test_lifecycle_harness.py`](../../tests/workflows/marketplace/test_lifecycle_harness.py)
+  per ADR 0012 §"Follow-On (W18-3 test surface)":
+  `test_lifecycle_harness_parallel_reset_does_not_deadlock` (pins the
+  ADR §Consequences (Negative) bullet 2 "no deadlock" risk via a
+  concurrent coordinator + heartbeat fire),
+  `test_lifecycle_harness_reset_idempotency` (pins the "executor
+  surface registers exactly what we observed" property via back-to-back
+  coordinator resets), and `test_lifecycle_harness_reset_during_finalize`
+  (pins the post-finalize-barrier invariant via stop-heartbeat-then-
+  cancel ordering). All four lifecycle-harness tests now green
+  (W17-2 smoke byte-identical + 3 new W18-3 tests); full suite
+  **1903 passed** (W18-2 baseline 1900 + 3 = 1903; W18 tracker Exit
+  Criteria target met). No code change to production. ADR 0012
+  §Implementation last paragraph self-stamped via this commit (next-
+  steps language flipped to past tense with the landing SHA).
 - **W18-2 closed `2026-05-21` via `a9bffb1`** — heartbeat refactor
   implementation landed. **Shape: function-extension** (chosen at
   W18-2 plan time over the originally-considered class-based
@@ -317,10 +334,77 @@ heartbeat-refactor` (W17-4 DESIGN-NEEDED via `c4c0646`)
 implementation-half closed. Design-half closed by W18-1 (`acf6cc9`
 ADR 0012).
 
-### W18-3..W18-4
+### W18-3 — Lifecycle harness extension tests (closed 2026-05-21 via `92b310d`)
 
-Stable IDs W18-3..W18-4 get Per-Item Detail entries here as each is
-pulled.
+**Pulled `2026-05-21`** (`[FOLLOWUP w17-2-harness-extension-tests]`
+new in W18-2 tracker; per ADR 0012 §"Follow-On (W18-3 test
+surface)").
+
+**Three tests landed in
+[`tests/workflows/marketplace/test_lifecycle_harness.py`](../../tests/workflows/marketplace/test_lifecycle_harness.py)**
+(test-only commit, no production code change):
+
+| Test | What it pins | ADR mapping |
+|---|---|---|
+| `test_lifecycle_harness_parallel_reset_does_not_deadlock` | Concurrent coordinator + heartbeat reset → no deadlock; count = 2; both thread names present; per-thread kwargs match production wiring (coordinator: `{}`; heartbeat: `{"reload_window": True}`) | ADR §Consequences (Negative) bullet 2 — the headline risk pin |
+| `test_lifecycle_harness_reset_idempotency` | Back-to-back coordinator resets → 2 distinct entries; both from `COORDINATOR_THREAD_NAME`; both no-kwargs; MagicMock `call_count` matches list length | ADR §Sub-decisions — coordinator-thread name + setup-reset no-kwargs contract |
+| `test_lifecycle_harness_reset_during_finalize` | Stop-heartbeat-then-cancel ordering → 0 reset calls post-barrier; DB row stays `running` | Production `run_monitoring` `finally` barrier (`heartbeat_stop.set()` + `join()` before finalize) |
+
+**Imports extended** at module top:
+
+```python
+from workflows.marketplace.analysis_execution import (
+    COORDINATOR_THREAD_NAME,
+    _run_monitoring_heartbeat,
+    _run_reset_off_thread,
+)
+```
+
+The new public `COORDINATOR_THREAD_NAME` constant (added to
+`__all__` in W18-2 at `a9bffb1`) is exactly the consumer this surface
+was designed for. `_run_reset_off_thread` is imported as a
+private-prefix helper — W18-3 tests reach into it directly to
+exercise the coordinator without driving the full
+`execute_analysis_request` pipeline (W17-2 scope cut preserved).
+
+**Scope dispositions:**
+
+- "No deadlock" test asserts both threads complete within timeout.
+  `executor_control.reset_sandbox` is a fast MagicMock side_effect,
+  so actual concurrent overlap is not guaranteed — but the property
+  under test ("no shared lock causes either caller to wait forever")
+  holds whether or not overlap actually happens. If a real
+  reset_sandbox thread-safety bug exists, this test would catch it
+  the moment a callee-side lock or non-idempotent state appears.
+  Callee-side `threading.Lock` remains deferred per ADR §Consequences
+  (Negative) bullet 2 original disposition.
+- "Reset during finalize" simulates the production barrier rather
+  than driving the full `execute_analysis_request` pipeline. This
+  matches the W17-2 docstring's deliberate scope: the harness is a
+  narrow concurrency surface, not an end-to-end driver.
+
+**Verification (recorded at landing `92b310d`):**
+
+- `pytest tests/workflows/marketplace/test_lifecycle_harness.py -v`
+  → **4 passed** in ~1.3s (W17-2 smoke byte-identical + 3 new W18-3).
+- `pytest -q` full suite → **1903 passed, 9 skipped, 8 deselected**
+  (W18-2 baseline 1900 + 3 W18-3 = 1903; W18 tracker Exit Criteria
+  target met exactly).
+- Pre-commit hook ran at commit time (now active on this clone
+  since `306d744`): ruff / ruff-format / mypy / bandit / all
+  generic checks → PASS.
+
+**Audit trail.** `[FOLLOWUP w17-2-harness-extension-tests]` (new in
+W18-2 tracker; opened as the explicit consumer of the W17-2 docstring
+L36-48 forward-contract enumeration) closed by this commit.
+
+### W18-4
+
+Stable ID W18-4 gets a Per-Item Detail entry here when pulled. Slot
+reserved for the close-out PR (`week18 -> main`) per the W17-6
+(`8bf3c6b`) + W17-7-followup (`dab4679`) paterni — 7-doc canonical
+preamble refresh + §16 self-stamp + tracker freeze + PR open
+against `main`.
 
 ## Exit Criteria (W18-End)
 

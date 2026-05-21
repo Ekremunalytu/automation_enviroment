@@ -553,10 +553,18 @@ Verification at landing time:
   analyze API smoke for this verification.
 
 The W18-3 follow-on tests (parallel reset / idempotency /
-reset-during-finalize) are the next sub-iter; they will pin
-`COORDINATOR_THREAD_NAME` and verify the
-`_reset_executor_sandbox_state` thread-safety property the §Consequences
-(Negative) bullet 2 raised.
+reset-during-finalize) landed on the `week18` branch at
+[`92b310d`](https://github.com/Ekremunalytu/automation_enviroment/commit/92b310d)
+(2026-05-21) as a single test-only commit on top of `a9bffb1`. The
+three tests pin `COORDINATOR_THREAD_NAME` (parallel-reset thread
+identity assertion) and exercise the
+`_reset_executor_sandbox_state` thread-safety property the
+§Consequences (Negative) bullet 2 raised. No production race has
+surfaced under the MagicMock-driven exercise, so callee-side
+`threading.Lock` remains deferred per the original bullet 2
+disposition. Full bar at W18-3 landing: lifecycle harness 4 tests
+green (W17-2 smoke unchanged + 3 new W18-3 tests); full suite
+1903 passed (W18-2 baseline 1900 + 3 W18-3 tests).
 
 Cross-links:
 
