@@ -1,12 +1,13 @@
 # ADR 0012: Heartbeat Thread Relocation (Sandbox Reset Off Worker Thread)
 
-- Status: Accepted (pending W18-2 implementation) (`2026-05-21`)
+- Status: Accepted and implemented (`2026-05-21`)
 - Date: 2026-05-21
-- Accepted + Implemented: PENDING — W18-2 lands on the `week18` branch
-  (this ADR + implementation are split per the W17-3 `DESIGN-NEEDED`
-  deferral rationale; the design decision lands first as W18-1 so the
-  W18-2 code change can be reviewed against a stated contract rather
-  than a moving target).
+- Accepted + Implemented: W18-2 landed on the `week18` branch at
+  [`a9bffb1`](https://github.com/Ekremunalytu/automation_enviroment/commit/a9bffb1)
+  (2026-05-21). The ADR + implementation are split per the W17-3
+  `DESIGN-NEEDED` deferral rationale: the design decision landed first
+  as W18-1 (`acf6cc9`) so the W18-2 code change was reviewed against a
+  stated contract rather than a moving target.
 - Related: ADR 0008 (Container Packaging — the sandbox surface being
   reset); the W13-1 HMAC anchor + W13-3 two-phase cancel + W13-13
   worker-entry CAS + W16-2 facade row lock are code-anchored (no
@@ -474,27 +475,88 @@ be rejected/revised in this ADR before code lands.
 
 ## Implementation
 
-PENDING — W18-2 lands on the `week18` branch.
+Landed on the `week18` branch at
+[`a9bffb1`](https://github.com/Ekremunalytu/automation_enviroment/commit/a9bffb1)
+(2026-05-21) as the function-extension shape — chosen at W18-2 plan
+time over the originally-considered class-based coordinator because
+three architecture/behavioral gates pin the bare `_reset_sandbox(...)`
+Name call at `analysis_service.py:155`:
 
-This Implementation section will be filled in by a self-stamp commit
-following the W17-1 / W16-2 / W16-4 paterni: a subsequent commit
-named `docs(W18-2): self-stamp ADR 0012 — heartbeat thread relocation
-implementation landed at <SHA>` updates the Status line to
-`Accepted and implemented (<DATE>)` and records the implementing
-commit SHA + the post-implementation W17-2 smoke + new W18-3 test
-verification.
+- `tests/architecture/test_cancel_poll_points.py` `HOT_ZONE_HELPERS`
+  AST walk requires `func.id == "_reset_sandbox"`.
+- `tests/architecture/test_harness_secret_eager_consume.py` enforces
+  `reset_line < consume_line < install_line` via the same Name
+  predicate.
+- `tests/workflows/marketplace/test_analysis_execution_poll_points.py`
+  has six `patch.object(analysis_service, "_reset_sandbox")` tests
+  whose patches would silently bypass (false-green) if the call name
+  changed at the call site.
 
-Verification at landing time (filled in at W18-2 self-stamp):
+The chosen shape lands ~42 LOC in
+[`workflows/marketplace/analysis_execution.py`](../../workflows/marketplace/analysis_execution.py):
 
-- `pytest tests/workflows/marketplace/test_lifecycle_harness.py -v`
-  → W17-2 smoke + W18-3 parallel-reset + W18-3 idempotency +
-  W18-3 reset-during-finalize (4 tests).
-- `pytest tests/architecture/` → 201+ passed (no regression on the
-  W18-0 baseline of 201).
-- `make test-security` → 220 passed (unchanged).
-- `make sim-target TARGET=ms-python.python` smoke — heartbeat
-  refactor adds no new `automation_health.reasons` entries (W19
-  owns the dropout fix).
+- A new private helper `_run_reset_off_thread(executor_control,
+  cancel_check)` spawns a daemon thread
+  (`name=COORDINATOR_THREAD_NAME = "analysis-sandbox-reset-coordinator"`)
+  that runs `executor_control.reset_sandbox()`; the caller frame waits
+  via `done.wait(timeout=_COORDINATOR_POLL_INTERVAL_S=0.1)` + a
+  `raise_if_cancelled(cancel_check)` poll, so worker cancel propagates
+  within ~100ms (≤ the W13-3 boundary cadence).
+- The public `reset_sandbox` helper gained a `cancel_check` kwarg
+  (default `None` for backwards compatibility with the
+  `patch.object(...)` test sites) and now delegates its single
+  `executor_control.reset_sandbox()` call to `_run_reset_off_thread`.
+- One call-site edit at
+  [`workflows/marketplace/analysis_service.py:155`](../../workflows/marketplace/analysis_service.py)
+  threads `cancel_check=cancel_check` into the existing
+  `_reset_sandbox(...)` call — the bare Name call is preserved, so all
+  three gates above pass byte-identical.
+
+`_heartbeat_on_cancel` at
+[`analysis_execution.py:287-297`](../../workflows/marketplace/analysis_execution.py)
+and the heartbeat thread spawn at L300-313 are **untouched**; the
+cancel-path teardown reset still fires from the heartbeat thread with
+`reload_window=True`, so the W17-2 smoke pin
+(`calls[0]["thread"] == "harness-monitoring-heartbeat"` +
+`calls[0]["kwargs"] == {"reload_window": True}`) is preserved byte-
+identical.
+
+Verification at landing time:
+
+- `pytest tests/workflows/marketplace/test_lifecycle_harness.py
+  tests/workflows/marketplace/test_analysis_execution_poll_points.py`
+  — 7 passed (W17-2 smoke unchanged + 6 poll-point unchanged).
+- `pytest tests/architecture/` — 208 passed (W18-0 baseline 201 +
+  adjacent passes in the lifecycle test module).
+- `pytest tests/executor/test_harness_secret_eager_consume.py
+  tests/executor/test_playwright_health_reconciliation.py` — 27 passed
+  (W13-11 HMAC eager-consume regression check).
+- `make test-security` — 220 passed.
+- Full suite — 1900 passed, 9 skipped (W17 baseline 1899 + 1 from the
+  W18-0 README phase-pointer flip; skip count unchanged from W17
+  baseline 9).
+- Analyze API end-to-end (job
+  `364a8d13171741c0ac8f43a6d8ffc97b`, `ms-python.python` @
+  `2026.5.2026051501`): all 5 pipeline steps reached `completed`
+  (`reset_sandbox` / `install_extension` / `build_triggers` /
+  `run_monitoring` / `finalize_report`). `automation_health.status`
+  stayed at `degraded` (matches W17 baseline `ff8e63...`); the
+  reason-set delta against baseline was **0 new** reasons (baseline:
+  `{harness_verification_unconfirmed_present,
+  official_unresolved_present, skipped_scenarios_present,
+  verification_gap_present}`; this run:
+  `{skipped_scenarios_present}` — the 3 removed reasons reflect
+  marketplace / monitoring run-to-run variance, not a coupling to
+  W18-2). `make sim-target` was found NOT to exercise the W18-2 code
+  path (it invokes `executor.flows.playwright.entrypoint --monitor`
+  directly without the `_reset_sandbox` step) and was replaced by the
+  analyze API smoke for this verification.
+
+The W18-3 follow-on tests (parallel reset / idempotency /
+reset-during-finalize) are the next sub-iter; they will pin
+`COORDINATOR_THREAD_NAME` and verify the
+`_reset_executor_sandbox_state` thread-safety property the §Consequences
+(Negative) bullet 2 raised.
 
 Cross-links:
 
