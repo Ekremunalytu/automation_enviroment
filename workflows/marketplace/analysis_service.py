@@ -294,9 +294,7 @@ def run_analysis_job(job_id: str, request: AnalyzeRequest) -> None:
         claim = claim_queued_analysis_job_at_worker_entry(
             db,
             job_id,
-            fallback_report_name=job_service.build_report_name(
-                request, job_id
-            ),
+            fallback_report_name=job_service.build_report_name(request, job_id),
             cancel_detail="Cancelled before worker started.",
         )
         if claim.outcome is WorkerEntryOutcome.ROW_MISSING:
@@ -308,8 +306,7 @@ def run_analysis_job(job_id: str, request: AnalyzeRequest) -> None:
         if claim.outcome is WorkerEntryOutcome.ALREADY_TERMINAL:
             terminal_status = claim.job.status if claim.job else "unknown"
             logger.info(
-                "Worker entry: job %s already terminal (%s); exiting "
-                "without running.",
+                "Worker entry: job %s already terminal (%s); exiting without running.",
                 job_id,
                 terminal_status,
             )

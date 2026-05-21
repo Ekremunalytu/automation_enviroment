@@ -180,7 +180,13 @@ def _run_reset_off_thread(
     def _target() -> None:
         try:
             executor_control.reset_sandbox()
-        except (ExecutorError, RuntimeError, OSError, ValueError, AttributeError) as exc:
+        except (
+            ExecutorError,
+            RuntimeError,
+            OSError,
+            ValueError,
+            AttributeError,
+        ) as exc:
             holder["exc"] = exc
         finally:
             done.set()
