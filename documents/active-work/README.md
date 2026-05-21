@@ -1,6 +1,6 @@
 # Active Work
 
-`Last Updated: 2026-05-21 (W18 active — closed via PR #26 week18 -> main MERGED 2026-05-21 via 9874e79; W18-0..W18-4 sub-iter slate landed on the week18 branch (per user direction; W11-W17 paterni preserved); W18-4-followup post-merge audit landed this commit. W18 frozen tracker: W18-heartbeat-refactor.md. W17 closed via PR #25 week17 -> main MERGED 2026-05-18 via bff565d; W16 closed via PR #23 week16 -> main MERGED 2026-05-18 via 1b6d43f. Final W18 bar: tests/architecture/ 201 passed; make test-security 220 passed; full suite 1907 passed, 9 skipped, 8 deselected.)`
+`Last Updated: 2026-05-21 (W19 active — W19-0 doc-reconcile this commit on the week19 branch (per user direction 2026-05-21; W11-W18 paterni preserved); sub-iter slate W19-0..W19-6 reserved by §17 plan. W19 active tracker: W19-live-run-root-cause.md (new). W18 closed via PR #26 week18 -> main MERGED 2026-05-21 via 9874e79; W18 frozen tracker: W18-heartbeat-refactor.md. W17 closed via PR #25 week17 -> main MERGED 2026-05-18 via bff565d; W16 closed via PR #23 week16 -> main MERGED 2026-05-18 via 1b6d43f. Final W18 bar: tests/architecture/ 201 passed; make test-security 220 passed; full suite 1907 passed, 9 skipped, 8 deselected.)`
 
 Slim canonical files for **active engineering work tracking**. Each file is
 a stable contract: code comments and tests reference items here by stable
@@ -19,10 +19,52 @@ points to it.
 
 ## Files
 
+- `W19-live-run-root-cause.md`
+  - **Active phase — W19-0 closed `2026-05-21` (this commit on the
+    `week19` branch per user direction; W11-W18 paterni preserved).**
+    W19 Live-Run Kök Neden: Dropout + Harness Verification. 7
+    sub-iter slate (`W19-0..W19-6`): doc-reconcile + §17 W19 plan
+    header doc-open + baseline live-run smoke (W19-0, this commit);
+    regression fixture xfail/RED `[BUG scenario-unaccounted-dropout-regression-fixture]`
+    (W19-1); emit-site fix `[BUG scenario-unaccounted-dropout-debug-refactor]`
+    (W19-2; W19-1 xfail flips to PASS); harness verification
+    contract event-level — HARD GATE schema landing
+    `[GOAL harness-verification-contract-event-level]` (W19-3);
+    onDebug* nonce confirmation
+    `[FOLLOWUP harness-verification-debug-events]` (W19-4);
+    onTerminal + onLM local-only confirmation
+    `[FOLLOWUP harness-verification-terminal-and-lm-tool]` (W19-5);
+    close-out hygiene + PR `week19 -> main` (W19-6). Driving signal:
+    Codex live-run validation `2026-05-21` of `ms-python.python` @
+    `992ad028f3df` reports `automation_health.status=degraded` +
+    `run_quality=low` while static W18 final bar (1907/201/220)
+    remains 🟢. W19 closes Hat-1 (executor muhasebe bug →
+    `unaccounted_dropout`) + Hat-2 (harness verification gap →
+    declared ≠ verified); Hat-3 (coverage matrix promotion) deferred
+    to W20-W22 per multi-iter roadmap. Slim canonical:
+    [`REFACTOR_OPTIMIZATION.md §17`](../REFACTOR_OPTIMIZATION.md).
+- `W18-heartbeat-refactor.md`
+  - **Past phase — closed `2026-05-21` and merged via PR #26
+    `week18 -> main` on `2026-05-21` via `9874e79`** (W18-0..W18-4
+    sub-iter slate + W18-4-followup post-merge audit landed; final
+    W18 bar `tests/architecture/` **201 passed**; `make test-security`
+    **220 passed**; full suite **1907 passed, 9 skipped,
+    8 deselected**). W18 Heartbeat Refactor: 5 sub-iter slate
+    (`W18-0..W18-4`) + W18-4-followup. Retained on the read path
+    because code comments + tests reference items by `W18-<n>` ID
+    — do not renumber. Slim canonical:
+    [`REFACTOR_OPTIMIZATION.md §16`](../REFACTOR_OPTIMIZATION.md).
+- `W18-W22-roadmap.md`
+  - **Multi-iter roadmap source-of-truth (planning state for
+    W20-W22; W18 closed; W19 active).** Authored `2026-05-21` per
+    user direction; carries the dropout fix (Hat-1) + harness
+    verification (Hat-2) + coverage matrix promotion (Hat-3) plan
+    across W18-W22. Slim canonical:
+    [`REFACTOR_OPTIMIZATION.md §16 + §17 + §18-§20`](../REFACTOR_OPTIMIZATION.md).
 - `W15-codex-uclass-bounds-posture.md`
-  - **Active phase — W15-1..W15-7 closed `2026-05-17`; `week15 -> main`
-    close-out PR pending separate user action.** W15 Codex U-class
-    Close-Out + UI Bounds + Posture. 7 sub-iter slate
+  - **Past phase — W15-1..W15-7 closed `2026-05-17`; merged via
+    PR #22 `week15 -> main` on `2026-05-18` via `6161472`.** W15
+    Codex U-class Close-Out + UI Bounds + Posture. 7 sub-iter slate
     (`W15-1..W15-7`): sync analyze error taxonomy alignment
     (M10 via `c58c365`), workspace symlink check order / orphan
     removal (M12 via `765cde7`), `activationEvents` bounds + DB
@@ -42,9 +84,9 @@ points to it.
     `7cc2921` carrying this tracker). `tests/architecture/` 171
     baseline → 198 final (+17 sub-iter + 2 mid-iter hygiene + 8
     W15-7 early-pull regression cases on extension paths).
-    Retained on the read path as the active tracker until the
-    `week15 -> main` close-out PR merges and the next phase opens.
-    Slim canonical:
+    Retained on the read path for stable-ID references (code
+    comments + tests reference items by `W15-<n>` ID — do not
+    renumber). Slim canonical:
     [`REFACTOR_OPTIMIZATION.md §13`](../REFACTOR_OPTIMIZATION.md).
 - `W14-codex-acceptance-observability.md`
   - **Past phase — closed `2026-05-13` (W14-1..W14-6 closed + W14-7/W14-8
