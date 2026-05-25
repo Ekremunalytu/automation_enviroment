@@ -1,7 +1,7 @@
 # W19 — Live-Run Kök Neden: Dropout + Harness Verification (Active Work Tracker)
 
 `Last Updated: 2026-05-21 (W19 active — W19-0 doc-reconcile this commit on the week19 branch (per user direction 2026-05-21; W11-W18 paterni preserved). Sub-iter slate W19-0..W19-6 reserved by §17 plan; stable IDs W19-1..W19-5 reserved at POST_POC_BACKLOG.md W19-W22 Roadmap Acceptance Bar; assigned at first pull per W11-W18 precedent. Driving signal: Codex live-run validation 2026-05-21 of ms-python.python @ 992ad028f3df reports automation_health.status=degraded + run_quality=low while static W18 final bar (1907/201/220) remains green. W19 closes Hat-1 (executor muhasebe bug → unaccounted_dropout) + Hat-2 (harness verification gap → declared ≠ verified) in this iter; Hat-3 (coverage matrix promotion) deferred to W20-W22 per multi-iter roadmap. W18 closed via PR #26 week18 -> main MERGED 2026-05-21 via 9874e79; final W18 bar tests/architecture/ 201 / make test-security 220 / full suite 1907 passed, 9 skipped, 8 deselected. W17 closed via PR #25 week17 -> main MERGED 2026-05-18 via bff565d. W18 frozen tracker: W18-heartbeat-refactor.md; multi-iter roadmap source-of-truth: W18-W22-roadmap.md; §17 W19 plan source in REFACTOR_OPTIMIZATION.md.)`
-`Phase: W19 active — W19-0 doc-reconcile landed this commit; W19-1..W19-6 next on the week19 branch`
+`Phase: W19 active — W19-0 doc-reconcile + W19-1 RED dropout regression fixture landed (primary 6a21cf3 + self-stamp this commit); W19-2 emit-site fix next on the week19 branch`
 `Branch: week19 (per user direction 2026-05-21; W11-W18 paterni preserved — sub-iter commits land on week19, close-out merges into main via week19 -> main PR)`
 `Owner: ekrem`
 
@@ -70,6 +70,26 @@ template structurally followed here.
   fact gate `test_readme_phase_pointer_mentions_w18_closeout_merge`
   pinning PR #26 / `week18 -> main` / `9874e79`, mirroring the
   W18-0 W17→W18 transition paterni from `89d0c9b`).
+- **W19-1 RED fixture landed `2026-05-25` via primary `6a21cf3` +
+  self-stamp this commit** — Hat-1 closure step 1 of 2.
+  `tests/executor/test_scenario_accountant_dropout_regression.py`
+  (3 xfail/strict tests parametrized on `debug_session` +
+  `refactor_workflow` + an aggregate gate) lifts the live-run
+  dropout shape from W19-0 baseline JSON anchor `992ad028f3df`
+  (sha256 `7e06153c66...`, pinned alongside the slim canonical
+  excerpt at
+  `tests/executor/fixtures/activation_reports/w19_baseline_ms_python_python.{json,sha256}`).
+  Root-cause-blind by design — asserts the surface symptom
+  (`reason_code != "unaccounted_dropout"` + whitelist membership)
+  without prescribing the upstream fix-site. W19-2 emit-site fix
+  landed'inde xfail flips to PASS, strict mode turns the unexpected
+  PASS into a CI break → W19-2 self-stamp removes the xfail markers
+  and narrows the whitelist to the new reason_code. Test bar at
+  W19-1 primary landing: `tests/architecture/` **202 passed,
+  4 deselected** (unchanged); `make test-security` **220 passed**
+  (unchanged — W19-1 lives in `tests/executor/`); full suite
+  **1908 passed, 9 skipped, 8 deselected, 3 xfailed** (W19-0 baseline
+  1908 + W19-1 +3 xfail).
 
 ## Sub-Iter Scope (Authored 2026-05-21)
 
@@ -199,12 +219,105 @@ backlog item closed — W19-1..W19-5 stable IDs are reserved by
 POST_POC_BACKLOG.md W19-W22 Roadmap Acceptance Bar and assigned
 when pulled.
 
-### W19-1 — Regression fixture (xfail/RED) — to be pulled
+### W19-1 — Regression fixture (xfail/RED) (closed `2026-05-25` via primary `6a21cf3` + this self-stamp commit)
 
-Stable ID `[BUG scenario-unaccounted-dropout-regression-fixture]`
-reserved at POST_POC_BACKLOG.md W19-W22 Roadmap Acceptance Bar (now
-W19 Pull-Forward Acceptance Bar after W19-0 promotion). Per-Item
-Detail block populated at first pull (W18-1 paterni).
+**Stable ID `[BUG scenario-unaccounted-dropout-regression-fixture]`**
+pulled from POST_POC_BACKLOG.md W19 Pull-Forward Acceptance Bar at
+the W19-1 primary commit (`6a21cf3`).
+
+**Pulled `2026-05-25`** as the W19-1 primary commit on the `week19`
+branch (HEAD before: `086d7a5` W19-0 self-stamp; HEAD after primary:
+`6a21cf3`). Test-only commit; no executor source changes. Self-stamp
+followup commit landing this Per-Item Detail block + the Status
+(Quick Glance) W19-1 bullet above (W18-1 paterni `acf6cc9` +
+`73d8a5c` followed).
+
+**Scope (delivered):**
+
+- **New regression fixture test file:**
+  [`tests/executor/test_scenario_accountant_dropout_regression.py`](../../tests/executor/test_scenario_accountant_dropout_regression.py)
+  (~115 LOC). 3 tests total, all `@pytest.mark.xfail(strict=True,
+  reason="W19-2 emit-site fix bekleniyor; W19-1 RED fixture")`:
+  - `test_scenario_not_marked_unaccounted_dropout[debug_session]`
+  - `test_scenario_not_marked_unaccounted_dropout[refactor_workflow]`
+    (single parametrize on scenario name)
+  - `test_aggregate_unaccounted_dropout_is_zero` (aggregate gate,
+    independent of parametrize)
+- **New slim canonical baseline excerpt:**
+  [`tests/executor/fixtures/activation_reports/w19_baseline_ms_python_python.json`](../../tests/executor/fixtures/activation_reports/w19_baseline_ms_python_python.json)
+  (~1.5 KB). Only the fields the tests assert on
+  (`automation_health` slim, `skipped_scenarios`,
+  `requested_scenarios`, `run_quality`) + a `_meta` block carrying
+  the source filename, source sha256, lift iter, and lift date for
+  audit trail. Lifted from
+  `output/activation_report_ms-python.python-2026.5.2026052001-992ad028f3df.json`
+  (the W19 driving signal — Codex live-run reference, 2026-05-21
+  @ 10:19, 7.4 MB full report). 7 fields total at top level; full
+  JSON has 60+ top-level fields — Plan agent Q1 disposition chose
+  slim excerpt for readability + small git history.
+- **New audit anchor file:**
+  [`tests/executor/fixtures/activation_reports/w19_baseline_ms_python_python.sha256`](../../tests/executor/fixtures/activation_reports/w19_baseline_ms_python_python.sha256)
+  — one line: `<source_sha256>  <source_filename>`. Future-self
+  can re-lift the slim excerpt deterministically by re-hashing the
+  full JSON and comparing. W19-2 fixture regenerate updates both
+  this file and the `_meta.source_sha256` field in the JSON.
+- **Whitelist (W19-1 broad; tracker line 79):**
+  `frozenset({"dependency_missing", "trigger_timeout",
+  "precondition_unmet", "not_executed", "harness_unavailable",
+  "dispatch_outcome_none", "aborted_after_fatal_ui_crash"})` —
+  already-classified codes the codebase emits today.
+  `unaccounted_dropout` intentionally absent (the regression
+  forbids it). W19-2 narrows to the single new reason_code emitted
+  by the chosen upstream fix-site.
+
+**Strict xfail semantics:** W19-2 lands the emit-site fix and
+**regenerates** the slim baseline JSON from a fresh analyze API run.
+The new fixture content carries the W19-2 reason_code (NOT
+`unaccounted_dropout`). At that point the 3 tests flip
+`xfail → PASS`; strict mode turns the unexpected PASS into a CI
+break — the W19-2 self-stamp commit removes the xfail markers and
+narrows `_W19_1_ACCEPTABLE_REASONS` to the single new reason_code.
+Pattern mirrors W14-1/W16-1 dropout-class tests
+([`tests/security/test_scenario_dropout_repro.py`](../../tests/security/test_scenario_dropout_repro.py))
+placed in `tests/executor/` per §17 W19 plan + W19 tracker scope
+table line 79.
+
+**Number reconciliation:** `tests/executor/` adds 3 tests (2
+parametrize + 1 aggregate, all xfailed); `tests/architecture/`
+unchanged; `tests/security/` unchanged; full suite +3 xfailed +0
+passed deltas. Math: W19-0 baseline 1908 passed + W19-1 +3 xfail =
+1908 passed + 3 xfailed (W19-1 baseline). xfail counts not in pass
+total; full suite passed count stays 1908 until W19-2 flips xfail
+to PASS (then 1911 + W19-2 +N).
+
+**Verification (recorded at landing this commit, post-primary
+`6a21cf3`):**
+
+- `.venv/bin/pytest tests/executor/test_scenario_accountant_dropout_regression.py -v`
+  → **3 xfailed** (parametrize 2 + aggregate 1; XFAIL reasons
+  string-matched against the decorator).
+- `.venv/bin/pytest tests/architecture/ -q` → **202 passed,
+  4 deselected** (unchanged from W19-0 baseline; W19-1 adds no
+  architecture-test gates).
+- `make test-security` → **220 passed** (unchanged from W19-0
+  baseline; W19-1 in `tests/executor/`, not on the
+  `make test-security` lane).
+- `.venv/bin/pytest -q` full suite → **1908 passed, 9 skipped,
+  8 deselected, 3 xfailed, 91 warnings** (W19-0 baseline 1908 +
+  W19-1 +3 xfail; skip + deselect counts unchanged).
+- Pre-commit hooks (primary commit `6a21cf3`): trim trailing
+  whitespace / fix end of files / check json / detect private key /
+  ruff (legacy alias) / ruff format / mypy — all passed.
+
+**Audit trail.** W19-1 closes 1 of 2 Hat-1 sub-iters. W19-2 next
+(triage step 0 ≤30 dk to determine one-path vs two-path emit-site,
+then emit-site fix + synthetic unit test mirror of W16-1
+`test_dispatch_outcome_none_emits_specific_reason_code` per Plan
+agent Q2 disposition + fixture regenerate + xfail removal). No
+backlog item closed yet — POST_POC_BACKLOG.md W19 Pull-Forward
+Acceptance Bar row for `[BUG scenario-unaccounted-dropout-
+regression-fixture]` flips from `pending → closed at 6a21cf3` at
+the W19-2 self-stamp commit (Hat-1 fully closed bundling).
 
 ### W19-2 — `unaccounted_dropout` emit-site fix — to be pulled
 
