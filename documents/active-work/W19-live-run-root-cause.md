@@ -1,7 +1,7 @@
 # W19 — Live-Run Kök Neden: Dropout + Harness Verification (Active Work Tracker)
 
 `Last Updated: 2026-05-21 (W19 active — W19-0 doc-reconcile this commit on the week19 branch (per user direction 2026-05-21; W11-W18 paterni preserved). Sub-iter slate W19-0..W19-6 reserved by §17 plan; stable IDs W19-1..W19-5 reserved at POST_POC_BACKLOG.md W19-W22 Roadmap Acceptance Bar; assigned at first pull per W11-W18 precedent. Driving signal: Codex live-run validation 2026-05-21 of ms-python.python @ 992ad028f3df reports automation_health.status=degraded + run_quality=low while static W18 final bar (1907/201/220) remains green. W19 closes Hat-1 (executor muhasebe bug → unaccounted_dropout) + Hat-2 (harness verification gap → declared ≠ verified) in this iter; Hat-3 (coverage matrix promotion) deferred to W20-W22 per multi-iter roadmap. W18 closed via PR #26 week18 -> main MERGED 2026-05-21 via 9874e79; final W18 bar tests/architecture/ 201 / make test-security 220 / full suite 1907 passed, 9 skipped, 8 deselected. W17 closed via PR #25 week17 -> main MERGED 2026-05-18 via bff565d. W18 frozen tracker: W18-heartbeat-refactor.md; multi-iter roadmap source-of-truth: W18-W22-roadmap.md; §17 W19 plan source in REFACTOR_OPTIMIZATION.md.)`
-`Phase: W19 active — Hat-1 closed (W19-0 doc-reconcile + W19-1 RED fixture 6a21cf3/fd02ca4 + W19-2 emit-site fix 89b64da + this self-stamp commit); Hat-2 next via W19-3..W19-5 on the week19 branch (Hat-3 deferred to W20-W22)`
+`Phase: W19 active — Hat-1 closed + live-verified (W19-0 doc-reconcile + W19-1 RED fixture 6a21cf3/fd02ca4 + W19-2 emit-site fix 89b64da/d9c6262 + W19-2-followup-2 live re-anchor this commit; live JSON c2bf28ca9506 @ 2026-05-25 22:23 confirms unaccounted_dropout=0); Hat-2 next via W19-3..W19-5 on the week19 branch (Hat-3 deferred to W20-W22)`
 `Branch: week19 (per user direction 2026-05-21; W11-W18 paterni preserved — sub-iter commits land on week19, close-out merges into main via week19 -> main PR)`
 `Owner: ekrem`
 
@@ -107,9 +107,18 @@ template structurally followed here.
   (`reason_code=covered_via_layered_attempts`); xfail markers
   removed; whitelist narrowed to single member. **Live Hat-1
   GREEN gate (`unaccounted_dropout == 0` in fresh live JSON)
-  DEFERRED to W19-6** close-out (requires `docker-compose build`
-  of api + executor images; bundled with W19-3..W19-5 live runs
-  for economical cadence). Test bar at W19-2 primary landing:
+  SATISFIED `2026-05-25 22:23`** via UI-driven analyze API
+  re-run after `docker compose up -d --build api executor`
+  picked up the W19-2 `passes.py` change inside the containers
+  — output JSON
+  `activation_report_ms-python.python-2026.5.2026052501-c2bf28ca9506.json`
+  (sha256 `e9e60b2e42...`) shows `unaccounted_dropout` count = 0,
+  both `debug_session` + `refactor_workflow` now classified
+  `covered_via_layered_attempts`; 16 of 16 key fields
+  byte-identical with the pre-fix anchor (`992ad028f3df`) save
+  the W19-2 reason_code change. W19-1 fixture re-anchored
+  synthesized → live-lifted in W19-2-followup-2 this commit.
+  Test bar at W19-2 primary landing:
   `tests/architecture/` **202 passed, 4 deselected** (unchanged);
   `make test-security` **220 passed** (unchanged — W19-2
   synthetic tests on full suite, not on the curated lane); full
@@ -456,11 +465,16 @@ a single dispatch-collapse fix-site at `dispatch.py:91-114`).
   `tests/executor/fixtures/activation_reports/w19_baseline_ms_python_python.json`
   now reports `skipped_scenarios[debug_session].reason_code =
   refactor_workflow.reason_code = "covered_via_layered_attempts"`.
-  `_meta.synthesis_note` carries the **SYNTHESIZED** flag — the
-  shape was reasoned from the W19-2 fix + synthetic test pins,
-  NOT lifted from a fresh live analyze API run. Pre-fix anchor
+  At W19-2 primary landing the `_meta` block carried a
+  **SYNTHESIZED** flag (shape reasoned from the W19-2 fix +
+  synthetic test pins, NOT lifted from a live analyze API run);
+  W19-2-followup-2 (this commit) re-anchored the fixture from
+  synthesized to **live-lifted** —
+  `_meta.source_filename = activation_report_ms-python.python-2026.5.2026052501-c2bf28ca9506.json`,
+  `_meta.source_sha256 = e9e60b2e425ec3174226d9c849336ca3926ad8fb86cc6ac1acd2f560bf2c5dcb`,
+  `_meta.verification_status = "live-anchored"`. Pre-fix anchor
   sha256 (`7e06153c66...`) preserved historically in the
-  `.sha256` file header.
+  `.sha256` file header alongside the new live anchor.
 
 - **W19-1 test xfail removed + whitelist narrowed:**
   `tests/executor/test_scenario_accountant_dropout_regression.py`:
@@ -473,31 +487,54 @@ a single dispatch-collapse fix-site at `dispatch.py:91-114`).
   - Module docstring updated to reference W19-2 close-out + the
     synthetic mechanism pins.
 
-**Live verification gate (Hat-1 GREEN must-pass) DEFERRED to W19-6
-close-out.** Required steps:
+**Live verification gate (Hat-1 GREEN must-pass) SATISFIED
+`2026-05-25 22:23`** via W19-2-followup-2 (this commit). Recorded
+steps:
 
-1. `docker-compose build api executor` to materialize the W19-2
-   passes.py change inside the container running the analyze API
-   pipeline (the on-disk file change does not propagate into
-   already-built container images — the local executor container
-   carries the pre-W19-2 passes.py).
-2. `make exec-up` + `docker compose up -d --build api`.
-3. Call `POST /marketplace/analyze` against `ms-python.python` @
-   `2026.5.2026052001`; capture the resulting
-   `activation_report_*.json`.
-4. Assert: `unaccounted_dropout == 0` in
-   `report.skipped_scenarios` (must-pass — the Hat-1 GREEN signal
-   for the W19 acceptance bar).
-5. Re-generate the W19-1 fixture from the fresh JSON (slim
-   excerpt + sha256 update); the `_meta.synthesis_note` flips
-   from "SYNTHESIZED" to a sha256-anchored live lift.
+1. `docker compose up -d --build api executor` rebuilt both
+   images (cache-aware; passes.py layer + dependents) and
+   recreated the containers so the W19-2 `passes.py` change
+   materialized inside the api + executor containers running the
+   analyze pipeline. (Pre-rebuild, the containers carried image-
+   baked pre-W19-2 passes.py; both Dockerfiles `COPY` source from
+   the project root rather than mounting a volume, so on-disk
+   edits do not propagate without rebuild.)
+2. UI-driven analyze run against `ms-python.python` (newer
+   version `2026.5.2026052501` than the pre-fix anchor's
+   `2026.5.2026052001`) produced
+   `output/activation_report_ms-python.python-2026.5.2026052501-c2bf28ca9506.json`
+   (sha256 `e9e60b2e425ec3174226d9c849336ca3926ad8fb86cc6ac1acd2f560bf2c5dcb`).
+3. Key-field diff vs pre-fix anchor `992ad028f3df`: **16 of 16
+   SAME** (`automation_health.{status,reasons,skipped_scenarios,failed_scenarios,extra_trigger_failure_count}`,
+   `requested_scenarios`, `scenarios_run`, `failed_scenarios`,
+   `run_quality`, `event_attempts.length`,
+   `coverage_summary.{attempted,verified,missing_capabilities}`,
+   `verification_gap`, `runner_status`, `runner_exit_code`); the
+   sole delta is exactly the W19-2 reason_code change
+   (`unaccounted_dropout → covered_via_layered_attempts` on both
+   scenarios). `runner_status=success`, `runner_exit_code=0`.
+4. **`unaccounted_dropout` count = 0 (Hat-1 GREEN must-pass
+   satisfied).** Both `debug_session` and `refactor_workflow`
+   now classified `covered_via_layered_attempts` upstream;
+   accountant fallback never fired for them in the live run.
+5. W19-1 fixture re-anchored synthesized → live-lifted in
+   W19-2-followup-2 (this commit): `_meta.source_filename`,
+   `_meta.source_sha256`, `_meta.anchor_history`, and
+   `_meta.verification_status` updated;
+   `tests/executor/fixtures/activation_reports/w19_baseline_ms_python_python.sha256`
+   header rewritten with both anchors (pre-fix historical + new
+   live current); `tests/executor/test_scenario_accountant_dropout_regression.py`
+   module docstring updated; new gate
+   `test_baseline_meta_source_sha256_is_canonical_hex` added to
+   guard against future regression of `_meta.source_sha256` back
+   to a placeholder shape (4 → 4 tests in the W19-1 fixture
+   file, +1 since W19-2 primary).
 
-Step 1 alone takes 5-10 minutes; integration sanity for the full
-analyze pipeline another 5-10 minutes. Bundling this with the W19-6
-close-out hygiene + final preamble refresh + tracker freeze + PR
-opening keeps the cadence economical and lets W19-3..W19-5 (Hat-2)
-land first (they will also exercise live analyze runs whose
-verification step can fold into the same docker-compose build cycle).
+The originally-planned W19-6 bundling of this gate with the
+W19-3..W19-5 docker-compose build cycle is now moot: Hat-1 is
+fully satisfied. W19-3..W19-5 (Hat-2) and W19-6 close-out remain
+on the original cadence; only the Hat-1 verification node moved
+forward.
 
 **Number reconciliation:** `executor/flows/playwright/stimulus/passes.py`
 +50 LOC source delta (no test/architecture deltas in this file);

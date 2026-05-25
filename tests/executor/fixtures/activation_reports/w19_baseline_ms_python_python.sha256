@@ -1,3 +1,5 @@
-# W19-2 post-fix synthesis (2026-05-25) — no source JSON; live re-run verification pending.
-# Pre-fix anchor (W19-1 primary commit 6a21cf3):
+# W19-2-followup-2 live re-anchor (2026-05-25) — Hat-1 GREEN gate satisfied.
+# Current anchor (post-W19-2 fix, live-verified):
+e9e60b2e425ec3174226d9c849336ca3926ad8fb86cc6ac1acd2f560bf2c5dcb  activation_report_ms-python.python-2026.5.2026052501-c2bf28ca9506.json
+# Historical pre-fix anchor (W19-0 baseline; W19-1 primary commit 6a21cf3):
 7e06153c6634f0c3613bbfa5763e0a11054ad752862a685727e5d9b802d9ca62  activation_report_ms-python.python-2026.5.2026052001-992ad028f3df.json
