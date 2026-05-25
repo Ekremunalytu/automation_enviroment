@@ -1,7 +1,7 @@
 # W18-W22 — Capability + Otomasyon Sağlık + Coverage Promotion Roadmap (Planning Tracker)
 
-`Last Updated: 2026-05-25 (W18 closed — PR #26 week18 -> main MERGED 2026-05-21 via 9874e79; W18-0..W18-4 sub-iter slate fully delivered on the week18 branch (per user direction 2026-05-21; W11-W17 paterni preserved); W18-4-followup post-merge audit landed e1043e5; §16 W18 plan source. W18 sub-iter audit trail: W18-0 doc-reconcile (89d0c9b); W18-1 ADR 0012 Option A1 accepted (acf6cc9 + 73d8a5c followup); W18-2 heartbeat refactor implementation — step-1 reset off worker thread via dedicated coordinator (a9bffb1 + 78ed7cc + b5b64b6 + 306d744); W18-3 lifecycle harness extension tests — parallel reset / idempotency / reset-during-finalize (92b310d + 32d9905); W18-4 close-out hygiene (3f4f95a); W18-4-followup (e1043e5) — 4 W18-2 invariant pins + 2 pre-existing doc drift fixes. W19 active — Hat-1 closed + live-verified on the week19 branch: W19-0 doc-reconcile 2026-05-21 (72712bd + 086d7a5); W19-1 RED dropout regression fixture 2026-05-25 (6a21cf3 + fd02ca4); W19-2 emit-site fix at executor/flows/playwright/stimulus/passes.py covered-only branch — new covered_via_layered_attempts reason_code (89b64da + d9c6262); W19-2-followup-2 live re-anchor + drift fix + sha256 format gate (this commit). Live Hat-1 GREEN gate SATISFIED 2026-05-25 22:23 via UI-driven analyze API re-run after docker compose up -d --build api executor: live JSON activation_report_ms-python.python-2026.5.2026052501-c2bf28ca9506.json (sha256 e9e60b2e42...) shows unaccounted_dropout count = 0, both debug_session + refactor_workflow now classified covered_via_layered_attempts; 16 of 16 key fields byte-identical with pre-fix anchor 992ad028f3df save the W19-2 reason_code change. Hat-2 (W19-3..W19-5 harness verification gap) + W19-6 close-out pending. W20-W22 remain in planning state. Source plan authored 2026-05-21 with Codex live-run validation + GPT review (3 rounds) — plan file at /Users/ekrem/.claude/plans/senden-projemdeki-capabilites-ve-mellow-valley.md. W17 closed via PR #25 week17 -> main MERGED 2026-05-18 via bff565d. Sub-iter commits land on weekN branches per W11-W17 paterni; close-out merges via weekN -> main PR.)`
-`Phase: W18 closed — PR #26 week18 -> main MERGED 2026-05-21 via 9874e79. W19 active on the week19 branch — Hat-1 closed + live-verified (W19-0..W19-2 + W19-2-followup-2 this commit); Hat-2 next via W19-3..W19-5; W19-6 close-out pending.`
+`Last Updated: 2026-05-25 (W18 closed — PR #26 week18 -> main MERGED 2026-05-21 via 9874e79; W18-0..W18-4 sub-iter slate fully delivered on the week18 branch (per user direction 2026-05-21; W11-W17 paterni preserved); W18-4-followup post-merge audit landed e1043e5; §16 W18 plan source. W18 sub-iter audit trail: W18-0 doc-reconcile (89d0c9b); W18-1 ADR 0012 Option A1 accepted (acf6cc9 + 73d8a5c followup); W18-2 heartbeat refactor implementation — step-1 reset off worker thread via dedicated coordinator (a9bffb1 + 78ed7cc + b5b64b6 + 306d744); W18-3 lifecycle harness extension tests — parallel reset / idempotency / reset-during-finalize (92b310d + 32d9905); W18-4 close-out hygiene (3f4f95a); W18-4-followup (e1043e5) — 4 W18-2 invariant pins + 2 pre-existing doc drift fixes. W19 active — Hat-1 closed + live-verified; Hat-2 HARD GATE W19-3 closed on the week19 branch: W19-0 doc-reconcile 2026-05-21 (72712bd + 086d7a5); W19-1 RED dropout regression fixture 2026-05-25 (6a21cf3 + fd02ca4); W19-2 emit-site fix at executor/flows/playwright/stimulus/passes.py covered-only branch — new covered_via_layered_attempts reason_code (89b64da + d9c6262); W19-2-followup-2 live re-anchor + drift fix + sha256 format gate (d5de9ca); W19-3 schema landing 2026-05-25 (primary d2e83e7 + self-stamp 39121e4) — confirmation_source: str = "none" field landed on EventAttemptRecord (Pydantic + executor dataclass + UI adapter back-compat), str + field_validator typing mirroring status pattern (deviation from §17 plan's Literal text captured in tracker), 22 new tests + frozen trigger fixture regenerated via planner replay. Live Hat-1 GREEN gate SATISFIED 2026-05-25 22:23 via UI-driven analyze API re-run after docker compose up -d --build api executor: live JSON activation_report_ms-python.python-2026.5.2026052501-c2bf28ca9506.json (sha256 e9e60b2e42...) shows unaccounted_dropout count = 0, both debug_session + refactor_workflow now classified covered_via_layered_attempts; 16 of 16 key fields byte-identical with pre-fix anchor 992ad028f3df save the W19-2 reason_code change. Post-W19-3 live run 2026-05-25 23:27 (86e0f3646ce9) confirms confirmation_source field landed at "none" on 21/21 event_attempts with no behavior regression. Hat-2 W19-4 onDebug* nonce + W19-5 onTerminal + onLM local-only emit-site stamps + W19-6 close-out pending. W20-W22 remain in planning state. Source plan authored 2026-05-21 with Codex live-run validation + GPT review (3 rounds) — plan file at /Users/ekrem/.claude/plans/senden-projemdeki-capabilites-ve-mellow-valley.md. W17 closed via PR #25 week17 -> main MERGED 2026-05-18 via bff565d. Sub-iter commits land on weekN branches per W11-W17 paterni; close-out merges via weekN -> main PR.)`
+`Phase: W18 closed — PR #26 week18 -> main MERGED 2026-05-21 via 9874e79. W19 active on the week19 branch — Hat-1 closed + live-verified (W19-0..W19-2 + W19-2-followup-2); Hat-2 HARD GATE W19-3 closed (primary d2e83e7 + self-stamp 39121e4) — W19-4/W19-5 emit-site stamps next; W19-6 close-out pending.`
 `Branch: week19 (per user direction 2026-05-21; W11-W18 paterni preserved — sub-iter commits land on week19, close-out merges into main via week19 -> main PR)`
 `Owner: ekrem`
 
@@ -36,14 +36,27 @@ W17 tracker structure).
   added 4 W18-2 invariant pins + 2 pre-existing doc drift fixes
   before merge. W18 active tracker (frozen at W18-4):
   [`W18-heartbeat-refactor.md`](W18-heartbeat-refactor.md).
-- **W19 active — Hat-1 closed + live-verified `2026-05-25` on the
-  `week19` branch.** Sub-iter delivery: W19-0 doc-reconcile
-  2026-05-21 (`72712bd` + `086d7a5`); W19-1 RED dropout regression
-  fixture 2026-05-25 (`6a21cf3` + `fd02ca4`); W19-2 emit-site fix
-  at `executor/flows/playwright/stimulus/passes.py` covered-only
+- **W19 active — Hat-1 closed + live-verified `2026-05-25`;
+  Hat-2 HARD GATE W19-3 closed `2026-05-25` on the `week19`
+  branch.** Sub-iter delivery: W19-0 doc-reconcile 2026-05-21
+  (`72712bd` + `086d7a5`); W19-1 RED dropout regression fixture
+  2026-05-25 (`6a21cf3` + `fd02ca4`); W19-2 emit-site fix at
+  `executor/flows/playwright/stimulus/passes.py` covered-only
   branch — new `covered_via_layered_attempts` reason_code
   (`89b64da` + `d9c6262`); W19-2-followup-2 live re-anchor + drift
-  fix + sha256 format gate (this commit). **Live Hat-1 GREEN gate
+  fix + sha256 format gate (`d5de9ca`); **W19-3 schema landing
+  (primary `d2e83e7` + self-stamp `39121e4`)** — `confirmation_source: str = "none"`
+  field landed on `EventAttemptRecord` (Pydantic at
+  `packages/analysis_contracts/contracts.py` + executor dataclass at
+  `executor/flows/playwright/monitor/records.py` + UI `EventAttemptDto`/`EventAttemptView`/`fromEventAttempt`),
+  `_VALID_CONFIRMATION_SOURCES` module constant +
+  `_validate_confirmation_source` `@field_validator` mirroring the
+  `status` field pattern (typing decision: `str + field_validator`
+  not `Literal[...]` — codebase parity, JSON wire shape identical),
+  22 new tests (12 `test_automation_health_reasons.py` +
+  6 contract round-trip + 4 UI adapter) + frozen trigger fixture
+  regenerated via planner replay (21 event_attempts each gain
+  `"confirmation_source": "none"`). **Live Hat-1 GREEN gate
   SATISFIED `2026-05-25 22:23`** via UI-driven analyze API re-run
   after `docker compose up -d --build api executor`: live JSON
   `activation_report_ms-python.python-2026.5.2026052501-c2bf28ca9506.json`
@@ -51,8 +64,11 @@ W17 tracker structure).
   both `debug_session` + `refactor_workflow` now classified
   `covered_via_layered_attempts`; 16 of 16 key fields byte-identical
   with pre-fix anchor `992ad028f3df` save the W19-2 reason_code
-  change. Hat-2 (W19-3..W19-5 harness verification gap) + W19-6
-  close-out pending. W19 active tracker:
+  change. **Post-W19-3 live run `2026-05-25 23:27`
+  (`86e0f3646ce9`)** confirms `confirmation_source` field landed
+  at `"none"` on 21/21 event_attempts with no behavior regression.
+  Hat-2 W19-4 onDebug* nonce + W19-5 onTerminal + onLM local-only
+  emit-site stamps + W19-6 close-out pending. W19 active tracker:
   [`W19-live-run-root-cause.md`](W19-live-run-root-cause.md). W20-W22
   remain in planning state.
 - **Driving signal (live run, 2026-05-21)**: `ms-python.python`

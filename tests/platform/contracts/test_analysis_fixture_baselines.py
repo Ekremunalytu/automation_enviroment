@@ -285,6 +285,49 @@ def test_event_attempt_record_round_trip_preserves_confirmation_source() -> None
     assert reparsed == record
 
 
+def test_baseline_activation_report_round_trip_fills_confirmation_source_default() -> (
+    None
+):
+    """W19-3 back-compat pin against the pre-W19-3 baseline fixture.
+
+    The baseline activation report at
+    ``tests/platform/contracts/fixtures/activation_reports/ms_python_python.json``
+    was authored before W19-3 and does NOT carry the
+    ``confirmation_source`` key on any of its 21 ``event_attempts``.
+    The W19-3 schema landing must let this older shape parse cleanly
+    under ``ActivationReport.model_validate(...)`` (Pydantic strict
+    ``extra="forbid"`` does not reject missing optional fields) and
+    must dump each attempt back out with the new field defaulted to
+    ``"none"`` — proving the back-compat story works against a real
+    fixture, not just the synthetic minimal payloads used by the
+    field-validator tests above.
+    """
+    fixture_path = (
+        Path(__file__).parent
+        / "fixtures"
+        / "activation_reports"
+        / "ms_python_python.json"
+    )
+    raw = _load_fixture(fixture_path)
+    assert raw["event_attempts"], "baseline fixture must have event_attempts"
+    assert all("confirmation_source" not in entry for entry in raw["event_attempts"]), (
+        "baseline fixture should be pre-W19-3 (no confirmation_source key); "
+        "if you re-baked it, this test is no longer pinning back-compat"
+    )
+
+    parsed = ActivationReport.model_validate(raw)
+    dumped = parsed.model_dump(mode="json")
+
+    assert dumped["event_attempts"], "round-trip must preserve event_attempts"
+    assert len(dumped["event_attempts"]) == len(raw["event_attempts"])
+    for entry in dumped["event_attempts"]:
+        assert entry.get("confirmation_source") == "none", (
+            f"every event_attempt must round-trip with confirmation_source='none' "
+            f"on the pre-W19-3 baseline shape; got {entry.get('confirmation_source')!r} "
+            f"on attempt {entry.get('attempt_id')!r}"
+        )
+
+
 @pytest.mark.skipif(not _ALL_BASELINE_VSIX_PRESENT, reason=_BASELINE_VSIX_SKIP_REASON)
 @patch("workflows.marketplace.client.httpx.Client", side_effect=AssertionError)
 def test_baseline_extension_fixtures_resolve_from_local_artifacts_without_network(
