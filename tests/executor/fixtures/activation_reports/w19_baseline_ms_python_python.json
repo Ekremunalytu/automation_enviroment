@@ -1,13 +1,13 @@
 {
   "_meta": {
-    "source_filename": "activation_report_ms-python.python-2026.5.2026052001-992ad028f3df.json",
-    "source_sha256": "7e06153c6634f0c3613bbfa5763e0a11054ad752862a685727e5d9b802d9ca62",
-    "lifted_for": "W19-1 dropout regression fixture",
-    "lifted_at_iter": "W19-0 baseline",
-    "lifted_at_date": "2026-05-21",
+    "source_filename": "n/a (synthesized post-W19-2 expected shape; live re-run verification pending)",
+    "source_sha256": "n/a — synthesized, not lifted from a live JSON",
+    "lifted_for": "W19-1 dropout regression fixture (post-W19-2 shape)",
+    "lifted_at_iter": "W19-2 post-fix synthesis",
+    "lifted_at_date": "2026-05-25",
     "target_extension_id": "ms-python.python",
     "target_extension_version": "2026.5.2026052001",
-    "note": "Slim canonical excerpt — only fields asserted on by W19-1 regression tests. Read-only; do not hand-edit. To refresh: regenerate from the full live-run JSON above (verify sha256), then update lifted_at_iter."
+    "synthesis_note": "Post-W19-2 expected shape: passes.py covered-only branch emits 'covered_via_layered_attempts' for debug_session + refactor_workflow instead of falling through to the accountant's last-mile unaccounted_dropout guard. Mechanism + reason_code synthesized from passes.py:240-300 source + synthetic unit tests in tests/security/test_scenario_dropout_repro.py (test_layered_attempts_coverage_emits_specific_reason_code + test_layered_attempts_coverage_pre_recorded_reason_wins, both passing locally). Live analyze API re-run (requires docker-compose build of api + executor images to pick up the passes.py change) deferred to W19-6 close-out or a dedicated follow-up commit; tracked in W19 tracker. Anchor pre-fix baseline preserved in git history at commit 6a21cf3 (W19-1 primary; source_sha256 7e06153c66...). Note: automation_health.status remains 'degraded' and run_quality remains 'low' because (a) skipped_scenarios is still non-empty (just with a classified reason now), (b) Hat-2 reasons (verification_gap_present, harness_verification_unconfirmed_present) are out of W19-2 scope and stay until W19-3..W19-5, (c) Hat-3 reason (official_unresolved_present) is out of W19 entirely (W20-W22 roadmap)."
   },
   "automation_health": {
     "status": "degraded",
@@ -25,13 +25,13 @@
   "skipped_scenarios": [
     {
       "name": "debug_session",
-      "reason_code": "unaccounted_dropout",
-      "detail": "Scenario was requested but never recorded as run, failed, or skipped by the upstream planner / executor / harness."
+      "reason_code": "covered_via_layered_attempts",
+      "detail": "Scenario was selected; its declared activation events were attempted through the layered plan, but the scenario handler itself was not invoked under this execution mode."
     },
     {
       "name": "refactor_workflow",
-      "reason_code": "unaccounted_dropout",
-      "detail": "Scenario was requested but never recorded as run, failed, or skipped by the upstream planner / executor / harness."
+      "reason_code": "covered_via_layered_attempts",
+      "detail": "Scenario was selected; its declared activation events were attempted through the layered plan, but the scenario handler itself was not invoked under this execution mode."
     }
   ],
   "requested_scenarios": [

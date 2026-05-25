@@ -237,28 +237,68 @@ def run_stimulus_plan(
                 status="failed" if pass_failed else "completed",
             )
 
-    executed_names = set(result.executed_scenarios) | set(covered_scenarios)
+    # W19-2: distinguish handler-invoked scenarios (those whose
+    # ``scenario:`` action ran the registered handler via
+    # ``attempts.py:_emit_scenario_with_optional_coverage`` and
+    # therefore appended to ``result.executed_scenarios``) from
+    # scenarios that were only "covered" by layered attempts —
+    # i.e. their declared activation events were attempted via
+    # ``extra:`` / ``command:`` / etc. actions which do NOT invoke
+    # the scenario handler and do NOT append to
+    # ``result.executed_scenarios``. The previous code unioned the
+    # two sets into a single ``executed_names`` skip-set, which
+    # silently dropped the covered-only scenarios out of every
+    # downstream account: the accountant's
+    # ``_synchronize_scenario_truth`` re-derives ``scenarios_run``
+    # from ``scenario_traces`` (handler-invoked only), so
+    # covered-only scenarios appeared nowhere — neither in
+    # ``scenarios_run`` nor in ``skipped_scenarios`` — and were
+    # caught by the last-mile ``unaccounted_dropout`` fallback in
+    # ``ScenarioAccountant._validate_scenario_conservation`` (W19
+    # driving signal: debug_session + refactor_workflow live-run
+    # 2026-05-21 against ms-python.python @ 992ad028f3df).
+    # Fix shape mirrors W16-1 (``dispatch_outcome_none`` upstream
+    # emit-site for the ``outcome is None`` dispatch-collapse path)
+    # — a classified ``covered_via_layered_attempts`` reason_code
+    # is emitted upstream so the accountant fallback no longer has
+    # to absorb these scenarios as generic ``unaccounted_dropout``.
+    handler_invoked = set(result.executed_scenarios)
+    covered_only = set(covered_scenarios) - handler_invoked
     requested_attempt_scenarios = {
         scenario_name
         for attempt in attempts_by_id.values()
         for scenario_name in _related_scenarios(attempt)
     }
     for scenario_name in result.requested_scenarios:
-        if scenario_name in executed_names:
+        if scenario_name in handler_invoked:
             continue
-        reason_code, detail = scenario_reasons.get(
-            scenario_name,
-            (
-                "not_executed",
+        if scenario_name in covered_only:
+            reason_code, detail = scenario_reasons.get(
+                scenario_name,
                 (
-                    "Scenario was selected but no layered attempt produced runtime "
-                    "coverage."
-                    if scenario_name in requested_attempt_scenarios
-                    else "Scenario was selected but the layered plan contained no "
-                    "matching attempt."
+                    "covered_via_layered_attempts",
+                    (
+                        "Scenario was selected; its declared activation "
+                        "events were attempted through the layered plan, "
+                        "but the scenario handler itself was not invoked "
+                        "under this execution mode."
+                    ),
                 ),
-            ),
-        )
+            )
+        else:
+            reason_code, detail = scenario_reasons.get(
+                scenario_name,
+                (
+                    "not_executed",
+                    (
+                        "Scenario was selected but no layered attempt "
+                        "produced runtime coverage."
+                        if scenario_name in requested_attempt_scenarios
+                        else "Scenario was selected but the layered plan "
+                        "contained no matching attempt."
+                    ),
+                ),
+            )
         result.skipped_scenarios.append(
             SkippedScenarioRecord(
                 name=scenario_name,
