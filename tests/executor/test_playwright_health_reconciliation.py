@@ -25,11 +25,14 @@ import hmac
 import json
 from types import SimpleNamespace
 
+import pytest
 
 from executor.flows.playwright.health.reconciliation import (
+    _mark_unverified_harness_attempt,
     reconcile_coverage_verification,
     reconcile_event_attempts,
 )
+from executor.flows.playwright.health.summary import build_automation_health
 from executor.flows.playwright.monitor.records import EventAttemptRecord, LogStreamEntry
 from executor.flows.playwright.monitor.types import ActivationReport
 from executor.flows.playwright.runtime_capture.events import (
@@ -801,3 +804,350 @@ def test_load_harness_python_secret_empty_when_both_absent(
         "W13-11 reaches this state only via worst-case pre-W13-11 "
         "status quo (no eager-consume, no launch_vscode.sh)."
     )
+
+
+# ---------------------------------------------------------------------------
+# W19-4 — onDebug* nonce confirmation + consumer wire
+#
+# Producer wire (Half A): ``reconcile_event_attempts`` stamps
+# ``confirmation_source = "harness_nonce"`` on onDebug* attempts whose
+# harness completion HMAC verified, using the existing
+# ``_attempt_has_harness_completion_trace`` boolean as the unique join
+# point.
+#
+# Consumer wire (Half B): ``_mark_unverified_harness_attempt`` gates the
+# ``failure_reason_code = "harness_verification_unconfirmed"`` set on the
+# attempt already carrying a non-"none" ``confirmation_source`` — so a
+# stamped attempt no longer triggers the run-level
+# ``harness_verification_unconfirmed_present`` reason emission at
+# ``build_automation_health``.
+#
+# Tests reuse the ``_w13_1_sign`` / ``_w13_1_canonical_payload`` helpers
+# above; the fixture shapes mirror the W13-1 GREEN/RED cases with the
+# event family swapped to ``onDebug*``.
+# ---------------------------------------------------------------------------
+
+
+_W19_4_ONDEBUG_FAMILIES = (
+    "onDebug",
+    "onDebugResolve",
+    "onDebugInitialConfigurations",
+    "onDebugDynamicConfigurations",
+    "onDebugAdapterProtocolTracker",
+)
+
+_W19_4_NON_ONDEBUG_FAMILIES = (
+    ("onTerminalShellIntegration", "onTerminalShellIntegration"),
+    ("onLanguageModelTool", "onLanguageModelTool:foo"),
+    ("onCommand", "onCommand:bar"),
+)
+
+
+def _w19_4_signed_complete_payload(
+    family: str, activation_event: str, secret: str
+) -> dict[str, object]:
+    payload: dict[str, object] = {
+        "kind": "stimulus",
+        "phase": "complete",
+        "attempt_id": "harness",
+        "family": family,
+        "activation_event": activation_event,
+    }
+    payload["nonce"] = _w13_1_sign(payload, secret)
+    return payload
+
+
+def _w19_4_build_onDebug_report(  # noqa: N802 — "onDebug" preserves the VS Code event-family name
+    family: str,
+    secret: str,
+    *,
+    extension_host_output: str | None = None,
+    activated: list[ActivationEntry] | None = None,
+    verification_contract: list[str] | None = None,
+) -> ActivationReport:
+    if extension_host_output is None:
+        payload = _w19_4_signed_complete_payload(family, family, secret)
+        extension_host_output = f"[extrace-harness] {json.dumps(payload)}\n"
+    if activated is None:
+        activated = [
+            ActivationEntry(
+                extension_id="publisher.tool",
+                activation_event=family,
+                timestamp="2026-01-01 10:00:00.000",
+                source="log",
+            )
+        ]
+    contracts = verification_contract or [
+        "activation_log_prefix",
+        "target_runtime_delta",
+    ]
+    report = ActivationReport(
+        activated=activated,
+        target_extension_id="publisher.tool",
+        extension_host_output=extension_host_output,
+        event_attempts=[
+            EventAttemptRecord(
+                attempt_id="harness",
+                declared_event=family,
+                activation_event=family,
+                event_family=family,
+                executor_action="harness:run_current_stimulus",
+                attempted_passes=["target_specific_activation"],
+                capability_tags=["debug"],
+                verification_contract=contracts,
+            )
+        ],
+    )
+    report.expected_harness_nonce = secret  # type: ignore[attr-defined]
+    return report
+
+
+def test_w19_4_stamps_harness_nonce_on_verified_onDebug_attempt() -> None:  # noqa: N802 — "onDebug" preserves the VS Code event-family name
+    """Producer GREEN path: verified HMAC complete marker on onDebug stamps."""
+    secret = "secret-loaded-from-results-handshake"  # noqa: S105 — test fixture
+    report = _w19_4_build_onDebug_report("onDebug", secret)
+
+    attempts = reconcile_event_attempts(report)
+
+    assert attempts[0].confirmation_source == "harness_nonce"
+    # Verified path reached via activation_log_prefix exact-match on the
+    # activated entry — Half A stamps independent of verified vs attempted_only.
+    assert attempts[0].status == "verified"
+
+
+@pytest.mark.parametrize("family", _W19_4_ONDEBUG_FAMILIES)
+def test_w19_4_stamps_harness_nonce_for_all_five_onDebug_variants(family: str) -> None:  # noqa: N802 — "onDebug" preserves the VS Code event-family name
+    """Prefix-match invariant: all five OFFICIAL_EVENT_REGISTRY onDebug* variants stamp."""
+    secret = "secret-loaded-from-results-handshake"  # noqa: S105 — test fixture
+    report = _w19_4_build_onDebug_report(family, secret)
+
+    attempts = reconcile_event_attempts(report)
+
+    assert attempts[0].confirmation_source == "harness_nonce", (
+        f"{family} should stamp confirmation_source=harness_nonce"
+    )
+
+
+def test_w19_4_does_not_stamp_on_forged_nonce_for_onDebug() -> None:  # noqa: N802 — "onDebug" preserves the VS Code event-family name
+    """Producer fail-closed: forged HMAC nonce leaves confirmation_source at 'none'."""
+    secret = "secret-loaded-from-results-handshake"  # noqa: S105 — test fixture
+    forged_payload = {
+        "kind": "stimulus",
+        "phase": "complete",
+        "attempt_id": "harness",
+        "family": "onDebug",
+        "activation_event": "onDebug",
+        "nonce": "0" * 64,  # forged: 64-hex-char string but not the actual HMAC
+    }
+    report = _w19_4_build_onDebug_report(
+        "onDebug",
+        secret,
+        extension_host_output=f"[extrace-harness] {json.dumps(forged_payload)}\n",
+        activated=[],  # also exclude target activation so attempt stays unverified
+    )
+
+    attempts = reconcile_event_attempts(report)
+
+    assert attempts[0].confirmation_source == "none"
+    assert attempts[0].status == "attempted_only"
+    assert attempts[0].failure_reason_code == "harness_verification_unconfirmed"
+
+
+def test_w19_4_does_not_stamp_when_no_marker_present_for_onDebug() -> None:  # noqa: N802 — "onDebug" preserves the VS Code event-family name
+    """Producer fail-closed: missing harness marker leaves confirmation_source at 'none'."""
+    secret = "secret-loaded-from-results-handshake"  # noqa: S105 — test fixture
+    report = _w19_4_build_onDebug_report(
+        "onDebug",
+        secret,
+        extension_host_output="",
+        activated=[],
+    )
+
+    attempts = reconcile_event_attempts(report)
+
+    assert attempts[0].confirmation_source == "none"
+    assert attempts[0].failure_reason_code == "harness_verification_unconfirmed"
+
+
+@pytest.mark.parametrize(
+    "family,activation_event",
+    _W19_4_NON_ONDEBUG_FAMILIES,
+)
+def test_w19_4_does_not_stamp_on_non_onDebug_families(  # noqa: N802 — "onDebug" preserves the VS Code event-family name
+    family: str, activation_event: str
+) -> None:
+    """Scope discipline: verified HMAC on non-onDebug families leaves confirmation_source at 'none'.
+
+    A future "stamp every verified" refactor must delete this test, forcing
+    the design conversation about widening the family scope (W19-5 wires
+    onTerminal* and onLM* to ``"log_record"``, a distinct source).
+    """
+    secret = "secret-loaded-from-results-handshake"  # noqa: S105 — test fixture
+    payload = _w19_4_signed_complete_payload(family, activation_event, secret)
+    report = ActivationReport(
+        activated=[
+            ActivationEntry(
+                extension_id="publisher.tool",
+                activation_event=activation_event,
+                timestamp="2026-01-01 10:00:00.000",
+                source="log",
+            )
+        ],
+        target_extension_id="publisher.tool",
+        extension_host_output=f"[extrace-harness] {json.dumps(payload)}\n",
+        event_attempts=[
+            EventAttemptRecord(
+                attempt_id="harness",
+                declared_event=activation_event,
+                activation_event=activation_event,
+                event_family=family,
+                executor_action="harness:run_current_stimulus",
+                attempted_passes=["target_specific_activation"],
+                capability_tags=["chat"],
+                verification_contract=["activation_log_prefix", "automation_trace"],
+            )
+        ],
+    )
+    report.expected_harness_nonce = secret  # type: ignore[attr-defined]
+
+    attempts = reconcile_event_attempts(report)
+
+    assert attempts[0].confirmation_source == "none", (
+        f"{family} is out of W19-4 scope and must stay at confirmation_source='none'"
+    )
+
+
+def test_w19_4_mark_unverified_skips_failure_reason_code_when_confirmation_source_stamped() -> (
+    None
+):
+    """Consumer wire unit: stamped attempts skip the run-level reason set.
+
+    Direct unit call on ``_mark_unverified_harness_attempt`` — the function
+    still moves the attempt to the ``attempted_only`` terminal state and
+    writes evidence, but no longer flags it as
+    ``harness_verification_unconfirmed`` because the stamp already records
+    confirmed harness evidence.
+    """
+    attempt = EventAttemptRecord(
+        attempt_id="harness",
+        declared_event="onDebug",
+        activation_event="onDebug",
+        event_family="onDebug",
+        executor_action="harness:run_current_stimulus",
+        confirmation_source="harness_nonce",
+    )
+
+    _mark_unverified_harness_attempt(attempt, execution_closed=True)
+
+    assert attempt.status == "attempted_only"
+    assert attempt.verification_status == "attempted_only"
+    assert attempt.failure_reason_code == ""
+    assert any("harness_trace:harness" in str(item) for item in attempt.evidence)
+
+
+def test_w19_4_mark_unverified_sets_failure_reason_code_when_confirmation_source_is_none() -> (
+    None
+):
+    """Consumer wire existing-behavior preservation: unstamped attempts still flag the reason."""
+    attempt = EventAttemptRecord(
+        attempt_id="harness",
+        declared_event="onDebug",
+        activation_event="onDebug",
+        event_family="onDebug",
+        executor_action="harness:run_current_stimulus",
+        confirmation_source="none",
+    )
+
+    _mark_unverified_harness_attempt(attempt, execution_closed=True)
+
+    assert attempt.status == "attempted_only"
+    assert attempt.failure_reason_code == "harness_verification_unconfirmed"
+
+
+def _w19_4_unstamped_attempt(family: str, activation_event: str) -> EventAttemptRecord:
+    return EventAttemptRecord(
+        attempt_id=f"harness-{family}",
+        declared_event=activation_event,
+        activation_event=activation_event,
+        event_family=family,
+        executor_action="harness:run_current_stimulus",
+        confirmation_source="none",
+        failure_reason_code="harness_verification_unconfirmed",
+        status="attempted_only",
+        verification_status="attempted_only",
+    )
+
+
+def _w19_4_stamped_attempt() -> EventAttemptRecord:
+    return EventAttemptRecord(
+        attempt_id="harness-onDebug",
+        declared_event="onDebug",
+        activation_event="onDebug",
+        event_family="onDebug",
+        executor_action="harness:run_current_stimulus",
+        confirmation_source="harness_nonce",
+        failure_reason_code="",  # Half B suppressed the unconfirmed flag
+        status="attempted_only",
+        verification_status="attempted_only",
+    )
+
+
+def _w19_4_run_reasons(event_attempts: list[EventAttemptRecord]) -> list[str]:
+    # ``build_automation_health`` emits many run-level reasons (missing
+    # target stream, no activation log, etc.) that are irrelevant here —
+    # tests below assert only on the presence/absence of
+    # ``harness_verification_unconfirmed_present``, which is driven
+    # exclusively by per-attempt ``failure_reason_code`` values.
+    report = ActivationReport(
+        target_extension_id="publisher.tool",
+        extension_host_output="dummy output",
+        event_attempts=event_attempts,
+    )
+    health = build_automation_health(
+        report,
+        extension_host_log_found=True,
+        extension_host_log_present=True,
+    )
+    return list(health.get("reasons", []))
+
+
+def test_w19_4_harness_verification_unconfirmed_present_drops_only_when_all_unconfirmed_attempts_stamp_single_stamped() -> (
+    None
+):
+    """End-to-end orthogonality 1/3: single stamped attempt → reason NOT emitted."""
+    reasons = _w19_4_run_reasons([_w19_4_stamped_attempt()])
+
+    assert "harness_verification_unconfirmed_present" not in reasons
+
+
+def test_w19_4_harness_verification_unconfirmed_present_drops_only_when_all_unconfirmed_attempts_stamp_single_unstamped() -> (
+    None
+):
+    """End-to-end orthogonality 2/3: single unstamped attempt → reason emitted."""
+    reasons = _w19_4_run_reasons(
+        [_w19_4_unstamped_attempt("onLanguageModelTool", "onLanguageModelTool:foo")]
+    )
+
+    assert "harness_verification_unconfirmed_present" in reasons
+
+
+def test_w19_4_harness_verification_unconfirmed_present_drops_only_when_all_unconfirmed_attempts_stamp_mixed() -> (
+    None
+):
+    """End-to-end orthogonality 3/3: mixed (stamped + unstamped non-onDebug) → reason still emitted.
+
+    Pins that the consumer wire is per-attempt — an unstamped attempt
+    elsewhere in the run still carries
+    ``failure_reason_code='harness_verification_unconfirmed'`` and still
+    drives the run-level reason. W19-5 will close this surface by
+    stamping onTerminalShellIntegration / onLanguageModelTool: with
+    ``log_record``.
+    """
+    reasons = _w19_4_run_reasons(
+        [
+            _w19_4_stamped_attempt(),
+            _w19_4_unstamped_attempt("onLanguageModelTool", "onLanguageModelTool:foo"),
+        ]
+    )
+
+    assert "harness_verification_unconfirmed_present" in reasons
