@@ -1,7 +1,7 @@
 # W19 — Live-Run Kök Neden: Dropout + Harness Verification (Active Work Tracker)
 
-`Last Updated: 2026-05-25 (W19 active — Hat-1 closed + live-verified via W19-2-followup-2 d5de9ca on the week19 branch (per user direction 2026-05-21; W11-W18 paterni preserved). W19-0..W19-2 closed; W19-3..W19-6 pending by §17 plan; stable IDs W19-1..W19-5 tracked at POST_POC_BACKLOG.md W19 Pull-Forward Acceptance Bar; assigned at first pull per W11-W18 precedent. Driving signal: Codex live-run validation 2026-05-21 of ms-python.python @ 992ad028f3df reports automation_health.status=degraded + run_quality=low while W19-2 live re-anchor now satisfies unaccounted_dropout == 0. Hat-1 is closed + live-verified; Hat-2 remains active (harness verification gap → declared ≠ verified); Hat-3 (coverage matrix promotion) deferred to W20-W22 per multi-iter roadmap. W18 closed via PR #26 week18 -> main MERGED 2026-05-21 via 9874e79; final W18 bar tests/architecture/ 201 / make test-security 220 / full suite 1907 passed, 9 skipped, 8 deselected. W17 closed via PR #25 week17 -> main MERGED 2026-05-18 via bff565d. W18 frozen tracker: W18-heartbeat-refactor.md; multi-iter roadmap source-of-truth: W18-W22-roadmap.md; §17 W19 plan source in REFACTOR_OPTIMIZATION.md.)`
-`Phase: W19 active — Hat-1 closed + live-verified (W19-0 doc-reconcile + W19-1 RED fixture 6a21cf3/fd02ca4 + W19-2 emit-site fix 89b64da/d9c6262 + W19-2-followup-2 live re-anchor this commit; live JSON c2bf28ca9506 @ 2026-05-25 22:23 confirms unaccounted_dropout=0); Hat-2 next via W19-3..W19-5 on the week19 branch (Hat-3 deferred to W20-W22)`
+`Last Updated: 2026-05-25 (W19 active — Hat-1 closed + live-verified; Hat-2 HARD GATE W19-3 schema landing closed via primary d2e83e7 + this self-stamp commit on the week19 branch (per user direction 2026-05-21; W11-W18 paterni preserved). W19-0..W19-3 closed; W19-4..W19-6 pending by §17 plan; stable IDs W19-1..W19-5 tracked at POST_POC_BACKLOG.md W19 Pull-Forward Acceptance Bar; assigned at first pull per W11-W18 precedent. Driving signal: Codex live-run validation 2026-05-21 of ms-python.python @ 992ad028f3df reports automation_health.status=degraded + run_quality=low while W19-2 live re-anchor satisfies unaccounted_dropout == 0. Hat-1 is closed + live-verified; Hat-2 HARD GATE W19-3 closed (W19-4 onDebug* nonce + W19-5 onTerminal + onLM local-only emit-site stamps next; W19-3 lands new confirmation_source: str = "none" field on EventAttemptRecord with str + field_validator typing mirroring the status field pattern, optional UI adapter back-compat path, 12 new test_automation_health_reasons.py tests + 6 contract round-trip tests + 4 UI adapter tests, frozen trigger fixture regenerated via planner replay); Hat-3 (coverage matrix promotion) deferred to W20-W22 per multi-iter roadmap. W18 closed via PR #26 week18 -> main MERGED 2026-05-21 via 9874e79; final W18 bar tests/architecture/ 201 / make test-security 220 / full suite 1907 passed, 9 skipped, 8 deselected. W17 closed via PR #25 week17 -> main MERGED 2026-05-18 via bff565d. W18 frozen tracker: W18-heartbeat-refactor.md; multi-iter roadmap source-of-truth: W18-W22-roadmap.md; §17 W19 plan source in REFACTOR_OPTIMIZATION.md.)`
+`Phase: W19 active — Hat-1 closed + live-verified (W19-0..W19-2 + W19-2-followup-2 live re-anchor); Hat-2 HARD GATE W19-3 closed via primary d2e83e7 + this self-stamp commit (confirmation_source field landed on EventAttemptRecord with default "none" for back-compat; W19-4/W19-5 emit-site stamps unblocked); W19-4..W19-5 + W19-6 close-out next on the week19 branch (Hat-3 deferred to W20-W22)`
 `Branch: week19 (per user direction 2026-05-21; W11-W18 paterni preserved — sub-iter commits land on week19, close-out merges into main via week19 -> main PR)`
 `Owner: ekrem`
 
@@ -126,6 +126,51 @@ template structurally followed here.
   suite **1913 passed, 9 skipped, 8 deselected, 0 xfailed**
   (W19-1 baseline 1908 + 3 xfail → 1908 + W19-1 3 flip
   xfail→pass + W19-2 2 new synthetic = 1913).
+- **W19-3 schema landing landed `2026-05-25` via primary `d2e83e7` +
+  self-stamp this commit** — Hat-2 HARD GATE step 1 of 3 closed;
+  W19-4/W19-5 emit-site stamps unblocked. New
+  `confirmation_source: str = "none"` field lands on both
+  [`packages/analysis_contracts/contracts.py`](../../packages/analysis_contracts/contracts.py)
+  `EventAttemptRecord` (Pydantic) and
+  [`executor/flows/playwright/monitor/records.py`](../../executor/flows/playwright/monitor/records.py)
+  `EventAttemptRecord` (executor dataclass), with
+  `_VALID_CONFIRMATION_SOURCES = frozenset({"harness_nonce", "log_record", "none"})`
+  module constant + `_validate_confirmation_source` `@field_validator`
+  mirroring the `status` field pattern. UI side: optional
+  `confirmation_source?: string` on `EventAttemptDto`
+  ([`ui/src/lib/types/contracts.ts`](../../ui/src/lib/types/contracts.ts))
+  + required `confirmationSource: string` on `EventAttemptView`
+  ([`ui/src/lib/types/view-models.ts`](../../ui/src/lib/types/view-models.ts))
+  + `fromEventAttempt()` adapter map with `"none"` default
+  ([`ui/src/lib/adapters/report.ts`](../../ui/src/lib/adapters/report.ts)).
+  **Typing decision:** `str + field_validator` not `Literal[...]`
+  per §17 plan — codebase parity with the `status` field pattern;
+  JSON wire shape identical (deviation captured in Per-Item Detail
+  block below). New test file
+  [`tests/executor/test_automation_health_reasons.py`](../../tests/executor/test_automation_health_reasons.py)
+  (12 tests) pins dataclass ↔ Pydantic parity + trigger-payload
+  deserialization (default + parametrize over 3 documented values)
+  + validator rejects unknown + orthogonality with the existing
+  `harness_verification_unconfirmed_present` reason emission rule
+  (presence + absence parametrize over 3 sources). +6 contract
+  round-trip tests at
+  [`tests/platform/contracts/test_analysis_fixture_baselines.py`](../../tests/platform/contracts/test_analysis_fixture_baselines.py).
+  +4 UI adapter tests at
+  [`ui/src/lib/adapters/report.test.ts`](../../ui/src/lib/adapters/report.test.ts).
+  Frozen trigger fixture
+  [`tests/workflows/marketplace/fixtures/trigger_payloads/ms_python_python.json`](../../tests/workflows/marketplace/fixtures/trigger_payloads/ms_python_python.json)
+  regenerated via planner replay (`select_scenarios()` →
+  `model_dump(mode="json")`) so each of the 21 event_attempts
+  gains `"confirmation_source": "none"`. Test bar at W19-3 primary
+  landing: `tests/architecture/` **202 passed, 4 deselected**
+  (unchanged from W19-2 baseline); `make test-security` **220 passed**
+  (unchanged); full suite **1932 passed, 9 skipped, 8 deselected,
+  0 xfailed** (W19-2 baseline 1913 + W19-3 +19 net new tests:
+  12 health_reasons + 6 contract round-trip + 1 incidental delta
+  on the trigger-fixture parity test pair returning to baseline
+  after the regenerate). No live-run required — field lands at
+  `"none"` everywhere with no behavior change; live verification
+  belongs to W19-4 + W19-6.
 
 ## Sub-Iter Scope (Authored 2026-05-21)
 
@@ -587,13 +632,162 @@ flip from `pending → closed at 6a21cf3 + 89b64da` in this commit.
 and W19-2 flip from `pending → closed at <SHA>` in this commit.
 Hat-2 next (W19-3..W19-5); Hat-3 deferred to W20-W22.
 
-### W19-3 — Harness verification contract event-level — to be pulled
+### W19-3 — Harness verification contract event-level (closed `2026-05-25` via primary `d2e83e7` + this self-stamp commit)
 
-Stable ID `[GOAL harness-verification-contract-event-level]`
-reserved at POST_POC_BACKLOG.md W19 Pull-Forward Acceptance Bar.
-Per-Item Detail block populated at first pull. Hard-gate
-sequencing pin recorded above: W19-4/W19-5 cannot start until
-W19-3 schema landing complete.
+**Stable ID `[GOAL harness-verification-contract-event-level]`**
+pulled from POST_POC_BACKLOG.md W19 Pull-Forward Acceptance Bar at
+the W19-3 primary commit (`d2e83e7`).
+
+**Pulled `2026-05-25`** as the W19-3 primary commit on the `week19`
+branch (HEAD before: `1851612` W19-2-followup-2 drift align; HEAD
+after primary: `d2e83e7`). Source + test commit landing the
+`confirmation_source` field on both the Pydantic contract and the
+executor dataclass + a UI adapter back-compat path. Hat-2 hard-gate
+sub-iter: W19-4 (`onDebug*` nonce confirmation) and W19-5
+(`onTerminalShellIntegration` + `onLanguageModelTool:*` local-only)
+emit-site stamps can now start. Self-stamp followup commit landing
+this Per-Item Detail block + the Status (Quick Glance) W19-3
+bullet above (W18-1 paterni `acf6cc9` + `73d8a5c` followed).
+
+**Decision note (typing):** §17 W19 plan text and the W19-3 row
+table both described the field as
+`confirmation_source: Literal["harness_nonce", "log_record", "none"]`.
+Implementation deviates by one keystroke: `str + field_validator`
+mirroring the existing `status` field pattern
+([packages/analysis_contracts/contracts.py:186](../../packages/analysis_contracts/contracts.py)
+`EVENT_ATTEMPT_LIFECYCLE_STATES` + `_validate_status` at line 232).
+JSON wire shape identical either way; codebase-ergonomics deviation
+captured here so future readers see an intentional choice not drift.
+No mini-ADR — pattern parity with `status` field is the rationale.
+
+**Scope (delivered):**
+
+- **New module constant** at
+  [`packages/analysis_contracts/contracts.py`](../../packages/analysis_contracts/contracts.py):
+  `_VALID_CONFIRMATION_SOURCES: frozenset[str] = frozenset({"harness_nonce", "log_record", "none"})`
+  placed next to `EVENT_ATTEMPT_LIFECYCLE_STATES` with a multi-line
+  docstring explaining each value's semantics + the W19-4/W19-5
+  emit-site mapping + the str-vs-Literal rationale.
+- **New Pydantic field** on `EventAttemptRecord` (line ~232):
+  `confirmation_source: str = "none"` added after `harness_fallback`.
+- **New Pydantic validator**: `_validate_confirmation_source`
+  `@field_validator` rejecting unknown values with the same
+  error-message shape as the existing `status` validator.
+- **Executor dataclass mirror** at
+  [`executor/flows/playwright/monitor/records.py`](../../executor/flows/playwright/monitor/records.py)
+  `EventAttemptRecord` dataclass (line ~102): same field +
+  default for wire-shape parity with the Pydantic contract.
+- **Trigger-payload deserialization** at
+  [`executor/flows/playwright/monitor/payload.py`](../../executor/flows/playwright/monitor/payload.py)
+  `_build_event_attempts()` (line ~100): reads
+  `confirmation_source` from the trigger payload dict with `"none"`
+  default so pre-W19-3 payloads stay round-trip-clean.
+- **UI DTO** at
+  [`ui/src/lib/types/contracts.ts`](../../ui/src/lib/types/contracts.ts)
+  `EventAttemptDto` (line ~435): optional
+  `confirmation_source?: string`.
+- **UI View** at
+  [`ui/src/lib/types/view-models.ts`](../../ui/src/lib/types/view-models.ts)
+  `EventAttemptView` (line ~257): required
+  `confirmationSource: string` (adapter fills `"none"` default).
+- **UI adapter** at
+  [`ui/src/lib/adapters/report.ts`](../../ui/src/lib/adapters/report.ts)
+  `fromEventAttempt()` (line ~731): map with
+  `entry.confirmation_source || "none"`. Adjacent `||` -> `|` typo
+  fix on `buildEventCoverage(summary?: EventCoverageDto | null)`
+  parameter type — incidental edit landed in the same commit.
+- **NEW test file** at
+  [`tests/executor/test_automation_health_reasons.py`](../../tests/executor/test_automation_health_reasons.py)
+  (12 tests): (1) executor dataclass <-> Pydantic field parity +
+  default == "none"; (2) trigger-payload deserialization default;
+  (3) trigger-payload deserialization preserves all 3 documented
+  values (parametrize); (4) validator rejects unknown; (5)
+  orthogonality with the existing
+  `harness_verification_unconfirmed_present` reason emission rule
+  — presence (3 sources -> still emitted with failure_reason_code)
+  + absence (3 sources -> still absent without failure_reason_code).
+  Does NOT duplicate the rule-emission pin already covered by
+  `test_playwright_health_summary.py::test_harness_verification_unconfirmed_attempt_propagates_to_health_reasons`.
+- **EXTENDED contract round-trip tests** at
+  [`tests/platform/contracts/test_analysis_fixture_baselines.py`](../../tests/platform/contracts/test_analysis_fixture_baselines.py)
+  (+6 tests after the existing `EVENT_ATTEMPT_LIFECYCLE_STATES`
+  family at line 229): default 'none', accept-all parametrize over 3
+  documented values, reject unknown, round-trip preserves field.
+- **EXTENDED UI adapter test** at
+  [`ui/src/lib/adapters/report.test.ts`](../../ui/src/lib/adapters/report.test.ts)
+  (+4 tests, 1 new describe block): default 'none' when DTO omits;
+  parametrize over 3 documented values preserves through `adaptReport`
+  end-to-end.
+- **REGENERATED frozen trigger fixture** at
+  [`tests/workflows/marketplace/fixtures/trigger_payloads/ms_python_python.json`](../../tests/workflows/marketplace/fixtures/trigger_payloads/ms_python_python.json):
+  replayed `select_scenarios()` against the planner input fixture
+  and re-dumped via `model_dump(mode="json")` so the new W19-3
+  default appears on each of the 21 event_attempts as
+  `"confirmation_source": "none"`. Diff `+42 / -21` (21 new field
+  lines + 21 trailing-comma adjustments on the preceding
+  `harness_fallback` line).
+
+**Number reconciliation:** `packages/analysis_contracts/contracts.py`
++20 LOC source delta (module constant + field + validator);
+`executor/flows/playwright/monitor/{records,payload}.py` +2 LOC
+total; `ui/src/lib/{types/contracts.ts,types/view-models.ts,adapters/report.ts}`
++3 LOC total; `tests/executor/test_automation_health_reasons.py`
++12 tests NEW; `tests/platform/contracts/test_analysis_fixture_baselines.py`
++6 tests; `ui/src/lib/adapters/report.test.ts` +4 tests; trigger
+fixture regenerated +42/-21 lines. Math: W19-2 baseline 1913 passed
+plus W19-3 +19 net new pytest tests (12 + 6 + 1 incidental delta from
+the trigger-fixture parity test pair returning to baseline) = 1932
+passed. `tests/architecture/` unchanged at 202 passed (no new arch
+gates). `make test-security` unchanged at 220 passed.
+
+**Verification (recorded at landing this commit, post-primary
+`d2e83e7`):**
+
+- `.venv/bin/pytest tests/executor/test_automation_health_reasons.py -v`
+  -> **12 passed**.
+- `.venv/bin/pytest tests/platform/contracts/test_analysis_fixture_baselines.py -v`
+  -> **25 passed, 2 skipped** (W19-2 baseline 19/2 + W19-3 +6 new).
+- `.venv/bin/pytest tests/workflows/marketplace/test_analysis_planner.py -q`
+  -> **2 passed** (frozen trigger fixture parity test recovers
+  after fixture regeneration; first full-suite run before regen
+  failed precisely on `test_ms_python_planner_input_matches_frozen_trigger_fixture`
+  with the missing `confirmation_source: "none"` key on each of 21
+  event_attempts — expected and resolved by the regenerate step).
+- `.venv/bin/pytest tests/architecture/ -q` -> **202 passed,
+  4 deselected** (unchanged from W19-2 baseline).
+- `make test-security` -> **220 passed** (unchanged from W19-2
+  baseline; W19-3 tests live outside the curated security lane).
+- `.venv/bin/pytest -q` full suite -> **1932 passed, 9 skipped,
+  8 deselected, 0 xfailed, 91 warnings** (W19-2 baseline 1913 +
+  W19-3 +19 net new tests).
+- `cd ui && npm test -- report.test --run` -> **10 tests passed**
+  (existing 6 + W19-3 +4 new in 1 new describe block).
+- `cd ui && npx tsc --noEmit` -> clean (no errors).
+- Pre-commit hooks (primary commit `d2e83e7`): trim trailing
+  whitespace / fix end of files / check json / detect private key /
+  ruff (legacy alias) / ruff format / mypy / bandit -> all passed
+  on second attempt. First attempt rejected on ruff-format
+  reformatting `test_automation_health_reasons.py` +
+  `test_analysis_fixture_baselines.py`; re-staged and re-tried per
+  the system-guide rule (fix issue + new commit; no `--amend`).
+
+**Live verification.** W19-3 lands at default `"none"` everywhere
+with no behavior change; live-run smoke is NOT required for this
+sub-iter. Live verification belongs to W19-4 (first event_attempt
+with `confirmation_source="harness_nonce"`) and the W19-6 close-out
+acceptance gate (`harness_verification_unconfirmed_present` must
+drop from `automation_health.reasons`).
+
+**Audit trail.** W19-3 closes Hat-2 HARD GATE step 1 of 3. One
+backlog item closed in this bundled self-stamp: W19-3.
+**POST_POC_BACKLOG.md W19 Pull-Forward Acceptance Bar** row for
+`[GOAL harness-verification-contract-event-level]` (W19-3) flips
+from `pending -> closed at d2e83e7 + <this self-stamp SHA>` in this
+commit. **REFACTOR_OPTIMIZATION.md §17 W19 row table** row for
+W19-3 flips from `reserved (pending)` to `closed` and §17.4 Exit
+Criteria checkbox line 884 flips from `[ ]` to `[x]` in this commit.
+W19-4 (onDebug* nonce confirmation) + W19-5 (onTerminal + onLM
+local-only) next; W19-6 close-out after.
 
 ### W19-4 — `onDebug*` events nonce confirmation — to be pulled
 
