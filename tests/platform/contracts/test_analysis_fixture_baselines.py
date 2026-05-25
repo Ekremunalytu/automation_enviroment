@@ -241,6 +241,50 @@ def test_event_attempt_lifecycle_states_cover_current_runtime_emitters() -> None
     )
 
 
+# W19-3 [GOAL harness-verification-contract-event-level]: the
+# ``confirmation_source`` field lands with default ``"none"`` so existing
+# fixtures and live JSONs (which omit the field) deserialize cleanly. The
+# validator's three accepted values are exercised below; an unknown value
+# is rejected by the same shape the ``status`` validator uses so contract
+# drift surfaces at ingest rather than downstream.
+_W19_3_DOCUMENTED_CONFIRMATION_SOURCES = ("harness_nonce", "log_record", "none")
+
+
+def test_event_attempt_record_defaults_confirmation_source_to_none() -> None:
+    record = EventAttemptRecord.model_validate(
+        _minimal_event_attempt_payload("planned")
+    )
+    assert record.confirmation_source == "none"
+
+
+@pytest.mark.parametrize("source", _W19_3_DOCUMENTED_CONFIRMATION_SOURCES)
+def test_event_attempt_record_accepts_all_documented_confirmation_sources(
+    source: str,
+) -> None:
+    payload = _minimal_event_attempt_payload("planned")
+    payload["confirmation_source"] = source
+    record = EventAttemptRecord.model_validate(payload)
+    assert record.confirmation_source == source
+
+
+def test_event_attempt_record_rejects_unknown_confirmation_source() -> None:
+    payload = _minimal_event_attempt_payload("planned")
+    payload["confirmation_source"] = "bogus"
+    with pytest.raises(ValidationError) as exc:
+        EventAttemptRecord.model_validate(payload)
+    assert "EventAttemptRecord.confirmation_source 'bogus'" in str(exc.value)
+
+
+def test_event_attempt_record_round_trip_preserves_confirmation_source() -> None:
+    payload = _minimal_event_attempt_payload("verified")
+    payload["confirmation_source"] = "harness_nonce"
+    record = EventAttemptRecord.model_validate(payload)
+    dumped = record.model_dump(mode="json")
+    assert dumped["confirmation_source"] == "harness_nonce"
+    reparsed = EventAttemptRecord.model_validate(dumped)
+    assert reparsed == record
+
+
 @pytest.mark.skipif(not _ALL_BASELINE_VSIX_PRESENT, reason=_BASELINE_VSIX_SKIP_REASON)
 @patch("workflows.marketplace.client.httpx.Client", side_effect=AssertionError)
 def test_baseline_extension_fixtures_resolve_from_local_artifacts_without_network(

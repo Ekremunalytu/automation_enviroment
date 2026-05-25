@@ -1355,7 +1355,8 @@
       "official": true,
       "heuristic": false,
       "ui_path": "Command Palette invocation",
-      "harness_fallback": "run_current_stimulus"
+      "harness_fallback": "run_current_stimulus",
+      "confirmation_source": "none"
     },
     {
       "attempt_id": "official-ondebuginitialconfigurations",
@@ -1398,7 +1399,8 @@
       "official": true,
       "heuristic": false,
       "ui_path": "Create launch.json through Run and Debug",
-      "harness_fallback": "run_current_stimulus"
+      "harness_fallback": "run_current_stimulus",
+      "confirmation_source": "none"
     },
     {
       "attempt_id": "official-ondebugresolve-python",
@@ -1441,7 +1443,8 @@
       "official": true,
       "heuristic": false,
       "ui_path": "Start a debug session with a matching debug type",
-      "harness_fallback": "run_current_stimulus"
+      "harness_fallback": "run_current_stimulus",
+      "confirmation_source": "none"
     },
     {
       "attempt_id": "official-onlanguage-python",
@@ -1486,7 +1489,8 @@
       "official": true,
       "heuristic": false,
       "ui_path": "Open a file that resolves to the requested language id",
-      "harness_fallback": ""
+      "harness_fallback": "",
+      "confirmation_source": "none"
     },
     {
       "attempt_id": "official-onlanguagemodeltool-configure-python-environment",
@@ -1527,7 +1531,8 @@
       "official": true,
       "heuristic": false,
       "ui_path": "Invoke the tool from the chat/tooling surface",
-      "harness_fallback": "run_current_stimulus"
+      "harness_fallback": "run_current_stimulus",
+      "confirmation_source": "none"
     },
     {
       "attempt_id": "official-onlanguagemodeltool-create-virtual-environment",
@@ -1568,7 +1573,8 @@
       "official": true,
       "heuristic": false,
       "ui_path": "Invoke the tool from the chat/tooling surface",
-      "harness_fallback": "run_current_stimulus"
+      "harness_fallback": "run_current_stimulus",
+      "confirmation_source": "none"
     },
     {
       "attempt_id": "official-onlanguagemodeltool-get-python-environment-details",
@@ -1609,7 +1615,8 @@
       "official": true,
       "heuristic": false,
       "ui_path": "Invoke the tool from the chat/tooling surface",
-      "harness_fallback": "run_current_stimulus"
+      "harness_fallback": "run_current_stimulus",
+      "confirmation_source": "none"
     },
     {
       "attempt_id": "official-onlanguagemodeltool-get-python-executable-details",
@@ -1650,7 +1657,8 @@
       "official": true,
       "heuristic": false,
       "ui_path": "Invoke the tool from the chat/tooling surface",
-      "harness_fallback": "run_current_stimulus"
+      "harness_fallback": "run_current_stimulus",
+      "confirmation_source": "none"
     },
     {
       "attempt_id": "official-onlanguagemodeltool-install-python-packages",
@@ -1691,7 +1699,8 @@
       "official": true,
       "heuristic": false,
       "ui_path": "Invoke the tool from the chat/tooling surface",
-      "harness_fallback": "run_current_stimulus"
+      "harness_fallback": "run_current_stimulus",
+      "confirmation_source": "none"
     },
     {
       "attempt_id": "official-onterminalshellintegration-python",
@@ -1734,7 +1743,8 @@
       "official": true,
       "heuristic": false,
       "ui_path": "Open a terminal and wait for shell integration",
-      "harness_fallback": "run_current_stimulus"
+      "harness_fallback": "run_current_stimulus",
+      "confirmation_source": "none"
     },
     {
       "attempt_id": "official-workspacecontains----pylock---toml",
@@ -1778,7 +1788,8 @@
       "official": true,
       "heuristic": false,
       "ui_path": "Open a workspace that contains the requested glob",
-      "harness_fallback": ""
+      "harness_fallback": "",
+      "confirmation_source": "none"
     },
     {
       "attempt_id": "official-workspacecontains--conda",
@@ -1822,7 +1833,8 @@
       "official": true,
       "heuristic": false,
       "ui_path": "Open a workspace that contains the requested glob",
-      "harness_fallback": ""
+      "harness_fallback": "",
+      "confirmation_source": "none"
     },
     {
       "attempt_id": "official-workspacecontains--venv",
@@ -1866,7 +1878,8 @@
       "official": true,
       "heuristic": false,
       "ui_path": "Open a workspace that contains the requested glob",
-      "harness_fallback": ""
+      "harness_fallback": "",
+      "confirmation_source": "none"
     },
     {
       "attempt_id": "official-workspacecontains-pipfile",
@@ -1910,7 +1923,8 @@
       "official": true,
       "heuristic": false,
       "ui_path": "Open a workspace that contains the requested glob",
-      "harness_fallback": ""
+      "harness_fallback": "",
+      "confirmation_source": "none"
     },
     {
       "attempt_id": "official-workspacecontains-app-py",
@@ -1954,7 +1968,8 @@
       "official": true,
       "heuristic": false,
       "ui_path": "Open a workspace that contains the requested glob",
-      "harness_fallback": ""
+      "harness_fallback": "",
+      "confirmation_source": "none"
     },
     {
       "attempt_id": "official-workspacecontains-manage-py",
@@ -1998,7 +2013,8 @@
       "official": true,
       "heuristic": false,
       "ui_path": "Open a workspace that contains the requested glob",
-      "harness_fallback": ""
+      "harness_fallback": "",
+      "confirmation_source": "none"
     },
     {
       "attempt_id": "official-workspacecontains-mspythonconfig-json",
@@ -2042,7 +2058,8 @@
       "official": true,
       "heuristic": false,
       "ui_path": "Open a workspace that contains the requested glob",
-      "harness_fallback": ""
+      "harness_fallback": "",
+      "confirmation_source": "none"
     },
     {
       "attempt_id": "official-workspacecontains-pylock-toml",
@@ -2086,7 +2103,8 @@
       "official": true,
       "heuristic": false,
       "ui_path": "Open a workspace that contains the requested glob",
-      "harness_fallback": ""
+      "harness_fallback": "",
+      "confirmation_source": "none"
     },
     {
       "attempt_id": "official-workspacecontains-pyproject-toml",
@@ -2130,7 +2148,8 @@
       "official": true,
       "heuristic": false,
       "ui_path": "Open a workspace that contains the requested glob",
-      "harness_fallback": ""
+      "harness_fallback": "",
+      "confirmation_source": "none"
     },
     {
       "attempt_id": "official-workspacecontains-requirements-txt",
@@ -2174,7 +2193,8 @@
       "official": true,
       "heuristic": false,
       "ui_path": "Open a workspace that contains the requested glob",
-      "harness_fallback": ""
+      "harness_fallback": "",
+      "confirmation_source": "none"
     },
     {
       "attempt_id": "official-workspacecontains-setup-py",
@@ -2218,7 +2238,8 @@
       "official": true,
       "heuristic": false,
       "ui_path": "Open a workspace that contains the requested glob",
-      "harness_fallback": ""
+      "harness_fallback": "",
+      "confirmation_source": "none"
     }
   ],
   "prerequisite_results": [

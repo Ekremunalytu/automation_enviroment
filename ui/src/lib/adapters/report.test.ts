@@ -692,3 +692,97 @@ describe("buildRiskRadar", () => {
     expect(radar.Exfil).toBeGreaterThan(0);
   });
 });
+
+// W19-3 [GOAL harness-verification-contract-event-level]: optional
+// ``confirmation_source`` on EventAttemptDto maps to ``confirmationSource``
+// on EventAttemptView with default ``"none"`` for back-compat. Documented
+// values (`"harness_nonce"`, `"log_record"`, `"none"`) flow through
+// unchanged. Emit-site stamps wait for W19-4/W19-5; this pin guards the
+// UI adapter back-compat contract.
+describe("adaptReport eventAttempts confirmationSource (W19-3)", () => {
+  function minimalReportWithAttempt(
+    attempt: Partial<{
+      confirmation_source: string;
+    }> & { attempt_id: string },
+  ): ActivationReportDto {
+    return {
+      report_version: 2,
+      target_extension_expected: "ms.test",
+      signal_summary: {},
+      scenario_traces: [],
+      network_events: [],
+      file_events: [],
+      target_extension_observed: true,
+      trigger_plan_applied: true,
+      verification_gap: 0,
+      run_quality: "medium",
+      automation_health: {
+        status: "healthy",
+        reasons: [],
+        trigger_requested: true,
+        trigger_loaded: true,
+        trigger_applied: true,
+        extension_host_log_present: true,
+        extension_host_output_present: true,
+        target_stream_present: true,
+        target_activation_count: 1,
+        failed_scenarios: [],
+      },
+      log_health: {
+        extension_host_log_found: true,
+        extension_host_output_present: true,
+        target_extension_log_entries: 1,
+        total_activation_entries: 1,
+      },
+      attribution_summary: {
+        target_activation_count: 1,
+        strong_target_file_event_count: 0,
+        strong_target_network_event_count: 0,
+        correlated_only_event_count: 0,
+      },
+      risk_signals: [],
+      risk_summary: {
+        total_signals: 0,
+        high: 0,
+        medium: 0,
+        low: 0,
+        critical: 0,
+        categories: [],
+      },
+      summary: {},
+      evidence_events: [],
+      evidence_links: [],
+      event_attempts: [
+        {
+          attempt_id: attempt.attempt_id,
+          declared_event: "onCommand:test",
+          activation_event: "onCommand:test",
+          event_family: "onCommand",
+          ...(attempt.confirmation_source !== undefined
+            ? { confirmation_source: attempt.confirmation_source }
+            : {}),
+        },
+      ],
+      log_streams: { automation: [] },
+    };
+  }
+
+  it("defaults confirmationSource to 'none' when DTO omits the field", () => {
+    const dto = minimalReportWithAttempt({ attempt_id: "probe-1" });
+    const report = adaptReport(dto, "w19_3_default.json");
+    expect(report.eventAttempts).toHaveLength(1);
+    expect(report.eventAttempts[0].confirmationSource).toBe("none");
+  });
+
+  it.each(["harness_nonce", "log_record", "none"] as const)(
+    "preserves confirmationSource='%s' when populated on the DTO",
+    (source) => {
+      const dto = minimalReportWithAttempt({
+        attempt_id: "probe-1",
+        confirmation_source: source,
+      });
+      const report = adaptReport(dto, "w19_3_populated.json");
+      expect(report.eventAttempts[0].confirmationSource).toBe(source);
+    },
+  );
+});
