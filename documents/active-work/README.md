@@ -20,14 +20,14 @@ points to it.
 ## Files
 
 - `W19-live-run-root-cause.md`
-  - **Active phase — W19-0 closed `2026-05-21` (this commit on the
-    `week19` branch per user direction; W11-W18 paterni preserved).**
-    W19 Live-Run Kök Neden: Dropout + Harness Verification. 7
-    sub-iter slate (`W19-0..W19-6`): doc-reconcile + §17 W19 plan
-    header doc-open + baseline live-run smoke (W19-0, this commit);
-    regression fixture xfail/RED `[BUG scenario-unaccounted-dropout-regression-fixture]`
-    (W19-1); emit-site fix `[BUG scenario-unaccounted-dropout-debug-refactor]`
-    (W19-2; W19-1 xfail flips to PASS); harness verification
+  - **Active phase — W19-0..W19-2 closed; W19-3..W19-6 pending on the
+    `week19` branch per user direction; W11-W18 paterni preserved.**
+    W19 Live-Run Kök Neden: Dropout + Harness Verification. Hat-1 is
+    closed + live-verified: W19-0 doc-reconcile (`72712bd` +
+    `086d7a5`), W19-1 RED dropout fixture (`6a21cf3` + `fd02ca4`),
+    W19-2 emit-site fix (`89b64da` + `d9c6262`), and live re-anchor
+    `d5de9ca` satisfying `unaccounted_dropout == 0`. Remaining slate:
+    harness verification
     contract event-level — HARD GATE schema landing
     `[GOAL harness-verification-contract-event-level]` (W19-3);
     onDebug* nonce confirmation
@@ -37,11 +37,10 @@ points to it.
     close-out hygiene + PR `week19 -> main` (W19-6). Driving signal:
     Codex live-run validation `2026-05-21` of `ms-python.python` @
     `992ad028f3df` reports `automation_health.status=degraded` +
-    `run_quality=low` while static W18 final bar (1907/201/220)
-    remains 🟢. W19 closes Hat-1 (executor muhasebe bug →
-    `unaccounted_dropout`) + Hat-2 (harness verification gap →
-    declared ≠ verified); Hat-3 (coverage matrix promotion) deferred
-    to W20-W22 per multi-iter roadmap. Slim canonical:
+    `run_quality=low`; W19-2 live re-anchor now satisfies
+    `unaccounted_dropout == 0`. Hat-2 remains active; Hat-3
+    (coverage matrix promotion) deferred to W20-W22 per multi-iter
+    roadmap. Slim canonical:
     [`REFACTOR_OPTIMIZATION.md §17`](../REFACTOR_OPTIMIZATION.md).
 - `W18-heartbeat-refactor.md`
   - **Past phase — closed `2026-05-21` and merged via PR #26

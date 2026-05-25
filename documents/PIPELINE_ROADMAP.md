@@ -1,6 +1,6 @@
 # Pipeline Roadmap
 
-`Last Updated: 2026-05-13`
+`Last Updated: 2026-05-25 (W19 active — Hat-1 closed + live-verified; Hat-2 harness verification work next)`
 
 This is the short staged view of the analysis pipeline. For current pullable
 work, use `POST_POC_BACKLOG.md` plus the active tracker; for active priorities,
@@ -116,8 +116,8 @@ flowchart LR
   change
 - analysis output is semi-trusted (ADR 0002 §6); do not forward, upload, or
   index without scrubbing
-- security posture is fixed by ADRs 0002-0005 plus ADR 0007; scope expansion
-  requires a new ADR, not an informal upgrade. ADR 0007 is Accepted and
+- security posture is fixed by ADRs 0002-0005 plus ADRs 0007-0012; scope
+  expansion requires a new ADR, not an informal upgrade. ADR 0007 is Accepted and
   implemented `2026-04-29` via W8-7 — loopback defaults plus
   `EXTRACE_ALLOW_LAN` opt-in are enforced in `appcore/api/config.py`,
   `docker-compose.yml`, and `tests/architecture/test_default_bindings.py`.

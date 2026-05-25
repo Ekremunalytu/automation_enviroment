@@ -1,6 +1,6 @@
 # Post-PoC Backlog
 
-`Last Updated: 2026-05-21 (W19 active — W19-0 doc-reconcile this commit on the week19 branch (per user direction 2026-05-21; W11-W18 paterni preserved); sub-iter slate W19-0..W19-6 reserved by §17 plan, stable IDs W19-1..W19-5 promoted from W19-W22 Roadmap Acceptance Bar (planning) to new W19 Pull-Forward Acceptance Bar (in flight) at W19-0 open. Driving signal: Codex live-run validation 2026-05-21 of ms-python.python @ 992ad028f3df reports automation_health.status=degraded + run_quality=low while static W18 final bar (1907/201/220) remains green. W19 closes Hat-1 (executor muhasebe bug → unaccounted_dropout) + Hat-2 (harness verification gap → declared ≠ verified); Hat-3 (coverage matrix promotion) deferred to W20-W22. §17 W19 plan source + §18-§20 W20-W22 multi-iter roadmap (split at W19-0 from the original §17-§20 combined header). W18 closed via PR #26 week18 -> main MERGED 2026-05-21 via 9874e79; final W18 bar tests/architecture/ 201 / make test-security 220 / full suite 1907 passed, 9 skipped, 8 deselected. W18 Pull-Forward CLOSED (frozen audit trail): ADR 0012 Option A1 heartbeat thread relocation (W18-1, acf6cc9 + 73d8a5c followup); heartbeat refactor implementation step-1 reset off worker thread (W18-2, a9bffb1 + 78ed7cc + b5b64b6 + 306d744 with pre-commit install — W17-3/W17-4 DESIGN-NEEDED carry-over closed); lifecycle harness extension tests parallel reset / idempotency / reset-during-finalize (W18-3, 92b310d + 32d9905); W18-4 close-out hygiene (3f4f95a); W18-4-followup invariant pins (e1043e5, 4 W18-2 invariant pins + 2 pre-existing doc drift fixes). W18 candidate intake (2026-05-19): [GOAL container-hardening-baseline] (scheduled W21-4 stretch) + [GOAL sandbox-evasion-defense-mvp] (scheduled W22-4 ADR draft + W22-5 canary fixture). W18 frozen tracker: documents/active-work/W18-heartbeat-refactor.md; W19 active tracker: documents/active-work/W19-live-run-root-cause.md; multi-iter roadmap source-of-truth: documents/active-work/W18-W22-roadmap.md. W17 closed via PR #25 week17 -> main MERGED 2026-05-18 via bff565d; W16 closed via PR #23 week16 -> main MERGED 2026-05-18 via 1b6d43f. W17 Pull-Forward CLOSED: attribution-count-parity (W17-1, 8c26d02); lifecycle harness scaffold (W17-2, ff98235); heartbeat-sandbox-reset-off-thread + heartbeat-refactor SCOPE-REDUCED (W17-3 + W17-4 c4c0646 — closed via W18-1 ADR + W18-2 implementation); postgres-version-fact-drift (W17-5, 394d40d); W17-6 close-out hygiene (21f7c68). W16 Pull-Forward CLOSED: scenario-accountant-conservation-split (W16-1, 01f910a); analysis-job-worker-entry-crud-ownership (W16-2, 9d6d110); report-finalize-top-level-field-sync-drift null-leakage half (W16-3, fa430f2); health-reconciliation-responsibility-split (W16-4, 304b99f); simulation-progress-cancel scope reduction (W16-5 doc-only e21a05c); hygiene splits + Alembic fresh-DB fixture (W16-6, d40bb01); close-out hygiene (W16-7, 8bf3c6b) + post-PR unaccounted_dropout surface pin (78f080e). W15 closed via PR #22 MERGED 2026-05-18 via 6161472; W14 closed via PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d)`
+`Last Updated: 2026-05-25 (W19 active — Hat-1 closed + live-verified via W19-2-followup-2 d5de9ca on the week19 branch (per user direction 2026-05-21; W11-W18 paterni preserved); W19-0..W19-2 closed; W19-3..W19-6 pending by §17 plan, stable IDs W19-1..W19-5 promoted from W19-W22 Roadmap Acceptance Bar (planning) to new W19 Pull-Forward Acceptance Bar (in flight) at W19-0 open. Driving signal: Codex live-run validation 2026-05-21 of ms-python.python @ 992ad028f3df reports automation_health.status=degraded + run_quality=low while W19-2 live re-anchor now satisfies unaccounted_dropout == 0 and static W18 final bar (1907/201/220) remains green. W19 Hat-1 closed + live-verified (executor muhasebe bug → unaccounted_dropout); Hat-2 remains active (harness verification gap → declared ≠ verified); Hat-3 (coverage matrix promotion) deferred to W20-W22. §17 W19 plan source + §18-§20 W20-W22 multi-iter roadmap (split at W19-0 from the original §17-§20 combined header). W18 closed via PR #26 week18 -> main MERGED 2026-05-21 via 9874e79; final W18 bar tests/architecture/ 201 / make test-security 220 / full suite 1907 passed, 9 skipped, 8 deselected. W18 Pull-Forward CLOSED (frozen audit trail): ADR 0012 Option A1 heartbeat thread relocation (W18-1, acf6cc9 + 73d8a5c followup); heartbeat refactor implementation step-1 reset off worker thread (W18-2, a9bffb1 + 78ed7cc + b5b64b6 + 306d744 with pre-commit install — W17-3/W17-4 DESIGN-NEEDED carry-over closed); lifecycle harness extension tests parallel reset / idempotency / reset-during-finalize (W18-3, 92b310d + 32d9905); W18-4 close-out hygiene (3f4f95a); W18-4-followup invariant pins (e1043e5, 4 W18-2 invariant pins + 2 pre-existing doc drift fixes). W18 candidate intake (2026-05-19): [GOAL container-hardening-baseline] (scheduled W21-4 stretch) + [GOAL sandbox-evasion-defense-mvp] (scheduled W22-4 ADR draft + W22-5 canary fixture). W18 frozen tracker: documents/active-work/W18-heartbeat-refactor.md; W19 active tracker: documents/active-work/W19-live-run-root-cause.md; multi-iter roadmap source-of-truth: documents/active-work/W18-W22-roadmap.md. W17 closed via PR #25 week17 -> main MERGED 2026-05-18 via bff565d; W16 closed via PR #23 week16 -> main MERGED 2026-05-18 via 1b6d43f. W17 Pull-Forward CLOSED: attribution-count-parity (W17-1, 8c26d02); lifecycle harness scaffold (W17-2, ff98235); heartbeat-sandbox-reset-off-thread + heartbeat-refactor SCOPE-REDUCED (W17-3 + W17-4 c4c0646 — closed via W18-1 ADR + W18-2 implementation); postgres-version-fact-drift (W17-5, 394d40d); W17-6 close-out hygiene (21f7c68). W16 Pull-Forward CLOSED: scenario-accountant-conservation-split (W16-1, 01f910a); analysis-job-worker-entry-crud-ownership (W16-2, 9d6d110); report-finalize-top-level-field-sync-drift null-leakage half (W16-3, fa430f2); health-reconciliation-responsibility-split (W16-4, 304b99f); simulation-progress-cancel scope reduction (W16-5 doc-only e21a05c); hygiene splits + Alembic fresh-DB fixture (W16-6, d40bb01); close-out hygiene (W16-7, 8bf3c6b) + post-PR unaccounted_dropout surface pin (78f080e). W15 closed via PR #22 MERGED 2026-05-18 via 6161472; W14 closed via PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d)`
 
 Open deferred work after the W0-W7 PoC acceptance bar. **Slim canonical** —
 verbose closure rationales, evidence paragraphs, and per-iter Note columns
@@ -133,8 +133,8 @@ frozen tracker
 ## W18 Pull-Forward Acceptance Bar
 
 W18 closed for phase work `2026-05-21` on the `week18` branch (per
-user direction; W11-W17 paterni preserved); close-out PR
-`week18 -> main` not yet opened (branch is pushed). All rows below
+user direction; W11-W17 paterni preserved); close-out PR #26
+`week18 -> main` MERGED `2026-05-21` via `9874e79`. All rows below
 are closed audit trail; full Per-Item Detail evidence in the frozen
 tracker
 [`active-work/W18-heartbeat-refactor.md`](active-work/W18-heartbeat-refactor.md).
@@ -159,8 +159,8 @@ W18-4-followup W18-2 invariant tests via `e1043e5`).
 ## W19 Pull-Forward Acceptance Bar
 
 W19 active `2026-05-21` on the `week19` branch (per user direction;
-W11-W18 paterni preserved). Sub-iter slate W19-0..W19-6 reserved by
-§17 plan; stable IDs W19-1..W19-5 promoted from W19-W22 Roadmap
+W11-W18 paterni preserved). W19-0..W19-2 are closed; W19-3..W19-6
+remain pending. Stable IDs W19-1..W19-5 promoted from W19-W22 Roadmap
 Acceptance Bar (planning, now W20-W22) to this in-flight Pull-Forward
 table at W19-0 open. Active tracker:
 [`active-work/W19-live-run-root-cause.md`](active-work/W19-live-run-root-cause.md).
@@ -169,7 +169,7 @@ table at W19-0 open. Active tracker:
 |---|---|---|
 | W19-0 | doc-reconcile — `week19` branch + 8-doc canonical preamble refresh + new W19 active-work tracker + §17 W19 plan header doc-open + §17-§20 combined header split into §17 W19 active + §18-§20 W20-W22 planning + README phase-pointer arch gate transition W18→W19 + new W18 close-out fact gate `test_readme_phase_pointer_mentions_w18_closeout_merge` + baseline live-run smoke artefakt | **closed `2026-05-21`** via this commit |
 | W19-1 | `[BUG scenario-unaccounted-dropout-regression-fixture]` — Live-run dropout regression fixture; new file `tests/executor/test_scenario_accountant_dropout_regression.py`; parametrize on `debug_session` + `refactor_workflow` + aggregate gate; landed RED with `@pytest.mark.xfail(strict=True)` at W19-1 primary; xfail markers removed + whitelist narrowed to `frozenset({"covered_via_layered_attempts"})` at W19-2 primary | **closed `2026-05-25`** via primary `6a21cf3` + self-stamp `fd02ca4` |
-| W19-2 | `[BUG scenario-unaccounted-dropout-debug-refactor]` — Dropout emit-site fix (Hat-1; W16-1 paterni); ONE-PATH verdict (no mini-ADR); upstream emit-site landed in `executor/flows/playwright/stimulus/passes.py` covered-only branch — new `covered_via_layered_attempts` reason_code; accountant fallback `scenario_accountant.py:392-438` preserved as son-mil koruyucu; +2 W16-1-mirror synthetic unit tests at `tests/security/test_scenario_dropout_repro.py`; W19-1 fixture initially regenerated SYNTHESIZED then re-anchored to live-lifted at W19-2-followup-2 (`c2bf28ca9506` / sha256 `e9e60b2e42...`); +1 `_meta.source_sha256` canonical-hex format gate; **live Hat-1 GREEN gate SATISFIED `2026-05-25 22:23`** (`unaccounted_dropout` count = 0 in live JSON, both scenarios classified `covered_via_layered_attempts`, 16 of 16 key fields byte-identical with pre-fix anchor save the W19-2 reason_code) | **closed `2026-05-25`** via primary `89b64da` + self-stamp `d9c6262` + live re-anchor `<W19-2-followup-2-SHA>` |
+| W19-2 | `[BUG scenario-unaccounted-dropout-debug-refactor]` — Dropout emit-site fix (Hat-1; W16-1 paterni); ONE-PATH verdict (no mini-ADR); upstream emit-site landed in `executor/flows/playwright/stimulus/passes.py` covered-only branch — new `covered_via_layered_attempts` reason_code; accountant fallback `scenario_accountant.py:392-438` preserved as son-mil koruyucu; +2 W16-1-mirror synthetic unit tests at `tests/security/test_scenario_dropout_repro.py`; W19-1 fixture initially regenerated SYNTHESIZED then re-anchored to live-lifted at W19-2-followup-2 (`c2bf28ca9506` / sha256 `e9e60b2e42...`); +1 `_meta.source_sha256` canonical-hex format gate; **live Hat-1 GREEN gate SATISFIED `2026-05-25 22:23`** (`unaccounted_dropout` count = 0 in live JSON, both scenarios classified `covered_via_layered_attempts`, 16 of 16 key fields byte-identical with pre-fix anchor save the W19-2 reason_code) | **closed `2026-05-25`** via primary `89b64da` + self-stamp `d9c6262` + live re-anchor `d5de9ca` |
 | W19-3 | `[GOAL harness-verification-contract-event-level]` (new) — HARD GATE for W19-4/W19-5; new field `confirmation_source: Literal["harness_nonce", "log_record", "none"]` on `EventAttemptRecord` with default `"none"` for back-compat; 30-dk schema impact survey + Pydantic contract + UI adapter + contract round-trip + new test `tests/executor/test_automation_health_reasons.py` | pending |
 | W19-4 | `[FOLLOWUP harness-verification-debug-events]` (new) — `onDebug*` family nonce confirmation generation in `executor/flows/harness_extension/*`; emit pipeline stamps `confirmation_source="harness_nonce"` | pending |
 | W19-5 | `[FOLLOWUP harness-verification-terminal-and-lm-tool]` (new) — `onTerminalShellIntegration` + `onLanguageModelTool:*` local-only confirmation marker `confirmation_source="log_record"`; events where confirmation unattainable → `"none"` + explicit `blocked`/`unsupported` reason | pending |
@@ -182,21 +182,20 @@ checklist): `unaccounted_dropout == 0` (must-pass);
 (must-pass); `run_quality: low → medium` (expected);
 `verification_gap_present` drops (stretch);
 `automation_health.status: degraded` OK (W20 closes
-`official_unresolved_present`). Final W19-0 bar:
-`tests/architecture/` **202 passed** (W18 final 201 + W19-0 +1 new
-W18 close-out fact gate); `make test-security` **220 passed**
-(unchanged); full suite **1908 passed, 9 skipped, 8 deselected**
-(W18 final 1907 + W19-0 +1).
+`official_unresolved_present`). Final W19-2 bar:
+`tests/architecture/` **202 passed**; `make test-security` **220
+passed**; full suite **1913 passed, 9 skipped, 8 deselected,
+0 xfailed**.
 
 ## W20-W22 Roadmap Acceptance Bar (planning)
 
 Multi-iter roadmap planning landed `2026-05-21` per user direction.
 Driving signal: Codex live-run validation of `ms-python.python` @
 `992ad028f3df` (2026-05-21 10:10) → `automation_health.status=degraded`,
-`run_quality=low`. Static W18 final bar (1907/201/220) remains 🟢;
-runtime health is the W19-W22 target (W19 closes Hat-1 + Hat-2 in
-flight per W19 Pull-Forward Acceptance Bar above; W20-W22 close
-Hat-3 coverage matrix promotion per planning table below).
+`run_quality=low`. W19-2 live re-anchor now satisfies
+`unaccounted_dropout == 0`; runtime health remains the W19-W22 target
+(Hat-2 remains in flight per W19 Pull-Forward Acceptance Bar above;
+W20-W22 close Hat-3 coverage matrix promotion per planning table below).
 
 Plan source-of-truth: [`active-work/W18-W22-roadmap.md`](active-work/W18-W22-roadmap.md). Full sub-iter scope, acceptance gates, ADR paths, and critical files there. Plan went through 3 review rounds (Codex live-run + GPT × 2).
 

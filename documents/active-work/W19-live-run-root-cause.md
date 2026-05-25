@@ -1,6 +1,6 @@
 # W19 — Live-Run Kök Neden: Dropout + Harness Verification (Active Work Tracker)
 
-`Last Updated: 2026-05-21 (W19 active — W19-0 doc-reconcile this commit on the week19 branch (per user direction 2026-05-21; W11-W18 paterni preserved). Sub-iter slate W19-0..W19-6 reserved by §17 plan; stable IDs W19-1..W19-5 reserved at POST_POC_BACKLOG.md W19-W22 Roadmap Acceptance Bar; assigned at first pull per W11-W18 precedent. Driving signal: Codex live-run validation 2026-05-21 of ms-python.python @ 992ad028f3df reports automation_health.status=degraded + run_quality=low while static W18 final bar (1907/201/220) remains green. W19 closes Hat-1 (executor muhasebe bug → unaccounted_dropout) + Hat-2 (harness verification gap → declared ≠ verified) in this iter; Hat-3 (coverage matrix promotion) deferred to W20-W22 per multi-iter roadmap. W18 closed via PR #26 week18 -> main MERGED 2026-05-21 via 9874e79; final W18 bar tests/architecture/ 201 / make test-security 220 / full suite 1907 passed, 9 skipped, 8 deselected. W17 closed via PR #25 week17 -> main MERGED 2026-05-18 via bff565d. W18 frozen tracker: W18-heartbeat-refactor.md; multi-iter roadmap source-of-truth: W18-W22-roadmap.md; §17 W19 plan source in REFACTOR_OPTIMIZATION.md.)`
+`Last Updated: 2026-05-25 (W19 active — Hat-1 closed + live-verified via W19-2-followup-2 d5de9ca on the week19 branch (per user direction 2026-05-21; W11-W18 paterni preserved). W19-0..W19-2 closed; W19-3..W19-6 pending by §17 plan; stable IDs W19-1..W19-5 tracked at POST_POC_BACKLOG.md W19 Pull-Forward Acceptance Bar; assigned at first pull per W11-W18 precedent. Driving signal: Codex live-run validation 2026-05-21 of ms-python.python @ 992ad028f3df reports automation_health.status=degraded + run_quality=low while W19-2 live re-anchor now satisfies unaccounted_dropout == 0. Hat-1 is closed + live-verified; Hat-2 remains active (harness verification gap → declared ≠ verified); Hat-3 (coverage matrix promotion) deferred to W20-W22 per multi-iter roadmap. W18 closed via PR #26 week18 -> main MERGED 2026-05-21 via 9874e79; final W18 bar tests/architecture/ 201 / make test-security 220 / full suite 1907 passed, 9 skipped, 8 deselected. W17 closed via PR #25 week17 -> main MERGED 2026-05-18 via bff565d. W18 frozen tracker: W18-heartbeat-refactor.md; multi-iter roadmap source-of-truth: W18-W22-roadmap.md; §17 W19 plan source in REFACTOR_OPTIMIZATION.md.)`
 `Phase: W19 active — Hat-1 closed + live-verified (W19-0 doc-reconcile + W19-1 RED fixture 6a21cf3/fd02ca4 + W19-2 emit-site fix 89b64da/d9c6262 + W19-2-followup-2 live re-anchor this commit; live JSON c2bf28ca9506 @ 2026-05-25 22:23 confirms unaccounted_dropout=0); Hat-2 next via W19-3..W19-5 on the week19 branch (Hat-3 deferred to W20-W22)`
 `Branch: week19 (per user direction 2026-05-21; W11-W18 paterni preserved — sub-iter commits land on week19, close-out merges into main via week19 -> main PR)`
 `Owner: ekrem`
@@ -37,14 +37,15 @@ template structurally followed here.
   9 skipped, 8 deselected**.
 - **Driving signal (live run, 2026-05-21).** Codex live-run validation
   of `ms-python.python` @ `992ad028f3df` reports
-  `automation_health.status=degraded` + `run_quality=low` while the
-  static W18 final bar (1907/201/220) remains 🟢. Four reasons
+  `automation_health.status=degraded` + `run_quality=low`; W19-2
+  live re-anchor `d5de9ca` now satisfies `unaccounted_dropout == 0`.
+  Four reasons
   recorded: `skipped_scenarios_present`, `verification_gap_present`,
   `official_unresolved_present`, `harness_verification_unconfirmed_present`.
   21 `event_attempts` of which capability-level verified = 4 only.
-  Coverage summary: covered=7 / partial=5 / missing=6. W19 closes
-  the **first two of three** independent problem hatları surfaced
-  by this signal:
+  Coverage summary: covered=7 / partial=5 / missing=6. W19 is closing
+  the first two of three independent problem hatları surfaced by this
+  signal; Hat-1 is already closed + live-verified:
   - **Hat-1 — Executor muhasebe bug** (`unaccounted_dropout > 0` —
     two scenarios `debug_session` + `refactor_workflow` drop without
     a classified `reason_code`). W19-1 RED fixture + W19-2
@@ -720,8 +721,10 @@ W19 kapanır şu koşullar sağlandığında:
 
 - W19-0..W19-6 kapanır ya da deferral rasyoneli ile W20'a taşınır.
 - W19-1 RED fixture `tests/executor/test_scenario_accountant_dropout_regression.py`
-  landed olarak `xfail(strict=True)` reports.
-- W19-2 emit-site fix landed; W19-1 xfail strict GREEN'e flip → kaldırılır.
+  landed as strict-xfail at `6a21cf3`; W19-2 flipped it to PASS and
+  removed xfail markers.
+- W19-2 emit-site fix landed; W19-1 xfail strict GREEN'e flip → kaldırıldı;
+  live Hat-1 GREEN gate satisfied at `d5de9ca`.
 - W19-3 schema field `confirmation_source` landing complete: Pydantic
   contract + UI adapter back-compat + contract round-trip pin + new
   test `tests/executor/test_automation_health_reasons.py`.

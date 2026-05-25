@@ -1,6 +1,6 @@
 # Dynamic Analysis Backlog
 
-`Last Updated: 2026-05-13`
+`Last Updated: 2026-05-25 (W19 active — Hat-1 closed + live-verified via W19-2-followup-2 d5de9ca; Hat-2 W19-3..W19-5 pending)`
 
 This is the short actionable backlog for the sandbox pipeline. It complements
 `DEVELOPMENT_PRIORITIES.md`, `PIPELINE_ROADMAP.md`, and the canonical
@@ -19,17 +19,17 @@ flow, the VNC harness ready-marker fix, and the
 tagged `[FOLLOWUP simulation-progress-cancel]` in
 `POST_POC_BACKLOG.md`. PR345 target activation lifecycle and W8-0
 deterministic harness readiness gate both landed on `2026-04-27`.
-W8-W13 are closed; W13 merged via PR #20 (`772deb3`) on `2026-05-13`.
-Active phase is W14 Codex M-class Acceptance + Observability, staged in
-[`active-work/W14-codex-acceptance-observability.md`](active-work/W14-codex-acceptance-observability.md).
+W8-W18 are closed; W18 merged via PR #26 (`9874e79`) on `2026-05-21`.
+Active phase is W19 Live-Run Kök Neden: Dropout + Harness Verification,
+tracked in
+[`active-work/W19-live-run-root-cause.md`](active-work/W19-live-run-root-cause.md).
 
 ## Now (next-iteration pull)
 
 Source of truth: `POST_POC_BACKLOG.md` for pullable work and
-`REFACTOR_STATUS.md` for landed closure evidence. W8-W13 are closed;
-W13-1..W13-13 all GREEN and PR #20 `week13 -> main` merged
-`2026-05-13`. Next step is an explicit W14 pull / `week14` branch cut from
-`main`.
+`REFACTOR_STATUS.md` for landed closure evidence. W19-0..W19-2 are closed;
+Hat-1 is live-verified at `d5de9ca`. Next pull is W19-3
+`[GOAL harness-verification-contract-event-level]`.
 
 + **W11 (`REFACTOR_OPTIMIZATION.md` §11.8) monitor lifecycle split —
   CLOSED `2026-05-05`.** W11-1 `MonitorRuntime` (PR #12, `84d51ae`),

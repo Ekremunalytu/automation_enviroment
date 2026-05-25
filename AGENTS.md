@@ -1,6 +1,6 @@
 # AGENTS.md
 
-`Last Updated: 2026-05-21 (W19 active — W19-0 doc-reconcile this commit on the week19 branch (per user direction 2026-05-21; W11-W18 paterni preserved); sub-iter slate W19-0..W19-6 reserved by §17 plan, stable IDs W19-1..W19-5 reserved at POST_POC_BACKLOG.md W19 Pull-Forward Acceptance Bar. Driving signal: Codex live-run validation 2026-05-21 of ms-python.python @ 992ad028f3df reports automation_health.status=degraded + run_quality=low while static W18 final bar (1907/201/220) remains green. W19 closes Hat-1 (executor muhasebe bug → unaccounted_dropout) + Hat-2 (harness verification gap → declared ≠ verified); Hat-3 (coverage matrix promotion) deferred to W20-W22. §17 W19 plan source + §18-§20 W20-W22 multi-iter roadmap (split at W19-0 from the original §17-§20 combined header). W18 closed via PR #26 week18 -> main MERGED 2026-05-21 via 9874e79; final W18 bar tests/architecture/ 201 / make test-security 220 / full suite 1907 passed, 9 skipped, 8 deselected. W18 sub-iter audit trail (frozen, all closed): W18-0 (89d0c9b); W18-1 ADR 0012 Option A1 (acf6cc9 + 73d8a5c); W18-2 heartbeat refactor implementation (a9bffb1 + 78ed7cc + b5b64b6 + 306d744); W18-3 lifecycle harness extension tests (92b310d + 32d9905); W18-4 close-out hygiene (3f4f95a); W18-4-followup (e1043e5). W17 closed via PR #25 week17 -> main MERGED 2026-05-18 via bff565d; W16 closed via PR #23 week16 -> main MERGED 2026-05-18 via 1b6d43f. W18 frozen tracker: documents/active-work/W18-heartbeat-refactor.md; W19 active tracker: documents/active-work/W19-live-run-root-cause.md; multi-iter roadmap source-of-truth: documents/active-work/W18-W22-roadmap.md (5-iter slate: W18 closed / W19 dropout + harness verification ACTIVE / W20 coverage promotion easy / W21 coverage promotion mid / W22 chat policy + sandbox ADR). W15 closed via PR #22 MERGED 2026-05-18 via 6161472; W14 closed via PR #21 MERGED 2026-05-14 via 4e03c8d; W13 closed via PR #20 -> 772deb3 on 2026-05-13)`
+`Last Updated: 2026-05-25 (W19 active — Hat-1 closed + live-verified via W19-2-followup-2 d5de9ca on the week19 branch (per user direction 2026-05-21; W11-W18 paterni preserved); W19-0..W19-2 closed; W19-3..W19-6 pending by §17 plan, stable IDs W19-1..W19-5 reserved at POST_POC_BACKLOG.md W19 Pull-Forward Acceptance Bar. Driving signal: Codex live-run validation 2026-05-21 of ms-python.python @ 992ad028f3df reports automation_health.status=degraded + run_quality=low while W19-2 live re-anchor now satisfies unaccounted_dropout == 0 and static W18 final bar (1907/201/220) remains green. W19 Hat-1 closed + live-verified (executor muhasebe bug → unaccounted_dropout); Hat-2 remains active (harness verification gap → declared ≠ verified); Hat-3 (coverage matrix promotion) deferred to W20-W22. §17 W19 plan source + §18-§20 W20-W22 multi-iter roadmap (split at W19-0 from the original §17-§20 combined header). W18 closed via PR #26 week18 -> main MERGED 2026-05-21 via 9874e79; final W18 bar tests/architecture/ 201 / make test-security 220 / full suite 1907 passed, 9 skipped, 8 deselected. W18 sub-iter audit trail (frozen, all closed): W18-0 (89d0c9b); W18-1 ADR 0012 Option A1 (acf6cc9 + 73d8a5c); W18-2 heartbeat refactor implementation (a9bffb1 + 78ed7cc + b5b64b6 + 306d744); W18-3 lifecycle harness extension tests (92b310d + 32d9905); W18-4 close-out hygiene (3f4f95a); W18-4-followup (e1043e5). W17 closed via PR #25 week17 -> main MERGED 2026-05-18 via bff565d; W16 closed via PR #23 week16 -> main MERGED 2026-05-18 via 1b6d43f. W18 frozen tracker: documents/active-work/W18-heartbeat-refactor.md; W19 active tracker: documents/active-work/W19-live-run-root-cause.md; multi-iter roadmap source-of-truth: documents/active-work/W18-W22-roadmap.md (5-iter slate: W18 closed / W19 dropout + harness verification ACTIVE / W20 coverage promotion easy / W21 coverage promotion mid / W22 chat policy + sandbox ADR). W15 closed via PR #22 MERGED 2026-05-18 via 6161472; W14 closed via PR #21 MERGED 2026-05-14 via 4e03c8d; W13 closed via PR #20 -> 772deb3 on 2026-05-13)`
 
 ## Authority
 
@@ -32,15 +32,15 @@
   Verification — active `2026-05-21` on the `week19` branch (per
   user direction 2026-05-21; W11-W18 paterni preserved)**: plan
   `documents/REFACTOR_OPTIMIZATION.md` §17, active tracker
-  `documents/active-work/W19-live-run-root-cause.md`. **Sub-iter
-  slate W19-0..W19-6 reserved**: W19-0 doc-reconcile (this
-  commit — `week19` branch + 8-doc canonical preamble refresh +
-  new W19 tracker + §17 W19 plan header doc-open + §17-§20 split
-  into §17 W19 active + §18-§20 W20-W22 planning + README
-  phase-pointer arch gate transition W18→W19 + baseline live-run
-  smoke); W19-1 `[BUG scenario-unaccounted-dropout-regression-fixture]`
-  (RED fixture xfail strict); W19-2 `[BUG scenario-unaccounted-dropout-debug-refactor]`
-  (emit-site fix); W19-3 `[GOAL harness-verification-contract-event-level]`
+  `documents/active-work/W19-live-run-root-cause.md`. **W19-0..W19-2
+  closed; W19-3..W19-6 pending**: W19-0 doc-reconcile
+  (`72712bd` + `086d7a5`); W19-1
+  `[BUG scenario-unaccounted-dropout-regression-fixture]`
+  (`6a21cf3` + `fd02ca4`); W19-2
+  `[BUG scenario-unaccounted-dropout-debug-refactor]` emit-site fix
+  (`89b64da` + `d9c6262`) + W19-2-followup-2 live re-anchor
+  (`d5de9ca`) satisfying `unaccounted_dropout == 0`; W19-3
+  `[GOAL harness-verification-contract-event-level]`
   (HARD GATE: `confirmation_source` schema landing); W19-4
   `[FOLLOWUP harness-verification-debug-events]` (onDebug* nonce);
   W19-5 `[FOLLOWUP harness-verification-terminal-and-lm-tool]`
@@ -48,8 +48,9 @@
   `week19 -> main`. Driving signal: Codex live-run validation of
   `ms-python.python` @ `992ad028f3df` (2026-05-21) reports
   `automation_health.status=degraded` + `run_quality=low` while
-  static W18 final bar (1907/201/220) remains 🟢. Hat-3 coverage
-  matrix promotion deferred to W20-W22 per multi-iter roadmap.
+  W19-2 live re-anchor now satisfies `unaccounted_dropout == 0`.
+  Hat-2 remains active; Hat-3 coverage matrix promotion deferred to
+  W20-W22 per multi-iter roadmap.
   **Previous phase: W18 — Heartbeat Refactor — closed via PR #26
   `week18 -> main` MERGED `2026-05-21` via `9874e79` (per user
   direction; W11-W17 paterni preserved)**: §16 W18 plan source,
