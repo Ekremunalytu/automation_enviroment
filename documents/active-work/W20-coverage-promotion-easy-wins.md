@@ -1,7 +1,7 @@
 # W20 — Coverage Promotion Round 1: Easy Wins (Active Work Tracker)
 
 `Last Updated: 2026-05-26 (W20-0 doc-reconcile in-flight via this commit — open week20 branch + new W20 active-work tracker + §18 W20 active section split from §18-§20 combined header (W19-0 paterni §17 split from §17-§20) + W20 Pull-Forward Acceptance Bar promoted in POST_POC_BACKLOG.md from W20-W22 Roadmap Acceptance Bar (planning) + 9-doc canonical preamble refresh + README phase-pointer arch gate transition W19→W20 + new W19 close-out fact gate test_readme_phase_pointer_mentions_w19_closeout_merge pinning PR #28 / week19 -> main / c879603 mirroring W18-0 W17→W18 transition paterni from 89d0c9b. W19 closed synthetically 2026-05-26 — Hat-1 closed + live-verified; Hat-2 fully closed synthetically via W19-3 + W19-4 + W19-X + W19-5; PR #28 week19 -> main MERGED 2026-05-26 via c879603; final W19 bar tests/architecture/ 204 / make test-security 220 / full suite 1995 passed, 9 skipped, 8 deselected. W19 frozen tracker: W19-live-run-root-cause.md (frozen at W19-6-followup-2 per W17/W18 paterni). Driving signal for W20: same Codex live-run 2026-05-21 of ms-python.python @ 992ad028f3df — coverage_summary.missing_capabilities = [scm, settings, chat, comments, testing, workspace_trust] (Hat-3 coverage matrix promotion deferred to W20-W22 multi-iter roadmap). W20 easy-wins tier closes scm + settings (both already heuristic-covered at capabilities.py:36,38; only official-track says missing at capabilities.py:88,90); W21 closes mid tier; W22 closes hard tier + sandbox evasion ADR draft. W20 baseline live-run pending (user pre-approved baseline + final per AskUserQuestion 2026-05-26).)`
-`Phase: W20-0 in-flight — doc-reconcile via this commit`
+`Phase: W20-0 closed 2026-05-26 via primary 66a8a0b + self-stamp this commit (doc-reconcile + baseline live-run captured); W20-1 ready to start`
 `Branch: week20 (per user direction 2026-05-26; W11-W19 paterni preserved — sub-iter commits land on week20, close-out merges into main via week20 -> main PR PENDING USER APPROVAL)`
 `Owner: ekrem`
 
@@ -79,7 +79,7 @@ template structurally followed here.
 
 | Iter | Status | Theme | Closes which acceptance-bar item? |
 |---|---|---|---|
-| W20-0 | **in-flight `2026-05-26`** via this commit (doc-reconcile — `week20` branch + new W20 active-work tracker + §18 W20 plan header doc-open + §18-§20 combined header split into §18 W20 active + §19-§20 W21-W22 planning + 9-doc canonical preamble refresh + W20 Pull-Forward Acceptance Bar promotion in `POST_POC_BACKLOG.md` + README phase-pointer arch gate transition W19→W20 + new W19 close-out fact gate `test_readme_phase_pointer_mentions_w19_closeout_merge` + baseline live-run pending user "go") | this commit | — (doc-reconcile; no acceptance-bar item) |
+| W20-0 | **closed `2026-05-26`** via primary `66a8a0b` + self-stamp this commit (doc-reconcile — `week20` branch + new W20 active-work tracker + §18 W20 plan header doc-open + §18-§20 combined header split into §18 W20 active + §19-§20 W21-W22 planning + 9-doc canonical preamble refresh + W20 Pull-Forward Acceptance Bar promotion in `POST_POC_BACKLOG.md` + README phase-pointer arch gate transition W19→W20 + new W19 close-out fact gate `test_readme_phase_pointer_mentions_w19_closeout_merge` + baseline live-run pending user "go") | this commit | — (doc-reconcile; no acceptance-bar item) |
 | W20-1 | **planned** — `[GOAL taxonomy-scm-official-promotion]` — `_OFFICIAL_CAPABILITY_SUPPORT["scm"]: "missing" → "covered"` flip at [`capabilities.py:88`](../../packages/analysis_planner/capabilities.py) + schema impact survey (W19-3 paterni; UI adapter / report builder / contract test deps; fixture regen if planner output depends) + invariant tests at `tests/platform/contracts/test_coverage_model.py` extend (scm both tracks covered + track parity + `_GLOBAL_CAPABILITY_NOTES` policy ↔ implementation ayna invariant'ı) | TBD | live W20 acceptance #1 (`scm` drops from `missing_capabilities`) |
 | W20-2 | **planned** — `[GOAL taxonomy-settings-official-promotion]` — `_OFFICIAL_CAPABILITY_SUPPORT["settings"]: "missing" → "covered"` flip at [`capabilities.py:90`](../../packages/analysis_planner/capabilities.py) + W20-1 paterni byte-identical (schema impact + invariant tests + fixture regen if needed) | TBD | live W20 acceptance #2 (`settings` drops from `missing_capabilities`) |
 | W20-3 | **planned** — `[GOAL coverage-matrix-contract-tests]` — invariant set codifying future track promotions: keyset parity (official ↔ heuristic ↔ taxonomy), official ⊆ heuristic (official-covered cannot be heuristic-missing), `_GLOBAL_CAPABILITY_NOTES` keyset ↔ taxonomy subset alignment, `CAPABILITY_TAXONOMY` ordering pin (anti-drift), W20-1 + W20-2 post-condition regression pin. Either extend `tests/platform/contracts/test_coverage_model.py` or new `test_coverage_track_invariants.py` | TBD | structural pin against future promotion regressions |
@@ -311,12 +311,62 @@ follows W18-4 / W19-6 paterni.]
 
 ## Baseline Live-Run Smoke (W20-0)
 
-[Pending user "go" — baseline + final pre-approved per AskUserQuestion
-2026-05-26. Will be filled in at the W20-0 self-stamp follow-up commit
-with: anchor JSON path + sha256 + diff vs W19 anchor `992ad028f3df`
-(post-merge drift check) plus `unaccounted_dropout == 0` re-confirmation
-plus `confirmation_source` field presence plus `harness_verification_unconfirmed_present`
-reason absence verification (W19 synthetic close-out live smoke).]
+**Captured `2026-05-26` via this self-stamp commit** following user
+"go" on AskUserQuestion (chosen path: "Ben başlatayım — docker compose
+up -d --build + jq inspection"). Container build cycle completed in
+~30 s (cached layers); analyze job ran ~7 min via UI-driven analyze
+API at `/api/marketplace/analyze/start` (job id
+`e89a82ca9ba84b9d815a56b8805e18c4`).
+
+**Live anchor JSON**: `output/activation_report_ms-python.python-2026.5.2026052501-e89a82ca9ba8.json`
+(sha256 `4dd788268f7793143351721875d6ccb340bd1e01b2b0205c53a5561ed0256ffe`).
+
+**W19 close-out live verification (carry-over evidence)** — the
+post-W19-merge live re-anchor that the W19 final preamble flagged as
+`live smoke pending` is now SATISFIED via this W20-0 baseline:
+
+- `unaccounted_dropout` count = **0** (Hat-1 W19-2 emit-site fix holds
+  post-merge; matches `W19-2-followup-2 d5de9ca` live re-anchor result).
+- `automation_health.reasons = [skipped_scenarios_present,
+  verification_gap_present, official_unresolved_present]` — three reasons
+  remain. **`harness_verification_unconfirmed_present` reason DROPPED**
+  versus the pre-W19 Codex live-run baseline `992ad028f3df` (which
+  carried 4 reasons including this one). Hat-2 (W19-3 schema landing +
+  W19-4 onDebug producer/consumer + W19-X onDebug live close-out +
+  W19-5 onTerminal+onLM log_record stamp) is now **fully live-verified**;
+  the W19 final preamble "live smoke pending" marker is retired by this
+  evidence.
+- `event_attempts` count = 21 (unchanged from W19 baseline 21).
+- `confirmation_source` field distribution across 21 event_attempts:
+  - `harness_nonce` = **2** (onDebug* family; W19-4 producer + W19-X
+    Bug A/B/C close-out)
+  - `log_record` = **6** (onTerminalShellIntegration +
+    onLanguageModelTool:* family; W19-5 producer arm extension)
+  - `none` = **13** (remaining families; expected — W19-4/5 scope
+    explicitly excludes these)
+  - Total 21 / 21 with field present (W19-3 schema landing holds).
+- `run_quality = low` (still low — W19 expected gate "low → medium"
+  not satisfied yet; could move to medium after W20-1/W20-2 close
+  `official_unresolved_present` contributor).
+- `automation_health.status = degraded` (expected; closes after W22
+  hard tier when `official_unresolved_present` fully drops).
+
+**W20 baseline (Hat-3, pre-flip)** — the easy-wins tier target:
+
+- `coverage_summary.missing_capabilities = [scm, settings, chat,
+  comments, testing, workspace_trust]` (6 missing — same as W19
+  baseline). W20-1 + W20-2 flips of `_OFFICIAL_CAPABILITY_SUPPORT["scm"]`
+  and `["settings"]` at `packages/analysis_planner/capabilities.py:88,90`
+  will drop `scm` + `settings` from the list (6 → 4 expected at W20-5
+  final live-run).
+- `coverage_summary.covered = 7 / partial = 5 / missing = 6` —
+  byte-identical with W19 baseline split.
+- `coverage_summary.verified = 4 capability-level` (`commands`,
+  `languages_editor`, `window_ui`, `workspace_fs`) — unchanged from
+  W19; W21/W22 will lift this number.
+
+**No post-merge drift detected** in W19 close-out state. Baseline is
+clean; W20-1 ready to start.
 
 ## Risk Notes
 
