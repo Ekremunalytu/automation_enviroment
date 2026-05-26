@@ -225,8 +225,8 @@
       ],
       "summary": {
         "covered": 7,
-        "partial": 5,
-        "missing": 6,
+        "partial": 7,
+        "missing": 4,
         "covered_capabilities": [
           "commands",
           "window_ui",
@@ -237,15 +237,15 @@
           "uri_walkthrough"
         ],
         "partial_capabilities": [
+          "scm",
           "search_views",
+          "settings",
           "notebooks",
           "custom_editors",
           "authentication",
           "webview"
         ],
         "missing_capabilities": [
-          "scm",
-          "settings",
           "chat",
           "comments",
           "testing",
@@ -393,10 +393,10 @@
         },
         {
           "capability": "scm",
-          "status": "missing",
+          "status": "partial",
           "track": "official",
           "source": "official_activation_track",
-          "support_status": "missing",
+          "support_status": "covered",
           "selected_scenarios": [],
           "supported_scenarios": [
             "git_workflow"
@@ -421,10 +421,10 @@
         },
         {
           "capability": "settings",
-          "status": "missing",
+          "status": "partial",
           "track": "official",
           "source": "official_activation_track",
-          "support_status": "missing",
+          "support_status": "covered",
           "selected_scenarios": [],
           "supported_scenarios": [
             "settings_modification"
@@ -853,8 +853,8 @@
   },
   "coverage_summary": {
     "covered": 7,
-    "partial": 5,
-    "missing": 6,
+    "partial": 7,
+    "missing": 4,
     "covered_capabilities": [
       "commands",
       "window_ui",
@@ -865,15 +865,15 @@
       "uri_walkthrough"
     ],
     "partial_capabilities": [
+      "scm",
       "search_views",
+      "settings",
       "notebooks",
       "custom_editors",
       "authentication",
       "webview"
     ],
     "missing_capabilities": [
-      "scm",
-      "settings",
       "chat",
       "comments",
       "testing",
@@ -1021,10 +1021,10 @@
     },
     {
       "capability": "scm",
-      "status": "missing",
+      "status": "partial",
       "track": "official",
       "source": "official_activation_track",
-      "support_status": "missing",
+      "support_status": "covered",
       "selected_scenarios": [],
       "supported_scenarios": [
         "git_workflow"
@@ -1049,10 +1049,10 @@
     },
     {
       "capability": "settings",
-      "status": "missing",
+      "status": "partial",
       "track": "official",
       "source": "official_activation_track",
-      "support_status": "missing",
+      "support_status": "covered",
       "selected_scenarios": [],
       "supported_scenarios": [
         "settings_modification"
