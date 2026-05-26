@@ -87,7 +87,7 @@ _OFFICIAL_CAPABILITY_SUPPORT: dict[str, str] = {
     "terminal_tasks": "covered",
     "scm": "covered",
     "search_views": "covered",
-    "settings": "missing",
+    "settings": "covered",
     "notebooks": "covered",
     "custom_editors": "covered",
     "uri_walkthrough": "covered",
