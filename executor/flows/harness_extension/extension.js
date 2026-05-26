@@ -6,9 +6,17 @@ const {
   emitHarnessEvent,
   emitHarnessMarker,
   readHarnessContext,
+  setHarnessChannel,
   setHarnessNonceSecret,
   writeHarnessReadyMarker,
 } = require("./markers");
+
+// Output channel name reserved for harness markers + activate diagnostics.
+// installOutputChannelHook skips this name so the marker-emit channel
+// is not wrapped by the target-extension appendLine listener (would
+// otherwise cause each emitted marker to recursively emit an
+// output_channel_appendline marker).
+const HARNESS_OUTPUT_CHANNEL_NAME = "ExTrace Harness";
 const { LocalAuthProvider, LocalFileSystemProvider } = require("./providers");
 const { dispatchStimulus, ensureCommentThread } = require("./stimulus_dispatch");
 
@@ -21,12 +29,30 @@ const { dispatchStimulus, ensureCommentThread } = require("./stimulus_dispatch")
 // launch_vscode.sh writing it and the harness reading it. ENOENT is a
 // soft failure: emit functions fall back to unsigned markers and the
 // Python verifier rejects the run as unverified (fail-closed).
-function consumeHarnessNonceSecret() {
+async function consumeHarnessNonceSecret() {
+  // Reload reactivations spawn a fresh Extension Host whose activate()
+  // fires before the orchestration has had a chance to rewrite the
+  // per-launch secret. Poll briefly so a write-after-spawn race resolves
+  // on its own without surfacing as a verification gap.
+  const MAX_ATTEMPTS = 30;
+  const SLEEP_MS = 100;
   let secret = "";
-  try {
-    secret = fs.readFileSync(HARNESS_SECRET_PATH, "utf8").trim();
-  } catch (_err) {
-    secret = "";
+  let readError = "";
+  let preExisted = false;
+  let attempts = 0;
+  for (; attempts < MAX_ATTEMPTS; attempts++) {
+    try {
+      preExisted = fs.existsSync(HARNESS_SECRET_PATH);
+      secret = fs.readFileSync(HARNESS_SECRET_PATH, "utf8").trim();
+      if (secret) {
+        readError = "";
+        break;
+      }
+    } catch (err) {
+      secret = "";
+      readError = err && err.code ? err.code : String(err && err.message ? err.message : err);
+    }
+    await new Promise((resolve) => setTimeout(resolve, SLEEP_MS));
   }
   try {
     fs.unlinkSync(HARNESS_SECRET_PATH);
@@ -34,6 +60,14 @@ function consumeHarnessNonceSecret() {
     // Already gone; nothing to do.
   }
   setHarnessNonceSecret(secret);
+  return {
+    secret_path: HARNESS_SECRET_PATH,
+    pre_existed: preExisted,
+    has_secret: secret.length > 0,
+    secret_length: secret.length,
+    read_error: readError,
+    poll_attempts: attempts + 1,
+  };
 }
 
 // PR345 PR5: capture target-owned output-channel writes by wrapping
@@ -51,6 +85,9 @@ function installOutputChannelHook() {
   const _origCreate = vscode.window.createOutputChannel;
   vscode.window.createOutputChannel = function patchedCreateOutputChannel(name, ...rest) {
     const channel = _origCreate.call(vscode.window, name, ...rest);
+    if (name === HARNESS_OUTPUT_CHANNEL_NAME) {
+      return channel;
+    }
     const wrap = (fn) => function patchedAppend(value) {
       try {
         const text = String(value == null ? "" : value);
@@ -82,15 +119,19 @@ async function activate(context) {
   // every subsequent emitHarnessMarker / emitHarnessEvent call,
   // including the diagnostic appendLine writes done through
   // the OutputChannel hook installed below.
-  consumeHarnessNonceSecret();
+  const _secretConsumeDiag = await consumeHarnessNonceSecret();
   installOutputChannelHook();
   // W8-0: dedicated diagnostic channel. Created AFTER the hook so its
   // appendLine writes are captured as OutputSignalEvent (kind=
   // output_channel_appendline, channel="ExTrace Harness"). This gives
   // the Python side a deterministic record of activate() enter/exit
   // and marker-write phases, separate from generic stimulus markers.
-  const harnessChannel = vscode.window.createOutputChannel("ExTrace Harness");
+  const harnessChannel = vscode.window.createOutputChannel(HARNESS_OUTPUT_CHANNEL_NAME);
   context.subscriptions.push(harnessChannel);
+  // Route emitHarnessMarker / emitHarnessEvent to this channel so markers
+  // reach the parser via the channel's log file. console.log alone is
+  // discarded because launch_vscode.sh sends VS Code stdout to /dev/null.
+  setHarnessChannel(harnessChannel);
   const _diag = (phase, extra) => {
     try {
       harnessChannel.appendLine(
@@ -105,7 +146,7 @@ async function activate(context) {
       // Diagnostic must never break activation.
     }
   };
-  _diag("activate_enter");
+  _diag("activate_enter", _secretConsumeDiag);
   const localAuthProvider = new LocalAuthProvider();
   const authDisposable = vscode.authentication.registerAuthenticationProvider(
     "extrace.local",

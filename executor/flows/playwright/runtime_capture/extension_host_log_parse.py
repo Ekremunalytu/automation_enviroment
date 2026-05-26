@@ -291,6 +291,23 @@ def parse_all_exthost_logs(
     return all_entries
 
 
+def find_harness_channel_logs() -> list[Path]:
+    """Find ``ExTrace Harness`` output channel log files.
+
+    Harness markers (``[extrace-harness]`` JSON-line) land here, not in
+    exthost.log, because launch_vscode.sh redirects VS Code stdout to
+    /dev/null — Extension Host ``console.log`` output is therefore
+    discarded. The harness extension routes markers through
+    ``outputChannel.appendLine`` instead, which VS Code persists to a
+    per-channel log file under ``output_logging_*/``.
+    """
+    logs_dir = _resolve_vscode_logs_dir()
+    if not logs_dir.exists():
+        return []
+    found = list(logs_dir.glob("**/output_logging_*/*ExTrace Harness.log"))
+    return sorted(found, key=lambda x: x.stat().st_mtime, reverse=True)
+
+
 def read_extension_host_output(page: Any = None) -> str:
     """Read Extension Host output from the log file directly.
 
@@ -302,20 +319,33 @@ def read_extension_host_output(page: Any = None) -> str:
     _ = page
     _log("Reading Extension Host output from log file...")
 
-    # Read directly from the Extension Host log file (most reliable)
+    parts: list[str] = []
+
+    # Read directly from the Extension Host log file (most reliable for
+    # activation entries + provider trace).
     logs = find_exthost_logs()
     if logs:
         try:
-            content = logs[0].read_text(errors="replace")
-            _log(f"Read {len(content)} chars from {logs[0].name}")
-            return content
+            parts.append(logs[0].read_text(errors="replace"))
+            _log(f"Read {len(parts[-1])} chars from {logs[0].name}")
         except OSError as exc:
             _log(f"Failed to read log file: {exc}")
+
+    # Harness channel log files carry the stimulus markers (see
+    # find_harness_channel_logs docstring for why they live separately).
+    for harness_log in find_harness_channel_logs():
+        try:
+            parts.append(harness_log.read_text(errors="replace"))
+            _log(f"Read {len(parts[-1])} chars from {harness_log.name}")
+        except OSError as exc:
+            _log(f"Failed to read harness channel log {harness_log.name}: {exc}")
+
+    if parts:
+        return "\n".join(parts)
 
     # Fallback: try all per-extension log files
     logs_dir = _resolve_vscode_logs_dir()
     if logs_dir.exists():
-        parts: list[str] = []
         for log_file in sorted(logs_dir.rglob("*.log")):
             if "exthost" in str(log_file):
                 try:

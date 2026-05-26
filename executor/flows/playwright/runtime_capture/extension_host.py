@@ -48,6 +48,9 @@ from .extension_host_log_parse import (
     find_exthost_logs as find_exthost_logs,
 )
 from .extension_host_log_parse import (
+    find_harness_channel_logs as find_harness_channel_logs,
+)
+from .extension_host_log_parse import (
     parse_activations_from_log as parse_activations_from_log,
 )
 from .extension_host_log_parse import (
@@ -78,6 +81,7 @@ __all__ = [
     "_parse_iso_timestamp",
     "_poll_exthost_log",
     "find_exthost_logs",
+    "find_harness_channel_logs",
     "parse_activations_from_log",
     "parse_activations_from_output",
     "parse_all_exthost_logs",

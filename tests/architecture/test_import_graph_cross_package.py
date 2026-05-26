@@ -323,6 +323,7 @@ def test_runtime_capture_extension_host_reexports_match_canonical_modules() -> N
         "_activation_within_monitoring_window",
         "_parse_activation_lines",
         "find_exthost_logs",
+        "find_harness_channel_logs",
         "parse_activations_from_log",
         "parse_activations_from_output",
         "parse_all_exthost_logs",

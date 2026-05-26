@@ -43,7 +43,22 @@ HARNESS_PYTHON_SECRET_PATH="${EXECUTOR_HARNESS_PYTHON_SECRET_PATH:-/results/_ext
 # stimulus markers. This script is invoked from both start.sh (boot)
 # and executor.flows.playwright.reset_state (between scans), so each
 # VS Code lifetime gets its own secret.
-HARNESS_SECRET_VALUE="$(head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n')"
+#
+# W19-X: when invoked as ``--secret-only`` (mid-lifetime, from
+# vscode.reload_workbench_window before dispatching a CDP reload), we
+# must NOT mint a fresh value — the Python verifier already has the
+# original boot secret cached in the EXECUTOR_HARNESS_PYTHON_SECRET_VALUE
+# env var, and any new value would mismatch every signed marker the
+# reactivating Extension Host emits. Inherit the cached value instead.
+if [ "${1:-}" = "--secret-only" ]; then
+    if [ -z "${EXECUTOR_HARNESS_PYTHON_SECRET_VALUE:-}" ]; then
+        echo "ERROR: --secret-only requires EXECUTOR_HARNESS_PYTHON_SECRET_VALUE to be set in env (inherit from the Python orchestration that already has the original boot secret cached)." >&2
+        exit 1
+    fi
+    HARNESS_SECRET_VALUE="${EXECUTOR_HARNESS_PYTHON_SECRET_VALUE}"
+else
+    HARNESS_SECRET_VALUE="$(head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n')"
+fi
 umask 077
 mkdir -p "$(dirname "${HARNESS_SECRET_PATH}")"
 # rm -f covers the reset path: on the second launch, a stale 0400 file
@@ -57,6 +72,14 @@ rm -f "${HARNESS_PYTHON_SECRET_PATH}"
 printf '%s' "${HARNESS_SECRET_VALUE}" > "${HARNESS_PYTHON_SECRET_PATH}"
 chmod 0600 "${HARNESS_PYTHON_SECRET_PATH}"
 unset HARNESS_SECRET_VALUE  # never let the value reach VS Code's child env
+
+if [ "${1:-}" = "--secret-only" ]; then
+    # CDP reload reactivates extensions; the prior activate() already
+    # consumed and unlinked HARNESS_SECRET_PATH, so the reactivation
+    # reads ENOENT and emits unsigned markers. Rewriting both paths here
+    # gives the reactivated extension a fresh secret to consume.
+    exit 0
+fi
 
 if ! command -v code >/dev/null 2>&1; then
     echo "ERROR: VS Code CLI binary 'code' is not installed in the executor image." >&2

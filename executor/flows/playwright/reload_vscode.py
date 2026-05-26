@@ -22,7 +22,12 @@ _RELOAD_TIMEOUT_MS = vscode.DEFAULT_RECONNECT_TIMEOUT_MS
 
 
 def reload_window() -> None:
-    """Connect to VS Code via CDP, reload the window, wait until ready."""
+    """Connect to VS Code via CDP, reload the window, wait until ready.
+
+    The per-launch HMAC secret rewrite is handled inside
+    ``vscode.reload_workbench_window`` so every reload seam in the analyze
+    loop receives the fresh secret, not just this standalone entry point.
+    """
     browser = None
     with sync_playwright() as pw:
         try:

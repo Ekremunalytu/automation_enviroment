@@ -63,7 +63,9 @@ class TestSelectScenarios:
             for item in payload.event_attempts
             if item.activation_event == "onDebug:python"
         )
-        assert attempt.executor_action == "extra:debug_lifecycle"
+        # onDebug families route through the harness so the signed
+        # completion marker can stamp confirmation_source on the attempt.
+        assert attempt.executor_action == "harness:run_current_stimulus"
 
     def test_on_view_scm_selects_git_workflow(self) -> None:
         events = [{"event_type": "onView", "event_value": "scm"}]

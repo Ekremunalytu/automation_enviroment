@@ -180,18 +180,36 @@ def read_extension_host_output(page: Page | None = None) -> str:
     api = resolve_monitor_api()
     _log("Reading Extension Host output from log file...")
 
+    parts: list[str] = []
+
     logs = api.find_exthost_logs()
     if logs:
         try:
-            content = logs[0].read_text(errors="replace")
-            _log(f"Read {len(content)} chars from {logs[0].name}")
-            return content
+            parts.append(logs[0].read_text(errors="replace"))
+            _log(f"Read {len(parts[-1])} chars from {logs[0].name}")
         except OSError as exc:
             _log(f"Failed to read log file: {exc}")
 
+    # Harness stimulus markers land in the per-channel log file (output_logging_*),
+    # not exthost.log, because launch_vscode.sh discards Extension Host stdout.
     logs_dir = api.VSCODE_LOGS_DIR
     if logs_dir.exists():
-        parts: list[str] = []
+        harness_channel_logs = sorted(
+            logs_dir.glob("**/output_logging_*/*ExTrace Harness.log"),
+            key=lambda p: p.stat().st_mtime,
+            reverse=True,
+        )
+        for harness_log in harness_channel_logs:
+            try:
+                parts.append(harness_log.read_text(errors="replace"))
+                _log(f"Read {len(parts[-1])} chars from {harness_log.name}")
+            except OSError as exc:
+                _log(f"Failed to read harness channel log {harness_log.name}: {exc}")
+
+    if parts:
+        return "\n".join(parts)
+
+    if logs_dir.exists():
         for log_file in sorted(logs_dir.rglob("*.log")):
             if "exthost" in str(log_file):
                 try:

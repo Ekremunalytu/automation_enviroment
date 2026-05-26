@@ -1378,9 +1378,9 @@
         "activation_log_prefix",
         "automation_trace"
       ],
-      "trigger_method": "mixed",
+      "trigger_method": "harness_api",
       "fallback_trigger_method": "harness_api",
-      "executor_action": "extra:debug_lifecycle",
+      "executor_action": "harness:run_current_stimulus",
       "backfill_executor_action": "harness:run_current_stimulus",
       "legacy_scenarios": [
         "debug_session"
@@ -1422,9 +1422,9 @@
         "activation_log_prefix",
         "target_runtime_delta"
       ],
-      "trigger_method": "mixed",
+      "trigger_method": "harness_api",
       "fallback_trigger_method": "harness_api",
-      "executor_action": "extra:debug_lifecycle",
+      "executor_action": "harness:run_current_stimulus",
       "backfill_executor_action": "harness:run_current_stimulus",
       "legacy_scenarios": [
         "debug_session"

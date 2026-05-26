@@ -228,7 +228,12 @@ def _resolve_executor_action(
         "onDebugInitialConfigurations",
         "onDebugResolve",
     }:
-        return "extra:debug_lifecycle"
+        # Route through the harness so dispatchStimulus' onDebug branch
+        # invokes debug.selectandstart + debug.configure AND emits the
+        # signed completion marker that reconciliation needs to stamp
+        # confirmation_source. The legacy "extra:debug_lifecycle" path
+        # ran UI debug actions without ever invoking the harness command.
+        return "harness:run_current_stimulus"
     if family == "workspaceContains":
         return "scenario:project_exploration"
     if family in {"onNotebook", "onRenderer"}:

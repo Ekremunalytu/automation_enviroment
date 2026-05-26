@@ -1,7 +1,7 @@
 # W19 — Live-Run Kök Neden: Dropout + Harness Verification (Active Work Tracker)
 
-`Last Updated: 2026-05-25 (W19 active — Hat-1 closed + live-verified; Hat-2 HARD GATE W19-3 schema landing closed via primary d2e83e7 + this self-stamp commit on the week19 branch (per user direction 2026-05-21; W11-W18 paterni preserved). W19-0..W19-3 closed; W19-4..W19-6 pending by §17 plan; stable IDs W19-1..W19-5 tracked at POST_POC_BACKLOG.md W19 Pull-Forward Acceptance Bar; assigned at first pull per W11-W18 precedent. Driving signal: Codex live-run validation 2026-05-21 of ms-python.python @ 992ad028f3df reports automation_health.status=degraded + run_quality=low while W19-2 live re-anchor satisfies unaccounted_dropout == 0. Hat-1 is closed + live-verified; Hat-2 HARD GATE W19-3 closed (W19-4 onDebug* nonce + W19-5 onTerminal + onLM local-only emit-site stamps next; W19-3 lands new confirmation_source: str = "none" field on EventAttemptRecord with str + field_validator typing mirroring the status field pattern, optional UI adapter back-compat path, 12 new test_automation_health_reasons.py tests + 6 contract round-trip tests + 4 UI adapter tests, frozen trigger fixture regenerated via planner replay); Hat-3 (coverage matrix promotion) deferred to W20-W22 per multi-iter roadmap. W18 closed via PR #26 week18 -> main MERGED 2026-05-21 via 9874e79; final W18 bar tests/architecture/ 201 / make test-security 220 / full suite 1907 passed, 9 skipped, 8 deselected. W17 closed via PR #25 week17 -> main MERGED 2026-05-18 via bff565d. W18 frozen tracker: W18-heartbeat-refactor.md; multi-iter roadmap source-of-truth: W18-W22-roadmap.md; §17 W19 plan source in REFACTOR_OPTIMIZATION.md.)`
-`Phase: W19 active — Hat-1 closed + live-verified (W19-0..W19-2 + W19-2-followup-2 live re-anchor); Hat-2 HARD GATE W19-3 closed via primary d2e83e7 + this self-stamp commit (confirmation_source field landed on EventAttemptRecord with default "none" for back-compat; W19-4/W19-5 emit-site stamps unblocked); W19-4..W19-5 + W19-6 close-out next on the week19 branch (Hat-3 deferred to W20-W22)`
+`Last Updated: 2026-05-26 (W19 active — Hat-1 closed + live-verified; Hat-2 HARD GATE W19-3 schema landing closed via primary d2e83e7 + self-stamp 39121e4 + W19-3-followup-2 8-doc preamble refresh 9b56e94; W19-4 closed via 7d44b0e on the week19 branch (per user direction 2026-05-21; W11-W18 paterni preserved). W19-0..W19-4 closed; W19-5..W19-6 pending by §17 plan; stable IDs W19-1..W19-5 tracked at POST_POC_BACKLOG.md W19 Pull-Forward Acceptance Bar; assigned at first pull per W11-W18 precedent. Driving signal: Codex live-run validation 2026-05-21 of ms-python.python @ 992ad028f3df reports automation_health.status=degraded + run_quality=low while W19-2 live re-anchor satisfies unaccounted_dropout == 0. Hat-1 is closed + live-verified; Hat-2 HARD GATE W19-3 schema landing + W19-4 producer + consumer wire closed (W19-3 lands confirmation_source: str = "none" field on EventAttemptRecord with str + field_validator typing mirroring the status field pattern; W19-4 producer at executor/flows/playwright/health/reconciliation.py:347-348 stamps confirmation_source="harness_nonce" on onDebug* attempts with verified harness completion; consumer wire at reconciliation.py:85-90 gates failure_reason_code="harness_verification_unconfirmed" on confirmation_source=="none" so stamped attempts skip the unverified marker; 7 new behavioral tests at test_playwright_health_reconciliation.py:813-1090); W19-5 onTerminal + onLM local-only emit-site stamps next; Hat-3 (coverage matrix promotion) deferred to W20-W22 per multi-iter roadmap. W18 closed via PR #26 week18 -> main MERGED 2026-05-21 via 9874e79; final W18 bar tests/architecture/ 201 / make test-security 220 / full suite 1907 passed, 9 skipped, 8 deselected. W17 closed via PR #25 week17 -> main MERGED 2026-05-18 via bff565d. W18 frozen tracker: W18-heartbeat-refactor.md; multi-iter roadmap source-of-truth: W18-W22-roadmap.md; §17 W19 plan source in REFACTOR_OPTIMIZATION.md.)`
+`Phase: W19 active — Hat-1 closed + live-verified (W19-0..W19-2 + W19-2-followup-2 live re-anchor); Hat-2 HARD GATE W19-3 schema landing closed via primary d2e83e7 + self-stamp 39121e4 + W19-3-followup-2 9b56e94; W19-4 onDebug* producer + consumer wire closed via 7d44b0e (reconciliation.py:347-348 producer + reconciliation.py:85-90 consumer gate + 7 new tests at test_playwright_health_reconciliation.py:813-1090); W19-5 + W19-6 close-out next on the week19 branch (Hat-3 deferred to W20-W22)`
 `Branch: week19 (per user direction 2026-05-21; W11-W18 paterni preserved — sub-iter commits land on week19, close-out merges into main via week19 -> main PR)`
 `Owner: ekrem`
 
@@ -127,8 +127,10 @@ template structurally followed here.
   (W19-1 baseline 1908 + 3 xfail → 1908 + W19-1 3 flip
   xfail→pass + W19-2 2 new synthetic = 1913).
 - **W19-3 schema landing landed `2026-05-25` via primary `d2e83e7` +
-  self-stamp this commit** — Hat-2 HARD GATE step 1 of 3 closed;
-  W19-4/W19-5 emit-site stamps unblocked. New
+  self-stamp `39121e4` + W19-3-followup-2 8-doc preamble refresh
+  `9b56e94`** — Hat-2 HARD GATE step 1 of 3 closed; W19-4 emit-site
+  stamps + consumer wire landed `2026-05-26` via `7d44b0e` (step 2 of 3
+  closed); W19-5 emit-site stamps pending (step 3 of 3). New
   `confirmation_source: str = "none"` field lands on both
   [`packages/analysis_contracts/contracts.py`](../../packages/analysis_contracts/contracts.py)
   `EventAttemptRecord` (Pydantic) and
@@ -180,9 +182,10 @@ template structurally followed here.
 | W19-1 | Hat-1 | Regression fixture (xfail/RED) | `[BUG scenario-unaccounted-dropout-regression-fixture]` (new; reserved at POST_POC_BACKLOG.md W19-W22 Roadmap Acceptance Bar) | New file `tests/executor/test_scenario_accountant_dropout_regression.py` parametrize on `["debug_session", "refactor_workflow"]`. `@pytest.mark.xfail(strict=True, reason="W19-2 emit-site fix bekleniyor; W19-1 RED fixture")` — strict mode: W19-2 fix landing'inde xfail beklenmedik PASS'a dönerse CI breaks → success signal. Assert: her senaryo için `reason_code != "unaccounted_dropout"` ve aggregate `unaccounted_dropout == 0`. Whitelist W19-1'de geniş tutulur (kandidat: `skipped:dependency_missing`, `failed:trigger_timeout`, `skipped:precondition_unmet`); W19-2'de seçilen path'e göre daraltılır. Live-run shape W19-0 baseline JSON'undan lift edilir. Root-cause-blind çalışır — sembptomu iddia eder, mekanizmayı değil. |
 | W19-2 | Hat-1 | `unaccounted_dropout` emit-site fix | `[BUG scenario-unaccounted-dropout-debug-refactor]` (new; reserved at POST_POC_BACKLOG.md) | Hat olarak izlenecek üç dosya (W19-1 RED triage 30 dk içinde):  `executor/flows/playwright/entrypoint/dispatch.py:91-114` (W16-1 emit-site paterni; `dispatch_outcome_none` kardeşi olabilir), `executor/flows/playwright/stimulus/*` (scenario fire site), `executor/flows/playwright/scenarios/registry.py` (handler registry seam). Accountant fallback (`executor/flows/playwright/monitor/scenario_accountant.py:392-438`) **son-mil koruyucu olarak kalır** — sadece bu iki senaryo için tetiklenmez. Eğer iki senaryo iki ayrı upstream path'ten düşüyorsa mini-ADR `§17 design block` içine; tek path ise ADR gerekmez (W16-1 emsal). W19-1 xfail(strict=True) GREEN'e flip → kaldırılır + whitelist daraltılır. Live: `make sim-target TARGET=ms-python.python` → `unaccounted_dropout == 0`. |
 | W19-3 | Hat-2 | Harness verification contract event-level | `[GOAL harness-verification-contract-event-level]` (new; reserved at POST_POC_BACKLOG.md) | **Hard gate**: W19-4/W19-5 başlamadan önce schema + UI back-compat tamamen landing. İlk faz: 30-dk schema impact survey, bu tracker'a yazılır — `appcore/contracts/schema_defs/` içinde `event_attempts` öğelerini tutan model (`EventAttemptRecord` at `packages/analysis_contracts/contracts.py:200`, `StrictContractModel` extra forbid), UI adapter (`ui/src/lib/adapters/report.ts` `EventAttemptDto` + `EventAttemptView` + `fromEventAttempt`), `ui/src/lib/adapters/report.test.ts` round-trip, `tests/platform/contracts/` round-trip, `tests/architecture/test_baseline_fixture_manifest_parity.py` fixture refresh. İkinci faz: schema field landing — `confirmation_source: Literal["harness_nonce", "log_record", "none"]` default `"none"` (back-compat) + UI adapter + emit pipeline taslak + yeni contract gate + yeni test `tests/executor/test_automation_health_reasons.py`. Roadmap §111 explicitly named `confirmation_source` — değiştirilmez. |
-| W19-4 | Hat-2 | `onDebug*` nonce confirmation + consumer wire | `[FOLLOWUP harness-verification-debug-events]` (new; reserved at POST_POC_BACKLOG.md) | **Producer side**: `executor/flows/harness_extension/{extension.js, markers.js, providers.js, stimulus_dispatch.js, constants.js, package.json}` — `onDebug` + alt aileleri (`onDebugResolve`, `onDebugInitialConfigurations`, `onDebugDynamicConfigurations`, `onDebugAdapterProtocolTracker`) için nonce generation. `executor/flows/playwright/runtime_capture/` Python tarafı emit yakalar ve `confirmation_source = "harness_nonce"` stamp'ler. `OFFICIAL_EVENT_REGISTRY` (`packages/analysis_planner/event_scenario_index.py`) onDebug* aileyi zaten tanıyor — `verification_contract` alanı `harness_nonce` ile uyumlanır. **Consumer side (W19-4 ile birlikte iner — yoksa acceptance bar must-pass #2 düşmez)**: `executor/flows/playwright/health/reconciliation.py` `_mark_unverified_harness_attempt` path'inde (L78-100) attempt'in `confirmation_source != "none"` olması durumunda `failure_reason_code = "harness_verification_unconfirmed"` set EDİLMEZ; W19-3 schema-only landing tek başına `harness_verification_unconfirmed_present` reason'ını düşürmez (summary.py:327-332 producer'ları okumadan failure_reason_code'a bakar). Live smoke: en az bir `event_attempt` with `event_family=onDebug*` shows `confirmation_source="harness_nonce"` **ve** ilgili attempt'in `failure_reason_code != "harness_verification_unconfirmed"`. |
+| W19-4 | Hat-2 | `onDebug*` nonce confirmation + consumer wire — **closed `2026-05-26` via `7d44b0e`** | `[FOLLOWUP harness-verification-debug-events]` (closed) | **Producer side (landed)**: Python reconciliation tarafı `executor/flows/playwright/health/reconciliation.py:347-348` `if execution_closed and family.startswith("onDebug"): attempt.confirmation_source = "harness_nonce"` ile `onDebug*` attempt'lerine `confirmation_source` stamp atıyor; `execution_closed` predicate `_attempt_has_harness_completion_trace` ile HMAC verification + phase=="complete" + attempt_id correlation'ı birleştiriyor. **Consumer wire (landed)**: `_mark_unverified_harness_attempt` (L78-105) artık L89'da `if str(getattr(attempt, "confirmation_source", "none") or "none") == "none"` gate'i ile `failure_reason_code = "harness_verification_unconfirmed"` ataması yapıyor; stamped attempt'ler unverified marker'ı atlıyor → `summary.py:327-332` reason emission'ı düşüyor. **7 new behavioral tests at `tests/executor/test_playwright_health_reconciliation.py:813-1090`**: producer happy-path (`onDebug*` with verified HMAC → harness_nonce), fail-closed forged HMAC (stays "none"), missing harness marker (stays "none"), scope discipline (non-onDebug families with verified HMAC stay "none" — out of W19-4 scope, W19-5 territory), consumer skip when stamped, consumer set when "none". Live smoke for W19-6 close-out: at least one `event_attempt` with `event_family=onDebug*` shows `confirmation_source="harness_nonce"` **ve** ilgili attempt'in `failure_reason_code != "harness_verification_unconfirmed"`. |
+| W19-X | Hat-2 | onDebug* live-verification close-out (Bug A planner routing + Bug B marker channel + Bug C reactivation race) — **closed `2026-05-26` via this commit pair** | `[FOLLOWUP harness-verification-onDebug-live-close]` (new; reserved at POST_POC_BACKLOG.md W19 Pull-Forward Acceptance Bar at W19-X primary) | Surfaced by first post-W19-4 live UI analyze on `ms-python.python` showing `confirmation_source == "none"` on all 21 attempts despite W19-4 wire. Three independent pre-existing bug classes, all masked by W19-3 schema-only landing: (A) `_resolve_executor_action` routed onDebug to `extra:debug_lifecycle` instead of `harness:run_current_stimulus` — no signed marker ever emitted; (B) `markers.js` emitted via `console.log` but `launch_vscode.sh` discards Extension Host stdout — markers reached no parser-readable file; (C) `/run/extrace/harness-secret` unlinked after first `activate()` while CDP `Page.reload()` runs `activate()` again — reactivating Extension Host read ENOENT + emitted unsigned markers. Closed in three sub-layers: marker channel routing via `outputChannel.appendLine` + parser glob `**/output_logging_*/*ExTrace Harness.log`; `_rewrite_harness_secret` moved into `vscode.reload_workbench_window` so all 3 reload sites are gated; `launch_vscode.sh --secret-only` REQUIRES `EXECUTOR_HARNESS_PYTHON_SECRET_VALUE` env (fail-closed; defaults break verifier); defensive polling 30 × 100ms in `consumeHarnessNonceSecret`. **15 new behavioral tests** across 4 test files. Live anchor `output/activation_report_ms-python.python-2026.5.2026052501-8247e05ec9ef.json` shows 2/2 `onDebug*` stamped + `failure_reason_code=""` on those attempts (Half B confirmed). Run-level reason persists because 6 non-onDebug attempts unstamped — W19-5 scope per plan. **W20+ forward refs**: `[FOLLOWUP harness-secret-extra-reactivation-source]` (un-gated reload path proven by activate_enter diagnostic — one reactivation still reads ENOENT but doesn't emit stimulus); `[FOLLOWUP harness-secret-distribution-redesign]` (cleaner long-term: keep secret 0400 for VS Code lifetime, document threat model). |
 | W19-5 | Hat-2 | `onTerminalShellIntegration` + `onLanguageModelTool:*` local-only confirmation | `[FOLLOWUP harness-verification-terminal-and-lm-tool]` (new; reserved at POST_POC_BACKLOG.md) | W19-4 ile paralel uygulanabilir (disjoint event families); tek branch'te CI yeşil tutmak için W19-4 sonrası landing önerilir. Local-only confirmation marker `confirmation_source = "log_record"`. Confirmation üretilemeyen event'ler için açık `blocked` / `unsupported` reason kaydı (mevcut `verification_status` veya yeni alan ile uyumlu; W19-3 contract'ı buna izin verir: `confirmation_source = "none"` + sebep ayrıca). ADR 0002 (sandbox isolation) policy: external service çağırma yasağı — local stub-only pipeline. Live smoke: terminal + LM event_attempt entry'leri `confirmation_source` doldurulmuş. |
-| W19-6 | — | Close-out hygiene + PR `week19 -> main` | Pattern match W18-4 (`3f4f95a`) + W17-6 (`21f7c68`) + W17-7-followup (`dab4679`) | Canonical preamble refresh across 8 docs + §17 self-stamp (post-merge final bar) + tracker freeze (sub-iter slate audit trail with commit SHAs) + PR open against `main`. **Hygiene items pulled from W19-3-followup-2 audit (2026-05-25)**: (a) **Field-set parity gate** — extend `test_executor_dataclass_and_pydantic_contract_share_confirmation_source_field` from single-field name check to full set-difference assertion `set(pydantic.model_fields.keys()) == {f.name for f in dataclasses.fields(executor_dc)}` so future field additions to `EventAttemptRecord` don't silently drift between the two definitions. (b) **Hotspot LOC ratchet** — new `tests/architecture/test_executor_hotspot_loc_ratchet.py` mirroring `test_runner_main_loc_budget.py` pattern; pins current LOC + 5% margin for the 9 modules >500 LOC under `executor/flows/playwright/` (`scenario_accountant.py` 648, `attribution/links.py` 613, `monitor/runtime.py` 563, `health/reconciliation.py` 543, `stimulus/attempts.py` 542, `monitor/types.py` 519, `health/summary.py` 512, `attribution/events.py` 502; baseline captured at W19-4/W19-5 close, NOT pre-landing — landings raise the floor) so intentional growth requires explicit baseline bump (forcing-function PR moment). (c) **Acceptance-bar column** — add `Closes which acceptance-bar item?` column to the W19 sub-iter distribution table in §17.3 + this tracker's mirror so each row visibly maps to a must-pass / expected / stretch item; visual gap = red flag for future plan reviews (would have surfaced the W19-3 schema-only consumer-wire gap earlier). Final live smoke `make sim-target TARGET=ms-python.python` JSON diff vs `992ad028f3df`: `unaccounted_dropout == 0` (must), `harness_verification_unconfirmed_present` reason gone (must), `run_quality: medium` (expected), `verification_gap_present` gone (stretch; düşmezse W20'ye), `automation_health.status: degraded` OK (`official_unresolved_present` W20'de). **W20-0 forward reference**: `[FOLLOWUP defensive-test-parametrize-helper]` — schema-only field landings (next: any future field on `EventAttemptRecord` / `EvidenceEvent` / etc.) should share a `_test_schema_only_field(field_name, default, allowed_values)` table-driven helper instead of per-field test functions; would have reduced W19-3's 22 new tests to ~6. Pulled at W20-0 doc-reconcile per W11-W18 paterni. |
+| W19-6 | — | Close-out hygiene + PR `week19 -> main` | Pattern match W18-4 (`3f4f95a`) + W17-6 (`21f7c68`) + W17-7-followup (`dab4679`) | Canonical preamble refresh across 8 docs + §17 self-stamp (post-merge final bar) + tracker freeze (sub-iter slate audit trail with commit SHAs) + PR open against `main`. **Hygiene items pulled from W19-3-followup-2 audit (2026-05-25)**: (a) **Field-set parity gate** — extend `test_executor_dataclass_and_pydantic_contract_share_confirmation_source_field` from single-field name check to full set-difference assertion `set(pydantic.model_fields.keys()) == {f.name for f in dataclasses.fields(executor_dc)}` so future field additions to `EventAttemptRecord` don't silently drift between the two definitions. (b) **Hotspot LOC ratchet** — new `tests/architecture/test_executor_hotspot_loc_ratchet.py` mirroring `test_runner_main_loc_budget.py` pattern; pins current LOC + 5% margin for the 9 modules >500 LOC under `executor/flows/playwright/` (`scenario_accountant.py` 648, `attribution/links.py` 613, `monitor/runtime.py` 563, `health/reconciliation.py` 543, `stimulus/attempts.py` 542, `monitor/types.py` 519, `health/summary.py` 512, `attribution/events.py` 502; baseline captured at W19-5 close (W19-4 already landed at 7d44b0e — its LOC growth folds into the W19-5 baseline), NOT pre-landing — the landing raises the floor) so intentional growth requires explicit baseline bump (forcing-function PR moment). (c) **Acceptance-bar column** — add `Closes which acceptance-bar item?` column to the W19 sub-iter distribution table in §17.3 + this tracker's mirror so each row visibly maps to a must-pass / expected / stretch item; visual gap = red flag for future plan reviews (would have surfaced the W19-3 schema-only consumer-wire gap earlier). Final live smoke `make sim-target TARGET=ms-python.python` JSON diff vs `992ad028f3df`: `unaccounted_dropout == 0` (must), `harness_verification_unconfirmed_present` reason gone (must), `run_quality: medium` (expected), `verification_gap_present` gone (stretch; düşmezse W20'ye), `automation_health.status: degraded` OK (`official_unresolved_present` W20'de). **W20-0 forward reference**: `[FOLLOWUP defensive-test-parametrize-helper]` — schema-only field landings (next: any future field on `EventAttemptRecord` / `EvidenceEvent` / etc.) should share a `_test_schema_only_field(field_name, default, allowed_values)` table-driven helper instead of per-field test functions; would have reduced W19-3's 22 new tests to ~6. Pulled at W20-0 doc-reconcile per W11-W18 paterni. |
 
 ## Per-Item Detail
 
@@ -789,7 +792,7 @@ Criteria checkbox line 884 flips from `[ ]` to `[x]` in this commit.
 W19-4 (onDebug* nonce confirmation) + W19-5 (onTerminal + onLM
 local-only) next; W19-6 close-out after.
 
-### W19-4 — `onDebug*` nonce confirmation + consumer wire (primary landed `2026-05-26` via this commit; self-stamp + live verification PENDING)
+### W19-4 — `onDebug*` nonce confirmation + consumer wire (primary landed `2026-05-26` via `7d44b0e`; live verification closed via W19-X follow-up sub-iter — see below)
 
 **Stable ID `[FOLLOWUP harness-verification-debug-events]`** pulled from
 POST_POC_BACKLOG.md W19 Pull-Forward Acceptance Bar at the W19-4 primary
@@ -919,31 +922,18 @@ deselected. `make test-security` unchanged at 220 passed.
   key / ruff (legacy alias) / ruff format / mypy / bandit — see
   commit message for status.
 
-**Live verification — PENDING.** W19-4 acceptance gate requires a
-fresh `docker compose up -d --build api executor` + UI-driven
-analyze on `ms-python.python` after this commit so the
-`reconciliation.py` change materializes inside the containers.
-Expected outcome at the resulting `activation_report_*.json`:
-
-1. At least one `event_attempt` with `event_family` starting with
-   `"onDebug"` carries `confirmation_source == "harness_nonce"`.
-2. That same attempt's
-   `failure_reason_code != "harness_verification_unconfirmed"`
-   (proves Half B consumer wire fires end-to-end).
-3. `automation_health.reasons` drops
-   `"harness_verification_unconfirmed_present"` IF all unconfirmed
-   attempts in the run are onDebug* (now stamped). If non-onDebug
-   unstamped attempts remain (onTerminal / onLM), the reason will
-   persist until W19-5 — record the partial status in the
-   self-stamp followup commit and do not block W19-4 close-out
-   on it.
-
-The W19-4-followup self-stamp commit lands the live evidence,
-finalizes this Per-Item Detail block (replace `LIVE-PENDING` with
-`SATISFIED` + commit/SHA + JSON path), flips `POST_POC_BACKLOG.md` +
-`REFACTOR_OPTIMIZATION.md` §17 row state from `pending` to `closed`,
-and refreshes the 8-doc canonical preamble (mirrors
-`9b56e94 docs(W19-3-followup-2)` shape).
+**Live verification — SATISFIED via W19-X follow-up sub-iter (see dedicated
+section below).** Three independent pre-existing bug classes (planner
+routing, marker channel destination, HMAC secret reactivation race) were
+surfaced when the first post-W19-4 UI analyze on `ms-python.python` showed
+`confirmation_source == "none"` on all 21 attempts despite the producer +
+consumer wire being in place. All three closed in W19-X; final live anchor
+`output/activation_report_ms-python.python-2026.5.2026052501-8247e05ec9ef.json`
+shows `2/2` onDebug* attempts stamped with `harness_nonce` and the
+`failure_reason_code` suppressed on those attempts, per Half B contract.
+The run-level `harness_verification_unconfirmed_present` reason persists
+because non-onDebug families (5 `onLanguageModelTool` + 1
+`onTerminalShellIntegration`) remain unstamped — W19-5 territory per plan.
 
 **Roadmap bundle landed this commit (per user direction, primary
 W19-4 commit)**: the W19-6 acceptance bar grows by 3 hygiene items plus
@@ -984,6 +974,220 @@ commit. W19-5 (`onTerminalShellIntegration` +
 `onLanguageModelTool:*` local-only confirmation,
 `confirmation_source="log_record"`) next; W19-6 close-out (now
 expanded with the 3 hygiene items above) after.
+
+### W19-X — onDebug* live-verification close-out (closed `2026-05-26` via this commit pair)
+
+Stable ID `[FOLLOWUP harness-verification-onDebug-live-close]` —
+reserved at POST_POC_BACKLOG.md W19 Pull-Forward Acceptance Bar at
+the W19-X primary commit.
+
+**Pulled `2026-05-26`** as the W19-4 live-verification close-out
+follow-up on the `week19` branch (W11-W18 paterni preserved; no new
+branch). Three independent pre-existing bug classes surfaced by the
+first post-W19-4 UI analyze on `ms-python.python` — all three were
+masked by the W19-3 schema-only landing, only became visible once
+the W19-4 producer + consumer wire was looking for a live signal to
+stamp on, and resolved into a single primary + self-stamp commit
+pair per the W11-W18 paterni.
+
+**Bug A — Planner onDebug routing (closed in W19-X primary)**
+
+`packages/analysis_planner/attempts.py:213-236` `_resolve_executor_action`
+mapped the entire onDebug family (5 variants) to
+`"extra:debug_lifecycle"`. That legacy branch invoked the UI-side debug
+actions (`debug.selectandstart` + `debug.configure`) without going
+through `harness:run_current_stimulus`, so the signed completion marker
+that W19-4's `_attempt_has_harness_completion_trace` predicate depends
+on was never emitted. Pre-W19-4, no consumer cared — the marker was
+purely advisory. W19-4 made it load-bearing; W19-X-1 closes the gap by
+routing onDebug to `harness:run_current_stimulus` so `dispatchStimulus`
+fires the harness command and emits the signed `start`/`complete`
+markers. The fixture round-trip pin at
+`tests/platform/contracts/test_analysis_fixture_baselines.py` plus the
+updated assertion at
+`tests/workflows/marketplace/test_triggers.py::TestSelectScenarios::test_on_debug_selects_debug_session`
+catch any future regression.
+
+**Bug B — Marker channel destination (closed in W19-X primary)**
+
+`executor/flows/harness_extension/markers.js` emitted
+`[extrace-harness]` JSON-line markers via `console.log`. But
+`executor/container/launch_vscode.sh:91` launches VS Code with
+`</dev/null >/dev/null 2>&1 &` — Extension Host stdout is discarded.
+The markers reached neither `exthost.log` nor any Python-readable file,
+so the verifier saw nothing to verify. W19-X-1 closes this in three
+layers:
+
+1. `markers.js` introduces `setHarnessChannel` + `_emitMarkerLine`;
+   `emitHarnessMarker` / `emitHarnessEvent` now route through a
+   reserved OutputChannel (whose backing log file VS Code persists)
+   instead of `console.log`. The console.log fallback stays for the
+   dev-mode / non-channel path.
+2. `extension.js` reserves the channel name `"ExTrace Harness"` via
+   `HARNESS_OUTPUT_CHANNEL_NAME`; the `installOutputChannelHook`
+   wrapper skips this channel so the marker-emit channel is not
+   recursively wrapped by the target-extension `appendLine` listener
+   (would otherwise emit an `output_channel_appendline` marker for
+   every harness emit).
+3. `executor/flows/playwright/monitor/sources.py:177-208` extends
+   `read_extension_host_output` to glob
+   `**/output_logging_*/*ExTrace Harness.log` files alongside
+   `exthost.log`; the mirror in
+   `executor/flows/playwright/runtime_capture/extension_host_log_parse.py:294-308`
+   adds a dedicated `find_harness_channel_logs()` helper for the
+   test/replay path. Both surfaces test-covered at
+   `tests/executor/test_playwright_monitor_runtime.py` (3 new tests)
+   and `tests/executor/test_playwright_extension_host.py` (4 new
+   tests).
+
+**Bug C — HMAC secret reactivation race (closed in W19-X primary; un-gated extra reactivation deferred to W20)**
+
+W13-1 (Codex H6) staged a per-launch HMAC secret at
+`/run/extrace/harness-secret` (chmod 0400) that the harness extension
+read + unlinked on its first `activate()`. The design assumed ONE
+`activate()` per VS Code lifetime; CDP `Page.reload()` (used by the
+analyze loop's `vscode.reload_workbench_window`) restarts the
+Extension Host, which re-runs `activate()` against a now-unlinked
+secret file (ENOENT). The reactivating extension fell back to
+unsigned markers, and the verifier (correctly) rejected the run as
+unverified. W19-X-1 closes this in three sub-layers:
+
+1. **Reload-site gating**: the secret-rewrite call was originally
+   placed in `executor/flows/playwright/reload_vscode.py`'s
+   `reload_window()` wrapper, but the live analyze loop bypasses
+   that wrapper — `entrypoint/runner.py:141` calls
+   `entrypoint/triggers.py:320 reload_window_under_monitoring`
+   which calls `vscode.reload_workbench_window` directly.
+   `automation.py:352`'s crash-retry also calls
+   `vscode.reload_workbench_window` directly. Moving
+   `_rewrite_harness_secret` into `vscode.reload_workbench_window`
+   itself (placed between the existing `_HARNESS_READY_PATH.unlink()`
+   step and `commands.run_reload_window_command(page)` dispatch)
+   gates all three reload sites at once. Pinned by the new wiring
+   test
+   `test_vscode_reload_workbench_window_rewrites_harness_secret_before_dispatch`
+   at `tests/executor/test_playwright_helpers.py`.
+2. **Secret value preservation**: `launch_vscode.sh` generated a
+   FRESH random 32-byte secret on every invocation (via
+   `head -c 32 /dev/urandom`). At boot that is correct (host
+   eager-consumes the value into
+   `EXECUTOR_HARNESS_PYTHON_SECRET_VALUE` env, threaded into the
+   executor container via `docker exec -e ...`); but for the W19-X
+   `--secret-only` mid-lifetime rewrite, minting a new value would
+   invalidate every signed marker the reactivating Extension Host
+   emits (the verifier's cached env value would no longer match).
+   W19-X-1 makes `--secret-only` REQUIRE
+   `EXECUTOR_HARNESS_PYTHON_SECRET_VALUE` in env and reuse that
+   value verbatim — fail-closed if env var unset. The boot path
+   (no flag) keeps minting fresh values as before. Pinned by 5 new
+   behavioral tests at
+   `tests/executor/test_launch_vscode_secret_only.py` covering
+   fail-when-unset, write-inherited-value, no-fresh-mint, and 0400
+   / 0600 mode preservation per W13-1 contract.
+3. **Defensive polling**:
+   `executor/flows/harness_extension/extension.js:32-71`'s
+   `consumeHarnessNonceSecret` now polls 30 × 100ms for the secret
+   file before falling back to ENOENT, so any reactivation that
+   races the pre-reload rewrite resolves on its own without
+   surfacing as a verification gap. The polling layer is
+   defense-in-depth; the rewrite + value-preservation layers are
+   primary. `_diag("activate_enter", {pre_existed, has_secret,
+   poll_attempts, read_error})` emits per-reactivation observability
+   into the channel log.
+
+**Live evidence (this commit's anchor)**
+
+- **Report path**:
+  `output/activation_report_ms-python.python-2026.5.2026052501-8247e05ec9ef.json`
+- **`event_attempt` slice (onDebug*)**: both
+  `onDebugInitialConfigurations` + `onDebugResolve` carry
+  `confirmation_source: "harness_nonce"` and `failure_reason_code: ""`
+  (Half B suppressed the unverified marker — `2/2` per W19-4 contract).
+- **Run-level reasons (partial — W19-5 scope)**: 6 attempts (5
+  `onLanguageModelTool` + 1 `onTerminalShellIntegration`) still
+  carry `failure_reason_code: "harness_verification_unconfirmed"`,
+  so the run-level
+  `automation_health.reasons[].harness_verification_unconfirmed_present`
+  reason persists. Per the W19 plan §17 acceptance bar, the reason
+  drops fully at W19-5 close; W19-X scope is the onDebug family only.
+- **`activate_enter` diagnostic (this anchor — 3 activations)**:
+  - boot: `pre_existed=true, has_secret=true, poll_attempts=1`;
+  - reload #1: `pre_existed=false, has_secret=false, poll_attempts=31, read_error=ENOENT`;
+  - reload #2: `pre_existed=true, has_secret=true, poll_attempts=1`.
+  Reload #2 emits the stimulus markers — that activation has the
+  secret + the markers are signed → verifier accepts. Reload #1 does
+  NOT emit stimulus, so its ENOENT doesn't block W19-X. But it does
+  prove there is still ONE reactivation path that bypasses
+  `vscode.reload_workbench_window` — see W20 follow-up below.
+
+**Synthetic test bar (this commit)**
+
+| Lane | W19-4 baseline | W19-X delta | Total |
+|---|---|---|---|
+| `tests/architecture/` | 202 | +1 (W19-X glob re-export pin in `test_import_graph_cross_package.py::test_runtime_capture_extension_host_reexports_match_canonical_modules`) | **203 passed** |
+| `make test-security` | 220 | 0 (HMAC verifier untouched) | **220 passed** |
+| Full suite | 1949 | +15 behavioral (3 monitor + 4 extension_host + 3 reload + 5 launch_vscode) | **1964 passed, 9 skipped, 8 deselected** |
+
+**Files changed (W19-X primary)**
+
+Source — 9 files:
+
+- `packages/analysis_planner/attempts.py` — onDebug → `harness:run_current_stimulus` routing.
+- `executor/flows/harness_extension/markers.js` — `setHarnessChannel` + `_emitMarkerLine`.
+- `executor/flows/harness_extension/extension.js` — `HARNESS_OUTPUT_CHANNEL_NAME` + channel hook skip + `consumeHarnessNonceSecret` polling + `_diag("activate_enter", ...)`.
+- `executor/container/launch_vscode.sh` — `--secret-only` env-inherit + fail-closed.
+- `executor/flows/playwright/vscode/__init__.py` — `_rewrite_harness_secret` (moved from `reload_vscode.py`) + call from inside `reload_workbench_window`.
+- `executor/flows/playwright/reload_vscode.py` — strip duplicate rewrite (delegated to inner seam).
+- `executor/flows/playwright/monitor/sources.py` — harness channel log glob.
+- `executor/flows/playwright/runtime_capture/extension_host_log_parse.py` — `find_harness_channel_logs()` + integration into `read_extension_host_output`.
+- `executor/flows/playwright/runtime_capture/extension_host.py` — `find_harness_channel_logs` re-export + `__all__` bump.
+
+Tests — 5 files:
+
+- `tests/architecture/test_bare_binary_pragma_ratchet.py` — baseline `6 → 7` + distribution map (`reload_vscode.py: 1 → vscode/__init__.py: 1`).
+- `tests/architecture/test_import_graph_cross_package.py` — re-export expected set bump (`find_harness_channel_logs`).
+- `tests/executor/test_playwright_monitor_runtime.py` — 3 new tests for harness channel glob.
+- `tests/executor/test_playwright_extension_host.py` — 4 new tests for `find_harness_channel_logs` + integration.
+- `tests/executor/test_playwright_helpers.py` — 3 new tests for `_rewrite_harness_secret` (no-op + invokes-subprocess + wiring in `reload_workbench_window`).
+- `tests/executor/test_launch_vscode_secret_only.py` — NEW file; 5 behavioral tests for `--secret-only` env inheritance + fail-closed + chmod parity.
+- `tests/workflows/marketplace/test_triggers.py` — assertion update (`extra:debug_lifecycle → harness:run_current_stimulus`).
+- `tests/workflows/marketplace/fixtures/trigger_payloads/ms_python_python.json` — planner replay regen.
+
+Docs — 8 + 1 files (refreshed in the W19-X self-stamp follow-up commit):
+
+- `documents/active-work/W19-live-run-root-cause.md` (this file).
+- 8-doc canonical preamble (CLAUDE.md, AGENTS.md, README.md, `documents/AGENT_CONTEXT.md`, `documents/REFACTOR_STATUS.md`, `documents/POST_POC_BACKLOG.md`, `documents/REFACTOR_OPTIMIZATION.md` §17, `documents/active-work/W18-W22-roadmap.md`, `documents/active-work/README.md`).
+
+**Audit trail**
+
+W19-X closes Hat-2 step 2 of 3's live-verification gate. `POST_POC_BACKLOG.md`
+W19 Pull-Forward Acceptance Bar row for `[FOLLOWUP harness-verification-debug-events]`
+flips from `pending` → `closed at <primary-SHA> + <self-stamp-SHA>` at the W19-X
+self-stamp commit. The W19-4 row in `REFACTOR_OPTIMIZATION.md` §17 W19 row table
+remains `closed via 7d44b0e` (W19-4 primary surface) with a pointer to the W19-X
+follow-up (this section) for the live close-out.
+
+**W20+ forward references**
+
+- `[FOLLOWUP harness-secret-extra-reactivation-source]` — the `activate_enter`
+  diagnostic shows ONE reactivation path (reload #1 in the anchor)
+  still bypasses `vscode.reload_workbench_window` and reads ENOENT. The
+  reactivation does not emit stimulus markers (so it doesn't block W19-X),
+  but it leaves the polling layer as the only safety net. Candidates:
+  (a) `code --install-extension`'s internal reload bypasses
+  `reload_window()._rewrite_harness_secret`; (b) the lifecycle harness
+  `reload=True` path takes a separate CDP route. Hunt
+  `executor/host.py::install_extension_in_executor` retry path +
+  the lifecycle harness for the third reload site, gate it the same
+  way. Defer to W20 — don't extend the polling timeout further
+  (that papers over the design gap).
+- `[FOLLOWUP harness-secret-distribution-redesign]` — even with W19-X
+  closing the immediate gap, the underlying design (mint random
+  secret → unlink → reactivation must re-stage) is fragile. Cleaner
+  long-term: keep the secret on disk at 0400 for the entire VS Code
+  lifetime, accept the same-UID target-readable window, document
+  the threat model. W19-X is the minimum-LOC unblock; the redesign
+  is a separate W20+ ADR.
 
 ### W19-5 — `onTerminalShellIntegration` + `onLanguageModelTool:*` confirmation — to be pulled
 
@@ -1112,13 +1316,14 @@ W19 kapanır şu koşullar sağlandığında:
 - W19-3 schema field `confirmation_source` landing complete: Pydantic
   contract + UI adapter back-compat + contract round-trip pin + new
   test `tests/executor/test_automation_health_reasons.py`.
-- W19-4 onDebug* nonce confirmation landed (producer side + consumer
-  wire); live smoke: at least one `event_attempt` with
+- W19-4 onDebug* nonce confirmation landed `2026-05-26` via `7d44b0e`
+  (producer side at reconciliation.py:347-348 + consumer wire at
+  reconciliation.py:85-90 + 7 new tests at
+  test_playwright_health_reconciliation.py:813-1090); live smoke for
+  W19-6 close-out: at least one `event_attempt` with
   `event_family=onDebug*` shows `confirmation_source="harness_nonce"`
   **and** the corresponding attempt's `failure_reason_code !=
-  "harness_verification_unconfirmed"` (i.e. reconciliation honours the
-  new field — without this half the schema-only W19-3 landing leaves
-  must-pass #2 unmet).
+  "harness_verification_unconfirmed"`.
 - W19-5 onTerminal + onLM local-only confirmation landed; live
   smoke: terminal + LM `event_attempt` entries with
   `confirmation_source` populated (`log_record` or `none` with
