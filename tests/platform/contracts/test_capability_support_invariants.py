@@ -246,3 +246,47 @@ def test_w20_1_and_w20_2_post_condition_combined() -> None:
         "W20-1 + W20-2 post-condition regression: scm + settings must "
         f"remain `covered` in the official track. Got: {actual}"
     )
+
+
+def test_official_capability_support_dict_shape_is_canonical() -> None:
+    """W20-5 invariant (full dict shape pin).
+
+    The broader sibling of ``test_w20_1_and_w20_2_post_condition_combined``
+    — pins the full ``_OFFICIAL_CAPABILITY_SUPPORT`` value map at the
+    W20-end state. Any single-key value change (including future W21-1
+    ``testing``, W21-2 ``comments``, W21-3 ``workspace_trust``, or W22-2
+    ``chat`` flips) must update both the live map and this expected
+    shape together.
+
+    Catches drift the individual scm/settings tests miss: e.g. an
+    accidental flip of ``debug`` to ``"missing"`` would pass the W20-1
+    + W20-2 gates yet fail here. The W21 capability flips are the
+    natural touch point for advancing this constant.
+    """
+    expected_shape: dict[str, str] = {
+        "commands": "covered",
+        "window_ui": "covered",
+        "workspace_fs": "covered",
+        "languages_editor": "covered",
+        "debug": "covered",
+        "terminal_tasks": "covered",
+        "scm": "covered",  # W20-1 promotion
+        "search_views": "covered",
+        "settings": "covered",  # W20-2 promotion
+        "notebooks": "covered",
+        "custom_editors": "covered",
+        "uri_walkthrough": "covered",
+        "authentication": "covered",
+        "chat": "missing",  # W22-2 candidate (hard tier)
+        "comments": "missing",  # W21-2 candidate (mid tier)
+        "testing": "missing",  # W21-1 candidate (mid tier)
+        "webview": "covered",
+        "workspace_trust": "missing",  # W21-3 candidate (mid tier)
+    }
+    assert expected_shape == _OFFICIAL_CAPABILITY_SUPPORT, (
+        "_OFFICIAL_CAPABILITY_SUPPORT shape drift. If you intentionally "
+        "flipped a capability (e.g., a W21 mid-tier promotion of "
+        "testing/comments/workspace_trust, or a W22 chat promotion), "
+        "update `expected_shape` in this test alongside the actual "
+        f"map.\nExpected: {expected_shape}\nActual: {_OFFICIAL_CAPABILITY_SUPPORT}"
+    )

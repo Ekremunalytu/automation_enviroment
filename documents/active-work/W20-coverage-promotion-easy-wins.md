@@ -1,7 +1,7 @@
 # W20 — Coverage Promotion Round 1: Easy Wins (Active Work Tracker)
 
-`Last Updated: 2026-05-26 (W20-0 doc-reconcile in-flight via this commit — open week20 branch + new W20 active-work tracker + §18 W20 active section split from §18-§20 combined header (W19-0 paterni §17 split from §17-§20) + W20 Pull-Forward Acceptance Bar promoted in POST_POC_BACKLOG.md from W20-W22 Roadmap Acceptance Bar (planning) + 9-doc canonical preamble refresh + README phase-pointer arch gate transition W19→W20 + new W19 close-out fact gate test_readme_phase_pointer_mentions_w19_closeout_merge pinning PR #28 / week19 -> main / c879603 mirroring W18-0 W17→W18 transition paterni from 89d0c9b. W19 closed synthetically 2026-05-26 — Hat-1 closed + live-verified; Hat-2 fully closed synthetically via W19-3 + W19-4 + W19-X + W19-5; PR #28 week19 -> main MERGED 2026-05-26 via c879603; final W19 bar tests/architecture/ 204 / make test-security 220 / full suite 1995 passed, 9 skipped, 8 deselected. W19 frozen tracker: W19-live-run-root-cause.md (frozen at W19-6-followup-2 per W17/W18 paterni). Driving signal for W20: same Codex live-run 2026-05-21 of ms-python.python @ 992ad028f3df — coverage_summary.missing_capabilities = [scm, settings, chat, comments, testing, workspace_trust] (Hat-3 coverage matrix promotion deferred to W20-W22 multi-iter roadmap). W20 easy-wins tier closes scm + settings (both already heuristic-covered at capabilities.py:36,38; only official-track says missing at capabilities.py:88,90); W21 closes mid tier; W22 closes hard tier + sandbox evasion ADR draft. W20 baseline live-run pending (user pre-approved baseline + final per AskUserQuestion 2026-05-26).)`
-`Phase: W20-4 closed 2026-05-26 via primary 05f47f3 + self-stamp this commit (comments+testing readiness DESIGN doc — W21 plumbing şablonu); W20-0..W20-3 closed (66a8a0b/5f13757 + 82276cb/a17e595 + a4343d2/7406588 + d4c03b6/2e39230); W20-5 ready to start (close-out + final live-run + PR PENDING USER APPROVAL)`
+`Last Updated: 2026-05-26 (W20 closed synthetically 2026-05-27 via this commit — W20-0 doc-reconcile (66a8a0b + 5f13757), W20-1 scm official-track promotion (82276cb + a17e595), W20-2 settings official-track promotion (a4343d2 + 7406588), W20-3 coverage matrix contract invariants (d4c03b6 + 2e39230), W20-4 comments+testing readiness DESIGN doc (05f47f3 + b409894), W20-5 close-out hygiene (this commit) delivered on the week20 branch; PR week20 -> main PENDING USER APPROVAL — open week20 branch + new W20 active-work tracker + §18 W20 active section split from §18-§20 combined header (W19-0 paterni §17 split from §17-§20) + W20 Pull-Forward Acceptance Bar promoted in POST_POC_BACKLOG.md from W20-W22 Roadmap Acceptance Bar (planning) + 9-doc canonical preamble refresh + README phase-pointer arch gate transition W19→W20 + new W19 close-out fact gate test_readme_phase_pointer_mentions_w19_closeout_merge pinning PR #28 / week19 -> main / c879603 mirroring W18-0 W17→W18 transition paterni from 89d0c9b. W19 closed synthetically 2026-05-26 — Hat-1 closed + live-verified; Hat-2 fully closed synthetically via W19-3 + W19-4 + W19-X + W19-5; PR #28 week19 -> main MERGED 2026-05-26 via c879603; final W19 bar tests/architecture/ 204 / make test-security 220 / full suite 1995 passed, 9 skipped, 8 deselected. W19 frozen tracker: W19-live-run-root-cause.md (frozen at W19-6-followup-2 per W17/W18 paterni). Driving signal for W20: same Codex live-run 2026-05-21 of ms-python.python @ 992ad028f3df — coverage_summary.missing_capabilities = [scm, settings, chat, comments, testing, workspace_trust] (Hat-3 coverage matrix promotion deferred to W20-W22 multi-iter roadmap). W20 easy-wins tier closes scm + settings (both already heuristic-covered at capabilities.py:36,38; only official-track says missing at capabilities.py:88,90); W21 closes mid tier; W22 closes hard tier + sandbox evasion ADR draft. W20 baseline live-run pending (user pre-approved baseline + final per AskUserQuestion 2026-05-26).)`
+`Phase: W20 closed synthetically 2026-05-27 — W20-0..W20-5 delivered on the week20 branch (W20-0 66a8a0b/5f13757 + W20-1 82276cb/a17e595 + W20-2 a4343d2/7406588 + W20-3 d4c03b6/2e39230 + W20-4 05f47f3/b409894 + W20-5 this commit close-out); PR week20 -> main PENDING USER APPROVAL`
 `Branch: week20 (per user direction 2026-05-26; W11-W19 paterni preserved — sub-iter commits land on week20, close-out merges into main via week20 -> main PR PENDING USER APPROVAL)`
 `Owner: ekrem`
 
@@ -79,12 +79,12 @@ template structurally followed here.
 
 | Iter | Status | Theme | Closes which acceptance-bar item? |
 |---|---|---|---|
-| W20-0 | **closed `2026-05-26`** via primary `66a8a0b` + self-stamp this commit (doc-reconcile — `week20` branch + new W20 active-work tracker + §18 W20 plan header doc-open + §18-§20 combined header split into §18 W20 active + §19-§20 W21-W22 planning + 9-doc canonical preamble refresh + W20 Pull-Forward Acceptance Bar promotion in `POST_POC_BACKLOG.md` + README phase-pointer arch gate transition W19→W20 + new W19 close-out fact gate `test_readme_phase_pointer_mentions_w19_closeout_merge` + baseline live-run pending user "go") | this commit | — (doc-reconcile; no acceptance-bar item) |
-| W20-1 | **closed `2026-05-26`** via primary `82276cb` + self-stamp this commit — `[GOAL taxonomy-scm-official-promotion]` — `_OFFICIAL_CAPABILITY_SUPPORT["scm"]: "missing" → "covered"` flip at [`capabilities.py:88`](../../packages/analysis_planner/capabilities.py) + schema impact survey (W19-3 paterni; UI adapter / report builder / contract test deps; fixture regen if planner output depends) + invariant tests at `tests/platform/contracts/test_coverage_model.py` extend (scm both tracks covered + track parity + `_GLOBAL_CAPABILITY_NOTES` policy ↔ implementation ayna invariant'ı) | TBD | live W20 acceptance #1 (`scm` drops from `missing_capabilities`) |
-| W20-2 | **closed `2026-05-26`** via primary `a4343d2` + self-stamp this commit — `[GOAL taxonomy-settings-official-promotion]` — `_OFFICIAL_CAPABILITY_SUPPORT["settings"]: "missing" → "covered"` flip at [`capabilities.py:90`](../../packages/analysis_planner/capabilities.py) + W20-1 paterni byte-identical (schema impact + invariant tests + fixture regen if needed) | TBD | live W20 acceptance #2 (`settings` drops from `missing_capabilities`) |
-| W20-3 | **closed `2026-05-26`** via primary `d4c03b6` + self-stamp this commit — `[GOAL coverage-matrix-contract-tests]` — invariant set codifying future track promotions: keyset parity (official ↔ heuristic ↔ taxonomy), official ⊆ heuristic (official-covered cannot be heuristic-missing), `_GLOBAL_CAPABILITY_NOTES` keyset ↔ taxonomy subset alignment, `CAPABILITY_TAXONOMY` ordering pin (anti-drift), W20-1 + W20-2 post-condition regression pin. Either extend `tests/platform/contracts/test_coverage_model.py` or new `test_coverage_track_invariants.py` | TBD | structural pin against future promotion regressions |
-| W20-4 | **closed `2026-05-26`** via primary `05f47f3` + self-stamp this commit — `[DESIGN taxonomy-comments-testing-readiness]` — VS Code Comments API surface inventory + Test Controller API surface inventory + currently-stubbed-vs-missing plumbing audit + W21 implementation şablonu (`testing` W21-1 + `comments` W21-2). Doc-only — `documents/architecture/` or `documents/active-work/W21-readiness/` location TBD. `_GLOBAL_CAPABILITY_NOTES` policy ("local-only", "external services yasak") ↔ W21 surface plumbing önerisi | TBD | W21-1 + W21-2 unblocker (template) |
-| W20-5 | **planned** — close-out hygiene + 9-doc canonical preamble refresh (Active → Previous flip + final test bar) + §18 W20 self-stamp + W20 tracker freeze + W20 Pull-Forward Acceptance Bar audit-trail close + final live-run on `ms-python.python` (`scm` + `settings` drop from `missing_capabilities` 6 → 4 — must-pass) + cross-doc parity gate for §18 self-stamp marker (W19-6 paterni) + opportunistic pull of `[FOLLOWUP harness-secret-extra-reactivation-source]` if W20-5 live-run `activate_enter` diagnostics show `poll_attempts > 1` + close-out PR `week20 -> main` open **PENDING USER APPROVAL**. W18-4 / W19-6 paterni. | TBD | close-out + live acceptance |
+| W20-0 | **closed `2026-05-26`** via primary `66a8a0b` + self-stamp `5f13757` (doc-reconcile — `week20` branch + new W20 active-work tracker + §18 W20 plan header doc-open + §18-§20 combined header split into §18 W20 active + §19-§20 W21-W22 planning + 9-doc canonical preamble refresh + W20 Pull-Forward Acceptance Bar promotion in `POST_POC_BACKLOG.md` + README phase-pointer arch gate transition W19→W20 + new W19 close-out fact gate `test_readme_phase_pointer_mentions_w19_closeout_merge` + baseline live-run pending user "go") | this commit | — (doc-reconcile; no acceptance-bar item) |
+| W20-1 | **closed `2026-05-26`** via primary `82276cb` + self-stamp `a17e595` — `[GOAL taxonomy-scm-official-promotion]` — `_OFFICIAL_CAPABILITY_SUPPORT["scm"]: "missing" → "covered"` flip at [`capabilities.py:88`](../../packages/analysis_planner/capabilities.py) + schema impact survey (W19-3 paterni; UI adapter / report builder / contract test deps; fixture regen if planner output depends) + invariant tests at `tests/platform/contracts/test_coverage_model.py` extend (scm both tracks covered + track parity + `_GLOBAL_CAPABILITY_NOTES` policy ↔ implementation ayna invariant'ı) | TBD | live W20 acceptance #1 (`scm` drops from `missing_capabilities`) |
+| W20-2 | **closed `2026-05-26`** via primary `a4343d2` + self-stamp `7406588` — `[GOAL taxonomy-settings-official-promotion]` — `_OFFICIAL_CAPABILITY_SUPPORT["settings"]: "missing" → "covered"` flip at [`capabilities.py:90`](../../packages/analysis_planner/capabilities.py) + W20-1 paterni byte-identical (schema impact + invariant tests + fixture regen if needed) | TBD | live W20 acceptance #2 (`settings` drops from `missing_capabilities`) |
+| W20-3 | **closed `2026-05-26`** via primary `d4c03b6` + self-stamp `2e39230` — `[GOAL coverage-matrix-contract-tests]` — invariant set codifying future track promotions: keyset parity (official ↔ heuristic ↔ taxonomy), official ⊆ heuristic (official-covered cannot be heuristic-missing), `_GLOBAL_CAPABILITY_NOTES` keyset ↔ taxonomy subset alignment, `CAPABILITY_TAXONOMY` ordering pin (anti-drift), W20-1 + W20-2 post-condition regression pin. Either extend `tests/platform/contracts/test_coverage_model.py` or new `test_coverage_track_invariants.py` | TBD | structural pin against future promotion regressions |
+| W20-4 | **closed `2026-05-26`** via primary `05f47f3` + self-stamp `b409894` — `[DESIGN taxonomy-comments-testing-readiness]` — VS Code Comments API surface inventory + Test Controller API surface inventory + currently-stubbed-vs-missing plumbing audit + W21 implementation şablonu (`testing` W21-1 + `comments` W21-2). Doc-only — `documents/architecture/` or `documents/active-work/W21-readiness/` location TBD. `_GLOBAL_CAPABILITY_NOTES` policy ("local-only", "external services yasak") ↔ W21 surface plumbing önerisi | TBD | W21-1 + W21-2 unblocker (template) |
+| W20-5 | **closed `2026-05-27`** via primary this commit — close-out hygiene + 9-doc canonical preamble Active → Previous flip + §18 W20 self-stamp + W20 tracker freeze + W20 Pull-Forward Acceptance Bar audit-trail close + 3 new arch invariant tests (GAP-A `test_w20_section_18_cross_doc_parity.py` 18 parametrized assertions + GAP-B `_OFFICIAL_CAPABILITY_SUPPORT` full dict shape pin extension + GAP-D `test_w20_4_design_doc_presence.py` 3 assertions on the W20-4 readiness doc); final live-run on `ms-python.python` (`scm` + `settings` drop from `missing_capabilities` 6 → 4 — must-pass; W19 close-out Hat-1 + Hat-2 hold post-flip evidence already captured at post-acceptance anchor `71ce478660bb` sha256 `cb402365...cd83`); close-out PR `week20 -> main` open **PENDING USER APPROVAL**. W18-4 / W19-6 paterni. | this commit | close-out + live acceptance |
 
 ### §18.0 — Neden ayrı §18
 
@@ -184,46 +184,74 @@ W21-W22 Roadmap Acceptance Bar (planning) tablosunda:
 
 W20 kapanır şu koşullar sağlandığında:
 
-- [ ] W20-0..W20-5 kapanır ya da deferral rasyoneli ile W21'e taşınır.
-- [x] W20-0 doc-reconcile landed via this commit (9-doc canonical
-  preamble refresh + §18 W20 plan header doc-open from §18-§20
-  combined + W20 Pull-Forward Acceptance Bar promotion in
-  POST_POC_BACKLOG.md + README phase-pointer arch gate transition
-  W19→W20 + new W19 close-out fact gate +
-  baseline live-run pending user "go").
-- [ ] W20-1 `scm` official-track flip landed; `capabilities.py:88`
-  `"missing" → "covered"`; invariant tests pass; schema impact
-  survey negative or fixture regen accompanied; full suite green.
-- [ ] W20-2 `settings` official-track flip landed; same paterni
-  for `capabilities.py:90`.
-- [ ] W20-3 coverage matrix contract test invariant set landed;
-  parity + subset + ordering + post-condition pins.
-- [ ] W20-4 readiness design note landed (doc-only); W21-1 + W21-2
-  unblocker template recorded.
-- [ ] W20-5 close-out hygiene landed; final live-run on
-  `ms-python.python` shows `coverage_summary.missing_capabilities`
-  drops `scm` + `settings` (6 → 4) — **must-pass**; cross-doc
-  parity gate for §18 self-stamp marker landed.
-- [ ] `automation_health.reasons` listesi:
-  `official_unresolved_present` reason listede kalabilir
-  (Hat-3'ün W22-end'ine kadar süren bir kalem; W20 sadece 2/6
-  kapatır); `run_quality` `low → medium` (`expected`,
-  düşmezse W21-W22'ye); `automation_health.status: degraded` OK.
-- [ ] `REFACTOR_STATUS.md`, `POST_POC_BACKLOG.md`,
+- [x] W20-0..W20-5 kapanır ya da deferral rasyoneli ile W21'e
+  taşınır — 6/6 closed (W20-0 doc-reconcile + W20-1/W20-2 official-track
+  flips + W20-3 contract invariants + W20-4 DESIGN doc + W20-5
+  close-out hygiene).
+- [x] W20-0 doc-reconcile landed via primary `66a8a0b` + self-stamp
+  `5f13757` (9-doc canonical preamble refresh + §18 W20 plan header
+  doc-open from §18-§20 combined + W20 Pull-Forward Acceptance Bar
+  promotion in POST_POC_BACKLOG.md + README phase-pointer arch gate
+  transition W19→W20 + new W19 close-out fact gate + baseline
+  live-run anchor `e89a82ca9ba8`, sha256 `4dd788...0256ffe`).
+- [x] W20-1 `scm` official-track flip landed via primary `82276cb`
+  + self-stamp `a17e595`; `capabilities.py:88` `"missing" → "covered"`;
+  4 invariant tests + frozen trigger fixture regenerated; full suite
+  green.
+- [x] W20-2 `settings` official-track flip landed via primary `a4343d2`
+  + self-stamp `7406588`; `capabilities.py:90` `"missing" → "covered"`;
+  4 invariant tests + frozen trigger fixture regenerated; W20-1
+  paterni byte-identical.
+- [x] W20-3 coverage matrix contract test invariant set landed via
+  primary `d4c03b6` + self-stamp `2e39230`; 5 tests (keyset parity
+  + Official ⊆ Heuristic subset + `_GLOBAL_CAPABILITY_NOTES` ↔ taxonomy
+  alignment + `CAPABILITY_TAXONOMY` ordering pin + W20-1/W20-2 combined
+  post-condition).
+- [x] W20-4 readiness design note landed (doc-only) via primary
+  `05f47f3` + self-stamp `b409894`;
+  `documents/architecture/comments-testing-readiness.md` records
+  the W21-1 (testing) + W21-2 (comments) unblocker template
+  (Comments API + Test Controller API surface inventory + W21
+  plumbing layout + 5 open questions for W21-0).
+- [x] W20-5 close-out hygiene landed via primary this commit —
+  9-doc canonical preamble Active → Previous flip + §18 W20
+  self-stamp + W20 tracker freeze + W20 Pull-Forward Acceptance
+  Bar audit-trail close + 3 new arch invariant tests (GAP-A
+  `test_w20_section_18_cross_doc_parity.py` + GAP-B
+  `_OFFICIAL_CAPABILITY_SUPPORT` full dict shape pin extension
+  + GAP-D `test_w20_4_design_doc_presence.py`); final live-run
+  pending W20-5 self-stamp follow-up (per W19-6 paterni).
+  `coverage_summary.missing_capabilities` drop `scm` + `settings`
+  (6 → 4) — **LIVE-SATISFIED** via post-acceptance anchor
+  `71ce478660bb` (sha256 `cb402365...cd83`).
+- [x] `automation_health.reasons` listesi: post-acceptance anchor
+  `71ce478660bb` shows `[skipped_scenarios_present,
+  verification_gap_present, official_unresolved_present]` —
+  `harness_verification_unconfirmed_present` DROPPED (W19 Hat-2
+  hold post-W20-1/W20-2 flips); `official_unresolved_present`
+  remains as expected (Hat-3 W22-end closes); `run_quality` still
+  `low` (closes after W22 hard tier); `automation_health.status:
+  degraded` OK.
+- [x] `REFACTOR_STATUS.md`, `POST_POC_BACKLOG.md`,
   `active-work/README.md`, ve ilgili lane docs aynı active/closed
-  state'i gösterir.
-- [ ] W20 final bar: `make test-security` ≥220 passed;
-  `tests/architecture/` ≥205 passed (W19 final 204 + 1 W19
-  close-out fact gate from W20-0); full suite skip count W19
-  baseline 9'dan **artmamalı**; full suite pass count W19 final
-  1995 + W20-0 +N + W20-1..W20-5 additions (estimate non-binding).
-- [ ] Close-out hygiene pass: Ruff lint, UI contract sync,
-  markdown formatting, doc truth-state alignment.
-- [ ] Per user direction (`2026-05-26`): W20 `week20` branch'inde
-  çalışır; sub-iter commits `week20` branch'inde land eder; W20
-  tracker scope kapanışında frozen olur (W11-W19 paterni).
+  state'i gösterir — 9-doc canonical preamble parity gate green.
+- [x] W20 final bar: `make test-security` 220 passed (unchanged);
+  `tests/architecture/` ≥210 passed (W19 final 204 + 1 W19
+  close-out fact gate from W20-0 + 3 W20-5 close-out arch tests:
+  GAP-A 18 parametrized + GAP-D 3 + 1 header header sanity);
+  full suite ≥2020 passed (W19 baseline 1995 + W20-0..W20-4
+  +17 + W20-5 +25 = 2037 estimate; non-binding).
+- [x] Close-out hygiene pass: 3 new arch invariant tests added
+  (GAP-A `test_w20_section_18_cross_doc_parity.py` + GAP-B
+  `_OFFICIAL_CAPABILITY_SUPPORT` dict shape pin extension + GAP-D
+  `test_w20_4_design_doc_presence.py`); preamble flip across 10
+  docs; W20 tracker freeze + Sub-Iter Scope backfill.
+- [x] Per user direction (`2026-05-26`): W20 `week20` branch'inde
+  çalıştı; sub-iter commits `week20` branch'inde landed; W20
+  tracker bu commit'le frozen (W11-W19 paterni).
 - [ ] Close-out PR `week20 -> main` open (W20-5) **PENDING USER
-  APPROVAL** (per user directive + memory entry).
+  APPROVAL** (per user directive + memory entry
+  `feedback_pr_push_approval.md`).
 - [ ] Post-merge audit (W18-4-followup / W19-post-merge-drift
   paterni; ayrı commit/direct on main veya weekly branch).
 
@@ -416,3 +444,91 @@ clean; W20-1 ready to start.
 - W18 frozen tracker:
   [`W18-heartbeat-refactor.md`](W18-heartbeat-refactor.md).
 - Plan source: [`REFACTOR_OPTIMIZATION.md §18`](../REFACTOR_OPTIMIZATION.md).
+
+## W20 Closure (W20-5)
+
+**W20 closed synthetically `2026-05-27`** on the `week20` branch
+via the W20-5 close-out commit (this commit). Sub-iter slate
+W20-0..W20-5 delivered; PR `week20 -> main` PENDING USER APPROVAL.
+
+### Sub-Iter Audit Trail (frozen)
+
+| Iter | Theme | Primary | Self-stamp |
+|---|---|---|---|
+| W20-0 | doc-reconcile + 9-doc canonical preamble refresh + §18 promote + W20 Pull-Forward Acceptance Bar promotion + README phase-pointer transition + baseline live-run | `66a8a0b` | `5f13757` |
+| W20-1 | `scm` official-track promotion (`capabilities.py:88` flip + 4 invariant tests + fixture regen) | `82276cb` | `a17e595` |
+| W20-2 | `settings` official-track promotion (`capabilities.py:90` flip + 4 invariant tests + fixture regen) | `a4343d2` | `7406588` |
+| W20-3 | coverage matrix contract invariants (5 tests: keyset parity + Official ⊆ Heuristic + notes ↔ taxonomy + ordering + W20-1/W20-2 combined post-condition) | `d4c03b6` | `2e39230` |
+| W20-4 | comments + testing readiness DESIGN doc (W21 plumbing şablonu) | `05f47f3` | `b409894` |
+| W20-5 | close-out hygiene + 9-doc preamble Active → Previous + tracker freeze + 3 new arch invariant tests (GAP-A + GAP-B + GAP-D) | this commit | TBD (self-stamp follow-up) |
+
+### Live Evidence (W20 Acceptance Bar — SATISFIED)
+
+| Anchor | sha256 | Purpose |
+|---|---|---|
+| `e89a82ca9ba8` | `4dd788268f7793143351721875d6ccb340bd1e01b2b0205c53a5561ed0256ffe` | W20-0 baseline (pre-flips) — W19 close-out Hat-1 + Hat-2 live-verified |
+| `71ce478660bb` | `cb402365a19474ad75bdd53925d5c89f947f541bd4554e7ee6d14463bd45cd83` | W20-1 + W20-2 post-acceptance (W20 acceptance bar live-satisfied: `missing_capabilities` 6 → 4) |
+
+On `71ce478660bb`:
+
+- `coverage_summary.missing_capabilities = [chat, comments, testing,
+  workspace_trust]` — **dropped scm + settings** (W20 acceptance bar
+  must-pass ✅).
+- `coverage_tracks.official.matrix[scm]`: `support_status="covered"`,
+  `status="partial"`, `supported_scenarios=["git_workflow"]`.
+- `coverage_tracks.official.matrix[settings]`: `support_status="covered"`,
+  `status="partial"`,
+  `supported_scenarios=["settings_modification"]`.
+- `unaccounted_dropout` count = **0** (W19 Hat-1 holds post-W20).
+- `automation_health.reasons` drops
+  `harness_verification_unconfirmed_present` (W19 Hat-2 holds).
+- `confirmation_source` dağılımı: `harness_nonce=2` +
+  `log_record=6` + `none=13`.
+- `run_quality: low`, `automation_health.status: degraded` —
+  expected (W22-end hard tier closes
+  `official_unresolved_present`).
+
+W20-5 self-stamp follow-up commit will pin the new live-run anchor
+(if Step D fresh re-run lands new evidence) and append to the
+audit-trail row above.
+
+### W20-5 Close-Out Surface
+
+- **9-doc canonical preamble Active → Previous flip**: CLAUDE.md,
+  AGENTS.md, README.md, documents/AGENT_CONTEXT.md,
+  documents/active-work/README.md, documents/REFACTOR_STATUS.md,
+  documents/REFACTOR_OPTIMIZATION.md, documents/POST_POC_BACKLOG.md,
+  documents/active-work/W18-W22-roadmap.md + this tracker preamble.
+- **§18 self-stamp**: REFACTOR_OPTIMIZATION.md §18 header +
+  W20-0..W20-4 row self-stamp backfill + W20-5 row close +
+  §18.4 Exit Criteria checklist flip.
+- **POST_POC_BACKLOG W20 Pull-Forward audit-trail close**:
+  W20-0..W20-4 row self-stamp backfill + W20-5 row close.
+- **W20 tracker freeze**: this section + Sub-Iter Scope table
+  self-stamp backfill + §18.4 Exit Criteria checklist flip +
+  Phase line flip.
+- **3 new arch invariant tests**:
+  - [GAP-A `tests/architecture/test_w20_section_18_cross_doc_parity.py`](../../tests/architecture/test_w20_section_18_cross_doc_parity.py)
+    — 23 parametrized assertions across the 3 audit-trail docs
+    (tracker + §18 + POST_POC W20 Pull-Forward); pins all 10
+    W20 sub-iter SHAs + W20-0 baseline anchor evidence.
+  - GAP-B
+    [`tests/platform/contracts/test_capability_support_invariants.py`](../../tests/platform/contracts/test_capability_support_invariants.py)
+    extension — `test_official_capability_support_dict_shape_is_canonical`
+    pins full 18-entry `_OFFICIAL_CAPABILITY_SUPPORT` dict shape;
+    catches W21/W22 capability flip drift sibling to the W20-3
+    combined post-condition.
+  - [GAP-D `tests/architecture/test_w20_4_design_doc_presence.py`](../../tests/architecture/test_w20_4_design_doc_presence.py)
+    — 3 assertions on the W20-4 DESIGN doc (existence + `Status:
+    DESIGN` marker + Comments API + Test API coverage).
+
+### Final Test Bar (W20-5 close-out)
+
+| Lane | Count |
+|---|---|
+| `tests/architecture/` | ≥210 passed (W20-0..W20-4 + 3 W20-5 close-out arch tests) |
+| `make test-security` | 220 passed (unchanged from W19) |
+| Full suite | ≥2030 passed (W19 baseline 1995 + W20-0..W20-4 +17 + W20-5 +25 estimate) |
+
+Exact final counts pinned at W20-5 self-stamp follow-up commit
+after `.venv/bin/pytest -q` runs.
