@@ -1,6 +1,6 @@
 # Pipeline Roadmap
 
-`Last Updated: 2026-05-25 (W19 active — Hat-1 closed + live-verified; Hat-2 harness verification work next)`
+`Last Updated: 2026-05-26 (W19 closed synthetically — Hat-1 + Hat-2 fully closed; PR #28 week19 -> main MERGED 2026-05-26 via c879603)`
 
 This is the short staged view of the analysis pipeline. For current pullable
 work, use `POST_POC_BACKLOG.md` plus the active tracker; for active priorities,

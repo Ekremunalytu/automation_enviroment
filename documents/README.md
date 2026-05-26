@@ -1,6 +1,6 @@
 # Documents Guide
 
-`Last Updated: 2026-05-25 (W19 active — Hat-1 closed + live-verified via W19-2-followup-2 d5de9ca; Hat-2 W19-3..W19-5 and W19-6 close-out pending)`
+`Last Updated: 2026-05-26 (W19 closed synthetically — Hat-1 + Hat-2 fully closed; PR #28 week19 -> main MERGED 2026-05-26 via c879603)`
 
 This folder is split into a small canonical core, specialized reference docs,
 and a frozen archive. **Do not preload the entire folder.** Open subsystem

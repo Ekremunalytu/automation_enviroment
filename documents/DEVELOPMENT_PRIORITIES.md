@@ -1,6 +1,6 @@
 # Development Priorities
 
-`Last Updated: 2026-05-25 (W19 active — Hat-1 closed + live-verified via W19-2-followup-2 d5de9ca; Hat-2 W19-3..W19-5 pending)`
+`Last Updated: 2026-05-26 (W19 closed synthetically — Hat-1 + Hat-2 fully closed; PR #28 week19 -> main MERGED 2026-05-26 via c879603)`
 
 This is the short priority list for current work. It assumes the project stays
 a single-user sandbox appliance on one machine or one Docker host.
@@ -83,8 +83,8 @@ Code API abuse remain in `POST_POC_BACKLOG.md`.
 
 The priority list below describes the enduring engineering priorities that
 survive past W7 closure. Active iteration scope pulls from
-`POST_POC_BACKLOG.md` and the W19 active tracker
-`active-work/W19-live-run-root-cause.md`.
+`POST_POC_BACKLOG.md` and the frozen W19 tracker
+`active-work/W19-live-run-root-cause.md` (W20 tracker opens at W20-0).
 
 ## Current Priorities
 

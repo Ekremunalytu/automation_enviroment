@@ -1,6 +1,6 @@
 # AGENTS.md
 
-`Last Updated: 2026-05-26 (W19 fully closed synthetically — Hat-1 closed + live-verified via W19-2-followup-2 d5de9ca; Hat-2 HARD GATE W19-3 closed via primary d2e83e7 + self-stamp 39121e4 + 8-doc preamble refresh 9b56e94; W19-4 closed via 7d44b0e + W19-X live-verification close-out via 8b7b7f6 (W19-X primary) + a3e634f (W19-X self-stamp) — closes Bug A planner routing / Bug B marker channel destination / Bug C HMAC secret reactivation race; +15 new behavioral tests; live anchor 8247e05ec9ef.json: 2/2 onDebug* stamped; W19-5 closed via e537ebd + 4fd6ed6; W19-6 close-out hygiene via f17b4b1 + cd82153; W19-6-followup-2 pre-merge hygiene (this commit) closes 6 test gaps (+20 parametrized tests) + corrects stale W19 preamble drift across the 9-doc canonical set + freezes W19 tracker per W17/W18 paterni; final W19 test bar 1995/9/8 (tests/architecture/ 204 / make test-security 220 / full suite 1995 passed) on the week19 branch (per user direction 2026-05-21; W11-W18 paterni preserved); W19-0..W19-6 + W19-X closed on the week19 branch; PR week19 -> main pending user approval; stable IDs W19-1..W19-5 closed at POST_POC_BACKLOG.md W19 Pull-Forward Acceptance Bar. Driving signal: Codex live-run validation 2026-05-21 of ms-python.python @ 992ad028f3df reports automation_health.status=degraded + run_quality=low while W19-2 live re-anchor now satisfies unaccounted_dropout == 0 and static W18 final bar (1907/201/220) remains green; post-W19-3 live run 2026-05-25 23:27 (86e0f3646ce9) confirms field landed at "none" on 21/21 event_attempts with no behavior regression. W19 Hat-1 closed + live-verified (executor muhasebe bug → unaccounted_dropout); Hat-2 fully closed (W19-3 schema landing + W19-4 onDebug* producer/consumer + W19-X onDebug* live close-out + W19-5 onTerminal+onLM log_record stamp; entire harness_verification_unconfirmed_present driver synthetically closed; W19-6 close-out hygiene landed via primary f17b4b1 + self-stamp this commit) (onDebug* harness_nonce producer at health/reconciliation.py:347-348 + consumer wire gating failure_reason_code on confirmation_source at reconciliation.py:85-90 + 7 new tests at test_playwright_health_reconciliation.py:813-1090); W19-5 closed via primary e537ebd + self-stamp 4fd6ed6 (onTerminal+onLM log_record stamp at reconciliation.py:347-365 sibling elif to W19-4 onDebug arm); Hat-3 (coverage matrix promotion) deferred to W20-W22. §17 W19 plan source + §18-§20 W20-W22 multi-iter roadmap (split at W19-0 from the original §17-§20 combined header). W18 closed via PR #26 week18 -> main MERGED 2026-05-21 via 9874e79; final W18 bar tests/architecture/ 201 / make test-security 220 / full suite 1907 passed, 9 skipped, 8 deselected. W18 sub-iter audit trail (frozen, all closed): W18-0 (89d0c9b); W18-1 ADR 0012 Option A1 (acf6cc9 + 73d8a5c); W18-2 heartbeat refactor implementation (a9bffb1 + 78ed7cc + b5b64b6 + 306d744); W18-3 lifecycle harness extension tests (92b310d + 32d9905); W18-4 close-out hygiene (3f4f95a); W18-4-followup (e1043e5). W17 closed via PR #25 week17 -> main MERGED 2026-05-18 via bff565d; W16 closed via PR #23 week16 -> main MERGED 2026-05-18 via 1b6d43f. W18 frozen tracker: documents/active-work/W18-heartbeat-refactor.md; W19 frozen tracker: documents/active-work/W19-live-run-root-cause.md (frozen at W19-6-followup-2 per W17/W18 paterni); multi-iter roadmap source-of-truth: documents/active-work/W18-W22-roadmap.md (5-iter slate: W18 closed / W19 dropout + harness verification CLOSED / W20 coverage promotion easy / W21 coverage promotion mid / W22 chat policy + sandbox ADR). W15 closed via PR #22 MERGED 2026-05-18 via 6161472; W14 closed via PR #21 MERGED 2026-05-14 via 4e03c8d; W13 closed via PR #20 -> 772deb3 on 2026-05-13)`
+`Last Updated: 2026-05-26 (W19 fully closed synthetically — Hat-1 closed + live-verified via W19-2-followup-2 d5de9ca; Hat-2 HARD GATE W19-3 closed via primary d2e83e7 + self-stamp 39121e4 + 8-doc preamble refresh 9b56e94; W19-4 closed via 7d44b0e + W19-X live-verification close-out via 8b7b7f6 (W19-X primary) + a3e634f (W19-X self-stamp) — closes Bug A planner routing / Bug B marker channel destination / Bug C HMAC secret reactivation race; +15 new behavioral tests; live anchor 8247e05ec9ef.json: 2/2 onDebug* stamped; W19-5 closed via e537ebd + 4fd6ed6; W19-6 close-out hygiene via f17b4b1 + cd82153; W19-6-followup-2 pre-merge hygiene (this commit) closes 6 test gaps (+20 parametrized tests) + corrects stale W19 preamble drift across the 9-doc canonical set + freezes W19 tracker per W17/W18 paterni; final W19 test bar 1995/9/8 (tests/architecture/ 204 / make test-security 220 / full suite 1995 passed) on the week19 branch (per user direction 2026-05-21; W11-W18 paterni preserved); W19-0..W19-6 + W19-X closed on the week19 branch; merged to main via PR #28 2026-05-26 via c879603; live smoke pending; stable IDs W19-1..W19-5 closed at POST_POC_BACKLOG.md W19 Pull-Forward Acceptance Bar. Driving signal: Codex live-run validation 2026-05-21 of ms-python.python @ 992ad028f3df reports automation_health.status=degraded + run_quality=low while W19-2 live re-anchor now satisfies unaccounted_dropout == 0 and static W18 final bar (1907/201/220) remains green; post-W19-3 live run 2026-05-25 23:27 (86e0f3646ce9) confirms field landed at "none" on 21/21 event_attempts with no behavior regression. W19 Hat-1 closed + live-verified (executor muhasebe bug → unaccounted_dropout); Hat-2 fully closed (W19-3 schema landing + W19-4 onDebug* producer/consumer + W19-X onDebug* live close-out + W19-5 onTerminal+onLM log_record stamp; entire harness_verification_unconfirmed_present driver synthetically closed; W19-6 close-out hygiene landed via primary f17b4b1 + self-stamp this commit) (onDebug* harness_nonce producer at health/reconciliation.py:347-348 + consumer wire gating failure_reason_code on confirmation_source at reconciliation.py:85-90 + 7 new tests at test_playwright_health_reconciliation.py:813-1090); W19-5 closed via primary e537ebd + self-stamp 4fd6ed6 (onTerminal+onLM log_record stamp at reconciliation.py:347-365 sibling elif to W19-4 onDebug arm); Hat-3 (coverage matrix promotion) deferred to W20-W22. §17 W19 plan source + §18-§20 W20-W22 multi-iter roadmap (split at W19-0 from the original §17-§20 combined header). W18 closed via PR #26 week18 -> main MERGED 2026-05-21 via 9874e79; final W18 bar tests/architecture/ 201 / make test-security 220 / full suite 1907 passed, 9 skipped, 8 deselected. W18 sub-iter audit trail (frozen, all closed): W18-0 (89d0c9b); W18-1 ADR 0012 Option A1 (acf6cc9 + 73d8a5c); W18-2 heartbeat refactor implementation (a9bffb1 + 78ed7cc + b5b64b6 + 306d744); W18-3 lifecycle harness extension tests (92b310d + 32d9905); W18-4 close-out hygiene (3f4f95a); W18-4-followup (e1043e5). W17 closed via PR #25 week17 -> main MERGED 2026-05-18 via bff565d; W16 closed via PR #23 week16 -> main MERGED 2026-05-18 via 1b6d43f. W18 frozen tracker: documents/active-work/W18-heartbeat-refactor.md; W19 frozen tracker: documents/active-work/W19-live-run-root-cause.md (frozen at W19-6-followup-2 per W17/W18 paterni); multi-iter roadmap source-of-truth: documents/active-work/W18-W22-roadmap.md (5-iter slate: W18 closed / W19 dropout + harness verification CLOSED / W20 coverage promotion easy / W21 coverage promotion mid / W22 chat policy + sandbox ADR). W15 closed via PR #22 MERGED 2026-05-18 via 6161472; W14 closed via PR #21 MERGED 2026-05-14 via 4e03c8d; W13 closed via PR #20 -> 772deb3 on 2026-05-13)`
 
 ## Authority
 
@@ -28,29 +28,35 @@
   catalog endpoint posture gate + compose image SHA pin + GH action
   trivy version pin + close-out lint hygiene). Frozen tracker:
   `documents/active-work/W15-codex-uclass-bounds-posture.md`.
-  **Active phase: W19 — Live-Run Kök Neden: Dropout + Harness
-  Verification — active `2026-05-21` on the `week19` branch (per
-  user direction 2026-05-21; W11-W18 paterni preserved)**: plan
-  `documents/REFACTOR_OPTIMIZATION.md` §17, active tracker
-  `documents/active-work/W19-live-run-root-cause.md`. **W19-0..W19-4
-  closed; W19-5..W19-6 pending**: W19-0 doc-reconcile
+  **Previous phase: W19 — Live-Run Kök Neden: Dropout + Harness
+  Verification — closed synthetically `2026-05-26` on the `week19`
+  branch (per user direction 2026-05-21; W11-W18 paterni preserved);
+  PR #28 `week19 -> main` MERGED `2026-05-26` via `c879603`**: plan
+  `documents/REFACTOR_OPTIMIZATION.md` §17, frozen tracker
+  `documents/active-work/W19-live-run-root-cause.md`. **W19-0..W19-6
+  + W19-X all closed**: W19-0 doc-reconcile
   (`72712bd` + `086d7a5`); W19-1
   `[BUG scenario-unaccounted-dropout-regression-fixture]`
   (`6a21cf3` + `fd02ca4`); W19-2
   `[BUG scenario-unaccounted-dropout-debug-refactor]` emit-site fix
   (`89b64da` + `d9c6262`) + W19-2-followup-2 live re-anchor
   (`d5de9ca`) satisfying `unaccounted_dropout == 0`; W19-3
-  `[GOAL harness-verification-contract-event-level]`
-  (HARD GATE: `confirmation_source` schema landing); W19-4
-  `[FOLLOWUP harness-verification-debug-events]` (onDebug* nonce);
-  W19-5 `[FOLLOWUP harness-verification-terminal-and-lm-tool]`
-  (onTerminal + onLM local-only); W19-6 close-out hygiene + PR
-  `week19 -> main`. Driving signal: Codex live-run validation of
-  `ms-python.python` @ `992ad028f3df` (2026-05-21) reports
+  `[GOAL harness-verification-contract-event-level]` schema landing
+  (`d2e83e7` + `39121e4` + `9b56e94`); W19-4
+  `[FOLLOWUP harness-verification-debug-events]` `onDebug*` nonce
+  producer/consumer wire (`7d44b0e`); W19-X `onDebug*` live close-out
+  (`8b7b7f6` + `a3e634f`) closing Bug A/B/C; W19-5
+  `[FOLLOWUP harness-verification-terminal-and-lm-tool]`
+  onTerminal + onLM log_record stamp (`e537ebd` + `4fd6ed6`); W19-6
+  close-out hygiene (`f17b4b1` + `cd82153`) + W19-6-followup-2
+  pre-merge hygiene (`800c69f`). Driving signal: Codex live-run validation of
+  `ms-python.python` @ `992ad028f3df` (2026-05-21) reported
   `automation_health.status=degraded` + `run_quality=low` while
-  W19-2 live re-anchor now satisfies `unaccounted_dropout == 0`.
-  Hat-2 remains active; Hat-3 coverage matrix promotion deferred to
-  W20-W22 per multi-iter roadmap.
+  W19-2 live re-anchor satisfies `unaccounted_dropout == 0`.
+  Hat-1 + Hat-2 fully closed; Hat-3 coverage matrix promotion deferred to
+  W20-W22 per multi-iter roadmap. Final W19 bar:
+  `tests/architecture/` **204 passed**; `make test-security` **220
+  passed**; full suite **1995 passed, 9 skipped, 8 deselected**.
   **Previous phase: W18 — Heartbeat Refactor — closed via PR #26
   `week18 -> main` MERGED `2026-05-21` via `9874e79` (per user
   direction; W11-W17 paterni preserved)**: §16 W18 plan source,

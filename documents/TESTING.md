@@ -1,6 +1,6 @@
 # Testing Guide
 
-`Last Updated: 2026-05-25 (W19 active — W19-2 Hat-1 live verification baseline: tests/architecture/ 202 passed; make test-security 220 passed; full suite 1913 passed, 9 skipped, 8 deselected, 0 xfailed)`
+`Last Updated: 2026-05-26 (W19 closed synthetically — final W19 bar: tests/architecture/ 204 passed; make test-security 220 passed; full suite 1995 passed, 9 skipped, 8 deselected. PR #28 week19 -> main MERGED 2026-05-26 via c879603.)`
 
 Test layers, fixtures, and commands. **Slim canonical** — per-domain
 deep dives split out:

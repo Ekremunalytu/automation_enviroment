@@ -20,16 +20,17 @@ points to it.
 ## Files
 
 - `W19-live-run-root-cause.md`
-  - **Active phase — W19-0..W19-4 closed; W19-5..W19-6 pending on the
-    `week19` branch per user direction; W11-W18 paterni preserved.**
-    W19 Live-Run Kök Neden: Dropout + Harness Verification. Hat-1 is
-    closed + live-verified: W19-0 doc-reconcile (`72712bd` +
-    `086d7a5`), W19-1 RED dropout fixture (`6a21cf3` + `fd02ca4`),
-    W19-2 emit-site fix (`89b64da` + `d9c6262`), and live re-anchor
-    `d5de9ca` satisfying `unaccounted_dropout == 0`. Remaining slate:
-    harness verification
-    contract event-level — HARD GATE schema landing
-    `[GOAL harness-verification-contract-event-level]` (W19-3);
+  - **Frozen phase — W19-0..W19-6 + W19-X all closed on the
+    `week19` branch per user direction; W11-W18 paterni preserved;
+    PR #28 `week19 -> main` MERGED `2026-05-26` via `c879603`.**
+    W19 Live-Run Kök Neden: Dropout + Harness Verification. Hat-1
+    closed + live-verified; Hat-2 fully closed synthetically.
+    Audit trail: W19-0 doc-reconcile (`72712bd` + `086d7a5`),
+    W19-1 RED dropout fixture (`6a21cf3` + `fd02ca4`), W19-2 emit-site
+    fix (`89b64da` + `d9c6262`) + live re-anchor `d5de9ca` satisfying
+    `unaccounted_dropout == 0`; W19-3 harness verification contract
+    event-level schema landing
+    `[GOAL harness-verification-contract-event-level]`;
     onDebug* nonce confirmation
     `[FOLLOWUP harness-verification-debug-events]` (W19-4);
     onTerminal + onLM local-only confirmation
@@ -38,9 +39,11 @@ points to it.
     Codex live-run validation `2026-05-21` of `ms-python.python` @
     `992ad028f3df` reports `automation_health.status=degraded` +
     `run_quality=low`; W19-2 live re-anchor now satisfies
-    `unaccounted_dropout == 0`. Hat-2 remains active; Hat-3
+    `unaccounted_dropout == 0`. Hat-1 + Hat-2 fully closed; Hat-3
     (coverage matrix promotion) deferred to W20-W22 per multi-iter
-    roadmap. Slim canonical:
+    roadmap. Final W19 bar: tests/architecture/ 204 / make
+    test-security 220 / full suite 1995 passed, 9 skipped, 8
+    deselected. Slim canonical:
     [`REFACTOR_OPTIMIZATION.md §17`](../REFACTOR_OPTIMIZATION.md).
 - `W18-heartbeat-refactor.md`
   - **Past phase — closed `2026-05-21` and merged via PR #26
@@ -55,7 +58,7 @@ points to it.
     [`REFACTOR_OPTIMIZATION.md §16`](../REFACTOR_OPTIMIZATION.md).
 - `W18-W22-roadmap.md`
   - **Multi-iter roadmap source-of-truth (planning state for
-    W20-W22; W18 closed; W19 active).** Authored `2026-05-21` per
+    W20-W22; W18 + W19 closed).** Authored `2026-05-21` per
     user direction; carries the dropout fix (Hat-1) + harness
     verification (Hat-2) + coverage matrix promotion (Hat-3) plan
     across W18-W22. Slim canonical:
