@@ -1315,6 +1315,75 @@ def test_w19_5_does_not_stamp_when_no_marker_present_for_terminal_or_lm() -> Non
     assert attempts[0].failure_reason_code == "harness_verification_unconfirmed"
 
 
+# W19-6-followup-2: malformed log_record rejection. The existing
+# ``test_w19_5_does_not_stamp_on_forged_nonce_for_language_model_tool``
+# covers a *well-formed-but-wrong* nonce; this parametrized test pins the
+# fail-closed behavior for *malformed* markers (missing nonce field,
+# truncated nonce, invalid JSON after the harness prefix). A producer-side
+# regression that loosened the nonce-shape gate would surface here.
+@pytest.mark.parametrize(
+    "malform_kind,extension_host_output",
+    [
+        (
+            "missing_nonce_field",
+            (
+                "[extrace-harness] "
+                + json.dumps(
+                    {
+                        "kind": "stimulus",
+                        "phase": "complete",
+                        "attempt_id": "harness",
+                        "family": "onLanguageModelTool",
+                        "activation_event": "onLanguageModelTool:foo",
+                    }
+                )
+                + "\n"
+            ),
+        ),
+        (
+            "truncated_nonce",
+            (
+                "[extrace-harness] "
+                + json.dumps(
+                    {
+                        "kind": "stimulus",
+                        "phase": "complete",
+                        "attempt_id": "harness",
+                        "family": "onLanguageModelTool",
+                        "activation_event": "onLanguageModelTool:foo",
+                        "nonce": "abc",
+                    }
+                )
+                + "\n"
+            ),
+        ),
+        (
+            "bad_json_after_prefix",
+            "[extrace-harness] {not-valid-json}\n",
+        ),
+    ],
+)
+def test_w19_5_rejects_malformed_log_record_stamp(
+    malform_kind: str, extension_host_output: str
+) -> None:
+    """Producer fail-closed: malformed harness markers stay at confirmation_source='none'."""
+    secret = "secret-loaded-from-results-handshake"  # noqa: S105 — test fixture
+    report = _w19_5_build_log_record_report(
+        "onLanguageModelTool",
+        "onLanguageModelTool:foo",
+        secret,
+        extension_host_output=extension_host_output,
+        activated=[],
+    )
+
+    attempts = reconcile_event_attempts(report)
+
+    assert attempts[0].confirmation_source == "none", (
+        f"{malform_kind} should leave confirmation_source at 'none'"
+    )
+    assert attempts[0].failure_reason_code == "harness_verification_unconfirmed"
+
+
 def test_w19_5_does_not_clobber_harness_nonce_stamp_on_on_debug() -> None:
     """Scope discipline: verified HMAC on onDebug stays harness_nonce, not log_record.
 

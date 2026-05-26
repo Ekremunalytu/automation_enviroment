@@ -328,6 +328,54 @@ def test_baseline_activation_report_round_trip_fills_confirmation_source_default
         )
 
 
+# W19-6-followup-2 [GOAL harness-verification-contract-event-level]: pin the
+# producer↔schema contract end-to-end. The W19-3 tests above validate the
+# field validator on a *minimal* payload; this test validates the *full*
+# shape the W19-4 + W19-5 producer arms actually emit (with the runtime
+# fields ``executor_action``, ``attempted_passes``, ``capability_tags``,
+# ``verification_contract``) parametrized across all 3 confirmation_source
+# values. A future producer-side field rename (without a matching schema
+# update) would surface here rather than silently in production.
+@pytest.mark.parametrize(
+    "confirmation_source,event_family,activation_event",
+    [
+        ("harness_nonce", "onDebug", "onDebug:python"),
+        (
+            "log_record",
+            "onLanguageModelTool",
+            "onLanguageModelTool:configurePythonEnvironment",
+        ),
+        ("log_record", "onTerminalShellIntegration", "onTerminalShellIntegration"),
+        ("none", "onCommand", "onCommand:python.runInTerminal"),
+    ],
+)
+def test_w19_4_5_producer_emitted_shape_validates_against_w19_3_schema(
+    confirmation_source: str, event_family: str, activation_event: str
+) -> None:
+    """W19-6-followup-2: full producer-emitted shape parses cleanly + round-trips."""
+    producer_emitted = {
+        "attempt_id": "harness",
+        "declared_event": activation_event,
+        "activation_event": activation_event,
+        "event_family": event_family,
+        "status": "attempted_only" if confirmation_source == "none" else "verified",
+        "executor_action": "harness:run_current_stimulus",
+        "attempted_passes": ["target_specific_activation"],
+        "capability_tags": ["debug" if event_family == "onDebug" else "chat"],
+        "verification_contract": ["activation_log_prefix", "automation_trace"],
+        "confirmation_source": confirmation_source,
+    }
+
+    record = EventAttemptRecord.model_validate(producer_emitted)
+    assert record.confirmation_source == confirmation_source
+    assert record.executor_action == "harness:run_current_stimulus"
+
+    dumped = record.model_dump(mode="json")
+    assert dumped["confirmation_source"] == confirmation_source
+    reparsed = EventAttemptRecord.model_validate(dumped)
+    assert reparsed == record
+
+
 @pytest.mark.skipif(not _ALL_BASELINE_VSIX_PRESENT, reason=_BASELINE_VSIX_SKIP_REASON)
 @patch("workflows.marketplace.client.httpx.Client", side_effect=AssertionError)
 def test_baseline_extension_fixtures_resolve_from_local_artifacts_without_network(

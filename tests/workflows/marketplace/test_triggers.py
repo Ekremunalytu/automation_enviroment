@@ -67,6 +67,39 @@ class TestSelectScenarios:
         # completion marker can stamp confirmation_source on the attempt.
         assert attempt.executor_action == "harness:run_current_stimulus"
 
+    # W19-6-followup-2 [BUG planner-on-debug-routing]: pin the W19-X Bug A
+    # fix for all 5 onDebug* variants. The existing test above only covers
+    # bare ``onDebug``. A future refactor that adds a new variant or
+    # silently regresses any one variant to the legacy ``extra:debug_lifecycle``
+    # path (which never invokes the harness command) would surface here
+    # rather than only on the next live run.
+    @pytest.mark.parametrize(
+        "event_type",
+        [
+            "onDebug",
+            "onDebugResolve",
+            "onDebugInitialConfigurations",
+            "onDebugDynamicConfigurations",
+            "onDebugAdapterProtocolTracker",
+        ],
+    )
+    def test_w19_x_on_debug_variants_route_to_harness_run_current_stimulus(
+        self, event_type: str
+    ) -> None:
+        events = [{"event_type": event_type, "event_value": "python"}]
+        payload = select_scenarios(events)
+        attempts = [
+            item for item in payload.event_attempts if item.event_family == event_type
+        ]
+        assert attempts, (
+            f"select_scenarios produced no attempt for event_family={event_type!r}"
+        )
+        for attempt in attempts:
+            assert attempt.executor_action == "harness:run_current_stimulus", (
+                f"{event_type} attempt routed to {attempt.executor_action!r}, "
+                f"expected 'harness:run_current_stimulus'"
+            )
+
     def test_on_view_scm_selects_git_workflow(self) -> None:
         events = [{"event_type": "onView", "event_value": "scm"}]
         payload = select_scenarios(events)

@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import os
 import subprocess
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import pytest
@@ -96,6 +97,37 @@ def test_secret_only_does_not_mint_a_fresh_random_secret(tmp_path: Path) -> None
     assert rc1 == 0
     assert rc2 == 0
     assert sp1.read_text() == sp2.read_text() == boot_secret
+
+
+# W19-6-followup-2 [FOLLOWUP harness-secret-extra-reactivation-source]:
+# concurrent stress for the W19-X Bug C fix. Existing sequential tests pin
+# that two consecutive ``--secret-only`` calls converge on the same
+# inherited value; this test pins the same invariant under parallel fire
+# — multiple reload reactivations racing against one another must NOT
+# produce two divergent secrets on disk (which would invalidate every
+# signed marker on the losing side). The current env-var-inheritance fix
+# is deterministic per-call, so concurrency cannot diverge, but a future
+# refactor that re-introduced random minting in the secret-only branch
+# would surface here.
+def test_secret_only_concurrent_invocations_are_consistent(tmp_path: Path) -> None:
+    """W19-X Bug C concurrent-stress regression: four parallel
+    ``--secret-only`` invocations sharing the same inherited env value
+    must write the same value to every sandbox they touch."""
+    boot_secret = "d" * 64
+
+    sandboxes = [tmp_path / f"run{idx}" for idx in range(4)]
+
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        futures = [
+            executor.submit(_run_secret_only, boot_secret, sandbox)
+            for sandbox in sandboxes
+        ]
+        results = [f.result() for f in futures]
+
+    for rc, stderr, secret_path, python_secret_path in results:
+        assert rc == 0, f"expected zero exit, got rc={rc}; stderr={stderr!r}"
+        assert secret_path.read_text() == boot_secret
+        assert python_secret_path.read_text() == boot_secret
 
 
 @pytest.mark.parametrize(
