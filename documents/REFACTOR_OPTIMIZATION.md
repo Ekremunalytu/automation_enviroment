@@ -1039,6 +1039,16 @@ W21-W22 Roadmap Acceptance Bar (planning) tablosunda:
   candidate; W19-X close-out migrated).
 - `[FOLLOWUP harness-secret-extra-reactivation-source]` — opportunistic
   W20-5 if live-run diagnostic surfaces `poll_attempts > 1`.
+- `[FOLLOWUP sandbox-reset-stale-state-multi-analyze]` (new at
+  W20-5-followup-2 `2026-05-27`) — deterministic `reset_sandbox`
+  flake on the second analyze in the same executor container;
+  surfaced during W20-5 fresh live-run when `99af09b6d8a9` failed
+  at reset_sandbox after `71ce478660bb` had succeeded 31 min
+  earlier on the same container. Workaround: container restart.
+  Production impact LOW (CI uses fresh-per-analyze containers).
+  W21 candidate; possibly bundled with W21-4
+  container-hardening-baseline. Full entry at
+  [`POST_POC_BACKLOG.md`](POST_POC_BACKLOG.md).
 - `[RESEARCH activation-event-spec-crosswalk]` (W22-6 implement if
   W20-0 crosswalk reveals gap; W20-0 forward-ref'd).
 - W19'da kapanan tüm kalemler — `POST_POC_BACKLOG.md` W19

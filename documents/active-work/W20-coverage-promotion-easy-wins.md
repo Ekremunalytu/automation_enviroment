@@ -432,6 +432,21 @@ clean; W20-1 ready to start.
   a W19-X-followup-2 fix before continuing to W20-1 — opportunistic
   scope adjustment.
 
+## Discoveries (W20-5)
+
+- **`reset_sandbox` stale-state flake** (filed at W20-5-followup-2
+  `2026-05-27` as
+  [`[FOLLOWUP sandbox-reset-stale-state-multi-analyze]`](../POST_POC_BACKLOG.md))
+  — surfaced during W20-5 fresh live-run. First attempt
+  `99af09b6d8a9` failed at `reset_sandbox` step (`rc=1` from
+  `reload_vscode.py`) on the same executor container that had
+  successfully run `71ce478660bb` 31 min earlier. noVNC inspection
+  during the failure showed VS Code Developer Tools panel still
+  open from the prior analyze. `docker compose restart executor`
+  + retry produced a clean run (`4e92de149802`, ~5.3 min). Out of
+  W20 scope (sandbox-reset hygiene, not taxonomy promotion); W21
+  candidate.
+
 ## Notes
 
 - Commit cadence per W11-W19 paterni: each sub-iter lands a primary
