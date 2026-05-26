@@ -346,6 +346,21 @@ def reconcile_event_attempts(report: Any) -> list[Any]:
         # confirmation source (log_record / none).
         if execution_closed and family.startswith("onDebug"):
             attempt.confirmation_source = "harness_nonce"
+        # W19-5: onTerminalShellIntegration + onLanguageModelTool ride the
+        # same HMAC-verified runCurrentStimulus pipeline (planner routes
+        # onLM directly through harness:run_current_stimulus; the terminal
+        # family arrives via OFFICIAL_EVENT_REGISTRY's harness_fallback
+        # path because its verification_contract carries automation_trace).
+        # They get the distinct "log_record" label rather than
+        # "harness_nonce" — the run-level reason emission gates on
+        # confirmation_source!="none" regardless of which non-none value
+        # is set, so the relabel is purely diagnostic; W20+ may collapse
+        # the two labels or widen log_record to additional families.
+        elif execution_closed and (
+            family == "onTerminalShellIntegration"
+            or family.startswith("onLanguageModelTool")
+        ):
+            attempt.confirmation_source = "log_record"
 
         if not contracts:
             target_reaction_closed = bool(exact_matches or prefix_matches)

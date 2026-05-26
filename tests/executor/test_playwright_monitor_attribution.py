@@ -658,6 +658,24 @@ def test_reconcile_event_attempts_marks_unverified_harness_attempts() -> None:
 def test_reconcile_event_attempts_keeps_chat_tool_attempt_attempted_only_without_target_reaction() -> (
     None
 ):
+    """Status pinning: chat-tool attempt without target activation stays
+    ``attempted_only`` even after W19-5 widened the stamp scope to
+    onLanguageModelTool.
+
+    W19-5 (2026-05-26) stamps ``confirmation_source = "log_record"`` on
+    verified-marker / no-target-reaction onLanguageModelTool attempts;
+    the consumer guard in ``_mark_unverified_harness_attempt`` then
+    suppresses ``failure_reason_code = "harness_verification_unconfirmed"``
+    because the attempt already records confirmed harness evidence
+    (``log_record``). The terminal state still reaches
+    ``attempted_only``, and the ``result_details`` still describes the
+    unresolved target-reaction surface — those are independent of the
+    confirmation stamp.
+    """
+    # Fixture lacks expected_harness_nonce, so the marker doesn't HMAC-verify
+    # under the W13-1 contract — but the legacy phase-only branch in
+    # _attempt_has_harness_completion_trace returns True
+    # (handshake_required defaults to False on ActivationReport).
     report = monitor.ActivationReport(
         target_extension_id="publisher.tool",
         extension_host_output=(
@@ -682,7 +700,8 @@ def test_reconcile_event_attempts_keeps_chat_tool_attempt_attempted_only_without
     attempts = monitor.reconcile_event_attempts(report)
 
     assert attempts[0].status == "attempted_only"
-    assert attempts[0].failure_reason_code == "harness_verification_unconfirmed"
+    assert attempts[0].confirmation_source == "log_record"
+    assert attempts[0].failure_reason_code == ""
     assert "target verification remained unresolved" in attempts[0].result_details
 
 

@@ -837,8 +837,14 @@ _W19_4_ONDEBUG_FAMILIES = (
 )
 
 _W19_4_NON_ONDEBUG_FAMILIES = (
-    ("onTerminalShellIntegration", "onTerminalShellIntegration"),
-    ("onLanguageModelTool", "onLanguageModelTool:foo"),
+    # W19-5 widened the stamp scope to onTerminalShellIntegration +
+    # onLanguageModelTool (with "log_record"), so this scope-discipline
+    # parametrize narrows to onCommand only. onCommand is *intentionally
+    # never stamped* via either branch — its dispatch goes through the
+    # planner's command:auto / scenario:coding_session executor_action
+    # paths and never carries the automation_trace contract. A future
+    # widening of the stamp scope to onCommand would require an explicit
+    # design conversation.
     ("onCommand", "onCommand:bar"),
 )
 
@@ -976,11 +982,13 @@ def test_w19_4_does_not_stamp_when_no_marker_present_for_onDebug() -> None:  # n
 def test_w19_4_does_not_stamp_on_non_onDebug_families(  # noqa: N802 — "onDebug" preserves the VS Code event-family name
     family: str, activation_event: str
 ) -> None:
-    """Scope discipline: verified HMAC on non-onDebug families leaves confirmation_source at 'none'.
+    """Scope discipline: verified HMAC on out-of-scope families leaves confirmation_source at 'none'.
 
-    A future "stamp every verified" refactor must delete this test, forcing
-    the design conversation about widening the family scope (W19-5 wires
-    onTerminal* and onLM* to ``"log_record"``, a distinct source).
+    Post-W19-5 the parametrize set narrows to ``onCommand`` (W19-5 widened
+    the stamp scope to onTerminalShellIntegration + onLanguageModelTool
+    with the ``"log_record"`` label — see the W19-5 block below). A
+    future widening to ``onCommand`` would require an explicit design
+    conversation.
     """
     secret = "secret-loaded-from-results-handshake"  # noqa: S105 — test fixture
     payload = _w19_4_signed_complete_payload(family, activation_event, secret)
@@ -1123,9 +1131,15 @@ def test_w19_4_harness_verification_unconfirmed_present_drops_only_when_all_unco
 def test_w19_4_harness_verification_unconfirmed_present_drops_only_when_all_unconfirmed_attempts_stamp_single_unstamped() -> (
     None
 ):
-    """End-to-end orthogonality 2/3: single unstamped attempt → reason emitted."""
+    """End-to-end orthogonality 2/3: single unstamped attempt → reason emitted.
+
+    Uses ``onCommand`` because W19-5 widened the producer arm to stamp
+    onLanguageModelTool / onTerminalShellIntegration — the previous
+    ``onLanguageModelTool`` choice would now stamp and silently invert
+    the test premise.
+    """
     reasons = _w19_4_run_reasons(
-        [_w19_4_unstamped_attempt("onLanguageModelTool", "onLanguageModelTool:foo")]
+        [_w19_4_unstamped_attempt("onCommand", "onCommand:bar")]
     )
 
     assert "harness_verification_unconfirmed_present" in reasons
@@ -1139,15 +1153,214 @@ def test_w19_4_harness_verification_unconfirmed_present_drops_only_when_all_unco
     Pins that the consumer wire is per-attempt — an unstamped attempt
     elsewhere in the run still carries
     ``failure_reason_code='harness_verification_unconfirmed'`` and still
-    drives the run-level reason. W19-5 will close this surface by
-    stamping onTerminalShellIntegration / onLanguageModelTool: with
-    ``log_record``.
+    drives the run-level reason. W19-5 closed onTerminalShellIntegration
+    + onLanguageModelTool families, so the unstamped half here uses
+    ``onCommand`` — its dispatch path never carries the
+    automation_trace contract that would route through the harness
+    stamp pipeline. A target extension whose declared events fall
+    entirely outside the W19-4/W19-5 stamped scope keeps the original
+    diagnostic shape.
     """
     reasons = _w19_4_run_reasons(
         [
             _w19_4_stamped_attempt(),
-            _w19_4_unstamped_attempt("onLanguageModelTool", "onLanguageModelTool:foo"),
+            _w19_4_unstamped_attempt("onCommand", "onCommand:bar"),
         ]
     )
 
     assert "harness_verification_unconfirmed_present" in reasons
+
+
+# ---------------------------------------------------------------------------
+# W19-5 — onTerminalShellIntegration + onLanguageModelTool log_record stamp
+#
+# Hat-2 closure. Markers for these families ride the same HMAC-signed
+# runCurrentStimulus pipeline used by onDebug* (planner routes onLM
+# directly through harness:run_current_stimulus; onTerminalShellIntegration
+# arrives via the OFFICIAL_EVENT_REGISTRY harness_fallback path because
+# its verification_contract carries automation_trace). The W19-5
+# producer-arm extension stamps these families with
+# ``confirmation_source = "log_record"`` — distinct from onDebug's
+# ``"harness_nonce"`` label to reflect the local-only confirmation
+# surface (these families lack the activation_log_exact contract that
+# justifies harness_nonce's stronger label semantically). The
+# run-level reason ``harness_verification_unconfirmed_present`` gates
+# on ``confirmation_source != "none"`` regardless of label, so the
+# diagnostic distinction is the only behavioral difference between
+# harness_nonce and log_record today.
+# ---------------------------------------------------------------------------
+
+
+_W19_5_ONLM_VARIANTS = (
+    "onLanguageModelTool",
+    "onLanguageModelTool:configurePythonEnvironment",
+    "onLanguageModelTool:createVirtualEnvironment",
+    "onLanguageModelTool:getPythonEnvironmentDetails",
+    "onLanguageModelTool:installPythonPackages",
+)
+
+
+def _w19_5_build_log_record_report(
+    family: str,
+    activation_event: str,
+    secret: str,
+    *,
+    extension_host_output: str | None = None,
+    activated: list[ActivationEntry] | None = None,
+) -> ActivationReport:
+    if extension_host_output is None:
+        payload = _w19_4_signed_complete_payload(family, activation_event, secret)
+        extension_host_output = f"[extrace-harness] {json.dumps(payload)}\n"
+    if activated is None:
+        activated = [
+            ActivationEntry(
+                extension_id="publisher.tool",
+                activation_event=activation_event,
+                timestamp="2026-01-01 10:00:00.000",
+                source="log",
+            )
+        ]
+    capability_tag = (
+        "chat" if family.startswith("onLanguageModelTool") else "terminal_tasks"
+    )
+    report = ActivationReport(
+        activated=activated,
+        target_extension_id="publisher.tool",
+        extension_host_output=extension_host_output,
+        event_attempts=[
+            EventAttemptRecord(
+                attempt_id="harness",
+                declared_event=activation_event,
+                activation_event=activation_event,
+                event_family=family,
+                executor_action="harness:run_current_stimulus",
+                attempted_passes=["target_specific_activation"],
+                capability_tags=[capability_tag],
+                verification_contract=["activation_log_prefix", "automation_trace"],
+            )
+        ],
+    )
+    report.expected_harness_nonce = secret  # type: ignore[attr-defined]
+    return report
+
+
+def test_w19_5_stamps_log_record_on_terminal_shell_integration() -> None:
+    """Producer GREEN path: verified HMAC marker on onTerminalShellIntegration stamps log_record."""
+    secret = "secret-loaded-from-results-handshake"  # noqa: S105 — test fixture
+    report = _w19_5_build_log_record_report(
+        "onTerminalShellIntegration", "onTerminalShellIntegration", secret
+    )
+
+    attempts = reconcile_event_attempts(report)
+
+    assert attempts[0].confirmation_source == "log_record"
+
+
+@pytest.mark.parametrize("activation_event", _W19_5_ONLM_VARIANTS)
+def test_w19_5_stamps_log_record_for_all_language_model_tool_variants(
+    activation_event: str,
+) -> None:
+    """Prefix-match invariant: bare onLanguageModelTool + onLanguageModelTool:<tool> variants stamp."""
+    secret = "secret-loaded-from-results-handshake"  # noqa: S105 — test fixture
+    report = _w19_5_build_log_record_report(
+        "onLanguageModelTool", activation_event, secret
+    )
+
+    attempts = reconcile_event_attempts(report)
+
+    assert attempts[0].confirmation_source == "log_record", (
+        f"{activation_event} should stamp confirmation_source=log_record"
+    )
+
+
+def test_w19_5_does_not_stamp_on_forged_nonce_for_language_model_tool() -> None:
+    """Producer fail-closed: forged HMAC nonce leaves confirmation_source at 'none'."""
+    secret = "secret-loaded-from-results-handshake"  # noqa: S105 — test fixture
+    forged_payload = {
+        "kind": "stimulus",
+        "phase": "complete",
+        "attempt_id": "harness",
+        "family": "onLanguageModelTool",
+        "activation_event": "onLanguageModelTool:foo",
+        "nonce": "0" * 64,
+    }
+    report = _w19_5_build_log_record_report(
+        "onLanguageModelTool",
+        "onLanguageModelTool:foo",
+        secret,
+        extension_host_output=f"[extrace-harness] {json.dumps(forged_payload)}\n",
+        activated=[],
+    )
+
+    attempts = reconcile_event_attempts(report)
+
+    assert attempts[0].confirmation_source == "none"
+    assert attempts[0].failure_reason_code == "harness_verification_unconfirmed"
+
+
+def test_w19_5_does_not_stamp_when_no_marker_present_for_terminal_or_lm() -> None:
+    """Producer fail-closed: missing harness marker leaves confirmation_source at 'none'."""
+    secret = "secret-loaded-from-results-handshake"  # noqa: S105 — test fixture
+    report = _w19_5_build_log_record_report(
+        "onTerminalShellIntegration",
+        "onTerminalShellIntegration",
+        secret,
+        extension_host_output="",
+        activated=[],
+    )
+
+    attempts = reconcile_event_attempts(report)
+
+    assert attempts[0].confirmation_source == "none"
+    assert attempts[0].failure_reason_code == "harness_verification_unconfirmed"
+
+
+def test_w19_5_does_not_clobber_harness_nonce_stamp_on_on_debug() -> None:
+    """Scope discipline: verified HMAC on onDebug stays harness_nonce, not log_record.
+
+    The W19-5 elif branch must come *after* (not before) the W19-4
+    onDebug branch — a future refactor that flips the order would
+    silently demote onDebug's stronger confirmation strength.
+    """
+    secret = "secret-loaded-from-results-handshake"  # noqa: S105 — test fixture
+    report = _w19_4_build_onDebug_report("onDebug", secret)
+
+    attempts = reconcile_event_attempts(report)
+
+    assert attempts[0].confirmation_source == "harness_nonce"
+
+
+def test_w19_5_consumer_skips_failure_reason_code_when_log_record_stamped() -> None:
+    """Consumer wire integration: stamped log_record attempts skip the unverified marker."""
+    attempt = EventAttemptRecord(
+        attempt_id="harness",
+        declared_event="onLanguageModelTool",
+        activation_event="onLanguageModelTool:foo",
+        event_family="onLanguageModelTool",
+        executor_action="harness:run_current_stimulus",
+        confirmation_source="log_record",
+    )
+
+    _mark_unverified_harness_attempt(attempt, execution_closed=True)
+
+    assert attempt.status == "attempted_only"
+    assert attempt.verification_status == "attempted_only"
+    assert attempt.failure_reason_code == ""
+    assert any("harness_trace:harness" in str(item) for item in attempt.evidence)
+
+
+def test_w19_5_consumer_sets_failure_reason_code_when_log_record_stays_none() -> None:
+    """Consumer wire existing-behavior preservation: unstamped attempts still flag the reason."""
+    attempt = EventAttemptRecord(
+        attempt_id="harness",
+        declared_event="onLanguageModelTool",
+        activation_event="onLanguageModelTool:foo",
+        event_family="onLanguageModelTool",
+        executor_action="harness:run_current_stimulus",
+        confirmation_source="none",
+    )
+
+    _mark_unverified_harness_attempt(attempt, execution_closed=True)
+
+    assert attempt.status == "attempted_only"
+    assert attempt.failure_reason_code == "harness_verification_unconfirmed"
