@@ -84,7 +84,7 @@ template structurally followed here.
 | W20-2 | **closed `2026-05-26`** via primary `a4343d2` + self-stamp `7406588` — `[GOAL taxonomy-settings-official-promotion]` — `_OFFICIAL_CAPABILITY_SUPPORT["settings"]: "missing" → "covered"` flip at [`capabilities.py:90`](../../packages/analysis_planner/capabilities.py) + W20-1 paterni byte-identical (schema impact + invariant tests + fixture regen if needed) | TBD | live W20 acceptance #2 (`settings` drops from `missing_capabilities`) |
 | W20-3 | **closed `2026-05-26`** via primary `d4c03b6` + self-stamp `2e39230` — `[GOAL coverage-matrix-contract-tests]` — invariant set codifying future track promotions: keyset parity (official ↔ heuristic ↔ taxonomy), official ⊆ heuristic (official-covered cannot be heuristic-missing), `_GLOBAL_CAPABILITY_NOTES` keyset ↔ taxonomy subset alignment, `CAPABILITY_TAXONOMY` ordering pin (anti-drift), W20-1 + W20-2 post-condition regression pin. Either extend `tests/platform/contracts/test_coverage_model.py` or new `test_coverage_track_invariants.py` | TBD | structural pin against future promotion regressions |
 | W20-4 | **closed `2026-05-26`** via primary `05f47f3` + self-stamp `b409894` — `[DESIGN taxonomy-comments-testing-readiness]` — VS Code Comments API surface inventory + Test Controller API surface inventory + currently-stubbed-vs-missing plumbing audit + W21 implementation şablonu (`testing` W21-1 + `comments` W21-2). Doc-only — `documents/architecture/` or `documents/active-work/W21-readiness/` location TBD. `_GLOBAL_CAPABILITY_NOTES` policy ("local-only", "external services yasak") ↔ W21 surface plumbing önerisi | TBD | W21-1 + W21-2 unblocker (template) |
-| W20-5 | **closed `2026-05-27`** via primary this commit — close-out hygiene + 9-doc canonical preamble Active → Previous flip + §18 W20 self-stamp + W20 tracker freeze + W20 Pull-Forward Acceptance Bar audit-trail close + 3 new arch invariant tests (GAP-A `test_w20_section_18_cross_doc_parity.py` 18 parametrized assertions + GAP-B `_OFFICIAL_CAPABILITY_SUPPORT` full dict shape pin extension + GAP-D `test_w20_4_design_doc_presence.py` 3 assertions on the W20-4 readiness doc); final live-run on `ms-python.python` (`scm` + `settings` drop from `missing_capabilities` 6 → 4 — must-pass; W19 close-out Hat-1 + Hat-2 hold post-flip evidence already captured at post-acceptance anchor `71ce478660bb` sha256 `cb402365...cd83`); close-out PR `week20 -> main` open **PENDING USER APPROVAL**. W18-4 / W19-6 paterni. | this commit | close-out + live acceptance |
+| W20-5 | **closed `2026-05-27`** via primary `4665d32` — close-out hygiene + 9-doc canonical preamble Active → Previous flip + §18 W20 self-stamp + W20 tracker freeze + W20 Pull-Forward Acceptance Bar audit-trail close + 3 new arch invariant tests (GAP-A `test_w20_section_18_cross_doc_parity.py` 18 parametrized assertions + GAP-B `_OFFICIAL_CAPABILITY_SUPPORT` full dict shape pin extension + GAP-D `test_w20_4_design_doc_presence.py` 3 assertions on the W20-4 readiness doc); final live-run on `ms-python.python` (`scm` + `settings` drop from `missing_capabilities` 6 → 4 — must-pass; W19 close-out Hat-1 + Hat-2 hold post-flip evidence already captured at post-acceptance anchor `71ce478660bb` sha256 `cb402365...cd83`); close-out PR `week20 -> main` open **PENDING USER APPROVAL**. W18-4 / W19-6 paterni. | this commit | close-out + live acceptance |
 
 ### §18.0 — Neden ayrı §18
 
@@ -213,17 +213,20 @@ W20 kapanır şu koşullar sağlandığında:
   the W21-1 (testing) + W21-2 (comments) unblocker template
   (Comments API + Test Controller API surface inventory + W21
   plumbing layout + 5 open questions for W21-0).
-- [x] W20-5 close-out hygiene landed via primary this commit —
-  9-doc canonical preamble Active → Previous flip + §18 W20
-  self-stamp + W20 tracker freeze + W20 Pull-Forward Acceptance
-  Bar audit-trail close + 3 new arch invariant tests (GAP-A
-  `test_w20_section_18_cross_doc_parity.py` + GAP-B
-  `_OFFICIAL_CAPABILITY_SUPPORT` full dict shape pin extension
-  + GAP-D `test_w20_4_design_doc_presence.py`); final live-run
-  pending W20-5 self-stamp follow-up (per W19-6 paterni).
+- [x] W20-5 close-out hygiene landed via primary `4665d32` +
+  self-stamp this commit — 9-doc canonical preamble Active →
+  Previous flip + §18 W20 self-stamp + W20 tracker freeze + W20
+  Pull-Forward Acceptance Bar audit-trail close + 3 new arch
+  invariant tests (GAP-A `test_w20_section_18_cross_doc_parity.py`
+  with W20-5 final anchor pin pair added by this self-stamp +
+  GAP-B `_OFFICIAL_CAPABILITY_SUPPORT` full dict shape pin
+  extension + GAP-D `test_w20_4_design_doc_presence.py`). Final
+  live-run captured `2026-05-27` via this self-stamp follow-up:
+  anchor `4e92de149802` (sha256 `3804a5b5...4394c`) —
   `coverage_summary.missing_capabilities` drop `scm` + `settings`
-  (6 → 4) — **LIVE-SATISFIED** via post-acceptance anchor
-  `71ce478660bb` (sha256 `cb402365...cd83`).
+  (6 → 4) **LIVE-SATISFIED on fresh run**; W19 Hat-1
+  (`unaccounted_dropout == 0`) + Hat-2
+  (`harness_verification_unconfirmed_present` DROPPED) both hold.
 - [x] `automation_health.reasons` listesi: post-acceptance anchor
   `71ce478660bb` shows `[skipped_scenarios_present,
   verification_gap_present, official_unresolved_present]` —
@@ -235,12 +238,14 @@ W20 kapanır şu koşullar sağlandığında:
 - [x] `REFACTOR_STATUS.md`, `POST_POC_BACKLOG.md`,
   `active-work/README.md`, ve ilgili lane docs aynı active/closed
   state'i gösterir — 9-doc canonical preamble parity gate green.
-- [x] W20 final bar: `make test-security` 220 passed (unchanged);
-  `tests/architecture/` ≥210 passed (W19 final 204 + 1 W19
-  close-out fact gate from W20-0 + 3 W20-5 close-out arch tests:
-  GAP-A 18 parametrized + GAP-D 3 + 1 header header sanity);
-  full suite ≥2020 passed (W19 baseline 1995 + W20-0..W20-4
-  +17 + W20-5 +25 = 2037 estimate; non-binding).
+- [x] W20 final bar (pinned at this self-stamp commit):
+  `make test-security` **220 passed** (unchanged); `tests/architecture/`
+  **240 passed**, 4 deselected (W19 final 204 + 32 W20 additions:
+  1 W20-0 W19 close-out fact gate + 23 W20-5 GAP-A primary + 3
+  W20-5 GAP-D + 5 W20-5 self-stamp anchor pin extensions); full
+  suite **2045 passed**, 9 skipped, 8 deselected (W19 baseline
+  1995 + W20-0..W20-4 +17 + W20-5 primary +28 + W20-5 self-stamp
+  +5 = 2045).
 - [x] Close-out hygiene pass: 3 new arch invariant tests added
   (GAP-A `test_w20_section_18_cross_doc_parity.py` + GAP-B
   `_OFFICIAL_CAPABILITY_SUPPORT` dict shape pin extension + GAP-D
@@ -460,7 +465,7 @@ W20-0..W20-5 delivered; PR `week20 -> main` PENDING USER APPROVAL.
 | W20-2 | `settings` official-track promotion (`capabilities.py:90` flip + 4 invariant tests + fixture regen) | `a4343d2` | `7406588` |
 | W20-3 | coverage matrix contract invariants (5 tests: keyset parity + Official ⊆ Heuristic + notes ↔ taxonomy + ordering + W20-1/W20-2 combined post-condition) | `d4c03b6` | `2e39230` |
 | W20-4 | comments + testing readiness DESIGN doc (W21 plumbing şablonu) | `05f47f3` | `b409894` |
-| W20-5 | close-out hygiene + 9-doc preamble Active → Previous + tracker freeze + 3 new arch invariant tests (GAP-A + GAP-B + GAP-D) | this commit | TBD (self-stamp follow-up) |
+| W20-5 | close-out hygiene + 9-doc preamble Active → Previous + tracker freeze + 3 new arch invariant tests (GAP-A + GAP-B + GAP-D) + fresh live-run anchor pin | `4665d32` | this commit (self-stamp follow-up) |
 
 ### Live Evidence (W20 Acceptance Bar — SATISFIED)
 
@@ -468,8 +473,9 @@ W20-0..W20-5 delivered; PR `week20 -> main` PENDING USER APPROVAL.
 |---|---|---|
 | `e89a82ca9ba8` | `4dd788268f7793143351721875d6ccb340bd1e01b2b0205c53a5561ed0256ffe` | W20-0 baseline (pre-flips) — W19 close-out Hat-1 + Hat-2 live-verified |
 | `71ce478660bb` | `cb402365a19474ad75bdd53925d5c89f947f541bd4554e7ee6d14463bd45cd83` | W20-1 + W20-2 post-acceptance (W20 acceptance bar live-satisfied: `missing_capabilities` 6 → 4) |
+| `4e92de149802` | `3804a5b5eda559498a7292781d82ae28c7f7d066d506a2c94b49e209f6d4394c` | **W20-5 final live-run** (captured 2026-05-27 via fresh UI-driven analyze API after executor container restart; confirms W20 acceptance bar holds post-close-out: missing_capabilities still 4 entries `[chat, comments, testing, workspace_trust]`; scm + settings both `support_status="covered"`; W19 Hat-1 + Hat-2 invariants hold) |
 
-On `71ce478660bb`:
+On `4e92de149802` (W20-5 final, byte-identical with `71ce478660bb` post-acceptance evidence):
 
 - `coverage_summary.missing_capabilities = [chat, comments, testing,
   workspace_trust]` — **dropped scm + settings** (W20 acceptance bar
@@ -488,9 +494,13 @@ On `71ce478660bb`:
   expected (W22-end hard tier closes
   `official_unresolved_present`).
 
-W20-5 self-stamp follow-up commit will pin the new live-run anchor
-(if Step D fresh re-run lands new evidence) and append to the
-audit-trail row above.
+W20-5 self-stamp follow-up commit (this commit) pinned the fresh
+live-run anchor `4e92de149802` + sha256 `3804a5b5...4394c` into
+the GAP-A `test_w20_section_18_cross_doc_parity.py` constants and
+extended the live evidence table above. The fresh run was triggered
+after restarting the executor container (`docker compose restart
+executor`) to clear stale state from the prior successful 31-min-old
+analyze (`71ce478660bb`).
 
 ### W20-5 Close-Out Surface
 
@@ -526,9 +536,9 @@ audit-trail row above.
 
 | Lane | Count |
 |---|---|
-| `tests/architecture/` | ≥210 passed (W20-0..W20-4 + 3 W20-5 close-out arch tests) |
-| `make test-security` | 220 passed (unchanged from W19) |
-| Full suite | ≥2030 passed (W19 baseline 1995 + W20-0..W20-4 +17 + W20-5 +25 estimate) |
+| `tests/architecture/` | **240 passed**, 4 deselected (W19 final 204 + 1 W20-0 W19 close-out fact gate + 23 W20-5 GAP-A + 3 W20-5 GAP-D + 5 self-stamp extensions = 240; W20-4 baseline 208 → +32) |
+| `make test-security` | **220 passed** (unchanged from W19) |
+| Full suite | **2045 passed**, 9 skipped, 8 deselected (W19 baseline 1995 + W20-0..W20-4 +17 + W20-5 primary +28 + W20-5 self-stamp +5 = 2045) |
 
-Exact final counts pinned at W20-5 self-stamp follow-up commit
-after `.venv/bin/pytest -q` runs.
+Exact final counts pinned at this W20-5 self-stamp commit
+(`.venv/bin/pytest -q` run completed cleanly).

@@ -35,6 +35,7 @@ _W20_FULL_AUDIT_SHAS: tuple[str, ...] = (
     "2e39230",  # W20-3 self-stamp
     "05f47f3",  # W20-4 primary (DESIGN doc)
     "b409894",  # W20-4 self-stamp
+    "4665d32",  # W20-5 primary (close-out hygiene)
 )
 
 
@@ -48,6 +49,7 @@ _W20_PRIMARY_SHAS: tuple[str, ...] = (
     "a4343d2",
     "d4c03b6",
     "05f47f3",
+    "4665d32",  # W20-5 primary (close-out hygiene)
 )
 
 
@@ -57,6 +59,15 @@ _W20_PRIMARY_SHAS: tuple[str, ...] = (
 _W20_BASELINE_ANCHOR_FILENAME = "e89a82ca9ba8"
 _W20_BASELINE_ANCHOR_SHA256 = (
     "4dd788268f7793143351721875d6ccb340bd1e01b2b0205c53a5561ed0256ffe"
+)
+
+
+# W20-5 final live-run anchor — captured 2026-05-27 via fresh UI-driven
+# analyze API after executor container restart. Confirms W20 acceptance
+# bar holds post-close-out. Pinned at W20-5 self-stamp follow-up commit.
+_W20_5_FINAL_ANCHOR_FILENAME = "4e92de149802"
+_W20_5_FINAL_ANCHOR_SHA256 = (
+    "3804a5b5eda559498a7292781d82ae28c7f7d066d506a2c94b49e209f6d4394c"
 )
 
 
@@ -146,6 +157,30 @@ def test_w20_baseline_anchor_sha256_appears_in_tracker() -> None:
         f"{_W20_BASELINE_ANCHOR_SHA256!r}. The W20-0 self-stamp commit "
         f"pinned this sha256; losing it severs the link from narrative "
         f"to the live JSON fingerprint."
+    )
+
+
+def test_w20_5_final_anchor_filename_appears_in_tracker() -> None:
+    """The W20-5 final live-run anchor filename short-SHA must appear
+    in the W20 tracker — proves the close-out has live evidence.
+    """
+    text = (REPO_ROOT / _W20_TRACKER_PATH).read_text(encoding="utf-8")
+    assert _W20_5_FINAL_ANCHOR_FILENAME in text, (
+        f"W20 tracker missing W20-5 final anchor filename "
+        f"{_W20_5_FINAL_ANCHOR_FILENAME!r}. The W20-5 self-stamp commit "
+        f"pinned this anchor as final close-out live evidence."
+    )
+
+
+def test_w20_5_final_anchor_sha256_appears_in_tracker() -> None:
+    """The W20-5 final live-run JSON sha256 must appear in the W20
+    tracker — close-out's audit evidence.
+    """
+    text = (REPO_ROOT / _W20_TRACKER_PATH).read_text(encoding="utf-8")
+    assert _W20_5_FINAL_ANCHOR_SHA256 in text, (
+        f"W20 tracker missing W20-5 final anchor sha256 "
+        f"{_W20_5_FINAL_ANCHOR_SHA256!r}. The W20-5 self-stamp commit "
+        f"pinned this sha256; close-out lives by this fingerprint."
     )
 
 
