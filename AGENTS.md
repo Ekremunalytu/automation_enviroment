@@ -28,6 +28,45 @@
   catalog endpoint posture gate + compose image SHA pin + GH action
   trivy version pin + close-out lint hygiene). Frozen tracker:
   `documents/active-work/W15-codex-uclass-bounds-posture.md`.
+  **Previous phase: W20 — Coverage Promotion Round 1: Easy Wins —
+  closed synthetically `2026-05-27` on the `week20` branch (per
+  user direction `2026-05-26`; W11-W19 paterni preserved); close-out
+  PR `week20 -> main` PENDING USER APPROVAL**: plan
+  `documents/REFACTOR_OPTIMIZATION.md` §18, frozen tracker
+  `documents/active-work/W20-coverage-promotion-easy-wins.md`.
+  **W20-0..W20-5 all closed**: W20-0 doc-reconcile (`66a8a0b` +
+  `5f13757`) + baseline live-run capture (anchor `e89a82ca9ba8`,
+  sha256 `4dd78826...0256ffe`); W20-1
+  `[GOAL taxonomy-scm-official-promotion]` (`82276cb` + `a17e595`) —
+  `_OFFICIAL_CAPABILITY_SUPPORT["scm"]: "missing" → "covered"` at
+  `packages/analysis_planner/capabilities.py:88` + 4 invariant tests
+  + fixture regen; W20-2
+  `[GOAL taxonomy-settings-official-promotion]` (`a4343d2` +
+  `7406588`) — W20-1 paterni byte-identical at `capabilities.py:90`;
+  W20-3 `[GOAL coverage-matrix-contract-tests]` (`d4c03b6` +
+  `2e39230`) — 5 invariant set (keyset parity + Official ⊆
+  Heuristic + notes ↔ taxonomy + ordering + W20-1/W20-2 combined
+  post-condition); W20-4
+  `[DESIGN taxonomy-comments-testing-readiness]` (`05f47f3` +
+  `b409894`) — doc-only readiness şablonu at
+  `documents/architecture/comments-testing-readiness.md` (W21-1 +
+  W21-2 unblocker); W20-5 close-out hygiene (`4665d32` primary +
+  `95b0010` self-stamp + `d163b02` followup-2 filed
+  `[FOLLOWUP sandbox-reset-stale-state-multi-analyze]` for W21 +
+  `ae5b7de` followup-3 10-doc preamble `(this commit)` placeholder
+  backfill) — 9-doc canonical preamble Active → Previous flip +
+  §18 W20 self-stamp + W20 tracker freeze + 3 new arch invariant
+  tests (GAP-A `test_w20_section_18_cross_doc_parity.py` + GAP-B
+  `_OFFICIAL_CAPABILITY_SUPPORT` dict shape pin extension + GAP-D
+  `test_w20_4_design_doc_presence.py`) + W20-5 final live-run
+  (anchor `4e92de149802`, sha256 `3804a5b5...4394c`). **W20
+  acceptance LIVE-SATISFIED**: `coverage_summary.missing_capabilities`
+  6 → 4 (lost `scm` + `settings`); W19 Hat-1 + Hat-2 hold post-W20.
+  Hat-3 mid + hard tiers (testing / comments / workspace_trust /
+  chat) deferred to W21-W22 per multi-iter roadmap. Final W20 bar:
+  `tests/architecture/` **240 passed**, 4 deselected;
+  `make test-security` **220 passed**; full suite **2045 passed,
+  9 skipped, 8 deselected**.
   **Previous phase: W19 — Live-Run Kök Neden: Dropout + Harness
   Verification — closed synthetically `2026-05-26` on the `week19`
   branch (per user direction 2026-05-21; W11-W18 paterni preserved);

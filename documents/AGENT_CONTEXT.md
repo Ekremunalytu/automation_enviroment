@@ -16,22 +16,55 @@ Do not copy phase history here; use `REFACTOR_STATUS.md` (slim canonical).
   `REFACTOR_OPTIMIZATION.md` section 13; W16 plan:
   `REFACTOR_OPTIMIZATION.md` section 14; W17 plan:
   `REFACTOR_OPTIMIZATION.md` section 15; W18 plan:
-  `REFACTOR_OPTIMIZATION.md` section 16; **W19 plan:
-  `REFACTOR_OPTIMIZATION.md` section 17 (active);
-  W20-W22 multi-iter roadmap:
-  `REFACTOR_OPTIMIZATION.md` sections 18-20** (split at W19-0
-  open from the original §17-§20 combined header;
-  source-of-truth tracker `active-work/W18-W22-roadmap.md`;
-  slim canonical; full text under `archive/plans/`).
-- W8-W19 are closed; W13 merged via PR #20 (`772deb3`); W14 merged via
+  `REFACTOR_OPTIMIZATION.md` section 16; W19 plan:
+  `REFACTOR_OPTIMIZATION.md` section 17 (closed synthetically);
+  **W20 plan: `REFACTOR_OPTIMIZATION.md` section 18 (closed
+  synthetically; PR `week20 -> main` PENDING USER APPROVAL);
+  W21-W22 multi-iter roadmap: `REFACTOR_OPTIMIZATION.md`
+  sections 19-20** (split at W20-0 open from the original
+  §18-§20 combined header — same paterni as the W19-0 split of
+  §17-§20; source-of-truth tracker
+  `active-work/W18-W22-roadmap.md`; slim canonical; full text
+  under `archive/plans/`).
+- W8-W20 are closed; W13 merged via PR #20 (`772deb3`); W14 merged via
   PR #21 (`4e03c8d`); W15 merged via PR #22 (`6161472`) on
   `2026-05-18`; W16 merged via PR #23 (`1b6d43f`) on `2026-05-18`;
   W17 merged via PR #25 (`bff565d`) on `2026-05-18`;
   W18 merged via PR #26 (`9874e79`) on `2026-05-21`;
-  **W19 merged via PR #28 (`c879603`) on `2026-05-26`**.
-  Past W8/W11/W12/W13/W14/W15/W16/W17/W18/W19 trackers remain only
-  for stable IDs referenced by code/tests. **Previous phase:** W19 —
-  Live-Run Kök Neden: Dropout + Harness Verification (**closed
+  W19 merged via PR #28 (`c879603`) on `2026-05-26`;
+  **W20 closed synthetically `2026-05-27` on the `week20`
+  branch — close-out PR `week20 -> main` PENDING USER APPROVAL**.
+  Past W8/W11/W12/W13/W14/W15/W16/W17/W18/W19/W20 trackers remain
+  only for stable IDs referenced by code/tests. **Previous phase:**
+  W20 — Coverage Promotion Round 1: Easy Wins (**closed
+  synthetically `2026-05-27`** on the `week20` branch per user
+  direction `2026-05-26`; W11-W19 paterni preserved; close-out
+  PR `week20 -> main` PENDING USER APPROVAL). W20-0..W20-5 all
+  closed: W20-0 doc-reconcile (`66a8a0b` + `5f13757`) + baseline
+  live-run capture (anchor `e89a82ca9ba8`, sha256
+  `4dd78826...0256ffe`); W20-1
+  `[GOAL taxonomy-scm-official-promotion]` (`82276cb` + `a17e595`)
+  at `packages/analysis_planner/capabilities.py:88`; W20-2
+  `[GOAL taxonomy-settings-official-promotion]` (`a4343d2` +
+  `7406588`) at `capabilities.py:90`; W20-3
+  `[GOAL coverage-matrix-contract-tests]` (`d4c03b6` + `2e39230`);
+  W20-4 `[DESIGN taxonomy-comments-testing-readiness]` (`05f47f3` +
+  `b409894`) at
+  `documents/architecture/comments-testing-readiness.md`; W20-5
+  close-out hygiene (`4665d32` primary + `95b0010` self-stamp +
+  `d163b02` followup-2 filed
+  `[FOLLOWUP sandbox-reset-stale-state-multi-analyze]` for W21 +
+  `ae5b7de` followup-3 10-doc preamble `(this commit)` placeholder
+  backfill). **W20 scope**: Hat-3 coverage matrix promotion easy
+  tier (`scm` + `settings` official-track promotion); W20
+  acceptance **LIVE-SATISFIED** on fresh run `4e92de149802`
+  (sha256 `3804a5b5...4394c`): `coverage_summary.missing_capabilities`
+  6 → 4 (lost `scm` + `settings`); W19 Hat-1 + Hat-2 hold
+  post-W20. Hat-3 mid + hard tiers deferred to W21-W22. Final W20
+  bar: `tests/architecture/` **240 passed**, 4 deselected;
+  `make test-security` **220 passed**; full suite **2045 passed,
+  9 skipped, 8 deselected**. **Previous phase:** W19 — Live-Run
+  Kök Neden: Dropout + Harness Verification (**closed
   synthetically `2026-05-26`** on the `week19` branch per user
   direction; W11-W18 paterni preserved; PR #28
   `week19 -> main` MERGED `2026-05-26` via `c879603`).
@@ -46,16 +79,17 @@ Do not copy phase history here; use `REFACTOR_STATUS.md` (slim canonical).
   (`f17b4b1` + `cd82153` + `800c69f`). **W19 scope**: Hat-1 executor
   muhasebe bug closed + live-verified; Hat-2 harness verification gap
   fully closed synthetically; Hat-3 coverage matrix promotion
-  deferred to W20-W22. **Previous phase:** W18 —
-  Heartbeat Refactor (closed `2026-05-21` via PR #26
+  deferred to W20-W22 (W20 closed easy tier — see above). **Previous
+  phase:** W18 — Heartbeat Refactor (closed `2026-05-21` via PR #26
   `week18 -> main` MERGED via `9874e79`; W18-0..W18-4 sub-iter
   slate + W18-4-followup fully delivered; final W18 bar
   `tests/architecture/` **201 passed**; `make test-security`
   **220 passed**; full suite **1907 passed, 9 skipped,
   8 deselected**). W18 frozen tracker:
   `active-work/W18-heartbeat-refactor.md`; W19 frozen tracker:
-  `active-work/W19-live-run-root-cause.md`; multi-iter roadmap
-  source-of-truth: `active-work/W18-W22-roadmap.md`. For
+  `active-work/W19-live-run-root-cause.md`; W20 frozen tracker:
+  `active-work/W20-coverage-promotion-easy-wins.md`; multi-iter
+  roadmap source-of-truth: `active-work/W18-W22-roadmap.md`. For
   current closure state always defer to `REFACTOR_STATUS.md`.
 - Architecture: `ARCHITECTURE.md` (slim) + `architecture/` splits.
 - Placement rules: `PROJECT_STRUCTURE.md` (slim) + `structure/` splits.

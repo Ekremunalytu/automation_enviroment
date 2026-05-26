@@ -201,12 +201,14 @@ pull list.
 | `[FOLLOWUP harness-secret-extra-reactivation-source]` (new; migrated from W19-X-handoff.md risk register at W19-6 close-out) | **Un-gated reload path surfaced during W19-X live close-out (2026-05-26).** Live diagnostic from `activate_enter` records shows that even after W19-X's pre-reload `_rewrite_harness_secret` wiring (which gates the 3 reload sites in `vscode.reload_workbench_window`), at least one reactivation still hits ENOENT on `/run/extrace/harness-secret`. The defensive 30×100ms polling layer in `consumeHarnessNonceSecret` rescues the marker emission (`poll_attempts > 1, has_secret: true`), but the existence of a fourth reload path means there's another orchestration step that calls `Page.reload()` (or equivalent) without going through the gated entry point. Most plausible candidate: `code --install-extension`'s internal reload (the install/reload sequence likely lives in `executor/flows/playwright/install_extension.py` or wherever the install-then-reload step is invoked). **Scope**: trace the un-gated reload source via the `activate_enter` diagnostic (1 ENOENT remaining → 1 reload path not yet routed through `_rewrite_harness_secret`), then gate it through the same `launch_vscode.sh --secret-only` pre-write. **Test**: live smoke on `ms-python.python` — `activate_enter` records show `poll_attempts: 1` for every reactivation (i.e., polling layer goes unused defensively). **Severity/Confidence**: Low / High (defensive polling already masks the failure mode; this is forensic hygiene). | pending — W20-0 forward reference per W19-6 close-out |
 | `[FOLLOWUP sandbox-reset-stale-state-multi-analyze]` (new; surfaced during W20-5 fresh live-run on `2026-05-27`) | **`reset_sandbox` step deterministically flakes on the second analyze in the same executor container.** Repro observed during W20-5 close-out fresh live-run: container had been Up ~31 min after a successful prior analyze (`71ce478660bb` at 23:48); next analyze (`99af09b6d8a9`) failed at `reset_sandbox` with `Command failed (rc=1): /usr/bin/docker exec ... /usr/bin/python3 -m executor.flows.playwright.reload_vscode` — WebSocket `ws://localhost:9222/devtools/browser/...` connected, but the reload script exited non-zero. noVNC inspection during the failure showed VS Code's Developer Tools panel still open from the prior analyze (Elements inspector visible alongside the workbench DOM). After `docker compose restart executor` (single container restart, ~30s downtime), the retry (`4e92de149802`) ran clean in ~5.3 min. **Hypothesis**: VS Code state accumulated across analyses (open auxiliary windows like DevTools, lingering CDP attachments, perhaps unclosed terminal panes — pid output showed 2 bash terminal subprocesses still alive 2 hours later) interferes with the CDP `Page.reload()` issued by `reload_vscode.py`. The reload sends the message and connects, but VS Code's response to the reload returns an error path that surfaces as rc=1 in the wrapper. **Scope**: trace the rc=1 exit path inside `executor/flows/playwright/reload_vscode.py` to identify whether the reload itself errors or a post-reload assertion fails; then add a pre-reload cleanup pass that closes DevTools windows + auxiliary tool panels + ensures terminal panes don't accumulate. May overlap with W18-2 heartbeat refactor coordinator scope (step-1 reset coordinator at `executor/flows/playwright/health/...` — W18-1 ADR 0012 Option A1) — investigate if the heartbeat-relocated reset path is the one that races vs the worker-thread invocation. **Test**: extend `tests/workflows/marketplace/test_lifecycle_harness.py` (W17-2 lifecycle harness scaffold) with a back-to-back-analyze pattern: spin lifecycle harness, run first analyze synchronously, immediately run second analyze on the same container, assert second analyze reaches `install_extension` step (i.e., `reset_sandbox` passed). Pre-condition: container does NOT restart between the two analyses. **Severity/Confidence**: Medium / High (deterministic repro on lokal interactive flow; production impact LOW because CI typically spawns per-analyze fresh containers, so the bug doesn't surface there — but if any user runs back-to-back analyses on the same container, the second fails with no helpful error message). Lane: `[executor]` + `[lifecycle-harness]`. | pending — W21 candidate (multi-analyze lifecycle hygiene; possibly bundled with W21-4 container-hardening-baseline since both touch sandbox reset surface) |
 
-## W20 Pull-Forward Acceptance Bar
+## W20 Pull-Forward Acceptance Bar (closed)
 
-W20-0 in-flight `2026-05-26` on the `week20` branch (per user
-direction; W11-W19 paterni preserved). Stable IDs W20-1..W20-5
-promoted from W20-W22 Roadmap Acceptance Bar (planning, now
-W21-W22) to this Pull-Forward table at W20-0 open. Active tracker:
+**W20 closed synthetically `2026-05-27` on the `week20` branch**
+(per user direction `2026-05-26`; W11-W19 paterni preserved);
+close-out PR `week20 -> main` **PENDING USER APPROVAL**. Stable IDs
+W20-1..W20-5 promoted from W20-W22 Roadmap Acceptance Bar
+(planning, now W21-W22) to this Pull-Forward table at W20-0 open
+and all closed in the W20-0..W20-5 window. Frozen tracker:
 [`active-work/W20-coverage-promotion-easy-wins.md`](active-work/W20-coverage-promotion-easy-wins.md).
 
 | Iter | Stable ID(s) | Status |
@@ -237,21 +239,33 @@ Roadmap Acceptance Bar at W20-0 open):
 
 W20 acceptance (live-run-driven; see §18.4 in
 [`REFACTOR_OPTIMIZATION.md`](REFACTOR_OPTIMIZATION.md) for full
-checklist): live `coverage_summary.missing_capabilities` drops
-`scm` + `settings` (6 → 4) — **must-pass**; static suite green;
-`automation_health.status: degraded` OK (`official_unresolved_present`
-W22-end'inde kapanır — Hat-3 hard tier).
+checklist) **LIVE-SATISFIED** on W20-5 fresh live-run anchor
+`4e92de149802` (sha256 `3804a5b5...4394c`):
+`coverage_summary.missing_capabilities` dropped 6 → **4** (lost
+`scm` + `settings`; remaining `[chat, comments, testing,
+workspace_trust]`); static suite green (final W20 bar
+`tests/architecture/` **240 passed** + `make test-security`
+**220 passed** + full suite **2045 passed, 9 skipped, 8
+deselected**); `automation_health.status: degraded` OK
+(`official_unresolved_present` W22-end'inde kapanır — Hat-3
+hard tier); W19 Hat-1 (`unaccounted_dropout == 0`) + Hat-2
+(`harness_verification_unconfirmed_present` DROPPED) both
+hold post-W20.
 
 ## W21-W22 Roadmap Acceptance Bar (planning)
 
 Multi-iter roadmap planning landed `2026-05-21` per user direction.
 Driving signal: Codex live-run validation of `ms-python.python` @
 `992ad028f3df` (2026-05-21 10:10) → `automation_health.status=degraded`,
-`run_quality=low`. W19-2 live re-anchor now satisfies
-`unaccounted_dropout == 0`; W20-0 promoted W20-W22 first iter to W20
-Pull-Forward (this section above); runtime health remains the W20-W22
-target (Hat-2 fully closed synthetically via W19; W20-W22 close Hat-3
-coverage matrix promotion per planning table below).
+`run_quality=low`. W19-2 live re-anchor satisfied `unaccounted_dropout
+== 0` (Hat-1 closed); W19-3..W19-5 + W19-X closed Hat-2 fully
+synthetically; W20-0 promoted W20-W22 first iter to W20 Pull-Forward
+(closed section above) and W20 closed synthetically `2026-05-27`
+landing the easy tier of Hat-3 (`scm` + `settings` official-track
+promotion; W20-5 final live-run `4e92de149802` confirmed
+`missing_capabilities` 6 → 4). **W21-W22 close the mid + hard tiers
+of Hat-3** (mid: `testing`, `comments`, `workspace_trust`; hard:
+`chat`) per planning table below.
 
 Plan source-of-truth: [`active-work/W18-W22-roadmap.md`](active-work/W18-W22-roadmap.md). Full sub-iter scope, acceptance gates, ADR paths, and critical files there. Plan went through 3 review rounds (Codex live-run + GPT × 2).
 

@@ -60,13 +60,26 @@ row with stable ID + landing commit; full context in the snapshot.
   synthetically). Frozen tracker:
   [`active-work/W19-live-run-root-cause.md`](active-work/W19-live-run-root-cause.md)
   (frozen at W19-6-followup-2 per W17/W18 paterni).
-- §18 → W20 Coverage Promotion Round 1: Easy Wins —
-  **W20-0 in-flight `2026-05-26`** on the `week20` branch (W11-W19
-  paterni preserved). W20-0 doc-reconcile landed this commit; sub-iter
-  slate W20-0..W20-5 reserved by §18 plan; stable IDs W20-1..W20-5
-  reserved at `POST_POC_BACKLOG.md` W20 Pull-Forward Acceptance Bar
-  (promoted from W20-W22 Roadmap Acceptance Bar at W20-0 open). Active
-  tracker:
+- §18 → W20 Coverage Promotion Round 1: Easy Wins — **closed
+  synthetically `2026-05-27`; close-out PR `week20 -> main`
+  PENDING USER APPROVAL** on the `week20` branch (per user
+  direction `2026-05-26`; W11-W19 paterni preserved);
+  W20-0..W20-5 sub-iter slate fully delivered (W20-0
+  doc-reconcile `66a8a0b` + `5f13757`; W20-1 scm flip `82276cb`
+  + `a17e595`; W20-2 settings flip `a4343d2` + `7406588`; W20-3
+  coverage matrix contract invariants `d4c03b6` + `2e39230`;
+  W20-4 comments+testing readiness DESIGN `05f47f3` + `b409894`;
+  W20-5 close-out hygiene `4665d32` primary + `95b0010`
+  self-stamp + `d163b02` followup-2 filed
+  `[FOLLOWUP sandbox-reset-stale-state-multi-analyze]` for W21
+  + `ae5b7de` followup-3 10-doc preamble `(this commit)`
+  placeholder backfill). W20 acceptance LIVE-SATISFIED on fresh
+  run `4e92de149802`:
+  `coverage_summary.missing_capabilities` 6 → 4 (lost `scm` +
+  `settings`); W19 Hat-1 + Hat-2 hold post-W20. Final W20 bar:
+  `tests/architecture/` **240 passed**, 4 deselected;
+  `make test-security` **220 passed**; full suite **2045 passed,
+  9 skipped, 8 deselected**. Frozen tracker:
   [`active-work/W20-coverage-promotion-easy-wins.md`](active-work/W20-coverage-promotion-easy-wins.md).
 - §19-§20 → W21-W22 Multi-iter Capability + Coverage Promotion +
   Sandbox Evasion + Chat Policy Roadmap (planning state, authored
@@ -943,18 +956,19 @@ W19 kapanır şu koşullar sağlandığında:
 
 §18 opened with the W19 close-out PR #28 `week19 -> main` merge on
 `2026-05-26` via `c879603`. **Per user direction (`2026-05-26`) W20
-lives on a `week20` branch (W11-W19 paterni preserved); sub-iter
-commits land on `week20` and the W20 close-out PR `week20 -> main`
-opens at W20-5 PENDING USER APPROVAL.** Active tracker:
+lived on a `week20` branch (W11-W19 paterni preserved); sub-iter
+commits landed on `week20` and the W20 close-out PR `week20 -> main`
+is open at W20-5 PENDING USER APPROVAL.** Frozen tracker:
 [`active-work/W20-coverage-promotion-easy-wins.md`](active-work/W20-coverage-promotion-easy-wins.md)
-carries per-iter scope locks, Per-Item Detail evidence, and the
-baseline live-run smoke artefakt. Driving signal: same Codex live-run
-validation `2026-05-21` of `ms-python.python` @ `992ad028f3df`
-reporting `coverage_summary.missing_capabilities = [scm, settings,
-chat, comments, testing, workspace_trust]`. W19 closed Hat-1 + Hat-2;
-W20 opens Hat-3 (coverage matrix promotion) easy-wins tier. W21-W22
-follow with mid + hard tiers per multi-iter roadmap (§19-§20 planning
-below).
+carries per-iter scope locks, Per-Item Detail evidence, the
+baseline + final live-run smoke artefaktları, and the W20 Closure
+section. Driving signal: same Codex live-run validation `2026-05-21`
+of `ms-python.python` @ `992ad028f3df` reporting
+`coverage_summary.missing_capabilities = [scm, settings, chat,
+comments, testing, workspace_trust]`. W19 closed Hat-1 + Hat-2;
+W20 closed the easy-wins tier of Hat-3 (`scm` + `settings`
+official-track promotion); W21-W22 follow with mid + hard tiers per
+multi-iter roadmap (§19-§20 planning below).
 
 | Iter | Status | Theme | Closes which acceptance-bar item? |
 |---|---|---|---|
@@ -1081,15 +1095,26 @@ W20 kapanır şu koşullar sağlandığında (tam liste W20 tracker §18.4'te
   3 new arch invariant tests (GAP-A cross-doc parity + GAP-B dict
   shape pin + GAP-D DESIGN doc presence). Final live-run + PR
   `week20 -> main` PENDING USER APPROVAL.
-- [ ] Live: `coverage_summary.missing_capabilities` drops `scm` +
-  `settings` (6 → 4) — **must-pass**.
-- [ ] `automation_health.status: degraded` OK
-  (`official_unresolved_present` W22-end'inde kapanır — Hat-3 hard
-  tier).
-- [ ] W20 final bar: `make test-security` ≥220 passed;
-  `tests/architecture/` ≥205 passed (W19 final 204 + 1 W19 close-out
-  fact gate from W20-0); full suite skip count W19 baseline 9'dan
-  **artmamalı**.
+- [x] Live: `coverage_summary.missing_capabilities` drops `scm` +
+  `settings` (6 → 4) — **must-pass LIVE-SATISFIED** via W20-5
+  fresh live-run anchor `4e92de149802` (sha256
+  `3804a5b5...4394c`); `missing_capabilities = [chat, comments,
+  testing, workspace_trust]` post-W20-1/W20-2 flips. Earlier
+  post-acceptance anchor `71ce478660bb` (sha256
+  `cb402365...cd83`) showed the same shape immediately after
+  W20-2; W20-5 fresh run confirms hold post-close-out.
+- [x] `automation_health.status: degraded` OK — reasons list
+  post-W20 is `[skipped_scenarios_present, verification_gap_present,
+  official_unresolved_present]` (3 reasons; W19 Hat-2
+  `harness_verification_unconfirmed_present` DROPPED holds);
+  `official_unresolved_present` closes W22-end (Hat-3 hard tier
+  via `chat` ADR + implementation).
+- [x] W20 final bar pinned at W20-5 self-stamp commit `95b0010`:
+  `make test-security` **220 passed** (unchanged); `tests/architecture/`
+  **240 passed**, 4 deselected (W19 final 204 + 36 W20 additions);
+  full suite **2045 passed, 9 skipped, 8 deselected** (W19 baseline
+  1995 + W20-0..W20-5 +50) — skip count `9` byte-identical with
+  W19 baseline (no regression).
 
 ## §19-§20 — W21-W22 Capability + Coverage Promotion + Sandbox Evasion + Chat Policy Roadmap (planning)
 

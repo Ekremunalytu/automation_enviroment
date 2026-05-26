@@ -28,11 +28,14 @@ template structurally followed here.
 
 ## Status (Quick Glance)
 
-- **W20 open 2026-05-26 on the `week20` branch (per user direction;
-  W11-W19 paterni preserved — sub-iter commits land on `week20` and the
-  W20 close-out PR `week20 -> main` will open at W20-5 PENDING USER
-  APPROVAL).** Branch created from `main` @ `52a47f4`
-  (W19 close-out cross-doc parity gate commit).
+- **W20 closed synthetically `2026-05-27` on the `week20` branch
+  (per user direction `2026-05-26`; W11-W19 paterni preserved —
+  sub-iter commits landed on `week20` and the W20 close-out PR
+  `week20 -> main` is open PENDING USER APPROVAL).** Branch
+  created from `main` @ `52a47f4` (W19 close-out cross-doc parity
+  gate commit). Sub-iter audit trail in the Sub-Iter Scope table
+  below and final close-out evidence in the W20 Closure section
+  at the bottom of this tracker.
 - **Entry gate (met).** W19 close-out PR #28 `week19 -> main` MERGED
   `2026-05-26` via `c879603`; W19 final bar (recorded at W19-6 +
   W19-6-followup-2): `tests/architecture/` **204 passed**;
@@ -56,10 +59,11 @@ template structurally followed here.
   - `settings` mirror — heuristic-covered at line 38; official-missing
     at line 90; `settings_modification` scenario exists. **Single-character
     flip** at W20-2 + invariant tests.
-- **W20-0 in-flight via this commit** — doc reconcile + canonical
-  preamble refresh across 9 docs (`CLAUDE.md` / `README.md` /
-  `AGENTS.md` / `documents/AGENT_CONTEXT.md` /
-  `documents/active-work/README.md` / `documents/REFACTOR_STATUS.md` /
+- **W20-0 closed via primary `66a8a0b` + self-stamp `5f13757`** —
+  doc reconcile + canonical preamble refresh across 9 docs
+  (`CLAUDE.md` / `README.md` / `AGENTS.md` /
+  `documents/AGENT_CONTEXT.md` / `documents/active-work/README.md` /
+  `documents/REFACTOR_STATUS.md` /
   `documents/REFACTOR_OPTIMIZATION.md` anchor map + this tracker +
   `documents/POST_POC_BACKLOG.md` + `documents/active-work/W18-W22-roadmap.md`)
   + new W20 tracker (this file) + §18 W20 plan header doc-open
@@ -72,8 +76,10 @@ template structurally followed here.
   W18-0 W17→W18 transition paterni from `89d0c9b` and the
   W19-0 W18→W19 transition paterni). W20 Pull-Forward Acceptance Bar
   promoted in `POST_POC_BACKLOG.md` from `W20-W22 Roadmap Acceptance
-  Bar (planning)`. Baseline live-run on `ms-python.python` PENDING
-  user "go" (pre-approved baseline + final per AskUserQuestion).
+  Bar (planning)`. Baseline live-run on `ms-python.python` captured
+  via W20-0 self-stamp `5f13757` (anchor `e89a82ca9ba8`, sha256
+  `4dd78826...0256ffe`; W19 close-out Hat-1 + Hat-2 both
+  live-verified).
 
 ## Sub-Iter Scope (Authored 2026-05-26)
 
@@ -268,8 +274,8 @@ W20 kapanır şu koşullar sağlandığında:
 
 ### W20-0 — Doc-Reconcile + §18 Promote + Baseline Live-Run
 
-**Status**: in-flight via this commit (primary `chore(W20-0): ...`
-plus self-stamp follow-up after baseline live-run captures evidence).
+**Status**: **closed `2026-05-26`** via primary `66a8a0b` +
+self-stamp `5f13757` (baseline live-run capture).
 
 **Scope**:
 
@@ -313,12 +319,13 @@ plus self-stamp follow-up after baseline live-run captures evidence).
   absent (W19-4 + W19-X + W19-5 synthetic close-out — live smoke
   pending verification).
 
-**Commits**: primary `chore(W20-0): doc-reconcile — open week20 + §18
-promote from §18-§20 + 9-doc canonical preamble refresh + W20
-Pull-Forward Acceptance Bar promotion + README phase-pointer arch
-gate transition W19→W20 + new W19 close-out fact gate + baseline
-live-run pending` + self-stamp follow-up after live-run evidence
-capture.
+**Commits**: primary `66a8a0b` (`chore(W20-0): doc-reconcile — open
+week20 + §18 promote from §18-§20 + 9-doc canonical preamble
+refresh + W20 Pull-Forward Acceptance Bar promotion + README
+phase-pointer arch gate transition W19→W20 + new W19 close-out
+fact gate + baseline live-run pending`) + self-stamp `5f13757`
+post-baseline-live-run-capture pinning anchor `e89a82ca9ba8`
+(sha256 `4dd78826...0256ffe`).
 
 ### W20-1 — `scm` Official-Track Promotion (placeholder)
 

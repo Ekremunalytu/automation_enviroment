@@ -19,6 +19,38 @@ points to it.
 
 ## Files
 
+- `W20-coverage-promotion-easy-wins.md`
+  - **Frozen phase — W20-0..W20-5 all closed on the `week20`
+    branch per user direction `2026-05-26`; W11-W19 paterni
+    preserved; close-out PR `week20 -> main` PENDING USER
+    APPROVAL.** W20 Coverage Promotion Round 1: Easy Wins (Hat-3
+    coverage matrix promotion easy tier). Audit trail: W20-0
+    doc-reconcile (`66a8a0b` + `5f13757`), W20-1
+    `[GOAL taxonomy-scm-official-promotion]` (`82276cb` +
+    `a17e595`) at `packages/analysis_planner/capabilities.py:88`,
+    W20-2 `[GOAL taxonomy-settings-official-promotion]`
+    (`a4343d2` + `7406588`) at `capabilities.py:90`, W20-3
+    `[GOAL coverage-matrix-contract-tests]` (`d4c03b6` +
+    `2e39230`), W20-4
+    `[DESIGN taxonomy-comments-testing-readiness]` (`05f47f3` +
+    `b409894`) at
+    `documents/architecture/comments-testing-readiness.md`, W20-5
+    close-out hygiene (`4665d32` primary + `95b0010` self-stamp
+    + `d163b02` followup-2 + `ae5b7de` followup-3). Driving
+    signal: same Codex live-run `2026-05-21` of
+    `ms-python.python` @ `992ad028f3df` (W19 baseline). **W20
+    acceptance LIVE-SATISFIED** on fresh run `4e92de149802`
+    (sha256 `3804a5b5...4394c`): `coverage_summary.missing_capabilities`
+    dropped 6 → 4 (lost `scm` + `settings`); W19 Hat-1
+    + Hat-2 hold post-W20. Hat-3 mid + hard tiers (`testing`,
+    `comments`, `workspace_trust`, `chat`) deferred to W21-W22
+    per multi-iter roadmap. Final W20 bar: `tests/architecture/`
+    **240 passed**, 4 deselected; `make test-security` **220
+    passed**; full suite **2045 passed, 9 skipped, 8
+    deselected**. Retained on the read path because code
+    comments + tests reference items by `W20-<n>` ID — do not
+    renumber. Slim canonical:
+    [`REFACTOR_OPTIMIZATION.md §18`](../REFACTOR_OPTIMIZATION.md).
 - `W19-live-run-root-cause.md`
   - **Frozen phase — W19-0..W19-6 + W19-X all closed on the
     `week19` branch per user direction; W11-W18 paterni preserved;

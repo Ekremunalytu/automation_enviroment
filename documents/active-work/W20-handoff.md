@@ -1,8 +1,34 @@
 # W20 Handoff — Close-Out Kontrolleri (Yeni Session İçin)
 
-`Status: HANDOFF — W20-0..W20-4 closed (10 commits on the week20 branch). W20-5 close-out PENDING USER APPROVAL.`
+> **STATUS: SUPERSEDED — frozen `2026-05-27` at W20-5 close-out.**
+> Mirrors the W19-X-handoff.md `2026-05-26` paterni. This handoff
+> doc was authored `2026-05-26` by a previous session before context
+> handoff to a close-out session; the close-out session executed the
+> instructions below and W20 closed synthetically `2026-05-27` via
+> W20-5 primary `4665d32` + self-stamp `95b0010` + followup-2
+> `d163b02` (filed `[FOLLOWUP sandbox-reset-stale-state-multi-analyze]`
+> for W21) + followup-3 `ae5b7de` (10-doc preamble `(this commit)`
+> placeholder backfill). Final W20 bar: `tests/architecture/` **240
+> passed**; `make test-security` **220 passed**; full suite **2045
+> passed, 9 skipped, 8 deselected**. W20 acceptance LIVE-SATISFIED
+> on fresh run `4e92de149802` (sha256 `3804a5b5...4394c`):
+> `coverage_summary.missing_capabilities` 6 → 4 (lost `scm` +
+> `settings`); W19 Hat-1 + Hat-2 hold post-W20. Close-out PR
+> `week20 -> main` open **PENDING USER APPROVAL**.
+>
+> **Why this doc is kept frozen rather than deleted**: the
+> close-out kontrolleri narrative (Step 1..Step 5 instruction
+> list + assertion ledgers) is irrecoverable session-handoff
+> context useful for future weekN handoff doc authors mirroring
+> the W20 paterni. The W20 frozen tracker
+> [`W20-coverage-promotion-easy-wins.md`](W20-coverage-promotion-easy-wins.md)
+> is the canonical W20 audit-trail source-of-truth post-close-out.
+> Inline references to "W20 active tracker" elsewhere in this
+> doc are stale — read them as "the W20 tracker (now frozen)".
+
+`Status: HANDOFF (SUPERSEDED) — W20-0..W20-5 all closed; W20-5 close-out PR week20 -> main PENDING USER APPROVAL.`
 `Branch: week20 (cut from main @ 52a47f4 — W19 close-out post-merge cross-doc parity gate commit).`
-`Authored: 2026-05-26 by previous session before context handoff to a close-out session.`
+`Authored: 2026-05-26 by previous session before context handoff to a close-out session; frozen 2026-05-27 at W20-5 close-out.`
 `Owner: ekrem.`
 
 > **Purpose.** This document is a self-contained briefing for a new

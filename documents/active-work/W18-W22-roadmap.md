@@ -75,7 +75,50 @@ W17 tracker structure).
   onTerminal + onLM log_record stamp (`e537ebd` + `4fd6ed6`); W19-6
   close-out hygiene (`f17b4b1` + `cd82153` + `800c69f`). W19 frozen
   tracker: [`W19-live-run-root-cause.md`](W19-live-run-root-cause.md).
-  W20-W22 remain in planning state.
+- **W20 closed synthetically `2026-05-27` on the `week20` branch**
+  (per user direction `2026-05-26`; W11-W19 paterni preserved);
+  close-out PR `week20 -> main` **PENDING USER APPROVAL**.
+  Sub-iter delivery: W20-0 doc-reconcile (`66a8a0b` + `5f13757`)
+  + baseline live-run capture (anchor `e89a82ca9ba8`, sha256
+  `4dd78826...0256ffe` — W19 close-out Hat-1 + Hat-2 both
+  live-verified); W20-1
+  `[GOAL taxonomy-scm-official-promotion]` (`82276cb` + `a17e595`)
+  — `_OFFICIAL_CAPABILITY_SUPPORT["scm"]: "missing" → "covered"`
+  at [`capabilities.py:88`](../../packages/analysis_planner/capabilities.py)
+  + 4 invariant tests + fixture regen; W20-2
+  `[GOAL taxonomy-settings-official-promotion]` (`a4343d2` +
+  `7406588`) — W20-1 paterni byte-identical at
+  [`capabilities.py:90`](../../packages/analysis_planner/capabilities.py);
+  W20-3 `[GOAL coverage-matrix-contract-tests]` (`d4c03b6` +
+  `2e39230`) — 5 contract invariant tests (keyset parity +
+  Official ⊆ Heuristic + notes ↔ taxonomy + ordering +
+  W20-1/W20-2 combined post-condition); W20-4
+  `[DESIGN taxonomy-comments-testing-readiness]` (`05f47f3` +
+  `b409894`) — doc-only readiness şablonu at
+  [`comments-testing-readiness.md`](../architecture/comments-testing-readiness.md)
+  (W21-1 `testing` + W21-2 `comments` unblocker); W20-5
+  close-out hygiene (`4665d32` primary + `95b0010` self-stamp +
+  `d163b02` followup-2 filed
+  `[FOLLOWUP sandbox-reset-stale-state-multi-analyze]` for W21 +
+  `ae5b7de` followup-3 10-doc preamble `(this commit)` placeholder
+  backfill) — 9-doc canonical preamble Active → Previous flip +
+  §18 W20 self-stamp + W20 tracker freeze + 3 new arch invariant
+  tests (GAP-A cross-doc parity + GAP-B dict shape pin extension
+  + GAP-D DESIGN doc presence) + W20-5 final live-run captured
+  `2026-05-27` (anchor `4e92de149802`, sha256
+  `3804a5b5...4394c`). **W20 acceptance LIVE-SATISFIED**:
+  `coverage_summary.missing_capabilities` dropped 6 → **4**
+  (lost `scm` + `settings`); W19 Hat-1
+  (`unaccounted_dropout == 0`) + Hat-2
+  (`harness_verification_unconfirmed_present` DROPPED) both
+  hold post-W20. Hat-3 mid + hard tiers (`testing`, `comments`,
+  `workspace_trust`, `chat`) deferred to W21-W22 per multi-iter
+  roadmap below. Final W20 bar: `tests/architecture/` **240
+  passed**, 4 deselected; `make test-security` **220 passed**;
+  full suite **2045 passed, 9 skipped, 8 deselected**. W20
+  frozen tracker:
+  [`W20-coverage-promotion-easy-wins.md`](W20-coverage-promotion-easy-wins.md).
+  W21-W22 remain in planning state.
 - **Driving signal (live run, 2026-05-21)**: `ms-python.python`
   @ `992ad028f3df` reports `automation_health.status=degraded`,
   `run_quality=low`, 4 reasons (`skipped_scenarios_present`,
@@ -163,11 +206,19 @@ büyük değişiklik taşımak risk; W21+'a ayrı pull.
 
 ---
 
-### W20 — Coverage Promotion Round 1: Easy Wins (1 iter)
+### W20 — Coverage Promotion Round 1: Easy Wins (1 iter) — closed synthetically `2026-05-27`
 
 GPT-önerdiği "kolaydan zora" gradient'in ilk dilimi. `scm` +
 `settings` official promotion — scenario kodu zaten
 heuristic-covered, eksik olan official-track verification.
+
+> **W20 closed synthetically `2026-05-27` on the `week20` branch**
+> (per user direction `2026-05-26`; W11-W19 paterni preserved);
+> close-out PR `week20 -> main` **PENDING USER APPROVAL**. The
+> planning table below is the original 2026-05-21 author intent;
+> W20 sub-iter audit trail (closed) lives in the W20 frozen
+> tracker [`W20-coverage-promotion-easy-wins.md`](W20-coverage-promotion-easy-wins.md)
+> and the W20 closed bullet in Status (Quick Glance) above.
 
 | Iter | Theme | Stable ID | Notes |
 |---|---|---|---|
