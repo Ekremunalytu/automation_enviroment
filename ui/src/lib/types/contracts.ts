@@ -433,6 +433,7 @@ export interface EventAttemptDto {
   heuristic?: boolean;
   ui_path?: string;
   harness_fallback?: string;
+  confirmation_source?: string;
 }
 
 export interface LogStreamEntryDto {

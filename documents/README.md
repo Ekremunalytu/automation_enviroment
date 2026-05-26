@@ -1,6 +1,6 @@
 # Documents Guide
 
-`Last Updated: 2026-05-13`
+`Last Updated: 2026-05-25 (W19 active — Hat-1 closed + live-verified via W19-2-followup-2 d5de9ca; Hat-2 W19-3..W19-5 and W19-6 close-out pending)`
 
 This folder is split into a small canonical core, specialized reference docs,
 and a frozen archive. **Do not preload the entire folder.** Open subsystem
@@ -8,16 +8,15 @@ docs only when the lane doc says so.
 
 Current status: [`REFACTOR_STATUS.md`](REFACTOR_STATUS.md). Deferrals:
 [`POST_POC_BACKLOG.md`](POST_POC_BACKLOG.md). W8-W13 plan:
-[`REFACTOR_OPTIMIZATION.md`](REFACTOR_OPTIMIZATION.md) §11. Active W14 plan:
-[`REFACTOR_OPTIMIZATION.md`](REFACTOR_OPTIMIZATION.md) §12. Active W14
+[`REFACTOR_OPTIMIZATION.md`](REFACTOR_OPTIMIZATION.md) §11; W14-W18 plans:
+§12-§16; active W19 plan: §17; W20-W22 roadmap: §18-§20. Active W19
 tracker:
-[`active-work/W14-codex-acceptance-observability.md`](active-work/W14-codex-acceptance-observability.md).
-Closed stable-ID trackers: [`active-work/W8-security.md`](active-work/W8-security.md),
-[`active-work/W11-monitor-lifecycle.md`](active-work/W11-monitor-lifecycle.md),
-[`active-work/W12-executor-subpackaging.md`](active-work/W12-executor-subpackaging.md), and
-[`active-work/W13-test-expansion-observability.md`](active-work/W13-test-expansion-observability.md).
+[`active-work/W19-live-run-root-cause.md`](active-work/W19-live-run-root-cause.md).
+W18-W22 roadmap:
+[`active-work/W18-W22-roadmap.md`](active-work/W18-W22-roadmap.md).
+Closed stable-ID trackers live under [`active-work/`](active-work/).
 
-Security posture is fixed by ADRs 0002-0005 plus ADRs 0007-0008. ADR 0007
+Security posture is fixed by ADRs 0002-0005 plus ADRs 0007-0012. ADR 0007
 loopback defaults are pinned by
 [`tests/architecture/test_default_bindings.py`](../tests/architecture/test_default_bindings.py);
 status is owned by [`REFACTOR_STATUS.md`](REFACTOR_STATUS.md).
@@ -67,7 +66,7 @@ Short and intentionally not on the default read path.
   [`REFACTOR_EXECUTION_PLAN.md`](REFACTOR_EXECUTION_PLAN.md) and
   [`REFACTOR_EXPANSION_NOTES.md`](REFACTOR_EXPANSION_NOTES.md) are
   read-only/off-path unless retracing that earlier plan.
-- ADRs (`adrs/0001`-`0008`) — binding decisions on appliance model,
+- ADRs (`adrs/0001`-`0012`) — binding decisions on appliance model,
   threat model, detection taxonomy, malicious-fixture policy,
   packages charter, local network binding, and container package-mode
   invocation. Read the ADR only when the task touches the boundary it governs.

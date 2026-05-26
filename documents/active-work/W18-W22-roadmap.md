@@ -1,8 +1,8 @@
 # W18-W22 — Capability + Otomasyon Sağlık + Coverage Promotion Roadmap (Planning Tracker)
 
-`Last Updated: 2026-05-21 (W18 active — closed via PR #26 week18 -> main MERGED 2026-05-21 via 9874e79; W18-0..W18-4 sub-iter slate fully delivered on the week18 branch (per user direction 2026-05-21; W11-W17 paterni preserved); W18-4-followup post-merge audit landed this commit; §16 W18 plan source. W18 sub-iter audit trail: W18-0 doc-reconcile (89d0c9b); W18-1 ADR 0012 Option A1 accepted (acf6cc9 + 73d8a5c followup); W18-2 heartbeat refactor implementation — step-1 reset off worker thread via dedicated coordinator (a9bffb1 + 78ed7cc + b5b64b6 + 306d744); W18-3 lifecycle harness extension tests — parallel reset / idempotency / reset-during-finalize (92b310d + 32d9905); W18-4 close-out hygiene (3f4f95a); W18-4-followup (e1043e5) — 4 W18-2 invariant pins + 2 pre-existing doc drift fixes. W19-W22 remain in planning state. Source plan authored 2026-05-21 with Codex live-run validation + GPT review (3 rounds) — plan file at /Users/ekrem/.claude/plans/senden-projemdeki-capabilites-ve-mellow-valley.md. W17 closed via PR #25 week17 -> main MERGED 2026-05-18 via bff565d. Sub-iter commits land on weekN branches per W11-W17 paterni; close-out merges via weekN -> main PR.)`
-`Phase: W18 closed — PR #26 week18 -> main MERGED 2026-05-21 via 9874e79`
-`Branch: week18 (per user direction 2026-05-21; W11-W17 paterni preserved — sub-iter commits land on week18, close-out merges into main via week18 -> main PR)`
+`Last Updated: 2026-05-26 (W18 closed — PR #26 week18 -> main MERGED 2026-05-21 via 9874e79; W18-0..W18-4 sub-iter slate fully delivered on the week18 branch (per user direction 2026-05-21; W11-W17 paterni preserved); W18-4-followup post-merge audit landed e1043e5; §16 W18 plan source. W18 sub-iter audit trail: W18-0 doc-reconcile (89d0c9b); W18-1 ADR 0012 Option A1 accepted (acf6cc9 + 73d8a5c followup); W18-2 heartbeat refactor implementation — step-1 reset off worker thread via dedicated coordinator (a9bffb1 + 78ed7cc + b5b64b6 + 306d744); W18-3 lifecycle harness extension tests — parallel reset / idempotency / reset-during-finalize (92b310d + 32d9905); W18-4 close-out hygiene (3f4f95a); W18-4-followup (e1043e5) — 4 W18-2 invariant pins + 2 pre-existing doc drift fixes. W19 fully closed synthetically — Hat-1 closed + live-verified; Hat-2 fully closed on the week19 branch: W19-0 doc-reconcile 2026-05-21 (72712bd + 086d7a5); W19-1 RED dropout regression fixture 2026-05-25 (6a21cf3 + fd02ca4); W19-2 emit-site fix at executor/flows/playwright/stimulus/passes.py covered-only branch — new covered_via_layered_attempts reason_code (89b64da + d9c6262); W19-2-followup-2 live re-anchor + drift fix + sha256 format gate (d5de9ca); W19-3 schema landing 2026-05-25 (primary d2e83e7 + self-stamp 39121e4) — confirmation_source: str = "none" field landed on EventAttemptRecord, 22 new tests + frozen trigger fixture regenerated via planner replay. Live Hat-1 GREEN gate SATISFIED 2026-05-25 22:23 via UI-driven analyze API re-run: live JSON activation_report_ms-python.python-2026.5.2026052501-c2bf28ca9506.json (sha256 e9e60b2e42...) shows unaccounted_dropout count = 0. Post-W19-3 live run 2026-05-25 23:27 (86e0f3646ce9) confirms confirmation_source field landed at "none" on 21/21 event_attempts with no behavior regression. Hat-2 W19-4 closed via 7d44b0e; W19-X live-verification close-out via 8b7b7f6 + a3e634f closing Bug A planner routing / Bug B marker channel destination / Bug C HMAC secret reactivation race (+15 new behavioral tests); live anchor 8247e05ec9ef.json shows 2/2 onDebug* attempts stamped (Half B confirmed). W19-5 closed via primary e537ebd + self-stamp 4fd6ed6 (onTerminal+onLM log_record stamp at reconciliation.py:347-365 sibling elif to W19-4 onDebug arm); W19-6 close-out hygiene landed via primary f17b4b1 + cd82153 (parity gate widened, hotspot LOC ratchet, acceptance-bar column, handoff freeze); W19-6-followup-2 pre-merge hygiene this commit — closes 6 test gaps (+20 parametrized tests) + corrects stale W19 preamble drift across the 9-doc canonical set + freezes W19 tracker per W17/W18 paterni; final W19 test bar tests/architecture/ 204 / make test-security 220 / full suite 1995 passed, 9 skipped, 8 deselected; PR week19 -> main pending user approval. W20-W22 remain in planning state. Source plan authored 2026-05-21 with Codex live-run validation + GPT review (3 rounds) — plan file at /Users/ekrem/.claude/plans/senden-projemdeki-capabilites-ve-mellow-valley.md. W17 closed via PR #25 week17 -> main MERGED 2026-05-18 via bff565d. Sub-iter commits land on weekN branches per W11-W17 paterni; close-out merges via weekN -> main PR.)`
+`Phase: W18 closed — PR #26 week18 -> main MERGED 2026-05-21 via 9874e79. W19 fully closed synthetically on the week19 branch — Hat-1 closed + live-verified (W19-0..W19-2 + W19-2-followup-2); Hat-2 W19-3 + W19-4 + W19-X + W19-5 all closed; W19-6 close-out via f17b4b1 + cd82153; W19-6-followup-2 pre-merge hygiene this commit; PR week19 -> main pending user approval.`
+`Branch: week19 (per user direction 2026-05-21; W11-W18 paterni preserved — sub-iter commits land on week19, close-out merges into main via week19 -> main PR)`
 `Owner: ekrem`
 
 > **Authored 2026-05-21** as a multi-iter (W18-W22) roadmap against
@@ -29,13 +29,50 @@ W17 tracker structure).
 
 ## Status (Quick Glance)
 
-- **W18 active — closed 2026-05-21 via PR #26 `week18 -> main`
+- **W18 closed 2026-05-21 via PR #26 `week18 -> main`
   MERGED `2026-05-21` via `9874e79`.** Sub-iter slate W18-0..W18-4
   fully delivered on the `week18` branch (per user direction
   2026-05-21; W11-W17 paterni preserved); W18-4-followup (`e1043e5`)
   added 4 W18-2 invariant pins + 2 pre-existing doc drift fixes
   before merge. W18 active tracker (frozen at W18-4):
-  [`W18-heartbeat-refactor.md`](W18-heartbeat-refactor.md). W19-W22
+  [`W18-heartbeat-refactor.md`](W18-heartbeat-refactor.md).
+- **W19 active — Hat-1 closed + live-verified `2026-05-25`;
+  Hat-2 HARD GATE W19-3 closed `2026-05-25` on the `week19`
+  branch.** Sub-iter delivery: W19-0 doc-reconcile 2026-05-21
+  (`72712bd` + `086d7a5`); W19-1 RED dropout regression fixture
+  2026-05-25 (`6a21cf3` + `fd02ca4`); W19-2 emit-site fix at
+  `executor/flows/playwright/stimulus/passes.py` covered-only
+  branch — new `covered_via_layered_attempts` reason_code
+  (`89b64da` + `d9c6262`); W19-2-followup-2 live re-anchor + drift
+  fix + sha256 format gate (`d5de9ca`); **W19-3 schema landing
+  (primary `d2e83e7` + self-stamp `39121e4`)** — `confirmation_source: str = "none"`
+  field landed on `EventAttemptRecord` (Pydantic at
+  `packages/analysis_contracts/contracts.py` + executor dataclass at
+  `executor/flows/playwright/monitor/records.py` + UI `EventAttemptDto`/`EventAttemptView`/`fromEventAttempt`),
+  `_VALID_CONFIRMATION_SOURCES` module constant +
+  `_validate_confirmation_source` `@field_validator` mirroring the
+  `status` field pattern (typing decision: `str + field_validator`
+  not `Literal[...]` — codebase parity, JSON wire shape identical),
+  22 new tests (12 `test_automation_health_reasons.py` +
+  6 contract round-trip + 4 UI adapter) + frozen trigger fixture
+  regenerated via planner replay (21 event_attempts each gain
+  `"confirmation_source": "none"`). **Live Hat-1 GREEN gate
+  SATISFIED `2026-05-25 22:23`** via UI-driven analyze API re-run
+  after `docker compose up -d --build api executor`: live JSON
+  `activation_report_ms-python.python-2026.5.2026052501-c2bf28ca9506.json`
+  (sha256 `e9e60b2e42...`) shows `unaccounted_dropout` count = 0,
+  both `debug_session` + `refactor_workflow` now classified
+  `covered_via_layered_attempts`; 16 of 16 key fields byte-identical
+  with pre-fix anchor `992ad028f3df` save the W19-2 reason_code
+  change. **Post-W19-3 live run `2026-05-25 23:27`
+  (`86e0f3646ce9`)** confirms `confirmation_source` field landed
+  at `"none"` on 21/21 event_attempts with no behavior regression.
+  Hat-2 W19-4 onDebug* producer + consumer wire closed via `7d44b0e`
+  (`health/reconciliation.py:347-348` + `:85-90` + 7 new tests at
+  `test_playwright_health_reconciliation.py:813-1090`); W19-5 onTerminal
+  + onLM local-only emit-site stamps + W19-6 close-out pending. W19
+  active tracker:
+  [`W19-live-run-root-cause.md`](W19-live-run-root-cause.md). W20-W22
   remain in planning state.
 - **Driving signal (live run, 2026-05-21)**: `ms-python.python`
   @ `992ad028f3df` reports `automation_health.status=degraded`,
@@ -110,9 +147,9 @@ büyük değişiklik taşımak risk; W21+'a ayrı pull.
 | W19-1 | Hat-1 | Regression fixture (xfail/RED) | `[BUG scenario-unaccounted-dropout-regression-fixture]` (new) | `tests/executor/test_scenario_accountant_dropout_regression.py`. ms-python.python live run paterninde `unaccounted_dropout > 0` durumunu reproducer olarak yakalar (xfail/RED). W19-2 sonrası invariant: `unaccounted_dropout == 0`, xfail kalkar → PASS. |
 | W19-2 | Hat-1 | `unaccounted_dropout` emit-site fix | `[BUG scenario-unaccounted-dropout-debug-refactor]` (new) | Hat: `executor/flows/playwright/stimulus/*`, `workflows/marketplace/analysis_execution.py` scenario_accountant, dispatch/result normalization. `debug_session` ve `refactor_workflow` açık `reason_code` (`skipped:dependency_missing`, `failed:trigger_timeout`, vb.) ile bitsin. |
 | W19-3 | Hat-2 | Harness verification contract event-level | `[GOAL harness-verification-contract-event-level]` (new) | `executor/flows/playwright/runtime_capture/` + harness extension iletişimi. Her `event_attempt` için `confirmation_source` (`harness_nonce` / `log_record` / `none`) field'ı. **Schema impact check**: `event_attempts` öğesi Pydantic'ten geçiyor mu? UI adapter ([ui/src/lib/adapters/report.ts](../../ui/src/lib/adapters/report.ts) + [report.test.ts](../../ui/src/lib/adapters/report.test.ts)) + fixture baseline + `tests/platform/contracts/` etkilenir mi? 30 dakikalık impact-survey + gerekirse contract migration. |
-| W19-4 | Hat-2 | `onDebug*` event'leri nonce confirmation | `[FOLLOWUP harness-verification-debug-events]` (new) | onDebug + alt aileleri için confirmation üretimi |
+| W19-4 | Hat-2 | `onDebug*` nonce confirmation + consumer wire | `[FOLLOWUP harness-verification-debug-events]` — **closed `2026-05-26` via `7d44b0e`** | Producer at `health/reconciliation.py:347-348` stamps `confirmation_source="harness_nonce"` on onDebug* attempts with verified harness completion; consumer wire at `reconciliation.py:85-90` gates `failure_reason_code="harness_verification_unconfirmed"` on `confirmation_source == "none"`; 7 new tests at `test_playwright_health_reconciliation.py:813-1090` |
 | W19-5 | Hat-2 | `onTerminalShellIntegration` + `onLanguageModelTool:*` confirmation | `[FOLLOWUP harness-verification-terminal-and-lm-tool]` (new) | Local-only confirmation marker. Confirmation üretilemeyen event için açık `blocked` / `unsupported` reason. |
-| W19-6 | — | Close-out hygiene | — | PR `week19 -> main` |
+| W19-6 | — | Close-out hygiene + audit hygiene items | — | PR `week19 -> main`; **+ 3 hygiene items** from W19-3-followup-2 audit: field-set parity gate (extend tek-field gate'i set-difference'a), hotspot LOC ratchet (9 modül >500 LOC için `bare-binary pragma ratchet` paterni), W19 sub-iter table'ına `Closes which acceptance-bar item?` kolonu; **+ W20-0 forward ref** `[FOLLOWUP defensive-test-parametrize-helper]` schema-only field landings için tablo-yolu helper |
 
 **W19 acceptance (live-run-driven)**:
 
@@ -132,7 +169,7 @@ heuristic-covered, eksik olan official-track verification.
 
 | Iter | Theme | Stable ID | Notes |
 |---|---|---|---|
-| W20-0 | Doc reconcile + §18 plan + Activation event spec crosswalk | `[RESEARCH activation-event-spec-crosswalk]` (new) | **Üç kaynaklı crosswalk**: (1) resmi [VS Code Activation Events](https://code.visualstudio.com/api/references/activation-events) sayfası, (2) repo `OFFICIAL_EVENT_REGISTRY` (29 entry), (3) gerçek manifest source-of-truth (DB'deki `ExtensionActivationEvents` tablosu + indirilen VSIX'lerin `package.json` `activationEvents[]`). Çıktı: matris + gerçek gap listesi backlog'a. |
+| W20-0 | Doc reconcile + §18 plan + Activation event spec crosswalk + W19-6-migrated forward refs | `[RESEARCH activation-event-spec-crosswalk]` (new) + `[FOLLOWUP harness-secret-extra-reactivation-source]` (migrated from W19-X-handoff.md at W19-6 close-out) + `[FOLLOWUP harness-secret-distribution-redesign]` (migrated from W19-X-handoff.md risk register at W19-6 close-out — W20-W22 ADR candidate) + `[FOLLOWUP defensive-test-parametrize-helper]` (W19-3-followup-2 audit) | **Üç kaynaklı crosswalk**: (1) resmi [VS Code Activation Events](https://code.visualstudio.com/api/references/activation-events) sayfası, (2) repo `OFFICIAL_EVENT_REGISTRY` (29 entry), (3) gerçek manifest source-of-truth (DB'deki `ExtensionActivationEvents` tablosu + indirilen VSIX'lerin `package.json` `activationEvents[]`). Çıktı: matris + gerçek gap listesi backlog'a. **+ W19-6-migrated items** (full descriptions in `documents/POST_POC_BACKLOG.md` Newly Captured table): trace the un-gated 4th reload path via `activate_enter` diagnostic + ADR comparing non-file vs file-kept-0400 secret distribution + table-driven helper for schema-only field landings. |
 | W20-1 | `scm` official promotion | `[GOAL taxonomy-scm-official-promotion]` (new) | `capabilities.py:88` `scm: missing → covered` (official track). `git_workflow` scenario'su zaten heuristic-covered. |
 | W20-2 | `settings` official promotion | `[GOAL taxonomy-settings-official-promotion]` (new) | Aynı patern. `settings_modification` scenario'su official-verifiable. |
 | W20-3 | Coverage matrix contract tests | `[GOAL coverage-matrix-contract-tests]` (new) | `tests/platform/contracts/`: official vs heuristic track senkronizasyon invariant'ı, `_GLOBAL_CAPABILITY_NOTES` policy ↔ implementation eşleşmesi. |

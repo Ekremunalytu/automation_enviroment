@@ -1,4 +1,4 @@
-"""Architecture gate: canonical doc preambles must report a consistent active phase.
+"""Architecture gate: canonical doc preambles must report a consistent current phase.
 
 After a close-out PR merges to ``main``, every canonical doc preamble must
 be bumped to reflect the new active phase. The W14 -> W15 transition
@@ -15,12 +15,15 @@ together and added this gate to lock the invariant.
 The gate parses each doc's preamble (the first ten lines, covering the
 backtick-quoted ``Last Updated: ...`` block) and asserts:
 
-  1. Every preamble carries at least one active-phase signal.
-  2. No single preamble reports two different active phases internally
+  1. Every preamble carries at least one current-phase signal.
+  2. No single preamble reports two different current phases internally
      (e.g., "W14 active" and "W15 active" both present).
-  3. Every doc agrees on the same ``W<N>`` as the active phase.
+  3. Every doc agrees on the same ``W<N>`` as the current phase.
 
-Patterns matched: ``W<N> active``, ``Active phase: W<N>``,
+Patterns matched: ``W<N> active``, ``W<N> [fully] closed synthetically``
+(W19-6-followup-2 added the closed-but-not-merged lifecycle state for the
+pre-merge hygiene window between W<N>-final close-out and the
+``weekN -> main`` PR merge), ``Active phase: W<N>``,
 ``Active phase: **W<N>**``, ``Active phase is W<N>``,
 ``Active phase is **W<N>**``. The check is read-only and does not
 require Docker or a running test environment.
@@ -48,6 +51,10 @@ _PREAMBLE_LINE_LIMIT = 10
 
 _ACTIVE_PHASE_PATTERNS = (
     re.compile(r"\bW(?P<n>\d+)\s+active\b", re.IGNORECASE),
+    re.compile(
+        r"\bW(?P<n>\d+)\s+(?:fully\s+)?closed\s+synthetically\b",
+        re.IGNORECASE,
+    ),
     re.compile(
         r"Active\s+phase(?:\s+is)?[:\s\*]+W(?P<n>\d+)",
         re.IGNORECASE,

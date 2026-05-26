@@ -1,15 +1,15 @@
 # Development Priorities
 
-`Last Updated: 2026-05-14`
+`Last Updated: 2026-05-25 (W19 active — Hat-1 closed + live-verified via W19-2-followup-2 d5de9ca; Hat-2 W19-3..W19-5 pending)`
 
 This is the short priority list for current work. It assumes the project stays
 a single-user sandbox appliance on one machine or one Docker host.
 
 If any older planning note clashes with the active refactor track, follow
 `REFACTOR_STATUS.md` for current closure state and
-`REFACTOR_OPTIMIZATION.md` §11 for the closed W8-W13 external-review window
-or §12 for W14 close-out (sub-iter slate complete; close-out PR
-`week14 -> main` next). Post-PoC deferrals live in `POST_POC_BACKLOG.md`.
+`REFACTOR_OPTIMIZATION.md` §11 for the closed W8-W13 external-review window,
+§12-§16 for closed W14-W18 work, §17 for active W19, and §18-§20 for the
+W20-W22 roadmap. Post-PoC deferrals live in `POST_POC_BACKLOG.md`.
 Keep changes biased toward cleanliness, stability, and overall code quality.
 
 ## Current Window (7 weeks, 2026-04-17 -> 2026-04-23; closed)
@@ -82,8 +82,9 @@ classes:** A3 typosquat landed 2026-04-23; A5 malicious update and A7 VS
 Code API abuse remain in `POST_POC_BACKLOG.md`.
 
 The priority list below describes the enduring engineering priorities that
-survive past W7 closure. The next iteration's scope pulls from
-`POST_POC_BACKLOG.md` and the active W14 tracker.
+survive past W7 closure. Active iteration scope pulls from
+`POST_POC_BACKLOG.md` and the W19 active tracker
+`active-work/W19-live-run-root-cause.md`.
 
 ## Current Priorities
 

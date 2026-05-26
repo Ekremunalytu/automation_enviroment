@@ -583,6 +583,97 @@ def test_read_extension_host_output_reads_first_log_when_present(
 
 
 # ---------------------------------------------------------------------------
+# W19-X — harness channel log files (``output_logging_*/*ExTrace Harness.log``)
+# carry the ``[extrace-harness]`` stimulus markers because launch_vscode.sh
+# discards Extension Host stdout. ``find_harness_channel_logs`` discovers
+# them and ``read_extension_host_output`` reads them alongside exthost.log;
+# without this surface the verifier sees no signed markers and onDebug*
+# attempts stay unstamped.
+# ---------------------------------------------------------------------------
+
+
+def _write_harness_channel_log(
+    base: Path, session: str, output_logging: str, body: str
+) -> Path:
+    log_dir = base / session / "window1" / "exthost" / output_logging
+    log_dir.mkdir(parents=True)
+    log_path = log_dir / "1-ExTrace Harness.log"
+    log_path.write_text(body, encoding="utf-8")
+    return log_path
+
+
+def test_find_harness_channel_logs_empty_when_logs_dir_missing(
+    tmp_path: Path, monkeypatch
+) -> None:
+    monkeypatch.setattr(extension_host, "VSCODE_LOGS_DIR", tmp_path / "missing")
+    assert extension_host.find_harness_channel_logs() == []
+
+
+def test_find_harness_channel_logs_returns_sorted_by_mtime_desc(
+    tmp_path: Path, monkeypatch
+) -> None:
+    import os
+
+    older = _write_harness_channel_log(
+        tmp_path, "session-old", "output_logging_t1", '[extrace-harness] {"a":1}\n'
+    )
+    newer = _write_harness_channel_log(
+        tmp_path, "session-new", "output_logging_t2", '[extrace-harness] {"b":2}\n'
+    )
+    # Force mtime ordering deterministically (filesystem mtime resolution
+    # can collide for files written in the same millisecond).
+    os.utime(older, (100.0, 100.0))
+    os.utime(newer, (200.0, 200.0))
+
+    monkeypatch.setattr(extension_host, "VSCODE_LOGS_DIR", tmp_path)
+
+    logs = extension_host.find_harness_channel_logs()
+
+    assert len(logs) == 2
+    assert logs[0] == newer
+    assert logs[1] == older
+
+
+def test_read_extension_host_output_reads_harness_channel_log_only(
+    tmp_path: Path, monkeypatch
+) -> None:
+    _write_harness_channel_log(
+        tmp_path,
+        "session-h",
+        "output_logging_t1",
+        '[extrace-harness] {"kind":"stimulus","phase":"start","family":"onDebug"}\n',
+    )
+
+    monkeypatch.setattr(extension_host, "VSCODE_LOGS_DIR", tmp_path)
+
+    output = extension_host.read_extension_host_output(page=None)
+    assert "[extrace-harness]" in output
+    assert "onDebug" in output
+
+
+def test_read_extension_host_output_combines_exthost_and_harness_logs(
+    tmp_path: Path, monkeypatch
+) -> None:
+    log_dir = tmp_path / "session-c" / "window1" / "exthost"
+    log_dir.mkdir(parents=True)
+    (log_dir / "exthost.log").write_text(
+        "activating extension 'ms-python.python'\n", encoding="utf-8"
+    )
+    _write_harness_channel_log(
+        tmp_path,
+        "session-c",
+        "output_logging_t1",
+        '[extrace-harness] {"kind":"stimulus","phase":"complete"}\n',
+    )
+
+    monkeypatch.setattr(extension_host, "VSCODE_LOGS_DIR", tmp_path)
+
+    output = extension_host.read_extension_host_output(page=None)
+    assert "ms-python.python" in output
+    assert "[extrace-harness]" in output
+
+
+# ---------------------------------------------------------------------------
 # ExtensionHostFileCapture — shape only (no subprocess)
 # ---------------------------------------------------------------------------
 

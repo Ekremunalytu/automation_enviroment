@@ -1,0 +1,46 @@
+{
+  "_meta": {
+    "source_filename": "activation_report_ms-python.python-2026.5.2026052501-c2bf28ca9506.json",
+    "source_sha256": "e9e60b2e425ec3174226d9c849336ca3926ad8fb86cc6ac1acd2f560bf2c5dcb",
+    "lifted_for": "W19-1 dropout regression fixture (post-W19-2 live-anchored shape)",
+    "lifted_at_iter": "W19-2-followup-2 live re-anchor (Hat-1 GREEN gate satisfied)",
+    "lifted_at_date": "2026-05-25",
+    "target_extension_id": "ms-python.python",
+    "target_extension_version": "2026.5.2026052501",
+    "anchor_history": "Pre-fix anchor: activation_report_ms-python.python-2026.5.2026052001-992ad028f3df.json (sha256 7e06153c66...), version 2026.5.2026052001, captured Codex live-run 2026-05-21 — that anchor showed both scenarios dropping with reason_code=unaccounted_dropout (the W19 driving signal). Post-W19-2 fix landed at primary commit 89b64da (2026-05-25); a UI-driven analyze API re-run at 2026-05-25 22:23 against the newer version 2026.5.2026052501 produced this JSON (c2bf28ca9506) which confirms Hat-1 GREEN: unaccounted_dropout count = 0, both debug_session + refactor_workflow now classified covered_via_layered_attempts. 16 of 16 key fields (automation_health.{status,reasons,skipped_scenarios,failed_scenarios,extra_trigger_failure_count}, requested_scenarios, scenarios_run, failed_scenarios, run_quality, event_attempts.length, coverage_summary.{attempted,verified,missing_capabilities}, verification_gap, runner_status, runner_exit_code) match the pre-fix anchor byte-for-byte — the single delta is exactly the reason_code change W19-2 was designed to land.",
+    "verification_status": "live-anchored — verified by W19-2-followup-2 commit"
+  },
+  "automation_health": {
+    "status": "degraded",
+    "reasons": [
+      "skipped_scenarios_present",
+      "verification_gap_present",
+      "official_unresolved_present",
+      "harness_verification_unconfirmed_present"
+    ],
+    "skipped_scenarios": [
+      "debug_session",
+      "refactor_workflow"
+    ]
+  },
+  "skipped_scenarios": [
+    {
+      "name": "debug_session",
+      "reason_code": "covered_via_layered_attempts",
+      "detail": "Scenario was selected; its declared activation events were attempted through the layered plan, but the scenario handler itself was not invoked under this execution mode."
+    },
+    {
+      "name": "refactor_workflow",
+      "reason_code": "covered_via_layered_attempts",
+      "detail": "Scenario was selected; its declared activation events were attempted through the layered plan, but the scenario handler itself was not invoked under this execution mode."
+    }
+  ],
+  "requested_scenarios": [
+    "coding_session",
+    "project_exploration",
+    "debug_session",
+    "terminal_usage",
+    "refactor_workflow"
+  ],
+  "run_quality": "low"
+}

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import contextlib
 import os
+import subprocess
 import time
 from collections.abc import Callable
 
@@ -18,6 +19,12 @@ _DEFAULT_READY_TIMEOUT_MS = 10_000
 DEFAULT_RECONNECT_TIMEOUT_MS = 60_000
 _DEFAULT_RELOAD_TEARDOWN_WAIT_MS = 3_000
 _DEFAULT_EXTENSION_SETTLE_MS = 5_000
+
+_VSCODE_LAUNCH_SCRIPT = os.environ.get(
+    "EXECUTOR_VSCODE_LAUNCH_SCRIPT",
+    "/home/executor/container/launch_vscode.sh",
+)
+_SECRET_REWRITE_TIMEOUT_S = 5
 
 ReloadLogger = Callable[[str], None] | None
 
@@ -35,6 +42,32 @@ def _emit_reload_log(log: ReloadLogger, phase: str, detail: str) -> None:
     if log is None:
         return
     log(f"[reload] {phase}: {detail}")
+
+
+def _rewrite_harness_secret(log: ReloadLogger = None) -> None:
+    """Stage a fresh per-launch HMAC secret before the reload reactivates extensions.
+
+    The first activate() in this VS Code lifetime already consumed and
+    unlinked the secret, so any subsequent reload reactivation would
+    otherwise read ENOENT and emit unsigned markers. ``launch_vscode.sh
+    --secret-only`` writes both ``/run/extrace/harness-secret`` and
+    ``/results/_extrace_harness_python_secret`` without touching the
+    running VS Code process. No-op in test/host environments where the
+    launch script is absent.
+    """
+    if not os.path.isfile(_VSCODE_LAUNCH_SCRIPT):
+        return
+    try:
+        # arch-allow: bare-binary-path  # W19-X: see POST_POC_BACKLOG.md
+        subprocess.run(
+            ["bash", _VSCODE_LAUNCH_SCRIPT, "--secret-only"],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=_SECRET_REWRITE_TIMEOUT_S,
+        )
+    except (FileNotFoundError, subprocess.TimeoutExpired) as exc:
+        _emit_reload_log(log, "secret_rewrite", f"skipped: {exc}")
 
 
 def _page_title(page: Page) -> str:
@@ -203,6 +236,14 @@ def reload_workbench_window(
     # command race ahead before the command is registered.
     with contextlib.suppress(FileNotFoundError):
         _HARNESS_READY_PATH.unlink()
+    # W19-X: rewrite the per-launch HMAC secret before dispatching the
+    # reload. The first activate() consumed and unlinked the file; without
+    # this, the reactivating Extension Host reads ENOENT and emits
+    # unsigned markers, which the Python verifier rejects as unverified.
+    # Every reload seam in the analyze loop funnels through this function
+    # (entrypoint/triggers reload, automation crash-retry, standalone
+    # reload_vscode), so placing the rewrite here covers all three.
+    _rewrite_harness_secret(log)
     try:
         from . import commands
 

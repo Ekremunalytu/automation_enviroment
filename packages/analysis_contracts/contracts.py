@@ -197,6 +197,22 @@ EVENT_ATTEMPT_LIFECYCLE_STATES: frozenset[str] = frozenset(
 )
 
 
+# W19-3 [GOAL harness-verification-contract-event-level]: how the harness
+# verification confidence for an event_attempt was obtained. Default
+# ``"none"`` is the back-compat shape — pre-W19-3 fixtures and live JSONs
+# omit the field and deserialize with this default. ``"harness_nonce"``
+# (W19-4) marks attempts confirmed by an HMAC-signed marker emitted from
+# the harness extension; ``"log_record"`` (W19-5) marks attempts confirmed
+# by a passive log-line extraction (local-only per ADR 0002 / ADR 0007).
+# ``str + field_validator`` mirrors the ``status`` field pattern below
+# instead of ``Literal`` for codebase ergonomics (JSON wire shape is
+# identical either way — see W19-3 Per-Item Detail block in the active
+# tracker for the deviation rationale).
+_VALID_CONFIRMATION_SOURCES: frozenset[str] = frozenset(
+    {"harness_nonce", "log_record", "none"}
+)
+
+
 class EventAttemptRecord(StrictContractModel):
     attempt_id: str
     declared_event: str
@@ -228,6 +244,7 @@ class EventAttemptRecord(StrictContractModel):
     heuristic: bool = False
     ui_path: str = ""
     harness_fallback: str = ""
+    confirmation_source: str = "none"
 
     @field_validator("status")
     @classmethod
@@ -236,6 +253,16 @@ class EventAttemptRecord(StrictContractModel):
             raise ValueError(
                 f"EventAttemptRecord.status {value!r} is not one of "
                 f"{sorted(EVENT_ATTEMPT_LIFECYCLE_STATES)}"
+            )
+        return value
+
+    @field_validator("confirmation_source")
+    @classmethod
+    def _validate_confirmation_source(cls, value: str) -> str:
+        if value not in _VALID_CONFIRMATION_SOURCES:
+            raise ValueError(
+                f"EventAttemptRecord.confirmation_source {value!r} is not one of "
+                f"{sorted(_VALID_CONFIRMATION_SOURCES)}"
             )
         return value
 

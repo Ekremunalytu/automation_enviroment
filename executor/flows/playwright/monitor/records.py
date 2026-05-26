@@ -100,6 +100,7 @@ class EventAttemptRecord:
     heuristic: bool = False
     ui_path: str = ""
     harness_fallback: str = ""
+    confirmation_source: str = "none"
 
 
 @dataclass

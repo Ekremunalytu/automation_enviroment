@@ -729,6 +729,7 @@ function fromEventAttempt(entry: EventAttemptDto): EventAttemptView {
     heuristic: Boolean(entry.heuristic),
     uiPath: entry.ui_path || "",
     harnessFallback: entry.harness_fallback || "",
+    confirmationSource: entry.confirmation_source || "none",
   };
 }
 

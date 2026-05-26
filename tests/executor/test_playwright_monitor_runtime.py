@@ -497,6 +497,100 @@ def test_read_extension_host_output_falls_back_to_exthost_rglob(
     assert "\\n" not in output
 
 
+# W19-X — harness channel log files (``output_logging_*/*ExTrace Harness.log``)
+# carry the ``[extrace-harness]`` stimulus markers because launch_vscode.sh
+# discards Extension Host stdout (``</dev/null >/dev/null 2>&1 &``).
+# ``read_extension_host_output`` must read them alongside ``exthost.log`` or
+# the verifier sees no signed markers and onDebug* attempts stay unstamped.
+
+
+def _write_harness_channel_log(
+    base: Path, session: str, output_logging: str, body: str
+) -> Path:
+    log_dir = base / session / "window1" / "exthost" / output_logging
+    log_dir.mkdir(parents=True)
+    log_path = log_dir / "1-ExTrace Harness.log"
+    log_path.write_text(body, encoding="utf-8")
+    return log_path
+
+
+def test_read_extension_host_output_reads_harness_channel_logs(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    _write_harness_channel_log(
+        tmp_path,
+        "session-1",
+        "output_logging_t1",
+        '[extrace-harness] {"kind":"stimulus","phase":"start","family":"onDebug"}\n',
+    )
+
+    monkeypatch.setattr(monitor.sources, "resolve_monitor_api", lambda: monitor)
+    monkeypatch.setattr(monitor, "find_exthost_logs", lambda: [])
+    monkeypatch.setattr(monitor, "VSCODE_LOGS_DIR", tmp_path)
+
+    output = monitor.read_extension_host_output()
+
+    assert "[extrace-harness]" in output
+    assert "onDebug" in output
+
+
+def test_read_extension_host_output_combines_exthost_and_harness_channel_logs(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    exthost_log = tmp_path / "session-2" / "window1" / "exthost" / "exthost.log"
+    exthost_log.parent.mkdir(parents=True)
+    exthost_log.write_text("activating extension 'ms-python.python'\n")
+
+    _write_harness_channel_log(
+        tmp_path,
+        "session-2",
+        "output_logging_t1",
+        '[extrace-harness] {"kind":"stimulus","phase":"complete"}\n',
+    )
+
+    monkeypatch.setattr(monitor.sources, "resolve_monitor_api", lambda: monitor)
+    monkeypatch.setattr(monitor, "find_exthost_logs", lambda: [exthost_log])
+    monkeypatch.setattr(monitor, "VSCODE_LOGS_DIR", tmp_path)
+
+    output = monitor.read_extension_host_output()
+
+    assert "ms-python.python" in output
+    assert "[extrace-harness]" in output
+
+
+def test_read_extension_host_output_reads_all_harness_channel_logs(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    """Each VS Code reactivation creates its own ``output_logging_*`` directory
+    with a fresh harness channel log; the W19-X live case had three. All must
+    be read or the verifier misses the stimulus markers from a later
+    reactivation."""
+    _write_harness_channel_log(
+        tmp_path,
+        "session-3",
+        "output_logging_t1",
+        '[extrace-harness] {"phase":"start","family":"onDebugInitialConfigurations"}\n',
+    )
+    _write_harness_channel_log(
+        tmp_path,
+        "session-3",
+        "output_logging_t2",
+        '[extrace-harness] {"phase":"start","family":"onDebugResolve"}\n',
+    )
+
+    monkeypatch.setattr(monitor.sources, "resolve_monitor_api", lambda: monitor)
+    monkeypatch.setattr(monitor, "find_exthost_logs", lambda: [])
+    monkeypatch.setattr(monitor, "VSCODE_LOGS_DIR", tmp_path)
+
+    output = monitor.read_extension_host_output()
+
+    assert "onDebugInitialConfigurations" in output
+    assert "onDebugResolve" in output
+
+
 def test_activation_report_print_summary_uses_real_newlines(capsys) -> None:
     report = monitor.ActivationReport(
         activated=[monitor.ActivationEntry(extension_id="sample.ext", source="log")],

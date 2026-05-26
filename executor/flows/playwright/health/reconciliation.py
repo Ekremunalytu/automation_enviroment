@@ -82,7 +82,12 @@ def _mark_unverified_harness_attempt(
 ) -> None:
     attempt.status = "attempted_only"
     attempt.verification_status = "attempted_only"
-    attempt.failure_reason_code = "harness_verification_unconfirmed"
+    # Gate the run-level reason on confirmation_source. A stamped attempt
+    # already carries confirmed harness/log evidence; missing target
+    # activation is a different gap. Status + evidence stay set
+    # unconditionally so the attempt still reaches a terminal state.
+    if str(getattr(attempt, "confirmation_source", "none") or "none") == "none":
+        attempt.failure_reason_code = "harness_verification_unconfirmed"
     attempt.result_details = (
         "Harness stimulus executed, but target verification remained unresolved."
         if execution_closed
@@ -335,6 +340,27 @@ def reconcile_event_attempts(report: Any) -> list[Any]:
             expected_harness_nonce,
             handshake_required=handshake_required,
         )
+        # Stamp onDebug* attempts whose harness completion verified — the
+        # boolean above bundles HMAC verification, phase=="complete", and
+        # attempt_id correlation in one. Other families use a different
+        # confirmation source (log_record / none).
+        if execution_closed and family.startswith("onDebug"):
+            attempt.confirmation_source = "harness_nonce"
+        # W19-5: onTerminalShellIntegration + onLanguageModelTool ride the
+        # same HMAC-verified runCurrentStimulus pipeline (planner routes
+        # onLM directly through harness:run_current_stimulus; the terminal
+        # family arrives via OFFICIAL_EVENT_REGISTRY's harness_fallback
+        # path because its verification_contract carries automation_trace).
+        # They get the distinct "log_record" label rather than
+        # "harness_nonce" — the run-level reason emission gates on
+        # confirmation_source!="none" regardless of which non-none value
+        # is set, so the relabel is purely diagnostic; W20+ may collapse
+        # the two labels or widen log_record to additional families.
+        elif execution_closed and (
+            family == "onTerminalShellIntegration"
+            or family.startswith("onLanguageModelTool")
+        ):
+            attempt.confirmation_source = "log_record"
 
         if not contracts:
             target_reaction_closed = bool(exact_matches or prefix_matches)

@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-`Last Updated: 2026-05-21 (W18 active — closed via PR #26 week18 -> main MERGED 2026-05-21 via 9874e79; W18-0..W18-4 sub-iter slate (per user direction 2026-05-21; W11-W17 paterni preserved); W18-4-followup post-merge audit landed this commit. Sub-iter audit trail: W18-0 doc-reconcile (89d0c9b); W18-1 ADR 0012 Option A1 accepted (acf6cc9 + 73d8a5c followup doc-truth); W18-2 heartbeat refactor implementation — step-1 reset off worker thread via dedicated coordinator (a9bffb1 + 78ed7cc ADR 0012 self-stamp + b5b64b6 ruff-format followup + 306d744 full-repo lint sweep with pre-commit install); W18-3 lifecycle harness extension tests — parallel reset / idempotency / reset-during-finalize (92b310d + 32d9905 ADR/tracker self-stamp); W18-4 close-out hygiene (3f4f95a) — 8-doc canonical preamble refresh + §16 W18 self-stamp + W18 tracker freeze; W18-4-followup (e1043e5) — 4 W18-2 invariant pins + 2 pre-existing doc drift fixes. Final W18 bar: tests/architecture/ 201 passed (W17 final 200 + W18-0 README phase-pointer arch gate W17->W18 transition); make test-security 220 passed (unchanged from W17); full suite 1907 passed, 9 skipped, 8 deselected (W17 final 1899 + W18-0 +1 + W18-3 +3 + W18-4-followup +4 W18-2 invariant tests via e1043e5). W17 closed via PR #25 week17 -> main MERGED 2026-05-18 via bff565d; W16 closed via PR #23 week16 -> main MERGED 2026-05-18 via 1b6d43f. Driving signal: Codex live-run validation 2026-05-21 of ms-python.python @ 992ad028f3df reports automation_health.status=degraded + run_quality=low while static W17 final bar (1899/200/220) remains green; W18 closes W17-3/W17-4 DESIGN-NEEDED heartbeat thread relocation deferral via ADR 0012 Option A1 (dedicated sandbox-reset coordinator, function-extension shape); W19-W22 carry the dropout fix + harness verification + coverage promotion per multi-iter roadmap. W18 frozen tracker: documents/active-work/W18-heartbeat-refactor.md; §16 W18 plan source in documents/REFACTOR_OPTIMIZATION.md; §17-§20 W19-W22 roadmap source-of-truth: documents/active-work/W18-W22-roadmap.md. W16-0..W16-7, W17-0..W17-7, W18-0..W18-4 sub-iter slate audit trail in respective frozen trackers; full preamble history pre-2026-05-21 in archive snapshots.)`
+`Last Updated: 2026-05-26 (W19 fully closed synthetically — W19-0..W19-6 all landed on the week19 branch (per user direction 2026-05-21; W11-W18 paterni preserved); live smoke + PR week19 -> main pending. Hat-1 closed + live-verified via W19-2-followup-2 d5de9ca; Hat-2 fully closed via W19-3 schema landing (primary d2e83e7 + self-stamp 39121e4 + W19-3-followup-2 8-doc preamble refresh 9b56e94) + W19-4 onDebug* harness_nonce producer/consumer wire (7d44b0e at executor/flows/playwright/health/reconciliation.py:347-348 producer + reconciliation.py:85-90 consumer + 7 new tests) + W19-X onDebug* live close-out (8b7b7f6 primary + a3e634f self-stamp — closes Bug A planner routing onDebug → harness:run_current_stimulus, Bug B marker channel destination OutputChannel + parser glob, Bug C HMAC secret reactivation race; live anchor activation_report_ms-python.python-2026.5.2026052501-8247e05ec9ef.json shows 2/2 onDebug* stamped + harness_verification_unconfirmed suppressed; +15 new behavioral tests) + W19-5 onTerminal+onLM log_record stamp (primary e537ebd + self-stamp 4fd6ed6 — producer arm extension at reconciliation.py:347-365 sibling elif to W19-4 onDebug arm; live-anchor evidence confirmed all 6 unstamped attempts already carried harness_trace:<attempt_id> evidence via existing runCurrentStimulus + harness_fallback="run_current_stimulus" paths → no JS / no new predicate / no planner mapping needed; +7 new behavioral tests at test_playwright_health_reconciliation.py:1175-1369; W19-4 scope-discipline parametrize narrowed to onCommand only). W19-6 close-out hygiene landed via primary f17b4b1 + this self-stamp: (a) field-set parity gate widened to full set-difference assertion at test_automation_health_reasons.py:123; (b) new hotspot LOC ratchet test at tests/architecture/test_executor_hotspot_loc_ratchet.py pinning 8 modules >500 LOC under executor/flows/playwright/ at LOC*1.05 ceiling; (c) acceptance-bar "Closes which acceptance-bar item?" column added to §17.3 + tracker mirror; (d) W19-X-handoff.md committed as frozen artifact with SUPERSEDED banner + risk-register migrated to POST_POC_BACKLOG.md as [FOLLOWUP harness-secret-distribution-redesign] (W20-W22 ADR candidate) and W18-W22-roadmap.md W20-0 as [FOLLOWUP harness-secret-extra-reactivation-source]. W19-6-followup-2 pre-merge hygiene closed 6 test gaps (+20 parametrized tests across cross-Hat live-anchor smoke at tests/smoke/test_w19_cross_hat_smoke.py, planner routing variants for all 5 onDebug* families at tests/workflows/marketplace/test_triggers.py, W19-5 malformed log_record reject at test_playwright_health_reconciliation.py, W19-X Bug B parser glob at tests/executor/test_harness_marker_parser_glob.py, W19-4/5 producer→W19-3 schema round-trip at test_analysis_fixture_baselines.py, W19-X Bug C concurrent reactivation stress at test_launch_vscode_secret_only.py) and corrected stale W19 preamble drift across the 9-doc canonical set (cd82153 W19-6-followup commit message claimed 9-doc refresh but only CLAUDE.md actually carried the "W19 fully closed synthetically" headline flip; this commit fixes the remaining 8) and froze the W19 tracker per W17/W18 paterni. Final W19 test bar: tests/architecture/ 204 passed / make test-security 220 passed / full suite 1995 passed, 9 skipped, 8 deselected on the week19 branch. Driving signal: Codex live-run validation 2026-05-21 of ms-python.python @ 992ad028f3df reports automation_health.status=degraded + run_quality=low while W19-2 live re-anchor now satisfies unaccounted_dropout == 0 and static W18 final bar (1907/201/220) remains green. W19 Hat-1 closed + live-verified (executor muhasebe bug → unaccounted_dropout); Hat-2 fully closed synthetically (W19-3 schema + W19-4 onDebug* producer/consumer + W19-X onDebug* live close-out + W19-5 onTerminal+onLM log_record stamp — entire harness_verification_unconfirmed_present reason driver closed); Hat-3 (coverage matrix promotion → 6 capabilities missing) deferred to W20-W22 per multi-iter roadmap. §17 W19 plan source + §18-§20 W20-W22 multi-iter roadmap (split at W19-0 from the original §17-§20 combined header). W18 closed via PR #26 week18 -> main MERGED 2026-05-21 via 9874e79; final W18 bar tests/architecture/ 201 passed; make test-security 220 passed; full suite 1907 passed, 9 skipped, 8 deselected. W19-3 test bar: tests/architecture/ 202 passed, make test-security 220 passed, full suite 1932 passed (W19-2 baseline 1913 + W19-3 +19). W18 sub-iter audit trail (frozen, all closed): W18-0 doc-reconcile (89d0c9b); W18-1 ADR 0012 Option A1 (acf6cc9 + 73d8a5c); W18-2 heartbeat refactor implementation (a9bffb1 + 78ed7cc + b5b64b6 + 306d744); W18-3 lifecycle harness extension tests (92b310d + 32d9905); W18-4 close-out hygiene (3f4f95a); W18-4-followup (e1043e5). W17 closed via PR #25 week17 -> main MERGED 2026-05-18 via bff565d; W16 closed via PR #23 week16 -> main MERGED 2026-05-18 via 1b6d43f. W18 frozen tracker: documents/active-work/W18-heartbeat-refactor.md; W19 frozen tracker: documents/active-work/W19-live-run-root-cause.md (frozen at W19-6-followup-2 per W17/W18 paterni); multi-iter roadmap source-of-truth: documents/active-work/W18-W22-roadmap.md. W16-0..W16-7, W17-0..W17-7, W18-0..W18-4 sub-iter slate audit trail in respective frozen trackers; full preamble history pre-2026-05-21 in archive snapshots.)`
 
 This file is intentionally a thin pointer. Do not duplicate phase summaries or
 architecture maps here; that caused drift.
@@ -28,11 +28,13 @@ architecture maps here; that caused drift.
 - Deferred and pull-next work is owned by `documents/POST_POC_BACKLOG.md`
   (slim canonical).
 - W8-W13 planning is owned by `documents/REFACTOR_OPTIMIZATION.md` section 11;
-  W14 by section 12; W15 by section 13; W16 by section 14; W17 by section 15.
-  **W18-W22 multi-iter roadmap by sections 16-20 (W18 closed
-  `2026-05-21` via PR #26 / `9874e79`; W19-W22 remain in planning
-  state); source-of-truth tracker
-  `documents/active-work/W18-W22-roadmap.md`.**
+  W14 by section 12; W15 by section 13; W16 by section 14; W17 by section 15;
+  W18 by section 16.
+  **W19 by section 17 (closed synthetically `2026-05-26` on `week19`
+  branch; PR `week19 -> main` pending user approval);
+  W20-W22 by sections 18-20 (planning state); source-of-truth tracker
+  `documents/active-work/W18-W22-roadmap.md`. W18 closed `2026-05-21`
+  via PR #26 / `9874e79`.**
   W13 closed `2026-05-13` (PR #20 `772deb3`); W14 closed `2026-05-14` (PR #21
   `4e03c8d`); W15 closed `2026-05-17` and merged via PR #22 (`6161472`)
   on `2026-05-18`. **W16 closed `2026-05-18` and merged via PR #23
@@ -94,64 +96,74 @@ architecture maps here; that caused drift.
   harness smoke). Past trackers are stable-ID references only:
   W17, W16, W15, W14, W13, W12, W11, and W8.
 
-  **Active phase: W18 — Heartbeat Refactor — closed via PR #26
+  **Previous phase: W18 — Heartbeat Refactor — closed via PR #26
   `week18 -> main` MERGED `2026-05-21` via `9874e79` (per user
-  direction 2026-05-21; W11-W17 paterni preserved). Sub-iter slate
-  W18-0..W18-4 fully delivered**: W18-0
+  direction; W11-W17 paterni preserved). Sub-iter slate
+  W18-0..W18-4 + W18-4-followup fully delivered**: W18-0
   doc-reconcile (`89d0c9b`); W18-1 ADR
   `documents/adrs/0012-heartbeat-thread-relocation.md` Option A1
-  Accepted (`acf6cc9` + `73d8a5c` followup doc-truth — dedicated
+  Accepted (`acf6cc9` + `73d8a5c` followup) — dedicated
   sandbox-reset coordinator for the step-1 setup reset; cancel-path
-  teardown reset stays on the heartbeat thread; invariant cost
-  trade-offs against W13-1 HMAC eager-consume / W13-3 two-phase
-  cancel / W13-13 CAS / W16-2 facade lock all preserved byte-
-  identical); W18-2 heartbeat refactor implementation (`a9bffb1` +
-  `78ed7cc` ADR self-stamp + `b5b64b6` ruff-format followup +
-  `306d744` full-repo lint sweep + `pre-commit install`) — step-1
-  reset moved off the worker thread via a dedicated
+  teardown reset stays on the heartbeat thread; W18-2 heartbeat
+  refactor implementation (`a9bffb1` + `78ed7cc` + `b5b64b6` +
+  `306d744`) — step-1 reset off the worker thread via
   `_run_reset_off_thread` coordinator (function-extension shape,
-  ~42 LOC across `workflows/marketplace/analysis_execution.py` +
-  `analysis_service.py`; W17-2 harness smoke passes byte-identical;
-  three AST/behavioral gates pinning the bare `_reset_sandbox(...)`
-  Name call at `analysis_service.py:155` preserved); W18-3 lifecycle
-  harness extension tests (`92b310d` + `32d9905` self-stamp) —
-  parallel reset / idempotency / reset-during-finalize tests landed
-  per ADR 0012 §Follow-On (W17-2 module docstring L27-35 forward
-  contract); W18-4 close-out hygiene this commit — 8-doc canonical
-  preamble refresh + §16 W18 self-stamp (W14/W15/W16/W17 paterni;
-  §16-§20 combined header split into §16 W18 closed + §17-§20
-  W19-W22 planning) + W18 tracker freeze. W18-4-followup (`e1043e5`)
-  landed 4 W18-2 invariant pins (signature default / poll-interval
-  bound / cancel-propagation behavior / reporter thread-isolation) +
-  2 pre-existing doc drift fixes. Final W18 bar:
-  `tests/architecture/` **201 passed** (W17 final 200 + W18-0
-  README phase-pointer arch gate W17->W18 transition);
-  `make test-security` **220 passed** (unchanged from W17); full
-  suite **1907 passed, 9 skipped, 8 deselected** (W17 final 1899
-  + W18-0 +1 + W18-3 +3 + W18-4-followup +4 W18-2 invariant tests).
-  Frozen tracker: `documents/active-work/W18-heartbeat-refactor.md`.
+  ~42 LOC; W17-2 harness smoke byte-identical); W18-3 lifecycle
+  harness extension tests — parallel reset / idempotency /
+  reset-during-finalize (`92b310d` + `32d9905`); W18-4 close-out
+  hygiene (`3f4f95a`); W18-4-followup (`e1043e5`) 4 W18-2
+  invariant pins + 2 doc drift fixes. Final W18 bar:
+  `tests/architecture/` **201 passed**; `make test-security`
+  **220 passed**; full suite **1907 passed, 9 skipped, 8
+  deselected**. Frozen tracker:
+  `documents/active-work/W18-heartbeat-refactor.md`.
+
+  **Active phase: W19 — Live-Run Kök Neden: Dropout + Harness
+  Verification — closed synthetically `2026-05-26` on the `week19`
+  branch (per user direction 2026-05-21; W11-W18 paterni preserved);
+  PR `week19 -> main` pending user approval. §17 W19
+  plan source in `documents/REFACTOR_OPTIMIZATION.md`. W19-0..W19-6
+  + W19-X all closed**: W19-0 doc-reconcile
+  (`72712bd` + `086d7a5`); W19-1 RED dropout fixture
+  (`6a21cf3` + `fd02ca4`); W19-2 emit-site fix (`89b64da` +
+  `d9c6262`) + W19-2-followup-2 live re-anchor (`d5de9ca`)
+  satisfying `unaccounted_dropout == 0`; W19-3 schema landing
+  (`d2e83e7` + `39121e4` + W19-3-followup-2 `9b56e94`); W19-4
+  `onDebug*` harness_nonce producer/consumer wire (`7d44b0e`); W19-X
+  `onDebug*` live close-out (`8b7b7f6` + `a3e634f`) closing Bug A
+  planner routing / Bug B marker channel destination / Bug C HMAC
+  reactivation race; W19-5 onTerminal+onLM log_record stamp
+  (`e537ebd` + `4fd6ed6`); W19-6 close-out hygiene (`f17b4b1` +
+  `cd82153`); W19-6-followup-2 pre-merge hygiene (this commit) —
+  closes 6 pre-merge test gaps + corrects stale W19 preamble
+  drift across 9-doc canonical set + freezes W19 tracker.
   Driving signal: Codex live-run validation of `ms-python.python`
-  @ `992ad028f3df` (2026-05-21) reports
-  `automation_health.status=degraded` + `run_quality=low` while
-  static W17 final bar (1899/200/220) remains 🟢. Plan identifies
-  three independent problem hatları (executor muhasebe bug →
-  unaccounted_dropout; harness verification gap → declared ≠
-  verified; coverage matrix promotion → 6 capabilities missing in
-  official track) and three capability layers (A: activation
-  events 29 entry, B: 18-bucket taxonomy, C: VSCode manifest
-  capabilities — spec-compliant). W19-W22 follow-on iters:
-  **W19** live-run kök neden — dropout fix (Hat-1) + harness
-  verification contract event-level (Hat-2); **W20** coverage
-  promotion round 1 (easy: `scm` + `settings` official);
-  **W21** coverage promotion round 2 (mid: `testing` / `comments` /
-  `workspace_trust`; container hardening stretch); **W22** coverage
-  promotion round 3 (hard: `chat` policy ADR + implementation) +
-  attribution depth + sandbox-evasion ADR. Roadmap source-of-truth:
-  `documents/active-work/W18-W22-roadmap.md`. §16 W18 plan source +
-  §17-§20 W19-W22 multi-iter roadmap:
-  `documents/REFACTOR_OPTIMIZATION.md`. W18-W22 stable IDs reserved:
-  `POST_POC_BACKLOG.md` W18-W22 Roadmap Acceptance Bar. Plan went
-  through 3 review rounds (Codex live-run + GPT × 2).
+  @ `992ad028f3df` (2026-05-21). Plan identified three independent
+  problem hatları; **Hat-1 closed + live-verified, Hat-2 fully
+  closed synthetically**: Hat-1 executor muhasebe bug
+  (`[BUG scenario-unaccounted-dropout-regression-fixture]` W19-1 +
+  `[BUG scenario-unaccounted-dropout-debug-refactor]` W19-2) + Hat-2
+  harness verification gap
+  (`[GOAL harness-verification-contract-event-level]` W19-3
+  schema landing + `[FOLLOWUP harness-verification-debug-events]`
+  W19-4 + `[FOLLOWUP harness-verification-terminal-and-lm-tool]`
+  W19-5). **Hat-3 coverage matrix promotion deferred to
+  W20-W22 per multi-iter roadmap** (§18-§20). W19 acceptance
+  (live-run-driven): `unaccounted_dropout == 0` (must-pass) ✓;
+  `harness_verification_unconfirmed_present` reason drops
+  (must-pass) ✓ synthetic / live-pending-next-run;
+  `run_quality: low → medium` (expected); `verification_gap_present`
+  drops (stretch); `automation_health.status: degraded` OK (W20 will
+  close `official_unresolved_present`). Frozen tracker:
+  `documents/active-work/W19-live-run-root-cause.md`; multi-iter
+  roadmap source-of-truth:
+  `documents/active-work/W18-W22-roadmap.md`. §17 W19 plan source
+  + §18-§20 W20-W22 multi-iter roadmap:
+  `documents/REFACTOR_OPTIMIZATION.md`. W19-W22 stable IDs
+  reserved: `POST_POC_BACKLOG.md` W19 Pull-Forward Acceptance Bar
+  + W20-W22 Roadmap Acceptance Bar. W19 plan went through 3
+  review rounds (Codex live-run + GPT × 2; same plan dosyası
+  W18-W22 multi-iter roadmap).
 - `documents/archive/` is frozen reference; not on the default read path.
   Open only when a slim canonical explicitly points there.
 

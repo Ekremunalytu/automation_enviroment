@@ -775,6 +775,97 @@ def test_vscode_reload_workbench_window_logs_and_reuses_primary_page(
     ]
 
 
+def test_vscode_reload_workbench_window_rewrites_harness_secret_before_dispatch(
+    monkeypatch,
+) -> None:
+    """W19-X: ``reload_workbench_window`` must call ``_rewrite_harness_secret``
+    before dispatching ``run_reload_window_command`` so the reactivating
+    Extension Host can read a fresh per-launch HMAC secret on its activate().
+    Without this wiring, reload reactivations read ENOENT, emit unsigned
+    markers, and the verifier rejects onDebug* attempts as unverified."""
+    call_order: list[str] = []
+    page = _FakePage()
+    browser = SimpleNamespace(contexts=[SimpleNamespace(pages=[page])])
+
+    monkeypatch.setattr(
+        vscode,
+        "wait_until_ready",
+        lambda *_a, **_k: call_order.append("wait_until_ready"),
+    )
+    monkeypatch.setattr(
+        vscode,
+        "_rewrite_harness_secret",
+        lambda log=None: call_order.append("rewrite_harness_secret"),
+    )
+    monkeypatch.setattr(
+        commands,
+        "run_reload_window_command",
+        lambda _current_page: call_order.append("run_reload_window_command"),
+    )
+    monkeypatch.setattr(
+        vscode,
+        "reconnect_to_workbench",
+        lambda current_browser, *, preferred_page, timeout_ms=30_000: preferred_page,
+    )
+
+    vscode.reload_workbench_window(browser, page)
+
+    rewrite_idx = call_order.index("rewrite_harness_secret")
+    dispatch_idx = call_order.index("run_reload_window_command")
+    assert rewrite_idx < dispatch_idx, (
+        f"rewrite must precede reload dispatch; got order {call_order}"
+    )
+
+
+def test_vscode_rewrite_harness_secret_noop_when_launch_script_absent(
+    monkeypatch, tmp_path
+) -> None:
+    """W19-X: ``_rewrite_harness_secret`` must be a no-op when the launch
+    script is absent (e.g. test/host environments without the executor
+    container layout). Otherwise unit tests that exercise the reload helper
+    would fail trying to invoke a non-existent bash script."""
+    monkeypatch.setattr(vscode, "_VSCODE_LAUNCH_SCRIPT", str(tmp_path / "missing.sh"))
+    subprocess_calls: list[object] = []
+    monkeypatch.setattr(
+        vscode.subprocess,
+        "run",
+        lambda *a, **k: subprocess_calls.append((a, k)),
+    )
+
+    vscode._rewrite_harness_secret()
+
+    assert subprocess_calls == []
+
+
+def test_vscode_rewrite_harness_secret_invokes_subprocess_when_script_exists(
+    monkeypatch, tmp_path
+) -> None:
+    """W19-X: when the launch script is present, ``_rewrite_harness_secret``
+    invokes ``bash launch_vscode.sh --secret-only`` so the running VS Code's
+    next reactivation finds a fresh secret on disk. Mirrors the
+    runtime contract; the actual subprocess is stubbed to keep the test
+    hermetic."""
+    fake_script = tmp_path / "launch_vscode.sh"
+    fake_script.write_text("#!/bin/bash\nexit 0\n")
+    monkeypatch.setattr(vscode, "_VSCODE_LAUNCH_SCRIPT", str(fake_script))
+
+    captured: list[tuple] = []
+
+    def fake_run(args, **kwargs):
+        captured.append((tuple(args), kwargs))
+        return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    monkeypatch.setattr(vscode.subprocess, "run", fake_run)
+
+    vscode._rewrite_harness_secret()
+
+    assert len(captured) == 1
+    args, kwargs = captured[0]
+    assert args == ("bash", str(fake_script), "--secret-only")
+    assert kwargs.get("check") is False
+    assert kwargs.get("timeout") == vscode._SECRET_REWRITE_TIMEOUT_S
+
+
 def test_vscode_reload_workbench_window_uses_fallback_page(monkeypatch) -> None:
     primary_page = _FakePage(title="Primary", url="vscode-file://primary")
     fallback_page = _FakePage()

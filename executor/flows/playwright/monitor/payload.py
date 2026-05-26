@@ -98,6 +98,7 @@ def _build_event_attempts(payload: Any) -> list[EventAttemptRecord]:
             heuristic=bool(item.get("heuristic", False)),
             ui_path=str(item.get("ui_path", "")),
             harness_fallback=str(item.get("harness_fallback", "")),
+            confirmation_source=str(item.get("confirmation_source", "none") or "none"),
         )
         for item in _payload_items(payload, "event_attempts")
     ]

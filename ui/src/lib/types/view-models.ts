@@ -255,6 +255,7 @@ export interface EventAttemptView {
   heuristic: boolean;
   uiPath: string;
   harnessFallback: string;
+  confirmationSource: string;
 }
 
 export interface EventCoverageView {

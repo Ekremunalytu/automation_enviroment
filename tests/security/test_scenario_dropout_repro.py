@@ -59,7 +59,7 @@ remaining (non-dispatch) silent drop sites — planner or future
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, ClassVar
 
 import pytest
 
@@ -376,3 +376,203 @@ def test_dispatch_outcome_none_emits_nothing_when_no_requested_scenarios() -> No
     assert list(result.skipped_scenarios) == []
     assert list(result.executed_scenarios) == []
     assert list(result.failed_scenarios) == []
+
+
+# ---------------------------------------------------------------------------
+# W19-2 upstream emit-site instrumentation pin
+# ---------------------------------------------------------------------------
+
+
+def test_layered_attempts_coverage_emits_specific_reason_code(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """W19-2: ``run_stimulus_plan`` MUST emit a specific
+    ``covered_via_layered_attempts`` reason for every scenario whose
+    declared activation events were attempted through the layered plan
+    (i.e. ``_record_scenario_coverage`` added them to
+    ``covered_scenarios``) but whose handler was NOT directly invoked
+    under this execution mode (``executor_action`` is ``extra:`` /
+    ``command:`` / etc. — anything other than ``scenario:`` which would
+    route through ``attempts._emit_scenario_with_optional_coverage``
+    and append to ``result.executed_scenarios``).
+
+    Pre-W19-2, ``passes.py`` unioned ``executed_scenarios`` U
+    ``covered_scenarios`` into a single ``executed_names`` skip-set;
+    covered-only scenarios were excluded from the reconciliation loop
+    entirely, so they appeared in neither ``scenarios_run`` (the
+    accountant re-derives that from ``scenario_traces``, which records
+    handler invocations only) nor ``skipped_scenarios``. The last-mile
+    ``ScenarioAccountant._validate_scenario_conservation`` guard then
+    back-filled each missing scenario with the generic
+    ``unaccounted_dropout`` reason. ``vec_ms_python_python`` above
+    pins that downstream-fallback shape at the accountant boundary;
+    this test pins the W19-2 upstream-classification fix directly so
+    production observers see ``covered_via_layered_attempts`` in
+    ``skipped_scenarios`` rather than a downstream-only fallback.
+
+    Production motivation: ``debug_session`` + ``refactor_workflow``
+    deterministic dropouts observed in live analyze API runs against
+    ``ms-python.python`` (Codex live-run reference 2026-05-21 @
+    ``992ad028f3df``; three byte-identical post-W18-2 confirmations).
+    See W19 tracker and §17 W19 plan.
+    """
+    from executor.flows.playwright.stimulus import passes as passes_module
+
+    # Stub execute_attempt to a no-op so the test does not need a
+    # real Playwright Page. The function is bound into the
+    # passes module namespace via `from .attempts import ...`,
+    # so setattr on passes_module rebinds the local name.
+    def _stub_execute_attempt(*_args: object, **_kwargs: object) -> None:
+        return None
+
+    monkeypatch.setattr(passes_module, "execute_attempt", _stub_execute_attempt)
+
+    class _Payload:
+        # Three requested scenarios; the first two have layered
+        # attempts wired in below (covered-only), the third has no
+        # attempt at all (must hit the existing not_executed branch
+        # so the test simultaneously pins that branch as a guard
+        # against accidental reason_code drift).
+        selected_scenarios: ClassVar[list[str]] = [
+            "debug_session",
+            "refactor_workflow",
+            "coding_session",
+        ]
+        event_attempts: ClassVar[list[dict[str, Any]]] = [
+            {
+                "attempt_id": "att-debug-1",
+                "executor_action": "extra:debug_lifecycle",
+                "event_family": "onDebugInitialConfigurations",
+                "legacy_scenarios": ["debug_session"],
+            },
+            {
+                "attempt_id": "att-refactor-1",
+                "executor_action": "command:auto",
+                "event_family": "onCommand",
+                "legacy_scenarios": ["refactor_workflow"],
+            },
+        ]
+        stimulus_passes: ClassVar[list[dict[str, Any]]] = [
+            {
+                "pass_id": "ui_first_user_session",
+                "order": 1,
+                "label": "UI first user session",
+                "attempt_ids": ["att-debug-1", "att-refactor-1"],
+                "prerequisite_keys": [],
+            },
+        ]
+        prerequisite_results: ClassVar[list[dict[str, Any]]] = []
+
+    result = passes_module.run_stimulus_plan(
+        page=None, payload=_Payload(), monitor=None
+    )
+
+    assert list(result.requested_scenarios) == [
+        "debug_session",
+        "refactor_workflow",
+        "coding_session",
+    ]
+    # No handler was directly invoked under this execution mode.
+    assert list(result.executed_scenarios) == []
+    assert list(result.failed_scenarios) == []
+
+    skip_by_name = {item.name: item for item in result.skipped_scenarios}
+    assert set(skip_by_name) == {
+        "debug_session",
+        "refactor_workflow",
+        "coding_session",
+    }, f"every requested scenario must surface; got={sorted(skip_by_name)}"
+
+    for name in ("debug_session", "refactor_workflow"):
+        assert skip_by_name[name].reason_code == "covered_via_layered_attempts", (
+            f"{name}: expected covered_via_layered_attempts, got "
+            f"{skip_by_name[name].reason_code!r}"
+        )
+        assert skip_by_name[name].detail, (
+            f"{name}: detail must be populated for analyst readability"
+        )
+
+    # The third scenario had no attempt wired in — it must still hit
+    # the existing not_executed branch so the W19-2 fix does not
+    # accidentally regress healthy classification.
+    assert skip_by_name["coding_session"].reason_code == "not_executed", (
+        f"coding_session: expected not_executed (guard), got "
+        f"{skip_by_name['coding_session'].reason_code!r}"
+    )
+
+
+def test_layered_attempts_coverage_pre_recorded_reason_wins(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """W19-2: when an upstream attempt for a covered-only scenario
+    recorded a specific reason via ``_record_scenario_reason``
+    (e.g. ``unsupported_activation_surface``) before a later attempt
+    in the same plan added the scenario to ``covered_scenarios``, the
+    reconciliation MUST preserve that earlier reason rather than
+    overwriting it with the generic ``covered_via_layered_attempts``
+    default emitted by W19-2.
+
+    Guards the ``scenario_reasons.get(scenario_name, (...))`` default
+    semantics in the new covered_only branch: the default is a
+    fallback, not a replacement. ``_record_scenario_reason`` is
+    first-write-wins (line 316-317), so an early unsupported-surface
+    attempt locks in the reason; a later successful attempt still
+    adds the scenario to ``covered_scenarios`` (so the covered_only
+    branch is exercised) but the dict-default lookup MUST yield the
+    earlier reason.
+    """
+    from executor.flows.playwright.stimulus import passes as passes_module
+
+    def _stub_execute_attempt(*_args: object, **_kwargs: object) -> None:
+        return None
+
+    monkeypatch.setattr(passes_module, "execute_attempt", _stub_execute_attempt)
+
+    class _Payload:
+        selected_scenarios: ClassVar[list[str]] = ["debug_session"]
+        event_attempts: ClassVar[list[dict[str, Any]]] = [
+            {
+                # Attempt 1: unsupported event family → records
+                # 'unsupported_activation_surface' for debug_session
+                # via ``_record_scenario_reason`` (first-write-wins).
+                "attempt_id": "att-unsupported",
+                "executor_action": "extra:debug_lifecycle",
+                "event_family": "onSomethingUnsupportedByExecutor",
+                "legacy_scenarios": ["debug_session"],
+            },
+            {
+                # Attempt 2: supported family + non-scenario action →
+                # ``execute_attempt`` runs (no-op stubbed) →
+                # ``_record_scenario_coverage`` adds debug_session
+                # to ``covered_scenarios`` so the covered_only branch
+                # fires in reconciliation.
+                "attempt_id": "att-covered",
+                "executor_action": "extra:debug_lifecycle",
+                "event_family": "onDebugInitialConfigurations",
+                "legacy_scenarios": ["debug_session"],
+            },
+        ]
+        stimulus_passes: ClassVar[list[dict[str, Any]]] = [
+            {
+                "pass_id": "ui_first_user_session",
+                "order": 1,
+                "label": "UI first user session",
+                "attempt_ids": ["att-unsupported", "att-covered"],
+                "prerequisite_keys": [],
+            },
+        ]
+        prerequisite_results: ClassVar[list[dict[str, Any]]] = []
+
+    result = passes_module.run_stimulus_plan(
+        page=None, payload=_Payload(), monitor=None
+    )
+
+    skip_by_name = {item.name: item for item in result.skipped_scenarios}
+    assert "debug_session" in skip_by_name
+    # Pre-recorded reason MUST win over the W19-2 covered_only default.
+    assert (
+        skip_by_name["debug_session"].reason_code == "unsupported_activation_surface"
+    ), (
+        "covered_only branch must respect prior scenario_reasons entry; got "
+        f"{skip_by_name['debug_session'].reason_code!r}"
+    )

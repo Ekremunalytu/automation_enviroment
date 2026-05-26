@@ -1,6 +1,6 @@
 # Documentation Maintenance Lane
 
-**Last Updated:** 2026-05-17 (W15 close — W15-7 closed 2026-05-17 — regression lock-in umbrella: (1) compose image SHA pin via 54e7a93 (`docker-compose.yml`: postgres:16-alpine + alpine/socat:1.8.0.3 by manifest digest); (2) architecture gate surface extension via 7ebbbfb (`tests/architecture/test_dockerfile_digest_pin.py` extended with `COMPOSE_FILES` tuple + vacuous-truth guard; ADR 0002 §4 scope extended to compose `image:` keys, ADR itself NOT amended; `tests/architecture/` 196 → 198); (3) GH action trivy version pin via 452f1a1 (`aquasecurity/trivy-action@v0.36.0` tag-pin); (4) canonical preamble refresh across CLAUDE.md / AGENTS.md / README.md / AGENT_CONTEXT.md / REFACTOR_STATUS.md / REFACTOR_OPTIMIZATION.md to W15 truth-state; close-out hygiene via 7ff31d9 (Ruff SIM102 collapse in `test_lifecycle_marker_id_shape.py`). W15 mid-iter hygiene 2026-05-16: `tests/architecture/test_doc_preamble_consistency.py` added — gates 6 canonical doc preambles for active-phase signal alignment; 3 new audit findings appended to `POST_POC_BACKLOG.md` (`health-reconciliation-responsibility-split`, `marketplace-router-test-suite-split`, `analysis-job-worker-entry-crud-ownership`) — all defer to W16+ per §13.3 Non-goals.)
+**Last Updated:** 2026-05-25 (W19 active — Hat-1 closed + live-verified via W19-2-followup-2 `d5de9ca`; Hat-2 W19-3..W19-5 and W19-6 close-out pending. Current truth anchors: `REFACTOR_STATUS.md`, `POST_POC_BACKLOG.md`, `REFACTOR_OPTIMIZATION.md` §17, `active-work/W19-live-run-root-cause.md`, and `active-work/W18-W22-roadmap.md`.)
 
 Use this lane for README, ADR, runbook, roadmap, testing-guide, and
 agent-doc updates.
@@ -22,10 +22,10 @@ target doc, and the code/tests/config proving each claim.
   work; **stable item IDs** (`[FOLLOWUP <id>]`) are a contract — code
   comments and tests reference them. Do not rename.
 - `REFACTOR_OPTIMIZATION.md` section 11 owns closed W8-W13 planning;
-  section 12 owns closed W14 planning; section 13 owns active W15
-  planning. Active W15 tracker:
-  `documents/active-work/W15-codex-uclass-bounds-posture.md`. Past
-  W8/W11/W12/W13/W14 trackers remain only for stable IDs.
+  sections 12-16 own closed W14-W18 planning; section 17 owns active
+  W19 planning; sections 18-20 own the W20-W22 roadmap. Active W19
+  tracker: `documents/active-work/W19-live-run-root-cause.md`. Past
+  W8/W11/W12/W13/W14/W15/W16/W17/W18 trackers remain only for stable IDs.
 - ADR 0007 enforcement landed `2026-04-29` via W8-7 — loopback
   defaults plus `EXTRACE_ALLOW_LAN` opt-in are pinned by
   `tests/architecture/test_default_bindings.py`. Do not regress to

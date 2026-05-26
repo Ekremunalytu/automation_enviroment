@@ -48,12 +48,13 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 SCANNED_DIR = "executor"
 PRAGMA = "arch-allow: bare-binary-path"
 
-_BASELINE_PRAGMA_COUNT: Final[int] = 6
+_BASELINE_PRAGMA_COUNT: Final[int] = 7
 
 _EXPECTED_PRAGMA_DISTRIBUTION: Final[dict[str, int]] = {
     "executor/flows/playwright/vscode/editor.py": 3,
     "executor/flows/playwright/reset_state.py": 2,
     "executor/flows/playwright/monitor/runtime.py": 1,
+    "executor/flows/playwright/vscode/__init__.py": 1,
 }
 
 

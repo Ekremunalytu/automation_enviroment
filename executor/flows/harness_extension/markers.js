@@ -15,6 +15,26 @@ function setHarnessNonceSecret(secret) {
   _harnessNonceSecret = typeof secret === "string" ? secret : "";
 }
 
+// Output channel reference for marker emission. ``console.log`` cannot be
+// used because launch_vscode.sh redirects VS Code stdout/stderr to
+// /dev/null, so Extension Host console output never reaches the parser.
+// extension.js::activate() installs the channel via setHarnessChannel
+// after createOutputChannel; until then emitters fall back to console.log
+// (preserved for tests / dev mode that read Developer Tools console).
+let _harnessChannel = null;
+
+function setHarnessChannel(channel) {
+  _harnessChannel = channel && typeof channel.appendLine === "function" ? channel : null;
+}
+
+function _emitMarkerLine(line) {
+  if (_harnessChannel) {
+    _harnessChannel.appendLine(line);
+    return;
+  }
+  console.log(line);
+}
+
 // HMAC input shape mirrors tests/executor/test_playwright_health_reconciliation.py
 // _w13_1_canonical_payload: sorted-keys JSON without whitespace, the
 // ``nonce`` key itself excluded so the signature covers the unsigned
@@ -49,7 +69,7 @@ async function readHarnessContext() {
 }
 
 function emitHarnessMarker(phase, details) {
-  console.log(
+  _emitMarkerLine(
     `[extrace-harness] ${JSON.stringify(
       _signedPayload({
         kind: "stimulus",
@@ -65,7 +85,7 @@ function emitHarnessMarker(phase, details) {
 // in particular the ``kind`` field. Reuses the [extrace-harness] prefix
 // the existing _HARNESS_MARKER_RE consumes on the Python side.
 function emitHarnessEvent(payload) {
-  console.log(`[extrace-harness] ${JSON.stringify(_signedPayload(payload))}`);
+  _emitMarkerLine(`[extrace-harness] ${JSON.stringify(_signedPayload(payload))}`);
 }
 
 // W8-0: marker payload schema version. Bumped only when the contract
@@ -93,6 +113,7 @@ module.exports = {
   emitHarnessEvent,
   emitHarnessMarker,
   readHarnessContext,
+  setHarnessChannel,
   setHarnessNonceSecret,
   writeHarnessReadyMarker,
 };

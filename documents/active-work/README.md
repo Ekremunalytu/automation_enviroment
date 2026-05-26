@@ -1,6 +1,6 @@
 # Active Work
 
-`Last Updated: 2026-05-21 (W18 active — closed via PR #26 week18 -> main MERGED 2026-05-21 via 9874e79; W18-0..W18-4 sub-iter slate landed on the week18 branch (per user direction; W11-W17 paterni preserved); W18-4-followup post-merge audit landed this commit. W18 frozen tracker: W18-heartbeat-refactor.md. W17 closed via PR #25 week17 -> main MERGED 2026-05-18 via bff565d; W16 closed via PR #23 week16 -> main MERGED 2026-05-18 via 1b6d43f. Final W18 bar: tests/architecture/ 201 passed; make test-security 220 passed; full suite 1907 passed, 9 skipped, 8 deselected.)`
+`Last Updated: 2026-05-26 (W19 fully closed synthetically — Hat-1 closed + live-verified; Hat-2 fully closed via W19-3 schema landing + W19-4 producer/consumer wire (7d44b0e) + W19-X live-verification close-out (8b7b7f6 + a3e634f) + W19-5 onTerminal+onLM log_record stamp (e537ebd + 4fd6ed6) — all closed on the week19 branch (per user direction; W11-W18 paterni preserved). W19-0 doc-reconcile 2026-05-21 (72712bd + 086d7a5); W19-1 RED dropout regression fixture 2026-05-25 (6a21cf3 + fd02ca4); W19-2 emit-site fix 2026-05-25 (89b64da + d9c6262) — passes.py covered-only branch emits covered_via_layered_attempts; W19-2-followup-2 live re-anchor d5de9ca — Hat-1 GREEN gate SATISFIED 2026-05-25 22:23 (live JSON c2bf28ca9506, sha256 e9e60b2e42..., unaccounted_dropout count = 0); W19-3 schema landing 2026-05-25 (primary d2e83e7 + self-stamp 39121e4) — confirmation_source: str = "none" field landed on EventAttemptRecord (Pydantic + executor dataclass + UI adapter), str + field_validator typing mirroring status pattern, 22 new tests, frozen trigger fixture regenerated via planner replay; post-W19-3 live run 2026-05-25 23:27 (86e0f3646ce9) confirms field landed at "none" on 21/21 event_attempts with no behavior regression. W19-4 onDebug* nonce confirmation + consumer wire closed via 7d44b0e (producer at reconciliation.py:347-348 + consumer wire at reconciliation.py:85-90 + 7 new tests at test_playwright_health_reconciliation.py:813-1090). W19-X live-verification close-out via 8b7b7f6 + a3e634f — closes 3 pre-existing bug classes surfaced by first post-W19-4 live UI analyze: Bug A planner routing, Bug B marker channel destination, Bug C HMAC secret reactivation race; +15 new behavioral tests; live anchor 8247e05ec9ef.json shows 2/2 onDebug* stamped with harness_verification_unconfirmed suppressed on those attempts (Half B confirmed). W19-5 closed via primary e537ebd + self-stamp 4fd6ed6 (onTerminal+onLM log_record stamp); W19-6 close-out hygiene via f17b4b1 + cd82153; W19-6-followup-2 pre-merge hygiene this commit — closes 6 test gaps (+20 parametrized tests) + corrects stale W19 preamble drift across the 9-doc canonical set + freezes W19 tracker; Hat-3 deferred to W20-W22. W19 frozen tracker: W19-live-run-root-cause.md (frozen at W19-6-followup-2 per W17/W18 paterni). W18 closed via PR #26 week18 -> main MERGED 2026-05-21 via 9874e79; W18 frozen tracker: W18-heartbeat-refactor.md. Final W19 test bar: tests/architecture/ 204 passed; make test-security 220 passed; full suite 1995 passed, 9 skipped, 8 deselected.)`
 
 Slim canonical files for **active engineering work tracking**. Each file is
 a stable contract: code comments and tests reference items here by stable
@@ -19,10 +19,51 @@ points to it.
 
 ## Files
 
+- `W19-live-run-root-cause.md`
+  - **Active phase — W19-0..W19-4 closed; W19-5..W19-6 pending on the
+    `week19` branch per user direction; W11-W18 paterni preserved.**
+    W19 Live-Run Kök Neden: Dropout + Harness Verification. Hat-1 is
+    closed + live-verified: W19-0 doc-reconcile (`72712bd` +
+    `086d7a5`), W19-1 RED dropout fixture (`6a21cf3` + `fd02ca4`),
+    W19-2 emit-site fix (`89b64da` + `d9c6262`), and live re-anchor
+    `d5de9ca` satisfying `unaccounted_dropout == 0`. Remaining slate:
+    harness verification
+    contract event-level — HARD GATE schema landing
+    `[GOAL harness-verification-contract-event-level]` (W19-3);
+    onDebug* nonce confirmation
+    `[FOLLOWUP harness-verification-debug-events]` (W19-4);
+    onTerminal + onLM local-only confirmation
+    `[FOLLOWUP harness-verification-terminal-and-lm-tool]` (W19-5);
+    close-out hygiene + PR `week19 -> main` (W19-6). Driving signal:
+    Codex live-run validation `2026-05-21` of `ms-python.python` @
+    `992ad028f3df` reports `automation_health.status=degraded` +
+    `run_quality=low`; W19-2 live re-anchor now satisfies
+    `unaccounted_dropout == 0`. Hat-2 remains active; Hat-3
+    (coverage matrix promotion) deferred to W20-W22 per multi-iter
+    roadmap. Slim canonical:
+    [`REFACTOR_OPTIMIZATION.md §17`](../REFACTOR_OPTIMIZATION.md).
+- `W18-heartbeat-refactor.md`
+  - **Past phase — closed `2026-05-21` and merged via PR #26
+    `week18 -> main` on `2026-05-21` via `9874e79`** (W18-0..W18-4
+    sub-iter slate + W18-4-followup post-merge audit landed; final
+    W18 bar `tests/architecture/` **201 passed**; `make test-security`
+    **220 passed**; full suite **1907 passed, 9 skipped,
+    8 deselected**). W18 Heartbeat Refactor: 5 sub-iter slate
+    (`W18-0..W18-4`) + W18-4-followup. Retained on the read path
+    because code comments + tests reference items by `W18-<n>` ID
+    — do not renumber. Slim canonical:
+    [`REFACTOR_OPTIMIZATION.md §16`](../REFACTOR_OPTIMIZATION.md).
+- `W18-W22-roadmap.md`
+  - **Multi-iter roadmap source-of-truth (planning state for
+    W20-W22; W18 closed; W19 active).** Authored `2026-05-21` per
+    user direction; carries the dropout fix (Hat-1) + harness
+    verification (Hat-2) + coverage matrix promotion (Hat-3) plan
+    across W18-W22. Slim canonical:
+    [`REFACTOR_OPTIMIZATION.md §16 + §17 + §18-§20`](../REFACTOR_OPTIMIZATION.md).
 - `W15-codex-uclass-bounds-posture.md`
-  - **Active phase — W15-1..W15-7 closed `2026-05-17`; `week15 -> main`
-    close-out PR pending separate user action.** W15 Codex U-class
-    Close-Out + UI Bounds + Posture. 7 sub-iter slate
+  - **Past phase — W15-1..W15-7 closed `2026-05-17`; merged via
+    PR #22 `week15 -> main` on `2026-05-18` via `6161472`.** W15
+    Codex U-class Close-Out + UI Bounds + Posture. 7 sub-iter slate
     (`W15-1..W15-7`): sync analyze error taxonomy alignment
     (M10 via `c58c365`), workspace symlink check order / orphan
     removal (M12 via `765cde7`), `activationEvents` bounds + DB
@@ -42,9 +83,9 @@ points to it.
     `7cc2921` carrying this tracker). `tests/architecture/` 171
     baseline → 198 final (+17 sub-iter + 2 mid-iter hygiene + 8
     W15-7 early-pull regression cases on extension paths).
-    Retained on the read path as the active tracker until the
-    `week15 -> main` close-out PR merges and the next phase opens.
-    Slim canonical:
+    Retained on the read path for stable-ID references (code
+    comments + tests reference items by `W15-<n>` ID — do not
+    renumber). Slim canonical:
     [`REFACTOR_OPTIMIZATION.md §13`](../REFACTOR_OPTIMIZATION.md).
 - `W14-codex-acceptance-observability.md`
   - **Past phase — closed `2026-05-13` (W14-1..W14-6 closed + W14-7/W14-8
