@@ -123,12 +123,23 @@ def _partial_evidence_report() -> ActivationReport:
 def test_executor_dataclass_and_pydantic_contract_share_confirmation_source_field() -> (
     None
 ):
-    """W19-3 wire-shape parity: both ledger types carry the new field."""
+    """W19-3 wire-shape parity: both ledger types carry the new field.
+
+    W19-6 widening: assertion now checks the *full field-set parity*
+    between the executor dataclass and the Pydantic contract (not just
+    the W19-3 `confirmation_source` addition). Future field additions
+    to `EventAttemptRecord` must land on both sides in the same commit
+    or this gate breaks — preventing the kind of silent half-landing
+    that the W19-3-followup-2 audit (2026-05-25) called out as a
+    standing risk.
+    """
     executor_field_names = {
         f.name for f in dataclass_fields(ExecutorEventAttemptRecord)
     }
     contract_field_names = set(ContractEventAttemptRecord.model_fields.keys())
 
+    # W19-3 pin (preserved): the specific field that motivated the W19-3
+    # schema landing must be on both sides.
     assert "confirmation_source" in executor_field_names
     assert "confirmation_source" in contract_field_names
 
@@ -143,6 +154,15 @@ def test_executor_dataclass_and_pydantic_contract_share_confirmation_source_fiel
 
     assert executor_default == "none"
     assert contract_default == "none"
+
+    # W19-6 widening: full field-set parity. Any future addition (or
+    # removal) of an `EventAttemptRecord` field must land symmetrically
+    # on both sides; an asymmetric landing breaks this gate.
+    assert executor_field_names == contract_field_names, (
+        "EventAttemptRecord field-set drift detected — "
+        f"executor-only fields: {sorted(executor_field_names - contract_field_names)}; "
+        f"contract-only fields: {sorted(contract_field_names - executor_field_names)}"
+    )
 
 
 def test_trigger_payload_deserialization_defaults_confirmation_source_to_none() -> None:
