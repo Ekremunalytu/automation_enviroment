@@ -34,14 +34,14 @@ _CANONICAL_PREAMBLE_DOCS: tuple[str, ...] = (
     "documents/REFACTOR_STATUS.md",
     "documents/REFACTOR_OPTIMIZATION.md",
     "documents/POST_POC_BACKLOG.md",
-    "documents/active-work/W19-live-run-root-cause.md",
+    "documents/active-work/W20-coverage-promotion-easy-wins.md",
     "documents/active-work/W18-W22-roadmap.md",
 )
 
 # Most-recent-merge fingerprint pinned at W19 close-out
 # (PR #28 ``week19 -> main`` MERGED 2026-05-26 via ``c879603``).
-# Bump this when the next phase merges; bump every doc's headline in
-# the same commit.
+# Bump this when the next phase (W20) merges; bump every doc's headline
+# in the same commit.
 _EXPECTED_MERGE_FINGERPRINT = "PR #28"
 _EXPECTED_MERGE_SHA = "c879603"
 
@@ -49,8 +49,14 @@ _EXPECTED_MERGE_SHA = "c879603"
 # the current merge fingerprint. If any of these reappear in the
 # *headline region* of a canonical doc, the next-phase merge happened
 # without a corresponding preamble refresh. Body-level audit-trail
-# mentions of these phrases (e.g., describing what W19-0 doc-reconcile
+# mentions of these phrases (e.g., describing what W20-0 doc-reconcile
 # flipped) are historical narrative and not flagged here.
+#
+# Lowercase ``pending user approval`` catches the in-banner "PR pending"
+# claim from before merge. The W20-0 banner intentionally carries
+# uppercase ``PENDING USER APPROVAL`` for the still-pending W20-5 PR;
+# that's a forward-looking statement about W20, not stale W19 narrative,
+# and the case-sensitive match avoids false positives there.
 _STALE_MARKERS: tuple[str, ...] = (
     "pending user approval",
     "Active phase: W19",
