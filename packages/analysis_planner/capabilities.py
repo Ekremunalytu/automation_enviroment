@@ -42,7 +42,7 @@ _GLOBAL_CAPABILITY_SUPPORT: dict[str, str] = {
     "authentication": "covered",
     "chat": "missing",
     "comments": "missing",
-    "testing": "missing",
+    "testing": "covered",
     "webview": "covered",
     "workspace_trust": "covered",
 }
@@ -94,7 +94,7 @@ _OFFICIAL_CAPABILITY_SUPPORT: dict[str, str] = {
     "authentication": "covered",
     "chat": "missing",
     "comments": "missing",
-    "testing": "missing",
+    "testing": "covered",
     "webview": "covered",
     "workspace_trust": "covered",
 }

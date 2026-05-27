@@ -139,6 +139,68 @@ def test_settings_modification_scenario_advertises_settings_capability() -> None
 
 
 # ---------------------------------------------------------------------
+# W21-1 — Testing mid-tier promotion
+# ---------------------------------------------------------------------
+
+
+def test_testing_official_track_is_covered() -> None:
+    """W21-1: ``testing`` flipped from ``missing`` → ``covered`` in the
+    official track. Pins the flip — see
+    ``[GOAL taxonomy-testing-coverage]`` at
+    ``documents/POST_POC_BACKLOG.md`` W21 Pull-Forward.
+    """
+    assert _OFFICIAL_CAPABILITY_SUPPORT["testing"] == "covered", (
+        "W21-1 promoted `testing` to `covered` in the official track. "
+        "If this assertion fails the flip has been reverted; check "
+        "`packages/analysis_planner/capabilities.py:97`."
+    )
+
+
+def test_testing_heuristic_track_is_covered() -> None:
+    """W21-1 partner pin to the official-track flip.
+
+    ``_HEURISTIC_CAPABILITY_SUPPORT`` derives from
+    ``_GLOBAL_CAPABILITY_SUPPORT``; both must read ``covered`` so the
+    Official ⊆ Heuristic invariant (W20-3 gate) is satisfied after the
+    flip and so a future edit cannot silently regress the heuristic
+    track.
+    """
+    assert _HEURISTIC_CAPABILITY_SUPPORT["testing"] == "covered"
+    assert _GLOBAL_CAPABILITY_SUPPORT["testing"] == "covered"
+
+
+def test_testing_in_capability_taxonomy() -> None:
+    """``testing`` must remain enumerated in ``CAPABILITY_TAXONOMY``.
+
+    The support maps are keyed by taxonomy entries; removing
+    ``testing`` from the taxonomy without updating the support maps
+    would surface only as a KeyError at runtime. Pin the taxonomy
+    membership here.
+    """
+    assert "testing" in CAPABILITY_TAXONOMY
+
+
+def test_local_test_controller_scenario_advertises_testing_capability() -> None:
+    """W21-1 flip is meaningful only if at least one scenario in
+    ``SCENARIO_REGISTRY`` advertises ``testing`` in its
+    ``api_capabilities``. Pinning ``local_test_controller`` here means
+    a future edit that drops the scenario or removes the capability
+    mapping has to also update this test — preventing silent drift
+    between the scenario registry and the support map.
+    """
+    testing_scenarios = [
+        scenario.name
+        for scenario in SCENARIO_REGISTRY
+        if "testing" in scenario.api_capabilities
+    ]
+    assert "local_test_controller" in testing_scenarios, (
+        "`local_test_controller` scenario must advertise `testing` in "
+        "api_capabilities so the W21-1 official-track promotion has a "
+        "concrete coverage path."
+    )
+
+
+# ---------------------------------------------------------------------
 # W21-3 — Workspace trust mid-tier promotion
 # ---------------------------------------------------------------------
 
@@ -343,7 +405,7 @@ def test_official_capability_support_dict_shape_is_canonical() -> None:
         "authentication": "covered",
         "chat": "missing",  # W22-2 candidate (hard tier)
         "comments": "missing",  # W21-2 candidate (mid tier)
-        "testing": "missing",  # W21-1 candidate (mid tier)
+        "testing": "covered",  # W21-1 promotion
         "webview": "covered",
         "workspace_trust": "covered",  # W21-3 promotion
     }

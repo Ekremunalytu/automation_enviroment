@@ -193,6 +193,21 @@ SCENARIO_REGISTRY: tuple[ScenarioDefinition, ...] = (
         success_signals=("workspace trust baseline", "workspace trust granted"),
         risk_of_noise="low",
     ),
+    ScenarioDefinition(
+        name="local_test_controller",
+        intent=(
+            "Exercise the local VS Code Test Controller surface "
+            "(TestItems + run/debug profiles) through the harness so "
+            "extensions that contribute test discovery have a verifiable "
+            "coverage path without calling external test services."
+        ),
+        activation_events=("onStartupFinished",),
+        contributes_signals=("capabilities",),
+        api_capabilities=("commands", "window_ui", "testing"),
+        prerequisites=("test controller API available",),
+        success_signals=("test run invoked", "test debug invoked"),
+        risk_of_noise="low",
+    ),
 )
 
 

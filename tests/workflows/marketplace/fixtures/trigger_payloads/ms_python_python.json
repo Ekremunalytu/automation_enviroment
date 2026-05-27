@@ -225,8 +225,8 @@
       ],
       "summary": {
         "covered": 7,
-        "partial": 8,
-        "missing": 3,
+        "partial": 9,
+        "missing": 2,
         "covered_capabilities": [
           "commands",
           "window_ui",
@@ -243,13 +243,13 @@
           "notebooks",
           "custom_editors",
           "authentication",
+          "testing",
           "webview",
           "workspace_trust"
         ],
         "missing_capabilities": [
           "chat",
-          "comments",
-          "testing"
+          "comments"
         ],
         "attempted": 0,
         "verified": 0,
@@ -278,7 +278,8 @@
             "refactor_workflow",
             "authentication_probe",
             "webview_probe",
-            "workspace_trust_transition"
+            "workspace_trust_transition",
+            "local_test_controller"
           ],
           "is_active": true,
           "notes": "",
@@ -307,7 +308,8 @@
             "notebook_session",
             "authentication_probe",
             "webview_probe",
-            "workspace_trust_transition"
+            "workspace_trust_transition",
+            "local_test_controller"
           ],
           "is_active": true,
           "notes": "",
@@ -513,12 +515,14 @@
         },
         {
           "capability": "testing",
-          "status": "missing",
+          "status": "partial",
           "track": "official",
           "source": "official_activation_track",
-          "support_status": "missing",
+          "support_status": "covered",
           "selected_scenarios": [],
-          "supported_scenarios": [],
+          "supported_scenarios": [
+            "local_test_controller"
+          ],
           "is_active": false,
           "notes": "Testing coverage uses local controllers and run/debug flows without calling external test services.",
           "selected": false
@@ -558,8 +562,8 @@
       "selected_scenarios": [],
       "summary": {
         "covered": 0,
-        "partial": 15,
-        "missing": 3,
+        "partial": 16,
+        "missing": 2,
         "covered_capabilities": [],
         "partial_capabilities": [
           "commands",
@@ -575,13 +579,13 @@
           "custom_editors",
           "uri_walkthrough",
           "authentication",
+          "testing",
           "webview",
           "workspace_trust"
         ],
         "missing_capabilities": [
           "chat",
-          "comments",
-          "testing"
+          "comments"
         ]
       },
       "matrix": [
@@ -601,7 +605,8 @@
             "refactor_workflow",
             "authentication_probe",
             "webview_probe",
-            "workspace_trust_transition"
+            "workspace_trust_transition",
+            "local_test_controller"
           ],
           "is_active": false,
           "notes": "",
@@ -626,7 +631,8 @@
             "notebook_session",
             "authentication_probe",
             "webview_probe",
-            "workspace_trust_transition"
+            "workspace_trust_transition",
+            "local_test_controller"
           ],
           "is_active": false,
           "notes": "",
@@ -818,12 +824,14 @@
         },
         {
           "capability": "testing",
-          "status": "missing",
+          "status": "partial",
           "track": "heuristic",
           "source": "heuristic_workflow_track",
-          "support_status": "missing",
+          "support_status": "covered",
           "selected_scenarios": [],
-          "supported_scenarios": [],
+          "supported_scenarios": [
+            "local_test_controller"
+          ],
           "is_active": false,
           "notes": "Testing coverage uses local controllers and run/debug flows without calling external test services.",
           "selected": false
@@ -861,8 +869,8 @@
   },
   "coverage_summary": {
     "covered": 7,
-    "partial": 8,
-    "missing": 3,
+    "partial": 9,
+    "missing": 2,
     "covered_capabilities": [
       "commands",
       "window_ui",
@@ -879,13 +887,13 @@
       "notebooks",
       "custom_editors",
       "authentication",
+      "testing",
       "webview",
       "workspace_trust"
     ],
     "missing_capabilities": [
       "chat",
-      "comments",
-      "testing"
+      "comments"
     ],
     "attempted": 0,
     "verified": 0,
@@ -914,7 +922,8 @@
         "refactor_workflow",
         "authentication_probe",
         "webview_probe",
-        "workspace_trust_transition"
+        "workspace_trust_transition",
+        "local_test_controller"
       ],
       "is_active": true,
       "notes": "",
@@ -943,7 +952,8 @@
         "notebook_session",
         "authentication_probe",
         "webview_probe",
-        "workspace_trust_transition"
+        "workspace_trust_transition",
+        "local_test_controller"
       ],
       "is_active": true,
       "notes": "",
@@ -1149,12 +1159,14 @@
     },
     {
       "capability": "testing",
-      "status": "missing",
+      "status": "partial",
       "track": "official",
       "source": "official_activation_track",
-      "support_status": "missing",
+      "support_status": "covered",
       "selected_scenarios": [],
-      "supported_scenarios": [],
+      "supported_scenarios": [
+        "local_test_controller"
+      ],
       "is_active": false,
       "notes": "Testing coverage uses local controllers and run/debug flows without calling external test services.",
       "selected": false

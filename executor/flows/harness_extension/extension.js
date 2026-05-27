@@ -188,25 +188,60 @@ async function activate(context) {
       },
     }
   );
+  // W21-1: Test Controller observability. Run/debug profile callbacks emit
+  // `test_controller_event` markers (phases: baseline / {run,debug}_invoked
+  // / {run,debug}_complete) so a downstream stimulus pass that invokes the
+  // profile produces a verifiable signal. Ephemeral TestItem rebuild on
+  // every invocation (W19-X HMAC reactivation race lesson) prevents a
+  // stale cache from a previous activation masking a regression. Routes
+  // through emitHarnessEvent so payloads are HMAC-signed and reach the
+  // parser via the reserved "ExTrace Harness" OutputChannel (W19-X Bug B
+  // paterni — console.log alone is discarded by launch_vscode.sh).
   const testController = vscode.tests.createTestController(
     "extrace.harness.tests",
     "ExTrace Harness Tests"
   );
-  const testItem = testController.createTestItem(
-    "extrace.harness.tests.item",
-    "Harness Smoke"
-  );
-  testController.items.add(testItem);
+  const _rebuildHarnessTestItem = () => {
+    testController.items.replace([]);
+    const item = testController.createTestItem(
+      "extrace.harness.tests.item",
+      "Harness Smoke"
+    );
+    testController.items.add(item);
+    return item;
+  };
+  const _emitTestControllerEvent = (phase, item) => {
+    emitHarnessEvent({
+      kind: "test_controller_event",
+      phase,
+      item_id: item && item.id ? item.id : "",
+      ts: Date.now(),
+      collector: "harness_extension",
+    });
+  };
+  const _baselineTestItem = _rebuildHarnessTestItem();
+  _emitTestControllerEvent("baseline", _baselineTestItem);
+  const _harnessTestRunHandler = (kind) => (request, _token) => {
+    const freshItem = _rebuildHarnessTestItem();
+    _emitTestControllerEvent(`${kind}_invoked`, freshItem);
+    const run = testController.createTestRun(request);
+    try {
+      run.passed(freshItem);
+    } finally {
+      run.end();
+    }
+    _emitTestControllerEvent(`${kind}_complete`, freshItem);
+  };
   testController.createRunProfile(
     "Harness Run",
     vscode.TestRunProfileKind.Run,
-    () => {},
+    _harnessTestRunHandler("run"),
     true
   );
   testController.createRunProfile(
     "Harness Debug",
     vscode.TestRunProfileKind.Debug,
-    () => {},
+    _harnessTestRunHandler("debug"),
     true
   );
 
