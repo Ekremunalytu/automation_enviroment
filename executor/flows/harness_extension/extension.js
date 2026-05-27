@@ -214,6 +214,27 @@ async function activate(context) {
     "extrace.harness.comments",
     "ExTrace Harness Comments"
   );
+
+  // W21-3: Workspace trust observability. Baseline trust state emitted at
+  // activate() entry, then onDidGrantWorkspaceTrust listener emits a
+  // transition marker when trust is granted on the current workspace.
+  // Routes through emitHarnessEvent so payloads are HMAC-signed and reach
+  // the parser via the reserved "ExTrace Harness" OutputChannel (W19-X
+  // Bug B paterni — console.log alone is discarded by launch_vscode.sh).
+  const _emitWorkspaceTrustState = (phase) => {
+    emitHarnessEvent({
+      kind: "workspace_trust_state",
+      phase,
+      is_trusted: !!vscode.workspace.isTrusted,
+      ts: Date.now(),
+      collector: "harness_extension",
+    });
+  };
+  _emitWorkspaceTrustState("baseline");
+  const trustDisposable = vscode.workspace.onDidGrantWorkspaceTrust(() => {
+    _emitWorkspaceTrustState("granted");
+  });
+
   const commandDisposable = vscode.commands.registerCommand(
     "extrace.harness.runCurrentStimulus",
     async () => {
@@ -258,6 +279,7 @@ async function activate(context) {
     terminalProfileDisposable,
     testController,
     commentController,
+    trustDisposable,
     commandDisposable
   );
 

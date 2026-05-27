@@ -179,6 +179,20 @@ SCENARIO_REGISTRY: tuple[ScenarioDefinition, ...] = (
         success_signals=("preview open", "webview surface"),
         risk_of_noise="medium",
     ),
+    ScenarioDefinition(
+        name="workspace_trust_transition",
+        intent=(
+            "Capture workspace trust transitions for extensions that declare "
+            "untrusted-workspace support, recording baseline state and "
+            "trust-granted events through the harness."
+        ),
+        activation_events=("onStartupFinished",),
+        contributes_signals=("capabilities",),
+        api_capabilities=("commands", "window_ui", "workspace_trust"),
+        prerequisites=("workspace trust API available",),
+        success_signals=("workspace trust baseline", "workspace trust granted"),
+        risk_of_noise="low",
+    ),
 )
 
 

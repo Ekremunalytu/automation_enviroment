@@ -139,6 +139,70 @@ def test_settings_modification_scenario_advertises_settings_capability() -> None
 
 
 # ---------------------------------------------------------------------
+# W21-3 — Workspace trust mid-tier promotion
+# ---------------------------------------------------------------------
+
+
+def test_workspace_trust_official_track_is_covered() -> None:
+    """W21-3: ``workspace_trust`` flipped from ``missing`` → ``covered``
+    in the official track. Pins the flip — see
+    ``[GOAL taxonomy-workspace-trust-coverage]`` at
+    ``documents/POST_POC_BACKLOG.md`` W21 Pull-Forward.
+    """
+    assert _OFFICIAL_CAPABILITY_SUPPORT["workspace_trust"] == "covered", (
+        "W21-3 promoted `workspace_trust` to `covered` in the official "
+        "track. If this assertion fails the flip has been reverted; "
+        "check `packages/analysis_planner/capabilities.py:99`."
+    )
+
+
+def test_workspace_trust_heuristic_track_is_covered() -> None:
+    """W21-3 partner pin to the official-track flip.
+
+    ``_HEURISTIC_CAPABILITY_SUPPORT`` derives from
+    ``_GLOBAL_CAPABILITY_SUPPORT``; both must read ``covered`` so the
+    Official ⊆ Heuristic invariant (W20-3 gate) is satisfied after the
+    flip and so a future edit cannot silently regress the heuristic
+    track.
+    """
+    assert _HEURISTIC_CAPABILITY_SUPPORT["workspace_trust"] == "covered"
+    assert _GLOBAL_CAPABILITY_SUPPORT["workspace_trust"] == "covered"
+
+
+def test_workspace_trust_in_capability_taxonomy() -> None:
+    """``workspace_trust`` must remain enumerated in ``CAPABILITY_TAXONOMY``.
+
+    The support maps are keyed by taxonomy entries; removing
+    ``workspace_trust`` from the taxonomy without updating the support
+    maps would surface only as a KeyError at runtime. Pin the taxonomy
+    membership here.
+    """
+    assert "workspace_trust" in CAPABILITY_TAXONOMY
+
+
+def test_workspace_trust_transition_scenario_advertises_workspace_trust_capability() -> (
+    None
+):
+    """W21-3 flip is meaningful only if at least one scenario in
+    ``SCENARIO_REGISTRY`` advertises ``workspace_trust`` in its
+    ``api_capabilities``. Pinning ``workspace_trust_transition`` here
+    means a future edit that drops the scenario or removes the
+    capability mapping has to also update this test — preventing silent
+    drift between the scenario registry and the support map.
+    """
+    workspace_trust_scenarios = [
+        scenario.name
+        for scenario in SCENARIO_REGISTRY
+        if "workspace_trust" in scenario.api_capabilities
+    ]
+    assert "workspace_trust_transition" in workspace_trust_scenarios, (
+        "`workspace_trust_transition` scenario must advertise "
+        "`workspace_trust` in api_capabilities so the W21-3 "
+        "official-track promotion has a concrete coverage path."
+    )
+
+
+# ---------------------------------------------------------------------
 # W20-3 — Coverage matrix contract invariants
 # ---------------------------------------------------------------------
 
@@ -281,7 +345,7 @@ def test_official_capability_support_dict_shape_is_canonical() -> None:
         "comments": "missing",  # W21-2 candidate (mid tier)
         "testing": "missing",  # W21-1 candidate (mid tier)
         "webview": "covered",
-        "workspace_trust": "missing",  # W21-3 candidate (mid tier)
+        "workspace_trust": "covered",  # W21-3 promotion
     }
     assert expected_shape == _OFFICIAL_CAPABILITY_SUPPORT, (
         "_OFFICIAL_CAPABILITY_SUPPORT shape drift. If you intentionally "
