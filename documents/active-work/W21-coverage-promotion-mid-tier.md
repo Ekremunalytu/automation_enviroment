@@ -1,6 +1,6 @@
 # W21 — Coverage Promotion Round 2: Mid Tier (Active Work Tracker)
 
-`Last Updated: 2026-05-27 (W21-0 doc-reconcile in-flight via this commit — open week21 branch (per user direction 2026-05-27; W11-W20 paterni preserved) + new W21 active-work tracker (this file) + §19 W21 plan header doc-open in REFACTOR_OPTIMIZATION.md split from the §19-§20 W21-W22 planning roadmap (W19-0/W20-0 paterni mirror — §17 split from §17-§20 at W19-0, §18 split from §18-§20 at W20-0, §19 split from §19-§20 here) + W21 Pull-Forward Acceptance Bar promoted in POST_POC_BACKLOG.md (from W21-W22 Roadmap Acceptance Bar planning, now W22 Roadmap Acceptance Bar planning) + 10-doc canonical preamble refresh + README phase-pointer arch gate transition W20→W21 (test_readme_phase_pointer.py tracks_active_w21_status + new test_readme_phase_pointer_mentions_w20_closeout_merge pinning PR #29 / week20 -> main / 64a3c3d mirroring W19-0 / W20-0 transition paterni). Baseline live-run pending user "go" per turn — W21-0 self-stamp will pin anchor + sha256 + W20 close-out invariants live-verified (missing_capabilities should remain [chat, comments, testing, workspace_trust] post-W20-merge; Hat-1 unaccounted_dropout == 0 + Hat-2 harness_verification_unconfirmed_present DROPPED must hold). W20 closed and merged via PR #29 week20 -> main MERGED 2026-05-26 23:10:21Z via 64a3c3d; final W20 bar (recorded at W20-5 + W20-5-followup-2): tests/architecture/ 240 passed, 4 deselected; make test-security 220 passed; full suite 2045 passed, 9 skipped, 8 deselected. W21 driving signal (carried over from W19 / W20): same Codex live-run 2026-05-21 of ms-python.python @ 992ad028f3df reports coverage_summary.missing_capabilities started at [scm, settings, chat, comments, testing, workspace_trust]; W20 W20-5 final live-run 4e92de149802 (sha256 3804a5b5...4394c) confirmed missing dropped 6 → 4 [chat, comments, testing, workspace_trust]; W21 closes mid tier (testing, comments, workspace_trust) — expected drop 4 → 1 [chat] or 4 → 2 [chat, workspace_trust] if W21-3 defers; W22 closes hard tier (chat) + sandbox evasion ADR draft. §19 W21 plan source (active) + §20 W22 planning (split at this W21-0 commit from the §19-§20 W21-W22 combined header that W20-0 had created). W21-0..W21-N sub-iter slate: W21-0 doc-reconcile (this commit) + W21-3 [GOAL taxonomy-workspace-trust-coverage] (lands first per ordering decision) + W21-1 [GOAL taxonomy-testing-coverage] + W21-2 [GOAL taxonomy-comments-coverage] + W21-4 [GOAL container-hardening-baseline] STRETCH (conditional pull only if W21-0..W21-3 closed cleanly; user-confirmed) + W21-N close-out hygiene + PR week21 -> main PENDING USER APPROVAL. W21 ordering (user-confirmed 2026-05-27 via AskUserQuestion): W21-3 → W21-1 → W21-2 — workspace_trust lands first as precondition for test/comment controllers, resolving W20-4 DESIGN open question 4 "workspace_trust ordering" with the doc's "likely yes" recommendation. [FOLLOWUP sandbox-reset-stale-state-multi-analyze] opportunistic at W21-N close-out window (user-confirmed); not a sub-iter, not a blocker. W20 closed via PR #29 week20 -> main MERGED 2026-05-26 via 64a3c3d; W19 closed via PR #28 week19 -> main MERGED 2026-05-26 via c879603; W18 closed via PR #26 week18 -> main MERGED 2026-05-21 via 9874e79. W20 frozen tracker: documents/active-work/W20-coverage-promotion-easy-wins.md (frozen at W20-5 + followups per W17/W18/W19 paterni); multi-iter roadmap source-of-truth: documents/active-work/W18-W22-roadmap.md.)`
+`Last Updated: 2026-05-27 (W21-0 doc-reconcile in-flight via this commit — open week21 branch (per user direction 2026-05-27; W11-W20 paterni preserved) + new W21 active-work tracker (this file) + §19 W21 plan header doc-open in REFACTOR_OPTIMIZATION.md split from the §19-§20 W21-W22 planning roadmap (W19-0/W20-0 paterni mirror — §17 split from §17-§20 at W19-0, §18 split from §18-§20 at W20-0, §19 split from §19-§20 here) + W21 Pull-Forward Acceptance Bar promoted in POST_POC_BACKLOG.md (from W21-W22 Roadmap Acceptance Bar planning, now W22 Roadmap Acceptance Bar planning) + 10-doc canonical preamble refresh + README phase-pointer arch gate transition W20→W21 (test_readme_phase_pointer.py tracks_active_w21_status + new test_readme_phase_pointer_mentions_w20_closeout_merge pinning PR #29 / week20 -> main / 64a3c3d mirroring W19-0 / W20-0 transition paterni). Baseline live-run captured via this self-stamp follow-up (anchor 600d9ecba5eb, sha256 1db1480551...c4477; full path output/activation_report_ms-python.python-2026.5.2026052501-600d9ecba5eb.json). W20 close-out invariants live-verified: coverage_summary.missing_capabilities = [chat, comments, testing, workspace_trust] (4 items — byte-identical with W20-5 anchor 4e92de149802); W19 Hat-2 harness_verification_unconfirmed_present DROPPED from reasons; W19 Hat-1 unaccounted_dropout_count is null (byte-identical with W20-5 anchor — W20-5 preamble drift note: W20-5 banner stated 'count = 0' but the actual field value was already null in W20-5 anchor; this self-stamp records the corrected value). New observation: extra_trigger_failures_present reason (count 1) from intermittent flake on official-onterminalshellintegration-python:harness:run_current_stimulus — not a W20 invariant violation; W21-N close-out will re-verify on fresh final live-run. W20 closed and merged via PR #29 week20 -> main MERGED 2026-05-26 23:10:21Z via 64a3c3d; final W20 bar (recorded at W20-5 + W20-5-followup-2): tests/architecture/ 240 passed, 4 deselected; make test-security 220 passed; full suite 2045 passed, 9 skipped, 8 deselected. W21 driving signal (carried over from W19 / W20): same Codex live-run 2026-05-21 of ms-python.python @ 992ad028f3df reports coverage_summary.missing_capabilities started at [scm, settings, chat, comments, testing, workspace_trust]; W20 W20-5 final live-run 4e92de149802 (sha256 3804a5b5...4394c) confirmed missing dropped 6 → 4 [chat, comments, testing, workspace_trust]; W21 closes mid tier (testing, comments, workspace_trust) — expected drop 4 → 1 [chat] or 4 → 2 [chat, workspace_trust] if W21-3 defers; W22 closes hard tier (chat) + sandbox evasion ADR draft. §19 W21 plan source (active) + §20 W22 planning (split at this W21-0 commit from the §19-§20 W21-W22 combined header that W20-0 had created). W21-0..W21-N sub-iter slate: W21-0 doc-reconcile (this commit) + W21-3 [GOAL taxonomy-workspace-trust-coverage] (lands first per ordering decision) + W21-1 [GOAL taxonomy-testing-coverage] + W21-2 [GOAL taxonomy-comments-coverage] + W21-4 [GOAL container-hardening-baseline] STRETCH (conditional pull only if W21-0..W21-3 closed cleanly; user-confirmed) + W21-N close-out hygiene + PR week21 -> main PENDING USER APPROVAL. W21 ordering (user-confirmed 2026-05-27 via AskUserQuestion): W21-3 → W21-1 → W21-2 — workspace_trust lands first as precondition for test/comment controllers, resolving W20-4 DESIGN open question 4 "workspace_trust ordering" with the doc's "likely yes" recommendation. [FOLLOWUP sandbox-reset-stale-state-multi-analyze] opportunistic at W21-N close-out window (user-confirmed); not a sub-iter, not a blocker. W20 closed via PR #29 week20 -> main MERGED 2026-05-26 via 64a3c3d; W19 closed via PR #28 week19 -> main MERGED 2026-05-26 via c879603; W18 closed via PR #26 week18 -> main MERGED 2026-05-21 via 9874e79. W20 frozen tracker: documents/active-work/W20-coverage-promotion-easy-wins.md (frozen at W20-5 + followups per W17/W18/W19 paterni); multi-iter roadmap source-of-truth: documents/active-work/W18-W22-roadmap.md.)`
 `Phase: W21-0 doc-reconcile in-flight via this commit; week21 branch open from main @ 64a3c3d (W20 close-out merge commit)`
 `Branch: week21 (per user direction 2026-05-27; W11-W20 paterni preserved — sub-iter commits land on week21, close-out merges into main via week21 -> main PR PENDING USER APPROVAL)`
 `Owner: ekrem`
@@ -85,7 +85,7 @@ is the template structurally followed here.
 
 | Iter | Status | Theme | Closes which acceptance-bar item? |
 |---|---|---|---|
-| W21-0 | **in-flight `2026-05-27`** via this commit (doc-reconcile — `week21` branch + new W21 active-work tracker (this file) + §19 W21 plan header doc-open + §19-§20 W21-W22 planning header split into §19 W21 active + §20 W22 planning + 10-doc canonical preamble refresh + W21 Pull-Forward Acceptance Bar promotion in `POST_POC_BACKLOG.md` + README phase-pointer arch gate transition W20→W21 + new W20 close-out fact gate `test_readme_phase_pointer_mentions_w20_closeout_merge` pinning PR #29 / week20 -> main / 64a3c3d + baseline live-run pending user "go" per turn) | (this commit) | — (doc-reconcile; no acceptance-bar item) |
+| W21-0 | **in-flight `2026-05-27`** via primary `8434323` + self-stamp this commit (doc-reconcile — `week21` branch + new W21 active-work tracker (this file) + §19 W21 plan header doc-open + §19-§20 W21-W22 planning header split into §19 W21 active + §20 W22 planning + 10-doc canonical preamble refresh + W21 Pull-Forward Acceptance Bar promotion in `POST_POC_BACKLOG.md` + README phase-pointer arch gate transition W20→W21 + new W20 close-out fact gate `test_readme_phase_pointer_mentions_w20_closeout_merge` pinning PR #29 / week20 -> main / 64a3c3d + baseline live-run captured via this self-stamp anchor `600d9ecba5eb` sha256 `1db1480551...c4477` confirming W20 close-out invariants hold) | primary `8434323` + self-stamp this commit | — (doc-reconcile; no acceptance-bar item) |
 | W21-3 | planned — `[GOAL taxonomy-workspace-trust-coverage]` — `_OFFICIAL_CAPABILITY_SUPPORT["workspace_trust"]: "missing" → "covered"` flip at `capabilities.py:99` + mirror in `_GLOBAL_CAPABILITY_SUPPORT` + harness `vscode.workspace.isTrusted` detection + `onDidGrantWorkspaceTrust` listener + harness-assisted trust transition path + `workspace_trust_transition` scenario in `scenarios.py` + stimulus pass + 4 invariant tests; **lands first per ordering decision**. Fallback: DESIGN-only defer to W22 if scope explodes (W20-4 paterni). | TBD | live W21 acceptance #1 (`workspace_trust` drops from `missing_capabilities`) |
 | W21-1 | planned — `[GOAL taxonomy-testing-coverage]` — `_OFFICIAL_CAPABILITY_SUPPORT["testing"]: "missing" → "covered"` flip at `capabilities.py:97` + mirror in `_GLOBAL_CAPABILITY_SUPPORT` + `vscode.tests.createTestController` registration in harness + `TestItem` + `createRunProfile` + OutputChannel marker + `local_test_controller` scenario in `scenarios.py` + stimulus pass + 4 invariant tests + frozen trigger fixture regen via planner replay. W20-4 DESIGN doc `documents/architecture/comments-testing-readiness.md` §W21-1 paterni. Ephemeral TestItem default (W19-X paterni). | TBD | live W21 acceptance #2 (`testing` drops from `missing_capabilities`) |
 | W21-2 | planned — `[GOAL taxonomy-comments-coverage]` — `_OFFICIAL_CAPABILITY_SUPPORT["comments"]: "missing" → "covered"` flip at `capabilities.py:96` + mirror in `_GLOBAL_CAPABILITY_SUPPORT` + extension of existing `extrace.harness.comments` stub with `commentingRangeProvider` + `createCommentThread` + `discussion_thread` scenario + stimulus pass + 4 invariant tests + fixture regen. W20-4 DESIGN doc §W21-2 paterni. Ephemeral thread default. | TBD | live W21 acceptance #3 (`comments` drops from `missing_capabilities`) |
@@ -364,52 +364,31 @@ follows W18-4 / W19-6 / W20-5 paterni.]
 
 ## Baseline Live-Run Smoke (W21-0)
 
-**Captured at W21-0 self-stamp follow-up** (next turn after user "go"
-per turn). Live anchor JSON: `output/activation_report_ms-python.python-<date>-<SHA>.json`
-(sha256 `<TBD>`).
+**Captured `2026-05-27` via this self-stamp follow-up** using the `/api/marketplace/analyze/start` UI-driven analyze API on `ms-python.python` @ `2026.5.2026052501` (job id `600d9ecba5eb4bab8644878679b1f3c0`, completed in ~5 min after `docker compose up -d --build` brought the full stack up).
 
-**W20 close-out live verification (carry-over evidence)** — the
-post-W20-merge live re-anchor that confirms the W20 acceptance bar
-holds:
+**Live anchor JSON**: `output/activation_report_ms-python.python-2026.5.2026052501-600d9ecba5eb.json` (sha256 `1db1480551fd90625a5c7c2e474b43c4de3a867d35dab4aacc65e8060bcc4477`).
 
-- `unaccounted_dropout` count expected = **0** (Hat-1 W19-2 emit-site
-  fix holds post-W20-merge).
-- `automation_health.reasons` expected `[skipped_scenarios_present,
-  verification_gap_present, official_unresolved_present]` — three
-  reasons; `harness_verification_unconfirmed_present` should be DROPPED
-  (W19 Hat-2 holds post-W20).
-- `event_attempts` expected count = 21 (unchanged from W19/W20
-  baselines).
-- `confirmation_source` distribution expected:
-  - `harness_nonce` = **2** (W19-4 + W19-X)
-  - `log_record` = **6** (W19-5)
-  - `none` = **13**
-  - Total 21 / 21 with field present (W19-3 schema landing).
-- `run_quality = low` (expected — W22 hard tier closes
-  `official_unresolved_present`).
-- `automation_health.status = degraded` (expected; closes after W22
-  hard tier).
+**W20 close-out live verification (carry-over evidence)** — the post-W20-merge live re-anchor confirms W20 acceptance bar holds:
 
-**W21 baseline (Hat-3, pre-flip)** — the mid-tier target:
+- `coverage_summary.missing_capabilities = [chat, comments, testing, workspace_trust]` (4 items — **byte-identical with W20-5 anchor `4e92de149802`**; W20-1 + W20-2 official-track promotion of `scm` + `settings` holds post-merge — must-pass ✓).
+- `coverage_summary.covered = 7 / partial = 7 / missing = 4` — byte-identical with W20-5 anchor.
+- `coverage_summary.attempted = 6 / verified = 4` — byte-identical with W20-5 anchor.
+- W19 Hat-2 `harness_verification_unconfirmed_present` reason DROPPED from `automation_health.reasons` ✓.
+- W19 Hat-1 `unaccounted_dropout_count` is `null` — **byte-identical with W20-5 anchor**. Important: the W20-5 preamble fragment stated 'unaccounted_dropout count = 0' but the actual field value in the W20-5 anchor JSON was already `null`. This self-stamp records the corrected interpretation: the field has been `null` since W20-5 (not 0), which is the normal post-W19 state when no scenarios are flagged as unaccounted dropouts. `skipped_scenarios = [debug_session, refactor_workflow]` is the only contributor to `skipped_scenarios_present` reason, unchanged since W19.
+- `event_attempts` count = 21 (unchanged from W19/W20 baselines).
+- `confirmation_source` distribution: `harness_nonce` = **2** (W19-4 + W19-X), `log_record` = **5**, `none` = **14** — total 21/21 with field present (W19-3 schema landing holds). Minor drift vs W20-5 anchor (`log_record` 6 → 5, `none` 13 → 14): one event_attempt moved from `log_record` to `none` because the `onTerminalShellIntegration` trigger failed this run (see next bullet).
+- `run_quality = low` (expected — closes after W22 hard tier).
+- `automation_health.status = degraded` (expected; closes after W22 hard tier when `official_unresolved_present` resolves).
 
-- `coverage_summary.missing_capabilities = [chat, comments, testing,
-  workspace_trust]` (4 missing — W20 final live-run state). W21-1 +
-  W21-2 + W21-3 flips of `_OFFICIAL_CAPABILITY_SUPPORT["testing"]` /
-  `["comments"]` / `["workspace_trust"]` at
-  `packages/analysis_planner/capabilities.py:96-99` will drop these
-  from the list (4 → 1 expected at W21-N final live-run, or 4 → 2 if
-  W21-3 defers).
-- `coverage_summary.covered = 9 / partial = 3 / missing = 4` (W20-5
-  final shape). W21 expected end-state: `covered = 12 / partial = 3 /
-  missing = 1` (or `covered = 11 / missing = 2` if W21-3 defers).
-- `coverage_summary.verified = 4 capability-level` (`commands`,
-  `languages_editor`, `window_ui`, `workspace_fs`) — W21 may lift to
-  5-7 (`testing` / `comments` / `workspace_trust` may join after live
-  stimulus passes).
+**New observation — W21-0 baseline drift**: `automation_health.reasons` gained one new entry: `extra_trigger_failures_present` (`extra_trigger_failure_count = 1`, target `official-onterminalshellintegration-python:harness:run_current_stimulus`). This is **intermittent live-run flake** (not a W20 invariant violation; code is byte-identical with W20-5 since W21-0 is doc-only). Causes the minor `confirmation_source` distribution shift noted above. W21-N close-out final live-run will re-verify; if the flake persists across runs, file as W22+ followup.
 
-**No post-merge drift expected** in W20 close-out state. Baseline
-captures W20 acceptance hold; W21-3 ready to start (W21-3 lands first
-per ordering).
+**W21 baseline (Hat-3, pre-flip)** — the mid-tier target state this self-stamp pins:
+
+- `coverage_summary.missing_capabilities = [chat, comments, testing, workspace_trust]` (4 missing). W21-3 + W21-1 + W21-2 flips of `_OFFICIAL_CAPABILITY_SUPPORT["workspace_trust"]` / `["testing"]` / `["comments"]` at `packages/analysis_planner/capabilities.py:96-99` (plus the `_GLOBAL_CAPABILITY_SUPPORT` mirror) will drop these from the list (4 → 1 expected at W21-N final live-run, or 4 → 2 if W21-3 defers per W20-4 paterni).
+- `coverage_summary.covered = 7 / partial = 7 / missing = 4` — W21 expected end-state: `covered = 10 / partial = 7 / missing = 1` (or `covered = 9 / missing = 2` if W21-3 defers).
+- `coverage_summary.verified = 4 capability-level` — W21 may lift to 5-7 (`testing` / `comments` / `workspace_trust` may join after live stimulus passes).
+
+**W20 close-out state holds post-merge** ✓ (key invariants identical to W20-5 anchor; the only drift is one intermittent trigger flake which is not a W20 invariant). Baseline captures W21 entry state; W21-3 ready to start (W21-3 lands first per ordering).
 
 ## Risk Notes
 
