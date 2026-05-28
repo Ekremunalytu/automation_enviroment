@@ -1,10 +1,10 @@
 # W22 — Coverage Promotion Round 3: Hard Tier + Sandbox ADR + Container Hardening Ratchet-Down (Active Work Tracker)
 
-`Last Updated: 2026-05-28 — W22 closed synthetically; PR week22 -> main PENDING USER APPROVAL (W21 prior close-out PR #30 5dc18aa).`
+`Last Updated: 2026-05-28 — W22 closed synthetically and merged to main via PR #31 week22 -> main 1399f82 (W21 prior close-out PR #30 5dc18aa).`
 
 `Phase: W22 CLOSED SYNTHETICALLY at W22-N close-out hygiene. Sub-iter audit trail (W22-0 doc-reconcile · W22-1 ADR 0014 · W22-2 chat coverage static · W22-3 attribution depth · W22-4 ADR 0015 · W22-5 evasion canary · W22-N close-out) lives in §Sub-Iter Sections below. W22-6 container-hardening ratchet-down DEFERRED TO USER (Linux required); W22-7 [NO-W22-7] doc-only skip.`
 
-`Branch: week22 (single-branch model per user direction 2026-05-28; sub-iter başına ayrı branch yok; close-out PR week22 -> main PENDING USER APPROVAL — memory feedback_pr_push_approval standing).`
+`Branch: week22 (single-branch model per user direction 2026-05-28; sub-iter başına ayrı branch yok; close-out PR week22 -> main MERGED via PR #31 1399f82 2026-05-28).`
 
 `Owner: ekrem`
 
@@ -603,7 +603,7 @@ Five-family taxonomy (stable short-names; load-bearing for W22-5 canary fixture)
 
 ### W22-N — Close-out hygiene (this commit)
 
-**Status**: **closed** — this commit completes the W22 phase synthetically. PR `week22 -> main` PENDING USER APPROVAL per direction `2026-05-28` (memory `feedback_pr_push_approval` standing; no autonomous PR creation, no remote push, no merge).
+**Status**: **closed** — this commit completed the W22 phase synthetically; subsequently MERGED to main via PR #31 `week22 -> main` (squash `1399f82`) on `2026-05-28`. The W22-N-followup-4 close-out re-verification and this post-merge doc-truth refresh landed in the same close-out window.
 
 **Goal**: Close the W22 phase audit trail with a single close-out commit that updates the doc surface, freezes the W22 tracker, captures the final test bar, records the W22-6 + W22-2-runtime deferrals, and records the W22-7 [NO-W22-7] skip.
 

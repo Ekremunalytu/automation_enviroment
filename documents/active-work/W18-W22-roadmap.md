@@ -2,13 +2,13 @@
 
 `Last Updated: 2026-05-28`
 
-`Active phase: W22 — closed synthetically on the week22 branch; PR week22 -> main PENDING USER APPROVAL (memory feedback_pr_push_approval standing).`
+`Active phase: W22 — closed synthetically on the week22 branch, merged to main via PR #31 week22 -> main 2026-05-28 via 1399f82.`
 
 `Previous phase: W21 closed and merged via PR #30 week21 -> main 2026-05-28 via 5dc18aa.`
 
 `Active tracker: documents/active-work/W22-coverage-promotion-hard-tier.md · Sources of truth: documents/REFACTOR_STATUS.md (state) · documents/POST_POC_BACKLOG.md (deferred) · documents/REFACTOR_OPTIMIZATION.md §20 (W22 plan).`
 
-`Phase: W22 closed synthetically; W18-W22 multi-iter roadmap window complete (W18+W19+W20+W21 closed and merged; W22 awaiting PR approval).`
+`Phase: W22 closed synthetically and merged via PR #31 1399f82; W18-W22 multi-iter roadmap window complete (W18+W19+W20+W21+W22 closed and merged).`
 
 `Branch: week22`
 

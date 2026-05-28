@@ -2,7 +2,7 @@
 
 `Last Updated: 2026-05-28`
 
-`Active phase: W22 — closed synthetically on the week22 branch; PR week22 -> main PENDING USER APPROVAL (memory feedback_pr_push_approval standing).`
+`Active phase: W22 — closed synthetically on the week22 branch, merged to main via PR #31 week22 -> main 2026-05-28 via 1399f82.`
 
 `Previous phase: W21 closed and merged via PR #30 week21 -> main 2026-05-28 via 5dc18aa.`
 
@@ -326,13 +326,12 @@ checklist):
   holds post-W21.
 - Static suite green (final W21 bar pinned at W21-N self-stamp).
 
-## W22 Roadmap Acceptance Bar (closed synthetically — PR pending user approval)
+## W22 Roadmap Acceptance Bar (closed synthetically — merged to main via PR #31 1399f82)
 
 **W22 active on the `week22` branch** (per user direction
 `2026-05-28`; W11-W21 paterninden bu sefer ayrılma — tek branch
 week22, sub-iter başına ayrı branch yok); close-out PR `week22 ->
-main` PENDING USER APPROVAL — main onayı zorunlu (memory
-`feedback_pr_push_approval` standing). Branch was created from
+main` MERGED to main via PR #31 `1399f82` on `2026-05-28`. Branch was created from
 `main` @ `5dc18aa` (W21 close-out PR #30 merge `2026-05-28
 14:18:22+03:00`). Promoted from "planning" to "active" at W22-0
 doc-reconcile 26bb080 per W19-0 / W20-0 / W21-0 paterni

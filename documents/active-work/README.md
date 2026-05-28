@@ -2,7 +2,7 @@
 
 `Last Updated: 2026-05-28`
 
-`Active phase: W22 — closed synthetically on the week22 branch; PR week22 -> main PENDING USER APPROVAL (memory feedback_pr_push_approval standing).`
+`Active phase: W22 — closed synthetically on the week22 branch, merged to main via PR #31 week22 -> main 2026-05-28 via 1399f82.`
 
 `Previous phase: W21 closed and merged via PR #30 week21 -> main 2026-05-28 via 5dc18aa.`
 

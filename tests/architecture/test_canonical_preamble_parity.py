@@ -32,12 +32,12 @@ _CANONICAL_PREAMBLE_DOCS: tuple[str, ...] = (
     "documents/active-work/W22-coverage-promotion-hard-tier.md",
 )
 
-# Most-recent-merge fingerprint pinned after W21 close-out
-# (PR #30 ``week21 -> main`` MERGED 2026-05-28 via ``5dc18aa``).
+# Most-recent-merge fingerprint pinned after W22 close-out
+# (PR #31 ``week22 -> main`` MERGED 2026-05-28 via ``1399f82``).
 # Bump this when the next phase merges; bump every current canonical
 # doc headline in the same commit.
-_EXPECTED_MERGE_FINGERPRINT = "PR #30"
-_EXPECTED_MERGE_SHA = "5dc18aa"
+_EXPECTED_MERGE_FINGERPRINT = "PR #31"
+_EXPECTED_MERGE_SHA = "1399f82"
 
 # Drift markers — phrases that mean the preamble is stale relative to
 # the current merge fingerprint. If any of these reappear in the
