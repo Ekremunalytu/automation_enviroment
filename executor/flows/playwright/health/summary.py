@@ -186,6 +186,41 @@ def count_target_activations(activations: list[Any], target_extension_id: str) -
     )
 
 
+def count_target_process_events(events: list[Any], target_extension_id: str) -> int:
+    """W22-3 attribution-count-parity-process-events: byte-identical guard
+    with the producer-side stamp in
+    ``executor/flows/playwright/attribution/links.py`` so the evidence-side
+    counter (``kind=process,is_target_extension_event=True``) and this
+    summary-side counter derive from the same predicate
+    (``entry.related_extension_id == target_extension_id``).
+    """
+    if not target_extension_id:
+        return 0
+    return sum(
+        1
+        for entry in events
+        if getattr(entry, "related_extension_id", "") == target_extension_id
+    )
+
+
+def count_target_output_events(events: list[Any], target_extension_id: str) -> int:
+    """W22-3 attribution-count-parity-output-channel: byte-identical guard
+    with the producer-side stamp in
+    ``executor/flows/playwright/attribution/links.py`` so the evidence-side
+    counter
+    (``kind=output_channel_appendline,is_target_extension_event=True``) and
+    this summary-side counter derive from the same predicate
+    (``entry.extension_id == target_extension_id``).
+    """
+    if not target_extension_id:
+        return 0
+    return sum(
+        1
+        for entry in events
+        if getattr(entry, "extension_id", "") == target_extension_id
+    )
+
+
 def is_background_activation(activation_event: str) -> bool:
     if not activation_event:
         return False
