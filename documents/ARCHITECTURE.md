@@ -1,6 +1,6 @@
 # ExTrace Architecture
 
-`Last Updated: 2026-05-11`
+`Last Updated: 2026-05-28 — W22 active (closed synthetically on week22; PR week22 -> main PENDING USER APPROVAL); W21 closed and merged via PR #30 5dc18aa.`
 
 System shape, runtime surfaces, and module map. **Slim canonical** —
 detailed request flows under

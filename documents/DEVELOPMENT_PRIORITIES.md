@@ -1,15 +1,15 @@
 # Development Priorities
 
-`Last Updated: 2026-05-26 (W19 closed synthetically — Hat-1 + Hat-2 fully closed; PR #28 week19 -> main MERGED 2026-05-26 via c879603)`
+`Last Updated: 2026-05-28 — W22 active (closed synthetically on week22; PR week22 -> main PENDING USER APPROVAL); W21 closed and merged via PR #30 5dc18aa.`
 
 This is the short priority list for current work. It assumes the project stays
 a single-user sandbox appliance on one machine or one Docker host.
 
 If any older planning note clashes with the active refactor track, follow
 `REFACTOR_STATUS.md` for current closure state and
-`REFACTOR_OPTIMIZATION.md` §11 for the closed W8-W13 external-review window,
-§12-§16 for closed W14-W18 work, §17 for active W19, and §18-§20 for the
-W20-W22 roadmap. Post-PoC deferrals live in `POST_POC_BACKLOG.md`.
+`REFACTOR_OPTIMIZATION.md` for plan history (§11 W8-W13, §12-§19 W14-W21 closed,
+§20 active W22). Multi-iter roadmap: `active-work/W18-W22-roadmap.md`.
+Post-PoC deferrals live in `POST_POC_BACKLOG.md`.
 Keep changes biased toward cleanliness, stability, and overall code quality.
 
 ## Current Window (7 weeks, 2026-04-17 -> 2026-04-23; closed)
@@ -83,8 +83,8 @@ Code API abuse remain in `POST_POC_BACKLOG.md`.
 
 The priority list below describes the enduring engineering priorities that
 survive past W7 closure. Active iteration scope pulls from
-`POST_POC_BACKLOG.md` and the frozen W19 tracker
-`active-work/W19-live-run-root-cause.md` (W20 tracker opens at W20-0).
+`POST_POC_BACKLOG.md` and the active W22 tracker
+`active-work/W22-coverage-promotion-hard-tier.md`.
 
 ## Current Priorities
 
@@ -104,9 +104,12 @@ survive past W7 closure. Active iteration scope pulls from
 ### 3. Coverage Fidelity
 
 - keep official activation coverage separate from heuristic workflow coverage
-- close official-track gaps for `scm` and `settings`
-- decide which partial scaffolding should graduate into supported coverage for
-  `chat`, `comments`, `testing`, and `workspace_trust`
+- coverage promotion is complete as of W22-2 (all 18 capabilities `"covered"`
+  in both `_OFFICIAL_CAPABILITY_SUPPORT` and `_GLOBAL_CAPABILITY_SUPPORT` —
+  `packages/analysis_planner/capabilities.py`); keep new capabilities behind
+  scenario + invariant tests before promoting
+- keep sandbox-evasion observability work (ADR 0015 Draft Policy + W22-5 canary
+  fixture) as the V2 detection-surface expansion direction
 
 ### 4. Report Contract Stability
 

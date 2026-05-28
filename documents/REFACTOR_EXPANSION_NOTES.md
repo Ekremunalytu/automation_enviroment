@@ -1,55 +1,15 @@
-# Refactor Expansion Notes
+# Refactor Expansion Notes (archived)
 
-`Last Updated: 2026-04-20`
+`Last Updated: 2026-05-28 — moved to archive; W22 active (closed synthetically on week22; PR week22 -> main PENDING USER APPROVAL); W21 closed and merged via PR #30 5dc18aa.`
 
-These notes intentionally do not define a binding delivery plan. They exist so
-the heavier follow-on work is visible without overcommitting after the Week 4
-closure.
+This file's historical content (Week 5+ deferred candidates, the
+stack-scoped compose-runtime note, and the original reopen conditions) moved
+to
+[`archive/plans/REFACTOR_EXPANSION_NOTES_full_2026-04-20.md`](archive/plans/REFACTOR_EXPANSION_NOTES_full_2026-04-20.md)
+on 2026-05-28. The expansion notes were a Week 4-era backlog snapshot; their
+deferred candidates have either been absorbed into the W14-W22 sub-iter
+slates or moved to `POST_POC_BACKLOG.md`.
 
-Week 4 closure is green as of `2026-04-20`; use `REFACTOR_STATUS.md` for the
-current gate and `REFACTOR_OPTIMIZATION.md` §10 for the active W0-W7 window.
-
-## Why These Items Are Deferred
-
-- Week 1-4 already covered the highest-value boundary cleanup.
-- The remaining topics touch runtime ergonomics or workspace parallelism more
-  than they improve the immediate PoC security bar.
-- Deferring them reduces the risk of mixing stabilization work with broader
-  runtime rewiring in the same cycle.
-
-## Reopen Conditions
-
-Turn one of these notes into a committed plan only after:
-
-- `REFACTOR_STATUS.md` still shows Week 4 closure criteria green
-- fast test lanes remain healthy
-- there is a concrete product or operability reason to spend the extra risk
-  budget
-
-## Historical Promotions
-
-The following items are no longer deferred; they are listed here only so older
-notes still have a place to point:
-
-- executor reporting semantics alignment -> Week 4A
-- deterministic executor runtime -> W2 (Week 4D-a in the 7-week window)
-- AI-safe ownership / import-graph enforcement -> W1 (Week 4C)
-- expanded benign smoke/fixture matrix -> W1, while malicious fixtures move to
-  W5
-- executor control boundary -> W4 (Week 4E)
-
-## Candidate Expansion Topics (still deferred)
-
-### Stack-Scoped Compose Runtime
-
-- remove fixed `container_name` assumptions
-- make ports and state roots stack-scoped from env alone
-- improve multi-worktree and parallel AI ergonomics
-- not promoted: operability gain, not on the stabilization-to-security
-  critical path
-
-## Operating Rule
-
-Do not treat these remaining notes as an implied Week 5 commitment. Promote
-them into the execution plan only when the repo is stable enough to absorb the
-extra change surface.
+For deferred work see [`POST_POC_BACKLOG.md`](POST_POC_BACKLOG.md). For
+current closure state see [`REFACTOR_STATUS.md`](REFACTOR_STATUS.md). For
+the active iteration plan see [`REFACTOR_OPTIMIZATION.md`](REFACTOR_OPTIMIZATION.md).

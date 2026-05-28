@@ -1,6 +1,12 @@
 # REFACTOR_OPTIMIZATION
 
-`Last Updated: 2026-05-28 (W21 closed synthetically 2026-05-28 via W21-N close-out (this commit) — W21-4 [GOAL container-hardening-baseline] closed via primary 16e2224 + followup-1 2f9cba2 + self-stamp 8c42445 (W21-0 doc-reconcile closed 8434323 + 19bd9c7 + W21-3 closed c744c15 + 4b0a1ed + W21-1 closed 7e87030 + 38b8fd8 + W21-2 [GOAL taxonomy-comments-coverage] closed 8948ea6 + 3088709 before W21-4). W21-4 primary landed docker-compose.yml cap_drop:[ALL] + security_opt:[no-new-privileges:true] on executor/api/ui + ADR 0013 documenting decision + deferred items (read_only + tmpfs + custom seccomp profile → W22 ratchet-down lane) + 12 invariant tests at tests/architecture/test_compose_isolation_invariants.py. W21-4-followup-1 (2f9cba2) restored cap_add SETUID + SETGID on api (gosu user drop) + SETUID + SETGID + CHOWN + DAC_OVERRIDE on ui (nginx cache chown + worker drop) — both surfaced during the primary live-run smoke. executor cap_add NET_RAW + SYS_PTRACE preserved from pre-W21-4 for tcpdump/tshark/strace observability tools. W21-4 live-run anchor activation_report_ms-python.python-2026.5.2026052501-eacea0b6690e.json sha256 5d7c8b974f21e3bf4ad679a41551dd3e7b71d37573f5e7f2b28b87d2ad4a6a84 confirms NO coverage regression vs W21-2 anchor 1ddb3702c0ca (must-pass ✓): coverage_summary.missing_capabilities = [chat] (1 item, byte-identical with W21-2); covered/partial/missing = 8/9/1 (byte-identical); automation_health.status=degraded with 3 reasons (skipped_scenarios_present, verification_gap_present, official_unresolved_present — same shape as W21-2); W20 invariants HOLD post-W21-4 (Hat-1 unaccounted_dropout_count=null; Hat-2 harness_verification_unconfirmed_present DROPPED). Manual kernel-level smoke (docker exec into the executor + grep /proc/self/status for NoNewPrivs) returns NoNewPrivs=1 confirming PR_SET_NO_NEW_PRIVS active at the kernel. W21-2 [GOAL taxonomy-comments-coverage] closed via 8948ea6 + 3088709 before W21-4 hit comments official-track promotion missing → covered + harness CommentController + scenario + 4 invariants + fixture regen, dropping missing_capabilities 2 → 1 [chat]. W21-2 primary landed _OFFICIAL_CAPABILITY_SUPPORT["comments"]: "missing" → "covered" at capabilities.py:96 + mirror in _GLOBAL_CAPABILITY_SUPPORT:44 (heuristic derives) + harness CommentController baseline marker emitted at activate() entry + ensureCommentThread (stimulus_dispatch.js) extended to emit thread_created + thread_disposed markers via emitHarnessEvent through reserved OutputChannel route (W19-X Bug B paterni) with ephemeral thread default (W19-X HMAC reactivation race lesson — created+disposed in-call) + local_comments_controller scenario in scenarios.py advertising comments (mirror W21-3 workspace_trust_transition + W21-1 local_test_controller shape) + 4 invariant tests at tests/platform/contracts/test_capability_support_invariants.py + dict shape canonical pin update + test_split_did_not_lose_data_volume count bump 15→16 + frozen trigger fixture regen for ms-python.python. Runtime stimulus pass implicit — ensureCommentThread already invoked from the existing extrace.harness.runCurrentStimulus command handler, so any stimulus pass exercises the new markers without dedicated pass. Opens week21 branch (per user direction 2026-05-27; W11-W20 paterni preserved — sub-iter commits land on week21, close-out merges via week21 -> main PR PENDING USER APPROVAL). Active W21 tracker documents/active-work/W21-coverage-promotion-mid-tier.md. §19 W21 plan header doc-open in REFACTOR_OPTIMIZATION.md split at W21-0 from §19-§20 W21-W22 planning combined header (W19-0 / W20-0 paterni mirror). W21 Pull-Forward Acceptance Bar promoted in POST_POC_BACKLOG.md at W21-0 (now W22 Roadmap Acceptance Bar planning for the residual W22 lane). 10-doc canonical preamble refresh at W21-0 + W21-3 + W21-1 + W21-2 self-stamps (this commit). README phase-pointer arch gate transition W20→W21 at W21-0 (test_readme_phase_pointer.py tracks_active_w21_status + W20 close-out merge gate test pinning PR #29 / week20 -> main / 64a3c3d). W21-0 baseline anchor 600d9ecba5eb sha256 1db1480551fd...c4477; W21-3 anchor 6fd7b959bd5a sha256 fa83017a...d6f7477 confirmed workspace_trust dropped (4→3); W21-1 anchor 0b4998ce31b4 sha256 b7192bc2ff9c...968be4 confirmed testing dropped (3→2). W21-2 live-run anchor activation_report_ms-python.python-2026.5.2026052501-1ddb3702c0ca.json sha256 2dabd15be329bbf1685fe7fc31469355bdc4a5acac2a364d43a196437339cbff confirms W21-2 acceptance — coverage_summary.missing_capabilities 2 → 1 items [chat] (comments dropped — must-pass ✓; W21 mid-tier closure target hit — only chat remains for W22 hard tier), covered/partial/missing 8/8/2 → 8/9/1, comments matrix entry status "partial" support_status "covered" supported_scenarios ["local_comments_controller"]. W20 invariants HOLD post-W21-2 (Hat-1 dropout=null; Hat-2 harness_verification_unconfirmed_present DROPPED). W21-2 live-run drift clean (same shape as W21-1): only 3 reasons remain (skipped_scenarios_present, verification_gap_present, official_unresolved_present). W20 closed and merged via PR #29 week20 -> main MERGED 2026-05-26 via 64a3c3d; final W20 bar tests/architecture/ 240 passed / make test-security 220 passed / full suite 2045 passed, 9 skipped, 8 deselected. W21-3 test bar delta: contracts/test_capability_support_invariants.py 14 → 18 (+4); full suite 2045 → 2050 (+5 net). W21-1 test bar delta: contracts/test_capability_support_invariants.py 18 → 22 (+4); full suite 2050 → 2054 (+4 net). W21-2 test bar delta: tests/architecture/ 241 passed (unchanged from W21-1), tests/platform/contracts/test_capability_support_invariants.py 22 → 26 passed (+4 W21-2 invariants), tests/platform/contracts/test_registry_split_regression.py 8 passed (count pin 15 → 16), tests/workflows/marketplace/test_analysis_planner.py fixture parity green, make test-security 220 passed (unchanged), full suite 2054 → 2058 passed, 9 skipped, 8 deselected (+4 net W21-2 invariants). W21 driving signal (carried over from W19 / W20): same Codex live-run 2026-05-21 of ms-python.python @ 992ad028f3df reports coverage_summary.missing_capabilities started at [scm, settings, chat, comments, testing, workspace_trust]; W20-5 confirmed missing dropped 6 → 4 [chat, comments, testing, workspace_trust]; W21-3 dropped workspace_trust (4 → 3 [chat, comments, testing]); W21-1 dropped testing (3 → 2 [chat, comments]); W21-2 dropped comments (2 → 1 [chat]); W22 closes hard tier (chat) + sandbox evasion ADR draft. §19 W21 plan source (active) + §20 W22 planning. W21 sub-iter slate: W21-0 doc-reconcile closed (8434323 + 19bd9c7) + W21-3 [GOAL taxonomy-workspace-trust-coverage] closed (c744c15 + 4b0a1ed) + W21-1 [GOAL taxonomy-testing-coverage] closed (7e87030 + 38b8fd8) + W21-2 [GOAL taxonomy-comments-coverage] closed (8948ea6 + 3088709) + W21-4 [GOAL container-hardening-baseline] closed (16e2224 + 2f9cba2 + 8c42445; user-pulled into W21 2026-05-28 per AskUserQuestion after W21-1+W21-2 closed cleanly; baseline only — read_only + tmpfs + custom seccomp profile deferred to W22 ratchet-down per ADR 0013 §Deferred) + W21-N close-out hygiene + PR week21 -> main PENDING USER APPROVAL. [FOLLOWUP sandbox-reset-stale-state-multi-analyze] (filed d163b02 at W20-5-followup-2) opportunistic at W21-N close-out window (user-confirmed); not a sub-iter, not a blocker. [FOLLOWUP workspace-trust-stimulus-pass] (filed c744c15 + 4b0a1ed) W22 candidate — runtime untrusted → granted transition exercise; needs fixture restructuring. W19 closed and merged via PR #28 week19 -> main MERGED 2026-05-26 via c879603; W18 closed via PR #26 week18 -> main MERGED 2026-05-21 via 9874e79; W17 closed via PR #25 week17 -> main MERGED 2026-05-18 via bff565d; W16 closed via PR #23 week16 -> main MERGED 2026-05-18 via 1b6d43f; W15 closed via PR #22 week15 -> main MERGED 2026-05-18 via 6161472; W14 closed via PR #21 week14 -> main MERGED 2026-05-14 via 4e03c8d; W13 closed via PR #20 week13 -> main MERGED 2026-05-13 via 772deb3. W20 frozen tracker: documents/active-work/W20-coverage-promotion-easy-wins.md (frozen at W20-5 + followups per W17/W18/W19 paterni); W19 frozen tracker: documents/active-work/W19-live-run-root-cause.md (frozen at W19-6-followup-2); W18 frozen tracker: documents/active-work/W18-heartbeat-refactor.md; W21 active tracker: documents/active-work/W21-coverage-promotion-mid-tier.md; multi-iter roadmap source-of-truth: documents/active-work/W18-W22-roadmap.md.)`
+`Last Updated: 2026-05-28`
+
+`Active phase: W22 — closed synthetically on the week22 branch; PR week22 -> main PENDING USER APPROVAL (memory feedback_pr_push_approval standing).`
+
+`Previous phase: W21 closed and merged via PR #30 week21 -> main 2026-05-28 via 5dc18aa.`
+
+`Active tracker: documents/active-work/W22-coverage-promotion-hard-tier.md · Sources of truth: documents/REFACTOR_STATUS.md (state) · documents/POST_POC_BACKLOG.md (deferred) · documents/REFACTOR_OPTIMIZATION.md §20 (W22 plan).`
 
 W0-W14 plan document: stabilization + security + post-PoC external-review
 integration + W14 acceptance + observability continuation. **Slim canonical**
@@ -72,7 +78,7 @@ row with stable ID + landing commit; full context in the snapshot.
   W20-5 close-out hygiene `4665d32` primary + `95b0010`
   self-stamp + `d163b02` followup-2 filed
   `[FOLLOWUP sandbox-reset-stale-state-multi-analyze]` for W21
-  + `ae5b7de` followup-3 10-doc preamble `(this commit)`
+  + `ae5b7de` followup-3 10-doc preamble `26bb080`
   placeholder backfill). W20 acceptance LIVE-SATISFIED on fresh
   run `4e92de149802`:
   `coverage_summary.missing_capabilities` 6 → 4 (lost `scm` +
@@ -793,7 +799,7 @@ block below).
 | W19-3 | **closed `2026-05-25`** via primary `d2e83e7` + self-stamp this commit (`[GOAL harness-verification-contract-event-level]`; **HARD GATE for W19-4/W19-5 SATISFIED** — `confirmation_source: str = "none"` field landed on `EventAttemptRecord` (Pydantic at `packages/analysis_contracts/contracts.py` + executor dataclass at `executor/flows/playwright/monitor/records.py` + UI `EventAttemptDto`/`EventAttemptView`/`fromEventAttempt`); `_VALID_CONFIRMATION_SOURCES = frozenset({"harness_nonce", "log_record", "none"})` module constant + `_validate_confirmation_source` `@field_validator` mirroring the `status` field pattern (typing decision: `str + field_validator` not `Literal[...]` per §17 plan — codebase parity, JSON wire shape identical; deviation captured in active tracker Per-Item Detail block); new test file `tests/executor/test_automation_health_reasons.py` (12 tests: dataclass ↔ Pydantic parity + trigger-payload deserialization default + parametrize over 3 documented values + validator rejects unknown + orthogonality with existing `harness_verification_unconfirmed_present` reason emission rule, presence + absence parametrized); +6 contract round-trip tests at `test_analysis_fixture_baselines.py`; +4 UI adapter tests at `report.test.ts`; frozen trigger fixture `tests/workflows/marketplace/fixtures/trigger_payloads/ms_python_python.json` regenerated via planner replay so each of 21 event_attempts gains `"confirmation_source": "none"`; no live-run required at W19-3 — field lands at "none" everywhere with no behavior change) | primary `d2e83e7` + self-stamp this commit | must-pass #2 (`harness_verification_unconfirmed_present` reason drops) — schema enabler |
 | W19-4 | **closed `2026-05-26`** via `7d44b0e` (`[FOLLOWUP harness-verification-debug-events]`; **producer side** — `onDebug*` family nonce confirmation generation in `executor/flows/harness_extension/*`; reconciliation Python side stamps `attempt.confirmation_source = "harness_nonce"` at `executor/flows/playwright/health/reconciliation.py:347-348` (`if execution_closed and family.startswith("onDebug")`); **consumer wire** — `_mark_unverified_harness_attempt` at `reconciliation.py:85-90` now gates `failure_reason_code="harness_verification_unconfirmed"` on `confirmation_source == "none"` so stamped attempts skip the unverified marker → W19 must-pass #2 `harness_verification_unconfirmed_present` reason drops becomes reachable; **7 new behavioral tests at `tests/executor/test_playwright_health_reconciliation.py:813-1090`** pinning producer happy-path (onDebug* with verified HMAC → harness_nonce stamp), fail-closed forged HMAC (stays "none"), missing harness marker (stays "none"), scope discipline (non-onDebug families with verified HMAC stay "none" — out of W19-4 scope), consumer skip when stamped, consumer set when "none") | `7d44b0e` | must-pass #2 (`harness_verification_unconfirmed_present` reason drops) — onDebug* half (live-verified at W19-X) |
 | W19-5 | **closed `2026-05-26`** via primary `e537ebd` + self-stamp this commit (`[FOLLOWUP harness-verification-terminal-and-lm-tool]`; producer arm extension at `executor/flows/playwright/health/reconciliation.py:347-365` sibling elif to W19-4 onDebug arm — `elif execution_closed and (family == "onTerminalShellIntegration" or family.startswith("onLanguageModelTool")): attempt.confirmation_source = "log_record"`. **Plan deviation captured in primary commit body**: the original §17 plan envisioned a new `emitHarnessEvent` call in `stimulus_dispatch.js` + new `_attempt_has_local_completion_trace` predicate + `blocked_reason_code` fallback; live-anchor evidence on `8247e05ec9ef.json` showed all 6 unstamped attempts (1 onTerminalShellIntegration + 5 onLanguageModelTool:*) already carried `harness_trace:<attempt_id>` evidence — the HMAC-verified completion markers were already reaching the predicate via the existing runCurrentStimulus pipeline (LM directly through `harness:run_current_stimulus`; terminal via `OFFICIAL_EVENT_REGISTRY.harness_fallback="run_current_stimulus"`). So the simplest correct fix is the producer-arm extension only; the JS + predicate + fallback layers are unnecessary. **+7 new behavioral tests at `tests/executor/test_playwright_health_reconciliation.py:1175-1369`**: terminal happy-path, LM parametrize 5 variants (bare + configurePythonEnvironment + createVirtualEnvironment + getPythonEnvironmentDetails + installPythonPackages), forged HMAC fail-closed, missing marker, scope discipline (onDebug stays harness_nonce), consumer skip when stamped, consumer set when "none". W19-4 scope-discipline `_W19_4_NON_ONDEBUG_FAMILIES` narrowed to onCommand only; W19-4 orthogonality tests' unstamped half swapped to onCommand. Pre-W19-5 chat-tool attribution pin at `test_playwright_monitor_attribution.py:658` updated to assert `confirmation_source=="log_record"` + suppressed `failure_reason_code`. Synthetic test bar: `tests/architecture/` 202 (unchanged), `make test-security` 220 (unchanged), full suite 1973 passed (W19-X 1964 + 9 net: +11 new W19-5 pytest items, -2 W19-4 parametrize cases that moved to W19-5)) | primary `e537ebd` + self-stamp this commit | must-pass #2 (`harness_verification_unconfirmed_present` reason drops) — onTerminal+onLM half — **fully closes Hat-2 synthetically** |
-| W19-6 | **closed `2026-05-26`** via primary `f17b4b1` + self-stamp `cd82153` + W19-6-followup-2 pre-merge hygiene this commit (close-out hygiene + 9-doc canonical preamble refresh + §17 W19 self-stamp post-final-bar + W19 tracker freeze; W18-4 paterni `3f4f95a`; **+ 3 hygiene items from W19-3-followup-2 audit `2026-05-25`**: (a) field-set parity gate widened at `test_executor_dataclass_and_pydantic_contract_share_confirmation_source_field`; (b) hotspot LOC ratchet at `tests/architecture/test_executor_hotspot_loc_ratchet.py` pinning **8 modules** >500 LOC under `executor/flows/playwright/` at LOC × 1.05 ceiling; (c) acceptance-bar `Closes which acceptance-bar item?` column added to §17.3 + active tracker mirror; **+ W19-X-handoff.md freeze** — SUPERSEDED banner; `[FOLLOWUP harness-secret-distribution-redesign]` migrated to POST_POC_BACKLOG.md, `[FOLLOWUP harness-secret-extra-reactivation-source]` forwarded to W18-W22-roadmap.md W20-0; **+ W19-6-followup-2 pre-merge hygiene** (this commit) — `cd82153` only fully refreshed CLAUDE.md; this commit corrects the remaining 8 docs + closes 6 test gaps (+20 parametrized tests across cross-Hat live-anchor smoke, planner routing onDebug variants, malformed log_record reject, parser glob, producer↔schema round-trip, concurrent reactivation stress) + freezes W19 tracker per W17/W18 paterni) | primary `f17b4b1` + self-stamp `cd82153` + W19-6-followup-2 this commit | expected (`run_quality: low → medium`) + close-out hygiene |
+| W19-6 | **closed `2026-05-26`** via primary `f17b4b1` + self-stamp `cd82153` + W19-6-followup-2 pre-merge hygiene this commit (close-out hygiene + 9-doc canonical preamble refresh + §17 W19 self-stamp post-final-bar + W19 tracker freeze; W18-4 paterni `3f4f95a`; **+ 3 hygiene items from W19-3-followup-2 audit `2026-05-25`**: (a) field-set parity gate widened at `test_executor_dataclass_and_pydantic_contract_share_confirmation_source_field`; (b) hotspot LOC ratchet at `tests/architecture/test_executor_hotspot_loc_ratchet.py` pinning **8 modules** >500 LOC under `executor/flows/playwright/` at LOC × 1.05 ceiling; (c) acceptance-bar `Closes which acceptance-bar item?` column added to §17.3 + active tracker mirror; **+ W19-X-handoff.md freeze** — SUPERSEDED banner; `[FOLLOWUP harness-secret-distribution-redesign]` migrated to POST_POC_BACKLOG.md, `[FOLLOWUP harness-secret-extra-reactivation-source]` forwarded to W18-W22-roadmap.md W20-0; **+ W19-6-followup-2 pre-merge hygiene** 26bb080 — `cd82153` only fully refreshed CLAUDE.md; this commit corrects the remaining 8 docs + closes 6 test gaps (+20 parametrized tests across cross-Hat live-anchor smoke, planner routing onDebug variants, malformed log_record reject, parser glob, producer↔schema round-trip, concurrent reactivation stress) + freezes W19 tracker per W17/W18 paterni) | primary `f17b4b1` + self-stamp `cd82153` + W19-6-followup-2 this commit | expected (`run_quality: low → medium`) + close-out hygiene |
 
 ### §17.0 — Neden ayrı §17
 
@@ -814,7 +820,7 @@ kalsın; W19-6 close-out'ta §17 self-stamped olur
 §17 ile §18-§20'nin başlangıçta tek combined `§17-§20` başlığı
 altında planning state'inde tutulmasının nedeni: W19-W22 dört
 iter'lı multi-iter window olarak W18-4 close-out'ta §16'dan
-ayrıldı. W19-0 (this commit) §17'yi active block'a promote eder
+ayrıldı. W19-0 26bb080 §17'yi active block'a promote eder
 ve geri kalan §18-§20'yi W20-W22 planning bloğu olarak yeniden
 adlandırır.
 
@@ -992,7 +998,7 @@ W20-5 close-out'ta §18 self-stamped olur (W14/W15/W16/W17/W18/W19 paterni).
 §18 ile §19-§20'nin başlangıçta tek combined `§18-§20` başlığı
 altında planning state'inde tutulmasının nedeni: W19-W22 multi-iter
 window olarak W19-0 close-out'ta §17 split'inden sonra geriye kalan
-W20-W22 üç iter'lı planning bloğu. W20-0 (this commit) §18'i active
+W20-W22 üç iter'lı planning bloğu. W20-0 26bb080 §18'i active
 block'a promote eder ve geri kalan §19-§20'yi W21-W22 planning bloğu
 olarak yeniden adlandırır (W19-0 paterni §17 split'ini mirror).
 
@@ -1115,7 +1121,7 @@ W20 kapanır şu koşullar sağlandığında (tam liste W20 tracker §18.4'te
   1995 + W20-0..W20-5 +50) — skip count `9` byte-identical with
   W19 baseline (no regression).
 
-## §19 — W21 Coverage Promotion Round 2: Mid Tier (closed synthetically `2026-05-28` via W21-N close-out commit)
+## §19 — W21 Coverage Promotion Round 2: Mid Tier (closed and merged `2026-05-28` via PR #30 `week21 -> main` / `5dc18aa`; W21-N close-out at `dd24f1e`)
 
 §19 opened with the W20 close-out PR #29 `week20 -> main` merge on
 `2026-05-26 23:10:21Z` via `64a3c3d`. **Per user direction (`2026-05-27`)
@@ -1161,7 +1167,7 @@ olur (W14/W15/W16/W17/W18/W19/W20 paterni).
 §19 ile §20'nin başlangıçta tek combined `§19-§20` başlığı altında
 planning state'inde tutulmasının nedeni: W20-W22 multi-iter window
 olarak W20-0 close-out'ta §18 split'inden sonra geriye kalan W21-W22
-iki iter'lı planning bloğu. W21-0 (this commit) §19'u active block'a
+iki iter'lı planning bloğu. W21-0 26bb080 §19'u active block'a
 promote eder ve geri kalan §20'yi W22 planning bloğu olarak yeniden
 adlandırır (W19-0 / W20-0 paterni mirror — §17 split at W19-0, §18
 split at W20-0, §19 split here).
@@ -1296,29 +1302,59 @@ Criterion satisfied. Per-item audit:
   (unchanged); full suite **2104 passed**, 9 skipped, 8 deselected
   (+59 net from W20-5 baseline 2045).
 
-## §20 — W22 Coverage Promotion Round 3: Hard Tier + Sandbox Evasion ADR + Chat Policy (planning)
+## §20 — W22 Coverage Promotion Round 3: Hard Tier + Sandbox Evasion ADR + Chat Policy + Container Hardening Ratchet-Down (active `2026-05-28`)
 
-Tek iter'lık planning state'inde dokümante edildi (orijinal §19-§20
-combined header'dan W21-0 close-out'ta ayrıldı — W21 §19'a promote
-edildi, W22 §20 olarak yeniden adlandırıldı; W19-0 / W20-0 paterni
-§17 / §18 split'lerini mirror). Roadmap kaynak gerçek dosyası (W22
-sub-iter slate'i + acceptance gate'leri + critical files + ADR
-yolları + açık karar noktaları) burada:
+§20 W22 plan header doc-open at W22-0 26bb080. §19 W21 closed
+and merged via PR #30 `week21 -> main` MERGED `2026-05-28` via
+`5dc18aa` (W21-N close-out at `dd24f1e`); W22 inherits 1 missing
+capability (`chat`) per W21-4 anchor `eacea0b6690e`. **W22 closes
+the hard tier** (`chat` policy ADR + implementation) **+ sandbox
+evasion ADR draft** (canary fixture + defense ADR) **+ container
+hardening ratchet-down** (W21-4 ADR 0013 §Deferred — `read_only` +
+tmpfs + custom seccomp profile) **+ attribution depth** for
+ProcessEvent + OutputChannelAppendLine (W17-1 paterni).
+
+**Branch model (user direction `2026-05-28`)**: tek branch
+`week22` — sub-iter commits doğrudan üzerinde, sub-iter başına
+ayrı branch yok (W11-W21 paterninden bu sefer ayrılma). Close-out
+PR `week22 -> main` PENDING USER APPROVAL — main onayı zorunlu
+(memory `feedback_pr_push_approval` standing).
+
+Active tracker:
+[`active-work/W22-coverage-promotion-hard-tier.md`](active-work/W22-coverage-promotion-hard-tier.md)
+carries per-iter scope locks, Per-Item Detail evidence, the
+baseline + final live-run smoke artefakts, and the W22 Closure
+section. Roadmap kaynak gerçek dosyası (W22 sub-iter slate'i +
+acceptance gate'leri + critical files + ADR yolları + açık karar
+noktaları):
 
 [`active-work/W18-W22-roadmap.md`](active-work/W18-W22-roadmap.md)
 
-### §20.0 — Neden ayrı §20
+| Iter | Status | Theme | Notes |
+|---|---|---|---|
+| W22-0 | **in-flight 26bb080** doc-reconcile — `week22` branch + new W22 active-work tracker + §19 W21 plan header doc-close ("closed and merged") + §20 W22 plan header doc-open (this section) + 10-doc canonical preamble refresh transitioning W21 → W22 + W21 Pull-Forward Acceptance Bar "closed and merged" stamp + W22 Roadmap Acceptance Bar "planning" → "active" promotion + README phase-pointer arch gate transition W21 → W22 + new W21 close-out fact gate `test_readme_phase_pointer_mentions_w21_closeout_merge` pinning PR #30 / `week21 -> main` / `5dc18aa` + `test_canonical_preamble_parity.py` fingerprint refresh (PR #29 → PR #30, `64a3c3d` → `5dc18aa`, tracker slot W21 → W22) | this commit | — (doc-reconcile; no acceptance-bar item) |
+| W22-1 | **planned** | `[GOAL taxonomy-chat-policy-adr]` ADR `documents/adrs/0014-chat-and-language-model-tool-policy.md` (kod-free) | — |
+| W22-2 | **planned** | `[GOAL taxonomy-chat-coverage]` `chat` her iki track → covered (W21-2 paterni); depends on W22-1 ADR Accepted | — |
+| W22-3 | **planned** | `[FOLLOWUP attribution-count-parity-process-events]` + `[FOLLOWUP attribution-count-parity-output-channel]` (W17-1 paterni; 4+4=8 invariant) | — |
+| W22-4 | **planned** | `[GOAL sandbox-evasion-defense-mvp]` ADR `documents/adrs/0015-sandbox-evasion-defense-policy.md` (kod-free; implementation W23+) | — |
+| W22-5 | **planned** | `[GOAL sandbox-evasion-canary-fixture]` `tests/security/test_sandbox_evasion_canary.py` | — |
+| W22-6 | **planned** | `[GOAL container-hardening-ratchet-down]` W21-4 ADR 0013 §Deferred → §Closed (read_only + tmpfs + custom seccomp) | — |
+| W22-7 | **planned (conditional)** | `[GOAL activation-event-spec-gap-followup]` (W20-0 crosswalk residual gap if any; else `[NO-W22-7]` stamp) | — |
+| W22-N | **planned** | close-out hygiene + PR `week22 -> main` (PENDING USER APPROVAL) | — |
+
+### §20.0 — Neden ayrı §20 (now active)
 
 §19 W21 coverage promotion round 2 mid-tier kapanış penceresini
-açar (active `2026-05-27`). §20 hard tier devamı:
+kapadı (closed and merged via PR #30 / `5dc18aa` on `2026-05-28`).
+§20 hard tier + sandbox + container ratchet-down devamı:
 
 - **§20 — W22**: Coverage promotion round 3 (hard tier:
   `chat` policy ADR + implementation) + attribution depth +
-  sandbox-evasion ADR draft
+  sandbox-evasion ADR draft + container hardening ratchet-down
 
-§20 W21 (§19) kapanışında ayrı self-stamped olur ve combined
-header'dan ayrılır (W19-0'ın §17'yi + W20-0'ın §18'i + W21-0'ın
-§19'u promote ettiği gibi).
+§20 W22-0 close-out'ta §20 active block'a promote edildi (this
+commit). W19-0/W20-0/W21-0 paterni mirror — §17 split at W19-0,
+§18 split at W20-0, §19 split at W21-0, §20 split here.
 
 ### §20.1 — Driving Signal (live run, 2026-05-21)
 
@@ -1380,7 +1416,7 @@ Plan dosyası 3 review turundan geçti:
 W19-0 doc-reconcile sub-iter'inde §17 W19 active block §17-§20'den
 ayrıldı (`72712bd` + `086d7a5`). W20-0 doc-reconcile sub-iter'inde
 §18 W20 active block §18-§20 combined'dan ayrıldı (`66a8a0b` +
-`5f13757`). W21-0 doc-reconcile sub-iter'inde (this commit) §19 W21
+`5f13757`). W21-0 doc-reconcile sub-iter'inde 26bb080 §19 W21
 active block §19-§20 combined'dan ayrıldı. §20 W22 entry'si W22
 açıldığında self-stamped olur (W14/W15/W16/W17/W18/W19/W20/W21
 paterni).

@@ -29,30 +29,31 @@ _CANONICAL_PREAMBLE_DOCS: tuple[str, ...] = (
     "documents/POST_POC_BACKLOG.md",
     "documents/active-work/README.md",
     "documents/active-work/W18-W22-roadmap.md",
-    "documents/active-work/W21-coverage-promotion-mid-tier.md",
+    "documents/active-work/W22-coverage-promotion-hard-tier.md",
 )
 
-# Most-recent-merge fingerprint pinned after W20 close-out
-# (PR #29 ``week20 -> main`` MERGED 2026-05-26 via ``64a3c3d``).
+# Most-recent-merge fingerprint pinned after W21 close-out
+# (PR #30 ``week21 -> main`` MERGED 2026-05-28 via ``5dc18aa``).
 # Bump this when the next phase merges; bump every current canonical
 # doc headline in the same commit.
-_EXPECTED_MERGE_FINGERPRINT = "PR #29"
-_EXPECTED_MERGE_SHA = "64a3c3d"
+_EXPECTED_MERGE_FINGERPRINT = "PR #30"
+_EXPECTED_MERGE_SHA = "5dc18aa"
 
 # Drift markers — phrases that mean the preamble is stale relative to
 # the current merge fingerprint. If any of these reappear in the
 # *headline region* of a canonical doc, the next-phase merge happened
 # without a corresponding preamble refresh. Body-level audit-trail
-# mentions of these phrases (e.g., describing what W20-0 doc-reconcile
+# mentions of these phrases (e.g., describing what W21-0 doc-reconcile
 # flipped) are historical narrative and not flagged here.
 #
 # Lowercase ``pending user approval`` catches stale in-banner "PR pending"
-# claims authored before a merge. Current pre-merge W21 PR-readiness uses
+# claims authored before a merge. Current pre-merge W22 PR-readiness uses
 # uppercase ``PENDING USER APPROVAL`` deliberately; the case-sensitive match
-# avoids flagging that forward-looking W21 state.
+# avoids flagging that forward-looking W22 state.
 _STALE_MARKERS: tuple[str, ...] = (
     "pending user approval",
     "Active phase: W19",
+    "Active phase: W20",
 )
 
 # Number of lines from the top of each doc to scan for the stale markers.

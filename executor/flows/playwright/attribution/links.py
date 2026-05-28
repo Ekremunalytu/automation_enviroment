@@ -250,6 +250,18 @@ def build_evidence_bundle(
             monitoring_start,
         )
         process_entries.append((event_id, process_event, event_epoch))
+        # W22-3 attribution-count-parity-process-events: producer-side stamp
+        # mirrors the W17-1 activation paterni so the evidence-side counter
+        # (``kind=process,is_target_extension_event=True``) stays byte-
+        # identical with ``count_target_process_events(...)`` in
+        # ``health/summary.py``. The source ``ProcessEvent`` dataclass
+        # defaults the flag to False; without this stamp the evidence-side
+        # counter reads zero even for genuine target process events
+        # (W14 production scan paterni).
+        is_target_process = bool(
+            target_extension_id
+            and process_event.related_extension_id == target_extension_id
+        )
         events.append(
             EvidenceEvent(
                 event_id=event_id,
@@ -258,9 +270,7 @@ def build_evidence_bundle(
                 or format_epoch_timestamp(event_epoch),
                 rel_time_s=process_event.rel_time_s,
                 collector="strace",
-                actor="extension"
-                if process_event.is_target_extension_event
-                else "unknown",
+                actor="extension" if is_target_process else "unknown",
                 scenario_name=scenario_name_for_timestamp(
                     process_event.timestamp,
                     process_event.rel_time_s,
@@ -273,7 +283,7 @@ def build_evidence_bundle(
                 attribution_status=process_event.attribution_status,
                 attribution_basis=process_event.attribution_basis,
                 attribution_confidence=process_event.attribution_confidence,
-                is_target_extension_event=process_event.is_target_extension_event,
+                is_target_extension_event=is_target_process,
                 summary=process_event.summary,
                 raw_context={
                     "event_class": "process",
@@ -293,6 +303,16 @@ def build_evidence_bundle(
     output_signal_events = getattr(report, "output_signal_events", []) or []
     for index, output_event in enumerate(output_signal_events, start=1):
         event_id = f"output-channel-{index:04d}"
+        # W22-3 attribution-count-parity-output-channel: producer-side stamp
+        # mirrors the W17-1 activation paterni so the evidence-side counter
+        # (``kind=output_channel_appendline,is_target_extension_event=True``)
+        # stays byte-identical with ``count_target_output_events(...)`` in
+        # ``health/summary.py``. The source ``OutputSignalEvent`` dataclass
+        # defaults the flag to False; without this stamp the evidence-side
+        # counter reads zero even for genuine target Output channel writes.
+        is_target_output = bool(
+            target_extension_id and output_event.extension_id == target_extension_id
+        )
         events.append(
             EvidenceEvent(
                 event_id=event_id,
@@ -311,7 +331,7 @@ def build_evidence_bundle(
                 activation_event=output_event.activation_event,
                 attribution_status=output_event.attribution_status,
                 attribution_basis=output_event.attribution_basis,
-                is_target_extension_event=output_event.is_target_extension_event,
+                is_target_extension_event=is_target_output,
                 summary=output_event.summary,
                 raw_context={
                     "event_class": "output_channel_appendline",

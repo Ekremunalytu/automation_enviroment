@@ -201,6 +201,100 @@ def test_local_comments_controller_scenario_advertises_comments_capability() -> 
 
 
 # ---------------------------------------------------------------------
+# W22-2 — Chat hard-tier promotion (closes the last missing capability)
+# ---------------------------------------------------------------------
+
+
+def test_chat_official_track_is_covered() -> None:
+    """W22-2: ``chat`` flipped from ``missing`` → ``covered`` in the
+    official track. Pins the flip — see
+    ``[GOAL taxonomy-chat-coverage]`` at
+    ``documents/POST_POC_BACKLOG.md`` W22 Roadmap Acceptance Bar and
+    ADR 0014 §Decision (Option C — tool-only local coverage).
+    """
+    assert _OFFICIAL_CAPABILITY_SUPPORT["chat"] == "covered", (
+        "W22-2 promoted `chat` to `covered` in the official track. "
+        "If this assertion fails the flip has been reverted; check "
+        "`packages/analysis_planner/capabilities.py:95`. "
+        "ADR 0014 (chat policy Option C) is the source-of-truth."
+    )
+
+
+def test_chat_heuristic_track_is_covered() -> None:
+    """W22-2 partner pin to the official-track flip.
+
+    ``_HEURISTIC_CAPABILITY_SUPPORT`` derives from
+    ``_GLOBAL_CAPABILITY_SUPPORT``; both must read ``covered`` so the
+    Official ⊆ Heuristic invariant (W20-3 gate) is satisfied after the
+    flip and so a future edit cannot silently regress the heuristic
+    track.
+    """
+    assert _HEURISTIC_CAPABILITY_SUPPORT["chat"] == "covered"
+    assert _GLOBAL_CAPABILITY_SUPPORT["chat"] == "covered"
+
+
+def test_chat_in_capability_taxonomy() -> None:
+    """``chat`` must remain enumerated in ``CAPABILITY_TAXONOMY``.
+
+    The support maps are keyed by taxonomy entries; removing
+    ``chat`` from the taxonomy without updating the support maps
+    would surface only as a KeyError at runtime. Pin the taxonomy
+    membership here.
+    """
+    assert "chat" in CAPABILITY_TAXONOMY
+
+
+def test_local_chat_participant_controller_scenario_advertises_chat_capability() -> (
+    None
+):
+    """W22-2 flip is meaningful only if at least one scenario in
+    ``SCENARIO_REGISTRY`` advertises ``chat`` in its
+    ``api_capabilities`` and exercises the chat participant surface
+    specifically. Pinning ``local_chat_participant_controller`` here
+    means a future edit that drops the scenario or removes the
+    capability mapping has to also update this test — preventing
+    silent drift between the scenario registry and the support map
+    for the ``onChatParticipant:*`` activation event family (ADR 0014
+    §API Surface Boundary).
+    """
+    chat_scenarios = [
+        scenario.name
+        for scenario in SCENARIO_REGISTRY
+        if "chat" in scenario.api_capabilities
+    ]
+    assert "local_chat_participant_controller" in chat_scenarios, (
+        "`local_chat_participant_controller` scenario must advertise "
+        "`chat` in api_capabilities so the W22-2 official-track "
+        "promotion has a concrete coverage path for "
+        "onChatParticipant:* activation events per ADR 0014 Option C."
+    )
+
+
+def test_local_language_model_tool_controller_scenario_advertises_chat_capability() -> (
+    None
+):
+    """W22-2 second scenario pin — the chat capability spans two
+    distinct activation-event families per ADR 0014 §API Surface
+    Boundary (``onChatParticipant:*`` and ``onLanguageModelTool:*``).
+    Pinning ``local_language_model_tool_controller`` here ensures the
+    LM tool family stays advertised by a real scenario and that a
+    future edit cannot silently drop one half of the chat coverage
+    contract.
+    """
+    chat_scenarios = [
+        scenario.name
+        for scenario in SCENARIO_REGISTRY
+        if "chat" in scenario.api_capabilities
+    ]
+    assert "local_language_model_tool_controller" in chat_scenarios, (
+        "`local_language_model_tool_controller` scenario must "
+        "advertise `chat` in api_capabilities so the W22-2 official-"
+        "track promotion has a concrete coverage path for "
+        "onLanguageModelTool:* activation events per ADR 0014 Option C."
+    )
+
+
+# ---------------------------------------------------------------------
 # W21-1 — Testing mid-tier promotion
 # ---------------------------------------------------------------------
 
@@ -465,7 +559,7 @@ def test_official_capability_support_dict_shape_is_canonical() -> None:
         "custom_editors": "covered",
         "uri_walkthrough": "covered",
         "authentication": "covered",
-        "chat": "missing",  # W22-2 candidate (hard tier)
+        "chat": "covered",  # W22-2 promotion (hard tier closure)
         "comments": "covered",  # W21-2 promotion
         "testing": "covered",  # W21-1 promotion
         "webview": "covered",

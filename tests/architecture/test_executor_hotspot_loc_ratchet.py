@@ -48,7 +48,7 @@ _HOTSPOT_LOC_CEILINGS: dict[str, int] = {
     "attribution/events.py": 527,  # base 502 (W19-X tip)
     "attribution/links.py": 643,  # base 613 (W19-X tip)
     "health/reconciliation.py": 597,  # base 569 (W19-5 +15 LOC from elif arm)
-    "health/summary.py": 537,  # base 512 (W19-X tip)
+    "health/summary.py": 552,  # base 512 (W19-X tip) + W22-3 +30 LOC (count_target_process_events + count_target_output_events; mirrors count_target_activations W17-1 paterni)
     "monitor/runtime.py": 591,  # base 563 (W19-X tip)
     "monitor/scenario_accountant.py": 680,  # base 648 (W19-X tip)
     "monitor/types.py": 544,  # base 519 (W19-X tip)

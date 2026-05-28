@@ -28,6 +28,7 @@ from executor.flows.playwright.runtime_capture.events import (
     ActivationEntry,
     FileEvent,
     NetworkEvent,
+    OutputSignalEvent,
     ProcessEvent,
 )
 
@@ -597,4 +598,299 @@ def test_build_evidence_bundle_target_activation_parity_invariant() -> None:
         "predicate (entry.extension_id == report.target_extension_id) so "
         "downstream rule helpers in packages/analysis_engine/rules/_common.py "
         "(``is_target_owned`` / ``target_file_events``) see the same truth."
+    )
+
+
+# ---------------------------------------------------------------------------
+# W22-3 attribution-count-parity-process-events — mirrors W17-1 paterni
+# for ``kind="process"`` evidence events. The four tests below pin the
+# producer-side stamp at
+# ``executor/flows/playwright/attribution/links.py`` against
+# ``count_target_process_events(...)`` in ``health/summary.py`` so the
+# evidence-side counter cannot silently diverge from the summary-side
+# counter (W14 production scan divergence shape applied to process events).
+# ---------------------------------------------------------------------------
+
+
+def test_build_evidence_bundle_process_event_flags_target_extension() -> None:
+    """A ``kind="process"`` event whose ``related_extension_id`` matches the
+    report's ``target_extension_id`` is flagged ``is_target_extension_event=True``.
+    """
+    process_event = ProcessEvent(
+        timestamp="2026-05-14T10:00:00.000",
+        pid=1234,
+        related_extension_id="ms-python.python",
+        operation="execve",
+        command="python3",
+    )
+    report = ActivationReport(
+        target_extension_id="ms-python.python",
+        monitoring_start=1700_000_000.0,
+        process_events=[process_event],
+    )
+
+    events, _ = links.build_evidence_bundle(report)
+
+    process_events = [event for event in events if event.kind == "process"]
+    assert len(process_events) == 1
+    assert process_events[0].is_target_extension_event is True
+    assert process_events[0].actor == "extension"
+
+
+def test_build_evidence_bundle_process_event_does_not_flag_non_target() -> None:
+    """A ``kind="process"`` event for a non-target extension stays unflagged."""
+    process_event = ProcessEvent(
+        timestamp="2026-05-14T10:00:00.000",
+        pid=1234,
+        related_extension_id="other.extension",
+        operation="execve",
+    )
+    report = ActivationReport(
+        target_extension_id="ms-python.python",
+        monitoring_start=1700_000_000.0,
+        process_events=[process_event],
+    )
+
+    events, _ = links.build_evidence_bundle(report)
+
+    process_events = [event for event in events if event.kind == "process"]
+    assert len(process_events) == 1
+    assert process_events[0].is_target_extension_event is False
+    assert process_events[0].actor == "unknown"
+
+
+def test_build_evidence_bundle_process_event_unflagged_when_no_target_set() -> None:
+    """Empty ``target_extension_id`` keeps the flag False (mirrors
+    ``count_target_process_events`` guard).
+    """
+    process_event = ProcessEvent(
+        timestamp="2026-05-14T10:00:00.000",
+        pid=1234,
+        related_extension_id="ms-python.python",
+        operation="execve",
+    )
+    report = ActivationReport(
+        target_extension_id="",
+        monitoring_start=1700_000_000.0,
+        process_events=[process_event],
+    )
+
+    events, _ = links.build_evidence_bundle(report)
+
+    process_events = [event for event in events if event.kind == "process"]
+    assert len(process_events) == 1
+    assert process_events[0].is_target_extension_event is False
+
+
+def test_build_evidence_bundle_target_process_parity_invariant() -> None:
+    """W22-3 parity invariant: count of target-flagged ``kind="process"``
+    evidence events equals
+    ``count_target_process_events(report.process_events, target_id)``.
+
+    Mirrors W17-1 parity invariant for ``kind="activation"`` events
+    (commit ``8c26d02`` + self-stamp ``0a8f59e``). Both counters derive
+    from the same predicate (``entry.related_extension_id ==
+    report.target_extension_id``) so downstream rule helpers see the
+    same truth.
+    """
+    from executor.flows.playwright.health.summary import (
+        count_target_process_events,
+    )
+
+    target_id = "ms-python.python"
+    process_events = [
+        ProcessEvent(
+            timestamp="2026-05-14T10:00:01.000",
+            pid=1234,
+            related_extension_id=target_id,
+            operation="execve",
+        ),
+        ProcessEvent(
+            timestamp="2026-05-14T10:00:02.000",
+            pid=1235,
+            related_extension_id="other.extension",
+            operation="execve",
+        ),
+        ProcessEvent(
+            timestamp="2026-05-14T10:00:03.000",
+            pid=1236,
+            related_extension_id=target_id,
+            operation="openat",
+        ),
+    ]
+    report = ActivationReport(
+        target_extension_id=target_id,
+        monitoring_start=1700_000_000.0,
+        process_events=process_events,
+    )
+
+    events, _ = links.build_evidence_bundle(report)
+    target_flagged_evidence = [
+        event
+        for event in events
+        if event.kind == "process" and event.is_target_extension_event
+    ]
+
+    summary_target_count = count_target_process_events(process_events, target_id)
+    evidence_target_count = len(target_flagged_evidence)
+
+    assert summary_target_count == 2
+    assert evidence_target_count == summary_target_count, (
+        "W22-3 parity invariant violated (process events): "
+        f"count_target_process_events={summary_target_count} "
+        f"but kind=process,is_target_extension_event=True count="
+        f"{evidence_target_count}. Both counters must derive from the same "
+        "predicate (entry.related_extension_id == "
+        "report.target_extension_id)."
+    )
+
+
+# ---------------------------------------------------------------------------
+# W22-3 attribution-count-parity-output-channel — mirrors W17-1 paterni
+# for ``kind="output_channel_appendline"`` evidence events captured by the
+# harness extension's createOutputChannel proxy (ADR 0006 §3-§4). Same
+# parity contract: producer-side stamp at
+# ``executor/flows/playwright/attribution/links.py`` and
+# ``count_target_output_events(...)`` in ``health/summary.py`` derive from
+# the same predicate (``entry.extension_id == target_extension_id``).
+# ---------------------------------------------------------------------------
+
+
+def test_build_evidence_bundle_output_event_flags_target_extension() -> None:
+    """A ``kind="output_channel_appendline"`` event whose ``extension_id``
+    matches the report's ``target_extension_id`` is flagged
+    ``is_target_extension_event=True``.
+    """
+    output_event = OutputSignalEvent(
+        timestamp="2026-05-14T10:00:00.000",
+        channel="Python",
+        text="Activating extension ms-python.python",
+        extension_id="ms-python.python",
+    )
+    report = ActivationReport(
+        target_extension_id="ms-python.python",
+        monitoring_start=1700_000_000.0,
+        output_signal_events=[output_event],
+    )
+
+    events, _ = links.build_evidence_bundle(report)
+
+    output_events = [
+        event for event in events if event.kind == "output_channel_appendline"
+    ]
+    assert len(output_events) == 1
+    assert output_events[0].is_target_extension_event is True
+
+
+def test_build_evidence_bundle_output_event_does_not_flag_non_target() -> None:
+    """A ``kind="output_channel_appendline"`` event for a non-target
+    extension stays unflagged.
+    """
+    output_event = OutputSignalEvent(
+        timestamp="2026-05-14T10:00:00.000",
+        channel="Other",
+        text="some unrelated output",
+        extension_id="other.extension",
+    )
+    report = ActivationReport(
+        target_extension_id="ms-python.python",
+        monitoring_start=1700_000_000.0,
+        output_signal_events=[output_event],
+    )
+
+    events, _ = links.build_evidence_bundle(report)
+
+    output_events = [
+        event for event in events if event.kind == "output_channel_appendline"
+    ]
+    assert len(output_events) == 1
+    assert output_events[0].is_target_extension_event is False
+
+
+def test_build_evidence_bundle_output_event_unflagged_when_no_target_set() -> None:
+    """Empty ``target_extension_id`` keeps the flag False (mirrors
+    ``count_target_output_events`` guard).
+    """
+    output_event = OutputSignalEvent(
+        timestamp="2026-05-14T10:00:00.000",
+        channel="Python",
+        text="any text",
+        extension_id="ms-python.python",
+    )
+    report = ActivationReport(
+        target_extension_id="",
+        monitoring_start=1700_000_000.0,
+        output_signal_events=[output_event],
+    )
+
+    events, _ = links.build_evidence_bundle(report)
+
+    output_events = [
+        event for event in events if event.kind == "output_channel_appendline"
+    ]
+    assert len(output_events) == 1
+    assert output_events[0].is_target_extension_event is False
+
+
+def test_build_evidence_bundle_target_output_parity_invariant() -> None:
+    """W22-3 parity invariant: count of target-flagged
+    ``kind="output_channel_appendline"`` evidence events equals
+    ``count_target_output_events(report.output_signal_events, target_id)``.
+
+    Mirrors W17-1 parity invariant for ``kind="activation"`` events
+    (commit ``8c26d02`` + self-stamp ``0a8f59e``). Both counters derive
+    from the same predicate (``entry.extension_id ==
+    report.target_extension_id``) so downstream rule helpers see the
+    same truth for Output channel writes captured via ADR 0006 §3-§4
+    harness extension proxy.
+    """
+    from executor.flows.playwright.health.summary import (
+        count_target_output_events,
+    )
+
+    target_id = "ms-python.python"
+    output_events = [
+        OutputSignalEvent(
+            timestamp="2026-05-14T10:00:01.000",
+            channel="Python",
+            text="activating",
+            extension_id=target_id,
+        ),
+        OutputSignalEvent(
+            timestamp="2026-05-14T10:00:02.000",
+            channel="Other",
+            text="unrelated",
+            extension_id="other.extension",
+        ),
+        OutputSignalEvent(
+            timestamp="2026-05-14T10:00:03.000",
+            channel="Python",
+            text="interpreter selected",
+            extension_id=target_id,
+        ),
+    ]
+    report = ActivationReport(
+        target_extension_id=target_id,
+        monitoring_start=1700_000_000.0,
+        output_signal_events=output_events,
+    )
+
+    events, _ = links.build_evidence_bundle(report)
+    target_flagged_evidence = [
+        event
+        for event in events
+        if event.kind == "output_channel_appendline" and event.is_target_extension_event
+    ]
+
+    summary_target_count = count_target_output_events(output_events, target_id)
+    evidence_target_count = len(target_flagged_evidence)
+
+    assert summary_target_count == 2
+    assert evidence_target_count == summary_target_count, (
+        "W22-3 parity invariant violated (output channel events): "
+        f"count_target_output_events={summary_target_count} "
+        f"but kind=output_channel_appendline,is_target_extension_event=True "
+        f"count={evidence_target_count}. Both counters must derive from "
+        "the same predicate (entry.extension_id == "
+        "report.target_extension_id)."
     )

@@ -1,6 +1,6 @@
 # Dynamic Analysis Backlog
 
-`Last Updated: 2026-05-26 (W19 closed synthetically — Hat-1 + Hat-2 fully closed; PR #28 week19 -> main MERGED 2026-05-26 via c879603)`
+`Last Updated: 2026-05-28 — W22 active (closed synthetically on week22; PR week22 -> main PENDING USER APPROVAL); W21 closed and merged via PR #30 5dc18aa.`
 
 This is the short actionable backlog for the sandbox pipeline. It complements
 `DEVELOPMENT_PRIORITIES.md`, `PIPELINE_ROADMAP.md`, and the canonical
@@ -19,17 +19,21 @@ flow, the VNC harness ready-marker fix, and the
 tagged `[FOLLOWUP simulation-progress-cancel]` in
 `POST_POC_BACKLOG.md`. PR345 target activation lifecycle and W8-0
 deterministic harness readiness gate both landed on `2026-04-27`.
-W8-W18 are closed; W18 merged via PR #26 (`9874e79`) on `2026-05-21`.
-Active phase is W19 Live-Run Kök Neden: Dropout + Harness Verification,
-tracked in
-[`active-work/W19-live-run-root-cause.md`](active-work/W19-live-run-root-cause.md).
+W8-W21 are closed; W22 closed synthetically on `week22` — close-out
+PR `week22 -> main` PENDING USER APPROVAL. Active tracker:
+[`active-work/W22-coverage-promotion-hard-tier.md`](active-work/W22-coverage-promotion-hard-tier.md).
 
 ## Now (next-iteration pull)
 
 Source of truth: `POST_POC_BACKLOG.md` for pullable work and
-`REFACTOR_STATUS.md` for landed closure evidence. W19-0..W19-2 are closed;
-Hat-1 is live-verified at `d5de9ca`. Next pull is W19-3
-`[GOAL harness-verification-contract-event-level]`.
+`REFACTOR_STATUS.md` for landed closure evidence. W22 sub-iter slate
+is closed (W22-0..W22-5 + W22-N); W22-6 container-hardening
+ratchet-down DEFERRED TO USER (Linux required); W22-2 chat coverage
+runtime live-run anchor DEFERRED TO USER (Linux required). Next pull:
+the static-analysis pre-check stream (formerly `extrace-static`
+parallel branch; design preserved in
+[`active-work/extrace-static-stream-handoff.md`](active-work/extrace-static-stream-handoff.md))
+— operator resumes serially off `main` when picking it up.
 
 + **W11 (`REFACTOR_OPTIMIZATION.md` §11.8) monitor lifecycle split —
   CLOSED `2026-05-05`.** W11-1 `MonitorRuntime` (PR #12, `84d51ae`),
@@ -80,9 +84,18 @@ Hat-1 is live-verified at `d5de9ca`. Next pull is W19-3
 
 ## Next (post-PoC value-adds)
 
-+ close official-track verification gaps for `scm` and `settings`
-+ decide which partial scaffolding should advance for `chat`, `comments`,
-  `testing`, and `workspace_trust`
++ Coverage promotion is complete (W20-W22 closed all 18 capabilities into
+  `_OFFICIAL_CAPABILITY_SUPPORT` `"covered"`); no remaining coverage gaps
+  to close in the matrix.
++ Static-analysis pre-check stream (deferred; design intent in
+  [`active-work/extrace-static-stream-handoff.md`](active-work/extrace-static-stream-handoff.md))
+  — block-and-warn semantics + separate Docker service + schema-first
+  contract landing + in-house Python rules + Semgrep MVP.
++ Container-hardening ratchet-down (W21-4 ADR 0013 §Deferred): `read_only`
+  + tmpfs + custom seccomp profile. Pulled into W22-6; DEFERRED TO USER
+  (Linux required for live-smoke).
++ Sandbox-evasion defense (ADR 0015 Draft Policy + W22-5 canary fixture):
+  V2 implementation roadmap — W23+ scope per ADR 0015.
 + evaluate remaining stretch adversary classes (A5 malicious update, A7 VS
   Code API abuse) — A3 typosquat landed in the W7 Phase 3a buffer
 + pull workflow/platform cleanups from `POST_POC_BACKLOG.md` §Workflow /

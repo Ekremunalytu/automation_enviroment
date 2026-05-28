@@ -527,6 +527,11 @@ export interface ActivationReportDto {
   runner_exit_code?: number | null;
   runner_status?: "success" | "error" | "unknown";
   executor_fingerprint?: Record<string, string>;
+  target_extension_id?: string;
+  monitoring_start?: number;
+  monitoring_end?: number;
+  scenarios_run?: string[];
+  harness_handshake_required?: boolean;
   _metadata?: ActivationReportMetadataDto | null;
 }
 

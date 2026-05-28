@@ -267,6 +267,59 @@ async function activate(context) {
     collector: "harness_extension",
   });
 
+  // W22-2: Chat participant + Language Model tool observability per ADR
+  // 0014 Option C (tool-only local coverage). Both surfaces are GA since
+  // VS Code 1.90; engines.vscode "^1.90.0" in package.json covers them.
+  // NO external services, NO proposed APIs.
+  //
+  // - vscode.chat.createChatParticipant fires the onChatParticipant:*
+  //   activation event family at registration; the no-op handler returns
+  //   synchronously without any chat-model interaction.
+  // - vscode.lm.registerTool fires the onLanguageModelTool:* activation
+  //   event family at registration; the invoke handler returns a canned
+  //   LanguageModelToolResult constructed in-process (no model call).
+  //
+  // Markers route through emitHarnessEvent → reserved OutputChannel
+  // (W19-X Bug B paterni). Subscriptions live on context.subscriptions
+  // and dispose at extension deactivate so there is no persistent state
+  // across stimulus passes (W19-X Bug C HMAC reactivation race lesson).
+  // The invocation marker is emitted by stimulus_dispatch.js when the
+  // onLanguageModelTool family branch runs.
+  const _noopChatHandler = async (_request, _context, _stream, _token) => {
+    // No model interaction — registration alone fires the activation
+    // event; the handler is a placeholder for participants the user
+    // invokes via @extrace.harness.chat from the chat input.
+    return;
+  };
+  const _noopToolInvoke = async (_options, _token) => {
+    return new vscode.LanguageModelToolResult([
+      new vscode.LanguageModelTextPart("extrace-harness-noop"),
+    ]);
+  };
+  const chatParticipant = vscode.chat.createChatParticipant(
+    "extrace.harness.chat",
+    _noopChatHandler
+  );
+  context.subscriptions.push(chatParticipant);
+  emitHarnessEvent({
+    kind: "chat_participant_state",
+    phase: "registered",
+    participant_id: "extrace.harness.chat",
+    ts: Date.now(),
+    collector: "harness_extension",
+  });
+  const lmTool = vscode.lm.registerTool("extrace.harness.lm.tool", {
+    invoke: _noopToolInvoke,
+  });
+  context.subscriptions.push(lmTool);
+  emitHarnessEvent({
+    kind: "lm_tool_state",
+    phase: "registered",
+    tool_id: "extrace.harness.lm.tool",
+    ts: Date.now(),
+    collector: "harness_extension",
+  });
+
   // W21-3: Workspace trust observability. Baseline trust state emitted at
   // activate() entry, then onDidGrantWorkspaceTrust listener emits a
   // transition marker when trust is granted on the current workspace.
