@@ -224,6 +224,50 @@ SCENARIO_REGISTRY: tuple[ScenarioDefinition, ...] = (
         success_signals=("comment thread created", "comment thread disposed"),
         risk_of_noise="low",
     ),
+    ScenarioDefinition(
+        name="local_chat_participant_controller",
+        intent=(
+            "Exercise the local VS Code Chat Participant API surface "
+            "(vscode.chat.createChatParticipant + no-op handler) through "
+            "the harness so extensions that contribute chat participants "
+            "have a verifiable coverage path while staying inside the "
+            "sandbox. Per ADR 0014 Option C: registration alone fires "
+            "the onChatParticipant:* activation event family; no chat "
+            "model interaction occurs."
+        ),
+        activation_events=("onStartupFinished",),
+        contributes_signals=("capabilities",),
+        api_capabilities=("commands", "window_ui", "chat"),
+        prerequisites=("chat participant API available",),
+        success_signals=(
+            "chat participant registered",
+            "chat participant disposed",
+        ),
+        risk_of_noise="low",
+    ),
+    ScenarioDefinition(
+        name="local_language_model_tool_controller",
+        intent=(
+            "Exercise the local VS Code Language Model Tool API surface "
+            "(vscode.lm.registerTool + vscode.lm.invokeTool against a "
+            "no-op tool) through the harness so extensions that "
+            "contribute LM tools have a verifiable coverage path while "
+            "staying inside the sandbox. Per ADR 0014 Option C: tool "
+            "registration + invocation fire the onLanguageModelTool:* "
+            "activation event family without any chat-model round-trip; "
+            "the invoke handler returns a canned LanguageModelToolResult."
+        ),
+        activation_events=("onStartupFinished",),
+        contributes_signals=("capabilities",),
+        api_capabilities=("commands", "window_ui", "chat"),
+        prerequisites=("language model tool API available",),
+        success_signals=(
+            "lm tool registered",
+            "lm tool invoked",
+            "lm tool disposed",
+        ),
+        risk_of_noise="low",
+    ),
 )
 
 
