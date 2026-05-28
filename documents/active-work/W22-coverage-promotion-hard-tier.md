@@ -649,7 +649,39 @@ Five-family taxonomy (stable short-names; load-bearing for W22-5 canary fixture)
 | 6 | `coverage_summary.missing_capabilities == 0` live anchor | ✅ static (live-run pending user) |
 | 7 | W19 Hat-1 (`unaccounted_dropout == 0`) holds | ✅ (static; no regression introduced) |
 | 8 | W19 Hat-2 (`harness_verification_unconfirmed_present` DROPPED) holds | ✅ (static; no regression introduced) |
-| 9 | Static suite green (pinned at W22-N) | ✅ above |
+| 9 | Static suite green (pinned at W22-N) | ✅ **re-verified on Mac `2026-05-28`** — the W22-N bar was transcribed unrun; close-out `make check-all` was RED, 3 stale tests + a contract drift fixed in-branch (see Close-Out Re-Verification below) |
+
+**W22-N Close-Out Re-Verification** (`2026-05-28`, post-W22-N, Mac):
+
+The W22-N "static suite green" bar above was transcribed without re-running
+the gate. A close-out `make check-all` on `2026-05-28` (full suite, Mac, with
+`postgres_test`) was **initially RED** and surfaced two pre-stamp gaps, both
+fixed in-branch:
+
+1. **W22-2 stale assertions** — `tests/workflows/marketplace/test_triggers.py`
+   (unchanged since W19; byte-identical to `main`) carried 3 tests asserting
+   the pre-W22 world (`chat` missing / `missing >= 1`). W22-2's
+   `capabilities.py` chat-flip drove `missing_capabilities == []` but left
+   these unrevised, and no session ran the suite. Reconciled to the achieved
+   end-state: `test_payload_contains_coverage_matrix_for_all_capabilities`
+   (chat now `support_status=covered`, `status=partial` for a non-selecting
+   event); `test_official_attempted_capabilities_are_all_supported` (renamed
+   from `…unsupported_official_capabilities_stay_out…`; now asserts the
+   enduring "attempted ⊆ supported" invariant); and
+   `test_static_coverage_audit_reports_full_capability_coverage` (renamed from
+   `…exposes_missing_capabilities`; now asserts `missing == 0`).
+2. **Inherited UI-contract drift** — `ui/src/lib/types/contracts.ts` was stale
+   vs. its Pydantic source since W16 (`fa430f2` added 5 `ActivationReportDto`
+   fields: `target_extension_id`, `monitoring_start`, `monitoring_end`,
+   `scenarios_run`, `harness_handshake_required`); the TS was never regenerated
+   and the drift rode through to `main`. Regenerated via
+   `scripts/generate_ui_contracts.py`; `make ui-types-check` now clean.
+
+Post-fix, **`make check-all` is fully green**: lint + typecheck + Bandit +
+ui-types-check + ui-boundaries + markdownlint + full suite **2130 passed,
+9 skipped, 8 deselected**. This supersedes the partial "631 passed" sweep in
+the Final W22 test bar above. Linux-only gates (W22-6 smoke, W22-2 live anchor)
+remain deferred — see `POST_POC_BACKLOG.md` §Linux-Blocked Deferrals.
 
 **W22 frozen** at this commit. Tracker now points to W23+ for any future phase open. Future iterations should reference the frozen state via this section's commit SHA.
 

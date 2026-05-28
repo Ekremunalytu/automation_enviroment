@@ -228,14 +228,16 @@ class TestSelectScenarios:
         commands = next(
             item for item in payload.coverage_matrix if item["capability"] == "commands"
         )
-        missing = next(
+        chat_entry = next(
             item for item in payload.coverage_matrix if item["capability"] == "chat"
         )
         assert commands["status"] == "covered"
         assert commands["track"] == "official"
         assert commands["source"] == "official_activation_track"
         assert commands["support_status"] == "covered"
-        assert missing["status"] == "missing"
+        # chat is supported but not selected by onLanguage:python -> partial, not missing
+        assert chat_entry["support_status"] == "covered"
+        assert chat_entry["status"] == "partial"
 
     def test_authentication_and_webview_are_reported_as_covered_when_selected(
         self,
@@ -258,7 +260,7 @@ class TestSelectScenarios:
         assert authentication["status"] == "covered"
         assert webview["status"] == "covered"
 
-    def test_unsupported_official_capabilities_stay_out_of_attempted_list(self) -> None:
+    def test_official_attempted_capabilities_are_all_supported(self) -> None:
         payload = select_scenarios(
             [
                 {"event_type": "onLanguageModelTool", "event_value": "tool.sample"},
@@ -266,12 +268,14 @@ class TestSelectScenarios:
             capability_metadata={"untrusted_supported": False},
         )
 
-        assert "chat" not in payload.official_attempted_capabilities
-        missing = next(
-            item for item in payload.coverage_matrix if item["capability"] == "chat"
-        )
-        assert missing["support_status"] == "missing"
-        assert missing["status"] == "missing"
+        # onLanguageModelTool maps to the chat capability, which is supported
+        assert "chat" in payload.official_attempted_capabilities
+        support_by_capability = {
+            item["capability"]: item["support_status"]
+            for item in payload.coverage_matrix
+        }
+        for capability in payload.official_attempted_capabilities:
+            assert support_by_capability[capability] == "covered"
 
     def test_builtin_views_only_contribute_to_heuristic_track(self) -> None:
         payload = select_scenarios([{"event_type": "onView", "event_value": "search"}])
@@ -297,11 +301,11 @@ class TestSelectScenarios:
             "view_type": "",
         }
 
-    def test_static_coverage_audit_exposes_missing_capabilities(self) -> None:
+    def test_static_coverage_audit_reports_full_capability_coverage(self) -> None:
         audit = build_static_coverage_audit()
 
-        assert audit["summary"]["missing"] >= 1
-        assert "chat" in audit["summary"]["missing_capabilities"]
+        assert audit["summary"]["missing"] == 0
+        assert audit["summary"]["missing_capabilities"] == []
         assert any(
             entry["capability"] == "commands" and entry["status"] == "covered"
             for entry in audit["matrix"]

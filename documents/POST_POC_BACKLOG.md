@@ -394,9 +394,14 @@ container ratchet-down deferred to user on Linux):
     regression introduced statically).
   - #8 W19 Hat-2 (`harness_verification_unconfirmed_present`
     DROPPED) holds ✅ (no regression introduced statically).
-  - #9 Static suite green (pinned at W22-N) ✅ —
-    `tests/architecture/` 287 → 292; capability invariants 26 →
-    31; `make test-security` 220 → 228; broader sweep 631 passed.
+  - #9 Static suite green — **re-verified on Mac `2026-05-28`** (the
+    W22-N counts were transcribed, not run). A close-out `make check-all`
+    found 2 pre-stamp gaps and fixed them in-branch: 3 stale
+    `test_triggers.py` assertions (W22-2 `chat`-flip fallout) + inherited
+    `ui/src/lib/types/contracts.ts` drift. Full gate now green ✅ —
+    **2130 passed, 9 skipped, 8 deselected** (`tests/architecture/` 292;
+    capability invariants 31; `make test-security` 228). Detail in the W22
+    tracker §W22-N Close-Out Re-Verification.
 - **Expected**: `tests/architecture/` 287 → 292 (+5; plan estimate
   was ~310 because W22-6 invariants were to add another ~10);
   `make test-security` 220 → 228 (+8; plan estimate was 220 → 222
@@ -417,6 +422,36 @@ container ratchet-down deferred to user on Linux):
 - `CAPABILITY_TAXONOMY` source: [`packages/analysis_planner/capabilities.py:8-27`](../packages/analysis_planner/capabilities.py)
 - `OFFICIAL_EVENT_REGISTRY` count pin (29): [`tests/platform/contracts/test_registry_split_regression.py:101`](../tests/platform/contracts/test_registry_split_regression.py)
 - Status enum (`healthy/degraded/inconclusive`): [`executor/flows/playwright/health/summary.py:260,378`](../executor/flows/playwright/health/summary.py)
+
+## Linux-Blocked Deferrals (resume when Linux env ready)
+
+Single canonical list of work that cannot be validated on macOS — each item
+needs a Linux host for its kernel / Docker-stack behavior. Stable IDs are
+unchanged (contract); the detail rows stay in the W22 acceptance table above.
+This section exists because the user's Linux environments are not ready yet
+(direction `2026-05-28`); pull these once a Linux host is available.
+
+- `[GOAL container-hardening-ratchet-down]` (W22-6) — ADR 0013 §Deferred →
+  §Closed: `docker-compose.yml` `read_only: true` + per-service `tmpfs` +
+  `docker/seccomp.json` custom profile (`unshare`/`mount`/`personality` deny)
+  + +8-10 invariants + `test_seccomp_profile_sanity.py` + manual smoke
+  (`NoNewPrivs`/`Seccomp`/`Cap`/`mount`/`unshare`). **Linux-only**: the
+  `docker exec` syscall/mount verification does not run on Docker Desktop for
+  Mac. Resumption checklist lives in the W22 tracker.
+- `[GOAL taxonomy-chat-coverage]` runtime live-run anchor (W22-2) —
+  `make sim-target TARGET=ms-python.python` to confirm
+  `coverage_summary.missing_capabilities == []` on a live run and that W19
+  Hat-1 (`unaccounted_dropout == 0`) + Hat-2
+  (`harness_verification_unconfirmed_present` dropped) still hold. The static
+  cut shipped (and is re-verified green on Mac); only the live anchor needs the
+  executor Docker stack (Linux).
+- ADR 0015 **E5 `process_introspection`** containment — depends on W22-6's
+  `read_only` + seccomp + `cap_drop:[ALL]`; W23+ implementation. Bounding
+  `/proc` visibility needs the Linux kernel surface to verify.
+
+Resumption order: **W22-6 first** (its `read_only`/seccomp/`cap_drop` surface is
+the prerequisite that bounds ADR 0015 E5), then re-capture the W22-2 live anchor
+on the hardened stack.
 
 ## Codex Cloud Audit Backlog
 
