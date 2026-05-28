@@ -1,9 +1,19 @@
 # W21 Handoff — W21-3 Closed → W21-1 Başlangıcı (Yeni Session İçin)
 
-`Status: HANDOFF — W21-0 closed (primary 8434323 + self-stamp 19bd9c7); W21-3 closed (primary c744c15 + self-stamp 4b0a1ed); W21-1 (testing coverage) sıradaki sub-iter per user-confirmed ordering W21-3 → W21-1 → W21-2.`
-`Branch: week21 (cut from main @ 64a3c3d — W20 close-out PR #29 merge commit, 2026-05-26 23:10:21Z). 5 commits ahead, working tree clean, NOT pushed.`
+`Status: FROZEN — W21 closed synthetically 2026-05-28; this handoff served its purpose (W21-1 + W21-2 + W21-4 + W21-N all landed in the session that picked up here). Historical reference only. Current state: documents/active-work/W21-coverage-promotion-mid-tier.md + REFACTOR_OPTIMIZATION.md §19 §19.4 Exit Criteria SATISFIED.`
+`Final W21 sub-iter slate: W21-0 (8434323 + 19bd9c7) + W21-3 (c744c15 + 4b0a1ed) + W21-1 (7e87030 + 38b8fd8) + W21-2 (8948ea6 + 3088709) + W21-4 (16e2224 + 2f9cba2 + 8c42445) + W21-N close-out (dd24f1e). 14 commits ahead of main, PR week21 -> main PENDING USER APPROVAL.`
+`Branch: week21 (cut from main @ 64a3c3d — W20 close-out PR #29 merge commit, 2026-05-26 23:10:21Z). Originally authored at 5 commits ahead; updated through W21-N close-out to 14 commits ahead.`
 `Authored: 2026-05-27 by previous session before context handoff to a W21-1 implementation session.`
 `Owner: ekrem.`
+
+> **POST-CLOSE-OUT NOTE.** This handoff doc was the bridge for the
+> W21-1 implementation session that picked up after W21-3 closed.
+> The session that read this doc completed W21-1 (testing) + W21-2
+> (comments) + W21-4 (container hardening baseline) + W21-N
+> close-out hygiene. **Below content reflects the AT-AUTHOR state
+> (W21-1 was "next") and is preserved as historical reference;
+> for current W21 state see the closure docs cited in the Status
+> line above.**
 
 > **Purpose.** Yeni Claude Code session'ı W21'i cold pick up edip **W21-1 (testing coverage)** implementation'a başlayabilsin diye self-contained briefing. Burada ne yazıyorsa, ona güven — doğruluğu eğer şüpheliysen cited file path + line number'lardan re-verify et. Bu doc'un yapamadığı şey: previous session'ın conversation context'ini geri vermek. O context kaybedildi ve bu doc o context'ten kritik olanı her şeyi yazıya döküyor.
 
