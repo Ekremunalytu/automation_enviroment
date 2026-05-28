@@ -320,7 +320,7 @@ checklist):
   holds post-W21.
 - Static suite green (final W21 bar pinned at W21-N self-stamp).
 
-## W22 Roadmap Acceptance Bar (active)
+## W22 Roadmap Acceptance Bar (closed synthetically — PR pending user approval)
 
 **W22 active on the `week22` branch** (per user direction
 `2026-05-28`; W11-W21 paterninden bu sefer ayrılma — tek branch
@@ -358,34 +358,52 @@ ile potansiyel overlap).
 
 | Iter | Stable ID(s) | Status |
 |---|---|---|
-| W22-0 | doc-reconcile — `week22` branch + 10-doc canonical preamble refresh (W21 → W22) + new W22 active-work tracker + §19 W21 plan header doc-close ("closed and merged via PR #30 / 5dc18aa") + §20 W22 plan header doc-open + W21 Pull-Forward Acceptance Bar "closed and merged" stamp (this section's predecessor) + W22 Roadmap Acceptance Bar "planning" → "active" promotion (this section) + README phase-pointer arch gate transition W21 → W22 + new W21 close-out fact gate `test_readme_phase_pointer_mentions_w21_closeout_merge` pinning PR #30 / `week21 -> main` / `5dc18aa` + `test_canonical_preamble_parity.py` fingerprint refresh (PR #29 → PR #30, `64a3c3d` → `5dc18aa`, tracker slot W21 → W22) | **in-flight** via this commit |
-| W22-1 | `[GOAL taxonomy-chat-policy-adr]` (new) — Chat policy ADR `documents/adrs/0014-chat-and-language-model-tool-policy.md` (kod-free; `onChatParticipant` + `onLanguageModelTool:*` yerel verification stratejisi; harness-side stub LM provider vs mock LM endpoint karar) | **planned** |
-| W22-2 | `[GOAL taxonomy-chat-coverage]` (new) — `chat` her iki track "missing" → "covered" (W21-2 paterni: `capabilities.py:95` flip + `:43` mirror + scenarios + harness markers + 4-5 invariants + dict shape pin + registry split count pin + fixture regen). Depends on W22-1 ADR Accepted | **planned** |
-| W22-3 | `[FOLLOWUP attribution-count-parity-process-events]` + `[FOLLOWUP attribution-count-parity-output-channel]` (new) — Attribution depth ProcessEvent + OutputChannelAppendLine (W17-1 paterni; `build_evidence_bundle` producer-side stamp + 4+4=8 invariant) | **planned** |
-| W22-4 | `[GOAL sandbox-evasion-defense-mvp]` (existing W18 candidate) — ADR draft only `documents/adrs/0015-sandbox-evasion-defense-policy.md` (kod-free; implementation W23+) | **planned** |
-| W22-5 | `[GOAL sandbox-evasion-canary-fixture]` (new) — `tests/security/test_sandbox_evasion_canary.py` (webdriver presence + timing probe sim; `make test-security` 220 → 221) | **planned** |
-| W22-6 | `[GOAL container-hardening-ratchet-down]` (new, W21-4 §Deferred kapanışı) — ADR 0013 §Deferred → §Closed; `docker-compose.yml` `read_only:true` + tmpfs mounts + `docker/seccomp.json` custom profile + +8-10 invariant + `test_seccomp_profile_sanity.py` + manual smoke | **planned** |
-| W22-7 | `[GOAL activation-event-spec-gap-followup]` (new, conditional) — W20-0 crosswalk gerçek gap çıkardıysa implement; çıkmadıysa `[NO-W22-7]` doc-only stamp | **planned (conditional)** |
-| W22-N | close-out hygiene + 10-doc canonical preamble W22 active → closed flip + §20 W22 self-stamp + W22 tracker freeze + W22 Roadmap Acceptance Bar audit-trail close + final live-run anchor + PR `week22 -> main` (PENDING USER APPROVAL) | **planned** |
+| W22-0 | doc-reconcile — `week22` branch + 10-doc canonical preamble refresh (W21 → W22) + new W22 active-work tracker + §19 W21 plan header doc-close ("closed and merged via PR #30 / 5dc18aa") + §20 W22 plan header doc-open + W21 Pull-Forward Acceptance Bar "closed and merged" stamp (this section's predecessor) + W22 Roadmap Acceptance Bar "planning" → "active" promotion (this section) + README phase-pointer arch gate transition W21 → W22 + new W21 close-out fact gate `test_readme_phase_pointer_mentions_w21_closeout_merge` pinning PR #30 / `week21 -> main` / `5dc18aa` + `test_canonical_preamble_parity.py` fingerprint refresh (PR #29 → PR #30, `64a3c3d` → `5dc18aa`, tracker slot W21 → W22) | **closed** `26bb080` + `ff3fbbd` |
+| W22-1 | `[GOAL taxonomy-chat-policy-adr]` (new) — Chat policy ADR `documents/adrs/0014-chat-and-language-model-tool-policy.md` Accepted (Option C — tool-only local coverage via `vscode.chat.createChatParticipant` + `vscode.lm.registerTool` + `vscode.lm.invokeTool`, GA since VS Code 1.90, no proposed APIs) + 2 architecture invariants at `tests/architecture/test_chat_policy_adr.py` | **closed** `906fcd5` + `d018fe1` |
+| W22-2 | `[GOAL taxonomy-chat-coverage]` (new) — `chat` both tracks "missing" → "covered" (HARD TIER CLOSURE STATIC): `capabilities.py` 2 dict flips + `scenarios.py` 2 new ScenarioDefinition (`local_chat_participant_controller` + `local_language_model_tool_controller`) + `executor/flows/harness_extension/extension.js` GREENFIELD chat participant + LM tool registration per ADR 0014 + `stimulus_dispatch.js` REPLACE incomplete handler with API-level dispatch + 5 invariants + dict shape canonical pin + count pin 16→18 + fixture regen via `select_scenarios()` showing `missing_capabilities=[]` | **closed (static cut)** `ffbb743` + `d9e4558`; **runtime live-run anchor DEFERRED TO USER** per direction 2026-05-28 (Linux required) |
+| W22-3 | `[FOLLOWUP attribution-count-parity-process-events]` + `[FOLLOWUP attribution-count-parity-output-channel]` (new) — Producer-side stamps at `executor/flows/playwright/attribution/links.py` for `kind=process` + `kind=output_channel_appendline` mirroring W17-1 activation paterni byte-identical + 2 new count helpers at `health/summary.py` + 8 invariant tests (4 per family) + LOC ceiling bump 537→552 | **closed** `cff10d3` + `70dc43a` |
+| W22-4 | `[GOAL sandbox-evasion-defense-mvp]` (existing W18 candidate) — ADR `documents/adrs/0015-sandbox-evasion-defense-policy.md` Accepted (Draft Policy — 5-family taxonomy E1..E5 with per-family stance; W23+ implementation roadmap) + 2 architecture invariants at `tests/architecture/test_sandbox_evasion_adr.py` | **closed** `9a8ad28` + `ea418a6` |
+| W22-5 | `[GOAL sandbox-evasion-canary-fixture]` (new) — `tests/security/test_sandbox_evasion_canary.py` (4 functions / 8 cases with parametrize: 1 taxonomy alignment + 5 family probes + 2 rejection safety nets) + new module `packages/analysis_planner/evasion_signals.py` (`EVASION_FAMILY_TAXONOMY` + `EvasionSignal` frozen dataclass) + Makefile `test-security` enrolment; `make test-security` 220 → 228 (+8) | **closed** `a6dd24b` + `1de616b` |
+| W22-6 | `[GOAL container-hardening-ratchet-down]` (new, W21-4 §Deferred closure) — ADR 0013 §Deferred → §Closed; `docker-compose.yml` `read_only:true` + tmpfs mounts + `docker/seccomp.json` custom profile + +8-10 invariants + `test_seccomp_profile_sanity.py` + manual smoke (NoNewPrivs/Seccomp/Cap/mount/unshare) | **DEFERRED TO USER** per direction 2026-05-28 — Linux required for live-smoke; user-owned closure |
+| W22-7 | `[GOAL activation-event-spec-gap-followup]` (new, conditional) — W20-0 crosswalk's 5 candidate events (`onMemento`, `onTerminalQuickFixRequest`, `onChat`, `onAuthenticationProvider`, `onRendererScript`) flagged by GPT review as NOT in official spec; no real-world fixture exercises a genuine gap | **skipped — `[NO-W22-7]` doc-only stamp** (W22 tracker §W22-7 section records the skip rationale) |
+| W22-N | close-out hygiene + tracker freeze + §20 W22 close-out narrative + POST_POC W22 acceptance audit close (this section) + CLAUDE.md preamble W22-N close narrative. **NO PR** (PR `week22 -> main` PENDING USER APPROVAL per direction 2026-05-28; memory `feedback_pr_push_approval` standing). The canonical preamble parity test fingerprint refresh + new `test_readme_phase_pointer_mentions_w22_closeout_merge` gate happen in the user's PR-prep commit when the merge SHA is known. | **closed** this commit |
 
-W22 acceptance (live-run-driven; see W22 tracker §"W22 Acceptance
-Bar" for full checklist):
+W22 acceptance final status (synthetic close; runtime live-run +
+container ratchet-down deferred to user on Linux):
 
-- **Must-pass**: ADR 0014 (chat policy) Accepted + local-only path
-  implemented or deferred-with-blocker; ADR 0015 (sandbox-evasion
-  defense) Accepted + implementation W23+; W22-3 attribution parity
-  8/8 green; W22-5 canary fixture green; W22-6 ratchet-down active
-  + manual smoke pass; `coverage_summary.missing_capabilities == 0`
-  live anchor'da (hard tier closure).
-- **Expected**: `tests/architecture/` ~287 → ~310; `make
-  test-security` 220 → 222; full suite ~2104 → ~2125+;
-  `automation_health.reasons` üçten 1-2'ye düşer.
-- **Stretch**: `automation_health.status: degraded → healthy`;
-  `run_quality: medium → high`;
-  `[FOLLOWUP workspace-trust-stimulus-pass]` pulled at W22-N
-  opportunistic window;
-  `[FOLLOWUP sandbox-reset-stale-state-multi-analyze]` pulled at
-  W22-N opportunistic window.
+- **Must-pass** (live-run-driven from the W22 tracker checklist):
+  - #1 ADR 0014 chat policy Accepted + local-only impl ✅
+    (static; live-run pending user confirmation).
+  - #2 ADR 0015 sandbox-evasion defense Accepted + impl W23+
+    scope ✅.
+  - #3 W22-3 attribution parity 8/8 green ✅.
+  - #4 W22-5 canary fixture green ✅.
+  - #5 W22-6 container ratchet-down active + manual smoke pass —
+    **DEFERRED TO USER** (Linux required; ADR 0013 §Deferred
+    remains open until user closes the lane).
+  - #6 `coverage_summary.missing_capabilities == 0` ✅ static
+    (fixture regen reflects post-W22-2 expected state); live-run
+    anchor confirmation user-owned on Linux.
+  - #7 W19 Hat-1 (`unaccounted_dropout == 0`) holds ✅ (no
+    regression introduced statically).
+  - #8 W19 Hat-2 (`harness_verification_unconfirmed_present`
+    DROPPED) holds ✅ (no regression introduced statically).
+  - #9 Static suite green (pinned at W22-N) ✅ —
+    `tests/architecture/` 287 → 292; capability invariants 26 →
+    31; `make test-security` 220 → 228; broader sweep 631 passed.
+- **Expected**: `tests/architecture/` 287 → 292 (+5; plan estimate
+  was ~310 because W22-6 invariants were to add another ~10);
+  `make test-security` 220 → 228 (+8; plan estimate was 220 → 222
+  because W22-6 seccomp sanity test was to add +1); full suite
+  ~2104 → ~2129 (W22-1 +2, W22-4 +2, W22-5 +8, W22-3 +8, W22-2 +5
+  = +25); `automation_health.reasons` reduction expected at
+  live-run (user-owned).
+- **Stretch**: `automation_health.status: degraded → healthy` and
+  `run_quality: medium → high` pending live-run confirmation.
+  `[FOLLOWUP workspace-trust-stimulus-pass]` and
+  `[FOLLOWUP sandbox-reset-stale-state-multi-analyze]` NOT pulled
+  in this session (capacity used on the hard-tier closure work);
+  remain available as opportunistic pulls for W23+.
 
 **Plan motivation reference**:
 
