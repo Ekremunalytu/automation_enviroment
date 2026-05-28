@@ -249,9 +249,9 @@ phase evidence is frozen under dated snapshots:
   `tests/architecture/` **204 passed**; `make test-security` **220
   passed**; full suite **1995 passed, 9 skipped, 8 deselected**.
 - **W20 closed synthetically `2026-05-27` on the `week20` branch**
-  (per user direction `2026-05-26`; W11-W19 paterni preserved);
-  close-out PR `week20 -> main` **PENDING USER APPROVAL**. §18 W20
-  plan source in
+  (per user direction `2026-05-26`; W11-W19 paterni preserved) and
+  merged via PR #29 `week20 -> main` on `2026-05-26` via `64a3c3d`.
+  §18 W20 plan source in
   [`REFACTOR_OPTIMIZATION.md`](REFACTOR_OPTIMIZATION.md). Frozen
   tracker:
   [`active-work/W20-coverage-promotion-easy-wins.md`](active-work/W20-coverage-promotion-easy-wins.md).
@@ -307,10 +307,8 @@ phase evidence is frozen under dated snapshots:
   (W19 final 204 + 36 W20 additions); `make test-security`
   **220 passed** (unchanged); full suite **2045 passed, 9 skipped,
   8 deselected** (W19 baseline 1995 + W20-0..W20-5 +50).
-- **W21-W22 multi-iter roadmap planning state** (authored
-  `2026-05-21`; W18 entered 2026-05-21; W19 promoted to active
-  block at W19-0 open; W20 promoted to active block at W20-0
-  open + closed synthetically `2026-05-27` — see bullet above).
+- **W18-W22 multi-iter roadmap state** (authored
+  `2026-05-21`; W18/W19/W20/W21 closed; W22 remains planning).
   Plan identifies three independent
   problem hatları (executor muhasebe bug →
   `unaccounted_dropout`; harness verification gap → declared ≠
@@ -322,11 +320,11 @@ phase evidence is frozen under dated snapshots:
   / `9874e79`); **W19** live-run kök neden (closed synthetically
   2026-05-26 via PR #28 / `c879603`); **W20** coverage promotion
   round 1 (easy: `scm` + `settings` official promotion + spec
-  crosswalk forward-ref — closed synthetically 2026-05-27 on
-  `week20` branch, PR `week20 -> main` PENDING USER APPROVAL —
-  see bullet above); **W21** coverage promotion
-  round 2 (mid: `testing`, `comments`, `workspace_trust`;
-  container hardening stretch); **W22** coverage promotion
+  crosswalk forward-ref — closed synthetically `2026-05-27` and
+  merged via PR #29 / `64a3c3d`); **W21** coverage promotion
+  round 2 (mid: `testing`, `comments`, `workspace_trust` +
+  container hardening baseline — closed synthetically `2026-05-28`,
+  PR `week21 -> main` PENDING USER APPROVAL); **W22** coverage promotion
   round 3 (hard: `chat` policy ADR + implementation) +
   attribution depth + sandbox-evasion ADR draft. Roadmap
   source-of-truth:
@@ -404,10 +402,10 @@ closed W19 mechanics in
 `active-work/W19-live-run-root-cause.md` (frozen at
 W19-6-followup-2), and keep **closed W20 mechanics**
 (coverage promotion round 1 easy wins; `scm` + `settings` official
-promotion; W20-0..W20-5 sub-iter slate; **on the `week20` branch
-per user direction `2026-05-26`, W11-W19 paterni preserved**;
-close-out PR `week20 -> main` PENDING USER APPROVAL) in
-`active-work/W20-coverage-promotion-easy-wins.md`. Multi-iter
-W18-W22 roadmap source-of-truth at
-`active-work/W18-W22-roadmap.md` (W18 + W19 + W20 closed; W21-W22
-planning).
+promotion; W20-0..W20-5 sub-iter slate; merged via PR #29
+`week20 -> main` / `64a3c3d`) in
+`active-work/W20-coverage-promotion-easy-wins.md`, and keep **closed
+W21 mechanics** in
+`active-work/W21-coverage-promotion-mid-tier.md`. Multi-iter W18-W22
+roadmap source-of-truth at `active-work/W18-W22-roadmap.md`
+(W18-W21 closed; W22 planning).

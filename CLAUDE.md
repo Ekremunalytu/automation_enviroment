@@ -32,7 +32,10 @@ architecture maps here; that caused drift.
   W18 by section 16.
   **W19 by section 17 (closed synthetically `2026-05-26` on `week19`
   branch; PR #28 `week19 -> main` MERGED `2026-05-26` via `c879603`);
-  W20-W22 by sections 18-20 (planning state); source-of-truth tracker
+  W20 by section 18 (closed + merged via PR #29 / `64a3c3d`);
+  W21 by section 19 (closed synthetically; PR `week21 -> main`
+  PENDING USER APPROVAL); W22 by section 20 (planning);
+  source-of-truth tracker
   `documents/active-work/W18-W22-roadmap.md`. W18 closed `2026-05-21`
   via PR #26 / `9874e79`.**
   W13 closed `2026-05-13` (PR #20 `772deb3`); W14 closed `2026-05-14` (PR #21

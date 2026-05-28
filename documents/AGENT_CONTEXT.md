@@ -19,27 +19,28 @@ Do not copy phase history here; use `REFACTOR_STATUS.md` (slim canonical).
   `REFACTOR_OPTIMIZATION.md` section 16; W19 plan:
   `REFACTOR_OPTIMIZATION.md` section 17 (closed synthetically);
   **W20 plan: `REFACTOR_OPTIMIZATION.md` section 18 (closed
-  synthetically; PR `week20 -> main` PENDING USER APPROVAL);
-  W21-W22 multi-iter roadmap: `REFACTOR_OPTIMIZATION.md`
-  sections 19-20** (split at W20-0 open from the original
-  §18-§20 combined header — same paterni as the W19-0 split of
-  §17-§20; source-of-truth tracker
+  synthetically and merged via PR #29 / `64a3c3d`);
+  W21 plan: `REFACTOR_OPTIMIZATION.md` section 19 (closed
+  synthetically; PR `week21 -> main` PENDING USER APPROVAL);
+  W22 plan: `REFACTOR_OPTIMIZATION.md` section 20 (planning)**;
+  source-of-truth tracker
   `active-work/W18-W22-roadmap.md`; slim canonical; full text
   under `archive/plans/`).
-- W8-W20 are closed; W13 merged via PR #20 (`772deb3`); W14 merged via
+- W8-W21 are closed; W13 merged via PR #20 (`772deb3`); W14 merged via
   PR #21 (`4e03c8d`); W15 merged via PR #22 (`6161472`) on
   `2026-05-18`; W16 merged via PR #23 (`1b6d43f`) on `2026-05-18`;
   W17 merged via PR #25 (`bff565d`) on `2026-05-18`;
   W18 merged via PR #26 (`9874e79`) on `2026-05-21`;
   W19 merged via PR #28 (`c879603`) on `2026-05-26`;
-  **W20 closed synthetically `2026-05-27` on the `week20`
-  branch — close-out PR `week20 -> main` PENDING USER APPROVAL**.
-  Past W8/W11/W12/W13/W14/W15/W16/W17/W18/W19/W20 trackers remain
+  W20 merged via PR #29 (`64a3c3d`) on `2026-05-26`;
+  **W21 closed synthetically `2026-05-28` on the `week21`
+  branch — close-out PR `week21 -> main` PENDING USER APPROVAL**.
+  Past W8/W11/W12/W13/W14/W15/W16/W17/W18/W19/W20/W21 trackers remain
   only for stable IDs referenced by code/tests. **Previous phase:**
   W20 — Coverage Promotion Round 1: Easy Wins (**closed
   synthetically `2026-05-27`** on the `week20` branch per user
-  direction `2026-05-26`; W11-W19 paterni preserved; close-out
-  PR `week20 -> main` PENDING USER APPROVAL). W20-0..W20-5 all
+  direction `2026-05-26`; W11-W19 paterni preserved; merged via
+  PR #29 `week20 -> main` / `64a3c3d`). W20-0..W20-5 all
   closed: W20-0 doc-reconcile (`66a8a0b` + `5f13757`) + baseline
   live-run capture (anchor `e89a82ca9ba8`, sha256
   `4dd78826...0256ffe`); W20-1

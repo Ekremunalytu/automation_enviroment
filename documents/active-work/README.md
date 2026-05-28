@@ -22,8 +22,8 @@ points to it.
 - `W20-coverage-promotion-easy-wins.md`
   - **Frozen phase — W20-0..W20-5 all closed on the `week20`
     branch per user direction `2026-05-26`; W11-W19 paterni
-    preserved; close-out PR `week20 -> main` PENDING USER
-    APPROVAL.** W20 Coverage Promotion Round 1: Easy Wins (Hat-3
+    preserved; merged via PR #29 `week20 -> main` / `64a3c3d`.**
+    W20 Coverage Promotion Round 1: Easy Wins (Hat-3
     coverage matrix promotion easy tier). Audit trail: W20-0
     doc-reconcile (`66a8a0b` + `5f13757`), W20-1
     `[GOAL taxonomy-scm-official-promotion]` (`82276cb` +

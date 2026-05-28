@@ -1,23 +1,16 @@
 """Canonical preamble parity gate.
 
-The 9 canonical preamble docs all carry a ``Last Updated: ...``
-backtick banner summarizing the most recently merged phase. Today's
-drift (caught at the W19-6-followup-2 close-out commit ``800c69f`` →
-PR #28 ``c879603`` merge gap) existed because the banner narrative
-was authored *before* PR #28 actually merged, so all 9 docs claimed
-"PR pending" the moment merge landed.
-
-This gate pins the current most-recent-merge fingerprint across
-every canonical preamble. When the next phase (W20) merges without
-refreshing these banners, ``test_all_canonical_preamble_docs_carry_merge_fingerprint``
-fails immediately — forcing the preamble refresh into the same PR
-that does the next phase merge.
+The 10 current canonical preamble docs all carry a ``Last Updated: ...``
+backtick banner summarizing the most recently merged phase. This gate pins
+the current most-recent-merge fingerprint across every current canonical
+preamble and follows the active weekly tracker as the phase changes.
 
 To advance the fingerprint after the next merge:
   - Update ``_EXPECTED_MERGE_FINGERPRINT`` below to the new
     most-recent-merge string.
-  - Update the 9 canonical docs' headlines in the same commit set.
-  - The test should pass green only after both are aligned.
+  - Update the canonical docs' headlines in the same commit set.
+  - Update ``_CANONICAL_PREAMBLE_DOCS`` if the active weekly tracker changes.
+  - The test should pass green only after both docs and pins are aligned.
 """
 
 from __future__ import annotations
@@ -34,16 +27,17 @@ _CANONICAL_PREAMBLE_DOCS: tuple[str, ...] = (
     "documents/REFACTOR_STATUS.md",
     "documents/REFACTOR_OPTIMIZATION.md",
     "documents/POST_POC_BACKLOG.md",
-    "documents/active-work/W20-coverage-promotion-easy-wins.md",
+    "documents/active-work/README.md",
     "documents/active-work/W18-W22-roadmap.md",
+    "documents/active-work/W21-coverage-promotion-mid-tier.md",
 )
 
-# Most-recent-merge fingerprint pinned at W19 close-out
-# (PR #28 ``week19 -> main`` MERGED 2026-05-26 via ``c879603``).
-# Bump this when the next phase (W20) merges; bump every doc's headline
-# in the same commit.
-_EXPECTED_MERGE_FINGERPRINT = "PR #28"
-_EXPECTED_MERGE_SHA = "c879603"
+# Most-recent-merge fingerprint pinned after W20 close-out
+# (PR #29 ``week20 -> main`` MERGED 2026-05-26 via ``64a3c3d``).
+# Bump this when the next phase merges; bump every current canonical
+# doc headline in the same commit.
+_EXPECTED_MERGE_FINGERPRINT = "PR #29"
+_EXPECTED_MERGE_SHA = "64a3c3d"
 
 # Drift markers — phrases that mean the preamble is stale relative to
 # the current merge fingerprint. If any of these reappear in the
@@ -52,11 +46,10 @@ _EXPECTED_MERGE_SHA = "c879603"
 # mentions of these phrases (e.g., describing what W20-0 doc-reconcile
 # flipped) are historical narrative and not flagged here.
 #
-# Lowercase ``pending user approval`` catches the in-banner "PR pending"
-# claim from before merge. The W20-0 banner intentionally carries
-# uppercase ``PENDING USER APPROVAL`` for the still-pending W20-5 PR;
-# that's a forward-looking statement about W20, not stale W19 narrative,
-# and the case-sensitive match avoids false positives there.
+# Lowercase ``pending user approval`` catches stale in-banner "PR pending"
+# claims authored before a merge. Current pre-merge W21 PR-readiness uses
+# uppercase ``PENDING USER APPROVAL`` deliberately; the case-sensitive match
+# avoids flagging that forward-looking W21 state.
 _STALE_MARKERS: tuple[str, ...] = (
     "pending user approval",
     "Active phase: W19",

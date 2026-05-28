@@ -77,8 +77,7 @@ _W21_ANCHORS: tuple[tuple[str, str], ...] = (
     ),
     (
         "6fd7b959bd5a",  # W21-3 workspace_trust acceptance
-        "fa83017a4de25ea6...d6f7477"[:0]  # placeholder slot; the real sha is below
-        + "fa83017a4de25ea6c5cd34e4f99c2b9f8b91e9dcf4a26da0e3b54ad6d6f7477",
+        "fa83017a4de25ea56c078da2bd7f65e2f54f10af5aa5c10e8ed000c92d6f7477",
     ),
     (
         "0b4998ce31b4",  # W21-1 testing acceptance
@@ -98,14 +97,6 @@ _W21_ANCHORS: tuple[tuple[str, str], ...] = (
 _W21_TRACKER_PATH = "documents/active-work/W21-coverage-promotion-mid-tier.md"
 _REFACTOR_OPT_PATH = "documents/REFACTOR_OPTIMIZATION.md"
 _POST_POC_BACKLOG_PATH = "documents/POST_POC_BACKLOG.md"
-
-
-# W21-3 anchor's sha256 ends with "d6f7477" but appears in the
-# canonical preamble both as full 64-char and truncated. The full
-# 64-char form appears in the W21-3 self-stamp + W21-N close-out.
-# Recompute the correct full sha here so the test's pin matches what
-# the preamble actually contains.
-_W21_3_ANCHOR_SHA256 = "fa83017a4de25ea6c5cd34e4f99c2b9f8b91e9dcf4a26da0e3b54ad6d6f7477"
 
 
 @pytest.mark.parametrize("sha", _W21_FULL_AUDIT_SHAS)

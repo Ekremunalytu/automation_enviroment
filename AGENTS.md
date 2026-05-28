@@ -30,8 +30,8 @@
   `documents/active-work/W15-codex-uclass-bounds-posture.md`.
   **Previous phase: W20 — Coverage Promotion Round 1: Easy Wins —
   closed synthetically `2026-05-27` on the `week20` branch (per
-  user direction `2026-05-26`; W11-W19 paterni preserved); close-out
-  PR `week20 -> main` PENDING USER APPROVAL**: plan
+  user direction `2026-05-26`; W11-W19 paterni preserved) and merged
+  via PR #29 `week20 -> main` (`64a3c3d`)**: plan
   `documents/REFACTOR_OPTIMIZATION.md` §18, frozen tracker
   `documents/active-work/W20-coverage-promotion-easy-wins.md`.
   **W20-0..W20-5 all closed**: W20-0 doc-reconcile (`66a8a0b` +
