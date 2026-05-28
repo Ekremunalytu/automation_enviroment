@@ -122,6 +122,52 @@ def test_executor_keeps_audited_capabilities() -> None:
     )
 
 
+def test_api_keeps_setuid_setgid_for_user_drop() -> None:
+    """ADR 0013 §SETUID + SETGID retention: `api` uses a gosu-style
+    entrypoint that drops from root to `appuser` at startup. That
+    privilege drop requires CAP_SETUID + CAP_SETGID; with
+    cap_drop:[ALL] both are removed and the entrypoint errors with
+    `failed switching to "appuser": operation not permitted`. Pin
+    the retention so a future edit that removes either cap surfaces
+    before the live-run smoke hits the bug.
+    """
+    services = _load_compose()
+    cap_add = set(services["api"].get("cap_add") or [])
+    assert {"SETUID", "SETGID"}.issubset(cap_add), (
+        f"`api` must keep CAP_SETUID + CAP_SETGID for the entrypoint's "
+        f"runtime user drop. Got cap_add={sorted(cap_add)}. "
+        f"ADR 0013 §SETUID + SETGID retention."
+    )
+    extra = sorted(cap_add - {"SETUID", "SETGID"})
+    assert not extra, (
+        f"`api` cap_add must contain exactly SETUID + SETGID. Extra "
+        f"capabilities found: {extra}. Audit + update ADR 0013."
+    )
+
+
+def test_ui_keeps_nginx_required_capabilities() -> None:
+    """ADR 0013 §UI nginx caps: the official nginx Docker image's
+    entrypoint chowns `/var/cache/nginx/client_temp` to UID 101
+    (nginx user) and forks workers as that user. The chown + user
+    drop need CAP_CHOWN + CAP_DAC_OVERRIDE + CAP_SETUID + CAP_SETGID
+    even though the listening socket (port 3000) is non-privileged.
+    Surfaced during W21-4 primary live-run smoke.
+    """
+    services = _load_compose()
+    cap_add = set(services["ui"].get("cap_add") or [])
+    required = {"SETUID", "SETGID", "CHOWN", "DAC_OVERRIDE"}
+    missing = required - cap_add
+    assert not missing, (
+        f"`ui` must keep {sorted(required)} for the nginx "
+        f"entrypoint. Missing: {sorted(missing)}. ADR 0013 §UI nginx caps."
+    )
+    extra = sorted(cap_add - required)
+    assert not extra, (
+        f"`ui` cap_add must contain exactly {sorted(required)}. Extra "
+        f"capabilities found: {extra}. Audit + update ADR 0013."
+    )
+
+
 def test_postgres_services_remain_unhardened_until_w22() -> None:
     """ADR 0013 §Decision: postgres + postgres_test keep their default
     cap keepset because the postgres image's first-run schema setup

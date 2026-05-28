@@ -63,13 +63,18 @@ services:
       - ./.env:/app/.env
       - /var/run/docker.sock:/var/run/docker.sock
     # ADR 0013 — container isolation baseline. cap_drop:[ALL] removes
-    # every Docker-default capability (CAP_CHOWN, CAP_DAC_OVERRIDE,
-    # CAP_FOWNER, CAP_SETUID, CAP_SETGID, etc.) that the FastAPI/uvicorn
-    # workload does not need; no-new-privileges:true closes the residual
+    # the Docker-default keepset (CAP_CHOWN, CAP_DAC_OVERRIDE,
+    # CAP_FOWNER, CAP_MKNOD, etc.). cap_add restores only the runtime
+    # user-switching pair (CAP_SETUID + CAP_SETGID) needed by the
+    # `gosu`-style entrypoint that drops from root to appuser before
+    # uvicorn starts. no-new-privileges:true closes the residual
     # set-uid privilege-escalation path. read_only + custom seccomp
     # deferred to W22 ratchet-down lane.
     cap_drop:
       - ALL
+    cap_add:
+      - SETUID
+      - SETGID
     security_opt:
       - "no-new-privileges:true"
 
@@ -173,12 +178,27 @@ services:
       API_PROXY_PASS: http://api:${API_PORT:-8000}
     depends_on:
       - api
-    # ADR 0013 — container isolation baseline. cap_drop:[ALL] +
-    # no-new-privileges:true mirror the api service treatment. The
-    # nginx/Node UI does not need any of Docker's default capability
-    # keepset. read_only + custom seccomp deferred to W22 lane.
+    # ADR 0013 — container isolation baseline. cap_drop:[ALL] removes
+    # the Docker-default keepset. The nginx Docker image's entrypoint
+    # needs:
+    # - SETUID + SETGID — to fork workers as the unprivileged `nginx`
+    #   user (UID 101).
+    # - CHOWN — to chown(/var/cache/nginx/client_temp, 101) before the
+    #   workers start (nginx fails with "Operation not permitted"
+    #   otherwise; surfaced during W21-4 primary live-run smoke).
+    # - DAC_OVERRIDE — defensive include for the master's read access
+    #   to nginx.conf + the temp dirs after the chown.
+    # CAP_NET_BIND_SERVICE is NOT required because the UI listens on
+    # port 3000 (non-privileged). no-new-privileges:true closes the
+    # residual set-uid path. read_only + custom seccomp deferred to
+    # W22 ratchet-down lane.
     cap_drop:
       - ALL
+    cap_add:
+      - SETUID
+      - SETGID
+      - CHOWN
+      - DAC_OVERRIDE
     security_opt:
       - "no-new-privileges:true"
 

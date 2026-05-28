@@ -47,10 +47,52 @@ For each runtime service in `docker-compose.yml`:
 | Service | `cap_drop` | `cap_add` (kept) | `security_opt` | `read_only` | `tmpfs` |
 |---|---|---|---|---|---|
 | `automation_executor` | `[ALL]` | `[NET_RAW, SYS_PTRACE]` | `["no-new-privileges:true"]` | **deferred to W22** | **deferred to W22** |
-| `automation_api` | `[ALL]` | — | `["no-new-privileges:true"]` | **deferred to W22** | **deferred to W22** |
-| `automation_ui` | `[ALL]` | — | `["no-new-privileges:true"]` | **deferred to W22** | **deferred to W22** |
+| `automation_api` | `[ALL]` | `[SETUID, SETGID]` | `["no-new-privileges:true"]` | **deferred to W22** | **deferred to W22** |
+| `automation_ui` | `[ALL]` | `[SETUID, SETGID, CHOWN, DAC_OVERRIDE]` | `["no-new-privileges:true"]` | **deferred to W22** | **deferred to W22** |
 | `postgres` / `postgres_test` | unchanged | unchanged | unchanged | unchanged (named volume needs write) | unchanged |
 | `executor-cdp` (debug profile) | unchanged | unchanged | unchanged | unchanged (opt-in debug; not part of the default attack surface) | unchanged |
+
+### SETUID + SETGID retention for `api` and `ui`
+
+Live-run smoke during the W21-4 primary commit surfaced that both
+`automation_api` and `automation_ui` use a `gosu`-style entrypoint
+that drops from root to an unprivileged user (`appuser` for api,
+`nginx` for ui) before launching the workload. That user-switching
+requires CAP_SETUID + CAP_SETGID at runtime; with `cap_drop: [ALL]`
+both are removed and the entrypoint exits with `error: failed
+switching to "appuser": operation not permitted`.
+
+The retention is intentional and bounded:
+
+- The caps are used **once at startup** for the privilege drop, then
+  the long-running process runs as the unprivileged user.
+- `no-new-privileges:true` still prevents any further setuid binary
+  exec from gaining new privileges — it only allows the privilege
+  *drop* the entrypoint needs.
+- Future ratchet-down option (W22+): restructure the api/ui
+  Dockerfiles to use a static `USER` directive (like the executor
+  Dockerfile does at line 153) so the runtime never needs setuid
+  syscalls and these caps can be dropped too.
+
+### UI nginx caps (extension of SETUID + SETGID retention)
+
+The `automation_ui` service runs the official nginx Docker image,
+whose entrypoint does more than a simple privilege drop:
+
+1. `chown(/var/cache/nginx/client_temp, 101)` — sets the cache dir
+   to the unprivileged `nginx` user before workers fork.
+2. Drop to user 101 via setuid/setgid for the worker processes.
+
+The chown step needs CAP_CHOWN; the worker drop needs SETUID +
+SETGID; defensive include CAP_DAC_OVERRIDE so the master can still
+read configuration files after the chown. CAP_NET_BIND_SERVICE is
+NOT required because the listener (port 3000) is non-privileged.
+
+Surfaced during the W21-4 primary live-run smoke (api came up
+healthy after adding SETUID+SETGID, ui still failed with
+`chown(...) failed: Operation not permitted` until CHOWN +
+DAC_OVERRIDE were added). The ratchet-down option (static USER
+directive in `ui/Dockerfile` + pre-chowned cache dir) is W22+.
 
 ### Rationale
 
