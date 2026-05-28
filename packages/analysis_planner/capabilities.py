@@ -41,10 +41,10 @@ _GLOBAL_CAPABILITY_SUPPORT: dict[str, str] = {
     "uri_walkthrough": "covered",
     "authentication": "covered",
     "chat": "missing",
-    "comments": "missing",
-    "testing": "missing",
+    "comments": "covered",
+    "testing": "covered",
     "webview": "covered",
-    "workspace_trust": "missing",
+    "workspace_trust": "covered",
 }
 
 _GLOBAL_CAPABILITY_NOTES: dict[str, str] = {
@@ -93,10 +93,10 @@ _OFFICIAL_CAPABILITY_SUPPORT: dict[str, str] = {
     "uri_walkthrough": "covered",
     "authentication": "covered",
     "chat": "missing",
-    "comments": "missing",
-    "testing": "missing",
+    "comments": "covered",
+    "testing": "covered",
     "webview": "covered",
-    "workspace_trust": "missing",
+    "workspace_trust": "covered",
 }
 
 _HEURISTIC_CAPABILITY_SUPPORT: dict[str, str] = {
