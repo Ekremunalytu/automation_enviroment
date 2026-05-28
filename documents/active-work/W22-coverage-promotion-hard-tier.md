@@ -1,7 +1,7 @@
 # W22 — Coverage Promotion Round 3: Hard Tier + Sandbox ADR + Container Hardening Ratchet-Down (Active Work Tracker)
 
-`Last Updated: 2026-05-28 (W22-0 doc-reconcile in-flight 26bb080 opening week22 branch — new W22 active-work tracker per W18-W21 paterni + 10-doc canonical preamble refresh transitioning W21 closed/merged → W22 active + §19 W21 plan header "Previous phase" stamp + §20 W22 plan header doc-open in REFACTOR_OPTIMIZATION.md (W19-0/W20-0/W21-0 paterni mirror) + W21 Pull-Forward Acceptance Bar in POST_POC_BACKLOG.md closed/merged stamp + W22 Roadmap Acceptance Bar "planning" → "active" promotion listing W22-0..W22-N + W21-deferred [FOLLOWUP workspace-trust-stimulus-pass] + [FOLLOWUP sandbox-reset-stale-state-multi-analyze] + W21-4 ADR 0013 §Deferred ratchet-down lane (read_only + tmpfs + custom seccomp) pulled into W22-6 + README phase-pointer arch gate transition W21 → W22 (test_readme_phase_pointer.py tracks_active_w22_status + new W21 close-out merge gate test pinning PR #30 / week21 -> main / 5dc18aa) + test_canonical_preamble_parity.py fingerprint refresh (PR #29 → PR #30, 64a3c3d → 5dc18aa, tracker slot W21 → W22). W21 closed and merged via PR #30 week21 -> main MERGED 2026-05-28 via 5dc18aa; final W21 bar tests/architecture/ 287 passed / make test-security 220 passed / full suite 2104 passed, 9 skipped, 8 deselected. W22 entry signal: coverage_summary.missing_capabilities = [chat] (1 item) at W21-4 anchor eacea0b6690e sha256 5d7c8b974f21e3bf4ad679a41551dd3e7b71d37573f5e7f2b28b87d2ad4a6a84; W22-2 closes [chat] hard tier (1 → 0 missing). Parallel statik analiz şeridi ayrı worktree'de extrace-static branch çalışıyor (kendi W21 referans temizliği yapıyor; bu W22 oturumu ile çakışma yok). Main'e onaysız push/merge yok (user direction 2026-05-28; memory feedback_pr_push_approval standing).)`
-`Phase: W22-0 doc-reconcile in-flight 26bb080 — opening week22 branch; W22-0..W22-N sub-iter slate planned (W22-1 chat ADR + W22-2 chat coverage + W22-3 attribution depth + W22-4 sandbox-evasion ADR + W22-5 sandbox canary + W22-6 container hardening ratchet-down + W22-7 activation event spec gap conditional + W22-N close-out)`
+`Last Updated: 2026-05-28 (W22-1 [GOAL taxonomy-chat-policy-adr] closed 906fcd5 + self-stamp (this commit) — ADR 0014 documents/adrs/0014-chat-and-language-model-tool-policy.md Accepted Option C (tool-only coverage via stable vscode.chat.createChatParticipant + vscode.lm.registerTool + vscode.lm.invokeTool APIs, all GA since VS Code 1.90 / no external services / no proposed APIs / no engine bump); markers route via reserved OutputChannel (W19-X Bug B paterni); ephemeral lifecycle on context.subscriptions (W19-X Bug C lesson); alternatives A (proposed-API stub provider via registerChatModelProvider), B (mock invokeTool without registration), D (declare partial with blocker) rejected with gerekçe in ADR §Alternatives Rejected; + 2 architecture invariants at tests/architecture/test_chat_policy_adr.py (existence pin + Option C content marker pin); unblocks W22-2 [GOAL taxonomy-chat-coverage]; test bar delta tests/architecture/ 288 → 290 (+2); make test-security 220 unchanged; no live-run anchor needed (W22-1 doc-only). W22-0 doc-reconcile closed 26bb080 + ff3fbbd opening week22 branch — new W22 active-work tracker per W18-W21 paterni + 10-doc canonical preamble refresh transitioning W21 closed/merged → W22 active + §19 W21 plan header "Previous phase" stamp + §20 W22 plan header doc-open in REFACTOR_OPTIMIZATION.md (W19-0/W20-0/W21-0 paterni mirror) + W21 Pull-Forward Acceptance Bar in POST_POC_BACKLOG.md closed/merged stamp + W22 Roadmap Acceptance Bar "planning" → "active" promotion listing W22-0..W22-N + W21-deferred [FOLLOWUP workspace-trust-stimulus-pass] + [FOLLOWUP sandbox-reset-stale-state-multi-analyze] + W21-4 ADR 0013 §Deferred ratchet-down lane (read_only + tmpfs + custom seccomp) pulled into W22-6 + README phase-pointer arch gate transition W21 → W22 (test_readme_phase_pointer.py tracks_active_w22_status + new W21 close-out merge gate test pinning PR #30 / week21 -> main / 5dc18aa) + test_canonical_preamble_parity.py fingerprint refresh (PR #29 → PR #30, 64a3c3d → 5dc18aa, tracker slot W21 → W22). W21 closed and merged via PR #30 week21 -> main MERGED 2026-05-28 via 5dc18aa; final W21 bar tests/architecture/ 287 passed / make test-security 220 passed / full suite 2104 passed, 9 skipped, 8 deselected. W22 entry signal: coverage_summary.missing_capabilities = [chat] (1 item) at W21-4 anchor eacea0b6690e sha256 5d7c8b974f21e3bf4ad679a41551dd3e7b71d37573f5e7f2b28b87d2ad4a6a84; W22-2 closes [chat] hard tier (1 → 0 missing). Parallel statik analiz şeridi ayrı worktree'de extrace-static branch çalışıyor (kendi W21 referans temizliği yapıyor; bu W22 oturumu ile çakışma yok). Main'e onaysız push/merge yok (user direction 2026-05-28; memory feedback_pr_push_approval standing).)`
+`Phase: W22-1 [GOAL taxonomy-chat-policy-adr] closed 906fcd5 + self-stamp (this commit) — ADR 0014 chat + LM tool policy Accepted (Option C: local-only stable-API coverage); W22-0 doc-reconcile closed 26bb080 + ff3fbbd opening week22 branch; W22-2..W22-N sub-iter slate planned (W22-2 chat coverage [depends W22-1 ADR Accepted ✓] + W22-3 attribution depth + W22-4 sandbox-evasion ADR + W22-5 sandbox canary + W22-6 container hardening ratchet-down + W22-7 activation event spec gap conditional + W22-N close-out)`
 `Branch: week22 (per user direction 2026-05-28; W11-W21 paterninden bu sefer ayrılma — sub-iter commits land directly on week22 without per-sub-iter branches; close-out merges via week22 -> main PR PENDING USER APPROVAL)`
 `Owner: ekrem`
 
@@ -75,7 +75,7 @@ is the template structurally followed here.
     custom seccomp) — pulled into W22 as `W22-6 [GOAL
     container-hardening-ratchet-down]` (closing W21-4 deferred slate
     is part of W22 must-pass per ADR 0013 §Deferred plan).
-- **W22-0 in-flight 26bb080.** Doc reconcile + canonical
+- **W22-0 closed `26bb080` + `ff3fbbd`.** Doc reconcile + canonical
   preamble refresh across 10 docs (`CLAUDE.md` / `README.md` /
   `AGENTS.md` / `documents/AGENT_CONTEXT.md` /
   `documents/active-work/README.md` / `documents/REFACTOR_STATUS.md`
@@ -86,13 +86,20 @@ is the template structurally followed here.
   test_readme_phase_pointer_mentions_w21_closeout_merge gate
   pinning PR #30 / week21 -> main / 5dc18aa +
   tracks_active_w21_status → tracks_active_w22_status rename.
+- **W22-1 closed `906fcd5` + self-stamp (this commit).** `[GOAL
+  taxonomy-chat-policy-adr]` ADR 0014 Accepted (Option C —
+  tool-only coverage via stable `vscode.chat.createChatParticipant`
+  + `vscode.lm.registerTool` + `vscode.lm.invokeTool` APIs, all
+  GA since VS Code 1.90; no external services, no proposed APIs,
+  no engine bump). + 2 architecture invariants at
+  `tests/architecture/test_chat_policy_adr.py`. Unblocks W22-2.
 
 ## Sub-Iter Scope (Authored 2026-05-28)
 
 | Iter | Status / Theme | Commit ref | Closes which acceptance-bar item? |
 |---|---|---|---|
 | W22-0 | **in-flight 26bb080** doc-reconcile — `week22` branch open + new W22 active-work tracker (this file) + §19 W21 plan header doc-close ("Previous phase" stamp) + §20 W22 plan header doc-open in `REFACTOR_OPTIMIZATION.md` (W19-0/W20-0/W21-0 paterni mirror) + 10-doc canonical preamble refresh W21 closed/merged → W22 active + W21 Pull-Forward Acceptance Bar in `POST_POC_BACKLOG.md` closed/merged stamp + W22 Roadmap Acceptance Bar "planning" → "active" promotion + README phase-pointer arch gate transition W21→W22 + new W21 close-out fact gate `test_readme_phase_pointer_mentions_w21_closeout_merge` pinning PR #30 / `week21 -> main` / `5dc18aa` + canonical preamble parity test fingerprint refresh (PR #29 → PR #30, `64a3c3d` → `5dc18aa`, tracker slot W21 → W22). | this commit | — (doc-reconcile; no acceptance-bar item) |
-| W22-1 | **planned** — `[GOAL taxonomy-chat-policy-adr]` (new) — ADR `documents/adrs/0014-chat-and-language-model-tool-policy.md`. `onChatParticipant` + `onLanguageModelTool:*` local verification strategy. Decision: harness-side stub LM provider vs mock LM endpoint. NO CODE. | — | — |
+| W22-1 | **closed** `906fcd5` + self-stamp (this commit) — `[GOAL taxonomy-chat-policy-adr]` ADR `documents/adrs/0014-chat-and-language-model-tool-policy.md` Accepted (Option C — tool-only coverage with explicit local boundary). `onChatParticipant:*` covered via `vscode.chat.createChatParticipant`; `onLanguageModelTool:*` covered via `vscode.lm.registerTool` + `vscode.lm.invokeTool`. Stable VS Code 1.90+ APIs, network-free; NO engine bump, NO proposed APIs, NO Insiders build. Alternatives A (proposed-API stub provider), B (mock invoke without registration), D (declare partial with blocker) rejected with gerekçe. Markers route via reserved OutputChannel (W19-X Bug B paterni); ephemeral lifecycle on `context.subscriptions` (W19-X Bug C lesson). + 2 architecture invariants at `tests/architecture/test_chat_policy_adr.py` (existence + content pin). | `906fcd5` (primary) + (this commit) (self-stamp) | unblocks W22-2 |
 | W22-2 | **planned** — `[GOAL taxonomy-chat-coverage]` (new) — `_OFFICIAL_CAPABILITY_SUPPORT["chat"]: "missing" → "covered"` at `capabilities.py:95` + mirror in `_GLOBAL_CAPABILITY_SUPPORT:43` (heuristic derives) + `local_chat_participant_controller` + `local_language_model_tool_controller` scenarios in `scenarios.py` + harness `extension.js` + `stimulus_dispatch.js` `ensureChatParticipant`/`ensureLanguageModelTool` markers via reserved OutputChannel route (W19-X Bug B paterni; W21-2 paterni byte-identical) with ephemeral participant default (W19-X HMAC reactivation race lesson) + 4-5 invariant tests at `tests/platform/contracts/test_capability_support_invariants.py` (W21-2 comments template mirror) + dict shape canonical pin update + `test_split_did_not_lose_data_volume` count pin bump 16→17/18 + frozen trigger fixture regen for ms-python.python. Local LM stub provider: harness-side, no external network (depends on W22-1 ADR decision). | depends on W22-1 ADR Accepted | **W22 acceptance #1** (`chat` dropped from `missing_capabilities`) |
 | W22-3 | **planned** — `[FOLLOWUP attribution-count-parity-process-events]` + `[FOLLOWUP attribution-count-parity-output-channel]` (new) — Attribution depth ProcessEvent + OutputChannelAppendLine (W17-1 paterni — `build_evidence_bundle` producer-side stamp at `executor/flows/playwright/attribution/links.py` + 4+4=8 invariant test). | — | — |
 | W22-4 | **planned** — `[GOAL sandbox-evasion-defense-mvp]` (existing W18 candidate) — ADR draft only `documents/adrs/0015-sandbox-evasion-defense-policy.md`. Anti-analysis pattern taxonomy: webdriver presence checks, timing probes, `navigator.platform` interrogation, mouse trail detection. Implementation deferred to W23+. NO CODE. | — | — |
@@ -284,3 +291,74 @@ regression expected.
 (Self-stamp follow-up will replace this commit's `26bb080`
 placeholders with the actual SHA after the W22-0 primary commit
 lands — W21-0 paterni: primary `8434323` + self-stamp `19bd9c7`.)
+
+### W22-1 — Chat + LM tool policy ADR (ADR 0014)
+
+**Status**: **closed** — primary `906fcd5` + self-stamp (this commit).
+
+**Goal**: Author ADR 0014 `documents/adrs/0014-chat-and-language-model-tool-policy.md` to record the local-only verification strategy for `onChatParticipant:*` + `onLanguageModelTool:*` activation events before W22-2 implementation. Resolve the open `_GLOBAL_CAPABILITY_NOTES["chat"]` policy seed (`packages/analysis_planner/capabilities.py:63-66`, W20-4 design pre-stage) with an Accepted ADR.
+
+**Decision**: **Option C — tool-only coverage with explicit local boundary.**
+
+- `onChatParticipant:*` covered via
+  `vscode.chat.createChatParticipant("extrace.harness.chat",
+  noopChatHandler)` at extension activate(). Handler returns
+  synchronously; no chat model interaction.
+- `onLanguageModelTool:*` covered via
+  `vscode.lm.registerTool("extrace.harness.lm.tool",
+  { invoke: noopToolInvoke })` at activate() +
+  `vscode.lm.invokeTool(...)` from `stimulus_dispatch.js` under
+  the `onLanguageModelTool` family branch. `noopToolInvoke`
+  returns a canned `LanguageModelToolResult` constructed
+  in-process; no model call.
+- Both APIs are GA since VS Code 1.90 (June 2024); existing
+  `engines.vscode: "^1.90.0"` in
+  `executor/flows/harness_extension/package.json` covers both.
+  **NO engine bump, NO `enabledApiProposals` entry, NO Insiders
+  build required.**
+- Markers route via reserved `"ExTrace Harness"` OutputChannel
+  through `emitHarnessEvent` (W19-X Bug B paterni). Subscriptions
+  live on `context.subscriptions` and dispose at extension
+  deactivate; stimulus dispatch is one-shot (W19-X Bug C HMAC
+  reactivation race lesson).
+
+**Alternatives Rejected** (gerekçe in ADR §Alternatives Rejected):
+
+- Option A — proposed-API stub provider via
+  `vscode.lm.registerChatModelProvider` (requires
+  `enabledApiProposals` + Insiders build; violates stable-only
+  stance).
+- Option B — mock `invokeTool` without registration (throws
+  synchronously; collapses into Option C anyway).
+- Option D — declare `chat` permanently `partial` with a
+  documented blocker (cedes ground unnecessarily; the activation
+  events ARE fully exercisable via stable local API).
+
+**Changes**:
+
+1. **New ADR** —
+   `documents/adrs/0014-chat-and-language-model-tool-policy.md`
+   mirroring ADR 0013 structure (Status/Date/Authors/Driving
+   phase + Context/Decision/API Surface Boundary/Security Posture/
+   W19-X Lesson Application/Engine Compatibility/Consequences/
+   §Alternatives Rejected/References).
+
+2. **New architecture invariants** —
+   `tests/architecture/test_chat_policy_adr.py`:
+   - `test_adr_0014_exists` (file path existence pin)
+   - `test_adr_0014_documents_option_c_decision` (Option C
+     decision marker pin: `vscode.chat.createChatParticipant`,
+     `vscode.lm.registerTool`, `vscode.lm.invokeTool`, `Option C`,
+     `must not call external services`, `engines.vscode`, `1.90`,
+     `W22-2`)
+
+**Acceptance**: ADR file exists at expected path; 2 architecture
+invariants green; W22-2 unblocked.
+
+**Test bar delta**: `tests/architecture/` 288 → 290 (+2 — ADR
+existence + content pin). `make test-security` 220 unchanged.
+
+**Live-run anchor**: not applicable (W22-1 doc-only; no behavior
+change). Next live-run anchor at W22-2 self-stamp must show
+`coverage_summary.missing_capabilities == []` (hard tier closure,
+W22 must-pass #6).
