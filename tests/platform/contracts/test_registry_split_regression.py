@@ -97,7 +97,7 @@ def test_facade_objects_are_identity_equal_to_focus_module_objects() -> None:
 def test_split_did_not_lose_data_volume() -> None:
     """Sanity: shape of the registry matches the historic counts."""
     facade = importlib.import_module("packages.analysis_planner.registry")
-    assert len(facade.SCENARIO_REGISTRY) == 15  # W21-1: +local_test_controller
+    assert len(facade.SCENARIO_REGISTRY) == 16  # W21-2: +local_comments_controller
     assert len(facade.OFFICIAL_EVENT_REGISTRY) == 29
     assert len(facade.CAPABILITY_TAXONOMY) == 18
     assert len(facade._PASS_ORDER) == 5

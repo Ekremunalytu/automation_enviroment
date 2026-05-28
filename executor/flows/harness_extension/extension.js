@@ -250,6 +250,23 @@ async function activate(context) {
     "ExTrace Harness Comments"
   );
 
+  // W21-2: Comment controller observability. Baseline marker emitted at
+  // activate() entry confirms the controller exists; thread lifecycle
+  // markers (`thread_created` / `thread_disposed`) are emitted around the
+  // ensureCommentThread call in stimulus_dispatch.js so a downstream
+  // stimulus pass that exercises comment threads produces a verifiable
+  // signal. Routes through emitHarnessEvent so payloads are HMAC-signed
+  // and reach the parser via the reserved "ExTrace Harness" OutputChannel
+  // (W19-X Bug B paterni — console.log alone is discarded by
+  // launch_vscode.sh).
+  emitHarnessEvent({
+    kind: "comment_thread_state",
+    phase: "baseline",
+    thread_id: "",
+    ts: Date.now(),
+    collector: "harness_extension",
+  });
+
   // W21-3: Workspace trust observability. Baseline trust state emitted at
   // activate() entry, then onDidGrantWorkspaceTrust listener emits a
   // transition marker when trust is granted on the current workspace.

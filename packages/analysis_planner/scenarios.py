@@ -208,6 +208,22 @@ SCENARIO_REGISTRY: tuple[ScenarioDefinition, ...] = (
         success_signals=("test run invoked", "test debug invoked"),
         risk_of_noise="low",
     ),
+    ScenarioDefinition(
+        name="local_comments_controller",
+        intent=(
+            "Exercise the local VS Code Comments API surface "
+            "(CommentController + CommentThread create/dispose) through "
+            "the harness so extensions that contribute discussion flows "
+            "have a verifiable coverage path while staying inside the "
+            "sandbox."
+        ),
+        activation_events=("onStartupFinished",),
+        contributes_signals=("capabilities",),
+        api_capabilities=("commands", "window_ui", "comments"),
+        prerequisites=("comments API available",),
+        success_signals=("comment thread created", "comment thread disposed"),
+        risk_of_noise="low",
+    ),
 )
 
 

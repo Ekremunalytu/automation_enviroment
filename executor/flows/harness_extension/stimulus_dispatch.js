@@ -2,6 +2,7 @@ const path = require("node:path");
 const vscode = require("vscode");
 
 const { BUILTIN_VIEW_CONTAINER_COMMANDS } = require("./constants");
+const { emitHarnessEvent } = require("./markers");
 
 async function dispatchStimulus(payload) {
   const attempt = payload.attempt || {};
@@ -137,11 +138,33 @@ async function dispatchStimulus(payload) {
 }
 
 async function ensureCommentThread(commentController) {
+  // W21-2: Comment thread lifecycle observability. Emit `thread_created`
+  // immediately after createCommentThread; `thread_disposed` immediately
+  // after dispose. Routes through emitHarnessEvent so payloads are
+  // HMAC-signed (W19-X Bug B paterni — reserved "ExTrace Harness"
+  // OutputChannel). Ephemeral thread default (W19-X HMAC reactivation
+  // race lesson): thread is created + disposed within this call so
+  // a stale handle from a previous activation cannot mask a regression.
   const readme = vscode.Uri.file(path.join("/workspace", "README.md"));
   const range = new vscode.Range(0, 0, 0, 0);
   const thread = commentController.createCommentThread(readme, range, []);
   thread.label = "ExTrace Harness Thread";
+  const threadId = `${commentController.id || "comments"}:${readme.fsPath}:${range.start.line}`;
+  emitHarnessEvent({
+    kind: "comment_thread_state",
+    phase: "thread_created",
+    thread_id: threadId,
+    ts: Date.now(),
+    collector: "harness_extension",
+  });
   thread.dispose();
+  emitHarnessEvent({
+    kind: "comment_thread_state",
+    phase: "thread_disposed",
+    thread_id: threadId,
+    ts: Date.now(),
+    collector: "harness_extension",
+  });
 }
 
 async function revealContributedView(payload, viewId) {
