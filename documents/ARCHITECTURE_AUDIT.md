@@ -1,6 +1,6 @@
 # Architecture Audit
 
-`Last Updated: 2026-05-11`
+`Last Updated: 2026-05-28 — W22 active (closed synthetically on week22; PR week22 -> main PENDING USER APPROVAL); W21 closed and merged via PR #30 5dc18aa.`
 
 This is the short health summary for the current architecture. Use
 `ARCHITECTURE.md` for structure and flows; use `docs/risks.md` for the live

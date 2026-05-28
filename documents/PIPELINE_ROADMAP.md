@@ -1,6 +1,6 @@
 # Pipeline Roadmap
 
-`Last Updated: 2026-05-26 (W19 closed synthetically — Hat-1 + Hat-2 fully closed; PR #28 week19 -> main MERGED 2026-05-26 via c879603)`
+`Last Updated: 2026-05-28 — W22 active (closed synthetically on week22; PR week22 -> main PENDING USER APPROVAL); W21 closed and merged via PR #30 5dc18aa.`
 
 This is the short staged view of the analysis pipeline. For current pullable
 work, use `POST_POC_BACKLOG.md` plus the active tracker; for active priorities,
@@ -55,11 +55,15 @@ flowchart LR
 - keep interrupted jobs obvious
 - keep artifact retention intentional
 
-### Phase B: Coverage Closure
+### Phase B: Coverage Closure (closed via W20-W22 coverage promotion rounds)
 
-- close official-track gaps for `scm` and `settings`
-- decide how partial scaffolding for `chat`, `comments`, `testing`, and
-  `workspace_trust` should evolve
+- coverage promotion complete: all 18 capabilities `"covered"` in both
+  `_OFFICIAL_CAPABILITY_SUPPORT` and `_GLOBAL_CAPABILITY_SUPPORT`
+  (`packages/analysis_planner/capabilities.py`). Sub-iter closures:
+  W20-1 `scm` + W20-2 `settings` (PR #29 / `64a3c3d`); W21-3
+  `workspace_trust` + W21-1 `testing` + W21-2 `comments` (PR #30 /
+  `5dc18aa`); W22-2 `chat` per ADR 0014 Option C (static cut; runtime
+  live-run anchor deferred to user on Linux).
 
 ### Phase C: Report Stability
 
@@ -116,7 +120,7 @@ flowchart LR
   change
 - analysis output is semi-trusted (ADR 0002 §6); do not forward, upload, or
   index without scrubbing
-- security posture is fixed by ADRs 0002-0005 plus ADRs 0007-0012; scope
+- security posture is fixed by ADRs 0002-0005 plus ADRs 0007-0015; scope
   expansion requires a new ADR, not an informal upgrade. ADR 0007 is Accepted and
   implemented `2026-04-29` via W8-7 — loopback defaults plus
   `EXTRACE_ALLOW_LAN` opt-in are enforced in `appcore/api/config.py`,

@@ -1,6 +1,6 @@
 # Testing Guide
 
-`Last Updated: 2026-05-26 (W19 closed synthetically — final W19 bar: tests/architecture/ 204 passed; make test-security 220 passed; full suite 1995 passed, 9 skipped, 8 deselected. PR #28 week19 -> main MERGED 2026-05-26 via c879603.)`
+`Last Updated: 2026-05-28 — W22 active (closed synthetically on week22; PR week22 -> main PENDING USER APPROVAL); W21 closed and merged via PR #30 5dc18aa. Final W22 static bar: tests/architecture/ 292 passed; make test-security 228 passed.`
 
 Test layers, fixtures, and commands. **Slim canonical** — per-domain
 deep dives split out:
@@ -36,7 +36,7 @@ boundary tests:
 subsystem-local lanes (`tests/workflows/marketplace/test_vsix_*`,
 `tests/executor/security/test_uri_trigger_*`). The old
 `[FOLLOWUP make-test-security-lane-composition]` item is closed in
-[`testing/security-tests.md`](testing/security-tests.md); current W19
+[`testing/security-tests.md`](testing/security-tests.md); current W22
 test-count claims should state whether a case is inside the Makefile
 security lane or only in `make test-local`.
 
@@ -68,8 +68,8 @@ security lane or only in `make test-local`.
 ## Commands (Quick Reference)
 
 ```bash
-make test-local                      # default Python suite (1913 passed / 9 skipped / 8 deselected / 0 xfailed after W19-2 live re-anchor), with postgres_test
-make test-security                   # cross-tree security lane (220 passed after W19-2 live re-anchor)
+make test-local                      # default Python suite (~2100+ passed / 9 skipped / 8 deselected at W21-N close-out; W22 static cuts add ~21 tests on top), with postgres_test
+make test-security                   # cross-tree security lane (228 passed after W22-5 evasion canary enrolment; was 220 from W19-2 anchor through W21 close-out)
 make check-all                       # ruff + mypy + bandit + ui-types-check + ui-boundaries + pytest
 make sim-target TARGET=publisher.name [TRIGGERS=...] [SCENARIO=...]
 make demo-canary                     # full canary demo
@@ -130,15 +130,17 @@ CDP reconnect stalls are the dominant failure mode).
   workbench stability still needs real smoke.
 - SPA TypeScript contracts are generated, but request client + adapters
   hand-written — drift if generation is skipped.
-- `make test-security` → 220 cases green as of the W19-2 live re-anchor
-  baseline. The
-  45-case figure was the entry-gate baseline at `2026-04-27`
-  (post-PR345 + W8-0 lock-in). Live `make test-security-live` +
-  Docker-based A1 canary structural diff are user-side regression
-  gates for the capture pipeline.
-- `make test-local` → full suite 1913 passed / 9 skipped / 8 deselected /
-  0 xfailed as of the W19-2 live re-anchor baseline. The
-  platform baseline fixture contract currently resolves
+- `make test-security` → **228 cases** green as of the W22-5 sandbox-evasion
+  canary enrolment (was 220 from W19-2 anchor through W21 close-out;
+  W22-5 added 8 observer-side cases). The 45-case figure was the entry-gate
+  baseline at `2026-04-27` (post-PR345 + W8-0 lock-in). Live
+  `make test-security-live` + Docker-based A1 canary structural diff are
+  user-side regression gates for the capture pipeline.
+- `make test-local` → full suite was **2104 passed**, 9 skipped, 8
+  deselected at the W21-N close-out (`dd24f1e`). W22 static cuts add
+  ~21 tests on top (W22-2 +5 capability invariants, W22-3 +8 attribution
+  parity invariants, W22-5 +8 evasion canary cases). The platform
+  baseline fixture contract currently resolves
   `ms-python.python@2026.5.2026050801` plus the five benign-silence
   fixtures (`extrace.fixture-{chat,theme,snippet,keybinding,cmd}-0.0.1`)
   from local artifacts without network access.

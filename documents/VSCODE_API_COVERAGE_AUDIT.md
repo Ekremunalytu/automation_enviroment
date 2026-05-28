@@ -1,6 +1,6 @@
 # VS Code API Coverage Audit
 
-`Last Updated: 2026-04-27`
+`Last Updated: 2026-05-28 — W22 active (closed synthetically on week22; PR week22 -> main PENDING USER APPROVAL); W21 closed and merged via PR #30 5dc18aa.`
 
 This document summarizes how ExTrace currently maps VS Code extension behavior
 into trigger planning and verification.
@@ -8,16 +8,13 @@ into trigger planning and verification.
 Open this only when changing trigger selection, capability support, coverage
 matrix logic, or related report semantics.
 
-> **Phase context (2026-04-27):** W4 stabilization, W5 detection
-> foundations, W6 automation hardening, and W7 PoC acceptance are all
-> closed, PR345 target activation lifecycle is complete, and W8-0 harness
-> readiness is landed (see `REFACTOR_STATUS.md`). The capability matrix and
-> scenario registry below were last spot-verified against
-> `packages/analysis_planner/registry.py` on `2026-04-25`. The
-> `_GLOBAL_CAPABILITY_SUPPORT`, `_OFFICIAL_CAPABILITY_SUPPORT`, and
-> `_HEURISTIC_CAPABILITY_SUPPORT` maps in that module are the
-> authoritative source — if this doc disagrees, trust the module and
-> file a follow-up.
+> **Authoritative source:** `_GLOBAL_CAPABILITY_SUPPORT`,
+> `_OFFICIAL_CAPABILITY_SUPPORT`, and `_HEURISTIC_CAPABILITY_SUPPORT` maps in
+> `packages/analysis_planner/capabilities.py`. The scenario registry in
+> `packages/analysis_planner/scenarios.py` is the canonical scenario list.
+> If this doc disagrees with either module, trust the module and update the
+> doc. Last full spot-verification: W22-2 close (2026-05-28); the
+> hard-tier `chat` promotion landed at `ffbb743`.
 
 The important distinction in the current implementation is:
 
@@ -45,15 +42,12 @@ The current benign reference corpus used by docs and tests is:
 
 ## Capability Status
 
-`CAPABILITY_TAXONOMY` declares 18 capabilities total
-(`packages/analysis_planner/registry.py:7-26`). The buckets below
-classify each one by the intersection of `_GLOBAL_CAPABILITY_SUPPORT`
-and `_OFFICIAL_CAPABILITY_SUPPORT`.
+`CAPABILITY_TAXONOMY` declares **18 capabilities total** in
+`packages/analysis_planner/capabilities.py`. Both
+`_OFFICIAL_CAPABILITY_SUPPORT` and `_GLOBAL_CAPABILITY_SUPPORT` mark all 18
+`"covered"` as of W22-2 close (2026-05-28).
 
-### Covered End-to-End
-
-Both the global/scenario track and the official activation track mark
-these 12 capabilities `covered`:
+### Covered End-to-End (all 18)
 
 - `commands`
 - `window_ui`
@@ -61,53 +55,24 @@ these 12 capabilities `covered`:
 - `languages_editor`
 - `debug`
 - `terminal_tasks`
+- `scm` (W20-1, `82276cb`)
 - `search_views`
+- `settings` (W20-2, `a4343d2`)
 - `notebooks`
 - `custom_editors`
 - `uri_walkthrough`
 - `authentication`
+- `chat` (W22-2, `ffbb743` — per ADR 0014 Option C; static cut, runtime
+  live-run anchor deferred to user on Linux)
+- `comments` (W21-2, `8948ea6`)
+- `testing` (W21-1, `7e87030`)
 - `webview`
+- `workspace_trust` (W21-3, `c744c15`)
 
-### Supported, But With Verification Gaps
-
-These capabilities have scenario-level or heuristic support, but the official
-coverage track still marks them incomplete:
-
-- `scm`
-  - `git_workflow` exists, but official capability support is still marked
-    missing in the planner layer under `packages/analysis_planner`
-    (re-exported through `workflows/marketplace/triggers.py`).
-- `settings`
-  - `settings_modification` exists, but the official track still treats this as
-    missing for coverage accounting.
-
-### Still Marked Missing In The Support Matrix
-
-These capabilities are still marked `missing` in the current support matrix,
-even though some of them now have partial scaffolding elsewhere in the repo:
-
-- `chat`
-  - trigger event strategies exist for `onChatParticipant` and
-    `onLanguageModelTool`, and monitor-side verification can recognize chat
-    activations, but the support matrix still marks chat as missing.
-  - Week 4A runtime/reporting work landed: unresolved official chat/tool
-    attempts now degrade `automation_health`, cap `run_quality` to `low`, and
-    preserve `harness_verification_unconfirmed` when harness execution closes
-    without target verification.
-  - the capability still stays `missing` here because planner/support-matrix
-    policy has not promoted chat into a covered official capability; runtime
-    verification closure alone does not change that matrix status.
-- `comments`
-  - the harness extension exposes a local comment-controller surface, but
-    trigger planning and coverage accounting do not yet treat comments as
-    covered.
-- `testing`
-  - the harness extension exposes a local test controller, but trigger planning
-    and coverage accounting do not yet treat testing as covered.
-- `workspace_trust`
-  - capability metadata is ingested from manifests and can influence attempted
-    capability selection, but the support matrix still marks workspace trust as
-    missing.
+Per-capability `_GLOBAL_CAPABILITY_NOTES` entries in `capabilities.py`
+qualify the local-only / harness-assisted policies for `chat`, `comments`,
+`testing`, `workspace_trust`, `authentication`, `custom_editors`, and
+`uri_walkthrough`.
 
 ## Scenario Registry
 
@@ -142,8 +107,6 @@ even though some of them now have partial scaffolding elsewhere in the repo:
 - Intent: modify settings and browse configuration UI.
 - Activation focus: `onConfiguration`
 - Capability coverage: `commands`, `window_ui`, `settings`, `workspace_fs`
-- Current note: scenario exists, but official-track verification is still
-  incomplete
 
 ### `debug_session`
 
@@ -165,8 +128,6 @@ even though some of them now have partial scaffolding elsewhere in the repo:
 - Intent: drive Source Control view and git-oriented workspace activity.
 - Activation focus: `onView:scm`
 - Capability coverage: `commands`, `window_ui`, `scm`, `workspace_fs`
-- Current note: scenario exists, but official-track verification is still
-  incomplete
 
 ### `extension_browsing`
 
@@ -198,42 +159,50 @@ even though some of them now have partial scaffolding elsewhere in the repo:
 - Activation focus: `onWebviewPanel`, `onView`
 - Capability coverage: `commands`, `window_ui`, `webview`
 
+### W21-W22 Scenario Additions (local-only / harness-assisted)
+
+These scenarios land per ADR 0014 (chat policy) + the W21 mid-tier
+promotions. They are local-only — no external services, no proposed APIs.
+See `packages/analysis_planner/scenarios.py` for full definitions.
+
+- `local_test_controller` (W21-1, advertises `testing`).
+- `local_comments_controller` (W21-2, advertises `comments`).
+- `workspace_trust_transition` (W21-3, advertises `workspace_trust`).
+- `local_chat_participant_controller` (W22-2, advertises `chat` via
+  `vscode.chat.createChatParticipant`).
+- `local_language_model_tool_controller` (W22-2, advertises `chat` via
+  `vscode.lm.registerTool` + `vscode.lm.invokeTool`).
+
 ## Current Gaps
 
-- Official activation coverage and heuristic workflow coverage are both present,
-  but they can still drift if they are summarized as one flat capability list.
-- `chat`, `comments`, `testing`, and `workspace_trust` remain missing in the
-  support matrix even though the repo now contains partial scaffolding for some
-  of them.
+- Coverage promotion is complete in the support matrix (all 18 covered);
+  remaining drift risk is **declared ≠ verified** at runtime. Chat coverage
+  in particular is static-only on the current Mac development machine; the
+  runtime live-run anchor (`make sim-target TARGET=ms-python.python` →
+  `coverage_summary.missing_capabilities == []`) is deferred to user on
+  Linux per W22-N close-out (memory `feedback_pr_push_approval`).
 - Command and UI launch coverage is stronger than result verification; some
   flows still prove stimulation better than they prove extension-specific
-  follow-through.
+  follow-through. Per-capability detection-surface depth (e.g., chat-side
+  defense-in-depth via ADR 0015 sandbox-evasion policy) is V2 scope.
 
 ## Post-PoC Follow-On Candidates
 
-Reporting-semantics cleanup and chat/tooling runtime verification closure
-landed during W4A; W5 detection foundations, W6 automation hardening,
-and W7 PoC acceptance all closed by `2026-04-23` (see
-`REFACTOR_STATUS.md`). Post-W7 hardening on `2026-04-24` and
-`2026-04-25` (fatal UI-crash fail-fast, scan-between VS Code restart,
-`attribution/` subpackage split, `sim-target` Makefile lane, weighted
-simulation progress, full-stack analysis cancel, VNC harness
-ready-marker fix, and the `t1-demo-runnable-canary` + rule +
-`make demo-canary` lanes) did not change the capability matrix or the
-scenario registry. The follow-on items below remain post-PoC value-adds
-that surface coverage rather than gate the PoC bar; pull source is
-`POST_POC_BACKLOG.md` "Next (post-PoC value-adds)".
+Coverage promotion (`scm` + `settings` + `testing` + `comments` +
+`workspace_trust` + `chat`) closed across W20-W22. Remaining follow-on
+candidates are detection-surface deepening, not capability matrix fills:
 
-- `comments`
-  - promote harness comment-thread support into trigger planning and report
-    accounting
-- `testing`
-  - promote harness test-controller support into trigger planning and report
-    accounting
-- `workspace_trust`
-  - promote manifest capability metadata into a real trust-state execution and
-    verification path
-- official-track closure for `scm` and `settings`
-  - both already covered on the global/scenario track
-    (`git_workflow`, `settings_modification`); the gap is
-    `_OFFICIAL_CAPABILITY_SUPPORT` reporting them as `missing`
+- **Sandbox-evasion defense implementation** (ADR 0015 Draft Policy + W22-5
+  observer-side canary). 5-family taxonomy (`webdriver_presence`,
+  `cdp_fingerprint`, `timing_probe`, `platform_identity`,
+  `process_introspection`); V2 implementation roadmap — W23+ scope per
+  ADR 0015 §Implementation Roadmap.
+- **Static-analysis pre-check stream** (deferred; design intent in
+  `documents/active-work/extrace-static-stream-handoff.md`). Pre-execution
+  signal layer (manifest red flags, typosquats, embedded binaries, JS
+  literal `eval` / `Function` / `child_process`) with block-and-warn
+  semantics, separate `automation_static_analyzer` Docker service,
+  schema-first contract landing, in-house Python rules + Semgrep MVP.
+- **Container-hardening ratchet-down** (W21-4 ADR 0013 §Deferred → W22-6).
+  `read_only` + tmpfs + custom seccomp profile; deferred to user (Linux
+  required for live-smoke).
