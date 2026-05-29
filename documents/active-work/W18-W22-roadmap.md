@@ -1,4 +1,4 @@
-# W18-W22 — Capability + Otomasyon Sağlık + Coverage Promotion Roadmap (Planning Tracker)
+# W18-W22 — Capability + Otomasyon Sağlık + Coverage Promotion Roadmap (Roadmap Tracker — W18-W22 window complete)
 
 `Last Updated: 2026-05-28`
 
@@ -127,7 +127,8 @@ W17 tracker structure).
   full suite **2045 passed, 9 skipped, 8 deselected**. W20
   frozen tracker:
   [`W20-coverage-promotion-easy-wins.md`](W20-coverage-promotion-easy-wins.md).
-  W21 is closed on `week21`; W22 remains in planning state.
+  W21 and W22 are both closed and merged to main (W21 via PR #30
+  `5dc18aa`; W22 via PR #31 `1399f82`).
 - **Driving signal (live run, 2026-05-21)**: `ms-python.python`
   @ `992ad028f3df` reports `automation_health.status=degraded`,
   `run_quality=low`, 4 reasons (`skipped_scenarios_present`,
@@ -258,7 +259,7 @@ heuristic-covered, eksik olan official-track verification.
 | W21-1 | `testing` her iki track → covered | `[GOAL taxonomy-testing-coverage]` | **closed `2026-05-27`** via `7e87030` + `38b8fd8`; Test Controller run/debug profile markers + `local_test_controller` scenario + 4 invariant tests + fixture regen. |
 | W21-2 | `comments` her iki track → covered | `[GOAL taxonomy-comments-coverage]` | **closed `2026-05-28`** via `8948ea6` + `3088709`; CommentController baseline/thread markers + `local_comments_controller` scenario + 4 invariant tests + fixture regen. |
 | W21-4 | Container hardening baseline | `[GOAL container-hardening-baseline]` | **closed `2026-05-28`** via `16e2224` + `2f9cba2` + `8c42445`; `cap_drop: [ALL]` + audited `cap_add`, `no-new-privileges:true`, ADR 0013, 12 invariant tests, and manual `NoNewPrivs:1` smoke. `read_only`, tmpfs, and custom seccomp profile deferred to W22 ratchet-down lane. |
-| W21-N | Close-out hygiene | — | **closed `2026-05-28`** via `dd24f1e`; W21 tracker freeze + §19 self-stamp + W21 Pull-Forward audit-trail close + 34 architecture parity tests. PR `week21 -> main` PENDING USER APPROVAL. |
+| W21-N | Close-out hygiene | — | **closed `2026-05-28`** via `dd24f1e`; W21 tracker freeze + §19 self-stamp + W21 Pull-Forward audit-trail close + 34 architecture parity tests. PR #30 `week21 -> main` MERGED `5dc18aa`. |
 
 **W21 acceptance**:
 

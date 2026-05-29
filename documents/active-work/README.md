@@ -26,8 +26,8 @@ points to it.
 ## Files
 
 - `W22-coverage-promotion-hard-tier.md`
-  - **Active phase — closed synthetically on the `week22` branch
-    `2026-05-28`; PR `week22 -> main` PENDING USER APPROVAL.** W22
+  - **Closed phase — closed synthetically on the `week22` branch
+    `2026-05-28` and merged to main via PR #31 `week22 -> main` `1399f82`.** W22
     Coverage Promotion Round 3 (hard tier: `chat`) + Sandbox
     Evasion ADR Draft + Container Hardening Ratchet-Down. Sub-iter
     slate: W22-0 doc-reconcile · W22-1 ADR 0014 chat policy ·

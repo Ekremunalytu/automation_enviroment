@@ -27,8 +27,8 @@
   `documents/active-work/W{8,11,12,13,14,15,16,17,18,19,20,21}-*.md`
   — these stay on the read path **only** because code/tests reference
   items by stable ID (e.g., `W11-1`, `W17-2`). Do not renumber.
-- **W22** is closed synthetically on the `week22` branch; PR
-  `week22 -> main` PENDING USER APPROVAL. Active tracker:
+- **W22** is closed synthetically on the `week22` branch and merged
+  to main via PR #31 `week22 -> main` `1399f82`. Active tracker:
   `documents/active-work/W22-coverage-promotion-hard-tier.md`. Plan:
   `documents/REFACTOR_OPTIMIZATION.md §20`.
 - ADRs live in `documents/adrs/`. ADR 0007 local-network-binding is

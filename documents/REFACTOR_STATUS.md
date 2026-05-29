@@ -308,7 +308,7 @@ phase evidence is frozen under dated snapshots:
   **220 passed** (unchanged); full suite **2045 passed, 9 skipped,
   8 deselected** (W19 baseline 1995 + W20-0..W20-5 +50).
 - **W18-W22 multi-iter roadmap state** (authored
-  `2026-05-21`; W18/W19/W20/W21 closed; W22 remains planning).
+  `2026-05-21`; W18-W22 all closed and merged to main).
   Plan identifies three independent
   problem hatları (executor muhasebe bug →
   `unaccounted_dropout`; harness verification gap → declared ≠
@@ -324,17 +324,19 @@ phase evidence is frozen under dated snapshots:
   merged via PR #29 / `64a3c3d`); **W21** coverage promotion
   round 2 (mid: `testing`, `comments`, `workspace_trust` +
   container hardening baseline — closed synthetically `2026-05-28`,
-  PR `week21 -> main` PENDING USER APPROVAL); **W22** coverage promotion
+  merged via PR #30 / `5dc18aa`); **W22** coverage promotion
   round 3 (hard: `chat` policy ADR + implementation) +
-  attribution depth + sandbox-evasion ADR draft. Roadmap
+  attribution depth + sandbox-evasion ADR draft — closed
+  synthetically `2026-05-28` and merged via PR #31 / `1399f82`. Roadmap
   source-of-truth:
   [`active-work/W18-W22-roadmap.md`](active-work/W18-W22-roadmap.md).
   §17 W19 plan + §18 W20 plan + §19-§20 W21-W22 plan at
   [`REFACTOR_OPTIMIZATION.md`](REFACTOR_OPTIMIZATION.md);
   reserved stable IDs at `POST_POC_BACKLOG.md` "W19 Pull-Forward
   Acceptance Bar" (W19 closed) + "W20 Pull-Forward Acceptance
-  Bar" (W20 closed) + "W21-W22 Roadmap Acceptance Bar
-  (planning)". Plan went through 3 review rounds (Codex live-run
+  Bar" (W20 closed) + "W21 Pull-Forward Acceptance Bar" (W21
+  closed) + "W22 Roadmap Acceptance Bar" (W22 closed). Plan went
+  through 3 review rounds (Codex live-run
   + GPT × 2).
 
 ## W13 Status Summary
@@ -408,4 +410,4 @@ promotion; W20-0..W20-5 sub-iter slate; merged via PR #29
 W21 mechanics** in
 `active-work/W21-coverage-promotion-mid-tier.md`. Multi-iter W18-W22
 roadmap source-of-truth at `active-work/W18-W22-roadmap.md`
-(W18-W21 closed; W22 planning).
+(W18-W22 closed and merged).

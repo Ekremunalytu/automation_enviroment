@@ -35,8 +35,8 @@ architecture maps here; that caused drift.
   (slim canonical).
 - Phase plans live in `documents/REFACTOR_OPTIMIZATION.md`:
   W8-W13 §11 · W14 §12 · W15 §13 · W16 §14 · W17 §15 · W18 §16 ·
-  W19 §17 · W20 §18 · W21 §19 · **W22 §20** (active, closed
-  synthetically; PR `week22 -> main` pending approval).
+  W19 §17 · W20 §18 · W21 §19 · **W22 §20** (closed
+  synthetically and merged to main via PR #31 `week22 -> main` `1399f82`).
 - Multi-iter roadmap source-of-truth:
   `documents/active-work/W18-W22-roadmap.md`. Past frozen trackers
   (`active-work/W{8,11,12,13,14,15,16,17,18,19,20,21}-*.md`) stay on

@@ -19,10 +19,10 @@ Do not copy phase history here; use `REFACTOR_STATUS.md` (slim canonical).
   full backlog under `archive/backlog/`).
 - Phase plans live in `REFACTOR_OPTIMIZATION.md`:
   W8-W13 §11 · W14 §12 · W15 §13 · W16 §14 · W17 §15 · W18 §16 ·
-  W19 §17 · W20 §18 · W21 §19 · **W22 §20** (active; closed
-  synthetically; PR `week22 -> main` PENDING USER APPROVAL).
+  W19 §17 · W20 §18 · W21 §19 · **W22 §20** (closed
+  synthetically and merged to main via PR #31 `week22 -> main` `1399f82`).
   Multi-iter source-of-truth tracker: `active-work/W18-W22-roadmap.md`.
-- **W8-W21 closed; W22 closed synthetically (PR pending approval).**
+- **W8-W22 closed and merged** (W22 via PR #31 `week22 -> main` `1399f82`).
   Per-phase merge facts (PR # / SHA) live in `REFACTOR_STATUS.md`'s
   `Last Updated:` banner. Past `active-work/W{8,11,12,13,14,15,16,17,18,19,20,21}-*.md`
   trackers stay on the read path only for stable IDs referenced by

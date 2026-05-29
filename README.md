@@ -227,10 +227,33 @@ multi-tenant web platform.
   multi-iter roadmap source-of-truth:
   [`active-work/W18-W22-roadmap.md`](documents/active-work/W18-W22-roadmap.md).
 
-  **Current phase: W21 — Coverage Promotion Round 2: Mid Tier —
+  **Current phase: W22 — Coverage Promotion Round 3: Hard Tier —
+  closed synthetically `2026-05-28` on the `week22` branch (single-
+  branch model per user direction `2026-05-28`) and merged to main
+  via PR #31 `week22 -> main` `1399f82`. §20 W22 plan source**.
+  **W22 closed the hard tier** (`chat` promoted to `covered` →
+  `coverage_summary.missing_capabilities == []`). Sub-iter slate:
+  **W22-0** doc-reconcile (`26bb080` + `ff3fbbd`); **W22-1** ADR 0014
+  chat + LM tool policy (`906fcd5` + `d018fe1`); **W22-2** chat
+  hard-tier coverage static cut (`ffbb743` + `d9e4558`); **W22-3**
+  attribution count parity for `process` + `output_channel` events
+  (`cff10d3` + `70dc43a`); **W22-4** ADR 0015 sandbox-evasion defense
+  policy (`9a8ad28` + `ea418a6`); **W22-5** sandbox-evasion canary
+  fixture (`a6dd24b` + `1de616b`); **W22-N** close-out hygiene
+  (`11595c0`). **Deferred to a Linux host (user-owned):** W22-6
+  container ratchet-down (`read_only` + tmpfs + custom seccomp) and
+  the W22-2 runtime live-run anchor
+  (`make sim-target TARGET=ms-python.python`). W22-7 skipped
+  (`[NO-W22-7]`). **Final W22 bar**: `tests/architecture/` **292
+  passed**, 4 deselected; `make test-security` **228 passed**; full
+  suite **2130 passed**, 9 skipped, 8 deselected (`make check-all`
+  green). Frozen tracker:
+  [`active-work/W22-coverage-promotion-hard-tier.md`](documents/active-work/W22-coverage-promotion-hard-tier.md).**
+
+  **Previous phase: W21 — Coverage Promotion Round 2: Mid Tier —
   closed synthetically `2026-05-28` on the `week21` branch (per
-  user direction `2026-05-27`; W11-W20 paterni preserved);
-  close-out PR `week21 -> main` PENDING USER APPROVAL. §19 W21
+  user direction `2026-05-27`; W11-W20 paterni preserved) and merged
+  to main via PR #30 `week21 -> main` `5dc18aa`. §19 W21
   plan source**. **W21 closed the mid tier** (`testing` +
   `comments` + `workspace_trust` all promoted to `covered`).
   Sub-iter slate: **W21-0** (`8434323` + `19bd9c7`) doc-reconcile +
@@ -279,8 +302,8 @@ multi-tenant web platform.
   W18 plan: [`documents/REFACTOR_OPTIMIZATION.md` §16](documents/REFACTOR_OPTIMIZATION.md).
   W19 plan: [`documents/REFACTOR_OPTIMIZATION.md` §17](documents/REFACTOR_OPTIMIZATION.md) (closed synthetically).
   W20 plan: [`documents/REFACTOR_OPTIMIZATION.md` §18](documents/REFACTOR_OPTIMIZATION.md) (closed synthetically; PR #29 `week20 -> main` MERGED `2026-05-26` via `64a3c3d`).
-  W21 plan: [`documents/REFACTOR_OPTIMIZATION.md` §19](documents/REFACTOR_OPTIMIZATION.md) (closed synthetically; PR `week21 -> main` PENDING USER APPROVAL).
-  W22 plan: [`documents/REFACTOR_OPTIMIZATION.md` §20](documents/REFACTOR_OPTIMIZATION.md) (planning).
+  W21 plan: [`documents/REFACTOR_OPTIMIZATION.md` §19](documents/REFACTOR_OPTIMIZATION.md) (closed synthetically; PR #30 `week21 -> main` MERGED `5dc18aa`).
+  W22 plan: [`documents/REFACTOR_OPTIMIZATION.md` §20](documents/REFACTOR_OPTIMIZATION.md) (closed synthetically; PR #31 `week22 -> main` MERGED `1399f82`).
 
 ## Current Architecture
 
