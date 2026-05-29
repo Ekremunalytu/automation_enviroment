@@ -49,6 +49,7 @@ def _patch_refresh_helpers(monkeypatch) -> dict[str, list[Any]]:
         "annotate_network_events": [],
         "annotate_file_events": [],
         "annotate_process_events": [],
+        "build_target_pid_lineage": [],
         "derive_verified_capabilities": [],
         "reconcile_event_attempts": [],
         "summarize_event_attempts_for_report": [],
@@ -77,6 +78,11 @@ def _patch_refresh_helpers(monkeypatch) -> dict[str, list[Any]]:
         monitor_report_assembler,
         "annotate_process_events",
         _record("annotate_process_events", ["proc-out"]),
+    )
+    monkeypatch.setattr(
+        monitor_report_assembler,
+        "build_target_pid_lineage",
+        _record("build_target_pid_lineage", set()),
     )
     # Two of the attempted capabilities will be in the derived set so we can
     # assert official vs heuristic split logic.

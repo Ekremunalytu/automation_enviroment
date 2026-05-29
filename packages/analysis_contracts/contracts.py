@@ -24,7 +24,12 @@ from pydantic import (
 # activation_discovery_strategy_outcomes and reshaped from list[str] to
 # dict[str, str] for per-strategy outcome detail), runner_exit_code, and
 # runner_status added; runner_status keys off RunnerStatusLiteral.
-ACTIVATION_REPORT_SCHEMA_VERSION = "2.1"
+# pid-lineage (file-capture attribution): 2.1 -> 2.2 — additive FileEvent.pid
+# and FileRawContext.pid (the strace-observed owning PID), so child-process
+# file I/O can be attributed to the target extension via process lineage
+# instead of timestamp proximity alone. Optional/defaulted, so reading a
+# pre-2.2 report stays backward-compatible.
+ACTIVATION_REPORT_SCHEMA_VERSION = "2.2"
 
 
 # W11-3: Top-level outcome classification for the entrypoint runner. The
@@ -113,6 +118,8 @@ class FileEvent(StrictContractModel):
     secondary_path: str = ""
     source: str = ""
     observer: str = ""
+    # strace-observed owning PID (None for inotify or pre-2.2 reports).
+    pid: int | None = None
     scenario_name: str = ""
     related_extension_id: str = ""
     related_activation_event: str = ""

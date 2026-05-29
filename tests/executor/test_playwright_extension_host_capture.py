@@ -192,6 +192,66 @@ def test_extension_host_file_capture_invokes_event_callback_on_strace_event(
     cap.stop()
 
 
+def test_strace_file_event_carries_owning_pid(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """File events carry the strace ``[pid N]`` owner; bare lines fall back to root.
+
+    This is the plumbing pid-lineage attribution relies on: each strace file
+    event must know which PID performed the syscall so a child-process read can
+    later be attributed to the extension that spawned it.
+    """
+    _patch_pid_resolver(monkeypatch, pid=840)
+    stderr_lines = [
+        # child pid 4242 reads a workspace file -> pid must be 4242
+        '[pid 4242] 1700000002.000 openat(AT_FDCWD, "/workspace/probe.txt", O_RDONLY) = 7\n',
+        # a line with no [pid] prefix -> falls back to the attach root pid (840)
+        '1700000003.000 openat(AT_FDCWD, "/workspace/root.txt", O_RDONLY) = 8\n',
+    ]
+    monkeypatch.setattr(
+        capture_module.subprocess, "Popen", _make_fake_popen_factory(stderr_lines)
+    )
+
+    cap = extension_host.ExtensionHostFileCapture(monitoring_start=0.0)
+    cap.start()
+    _wait_for_thread_drain(cap)
+
+    by_path = {event.path: event for event in cap.events}
+    assert by_path["/workspace/probe.txt"].pid == 4242
+    assert by_path["/workspace/root.txt"].pid == 840
+    cap.stop()
+
+
+def test_strace_cmd_has_volume_flags_without_widening_trace_set(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Volume control (-qq, signal=none) is applied; the syscall set is not
+    widened (brief §8) and no status filter drops failed (recon) syscalls."""
+    _patch_pid_resolver(monkeypatch, pid=4242)
+    monkeypatch.setattr(
+        capture_module.subprocess, "Popen", _make_fake_popen_factory([])
+    )
+
+    cap = extension_host.ExtensionHostFileCapture(monitoring_start=0.0)
+    cap.start()
+    _wait_for_thread_drain(cap)
+
+    cmd = cap._proc.cmd
+    assert "-qq" in cmd
+    assert "signal=none" in cmd
+    # The trace= syscall set must stay byte-identical (no widening).
+    trace_arg = next(arg for arg in cmd if arg.startswith("trace="))
+    assert trace_arg == (
+        "trace=open,openat,creat,unlink,unlinkat,rename,renameat,"
+        "renameat2,mkdir,rmdir,newfstatat,readlink,execve,execveat,"
+        "clone,clone3,fork,vfork,chdir"
+    )
+    # Failed syscalls (e.g. a probe of ~/.ssh/id_rsa) must NOT be dropped.
+    assert not any("status=" in arg for arg in cmd)
+    assert "-p" in cmd and str(4242) in cmd
+    cap.stop()
+
+
 def test_extension_host_file_capture_stop_joins_thread_and_returns_events(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

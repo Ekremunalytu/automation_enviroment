@@ -245,6 +245,7 @@ export interface FileEventDto {
   secondary_path?: string;
   source?: string;
   observer?: string;
+  pid?: number | null;
   scenario_name?: string;
   related_extension_id?: string;
   related_activation_event?: string;
@@ -312,6 +313,7 @@ export interface FileRawContextDto {
   flags?: string;
   observer?: string;
   source?: string;
+  pid?: number | null;
 }
 
 export interface ProcessRawContextDto {

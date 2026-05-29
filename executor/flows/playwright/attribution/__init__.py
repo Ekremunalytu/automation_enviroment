@@ -31,6 +31,7 @@ from .events import (
     relative_time,
     scenario_name_for_timestamp,
 )
+from .lineage import build_target_pid_lineage
 from .links import build_evidence_bundle
 
 if TYPE_CHECKING:
@@ -69,6 +70,7 @@ __all__ = [
     "build_risk_signals",
     "build_risk_summary",
     "build_signal_summary",
+    "build_target_pid_lineage",
     "format_epoch_timestamp",
     "relative_time",
     "scenario_name_for_timestamp",

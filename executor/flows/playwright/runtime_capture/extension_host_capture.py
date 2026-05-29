@@ -11,7 +11,11 @@ from typing import Any
 
 from executor.binary_paths import INOTIFYWAIT_PATH, STRACE_PATH
 
-from ._shared import _log
+from ._shared import (
+    _enumerate_proc_pids,
+    _log,
+    backfill_ppids_from_proc,
+)
 from .events import ActivationEntry, FileEvent, ProcessEvent
 from .extension_host_log_parse import _ACTIVATION_PATTERNS, find_exthost_logs
 from .extension_host_strace_parse import parse_strace_process_event_line
@@ -42,6 +46,7 @@ class ExtensionHostFileCapture:
         self.diagnostics: dict[str, Any] = {
             "attempts": 0,
             "selected_pid": None,
+            "attach_strategy": "",
             "status": "planned",
             "poll_timeout_s": 10.0,
             "poll_interval_s": 0.5,
@@ -70,11 +75,30 @@ class ExtensionHostFileCapture:
             return
 
         self._pid = pid
-        self._ppid_by_pid[pid] = None
+        # Seed parent/cwd lineage for processes that already exist at attach
+        # time. strace -f only records a parent when it observes the
+        # clone/fork/vfork that creates a child, so pre-existing processes
+        # would otherwise have no parent and break pid-lineage attribution.
+        # Live clone observations run later and overwrite these entries.
+        backfill_ppids_from_proc(
+            _enumerate_proc_pids(),
+            self._ppid_by_pid,
+            cwd_by_pid=self._cwd_by_pid,
+        )
+        self._ppid_by_pid.setdefault(pid, None)
         self.diagnostics["selected_pid"] = pid
         cmd = [
             STRACE_PATH,
             "-f",
+            # Volume control without widening the syscall set (brief §8): -qq
+            # silences attach/detach/exit chatter and `-e signal=none` drops
+            # signal-delivery lines. Neither changes which file/process
+            # syscalls are traced. Failed syscalls are deliberately kept — a
+            # failed open of ~/.ssh/id_rsa is a recon signal — so
+            # `-e status=successful` is intentionally NOT used.
+            "-qq",
+            "-e",
+            "signal=none",
             "-ttt",
             "-s",
             "256",
@@ -150,6 +174,7 @@ class ExtensionHostFileCapture:
             event = parse_strace_file_event_line(
                 line,
                 monitoring_start=self.monitoring_start,
+                root_pid=self._pid or 0,
             )
             if event is None:
                 continue

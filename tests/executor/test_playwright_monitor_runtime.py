@@ -666,11 +666,11 @@ def test_wait_for_extension_host_pid_retries_until_candidate_appears(
 ) -> None:
     seen = {"count": 0}
 
-    def fake_find_pid() -> int | None:
+    def fake_find_pid() -> tuple[int | None, str]:
         seen["count"] += 1
-        return 1184 if seen["count"] >= 3 else None
+        return (1184, "vscode_main") if seen["count"] >= 3 else (None, "")
 
-    monkeypatch.setattr(monitor, "_find_extension_host_pid", fake_find_pid)
+    monkeypatch.setattr(monitor, "_find_vscode_attach_pid", fake_find_pid)
     monkeypatch.setattr(monitor.time, "sleep", lambda _: None)
 
     pid, diagnostics = monitor._wait_for_extension_host_pid(
@@ -679,6 +679,40 @@ def test_wait_for_extension_host_pid_retries_until_candidate_appears(
 
     assert pid == 1184
     assert diagnostics["attempts"] == 3
+    assert diagnostics["attach_strategy"] == "vscode_main"
+
+
+def test_find_vscode_attach_pid_selects_extension_host(monkeypatch) -> None:
+    # Attaches to the ext host directly even with a main `code` process
+    # present; a main-process ancestor attach was reverted because strace -f
+    # misses the already-spawned ext-host subtree (live run captured ~0).
+    entries = monitor._parse_process_table(
+        "100 1 /usr/share/code/code --user-data-dir=/tmp/profile\n"
+        "1184 100 /usr/share/code/code --type=utility "
+        "--utility-sub-type=node.mojom.NodeService "
+        "--user-data-dir=/tmp/profile --inspect-port=0\n"
+    )
+    monkeypatch.setattr(monitor.runtime, "_read_process_entries", lambda: entries)
+
+    assert monitor._find_vscode_attach_pid() == (1184, "extension_host")
+
+
+def test_find_vscode_attach_pid_selects_legacy_extension_host(monkeypatch) -> None:
+    entries = monitor._parse_process_table(
+        "202 1 /usr/share/code/code --type=utility extensionHost "
+        "--user-data-dir=/tmp/profile\n"
+    )
+    monkeypatch.setattr(monitor.runtime, "_read_process_entries", lambda: entries)
+
+    assert monitor._find_vscode_attach_pid() == (202, "extension_host")
+
+
+def test_find_vscode_attach_pid_none_when_process_table_unavailable(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(monitor.runtime, "_read_process_entries", lambda: None)
+
+    assert monitor._find_vscode_attach_pid() == (None, "")
 
 
 def test_parse_activation_function_entry_marker(tmp_path: Path) -> None:

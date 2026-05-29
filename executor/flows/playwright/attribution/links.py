@@ -238,6 +238,7 @@ def build_evidence_bundle(
                     "flags": file_event.flags,
                     "observer": file_event.observer,
                     "source": file_event.source,
+                    "pid": file_event.pid,
                 },
             )
         )

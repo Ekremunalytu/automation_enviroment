@@ -607,6 +607,46 @@ Closed (one-line audit trail):
 
 ### Contracts / Reports / Detection
 
+- `[FOLLOWUP file-capture-pid-lineage-attribution]` — **landed `2026-05-29`
+  on `static` (this commit).** Fixes the `target_file_events: 0` attribution
+  gap for child-process file I/O. Verified-then-corrected a standing brief
+  whose hypothesis ("strace lacks `-f`") was wrong — `-f` and the `[pid N]`
+  prefix parser were already present, so its proposed fix was a no-op. Real
+  fix in three parts: (W1) `/proc` PPID/cwd backfill
+  (`runtime_capture/_shared.py`) seeding lineage for processes that pre-exist
+  the attach; (W2a) `pid` on `FileEvent` dataclass + Pydantic contract +
+  `FileRawContext`, `ACTIVATION_REPORT_SCHEMA_VERSION` 2.1→2.2 (additive),
+  generated TS DTO; (W2b) pid-lineage attribution (`attribution/lineage.py`) —
+  a strace file event whose owning PID descends from a process the target
+  spawned during activation is attributed to the target even outside the
+  ±1.25s temporal window, shared ext-host root PID deliberately excluded.
+  Volume flags `-qq` + `-e signal=none` added (NOT `status=successful` — keeps
+  failed/recon syscalls). Gates green (ruff/mypy/bandit/ui-types/ui-boundaries;
+  full local suite 2061). Test pins:
+  `tests/executor/test_runtime_capture_proc_backfill.py`; pid-lineage cases in
+  `test_playwright_attribution_events.py`; pid-threading + cmd-flag cases in
+  `test_playwright_extension_host_capture.py`.
+- `[FOLLOWUP file-capture-w3-ancestor-attach-do-not-repeat]` — **reverted
+  `2026-05-29`.** W3 attached strace to the VS Code **main** process (so `-f`
+  would cover ext-host + pty-host from one attach). A live scan disproved it:
+  report `output/activation_report_ms-python.python-2026.5.2026052901-2cb1bd9e7aa2.json`
+  (18:00, schema 2.2) captured **0** strace file events + 4 thread-clones, vs
+  the `df4471b` ext-host-attach baseline of 139 file / 53 process events. Root
+  cause: `strace -f` follows only children forked AFTER attach, and the
+  ext-host subtree pre-exists the attach (main resolves at attempt 1).
+  Reverted `_find_vscode_attach_pid` to attach to the ext host. **Lesson:
+  out-of-tree coverage needs a separate ADDITIVE attach, never an ancestor
+  attach.**
+- `[FOLLOWUP file-capture-out-of-tree-coverage]` — **deferred / pull-next.**
+  Cause C: terminal/task processes are spawned by VS Code's pty-host (a
+  sibling of the ext host), invisible to an ext-host-only strace. Fix = a
+  SECOND strace attached to the pty-host (discover via `--type=utility` +
+  `ptyHost`/`ptyHostMain` arg token, parent == VS Code main), merging its
+  stderr into the existing single `_consume_stderr` consumer under a lock,
+  keeping the ext-host attach primary (regression-free). Cause B (raw capture
+  of activation-window I/O before attach) is a documented residual — `/proc`
+  backfill mitigates lineage but not pre-attach capture. Both need live
+  CPU/volume validation under `cpus: 2.0`.
 - `[BUG scenario-dropout-upstream-root-cause]` — **closed via W14-1
   `2026-05-13`** (BLOCKER → HIGH); conservation guard at
   `scenario_accountant.py:392-438` is the fix-of-record.

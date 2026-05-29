@@ -69,6 +69,7 @@ class FileEvent:
     secondary_path: str = ""
     source: str = ""  # "extension", "automation", "system"
     observer: str = ""  # "strace", "inotify"
+    pid: int | None = None  # strace-observed owning PID; None for inotify
     scenario_name: str = ""
     related_extension_id: str = ""
     related_activation_event: str = ""

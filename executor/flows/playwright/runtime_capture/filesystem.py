@@ -61,6 +61,8 @@ def _normalize_strace_operation(call: str, args: str) -> str:
 def parse_strace_file_event_line(
     line: str,
     monitoring_start: float = 0.0,
+    *,
+    root_pid: int = 0,
 ) -> FileEvent | None:
     """Parse a single strace line from the Extension Host process."""
     match = _STRACE_CALL_RE.match(line.strip())
@@ -100,6 +102,9 @@ def parse_strace_file_event_line(
     else:
         summary = f"{operation}: {primary_path}"
 
+    pid_group = match.group("pid")
+    pid = int(pid_group) if pid_group else (root_pid or None)
+
     return FileEvent(
         timestamp=timestamp,
         rel_time_s=rel_time_s,
@@ -108,6 +113,7 @@ def parse_strace_file_event_line(
         secondary_path=secondary_path,
         source="extension",
         observer="strace",
+        pid=pid,
         flags=args,
         sensitive=_is_sensitive_path(primary_path),
         summary=summary,
