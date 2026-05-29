@@ -119,16 +119,27 @@ services:
     # Docker-default keepset (CAP_CHOWN, CAP_DAC_OVERRIDE, CAP_FOWNER,
     # CAP_SETUID, CAP_SETGID, CAP_MKNOD, CAP_NET_BIND_SERVICE, CAP_SETFCAP,
     # CAP_SETPCAP, CAP_SYS_CHROOT, CAP_KILL, CAP_AUDIT_WRITE, CAP_FSETID).
-    # cap_add restores only what the harness monitoring tools genuinely
-    # need: NET_RAW for tcpdump/tshark (per executor/container/Dockerfile
-    # L30-L31) and SYS_PTRACE for strace (L33). no-new-privileges:true
-    # closes the residual set-uid path. read_only + custom seccomp
+    # cap_add restores only what the harness genuinely needs:
+    #   - NET_RAW   — tcpdump/tshark packet capture (Dockerfile L30-L31).
+    #   - SYS_PTRACE — strace (Dockerfile L33).
+    #   - SETUID/SETGID/SETPCAP — used ONCE at the start of the analyze
+    #     monitor exec by monitor_entrypoint.sh (setpriv) to raise NET_RAW
+    #     into the *ambient* set and drop root -> executor. Required because
+    #     no-new-privileges:true nullifies dumpcap's cap_net_raw file
+    #     capability, so tshark only gets NET_RAW effective via an ambient
+    #     cap established before the privilege drop. Bounded like the
+    #     api/ui SETUID/SETGID retention: the workload runs unprivileged
+    #     (executor uid) under no_new_privs, so these stay non-escalation.
+    # no-new-privileges:true is preserved. read_only + custom seccomp
     # deferred to W22 ratchet-down lane — see ADR 0013 §Deferred.
     cap_drop:
       - ALL
     cap_add:
       - NET_RAW
       - SYS_PTRACE
+      - SETUID
+      - SETGID
+      - SETPCAP
     security_opt:
       - "no-new-privileges:true"
     mem_limit: ${EXECUTOR_MEM_LIMIT:-4g}

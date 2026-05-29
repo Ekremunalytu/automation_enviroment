@@ -32,7 +32,9 @@ EXECUTOR_DOCKERFILE = ROOT / "executor" / "container" / "Dockerfile"
 
 LAUNCH_VSCODE_BASENAME = r"launch_vscode\.sh"
 START_SH_BASENAME = r"start\.sh"
+MONITOR_ENTRYPOINT_BASENAME = r"monitor_entrypoint\.sh"
 LAUNCH_VSCODE_PATH = "/home/executor/container/launch_vscode.sh"
+MONITOR_ENTRYPOINT_PATH = "/usr/local/bin/monitor_entrypoint.sh"
 
 
 def _dockerfile_text() -> str:
@@ -154,6 +156,100 @@ def test_start_sh_remains_root_owned() -> None:
     )
 
 
+def test_monitor_entrypoint_is_root_owned() -> None:
+    """monitor_entrypoint.sh must stay root-owned + non-writable by executor.
+
+    The wrapper is exec'd as ROOT (`docker exec -u 0 ...` from
+    `run_playwright_automation`) so it can raise CAP_NET_RAW into the
+    ambient set before dropping to the executor user (ADR 0013). That
+    makes a writable copy strictly worse than the launch_vscode.sh vector:
+    a target extension running under the executor UID that could overwrite
+    it would gain *root* execution, not just executor execution. Pin that
+    the Dockerfile never chowns it to executor and ships it via a plain
+    root:root COPY (no `--chown`).
+    """
+    text = _dockerfile_text()
+
+    forbidden_run_chown = re.search(
+        rf"chown\s+executor(?::\S+)?\s+[^\n]*\b{MONITOR_ENTRYPOINT_BASENAME}\b",
+        text,
+    )
+    assert forbidden_run_chown is None, (
+        f"Dockerfile: `chown executor:...` applied to monitor_entrypoint.sh "
+        f"({forbidden_run_chown.group(0)!r}) — root-exec'd wrapper must stay "
+        f"root-owned (executor->root escalation otherwise)."
+    )
+
+    forbidden_copy_chown = re.search(
+        rf"COPY\s+--chown=executor(?::\S+)?\s+[^\n]*\b{MONITOR_ENTRYPOINT_BASENAME}\b",
+        text,
+    )
+    assert forbidden_copy_chown is None, (
+        f"Dockerfile: `COPY --chown=executor:...` applied to "
+        f"monitor_entrypoint.sh ({forbidden_copy_chown.group(0)!r}) — must "
+        f"ship root-owned."
+    )
+
+    has_copy = re.search(
+        rf"COPY\s+[^\n]*\b{MONITOR_ENTRYPOINT_BASENAME}\b",
+        text,
+    )
+    assert has_copy is not None, (
+        "Dockerfile: monitor_entrypoint.sh must be COPY'd into the image "
+        "(it is the ambient-cap drop wrapper for the analyze monitor)."
+    )
+
+
+@pytest.mark.smoke
+@pytest.mark.integration
+def test_monitor_entrypoint_runtime_ownership_smoke() -> None:
+    """Runtime invariant: monitor_entrypoint.sh ships root-owned + not
+    writable by executor in the built image.
+
+    Static Dockerfile regex (test_monitor_entrypoint_is_root_owned) can
+    pass while a broken RUN order reopens the gate at runtime; this closes
+    the blind spot. The owner must be root and the group/other write bits
+    must be clear so the executor UID cannot overwrite the root-exec'd
+    wrapper.
+    """
+    docker_bin = _resolve_executor_container()
+    result = subprocess.run(  # noqa: S603
+        [
+            docker_bin,
+            "exec",
+            "--user",
+            "root",
+            settings.executor.CONTAINER_NAME,
+            "stat",
+            "-c",
+            "%U %a",
+            MONITOR_ENTRYPOINT_PATH,
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, (
+        f"stat failed (rc={result.returncode}):\n"
+        f"stdout: {result.stdout}\nstderr: {result.stderr}"
+    )
+    owner, _, mode = result.stdout.strip().partition(" ")
+    assert owner == "root", (
+        f"monitor_entrypoint.sh owner drifted: {owner!r} (expected 'root')."
+    )
+    # Group + other write bits (the last two octal digits' 2-bit) must be 0
+    # so the executor UID cannot overwrite the root-exec'd wrapper.
+    assert (
+        mode
+        and len(mode) >= 3
+        and int(mode[-1]) & 0o2 == 0
+        and int(mode[-2]) & 0o2 == 0
+    ), (
+        f"monitor_entrypoint.sh mode {mode!r} grants group/other write — "
+        f"executor UID could overwrite the root-exec'd wrapper."
+    )
+
+
 @pytest.mark.smoke
 @pytest.mark.integration
 def test_launch_vscode_runtime_ownership_and_mode_smoke() -> None:
@@ -167,12 +263,16 @@ def test_launch_vscode_runtime_ownership_and_mode_smoke() -> None:
     """
 
     docker_bin = _resolve_executor_container()
+    # Stat as the default (executor) user, NOT `--user root`. Under the
+    # ADR 0013 hardened container (`cap_drop: [ALL]`) root holds no
+    # DAC_OVERRIDE / DAC_READ_SEARCH, so `docker exec --user root` cannot
+    # traverse `/home/executor` (mode 0750, owner executor) and statx fails
+    # with EACCES. The executor user owns its home and reads the same inode
+    # metadata, so the ownership/mode assertion is identical.
     result = subprocess.run(  # noqa: S603
         [
             docker_bin,
             "exec",
-            "--user",
-            "root",
             settings.executor.CONTAINER_NAME,
             "stat",
             "-c",

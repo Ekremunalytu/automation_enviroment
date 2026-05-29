@@ -46,7 +46,7 @@ For each runtime service in `docker-compose.yml`:
 
 | Service | `cap_drop` | `cap_add` (kept) | `security_opt` | `read_only` | `tmpfs` |
 |---|---|---|---|---|---|
-| `automation_executor` | `[ALL]` | `[NET_RAW, SYS_PTRACE]` | `["no-new-privileges:true"]` | **deferred to W22** | **deferred to W22** |
+| `automation_executor` | `[ALL]` | `[NET_RAW, SYS_PTRACE, SETUID, SETGID, SETPCAP]` | `["no-new-privileges:true"]` | **deferred to W22** | **deferred to W22** |
 | `automation_api` | `[ALL]` | `[SETUID, SETGID]` | `["no-new-privileges:true"]` | **deferred to W22** | **deferred to W22** |
 | `automation_ui` | `[ALL]` | `[SETUID, SETGID, CHOWN, DAC_OVERRIDE]` | `["no-new-privileges:true"]` | **deferred to W22** | **deferred to W22** |
 | `postgres` / `postgres_test` | unchanged | unchanged | unchanged | unchanged (named volume needs write) | unchanged |
@@ -93,6 +93,71 @@ healthy after adding SETUID+SETGID, ui still failed with
 `chown(...) failed: Operation not permitted` until CHOWN +
 DAC_OVERRIDE were added). The ratchet-down option (static USER
 directive in `ui/Dockerfile` + pre-chowned cache dir) is W22+.
+
+### Network capture under no-new-privileges (`2026-05-29` follow-up)
+
+The W21-4 baseline shipped `cap_add: [NET_RAW, SYS_PTRACE]` on the
+executor specifically so `tshark`/`tcpdump` could capture packets. A
+post-merge investigation on `2026-05-29` found that **network capture
+had silently stopped working** ever since the baseline landed —
+`activation_report` files showed `network_events: 0` and
+`network_capture_error: "tshark: ... You don't have permission to
+capture on that device"`, whereas pre-baseline reports captured 150+
+events.
+
+Root cause: the executor runs the workload as the unprivileged
+`executor` user (Dockerfile `USER executor`), and `dumpcap` obtains
+CAP_NET_RAW via a **file capability** (`setcap cap_net_raw+eip`,
+Dockerfile L93-94). `no-new-privileges:true` (`PR_SET_NO_NEW_PRIVS`)
+**disables file-capability elevation at `execve`** — so dumpcap's file
+cap is nullified, and a non-root `docker exec` process gets no effective
+caps from `cap_add` either (cap_add only seeds the bounding set for
+non-root). Net result: tshark runs with an empty effective set and
+cannot open a raw socket. (The original §Operational-notes smoke
+expectation that `CapEff` would show NET_RAW for the executor was
+therefore incorrect — a non-root process's `CapEff` is `0`.)
+
+Decision: keep `no-new-privileges:true` and grant CAP_NET_RAW as an
+**ambient** capability instead of relying on the file cap. Ambient caps
+survive both a uid transition and `execve` under no_new_privs, so they
+reach the docker-exec'd monitor process tree (`python` → `tshark`).
+Mechanics:
+
+- `executor.host.run_playwright_automation` runs the monitor exec as
+  root (`docker exec -u 0 ...`) and prepends
+  `/usr/local/bin/monitor_entrypoint.sh` to the command.
+- `monitor_entrypoint.sh` (root) calls `setpriv --reuid=executor
+  --regid=executor --init-groups --inh-caps=+net_raw
+  --ambient-caps=+net_raw -- python3 -m ...entrypoint --monitor ...`.
+  The workload therefore runs as the **executor** user (same uid as VS
+  Code — the same-UID model is preserved) with CAP_NET_RAW effective.
+  Only `setpriv` runs in the brief root window; the monitor workload is
+  never root.
+- If the ambient grant is unavailable (e.g. a stale container without
+  the new caps), the wrapper probes first and falls back to a plain user
+  drop, so the rest of the monitor (file/process/strace capture) still
+  runs and only network capture is lost. It never runs the workload as
+  root.
+
+This requires three more caps on the executor, used **once per monitor
+exec** by setpriv and bounded exactly like the api/ui SETUID+SETGID
+retention above:
+
+- **SETUID + SETGID** — to drop root → executor.
+- **SETPCAP** — to raise NET_RAW into the inheritable+ambient sets.
+
+These are not in-container escalation vectors: the workload runs as the
+unprivileged executor user under `no-new-privileges:true`, so code
+inside the container cannot regain them (no file caps, no setuid, no
+ambient beyond NET_RAW). The wrapper is exec'd as root and is therefore
+shipped root-owned + non-writable by the executor UID (Dockerfile +
+`tests/architecture/test_executor_runtime_script_permissions.py`), the
+same ratchet that protects `launch_vscode.sh`.
+
+Future ratchet-down option (W22+): a dedicated capture sidecar sharing
+the executor's network namespace would let the executor drop NET_RAW +
+the setpriv trio entirely, at the cost of a new service and out-of-process
+capture plumbing.
 
 ### Rationale
 
@@ -197,8 +262,19 @@ make exec-up
 
 # 2. Verify cap_drop + no-new-privileges took effect on the executor.
 docker exec automation_executor cat /proc/self/status | grep -E "Cap|NoNewPrivs"
-# Expected: NoNewPrivs:    1
-# Expected: CapEff: 0000000000200000 (only NET_RAW = bit 13 + SYS_PTRACE = bit 19; 0x00200000 if PTRACE alone, exact hex depends on Docker version)
+# Expected: NoNewPrivs:	1
+# Expected: CapEff:	0000000000000000  (the executor process runs non-root,
+#   so it holds NO effective caps — cap_add only seeds the BOUNDING set,
+#   CapBnd. Expect CapBnd to contain SETGID (bit 6) + SETUID (bit 7) +
+#   SETPCAP (bit 8) + NET_RAW (bit 13) + SYS_PTRACE (bit 19) =
+#   0x00000000000821c0.)
+# 2b. Verify network capture actually gets NET_RAW effective via the
+#     ambient-cap drop wrapper (the real signal — see §Network capture
+#     under no-new-privileges):
+docker exec -u 0 automation_executor /usr/local/bin/monitor_entrypoint.sh \
+  grep CapEff /proc/self/status
+# Expected: CapEff:	0000000000002000  (NET_RAW = bit 13, set as ambient and
+#   preserved across the setpriv drop to the executor user).
 
 # 3. Trigger an analyze for ms-python.python.
 curl -X POST http://127.0.0.1:8000/api/marketplace/analyze/start \

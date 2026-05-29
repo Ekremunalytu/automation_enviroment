@@ -33,6 +33,12 @@ RM_PATH = "/bin/rm"
 INOTIFYWAIT_PATH = "/usr/bin/inotifywait"
 TSHARK_PATH = "/usr/bin/tshark"
 STRACE_PATH = "/usr/bin/strace"
+# Monitor privilege-drop wrapper (executor/container/monitor_entrypoint.sh,
+# baked into the image). run_playwright_automation prepends this to the
+# docker-exec'd monitor command and runs the exec as root so the wrapper can
+# raise CAP_NET_RAW into the ambient set before dropping to the executor user —
+# the only way tshark gets NET_RAW effective under no-new-privileges (ADR 0013).
+MONITOR_ENTRYPOINT_PATH = "/usr/local/bin/monitor_entrypoint.sh"
 
 _DOCKER_PATH: str | None = None
 
@@ -63,6 +69,7 @@ def _reset_docker_path_cache() -> None:
 __all__ = [
     "CODE_PATH",
     "INOTIFYWAIT_PATH",
+    "MONITOR_ENTRYPOINT_PATH",
     "PKILL_PATH",
     "PYTHON3_PATH",
     "RM_PATH",

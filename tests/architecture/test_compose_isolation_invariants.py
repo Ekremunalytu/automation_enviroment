@@ -97,27 +97,36 @@ def test_runtime_service_refuses_new_privileges(service_name: str) -> None:
 
 def test_executor_keeps_audited_capabilities() -> None:
     """ADR 0013: the `executor` service drops ALL caps but explicitly
-    re-adds NET_RAW + SYS_PTRACE because the harness monitoring tools
-    (tcpdump/tshark/strace per executor/container/Dockerfile L30-L33)
-    need them. Removing either would silently break malware
-    observability without surfacing as a test failure elsewhere —
-    pin both here.
+    re-adds a small audited set:
+
+    - NET_RAW + SYS_PTRACE — the harness monitoring tools (tcpdump/
+      tshark/strace per executor/container/Dockerfile L30-L33) need them.
+    - SETUID + SETGID + SETPCAP — used ONCE at the start of the analyze
+      monitor exec by monitor_entrypoint.sh (setpriv) to raise NET_RAW
+      into the *ambient* set and drop root -> executor. Required because
+      no-new-privileges:true nullifies dumpcap's cap_net_raw file
+      capability; the ambient cap is the only way tshark gets NET_RAW
+      effective while the workload still runs unprivileged.
+
+    Removing any of these would silently break malware observability (or,
+    for the setpriv trio, network capture specifically) without surfacing
+    elsewhere — pin the exact set here. ADR 0013 §Network capture under
+    no-new-privileges.
     """
     services = _load_compose()
     cap_add = services["executor"].get("cap_add") or []
-    assert "NET_RAW" in cap_add, (
-        "executor must keep CAP_NET_RAW (tcpdump/tshark — "
-        "executor/container/Dockerfile L30-L31). ADR 0013 §Decision."
-    )
-    assert "SYS_PTRACE" in cap_add, (
-        "executor must keep CAP_SYS_PTRACE (strace — "
-        "executor/container/Dockerfile L33). ADR 0013 §Decision."
+    required = {"NET_RAW", "SYS_PTRACE", "SETUID", "SETGID", "SETPCAP"}
+    missing = sorted(required - set(cap_add))
+    assert not missing, (
+        f"executor cap_add must contain {sorted(required)}. Missing: "
+        f"{missing}. NET_RAW/SYS_PTRACE = monitoring; SETUID/SETGID/SETPCAP "
+        f"= monitor_entrypoint.sh ambient-cap drop. ADR 0013 §Decision."
     )
     # Surface a regression if anything else creeps in — those would
     # need their own ADR justification.
-    extra = sorted(set(cap_add) - {"NET_RAW", "SYS_PTRACE"})
+    extra = sorted(set(cap_add) - required)
     assert not extra, (
-        f"executor cap_add must contain exactly NET_RAW + SYS_PTRACE. "
+        f"executor cap_add must contain exactly {sorted(required)}. "
         f"Extra capabilities found: {extra}. Audit + update ADR 0013."
     )
 

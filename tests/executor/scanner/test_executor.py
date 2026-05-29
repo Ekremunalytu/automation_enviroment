@@ -366,6 +366,38 @@ def test_run_automation_success(
     mock_cleanup.assert_called_once_with(None)
 
 
+@patch("executor.host.subprocess.run")
+def test_run_automation_uses_root_drop_wrapper_for_capture(
+    mock_run: MagicMock,
+) -> None:
+    """ADR 0013: the monitor exec runs as root (-u 0) and goes through the
+    monitor_entrypoint.sh wrapper so it can raise CAP_NET_RAW into the
+    ambient set before dropping to the executor user. Without this, tshark
+    cannot capture under no-new-privileges. Drives subprocess.run directly
+    so the real docker exec argv (built in _run_docker_exec) is asserted.
+    """
+    mock_run.return_value = subprocess.CompletedProcess(
+        args=[], returncode=0, stdout="Report written.", stderr=""
+    )
+
+    run_playwright_automation("/results/r.json", scenario="all")
+
+    argv = mock_run.call_args[0][0]
+    # docker exec must run as root so the wrapper can set ambient caps.
+    assert "-u" in argv, f"monitor exec must pass -u: {argv}"
+    assert argv[argv.index("-u") + 1] == "0", "monitor exec must run as -u 0"
+    # HOME pinned to the executor home (the exec starts as root → /root).
+    assert "HOME=/home/executor" in argv, "monitor exec must pin HOME"
+    # The wrapper is the container command and python -m ...entrypoint runs
+    # after it (the wrapper drops privileges then exec's the monitor).
+    wrapper = binary_paths.MONITOR_ENTRYPOINT_PATH
+    assert wrapper in argv, f"monitor exec must go through the wrapper: {argv}"
+    assert argv.index(wrapper) < argv.index(PYTHON3_PATH), (
+        "monitor_entrypoint.sh must precede python3 in the exec argv"
+    )
+    assert "--monitor" in argv
+
+
 @patch("executor.host.cleanup_trigger_file")
 @patch("executor.host._docker_exec_allow_partial")
 def test_run_automation_with_scenario(
