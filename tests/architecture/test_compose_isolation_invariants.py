@@ -6,10 +6,13 @@ edit cannot silently regress it.
 
 What's pinned:
 
-1. Three runtime services (`executor`, `api`, `ui`) carry
-   `cap_drop: [ALL]` so Docker's permissive default keepset is
-   removed.
-2. The same three services carry `security_opt:
+1. Four runtime services (`executor`, `api`, `ui`, `static_analyzer`)
+   carry `cap_drop: [ALL]` so Docker's permissive default keepset is
+   removed. (`static_analyzer` lands in ES-2, ADR 0016; its
+   static-specific envelope — network_mode none, no cap_add, resource
+   caps, mount posture — is pinned in
+   `tests/security/test_static_container_isolation.py`.)
+2. The same four services carry `security_opt:
    ["no-new-privileges:true"]` so the residual set-uid privilege
    escalation path is closed.
 3. The `executor` service preserves `cap_add: [NET_RAW, SYS_PTRACE,
@@ -57,7 +60,7 @@ def _load_compose() -> dict[str, Any]:
     return services
 
 
-_HARDENED_SERVICES = ("executor", "api", "ui")
+_HARDENED_SERVICES = ("executor", "api", "ui", "static_analyzer")
 
 
 @pytest.mark.parametrize("service_name", _HARDENED_SERVICES)

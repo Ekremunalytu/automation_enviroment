@@ -29,6 +29,7 @@ from executor.binary_paths import (
     PKILL_PATH,
     PYTHON3_PATH,
     RM_PATH,
+    STATIC_ANALYZER_PYTHON3_PATH,
     XDG_OPEN_PATH,
     HostBinaryNotFoundError,
     docker_path,
@@ -42,7 +43,14 @@ from executor.binary_paths import (
 
 @pytest.mark.parametrize(
     "constant",
-    [CODE_PATH, XDG_OPEN_PATH, PYTHON3_PATH, PKILL_PATH, RM_PATH],
+    [
+        CODE_PATH,
+        XDG_OPEN_PATH,
+        PYTHON3_PATH,
+        PKILL_PATH,
+        RM_PATH,
+        STATIC_ANALYZER_PYTHON3_PATH,
+    ],
 )
 def test_container_internal_binary_constant_is_absolute(constant: str) -> None:
     assert isinstance(constant, str)

@@ -152,6 +152,36 @@ services:
       start_period: 30s
     stop_grace_period: 10s
 
+  # Static analysis pre-check service (ES-2, ADR 0016 §Decision 2). Hardened,
+  # network-isolated container that (from ES-3a) parses untrusted VSIX manifests
+  # and file trees off the host + off the executor. Driven from the host via
+  # `docker exec` (executor/static_host.py); idles on `sleep infinity` so exec
+  # always has a live target. Feature flag (STATIC_ANALYSIS_ENABLED) OFF until ES-5.
+  static_analyzer:
+    build:
+      context: .
+      dockerfile: docker/static_analyzer/Dockerfile
+    container_name: automation_static_analyzer
+    restart: unless-stopped
+    # Idle so the one-shot analyzer stays reachable via `docker exec` (ES-3b).
+    command: ["sleep", "infinity"]
+    # ADR 0016 §Decision 2: no network at all — the analyzer never needs egress.
+    network_mode: "none"
+    volumes:
+      # Read-only extensions input; read-write results. Reuses the executor mount
+      # env vars so both stages see the same input tree + results dir.
+      - ${EXECUTOR_EXTENSIONS_HOST_PATH:-./extensions}:${EXECUTOR_EXTENSIONS_CONTAINER_PATH:-/extensions-input}:ro
+      - ${EXECUTOR_OUTPUT_HOST_PATH:-./output}:${EXECUTOR_OUTPUT_CONTAINER_PATH:-/results}
+    # ADR 0013 isolation baseline. Starts as the non-root `static` user, so no
+    # cap_add (no runtime privilege drop, unlike api/ui's gosu/nginx entrypoints).
+    cap_drop:
+      - ALL
+    security_opt:
+      - "no-new-privileges:true"
+    mem_limit: ${STATIC_ANALYZER_MEM_LIMIT:-1g}
+    cpus: ${STATIC_ANALYZER_CPUS:-1.0}
+    stop_grace_period: 5s
+
   # ADR 0007 — opt-in CDP exposure under the `debug` profile.
   # Default `docker compose up` does not start this sidecar, so port 9222
   # remains absent from the host. Operators that need host-side CDP

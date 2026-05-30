@@ -1,6 +1,6 @@
 # Static Analysis Pre-Check Stream (Active Work Tracker)
 
-`Last Updated: 2026-05-30 — ES-1b lifecycle landing (rejected_static status + static_report_path column + Alembic + folded audit fixes) on branch static.`
+`Last Updated: 2026-05-30 — ES-2 hardened automation_static_analyzer container scaffold + runtime stub on branch static.`
 
 `Status: ACTIVE on branch static (single-branch model per user direction 2026-05-29; sub-iter başına ayrı branch yok). Resumed serially from the frozen extrace-static-stream-handoff.md design intent after the extrace-static branch was abandoned 2026-05-28.`
 
@@ -42,7 +42,7 @@ must not be renumbered — code comments and tests reference them.
 | ES-0 | Doc-reconcile: ADR 0016 (Proposed) + lane doc + this tracker + ADR existence arch test | DONE (`735fdf0`) |
 | ES-1a | Schema contracts: static-detection finding/report/gate + combined bundle (producer-free) | DONE (`33cfdfc`) |
 | ES-1b | Lifecycle landing: `rejected_static` terminal status + `static_report_path` (snapshot/update + ORM column) + Alembic; folded audit fixes (gate decision-consistency, evidence `relative_path` boundary). No step-Literal change. | DONE |
-| ES-2 | Hardened `automation_static_analyzer` container scaffold + runtime stub | PENDING |
+| ES-2 | Hardened `automation_static_analyzer` container scaffold + runtime stub | DONE |
 | ES-3a | 6 in-house Python rules (s1/s2/s3) + static runner | PENDING |
 | ES-3b | Decision gate + orchestrator wiring; 7-step order + `empty_job_steps` extension (the ES-1 regression mitigation) land here | PENDING |
 | ES-4 | Semgrep integration (version-pinned wheel + 4 custom JS rules) | PENDING |
@@ -106,6 +106,56 @@ still producer-free.
   `test_static_detection_contracts.py` negative tests + line-188 fix.
 - Deferred to ES-3b: `_TERMINAL_JOB_STATUSES += rejected_static` and the 7-step
   / `empty_job_steps` extension (land with the producer/orchestrator wiring).
+
+### ES-2 — Hardened container scaffold + runtime stub (DONE)
+
+Stands up the `automation_static_analyzer` Docker boundary (ADR 0016 §Decision
+2) plus a producer-free runtime stub. Scaffold only — the container writes an
+*empty* `StaticDetectionReport`; rules land ES-3a, orchestrator wiring ES-3b.
+Feature flag stays OFF.
+
+- `static_runtime/` (NEW top-level package: `__init__` / `entrypoint` /
+  `__main__`) — `python -m static_runtime` writes an empty
+  `StaticDetectionReport` to `--report-path`. **Placement deviation from the
+  handoff** (which said `packages/analysis_engine/static_runtime/`):
+  `packages/analysis_engine/__init__.py` eagerly imports `run_detection`, so
+  that path would drag the whole dynamic engine into the minimal hardened
+  image. The stub needs only `packages.analysis_contracts.static_detection`
+  (pydantic-only; verified no back-edge to `analysis_engine`), so it lives at
+  top level and the image copies `packages/analysis_contracts/` + `static_runtime/`
+  only.
+- `docker/static_analyzer/{Dockerfile,requirements.txt}` — reuses the api's
+  audited `python:3.11-slim-bookworm@sha256:cd6733…` base digest (one audited
+  base, not two; 3.11 suffices for the pydantic-only stub) rather than the
+  handoff's unpinned 3.12. Non-root `static` user; pydantic + pyyaml (pyyaml
+  pre-staged for ES-4); no semgrep.
+- `docker-compose.yml` `static_analyzer` service — `network_mode: none`,
+  `cap_drop: [ALL]`, no `cap_add`, `no-new-privileges`, `mem_limit 1g` /
+  `cpus 1.0`, ro extensions / rw results mounts (reusing the executor mount env
+  vars), no docker.sock, no ports, idled via `command: ["sleep","infinity"]`.
+- `executor/static_host.py` + `executor/static_control.py` — lean clones of
+  `host.py::_run_docker_exec` / `ExecutorControl` (`StaticAnalyzerError`,
+  `StaticAnalyzerControl.run_static_analysis`). Baked into the api image;
+  DORMANT until the ES-3b orchestrator calls them.
+- `executor/config.py` — `StaticAnalyzerSettings` + `StaticAnalysisSettings`
+  (`ENABLED` defaults False). `executor/binary_paths.py` — absolute
+  `STATIC_ANALYZER_PYTHON3_PATH` (the slim image's `/usr/local/bin/python3`).
+- Makefile `static-build/up/down/shell/run-fixture` + help / `.PHONY`;
+  `.env.example` static block.
+- Tests: `tests/security/test_static_container_isolation.py` (enrolled into
+  `test-security`); `tests/executor/test_static_control.py` (mocked subprocess +
+  the argparse contract + **container-free locks on the stub's on-disk
+  `StaticDetectionReport` JSON contract** via `run_static_detection` / `main`,
+  plus the **feature-flag default-OFF** invariant — these run in the default
+  lane, unlike the container-gated smoke test);
+  `tests/smoke/test_static_container_smoke.py` (`smoke`+`integration`, live
+  container); `static_analyzer` added to `_HARDENED_SERVICES` in
+  `test_compose_isolation_invariants.py`; `STATIC_ANALYZER_PYTHON3_PATH` pinned
+  in `test_absolute_paths.py`. The hardened image's base digest is auto-covered
+  by `test_dockerfile_digest_pin.py` (rglob over `docker/`).
+- Deferred: real rules → ES-3a; orchestrator wiring + `static_host` callers +
+  `docker compose build api` → ES-3b; semgrep → ES-4; `/results` non-root write
+  permission → ES-3b.
 
 ## Acceptance Bar / Notes
 

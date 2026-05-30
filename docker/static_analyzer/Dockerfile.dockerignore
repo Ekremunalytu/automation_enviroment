@@ -1,0 +1,14 @@
+# Per-Dockerfile build context for the static-analyzer image (ES-2, ADR 0016).
+#
+# BuildKit reads THIS file (named `<dockerfile>.dockerignore`) instead of the
+# repo-root .dockerignore when building docker/static_analyzer/Dockerfile.
+# Allowlist style: ignore the entire repo, then re-include only the trees the
+# Dockerfile COPYs. The context drops from the whole repo (ui/, tests/, ... —
+# hundreds of MB / thousands of files, slow over Docker Desktop's macOS<->VM
+# file sharing) to a few hundred KB, so context transfer is no longer a factor.
+#
+# Requires BuildKit (DOCKER_BUILDKIT=1) — the Makefile static-build target sets it.
+*
+!packages
+!static_runtime
+!docker/static_analyzer

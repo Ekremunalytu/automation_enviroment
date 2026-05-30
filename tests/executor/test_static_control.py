@@ -1,0 +1,197 @@
+"""ES-2 executor: static-analyzer host orchestration + control facade.
+
+Exercises ``executor/static_host.py`` + ``executor/static_control.py`` WITHOUT a
+live container: ``subprocess.run`` is monkeypatched so the docker-exec argv,
+timeout, and no-shell properties can be asserted (pattern from
+``tests/executor/security/test_uri_trigger_injection.py``). Also pins the
+``static_runtime`` argparse required-flag contract.
+"""
+
+from __future__ import annotations
+
+import json
+import subprocess
+from typing import Any
+
+import pytest
+
+from executor import binary_paths, static_host
+from executor.binary_paths import STATIC_ANALYZER_PYTHON3_PATH
+from executor.config import settings
+from executor.static_control import StaticAnalyzerError, default_static_analyzer_control
+
+
+@pytest.fixture
+def fake_docker(monkeypatch: pytest.MonkeyPatch) -> str:
+    """Pin ``docker_path()`` to a deterministic absolute value for argv asserts."""
+    fake = "/fake/abs/docker"
+    binary_paths._reset_docker_path_cache()
+    monkeypatch.setattr(binary_paths.shutil, "which", lambda _name: fake)
+    return fake
+
+
+def test_run_static_analysis_builds_expected_docker_exec_argv(
+    fake_docker: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    captured: dict[str, Any] = {}
+
+    def fake_run(argv: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        captured["argv"] = argv
+        captured["kwargs"] = kwargs
+        return subprocess.CompletedProcess(
+            args=argv, returncode=0, stdout="ok", stderr=""
+        )
+
+    monkeypatch.setattr(static_host.subprocess, "run", fake_run)
+
+    out = default_static_analyzer_control.run_static_analysis(
+        vsix_dir="/extensions-input/x",
+        report_path="/results/r.json",
+        rules_version="1.2.3",
+        timeout_budget_s=30,
+    )
+
+    assert out == "ok"
+    argv = captured["argv"]
+    # Host docker CLI is the absolute cached docker_path().
+    assert argv[0] == fake_docker
+    assert argv[0].startswith("/")
+    assert argv[1:5] == [
+        "exec",
+        "-e",
+        "PYTHONUNBUFFERED=1",
+        settings.static_analyzer.CONTAINER_NAME,
+    ]
+    # Container command starts with the absolute python + the runtime module.
+    assert argv[5] == STATIC_ANALYZER_PYTHON3_PATH
+    assert argv[5].startswith("/")
+    assert argv[6:8] == ["-m", settings.static_analyzer.ENTRYPOINT_MODULE]
+    # The four-flag invocation contract is threaded through verbatim.
+    for flag, value in (
+        ("--vsix-dir", "/extensions-input/x"),
+        ("--report-path", "/results/r.json"),
+        ("--rules-version", "1.2.3"),
+        ("--timeout-budget-s", "30"),
+    ):
+        assert flag in argv, f"missing flag {flag}"
+        assert argv[argv.index(flag) + 1] == value
+    # Never shell=True (argv-list invocation only).
+    assert captured["kwargs"].get("shell", False) is False
+    assert captured["kwargs"].get("timeout") is not None
+
+
+def test_run_static_analysis_nonzero_returncode_raises(
+    fake_docker: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def fail_run(argv: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess(
+            args=argv, returncode=2, stdout="", stderr="boom"
+        )
+
+    monkeypatch.setattr(static_host.subprocess, "run", fail_run)
+
+    with pytest.raises(StaticAnalyzerError) as exc:
+        default_static_analyzer_control.run_static_analysis(
+            vsix_dir="/x",
+            report_path="/r.json",
+            rules_version="1",
+            timeout_budget_s=5,
+        )
+    assert exc.value.returncode == 2
+
+
+def test_run_static_analysis_timeout_raises(
+    fake_docker: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def timeout_run(argv: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        raise subprocess.TimeoutExpired(cmd=argv, timeout=kwargs.get("timeout"))
+
+    monkeypatch.setattr(static_host.subprocess, "run", timeout_run)
+
+    with pytest.raises(StaticAnalyzerError):
+        default_static_analyzer_control.run_static_analysis(
+            vsix_dir="/x",
+            report_path="/r.json",
+            rules_version="1",
+            timeout_budget_s=5,
+        )
+
+
+def test_static_runtime_argparse_requires_all_flags() -> None:
+    from static_runtime.entrypoint import build_parser
+
+    args = build_parser().parse_args(
+        [
+            "--vsix-dir",
+            "/x",
+            "--report-path",
+            "/r.json",
+            "--rules-version",
+            "1.0.0",
+            "--timeout-budget-s",
+            "30",
+        ]
+    )
+    assert args.timeout_budget_s == 30
+    # Missing required flags -> argparse SystemExit.
+    with pytest.raises(SystemExit):
+        build_parser().parse_args([])
+
+
+def test_static_runtime_stub_writes_empty_report(tmp_path: Any) -> None:
+    """Container-free lock on the ES-2 stub's on-disk JSON contract.
+
+    The live smoke variant (``tests/smoke/test_static_container_smoke.py``) is
+    gated behind a running container and skipped under ``make check-all``; this
+    runs in the default lane and pins the *empty* ``StaticDetectionReport`` shape
+    that ES-3a must keep stable when it swaps the stub body for the real runner.
+    """
+    from packages.analysis_contracts.static_detection import StaticDetectionReport
+    from static_runtime.entrypoint import run_static_detection
+
+    report_path = tmp_path / "nested" / "report.json"  # parent created by the stub
+    returned = run_static_detection(
+        vsix_dir="/extensions-input/x",
+        report_path=str(report_path),
+        rules_version="0.0.0",
+        timeout_budget_s=30,
+    )
+
+    assert isinstance(returned, StaticDetectionReport)
+    assert report_path.is_file()
+    doc = json.loads(report_path.read_text(encoding="utf-8"))
+    assert doc["schema_version"] == "1"
+    assert doc["findings"] == []
+    assert doc["tool_executions"] == []
+    # Round-trips back through the contract (validates, not just JSON-parses).
+    StaticDetectionReport.model_validate(doc)
+
+
+def test_static_runtime_main_writes_report_and_returns_zero(tmp_path: Any) -> None:
+    """``main(argv)`` threads the argparse flags into a written report, rc 0."""
+    from static_runtime.entrypoint import main
+
+    report_path = tmp_path / "report.json"
+    rc = main(
+        [
+            "--vsix-dir",
+            "/extensions-input/x",
+            "--report-path",
+            str(report_path),
+            "--rules-version",
+            "0.0.0",
+            "--timeout-budget-s",
+            "30",
+        ]
+    )
+    assert rc == 0
+    assert report_path.is_file()
+
+
+def test_static_analysis_feature_flag_defaults_off() -> None:
+    """ADR 0016 §Operational: the static stage stays OFF until the ES-5 flip.
+
+    Guards against an accidental default flip landing the pre-check into the
+    live pipeline before its smoke evidence passes.
+    """
+    assert settings.static_analysis.ENABLED is False
