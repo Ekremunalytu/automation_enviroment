@@ -1,6 +1,6 @@
 # Testing Guide
 
-`Last Updated: 2026-05-28 — W22 active (closed synthetically on week22; PR week22 -> main PENDING USER APPROVAL); W21 closed and merged via PR #30 5dc18aa. Final W22 static bar: tests/architecture/ 292 passed; make test-security 228 passed.`
+`Last Updated: 2026-05-28 — W22 closed synthetically on week22 and merged to main via PR #31 week22 -> main 1399f82; W21 closed and merged via PR #30 5dc18aa. Final W22 static bar: tests/architecture/ 292 passed; make test-security 228 passed.`
 
 Test layers, fixtures, and commands. **Slim canonical** — per-domain
 deep dives split out:

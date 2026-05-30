@@ -1,6 +1,6 @@
 # Dynamic Analysis Backlog
 
-`Last Updated: 2026-05-28 — W22 active (closed synthetically on week22; PR week22 -> main PENDING USER APPROVAL); W21 closed and merged via PR #30 5dc18aa.`
+`Last Updated: 2026-05-28 — W22 closed synthetically on week22 and merged to main via PR #31 week22 -> main 1399f82; W21 closed and merged via PR #30 5dc18aa.`
 
 This is the short actionable backlog for the sandbox pipeline. It complements
 `DEVELOPMENT_PRIORITIES.md`, `PIPELINE_ROADMAP.md`, and the canonical
@@ -19,8 +19,8 @@ flow, the VNC harness ready-marker fix, and the
 tagged `[FOLLOWUP simulation-progress-cancel]` in
 `POST_POC_BACKLOG.md`. PR345 target activation lifecycle and W8-0
 deterministic harness readiness gate both landed on `2026-04-27`.
-W8-W21 are closed; W22 closed synthetically on `week22` — close-out
-PR `week22 -> main` PENDING USER APPROVAL. Active tracker:
+W8-W21 are closed; W22 closed synthetically on `week22` — merged to main via
+PR #31 `week22 -> main` (`1399f82`). Active tracker:
 [`active-work/W22-coverage-promotion-hard-tier.md`](active-work/W22-coverage-promotion-hard-tier.md).
 
 ## Now (next-iteration pull)
