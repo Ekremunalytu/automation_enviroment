@@ -6,16 +6,17 @@ the current most-recent-merge fingerprint across every current canonical
 preamble and follows the active weekly tracker as the phase changes.
 
 To advance the fingerprint after the next merge:
-  - Update ``_EXPECTED_MERGE_FINGERPRINT`` below to the new
-    most-recent-merge string.
+  - Update ``documents/phase.json`` -> ``last_merged_weekly`` (PR + SHA).
   - Update the canonical docs' headlines in the same commit set.
   - Update ``_CANONICAL_PREAMBLE_DOCS`` if the active weekly tracker changes.
-  - The test should pass green only after both docs and pins are aligned.
+  - The test should pass green only after the docs and phase.json align.
 """
 
 from __future__ import annotations
 
 from pathlib import Path
+
+from tests.architecture._phase_manifest import load_manifest, merge_fingerprint
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -32,12 +33,13 @@ _CANONICAL_PREAMBLE_DOCS: tuple[str, ...] = (
     "documents/active-work/W22-coverage-promotion-hard-tier.md",
 )
 
-# Most-recent-merge fingerprint pinned after W22 close-out
-# (PR #31 ``week22 -> main`` MERGED 2026-05-28 via ``1399f82``).
-# Bump this when the next phase merges; bump every current canonical
-# doc headline in the same commit.
-_EXPECTED_MERGE_FINGERPRINT = "PR #31"
-_EXPECTED_MERGE_SHA = "1399f82"
+# Most-recent-merge fingerprint, sourced from the single manifest
+# (``documents/phase.json`` -> ``last_merged_weekly``). No literal lives
+# in this gate anymore — advancing a phase is a one-file edit to
+# phase.json plus the canonical doc headlines in the same commit.
+_LAST_MERGED_WEEKLY = load_manifest()["last_merged_weekly"]
+_EXPECTED_MERGE_FINGERPRINT = merge_fingerprint(_LAST_MERGED_WEEKLY)
+_EXPECTED_MERGE_SHA = _LAST_MERGED_WEEKLY["sha"]
 
 # Drift markers — phrases that mean the preamble is stale relative to
 # the current merge fingerprint. If any of these reappear in the

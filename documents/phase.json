@@ -1,0 +1,25 @@
+{
+  "last_merged_weekly": {
+    "id": "W22",
+    "pr": 31,
+    "branch": "week22 -> main",
+    "sha": "1399f82",
+    "tracker": "documents/active-work/W22-coverage-promotion-hard-tier.md"
+  },
+  "history": [
+    { "id": "W13", "pr": 20, "branch": "week13 -> main", "sha": "772deb3" },
+    { "id": "W14", "pr": 21, "branch": "week14 -> main", "sha": "4e03c8d" },
+    { "id": "W15", "pr": 22, "branch": "week15 -> main", "sha": "6161472" },
+    { "id": "W16", "pr": 23, "branch": "week16 -> main", "sha": "1b6d43f" },
+    { "id": "W17", "pr": 25, "branch": "week17 -> main", "sha": "bff565d" },
+    { "id": "W18", "pr": 26, "branch": "week18 -> main", "sha": "9874e79" },
+    { "id": "W19", "pr": 28, "branch": "week19 -> main", "sha": "c879603" },
+    { "id": "W20", "pr": 29, "branch": "week20 -> main", "sha": "64a3c3d" },
+    { "id": "W21", "pr": 30, "branch": "week21 -> main", "sha": "5dc18aa" }
+  ],
+  "active_stream": {
+    "id": "static",
+    "tracker": "documents/active-work/static-analysis-pre-check-stream.md"
+  },
+  "updated": "2026-05-30"
+}

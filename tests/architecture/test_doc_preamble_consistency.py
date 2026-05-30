@@ -15,10 +15,13 @@ together and added this gate to lock the invariant.
 The gate parses each doc's preamble (the first ten lines, covering the
 backtick-quoted ``Last Updated: ...`` block) and asserts:
 
-  1. Every preamble carries at least one current-phase signal.
+  1. Every preamble carries at least one current-phase signal (a ``W<N>``
+     phase, or the active named stream from ``documents/phase.json``).
   2. No single preamble reports two different current phases internally
      (e.g., "W14 active" and "W15 active" both present).
   3. Every doc agrees on the same ``W<N>`` as the current phase.
+  4. The agreed ``W<N>`` matches ``documents/phase.json`` ->
+     ``last_merged_weekly`` (the single source).
 
 Patterns matched: ``W<N> active``, ``W<N> [fully] closed synthetically``
 (W19-6-followup-2 added the closed-but-not-merged lifecycle state for the
@@ -36,7 +39,14 @@ from pathlib import Path
 
 import pytest
 
+from tests.architecture._phase_manifest import load_manifest, phase_number
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
+
+_MANIFEST = load_manifest()
+_ACTIVE_STREAM_ID = _MANIFEST["active_stream"]["id"]
+_EXPECTED_WEEKLY_PHASE = phase_number(_MANIFEST["last_merged_weekly"])
+_STREAM_SIGNAL = re.compile(rf"\b{re.escape(_ACTIVE_STREAM_ID)}\b", re.IGNORECASE)
 
 CANONICAL_DOCS = (
     REPO_ROOT / "CLAUDE.md",
@@ -91,19 +101,25 @@ def test_canonical_doc_preambles_agree_on_active_phase() -> None:
         f"{missing_files}. Update the tuple to reflect renames/moves."
     )
 
+    preambles: dict[Path, str] = {path: _read_preamble(path) for path in CANONICAL_DOCS}
     per_doc_phases: dict[Path, set[int]] = {
-        path: _extract_active_phases(_read_preamble(path)) for path in CANONICAL_DOCS
+        path: _extract_active_phases(text) for path, text in preambles.items()
     }
 
+    # A doc with no ``W<N>`` signal is tolerated only if it instead names the
+    # active named stream (``documents/phase.json`` -> ``active_stream.id``) —
+    # the lifecycle state where the weekly pointer has handed off to a named
+    # stream. Otherwise the preamble is stale/missing and fails.
     missing_signal = [
         str(p.relative_to(REPO_ROOT))
         for p, phases in per_doc_phases.items()
-        if not phases
+        if not phases and not _STREAM_SIGNAL.search(preambles[p])
     ]
     assert not missing_signal, (
         f"Preamble missing an active-phase signal: {missing_signal}. "
-        "Every canonical doc preamble must mention 'W<N> active' or "
-        "'Active phase: W<N>' so this gate can validate consistency."
+        "Every canonical doc preamble must mention 'W<N> active' / "
+        f"'Active phase: W<N>' (or the active stream {_ACTIVE_STREAM_ID!r}) "
+        "so this gate can validate consistency."
     )
 
     internally_inconsistent = {
@@ -117,8 +133,12 @@ def test_canonical_doc_preambles_agree_on_active_phase() -> None:
         "internal conflict means the doc itself is inconsistent."
     )
 
+    # Weekly-phase agreement: every doc that carries a ``W<N>`` signal must
+    # claim the same one (stream-only docs are skipped — tolerated above).
     distinct: dict[int, list[str]] = {}
     for path, phases in per_doc_phases.items():
+        if len(phases) != 1:
+            continue
         (phase,) = phases
         distinct.setdefault(phase, []).append(str(path.relative_to(REPO_ROOT)))
 
@@ -133,4 +153,16 @@ def test_canonical_doc_preambles_agree_on_active_phase() -> None:
             + "\n\nAfter a close-out PR merges, every canonical doc's "
             "preamble must be bumped together — see the W15 mid-iter "
             "hygiene pass `2026-05-16` for the precedent."
+        )
+
+    # Cross-check the docs' agreed weekly phase against the single source
+    # (``documents/phase.json`` -> ``last_merged_weekly``), so a phase.json
+    # bump without a doc refresh (or vice-versa) fails here.
+    if len(distinct) == 1:
+        (agreed_phase,) = distinct
+        assert agreed_phase == _EXPECTED_WEEKLY_PHASE, (
+            f"Canonical doc preambles agree on W{agreed_phase} but "
+            f"documents/phase.json last_merged_weekly is "
+            f"W{_EXPECTED_WEEKLY_PHASE}. Align phase.json and the doc "
+            "banners in the same commit."
         )
