@@ -27,6 +27,10 @@ class AnalysisJob(Base):
     message: Mapped[str] = mapped_column(Text, nullable=False)
     steps: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, nullable=False)
     report_path: Mapped[str | None] = mapped_column(String, nullable=True)
+    # ES-1b (ADR 0016, Static Analysis Pre-Check): path to the persisted
+    # StaticAnalysisReport JSON (mirrors the `static_report_path` snapshot
+    # field). Nullable — pre-static and disabled-stage jobs leave it NULL.
+    static_report_path: Mapped[str | None] = mapped_column(String, nullable=True)
     install_output: Mapped[str | None] = mapped_column(Text, nullable=True)
     automation_output: Mapped[str | None] = mapped_column(Text, nullable=True)
     error_detail: Mapped[str | None] = mapped_column(Text, nullable=True)

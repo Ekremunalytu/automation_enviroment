@@ -36,5 +36,25 @@ class StaticGateOutcome(StrictContractModel):
             raise ValueError("allow_reason must be None on WARN/BLOCK outcomes.")
         return self
 
+    @model_validator(mode="after")
+    def validate_decision_consistency(self) -> StaticGateOutcome:
+        """Every decision must carry a machine-readable cause.
+
+        A terminal ``rejected_static`` job is only reachable through a BLOCK, so
+        a BLOCK with no ``blocked_by`` would leave the rejection unexplained on
+        the report / UI / log surfaces (observability hard rule). Symmetrically a
+        WARN must name what it warned on, and an ALLOW must not smuggle
+        blocker/warner ids that no downstream consumer would act on.
+        """
+        if self.decision is StaticGateDecision.BLOCK and not self.blocked_by:
+            raise ValueError("BLOCK outcome must list at least one blocked_by id.")
+        if self.decision is StaticGateDecision.WARN and not self.warned_by:
+            raise ValueError("WARN outcome must list at least one warned_by id.")
+        if self.decision is StaticGateDecision.ALLOW and (
+            self.blocked_by or self.warned_by
+        ):
+            raise ValueError("ALLOW outcome must have empty blocked_by and warned_by.")
+        return self
+
 
 __all__ = ["StaticGateDecision", "StaticGateOutcome"]

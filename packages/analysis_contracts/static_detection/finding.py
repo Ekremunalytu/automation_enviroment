@@ -43,6 +43,11 @@ StaticEvidenceType = Literal[
     "dependency",
 ]
 
+# Control characters (C0 range + DEL) are never legal in an evidence path and
+# are a classic log / JSON / UI poisoning vector when the path is supplied by
+# the analysed extension.
+_CONTROL_CHARS_RE = re.compile(r"[\x00-\x1f\x7f]")
+
 
 class StaticEvidenceRef(StrictContractModel):
     """Reference to a static artifact location backing a finding."""
@@ -53,6 +58,27 @@ class StaticEvidenceRef(StrictContractModel):
     snippet: str | None = Field(default=None, max_length=400)
     tool: str = Field(min_length=1)
     rule_match_id: str | None = None
+
+    @field_validator("relative_path")
+    @classmethod
+    def validate_relative_path(cls, value: str) -> str:
+        """Reject absolute / ``..`` traversal / control-char paths.
+
+        Evidence paths are extension-controlled (they name files inside a
+        decompressed VSIX) and flow into the report JSON, the UI, and logs
+        (AGENTS rule 11). A path that is absolute, escapes the extraction root
+        via ``..``, or carries control characters could poison those surfaces
+        or point outside the sandboxed input tree, so the boundary is enforced
+        at the contract edge. Snippet redaction is handled separately by the
+        ES-3a producer (reusing ``redact_secrets``), not here.
+        """
+        if _CONTROL_CHARS_RE.search(value):
+            raise ValueError("relative_path must not contain control characters.")
+        if value.startswith(("/", "\\")) or re.match(r"^[A-Za-z]:", value):
+            raise ValueError("relative_path must be relative, not absolute.")
+        if any(segment == ".." for segment in re.split(r"[/\\]", value)):
+            raise ValueError("relative_path must not contain '..' traversal segments.")
+        return value
 
 
 class StaticDetectionFinding(StrictContractModel):

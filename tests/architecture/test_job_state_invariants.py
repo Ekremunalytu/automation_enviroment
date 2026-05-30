@@ -25,9 +25,12 @@ Asserted invariants:
    ``"cancelling"`` — removing it lets ``get_active_analysis_job`` return
    None during the drain, with the same effect.
 
-3. ``ANALYSIS_JOB_STATUSES`` (same module) is the 6-tuple
+3. ``ANALYSIS_JOB_STATUSES`` (same module) is the 7-tuple
    ``("queued", "running", "cancelling", "completed", "failed",
-   "cancelled")`` — keeps the tuple/literal/migration triple in sync.
+   "cancelled", "rejected_static")`` — keeps the tuple/literal/migration
+   triple in sync. ``rejected_static`` is the ES-1b / ADR 0016 terminal
+   static-gate rejection (terminal, never active; pinned by
+   ``tests/architecture/test_rejected_static_terminal_status.py``).
 
 4. The Alembic revision
    ``c8a2d4e91f5b_add_cancelling_status_to_analysis_jobs.py`` keeps the
@@ -92,8 +95,8 @@ def test_active_job_statuses_includes_cancelling() -> None:
     )
 
 
-def test_analysis_job_statuses_tuple_matches_canonical_six() -> None:
-    """W13-3: the 6-status tuple has to match the Pydantic literal and migration."""
+def test_analysis_job_statuses_tuple_matches_canonical_seven() -> None:
+    """ES-1b: the 7-status tuple has to match the Pydantic literal and migration."""
     assert set(ANALYSIS_JOB_STATUSES) == {
         "queued",
         "running",
@@ -101,13 +104,14 @@ def test_analysis_job_statuses_tuple_matches_canonical_six() -> None:
         "completed",
         "failed",
         "cancelled",
+        "rejected_static",
     }, (
         f"ANALYSIS_JOB_STATUSES drift {ANALYSIS_JOB_STATUSES!r} — "
         f"keep the tuple in lockstep with AnalysisJobStatus Literal "
         f"and the Alembic partial-index WHERE clause."
     )
-    assert len(ANALYSIS_JOB_STATUSES) == 6, (
-        f"ANALYSIS_JOB_STATUSES must be 6 members, got {len(ANALYSIS_JOB_STATUSES)}."
+    assert len(ANALYSIS_JOB_STATUSES) == 7, (
+        f"ANALYSIS_JOB_STATUSES must be 7 members, got {len(ANALYSIS_JOB_STATUSES)}."
     )
 
 

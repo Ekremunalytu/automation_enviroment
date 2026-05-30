@@ -1,6 +1,6 @@
 # Static Analysis Pre-Check Stream (Active Work Tracker)
 
-`Last Updated: 2026-05-29 — ES-0 doc-reconcile landing on branch static.`
+`Last Updated: 2026-05-30 — ES-1b lifecycle landing (rejected_static status + static_report_path column + Alembic + folded audit fixes) on branch static.`
 
 `Status: ACTIVE on branch static (single-branch model per user direction 2026-05-29; sub-iter başına ayrı branch yok). Resumed serially from the frozen extrace-static-stream-handoff.md design intent after the extrace-static branch was abandoned 2026-05-28.`
 
@@ -39,8 +39,9 @@ must not be renumbered — code comments and tests reference them.
 
 | ID | Scope | Status |
 |----|-------|--------|
-| ES-0 | Doc-reconcile: ADR 0016 (Proposed) + lane doc + this tracker + ADR existence arch test | IN PROGRESS |
-| ES-1 | Schema landing: static-detection contracts + combined bundle + `rejected_static` terminal status + `static_report_path` ORM column + Alembic. No step-Literal change. | PENDING |
+| ES-0 | Doc-reconcile: ADR 0016 (Proposed) + lane doc + this tracker + ADR existence arch test | DONE (`735fdf0`) |
+| ES-1a | Schema contracts: static-detection finding/report/gate + combined bundle (producer-free) | DONE (`33cfdfc`) |
+| ES-1b | Lifecycle landing: `rejected_static` terminal status + `static_report_path` (snapshot/update + ORM column) + Alembic; folded audit fixes (gate decision-consistency, evidence `relative_path` boundary). No step-Literal change. | DONE |
 | ES-2 | Hardened `automation_static_analyzer` container scaffold + runtime stub | PENDING |
 | ES-3a | 6 in-house Python rules (s1/s2/s3) + static runner | PENDING |
 | ES-3b | Decision gate + orchestrator wiring; 7-step order + `empty_job_steps` extension (the ES-1 regression mitigation) land here | PENDING |
@@ -49,7 +50,7 @@ must not be renumbered — code comments and tests reference them.
 
 ## Per-Item Detail
 
-### ES-0 — Doc-reconcile (IN PROGRESS)
+### ES-0 — Doc-reconcile (DONE, `735fdf0`)
 
 Re-homes the design artifacts lost when the `extrace-static` branch was
 deleted. Additive only — no canonical preamble doc is touched, so the
@@ -66,6 +67,46 @@ preamble-parity / phase-pointer gates stay green.
   `automation_static_analyzer`, `extrace.s2.typosquat`, ES-0..ES-5, the
   handoff cross-reference).
 
+### ES-1a — Schema contracts (DONE, `33cfdfc`)
+
+Schema-first, producer-free. Additive facade re-export only (not yet in the UI
+`TARGET_SCHEMAS` allowlist — UI regen is ES-5).
+
+- `packages/analysis_contracts/static_detection/{__init__,finding,report,gate}.py`
+  — `StaticDetectionFinding` (field-set parity with the dynamic
+  `DetectionFinding`), `StaticEvidenceRef`, `StaticToolExecutionRecord`,
+  `StaticSeverityCounts`, `StaticDetectionReport`, `StaticGateDecision`,
+  `StaticGateOutcome`. v2 evidence types + tool slots pre-shipped.
+- `appcore/contracts/schema_defs/static_analysis_bundle.py` —
+  `StaticAnalysisReport`, `CombinedAnalysisBundle` (`dynamic_bundle` None on BLOCK).
+- `tests/platform/contracts/test_static_detection_contracts.py` — schema invariants.
+
+### ES-1b — Lifecycle landing + folded audit fixes (DONE)
+
+The one "critical" sub-iter: mutates shared job-lifecycle state + adds a DB
+migration. Adds the terminal `rejected_static` status and the
+`static_report_path` column; folds in two audit fixes while the contracts are
+still producer-free.
+
+- `appcore/contracts/schema_defs/analysis_jobs.py` — `rejected_static` appended
+  to `ANALYSIS_JOB_STATUSES` + `AnalysisJobStatus` Literal (terminal; NOT in
+  `ACTIVE_ANALYSIS_JOB_STATUSES`). `static_report_path: str | None = None` on
+  `AnalysisJobCreateSnapshot` + `AnalysisJobUpdate`. Step names untouched.
+- `appcore/storage/model_defs/analysis_job.py` — nullable `static_report_path`
+  column; partial unique index unchanged.
+- `alembic/versions/f4b9d2e7a1c3_add_static_report_path_to_analysis_jobs.py` —
+  additive add/drop column, `down_revision = e7c0a8f3b9d2` (no index / data motion).
+- Audit fixes: `gate.py` decision-consistency validator (BLOCK⟹blocked_by,
+  WARN⟹warned_by, ALLOW⟹both empty); `finding.py` `relative_path` boundary
+  (reject absolute / `..` / control chars). Snippet redaction deferred to the
+  ES-3a producer (reuse `redact_secrets`), not a DTO validator.
+- Tests: `test_job_state_invariants.py` six→seven; new
+  `test_rejected_static_terminal_status.py` (5 invariants); new
+  `test_alembic_static_report_path_migration.py` (`requires_db` round-trip);
+  `test_static_detection_contracts.py` negative tests + line-188 fix.
+- Deferred to ES-3b: `_TERMINAL_JOB_STATUSES += rejected_static` and the 7-step
+  / `empty_job_steps` extension (land with the producer/orchestrator wiring).
+
 ## Acceptance Bar / Notes
 
 - The four locked decisions (block-and-warn · separate hardened container
@@ -79,13 +120,33 @@ preamble-parity / phase-pointer gates stay green.
 - Feature flag `settings.static_analysis.ENABLED` stays OFF until ES-5
   flips it after smoke evidence passes.
 
-## Audit Findings — Open (2026-05-29)
+## Audit Findings — Disposition (resolved / deferred in ES-1b, 2026-05-30)
 
 Cross-audit (self + Codex) after ES-1a (`33cfdfc`) + the tshark fix
-(`ac79c1e`) landed on `static`. All four are ES-1 scope, cheap, and
-schema-first (close while the contracts are still producer-free). Owner
-fixes these; no agent edits. Severity is yüzey-önem, not a live exploit
-(no static producer exists yet — rules land ES-3a/ES-4).
+(`ac79c1e`) landed on `static`. The two real contract findings were folded into
+the ES-1b commit while the contracts are still producer-free. Severity is
+yüzey-önem, not a live exploit (no static producer exists yet — rules land
+ES-3a/ES-4).
+
+Disposition:
+
+- `adr0013-rationale-cap-parity` — already fixed by `3a23cbb` (Rationale now
+  lists the 5-cap set); no further action.
+- `static-gate-decision-consistency` — **FIXED in ES-1b** (`gate.py`
+  `validate_decision_consistency` + negative tests).
+- `static-evidence-boundary-validation` — `relative_path` boundary **FIXED in
+  ES-1b** (`finding.py`). Snippet redaction is **deferred to the ES-3a
+  producer** (reuse `redact_secrets`), NOT a DTO validator — keeps static
+  layering consistent with the dynamic side. (Supersedes the table row's
+  "route `snippet` through `redact_secrets` [now]" wording.)
+- `tracker-and-test-truth-sync` — (a) slate flipped in ES-1b (this edit).
+  (b) Enrolling `test_static_detection_contracts.py` into `test-security` is
+  **out of scope**: it is a contract-invariant test that already runs under
+  `make check-all`; the `test-security` enrollee is the future ES-2
+  container-isolation test (`test_static_container_isolation.py`).
+
+The historical finding table (as raised 2026-05-29) is retained below for
+provenance.
 
 | ID | Severity | File (evidence) | Problem | Fix |
 |----|----------|-----------------|---------|-----|

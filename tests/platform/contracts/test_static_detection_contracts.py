@@ -1,7 +1,8 @@
 """ES-1 static-detection contract invariants (ADR 0016 §Decision 3, schema-first).
 
-Pins the 10 schema-landing invariants so the ES-2..ES-5 tool runners map
-INTO a stable contract rather than reshaping it:
+Pins the schema-landing invariants so the ES-2..ES-5 tool runners map INTO a
+stable contract rather than reshaping it (1-10 landed at ES-1a; 11-12 are the
+ES-1b audit-fix invariants):
 
 1. field-set parity with the dynamic ``DetectionFinding``
 2. ADR 0003 enum reuse BY IDENTITY (not parallel clones)
@@ -13,6 +14,8 @@ INTO a stable contract rather than reshaping it:
 8. ``StaticGateOutcome`` shape + allow_reason-None-on-block invariant
 9. ``StaticToolExecutionRecord`` shape (db_freshness_days optional, v2 Trivy)
 10. ``CombinedAnalysisBundle`` composition (dynamic bundle optional on BLOCK)
+11. gate decision-consistency: BLOCK/WARN carry a cause, ALLOW stays clean (ES-1b)
+12. ``StaticEvidenceRef.relative_path`` boundary: no absolute / ``..`` / control (ES-1b)
 """
 
 from __future__ import annotations
@@ -185,8 +188,68 @@ def test_combined_bundle_composition_dynamic_optional() -> None:
     bundle = CombinedAnalysisBundle(
         static_report=StaticAnalysisReport(
             detection_report=StaticDetectionReport(),
-            gate_outcome=StaticGateOutcome(decision=StaticGateDecision.BLOCK),
+            gate_outcome=StaticGateOutcome(
+                decision=StaticGateDecision.BLOCK,
+                blocked_by=["01J0000000000000000000000A"],
+            ),
         )
     )
     # BLOCK path → dynamic stage skipped → dynamic_bundle is None.
     assert bundle.dynamic_bundle is None
+
+
+def test_gate_outcome_requires_machine_readable_cause() -> None:
+    """ES-1b audit fix: every BLOCK/WARN carries a cause; ALLOW stays clean.
+
+    A terminal ``rejected_static`` job is only reachable through a BLOCK, so a
+    BLOCK with no ``blocked_by`` would leave the rejection unexplained on the
+    report / UI / log surfaces (observability hard rule).
+    """
+    # BLOCK with no blocked_by → rejected.
+    with pytest.raises(ValidationError):
+        StaticGateOutcome(decision=StaticGateDecision.BLOCK)
+    # WARN with no warned_by → rejected.
+    with pytest.raises(ValidationError):
+        StaticGateOutcome(decision=StaticGateDecision.WARN)
+    # ALLOW must not smuggle blocker / warner ids.
+    with pytest.raises(ValidationError):
+        StaticGateOutcome(
+            decision=StaticGateDecision.ALLOW,
+            blocked_by=["01J0000000000000000000000A"],
+        )
+    with pytest.raises(ValidationError):
+        StaticGateOutcome(
+            decision=StaticGateDecision.ALLOW,
+            warned_by=["01J0000000000000000000000B"],
+        )
+    # Happy paths: BLOCK with blocked_by, WARN with warned_by, ALLOW empty.
+    StaticGateOutcome(
+        decision=StaticGateDecision.BLOCK,
+        blocked_by=["01J0000000000000000000000A"],
+    )
+    StaticGateOutcome(
+        decision=StaticGateDecision.WARN,
+        warned_by=["01J0000000000000000000000B"],
+    )
+    StaticGateOutcome(decision=StaticGateDecision.ALLOW)
+
+
+def test_evidence_ref_rejects_unsafe_relative_path() -> None:
+    """ES-1b audit fix: relative_path rejects absolute / traversal / control chars."""
+    # Well-formed relative paths are accepted.
+    StaticEvidenceRef(type="manifest", relative_path="package.json", tool="inhouse")
+    StaticEvidenceRef(
+        type="source_file", relative_path="src/extension.js", tool="inhouse"
+    )
+    # Absolute: POSIX root, Windows drive, backslash root.
+    for bad in ("/etc/passwd", "C:/Windows/System32", "\\windows\\system32"):
+        with pytest.raises(ValidationError):
+            StaticEvidenceRef(type="manifest", relative_path=bad, tool="inhouse")
+    # `..` traversal under either separator.
+    for bad in ("../secrets", "a/../../b", "a\\..\\b"):
+        with pytest.raises(ValidationError):
+            StaticEvidenceRef(type="source_file", relative_path=bad, tool="inhouse")
+    # Control characters (newline / NUL / tab).
+    for bad in ("a\nb", "a\x00b", "tab\tx"):
+        with pytest.raises(ValidationError):
+            StaticEvidenceRef(type="manifest", relative_path=bad, tool="inhouse")
