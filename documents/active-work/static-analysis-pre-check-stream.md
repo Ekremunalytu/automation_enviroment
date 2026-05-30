@@ -222,6 +222,16 @@ shared-leaf refactor did not disturb the dynamic pipeline.
   Makefile file list (no auto-discovery).
 - Feature flag `settings.static_analysis.ENABLED` stays OFF until ES-5
   flips it after smoke evidence passes.
+- **Downstream (W23, not in this stream) — forward-pointer only, ES slate
+  unchanged.** A MITRE ATT&CK coverage matrix (`/mitre` UI surface +
+  `GET /api/mitre/catalog` backend) visualizing which rules are critical
+  across both the static (s1/s2/s3) and dynamic (a1–a6) rulesets is tracked
+  in `POST_POC_BACKLOG.md` (Contracts / Reports / Detection) as
+  `[GOAL mitre-mapping-adr]` / `[GOAL mitre-coverage-catalog]` /
+  `[GOAL mitre-coverage-ui]` / `[GOAL mitre-static-overlay]`, W23 candidate
+  after this stream's ES-5 close-out. The backend catalog is independent and
+  could be pulled as an `ES-4b` item if the data layer is wanted sooner; the
+  per-report static overlay depends on ES-3b populating `static_report_path`.
 
 ## Audit Findings — Disposition (resolved / deferred in ES-1b, 2026-05-30)
 

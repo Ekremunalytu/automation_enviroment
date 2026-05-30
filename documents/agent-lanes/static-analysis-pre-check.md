@@ -65,6 +65,11 @@ decision gate that fronts the dynamic sandbox.
   lane; the static findings extend its taxonomy (ADR 0003).
 - `documents/agent-lanes/platform-storage.md` — for the `rejected_static`
   status + `static_report_path` column + Alembic migration (ES-1).
+- `documents/POST_POC_BACKLOG.md` → `[GOAL mitre-coverage-*]` (Contracts /
+  Reports / Detection) — the downstream W23 MITRE ATT&CK coverage matrix that
+  consumes this lane's rule catalog + static findings (a `/mitre` UI surface +
+  `GET /api/mitre/catalog`). The backend catalog is independent of this stream;
+  the per-report static overlay depends on ES-3b populating `static_report_path`.
 
 ## Avoid
 

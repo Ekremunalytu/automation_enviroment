@@ -766,6 +766,76 @@ Closed (one-line audit trail):
   flag for six builtin rules; a flat `RULES` tuple would suffice at current
   cardinality. Earns its weight only when ADR 0003 deferred rules
   (A5/A7) land. W15+ hygiene.
+- `[GOAL mitre-mapping-adr]` (new) — **W23-0 candidate (after static stream
+  ES-5 closes).** ADR 0017 fixing the MITRE ATT&CK technique↔rule mapping
+  strategy: technique→tactic source-of-truth shape, canonical ATT&CK Enterprise
+  tactic ordering, the criticality signal (severity + `is_blocker`; dynamic
+  rules carry no per-rule blocker — the dynamic gate is verdict-driven via
+  `Verdict.MALICIOUS`, not per-rule), and the catalog-vs-overlay split.
+  Framing doc for `[GOAL mitre-coverage-catalog]` + `[GOAL mitre-coverage-ui]`
+  + `[GOAL mitre-static-overlay]`. **Severity/Confidence**: design / High.
+  Lane: `[security-detection]` + `[static-analysis-pre-check]`.
+- `[GOAL mitre-coverage-catalog]` (new) — **W23 candidate; INDEPENDENT (no ES-3b
+  dependency).** Backend MITRE coverage catalog: a fresh
+  `packages/analysis_contracts/mitre/` subpackage (technique→tactic→name map +
+  `TACTIC_ORDER` + `resolve_technique`) + a hand-authored `RULE_MITRE_TECHNIQUES`
+  `rule_id → (technique…)` map keyed by the granular PRODUCTION rule_ids of BOTH
+  registries (static `static_runtime/rules/registry.get_production_rules()` +
+  dynamic `packages/analysis_engine/rules/registry.get_all_rules()`) + a
+  `GATE_BLOCKER_RULE_IDS = frozenset({"extrace.s2.typosquat"})` constant in
+  `packages/analysis_contracts/static_detection/gate.py` realizing the ADR 0016
+  `_PROMOTED_HIGH_BLOCKERS` token. Surfaced via a new `GET /api/mitre/catalog`
+  route (`workflows/coverage/`) returning response-only DTOs
+  `CoverageCatalogResponse`/`CoverageRuleEntry`/`CoverageRuleTechnique`/`CoverageTactic`
+  (`appcore/contracts/schema_defs/coverage.py`, `schema_version` born at `"1"`),
+  enumerating every rule with severity + MITRE technique/tactic + `is_blocker`.
+  **Why an authored map**: rule objects expose only
+  `rule_id`/`rule_version`/`lifecycle`/`severity`/`adversary_class`/`description`
+  — the `attack.T####` categories and `confidence` live on _findings_, not the
+  rule, so a report-independent catalog cannot read techniques off the rule
+  object and must map them explicitly (a CI drift-guard test keeps the map
+  honest). Enumerates the full ruleset including Semgrep once ES-4 lands.
+  **Test**: `tests/platform/contracts/test_mitre_catalog.py` (tactic order +
+  `resolve_technique` round-trip) + `tests/platform/contracts/test_rule_mitre_techniques_sync.py`
+  (DRIFT-GUARD: map keyset == union of both registries' rule_ids) +
+  `tests/workflows/coverage/test_coverage_catalog_endpoint.py` + generator-target
+  extension at `tests/scripts/test_generate_ui_contracts.py` + `make ui-types`.
+  **Risk**: the API process importing `static_runtime` — verify no heavy/optional
+  deps + Docker image path; wrap enumeration in `try/except ImportError` to
+  degrade to dynamic-only. Optionally pullable earlier as an `ES-4b` item
+  (dependency-free) if the data layer is wanted before W23. **Severity/Confidence**:
+  feature work / High. Lane: `[security-detection]` + `[static-analysis-pre-check]`.
+- `[GOAL mitre-coverage-ui]` (new) — **W23 candidate; depends on
+  `[GOAL mitre-coverage-catalog]`.** New `/mitre` UI page (NOT `/coverage` —
+  avoids collision with the W20–W22 capability "coverage promotion" taxonomy):
+  a MITRE ATT&CK-navigator-style matrix, tactics as columns × technique cells,
+  each cell listing the rules mapped to it with severity color (reuse
+  `ui/src/components/v3/tokens.ts` `RISK_COLOR`/`BADGE_TONE`, extended with a
+  distinct critical + muted info), a static/dynamic marker + a blocker glyph;
+  rule click opens the existing `ui/src/components/ui/SlideOverDrawer.tsx` with
+  full rule detail (technique+tactic name, adversary class, categories, blocker).
+  URL-param filters (severity/source/lifecycle) mirroring
+  `ui/src/features/rules/RulesPage.tsx`; adapter + view-models under
+  `Matrix*`/`RuleCatalog*` names to avoid colliding with the existing capability
+  `Coverage*View` types. Wiring: route in `ui/src/app/App.tsx` + nav in
+  `ui/src/app/layout/AppShell.tsx` (`NavId` + `NAV` + `activeIdFromPath`).
+  **Severity/Confidence**: feature work / High. Lane: `[security-detection]` (UI surface).
+- `[GOAL mitre-static-overlay]` (new) — **W23 candidate; depends on ES-3b.**
+  Per-report overlay highlighting which techniques/rules FIRED for a selected
+  analysis job. Dynamic side works today (existing
+  `detection_report.rules_executed`); static side needs the static report served
+  to the UI: an additive optional `static_report: StaticAnalysisReport | None`
+  on `AnalyzeJobStatusResponse` (`appcore/contracts/schema_defs/marketplace.py`),
+  a `load_static_report_payload` mirror of `load_report_payload`
+  (`workflows/marketplace/analysis_reports.py`), and a read in `get_analysis_job`
+  (`workflows/marketplace/router.py`). Effectively blocked until ES-3b populates
+  `static_report_path` (today always None → overlay shows "static stage did not
+  run"). Pulls the 7 static DTOs (`StaticAnalysisReport`/`StaticDetectionReport`/
+  `StaticDetectionFinding`/`StaticEvidenceRef`/`StaticGateOutcome`/
+  `StaticSeverityCounts`/`StaticToolExecutionRecord`) into the generated TS
+  contracts. **Test**: `tests/workflows/marketplace/test_static_report_overlay.py`.
+  **Severity/Confidence**: feature work / High. Lane: `[security-detection]` +
+  `[marketplace-analysis]`.
 
 Closed: `[FOLLOWUP evidence-event-kind-raw-context-invariant]` — W14-4
 (9-kind allowlist + `@model_validator(mode='after')`).
