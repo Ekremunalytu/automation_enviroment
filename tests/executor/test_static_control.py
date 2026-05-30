@@ -138,20 +138,22 @@ def test_static_runtime_argparse_requires_all_flags() -> None:
         build_parser().parse_args([])
 
 
-def test_static_runtime_stub_writes_empty_report(tmp_path: Any) -> None:
-    """Container-free lock on the ES-2 stub's on-disk JSON contract.
+def test_static_runtime_writes_valid_report_for_empty_tree(tmp_path: Any) -> None:
+    """Container-free lock on the ES-3a runner's on-disk JSON contract.
 
     The live smoke variant (``tests/smoke/test_static_container_smoke.py``) is
     gated behind a running container and skipped under ``make check-all``; this
-    runs in the default lane and pins the *empty* ``StaticDetectionReport`` shape
-    that ES-3a must keep stable when it swaps the stub body for the real runner.
+    runs in the default lane and pins the ``StaticDetectionReport`` shape the
+    host orchestration (ES-3b) deserializes: an analysed-but-clean tree has no
+    findings but DOES carry the ``inhouse`` tool-execution record (the ES-2 stub
+    emitted no tool records — that is the behaviour change ES-3a introduces).
     """
     from packages.analysis_contracts.static_detection import StaticDetectionReport
     from static_runtime.entrypoint import run_static_detection
 
-    report_path = tmp_path / "nested" / "report.json"  # parent created by the stub
+    report_path = tmp_path / "nested" / "report.json"  # parent created by runner
     returned = run_static_detection(
-        vsix_dir="/extensions-input/x",
+        vsix_dir=str(tmp_path),  # empty tree: no manifest, no files
         report_path=str(report_path),
         rules_version="0.0.0",
         timeout_budget_s=30,
@@ -162,7 +164,8 @@ def test_static_runtime_stub_writes_empty_report(tmp_path: Any) -> None:
     doc = json.loads(report_path.read_text(encoding="utf-8"))
     assert doc["schema_version"] == "1"
     assert doc["findings"] == []
-    assert doc["tool_executions"] == []
+    assert len(doc["tool_executions"]) == 1
+    assert doc["tool_executions"][0]["tool"] == "inhouse"
     # Round-trips back through the contract (validates, not just JSON-parses).
     StaticDetectionReport.model_validate(doc)
 

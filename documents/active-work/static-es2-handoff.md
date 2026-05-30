@@ -13,6 +13,11 @@ pattern). The durable record is the stream tracker
 [`static-analysis-pre-check-stream.md`](static-analysis-pre-check-stream.md)
 (ES-2 already stamped DONE there) and [ADR 0016](../adrs/0016-static-analysis-pre-check-stage.md).
 
+> **SUPERSEDED (2026-05-30):** ES-3a is now done, verified, and committed.
+> See [`static-es3a-handoff.md`](static-es3a-handoff.md) for current state; the
+> tracker [`static-analysis-pre-check-stream.md`](static-analysis-pre-check-stream.md)
+> remains the durable record. This handoff is retained for provenance.
+
 ## Immediate next action
 
 ES-2 is **done, committed, and pushed** to `origin/static` (user go-ahead

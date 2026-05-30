@@ -51,41 +51,92 @@ def test_static_runtime_imports_in_container() -> None:
     )
 
 
-def test_static_runtime_stub_writes_empty_report() -> None:
-    """The stub writes a valid, empty ``StaticDetectionReport`` to the report path."""
-    docker_bin = _docker_or_skip()
-    report_path = "/tmp/es2_smoke_report.json"  # noqa: S108 — container-side tmp
-    run = subprocess.run(  # noqa: S603
-        [
-            docker_bin,
-            "exec",
-            _CONTAINER,
-            "python3",
-            "-m",
-            "static_runtime",
-            "--vsix-dir",
-            "/extensions-input",
-            "--report-path",
-            report_path,
-            "--rules-version",
-            "0.0.0",
-            "--timeout-budget-s",
-            "30",
-        ],
+def _exec(docker_bin: str, *args: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(  # noqa: S603
+        [docker_bin, "exec", _CONTAINER, *args],
         capture_output=True,
         text=True,
         check=False,
     )
-    assert run.returncode == 0, f"stub run failed:\nstderr: {run.stderr}"
 
-    cat = subprocess.run(  # noqa: S603
-        [docker_bin, "exec", _CONTAINER, "cat", report_path],
-        capture_output=True,
-        text=True,
-        check=False,
+
+def test_static_runner_emits_inhouse_record_for_clean_tree() -> None:
+    """The ES-3a runner writes a valid report (no findings, inhouse tool record).
+
+    Runs over an empty container-side dir so the result is deterministic
+    regardless of what is mounted at ``/extensions-input``.
+    """
+    docker_bin = _docker_or_skip()
+    empty_dir = "/tmp/es3a_empty"  # noqa: S108 — container-side tmp
+    report_path = "/tmp/es3a_clean_report.json"  # noqa: S108
+    assert _exec(docker_bin, "mkdir", "-p", empty_dir).returncode == 0
+
+    run = _exec(
+        docker_bin,
+        "python3",
+        "-m",
+        "static_runtime",
+        "--vsix-dir",
+        empty_dir,
+        "--report-path",
+        report_path,
+        "--rules-version",
+        "0.0.0",
+        "--timeout-budget-s",
+        "30",
     )
+    assert run.returncode == 0, f"runner failed:\nstderr: {run.stderr}"
+
+    cat = _exec(docker_bin, "cat", report_path)
     assert cat.returncode == 0, f"could not read report:\nstderr: {cat.stderr}"
     doc = json.loads(cat.stdout)
-    assert doc["findings"] == []
-    assert doc["tool_executions"] == []
     assert doc["schema_version"] == "1"
+    assert doc["findings"] == []
+    assert len(doc["tool_executions"]) == 1
+    assert doc["tool_executions"][0]["tool"] == "inhouse"
+    assert doc["tool_executions"][0]["rules_loaded"] == 6
+
+
+def test_static_runner_fires_rules_in_container() -> None:
+    """Live evidence the in-house rules actually fire inside the hardened image."""
+    docker_bin = _docker_or_skip()
+    mal_dir = "/tmp/es3a_mal"  # noqa: S108 — container-side tmp
+    report_path = "/tmp/es3a_mal_report.json"  # noqa: S108
+    # Stage a red-flag manifest using the container's own python (avoids shell
+    # quoting); writes {publisher:"", activationEvents:["*"]} into mal_dir.
+    stage = _exec(
+        docker_bin,
+        "python3",
+        "-c",
+        (
+            "import json,pathlib;"
+            f"p=pathlib.Path({mal_dir!r});p.mkdir(parents=True,exist_ok=True);"
+            "(p/'package.json').write_text("
+            "json.dumps({'publisher':'','name':'thing','activationEvents':['*']}))"
+        ),
+    )
+    assert stage.returncode == 0, f"could not stage manifest:\nstderr: {stage.stderr}"
+
+    run = _exec(
+        docker_bin,
+        "python3",
+        "-m",
+        "static_runtime",
+        "--vsix-dir",
+        mal_dir,
+        "--report-path",
+        report_path,
+        "--rules-version",
+        "1.0.0",
+        "--timeout-budget-s",
+        "30",
+    )
+    assert run.returncode == 0, f"runner failed:\nstderr: {run.stderr}"
+
+    cat = _exec(docker_bin, "cat", report_path)
+    assert cat.returncode == 0, f"could not read report:\nstderr: {cat.stderr}"
+    doc = json.loads(cat.stdout)
+    rule_ids = {finding["rule_id"] for finding in doc["findings"]}
+    assert any(rule_id.startswith("extrace.s1.") for rule_id in rule_ids), (
+        f"expected S1 manifest red-flag findings, got: {sorted(rule_ids)}"
+    )

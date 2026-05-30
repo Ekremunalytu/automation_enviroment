@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-from functools import lru_cache
-from pathlib import Path
-
 from packages.analysis_contracts import ActivationReport, EvidenceEvent
 from packages.analysis_contracts.detection import (
     AdversaryClass,
@@ -14,58 +11,15 @@ from packages.analysis_contracts.detection import (
     RuleLifecycle,
     Severity,
 )
+from packages.analysis_contracts.typosquat_match import nearest_popular_match
 from packages.analysis_engine.rules._common import event_type, make_evidence_ref
 from packages.analysis_engine.rules.registry import register
 
-_POPULAR_EXTENSION_PATH = (
-    Path(__file__).resolve().parents[1] / "allowlists" / "popular_extensions.txt"
-)
-_MAX_TYPOSQUAT_DISTANCE = 2
-
-
-@lru_cache(maxsize=1)
-def _popular_extensions() -> frozenset[str]:
-    lines = _POPULAR_EXTENSION_PATH.read_text(encoding="utf-8").splitlines()
-    values = {line.strip().lower() for line in lines if line.strip()}
-    return frozenset(values)
-
-
-def _levenshtein(left: str, right: str) -> int:
-    if left == right:
-        return 0
-    if not left:
-        return len(right)
-    if not right:
-        return len(left)
-    previous = list(range(len(right) + 1))
-    for i, left_char in enumerate(left, start=1):
-        current = [i]
-        for j, right_char in enumerate(right, start=1):
-            substitution_cost = 0 if left_char == right_char else 1
-            current.append(
-                min(
-                    current[j - 1] + 1,
-                    previous[j] + 1,
-                    previous[j - 1] + substitution_cost,
-                )
-            )
-        previous = current
-    return previous[-1]
-
-
-def _nearest_popular_match(identifier: str) -> tuple[str, int] | None:
-    """Return the closest popular extension within the typosquat bound."""
-
-    best: tuple[str, int] | None = None
-    for candidate in _popular_extensions():
-        distance = _levenshtein(identifier, candidate)
-        if distance == 0:
-            return None
-        if distance > _MAX_TYPOSQUAT_DISTANCE:
-            continue
-        if best is None or distance < best[1]:
-            best = (candidate, distance)
-    return best
+# Typosquat matching primitives moved to packages.analysis_contracts at ES-3a so
+# the hardened static image can share the matcher + allowlist without dragging in
+# the dynamic engine. Behaviour is unchanged; the static s2 rule imports the same
+# helper. See packages/analysis_contracts/typosquat_match.py.
+_nearest_popular_match = nearest_popular_match
 
 
 def _activation_evidence(report: ActivationReport) -> EvidenceEvent | None:

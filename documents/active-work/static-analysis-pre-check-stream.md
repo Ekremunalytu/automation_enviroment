@@ -1,6 +1,6 @@
 # Static Analysis Pre-Check Stream (Active Work Tracker)
 
-`Last Updated: 2026-05-30 — ES-2 hardened automation_static_analyzer container scaffold + runtime stub on branch static.`
+`Last Updated: 2026-05-30 — ES-3a in-house static rules MVP (s1/s2/s3) + static runner on branch static.`
 
 `Status: ACTIVE on branch static (single-branch model per user direction 2026-05-29; sub-iter başına ayrı branch yok). Resumed serially from the frozen extrace-static-stream-handoff.md design intent after the extrace-static branch was abandoned 2026-05-28.`
 
@@ -43,7 +43,7 @@ must not be renumbered — code comments and tests reference them.
 | ES-1a | Schema contracts: static-detection finding/report/gate + combined bundle (producer-free) | DONE (`33cfdfc`) |
 | ES-1b | Lifecycle landing: `rejected_static` terminal status + `static_report_path` (snapshot/update + ORM column) + Alembic; folded audit fixes (gate decision-consistency, evidence `relative_path` boundary). No step-Literal change. | DONE |
 | ES-2 | Hardened `automation_static_analyzer` container scaffold + runtime stub | DONE |
-| ES-3a | 6 in-house Python rules (s1/s2/s3) + static runner | PENDING |
+| ES-3a | 6 in-house Python rules (s1/s2/s3) + static runner | DONE |
 | ES-3b | Decision gate + orchestrator wiring; 7-step order + `empty_job_steps` extension (the ES-1 regression mitigation) land here | PENDING |
 | ES-4 | Semgrep integration (version-pinned wheel + 4 custom JS rules) | PENDING |
 | ES-5 | Close-out: UI surfaces + `AnalyzeResponse` extension + smoke evidence + feature-flag flip; ADR 0016 → Accepted | PENDING |
@@ -156,6 +156,59 @@ Feature flag stays OFF.
 - Deferred: real rules → ES-3a; orchestrator wiring + `static_host` callers +
   `docker compose build api` → ES-3b; semgrep → ES-4; `/results` non-root write
   permission → ES-3b.
+
+### ES-3a — In-house static rules MVP + static runner (DONE)
+
+Swaps the ES-2 empty-report stub for the real in-house rule engine, behind the
+unchanged ES-2 flag surface + on-disk `StaticDetectionReport` JSON contract.
+Producer-only — the decision gate + orchestrator wiring stay in ES-3b; feature
+flag stays OFF. `make check-all` green (2214 passed); container rebuilt +
+`make test-smoke` green (rules fire live in the hardened image). Regression-
+checked against a live UI scan (ms-python.python, 2026-05-30): job `completed`,
+all 5 dynamic steps green, `static_report_path` NULL (gate not wired yet), and
+re-running `run_detection` over the scanned report confirmed `extrace.a3.typosquat`
+still executes silent with the moved allowlist loading 18 entries — the
+shared-leaf refactor did not disturb the dynamic pipeline.
+
+- **Placement deviation from the frozen handoff (Option A, user-approved
+  2026-05-30):** the handoff put rules under `packages/analysis_engine/static_rules/`
+  and reused `a3_typosquat._nearest_popular_match`. That conflicts with the ES-2
+  minimal-image decision — `packages/analysis_engine/__init__.py` eagerly imports
+  `run_detection`, so importing any engine submodule drags the whole dynamic
+  engine into the hardened image (which copies only `packages/analysis_contracts/`
+  + `static_runtime/`). Instead the rules live under `static_runtime/` (already
+  in the image), and the typosquat matcher + `popular_extensions.txt` moved to
+  `packages/analysis_contracts/typosquat_match.py` (+ `data/`), a stdlib-only
+  leaf both the dynamic `a3_typosquat` and the static `s2` rule import. One
+  curated allowlist copy; no engine import; `a3_typosquat` behaviour unchanged
+  (its existing tests are the regression guard).
+- `static_runtime/context.py` — `StaticAnalysisContext.from_vsix_dir`: parses
+  `package.json` (root or `extension/`) with **stdlib `json`** (NOT
+  `workflows.extension_catalog.manifest_reader`, which imports `appcore` and
+  would break the `static_runtime` boundary); `iter_files` skips symlinks.
+- `static_runtime/rules/{base,registry,_common,s1_manifest_red_flags,
+  s2_typosquat_static,s3_file_tree_heuristics}.py` — mirrors the dynamic
+  `packages.analysis_engine.rules` shape (Protocol base + self-registering
+  singletons + lazy registry). Six PRODUCTION rules: `extrace.s1.activation_wildcard`
+  / `extrace.s1.suspicious_capabilities` / `extrace.s1.generic_publisher` /
+  `extrace.s2.typosquat` (HIGH, the promoted gate blocker) /
+  `extrace.s3.embedded_native_binary` / `extrace.s3.unusual_file_signature`.
+  Evidence snippets routed through `redact_secrets`
+  (`packages/analysis_contracts/evidence.py`) — the ES-1b producer-side deferral.
+- `static_runtime/static_runner.py` — `run_static_detection_engine` mirrors
+  `packages.analysis_engine.runner.run_detection`: loads production rules,
+  evaluates each over the context (soft `timeout_budget_s` check between rules;
+  rule errors degrade to no-finding), rolls up `StaticSeverityCounts` + an
+  `inhouse` `StaticToolExecutionRecord`. `entrypoint.run_static_detection` is the
+  thin file-writing wrapper (signature + on-disk shape unchanged from ES-2).
+- Tests: `tests/static_runtime/` (per-rule fire/silent + runner rollup/round-trip
+  + budget; `conftest.make_context` factory); `tests/architecture/test_static_runtime_import_boundary.py`
+  (static_runtime must not import `workflows`/`appcore`/`packages.analysis_engine`);
+  updated `tests/executor/test_static_control.py` (stub→runner on-disk lock) +
+  `tests/smoke/test_static_container_smoke.py` (clean-tree inhouse record + live
+  rules-fire). `a3_typosquat` tests unchanged (shared-leaf regression guard).
+- Deferred to ES-3b: decision gate, orchestrator wiring, 7-step / `empty_job_steps`,
+  `_TERMINAL_JOB_STATUSES += rejected_static`, api rebuild. Semgrep → ES-4.
 
 ## Acceptance Bar / Notes
 

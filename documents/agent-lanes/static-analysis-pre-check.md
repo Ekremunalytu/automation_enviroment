@@ -1,8 +1,8 @@
 # Static Analysis Pre-Check Lane
 
-**Last Updated:** 2026-05-29 (ES-0 doc-reconcile — ADR 0016 Proposed;
-stream resumed serially on branch `static` from the frozen
-`extrace-static-stream-handoff.md` design intent).
+**Last Updated:** 2026-05-30 (ES-3a — in-house static rules MVP + static
+runner landed; rules live in the container-native `static_runtime/`, not
+`packages/analysis_engine/`, per the minimal-image boundary).
 
 Use this lane for the pre-execution static analysis stage: static
 detection contracts, in-house static rules, the Semgrep runner, the
@@ -15,8 +15,13 @@ decision gate that fronts the dynamic sandbox.
 - `documents/active-work/static-analysis-pre-check-stream.md`
 - `documents/active-work/extrace-static-stream-handoff.md` (frozen
   design-intent source; field-level spec for every sub-iter)
-- `packages/analysis_contracts/static_detection/` (lands ES-1)
-- `packages/analysis_engine/static_rules/` (lands ES-3a)
+- `packages/analysis_contracts/static_detection/` (landed ES-1)
+- `static_runtime/rules/` + `static_runtime/static_runner.py` (landed ES-3a;
+  rules live in the container-native package, NOT `packages/analysis_engine/`,
+  so the hardened image stays minimal)
+- `packages/analysis_contracts/typosquat_match.py` (landed ES-3a; shared
+  stdlib-only matcher + `data/popular_extensions.txt`, reused by the dynamic
+  `a3_typosquat` and the static `s2` rule — one allowlist copy, no engine import)
 - `workflows/marketplace/static_analysis.py` (lands ES-3b)
 
 ## Invariants
@@ -26,8 +31,12 @@ decision gate that fronts the dynamic sandbox.
 - **Enum reuse by identity.** `Severity` / `Confidence` / `RuleLifecycle`
   / `AdversaryClass` come from `packages.analysis_contracts`, not parallel
   clones (ADR 0005 packages charter).
-- **`packages/` stays framework-agnostic.** Static rules + runner do not
-  import `workflows`, `executor`, `appcore`, or `ui`.
+- **Minimal-image import boundary.** The static rules + runner live in
+  `static_runtime/` and import only the standard library +
+  `packages.analysis_contracts` — never `workflows`, `executor`, `appcore`,
+  `ui`, or `packages.analysis_engine` (whose `__init__` eagerly imports the
+  dynamic engine, which would bloat the hardened image). Pinned by
+  `tests/architecture/test_static_runtime_import_boundary.py`.
 - **Block-and-warn.** CRITICAL → terminal `rejected_static`; the only
   promoted HIGH blocker is `extrace.s2.typosquat` via a frozenset, not
   config. Everything else warns or allows.
@@ -60,6 +69,8 @@ decision gate that fronts the dynamic sandbox.
 ## Avoid
 
 - Bending the static-detection schema to fit a tool's output.
+- Importing `packages.analysis_engine` (or `workflows`/`appcore`) from
+  `static_runtime/` — it drags the dynamic engine into the hardened image.
 - Running the static analyzer inline on the host or in the executor.
 - Widening `uq_analysis_jobs_single_active` to include `rejected_static`
   (it is terminal).

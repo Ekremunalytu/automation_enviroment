@@ -95,8 +95,11 @@ ADR 0005 packages charter.
 The MVP ships two tools writing into one `StaticDetectionReport`:
 
 - **In-house Python rules** — 6 production rules across `s1` (manifest),
-  `s2` (typosquat, reusing the dynamic `a3_typosquat` matcher), `s3`
-  (file-tree heuristics) namespaces.
+  `s2` (typosquat, reusing the shared `packages.analysis_contracts.typosquat_match`
+  matcher — extracted from `a3_typosquat` at ES-3a so the hardened image needs
+  no dynamic-engine import), `s3` (file-tree heuristics) namespaces. They live
+  in the container-native `static_runtime/` package (ES-3a placement deviation
+  from the handoff's `packages/analysis_engine/static_rules/`; see the tracker).
 - **Semgrep** — 4 custom YAML rules for the JS patterns above, run with
   `--metrics=off` and no external network.
 

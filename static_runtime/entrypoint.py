@@ -1,17 +1,14 @@
-"""Static analysis pre-check container entrypoint (ES-2 stub, ADR 0016).
+"""Static analysis pre-check container entrypoint (ES-3a runner, ADR 0016).
 
 Runs INSIDE the hardened ``automation_static_analyzer`` container, invoked as
-``python -m static_runtime`` (see ``__main__``). ES-2 is **scaffold only**: it
-writes an *empty* ``StaticDetectionReport`` to ``--report-path``. The real
-in-house rules + runner land at ES-3a (mirroring
-``packages.analysis_engine.runner.run_detection``) behind this same flag
-surface and on-disk JSON contract, so the container boundary and the
-host-orchestration call site can be stood up and smoke-tested first.
+``python -m static_runtime`` (see ``__main__``). ES-3a wires the in-house rule
+runner (``static_runtime.static_runner.run_static_detection_engine``) behind the
+ES-2 flag surface + on-disk JSON contract, both frozen at the container boundary
+so the host-orchestration call site (``executor/static_host.py``) is unchanged.
 
-Imports are intentionally confined to
-``packages.analysis_contracts.static_detection`` (pydantic-only closure) — the
-hardened image carries ``packages/analysis_contracts/`` + ``static_runtime/``
-and NOT the dynamic ``packages.analysis_engine`` engine.
+Imports are intentionally confined to ``packages.analysis_contracts`` +
+``static_runtime`` — the hardened image carries ``packages/analysis_contracts/``
++ ``static_runtime/`` and NOT the dynamic ``packages.analysis_engine`` engine.
 """
 
 from __future__ import annotations
@@ -20,6 +17,7 @@ import argparse
 from pathlib import Path
 
 from packages.analysis_contracts.static_detection import StaticDetectionReport
+from static_runtime.static_runner import run_static_detection_engine
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -66,15 +64,16 @@ def run_static_detection(
 ) -> StaticDetectionReport:
     """Produce a static detection report and persist it to ``report_path``.
 
-    ES-2 stub: emits an *empty* ``StaticDetectionReport`` (no findings, no
-    tool executions). ES-3a replaces the body with the in-house rule runner
-    while keeping this signature + the on-disk JSON contract stable.
-
-    ``vsix_dir`` / ``rules_version`` / ``timeout_budget_s`` are accepted now so
-    the invocation contract is frozen at the container boundary; the stub does
-    not yet read them.
+    Runs the in-house rule engine over ``vsix_dir`` and writes the resulting
+    ``StaticDetectionReport`` JSON to ``report_path`` (parent dirs created). The
+    signature + on-disk JSON shape are the ES-2 contract; only the body (now the
+    real runner instead of the empty-report stub) changed at ES-3a.
     """
-    report = StaticDetectionReport()
+    report = run_static_detection_engine(
+        vsix_dir=vsix_dir,
+        rules_version=rules_version,
+        timeout_budget_s=timeout_budget_s,
+    )
     destination = Path(report_path)
     destination.parent.mkdir(parents=True, exist_ok=True)
     destination.write_text(report.model_dump_json(), encoding="utf-8")
