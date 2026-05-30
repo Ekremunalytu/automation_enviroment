@@ -169,9 +169,12 @@ capture plumbing.
    CAP_SYS_CHROOT) — every one of those is reachable by code inside
    the container and several (CAP_SETUID, CAP_SETGID, CAP_DAC_OVERRIDE,
    CAP_CHOWN, CAP_MKNOD) trivially enable privilege escalation if a
-   set-uid binary is present. Dropping all + adding back only
-   monitoring capabilities (`NET_RAW`, `SYS_PTRACE`) on the executor
-   eliminates the bulk of the cap-based escalation paths.
+   set-uid binary is present. Dropping all + adding back only the
+   audited monitoring + privilege-drop capabilities (`NET_RAW`,
+   `SYS_PTRACE`, `SETUID`, `SETGID`, `SETPCAP`) on the executor
+   eliminates the bulk of the cap-based escalation paths (see
+   §Network capture under no-new-privileges for why the setpriv trio
+   `SETUID`/`SETGID`/`SETPCAP` is retained).
 
 2. **`security_opt: ["no-new-privileges:true"]`** prevents any
    process inside the container from gaining new privileges via

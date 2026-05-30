@@ -32,6 +32,7 @@ What's intentionally NOT pinned (deferred per ADR 0013 §Deferred):
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Any
 
@@ -223,3 +224,63 @@ def test_adr_0013_documents_deferred_items() -> None:
             f"ADR 0013 must mention {token!r} in its Deferred / next-steps "
             "section so the ratchet-down lane has the carry-over signal."
         )
+
+
+def _adr_executor_cap_add(adr_text: str) -> set[str]:
+    """Extract the executor `cap_add` (kept) set from ADR 0013's Decision
+    table — the bracketed cap list in the `automation_executor` row that
+    names the retained caps (not the `[ALL]` cap_drop cell).
+    """
+    rows = [
+        line
+        for line in adr_text.splitlines()
+        if "`automation_executor`" in line and "|" in line
+    ]
+    assert len(rows) == 1, (
+        "expected exactly one `automation_executor` Decision-table row in "
+        f"ADR 0013, found {len(rows)}."
+    )
+    bracketed = re.findall(r"\[([^\]]*)\]", rows[0])
+    cap_cells = [cell for cell in bracketed if "NET_RAW" in cell]
+    assert len(cap_cells) == 1, (
+        f"could not isolate the executor cap_add cell in ADR 0013 row: {rows[0]!r}."
+    )
+    return {
+        token.strip().strip("`") for token in cap_cells[0].split(",") if token.strip()
+    }
+
+
+def test_adr_0013_executor_caps_match_compose() -> None:
+    """The ADR 0013 Decision-table executor cap_add set must equal the live
+    docker-compose.yml executor cap_add AND the audited set pinned by
+    `test_executor_keeps_audited_capabilities`. Ties the prose table to
+    reality so an ADR edit that diverges from compose (or vice-versa)
+    surfaces in CI rather than as silent doc drift.
+    """
+    required = {"NET_RAW", "SYS_PTRACE", "SETUID", "SETGID", "SETPCAP"}
+    adr_caps = _adr_executor_cap_add(ADR_PATH.read_text(encoding="utf-8"))
+    assert adr_caps == required, (
+        f"ADR 0013 Decision-table executor cap_add {sorted(adr_caps)} must "
+        f"equal the audited set {sorted(required)}."
+    )
+    compose_caps = set(_load_compose()["executor"].get("cap_add") or [])
+    assert adr_caps == compose_caps, (
+        f"ADR 0013 Decision-table executor cap_add {sorted(adr_caps)} must "
+        f"match docker-compose.yml executor cap_add {sorted(compose_caps)}."
+    )
+
+
+def test_adr_0013_rationale_does_not_underclaim_executor_caps() -> None:
+    """ADR 0013 §Rationale must not describe the executor keepset as only
+    the two monitoring caps — the executor retains five (the monitoring
+    pair plus the setpriv trio justified in §Network capture under
+    no-new-privileges). Closes [ES-1 adr0013-rationale-cap-parity].
+    """
+    normalized = " ".join(ADR_PATH.read_text(encoding="utf-8").split())
+    stale = "adding back only monitoring capabilities (`NET_RAW`, `SYS_PTRACE`)"
+    assert stale not in normalized, (
+        "ADR 0013 §Rationale still under-claims the executor keepset as only "
+        "(NET_RAW, SYS_PTRACE); the Decision table + compose retain five caps "
+        "(NET_RAW, SYS_PTRACE, SETUID, SETGID, SETPCAP). Update the Rationale "
+        "prose to name all five."
+    )
