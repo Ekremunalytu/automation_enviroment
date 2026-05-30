@@ -55,6 +55,7 @@ CANONICAL_DOCS = (
     REPO_ROOT / "documents" / "REFACTOR_STATUS.md",
     REPO_ROOT / "documents" / "POST_POC_BACKLOG.md",
     REPO_ROOT / "documents" / "REFACTOR_OPTIMIZATION.md",
+    REPO_ROOT / "documents" / "README.md",
 )
 
 _PREAMBLE_LINE_LIMIT = 10
