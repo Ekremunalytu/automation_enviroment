@@ -30,7 +30,12 @@ coverage.xml
 *.swp
 *.swo
 .DS_Store
-.claude/
+# .claude/ stays ignored, EXCEPT the shared project config + secret-guard hook.
+.claude/*
+!.claude/settings.json
+!.claude/hooks/
+.claude/hooks/*
+!.claude/hooks/guard-secrets.py
 
 # Project Specific
 output/

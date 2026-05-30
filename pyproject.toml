@@ -94,6 +94,7 @@ ignore = [
 "ui/*.py" = ["E501"]  # HTML/CSS inline strings are naturally long
 "ui/**/*.py" = ["E501"]
 "scripts/*.py" = ["T20", "E501", "I001", "E402"]  # CLI tools: print output + sys.path bootstrap
+".claude/hooks/*.py" = ["T20", "E501"]  # Claude Code PreToolUse hooks: print to stderr is the hook API; long regex patterns
 "appcore/api/config.py" = ["S105"]  # Development default passwords in settings
 "packages/analysis_contracts/detection/enums.py" = ["UP042"]  # intentional Python<3.11 StrEnum fallback
 
