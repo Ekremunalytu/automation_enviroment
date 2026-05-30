@@ -1,8 +1,9 @@
 # Static Analysis Pre-Check Lane
 
-**Last Updated:** 2026-05-30 (ES-3a — in-house static rules MVP + static
-runner landed; rules live in the container-native `static_runtime/`, not
-`packages/analysis_engine/`, per the minimal-image boundary).
+**Last Updated:** 2026-05-30 (ES-3b — decision gate + orchestrator wiring
+landed: 7-step contract + flag-aware `empty_job_steps`, the `rejected_static`
+terminal transition, and the flag-gated static stage in `analysis_service`.
+Feature flag stays OFF until ES-5).
 
 Use this lane for the pre-execution static analysis stage: static
 detection contracts, in-house static rules, the Semgrep runner, the
@@ -22,7 +23,13 @@ decision gate that fronts the dynamic sandbox.
 - `packages/analysis_contracts/typosquat_match.py` (landed ES-3a; shared
   stdlib-only matcher + `data/popular_extensions.txt`, reused by the dynamic
   `a3_typosquat` and the static `s2` rule — one allowlist copy, no engine import)
-- `workflows/marketplace/static_analysis.py` (lands ES-3b)
+- `workflows/marketplace/static_analysis.py` (landed ES-3b — gate logic +
+  container runner + `StaticAnalysisBlockedError`)
+- `workflows/marketplace/analysis_service.py` (`_run_static_gate`) +
+  `appcore/storage/crud_ops/analysis_jobs/static_gate.py`
+  (`reject_analysis_job_static`) + `appcore/api/config.py`
+  (`StaticAnalysisSettings`) (landed ES-3b — orchestrator wiring, the
+  `rejected_static` transition, the feature flag)
 
 ## Invariants
 

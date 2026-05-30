@@ -44,7 +44,7 @@ must not be renumbered — code comments and tests reference them.
 | ES-1b | Lifecycle landing: `rejected_static` terminal status + `static_report_path` (snapshot/update + ORM column) + Alembic; folded audit fixes (gate decision-consistency, evidence `relative_path` boundary). No step-Literal change. | DONE |
 | ES-2 | Hardened `automation_static_analyzer` container scaffold + runtime stub | DONE |
 | ES-3a | 6 in-house Python rules (s1/s2/s3) + static runner | DONE |
-| ES-3b | Decision gate + orchestrator wiring; 7-step order + `empty_job_steps` extension (the ES-1 regression mitigation) land here | PENDING |
+| ES-3b | Decision gate + orchestrator wiring; 7-step order + `empty_job_steps` extension (the ES-1 regression mitigation) | DONE |
 | ES-4 | Semgrep integration (version-pinned wheel + 4 custom JS rules) | PENDING |
 | ES-5 | Close-out: UI surfaces + `AnalyzeResponse` extension + smoke evidence + feature-flag flip; ADR 0016 → Accepted | PENDING |
 
@@ -207,8 +207,57 @@ shared-leaf refactor did not disturb the dynamic pipeline.
   updated `tests/executor/test_static_control.py` (stub→runner on-disk lock) +
   `tests/smoke/test_static_container_smoke.py` (clean-tree inhouse record + live
   rules-fire). `a3_typosquat` tests unchanged (shared-leaf regression guard).
-- Deferred to ES-3b: decision gate, orchestrator wiring, 7-step / `empty_job_steps`,
-  `_TERMINAL_JOB_STATUSES += rejected_static`, api rebuild. Semgrep → ES-4.
+- Deferred to ES-3b (now landed — see ES-3b below): decision gate, orchestrator
+  wiring, 7-step / `empty_job_steps`, `_TERMINAL_JOB_STATUSES += rejected_static`,
+  api rebuild. Semgrep → ES-4.
+
+### ES-3b — Decision gate + orchestrator wiring (DONE)
+
+Wires the ES-3a producer into the live analysis-job orchestrator behind the
+unchanged OFF feature flag — the documented ES-1 step-Literal regression
+mitigation lands here. `make check-all` green (ruff + mypy clean, full pytest
+green, ui-types/ui-boundaries/markdownlint clean). Regression-checked against a
+live UI scan (ms-python.python, 2026-05-30): job `completed`, verdict `clean`,
+the two new static steps seeded `skipped` (flag OFF), the 5 dynamic steps green —
+zero regression. No Alembic migration (`static_report_path` landed ES-1b).
+
+- **Step contract 5 → 7** (`appcore/contracts/schema_defs/analysis_jobs.py`):
+  `ANALYSIS_JOB_STEP_NAMES` + the `AnalysisJobStepName` Literal gain
+  `static_analysis` + `decision_gate`, leading the order (pre-check before any
+  sandbox spin); `_validate_steps` pins the exact 7-step order.
+- **`empty_job_steps` flag-aware** (`workflows/marketplace/job_service.py`): 7
+  records; the two static steps seed `skipped` when the flag is OFF, `pending`
+  when ON — landed together with the step-name extension (the regression seam).
+- **`rejected_static` terminal transition**: `_TERMINAL_JOB_STATUSES` gains
+  `rejected_static` (`lifecycle.py`); new
+  `appcore/storage/crud_ops/analysis_jobs/static_gate.py::reject_analysis_job_static`
+  (row-locked, mirrors `finalize_cancelled_analysis_job`), re-exported via
+  `crud.py`; `job_service.reject_static_job` wrapper.
+- **Orchestrator stage** (`workflows/marketplace/analysis_service.py`):
+  `_run_static_gate` inserted between `ensure_vsix_exists` and `_reset_sandbox`,
+  gated on `settings.static_analysis.ENABLED`. BLOCK → persist the combined
+  bundle + raise `StaticAnalysisBlockedError` → `reject_static_job` (terminal
+  `rejected_static`, dynamic steps skipped); ALLOW/WARN → proceed.
+  `StaticAnalysisBlockedError` added to `ANALYZE_RECOVERABLE_ERROR_TYPES` and
+  mapped to HTTP 422 (sync + async parity).
+- **Execution + cancel** (`workflows/marketplace/analysis_execution.py`):
+  `run_static_analysis_stage` + `static_analysis_failure_message`;
+  `_run_static_off_thread` cancel coordinator (~100ms poll, mirrors the W18-2
+  reset coordinator) firing `control.cancel()` → `pkill -f static_runtime`
+  (`executor/static_host.py` + `executor/static_control.py`).
+- **Settings** (`appcore/api/config.py`): `StaticAnalysisSettings`
+  (`ENABLED=False`, `RULES_VERSION`, `TIMEOUT_BUDGET_S`); shares the
+  `STATIC_ANALYSIS_ENABLED` env flag with the executor-side mirror.
+- **Path seam**: container `report_path` on the `/results` mount; host read-back
+  under `settings.project.OUTPUT_DIR` (mirrors `analysis_reports.load_report_payload`).
+- Tests: `tests/platform/storage/test_static_blocked_job_state.py` (DB
+  state-machine), `tests/workflows/marketplace/test_static_gate_stage.py` (gate
+  ALLOW/WARN/BLOCK + path seam + flag-aware `empty_job_steps` + cancel
+  coordinator), `test_run_analysis_job_finalize.py` (BLOCK → reject routing),
+  `test_static_control.py` (cancel argv + delegation); architecture gates
+  updated (terminal-set invariant, facade re-export, ES-1b deferral note).
+- Deferred to ES-4: Semgrep. Deferred to ES-5: UI / `AnalyzeResponse` static
+  surfacing + flag flip + ADR 0016 → Accepted.
 
 ## Acceptance Bar / Notes
 
@@ -232,6 +281,51 @@ shared-leaf refactor did not disturb the dynamic pipeline.
   after this stream's ES-5 close-out. The backend catalog is independent and
   could be pulled as an `ES-4b` item if the data layer is wanted sooner; the
   per-report static overlay depends on ES-3b populating `static_report_path`.
+
+## Pre-Close-Out Review Checklist (static-branch audit + Codex cross-review, 2026-05-30)
+
+Surfaced by a read-only architecture/security audit of the `static` branch plus a
+Codex cross-review. **No code action is taken yet (owner direction 2026-05-30):
+each row is a gating CHECK to verify or consciously waive before the
+`static -> main` close-out PR (ES-5 window).** None is a P0/P1 hard-rule
+violation; all are hygiene / observability / test-coverage on the in-flight
+surface. The W0-W22 closed-phase regression scan came back clean, so every item
+below lives in branch-delta code (no pre-existing-main regression).
+
+Provenance: 11/12 are ES static-analysis-stream work; `static-events-loc-ratchet-headroom`
+rides on this branch from `c5879bb` (`feat(executor/file-capture)`), NOT ES work —
+resolve it with that change's owner or bump the ceiling. `static-input-bounds`
+SEC-STATIC-01/02 share a fix-locus with the dynamic engine (`typosquat_match`
+relocated from `a3_typosquat`; shared `redact_secrets`) — regression-guard the
+dynamic side when fixing.
+
+Buckets: **GATE** = one-line gate/config, goes green immediately · **CODE** =
+additive code+test (ES-3b/ES-4 window) · **ES5** = fold into the ES-5 ADR-Accepted /
+settings reconcile · **DEC** = ES-4 design decision · **NON-ES** = not
+static-analysis work (handle with the file-capture change or at close).
+
+| ID | Pre-close check (verify or consciously waive) | Evidence (HEAD) | Bucket |
+|----|-----------------------------------------------|-----------------|--------|
+| `[ES-CLOSE static-execution-observability]` | `StaticDetectionReport` / `StaticToolExecutionRecord` carry no execution telemetry — a swallowed rule error, an early budget break, or an unparseable manifest is indistinguishable from a clean ALLOW (bad failure mode for a security tool). Add `status` / `partial` / `error_count` / `errored_rule_ids` (additive v2 bump). Merges Codex #1 + #7 + audit QEL-2. | `static_runtime/static_runner.py:59-65`; `packages/analysis_contracts/static_detection/report.py:21-30`; `static_runtime/context.py:52-57` | CODE |
+| `[ES-CLOSE static-typosquat-confidence-wording]` | ADR 0016 §Decision 1 says "HIGH-**confidence** blocker" but `s2` emits `confidence=MEDIUM` and the gate blocks on severity + rule-id only (confidence unread). Fix wording -> "HIGH-**severity** promoted blocker" (MEDIUM is correct — parity with dynamic `a3`); add a `test_decision_gate.py` policy test pinning the block reason. Codex #2. | `documents/adrs/0016-static-analysis-pre-check-stage.md:57`; `static_runtime/rules/s2_typosquat_static.py:31,58`; `workflows/marketplace/static_analysis.py:79` | ES5 |
+| `[ES-CLOSE static-runtime-bare-except-gate]` | the no-bare-except gate's `SCANNED_DIRS` omits the new `static_runtime` adversarial-input prod root. Add `"static_runtime"` (green now — no bare except today). Codex #3 / audit QEL-1. | `tests/architecture/test_no_bare_except_exception.py:35` | GATE |
+| `[ES-CLOSE static-control-outbound-surface-gate]` | the semantic outbound gate scans only `executor/control.py`; the workflows-importable `executor.static_control` seam is not checked for docker/subprocess leakage. Extend the gate to scan `static_control.py` too (+ `subprocess.CompletedProcess` to the forbidden tokens). Current public surface is clean (verified). Codex #4. | `tests/architecture/test_executor_control_outbound.py:42`; `executor/static_control.py:25-47` | GATE |
+| `[ES-CLOSE static-cancel-path-effectiveness]` | cancel runs `pkill -f static_runtime` but the hardened image installs no `procps`/`pkill`, so cancel is a guaranteed no-op; an in-flight run is bounded only by `exec_timeout`. Latent now (fast in-house rules), real once ES-4 Semgrep makes scans long. Decide: document timeout-authoritative semantics / move to one-shot `docker run --rm` / add `procps` (dependency -> needs approval). Codex #5. | `executor/static_host.py:113-138`; `docker/static_analyzer/Dockerfile` | DEC |
+| `[ES-CLOSE static-packaging-coverage-metadata]` | `static_runtime` is prod code (image-COPYed) but absent from the setuptools include AND the coverage source -> coverage reports understate the new package. Add it to coverage source; document the image-only setuptools decision (or include it). Codex #6. | `pyproject.toml:40-45` (include); `pyproject.toml:184-189` (coverage source) | GATE |
+| `[ES-CLOSE static-input-bounds]` (SEC-STATIC-01/02/03) | container-bounded but unbounded adversarial reads: Levenshtein with no length band (**shared with dynamic `a3`**), snippet `redact_secrets` runs before the `[:400]` clamp = latent ReDoS (**shared root**), manifest `read_text()` no byte cap + `rglob` no file-count cap. Add stdlib caps; regression-guard the dynamic side for the two shared loci. Audit. | `packages/analysis_contracts/typosquat_match.py:47-86`; `static_runtime/rules/_common.py:23-25` + `packages/analysis_contracts/evidence.py:56-91`; `static_runtime/context.py:53,74` | CODE |
+| `[ES-CLOSE static-events-loc-ratchet-headroom]` (NON-ES) | `attribution/events.py` = 526 LoC vs the pinned ratchet ceiling 527 (1 LoC headroom); the next touch breaks the gate. Came from `c5879bb` (`feat(executor/file-capture)`), NOT ES work. Extract the pid-lineage block to the `lineage.py` sibling OR bump the ceiling with a one-line rationale. Audit SH-1. | `executor/flows/playwright/attribution/events.py:526`; `tests/architecture/test_executor_hotspot_loc_ratchet.py:48`; commit `c5879bb` | NON-ES |
+| `[ES-CLOSE static-host-nosec-consistency]` | Bandit dir-excludes `executor/`, so the new `static_host.py` subprocess sites carry no `# nosec`, leaving the `pyproject.toml` Bandit rationale comment ("every subprocess call carries `# nosec`") factually stale. Add `# nosec` to the two `subprocess.run` sites OR update the rationale. Audit QEL-3. | `executor/static_host.py` (the two `subprocess.run` sites); `pyproject.toml` Bandit block (verify exact line at close) | GATE |
+| `[ES-CLOSE static-run-fixture-quoting-gate]` | the new Makefile `static-run-fixture` target regex-validates + double-quotes operator vars (W14-3 pattern) but is unpinned by the quoting gate. Extend it. Audit TDC-13-1. | Makefile `static-run-fixture` target; `tests/architecture/test_makefile_sim_quoting.py` (verify exact lines at close) | GATE |
+| `[ES-CLOSE static-settings-timeout-naming]` | two env keys for one logical timeout — `StaticAnalysisSettings.TIMEOUT_S` vs the app-side `TIMEOUT_BUDGET_S` (env `STATIC_ANALYSIS_TIMEOUT_BUDGET_S`, absent from `.env.example`). Defaults agree (30s) so correct out-of-box; reconcile naming. Audit TDC-13-2. | `executor/config.py` (`StaticAnalysisSettings`); `.env.example` static block | ES5 |
+| `[ES-CLOSE static-malformed-report-test]` | empty-report (`test_run_static_analysis_empty_report_allows`), exec-failure, and BLOCK error-taxonomy ARE tested, but a specifically malformed/truncated JSON report body -> typed terminal failure (not a silent ALLOW) is unpinned. Add one test. Audit. | `workflows/marketplace/static_analysis.py:142-143`; `tests/workflows/marketplace/test_static_analysis_pipeline.py` | CODE |
+
+**Disposition at a glance:** GATE (cheap, green now) — `bare-except`, `outbound-surface`,
+`packaging-coverage`, `host-nosec`, `run-fixture-quoting`. CODE (additive code+test) —
+`execution-observability`, `input-bounds`, `malformed-report-test`. ES5 (fold into
+ADR-Accepted / settings reconcile) — `confidence-wording`, `settings-timeout-naming`.
+DEC (ES-4) — `cancel-path-effectiveness`. NON-ES — `events-loc-ratchet-headroom`.
+None blocks the merge on its own; the owner may waive any with a recorded rationale
+at the `static -> main` close-out.
 
 ## Audit Findings — Disposition (resolved / deferred in ES-1b, 2026-05-30)
 

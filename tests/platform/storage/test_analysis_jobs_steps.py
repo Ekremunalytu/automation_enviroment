@@ -17,6 +17,7 @@ import pytest
 from sqlalchemy.orm import Session
 
 from appcore.contracts.schema_defs.analysis_jobs import (
+    ANALYSIS_JOB_STEP_NAMES,
     AnalysisJobCreateSnapshot,
     AnalysisJobStepProgress,
     AnalysisJobStepRecord,
@@ -28,13 +29,8 @@ from appcore.storage.models import AnalysisJob
 pytestmark = pytest.mark.requires_db
 
 
-_CANONICAL_STEPS = (
-    "reset_sandbox",
-    "install_extension",
-    "build_triggers",
-    "run_monitoring",
-    "finalize_report",
-)
+# ES-3b: canonical 7-step order from the contract (see lifecycle test note).
+_CANONICAL_STEPS = ANALYSIS_JOB_STEP_NAMES
 
 
 def _empty_steps() -> list[AnalysisJobStepRecord]:
@@ -86,8 +82,9 @@ def test_update_step_running_sets_current_step(db_session: Session) -> None:
     )
 
     assert updated.current_step == "install_extension"
-    assert updated.steps[1]["status"] == "running"
-    assert updated.steps[1]["message"] == "Installing."
+    # ES-3b: install_extension is index 3 in the canonical 7-step order.
+    assert updated.steps[3]["status"] == "running"
+    assert updated.steps[3]["message"] == "Installing."
 
 
 def test_update_step_completed_clears_current_step_when_matching(
@@ -115,9 +112,9 @@ def test_update_step_completed_clears_current_step_when_matching(
     )
 
     assert completed.current_step is None
-    assert completed.steps[1]["status"] == "completed"
+    assert completed.steps[3]["status"] == "completed"
     # Terminal steps drop progress regardless of the inbound payload.
-    assert completed.steps[1]["progress"] is None
+    assert completed.steps[3]["progress"] is None
 
 
 def test_update_step_skipped_clears_progress_and_current_step(
@@ -145,8 +142,9 @@ def test_update_step_skipped_clears_progress_and_current_step(
         ),
     )
 
-    assert skipped.steps[3]["status"] == "skipped"
-    assert skipped.steps[3]["progress"] is None
+    # ES-3b: run_monitoring is index 5 in the canonical 7-step order.
+    assert skipped.steps[5]["status"] == "skipped"
+    assert skipped.steps[5]["progress"] is None
     assert skipped.current_step is None
 
 
@@ -178,8 +176,8 @@ def test_update_step_failed_keeps_current_step_for_postmortem(
     # `current_step` stays on the failed step name so postmortem reads land
     # on the right entry.
     assert failed.current_step == "run_monitoring"
-    assert failed.steps[3]["status"] == "failed"
-    assert failed.steps[3]["error_code"] == "monitor_crashed"
+    assert failed.steps[5]["status"] == "failed"
+    assert failed.steps[5]["error_code"] == "monitor_crashed"
 
 
 def test_update_step_progress_persists_for_running_status(
@@ -198,7 +196,7 @@ def test_update_step_progress_persists_for_running_status(
         ),
     )
 
-    assert running.steps[3]["progress"] == {"completed": 2, "total": 5}
+    assert running.steps[5]["progress"] == {"completed": 2, "total": 5}
 
 
 def test_update_step_unknown_job_raises_keyerror(db_session: Session) -> None:

@@ -193,6 +193,32 @@ class ExecutorSettings(BaseSettings):
     )
 
 
+class StaticAnalysisSettings(BaseSettings):
+    """
+    Static pre-check stage feature flag + run knobs (ES-3b, ADR 0016).
+    Prefix: STATIC_ANALYSIS_
+
+    ``ENABLED`` stays OFF until the ES-5 close-out flips it after smoke
+    evidence passes (ADR 0016 §Operational notes). It shares the
+    ``STATIC_ANALYSIS_ENABLED`` env var with the executor-side
+    ``executor.config.StaticAnalysisSettings`` so a single flag gates both the
+    app orchestrator and the host container driver. ``RULES_VERSION`` /
+    ``TIMEOUT_BUDGET_S`` are the explicit params the orchestrator threads into
+    ``workflows.marketplace.static_analysis.run_static_analysis``.
+    """
+
+    ENABLED: bool = False
+    RULES_VERSION: str = "0.0.0"
+    TIMEOUT_BUDGET_S: int = 30
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_prefix="STATIC_ANALYSIS_",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+
 class Settings(BaseSettings):
     """
     Main entry point for application settings.
@@ -203,6 +229,7 @@ class Settings(BaseSettings):
     api: APISettings = APISettings()
     db: DatabaseSettings = DatabaseSettings()
     executor: ExecutorSettings = ExecutorSettings()
+    static_analysis: StaticAnalysisSettings = StaticAnalysisSettings()
 
 
 # =============================================================================

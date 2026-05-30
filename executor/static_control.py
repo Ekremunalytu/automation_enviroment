@@ -6,6 +6,9 @@ from dataclasses import dataclass
 
 from executor.static_host import StaticAnalyzerError
 from executor.static_host import (
+    cancel_static_analysis_in_container as _cancel_static_analysis_in_container,
+)
+from executor.static_host import (
     run_static_analysis_in_container as _run_static_analysis_in_container,
 )
 
@@ -33,6 +36,15 @@ class StaticAnalyzerControl:
             rules_version=rules_version,
             timeout_budget_s=timeout_budget_s,
         )
+
+    def cancel(self) -> None:
+        """Best-effort terminate of an in-flight static analysis (ES-3b cancel).
+
+        Called by the off-thread coordinator on a cancel signal so a cancelled
+        job does not leave the analyzer churning through its budget. Mirrors the
+        analyze cancel path (``ExecutorControl`` teardown reset).
+        """
+        _cancel_static_analysis_in_container()
 
 
 default_static_analyzer_control = StaticAnalyzerControl()

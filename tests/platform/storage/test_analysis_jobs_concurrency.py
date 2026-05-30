@@ -61,6 +61,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.orm.attributes import flag_modified
 
 from appcore.contracts.schema_defs.analysis_jobs import (
+    ANALYSIS_JOB_STEP_NAMES,
     AnalysisJobCreateSnapshot,
     AnalysisJobFailure,
     AnalysisJobStepRecord,
@@ -72,13 +73,8 @@ from appcore.storage.models import AnalysisJob
 pytestmark = pytest.mark.requires_db
 
 
-_CANONICAL_STEPS = (
-    "reset_sandbox",
-    "install_extension",
-    "build_triggers",
-    "run_monitoring",
-    "finalize_report",
-)
+# ES-3b: canonical 7-step order from the contract (see lifecycle test note).
+_CANONICAL_STEPS = ANALYSIS_JOB_STEP_NAMES
 
 
 def _empty_steps() -> list[AnalysisJobStepRecord]:
@@ -393,8 +389,9 @@ def test_recover_interrupted_jobs_finalizes_stuck_cancelling_to_failed(
         "Analysis job was interrupted by an API restart. Start a new run."
     )
     # `_interrupt_job` finalizes step records on recovery (running → failed,
-    # trailing pending → skipped) regardless of source state.
-    assert refetched.steps[3]["status"] == "failed"
+    # trailing pending → skipped) regardless of source state. ES-3b:
+    # run_monitoring is index 5 in the canonical 7-step order.
+    assert refetched.steps[5]["status"] == "failed"
     assert refetched.finished_at is not None
 
 

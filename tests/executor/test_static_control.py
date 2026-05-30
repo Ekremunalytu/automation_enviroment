@@ -198,3 +198,53 @@ def test_static_analysis_feature_flag_defaults_off() -> None:
     live pipeline before its smoke evidence passes.
     """
     assert settings.static_analysis.ENABLED is False
+
+
+def test_cancel_static_analysis_builds_pkill_argv(
+    fake_docker: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """ES-3b cancel: argv is ``docker exec <container> pkill -f static_runtime``,
+    argv[0] the absolute cached docker_path(), never shell=True."""
+    captured: dict[str, Any] = {}
+
+    def fake_run(argv: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        captured["argv"] = argv
+        captured["kwargs"] = kwargs
+        return subprocess.CompletedProcess(
+            args=argv, returncode=0, stdout="", stderr=""
+        )
+
+    monkeypatch.setattr(static_host.subprocess, "run", fake_run)
+    static_host.cancel_static_analysis_in_container()
+
+    argv = captured["argv"]
+    assert argv[0] == fake_docker
+    assert argv[0].startswith("/")
+    assert argv[1:3] == ["exec", settings.static_analyzer.CONTAINER_NAME]
+    assert argv[-3:] == ["pkill", "-f", "static_runtime"]
+    assert captured["kwargs"].get("shell", False) is False
+
+
+def test_cancel_static_analysis_is_best_effort_swallows_errors(
+    fake_docker: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A subprocess failure (no matching process / pkill absent in the minimal
+    image) must NOT raise — the off-thread coordinator's cancel is authoritative.
+    """
+
+    def boom_run(argv: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        raise subprocess.SubprocessError("pkill not found")
+
+    monkeypatch.setattr(static_host.subprocess, "run", boom_run)
+    static_host.cancel_static_analysis_in_container()  # must NOT raise
+
+
+def test_control_cancel_delegates_to_host(monkeypatch: pytest.MonkeyPatch) -> None:
+    """``StaticAnalyzerControl.cancel()`` delegates to the host kill helper."""
+    calls: list[int] = []
+    monkeypatch.setattr(
+        "executor.static_control._cancel_static_analysis_in_container",
+        lambda: calls.append(1),
+    )
+    default_static_analyzer_control.cancel()
+    assert calls == [1]

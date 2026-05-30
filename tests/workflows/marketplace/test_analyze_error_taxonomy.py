@@ -23,7 +23,13 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.exc import SQLAlchemyError
 
+from appcore.contracts.schema_defs.static_analysis_bundle import StaticAnalysisReport
 from executor.host import ExecutorError
+from packages.analysis_contracts.static_detection import (
+    StaticDetectionReport,
+    StaticGateDecision,
+    StaticGateOutcome,
+)
 from workflows.marketplace.analysis_errors import (
     ActivationReportLoadError,
     TriggerPlanError,
@@ -31,6 +37,18 @@ from workflows.marketplace.analysis_errors import (
 from workflows.marketplace.analysis_service import (
     ANALYZE_ERROR_TYPES,
     analyze_error_to_http_response,
+)
+from workflows.marketplace.static_analysis import StaticAnalysisBlockedError
+
+# ES-3b: a minimal BLOCK report so ``StaticAnalysisBlockedError`` can be
+# constructed for the taxonomy parametrize (carries the report the orchestrator
+# would persist on the reject path).
+_BLOCKED_STATIC_REPORT = StaticAnalysisReport(
+    detection_report=StaticDetectionReport(),
+    gate_outcome=StaticGateOutcome(
+        decision=StaticGateDecision.BLOCK,
+        blocked_by=["extrace.s2.typosquat"],
+    ),
 )
 
 ANALYZE_PAYLOAD = {
@@ -80,6 +98,15 @@ HELPER_CASES: tuple[tuple[Exception, int], ...] = (
     # worker's recoverable tuple catches it the same way; this case
     # pins that the sync helper does not require exact type identity.
     (PermissionError("EACCES on /workspace/.wallet"), 502),
+    # ES-3b (ADR 0016 §Decision 1): the static pre-check gate BLOCK verdict →
+    # 422 (unprocessable input, not an infra fault).
+    (
+        StaticAnalysisBlockedError(
+            "Static pre-check blocked the extension (extrace.s2.typosquat).",
+            static_report=_BLOCKED_STATIC_REPORT,
+        ),
+        422,
+    ),
 )
 
 

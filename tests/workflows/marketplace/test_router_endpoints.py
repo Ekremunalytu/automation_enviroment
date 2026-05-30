@@ -375,6 +375,10 @@ def test_analyze_start_returns_job_snapshot(client: TestClient) -> None:
         "current_step": None,
         "message": "Queued for sandbox analysis.",
         "steps": [
+            # ES-3b: the static pre-check leads the canonical 7-step order;
+            # seeded `skipped` here because the flag is OFF by default.
+            {"name": "static_analysis", "status": "skipped", "message": "Disabled"},
+            {"name": "decision_gate", "status": "skipped", "message": "Disabled"},
             {"name": "reset_sandbox", "status": "pending", "message": "Waiting"},
             {"name": "install_extension", "status": "pending", "message": "Queued"},
             {"name": "build_triggers", "status": "pending", "message": "Waiting"},
@@ -412,7 +416,7 @@ def test_analyze_start_returns_job_snapshot(client: TestClient) -> None:
     payload = response.json()
     assert payload["status"] == "queued"
     assert payload["publisher"] == ANALYZE_PAYLOAD["publisher"]
-    assert len(payload["steps"]) == 5
+    assert len(payload["steps"]) == 7
     assert payload["report_path"].startswith(
         "activation_report_ms-python.python-2025.0.0-"
     )

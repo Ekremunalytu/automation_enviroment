@@ -40,7 +40,15 @@ class JobNotCancellableError(RuntimeError):
         self.status = status
 
 
-_TERMINAL_JOB_STATUSES: frozenset[str] = frozenset({"completed", "failed", "cancelled"})
+# ES-3b (ADR 0016 §Decision 1): `rejected_static` is the terminal state a job
+# enters when the static pre-check gate BLOCKs an extension. It joins the
+# terminal set here (deferred from ES-1b) so the cancel/complete/fail guards
+# treat a rejected job as immutable and `reserve_job` admits the next job once
+# the gate releases the single-active slot. It is NOT in
+# `ACTIVE_ANALYSIS_JOB_STATUSES`, so the partial unique index is unchanged.
+_TERMINAL_JOB_STATUSES: frozenset[str] = frozenset(
+    {"completed", "failed", "cancelled", "rejected_static"}
+)
 
 
 def _get_analysis_job_or_raise(db: Session, job_id: str) -> AnalysisJob:

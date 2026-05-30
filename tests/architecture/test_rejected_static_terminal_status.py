@@ -17,14 +17,16 @@ are pinned here as module-level invariants:
    migration does NOT touch the index.
 5. The ``static_report_path`` column is present (nullable) on the ORM model.
 
-NOTE (deferred to ES-3b): ``rejected_static`` is intentionally NOT yet in
+NOTE (landed at ES-3b): ``rejected_static`` is now a member of
 ``_TERMINAL_JOB_STATUSES``
-(``appcore/storage/crud_ops/analysis_jobs/lifecycle.py``). No producer writes a
-``rejected_static`` row until the ES-3b orchestrator wiring, which adds it there
-together with the lifecycle short-circuits. The W13-3 invariant
+(``appcore/storage/crud_ops/analysis_jobs/lifecycle.py``). The ES-3b orchestrator
+wiring added it there together with the producer
+(``crud.reject_analysis_job_static`` /
+``job_service.reject_static_job``) and the ``analysis_service`` short-circuit.
+The W13-3 invariant
 ``test_job_state_invariants.py::test_terminal_job_statuses_excludes_cancelling``
-therefore still pins the terminal set at exactly three members at this point in
-the stream.
+now pins the terminal set at the four terminal members (still excluding the
+non-terminal ``cancelling``).
 """
 
 from __future__ import annotations

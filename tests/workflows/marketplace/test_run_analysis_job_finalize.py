@@ -32,11 +32,24 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
-
+from appcore.contracts.schema_defs.static_analysis_bundle import StaticAnalysisReport
 from appcore.contracts.schemas import AnalyzeRequest
 from executor.control import ExecutorError
+from packages.analysis_contracts.static_detection import (
+    StaticDetectionReport,
+    StaticGateDecision,
+    StaticGateOutcome,
+)
 from workflows.marketplace import analysis_service, job_service
 from workflows.marketplace.analysis_errors import AnalysisCancelledError
+from workflows.marketplace.static_analysis import StaticAnalysisBlockedError
+
+_BLOCKED_STATIC_REPORT = StaticAnalysisReport(
+    detection_report=StaticDetectionReport(),
+    gate_outcome=StaticGateOutcome(
+        decision=StaticGateDecision.BLOCK, blocked_by=["extrace.s2.typosquat"]
+    ),
+)
 
 
 def _request() -> AnalyzeRequest:
@@ -156,3 +169,48 @@ def test_run_analysis_job_finalizes_on_hard_error_with_cancel_signal() -> None:
     finalize.assert_called_once_with(job_id)
     fail_job.assert_not_called()
     complete_job.assert_not_called()
+
+
+def test_run_analysis_job_rejects_static_on_blocked_error() -> None:
+    """ES-3b: a static-gate BLOCK routes to ``reject_static_job`` (terminal
+    ``rejected_static``), NOT ``fail_job``, and records the per-job static
+    report path.
+
+    Wiring under test: the dedicated ``except StaticAnalysisBlockedError``
+    handler in ``run_analysis_job``, placed AHEAD of the generic recoverable
+    clause (which also lists ``StaticAnalysisBlockedError``), calls
+    ``reject_static_job(job_id, str(exc), static_report_path=f"static_report_{job_id}.json")``.
+    The combined bundle was already persisted by the gate stage; the handler
+    only records its path on the row.
+    """
+    job_id = "test-static-block-uuid"
+
+    with (
+        patch.object(
+            analysis_service,
+            "execute_analysis_request",
+            side_effect=StaticAnalysisBlockedError(
+                "Static pre-check blocked the extension (extrace.s2.typosquat).",
+                static_report=_BLOCKED_STATIC_REPORT,
+            ),
+        ),
+        patch.object(
+            job_service,
+            "reject_static_job",
+            return_value={"status": "rejected_static"},
+        ) as reject_static,
+        patch.object(job_service, "fail_job") as fail_job,
+        patch.object(job_service, "complete_job") as complete_job,
+        patch.object(job_service, "finalize_cancelled_job") as finalize,
+        patch.object(analysis_service, "_open_job_session"),
+    ):
+        analysis_service.run_analysis_job(job_id, _request())
+
+    # BLOCK is routed to the dedicated reject path, not fail/complete/cancel.
+    reject_static.assert_called_once()
+    assert reject_static.call_args.kwargs.get("static_report_path") == (
+        f"static_report_{job_id}.json"
+    )
+    fail_job.assert_not_called()
+    complete_job.assert_not_called()
+    finalize.assert_not_called()

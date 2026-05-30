@@ -16,9 +16,11 @@ Asserted invariants:
 
 1. ``_TERMINAL_JOB_STATUSES`` (in
    ``appcore/storage/crud_ops/analysis_jobs/lifecycle.py``) is exactly
-   ``frozenset({"completed", "failed", "cancelled"})`` — adding
-   ``cancelling`` here lets ``reserve_job`` admit a second job during
-   the drain and reopens Codex H4.
+   ``frozenset({"completed", "failed", "cancelled", "rejected_static"})``
+   — ES-3b (ADR 0016) joined ``rejected_static`` (the terminal static-gate
+   rejection) to the set; ``cancelling`` must still NEVER be a member, or
+   ``reserve_job`` would admit a second job during the drain and reopen
+   Codex H4.
 
 2. ``ACTIVE_ANALYSIS_JOB_STATUSES`` (in
    ``appcore/contracts/schema_defs/analysis_jobs.py``) contains
@@ -66,10 +68,15 @@ W13_3_MIGRATION_PATH = (
 
 
 def test_terminal_job_statuses_excludes_cancelling() -> None:
-    """W13-3: cancelling is non-terminal; promoting it would reopen H4."""
-    assert frozenset({"completed", "failed", "cancelled"}) == _TERMINAL_JOB_STATUSES, (
-        "_TERMINAL_JOB_STATUSES drift detected — Codex H4 invariant: "
-        "cancelling must NOT be in the terminal set, otherwise "
+    """W13-3 + ES-3b: terminal set is the 4 terminal statuses; cancelling is
+    non-terminal and promoting it would reopen H4."""
+    assert (
+        frozenset({"completed", "failed", "cancelled", "rejected_static"})
+        == _TERMINAL_JOB_STATUSES
+    ), (
+        "_TERMINAL_JOB_STATUSES drift detected — Codex H4 + ES-3b invariant: "
+        "the terminal set is exactly {completed, failed, cancelled, "
+        "rejected_static}. cancelling must NOT be in it, otherwise "
         "reserve_job releases the lock during the drain and a second "
         "job lands on the shared executor."
     )

@@ -6,7 +6,15 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+# ES-3b (ADR 0016, Static Analysis Pre-Check): the static pre-check gate runs
+# BEFORE any sandbox spin, so its two steps lead the canonical order. When the
+# `settings.static_analysis.ENABLED` flag is OFF (default until ES-5) the two
+# static steps are seeded `skipped`; the dynamic stages are unchanged. Keep this
+# tuple, the `AnalysisJobStepName` Literal, and `job_service.empty_job_steps`
+# in lockstep — `_validate_steps` pins the exact 7-step order.
 ANALYSIS_JOB_STEP_NAMES = (
+    "static_analysis",
+    "decision_gate",
     "reset_sandbox",
     "install_extension",
     "build_triggers",
@@ -45,6 +53,8 @@ ANALYSIS_JOB_STATUSES = (
 ACTIVE_ANALYSIS_JOB_STATUSES = ("queued", "running", "cancelling")
 
 AnalysisJobStepName = Literal[
+    "static_analysis",
+    "decision_gate",
     "reset_sandbox",
     "install_extension",
     "build_triggers",

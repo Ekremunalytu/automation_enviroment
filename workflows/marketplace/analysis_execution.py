@@ -12,9 +12,11 @@ from appcore.contracts.schema_defs.analysis_jobs import (
     AnalysisJobStepName,
     AnalysisJobStepStatus,
 )
+from appcore.contracts.schema_defs.static_analysis_bundle import StaticAnalysisReport
 from appcore.contracts.schemas import AnalyzeRequest
 from appcore.logging import get_extrace_logger
 from executor.control import ExecutorControl, ExecutorError
+from executor.static_control import StaticAnalyzerError
 from packages.analysis_contracts import redact_multiline_secrets, redact_secrets
 from workflows.marketplace.trigger_service import TriggerPlan
 
@@ -99,6 +101,23 @@ def install_failure_message(exc: ExecutorError) -> str:
     return f"{base} Installer output (tail): {tail}"
 
 
+def static_analysis_failure_message(exc: StaticAnalyzerError) -> str:
+    """Surface the static-analyzer container stderr tail in the job log.
+
+    Mirrors ``install_failure_message``: ``StaticAnalyzerError`` carries the
+    container's stderr/stdout in ``exc.output`` but ``str(exc)`` is just the
+    rc/command line. VSIX-derived analyzer output is untrusted, so collapse
+    cross-line spans then tail to 500 chars under the W10-7 redaction contract.
+    """
+    base = "Static analysis failed inside the analyzer container."
+    output = (getattr(exc, "output", "") or "").strip()
+    if not output:
+        return base
+    sanitized_output = redact_multiline_secrets(output)
+    tail = redact_secrets(sanitized_output[-500:].strip())
+    return f"{base} Analyzer output (tail): {tail}"
+
+
 def _run_monitoring_heartbeat(
     stop_event: threading.Event,
     reporter: StepReporter,
@@ -160,6 +179,7 @@ def _run_monitoring_heartbeat(
 
 
 COORDINATOR_THREAD_NAME = "analysis-sandbox-reset-coordinator"
+STATIC_COORDINATOR_THREAD_NAME = "analysis-static-analysis-coordinator"
 _COORDINATOR_POLL_INTERVAL_S = 0.1
 
 
@@ -223,6 +243,99 @@ def reset_sandbox(
         )
         raise
     reporter.emit("reset_sandbox", "completed", "Sandbox reset completed.")
+
+
+def _run_static_off_thread(
+    run_static: Callable[[], StaticAnalysisReport],
+    cancel_check: Callable[[], bool] | None,
+    on_cancel: Callable[[], None] | None = None,
+) -> StaticAnalysisReport:
+    """Run the static pre-check on a dedicated coordinator thread so the worker
+    frame stays responsive to cancel within ~100ms (mirrors
+    ``_run_reset_off_thread``; W18-2 boundary cadence). On the first observed
+    cancel the optional ``on_cancel`` hook fires (``pkill -f static_runtime`` in
+    the container) so the network-isolated analyzer does not keep burning its
+    budget after the worker moves on, then ``AnalysisCancelledError`` is raised
+    on the worker frame. The core runner always returns a full report (the BLOCK
+    verdict is in ``gate_outcome``); a container/parse failure surfaces as the
+    held exception re-raised here.
+    """
+    done = threading.Event()
+    holder: dict[str, object] = {"exc": None, "report": None}
+
+    def _target() -> None:
+        try:
+            holder["report"] = run_static()
+        except (
+            StaticAnalyzerError,
+            RuntimeError,
+            OSError,
+            ValueError,
+            AttributeError,
+        ) as exc:
+            holder["exc"] = exc
+        finally:
+            done.set()
+
+    thread = threading.Thread(
+        target=_target,
+        daemon=True,
+        name=STATIC_COORDINATOR_THREAD_NAME,
+    )
+    thread.start()
+    cancel_signalled = False
+    while not done.wait(timeout=_COORDINATOR_POLL_INTERVAL_S):
+        if not cancel_signalled and cancel_check is not None and cancel_check():
+            cancel_signalled = True
+            if on_cancel is not None:
+                try:
+                    on_cancel()
+                except (StaticAnalyzerError, OSError, RuntimeError):
+                    logger.exception("static on_cancel handler failed in coordinator.")
+            raise_if_cancelled(cancel_check)
+    if holder["exc"] is not None:
+        raise holder["exc"]  # type: ignore[misc]
+    raise_if_cancelled(cancel_check)
+    report = holder["report"]
+    assert report is not None, "static coordinator finished without a report"
+    return report  # type: ignore[return-value]
+
+
+def run_static_analysis_stage(
+    reporter: StepReporter,
+    *,
+    run_static: Callable[[], StaticAnalysisReport],
+    on_cancel: Callable[[], None] | None = None,
+    cancel_check: Callable[[], bool] | None = None,
+) -> StaticAnalysisReport:
+    """Drive the ``static_analysis`` container stage and report progress.
+
+    ``run_static`` is the pre-bound core runner (the orchestrator threads the
+    config-derived paths + control into it) so this helper stays settings-free.
+    Emits ``static_analysis`` running -> completed/failed; the ``decision_gate``
+    step and the BLOCK/WARN/ALLOW verdict are the orchestrator's responsibility.
+    """
+    reporter.emit(
+        "static_analysis",
+        "running",
+        "Running static pre-check analysis.",
+    )
+    try:
+        report = _run_static_off_thread(run_static, cancel_check, on_cancel=on_cancel)
+    except StaticAnalyzerError as exc:
+        reporter.emit(
+            "static_analysis",
+            "failed",
+            static_analysis_failure_message(exc),
+            "static_analysis_failed",
+        )
+        raise
+    reporter.emit(
+        "static_analysis",
+        "completed",
+        "Static pre-check analysis completed.",
+    )
+    return report
 
 
 def install_extension(
@@ -406,6 +519,7 @@ def run_monitoring(
 
 __all__ = [
     "COORDINATOR_THREAD_NAME",
+    "STATIC_COORDINATOR_THREAD_NAME",
     "StepReporter",
     "build_triggers",
     "install_extension",
@@ -414,4 +528,6 @@ __all__ = [
     "raise_if_cancelled",
     "reset_sandbox",
     "run_monitoring",
+    "run_static_analysis_stage",
+    "static_analysis_failure_message",
 ]

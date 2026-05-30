@@ -54,7 +54,7 @@ The static stage gates the dynamic stage:
   dynamic stage is skipped and downstream steps are marked `skipped`.
 - **LOW / MEDIUM findings → warn.** The dynamic stage proceeds and the
   warnings ride along in the combined bundle.
-- One curated HIGH-confidence blocker is promoted to BLOCK via a
+- One curated HIGH-severity blocker is promoted to BLOCK via a
   frozenset, not config: `_PROMOTED_HIGH_BLOCKERS =
   frozenset({"extrace.s2.typosquat"})`. Changes to this set require an
   amendment to this ADR plus a commit audit trail — never a silent

@@ -184,15 +184,20 @@ def test_analysis_jobs_facade_reexports_match_canonical_modules() -> None:
     focused modules, by ``is`` identity (not equality).
 
     Pins the contract that the facade's re-exported set is exactly what
-    ``lifecycle.py`` and ``steps.py`` provide — no orphan re-exports, no
-    shim-wrapped versions of public symbols. A future facade rewrite that
-    swaps re-exports for shim wrappers fails this test.
+    ``lifecycle.py``, ``steps.py``, and ``static_gate.py`` (ES-3b) provide —
+    no orphan re-exports, no shim-wrapped versions of public symbols. A future
+    facade rewrite that swaps re-exports for shim wrappers fails this test.
     """
     from appcore.storage.crud_ops import analysis_jobs as facade
-    from appcore.storage.crud_ops.analysis_jobs import lifecycle, steps
+    from appcore.storage.crud_ops.analysis_jobs import lifecycle, static_gate, steps
 
     expected_in_steps = {"update_analysis_job_step"}
-    expected_in_lifecycle = set(facade.__all__) - expected_in_steps
+    # ES-3b: the static-gate terminal transition lives in its own focused
+    # module (a sibling of lifecycle/steps), re-exported through the facade.
+    expected_in_static_gate = {"reject_analysis_job_static"}
+    expected_in_lifecycle = (
+        set(facade.__all__) - expected_in_steps - expected_in_static_gate
+    )
 
     for name in expected_in_steps:
         facade_obj = getattr(facade, name)
@@ -200,6 +205,14 @@ def test_analysis_jobs_facade_reexports_match_canonical_modules() -> None:
         assert facade_obj is canonical_obj, (
             f"analysis_jobs.{name} must be the same object as steps.{name} "
             "(W11-8 re-export invariant)."
+        )
+
+    for name in expected_in_static_gate:
+        facade_obj = getattr(facade, name)
+        canonical_obj = getattr(static_gate, name)
+        assert facade_obj is canonical_obj, (
+            f"analysis_jobs.{name} must be the same object as "
+            f"static_gate.{name} (W11-8 / ES-3b re-export invariant)."
         )
 
     for name in expected_in_lifecycle:

@@ -14,6 +14,7 @@ monitor) also lands at ES-3b.
 
 from __future__ import annotations
 
+import contextlib
 import subprocess
 
 from executor.binary_paths import STATIC_ANALYZER_PYTHON3_PATH, docker_path
@@ -107,3 +108,31 @@ def run_static_analysis_in_container(
     )
     result = _run_static_docker_exec(cmd, exec_timeout)
     return result.stdout or ""
+
+
+def cancel_static_analysis_in_container() -> None:
+    """Best-effort terminate of an in-flight ``static_runtime`` run (ES-3b cancel).
+
+    The ES-3b off-thread coordinator calls this when a job is cancelled mid
+    static pre-check so the network-isolated analyzer does not keep churning
+    through its budget after the worker has moved on. Best-effort by design: a
+    non-zero rc (no matching process, or ``pkill`` absent in the minimal image)
+    is swallowed — the coordinator has already raised ``AnalysisCancelledError``
+    and the kill must never mask the cancel. argv-list invocation (never
+    ``shell=True``); argv[0] is the absolute ``docker_path()`` so a tampered
+    ``$PATH`` cannot swap the launcher (W8-4). The in-container ``pkill`` runs as
+    the non-root ``static`` user and can only signal the ``static_runtime``
+    process it owns.
+    """
+    container = settings.static_analyzer.CONTAINER_NAME
+    full_cmd = [docker_path(), "exec", container, "pkill", "-f", "static_runtime"]
+    # Best-effort cleanup; the cancel is already authoritative, so a missing
+    # process or absent `pkill` (minimal image) must not surface.
+    with contextlib.suppress(subprocess.SubprocessError, OSError):
+        subprocess.run(
+            full_cmd,
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+        )

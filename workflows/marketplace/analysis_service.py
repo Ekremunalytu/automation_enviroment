@@ -10,10 +10,12 @@ from fastapi import HTTPException
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+from appcore.api.config import settings
 from appcore.contracts.schema_defs.analysis_jobs import (
     AnalysisJobStepName,
     AnalysisJobStepStatus,
 )
+from appcore.contracts.schema_defs.static_analysis_bundle import StaticAnalysisReport
 from appcore.contracts.schemas import AnalyzeRequest, AnalyzeResponse
 from appcore.logging import get_extrace_logger
 from appcore.storage.crud_ops.analysis_jobs.lifecycle import (
@@ -25,7 +27,13 @@ from executor.control import (
     ExecutorError,
     default_executor_control,
 )
+from executor.static_control import (
+    StaticAnalyzerControl,
+    default_static_analyzer_control,
+)
 from packages.analysis_contracts import redact_secrets
+from packages.analysis_contracts.static_detection import StaticGateDecision
+from packages.marketplace_identity import safe_marketplace_slug
 from workflows.marketplace import client as marketplace_client
 from workflows.marketplace import job_service
 from workflows.marketplace.analysis_errors import (
@@ -51,6 +59,9 @@ from workflows.marketplace.analysis_execution import (
 from workflows.marketplace.analysis_execution import (
     run_monitoring as _run_monitoring,
 )
+from workflows.marketplace.analysis_execution import (
+    run_static_analysis_stage as _run_static_analysis_stage,
+)
 from workflows.marketplace.analysis_reports import (
     build_analysis_bundle_from_report_name,
     run_local_analysis,
@@ -66,6 +77,13 @@ from workflows.marketplace.analysis_reports import (
 )
 from workflows.marketplace.analysis_reports import (
     validate_trigger_plan_report as _validate_trigger_plan_report,
+)
+from workflows.marketplace.static_analysis import (
+    StaticAnalysisBlockedError,
+    build_combined_bundle,
+)
+from workflows.marketplace.static_analysis import (
+    run_static_analysis as run_static_analysis_core,
 )
 from workflows.marketplace.trigger_service import TriggerPlan, build_trigger_payload
 
@@ -91,6 +109,11 @@ ANALYZE_RECOVERABLE_ERROR_TYPES: tuple[type[Exception], ...] = (
     OSError,
     SQLAlchemyError,
     ValueError,
+    # ES-3b (ADR 0016 §Decision 1): the static pre-check BLOCK verdict. The
+    # async worker routes it to ``reject_static_job`` (terminal rejected_static)
+    # via a dedicated handler placed ahead of the generic recoverable clause;
+    # the sync entry catches it through the union and maps it to HTTP 422.
+    StaticAnalysisBlockedError,
 )
 ANALYZE_PROGRAMMING_ERROR_TYPES: tuple[type[Exception], ...] = (
     TypeError,
@@ -121,6 +144,111 @@ def ensure_vsix_exists(request: AnalyzeRequest) -> Path:
     return vsix_path
 
 
+# ES-3b (ADR 0016 §Decision 2): the static analyzer writes its report to the
+# shared ``/results`` mount; the host reads it back under OUTPUT_DIR (mirrors
+# ``analysis_reports.load_report_payload`` resolution).
+_RESULTS_CONTAINER_DIR = "/results"
+
+
+def _static_report_paths(static_report_name: str) -> tuple[str, Path]:
+    """Container (``/results``) + host (OUTPUT_DIR) paths for the static report."""
+    container_report_path = f"{_RESULTS_CONTAINER_DIR}/{static_report_name}"
+    host_report_path = Path(settings.project.OUTPUT_DIR) / static_report_name
+    return container_report_path, host_report_path
+
+
+def _persist_combined_bundle(
+    static_report: StaticAnalysisReport,
+    host_report_path: Path,
+) -> None:
+    """Persist the combined bundle (static-only; dynamic skipped) for the reject path.
+
+    On BLOCK the dynamic sandbox never runs, so the artifact the
+    ``rejected_static`` row points at is ``CombinedAnalysisBundle`` with
+    ``dynamic_bundle=None`` (overwrites the raw detection report the container
+    emitted to the same host path).
+    """
+    bundle = build_combined_bundle(static_report)
+    host_report_path.write_text(bundle.model_dump_json(indent=2), encoding="utf-8")
+
+
+def _apply_static_gate_decision(
+    reporter: _StepReporter,
+    static_report: StaticAnalysisReport,
+    *,
+    host_report_path: Path,
+) -> None:
+    """Run the ``decision_gate`` step over the folded gate outcome.
+
+    ALLOW/WARN -> emit ``completed`` and return (the dynamic stage proceeds).
+    BLOCK -> persist the combined bundle, then raise ``StaticAnalysisBlockedError``
+    while ``decision_gate`` is still ``running`` (the reject transition marks it
+    completed); the worker routes to ``reject_static_job``.
+    """
+    reporter.emit("decision_gate", "running", "Evaluating static gate verdict.")
+    outcome = static_report.gate_outcome
+    if outcome.decision is StaticGateDecision.BLOCK:
+        _persist_combined_bundle(static_report, host_report_path)
+        raise StaticAnalysisBlockedError(
+            "Static pre-check blocked the extension "
+            f"({', '.join(outcome.blocked_by)}).",
+            static_report=static_report,
+        )
+    if outcome.decision is StaticGateDecision.WARN:
+        reporter.emit(
+            "decision_gate",
+            "completed",
+            f"Static gate warnings: {', '.join(outcome.warned_by)}.",
+        )
+    else:
+        reporter.emit(
+            "decision_gate",
+            "completed",
+            outcome.allow_reason or "Static gate allowed the extension.",
+        )
+
+
+def _run_static_gate(
+    request: AnalyzeRequest,
+    reporter: _StepReporter,
+    control: StaticAnalyzerControl,
+    *,
+    static_report_name: str,
+    cancel_check: Callable[[], bool] | None = None,
+) -> None:
+    """ES-3b static pre-check stage: run the analyzer container, then the gate.
+
+    The settings-free core (``run_static_analysis_core``) is bound here with the
+    config-derived container/host paths + rules version + budget, then driven on
+    the cancellation coordinator. On BLOCK this raises
+    ``StaticAnalysisBlockedError``; on ALLOW/WARN it returns and the dynamic
+    stage proceeds.
+    """
+    slug = safe_marketplace_slug(request.publisher, request.name, request.version)
+    vsix_dir = f"{settings.executor.EXTENSIONS_CONTAINER_PATH}/{slug}"
+    container_report_path, host_report_path = _static_report_paths(static_report_name)
+
+    def run_static() -> StaticAnalysisReport:
+        return run_static_analysis_core(
+            vsix_dir=vsix_dir,
+            report_path=container_report_path,
+            host_report_path=host_report_path,
+            rules_version=settings.static_analysis.RULES_VERSION,
+            timeout_budget_s=settings.static_analysis.TIMEOUT_BUDGET_S,
+            control=control,
+        )
+
+    static_report = _run_static_analysis_stage(
+        reporter,
+        run_static=run_static,
+        on_cancel=getattr(control, "cancel", None),
+        cancel_check=cancel_check,
+    )
+    _apply_static_gate_decision(
+        reporter, static_report, host_report_path=host_report_path
+    )
+
+
 def execute_analysis_request(
     request: AnalyzeRequest,
     db: Session,
@@ -139,6 +267,8 @@ def execute_analysis_request(
     executor_control: ExecutorControl | None = None,
     cancel_check: Callable[[], bool] | None = None,
     on_cancel_signal: Callable[[], None] | None = None,
+    static_analyzer_control: StaticAnalyzerControl | None = None,
+    static_report_name: str | None = None,
 ) -> AnalyzeResponse:
     if executor_control is None:
         executor_control = default_executor_control
@@ -152,6 +282,22 @@ def execute_analysis_request(
     _raise_if_cancelled(cancel_check)
     ensure_vsix_exists(request)
     _raise_if_cancelled(cancel_check)
+    # ES-3b (ADR 0016 §Decision 1): static pre-check gate, BEFORE any sandbox
+    # spin. OFF by default until ES-5 — flag-gated so the dynamic path and its
+    # cancel-poll cadence are byte-identical when disabled. On BLOCK
+    # ``_run_static_gate`` raises ``StaticAnalysisBlockedError`` (the worker
+    # routes it to ``reject_static_job``); on ALLOW/WARN it returns here.
+    if settings.static_analysis.ENABLED:
+        _run_static_gate(
+            request,
+            reporter,
+            static_analyzer_control or default_static_analyzer_control,
+            static_report_name=(
+                static_report_name or f"static_report_{uuid4().hex}.json"
+            ),
+            cancel_check=cancel_check,
+        )
+        _raise_if_cancelled(cancel_check)
     _reset_sandbox(reporter, executor_control, cancel_check=cancel_check)
     _raise_if_cancelled(cancel_check)
     # W13-11 (Codex F1 close-pass for W13-1 H6): host-side eager-consume
@@ -245,7 +391,12 @@ def analyze_error_to_http_response(exc: Exception) -> HTTPException:
     - ``TypeError`` / ``AttributeError`` -> 500 (programming-class error
       surfaced explicitly so the body shape is consistent with the rest
       of the taxonomy instead of FastAPI's default 500 page).
+    - ``StaticAnalysisBlockedError`` -> 422 (ES-3b static pre-check gate
+      BLOCKed the extension; an unprocessable input, not an infra fault —
+      matched before the generic branches since it is a ``RuntimeError``).
     """
+    if isinstance(exc, StaticAnalysisBlockedError):
+        return HTTPException(status_code=422, detail=str(exc))
     if isinstance(exc, ExecutorError):
         return map_executor_error(exc)
     if isinstance(exc, FileNotFoundError):
@@ -334,6 +485,9 @@ def run_analysis_job(job_id: str, request: AnalyzeRequest) -> None:
             "WorkerEntryOutcome.CLAIMED MUST populate report_path"
         )
         report_name = claim.report_path
+        # ES-3b: deterministic per-job static report name (also the
+        # ``static_report_path`` recorded on a BLOCK rejection).
+        static_report_name = f"static_report_{job_id}.json"
 
         def progress_update(
             step: AnalysisJobStepName,
@@ -368,6 +522,7 @@ def run_analysis_job(job_id: str, request: AnalyzeRequest) -> None:
                 progress_callback=progress_update,
                 report_name=report_name,
                 cancel_check=cancel_check,
+                static_report_name=static_report_name,
             )
         except AnalysisCancelledError:
             # W13-3 (Codex H4): worker observed the cancel signal at one of
@@ -386,6 +541,25 @@ def run_analysis_job(job_id: str, request: AnalyzeRequest) -> None:
                 # worker exit). Either way nothing to clean up.
                 logger.debug(
                     "finalize_cancelled_job skipped for job %s (already terminal "
+                    "or absent).",
+                    job_id,
+                )
+            return
+        except StaticAnalysisBlockedError as exc:
+            # ES-3b (ADR 0016 §Decision 1): the static pre-check gate BLOCKed the
+            # extension before any sandbox spin. Route to the dedicated terminal
+            # transition (rejected_static) — placed ahead of the generic
+            # recoverable clause that also lists StaticAnalysisBlockedError. The
+            # gate stage already persisted the combined bundle; record its path.
+            try:
+                job_service.reject_static_job(
+                    job_id,
+                    str(exc),
+                    static_report_path=static_report_name,
+                )
+            except (job_service.JobNotCancellableError, KeyError):
+                logger.debug(
+                    "reject_static_job skipped for job %s (already terminal "
                     "or absent).",
                     job_id,
                 )
