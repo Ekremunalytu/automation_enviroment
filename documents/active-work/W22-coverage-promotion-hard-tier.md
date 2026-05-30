@@ -33,7 +33,7 @@ is the template structurally followed here.
 
 ## Status (Quick Glance)
 
-- **W22 active on the `week22` branch.** Branch was created from `main`
+- **W22 closed and merged to `main` via PR #31 (`1399f82`).** Developed on the `week22` branch, created from `main`
   @ `5dc18aa` (W21 close-out PR #30 merge `2026-05-28 14:18:22+03:00`)
   per user direction `2026-05-28`. **Single-branch model**: tüm
   sub-iter commits doğrudan `week22` üzerine; sub-iter başına ayrı
@@ -58,7 +58,7 @@ is the template structurally followed here.
   1 → 0.
 - **Branch model (user direction 2026-05-28).** **Tek branch
   `week22`** — sub-iter commits doğrudan üzerinde; close-out PR
-  `week22 -> main` PENDING USER APPROVAL.
+  `week22 -> main` MERGED via PR #31 (`1399f82`).
 - **Main onayı zorunlu (user direction 2026-05-28).** Main'e push,
   PR oluşturma, merge, branch silme: hepsi user onayı zorunlu.
   Memory entry `feedback_pr_push_approval.md` standing.
@@ -156,7 +156,7 @@ is the template structurally followed here.
 
 | Iter | Status / Theme | Commit ref | Closes which acceptance-bar item? |
 |---|---|---|---|
-| W22-0 | **in-flight 26bb080** doc-reconcile — `week22` branch open + new W22 active-work tracker (this file) + §19 W21 plan header doc-close ("Previous phase" stamp) + §20 W22 plan header doc-open in `REFACTOR_OPTIMIZATION.md` (W19-0/W20-0/W21-0 paterni mirror) + 10-doc canonical preamble refresh W21 closed/merged → W22 active + W21 Pull-Forward Acceptance Bar in `POST_POC_BACKLOG.md` closed/merged stamp + W22 Roadmap Acceptance Bar "planning" → "active" promotion + README phase-pointer arch gate transition W21→W22 + new W21 close-out fact gate `test_readme_phase_pointer_mentions_w21_closeout_merge` pinning PR #30 / `week21 -> main` / `5dc18aa` + canonical preamble parity test fingerprint refresh (PR #29 → PR #30, `64a3c3d` → `5dc18aa`, tracker slot W21 → W22). | this commit | — (doc-reconcile; no acceptance-bar item) |
+| W22-0 | **closed `26bb080`** doc-reconcile — `week22` branch open + new W22 active-work tracker (this file) + §19 W21 plan header doc-close ("Previous phase" stamp) + §20 W22 plan header doc-open in `REFACTOR_OPTIMIZATION.md` (W19-0/W20-0/W21-0 paterni mirror) + 10-doc canonical preamble refresh W21 closed/merged → W22 active + W21 Pull-Forward Acceptance Bar in `POST_POC_BACKLOG.md` closed/merged stamp + W22 Roadmap Acceptance Bar "planning" → "active" promotion + README phase-pointer arch gate transition W21→W22 + new W21 close-out fact gate `test_readme_phase_pointer_mentions_w21_closeout_merge` pinning PR #30 / `week21 -> main` / `5dc18aa` + canonical preamble parity test fingerprint refresh (PR #29 → PR #30, `64a3c3d` → `5dc18aa`, tracker slot W21 → W22). | this commit | — (doc-reconcile; no acceptance-bar item) |
 | W22-1 | **closed** `906fcd5` + `d018fe1` — `[GOAL taxonomy-chat-policy-adr]` ADR `documents/adrs/0014-chat-and-language-model-tool-policy.md` Accepted (Option C — tool-only coverage with explicit local boundary). `onChatParticipant:*` covered via `vscode.chat.createChatParticipant`; `onLanguageModelTool:*` covered via `vscode.lm.registerTool` + `vscode.lm.invokeTool`. Stable VS Code 1.90+ APIs, network-free; NO engine bump, NO proposed APIs, NO Insiders build. Alternatives A (proposed-API stub provider), B (mock invoke without registration), D (declare partial with blocker) rejected with gerekçe. Markers route via reserved OutputChannel (W19-X Bug B paterni); ephemeral lifecycle on `context.subscriptions` (W19-X Bug C lesson). + 2 architecture invariants at `tests/architecture/test_chat_policy_adr.py` (existence + content pin). | `906fcd5` (primary) + `d018fe1` (self-stamp) | unblocks W22-2 |
 | W22-2 | **closed (static cut)** `ffbb743` + self-stamp (this commit); **runtime gate DEFERRED TO USER** (Linux required) — `[GOAL taxonomy-chat-coverage]` hard tier closure. capabilities.py 2 flips (chat missing→covered both tracks) + scenarios.py 2 new ScenarioDefinition (local_chat_participant_controller + local_language_model_tool_controller) + extension.js GREENFIELD chat participant + LM tool registration (vscode.chat.createChatParticipant + vscode.lm.registerTool, GA 1.90+, no proposed APIs) + stimulus_dispatch.js REPLACE pre-W22-2 incomplete UI-nav chat handler with two distinct API-level branches (chat_participant_state phase=stimulated + lm_tool_state phase=invoked with try/catch invoke_failed fallback) + 5 invariants at test_capability_support_invariants.py (W21-2 paterni mirror, +1 extra for second scenario) + dict shape canonical pin update + count pin 16→18 + fixture regen via select_scenarios() programmatic call. **Static**: coverage_summary.missing_capabilities = `["chat"]` → `[]` (HARD TIER CLOSURE STATIC). Runtime live-run anchor (make sim-target → missing_capabilities == [] on actual ms-python.python run) user-owned on Linux. | `ffbb743` (primary) + (this commit) (self-stamp) | **W22 acceptance #6 (Must-pass) satisfied STATICALLY** |
 | W22-3 | **closed** `cff10d3` + self-stamp (this commit) — `[FOLLOWUP attribution-count-parity-process-events]` + `[FOLLOWUP attribution-count-parity-output-channel]` (both) — producer-side stamps at `links.py` for `kind="process"` + `kind="output_channel_appendline"` mirroring W17-1 activation paterni byte-identical (commits `8c26d02` + `0a8f59e`). Two new count helpers at `summary.py` (`count_target_process_events` + `count_target_output_events`) byte-identical with `count_target_activations` guard shape. 8 new invariant tests at `test_playwright_attribution_links.py` (4 per family: target flag / non-target unflag / no-target-set unflag / parity contract pin). `health/summary.py` LOC ceiling 537 → 552 (W22-3 rationale comment). | `cff10d3` (primary) + (this commit) (self-stamp) | closes 2 [FOLLOWUP] tags |
@@ -164,7 +164,7 @@ is the template structurally followed here.
 | W22-5 | **closed** `a6dd24b` + self-stamp (this commit) — `[GOAL sandbox-evasion-canary-fixture]` observer-side synthetic-probe coverage of ADR 0015 five-family taxonomy via `tests/security/test_sandbox_evasion_canary.py` (4 test functions, 8 cases when parametrize expands: 1 taxonomy alignment + 5 parametrized family probes + 2 rejection safety nets) + `packages/analysis_planner/evasion_signals.py` new module (`EVASION_FAMILY_TAXONOMY` tuple + `EvasionSignal` frozen dataclass with family/detail validation at construction) + Makefile `test-security` target enrolment. Observer-side ONLY per ADR 0015 §Operational notes — no recorder integration / no detection logic / no suppression (W23+ scope). `make test-security` 220 → 228 (+8 — plan estimate +1 was file-level conservative). | `a6dd24b` (primary) + (this commit) (self-stamp) | satisfies ADR 0015 §W22-5 acceptance |
 | W22-6 | **deferred to user** per direction 2026-05-28 — `[GOAL container-hardening-ratchet-down]` (W21-4 §Deferred closure) requires Linux host for live-smoke (NoNewPrivs/Seccomp/Cap/mount/unshare doğrulamaları + Playwright+Xvfb+VS Code tmpfs surface audit). Bu W22 session'ı Mac üzerinde, smoke test edilemez; user kendisi Linux ortamında implement edecek. ADR 0013 §Deferred (read_only + tmpfs + custom seccomp) açık kalıyor — user closure'a alacak. | — | (out of session scope) |
 | W22-7 | **skipped — `[NO-W22-7]` doc-only stamp** per W20-0 crosswalk: the 5 candidate events surfaced by W20-5 GAP-A (`onMemento`, `onTerminalQuickFixRequest`, `onChat`, `onAuthenticationProvider`, `onRendererScript`) were flagged in the GPT review as NOT in the official VS Code Activation Events spec. The W22-0 crosswalk re-verify did not reveal new gaps that map to existing manifests. No Tier-1 implementation warranted in W22; if real-world fixtures later surface a genuine gap, file as a fresh W23+ candidate. | — | — |
-| W22-N | **planned** — close-out hygiene + 10-doc canonical preamble W22 active → closed flip + §20 W22 self-stamp + W22 tracker freeze + W22 Roadmap Acceptance Bar audit-trail close + final live-run anchor + PR `week22 -> main` (PENDING USER APPROVAL — user direction 2026-05-28; main approval required). | — | — |
+| W22-N | **closed** — close-out hygiene + 10-doc canonical preamble W22 active → closed flip + §20 W22 self-stamp + W22 tracker freeze + W22 Roadmap Acceptance Bar audit-trail close + final live-run anchor + PR `week22 -> main` MERGED via PR #31 (`1399f82`) 2026-05-28. | — | — |
 
 ## W22 Acceptance Bar (live-run-driven)
 
@@ -243,7 +243,7 @@ paterni. W22-0 section below as the in-flight commit.)
 
 ### W22-0 — Doc reconcile + W22 open
 
-**Status**: in-flight 26bb080.
+**Status**: closed `26bb080`.
 
 **Goal**: Open the W22 phase doc-side — flip the 10-doc canonical
 preamble from W21 closed/merged to W22 active, transition

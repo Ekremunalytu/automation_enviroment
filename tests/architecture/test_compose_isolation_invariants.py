@@ -12,10 +12,12 @@ What's pinned:
 2. The same three services carry `security_opt:
    ["no-new-privileges:true"]` so the residual set-uid privilege
    escalation path is closed.
-3. The `executor` service preserves `cap_add: [NET_RAW, SYS_PTRACE]`
-   — the harness monitoring tools (tcpdump/tshark/strace) need both
-   capabilities; dropping them would silently kill malware
-   observability without the test catching it.
+3. The `executor` service preserves `cap_add: [NET_RAW, SYS_PTRACE,
+   SETUID, SETGID, SETPCAP]` — NET_RAW/SYS_PTRACE for the harness
+   monitoring tools (tcpdump/tshark/strace), SETUID/SETGID/SETPCAP for
+   the monitor_entrypoint.sh setpriv ambient-cap drop; dropping any
+   silently kills malware observability (or, for the setpriv trio,
+   network capture) without the test catching it. ADR 0013 §Decision.
 4. The ADR 0013 file itself exists at the expected path so a future
    edit that removes the ADR (or moves it) trips this gate.
 
