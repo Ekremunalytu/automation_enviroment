@@ -26,6 +26,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from pydantic import ValidationError
+
 from appcore.contracts.schema_defs.analysis_bundle import AnalysisBundle
 from appcore.contracts.schema_defs.static_analysis_bundle import (
     CombinedAnalysisBundle,
@@ -70,6 +72,16 @@ class StaticAnalysisBlockedError(RuntimeError):
     def __init__(self, message: str, *, static_report: StaticAnalysisReport) -> None:
         super().__init__(message)
         self.static_report = static_report
+
+
+class StaticReportError(RuntimeError):
+    """Raised when the static analyzer's emitted report cannot be read or parsed.
+
+    A missing, truncated, malformed, or schema-invalid report is a tool failure,
+    not a clean result. Raising here fails the static stage **closed** — the
+    extension does not proceed to the dynamic sandbox on an unreadable report —
+    so a broken analyzer can never be mistaken for an ALLOW.
+    """
 
 
 def _is_blocking(severity: Severity, rule_id: str) -> bool:
@@ -139,8 +151,16 @@ def run_static_analysis(
         rules_version=rules_version,
         timeout_budget_s=timeout_budget_s,
     )
-    payload = json.loads(Path(host_report_path).read_text(encoding="utf-8"))
-    detection_report = StaticDetectionReport.model_validate(payload)
+    try:
+        raw = Path(host_report_path).read_text(encoding="utf-8")
+        detection_report = StaticDetectionReport.model_validate(json.loads(raw))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValidationError) as exc:
+        # Fail closed: an unreadable / malformed / schema-invalid report is a tool
+        # failure, never a silent ALLOW.
+        raise StaticReportError(
+            f"Static analyzer produced an unreadable report at "
+            f"{host_report_path!r}: {exc}"
+        ) from exc
     gate_outcome = evaluate_static_gate(detection_report)
     return StaticAnalysisReport(
         detection_report=detection_report, gate_outcome=gate_outcome
@@ -159,6 +179,7 @@ def build_combined_bundle(
 
 __all__ = [
     "StaticAnalysisBlockedError",
+    "StaticReportError",
     "build_combined_bundle",
     "evaluate_static_gate",
     "run_static_analysis",

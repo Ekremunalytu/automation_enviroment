@@ -32,7 +32,7 @@ import ast
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).parents[2]
-SCANNED_DIRS = ("appcore", "workflows", "executor", "packages")
+SCANNED_DIRS = ("appcore", "workflows", "executor", "packages", "static_runtime")
 EXCLUDED_DIR_NAMES = {"__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache"}
 PRAGMA = "arch-allow: thread-supervisor"
 

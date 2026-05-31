@@ -74,8 +74,19 @@ def nearest_popular_match(identifier: str) -> tuple[str, int] | None:
     Returns ``None`` when ``identifier`` is itself a popular extension (distance
     0) or when nothing falls within ``MAX_TYPOSQUAT_DISTANCE``.
     """
+    # Adversarial-input bound: ``identifier`` comes from an untrusted manifest and
+    # may be arbitrarily long. Edit distance is always >= the length difference, so
+    # any candidate whose length differs by more than MAX_TYPOSQUAT_DISTANCE cannot
+    # be within the bound — skip it in O(1) before paying for the O(n*m) DP. This
+    # is behaviour-preserving (the loop already `continue`s on distance > MAX) and
+    # caps total work: levenshtein only runs for candidates within the band of the
+    # short popular identifiers, so a pathologically long identifier never reaches
+    # the DP at all.
     best: tuple[str, int] | None = None
+    identifier_len = len(identifier)
     for candidate in popular_extensions():
+        if abs(identifier_len - len(candidate)) > MAX_TYPOSQUAT_DISTANCE:
+            continue
         distance = levenshtein(identifier, candidate)
         if distance == 0:
             return None

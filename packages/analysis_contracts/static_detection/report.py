@@ -26,6 +26,14 @@ class StaticToolExecutionRecord(StrictContractModel):
     rules_loaded: int = Field(ge=0)
     findings_emitted: int = Field(ge=0)
     duration_ms: int = Field(ge=0)
+    # ES-4 execution observability: a tool that errored, timed out, or broke its
+    # budget early must be distinguishable from a clean pass, so a silent failure
+    # never reads as a clean ALLOW. ``error_count`` / ``errored_rule_ids`` capture
+    # per-rule degradation (a swallowed in-house rule error, a Semgrep per-file
+    # parse error) without failing the whole pass.
+    status: Literal["ok", "partial", "error", "timeout"] = "ok"
+    error_count: int = Field(default=0, ge=0)
+    errored_rule_ids: list[str] = Field(default_factory=list)
     # v2 Trivy: CVE-DB freshness audit trail; None for tools without a DB.
     db_freshness_days: int | None = Field(default=None, ge=0)
 
@@ -43,10 +51,14 @@ class StaticSeverityCounts(StrictContractModel):
 class StaticDetectionReport(StrictContractModel):
     """Static findings + per-tool execution records + severity rollup."""
 
-    schema_version: Literal["1"] = "1"
+    schema_version: Literal["2"] = "2"
     findings: list[StaticDetectionFinding] = Field(default_factory=list)
     tool_executions: list[StaticToolExecutionRecord] = Field(default_factory=list)
     severity_counts: StaticSeverityCounts = Field(default_factory=StaticSeverityCounts)
+    # ES-4: True when any tool ran only partially — the in-house budget tripped
+    # early, or a Semgrep error/timeout left source unscanned — so a consumer
+    # knows the report's coverage is incomplete rather than confidently clean.
+    partial: bool = False
     generated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 

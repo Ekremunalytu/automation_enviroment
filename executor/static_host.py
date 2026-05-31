@@ -51,7 +51,7 @@ def _run_static_docker_exec(
         *cmd,
     ]
     try:
-        result = subprocess.run(
+        result = subprocess.run(  # nosec B603 - argv list, absolute docker_path(), no shell
             full_cmd,
             capture_output=True,
             text=True,
@@ -89,6 +89,11 @@ def run_static_analysis_in_container(
     soft budget; the docker-exec wall-clock is capped slightly higher (bounded
     below by ``settings.static_analyzer.DOCKER_EXEC_TIMEOUT``) so the
     in-container budget trips first.
+
+    This ``exec_timeout`` is the **authoritative** bound on an in-flight run:
+    cancellation (``cancel_static_analysis_in_container``) is best-effort only,
+    so from ES-4 — when Semgrep can make a scan long — it is the wall-clock, not
+    the cancel signal, that guarantees a runaway pass terminates.
     """
     cmd = [
         STATIC_ANALYZER_PYTHON3_PATH,
@@ -115,9 +120,12 @@ def cancel_static_analysis_in_container() -> None:
 
     The ES-3b off-thread coordinator calls this when a job is cancelled mid
     static pre-check so the network-isolated analyzer does not keep churning
-    through its budget after the worker has moved on. Best-effort by design: a
-    non-zero rc (no matching process, or ``pkill`` absent in the minimal image)
-    is swallowed — the coordinator has already raised ``AnalysisCancelledError``
+    through its budget after the worker has moved on. **Timeout-authoritative by
+    design:** the minimal hardened image ships no ``procps``, so ``pkill`` is a
+    guaranteed no-op today — what actually bounds a runaway run is the docker-exec
+    wall-clock in ``run_static_analysis_in_container`` (its ``exec_timeout``), not
+    this signal. A non-zero rc (no matching process, or ``pkill`` absent) is
+    swallowed — the coordinator has already raised ``AnalysisCancelledError``
     and the kill must never mask the cancel. argv-list invocation (never
     ``shell=True``); argv[0] is the absolute ``docker_path()`` so a tampered
     ``$PATH`` cannot swap the launcher (W8-4). The in-container ``pkill`` runs as
@@ -129,7 +137,7 @@ def cancel_static_analysis_in_container() -> None:
     # Best-effort cleanup; the cancel is already authoritative, so a missing
     # process or absent `pkill` (minimal image) must not surface.
     with contextlib.suppress(subprocess.SubprocessError, OSError):
-        subprocess.run(
+        subprocess.run(  # nosec B603 - argv list, absolute docker_path(), no shell
             full_cmd,
             capture_output=True,
             text=True,

@@ -132,6 +132,44 @@ def test_tool_execution_record_v2_slots_preshipped() -> None:
     )
 
 
+def test_tool_record_execution_observability_fields() -> None:
+    """ES-4: the tool record carries status / error_count / errored_rule_ids
+    (defaulting to a clean 'ok') so a degraded pass is never a silent ALLOW."""
+    record = StaticToolExecutionRecord(
+        tool="inhouse",
+        version="1.0.0",
+        rules_loaded=6,
+        findings_emitted=0,
+        duration_ms=1,
+    )
+    assert record.status == "ok"
+    assert record.error_count == 0
+    assert record.errored_rule_ids == []
+    degraded = StaticToolExecutionRecord(
+        tool="semgrep",
+        version="1.164.0",
+        rules_loaded=4,
+        findings_emitted=0,
+        duration_ms=2,
+        status="timeout",
+        error_count=1,
+        errored_rule_ids=["extrace.sg.eval"],
+    )
+    assert degraded.status == "timeout"
+    assert degraded.errored_rule_ids == ["extrace.sg.eval"]
+
+
+def test_report_schema_v2_and_partial_flag() -> None:
+    """ES-4: schema bumped to '2' and a top-level 'partial' coverage flag added."""
+    report = StaticDetectionReport()
+    assert report.schema_version == "2"
+    assert report.partial is False
+    assert StaticDetectionReport(partial=True).partial is True
+    # extra=forbid still holds on the extended model.
+    with pytest.raises(ValidationError):
+        StaticDetectionReport.model_validate({"schema_version": "2", "bogus": 1})
+
+
 def test_severity_counts_parity_with_severity_enum() -> None:
     """StaticSeverityCounts has exactly one field per Severity tier."""
     assert set(StaticSeverityCounts.model_fields) == {s.value for s in Severity}
@@ -153,7 +191,7 @@ def test_detection_report_wrapper_composition() -> None:
         ],
         severity_counts=StaticSeverityCounts(medium=1),
     )
-    assert report.schema_version == "1"
+    assert report.schema_version == "2"
     assert len(report.findings) == 1
     assert report.severity_counts.medium == 1
     assert report.generated_at is not None

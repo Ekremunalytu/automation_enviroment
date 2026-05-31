@@ -9,6 +9,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from appcore.contracts.schema_defs.static_analysis_bundle import StaticAnalysisReport
 from packages.analysis_contracts.detection.enums import (
     Confidence,
@@ -20,7 +22,10 @@ from packages.analysis_contracts.static_detection import (
     StaticDetectionReport,
     StaticGateDecision,
 )
-from workflows.marketplace.static_analysis import run_static_analysis
+from workflows.marketplace.static_analysis import (
+    StaticReportError,
+    run_static_analysis,
+)
 
 
 class _RecordingControl:
@@ -153,3 +158,40 @@ def test_run_static_analysis_empty_report_allows(tmp_path: Path) -> None:
     )
 
     assert result.gate_outcome.decision is StaticGateDecision.ALLOW
+
+
+def test_run_static_analysis_malformed_report_fails_closed(tmp_path: Path) -> None:
+    """A truncated / garbage report body raises a typed ``StaticReportError``
+    (fail closed) — never a silent ALLOW from an unreadable report."""
+    host_report = tmp_path / "static_report_job.json"
+    host_report.write_text("{ not valid json", encoding="utf-8")
+
+    with pytest.raises(StaticReportError):
+        run_static_analysis(
+            vsix_dir="/extensions-input/job",
+            report_path="/results/static_report_job.json",
+            host_report_path=host_report,
+            rules_version="1.0.0",
+            timeout_budget_s=30,
+            control=_RecordingControl(),
+        )
+
+
+def test_run_static_analysis_schema_invalid_report_fails_closed(
+    tmp_path: Path,
+) -> None:
+    """A well-formed-JSON but schema-invalid report (here the superseded
+    ``schema_version: '1'``) also fails closed — this doubles as the v2-bump
+    migration guard: an old-schema report is rejected, not silently accepted."""
+    host_report = tmp_path / "static_report_job.json"
+    host_report.write_text('{"schema_version": "1"}', encoding="utf-8")
+
+    with pytest.raises(StaticReportError):
+        run_static_analysis(
+            vsix_dir="/extensions-input/job",
+            report_path="/results/static_report_job.json",
+            host_report_path=host_report,
+            rules_version="1.0.0",
+            timeout_budget_s=30,
+            control=_RecordingControl(),
+        )

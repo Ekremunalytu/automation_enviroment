@@ -42,6 +42,10 @@ include = [
     "executor*",
     "packages*",
     "workflows*",
+    # `static_runtime` is intentionally NOT packaged here: it is image-only
+    # (COPYed into the hardened static_analyzer image per ADR 0016 §Decision 2)
+    # and must not pull the dynamic engine into that minimal image. It stays
+    # importable in-repo (editable install) and is counted in coverage below.
 ]
 exclude = ["tests*", "extensions*", "alembic*", "output*", "reporter*", "documents*", "config*", "ui*"]
 
@@ -187,6 +191,7 @@ source = [
     "workflows",
     "executor",
     "packages",
+    "static_runtime",
 ]
 branch = true
 omit = [

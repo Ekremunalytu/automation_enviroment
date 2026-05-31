@@ -240,6 +240,7 @@ test-security:
 		tests/security/test_unaccounted_dropout_surface.py \
 		tests/security/test_sandbox_evasion_canary.py \
 		tests/security/test_static_container_isolation.py \
+		tests/security/test_semgrep_js_rules.py \
 		tests/platform/security \
 		tests/architecture/test_default_bindings.py \
 		tests/architecture/test_dockerfile_digest_pin.py \

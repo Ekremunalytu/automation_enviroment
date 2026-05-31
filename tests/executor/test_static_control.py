@@ -162,10 +162,16 @@ def test_static_runtime_writes_valid_report_for_empty_tree(tmp_path: Any) -> Non
     assert isinstance(returned, StaticDetectionReport)
     assert report_path.is_file()
     doc = json.loads(report_path.read_text(encoding="utf-8"))
-    assert doc["schema_version"] == "1"
+    assert doc["schema_version"] == "2"
     assert doc["findings"] == []
-    assert len(doc["tool_executions"]) == 1
-    assert doc["tool_executions"][0]["tool"] == "inhouse"
+    # ES-4: two tool records now — inhouse first, then semgrep. In this default
+    # lane the Semgrep wheel is absent, so its record degrades to status="error";
+    # the container smoke test exercises the real-Semgrep path. The inhouse-first
+    # ordering and the clean inhouse record are what this lane pins.
+    tools = [record["tool"] for record in doc["tool_executions"]]
+    assert tools[0] == "inhouse"
+    assert "semgrep" in tools
+    assert doc["tool_executions"][0]["findings_emitted"] == 0
     # Round-trips back through the contract (validates, not just JSON-parses).
     StaticDetectionReport.model_validate(doc)
 

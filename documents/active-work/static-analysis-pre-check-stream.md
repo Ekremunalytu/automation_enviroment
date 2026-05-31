@@ -1,6 +1,6 @@
 # Static Analysis Pre-Check Stream (Active Work Tracker)
 
-`Last Updated: 2026-05-30 — ES-3a in-house static rules MVP (s1/s2/s3) + static runner on branch static.`
+`Last Updated: 2026-05-31 — ES-4 Semgrep integration (4 custom JS rules) + execution-observability v2 + input-bounds hardening, on branch static.`
 
 `Status: ACTIVE on branch static (single-branch model per user direction 2026-05-29; sub-iter başına ayrı branch yok). Resumed serially from the frozen extrace-static-stream-handoff.md design intent after the extrace-static branch was abandoned 2026-05-28.`
 
@@ -45,7 +45,7 @@ must not be renumbered — code comments and tests reference them.
 | ES-2 | Hardened `automation_static_analyzer` container scaffold + runtime stub | DONE |
 | ES-3a | 6 in-house Python rules (s1/s2/s3) + static runner | DONE |
 | ES-3b | Decision gate + orchestrator wiring; 7-step order + `empty_job_steps` extension (the ES-1 regression mitigation) | DONE |
-| ES-4 | Semgrep integration (version-pinned wheel + 4 custom JS rules) | PENDING |
+| ES-4 | Semgrep integration (version-pinned wheel + 4 custom JS rules) + folded ES-4-window pre-close hardening (observability v2, input-bounds, cancel-path, cheap gates) | DONE |
 | ES-5 | Close-out: UI surfaces + `AnalyzeResponse` extension + smoke evidence + feature-flag flip; ADR 0016 → Accepted | PENDING |
 
 ## Per-Item Detail
@@ -258,6 +258,65 @@ zero regression. No Alembic migration (`static_report_path` landed ES-1b).
   updated (terminal-set invariant, facade re-export, ES-1b deferral note).
 - Deferred to ES-4: Semgrep. Deferred to ES-5: UI / `AnalyzeResponse` static
   surfacing + flag flip + ADR 0016 → Accepted.
+
+### ES-4 — Semgrep integration + folded hardening (DONE)
+
+Adds Semgrep as a second static tool writing into the same `StaticDetectionReport`,
+behind the unchanged OFF feature flag. `make check-all` green (full suite 2301
+passed), `make test-security` green (241), `static_analyzer` rebuilt +
+`make test-smoke` green — real Semgrep fires `extrace.sg.eval` +
+`extrace.sg.child_process` live in the hardened image. Gate logic untouched
+(Semgrep findings MEDIUM → WARN; `_PROMOTED_HIGH_BLOCKERS` unchanged; no ADR
+amendment). No Alembic; no TS DTO (static contracts still outside the UI
+`TARGET_SCHEMAS` allowlist — that lands ES-5). The two `test_marketplace_analysis_smoke`
+failures observed during the smoke run were transient executor VS Code
+reload-timeout flakiness (static steps were flag-OFF/skipped; re-run clean).
+
+- **Semgrep tool** (`static_runtime/semgrep_runner.py` + `semgrep_rules/extrace-vsix-js.yml`):
+  subprocess via the `sys.executable`-derived absolute launcher → stdout `--json`,
+  exit-code taxonomy (0/1 ok, ≥2 / unparseable / timeout → degraded record, never
+  raises). The mapper takes `rule_id` / severity / categories / title from the
+  in-module `_RULE_META` table, NOT Semgrep's output, so a malformed YAML can't
+  emit a contract-invalid finding. 4 rules: `eval` / `function_constructor` /
+  `child_process` / `vm_runincontext` → `extrace.sg.*`, MEDIUM/MEDIUM. Offline
+  (`--metrics=off`, `network_mode: none`), `--exclude node_modules/*.min.js`,
+  `--max-target-bytes`, own `--timeout`. `requirements.txt` pins `semgrep==1.164.0`,
+  asserted against the runner const by `tests/architecture/test_semgrep_pin_consistency.py`.
+- **Combine seam** (`static_runner`): extracts `_run_inhouse`, runs Semgrep with
+  the remaining budget as its hard subprocess wall-clock, concatenates findings,
+  orders `tool_executions = [inhouse, semgrep]` (inhouse-first, keeps the existing
+  index assertions), sets `partial`. The 4-flag CLI surface stays frozen.
+- **Execution observability (v2)**: `StaticDetectionReport.schema_version "1"→"2"`
+  + `partial`; `StaticToolExecutionRecord` gains `status` / `error_count` /
+  `errored_rule_ids`. Resolves `[ES-CLOSE static-execution-observability]`.
+- **Input-bounds**: `_common.safe_snippet` clamps before redacting (ReDoS),
+  `typosquat_match.nearest_popular_match` length-band skip, `context` manifest
+  byte-cap + `iter_files` file-count cap. Resolves `[ES-CLOSE static-input-bounds]`
+  (SEC-STATIC-01/02/03); dynamic `a3_typosquat` regression-guarded (green).
+- **Cancel-path (timeout-authoritative)**: `static_host` docstrings document
+  `exec_timeout` as the authoritative bound (`pkill` is a no-op in the minimal
+  image). Resolves `[ES-CLOSE static-cancel-path-effectiveness]` (DEC).
+- **Malformed-report fail-closed**: `run_static_analysis` raises typed
+  `StaticReportError` on an unreadable / truncated / schema-invalid report (also
+  the v2-bump migration guard — old `schema_version "1"` reports are rejected).
+  Resolves `[ES-CLOSE static-malformed-report-test]`.
+- **Cheap gates folded**: `static_runtime` enrolled in the no-bare-except scan;
+  the outbound gate now also scans `static_control` (+ `subprocess.CompletedProcess`
+  tokens); `static_runtime` added to coverage source (image-only setuptools
+  decision documented); `static_host` `# nosec` on its two subprocess sites;
+  `static-run-fixture` pinned by the makefile-quoting gate. Resolves
+  `[ES-CLOSE static-runtime-bare-except-gate]` / `static-control-outbound-surface-gate` /
+  `static-packaging-coverage-metadata` / `static-host-nosec-consistency` /
+  `static-run-fixture-quoting-gate`.
+- New tests: `tests/static_runtime/test_semgrep_runner.py`,
+  `tests/security/test_semgrep_js_rules.py` (enrolled in `make test-security`),
+  `tests/architecture/test_semgrep_pin_consistency.py`; contract / runner /
+  pipeline / control / smoke assertions updated for v2 + the 2-record report + a
+  live Semgrep-fire smoke test.
+- Deferred to ES-5: UI / `AnalyzeResponse` static surfacing + TS DTO regen, flag
+  flip ON, ADR 0016 → Accepted, the ES5-bucket items
+  (`static-typosquat-confidence-wording`, `static-settings-timeout-naming`), and
+  the semgrep-error → synthetic-WARN gate decision.
 
 ## Acceptance Bar / Notes
 

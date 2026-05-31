@@ -1,6 +1,12 @@
-# Static analyzer runtime deps (ES-2, ADR 0016). Minimal by design: the
-# hardened container imports only the pydantic-based static-detection
-# contracts. pyyaml is pre-staged for the ES-4 Semgrep rule loader (zero
-# runtime cost now, avoids an image change when ES-4 enrolls). NO semgrep yet.
+# Static analyzer runtime deps (ES-4, ADR 0016 §Decision 4). The hardened
+# container imports the pydantic-based static-detection contracts and runs
+# Semgrep over untrusted JS offline (--metrics=off, network_mode: none).
+#
+# The Semgrep pin is EXACT and load-bearing: rule-match semantics are version-
+# sensitive, and static_runtime/semgrep_runner.py asserts this exact pin equals
+# its _SEMGREP_VERSION constant (tests/architecture/test_semgrep_pin_consistency.py)
+# so the version recorded in the report can never drift from the installed wheel.
+# pyyaml backs the runner's rule-count loader.
 pydantic>=2.0.0,<3.0.0
 pyyaml>=6.0,<7.0
+semgrep==1.164.0

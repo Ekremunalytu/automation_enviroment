@@ -1,0 +1,79 @@
+# Custom Semgrep rules for the static pre-check (ES-4, ADR 0016 §Decision 4).
+#
+# Four JS/TS dataflow patterns the in-house manifest/identity/file-tree rules
+# cannot reach. Each rule's bare `id` is the lookup key for the runner's
+# _RULE_META table (static_runtime/semgrep_runner.py): the runner derives the
+# contract rule_id / severity / confidence / categories / title from that table,
+# NOT from this file, so a malformed rule here can never emit a contract-invalid
+# finding. Severity below is advisory only — the runner pins MEDIUM/WARN for all
+# four (none is promoted to a gate BLOCK).
+#
+# Scope: the runner passes `--exclude node_modules --exclude '*.min.js'` and
+# `--max-target-bytes`, so vendored/bundled dependencies do not generate noise.
+rules:
+  - id: eval
+    languages: [javascript, typescript]
+    severity: WARNING
+    message: >-
+      Dynamic code execution via eval(): evaluates a string as code, a common
+      vehicle for running attacker-controlled payloads.
+    metadata:
+      category: security
+      references:
+        - https://attack.mitre.org/techniques/T1059/
+    patterns:
+      - pattern: eval(...)
+
+  - id: function_constructor
+    languages: [javascript, typescript]
+    severity: WARNING
+    message: >-
+      Dynamic code execution via the Function constructor: builds a function
+      from a string at runtime, equivalent to eval().
+    metadata:
+      category: security
+      references:
+        - https://attack.mitre.org/techniques/T1059/
+    patterns:
+      - pattern-either:
+          - pattern: new Function(...)
+          - pattern: Function(...)
+
+  - id: child_process
+    languages: [javascript, typescript]
+    severity: WARNING
+    message: >-
+      Use of the child_process module: spawns operating-system processes, a
+      direct path to command execution outside the JavaScript sandbox.
+    metadata:
+      category: security
+      references:
+        - https://attack.mitre.org/techniques/T1059/
+    patterns:
+      - pattern-either:
+          - pattern: require("child_process")
+          - pattern: require('child_process')
+          - pattern: require("node:child_process")
+          - pattern: require('node:child_process')
+          - pattern: child_process.exec(...)
+          - pattern: child_process.execSync(...)
+          - pattern: child_process.spawn(...)
+          - pattern: child_process.spawnSync(...)
+          - pattern: child_process.execFile(...)
+          - pattern: child_process.fork(...)
+
+  - id: vm_runincontext
+    languages: [javascript, typescript]
+    severity: WARNING
+    message: >-
+      Dynamic code execution via the vm module: runs a string of code in a V8
+      context, another eval()-equivalent execution primitive.
+    metadata:
+      category: security
+      references:
+        - https://attack.mitre.org/techniques/T1059/
+    patterns:
+      - pattern-either:
+          - pattern: vm.runInContext(...)
+          - pattern: vm.runInNewContext(...)
+          - pattern: vm.runInThisContext(...)

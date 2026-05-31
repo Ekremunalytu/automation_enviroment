@@ -283,5 +283,6 @@ __all__ = [
     "RawContext",
     "ScenarioRawContext",
     "UiBlockerRawContext",
+    "redact_multiline_secrets",
     "redact_secrets",
 ]
