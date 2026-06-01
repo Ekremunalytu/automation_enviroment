@@ -145,6 +145,40 @@ describe("computeProgressPct", () => {
     // Only reset_sandbox (5 of 100) counts. 5 / 100 = 5.
     expect(computeProgressPct(steps)).toBe(5);
   });
+
+  it("credits the static pre-check segment off zero before any step runs", () => {
+    // Static gate already landed while the sandbox is still resetting: the bar
+    // should leave 0% even with no step progress. 10 / (100 + 10) ≈ 9%.
+    expect(computeProgressPct([], { staticDone: true })).toBe(9);
+    const resetting = canonicalSteps({ reset_sandbox: { status: "running" } });
+    expect(computeProgressPct(resetting, { staticDone: true })).toBe(9);
+  });
+
+  it("still reaches 100% when every step plus the static pre-check is done", () => {
+    const steps = canonicalSteps({
+      reset_sandbox: { status: "completed" },
+      install_extension: { status: "completed" },
+      build_triggers: { status: "completed" },
+      run_monitoring: { status: "completed" },
+      finalize_report: { status: "completed" },
+    });
+    // (100 + 10) / (100 + 10) = 100.
+    expect(computeProgressPct(steps, { staticDone: true })).toBe(100);
+  });
+
+  it("falls back to the step-only denominator when static is pending/absent", () => {
+    // A run that never carries a static report must still top out at 100% on the
+    // step weights alone — staticDone:false keeps the legacy denominator of 100.
+    const steps = canonicalSteps({
+      reset_sandbox: { status: "completed" },
+      install_extension: { status: "completed" },
+      build_triggers: { status: "completed" },
+      run_monitoring: { status: "completed" },
+      finalize_report: { status: "completed" },
+    });
+    expect(computeProgressPct(steps, { staticDone: false })).toBe(100);
+    expect(computeProgressPct(steps, { staticDone: false })).toBe(computeProgressPct(steps));
+  });
 });
 
 describe("adaptJob", () => {
@@ -199,6 +233,20 @@ describe("adaptJob", () => {
   it("leaves staticReport null when the job carries no static_report", () => {
     const model = adaptJob(baseDto());
     expect(model.staticReport).toBeNull();
+    // No static report → progress stays on the step-only denominator (0% while
+    // every step is still pending).
+    expect(model.progressPct).toBe(0);
+  });
+
+  it("lifts warmup progress off zero once a static_report is attached", () => {
+    const staticReport: StaticAnalysisReportDto = {
+      detection_report: {},
+      gate_outcome: { decision: "allow" },
+    };
+    // Sandbox still resetting (all steps pending) but the static gate landed:
+    // 10 / (100 + 10) ≈ 9%.
+    const model = adaptJob(baseDto({ static_report: staticReport }));
+    expect(model.progressPct).toBe(9);
   });
 
   it("adapts an attached static_report (ES-5) into the view-model", () => {

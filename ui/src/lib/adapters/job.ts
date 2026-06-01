@@ -26,6 +26,13 @@ const STEP_WEIGHTS: Record<string, number> = {
   finalize_report: 5,
 };
 
+// Static pre-check (ES-5) runs before the sandbox pipeline and lands as a single
+// terminal `static_report` gate (ALLOW/WARN/BLOCK), not as an incremental step.
+// When folded into progress it counts as one fixed-weight segment that is 100%
+// complete the moment the static report is attached, so the bar leaves 0% during
+// early warmup instead of sitting at zero while the sandbox resets.
+const STATIC_WEIGHT = 10;
+
 function formatStep(stepName?: string | null) {
   if (!stepName) return "Queued";
   return STEP_TITLES[stepName] || stepName.replaceAll("_", " ");
@@ -56,15 +63,25 @@ function stepFraction(step: AnalyzeJobStepDto): number {
 
 const TOTAL_STEP_WEIGHT = Object.values(STEP_WEIGHTS).reduce((a, b) => a + b, 0);
 
-export function computeProgressPct(steps: AnalyzeJobStepDto[]): number {
-  if (!steps.length) return 0;
-  let weighted = 0;
+export function computeProgressPct(
+  steps: AnalyzeJobStepDto[],
+  opts?: { staticDone?: boolean },
+): number {
+  // The static pre-check is folded into the bar only once it has actually
+  // landed: both the numerator and the denominator grow by STATIC_WEIGHT at the
+  // same time, which keeps progress monotonic and lets a run that never carries
+  // a static report still reach 100% on the step weights alone. A pending/absent
+  // static report keeps the legacy step-only denominator.
+  const includeStatic = opts?.staticDone === true;
+  const total = TOTAL_STEP_WEIGHT + (includeStatic ? STATIC_WEIGHT : 0);
+  if (total <= 0) return 0;
+  if (!steps.length && !includeStatic) return 0;
+  let weighted = includeStatic ? STATIC_WEIGHT : 0;
   for (const step of steps) {
     const weight = STEP_WEIGHTS[step.name] ?? 0;
     weighted += weight * stepFraction(step);
   }
-  if (TOTAL_STEP_WEIGHT <= 0) return 0;
-  const pct = Math.round((weighted / TOTAL_STEP_WEIGHT) * 100);
+  const pct = Math.round((weighted / total) * 100);
   return Math.min(100, Math.max(0, pct));
 }
 
@@ -145,7 +162,7 @@ export function adaptStaticReport(
 
 export function adaptJob(dto: AnalyzeJobStatusDto): SimulationViewModel {
   const steps = dto.steps ?? [];
-  const progressPct = computeProgressPct(steps);
+  const progressPct = computeProgressPct(steps, { staticDone: Boolean(dto.static_report) });
   const monitoringStep = steps.find((step) => step.name === "run_monitoring");
   const monitoringSubLine =
     monitoringStep && monitoringStep.status === "running" && monitoringStep.progress

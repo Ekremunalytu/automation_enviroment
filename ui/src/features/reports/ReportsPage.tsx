@@ -204,7 +204,6 @@ export function ReportsPage() {
     <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>
       <header style={{ paddingBottom: 24, borderBottom: `1px solid ${V3.rule}` }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-          <Eyebrow>Reports</Eyebrow>
           {verdict ? (
             <Badge tone={verdictTone}>
               Verdict · {verdict.toUpperCase()}
@@ -252,8 +251,8 @@ export function ReportsPage() {
       <Panel padded={false}>
         <div
           style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 240px), 1fr))",
+            display: "flex",
+            flexWrap: "wrap",
             gap: 14,
             alignItems: "end",
             padding: "16px 18px",
@@ -261,7 +260,7 @@ export function ReportsPage() {
             background: V3.paper3,
           }}
         >
-          <label style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
+          <label style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0, flex: "1 1 220px" }}>
             <Eyebrow>Report</Eyebrow>
             <select
               value={reportParam}
@@ -296,9 +295,10 @@ export function ReportsPage() {
             value={filters.search}
             onChange={(value) => updateFilters({ ...filters, search: value })}
             mono
+            style={{ flex: "2 1 280px", minWidth: 0 }}
           />
 
-          <GhostButton ariaLabel="Filters" onClick={() => setFiltersOpen(true)}>
+          <GhostButton ariaLabel="Filters" onClick={() => setFiltersOpen(true)} style={{ flex: "0 0 auto" }}>
             Filters {activeFilterCount ? `(${activeFilterCount})` : ""}
           </GhostButton>
         </div>
@@ -323,7 +323,6 @@ export function ReportsPage() {
             padding: "14px 18px",
           }}
         >
-          <KVRow k="Active report" v={report?.metadataFilename || "Preparing selected report"} />
           <KVRow k="Last updated" v={formatModified(activeReport?.modified)} />
           <KVRow k="Run quality" v={report?.summary.runQuality ?? "—"} mono={false} />
         </div>
@@ -480,11 +479,7 @@ function OverviewSection({
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
       {rationale ? (
-        <Panel label="Verdict rationale">
-          <p style={{ fontSize: 13.5, color: V3.ink2, lineHeight: 1.6, margin: 0, maxWidth: 820 }}>
-            {rationale}
-          </p>
-        </Panel>
+        <RationalePanel rationale={rationale} verdict={report.detection?.verdict} />
       ) : null}
       <VerdictSummaryPanel detection={report.detection} />
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 320px), 1fr))", gap: 20 }}>
@@ -492,6 +487,60 @@ function OverviewSection({
         <BreakdownPanel label="Risk mix" rows={buildRiskRows(report)} />
       </div>
     </div>
+  );
+}
+
+// The backend ships the rationale as a single string, typically
+// "<lead>: code_a, code_b, …". Split it into a lead sentence plus one chip per
+// reason code so a long incomplete-analysis list reads as scannable signals
+// instead of a wall of comma-joined text. Falls back to the raw string when the
+// shape doesn't match.
+function RationalePanel({ rationale, verdict }: { rationale: string; verdict?: string }) {
+  const splitAt = rationale.indexOf(":");
+  const lead = splitAt >= 0 ? rationale.slice(0, splitAt).trim() : "";
+  const codes =
+    splitAt >= 0
+      ? rationale
+          .slice(splitAt + 1)
+          .split(",")
+          .map((part) => part.trim())
+          .filter(Boolean)
+      : [];
+  const chipTone: V3Tone =
+    verdict === "malicious" ? "danger" : verdict === "suspicious" ? "warn" : "neutral";
+
+  if (!codes.length) {
+    return (
+      <Panel label="Verdict rationale">
+        <p style={{ fontSize: 13.5, color: V3.ink2, lineHeight: 1.6, margin: 0, maxWidth: 820 }}>
+          {rationale}
+        </p>
+      </Panel>
+    );
+  }
+
+  return (
+    <Panel label="Verdict rationale">
+      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        {lead ? (
+          <p style={{ fontSize: 13.5, color: V3.ink2, lineHeight: 1.6, margin: 0, maxWidth: 820 }}>
+            {lead.charAt(0).toUpperCase() + lead.slice(1)}
+          </p>
+        ) : null}
+        <div>
+          <Eyebrow>
+            {codes.length} signal{codes.length === 1 ? "" : "s"}
+          </Eyebrow>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 10 }}>
+            {codes.map((code) => (
+              <span key={code} title={code}>
+                <Badge tone={chipTone}>{code.replaceAll("_", " ")}</Badge>
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+    </Panel>
   );
 }
 

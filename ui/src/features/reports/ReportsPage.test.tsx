@@ -376,8 +376,8 @@ describe("ReportsPage", () => {
 
     fireEvent.click(screen.getByRole("tab", { name: "Audit" }));
     expect(await screen.findByText("Coverage audit")).toBeInTheDocument();
-    expect(screen.getByText("Official Coverage")).toBeInTheDocument();
-    expect(screen.getByText("Heuristic Workflow Coverage")).toBeInTheDocument();
+    expect(screen.getByText("Official coverage")).toBeInTheDocument();
+    expect(screen.getByText("Heuristic workflow coverage")).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Target Triggers" })).toBeInTheDocument();
     expect(screen.getByText("Activated publisher.tool via onStartupFinished")).toBeInTheDocument();
   });
