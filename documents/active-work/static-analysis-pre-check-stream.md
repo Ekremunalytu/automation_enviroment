@@ -347,12 +347,14 @@ reload-timeout flakiness (static steps were flag-OFF/skipped; re-run clean).
 ## Pre-Close-Out Review Checklist (static-branch audit + Codex cross-review, 2026-05-30)
 
 Surfaced by a read-only architecture/security audit of the `static` branch plus a
-Codex cross-review. **No code action is taken yet (owner direction 2026-05-30):
-each row is a gating CHECK to verify or consciously waive before the
-`static -> main` close-out PR (ES-5 window).** None is a P0/P1 hard-rule
-violation; all are hygiene / observability / test-coverage on the in-flight
-surface. The W0-W22 closed-phase regression scan came back clean, so every item
-below lives in branch-delta code (no pre-existing-main regression).
+Codex cross-review. **STATUS at ES-5 close (2026-06-01): all 12 rows are
+RESOLVED or consciously WAIVED — verified green.** Originally each row was a
+gating CHECK to verify or waive before the `static -> main` close-out PR. None is
+a P0/P1 hard-rule violation; all are hygiene / observability / test-coverage on
+the branch-delta surface (the W0-W22 closed-phase regression scan came back
+clean — no pre-existing-main regression). 9 rows were closed in the ES-3b/ES-4
+window, 2 in the ES-5 window, and 1 (`static-events-loc-ratchet-headroom`, NON-ES)
+is WAIVED (ratchet passes today; resolved by the next file-capture-owner touch).
 
 Provenance: 11/12 are ES static-analysis-stream work; `static-events-loc-ratchet-headroom`
 rides on this branch from `c5879bb` (`feat(executor/file-capture)`), NOT ES work —
@@ -368,26 +370,27 @@ static-analysis work (handle with the file-capture change or at close).
 
 | ID | Pre-close check (verify or consciously waive) | Evidence (HEAD) | Bucket |
 |----|-----------------------------------------------|-----------------|--------|
-| `[ES-CLOSE static-execution-observability]` | `StaticDetectionReport` / `StaticToolExecutionRecord` carry no execution telemetry — a swallowed rule error, an early budget break, or an unparseable manifest is indistinguishable from a clean ALLOW (bad failure mode for a security tool). Add `status` / `partial` / `error_count` / `errored_rule_ids` (additive v2 bump). Merges Codex #1 + #7 + audit QEL-2. | `static_runtime/static_runner.py:59-65`; `packages/analysis_contracts/static_detection/report.py:21-30`; `static_runtime/context.py:52-57` | CODE |
+| `[ES-CLOSE static-execution-observability]` **RESOLVED (ES-4)** | `StaticDetectionReport.partial` + `StaticToolExecutionRecord.status` / `error_count` / `errored_rule_ids` shipped (schema v2). A swallowed rule error / early budget break / Semgrep timeout now reads as degraded coverage, never a silent clean ALLOW. | `packages/analysis_contracts/static_detection/report.py`; `static_runtime/static_runner.py` | CODE |
 | `[ES-CLOSE static-typosquat-confidence-wording]` **RESOLVED (ES-5)** | ADR §Decision 1 already reads "HIGH-severity blocker" (no "HIGH-confidence" token in the body; verified). Added two `test_decision_gate.py` policy tests: `test_promoted_block_is_policy_driven_independent_of_confidence` (promoted HIGH typosquat blocks at LOW/MEDIUM/HIGH confidence; gate reads severity+rule_id, never confidence) and `test_critical_block_is_severity_driven_not_policy_gated`. No contract field added. | ADR §Decision 1; `static_runtime/rules/s2_typosquat_static.py`; `tests/workflows/marketplace/test_decision_gate.py` | ES5 |
-| `[ES-CLOSE static-runtime-bare-except-gate]` | the no-bare-except gate's `SCANNED_DIRS` omits the new `static_runtime` adversarial-input prod root. Add `"static_runtime"` (green now — no bare except today). Codex #3 / audit QEL-1. | `tests/architecture/test_no_bare_except_exception.py:35` | GATE |
-| `[ES-CLOSE static-control-outbound-surface-gate]` | the semantic outbound gate scans only `executor/control.py`; the workflows-importable `executor.static_control` seam is not checked for docker/subprocess leakage. Extend the gate to scan `static_control.py` too (+ `subprocess.CompletedProcess` to the forbidden tokens). Current public surface is clean (verified). Codex #4. | `tests/architecture/test_executor_control_outbound.py:42`; `executor/static_control.py:25-47` | GATE |
-| `[ES-CLOSE static-cancel-path-effectiveness]` | cancel runs `pkill -f static_runtime` but the hardened image installs no `procps`/`pkill`, so cancel is a guaranteed no-op; an in-flight run is bounded only by `exec_timeout`. Latent now (fast in-house rules), real once ES-4 Semgrep makes scans long. Decide: document timeout-authoritative semantics / move to one-shot `docker run --rm` / add `procps` (dependency -> needs approval). Codex #5. | `executor/static_host.py:113-138`; `docker/static_analyzer/Dockerfile` | DEC |
-| `[ES-CLOSE static-packaging-coverage-metadata]` | `static_runtime` is prod code (image-COPYed) but absent from the setuptools include AND the coverage source -> coverage reports understate the new package. Add it to coverage source; document the image-only setuptools decision (or include it). Codex #6. | `pyproject.toml:40-45` (include); `pyproject.toml:184-189` (coverage source) | GATE |
-| `[ES-CLOSE static-input-bounds]` (SEC-STATIC-01/02/03) | container-bounded but unbounded adversarial reads: Levenshtein with no length band (**shared with dynamic `a3`**), snippet `redact_secrets` runs before the `[:400]` clamp = latent ReDoS (**shared root**), manifest `read_text()` no byte cap + `rglob` no file-count cap. Add stdlib caps; regression-guard the dynamic side for the two shared loci. Audit. | `packages/analysis_contracts/typosquat_match.py:47-86`; `static_runtime/rules/_common.py:23-25` + `packages/analysis_contracts/evidence.py:56-91`; `static_runtime/context.py:53,74` | CODE |
-| `[ES-CLOSE static-events-loc-ratchet-headroom]` (NON-ES) | `attribution/events.py` = 526 LoC vs the pinned ratchet ceiling 527 (1 LoC headroom); the next touch breaks the gate. Came from `c5879bb` (`feat(executor/file-capture)`), NOT ES work. Extract the pid-lineage block to the `lineage.py` sibling OR bump the ceiling with a one-line rationale. Audit SH-1. | `executor/flows/playwright/attribution/events.py:526`; `tests/architecture/test_executor_hotspot_loc_ratchet.py:48`; commit `c5879bb` | NON-ES |
-| `[ES-CLOSE static-host-nosec-consistency]` | Bandit dir-excludes `executor/`, so the new `static_host.py` subprocess sites carry no `# nosec`, leaving the `pyproject.toml` Bandit rationale comment ("every subprocess call carries `# nosec`") factually stale. Add `# nosec` to the two `subprocess.run` sites OR update the rationale. Audit QEL-3. | `executor/static_host.py` (the two `subprocess.run` sites); `pyproject.toml` Bandit block (verify exact line at close) | GATE |
-| `[ES-CLOSE static-run-fixture-quoting-gate]` | the new Makefile `static-run-fixture` target regex-validates + double-quotes operator vars (W14-3 pattern) but is unpinned by the quoting gate. Extend it. Audit TDC-13-1. | Makefile `static-run-fixture` target; `tests/architecture/test_makefile_sim_quoting.py` (verify exact lines at close) | GATE |
+| `[ES-CLOSE static-runtime-bare-except-gate]` **RESOLVED (ES-4)** | `static_runtime` enrolled in the no-bare-except gate's scanned dirs; test green. | `tests/architecture/test_no_bare_except_exception.py` | GATE |
+| `[ES-CLOSE static-control-outbound-surface-gate]` **RESOLVED (ES-4)** | the semantic outbound gate now also scans `executor.static_control` (+ `subprocess.CompletedProcess` in the forbidden tokens); public surface clean, test green. | `tests/architecture/test_executor_control_outbound.py`; `executor/static_control.py` | GATE |
+| `[ES-CLOSE static-cancel-path-effectiveness]` **RESOLVED (ES-4, DEC)** | decided **timeout-authoritative**: `static_host.py` documents `exec_timeout` as the authoritative in-flight bound and `pkill` as best-effort only (no-op in the minimal image). No `procps` dependency added; no compose change. | `executor/static_host.py` (`run_static_analysis_in_container` docstring) | DEC |
+| `[ES-CLOSE static-packaging-coverage-metadata]` **RESOLVED (ES-4)** | `static_runtime` added to the coverage source; the image-only (NOT setuptools-packaged) decision is documented inline in `pyproject.toml`. | `pyproject.toml` (coverage source + include-decision comment) | GATE |
+| `[ES-CLOSE static-input-bounds]` (SEC-STATIC-01/02/03) **RESOLVED (ES-4)** | stdlib caps added: Levenshtein length-band skip (`typosquat_match`), clamp-before-redact in `safe_snippet` (ReDoS), manifest `_MAX_MANIFEST_BYTES` (1 MiB) byte cap + `_MAX_FILES` (50k) file-count cap in `context`. Dynamic `a3`/redaction shared loci regression-guarded (green). | `packages/analysis_contracts/typosquat_match.py`; `static_runtime/rules/_common.py`; `static_runtime/context.py` | CODE |
+| `[ES-CLOSE static-events-loc-ratchet-headroom]` (NON-ES) **WAIVED at ES-5 close** | `attribution/events.py` = 526 LoC vs the pinned ceiling 527 — gate green, 1 LoC headroom. Not ES work (rode in on `c5879bb` `feat(executor/file-capture)`). Consciously WAIVED for this close-out: the ratchet passes today; the next *non-ES* touch on that file resolves it (extract pid-lineage to `lineage.py` OR bump the ceiling with a rationale) with the file-capture owner, not as a static-stream blocker. | `executor/flows/playwright/attribution/events.py`; `tests/architecture/test_executor_hotspot_loc_ratchet.py`; commit `c5879bb` | NON-ES |
+| `[ES-CLOSE static-host-nosec-consistency]` **RESOLVED (ES-4)** | the two `static_host.py` `subprocess.run` sites carry `# nosec`, restoring consistency with the `pyproject.toml` Bandit rationale. | `executor/static_host.py` (the two `subprocess.run` sites) | GATE |
+| `[ES-CLOSE static-run-fixture-quoting-gate]` **RESOLVED (ES-4)** | the Makefile `static-run-fixture` target is now pinned by the quoting gate (regex-validates + double-quotes operator vars, W14-3 pattern); test green. | Makefile `static-run-fixture` target; `tests/architecture/test_makefile_sim_quoting.py` | GATE |
 | `[ES-CLOSE static-settings-timeout-naming]` **RESOLVED (ES-5)** | executor `StaticAnalysisSettings.TIMEOUT_S` renamed to `TIMEOUT_BUDGET_S` (env `STATIC_ANALYSIS_TIMEOUT_BUDGET_S`), matching the app side; `.env.example` updated to the live `STATIC_ANALYSIS_TIMEOUT_BUDGET_S=30`. Verified the executor mirror is dormant (no consumer reads it) so the rename is zero-behavior-change. One logical timeout, one env key across both mirrors. | `executor/config.py` (`StaticAnalysisSettings`); `.env.example` static block | ES5 |
-| `[ES-CLOSE static-malformed-report-test]` | empty-report (`test_run_static_analysis_empty_report_allows`), exec-failure, and BLOCK error-taxonomy ARE tested, but a specifically malformed/truncated JSON report body -> typed terminal failure (not a silent ALLOW) is unpinned. Add one test. Audit. | `workflows/marketplace/static_analysis.py:142-143`; `tests/workflows/marketplace/test_static_analysis_pipeline.py` | CODE |
+| `[ES-CLOSE static-malformed-report-test]` **RESOLVED (ES-4)** | `run_static_analysis` raises typed `StaticReportError` on a malformed / truncated / schema-invalid report body (also the v2-bump migration guard rejecting old `schema_version "1"`); pinned in the pipeline tests. | `workflows/marketplace/static_analysis.py`; `tests/workflows/marketplace/test_static_analysis_pipeline.py` | CODE |
 
-**Disposition at a glance:** GATE (cheap, green now) — `bare-except`, `outbound-surface`,
-`packaging-coverage`, `host-nosec`, `run-fixture-quoting`. CODE (additive code+test) —
-`execution-observability`, `input-bounds`, `malformed-report-test`. ES5 (fold into
-ADR-Accepted / settings reconcile) — `confidence-wording`, `settings-timeout-naming`.
-DEC (ES-4) — `cancel-path-effectiveness`. NON-ES — `events-loc-ratchet-headroom`.
-None blocks the merge on its own; the owner may waive any with a recorded rationale
-at the `static -> main` close-out.
+**Disposition at a glance (all green at ES-5 close):** GATE — `bare-except`,
+`outbound-surface`, `packaging-coverage`, `host-nosec`, `run-fixture-quoting`
+(all RESOLVED, ES-4). CODE — `execution-observability`, `input-bounds`,
+`malformed-report-test` (all RESOLVED, ES-4). ES5 — `confidence-wording`,
+`settings-timeout-naming` (RESOLVED, ES-5). DEC — `cancel-path-effectiveness`
+(RESOLVED ES-4: timeout-authoritative). NON-ES — `events-loc-ratchet-headroom`
+(WAIVED: ratchet green, deferred to the file-capture owner). Nothing blocks the
+`static -> main` close-out PR.
 
 ## Audit Findings — Disposition (resolved / deferred in ES-1b, 2026-05-30)
 
