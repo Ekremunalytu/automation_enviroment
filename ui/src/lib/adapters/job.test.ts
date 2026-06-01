@@ -268,4 +268,52 @@ describe("adaptStaticReport", () => {
     expect(view.toolStatuses[0].status).toBe("timeout");
     expect(view.toolStatuses[0].errorCount).toBe(1);
   });
+
+  it("maps a BLOCK decision with blockedBy rule ids", () => {
+    const dto: StaticAnalysisReportDto = {
+      detection_report: {
+        findings: [
+          {
+            id: "01HZBLOCK",
+            rule_id: "extrace.s2.typosquat",
+            rule_version: "1.0.0",
+            rule_lifecycle: "production",
+            categories: ["attack.T1036"],
+            severity: "high",
+            confidence: "medium",
+            title: "Typosquat of a popular publisher",
+            description: "near a popular publisher",
+            evidence: [],
+          },
+        ],
+      },
+      gate_outcome: {
+        decision: "block",
+        blocked_by: ["extrace.s2.typosquat"],
+      },
+    };
+    const view = adaptStaticReport(dto);
+    expect(view.decision).toBe("block");
+    expect(view.decisionLabel).toBe("Block");
+    expect(view.blockedBy).toEqual(["extrace.s2.typosquat"]);
+    expect(view.warnedBy).toEqual([]);
+    expect(view.allowReason).toBeNull();
+    expect(view.findings).toHaveLength(1);
+    expect(view.findings[0].severityLabel).toBe("High");
+  });
+
+  it("tolerates a minimal report with all optional fields omitted", () => {
+    const dto: StaticAnalysisReportDto = {
+      detection_report: {},
+      gate_outcome: { decision: "allow" },
+    };
+    const view = adaptStaticReport(dto);
+    expect(view.decision).toBe("allow");
+    expect(view.blockedBy).toEqual([]);
+    expect(view.warnedBy).toEqual([]);
+    expect(view.allowReason).toBeNull();
+    expect(view.partial).toBe(false);
+    expect(view.toolStatuses).toEqual([]);
+    expect(view.findings).toEqual([]);
+  });
 });

@@ -1,9 +1,11 @@
 # Static Analysis Pre-Check Lane
 
-**Last Updated:** 2026-05-30 (ES-3b — decision gate + orchestrator wiring
-landed: 7-step contract + flag-aware `empty_job_steps`, the `rejected_static`
-terminal transition, and the flag-gated static stage in `analysis_service`.
-Feature flag stays OFF until ES-5).
+**Last Updated:** 2026-06-01 (ES-5 close-out — static result surfaced to the
+API (`AnalyzeJobStatusResponse.static_report` / `static_report_path` +
+`AnalyzeResponse.static_report`) and the UI (SimulationPage static pre-check
+panel); ALLOW/WARN now persists the static-only combined bundle; the feature
+flag was flipped **ON** after live Docker smoke evidence; ADR 0016 → Accepted.
+The whole stream (ES-0..ES-5) is DONE).
 
 Use this lane for the pre-execution static analysis stage: static
 detection contracts, in-house static rules, the Semgrep runner, the
@@ -30,6 +32,14 @@ decision gate that fronts the dynamic sandbox.
   (`reject_analysis_job_static`) + `appcore/api/config.py`
   (`StaticAnalysisSettings`) (landed ES-3b — orchestrator wiring, the
   `rejected_static` transition, the feature flag)
+- `appcore/contracts/schema_defs/marketplace.py` (ES-5 — `static_report` /
+  `static_report_path` on `AnalyzeResponse` + `AnalyzeJobStatusResponse`) +
+  `workflows/marketplace/analysis_reports.py` (`load_static_report_from_name`)
+  + `workflows/marketplace/router.py` (GET `/analyze/{job_id}` folds the static
+  report in) + `scripts/generate_ui_contracts.py` (static TS DTOs) +
+  `ui/src/lib/adapters/job.ts` (`adaptStaticReport`) +
+  `ui/src/features/simulation/SimulationPage.tsx` (static pre-check panel)
+  (landed ES-5 — API/UI surfacing + ALLOW/WARN persistence + flag flip ON)
 
 ## Invariants
 
@@ -50,8 +60,13 @@ decision gate that fronts the dynamic sandbox.
 - **Container isolation.** The static analyzer runs with `network_mode:
   none`, `cap_drop: [ALL]`, `no-new-privileges`, non-root, no
   `docker.sock` — never inline on the host or in the executor.
-- **Feature-flagged.** `settings.static_analysis.ENABLED` is OFF until the
-  ES-5 close-out flips it after smoke evidence passes.
+- **Feature-flagged.** `settings.static_analysis.ENABLED` is **ON** (flipped at
+  the ES-5 close-out, 2026-06-01, after live Docker smoke evidence passed). A
+  swallowed tool error / timeout surfaces through
+  `StaticToolExecutionRecord.status` + `StaticDetectionReport.partial`
+  (observability v2), never a silent ALLOW. The timeout budget is
+  `TIMEOUT_BUDGET_S` on both the app and executor config mirrors (env
+  `STATIC_ANALYSIS_TIMEOUT_BUDGET_S`).
 
 ## Tests And Checks
 

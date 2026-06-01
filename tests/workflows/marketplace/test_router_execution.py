@@ -836,6 +836,70 @@ def test_run_analysis_job_marks_completion_and_closes_session() -> None:
     session.close.assert_called_once_with()
 
 
+def test_run_analysis_job_records_static_report_path_when_gate_ran() -> None:
+    """ES-5: when the static gate ran (ALLOW/WARN), the worker records the
+    deterministic per-job static report name on the completed row so
+    GET /analyze/{job_id} can fold the static report into the response.
+
+    The flag-ON signal is ``result.static_report is not None`` — the orchestrator
+    folds the gate's StaticAnalysisReport onto the AnalyzeResponse. run_analysis_job
+    derives ``static_report_{job_id}.json`` and threads it into complete_job.
+    """
+    from appcore.contracts.schema_defs.static_analysis_bundle import (
+        StaticAnalysisReport,
+    )
+    from packages.analysis_contracts.static_detection import (
+        StaticDetectionReport,
+        StaticGateDecision,
+        StaticGateOutcome,
+    )
+
+    request = AnalyzeRequest(**ANALYZE_PAYLOAD)
+    session = MagicMock()
+    static_report = StaticAnalysisReport(
+        detection_report=StaticDetectionReport(),
+        gate_outcome=StaticGateOutcome(
+            decision=StaticGateDecision.WARN,
+            warned_by=["extrace.s3.unusual_file_signature"],
+        ),
+    )
+    response = AnalyzeResponse(
+        status="success",
+        publisher=request.publisher,
+        name=request.name,
+        version=request.version,
+        message="done",
+        install_output="install-ok",
+        automation_output="automation-ok",
+        report_path="activation_report.json",
+        static_report=static_report,
+    )
+    with (
+        patch(
+            "workflows.marketplace.analysis_service._open_job_session",
+            return_value=session,
+        ),
+        patch(
+            "workflows.marketplace.analysis_service.job_service.get_job_snapshot",
+            return_value={"job_id": "job-1", "report_path": "saved-report.json"},
+        ),
+        patch("workflows.marketplace.analysis_service.job_service.update_job"),
+        patch(
+            "workflows.marketplace.analysis_service.job_service.complete_job"
+        ) as mock_complete,
+        patch(
+            "workflows.marketplace.analysis_service.execute_analysis_request",
+            return_value=response,
+        ),
+    ):
+        analysis_service.run_analysis_job("job-1", request)
+
+    mock_complete.assert_called_once_with(
+        "job-1", response, static_report_path="static_report_job-1.json"
+    )
+    session.close.assert_called_once_with()
+
+
 def test_run_analysis_job_marks_value_error_failure() -> None:
     """ValueError should fail background jobs instead of leaving them running."""
     request = AnalyzeRequest(**ANALYZE_PAYLOAD)

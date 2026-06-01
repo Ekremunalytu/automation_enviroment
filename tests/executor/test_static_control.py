@@ -208,6 +208,36 @@ def test_static_analysis_feature_flag_defaults_on() -> None:
     assert settings.static_analysis.ENABLED is True
 
 
+def test_static_analysis_timeout_budget_reads_from_env(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """ES-5 (``static-settings-timeout-naming``): the executor budget field is
+    ``TIMEOUT_BUDGET_S``, read from ``STATIC_ANALYSIS_TIMEOUT_BUDGET_S`` — the
+    same env key as the app-side mirror. ``_env_value`` checks ``os.getenv``
+    before the cached ``.env`` fallback, so a set env var threads through a fresh
+    ``build_settings()``.
+    """
+    from executor.config import build_settings
+
+    monkeypatch.setenv("STATIC_ANALYSIS_TIMEOUT_BUDGET_S", "45")
+    rebuilt = build_settings()
+    assert rebuilt.static_analysis.TIMEOUT_BUDGET_S == 45
+
+
+def test_static_analysis_timeout_budget_defaults_to_30(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """With the env var unset the executor budget defaults to 30s, matching the
+    app-side ``StaticAnalysisSettings.TIMEOUT_BUDGET_S`` default (one logical
+    timeout, one default across both mirrors)."""
+    from executor.config import build_settings
+
+    monkeypatch.delenv("STATIC_ANALYSIS_TIMEOUT_BUDGET_S", raising=False)
+    monkeypatch.delenv("STATIC_ANALYSIS_TIMEOUT_S", raising=False)
+    rebuilt = build_settings()
+    assert rebuilt.static_analysis.TIMEOUT_BUDGET_S == 30
+
+
 def test_cancel_static_analysis_builds_pkill_argv(
     fake_docker: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:

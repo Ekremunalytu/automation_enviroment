@@ -328,8 +328,11 @@ reload-timeout flakiness (static steps were flag-OFF/skipped; re-run clean).
   documented regression mitigation).
 - New security-lane tests enroll into the explicit `test-security`
   Makefile file list (no auto-discovery).
-- Feature flag `settings.static_analysis.ENABLED` stays OFF until ES-5
-  flips it after smoke evidence passes.
+- Feature flag `settings.static_analysis.ENABLED` is **ON** — flipped at the
+  ES-5 close-out (2026-06-01) after live Docker smoke evidence passed (in-house
+  `extrace.s3.*` + Semgrep `extrace.sg.*` fire in the hardened container → WARN,
+  pipeline proceeds). Earlier sub-iter notes that say "flag stays OFF" describe
+  the pre-ES-5 state for that sub-iter and are historical.
 - **Downstream (W23, not in this stream) — forward-pointer only, ES slate
   unchanged.** A MITRE ATT&CK coverage matrix (`/mitre` UI surface +
   `GET /api/mitre/catalog` backend) visualizing which rules are critical
