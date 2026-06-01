@@ -178,3 +178,30 @@ def test_missing_semgrep_binary_degrades_to_error(
     res = semgrep_runner.run_semgrep(vsix_dir=_VSIX, wall_timeout_s=20)
     assert res.findings == []
     assert res.record.status == "error"
+
+
+def test_non_object_payload_is_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Well-formed JSON that is not an object (e.g. a bare list) is malformed
+    # Semgrep output -> degraded error record, never raised out of the pass.
+    res = _run(monkeypatch, returncode=0, stdout='["not", "an", "object"]')
+    assert res.findings == []
+    assert res.record.status == "error"
+
+
+def test_non_list_results_is_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    # An object whose `results` is not a list is malformed -> degraded error.
+    res = _run(
+        monkeypatch, returncode=0, stdout=json.dumps({"results": "nope", "errors": []})
+    )
+    assert res.findings == []
+    assert res.record.status == "error"
+
+
+def test_relative_path_with_parent_traversal_is_skipped(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Defense-in-depth pre-filter: a result path with a `..` segment is skipped
+    # (never reaching the contract validator), so an extension-controlled path
+    # cannot point evidence outside the scanned tree.
+    res = _run(monkeypatch, results=[_result("x.eval", path="extension/../escape.js")])
+    assert res.findings == []

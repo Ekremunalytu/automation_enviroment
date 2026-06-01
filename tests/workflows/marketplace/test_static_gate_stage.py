@@ -204,6 +204,20 @@ def test_run_static_off_thread_cancel_fires_on_cancel_and_raises() -> None:
     assert on_cancel_calls == [1]
 
 
+def test_run_static_off_thread_reraises_held_exception() -> None:
+    """A container / parse failure on the coordinator thread (no cancel) is
+    captured and re-raised on the worker frame, never swallowed into a
+    missing-report assertion."""
+    boom = RuntimeError("static container blew up")
+
+    def _run_static() -> StaticAnalysisReport:
+        raise boom
+
+    with pytest.raises(RuntimeError) as excinfo:
+        _run_static_off_thread(_run_static, cancel_check=None)
+    assert excinfo.value is boom
+
+
 # ---------------------------------------------------------------------------
 # Flag-aware empty_job_steps seam (the documented ES-1 step-Literal regression)
 # ---------------------------------------------------------------------------

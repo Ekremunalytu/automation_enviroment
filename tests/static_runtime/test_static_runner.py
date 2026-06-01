@@ -111,6 +111,106 @@ def test_runner_zero_budget_runs_all_rules(tmp_path: Path) -> None:
 
 
 # --------------------------------------------------------------------------
+# ES-4 in-house degraded-coverage observability — a swallowed rule error or an
+# early soft-budget break must surface as a `partial` record (never a silent
+# clean ALLOW). The production-rule list is monkeypatched so the test owns the
+# rule set without disturbing the module-global builtin registry.
+# --------------------------------------------------------------------------
+
+
+def _finding(rule_id: str) -> StaticDetectionFinding:
+    return StaticDetectionFinding(
+        rule_id=rule_id,
+        rule_version="1.0.0",
+        rule_lifecycle=RuleLifecycle.PRODUCTION,
+        categories=["attack.T1059", "extrace.ext.dynamic_code_exec"],
+        severity=Severity.LOW,
+        confidence=Confidence.LOW,
+        title="t",
+        description="d",
+    )
+
+
+class _EmittingRule:
+    """A minimal in-house rule that always emits one finding."""
+
+    def __init__(self, rule_id: str) -> None:
+        self.rule_id = rule_id
+
+    def evaluate(self, _context: object) -> list[StaticDetectionFinding]:
+        return [_finding(self.rule_id)]
+
+
+class _RaisingRule:
+    """An in-house rule that raises one of `_RULE_EVALUATION_ERRORS`."""
+
+    rule_id = "extrace.test.bad"
+
+    def evaluate(self, _context: object) -> list[StaticDetectionFinding]:
+        raise ValueError("rule blew up")
+
+
+def test_inhouse_rule_error_degrades_to_partial_and_is_recorded(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # A rule that raises must degrade to no finding, be recorded in
+    # `errored_rule_ids`, and flip the record (and report) to `partial` — the
+    # healthy rule still contributes.
+    monkeypatch.setattr(
+        static_runner,
+        "get_production_rules",
+        lambda: [_EmittingRule("extrace.test.good"), _RaisingRule()],
+    )
+    report = _inhouse_only(
+        vsix_dir=str(tmp_path), rules_version="1.0.0", timeout_budget_s=30
+    )
+    record = report.tool_executions[0]
+    assert record.status == "partial"
+    assert record.error_count == 1
+    assert record.errored_rule_ids == ["extrace.test.bad"]
+    assert report.partial is True
+    assert record.findings_emitted == 1
+    assert [f.rule_id for f in report.findings] == ["extrace.test.good"]
+
+
+def test_inhouse_budget_trip_marks_partial_and_stops_early(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The soft budget is checked between rules. Drive `time.monotonic` so the
+    # check trips before the second rule. The first three reads (the outer
+    # `run_static_detection_engine` start, the `_run_inhouse` start, and rule-1's
+    # pre-eval check) sit at 0.0 so rule-1 runs; every later read is past the
+    # 30s budget so rule-2's check breaks the loop before it evaluates.
+    monkeypatch.setattr(
+        static_runner,
+        "get_production_rules",
+        lambda: [
+            _EmittingRule("extrace.test.first"),
+            _EmittingRule("extrace.test.second"),
+        ],
+    )
+    reads = {"n": 0}
+
+    def _fake_monotonic() -> float:
+        reads["n"] += 1
+        return 0.0 if reads["n"] <= 3 else 100.0
+
+    monkeypatch.setattr(static_runner.time, "monotonic", _fake_monotonic)
+    report = _inhouse_only(
+        vsix_dir=str(tmp_path), rules_version="1.0.0", timeout_budget_s=30
+    )
+    record = report.tool_executions[0]
+    # The break is the budget, not a rule error: `partial` with no error count.
+    assert record.status == "partial"
+    assert report.partial is True
+    assert record.error_count == 0
+    assert record.errored_rule_ids == []
+    # Only the first rule ran before the budget tripped.
+    assert record.findings_emitted == 1
+    assert [f.rule_id for f in report.findings] == ["extrace.test.first"]
+
+
+# --------------------------------------------------------------------------
 # ES-4 combine seam — the Semgrep pass is faked (no wheel / container needed).
 # --------------------------------------------------------------------------
 

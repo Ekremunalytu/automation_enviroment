@@ -820,20 +820,23 @@ Closed (one-line audit trail):
   `Coverage*View` types. Wiring: route in `ui/src/app/App.tsx` + nav in
   `ui/src/app/layout/AppShell.tsx` (`NavId` + `NAV` + `activeIdFromPath`).
   **Severity/Confidence**: feature work / High. Lane: `[security-detection]` (UI surface).
-- `[GOAL mitre-static-overlay]` (new) — **W23 candidate; depends on ES-3b.**
-  Per-report overlay highlighting which techniques/rules FIRED for a selected
-  analysis job. Dynamic side works today (existing
-  `detection_report.rules_executed`); static side needs the static report served
-  to the UI: an additive optional `static_report: StaticAnalysisReport | None`
-  on `AnalyzeJobStatusResponse` (`appcore/contracts/schema_defs/marketplace.py`),
-  a `load_static_report_payload` mirror of `load_report_payload`
-  (`workflows/marketplace/analysis_reports.py`), and a read in `get_analysis_job`
-  (`workflows/marketplace/router.py`). Effectively blocked until ES-3b populates
-  `static_report_path` (today always None → overlay shows "static stage did not
-  run"). Pulls the 7 static DTOs (`StaticAnalysisReport`/`StaticDetectionReport`/
-  `StaticDetectionFinding`/`StaticEvidenceRef`/`StaticGateOutcome`/
-  `StaticSeverityCounts`/`StaticToolExecutionRecord`) into the generated TS
-  contracts. **Test**: `tests/workflows/marketplace/test_static_report_overlay.py`.
+- `[GOAL mitre-static-overlay]` (new) — **W23 candidate.** Per-report overlay
+  on the `/mitre` page highlighting which techniques/rules FIRED for a selected
+  analysis job. The backend/contract plumbing this used to depend on landed at
+  the ES-5 close-out: the static report is already served to the UI via the
+  additive optional `static_report: StaticAnalysisReport | None` on both
+  `AnalyzeResponse` and `AnalyzeJobStatusResponse`
+  (`appcore/contracts/schema_defs/marketplace.py`), loaded by
+  `load_static_report_from_name` (`workflows/marketplace/analysis_reports.py`)
+  and surfaced through the analyze router (`workflows/marketplace/router.py`),
+  with the static DTOs (`StaticAnalysisReportDto` / `StaticDetectionReportDto` /
+  `StaticDetectionFindingDto` / `StaticEvidenceRefDto` / `StaticGateOutcomeDto` /
+  `StaticSeverityCountsDto` / `StaticToolExecutionRecordDto`) generated into the
+  TS contracts; ALLOW/WARN now persists `static_report_path`, so the field is
+  populated (no longer always None). Dynamic side works today via
+  `detection_report.rules_executed`. Residual W23 scope is just the `/mitre`-page
+  per-report overlay rendering + its test
+  (`tests/workflows/marketplace/test_static_report_overlay.py`).
   **Severity/Confidence**: feature work / High. Lane: `[security-detection]` +
   `[marketplace-analysis]`.
 

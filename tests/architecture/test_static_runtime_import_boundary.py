@@ -3,10 +3,12 @@
 The hardened ``automation_static_analyzer`` image (ADR 0016 §Decision 2) copies
 only ``packages/analysis_contracts/`` + ``static_runtime/`` — deliberately NOT
 ``packages/analysis_engine/`` (whose ``__init__`` eagerly imports
-``run_detection`` and would drag the whole dynamic engine in). This gate fails
-any PR that makes ``static_runtime`` import the dynamic engine, ``workflows``, or
-``appcore``, which would break ``import static_runtime`` inside the container at
-runtime (covered live by ``tests/smoke/test_static_container_smoke.py``).
+``run_detection`` and would drag the whole dynamic engine in), and not
+``workflows``/``executor``/``appcore``/``ui`` either. This gate fails any PR that
+makes ``static_runtime`` import the dynamic engine, ``workflows``, ``executor``,
+``appcore``, or ``ui`` — none of which are present in the image, so the import
+would break ``import static_runtime`` inside the container at runtime (covered
+live by ``tests/smoke/test_static_container_smoke.py``).
 """
 
 from __future__ import annotations
@@ -16,8 +18,10 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).parents[2]
 
-# Top-level import roots that are NOT present in the hardened static image.
-_BANNED_IMPORT_ROOTS = ("workflows", "appcore")
+# Top-level import roots that are NOT present in the hardened static image
+# (it copies only packages/analysis_contracts/ + static_runtime/), so importing
+# any of them would break `import static_runtime` inside the container.
+_BANNED_IMPORT_ROOTS = ("workflows", "executor", "appcore", "ui")
 _BANNED_PACKAGE_PREFIX = "packages.analysis_engine"
 
 
@@ -32,7 +36,7 @@ def _iter_imports(module_path: Path) -> list[tuple[int, str]]:
     return references
 
 
-def test_static_runtime_does_not_import_engine_workflows_or_appcore() -> None:
+def test_static_runtime_imports_stay_within_hardened_image() -> None:
     violations: list[str] = []
     for module_path in sorted((REPO_ROOT / "static_runtime").rglob("*.py")):
         for lineno, module in _iter_imports(module_path):
