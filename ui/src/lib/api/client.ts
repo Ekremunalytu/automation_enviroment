@@ -1,5 +1,5 @@
 import type {
-  AnalysisBundleDto,
+  ReportBundleDto,
   ActivationReportDto,
   AnalyzeJobStatusDto,
   MarketplaceDownloadResponseDto,
@@ -21,7 +21,7 @@ export const apiClient = {
     return requestJson<ActivationReportDto>(`/api/activations/${name}`, { signal });
   },
   getReportBundleByName(name: string, signal?: AbortSignal) {
-    return requestJson<AnalysisBundleDto>(`/api/activations/${name}/bundle`, { signal });
+    return requestJson<ReportBundleDto>(`/api/activations/${name}/bundle`, { signal });
   },
   async getLatestReportBundle(signal?: AbortSignal) {
     const latest = await requestJson<ActivationReportDto>("/api/activations/latest", {
@@ -31,7 +31,7 @@ export const apiClient = {
     if (!filename) {
       throw new Error("Latest activation report did not include a filename.");
     }
-    return requestJson<AnalysisBundleDto>(`/api/activations/${filename}/bundle`, {
+    return requestJson<ReportBundleDto>(`/api/activations/${filename}/bundle`, {
       signal,
     });
   },

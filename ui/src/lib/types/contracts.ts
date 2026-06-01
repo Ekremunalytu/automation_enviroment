@@ -108,6 +108,12 @@ export interface AnalysisBundleDto {
   detection_report: DetectionReportDto;
 }
 
+export interface ReportBundleDto {
+  activation_report: ActivationReportDto;
+  detection_report: DetectionReportDto;
+  static_report?: StaticAnalysisReportDto | null;
+}
+
 export interface ReportListItemDto {
   filename: string;
   size_bytes: number;

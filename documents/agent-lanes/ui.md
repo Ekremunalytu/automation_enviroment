@@ -1,6 +1,6 @@
 # UI Lane
 
-**Last Updated:** 2026-05-17 (W15 close — W15-4 closed 2026-05-16 via 89e13e3: UI bounds bundle (U1/U2/U3 + U6) — `EventTimeline` / `EventDensityStrip` / `InteractionsSection` render caps with truncation indicators to prevent unbounded SVG rendering and DOM growth on adversarial event volumes; W15-5 closed 2026-05-17 via 43d6438: UI `/health` proxy (I2) — `ui/src/lib/api/client.ts` retains `api/` prefix for executor `/health` endpoint via Vite proxy passthrough, +14 behavioral cases in `ui/src/lib/api/client.test.ts`; W15-5 also pairs with I4 (lifecycle marker regex) on the executor side.)
+**Last Updated:** 2026-05-17 (W15 close — W15-4 closed 2026-05-16 via 89e13e3: UI bounds bundle (U1/U2/U3 + U6) — `EventTimeline` / `EventDensityStrip` / `InteractionsSection` render caps with truncation indicators to prevent unbounded SVG rendering and DOM growth on adversarial event volumes; W15-5 closed 2026-05-17 via 43d6438: UI `/health` proxy (I2) — `ui/src/lib/api/client.ts` retains `api/` prefix for executor `/health` endpoint via Vite proxy passthrough, +14 behavioral cases in `ui/src/lib/api/client.test.ts`; W15-5 also pairs with I4 (lifecycle marker regex) on the executor side.) · Branch `extension-trigger-matrix` (2026-06-01, pre-merge): added the Reports **Rule matrix** tab — a static + dynamic rule-activation grid with click-for-detail — and folded the sibling static pre-check report onto the bundle via `ReportBundle.static_report`; see `documents/active-work/extension-trigger-matrix.md`.
 
 Use this lane for the React/Vite analyst console, frontend contracts, route
 behavior, report views, simulation UI, rules / settings / system surfaces,
@@ -14,6 +14,9 @@ shared v3 primitives, and UI tests.
 - `ui/src/features/reports/`
 - `ui/src/features/reports/charts/` — bespoke SVG (`EventTimeline`,
   `InteractionGraph`)
+- `ui/src/features/reports/RuleMatrixSection.tsx` + `buildRuleMatrix.ts` +
+  `ruleCatalog.ts` — Rule matrix tab (static + dynamic rule-activation grid;
+  see `documents/active-work/extension-trigger-matrix.md`)
 - `ui/src/features/simulation/`
 - `ui/src/features/simulation/charts/` — bespoke SVG (`ActivityBars`)
 - `ui/src/features/rules/` — rule library + draft preview

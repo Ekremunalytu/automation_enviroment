@@ -1,5 +1,11 @@
-import { adaptReport, buildInteractionGraph, buildRiskRadar, getInspectorView } from "./report";
-import type { ActivationReportDto } from "../types/contracts";
+import {
+  adaptBundle,
+  adaptReport,
+  buildInteractionGraph,
+  buildRiskRadar,
+  getInspectorView,
+} from "./report";
+import type { ActivationReportDto, ReportBundleDto } from "../types/contracts";
 
 describe("adaptReport", () => {
   it("prefers canonical evidence events and links", () => {
@@ -785,4 +791,67 @@ describe("adaptReport eventAttempts confirmationSource (W19-3)", () => {
       expect(report.eventAttempts[0].confirmationSource).toBe(source);
     },
   );
+});
+
+describe("adaptBundle static fold", () => {
+  const activationReport = {
+    summary: { total_activated: 1 },
+    scenario_traces: [],
+  } as unknown as ActivationReportDto;
+
+  const baseBundle: ReportBundleDto = {
+    activation_report: activationReport,
+    detection_report: {
+      activation_report_ref: "activation_report_x.json",
+      analyzed_extension: { publisher: "pub", name: "ext", version: "1.0.0" },
+      verdict: "clean",
+      verdict_rationale: "no behavioral signals",
+      findings: [],
+      rules_executed: [],
+    },
+  };
+
+  it("folds the sibling static report onto staticReport", () => {
+    const dto: ReportBundleDto = {
+      ...baseBundle,
+      static_report: {
+        detection_report: {
+          findings: [
+            {
+              rule_id: "extrace.s2.typosquat",
+              rule_version: "1.0.0",
+              rule_lifecycle: "production",
+              categories: ["attack.T1036"],
+              severity: "high",
+              confidence: "high",
+              title: "Typosquat",
+              description: "Impersonates a popular extension.",
+            },
+          ],
+          tool_executions: [
+            {
+              tool: "inhouse",
+              version: "0.0.0",
+              rules_loaded: 6,
+              findings_emitted: 1,
+              duration_ms: 5,
+              status: "ok",
+            },
+          ],
+        },
+        gate_outcome: { decision: "warn", warned_by: ["extrace.s2.typosquat"] },
+      },
+    };
+
+    const report = adaptBundle(dto, "activation_report_x.json");
+    expect(report.staticReport?.decision).toBe("warn");
+    expect(report.staticReport?.findings[0]?.ruleId).toBe("extrace.s2.typosquat");
+    expect(report.staticReport?.toolStatuses[0]?.tool).toBe("inhouse");
+    expect(report.detection?.verdict).toBe("clean");
+  });
+
+  it("leaves staticReport null when the bundle carries no static_report", () => {
+    const report = adaptBundle(baseBundle, "activation_report_x.json");
+    expect(report.staticReport).toBeNull();
+  });
 });

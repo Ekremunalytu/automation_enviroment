@@ -332,6 +332,10 @@ export interface ActivationReportView {
   reportVersion: number;
   summary: ReportSummaryView;
   detection: DetectionReportView | null;
+  // ES-5 (ADR 0016): the static pre-check report for this run, folded in by the
+  // bundle route when a sibling static_report file exists. `null` for direct
+  // executor runs / fixtures that never went through the static gate.
+  staticReport: StaticReportView | null;
   attributionSummary: AttributionSummaryView;
   riskSignals: RiskSignalView[];
   riskSummary: RiskSummaryView;

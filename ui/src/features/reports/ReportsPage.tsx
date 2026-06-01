@@ -41,16 +41,18 @@ import {
 } from "../../lib/adapters/report";
 import type { EvidenceInspectorView } from "../../lib/types/view-models";
 import { FindingCard } from "./FindingCard";
+import { RuleMatrixSection } from "./RuleMatrixSection";
 import { EventTimeline } from "./charts/EventTimeline";
 import { EventDensityStrip } from "./charts/EventDensityStrip";
 import { InteractionGraph } from "./charts/InteractionGraph";
 import { DISPLAY_CAPS } from "../../lib/displayCaps";
 
 type ReportModel = NonNullable<ReturnType<typeof adaptReport>>;
-type ReportTab = "overview" | "interactions" | "timeline" | "ledger" | "audit";
+type ReportTab = "overview" | "matrix" | "interactions" | "timeline" | "ledger" | "audit";
 
 const REPORT_TABS: TabSpec<ReportTab>[] = [
   { value: "overview", label: "Overview" },
+  { value: "matrix", label: "Rule matrix" },
   { value: "interactions", label: "Interactions" },
   { value: "timeline", label: "Timeline" },
   { value: "ledger", label: "Event ledger" },
@@ -58,7 +60,7 @@ const REPORT_TABS: TabSpec<ReportTab>[] = [
 ];
 
 function normalizeTab(raw: string | null): ReportTab {
-  if (raw === "interactions" || raw === "timeline" || raw === "ledger" || raw === "audit") return raw;
+  if (raw === "matrix" || raw === "interactions" || raw === "timeline" || raw === "ledger" || raw === "audit") return raw;
   if (raw === "activation" || raw === "file" || raw === "network" || raw === "scenario" || raw === "evidence" || raw === "logs") {
     return "ledger";
   }
@@ -345,6 +347,8 @@ export function ReportsPage() {
         <EmptyState eyebrow="Error" body={String(reportQuery.error)} title="Report could not be loaded" />
       ) : !report ? null : selectedTab === "overview" ? (
         <OverviewSection report={report} />
+      ) : selectedTab === "matrix" ? (
+        <RuleMatrixSection report={report} />
       ) : selectedTab === "interactions" ? (
         <InteractionsSection graph={interactionGraph} report={report} onSelectEvent={setSelectedEvent} />
       ) : selectedTab === "timeline" ? (

@@ -23,6 +23,7 @@ GENERATED_HEADER = (
 
 TARGET_SCHEMAS: list[str] = [
     "AnalysisBundle",
+    "ReportBundle",
     "ActivationReportFileSummary",
     "ActivationEntry",
     "AdversaryClass",
@@ -84,6 +85,7 @@ TARGET_SCHEMAS: list[str] = [
 
 NAME_OVERRIDES: dict[str, str] = {
     "AnalysisBundle": "AnalysisBundleDto",
+    "ReportBundle": "ReportBundleDto",
     "ActivationReportFileSummary": "ReportListItemDto",
     "ActivationEntry": "ActivationEntryDto",
     "AdversaryClass": "AdversaryClassDto",
@@ -296,6 +298,10 @@ def _load_extra_schema_providers() -> dict[str, type[BaseModel] | type[Enum]]:
     ]
     contract_module = importlib.import_module("appcore.contracts.schemas")
     contract_provider_names = [
+        # AnalysisBundle is no longer a route response_model (the Reports bundle
+        # route returns its ReportBundle subclass, which OpenAPI inlines), so it
+        # must be sourced from the contract module to stay emitted.
+        "AnalysisBundle",
         "VsixThresholdBreachDetail",
     ]
     EXTRA_SCHEMA_PROVIDERS = {

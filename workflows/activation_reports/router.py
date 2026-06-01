@@ -1,6 +1,8 @@
 """Activation reports workflow router."""
 
 import json
+import logging
+import re
 import time
 from pathlib import Path
 from typing import Any
@@ -11,7 +13,11 @@ from pydantic import ValidationError
 
 from appcore.api.config import settings
 from appcore.contracts.schema_defs.activation_reports import ActivationReportResponse
-from appcore.contracts.schema_defs.analysis_bundle import AnalysisBundle
+from appcore.contracts.schema_defs.report_bundle import ReportBundle
+from appcore.contracts.schema_defs.static_analysis_bundle import (
+    CombinedAnalysisBundle,
+    StaticAnalysisReport,
+)
 from appcore.contracts.validators import ACTIVATION_REPORT_NAME_RE
 from packages.analysis_contracts import (
     ActivationReport,
@@ -20,8 +26,16 @@ from packages.analysis_contracts import (
 )
 from packages.analysis_engine import run_detection
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/api", tags=["activations"])
 _REPORT_PATTERNS = ("activation_report*.json",)
+# The marketplace flow names an activation report
+# ``activation_report_{slug}-{job_id[:12]}.json`` (job_service.build_report_name)
+# and persists its static pre-check next to it as ``static_report_{job_id}.json``.
+# The shared 12-hex ``job_id`` prefix is the only deterministic link between the
+# two files, so the static sibling is resolved by globbing on that token.
+_RUN_ID_TOKEN_RE = re.compile(r"^[0-9a-f]{12}$")
 
 
 def _get_output_dir() -> Path:
@@ -162,6 +176,40 @@ def _identity_from_report_name(
     )
 
 
+def _resolve_static_sibling(name: str) -> StaticAnalysisReport | None:
+    """Best-effort load of the static pre-check report for an activation report.
+
+    Resolves the ``static_report_{job_id}.json`` sibling persisted by the static
+    gate (a ``CombinedAnalysisBundle``) via the shared 12-hex ``job_id`` token
+    embedded in the activation report name, and returns its ``StaticAnalysisReport``.
+
+    Returns ``None`` — never raises — when the report was not produced by a
+    static-gate run (no token / no sibling), when the match is ambiguous, or when
+    the sibling is unreadable / schema-invalid. A missing or degraded static
+    artifact must read as "no static pre-check for this run" on the Reports UI,
+    not break the dynamic bundle.
+    """
+    stem = name.removeprefix("activation_report_").removesuffix(".json")
+    token = stem.rsplit("-", 1)[-1]
+    if not _RUN_ID_TOKEN_RE.match(token):
+        return None
+
+    output_dir = _get_output_dir()
+    matches = sorted(output_dir.glob(f"static_report_{token}*.json"))
+    if len(matches) != 1:
+        # 0 → no static gate ran; >1 → ambiguous prefix, refuse to guess.
+        return None
+
+    try:
+        raw = matches[0].read_text(encoding="utf-8")
+        bundle = CombinedAnalysisBundle.model_validate(json.loads(raw))
+    except (OSError, UnicodeDecodeError, ValueError, ValidationError) as exc:
+        # ValueError covers json.JSONDecodeError (a ValueError subclass).
+        logger.warning("Static sibling load failed for %s: %s", name, exc)
+        return None
+    return bundle.static_report
+
+
 # =============================================================================
 # Endpoints
 # =============================================================================
@@ -248,10 +296,10 @@ def get_activation_by_name(
     return data
 
 
-@router.get("/activations/{name}/bundle", response_model=AnalysisBundle)
+@router.get("/activations/{name}/bundle", response_model=ReportBundle)
 def get_activation_bundle_by_name(
     name: str = PathParam(..., pattern=ACTIVATION_REPORT_NAME_RE.pattern),
-) -> AnalysisBundle:
+) -> ReportBundle:
     path = _get_output_dir() / name
     if not path.exists() or not path.is_file():
         raise HTTPException(status_code=404, detail=f"Report not found: {name}")
@@ -263,7 +311,8 @@ def get_activation_bundle_by_name(
         activation_report_ref=name,
         analyzed_extension=analyzed_extension,
     )
-    return AnalysisBundle(
+    return ReportBundle(
         activation_report=report,
         detection_report=detection_report,
+        static_report=_resolve_static_sibling(name),
     )

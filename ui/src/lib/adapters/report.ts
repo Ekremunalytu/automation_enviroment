@@ -1,5 +1,5 @@
 import type {
-  AnalysisBundleDto,
+  ReportBundleDto,
   ActivationEntryDto,
   AutomationHealthDto,
   ActivationReportDto,
@@ -51,6 +51,7 @@ import type {
   ReportSummaryView,
   StimulusPassView,
 } from "../types/view-models";
+import { adaptStaticReport } from "./job";
 
 function labelize(value: string, fallback = "Unknown") {
   if (!value) return fallback;
@@ -823,6 +824,7 @@ export function adaptReport(dto: ActivationReportDto, reportId: string): Activat
     reportVersion: dto.report_version || 1,
     summary: buildSummary(dto, evidence),
     detection: null,
+    staticReport: null,
     attributionSummary: buildAttributionSummary(
       dto.attribution_summary ||
         (typeof summary["attribution_summary"] === "object"
@@ -853,11 +855,12 @@ export function adaptReport(dto: ActivationReportDto, reportId: string): Activat
   };
 }
 
-export function adaptBundle(dto: AnalysisBundleDto, reportId: string): ActivationReportView {
+export function adaptBundle(dto: ReportBundleDto, reportId: string): ActivationReportView {
   const report = adaptReport(dto.activation_report, reportId);
   return {
     ...report,
     detection: buildDetectionReport(dto.detection_report),
+    staticReport: dto.static_report ? adaptStaticReport(dto.static_report) : null,
   };
 }
 
