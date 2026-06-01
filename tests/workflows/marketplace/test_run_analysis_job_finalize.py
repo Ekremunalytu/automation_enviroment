@@ -35,6 +35,7 @@ from unittest.mock import patch
 from appcore.contracts.schema_defs.static_analysis_bundle import StaticAnalysisReport
 from appcore.contracts.schemas import AnalyzeRequest
 from executor.control import ExecutorError
+from executor.static_control import StaticAnalyzerError
 from packages.analysis_contracts.static_detection import (
     StaticDetectionReport,
     StaticGateDecision,
@@ -42,7 +43,10 @@ from packages.analysis_contracts.static_detection import (
 )
 from workflows.marketplace import analysis_service, job_service
 from workflows.marketplace.analysis_errors import AnalysisCancelledError
-from workflows.marketplace.static_analysis import StaticAnalysisBlockedError
+from workflows.marketplace.static_analysis import (
+    StaticAnalysisBlockedError,
+    StaticReportError,
+)
 
 _BLOCKED_STATIC_REPORT = StaticAnalysisReport(
     detection_report=StaticDetectionReport(),
@@ -212,5 +216,73 @@ def test_run_analysis_job_rejects_static_on_blocked_error() -> None:
         f"static_report_{job_id}.json"
     )
     fail_job.assert_not_called()
+    complete_job.assert_not_called()
+    finalize.assert_not_called()
+
+
+def test_run_analysis_job_fails_on_static_analyzer_error() -> None:
+    """A static-stage INFRASTRUCTURE failure (analyzer container missing / exec
+    error / timeout -> ``StaticAnalyzerError``) must fail the job CLOSED
+    (terminal ``failed`` via ``fail_job``), NOT escape the worker and leave the
+    row active holding the partial-unique-index lock.
+
+    Regression for the pre-fix P1: ``StaticAnalyzerError`` subclasses
+    ``Exception`` only, so it matched none of the worker's except clauses and
+    propagated out of ``run_analysis_job`` without any terminal write — the job
+    stayed ``running`` forever and wedged ``reserve_job``.
+    """
+    job_id = "test-static-analyzer-error-uuid"
+
+    with (
+        patch.object(
+            analysis_service,
+            "execute_analysis_request",
+            side_effect=StaticAnalyzerError(
+                "static-analyzer docker exec failed", returncode=1, output="boom"
+            ),
+        ),
+        patch.object(job_service, "is_job_cancelled", return_value=False),
+        patch.object(job_service, "fail_job") as fail_job,
+        patch.object(job_service, "reject_static_job") as reject_static,
+        patch.object(job_service, "complete_job") as complete_job,
+        patch.object(job_service, "finalize_cancelled_job") as finalize,
+        patch.object(analysis_service, "_open_job_session"),
+    ):
+        # Must NOT raise out of the worker (pre-fix it propagated uncaught).
+        analysis_service.run_analysis_job(job_id, _request())
+
+    fail_job.assert_called_once()
+    assert fail_job.call_args.args[0] == job_id
+    reject_static.assert_not_called()
+    complete_job.assert_not_called()
+    finalize.assert_not_called()
+
+
+def test_run_analysis_job_fails_on_static_report_error() -> None:
+    """An unreadable / truncated / schema-invalid analyzer report
+    (``StaticReportError``, a ``RuntimeError`` subclass) must also fail the job
+    CLOSED via ``fail_job`` rather than escape the worker — fail-closed is the
+    documented contract (a broken analyzer must never be mistaken for an ALLOW).
+    """
+    job_id = "test-static-report-error-uuid"
+
+    with (
+        patch.object(
+            analysis_service,
+            "execute_analysis_request",
+            side_effect=StaticReportError("static analyzer report unreadable"),
+        ),
+        patch.object(job_service, "is_job_cancelled", return_value=False),
+        patch.object(job_service, "fail_job") as fail_job,
+        patch.object(job_service, "reject_static_job") as reject_static,
+        patch.object(job_service, "complete_job") as complete_job,
+        patch.object(job_service, "finalize_cancelled_job") as finalize,
+        patch.object(analysis_service, "_open_job_session"),
+    ):
+        analysis_service.run_analysis_job(job_id, _request())
+
+    fail_job.assert_called_once()
+    assert fail_job.call_args.args[0] == job_id
+    reject_static.assert_not_called()
     complete_job.assert_not_called()
     finalize.assert_not_called()

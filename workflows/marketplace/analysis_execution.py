@@ -18,6 +18,7 @@ from appcore.logging import get_extrace_logger
 from executor.control import ExecutorControl, ExecutorError
 from executor.static_control import StaticAnalyzerError
 from packages.analysis_contracts import redact_multiline_secrets, redact_secrets
+from workflows.marketplace.static_analysis import StaticReportError
 from workflows.marketplace.trigger_service import TriggerPlan
 
 from .analysis_errors import AnalysisCancelledError, TriggerPlanError
@@ -327,6 +328,18 @@ def run_static_analysis_stage(
             "static_analysis",
             "failed",
             static_analysis_failure_message(exc),
+            "static_analysis_failed",
+        )
+        raise
+    except StaticReportError:
+        # Unreadable / truncated / schema-invalid analyzer report. Fail the
+        # step (and, upstream, the job) CLOSED — the report message is
+        # host-generated, but keep it generic so no analyzer-derived bytes
+        # reach the job log unredacted.
+        reporter.emit(
+            "static_analysis",
+            "failed",
+            "Static analysis report could not be read or validated.",
             "static_analysis_failed",
         )
         raise

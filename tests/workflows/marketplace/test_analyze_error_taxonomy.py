@@ -25,6 +25,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from appcore.contracts.schema_defs.static_analysis_bundle import StaticAnalysisReport
 from executor.host import ExecutorError
+from executor.static_control import StaticAnalyzerError
 from packages.analysis_contracts.static_detection import (
     StaticDetectionReport,
     StaticGateDecision,
@@ -38,7 +39,10 @@ from workflows.marketplace.analysis_service import (
     ANALYZE_ERROR_TYPES,
     analyze_error_to_http_response,
 )
-from workflows.marketplace.static_analysis import StaticAnalysisBlockedError
+from workflows.marketplace.static_analysis import (
+    StaticAnalysisBlockedError,
+    StaticReportError,
+)
 
 # ES-3b: a minimal BLOCK report so ``StaticAnalysisBlockedError`` can be
 # constructed for the taxonomy parametrize (carries the report the orchestrator
@@ -107,6 +111,18 @@ HELPER_CASES: tuple[tuple[Exception, int], ...] = (
         ),
         422,
     ),
+    # Static pre-check INFRASTRUCTURE failures -> 502 (internal-helper /
+    # upstream infra fault, like ExecutorError): the analyzer container
+    # errored / timed out (``StaticAnalyzerError``) or emitted an unreadable /
+    # schema-invalid report (``StaticReportError``). Before the P1 fix these
+    # escaped the taxonomy and left the job row active; now they fail closed.
+    (
+        StaticAnalyzerError(
+            "static-analyzer docker exec failed", returncode=1, output="boom"
+        ),
+        502,
+    ),
+    (StaticReportError("static analyzer report unreadable"), 502),
 )
 
 

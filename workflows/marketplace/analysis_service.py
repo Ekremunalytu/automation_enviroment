@@ -29,6 +29,7 @@ from executor.control import (
 )
 from executor.static_control import (
     StaticAnalyzerControl,
+    StaticAnalyzerError,
     default_static_analyzer_control,
 )
 from packages.analysis_contracts import redact_secrets
@@ -80,6 +81,7 @@ from workflows.marketplace.analysis_reports import (
 )
 from workflows.marketplace.static_analysis import (
     StaticAnalysisBlockedError,
+    StaticReportError,
     build_combined_bundle,
 )
 from workflows.marketplace.static_analysis import (
@@ -114,6 +116,16 @@ ANALYZE_RECOVERABLE_ERROR_TYPES: tuple[type[Exception], ...] = (
     # via a dedicated handler placed ahead of the generic recoverable clause;
     # the sync entry catches it through the union and maps it to HTTP 422.
     StaticAnalysisBlockedError,
+    # Static pre-check *infrastructure* failures must fail the job CLOSED, not
+    # escape the worker: a missing/erroring/timed-out analyzer container raises
+    # ``StaticAnalyzerError`` and an unreadable / truncated / schema-invalid
+    # report raises ``StaticReportError``. Neither subclasses the types above,
+    # so before this entry they slipped past every handler and left the row
+    # active (``running``) holding the partial-unique-index lock — wedging the
+    # queue. Routed here -> ``fail_job`` (terminal ``failed``); the sync entry
+    # maps both to HTTP 502 (internal-helper / upstream infra fault).
+    StaticAnalyzerError,
+    StaticReportError,
 )
 ANALYZE_PROGRAMMING_ERROR_TYPES: tuple[type[Exception], ...] = (
     TypeError,
@@ -408,9 +420,16 @@ def analyze_error_to_http_response(exc: Exception) -> HTTPException:
     - ``StaticAnalysisBlockedError`` -> 422 (ES-3b static pre-check gate
       BLOCKed the extension; an unprocessable input, not an infra fault —
       matched before the generic branches since it is a ``RuntimeError``).
+    - ``StaticAnalyzerError`` / ``StaticReportError`` -> 502 (the static
+      pre-check analyzer container failed, or emitted an unreadable / invalid
+      report — an internal-helper / upstream infra fault, like ``ExecutorError``;
+      ``StaticReportError`` is matched before the generic branches as it is a
+      ``RuntimeError``).
     """
     if isinstance(exc, StaticAnalysisBlockedError):
         return HTTPException(status_code=422, detail=str(exc))
+    if isinstance(exc, (StaticAnalyzerError, StaticReportError)):
+        return HTTPException(status_code=502, detail=str(exc))
     if isinstance(exc, ExecutorError):
         return map_executor_error(exc)
     if isinstance(exc, FileNotFoundError):
