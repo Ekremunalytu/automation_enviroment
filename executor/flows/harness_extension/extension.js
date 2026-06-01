@@ -288,7 +288,8 @@ async function activate(context) {
   const _noopChatHandler = async (_request, _context, _stream, _token) => {
     // No model interaction — registration alone fires the activation
     // event; the handler is a placeholder for participants the user
-    // invokes via @extrace.harness.chat from the chat input.
+    // invokes via @harness (the package.json chatParticipant `name`)
+    // from the chat input.
     return;
   };
   const _noopToolInvoke = async (_options, _token) => {
@@ -308,14 +309,14 @@ async function activate(context) {
     ts: Date.now(),
     collector: "harness_extension",
   });
-  const lmTool = vscode.lm.registerTool("extrace.harness.lm.tool", {
+  const lmTool = vscode.lm.registerTool("extrace-harness-lm-tool", {
     invoke: _noopToolInvoke,
   });
   context.subscriptions.push(lmTool);
   emitHarnessEvent({
     kind: "lm_tool_state",
     phase: "registered",
-    tool_id: "extrace.harness.lm.tool",
+    tool_id: "extrace-harness-lm-tool",
     ts: Date.now(),
     collector: "harness_extension",
   });

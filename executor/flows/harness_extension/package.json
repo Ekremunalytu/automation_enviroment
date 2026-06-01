@@ -18,6 +18,22 @@
         "command": "extrace.harness.runCurrentStimulus",
         "title": "ExTrace Harness: Run Current Stimulus"
       }
+    ],
+    "chatParticipants": [
+      {
+        "id": "extrace.harness.chat",
+        "name": "harness",
+        "fullName": "ExTrace Harness",
+        "description": "Local-only deterministic stimulus participant; the handler is a no-op and performs no chat-model interaction.",
+        "isSticky": false
+      }
+    ],
+    "languageModelTools": [
+      {
+        "name": "extrace-harness-lm-tool",
+        "displayName": "ExTrace Harness Tool",
+        "modelDescription": "Local no-op tool used only to fire onLanguageModelTool activation events for deterministic coverage. Returns a canned in-process result with no model call and no network I/O."
+      }
     ]
   }
 }

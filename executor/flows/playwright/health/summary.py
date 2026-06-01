@@ -330,12 +330,17 @@ def build_automation_health(
         reasons.append("target_stream_missing")
     if failed_scenarios:
         reasons.append("scenario_failures_present")
-    fatal_crash_traces = [
-        trace
-        for trace in getattr(report, "scenario_traces", []) or []
-        if str(getattr(trace, "failure_reason_code", "") or "") == "fatal_ui_crash"
-    ]
-    if fatal_crash_traces:
+    # ``fatal_ui_crash`` lands on a ``scenario_traces`` row (scenario loop)
+    # OR an ``event_attempts`` row (layered backfill, ``run_stimulus_plan``).
+    # Scan both — traces-only left layered crashes mis-classified degraded.
+    fatal_ui_crash_present = any(
+        str(getattr(item, "failure_reason_code", "") or "") == "fatal_ui_crash"
+        for item in (
+            *(getattr(report, "scenario_traces", []) or []),
+            *(getattr(report, "event_attempts", []) or []),
+        )
+    )
+    if fatal_ui_crash_present:
         reasons.append("fatal_ui_crash")
     if skipped_scenarios:
         reasons.append("skipped_scenarios_present")
@@ -379,7 +384,7 @@ def build_automation_health(
     observed_scenario_coverage = executed_scenarios or covered_scenarios
 
     if (
-        fatal_crash_traces
+        fatal_ui_crash_present
         or (
             requested_scenarios
             and not observed_scenario_coverage

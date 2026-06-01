@@ -15,6 +15,7 @@ class _FakeMonitor:
         self.attempt_starts: list[dict[str, object]] = []
         self.attempt_ends: list[dict[str, object]] = []
         self.scenario_events: list[dict[str, object]] = []
+        self.automation_events: list[dict[str, object]] = []
 
     def record_prerequisite_result(
         self,
@@ -108,6 +109,24 @@ class _FakeMonitor:
             }
         )
 
+    def record_automation_event(
+        self,
+        kind: str,
+        message: str,
+        status: str = "",
+        scenario_name: str = "",
+        activation_event: str = "",
+    ) -> None:
+        self.automation_events.append(
+            {
+                "kind": kind,
+                "message": message,
+                "status": status,
+                "scenario_name": scenario_name,
+                "activation_event": activation_event,
+            }
+        )
+
 
 def _payload(**overrides: object) -> SimpleNamespace:
     baseline = {
@@ -126,6 +145,24 @@ def _payload(**overrides: object) -> SimpleNamespace:
     }
     baseline.update(overrides)
     return SimpleNamespace(**baseline)
+
+
+class _LivePage:
+    """Minimal live Playwright-page stand-in for ``is_fatal_ui_error``.
+
+    Reports a healthy renderer (not closed, liveness probe succeeds) so a
+    NON-fatal exception raised inside ``run_stimulus_plan`` is classified
+    as ``stimulus_execution_failed`` rather than ``fatal_ui_crash``.
+    """
+
+    def __init__(self) -> None:
+        self.context = SimpleNamespace(is_closed=lambda: False)
+
+    def is_closed(self) -> bool:
+        return False
+
+    def wait_for_function(self, _expression: str, *, timeout: int = 0) -> None:
+        return None
 
 
 def test_workspace_contains_fixture_creates_requested_patterns(
@@ -577,7 +614,7 @@ def test_run_stimulus_plan_records_failed_layered_scenarios(
     )
     monitor = _FakeMonitor()
 
-    result = stimulus.run_stimulus_plan(object(), payload, monitor=monitor)
+    result = stimulus.run_stimulus_plan(_LivePage(), payload, monitor=monitor)
 
     assert result.executed_scenarios == ["project_exploration"]
     assert result.failed_scenarios == ["project_exploration"]
@@ -593,6 +630,88 @@ def test_run_stimulus_plan_records_failed_layered_scenarios(
     assert [
         item["status"] for item in monitor.pass_events if item["action"] == "end"
     ] == ["failed"]
+
+
+def test_run_stimulus_plan_fatal_ui_crash_fails_fast(monkeypatch) -> None:
+    """A renderer crash in the extra-trigger / backfill path must:
+
+    * classify the crashing attempt as ``fatal_ui_crash`` (not the generic
+      ``stimulus_execution_failed``) so health rolls up ``inconclusive``;
+    * fail-fast — stop driving the dead window, so the remaining triggers
+      are NEVER attempted (no ``Target crashed`` keyboard cascade);
+    * record those remaining triggers as ``blocked`` /
+      ``aborted_after_fatal_ui_crash`` instead of letting them masquerade
+      as normal failed extra triggers.
+    """
+    from playwright.sync_api import Error as PlaywrightError
+
+    from executor.flows.playwright.stimulus import passes as passes_module
+
+    attempted: list[str] = []
+
+    def fake_execute_attempt(_page, _payload, attempt, **_kwargs) -> None:
+        attempted.append(attempt["attempt_id"])
+        if attempt["attempt_id"] == "a1":
+            raise PlaywrightError("Keyboard.press: Target crashed")
+
+    monkeypatch.setattr(passes_module, "execute_attempt", fake_execute_attempt)
+
+    payload = _payload(
+        event_attempts=[
+            {
+                "attempt_id": "a1",
+                "activation_event": "onCommand:python.copilotSetupTests",
+                "event_family": "onCommand",
+                "executor_action": "harness:run_current_stimulus",
+                "trigger_method": "harness",
+            },
+            {
+                "attempt_id": "a2",
+                "activation_event": "onDebugResolve:python",
+                "event_family": "onDebugResolve",
+                "executor_action": "harness:run_current_stimulus",
+                "trigger_method": "harness",
+            },
+            {
+                "attempt_id": "a3",
+                "activation_event": "onTerminalShellIntegration:python",
+                "event_family": "onTerminalShellIntegration",
+                "executor_action": "harness:run_current_stimulus",
+                "trigger_method": "harness",
+            },
+        ],
+        stimulus_passes=[
+            {
+                "pass_id": "unresolved_event_backfill",
+                "label": "unresolved event backfill",
+                "order": 4,
+                "attempt_ids": ["a1", "a2", "a3"],
+                "prerequisite_keys": [],
+            }
+        ],
+    )
+    monitor = _FakeMonitor()
+
+    result = stimulus.run_stimulus_plan(_LivePage(), payload, monitor=monitor)
+
+    # Fail-fast: only the crashing attempt was driven; a2/a3 never touched.
+    assert attempted == ["a1"]
+
+    ends = {item["attempt_id"]: item for item in monitor.attempt_ends}
+    assert ends["a1"]["status"] == "failed"
+    assert ends["a1"]["failure_reason_code"] == "fatal_ui_crash"
+    assert ends["a2"]["status"] == "blocked"
+    assert ends["a2"]["blocked_reason_code"] == "aborted_after_fatal_ui_crash"
+    assert ends["a3"]["status"] == "blocked"
+    assert ends["a3"]["blocked_reason_code"] == "aborted_after_fatal_ui_crash"
+
+    # Only the crashing attempt is a real extra-trigger failure; aborted
+    # triggers must NOT be appended as normal failed extra triggers.
+    assert result.extra_trigger_failures == ["a1:harness:run_current_stimulus"]
+
+    # A distinct fatal_ui_crash automation event is emitted for the report
+    # log so an operator can see why the run was aborted.
+    assert any(event["kind"] == "fatal_ui_crash" for event in monitor.automation_events)
 
 
 def test_run_stimulus_plan_uses_lightweight_debug_action(

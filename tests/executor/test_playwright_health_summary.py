@@ -4,7 +4,11 @@ from executor.flows.playwright.health.summary import (
     build_automation_health,
     build_run_quality,
 )
-from executor.flows.playwright.monitor.records import LogStreamEntry, ScenarioTrace
+from executor.flows.playwright.monitor.records import (
+    EventAttemptRecord,
+    LogStreamEntry,
+    ScenarioTrace,
+)
 from executor.flows.playwright.monitor.types import ActivationReport
 from executor.flows.playwright.runtime_capture.events import ActivationEntry
 
@@ -132,6 +136,52 @@ def test_no_fatal_crash_does_not_add_reason_label() -> None:
     )
 
     assert "fatal_ui_crash" not in health["reasons"]
+
+
+def test_event_attempt_fatal_ui_crash_forces_inconclusive() -> None:
+    """A renderer crash recorded against an ``event_attempts`` row (the
+    layered extra-trigger / backfill path) must drive ``inconclusive`` even
+    though it never lands on a ``scenario_traces`` row — the regression the
+    field crash exposed: such crashes previously rolled up as generic
+    ``extra_trigger_failures`` / ``degraded``.
+    """
+    report = _healthy_report(
+        trigger_execution_mode="layered_passes",
+        # Observed scenario coverage so the "no coverage" inconclusive
+        # branch does NOT fire — isolating fatal_ui_crash as the driver.
+        scenario_traces=[
+            ScenarioTrace(
+                name="project_exploration",
+                started_at=0.0,
+                ended_at=1.0,
+                status="completed",
+            )
+        ],
+        requested_scenarios=["project_exploration"],
+        event_attempts=[
+            EventAttemptRecord(
+                attempt_id="a1",
+                declared_event="onCommand:python.copilotSetupTests",
+                activation_event="onCommand:python.copilotSetupTests",
+                event_family="onCommand",
+                status="failed",
+                failure_reason_code="fatal_ui_crash",
+            )
+        ],
+        extra_trigger_failures=["a1:harness:run_current_stimulus"],
+    )
+
+    health = build_automation_health(
+        report,
+        extension_host_log_found=True,
+        extension_host_log_present=True,
+    )
+
+    assert health["status"] == "inconclusive"
+    assert "fatal_ui_crash" in health["reasons"]
+
+    quality, _reasons = build_run_quality(report, automation_health=health)
+    assert quality == "inconclusive"
 
 
 def _partial_evidence_report(

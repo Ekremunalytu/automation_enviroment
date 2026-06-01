@@ -89,6 +89,23 @@ RUN pip3 install --no-cache-dir -r /tmp/executor-requirements.txt \
     && playwright install-deps chromium \
     && rm /tmp/executor-requirements.txt
 
+# Developer tooling exposed inside the VS Code workspace terminal:
+#   - git: a real VCS binary so `git ...` resolves against the seeded
+#     /workspace project (the workspace setup writes a `.git/` honeypot
+#     tree, but the binary itself was previously absent so `git status`
+#     and friends failed).
+#   - python-is-python3: provides the bare `python` command (aliased to
+#     the already-installed python3) so `python --version` and the
+#     ms-python.python interpreter discovery resolve in the workspace.
+# Placed AFTER the heavy node/vscode/playwright layers so adding it does
+# not invalidate their build cache.
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
+    apt-get update \
+    && apt-get install -y --no-install-recommends \
+    git \
+    python-is-python3
+
 # Grant capture capabilities to non-root users
 RUN setcap cap_net_raw+eip /usr/bin/tcpdump \
     && setcap cap_net_raw+eip /usr/bin/dumpcap
