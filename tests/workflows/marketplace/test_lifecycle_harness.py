@@ -74,6 +74,7 @@ import pytest
 from sqlalchemy.orm import sessionmaker
 
 from appcore.contracts.schema_defs.analysis_jobs import (
+    ANALYSIS_JOB_STEP_NAMES,
     AnalysisJobCreateSnapshot,
     AnalysisJobStepRecord,
 )
@@ -92,13 +93,8 @@ from workflows.marketplace.analysis_execution import (
 pytestmark = pytest.mark.requires_db
 
 
-_CANONICAL_STEPS = (
-    "reset_sandbox",
-    "install_extension",
-    "build_triggers",
-    "run_monitoring",
-    "finalize_report",
-)
+# ES-3b: canonical 7-step order from the contract (see lifecycle test note).
+_CANONICAL_STEPS = ANALYSIS_JOB_STEP_NAMES
 
 
 def _build_queued_snapshot(job_id: str) -> AnalysisJobCreateSnapshot:

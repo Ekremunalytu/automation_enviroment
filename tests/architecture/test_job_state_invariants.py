@@ -16,18 +16,23 @@ Asserted invariants:
 
 1. ``_TERMINAL_JOB_STATUSES`` (in
    ``appcore/storage/crud_ops/analysis_jobs/lifecycle.py``) is exactly
-   ``frozenset({"completed", "failed", "cancelled"})`` — adding
-   ``cancelling`` here lets ``reserve_job`` admit a second job during
-   the drain and reopens Codex H4.
+   ``frozenset({"completed", "failed", "cancelled", "rejected_static"})``
+   — ES-3b (ADR 0016) joined ``rejected_static`` (the terminal static-gate
+   rejection) to the set; ``cancelling`` must still NEVER be a member, or
+   ``reserve_job`` would admit a second job during the drain and reopen
+   Codex H4.
 
 2. ``ACTIVE_ANALYSIS_JOB_STATUSES`` (in
    ``appcore/contracts/schema_defs/analysis_jobs.py``) contains
    ``"cancelling"`` — removing it lets ``get_active_analysis_job`` return
    None during the drain, with the same effect.
 
-3. ``ANALYSIS_JOB_STATUSES`` (same module) is the 6-tuple
+3. ``ANALYSIS_JOB_STATUSES`` (same module) is the 7-tuple
    ``("queued", "running", "cancelling", "completed", "failed",
-   "cancelled")`` — keeps the tuple/literal/migration triple in sync.
+   "cancelled", "rejected_static")`` — keeps the tuple/literal/migration
+   triple in sync. ``rejected_static`` is the ES-1b / ADR 0016 terminal
+   static-gate rejection (terminal, never active; pinned by
+   ``tests/architecture/test_rejected_static_terminal_status.py``).
 
 4. The Alembic revision
    ``c8a2d4e91f5b_add_cancelling_status_to_analysis_jobs.py`` keeps the
@@ -63,10 +68,15 @@ W13_3_MIGRATION_PATH = (
 
 
 def test_terminal_job_statuses_excludes_cancelling() -> None:
-    """W13-3: cancelling is non-terminal; promoting it would reopen H4."""
-    assert frozenset({"completed", "failed", "cancelled"}) == _TERMINAL_JOB_STATUSES, (
-        "_TERMINAL_JOB_STATUSES drift detected — Codex H4 invariant: "
-        "cancelling must NOT be in the terminal set, otherwise "
+    """W13-3 + ES-3b: terminal set is the 4 terminal statuses; cancelling is
+    non-terminal and promoting it would reopen H4."""
+    assert (
+        frozenset({"completed", "failed", "cancelled", "rejected_static"})
+        == _TERMINAL_JOB_STATUSES
+    ), (
+        "_TERMINAL_JOB_STATUSES drift detected — Codex H4 + ES-3b invariant: "
+        "the terminal set is exactly {completed, failed, cancelled, "
+        "rejected_static}. cancelling must NOT be in it, otherwise "
         "reserve_job releases the lock during the drain and a second "
         "job lands on the shared executor."
     )
@@ -92,8 +102,8 @@ def test_active_job_statuses_includes_cancelling() -> None:
     )
 
 
-def test_analysis_job_statuses_tuple_matches_canonical_six() -> None:
-    """W13-3: the 6-status tuple has to match the Pydantic literal and migration."""
+def test_analysis_job_statuses_tuple_matches_canonical_seven() -> None:
+    """ES-1b: the 7-status tuple has to match the Pydantic literal and migration."""
     assert set(ANALYSIS_JOB_STATUSES) == {
         "queued",
         "running",
@@ -101,13 +111,14 @@ def test_analysis_job_statuses_tuple_matches_canonical_six() -> None:
         "completed",
         "failed",
         "cancelled",
+        "rejected_static",
     }, (
         f"ANALYSIS_JOB_STATUSES drift {ANALYSIS_JOB_STATUSES!r} — "
         f"keep the tuple in lockstep with AnalysisJobStatus Literal "
         f"and the Alembic partial-index WHERE clause."
     )
-    assert len(ANALYSIS_JOB_STATUSES) == 6, (
-        f"ANALYSIS_JOB_STATUSES must be 6 members, got {len(ANALYSIS_JOB_STATUSES)}."
+    assert len(ANALYSIS_JOB_STATUSES) == 7, (
+        f"ANALYSIS_JOB_STATUSES must be 7 members, got {len(ANALYSIS_JOB_STATUSES)}."
     )
 
 

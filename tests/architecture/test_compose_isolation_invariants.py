@@ -6,16 +6,21 @@ edit cannot silently regress it.
 
 What's pinned:
 
-1. Three runtime services (`executor`, `api`, `ui`) carry
-   `cap_drop: [ALL]` so Docker's permissive default keepset is
-   removed.
-2. The same three services carry `security_opt:
+1. Four runtime services (`executor`, `api`, `ui`, `static_analyzer`)
+   carry `cap_drop: [ALL]` so Docker's permissive default keepset is
+   removed. (`static_analyzer` lands in ES-2, ADR 0016; its
+   static-specific envelope — network_mode none, no cap_add, resource
+   caps, mount posture — is pinned in
+   `tests/security/test_static_container_isolation.py`.)
+2. The same four services carry `security_opt:
    ["no-new-privileges:true"]` so the residual set-uid privilege
    escalation path is closed.
-3. The `executor` service preserves `cap_add: [NET_RAW, SYS_PTRACE]`
-   — the harness monitoring tools (tcpdump/tshark/strace) need both
-   capabilities; dropping them would silently kill malware
-   observability without the test catching it.
+3. The `executor` service preserves `cap_add: [NET_RAW, SYS_PTRACE,
+   SETUID, SETGID, SETPCAP]` — NET_RAW/SYS_PTRACE for the harness
+   monitoring tools (tcpdump/tshark/strace), SETUID/SETGID/SETPCAP for
+   the monitor_entrypoint.sh setpriv ambient-cap drop; dropping any
+   silently kills malware observability (or, for the setpriv trio,
+   network capture) without the test catching it. ADR 0013 §Decision.
 4. The ADR 0013 file itself exists at the expected path so a future
    edit that removes the ADR (or moves it) trips this gate.
 
@@ -32,6 +37,7 @@ What's intentionally NOT pinned (deferred per ADR 0013 §Deferred):
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Any
 
@@ -54,7 +60,7 @@ def _load_compose() -> dict[str, Any]:
     return services
 
 
-_HARDENED_SERVICES = ("executor", "api", "ui")
+_HARDENED_SERVICES = ("executor", "api", "ui", "static_analyzer")
 
 
 @pytest.mark.parametrize("service_name", _HARDENED_SERVICES)
@@ -97,27 +103,36 @@ def test_runtime_service_refuses_new_privileges(service_name: str) -> None:
 
 def test_executor_keeps_audited_capabilities() -> None:
     """ADR 0013: the `executor` service drops ALL caps but explicitly
-    re-adds NET_RAW + SYS_PTRACE because the harness monitoring tools
-    (tcpdump/tshark/strace per executor/container/Dockerfile L30-L33)
-    need them. Removing either would silently break malware
-    observability without surfacing as a test failure elsewhere —
-    pin both here.
+    re-adds a small audited set:
+
+    - NET_RAW + SYS_PTRACE — the harness monitoring tools (tcpdump/
+      tshark/strace per executor/container/Dockerfile L30-L33) need them.
+    - SETUID + SETGID + SETPCAP — used ONCE at the start of the analyze
+      monitor exec by monitor_entrypoint.sh (setpriv) to raise NET_RAW
+      into the *ambient* set and drop root -> executor. Required because
+      no-new-privileges:true nullifies dumpcap's cap_net_raw file
+      capability; the ambient cap is the only way tshark gets NET_RAW
+      effective while the workload still runs unprivileged.
+
+    Removing any of these would silently break malware observability (or,
+    for the setpriv trio, network capture specifically) without surfacing
+    elsewhere — pin the exact set here. ADR 0013 §Network capture under
+    no-new-privileges.
     """
     services = _load_compose()
     cap_add = services["executor"].get("cap_add") or []
-    assert "NET_RAW" in cap_add, (
-        "executor must keep CAP_NET_RAW (tcpdump/tshark — "
-        "executor/container/Dockerfile L30-L31). ADR 0013 §Decision."
-    )
-    assert "SYS_PTRACE" in cap_add, (
-        "executor must keep CAP_SYS_PTRACE (strace — "
-        "executor/container/Dockerfile L33). ADR 0013 §Decision."
+    required = {"NET_RAW", "SYS_PTRACE", "SETUID", "SETGID", "SETPCAP"}
+    missing = sorted(required - set(cap_add))
+    assert not missing, (
+        f"executor cap_add must contain {sorted(required)}. Missing: "
+        f"{missing}. NET_RAW/SYS_PTRACE = monitoring; SETUID/SETGID/SETPCAP "
+        f"= monitor_entrypoint.sh ambient-cap drop. ADR 0013 §Decision."
     )
     # Surface a regression if anything else creeps in — those would
     # need their own ADR justification.
-    extra = sorted(set(cap_add) - {"NET_RAW", "SYS_PTRACE"})
+    extra = sorted(set(cap_add) - required)
     assert not extra, (
-        f"executor cap_add must contain exactly NET_RAW + SYS_PTRACE. "
+        f"executor cap_add must contain exactly {sorted(required)}. "
         f"Extra capabilities found: {extra}. Audit + update ADR 0013."
     )
 
@@ -214,3 +229,63 @@ def test_adr_0013_documents_deferred_items() -> None:
             f"ADR 0013 must mention {token!r} in its Deferred / next-steps "
             "section so the ratchet-down lane has the carry-over signal."
         )
+
+
+def _adr_executor_cap_add(adr_text: str) -> set[str]:
+    """Extract the executor `cap_add` (kept) set from ADR 0013's Decision
+    table — the bracketed cap list in the `automation_executor` row that
+    names the retained caps (not the `[ALL]` cap_drop cell).
+    """
+    rows = [
+        line
+        for line in adr_text.splitlines()
+        if "`automation_executor`" in line and "|" in line
+    ]
+    assert len(rows) == 1, (
+        "expected exactly one `automation_executor` Decision-table row in "
+        f"ADR 0013, found {len(rows)}."
+    )
+    bracketed = re.findall(r"\[([^\]]*)\]", rows[0])
+    cap_cells = [cell for cell in bracketed if "NET_RAW" in cell]
+    assert len(cap_cells) == 1, (
+        f"could not isolate the executor cap_add cell in ADR 0013 row: {rows[0]!r}."
+    )
+    return {
+        token.strip().strip("`") for token in cap_cells[0].split(",") if token.strip()
+    }
+
+
+def test_adr_0013_executor_caps_match_compose() -> None:
+    """The ADR 0013 Decision-table executor cap_add set must equal the live
+    docker-compose.yml executor cap_add AND the audited set pinned by
+    `test_executor_keeps_audited_capabilities`. Ties the prose table to
+    reality so an ADR edit that diverges from compose (or vice-versa)
+    surfaces in CI rather than as silent doc drift.
+    """
+    required = {"NET_RAW", "SYS_PTRACE", "SETUID", "SETGID", "SETPCAP"}
+    adr_caps = _adr_executor_cap_add(ADR_PATH.read_text(encoding="utf-8"))
+    assert adr_caps == required, (
+        f"ADR 0013 Decision-table executor cap_add {sorted(adr_caps)} must "
+        f"equal the audited set {sorted(required)}."
+    )
+    compose_caps = set(_load_compose()["executor"].get("cap_add") or [])
+    assert adr_caps == compose_caps, (
+        f"ADR 0013 Decision-table executor cap_add {sorted(adr_caps)} must "
+        f"match docker-compose.yml executor cap_add {sorted(compose_caps)}."
+    )
+
+
+def test_adr_0013_rationale_does_not_underclaim_executor_caps() -> None:
+    """ADR 0013 §Rationale must not describe the executor keepset as only
+    the two monitoring caps — the executor retains five (the monitoring
+    pair plus the setpriv trio justified in §Network capture under
+    no-new-privileges). Closes [ES-1 adr0013-rationale-cap-parity].
+    """
+    normalized = " ".join(ADR_PATH.read_text(encoding="utf-8").split())
+    stale = "adding back only monitoring capabilities (`NET_RAW`, `SYS_PTRACE`)"
+    assert stale not in normalized, (
+        "ADR 0013 §Rationale still under-claims the executor keepset as only "
+        "(NET_RAW, SYS_PTRACE); the Decision table + compose retain five caps "
+        "(NET_RAW, SYS_PTRACE, SETUID, SETGID, SETPCAP). Update the Rationale "
+        "prose to name all five."
+    )

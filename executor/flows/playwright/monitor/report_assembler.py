@@ -46,6 +46,7 @@ from ..attribution import (
     annotate_network_events,
     annotate_process_events,
     build_signal_summary,
+    build_target_pid_lineage,
 )
 from ..health import (
     derive_verified_capabilities,
@@ -90,17 +91,25 @@ class ReportAssembler:
             self._report.scenario_traces,
             self._report.target_extension_id,
         )
-        self._report.file_events = annotate_file_events(
-            self._report.file_events,
-            self._report.activated,
-            self._report.scenario_traces,
-            self._report.target_extension_id,
-        )
+        # Process events are annotated before file events: pid-lineage
+        # attribution of file I/O reads the target-owned PID set derived from
+        # the annotated process tree (file-capture attribution).
         self._report.process_events = annotate_process_events(
             self._report.process_events,
             self._report.activated,
             self._report.scenario_traces,
             self._report.target_extension_id,
+        )
+        target_pids = build_target_pid_lineage(
+            self._report.process_events,
+            self._report.target_extension_id,
+        )
+        self._report.file_events = annotate_file_events(
+            self._report.file_events,
+            self._report.activated,
+            self._report.scenario_traces,
+            self._report.target_extension_id,
+            target_pids=target_pids,
         )
         derived_verified = set(derive_verified_capabilities(self._report))
         self._report.verified_capabilities = sorted(

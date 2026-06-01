@@ -23,7 +23,14 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.exc import SQLAlchemyError
 
+from appcore.contracts.schema_defs.static_analysis_bundle import StaticAnalysisReport
 from executor.host import ExecutorError
+from executor.static_control import StaticAnalyzerError
+from packages.analysis_contracts.static_detection import (
+    StaticDetectionReport,
+    StaticGateDecision,
+    StaticGateOutcome,
+)
 from workflows.marketplace.analysis_errors import (
     ActivationReportLoadError,
     TriggerPlanError,
@@ -31,6 +38,21 @@ from workflows.marketplace.analysis_errors import (
 from workflows.marketplace.analysis_service import (
     ANALYZE_ERROR_TYPES,
     analyze_error_to_http_response,
+)
+from workflows.marketplace.static_analysis import (
+    StaticAnalysisBlockedError,
+    StaticReportError,
+)
+
+# ES-3b: a minimal BLOCK report so ``StaticAnalysisBlockedError`` can be
+# constructed for the taxonomy parametrize (carries the report the orchestrator
+# would persist on the reject path).
+_BLOCKED_STATIC_REPORT = StaticAnalysisReport(
+    detection_report=StaticDetectionReport(),
+    gate_outcome=StaticGateOutcome(
+        decision=StaticGateDecision.BLOCK,
+        blocked_by=["extrace.s2.typosquat"],
+    ),
 )
 
 ANALYZE_PAYLOAD = {
@@ -80,6 +102,27 @@ HELPER_CASES: tuple[tuple[Exception, int], ...] = (
     # worker's recoverable tuple catches it the same way; this case
     # pins that the sync helper does not require exact type identity.
     (PermissionError("EACCES on /workspace/.wallet"), 502),
+    # ES-3b (ADR 0016 §Decision 1): the static pre-check gate BLOCK verdict →
+    # 422 (unprocessable input, not an infra fault).
+    (
+        StaticAnalysisBlockedError(
+            "Static pre-check blocked the extension (extrace.s2.typosquat).",
+            static_report=_BLOCKED_STATIC_REPORT,
+        ),
+        422,
+    ),
+    # Static pre-check INFRASTRUCTURE failures -> 502 (internal-helper /
+    # upstream infra fault, like ExecutorError): the analyzer container
+    # errored / timed out (``StaticAnalyzerError``) or emitted an unreadable /
+    # schema-invalid report (``StaticReportError``). Before the P1 fix these
+    # escaped the taxonomy and left the job row active; now they fail closed.
+    (
+        StaticAnalyzerError(
+            "static-analyzer docker exec failed", returncode=1, output="boom"
+        ),
+        502,
+    ),
+    (StaticReportError("static analyzer report unreadable"), 502),
 )
 
 

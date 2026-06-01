@@ -607,6 +607,46 @@ Closed (one-line audit trail):
 
 ### Contracts / Reports / Detection
 
+- `[FOLLOWUP file-capture-pid-lineage-attribution]` — **landed `2026-05-29`
+  on `static` (this commit).** Fixes the `target_file_events: 0` attribution
+  gap for child-process file I/O. Verified-then-corrected a standing brief
+  whose hypothesis ("strace lacks `-f`") was wrong — `-f` and the `[pid N]`
+  prefix parser were already present, so its proposed fix was a no-op. Real
+  fix in three parts: (W1) `/proc` PPID/cwd backfill
+  (`runtime_capture/_shared.py`) seeding lineage for processes that pre-exist
+  the attach; (W2a) `pid` on `FileEvent` dataclass + Pydantic contract +
+  `FileRawContext`, `ACTIVATION_REPORT_SCHEMA_VERSION` 2.1→2.2 (additive),
+  generated TS DTO; (W2b) pid-lineage attribution (`attribution/lineage.py`) —
+  a strace file event whose owning PID descends from a process the target
+  spawned during activation is attributed to the target even outside the
+  ±1.25s temporal window, shared ext-host root PID deliberately excluded.
+  Volume flags `-qq` + `-e signal=none` added (NOT `status=successful` — keeps
+  failed/recon syscalls). Gates green (ruff/mypy/bandit/ui-types/ui-boundaries;
+  full local suite 2061). Test pins:
+  `tests/executor/test_runtime_capture_proc_backfill.py`; pid-lineage cases in
+  `test_playwright_attribution_events.py`; pid-threading + cmd-flag cases in
+  `test_playwright_extension_host_capture.py`.
+- `[FOLLOWUP file-capture-w3-ancestor-attach-do-not-repeat]` — **reverted
+  `2026-05-29`.** W3 attached strace to the VS Code **main** process (so `-f`
+  would cover ext-host + pty-host from one attach). A live scan disproved it:
+  report `output/activation_report_ms-python.python-2026.5.2026052901-2cb1bd9e7aa2.json`
+  (18:00, schema 2.2) captured **0** strace file events + 4 thread-clones, vs
+  the `df4471b` ext-host-attach baseline of 139 file / 53 process events. Root
+  cause: `strace -f` follows only children forked AFTER attach, and the
+  ext-host subtree pre-exists the attach (main resolves at attempt 1).
+  Reverted `_find_vscode_attach_pid` to attach to the ext host. **Lesson:
+  out-of-tree coverage needs a separate ADDITIVE attach, never an ancestor
+  attach.**
+- `[FOLLOWUP file-capture-out-of-tree-coverage]` — **deferred / pull-next.**
+  Cause C: terminal/task processes are spawned by VS Code's pty-host (a
+  sibling of the ext host), invisible to an ext-host-only strace. Fix = a
+  SECOND strace attached to the pty-host (discover via `--type=utility` +
+  `ptyHost`/`ptyHostMain` arg token, parent == VS Code main), merging its
+  stderr into the existing single `_consume_stderr` consumer under a lock,
+  keeping the ext-host attach primary (regression-free). Cause B (raw capture
+  of activation-window I/O before attach) is a documented residual — `/proc`
+  backfill mitigates lineage but not pre-attach capture. Both need live
+  CPU/volume validation under `cpus: 2.0`.
 - `[BUG scenario-dropout-upstream-root-cause]` — **closed via W14-1
   `2026-05-13`** (BLOCKER → HIGH); conservation guard at
   `scenario_accountant.py:392-438` is the fix-of-record.
@@ -726,6 +766,79 @@ Closed (one-line audit trail):
   flag for six builtin rules; a flat `RULES` tuple would suffice at current
   cardinality. Earns its weight only when ADR 0003 deferred rules
   (A5/A7) land. W15+ hygiene.
+- `[GOAL mitre-mapping-adr]` (new) — **W23-0 candidate (after static stream
+  ES-5 closes).** ADR 0017 fixing the MITRE ATT&CK technique↔rule mapping
+  strategy: technique→tactic source-of-truth shape, canonical ATT&CK Enterprise
+  tactic ordering, the criticality signal (severity + `is_blocker`; dynamic
+  rules carry no per-rule blocker — the dynamic gate is verdict-driven via
+  `Verdict.MALICIOUS`, not per-rule), and the catalog-vs-overlay split.
+  Framing doc for `[GOAL mitre-coverage-catalog]` + `[GOAL mitre-coverage-ui]`
+  + `[GOAL mitre-static-overlay]`. **Severity/Confidence**: design / High.
+  Lane: `[security-detection]` + `[static-analysis-pre-check]`.
+- `[GOAL mitre-coverage-catalog]` (new) — **W23 candidate; INDEPENDENT (no ES-3b
+  dependency).** Backend MITRE coverage catalog: a fresh
+  `packages/analysis_contracts/mitre/` subpackage (technique→tactic→name map +
+  `TACTIC_ORDER` + `resolve_technique`) + a hand-authored `RULE_MITRE_TECHNIQUES`
+  `rule_id → (technique…)` map keyed by the granular PRODUCTION rule_ids of BOTH
+  registries (static `static_runtime/rules/registry.get_production_rules()` +
+  dynamic `packages/analysis_engine/rules/registry.get_all_rules()`) + a
+  `GATE_BLOCKER_RULE_IDS = frozenset({"extrace.s2.typosquat"})` constant in
+  `packages/analysis_contracts/static_detection/gate.py` realizing the ADR 0016
+  `_PROMOTED_HIGH_BLOCKERS` token. Surfaced via a new `GET /api/mitre/catalog`
+  route (`workflows/coverage/`) returning response-only DTOs
+  `CoverageCatalogResponse`/`CoverageRuleEntry`/`CoverageRuleTechnique`/`CoverageTactic`
+  (`appcore/contracts/schema_defs/coverage.py`, `schema_version` born at `"1"`),
+  enumerating every rule with severity + MITRE technique/tactic + `is_blocker`.
+  **Why an authored map**: rule objects expose only
+  `rule_id`/`rule_version`/`lifecycle`/`severity`/`adversary_class`/`description`
+  — the `attack.T####` categories and `confidence` live on _findings_, not the
+  rule, so a report-independent catalog cannot read techniques off the rule
+  object and must map them explicitly (a CI drift-guard test keeps the map
+  honest). Enumerates the full ruleset including Semgrep once ES-4 lands.
+  **Test**: `tests/platform/contracts/test_mitre_catalog.py` (tactic order +
+  `resolve_technique` round-trip) + `tests/platform/contracts/test_rule_mitre_techniques_sync.py`
+  (DRIFT-GUARD: map keyset == union of both registries' rule_ids) +
+  `tests/workflows/coverage/test_coverage_catalog_endpoint.py` + generator-target
+  extension at `tests/scripts/test_generate_ui_contracts.py` + `make ui-types`.
+  **Risk**: the API process importing `static_runtime` — verify no heavy/optional
+  deps + Docker image path; wrap enumeration in `try/except ImportError` to
+  degrade to dynamic-only. Optionally pullable earlier as an `ES-4b` item
+  (dependency-free) if the data layer is wanted before W23. **Severity/Confidence**:
+  feature work / High. Lane: `[security-detection]` + `[static-analysis-pre-check]`.
+- `[GOAL mitre-coverage-ui]` (new) — **W23 candidate; depends on
+  `[GOAL mitre-coverage-catalog]`.** New `/mitre` UI page (NOT `/coverage` —
+  avoids collision with the W20–W22 capability "coverage promotion" taxonomy):
+  a MITRE ATT&CK-navigator-style matrix, tactics as columns × technique cells,
+  each cell listing the rules mapped to it with severity color (reuse
+  `ui/src/components/v3/tokens.ts` `RISK_COLOR`/`BADGE_TONE`, extended with a
+  distinct critical + muted info), a static/dynamic marker + a blocker glyph;
+  rule click opens the existing `ui/src/components/ui/SlideOverDrawer.tsx` with
+  full rule detail (technique+tactic name, adversary class, categories, blocker).
+  URL-param filters (severity/source/lifecycle) mirroring
+  `ui/src/features/rules/RulesPage.tsx`; adapter + view-models under
+  `Matrix*`/`RuleCatalog*` names to avoid colliding with the existing capability
+  `Coverage*View` types. Wiring: route in `ui/src/app/App.tsx` + nav in
+  `ui/src/app/layout/AppShell.tsx` (`NavId` + `NAV` + `activeIdFromPath`).
+  **Severity/Confidence**: feature work / High. Lane: `[security-detection]` (UI surface).
+- `[GOAL mitre-static-overlay]` (new) — **W23 candidate.** Per-report overlay
+  on the `/mitre` page highlighting which techniques/rules FIRED for a selected
+  analysis job. The backend/contract plumbing this used to depend on landed at
+  the ES-5 close-out: the static report is already served to the UI via the
+  additive optional `static_report: StaticAnalysisReport | None` on both
+  `AnalyzeResponse` and `AnalyzeJobStatusResponse`
+  (`appcore/contracts/schema_defs/marketplace.py`), loaded by
+  `load_static_report_from_name` (`workflows/marketplace/analysis_reports.py`)
+  and surfaced through the analyze router (`workflows/marketplace/router.py`),
+  with the static DTOs (`StaticAnalysisReportDto` / `StaticDetectionReportDto` /
+  `StaticDetectionFindingDto` / `StaticEvidenceRefDto` / `StaticGateOutcomeDto` /
+  `StaticSeverityCountsDto` / `StaticToolExecutionRecordDto`) generated into the
+  TS contracts; ALLOW/WARN now persists `static_report_path`, so the field is
+  populated (no longer always None). Dynamic side works today via
+  `detection_report.rules_executed`. Residual W23 scope is just the `/mitre`-page
+  per-report overlay rendering + its test
+  (`tests/workflows/marketplace/test_static_report_overlay.py`).
+  **Severity/Confidence**: feature work / High. Lane: `[security-detection]` +
+  `[marketplace-analysis]`.
 
 Closed: `[FOLLOWUP evidence-event-kind-raw-context-invariant]` — W14-4
 (9-kind allowlist + `@model_validator(mode='after')`).

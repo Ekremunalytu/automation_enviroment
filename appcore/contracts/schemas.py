@@ -38,6 +38,10 @@ from appcore.contracts.schema_defs.security_settings import (
     ThresholdsResponse,
     ThresholdsUpdateRequest,
 )
+from appcore.contracts.schema_defs.static_analysis_bundle import (
+    CombinedAnalysisBundle,
+    StaticAnalysisReport,
+)
 
 __all__ = [
     "ActivationReportMetadata",
@@ -48,6 +52,7 @@ __all__ = [
     "AnalyzeRequest",
     "AnalyzeResponse",
     "CapabilitySupportState",
+    "CombinedAnalysisBundle",
     "ExtensionActivationEventsSchema",
     "ExtensionCapabilitiesSchema",
     "ExtensionContributesAuthenticationSchema",
@@ -65,6 +70,7 @@ __all__ = [
     "ScanRequest",
     "SearchAllExtensionsInfo",
     "SearchRequest",
+    "StaticAnalysisReport",
     "ThresholdBoundsResponse",
     "ThresholdsResponse",
     "ThresholdsUpdateRequest",

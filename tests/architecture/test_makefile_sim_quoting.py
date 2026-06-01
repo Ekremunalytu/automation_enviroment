@@ -127,3 +127,37 @@ def test_sim_run_quotes_scenario_variable() -> None:
         "`sim-run` must double-quote $(SCENARIO) inside the docker exec "
         "command line (W14-3 U6)."
     )
+
+
+def test_static_run_fixture_validates_operator_variables() -> None:
+    """ES-4: `static-run-fixture` must validate TARGET / RULES_VERSION / BUDGET
+    against their character classes before they reach `docker exec` (the same
+    W14-3 validation discipline as `sim-target`)."""
+    body = _body_text("static-run-fixture")
+    assert "grep -qE '^[A-Za-z0-9._/-]+$$'" in body, (
+        "`static-run-fixture` must validate TARGET with the [A-Za-z0-9._/-]+ "
+        "character class."
+    )
+    assert "grep -qE '^[A-Za-z0-9._-]+$$'" in body, (
+        "`static-run-fixture` must validate RULES_VERSION with [A-Za-z0-9._-]+ "
+        "when set."
+    )
+    assert "grep -qE '^[0-9]+$$'" in body, (
+        "`static-run-fixture` must validate BUDGET as an integer when set."
+    )
+
+
+def test_static_run_fixture_quotes_operator_variables() -> None:
+    """ES-4: the `docker exec` command line inside `static-run-fixture` must
+    double-quote every operator-controlled interpolation."""
+    body = _body_text("static-run-fixture")
+    assert '--vsix-dir "$(TARGET)"' in body, (
+        "`static-run-fixture` must double-quote $(TARGET) on the docker exec "
+        "command line."
+    )
+    assert '--rules-version "$(if $(RULES_VERSION),$(RULES_VERSION),0.0.0)"' in body, (
+        "`static-run-fixture` must double-quote the RULES_VERSION interpolation."
+    )
+    assert '--timeout-budget-s "$(if $(BUDGET),$(BUDGET),30)"' in body, (
+        "`static-run-fixture` must double-quote the BUDGET interpolation."
+    )

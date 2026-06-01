@@ -1,22 +1,38 @@
 """README phase pointer pin.
 
 The repo-root ``README.md`` is the newcomer-facing phase summary while
-``documents/REFACTOR_STATUS.md`` owns current closure state. After PR #30
-merged on ``2026-05-28``, W22 advanced on the `week22` branch per user
-direction (W11-W21 paterni preserved; this time single-branch model,
-no per-sub-iter branches); the invariant becomes: README must carry the
-W13 + W14 + W15 + W16 + W17 + W18 + W19 + W20 + W21 close-out merge
-facts (still cited from the REFACTOR_STATUS banner) and the current
-W22 tracker pointer from the status banner.
+``documents/REFACTOR_STATUS.md`` owns current closure state. The invariant:
+README + the REFACTOR_STATUS banner must both carry (a) the current weekly
+pointer (the most-recently-merged weekly close-out) and (b) every prior
+weekly close-out merge fact, so the historical chain does not drift as
+phases advance.
+
+Both the current pointer and the prior-close-out chain are sourced from the
+single manifest ``documents/phase.json`` (``last_merged_weekly`` +
+``history``). The former per-phase functions (one each for W13..W21) are
+now a single parametrized test; pytest node ids (``[W13]``..) preserve the
+per-phase identity.
 """
 
 from __future__ import annotations
 
-from pathlib import Path
+from typing import Any
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
+import pytest
+
+from tests.architecture._phase_manifest import (
+    REPO_ROOT,
+    load_manifest,
+    merge_fingerprint,
+    source_branch,
+)
+
 README_PATH = REPO_ROOT / "README.md"
 REFACTOR_STATUS_PATH = REPO_ROOT / "documents" / "REFACTOR_STATUS.md"
+
+_MANIFEST = load_manifest()
+_LAST_MERGED_WEEKLY = _MANIFEST["last_merged_weekly"]
+_HISTORY = _MANIFEST["history"]
 
 
 def _first_last_updated_line(text: str) -> str:
@@ -43,254 +59,52 @@ def _first_last_updated_line(text: str) -> str:
     )
 
 
-def test_readme_phase_pointer_tracks_active_w22_status() -> None:
-    """README must expose the same current W22 pointer as REFACTOR_STATUS."""
+def test_readme_phase_pointer_tracks_active_weekly_status() -> None:
+    """README must expose the same current weekly pointer as the
+    REFACTOR_STATUS banner. Sourced from ``documents/phase.json`` ->
+    ``last_merged_weekly``.
+    """
     readme_text = README_PATH.read_text(encoding="utf-8")
     status_text = REFACTOR_STATUS_PATH.read_text(encoding="utf-8")
     status_banner = _first_last_updated_line(status_text)
 
-    # W22-0 in-flight lifecycle and the W22-N closed-but-not-merged pre-merge
-    # hygiene window both need to satisfy this gate. Accept all forms so
-    # the gate spans the entire W22 lifetime (in-flight + pre-merge + closed).
-    # The W22-0 banner uses ``W22-0 doc-reconcile in-flight`` (W19-0 / W20-0
-    # / W21-0 paterni mirror) — accept that specific phrase plus the simpler
-    # ``W22 active`` / ``W22 in-flight`` / closed forms used at later
-    # sub-iters and after PR merge.
-    assert any(
-        marker in status_banner
-        for marker in (
-            "W22 active",
-            "W22 in-flight",
-            "W22-0 in-flight",
-            "W22-0 doc-reconcile in-flight",
-            "W22 fully closed synthetically",
-            "W22 closed synthetically",
-        )
-    ), (
-        "REFACTOR_STATUS.md banner should name the current W22 state after "
-        "PR #30 merged on 2026-05-28. W22 lives on the `week22` branch per "
-        "user direction — W11-W21 paterni preserved (this time single-branch "
-        "model, no per-sub-iter branches). "
-        f"Banner line: {status_banner!r}."
-    )
-    for token in (
-        "W22",
-        "active-work/W22-coverage-promotion-hard-tier.md",
-        "week22",
-    ):
-        assert token in readme_text, (
-            f"README.md must mention {token!r} in its current phase block so "
-            f"external readers see the current W22 pointer. Banner "
+    weekly_id = _LAST_MERGED_WEEKLY["id"]
+    weekly_sha = _LAST_MERGED_WEEKLY["sha"]
+    week_branch = source_branch(_LAST_MERGED_WEEKLY)
+    tracker_token = str(_LAST_MERGED_WEEKLY["tracker"]).removeprefix("documents/")
+
+    for token in (weekly_id, weekly_sha):
+        assert token in status_banner, (
+            f"REFACTOR_STATUS.md banner must name the current weekly phase "
+            f"token {token!r} (from phase.json last_merged_weekly). Banner "
             f"line: {status_banner!r}."
         )
-
-
-def test_readme_phase_pointer_mentions_w13_closeout_merge() -> None:
-    """README must carry the W13 close-out merge fact from REFACTOR_STATUS."""
-    readme_text = README_PATH.read_text(encoding="utf-8")
-    status_text = REFACTOR_STATUS_PATH.read_text(encoding="utf-8")
-    status_banner = _first_last_updated_line(status_text)
-
-    for token in ("PR #20", "week13 -> main", "772deb3"):
-        assert token in status_banner, (
-            f"REFACTOR_STATUS.md banner should include {token!r} while W22 is "
-            f"active so the W13 close-out fact does not drift. Banner line: "
-            f"{status_banner!r}."
-        )
+    for token in (weekly_id, tracker_token, week_branch):
         assert token in readme_text, (
             f"README.md must mention {token!r} in its current phase block so "
-            f"the W13 close-out state does not drift. Banner line: "
-            f"{status_banner!r}."
+            "external readers see the current weekly pointer."
         )
 
 
-def test_readme_phase_pointer_mentions_w14_closeout_merge() -> None:
-    """README must carry the W14 close-out merge fact from REFACTOR_STATUS.
-
-    Added alongside the W14 → W15 transition on `2026-05-16` so the next
-    transition (W15 → W16) inherits the same drift-prevention pattern for
-    the previous close-out (W14 PR #21 / week14 -> main / `4e03c8d`).
+@pytest.mark.parametrize("entry", _HISTORY, ids=[e["id"] for e in _HISTORY])
+def test_readme_carries_prior_closeout_merge(entry: dict[str, Any]) -> None:
+    """README + REFACTOR_STATUS must both carry every prior weekly close-out
+    merge fact (PR + branch + SHA) from ``documents/phase.json`` ->
+    ``history``, so the historical chain does not drift as phases advance.
+    Replaces the former per-phase functions (W13..W21); node ids preserve
+    per-phase identity.
     """
     readme_text = README_PATH.read_text(encoding="utf-8")
     status_text = REFACTOR_STATUS_PATH.read_text(encoding="utf-8")
     status_banner = _first_last_updated_line(status_text)
 
-    for token in ("PR #21", "week14 -> main", "4e03c8d"):
+    for token in (merge_fingerprint(entry), entry["branch"], entry["sha"]):
         assert token in status_banner, (
-            f"REFACTOR_STATUS.md banner should include {token!r} while W22 is "
-            f"active so the W14 close-out fact does not drift. Banner line: "
+            f"REFACTOR_STATUS.md banner must include {token!r} so the "
+            f"{entry['id']} close-out fact does not drift. Banner line: "
             f"{status_banner!r}."
         )
         assert token in readme_text, (
-            f"README.md must mention {token!r} in its current phase block so "
-            f"the W14 close-out state does not drift. Banner line: "
-            f"{status_banner!r}."
-        )
-
-
-def test_readme_phase_pointer_mentions_w15_closeout_merge() -> None:
-    """README must carry the W15 close-out merge fact from REFACTOR_STATUS.
-
-    Added alongside the W15 → W16 transition on `2026-05-18` so the next
-    transition (W16 → W17) inherits the same drift-prevention pattern for
-    the previous close-out (W15 PR #22 / week15 -> main / `6161472`).
-    """
-    readme_text = README_PATH.read_text(encoding="utf-8")
-    status_text = REFACTOR_STATUS_PATH.read_text(encoding="utf-8")
-    status_banner = _first_last_updated_line(status_text)
-
-    for token in ("PR #22", "week15 -> main", "6161472"):
-        assert token in status_banner, (
-            f"REFACTOR_STATUS.md banner should include {token!r} while W22 is "
-            f"active so the W15 close-out fact does not drift. Banner line: "
-            f"{status_banner!r}."
-        )
-        assert token in readme_text, (
-            f"README.md must mention {token!r} in its current phase block so "
-            f"the W15 close-out state does not drift. Banner line: "
-            f"{status_banner!r}."
-        )
-
-
-def test_readme_phase_pointer_mentions_w16_closeout_merge() -> None:
-    """README must carry the W16 close-out merge fact from REFACTOR_STATUS.
-
-    Added alongside the W16 → W17 transition on `2026-05-18` so the next
-    transition (W17 → W18) inherits the same drift-prevention pattern for
-    the previous close-out (W16 PR #23 / week16 -> main / `1b6d43f`).
-    """
-    readme_text = README_PATH.read_text(encoding="utf-8")
-    status_text = REFACTOR_STATUS_PATH.read_text(encoding="utf-8")
-    status_banner = _first_last_updated_line(status_text)
-
-    for token in ("PR #23", "week16 -> main", "1b6d43f"):
-        assert token in status_banner, (
-            f"REFACTOR_STATUS.md banner should include {token!r} while W22 is "
-            f"active so the W16 close-out fact does not drift. Banner line: "
-            f"{status_banner!r}."
-        )
-        assert token in readme_text, (
-            f"README.md must mention {token!r} in its current phase block so "
-            f"the W16 close-out state does not drift. Banner line: "
-            f"{status_banner!r}."
-        )
-
-
-def test_readme_phase_pointer_mentions_w17_closeout_merge() -> None:
-    """README must carry the W17 close-out merge fact from REFACTOR_STATUS.
-
-    Added alongside the W17 → W18 transition on `2026-05-21` so the next
-    transition (W18 → W19) inherits the same drift-prevention pattern for
-    the previous close-out (W17 PR #25 / week17 -> main / `bff565d`).
-    """
-    readme_text = README_PATH.read_text(encoding="utf-8")
-    status_text = REFACTOR_STATUS_PATH.read_text(encoding="utf-8")
-    status_banner = _first_last_updated_line(status_text)
-
-    for token in ("PR #25", "week17 -> main", "bff565d"):
-        assert token in status_banner, (
-            f"REFACTOR_STATUS.md banner should include {token!r} while W22 is "
-            f"active so the W17 close-out fact does not drift. Banner line: "
-            f"{status_banner!r}."
-        )
-        assert token in readme_text, (
-            f"README.md must mention {token!r} in its current phase block so "
-            f"the W17 close-out state does not drift. Banner line: "
-            f"{status_banner!r}."
-        )
-
-
-def test_readme_phase_pointer_mentions_w18_closeout_merge() -> None:
-    """README must carry the W18 close-out merge fact from REFACTOR_STATUS.
-
-    Added alongside the W18 → W19 transition on `2026-05-21` so the next
-    transition (W19 → W20) inherits the same drift-prevention pattern for
-    the previous close-out (W18 PR #26 / week18 -> main / `9874e79`).
-    """
-    readme_text = README_PATH.read_text(encoding="utf-8")
-    status_text = REFACTOR_STATUS_PATH.read_text(encoding="utf-8")
-    status_banner = _first_last_updated_line(status_text)
-
-    for token in ("PR #26", "week18 -> main", "9874e79"):
-        assert token in status_banner, (
-            f"REFACTOR_STATUS.md banner should include {token!r} while W22 is "
-            f"active so the W18 close-out fact does not drift. Banner line: "
-            f"{status_banner!r}."
-        )
-        assert token in readme_text, (
-            f"README.md must mention {token!r} in its current phase block so "
-            f"the W18 close-out state does not drift. Banner line: "
-            f"{status_banner!r}."
-        )
-
-
-def test_readme_phase_pointer_mentions_w19_closeout_merge() -> None:
-    """README must carry the W19 close-out merge fact from REFACTOR_STATUS.
-
-    Added alongside the W19 → W20 transition on `2026-05-26` so the next
-    transition (W20 → W21) inherits the same drift-prevention pattern for
-    the previous close-out (W19 PR #28 / week19 -> main / `c879603`).
-    """
-    readme_text = README_PATH.read_text(encoding="utf-8")
-    status_text = REFACTOR_STATUS_PATH.read_text(encoding="utf-8")
-    status_banner = _first_last_updated_line(status_text)
-
-    for token in ("PR #28", "week19 -> main", "c879603"):
-        assert token in status_banner, (
-            f"REFACTOR_STATUS.md banner should include {token!r} while W22 is "
-            f"active so the W19 close-out fact does not drift. Banner line: "
-            f"{status_banner!r}."
-        )
-        assert token in readme_text, (
-            f"README.md must mention {token!r} in its current phase block so "
-            f"the W19 close-out state does not drift. Banner line: "
-            f"{status_banner!r}."
-        )
-
-
-def test_readme_phase_pointer_mentions_w20_closeout_merge() -> None:
-    """README must carry the W20 close-out merge fact from REFACTOR_STATUS.
-
-    Added alongside the W20 → W21 transition on `2026-05-27` so the next
-    transition (W21 → W22) inherits the same drift-prevention pattern for
-    the previous close-out (W20 PR #29 / week20 -> main / `64a3c3d`).
-    """
-    readme_text = README_PATH.read_text(encoding="utf-8")
-    status_text = REFACTOR_STATUS_PATH.read_text(encoding="utf-8")
-    status_banner = _first_last_updated_line(status_text)
-
-    for token in ("PR #29", "week20 -> main", "64a3c3d"):
-        assert token in status_banner, (
-            f"REFACTOR_STATUS.md banner should include {token!r} while W22 is "
-            f"active so the W20 close-out fact does not drift. Banner line: "
-            f"{status_banner!r}."
-        )
-        assert token in readme_text, (
-            f"README.md must mention {token!r} in its current phase block so "
-            f"the W20 close-out state does not drift. Banner line: "
-            f"{status_banner!r}."
-        )
-
-
-def test_readme_phase_pointer_mentions_w21_closeout_merge() -> None:
-    """README must carry the W21 close-out merge fact from REFACTOR_STATUS.
-
-    Added alongside the W21 → W22 transition on `2026-05-28` so the next
-    transition (W22 → W23) inherits the same drift-prevention pattern for
-    the previous close-out (W21 PR #30 / week21 -> main / `5dc18aa`).
-    """
-    readme_text = README_PATH.read_text(encoding="utf-8")
-    status_text = REFACTOR_STATUS_PATH.read_text(encoding="utf-8")
-    status_banner = _first_last_updated_line(status_text)
-
-    for token in ("PR #30", "week21 -> main", "5dc18aa"):
-        assert token in status_banner, (
-            f"REFACTOR_STATUS.md banner should include {token!r} while W22 is "
-            f"active so the W21 close-out fact does not drift. Banner line: "
-            f"{status_banner!r}."
-        )
-        assert token in readme_text, (
-            f"README.md must mention {token!r} in its current phase block so "
-            f"the W21 close-out state does not drift. Banner line: "
-            f"{status_banner!r}."
+            f"README.md must mention {token!r} so the {entry['id']} close-out "
+            "fact does not drift."
         )

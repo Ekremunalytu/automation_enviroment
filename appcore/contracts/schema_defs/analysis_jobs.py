@@ -6,7 +6,16 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+# ES-3b (ADR 0016, Static Analysis Pre-Check): the static pre-check gate runs
+# BEFORE any sandbox spin, so its two steps lead the canonical order. The two
+# static steps are seeded `pending` when the `settings.static_analysis.ENABLED`
+# flag is ON (the default since the ES-5 close-out) and `skipped` when it is OFF;
+# the dynamic stages are unchanged. Keep this tuple, the `AnalysisJobStepName`
+# Literal, and `job_service.empty_job_steps` in lockstep — `_validate_steps`
+# pins the exact 7-step order.
 ANALYSIS_JOB_STEP_NAMES = (
+    "static_analysis",
+    "decision_gate",
     "reset_sandbox",
     "install_extension",
     "build_triggers",
@@ -28,6 +37,13 @@ ANALYSIS_JOB_STATUSES = (
     "completed",
     "failed",
     "cancelled",
+    # ES-1b (ADR 0016, Static Analysis Pre-Check): terminal status set when the
+    # static gate BLOCKs an extension before any sandbox spin (downstream steps
+    # `skipped`). Terminal — deliberately NOT in ACTIVE_ANALYSIS_JOB_STATUSES
+    # (it never holds the single-active slot, so the partial unique index WHERE
+    # clause is unchanged). Its addition to `_TERMINAL_JOB_STATUSES` and the
+    # producer/orchestrator wiring land together in ES-3b.
+    "rejected_static",
 )
 # W13-3: `cancelling` is non-terminal (worker still drains shared executor /
 # `/results/`); keeping it in the active set blocks `reserve_job` until the
@@ -38,6 +54,8 @@ ANALYSIS_JOB_STATUSES = (
 ACTIVE_ANALYSIS_JOB_STATUSES = ("queued", "running", "cancelling")
 
 AnalysisJobStepName = Literal[
+    "static_analysis",
+    "decision_gate",
     "reset_sandbox",
     "install_extension",
     "build_triggers",
@@ -59,6 +77,8 @@ AnalysisJobStatus = Literal[
     "completed",
     "failed",
     "cancelled",
+    # ES-1b: terminal static-gate rejection (see ANALYSIS_JOB_STATUSES note).
+    "rejected_static",
 ]
 
 
@@ -108,6 +128,10 @@ class AnalysisJobCreateSnapshot(BaseModel):
     message: str = Field(min_length=1)
     steps: list[AnalysisJobStepRecord]
     report_path: str | None = None
+    # ES-1b (ADR 0016, Static Analysis Pre-Check): filesystem path to the
+    # persisted StaticAnalysisReport JSON. Set when the static stage runs
+    # (producer lands ES-3a/ES-3b); None for jobs without a static pre-check.
+    static_report_path: str | None = None
     install_output: str | None = None
     automation_output: str | None = None
     error_detail: str | None = None
@@ -138,6 +162,7 @@ class AnalysisJobUpdate(BaseModel):
     current_step: AnalysisJobStepName | None = None
     message: str | None = Field(default=None, min_length=1)
     report_path: str | None = None
+    static_report_path: str | None = None
     install_output: str | None = None
     automation_output: str | None = None
     error_detail: str | None = None

@@ -242,6 +242,7 @@ class FileRawContext(StrictContractModel):
     flags: str = ""
     observer: str = ""
     source: str = ""
+    pid: int | None = None
 
 
 class ProcessRawContext(StrictContractModel):
@@ -282,5 +283,6 @@ __all__ = [
     "RawContext",
     "ScenarioRawContext",
     "UiBlockerRawContext",
+    "redact_multiline_secrets",
     "redact_secrets",
 ]

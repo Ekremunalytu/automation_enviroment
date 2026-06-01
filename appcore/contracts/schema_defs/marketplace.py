@@ -6,6 +6,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from appcore.contracts.schema_defs.static_analysis_bundle import StaticAnalysisReport
 from packages.analysis_contracts import DetectionReport
 
 
@@ -89,6 +90,10 @@ class AnalyzeResponse(BaseModel):
     install_output: str | None = None
     automation_output: str | None = None
     report_path: str | None = None
+    # ES-5 (ADR 0016): the static pre-check result, folded in by the orchestrator
+    # when the gate ran (ALLOW/WARN). ``None`` when the static stage is disabled
+    # (flag OFF) so the dynamic-only response shape is unchanged.
+    static_report: StaticAnalysisReport | None = None
 
 
 class AnalyzeJobStepProgress(BaseModel):
@@ -125,6 +130,12 @@ class AnalyzeJobStatusResponse(BaseModel):
     updated_at: float
     detection_report: DetectionReport | None = None
     report_error: str | None = None
+    # ES-5 (ADR 0016): the persisted static-report path (mirrors ``report_path``;
+    # set on the ALLOW/WARN completion and the BLOCK ``rejected_static`` reject)
+    # and the loaded static report the router folds in from it (mirrors
+    # ``detection_report``). Both ``None`` for jobs that ran no static pre-check.
+    static_report_path: str | None = None
+    static_report: StaticAnalysisReport | None = None
 
 
 __all__ = [

@@ -7,6 +7,11 @@ VENV := .venv/bin
 TEST_DB_WAIT_SECONDS ?= 3
 UI_TYPES_PYTHON := $(if $(wildcard $(VENV)/python),$(VENV)/python,python)
 
+# Tidy `docker-compose ps` table: drop the long image-digest / command / created
+# columns that make the raw default output wrap and look ragged. Shared by
+# `up`, `rebuild`, `up-debug`, and `ps`/`status`.
+COMPOSE_PS_FORMAT := table {{.Name}}\t{{.Service}}\t{{.Status}}\t{{.Ports}}
+
 ifneq (,$(wildcard .env))
 include .env
 export
@@ -17,6 +22,7 @@ endif
         dev dev-lan run build rebuild up up-debug down logs ps restart status \
         migrate migrate-create venv-check \
         exec-build exec-up exec-down exec-shell exec-test exec-run \
+        static-build static-up static-down static-shell static-run-fixture \
         ui-build ui-up ui-down ui-types ui-types-check ui-boundaries \
         demo-canary demo-canary-offline
 
@@ -71,6 +77,13 @@ help:
 	@echo "║  exec-shell     │ Shell into executor                             ║"
 	@echo "║  exec-test      │ Verify executor tools                           ║"
 	@echo "║  exec-run       │ Run Playwright automation                       ║"
+	@echo "╠═══════════════════════════════════════════════════════════════════╣"
+	@echo "║                     🛡️  Static Analyzer (ES-2)                     ║"
+	@echo "║  static-build   │ Build static-analyzer image                     ║"
+	@echo "║  static-up      │ Start static-analyzer                           ║"
+	@echo "║  static-down    │ Stop static-analyzer                            ║"
+	@echo "║  static-shell   │ Shell into static-analyzer                      ║"
+	@echo "║  static-run-fixture │ Run analyzer over a fixture (TARGET=dir)    ║"
 	@echo "╠═══════════════════════════════════════════════════════════════════╣"
 	@echo "║                     🤖 Simulations & Automation                    ║"
 	@echo "║  sim-all        │ UI-stimulus stress: scenarios w/o target ext.   ║"
@@ -226,6 +239,8 @@ test-security:
 		tests/security/test_benign_silence.py \
 		tests/security/test_unaccounted_dropout_surface.py \
 		tests/security/test_sandbox_evasion_canary.py \
+		tests/security/test_static_container_isolation.py \
+		tests/security/test_semgrep_js_rules.py \
 		tests/platform/security \
 		tests/architecture/test_default_bindings.py \
 		tests/architecture/test_dockerfile_digest_pin.py \
@@ -350,13 +365,13 @@ rebuild:
 	@BUILDKIT_PROGRESS=plain docker-compose build --no-cache 2>&1
 	@echo "🔄 Recreating containers to pick up the new images..."
 	@docker-compose up -d --force-recreate
-	@docker-compose ps
+	@docker-compose ps --format "$(COMPOSE_PS_FORMAT)"
 	@echo "✅ Rebuild + recreate complete!"
 
 up:
 	@echo "🚀 Starting all containers..."
 	@docker-compose up -d
-	@docker-compose ps
+	@docker-compose ps --format "$(COMPOSE_PS_FORMAT)"
 	@echo "✅ All containers running!"
 
 up-debug:
@@ -365,7 +380,7 @@ up-debug:
 	@# in-container VS Code attaches the --remote-debugging-port flag.
 	@# Default `make up` leaves the env var empty and CDP stays closed.
 	@EXECUTOR_CDP_PORT=9222 docker-compose --profile debug up -d
-	@docker-compose --profile debug ps
+	@docker-compose --profile debug ps --format "$(COMPOSE_PS_FORMAT)"
 	@echo "✅ Debug-profile containers running. CDP available on 127.0.0.1:9222."
 
 down:
@@ -389,7 +404,7 @@ logs:
 	docker-compose logs -f --tail=100
 
 ps:
-	@docker-compose ps
+	@docker-compose ps --format "$(COMPOSE_PS_FORMAT)"
 
 status: ps
 
@@ -444,6 +459,57 @@ exec-test:
 
 exec-run:
 	docker exec -e PYTHONUNBUFFERED=1 -i automation_executor python3 -m executor.flows.playwright.entrypoint --monitor
+
+# =============================================================================
+# STATIC ANALYZER (ES-2, ADR 0016)
+# =============================================================================
+
+# The per-Dockerfile allowlist (docker/static_analyzer/Dockerfile.dockerignore)
+# that keeps the build context small is a BuildKit feature; compose v2 uses
+# BuildKit by default, so a plain `docker-compose build` honors it (same as the
+# top-level `make build`). For a no-cache clean rebuild, use `make rebuild`.
+static-build:
+	@echo "🛡️  Building static-analyzer image..."
+	docker-compose build static_analyzer
+	@echo "✅ Static-analyzer image built!"
+
+static-up:
+	@echo "🛡️  Starting static-analyzer..."
+	docker-compose up -d static_analyzer
+	@echo "✅ Static-analyzer started!"
+
+static-down:
+	@echo "🛡️  Stopping static-analyzer..."
+	docker-compose stop static_analyzer
+	docker-compose rm -f static_analyzer
+	@echo "✅ Static-analyzer stopped!"
+
+static-shell:
+	docker exec -it automation_static_analyzer /bin/bash
+
+# Run the static runtime over a fixture dir inside the container. TARGET is a
+# container-side path (e.g. /extensions-input/<dir>). Inputs are regex-validated
+# before they reach the `docker exec` argv (W14-3 pattern from sim-target).
+static-run-fixture: static-up
+	@if [ -z "$(TARGET)" ]; then \
+		echo "❌ Provide TARGET. Usage: make static-run-fixture TARGET=/extensions-input/<dir> [RULES_VERSION=0.0.0] [BUDGET=30]"; \
+		exit 1; \
+	fi
+	@printf '%s' "$(TARGET)" | grep -qE '^[A-Za-z0-9._/-]+$$' || { \
+		echo "❌ TARGET must match [A-Za-z0-9._/-]+ (got: $(TARGET))"; exit 1; \
+	}
+	@if [ -n "$(RULES_VERSION)" ] && ! printf '%s' "$(RULES_VERSION)" | grep -qE '^[A-Za-z0-9._-]+$$'; then \
+		echo "❌ RULES_VERSION must match [A-Za-z0-9._-]+ (got: $(RULES_VERSION))"; exit 1; \
+	fi
+	@if [ -n "$(BUDGET)" ] && ! printf '%s' "$(BUDGET)" | grep -qE '^[0-9]+$$'; then \
+		echo "❌ BUDGET must be an integer (got: $(BUDGET))"; exit 1; \
+	fi
+	@echo "🛡️  Running static analyzer over $(TARGET)..."
+	docker exec -e PYTHONUNBUFFERED=1 -i automation_static_analyzer python3 -m static_runtime \
+		--vsix-dir "$(TARGET)" \
+		--report-path "/results/static-report.json" \
+		--rules-version "$(if $(RULES_VERSION),$(RULES_VERSION),0.0.0)" \
+		--timeout-budget-s "$(if $(BUDGET),$(BUDGET),30)"
 
 # =============================================================================
 # SIMULATION / AUTOMATION

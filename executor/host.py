@@ -13,6 +13,7 @@ from typing import Final
 
 from executor.binary_paths import (
     CODE_PATH,
+    MONITOR_ENTRYPOINT_PATH,
     PKILL_PATH,
     PYTHON3_PATH,
     RM_PATH,
@@ -93,6 +94,7 @@ def _run_docker_exec(
     *,
     allow_partial: bool,
     extra_env: dict[str, str] | None = None,
+    exec_user: str | None = None,
 ) -> subprocess.CompletedProcess[str]:
     container = settings.executor.CONTAINER_NAME
     # W13-11: ``extra_env`` is rendered as additional ``-e KEY=VALUE`` args
@@ -113,12 +115,19 @@ def _run_docker_exec(
     if extra_env:
         for key, value in extra_env.items():
             env_args.extend(["-e", f"{key}={value}"])
+    # ``exec_user`` runs the docker exec as a specific uid/user (``-u``). The
+    # analyze monitor uses ``-u 0`` so the in-container monitor_entrypoint.sh
+    # wrapper can raise CAP_NET_RAW into the ambient set before dropping to the
+    # executor user (ADR 0013). All other exec paths leave it unset and default
+    # to the image's ``USER executor`` so the same-UID model is unchanged.
+    user_args: list[str] = ["-u", exec_user] if exec_user is not None else []
     full_cmd = [
         docker_path(),
         "exec",
         "-e",
         "PYTHONUNBUFFERED=1",
         *env_args,
+        *user_args,
         container,
         *cmd,
     ]
@@ -191,9 +200,16 @@ def _docker_exec_allow_partial(
     timeout: int | None = None,
     *,
     extra_env: dict[str, str] | None = None,
+    exec_user: str | None = None,
 ) -> subprocess.CompletedProcess[str]:
     timeout = timeout or settings.executor.DOCKER_EXEC_TIMEOUT
-    return _run_docker_exec(cmd, timeout, allow_partial=True, extra_env=extra_env)
+    return _run_docker_exec(
+        cmd,
+        timeout,
+        allow_partial=True,
+        extra_env=extra_env,
+        exec_user=exec_user,
+    )
 
 
 # W13-11 (Codex F1 close-pass for W13-1 H6): host-side eager-consume of
@@ -356,6 +372,21 @@ def _last_reload_output_line(output: str) -> str | None:
     lines = [line.strip() for line in output.splitlines() if line.strip()]
     if not lines:
         return None
+    # ``reload_vscode.main`` prints "[reload] ERROR <phase>: <detail>" to
+    # stderr; when the detail is a Playwright exception its str() carries a
+    # trailing multi-line "Call log:" block whose final entry is a
+    # connection-progress note ("- <ws connected> ws://..."), not the
+    # failure cause. Returning the raw last line therefore buried the
+    # actionable "BrowserType.connect_over_cdp: Timeout NNNNms exceeded"
+    # message on the persisted ``job.error_detail`` surface. Prefer the
+    # harness's own error line, then any non-call-log line, before falling
+    # back to the last line.
+    for line in reversed(lines):
+        if "[reload] ERROR" in line:
+            return line
+    for line in reversed(lines):
+        if line != "Call log:" and not line.startswith("- <"):
+            return line
     return lines[-1]
 
 
@@ -428,7 +459,13 @@ def run_playwright_automation(
         effective_scenario = scenario or (
             None if trigger_container_path else _DEFAULT_SCENARIO
         )
+    # The monitor runs as root (-u 0) only so monitor_entrypoint.sh can raise
+    # CAP_NET_RAW into the ambient set; the wrapper immediately drops to the
+    # executor user before exec'ing python, so the workload runs same-UID as
+    # VS Code (ADR 0013). Without the wrapper, tshark cannot capture under
+    # no-new-privileges (the file capability is nullified).
     cmd = [
+        MONITOR_ENTRYPOINT_PATH,
         PYTHON3_PATH,
         "-m",
         settings.executor.ENTRYPOINT_MODULE,
@@ -459,14 +496,20 @@ def run_playwright_automation(
     # AST check sees the literal as a Constant node in this function's
     # body — keeping the env-var contract pinnable from a single
     # call-site invariant.
-    extra_env: dict[str, str] | None = None
+    # The exec runs as root (-u 0) for the ambient-cap drop, so HOME would
+    # otherwise default to /root; pin it to the executor home the monitor and
+    # its child tools (tshark config, VS Code paths) expect after the drop.
+    extra_env: dict[str, str] = {"HOME": "/home/executor"}
     if harness_python_secret:
-        extra_env = {"EXECUTOR_HARNESS_PYTHON_SECRET_VALUE": harness_python_secret}
+        extra_env["EXECUTOR_HARNESS_PYTHON_SECRET_VALUE"] = harness_python_secret
 
     try:
         try:
             result = _docker_exec_allow_partial(
-                cmd, timeout=_AUTOMATION_TIMEOUT, extra_env=extra_env
+                cmd,
+                timeout=_AUTOMATION_TIMEOUT,
+                extra_env=extra_env,
+                exec_user="0",
             )
         except ExecutorError as exc:
             if exc.returncode is None:

@@ -13,6 +13,7 @@ from ..runtime_capture.events import (
     NetworkEvent,
     ProcessEvent,
 )
+from .lineage import classify_pid_lineage_upgrade
 
 
 def format_epoch_timestamp(epoch: float | None) -> str:
@@ -347,7 +348,9 @@ def annotate_file_events(
     activations: list[ActivationEntry],
     scenario_traces: list[ScenarioTrace],
     target_extension_id: str,
+    target_pids: set[int] | None = None,
 ) -> list[FileEvent]:
+    lineage_pids = target_pids or set()
     annotated: list[FileEvent] = []
     for file_event in sorted(
         file_events,
@@ -396,6 +399,26 @@ def annotate_file_events(
             observer=file_event.observer,
         )
 
+        # pid-lineage upgrade: attribute a child-process file event to the
+        # target when its owning PID descends from a process the target
+        # spawned, even if the I/O timestamp is outside the temporal window.
+        upgrade = classify_pid_lineage_upgrade(
+            observer=file_event.observer,
+            pid=file_event.pid,
+            is_target_extension_event=is_target_extension_event,
+            target_extension_id=target_extension_id,
+            lineage_pids=lineage_pids,
+        )
+        if upgrade is not None:
+            (
+                attribution_status,
+                attribution_basis,
+                attribution_confidence,
+                related_extension_id,
+                is_target_extension_event,
+                noise_reason,
+            ) = upgrade
+
         annotated.append(
             FileEvent(
                 timestamp=file_event.timestamp,
@@ -405,6 +428,7 @@ def annotate_file_events(
                 secondary_path=file_event.secondary_path,
                 source=source,
                 observer=file_event.observer,
+                pid=file_event.pid,
                 scenario_name=scenario_name,
                 related_extension_id=related_extension_id,
                 related_activation_event=related_activation_event,

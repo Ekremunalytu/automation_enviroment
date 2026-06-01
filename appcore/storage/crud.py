@@ -10,6 +10,7 @@ from appcore.storage.crud_ops.analysis_jobs import (
     get_active_analysis_job,
     get_analysis_job,
     recover_interrupted_analysis_jobs,
+    reject_analysis_job_static,
     update_analysis_job,
     update_analysis_job_step,
 )
@@ -57,6 +58,7 @@ __all__ = [
     "get_operator_setting",
     "list_operator_settings",
     "recover_interrupted_analysis_jobs",
+    "reject_analysis_job_static",
     "search_extension_by_name",
     "update_analysis_job",
     "update_analysis_job_step",

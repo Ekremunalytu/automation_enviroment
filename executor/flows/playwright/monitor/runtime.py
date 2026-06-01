@@ -183,7 +183,7 @@ def _select_extension_host_pid(entries: list[_ProcessEntry]) -> int | None:
     ).pid
 
 
-def _find_extension_host_pid() -> int | None:
+def _read_process_entries() -> list[_ProcessEntry] | None:
     try:
         # arch-allow: bare-binary-path  # W8-4-followup: see POST_POC_BACKLOG.md
         result = subprocess.run(  # nosec B603
@@ -195,8 +195,35 @@ def _find_extension_host_pid() -> int | None:
     except (subprocess.CalledProcessError, OSError) as exc:
         _log(f"Failed to inspect process table: {exc}")
         return None
+    return _parse_process_table(result.stdout)
 
-    return _select_extension_host_pid(_parse_process_table(result.stdout))
+
+def _find_extension_host_pid() -> int | None:
+    entries = _read_process_entries()
+    if entries is None:
+        return None
+    return _select_extension_host_pid(entries)
+
+
+def _find_vscode_attach_pid() -> tuple[int | None, str]:
+    """Resolve the strace attach target, returning ``(pid, strategy)``.
+
+    Attaches directly to the extension-host process. An ancestor attach to the
+    VS Code main process (so ``strace -f`` would also cover the pty-host /
+    terminal subtree) was tried and reverted after a live run captured ~0
+    file/process events: the ext host and its workers already exist when the
+    monitor attaches, and ``-f`` only follows children forked AFTER attach, so
+    the pre-existing ext-host subtree was never traced. Covering out-of-tree
+    (pty-host) processes therefore needs a separate ADDITIONAL attach, not an
+    ancestor attach.
+    """
+    entries = _read_process_entries()
+    if entries is None:
+        return None, ""
+    ext_pid = _select_extension_host_pid(entries)
+    if ext_pid is not None:
+        return ext_pid, "extension_host"
+    return None, ""
 
 
 def _wait_for_extension_host_pid(
@@ -209,13 +236,14 @@ def _wait_for_extension_host_pid(
     attempts = 0
     while True:
         attempts += 1
-        pid = api._find_extension_host_pid()
+        pid, attach_strategy = api._find_vscode_attach_pid()
         if pid is not None:
             return (
                 pid,
                 {
                     "attempts": attempts,
                     "selected_pid": pid,
+                    "attach_strategy": attach_strategy,
                     "status": "resolved",
                     "poll_timeout_s": timeout_s,
                     "poll_interval_s": poll_interval_s,
@@ -228,6 +256,7 @@ def _wait_for_extension_host_pid(
                 {
                     "attempts": attempts,
                     "selected_pid": None,
+                    "attach_strategy": "",
                     "status": "not_found",
                     "poll_timeout_s": timeout_s,
                     "poll_interval_s": poll_interval_s,

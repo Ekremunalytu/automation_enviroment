@@ -1,6 +1,6 @@
 # Demo Scenario — A1 Credential-Read → Network Exfil
 
-`Last Updated: 2026-05-28 — W22 active (closed synthetically on week22; PR week22 -> main PENDING USER APPROVAL); W21 closed and merged via PR #30 5dc18aa.`
+`Last Updated: 2026-05-30 — Flavor B note: HTTP analyze/start ignores fixture_path (use Flavor A / Simulation page for local-fixture ingest). Prior: 2026-05-28 W22 closed synthetically on week22 and merged to main via PR #31 week22 -> main 1399f82; W21 closed and merged via PR #30 5dc18aa.`
 
 ## Purpose
 
@@ -132,6 +132,22 @@ make exec-build       # Executor + VS Code pinned image
        "fixture_path": "extensions/malicious/t1-a1-credential-read-canary"
      }'
    ```
+
+   > **Known limitation (2026-05-30) — not urgent, tracked.** The
+   > `fixture_path` key above is **not yet wired into the HTTP route**.
+   > `AnalyzeRequest`
+   > ([`appcore/contracts/schema_defs/marketplace.py:75`](../appcore/contracts/schema_defs/marketplace.py))
+   > declares only `publisher` / `name` / `version` / `scenario` /
+   > `analysis_profile`; an unknown `fixture_path` is silently dropped
+   > (Pydantic's default extra-ignore behaviour). The request is accepted,
+   > but the API then tries to resolve
+   > `extrace/t1-a1-credential-read-canary@0.0.1` from the marketplace
+   > (which does not exist for an internal canary) instead of ingesting
+   > the local folder. `fixture_path` is consumed **only** by the offline
+   > [`run_local_analysis`](../workflows/marketplace/analysis_reports.py)
+   > path. Until the route gains a `fixture_path` field, ingest the local
+   > canary via **Flavor A** (`python scripts/demo_acceptance.py`) or the
+   > UI **Simulation page** — not this `analyze/start` curl.
 
    The API returns `{ "job_id": "<ulid>" }`. Poll until `completed`:
 

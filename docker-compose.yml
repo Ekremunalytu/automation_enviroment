@@ -119,16 +119,27 @@ services:
     # Docker-default keepset (CAP_CHOWN, CAP_DAC_OVERRIDE, CAP_FOWNER,
     # CAP_SETUID, CAP_SETGID, CAP_MKNOD, CAP_NET_BIND_SERVICE, CAP_SETFCAP,
     # CAP_SETPCAP, CAP_SYS_CHROOT, CAP_KILL, CAP_AUDIT_WRITE, CAP_FSETID).
-    # cap_add restores only what the harness monitoring tools genuinely
-    # need: NET_RAW for tcpdump/tshark (per executor/container/Dockerfile
-    # L30-L31) and SYS_PTRACE for strace (L33). no-new-privileges:true
-    # closes the residual set-uid path. read_only + custom seccomp
+    # cap_add restores only what the harness genuinely needs:
+    #   - NET_RAW   — tcpdump/tshark packet capture (Dockerfile L30-L31).
+    #   - SYS_PTRACE — strace (Dockerfile L33).
+    #   - SETUID/SETGID/SETPCAP — used ONCE at the start of the analyze
+    #     monitor exec by monitor_entrypoint.sh (setpriv) to raise NET_RAW
+    #     into the *ambient* set and drop root -> executor. Required because
+    #     no-new-privileges:true nullifies dumpcap's cap_net_raw file
+    #     capability, so tshark only gets NET_RAW effective via an ambient
+    #     cap established before the privilege drop. Bounded like the
+    #     api/ui SETUID/SETGID retention: the workload runs unprivileged
+    #     (executor uid) under no_new_privs, so these stay non-escalation.
+    # no-new-privileges:true is preserved. read_only + custom seccomp
     # deferred to W22 ratchet-down lane — see ADR 0013 §Deferred.
     cap_drop:
       - ALL
     cap_add:
       - NET_RAW
       - SYS_PTRACE
+      - SETUID
+      - SETGID
+      - SETPCAP
     security_opt:
       - "no-new-privileges:true"
     mem_limit: ${EXECUTOR_MEM_LIMIT:-4g}
@@ -140,6 +151,36 @@ services:
       retries: 5
       start_period: 30s
     stop_grace_period: 10s
+
+  # Static analysis pre-check service (ES-2, ADR 0016 §Decision 2). Hardened,
+  # network-isolated container that (from ES-3a) parses untrusted VSIX manifests
+  # and file trees off the host + off the executor. Driven from the host via
+  # `docker exec` (executor/static_host.py); idles on `sleep infinity` so exec
+  # always has a live target. Feature flag (STATIC_ANALYSIS_ENABLED) OFF until ES-5.
+  static_analyzer:
+    build:
+      context: .
+      dockerfile: docker/static_analyzer/Dockerfile
+    container_name: automation_static_analyzer
+    restart: unless-stopped
+    # Idle so the one-shot analyzer stays reachable via `docker exec` (ES-3b).
+    command: ["sleep", "infinity"]
+    # ADR 0016 §Decision 2: no network at all — the analyzer never needs egress.
+    network_mode: "none"
+    volumes:
+      # Read-only extensions input; read-write results. Reuses the executor mount
+      # env vars so both stages see the same input tree + results dir.
+      - ${EXECUTOR_EXTENSIONS_HOST_PATH:-./extensions}:${EXECUTOR_EXTENSIONS_CONTAINER_PATH:-/extensions-input}:ro
+      - ${EXECUTOR_OUTPUT_HOST_PATH:-./output}:${EXECUTOR_OUTPUT_CONTAINER_PATH:-/results}
+    # ADR 0013 isolation baseline. Starts as the non-root `static` user, so no
+    # cap_add (no runtime privilege drop, unlike api/ui's gosu/nginx entrypoints).
+    cap_drop:
+      - ALL
+    security_opt:
+      - "no-new-privileges:true"
+    mem_limit: ${STATIC_ANALYZER_MEM_LIMIT:-1g}
+    cpus: ${STATIC_ANALYZER_CPUS:-1.0}
+    stop_grace_period: 5s
 
   # ADR 0007 — opt-in CDP exposure under the `debug` profile.
   # Default `docker compose up` does not start this sidecar, so port 9222

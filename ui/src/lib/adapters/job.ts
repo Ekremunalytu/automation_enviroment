@@ -1,5 +1,14 @@
-import type { AnalyzeJobStatusDto, AnalyzeJobStepDto } from "../types/contracts";
-import type { SimulationViewModel } from "../types/view-models";
+import type {
+  AnalyzeJobStatusDto,
+  AnalyzeJobStepDto,
+  StaticAnalysisReportDto,
+  StaticDetectionFindingDto,
+} from "../types/contracts";
+import type {
+  SimulationViewModel,
+  StaticFindingView,
+  StaticReportView,
+} from "../types/view-models";
 
 const STEP_TITLES: Record<string, string> = {
   reset_sandbox: "Resetting sandbox state",
@@ -85,6 +94,55 @@ function buildProgressLabel(steps: AnalyzeJobStepDto[]): string {
   return `Step 1 of ${total}`;
 }
 
+function titleCase(value: string): string {
+  if (!value) return value;
+  return value
+    .split("_")
+    .map((part) => (part ? part[0].toUpperCase() + part.slice(1) : part))
+    .join(" ");
+}
+
+function adaptStaticFinding(
+  finding: StaticDetectionFindingDto,
+): StaticFindingView {
+  return {
+    id: finding.id ?? finding.rule_id,
+    ruleId: finding.rule_id,
+    title: finding.title,
+    description: finding.description,
+    severity: finding.severity,
+    severityLabel: titleCase(finding.severity),
+    confidence: finding.confidence,
+    confidenceLabel: titleCase(finding.confidence),
+    evidenceCount: (finding.evidence ?? []).length,
+  };
+}
+
+// ES-5 (ADR 0016): map the static pre-check report DTO to its view-model. The
+// `partial` flag and per-tool `status` are surfaced so a degraded scan (a
+// swallowed rule error / Semgrep timeout) reads as incomplete coverage rather
+// than a confidently clean ALLOW.
+export function adaptStaticReport(
+  dto: StaticAnalysisReportDto,
+): StaticReportView {
+  const gate = dto.gate_outcome;
+  const detection = dto.detection_report;
+  return {
+    decision: gate.decision,
+    decisionLabel: titleCase(gate.decision),
+    blockedBy: gate.blocked_by ?? [],
+    warnedBy: gate.warned_by ?? [],
+    allowReason: gate.allow_reason ?? null,
+    partial: detection.partial ?? false,
+    toolStatuses: (detection.tool_executions ?? []).map((record) => ({
+      tool: record.tool,
+      status: record.status ?? "ok",
+      errorCount: record.error_count ?? 0,
+    })),
+    findings: (detection.findings ?? []).map(adaptStaticFinding),
+  };
+}
+
 export function adaptJob(dto: AnalyzeJobStatusDto): SimulationViewModel {
   const steps = dto.steps ?? [];
   const progressPct = computeProgressPct(steps);
@@ -120,5 +178,6 @@ export function adaptJob(dto: AnalyzeJobStatusDto): SimulationViewModel {
     lastUpdatedLabel: formatDate(dto.updated_at),
     recentMessages,
     reportError: dto.report_error ?? null,
+    staticReport: dto.static_report ? adaptStaticReport(dto.static_report) : null,
   };
 }

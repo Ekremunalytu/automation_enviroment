@@ -46,6 +46,9 @@ from .lifecycle import (
 from .lifecycle import (
     update_analysis_job as update_analysis_job,
 )
+from .static_gate import (
+    reject_analysis_job_static as reject_analysis_job_static,
+)
 from .steps import (
     update_analysis_job_step as update_analysis_job_step,
 )
@@ -63,6 +66,7 @@ __all__ = [
     "get_active_analysis_job",
     "get_analysis_job",
     "recover_interrupted_analysis_jobs",
+    "reject_analysis_job_static",
     "update_analysis_job",
     "update_analysis_job_step",
 ]

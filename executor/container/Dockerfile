@@ -150,6 +150,17 @@ RUN find /home/executor/flows/harness_extension -type f -print0 \
     | xargs -0 sha256sum > /home/executor/flows/harness_extension.sha256 \
     && chown executor:executor /home/executor/flows/harness_extension.sha256
 
+# Monitor privilege-drop wrapper. Invoked via `docker exec -u 0 ...` by
+# executor.host.run_playwright_automation; it raises CAP_NET_RAW into the
+# ambient set and drops to the `executor` user so the docker-exec'd monitor
+# (python -> tshark) captures packets under `no-new-privileges:true` without
+# the workload ever running as root (ADR 0013). It is exec'd as root, so it
+# MUST stay root-owned + non-writable by the executor UID — a writable copy
+# would be an executor->root escalation. Left root:root (no executor chown)
+# at 0755; pinned by tests/architecture/test_executor_runtime_script_permissions.py.
+COPY executor/container/monitor_entrypoint.sh /usr/local/bin/monitor_entrypoint.sh
+RUN chmod 0755 /usr/local/bin/monitor_entrypoint.sh
+
 USER executor
 WORKDIR /workspace
 

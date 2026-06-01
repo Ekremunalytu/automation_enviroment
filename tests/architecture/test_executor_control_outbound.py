@@ -40,6 +40,10 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 CONTROL_MODULE_PATH = REPO_ROOT / "executor" / "control.py"
+# ES-4: the workflows-importable static-analyzer facade is the same kind of
+# seam, so it is scanned too — with ``subprocess`` / ``CompletedProcess`` added
+# to the forbidden set so a raw docker-exec result type can never leak across it.
+STATIC_CONTROL_MODULE_PATH = REPO_ROOT / "executor" / "static_control.py"
 
 _FORBIDDEN_TOKENS: frozenset[str] = frozenset(
     {
@@ -52,10 +56,14 @@ _FORBIDDEN_TOKENS: frozenset[str] = frozenset(
         "Locator",
     }
 )
+_STATIC_FORBIDDEN_TOKENS: frozenset[str] = _FORBIDDEN_TOKENS | {
+    "subprocess",
+    "CompletedProcess",
+}
 
 
-def _module_tree() -> ast.Module:
-    return ast.parse(CONTROL_MODULE_PATH.read_text(encoding="utf-8"))
+def _module_tree(path: Path = CONTROL_MODULE_PATH) -> ast.Module:
+    return ast.parse(path.read_text(encoding="utf-8"))
 
 
 def _is_public_name(name: str) -> bool:
@@ -110,10 +118,12 @@ def _iter_public_methods_of_class(
     ]
 
 
-def _annotation_contains_forbidden_token(text: str) -> str | None:
+def _annotation_contains_forbidden_token(
+    text: str, tokens: frozenset[str] = _FORBIDDEN_TOKENS
+) -> str | None:
     """Return the first forbidden token found in ``text`` (whole-word
     or attribute-access match), else None."""
-    for token in _FORBIDDEN_TOKENS:
+    for token in tokens:
         # Match `Token`, `Token.foo`, `foo.Token`, `module.Token` etc.
         # Simple substring is enough because the forbidden tokens are
         # distinctive identifier names; a false positive on e.g.
@@ -151,6 +161,36 @@ def test_public_class_methods_have_no_forbidden_implementation_types() -> None:
         "`playwright` / `aiohttp` type on a public method ties the "
         "caller to the implementation library. Hide it behind a string / "
         "dict / dataclass at the seam. Violations:\n" + "\n".join(violations)
+    )
+
+
+def test_static_control_public_methods_have_no_forbidden_implementation_types() -> None:
+    """ES-4: the workflows-importable ``executor.static_control`` facade must not
+    leak docker / subprocess implementation types either — the static pre-check
+    drives a ``docker exec`` whose ``subprocess.CompletedProcess`` and docker
+    handles must stay hidden behind the str/None facade surface (ADR 0016
+    §Decision 2)."""
+    tree = _module_tree(STATIC_CONTROL_MODULE_PATH)
+    violations: list[str] = []
+    for node in tree.body:
+        if not (isinstance(node, ast.ClassDef) and _is_public_name(node.name)):
+            continue
+        for method in _iter_public_methods_of_class(node):
+            for label, annotation in _collect_public_function_signatures(method):
+                offender = _annotation_contains_forbidden_token(
+                    annotation, _STATIC_FORBIDDEN_TOKENS
+                )
+                if offender is not None:
+                    violations.append(
+                        f"executor/static_control.py:{method.lineno} "
+                        f"{node.name}.{method.name} {label}={annotation!r} "
+                        f"leaks `{offender}` across the control boundary"
+                    )
+    assert not violations, (
+        "executor.static_control public methods must not leak docker / "
+        "subprocess implementation types across the workflow boundary "
+        "(ADR 0016 §Decision 2). Hide them behind str / dict / dataclass at "
+        "the seam. Violations:\n" + "\n".join(violations)
     )
 
 
@@ -248,6 +288,18 @@ def test_detector_flags_playwright_page_in_annotation() -> None:
     """A signature like ``page: Page`` would forward a Playwright
     object to the caller. The detector must fire."""
     assert _annotation_contains_forbidden_token("Page") == "Page"
+
+
+def test_detector_flags_subprocess_types_for_static_surface() -> None:
+    """The extended static-facade token set must fire on a leaked
+    ``subprocess.CompletedProcess`` annotation."""
+    offender = _annotation_contains_forbidden_token(
+        "subprocess.CompletedProcess[str]", _STATIC_FORBIDDEN_TOKENS
+    )
+    assert offender in {"subprocess", "CompletedProcess"}
+    # ...but the default control surface set must NOT fire on subprocess (it is
+    # only forbidden on the static facade).
+    assert _annotation_contains_forbidden_token("subprocess.CompletedProcess") is None
 
 
 def test_detector_does_not_fire_on_clean_signature_tokens() -> None:

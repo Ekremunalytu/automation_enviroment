@@ -51,6 +51,13 @@ def _env_int(name: str, default: int) -> int:
         return default
 
 
+def _env_bool(name: str, default: bool) -> bool:
+    raw = _env_value(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
+
+
 @dataclass(frozen=True, slots=True)
 class ProjectSettings:
     EXTENSION_DIR: str
@@ -69,9 +76,42 @@ class ExecutorSettings:
 
 
 @dataclass(frozen=True, slots=True)
+class StaticAnalyzerSettings:
+    """Hardened static-analyzer container handles (ES-2, ADR 0016).
+
+    Mirrors the executor-side container knobs so ``executor/static_host.py``
+    can drive ``automation_static_analyzer`` via ``docker exec`` the same way
+    ``host.py`` drives the executor.
+    """
+
+    CONTAINER_NAME: str
+    DOCKER_EXEC_TIMEOUT: int
+    ENTRYPOINT_MODULE: str
+
+
+@dataclass(frozen=True, slots=True)
+class StaticAnalysisSettings:
+    """Static pre-check stage feature flag + budget (ES-2, ADR 0016).
+
+    ``ENABLED`` is ON by default from the ES-5 close-out, which flipped it after
+    smoke evidence passed (ADR 0016 §Operational notes).
+
+    ES-5 (``static-settings-timeout-naming``): the budget field is named
+    ``TIMEOUT_BUDGET_S`` (env ``STATIC_ANALYSIS_TIMEOUT_BUDGET_S``) to match the
+    app-side ``appcore.api.config.StaticAnalysisSettings`` — one logical timeout,
+    one env key across both mirrors.
+    """
+
+    ENABLED: bool
+    TIMEOUT_BUDGET_S: int
+
+
+@dataclass(frozen=True, slots=True)
 class Settings:
     project: ProjectSettings
     executor: ExecutorSettings
+    static_analyzer: StaticAnalyzerSettings
+    static_analysis: StaticAnalysisSettings
 
 
 def build_settings() -> Settings:
@@ -103,6 +143,19 @@ def build_settings() -> Settings:
                 "executor.flows.playwright.reset_state",
             ),
             DOCKER_EXEC_TIMEOUT=_env_int("EXECUTOR_DOCKER_EXEC_TIMEOUT", 300),
+        ),
+        static_analyzer=StaticAnalyzerSettings(
+            CONTAINER_NAME=_env_str(
+                "STATIC_ANALYZER_CONTAINER_NAME", "automation_static_analyzer"
+            ),
+            DOCKER_EXEC_TIMEOUT=_env_int("STATIC_ANALYZER_DOCKER_EXEC_TIMEOUT", 60),
+            ENTRYPOINT_MODULE=_env_str(
+                "STATIC_ANALYZER_ENTRYPOINT_MODULE", "static_runtime"
+            ),
+        ),
+        static_analysis=StaticAnalysisSettings(
+            ENABLED=_env_bool("STATIC_ANALYSIS_ENABLED", True),
+            TIMEOUT_BUDGET_S=_env_int("STATIC_ANALYSIS_TIMEOUT_BUDGET_S", 30),
         ),
     )
 

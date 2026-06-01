@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 
 from appcore.contracts.schema_defs.analysis_jobs import (
+    ANALYSIS_JOB_STEP_NAMES,
     AnalysisJobCreateSnapshot,
     AnalysisJobFailure,
     AnalysisJobStepRecord,
@@ -30,13 +31,9 @@ from appcore.storage.models import AnalysisJob
 pytestmark = pytest.mark.requires_db
 
 
-_CANONICAL_STEPS = (
-    "reset_sandbox",
-    "install_extension",
-    "build_triggers",
-    "run_monitoring",
-    "finalize_report",
-)
+# ES-3b: track the canonical 7-step order from the contract so the snapshot
+# fixtures stay valid against `_validate_steps` as the order evolves.
+_CANONICAL_STEPS = ANALYSIS_JOB_STEP_NAMES
 
 
 def _empty_steps() -> list[AnalysisJobStepRecord]:
@@ -131,7 +128,9 @@ def test_create_analysis_job_persists_snapshot(db_session: Session) -> None:
     assert persisted.job_id == snapshot.job_id
     assert persisted.status == "queued"
     assert persisted.publisher == "ms-python"
-    assert persisted.steps[0]["name"] == "reset_sandbox"
+    # ES-3b: the static pre-check now leads the canonical 7-step order.
+    assert persisted.steps[0]["name"] == "static_analysis"
+    assert persisted.steps[2]["name"] == "reset_sandbox"
     assert persisted.created_at == pytest.approx(snapshot.created_at)
 
 
@@ -226,7 +225,7 @@ def test_cancel_then_finalize_marks_current_step_cancelled_and_skips_pending(
     draining = lifecycle.cancel_analysis_job(db_session, job.job_id)
     assert draining.status == "cancelling"
     # While draining the step records are untouched — worker still owns them.
-    assert draining.steps[3]["status"] == "running"
+    assert draining.steps[5]["status"] == "running"
     assert draining.finished_at is None
 
     finalized = lifecycle.finalize_cancelled_analysis_job(db_session, job.job_id)
@@ -235,13 +234,13 @@ def test_cancel_then_finalize_marks_current_step_cancelled_and_skips_pending(
     assert finalized.error_code == "cancelled_by_user"
     assert finalized.error_detail == "Cancelled by user."
     assert finalized.current_step == "run_monitoring"
-    # `run_monitoring` is index 3; the trailing `finalize_report` step (index 4)
-    # was pending and must be marked skipped.
+    # ES-3b: `run_monitoring` is index 5; the trailing `finalize_report` step
+    # (index 6) was pending and must be marked skipped.
     steps_dump = finalized.steps
-    assert steps_dump[3]["status"] == "cancelled"
-    assert steps_dump[3]["progress"] is None
-    assert steps_dump[4]["status"] == "skipped"
-    assert "cancelled" in steps_dump[4]["message"].lower()
+    assert steps_dump[5]["status"] == "cancelled"
+    assert steps_dump[5]["progress"] is None
+    assert steps_dump[6]["status"] == "skipped"
+    assert "cancelled" in steps_dump[6]["message"].lower()
     assert finalized.finished_at is not None
 
 
@@ -307,9 +306,10 @@ def test_fail_analysis_job_marks_current_step_failed_and_skips_pending(
     assert failed.error_code == "install_failed"
     assert failed.current_step == "install_extension"
     steps_dump = failed.steps
-    assert steps_dump[1]["status"] == "failed"
-    # All later pending steps go to skipped.
-    for trailing in steps_dump[2:]:
+    # ES-3b: install_extension is now index 3 (static_analysis/decision_gate
+    # lead). The trailing dynamic steps (4..6) go to skipped.
+    assert steps_dump[3]["status"] == "failed"
+    for trailing in steps_dump[4:]:
         assert trailing["status"] == "skipped"
 
 
@@ -332,7 +332,7 @@ def test_recover_interrupted_analysis_jobs_marks_stale_active_jobs_failed(
     assert refetched is not None
     assert refetched.status == "failed"
     assert refetched.error_detail == "Interrupted by an api restart."
-    assert refetched.steps[3]["status"] == "failed"
+    assert refetched.steps[5]["status"] == "failed"
 
 
 def test_recover_interrupted_analysis_jobs_returns_zero_when_owner_matches(
@@ -386,7 +386,7 @@ def test_cancel_during_running_transitions_to_cancelling_not_cancelled(
     # `requested_cancel_at` records when the drain was signalled.
     assert getattr(draining, "requested_cancel_at", None) is not None
     # Steps are not yet finalized — worker still drains.
-    assert draining.steps[3]["status"] == "running"
+    assert draining.steps[5]["status"] == "running"
     assert draining.error_code == "cancelled_by_user"
 
 
@@ -424,8 +424,8 @@ def test_finalize_cancelled_only_from_cancelling_raises_otherwise(
 
     assert finalized.status == "cancelled"
     assert finalized.finished_at is not None
-    assert finalized.steps[3]["status"] == "cancelled"
-    assert finalized.steps[4]["status"] == "skipped"
+    assert finalized.steps[5]["status"] == "cancelled"
+    assert finalized.steps[6]["status"] == "skipped"
 
 
 def test_complete_analysis_job_rejected_from_cancelling(

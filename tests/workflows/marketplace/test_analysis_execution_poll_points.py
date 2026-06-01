@@ -39,6 +39,19 @@ from workflows.marketplace.analysis_errors import AnalysisCancelledError
 from workflows.marketplace.trigger_service import TriggerPlan
 
 
+@pytest.fixture(autouse=True)
+def _static_gate_disabled(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Isolate the dynamic cancel-poll points from the ES-5 static pre-check gate.
+
+    These W13-3/W13-4 tests assert the dynamic-pipeline cancel-poll behavior; the
+    static gate (ON by default from ES-5) runs ahead of those poll points and
+    would fire a real ``docker exec``. Pin it OFF so the dynamic poll-point
+    semantics are tested in isolation (the gate's own cancel coordinator is
+    covered by ``test_static_gate_stage.py``).
+    """
+    monkeypatch.setattr(analysis_service.settings.static_analysis, "ENABLED", False)
+
+
 def _request() -> AnalyzeRequest:
     return AnalyzeRequest(
         publisher="ms-python",

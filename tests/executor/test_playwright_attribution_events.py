@@ -16,6 +16,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from executor.flows.playwright.attribution import build_target_pid_lineage
 from executor.flows.playwright.attribution import events as attribution_events
 from executor.flows.playwright.monitor.records import ScenarioTrace
 from executor.flows.playwright.runtime_capture.events import (
@@ -520,6 +521,113 @@ def test_annotate_file_events_marks_inotify_as_automation_noise() -> None:
     # Source rewrite per observer + scenario_name presence: inotify + scenario
     # → "automation".
     assert out.source == "automation"
+
+
+# ---------------------------------------------------------------------------
+# build_target_pid_lineage + pid-lineage file-event upgrade (file-capture)
+# ---------------------------------------------------------------------------
+
+
+def _spawn(pid: int, ppid: int, rel: float, *, is_target: bool) -> ProcessEvent:
+    return ProcessEvent(
+        rel_time_s=rel,
+        pid=pid,
+        ppid=ppid,
+        operation="spawn",
+        is_target_extension_event=is_target,
+    )
+
+
+def test_build_target_pid_lineage_seeds_spawn_and_closes_descendants() -> None:
+    events = [
+        # child the target spawned during activation -> seed
+        _spawn(1001, 840, 1.0, is_target=True),
+        # grandchild spawned later, out of window, but parent is owned -> closure
+        _spawn(1002, 1001, 9.0, is_target=False),
+        # unrelated child of the shared root, not target-attributed -> excluded
+        _spawn(2001, 840, 1.5, is_target=False),
+        # root's own exec is not a spawn child -> never owned even if flagged
+        ProcessEvent(
+            rel_time_s=0.5, pid=840, operation="exec", is_target_extension_event=True
+        ),
+    ]
+
+    owned = build_target_pid_lineage(events, "ext.target")
+
+    assert owned == {1001, 1002}
+    assert 840 not in owned  # shared extension-host root is never owned
+    assert 2001 not in owned
+
+
+def test_build_target_pid_lineage_empty_without_target() -> None:
+    events = [_spawn(1001, 840, 1.0, is_target=True)]
+    assert build_target_pid_lineage(events, "") == set()
+
+
+def test_annotate_file_events_upgrades_out_of_window_child_via_pid_lineage() -> None:
+    activations = [
+        ActivationEntry(
+            extension_id="ext.target",
+            timestamp="2026-01-01T10:00:00.000",
+        ),
+    ]
+    # Child-process read 15s after activation: far outside the ±1.25s temporal
+    # window, so temporal classification alone leaves it unattributed.
+    child_read = FileEvent(
+        timestamp="2026-01-01T10:00:15.000",
+        observer="strace",
+        pid=1002,
+        path="/home/executor/.ssh/id_rsa",
+        operation="read",
+    )
+
+    annotated = attribution_events.annotate_file_events(
+        [child_read],
+        activations=activations,
+        scenario_traces=[],
+        target_extension_id="ext.target",
+        target_pids={1001, 1002},
+    )
+
+    out = annotated[0]
+    assert out.is_target_extension_event is True
+    assert out.attribution_status == "target_attributed"
+    assert "pid lineage" in out.attribution_basis
+    assert out.related_extension_id == "ext.target"
+    assert out.attribution_confidence == 0.80
+    assert out.pid == 1002
+
+
+def test_annotate_file_events_pid_lineage_ignores_inotify_and_unowned_pids() -> None:
+    activations = [
+        ActivationEntry(extension_id="ext.target", timestamp="2026-01-01T10:00:00.000")
+    ]
+    inotify_event = FileEvent(
+        timestamp="2026-01-01T10:00:15.000",
+        observer="inotify",
+        path="/workspace/x",
+        operation="write",
+    )
+    unowned_strace = FileEvent(
+        timestamp="2026-01-01T10:00:15.000",
+        observer="strace",
+        pid=7777,  # not in the owned set
+        path="/workspace/y",
+        operation="read",
+    )
+
+    annotated = attribution_events.annotate_file_events(
+        [inotify_event, unowned_strace],
+        activations=activations,
+        scenario_traces=[],
+        target_extension_id="ext.target",
+        target_pids={1001, 1002},
+    )
+
+    by_path = {event.path: event for event in annotated}
+    assert by_path["/workspace/x"].is_target_extension_event is False
+    assert by_path["/workspace/x"].attribution_status == "automation_noise"
+    assert by_path["/workspace/y"].is_target_extension_event is False
 
 
 def test_annotate_process_events_attributes_target_strace_event() -> None:

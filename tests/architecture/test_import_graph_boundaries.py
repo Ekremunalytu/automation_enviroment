@@ -83,8 +83,14 @@ def _workflow_import_allowed(import_ref: str) -> bool:
     if root in _WORKFLOW_ALLOWED_ROOTS:
         return True
     if root == "executor":
-        return import_ref == "executor.control" or import_ref.startswith(
-            "executor.control."
+        # Workflows reach the executor only through its sanctioned control
+        # facades: `executor.control` (dynamic sandbox) and
+        # `executor.static_control` (static pre-check analyzer, ES-3b). Both
+        # mirror each other and exist precisely so workflows never import the
+        # host-orchestration internals (`executor.host` / `executor.static_host`).
+        return any(
+            import_ref == boundary or import_ref.startswith(f"{boundary}.")
+            for boundary in ("executor.control", "executor.static_control")
         )
     return root not in _REPO_LOCAL_ROOTS
 

@@ -49,7 +49,7 @@ _HOTSPOT_LOC_CEILINGS: dict[str, int] = {
     "attribution/links.py": 643,  # base 613 (W19-X tip)
     "health/reconciliation.py": 597,  # base 569 (W19-5 +15 LOC from elif arm)
     "health/summary.py": 552,  # base 512 (W19-X tip) + W22-3 +30 LOC (count_target_process_events + count_target_output_events; mirrors count_target_activations W17-1 paterni)
-    "monitor/runtime.py": 591,  # base 563 (W19-X tip)
+    "monitor/runtime.py": 600,  # base 563 (W19-X tip) + file-capture +29 LOC (_read_process_entries split + _find_vscode_attach_pid attach-target resolver + diagnostic; ancestor/main-process attach reverted to ext-host after a live run captured ~0 events, resolver kept with sibling _find_vscode_main_pid/_select_extension_host_pid for cohesion)
     "monitor/scenario_accountant.py": 680,  # base 648 (W19-X tip)
     "monitor/types.py": 544,  # base 519 (W19-X tip)
     "stimulus/attempts.py": 569,  # base 542 (W19-X tip)

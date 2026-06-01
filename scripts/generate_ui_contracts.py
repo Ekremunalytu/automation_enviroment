@@ -69,6 +69,17 @@ TARGET_SCHEMAS: list[str] = [
     "AnalyzeJobStep",
     "AnalyzeJobStepProgress",
     "AnalyzeJobStatusResponse",
+    # ES-5 (ADR 0016): static pre-check report types surfaced on
+    # AnalyzeJobStatusResponse.static_report. The reused enums (Severity /
+    # Confidence / RuleLifecycle / AdversaryClass) are already declared above.
+    "StaticGateDecision",
+    "StaticGateOutcome",
+    "StaticEvidenceRef",
+    "StaticDetectionFinding",
+    "StaticToolExecutionRecord",
+    "StaticSeverityCounts",
+    "StaticDetectionReport",
+    "StaticAnalysisReport",
 ]
 
 NAME_OVERRIDES: dict[str, str] = {
@@ -117,6 +128,15 @@ NAME_OVERRIDES: dict[str, str] = {
     "MarketplaceDownloadResponse": "MarketplaceDownloadResponseDto",
     "AnalyzeJobStep": "AnalyzeJobStepDto",
     "AnalyzeJobStatusResponse": "AnalyzeJobStatusDto",
+    # ES-5 (ADR 0016): static pre-check report DTOs.
+    "StaticGateDecision": "StaticGateDecisionDto",
+    "StaticGateOutcome": "StaticGateOutcomeDto",
+    "StaticEvidenceRef": "StaticEvidenceRefDto",
+    "StaticDetectionFinding": "StaticDetectionFindingDto",
+    "StaticToolExecutionRecord": "StaticToolExecutionRecordDto",
+    "StaticSeverityCounts": "StaticSeverityCountsDto",
+    "StaticDetectionReport": "StaticDetectionReportDto",
+    "StaticAnalysisReport": "StaticAnalysisReportDto",
 }
 
 FIELD_TYPE_OVERRIDES: dict[tuple[str, str], str] = {

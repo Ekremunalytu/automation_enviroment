@@ -1,6 +1,6 @@
 # Development Priorities
 
-`Last Updated: 2026-05-28 — W22 active (closed synthetically on week22; PR week22 -> main PENDING USER APPROVAL); W21 closed and merged via PR #30 5dc18aa.`
+`Last Updated: 2026-05-28 — W22 closed synthetically on week22 and merged to main via PR #31 week22 -> main 1399f82; W21 closed and merged via PR #30 5dc18aa.`
 
 This is the short priority list for current work. It assumes the project stays
 a single-user sandbox appliance on one machine or one Docker host.

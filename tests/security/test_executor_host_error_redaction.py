@@ -132,6 +132,55 @@ def test_reload_error_message_redacts_db_url_in_last_output_line() -> None:
     assert "supersecret" not in message
 
 
+def test_reload_error_message_surfaces_error_line_over_playwright_call_log_tail() -> (
+    None
+):
+    """The harness ``[reload] ERROR`` line wins over a Playwright call-log tail.
+
+    Regression: ``connect_over_cdp`` failures append a multi-line
+    "Call log:" block whose final entry ("- <ws connected> ws://...") is a
+    connection-progress note. ``_last_reload_output_line`` previously
+    returned that last line verbatim, hiding the actionable timeout cause
+    on ``job.error_detail``.
+    """
+    raw_output = (
+        "[reload] connect: Connecting to VS Code over CDP at http://localhost:9222...\n"
+        "[reload] ERROR connect: Could not connect to VS Code over CDP at "
+        "http://localhost:9222: BrowserType.connect_over_cdp: Timeout 60000ms exceeded.\n"
+        "Call log:\n"
+        "  - <ws preparing> retrieving websocket url from http://localhost:9222\n"
+        "  - <ws connecting> ws://localhost:9222/devtools/browser/abc\n"
+        "  - <ws connected> ws://localhost:9222/devtools/browser/abc"
+    )
+    exc = ExecutorError(
+        "Command failed (rc=1): reload_vscode",
+        returncode=1,
+        output=raw_output,
+    )
+
+    message = host_module._reload_error_message(exc)
+
+    assert "Timeout 60000ms exceeded" in message
+    assert "[reload] ERROR connect" in message
+    assert not message.rstrip().endswith(
+        "<ws connected> ws://localhost:9222/devtools/browser/abc"
+    )
+
+
+def test_last_reload_output_line_skips_call_log_when_no_error_line() -> None:
+    """Without a ``[reload] ERROR`` line, the call-log tail is still skipped."""
+    raw_output = (
+        "RuntimeError: workbench page never became ready\n"
+        "Call log:\n"
+        "  - <ws connected> ws://localhost:9222/devtools/browser/abc"
+    )
+
+    assert (
+        host_module._last_reload_output_line(raw_output)
+        == "RuntimeError: workbench page never became ready"
+    )
+
+
 def test_reload_vscode_window_propagates_redacted_message_on_failure(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

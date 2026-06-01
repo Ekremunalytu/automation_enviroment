@@ -12,6 +12,7 @@ from uuid import uuid4
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from appcore.api.config import settings
 from appcore.contracts.schema_defs.analysis_jobs import (
     AnalysisJobCreateSnapshot,
     AnalysisJobFailure,
@@ -39,6 +40,7 @@ from appcore.storage.crud import (
     get_active_analysis_job,
     get_analysis_job,
     recover_interrupted_analysis_jobs,
+    reject_analysis_job_static,
     update_analysis_job,
     update_analysis_job_step,
 )
@@ -62,7 +64,35 @@ def now() -> float:
 
 
 def empty_job_steps() -> list[AnalysisJobStepRecord]:
+    # ES-3b (ADR 0016): the static pre-check leads the canonical 7-step order.
+    # When the feature flag is OFF (default until ES-5) the two static steps are
+    # seeded `skipped` so the UI shows the gate was not run; when ON they start
+    # `pending` and the orchestrator drives them. The dynamic stages are
+    # unchanged. Keep in lockstep with ANALYSIS_JOB_STEP_NAMES (_validate_steps
+    # pins the exact order on persist).
+    static_enabled = settings.static_analysis.ENABLED
+    static_status: AnalysisJobStepStatus = "pending" if static_enabled else "skipped"
+    static_message = (
+        "Queued for static pre-check."
+        if static_enabled
+        else "Static pre-check disabled."
+    )
+    gate_message = (
+        "Waiting for the static gate verdict."
+        if static_enabled
+        else "Static pre-check disabled."
+    )
     return [
+        AnalysisJobStepRecord(
+            name="static_analysis",
+            status=static_status,
+            message=static_message,
+        ),
+        AnalysisJobStepRecord(
+            name="decision_gate",
+            status=static_status,
+            message=gate_message,
+        ),
         AnalysisJobStepRecord(
             name="reset_sandbox",
             status="pending",
@@ -334,6 +364,37 @@ def is_job_cancelled(job_id: str, db: Session | None = None) -> bool:
     return _run_in_session(db, operation)
 
 
+def reject_static_job(
+    job_id: str,
+    detail: str,
+    *,
+    db: Session | None = None,
+    error_code: str = "static_gate_blocked",
+    static_report_path: str | None = None,
+) -> dict[str, Any]:
+    """Drive a job to terminal ``rejected_static`` (ES-3b static-gate BLOCK).
+
+    Worker-facing wrapper around ``crud.reject_analysis_job_static``. Called
+    from ``analysis_service.run_analysis_job`` when the static pre-check gate
+    raises ``StaticAnalysisBlockedError``: the in-flight ``decision_gate`` step
+    is completed, the dynamic sandbox stages are marked skipped, the persisted
+    combined-bundle path is recorded in ``static_report_path``, and the
+    single-active slot releases so ``reserve_job`` can admit the next job.
+    """
+
+    def operation(session: Session) -> dict[str, Any]:
+        job = reject_analysis_job_static(
+            session,
+            job_id,
+            detail,
+            error_code=error_code,
+            static_report_path=static_report_path,
+        )
+        return _public_snapshot(job)
+
+    return _run_in_session(db, operation)
+
+
 def finalize_cancelled_job(
     job_id: str,
     *,
@@ -363,12 +424,19 @@ def complete_job(
     result: AnalyzeResponse,
     *,
     db: Session | None = None,
+    static_report_path: str | None = None,
 ) -> dict[str, Any]:
+    # ES-5 (ADR 0016): ``static_report_path`` records the persisted static-only
+    # combined bundle for an ALLOW/WARN job (the BLOCK path records it via
+    # ``reject_static_job`` instead). ``None`` when the static gate did not run
+    # (flag OFF) leaves the column NULL, so the dynamic-only completion is
+    # unchanged.
     update = AnalysisJobUpdate(
         status="completed",
         current_step=None,
         message=result.message,
         report_path=result.report_path,
+        static_report_path=static_report_path,
         install_output=result.install_output,
         automation_output=result.automation_output,
         finished_at=now(),
@@ -407,6 +475,7 @@ __all__ = [
     "is_job_cancelled",
     "now",
     "recover_interrupted_jobs",
+    "reject_static_job",
     "reserve_job",
     "store_job",
     "update_job",
