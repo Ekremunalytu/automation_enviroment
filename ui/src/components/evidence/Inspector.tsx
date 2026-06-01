@@ -31,8 +31,11 @@ export function Inspector({
   return (
     <V3Panel label="Inspector" bodyStyle={{ padding: 0 }}>
       {inspector ? (
-        <>
-          <div style={{ padding: "14px 16px", borderBottom: `1px solid ${V3.rule}` }}>
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,300px)_minmax(0,1fr)]">
+          <div
+            className="border-b border-line lg:border-b-0 lg:border-r"
+            style={{ padding: "14px 16px" }}
+          >
             <div className="v3-eyebrow" style={{ marginBottom: 8 }}>Evidence</div>
             <div
               style={{
@@ -57,19 +60,21 @@ export function Inspector({
               <KVRow k="offset" v={inspector.event.relTimeS != null ? `+${inspector.event.relTimeS}s` : "(n/a)"} />
             </div>
           </div>
-          <div style={{ padding: "12px 16px", borderBottom: `1px solid ${V3.rule}` }}>
-            <Tabs<InspectorTab>
-              ariaLabel="Inspector tabs"
-              tabs={INSPECTOR_TABS}
-              value={activeTab}
-              onChange={onTabChange}
-            />
+          <div style={{ minWidth: 0 }}>
+            <div style={{ padding: "12px 16px", borderBottom: `1px solid ${V3.rule}` }}>
+              <Tabs<InspectorTab>
+                ariaLabel="Inspector tabs"
+                tabs={INSPECTOR_TABS}
+                value={activeTab}
+                onChange={onTabChange}
+              />
+            </div>
+            <div style={{ padding: "16px" }}>
+              {activeTab === "provenance" ? <ProvenanceTab inspector={inspector} detection={detection ?? null} /> : null}
+              {activeTab === "relations" ? <RelationsTab inspector={inspector} /> : null}
+            </div>
           </div>
-          <div style={{ padding: "16px" }}>
-            {activeTab === "provenance" ? <ProvenanceTab inspector={inspector} detection={detection ?? null} /> : null}
-            {activeTab === "relations" ? <RelationsTab inspector={inspector} /> : null}
-          </div>
-        </>
+        </div>
       ) : (
         <div style={{ padding: 16, fontSize: 13, color: V3.ink3, lineHeight: 1.6 }}>
           Select an event from the timeline or table to inspect provenance and relations.

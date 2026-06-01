@@ -10,6 +10,7 @@ import { RiskRadarPanel } from "../../components/evidence/RiskRadarPanel";
 import { SlideOverDrawer } from "../../components/ui/SlideOverDrawer";
 import {
   Badge,
+  Dialog,
   EmptyState,
   Eyebrow,
   Field,
@@ -39,7 +40,6 @@ import {
   buildRiskRadar,
   getInspectorView,
 } from "../../lib/adapters/report";
-import type { EvidenceInspectorView } from "../../lib/types/view-models";
 import { FindingCard } from "./FindingCard";
 import { RuleMatrixSection } from "./RuleMatrixSection";
 import { EventTimeline } from "./charts/EventTimeline";
@@ -97,7 +97,10 @@ export function ReportsPage() {
   const reportParam = searchParams.get("report") || "latest";
   const selectedTab = normalizeTab(searchParams.get("tab"));
   const eventId = searchParams.get("event");
-  const inspectorTab = normalizeInspectorTab(searchParams.get("inspector"));
+  const inspectorParam = searchParams.get("inspector");
+  // Default the inspector to the Relations tab (interaction graph) on first open;
+  // an explicit ?inspector= value still wins so manual tab switches persist in the URL.
+  const inspectorTab = inspectorParam ? normalizeInspectorTab(inspectorParam) : "relations";
   const filters = parseEvidenceFilters(searchParams);
   const deferredSearch = useDeferredValue(filters.search);
   const [inspectorOpen, setInspectorOpen] = useState(
@@ -189,6 +192,13 @@ export function ReportsPage() {
   const verdictTone = severityToTone(
     verdict === "malicious" ? "critical" : verdict === "suspicious" ? "medium" : "low",
   );
+  const inspectorTone: "accent" | "warn" | "danger" = inspector
+    ? inspector.event.sensitive
+      ? "danger"
+      : inspector.event.kind === "network"
+        ? "warn"
+        : "accent"
+    : "accent";
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>
@@ -398,57 +408,42 @@ export function ReportsPage() {
         />
       </SlideOverDrawer>
 
-      <SlideOverDrawer
-        eyebrow="Inspector"
-        description="Provenance and relations for the selected event."
-        onClose={() => setInspectorOpen(false)}
+      <Dialog
         open={inspectorOpen}
+        onClose={() => setInspectorOpen(false)}
+        eyebrow="Inspector"
         title={inspector?.event.summaryDisplay || "Event inspector"}
+        tone={inspectorTone}
+        width={1200}
+        actions={
+          inspector ? (
+            <>
+              <GhostButton
+                ariaLabel="Draft rule from event"
+                onClick={() =>
+                  navigate(`/rules?tab=draft&from=${encodeURIComponent(inspector.event.eventId)}`)
+                }
+              >
+                Draft rule from event
+              </GhostButton>
+              <GhostButton ariaLabel="Close inspector" onClick={() => setInspectorOpen(false)}>
+                Close
+              </GhostButton>
+            </>
+          ) : undefined
+        }
       >
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          <Inspector
-            activeTab={inspectorTab}
-            onTabChange={(next) => {
-              const params = new URLSearchParams(searchParams);
-              params.set("inspector", next);
-              setSearchParams(params, { replace: true });
-            }}
-            inspector={inspector}
-            detection={report?.detection || null}
-          />
-          <InspectorFooter
-            inspector={inspector}
-            onDraftRule={(id) => navigate(`/rules?tab=draft&from=${encodeURIComponent(id)}`)}
-          />
-        </div>
-      </SlideOverDrawer>
-    </div>
-  );
-}
-
-function InspectorFooter({
-  inspector,
-  onDraftRule,
-}: {
-  inspector: EvidenceInspectorView | null;
-  onDraftRule: (eventId: string) => void;
-}) {
-  if (!inspector) return null;
-  return (
-    <div
-      style={{
-        borderTop: `1px solid ${V3.rule}`,
-        paddingTop: 12,
-        display: "flex",
-        justifyContent: "flex-end",
-      }}
-    >
-      <GhostButton
-        ariaLabel="Draft rule from event"
-        onClick={() => onDraftRule(inspector.event.eventId)}
-      >
-        Draft rule from event
-      </GhostButton>
+        <Inspector
+          activeTab={inspectorTab}
+          onTabChange={(next) => {
+            const params = new URLSearchParams(searchParams);
+            params.set("inspector", next);
+            setSearchParams(params, { replace: true });
+          }}
+          inspector={inspector}
+          detection={report?.detection || null}
+        />
+      </Dialog>
     </div>
   );
 }
