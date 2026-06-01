@@ -177,10 +177,12 @@ def _apply_static_gate_decision(
     static_report: StaticAnalysisReport,
     *,
     host_report_path: Path,
-) -> None:
+) -> StaticAnalysisReport:
     """Run the ``decision_gate`` step over the folded gate outcome.
 
-    ALLOW/WARN -> emit ``completed`` and return (the dynamic stage proceeds).
+    ALLOW/WARN -> persist the static-only combined bundle, emit ``completed``, and
+    return the report so the dynamic stage proceeds and ES-5 can record
+    ``static_report_path`` at completion + fold the report into the response.
     BLOCK -> persist the combined bundle, then raise ``StaticAnalysisBlockedError``
     while ``decision_gate`` is still ``running`` (the reject transition marks it
     completed); the worker routes to ``reject_static_job``.
@@ -194,6 +196,12 @@ def _apply_static_gate_decision(
             f"({', '.join(outcome.blocked_by)}).",
             static_report=static_report,
         )
+    # ES-5 (ADR 0016): ALLOW/WARN persist the same static-only combined bundle
+    # (``dynamic_bundle`` stays None — the dynamic report is surfaced separately
+    # through ``report_path``). The completion path records the path in
+    # ``static_report_path`` and ``GET /analyze/{job_id}`` folds the static report
+    # into the response, so an ALLOW/WARN job's static findings are no longer lost.
+    _persist_combined_bundle(static_report, host_report_path)
     if outcome.decision is StaticGateDecision.WARN:
         reporter.emit(
             "decision_gate",
@@ -206,6 +214,7 @@ def _apply_static_gate_decision(
             "completed",
             outcome.allow_reason or "Static gate allowed the extension.",
         )
+    return static_report
 
 
 def _run_static_gate(
@@ -215,14 +224,14 @@ def _run_static_gate(
     *,
     static_report_name: str,
     cancel_check: Callable[[], bool] | None = None,
-) -> None:
+) -> StaticAnalysisReport:
     """ES-3b static pre-check stage: run the analyzer container, then the gate.
 
     The settings-free core (``run_static_analysis_core``) is bound here with the
     config-derived container/host paths + rules version + budget, then driven on
     the cancellation coordinator. On BLOCK this raises
-    ``StaticAnalysisBlockedError``; on ALLOW/WARN it returns and the dynamic
-    stage proceeds.
+    ``StaticAnalysisBlockedError``; on ALLOW/WARN it returns the
+    ``StaticAnalysisReport`` and the dynamic stage proceeds.
     """
     slug = safe_marketplace_slug(request.publisher, request.name, request.version)
     vsix_dir = f"{settings.executor.EXTENSIONS_CONTAINER_PATH}/{slug}"
@@ -244,7 +253,7 @@ def _run_static_gate(
         on_cancel=getattr(control, "cancel", None),
         cancel_check=cancel_check,
     )
-    _apply_static_gate_decision(
+    return _apply_static_gate_decision(
         reporter, static_report, host_report_path=host_report_path
     )
 
@@ -286,9 +295,13 @@ def execute_analysis_request(
     # spin. OFF by default until ES-5 — flag-gated so the dynamic path and its
     # cancel-poll cadence are byte-identical when disabled. On BLOCK
     # ``_run_static_gate`` raises ``StaticAnalysisBlockedError`` (the worker
-    # routes it to ``reject_static_job``); on ALLOW/WARN it returns here.
+    # routes it to ``reject_static_job``); on ALLOW/WARN it returns the report.
+    # ES-5: the returned report rides on ``AnalyzeResponse.static_report`` and is
+    # the signal the worker uses to record ``static_report_path`` at completion.
+    # Stays ``None`` when the flag is OFF (gate never ran).
+    static_report: StaticAnalysisReport | None = None
     if settings.static_analysis.ENABLED:
-        _run_static_gate(
+        static_report = _run_static_gate(
             request,
             reporter,
             static_analyzer_control or default_static_analyzer_control,
@@ -348,6 +361,7 @@ def execute_analysis_request(
         install_output=install_output,
         automation_output=automation_output,
         report_path=report_name,
+        static_report=static_report,
     )
 
 
@@ -596,7 +610,17 @@ def run_analysis_job(job_id: str, request: AnalyzeRequest) -> None:
     finally:
         db.close()
 
-    job_service.complete_job(job_id, result)
+    # ES-5 (ADR 0016): record the persisted static-report path on the completed
+    # row when the gate actually ran (ALLOW/WARN -> ``result.static_report`` set),
+    # so ``GET /analyze/{job_id}`` can fold the static report into the response.
+    # ``None`` when the flag was OFF (gate skipped) keeps the column NULL.
+    job_service.complete_job(
+        job_id,
+        result,
+        static_report_path=(
+            static_report_name if result.static_report is not None else None
+        ),
+    )
 
 
 __all__ = [

@@ -198,8 +198,8 @@ class StaticAnalysisSettings(BaseSettings):
     Static pre-check stage feature flag + run knobs (ES-3b, ADR 0016).
     Prefix: STATIC_ANALYSIS_
 
-    ``ENABLED`` stays OFF until the ES-5 close-out flips it after smoke
-    evidence passes (ADR 0016 §Operational notes). It shares the
+    ``ENABLED`` is ON by default from the ES-5 close-out, which flipped it after
+    smoke evidence passed (ADR 0016 §Operational notes). It shares the
     ``STATIC_ANALYSIS_ENABLED`` env var with the executor-side
     ``executor.config.StaticAnalysisSettings`` so a single flag gates both the
     app orchestrator and the host container driver. ``RULES_VERSION`` /
@@ -207,7 +207,7 @@ class StaticAnalysisSettings(BaseSettings):
     ``workflows.marketplace.static_analysis.run_static_analysis``.
     """
 
-    ENABLED: bool = False
+    ENABLED: bool = True
     RULES_VERSION: str = "0.0.0"
     TIMEOUT_BUDGET_S: int = 30
 

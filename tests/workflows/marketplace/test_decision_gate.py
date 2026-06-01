@@ -181,3 +181,55 @@ def test_promoted_blockers_are_real_production_static_rules() -> None:
     production_ids = {rule.rule_id for rule in get_production_rules()}
     assert _PROMOTED_HIGH_BLOCKERS, "the promoted-blocker set must not be empty"
     assert production_ids >= _PROMOTED_HIGH_BLOCKERS
+
+
+# ---------------------------------------------------------------------------
+# Block-reason policy (ES-5 `static-typosquat-confidence-wording`)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "confidence", [Confidence.LOW, Confidence.MEDIUM, Confidence.HIGH]
+)
+def test_promoted_block_is_policy_driven_independent_of_confidence(
+    confidence: Confidence,
+) -> None:
+    """The promoted-HIGH typosquat block is a POLICY decision, not a confidence one.
+
+    ADR 0016 §Decision 1 promotes ``extrace.s2.typosquat`` to BLOCK by *rule id*
+    at HIGH *severity*; the gate reads severity + rule_id and never the finding's
+    ``confidence`` (the rule emits MEDIUM confidence by design, parity with the
+    dynamic ``a3``). This pins the wording fix: "HIGH-severity promoted blocker",
+    not "HIGH-confidence". A promoted HIGH finding blocks at ANY confidence and
+    always names its rule id as the machine-readable cause.
+    """
+    assert _PROMOTED_TYPOSQUAT in _PROMOTED_HIGH_BLOCKERS
+    outcome = evaluate_static_gate(
+        _report(
+            _finding(
+                rule_id=_PROMOTED_TYPOSQUAT,
+                severity=Severity.HIGH,
+                confidence=confidence,
+            )
+        )
+    )
+    assert outcome.decision is StaticGateDecision.BLOCK
+    assert outcome.blocked_by == [_PROMOTED_TYPOSQUAT]
+
+
+def test_critical_block_is_severity_driven_not_policy_gated() -> None:
+    """A CRITICAL finding blocks on severity alone — promotion is not required.
+
+    Distinguishes the two block reasons so a future refactor cannot collapse them:
+    CRITICAL => severity-driven (any rule id); HIGH => only when the rule id is in
+    ``_PROMOTED_HIGH_BLOCKERS``. Pairs with
+    ``test_non_promoted_high_only_warns`` (a non-promoted HIGH warns, never
+    blocks).
+    """
+    non_promoted = "extrace.s9.not_promoted"
+    assert non_promoted not in _PROMOTED_HIGH_BLOCKERS
+    outcome = evaluate_static_gate(
+        _report(_finding(rule_id=non_promoted, severity=Severity.CRITICAL))
+    )
+    assert outcome.decision is StaticGateDecision.BLOCK
+    assert outcome.blocked_by == [non_promoted]

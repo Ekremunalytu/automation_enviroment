@@ -93,12 +93,17 @@ class StaticAnalyzerSettings:
 class StaticAnalysisSettings:
     """Static pre-check stage feature flag + budget (ES-2, ADR 0016).
 
-    ``ENABLED`` stays OFF until the ES-5 close-out flips it after smoke
-    evidence passes (ADR 0016 §Operational notes).
+    ``ENABLED`` is ON by default from the ES-5 close-out, which flipped it after
+    smoke evidence passed (ADR 0016 §Operational notes).
+
+    ES-5 (``static-settings-timeout-naming``): the budget field is named
+    ``TIMEOUT_BUDGET_S`` (env ``STATIC_ANALYSIS_TIMEOUT_BUDGET_S``) to match the
+    app-side ``appcore.api.config.StaticAnalysisSettings`` — one logical timeout,
+    one env key across both mirrors.
     """
 
     ENABLED: bool
-    TIMEOUT_S: int
+    TIMEOUT_BUDGET_S: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -149,8 +154,8 @@ def build_settings() -> Settings:
             ),
         ),
         static_analysis=StaticAnalysisSettings(
-            ENABLED=_env_bool("STATIC_ANALYSIS_ENABLED", False),
-            TIMEOUT_S=_env_int("STATIC_ANALYSIS_TIMEOUT_S", 30),
+            ENABLED=_env_bool("STATIC_ANALYSIS_ENABLED", True),
+            TIMEOUT_BUDGET_S=_env_int("STATIC_ANALYSIS_TIMEOUT_BUDGET_S", 30),
         ),
     )
 

@@ -662,3 +662,205 @@ def test_analyze_missing_publisher_422(client: TestClient) -> None:
         json={"name": "python", "version": "2025.0.0"},
     )
     assert response.status_code == 422
+
+
+# ---------------------------------------------------------------------------
+# ES-5 (ADR 0016) — static pre-check report surfacing on
+# GET /api/marketplace/analyze/{job_id}. The endpoint's
+# response_model=AnalyzeJobStatusResponse means these also pin the additive
+# `static_report` / `static_report_path` contract fields: an undeclared field
+# would be dropped by FastAPI serialization, so their presence on the wire is
+# the contract test.
+# ---------------------------------------------------------------------------
+
+
+def _static_report(
+    decision: str,
+    *,
+    blocked_by: list[str] | None = None,
+    warned_by: list[str] | None = None,
+    allow_reason: str | None = None,
+    with_finding: bool = False,
+):
+    from appcore.contracts.schema_defs.static_analysis_bundle import (
+        StaticAnalysisReport,
+    )
+    from packages.analysis_contracts.detection.enums import (
+        Confidence,
+        RuleLifecycle,
+        Severity,
+    )
+    from packages.analysis_contracts.static_detection import (
+        StaticDetectionFinding,
+        StaticDetectionReport,
+        StaticGateDecision,
+        StaticGateOutcome,
+    )
+
+    findings = []
+    if with_finding:
+        findings.append(
+            StaticDetectionFinding(
+                rule_id="extrace.s2.typosquat",
+                rule_version="1.0.0",
+                rule_lifecycle=RuleLifecycle.PRODUCTION,
+                categories=["attack.T1036"],
+                severity=Severity.HIGH,
+                confidence=Confidence.MEDIUM,
+                title="Typosquat of a popular publisher",
+                description="Publisher identity is one edit from a popular extension.",
+            )
+        )
+    return StaticAnalysisReport(
+        detection_report=StaticDetectionReport(findings=findings),
+        gate_outcome=StaticGateOutcome(
+            decision=StaticGateDecision(decision),
+            blocked_by=blocked_by or [],
+            warned_by=warned_by or [],
+            allow_reason=allow_reason,
+        ),
+    )
+
+
+def _static_snapshot(status: str, static_report_path: str | None):
+    """A job snapshot with no dynamic report_path (isolates the static branch)."""
+    return {
+        "job_id": "job-es5",
+        "status": status,
+        "publisher": "ms-python",
+        "name": "python",
+        "version": "2025.0.0",
+        "scenario": None,
+        "current_step": None,
+        "message": "done",
+        "steps": [
+            {"name": "static_analysis", "status": "completed", "message": "ok"},
+            {"name": "decision_gate", "status": "completed", "message": "ok"},
+            {"name": "reset_sandbox", "status": "completed", "message": "ok"},
+            {"name": "install_extension", "status": "completed", "message": "ok"},
+            {"name": "build_triggers", "status": "completed", "message": "ok"},
+            {"name": "run_monitoring", "status": "completed", "message": "ok"},
+            {"name": "finalize_report", "status": "completed", "message": "ok"},
+        ],
+        "report_path": None,
+        "static_report_path": static_report_path,
+        "install_output": None,
+        "automation_output": None,
+        "error_detail": None,
+        "error_code": None,
+        "created_at": 1.0,
+        "started_at": 2.0,
+        "finished_at": 3.0,
+        "updated_at": 3.0,
+    }
+
+
+def test_get_analysis_job_surfaces_static_report_on_warn(client: TestClient) -> None:
+    """A completed ALLOW/WARN job folds its persisted static report into the
+    response so the UI can render the gate verdict + static findings."""
+    snapshot = _static_snapshot("completed", "static_report_job-es5.json")
+    with (
+        patch(
+            "workflows.marketplace.router.job_service.get_job_snapshot",
+            return_value=snapshot,
+        ),
+        patch(
+            "workflows.marketplace.router.load_static_report_from_name",
+            return_value=_static_report(
+                "warn", warned_by=["extrace.s1.activation_wildcard"], with_finding=True
+            ),
+        ) as mock_loader,
+    ):
+        response = client.get("/api/marketplace/analyze/job-es5")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["static_report_path"] == "static_report_job-es5.json"
+    assert body["static_report"] is not None
+    assert body["static_report"]["gate_outcome"]["decision"] == "warn"
+    assert body["static_report"]["gate_outcome"]["warned_by"] == [
+        "extrace.s1.activation_wildcard"
+    ]
+    assert len(body["static_report"]["detection_report"]["findings"]) == 1
+    assert body["report_error"] is None
+    mock_loader.assert_called_once_with("static_report_job-es5.json")
+
+
+def test_get_analysis_job_surfaces_static_report_for_rejected_static(
+    client: TestClient,
+) -> None:
+    """A terminal `rejected_static` job surfaces the BLOCK report (the cheap
+    reject path persisted it under static_report_path)."""
+    snapshot = _static_snapshot("rejected_static", "static_report_job-es5.json")
+    with (
+        patch(
+            "workflows.marketplace.router.job_service.get_job_snapshot",
+            return_value=snapshot,
+        ),
+        patch(
+            "workflows.marketplace.router.load_static_report_from_name",
+            return_value=_static_report(
+                "block", blocked_by=["extrace.s2.typosquat"], with_finding=True
+            ),
+        ),
+    ):
+        response = client.get("/api/marketplace/analyze/job-es5")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "rejected_static"
+    assert body["static_report"]["gate_outcome"]["decision"] == "block"
+    assert body["static_report"]["gate_outcome"]["blocked_by"] == [
+        "extrace.s2.typosquat"
+    ]
+
+
+def test_get_analysis_job_static_report_unavailable_sets_report_error(
+    client: TestClient,
+) -> None:
+    """A recorded static_report_path whose artifact cannot be loaded degrades
+    gracefully — static_report is None and a report_error note is set, never a
+    500."""
+    snapshot = _static_snapshot("completed", "static_report_job-es5.json")
+    with (
+        patch(
+            "workflows.marketplace.router.job_service.get_job_snapshot",
+            return_value=snapshot,
+        ),
+        patch(
+            "workflows.marketplace.router.load_static_report_from_name",
+            return_value=None,
+        ),
+    ):
+        response = client.get("/api/marketplace/analyze/job-es5")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["static_report"] is None
+    assert body["report_error"] is not None
+    assert "static_report_unavailable" in body["report_error"]
+
+
+def test_get_analysis_job_without_static_path_omits_static_report(
+    client: TestClient,
+) -> None:
+    """A dynamic-only job (flag OFF, no static_report_path) keeps static_report
+    None and does not invoke the static loader — the dynamic-only shape is
+    unchanged."""
+    snapshot = _static_snapshot("completed", None)
+    with (
+        patch(
+            "workflows.marketplace.router.job_service.get_job_snapshot",
+            return_value=snapshot,
+        ),
+        patch(
+            "workflows.marketplace.router.load_static_report_from_name",
+        ) as mock_loader,
+    ):
+        response = client.get("/api/marketplace/analyze/job-es5")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["static_report"] is None
+    assert body["static_report_path"] is None
+    mock_loader.assert_not_called()

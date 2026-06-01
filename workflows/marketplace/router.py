@@ -34,6 +34,7 @@ from workflows.extension_catalog.service import (
 from workflows.marketplace import client as marketplace_client
 from workflows.marketplace import job_service
 from workflows.marketplace.analysis_errors import ActivationReportLoadError
+from workflows.marketplace.analysis_reports import load_static_report_from_name
 from workflows.marketplace.analysis_service import (
     ANALYZE_ERROR_TYPES,
     analyze_error_to_http_response,
@@ -321,6 +322,23 @@ def get_analysis_job(
             else:
                 snapshot["detection_report"] = None
                 snapshot["report_error"] = f"activation_report_missing: {report_path}"
+
+    # ES-5 (ADR 0016): fold the persisted static pre-check report into the
+    # response whenever the static gate ran (``static_report_path`` is set on the
+    # ALLOW/WARN completion and the BLOCK ``rejected_static`` reject; NULL when
+    # the flag was OFF). Read-side graceful degradation — a missing / unreadable
+    # static artifact surfaces as a ``report_error`` note, never a 500.
+    static_report_path = snapshot.get("static_report_path")
+    if isinstance(static_report_path, str):
+        static_report = load_static_report_from_name(static_report_path)
+        if static_report is not None:
+            snapshot["static_report"] = static_report.model_dump(mode="json")
+        else:
+            snapshot["static_report"] = None
+            snapshot["report_error"] = (
+                snapshot.get("report_error")
+                or f"static_report_unavailable: {static_report_path}"
+            )
     return snapshot
 
 

@@ -93,6 +93,41 @@ export interface DetectionReportView {
   rulesExecuted: RuleExecutionRecordView[];
 }
 
+// ES-5 (ADR 0016): static pre-check view-models. The static finding view reuses
+// the dynamic finding fields (same rule/severity/confidence shape); only the
+// evidence summary is synthesized from the static evidence locations.
+export interface StaticFindingView {
+  id: string;
+  ruleId: string;
+  title: string;
+  description: string;
+  severity: "critical" | "high" | "medium" | "low" | "info";
+  severityLabel: string;
+  confidence: "high" | "medium" | "low";
+  confidenceLabel: string;
+  evidenceCount: number;
+}
+
+export interface StaticToolStatusView {
+  tool: string;
+  status: string;
+  errorCount: number;
+}
+
+export interface StaticReportView {
+  // Gate verdict (ADR 0016 §Decision 1 block-and-warn).
+  decision: "allow" | "warn" | "block";
+  decisionLabel: string;
+  blockedBy: string[];
+  warnedBy: string[];
+  allowReason: string | null;
+  // True when any tool ran only partially (a swallowed rule error, an early
+  // budget break, a Semgrep timeout) — coverage is incomplete, not clean.
+  partial: boolean;
+  toolStatuses: StaticToolStatusView[];
+  findings: StaticFindingView[];
+}
+
 export interface ReportSummaryView {
   totalEvents: number;
   totalActivated: number;
@@ -345,4 +380,8 @@ export interface SimulationViewModel {
   lastUpdatedLabel: string;
   recentMessages: string[];
   reportError: string | null;
+  // ES-5 (ADR 0016): the static pre-check result, present once the gate has run
+  // (ALLOW/WARN completion or a BLOCK `rejected_static`). `null` when the gate
+  // was disabled or no static report could be loaded.
+  staticReport: StaticReportView | null;
 }

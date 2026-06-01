@@ -1,9 +1,13 @@
 # ADR 0016 — Static Analysis Pre-Check Stage
 
-- Status: Proposed (design intent recovered from the abandoned
-  `extrace-static` branch; resumed serially on branch `static`. Flips to
-  Accepted + implemented at the stream close-out ES-5.)
-- Date: 2026-05-29
+- Status: Accepted + Implemented (ES-5 close-out, 2026-06-01). Design
+  intent recovered from the abandoned `extrace-static` branch; resumed
+  serially on branch `static`. All four decisions shipped (ES-0..ES-5);
+  the `settings.static_analysis.ENABLED` feature flag was flipped ON after
+  the live Docker smoke evidence passed (in-house `s3.*` + Semgrep
+  `sg.*` rules fire in the hardened container; gate WARN/ALLOW threads
+  into the API/UI).
+- Date: 2026-05-29 (Proposed) · 2026-06-01 (Accepted + Implemented)
 - Authors: ekrem + Claude
 - Driving stream: Static Analysis Pre-Check Stream — ES-0 doc-reconcile
 - Related: ADR 0002 (threat model), ADR 0003 (detection taxonomy), ADR
@@ -145,8 +149,11 @@ regression documented in the handoff.
 
 ### Operational notes
 
-- Feature-flagged via `settings.static_analysis.ENABLED`, OFF by default
-  until the stream close-out (ES-5) flips it after smoke evidence passes.
+- Feature-flagged via `settings.static_analysis.ENABLED`. ON by default
+  from the ES-5 close-out (flipped after smoke evidence passed). A live
+  scan now runs the static gate ahead of the sandbox; a swallowed tool
+  error / timeout surfaces through `StaticToolExecutionRecord.status` +
+  `StaticDetectionReport.partial` (observability v2), never a silent ALLOW.
 - New security-lane tests must be enrolled into the explicit file list in
   the `test-security` Makefile target; it does not auto-discover.
 

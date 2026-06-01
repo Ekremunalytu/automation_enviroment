@@ -10,11 +10,18 @@ from typing import Any
 from pydantic import ValidationError
 
 from appcore.api.config import settings
-from appcore.contracts.schemas import AnalysisBundle
+from appcore.contracts.schemas import (
+    AnalysisBundle,
+    CombinedAnalysisBundle,
+    StaticAnalysisReport,
+)
+from appcore.logging import get_extrace_logger
 from packages.analysis_contracts import ActivationReport, ExtensionIdentity
 from packages.analysis_engine import run_detection
 
 from .analysis_errors import ActivationReportLoadError, TriggerPlanError
+
+logger = get_extrace_logger("extrace.workflows.marketplace.analysis_reports")
 
 
 def _safe_int_coerce(value: Any, *, default: int = 0) -> int:
@@ -180,6 +187,39 @@ def build_analysis_bundle_from_report_name(
         activation_report=activation_report,
         detection_report=detection_report,
     )
+
+
+def load_static_report_from_name(report_name: str) -> StaticAnalysisReport | None:
+    """Load the persisted static report for an ALLOW/WARN/BLOCK job (ES-5).
+
+    The static gate writes a ``CombinedAnalysisBundle`` (``dynamic_bundle`` None —
+    the static report rides separately from the dynamic ``report_path``) to
+    ``OUTPUT_DIR/<report_name>``; this reads it back and returns the
+    ``StaticAnalysisReport`` so ``GET /analyze/{job_id}`` can fold it into the
+    response. Mirrors ``load_report_payload`` resolution.
+
+    Returns ``None`` when the file is absent (the gate did not run / nothing was
+    persisted) or when its body is unreadable / not valid JSON / schema-invalid —
+    a degraded static artifact must surface as "no static report" rather than
+    crash the job-status read (the router records a ``report_error`` note). This
+    is a *read-side* graceful-degradation, distinct from the producer-side
+    fail-closed ``StaticReportError`` in ``static_analysis.run_static_analysis``.
+    """
+    report_path = Path(settings.project.OUTPUT_DIR) / report_name
+    if not report_path.exists():
+        return None
+    try:
+        raw = report_path.read_text(encoding="utf-8")
+        bundle = CombinedAnalysisBundle.model_validate(json.loads(raw))
+    except (OSError, UnicodeDecodeError, ValueError, ValidationError) as exc:
+        # ValueError covers json.JSONDecodeError (a ValueError subclass).
+        logger.error(
+            "Static report load failed for %s: %s",
+            report_name,
+            exc,
+        )
+        return None
+    return bundle.static_report
 
 
 def run_local_analysis(fixture_path: str | Path) -> AnalysisBundle:
@@ -350,6 +390,7 @@ __all__ = [
     "build_analysis_bundle_from_report_name",
     "build_report_messages",
     "load_report_payload",
+    "load_static_report_from_name",
     "run_local_analysis",
     "trigger_payload_exists",
     "validate_trigger_plan_report",

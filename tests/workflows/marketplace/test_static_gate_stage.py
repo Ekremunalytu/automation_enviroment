@@ -92,7 +92,7 @@ def test_apply_gate_decision_block_raises_and_persists_bundle(tmp_path: Path) ->
     assert bundle.static_report.gate_outcome.decision is StaticGateDecision.BLOCK
 
 
-def test_apply_gate_decision_warn_completes_without_persist(tmp_path: Path) -> None:
+def test_apply_gate_decision_warn_completes_and_persists(tmp_path: Path) -> None:
     reporter, events = _recording_reporter()
     report = _report(
         StaticGateOutcome(
@@ -102,12 +102,23 @@ def test_apply_gate_decision_warn_completes_without_persist(tmp_path: Path) -> N
     )
     host_report_path = tmp_path / "static_report_job.json"
 
-    _apply_static_gate_decision(reporter, report, host_report_path=host_report_path)
+    returned = _apply_static_gate_decision(
+        reporter, report, host_report_path=host_report_path
+    )
 
     gate_statuses = [status for step, status, _ in events if step == "decision_gate"]
     assert gate_statuses == ["running", "completed"]
-    # WARN continues into the dynamic stage — no cheap-reject artifact written.
-    assert not host_report_path.exists()
+    # ES-5: WARN now persists the static-only combined bundle (dynamic_bundle
+    # None) so the completion path records static_report_path and the router folds
+    # the static report into the response; the report is also returned to the
+    # caller for the response surface.
+    assert returned is report
+    assert host_report_path.is_file()
+    bundle = CombinedAnalysisBundle.model_validate(
+        json.loads(host_report_path.read_text(encoding="utf-8"))
+    )
+    assert bundle.dynamic_bundle is None
+    assert bundle.static_report.gate_outcome.decision is StaticGateDecision.WARN
 
 
 def test_apply_gate_decision_allow_completes(tmp_path: Path) -> None:
@@ -115,13 +126,23 @@ def test_apply_gate_decision_allow_completes(tmp_path: Path) -> None:
     report = _report(
         StaticGateOutcome(decision=StaticGateDecision.ALLOW, allow_reason="clean")
     )
+    host_report_path = tmp_path / "static_report_job.json"
 
-    _apply_static_gate_decision(
-        reporter, report, host_report_path=tmp_path / "static_report_job.json"
+    returned = _apply_static_gate_decision(
+        reporter, report, host_report_path=host_report_path
     )
 
     gate_statuses = [status for step, status, _ in events if step == "decision_gate"]
     assert gate_statuses == ["running", "completed"]
+    # ES-5: ALLOW returns the report and persists the static-only combined bundle
+    # so the completion path can record static_report_path.
+    assert returned is report
+    assert host_report_path.is_file()
+    bundle = CombinedAnalysisBundle.model_validate(
+        json.loads(host_report_path.read_text(encoding="utf-8"))
+    )
+    assert bundle.dynamic_bundle is None
+    assert bundle.static_report.gate_outcome.decision is StaticGateDecision.ALLOW
 
 
 # ---------------------------------------------------------------------------
@@ -311,7 +332,7 @@ def test_run_static_gate_block_derives_paths_and_persists(
     assert (tmp_path / "static_report_job.json").is_file()
 
 
-def test_run_static_gate_allow_returns_without_block(
+def test_run_static_gate_allow_returns_report_and_persists(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(analysis_service.settings.project, "OUTPUT_DIR", str(tmp_path))
@@ -319,11 +340,21 @@ def test_run_static_gate_allow_returns_without_block(
     reporter, events = _recording_reporter()
     request = AnalyzeRequest(publisher="ms-python", name="python", version="2025.0.0")
 
-    # No raise — the dynamic stage would proceed after the gate.
-    analysis_service._run_static_gate(
+    # No raise — the dynamic stage proceeds after the gate; ES-5 returns the
+    # report so the worker can record static_report_path at completion.
+    static_report = analysis_service._run_static_gate(
         request, reporter, control, static_report_name="static_report_job.json"
     )
 
+    assert static_report is not None
+    assert static_report.gate_outcome.decision is StaticGateDecision.ALLOW
     statuses = {(step, status) for step, status, _ in events}
     assert ("static_analysis", "completed") in statuses
     assert ("decision_gate", "completed") in statuses
+    # ES-5: the ALLOW path also persists the static-only combined bundle under
+    # OUTPUT_DIR (overwriting the raw detection report) for the response loader.
+    persisted = CombinedAnalysisBundle.model_validate(
+        json.loads((tmp_path / "static_report_job.json").read_text(encoding="utf-8"))
+    )
+    assert persisted.dynamic_bundle is None
+    assert persisted.static_report.gate_outcome.decision is StaticGateDecision.ALLOW

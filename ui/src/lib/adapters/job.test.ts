@@ -1,5 +1,9 @@
-import { adaptJob, computeProgressPct } from "./job";
-import type { AnalyzeJobStatusDto, AnalyzeJobStepDto } from "../types/contracts";
+import { adaptJob, adaptStaticReport, computeProgressPct } from "./job";
+import type {
+  AnalyzeJobStatusDto,
+  AnalyzeJobStepDto,
+  StaticAnalysisReportDto,
+} from "../types/contracts";
 
 const CANONICAL_STEPS: AnalyzeJobStepDto[] = [
   { name: "reset_sandbox", status: "pending", message: "Waiting" },
@@ -190,5 +194,78 @@ describe("adaptJob", () => {
     const model = adaptJob(baseDto({ status: "cancelled", report_path: null }));
     expect(model.status).toBe("cancelled");
     expect(model.warmupCopy.toLowerCase()).toContain("cancelled");
+  });
+
+  it("leaves staticReport null when the job carries no static_report", () => {
+    const model = adaptJob(baseDto());
+    expect(model.staticReport).toBeNull();
+  });
+
+  it("adapts an attached static_report (ES-5) into the view-model", () => {
+    const dto: StaticAnalysisReportDto = {
+      detection_report: {
+        findings: [
+          {
+            id: "01HZ",
+            rule_id: "extrace.s2.typosquat",
+            rule_version: "1.0.0",
+            rule_lifecycle: "production",
+            categories: ["attack.T1036"],
+            severity: "high",
+            confidence: "medium",
+            title: "Typosquat",
+            description: "near a popular publisher",
+            evidence: [
+              {
+                type: "manifest",
+                relative_path: "package.json",
+                tool: "inhouse",
+              },
+            ],
+          },
+        ],
+      },
+      gate_outcome: {
+        decision: "warn",
+        warned_by: ["extrace.s2.typosquat"],
+      },
+    };
+    const model = adaptJob(baseDto({ status: "completed", static_report: dto }));
+    expect(model.staticReport).not.toBeNull();
+    expect(model.staticReport?.decision).toBe("warn");
+    expect(model.staticReport?.decisionLabel).toBe("Warn");
+    expect(model.staticReport?.warnedBy).toEqual(["extrace.s2.typosquat"]);
+    expect(model.staticReport?.findings).toHaveLength(1);
+    expect(model.staticReport?.findings[0].severityLabel).toBe("High");
+    expect(model.staticReport?.findings[0].evidenceCount).toBe(1);
+  });
+});
+
+describe("adaptStaticReport", () => {
+  it("flags partial coverage when a tool degraded", () => {
+    const dto: StaticAnalysisReportDto = {
+      detection_report: {
+        findings: [],
+        partial: true,
+        tool_executions: [
+          {
+            tool: "semgrep",
+            version: "1.164.0",
+            rules_loaded: 4,
+            findings_emitted: 0,
+            duration_ms: 10,
+            status: "timeout",
+            error_count: 1,
+          },
+        ],
+      },
+      gate_outcome: { decision: "allow", allow_reason: "clean" },
+    };
+    const view = adaptStaticReport(dto);
+    expect(view.partial).toBe(true);
+    expect(view.decision).toBe("allow");
+    expect(view.allowReason).toBe("clean");
+    expect(view.toolStatuses[0].status).toBe("timeout");
+    expect(view.toolStatuses[0].errorCount).toBe(1);
   });
 });

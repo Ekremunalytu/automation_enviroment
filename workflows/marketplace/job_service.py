@@ -424,12 +424,19 @@ def complete_job(
     result: AnalyzeResponse,
     *,
     db: Session | None = None,
+    static_report_path: str | None = None,
 ) -> dict[str, Any]:
+    # ES-5 (ADR 0016): ``static_report_path`` records the persisted static-only
+    # combined bundle for an ALLOW/WARN job (the BLOCK path records it via
+    # ``reject_static_job`` instead). ``None`` when the static gate did not run
+    # (flag OFF) leaves the column NULL, so the dynamic-only completion is
+    # unchanged.
     update = AnalysisJobUpdate(
         status="completed",
         current_step=None,
         message=result.message,
         report_path=result.report_path,
+        static_report_path=static_report_path,
         install_output=result.install_output,
         automation_output=result.automation_output,
         finished_at=now(),

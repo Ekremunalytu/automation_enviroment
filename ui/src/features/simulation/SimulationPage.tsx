@@ -5,6 +5,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { FilterRail, type EvidenceFilterState } from "../../components/evidence/FilterRail";
 import { SlideOverDrawer } from "../../components/ui/SlideOverDrawer";
 import {
+  Badge,
   EmptyState,
   Eyebrow,
   GhostButton,
@@ -28,6 +29,10 @@ import { getStoredJobId, rememberJobId } from "./jobStorage";
 import { apiClient } from "../../lib/api/client";
 import { adaptJob } from "../../lib/adapters/job";
 import { adaptBundle, getInspectorView } from "../../lib/adapters/report";
+import type {
+  StaticFindingView,
+  StaticReportView,
+} from "../../lib/types/view-models";
 import { LiveEvidenceWorkspace } from "./sections";
 import { ActivityBars } from "./charts/ActivityBars";
 
@@ -470,6 +475,10 @@ export function SimulationPage() {
         </Panel>
       ) : null}
 
+      {model?.staticReport ? (
+        <StaticPreCheckPanel report={model.staticReport} />
+      ) : null}
+
       {model?.reportError ? (
         <section
           role="alert"
@@ -561,6 +570,102 @@ export function SimulationPage() {
         </div>
       </SlideOverDrawer>
     </div>
+  );
+}
+
+// ES-5 (ADR 0016): static pre-check surface. `static_report` arrives on the job
+// DTO (ALLOW/WARN completion or a `rejected_static` BLOCK), so it is rendered
+// here on the job-driven simulation page rather than the bundle-driven
+// ReportsPage. A local finding row keeps the reports-feature FindingCard (and
+// its cross-feature import) out of this feature, staying within the UI
+// boundary lint.
+function gateDecisionTone(decision: StaticReportView["decision"]): V3Tone {
+  if (decision === "allow") return "ok";
+  if (decision === "warn") return "warn";
+  if (decision === "block") return "danger";
+  return "neutral";
+}
+
+function staticSeverityTone(severity: StaticFindingView["severity"]): V3Tone {
+  if (severity === "critical" || severity === "high") return "danger";
+  if (severity === "medium") return "warn";
+  if (severity === "low") return "ok";
+  return "neutral";
+}
+
+function StaticFindingRow({ finding }: { finding: StaticFindingView }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        gap: 12,
+        padding: "10px 0",
+        borderTop: `1px solid ${V3.rule}`,
+      }}
+    >
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontSize: 14, color: V3.ink }}>{finding.title}</div>
+        <div
+          style={{
+            marginTop: 4,
+            fontFamily: "'JetBrains Mono', monospace",
+            fontSize: 11,
+            color: V3.ink3,
+          }}
+        >
+          {finding.ruleId} · {finding.evidenceCount} evidence
+        </div>
+      </div>
+      <Badge tone={staticSeverityTone(finding.severity)}>
+        {finding.severityLabel}
+      </Badge>
+    </div>
+  );
+}
+
+function StaticPreCheckPanel({ report }: { report: StaticReportView }) {
+  const degraded =
+    report.partial || report.toolStatuses.some((tool) => tool.status !== "ok");
+  return (
+    <Panel>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+        <Eyebrow>Static pre-check</Eyebrow>
+        <Badge tone={gateDecisionTone(report.decision)}>
+          {report.decisionLabel}
+        </Badge>
+        {degraded ? (
+          <span style={{ fontSize: 12, color: V3.warn }}>
+            Partial coverage — a static tool degraded; results may be incomplete.
+          </span>
+        ) : null}
+      </div>
+      {report.blockedBy.length ? (
+        <div style={{ fontSize: 13, color: V3.ink2, marginBottom: 6 }}>
+          Blocked by: {report.blockedBy.join(", ")}
+        </div>
+      ) : null}
+      {report.warnedBy.length ? (
+        <div style={{ fontSize: 13, color: V3.ink2, marginBottom: 6 }}>
+          Warnings: {report.warnedBy.join(", ")}
+        </div>
+      ) : null}
+      {report.decision === "allow" && report.allowReason ? (
+        <div style={{ fontSize: 13, color: V3.ink3, marginBottom: 6 }}>
+          {report.allowReason}
+        </div>
+      ) : null}
+      {report.findings.length ? (
+        <div>
+          {report.findings.map((finding) => (
+            <StaticFindingRow key={finding.id} finding={finding} />
+          ))}
+        </div>
+      ) : (
+        <div style={{ fontSize: 13, color: V3.ink3 }}>No static findings.</div>
+      )}
+    </Panel>
   );
 }
 

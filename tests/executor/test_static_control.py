@@ -197,13 +197,15 @@ def test_static_runtime_main_writes_report_and_returns_zero(tmp_path: Any) -> No
     assert report_path.is_file()
 
 
-def test_static_analysis_feature_flag_defaults_off() -> None:
-    """ADR 0016 §Operational: the static stage stays OFF until the ES-5 flip.
+def test_static_analysis_feature_flag_defaults_on() -> None:
+    """ES-5 close-out (ADR 0016 §Operational): the static pre-check stage is ON
+    by default once smoke evidence passed at the stream close-out.
 
-    Guards against an accidental default flip landing the pre-check into the
-    live pipeline before its smoke evidence passes.
+    The flag flipped from OFF to ON at ES-5 (``STATIC_ANALYSIS_ENABLED``); this
+    pins the new default so an accidental revert to OFF — which would silently
+    drop the pre-execution gate from the live pipeline — surfaces here.
     """
-    assert settings.static_analysis.ENABLED is False
+    assert settings.static_analysis.ENABLED is True
 
 
 def test_cancel_static_analysis_builds_pkill_argv(

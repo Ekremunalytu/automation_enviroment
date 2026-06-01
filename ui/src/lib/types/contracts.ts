@@ -629,4 +629,74 @@ export interface AnalyzeJobStatusDto {
   updated_at: number;
   detection_report?: DetectionReportDto | null;
   report_error?: string | null;
+  static_report_path?: string | null;
+  static_report?: StaticAnalysisReportDto | null;
+}
+
+export type StaticGateDecisionDto = "allow" | "warn" | "block";
+
+export interface StaticGateOutcomeDto {
+  decision: StaticGateDecisionDto;
+  blocked_by?: string[];
+  warned_by?: string[];
+  allow_reason?: string | null;
+  decided_at?: string;
+}
+
+export interface StaticEvidenceRefDto {
+  type: "manifest" | "source_file" | "binary_file" | "lockfile" | "dependency";
+  relative_path: string;
+  line_number?: number | null;
+  snippet?: string | null;
+  tool: string;
+  rule_match_id?: string | null;
+}
+
+export interface StaticDetectionFindingDto {
+  id?: string;
+  rule_id: string;
+  rule_version: string;
+  rule_lifecycle: RuleLifecycleDto;
+  categories: string[];
+  severity: SeverityDto;
+  confidence: ConfidenceDto;
+  title: string;
+  description: string;
+  evidence?: StaticEvidenceRefDto[];
+  adversary_class?: AdversaryClassDto | null;
+  mitigation_hint?: string | null;
+}
+
+export interface StaticToolExecutionRecordDto {
+  tool: "inhouse" | "semgrep" | "yara" | "trivy";
+  version: string;
+  rules_loaded: number;
+  findings_emitted: number;
+  duration_ms: number;
+  status?: "ok" | "partial" | "error" | "timeout";
+  error_count?: number;
+  errored_rule_ids?: string[];
+  db_freshness_days?: number | null;
+}
+
+export interface StaticSeverityCountsDto {
+  critical?: number;
+  high?: number;
+  medium?: number;
+  low?: number;
+  info?: number;
+}
+
+export interface StaticDetectionReportDto {
+  schema_version?: "2";
+  findings?: StaticDetectionFindingDto[];
+  tool_executions?: StaticToolExecutionRecordDto[];
+  severity_counts?: StaticSeverityCountsDto;
+  partial?: boolean;
+  generated_at?: string;
+}
+
+export interface StaticAnalysisReportDto {
+  detection_report: StaticDetectionReportDto;
+  gate_outcome: StaticGateOutcomeDto;
 }
