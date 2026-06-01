@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 
 from packages.analysis_planner import select_scenarios
+from packages.analysis_planner.attempts import _is_window_reload_command
 
 _BANNED_IMPORT_ROOTS = {"appcore", "executor", "fastapi", "sqlalchemy", "workflows"}
 
@@ -55,3 +56,49 @@ def test_ms_python_planner_input_matches_frozen_trigger_fixture() -> None:
     )
 
     assert payload.model_dump(mode="json") == expected_payload
+
+
+def test_is_window_reload_command_detects_reload_not_restart() -> None:
+    assert _is_window_reload_command("python.clearCacheAndReload")
+    assert _is_window_reload_command("foo.bar", "Reload Window")
+    # ``restart`` is intentionally NOT reload-class — a language-server restart
+    # does not reload the window.
+    assert not _is_window_reload_command("python.analysis.restartLanguageServer")
+    assert not _is_window_reload_command("python.runTests", "Run Tests")
+
+
+def test_reload_class_command_deferred_to_final_pass_and_ordered_last() -> None:
+    """W22 Fix 4a: a contributed ``*reload*`` command blacks out the renderer if
+    it runs early (the layered executor can't reconnect). The planner must
+    defer it out of the early UI pass to the final executable pass, ordered
+    last — without dropping it (it still runs, just last)."""
+    payload = select_scenarios(
+        [{"event_type": "onStartupFinished", "event_value": None}],
+        publisher_name="pub.ext",
+        contributes_commands=[
+            {"command": "pub.doThing", "title": "Do Thing"},
+            {"command": "pub.clearCacheAndReload", "title": "Clear Cache and Reload"},
+            {"command": "pub.other", "title": "Other"},
+        ],
+    )
+    data = payload.model_dump(mode="json")
+    by_pass = {p["pass_id"]: p["attempt_ids"] for p in data["stimulus_passes"]}
+    reload_id = next(
+        a["attempt_id"]
+        for a in data["event_attempts"]
+        if a["event_value"] == "pub.clearCacheAndReload"
+    )
+
+    # Still synthesized (not dropped)...
+    assert reload_id in {a["attempt_id"] for a in data["event_attempts"]}
+    # ...not in the early UI pass...
+    assert reload_id not in by_pass["ui_first_user_session"]
+    # ...and ordered LAST within the final executable pass.
+    assert by_pass["unresolved_event_backfill"][-1] == reload_id
+    # Non-reload contributed commands still run in the early UI pass.
+    other_ids = {
+        a["attempt_id"]
+        for a in data["event_attempts"]
+        if a["event_value"] in {"pub.doThing", "pub.other"}
+    }
+    assert other_ids <= set(by_pass["ui_first_user_session"])

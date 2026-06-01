@@ -190,7 +190,12 @@ See `packages/analysis_planner/scenarios.py` for full definitions.
   auto-generated events (from `contributes.commands` / `languages` / `views`
   / `customEditors` / `authentication` / `taskDefinitions`) are not
   synthesized — a minimal-`activationEvents` extension under-represents its
-  real activation surface. The recognition taxonomy itself is complete (all
+  real activation surface. **Partially closed on branch
+  `extension-trigger-matrix`:** the `onCommand` family is now synthesized at the
+  **planner** layer (`_apply_contributes_metadata` in
+  `packages/analysis_planner/selection.py`), live-validated on
+  `ms-python.python` (24/24 contributed commands `verified`); the other 5
+  auto-generated families remain. The recognition taxonomy itself is complete (all
   29 documented kinds in `OFFICIAL_EVENT_REGISTRY`); the gap is sourcing, not
   the kind set. Tracked as
   `[FOLLOWUP activation-event-contributes-implicit-synthesis]` (sourcing) and

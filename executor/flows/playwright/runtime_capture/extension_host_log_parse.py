@@ -274,6 +274,20 @@ def parse_all_exthost_logs(
 
     for log_path in find_exthost_logs():
         start_offset = offsets.get(str(log_path.resolve()), 0)
+        # W22 rotation guard: ``_snapshot_log_offsets`` records each log's SIZE
+        # at monitor start, and Extension Host logs only grow (append) — UNLESS
+        # a window reload (a contributed ``*reload*`` command, or
+        # ``--reload-before-run``) rotates ``exthost.log`` -> ``exthost.1.log``
+        # and starts a fresh, smaller ``exthost.log``. When the recorded offset
+        # exceeds the file's current size the tail offset is stale, so parse
+        # the whole (rotated) file instead of skipping it — otherwise the
+        # post-reload activations are dropped and the target extension is
+        # reported as "never activated" even though it clearly activated.
+        try:
+            if start_offset > log_path.stat().st_size:
+                start_offset = 0
+        except OSError:
+            start_offset = 0
         for entry in parse_activations_from_log(log_path, start_offset=start_offset):
             dedup_key = (
                 entry.extension_id,

@@ -16,6 +16,21 @@ from packages.analysis_planner.registry import (
 )
 
 
+def _is_window_reload_command(command_id: str, title: str = "") -> bool:
+    """True for contributed commands that reload the VS Code window (W22 Fix 4a).
+
+    A window reload (e.g. ``*.clearCacheAndReload``) tears down the Playwright
+    session; the layered executor cannot reconnect mid-sweep, so a reload
+    running before other commands blacks out the renderer and fails every
+    later command. Such commands are deferred + ordered last instead of being
+    dropped (running a reload last costs no coverage). Keys off a ``reload``
+    token in the id/title; ``restart`` is excluded (a language-server restart
+    does not reload the window). Over-inclusion is safe — it only orders a
+    command last.
+    """
+    return "reload" in f"{command_id} {title}".lower()
+
+
 def _build_event_attempt(
     *,
     strategy,
@@ -90,7 +105,13 @@ def _build_stimulus_passes(
         }
         for index, pass_name in enumerate(_PASS_ORDER, start=1)
     }
+    reload_attempt_ids: set[str] = set()
     for attempt in event_attempts:
+        attempt_id = str(attempt.get("attempt_id", ""))
+        if attempt_id and _is_window_reload_command(
+            str(attempt.get("event_value", ""))
+        ):
+            reload_attempt_ids.add(attempt_id)
         pass_name = str(attempt.get("pass_name", "")).strip()
         if pass_name in passes:
             passes[pass_name]["attempt_ids"].append(str(attempt.get("attempt_id", "")))
@@ -106,11 +127,20 @@ def _build_stimulus_passes(
                 str(item) for item in attempt.get("prerequisite_keys", [])
             )
     for pass_data in passes.values():
-        pass_data["attempt_ids"] = [
+        deduped = [
             attempt_id
             for attempt_id in dict.fromkeys(pass_data["attempt_ids"])
             if attempt_id
         ]
+        # W22 Fix 4a: order window-reload-class attempts LAST within the pass so
+        # their renderer-tearing reload fires only after every other attempt in
+        # the pass has run + been observed (stable partition keeps the rest of
+        # the order). The planner also defers them to the final executable pass
+        # (see ``selection._defer_window_reload_commands``); this is the
+        # in-pass ordering half that survives ``_finalize_payload``'s sort.
+        non_reload = [aid for aid in deduped if aid not in reload_attempt_ids]
+        reload_last = [aid for aid in deduped if aid in reload_attempt_ids]
+        pass_data["attempt_ids"] = non_reload + reload_last
         pass_data["prerequisite_keys"] = [
             item for item in dict.fromkeys(pass_data["prerequisite_keys"]) if item
         ]

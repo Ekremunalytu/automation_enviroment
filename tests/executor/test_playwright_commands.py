@@ -114,3 +114,72 @@ def test_open_quick_input_raises_mode_specific_error_after_retries() -> None:
         commands.open_quick_input(page, "quick_open")
 
     assert exc_info.value.reason_code == "quick_open_unavailable"
+
+
+# --- W22 Fix 3: follow-up UI drain ------------------------------------------
+
+
+class _FakeElement:
+    def __init__(self, visible: bool = True) -> None:
+        self._visible = visible
+
+    def is_visible(self) -> bool:
+        return self._visible
+
+
+class _DrainPage:
+    """Fake page modelling a stack of ``depth`` follow-up surfaces.
+
+    Each ``Escape`` removes one layer; ``query_selector`` reports a visible
+    element for ``selector`` while any layer remains. This lets us exercise the
+    drain loop's dismiss/settle/recheck cycle and its ``max_depth`` bound.
+    """
+
+    def __init__(
+        self, depth: int, *, selector: str = commands._QUICK_INPUT_VISIBLE
+    ) -> None:
+        self._remaining = depth
+        self._selector = selector
+        self.waits: list[int] = []
+        self.escapes = 0
+        self.keyboard = self  # page doubles as its own keyboard
+
+    def press(self, key: str) -> None:
+        if key == "Escape" and self._remaining > 0:
+            self._remaining -= 1
+            self.escapes += 1
+
+    def query_selector(self, selector: str) -> object | None:
+        if selector == self._selector and self._remaining > 0:
+            return _FakeElement(True)
+        return None
+
+    def wait_for_timeout(self, ms: int) -> None:
+        self.waits.append(ms)
+
+
+def test_drain_followup_ui_noop_when_nothing_visible() -> None:
+    page = _DrainPage(depth=0)
+    assert commands.drain_followup_ui(page) == 0
+    assert page.escapes == 0
+    assert page.waits == []
+
+
+def test_drain_followup_ui_dismisses_single_quick_input() -> None:
+    page = _DrainPage(depth=1)
+    assert commands.drain_followup_ui(page) == 1
+    assert page.escapes == 1
+
+
+def test_drain_followup_ui_dismisses_custom_dialog() -> None:
+    page = _DrainPage(depth=1, selector=commands._CUSTOM_DIALOG_VISIBLE)
+    assert commands.drain_followup_ui(page) == 1
+    assert page.escapes == 1
+
+
+def test_drain_followup_ui_respects_max_depth_bound() -> None:
+    # Three stacked surfaces but max_depth=2 -> only two layers dismissed; the
+    # loop stops rather than spinning on a stubborn surface.
+    page = _DrainPage(depth=3)
+    assert commands.drain_followup_ui(page, max_depth=2) == 2
+    assert page.escapes == 2

@@ -16,6 +16,7 @@ from .attempts import (
     failure_reason_code_for_exception,
     method_for_pass,
 )
+from .maintenance import post_command_maintenance
 from .prerequisites import materialize_prerequisite, trigger_item_as_dict
 from .types import (
     AttemptExecutionRecord,
@@ -261,6 +262,30 @@ def run_stimulus_plan(
                         )
                     break
 
+            # Fix 4b/4c: between command attempts, kill leftover terminals and
+            # probe renderer liveness. A renderer that died from cumulative
+            # command load is caught here and routed into the same graceful
+            # abort path as an exception-detected crash, so the next attempt is
+            # not hammered with keyboard input into a dead window. Only fires
+            # when the renderer is already gone, so healthy runs keep full
+            # coverage.
+            if not fatal_crash and post_command_maintenance(
+                page, attempt, action, monitor=monitor
+            ):
+                fatal_crash = True
+                if monitor is not None:
+                    monitor.record_automation_event(
+                        "fatal_ui_crash",
+                        (
+                            "VS Code renderer became unresponsive between "
+                            f"stimulus attempts after {attempt['attempt_id']!r} "
+                            f"in pass {stage_id!r} (cumulative command load)."
+                        ),
+                        status="failed",
+                        activation_event=str(attempt.get("activation_event", "")),
+                    )
+                break
+
         if monitor is not None:
             monitor.record_stimulus_pass_event(
                 "end",
@@ -369,6 +394,20 @@ _SUPPORTED_EVENT_FAMILIES = {
     "onTerminalShellIntegration",
 }
 
+# Ambient activation families fire automatically once the workbench is
+# ready; there is no discrete UI surface the executor can actively drive to
+# "trigger" them on demand. Rather than block them as an unsupported
+# *active* surface (which short-circuits the attempt to ``blocked`` and
+# makes ``reconcile_event_attempts`` skip it), treat them as passive
+# observation families: the benign ``fixture:startup_observe`` action runs,
+# the attempt records ``attempted_only``, and reconciliation upgrades it to
+# ``verified`` via the captured activation log (their ``activation_log_exact``
+# verification contract). See W22 onStartupFinished coverage promotion.
+_PASSIVE_OBSERVATION_FAMILIES = {
+    "onStartupFinished",
+    "*",
+}
+
 
 def _ordered_names(raw_names: list[Any]) -> list[str]:
     names: list[str] = []
@@ -471,7 +510,11 @@ def _unsupported_surface_reason(
     attempt: dict[str, Any],
 ) -> tuple[str, str] | None:
     event_family = str(attempt.get("event_family", "")).strip()
-    if not event_family or event_family in _SUPPORTED_EVENT_FAMILIES:
+    if (
+        not event_family
+        or event_family in _SUPPORTED_EVENT_FAMILIES
+        or event_family in _PASSIVE_OBSERVATION_FAMILIES
+    ):
         return None
     return (
         "unsupported_activation_surface",

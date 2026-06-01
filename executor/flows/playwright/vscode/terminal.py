@@ -33,3 +33,17 @@ def type_in_terminal(page: Page, text: str, press_enter: bool = True) -> None:
     if press_enter:
         page.keyboard.press("Enter")
         page.wait_for_timeout(300)
+
+
+def close_all_terminals(page: Page) -> None:
+    """Kill every integrated terminal to stop them accumulating across attempts.
+
+    Terminal/REPL-spawning commands (createTerminal, execInTerminal, startREPL,
+    …) each leave a live terminal plus child processes behind. Across the many
+    synthesized contributes-command attempts these pile up and feed
+    renderer/host exhaustion. Running the built-in *Kill All Terminals* command
+    between terminal-class attempts reclaims them. Coverage-neutral: the
+    command already ran and was observed — only its leftover terminal is freed.
+    """
+    run_command(page, "Terminal: Kill All Terminals")
+    page.wait_for_timeout(300)
