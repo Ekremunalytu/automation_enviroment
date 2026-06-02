@@ -144,6 +144,15 @@ services:
       - "no-new-privileges:true"
     mem_limit: ${EXECUTOR_MEM_LIMIT:-4g}
     cpus: ${EXECUTOR_CPUS:-2.0}
+    # The in-container VS Code is Electron/Chromium; its renderer keeps
+    # compositor + IPC shared buffers in /dev/shm. Docker's 64MB default is
+    # exhausted by cumulative load late in a layered scan (the
+    # unresolved_event_backfill pass: terminal/REPL spawns, language-server
+    # restart, window reload), killing the renderer with "Target crashed" ->
+    # fatal_ui_crash -> run_quality=inconclusive. Enlarge /dev/shm so the
+    # renderer survives the full run. tmpfs usage is charged to the cgroup,
+    # so this stays bounded by mem_limit above.
+    shm_size: ${EXECUTOR_SHM_SIZE:-1g}
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:${EXECUTOR_NOVNC_PORT:-6080}/ || exit 1"]
       interval: 15s

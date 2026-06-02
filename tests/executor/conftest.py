@@ -2,8 +2,29 @@ from __future__ import annotations
 
 import sys
 from types import ModuleType
+from typing import Any
 
 import pytest
+
+
+@pytest.fixture(autouse=True)
+def _no_real_sleep_in_wait_helpers(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep wait-helper settles instant in unit tests.
+
+    The command/trigger effect settles sleep host-side (``page=None`` ->
+    ``time.sleep``) in production so they don't balloon in renderer time under
+    load. A unit test must never block on that real sleep. This shim preserves
+    the fake-page path (tests that record ``page.wait_for_timeout`` calls keep
+    working) while dropping the host-side ``time.sleep`` entirely. Tests that
+    need to observe the ``_wait`` calls themselves re-patch it explicitly.
+    """
+    from executor.flows.playwright import wait_helpers
+
+    def _fast_wait(page: Any, timeout_ms: int) -> None:
+        if page is not None and hasattr(page, "wait_for_timeout"):
+            page.wait_for_timeout(timeout_ms)
+
+    monkeypatch.setattr(wait_helpers, "_wait", _fast_wait)
 
 
 @pytest.fixture(autouse=True)

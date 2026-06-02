@@ -343,7 +343,12 @@ def install_extension_in_executor(publisher: str, name: str, version: str) -> st
 
 _RELOAD_TIMEOUT = 180
 _RESET_TIMEOUT = 90
-_AUTOMATION_TIMEOUT = 1200
+# Wall-clock ceiling for the monitored automation docker-exec. Raised
+# 1200 -> 1800 as headroom: once the renderer no longer crashes early (shm_size
+# fix) a full layered ms-python scan runs the whole attempt set instead of
+# bailing, so it needs more runway. The per-command settle trim keeps the
+# typical run well under this; the ceiling is the safety net, not the target.
+_AUTOMATION_TIMEOUT = 1800
 _DEFAULT_SCENARIO = "coding_session"
 _RELOAD_CLEANUP_TIMEOUT = 5
 

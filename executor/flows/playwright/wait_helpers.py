@@ -71,7 +71,7 @@ def wait_for_command_effect(
     return _wait_for_duration(
         page,
         event_name="wait_for_command_effect",
-        timeout_ms=3000,
+        timeout_ms=1500,
         poll_ms=100,
         detail="Waiting for a command-side UI effect to surface.",
         event_recorder=event_recorder,
@@ -88,7 +88,7 @@ def wait_for_trigger_effect(
     return _wait_for_duration(
         page,
         event_name="wait_for_trigger_effect",
-        timeout_ms=3000,
+        timeout_ms=1500,
         poll_ms=100,
         detail="Waiting for a trigger-side effect to surface.",
         event_recorder=event_recorder,
@@ -243,8 +243,14 @@ def _wait_for_duration(
     _emit(
         event_recorder, event_name, detail, "running", activation_event=activation_event
     )
+    # Host-side sleep (page=None), NOT page.wait_for_timeout: an in-renderer
+    # wait is measured in *renderer* time, so under cumulative load a nominal
+    # 3s settle ballooned to ~8.5s of wall-clock. A flat host-side delay stays
+    # at its nominal cost. (A monitor.capture_runtime_snapshot() early-exit was
+    # tried and reverted — each snapshot does a renderer round-trip + full
+    # exthost-log reparse, ~8s under load, which inflated every wait to ~50s.)
     for _ in range(int(timeout_ms / poll_ms)):
-        _wait(page=page, timeout_ms=poll_ms)
+        _wait(page=None, timeout_ms=poll_ms)
     result = WaitResult(status="completed", detail=detail)
     _emit_result(event_recorder, event_name, result, activation_event=activation_event)
     return result
