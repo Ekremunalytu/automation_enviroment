@@ -189,6 +189,7 @@ describe("ruleCatalog drift guard", () => {
       "extrace.a3.typosquat",
       "extrace.a4.workspace_exfil",
       "extrace.a6.startup_ui_prompt",
+      "extrace.a7.blacklisted_domain",
     ]) {
       expect(dynamic.has(id)).toBe(true);
     }
@@ -201,6 +202,10 @@ describe("ruleCatalog drift guard", () => {
       "extrace.s2.typosquat",
       "extrace.s3.embedded_native_binary",
       "extrace.s3.unusual_file_signature",
+      "extrace.s4.blacklisted_domain",
+      "extrace.s5.suspicious_network_endpoint",
+      "extrace.s6.obfuscation_indicators",
+      "extrace.s7.hardcoded_secret",
     ]) {
       expect(staticIds.has(id)).toBe(true);
     }

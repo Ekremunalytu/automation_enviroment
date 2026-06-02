@@ -9,6 +9,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from appcore.api.config import settings
 from appcore.api.health_router import router as health_router
+from appcore.api.rules_router import router as rules_router
 from appcore.logging import (
     install_extrace_log_context_filter,
     set_executor_fingerprint_provider,
@@ -37,6 +38,28 @@ def should_recover_interrupted_jobs() -> bool:
         "true",
         "yes",
     }
+
+
+def prime_blacklist_override() -> None:
+    """Best-effort: load the operator blacklist into the in-process matcher override.
+
+    Primes the dynamic ``extrace.a7.blacklisted_domain`` rule's denylist from the
+    operator DB at boot so existing additions apply to the first analysis without
+    waiting for an edit. DB unavailable at boot is swallowed — the rule falls back
+    to the shipped seed list until the first successful refresh — so a missing DB
+    never blocks app startup (tooling builds the app with EXTRACE_SKIP_JOB_RECOVERY).
+    """
+    from appcore.db.session import SessionLocal
+    from workflows.detection_rules.blacklist_service import refresh_operator_override
+
+    try:
+        db = SessionLocal()
+        try:
+            refresh_operator_override(db)
+        finally:
+            db.close()
+    except SQLAlchemyError:
+        pass
 
 
 def create_app(*, recover_jobs: bool = True) -> FastAPI:
@@ -79,6 +102,7 @@ def create_app(*, recover_jobs: bool = True) -> FastAPI:
     application.include_router(activation_reports_router)
     application.include_router(marketplace_router)
     application.include_router(security_settings_router)
+    application.include_router(rules_router)
     application.include_router(health_router)
 
     if recover_jobs:
@@ -89,6 +113,10 @@ def create_app(*, recover_jobs: bool = True) -> FastAPI:
                 "Marketplace analysis job storage is unavailable; run migrations "
                 "and verify DB connectivity before starting the API."
             ) from exc
+
+    # Prime the dynamic blacklist matcher override from the operator DB (best-
+    # effort; never blocks startup if the DB is unavailable).
+    prime_blacklist_override()
     return application
 
 

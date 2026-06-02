@@ -1,7 +1,7 @@
 """Security-lane fire/silence contract for the Semgrep JS rules (ES-4, ADR 0016).
 
 Hermetic by design: no Semgrep wheel, no container (the security lane asserts
-outbound egress is blocked). It verifies the four custom rules exist and that the
+outbound egress is blocked). It verifies the custom rules exist and that the
 runner's mapper *fires* on each dangerous pattern Semgrep reports and stays
 *silent* otherwise. The real-Semgrep live-fire check lives in the container smoke
 test; the wheel is intentionally kept out of this lane. Enrolled in the
@@ -25,6 +25,10 @@ _EXPECTED_RULE_IDS = {
     "function_constructor",
     "child_process",
     "vm_runincontext",
+    "outbound_net_module",
+    "dynamic_require",
+    "base64_decode_exec",
+    "sensitive_file_read",
 }
 _RULES_FILE = (
     Path(semgrep_runner.__file__).resolve().parent
@@ -34,9 +38,10 @@ _RULES_FILE = (
 _VSIX = "/abs/vsix"
 
 
-def test_rules_file_defines_exactly_the_four_js_rules() -> None:
-    """The shipped rule set is exactly the four ADR 0016 §Decision 4 patterns,
-    each wired into the runner's contract-identity table."""
+def test_rules_file_defines_exactly_the_expected_js_rules() -> None:
+    """The shipped rule set is exactly the expected pattern set (the ADR 0016
+    §Decision 4 four plus the follow-on network / obfuscation / credential
+    rules), each wired into the runner's contract-identity table."""
     doc = yaml.safe_load(_RULES_FILE.read_text(encoding="utf-8"))
     ids = {rule["id"] for rule in doc["rules"]}
     assert ids == _EXPECTED_RULE_IDS

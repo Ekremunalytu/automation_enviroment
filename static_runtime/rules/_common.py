@@ -9,6 +9,8 @@ manifest/source are routed through ``redact_secrets`` (the dynamic
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+from pathlib import Path
 from typing import Any
 
 from packages.analysis_contracts.evidence import (
@@ -18,6 +20,38 @@ from packages.analysis_contracts.evidence import (
 from packages.analysis_contracts.static_detection import StaticEvidenceRef
 from packages.analysis_contracts.static_detection.finding import StaticEvidenceType
 from static_runtime.context import StaticAnalysisContext
+
+# Text/source suffixes the content-scanning rules (s4-s7) inspect. A superset of
+# the s3 file-tree set: domain / secret / obfuscation indicators hide in config
+# and markup too, not only executable JS.
+TEXT_SUFFIXES: frozenset[str] = frozenset(
+    {
+        ".js",
+        ".jsx",
+        ".ts",
+        ".tsx",
+        ".cjs",
+        ".mjs",
+        ".json",
+        ".jsonc",
+        ".md",
+        ".txt",
+        ".html",
+        ".htm",
+        ".css",
+        ".map",
+        ".yml",
+        ".yaml",
+        ".xml",
+        ".sh",
+        ".env",
+    }
+)
+# Per-file read cap for the content scanners (parity with the context's ES-4
+# adversarial-input bounds): a real source file fits well under this; a larger
+# file is scanned only up to the cap so the rules cannot be driven into an
+# unbounded read inside the hardened container.
+_MAX_TEXT_BYTES = 1024 * 1024
 
 # Mirror of StaticEvidenceRef.snippet's max_length=400 contract bound.
 _SNIPPET_MAX = 400
@@ -87,4 +121,74 @@ def file_evidence(
     )
 
 
-__all__ = ["file_evidence", "manifest_evidence", "manifest_string", "safe_snippet"]
+def is_text_document(relative_path: str) -> bool:
+    """True when ``relative_path``'s suffix is one the content scanners inspect."""
+    return Path(relative_path).suffix.lower() in TEXT_SUFFIXES
+
+
+def read_text_head(path: Path, *, max_bytes: int = _MAX_TEXT_BYTES) -> str:
+    """Read up to ``max_bytes`` of ``path`` as utf-8 (undecodable bytes dropped).
+
+    Returns '' on any OSError so a single unreadable file degrades to "no text"
+    rather than raising out of a rule pass.
+    """
+    try:
+        with path.open("rb") as handle:
+            raw = handle.read(max_bytes)
+    except OSError:
+        return ""
+    return raw.decode("utf-8", "ignore")
+
+
+def iter_text_documents(context: StaticAnalysisContext) -> Iterator[tuple[str, str]]:
+    """Yield ``(relative_path, text)`` for each text/source file (bounded read).
+
+    The manifest (package.json) is itself a text document, so the content
+    scanners (s4 domains, s5 endpoints, s6 obfuscation, s7 secrets) see it
+    without special-casing. Symlinks are already filtered by ``iter_files``.
+    """
+    for relative_path, absolute_path in context.iter_files():
+        if not is_text_document(relative_path):
+            continue
+        text = read_text_head(absolute_path)
+        if text:
+            yield relative_path, text
+
+
+def line_number_at(text: str, index: int) -> int:
+    """1-based line number of character offset ``index`` within ``text``."""
+    return text.count("\n", 0, max(index, 0)) + 1
+
+
+def line_at(text: str, line_number: int) -> str:
+    """Return the (stripped) content of 1-based ``line_number``, '' if out of range."""
+    if line_number < 1:
+        return ""
+    lines = text.splitlines()
+    if line_number > len(lines):
+        return ""
+    return lines[line_number - 1].strip()
+
+
+def evidence_type_for(
+    context: StaticAnalysisContext, relative_path: str
+) -> StaticEvidenceType:
+    """``manifest`` for the parsed package.json, ``source_file`` otherwise."""
+    if relative_path == context.manifest_relative_path:
+        return "manifest"
+    return "source_file"
+
+
+__all__ = [
+    "TEXT_SUFFIXES",
+    "evidence_type_for",
+    "file_evidence",
+    "is_text_document",
+    "iter_text_documents",
+    "line_at",
+    "line_number_at",
+    "manifest_evidence",
+    "manifest_string",
+    "read_text_head",
+    "safe_snippet",
+]

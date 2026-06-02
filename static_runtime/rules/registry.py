@@ -17,6 +17,10 @@ _BUILTIN_STATIC_RULE_MODULES = (
     "static_runtime.rules.s1_manifest_red_flags",
     "static_runtime.rules.s2_typosquat_static",
     "static_runtime.rules.s3_file_tree_heuristics",
+    "static_runtime.rules.s4_blacklisted_domain",
+    "static_runtime.rules.s5_network_indicators",
+    "static_runtime.rules.s6_obfuscation_indicators",
+    "static_runtime.rules.s7_secret_exposure",
 )
 _BUILTINS_LOADED = False
 

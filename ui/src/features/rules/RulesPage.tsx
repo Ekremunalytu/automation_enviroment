@@ -1,5 +1,5 @@
-import { startTransition, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { startTransition, useMemo, useState, type CSSProperties } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
 import {
@@ -24,13 +24,14 @@ import type {
 } from "../../lib/types/view-models";
 import { RuleDraftSection } from "./RuleDraftSection";
 
-type RulesMode = "registry" | "draft";
+type RulesMode = "registry" | "draft" | "blacklist";
 type SeverityFilter = "all" | "critical" | "high" | "medium" | "low";
 type StatusFilter = "all" | "fired" | "not_fired" | "error";
 
 const MODE_TABS: TabSpec<RulesMode>[] = [
   { value: "registry", label: "Registry" },
   { value: "draft", label: "Draft" },
+  { value: "blacklist", label: "Blacklist" },
 ];
 
 const SEVERITY_TABS: TabSpec<SeverityFilter>[] = [
@@ -117,7 +118,9 @@ function conditionRows(row: RuleRow) {
 export function RulesPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
-  const mode: RulesMode = searchParams.get("tab") === "draft" ? "draft" : "registry";
+  const tabParam = searchParams.get("tab");
+  const mode: RulesMode =
+    tabParam === "draft" ? "draft" : tabParam === "blacklist" ? "blacklist" : "registry";
   const fromEventId = searchParams.get("from");
   const search = searchParams.get("q") || "";
   const severity = normalizeSeverity(searchParams.get("severity"));
@@ -204,6 +207,8 @@ export function RulesPage() {
 
       {mode === "draft" ? (
         <RuleDraftSection fromEventId={fromEventId} report={report ?? null} />
+      ) : mode === "blacklist" ? (
+        <BlacklistDomainsPanel report={report} />
       ) : (
         <RegistryMode
           reportQuery={reportQuery}
@@ -311,6 +316,231 @@ function RegistryMode({
         )}
       </Panel>
     </>
+  );
+}
+
+const BLACKLIST_STATIC_RULE_ID = "extrace.s4.blacklisted_domain";
+const BLACKLIST_DYNAMIC_RULE_ID = "extrace.a7.blacklisted_domain";
+
+const BLACKLIST_GRID: CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "minmax(0, 1fr) 96px 96px",
+  gap: 12,
+  alignItems: "center",
+  padding: "8px 12px",
+};
+
+function blacklistRowStyle(withBorder: boolean): CSSProperties {
+  return {
+    ...BLACKLIST_GRID,
+    borderBottom: withBorder ? `1px solid ${V3.rule2}` : "none",
+  };
+}
+
+function extractErrorReason(error: unknown): string {
+  // requestJson surfaces the API's JSON detail in the thrown error message; show
+  // the human reason if present, else the raw message.
+  const message = error instanceof Error ? error.message : String(error);
+  const match = message.match(/"reason"\s*:\s*"([^"]+)"/u);
+  return match ? match[1] : message;
+}
+
+function BlacklistDomainsPanel({ report }: { report: ActivationReportView | undefined }) {
+  const queryClient = useQueryClient();
+  const [draft, setDraft] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  const query = useQuery({
+    queryKey: ["rules", "blacklist-domains"],
+    queryFn: ({ signal }) => apiClient.getBlacklistDomains(signal),
+  });
+  const data = query.data;
+
+  const invalidate = () =>
+    queryClient.invalidateQueries({ queryKey: ["rules", "blacklist-domains"] });
+
+  const addMutation = useMutation({
+    mutationFn: (domain: string) => apiClient.addBlacklistDomain(domain),
+    onSuccess: () => {
+      setDraft("");
+      setError(null);
+      void invalidate();
+    },
+    onError: (err) => setError(extractErrorReason(err)),
+  });
+  const removeMutation = useMutation({
+    mutationFn: (domain: string) => apiClient.removeBlacklistDomain(domain),
+    onSuccess: () => {
+      setError(null);
+      void invalidate();
+    },
+    onError: (err) => setError(extractErrorReason(err)),
+  });
+  const busy = addMutation.isPending || removeMutation.isPending;
+
+  const submitAdd = () => {
+    const domain = draft.trim();
+    if (domain) addMutation.mutate(domain);
+  };
+
+  // Blacklist findings in the latest report, lowercased title+description, so we
+  // can name which effective domains were actually observed/matched.
+  const blacklistFindingTexts = [
+    ...(report?.staticReport?.findings ?? []).filter(
+      (f) => f.ruleId === BLACKLIST_STATIC_RULE_ID,
+    ),
+    ...(report?.detection?.findings ?? []).filter(
+      (f) => f.ruleId === BLACKLIST_DYNAMIC_RULE_ID,
+    ),
+  ].map((f) => `${f.title} ${f.description}`.toLowerCase());
+  const observed = blacklistFindingTexts.length > 0;
+  const observedDomains = (data?.effective ?? []).filter((domain) =>
+    blacklistFindingTexts.some((text) => text.includes(domain.toLowerCase())),
+  );
+
+  return (
+    <Panel label="Blacklist domains">
+      {observed ? (
+        <div
+          style={{
+            marginBottom: 14,
+            border: `1px solid ${V3.coral}`,
+            background: V3.dangerBg,
+            padding: "10px 12px",
+          }}
+        >
+          <div className="micro-label" style={{ color: V3.coral }}>
+            Observed in latest report
+          </div>
+          {observedDomains.length ? (
+            <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {observedDomains.map((domain) => (
+                <Badge key={domain} tone="danger">
+                  {domain}
+                </Badge>
+              ))}
+            </div>
+          ) : (
+            <div style={{ marginTop: 6, color: V3.ink3, fontSize: 12.5 }}>
+              A blacklisted domain was matched — see the Rules registry for details.
+            </div>
+          )}
+        </div>
+      ) : null}
+
+      <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <Field
+            label="Add domain"
+            mono
+            placeholder="e.g. evil.example"
+            value={draft}
+            onChange={(value) => {
+              setDraft(value);
+              setError(null);
+            }}
+          />
+        </div>
+        <GhostButton
+          ariaLabel="Add blacklist domain"
+          onClick={submitAdd}
+          disabled={busy || !draft.trim()}
+        >
+          Add
+        </GhostButton>
+      </div>
+      {error ? (
+        <div style={{ marginTop: 8, color: V3.coral, fontSize: 12.5, lineHeight: 1.5 }}>
+          {error}
+        </div>
+      ) : null}
+
+      {query.isLoading ? (
+        <div style={{ marginTop: 12, color: V3.ink3, fontSize: 13 }}>Loading denylist…</div>
+      ) : query.isError ? (
+        <div style={{ marginTop: 12, color: V3.coral, fontSize: 13 }}>
+          Blacklist unavailable: {String(query.error)}
+        </div>
+      ) : data ? (
+        <div style={{ marginTop: 14 }}>
+          <div style={{ border: `1px solid ${V3.rule}` }}>
+            <div
+              style={{
+                ...blacklistRowStyle(true),
+                background: V3.paper2,
+                borderBottom: `1px solid ${V3.rule}`,
+              }}
+            >
+              <span className="micro-label">Domain</span>
+              <span className="micro-label">Source</span>
+              <span className="micro-label" style={{ textAlign: "right" }}>
+                Action
+              </span>
+            </div>
+            {data.effective.map((domain, index) => {
+              const isOperator =
+                data.operator.includes(domain) && !data.seed.includes(domain);
+              return (
+                <div
+                  key={domain}
+                  style={blacklistRowStyle(index !== data.effective.length - 1)}
+                >
+                  <span
+                    style={{
+                      fontFamily: "'JetBrains Mono', monospace",
+                      fontSize: 12,
+                      color: V3.ink,
+                      wordBreak: "break-all",
+                    }}
+                  >
+                    {domain}
+                  </span>
+                  <span>
+                    <Badge tone={isOperator ? "warn" : "neutral"}>
+                      {isOperator ? "operator" : "seed"}
+                    </Badge>
+                  </span>
+                  <span style={{ textAlign: "right" }}>
+                    {isOperator ? (
+                      <GhostButton
+                        ariaLabel={`Remove ${domain}`}
+                        onClick={() => removeMutation.mutate(domain)}
+                        disabled={busy}
+                        style={{ padding: "4px 8px", fontSize: 11 }}
+                      >
+                        Remove
+                      </GhostButton>
+                    ) : (
+                      <span
+                        style={{
+                          color: V3.ink4,
+                          fontSize: 11,
+                          fontFamily: "'JetBrains Mono', monospace",
+                        }}
+                      >
+                        fixed
+                      </span>
+                    )}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+          <div
+            style={{
+              marginTop: 8,
+              fontFamily: "'JetBrains Mono', monospace",
+              fontSize: 11,
+              color: V3.ink3,
+              letterSpacing: "0.06em",
+            }}
+          >
+            {data.count} domain{data.count === 1 ? "" : "s"} effective ({data.seed.length}{" "}
+            seed + {data.operator.length} operator)
+          </div>
+        </div>
+      ) : null}
+    </Panel>
   );
 }
 

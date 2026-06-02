@@ -19,6 +19,14 @@ the decision record is [`ADR 0016`](../adrs/0016-static-analysis-pre-check-stage
 Stable sub-iter IDs (`ES-0`..`ES-5`) are inherited from the handoff and
 must not be renumbered — code comments and tests reference them.
 
+> **Post-ES-5 note (2026-06-02):** the in-house rule set was later expanded
+> (6 → 10 rules, `s1`–`s7`; 4 → 8 Semgrep rules) and a dynamic `a7` blacklist
+> rule plus an operator-editable `blacklist_domains` field were added on the
+> `extension-trigger-matrix` branch — see
+> [`active-work/extension-trigger-matrix.md`](extension-trigger-matrix.md) for the
+> full record. The ES-3a/ES-4 "6 in-house + 4 Semgrep" counts below describe those
+> frozen increments and are left as historical record.
+
 ## Status (Quick Glance)
 
 - **Stream active on branch `static`** (cut from `main`). Single-branch,
