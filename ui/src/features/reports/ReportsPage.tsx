@@ -37,7 +37,7 @@ import {
   adaptBundle,
   adaptReport,
   buildInteractionGraph,
-  buildRiskRadar,
+  buildRiskRadarAxes,
   getInspectorView,
 } from "../../lib/adapters/report";
 import { FindingCard } from "./FindingCard";
@@ -330,7 +330,7 @@ export function ReportsPage() {
 
       {report ? (
         <RiskRadarPanel
-          scores={buildRiskRadar(report)}
+          axes={buildRiskRadarAxes(report)}
           compositeScore={report.summary.signalSummaryScore ?? 0}
         />
       ) : null}

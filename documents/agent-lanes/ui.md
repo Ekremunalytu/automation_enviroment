@@ -17,6 +17,9 @@ shared v3 primitives, and UI tests.
 - `ui/src/features/reports/RuleMatrixSection.tsx` + `buildRuleMatrix.ts` +
   `ruleCatalog.ts` — Rule matrix tab (static + dynamic rule-activation grid;
   see `documents/active-work/extension-trigger-matrix.md`)
+- `ui/src/components/evidence/RiskRadarPanel.tsx` + `buildRiskRadarAxes`
+  (`ui/src/lib/adapters/report.ts`) — Reports Risk Radar; detection-driven
+  data derivation in `documents/architecture/risk-radar.md`
 - `ui/src/features/simulation/`
 - `ui/src/features/simulation/charts/` — bespoke SVG (`ActivityBars`)
 - `ui/src/features/rules/` — rule library + draft preview

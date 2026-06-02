@@ -1016,38 +1016,199 @@ export type ReportRiskRadar = {
   _synthetic: true;
 };
 
-export function buildRiskRadar(report: ActivationReportView): ReportRiskRadar {
-  const events = report.evidence;
-  const networkCount = events.filter((event) => event.kind === "network").length;
-  const fileCount = events.filter((event) => event.kind === "file").length;
-  const sensitiveCount = events.filter((event) => event.sensitive).length;
-  const processCount = events.filter((event) => event.kind === "process").length;
-  const activationCount = events.filter((event) => event.kind === "activation").length;
-  const totalSignals = report.riskSummary.totalSignals ?? events.length;
-  const denom = Math.max(totalSignals, 1);
+type AxisScoreKey = "threat" | "exfil" | "persistence" | "privesc" | "defense" | "resource";
 
-  const threat = clampScore((sensitiveCount / Math.max(events.length, 1)) * 100 + (report.riskSummary.high ?? 0) * 20);
-  const exfil = clampScore((networkCount / Math.max(events.length, 1)) * 110 + (report.riskSummary.medium ?? 0) * 12);
-  const persistence = clampScore((activationCount / denom) * 70 + (report.riskSignals.length ?? 0) * 8);
-  const privesc = clampScore((processCount / denom) * 90);
-  const defense = clampScore(100 - (report.coverageSummary.covered ?? 0) * 12);
-  const resource = clampScore((fileCount / Math.max(events.length, 1)) * 90 + (report.riskSummary.low ?? 0) * 5);
+// Severity grades emitted by the detection engine
+// (packages/analysis_engine/signals/policy.py) → base points per signal.
+const SEVERITY_WEIGHT: Record<string, number> = {
+  critical: 100,
+  high: 75,
+  medium: 45,
+  low: 25,
+};
+
+// Maps each real backend risk-signal category to the radar axis it informs.
+// The vocabulary is fixed by the detection policy; an axis only lights up
+// when the engine actually fired a signal mapped to it. Keep this in sync
+// with packages/analysis_engine/signals/policy.py.
+const CATEGORY_AXIS: Record<string, AxisScoreKey> = {
+  background_outbound_network: "exfil",
+  sensitive_file_and_network_combo: "exfil",
+  credential_or_secret_access: "threat",
+  background_sensitive_file_access: "persistence",
+  multiple_sensitive_artifacts: "resource",
+  correlative_suspicious_activity: "privesc",
+  ui_blocker_verification_gap: "defense",
+};
+
+function clamp01(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return Math.max(0, Math.min(1, value));
+}
+
+/**
+ * Per-axis scoring derived entirely from the engine's real detections.
+ *
+ * Each axis aggregates the risk signals mapped to it, weighted by the
+ * detection engine's own ``severity`` grade × ``confidence`` — so an axis is
+ * non-zero only when the engine actually fired a signal for it. ``Defense
+ * gap`` additionally reflects measured coverage shortfall (missing capability
+ * tracks plus half-credit for partial ones). ``coverageFraction`` (0-1)
+ * scales only that coverage contribution so the trend can replay how the gap
+ * closed over the run; at ``1`` it yields the final score.
+ */
+function computeAxisScores(
+  signals: ReadonlyArray<RiskSignalView>,
+  coverageFraction: number,
+  report: ActivationReportView,
+): Record<AxisScoreKey, number> {
+  const acc: Record<AxisScoreKey, number> = {
+    threat: 0,
+    exfil: 0,
+    persistence: 0,
+    privesc: 0,
+    defense: 0,
+    resource: 0,
+  };
+  for (const signal of signals) {
+    const axis = CATEGORY_AXIS[signal.category];
+    if (!axis) continue;
+    const severity = SEVERITY_WEIGHT[(signal.severity || "").toLowerCase()] ?? 35;
+    acc[axis] += severity * clamp01(signal.confidence ?? 0.5);
+  }
+
+  const coverage = report.coverageSummary;
+  const tracked = Math.max((coverage.covered ?? 0) + (coverage.partial ?? 0) + (coverage.missing ?? 0), 1);
+  const coverageGap = (((coverage.missing ?? 0) + (coverage.partial ?? 0) * 0.5) / tracked) * 100;
+  acc.defense += coverageGap * clamp01(coverageFraction);
 
   return {
-    threat,
-    exfil,
-    persistence,
-    privesc,
-    defense,
-    resource,
-    Threat: threat,
-    Exfil: exfil,
-    Persistence: persistence,
-    Privesc: privesc,
-    Defense: defense,
-    Resource: resource,
+    threat: clampScore(acc.threat),
+    exfil: clampScore(acc.exfil),
+    persistence: clampScore(acc.persistence),
+    privesc: clampScore(acc.privesc),
+    defense: clampScore(acc.defense),
+    resource: clampScore(acc.resource),
+  };
+}
+
+export function buildRiskRadar(report: ActivationReportView): ReportRiskRadar {
+  const scores = computeAxisScores(report.riskSignals, 1, report);
+  return {
+    threat: scores.threat,
+    exfil: scores.exfil,
+    persistence: scores.persistence,
+    privesc: scores.privesc,
+    defense: scores.defense,
+    resource: scores.resource,
+    Threat: scores.threat,
+    Exfil: scores.exfil,
+    Persistence: scores.persistence,
+    Privesc: scores.privesc,
+    Defense: scores.defense,
+    Resource: scores.resource,
     _synthetic: true,
   };
+}
+
+const RISK_AXIS_DEFS: ReadonlyArray<{ id: string; key: AxisScoreKey; label: string; note: string }> = [
+  { id: "exfil", key: "exfil", label: "Exfiltration", note: "outbound network" },
+  { id: "threat", key: "threat", label: "Threat surface", note: "credential / secret access" },
+  { id: "persistence", key: "persistence", label: "Persistence", note: "startup-triggered access" },
+  { id: "privesc", key: "privesc", label: "Process spawn", note: "correlated suspicious" },
+  { id: "defense", key: "defense", label: "Defense gap", note: "coverage shortfall" },
+  { id: "resource", key: "resource", label: "Filesystem scope", note: "multiple sensitive files" },
+];
+
+const RISK_TREND_BUCKETS = 6;
+
+export type RiskRadarAxisView = {
+  id: string;
+  key: AxisScoreKey;
+  label: string;
+  note: string;
+  /** Final axis score (0-100); identical to the matching ``buildRiskRadar`` value. */
+  score: number;
+  /** Real reference line: the mean axis score for this run. */
+  benchmark: number;
+  /** Number of real detection signals the engine fired for this axis. */
+  signalCount: number;
+  /** Real cumulative trajectory over the run; ``trend[trend.length - 1] === score``. */
+  trend: number[];
+};
+
+/**
+ * Builds the per-axis risk-radar view model entirely from the report's real
+ * detections.
+ *
+ * Each trend point replays the detections that had emerged by that point in
+ * the run (a signal is placed at the time of its earliest evidence event),
+ * so the sparkline reflects how detected risk actually accumulated and its
+ * last point equals the displayed score. ``benchmark`` is the run's mean axis
+ * score and ``signalCount`` is how many real signals drove the axis. When the
+ * engine fired nothing, the threat axes are honestly zero — only ``Defense
+ * gap`` can be non-zero, from measured coverage shortfall.
+ */
+export function buildRiskRadarAxes(report: ActivationReportView): RiskRadarAxisView[] {
+  // Resolve each signal to the time of its earliest evidence event so the
+  // trend can replay detections in the order they actually emerged.
+  const eventTime = new Map<string, number>();
+  let runEnd = 0;
+  for (const event of report.evidence) {
+    if (typeof event.relTimeS === "number" && Number.isFinite(event.relTimeS)) {
+      eventTime.set(event.eventId, event.relTimeS);
+      if (event.relTimeS > runEnd) runEnd = event.relTimeS;
+    }
+  }
+  const timedSignals = report.riskSignals.map((signal) => {
+    let earliest = Number.POSITIVE_INFINITY;
+    for (const id of signal.evidenceEventIds) {
+      const t = eventTime.get(id);
+      if (t !== undefined && t < earliest) earliest = t;
+    }
+    return { signal, time: earliest };
+  });
+
+  const buckets: Record<AxisScoreKey, number>[] = [];
+  for (let step = 1; step <= RISK_TREND_BUCKETS; step += 1) {
+    const fraction = step / RISK_TREND_BUCKETS;
+    const isLast = step === RISK_TREND_BUCKETS;
+    const threshold = runEnd * fraction;
+    const active = timedSignals
+      .filter(({ time }) => (Number.isFinite(time) ? time <= threshold : isLast))
+      .map(({ signal }) => signal);
+    buckets.push(computeAxisScores(active, fraction, report));
+  }
+  const finalScores = buckets[buckets.length - 1];
+
+  const signalCounts: Record<AxisScoreKey, number> = {
+    threat: 0,
+    exfil: 0,
+    persistence: 0,
+    privesc: 0,
+    defense: 0,
+    resource: 0,
+  };
+  for (const signal of report.riskSignals) {
+    const axis = CATEGORY_AXIS[signal.category];
+    if (axis) signalCounts[axis] += 1;
+  }
+
+  const scores = RISK_AXIS_DEFS.map((def) => finalScores[def.key]);
+  const mean = scores.length
+    ? Math.round(scores.reduce((sum, value) => sum + value, 0) / scores.length)
+    : 0;
+
+  return RISK_AXIS_DEFS.map((def) => ({
+    id: def.id,
+    key: def.key,
+    label: def.label,
+    note: def.note,
+    score: finalScores[def.key],
+    benchmark: mean,
+    signalCount: signalCounts[def.key],
+    trend: buckets.map((bucket) => bucket[def.key]),
+  }));
 }
 
 function clampScore(value: number): number {
