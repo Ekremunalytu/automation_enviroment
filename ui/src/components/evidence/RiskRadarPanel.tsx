@@ -1,20 +1,10 @@
 import { Badge, RISK_COLOR, V3, type V3Tone } from "../v3";
-import type { ReportRiskRadar } from "../../lib/adapters/report";
+import type { RiskRadarAxisView } from "../../lib/adapters/report";
 
 type RiskRadarPanelProps = {
-  scores: ReportRiskRadar;
+  axes: RiskRadarAxisView[];
   compositeScore: number;
-  baselineDelta?: number;
 };
-
-const RISK_AXES_META = [
-  { id: "exfil", key: "exfil", label: "Exfiltration", benchmark: 20, weight: "med", note: "outbound POSTs", trend: [4, 8, 18, 28, 36] },
-  { id: "threat", key: "threat", label: "Threat surface", benchmark: 35, weight: "heavy", note: "sensitive event ratio", trend: [22, 31, 45, 58, 68] },
-  { id: "persistence", key: "persistence", label: "Persistence", benchmark: 10, weight: "light", note: "autoload hooks", trend: [2, 4, 6, 9, 12] },
-  { id: "privesc", key: "privesc", label: "Process spawn", benchmark: 25, weight: "light", note: "child / shell", trend: [8, 12, 14, 18, 22] },
-  { id: "defense", key: "defense", label: "Defense gap", benchmark: 40, weight: "med", note: "coverage shortfall", trend: [18, 24, 30, 44, 54] },
-  { id: "resource", key: "resource", label: "Filesystem scope", benchmark: 15, weight: "med", note: "file ops", trend: [6, 12, 22, 34, 41] },
-] as const;
 
 function clampScore(value: number): number {
   if (!Number.isFinite(value)) return 0;
@@ -40,13 +30,9 @@ function sparkPath(trend: ReadonlyArray<number>) {
     .join(" ");
 }
 
-export function RiskRadarPanel({ scores, compositeScore, baselineDelta = 14 }: RiskRadarPanelProps) {
+export function RiskRadarPanel({ axes, compositeScore }: RiskRadarPanelProps) {
   const score = clampScore(compositeScore);
   const tier = scoreTone(score);
-  const axes = RISK_AXES_META.map((axis) => ({
-    ...axis,
-    score: clampScore(scores[axis.key]),
-  }));
   const tierCounts = [
     { label: "high", n: axes.filter((axis) => axis.score > 60).length, c: RISK_COLOR.high },
     { label: "medium", n: axes.filter((axis) => axis.score > 35 && axis.score <= 60).length, c: RISK_COLOR.medium },
@@ -145,10 +131,6 @@ export function RiskRadarPanel({ scores, compositeScore, baselineDelta = 14 }: R
           </div>
           <div style={{ marginTop: 8, display: "flex", justifyContent: "center", gap: 8, alignItems: "center" }}>
             <Badge tone={tier.tone}>{tier.label} risk</Badge>
-            <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10.5, color: V3.ink3 }}>
-              {baselineDelta >= 0 ? "+" : ""}
-              {baselineDelta} vs baseline
-            </span>
           </div>
         </div>
 
@@ -191,9 +173,9 @@ export function RiskRadarPanel({ scores, compositeScore, baselineDelta = 14 }: R
           }}
         >
           <span className="eyebrow">Axis</span>
-          <span className="eyebrow">Score · vs benchmark</span>
+          <span className="eyebrow">Score · vs run avg</span>
           <span className="eyebrow" style={{ textAlign: "right" }}>Trend</span>
-          <span className="eyebrow" style={{ textAlign: "right" }}>Weight</span>
+          <span className="eyebrow" style={{ textAlign: "right" }}>Signals</span>
           <span className="eyebrow" style={{ textAlign: "right" }}>Value</span>
         </div>
 
@@ -278,18 +260,22 @@ export function RiskRadarPanel({ scores, compositeScore, baselineDelta = 14 }: R
 
                 <div style={{ textAlign: "right" }}>
                   <span
+                    title={
+                      axis.signalCount > 0
+                        ? `${axis.signalCount} detection signal${axis.signalCount === 1 ? "" : "s"} fired for this axis`
+                        : "No detection signals fired for this axis"
+                    }
                     style={{
                       fontFamily: "'JetBrains Mono', monospace",
-                      fontSize: 10.5,
-                      color: V3.ink3,
-                      textTransform: "uppercase",
-                      letterSpacing: "0.08em",
-                      padding: "3px 6px",
-                      border: `1px solid ${V3.rule2}`,
+                      fontSize: 12,
+                      fontVariantNumeric: "tabular-nums",
+                      color: axis.signalCount > 0 ? V3.coral : V3.ink3,
+                      padding: "3px 8px",
+                      border: `1px solid ${axis.signalCount > 0 ? V3.coral : V3.rule2}`,
                       background: V3.paper,
                     }}
                   >
-                    {axis.weight}
+                    {axis.signalCount}
                   </span>
                 </div>
 
@@ -355,7 +341,7 @@ export function RiskRadarPanel({ scores, compositeScore, baselineDelta = 14 }: R
                 letterSpacing: "0.08em",
               }}
             >
-              population benchmark
+              run average
             </span>
           </div>
         </div>

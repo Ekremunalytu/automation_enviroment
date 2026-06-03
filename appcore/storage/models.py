@@ -2,6 +2,7 @@
 
 from appcore.storage.model_defs.analysis_job import AnalysisJob
 from appcore.storage.model_defs.base import Base, capability_support_enum
+from appcore.storage.model_defs.blacklist_domain import BlacklistDomain
 from appcore.storage.model_defs.contributes import (
     ExtensionContributes,
     ExtensionContributesAuthentication,
@@ -21,6 +22,7 @@ from appcore.storage.model_defs.operator_setting import OperatorSetting
 __all__ = [
     "AnalysisJob",
     "Base",
+    "BlacklistDomain",
     "Extension",
     "ExtensionActivationEvents",
     "ExtensionCapabilities",

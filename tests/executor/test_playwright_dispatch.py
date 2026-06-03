@@ -379,6 +379,41 @@ def test_finalize_passes_through_nonzero_exit_code() -> None:
     assert mon.runner_status == 1
 
 
+def test_finalize_is_idempotent() -> None:
+    """W22: callable from both the normal path and the ``finally`` net without
+    finalizing twice — ``mon.stop()`` + ``save`` run exactly once."""
+    mon = _StubMonitor()
+    args = SimpleNamespace(report_path="/results/run.json")
+    result = SimpleNamespace(
+        requested_scenarios=[],
+        executed_scenarios=[],
+        failed_scenarios=[],
+        skipped_scenarios=[],
+        extra_trigger_failures=[],
+    )
+
+    finalize_monitor_report(mon=mon, execution_result=result, exit_code=0, args=args)
+    finalize_monitor_report(mon=mon, execution_result=result, exit_code=0, args=args)
+
+    assert mon.stop_calls == 1
+    assert mon.report.saved_paths == ["/results/run.json"]
+
+
+def test_finalize_tolerates_none_execution_result() -> None:
+    """W22: when an interrupt/exception fires before the stimulus produced a
+    result, ``execution_result`` is None — the result-recording step is
+    skipped but ``stop()`` (activation parse) + ``save`` still run."""
+    mon = _StubMonitor()
+    args = SimpleNamespace(report_path="/results/interrupted.json")
+
+    finalize_monitor_report(mon=mon, execution_result=None, exit_code=143, args=args)
+
+    assert mon.execution_results == []  # record skipped (no result)
+    assert mon.stop_calls == 1  # activation parse still happens
+    assert mon.report.saved_paths == ["/results/interrupted.json"]
+    assert mon.runner_status == 143
+
+
 # ---------------------------------------------------------------------------
 # make_page_callbacks
 # ---------------------------------------------------------------------------

@@ -10,6 +10,7 @@ import { RiskRadarPanel } from "../../components/evidence/RiskRadarPanel";
 import { SlideOverDrawer } from "../../components/ui/SlideOverDrawer";
 import {
   Badge,
+  Dialog,
   EmptyState,
   Eyebrow,
   Field,
@@ -36,21 +37,22 @@ import {
   adaptBundle,
   adaptReport,
   buildInteractionGraph,
-  buildRiskRadar,
+  buildRiskRadarAxes,
   getInspectorView,
 } from "../../lib/adapters/report";
-import type { EvidenceInspectorView } from "../../lib/types/view-models";
 import { FindingCard } from "./FindingCard";
+import { RuleMatrixSection } from "./RuleMatrixSection";
 import { EventTimeline } from "./charts/EventTimeline";
 import { EventDensityStrip } from "./charts/EventDensityStrip";
 import { InteractionGraph } from "./charts/InteractionGraph";
 import { DISPLAY_CAPS } from "../../lib/displayCaps";
 
 type ReportModel = NonNullable<ReturnType<typeof adaptReport>>;
-type ReportTab = "overview" | "interactions" | "timeline" | "ledger" | "audit";
+type ReportTab = "overview" | "matrix" | "interactions" | "timeline" | "ledger" | "audit";
 
 const REPORT_TABS: TabSpec<ReportTab>[] = [
   { value: "overview", label: "Overview" },
+  { value: "matrix", label: "Rule matrix" },
   { value: "interactions", label: "Interactions" },
   { value: "timeline", label: "Timeline" },
   { value: "ledger", label: "Event ledger" },
@@ -58,7 +60,7 @@ const REPORT_TABS: TabSpec<ReportTab>[] = [
 ];
 
 function normalizeTab(raw: string | null): ReportTab {
-  if (raw === "interactions" || raw === "timeline" || raw === "ledger" || raw === "audit") return raw;
+  if (raw === "matrix" || raw === "interactions" || raw === "timeline" || raw === "ledger" || raw === "audit") return raw;
   if (raw === "activation" || raw === "file" || raw === "network" || raw === "scenario" || raw === "evidence" || raw === "logs") {
     return "ledger";
   }
@@ -95,7 +97,10 @@ export function ReportsPage() {
   const reportParam = searchParams.get("report") || "latest";
   const selectedTab = normalizeTab(searchParams.get("tab"));
   const eventId = searchParams.get("event");
-  const inspectorTab = normalizeInspectorTab(searchParams.get("inspector"));
+  const inspectorParam = searchParams.get("inspector");
+  // Default the inspector to the Relations tab (interaction graph) on first open;
+  // an explicit ?inspector= value still wins so manual tab switches persist in the URL.
+  const inspectorTab = inspectorParam ? normalizeInspectorTab(inspectorParam) : "relations";
   const filters = parseEvidenceFilters(searchParams);
   const deferredSearch = useDeferredValue(filters.search);
   const [inspectorOpen, setInspectorOpen] = useState(
@@ -187,12 +192,18 @@ export function ReportsPage() {
   const verdictTone = severityToTone(
     verdict === "malicious" ? "critical" : verdict === "suspicious" ? "medium" : "low",
   );
+  const inspectorTone: "accent" | "warn" | "danger" = inspector
+    ? inspector.event.sensitive
+      ? "danger"
+      : inspector.event.kind === "network"
+        ? "warn"
+        : "accent"
+    : "accent";
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>
       <header style={{ paddingBottom: 24, borderBottom: `1px solid ${V3.rule}` }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-          <Eyebrow>Reports</Eyebrow>
           {verdict ? (
             <Badge tone={verdictTone}>
               Verdict · {verdict.toUpperCase()}
@@ -240,8 +251,8 @@ export function ReportsPage() {
       <Panel padded={false}>
         <div
           style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 240px), 1fr))",
+            display: "flex",
+            flexWrap: "wrap",
             gap: 14,
             alignItems: "end",
             padding: "16px 18px",
@@ -249,7 +260,7 @@ export function ReportsPage() {
             background: V3.paper3,
           }}
         >
-          <label style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
+          <label style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0, flex: "1 1 220px" }}>
             <Eyebrow>Report</Eyebrow>
             <select
               value={reportParam}
@@ -284,9 +295,10 @@ export function ReportsPage() {
             value={filters.search}
             onChange={(value) => updateFilters({ ...filters, search: value })}
             mono
+            style={{ flex: "2 1 280px", minWidth: 0 }}
           />
 
-          <GhostButton ariaLabel="Filters" onClick={() => setFiltersOpen(true)}>
+          <GhostButton ariaLabel="Filters" onClick={() => setFiltersOpen(true)} style={{ flex: "0 0 auto" }}>
             Filters {activeFilterCount ? `(${activeFilterCount})` : ""}
           </GhostButton>
         </div>
@@ -311,7 +323,6 @@ export function ReportsPage() {
             padding: "14px 18px",
           }}
         >
-          <KVRow k="Active report" v={report?.metadataFilename || "Preparing selected report"} />
           <KVRow k="Last updated" v={formatModified(activeReport?.modified)} />
           <KVRow k="Run quality" v={report?.summary.runQuality ?? "—"} mono={false} />
         </div>
@@ -319,7 +330,7 @@ export function ReportsPage() {
 
       {report ? (
         <RiskRadarPanel
-          scores={buildRiskRadar(report)}
+          axes={buildRiskRadarAxes(report)}
           compositeScore={report.summary.signalSummaryScore ?? 0}
         />
       ) : null}
@@ -345,6 +356,8 @@ export function ReportsPage() {
         <EmptyState eyebrow="Error" body={String(reportQuery.error)} title="Report could not be loaded" />
       ) : !report ? null : selectedTab === "overview" ? (
         <OverviewSection report={report} />
+      ) : selectedTab === "matrix" ? (
+        <RuleMatrixSection report={report} />
       ) : selectedTab === "interactions" ? (
         <InteractionsSection graph={interactionGraph} report={report} onSelectEvent={setSelectedEvent} />
       ) : selectedTab === "timeline" ? (
@@ -394,57 +407,42 @@ export function ReportsPage() {
         />
       </SlideOverDrawer>
 
-      <SlideOverDrawer
-        eyebrow="Inspector"
-        description="Provenance and relations for the selected event."
-        onClose={() => setInspectorOpen(false)}
+      <Dialog
         open={inspectorOpen}
+        onClose={() => setInspectorOpen(false)}
+        eyebrow="Inspector"
         title={inspector?.event.summaryDisplay || "Event inspector"}
+        tone={inspectorTone}
+        width={1200}
+        actions={
+          inspector ? (
+            <>
+              <GhostButton
+                ariaLabel="Draft rule from event"
+                onClick={() =>
+                  navigate(`/rules?tab=draft&from=${encodeURIComponent(inspector.event.eventId)}`)
+                }
+              >
+                Draft rule from event
+              </GhostButton>
+              <GhostButton ariaLabel="Close inspector" onClick={() => setInspectorOpen(false)}>
+                Close
+              </GhostButton>
+            </>
+          ) : undefined
+        }
       >
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          <Inspector
-            activeTab={inspectorTab}
-            onTabChange={(next) => {
-              const params = new URLSearchParams(searchParams);
-              params.set("inspector", next);
-              setSearchParams(params, { replace: true });
-            }}
-            inspector={inspector}
-            detection={report?.detection || null}
-          />
-          <InspectorFooter
-            inspector={inspector}
-            onDraftRule={(id) => navigate(`/rules?tab=draft&from=${encodeURIComponent(id)}`)}
-          />
-        </div>
-      </SlideOverDrawer>
-    </div>
-  );
-}
-
-function InspectorFooter({
-  inspector,
-  onDraftRule,
-}: {
-  inspector: EvidenceInspectorView | null;
-  onDraftRule: (eventId: string) => void;
-}) {
-  if (!inspector) return null;
-  return (
-    <div
-      style={{
-        borderTop: `1px solid ${V3.rule}`,
-        paddingTop: 12,
-        display: "flex",
-        justifyContent: "flex-end",
-      }}
-    >
-      <GhostButton
-        ariaLabel="Draft rule from event"
-        onClick={() => onDraftRule(inspector.event.eventId)}
-      >
-        Draft rule from event
-      </GhostButton>
+        <Inspector
+          activeTab={inspectorTab}
+          onTabChange={(next) => {
+            const params = new URLSearchParams(searchParams);
+            params.set("inspector", next);
+            setSearchParams(params, { replace: true });
+          }}
+          inspector={inspector}
+          detection={report?.detection || null}
+        />
+      </Dialog>
     </div>
   );
 }
@@ -481,11 +479,7 @@ function OverviewSection({
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
       {rationale ? (
-        <Panel label="Verdict rationale">
-          <p style={{ fontSize: 13.5, color: V3.ink2, lineHeight: 1.6, margin: 0, maxWidth: 820 }}>
-            {rationale}
-          </p>
-        </Panel>
+        <RationalePanel rationale={rationale} verdict={report.detection?.verdict} />
       ) : null}
       <VerdictSummaryPanel detection={report.detection} />
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 320px), 1fr))", gap: 20 }}>
@@ -493,6 +487,60 @@ function OverviewSection({
         <BreakdownPanel label="Risk mix" rows={buildRiskRows(report)} />
       </div>
     </div>
+  );
+}
+
+// The backend ships the rationale as a single string, typically
+// "<lead>: code_a, code_b, …". Split it into a lead sentence plus one chip per
+// reason code so a long incomplete-analysis list reads as scannable signals
+// instead of a wall of comma-joined text. Falls back to the raw string when the
+// shape doesn't match.
+function RationalePanel({ rationale, verdict }: { rationale: string; verdict?: string }) {
+  const splitAt = rationale.indexOf(":");
+  const lead = splitAt >= 0 ? rationale.slice(0, splitAt).trim() : "";
+  const codes =
+    splitAt >= 0
+      ? rationale
+          .slice(splitAt + 1)
+          .split(",")
+          .map((part) => part.trim())
+          .filter(Boolean)
+      : [];
+  const chipTone: V3Tone =
+    verdict === "malicious" ? "danger" : verdict === "suspicious" ? "warn" : "neutral";
+
+  if (!codes.length) {
+    return (
+      <Panel label="Verdict rationale">
+        <p style={{ fontSize: 13.5, color: V3.ink2, lineHeight: 1.6, margin: 0, maxWidth: 820 }}>
+          {rationale}
+        </p>
+      </Panel>
+    );
+  }
+
+  return (
+    <Panel label="Verdict rationale">
+      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        {lead ? (
+          <p style={{ fontSize: 13.5, color: V3.ink2, lineHeight: 1.6, margin: 0, maxWidth: 820 }}>
+            {lead.charAt(0).toUpperCase() + lead.slice(1)}
+          </p>
+        ) : null}
+        <div>
+          <Eyebrow>
+            {codes.length} signal{codes.length === 1 ? "" : "s"}
+          </Eyebrow>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 10 }}>
+            {codes.map((code) => (
+              <span key={code} title={code}>
+                <Badge tone={chipTone}>{code.replaceAll("_", " ")}</Badge>
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+    </Panel>
   );
 }
 

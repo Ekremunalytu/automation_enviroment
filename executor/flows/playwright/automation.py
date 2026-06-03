@@ -239,6 +239,34 @@ _FATAL_UI_ERROR_MARKERS: tuple[str, ...] = (
 FATAL_UI_CRASH_REASON = "fatal_ui_crash"
 
 
+def _renderer_page_dead(page: Page | None) -> bool:
+    """True when the VS Code renderer page/context is closed or unresponsive.
+
+    The page-level half of ``is_fatal_ui_error``: a closed page, a closed
+    context, or a short-timeout liveness probe that raises. Shared with the
+    non-destructive ``is_renderer_alive`` inter-attempt health gate (W22).
+    """
+    if page is None:
+        return False
+    try:
+        if page.is_closed():
+            return True
+    except PlaywrightError:
+        return True
+    ctx_is_closed = getattr(page.context, "is_closed", None)
+    if callable(ctx_is_closed):
+        try:
+            if ctx_is_closed():
+                return True
+        except PlaywrightError:
+            return True
+    try:
+        page.wait_for_function("1 === 1", timeout=1500)
+    except PlaywrightError:
+        return True
+    return False
+
+
 def is_fatal_ui_error(exc: BaseException, page: Page | None) -> tuple[bool, str]:
     """Classify whether an exception means the VS Code renderer is dead.
 
@@ -251,25 +279,22 @@ def is_fatal_ui_error(exc: BaseException, page: Page | None) -> tuple[bool, str]
     for marker in _FATAL_UI_ERROR_MARKERS:
         if marker in message:
             return True, FATAL_UI_CRASH_REASON
-    if page is None:
-        return False, ""
-    try:
-        if page.is_closed():
-            return True, FATAL_UI_CRASH_REASON
-    except PlaywrightError:
-        return True, FATAL_UI_CRASH_REASON
-    ctx_is_closed = getattr(page.context, "is_closed", None)
-    if callable(ctx_is_closed):
-        try:
-            if ctx_is_closed():
-                return True, FATAL_UI_CRASH_REASON
-        except PlaywrightError:
-            return True, FATAL_UI_CRASH_REASON
-    try:
-        page.wait_for_function("1 === 1", timeout=1500)
-    except PlaywrightError:
+    if _renderer_page_dead(page):
         return True, FATAL_UI_CRASH_REASON
     return False, ""
+
+
+def is_renderer_alive(page: Page) -> bool:
+    """Non-destructive inter-attempt renderer liveness gate (W22 Fix 4b).
+
+    Reuses the same closed-page / closed-context / liveness-probe checks as
+    ``is_fatal_ui_error`` but without an exception to classify, so the layered
+    stimulus loop can detect a renderer that died *between* command attempts
+    (cumulative command load) and route into the graceful-abort path instead
+    of driving keyboard input into a dead window on the next (innocent)
+    attempt. Returns ``False`` when the renderer is gone.
+    """
+    return not _renderer_page_dead(page)
 
 
 def _run_scenario_sequence(

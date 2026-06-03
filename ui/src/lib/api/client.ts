@@ -1,5 +1,5 @@
 import type {
-  AnalysisBundleDto,
+  ReportBundleDto,
   ActivationReportDto,
   AnalyzeJobStatusDto,
   MarketplaceDownloadResponseDto,
@@ -9,6 +9,16 @@ import type {
   VsixThresholdsUpdateRequestDto,
 } from "../types/contracts";
 import { requestJson } from "./http";
+
+export interface BlacklistDomainsDto {
+  /** Shipped baseline denylist (read-only, not operator-removable). */
+  seed: string[];
+  /** Operator-added domains (editable / removable). */
+  operator: string[];
+  /** seed ∪ operator — what the detection rules actually use. */
+  effective: string[];
+  count: number;
+}
 
 export const apiClient = {
   listReports(signal?: AbortSignal) {
@@ -21,7 +31,7 @@ export const apiClient = {
     return requestJson<ActivationReportDto>(`/api/activations/${name}`, { signal });
   },
   getReportBundleByName(name: string, signal?: AbortSignal) {
-    return requestJson<AnalysisBundleDto>(`/api/activations/${name}/bundle`, { signal });
+    return requestJson<ReportBundleDto>(`/api/activations/${name}/bundle`, { signal });
   },
   async getLatestReportBundle(signal?: AbortSignal) {
     const latest = await requestJson<ActivationReportDto>("/api/activations/latest", {
@@ -31,7 +41,7 @@ export const apiClient = {
     if (!filename) {
       throw new Error("Latest activation report did not include a filename.");
     }
-    return requestJson<AnalysisBundleDto>(`/api/activations/${filename}/bundle`, {
+    return requestJson<ReportBundleDto>(`/api/activations/${filename}/bundle`, {
       signal,
     });
   },
@@ -76,6 +86,22 @@ export const apiClient = {
   },
   getHealth(signal?: AbortSignal) {
     return requestJson<{ status: string; service: string }>("/api/health", { signal });
+  },
+  getBlacklistDomains(signal?: AbortSignal) {
+    return requestJson<BlacklistDomainsDto>("/api/rules/blacklist-domains", { signal });
+  },
+  addBlacklistDomain(domain: string, signal?: AbortSignal) {
+    return requestJson<BlacklistDomainsDto>("/api/rules/blacklist-domains", {
+      method: "POST",
+      body: JSON.stringify({ domain }),
+      signal,
+    });
+  },
+  removeBlacklistDomain(domain: string, signal?: AbortSignal) {
+    return requestJson<BlacklistDomainsDto>(
+      `/api/rules/blacklist-domains/${encodeURIComponent(domain)}`,
+      { method: "DELETE", signal },
+    );
   },
   getSecurityThresholds(signal?: AbortSignal) {
     return requestJson<VsixThresholdsResponseDto>(

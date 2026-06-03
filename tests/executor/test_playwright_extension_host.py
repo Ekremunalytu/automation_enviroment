@@ -536,6 +536,31 @@ def test_parse_all_exthost_logs_applies_per_file_start_offset(
     assert [e.extension_id for e in entries] == ["publisher.keep"]
 
 
+def test_parse_all_exthost_logs_reparses_rotated_log(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """W22 rotation guard: a recorded offset beyond the file's current size
+    means a window reload rotated/truncated the log, so the tail offset is
+    stale — parse the whole (fresh) file instead of skipping it, otherwise the
+    post-reload activations are dropped and the extension shows as never-active.
+    """
+    log_dir = tmp_path / "20260101T000000" / "exthost1"
+    log_dir.mkdir(parents=True)
+    log_path = log_dir / "exthost.log"
+    # Fresh post-rotation log, SMALLER than the stale recorded offset.
+    log_path.write_text(
+        "[2026-01-01 10:00:00.000] eager activation publisher.afterreload\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(extension_host, "VSCODE_LOGS_DIR", tmp_path)
+    stale_offset = log_path.stat().st_size + 10_000  # > current size → rotation
+    offsets = {str(log_path.resolve()): stale_offset}
+
+    entries = extension_host.parse_all_exthost_logs(start_offsets=offsets)
+
+    assert [e.extension_id for e in entries] == ["publisher.afterreload"]
+
+
 def test_parse_all_exthost_logs_dedups_across_files(
     tmp_path: Path, monkeypatch
 ) -> None:

@@ -347,7 +347,7 @@ lands — W21-0 paterni: primary `8434323` + self-stamp `19bd9c7`.)
   noopChatHandler)` at extension activate(). Handler returns
   synchronously; no chat model interaction.
 - `onLanguageModelTool:*` covered via
-  `vscode.lm.registerTool("extrace.harness.lm.tool",
+  `vscode.lm.registerTool("extrace-harness-lm-tool",
   { invoke: noopToolInvoke })` at activate() +
   `vscode.lm.invokeTool(...)` from `stimulus_dispatch.js` under
   the `onLanguageModelTool` family branch. `noopToolInvoke`
@@ -545,13 +545,13 @@ Five-family taxonomy (stable short-names; load-bearing for W22-5 canary fixture)
    - `_noopChatHandler` async no-op handler.
    - `_noopToolInvoke` returns `new vscode.LanguageModelToolResult([new vscode.LanguageModelTextPart("extrace-harness-noop")])` — synthesized in-process; no model call.
    - `vscode.chat.createChatParticipant("extrace.harness.chat", _noopChatHandler)` + push to `context.subscriptions`.
-   - `vscode.lm.registerTool("extrace.harness.lm.tool", { invoke: _noopToolInvoke })` + push to `context.subscriptions`.
+   - `vscode.lm.registerTool("extrace-harness-lm-tool", { invoke: _noopToolInvoke })` + push to `context.subscriptions`.
    - Baseline markers: `chat_participant_state` phase=`registered`, `lm_tool_state` phase=`registered`. Both route via `emitHarnessEvent` → reserved OutputChannel (W19-X Bug B paterni). Ephemeral lifecycle (W19-X Bug C lesson).
    - Engine compat: GA since VS Code 1.90; existing `engines.vscode: "^1.90.0"` covers; NO proposed APIs.
 
 4. **`executor/flows/harness_extension/stimulus_dispatch.js`** — REPLACE pre-W22-2 incomplete UI-nav chat handler (L52-61 typed `@<participant> harness` into chat input box; did not exercise any chat API surface reliably) with two distinct API-level branches:
    - `onChatParticipant` branch: emits `chat_participant_state` phase=`stimulated` parser-confirmation marker (registration already fired the activation event at activate(); this marker confirms a stimulus pass exercised the family).
-   - `onLanguageModelTool` branch: `await vscode.lm.invokeTool("extrace.harness.lm.tool", { input: { stimulus: value || "harness" } })` + emits `lm_tool_state` phase=`invoked` marker. try/catch emits phase=`invoke_failed` marker on error so surface changes don't silently fail.
+   - `onLanguageModelTool` branch: `await vscode.lm.invokeTool("extrace-harness-lm-tool", { input: { stimulus: value || "harness" } })` + emits `lm_tool_state` phase=`invoked` marker. try/catch emits phase=`invoke_failed` marker on error so surface changes don't silently fail.
 
 5. **`tests/platform/contracts/test_capability_support_invariants.py`** — 5 new W22-2 invariants appended after W21-2 comments block:
    - `test_chat_official_track_is_covered`

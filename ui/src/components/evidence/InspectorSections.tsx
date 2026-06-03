@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { ReactECharts } from "../../lib/charts/core";
@@ -33,7 +34,7 @@ export function ProvenanceTab({
         </p>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         <Meta label="Timestamp" value={inspector.event.timestampDisplay} />
         <Meta label="Scenario" value={inspector.event.scenarioLabel} />
         <Meta label="Extension" value={inspector.event.extensionId || "(unattributed)"} />
@@ -89,6 +90,27 @@ function ContextBlock({ title, body }: { title: string; body: string }) {
 export function RelationsTab({ inspector }: { inspector: EvidenceInspectorView }) {
   const clusters = buildRelationClusters(inspector);
   const visibleLinks = inspector.related.slice(0, 8);
+  // Size the tree to its leaf count so rows never collapse on top of each other;
+  // the dialog scrolls and the chart still supports roam/zoom for dense graphs.
+  const leafRows = clusters.reduce(
+    (sum, cluster) =>
+      sum + cluster.kinds.reduce((s, kind) => s + kind.peers.length + (kind.hiddenPeers ? 1 : 0), 0),
+    0,
+  );
+  const graphHeight = Math.min(640, Math.max(300, leafRows * 22 + 70));
+  // echarts-for-react only re-fits on window resize, so a chart mounted inside the
+  // dynamically-sized dialog lays its tree out against the wrong dimensions and
+  // renders skewed until something triggers a resize (the user found zooming fixed
+  // it). Observe the container and re-fit the instance whenever its box settles.
+  const chartRef = useRef<{ resize: () => void } | null>(null);
+  const chartHostRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const host = chartHostRef.current;
+    if (!host || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(() => chartRef.current?.resize());
+    observer.observe(host);
+    return () => observer.disconnect();
+  }, []);
 
   return (
     <div className="space-y-5">
@@ -104,7 +126,17 @@ export function RelationsTab({ inspector }: { inspector: EvidenceInspectorView }
         <>
           <div className="rounded-none border border-line bg-panelAlt p-4">
             <div className="micro-label">Hierarchy Map</div>
-            <ReactECharts className="mt-3 h-[260px] w-full" option={buildRelationGraphOption(inspector)} />
+            <div ref={chartHostRef} className="mt-3 w-full">
+              <ReactECharts
+                className="w-full"
+                style={{ height: graphHeight }}
+                option={buildRelationGraphOption(inspector)}
+                onChartReady={(chart: { resize: () => void }) => {
+                  chartRef.current = chart;
+                  chart.resize();
+                }}
+              />
+            </div>
           </div>
 
           <section className="space-y-3">
@@ -326,14 +358,19 @@ function buildRelationGraphOption(inspector: EvidenceInspectorView) {
       {
         type: "tree",
         data: [hierarchy],
-        top: "4%",
-        left: "8%",
-        bottom: "4%",
-        right: "28%",
+        top: "3%",
+        left: "12%",
+        bottom: "3%",
+        right: "26%",
         orient: "LR",
+        // Pan/zoom stays enabled. The skewed-until-you-zoom bug was the chart
+        // initialising before the dialog settled its size; the ResizeObserver in
+        // RelationsTab now re-fits the instance once the box is final, so it lands
+        // correctly on open and the user can still roam.
         roam: true,
+        initialTreeDepth: -1,
         symbol: "circle",
-        symbolSize: 12,
+        symbolSize: 10,
         edgeShape: "polyline",
         edgeForkPosition: "32%",
         label: {
@@ -343,11 +380,15 @@ function buildRelationGraphOption(inspector: EvidenceInspectorView) {
           verticalAlign: "middle",
           color: "#f4f1ea",
           fontSize: 11,
+          formatter: (node: { name: string }) =>
+            node.name.length > 30 ? `${node.name.slice(0, 29)}…` : node.name,
         },
         leaves: {
           label: {
             position: "right",
             align: "left",
+            formatter: (node: { name: string }) =>
+              node.name.length > 34 ? `${node.name.slice(0, 33)}…` : node.name,
           },
         },
         emphasis: {

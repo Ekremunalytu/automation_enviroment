@@ -977,6 +977,55 @@ def test_main_resets_reporter_and_disconnects_when_execution_raises(
     assert reporter_calls[-1] is None
     assert disconnect_calls == [browser]
 
+    # W22 Fix A: the ``finally`` still finalized despite the mid-run exception —
+    # the Extension Host activation parse (``stop``) + ``report.save`` ran, so
+    # the report is not abandoned at its last live persist.
+    monitor = _FakeMonitor.instances[0]
+    assert monitor.stop_calls == 1
+    assert len(monitor.report.saved_paths) == 1
+
+
+def test_main_finalizes_report_in_finally_on_sigterm_style_interrupt(
+    monkeypatch,
+) -> None:
+    """W22 Fix A (the crux). When an external timeout sends SIGTERM, the
+    installed handler raises ``SystemExit`` mid-stimulus. ``SystemExit`` is a
+    ``BaseException`` — a bare ``except Exception`` would miss it — so
+    ``runner.main`` finalizes from a ``finally``. This pins that the activation
+    parse (``mon.stop``) + ``report.save`` STILL run on that path; before the
+    fix the report was left at its last live persist (``activated: []`` /
+    ``monitoring_end: 0.0``) while the activation sat unparsed in exthost.log.
+    """
+    _FakeMonitor.instances.clear()
+    monkeypatch.setattr(entrypoint, "uuid4", lambda: SimpleNamespace(hex="interrupted"))
+    browser, _, _, disconnect_calls = _configure_main_runtime(
+        monkeypatch,
+        ["--monitor", "--scenario", "coding_session"],
+    )
+    monkeypatch.setattr(entrypoint.monitor, "ExtensionMonitor", _FakeMonitor)
+
+    def _sigterm_style_interrupt(*_a, **_k):
+        raise SystemExit(143)  # 128 + SIGTERM — what the signal handler raises
+
+    monkeypatch.setattr(
+        entrypoint.automation, "run_selected_scenarios", _sigterm_style_interrupt
+    )
+
+    with pytest.raises(SystemExit):
+        entrypoint.main()
+
+    monitor = _FakeMonitor.instances[0]
+    # Activation parse + report save STILL happened in the finally...
+    assert monitor.stop_calls == 1
+    assert monitor.report.saved_paths == ["/results/activation_report_interrupted.json"]
+    # ...the runner status was surfaced on the report before the save. It is 0,
+    # not 143: the report status reflects the executor's own dispatch accounting
+    # (clean up to the interrupt); the 143 is the *process* exit code.
+    assert monitor.runner_status_calls == [0]
+    # ...and the browser was still disconnected (the whole finally net is intact
+    # on the BaseException path, not just on ordinary exceptions).
+    assert disconnect_calls == [browser]
+
 
 # ---------------------------------------------------------------------------
 # PageRef — mutable wrapper for cross-module page rebinding (W12-4)

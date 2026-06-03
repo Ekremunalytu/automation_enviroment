@@ -1,0 +1,23 @@
+# Blacklisted domains — the operator-tunable "blacklist_domains" rules field.
+#
+# One registrable domain per line; '#' comments and blank lines are ignored.
+# Matching is host-suffix aware: a blacklisted "evil.example" also matches any
+# subdomain (e.g. "c2.evil.example") but NOT a different registrable domain
+# ("notevil.example", "evil.example.org"). Both the static rule
+# (static_runtime.rules.s4_blacklisted_domain, scans extension source/manifest)
+# and the dynamic rule (packages.analysis_engine.rules.a7_blacklisted_domain,
+# checks observed outbound hosts) read this single curated copy.
+#
+# The seed entries below use RFC 2606 / RFC 6761 reserved TLDs (.example /
+# .test / .invalid) so the shipped default is a SAFE, clearly-synthetic
+# placeholder set. Operators replace these with their own threat-intel feed
+# (known C2, malware staging, and exfiltration endpoints).
+evil.example
+c2.example
+exfil.example
+data-exfil.example
+malware-staging.example
+credential-harvest.example
+beacon.test
+malware.test
+exfil.invalid

@@ -1297,6 +1297,11 @@
       "order": 2,
       "description": "Drive visible VS Code workflows first so user-led evidence stays primary.",
       "attempt_ids": [
+        "heuristic-oncommand-python-analysis-restartlanguageserver",
+        "heuristic-oncommand-python-clearworkspaceinterpreter",
+        "heuristic-oncommand-python-configuretests",
+        "heuristic-oncommand-python-copytestid",
+        "heuristic-oncommand-python-createnewfile",
         "official-oncommand-python-copilotsetuptests",
         "official-onlanguage-python"
       ],
@@ -1336,6 +1341,11 @@
       "order": 4,
       "description": "Retry events through deterministic harness paths when the visible UI cannot reach them reliably.",
       "attempt_ids": [
+        "heuristic-oncommand-python-analysis-restartlanguageserver",
+        "heuristic-oncommand-python-clearworkspaceinterpreter",
+        "heuristic-oncommand-python-configuretests",
+        "heuristic-oncommand-python-copytestid",
+        "heuristic-oncommand-python-createnewfile",
         "official-oncommand-python-copilotsetuptests",
         "official-ondebuginitialconfigurations",
         "official-ondebugresolve-python",
@@ -1344,7 +1354,8 @@
         "official-onlanguagemodeltool-get-python-environment-details",
         "official-onlanguagemodeltool-get-python-executable-details",
         "official-onlanguagemodeltool-install-python-packages",
-        "official-onterminalshellintegration-python"
+        "official-onterminalshellintegration-python",
+        "heuristic-oncommand-python-clearcacheandreload"
       ],
       "prerequisite_keys": [
         "command_target",
@@ -1367,6 +1378,282 @@
     }
   ],
   "event_attempts": [
+    {
+      "attempt_id": "heuristic-oncommand-python-analysis-restartlanguageserver",
+      "declared_event": "onCommand:python.analysis.restartLanguageServer",
+      "activation_event": "onCommand:python.analysis.restartLanguageServer",
+      "event_family": "onCommand",
+      "event_value": "python.analysis.restartLanguageServer",
+      "track": "heuristic",
+      "selected_by": "contributes_command",
+      "selection_reasons": [
+        "contributes.commands declared an invocable command surface"
+      ],
+      "pass_name": "ui_first_user_session",
+      "backfill_pass_name": "unresolved_event_backfill",
+      "prerequisite_keys": [
+        "command_target"
+      ],
+      "verification_contract": [
+        "activation_log_prefix",
+        "target_runtime_delta"
+      ],
+      "trigger_method": "ui_simulation",
+      "fallback_trigger_method": "harness_api",
+      "executor_action": "command:auto",
+      "backfill_executor_action": "harness:run_current_stimulus",
+      "legacy_scenarios": [
+        "coding_session",
+        "refactor_workflow"
+      ],
+      "capability_tags": [
+        "commands",
+        "window_ui"
+      ],
+      "status": "planned",
+      "trigger_method_used": "",
+      "attempted_passes": [],
+      "evidence": [],
+      "verification_status": "not_attempted",
+      "failure_reason_code": "",
+      "blocked_reason_code": "",
+      "result_details": "",
+      "official": false,
+      "heuristic": true,
+      "ui_path": "Command Palette invocation",
+      "harness_fallback": "run_current_stimulus",
+      "confirmation_source": "none"
+    },
+    {
+      "attempt_id": "heuristic-oncommand-python-clearcacheandreload",
+      "declared_event": "onCommand:python.clearCacheAndReload",
+      "activation_event": "onCommand:python.clearCacheAndReload",
+      "event_family": "onCommand",
+      "event_value": "python.clearCacheAndReload",
+      "track": "heuristic",
+      "selected_by": "contributes_command",
+      "selection_reasons": [
+        "contributes.commands declared an invocable command surface"
+      ],
+      "pass_name": "unresolved_event_backfill",
+      "backfill_pass_name": "unresolved_event_backfill",
+      "prerequisite_keys": [
+        "command_target"
+      ],
+      "verification_contract": [
+        "activation_log_prefix",
+        "target_runtime_delta"
+      ],
+      "trigger_method": "ui_simulation",
+      "fallback_trigger_method": "harness_api",
+      "executor_action": "command:auto",
+      "backfill_executor_action": "harness:run_current_stimulus",
+      "legacy_scenarios": [
+        "coding_session",
+        "refactor_workflow"
+      ],
+      "capability_tags": [
+        "commands",
+        "window_ui"
+      ],
+      "status": "planned",
+      "trigger_method_used": "",
+      "attempted_passes": [],
+      "evidence": [],
+      "verification_status": "not_attempted",
+      "failure_reason_code": "",
+      "blocked_reason_code": "",
+      "result_details": "",
+      "official": false,
+      "heuristic": true,
+      "ui_path": "Command Palette invocation",
+      "harness_fallback": "run_current_stimulus",
+      "confirmation_source": "none"
+    },
+    {
+      "attempt_id": "heuristic-oncommand-python-clearworkspaceinterpreter",
+      "declared_event": "onCommand:python.clearWorkspaceInterpreter",
+      "activation_event": "onCommand:python.clearWorkspaceInterpreter",
+      "event_family": "onCommand",
+      "event_value": "python.clearWorkspaceInterpreter",
+      "track": "heuristic",
+      "selected_by": "contributes_command",
+      "selection_reasons": [
+        "contributes.commands declared an invocable command surface"
+      ],
+      "pass_name": "ui_first_user_session",
+      "backfill_pass_name": "unresolved_event_backfill",
+      "prerequisite_keys": [
+        "command_target"
+      ],
+      "verification_contract": [
+        "activation_log_prefix",
+        "target_runtime_delta"
+      ],
+      "trigger_method": "ui_simulation",
+      "fallback_trigger_method": "harness_api",
+      "executor_action": "command:auto",
+      "backfill_executor_action": "harness:run_current_stimulus",
+      "legacy_scenarios": [
+        "coding_session",
+        "refactor_workflow"
+      ],
+      "capability_tags": [
+        "commands",
+        "window_ui"
+      ],
+      "status": "planned",
+      "trigger_method_used": "",
+      "attempted_passes": [],
+      "evidence": [],
+      "verification_status": "not_attempted",
+      "failure_reason_code": "",
+      "blocked_reason_code": "",
+      "result_details": "",
+      "official": false,
+      "heuristic": true,
+      "ui_path": "Command Palette invocation",
+      "harness_fallback": "run_current_stimulus",
+      "confirmation_source": "none"
+    },
+    {
+      "attempt_id": "heuristic-oncommand-python-configuretests",
+      "declared_event": "onCommand:python.configureTests",
+      "activation_event": "onCommand:python.configureTests",
+      "event_family": "onCommand",
+      "event_value": "python.configureTests",
+      "track": "heuristic",
+      "selected_by": "contributes_command",
+      "selection_reasons": [
+        "contributes.commands declared an invocable command surface"
+      ],
+      "pass_name": "ui_first_user_session",
+      "backfill_pass_name": "unresolved_event_backfill",
+      "prerequisite_keys": [
+        "command_target"
+      ],
+      "verification_contract": [
+        "activation_log_prefix",
+        "target_runtime_delta"
+      ],
+      "trigger_method": "ui_simulation",
+      "fallback_trigger_method": "harness_api",
+      "executor_action": "command:auto",
+      "backfill_executor_action": "harness:run_current_stimulus",
+      "legacy_scenarios": [
+        "coding_session",
+        "refactor_workflow"
+      ],
+      "capability_tags": [
+        "commands",
+        "window_ui"
+      ],
+      "status": "planned",
+      "trigger_method_used": "",
+      "attempted_passes": [],
+      "evidence": [],
+      "verification_status": "not_attempted",
+      "failure_reason_code": "",
+      "blocked_reason_code": "",
+      "result_details": "",
+      "official": false,
+      "heuristic": true,
+      "ui_path": "Command Palette invocation",
+      "harness_fallback": "run_current_stimulus",
+      "confirmation_source": "none"
+    },
+    {
+      "attempt_id": "heuristic-oncommand-python-copytestid",
+      "declared_event": "onCommand:python.copyTestId",
+      "activation_event": "onCommand:python.copyTestId",
+      "event_family": "onCommand",
+      "event_value": "python.copyTestId",
+      "track": "heuristic",
+      "selected_by": "contributes_command",
+      "selection_reasons": [
+        "contributes.commands declared an invocable command surface"
+      ],
+      "pass_name": "ui_first_user_session",
+      "backfill_pass_name": "unresolved_event_backfill",
+      "prerequisite_keys": [
+        "command_target"
+      ],
+      "verification_contract": [
+        "activation_log_prefix",
+        "target_runtime_delta"
+      ],
+      "trigger_method": "ui_simulation",
+      "fallback_trigger_method": "harness_api",
+      "executor_action": "command:auto",
+      "backfill_executor_action": "harness:run_current_stimulus",
+      "legacy_scenarios": [
+        "coding_session",
+        "refactor_workflow"
+      ],
+      "capability_tags": [
+        "commands",
+        "window_ui"
+      ],
+      "status": "planned",
+      "trigger_method_used": "",
+      "attempted_passes": [],
+      "evidence": [],
+      "verification_status": "not_attempted",
+      "failure_reason_code": "",
+      "blocked_reason_code": "",
+      "result_details": "",
+      "official": false,
+      "heuristic": true,
+      "ui_path": "Command Palette invocation",
+      "harness_fallback": "run_current_stimulus",
+      "confirmation_source": "none"
+    },
+    {
+      "attempt_id": "heuristic-oncommand-python-createnewfile",
+      "declared_event": "onCommand:python.createNewFile",
+      "activation_event": "onCommand:python.createNewFile",
+      "event_family": "onCommand",
+      "event_value": "python.createNewFile",
+      "track": "heuristic",
+      "selected_by": "contributes_command",
+      "selection_reasons": [
+        "contributes.commands declared an invocable command surface"
+      ],
+      "pass_name": "ui_first_user_session",
+      "backfill_pass_name": "unresolved_event_backfill",
+      "prerequisite_keys": [
+        "command_target"
+      ],
+      "verification_contract": [
+        "activation_log_prefix",
+        "target_runtime_delta"
+      ],
+      "trigger_method": "ui_simulation",
+      "fallback_trigger_method": "harness_api",
+      "executor_action": "command:auto",
+      "backfill_executor_action": "harness:run_current_stimulus",
+      "legacy_scenarios": [
+        "coding_session",
+        "refactor_workflow"
+      ],
+      "capability_tags": [
+        "commands",
+        "window_ui"
+      ],
+      "status": "planned",
+      "trigger_method_used": "",
+      "attempted_passes": [],
+      "evidence": [],
+      "verification_status": "not_attempted",
+      "failure_reason_code": "",
+      "blocked_reason_code": "",
+      "result_details": "",
+      "official": false,
+      "heuristic": true,
+      "ui_path": "Command Palette invocation",
+      "harness_fallback": "run_current_stimulus",
+      "confirmation_source": "none"
+    },
     {
       "attempt_id": "official-oncommand-python-copilotsetuptests",
       "declared_event": "onCommand:python.copilotSetupTests",
@@ -2306,6 +2593,12 @@
       "materializer": "harness_api",
       "pass_name": "ui_first_user_session",
       "attempt_ids": [
+        "heuristic-oncommand-python-analysis-restartlanguageserver",
+        "heuristic-oncommand-python-clearcacheandreload",
+        "heuristic-oncommand-python-clearworkspaceinterpreter",
+        "heuristic-oncommand-python-configuretests",
+        "heuristic-oncommand-python-copytestid",
+        "heuristic-oncommand-python-createnewfile",
         "official-oncommand-python-copilotsetuptests"
       ],
       "detail": "Command title/id is resolved through contributes.commands when present.",
@@ -2432,12 +2725,19 @@
   },
   "heuristic_workflow_coverage": {
     "track": "heuristic",
-    "declared": 0,
+    "declared": 6,
     "verified": 0,
     "attempted_only": 0,
     "failed": 0,
     "blocked": 0,
-    "unresolved": 0,
-    "declared_events": []
+    "unresolved": 6,
+    "declared_events": [
+      "onCommand:python.analysis.restartLanguageServer",
+      "onCommand:python.clearCacheAndReload",
+      "onCommand:python.clearWorkspaceInterpreter",
+      "onCommand:python.configureTests",
+      "onCommand:python.copyTestId",
+      "onCommand:python.createNewFile"
+    ]
   }
 }

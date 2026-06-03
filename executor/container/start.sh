@@ -113,7 +113,16 @@ cat > "${VSCODE_SETTINGS_DIR}/settings.json" <<'SETTINGS'
   "telemetry.telemetryLevel": "off",
   "update.mode": "none",
   "extensions.autoCheckUpdates": false,
-  "extensions.autoUpdate": false
+  "extensions.autoUpdate": false,
+  "files.watcherExclude": {
+    "**/.git/objects/**": true,
+    "**/.git/subtree-cache/**": true,
+    "**/node_modules/**": true,
+    "**/.hg/store/**": true,
+    "**/.extrace-harness/**": true
+  },
+  "window.dialogStyle": "custom",
+  "files.simpleDialog.enable": true
 }
 SETTINGS
 

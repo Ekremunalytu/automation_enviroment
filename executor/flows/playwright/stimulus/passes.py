@@ -16,6 +16,7 @@ from .attempts import (
     failure_reason_code_for_exception,
     method_for_pass,
 )
+from .maintenance import post_command_maintenance
 from .prerequisites import materialize_prerequisite, trigger_item_as_dict
 from .types import (
     AttemptExecutionRecord,
@@ -46,14 +47,23 @@ def run_stimulus_plan(
         for attempt_id in [str(attempt.get("attempt_id", "")).strip()]
         if attempt_id
     }
+    processed_attempt_ids: set[str] = set()
 
+    # Materialize the pass list up front so a fatal renderer crash can
+    # slice the *remaining* passes and abort them deterministically
+    # (see ``_abort_remaining_attempts_after_crash``).
+    pass_list: list[dict[str, Any]] = []
     for raw_pass_data in getattr(payload, "stimulus_passes", []) or []:
         pass_data = trigger_item_as_dict(raw_pass_data)
         if pass_data is None:
             continue
-        stage_id = str(pass_data.get("pass_id", "")).strip()
-        if not stage_id:
+        if not str(pass_data.get("pass_id", "")).strip():
             continue
+        pass_list.append(pass_data)
+
+    fatal_crash = False
+    for pass_index, pass_data in enumerate(pass_list):
+        stage_id = str(pass_data.get("pass_id", "")).strip()
         label = str(pass_data.get("label", stage_id))
         order = int(pass_data.get("order", 0) or 0)
         if monitor is not None:
@@ -98,6 +108,7 @@ def run_stimulus_plan(
             attempt = attempts_by_id.get(str(attempt_id))
             if attempt is None:
                 continue
+            processed_attempt_ids.add(str(attempt_id))
             blocked_reason = blocked_attempts.get(str(attempt_id))
             if blocked_reason is not None:
                 pass_failed = True
@@ -209,7 +220,17 @@ def run_stimulus_plan(
                 result.extra_trigger_failures.append(
                     f"{attempt['attempt_id']}:{action}"
                 )
-                failure_reason_code = failure_reason_code_for_exception(exc)
+                # A renderer crash here is fatal: keep classifying it as
+                # ``fatal_ui_crash`` (so health rolls up ``inconclusive``)
+                # rather than the generic ``stimulus_execution_failed``,
+                # and fail-fast so we do not keep driving keyboard input
+                # into a dead VS Code window (which only produced the
+                # cascade of misleading ``Target crashed`` extra-trigger
+                # failures observed in the field).
+                is_fatal, fatal_reason = automation.is_fatal_ui_error(exc, page)
+                failure_reason_code = (
+                    fatal_reason if is_fatal else failure_reason_code_for_exception(exc)
+                )
                 if execution_key:
                     execution_records[execution_key] = AttemptExecutionRecord(
                         status="failed",
@@ -226,6 +247,44 @@ def run_stimulus_plan(
                         result_details=str(exc),
                         failure_reason_code=failure_reason_code,
                     )
+                if is_fatal:
+                    fatal_crash = True
+                    if monitor is not None:
+                        monitor.record_automation_event(
+                            "fatal_ui_crash",
+                            (
+                                "VS Code renderer crashed during stimulus "
+                                f"pass {stage_id!r} on attempt "
+                                f"{attempt['attempt_id']!r}: {exc}"
+                            ),
+                            status="failed",
+                            activation_event=str(attempt.get("activation_event", "")),
+                        )
+                    break
+
+            # Fix 4b/4c: between command attempts, kill leftover terminals and
+            # probe renderer liveness. A renderer that died from cumulative
+            # command load is caught here and routed into the same graceful
+            # abort path as an exception-detected crash, so the next attempt is
+            # not hammered with keyboard input into a dead window. Only fires
+            # when the renderer is already gone, so healthy runs keep full
+            # coverage.
+            if not fatal_crash and post_command_maintenance(
+                page, attempt, action, monitor=monitor
+            ):
+                fatal_crash = True
+                if monitor is not None:
+                    monitor.record_automation_event(
+                        "fatal_ui_crash",
+                        (
+                            "VS Code renderer became unresponsive between "
+                            f"stimulus attempts after {attempt['attempt_id']!r} "
+                            f"in pass {stage_id!r} (cumulative command load)."
+                        ),
+                        status="failed",
+                        activation_event=str(attempt.get("activation_event", "")),
+                    )
+                break
 
         if monitor is not None:
             monitor.record_stimulus_pass_event(
@@ -236,6 +295,17 @@ def run_stimulus_plan(
                 trigger_method="layered_deep",
                 status="failed" if pass_failed else "completed",
             )
+
+        if fatal_crash:
+            _abort_remaining_attempts_after_crash(
+                pass_list,
+                pass_index,
+                attempts_by_id=attempts_by_id,
+                processed_attempt_ids=processed_attempt_ids,
+                scenario_reasons=scenario_reasons,
+                monitor=monitor,
+            )
+            break
 
     # W19-2: distinguish handler-invoked scenarios (those whose
     # ``scenario:`` action ran the registered handler via
@@ -324,6 +394,20 @@ _SUPPORTED_EVENT_FAMILIES = {
     "onTerminalShellIntegration",
 }
 
+# Ambient activation families fire automatically once the workbench is
+# ready; there is no discrete UI surface the executor can actively drive to
+# "trigger" them on demand. Rather than block them as an unsupported
+# *active* surface (which short-circuits the attempt to ``blocked`` and
+# makes ``reconcile_event_attempts`` skip it), treat them as passive
+# observation families: the benign ``fixture:startup_observe`` action runs,
+# the attempt records ``attempted_only``, and reconciliation upgrades it to
+# ``verified`` via the captured activation log (their ``activation_log_exact``
+# verification contract). See W22 onStartupFinished coverage promotion.
+_PASSIVE_OBSERVATION_FAMILIES = {
+    "onStartupFinished",
+    "*",
+}
+
 
 def _ordered_names(raw_names: list[Any]) -> list[str]:
     names: list[str] = []
@@ -366,11 +450,71 @@ def _record_scenario_coverage(
             covered_scenarios.append(scenario_name)
 
 
+_ABORTED_AFTER_FATAL_UI_CRASH_DETAIL = (
+    "Attempt not executed: the VS Code UI renderer crashed earlier in the "
+    "layered stimulus plan; remaining triggers were aborted instead of "
+    "driving keyboard input into a dead window."
+)
+
+
+def _abort_remaining_attempts_after_crash(
+    pass_list: list[dict[str, Any]],
+    start_index: int,
+    *,
+    attempts_by_id: dict[str, dict[str, Any]],
+    processed_attempt_ids: set[str],
+    scenario_reasons: dict[str, tuple[str, str]],
+    monitor: Any | None,
+) -> None:
+    """Mark every not-yet-attempted trigger as aborted after a fatal crash.
+
+    Mirrors ``automation._mark_remaining_scenarios_aborted`` for the layered
+    path. Once ``is_fatal_ui_error`` confirms the renderer is dead we stop
+    driving the UI, so the remaining attempts (the rest of the current pass
+    plus every later pass) are recorded as ``blocked`` /
+    ``aborted_after_fatal_ui_crash`` instead of being hammered with more
+    keyboard input. ``processed_attempt_ids`` guards against overwriting the
+    terminal status of an attempt already finalized in an earlier pass.
+    """
+    for pass_data in pass_list[start_index:]:
+        stage_id = str(pass_data.get("pass_id", "")).strip()
+        if stage_id == "post_run_verification":
+            continue
+        for attempt_id in pass_data.get("attempt_ids", []):
+            key = str(attempt_id)
+            if key in processed_attempt_ids:
+                continue
+            attempt = attempts_by_id.get(key)
+            if attempt is None:
+                continue
+            processed_attempt_ids.add(key)
+            _record_scenario_reason(
+                scenario_reasons,
+                _related_scenarios(attempt),
+                reason_code=automation.ABORTED_AFTER_FATAL_UI_CRASH_REASON,
+                detail=_ABORTED_AFTER_FATAL_UI_CRASH_DETAIL,
+            )
+            if monitor is not None:
+                monitor.record_event_attempt_end(
+                    attempt["attempt_id"],
+                    status="blocked",
+                    pass_name=stage_id,
+                    blocked_reason_code=(
+                        automation.ABORTED_AFTER_FATAL_UI_CRASH_REASON
+                    ),
+                    result_details=_ABORTED_AFTER_FATAL_UI_CRASH_DETAIL,
+                )
+
+
 def _unsupported_surface_reason(
     attempt: dict[str, Any],
 ) -> tuple[str, str] | None:
     event_family = str(attempt.get("event_family", "")).strip()
-    if not event_family or event_family in _SUPPORTED_EVENT_FAMILIES:
+    if (
+        not event_family
+        or event_family in _SUPPORTED_EVENT_FAMILIES
+        or event_family in _PASSIVE_OBSERVATION_FAMILIES
+    ):
         return None
     return (
         "unsupported_activation_surface",

@@ -115,3 +115,27 @@ def test_is_fatal_handles_non_playwright_exceptions() -> None:
     page = _FakePage()
     fatal, _ = automation.is_fatal_ui_error(exc, page)
     assert fatal is False
+
+
+# --- W22 Fix 4b: non-destructive inter-attempt liveness gate ----------------
+
+
+def test_is_renderer_alive_true_for_live_page() -> None:
+    page = _FakePage()
+    assert automation.is_renderer_alive(page) is True
+    assert page.wait_for_function_calls, "liveness probe should have been invoked"
+
+
+def test_is_renderer_alive_false_for_closed_page() -> None:
+    assert automation.is_renderer_alive(_FakePage(closed=True)) is False
+
+
+def test_is_renderer_alive_false_for_closed_context() -> None:
+    page = _FakePage(context=_FakeContext(closed=True))
+    assert automation.is_renderer_alive(page) is False
+
+
+def test_is_renderer_alive_false_when_probe_raises() -> None:
+    page = _FakePage(probe_raises=True)
+    assert automation.is_renderer_alive(page) is False
+    assert page.wait_for_function_calls, "liveness probe should have been invoked"

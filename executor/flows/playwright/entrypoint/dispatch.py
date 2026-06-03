@@ -419,19 +419,36 @@ def summarize_skipped_scenarios_if_needed(execution_mode, execution_result) -> i
 
 
 def finalize_monitor_report(mon, execution_result, exit_code, args) -> None:
-    """Stop monitor + record runner status + save report. No-op when ``mon`` is None."""
+    """Stop monitor + record runner status + save report. No-op when ``mon`` is None.
+
+    W22: this is invoked from ``runner.main``'s ``finally`` so the Extension
+    Host activation parse + ``report.save`` always run — even when the run is
+    interrupted (a degraded/black renderer raises mid-run, or a SIGTERM unwinds
+    the stack). Two safety properties make that safe:
+
+    * **Idempotent** — guarded by ``mon._extrace_finalized`` so a normal
+      completion followed by ``finally`` does not finalize twice.
+    * **``execution_result``-tolerant** — when the interrupt happened before the
+      stimulus phase produced a result, ``execution_result`` is ``None`` and the
+      result-recording step is skipped; ``stop()`` (which reads the activation
+      log) still runs.
+    """
     if mon is None:
         return
+    if getattr(mon, "_extrace_finalized", False):
+        return
+    mon._extrace_finalized = True
     print("[*] Collecting monitoring data...")
-    if hasattr(mon, "record_execution_result"):
-        mon.record_execution_result(execution_result)
-    else:
-        mon.report.requested_scenarios = list(execution_result.requested_scenarios)
-        mon.report.extra_trigger_failures = list(
-            execution_result.extra_trigger_failures
-        )
-        mon.record_failed_scenarios(execution_result.failed_scenarios)
-        mon.report.scenarios_run = list(execution_result.executed_scenarios)
+    if execution_result is not None:
+        if hasattr(mon, "record_execution_result"):
+            mon.record_execution_result(execution_result)
+        else:
+            mon.report.requested_scenarios = list(execution_result.requested_scenarios)
+            mon.report.extra_trigger_failures = list(
+                execution_result.extra_trigger_failures
+            )
+            mon.record_failed_scenarios(execution_result.failed_scenarios)
+            mon.report.scenarios_run = list(execution_result.executed_scenarios)
     report = mon.stop()
     # W11-3: surface the runner outcome on the report before the final disk
     # write so analysts can correlate ``runner_exit_code`` / ``runner_status``

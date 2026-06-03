@@ -18,6 +18,11 @@ _QUICK_INPUT_INPUT_SELECTORS = (
     f"{_QUICK_INPUT_VISIBLE} .monaco-inputbox input",
     f"{_QUICK_INPUT_VISIBLE} input[type='text']",
 )
+# W22 Fix 2 makes Save As / Open / message dialogs render inside the workbench
+# DOM (``window.dialogStyle: custom``); this is the Monaco dialog container the
+# follow-up drain (Fix 3) backs out of with Escape.
+_CUSTOM_DIALOG_VISIBLE = ".monaco-dialog-box"
+_FOLLOWUP_UI_SELECTORS = (_QUICK_INPUT_VISIBLE, _CUSTOM_DIALOG_VISIBLE)
 
 
 class CommandPaletteUnavailableError(RuntimeError):
@@ -81,6 +86,41 @@ def _wait_quick_input_hidden(page: Page, timeout_ms: int = 5000) -> None:
 def wait_for_quick_input_hidden(page: Page, timeout_ms: int = 5000) -> None:
     """Public wrapper for flows that need to close a follow-up picker."""
     _wait_quick_input_hidden(page, timeout_ms=timeout_ms)
+
+
+def _selector_visible(page: Page, selector: str) -> bool:
+    """Instant (non-waiting) visibility check for a follow-up UI surface."""
+    try:
+        handle = page.query_selector(selector)
+    except PlaywrightError:
+        return False
+    if handle is None:
+        return False
+    try:
+        return bool(handle.is_visible())
+    except PlaywrightError:
+        return False
+
+
+def drain_followup_ui(page: Page, *, max_depth: int = 2) -> int:
+    """Back out of follow-up quick-inputs / dialogs a command opened.
+
+    Some commands open a QuickPick, InputBox, or (with Fix 2's in-renderer
+    dialogs) a Save As / message dialog *after* invocation. Activation has
+    already fired by the time we reach here, so the policy is to back out
+    cleanly with Escape — not to complete a file-writing flow — so the next
+    layered attempt is not blocked behind a lingering modal. Bounded by
+    ``max_depth`` so a surface that refuses to close cannot spin the loop.
+    Returns the number of layers dismissed.
+    """
+    dismissed = 0
+    for _ in range(max(0, max_depth)):
+        if not any(_selector_visible(page, sel) for sel in _FOLLOWUP_UI_SELECTORS):
+            break
+        page.keyboard.press("Escape")
+        page.wait_for_timeout(200)
+        dismissed += 1
+    return dismissed
 
 
 def open_quick_input(page: Page, mode: str) -> None:

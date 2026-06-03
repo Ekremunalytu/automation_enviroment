@@ -45,6 +45,15 @@ _NOISY_PATH_PREFIXES = (
     "/home/executor/.vscode/logs/",
 )
 
+# W22: the harness rewrites ``/workspace/.extrace-harness/context.json`` once
+# per harness-routed attempt (see ``stimulus/materializers.py``). Once the
+# planner synthesizes an ``onCommand`` attempt per contributed command, those
+# writes multiply into a file-event flood that is pure harness bookkeeping —
+# not target-extension behavior — and also fires the language server's
+# ``didChangeWatchedFiles`` storm. Drop any path inside this directory from
+# capture (matches the ``files.watcherExclude`` entry seeded in ``start.sh``).
+_HARNESS_ARTIFACT_DIRNAME = ".extrace-harness"
+
 
 def _log(msg: str) -> None:
     print(f"[monitor] {msg}")
@@ -63,11 +72,25 @@ def _is_sensitive_path(path: str) -> bool:
     return any(normalized.startswith(prefix) for prefix in _SENSITIVE_PATH_PREFIXES)
 
 
+def _is_harness_artifact_path(path: str) -> bool:
+    """True for paths inside the ``.extrace-harness`` bookkeeping directory.
+
+    Keys off the exact path component (with slash boundaries) so a sibling
+    such as ``/workspace/.extrace-harness-notes/`` is not misclassified.
+    Also matches the directory node itself (e.g. an inotify ``CREATE,ISDIR``).
+    """
+    return f"/{_HARNESS_ARTIFACT_DIRNAME}/" in path or path.endswith(
+        f"/{_HARNESS_ARTIFACT_DIRNAME}"
+    )
+
+
 def _is_relevant_file_path(path: str) -> bool:
     normalized = path.strip()
     if not normalized or normalized in {".", ".."}:
         return False
     if any(normalized.startswith(prefix) for prefix in _NOISY_PATH_PREFIXES):
+        return False
+    if _is_harness_artifact_path(normalized):
         return False
     return normalized.startswith("/workspace") or normalized.startswith(
         "/home/executor"

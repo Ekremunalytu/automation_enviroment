@@ -14,6 +14,11 @@ from appcore.storage.crud_ops.analysis_jobs import (
     update_analysis_job,
     update_analysis_job_step,
 )
+from appcore.storage.crud_ops.blacklist_domains import (
+    add_blacklist_domain_and_commit,
+    list_blacklist_domains,
+    remove_blacklist_domain_and_commit,
+)
 from appcore.storage.crud_ops.operator_settings import (
     get_operator_setting,
     list_operator_settings,
@@ -38,6 +43,7 @@ from appcore.storage.crud_ops.writes import create_extension, delete_extension
 
 __all__ = [
     "JobNotCancellableError",
+    "add_blacklist_domain_and_commit",
     "cancel_analysis_job",
     "complete_analysis_job",
     "create_analysis_job",
@@ -56,9 +62,11 @@ __all__ = [
     "get_extension_scripts",
     "get_extensions_all_info",
     "get_operator_setting",
+    "list_blacklist_domains",
     "list_operator_settings",
     "recover_interrupted_analysis_jobs",
     "reject_analysis_job_static",
+    "remove_blacklist_domain_and_commit",
     "search_extension_by_name",
     "update_analysis_job",
     "update_analysis_job_step",

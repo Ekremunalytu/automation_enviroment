@@ -170,6 +170,50 @@ def redact_multiline_secrets(value: str) -> str:
     return _redact_private_key_bounded(value)
 
 
+# Detection-only patterns (static `extrace.s7.hardcoded_secret`): high-confidence,
+# standalone secret shapes used to *flag* (not redact) credentials shipped inside
+# extension source. Kept high-precision to avoid false positives on ordinary
+# source — the matched snippet is still routed through redaction before it reaches
+# evidence. This is the read side of the same secret taxonomy `redact_secrets`
+# scrubs; it lives here so detection and redaction never drift apart.
+_SECRET_DETECTORS: Final[tuple[tuple[str, re.Pattern[str]], ...]] = (
+    ("aws", re.compile(r"\b(?:AKIA|ASIA)[0-9A-Z]{16}\b")),
+    ("github_token", re.compile(r"\bgh[posru]_[A-Za-z0-9]{36}\b")),
+    ("slack_token", re.compile(r"\bxox[baprs]-[A-Za-z0-9-]{10,48}\b")),
+    ("private_key", _PRIVATE_KEY_BEGIN_RE),
+    ("bearer", re.compile(r"\bBearer\s+[A-Za-z0-9._\-+/=]{16,}")),
+)
+
+
+def detect_secret_classes(text: str) -> list[str]:
+    """Return the sorted secret classes whose high-confidence pattern appears.
+
+    Detection counterpart to ``redact_secrets``: the static secret-exposure rule
+    uses it to flag credentials hardcoded in shipped extension source. Returns an
+    empty list when nothing matches.
+    """
+    if not text:
+        return []
+    found = {name for name, pattern in _SECRET_DETECTORS if pattern.search(text)}
+    return sorted(found)
+
+
+def find_secret_offsets(text: str) -> list[tuple[str, int]]:
+    """Return ``(secret_class, start_offset)`` for the first hit of each class.
+
+    Lets a finding point at *where* a credential is without quoting it (the
+    offset is just an int). Sorted by class for deterministic evidence order.
+    """
+    if not text:
+        return []
+    hits: list[tuple[str, int]] = []
+    for name, pattern in _SECRET_DETECTORS:
+        match = pattern.search(text)
+        if match is not None:
+            hits.append((name, match.start()))
+    return sorted(hits)
+
+
 class ContentSample(StrictContractModel):
     """Snippet of extension-controlled content embedded in evidence."""
 
@@ -283,6 +327,8 @@ __all__ = [
     "RawContext",
     "ScenarioRawContext",
     "UiBlockerRawContext",
+    "detect_secret_classes",
+    "find_secret_offsets",
     "redact_multiline_secrets",
     "redact_secrets",
 ]

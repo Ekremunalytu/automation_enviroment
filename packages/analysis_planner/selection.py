@@ -6,7 +6,10 @@ from collections.abc import Callable
 from typing import Any
 
 from packages.analysis_contracts import TriggerPayload
-from packages.analysis_planner.attempts import _build_event_attempt
+from packages.analysis_planner.attempts import (
+    _build_event_attempt,
+    _is_window_reload_command,
+)
 from packages.analysis_planner.coverage import _finalize_payload
 from packages.analysis_planner.io import (
     _activation_label,
@@ -23,6 +26,53 @@ from packages.analysis_planner.registry import (
     HEURISTIC_EVENT_TYPE_TO_SCENARIOS,
     OFFICIAL_EVENT_REGISTRY,
 )
+
+# Contributed commands the harness must NOT auto-invoke when synthesizing
+# ``onCommand`` attempts from ``contributes.commands``: they tear down the
+# workbench/window and would terminate the run mid-stream. This is a
+# run-stability guard, not a safety gate (the sandbox is disposable) — see
+# W22 contributes-command surface synthesis.
+_SESSION_FATAL_COMMAND_PATTERNS: tuple[str, ...] = (
+    "workbench.action.reloadWindow",
+    "workbench.action.closeWindow",
+    "workbench.action.quit",
+)
+
+
+def _is_session_fatal_command(command_id: str) -> bool:
+    return any(pattern in command_id for pattern in _SESSION_FATAL_COMMAND_PATTERNS)
+
+
+def _defer_window_reload_commands(
+    compiled_attempts: dict[tuple[str, str], dict[str, Any]],
+    command_titles: dict[str, str],
+) -> None:
+    """Run window-reload-class contributed commands LAST, in isolation (Fix 4a).
+
+    Reassigns each synthesized reload-class ``onCommand`` attempt to the final
+    executable pass (``unresolved_event_backfill`` — executed via the harness
+    ``executeCommand`` backfill, with no early Command-Palette primary) and
+    moves it to the end of the attempt order, so its window-reload teardown
+    only happens after every other attempt has run and been observed. Purely a
+    reordering / pass-reassignment: no attempt is added or dropped.
+    """
+    reload_keys = [
+        key
+        for key, attempt in compiled_attempts.items()
+        if attempt.get("selected_by") == "contributes_command"
+        and str(attempt.get("event_family", "")).strip() == "onCommand"
+        and _is_window_reload_command(
+            str(attempt.get("event_value", "")),
+            str(command_titles.get(str(attempt.get("event_value", "")), "")),
+        )
+    ]
+    final_stage_id = "unresolved_event_backfill"
+    for key in reload_keys:
+        attempt = compiled_attempts.pop(key)
+        # Reassign to the final executable pass; ``_build_stimulus_passes`` then
+        # orders it last within that pass (see ``_is_window_reload_command``).
+        attempt["pass_name"] = final_stage_id
+        compiled_attempts[key] = attempt
 
 
 def _apply_activation_event(
@@ -239,6 +289,8 @@ def _apply_contributes_metadata(
     heuristic_extra_capabilities: set[str],
     official_extra_capabilities: set[str],
     mark_scenario: Callable[..., None],
+    register_attempt: Callable[..., None],
+    existing_command_values: set[str],
 ) -> None:
     if contributes_custom_editors:
         for custom_editor in contributes_custom_editors:
@@ -257,9 +309,33 @@ def _apply_contributes_metadata(
             title = command.get("title", "")
             command_id = command.get("command_id", "") or command.get("command", "")
             if command_id:
-                payload.command_targets[str(command_id)] = (
-                    str(title) if title else str(command_id)
+                command_id = str(command_id)
+                payload.command_targets[command_id] = (
+                    str(title) if title else command_id
                 )
+                # W22: every contributed command is an invocable behavior
+                # surface. Synthesize an onCommand attempt so the harness
+                # actually runs it (the executeCommand backfill covers
+                # palette-hidden / when-gated commands), independent of
+                # whether the manifest declared an onCommand activation event
+                # — modern extensions rely on implicit command activation and
+                # declare only ambient events like onStartupFinished. Skip ids
+                # already registered as declared onCommand attempts (avoid
+                # double-invocation) and session-fatal commands.
+                if (
+                    command_id not in existing_command_values
+                    and not _is_session_fatal_command(command_id)
+                ):
+                    register_attempt(
+                        event_type="onCommand",
+                        event_value=command_id,
+                        track=_HEURISTIC_TRACK,
+                        reason=(
+                            "contributes.commands declared an invocable command surface"
+                        ),
+                        selected_by="contributes_command",
+                    )
+                    existing_command_values.add(command_id)
             if title:
                 payload.extra_commands.append(title)
                 heuristic_extra_capabilities.add("commands")
@@ -464,6 +540,15 @@ def select_scenarios(
             register_attempt=register_attempt,
         )
 
+    # onCommand event_values already registered from *declared* activation
+    # events — contributes-command synthesis skips these to avoid invoking
+    # the same command twice (declared official attempt + synthesized one).
+    existing_command_values = {
+        str(attempt.get("event_value", "")).strip()
+        for attempt in compiled_attempts.values()
+        if str(attempt.get("event_family", "")).strip() == "onCommand"
+        and str(attempt.get("event_value", "")).strip()
+    }
     _apply_contributes_metadata(
         payload=payload,
         contributes_custom_editors=contributes_custom_editors,
@@ -478,12 +563,18 @@ def select_scenarios(
         heuristic_extra_capabilities=heuristic_extra_capabilities,
         official_extra_capabilities=official_extra_capabilities,
         mark_scenario=mark_scenario,
+        register_attempt=register_attempt,
+        existing_command_values=existing_command_values,
     )
     _apply_default_fallback(
         selected_candidates=selected_candidates,
         compiled_attempts=compiled_attempts,
         mark_scenario=mark_scenario,
     )
+    # W22 Fix 4a: defer window-reload-class contributed commands to run last
+    # (after the fallback, so they are ordered last across all attempts) — a
+    # mid-sweep reload blacks out the renderer and fails every later command.
+    _defer_window_reload_commands(compiled_attempts, payload.command_targets)
     return _finalize_payload(
         payload=payload,
         selected_candidates=selected_candidates,

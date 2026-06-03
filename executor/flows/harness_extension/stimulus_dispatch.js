@@ -73,18 +73,18 @@ async function dispatchStimulus(payload) {
     // W22-2 / ADR 0014 Option C: invoke the locally-registered LM tool
     // (no model interaction; noopToolInvoke returns a canned
     // LanguageModelToolResult). Invocation fires
-    // onLanguageModelTool:extrace.harness.lm.tool at the API level and
+    // onLanguageModelTool:extrace-harness-lm-tool at the API level and
     // emits an `lm_tool_state` phase=`invoked` marker for parser
     // confirmation. Ephemeral by construction: invokeTool is one-shot;
     // no state retained across stimulus passes (W19-X Bug C lesson).
     try {
-      await vscode.lm.invokeTool("extrace.harness.lm.tool", {
+      await vscode.lm.invokeTool("extrace-harness-lm-tool", {
         input: { stimulus: value || "harness" },
       });
       emitHarnessEvent({
         kind: "lm_tool_state",
         phase: "invoked",
-        tool_id: "extrace.harness.lm.tool",
+        tool_id: "extrace-harness-lm-tool",
         activation_event: activationEvent,
         ts: Date.now(),
         collector: "harness_extension",
@@ -93,7 +93,7 @@ async function dispatchStimulus(payload) {
       emitHarnessEvent({
         kind: "lm_tool_state",
         phase: "invoke_failed",
-        tool_id: "extrace.harness.lm.tool",
+        tool_id: "extrace-harness-lm-tool",
         activation_event: activationEvent,
         error: String(error && error.message ? error.message : error),
         ts: Date.now(),

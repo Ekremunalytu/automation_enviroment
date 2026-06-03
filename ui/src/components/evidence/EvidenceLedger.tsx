@@ -134,12 +134,16 @@ export function EvidenceLedger({
                     display: "inline-flex",
                   }}
                 >
-                  <Badge tone={kindTone(event)}>
+                  <Badge
+                    tone={kindTone(event)}
+                    style={{ minWidth: 0, maxWidth: "100%", overflow: "hidden" }}
+                  >
                     <span
                       style={{
                         whiteSpace: "nowrap",
                         overflow: "hidden",
                         textOverflow: "ellipsis",
+                        minWidth: 0,
                         maxWidth: "100%",
                         display: "inline-block",
                       }}

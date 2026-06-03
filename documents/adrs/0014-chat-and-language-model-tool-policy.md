@@ -63,14 +63,14 @@ The harness covers `chat` activation-event families exclusively via
    `onChatParticipant:extrace.harness.chat` and any
    `onChatParticipant:*` wildcard activation. The handler returns
    immediately without invoking any chat model.
-2. **`vscode.lm.registerTool("extrace.harness.lm.tool",
+2. **`vscode.lm.registerTool("extrace-harness-lm-tool",
    { invoke: noopToolInvoke })`** at `activate()` — fires
-   `onLanguageModelTool:extrace.harness.lm.tool` and any
+   `onLanguageModelTool:extrace-harness-lm-tool` and any
    `onLanguageModelTool:*` wildcard activation. `noopToolInvoke`
    returns `new vscode.LanguageModelToolResult([new
    vscode.LanguageModelTextPart("extrace-harness-noop")])` — a
    synthesized response with no model call.
-3. **`vscode.lm.invokeTool("extrace.harness.lm.tool", { input:
+3. **`vscode.lm.invokeTool("extrace-harness-lm-tool", { input:
    { stimulus: value } })`** invoked from `stimulus_dispatch.js`
    under the `onLanguageModelTool` family branch — exercises the
    tool invocation path end-to-end and emits a marker.
@@ -81,6 +81,20 @@ extension API as of mid-2024). The existing
 `executor/flows/harness_extension/package.json` `engines.vscode:
 "^1.90.0"` already covers them; **no engine bump, no
 `enabledApiProposals` entry, no Insiders build is required.**
+
+> Naming constraint (post-implementation correction): both surfaces
+> must be declared under `contributes` in `package.json`, otherwise VS
+> Code rejects the runtime registration (`chatParticipant must be
+> declared in package.json` / `Tool "<name>" was not contributed`). The
+> language-model **tool name is validated against `/^[\w-]+$/`** (dots
+> are invalid), so the tool id is `extrace-harness-lm-tool` — a
+> dot-free identifier — rather than the dotted `extrace.harness.*`
+> convention used elsewhere. The chat participant **`name`** (the
+> `@`-handle) is likewise `/^[\w-]+$/`-validated, so it is `harness`,
+> while its **`id`** keeps the dotted `extrace.harness.chat`. Parity
+> between the `extension.js` registrations and the `package.json`
+> contributions is pinned by
+> `tests/architecture/test_harness_extension_manifest_parity.py`.
 
 ### API Surface Boundary
 

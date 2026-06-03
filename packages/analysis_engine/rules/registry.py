@@ -14,6 +14,7 @@ _BUILTIN_RULE_MODULES = (
     "packages.analysis_engine.rules.a3_typosquat",
     "packages.analysis_engine.rules.a4_workspace_exfil",
     "packages.analysis_engine.rules.a6_ui_spoof",
+    "packages.analysis_engine.rules.a7_blacklisted_domain",
     "packages.analysis_engine.rules.demo_runnable_canary",
 )
 _BUILTINS_LOADED = False

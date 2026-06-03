@@ -244,6 +244,7 @@ def execute_attempt(
                     activation_event=str(attempt.get("activation_event", "")),
                 )
             )
+            commands.drain_followup_ui(page)
         else:
             run_layered_scenario(
                 page,
@@ -262,6 +263,7 @@ def execute_attempt(
                 activation_event=str(attempt.get("activation_event", "")),
             )
         )
+        commands.drain_followup_ui(page)
         return
     if action == "extra:task_trigger":
         commands.run_command(page, "Tasks: Run Task")
@@ -369,6 +371,7 @@ def execute_attempt(
                 activation_event=str(attempt.get("activation_event", "")),
             )
         )
+        commands.drain_followup_ui(page)
         return
     raise ValueError(f"Unsupported stimulus action: {action}")
 

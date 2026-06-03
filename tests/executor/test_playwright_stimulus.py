@@ -5,6 +5,7 @@ from types import SimpleNamespace
 
 from executor.flows.playwright import stimulus
 from executor.flows.playwright.stimulus import attempts as stimulus_attempts
+from executor.flows.playwright.stimulus import maintenance as stimulus_maintenance
 from packages.analysis_contracts import TriggerPayload
 
 
@@ -15,6 +16,7 @@ class _FakeMonitor:
         self.attempt_starts: list[dict[str, object]] = []
         self.attempt_ends: list[dict[str, object]] = []
         self.scenario_events: list[dict[str, object]] = []
+        self.automation_events: list[dict[str, object]] = []
 
     def record_prerequisite_result(
         self,
@@ -108,6 +110,24 @@ class _FakeMonitor:
             }
         )
 
+    def record_automation_event(
+        self,
+        kind: str,
+        message: str,
+        status: str = "",
+        scenario_name: str = "",
+        activation_event: str = "",
+    ) -> None:
+        self.automation_events.append(
+            {
+                "kind": kind,
+                "message": message,
+                "status": status,
+                "scenario_name": scenario_name,
+                "activation_event": activation_event,
+            }
+        )
+
 
 def _payload(**overrides: object) -> SimpleNamespace:
     baseline = {
@@ -126,6 +146,24 @@ def _payload(**overrides: object) -> SimpleNamespace:
     }
     baseline.update(overrides)
     return SimpleNamespace(**baseline)
+
+
+class _LivePage:
+    """Minimal live Playwright-page stand-in for ``is_fatal_ui_error``.
+
+    Reports a healthy renderer (not closed, liveness probe succeeds) so a
+    NON-fatal exception raised inside ``run_stimulus_plan`` is classified
+    as ``stimulus_execution_failed`` rather than ``fatal_ui_crash``.
+    """
+
+    def __init__(self) -> None:
+        self.context = SimpleNamespace(is_closed=lambda: False)
+
+    def is_closed(self) -> bool:
+        return False
+
+    def wait_for_function(self, _expression: str, *, timeout: int = 0) -> None:
+        return None
 
 
 def test_workspace_contains_fixture_creates_requested_patterns(
@@ -278,6 +316,32 @@ def test_command_target_without_metadata_is_blocked() -> None:
     assert result.status == "blocked"
     assert result.reason_code == "prerequisite_blocked"
     assert monitor.results[0]["status"] == "blocked"
+
+
+def test_passive_observation_families_are_not_unsupported() -> None:
+    """W22: ``onStartupFinished``/``*`` are ambient activation surfaces.
+
+    They fire automatically once the workbench is ready, so the executor
+    cannot actively drive them. Rather than short-circuit the attempt to
+    ``blocked`` / ``unsupported_activation_surface`` (which makes
+    ``reconcile_event_attempts`` skip it), they are treated as passive
+    observation families: the benign ``fixture:startup_observe`` attempt runs
+    and reconciliation later upgrades it to ``verified`` via the captured
+    activation log. A genuinely un-drivable family still reports unsupported.
+    """
+    from executor.flows.playwright.stimulus import passes as passes_module
+
+    assert (
+        passes_module._unsupported_surface_reason({"event_family": "onStartupFinished"})
+        is None
+    )
+    assert passes_module._unsupported_surface_reason({"event_family": "*"}) is None
+
+    reason = passes_module._unsupported_surface_reason(
+        {"event_family": "onSomethingExecutorCannotDrive"}
+    )
+    assert reason is not None
+    assert reason[0] == "unsupported_activation_surface"
 
 
 def test_unknown_language_fixture_is_blocked() -> None:
@@ -577,7 +641,7 @@ def test_run_stimulus_plan_records_failed_layered_scenarios(
     )
     monitor = _FakeMonitor()
 
-    result = stimulus.run_stimulus_plan(object(), payload, monitor=monitor)
+    result = stimulus.run_stimulus_plan(_LivePage(), payload, monitor=monitor)
 
     assert result.executed_scenarios == ["project_exploration"]
     assert result.failed_scenarios == ["project_exploration"]
@@ -593,6 +657,181 @@ def test_run_stimulus_plan_records_failed_layered_scenarios(
     assert [
         item["status"] for item in monitor.pass_events if item["action"] == "end"
     ] == ["failed"]
+
+
+def test_run_stimulus_plan_fatal_ui_crash_fails_fast(monkeypatch) -> None:
+    """A renderer crash in the extra-trigger / backfill path must:
+
+    * classify the crashing attempt as ``fatal_ui_crash`` (not the generic
+      ``stimulus_execution_failed``) so health rolls up ``inconclusive``;
+    * fail-fast — stop driving the dead window, so the remaining triggers
+      are NEVER attempted (no ``Target crashed`` keyboard cascade);
+    * record those remaining triggers as ``blocked`` /
+      ``aborted_after_fatal_ui_crash`` instead of letting them masquerade
+      as normal failed extra triggers.
+    """
+    from playwright.sync_api import Error as PlaywrightError
+
+    from executor.flows.playwright.stimulus import passes as passes_module
+
+    attempted: list[str] = []
+
+    def fake_execute_attempt(_page, _payload, attempt, **_kwargs) -> None:
+        attempted.append(attempt["attempt_id"])
+        if attempt["attempt_id"] == "a1":
+            raise PlaywrightError("Keyboard.press: Target crashed")
+
+    monkeypatch.setattr(passes_module, "execute_attempt", fake_execute_attempt)
+
+    payload = _payload(
+        event_attempts=[
+            {
+                "attempt_id": "a1",
+                "activation_event": "onCommand:python.copilotSetupTests",
+                "event_family": "onCommand",
+                "executor_action": "harness:run_current_stimulus",
+                "trigger_method": "harness",
+            },
+            {
+                "attempt_id": "a2",
+                "activation_event": "onDebugResolve:python",
+                "event_family": "onDebugResolve",
+                "executor_action": "harness:run_current_stimulus",
+                "trigger_method": "harness",
+            },
+            {
+                "attempt_id": "a3",
+                "activation_event": "onTerminalShellIntegration:python",
+                "event_family": "onTerminalShellIntegration",
+                "executor_action": "harness:run_current_stimulus",
+                "trigger_method": "harness",
+            },
+        ],
+        stimulus_passes=[
+            {
+                "pass_id": "unresolved_event_backfill",
+                "label": "unresolved event backfill",
+                "order": 4,
+                "attempt_ids": ["a1", "a2", "a3"],
+                "prerequisite_keys": [],
+            }
+        ],
+    )
+    monitor = _FakeMonitor()
+
+    result = stimulus.run_stimulus_plan(_LivePage(), payload, monitor=monitor)
+
+    # Fail-fast: only the crashing attempt was driven; a2/a3 never touched.
+    assert attempted == ["a1"]
+
+    ends = {item["attempt_id"]: item for item in monitor.attempt_ends}
+    assert ends["a1"]["status"] == "failed"
+    assert ends["a1"]["failure_reason_code"] == "fatal_ui_crash"
+    assert ends["a2"]["status"] == "blocked"
+    assert ends["a2"]["blocked_reason_code"] == "aborted_after_fatal_ui_crash"
+    assert ends["a3"]["status"] == "blocked"
+    assert ends["a3"]["blocked_reason_code"] == "aborted_after_fatal_ui_crash"
+
+    # Only the crashing attempt is a real extra-trigger failure; aborted
+    # triggers must NOT be appended as normal failed extra triggers.
+    assert result.extra_trigger_failures == ["a1:harness:run_current_stimulus"]
+
+    # A distinct fatal_ui_crash automation event is emitted for the report
+    # log so an operator can see why the run was aborted.
+    assert any(event["kind"] == "fatal_ui_crash" for event in monitor.automation_events)
+
+
+def test_run_stimulus_plan_aborts_when_renderer_dies_between_command_attempts(
+    monkeypatch,
+) -> None:
+    """W22 Fix 4b: a command attempt can SUCCEED yet leave the renderer dead
+    from cumulative load (the field black-screen after running many synthesized
+    contributes-commands). ``post_command_maintenance`` detects that death
+    *between* attempts via the post-attempt liveness probe and must route into
+    the same graceful abort as an in-attempt crash — so the next synthesized
+    command is never driven into a black window.
+
+    Distinct from ``…fatal_ui_crash_fails_fast`` (which crashes *during* an
+    attempt): here every ``execute_attempt`` returns cleanly and the death is
+    seen only by the inter-command health gate.
+    """
+    from executor.flows.playwright.stimulus import passes as passes_module
+
+    attempted: list[str] = []
+    probed: list[str] = []
+
+    def fake_execute_attempt(_page, _payload, attempt, **_kwargs) -> None:
+        attempted.append(attempt["attempt_id"])  # all succeed; none crash
+
+    def fake_post_command_maintenance(_page, attempt, _action, *, monitor=None) -> bool:
+        probed.append(attempt["attempt_id"])
+        return attempt["attempt_id"] == "a1"  # renderer dead right after a1
+
+    monkeypatch.setattr(passes_module, "execute_attempt", fake_execute_attempt)
+    monkeypatch.setattr(
+        passes_module, "post_command_maintenance", fake_post_command_maintenance
+    )
+
+    payload = _payload(
+        event_attempts=[
+            {
+                "attempt_id": "a1",
+                "activation_event": "onCommand:python.createTerminal",
+                "event_family": "onCommand",
+                "executor_action": "command:auto",
+                "trigger_method": "ui_simulation",
+            },
+            {
+                "attempt_id": "a2",
+                "activation_event": "onCommand:python.startREPL",
+                "event_family": "onCommand",
+                "executor_action": "command:auto",
+                "trigger_method": "ui_simulation",
+            },
+            {
+                "attempt_id": "a3",
+                "activation_event": "onCommand:python.viewOutput",
+                "event_family": "onCommand",
+                "executor_action": "command:auto",
+                "trigger_method": "ui_simulation",
+            },
+        ],
+        stimulus_passes=[
+            {
+                "pass_id": "ui_first_user_session",
+                "label": "ui-first user session",
+                "order": 2,
+                "attempt_ids": ["a1", "a2", "a3"],
+                "prerequisite_keys": [],
+            }
+        ],
+    )
+    monitor = _FakeMonitor()
+
+    stimulus.run_stimulus_plan(_LivePage(), payload, monitor=monitor)
+
+    # a1 ran and was probed (probe reported the renderer dead); the fail-fast
+    # means a2/a3 were never driven into the dead window.
+    assert attempted == ["a1"]
+    assert probed == ["a1"]
+
+    ends = {item["attempt_id"]: item for item in monitor.attempt_ends}
+    # a1 itself completed — recorded ``attempted_only``, NOT blocked: it did not
+    # crash; the death happened *after* it, between attempts.
+    assert ends["a1"]["status"] == "attempted_only"
+    assert ends["a1"]["blocked_reason_code"] == ""
+    # a2/a3 are aborted via the same graceful path as an in-attempt crash.
+    assert ends["a2"]["status"] == "blocked"
+    assert ends["a2"]["blocked_reason_code"] == "aborted_after_fatal_ui_crash"
+    assert ends["a3"]["status"] == "blocked"
+    assert ends["a3"]["blocked_reason_code"] == "aborted_after_fatal_ui_crash"
+
+    # The between-attempts death emits its own fatal_ui_crash event (distinct
+    # wording from the in-attempt crash) so an operator can tell the two death
+    # modes apart in the report log.
+    crashes = [e for e in monitor.automation_events if e["kind"] == "fatal_ui_crash"]
+    assert len(crashes) == 1
+    assert "between" in crashes[0]["message"].lower()
 
 
 def test_run_stimulus_plan_uses_lightweight_debug_action(
@@ -999,3 +1238,128 @@ def test_health_summary_reason_labels_cover_w8_0_codes() -> None:
         assert label
         assert label != code.replace("_", " ")
         assert label.endswith(".")
+
+
+# --- W22 Fix 4b/4c: inter-command maintenance (cleanup + health gate) --------
+
+
+def test_is_terminal_command_attempt_detects_terminal_and_repl_commands() -> None:
+    for command_id in (
+        "python.execInTerminal",
+        "python.startREPL",
+        "python.startNativeREPL",
+        "workbench.action.terminal.new",
+    ):
+        assert stimulus_maintenance._is_terminal_command_attempt(
+            {"event_value": command_id}, "command:auto"
+        ), command_id
+    # Non-terminal command and non-command action are both False.
+    assert not stimulus_maintenance._is_terminal_command_attempt(
+        {"event_value": "python.sortImports"}, "command:auto"
+    )
+    assert not stimulus_maintenance._is_terminal_command_attempt(
+        {"event_value": "python.execInTerminal"}, "scenario:coding_session"
+    )
+
+
+def test_post_command_maintenance_noop_for_non_command_action() -> None:
+    import pytest
+
+    probed: list[object] = []
+    killed: list[object] = []
+
+    def fake_alive(page: object) -> bool:
+        probed.append(page)
+        return True
+
+    def fake_kill(page: object) -> None:
+        killed.append(page)
+
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(stimulus_maintenance.automation, "is_renderer_alive", fake_alive)
+        mp.setattr(stimulus_maintenance.terminal, "close_all_terminals", fake_kill)
+        page = object()
+        dead = stimulus_maintenance.post_command_maintenance(
+            page, {"event_value": "x"}, "scenario:coding_session", monitor=None
+        )
+
+    # A non-command action does not even probe the renderer or run cleanup.
+    assert dead is False
+    assert probed == []
+    assert killed == []
+
+
+def test_post_command_maintenance_probes_renderer_after_command() -> None:
+    import pytest
+
+    killed: list[object] = []
+
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(
+            stimulus_maintenance.automation, "is_renderer_alive", lambda page: False
+        )
+        mp.setattr(
+            stimulus_maintenance.terminal,
+            "close_all_terminals",
+            lambda page: killed.append(page),
+        )
+        page = object()
+        dead = stimulus_maintenance.post_command_maintenance(
+            page, {"event_value": "python.sortImports"}, "command:auto", monitor=None
+        )
+
+    # Non-terminal command: renderer probed (reported dead), no terminal kill.
+    assert dead is True
+    assert killed == []
+
+
+def test_post_command_maintenance_kills_terminals_for_terminal_command() -> None:
+    import pytest
+
+    killed: list[object] = []
+
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(
+            stimulus_maintenance.automation, "is_renderer_alive", lambda page: True
+        )
+        mp.setattr(
+            stimulus_maintenance.terminal,
+            "close_all_terminals",
+            lambda page: killed.append(page),
+        )
+        page = object()
+        dead = stimulus_maintenance.post_command_maintenance(
+            page,
+            {
+                "event_value": "python.execInTerminal",
+                "activation_event": "onCommand:python.execInTerminal",
+            },
+            "command:auto",
+            monitor=None,
+        )
+
+    assert dead is False
+    assert killed == [page]
+
+
+def test_post_command_maintenance_terminal_cleanup_is_best_effort() -> None:
+    import pytest
+
+    def fake_kill(page: object) -> None:
+        raise stimulus_maintenance.PlaywrightError("Target crashed during killAll")
+
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(
+            stimulus_maintenance.automation, "is_renderer_alive", lambda page: False
+        )
+        mp.setattr(stimulus_maintenance.terminal, "close_all_terminals", fake_kill)
+        # A kill that raises (renderer dying) must not propagate; the liveness
+        # probe is the source of truth and reports the dead renderer.
+        dead = stimulus_maintenance.post_command_maintenance(
+            object(),
+            {"event_value": "python.startREPL"},
+            "command:auto",
+            monitor=None,
+        )
+
+    assert dead is True

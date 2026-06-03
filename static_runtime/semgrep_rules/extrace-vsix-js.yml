@@ -77,3 +77,92 @@ rules:
           - pattern: vm.runInContext(...)
           - pattern: vm.runInNewContext(...)
           - pattern: vm.runInThisContext(...)
+
+  - id: outbound_net_module
+    languages: [javascript, typescript]
+    severity: WARNING
+    message: >-
+      Import of a raw network module (http/https/net/tls/dns/dgram): a direct
+      outbound socket / request capability that bypasses the editor's vetted
+      networking APIs, a common command-and-control / exfiltration primitive.
+    metadata:
+      category: security
+      references:
+        - https://attack.mitre.org/techniques/T1071/
+    patterns:
+      - pattern-either:
+          - pattern: require("http")
+          - pattern: require('http')
+          - pattern: require("node:http")
+          - pattern: require('node:http')
+          - pattern: require("https")
+          - pattern: require('https')
+          - pattern: require("node:https")
+          - pattern: require('node:https')
+          - pattern: require("net")
+          - pattern: require('net')
+          - pattern: require("node:net")
+          - pattern: require('node:net')
+          - pattern: require("tls")
+          - pattern: require('tls')
+          - pattern: require("node:tls")
+          - pattern: require('node:tls')
+          - pattern: require("dns")
+          - pattern: require('dns')
+          - pattern: require("node:dns")
+          - pattern: require('node:dns')
+          - pattern: require("dgram")
+          - pattern: require('dgram')
+          - pattern: require("node:dgram")
+          - pattern: require('node:dgram')
+
+  - id: dynamic_require
+    languages: [javascript, typescript]
+    severity: WARNING
+    message: >-
+      Dynamic require() of a non-literal module specifier: the loaded module is
+      computed at runtime, hiding the dependency from static review and enabling
+      conditional loading of attacker-staged code.
+    metadata:
+      category: security
+      references:
+        - https://attack.mitre.org/techniques/T1027/
+    patterns:
+      - pattern: require($X)
+      - pattern-not: require("...")
+      - pattern-not: require('...')
+
+  - id: base64_decode_exec
+    languages: [javascript, typescript]
+    severity: WARNING
+    message: >-
+      Decode-then-execute: a base64 / escaped payload is decoded and run via
+      eval() or the Function constructor, a packing trick that smuggles executed
+      logic past static review.
+    metadata:
+      category: security
+      references:
+        - https://attack.mitre.org/techniques/T1027/
+    patterns:
+      - pattern-either:
+          - pattern: eval(atob(...))
+          - pattern: eval(Buffer.from(...))
+          - pattern: eval(unescape(...))
+          - pattern: eval(decodeURIComponent(...))
+          - pattern: Function(atob(...))
+          - pattern: new Function(atob(...))
+          - pattern: Function(Buffer.from(...))
+          - pattern: new Function(Buffer.from(...))
+
+  - id: sensitive_file_read
+    languages: [javascript, typescript]
+    severity: WARNING
+    message: >-
+      Reference to a sensitive credential file path (SSH keys, cloud creds,
+      npmrc, docker config): a common target for credential theft.
+    metadata:
+      category: security
+      references:
+        - https://attack.mitre.org/techniques/T1552/
+    patterns:
+      - pattern-regex: (\.ssh/|id_rsa|\.aws/credentials|\.npmrc|\.docker/config\.json)

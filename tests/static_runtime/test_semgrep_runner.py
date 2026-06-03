@@ -70,6 +70,10 @@ def _run(monkeypatch: pytest.MonkeyPatch, **kw: Any) -> semgrep_runner.SemgrepRu
         ("function_constructor", "extrace.sg.function_constructor"),
         ("child_process", "extrace.sg.child_process"),
         ("vm_runincontext", "extrace.sg.vm_runincontext"),
+        ("outbound_net_module", "extrace.sg.outbound_net_module"),
+        ("dynamic_require", "extrace.sg.dynamic_require"),
+        ("base64_decode_exec", "extrace.sg.base64_decode_exec"),
+        ("sensitive_file_read", "extrace.sg.sensitive_file_read"),
     ],
 )
 def test_each_rule_maps_to_its_contract_finding(

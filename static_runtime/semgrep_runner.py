@@ -154,6 +154,63 @@ _RULE_META: dict[str, _SemgrepRuleMeta] = {
             "execute arbitrary code."
         ),
     ),
+    "outbound_net_module": _SemgrepRuleMeta(
+        rule_id="extrace.sg.outbound_net_module",
+        categories=("attack.T1071", "extrace.ext.outbound_network"),
+        title="Raw network module import",
+        description=(
+            "The extension imports a raw network module (http / https / net / "
+            "tls / dns / dgram), a direct outbound socket or request capability "
+            "that bypasses the editor's vetted networking APIs and is a common "
+            "command-and-control / exfiltration primitive."
+        ),
+        mitigation_hint=(
+            "Confirm the extension genuinely needs raw network access; prefer "
+            "the editor's networking APIs, which are observable and scoped."
+        ),
+    ),
+    "dynamic_require": _SemgrepRuleMeta(
+        rule_id="extrace.sg.dynamic_require",
+        categories=("attack.T1027", "extrace.ext.dynamic_require"),
+        title="Dynamic require of a computed module specifier",
+        description=(
+            "The extension calls require() with a non-literal specifier, so the "
+            "loaded module is computed at runtime. This hides the dependency "
+            "from static review and enables conditional loading of staged code."
+        ),
+        mitigation_hint=(
+            "Use static, literal require()/import specifiers; a computed module "
+            "path defeats dependency review."
+        ),
+    ),
+    "base64_decode_exec": _SemgrepRuleMeta(
+        rule_id="extrace.sg.base64_decode_exec",
+        categories=("attack.T1027", "extrace.ext.dynamic_code_exec"),
+        title="Decode-then-execute of a packed payload",
+        description=(
+            "The extension decodes a base64 / escaped payload and runs it via "
+            "eval() or the Function constructor — a packing trick that smuggles "
+            "executed logic past static review."
+        ),
+        mitigation_hint=(
+            "Treat decode-then-execute as malicious until proven otherwise; "
+            "legitimate code does not run decoded blobs."
+        ),
+    ),
+    "sensitive_file_read": _SemgrepRuleMeta(
+        rule_id="extrace.sg.sensitive_file_read",
+        categories=("attack.T1552", "extrace.ext.credential_access"),
+        title="Reference to a sensitive credential file path",
+        description=(
+            "The extension references a sensitive credential file path (SSH "
+            "keys, cloud credentials, npmrc, or docker config), a common target "
+            "for credential theft."
+        ),
+        mitigation_hint=(
+            "Confirm why the extension touches credential stores; reading SSH / "
+            "cloud credential files is a credential-access red flag."
+        ),
+    ),
 }
 
 

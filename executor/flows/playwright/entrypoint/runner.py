@@ -106,6 +106,8 @@ def main(*, deps) -> None:
         return
 
     exit_code = 0
+    mon = None
+    execution_result = None
     with deps.sync_playwright() as pw:
         print("[*] Connecting to VS Code...")
         browser, page = deps.vscode.connect(pw)
@@ -186,8 +188,15 @@ def main(*, deps) -> None:
             exit_code |= summarize_skipped_scenarios_if_needed(
                 execution_mode, execution_result
             )
-            finalize_monitor_report(mon, execution_result, exit_code, args)
         finally:
+            # W22: finalize in ``finally`` so the Extension Host activation
+            # parse + ``report.save`` ALWAYS run — even if the stimulus/extra-
+            # trigger phase raised on a degraded renderer or a SIGTERM unwinds
+            # the stack here. Without this the report was left as the last live
+            # persist with ``activated: []`` (target "never observed") although
+            # the activation was sitting in exthost.log. ``finalize_monitor_report``
+            # is idempotent + tolerates ``execution_result is None``.
+            finalize_monitor_report(mon, execution_result, exit_code, args)
             deps.automation.set_scenario_event_reporter(None)
             deps.vscode.disconnect(browser)
             print("[+] Completed")

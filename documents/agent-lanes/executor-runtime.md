@@ -1,6 +1,6 @@
 # Executor Runtime Lane
 
-**Last Updated:** 2026-05-17 (W15 close — W15-2 closed 2026-05-14 via 765cde7: `clean_workspace` is_symlink-before-rmtree (M12) — symlink check precedes rmtree to prevent traversal to operator-controlled targets outside the sandbox workspace; W15-5 closed 2026-05-17 via 43d6438: lifecycle marker id shape regex tightening (I4) — `_LIFECYCLE_MARKER_PATTERNS` enforce strict `[\w-]+\.[\w.\-]+` publisher.name shape, unanchored patterns reject status codes / timestamps / arbitrary substrings as id captures; behavioral coverage in `tests/security/test_workspace_symlink_toctou.py` + architecture gate `tests/architecture/test_lifecycle_marker_id_shape.py` (3 invariants).)
+**Last Updated:** 2026-05-17 (W15 close — W15-2 closed 2026-05-14 via 765cde7: `clean_workspace` is_symlink-before-rmtree (M12) — symlink check precedes rmtree to prevent traversal to operator-controlled targets outside the sandbox workspace; W15-5 closed 2026-05-17 via 43d6438: lifecycle marker id shape regex tightening (I4) — `_LIFECYCLE_MARKER_PATTERNS` enforce strict `[\w-]+\.[\w.\-]+` publisher.name shape, unanchored patterns reject status codes / timestamps / arbitrary substrings as id captures; behavioral coverage in `tests/security/test_workspace_symlink_toctou.py` + architecture gate `tests/architecture/test_lifecycle_marker_id_shape.py` (3 invariants).) · Branch `extension-trigger-matrix` (2026-06-03): **Activation Coverage Promotion** — the harness now exercises ambient-only extensions (`onStartupFinished` / `*`, e.g. `ms-python.python`) by synthesizing `onCommand` attempts from `contributes.commands` (planner), and runs them safely via reload-deferral + inter-command maintenance (`stimulus/maintenance.py`: terminal kill + renderer-liveness probe) + a finalize-in-`finally` (`entrypoint/{__main__,runner}.py`) so activation is parsed even on a SIGTERM/degraded-renderer interrupt; `.extrace-harness` artifact paths are dropped from file capture (`runtime_capture/_shared.py`). See `documents/active-work/extension-trigger-matrix.md`.
 
 Use this lane for Docker executor behavior, Playwright automation, the harness
 extension, runtime capture, reset/reload behavior, and executor runbooks.
@@ -23,6 +23,14 @@ extension, runtime capture, reset/reload behavior, and executor runbooks.
   validation and typed `harness_*` failure reasons.
 - Fatal UI crashes degrade automation health to `inconclusive` and stop the
   scenario loop unless retry-on-crash is explicitly enabled.
+- Ambient-only extensions (`onStartupFinished` / `*`) are exercised, not
+  abandoned: the planner synthesizes `onCommand` attempts from
+  `contributes.commands` and the executor runs them with bounded follow-up-UI
+  drain, between-attempt terminal cleanup, and renderer-liveness probing.
+  Session-fatal commands (`reloadWindow` / `closeWindow` / `quit`) are excluded;
+  reload-class commands are deferred to the final pass so an early black-out
+  cannot cascade. Activation is parsed in a `finally`, surviving an interrupt
+  and a `exthost.log` rotation (offset reset). Branch `extension-trigger-matrix`.
 - Runtime capture is bounded; do not add raw body, raw argv, or environment
   dumps.
 - noVNC/CDP/API LAN exposure is bounded by ADR 0007 W8-7 (landed

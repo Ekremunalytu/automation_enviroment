@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { RulesPage } from "./RulesPage";
 import { apiClient } from "../../lib/api/client";
@@ -8,6 +8,9 @@ import type { AnalysisBundleDto } from "../../lib/types/contracts";
 vi.mock("../../lib/api/client", () => ({
   apiClient: {
     getLatestReportBundle: vi.fn(),
+    getBlacklistDomains: vi.fn(),
+    addBlacklistDomain: vi.fn(),
+    removeBlacklistDomain: vi.fn(),
   },
 }));
 
@@ -98,6 +101,12 @@ function bundleWithRules(rules: NonNullable<AnalysisBundleDto["detection_report"
 describe("RulesPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(apiClient.getBlacklistDomains).mockResolvedValue({
+      seed: ["evil.example"],
+      operator: ["custom.test"],
+      effective: ["custom.test", "evil.example"],
+      count: 2,
+    });
   });
 
   it("renders the header while loading", () => {
@@ -145,6 +154,104 @@ describe("RulesPage", () => {
     fireEvent.click(screen.getByRole("button", { name: /credential file read/iu }));
     expect(screen.getByText("Mitigation hint")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Open evidence file-1" })).toBeInTheDocument();
+  });
+
+  it("renders the editable blacklist panel in its own tab", async () => {
+    vi.mocked(apiClient.getLatestReportBundle).mockResolvedValue(bundleWithRules([]));
+
+    renderPage("/rules?tab=blacklist");
+
+    expect(await screen.findByRole("tab", { name: "Blacklist" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    expect(await screen.findByText("Blacklist domains")).toBeInTheDocument();
+    // Seed baseline chip + operator-added chip both render.
+    expect(await screen.findByText("evil.example")).toBeInTheDocument();
+    expect(screen.getByText("custom.test")).toBeInTheDocument();
+    expect(screen.getByText(/2 domains effective/u)).toBeInTheDocument();
+    // Operator chips are removable; seed chips are not.
+    expect(screen.getByRole("button", { name: "Remove custom.test" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Remove evil.example" })).not.toBeInTheDocument();
+    // The default bundle has no blacklist finding -> no "observed" badge.
+    expect(screen.queryByText("Observed in latest report")).not.toBeInTheDocument();
+  });
+
+  it("adds an operator blacklist domain via the panel input", async () => {
+    vi.mocked(apiClient.getLatestReportBundle).mockResolvedValue(bundleWithRules([]));
+    vi.mocked(apiClient.addBlacklistDomain).mockResolvedValue({
+      seed: ["evil.example"],
+      operator: ["custom.test", "mal.test"],
+      effective: ["custom.test", "evil.example", "mal.test"],
+      count: 3,
+    });
+
+    renderPage("/rules?tab=blacklist");
+    await screen.findByText("Blacklist domains");
+
+    fireEvent.change(screen.getByPlaceholderText("e.g. evil.example"), {
+      target: { value: "mal.test" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Add blacklist domain" }));
+
+    await waitFor(() =>
+      expect(apiClient.addBlacklistDomain).toHaveBeenCalledWith("mal.test"),
+    );
+  });
+
+  it("removes an operator blacklist domain via its chip", async () => {
+    vi.mocked(apiClient.getLatestReportBundle).mockResolvedValue(bundleWithRules([]));
+    vi.mocked(apiClient.removeBlacklistDomain).mockResolvedValue({
+      seed: ["evil.example"],
+      operator: [],
+      effective: ["evil.example"],
+      count: 1,
+    });
+
+    renderPage("/rules?tab=blacklist");
+    await screen.findByText("Blacklist domains");
+
+    fireEvent.click(await screen.findByRole("button", { name: "Remove custom.test" }));
+
+    await waitFor(() =>
+      expect(apiClient.removeBlacklistDomain).toHaveBeenCalledWith("custom.test"),
+    );
+  });
+
+  it("names the observed blacklisted domains when a finding fires", async () => {
+    const bundle = bundleWithRules([
+      {
+        rule_id: "extrace.a7.blacklisted_domain",
+        rule_version: "1.0.0",
+        lifecycle: "production",
+        status: "fired",
+        finding_ids: ["bl-1"],
+      },
+    ]);
+    bundle.detection_report.findings = [
+      {
+        id: "bl-1",
+        rule_id: "extrace.a7.blacklisted_domain",
+        rule_version: "1.0.0",
+        rule_lifecycle: "production",
+        categories: ["attack.T1071"],
+        severity: "high",
+        confidence: "high",
+        title: "Outbound connection to a blacklisted domain",
+        description:
+          "The extension contacted blacklisted domain(s) custom.test (observed host(s): c2.custom.test).",
+        evidence: [],
+        adversary_class: "A7",
+        mitigation_hint: "Block the connection.",
+      },
+    ];
+    vi.mocked(apiClient.getLatestReportBundle).mockResolvedValue(bundle);
+
+    renderPage("/rules?tab=blacklist");
+
+    expect(await screen.findByText("Observed in latest report")).toBeInTheDocument();
+    // custom.test is named both in the observed section and the operator chip list.
+    expect(screen.getAllByText("custom.test").length).toBeGreaterThan(1);
   });
 
   it("renders Registry/Draft mode tabs and shows the empty draft state without ?from", async () => {

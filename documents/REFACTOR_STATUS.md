@@ -339,6 +339,52 @@ phase evidence is frozen under dated snapshots:
   through 3 review rounds (Codex live-run
   + GPT × 2).
 
+## Post-W22 Feature Streams
+
+These landed on `main` **after** the W22 weekly close-out. They are named
+feature streams, **not** weekly (`W<N>`) phases, so they do not advance the
+`documents/phase.json` weekly pointer (which stays W22 / PR #31 / `1399f82`) —
+the same convention the static stream followed.
+
+- **Static Analysis Pre-Check stream (ES-0..ES-5)** — the ADR 0016
+  pre-execution static gate: the hardened `automation_static_analyzer`
+  container, in-house static rules + the Semgrep runner, and the block-and-warn
+  decision that fronts the dynamic sandbox. **Closed (ES-0..ES-5 DONE) and
+  merged via PR #33 (`70e4364`).** Lane:
+  [`agent-lanes/static-analysis-pre-check.md`](agent-lanes/static-analysis-pre-check.md);
+  stream tracker:
+  [`active-work/static-analysis-pre-check-stream.md`](active-work/static-analysis-pre-check-stream.md).
+- **`extension-trigger-matrix` stream — merged to main `2026-06-03`.** Three
+  workstreams (frozen tracker:
+  [`active-work/extension-trigger-matrix.md`](active-work/extension-trigger-matrix.md)):
+  1. **Reports Rule matrix tab** — a static + dynamic rule-activation grid
+     (fired / silent / error / not-run) with click-for-detail; one additive
+     backend touch (`ReportBundle.static_report` folds the sibling static
+     report onto the `/bundle` response). UI-led.
+  2. **Activation Coverage Promotion (executor + planner)** — the harness now
+     exercises ambient-only extensions (`onStartupFinished` / `*`) by
+     synthesizing `onCommand` attempts from `contributes.commands`, run safely
+     via reload-deferral + inter-command maintenance (terminal-kill +
+     renderer-liveness) + a finalize-in-`finally` so activation is parsed even
+     on interrupt. Live-validated against an `ms-python.python` scan
+     (22 extensions activated, 24/24 `onCommand` verified,
+     `command_palette_unavailable` 60 → 0).
+  3. **Static Rule Expansion + Blacklist** — in-house static rules 6 → 10
+     (`s4`–`s7`), Semgrep JS rules 4 → 8, a dynamic `a7` blacklisted-domain
+     rule, and an operator-editable DB-backed `blacklist_domains` denylist
+     (seed ∪ operator; Alembic `b3d9f1c2e7a4`). `s4` is HIGH but WARNs (not a
+     promoted blocker — gate unchanged).
+  Lanes reconciled at this close-out:
+  [`ui.md`](agent-lanes/ui.md),
+  [`executor-runtime.md`](agent-lanes/executor-runtime.md),
+  [`static-analysis-pre-check.md`](agent-lanes/static-analysis-pre-check.md).
+  Close-out test bar (`2026-06-03`): full suite **2457 passed, 9 skipped,
+  13 deselected** (post-W22 baseline 2450 + **7 merge-gating tests** added at
+  close-out: blacklist-CRUD rollback ×2, seed-file `OSError` fallback,
+  `prime_blacklist_override` swallow + happy-path, the `b3d9f1c2e7a4`
+  migration round-trip, and `close_all_terminals`);
+  `tests/architecture/` **318 passed**.
+
 ## W13 Status Summary
 
 | Scope | Status |

@@ -49,6 +49,7 @@ repos:
             executor/flows/playwright/report_builder\.py|
             tests/platform/security/test_content_sample_redaction\.py|
             tests/platform/security/test_extension_host_output_redaction\.py|
+            tests/platform/contracts/test_secret_detection\.py|
             documents/POST_POC_BACKLOG\.md|
             documents/REFACTOR_STATUS\.md|
             documents/active-work/W11-monitor-lifecycle\.md|
