@@ -52,7 +52,11 @@ class ActivationWildcardRule:
     rule_version = "1.0.0"
     lifecycle = RuleLifecycle.PRODUCTION
     adversary_class: AdversaryClass | None = None
-    severity = Severity.LOW
+    # HIGH (warns, never blocks): a '*' activation is an always-on, no-user-intent
+    # foothold that amplifies every other capability — too load-bearing to bury at
+    # LOW. Deliberately NOT a promoted blocker (some legitimate extensions still
+    # declare '*'), so it surfaces prominently without rejecting before the sandbox.
+    severity = Severity.HIGH
     description = (
         "Extension declares a '*' activation event, so it activates on every "
         "VS Code event regardless of user intent."

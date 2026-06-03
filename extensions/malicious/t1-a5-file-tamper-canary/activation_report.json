@@ -1,0 +1,55 @@
+{
+  "report_version": 2,
+  "target_extension_expected": "extrace.t1-a5-file-tamper-canary",
+  "automation_health": {
+    "status": "healthy",
+    "reasons": []
+  },
+  "signal_summary": {},
+  "summary": {
+    "target_extension_version": "0.0.1"
+  },
+  "scenario_traces": [],
+  "evidence_events": [
+    {
+      "event_id": "activation-0001",
+      "kind": "extension_host",
+      "rel_time_s": 0.0,
+      "summary": "Activated extrace.t1-a5-file-tamper-canary",
+      "raw_context": {
+        "event_class": "activation"
+      }
+    },
+    {
+      "event_id": "file-0001",
+      "kind": "file",
+      "rel_time_s": 6.0,
+      "operation": "read",
+      "path": "/workspace/addresses.txt",
+      "summary": "Workspace file scanned for wallet addresses",
+      "is_target_extension_event": true,
+      "attribution_status": "strong",
+      "raw_context": {
+        "event_class": "file"
+      }
+    },
+    {
+      "event_id": "file-0002",
+      "kind": "file",
+      "rel_time_s": 12.0,
+      "operation": "write",
+      "path": "/workspace/addresses.txt",
+      "summary": "Workspace file rewritten in place",
+      "is_target_extension_event": true,
+      "attribution_status": "strong",
+      "raw_context": {
+        "event_class": "file"
+      }
+    }
+  ],
+  "network_events": [],
+  "file_events": [],
+  "log_streams": {
+    "automation": []
+  }
+}

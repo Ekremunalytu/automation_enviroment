@@ -22,7 +22,7 @@ def test_activation_wildcard_fires(make_context: MakeContext) -> None:
     findings = ActivationWildcardRule().evaluate(ctx)
     assert len(findings) == 1
     assert findings[0].rule_id == "extrace.s1.activation_wildcard"
-    assert findings[0].severity.value == "low"
+    assert findings[0].severity.value == "high"
     assert findings[0].evidence and findings[0].evidence[0].type == "manifest"
 
 

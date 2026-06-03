@@ -21,6 +21,8 @@ _BUILTIN_STATIC_RULE_MODULES = (
     "static_runtime.rules.s5_network_indicators",
     "static_runtime.rules.s6_obfuscation_indicators",
     "static_runtime.rules.s7_secret_exposure",
+    "static_runtime.rules.s8_exfil_webhook",
+    "static_runtime.rules.s9_crypto_address_scan",
 )
 _BUILTINS_LOADED = False
 

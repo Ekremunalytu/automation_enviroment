@@ -14,6 +14,7 @@ EXPECTED_PRODUCTION_RULE_IDS = {
     "extrace.a2.startup_network_beacon",
     "extrace.a3.typosquat",
     "extrace.a4.workspace_exfil",
+    "extrace.a5.workspace_file_tamper",
     "extrace.a6.startup_ui_prompt",
     "extrace.a7.blacklisted_domain",
     "extrace.demo.runnable_canary",

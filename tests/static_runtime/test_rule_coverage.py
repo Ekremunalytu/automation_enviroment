@@ -23,6 +23,8 @@ EXPECTED_STATIC_PRODUCTION_RULE_IDS = {
     "extrace.s5.suspicious_network_endpoint",
     "extrace.s6.obfuscation_indicators",
     "extrace.s7.hardcoded_secret",
+    "extrace.s8.exfil_webhook",
+    "extrace.s9.crypto_address_scan",
 }
 
 

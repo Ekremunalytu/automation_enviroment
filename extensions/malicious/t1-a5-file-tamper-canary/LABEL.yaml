@@ -1,0 +1,21 @@
+{
+  "id": "t1-a5-file-tamper-canary",
+  "tier": "T1",
+  "source": {
+    "kind": "internal_canary",
+    "reference": "apollyon/a5/workspace-file-tamper",
+    "sha256": null
+  },
+  "category": {
+    "adversary_class": "A5",
+    "taxonomy": ["attack.T1565"]
+  },
+  "expected_detections": {
+    "must_fire": ["extrace.a5.workspace_file_tamper"],
+    "must_not_fire": []
+  },
+  "declawing": null,
+  "retention": {
+    "expires": null
+  }
+}
