@@ -6,7 +6,7 @@ import type {
   StaticReportView,
 } from "../../lib/types/view-models";
 import { buildRuleMatrix } from "./buildRuleMatrix";
-import { catalogRuleIds } from "./ruleCatalog";
+import { catalogRuleIds, ruleCatalogEntry } from "./ruleCatalog";
 
 function makeReport(partial: {
   detection?: DetectionReportView | null;
@@ -188,6 +188,7 @@ describe("ruleCatalog drift guard", () => {
       "extrace.a2.startup_network_beacon",
       "extrace.a3.typosquat",
       "extrace.a4.workspace_exfil",
+      "extrace.a5.workspace_file_tamper",
       "extrace.a6.startup_ui_prompt",
       "extrace.a7.blacklisted_domain",
     ]) {
@@ -206,8 +207,29 @@ describe("ruleCatalog drift guard", () => {
       "extrace.s5.suspicious_network_endpoint",
       "extrace.s6.obfuscation_indicators",
       "extrace.s7.hardcoded_secret",
+      "extrace.s8.exfil_webhook",
+      "extrace.s9.crypto_address_scan",
     ]) {
       expect(staticIds.has(id)).toBe(true);
     }
+  });
+
+  it("gives the rules added this branch a stream + a rich detail paragraph", () => {
+    const cases: Array<[string, "static" | "dynamic"]> = [
+      ["extrace.s8.exfil_webhook", "static"],
+      ["extrace.s9.crypto_address_scan", "static"],
+      ["extrace.a5.workspace_file_tamper", "dynamic"],
+    ];
+    for (const [id, stream] of cases) {
+      const entry = ruleCatalogEntry(id);
+      expect(entry, id).toBeDefined();
+      expect(entry?.stream).toBe(stream);
+      // detail is the richer description rendered in the rule dialog / expanded row.
+      expect((entry?.detail ?? "").length).toBeGreaterThan(40);
+    }
+  });
+
+  it("pins extrace.s1.activation_wildcard at HIGH (raised from LOW this branch)", () => {
+    expect(ruleCatalogEntry("extrace.s1.activation_wildcard")?.severity).toBe("high");
   });
 });

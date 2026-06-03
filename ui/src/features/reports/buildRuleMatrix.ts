@@ -123,7 +123,7 @@ function dynamicDetail(
       evidenceCount: finding.evidence.length,
     };
   }
-  const base = catalog?.blurb ?? "";
+  const base = catalog?.detail ?? catalog?.blurb ?? "";
   const description =
     record.status === "error" && record.errorDetail
       ? `${base}${base ? " " : ""}Execution error: ${record.errorDetail}`
@@ -154,7 +154,7 @@ function staticDetail(
   if (catalog) {
     return {
       title: catalog.label,
-      description: catalog.blurb,
+      description: catalog.detail ?? catalog.blurb,
       mitigation: null,
       evidence: [],
       evidenceCount: 0,

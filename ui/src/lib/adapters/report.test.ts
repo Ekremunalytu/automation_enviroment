@@ -884,7 +884,7 @@ describe("buildRiskRadarAxes", () => {
     dto.risk_signals = [
       { signal_id: "u1", category: "totally_unknown_category", severity: "critical", confidence: 1, evidence_event_ids: ["network-1"], summary: "x" },
     ];
-    dto.coverage_tracks!.official.summary = {
+    dto.coverage_tracks!.official!.summary = {
       covered: 4,
       partial: 0,
       missing: 0,
