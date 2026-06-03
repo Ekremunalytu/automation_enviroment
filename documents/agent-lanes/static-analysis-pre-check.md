@@ -5,7 +5,14 @@ API (`AnalyzeJobStatusResponse.static_report` / `static_report_path` +
 `AnalyzeResponse.static_report`) and the UI (SimulationPage static pre-check
 panel); ALLOW/WARN now persists the static-only combined bundle; the feature
 flag was flipped **ON** after live Docker smoke evidence; ADR 0016 → Accepted.
-The whole stream (ES-0..ES-5) is DONE).
+The whole stream (ES-0..ES-5) is DONE). · **Post-ES-5 expansion** on branch
+`extension-trigger-matrix` (2026-06-03): in-house static rules grew 6 → 10
+(`s4` blacklisted-domain, `s5` suspicious-network-endpoint, `s6`
+obfuscation-indicators, `s7` hardcoded-secret), Semgrep JS rules 4 → 8, plus a
+dynamic `a7` blacklisted-domain rule and an operator-editable DB-backed
+`blacklist_domains` denylist (seed ∪ operator). `s4` is HIGH but **WARNs** (NOT
+added to the promoted-blocker frozenset — block-and-warn invariant unchanged).
+See `documents/active-work/extension-trigger-matrix.md`.
 
 Use this lane for the pre-execution static analysis stage: static
 detection contracts, in-house static rules, the Semgrep runner, the
@@ -40,6 +47,17 @@ decision gate that fronts the dynamic sandbox.
   `ui/src/lib/adapters/job.ts` (`adaptStaticReport`) +
   `ui/src/features/simulation/SimulationPage.tsx` (static pre-check panel)
   (landed ES-5 — API/UI surfacing + ALLOW/WARN persistence + flag flip ON)
+- **Post-ES-5 expansion (branch `extension-trigger-matrix`):**
+  `static_runtime/rules/{s4_blacklisted_domain,s5_network_indicators,
+  s6_obfuscation_indicators,s7_secret_exposure}.py` + the 8-rule
+  `static_runtime/semgrep_rules/extrace-vsix-js.yml`; the shared stdlib-only
+  matcher `packages/analysis_contracts/domain_indicators.py` (+ seed
+  `data/blacklist_domains.txt`, mirrors `typosquat_match.py`) reused by the
+  dynamic `packages/analysis_engine/rules/a7_blacklisted_domain.py`; the
+  operator denylist via `workflows/detection_rules/blacklist_service.py` +
+  `appcore/api/rules_router.py` + `appcore/storage/.../blacklist_domains.py` +
+  Alembic `b3d9f1c2e7a4` (the `blacklist_domains` table). `main.py`
+  primes the in-process override at boot (best-effort; DB-down is swallowed).
 
 ## Invariants
 

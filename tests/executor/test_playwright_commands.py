@@ -183,3 +183,23 @@ def test_drain_followup_ui_respects_max_depth_bound() -> None:
     page = _DrainPage(depth=3)
     assert commands.drain_followup_ui(page, max_depth=2) == 2
     assert page.escapes == 2
+
+
+# --- W22 Fix 4b: kill leftover terminals between attempts --------------------
+
+
+def test_close_all_terminals_runs_kill_all_command() -> None:
+    """``close_all_terminals`` routes the built-in Kill All Terminals command.
+
+    The inter-command maintenance pass uses it to reclaim terminals that
+    terminal/REPL-spawning commands leave behind; it is a thin wrapper over the
+    command palette, so we assert the exact command id is dispatched.
+    """
+    from executor.flows.playwright.vscode import terminal
+
+    page = _FakePage([object(), object(), object(), object(), object(), object()])
+
+    terminal.close_all_terminals(page)
+
+    assert page.keyboard.typed == [("Terminal: Kill All Terminals", 30)]
+    assert page.keyboard.presses[-1] == "Enter"

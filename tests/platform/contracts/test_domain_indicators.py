@@ -116,3 +116,26 @@ def test_static_container_default_is_seed_only(blacklist) -> None:
     assert domain_indicators.blacklisted_domains() == frozenset(
         {"evil.example", "exfil.test"}
     )
+
+
+def test_seed_loader_missing_file_degrades_to_empty(tmp_path, monkeypatch) -> None:
+    """An unreadable seed file degrades to an empty denylist instead of raising.
+
+    The matcher leaf is imported by both the dynamic engine and the hardened
+    static-analyzer container; a missing/unreadable ``blacklist_domains.txt``
+    must not crash either surface. Covers the ``except OSError`` fallback in
+    ``_seed_domains`` — and confirms an operator override still applies on top of
+    the empty seed.
+    """
+    missing = tmp_path / "nonexistent" / "blacklist_domains.txt"
+    monkeypatch.setattr(domain_indicators, "_BLACKLIST_DOMAIN_PATH", missing)
+    _reset_caches()
+    try:
+        assert domain_indicators.seed_domains() == frozenset()
+        assert domain_indicators.blacklisted_domains() == frozenset()
+        assert domain_indicators.match_host("evil.example") is None
+        # The operator override is independent of the seed file and still works.
+        domain_indicators.set_operator_blacklist(["op-only.test"])
+        assert domain_indicators.match_host("a.b.op-only.test") == "op-only.test"
+    finally:
+        _reset_caches()

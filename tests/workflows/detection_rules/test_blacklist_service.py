@@ -8,8 +8,15 @@ live.
 
 from __future__ import annotations
 
-import pytest
+from unittest.mock import MagicMock
 
+import pytest
+from sqlalchemy.exc import SQLAlchemyError
+
+from appcore.storage.crud import (
+    add_blacklist_domain_and_commit,
+    remove_blacklist_domain_and_commit,
+)
 from packages.analysis_contracts import domain_indicators
 from workflows.detection_rules.blacklist_service import (
     BlacklistDomainValidationError,
@@ -48,6 +55,35 @@ def test_validate_domain_normalizes(raw: str, expected: str) -> None:
 def test_validate_domain_rejects_malformed(bad: str) -> None:
     with pytest.raises(BlacklistDomainValidationError):
         validate_domain(bad)
+
+
+def test_add_blacklist_domain_rolls_back_on_db_error() -> None:
+    """The CRUD add helper owns its commit: a commit failure rolls back + re-raises.
+
+    Covers the ``except SQLAlchemyError`` path in
+    ``add_blacklist_domain_and_commit`` so a mid-commit failure cannot leave the
+    caller's session in a half-open transaction. DB-free (mocked session).
+    """
+    db = MagicMock()
+    db.commit.side_effect = SQLAlchemyError("commit boom")
+
+    with pytest.raises(SQLAlchemyError):
+        add_blacklist_domain_and_commit(db, domain="evil.example", added_by="op")
+
+    db.rollback.assert_called_once_with()
+
+
+def test_remove_blacklist_domain_rolls_back_on_db_error() -> None:
+    """The CRUD remove helper rolls back + re-raises when the delete commit fails."""
+    db = MagicMock()
+    db.get.return_value = object()  # a row exists -> the delete/commit path runs
+    db.commit.side_effect = SQLAlchemyError("commit boom")
+
+    with pytest.raises(SQLAlchemyError):
+        remove_blacklist_domain_and_commit(db, domain="evil.example")
+
+    db.delete.assert_called_once()
+    db.rollback.assert_called_once_with()
 
 
 @pytest.fixture

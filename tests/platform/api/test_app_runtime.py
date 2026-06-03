@@ -3,7 +3,7 @@ from __future__ import annotations
 import importlib
 import re
 import sys
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from sqlalchemy.exc import SQLAlchemyError
@@ -69,3 +69,48 @@ def test_create_app_fails_fast_when_job_storage_is_unavailable(
         main.create_app()
 
     assert isinstance(exc_info.value.__cause__, SQLAlchemyError)
+
+
+def test_prime_blacklist_override_swallows_db_error() -> None:
+    """A DB failure while priming the operator denylist never blocks startup.
+
+    ``prime_blacklist_override`` runs unconditionally in ``create_app``; the
+    dynamic ``a7`` rule falls back to the shipped seed when the operator DB is
+    unreachable (or the ``blacklist_domains`` table is not yet migrated), so the
+    priming failure must be swallowed. Covers the ``except SQLAlchemyError`` path
+    — and asserts the session is still closed on the error route.
+    """
+    main = _load_main_module()
+    fake_session = MagicMock()
+
+    with (
+        patch("appcore.db.session.SessionLocal", return_value=fake_session),
+        patch(
+            "workflows.detection_rules.blacklist_service.refresh_operator_override",
+            side_effect=SQLAlchemyError("blacklist_domains table missing"),
+        ),
+    ):
+        # Must not raise.
+        main.prime_blacklist_override()
+
+    fake_session.close.assert_called_once_with()
+
+
+def test_prime_blacklist_override_refreshes_then_closes_session() -> None:
+    """Happy path: open a session, refresh the matcher override, close the session."""
+    main = _load_main_module()
+    fake_session = MagicMock()
+
+    with (
+        patch(
+            "appcore.db.session.SessionLocal", return_value=fake_session
+        ) as session_local,
+        patch(
+            "workflows.detection_rules.blacklist_service.refresh_operator_override"
+        ) as refresh,
+    ):
+        main.prime_blacklist_override()
+
+    session_local.assert_called_once_with()
+    refresh.assert_called_once_with(fake_session)
+    fake_session.close.assert_called_once_with()
