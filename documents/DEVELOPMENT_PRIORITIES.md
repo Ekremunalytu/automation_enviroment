@@ -77,14 +77,15 @@ Must vs Stretch. See `REFACTOR_OPTIMIZATION.md` §10 for Must/Stretch split and
   2026-05-07).
 
 **PoC Must classes (ADR 0002):** A1 credential stealer, A2 cryptominer, A4
-remote-loader, A6 package.json script abuse — **rules landed**. **Stretch
-classes:** A3 typosquat landed 2026-04-23; A5 malicious update and A7 VS
-Code API abuse remain in `POST_POC_BACKLOG.md`.
+remote-loader, A6 package.json script abuse — **rules landed**. Post-W22
+security-development expands the production registry to A1-A8: A5 workspace
+file tamper, A7 blacklisted-domain runtime contact, and A8 reverse shell are
+live alongside A3 typosquat.
 
 The priority list below describes the enduring engineering priorities that
 survive past W7 closure. Active iteration scope pulls from
-`POST_POC_BACKLOG.md` and the active W22 tracker
-`active-work/W22-coverage-promotion-hard-tier.md`.
+`POST_POC_BACKLOG.md` and the active named-stream tracker
+`detection-design/README.md`.
 
 ## Current Priorities
 

@@ -3,7 +3,10 @@ api.example.com
 example.com
 github.com
 localhost
+main.vscode-cdn.net
 marketplace.visualstudio.com
 microsoft.com
 open-vsx.org
+registry.npmjs.org
 visualstudio.com
+www.schemastore.org

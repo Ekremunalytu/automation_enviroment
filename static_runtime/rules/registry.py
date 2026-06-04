@@ -21,6 +21,19 @@ _BUILTIN_STATIC_RULE_MODULES = (
     "static_runtime.rules.s5_network_indicators",
     "static_runtime.rules.s6_obfuscation_indicators",
     "static_runtime.rules.s7_secret_exposure",
+    "static_runtime.rules.s8_exfil_webhook",
+    "static_runtime.rules.s9_crypto_address_scan",
+    "static_runtime.rules.s10_reverse_shell",
+    "static_runtime.rules.s11_download_cradle",
+    "static_runtime.rules.s12_invisible_unicode",
+    "static_runtime.rules.s13_native_node_loader",
+    "static_runtime.rules.s14_globalstate_dormancy",
+    "static_runtime.rules.s15_path_traversal_server",
+    "static_runtime.rules.s16_cross_extension_tamper",
+    "static_runtime.rules.s17_credential_exfil",
+    "static_runtime.rules.s18_download_exec_dropper",
+    "static_runtime.rules.s19_stylesheet_threats",
+    "static_runtime.rules.s20_rmm_remote_access",
 )
 _BUILTINS_LOADED = False
 

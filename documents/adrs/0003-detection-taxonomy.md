@@ -19,6 +19,12 @@ separately.
 
 ## Decision
 
+> Post-acceptance update (2026-06-04): the production enum and tests now cover
+> `AdversaryClass` A1-A8. The original 2026-04-17 threat-model labels remain the
+> historical PoC/stretched-scope baseline; current rule mapping is code-owned:
+> A5 is workspace file tamper / integrity, A7 is blacklisted-domain runtime
+> contact, and A8 is reverse shell / remote command execution.
+
 ### 1. Taxonomy Alignment
 
 Detection categories align with the MITRE ATT&CK Enterprise matrix where
@@ -101,7 +107,8 @@ A detection finding is serialized as:
   `evidence_events[].event_id` in the paired activation report and any
   `RuleExecutionRecord.finding_ids` that does not match a finding in the
   same report.
-- `adversary_class` references ADR 0002 classes A1-A7 when applicable.
+- `adversary_class` references the current `AdversaryClass` enum (A1-A8) when
+  applicable.
 
 ### 5. Verdict Rollup
 

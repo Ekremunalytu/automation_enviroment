@@ -60,6 +60,15 @@ def test_match_host_registrable_boundary_safe(blacklist) -> None:
     assert domain_indicators.match_host("") is None
 
 
+def test_match_host_allows_exact_ip_host_indicators(blacklist) -> None:
+    blacklist(["217.69.11.60"])
+    assert domain_indicators.match_host("217.69.11.60") == "217.69.11.60"
+    assert domain_indicators.find_in_text('fetch("http://217.69.11.60/x")') == [
+        "217.69.11.60"
+    ]
+    assert domain_indicators.match_host("1217.69.11.60") is None
+
+
 def test_find_in_text_finds_hosts_with_subdomains(blacklist) -> None:
     blacklist(["evil.example", "beacon.test"])
     text = 'fetch("https://c2.evil.example/cb"); ping("beacon.test")'

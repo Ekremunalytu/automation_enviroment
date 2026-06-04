@@ -1,6 +1,6 @@
 # Refactor Status
 
-`Last Updated: 2026-05-28 — W22 closed synthetically on week22 and merged to main via PR #31 week22 -> main 1399f82. W21 closed and merged via PR #30 week21 -> main 2026-05-28 via 5dc18aa. Prior close-outs: W20 PR #29 week20 -> main 64a3c3d · W19 PR #28 week19 -> main c879603 · W18 PR #26 week18 -> main 9874e79 · W17 PR #25 week17 -> main bff565d · W16 PR #23 week16 -> main 1b6d43f · W15 PR #22 week15 -> main 6161472 · W14 PR #21 week14 -> main 4e03c8d · W13 PR #20 week13 -> main 772deb3. Active tracker: documents/active-work/W22-coverage-promotion-hard-tier.md.`
+`Last Updated: 2026-06-04 — W22 closed synthetically on week22 and merged to main via PR #31 week22 -> main 1399f82. W21 closed and merged via PR #30 week21 -> main 2026-05-28 via 5dc18aa. Prior close-outs: W20 PR #29 week20 -> main 64a3c3d · W19 PR #28 week19 -> main c879603 · W18 PR #26 week18 -> main 9874e79 · W17 PR #25 week17 -> main bff565d · W16 PR #23 week16 -> main 1b6d43f · W15 PR #22 week15 -> main 6161472 · W14 PR #21 week14 -> main 4e03c8d · W13 PR #20 week13 -> main 772deb3. Active stream: security-development on branch security-development; tracker documents/detection-design/README.md.`
 
 Active status board for current closure state. **Slim canonical** — verbose
 phase evidence is frozen under dated snapshots:
@@ -384,6 +384,29 @@ the same convention the static stream followed.
   `prime_blacklist_override` swallow + happy-path, the `b3d9f1c2e7a4`
   migration round-trip, and `close_all_terminals`);
   `tests/architecture/` **318 passed**.
+- **`security-development` stream — in progress on branch
+  `security-development` (2026-06-04).** Custom detection-rule expansion driven
+  by a series of real-world malware classes (general, behaviour-class rules — no
+  sample literal in rule logic). In-house static production rules grew to **26
+  (`s1`-`s20`** across multi-rule modules); dynamic production rules to **A1-A8**
+  (`a5.workspace_file_tamper`, `a8.reverse_shell` added); the Semgrep JS rule set
+  to 16 (advisory echoes); plus the IOC denylist, the `.less`/`.scss`/`.sass`
+  content-scanner coverage fix, and the UI Rules-tab catalog (static + dynamic,
+  s1-s20). New static surfaces span reverse-shell (`s10`, CRITICAL), download-
+  cradle (`s11`, CRITICAL), invisible-unicode (`s12`), native-loader (`s13`),
+  globalState dormancy (`s14`), path-traversal (`s15`), cross-extension-tamper
+  (`s16`, CRITICAL), credential-exfil (`s17`), download-exec dropper (`s18`),
+  stylesheet threats (`s19` trio, inline-JS CRITICAL), RMM-as-RAT abuse (`s20`),
+  reserved-publisher spoof (`s1.reserved_publisher_spoof`), plus the
+  webhook/crypto (`s8`/`s9`) exfil surfaces. Real, observed C2/relay hosts are on
+  the shared `blacklist_domains` denylist (the snowshono Stage-3 relay + related-
+  campaign hosts + the kagema Stage-2 `niggboo.com`); SHA-256 hashes stay
+  reference-only; shared first-party fallback hosts (Google Calendar/Gmail) are
+  intentionally excluded to avoid broad false positives, and a guard test pins
+  the IOC-safety invariant. Per-class specs (apollyon / securezeron / kagema /
+  GlassWorm / snyk-labs / nf3xn / ecm3401 / nextsecurity / snowshono) and the
+  living status board:
+  [`detection-design/README.md`](detection-design/README.md).
 
 ## W13 Status Summary
 

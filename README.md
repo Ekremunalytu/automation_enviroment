@@ -1,12 +1,12 @@
 # ExTrace
 
-`Last Updated: 2026-05-28`
+`Last Updated: 2026-06-04`
 
-`Active phase: W22 — closed synthetically on the week22 branch, merged to main via PR #31 week22 -> main 2026-05-28 via 1399f82.`
+`Last merged weekly: W22 — closed synthetically on the week22 branch, merged to main via PR #31 week22 -> main 2026-05-28 via 1399f82.`
 
-`Previous phase: W21 closed and merged via PR #30 week21 -> main 2026-05-28 via 5dc18aa.`
+`Active stream: security-development on branch security-development — custom detection-rule expansion. Tracker: documents/detection-design/README.md.`
 
-`Active tracker: documents/active-work/W22-coverage-promotion-hard-tier.md · Sources of truth: documents/REFACTOR_STATUS.md (state) · documents/POST_POC_BACKLOG.md (deferred) · documents/REFACTOR_OPTIMIZATION.md §20 (W22 plan).`
+`Sources of truth: documents/REFACTOR_STATUS.md (state) · documents/POST_POC_BACKLOG.md (deferred) · documents/REFACTOR_OPTIMIZATION.md §20 (last weekly plan) · documents/phase.json (weekly pointer + active stream).`
 
 ExTrace is a VS Code extension analysis platform built around three runtime
 surfaces:
@@ -249,6 +249,20 @@ multi-tenant web platform.
   suite **2130 passed**, 9 skipped, 8 deselected (`make check-all`
   green). Frozen tracker:
   [`active-work/W22-coverage-promotion-hard-tier.md`](documents/active-work/W22-coverage-promotion-hard-tier.md).**
+
+  **Post-W22 named streams:** the weekly pointer stays W22 while feature
+  streams land independently. Static Analysis Pre-Check (ADR 0016) closed
+  ES-0..ES-5 and merged via PR #33 (`70e4364`). The
+  `extension-trigger-matrix` stream merged `2026-06-03` with the reports rule
+  matrix, planner `contributes.commands` synthesis, expanded static/Semgrep
+  rules, dynamic `a7`, and editable `blacklist_domains`. Current active stream
+  is `security-development` on branch `security-development`, tracked by
+  [`documents/detection-design/README.md`](documents/detection-design/README.md):
+  static production rules are now 26 (`s1`-`s20` across multi-rule modules —
+  adding reverse-shell, download-cradle, native-loader, path-traversal,
+  cross-extension-tamper, credential-exfil, dropper, stylesheet, and RMM-abuse
+  surfaces), dynamic production rules are A1-A8 plus the demo canary, and the
+  Rules tab surfaces both Static and Dynamic streams.
 
   **Previous phase: W21 — Coverage Promotion Round 2: Mid Tier —
   closed synthetically `2026-05-28` on the `week21` branch (per

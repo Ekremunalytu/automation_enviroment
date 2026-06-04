@@ -1,6 +1,6 @@
 # ExTrace Architecture
 
-`Last Updated: 2026-05-28 — W22 closed synthetically on week22 and merged to main via PR #31 week22 -> main 1399f82; W21 closed and merged via PR #30 5dc18aa.`
+`Last Updated: 2026-06-04 — W22 remains the last merged weekly close-out (PR #31 week22 -> main 1399f82); active stream is security-development.`
 
 System shape, runtime surfaces, and module map. **Slim canonical** —
 detailed request flows under
@@ -60,10 +60,12 @@ catalog data + analysis-job metadata is `appcore/storage/crud.py`.
   `RuleExecutionStatus`, `quantize_confidence`).
 - `analysis_planner/` — registries, selection, attempts, coverage
   accounting, payload serialization.
-- `analysis_engine/` — detection rules under `rules/` (A1/A2/A3/A4/A6
-  live; A5/A7 deferred — see `POST_POC_BACKLOG.md`); allow-lists
-  (`benign_domains.txt`, `popular_extensions.txt`). Rules import only
-  contracts.
+- `analysis_engine/` — dynamic detection rules under `rules/` (A1-A8 plus
+  the demo canary are production); allow-lists (`benign_domains.txt`,
+  `popular_extensions.txt`). Rules import only contracts.
+- Static pre-check detection rules live outside `packages/` in
+  `static_runtime/rules/` so the hardened analyzer image stays minimal; they
+  may import stdlib plus `packages.analysis_contracts` helpers only.
 - `marketplace_identity/` — `safe_marketplace_slug` helper (W8-2
   landed).
 

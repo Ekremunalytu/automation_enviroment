@@ -6,7 +6,7 @@ import type {
   StaticReportView,
 } from "../../lib/types/view-models";
 import { buildRuleMatrix } from "./buildRuleMatrix";
-import { catalogRuleIds } from "./ruleCatalog";
+import { catalogRuleIds, ruleCatalogEntry } from "./ruleCatalog";
 
 function makeReport(partial: {
   detection?: DetectionReportView | null;
@@ -188,8 +188,10 @@ describe("ruleCatalog drift guard", () => {
       "extrace.a2.startup_network_beacon",
       "extrace.a3.typosquat",
       "extrace.a4.workspace_exfil",
+      "extrace.a5.workspace_file_tamper",
       "extrace.a6.startup_ui_prompt",
       "extrace.a7.blacklisted_domain",
+      "extrace.a8.reverse_shell",
     ]) {
       expect(dynamic.has(id)).toBe(true);
     }
@@ -199,6 +201,7 @@ describe("ruleCatalog drift guard", () => {
       "extrace.s1.activation_wildcard",
       "extrace.s1.suspicious_capabilities",
       "extrace.s1.generic_publisher",
+      "extrace.s1.reserved_publisher_spoof",
       "extrace.s2.typosquat",
       "extrace.s3.embedded_native_binary",
       "extrace.s3.unusual_file_signature",
@@ -206,8 +209,55 @@ describe("ruleCatalog drift guard", () => {
       "extrace.s5.suspicious_network_endpoint",
       "extrace.s6.obfuscation_indicators",
       "extrace.s7.hardcoded_secret",
+      "extrace.s8.exfil_webhook",
+      "extrace.s9.crypto_address_scan",
+      "extrace.s10.reverse_shell",
+      "extrace.s11.download_cradle",
+      "extrace.s12.invisible_unicode_run",
+      "extrace.s13.native_node_loader",
+      "extrace.s14.globalstate_dormancy",
+      "extrace.s15.path_traversal_server",
+      "extrace.s16.cross_extension_tamper",
+      "extrace.s17.credential_exfil",
+      "extrace.s18.download_exec_dropper",
+      "extrace.s19.stylesheet_inline_js",
+      "extrace.s19.stylesheet_nonstandard_scheme",
+      "extrace.s19.stylesheet_css_exfil",
+      "extrace.s20.rmm_remote_access",
     ]) {
       expect(staticIds.has(id)).toBe(true);
     }
+  });
+
+  it("gives the rules added this branch a stream + a rich detail paragraph", () => {
+    const cases: Array<[string, "static" | "dynamic"]> = [
+      ["extrace.s1.reserved_publisher_spoof", "static"],
+      ["extrace.s8.exfil_webhook", "static"],
+      ["extrace.s9.crypto_address_scan", "static"],
+      ["extrace.s12.invisible_unicode_run", "static"],
+      ["extrace.s13.native_node_loader", "static"],
+      ["extrace.s14.globalstate_dormancy", "static"],
+      ["extrace.s15.path_traversal_server", "static"],
+      ["extrace.s16.cross_extension_tamper", "static"],
+      ["extrace.s17.credential_exfil", "static"],
+      ["extrace.s18.download_exec_dropper", "static"],
+      ["extrace.s19.stylesheet_inline_js", "static"],
+      ["extrace.s19.stylesheet_nonstandard_scheme", "static"],
+      ["extrace.s19.stylesheet_css_exfil", "static"],
+      ["extrace.s20.rmm_remote_access", "static"],
+      ["extrace.a5.workspace_file_tamper", "dynamic"],
+      ["extrace.a8.reverse_shell", "dynamic"],
+    ];
+    for (const [id, stream] of cases) {
+      const entry = ruleCatalogEntry(id);
+      expect(entry, id).toBeDefined();
+      expect(entry?.stream).toBe(stream);
+      // detail is the richer description rendered in the rule dialog / expanded row.
+      expect((entry?.detail ?? "").length).toBeGreaterThan(40);
+    }
+  });
+
+  it("pins extrace.s1.activation_wildcard at HIGH (raised from LOW this branch)", () => {
+    expect(ruleCatalogEntry("extrace.s1.activation_wildcard")?.severity).toBe("high");
   });
 });

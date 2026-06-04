@@ -1,6 +1,10 @@
 # Documentation Maintenance Lane
 
-**Last Updated:** 2026-05-26 (W19 closed synthetically — Hat-1 + Hat-2 fully closed; PR #28 `week19 -> main` MERGED `2026-05-26` via `c879603`. Current truth anchors: `REFACTOR_STATUS.md`, `POST_POC_BACKLOG.md`, `REFACTOR_OPTIMIZATION.md` §17, `active-work/W19-live-run-root-cause.md` (frozen), and `active-work/W18-W22-roadmap.md`.)
+**Last Updated:** 2026-06-04. W22 remains the last merged weekly close-out;
+post-W22 named streams are tracked through `documents/phase.json`.
+Current docs truth anchors: `REFACTOR_STATUS.md`, `POST_POC_BACKLOG.md`,
+`REFACTOR_OPTIMIZATION.md` §20, and the active stream tracker named by
+`phase.json.active_stream`.
 
 Use this lane for README, ADR, runbook, roadmap, testing-guide, and
 agent-doc updates.
@@ -22,10 +26,9 @@ target doc, and the code/tests/config proving each claim.
   work; **stable item IDs** (`[FOLLOWUP <id>]`) are a contract — code
   comments and tests reference them. Do not rename.
 - `REFACTOR_OPTIMIZATION.md` section 11 owns closed W8-W13 planning;
-  sections 12-17 own closed W14-W19 planning; sections 18-20 own the
-  W20-W22 roadmap. Frozen W19 tracker:
-  `documents/active-work/W19-live-run-root-cause.md`. Past
-  W8/W11/W12/W13/W14/W15/W16/W17/W18/W19 trackers remain only for stable IDs.
+  sections 12-20 own closed W14-W22 planning. Past
+  W8/W11/W12/W13/W14/W15/W16/W17/W18/W19/W20/W21/W22 trackers remain only for
+  stable IDs.
 - ADR 0007 enforcement landed `2026-04-29` via W8-7 — loopback
   defaults plus `EXTRACE_ALLOW_LAN` opt-in are pinned by
   `tests/architecture/test_default_bindings.py`. Do not regress to

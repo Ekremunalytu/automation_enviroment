@@ -30,9 +30,10 @@ coverage.xml
 *.swp
 *.swo
 .DS_Store
-# .claude/ stays ignored, EXCEPT the shared project config + secret-guard hook.
+# .claude/ stays ignored, EXCEPT the secret-guard hook. settings.json is
+# intentionally untracked so local permission edits stay local (use
+# .claude/settings.local.json, also ignored, for machine-specific overrides).
 .claude/*
-!.claude/settings.json
 !.claude/hooks/
 .claude/hooks/*
 !.claude/hooks/guard-secrets.py

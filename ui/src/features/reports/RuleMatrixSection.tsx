@@ -116,6 +116,19 @@ function MatrixCellButton({
         <span
           style={{
             fontFamily: FONT_MONO,
+            fontSize: 9,
+            letterSpacing: "0.06em",
+            textTransform: "uppercase",
+            color: V3.ink2,
+            border: `1px solid ${V3.rule2}`,
+            padding: "1px 4px",
+          }}
+        >
+          {cell.stream}
+        </span>
+        <span
+          style={{
+            fontFamily: FONT_MONO,
             fontSize: 9.5,
             letterSpacing: "0.08em",
             textTransform: "uppercase",

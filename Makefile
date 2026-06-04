@@ -241,6 +241,11 @@ test-security:
 		tests/security/test_sandbox_evasion_canary.py \
 		tests/security/test_static_container_isolation.py \
 		tests/security/test_semgrep_js_rules.py \
+		tests/static_runtime/test_s4_blacklisted_domain.py \
+		tests/static_runtime/test_s12_invisible_unicode.py \
+		tests/static_runtime/test_s13_native_node_loader.py \
+		tests/static_runtime/test_s14_globalstate_dormancy.py \
+		tests/platform/contracts/test_domain_indicators.py \
 		tests/platform/security \
 		tests/architecture/test_default_bindings.py \
 		tests/architecture/test_dockerfile_digest_pin.py \

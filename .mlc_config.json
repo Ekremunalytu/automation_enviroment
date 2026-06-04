@@ -17,6 +17,24 @@
     },
     {
       "pattern": ":\\d+$"
+    },
+    {
+      "pattern": "niggboo"
+    },
+    {
+      "pattern": "year000001"
+    },
+    {
+      "pattern": "undefined21"
+    },
+    {
+      "pattern": "bulletmailer"
+    },
+    {
+      "pattern": "dof-connect"
+    },
+    {
+      "pattern": "144.172.103.247"
     }
   ],
   "timeout": "10s",

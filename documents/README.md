@@ -1,6 +1,6 @@
 # Documents Guide
 
-`Last Updated: 2026-05-30 — W22 closed synthetically and merged to main via PR #31 week22 -> main 1399f82 (W21 prior close-out PR #30 5dc18aa). Active work: Static Analysis Pre-Check Stream on branch static.`
+`Last Updated: 2026-06-04 — W22 remains the last merged weekly close-out (PR #31 week22 -> main 1399f82). Active stream: security-development on branch security-development; tracker: detection-design/README.md.`
 
 This folder is split into a small canonical core, specialized reference docs,
 and a frozen archive. **Do not preload the entire folder.** Open subsystem
@@ -10,8 +10,8 @@ Current status: [`REFACTOR_STATUS.md`](REFACTOR_STATUS.md). Deferrals:
 [`POST_POC_BACKLOG.md`](POST_POC_BACKLOG.md). W8-W13 plan:
 [`REFACTOR_OPTIMIZATION.md`](REFACTOR_OPTIMIZATION.md) §11; W14-W18 plans:
 §12-§16; W19-W22 plans: §17-§20. Last merged weekly: W22 (PR #31,
-1399f82). Active work tracker:
-[`active-work/static-analysis-pre-check-stream.md`](active-work/static-analysis-pre-check-stream.md).
+1399f82). Active stream tracker:
+[`detection-design/README.md`](detection-design/README.md).
 W18-W22 roadmap:
 [`active-work/W18-W22-roadmap.md`](active-work/W18-W22-roadmap.md).
 Closed stable-ID trackers live under [`active-work/`](active-work/).

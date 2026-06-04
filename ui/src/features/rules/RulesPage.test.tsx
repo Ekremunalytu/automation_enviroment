@@ -156,6 +156,40 @@ describe("RulesPage", () => {
     expect(screen.getByRole("button", { name: "Open evidence file-1" })).toBeInTheDocument();
   });
 
+  it("lists static pre-check rules with a Static stream label", async () => {
+    const bundle = bundleWithRules([]);
+    (bundle as unknown as { static_report: unknown }).static_report = {
+      detection_report: {
+        findings: [
+          {
+            rule_id: "extrace.s8.exfil_webhook",
+            rule_version: "1.0.0",
+            rule_lifecycle: "production",
+            categories: ["attack.T1567"],
+            severity: "high",
+            confidence: "high",
+            title: "Exfiltration webhook",
+            description: "Hardcoded Discord webhook ingestion endpoint.",
+          },
+        ],
+        tool_executions: [
+          { tool: "inhouse", version: "1.0.0", rules_loaded: 12, findings_emitted: 1, duration_ms: 5, status: "ok" },
+        ],
+      },
+      gate_outcome: { decision: "warn", warned_by: ["extrace.s8.exfil_webhook"] },
+    };
+    vi.mocked(apiClient.getLatestReportBundle).mockResolvedValue(bundle);
+
+    renderPage();
+
+    // The fired static rule renders by title even though there are no dynamic rules…
+    expect(await screen.findByText("Exfiltration webhook")).toBeInTheDocument();
+    // …a silent static catalog rule (no finding) is enumerated too…
+    expect(screen.getByText("Crypto address awareness")).toBeInTheDocument();
+    // …and static rows carry a stream label (rendered uppercase via CSS; DOM text is lowercase).
+    expect(screen.getAllByText("static").length).toBeGreaterThan(0);
+  });
+
   it("renders the editable blacklist panel in its own tab", async () => {
     vi.mocked(apiClient.getLatestReportBundle).mockResolvedValue(bundleWithRules([]));
 

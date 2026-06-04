@@ -1,4 +1,4 @@
-"""Framework-agnostic blacklist-domain indicators (blacklist_domains feature).
+"""Framework-agnostic blacklist host/domain indicators (blacklist_domains feature).
 
 Pure-stdlib helpers shared by two call sites that must NOT share a heavier
 dependency, mirroring ``typosquat_match.py``:
@@ -23,7 +23,8 @@ dynamic engine into the hardened static image.
 
 Matching is host-suffix aware (``c2.evil.example`` matches ``evil.example``) but
 registrable-boundary safe (``notevil.example`` / ``evil.example.org`` do NOT
-match ``evil.example``) — identical semantics to the allowlist's
+match ``evil.example``). Exact IP host literals are also allowed for known
+direct-IP C2/stagers. These semantics mirror the allowlist's
 ``packages.analysis_engine.rules._common.is_benign_domain``.
 """
 

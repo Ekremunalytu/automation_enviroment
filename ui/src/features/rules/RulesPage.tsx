@@ -20,13 +20,15 @@ import { adaptBundle } from "../../lib/adapters/report";
 import type {
   ActivationReportView,
   DetectionFindingView,
-  RuleExecutionRecordView,
+  StaticFindingView,
 } from "../../lib/types/view-models";
+import { catalogEntries, ruleCatalogEntry, type RuleStream } from "../reports/ruleCatalog";
 import { RuleDraftSection } from "./RuleDraftSection";
 
 type RulesMode = "registry" | "draft" | "blacklist";
 type SeverityFilter = "all" | "critical" | "high" | "medium" | "low";
 type StatusFilter = "all" | "fired" | "not_fired" | "error";
+type StreamFilter = "all" | "dynamic" | "static";
 
 const MODE_TABS: TabSpec<RulesMode>[] = [
   { value: "registry", label: "Registry" },
@@ -49,11 +51,38 @@ const STATUS_TABS: TabSpec<StatusFilter>[] = [
   { value: "error", label: "Error" },
 ];
 
+const STREAM_TABS: TabSpec<StreamFilter>[] = [
+  { value: "all", label: "All streams" },
+  { value: "dynamic", label: "Dynamic" },
+  { value: "static", label: "Static" },
+];
+
+type RuleStatus = "fired" | "silent" | "error";
+type RuleSeverityValue = DetectionFindingView["severity"];
+
+type RuleEvidence = { eventId: string; summary: string };
+type LinkedFinding = { id: string; title: string; evidenceSummary: string };
+
+// One unified row shape covering both planes: dynamic behavioral rules (from
+// detection.rulesExecuted) AND static pre-check rules (from the static catalog
+// universe + staticReport.findings), so the registry shows — and labels — both.
 type RuleRow = {
-  rule: RuleExecutionRecordView;
-  findings: DetectionFindingView[];
-  primaryFinding: DetectionFindingView | null;
-  evidence: DetectionFindingView["evidence"];
+  ruleId: string;
+  stream: RuleStream;
+  title: string;
+  ruleVersion: string | null;
+  lifecycle: string | null;
+  status: RuleStatus;
+  statusLabel: string;
+  severity: RuleSeverityValue | null;
+  severityLabel: string;
+  description: string;
+  categories: string[];
+  mitigationHint: string | null;
+  evidence: RuleEvidence[];
+  evidenceCount: number;
+  linkedFindings: LinkedFinding[];
+  errorDetail: string | null;
 };
 
 function normalizeSeverity(value: string | null): SeverityFilter {
@@ -66,52 +95,151 @@ function normalizeStatus(value: string | null): StatusFilter {
   return "all";
 }
 
-function severityTone(severity?: DetectionFindingView["severity"]): V3Tone {
+function normalizeStream(value: string | null): StreamFilter {
+  if (value === "dynamic" || value === "static") return value;
+  return "all";
+}
+
+function severityTone(severity?: RuleSeverityValue | null): V3Tone {
   if (severity === "critical" || severity === "high") return "danger";
   if (severity === "medium") return "warn";
   if (severity === "low") return "ok";
   return "neutral";
 }
 
-function statusTone(status: RuleExecutionRecordView["status"]): V3Tone {
+function statusTone(status: RuleStatus): V3Tone {
   if (status === "error") return "danger";
   if (status === "fired") return "accent";
   return "neutral";
 }
 
-function severityColor(severity?: DetectionFindingView["severity"]) {
+function severityColor(severity?: RuleSeverityValue | null) {
   if (severity === "critical" || severity === "high") return V3.coral;
   if (severity === "medium") return V3.warn;
   if (severity === "low") return V3.ok;
   return V3.rule2;
 }
 
-function buildRows(report: ActivationReportView): RuleRow[] {
+function evidenceLocationsLabel(count: number): string {
+  return `${count} evidence location${count === 1 ? "" : "s"}`;
+}
+
+function buildDynamicRows(report: ActivationReportView): RuleRow[] {
   const detection = report.detection;
   if (!detection) return [];
   return detection.rulesExecuted.map((rule) => {
+    const catalog = ruleCatalogEntry(rule.ruleId);
     const findings = detection.findings.filter((finding) => finding.ruleId === rule.ruleId);
+    const primary = findings[0] ?? null;
+    const evidence = findings.flatMap((finding) => finding.evidence);
+    const status: RuleStatus =
+      rule.status === "fired" ? "fired" : rule.status === "error" ? "error" : "silent";
     return {
-      rule,
-      findings,
-      primaryFinding: findings[0] ?? null,
-      evidence: findings.flatMap((finding) => finding.evidence),
+      ruleId: rule.ruleId,
+      stream: "dynamic",
+      title: primary?.title || catalog?.label || rule.ruleId,
+      ruleVersion: rule.ruleVersion || null,
+      lifecycle: rule.lifecycle || null,
+      status,
+      statusLabel: rule.statusLabel,
+      severity: primary?.severity ?? catalog?.severity ?? null,
+      severityLabel: primary?.severityLabel || "No finding",
+      description:
+        primary?.description ||
+        catalog?.detail ||
+        catalog?.blurb ||
+        "This rule did not attach a finding description to the latest report.",
+      categories: primary?.categories ?? catalog?.techniques.map((t) => `attack.${t}`) ?? [],
+      mitigationHint: primary?.mitigationHint || null,
+      evidence: evidence.map((item) => ({ eventId: item.eventId, summary: item.summary })),
+      evidenceCount: evidence.length,
+      linkedFindings: findings.map((finding) => ({
+        id: finding.id,
+        title: finding.title,
+        evidenceSummary:
+          finding.evidence.map((item) => item.summary || item.eventId).join(" · ") ||
+          "No evidence references.",
+      })),
+      errorDetail: rule.errorDetail || null,
     };
   });
 }
 
-function matchesStatus(rule: RuleExecutionRecordView, status: StatusFilter) {
+function buildStaticRows(report: ActivationReportView): RuleRow[] {
+  const staticReport = report.staticReport;
+  if (!staticReport) return [];
+
+  const byRule = new Map<string, StaticFindingView[]>();
+  for (const finding of staticReport.findings) {
+    const existing = byRule.get(finding.ruleId);
+    if (existing) existing.push(finding);
+    else byRule.set(finding.ruleId, [finding]);
+  }
+
+  const rows: RuleRow[] = [];
+  const seen = new Set<string>();
+  const toRow = (
+    ruleId: string,
+    findings: StaticFindingView[],
+    catalog: ReturnType<typeof ruleCatalogEntry>,
+  ): RuleRow => {
+    const primary = findings[0] ?? null;
+    const status: RuleStatus = findings.length ? "fired" : "silent";
+    const evidenceCount = findings.reduce((sum, finding) => sum + finding.evidenceCount, 0);
+    return {
+      ruleId,
+      stream: "static",
+      title: primary?.title || catalog?.label || ruleId,
+      ruleVersion: null,
+      lifecycle: null,
+      status,
+      statusLabel: status === "fired" ? "Fired" : "Silent",
+      severity: primary?.severity ?? catalog?.severity ?? null,
+      severityLabel: primary?.severityLabel || "No finding",
+      description: primary?.description || catalog?.detail || catalog?.blurb || "",
+      categories: catalog?.techniques.map((t) => `attack.${t}`) ?? [],
+      mitigationHint: null,
+      evidence: [],
+      evidenceCount,
+      linkedFindings: findings.map((finding) => ({
+        id: finding.id,
+        title: finding.title,
+        evidenceSummary: evidenceLocationsLabel(finding.evidenceCount),
+      })),
+      errorDetail: null,
+    };
+  };
+
+  // Catalog universe first (so silent static rules are enumerated)…
+  for (const catalog of catalogEntries("static")) {
+    seen.add(catalog.ruleId);
+    rows.push(toRow(catalog.ruleId, byRule.get(catalog.ruleId) ?? [], catalog));
+  }
+  // …then any fired static rule outside the catalog (external Semgrep/YARA/Trivy).
+  for (const [ruleId, findings] of byRule) {
+    if (seen.has(ruleId)) continue;
+    rows.push(toRow(ruleId, findings, undefined));
+  }
+  return rows;
+}
+
+function buildRows(report: ActivationReportView): RuleRow[] {
+  return [...buildDynamicRows(report), ...buildStaticRows(report)];
+}
+
+function matchesStatus(row: RuleRow, status: StatusFilter) {
   if (status === "all") return true;
-  if (status === "not_fired") return rule.status === "silent";
-  return rule.status === status;
+  if (status === "not_fired") return row.status === "silent";
+  return row.status === status;
 }
 
 function conditionRows(row: RuleRow) {
   return [
-    { k: "rule_id", op: "=", v: row.rule.ruleId },
-    { k: "version", op: "=", v: row.rule.ruleVersion || "(n/a)" },
-    { k: "lifecycle", op: "=", v: row.rule.lifecycle || "(n/a)" },
-    { k: "status", op: "=", v: row.rule.status },
+    { k: "rule_id", op: "=", v: row.ruleId },
+    { k: "stream", op: "=", v: row.stream },
+    { k: "version", op: "=", v: row.ruleVersion || "(n/a)" },
+    { k: "lifecycle", op: "=", v: row.lifecycle || "(n/a)" },
+    { k: "status", op: "=", v: row.status },
   ];
 }
 
@@ -125,6 +253,7 @@ export function RulesPage() {
   const search = searchParams.get("q") || "";
   const severity = normalizeSeverity(searchParams.get("severity"));
   const status = normalizeStatus(searchParams.get("status"));
+  const stream = normalizeStream(searchParams.get("stream"));
   const selectedRuleId = searchParams.get("rule");
 
   const reportQuery = useQuery({
@@ -140,27 +269,29 @@ export function RulesPage() {
   const filteredRows = useMemo(() => {
     const needle = search.trim().toLowerCase();
     return rows.filter((row) => {
-      const finding = row.primaryFinding;
-      if (severity !== "all" && finding?.severity !== severity) return false;
-      if (!matchesStatus(row.rule, status)) return false;
+      if (severity !== "all" && row.severity !== severity) return false;
+      if (stream !== "all" && row.stream !== stream) return false;
+      if (!matchesStatus(row, status)) return false;
       if (!needle) return true;
       const haystack = [
-        row.rule.ruleId,
-        row.rule.ruleVersion,
-        row.rule.lifecycle,
-        row.rule.statusLabel,
-        finding?.title,
-        finding?.description,
-        finding?.categories.join(" "),
+        row.ruleId,
+        row.stream,
+        row.ruleVersion,
+        row.lifecycle,
+        row.statusLabel,
+        row.title,
+        row.description,
+        row.categories.join(" "),
         row.evidence.map((item) => `${item.eventId} ${item.summary}`).join(" "),
       ].join(" ").toLowerCase();
       return haystack.includes(needle);
     });
-  }, [rows, search, severity, status]);
+  }, [rows, search, severity, status, stream]);
 
-  const findingsCount = report?.detection?.findings.length ?? 0;
-  const firedCount = rows.filter((row) => row.rule.status === "fired").length;
-  const errorCount = rows.filter((row) => row.rule.status === "error").length;
+  const findingsCount =
+    (report?.detection?.findings.length ?? 0) + (report?.staticReport?.findings.length ?? 0);
+  const firedCount = rows.filter((row) => row.status === "fired").length;
+  const errorCount = rows.filter((row) => row.status === "error").length;
 
   const setParam = (key: string, value: string) => {
     startTransition(() => {
@@ -218,6 +349,7 @@ export function RulesPage() {
           search={search}
           severity={severity}
           status={status}
+          stream={stream}
           selectedRuleId={selectedRuleId}
           setParam={setParam}
           toggleRule={toggleRule}
@@ -236,6 +368,7 @@ function RegistryMode({
   search,
   severity,
   status,
+  stream,
   selectedRuleId,
   setParam,
   toggleRule,
@@ -248,6 +381,7 @@ function RegistryMode({
   search: string;
   severity: SeverityFilter;
   status: StatusFilter;
+  stream: StreamFilter;
   selectedRuleId: string | null;
   setParam: (key: string, value: string) => void;
   toggleRule: (ruleId: string) => void;
@@ -273,6 +407,12 @@ function RegistryMode({
             onChange={(value) => setParam("q", value)}
           />
           <div style={{ display: "flex", flexDirection: "column", gap: 12, minWidth: 0 }}>
+            <Tabs<StreamFilter>
+              ariaLabel="Stream filter"
+              tabs={STREAM_TABS}
+              value={stream}
+              onChange={(next) => setParam("stream", next)}
+            />
             <Tabs<SeverityFilter>
               ariaLabel="Severity filter"
               tabs={SEVERITY_TABS}
@@ -294,21 +434,21 @@ function RegistryMode({
           <EmptyState eyebrow="Loading" title="Loading rules" body="Fetching latest report bundle." style={{ border: "none" }} />
         ) : reportQuery.isError ? (
           <EmptyState eyebrow="Error" title="Rules unavailable" body={String(reportQuery.error)} style={{ border: "none" }} />
-        ) : !report?.detection ? (
-          <EmptyState eyebrow="Rules" title="No detection report" body="The latest bundle did not include detection rule data." style={{ border: "none" }} />
+        ) : !report?.detection && !report?.staticReport ? (
+          <EmptyState eyebrow="Rules" title="No detection report" body="The latest bundle did not include dynamic or static rule data." style={{ border: "none" }} />
         ) : !rows.length ? (
-          <EmptyState eyebrow="Rules" title="No rules executed" body="The latest detection report did not include rule execution records." style={{ border: "none" }} />
+          <EmptyState eyebrow="Rules" title="No rules executed" body="The latest report did not include any dynamic or static rule records." style={{ border: "none" }} />
         ) : !filteredRows.length ? (
           <EmptyState eyebrow="Rules" title="No rules match" body="Adjust search, severity, or status filters." style={{ border: "none" }} />
         ) : (
           <div style={{ display: "flex", flexDirection: "column" }}>
             {filteredRows.map((row, index) => (
               <RuleEntry
-                key={`${row.rule.ruleId}-${row.rule.ruleVersion}`}
+                key={`${row.stream}-${row.ruleId}`}
                 row={row}
-                expanded={selectedRuleId === row.rule.ruleId}
+                expanded={selectedRuleId === row.ruleId}
                 isLast={index === filteredRows.length - 1}
-                onToggle={() => toggleRule(row.rule.ruleId)}
+                onToggle={() => toggleRule(row.ruleId)}
                 onEvidenceClick={(eventId) => navigate(`/reports?report=latest&tab=ledger&event=${encodeURIComponent(eventId)}`)}
               />
             ))}
@@ -573,10 +713,11 @@ function RuleEntry({
   onToggle: () => void;
   onEvidenceClick: (eventId: string) => void;
 }) {
-  const finding = row.primaryFinding;
-  const severityLabel = finding?.severityLabel || "No finding";
-  const title = finding?.title || row.rule.ruleId;
-  const leftColor = severityColor(finding?.severity);
+  const leftColor = severityColor(row.severity);
+  const metaParts = [row.ruleId];
+  if (row.ruleVersion) metaParts.push(`v${row.ruleVersion}`);
+  if (row.lifecycle) metaParts.push(row.lifecycle.replaceAll("_", " "));
+  const metaLine = metaParts.join(" · ");
 
   return (
     <article
@@ -591,7 +732,7 @@ function RuleEntry({
         onClick={onToggle}
         style={{
           display: "grid",
-          gridTemplateColumns: "minmax(0, 1fr) auto auto auto",
+          gridTemplateColumns: "minmax(0, 1fr) auto auto auto auto",
           gap: 12,
           alignItems: "center",
           width: "100%",
@@ -605,7 +746,7 @@ function RuleEntry({
       >
         <div style={{ minWidth: 0 }}>
           <div style={{ fontSize: 14, fontWeight: 700, color: V3.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            {title}
+            {row.title}
           </div>
           <div
             style={{
@@ -618,11 +759,12 @@ function RuleEntry({
               whiteSpace: "nowrap",
             }}
           >
-            {row.rule.ruleId} · v{row.rule.ruleVersion || "(n/a)"} · {row.rule.lifecycle.replaceAll("_", " ")}
+            {metaLine}
           </div>
         </div>
-        <Badge tone={severityTone(finding?.severity)}>{severityLabel}</Badge>
-        <Badge tone={statusTone(row.rule.status)}>{row.rule.statusLabel}</Badge>
+        <StreamTag stream={row.stream} />
+        <Badge tone={severityTone(row.severity)}>{row.severityLabel}</Badge>
+        <Badge tone={statusTone(row.status)}>{row.statusLabel}</Badge>
         <span
           style={{
             display: "inline-flex",
@@ -634,7 +776,7 @@ function RuleEntry({
             whiteSpace: "nowrap",
           }}
         >
-          {row.evidence.length} hits
+          {row.evidenceCount} {row.stream === "static" ? "locs" : "hits"}
           <span aria-hidden style={{ color: V3.ink4, transform: expanded ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 160ms" }}>
             ›
           </span>
@@ -646,40 +788,44 @@ function RuleEntry({
           <section>
             <div className="micro-label">Description</div>
             <p style={{ margin: "8px 0 0", color: V3.ink3, fontSize: 13, lineHeight: 1.6 }}>
-              {finding?.description || "This rule did not attach a finding description to the latest report."}
+              {row.description || "This rule did not attach a description to the latest report."}
             </p>
           </section>
 
           <section>
-            <div className="micro-label">Why this is suspicious</div>
+            <div className="micro-label">
+              {row.stream === "static" ? "Evidence locations" : "Why this is suspicious"}
+            </div>
             <div style={{ marginTop: 8, display: "grid", gap: 6 }}>
               {row.evidence.length ? (
                 row.evidence.map((item) => (
-                  <div key={`${row.rule.ruleId}-${item.eventId}`} style={{ color: V3.ink3, fontSize: 13, lineHeight: 1.5 }}>
+                  <div key={`${row.ruleId}-${item.eventId}`} style={{ color: V3.ink3, fontSize: 13, lineHeight: 1.5 }}>
                     {item.summary || item.eventId}
                   </div>
                 ))
+              ) : row.evidenceCount > 0 ? (
+                <div style={{ color: V3.ink3, fontSize: 13 }}>{evidenceLocationsLabel(row.evidenceCount)} in the extension source.</div>
               ) : (
-                <div style={{ color: V3.ink3, fontSize: 13 }}>No fired finding evidence was linked to this rule.</div>
+                <div style={{ color: V3.ink3, fontSize: 13 }}>No evidence was linked to this rule.</div>
               )}
             </div>
           </section>
 
-          {finding?.categories.length ? (
+          {row.categories.length ? (
             <section>
               <div className="micro-label">Categories</div>
               <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", gap: 6 }}>
-                {finding.categories.map((category) => (
-                  <Badge key={`${row.rule.ruleId}-${category}`} tone="neutral">{category}</Badge>
+                {row.categories.map((category) => (
+                  <Badge key={`${row.ruleId}-${category}`} tone="neutral">{category}</Badge>
                 ))}
               </div>
             </section>
           ) : null}
 
-          {finding?.mitigationHint ? (
+          {row.mitigationHint ? (
             <section style={{ border: `1px solid ${V3.rule}`, background: V3.paper3, padding: "12px 14px" }}>
               <div className="micro-label">Mitigation hint</div>
-              <p style={{ margin: "8px 0 0", color: V3.ink3, fontSize: 13, lineHeight: 1.6 }}>{finding.mitigationHint}</p>
+              <p style={{ margin: "8px 0 0", color: V3.ink3, fontSize: 13, lineHeight: 1.6 }}>{row.mitigationHint}</p>
             </section>
           ) : null}
 
@@ -688,7 +834,7 @@ function RuleEntry({
             <div style={{ marginTop: 10, border: `1px solid ${V3.rule}`, background: V3.paper, padding: "8px 12px" }}>
               {conditionRows(row).map((condition) => (
                 <div
-                  key={`${row.rule.ruleId}-${condition.k}`}
+                  key={`${row.ruleId}-${condition.k}`}
                   style={{
                     display: "grid",
                     gridTemplateColumns: "130px 56px minmax(0, 1fr)",
@@ -709,19 +855,19 @@ function RuleEntry({
           </section>
 
           <section>
-            <div className="micro-label">Linked findings · {row.findings.length}</div>
+            <div className="micro-label">Linked findings · {row.linkedFindings.length}</div>
             <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
-              {row.findings.length ? (
-                row.findings.map((linkedFinding) => (
+              {row.linkedFindings.length ? (
+                row.linkedFindings.map((linkedFinding) => (
                   <div key={linkedFinding.id} style={{ border: `1px solid ${V3.rule}`, background: V3.paper, padding: "10px 12px" }}>
                     <div style={{ color: V3.ink, fontSize: 13, fontWeight: 600 }}>{linkedFinding.title}</div>
                     <div style={{ marginTop: 5, color: V3.ink3, fontSize: 12, lineHeight: 1.5 }}>
-                      {linkedFinding.evidence.map((item) => item.summary || item.eventId).join(" · ") || "No evidence references."}
+                      {linkedFinding.evidenceSummary}
                     </div>
                   </div>
                 ))
               ) : (
-                <div style={{ color: V3.ink3, fontSize: 13 }}>No detection finding linked to this rule execution.</div>
+                <div style={{ color: V3.ink3, fontSize: 13 }}>No finding linked to this rule.</div>
               )}
             </div>
           </section>
@@ -732,7 +878,7 @@ function RuleEntry({
               <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", gap: 8 }}>
                 {row.evidence.map((item) => (
                   <GhostButton
-                    key={`${row.rule.ruleId}-${item.eventId}-link`}
+                    key={`${row.ruleId}-${item.eventId}-link`}
                     ariaLabel={`Open evidence ${item.eventId}`}
                     onClick={() => onEvidenceClick(item.eventId)}
                     style={{ padding: "8px 10px", fontSize: 12 }}
@@ -744,13 +890,32 @@ function RuleEntry({
             </section>
           ) : null}
 
-          {row.rule.errorDetail ? (
+          {row.errorDetail ? (
             <section style={{ border: `1px solid ${V3.coral}`, background: V3.dangerBg, padding: "10px 12px", color: V3.coral, fontSize: 12, lineHeight: 1.5 }}>
-              {row.rule.errorDetail}
+              {row.errorDetail}
             </section>
           ) : null}
         </div>
       ) : null}
     </article>
+  );
+}
+
+function StreamTag({ stream }: { stream: RuleStream }) {
+  return (
+    <span
+      style={{
+        fontFamily: "'JetBrains Mono', monospace",
+        fontSize: 9.5,
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        color: V3.ink2,
+        border: `1px solid ${V3.rule2}`,
+        padding: "2px 6px",
+        whiteSpace: "nowrap",
+      }}
+    >
+      {stream}
+    </span>
   );
 }

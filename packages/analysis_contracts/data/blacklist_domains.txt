@@ -1,12 +1,24 @@
 # Blacklisted domains — the operator-tunable "blacklist_domains" rules field.
 #
-# One registrable domain per line; '#' comments and blank lines are ignored.
+# One registrable domain or exact IP host per line; '#' comments and blank lines
+# are ignored.
 # Matching is host-suffix aware: a blacklisted "evil.example" also matches any
 # subdomain (e.g. "c2.evil.example") but NOT a different registrable domain
 # ("notevil.example", "evil.example.org"). Both the static rule
 # (static_runtime.rules.s4_blacklisted_domain, scans extension source/manifest)
 # and the dynamic rule (packages.analysis_engine.rules.a7_blacklisted_domain,
 # checks observed outbound hosts) read this single curated copy.
+#
+# ── SAFETY: this file is INERT — the hosts are NEVER contacted ────────────────
+# The loader (packages.analysis_contracts.domain_indicators) only READS this file
+# and STRING-MATCHES the entries against scanned source / observed-traffic hosts.
+# There is NO resolver, NO DNS lookup, and NO HTTP fetch anywhere that reads it,
+# so listing a real malicious host here cannot make the dev environment reach it.
+# Real C2/relay IOCs are intentionally listed UN-DEFANGED because they must be
+# exact match targets — but they are pure data, never a fetch instruction. The one
+# toolchain step that does make live requests, markdown-link-check, is configured
+# (.mlc_config.json ignorePatterns) to SKIP every real IOC host, and a guard test
+# (tests/security/test_ioc_safety.py) pins both properties so they cannot regress.
 #
 # The seed entries below use RFC 2606 / RFC 6761 reserved TLDs (.example /
 # .test / .invalid) so the shipped default is a SAFE, clearly-synthetic
@@ -21,3 +33,65 @@ credential-harvest.example
 beacon.test
 malware.test
 exfil.invalid
+
+# ── kagema / ShowSnowcrypto.SnowShoNo (download-cradle dropper) ───────────────
+# Stage-2 C2 / stager for the kagema family (detection-design/
+# kagema-detection-spec.md). The hostname is the malicious operator's chosen C2
+# and contains an offensive slur — it is listed here precisely to BLOCK that
+# infrastructure (the point of a defensive denylist). Host-suffix matching covers
+# every path (/aaa, /<random>/<random>/) and any subdomain; matched by both the
+# static (s4) and dynamic (a7) rules. Stage-2 MSI / URL SHA-256 hashes are
+# reference IOCs in kagema-detection-spec.md §8 (ExTrace has no in-pipeline hash
+# rule; those hashes are for the dropped payload, not the scanned VSIX).
+niggboo.com
+
+# -- GlassWorm / icon-theme-materiall (native-loader worm) --------------------
+# Sample/campaign C2 and staging hosts from the local GlassWorm rule-development
+# handoff. These are host indicators stored as inert strings; no resolver/fetch
+# path reads this file. Google Calendar fallback hosts from the handoff are
+# intentionally NOT listed because blacklisting shared Google infrastructure
+# would create broad false positives. The IP literals below are matched by the
+# same exact-host / suffix-safe matcher used by s4 (source) and a7 (observed
+# traffic).
+217.69.11.60
+217.69.3.218
+140.82.52.31
+
+# -- snyk-labs / VLN (vulnerable-legit-extension) class -- NO ENTRIES BY DESIGN -
+# The VLN class (detection-design/snyk-labs-vln-detection-spec.md) is a
+# vulnerability-pattern class, NOT a C2-driven malware family: the durable signals
+# are structural (an unguarded local file-serving server reachable cross-origin),
+# detected by extrace.s15.path_traversal_server. The malicious content and the
+# exfil receiver live in the attacker's web page / server, are extension-external,
+# and are deliberately NOT reproduced — so there is no C2 host or payload hash to
+# list here, and none was fabricated. This section is intentionally host-less; it
+# documents the integration point so a future host (only ever obtained by sandbox
+# analysis, never fetched on the host) can be added for the s4/a7 matcher.
+
+# -- snowshono / ScreenConnect BYOSC (RMM-as-RAT) -- Stage-3 relay ----------------
+# Stage-3 relay / C2 for the snowshono campaign (detection-design/
+# snowshono-rmm-spec.md). The Stage-1 extension + Stage-2 download cradle host
+# (niggboo.com, above) drop a ScreenConnect MSI that calls back to this relay.
+# Multi-source confirmed: the MSI System.config h= bare IP resolves (VirusTotal
+# passive DNS) to relay.year000001.com -- textbook ScreenConnect relay naming.
+# Inert host strings; no resolver/fetch path reads this file. Matched by s4 (source)
+# and a7 (observed traffic); host-suffix matching covers the relay.year000001.com
+# subdomain. The dropped-MSI SHA-256 stays a reference-only IOC in the spec §8
+# (ExTrace has no in-pipeline hash rule). The durable signal is the relay-config
+# SHAPE (s20 / T1219), not the host -- these entries harden coverage of known
+# infrastructure, which rotates.
+144.172.103.247
+year000001.com
+
+# -- Related ScreenConnect-abuse (BYOSC) campaigns -- NOT snowshono ---------------
+# Distinct campaigns that share the bring-your-own-ScreenConnect TTP (s20 / T1219),
+# from public vendor reporting; added for defensive coverage of the same
+# RMM-as-RAT class, NOT attributed to snowshono (vendor-reported / third-party
+# confidence, lower than the multi-source snowshono relay above). Registrable
+# domains -> host-suffix matching covers the meow./c./meeting. relay subdomains:
+#   undefined21.com  = TheseVibesAreOff / WhiteCobra (Checkmarx)
+#   bulletmailer.net = ClawdBot (Aikido / SOCprime)
+#   dof-connect.top  = Forcepoint ScreenConnect campaign
+undefined21.com
+bulletmailer.net
+dof-connect.top

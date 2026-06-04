@@ -53,6 +53,7 @@ def test_manifests_follow_the_repo_fixture_contract(fixture_dir: Path) -> None:
         "A5",
         "A6",
         "A7",
+        "A8",
     }
     assert isinstance(manifest["category"]["taxonomy"], list)
     assert isinstance(manifest["expected_detections"]["must_fire"], list)

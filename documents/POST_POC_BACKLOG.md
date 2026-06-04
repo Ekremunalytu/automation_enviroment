@@ -1,12 +1,12 @@
 # Post-PoC Backlog
 
-`Last Updated: 2026-05-28`
+`Last Updated: 2026-06-04`
 
-`Active phase: W22 — closed synthetically on the week22 branch, merged to main via PR #31 week22 -> main 2026-05-28 via 1399f82.`
+`Last merged weekly: W22 — closed synthetically on the week22 branch, merged to main via PR #31 week22 -> main 2026-05-28 via 1399f82.`
 
-`Previous phase: W21 closed and merged via PR #30 week21 -> main 2026-05-28 via 5dc18aa.`
+`Active stream: security-development on branch security-development — custom detection-rule expansion. Tracker: documents/detection-design/README.md.`
 
-`Active tracker: documents/active-work/W22-coverage-promotion-hard-tier.md · Sources of truth: documents/REFACTOR_STATUS.md (state) · documents/POST_POC_BACKLOG.md (deferred) · documents/REFACTOR_OPTIMIZATION.md §20 (W22 plan).`
+`Sources of truth: documents/REFACTOR_STATUS.md (state) · documents/POST_POC_BACKLOG.md (deferred) · documents/REFACTOR_OPTIMIZATION.md §20 (last weekly plan) · documents/phase.json (weekly pointer + active stream).`
 
 Open deferred work after the W0-W7 PoC acceptance bar. **Slim canonical** —
 verbose closure rationales, evidence paragraphs, and per-iter Note columns
@@ -432,15 +432,16 @@ event kinds (incl. `*`) are present in `OFFICIAL_EVENT_REGISTRY`
 ([`packages/analysis_planner/event_scenario_index.py:30`](../packages/analysis_planner/event_scenario_index.py)),
 so the crosswalk found NO missing event _kind_ — this is distinct from the
 already-skipped `[NO-W22-7]` `[GOAL activation-event-spec-gap-followup]`
-(that one was about adding non-spec kinds). The two gaps below are in
-_sourcing_ and _stimulus fidelity_, not the kind taxonomy. Neither is urgent
-(no live breakage); both are W23 candidates, parked here per user direction
-`2026-06-01`.
+(that one was about adding non-spec kinds). The gaps below are in
+_sourcing_ and _stimulus fidelity_, not the kind taxonomy. None is urgent
+(no live breakage); all are W23 candidates — the first two parked per user
+direction `2026-06-01`, the third (`when`-clause sourcing) per `2026-06-03`.
 
 | Stable ID | Description | Status |
 |---|---|---|
 | `[FOLLOWUP activation-event-contributes-implicit-synthesis]` (new) | **Blind to VS Code 1.74+ auto-generated activation events.** Per the official page, since 1.74.0/1.76.0 VS Code auto-generates `onCommand` / `onLanguage` / `onView` / `onCustomEditor` / `onAuthenticationRequest` / `onTaskType` from contribution points, so an extension may ship `activationEvents: []` and still activate. ExTrace's parser reads ONLY the declared `activationEvents` array ([`workflows/extension_catalog/manifest_parser.py:83-109`](../workflows/extension_catalog/manifest_parser.py)); `contributes` is fetched separately and used only as metadata / heuristic scenario hints, never to synthesize per-id `onX:<id>` attempts ([`workflows/marketplace/trigger_service.py:102-127`](../workflows/marketplace/trigger_service.py)). Proof: `assert activation_events == []` for a contributes-only fixture at [`tests/platform/contracts/test_analysis_fixture_baselines.py:419`](../tests/platform/contracts/test_analysis_fixture_baselines.py). **Impact**: a minimal-`activationEvents` extension is seen as ~zero events → falls back to the generic `workspace_probe` scenario; the specific activation paths VS Code actually uses (`onCommand:<id>` from `contributes.commands`, etc.) are never exercised, so the run under-represents the real activation surface. **Scope**: add a `contributes`→implicit-event synthesizer (gated to the 6 auto-generated families per the 1.74/1.76 note) feeding the same attempt pipeline; new fixture with empty `activationEvents` + `contributes.commands`; contract/count pins. Touches the parser/planner contract — opens with a design note. **Severity/Confidence**: Medium-High / High (grep-backed; both kinds match the spec, the gap is sourcing). Lane: `[marketplace-analysis]` + `[analysis-planner]`. | **partially addressed** — the `onCommand` sub-portion landed on branch `extension-trigger-matrix`: at the **planner** layer `_apply_contributes_metadata` ([`packages/analysis_planner/selection.py`](../packages/analysis_planner/selection.py)) now synthesizes a per-id `onCommand` attempt from every `contributes.commands` entry (`selected_by="contributes_command"`), independent of the declared `activationEvents`. Live-validated against `ms-python.python` (24/24 synthesized commands `verified` — see [`active-work/extension-trigger-matrix.md`](active-work/extension-trigger-matrix.md) → Activation Coverage Promotion). Still open: the `manifest_parser`/`trigger_service` sourcing layer is unchanged, and the other 5 auto-generated families (`onLanguage` / `onView` / `onCustomEditor` / `onAuthenticationRequest` / `onTaskType`) are not yet synthesized — W23 candidate. |
 | `[FOLLOWUP activation-event-stimulus-fidelity-target-specific]` (new) | **Several families fire a GENERIC proxy, not the target's specific contribution → `attempted_only`, not `verified`.** `onWebviewPanel` creates a fresh panel ([`stimulus_dispatch.js:145`](../executor/flows/harness_extension/stimulus_dispatch.js)) but the event fires on webview RESTORE, not creation; `onNotebook`/`onRenderer` use a hardcoded `jupyter-notebook` + `text/plain` ([`:112`](../executor/flows/harness_extension/stimulus_dispatch.js)) so non-jupyter notebook types + arbitrary renderers aren't hit; `onTerminalProfile` opens a generic `/bin/bash` terminal not the contributed profile ([`:132`](../executor/flows/harness_extension/stimulus_dispatch.js)); `onWalkthrough` opens the generic picker not the target walkthrough id ([`:45`](../executor/flows/harness_extension/stimulus_dispatch.js)); `onDebug*` uses a command-palette proxy without starting a real session ([`:159`](../executor/flows/harness_extension/stimulus_dispatch.js)) — matches the live `debug_session` `attempted_only` outcome. **Explicitly EXCLUDES** `onChatParticipant` + `onLanguageModelTool` (harness exercises its OWN participant/tool by ADR 0014 Option C — intentional local-only, not a gap; [`:52`](../executor/flows/harness_extension/stimulus_dispatch.js) / [`:72`](../executor/flows/harness_extension/stimulus_dispatch.js)). **Impact**: these events still fire at the target's `activate()`, so coverage is not zero, but the harness can't re-invoke the target's specific contribution for `verified`-grade confirmation. **Scope**: per-family fidelity passes, each independent — pull opportunistically. **Severity/Confidence**: Low-Medium / High. Lane: `[executor]` + `[harness-extension]`. | pending — W23 candidate |
+| `[FOLLOWUP contributes-command-when-clause-unused]` (new; captured 2026-06-03) | **A contributed command's `when` gate is stored but never sourced into the plan or evaluated — the harness force-invokes every command regardless of its condition.** The `when` clause that gates a command's palette visibility/enablement is captured in the DB schema (`extension_contributes_commands.when` at [`appcore/storage/model_defs/contributes.py:96`](../appcore/storage/model_defs/contributes.py); `extension_contributes_menus.when` at [`:137`](../appcore/storage/model_defs/contributes.py)) but is **dropped** when the trigger plan is built: `trigger_service.py` constructs `commands_data` from only `{title, command_id}` ([`workflows/marketplace/trigger_service.py:158-161`](../workflows/marketplace/trigger_service.py)), so `select_scenarios` never receives `when`. The planner then treats every `contributes.commands` entry as unconditionally invocable (`_apply_contributes_metadata` synthesizes an `onCommand` attempt regardless — [`packages/analysis_planner/selection.py:307-341`](../packages/analysis_planner/selection.py)), and the harness `executeCommand` backfill ([`executor/flows/harness_extension/stimulus_dispatch.js:174-176`](../executor/flows/harness_extension/stimulus_dispatch.js)) directly invokes the command, bypassing the `when` gate entirely. The UI Command-Palette primary is the only `when`-aware step; the backfill defeats it **by design** for coverage (session-fatal commands excluded via `_SESSION_FATAL_COMMAND_PATTERNS`, reload-class deferred via `_defer_window_reload_commands` — [`selection.py:35-43`](../packages/analysis_planner/selection.py) / `:46-76`). No `when` expression is parsed or evaluated anywhere (grep of `packages`/`executor`/`appcore`/`static_runtime` returns no `when`-clause evaluator). Sibling to `[FOLLOWUP activation-event-contributes-implicit-synthesis]` above (same sourcing seam; that one closed the `onCommand`-synthesis half on `extension-trigger-matrix`). **Impact**: coverage-positive (even `when`-gated commands are exercised), but the harness never models the activation _condition_ — so a `when`-gated command is indistinguishable from an always-available one, and a future rule keyed on conditional-activation context (e.g. secret-context / restricted-mode / view-focus gated commands) has no `when` signal to consume. **Scope**: (1) record-only first — thread the `when` string through `commands_data` → `select_scenarios` → attempt metadata, no behavior change; (2) optional follow-on rule/heuristic that flags or prioritizes high-risk `when` contexts. Touches the parser/planner contract — opens with a design note. **Severity/Confidence**: Low / High (grep-backed; no live breakage, this is fidelity + future-rule-surface hygiene). Lane: `[marketplace-analysis]` + `[analysis-planner]`. | pending — W23 candidate (post-PoC; user direction 2026-06-03) |
 
 ## Linux-Blocked Deferrals (resume when Linux env ready)
 
@@ -781,11 +782,12 @@ Closed (one-line audit trail):
 - `[FOLLOWUP attribution-links-build-evidence-bundle-density]`
 - `[FOLLOWUP execute-attempt-rebloat-watch]`
 - `[FOLLOWUP dispatch-execution-rebloat-watch]`
-- `[CLEANUP rule-registry-side-effect-loader]` — `registry.py` carries
-  `_REGISTRY` global + `importlib` side-effect loader + `_BUILTINS_LOADED`
-  flag for six builtin rules; a flat `RULES` tuple would suffice at current
-  cardinality. Earns its weight only when ADR 0003 deferred rules
-  (A5/A7) land. W15+ hygiene.
+- `[CLEANUP rule-registry-side-effect-loader]` — dynamic `registry.py` now
+  carries `_REGISTRY` global + `importlib` side-effect loader +
+  `_BUILTINS_LOADED` for A1-A8 plus the demo canary; static runtime has the
+  same lazy-loader shape for 26 production static rule ids (`s1`-`s20`). A flat
+  `RULES` tuple is now more justified than the original six-rule W15 snapshot, but this
+  remains W23+ hygiene unless rule loading itself becomes unstable.
 - `[GOAL mitre-mapping-adr]` (new) — **W23-0 candidate (after static stream
   ES-5 closes).** ADR 0017 fixing the MITRE ATT&CK technique↔rule mapping
   strategy: technique→tactic source-of-truth shape, canonical ATT&CK Enterprise

@@ -32,7 +32,23 @@ from static_runtime.rules.registry import register
 
 _NATIVE_SUFFIXES = frozenset({".node", ".so", ".dylib", ".dll", ".exe", ".bin"})
 _TEXT_SUFFIXES = frozenset(
-    {".js", ".jsx", ".ts", ".tsx", ".json", ".md", ".txt", ".html", ".css", ".map"}
+    {
+        ".js",
+        ".jsx",
+        ".ts",
+        ".tsx",
+        ".json",
+        ".md",
+        ".txt",
+        ".html",
+        ".css",
+        # Stylesheet preprocessor sources are known-text; listing them skips the
+        # NUL-byte content sniff for the nextsecurity/vsix-zoo ``.less`` corpus.
+        ".less",
+        ".scss",
+        ".sass",
+        ".map",
+    }
 )
 _NUL_SCAN_BYTES = 8192
 _LARGE_TEXT_THRESHOLD = 2 * 1024 * 1024  # 2 MB

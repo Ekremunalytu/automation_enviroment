@@ -87,17 +87,18 @@ parallel branch; design preserved in
 + Coverage promotion is complete (W20-W22 closed all 18 capabilities into
   `_OFFICIAL_CAPABILITY_SUPPORT` `"covered"`); no remaining coverage gaps
   to close in the matrix.
-+ Static-analysis pre-check stream (deferred; design intent in
-  [`active-work/extrace-static-stream-handoff.md`](active-work/extrace-static-stream-handoff.md))
-  — block-and-warn semantics + separate Docker service + schema-first
-  contract landing + in-house Python rules + Semgrep MVP.
++ Static-analysis pre-check stream is closed (ES-0..ES-5, ADR 0016 Accepted,
+  feature flag ON). Current static work is rule expansion under
+  `static_runtime/rules/` and the `security-development` design board.
 + Container-hardening ratchet-down (W21-4 ADR 0013 §Deferred): `read_only`
   + tmpfs + custom seccomp profile. Pulled into W22-6; DEFERRED TO USER
   (Linux required for live-smoke).
 + Sandbox-evasion defense (ADR 0015 Draft Policy + W22-5 canary fixture):
   V2 implementation roadmap — W23+ scope per ADR 0015.
-+ evaluate remaining stretch adversary classes (A5 malicious update, A7 VS
-  Code API abuse) — A3 typosquat landed in the W7 Phase 3a buffer
++ continue custom detection-rule expansion from `detection-design/README.md`
+  — A5 workspace tamper, A7 blacklisted domain, and A8 reverse shell are now
+  production; next work is behavior-class depth, MITRE coverage, and static
+  overlay polish
 + pull workflow/platform cleanups from `POST_POC_BACKLOG.md` §Workflow /
   platform cleanups (narrow exceptions, tighten `search_marketplace`
   return type, `make migrate` pre-check)

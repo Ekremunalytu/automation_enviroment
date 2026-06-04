@@ -66,3 +66,35 @@ def test_silent_for_lookalike_registrable_domain() -> None:
 
 def test_silent_for_no_network_events() -> None:
     assert RULE.evaluate(_report_with_hosts([])) == []
+
+
+def test_fires_on_kagema_c2_host() -> None:
+    # Regression: the kagema C2 (niggboo.com), a real curated entry on the shipped
+    # seed denylist, is flagged when observed as an outbound host — exact match and
+    # any subdomain. Guards against the entry being accidentally dropped.
+    assert len(RULE.evaluate(_report_with_hosts(["niggboo.com"]))) == 1
+    assert len(RULE.evaluate(_report_with_hosts(["stage2.niggboo.com"]))) == 1
+
+
+def test_fires_on_glassworm_c2_ip_host() -> None:
+    # Regression: GlassWorm direct-IP C2/stager hosts are curated seed entries.
+    findings = RULE.evaluate(_report_with_hosts(["217.69.11.60"]))
+    assert len(findings) == 1
+    assert "217.69.11.60" in findings[0].description
+
+
+def test_fires_on_snowshono_relay_host() -> None:
+    # Regression: the snowshono Stage-3 ScreenConnect relay — year000001.com (exact
+    # + any subdomain, e.g. relay.) and the bare IP 144.172.103.247 — are curated
+    # seed entries; flagged when observed as an outbound host.
+    assert len(RULE.evaluate(_report_with_hosts(["relay.year000001.com"]))) == 1
+    findings = RULE.evaluate(_report_with_hosts(["144.172.103.247"]))
+    assert len(findings) == 1
+    assert "144.172.103.247" in findings[0].description
+
+
+def test_fires_on_related_byosc_campaign_host() -> None:
+    # Regression: related ScreenConnect-abuse (BYOSC) campaign C2s are curated seed
+    # entries; each is flagged when observed as an outbound host (subdomain too).
+    for host in ("meow.undefined21.com", "meeting.bulletmailer.net", "dof-connect.top"):
+        assert len(RULE.evaluate(_report_with_hosts([host]))) == 1, host

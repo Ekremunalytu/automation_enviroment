@@ -1,12 +1,12 @@
 # Agent Context
 
-`Last Updated: 2026-05-28`
+`Last Updated: 2026-06-04`
 
-`Active phase: W22 — closed synthetically on the week22 branch, merged to main via PR #31 week22 -> main 2026-05-28 via 1399f82.`
+`Last merged weekly: W22 — closed synthetically on the week22 branch, merged to main via PR #31 week22 -> main 2026-05-28 via 1399f82.`
 
-`Previous phase: W21 closed and merged via PR #30 week21 -> main 2026-05-28 via 5dc18aa.`
+`Active stream: security-development on branch security-development — custom detection-rule expansion. Tracker: documents/detection-design/README.md.`
 
-`Active tracker: documents/active-work/W22-coverage-promotion-hard-tier.md · Sources of truth: documents/REFACTOR_STATUS.md (state) · documents/POST_POC_BACKLOG.md (deferred) · documents/REFACTOR_OPTIMIZATION.md §20 (W22 plan).`
+`Sources of truth: documents/REFACTOR_STATUS.md (state) · documents/POST_POC_BACKLOG.md (deferred) · documents/REFACTOR_OPTIMIZATION.md §20 (last weekly plan) · documents/phase.json (weekly pointer + active stream).`
 
 Thin routing map for coding agents after `AGENTS.md`. **Stays short.**
 Do not copy phase history here; use `REFACTOR_STATUS.md` (slim canonical).
@@ -24,9 +24,13 @@ Do not copy phase history here; use `REFACTOR_STATUS.md` (slim canonical).
   Multi-iter source-of-truth tracker: `active-work/W18-W22-roadmap.md`.
 - **W8-W22 closed and merged** (W22 via PR #31 `week22 -> main` `1399f82`).
   Per-phase merge facts (PR # / SHA) live in `REFACTOR_STATUS.md`'s
-  `Last Updated:` banner. Past `active-work/W{8,11,12,13,14,15,16,17,18,19,20,21}-*.md`
+  `Last Updated:` banner. Past `active-work/W{8,11,12,13,14,15,16,17,18,19,20,21,22}-*.md`
   trackers stay on the read path only for stable IDs referenced by
   code/tests — do not renumber.
+- Active named stream:
+  `security-development` (`documents/phase.json` -> `active_stream`),
+  tracked by `detection-design/README.md`. Named streams after W22 do
+  not advance the weekly `last_merged_weekly` pointer.
 - Architecture: `ARCHITECTURE.md` (slim) + `architecture/` splits.
 - Placement rules: `PROJECT_STRUCTURE.md` (slim) + `structure/` splits.
 - Test lanes: `TESTING.md` (slim) + `testing/` splits.
@@ -41,7 +45,7 @@ trigger.
 | FastAPI config, DB, schemas, CRUD, migrations | `agent-lanes/platform-storage.md` | `ARCHITECTURE.md` (new boundary/dependency line); `PROJECT_STRUCTURE.md` (new top-level package); `TESTING.md` (new test layer / fixture pattern) |
 | Marketplace search/download/analyze jobs, trigger planning | `agent-lanes/marketplace-analysis.md` | `PIPELINE_ROADMAP.md` (staged pipeline direction); `VSCODE_API_COVERAGE_AUDIT.md` (capability/coverage question); `testing/marketplace-tests.md` |
 | Docker executor, Playwright, harness, runtime capture | `agent-lanes/executor-runtime.md` | `EXECUTOR_PLAYWRIGHT.md` slim → `executor/host-wrapper.md` / `executor/playwright-flow.md` / `executor/runtime-capture.md` (whichever sub-area you touch); relevant runbook |
-| Detection rules, malicious fixtures, ADR security posture | `agent-lanes/security-detection.md` | ADRs 0002-0005 (only the one that governs the touched boundary); `DETECTION_SEMANTICS.md` slim → `detection/evidence-fields.md` / `detection/health-signals.md` / `detection/rule-lifecycle.md` |
+| Detection rules, malicious fixtures, ADR security posture | `agent-lanes/security-detection.md` | `detection-design/README.md` for custom rule stream status; ADRs 0002-0005 (only the one that governs the touched boundary); `DETECTION_SEMANTICS.md` slim → `detection/evidence-fields.md` / `detection/health-signals.md` / `detection/rule-lifecycle.md` |
 | Static pre-check stage, in-house/Semgrep static rules, decision gate, `rejected_static`, `automation_static_analyzer` | `agent-lanes/static-analysis-pre-check.md` | ADR 0016; `active-work/static-analysis-pre-check-stream.md` |
 | React/Vite UI or generated TS contracts | `agent-lanes/ui.md` | `ui/README.md`, UI tests |
 | Documentation drift, README, runbooks, ADR text | `agent-lanes/docs-maintenance.md` | `documents/README.md`; current code/tests; archive only when retracing why a thing changed |
