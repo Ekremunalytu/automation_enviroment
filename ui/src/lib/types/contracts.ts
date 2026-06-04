@@ -130,7 +130,7 @@ export interface ActivationEntryDto {
   marker_type?: string;
 }
 
-export type AdversaryClassDto = "A1" | "A2" | "A3" | "A4" | "A5" | "A6" | "A7";
+export type AdversaryClassDto = "A1" | "A2" | "A3" | "A4" | "A5" | "A6" | "A7" | "A8";
 
 export type ConfidenceDto = "high" | "medium" | "low";
 

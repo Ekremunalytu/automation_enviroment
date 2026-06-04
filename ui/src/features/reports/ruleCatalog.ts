@@ -114,6 +114,17 @@ const ENTRIES: RuleCatalogEntry[] = [
       "An outbound connection was observed at runtime to a domain on the operator-maintained blacklist — a known command-and-control or exfiltration destination. The denylist is editable from the Blacklist tab; seed entries are fixed and operator entries can be added or removed.",
   },
   {
+    ruleId: "extrace.a8.reverse_shell",
+    label: "Reverse shell (observed)",
+    stream: "dynamic",
+    family: "Execution / C2",
+    techniques: ["T1059"],
+    severity: "high",
+    blurb: "A shell was spawned and an outbound socket opened together at runtime.",
+    detail:
+      "At runtime the extension spawned an OS shell (sh / bash / cmd.exe / powershell) and opened an outbound socket to a non-benign endpoint within the correlation window — the runtime signature of an interactive reverse shell (the dynamic counterpart of the static s10 rule). HIGH, not the static rule's CRITICAL: the sandbox observes the shell spawn and the egress but not the stdio wiring between them, so it surfaces a strong correlation for review. The shell-binary filter keeps benign language-server / git / build spawns out of the match.",
+  },
+  {
     ruleId: "extrace.demo.runnable_canary",
     label: "Runnable canary (demo)",
     stream: "dynamic",
@@ -257,6 +268,17 @@ const ENTRIES: RuleCatalogEntry[] = [
     blurb: "Source recognises wallet-address formats (Base58 / Ethereum / bech32).",
     detail:
       "The source contains cryptocurrency address patterns — Base58 (BTC), 0x + 40-hex (Ethereum), or bech32 / SegWit — the address-recognition capability a crypto-clipper needs before it can hijack a wallet address. MEDIUM, not a verdict: a genuine blockchain / wallet tool legitimately has these, so it surfaces the capability for review and escalates when it co-occurs with clipboard, file-write, or network access (the dynamic A5 file-tamper rule is its runtime counterpart).",
+  },
+  {
+    ruleId: "extrace.s10.reverse_shell",
+    label: "Reverse shell",
+    stream: "static",
+    family: "Execution / C2",
+    techniques: ["T1059"],
+    severity: "critical",
+    blurb: "Wires a child_process shell's stdio to a network socket.",
+    detail:
+      "The source spawns an OS shell via child_process and pipes that shell's stdio to a raw network socket — the bidirectional wiring that defines an interactive reverse shell, handing a remote endpoint a live command channel on the victim with no user interaction. CRITICAL and the only static rule that BLOCKS before the sandbox runs: the match requires all three elements (shell spawn, socket, and a stdio-to-socket pipe) in one file, so the individually benign uses of child_process or a socket do not fire, and a shell piped to a socket has no legitimate explanation.",
   },
 ];
 

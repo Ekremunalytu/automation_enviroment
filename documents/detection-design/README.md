@@ -44,6 +44,7 @@ reconcile on the owner's cadence, post-merge).
 |---|---|
 | [`architecture-reconciliation.md`](architecture-reconciliation.md) | **Read first.** The three rule layers, the ADR-0016 gate truth table, the A1–A7 taxonomy, and the exact files/tests to add a rule in each layer. |
 | [`apollyon-detection-spec.md`](apollyon-detection-spec.md) | Detection design spec for the `apollyon` Discord-webhook infostealer class: behaviour breakdown, signal catalog, escalation matrix, evasion limits, IOC appendix. |
+| [`securezeron-detection-spec.md`](securezeron-detection-spec.md) | Detection design spec for the `securezeron` VS Code **reverse-shell** class: signals RS1–RS4, the as-built layer map (s10 / a8 / semgrep echoes), severity/gate, evasion limits, IOC appendix. |
 
 ## Design principle: general, not sample-specific
 
@@ -67,14 +68,16 @@ not a known sample.
 
 ## Shipped so far (this branch)
 
-Three **general** detection rules + the UI to surface them. None hardcodes an
-apollyon literal; all scan every extension.
+Five **general** detection rules (+ three advisory Semgrep echoes) + the UI to
+surface them. None hardcodes a sample literal; all scan every extension.
 
 | Rule | Layer | What it catches | Severity |
 |---|---|---|---|
 | [`extrace.s8.exfil_webhook`](../../static_runtime/rules/s8_exfil_webhook.py) | static | Hardcoded Discord/Slack/Telegram **webhook** ingestion endpoint (the exfil channel) | HIGH (warn) |
 | [`extrace.s9.crypto_address_scan`](../../static_runtime/rules/s9_crypto_address_scan.py) | static | Source recognises **crypto-address** formats (Base58/ETH/bech32) — clipper capability | MEDIUM (warn) |
+| [`extrace.s10.reverse_shell`](../../static_runtime/rules/s10_reverse_shell.py) | static | Shell `child_process` stdio **piped to a network socket** (reverse shell) | **CRITICAL (block)** |
 | [`extrace.a5.workspace_file_tamper`](../../packages/analysis_engine/rules/a5_workspace_file_tamper.py) | dynamic | Workspace file **read then rewritten in place** at runtime — clipper/integrity | MEDIUM |
+| [`extrace.a8.reverse_shell`](../../packages/analysis_engine/rules/a8_reverse_shell.py) | dynamic | Runtime **shell spawn + outbound socket** co-occurrence (reverse shell) | HIGH |
 
 UI ([`ruleCatalog.ts`](../../ui/src/features/reports/ruleCatalog.ts) +
 [`RulesPage.tsx`](../../ui/src/features/rules/RulesPage.tsx)): the **Rules tab now
@@ -94,8 +97,20 @@ Policy tweak: `extrace.s1.activation_wildcard` raised **LOW → HIGH** (an alway
 | S5 content→network (runtime) | dynamic | `extrace.a4.workspace_exfil` | ✅ exists |
 | S6 / B3 crypto clipper (integrity) | dynamic | `extrace.a5.workspace_file_tamper` | ✅ shipped + verified |
 | S1 webhook (commodity echo) | semgrep | *tbd* | ⬜ next |
-| S4 auto-trigger→sink co-occurrence | in-house static | *tbd (`s10`)* | ⬜ planned |
+| S4 auto-trigger→sink co-occurrence | in-house static | *tbd (next free `sN`; `s10` is now reverse-shell)* | ⬜ planned |
 | S5 content→network (taint) | semgrep | *tbd* | ⬜ planned |
+
+## Status board — securezeron / reverse-shell class
+
+See [`securezeron-detection-spec.md`](securezeron-detection-spec.md). General rules
+(no securezeron literal in rule logic); the conjunction insight, not any single part.
+
+| Signal | Layer | Rule id | Status |
+|---|---|---|---|
+| RS1 shell↔socket pipe (folds RS2/RS3) | in-house static | `extrace.s10.reverse_shell` | ✅ shipped — **CRITICAL → BLOCK** |
+| RS1/RS2/RS3 AST echoes | semgrep | `reverse_shell_pipe` / `_spawn` / `_ip_connect` | ✅ shipped (advisory MEDIUM/WARN) |
+| RS4 `*` activation | in-house static | `extrace.s1.activation_wildcard` | ✅ pre-existing (HIGH / WARN) |
+| runtime shell spawn + outbound socket | dynamic | `extrace.a8.reverse_shell` | ✅ shipped (HIGH, `AdversaryClass.A8`) |
 
 ## Iteration loop
 

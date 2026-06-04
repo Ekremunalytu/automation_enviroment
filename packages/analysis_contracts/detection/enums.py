@@ -68,6 +68,10 @@ class AdversaryClass(ContractStrEnum):
     A5 = "A5"
     A6 = "A6"
     A7 = "A7"
+    # A8: interactive reverse shell / remote command execution — a spawned OS
+    # shell whose stdio is bridged to an outbound socket (extrace.a8.reverse_shell;
+    # static counterpart extrace.s10.reverse_shell).
+    A8 = "A8"
 
 
 class RuleLifecycle(ContractStrEnum):

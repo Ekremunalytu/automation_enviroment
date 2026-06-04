@@ -68,6 +68,7 @@ current rule mapping (dynamic plane):
 | **A5** | `extrace.a5.workspace_file_tamper` | ✅ **added this branch** — read → in-place rewrite (clipper/integrity); A4's integrity twin |
 | A6 | `extrace.a6.startup_ui_prompt` | |
 | A7 | `extrace.a7.blacklisted_domain` | |
+| **A8** | `extrace.a8.reverse_shell` | ✅ **added this branch** — runtime shell spawn + outbound socket (securezeron reverse-shell class); static twin `extrace.s10.reverse_shell`. New `AdversaryClass` value (enum + generated TS DTO + fixture-hygiene set). |
 
 **Static vs dynamic attribution split (verified):** in-house static rules carry
 `adversary_class=None` (they report a *capability / IOC surface*, e.g. `s5`,
@@ -87,7 +88,7 @@ use `extrace.ext.*`; dynamic host rules use `extrace.host.*`.
 | S1 webhook IOC | in-house static | `extrace.s8.exfil_webhook` | ✅ **shipped + verified** (this branch) |
 | S2 crypto-address awareness | in-house static | `extrace.s9.crypto_address_scan` | ✅ **shipped + verified** (this branch) |
 | S1 webhook IOC (commodity echo) | semgrep | *(new `discord_webhook` etc.)* | ⬜ next |
-| S4 auto-trigger→sink co-occurrence | in-house static | *(new `s10` co-occurrence)* | ⬜ planned |
+| S4 auto-trigger→sink co-occurrence | in-house static | *(new co-occurrence rule; next free `sN` — `s10` is now reverse_shell)* | ⬜ planned |
 | S5 content→network taint | semgrep (taint) | *(new; intra-file; `--pro` for interproc)* | ⬜ planned |
 | S5 content→network (runtime) | dynamic | `extrace.a4.workspace_exfil` | ✅ exists (catches B1) |
 | S6 crypto clipper (regex→applyEdit/save) | semgrep (taint) | *(new)* | ⬜ planned (static half) |
@@ -99,6 +100,24 @@ The remaining open piece is the *static* taint half (regex match → `applyEdit`
 `save`), still a semgrep candidate.
 
 ---
+
+## 4b. securezeron (reverse shell) behaviour → layer → rule → status
+
+Full reasoning in [`securezeron-detection-spec.md`](securezeron-detection-spec.md);
+the layer landings (all shipped this branch):
+
+| Signal / behaviour | Layer | Rule id | Status |
+|---|---|---|---|
+| RS1 shell↔socket pipe (folds RS2/RS3) | in-house static | `extrace.s10.reverse_shell` | ✅ **CRITICAL → BLOCK** (first severity-CRITICAL in-house rule) |
+| RS1/RS2/RS3 AST echoes | semgrep | `reverse_shell_pipe` / `reverse_shell_spawn` / `reverse_shell_ip_connect` | ✅ advisory MEDIUM/WARN |
+| RS4 `*` activation | in-house static | `extrace.s1.activation_wildcard` | ✅ pre-existing (HIGH / WARN) |
+| runtime shell spawn + outbound socket | dynamic | `extrace.a8.reverse_shell` | ✅ HIGH, `AdversaryClass.A8` |
+
+`s10` is the first in-house rule to carry **CRITICAL**, so it is the first to BLOCK
+before the sandbox via the §2 gate (no `_PROMOTED_HIGH_BLOCKERS` edit needed —
+CRITICAL blocks automatically). Adding `A8` was a shared-contract change (enum +
+generated `contracts.ts` DTO + `test_fixture_hygiene` allow-set), signed off before
+the edit.
 
 ## 5. Integration recipes (exact touch-points)
 
@@ -215,7 +234,9 @@ legitimate extensions declare `*`).
 
 - Python: `pytest tests/static_runtime/ tests/security/` green; ruff + mypy clean.
   Static registry = **12** rules (s1–s9 incl. multi-rule modules), dynamic = **8**
-  (a1–a7 + demo, a5 included).
+  (a1–a7 + demo, a5 included). *(securezeron branch then grew this to **13** static
+  / **9** dynamic via `s10` + `a8` — see §4b; the container smoke count was bumped
+  6 → 13 to match.)*
 - UI: `tsc -b` clean, `vitest run` **110 passed** (incl. a new static-visibility
   test), `npm run build` ✓.
 - **Browser-verified** live in the Rules tab (ui-dev :5173 against an

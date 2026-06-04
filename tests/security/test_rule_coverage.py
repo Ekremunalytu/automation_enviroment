@@ -17,6 +17,7 @@ EXPECTED_PRODUCTION_RULE_IDS = {
     "extrace.a5.workspace_file_tamper",
     "extrace.a6.startup_ui_prompt",
     "extrace.a7.blacklisted_domain",
+    "extrace.a8.reverse_shell",
     "extrace.demo.runnable_canary",
 }
 

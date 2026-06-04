@@ -211,6 +211,52 @@ _RULE_META: dict[str, _SemgrepRuleMeta] = {
             "cloud credential files is a credential-access red flag."
         ),
     ),
+    "reverse_shell_pipe": _SemgrepRuleMeta(
+        rule_id="extrace.sg.reverse_shell_pipe",
+        categories=("attack.T1059", "extrace.ext.reverse_shell"),
+        title="Shell process stdio piped to a network socket",
+        description=(
+            "The extension pipes a child_process shell's stdio to a network "
+            "socket (socket->stdin and/or stdout/stderr->socket). This "
+            "bidirectional wiring is the defining structure of an interactive "
+            "reverse shell. The in-house extrace.s10.reverse_shell rule carries "
+            "the blocking verdict; this is the structural Semgrep echo."
+        ),
+        mitigation_hint=(
+            "A shell process wired to a socket is a reverse shell — there is no "
+            "legitimate extension use; reject it and block the endpoint."
+        ),
+    ),
+    "reverse_shell_spawn": _SemgrepRuleMeta(
+        rule_id="extrace.sg.reverse_shell_spawn",
+        categories=("attack.T1059", "extrace.ext.process_spawn"),
+        title="child_process spawn of an OS shell binary",
+        description=(
+            "The extension spawns an OS shell (cmd.exe / powershell / sh / bash) "
+            "via child_process — the command interpreter a reverse shell hands "
+            "to its socket. A shell-name-filtered refinement of the broader "
+            "child_process rule."
+        ),
+        mitigation_hint=(
+            "Confirm why the extension spawns a shell; a shell spawn paired with "
+            "a network socket is the reverse-shell shape."
+        ),
+    ),
+    "reverse_shell_ip_connect": _SemgrepRuleMeta(
+        rule_id="extrace.sg.reverse_shell_ip_connect",
+        categories=("attack.T1571", "extrace.ext.ip_connect"),
+        title="Socket connect to a hardcoded IPv4 literal",
+        description=(
+            "The extension opens a socket to a hardcoded IPv4 literal with no "
+            "DNS lookup. A real extension talks to named services, so a raw-IP "
+            "callback target is a classic command-and-control / reverse-shell "
+            "shape."
+        ),
+        mitigation_hint=(
+            "Confirm why the extension connects to a raw IP; legitimate "
+            "extensions use named services. Block the destination."
+        ),
+    ),
 }
 
 

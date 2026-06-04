@@ -166,3 +166,66 @@ rules:
         - https://attack.mitre.org/techniques/T1552/
     patterns:
       - pattern-regex: (\.ssh/|id_rsa|\.aws/credentials|\.npmrc|\.docker/config\.json)
+
+  # ── Reverse-shell signals (RS1/RS2/RS3) ───────────────────────────────────
+  # AST-precise advisory echoes of the in-house `extrace.s10.reverse_shell`
+  # co-occurrence rule. The in-house rule is the load-bearing, CRITICAL/BLOCK
+  # signal; these stay MEDIUM/WARN (the runner hard-pins severity) and add a
+  # second, structural line of evidence. See the securezeron detection spec.
+  - id: reverse_shell_pipe
+    languages: [javascript, typescript]
+    severity: WARNING
+    message: >-
+      A child_process shell's stdio is piped to a network socket
+      (socket->stdin and/or stdout/stderr->socket): the bidirectional wiring
+      that defines an interactive reverse shell.
+    metadata:
+      category: security
+      references:
+        - https://attack.mitre.org/techniques/T1059/
+    patterns:
+      - pattern-either:
+          - pattern: $SOCK.pipe($PROC.stdin)
+          - pattern: $PROC.stdout.pipe($SOCK)
+          - pattern: $PROC.stderr.pipe($SOCK)
+
+  - id: reverse_shell_spawn
+    languages: [javascript, typescript]
+    severity: WARNING
+    message: >-
+      child_process spawn of an OS shell binary (cmd.exe / powershell / sh /
+      bash): the command interpreter a reverse shell hands to its socket. A
+      shell-name-filtered refinement of the broader child_process rule.
+    metadata:
+      category: security
+      references:
+        - https://attack.mitre.org/techniques/T1059/
+    patterns:
+      - pattern-either:
+          - pattern: exec($CMD, ...)
+          - pattern: execSync($CMD, ...)
+          - pattern: spawn($CMD, ...)
+          - pattern: spawnSync($CMD, ...)
+          - pattern: execFile($CMD, ...)
+      - metavariable-regex:
+          metavariable: $CMD
+          regex: (cmd\.exe|powershell|/bin/(ba)?sh|\bsh\b|\bbash\b|ComSpec|SHELL)
+
+  - id: reverse_shell_ip_connect
+    languages: [javascript, typescript]
+    severity: WARNING
+    message: >-
+      Socket connect to a hardcoded IPv4 literal with no DNS lookup, a common
+      command-and-control / reverse-shell callback shape.
+    metadata:
+      category: security
+      references:
+        - https://attack.mitre.org/techniques/T1571/
+    patterns:
+      - pattern-either:
+          - pattern: $S.connect($PORT, "$IP", ...)
+          - pattern: 'net.connect({ host: "$IP", port: $PORT, ... })'
+          - pattern: 'net.createConnection({ host: "$IP", port: $PORT, ... })'
+      - metavariable-regex:
+          metavariable: $IP
+          regex: ^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$

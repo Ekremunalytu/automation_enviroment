@@ -29,6 +29,9 @@ _EXPECTED_RULE_IDS = {
     "dynamic_require",
     "base64_decode_exec",
     "sensitive_file_read",
+    "reverse_shell_pipe",
+    "reverse_shell_spawn",
+    "reverse_shell_ip_connect",
 }
 _RULES_FILE = (
     Path(semgrep_runner.__file__).resolve().parent

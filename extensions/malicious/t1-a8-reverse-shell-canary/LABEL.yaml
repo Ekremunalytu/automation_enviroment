@@ -1,0 +1,21 @@
+{
+  "id": "t1-a8-reverse-shell-canary",
+  "tier": "T1",
+  "source": {
+    "kind": "internal_canary",
+    "reference": "securezeron/a8/reverse-shell",
+    "sha256": null
+  },
+  "category": {
+    "adversary_class": "A8",
+    "taxonomy": ["attack.T1059"]
+  },
+  "expected_detections": {
+    "must_fire": ["extrace.a8.reverse_shell"],
+    "must_not_fire": []
+  },
+  "declawing": null,
+  "retention": {
+    "expires": null
+  }
+}
