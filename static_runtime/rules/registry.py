@@ -28,6 +28,10 @@ _BUILTIN_STATIC_RULE_MODULES = (
     "static_runtime.rules.s12_invisible_unicode",
     "static_runtime.rules.s13_native_node_loader",
     "static_runtime.rules.s14_globalstate_dormancy",
+    "static_runtime.rules.s15_path_traversal_server",
+    "static_runtime.rules.s16_cross_extension_tamper",
+    "static_runtime.rules.s17_credential_exfil",
+    "static_runtime.rules.s18_download_exec_dropper",
 )
 _BUILTINS_LOADED = False
 

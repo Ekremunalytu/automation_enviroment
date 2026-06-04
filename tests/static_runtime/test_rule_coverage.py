@@ -16,6 +16,7 @@ EXPECTED_STATIC_PRODUCTION_RULE_IDS = {
     "extrace.s1.activation_wildcard",
     "extrace.s1.suspicious_capabilities",
     "extrace.s1.generic_publisher",
+    "extrace.s1.reserved_publisher_spoof",
     "extrace.s2.typosquat",
     "extrace.s3.embedded_native_binary",
     "extrace.s3.unusual_file_signature",
@@ -30,6 +31,10 @@ EXPECTED_STATIC_PRODUCTION_RULE_IDS = {
     "extrace.s12.invisible_unicode_run",
     "extrace.s13.native_node_loader",
     "extrace.s14.globalstate_dormancy",
+    "extrace.s15.path_traversal_server",
+    "extrace.s16.cross_extension_tamper",
+    "extrace.s17.credential_exfil",
+    "extrace.s18.download_exec_dropper",
 }
 
 

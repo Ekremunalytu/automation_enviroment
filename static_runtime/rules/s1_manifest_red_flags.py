@@ -46,6 +46,23 @@ _GENERIC_PUBLISHERS = frozenset(
     }
 )
 
+# Reserved / first-party brand publisher namespaces. A side-loaded VSIX that
+# *claims* one of these is asserting a trusted vendor identity — the nf3xn
+# reverse-shell PoC ships ``publisher: "ms-vscode"`` to borrow Microsoft's trust
+# (signal MN, the nf3xn spec §4b). This is a curated, owner-extendable set of the
+# highest-value impersonation targets, matched EXACTLY (not an ``ms-*`` prefix —
+# that would flag every legitimate ``ms-python`` / ``ms-toolsai`` / ... extension).
+_RESERVED_PUBLISHERS = frozenset(
+    {
+        "microsoft",
+        "ms-vscode",
+        "vscode",
+        "github",
+        "visualstudio",
+        "google",
+    }
+)
+
 
 class ActivationWildcardRule:
     rule_id = "extrace.s1.activation_wildcard"
@@ -185,12 +202,84 @@ class GenericPublisherRule:
         ]
 
 
+class ReservedPublisherSpoofRule:
+    """Manifest claims a reserved / first-party brand publisher namespace.
+
+    nf3xn (a reverse-shell PoC, ``documents/detection-design/nf3xn-reverse-shell-
+    spec.md``) labels itself ``publisher: "ms-vscode"`` to impersonate Microsoft's
+    official namespace and borrow its trust (signal MN). This rule flags a VSIX
+    that *claims* a curated reserved/first-party brand identity
+    (``_RESERVED_PUBLISHERS``).
+
+    **Honest FP boundary — MEDIUM / WARN, never a blocker.** Genuine first-party
+    extensions legitimately carry these same publishers (``ms-vscode.cpptools``,
+    ``GitHub.copilot``), so name-only matching cannot, on its own, distinguish a
+    spoof from the real thing — the durable disambiguator is the marketplace
+    *verified-publisher* signal, which is **out of static scope**. The value here
+    is in ExTrace's threat model of arbitrary / side-loaded VSIXs: a package
+    asserting a trusted-vendor identity warrants a provenance check, and the
+    signal is a strong escalator when it co-occurs with a malicious capability
+    (e.g. the nf3xn reverse shell that ``s10`` convicts). It therefore surfaces
+    for review and never rejects before the sandbox. Distinct from
+    ``generic_publisher`` (missing/placeholder identity); this is *claimed-trusted*
+    identity. ``adversary_class`` stays ``None`` per the static-IOC convention.
+    """
+
+    rule_id = "extrace.s1.reserved_publisher_spoof"
+    rule_version = "1.0.0"
+    lifecycle = RuleLifecycle.PRODUCTION
+    adversary_class: AdversaryClass | None = None
+    severity = Severity.MEDIUM
+    description = (
+        "Extension manifest claims a reserved / first-party brand publisher "
+        "namespace (microsoft / ms-vscode / vscode / github / ...), the trust-"
+        "borrowing impersonation pattern used by malicious side-loaded VSIXs."
+    )
+
+    def evaluate(self, context: StaticAnalysisContext) -> list[StaticDetectionFinding]:
+        if context.manifest_relative_path is None:
+            return []
+        publisher = manifest_string(context.manifest, "publisher")
+        if publisher.lower() not in _RESERVED_PUBLISHERS:
+            return []
+        return [
+            StaticDetectionFinding(
+                rule_id=self.rule_id,
+                rule_version=self.rule_version,
+                rule_lifecycle=self.lifecycle,
+                categories=["attack.T1036", "extrace.ext.publisher_impersonation"],
+                severity=self.severity,
+                confidence=Confidence.MEDIUM,
+                title="Extension claims a reserved first-party publisher namespace",
+                description=(
+                    f"Extension publisher is {publisher!r}, a reserved / first-party "
+                    "brand namespace. A side-loaded extension that claims a trusted "
+                    "vendor identity is impersonating that vendor to borrow its "
+                    "trust. Name-only matching cannot by itself separate a spoof "
+                    "from a genuine first-party extension (the marketplace "
+                    "verified-publisher signal, out of static scope, is the durable "
+                    "disambiguator), so this is a provenance-review signal and a "
+                    "strong escalator when it co-occurs with a malicious capability."
+                ),
+                evidence=[manifest_evidence(context, f'"publisher": "{publisher}"')],
+                mitigation_hint=(
+                    "Verify the extension's provenance against the claimed vendor "
+                    "(marketplace verified-publisher / signature). Treat a "
+                    "first-party identity claim paired with any malicious "
+                    "capability as confirmed impersonation."
+                ),
+            )
+        ]
+
+
 register(ActivationWildcardRule())
 register(SuspiciousCapabilitiesRule())
 register(GenericPublisherRule())
+register(ReservedPublisherSpoofRule())
 
 __all__ = [
     "ActivationWildcardRule",
     "GenericPublisherRule",
+    "ReservedPublisherSpoofRule",
     "SuspiciousCapabilitiesRule",
 ]

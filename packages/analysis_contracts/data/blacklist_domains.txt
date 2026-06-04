@@ -45,3 +45,14 @@ niggboo.com
 217.69.11.60
 217.69.3.218
 140.82.52.31
+
+# -- snyk-labs / VLN (vulnerable-legit-extension) class -- NO ENTRIES BY DESIGN -
+# The VLN class (detection-design/snyk-labs-vln-detection-spec.md) is a
+# vulnerability-pattern class, NOT a C2-driven malware family: the durable signals
+# are structural (an unguarded local file-serving server reachable cross-origin),
+# detected by extrace.s15.path_traversal_server. The malicious content and the
+# exfil receiver live in the attacker's web page / server, are extension-external,
+# and are deliberately NOT reproduced — so there is no C2 host or payload hash to
+# list here, and none was fabricated. This section is intentionally host-less; it
+# documents the integration point so a future host (only ever obtained by sandbox
+# analysis, never fetched on the host) can be added for the s4/a7 matcher.

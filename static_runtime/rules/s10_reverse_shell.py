@@ -85,13 +85,21 @@ _SOCKET_RE = re.compile(
     r"|require\(\s*['\"](?:node:)?(?:net|tls)['\"]\s*\)"
 )
 
-# The load-bearing conjunct: a ``.pipe()`` that wires a process stdio stream to a
-# socket, in either direction —
-#   * ``proc.stdout.pipe(socket)`` / ``proc.stderr.pipe(socket)``  (shell -> C2)
-#   * ``socket.pipe(proc.stdin)``                                   (C2 -> shell)
+# The load-bearing conjunct: shell stdio wired to a socket, in either direction.
+# Two bridge forms are caught — both only contribute *inside* the four-way
+# conjunction (shell + child_process + socket + wiring), so neither fires alone:
+#   * ``.pipe()`` form (stream plumbing) —
+#       ``proc.stdout.pipe(socket)`` / ``proc.stderr.pipe(socket)``  (shell -> C2)
+#       ``socket.pipe(proc.stdin)``                                  (C2 -> shell)
+#   * manual write-bridge — ``proc.stdin.write(socketData)`` (C2 -> shell). The
+#     classic Node reverse shell that does not use ``.pipe()`` bridges the socket
+#     to the shell with ``socket.on("data", d => proc.stdin.write(d))``; feeding a
+#     spawned process's stdin is the inbound leg and the diagnostic, low-FP token
+#     to add (a bare ``socket.write`` is too generic). See the nf3xn spec §4a.
 _PIPE_WIRING_RE = re.compile(
     r"\.std(?:out|err)\s*\.pipe\s*\("
     r"|\.pipe\s*\(\s*[\w.]*\bstdin\b"
+    r"|\bstdin\s*\.\s*write\s*\("
 )
 
 

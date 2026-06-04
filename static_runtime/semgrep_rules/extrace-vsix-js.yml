@@ -251,3 +251,83 @@ rules:
         - https://attack.mitre.org/techniques/T1105/
     patterns:
       - pattern-regex: '(?i)(?:powershell|pwsh)\b[^\n]{0,200}\b(?:irm|iwr|invoke-restmethod|invoke-webrequest)\b[^\n]{0,200}\b(?:iex|invoke-expression)\b'
+
+  # ── Vulnerability-in-legit-extension: permissive CORS (VLN4) ──────────────
+  # Advisory echo for the VLN class (snyk-labs / Instant Markdown path traversal,
+  # detection-design/snyk-labs-vln-detection-spec.md). A local server that sets
+  # Access-Control-Allow-Origin: "*" is reachable by any web page the developer
+  # opens; combined with an unguarded request->fs-read it becomes a browser-
+  # driven arbitrary-local-file-read primitive. This is the reachable-origin half
+  # of the in-house extrace.s15.path_traversal_server conjunction, surfaced on its
+  # own as MEDIUM/WARN (runner hard-pins severity) so a permissive-CORS surface is
+  # visible for review even when the s15 conjunction does not fully assemble.
+  - id: permissive_cors
+    languages: [javascript, typescript]
+    severity: WARNING
+    message: >-
+      Permissive CORS (Access-Control-Allow-Origin: "*"): exposes a server
+      cross-origin so any web page can reach it. On a local file-serving
+      extension server this is the reachable-origin half of a path-traversal
+      arbitrary-file-read primitive.
+    metadata:
+      category: security
+      references:
+        - https://attack.mitre.org/techniques/T1083/
+    patterns:
+      - pattern-regex: '(?i)access-control-allow-origin[^\n]{0,30}\*'
+
+  # ── ecm3401 malicious-suite signals (TAMPER1 / RECON1 / FINGERPRINT1) ──────
+  # Advisory echoes of the ecm3401 "Educational Attack Suite" class
+  # (detection-design/ecm3401-malicious-suite-spec.md). The in-house rules carry
+  # the verdict (s16 cross-extension tamper = CRITICAL/BLOCK; the recon /
+  # fingerprint signals are context-only); these stay MEDIUM/WARN (runner
+  # hard-pins severity) and add a second, structural line of evidence.
+  - id: cross_extension_write
+    languages: [javascript, typescript]
+    severity: WARNING
+    message: >-
+      A filesystem write/copy targets a .vscode/extensions install-root path:
+      writing into another extension's install directory is the persistence /
+      execution-hijack primitive of a cross-extension tamper.
+    metadata:
+      category: security
+      references:
+        - https://attack.mitre.org/techniques/T1554/
+    patterns:
+      - pattern-regex: '(?:copyFileSync|copyFile|writeFileSync|writeFile|createWriteStream|appendFileSync|appendFile|cpSync)\s*\([^;{}]{0,300}\.(?:vscode(?:-server|-oss|-insiders)?|vscodium|cursor|windsurf)[\\/]+extensions[\\/]'
+
+  - id: home_dir_enumeration
+    languages: [javascript, typescript]
+    severity: WARNING
+    message: >-
+      Home-directory enumeration (fs.readdir(os.homedir())): listing the user's
+      home directory is a host-reconnaissance step that precedes credential /
+      secret discovery.
+    metadata:
+      category: security
+      references:
+        - https://attack.mitre.org/techniques/T1083/
+    patterns:
+      - pattern-either:
+          - pattern: fs.readdirSync(os.homedir())
+          - pattern: fs.readdir(os.homedir(), ...)
+          - pattern: fs.readdirSync(require('os').homedir())
+          - pattern: fs.readdir(require('os').homedir(), ...)
+
+  - id: device_fingerprint
+    languages: [javascript, typescript]
+    severity: WARNING
+    message: >-
+      Device fingerprint collection (macaddress / os.networkInterfaces): gathers
+      a stable host identifier, a reconnaissance step often paired with
+      outbound exfiltration.
+    metadata:
+      category: security
+      references:
+        - https://attack.mitre.org/techniques/T1082/
+    patterns:
+      - pattern-either:
+          - pattern: require('macaddress')
+          - pattern: require("macaddress")
+          - pattern: os.networkInterfaces()
+          - pattern: require('os').networkInterfaces()

@@ -165,7 +165,92 @@ artifact is downloaded into the repo; tests use synthetic declawed JS fixtures;
 denylist because those are shared services. The direct IP hosts are exact
 host indicators and are safe for the existing s4/a7 matcher.
 
-## 5. Integration recipes (exact touch-points)
+## 4e. snyk-labs / VLN (vulnerable-legit-extension) behaviour → layer → rule → status
+
+Full reasoning in [`snyk-labs-vln-detection-spec.md`](snyk-labs-vln-detection-spec.md).
+This class is on a **new, orthogonal axis** — *vulnerability*, not *malice*. Rules
+stay general (no Instant-Markdown literal); the **VLN5 conjunction**, not any part.
+
+| Signal / behaviour | Layer | Rule id | Status |
+|---|---|---|---|
+| VLN5 conjunction (local server ∧ unguarded request→fs-read ∧ reachable origin) | in-house static | `extrace.s15.path_traversal_server` | ✅ **MEDIUM / WARN** (first vulnerability-axis rule) |
+| VLN4 permissive-CORS surface (cleartext echo) | semgrep | `permissive_cors` → `extrace.sg.permissive_cors` | ✅ advisory MEDIUM/WARN |
+
+`s15` matches one file where a local HTTP server (`http.createServer` / `express()`
+/ `.listen`) co-occurs with a request-derived path flowing into an `fs` read sink
+(`req.url` → `fs.readFile` / `res.sendFile`) **with no containment guard**, and the
+surface is reachable cross-origin (permissive CORS, or a CSP-less scripted
+webview). Three reconciliations worth noting:
+
+1. **MEDIUM / WARN, not CRITICAL / BLOCK** — deliberately *unlike* `s10`/`s11`.
+   This is a vulnerability in a possibly-**benign** extension; rejecting a
+   legitimate-but-vulnerable extension before the sandbox is a trust-destroying
+   false positive. No `_PROMOTED_HIGH_BLOCKERS` edit, no gate-policy change. It
+   stays **class-less** (`adversary_class=None`) — and adversary attribution is the
+   *wrong axis* for a vulnerability anyway.
+2. **Conservative guard modeling** — any plausible containment (`path.resolve`/
+   `normalize` near a `startsWith`, or a hardened static lib `send`/`serve-static`)
+   makes the rule go **silent**, accepting a false negative to never flag a
+   correctly-guarded server. It approximates the spec's taint by file-level
+   co-occurrence + guard-absence, not true dataflow (the higher-fidelity semgrep
+   taint VLN2 is a container-iteration follow-up).
+3. **The `VULNERABLE` verdict axis is NOT shipped** — the spec's headline proposal
+   (report both a MALICIOUSNESS and an orthogonal VULNERABILITY verdict) is a
+   **shared-contract change** (report dataclass + Pydantic contract + `schema_version`
+   bump + generated TS DTO + a new `V`-taxonomy node) and is **held for owner
+   sign-off** (precedent: the A8 enum addition was signed off before the edit).
+   Until then `s15` rides the malice-severity field at MEDIUM/WARN as a documented
+   stopgap. **No shared-contract / enum / gate change was made for this rule.**
+
+## 4f. nf3xn (reverse shell) behaviour → layer → rule → status
+
+Full reasoning in [`nf3xn-reverse-shell-spec.md`](nf3xn-reverse-shell-spec.md). A
+`securezeron` sibling (RS class) — already convicted by `s10`; the two landings
+below are the genuinely-new work it motivated.
+
+| Signal / behaviour | Layer | Rule id | Status |
+|---|---|---|---|
+| RS1 shell↔socket bridge — `.pipe()` **and** manual `stdin.write` form | in-house static | `extrace.s10.reverse_shell` | ✅ **improved** — the wiring conjunct now also matches `stdin.write(` (the `socket.on("data", d => proc.stdin.write(d))` manual bridge); still CRITICAL → BLOCK, still only fires inside the 4-way conjunction |
+| MN reserved-publisher impersonation | in-house static | `extrace.s1.reserved_publisher_spoof` | ✅ **new** — MEDIUM / WARN |
+| runtime shell spawn + outbound socket | dynamic | `extrace.a8.reverse_shell` | ✅ pre-existing — **fires** for nf3xn (Linux `/bin/sh` detonates, unlike the win32/darwin-gated kagema/glassworm) |
+
+`reserved_publisher_spoof` matches a **curated set of bare reserved brand
+namespaces** (`microsoft`/`ms-vscode`/`vscode`/`github`/`visualstudio`/`google`),
+**not** an `ms-*` prefix — prefix-matching would flag every legitimate `ms-python`/
+`ms-toolsai`/`ms-azuretools` extension (incl. the real `ms-azuretools.vscode-docker`
+that ecm3401 tampers with). It is MEDIUM/WARN and class-less: name-only matching
+cannot separate a spoof from a genuine first-party extension (the durable
+disambiguator is the marketplace verified-publisher signal, out of static scope),
+so it is a provenance-review escalator, never a blocker. No enum / contract / gate
+change.
+
+## 4g. ecm3401 (malicious attack suite) behaviour → layer → rule → status
+
+Full reasoning in [`ecm3401-malicious-suite-spec.md`](ecm3401-malicious-suite-spec.md).
+The **MALICIOUSNESS**-axis contrast to snyk-labs — nine techniques across all three
+trust planes; three high-fidelity invariants, each sufficient alone.
+
+| Signal / behaviour | Layer | Rule id | Status |
+|---|---|---|---|
+| TAMPER1 foreign-extension write (INV3, crown jewel) | in-house static | `extrace.s16.cross_extension_tamper` | ✅ **CRITICAL → BLOCK** (the 5th severity-CRITICAL in-house rule) |
+| CRED-X credential read + network egress (INV1) | in-house static | `extrace.s17.credential_exfil` | ✅ HIGH / WARN |
+| DROP1 make-executable + run (INV2) | in-house static | `extrace.s18.download_exec_dropper` | ✅ HIGH / WARN |
+| TAMPER1b / RECON1 / FINGERPRINT1 echoes | semgrep | `cross_extension_write` / `home_dir_enumeration` / `device_fingerprint` | ✅ advisory MEDIUM/WARN (runner hard-pins severity) |
+| runtime cred read → egress | dynamic | `extrace.a1.credential_read_then_network` / `extrace.a4.workspace_exfil` | ✅ pre-existing (runtime CRED-X half) |
+
+Three reconciliations worth noting: (1) **`s16` is the crown jewel** — a write into
+*another* extension's install tree (foreign `extensionPath` via `getExtension`, or a
+`.vscode/extensions` literal, incl. the variable-assignment form) has no benign use,
+so it is CRITICAL/BLOCK with ≈0 FP; writes to the extension's **own**
+`context.extensionPath`/`globalStorage` are allowlisted. (2) **`s17`/`s18` are
+HIGH/WARN, not CRITICAL** — both are file-level co-occurrences, not proven dataflow,
+and each has a legitimate cousin (a cloud/SSH extension reading creds + calling its
+API; a toolchain bootstrap downloading + running a helper), so they surface for
+review rather than reject before the sandbox. (3) **No new dynamic rule** — the
+runtime CRED-X shape is already carried by `a1`/`a4`; ecm3401 is a first-class
+dynamic sample (every command produces syscalls) and the dropper's detached child
+needs `strace -f` (the documented follow-fork gap). All three static rules are
+class-less; no enum / contract / `_PROMOTED_HIGH_BLOCKERS` / `schema_version` change.
 
 ### Add an in-house static rule (`s*`)
 
@@ -284,7 +369,9 @@ legitimate extensions declare `*`).
   (a1–a7 + demo, a5 included). *(securezeron branch then grew this to **13** static
   / **9** dynamic via `s10` + `a8` — see §4b; kagema then grew static to **14**
   via `s11` — see §4c; GlassWorm then grew static to **17** via `s12`/`s13`/`s14`
-  — see §4d. The container smoke count is kept in lockstep.)*
+  — see §4d; snyk-labs/VLN grew it to **18** via `s15` — see §4e; nf3xn + ecm3401
+  then grew it to **22** via `s16`/`s17`/`s18` + the `s1.reserved_publisher_spoof`
+  manifest rule — see §4f/§4g. The container smoke count is kept in lockstep.)*
 - UI: `tsc -b` clean, `vitest run` **110 passed** (incl. a new static-visibility
   test), `npm run build` ✓.
 - **Browser-verified** live in the Rules tab (ui-dev :5173 against an

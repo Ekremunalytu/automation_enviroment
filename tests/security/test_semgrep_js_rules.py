@@ -34,6 +34,10 @@ _EXPECTED_RULE_IDS = {
     "reverse_shell_spawn",
     "reverse_shell_ip_connect",
     "download_cradle",
+    "permissive_cors",
+    "cross_extension_write",
+    "home_dir_enumeration",
+    "device_fingerprint",
 }
 _RULES_FILE = (
     Path(semgrep_runner.__file__).resolve().parent
@@ -113,3 +117,52 @@ def test_download_cradle_pattern_regex_matches_cradle_not_benign() -> None:
     # scattered across separate lines (the loose-co-occurrence false positive).
     assert not pattern.search('spawn("powershell.exe", ["-File", "./setup.ps1"])')
     assert not pattern.search("powershell\nInvoke-WebRequest(url)\nlet iex = 0")
+
+
+def test_permissive_cors_pattern_regex_matches_wildcard_origin_not_specific() -> None:
+    """Validate the shipped ``permissive_cors`` pattern-regex locally.
+
+    Like ``download_cradle`` it matches on a raw regex, so the real fire is only
+    exercised in the Semgrep container; compiling the YAML's ``pattern-regex``
+    pins the logic here — it fires on an Access-Control-Allow-Origin header set to
+    ``*`` (the reachable-origin half of the VLN path-traversal class) and stays
+    silent when the origin is pinned to a specific value."""
+    doc = yaml.safe_load(_RULES_FILE.read_text(encoding="utf-8"))
+    rule = next(r for r in doc["rules"] if r["id"] == "permissive_cors")
+    pattern = re.compile(rule["patterns"][0]["pattern-regex"])
+
+    # Fires: wildcard origin in the common header-set forms.
+    assert pattern.search('res.setHeader("Access-Control-Allow-Origin", "*")')
+    assert pattern.search("'Access-Control-Allow-Origin': '*'")
+    assert pattern.search('{ "access-control-allow-origin": "*" }')
+
+    # Silent: a specific, pinned origin is not the permissive shape.
+    assert not pattern.search(
+        'res.setHeader("Access-Control-Allow-Origin", "https://app.example")'
+    )
+
+
+def test_cross_extension_write_pattern_regex_matches_install_path_not_own_dir() -> None:
+    """Validate the shipped ``cross_extension_write`` pattern-regex locally.
+
+    Like ``download_cradle`` it matches on a raw regex (the real fire runs only in
+    the Semgrep container); compiling the YAML's ``pattern-regex`` pins the logic —
+    it fires on a write/copy into a .vscode/extensions install-root path (the
+    foreign-extension tamper / spoof_api consumer-rewrite shape) and stays silent
+    for a write into the extension's own directory."""
+    doc = yaml.safe_load(_RULES_FILE.read_text(encoding="utf-8"))
+    rule = next(r for r in doc["rules"] if r["id"] == "cross_extension_write")
+    pattern = re.compile(rule["patterns"][0]["pattern-regex"])
+
+    # Fires: write/copy into another extension's install directory.
+    assert pattern.search(
+        'fs.copyFileSync(src, homedir + "/.vscode/extensions/victim/main.js")'
+    )
+    assert pattern.search(
+        'fs.writeFileSync(os.homedir() + "/.vscode-server/extensions/v/out/ext.js", p)'
+    )
+
+    # Silent: a write into the extension's own dir is not the install-root shape.
+    assert not pattern.search(
+        'fs.writeFileSync(context.extensionPath + "/cache.json", data)'
+    )

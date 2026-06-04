@@ -47,6 +47,9 @@ reconcile on the owner's cadence, post-merge).
 | [`securezeron-detection-spec.md`](securezeron-detection-spec.md) | Detection design spec for the `securezeron` VS Code **reverse-shell** class: signals RS1–RS4, the as-built layer map (s10 / a8 / semgrep echoes), severity/gate, evasion limits, IOC appendix. |
 | [`kagema-detection-spec.md`](kagema-detection-spec.md) | Detection design spec for the `kagema` VS Code **download-cradle dropper** class: signals DR/OB/MN, the as-built layer map (s11 / `sg.download_cradle`), the ordered-shape-not-loose-AND FP reconciliation, the win32-gate dynamic blind spot, A4/A3 attribution, evasion limits, IOC appendix. |
 | [`glassworm-detection-spec.md`](glassworm-detection-spec.md) | Detection design spec for the GlassWorm / `icon-theme-materiall` native-loader worm class: invisible Unicode, `.node` loader dispatch, host-context invoke, globalState dormancy, Linux blind spot, and safe IOC handling. |
+| [`snyk-labs-vln-detection-spec.md`](snyk-labs-vln-detection-spec.md) | Detection design spec for the **VLN** (vulnerable-legit-extension) class, driven by the 2021 Snyk-labs Instant Markdown path-traversal bug: signals VLN1–VLN5, the as-built layer map (`s15` conjunction / `permissive_cors` semgrep echo), the new **orthogonal `VULNERABLE` axis** (deferred for sign-off), and why the class has **no network IOCs**. |
+| [`nf3xn-reverse-shell-spec.md`](nf3xn-reverse-shell-spec.md) | Detection design spec for the `nf3xn` VS Code **reverse-shell** PoC (RS class, `securezeron` sibling): the connect-back / shell-spawn / stdio-bridge invariant, the `s10` **manual `stdin.write` bridge** improvement, the new **`s1.reserved_publisher_spoof`** manifest rule (signal MN), and the Linux-detonation insight (`a8` *fires* for this sample, unlike kagema/glassworm). |
+| [`ecm3401-malicious-suite-spec.md`](ecm3401-malicious-suite-spec.md) | Detection design spec for the `ecm3401` "Educational Attack Suite" (MAL / **MALICIOUSNESS** axis, the snyk-labs contrast): 9 techniques across all three trust planes, the three high-fidelity invariants (TAMPER1 / CRED-X / DROP1) and their as-built rules (`s16` CRITICAL crown jewel / `s17` / `s18` + three semgrep echoes), the cross-extension trust-boundary class, and the durable-vs-sample-specific IOC split. |
 
 ## Design principle: general, not sample-specific
 
@@ -70,18 +73,24 @@ not a known sample.
 
 ## Shipped so far (this branch)
 
-Nine **general** detection rules (+ four advisory Semgrep echoes) + the UI to
-surface them. None hardcodes a sample literal; all scan every extension.
+**General** detection rules across the static / semgrep / dynamic layers (+ advisory
+Semgrep echoes) + the UI to surface them. None hardcodes a sample literal; all scan
+every extension.
 
 | Rule | Layer | What it catches | Severity |
 |---|---|---|---|
 | [`extrace.s8.exfil_webhook`](../../static_runtime/rules/s8_exfil_webhook.py) | static | Hardcoded Discord/Slack/Telegram **webhook** ingestion endpoint (the exfil channel) | HIGH (warn) |
 | [`extrace.s9.crypto_address_scan`](../../static_runtime/rules/s9_crypto_address_scan.py) | static | Source recognises **crypto-address** formats (Base58/ETH/bech32) — clipper capability | MEDIUM (warn) |
-| [`extrace.s10.reverse_shell`](../../static_runtime/rules/s10_reverse_shell.py) | static | Shell `child_process` stdio **piped to a network socket** (reverse shell) | **CRITICAL (block)** |
+| [`extrace.s10.reverse_shell`](../../static_runtime/rules/s10_reverse_shell.py) | static | Shell `child_process` stdio **wired to a network socket** (reverse shell) — `.pipe()` **and** manual `stdin.write` bridge | **CRITICAL (block)** |
 | [`extrace.s11.download_cradle`](../../static_runtime/rules/s11_download_cradle.py) | static | `child_process` driving a hidden-PowerShell `irm`→`iex` **download cradle** (dropper) | **CRITICAL (block)** |
 | [`extrace.s12.invisible_unicode_run`](../../static_runtime/rules/s12_invisible_unicode.py) | static | Invisible Unicode / PUA source-hiding runs in original packaged bytes | **CRITICAL (block)** for runs |
 | [`extrace.s13.native_node_loader`](../../static_runtime/rules/s13_native_node_loader.py) | static | Bundled `.node` load with platform dispatch and host-context invoke | **CRITICAL (block)** for GlassWorm-strength conjunction |
 | [`extrace.s14.globalstate_dormancy`](../../static_runtime/rules/s14_globalstate_dormancy.py) | static | `context.globalState` timestamp dormancy / throttle | MEDIUM (warn) |
+| [`extrace.s15.path_traversal_server`](../../static_runtime/rules/s15_path_traversal_server.py) | static | Local server maps a request path onto an unguarded `fs` read, reachable cross-origin (path traversal) | MEDIUM (warn) |
+| [`extrace.s16.cross_extension_tamper`](../../static_runtime/rules/s16_cross_extension_tamper.py) | static | Write/copy into **another extension's install directory** (foreign `extensionPath` / `.vscode/extensions` path) — persistence / execution hijack | **CRITICAL (block)** |
+| [`extrace.s17.credential_exfil`](../../static_runtime/rules/s17_credential_exfil.py) | static | Sensitive **credential file read** + outbound network egress sink in one module | HIGH (warn) |
+| [`extrace.s18.download_exec_dropper`](../../static_runtime/rules/s18_download_exec_dropper.py) | static | File made **executable (`chmod +x`) and run** via `child_process` — drop-and-run dropper | HIGH (warn) |
+| [`extrace.s1.reserved_publisher_spoof`](../../static_runtime/rules/s1_manifest_red_flags.py) | static | Manifest **claims a reserved first-party publisher** (`ms-vscode`/`github`/…) — impersonation (signal MN) | MEDIUM (warn) |
 | [`extrace.a5.workspace_file_tamper`](../../packages/analysis_engine/rules/a5_workspace_file_tamper.py) | dynamic | Workspace file **read then rewritten in place** at runtime — clipper/integrity | MEDIUM |
 | [`extrace.a8.reverse_shell`](../../packages/analysis_engine/rules/a8_reverse_shell.py) | dynamic | Runtime **shell spawn + outbound socket** co-occurrence (reverse shell) | HIGH |
 
@@ -150,6 +159,80 @@ stay behavior-first; sample IPs are only curated denylist entries for s4/a7.
 | AA1 `context.globalState` dormancy / throttle | in-house static | `extrace.s14.globalstate_dormancy` | ✅ shipped — MEDIUM / dynamic fresh-profile telemetry |
 | Embedded native binary | in-house static | `extrace.s3.embedded_native_binary` | ✅ pre-existing |
 | Direct-IP C2/stager references | in-house static + dynamic | `extrace.s4.blacklisted_domain` / `extrace.a7.blacklisted_domain` | ✅ shipped via curated blacklist IP hosts |
+
+## Status board — snyk-labs / VLN (vulnerable-legit-extension) class
+
+See [`snyk-labs-vln-detection-spec.md`](snyk-labs-vln-detection-spec.md). This is a
+**new, orthogonal axis** — "is the extension *vulnerable*?", not "is it
+*malicious*?". General rules (no Instant-Markdown literal in rule logic); the
+**VLN5 conjunction**, not any single part.
+
+| Signal | Layer | Rule id | Status |
+|---|---|---|---|
+| VLN5 conjunction (server ∧ unguarded request→fs-read ∧ reachable-origin) | in-house static | `extrace.s15.path_traversal_server` | ✅ shipped — **MEDIUM / WARN** (vulnerability surface, never BLOCK) |
+| VLN4 permissive-CORS surface (cleartext echo) | semgrep | `permissive_cors` (`extrace.sg.permissive_cors`) | ✅ shipped (advisory MEDIUM/WARN) |
+| VLN2 request-path → fs-read **taint** (true dataflow) | semgrep (taint) | *tbd* | ⬜ container-iteration follow-up |
+| **`VULNERABLE` verdict axis** (orthogonal to malice) | report contract + UI | — | ⛔ **deferred — needs owner sign-off** (shared-contract change, spec §6) |
+
+This class has **no network IOCs by design** (the malicious page + receiver are
+extension-external and not reproduced); the durable signals are structural. No
+domains were fabricated. `blacklist_domains.txt` carries a documented **host-less**
+section for the class so the integration point is recorded without inventing a
+host (spec §8).
+
+## Status board — nf3xn / reverse-shell (RS) class
+
+See [`nf3xn-reverse-shell-spec.md`](nf3xn-reverse-shell-spec.md). A `securezeron`
+sibling: already convicted by the RS rules; the two additions below are the
+genuinely-new work it motivated. No nf3xn literal in rule logic.
+
+| Signal | Layer | Rule id | Status |
+|---|---|---|---|
+| RS1 shell↔socket bridge — `.pipe()` **and** manual `stdin.write` form | in-house static | `extrace.s10.reverse_shell` | ✅ **improved** (CRITICAL → BLOCK) — manual-bridge variant now caught |
+| MN reserved-publisher impersonation (`ms-vscode`) | in-house static | `extrace.s1.reserved_publisher_spoof` | ✅ **NEW** — MEDIUM / WARN (provenance-review signal, never a blocker) |
+| RS4 `*` activation | in-house static | `extrace.s1.activation_wildcard` | ✅ pre-existing — **silent for nf3xn** (`onCommand`, correctly lower severity) |
+| runtime shell spawn + outbound socket | dynamic | `extrace.a8.reverse_shell` | ✅ pre-existing — **fires** for nf3xn (Linux `/bin/sh` detonates, unlike kagema/glassworm) |
+
+The L5 syscall expectation (socket-fd `dup2` + shell `execve`, `strace -f`
+follow-fork) is documented in spec §5 and carried at runtime by `a8` — **no Falco
+rule artifact** exists in this repo.
+
+## Status board — ecm3401 / malicious-suite (MAL) class
+
+See [`ecm3401-malicious-suite-spec.md`](ecm3401-malicious-suite-spec.md). The
+**MALICIOUSNESS**-axis contrast to snyk-labs. General rules (no ecm3401 literal);
+each of the three invariants alone is sufficient for a MALICIOUS verdict.
+
+| Signal | Layer | Rule id | Status |
+|---|---|---|---|
+| TAMPER1 foreign-extension write (crown jewel, INV3) | in-house static | `extrace.s16.cross_extension_tamper` | ✅ **NEW — CRITICAL → BLOCK** (≈0 FP; own-dir allowlisted) |
+| CRED-X credential read + network egress (INV1) | in-house static | `extrace.s17.credential_exfil` | ✅ **NEW — HIGH / WARN** (co-occurrence, not proven taint) |
+| DROP1 make-executable + run (INV2) | in-house static | `extrace.s18.download_exec_dropper` | ✅ **NEW — HIGH / WARN** (HIGH confidence with remote fetch / shared symbol) |
+| TAMPER1b install-root write (echo) | semgrep | `cross_extension_write` | ✅ **NEW** advisory MEDIUM/WARN |
+| RECON1 home-dir enumeration | semgrep | `home_dir_enumeration` | ✅ **NEW** advisory MEDIUM/WARN |
+| FINGERPRINT1 device fingerprint | semgrep | `device_fingerprint` | ✅ **NEW** advisory MEDIUM/WARN |
+| CRED1 sensitive-path read (echo) / EXEC1 / NET1 | semgrep | `sensitive_file_read` / `child_process` / `outbound_net_module` | ✅ pre-existing |
+| runtime cred read → egress | dynamic | `extrace.a1.credential_read_then_network` / `extrace.a4.workspace_exfil` | ✅ pre-existing (the runtime CRED-X half) |
+
+No taxonomy / contract / gate-policy change: `s16` is CRITICAL (auto-BLOCKs like
+`s10`/`s11`); `s17`/`s18` are HIGH/WARN; all three class-less per the static-IOC
+convention. ECM3401 is a **first-class dynamic sample** (every command produces
+syscalls) — `strace -f` follow-fork is required for the dropper's detached child
+(spec §5).
+
+## Roadmap — deferred / next (security-development stream)
+
+Forward items captured here so they are not lost; **none is auto-applied**. The
+two below were explicitly held by the owner ("roadmap'e ekle, şimdilik dokunma").
+
+| Item | Why deferred | Gate to start |
+|---|---|---|
+| **`VULNERABLE` verdict axis** (orthogonal to malice) — report both a MALICIOUSNESS and a VULNERABILITY verdict (snyk-labs spec §6) | **Shared-contract change**: report dataclass + Pydantic contract + `schema_version` bump + generated TS DTO + a new `V`-taxonomy node distinct from `AdversaryClass` A1–A8. Precedent: the A8 enum addition was signed off before the edit. | **Explicit owner sign-off.** Then verify the `V`-taxonomy ID against the real taxonomy before assigning one. |
+| **Semgrep taint VLN2** — true dataflow (source = request path, sink = `fs` read, sanitizer = containment guard), higher-fidelity than `s15`'s co-occurrence approximation | Needs the `automation_static_analyzer` container; **no local semgrep** on the dev machine to verify a `mode: taint` rule. | Container-iteration cycle (owner runs the live-fire check). |
+| `s15` UI `ruleCatalog.ts` entry | Enrichment only — surfaces the rule in the Rules tab. Non-blocking. | Opportunistic, next UI pass. |
+
+Until the axis lands, `extrace.s15.path_traversal_server` ships at **MEDIUM / WARN**
+on the existing malice-severity field — the documented stopgap (spec §3, §6).
 
 ## Iteration loop
 

@@ -8,6 +8,7 @@ from static_runtime.context import StaticAnalysisContext
 from static_runtime.rules.s1_manifest_red_flags import (
     ActivationWildcardRule,
     GenericPublisherRule,
+    ReservedPublisherSpoofRule,
     SuspiciousCapabilitiesRule,
 )
 
@@ -98,3 +99,43 @@ def test_generic_publisher_silent_for_real_publisher(
 ) -> None:
     ctx = make_context(manifest={"publisher": "ms-python", "name": "python"})
     assert GenericPublisherRule().evaluate(ctx) == []
+
+
+# --- extrace.s1.reserved_publisher_spoof ------------------------------------
+
+
+def test_reserved_publisher_spoof_fires_on_ms_vscode(make_context: MakeContext) -> None:
+    # nf3xn ships publisher: "ms-vscode" to impersonate Microsoft (signal MN).
+    ctx = make_context(manifest={"publisher": "ms-vscode", "name": "helloworld"})
+    findings = ReservedPublisherSpoofRule().evaluate(ctx)
+    assert len(findings) == 1
+    finding = findings[0]
+    assert finding.rule_id == "extrace.s1.reserved_publisher_spoof"
+    # Provenance-review signal — MEDIUM/WARN, never a blocker.
+    assert finding.severity.value == "medium"
+    assert finding.adversary_class is None
+    assert "extrace.ext.publisher_impersonation" in finding.categories
+    assert finding.evidence and finding.evidence[0].type == "manifest"
+
+
+def test_reserved_publisher_spoof_fires_on_github(make_context: MakeContext) -> None:
+    ctx = make_context(manifest={"publisher": "github", "name": "tool"})
+    assert len(ReservedPublisherSpoofRule().evaluate(ctx)) == 1
+
+
+def test_reserved_publisher_spoof_silent_for_scoped_real_publisher(
+    make_context: MakeContext,
+) -> None:
+    # Exact-match only: a legitimate ms-* / scoped publisher (ms-python,
+    # ms-toolsai) is NOT flagged — matching the ms-* prefix would flag every
+    # real Microsoft extension. Only the bare reserved brand namespaces match.
+    for publisher in ("ms-python", "ms-toolsai", "ms-azuretools", "acme"):
+        ctx = make_context(manifest={"publisher": publisher, "name": "x"})
+        assert ReservedPublisherSpoofRule().evaluate(ctx) == [], publisher
+
+
+def test_reserved_publisher_spoof_silent_without_manifest(
+    make_context: MakeContext,
+) -> None:
+    ctx = make_context(files={"extension.js": "x"})
+    assert ReservedPublisherSpoofRule().evaluate(ctx) == []

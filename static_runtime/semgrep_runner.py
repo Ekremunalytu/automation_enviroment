@@ -276,6 +276,79 @@ _RULE_META: dict[str, _SemgrepRuleMeta] = {
             "endpoint."
         ),
     ),
+    "permissive_cors": _SemgrepRuleMeta(
+        rule_id="extrace.sg.permissive_cors",
+        categories=("attack.T1083", "extrace.ext.permissive_cors"),
+        title="Permissive CORS on a server",
+        description=(
+            "The extension sets Access-Control-Allow-Origin to '*', exposing its "
+            "server to any web origin. On a local file-serving extension server "
+            "this is the reachable-origin half of a path-traversal vulnerability: "
+            "a malicious page the developer opens can reach the server and, if a "
+            "request path flows unguarded into a filesystem read, retrieve "
+            "arbitrary local files. The in-house extrace.s15.path_traversal_server "
+            "rule carries the full conjunction (server + unguarded request->read + "
+            "reachable origin); this echoes the CORS surface alone at MEDIUM/WARN. "
+            "This is a VULNERABILITY surface, not evidence of malice."
+        ),
+        mitigation_hint=(
+            "Restrict the server's CORS policy to a known, specific origin instead "
+            "of '*', and serve files through a hardened static library or an "
+            "explicit path-containment check so the surface cannot be abused for "
+            "path traversal."
+        ),
+    ),
+    "cross_extension_write": _SemgrepRuleMeta(
+        rule_id="extrace.sg.cross_extension_write",
+        categories=("attack.T1554", "extrace.ext.cross_extension_tamper"),
+        title="Filesystem write into a .vscode/extensions install path",
+        description=(
+            "The extension writes or copies a file into a .vscode/extensions "
+            "install-root path — i.e. into another extension's install directory. "
+            "VS Code performs no integrity check on installed extensions, so "
+            "overwriting another extension's on-disk code makes it run attacker "
+            "code on its next activation (local persistence / execution hijack). "
+            "The in-house extrace.s16.cross_extension_tamper rule carries the "
+            "blocking verdict (including the getExtension(other).extensionPath "
+            "form); this is the install-root-literal echo."
+        ),
+        mitigation_hint=(
+            "An extension has no legitimate reason to write into another "
+            "extension's install directory — treat it as a tamper / persistence "
+            "attempt, reject it, and verify the targeted extension's integrity."
+        ),
+    ),
+    "home_dir_enumeration": _SemgrepRuleMeta(
+        rule_id="extrace.sg.home_dir_enumeration",
+        categories=("attack.T1083", "extrace.ext.host_recon"),
+        title="Home-directory enumeration",
+        description=(
+            "The extension lists the user's home directory (fs.readdir over "
+            "os.homedir()). Enumerating the home directory is a host-"
+            "reconnaissance step that typically precedes credential / secret "
+            "discovery and is rarely needed by a legitimate extension."
+        ),
+        mitigation_hint=(
+            "Confirm why the extension enumerates the user's home directory; "
+            "scanning $HOME is a discovery step ahead of credential theft."
+        ),
+    ),
+    "device_fingerprint": _SemgrepRuleMeta(
+        rule_id="extrace.sg.device_fingerprint",
+        categories=("attack.T1082", "extrace.ext.device_fingerprint"),
+        title="Device fingerprint collection",
+        description=(
+            "The extension collects a stable host identifier (MAC address via the "
+            "macaddress module, or os.networkInterfaces()). Device fingerprinting "
+            "is a reconnaissance step commonly paired with outbound exfiltration to "
+            "track or target the victim host."
+        ),
+        mitigation_hint=(
+            "Confirm why the extension fingerprints the host; a device identifier "
+            "collected alongside a network sink is an exfiltration / tracking "
+            "signal."
+        ),
+    ),
 }
 
 
