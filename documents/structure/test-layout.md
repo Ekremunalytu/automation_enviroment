@@ -1,6 +1,6 @@
 # Test Layout
 
-`Last Updated: 2026-05-07`
+`Last Updated: 2026-06-04`
 
 Layered map of `tests/`. Coordinates with [`../TESTING.md`](../TESTING.md)
 (layer purpose, fixtures, commands). This file is the structural skeleton —
@@ -23,7 +23,7 @@ tests/
     storage/
     security/          W8-6 and future W8-8 platform security tests
   security/            malicious-fixture hygiene + PoC canary contracts
-    rules/             A1/A2/A3/A4/A6 rule tests
+    rules/             A1-A8 dynamic rule tests
   smoke/               end-to-end marketplace analysis acceptance
   workflows/
     activation_reports/

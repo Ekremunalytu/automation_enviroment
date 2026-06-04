@@ -47,6 +47,12 @@ severity ≥ `high` (ADR 0003). Stretch classes remain buildable; a rule
 authored for a Stretch class is accepted into production if it meets
 the same bar as a PoC rule.
 
+**Post-acceptance update (2026-06-04):** ADR 0003's production
+`AdversaryClass` enum now extends through A8. The W7 PoC acceptance bar above
+remains historical; current production rule mapping is: A5 workspace file
+tamper / integrity, A7 blacklisted-domain runtime contact, and A8 reverse shell
+/ remote command execution.
+
 ### 2. Assumed Adversary Capabilities
 
 The detection program **must be robust against** the following capabilities:
@@ -129,7 +135,8 @@ Output handling therefore inherits a tainted status:
 
 ### Positive
 
-- Detection rules can be reviewed against "does this class address A1-A7?"
+- Detection rules can be reviewed against "does this class address the current
+  A1-A8 taxonomy?"
 - `inconclusive` becomes a legitimate, first-class verdict rather than a
   failure mode.
 - Dependency on VS Code version pinning and harness checksums acquires an
@@ -144,9 +151,9 @@ Output handling therefore inherits a tainted status:
 
 ### Follow-On
 
-- ADR 0003 defines the detection taxonomy aligned with classes A1-A7.
+- ADR 0003 defines the detection taxonomy aligned with current classes A1-A8.
 - ADR 0004 defines the malicious fixture policy validating coverage of
-  classes A1-A7.
+  the current class set while preserving the W7 PoC T1 minimum.
 - Re-evaluate this ADR after the first production detection release. If
   advanced evasion becomes a recurring blocker, promote it via a new ADR
   rather than silently expanding scope.

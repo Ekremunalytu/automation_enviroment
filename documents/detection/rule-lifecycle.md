@@ -80,7 +80,8 @@ the final verdict.
   `signal_policy` thresholds tightened (2026-04-21). Re-evaluation at
   W13 documentation consolidation pass.
 - `risk_signals` category expansion (e.g. credential-stuffing
-  patterns) — deferred until A5/A7 land.
+  patterns) — no longer blocked on A5/A7 landing; carry forward as W23+
+  signal-policy work if the report UI needs richer activation-layer grouping.
 
 See `archive/plans/REFACTOR_OPTIMIZATION_full_2026-04-29.md` §11.12 for
 review-rejected detection items.

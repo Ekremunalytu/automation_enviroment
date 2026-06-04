@@ -1,6 +1,12 @@
 # UI Lane
 
-**Last Updated:** 2026-05-17 (W15 close — W15-4 closed 2026-05-16 via 89e13e3: UI bounds bundle (U1/U2/U3 + U6) — `EventTimeline` / `EventDensityStrip` / `InteractionsSection` render caps with truncation indicators to prevent unbounded SVG rendering and DOM growth on adversarial event volumes; W15-5 closed 2026-05-17 via 43d6438: UI `/health` proxy (I2) — `ui/src/lib/api/client.ts` retains `api/` prefix for executor `/health` endpoint via Vite proxy passthrough, +14 behavioral cases in `ui/src/lib/api/client.test.ts`; W15-5 also pairs with I4 (lifecycle marker regex) on the executor side.) · Branch `extension-trigger-matrix` (2026-06-01, pre-merge): added the Reports **Rule matrix** tab — a static + dynamic rule-activation grid with click-for-detail — and folded the sibling static pre-check report onto the bundle via `ReportBundle.static_report`; see `documents/active-work/extension-trigger-matrix.md`.
+**Last Updated:** 2026-06-04. W15 UI bounds and `/health` proxy remain closed;
+post-W22 `extension-trigger-matrix` merged `2026-06-03` with the Reports
+**Rule matrix** tab (static + dynamic rule-activation grid) and
+`ReportBundle.static_report`. The `security-development` stream extends the
+Rules tab/catalog with static and dynamic rule rows, Static/Dynamic badges, a
+stream filter, and richer rule details; see
+`documents/detection-design/README.md` and `documents/active-work/extension-trigger-matrix.md`.
 
 Use this lane for the React/Vite analyst console, frontend contracts, route
 behavior, report views, simulation UI, rules / settings / system surfaces,

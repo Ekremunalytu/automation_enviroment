@@ -107,6 +107,7 @@ Current scaffold coverage checks (`tests/security/test_rule_coverage.py`)
 assert:
 
 - T1 canaries cover the PoC adversary classes A1/A2/A4/A6
+- the dynamic production registry exposes A1-A8 plus the demo canary
 - every T1 fixture declares at least one detection contract in `must_fire`
 - no T3 fixtures are present in the current PoC scaffold
 

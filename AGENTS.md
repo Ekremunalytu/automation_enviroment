@@ -1,12 +1,12 @@
 # AGENTS.md
 
-`Last Updated: 2026-05-28`
+`Last Updated: 2026-06-04`
 
-`Active phase: W22 — closed synthetically on the week22 branch, merged to main via PR #31 week22 -> main 2026-05-28 via 1399f82.`
+`Last merged weekly: W22 — closed synthetically on the week22 branch, merged to main via PR #31 week22 -> main 2026-05-28 via 1399f82.`
 
-`Previous phase: W21 closed and merged via PR #30 week21 -> main 2026-05-28 via 5dc18aa.`
+`Active stream: security-development on branch security-development — custom detection-rule expansion. Tracker: documents/detection-design/README.md.`
 
-`Active tracker: documents/active-work/W22-coverage-promotion-hard-tier.md · Sources of truth: documents/REFACTOR_STATUS.md (state) · documents/POST_POC_BACKLOG.md (deferred) · documents/REFACTOR_OPTIMIZATION.md §20 (W22 plan).`
+`Sources of truth: documents/REFACTOR_STATUS.md (state) · documents/POST_POC_BACKLOG.md (deferred) · documents/REFACTOR_OPTIMIZATION.md §20 (last weekly plan) · documents/phase.json (weekly pointer + active stream).`
 
 ## Authority
 
@@ -21,16 +21,20 @@
 
 ## Current State
 
-- **W0-W21 all closed**; per-phase merge facts (PR # / SHA) live in
+- **W0-W22 all closed**; per-phase merge facts (PR # / SHA) live in
   `documents/REFACTOR_STATUS.md`'s `Last Updated:` banner. Per-phase
   mechanics are frozen under
-  `documents/active-work/W{8,11,12,13,14,15,16,17,18,19,20,21}-*.md`
+  `documents/active-work/W{8,11,12,13,14,15,16,17,18,19,20,21,22}-*.md`
   — these stay on the read path **only** because code/tests reference
   items by stable ID (e.g., `W11-1`, `W17-2`). Do not renumber.
 - **W22** is closed synthetically on the `week22` branch and merged
-  to main via PR #31 `week22 -> main` `1399f82`. Active tracker:
+  to main via PR #31 `week22 -> main` `1399f82`. Frozen tracker:
   `documents/active-work/W22-coverage-promotion-hard-tier.md`. Plan:
   `documents/REFACTOR_OPTIMIZATION.md §20`.
+- **Post-W22 named streams** do not advance the weekly pointer. Static
+  Analysis Pre-Check is closed/merged via PR #33; `extension-trigger-matrix`
+  is merged; active work is `security-development` on branch
+  `security-development`, tracked by `documents/detection-design/README.md`.
 - ADRs live in `documents/adrs/`. ADR 0007 local-network-binding is
   Accepted and implemented (loopback defaults + `EXTRACE_ALLOW_LAN`
   pinned by `test_default_bindings.py`).
@@ -62,8 +66,9 @@
 - Tests live under `tests/`; UI tests live under `ui/src/**/*.test.ts(x)`.
 - `packages/` must not import `workflows/`, `executor/`, `ui/`, or
   `appcore/`.
-- Detection rules live in `packages/analysis_engine/rules/` and may only
-  consume contracts.
+- Dynamic detection rules live in `packages/analysis_engine/rules/`; static
+  pre-check rules live in `static_runtime/rules/`. Both may only consume
+  contracts and their allowed stdlib/shared-contract helpers.
 - Workflows reach sandbox mechanics through `executor.control`.
 - Do not recreate legacy top-level business directories such as `routers/`,
   `scanner/`, `core/`, `database/`, `crud/`, `models/`, or `schemas/`.

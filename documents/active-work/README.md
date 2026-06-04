@@ -1,12 +1,12 @@
 # Active Work
 
-`Last Updated: 2026-05-28`
+`Last Updated: 2026-06-04`
 
-`Active phase: W22 — closed synthetically on the week22 branch, merged to main via PR #31 week22 -> main 2026-05-28 via 1399f82.`
+`Last merged weekly: W22 — closed synthetically on the week22 branch, merged to main via PR #31 week22 -> main 2026-05-28 via 1399f82.`
 
-`Previous phase: W21 closed and merged via PR #30 week21 -> main 2026-05-28 via 5dc18aa.`
+`Active stream: security-development on branch security-development — custom detection-rule expansion. Tracker: documents/detection-design/README.md.`
 
-`Active tracker: documents/active-work/W22-coverage-promotion-hard-tier.md · Sources of truth: documents/REFACTOR_STATUS.md (state) · documents/POST_POC_BACKLOG.md (deferred) · documents/REFACTOR_OPTIMIZATION.md §20 (W22 plan).`
+`Sources of truth: documents/REFACTOR_STATUS.md (state) · documents/POST_POC_BACKLOG.md (deferred) · documents/REFACTOR_OPTIMIZATION.md §20 (last weekly plan) · documents/phase.json (weekly pointer + active stream).`
 
 Slim canonical files for **active engineering work tracking**. Each file is
 a stable contract: code comments and tests reference items here by stable
@@ -40,6 +40,12 @@ points to it.
     `make test-security` **228 passed**; broader sweep
     **631 passed**. Slim canonical:
     [`REFACTOR_OPTIMIZATION.md §20`](../REFACTOR_OPTIMIZATION.md).
+- `../detection-design/README.md`
+  - **Current named stream — `security-development` on branch
+    `security-development` (`2026-06-04`).** Custom detection-rule expansion
+    for apollyon / securezeron / kagema / GlassWorm classes. The directory is
+    self-contained and tracks safety policy, shipped static/dynamic rules,
+    rule-layer reconciliation, and per-class specs.
 - `extrace-static-stream-handoff.md`
   - **Frozen design-intent reference — branch `extrace-static`
     abandoned `2026-05-28`; static-analysis pre-check stream

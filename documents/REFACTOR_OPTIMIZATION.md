@@ -1,12 +1,12 @@
 # REFACTOR_OPTIMIZATION
 
-`Last Updated: 2026-05-28`
+`Last Updated: 2026-06-04`
 
-`Active phase: W22 — closed synthetically on the week22 branch, merged to main via PR #31 week22 -> main 2026-05-28 via 1399f82.`
+`Last merged weekly: W22 — closed synthetically on the week22 branch, merged to main via PR #31 week22 -> main 2026-05-28 via 1399f82.`
 
-`Previous phase: W21 closed and merged via PR #30 week21 -> main 2026-05-28 via 5dc18aa.`
+`Active stream: security-development on branch security-development — custom detection-rule expansion. Tracker: documents/detection-design/README.md.`
 
-`Active tracker: documents/active-work/W22-coverage-promotion-hard-tier.md · Sources of truth: documents/REFACTOR_STATUS.md (state) · documents/POST_POC_BACKLOG.md (deferred) · documents/REFACTOR_OPTIMIZATION.md §20 (W22 plan).`
+`Sources of truth: documents/REFACTOR_STATUS.md (state) · documents/POST_POC_BACKLOG.md (deferred) · documents/REFACTOR_OPTIMIZATION.md §20 (last weekly plan) · documents/phase.json (weekly pointer + active stream).`
 
 W0-W14 plan document: stabilization + security + post-PoC external-review
 integration + W14 acceptance + observability continuation. **Slim canonical**
@@ -331,8 +331,8 @@ açık kalır:
   downgrade hâlâ geçerli; direct trigger yok, defer).
 - `[FOLLOWUP report-finalize-top-level-field-sync-drift]` (production
   scan-driven investigation; izole pull olur, W15 temasıyla uyumsuz).
-- `[CLEANUP rule-registry-side-effect-loader]` (ADR 0003 deferred rules
-  A5/A7 landed olunca).
+- `[CLEANUP rule-registry-side-effect-loader]` (A5/A7/A8 have now landed;
+  see current `POST_POC_BACKLOG.md` cleanup wording).
 - `[CLEANUP test-import-graph-policy-dump-split]` (test dosyası
   okunabilirliği; W15 arc'ına yakışmıyor).
 - `[FOLLOWUP codex-automation-6]`, `[FOLLOWUP capability-verification-gap]`
@@ -435,8 +435,8 @@ açık kalır:
 
 - `[FOLLOWUP w11-8-companion-workflow-orm-bleed]` (DTO desen kararı
   önce ayrı bir ADR ister; W17+ design pass).
-- `[CLEANUP rule-registry-side-effect-loader]` (ADR 0003 deferred
-  rules A5/A7 landed olunca).
+- `[CLEANUP rule-registry-side-effect-loader]` (A5/A7/A8 have now landed;
+  see current `POST_POC_BACKLOG.md` cleanup wording).
 - `[FOLLOWUP codex-automation-6]`, `[FOLLOWUP capability-verification-gap]`
   (`NEEDS-DESIGN`; W17+).
 - Watching items: `planner-selection-readability-audit`,
@@ -568,8 +568,8 @@ açık kalır:
   alert email; W18+).
 - `[FOLLOWUP w11-8-companion-workflow-orm-bleed]` (W16 non-goal
   taşıma; W17+'a düşmüştü, W17 scope dışı tutuluyor).
-- `[CLEANUP rule-registry-side-effect-loader]` (ADR 0003 A5/A7
-  deferred rules landed olunca).
+- `[CLEANUP rule-registry-side-effect-loader]` (A5/A7/A8 have now landed;
+  see current `POST_POC_BACKLOG.md` cleanup wording).
 - `[FOLLOWUP codex-automation-6]`, `[FOLLOWUP capability-verification-gap]`
   (`NEEDS-DESIGN`; W18+).
 - Watching items: `planner-selection-readability-audit`,

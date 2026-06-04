@@ -1,6 +1,6 @@
 # Security Tests
 
-`Last Updated: 2026-05-09`
+`Last Updated: 2026-06-04`
 
 `tests/security/`, `tests/executor/security/`, and
 `tests/platform/security/` (the last two for subsystem-local W8 work).
@@ -13,8 +13,8 @@ Lane shape and overall test guide:
 
 - `test_fixture_hygiene.py` — `LABEL.yaml` schema + manifest hygiene
   for malicious fixtures (`extensions/malicious/`).
-- `test_rule_coverage.py` — every Must-class adversary (A1/A2/A3/A4/A6)
-  has a dedicated rule + canary.
+- `test_rule_coverage.py` — dynamic production registry coverage for A1-A8
+  plus the demo canary; PoC T1 classes still cover A1/A2/A4/A6.
 - `test_canary_end_to_end.py` — wires a canary fixture through the rule
   runner. Code comment references `REFACTOR_OPTIMIZATION.md §10.7`
   (PoC acceptance bar) — anchor preserved in slim canonical.
@@ -24,7 +24,7 @@ Lane shape and overall test guide:
 - `test_rule_validation.py` — rule loader / shape assertions.
 - `test_benign_silence.py` — benign baselines stay zero-finding
   (post-W6 `signal_policy` thresholds).
-- `rules/test_a{1,2,3,4,6}_*.py` — per-class rule detection tests.
+- `rules/test_a{1,2,3,4,5,6,7,8}_*.py` — per-class rule detection tests.
 - `rules/test_rule_attribution.py` — target-only attribution gating.
 
 ## `tests/executor/security/`

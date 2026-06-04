@@ -1,12 +1,12 @@
 # Post-PoC Backlog
 
-`Last Updated: 2026-05-28`
+`Last Updated: 2026-06-04`
 
-`Active phase: W22 — closed synthetically on the week22 branch, merged to main via PR #31 week22 -> main 2026-05-28 via 1399f82.`
+`Last merged weekly: W22 — closed synthetically on the week22 branch, merged to main via PR #31 week22 -> main 2026-05-28 via 1399f82.`
 
-`Previous phase: W21 closed and merged via PR #30 week21 -> main 2026-05-28 via 5dc18aa.`
+`Active stream: security-development on branch security-development — custom detection-rule expansion. Tracker: documents/detection-design/README.md.`
 
-`Active tracker: documents/active-work/W22-coverage-promotion-hard-tier.md · Sources of truth: documents/REFACTOR_STATUS.md (state) · documents/POST_POC_BACKLOG.md (deferred) · documents/REFACTOR_OPTIMIZATION.md §20 (W22 plan).`
+`Sources of truth: documents/REFACTOR_STATUS.md (state) · documents/POST_POC_BACKLOG.md (deferred) · documents/REFACTOR_OPTIMIZATION.md §20 (last weekly plan) · documents/phase.json (weekly pointer + active stream).`
 
 Open deferred work after the W0-W7 PoC acceptance bar. **Slim canonical** —
 verbose closure rationales, evidence paragraphs, and per-iter Note columns
@@ -782,11 +782,12 @@ Closed (one-line audit trail):
 - `[FOLLOWUP attribution-links-build-evidence-bundle-density]`
 - `[FOLLOWUP execute-attempt-rebloat-watch]`
 - `[FOLLOWUP dispatch-execution-rebloat-watch]`
-- `[CLEANUP rule-registry-side-effect-loader]` — `registry.py` carries
-  `_REGISTRY` global + `importlib` side-effect loader + `_BUILTINS_LOADED`
-  flag for six builtin rules; a flat `RULES` tuple would suffice at current
-  cardinality. Earns its weight only when ADR 0003 deferred rules
-  (A5/A7) land. W15+ hygiene.
+- `[CLEANUP rule-registry-side-effect-loader]` — dynamic `registry.py` now
+  carries `_REGISTRY` global + `importlib` side-effect loader +
+  `_BUILTINS_LOADED` for A1-A8 plus the demo canary; static runtime has the
+  same lazy-loader shape for 17 production static rule ids. A flat `RULES`
+  tuple is now more justified than the original six-rule W15 snapshot, but this
+  remains W23+ hygiene unless rule loading itself becomes unstable.
 - `[GOAL mitre-mapping-adr]` (new) — **W23-0 candidate (after static stream
   ES-5 closes).** ADR 0017 fixing the MITRE ATT&CK technique↔rule mapping
   strategy: technique→tactic source-of-truth shape, canonical ATT&CK Enterprise

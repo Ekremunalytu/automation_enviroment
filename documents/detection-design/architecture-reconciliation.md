@@ -55,7 +55,7 @@ it (it can reject real extensions before they ever run).
 
 ---
 
-## 3. The adversary taxonomy is A1–A7 (`AdversaryClass`, ADR 0003)
+## 3. The adversary taxonomy is A1-A8 (`AdversaryClass`, ADR 0003)
 
 Defined in [`detection/enums.py`](../../packages/analysis_contracts/detection/enums.py);
 current rule mapping (dynamic plane):

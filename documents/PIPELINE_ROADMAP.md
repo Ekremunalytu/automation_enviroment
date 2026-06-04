@@ -1,6 +1,6 @@
 # Pipeline Roadmap
 
-`Last Updated: 2026-05-28 — W22 closed synthetically on week22 and merged to main via PR #31 week22 -> main 1399f82; W21 closed and merged via PR #30 5dc18aa.`
+`Last Updated: 2026-06-04 — W22 remains the last merged weekly close-out (PR #31 week22 -> main 1399f82); active stream is security-development.`
 
 This is the short staged view of the analysis pipeline. For current pullable
 work, use `POST_POC_BACKLOG.md` plus the active tracker; for active priorities,
@@ -79,11 +79,12 @@ flowchart LR
 - detection scaffolding is implemented and wired:
   - `packages/analysis_contracts/detection/` exposes
     `DetectionReport`/`DetectionFinding`/`Confidence`
-  - `packages/analysis_engine/rules/` ships A1/A2/A3/A4/A6 rules with
-    target-only attribution (A3 typosquat landed in the W7 Phase 3a
-    buffer; allow-list at
+  - `packages/analysis_engine/rules/` currently ships A1-A8 dynamic
+    production rules plus the demo canary (A5/A7/A8 landed after the W7
+    acceptance window; allow-list at
     `packages/analysis_engine/allowlists/popular_extensions.txt`)
-  - `extensions/malicious/` T1 canary manifests for A1/A2/A3/A4/A6
+  - `extensions/malicious/` T1 canary manifests for the PoC classes and
+    post-W22 security-development additions
   - `tests/security/` plus local `make test-security` and break-glass
     `make test-security-live`
 - `DetectionReport` lives alongside `ActivationReport` per ADR 0003; verdicts
@@ -106,8 +107,9 @@ flowchart LR
   (`attribution/events.py`) and evidence-link builders
   (`attribution/links.py`) behind a re-export facade. W12-2 trims that
   facade to 10 public names while preserving the evidence semantics above.
-- Remaining stretch classes (A5 malicious update, A7 VS Code API abuse)
-  live in `POST_POC_BACKLOG.md`.
+- Remaining detection expansion is no longer "A5/A7 only"; use
+  `documents/detection-design/README.md` for the active custom-rule board and
+  `POST_POC_BACKLOG.md` for W23+ MITRE/static-overlay work.
 
 ## Design Constraints
 

@@ -1,6 +1,11 @@
 # Security And Detection Lane
 
-**Last Updated:** 2026-05-12 (W13-8 closed — §11.10 GOAL benign silence fixture 3→5 GREEN, 5/5 ✓: 3 new fixture extensions — snippet/keybinding/cmd — under `extensions/` + baseline activation reports + helpers/baselines registration; `tests/security/test_benign_silence.py` 5/5 ✓. W13-11 close-pass closed `2026-05-12` (6/6 sub-commits) — Path A host-side eager-consume + env var passthrough for HMAC python secret target-install race; `executor_control.consume_harness_python_secret()` between `_reset_sandbox` and `_install_extension`, `EXECUTOR_HARNESS_PYTHON_SECRET_VALUE` env threading + E4 docker exec argv mask; W13-1 H6 nonce gate intact. W13-12 fail-closed handshake closed `2026-05-12` (5/5 sub-commits) — `ActivationReport.harness_handshake_required: bool` field stamped True by `setup_monitor` + `_attempt_has_harness_completion_trace` fail-closed branch + 3-fact AST gate; test bar 1537 → 1539 / `tests/architecture/` 112 → 115.)
+**Last Updated:** 2026-06-04 (`security-development` stream). Dynamic
+production rules now cover A1-A8 plus the demo canary:
+`a5.workspace_file_tamper`, `a7.blacklisted_domain`, and
+`a8.reverse_shell` are live. Static pre-check production rules live in
+`static_runtime/rules/` and are tracked by the static lane; custom rule design
+status lives in `documents/detection-design/README.md`.
 
 Use this lane for detection contracts, rule behavior, malicious fixtures, and
 security ADR alignment.
@@ -11,6 +16,7 @@ security ADR alignment.
 - `documents/adrs/0003-detection-taxonomy.md`
 - `documents/adrs/0004-malicious-fixture-policy.md`
 - `documents/adrs/0005-packages-charter.md`
+- `documents/detection-design/README.md` (current custom rule stream)
 - `packages/analysis_contracts/detection/`
 - `packages/analysis_engine/rules/`
 - `extensions/malicious/`
@@ -21,9 +27,12 @@ security ADR alignment.
 
 - Detection rules consume contracts only; they do not import runtime, web, UI,
   or storage layers.
-- A1/A2/A3/A4/A6 production rules and T1 canaries are live.
-- A5 malicious update and A7 VS Code API abuse remain deferred unless pulled
-  from `POST_POC_BACKLOG.md`.
+- A1-A8 dynamic production rules are live. `A5` currently means workspace
+  file tamper / integrity, `A7` means blacklisted-domain runtime contact, and
+  `A8` means reverse shell / remote command execution.
+- Static in-house rules (`s*`) are production detection surfaces too, but they
+  live in `static_runtime/rules/` and use `adversary_class=None` unless a future
+  ADR explicitly changes attribution rules.
 - ADR 0006 is target output-channel capture. Do not reuse that number for
   container packaging; the next packaging ADR needs a new number.
 - T3 live samples never run in CI.
@@ -33,6 +42,7 @@ security ADR alignment.
 - `make test-security`
 - `make test-security-live` only as a break-glass live lane.
 - `.venv/bin/pytest tests/security/`
+- `.venv/bin/pytest tests/static_runtime/` when the touched rule is static
 - `.venv/bin/python scripts/demo_acceptance.py`
 - `make demo-canary-offline`
 
