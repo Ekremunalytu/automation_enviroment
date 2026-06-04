@@ -39,6 +39,17 @@ TEXT_SUFFIXES: frozenset[str] = frozenset(
         ".html",
         ".htm",
         ".css",
+        # Stylesheet + CSS-preprocessor sources. ``.less``/``.scss``/``.sass``
+        # are added so the content scanners (and the stylesheet-borne s19 family)
+        # actually see them: the nextsecurity / vsix-zoo corpus ships its entire
+        # CSS/LESS TTP set as ``.less`` files, which were previously skipped by
+        # ``is_text_document`` and so never scanned for remote endpoints (s4/s5),
+        # secrets (s7), webhooks (s8), crypto addresses (s9), or stylesheet
+        # inline-JS / exfil (s19). See
+        # ``documents/detection-design/nextsecurity-stylesheet-spec.md``.
+        ".less",
+        ".scss",
+        ".sass",
         ".map",
         ".yml",
         ".yaml",

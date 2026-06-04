@@ -3,8 +3,10 @@
 > Companion to [`apollyon-detection-spec.md`](apollyon-detection-spec.md). The
 > spec reasons about signals; this doc maps them onto ExTrace's **real** rule
 > layers, severities, gate behaviour, and the exact files/tests you touch to add
-> a rule. Updated for the GlassWorm native-loader expansion on 2026-06-04; older
-> apollyon / securezeron / kagema reconciliations were verified on 2026-06-03.
+> a rule. Updated for the nextsecurity stylesheet-TTP (`s19`) expansion on
+> 2026-06-04; the GlassWorm native-loader, nf3xn and ecm3401 expansions landed the
+> same day; older apollyon / securezeron / kagema reconciliations were verified on
+> 2026-06-03.
 > When code and a spec disagree,
 > trust the code — and update this doc.
 >
@@ -252,6 +254,37 @@ dynamic sample (every command produces syscalls) and the dropper's detached chil
 needs `strace -f` (the documented follow-fork gap). All three static rules are
 class-less; no enum / contract / `_PROMOTED_HIGH_BLOCKERS` / `schema_version` change.
 
+## 4h. nextsecurity (stylesheet-borne TTP) behaviour → layer → rule → status
+
+Full reasoning in [`nextsecurity-stylesheet-spec.md`](nextsecurity-stylesheet-spec.md).
+The **first stylesheet (CSS/LESS) detection surface** — s1–s18 all reason about
+JS/manifest. Three rules in one `s19` module (mirrors the multi-rule `s1`/`s3`
+modules), plus a coverage fix that makes the corpus visible at all.
+
+| Signal / behaviour | Layer | Rule id | Status |
+|---|---|---|---|
+| `.less`/`.scss`/`.sass` were never in `TEXT_SUFFIXES` | content scanners | `_common.TEXT_SUFFIXES` (+ `s3._TEXT_SUFFIXES`) | ✅ **fix** — the highest-leverage change; the whole corpus ships as `.less` and was unscanned |
+| LESS inline-JS eval (backtick) | in-house static | `extrace.s19.stylesheet_inline_js` | ✅ **CRITICAL → BLOCK** (the 6th severity-CRITICAL in-house rule) |
+| non-standard-scheme resource load | in-house static | `extrace.s19.stylesheet_nonstandard_scheme` | ✅ MEDIUM / WARN |
+| CSS keylogger + content exfil | in-house static | `extrace.s19.stylesheet_css_exfil` | ✅ MEDIUM / WARN |
+
+Three reconciliations worth noting: (1) **the inline-JS rule is stylesheet-suffix
+scoped** — the corpus' own suggested regex `` ~?`[^`]*` `` would false-positive on
+every JavaScript template literal if run over `.js`; scoping to `.css`/`.less`/
+`.scss`/`.sass` (where a backtick is anomalous) is what makes it near-zero-FP and
+CRITICAL-worthy. Conditional on the build's `javascriptEnabled` (less.js ≥ 3.0
+default-off), exactly the `s11` win32-gate precedent. (2) **non-standard scheme is
+MEDIUM and deliberately excludes remote `http(s)` hosts** — a remote `url()` to a
+CDN is routine; remote-host scrutiny is the s4/s5 layer (now reaching `.less` via
+the suffix fix), gradable by CSP. (3) **css_exfil excludes URL/structural attribute
+selectors** (`href`/`src`/`class`/`id`/...) via a negative lookahead, because
+prefix-matching those with a remote icon is the legitimate external-link-icon
+pattern; the rule keys on value-bearing attributes + a remote url in the **same
+block**. All three are class-less; no enum / contract / `_PROMOTED_HIGH_BLOCKERS` /
+`schema_version` change. Production rule count 22 → **25**. DoS structures, taint
+indirection, and CSP-grading are explicitly **out of scope** for the regex layer
+(spec §6).
+
 ### Add an in-house static rule (`s*`)
 
 1. New module `static_runtime/rules/sN_<name>.py` (mirror `s5_network_indicators.py`:
@@ -371,7 +404,9 @@ legitimate extensions declare `*`).
   via `s11` — see §4c; GlassWorm then grew static to **17** via `s12`/`s13`/`s14`
   — see §4d; snyk-labs/VLN grew it to **18** via `s15` — see §4e; nf3xn + ecm3401
   then grew it to **22** via `s16`/`s17`/`s18` + the `s1.reserved_publisher_spoof`
-  manifest rule — see §4f/§4g. The container smoke count is kept in lockstep.)*
+  manifest rule — see §4f/§4g; nextsecurity/stylesheet then grew it to **25** via
+  the three-rule `s19` module — see §4h. The container smoke count is kept in
+  lockstep.)*
 - UI: `tsc -b` clean, `vitest run` **110 passed** (incl. a new static-visibility
   test), `npm run build` ✓.
 - **Browser-verified** live in the Rules tab (ui-dev :5173 against an

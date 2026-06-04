@@ -50,6 +50,7 @@ reconcile on the owner's cadence, post-merge).
 | [`snyk-labs-vln-detection-spec.md`](snyk-labs-vln-detection-spec.md) | Detection design spec for the **VLN** (vulnerable-legit-extension) class, driven by the 2021 Snyk-labs Instant Markdown path-traversal bug: signals VLN1–VLN5, the as-built layer map (`s15` conjunction / `permissive_cors` semgrep echo), the new **orthogonal `VULNERABLE` axis** (deferred for sign-off), and why the class has **no network IOCs**. |
 | [`nf3xn-reverse-shell-spec.md`](nf3xn-reverse-shell-spec.md) | Detection design spec for the `nf3xn` VS Code **reverse-shell** PoC (RS class, `securezeron` sibling): the connect-back / shell-spawn / stdio-bridge invariant, the `s10` **manual `stdin.write` bridge** improvement, the new **`s1.reserved_publisher_spoof`** manifest rule (signal MN), and the Linux-detonation insight (`a8` *fires* for this sample, unlike kagema/glassworm). |
 | [`ecm3401-malicious-suite-spec.md`](ecm3401-malicious-suite-spec.md) | Detection design spec for the `ecm3401` "Educational Attack Suite" (MAL / **MALICIOUSNESS** axis, the snyk-labs contrast): 9 techniques across all three trust planes, the three high-fidelity invariants (TAMPER1 / CRED-X / DROP1) and their as-built rules (`s16` CRITICAL crown jewel / `s17` / `s18` + three semgrep echoes), the cross-extension trust-boundary class, and the durable-vs-sample-specific IOC split. |
+| [`nextsecurity-stylesheet-spec.md`](nextsecurity-stylesheet-spec.md) | Detection design spec for the `nextsecurity` / vsix-zoo **stylesheet-borne TTP** class (STY — the first CSS/LESS detection surface): the two execution contexts (webview Chromium vs extension-host LESS compile), the honest TTP→impact matrix (~7 dead in Electron, ~9 data-plane beacons, 1 CRITICAL RCE), the `.less`/`.scss`/`.sass` **coverage fix**, the as-built `s19` family (`stylesheet_inline_js` CRITICAL / `stylesheet_nonstandard_scheme` / `stylesheet_css_exfil`), the explicit DoS/taint/CSP-grading gaps, and the all-synthetic IOC handling (no host added to the denylist). |
 
 ## Design principle: general, not sample-specific
 
@@ -91,6 +92,9 @@ every extension.
 | [`extrace.s17.credential_exfil`](../../static_runtime/rules/s17_credential_exfil.py) | static | Sensitive **credential file read** + outbound network egress sink in one module | HIGH (warn) |
 | [`extrace.s18.download_exec_dropper`](../../static_runtime/rules/s18_download_exec_dropper.py) | static | File made **executable (`chmod +x`) and run** via `child_process` — drop-and-run dropper | HIGH (warn) |
 | [`extrace.s1.reserved_publisher_spoof`](../../static_runtime/rules/s1_manifest_red_flags.py) | static | Manifest **claims a reserved first-party publisher** (`ms-vscode`/`github`/…) — impersonation (signal MN) | MEDIUM (warn) |
+| [`extrace.s19.stylesheet_inline_js`](../../static_runtime/rules/s19_stylesheet_threats.py) | static | **LESS inline-JavaScript eval** (backtick `` ~`...` ``) in a stylesheet → compile-time RCE in the extension-host Node context | **CRITICAL (block)** |
+| [`extrace.s19.stylesheet_nonstandard_scheme`](../../static_runtime/rules/s19_stylesheet_threats.py) | static | Stylesheet resource loader (`@import`/`url()`/`src:`) to a **non-standard scheme** (`ftp`/`ws`/`file`/`javascript`/…) | MEDIUM (warn) |
+| [`extrace.s19.stylesheet_css_exfil`](../../static_runtime/rules/s19_stylesheet_threats.py) | static | **CSS-native exfiltration** — substring-attribute keylogger or `::after` content beacon firing a remote `url()` | MEDIUM (warn) |
 | [`extrace.a5.workspace_file_tamper`](../../packages/analysis_engine/rules/a5_workspace_file_tamper.py) | dynamic | Workspace file **read then rewritten in place** at runtime — clipper/integrity | MEDIUM |
 | [`extrace.a8.reverse_shell`](../../packages/analysis_engine/rules/a8_reverse_shell.py) | dynamic | Runtime **shell spawn + outbound socket** co-occurrence (reverse shell) | HIGH |
 
@@ -219,6 +223,22 @@ No taxonomy / contract / gate-policy change: `s16` is CRITICAL (auto-BLOCKs like
 convention. ECM3401 is a **first-class dynamic sample** (every command produces
 syscalls) — `strace -f` follow-fork is required for the dropper's detached child
 (spec §5).
+
+## Status board — nextsecurity / stylesheet-TTP (STY) class
+
+See [`nextsecurity-stylesheet-spec.md`](nextsecurity-stylesheet-spec.md). The
+**first stylesheet (CSS/LESS) detection surface** — every prior rule reasons about
+JS/manifest. General rules (no `nextsecurity` literal); the corpus is an
+all-synthetic detection-test set, so **no host was added to the denylist**.
+
+| Signal | Layer | Rule id | Status |
+|---|---|---|---|
+| Coverage gap — `.less`/`.scss`/`.sass` were never scanned | content scanners | `_common.TEXT_SUFFIXES` | ✅ **fix** — extends s4/s5/s7/s8/s9/s12 + s19 to stylesheets |
+| TTP #8-less LESS inline-JS eval (RCE) | in-house static | `extrace.s19.stylesheet_inline_js` | ✅ shipped — **CRITICAL → BLOCK** (stylesheet-suffix-scoped; the one true RCE) |
+| TTP #1/#3/#6 non-standard-scheme load | in-house static | `extrace.s19.stylesheet_nonstandard_scheme` | ✅ shipped — MEDIUM / WARN (signature/intent + `file://` local-read) |
+| TTP #11/#16 CSS keylogger + content exfil | in-house static | `extrace.s19.stylesheet_css_exfil` | ✅ shipped — MEDIUM / WARN (href/src excluded; CSP-gated egress) |
+| TTP #15 zero-width / RTL unicode in stylesheet | in-house static | `extrace.s12.invisible_unicode_run` | ✅ pre-existing — scans raw bytes of every file (`.less` included) |
+| DoS structures / taint indirection / CSP-grading | AST / taint / dynamic | *tbd* | ⬜ **deferred** (spec §6) — regex cannot model graph cycles or variable→sink flow |
 
 ## Roadmap — deferred / next (security-development stream)
 

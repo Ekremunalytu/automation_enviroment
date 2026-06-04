@@ -35,6 +35,9 @@ EXPECTED_STATIC_PRODUCTION_RULE_IDS = {
     "extrace.s16.cross_extension_tamper",
     "extrace.s17.credential_exfil",
     "extrace.s18.download_exec_dropper",
+    "extrace.s19.stylesheet_inline_js",
+    "extrace.s19.stylesheet_nonstandard_scheme",
+    "extrace.s19.stylesheet_css_exfil",
 }
 
 

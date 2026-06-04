@@ -32,6 +32,7 @@ _BUILTIN_STATIC_RULE_MODULES = (
     "static_runtime.rules.s16_cross_extension_tamper",
     "static_runtime.rules.s17_credential_exfil",
     "static_runtime.rules.s18_download_exec_dropper",
+    "static_runtime.rules.s19_stylesheet_threats",
 )
 _BUILTINS_LOADED = False
 
