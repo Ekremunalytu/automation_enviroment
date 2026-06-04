@@ -214,6 +214,14 @@ describe("ruleCatalog drift guard", () => {
       "extrace.s12.invisible_unicode_run",
       "extrace.s13.native_node_loader",
       "extrace.s14.globalstate_dormancy",
+      "extrace.s15.path_traversal_server",
+      "extrace.s16.cross_extension_tamper",
+      "extrace.s17.credential_exfil",
+      "extrace.s18.download_exec_dropper",
+      "extrace.s19.stylesheet_inline_js",
+      "extrace.s19.stylesheet_nonstandard_scheme",
+      "extrace.s19.stylesheet_css_exfil",
+      "extrace.s20.rmm_remote_access",
     ]) {
       expect(staticIds.has(id)).toBe(true);
     }
@@ -226,6 +234,14 @@ describe("ruleCatalog drift guard", () => {
       ["extrace.s12.invisible_unicode_run", "static"],
       ["extrace.s13.native_node_loader", "static"],
       ["extrace.s14.globalstate_dormancy", "static"],
+      ["extrace.s15.path_traversal_server", "static"],
+      ["extrace.s16.cross_extension_tamper", "static"],
+      ["extrace.s17.credential_exfil", "static"],
+      ["extrace.s18.download_exec_dropper", "static"],
+      ["extrace.s19.stylesheet_inline_js", "static"],
+      ["extrace.s19.stylesheet_nonstandard_scheme", "static"],
+      ["extrace.s19.stylesheet_css_exfil", "static"],
+      ["extrace.s20.rmm_remote_access", "static"],
       ["extrace.a5.workspace_file_tamper", "dynamic"],
     ];
     for (const [id, stream] of cases) {

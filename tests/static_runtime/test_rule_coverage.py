@@ -38,6 +38,7 @@ EXPECTED_STATIC_PRODUCTION_RULE_IDS = {
     "extrace.s19.stylesheet_inline_js",
     "extrace.s19.stylesheet_nonstandard_scheme",
     "extrace.s19.stylesheet_css_exfil",
+    "extrace.s20.rmm_remote_access",
 }
 
 

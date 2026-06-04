@@ -33,6 +33,7 @@ _BUILTIN_STATIC_RULE_MODULES = (
     "static_runtime.rules.s17_credential_exfil",
     "static_runtime.rules.s18_download_exec_dropper",
     "static_runtime.rules.s19_stylesheet_threats",
+    "static_runtime.rules.s20_rmm_remote_access",
 )
 _BUILTINS_LOADED = False
 

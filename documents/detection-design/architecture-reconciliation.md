@@ -3,10 +3,10 @@
 > Companion to [`apollyon-detection-spec.md`](apollyon-detection-spec.md). The
 > spec reasons about signals; this doc maps them onto ExTrace's **real** rule
 > layers, severities, gate behaviour, and the exact files/tests you touch to add
-> a rule. Updated for the nextsecurity stylesheet-TTP (`s19`) expansion on
-> 2026-06-04; the GlassWorm native-loader, nf3xn and ecm3401 expansions landed the
-> same day; older apollyon / securezeron / kagema reconciliations were verified on
-> 2026-06-03.
+> a rule. Updated for the snowshono BYOSC / ScreenConnect RMM-as-RAT (`s20`) and
+> nextsecurity stylesheet-TTP (`s19`) expansions on 2026-06-04; the GlassWorm
+> native-loader, nf3xn and ecm3401 expansions landed the same day; older apollyon /
+> securezeron / kagema reconciliations were verified on 2026-06-03.
 > When code and a spec disagree,
 > trust the code — and update this doc.
 >
@@ -285,6 +285,38 @@ block**. All three are class-less; no enum / contract / `_PROMOTED_HIGH_BLOCKERS
 indirection, and CSP-grading are explicitly **out of scope** for the regex layer
 (spec §6).
 
+## 4i. snowshono (BYOSC / ScreenConnect RMM-as-RAT) behaviour → layer → rule → status
+
+Full reasoning in [`snowshono-rmm-spec.md`](snowshono-rmm-spec.md). The **Stage-3
+companion** to kagema: kagema's `s11` convicts the `SnowShoNo` extension's
+PowerShell cradle (Stage 1); this adds the rule for the **ScreenConnect RMM-as-RAT**
+payload it drops (Stage 3, MITRE **T1219**). One rule, `s20`.
+
+| Signal / behaviour | Layer | Rule id | Status |
+|---|---|---|---|
+| RMM4 conjunction — RMM client ref ∧ unattended-access relay config, one file | in-house static | `extrace.s20.rmm_remote_access` | ✅ **NEW — HIGH / WARN** (HIGH confidence on RMM5 bare-IP relay) |
+| Stage-1 cradle (fetches the MSI indirectly) | in-house static | `extrace.s11.download_cradle` | ✅ pre-existing — CRITICAL → BLOCK |
+| Stage-3 MSI `System.config` (h/p/s/k extract, no exec) | MSI static parser | *not built* | ⬜ deferred — needs an MSI parser; binary never opened |
+| Stage-3 runtime process tree / service / relay egress | dynamic (Windows) | *not built* | ⬜ deferred — Linux sandbox blind; needs a Windows node + OS-aware routing |
+
+Three reconciliations worth noting: (1) **the genuine new gap is Stage 3, not the
+cradle** — `s11` already convicts the `SnowShoNo` extension's `irm | iex` (its
+docstring even names the family), so `s20` is scoped to the *RMM-as-RAT* capability
+class (T1219) that no rule modelled. The two are complementary: `s11` = the indirect
+cradle, `s20` = the embedded BYOSC relay-install. (2) **HIGH / WARN, the `s18`
+precedent** — RMM abuse has a conceivable legit cousin (an RMM-vendor / remote-support
+extension), so `s20` surfaces the capability for review rather than blocking; **not**
+in `_PROMOTED_HIGH_BLOCKERS`. The `e=Access` (unattended) vs `e=Support` (attended)
+parameter is the malice line; the bare-IPv4-relay booster (RMM5) raises confidence,
+never gates. (3) **honest deferrals** — the MSI's embedded `System.config` and the
+Windows-only runtime are *out of this text layer's reach* (the binary is never
+opened; the Linux sandbox is blind to the `win32`-gated chain, the same gap kagema
+§6 records). `s20` is class-less; no enum / contract / `_PROMOTED_HIGH_BLOCKERS` /
+`schema_version` change. Production rule count 25 → **26**. The Stage-3 relay host
+IOCs (multi-source) + related-campaign BYOSC C2s are now on the `blacklist_domains`
+denylist (s4/a7); SHA-256 hashes stay reference-only. `s20` itself is behaviour-based
+and carries no IOC literal — the durable signal is the relay-config shape (spec §8).
+
 ### Add an in-house static rule (`s*`)
 
 1. New module `static_runtime/rules/sN_<name>.py` (mirror `s5_network_indicators.py`:
@@ -405,7 +437,8 @@ legitimate extensions declare `*`).
   — see §4d; snyk-labs/VLN grew it to **18** via `s15` — see §4e; nf3xn + ecm3401
   then grew it to **22** via `s16`/`s17`/`s18` + the `s1.reserved_publisher_spoof`
   manifest rule — see §4f/§4g; nextsecurity/stylesheet then grew it to **25** via
-  the three-rule `s19` module — see §4h. The container smoke count is kept in
+  the three-rule `s19` module — see §4h; snowshono/BYOSC then grew it to **26** via
+  the `s20` RMM-as-RAT rule — see §4i. The container smoke count is kept in
   lockstep.)*
 - UI: `tsc -b` clean, `vitest run` **110 passed** (incl. a new static-visibility
   test), `npm run build` ✓.

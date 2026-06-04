@@ -324,6 +324,94 @@ const ENTRIES: RuleCatalogEntry[] = [
     detail:
       "The extension stores activation state in VS Code globalState and gates an init/payload call on a timestamp or cooldown. This is MEDIUM by itself because stateful extensions can be legitimate, but it is important dynamic-analysis telemetry: repeated runs must use a fresh VS Code profile/globalState or the payload may skip execution.",
   },
+  {
+    ruleId: "extrace.s15.path_traversal_server",
+    label: "Path-traversal file server",
+    stream: "static",
+    family: "Vulnerability",
+    techniques: ["T1083", "T1005"],
+    severity: "medium",
+    blurb: "Local server maps a request path onto an unguarded fs read, reachable cross-origin.",
+    detail:
+      "The extension runs a local HTTP server whose handler maps a request path onto a filesystem read with no containment guard and is reachable from another origin — the path-traversal exposure that lets a malicious web page read arbitrary local files (the 2021 snyk-labs Instant Markdown class). MEDIUM and never blocks: this is a vulnerability surface, not proven malice. The rule keys on the server ∧ unguarded request→fs-read ∧ reachable-origin conjunction, so a server that sanitizes the path or binds loopback-only does not fire; it belongs to the orthogonal 'is it vulnerable?' axis rather than 'is it malicious?'.",
+  },
+  {
+    ruleId: "extrace.s16.cross_extension_tamper",
+    label: "Cross-extension tamper",
+    stream: "static",
+    family: "Integrity / Tampering",
+    techniques: ["T1554", "T1574"],
+    severity: "critical",
+    blurb: "Writes or copies into another extension's install directory.",
+    detail:
+      "The source writes or copies into a *different* extension's install directory — a foreign extensionPath or a .vscode/extensions sibling path — overwriting a neighbouring extension's code to hijack its execution or persist (the ecm3401 TAMPER1 crown jewel). CRITICAL and BLOCKs before the sandbox: tampering with another extension's files has no legitimate use, and the rule allowlists the extension's own directory, so writing to itself does not fire.",
+  },
+  {
+    ruleId: "extrace.s17.credential_exfil",
+    label: "Credential read → exfil",
+    stream: "static",
+    family: "Credential Access",
+    techniques: ["T1552.004", "T1041"],
+    severity: "high",
+    blurb: "One module reads a sensitive credential file and holds an outbound egress sink.",
+    detail:
+      "A single module both reads a sensitive credential file (SSH / AWS / keychain / wallet / private-key paths) and holds an outbound network egress sink — the read-then-exfil shape of a credential stealer (ecm3401 CRED-X). HIGH and warns rather than blocks: it is a co-occurrence, not a proven taint from the read to the network call, so a module that legitimately reads a config near unrelated networking is surfaced for review rather than convicted.",
+  },
+  {
+    ruleId: "extrace.s18.download_exec_dropper",
+    label: "Drop-and-run dropper",
+    stream: "static",
+    family: "Execution / C2",
+    techniques: ["T1105", "T1059"],
+    severity: "high",
+    blurb: "Makes a file executable (chmod +x) and runs it via child_process.",
+    detail:
+      "The source gives a file the executable bit (chmod +x, or an fs.chmod with an exec mode) and then runs it via child_process — the drop-and-run primitive of a dropper/loader (ecm3401 DROP1). HIGH/WARN because a legitimate cousin exists (a toolchain/LSP extension that fetches and runs a helper binary), so it surfaces rather than blocks; confidence rises to HIGH when a remote fetch completes the download→chmod→execute chain or the chmod target and the exec target are the same symbol.",
+  },
+  {
+    ruleId: "extrace.s19.stylesheet_inline_js",
+    label: "Stylesheet inline-JS (LESS eval)",
+    stream: "static",
+    family: "Execution / C2",
+    techniques: ["T1059"],
+    severity: "critical",
+    blurb: "Backtick eval in a CSS/LESS stylesheet → compile-time RCE in the extension host.",
+    detail:
+      "A stylesheet (.css/.less/.scss/.sass) contains LESS inline JavaScript — a backtick-delimited expression (~`...`) that the LESS compiler evaluates in the extension-host Node.js process, with full fs/child_process/net access (the nextsecurity stylesheet corpus' one true RCE vector). CRITICAL and BLOCKs: the rule is stylesheet-suffix-scoped because a backtick is anomalous only in CSS (applying it to .js would false-positive on every template literal), and shipping inline JS in a stylesheet has no benign explanation even though less.js ≥ 3.0 defaults javascriptEnabled off.",
+  },
+  {
+    ruleId: "extrace.s19.stylesheet_nonstandard_scheme",
+    label: "Stylesheet non-standard scheme",
+    stream: "static",
+    family: "Command & Control",
+    techniques: ["T1071"],
+    severity: "medium",
+    blurb: "@import / url() / src: targets ftp / ws / file / javascript and similar schemes.",
+    detail:
+      "A stylesheet resource loader (@import / url() / src:) targets a non-standard URL scheme — ftp, ws/wss, gopher, file, javascript or vbscript. MEDIUM and never blocks: most are inert in a modern Chromium webview, so the value is signature/author-intent plus the live file:// local-read attempt; remote http(s) hosts are deliberately excluded because that scrutiny is the s4/s5 layer's job, gradable by CSP.",
+  },
+  {
+    ruleId: "extrace.s19.stylesheet_css_exfil",
+    label: "CSS-native exfiltration",
+    stream: "static",
+    family: "Exfiltration",
+    techniques: ["T1041", "T1056"],
+    severity: "medium",
+    blurb: "Substring-attribute keylogger or ::after content beacon firing a remote url().",
+    detail:
+      "A stylesheet uses a CSS-native exfiltration shape — a substring/prefix/suffix attribute selector on a value-bearing attribute (the CSS-keylogger primitive, leaking input character-by-character) or a ::before/::after content pseudo-element — to fire a remote url() GET. MEDIUM/WARN: URL/structural attribute selectors (href/src/class/id/...) are excluded because prefix-matching them with a remote icon is the legitimate external-link-icon pattern, and the remote egress is gated by the webview CSP, so the shape is surfaced for review rather than convicted.",
+  },
+  {
+    ruleId: "extrace.s20.rmm_remote_access",
+    label: "RMM-as-RAT (BYOSC)",
+    stream: "static",
+    family: "Command & Control",
+    techniques: ["T1219"],
+    severity: "high",
+    blurb: "ScreenConnect/ConnectWise client reference ∧ unattended-access relay config.",
+    detail:
+      "The extension references a remote-access (RMM) client — ScreenConnect / ConnectWise Control — together with an unattended-access relay configuration (the e=Access&y=Guest launch params or a &h=/&p=/&s=/&k= relay connection string): the bring-your-own-ScreenConnect (BYOSC) deployment that turns a legitimately-signed RMM into a RAT (the snowshono Stage-3 payload). HIGH/WARN like s18 because an official remote-support extension is a conceivable legit cousin; confidence rises to HIGH when the relay is a bare IP rather than a named *.screenconnect.com host. The client reference and the unattended-relay config are both required, so a benign product mention alone does not fire.",
+  },
 ];
 
 const BY_ID: Record<string, RuleCatalogEntry> = Object.fromEntries(

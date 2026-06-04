@@ -81,3 +81,20 @@ def test_fires_on_glassworm_c2_ip_host() -> None:
     findings = RULE.evaluate(_report_with_hosts(["217.69.11.60"]))
     assert len(findings) == 1
     assert "217.69.11.60" in findings[0].description
+
+
+def test_fires_on_snowshono_relay_host() -> None:
+    # Regression: the snowshono Stage-3 ScreenConnect relay — year000001.com (exact
+    # + any subdomain, e.g. relay.) and the bare IP 144.172.103.247 — are curated
+    # seed entries; flagged when observed as an outbound host.
+    assert len(RULE.evaluate(_report_with_hosts(["relay.year000001.com"]))) == 1
+    findings = RULE.evaluate(_report_with_hosts(["144.172.103.247"]))
+    assert len(findings) == 1
+    assert "144.172.103.247" in findings[0].description
+
+
+def test_fires_on_related_byosc_campaign_host() -> None:
+    # Regression: related ScreenConnect-abuse (BYOSC) campaign C2s are curated seed
+    # entries; each is flagged when observed as an outbound host (subdomain too).
+    for host in ("meow.undefined21.com", "meeting.bulletmailer.net", "dof-connect.top"):
+        assert len(RULE.evaluate(_report_with_hosts([host]))) == 1, host

@@ -97,9 +97,9 @@ def test_static_runner_emits_inhouse_record_for_clean_tree() -> None:
     # wheel is installed and runs under network_mode: none, not an error.
     tool_records = {record["tool"]: record for record in doc["tool_executions"]}
     assert doc["tool_executions"][0]["tool"] == "inhouse"
-    # Production in-house static rule count (s1-s19, incl. multi-rule modules).
+    # Production in-house static rule count (s1-s20, incl. multi-rule modules).
     # Bump in lockstep with EXPECTED_STATIC_PRODUCTION_RULE_IDS / test_static_runner.
-    assert tool_records["inhouse"]["rules_loaded"] == 25
+    assert tool_records["inhouse"]["rules_loaded"] == 26
     assert "semgrep" in tool_records
     assert tool_records["semgrep"]["status"] == "ok"
     assert tool_records["semgrep"]["findings_emitted"] == 0

@@ -51,6 +51,7 @@ reconcile on the owner's cadence, post-merge).
 | [`nf3xn-reverse-shell-spec.md`](nf3xn-reverse-shell-spec.md) | Detection design spec for the `nf3xn` VS Code **reverse-shell** PoC (RS class, `securezeron` sibling): the connect-back / shell-spawn / stdio-bridge invariant, the `s10` **manual `stdin.write` bridge** improvement, the new **`s1.reserved_publisher_spoof`** manifest rule (signal MN), and the Linux-detonation insight (`a8` *fires* for this sample, unlike kagema/glassworm). |
 | [`ecm3401-malicious-suite-spec.md`](ecm3401-malicious-suite-spec.md) | Detection design spec for the `ecm3401` "Educational Attack Suite" (MAL / **MALICIOUSNESS** axis, the snyk-labs contrast): 9 techniques across all three trust planes, the three high-fidelity invariants (TAMPER1 / CRED-X / DROP1) and their as-built rules (`s16` CRITICAL crown jewel / `s17` / `s18` + three semgrep echoes), the cross-extension trust-boundary class, and the durable-vs-sample-specific IOC split. |
 | [`nextsecurity-stylesheet-spec.md`](nextsecurity-stylesheet-spec.md) | Detection design spec for the `nextsecurity` / vsix-zoo **stylesheet-borne TTP** class (STY — the first CSS/LESS detection surface): the two execution contexts (webview Chromium vs extension-host LESS compile), the honest TTP→impact matrix (~7 dead in Electron, ~9 data-plane beacons, 1 CRITICAL RCE), the `.less`/`.scss`/`.sass` **coverage fix**, the as-built `s19` family (`stylesheet_inline_js` CRITICAL / `stylesheet_nonstandard_scheme` / `stylesheet_css_exfil`), the explicit DoS/taint/CSP-grading gaps, and the all-synthetic IOC handling (no host added to the denylist). |
+| [`snowshono-rmm-spec.md`](snowshono-rmm-spec.md) | Detection design spec for the `snowshono` / vsix-zoo **BYOSC / ScreenConnect RMM-as-RAT** class (RMM — the Stage-3 companion to kagema's Stage-1 dropper): why a legit code-signed RMM evades signature/hash/reputation, the malice-in-config mechanics (`e=Access&y=Guest` unattended marker, `&h=/&p=/&s=/&k=` relay string, one relay ↔ ≥3 MSI hashes), the as-built `s20` conjunction rule (HIGH/WARN, bare-IP-relay confidence booster), the honest **Windows-only / Linux-sandbox-blind OS gap**, the deferred MSI static config parser + Windows dynamic node, and the **real Stage-3 relay + related-campaign C2s added to the s4/a7 denylist** (SHA-256 hashes stay reference-only). |
 
 ## Design principle: general, not sample-specific
 
@@ -95,6 +96,7 @@ every extension.
 | [`extrace.s19.stylesheet_inline_js`](../../static_runtime/rules/s19_stylesheet_threats.py) | static | **LESS inline-JavaScript eval** (backtick `` ~`...` ``) in a stylesheet → compile-time RCE in the extension-host Node context | **CRITICAL (block)** |
 | [`extrace.s19.stylesheet_nonstandard_scheme`](../../static_runtime/rules/s19_stylesheet_threats.py) | static | Stylesheet resource loader (`@import`/`url()`/`src:`) to a **non-standard scheme** (`ftp`/`ws`/`file`/`javascript`/…) | MEDIUM (warn) |
 | [`extrace.s19.stylesheet_css_exfil`](../../static_runtime/rules/s19_stylesheet_threats.py) | static | **CSS-native exfiltration** — substring-attribute keylogger or `::after` content beacon firing a remote `url()` | MEDIUM (warn) |
+| [`extrace.s20.rmm_remote_access`](../../static_runtime/rules/s20_rmm_remote_access.py) | static | **BYOSC / RMM-as-RAT** — ScreenConnect/ConnectWise client ref ∧ unattended-access relay config (`e=Access&y=Guest` / `&h=&p=&s=&k=`); bare-IP relay → HIGH confidence | HIGH (warn) |
 | [`extrace.a5.workspace_file_tamper`](../../packages/analysis_engine/rules/a5_workspace_file_tamper.py) | dynamic | Workspace file **read then rewritten in place** at runtime — clipper/integrity | MEDIUM |
 | [`extrace.a8.reverse_shell`](../../packages/analysis_engine/rules/a8_reverse_shell.py) | dynamic | Runtime **shell spawn + outbound socket** co-occurrence (reverse shell) | HIGH |
 
@@ -102,7 +104,10 @@ UI ([`ruleCatalog.ts`](../../ui/src/features/reports/ruleCatalog.ts) +
 [`RulesPage.tsx`](../../ui/src/features/rules/RulesPage.tsx)): the **Rules tab now
 lists static *and* dynamic rules** (was dynamic-only), each with a **Static /
 Dynamic** badge and a stream filter; every catalog rule carries a richer `detail`
-description. Detail in the reconciliation doc §6.
+description. The catalog now covers the **full static set s1–s20** (the
+[`buildRuleMatrix`](../../ui/src/features/reports/buildRuleMatrix.test.ts) drift
+guard pins every production rule_id present) — earlier it stopped at `s14`, so
+`s15`–`s20` rendered as bare ids until enriched. Detail in the reconciliation doc §6.
 
 Policy tweak: `extrace.s1.activation_wildcard` raised **LOW → HIGH** (an always-on
 `*` foothold is too load-bearing for LOW; warns, never blocks).
@@ -240,6 +245,39 @@ all-synthetic detection-test set, so **no host was added to the denylist**.
 | TTP #15 zero-width / RTL unicode in stylesheet | in-house static | `extrace.s12.invisible_unicode_run` | ✅ pre-existing — scans raw bytes of every file (`.less` included) |
 | DoS structures / taint indirection / CSP-grading | AST / taint / dynamic | *tbd* | ⬜ **deferred** (spec §6) — regex cannot model graph cycles or variable→sink flow |
 
+## Status board — snowshono / RMM-abuse (BYOSC) class
+
+See [`snowshono-rmm-spec.md`](snowshono-rmm-spec.md). The **Stage-3 companion** to
+kagema: kagema's `s11` convicts the `SnowShoNo` extension's PowerShell cradle
+(Stage 1); this adds the rule for the **ScreenConnect RMM-as-RAT** payload that
+cradle drops (Stage 3). General rule (no snowshono literal); the **RMM4
+conjunction** (client ref × unattended-relay config), not any single part.
+
+| Signal | Layer | Rule id | Status |
+|---|---|---|---|
+| Stage-1 cradle (fetches the MSI indirectly) | in-house static | `extrace.s11.download_cradle` | ✅ pre-existing — **CRITICAL → BLOCK** (kagema spec) |
+| RMM4 conjunction — embedded BYOSC relay-install | in-house static | `extrace.s20.rmm_remote_access` | ✅ **NEW — HIGH / WARN** (HIGH confidence on RMM5 bare-IP relay; class-less; A4 conceptual, spec §7) |
+| Stage-3 MSI `System.config` (h/p/s/k extract, no exec) | MSI static parser | *tbd* | ⬜ **deferred** (spec §6) — needs an MSI parser; binary never opened |
+| Stage-3 runtime process tree / service / relay egress | dynamic (Windows) | *tbd* | ⬜ **deferred** (spec §5) — Linux sandbox blind; needs a Windows node + OS-aware routing |
+
+The Stage-3 relay IP / domain are **real, observed IOCs**. The multi-source relay
+(`year000001.com` + the bare IP `144.172.103.247`) and the related-campaign BYOSC
+C2s (`undefined21.com` / `bulletmailer.net` / `dof-connect.top`) are now on the
+[`blacklist_domains.txt`](../../packages/analysis_contracts/data/blacklist_domains.txt)
+denylist (matched by s4 + a7), alongside the pre-existing `niggboo.com` (Stage-2 C2).
+The MSI / extension **SHA-256 hashes stay reference-only** (no in-pipeline hash
+rule). The durable signal is still the relay-config shape (`s20`), not the host —
+the denylist hardens coverage of known, rotating infrastructure. No taxonomy /
+contract / gate-policy change: `s20` is HIGH/WARN (the `s18` precedent — RMM abuse
+has a legit cousin), not in `_PROMOTED_HIGH_BLOCKERS`.
+
+> 🔒 **These denylisted hosts never reach the dev environment.** The denylist is
+> inert (its loader only string-matches — no resolver/DNS/HTTP), the sole
+> live-request tool (`markdown-link-check`) is configured to skip every real IOC
+> host, and IOCs in docs stay defanged + fenced. A guard test
+> ([`tests/security/test_ioc_safety.py`](../../tests/security/test_ioc_safety.py))
+> pins all three so they cannot regress. See the snowshono spec §0.
+
 ## Roadmap — deferred / next (security-development stream)
 
 Forward items captured here so they are not lost; **none is auto-applied**. The
@@ -249,7 +287,7 @@ two below were explicitly held by the owner ("roadmap'e ekle, şimdilik dokunma"
 |---|---|---|
 | **`VULNERABLE` verdict axis** (orthogonal to malice) — report both a MALICIOUSNESS and a VULNERABILITY verdict (snyk-labs spec §6) | **Shared-contract change**: report dataclass + Pydantic contract + `schema_version` bump + generated TS DTO + a new `V`-taxonomy node distinct from `AdversaryClass` A1–A8. Precedent: the A8 enum addition was signed off before the edit. | **Explicit owner sign-off.** Then verify the `V`-taxonomy ID against the real taxonomy before assigning one. |
 | **Semgrep taint VLN2** — true dataflow (source = request path, sink = `fs` read, sanitizer = containment guard), higher-fidelity than `s15`'s co-occurrence approximation | Needs the `automation_static_analyzer` container; **no local semgrep** on the dev machine to verify a `mode: taint` rule. | Container-iteration cycle (owner runs the live-fire check). |
-| `s15` UI `ruleCatalog.ts` entry | Enrichment only — surfaces the rule in the Rules tab. Non-blocking. | Opportunistic, next UI pass. |
+| ~~`s15`–`s20` UI `ruleCatalog.ts` entries~~ | ✅ **DONE** — `s15`–`s20` (incl. the `s19` trio + `s20`) now carry catalog label/family/MITRE/severity/`detail`; drift guard extended. | — (shipped) |
 
 Until the axis lands, `extrace.s15.path_traversal_server` ships at **MEDIUM / WARN**
 on the existing malice-severity field — the documented stopgap (spec §3, §6).
