@@ -1,7 +1,9 @@
-"""In-house static rules (ES-3a, ADR 0016 §Decision 4 MVP).
+"""In-house static rules (ADR 0016 static pre-check).
 
-Six production rules across three namespaces (s1 manifest red flags, s2
-typosquat, s3 file-tree heuristics). Mirrors the dynamic
+Production rules span manifest red flags, typosquat/file-tree heuristics,
+network and IOC indicators, obfuscation/secrets, reverse shells, download
+cradles, and GlassWorm-style Unicode/native-loader/dormancy signals.
+Mirrors the dynamic
 ``packages.analysis_engine.rules`` package shape (base Protocol + self-
 registering rule singletons + a lazy registry) but lives under
 ``static_runtime`` so the hardened image carries it without the dynamic engine.

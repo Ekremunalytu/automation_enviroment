@@ -74,3 +74,10 @@ def test_fires_on_kagema_c2_host() -> None:
     # any subdomain. Guards against the entry being accidentally dropped.
     assert len(RULE.evaluate(_report_with_hosts(["niggboo.com"]))) == 1
     assert len(RULE.evaluate(_report_with_hosts(["stage2.niggboo.com"]))) == 1
+
+
+def test_fires_on_glassworm_c2_ip_host() -> None:
+    # Regression: GlassWorm direct-IP C2/stager hosts are curated seed entries.
+    findings = RULE.evaluate(_report_with_hosts(["217.69.11.60"]))
+    assert len(findings) == 1
+    assert "217.69.11.60" in findings[0].description

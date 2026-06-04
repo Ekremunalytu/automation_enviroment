@@ -27,6 +27,9 @@ EXPECTED_STATIC_PRODUCTION_RULE_IDS = {
     "extrace.s9.crypto_address_scan",
     "extrace.s10.reverse_shell",
     "extrace.s11.download_cradle",
+    "extrace.s12.invisible_unicode_run",
+    "extrace.s13.native_node_loader",
+    "extrace.s14.globalstate_dormancy",
 }
 
 

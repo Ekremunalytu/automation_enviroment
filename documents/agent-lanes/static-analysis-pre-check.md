@@ -12,7 +12,12 @@ obfuscation-indicators, `s7` hardcoded-secret), Semgrep JS rules 4 → 8, plus a
 dynamic `a7` blacklisted-domain rule and an operator-editable DB-backed
 `blacklist_domains` denylist (seed ∪ operator). `s4` is HIGH but **WARNs** (NOT
 added to the promoted-blocker frozenset — block-and-warn invariant unchanged).
-See `documents/active-work/extension-trigger-matrix.md`.
+See `documents/active-work/extension-trigger-matrix.md`. ·
+**Security-development expansion** (2026-06-04): in-house static rules now load
+17 production rules, adding `s12` invisible-Unicode runs, `s13` native `.node`
+loader/platform-gate/host-context invoke, and `s14` globalState dormancy. `s12`
+and the GlassWorm-strength `s13` conjunction are CRITICAL and block through the
+existing severity gate; no promoted-HIGH policy change.
 
 Use this lane for the pre-execution static analysis stage: static
 detection contracts, in-house static rules, the Semgrep runner, the
@@ -58,6 +63,12 @@ decision gate that fronts the dynamic sandbox.
   `appcore/api/rules_router.py` + `appcore/storage/.../blacklist_domains.py` +
   Alembic `b3d9f1c2e7a4` (the `blacklist_domains` table). `main.py`
   primes the in-process override at boot (best-effort; DB-down is swallowed).
+- **Security-development expansion (GlassWorm native-loader class):**
+  `static_runtime/rules/{s12_invisible_unicode,s13_native_node_loader,
+  s14_globalstate_dormancy}.py`, `documents/detection-design/glassworm-detection-spec.md`,
+  and the curated direct-IP C2/stager host additions in
+  `packages/analysis_contracts/data/blacklist_domains.txt`. Shared Google
+  Calendar/Gmail fallback infrastructure is intentionally not denylisted.
 
 ## Invariants
 

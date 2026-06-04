@@ -45,7 +45,7 @@ def test_runner_emits_inhouse_tool_record_for_empty_tree(tmp_path: Path) -> None
     record = report.tool_executions[0]
     assert record.tool == "inhouse"
     assert record.version == "1.0.0"
-    assert record.rules_loaded == 14
+    assert record.rules_loaded == 17
     assert record.findings_emitted == 0
     assert record.status == "ok"
     assert report.partial is False
@@ -107,7 +107,7 @@ def test_runner_zero_budget_runs_all_rules(tmp_path: Path) -> None:
     report = _inhouse_only(
         vsix_dir=str(tmp_path), rules_version="1.0.0", timeout_budget_s=0
     )
-    assert report.tool_executions[0].rules_loaded == 14
+    assert report.tool_executions[0].rules_loaded == 17
 
 
 # --------------------------------------------------------------------------

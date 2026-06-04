@@ -291,6 +291,39 @@ const ENTRIES: RuleCatalogEntry[] = [
     detail:
       "The source drives a child_process sink with a hidden-PowerShell download cradle — powershell → Invoke-RestMethod / Invoke-WebRequest → Invoke-Expression — that fetches a remote script and runs it in memory, downloading and executing an arbitrary second stage with no user interaction and nothing written to disk (the kagema / ShowSnowcrypto.SnowShoNo dropper shape). CRITICAL and BLOCKs before the sandbox: the cradle is matched as one ordered powershell→download→execute span wired to a child_process sink, so a bare child_process call or a lone powershell mention does not fire. Blocking statically is load-bearing here because the payload is gated on process.platform === 'win32', so a Linux dynamic sandbox never observes it. The cradle string survives string-array obfuscation (literals stay cleartext); an APT variant that splits the command across lines is the documented evasion gap.",
   },
+  {
+    ruleId: "extrace.s12.invisible_unicode_run",
+    label: "Invisible Unicode run",
+    stream: "static",
+    family: "Defense Evasion",
+    techniques: ["T1027"],
+    severity: "critical",
+    blurb: "Original source bytes contain invisible Unicode / PUA codepoint runs.",
+    detail:
+      "The source contains invisible Unicode, variation-selector, or Private Use Area codepoints. A single character is only LOW signal, but a contiguous run is CRITICAL because it can hide payload text from reviewers and rendered source views; the scanner works over original packaged bytes rather than normalized text.",
+  },
+  {
+    ruleId: "extrace.s13.native_node_loader",
+    label: "Native .node loader",
+    stream: "static",
+    family: "Native Code / C2",
+    techniques: ["T1059"],
+    severity: "high",
+    blurb: "Loads a bundled .node module, escalating on platform dispatch and host context.",
+    detail:
+      "The source loads a bundled native .node addon. A plain native addon is MEDIUM, but the rule escalates when the loader dispatches on win32/darwin, passes host context such as process.execPath or __dirname into the native module, or appears in a theme/icon/snippet-style package; the GlassWorm-strength conjunction can block before dynamic analysis. A win32/darwin-only branch is also surfaced as a Linux sandbox blind spot, not a reason to lower confidence.",
+  },
+  {
+    ruleId: "extrace.s14.globalstate_dormancy",
+    label: "globalState dormancy",
+    stream: "static",
+    family: "Sandbox Evasion",
+    techniques: ["T1497"],
+    severity: "medium",
+    blurb: "Uses context.globalState with timestamp gating to throttle payload execution.",
+    detail:
+      "The extension stores activation state in VS Code globalState and gates an init/payload call on a timestamp or cooldown. This is MEDIUM by itself because stateful extensions can be legitimate, but it is important dynamic-analysis telemetry: repeated runs must use a fresh VS Code profile/globalState or the payload may skip execution.",
+  },
 ];
 
 const BY_ID: Record<string, RuleCatalogEntry> = Object.fromEntries(

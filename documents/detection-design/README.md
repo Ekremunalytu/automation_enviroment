@@ -46,6 +46,7 @@ reconcile on the owner's cadence, post-merge).
 | [`apollyon-detection-spec.md`](apollyon-detection-spec.md) | Detection design spec for the `apollyon` Discord-webhook infostealer class: behaviour breakdown, signal catalog, escalation matrix, evasion limits, IOC appendix. |
 | [`securezeron-detection-spec.md`](securezeron-detection-spec.md) | Detection design spec for the `securezeron` VS Code **reverse-shell** class: signals RS1–RS4, the as-built layer map (s10 / a8 / semgrep echoes), severity/gate, evasion limits, IOC appendix. |
 | [`kagema-detection-spec.md`](kagema-detection-spec.md) | Detection design spec for the `kagema` VS Code **download-cradle dropper** class: signals DR/OB/MN, the as-built layer map (s11 / `sg.download_cradle`), the ordered-shape-not-loose-AND FP reconciliation, the win32-gate dynamic blind spot, A4/A3 attribution, evasion limits, IOC appendix. |
+| [`glassworm-detection-spec.md`](glassworm-detection-spec.md) | Detection design spec for the GlassWorm / `icon-theme-materiall` native-loader worm class: invisible Unicode, `.node` loader dispatch, host-context invoke, globalState dormancy, Linux blind spot, and safe IOC handling. |
 
 ## Design principle: general, not sample-specific
 
@@ -69,7 +70,7 @@ not a known sample.
 
 ## Shipped so far (this branch)
 
-Six **general** detection rules (+ four advisory Semgrep echoes) + the UI to
+Nine **general** detection rules (+ four advisory Semgrep echoes) + the UI to
 surface them. None hardcodes a sample literal; all scan every extension.
 
 | Rule | Layer | What it catches | Severity |
@@ -78,6 +79,9 @@ surface them. None hardcodes a sample literal; all scan every extension.
 | [`extrace.s9.crypto_address_scan`](../../static_runtime/rules/s9_crypto_address_scan.py) | static | Source recognises **crypto-address** formats (Base58/ETH/bech32) — clipper capability | MEDIUM (warn) |
 | [`extrace.s10.reverse_shell`](../../static_runtime/rules/s10_reverse_shell.py) | static | Shell `child_process` stdio **piped to a network socket** (reverse shell) | **CRITICAL (block)** |
 | [`extrace.s11.download_cradle`](../../static_runtime/rules/s11_download_cradle.py) | static | `child_process` driving a hidden-PowerShell `irm`→`iex` **download cradle** (dropper) | **CRITICAL (block)** |
+| [`extrace.s12.invisible_unicode_run`](../../static_runtime/rules/s12_invisible_unicode.py) | static | Invisible Unicode / PUA source-hiding runs in original packaged bytes | **CRITICAL (block)** for runs |
+| [`extrace.s13.native_node_loader`](../../static_runtime/rules/s13_native_node_loader.py) | static | Bundled `.node` load with platform dispatch and host-context invoke | **CRITICAL (block)** for GlassWorm-strength conjunction |
+| [`extrace.s14.globalstate_dormancy`](../../static_runtime/rules/s14_globalstate_dormancy.py) | static | `context.globalState` timestamp dormancy / throttle | MEDIUM (warn) |
 | [`extrace.a5.workspace_file_tamper`](../../packages/analysis_engine/rules/a5_workspace_file_tamper.py) | dynamic | Workspace file **read then rewritten in place** at runtime — clipper/integrity | MEDIUM |
 | [`extrace.a8.reverse_shell`](../../packages/analysis_engine/rules/a8_reverse_shell.py) | dynamic | Runtime **shell spawn + outbound socket** co-occurrence (reverse shell) | HIGH |
 
@@ -133,6 +137,19 @@ C2 domain `niggboo.com` is on the shipped
 infrastructure. Stage-2 MSI / URL SHA-256 hashes are reference IOCs in the spec §8
 (no in-pipeline hash rule — they block the dropped payload, not the VSIX). The
 durable signal is still DR5, not the host.
+
+## Status board — GlassWorm / native-loader worm class
+
+See [`glassworm-detection-spec.md`](glassworm-detection-spec.md). General rules
+stay behavior-first; sample IPs are only curated denylist entries for s4/a7.
+
+| Signal | Layer | Rule id | Status |
+|---|---|---|---|
+| UC2 invisible Unicode / PUA source-hiding run | in-house static | `extrace.s12.invisible_unicode_run` | ✅ shipped — **CRITICAL → BLOCK** for runs |
+| NL3 bundled `.node` load + platform dispatch + host-context invoke | in-house static | `extrace.s13.native_node_loader` | ✅ shipped — **CRITICAL → BLOCK** for GlassWorm-strength conjunction |
+| AA1 `context.globalState` dormancy / throttle | in-house static | `extrace.s14.globalstate_dormancy` | ✅ shipped — MEDIUM / dynamic fresh-profile telemetry |
+| Embedded native binary | in-house static | `extrace.s3.embedded_native_binary` | ✅ pre-existing |
+| Direct-IP C2/stager references | in-house static + dynamic | `extrace.s4.blacklisted_domain` / `extrace.a7.blacklisted_domain` | ✅ shipped via curated blacklist IP hosts |
 
 ## Iteration loop
 

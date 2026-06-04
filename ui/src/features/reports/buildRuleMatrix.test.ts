@@ -209,6 +209,11 @@ describe("ruleCatalog drift guard", () => {
       "extrace.s7.hardcoded_secret",
       "extrace.s8.exfil_webhook",
       "extrace.s9.crypto_address_scan",
+      "extrace.s10.reverse_shell",
+      "extrace.s11.download_cradle",
+      "extrace.s12.invisible_unicode_run",
+      "extrace.s13.native_node_loader",
+      "extrace.s14.globalstate_dormancy",
     ]) {
       expect(staticIds.has(id)).toBe(true);
     }
@@ -218,6 +223,9 @@ describe("ruleCatalog drift guard", () => {
     const cases: Array<[string, "static" | "dynamic"]> = [
       ["extrace.s8.exfil_webhook", "static"],
       ["extrace.s9.crypto_address_scan", "static"],
+      ["extrace.s12.invisible_unicode_run", "static"],
+      ["extrace.s13.native_node_loader", "static"],
+      ["extrace.s14.globalstate_dormancy", "static"],
       ["extrace.a5.workspace_file_tamper", "dynamic"],
     ];
     for (const [id, stream] of cases) {

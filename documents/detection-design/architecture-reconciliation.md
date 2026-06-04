@@ -3,8 +3,9 @@
 > Companion to [`apollyon-detection-spec.md`](apollyon-detection-spec.md). The
 > spec reasons about signals; this doc maps them onto ExTrace's **real** rule
 > layers, severities, gate behaviour, and the exact files/tests you touch to add
-> a rule. Everything here was verified against the codebase on 2026-06-03 (the
-> spec's `DOĞRULA` markers are resolved here). When code and a spec disagree,
+> a rule. Updated for the GlassWorm native-loader expansion on 2026-06-04; older
+> apollyon / securezeron / kagema reconciliations were verified on 2026-06-03.
+> When code and a spec disagree,
 > trust the code — and update this doc.
 >
 > ⛔ **Safety:** no real malware sample is ever downloaded into this repo or onto
@@ -144,6 +145,26 @@ would only duplicate findings (spec §4.3). For this `win32`-gated family the Li
 sandbox never fires, so the static BLOCK is the only catching layer — the concrete
 case for why static+dynamic coverage must be orthogonal.
 
+## 4d. GlassWorm (`icon-theme-materiall`) native-loader worm → layer → rule → status
+
+Full reasoning in [`glassworm-detection-spec.md`](glassworm-detection-spec.md).
+Rules stay general and behavior-first; sample IPs are curated denylist entries,
+not primary signatures.
+
+| Signal / behaviour | Layer | Rule id | Status |
+|---|---|---|---|
+| UC2 invisible Unicode / PUA source-hiding run in original packaged bytes | in-house static | `extrace.s12.invisible_unicode_run` | ✅ **CRITICAL → BLOCK** when contiguous run >= 3 |
+| NL3 bundled `.node` load + platform dispatch + host-context native invoke | in-house static | `extrace.s13.native_node_loader` | ✅ **CRITICAL → BLOCK** for GlassWorm-strength conjunction |
+| AA1 `context.globalState` timestamp dormancy / throttle | in-house static | `extrace.s14.globalstate_dormancy` | ✅ MEDIUM / WARN + fresh-profile dynamic requirement |
+| Embedded native binary | in-house static | `extrace.s3.embedded_native_binary` | ✅ pre-existing MEDIUM / WARN |
+| Direct-IP C2/stager in source or observed traffic | static + dynamic | `extrace.s4.blacklisted_domain` / `extrace.a7.blacklisted_domain` | ✅ seed denylist entries |
+
+Two safety decisions are load-bearing: (1) no real VSIX/native implant/stage-2
+artifact is downloaded into the repo; tests use synthetic declawed JS fixtures;
+(2) Google Calendar/Gmail fallback infrastructure is **not** added to the shipped
+denylist because those are shared services. The direct IP hosts are exact
+host indicators and are safe for the existing s4/a7 matcher.
+
 ## 5. Integration recipes (exact touch-points)
 
 ### Add an in-house static rule (`s*`)
@@ -158,8 +179,9 @@ case for why static+dynamic coverage must be orthogonal.
    [`tests/static_runtime/test_rule_coverage.py`](../../tests/static_runtime/test_rule_coverage.py).
 4. Bump the `rules_loaded` count in
    [`tests/static_runtime/test_static_runner.py`](../../tests/static_runtime/test_static_runner.py)
-   (two asserts). ⚠️ **Also** `tests/smoke/test_static_container_smoke.py` asserts
-   a (currently **stale**) count — see §6.
+   (two asserts). Also bump
+   [`tests/smoke/test_static_container_smoke.py`](../../tests/smoke/test_static_container_smoke.py)
+   so the live container smoke pins the same production-rule count.
 5. Add a `tests/static_runtime/test_sN_<name>.py` (fire + silent + FP-guard cases;
    `make_context(files={...})` fixture).
 
@@ -260,9 +282,9 @@ legitimate extensions declare `*`).
 - Python: `pytest tests/static_runtime/ tests/security/` green; ruff + mypy clean.
   Static registry = **12** rules (s1–s9 incl. multi-rule modules), dynamic = **8**
   (a1–a7 + demo, a5 included). *(securezeron branch then grew this to **13** static
-  / **9** dynamic via `s10` + `a8` — see §4b; the container smoke count was bumped
-  6 → 13 to match. kagema then grew static to **14** via `s11` — see §4c; smoke
-  count 13 → 14.)*
+  / **9** dynamic via `s10` + `a8` — see §4b; kagema then grew static to **14**
+  via `s11` — see §4c; GlassWorm then grew static to **17** via `s12`/`s13`/`s14`
+  — see §4d. The container smoke count is kept in lockstep.)*
 - UI: `tsc -b` clean, `vitest run` **110 passed** (incl. a new static-visibility
   test), `npm run build` ✓.
 - **Browser-verified** live in the Rules tab (ui-dev :5173 against an
@@ -287,10 +309,9 @@ test; registry + roster/count test edits per §5; the UI files above.
    evidence) — worth the duplicate, or keep IOCs in-house only?
 3. **Static clipper half** — add the semgrep taint rule (crypto-regex match →
    `applyEdit` / `save`) to complement the dynamic `a5`? (Static side of B3.)
-4. **Stale smoke count** — `tests/smoke/test_static_container_smoke.py` asserts
-   `rules_loaded == 6`, already wrong before this work (real static count is now
-   **12**). Container-gated + can't verify locally, so left untouched (pre-existing
-   drift). Bump it, or reconcile on the next container run?
+4. **Native-loader false-positive tuning** — after benign-corpus runs, decide
+   whether `s13` should further downshift documented native parser/debugger
+   cases or whether current MEDIUM plain-native behavior is sufficient.
 
 **Resolved this branch:** the A5 clipper rule (shipped, §6) and the "fixture in
 repo" question — settled by policy: **no real sample in repo**, only synthetic

@@ -1,6 +1,7 @@
 # Blacklisted domains — the operator-tunable "blacklist_domains" rules field.
 #
-# One registrable domain per line; '#' comments and blank lines are ignored.
+# One registrable domain or exact IP host per line; '#' comments and blank lines
+# are ignored.
 # Matching is host-suffix aware: a blacklisted "evil.example" also matches any
 # subdomain (e.g. "c2.evil.example") but NOT a different registrable domain
 # ("notevil.example", "evil.example.org"). Both the static rule
@@ -32,3 +33,15 @@ exfil.invalid
 # reference IOCs in kagema-detection-spec.md §8 (ExTrace has no in-pipeline hash
 # rule; those hashes are for the dropped payload, not the scanned VSIX).
 niggboo.com
+
+# -- GlassWorm / icon-theme-materiall (native-loader worm) --------------------
+# Sample/campaign C2 and staging hosts from the local GlassWorm rule-development
+# handoff. These are host indicators stored as inert strings; no resolver/fetch
+# path reads this file. Google Calendar fallback hosts from the handoff are
+# intentionally NOT listed because blacklisting shared Google infrastructure
+# would create broad false positives. The IP literals below are matched by the
+# same exact-host / suffix-safe matcher used by s4 (source) and a7 (observed
+# traffic).
+217.69.11.60
+217.69.3.218
+140.82.52.31

@@ -233,3 +233,25 @@ def test_critical_block_is_severity_driven_not_policy_gated() -> None:
     )
     assert outcome.decision is StaticGateDecision.BLOCK
     assert outcome.blocked_by == [non_promoted]
+
+
+@pytest.mark.parametrize(
+    "rule_id",
+    [
+        "extrace.s12.invisible_unicode_run",
+        "extrace.s13.native_node_loader",
+    ],
+)
+def test_glassworm_critical_static_rules_block(rule_id: str) -> None:
+    """GlassWorm-strength static findings block by CRITICAL severity.
+
+    UC2 invisible Unicode runs and the NL3 native-loader conjunction do not need
+    promotion in ``_PROMOTED_HIGH_BLOCKERS``; the ADR 0016 gate blocks any
+    CRITICAL finding before the dynamic sandbox.
+    """
+    assert rule_id not in _PROMOTED_HIGH_BLOCKERS
+    outcome = evaluate_static_gate(
+        _report(_finding(rule_id=rule_id, severity=Severity.CRITICAL))
+    )
+    assert outcome.decision is StaticGateDecision.BLOCK
+    assert outcome.blocked_by == [rule_id]

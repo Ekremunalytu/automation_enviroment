@@ -384,6 +384,15 @@ the same convention the static stream followed.
   `prime_blacklist_override` swallow + happy-path, the `b3d9f1c2e7a4`
   migration round-trip, and `close_all_terminals`);
   `tests/architecture/` **318 passed**.
+- **`security-development` stream — in progress on branch
+  `security-development` (2026-06-04).** GlassWorm / `icon-theme-materiall`
+  defensive rule expansion: in-house static production rules 14 → 17 with
+  `extrace.s12.invisible_unicode_run`, `extrace.s13.native_node_loader`, and
+  `extrace.s14.globalstate_dormancy`; direct-IP GlassWorm C2/stager hosts added
+  to the shared `blacklist_domains` seed while shared Google Calendar/Gmail
+  fallback hosts are intentionally excluded to avoid broad false positives.
+  Design doc:
+  [`detection-design/glassworm-detection-spec.md`](detection-design/glassworm-detection-spec.md).
 
 ## W13 Status Summary
 

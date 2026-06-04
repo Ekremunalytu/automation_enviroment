@@ -25,6 +25,9 @@ _BUILTIN_STATIC_RULE_MODULES = (
     "static_runtime.rules.s9_crypto_address_scan",
     "static_runtime.rules.s10_reverse_shell",
     "static_runtime.rules.s11_download_cradle",
+    "static_runtime.rules.s12_invisible_unicode",
+    "static_runtime.rules.s13_native_node_loader",
+    "static_runtime.rules.s14_globalstate_dormancy",
 )
 _BUILTINS_LOADED = False
 

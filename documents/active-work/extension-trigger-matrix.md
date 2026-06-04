@@ -108,7 +108,8 @@ direct executor runs and fixtures that never ran the static gate).
 ### Follow-ups / notes
 
 - External Semgrep/YARA/Trivy rules: only *fired* ones are shown (their silent
-  universe isn't enumerable); the in-house `s1`–`s7` universe is fully shown.
+  universe isn't enumerable); the in-house static rule catalog universe is fully
+  shown and is kept in lockstep with `ui/src/features/reports/ruleCatalog.ts`.
 - The frontend rule catalog mirrors the engine rule definitions for silent-cell
   labels; the drift-guard test flags additions/renames.
 
@@ -116,7 +117,7 @@ direct executor runs and fixtures that never ran the static gate).
 
 **Status:** Implemented on branch `extension-trigger-matrix`, live-validated
 against an `ms-python.python` scan (`activation_report_…-85c9ced8425e.json`,
-2026-06-01). Not yet merged.
+2026-06-01), and merged to main 2026-06-03.
 
 ### Goal
 
@@ -236,10 +237,11 @@ be driven by a UI command — the irreducible floor for ms-python
 
 ## Static Rule Expansion + Blacklist Domains
 
-**Status:** Implemented on branch `extension-trigger-matrix` (2026-06-02). Two
+**Status:** Implemented on branch `extension-trigger-matrix` (2026-06-02) and
+merged to main 2026-06-03. Two
 parts: (a) a comprehensive expansion of the static pre-check rule set + a new
 dynamic blacklist rule; (b) an operator-editable `blacklist_domains` field
-surfaced in a new **Rules → Blacklist** tab. Not yet merged. Touches the
+surfaced in a new **Rules → Blacklist** tab. Touches the
 static-analysis lane (`agent-lanes/static-analysis-pre-check.md`) — the ES-3a/ES-4
 "6 in-house + 4 Semgrep" counts in `static-analysis-pre-check-stream.md` describe
 those frozen increments; this is a **post-ES-5 expansion**.
