@@ -45,6 +45,7 @@ reconcile on the owner's cadence, post-merge).
 | [`architecture-reconciliation.md`](architecture-reconciliation.md) | **Read first.** The three rule layers, the ADR-0016 gate truth table, the A1–A7 taxonomy, and the exact files/tests to add a rule in each layer. |
 | [`apollyon-detection-spec.md`](apollyon-detection-spec.md) | Detection design spec for the `apollyon` Discord-webhook infostealer class: behaviour breakdown, signal catalog, escalation matrix, evasion limits, IOC appendix. |
 | [`securezeron-detection-spec.md`](securezeron-detection-spec.md) | Detection design spec for the `securezeron` VS Code **reverse-shell** class: signals RS1–RS4, the as-built layer map (s10 / a8 / semgrep echoes), severity/gate, evasion limits, IOC appendix. |
+| [`kagema-detection-spec.md`](kagema-detection-spec.md) | Detection design spec for the `kagema` VS Code **download-cradle dropper** class: signals DR/OB/MN, the as-built layer map (s11 / `sg.download_cradle`), the ordered-shape-not-loose-AND FP reconciliation, the win32-gate dynamic blind spot, A4/A3 attribution, evasion limits, IOC appendix. |
 
 ## Design principle: general, not sample-specific
 
@@ -68,7 +69,7 @@ not a known sample.
 
 ## Shipped so far (this branch)
 
-Five **general** detection rules (+ three advisory Semgrep echoes) + the UI to
+Six **general** detection rules (+ four advisory Semgrep echoes) + the UI to
 surface them. None hardcodes a sample literal; all scan every extension.
 
 | Rule | Layer | What it catches | Severity |
@@ -76,6 +77,7 @@ surface them. None hardcodes a sample literal; all scan every extension.
 | [`extrace.s8.exfil_webhook`](../../static_runtime/rules/s8_exfil_webhook.py) | static | Hardcoded Discord/Slack/Telegram **webhook** ingestion endpoint (the exfil channel) | HIGH (warn) |
 | [`extrace.s9.crypto_address_scan`](../../static_runtime/rules/s9_crypto_address_scan.py) | static | Source recognises **crypto-address** formats (Base58/ETH/bech32) — clipper capability | MEDIUM (warn) |
 | [`extrace.s10.reverse_shell`](../../static_runtime/rules/s10_reverse_shell.py) | static | Shell `child_process` stdio **piped to a network socket** (reverse shell) | **CRITICAL (block)** |
+| [`extrace.s11.download_cradle`](../../static_runtime/rules/s11_download_cradle.py) | static | `child_process` driving a hidden-PowerShell `irm`→`iex` **download cradle** (dropper) | **CRITICAL (block)** |
 | [`extrace.a5.workspace_file_tamper`](../../packages/analysis_engine/rules/a5_workspace_file_tamper.py) | dynamic | Workspace file **read then rewritten in place** at runtime — clipper/integrity | MEDIUM |
 | [`extrace.a8.reverse_shell`](../../packages/analysis_engine/rules/a8_reverse_shell.py) | dynamic | Runtime **shell spawn + outbound socket** co-occurrence (reverse shell) | HIGH |
 
@@ -111,6 +113,26 @@ See [`securezeron-detection-spec.md`](securezeron-detection-spec.md). General ru
 | RS1/RS2/RS3 AST echoes | semgrep | `reverse_shell_pipe` / `_spawn` / `_ip_connect` | ✅ shipped (advisory MEDIUM/WARN) |
 | RS4 `*` activation | in-house static | `extrace.s1.activation_wildcard` | ✅ pre-existing (HIGH / WARN) |
 | runtime shell spawn + outbound socket | dynamic | `extrace.a8.reverse_shell` | ✅ shipped (HIGH, `AdversaryClass.A8`) |
+
+## Status board — kagema / download-cradle dropper class
+
+See [`kagema-detection-spec.md`](kagema-detection-spec.md). General rules (no kagema
+literal in rule logic); the **DR5 conjunction** (sink × cradle), not any single part.
+
+| Signal | Layer | Rule id | Status |
+|---|---|---|---|
+| DR5 sink × cradle (DR1∧DR2, one file) | in-house static | `extrace.s11.download_cradle` | ✅ shipped — **CRITICAL → BLOCK** (class-less; A4 conceptual, spec §7) |
+| DR2 cradle string (cleartext echo) | semgrep | `download_cradle` (`extrace.sg.download_cradle`) | ✅ shipped (advisory MEDIUM/WARN) |
+| runtime PowerShell spawn + outbound socket | dynamic | `extrace.a8.reverse_shell` | ✅ pre-existing — covers the runtime shape (win32-**blind** for this family, spec §6) |
+| MN1/MN3/MN4 manifest signals | in-house static | *tbd* | ⬜ deferred (spec §4.2) |
+| OB1 obfuscator.io `_0x` string-array signature | in-house static | *tbd* | ⬜ deferred (spec §9) |
+
+C2 domain `niggboo.com` is on the shipped
+[`blacklist_domains.txt`](../../packages/analysis_contracts/data/blacklist_domains.txt)
+(matched by s4 + a7); the slur hostname is listed verbatim to block the operator's
+infrastructure. Stage-2 MSI / URL SHA-256 hashes are reference IOCs in the spec §8
+(no in-pipeline hash rule — they block the dropped payload, not the VSIX). The
+durable signal is still DR5, not the host.
 
 ## Iteration loop
 

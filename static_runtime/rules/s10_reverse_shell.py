@@ -16,15 +16,15 @@ positive rate to near zero while still catching the platform-selected-shell shap
 (``const shell = isWin ? "cmd.exe" : "sh"; child_process.exec(shell)``) where the
 shell name and the spawn call sit on different lines.
 
-Unlike the other static IOC rules this one is **CRITICAL** (``s8``/``s9`` are
-HIGH/MEDIUM warns): a piped shell↔socket is not a capability surface to review but
-a finished reverse shell, so it blocks at the static gate before the sandbox runs
-(ADR 0016: CRITICAL -> BLOCK / ``rejected_static``; see the architecture-
-reconciliation doc). ``adversary_class`` stays ``None`` — like every in-house
-static rule it reports a *capability/IOC surface*; runtime attribution (the
-shell-spawn + outbound-socket correlation) belongs to the dynamic plane. The rule
-logic is general-purpose (no sample literal); the securezeron IOCs live only in
-tests + the spec appendix.
+Like ``s11`` (the download cradle) this one is **CRITICAL** (most static IOC rules,
+e.g. ``s8``/``s9``, are HIGH/MEDIUM warns): a piped shell↔socket is not a capability
+surface to review but a finished reverse shell, so it blocks at the static gate
+before the sandbox runs (ADR 0016: CRITICAL -> BLOCK / ``rejected_static``; see the
+architecture-reconciliation doc). ``adversary_class`` stays ``None``: like every
+in-house static rule it reports a *capability/IOC surface*; runtime attribution
+(the shell-spawn + outbound-socket correlation) belongs to the dynamic plane. The
+rule logic is general-purpose (no sample literal); the securezeron IOCs live only
+in tests + the spec appendix.
 """
 
 from __future__ import annotations

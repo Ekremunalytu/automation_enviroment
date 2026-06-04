@@ -17,6 +17,9 @@
     },
     {
       "pattern": ":\\d+$"
+    },
+    {
+      "pattern": "niggboo"
     }
   ],
   "timeout": "10s",

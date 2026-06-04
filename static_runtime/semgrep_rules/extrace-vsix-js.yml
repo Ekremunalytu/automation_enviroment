@@ -229,3 +229,25 @@ rules:
       - metavariable-regex:
           metavariable: $IP
           regex: ^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$
+
+  # ── Dropper / download-cradle signal (DR5) ────────────────────────────────
+  # Advisory echo of the in-house `extrace.s11.download_cradle` rule. The
+  # in-house rule carries the CRITICAL/BLOCK verdict (cradle + child_process
+  # sink); this stays MEDIUM/WARN (runner hard-pins severity) and matches the
+  # cradle string alone via pattern-regex, so it fires even when the command is
+  # an obfuscator.io string-array literal (identifiers renamed, the command
+  # string left in cleartext). See the kagema detection spec §4.
+  - id: download_cradle
+    languages: [javascript, typescript]
+    severity: WARNING
+    message: >-
+      Hidden-PowerShell remote download cradle (powershell -> irm/iwr ->
+      iex): fetches a remote script and runs it in memory, the fetch-then-
+      execute payload mechanism of a downloader/dropper.
+    metadata:
+      category: security
+      references:
+        - https://attack.mitre.org/techniques/T1059/
+        - https://attack.mitre.org/techniques/T1105/
+    patterns:
+      - pattern-regex: '(?i)(?:powershell|pwsh)\b[^\n]{0,200}\b(?:irm|iwr|invoke-restmethod|invoke-webrequest)\b[^\n]{0,200}\b(?:iex|invoke-expression)\b'

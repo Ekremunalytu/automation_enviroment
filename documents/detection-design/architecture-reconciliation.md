@@ -119,6 +119,31 @@ CRITICAL blocks automatically). Adding `A8` was a shared-contract change (enum +
 generated `contracts.ts` DTO + `test_fixture_hygiene` allow-set), signed off before
 the edit.
 
+## 4c. kagema (download-cradle dropper) behaviour → layer → rule → status
+
+Full reasoning in [`kagema-detection-spec.md`](kagema-detection-spec.md); the layer
+landings:
+
+| Signal / behaviour | Layer | Rule id | Status |
+|---|---|---|---|
+| DR5 sink × cradle (DR1∧DR2, one file) | in-house static | `extrace.s11.download_cradle` | ✅ **CRITICAL → BLOCK** (the second severity-CRITICAL in-house rule) |
+| DR2 cradle string (cleartext echo) | semgrep | `download_cradle` → `extrace.sg.download_cradle` | ✅ advisory MEDIUM/WARN |
+| runtime PowerShell spawn + outbound socket | dynamic | `extrace.a8.reverse_shell` | ✅ pre-existing — same observable; **win32-blind for this family** |
+
+`s11` matches the *ordered* `powershell → irm/iwr/Invoke-RestMethod/Invoke-WebRequest
+→ iex/Invoke-Expression` cradle ∧ a `child_process` sink **in one file**. CRITICAL,
+so it BLOCKs automatically (no `_PROMOTED_HIGH_BLOCKERS` edit, no shared-contract /
+enum change — **A4 already exists** and `s11` stays **class-less** per the static-IOC
+convention; the A4 attribution is conceptual, documented in the spec §7). Two
+reconciliations worth noting: (1) the cradle is an **ordered single-span** regex,
+**not** a loose file-level AND of the four tokens — the loose form false-positives
+on `GitHub.copilot-chat/dist/cli.js`, the ordered form is 0-FP across the benign
+corpus (spec §4.1); (2) **no separate `a9`** — the runtime shape (PowerShell spawn +
+egress) is the same observable `a8` already correlates, so a dedicated dynamic rule
+would only duplicate findings (spec §4.3). For this `win32`-gated family the Linux
+sandbox never fires, so the static BLOCK is the only catching layer — the concrete
+case for why static+dynamic coverage must be orthogonal.
+
 ## 5. Integration recipes (exact touch-points)
 
 ### Add an in-house static rule (`s*`)
@@ -236,7 +261,8 @@ legitimate extensions declare `*`).
   Static registry = **12** rules (s1–s9 incl. multi-rule modules), dynamic = **8**
   (a1–a7 + demo, a5 included). *(securezeron branch then grew this to **13** static
   / **9** dynamic via `s10` + `a8` — see §4b; the container smoke count was bumped
-  6 → 13 to match.)*
+  6 → 13 to match. kagema then grew static to **14** via `s11` — see §4c; smoke
+  count 13 → 14.)*
 - UI: `tsc -b` clean, `vitest run` **110 passed** (incl. a new static-visibility
   test), `npm run build` ✓.
 - **Browser-verified** live in the Rules tab (ui-dev :5173 against an

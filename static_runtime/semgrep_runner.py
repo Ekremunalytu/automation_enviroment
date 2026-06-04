@@ -257,6 +257,25 @@ _RULE_META: dict[str, _SemgrepRuleMeta] = {
             "extensions use named services. Block the destination."
         ),
     ),
+    "download_cradle": _SemgrepRuleMeta(
+        rule_id="extrace.sg.download_cradle",
+        categories=("attack.T1059", "attack.T1105", "extrace.ext.download_cradle"),
+        title="PowerShell remote download cradle (dropper)",
+        description=(
+            "The extension contains a hidden-PowerShell download cradle "
+            "(powershell -> Invoke-RestMethod / Invoke-WebRequest -> "
+            "Invoke-Expression): it fetches a remote script and runs it in "
+            "memory, the fetch-then-execute payload mechanism of a downloader / "
+            "dropper. The in-house extrace.s11.download_cradle rule carries the "
+            "blocking verdict; this is the cleartext-string echo that fires even "
+            "under string-array obfuscation."
+        ),
+        mitigation_hint=(
+            "Treat a fetch-and-execute PowerShell cradle as a dropper — there is "
+            "no legitimate extension use; reject it and block the staging "
+            "endpoint."
+        ),
+    ),
 }
 
 

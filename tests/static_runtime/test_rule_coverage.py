@@ -26,6 +26,7 @@ EXPECTED_STATIC_PRODUCTION_RULE_IDS = {
     "extrace.s8.exfil_webhook",
     "extrace.s9.crypto_address_scan",
     "extrace.s10.reverse_shell",
+    "extrace.s11.download_cradle",
 }
 
 

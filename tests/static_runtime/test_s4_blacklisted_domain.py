@@ -50,3 +50,13 @@ def test_silent_for_lookalike_registrable_domain(make_context: MakeContext) -> N
     # notevil.example is a different registrable domain than evil.example.
     ctx = make_context(files={"extension.js": 'fetch("https://notevil.example/x");'})
     assert BlacklistedDomainRule().evaluate(ctx) == []
+
+
+def test_fires_on_kagema_c2_in_source(make_context: MakeContext) -> None:
+    # Regression: the kagema dropper's C2 (niggboo.com) is a real curated entry
+    # on the shipped seed denylist, so a static source reference to it (any path)
+    # is flagged. Guards against the entry being accidentally dropped.
+    ctx = make_context(files={"extension.js": 'fetch("https://niggboo.com/aaa");'})
+    findings = BlacklistedDomainRule().evaluate(ctx)
+    assert len(findings) == 1
+    assert "niggboo.com" in findings[0].description

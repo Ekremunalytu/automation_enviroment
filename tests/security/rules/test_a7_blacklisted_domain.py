@@ -66,3 +66,11 @@ def test_silent_for_lookalike_registrable_domain() -> None:
 
 def test_silent_for_no_network_events() -> None:
     assert RULE.evaluate(_report_with_hosts([])) == []
+
+
+def test_fires_on_kagema_c2_host() -> None:
+    # Regression: the kagema C2 (niggboo.com), a real curated entry on the shipped
+    # seed denylist, is flagged when observed as an outbound host — exact match and
+    # any subdomain. Guards against the entry being accidentally dropped.
+    assert len(RULE.evaluate(_report_with_hosts(["niggboo.com"]))) == 1
+    assert len(RULE.evaluate(_report_with_hosts(["stage2.niggboo.com"]))) == 1

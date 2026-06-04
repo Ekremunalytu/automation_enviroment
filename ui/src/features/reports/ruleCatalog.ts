@@ -278,7 +278,18 @@ const ENTRIES: RuleCatalogEntry[] = [
     severity: "critical",
     blurb: "Wires a child_process shell's stdio to a network socket.",
     detail:
-      "The source spawns an OS shell via child_process and pipes that shell's stdio to a raw network socket — the bidirectional wiring that defines an interactive reverse shell, handing a remote endpoint a live command channel on the victim with no user interaction. CRITICAL and the only static rule that BLOCKS before the sandbox runs: the match requires all three elements (shell spawn, socket, and a stdio-to-socket pipe) in one file, so the individually benign uses of child_process or a socket do not fire, and a shell piped to a socket has no legitimate explanation.",
+      "The source spawns an OS shell via child_process and pipes that shell's stdio to a raw network socket — the bidirectional wiring that defines an interactive reverse shell, handing a remote endpoint a live command channel on the victim with no user interaction. CRITICAL and one of the two static rules that BLOCK before the sandbox runs (with s11's download cradle): the match requires all three elements (shell spawn, socket, and a stdio-to-socket pipe) in one file, so the individually benign uses of child_process or a socket do not fire, and a shell piped to a socket has no legitimate explanation.",
+  },
+  {
+    ruleId: "extrace.s11.download_cradle",
+    label: "Download cradle (dropper)",
+    stream: "static",
+    family: "Execution / C2",
+    techniques: ["T1059", "T1105"],
+    severity: "critical",
+    blurb: "child_process drives a hidden-PowerShell irm → iex download cradle.",
+    detail:
+      "The source drives a child_process sink with a hidden-PowerShell download cradle — powershell → Invoke-RestMethod / Invoke-WebRequest → Invoke-Expression — that fetches a remote script and runs it in memory, downloading and executing an arbitrary second stage with no user interaction and nothing written to disk (the kagema / ShowSnowcrypto.SnowShoNo dropper shape). CRITICAL and BLOCKs before the sandbox: the cradle is matched as one ordered powershell→download→execute span wired to a child_process sink, so a bare child_process call or a lone powershell mention does not fire. Blocking statically is load-bearing here because the payload is gated on process.platform === 'win32', so a Linux dynamic sandbox never observes it. The cradle string survives string-array obfuscation (literals stay cleartext); an APT variant that splits the command across lines is the documented evasion gap.",
   },
 ];
 
