@@ -14,10 +14,18 @@ dynamic `a7` blacklisted-domain rule and an operator-editable DB-backed
 added to the promoted-blocker frozenset — block-and-warn invariant unchanged).
 See `documents/active-work/extension-trigger-matrix.md`. ·
 **Security-development expansion** (2026-06-04): in-house static rules now load
-17 production rules, adding `s12` invisible-Unicode runs, `s13` native `.node`
-loader/platform-gate/host-context invoke, and `s14` globalState dormancy. `s12`
-and the GlassWorm-strength `s13` conjunction are CRITICAL and block through the
-existing severity gate; no promoted-HIGH policy change.
+**26 production rules** (`s1`-`s20` across multi-rule modules), adding the
+webhook/crypto exfil surfaces (`s8`/`s9`), reverse-shell (`s10`), download-cradle
+(`s11`), invisible-Unicode runs (`s12`), native `.node` loader/platform-gate/
+host-context invoke (`s13`), globalState dormancy (`s14`), path-traversal server
+(`s15`), cross-extension tamper (`s16`), credential-exfil (`s17`), download-exec
+dropper (`s18`), the stylesheet-threat trio (`s19`), RMM-as-RAT abuse (`s20`),
+and reserved-publisher spoof (`s1.reserved_publisher_spoof`). `s10`/`s11`/`s12`,
+the GlassWorm-strength `s13` conjunction, the `s16` foreign-extension write, and
+`s19.stylesheet_inline_js` are CRITICAL and block through the existing severity
+gate; everything else WARNs — **no promoted-HIGH policy change**. The Semgrep JS
+rule set grew to 16 advisory echoes. Status board + per-class specs live in
+`documents/detection-design/README.md`.
 
 Use this lane for the pre-execution static analysis stage: static
 detection contracts, in-house static rules, the Semgrep runner, the
@@ -63,12 +71,22 @@ decision gate that fronts the dynamic sandbox.
   `appcore/api/rules_router.py` + `appcore/storage/.../blacklist_domains.py` +
   Alembic `b3d9f1c2e7a4` (the `blacklist_domains` table). `main.py`
   primes the in-process override at boot (best-effort; DB-down is swallowed).
-- **Security-development expansion (GlassWorm native-loader class):**
-  `static_runtime/rules/{s12_invisible_unicode,s13_native_node_loader,
-  s14_globalstate_dormancy}.py`, `documents/detection-design/glassworm-detection-spec.md`,
-  and the curated direct-IP C2/stager host additions in
-  `packages/analysis_contracts/data/blacklist_domains.txt`. Shared Google
-  Calendar/Gmail fallback infrastructure is intentionally not denylisted.
+- **Security-development expansion (multi-class custom rule stream):**
+  `static_runtime/rules/{s8_exfil_webhook,s9_crypto_address_scan,
+  s10_reverse_shell,s11_download_cradle,s12_invisible_unicode,
+  s13_native_node_loader,s14_globalstate_dormancy,s15_path_traversal_server,
+  s16_cross_extension_tamper,s17_credential_exfil,s18_download_exec_dropper,
+  s19_stylesheet_threats,s20_rmm_remote_access}.py` + the
+  `s1.reserved_publisher_spoof` manifest rule; the matching
+  `static_runtime/semgrep_rules/extrace-vsix-js.yml` echoes; the
+  `_common.TEXT_SUFFIXES` `.less`/`.scss`/`.sass` coverage fix; the curated
+  real-C2/relay host additions in
+  `packages/analysis_contracts/data/blacklist_domains.txt` (snowshono Stage-3
+  relay + related-campaign hosts + kagema `niggboo.com`); and the per-class
+  design specs under `documents/detection-design/`. SHA-256 hashes stay
+  reference-only and shared Google Calendar/Gmail fallback infrastructure is
+  intentionally not denylisted (pinned by `tests/security/test_ioc_safety.py`).
+  The full status board is `documents/detection-design/README.md`.
 
 ## Invariants
 

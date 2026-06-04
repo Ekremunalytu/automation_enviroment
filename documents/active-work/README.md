@@ -42,10 +42,11 @@ points to it.
     [`REFACTOR_OPTIMIZATION.md §20`](../REFACTOR_OPTIMIZATION.md).
 - `../detection-design/README.md`
   - **Current named stream — `security-development` on branch
-    `security-development` (`2026-06-04`).** Custom detection-rule expansion
-    for apollyon / securezeron / kagema / GlassWorm classes. The directory is
-    self-contained and tracks safety policy, shipped static/dynamic rules,
-    rule-layer reconciliation, and per-class specs.
+    `security-development` (`2026-06-04`).** Custom detection-rule expansion for
+    the apollyon / securezeron / kagema / GlassWorm / snyk-labs / nf3xn /
+    ecm3401 / nextsecurity / snowshono classes (static rules now `s1`-`s20`,
+    dynamic A1-A8). The directory is self-contained and tracks safety policy,
+    shipped static/dynamic rules, rule-layer reconciliation, and per-class specs.
 - `extrace-static-stream-handoff.md`
   - **Frozen design-intent reference — branch `extrace-static`
     abandoned `2026-05-28`; static-analysis pre-check stream

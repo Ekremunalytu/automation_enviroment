@@ -385,14 +385,28 @@ the same convention the static stream followed.
   migration round-trip, and `close_all_terminals`);
   `tests/architecture/` **318 passed**.
 - **`security-development` stream — in progress on branch
-  `security-development` (2026-06-04).** GlassWorm / `icon-theme-materiall`
-  defensive rule expansion: in-house static production rules 14 → 17 with
-  `extrace.s12.invisible_unicode_run`, `extrace.s13.native_node_loader`, and
-  `extrace.s14.globalstate_dormancy`; direct-IP GlassWorm C2/stager hosts added
-  to the shared `blacklist_domains` seed while shared Google Calendar/Gmail
-  fallback hosts are intentionally excluded to avoid broad false positives.
-  Design doc:
-  [`detection-design/glassworm-detection-spec.md`](detection-design/glassworm-detection-spec.md).
+  `security-development` (2026-06-04).** Custom detection-rule expansion driven
+  by a series of real-world malware classes (general, behaviour-class rules — no
+  sample literal in rule logic). In-house static production rules grew to **26
+  (`s1`-`s20`** across multi-rule modules); dynamic production rules to **A1-A8**
+  (`a5.workspace_file_tamper`, `a8.reverse_shell` added); the Semgrep JS rule set
+  to 16 (advisory echoes); plus the IOC denylist, the `.less`/`.scss`/`.sass`
+  content-scanner coverage fix, and the UI Rules-tab catalog (static + dynamic,
+  s1-s20). New static surfaces span reverse-shell (`s10`, CRITICAL), download-
+  cradle (`s11`, CRITICAL), invisible-unicode (`s12`), native-loader (`s13`),
+  globalState dormancy (`s14`), path-traversal (`s15`), cross-extension-tamper
+  (`s16`, CRITICAL), credential-exfil (`s17`), download-exec dropper (`s18`),
+  stylesheet threats (`s19` trio, inline-JS CRITICAL), RMM-as-RAT abuse (`s20`),
+  reserved-publisher spoof (`s1.reserved_publisher_spoof`), plus the
+  webhook/crypto (`s8`/`s9`) exfil surfaces. Real, observed C2/relay hosts are on
+  the shared `blacklist_domains` denylist (the snowshono Stage-3 relay + related-
+  campaign hosts + the kagema Stage-2 `niggboo.com`); SHA-256 hashes stay
+  reference-only; shared first-party fallback hosts (Google Calendar/Gmail) are
+  intentionally excluded to avoid broad false positives, and a guard test pins
+  the IOC-safety invariant. Per-class specs (apollyon / securezeron / kagema /
+  GlassWorm / snyk-labs / nf3xn / ecm3401 / nextsecurity / snowshono) and the
+  living status board:
+  [`detection-design/README.md`](detection-design/README.md).
 
 ## W13 Status Summary
 

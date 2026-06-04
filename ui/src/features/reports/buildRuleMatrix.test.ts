@@ -191,6 +191,7 @@ describe("ruleCatalog drift guard", () => {
       "extrace.a5.workspace_file_tamper",
       "extrace.a6.startup_ui_prompt",
       "extrace.a7.blacklisted_domain",
+      "extrace.a8.reverse_shell",
     ]) {
       expect(dynamic.has(id)).toBe(true);
     }
@@ -200,6 +201,7 @@ describe("ruleCatalog drift guard", () => {
       "extrace.s1.activation_wildcard",
       "extrace.s1.suspicious_capabilities",
       "extrace.s1.generic_publisher",
+      "extrace.s1.reserved_publisher_spoof",
       "extrace.s2.typosquat",
       "extrace.s3.embedded_native_binary",
       "extrace.s3.unusual_file_signature",
@@ -229,6 +231,7 @@ describe("ruleCatalog drift guard", () => {
 
   it("gives the rules added this branch a stream + a rich detail paragraph", () => {
     const cases: Array<[string, "static" | "dynamic"]> = [
+      ["extrace.s1.reserved_publisher_spoof", "static"],
       ["extrace.s8.exfil_webhook", "static"],
       ["extrace.s9.crypto_address_scan", "static"],
       ["extrace.s12.invisible_unicode_run", "static"],
@@ -243,6 +246,7 @@ describe("ruleCatalog drift guard", () => {
       ["extrace.s19.stylesheet_css_exfil", "static"],
       ["extrace.s20.rmm_remote_access", "static"],
       ["extrace.a5.workspace_file_tamper", "dynamic"],
+      ["extrace.a8.reverse_shell", "dynamic"],
     ];
     for (const [id, stream] of cases) {
       const entry = ruleCatalogEntry(id);

@@ -171,6 +171,17 @@ const ENTRIES: RuleCatalogEntry[] = [
       "The publisher identity is missing or a placeholder, so there is no accountable author. A throwaway / generic publisher is a common trait of low-effort malicious uploads and weakens any trust signal from the marketplace listing.",
   },
   {
+    ruleId: "extrace.s1.reserved_publisher_spoof",
+    label: "Reserved publisher claim",
+    stream: "static",
+    family: "Masquerading",
+    techniques: ["T1036"],
+    severity: "medium",
+    blurb: "The manifest claims a reserved first-party publisher namespace (ms-vscode / github / ...).",
+    detail:
+      "The manifest publisher is a reserved first-party brand namespace (microsoft / ms-vscode / vscode / github / ...) — the trust-borrowing impersonation pattern used by malicious side-loaded VSIXs. Name-only matching cannot, on its own, separate a spoof from a genuine first-party extension (the durable disambiguator is the marketplace verified-publisher signal, which is out of static scope), so this warns for provenance review and never blocks — but it is a strong escalator when it co-occurs with a malicious capability such as a reverse shell.",
+  },
+  {
     ruleId: "extrace.s2.typosquat",
     label: "Typosquat identifier (static)",
     stream: "static",

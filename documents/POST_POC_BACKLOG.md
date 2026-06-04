@@ -785,8 +785,8 @@ Closed (one-line audit trail):
 - `[CLEANUP rule-registry-side-effect-loader]` — dynamic `registry.py` now
   carries `_REGISTRY` global + `importlib` side-effect loader +
   `_BUILTINS_LOADED` for A1-A8 plus the demo canary; static runtime has the
-  same lazy-loader shape for 17 production static rule ids. A flat `RULES`
-  tuple is now more justified than the original six-rule W15 snapshot, but this
+  same lazy-loader shape for 26 production static rule ids (`s1`-`s20`). A flat
+  `RULES` tuple is now more justified than the original six-rule W15 snapshot, but this
   remains W23+ hygiene unless rule loading itself becomes unstable.
 - `[GOAL mitre-mapping-adr]` (new) — **W23-0 candidate (after static stream
   ES-5 closes).** ADR 0017 fixing the MITRE ATT&CK technique↔rule mapping

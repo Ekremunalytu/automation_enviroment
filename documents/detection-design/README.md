@@ -42,7 +42,7 @@ reconcile on the owner's cadence, post-merge).
 
 | Doc | Purpose |
 |---|---|
-| [`architecture-reconciliation.md`](architecture-reconciliation.md) | **Read first.** The three rule layers, the ADR-0016 gate truth table, the A1–A7 taxonomy, and the exact files/tests to add a rule in each layer. |
+| [`architecture-reconciliation.md`](architecture-reconciliation.md) | **Read first.** The three rule layers, the ADR-0016 gate truth table, the A1–A8 taxonomy, and the exact files/tests to add a rule in each layer. |
 | [`apollyon-detection-spec.md`](apollyon-detection-spec.md) | Detection design spec for the `apollyon` Discord-webhook infostealer class: behaviour breakdown, signal catalog, escalation matrix, evasion limits, IOC appendix. |
 | [`securezeron-detection-spec.md`](securezeron-detection-spec.md) | Detection design spec for the `securezeron` VS Code **reverse-shell** class: signals RS1–RS4, the as-built layer map (s10 / a8 / semgrep echoes), severity/gate, evasion limits, IOC appendix. |
 | [`kagema-detection-spec.md`](kagema-detection-spec.md) | Detection design spec for the `kagema` VS Code **download-cradle dropper** class: signals DR/OB/MN, the as-built layer map (s11 / `sg.download_cradle`), the ordered-shape-not-loose-AND FP reconciliation, the win32-gate dynamic blind spot, A4/A3 attribution, evasion limits, IOC appendix. |

@@ -258,9 +258,11 @@ multi-tenant web platform.
   rules, dynamic `a7`, and editable `blacklist_domains`. Current active stream
   is `security-development` on branch `security-development`, tracked by
   [`documents/detection-design/README.md`](documents/detection-design/README.md):
-  static production rules are now 17 (`s1`-`s14` across multi-rule modules),
-  dynamic production rules are A1-A8 plus the demo canary, and the Rules tab
-  surfaces both Static and Dynamic streams.
+  static production rules are now 26 (`s1`-`s20` across multi-rule modules —
+  adding reverse-shell, download-cradle, native-loader, path-traversal,
+  cross-extension-tamper, credential-exfil, dropper, stylesheet, and RMM-abuse
+  surfaces), dynamic production rules are A1-A8 plus the demo canary, and the
+  Rules tab surfaces both Static and Dynamic streams.
 
   **Previous phase: W21 — Coverage Promotion Round 2: Mid Tier —
   closed synthetically `2026-05-28` on the `week21` branch (per
