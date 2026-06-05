@@ -4,6 +4,7 @@ import type {
   AnalyzeJobStatusDto,
   MarketplaceDownloadResponseDto,
   MarketplaceExtensionDto,
+  OfflineExtensionDto,
   ReportListItemDto,
   VsixThresholdsResponseDto,
   VsixThresholdsUpdateRequestDto,
@@ -72,6 +73,21 @@ export const apiClient = {
       body: JSON.stringify({ publisher, name, version }),
       signal,
     });
+  },
+  listOfflineExtensions(signal?: AbortSignal) {
+    return requestJson<OfflineExtensionDto[]>("/api/marketplace/offline/list", {
+      signal,
+    });
+  },
+  ingestOfflineExtension(filename: string, signal?: AbortSignal) {
+    return requestJson<MarketplaceDownloadResponseDto>(
+      "/api/marketplace/offline/ingest",
+      {
+        method: "POST",
+        body: JSON.stringify({ filename }),
+        signal,
+      },
+    );
   },
   getAnalysisJob(jobId: string, signal?: AbortSignal) {
     return requestJson<AnalyzeJobStatusDto>(`/api/marketplace/analyze/${jobId}`, {

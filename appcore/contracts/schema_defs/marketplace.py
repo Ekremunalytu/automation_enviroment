@@ -28,6 +28,41 @@ class MarketplaceDownloadRequest(BaseModel):
     version: str = Field(..., min_length=1)
 
 
+class OfflineExtension(BaseModel):
+    """A ``.vsix`` package discovered in the offline intake directory.
+
+    Surfaced by ``GET /api/marketplace/offline/list`` to back the Marketplace
+    "Offline" tab. Identity (``publisher``/``name``/``version``) and the
+    display fields are read from the ``extension/package.json`` manifest
+    *inside* the archive, so the on-disk filename can be anything.
+    ``already_ingested`` is ``True`` when the package has already been
+    extracted and staged (extracted dir + canonical ``.vsix`` present), i.e.
+    it is ready to analyze without re-ingesting.
+    """
+
+    model_config = ConfigDict(extra="ignore")
+
+    publisher: str
+    name: str
+    version: str
+    displayName: str
+    description: str
+    filename: str
+    size_bytes: int = Field(ge=0)
+    already_ingested: bool
+
+
+class OfflineIngestRequest(BaseModel):
+    """Ingest one offline ``.vsix`` by its bare filename.
+
+    The filename must be a leaf name (no path separators / traversal) of a
+    file inside the configured offline directory; the router validates it
+    before touching disk.
+    """
+
+    filename: str = Field(..., min_length=1)
+
+
 class VsixExtractionMetrics(BaseModel):
     """Observed VSIX extraction metrics, surfaced post-download.
 
@@ -147,6 +182,8 @@ __all__ = [
     "MarketplaceDownloadRequest",
     "MarketplaceDownloadResponse",
     "MarketplaceExtension",
+    "OfflineExtension",
+    "OfflineIngestRequest",
     "VsixExtractionMetrics",
     "VsixThresholdBreachDetail",
 ]

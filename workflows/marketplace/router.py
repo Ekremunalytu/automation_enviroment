@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import threading
+import zipfile
 from pathlib import Path
 from typing import Any, Literal, cast
 
@@ -20,11 +21,14 @@ from appcore.contracts.schemas import (
     MarketplaceDownloadRequest,
     MarketplaceDownloadResponse,
     MarketplaceExtension,
+    OfflineExtension,
+    OfflineIngestRequest,
     VsixExtractionMetrics,
     VsixThresholdBreachDetail,
 )
 from appcore.logging import get_extrace_logger
 from packages.analysis_contracts import ExtensionIdentity
+from packages.marketplace_identity import MarketplaceIdentityError
 from workflows.extension_catalog.manifest_reader import PackageJsonReadError
 from workflows.extension_catalog.service import (
     ExtensionManifestMismatchError,
@@ -33,6 +37,7 @@ from workflows.extension_catalog.service import (
 )
 from workflows.marketplace import client as marketplace_client
 from workflows.marketplace import job_service
+from workflows.marketplace import offline as offline_intake
 from workflows.marketplace.analysis_errors import ActivationReportLoadError
 from workflows.marketplace.analysis_reports import load_static_report_from_name
 from workflows.marketplace.analysis_service import (
@@ -47,6 +52,7 @@ from workflows.marketplace.job_service import (
     ActiveAnalysisJobError,
     JobNotCancellableError,
 )
+from workflows.marketplace.offline import OfflineIntakeError
 
 settings = app_settings
 logger = get_extrace_logger("extrace.workflows.marketplace.router")
@@ -65,6 +71,55 @@ def _package_json_error_detail(exc: PackageJsonReadError) -> str:
     if exc.detail:
         return f"{detail}: {exc.detail}"
     return detail
+
+
+def _vsix_unpack_to_http(
+    exc: marketplace_client.VSIXUnpackError,
+    publisher: str,
+    name: str,
+    version: str,
+) -> HTTPException:
+    """Map a ``VSIXUnpackError`` to the structured 422 the UI popup consumes.
+
+    Shared by the marketplace download and the offline-ingest endpoints so a
+    threshold breach renders identically regardless of where the bytes came
+    from. ``breach_kind`` may be ``None`` for legacy callers that raised the
+    exception before the W12-* hardening pass; fall back to the opaque message
+    so the typed 422 is never half-populated.
+    """
+    if (
+        exc.breach_kind is None
+        or exc.threshold_name is None
+        or exc.threshold_value is None
+        or exc.observed_value is None
+    ):
+        return HTTPException(status_code=422, detail=str(exc))
+    logger.warning(
+        "vsix_threshold_breach kind=%s threshold=%s value=%s observed=%s "
+        "publisher=%s name=%s version=%s",
+        exc.breach_kind,
+        exc.threshold_name,
+        exc.threshold_value,
+        exc.observed_value,
+        publisher,
+        name,
+        version,
+    )
+    detail = VsixThresholdBreachDetail(
+        error="vsix_threshold_breach",
+        breach_kind=cast(
+            Literal["entry_count", "uncompressed_size", "compression_ratio"],
+            exc.breach_kind,
+        ),
+        threshold_name=exc.threshold_name,
+        threshold_value=exc.threshold_value,
+        observed_value=exc.observed_value,
+        message=str(exc),
+        publisher=publisher,
+        name=name,
+        version=version,
+    ).model_dump(mode="json")
+    return HTTPException(status_code=422, detail=detail)
 
 
 @router.get("/marketplace/search", response_model=list[MarketplaceExtension])
@@ -100,45 +155,8 @@ def download_marketplace_extension(
     except marketplace_client.VSIXUnpackError as exc:
         # Structured 422 so the UI can render a popup naming the specific
         # threshold and pointing the operator at Settings → Security.
-        # ``breach_kind`` may be ``None`` for legacy callers that raised the
-        # exception before the W12-* hardening pass; fall back to the opaque
-        # message if any structured field is missing so the typed 422 is
-        # never half-populated.
-        if (
-            exc.breach_kind is None
-            or exc.threshold_name is None
-            or exc.threshold_value is None
-            or exc.observed_value is None
-        ):
-            raise HTTPException(status_code=422, detail=str(exc)) from exc
-        logger.warning(
-            "vsix_threshold_breach kind=%s threshold=%s value=%s observed=%s "
-            "publisher=%s name=%s version=%s",
-            exc.breach_kind,
-            exc.threshold_name,
-            exc.threshold_value,
-            exc.observed_value,
-            request.publisher,
-            request.name,
-            request.version,
-        )
-        detail = VsixThresholdBreachDetail(
-            error="vsix_threshold_breach",
-            breach_kind=cast(
-                Literal["entry_count", "uncompressed_size", "compression_ratio"],
-                exc.breach_kind,
-            ),
-            threshold_name=exc.threshold_name,
-            threshold_value=exc.threshold_value,
-            observed_value=exc.observed_value,
-            message=str(exc),
-            publisher=request.publisher,
-            name=request.name,
-            version=request.version,
-        ).model_dump(mode="json")
-        raise HTTPException(
-            status_code=422,
-            detail=detail,
+        raise _vsix_unpack_to_http(
+            exc, request.publisher, request.name, request.version
         ) from exc
     except httpx.HTTPError as exc:
         raise HTTPException(
@@ -151,13 +169,50 @@ def download_marketplace_extension(
             detail=_package_json_error_detail(exc),
         ) from exc
 
+    return _register_extension_response(
+        db,
+        ext_dir,
+        request.publisher,
+        request.name,
+        request.version,
+        metrics_collector,
+        success_message=(
+            f"Extension {request.publisher}.{request.name}@{request.version} "
+            "downloaded and analyzed successfully."
+        ),
+        already_message=(
+            f"Extension {request.publisher}.{request.name}@{request.version} "
+            "is already downloaded and ready to analyze."
+        ),
+    )
+
+
+def _register_extension_response(
+    db: Session,
+    ext_dir: Path,
+    publisher: str,
+    name: str,
+    version: str,
+    metrics_collector: dict[str, float],
+    *,
+    success_message: str,
+    already_message: str,
+) -> MarketplaceDownloadResponse:
+    """Register an extracted extension in the catalog and build the response.
+
+    Shared by the marketplace download and the offline-ingest endpoints: both
+    extract into the canonical store, then register the manifest and surface
+    the same ``MarketplaceDownloadResponse`` shape (incl. VSIX integrity
+    metrics). An already-registered extension returns the idempotent
+    ``already_message`` variant instead of 409.
+    """
     try:
         extension = create_extension_from_directory(
             db,
             ext_dir,
-            expected_name=request.name,
-            expected_publisher=request.publisher,
-            expected_version=request.version,
+            expected_name=name,
+            expected_publisher=publisher,
+            expected_version=version,
         )
     except ExtensionManifestMismatchError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
@@ -169,9 +224,9 @@ def download_marketplace_extension(
     except ValueError as exc:
         existing_extension = search_extension_by_name(
             db,
-            request.name,
-            extension_publisher=request.publisher,
-            extension_version=request.version,
+            name,
+            extension_publisher=publisher,
+            extension_version=version,
         )
         if existing_extension is None:
             raise HTTPException(
@@ -181,29 +236,23 @@ def download_marketplace_extension(
 
         return MarketplaceDownloadResponse(
             status="success",
-            publisher=request.publisher,
-            name=request.name,
-            version=request.version,
+            publisher=publisher,
+            name=name,
+            version=version,
             extension_dir=str(ext_dir),
             db_id=existing_extension.id,
-            message=(
-                f"Extension {request.publisher}.{request.name}@{request.version} "
-                "is already downloaded and ready to analyze."
-            ),
+            message=already_message,
             vsix_metrics=_metrics_payload(metrics_collector),
         )
 
     return MarketplaceDownloadResponse(
         status="success",
-        publisher=request.publisher,
-        name=request.name,
-        version=request.version,
+        publisher=publisher,
+        name=name,
+        version=version,
         extension_dir=str(ext_dir),
         db_id=extension.id,
-        message=(
-            f"Extension {request.publisher}.{request.name}@{request.version} "
-            "downloaded and analyzed successfully."
-        ),
+        message=success_message,
         vsix_metrics=_metrics_payload(metrics_collector),
     )
 
@@ -222,6 +271,97 @@ def _metrics_payload(
         compressed_size=int(collected.get("compressed_size", 0)),
         compression_ratio=float(collected.get("compression_ratio", 0.0)),
         rejected_entry_count=int(collected.get("rejected_entry_count", 0)),
+    )
+
+
+@router.get("/marketplace/offline/list", response_model=list[OfflineExtension])
+def list_offline_extensions_endpoint() -> list[OfflineExtension]:
+    """Enumerate readable ``.vsix`` packages in the offline intake directory.
+
+    Air-gapped counterpart to ``/marketplace/search``: instead of querying
+    the live marketplace, it lists packages the operator has dropped into
+    ``settings.project.OFFLINE_DIR``. Unreadable archives are skipped by the
+    service; only a filesystem fault on the directory itself is an error.
+    """
+    try:
+        return offline_intake.list_offline_extensions()
+    except OSError as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Offline intake directory unavailable: {exc}",
+        ) from exc
+
+
+@router.post(
+    "/marketplace/offline/ingest",
+    response_model=MarketplaceDownloadResponse,
+)
+def ingest_offline_extension_endpoint(
+    request: OfflineIngestRequest,
+    db: Session = Depends(get_db),
+) -> MarketplaceDownloadResponse:
+    """Stage one offline ``.vsix`` and register it — air-gapped download twin.
+
+    Reuses the exact hardened extract path and catalog-registration helper as
+    ``/marketplace/download``, so a threshold breach surfaces the same
+    structured 422 and an already-present package returns idempotently.
+    """
+    metrics_collector: dict[str, float] = {}
+    try:
+        publisher, name, version, vsix_bytes = offline_intake.read_offline_vsix(
+            request.filename
+        )
+    except OfflineIntakeError as exc:
+        status = 404 if exc.reason == "not_found" else 400
+        raise HTTPException(status_code=status, detail=str(exc)) from exc
+    except MarketplaceIdentityError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Offline package manifest has an unsafe identity: {exc}",
+        ) from exc
+    except zipfile.BadZipFile as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Offline file is not a valid VSIX archive: {request.filename}",
+        ) from exc
+    except PackageJsonReadError as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=_package_json_error_detail(exc),
+        ) from exc
+
+    try:
+        ext_dir = marketplace_client.persist_and_extract_vsix_bytes(
+            publisher,
+            name,
+            version,
+            vsix_bytes,
+            db=db,
+            metrics_out=metrics_collector,
+        )
+    except marketplace_client.VSIXUnpackError as exc:
+        raise _vsix_unpack_to_http(exc, publisher, name, version) from exc
+    except PackageJsonReadError as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=_package_json_error_detail(exc),
+        ) from exc
+
+    return _register_extension_response(
+        db,
+        ext_dir,
+        publisher,
+        name,
+        version,
+        metrics_collector,
+        success_message=(
+            f"Extension {publisher}.{name}@{version} "
+            "ingested from offline intake and ready to analyze."
+        ),
+        already_message=(
+            f"Extension {publisher}.{name}@{version} "
+            "is already ingested and ready to analyze."
+        ),
     )
 
 

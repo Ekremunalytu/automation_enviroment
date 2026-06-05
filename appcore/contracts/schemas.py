@@ -30,6 +30,8 @@ from appcore.contracts.schema_defs.marketplace import (
     MarketplaceDownloadRequest,
     MarketplaceDownloadResponse,
     MarketplaceExtension,
+    OfflineExtension,
+    OfflineIngestRequest,
     VsixExtractionMetrics,
     VsixThresholdBreachDetail,
 )
@@ -67,6 +69,8 @@ __all__ = [
     "MarketplaceDownloadRequest",
     "MarketplaceDownloadResponse",
     "MarketplaceExtension",
+    "OfflineExtension",
+    "OfflineIngestRequest",
     "ScanRequest",
     "SearchAllExtensionsInfo",
     "SearchRequest",

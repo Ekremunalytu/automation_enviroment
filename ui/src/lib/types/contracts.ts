@@ -553,6 +553,17 @@ export interface MarketplaceExtensionDto {
   rating: number;
 }
 
+export interface OfflineExtensionDto {
+  publisher: string;
+  name: string;
+  version: string;
+  displayName: string;
+  description: string;
+  filename: string;
+  size_bytes: number;
+  already_ingested: boolean;
+}
+
 export interface VsixExtractionMetricsDto {
   file_count: number;
   uncompressed_size: number;

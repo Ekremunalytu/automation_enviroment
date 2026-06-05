@@ -376,42 +376,51 @@ def _publish_extracted_extension(partial_dir: Path, final_dir: Path) -> Path:
     return final_dir
 
 
-def download_and_extract_vsix(
+def persist_and_extract_vsix_bytes(
     publisher: str,
     name: str,
     version: str,
+    vsix_bytes: bytes,
     *,
     db: Session | None = None,
     metrics_out: dict[str, float] | None = None,
 ) -> Path:
-    """
-    Download and extract a VSIX extension package from the VS Code Marketplace.
+    """Stage raw VSIX bytes into the canonical extension store and extract.
 
-    The VSIX is a ZIP archive containing an ``extension/`` subdirectory with the
-    extension source. This function extracts that subdirectory into:
-        ``{EXTENSION_DIR}/{publisher}.{name}-{version}/``
+    This is the shared tail of two ingest paths — the marketplace download
+    (``download_and_extract_vsix``) and the offline-intake ingest
+    (``workflows.marketplace.offline.ingest_offline_extension``) — so both
+    funnel identical bytes through the same zip-bomb / path-traversal /
+    symlink-escape guards and the same atomic-publish dance.
 
-    Idempotent: if the directory already contains a ``package.json``, the
-    download and extraction are skipped.
+    Writes ``{EXTENSION_DIR}/{slug}.vsix`` (idempotent) and extracts the
+    archive's ``extension/`` subtree into ``{EXTENSION_DIR}/{slug}/`` under
+    the operator-tuned hardening thresholds, returning the extracted dir.
+
+    Idempotent: when the extracted dir already holds a valid ``package.json``
+    and the canonical ``.vsix`` is staged, both are reused as-is.
 
     Args:
         publisher: Publisher name (e.g. ``ms-python``).
         name: Extension name (e.g. ``python``).
         version: Extension version string (e.g. ``2025.0.0``).
+        vsix_bytes: Raw bytes of the ``.vsix`` (ZIP) archive.
         db: Optional SQLAlchemy session. When supplied, the operator-tuned
-            VSIX hardening thresholds are loaded from
-            ``operator_settings`` and passed to the extractor; otherwise
-            the module-level fallback constants apply.
+            VSIX hardening thresholds are loaded from ``operator_settings``
+            and passed to the extractor; otherwise the module-level fallback
+            constants apply.
+        metrics_out: Optional dict, mutated in place with the observed
+            extraction metrics for the "VSIX Integrity" UI panel.
 
     Returns:
         Path to the extracted extension directory.
 
     Raises:
-        httpx.HTTPError: On network or upstream errors.
         VSIXUnpackError: When extraction trips a hardening threshold; the
             exception carries structured ``breach_kind`` /
             ``threshold_value`` / ``observed_value`` fields for the HTTP
             layer.
+        PackageJsonReadError: When the extracted manifest is missing/invalid.
     """
     base_dir = Path(settings.project.EXTENSION_DIR)
     artifact_name = _artifact_name(publisher, name, version)
@@ -430,13 +439,6 @@ def download_and_extract_vsix(
 
     if manifest_ready and vsix_file.exists():
         return ext_dir
-
-    url = _VSIX_URL_TEMPLATE.format(publisher=publisher, name=name, version=version)
-
-    with httpx.Client(timeout=120, follow_redirects=True) as client:
-        resp = client.get(url)
-        resp.raise_for_status()
-        vsix_bytes = resp.content
 
     _publish_vsix_file(vsix_file, vsix_bytes, artifact_name)
 
@@ -467,3 +469,73 @@ def download_and_extract_vsix(
         raise
 
     return _publish_extracted_extension(partial_dir, ext_dir)
+
+
+def download_and_extract_vsix(
+    publisher: str,
+    name: str,
+    version: str,
+    *,
+    db: Session | None = None,
+    metrics_out: dict[str, float] | None = None,
+) -> Path:
+    """
+    Download and extract a VSIX extension package from the VS Code Marketplace.
+
+    The VSIX is a ZIP archive containing an ``extension/`` subdirectory with the
+    extension source. This function extracts that subdirectory into:
+        ``{EXTENSION_DIR}/{publisher}.{name}-{version}/``
+
+    Idempotent: if the directory already contains a ``package.json`` and the
+    canonical ``.vsix`` is staged, the network round-trip and extraction are
+    skipped.
+
+    Args:
+        publisher: Publisher name (e.g. ``ms-python``).
+        name: Extension name (e.g. ``python``).
+        version: Extension version string (e.g. ``2025.0.0``).
+        db: Optional SQLAlchemy session. When supplied, the operator-tuned
+            VSIX hardening thresholds are loaded from
+            ``operator_settings`` and passed to the extractor; otherwise
+            the module-level fallback constants apply.
+
+    Returns:
+        Path to the extracted extension directory.
+
+    Raises:
+        httpx.HTTPError: On network or upstream errors.
+        VSIXUnpackError: When extraction trips a hardening threshold; the
+            exception carries structured ``breach_kind`` /
+            ``threshold_value`` / ``observed_value`` fields for the HTTP
+            layer.
+    """
+    ext_dir = _extension_dir(publisher, name, version)
+    vsix_file = get_vsix_path(publisher, name, version)
+
+    # Fast idempotent path: skip the network entirely when the extension is
+    # already extracted *and* its canonical .vsix is staged. The shared
+    # ``persist_and_extract_vsix_bytes`` re-checks the same condition, but
+    # doing it here first avoids the marketplace round-trip.
+    if vsix_file.exists() and ext_dir.exists():
+        try:
+            get_package_json(ext_dir)
+        except PackageJsonReadError:
+            pass
+        else:
+            return ext_dir
+
+    url = _VSIX_URL_TEMPLATE.format(publisher=publisher, name=name, version=version)
+
+    with httpx.Client(timeout=120, follow_redirects=True) as client:
+        resp = client.get(url)
+        resp.raise_for_status()
+        vsix_bytes = resp.content
+
+    return persist_and_extract_vsix_bytes(
+        publisher,
+        name,
+        version,
+        vsix_bytes,
+        db=db,
+        metrics_out=metrics_out,
+    )

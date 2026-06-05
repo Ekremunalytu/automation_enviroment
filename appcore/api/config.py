@@ -54,6 +54,13 @@ class ProjectSettings(BaseSettings):
     STATUS: str = "Active"
     EXTENSION_DIR: str = "extensions"
     OUTPUT_DIR: str = "output"
+    # Offline intake directory for air-gapped runs. Operators drop raw
+    # ``.vsix`` files here (no marketplace egress); the Offline tab scans it
+    # and ingests each package through the same hardened extract path as a
+    # marketplace download. Lives *under* EXTENSION_DIR so the existing
+    # ``./extensions`` bind mount already exposes it inside the API container
+    # — no compose change required. Overridable via ``PROJECT_OFFLINE_DIR``.
+    OFFLINE_DIR: str = "extensions/offline"
 
     model_config = SettingsConfigDict(
         env_file=".env",
