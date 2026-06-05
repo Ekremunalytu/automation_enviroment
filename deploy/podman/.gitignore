@@ -1,0 +1,2 @@
+# Build output — image tarballs + assembled bundles are large, never commit them.
+dist/
