@@ -82,11 +82,27 @@ _REDACTION_PATTERNS: Final[tuple[tuple[str, re.Pattern[str], str], ...]] = (
 
 
 def redact_secrets(value: str) -> str:
-    """Apply the W8-6 redaction pass; idempotent."""
+    """Apply the W8-6 redaction pass; idempotent.
+
+    The cross-line ``private_key`` class is redacted by
+    ``_redact_private_key_spans`` (a linear marker-pairing scan) rather
+    than the lazy ``BEGIN(?:.|\\n)*?END`` regex in ``_REDACTION_PATTERNS``:
+    that regex retries forward from every BEGIN, so extension-controlled
+    output stuffed with many *unmatched* BEGIN markers drives
+    ``pattern.sub`` into quadratic O(N*L) latency (v1 finding F-1 / Codex
+    audit M1). The scanner kills that backtracking while still collapsing
+    a well-formed span of any length — no size cap, so large PEM chains
+    stay fully redacted on the report path. Single-line classes keep
+    their per-pattern ``sub`` pass.
+    """
     if not value:
         return value
-    redacted = value
+    redacted = _redact_private_key_spans(value)
     for _class, pattern, replacement in _REDACTION_PATTERNS:
+        if _class == "private_key":
+            # Already handled by the linear scanner above; running the
+            # lazy cross-line regex here would re-arm the F-1 backtracking.
+            continue
         redacted = pattern.sub(replacement, redacted)
     return redacted
 
@@ -148,6 +164,59 @@ def _redact_private_key_bounded(value: str) -> str:
         else:
             parts.append(_PRIVATE_KEY_PLACEHOLDER)
             pos = end.end()
+
+
+def _redact_private_key_spans(value: str) -> str:
+    """Collapse every BEGIN..END private-key span to a placeholder via a
+    linear, two-pass marker scan — no span-length cap.
+
+    Replicates the semantics of the legacy lazy ``BEGIN(?:.|\\n)*?END``
+    regex (each BEGIN pairs with the next END that follows it; a BEGIN
+    nested inside an already-collapsed span is consumed; a BEGIN with no
+    following END is left literal) but in O(L) time. ``finditer`` walks
+    the input once per marker class and the pairing loop advances a
+    single monotonic cursor, so adversarial input with many *unmatched*
+    BEGIN markers can no longer drive the quadratic O(N*L) backtracking
+    the lazy ``re.sub`` exhibits (v1 finding F-1 / Codex audit M1).
+
+    Unlike ``_redact_private_key_bounded`` — the 16 KB-window scanner
+    used by the per-line ``redact_multiline_secrets`` pre-pass — this
+    scanner imposes no span-length cap, so a well-formed PEM chain of any
+    size still collapses fully and large key bytes never reach the
+    persisted report. Idempotent: the placeholder carries no markers.
+    """
+    if not value:
+        return value
+    begins = list(_PRIVATE_KEY_BEGIN_RE.finditer(value))
+    if not begins:
+        return value
+    ends = list(_PRIVATE_KEY_END_RE.finditer(value))
+    if not ends:
+        return value
+
+    parts: list[str] = []
+    pos = 0
+    end_idx = 0
+    for begin in begins:
+        if begin.start() < pos:
+            # Nested inside a span already collapsed above (the lazy
+            # regex consumed inner BEGIN markers the same way).
+            continue
+        # Advance to the first END that starts at/after this BEGIN ends.
+        while end_idx < len(ends) and ends[end_idx].start() < begin.end():
+            end_idx += 1
+        if end_idx >= len(ends):
+            # No END remains for this BEGIN or any later one — leave the
+            # remaining BEGIN markers literal, matching the lazy regex's
+            # no-match behaviour on an unterminated span.
+            break
+        end = ends[end_idx]
+        parts.append(value[pos : begin.start()])
+        parts.append(_PRIVATE_KEY_PLACEHOLDER)
+        pos = end.end()
+        end_idx += 1
+    parts.append(value[pos:])
+    return "".join(parts)
 
 
 def redact_multiline_secrets(value: str) -> str:
