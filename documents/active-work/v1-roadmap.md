@@ -43,15 +43,16 @@ deploy. But **not yet trustworthy per-run.** Three concentrated, verified gaps
 separate "impressive prototype" from "tool an analyst trusts daily":
 
 1. **The verdict is not trustworthy per-run** — catch-rate is _asserted_ against
-   8 self-fulfilling synthetic canaries, not _measured_; the `run_quality` anchor
-   flickers `degraded`/`inconclusive` on identical inputs; no `vsix_sha256` binds
-   a report to the bytes scanned (no hash column on `analysis_job.py` /
-   `extension.py`).
+   the 7 A-series synthetic canaries plus the demo runnable canary, not
+   _measured_; the `run_quality` anchor flickers `degraded`/`inconclusive` on
+   identical inputs; no `vsix_sha256` binds a report to the bytes scanned (no
+   hash column on `analysis_job.py` / `extension.py`).
 2. **The tool can be hung or fooled by its own input** — F-1 ReDoS is live on the
-   verdict-producing path (`report_builder.py:292/294` → unbounded `private_key`
-   regex at `evidence.py:56`; the bounded scanner exists but is unreachable from
-   `redact_secrets`); a failed/evaded run renders **green** because the correct
-   5-state `ui/src/features/reports/verdictColors.ts` palette is dead code.
+   verdict-producing path (`executor/flows/playwright/report_builder.py:292/294`
+   → unbounded `private_key` regex at `evidence.py:56`; the bounded scanner
+   exists but is unreachable from `redact_secrets`); a failed/evaded run renders
+   **green** because the correct 5-state `ui/src/features/reports/verdictColors.ts`
+   palette is dead code.
 3. **It does not survive a normal workday** — the 2nd analyze on one long-lived
    appliance container deterministically fails at `reset_sandbox`
    (`reload_vscode.py` has no retry, single `return 1`); a wedged worker needs an
@@ -74,7 +75,7 @@ three prioritization judges); B8-B10 are the **credibility/operability floor**.
 | **B5** | Verdict bound to the bytes | `vsix_sha256` computed at intake, persisted on `AnalysisJob`, stamped into the report; two byte-different same-version VSIX are not conflated. |
 | **B6** | Verdict reproducible | Same VSIX run twice → same malicious/clean/inconclusive verdict; `run_quality_reasons` partitioned into behavioral vs harness-health; residual variance is a labeled band, not silent flicker; N-run determinism test on the reference target. |
 | **B7** | Structural blind spots can't read CLEAN | (a) OS-gated (win32/darwin) family on the Linux sandbox surfaces "dynamic platform-blind", not a clean dynamic pass; (b) ADR-0015 E1/E2 evasion _detection_ recorders route probe-then-dormant to inconclusive/suspicious. |
-| **B8** | Catch-rate measured, not asserted | A small multi-variant labeled corpus (beyond the 8 canaries) + the real benign extensions run end-to-end emit aggregate caught/missed/FP per family; a benign-FP gating scan asserts an explicit FP budget. |
+| **B8** | Catch-rate measured, not asserted | A small multi-variant labeled corpus (beyond the 7 A-series canaries plus the demo runnable canary) + the real benign extensions run end-to-end emit aggregate caught/missed/FP per family; a benign-FP gating scan asserts an explicit FP budget. |
 | **B9** | Verdict can leave the tool | One backend endpoint returns a self-contained verdict+findings+mitigations+evidence artifact (JSON now, printable HTML next), downloadable offline with `Content-Disposition`; Export button on ReportsPage. |
 | **B10** | Honest install & identity | `/api/health` probes DB (`SELECT 1`) + api container healthcheck; one coherent version source, git-tagged, stamped into every report; `extrace-ctl.sh backup`/`restore` so scan history survives an upgrade mistake. |
 
@@ -90,10 +91,10 @@ batch.
 
 | # | Stream | Theme | Closes | v1.0? |
 |---|---|---|---|---|
-| **1** | `reliability-self-defense` | Un-hangable, un-wedgeable by its own adversarial input | B1, B3 (+ F-2/F-3) | yes |
+| **1** | `reliability-self-defense` | Un-hangable, un-wedgeable, never silently false-clean | B1, B3, B4 (+ F-2/F-3) | yes |
 | **2** | `reliability-multi-analyze` | Same appliance survives analyze #2, #3 on one container | B2 | yes |
 | **3** | `verdict-provenance-reproducibility` (spine) | Same VSIX twice → same verdict; verdict bound to bytes | B5, B6 | yes |
-| **4** | `operator-verdict-legibility` | Verdict unmistakable, actionable, exportable | B4, B9 | yes |
+| **4** | `operator-report-export` | Verdict can leave the tool as an actionable artifact | B9 | yes |
 | **5** | `release-identity-ops` | Know the build, trust the green light, never lose history | B10 | yes |
 | **6** | `measured-catch-rate` (mission core) | Detection asserted → measured; blind spots can't read CLEAN | B7, B8 | yes |
 | **7** | `sequential-batch-corpus` | Point at a set, walk away, results table | — | post-v1.0 |
@@ -113,11 +114,12 @@ Branch `feat/reliability-self-defense`, tracker
 | Sub-item | Files | Acceptance |
 |---|---|---|
 | **S0** doc-reconcile | new tracker + `CLAUDE.md` / `phase.json` active-stream pointer flip | stream registered as the named successor to `podman-airgapped-deploy`; audit findings recorded as the pre-close checklist (§6 below). |
-| **S1** kill F-1 at source `[BUG report-builder-unbounded-pem-redact]` | `packages/analysis_contracts/evidence.py:56-62,84-91`; verify `report_builder.py:292/294` now bounded transitively | replace the lazy `(?:.\|\n)*?` `private_key` pattern in `_REDACTION_PATTERNS` so `redact_secrets` itself is bounded (route through `_redact_private_key_bounded`); new regression test asserts `redact_secrets` stays under a time ceiling on the 200-unmatched-`BEGIN` payload **via the report-build path**. |
+| **S1** kill F-1 at source `[BUG report-builder-unbounded-pem-redact]` | `packages/analysis_contracts/evidence.py:56-62,84-91`; verify `executor/flows/playwright/report_builder.py:292/294` now bounded transitively | replace the lazy `(?:.\|\n)*?` `private_key` pattern in `_REDACTION_PATTERNS` so `redact_secrets` itself is bounded (route through `_redact_private_key_bounded`); new regression test asserts `redact_secrets` stays under a time ceiling on the 200-unmatched-`BEGIN` payload **via the report-build path**. |
 | **S2** heartbeat + reaper + terminal-write guard `[BUG wedged-job-no-same-boot-recovery]` | `workflows/marketplace/analysis_execution.py:122`; `analysis_service.py:600/607`; `appcore/storage/crud_ops/analysis_jobs/lifecycle.py`; alembic (heartbeat column) | heartbeat tick writes `last_heartbeat_at`; stale-running reaper releases the single-active lock **same-boot**; narrow boundary guard in `run_analysis_job` writes `fail_job` then **re-raises** (no bare except; new stage exceptions join `ANALYZE_ERROR_TYPES` + HTTP map + routing test). |
 | **S3** F-2 + F-3 `[FOLLOWUP offline-vsix-size-bound]` + `[BUG import-graph-relative-import-gate-gap]` | `workflows/marketplace/offline.py:178,229`; `tests/architecture/test_import_graph_facades.py:38` | pre-read `st_size` cap (reuse the `vsix_max_uncompressed_size` family — no new knob) → clean 413/422 before `read_bytes()`; resolve `node.level` relative imports instead of `continue`. |
-| **S4** ext-host ReDoS sweep `[FOLLOWUP exthost-logparse-redos-bounds-sweep]` | `executor/host.py:65`; `runtime_capture/extension_host_strace_parse.py`; `health/handshake.py:37` | audit the ext-host parse/marker regex family for catastrophic-backtracking shape; document the finding (audit reclassifies as line-anchored/linear → per-line length cap is hygiene, not a v1 blocker) so the standing "unaudited" flag is formally closed. **Non-blocking.** |
-| **S5** close-out PR | tracker freeze, pre-close checklist resolution | all audit findings resolved/waived with evidence before merge. **PR only on explicit user go-ahead.** |
+| **S4** stop false-clean UI tone `[BUG verdict-color-inconclusive-renders-clean]` | `ui/src/features/reports/verdictColors.ts`; `ui/src/features/reports/ReportsPage.tsx`; `ui/src/features/simulation/SimulationPage.tsx` | wire the 5-state palette into the report header badge, rationale chips, score cell, and simulation run-health surfaces; INCONCLUSIVE is a non-green STOP; snapshot tests assert `inconclusive` / `clean_with_notes` never render the clean tone; add the compact legend + recommended-action copy. |
+| **S5** ext-host ReDoS sweep `[FOLLOWUP exthost-logparse-redos-bounds-sweep]` | `executor/host.py:65`; `runtime_capture/extension_host_strace_parse.py`; `health/handshake.py:37` | audit the ext-host parse/marker regex family for catastrophic-backtracking shape; document the finding (audit reclassifies as line-anchored/linear → per-line length cap is hygiene, not a v1 blocker) so the standing "unaudited" flag is formally closed. **Non-blocking.** |
+| **S6** close-out PR | tracker freeze, pre-close checklist resolution | all audit findings resolved/waived with evidence before merge. **PR only on explicit user go-ahead.** |
 
 **Regression surface:** CRSC-2 / W13-7 (the redaction hardening this completes);
 ADR 0010 (observability — heartbeat is a `run_id`/`attempt_id`-adjacent signal);
@@ -128,23 +130,26 @@ HTTP-map contract). After the alembic change, `alembic-upgrade extrace` (5432) o
 ## 6. Pre-Close Checklist — Fresh Audit Findings (2026-06-08)
 
 Recorded so they are never lost; bucketed, evidence-cited, none-blocking flagged
-(per the audit-findings → pre-close-checklist practice). Full backlog entries in
-`POST_POC_BACKLOG.md` "Newly Captured (v1.0 roadmap intake 2026-06-08)".
+(per the audit-findings → pre-close-checklist practice). Stable backlog IDs live
+in `POST_POC_BACKLOG.md` "Newly Captured (v1.0 roadmap intake 2026-06-08)";
+the detailed intake snapshot is archived at
+`documents/archive/backlog/v1-roadmap-intake-2026-06-08.md`.
 
 | Finding | Severity | Disposition | Evidence |
 |---|---|---|---|
-| F-1 unbounded PEM redact on ext-host window | Medium | Stream 1 / S1 — **blocking** | `report_builder.py:292/294`, `evidence.py:56-62,84` |
+| F-1 unbounded PEM redact on ext-host window | Medium | Stream 1 / S1 — **blocking** | `executor/flows/playwright/report_builder.py:292/294`, `evidence.py:56-62,84` |
 | F-2 unbounded offline `.vsix` read | Low | Stream 1 / S3 — blocking-this-stream | `offline.py:178/229` |
 | F-3 import-graph gate skips relative imports | Low | Stream 1 / S3 — blocking-this-stream | `test_import_graph_facades.py:38` |
-| ext-host log-parse / strace ReDoS sweep | uncharacterized | Stream 1 / S4 — **non-blocking** (audit reclassified linear) | `extension_host_log_parse.py`, `extension_host_strace_parse.py` |
+| `[BUG verdict-color-inconclusive-renders-clean]` | High (safety) | Stream 1 / S4 — **blocking** | `verdictColors.ts`, `ReportsPage.tsx:85/191`, `SimulationPage.tsx:391` |
+| ext-host log-parse / strace ReDoS sweep | uncharacterized | Stream 1 / S5 — **non-blocking** (audit reclassified linear) | `extension_host_log_parse.py`, `extension_host_strace_parse.py` |
 | `[FOLLOWUP vsix-entry-log-sanitization]` (raw entry names in logs) | Med/High | **Stream 4** (alongside offline skip-reason UX, same files) | `client.py:269/319` |
 
 ## 7. Stream → Stable ID Map
 
-- **Stream 1** — `[BUG report-builder-unbounded-pem-redact]`, `[BUG wedged-job-no-same-boot-recovery]`, `[FOLLOWUP offline-vsix-size-bound]`, `[BUG import-graph-relative-import-gate-gap]`, `[FOLLOWUP exthost-logparse-redos-bounds-sweep]`.
+- **Stream 1** — `[BUG report-builder-unbounded-pem-redact]`, `[BUG wedged-job-no-same-boot-recovery]`, `[FOLLOWUP offline-vsix-size-bound]`, `[BUG import-graph-relative-import-gate-gap]`, `[BUG verdict-color-inconclusive-renders-clean]`, `[FOLLOWUP exthost-logparse-redos-bounds-sweep]`.
 - **Stream 2** — `[FOLLOWUP sandbox-reset-stale-state-multi-analyze]` (existing).
 - **Stream 3** — `[GOAL vsix-content-sha256-provenance]`, `[GOAL verdict-reproducibility-anchor]`.
-- **Stream 4** — `[BUG verdict-color-inconclusive-renders-clean]`, `[GOAL report-export-artifact]`, `[FOLLOWUP vsix-entry-log-sanitization]` (existing), offline skip-reason UX.
+- **Stream 4** — `[GOAL report-export-artifact]`, `[FOLLOWUP vsix-entry-log-sanitization]` (existing), offline skip-reason UX.
 - **Stream 5** — `[CLEANUP version-identity-coherence]`, `[GOAL api-health-db-probe]`, `[GOAL podman-backup-restore]`.
 - **Stream 6** — `[GOAL measured-catch-rate-corpus]`, `[GOAL benign-false-positive-gate]`, `[GOAL platform-blind-verdict-annotation]`, `[GOAL adr-0015-e1-e2-evasion-detection]`.
 - **Stream 7** (post-v1.0) — `[GOAL sequential-batch-corpus]`.
