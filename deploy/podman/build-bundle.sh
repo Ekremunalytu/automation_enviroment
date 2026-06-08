@@ -56,6 +56,7 @@ case "$HOST_ARCH" in
 esac
 
 cd "$REPO"
+rm -rf "$STAGING"
 mkdir -p "$STAGING"
 
 # --- Build the four application images -------------------------------------

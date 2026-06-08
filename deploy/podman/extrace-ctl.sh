@@ -246,10 +246,29 @@ resolve_ctr() {
   esac
 }
 
-cmd_status() { podman ps --filter "name=automation_" --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'; }
-cmd_logs()   { podman logs -f --tail 100 "$(resolve_ctr "${1:-api}")"; }
-cmd_exec()   { local c; c="$(resolve_ctr "${1:?usage: exec <svc> [cmd...]}")"; shift; podman exec -it "$c" "${@:-bash}"; }
-cmd_migrate(){ need_root migrate; podman exec "$C_API" alembic upgrade head; }
+cmd_status() {
+  need_root status
+  have_podman
+  podman ps --filter "name=automation_" --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
+}
+cmd_logs() {
+  need_root logs
+  have_podman
+  podman logs -f --tail 100 "$(resolve_ctr "${1:-api}")"
+}
+cmd_exec() {
+  need_root exec
+  have_podman
+  local c
+  c="$(resolve_ctr "${1:?usage: exec <svc> [cmd...]}")"
+  shift
+  podman exec -it "$c" "${@:-bash}"
+}
+cmd_migrate() {
+  need_root migrate
+  have_podman
+  podman exec "$C_API" alembic upgrade head
+}
 
 case "${1:-}" in
   load)    cmd_load ;;
