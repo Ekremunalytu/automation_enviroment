@@ -1,0 +1,200 @@
+# ExTrace v1.0 Roadmap — From Finished Prototype To A Tool An Analyst Trusts Daily
+
+`Last Updated: 2026-06-08`
+
+`Last merged weekly: W22 — closed synthetically on the week22 branch, merged to main via PR #31 week22 -> main 2026-05-28 via 1399f82.`
+
+`Active stream: podman-airgapped-deploy — merged to main from feat/podman-airgapped-deploy; air-gapped Podman deployment and human-readable documentation. Tracker: deploy/podman/README.md.`
+
+`Sources of truth: documents/REFACTOR_STATUS.md (state) · documents/POST_POC_BACKLOG.md (deferred) · documents/REFACTOR_OPTIMIZATION.md §20 (last weekly plan) · documents/phase.json (weekly pointer + active stream).`
+
+`Phase: PLANNING state — forward roadmap after podman-airgapped-deploy. Not yet the active stream; the first stream (reliability-self-defense) is opened only on explicit user go-ahead.`
+
+`Owner: ekrem`
+
+> **Authored 2026-06-08.** Direction set by the user after the project report
+> was delivered: continue ExTrace as a **real, daily-usable, single-operator
+> defensive tool** (not a demo, not research-only, not a handoff). Built via two
+> multi-agent passes — a strategic-fork bake-off (health / security / detection /
+> field-readiness, judged on mission/feasibility/leverage) then a 7-dimension
+> real-tool gap assessment + single-maintainer prioritization + synthesis. Every
+> load-bearing claim below was verified against `main` @ `441cb72`.
+
+This is the canonical planning tracker for the v1.0 arc. It supersedes the
+completed `W18-W22-roadmap.md` window. Streams land in the post-W22 **named
+stream** convention (branch + active-work tracker + ADR(s) + close-out PR), not
+the weekly W-pointer cadence.
+
+---
+
+## 1. Goal
+
+Turn a finished-grade prototype into a tool a security analyst trusts on the
+**first malicious extension they feed it**. The gap is not breadth
+(`coverage_summary.missing_capabilities == []` already) — it is **trust,
+survival, and honesty** of a single verdict on a single extension.
+
+## 2. Where ExTrace Stands (2026-06-08)
+
+Impressive, finished-grade prototype — three-layer detection (s1-s20 static +
+Semgrep advisory + A1-A8 dynamic), a real Playwright-driven sandbox, a 6-tab
+console, ~2100 tests, 16 ADRs, 63 invariant gates, a real air-gapped Podman
+deploy. But **not yet trustworthy per-run.** Three concentrated, verified gaps
+separate "impressive prototype" from "tool an analyst trusts daily":
+
+1. **The verdict is not trustworthy per-run** — catch-rate is _asserted_ against
+   8 self-fulfilling synthetic canaries, not _measured_; the `run_quality` anchor
+   flickers `degraded`/`inconclusive` on identical inputs; no `vsix_sha256` binds
+   a report to the bytes scanned (no hash column on `analysis_job.py` /
+   `extension.py`).
+2. **The tool can be hung or fooled by its own input** — F-1 ReDoS is live on the
+   verdict-producing path (`report_builder.py:292/294` → unbounded `private_key`
+   regex at `evidence.py:56`; the bounded scanner exists but is unreachable from
+   `redact_secrets`); a failed/evaded run renders **green** because the correct
+   5-state `ui/src/features/reports/verdictColors.ts` palette is dead code.
+3. **It does not survive a normal workday** — the 2nd analyze on one long-lived
+   appliance container deterministically fails at `reset_sandbox`
+   (`reload_vscode.py` has no retry, single `return 1`); a wedged worker needs an
+   API restart to recover (no heartbeat column).
+
+None are breadth problems. All are concentrated, verified, mostly-small fixes.
+
+## 3. The v1.0 Bar (north star — 10 checkable conditions)
+
+Test for each: _does its absence let an analyst be wrong, hung, or fooled while
+believing the tool is fine?_ B1-B7 are the **trust core** (unanimous across the
+three prioritization judges); B8-B10 are the **credibility/operability floor**.
+
+| # | v1.0 condition | Checkable acceptance |
+|---|---|---|
+| **B1** | Un-hangable by its own input | No adversarial extension output (200+ unmatched `BEGIN` markers in a 500-line window) stalls report build; F-1 closed at source; regression test targets `redact_secrets` via the report path. |
+| **B2** | Survives back-to-back use | 2nd/3rd analyze on the _same_ long-lived container reach `install_extension`; lifecycle-harness test asserts it with no container restart. |
+| **B3** | Never silently wedges | A hung/out-of-taxonomy-crashing worker auto-recovers and releases the single-active queue _without_ an API restart (heartbeat + stale-running reaper + terminal-write guard). |
+| **B4** | INCONCLUSIVE can never read as CLEAN | All 5 verdict states colored distinctly; inconclusive is a non-green STOP; snapshot test asserts inconclusive/clean_with_notes never render the clean tone; legend + recommended-action present. |
+| **B5** | Verdict bound to the bytes | `vsix_sha256` computed at intake, persisted on `AnalysisJob`, stamped into the report; two byte-different same-version VSIX are not conflated. |
+| **B6** | Verdict reproducible | Same VSIX run twice → same malicious/clean/inconclusive verdict; `run_quality_reasons` partitioned into behavioral vs harness-health; residual variance is a labeled band, not silent flicker; N-run determinism test on the reference target. |
+| **B7** | Structural blind spots can't read CLEAN | (a) OS-gated (win32/darwin) family on the Linux sandbox surfaces "dynamic platform-blind", not a clean dynamic pass; (b) ADR-0015 E1/E2 evasion _detection_ recorders route probe-then-dormant to inconclusive/suspicious. |
+| **B8** | Catch-rate measured, not asserted | A small multi-variant labeled corpus (beyond the 8 canaries) + the real benign extensions run end-to-end emit aggregate caught/missed/FP per family; a benign-FP gating scan asserts an explicit FP budget. |
+| **B9** | Verdict can leave the tool | One backend endpoint returns a self-contained verdict+findings+mitigations+evidence artifact (JSON now, printable HTML next), downloadable offline with `Content-Disposition`; Export button on ReportsPage. |
+| **B10** | Honest install & identity | `/api/health` probes DB (`SELECT 1`) + api container healthcheck; one coherent version source, git-tagged, stamped into every report; `extrace-ctl.sh backup`/`restore` so scan history survives an upgrade mistake. |
+
+**v1.0 = B1-B10 closed (Streams 1-6). B8-B10 are gated AFTER the trust core**
+because measuring/scaling on a flickering, un-provable verdict manufactures false
+confidence.
+
+## 4. Phased Roadmap — Named Streams
+
+Sequenced by **dependency + de-risking**: reliability and reproducibility BEFORE
+measurement; validation corpus BEFORE any catch-rate claim; sandbox-reuse BEFORE
+batch.
+
+| # | Stream | Theme | Closes | v1.0? |
+|---|---|---|---|---|
+| **1** | `reliability-self-defense` | Un-hangable, un-wedgeable by its own adversarial input | B1, B3 (+ F-2/F-3) | yes |
+| **2** | `reliability-multi-analyze` | Same appliance survives analyze #2, #3 on one container | B2 | yes |
+| **3** | `verdict-provenance-reproducibility` (spine) | Same VSIX twice → same verdict; verdict bound to bytes | B5, B6 | yes |
+| **4** | `operator-verdict-legibility` | Verdict unmistakable, actionable, exportable | B4, B9 | yes |
+| **5** | `release-identity-ops` | Know the build, trust the green light, never lose history | B10 | yes |
+| **6** | `measured-catch-rate` (mission core) | Detection asserted → measured; blind spots can't read CLEAN | B7, B8 | yes |
+| **7** | `sequential-batch-corpus` | Point at a set, walk away, results table | — | post-v1.0 |
+| **8** | `linux-host-hardening-evasion` | Shrink executor blast radius (Fedora-unblocked); extend evasion | — | post-v1.0 |
+
+**Spine decision:** Stream 3 (reproducibility/provenance) precedes Stream 6
+(measurement) — four downstream streams depend on a non-flickering, build-
+attributable anchor. Getting that order wrong is the one mistake that lets the
+project measure, calibrate, and scale on sand.
+
+## 5. First Stream In Detail — `reliability-self-defense`
+
+Start point. Pure-reliability, mostly S/M, zero dependency, highest blast-radius.
+Branch `feat/reliability-self-defense`, tracker
+`documents/active-work/reliability-self-defense.md` (created at stream open).
+
+| Sub-item | Files | Acceptance |
+|---|---|---|
+| **S0** doc-reconcile | new tracker + `CLAUDE.md` / `phase.json` active-stream pointer flip | stream registered as the named successor to `podman-airgapped-deploy`; audit findings recorded as the pre-close checklist (§6 below). |
+| **S1** kill F-1 at source `[BUG report-builder-unbounded-pem-redact]` | `packages/analysis_contracts/evidence.py:56-62,84-91`; verify `report_builder.py:292/294` now bounded transitively | replace the lazy `(?:.\|\n)*?` `private_key` pattern in `_REDACTION_PATTERNS` so `redact_secrets` itself is bounded (route through `_redact_private_key_bounded`); new regression test asserts `redact_secrets` stays under a time ceiling on the 200-unmatched-`BEGIN` payload **via the report-build path**. |
+| **S2** heartbeat + reaper + terminal-write guard `[BUG wedged-job-no-same-boot-recovery]` | `workflows/marketplace/analysis_execution.py:122`; `analysis_service.py:600/607`; `appcore/storage/crud_ops/analysis_jobs/lifecycle.py`; alembic (heartbeat column) | heartbeat tick writes `last_heartbeat_at`; stale-running reaper releases the single-active lock **same-boot**; narrow boundary guard in `run_analysis_job` writes `fail_job` then **re-raises** (no bare except; new stage exceptions join `ANALYZE_ERROR_TYPES` + HTTP map + routing test). |
+| **S3** F-2 + F-3 `[FOLLOWUP offline-vsix-size-bound]` + `[BUG import-graph-relative-import-gate-gap]` | `workflows/marketplace/offline.py:178,229`; `tests/architecture/test_import_graph_facades.py:38` | pre-read `st_size` cap (reuse the `vsix_max_uncompressed_size` family — no new knob) → clean 413/422 before `read_bytes()`; resolve `node.level` relative imports instead of `continue`. |
+| **S4** ext-host ReDoS sweep `[FOLLOWUP exthost-logparse-redos-bounds-sweep]` | `executor/host.py:65`; `runtime_capture/extension_host_strace_parse.py`; `health/handshake.py:37` | audit the ext-host parse/marker regex family for catastrophic-backtracking shape; document the finding (audit reclassifies as line-anchored/linear → per-line length cap is hygiene, not a v1 blocker) so the standing "unaudited" flag is formally closed. **Non-blocking.** |
+| **S5** close-out PR | tracker freeze, pre-close checklist resolution | all audit findings resolved/waived with evidence before merge. **PR only on explicit user go-ahead.** |
+
+**Regression surface:** CRSC-2 / W13-7 (the redaction hardening this completes);
+ADR 0010 (observability — heartbeat is a `run_id`/`attempt_id`-adjacent signal);
+the analyze error taxonomy (S2's guard must not break the closed-taxonomy →
+HTTP-map contract). After the alembic change, `alembic-upgrade extrace` (5432) or
+`make check-all` fails `UndefinedColumn` (dev-DB gotcha).
+
+## 6. Pre-Close Checklist — Fresh Audit Findings (2026-06-08)
+
+Recorded so they are never lost; bucketed, evidence-cited, none-blocking flagged
+(per the audit-findings → pre-close-checklist practice). Full backlog entries in
+`POST_POC_BACKLOG.md` "Newly Captured (v1.0 roadmap intake 2026-06-08)".
+
+| Finding | Severity | Disposition | Evidence |
+|---|---|---|---|
+| F-1 unbounded PEM redact on ext-host window | Medium | Stream 1 / S1 — **blocking** | `report_builder.py:292/294`, `evidence.py:56-62,84` |
+| F-2 unbounded offline `.vsix` read | Low | Stream 1 / S3 — blocking-this-stream | `offline.py:178/229` |
+| F-3 import-graph gate skips relative imports | Low | Stream 1 / S3 — blocking-this-stream | `test_import_graph_facades.py:38` |
+| ext-host log-parse / strace ReDoS sweep | uncharacterized | Stream 1 / S4 — **non-blocking** (audit reclassified linear) | `extension_host_log_parse.py`, `extension_host_strace_parse.py` |
+| `[FOLLOWUP vsix-entry-log-sanitization]` (raw entry names in logs) | Med/High | **Stream 4** (alongside offline skip-reason UX, same files) | `client.py:269/319` |
+
+## 7. Stream → Stable ID Map
+
+- **Stream 1** — `[BUG report-builder-unbounded-pem-redact]`, `[BUG wedged-job-no-same-boot-recovery]`, `[FOLLOWUP offline-vsix-size-bound]`, `[BUG import-graph-relative-import-gate-gap]`, `[FOLLOWUP exthost-logparse-redos-bounds-sweep]`.
+- **Stream 2** — `[FOLLOWUP sandbox-reset-stale-state-multi-analyze]` (existing).
+- **Stream 3** — `[GOAL vsix-content-sha256-provenance]`, `[GOAL verdict-reproducibility-anchor]`.
+- **Stream 4** — `[BUG verdict-color-inconclusive-renders-clean]`, `[GOAL report-export-artifact]`, `[FOLLOWUP vsix-entry-log-sanitization]` (existing), offline skip-reason UX.
+- **Stream 5** — `[CLEANUP version-identity-coherence]`, `[GOAL api-health-db-probe]`, `[GOAL podman-backup-restore]`.
+- **Stream 6** — `[GOAL measured-catch-rate-corpus]`, `[GOAL benign-false-positive-gate]`, `[GOAL platform-blind-verdict-annotation]`, `[GOAL adr-0015-e1-e2-evasion-detection]`.
+- **Stream 7** (post-v1.0) — `[GOAL sequential-batch-corpus]`.
+- **Stream 8** (post-v1.0) — `[GOAL container-hardening-ratchet-down]` (ADR 0013 §Deferred; W22-6 deferred-to-user), `[GOAL adr-0015-e3-e5-evasion-detection]`, `[FOLLOWUP harness-secret-distribution-redesign]` (existing).
+
+## 8. Non-Goals (scope honesty)
+
+Staying "a real single-operator tool" means we will **NOT** build:
+
+- No distributed systems / queues / workers (no Kafka/Redis/Celery, no parallel
+  sandboxes, no k8s). Batch (Stream 7) = one in-process serial drain loop only.
+- No multi-tenant / SaaS / team features (no accounts/RBAC/shared-workspaces).
+  One operator, one appliance, loopback-default (ADR 0007/0011).
+- No SIEM/CEF/STIX/syslog/webhook emitters — the self-contained export artifact
+  (B9) is the integration bridge.
+- No "real malware" corpus — v1 corpus stays strictly synthetic/declawed
+  (ADR 0004 + detection-design SAFETY); multi-variant near-misses, not live
+  samples.
+- No full ADR-0015 E1-E5 _masking_ suite at v1 — detection recorders only
+  (E1/E2 in v1, E3-E5 post-v1.0).
+- Deferred-not-cut ergonomics (post-v1.0): triage/disposition state, report diff,
+  preflight/doctor screen, scan CLI, folder/installed-extension intake,
+  marketplace-`latest` resolution.
+- No new dependencies, no DI/plugin frameworks, no microservices. 4-pillar
+  modular monolith unchanged.
+
+## 9. Biggest Risk
+
+Shipping a tool that is **broad but not trustworthy** — declaring v1.0 on
+detection breadth while the per-run verdict remains un-provable, un-reproducible,
+and silently-false-clean. Breadth _looks_ finished; the trust defects are small
+and invisible until an analyst gets burned (a malicious extension that hangs
+report build, a re-published malicious update conflated with a clean one, a failed
+run rendered green, a verdict that flips on re-run, an evasive sample read as
+CLEAN). Trust, once lost, does not come back from more rules. The sequence
+mitigates this structurally by refusing to measure or scale before the verdict is
+trustworthy.
+
+## 10. Open Questions (resolve before sequencing the later streams)
+
+1. **Is the Fedora box physically in hand?** Gates the _live_ acceptance of
+   Stream 5 (backup/restore, health on the real host) and Stream 8 (container
+   ratchet-down kernel/seccomp validation). The macOS dev host can land the
+   _code_ but not the live proof.
+2. **Is there a labeled malicious/benign extension set to measure catch-rate?**
+   Gates Stream 6. v1 needs only a small multi-variant synthetic/declawed set
+   beyond the 8 canaries + the real benign extensions already in `extensions/`.
+
+## 11. Source
+
+Workflow synthesis `extrace-real-tool-roadmap` (7-dimension gap assessment + 3
+prioritization judges + synthesis), 2026-06-08. All file/line claims verified
+against `main` @ `441cb72`.

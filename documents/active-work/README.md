@@ -25,6 +25,19 @@ points to it.
 
 ## Files
 
+- `v1-roadmap.md`
+  - **Forward roadmap (PLANNING state) — the v1.0 arc that turns ExTrace
+    into a real, daily-usable single-operator defensive tool.** User
+    direction `2026-06-08` after the project report was delivered.
+    Supersedes the completed `W18-W22-roadmap.md` window. Carries the
+    v1.0 bar (B1-B10), the 8 named streams (Streams 1-6 = v1.0;
+    7-8 = post-v1.0), the first stream (`reliability-self-defense`) in
+    detail, and the fresh-audit pre-close checklist. Not yet the active
+    stream — `podman-airgapped-deploy` stays active until
+    `reliability-self-defense` opens on explicit go-ahead. New stable
+    IDs recorded in
+    [`POST_POC_BACKLOG.md`](../POST_POC_BACKLOG.md) "Newly Captured
+    (v1.0 roadmap intake 2026-06-08)".
 - `W22-coverage-promotion-hard-tier.md`
   - **Closed phase — closed synthetically on the `week22` branch
     `2026-05-28` and merged to main via PR #31 `week22 -> main` `1399f82`.** W22
