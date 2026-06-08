@@ -37,6 +37,10 @@ from workflows.extension_catalog.manifest_reader import (
     get_package_json,
 )
 from workflows.marketplace import client as marketplace_client
+from workflows.security_settings.defaults import (
+    VSIX_MAX_UNCOMPRESSED_SIZE_KEY,
+    VSIX_THRESHOLD_DEFAULTS,
+)
 
 logger = get_extrace_logger("extrace.workflows.marketplace.offline")
 
@@ -46,6 +50,12 @@ logger = get_extrace_logger("extrace.workflows.marketplace.offline")
 _MAX_MANIFEST_BYTES = 8 * 1024 * 1024
 
 _VSIX_MANIFEST_ENTRY = "extension/package.json"
+
+# Fallback outer size ceiling used when a caller does not thread the
+# operator-tuned value (e.g. unit tests). Production callers resolve the
+# live ``vsix_max_uncompressed_size`` from operator settings and pass it
+# in, so the pre-read gate and the extraction-time guard agree.
+_DEFAULT_MAX_UNCOMPRESSED_SIZE = VSIX_THRESHOLD_DEFAULTS[VSIX_MAX_UNCOMPRESSED_SIZE_KEY]
 
 
 class OfflineIntakeError(ValueError):
@@ -159,7 +169,34 @@ def _safe_offline_path(filename: str) -> Path:
     return candidate
 
 
-def list_offline_extensions() -> list[OfflineExtension]:
+def _enforce_pre_read_size(path: Path, max_uncompressed_size: int) -> int:
+    """Return the archive's on-disk size, raising when it is over-limit.
+
+    F-2 outer bound: a ``.vsix`` is a ZIP, so its on-disk (compressed)
+    size can never exceed the *uncompressed* payload. A file already
+    larger than ``max_uncompressed_size`` is therefore guaranteed to trip
+    the extraction-time ``vsix_max_uncompressed_size`` guard — reject it
+    here, *before* ``read_bytes()`` pulls the whole archive into memory,
+    so a multi-GB drop cannot exhaust memory during intake. The raised
+    ``VSIXUnpackError`` mirrors the extractor's structured breach so the
+    HTTP layer renders the identical 422 ``vsix_threshold_breach``.
+    """
+    st_size = path.stat().st_size
+    if st_size > max_uncompressed_size:
+        raise marketplace_client.VSIXUnpackError(
+            "VSIX archive exceeds uncompressed size limit "
+            f"({max_uncompressed_size} bytes) before extraction",
+            breach_kind=marketplace_client.VSIX_BREACH_UNCOMPRESSED_SIZE,
+            threshold_name=VSIX_MAX_UNCOMPRESSED_SIZE_KEY,
+            threshold_value=max_uncompressed_size,
+            observed_value=st_size,
+        )
+    return st_size
+
+
+def list_offline_extensions(
+    max_uncompressed_size: int = _DEFAULT_MAX_UNCOMPRESSED_SIZE,
+) -> list[OfflineExtension]:
     """Scan the offline directory and return one record per readable ``.vsix``.
 
     The directory is created on demand so the operator can see where to drop
@@ -173,6 +210,19 @@ def list_offline_extensions() -> list[OfflineExtension]:
     records: list[OfflineExtension] = []
     for path in sorted(offline_dir.glob("*.vsix")):
         if not path.is_file():
+            continue
+        # F-2: skip an over-limit archive before read_bytes() so one
+        # hostile multi-GB drop cannot exhaust memory mid-listing. A
+        # skipped file is simply absent from the listing (the operator
+        # would have to lower it back under the limit to ingest it).
+        st_size = path.stat().st_size
+        if st_size > max_uncompressed_size:
+            logger.warning(
+                "offline_vsix_skipped filename=%s reason=oversize observed=%d limit=%d",
+                path.name,
+                st_size,
+                max_uncompressed_size,
+            )
             continue
         try:
             vsix_bytes = path.read_bytes()
@@ -194,7 +244,7 @@ def list_offline_extensions() -> list[OfflineExtension]:
                 displayName=str(manifest.get("displayName") or name or path.name),
                 description=str(manifest.get("description") or ""),
                 filename=path.name,
-                size_bytes=path.stat().st_size,
+                size_bytes=st_size,
                 already_ingested=_is_ingested(publisher, name, version),
             )
         )
@@ -203,7 +253,11 @@ def list_offline_extensions() -> list[OfflineExtension]:
     return records
 
 
-def read_offline_vsix(filename: str) -> tuple[str, str, str, bytes]:
+def read_offline_vsix(
+    filename: str,
+    *,
+    max_uncompressed_size: int = _DEFAULT_MAX_UNCOMPRESSED_SIZE,
+) -> tuple[str, str, str, bytes]:
     """Validate ``filename`` and read its identity + raw bytes off disk.
 
     The deliberate split from extraction lets the router learn the package
@@ -216,6 +270,10 @@ def read_offline_vsix(filename: str) -> tuple[str, str, str, bytes]:
 
     Raises:
         OfflineIntakeError: Bad/unsafe filename or missing offline file.
+        marketplace_client.VSIXUnpackError: The on-disk archive is larger
+            than ``max_uncompressed_size`` (rejected before it is read into
+            memory; the router maps it to the same 422 as an extraction
+            breach).
         zipfile.BadZipFile: The file is not a valid ZIP/VSIX archive.
         PackageJsonReadError: The in-archive manifest is missing/invalid.
         MarketplaceIdentityError: The manifest identity violates slug rules.
@@ -226,6 +284,7 @@ def read_offline_vsix(filename: str) -> tuple[str, str, str, bytes]:
             f"Offline file not found: {filename}", reason="not_found"
         )
 
+    _enforce_pre_read_size(path, max_uncompressed_size)
     vsix_bytes = path.read_bytes()
     manifest = _read_vsix_manifest(vsix_bytes, source_label=filename)
     publisher, name, version = _identity(manifest)
