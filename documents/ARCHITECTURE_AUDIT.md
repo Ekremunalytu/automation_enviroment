@@ -3,7 +3,7 @@
 `Last Updated: 2026-05-28 — W22 closed synthetically on week22 and merged to main via PR #31 week22 -> main 1399f82; W21 closed and merged via PR #30 5dc18aa.`
 
 This is the short health summary for the current architecture. Use
-`ARCHITECTURE.md` for structure and flows; use `docs/risks.md` for the live
+`ARCHITECTURE.md` for structure and flows; use `risks.md` for the live
 risk register. Post-PoC deferred items live in `POST_POC_BACKLOG.md`.
 
 ## What Is Healthy
@@ -59,7 +59,7 @@ risk register. Post-PoC deferred items live in `POST_POC_BACKLOG.md`.
 
 - Architecture question: `ARCHITECTURE.md`
 - Placement question: `PROJECT_STRUCTURE.md`
-- Runtime reliability question: `EXECUTOR_PLAYWRIGHT.md` + `docs/risks.md`
+- Runtime reliability question: `EXECUTOR_PLAYWRIGHT.md` + `risks.md`
 - Coverage or report-semantics question:
   - `VSCODE_API_COVERAGE_AUDIT.md`
   - `DETECTION_SEMANTICS.md`

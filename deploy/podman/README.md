@@ -6,6 +6,14 @@ Podman** and **no extra dependencies** on the target (no compose, no internet).
 The images are built once on an internet-connected machine, exported to a single
 tarball, copied to the server, and run with plain `podman` via `extrace-ctl.sh`.
 
+Related docs:
+
+- [../../README.md](../../README.md) — project overview.
+- [../../documents/operator-quickstart.md](../../documents/operator-quickstart.md) —
+  local and deployment quickstart.
+- [../../documents/how-it-works.md](../../documents/how-it-works.md) — readable
+  system overview.
+
 ## Why this shape
 
 The `api` container is an **orchestrator**: it mounts the container socket and

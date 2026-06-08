@@ -1,10 +1,10 @@
 # AGENTS.md
 
-`Last Updated: 2026-06-04`
+`Last Updated: 2026-06-08`
 
 `Last merged weekly: W22 — closed synthetically on the week22 branch, merged to main via PR #31 week22 -> main 2026-05-28 via 1399f82.`
 
-`Active stream: security-development on branch security-development — custom detection-rule expansion. Tracker: documents/detection-design/README.md.`
+`Active stream: podman-airgapped-deploy on branch feat/podman-airgapped-deploy — air-gapped Podman deployment and human-readable documentation. Tracker: deploy/podman/README.md.`
 
 `Sources of truth: documents/REFACTOR_STATUS.md (state) · documents/POST_POC_BACKLOG.md (deferred) · documents/REFACTOR_OPTIMIZATION.md §20 (last weekly plan) · documents/phase.json (weekly pointer + active stream).`
 
@@ -33,8 +33,9 @@
   `documents/REFACTOR_OPTIMIZATION.md §20`.
 - **Post-W22 named streams** do not advance the weekly pointer. Static
   Analysis Pre-Check is closed/merged via PR #33; `extension-trigger-matrix`
-  is merged; active work is `security-development` on branch
-  `security-development`, tracked by `documents/detection-design/README.md`.
+  is merged; the custom rule stream is tracked by
+  `documents/detection-design/README.md`. Active work on this branch is
+  `podman-airgapped-deploy`, tracked by `deploy/podman/README.md`.
 - ADRs live in `documents/adrs/`. ADR 0007 local-network-binding is
   Accepted and implemented (loopback defaults + `EXTRACE_ALLOW_LAN`
   pinned by `test_default_bindings.py`).

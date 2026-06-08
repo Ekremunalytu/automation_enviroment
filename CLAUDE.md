@@ -1,10 +1,10 @@
 # CLAUDE.md
 
-`Last Updated: 2026-06-04`
+`Last Updated: 2026-06-08`
 
 `Last merged weekly: W22 — closed synthetically on the week22 branch, merged to main via PR #31 week22 -> main 2026-05-28 via 1399f82.`
 
-`Active stream: security-development on branch security-development — custom detection-rule expansion. Tracker: documents/detection-design/README.md.`
+`Active stream: podman-airgapped-deploy on branch feat/podman-airgapped-deploy — air-gapped Podman deployment and human-readable documentation. Tracker: deploy/podman/README.md.`
 
 `Sources of truth: documents/REFACTOR_STATUS.md (state) · documents/POST_POC_BACKLOG.md (deferred) · documents/REFACTOR_OPTIMIZATION.md §20 (last weekly plan) · documents/phase.json (weekly pointer + active stream).`
 
@@ -37,8 +37,10 @@ architecture maps here; that caused drift.
   W8-W13 §11 · W14 §12 · W15 §13 · W16 §14 · W17 §15 · W18 §16 ·
   W19 §17 · W20 §18 · W21 §19 · **W22 §20** (closed
   synthetically and merged to main via PR #31 `week22 -> main` `1399f82`).
-- Current named stream is `security-development`; read
-  `documents/detection-design/README.md` for custom detection-rule status.
+- Current named stream is `podman-airgapped-deploy`; read
+  `deploy/podman/README.md` for the air-gapped Podman deployment path.
+  The previous custom detection-rule stream remains documented at
+  `documents/detection-design/README.md`.
 - Multi-iter roadmap source-of-truth:
   `documents/active-work/W18-W22-roadmap.md`. Past frozen trackers
   (`active-work/W{8,11,12,13,14,15,16,17,18,19,20,21,22}-*.md`) stay on

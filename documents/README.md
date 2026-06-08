@@ -1,6 +1,6 @@
 # Documents Guide
 
-`Last Updated: 2026-06-04 — W22 remains the last merged weekly close-out (PR #31 week22 -> main 1399f82). Active stream: security-development on branch security-development; tracker: detection-design/README.md.`
+`Last Updated: 2026-06-08 — W22 remains the last merged weekly close-out (PR #31 week22 -> main 1399f82). Active stream: podman-airgapped-deploy on branch feat/podman-airgapped-deploy; tracker: ../deploy/podman/README.md.`
 
 This folder is split into a small canonical core, specialized reference docs,
 and a frozen archive. **Do not preload the entire folder.** Open subsystem
@@ -11,6 +11,8 @@ Current status: [`REFACTOR_STATUS.md`](REFACTOR_STATUS.md). Deferrals:
 [`REFACTOR_OPTIMIZATION.md`](REFACTOR_OPTIMIZATION.md) §11; W14-W18 plans:
 §12-§16; W19-W22 plans: §17-§20. Last merged weekly: W22 (PR #31,
 1399f82). Active stream tracker:
+[`../deploy/podman/README.md`](../deploy/podman/README.md).
+Previous custom detection-rule stream:
 [`detection-design/README.md`](detection-design/README.md).
 W18-W22 roadmap:
 [`active-work/W18-W22-roadmap.md`](active-work/W18-W22-roadmap.md).
@@ -33,6 +35,9 @@ For most code changes, in order:
 The lane doc decides whether you need any of the slim canonical
 subsystem docs below. **Default preload stops at the lane doc.**
 
+For a normal human overview, start with [`human-guide.md`](human-guide.md)
+instead of this agent routing map.
+
 ## Load Only If The Task Needs It
 
 - [`ARCHITECTURE.md`](ARCHITECTURE.md): new service, boundary, or diagram.
@@ -45,9 +50,11 @@ subsystem docs below. **Default preload stops at the lane doc.**
   Playwright, or executor-driving API behavior.
 - [`DEMO_SCENARIO.md`](DEMO_SCENARIO.md): A1 canary playbook or
   `make demo-canary`.
+- [`../deploy/podman/README.md`](../deploy/podman/README.md): air-gapped
+  Podman deployment on a headless Fedora Server.
 - [`VSCODE_API_COVERAGE_AUDIT.md`](VSCODE_API_COVERAGE_AUDIT.md): trigger
   planning or official-vs-heuristic coverage.
-- `docs/risks.md`: accepted tradeoff.
+- `risks.md`: accepted tradeoff.
 
 ## Operational Runbooks
 

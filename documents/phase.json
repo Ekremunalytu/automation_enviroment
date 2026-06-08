@@ -18,8 +18,8 @@
     { "id": "W21", "pr": 30, "branch": "week21 -> main", "sha": "5dc18aa" }
   ],
   "active_stream": {
-    "id": "security-development",
-    "tracker": "documents/detection-design/README.md"
+    "id": "podman-airgapped-deploy",
+    "tracker": "deploy/podman/README.md"
   },
-  "updated": "2026-06-04"
+  "updated": "2026-06-08"
 }

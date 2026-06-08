@@ -17,8 +17,7 @@ Test layer detail lives at
 alembic/                   Schema migrations
 appcore/                   Shared platform code
 docker/                    API container build files
-docs/                      Narrow risk notes outside the main doc set
-documents/                 Canonical project documentation
+documents/                 Canonical project docs + human-readable guides
 executor/                  Sandbox host wrapper + container runtime
 extensions/                Downloaded/extracted VSIX fixtures and samples
 packages/                  Framework-agnostic contracts and analysis logic
@@ -129,8 +128,9 @@ badges or `data-feature-stub` markers where appropriate.
   pinned test fixtures; `extensions/malicious/` for malicious-fixture
   manifests and canary scaffold metadata.
 - `output/` — activation reports and executor-side runtime artifacts.
-- `documents/` — canonical project docs (this folder).
-- `docs/` — narrow risk notes (e.g. `docs/risks.md`).
+- `documents/` — canonical project docs plus the human-readable guides
+  (`human-guide.md`, `how-it-works.md`, `operator-quickstart.md`,
+  `api-and-flows.md`, `risks.md`) (this folder).
 
 ## See Also
 
