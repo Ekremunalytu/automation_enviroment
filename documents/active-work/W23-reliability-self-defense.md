@@ -6,7 +6,7 @@
 
 `Owner: ekrem`
 
-`Status: IN PROGRESS — S1 + S3 landed; S2 (gated, alembic) and S4 (UI) pending. S5 non-blocking. Close-out (S6) is a gated PR.`
+`Status: IN PROGRESS — S1 + S3 + S4 landed; S2 (gated, alembic) pending. S5 non-blocking. Close-out (S6) is a gated PR.`
 
 > Scope locked to **tight Stream 1** (per the 2026-06-08 planning session):
 > reliability/self-defense only. The broader "Week24 trust floor" addendum
@@ -31,7 +31,7 @@ precedes any catch-rate/provenance work.
 | **S2** heartbeat + reaper + terminal-write guard | B3 | ⏳ pending | **GATED** — adds nullable `last_heartbeat_at` (alembic migration needs explicit go-ahead before creation/run) |
 | **S3 / F-2** offline `.vsix` pre-read size gate | — | ✅ done | `e3a8af6` — pre-read `st_size` gate on the operator-tuned `vsix_max_uncompressed_size` (no new knob); ingest → structured 422, list → skip; router resolves the threshold; integration + direct unit regressions |
 | **S3 / F-3** import-graph relative-import resolution | — | ✅ done | `818c6be` — `_resolve_relative_import` in `boundaries.py` + `executor.py` + `facades.py` (roadmap-named `facades.py:38` copy was **dead/unused**; real gate is the other two); resolver fixture test; no real violation surfaced (relative imports cannot cross a top-level boundary — completeness fix) |
-| **S4** stop false-clean UI tone | B4 | ⏳ pending | wire the 5-state `verdictColors.ts` palette into report/simulation surfaces; INCONCLUSIVE = non-green STOP; snapshot tests |
+| **S4** stop false-clean UI tone | B4 | ✅ done | `verdictColors.ts` rebuilt as the canonical v3-native 5-state verdict palette (`verdictTone`/`verdictAction`/`VERDICT_STYLES`/`VERDICT_LEGEND`); `ReportsPage.tsx` header badge + score cell + rationale chips now tone through it, with a recommended-action note + compact verdict-scale legend; INCONCLUSIVE → `neutral` (grey STOP), `clean_with_notes` → `accent`, only `clean` → `ok` (`CLEAN_TONE`). Run-health analogue extracted to `simulation/runHealth.ts` (`automationHealthTone`, was already inconclusive→neutral; now named + tested). Unit tests pin the 5-state distinct-tone bijection + "inconclusive/clean_with_notes never render the clean tone"; ReportsPage render test asserts the INCONCLUSIVE badge + non-clean action note + legend |
 | **S5** ext-host ReDoS sweep (audit) | — | ⏳ pending | **non-blocking** — document the parse/marker regex family as line-anchored/linear; close the standing "unaudited" flag |
 | **S6** close-out PR | — | ⏳ pending | **GATED** — PR only on explicit go-ahead; all pre-close findings resolved/waived first |
 
@@ -44,7 +44,7 @@ Bucketed, evidence-cited, blocking flags noted. Mirrors `v1-roadmap.md` §6.
 | F-1 unbounded PEM redact on ext-host window | Medium | **RESOLVED** — S1 `729d0d3` |
 | F-2 unbounded offline `.vsix` read | Low | **RESOLVED** — S3 `e3a8af6` |
 | F-3 import-graph gate skips relative imports | Low | **RESOLVED** — S3 `818c6be` |
-| `[BUG verdict-color-inconclusive-renders-clean]` | High (safety) | **OPEN** — S4 (blocking) |
+| `[BUG verdict-color-inconclusive-renders-clean]` | High (safety) | **RESOLVED** — S4 |
 | `[BUG wedged-job-no-same-boot-recovery]` | High (operability) | **OPEN** — S2 (blocking) |
 | ext-host log-parse / strace ReDoS sweep | uncharacterized | **OPEN** — S5 (non-blocking; audit reclassified linear) |
 
@@ -54,6 +54,12 @@ Bucketed, evidence-cited, blocking flags noted. Mirrors `v1-roadmap.md` §6.
   200-unmatched-BEGIN payload ~6 ms (was ~360 ms). ruff/format/mypy/bandit clean.
 - S3: 265 marketplace tests + 332 architecture tests green; F-3 surfaced **no real
   import-boundary violation**. ruff/format/mypy/bandit/markdownlint clean.
+- S4: full UI suite green — 23 files / 131 tests (10 new `verdictColors` unit tests,
+  1 new `ReportsPage` inconclusive-verdict render test, 3 new `automationHealthTone`
+  unit tests). `tsc -b`, `eslint`, and the UI boundary lint all clean on the changed
+  files. (Live browser verification via the `ui-dev` vite preview on :5173 is the
+  remaining optional visual confirmation — colors derive from the pre-existing
+  `BADGE_TONE` map, which is unchanged.)
 - All commits passed the full pre-commit hook chain.
 
 ## Operational notes
