@@ -4,7 +4,7 @@
 
 `Last merged weekly: W22 — closed synthetically on the week22 branch, merged to main via PR #31 week22 -> main 2026-05-28 via 1399f82.`
 
-`Active stream: podman-airgapped-deploy on branch feat/podman-airgapped-deploy — air-gapped Podman deployment and human-readable documentation. Tracker: deploy/podman/README.md.`
+`Active stream: podman-airgapped-deploy — merged to main from feat/podman-airgapped-deploy; air-gapped Podman deployment and human-readable documentation. Tracker: deploy/podman/README.md.`
 
 `Sources of truth: documents/REFACTOR_STATUS.md (state) · documents/POST_POC_BACKLOG.md (deferred) · documents/REFACTOR_OPTIMIZATION.md §20 (last weekly plan) · documents/phase.json (weekly pointer + active stream).`
 
@@ -37,7 +37,8 @@ architecture maps here; that caused drift.
   W8-W13 §11 · W14 §12 · W15 §13 · W16 §14 · W17 §15 · W18 §16 ·
   W19 §17 · W20 §18 · W21 §19 · **W22 §20** (closed
   synthetically and merged to main via PR #31 `week22 -> main` `1399f82`).
-- Current named stream is `podman-airgapped-deploy`; read
+- Current named stream is `podman-airgapped-deploy` (merged to main from
+  `feat/podman-airgapped-deploy`); read
   `deploy/podman/README.md` for the air-gapped Podman deployment path.
   The previous custom detection-rule stream remains documented at
   `documents/detection-design/README.md`.

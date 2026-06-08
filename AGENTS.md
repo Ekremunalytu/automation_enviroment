@@ -4,7 +4,7 @@
 
 `Last merged weekly: W22 — closed synthetically on the week22 branch, merged to main via PR #31 week22 -> main 2026-05-28 via 1399f82.`
 
-`Active stream: podman-airgapped-deploy on branch feat/podman-airgapped-deploy — air-gapped Podman deployment and human-readable documentation. Tracker: deploy/podman/README.md.`
+`Active stream: podman-airgapped-deploy — merged to main from feat/podman-airgapped-deploy; air-gapped Podman deployment and human-readable documentation. Tracker: deploy/podman/README.md.`
 
 `Sources of truth: documents/REFACTOR_STATUS.md (state) · documents/POST_POC_BACKLOG.md (deferred) · documents/REFACTOR_OPTIMIZATION.md §20 (last weekly plan) · documents/phase.json (weekly pointer + active stream).`
 
@@ -34,7 +34,7 @@
 - **Post-W22 named streams** do not advance the weekly pointer. Static
   Analysis Pre-Check is closed/merged via PR #33; `extension-trigger-matrix`
   is merged; the custom rule stream is tracked by
-  `documents/detection-design/README.md`. Active work on this branch is
+  `documents/detection-design/README.md`. Latest merged named stream is
   `podman-airgapped-deploy`, tracked by `deploy/podman/README.md`.
 - ADRs live in `documents/adrs/`. ADR 0007 local-network-binding is
   Accepted and implemented (loopback defaults + `EXTRACE_ALLOW_LAN`
