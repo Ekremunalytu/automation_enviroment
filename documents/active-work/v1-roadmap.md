@@ -127,6 +127,41 @@ the analyze error taxonomy (S2's guard must not break the closed-taxonomy →
 HTTP-map contract). After the alembic change, `alembic-upgrade extrace` (5432) or
 `make check-all` fails `UndefinedColumn` (dev-DB gotcha).
 
+### Week24 Roadmap Addendum — Security Trust Floor (Future Candidate)
+
+**Status:** roadmap-only. Do **not** open a branch, change
+`documents/phase.json`, flip the active stream, create
+`documents/active-work/reliability-self-defense.md`, add an Alembic migration, or
+touch runtime/UI/test code until the user explicitly starts this work. W22
+remains the last merged weekly pointer; Week24 is a future named-stream candidate,
+not an active weekly phase.
+
+**Goal:** make ExTrace prove its own analysis trustworthiness before any screen,
+report, API response, or export lets an operator interpret a run as clean. This
+is the security trust floor that should precede measurement, MITRE presentation,
+batching, or broader field-readiness work.
+
+| Candidate item | Intended implementation shape | Future acceptance / test notes |
+|---|---|---|
+| **W24-1 false-clean semantics** | Wire the 5-state verdict model into every analyst-facing report/simulation surface instead of deriving tone through a clean-like low-severity fallback. `inconclusive` must read as a stop/retry/review state, not success. | UI tests cover `clean`, `clean_with_notes`, `suspicious`, `malicious`, and `inconclusive`; snapshots assert `inconclusive` and `clean_with_notes` never render the clean tone. |
+| **W24-2 PEM/log/report self-defense** | Close the unbounded PEM redaction path at the shared redaction source, then audit report assembly and extension-host log parsing so extension-controlled text cannot hang report generation or leak raw secret-shaped material. | Security regressions exercise adversarial unmatched-`BEGIN` payloads through the report-build path; log parsing remains bounded by line/window caps and produces sanitized samples. |
+| **W24-3 offline VSIX/input bounds** | Add a pre-read outer file-size gate for offline `.vsix` intake using the existing VSIX threshold family; avoid loading an over-limit archive into memory before rejecting it. | Offline list/ingest tests assert over-limit archives fail cleanly before `read_bytes()` and return the same operator-facing threshold semantics as extraction-time breaches. |
+| **W24-4 import-graph relative gate** | Tighten architecture import checks so relative imports are resolved to their effective package target instead of being skipped by `ast.ImportFrom.level`. | Architecture tests include relative-import fixtures for allowed and forbidden targets; real violations are fixed at the import site, not waived in the gate. |
+| **W24-5 same-boot wedged-job recovery** | Plan a heartbeat-backed active-job recovery path for workers that die or hang inside the same API boot. This is the only expected schema change in the future implementation: a nullable heartbeat timestamp on `analysis_jobs`, written through CRUD and consumed by a stale-running reaper. | Storage/workflow tests prove a stale same-boot active row moves to a terminal failed state, releases the single-active slot, preserves terminal-write guards, and does not use a broad catch-all exception. |
+| **W24-6 ADR 0015 E1/E2 foundation** | Start only the first sandbox-evasion slice: `navigator.webdriver` probing and CDP probing. The target behavior is suppression where safe plus detection records that prevent probe-then-dormant samples from reading clean. E3-E5 stay later. | Synthetic canaries produce explicit evasion evidence and route the run to `suspicious` or `inconclusive`; `EXECUTOR_CDP_PORT` remains default-off and pinned by the existing CDP invariant. |
+| **W24-7 provenance anchor** | Add the minimum report identity spine for future reproducibility: dynamic and static outputs should carry the analyzed VSIX SHA-256 alongside the existing producer/build fingerprint. | Contract tests accept legacy blank/default values but require new producer paths to emit canonical 64-char lowercase hashes; dynamic/static/bundle outputs agree for the same analyzed bytes. |
+
+**Out of Week24:** measured catch-rate/corpus gates, MITRE/dashboard work,
+sequential batch, report export, release backup/restore, full ADR 0015 E3-E5,
+and Linux host hardening. Those remain later roadmap work because they either
+depend on this trust floor or belong to post-v1.0 hardening.
+
+**Suggested future close criteria:** when explicitly started, Week24 should close
+only after docs record the active stream transition, the trust-floor items above
+have targeted regressions, `make test-security` includes any new security tests,
+and the final PR states whether DB schema changed. Until then, this section is a
+planning addendum only.
+
 ## 6. Pre-Close Checklist — Fresh Audit Findings (2026-06-08)
 
 Recorded so they are never lost; bucketed, evidence-cited, none-blocking flagged
