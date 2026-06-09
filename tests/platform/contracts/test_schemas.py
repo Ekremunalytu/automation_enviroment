@@ -177,6 +177,25 @@ def test_extension_contributes_schema_with_children():
     assert schema.terminal[0].profile_id == "ext.term"
 
 
+def test_extension_contributes_schema_configuration_as_list():
+    """`contributes.configuration` may be an array of config objects.
+
+    VS Code permits both a single configuration object and a list of them
+    (e.g. GitHub Copilot ships a list). Regression: the list form must not
+    raise a pydantic dict_type error.
+    """
+    data = {
+        "configuration": [
+            {"title": "GitHub Copilot", "properties": {"copilot.enable": {}}},
+            {"title": "Advanced", "properties": {"copilot.advanced": {}}},
+        ],
+    }
+    schema = ExtensionContributesSchema(**data)
+
+    assert isinstance(schema.configuration, list)
+    assert schema.configuration[0]["title"] == "GitHub Copilot"
+
+
 # -- Analysis-job step progress contract --------------------------------------
 
 

@@ -224,7 +224,7 @@ fixture `extensions/malicious/t1-demo-runnable-canary/` carries:
 |---|---|---|
 | `verdict == "clean"` on canary | `.gitignore` excluded the canary fixture from the working tree | Verify `extensions/malicious/t1-a1-credential-read-canary/` exists; re-check allow-list entries in `.gitignore` |
 | Invariant test fails (`event_id not in ActivationReport`) | Canary `activation_report.json` modified without updating rule evidence refs | Run `make test-security`; fix the per-rule fixture test output |
-| `make exec-up` cannot start | Docker daemon down, or `EXECUTOR_VSCODE_VERSION` not pinned | `docker ps` to confirm daemon; set `.env` `EXECUTOR_VSCODE_VERSION=1.116.0` |
+| `make exec-up` cannot start | Docker daemon down, or `EXECUTOR_VSCODE_VERSION` not pinned | `docker ps` to confirm daemon; set `.env` `EXECUTOR_VSCODE_VERSION=1.120.0` |
 
 ## References
 

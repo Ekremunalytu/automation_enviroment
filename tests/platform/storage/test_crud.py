@@ -292,6 +292,38 @@ def test_create_extension_with_contributes(db_session: Session):
     assert result.contributes.commands[0].command_id == "ext.hello"
 
 
+def test_create_extension_with_list_form_configuration(db_session: Session):
+    """`contributes.configuration` array round-trips through the JSONB column.
+
+    Regression for the GitHub Copilot Chat ingest path: the `configuration`
+    contribution may be a list of config sections (not just a single object).
+    The schema accepts both shapes and the JSONB column must persist and
+    return the list unchanged.
+    """
+    schema = ExtensionSchema(
+        name="list-config-ext",
+        publisher="GitHub",
+        version="0.48.1",
+        engines={"vscode": "^1.120.0"},
+        description="Extension whose configuration is an array",
+    )
+    contributes = ExtensionContributesSchema(
+        configuration=[
+            {"title": "GitHub Copilot", "properties": {"copilot.enable": {}}},
+            {"title": "Advanced", "properties": {"copilot.advanced": {}}},
+        ],
+    )
+
+    create_extension(db_session, schema, contributes=contributes)
+
+    result = search_extension_by_name(db_session, "list-config-ext")
+    assert result is not None
+    assert result.contributes is not None
+    assert isinstance(result.contributes.configuration, list)
+    assert len(result.contributes.configuration) == 2
+    assert result.contributes.configuration[0]["title"] == "GitHub Copilot"
+
+
 def test_create_extension_with_extra_info(db_session: Session):
     """
     Test creating extension with npm_fields and extra_fields.
