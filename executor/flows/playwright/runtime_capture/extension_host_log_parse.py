@@ -30,7 +30,15 @@ _ACTIVATION_PATTERNS = [
     # "eager activation <id>"
     re.compile(r"eager\s+activation\s+(?P<id>[\w.\-]+)"),
     # "[info] <id>: extension activated successfully"
-    re.compile(r"(?P<id>[\w.\-]+):\s+extension activated" r"(?:.*?(?P<ms>\d+)\s*ms)?"),
+    # S5 ReDoS-sweep: this is the only pattern that leads with an *unanchored*
+    # greedy prefix (every other pattern starts with a required literal that
+    # ``.search`` anchors to). An unbounded ``[\w.\-]+`` before the required
+    # ``:`` backtracks O(n^2) on a colon-less mega-line; bounding it to a length
+    # no real extension id approaches (publisher.name is <128 chars) makes the
+    # prefix linear without changing any legitimate match.
+    re.compile(
+        r"(?P<id>[\w.\-]{1,256}):\s+extension activated" r"(?:.*?(?P<ms>\d+)\s*ms)?"
+    ),
     # "ExtHostExtensionService#_doActivateExtension ..."
     re.compile(
         r"ExtHostExtensionService#.*activat\w*\s+(?P<id>[\w.\-]+)"
@@ -101,12 +109,29 @@ _LIFECYCLE_MARKER_PATTERNS: list[tuple[re.Pattern[str], str]] = [
 # Timestamp pattern at start of VS Code log lines
 _TIMESTAMP_RE = re.compile(r"^\[?(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}\.\d+)\]?")
 
+# S5 ReDoS-sweep (W23) hygiene bound. Every activation/lifecycle pattern above
+# is matched per-line, and the audit confirmed none has the nested-quantifier
+# shape that drives exponential backtracking. The one residual edge is the set
+# of unanchored greedy-prefix id patterns (``[\w.\-]+`` before a required
+# literal), which backtrack O(n^2) on a single adversarial mega-line. Real VS
+# Code activation markers sit at the head of the line (id/event well under a
+# few hundred chars), so truncating an absurdly long line to a generous bound
+# removes the only super-linear edge without dropping any real activation.
+_MAX_PARSE_LINE_LEN = 16_384
+
 
 def _parse_activation_lines(lines: list[str], *, source: str) -> list[ActivationEntry]:
     entries: list[ActivationEntry] = []
     seen: set[tuple[str, str, str, int | None, str]] = set()
 
     for line in lines:
+        # S5 hygiene: bound the input to the per-line patterns so the
+        # unanchored greedy-prefix ids cannot be driven into O(n^2)
+        # backtracking by a single pathological mega-line (see
+        # _MAX_PARSE_LINE_LEN). The marker/id/event live at the head of the
+        # line, so this never drops a real activation.
+        if len(line) > _MAX_PARSE_LINE_LEN:
+            line = line[:_MAX_PARSE_LINE_LEN]
         lowered = line.lower()
         if "activ" not in lowered and "register" not in lowered:
             continue

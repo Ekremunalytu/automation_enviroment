@@ -93,6 +93,66 @@ def test_parse_activations_from_output_emits_lifecycle_marker_types() -> None:
 
 
 # ---------------------------------------------------------------------------
+# S5 (W23) — ext-host log-parse ReDoS sweep
+#
+# The activation/lifecycle patterns are matched per-line. All lead with a
+# required literal EXCEPT the ``<id>: extension activated`` pattern, whose
+# unanchored greedy ``[\w.\-]+`` prefix backtracks O(n^2) on a colon-less
+# mega-line. The fix bounds that prefix to {1,256} (linear) and caps the
+# per-line input the patterns see (``_MAX_PARSE_LINE_LEN``). These pin both:
+# an adversarial mega-line parses in bounded time, and a real activation at the
+# head of an otherwise-huge line is still parsed.
+# ---------------------------------------------------------------------------
+
+
+def test_parse_activations_bounded_on_adversarial_megaline() -> None:
+    """A 1M-char colon-less line that passes the ``activ`` substring filter must
+    not drive the parser into O(n^2) backtracking. Pre-fix the unbounded
+    ``[\\w.\\-]+:`` prefix ran for *minutes* on this input; the {1,256} bound
+    plus the per-line cap keep it linear (~30 ms observed). The 500 ms ceiling
+    fails the quadratic path with comfortable CI margin."""
+    import time
+
+    adversarial = "activate " + ("x" * 1_000_000)
+
+    start = time.perf_counter()
+    entries = extension_host.parse_activations_from_output(adversarial)
+    elapsed = time.perf_counter() - start
+
+    assert elapsed < 0.5, (
+        f"parse took {elapsed * 1000:.1f} ms on the adversarial mega-line; the "
+        "bounded prefix + per-line cap must keep it linear (pre-fix runs for "
+        "minutes)."
+    )
+    assert entries == []
+
+
+def test_parse_activations_megaline_still_captures_head_marker() -> None:
+    """The per-line cap truncates only the tail; a real activation marker at the
+    head of an otherwise-pathological line is still parsed in full."""
+    line = "extension activated publisher.head in 5 ms " + ("x" * 1_000_000)
+
+    entries = extension_host.parse_activations_from_output(line)
+
+    by_id = {e.extension_id: e for e in entries}
+    assert "publisher.head" in by_id
+    assert by_id["publisher.head"].duration_ms == 5
+
+
+def test_parse_activations_bounded_id_pattern_matches_real_extension_id() -> None:
+    """The ``<id>: extension activated`` pattern (the one whose prefix was
+    bounded) still matches a real ``publisher.name`` id — the {1,256} bound only
+    rejects ids longer than any real extension id. Nothing follows ``activated``
+    here, so the earlier ``extension activated <id>`` pattern does not shadow
+    it and the bounded-prefix pattern is the one that fires."""
+    entries = extension_host.parse_activations_from_output(
+        "[info] my-publisher.some-extension: extension activated"
+    )
+
+    assert [e.extension_id for e in entries] == ["my-publisher.some-extension"]
+
+
+# ---------------------------------------------------------------------------
 # W15-5 I4 — tightened ``activate entered/returned <id>`` lifecycle markers
 # ---------------------------------------------------------------------------
 

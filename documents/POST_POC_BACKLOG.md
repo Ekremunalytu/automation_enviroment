@@ -1136,7 +1136,7 @@ turns ExTrace into a real, daily-usable single-operator defensive tool (user
 direction `2026-06-08`, after the project report was delivered). Built from a
 7-dimension real-tool gap assessment; every file/line claim verified against
 `main` @ `441cb72`. Stream 1 (`reliability-self-defense`) is **in progress on
-`week23`** (S1 + S3 + S4 landed; S2 pending — gated alembic) — see
+`week23`** (S1 + S3 + S4 + S5 landed; S2 pending — gated alembic) — see
 [`active-work/W23-reliability-self-defense.md`](active-work/W23-reliability-self-defense.md).
 The formal active-stream pointer flip (`phase.json` / `CLAUDE.md` /
 `REFACTOR_STATUS.md` header) is **held pending explicit go-ahead**.
@@ -1145,7 +1145,7 @@ Detailed evidence and dispositions are archived at
 [`archive/backlog/v1-roadmap-intake-2026-06-08.md`](archive/backlog/v1-roadmap-intake-2026-06-08.md).
 Stable IDs below map to the roadmap streams (see `v1-roadmap.md` §7).
 
-- **Stream 1 — reliability-self-defense (in progress on `week23`):** `[BUG report-builder-unbounded-pem-redact]` ✅ S1 `729d0d3`, `[BUG wedged-job-no-same-boot-recovery]` ⏳ S2 (alembic — gated, pending), `[FOLLOWUP offline-vsix-size-bound]` ✅ S3/F-2 `e3a8af6`, `[BUG import-graph-relative-import-gate-gap]` ✅ S3/F-3 `818c6be`, `[BUG verdict-color-inconclusive-renders-clean]` ✅ S4 (canonical v3 verdict palette; INCONCLUSIVE → neutral STOP), `[FOLLOWUP exthost-logparse-redos-bounds-sweep]` ⏳ S5 (audit, non-blocking).
+- **Stream 1 — reliability-self-defense (in progress on `week23`):** `[BUG report-builder-unbounded-pem-redact]` ✅ S1 `729d0d3`, `[BUG wedged-job-no-same-boot-recovery]` ⏳ S2 (alembic — gated, pending), `[FOLLOWUP offline-vsix-size-bound]` ✅ S3/F-2 `e3a8af6`, `[BUG import-graph-relative-import-gate-gap]` ✅ S3/F-3 `818c6be`, `[BUG verdict-color-inconclusive-renders-clean]` ✅ S4 (canonical v3 verdict palette; INCONCLUSIVE → neutral STOP), `[FOLLOWUP exthost-logparse-redos-bounds-sweep]` ✅ S5 (audit: family line-anchored/linear; one unanchored greedy-prefix pattern bounded `{1,256}` + 16 KiB per-line cap).
 - **Stream 2 — reliability-multi-analyze:** `[FOLLOWUP sandbox-reset-stale-state-multi-analyze]` (existing; do not duplicate).
 - **Stream 3 — verdict-provenance-reproducibility:** `[GOAL vsix-content-sha256-provenance]`, `[GOAL verdict-reproducibility-anchor]`.
 - **Stream 4 — operator-report-export:** `[GOAL report-export-artifact]`, `[FOLLOWUP vsix-entry-log-sanitization]` (existing; do not duplicate), offline skip-reason UX.
