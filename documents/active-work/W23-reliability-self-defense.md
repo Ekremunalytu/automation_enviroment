@@ -60,9 +60,13 @@ Bucketed, evidence-cited, blocking flags noted. Mirrors `v1-roadmap.md` §6.
   files. (Live browser verification via the `ui-dev` vite preview on :5173 is the
   remaining optional visual confirmation — colors derive from the pre-existing
   `BADGE_TONE` map, which is unchanged.)
-- S5: 845 executor tests green (3 new ReDoS-sweep regressions in
-  `test_playwright_extension_host.py`); adversarial 1M-char line parses in
-  ~0.4–32 ms (was minutes). ruff/format/mypy/bandit clean.
+- S5: 845 executor tests green. ReDoS-sweep regressions: 3 in
+  `test_playwright_extension_host.py` (the `log_parse` fix — adversarial 1M-char
+  line minutes→~0.4–32 ms) plus 3 in `test_exthost_parse_redos_bounds.py`
+  pinning the other three audited regexes (harness secret mask, harness marker,
+  strace process-event) as linear on a 1M-char near-miss line, so the whole
+  family's "linear" claim is **test-backed, not doc-asserted**.
+  ruff/format/mypy/bandit clean.
 - All commits passed the full pre-commit hook chain.
 
 ## Operational notes
