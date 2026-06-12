@@ -45,6 +45,21 @@ def _static_gate_disabled(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(analysis_service.settings.static_analysis, "ENABLED", False)
 
 
+@pytest.fixture(autouse=True)
+def _inert_job_heartbeat(monkeypatch: pytest.MonkeyPatch) -> None:
+    """S2 (W23 B3): keep ``run_analysis_job``'s DB heartbeat thread inert.
+
+    These worker tests mock the job session via ``_open_job_session`` but the
+    heartbeat thread opens its own ``SessionLocal`` (sessions are not
+    thread-safe). No-op it so the DB-free worker tests never touch a real DB.
+    The heartbeat loop itself is covered in ``test_stale_job_reaper.py``.
+    """
+    monkeypatch.setattr(
+        "workflows.marketplace.job_service.run_job_heartbeat",
+        lambda *args, **kwargs: None,
+    )
+
+
 def _make_trigger_plan(
     *,
     trigger_container_path: str | None = "/results/triggers.json",
@@ -1076,6 +1091,118 @@ def test_run_analysis_job_marks_type_error_failure_and_reraises() -> None:
         error_code=None,
     )
     session.close.assert_called_once_with()
+
+
+def test_run_analysis_job_terminal_write_guard_fails_and_reraises_off_taxonomy() -> (
+    None
+):
+    """S2 (W23 B3): an exception OUTSIDE the closed analyze taxonomy must still
+    write a terminal failure (releasing the single-active slot) and then
+    re-raise, instead of escaping ``run_analysis_job`` with the row stuck
+    ``running`` (the worker-no-catch-all wedge). KeyError is in neither
+    ANALYZE_RECOVERABLE_ERROR_TYPES nor ANALYZE_PROGRAMMING_ERROR_TYPES.
+    """
+    request = AnalyzeRequest(**ANALYZE_PAYLOAD)
+    session = MagicMock()
+    with (
+        patch(
+            "workflows.marketplace.analysis_service._open_job_session",
+            return_value=session,
+        ),
+        patch(
+            "workflows.marketplace.analysis_service.job_service.is_job_cancelled",
+            return_value=False,
+        ),
+        patch(
+            "workflows.marketplace.analysis_service.job_service.fail_job"
+        ) as mock_fail,
+        patch(
+            "workflows.marketplace.analysis_service.execute_analysis_request",
+            side_effect=KeyError("unexpected wedge"),
+        ),
+        pytest.raises(KeyError),
+    ):
+        analysis_service.run_analysis_job("job-1", request)
+
+    mock_fail.assert_called_once_with(
+        "job-1",
+        "'unexpected wedge'",
+        error_code="worker_uncaught_error",
+    )
+    session.close.assert_called_once_with()
+
+
+def test_run_analysis_job_terminal_write_guard_finalizes_when_cancelled() -> None:
+    """S2 (W23 B3): when a cancel is in flight as an off-taxonomy exception hits,
+    the terminal-write guard finalizes to `cancelled` (cancel intent is
+    authoritative) and re-raises — it must NOT call fail_job."""
+    request = AnalyzeRequest(**ANALYZE_PAYLOAD)
+    session = MagicMock()
+    with (
+        patch(
+            "workflows.marketplace.analysis_service._open_job_session",
+            return_value=session,
+        ),
+        patch(
+            "workflows.marketplace.analysis_service.job_service.is_job_cancelled",
+            return_value=True,
+        ),
+        patch(
+            "workflows.marketplace.analysis_service.job_service.finalize_cancelled_job"
+        ) as mock_finalize,
+        patch(
+            "workflows.marketplace.analysis_service.job_service.fail_job"
+        ) as mock_fail,
+        patch(
+            "workflows.marketplace.analysis_service.execute_analysis_request",
+            side_effect=KeyError("unexpected wedge"),
+        ),
+        pytest.raises(KeyError),
+    ):
+        analysis_service.run_analysis_job("job-1", request)
+
+    mock_finalize.assert_called_once_with("job-1")
+    mock_fail.assert_not_called()
+    session.close.assert_called_once_with()
+
+
+def test_run_analysis_job_starts_and_stops_heartbeat_thread() -> None:
+    """S2 (W23 B3): the worker spawns a dedicated per-job heartbeat thread,
+    starts it, and stops (joins) it on exit — pinning the heartbeat wiring that
+    the stale-running reaper depends on."""
+    request = AnalyzeRequest(**ANALYZE_PAYLOAD)
+    session = MagicMock()
+    response = AnalyzeResponse(
+        status="success",
+        publisher=request.publisher,
+        name=request.name,
+        version=request.version,
+        message="done",
+        install_output="install-ok",
+        automation_output="automation-ok",
+        report_path="activation_report.json",
+    )
+    with (
+        patch(
+            "workflows.marketplace.analysis_service._open_job_session",
+            return_value=session,
+        ),
+        patch("workflows.marketplace.analysis_service.job_service.complete_job"),
+        patch(
+            "workflows.marketplace.analysis_service.execute_analysis_request",
+            return_value=response,
+        ),
+        patch("workflows.marketplace.analysis_service.threading.Thread") as mock_thread,
+    ):
+        analysis_service.run_analysis_job("job-hb", request)
+
+    assert mock_thread.call_count == 1
+    _, kwargs = mock_thread.call_args
+    assert kwargs["name"].startswith("analysis-heartbeat-")
+    assert kwargs["args"][0] == "job-hb"
+    assert kwargs["daemon"] is True
+    mock_thread.return_value.start.assert_called_once()
+    mock_thread.return_value.join.assert_called_once()
 
 
 def test_map_executor_error_for_install_branch() -> None:

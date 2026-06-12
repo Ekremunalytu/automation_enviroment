@@ -655,6 +655,99 @@ def test_get_analysis_job_status_404(client: TestClient) -> None:
     assert response.status_code == 404
 
 
+def test_analyze_start_sweeps_stale_jobs_before_reserving(
+    client: TestClient,
+) -> None:
+    """S2 (W23 B3): submit sweeps stale same-boot running jobs before reserving
+    the single-active slot, so a wedged prior worker cannot 409-block a run."""
+    job_snapshot = {
+        "job_id": "job-123",
+        "status": "queued",
+        "publisher": ANALYZE_PAYLOAD["publisher"],
+        "name": ANALYZE_PAYLOAD["name"],
+        "version": ANALYZE_PAYLOAD["version"],
+        "scenario": None,
+        "current_step": None,
+        "message": "Queued for sandbox analysis.",
+        "steps": [
+            {"name": "reset_sandbox", "status": "pending", "message": "Waiting"},
+        ],
+        "report_path": "activation_report.json",
+        "install_output": None,
+        "automation_output": None,
+        "error_detail": None,
+        "error_code": None,
+        "created_at": 1.0,
+        "started_at": None,
+        "finished_at": None,
+        "updated_at": 1.0,
+    }
+    with (
+        patch(
+            "workflows.marketplace.analysis_service.marketplace_client.get_vsix_path",
+            return_value=_vsix_path_exists(True),
+        ),
+        patch(
+            "workflows.marketplace.router.job_service.reap_stale_running_jobs",
+            return_value=0,
+        ) as mock_reap,
+        patch(
+            "workflows.marketplace.router.job_service.reserve_job",
+            return_value=job_snapshot,
+        ),
+        patch(
+            "workflows.marketplace.router.job_service.get_job_snapshot",
+            return_value=job_snapshot,
+        ),
+        patch("workflows.marketplace.router.threading.Thread"),
+    ):
+        response = client.post("/api/marketplace/analyze/start", json=ANALYZE_PAYLOAD)
+
+    assert response.status_code == 202
+    mock_reap.assert_called_once()
+
+
+def test_get_analysis_job_sweeps_stale_jobs(client: TestClient) -> None:
+    """S2 (W23 B3): a status poll sweeps stale same-boot running jobs so a wedged
+    run self-heals to terminal in the view instead of appearing stuck."""
+    running_snapshot = {
+        "job_id": "job-poll",
+        "status": "running",
+        "publisher": "ms-python",
+        "name": "python",
+        "version": "2025.0.0",
+        "scenario": None,
+        "current_step": "run_monitoring",
+        "message": "Running.",
+        "steps": [
+            {"name": "run_monitoring", "status": "running", "message": "Running."},
+        ],
+        "report_path": "activation_report.json",
+        "install_output": None,
+        "automation_output": None,
+        "error_detail": None,
+        "error_code": None,
+        "created_at": 1.0,
+        "started_at": 2.0,
+        "finished_at": None,
+        "updated_at": 3.0,
+    }
+    with (
+        patch(
+            "workflows.marketplace.router.job_service.reap_stale_running_jobs",
+            return_value=0,
+        ) as mock_reap,
+        patch(
+            "workflows.marketplace.router.job_service.get_job_snapshot",
+            return_value=running_snapshot,
+        ),
+    ):
+        response = client.get("/api/marketplace/analyze/job-poll")
+
+    assert response.status_code == 200
+    mock_reap.assert_called_once()
+
+
 def test_analyze_missing_publisher_422(client: TestClient) -> None:
     """Missing publisher field returns 422."""
     response = client.post(

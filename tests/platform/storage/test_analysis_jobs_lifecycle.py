@@ -355,6 +355,172 @@ def test_recover_interrupted_analysis_jobs_returns_zero_when_owner_matches(
 
 
 # ---------------------------------------------------------------------------
+# S2 (W23 B3) — heartbeat stamp + same-boot stale-running reaper.
+#
+# `recover_interrupted_analysis_jobs` (above) only reaps a *different* boot.
+# A worker that hangs / crashes within the SAME boot keeps its row `running`
+# and holds the single-active slot until an API restart. `touch_*_heartbeat`
+# stamps liveness; `reap_stale_running_analysis_jobs` recovers a wedged row
+# whose heartbeat (or started_at fallback) is older than the stale timeout,
+# without a restart.
+# ---------------------------------------------------------------------------
+
+
+def _persist_running_with_times(
+    db_session: Session,
+    *,
+    boot_id: str = "same-boot",
+    started_at: float | None = None,
+    last_heartbeat_at: float | None = None,
+    status: str = "running",
+) -> AnalysisJob:
+    """Persist a row in ``status`` with explicit started/heartbeat timestamps."""
+    job = _persist_active(db_session, current_step="run_monitoring", boot_id=boot_id)
+    job.status = status
+    job.started_at = started_at
+    job.last_heartbeat_at = last_heartbeat_at
+    db_session.commit()
+    return job
+
+
+def test_touch_heartbeat_stamps_running_job(db_session: Session) -> None:
+    job = _persist_running_with_times(db_session)
+    assert job.last_heartbeat_at is None
+
+    rowcount = lifecycle.touch_analysis_job_heartbeat(
+        db_session, job.job_id, now=1000.0
+    )
+
+    assert rowcount == 1
+    refetched = lifecycle.get_analysis_job(db_session, job.job_id)
+    assert refetched is not None
+    assert refetched.last_heartbeat_at == 1000.0
+
+
+def test_touch_heartbeat_is_noop_on_non_running_job(db_session: Session) -> None:
+    # A queued row has no running worker — the heartbeat must not stamp it.
+    snapshot = _snapshot(status="queued")
+    job = lifecycle.create_analysis_job(db_session, snapshot)
+
+    rowcount = lifecycle.touch_analysis_job_heartbeat(
+        db_session, job.job_id, now=1000.0
+    )
+
+    assert rowcount == 0
+    refetched = lifecycle.get_analysis_job(db_session, job.job_id)
+    assert refetched is not None
+    assert refetched.last_heartbeat_at is None
+
+
+def test_reap_stale_running_fails_same_boot_stale_job(db_session: Session) -> None:
+    # Heartbeat 1000s old at now=2000 with a 120s timeout → wedged.
+    job = _persist_running_with_times(
+        db_session, started_at=900.0, last_heartbeat_at=1000.0
+    )
+    _force_step_status(db_session, job, "run_monitoring", "running")
+
+    reaped = lifecycle.reap_stale_running_analysis_jobs(
+        db_session,
+        current_boot_id="same-boot",
+        stale_after_s=120.0,
+        detail="stale heartbeat",
+        now=2000.0,
+    )
+
+    assert reaped == 1
+    refetched = lifecycle.get_analysis_job(db_session, job.job_id)
+    assert refetched is not None
+    assert refetched.status == "failed"
+    assert refetched.error_code == lifecycle.STALE_HEARTBEAT_REAP_ERROR_CODE
+    assert refetched.steps[5]["status"] == "failed"
+
+
+def test_reap_stale_running_skips_fresh_heartbeat(db_session: Session) -> None:
+    # Heartbeat only 10s old at now=2000 → healthy, not reaped.
+    job = _persist_running_with_times(
+        db_session, started_at=900.0, last_heartbeat_at=1990.0
+    )
+
+    reaped = lifecycle.reap_stale_running_analysis_jobs(
+        db_session,
+        current_boot_id="same-boot",
+        stale_after_s=120.0,
+        detail="stale heartbeat",
+        now=2000.0,
+    )
+
+    assert reaped == 0
+    refetched = lifecycle.get_analysis_job(db_session, job.job_id)
+    assert refetched is not None
+    assert refetched.status == "running"
+
+
+def test_reap_stale_running_falls_back_to_started_at(db_session: Session) -> None:
+    # No heartbeat ever written; started_at is old → reaped via COALESCE.
+    job = _persist_running_with_times(
+        db_session, started_at=1000.0, last_heartbeat_at=None
+    )
+
+    reaped = lifecycle.reap_stale_running_analysis_jobs(
+        db_session,
+        current_boot_id="same-boot",
+        stale_after_s=120.0,
+        detail="stale heartbeat",
+        now=2000.0,
+    )
+
+    assert reaped == 1
+    refetched = lifecycle.get_analysis_job(db_session, job.job_id)
+    assert refetched is not None
+    assert refetched.status == "failed"
+
+
+def test_reap_stale_running_skips_other_boot(db_session: Session) -> None:
+    # A different boot's row is the boot-id recovery sweep's job, not this
+    # reaper's — even when stale, this reaper leaves it untouched.
+    job = _persist_running_with_times(
+        db_session, boot_id="other-boot", started_at=900.0, last_heartbeat_at=1000.0
+    )
+
+    reaped = lifecycle.reap_stale_running_analysis_jobs(
+        db_session,
+        current_boot_id="same-boot",
+        stale_after_s=120.0,
+        detail="stale heartbeat",
+        now=2000.0,
+    )
+
+    assert reaped == 0
+    refetched = lifecycle.get_analysis_job(db_session, job.job_id)
+    assert refetched is not None
+    assert refetched.status == "running"
+
+
+def test_reap_stale_running_skips_cancelling(db_session: Session) -> None:
+    # `cancelling` is owned by the two-phase cancel contract — the reaper
+    # targets only `running`, so a stale cancelling row is left alone.
+    job = _persist_running_with_times(
+        db_session,
+        status="cancelling",
+        started_at=900.0,
+        last_heartbeat_at=1000.0,
+    )
+
+    reaped = lifecycle.reap_stale_running_analysis_jobs(
+        db_session,
+        current_boot_id="same-boot",
+        stale_after_s=120.0,
+        detail="stale heartbeat",
+        now=2000.0,
+    )
+
+    assert reaped == 0
+    refetched = lifecycle.get_analysis_job(db_session, job.job_id)
+    assert refetched is not None
+    assert refetched.status == "cancelling"
+
+
+# ---------------------------------------------------------------------------
 # W13-3 (Codex H4) — two-phase cancel + finalize regression coverage.
 #
 # `cancel_analysis_job` signals drain (`running -> cancelling`);
@@ -475,6 +641,11 @@ def test_module_path_pins_lifecycle_surface() -> None:
     AGENTS.md:57 compliance.
     """
     expected = {
+        # S2 (W23 B3, 2026-06-12) extended the surface with the same-boot
+        # wedged-job recovery primitives: ``touch_analysis_job_heartbeat``
+        # (liveness stamp), ``reap_stale_running_analysis_jobs`` (the reaper),
+        # and the ``STALE_HEARTBEAT_REAP_ERROR_CODE`` constant they stamp.
+        "STALE_HEARTBEAT_REAP_ERROR_CODE",
         "JobNotCancellableError",
         "WorkerEntryClaim",
         "WorkerEntryOutcome",
@@ -486,7 +657,9 @@ def test_module_path_pins_lifecycle_surface() -> None:
         "finalize_cancelled_analysis_job",
         "get_active_analysis_job",
         "get_analysis_job",
+        "reap_stale_running_analysis_jobs",
         "recover_interrupted_analysis_jobs",
+        "touch_analysis_job_heartbeat",
         "update_analysis_job",
     }
     for name in expected:
