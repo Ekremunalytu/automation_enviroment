@@ -8,7 +8,7 @@
 
 `Sources of truth: documents/REFACTOR_STATUS.md (state) · documents/POST_POC_BACKLOG.md (deferred) · documents/REFACTOR_OPTIMIZATION.md §20 (last weekly plan) · documents/phase.json (weekly pointer + active stream).`
 
-`Phase: PLANNING state — forward roadmap after podman-airgapped-deploy. Not yet the active stream; the first stream (reliability-self-defense) is opened only on explicit user go-ahead.`
+`Phase: ACTIVE — Stream 1 (reliability-self-defense) is the active named stream, in progress on the week23 branch (opened on user go-ahead 2026-06-12; documents/phase.json -> active_stream). Streams 2-8 remain forward-planned.`
 
 `Owner: ekrem`
 
@@ -108,8 +108,9 @@ project measure, calibrate, and scale on sand.
 ## 5. First Stream In Detail — `reliability-self-defense`
 
 Start point. Pure-reliability, mostly S/M, zero dependency, highest blast-radius.
-Branch `feat/reliability-self-defense`, tracker
-`documents/active-work/reliability-self-defense.md` (created at stream open).
+**Landed on the existing `week23` branch** (the planned `feat/reliability-self-defense`
+branch was folded into the `week23` line); tracker
+`documents/active-work/W23-reliability-self-defense.md`.
 
 | Sub-item | Files | Acceptance |
 |---|---|---|
@@ -129,12 +130,13 @@ HTTP-map contract). After the alembic change, `alembic-upgrade extrace` (5432) o
 
 ### Week24 Roadmap Addendum — Security Trust Floor (Future Candidate)
 
-**Status:** roadmap-only. Do **not** open a branch, change
-`documents/phase.json`, flip the active stream, create
-`documents/active-work/reliability-self-defense.md`, add an Alembic migration, or
-touch runtime/UI/test code until the user explicitly starts this work. W22
-remains the last merged weekly pointer; Week24 is a future named-stream candidate,
-not an active weekly phase.
+**Status:** SUPERSEDED by W23 (`reliability-self-defense`, opened on `week23`
+`2026-06-12`). The trust-floor items W24-1..W24-5 below shipped as W23 S4 / S1+S5 /
+S3 / S3 / S2 respectively (see the W23 tracker) — so the original "do not open a
+branch / flip the active stream / add an Alembic migration until the user starts"
+gate is satisfied. W24-6 (ADR-0015 E1/E2 evasion) and W24-7 (`vsix_sha256`
+provenance) were explicitly OUT of W23 scope and remain deferred to Streams 3/6.
+W22 remains the last merged weekly pointer.
 
 **Goal:** make ExTrace prove its own analysis trustworthiness before any screen,
 report, API response, or export lets an operator interpret a run as clean. This

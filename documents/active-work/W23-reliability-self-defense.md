@@ -6,7 +6,7 @@
 
 `Owner: ekrem`
 
-`Status: IN PROGRESS — S0 + S1 + S2 + S3 + S4 + S5 + S7 landed (S2 implemented 2026-06-12, alembic migration applied to the dev DB; S0 active-stream pointer flip done 2026-06-12 — phase.json + canonical doc preambles now name reliability-self-defense; commit pending). Only close-out S6 (gated PR) remains.`
+`Status: READY FOR CLOSE-OUT — S0 + S1 + S2 + S3 + S4 + S5 + S7 landed and pushed to origin/week23 (S2 + S0 implemented 2026-06-12; alembic migration c3f8a1d7e9b2 applied to the dev DB; phase.json + canonical doc preambles + bodies now name reliability-self-defense). Remaining: the S6 close-out PR (week23 -> main, gated on explicit go-ahead). Codex review 2026-06-12 dispositions in the pre-close checklist below.`
 
 > Scope locked to **tight Stream 1** (per the 2026-06-08 planning session):
 > reliability/self-defense only. The broader "Week24 trust floor" addendum
@@ -46,8 +46,24 @@ Bucketed, evidence-cited, blocking flags noted. Mirrors `v1-roadmap.md` §6.
 | F-2 unbounded offline `.vsix` read | Low | **RESOLVED** — S3 `e3a8af6` |
 | F-3 import-graph gate skips relative imports | Low | **RESOLVED** — S3 `818c6be` |
 | `[BUG verdict-color-inconclusive-renders-clean]` | High (safety) | **RESOLVED** — S4 |
-| `[BUG wedged-job-no-same-boot-recovery]` | High (operability) | **RESOLVED** — S2 `2026-06-12` (heartbeat + same-boot stale-running reaper + terminal-write guard; commit pending) |
+| `[BUG wedged-job-no-same-boot-recovery]` | High (operability) | **RESOLVED** — S2 `2026-06-12` (heartbeat + same-boot stale-running reaper + terminal-write guard; pushed `744b3e1`/`eb79f79`) |
 | ext-host log-parse / strace ReDoS sweep | uncharacterized | **RESOLVED** — S5 (audit: family line-anchored/linear; the one unanchored greedy-prefix pattern bounded `{1,256}` + per-line cap; 1M-char line minutes→~32 ms) |
+
+## Pre-close checklist (Codex independent review, 2026-06-12)
+
+External verification pass run by the user via Codex before close-out. Each
+finding bucketed + evidence-cited; W23-caused vs pre-existing-on-main flagged
+(audit-findings → pre-close-checklist practice).
+
+| Finding | Source | Disposition |
+|---|---|---|
+| `ui-boundaries` red — `RulesPage.tsx:25` cross-feature import `../reports/ruleCatalog` | **pre-existing on `main`, NOT W23** | week23 never touched `RulesPage.tsx` or `reports/ruleCatalog.ts`; W23's own UI files (`reports/`, `simulation/`) add **no** boundary violation. `make check-all` is red on `main` for this same line. **Disposition: WAIVE for W23 close-out** (not a W23 regression) — the proper fix (move `ruleCatalog` to a shared module) is a separate change. |
+| global UI ESLint red — `SettingsPage.tsx:472` | **pre-existing on `main`, NOT W23** | week23 never touched `SettingsPage.tsx`. **Disposition: WAIVE for W23 close-out** (track separately). |
+| Close-out docs contradictory — `AGENT_CONTEXT.md:30`, `v1-roadmap.md:11`, `active-work/README.md:28` still said podman-active / stream-not-opened | **W23-caused** (preamble parity gates only scan the first 10 lines; these bodies were missed in the S0 flip) | **RESOLVED `2026-06-12`** — all three bodies now name `reliability-self-defense` active on `week23`. |
+| W23 tracker still `IN PROGRESS` / `commit pending` / `S6 pending` | **W23-caused** (stale after the push) | **RESOLVED `2026-06-12`** — status flipped to READY FOR CLOSE-OUT; `commit pending` removed (commits pushed); S6 PR remains the only gated step. |
+| No PR; local branch ahead of `origin/week23` | expected gated state | the S6 close-out PR is the merge mechanism itself (gated on explicit go-ahead); the `chore` gitignore commit is pending push with the PR. **Not a defect.** |
+
+Green (Codex): Python 2673 passed · security lane 326 · UI 131 · ruff/mypy/bandit/markdownlint + UI production build clean · alembic single head `c3f8a1d7e9b2` · no W23-caused functional blocker in the heartbeat/reaper/migration review.
 
 ## Verification (as of this update)
 
