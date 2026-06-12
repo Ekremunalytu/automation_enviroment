@@ -1,6 +1,6 @@
 # Documents Guide
 
-`Last Updated: 2026-06-12 — W22 remains the last merged weekly close-out (PR #31 week22 -> main 1399f82). Active stream: reliability-self-defense (v1.0 trust floor, Stream 1) in progress on the week23 branch; tracker: active-work/W23-reliability-self-defense.md.`
+`Last Updated: 2026-06-12 — W22 remains the last merged weekly close-out (PR #31 week22 -> main 1399f82). Active stream: reliability-self-defense (v1.0 trust floor, Stream 1) merged to main via PR #35 (653d807); tracker: active-work/W23-reliability-self-defense.md.`
 
 This folder is split into a small canonical core, specialized reference docs,
 and a frozen archive. **Do not preload the entire folder.** Open subsystem

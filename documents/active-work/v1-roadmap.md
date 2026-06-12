@@ -4,11 +4,11 @@
 
 `Last merged weekly: W22 — closed synthetically on the week22 branch, merged to main via PR #31 week22 -> main 2026-05-28 via 1399f82.`
 
-`Active stream: reliability-self-defense (v1.0 trust floor, Stream 1) — in progress on the week23 branch; closes v1.0 bars B1/B3/B4 plus self-defense fixes F-2/F-3. Tracker: documents/active-work/W23-reliability-self-defense.md.`
+`Active stream: reliability-self-defense (v1.0 trust floor, Stream 1) — merged to main via PR #35 (week23 -> main, 653d807); closed v1.0 bars B1/B3/B4 plus self-defense fixes F-2/F-3. Tracker: documents/active-work/W23-reliability-self-defense.md.`
 
 `Sources of truth: documents/REFACTOR_STATUS.md (state) · documents/POST_POC_BACKLOG.md (deferred) · documents/REFACTOR_OPTIMIZATION.md §20 (last weekly plan) · documents/phase.json (weekly pointer + active stream).`
 
-`Phase: ACTIVE — Stream 1 (reliability-self-defense) is the active named stream, in progress on the week23 branch (opened on user go-ahead 2026-06-12; documents/phase.json -> active_stream). Streams 2-8 remain forward-planned.`
+`Phase: Stream 1 (reliability-self-defense) MERGED to main via PR #35 (week23 -> main, 653d807) 2026-06-12. Streams 2-8 remain forward-planned; none open yet.`
 
 `Owner: ekrem`
 
@@ -108,8 +108,8 @@ project measure, calibrate, and scale on sand.
 ## 5. First Stream In Detail — `reliability-self-defense`
 
 Start point. Pure-reliability, mostly S/M, zero dependency, highest blast-radius.
-**Landed on the existing `week23` branch** (the planned `feat/reliability-self-defense`
-branch was folded into the `week23` line); tracker
+**Merged to main via PR #35 (`653d807`) `2026-06-12`** — developed on the existing
+`week23` branch (the planned `feat/reliability-self-defense` branch was folded into it); tracker
 `documents/active-work/W23-reliability-self-defense.md`.
 
 | Sub-item | Files | Acceptance |

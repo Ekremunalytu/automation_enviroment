@@ -1,12 +1,12 @@
 # W23 — reliability-self-defense (v1.0 trust floor, Stream 1)
 
-`Last Updated: 2026-06-09`
+`Last Updated: 2026-06-12`
 
-`Branch: week23 (single branch — all Stream 1 development lands here; no per-item feature branches). Based on main @ c4b4eff.`
+`Branch: week23 (single branch — all Stream 1 development landed here; no per-item feature branches). Based on main @ c4b4eff. MERGED to main via PR #35 (week23 -> main) 2026-06-12, merge commit 653d807; the week23 branch was deleted post-merge.`
 
 `Owner: ekrem`
 
-`Status: READY FOR CLOSE-OUT — S0 + S1 + S2 + S3 + S4 + S5 + S7 landed and pushed to origin/week23 (S2 + S0 implemented 2026-06-12; alembic migration c3f8a1d7e9b2 applied to the dev DB; phase.json + canonical doc preambles + bodies now name reliability-self-defense). Remaining: the S6 close-out PR (week23 -> main, gated on explicit go-ahead). Codex review 2026-06-12 dispositions in the pre-close checklist below.`
+`Status: MERGED — closed via PR #35 (week23 -> main) 2026-06-12, merge commit 653d807. All sub-items S0-S5 + S7 landed; v1.0 bars B1/B3/B4 + F-2/F-3 closed; migration c3f8a1d7e9b2 on main. Named stream — last_merged_weekly stays W22; phase.json active_stream = reliability-self-defense. Codex review 2026-06-12 dispositions in the pre-close checklist below; pre-existing ui-boundaries/SettingsPage-ESLint waived (not W23).`
 
 > Scope locked to **tight Stream 1** (per the 2026-06-08 planning session):
 > reliability/self-defense only. The broader "Week24 trust floor" addendum

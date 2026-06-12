@@ -4,7 +4,7 @@
 
 `Last merged weekly: W22 — closed synthetically on the week22 branch, merged to main via PR #31 week22 -> main 2026-05-28 via 1399f82.`
 
-`Active stream: reliability-self-defense (v1.0 trust floor, Stream 1) — in progress on the week23 branch; closes v1.0 bars B1/B3/B4 plus self-defense fixes F-2/F-3. Tracker: documents/active-work/W23-reliability-self-defense.md.`
+`Active stream: reliability-self-defense (v1.0 trust floor, Stream 1) — merged to main via PR #35 (week23 -> main, 653d807); closed v1.0 bars B1/B3/B4 plus self-defense fixes F-2/F-3. Tracker: documents/active-work/W23-reliability-self-defense.md.`
 
 `Sources of truth: documents/REFACTOR_STATUS.md (state) · documents/POST_POC_BACKLOG.md (deferred) · documents/REFACTOR_OPTIMIZATION.md §20 (last weekly plan) · documents/phase.json (weekly pointer + active stream).`
 
@@ -29,7 +29,7 @@ Do not copy phase history here; use `REFACTOR_STATUS.md` (slim canonical).
   code/tests — do not renumber.
 - Active named stream:
   `reliability-self-defense` (`documents/phase.json` -> `active_stream`),
-  in progress on the `week23` branch, tracked by
+  merged to main via PR #35 (`653d807`) `2026-06-12`, tracked by
   `active-work/W23-reliability-self-defense.md`. Named streams after W22 do
   not advance the weekly `last_merged_weekly` pointer (still W22). The
   earlier `podman-airgapped-deploy` and custom detection-rule streams remain

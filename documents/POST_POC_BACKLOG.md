@@ -4,7 +4,7 @@
 
 `Last merged weekly: W22 — closed synthetically on the week22 branch, merged to main via PR #31 week22 -> main 2026-05-28 via 1399f82.`
 
-`Active stream: reliability-self-defense (v1.0 trust floor, Stream 1) — in progress on the week23 branch; closes v1.0 bars B1/B3/B4 plus self-defense fixes F-2/F-3. Tracker: documents/active-work/W23-reliability-self-defense.md.`
+`Active stream: reliability-self-defense (v1.0 trust floor, Stream 1) — merged to main via PR #35 (week23 -> main, 653d807); closed v1.0 bars B1/B3/B4 plus self-defense fixes F-2/F-3. Tracker: documents/active-work/W23-reliability-self-defense.md.`
 
 `Sources of truth: documents/REFACTOR_STATUS.md (state) · documents/POST_POC_BACKLOG.md (deferred) · documents/REFACTOR_OPTIMIZATION.md §20 (last weekly plan) · documents/phase.json (weekly pointer + active stream).`
 
@@ -1135,9 +1135,8 @@ Forward roadmap recorded at
 turns ExTrace into a real, daily-usable single-operator defensive tool (user
 direction `2026-06-08`, after the project report was delivered). Built from a
 7-dimension real-tool gap assessment; every file/line claim verified against
-`main` @ `441cb72`. Stream 1 (`reliability-self-defense`) is **in progress on
-`week23`** (S0 + S1 + S2 + S3 + S4 + S5 + S7 landed; only close-out S6
-gated) — see
+`main` @ `441cb72`. Stream 1 (`reliability-self-defense`) **merged to main** via PR #35
+(`week23 -> main`, `653d807`) `2026-06-12` (S0 + S1 + S2 + S3 + S4 + S5 + S7) — see
 [`active-work/W23-reliability-self-defense.md`](active-work/W23-reliability-self-defense.md).
 The active-stream pointer flip (S0) landed `2026-06-12` — `phase.json` +
 canonical doc preambles/bodies now name `reliability-self-defense`
@@ -1147,7 +1146,7 @@ Detailed evidence and dispositions are archived at
 [`archive/backlog/v1-roadmap-intake-2026-06-08.md`](archive/backlog/v1-roadmap-intake-2026-06-08.md).
 Stable IDs below map to the roadmap streams (see `v1-roadmap.md` §7).
 
-- **Stream 1 — reliability-self-defense (in progress on `week23`):** `[BUG report-builder-unbounded-pem-redact]` ✅ S1 `729d0d3`, `[BUG wedged-job-no-same-boot-recovery]` ✅ S2 `2026-06-12` (migration `c3f8a1d7e9b2` nullable `last_heartbeat_at`; same-boot heartbeat + stale-running reaper + terminal-write guard; `744b3e1`/`eb79f79`), `[FOLLOWUP offline-vsix-size-bound]` ✅ S3/F-2 `e3a8af6`, `[BUG import-graph-relative-import-gate-gap]` ✅ S3/F-3 `818c6be`, `[BUG verdict-color-inconclusive-renders-clean]` ✅ S4 (canonical v3 verdict palette; INCONCLUSIVE → neutral STOP), `[FOLLOWUP exthost-logparse-redos-bounds-sweep]` ✅ S5 (audit: family line-anchored/linear; one unanchored greedy-prefix pattern bounded `{1,256}` + 16 KiB per-line cap).
+- **Stream 1 — reliability-self-defense (merged to main via PR #35 `653d807`):** `[BUG report-builder-unbounded-pem-redact]` ✅ S1 `729d0d3`, `[BUG wedged-job-no-same-boot-recovery]` ✅ S2 `2026-06-12` (migration `c3f8a1d7e9b2` nullable `last_heartbeat_at`; same-boot heartbeat + stale-running reaper + terminal-write guard; `744b3e1`/`eb79f79`), `[FOLLOWUP offline-vsix-size-bound]` ✅ S3/F-2 `e3a8af6`, `[BUG import-graph-relative-import-gate-gap]` ✅ S3/F-3 `818c6be`, `[BUG verdict-color-inconclusive-renders-clean]` ✅ S4 (canonical v3 verdict palette; INCONCLUSIVE → neutral STOP), `[FOLLOWUP exthost-logparse-redos-bounds-sweep]` ✅ S5 (audit: family line-anchored/linear; one unanchored greedy-prefix pattern bounded `{1,256}` + 16 KiB per-line cap).
 - **Stream 2 — reliability-multi-analyze:** `[FOLLOWUP sandbox-reset-stale-state-multi-analyze]` (existing; do not duplicate).
 - **Stream 3 — verdict-provenance-reproducibility:** `[GOAL vsix-content-sha256-provenance]`, `[GOAL verdict-reproducibility-anchor]`.
 - **Stream 4 — operator-report-export:** `[GOAL report-export-artifact]`, `[FOLLOWUP vsix-entry-log-sanitization]` (existing; do not duplicate), offline skip-reason UX.

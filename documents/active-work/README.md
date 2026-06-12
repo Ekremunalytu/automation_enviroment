@@ -4,7 +4,7 @@
 
 `Last merged weekly: W22 — closed synthetically on the week22 branch, merged to main via PR #31 week22 -> main 2026-05-28 via 1399f82.`
 
-`Active stream: reliability-self-defense (v1.0 trust floor, Stream 1) — in progress on the week23 branch; closes v1.0 bars B1/B3/B4 plus self-defense fixes F-2/F-3. Tracker: documents/active-work/W23-reliability-self-defense.md.`
+`Active stream: reliability-self-defense (v1.0 trust floor, Stream 1) — merged to main via PR #35 (week23 -> main, 653d807); closed v1.0 bars B1/B3/B4 plus self-defense fixes F-2/F-3. Tracker: documents/active-work/W23-reliability-self-defense.md.`
 
 `Sources of truth: documents/REFACTOR_STATUS.md (state) · documents/POST_POC_BACKLOG.md (deferred) · documents/REFACTOR_OPTIMIZATION.md §20 (last weekly plan) · documents/phase.json (weekly pointer + active stream).`
 
@@ -32,10 +32,9 @@ points to it.
     completed `W18-W22-roadmap.md` window. Carries the v1.0 bar (B1-B10),
     the 8 named streams (Streams 1-6 = v1.0; 7-8 = post-v1.0), the first
     stream (`reliability-self-defense`) in detail, and the fresh-audit
-    pre-close checklist. **Stream 1 (`reliability-self-defense`) is now the
-    active named stream** — in progress on the `week23` branch (opened on
-    user go-ahead `2026-06-12`); `podman-airgapped-deploy` is the prior
-    stream. New stable IDs recorded in
+    pre-close checklist. **Stream 1 (`reliability-self-defense`) shipped —
+    merged to main via PR #35 (`653d807`) on `2026-06-12`**;
+    `podman-airgapped-deploy` is the prior stream. New stable IDs recorded in
     [`POST_POC_BACKLOG.md`](../POST_POC_BACKLOG.md) "Newly Captured
     (v1.0 roadmap intake 2026-06-08)".
 - `W22-coverage-promotion-hard-tier.md`
