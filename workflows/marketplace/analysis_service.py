@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import threading
 from collections.abc import Callable
 from pathlib import Path
 from uuid import uuid4
@@ -134,6 +135,12 @@ ANALYZE_PROGRAMMING_ERROR_TYPES: tuple[type[Exception], ...] = (
 ANALYZE_ERROR_TYPES: tuple[type[Exception], ...] = (
     ANALYZE_RECOVERABLE_ERROR_TYPES + ANALYZE_PROGRAMMING_ERROR_TYPES
 )
+
+# S2 (W23 B3): how long the worker waits for the heartbeat thread to wind down
+# after signalling stop. The thread is a daemon (dies with the process), so this
+# is only for tidy shutdown — kept small so a wedged heartbeat never blocks the
+# worker's own exit.
+_HEARTBEAT_JOIN_TIMEOUT_S = 2.0
 
 
 def _open_job_session() -> Session:
@@ -548,6 +555,19 @@ def run_analysis_job(job_id: str, request: AnalyzeRequest) -> None:
         def cancel_check() -> bool:
             return job_service.is_job_cancelled(job_id)
 
+        # S2 (W23 B3): start the dedicated DB heartbeat for the lifetime of the
+        # analysis run. It spans claim -> terminal (NOT the per-phase monitoring
+        # heartbeat) so the stale-running reaper can distinguish a hung worker
+        # from a slow reset_sandbox / install phase. Stopped in the finally below
+        # whether the run completes, returns from a handler, or raises.
+        heartbeat_stop = threading.Event()
+        heartbeat_thread = threading.Thread(
+            target=job_service.run_job_heartbeat,
+            args=(job_id, heartbeat_stop),
+            name=f"analysis-heartbeat-{job_id[:8]}",
+            daemon=True,
+        )
+        heartbeat_thread.start()
         try:
             result = execute_analysis_request(
                 request,
@@ -626,6 +646,39 @@ def run_analysis_job(job_id: str, request: AnalyzeRequest) -> None:
                 error_code=getattr(exc, "error_code", None),
             )
             return
+        except Exception as exc:  # arch-allow: thread-supervisor — S2/B3
+            # S2 (W23 B3) terminal-write guard — the worker-thread supervisor
+            # site reserved by AGENTS rule 6's allow-list ([FOLLOWUP
+            # analysis-thread-supervisor]). An exception outside the closed
+            # analyze taxonomy above would otherwise escape run_analysis_job
+            # leaving the row `running` and holding the single-active slot
+            # forever (the worker-no-catch-all wedge). Write a terminal state so
+            # the slot releases immediately, then re-raise so the worker thread
+            # still surfaces the unexpected bug (the heartbeat reaper is the
+            # slower safety net if this site is ever bypassed). Cancel-aware
+            # (mirrors the recoverable handler): a cancel in flight is
+            # authoritative over an incidental crash. Known stage exceptions
+            # belong in ANALYZE_*_ERROR_TYPES above — this is the last-resort
+            # backstop, not a substitute for taxonomy discipline.
+            try:
+                if job_service.is_job_cancelled(job_id):
+                    job_service.finalize_cancelled_job(job_id)
+                else:
+                    job_service.fail_job(
+                        job_id, str(exc), error_code="worker_uncaught_error"
+                    )
+            except (job_service.JobNotCancellableError, KeyError):
+                logger.debug(
+                    "terminal-write guard: terminal write skipped for job %s "
+                    "(already terminal or absent).",
+                    job_id,
+                )
+            raise
+        finally:
+            # S2: wind the heartbeat thread down on every exit path (complete,
+            # handler return, programming-class re-raise, or the guard above).
+            heartbeat_stop.set()
+            heartbeat_thread.join(timeout=_HEARTBEAT_JOIN_TIMEOUT_S)
     finally:
         db.close()
 

@@ -1,6 +1,7 @@
 """Public CRUD facade for ExTrace storage."""
 
 from appcore.storage.crud_ops.analysis_jobs import (
+    STALE_HEARTBEAT_REAP_ERROR_CODE,
     JobNotCancellableError,
     cancel_analysis_job,
     complete_analysis_job,
@@ -9,8 +10,10 @@ from appcore.storage.crud_ops.analysis_jobs import (
     finalize_cancelled_analysis_job,
     get_active_analysis_job,
     get_analysis_job,
+    reap_stale_running_analysis_jobs,
     recover_interrupted_analysis_jobs,
     reject_analysis_job_static,
+    touch_analysis_job_heartbeat,
     update_analysis_job,
     update_analysis_job_step,
 )
@@ -42,6 +45,7 @@ from appcore.storage.crud_ops.relations import (
 from appcore.storage.crud_ops.writes import create_extension, delete_extension
 
 __all__ = [
+    "STALE_HEARTBEAT_REAP_ERROR_CODE",
     "JobNotCancellableError",
     "add_blacklist_domain_and_commit",
     "cancel_analysis_job",
@@ -64,10 +68,12 @@ __all__ = [
     "get_operator_setting",
     "list_blacklist_domains",
     "list_operator_settings",
+    "reap_stale_running_analysis_jobs",
     "recover_interrupted_analysis_jobs",
     "reject_analysis_job_static",
     "remove_blacklist_domain_and_commit",
     "search_extension_by_name",
+    "touch_analysis_job_heartbeat",
     "update_analysis_job",
     "update_analysis_job_step",
     "upsert_operator_setting",

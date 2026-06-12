@@ -37,6 +37,42 @@ def test_create_app_recovers_interrupted_jobs(monkeypatch: pytest.MonkeyPatch) -
     recover_jobs.assert_called_once_with()
 
 
+def test_create_app_starts_stale_reaper_when_enabled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """S2 (W23 B3): the background stale-running reaper thread starts at boot
+    when ``EXTRACE_SKIP_STALE_REAPER`` is unset."""
+    main = _load_main_module()
+    monkeypatch.setattr(main.settings.api, "WORKERS", 1)
+    monkeypatch.delenv("EXTRACE_SKIP_STALE_REAPER", raising=False)
+
+    with (
+        patch("main.recover_interrupted_jobs"),
+        patch("main.start_stale_job_reaper") as start_reaper,
+    ):
+        main.create_app()
+
+    start_reaper.assert_called_once_with()
+
+
+def test_create_app_skips_stale_reaper_when_disabled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """S2 (W23 B3): ``EXTRACE_SKIP_STALE_REAPER`` gates the daemon off so tooling
+    builds never spawn the sweep thread."""
+    main = _load_main_module()
+    monkeypatch.setattr(main.settings.api, "WORKERS", 1)
+    monkeypatch.setenv("EXTRACE_SKIP_STALE_REAPER", "1")
+
+    with (
+        patch("main.recover_interrupted_jobs"),
+        patch("main.start_stale_job_reaper") as start_reaper,
+    ):
+        main.create_app()
+
+    start_reaper.assert_not_called()
+
+
 def test_create_app_rejects_multiple_workers(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

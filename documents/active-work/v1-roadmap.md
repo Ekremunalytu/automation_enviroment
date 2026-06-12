@@ -1,14 +1,14 @@
 # ExTrace v1.0 Roadmap — From Finished Prototype To A Tool An Analyst Trusts Daily
 
-`Last Updated: 2026-06-08`
+`Last Updated: 2026-06-12`
 
 `Last merged weekly: W22 — closed synthetically on the week22 branch, merged to main via PR #31 week22 -> main 2026-05-28 via 1399f82.`
 
-`Active stream: podman-airgapped-deploy — merged to main from feat/podman-airgapped-deploy; air-gapped Podman deployment and human-readable documentation. Tracker: deploy/podman/README.md.`
+`Active stream: reliability-self-defense (v1.0 trust floor, Stream 1) — in progress on the week23 branch; closes v1.0 bars B1/B3/B4 plus self-defense fixes F-2/F-3. Tracker: documents/active-work/W23-reliability-self-defense.md.`
 
 `Sources of truth: documents/REFACTOR_STATUS.md (state) · documents/POST_POC_BACKLOG.md (deferred) · documents/REFACTOR_OPTIMIZATION.md §20 (last weekly plan) · documents/phase.json (weekly pointer + active stream).`
 
-`Phase: PLANNING state — forward roadmap after podman-airgapped-deploy. Not yet the active stream; the first stream (reliability-self-defense) is opened only on explicit user go-ahead.`
+`Phase: ACTIVE — Stream 1 (reliability-self-defense) is the active named stream, in progress on the week23 branch (opened on user go-ahead 2026-06-12; documents/phase.json -> active_stream). Streams 2-8 remain forward-planned.`
 
 `Owner: ekrem`
 
@@ -108,17 +108,18 @@ project measure, calibrate, and scale on sand.
 ## 5. First Stream In Detail — `reliability-self-defense`
 
 Start point. Pure-reliability, mostly S/M, zero dependency, highest blast-radius.
-Branch `feat/reliability-self-defense`, tracker
-`documents/active-work/reliability-self-defense.md` (created at stream open).
+**Landed on the existing `week23` branch** (the planned `feat/reliability-self-defense`
+branch was folded into the `week23` line); tracker
+`documents/active-work/W23-reliability-self-defense.md`.
 
 | Sub-item | Files | Acceptance |
 |---|---|---|
 | **S0** doc-reconcile | new tracker + `CLAUDE.md` / `phase.json` active-stream pointer flip | stream registered as the named successor to `podman-airgapped-deploy`; audit findings recorded as the pre-close checklist (§6 below). |
 | **S1** kill F-1 at source `[BUG report-builder-unbounded-pem-redact]` | `packages/analysis_contracts/evidence.py:56-62,84-91`; verify `executor/flows/playwright/report_builder.py:292/294` now bounded transitively | replace the lazy `(?:.\|\n)*?` `private_key` pattern in `_REDACTION_PATTERNS` so `redact_secrets` itself is bounded (route through `_redact_private_key_bounded`); new regression test asserts `redact_secrets` stays under a time ceiling on the 200-unmatched-`BEGIN` payload **via the report-build path**. |
 | **S2** heartbeat + reaper + terminal-write guard `[BUG wedged-job-no-same-boot-recovery]` | `workflows/marketplace/analysis_execution.py:122`; `analysis_service.py:600/607`; `appcore/storage/crud_ops/analysis_jobs/lifecycle.py`; alembic (heartbeat column) | heartbeat tick writes `last_heartbeat_at`; stale-running reaper releases the single-active lock **same-boot**; narrow boundary guard in `run_analysis_job` writes `fail_job` then **re-raises** (no bare except; new stage exceptions join `ANALYZE_ERROR_TYPES` + HTTP map + routing test). |
-| **S3** F-2 + F-3 `[FOLLOWUP offline-vsix-size-bound]` + `[BUG import-graph-relative-import-gate-gap]` | `workflows/marketplace/offline.py:178,229`; `tests/architecture/test_import_graph_facades.py:38` | pre-read `st_size` cap (reuse the `vsix_max_uncompressed_size` family — no new knob) → clean 413/422 before `read_bytes()`; resolve `node.level` relative imports instead of `continue`. |
-| **S4** stop false-clean UI tone `[BUG verdict-color-inconclusive-renders-clean]` | `ui/src/features/reports/verdictColors.ts`; `ui/src/features/reports/ReportsPage.tsx`; `ui/src/features/simulation/SimulationPage.tsx` | wire the 5-state palette into the report header badge, rationale chips, score cell, and simulation run-health surfaces; INCONCLUSIVE is a non-green STOP; snapshot tests assert `inconclusive` / `clean_with_notes` never render the clean tone; add the compact legend + recommended-action copy. |
-| **S5** ext-host ReDoS sweep `[FOLLOWUP exthost-logparse-redos-bounds-sweep]` | `executor/host.py:65`; `runtime_capture/extension_host_strace_parse.py`; `health/handshake.py:37` | audit the ext-host parse/marker regex family for catastrophic-backtracking shape; document the finding (audit reclassifies as line-anchored/linear → per-line length cap is hygiene, not a v1 blocker) so the standing "unaudited" flag is formally closed. **Non-blocking.** |
+| **S3** F-2 + F-3 `[FOLLOWUP offline-vsix-size-bound]` + `[BUG import-graph-relative-import-gate-gap]` (done on `week23`) | `workflows/marketplace/offline.py` (pre-read gate) + `router.py` (resolve operator threshold); F-3 real gate is `tests/architecture/test_import_graph_boundaries.py` + `test_import_graph_executor.py` — the roadmap-named `test_import_graph_facades.py:38` copy was **dead/unused**; all three `_import_references` copies fixed | pre-read `st_size` cap (reuse the `vsix_max_uncompressed_size` family — no new knob) → clean 422 `vsix_threshold_breach` before `read_bytes()`; `_resolve_relative_import` resolves `node.level` to the absolute module instead of `continue`. Relative imports cannot cross a top-level boundary, so no real violation surfaced — gate-completeness/honesty fix. |
+| **S4** stop false-clean UI tone `[BUG verdict-color-inconclusive-renders-clean]` (done on `week23`) | `ui/src/features/reports/verdictColors.ts` (canonical v3 palette); `ui/src/features/reports/ReportsPage.tsx`; `ui/src/features/simulation/runHealth.ts` (extracted `automationHealthTone`) | `verdictColors.ts` rebuilt as the v3-native 5-state source of truth (`verdictTone`/`verdictAction`/`VERDICT_STYLES`/`VERDICT_LEGEND`, `CLEAN_TONE`); the header badge, score cell, and rationale chips tone through it; added a recommended-action note + compact verdict-scale legend. INCONCLUSIVE → `neutral` STOP, `clean_with_notes` → `accent`, only `clean` → `ok`. SimulationPage's run-health was already `inconclusive`→`neutral`; extracted to a named, unit-tested helper (`automationHealthTone`) so the property is regression-guarded. Unit tests pin the distinct-tone bijection + "inconclusive/clean_with_notes never render the clean tone"; render test asserts the INCONCLUSIVE badge + non-clean action + legend. `tsc`/`eslint`/boundary-lint clean; full UI suite 131 tests green. |
+| **S5** ext-host ReDoS sweep `[FOLLOWUP exthost-logparse-redos-bounds-sweep]` (done on `week23`) | `executor/host.py:65`; `runtime_capture/extension_host_strace_parse.py`; `health/handshake.py:37`; `runtime_capture/extension_host_log_parse.py` | audited all four regex-bearing ext-host files: the family is line-anchored/linear (strace `^…$`-anchored; harness mask = literal prefix + `\S+`; harness marker per-line single greedy `.*`; log patterns per-line behind an `activ`/`register` pre-filter). The audit found one real edge — `_ACTIVATION_PATTERNS[4]` was the only unanchored greedy-prefix pattern (O(n²) on a colon-less mega-line) — and **fixed** it: bounded the prefix `{1,256}` (linear) + added a 16 KiB per-line cap. 1M-char line minutes→~32 ms; 6 regression tests (3 for the `log_parse` fix + 3 in `test_exthost_parse_redos_bounds.py` pinning the other three audited regexes as linear, so the family claim is test-backed); 845 executor tests green. Standing "unaudited" flag closed. **Non-blocking.** |
 | **S6** close-out PR | tracker freeze, pre-close checklist resolution | all audit findings resolved/waived with evidence before merge. **PR only on explicit user go-ahead.** |
 
 **Regression surface:** CRSC-2 / W13-7 (the redaction hardening this completes);
@@ -129,12 +130,13 @@ HTTP-map contract). After the alembic change, `alembic-upgrade extrace` (5432) o
 
 ### Week24 Roadmap Addendum — Security Trust Floor (Future Candidate)
 
-**Status:** roadmap-only. Do **not** open a branch, change
-`documents/phase.json`, flip the active stream, create
-`documents/active-work/reliability-self-defense.md`, add an Alembic migration, or
-touch runtime/UI/test code until the user explicitly starts this work. W22
-remains the last merged weekly pointer; Week24 is a future named-stream candidate,
-not an active weekly phase.
+**Status:** SUPERSEDED by W23 (`reliability-self-defense`, opened on `week23`
+`2026-06-12`). The trust-floor items W24-1..W24-5 below shipped as W23 S4 / S1+S5 /
+S3 / S3 / S2 respectively (see the W23 tracker) — so the original "do not open a
+branch / flip the active stream / add an Alembic migration until the user starts"
+gate is satisfied. W24-6 (ADR-0015 E1/E2 evasion) and W24-7 (`vsix_sha256`
+provenance) were explicitly OUT of W23 scope and remain deferred to Streams 3/6.
+W22 remains the last merged weekly pointer.
 
 **Goal:** make ExTrace prove its own analysis trustworthiness before any screen,
 report, API response, or export lets an operator interpret a run as clean. This
@@ -172,11 +174,11 @@ the detailed intake snapshot is archived at
 
 | Finding | Severity | Disposition | Evidence |
 |---|---|---|---|
-| F-1 unbounded PEM redact on ext-host window | Medium | Stream 1 / S1 — **blocking** | `executor/flows/playwright/report_builder.py:292/294`, `evidence.py:56-62,84` |
-| F-2 unbounded offline `.vsix` read | Low | Stream 1 / S3 — blocking-this-stream | `offline.py:178/229` |
-| F-3 import-graph gate skips relative imports | Low | Stream 1 / S3 — blocking-this-stream | `test_import_graph_facades.py:38` |
-| `[BUG verdict-color-inconclusive-renders-clean]` | High (safety) | Stream 1 / S4 — **blocking** | `verdictColors.ts`, `ReportsPage.tsx:85/191`, `SimulationPage.tsx:391` |
-| ext-host log-parse / strace ReDoS sweep | uncharacterized | Stream 1 / S5 — **non-blocking** (audit reclassified linear) | `extension_host_log_parse.py`, `extension_host_strace_parse.py` |
+| F-1 unbounded PEM redact on ext-host window | Medium | Stream 1 / S1 — **RESOLVED** (week23 `729d0d3`: linear marker-pairing scanner) | `executor/flows/playwright/report_builder.py:292/294`, `evidence.py:56-62,84` |
+| F-2 unbounded offline `.vsix` read | Low | Stream 1 / S3 — **RESOLVED** (week23 `e3a8af6`: pre-read `st_size` gate) | `offline.py:178/229` |
+| F-3 import-graph gate skips relative imports | Low | Stream 1 / S3 — **RESOLVED** (week23: `_resolve_relative_import`) | real gate `test_import_graph_boundaries.py` + `test_import_graph_executor.py` (roadmap-named `test_import_graph_facades.py:38` copy was dead/unused) |
+| `[BUG verdict-color-inconclusive-renders-clean]` | High (safety) | Stream 1 / S4 — **RESOLVED** (week23: canonical v3 verdict palette; INCONCLUSIVE → neutral STOP) | `verdictColors.ts`, `ReportsPage.tsx`, `simulation/runHealth.ts` |
+| ext-host log-parse / strace ReDoS sweep | uncharacterized | Stream 1 / S5 — **RESOLVED** (week23: family line-anchored/linear; one unanchored greedy-prefix pattern bounded `{1,256}` + 16 KiB per-line cap; 1M-char line minutes→~32 ms) | `extension_host_log_parse.py`, `extension_host_strace_parse.py` |
 | `[FOLLOWUP vsix-entry-log-sanitization]` (raw entry names in logs) | Med/High | **Stream 4** (alongside offline skip-reason UX, same files) | `client.py:269/319` |
 
 ## 7. Stream → Stable ID Map
@@ -225,10 +227,14 @@ trustworthy.
 
 ## 10. Open Questions (resolve before sequencing the later streams)
 
-1. **Is the Fedora box physically in hand?** Gates the _live_ acceptance of
+1. **Is the Fedora box physically in hand?** ~~Gates the _live_ acceptance of
    Stream 5 (backup/restore, health on the real host) and Stream 8 (container
-   ratchet-down kernel/seccomp validation). The macOS dev host can land the
-   _code_ but not the live proof.
+   ratchet-down kernel/seccomp validation).~~ **RESOLVED-BY-DEFERRAL
+   (`2026-06-12`, user direction):** the Fedora-host-dependent _live-validation_
+   is deferred to `POST_POC_BACKLOG.md` → `[FOLLOWUP fedora-host-live-validation]`
+   and no longer blocks. Stream 5 lands its code + dev/CI validation now (live
+   on-host proof pending); Stream 8 stays post-v1.0. The macOS dev host lands the
+   _code_; the live proof is tracked separately, not gating.
 2. **Is there a labeled malicious/benign extension set to measure catch-rate?**
    Gates Stream 6. v1 needs only a small multi-variant synthetic/declawed set
    beyond the 8 canaries + the real benign extensions already in `extensions/`.

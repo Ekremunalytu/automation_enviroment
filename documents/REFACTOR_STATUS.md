@@ -1,6 +1,6 @@
 # Refactor Status
 
-`Last Updated: 2026-06-08 — W22 closed synthetically on week22 and merged to main via PR #31 week22 -> main 1399f82. W21 closed and merged via PR #30 week21 -> main 2026-05-28 via 5dc18aa. Prior close-outs: W20 PR #29 week20 -> main 64a3c3d · W19 PR #28 week19 -> main c879603 · W18 PR #26 week18 -> main 9874e79 · W17 PR #25 week17 -> main bff565d · W16 PR #23 week16 -> main 1b6d43f · W15 PR #22 week15 -> main 6161472 · W14 PR #21 week14 -> main 4e03c8d · W13 PR #20 week13 -> main 772deb3. Active stream: podman-airgapped-deploy, merged to main from feat/podman-airgapped-deploy; tracker deploy/podman/README.md.`
+`Last Updated: 2026-06-12 — W22 closed synthetically on week22 and merged to main via PR #31 week22 -> main 1399f82. W21 closed and merged via PR #30 week21 -> main 2026-05-28 via 5dc18aa. Prior close-outs: W20 PR #29 week20 -> main 64a3c3d · W19 PR #28 week19 -> main c879603 · W18 PR #26 week18 -> main 9874e79 · W17 PR #25 week17 -> main bff565d · W16 PR #23 week16 -> main 1b6d43f · W15 PR #22 week15 -> main 6161472 · W14 PR #21 week14 -> main 4e03c8d · W13 PR #20 week13 -> main 772deb3. Active stream: reliability-self-defense (v1.0 trust floor, Stream 1) in progress on the week23 branch; tracker active-work/W23-reliability-self-defense.md.`
 
 Active status board for current closure state. **Slim canonical** — verbose
 phase evidence is frozen under dated snapshots:

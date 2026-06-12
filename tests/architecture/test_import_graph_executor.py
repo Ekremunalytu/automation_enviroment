@@ -26,6 +26,30 @@ def _iter_python_files(top_level_dir: str) -> list[Path]:
     return sorted((REPO_ROOT / top_level_dir).rglob("*.py"))
 
 
+def _resolve_relative_import(
+    module_path: Path, level: int, module: str | None
+) -> str | None:
+    """Resolve a relative ``from .. import`` to its absolute dotted module.
+
+    ``level`` is the leading-dot count and ``module`` the optional suffix
+    (``None`` for ``from . import x``). The anchor is the importing file's
+    own package walked up ``level - 1`` times, matching Python's
+    relative-import semantics, so the boundary check sees the resolved
+    root instead of silently skipping it (F-3). Returns ``None`` when the
+    level walks above the repo top (an import Python itself rejects); a
+    beyond-top-level anchor resolves to ``""`` so the bare imported name
+    becomes the root, catching a pathological cross-package relative.
+    """
+    package_parts = list(module_path.relative_to(REPO_ROOT).with_suffix("").parts[:-1])
+    up = level - 1
+    if up > len(package_parts):
+        return None
+    anchor = package_parts[: len(package_parts) - up]
+    if module:
+        anchor = anchor + module.split(".")
+    return ".".join(anchor)
+
+
 def _import_references(module_path: Path) -> list[tuple[int, str]]:
     tree = ast.parse(module_path.read_text(encoding="utf-8"))
     references: list[tuple[int, str]] = []
@@ -34,11 +58,23 @@ def _import_references(module_path: Path) -> list[tuple[int, str]]:
         if isinstance(node, ast.Import):
             for alias in node.names:
                 references.append((node.lineno, alias.name))
-        elif isinstance(node, ast.ImportFrom) and node.module:
+        elif isinstance(node, ast.ImportFrom):
             if node.level:
-                continue
-            for alias in node.names:
-                references.append((node.lineno, f"{node.module}.{alias.name}"))
+                # F-3: resolve the relative import to its absolute module so
+                # the boundary check sees the real root instead of skipping
+                # the edge. A relative import cannot escape its own top-level
+                # package, so the resolved root is normally in-package;
+                # resolving still keeps the gate honest and flags a
+                # pathological beyond-top-level relative reaching a banned root.
+                base = _resolve_relative_import(module_path, node.level, node.module)
+                if base is None:
+                    continue
+                for alias in node.names:
+                    ref = f"{base}.{alias.name}" if base else alias.name
+                    references.append((node.lineno, ref))
+            elif node.module:
+                for alias in node.names:
+                    references.append((node.lineno, f"{node.module}.{alias.name}"))
     return references
 
 

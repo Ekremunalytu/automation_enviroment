@@ -121,6 +121,25 @@ def test_list_offline_skips_unreadable_archive(
     assert [r["filename"] for r in body] == ["good.vsix"]
 
 
+def test_list_offline_skips_oversize_archive(
+    client: TestClient, offline_dirs: tuple[Path, Path]
+) -> None:
+    """F-2: an archive whose on-disk size exceeds ``vsix_max_uncompressed_size``
+    is skipped before ``read_bytes()`` so it cannot exhaust memory mid-scan —
+    the in-budget package is still listed."""
+    offline_dir, _ = offline_dirs
+    (offline_dir / "good.vsix").write_bytes(_make_vsix())
+    (offline_dir / "huge.vsix").write_bytes(b"x" * 50_000)
+
+    with patch(
+        "workflows.marketplace.router._resolve_max_uncompressed_size",
+        return_value=10_000,
+    ):
+        body = client.get("/api/marketplace/offline/list").json()
+
+    assert [r["filename"] for r in body] == ["good.vsix"]
+
+
 # ---------------------------------------------------------------------------
 # ingest
 # ---------------------------------------------------------------------------
@@ -245,3 +264,63 @@ def test_ingest_offline_threshold_breach_returns_structured_422(
     assert detail["error"] == "vsix_threshold_breach"
     assert detail["breach_kind"] == "entry_count"
     assert detail["publisher"] == "ms-python"
+
+
+def test_ingest_offline_oversize_rejected_before_read_returns_structured_422(
+    client: TestClient, offline_dirs: tuple[Path, Path]
+) -> None:
+    """F-2: an over-limit archive is rejected by the pre-read size gate
+    *before* ``read_bytes()`` pulls it into memory, and surfaces the same
+    structured 422 as an extraction-time breach.
+
+    The dropped file is deliberately NOT a valid zip: if the size gate fired
+    before the read + zip parse (as F-2 requires) we get the structured
+    ``uncompressed_size`` breach; had the bytes been read and parsed first we
+    would instead get a bad-zip 422. The breach_kind therefore proves the
+    pre-read ordering. Identity is unknown pre-manifest, so the filename
+    stands in for the package name."""
+    offline_dir, _ = offline_dirs
+    oversize = b"x" * 50_000
+    (offline_dir / "huge.vsix").write_bytes(oversize)
+
+    with patch(
+        "workflows.marketplace.router._resolve_max_uncompressed_size",
+        return_value=10_000,
+    ):
+        response = client.post(
+            "/api/marketplace/offline/ingest",
+            json={"filename": "huge.vsix"},
+        )
+
+    assert response.status_code == 422
+    detail = response.json()["detail"]
+    assert detail["error"] == "vsix_threshold_breach"
+    assert detail["breach_kind"] == "uncompressed_size"
+    assert detail["threshold_name"] == "vsix_max_uncompressed_size"
+    assert detail["threshold_value"] == 10_000
+    assert detail["observed_value"] == len(oversize)
+    assert detail["name"] == "huge.vsix"
+
+
+def test_read_offline_vsix_oversize_raises_before_read(
+    offline_dirs: tuple[Path, Path],
+) -> None:
+    """F-2 unit contract: ``read_offline_vsix`` raises the structured
+    ``VSIXUnpackError`` (not a ``BadZipFile``) when the on-disk size exceeds
+    the cap, proving the gate fires before ``read_bytes()`` + the zip parse.
+    The dropped bytes are deliberately not a valid zip; an
+    ``uncompressed_size`` breach (rather than a zip-parse error) is the
+    proof of ordering, independent of the router."""
+    from workflows.marketplace import offline as offline_intake
+
+    offline_dir, _ = offline_dirs
+    (offline_dir / "huge.vsix").write_bytes(b"x" * 50_000)
+
+    with pytest.raises(marketplace_client.VSIXUnpackError) as excinfo:
+        offline_intake.read_offline_vsix("huge.vsix", max_uncompressed_size=10_000)
+
+    exc = excinfo.value
+    assert exc.breach_kind == marketplace_client.VSIX_BREACH_UNCOMPRESSED_SIZE
+    assert exc.threshold_name == "vsix_max_uncompressed_size"
+    assert exc.threshold_value == 10_000
+    assert exc.observed_value == 50_000

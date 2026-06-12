@@ -84,7 +84,10 @@ class ExtensionContributesCommandsSchema(BaseModel):
 class ExtensionContributesSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True, extra="ignore")
 
-    configuration: dict | None = None
+    # VS Code allows `contributes.configuration` to be either a single
+    # configuration object or an array of them (e.g. GitHub Copilot ships a
+    # list). Accept both shapes; JSONB persists either.
+    configuration: dict | list | None = None
     debuggers: list | None = None
     walkthroughs: list | None = None
     grammars: list | None = None

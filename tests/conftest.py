@@ -25,6 +25,13 @@ from sqlalchemy.pool import NullPool
 from appcore.storage.models import Base
 from appcore.api.deps import get_db
 
+# S2 (W23 B3): never spawn the background stale-running-job reaper daemon during
+# the test session. ``load_test_app`` imports ``main`` (which builds the app at
+# module scope), and ``test_app_runtime`` calls ``create_app()`` directly; both
+# would otherwise start a real daemon thread ticking against the DB. Set before
+# any ``main`` import so the gate in ``create_app`` sees it.
+os.environ.setdefault("EXTRACE_SKIP_STALE_REAPER", "1")
+
 # =============================================================================
 # DATABASE FIXTURES
 # =============================================================================

@@ -53,6 +53,11 @@ from workflows.marketplace.job_service import (
     JobNotCancellableError,
 )
 from workflows.marketplace.offline import OfflineIntakeError
+from workflows.security_settings import load_vsix_thresholds
+from workflows.security_settings.defaults import (
+    VSIX_MAX_UNCOMPRESSED_SIZE_KEY,
+    VSIX_THRESHOLD_DEFAULTS,
+)
 
 settings = app_settings
 logger = get_extrace_logger("extrace.workflows.marketplace.router")
@@ -120,6 +125,20 @@ def _vsix_unpack_to_http(
         version=version,
     ).model_dump(mode="json")
     return HTTPException(status_code=422, detail=detail)
+
+
+def _resolve_max_uncompressed_size(db: Session) -> int:
+    """Operator-tuned ``vsix_max_uncompressed_size`` for the offline
+    pre-read gate, so it agrees with the extraction-time guard (which
+    loads the same value via ``persist_and_extract_vsix_bytes``). Falls
+    back to the default ceiling when the setting row is unset."""
+    thresholds = load_vsix_thresholds(db)
+    return int(
+        thresholds.get(
+            VSIX_MAX_UNCOMPRESSED_SIZE_KEY,
+            VSIX_THRESHOLD_DEFAULTS[VSIX_MAX_UNCOMPRESSED_SIZE_KEY],
+        )
+    )
 
 
 @router.get("/marketplace/search", response_model=list[MarketplaceExtension])
@@ -275,16 +294,22 @@ def _metrics_payload(
 
 
 @router.get("/marketplace/offline/list", response_model=list[OfflineExtension])
-def list_offline_extensions_endpoint() -> list[OfflineExtension]:
+def list_offline_extensions_endpoint(
+    db: Session = Depends(get_db),
+) -> list[OfflineExtension]:
     """Enumerate readable ``.vsix`` packages in the offline intake directory.
 
     Air-gapped counterpart to ``/marketplace/search``: instead of querying
     the live marketplace, it lists packages the operator has dropped into
-    ``settings.project.OFFLINE_DIR``. Unreadable archives are skipped by the
-    service; only a filesystem fault on the directory itself is an error.
+    ``settings.project.OFFLINE_DIR``. Unreadable *or* over-limit archives are
+    skipped by the service (the latter under the same operator-tuned
+    ``vsix_max_uncompressed_size`` the extractor enforces); only a filesystem
+    fault on the directory itself is an error.
     """
     try:
-        return offline_intake.list_offline_extensions()
+        return offline_intake.list_offline_extensions(
+            max_uncompressed_size=_resolve_max_uncompressed_size(db),
+        )
     except OSError as exc:
         raise HTTPException(
             status_code=500,
@@ -309,11 +334,18 @@ def ingest_offline_extension_endpoint(
     metrics_collector: dict[str, float] = {}
     try:
         publisher, name, version, vsix_bytes = offline_intake.read_offline_vsix(
-            request.filename
+            request.filename,
+            max_uncompressed_size=_resolve_max_uncompressed_size(db),
         )
     except OfflineIntakeError as exc:
         status = 404 if exc.reason == "not_found" else 400
         raise HTTPException(status_code=status, detail=str(exc)) from exc
+    except marketplace_client.VSIXUnpackError as exc:
+        # F-2: an over-limit archive is rejected before read_bytes(); surface
+        # the same structured 422 as an extraction-time breach. Identity is
+        # not yet known (we reject before reading the manifest), so the
+        # filename stands in for the package name.
+        raise _vsix_unpack_to_http(exc, "", request.filename, "") from exc
     except MarketplaceIdentityError as exc:
         raise HTTPException(
             status_code=422,
@@ -379,6 +411,12 @@ def start_analysis_job(
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
+    # S2 (W23 B3): before reserving the single-active slot, sweep any same-boot
+    # `running` job whose heartbeat has gone stale. Without this a hung/crashed
+    # prior worker would hold the slot and 409-block every fresh submit until an
+    # API restart. No-op unless a running job is actually past the stale timeout.
+    job_service.reap_stale_running_jobs(db=db)
+
     try:
         job = job_service.reserve_job(request, db=db)
     except ActiveAnalysisJobError as exc:
@@ -426,6 +464,12 @@ def get_analysis_job(
     job_id: str,
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
+    # S2 (W23 B3): a status poll is the operator noticing the job. Sweep stale
+    # same-boot `running` jobs first so a wedged run self-heals to terminal
+    # `failed` in the view (and releases the single-active slot) instead of
+    # appearing stuck `running` forever. No-op unless past the stale timeout.
+    job_service.reap_stale_running_jobs(db=db)
+
     try:
         snapshot = job_service.get_job_snapshot(job_id, db=db)
     except KeyError as exc:

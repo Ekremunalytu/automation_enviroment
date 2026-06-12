@@ -12,9 +12,9 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass
 from enum import Enum
-from typing import Literal
+from typing import Any, Literal, cast
 
-from sqlalchemy import select
+from sqlalchemy import CursorResult, func, select, update
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -534,7 +534,120 @@ def recover_interrupted_analysis_jobs(
     return len(jobs)
 
 
+# S2 (W23 B3): the error_code stamped on a job the stale-running reaper fails.
+# Lets the report / triage surface distinguish a heartbeat-recovered wedge from
+# an ordinary analysis failure.
+STALE_HEARTBEAT_REAP_ERROR_CODE = "stale_heartbeat_reaped"
+
+
+def touch_analysis_job_heartbeat(
+    db: Session,
+    job_id: str,
+    *,
+    now: float | None = None,
+) -> int:
+    """Stamp ``last_heartbeat_at`` on a ``running`` job (S2 / W23 B3).
+
+    Targeted single-row UPDATE — no ``with_for_update`` lock and no read-back:
+    the heartbeat is an idempotent liveness ping written every few seconds from
+    a dedicated worker thread, so it must stay cheap and must not contend with
+    the terminal-write lock discipline. Scoped to ``status == 'running'`` so a
+    tick that races a completion / cancellation is a harmless no-op (rowcount 0)
+    rather than resurrecting a heartbeat on a terminal row. Returns the affected
+    row count (0 when the job is gone or no longer running).
+    """
+    ts = time.time() if now is None else now
+    result = db.execute(
+        update(AnalysisJob)
+        .where(AnalysisJob.job_id == job_id, AnalysisJob.status == "running")
+        .values(last_heartbeat_at=ts)
+    )
+    try:
+        db.commit()
+    except SQLAlchemyError:
+        db.rollback()
+        raise
+    # Session.execute(update(...)) returns a CursorResult at runtime; the typed
+    # surface is the base Result which doesn't expose rowcount.
+    return cast("CursorResult[Any]", result).rowcount
+
+
+def reap_stale_running_analysis_jobs(
+    db: Session,
+    current_boot_id: str,
+    *,
+    stale_after_s: float,
+    detail: str,
+    now: float | None = None,
+) -> int:
+    """Fail same-boot ``running`` jobs whose heartbeat has gone stale (S2 / W23 B3).
+
+    Closes the gap ``recover_interrupted_analysis_jobs`` cannot: that sweep only
+    reaps rows from a *different* boot (``owner_boot_id != current_boot_id``), so
+    a worker that hangs or crashes out of the closed analyze taxonomy *within the
+    same API boot* keeps its row ``running`` and holds the single-active slot
+    until an API restart. This reaper targets exactly those rows.
+
+    Staleness uses ``COALESCE(last_heartbeat_at, started_at)`` so a row claimed
+    but not yet heartbeat-stamped is still recoverable after the timeout from its
+    claim. Each candidate is re-selected ``with_for_update`` and re-checked under
+    the lock before ``_interrupt_job`` writes the terminal ``failed`` state, so a
+    worker that heartbeated or finished between the scan and the lock is never
+    falsely reaped (mirrors the ``fail_analysis_job`` lock discipline). Only
+    ``running`` is targeted — ``cancelling`` rows are owned by the two-phase
+    cancel contract, and ``queued`` rows have no worker to be stale.
+
+    Returns the number of rows reaped.
+    """
+    ref = time.time() if now is None else now
+    cutoff = ref - stale_after_s
+    effective = func.coalesce(AnalysisJob.last_heartbeat_at, AnalysisJob.started_at)
+    candidate_stmt = select(AnalysisJob.job_id).where(
+        AnalysisJob.status == "running",
+        AnalysisJob.owner_boot_id == current_boot_id,
+        effective.is_not(None),
+        effective < cutoff,
+    )
+    candidate_ids = list(db.scalars(candidate_stmt).all())
+    if not candidate_ids:
+        return 0
+
+    reaped = 0
+    for job_id in candidate_ids:
+        locked_stmt = (
+            select(AnalysisJob).where(AnalysisJob.job_id == job_id).with_for_update()
+        )
+        job = db.scalars(locked_stmt).first()
+        if (
+            job is None
+            or job.status != "running"
+            or job.owner_boot_id != current_boot_id
+        ):
+            # Worker drove the row terminal (or it vanished) between the scan
+            # and the lock — nothing to reap.
+            continue
+        effective_ts = (
+            job.last_heartbeat_at
+            if job.last_heartbeat_at is not None
+            else job.started_at
+        )
+        if effective_ts is None or effective_ts >= cutoff:
+            # Worker heartbeated under the lock window — no longer stale.
+            continue
+        _interrupt_job(job, detail, error_code=STALE_HEARTBEAT_REAP_ERROR_CODE)
+        reaped += 1
+
+    if reaped:
+        try:
+            db.commit()
+        except SQLAlchemyError:
+            db.rollback()
+            raise
+    return reaped
+
+
 __all__ = [
+    "STALE_HEARTBEAT_REAP_ERROR_CODE",
     "JobNotCancellableError",
     "WorkerEntryClaim",
     "WorkerEntryOutcome",
@@ -546,6 +659,8 @@ __all__ = [
     "finalize_cancelled_analysis_job",
     "get_active_analysis_job",
     "get_analysis_job",
+    "reap_stale_running_analysis_jobs",
     "recover_interrupted_analysis_jobs",
+    "touch_analysis_job_heartbeat",
     "update_analysis_job",
 ]

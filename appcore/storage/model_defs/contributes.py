@@ -21,7 +21,7 @@ class ExtensionContributes(Base):
         ForeignKey("extensions.id", ondelete="CASCADE"),
         primary_key=True,
     )
-    configuration: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    configuration: Mapped[dict | list | None] = mapped_column(JSONB, nullable=True)
     debuggers: Mapped[list | None] = mapped_column(JSONB, nullable=True)
     walkthroughs: Mapped[list | None] = mapped_column(JSONB, nullable=True)
     grammars: Mapped[list | None] = mapped_column(JSONB, nullable=True)

@@ -41,6 +41,7 @@ import {
   getInspectorView,
 } from "../../lib/adapters/report";
 import { FindingCard } from "./FindingCard";
+import { verdictTone, verdictAction, VERDICT_LEGEND } from "./verdictColors";
 import { RuleMatrixSection } from "./RuleMatrixSection";
 import { EventTimeline } from "./charts/EventTimeline";
 import { EventDensityStrip } from "./charts/EventDensityStrip";
@@ -189,9 +190,11 @@ export function ReportsPage() {
   };
 
   const verdict = report?.detection?.verdict;
-  const verdictTone = severityToTone(
-    verdict === "malicious" ? "critical" : verdict === "suspicious" ? "medium" : "low",
-  );
+  // S4 / B4: tone the verdict through the canonical 5-state map, never a
+  // severity fallback. inconclusive/clean_with_notes must not read as the
+  // clean (green) tone.
+  const headerTone = verdictTone(verdict);
+  const recommendedAction = verdict ? verdictAction(verdict) : null;
   const inspectorTone: "accent" | "warn" | "danger" = inspector
     ? inspector.event.sensitive
       ? "danger"
@@ -205,11 +208,27 @@ export function ReportsPage() {
       <header style={{ paddingBottom: 24, borderBottom: `1px solid ${V3.rule}` }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
           {verdict ? (
-            <Badge tone={verdictTone}>
+            <Badge tone={headerTone}>
               Verdict · {verdict.toUpperCase()}
             </Badge>
           ) : null}
+          <VerdictLegend />
         </div>
+        {recommendedAction ? (
+          <p
+            role="note"
+            aria-label="Recommended action"
+            style={{
+              margin: "12px 0 0",
+              maxWidth: 760,
+              fontSize: 13.5,
+              lineHeight: 1.55,
+              color: V3.ink2,
+            }}
+          >
+            {recommendedAction}
+          </p>
+        ) : null}
         <PageTitle style={{ marginTop: 14, fontSize: 44, lineHeight: 1, wordBreak: "break-word" }}>Security report</PageTitle>
         <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginTop: 18 }}>
           <span
@@ -313,7 +332,7 @@ export function ReportsPage() {
           <Cell label="Total events" value={formatNumber(report?.summary.totalEvents ?? 0)} />
           <Cell label="Sensitive" value={formatNumber(report?.summary.sensitiveEvents ?? 0)} tone="danger" />
           <Cell label="Network" value={formatNumber(report?.summary.networkEvents ?? 0)} tone="warn" />
-          <Cell label="Score" value={`${report?.summary.signalSummaryScore ?? 0}`} tone={verdictTone} />
+          <Cell label="Score" value={`${report?.summary.signalSummaryScore ?? 0}`} tone={headerTone} />
         </div>
         <div
           style={{
@@ -470,6 +489,25 @@ function Cell({ label, value, tone = "neutral" }: CellProps) {
   );
 }
 
+// Compact verdict key: every state is shown with its distinct tone so an
+// operator can read the header badge against the full scale and never mistake
+// an inconclusive/clean-with-notes run for a clean pass (B4).
+function VerdictLegend() {
+  return (
+    <div
+      aria-label="Verdict scale"
+      style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}
+    >
+      <Eyebrow>Scale</Eyebrow>
+      {VERDICT_LEGEND.map((entry) => (
+        <span key={entry.verdict} style={{ display: "inline-flex" }}>
+          <Badge tone={entry.tone}>{entry.label}</Badge>
+        </span>
+      ))}
+    </div>
+  );
+}
+
 function OverviewSection({
   report,
 }: {
@@ -506,8 +544,7 @@ function RationalePanel({ rationale, verdict }: { rationale: string; verdict?: s
           .map((part) => part.trim())
           .filter(Boolean)
       : [];
-  const chipTone: V3Tone =
-    verdict === "malicious" ? "danger" : verdict === "suspicious" ? "warn" : "neutral";
+  const chipTone: V3Tone = verdictTone(verdict);
 
   if (!codes.length) {
     return (

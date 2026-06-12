@@ -33,6 +33,7 @@ import type {
   StaticFindingView,
   StaticReportView,
 } from "../../lib/types/view-models";
+import { automationHealthTone } from "./runHealth";
 import { LiveEvidenceWorkspace } from "./sections";
 import { ActivityBars } from "./charts/ActivityBars";
 
@@ -389,13 +390,7 @@ export function SimulationPage() {
             <SimulationCell
               label="Automation health"
               value={report.summary.automationHealthStatus}
-              tone={
-                report.summary.automationHealthStatus === "healthy"
-                  ? "ok"
-                  : report.summary.automationHealthStatus === "degraded"
-                    ? "warn"
-                    : "neutral"
-              }
+              tone={automationHealthTone(report.summary.automationHealthStatus)}
               borderRight
             />
             <SimulationCell

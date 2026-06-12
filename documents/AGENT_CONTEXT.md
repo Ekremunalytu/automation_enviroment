@@ -1,10 +1,10 @@
 # Agent Context
 
-`Last Updated: 2026-06-08`
+`Last Updated: 2026-06-12`
 
 `Last merged weekly: W22 — closed synthetically on the week22 branch, merged to main via PR #31 week22 -> main 2026-05-28 via 1399f82.`
 
-`Active stream: podman-airgapped-deploy — merged to main from feat/podman-airgapped-deploy; air-gapped Podman deployment and human-readable documentation. Tracker: deploy/podman/README.md.`
+`Active stream: reliability-self-defense (v1.0 trust floor, Stream 1) — in progress on the week23 branch; closes v1.0 bars B1/B3/B4 plus self-defense fixes F-2/F-3. Tracker: documents/active-work/W23-reliability-self-defense.md.`
 
 `Sources of truth: documents/REFACTOR_STATUS.md (state) · documents/POST_POC_BACKLOG.md (deferred) · documents/REFACTOR_OPTIMIZATION.md §20 (last weekly plan) · documents/phase.json (weekly pointer + active stream).`
 
@@ -28,10 +28,12 @@ Do not copy phase history here; use `REFACTOR_STATUS.md` (slim canonical).
   trackers stay on the read path only for stable IDs referenced by
   code/tests — do not renumber.
 - Active named stream:
-  `podman-airgapped-deploy` (`documents/phase.json` -> `active_stream`),
-  tracked by `../deploy/podman/README.md`. Named streams after W22 do
-  not advance the weekly `last_merged_weekly` pointer. The previous custom
-  detection-rule stream remains under `detection-design/README.md`.
+  `reliability-self-defense` (`documents/phase.json` -> `active_stream`),
+  in progress on the `week23` branch, tracked by
+  `active-work/W23-reliability-self-defense.md`. Named streams after W22 do
+  not advance the weekly `last_merged_weekly` pointer (still W22). The
+  earlier `podman-airgapped-deploy` and custom detection-rule streams remain
+  under `../deploy/podman/README.md` and `detection-design/README.md`.
 - Architecture: `ARCHITECTURE.md` (slim) + `architecture/` splits.
 - Placement rules: `PROJECT_STRUCTURE.md` (slim) + `structure/` splits.
 - Test lanes: `TESTING.md` (slim) + `testing/` splits.

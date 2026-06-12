@@ -382,6 +382,34 @@ describe("ReportsPage", () => {
     expect(screen.getByText("Activated publisher.tool via onStartupFinished")).toBeInTheDocument();
   });
 
+  it("renders an INCONCLUSIVE verdict as a non-green stop with a recommended action", async () => {
+    // B4: an analysis that could not complete must not read like a clean pass.
+    const inconclusiveBundle: AnalysisBundleDto = {
+      ...latestBundle,
+      detection_report: {
+        ...latestBundle.detection_report!,
+        findings: [],
+        rules_executed: [],
+        verdict: "inconclusive",
+        verdict_rationale: "incomplete analysis: extension_host_log_missing",
+      },
+    };
+    vi.mocked(apiClient.getLatestReportBundle).mockResolvedValue(inconclusiveBundle);
+    vi.mocked(apiClient.getReportBundleByName).mockResolvedValue(inconclusiveBundle);
+
+    renderPage("/reports?report=latest&tab=overview");
+
+    expect(await screen.findByText("Verdict · INCONCLUSIVE")).toBeInTheDocument();
+
+    // The recommended-action note must tell the operator this is NOT clean.
+    const note = await screen.findByRole("note", { name: "Recommended action" });
+    expect(note.textContent?.toLowerCase()).toContain("not a clean");
+
+    // The compact verdict scale legend renders all five states; "Clean with
+    // notes" is unique to the legend, so its presence proves the legend mounted.
+    expect(screen.getByText("Clean with notes")).toBeInTheDocument();
+  });
+
   it("maps legacy tabs to the ledger and keeps canonical tab state in the URL", async () => {
     renderPage("/reports?report=latest&tab=evidence&event=activation-1");
 

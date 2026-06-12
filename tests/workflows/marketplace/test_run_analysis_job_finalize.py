@@ -32,6 +32,8 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
+import pytest
+
 from appcore.contracts.schema_defs.static_analysis_bundle import StaticAnalysisReport
 from appcore.contracts.schemas import AnalyzeRequest
 from executor.control import ExecutorError
@@ -63,6 +65,21 @@ def _request() -> AnalyzeRequest:
         version="2026.5.0",
         scenario=None,
         analysis_profile=None,
+    )
+
+
+@pytest.fixture(autouse=True)
+def _inert_job_heartbeat(monkeypatch: pytest.MonkeyPatch) -> None:
+    """S2 (W23 B3): no-op ``run_analysis_job``'s DB heartbeat thread here.
+
+    These handler-dispatch tests reach the CLAIMED branch (which now spawns the
+    heartbeat thread). The thread opens its own ``SessionLocal``; keep it inert
+    so the mocked-session tests never touch a real DB. The heartbeat loop has
+    dedicated coverage in ``test_stale_job_reaper.py``.
+    """
+    monkeypatch.setattr(
+        "workflows.marketplace.job_service.run_job_heartbeat",
+        lambda *args, **kwargs: None,
     )
 
 

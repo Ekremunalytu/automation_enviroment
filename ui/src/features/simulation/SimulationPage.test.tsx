@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { SimulationPage } from "./SimulationPage";
+import { automationHealthTone } from "./runHealth";
 import { apiClient } from "../../lib/api/client";
 import type { AnalyzeJobStatusDto } from "../../lib/types/contracts";
 
@@ -539,5 +540,20 @@ describe("SimulationPage", () => {
     expect(alert.textContent).toContain("Job already completed");
 
     confirmSpy.mockRestore();
+  });
+});
+
+describe("automationHealthTone (S4 / B4 run-health)", () => {
+  it("greens only a fully healthy run", () => {
+    expect(automationHealthTone("healthy")).toBe("ok");
+  });
+
+  it("warns a degraded run", () => {
+    expect(automationHealthTone("degraded")).toBe("warn");
+  });
+
+  it("treats an inconclusive run as a neutral STOP, never green", () => {
+    expect(automationHealthTone("inconclusive")).toBe("neutral");
+    expect(automationHealthTone("inconclusive")).not.toBe("ok");
   });
 });

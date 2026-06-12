@@ -69,6 +69,11 @@ node_modules[ .]*
 # Security Reports
 bandit-report.json
 
+# Runtime scan artifacts — analyze runs write reports/bundles to the repo-root
+# OUTPUT_DIR (activation_report_*.json, combined bundles, static reports).
+# Operator-local output, never tracked.
+/outputs/
+
 # Operator-local scratch (do not track repo-root note files; canonical
 # trackers live under documents/ — automation_todo.md, REFACTOR_STATUS.md)
 /problems.md

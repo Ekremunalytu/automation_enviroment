@@ -478,3 +478,76 @@ def test_extension_host_output_mixed_secret_classes_in_single_buffer() -> None:
     # over-match and eat surrounding context.
     assert "ext-host: starting request" in eh_emitted
     assert "ext-host: done" in eh_emitted
+
+
+# --- v1 finding F-1: redact_secrets on the report path is un-hangable ---
+#
+# W13-7 bounded ``redact_multiline_secrets`` (the per-line pre-pass), but
+# ``build_report_data`` redacts the Extension-Host tail through
+# ``redact_secrets`` — which still ran the lazy ``BEGIN(?:.|\n)*?END``
+# regex. An adversarial extension that floods stdout with unmatched BEGIN
+# markers therefore drove report assembly into the same catastrophic
+# O(N*L) backtracking on the verdict-producing path. The v1
+# ``reliability-self-defense`` stream routes ``redact_secrets``'s
+# private_key class through a linear marker-pairing scanner; these two
+# tests pin the fix at the report-build boundary.
+
+
+def test_extension_host_output_unbounded_pem_redact_is_bounded() -> None:
+    """F-1 timing regression: a tail stuffed with 200 unmatched
+    ``-----BEGIN PRIVATE KEY-----`` markers (no END) must not stall
+    ``build_report_data``.
+
+    The pre-fix lazy ``private_key`` regex retries forward from each
+    BEGIN — empirically ~360 ms on this 200-marker / ~240 KB payload and
+    worse as the buffer grows. The linear scanner finishes in a single
+    pass per marker class (<10 ms expected). The 100 ms ceiling fails the
+    quadratic path while leaving comfortable CI margin."""
+
+    import time
+
+    # BEGIN marker + ~1 KB body, no terminating END, x200. 400 lines, so
+    # the whole buffer sits inside the 500-line tail window and reaches
+    # redact_secrets via the report-build path.
+    line = "-----BEGIN PRIVATE KEY-----\n" + "x" * 1000 + "\n"
+    raw = line * 200
+
+    start = time.perf_counter()
+    payload = _build_payload(raw)
+    elapsed = time.perf_counter() - start
+
+    assert elapsed < 0.100, (
+        f"build_report_data took {elapsed * 1000:.1f} ms redacting a "
+        "200-unmatched-BEGIN Extension-Host tail (~240 KB). redact_secrets "
+        "must route private_key through the linear scanner; the pre-fix "
+        "lazy regex runs ~360 ms and degrades super-linearly."
+    )
+
+    eh_emitted = payload["extension_host_output"]
+    assert isinstance(eh_emitted, str)
+    # No END marker means no span collapses; the scanner leaves the BEGIN
+    # markers literal rather than swallowing them (matches the lazy
+    # regex's no-match behaviour on an unterminated span).
+    assert "[REDACTED:private_key]" not in eh_emitted
+
+
+def test_extension_host_output_oversize_pem_span_fully_redacted() -> None:
+    """F-1 companion: the linear scanner imposes no span-length cap, so a
+    well-formed PEM block far larger than the 16 KB
+    ``_redact_private_key_bounded`` window still collapses fully through
+    ``redact_secrets`` on the report path.
+
+    Guards against a future refactor that routes ``redact_secrets``
+    through the capped per-line scanner and silently leaves >16 KB of key
+    bytes in the persisted report. ``_pem_block(2000)`` is a ~114 KB span
+    — ~7x the bounded-scanner cap."""
+
+    raw = _pem_block(2000)
+    payload = _build_payload(raw)
+
+    eh_emitted = payload["extension_host_output"]
+    assert isinstance(eh_emitted, str)
+    # Body bytes never persist and the whole span collapses to one token,
+    # even though the span dwarfs the 16 KB per-line-scanner window.
+    assert _PEM_BODY_LINE not in eh_emitted
+    assert eh_emitted.count("[REDACTED:private_key]") == 1

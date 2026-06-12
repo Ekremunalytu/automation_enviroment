@@ -134,6 +134,72 @@ def test_create_extension_from_package_json_no_extra_data(mock_session: Session)
         assert args[5] is None  # contributes
 
 
+def test_create_extension_with_list_form_configuration(mock_session: Session):
+    """`contributes.configuration` as a list flows through hydration intact.
+
+    Regression for the GitHub Copilot Chat ingest failure: VS Code permits
+    `contributes.configuration` to be either a single object or an array of
+    config sections. Copilot ships the array form, which previously raised a
+    pydantic `dict_type` error while building `ExtensionContributesSchema`,
+    aborting the whole catalog write. The hydration path must accept the list
+    and pass it through to `create_db_extension` unchanged.
+    """
+    mock_pkg_json = {
+        "name": "copilot-chat",
+        "publisher": "GitHub",
+        "version": "0.48.1",
+        "engines": {"vscode": "^1.120.0"},
+    }
+    list_form_configuration = [
+        {"title": "GitHub Copilot", "properties": {"copilot.enable": {}}},
+        {"title": "Advanced", "properties": {"copilot.advanced": {}}},
+    ]
+
+    with (
+        patch(
+            "workflows.extension_catalog.manifest_to_schema.parse_npm_fields",
+            return_value=None,
+        ),
+        patch(
+            "workflows.extension_catalog.manifest_to_schema.parse_extra_fields",
+            return_value=None,
+        ),
+        patch(
+            "workflows.extension_catalog.manifest_to_schema.parse_capabilities",
+            return_value=None,
+        ),
+        patch(
+            "workflows.extension_catalog.manifest_to_schema.parse_scripts",
+            return_value=None,
+        ),
+        patch(
+            "workflows.extension_catalog.manifest_to_schema.parse_activation_events",
+            return_value=None,
+        ),
+        patch(
+            "workflows.extension_catalog.manifest_to_schema.parse_contributes",
+            return_value={"configuration": list_form_configuration},
+        ),
+        patch(
+            "workflows.extension_catalog.manifest_to_schema.create_db_extension"
+        ) as mock_create_db,
+    ):
+        mock_ext = MagicMock(id=3)
+        mock_ext.name = "copilot-chat"
+        mock_create_db.return_value = mock_ext
+
+        result = _create_extension_from_package_json(mock_session, mock_pkg_json)
+
+        assert result.name == "copilot-chat"
+        mock_create_db.assert_called_once()
+
+        contributes_schema = mock_create_db.call_args[0][5]
+        assert isinstance(contributes_schema, ExtensionContributesSchema)
+        assert isinstance(contributes_schema.configuration, list)
+        assert len(contributes_schema.configuration) == 2
+        assert contributes_schema.configuration[0]["title"] == "GitHub Copilot"
+
+
 def test_validate_manifest_identity_accepts_match():
     """All three expected fields match → no exception."""
     pkg = {"name": "python", "publisher": "ms-python", "version": "2025.0.0"}

@@ -67,7 +67,7 @@ log "building executor image (heavy — VS Code/Chromium/Node/tshark) …"
 "$ENGINE" build --platform "$PLATFORM" -t "$IMG_EXECUTOR" \
   --build-arg EXECUTOR_NODE_MAJOR=20 \
   --build-arg EXECUTOR_VSCODE_CHANNEL=stable \
-  --build-arg EXECUTOR_VSCODE_VERSION=1.116.0 \
+  --build-arg EXECUTOR_VSCODE_VERSION=1.120.0 \
   --build-arg EXECUTOR_DEFAULT_DISPLAY=:99 \
   --build-arg EXECUTOR_DEFAULT_NOVNC_PORT=6080 \
   -f executor/container/Dockerfile .

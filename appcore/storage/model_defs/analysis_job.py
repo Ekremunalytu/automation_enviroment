@@ -44,6 +44,17 @@ class AnalysisJob(Base):
     # signalled. Keeps the partial unique index honest — only one active row
     # (queued/running/cancelling) at any time.
     requested_cancel_at: Mapped[float | None] = mapped_column(Float, nullable=True)
+    # S2 (W23 B3, same-boot wedged-job recovery): the worker stamps this every
+    # few seconds while a job is `running` (dedicated heartbeat thread). The
+    # same-boot stale-running reaper compares ``now - COALESCE(last_heartbeat_at,
+    # started_at)`` against the stale timeout to distinguish a hung/crashed
+    # worker (which would otherwise hold the single-active slot forever) from a
+    # slow phase, and fails it CLOSED without an API restart. Nullable: queued
+    # rows have no worker yet, and pre-S2 / legacy rows leave it NULL (the reaper
+    # falls back to ``started_at``). Operational-only — never flows through the
+    # job snapshot Pydantic contracts; written via a targeted UPDATE and read
+    # directly off the ORM by the reaper.
+    last_heartbeat_at: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     __table_args__ = (
         Index("ix_analysis_jobs_status", "status"),
