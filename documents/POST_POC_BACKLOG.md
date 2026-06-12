@@ -1136,11 +1136,12 @@ turns ExTrace into a real, daily-usable single-operator defensive tool (user
 direction `2026-06-08`, after the project report was delivered). Built from a
 7-dimension real-tool gap assessment; every file/line claim verified against
 `main` @ `441cb72`. Stream 1 (`reliability-self-defense`) is **in progress on
-`week23`** (S1 + S2 + S3 + S4 + S5 + S7 landed; close-out S6 + pointer-flip S0
+`week23`** (S0 + S1 + S2 + S3 + S4 + S5 + S7 landed; only close-out S6
 gated) — see
 [`active-work/W23-reliability-self-defense.md`](active-work/W23-reliability-self-defense.md).
-The formal active-stream pointer flip (`phase.json` / `CLAUDE.md` /
-`REFACTOR_STATUS.md` header) is **held pending explicit go-ahead**.
+The active-stream pointer flip (S0) landed `2026-06-12` — `phase.json` +
+canonical doc preambles/bodies now name `reliability-self-defense`
+(`last_merged_weekly` stays W22 until the S6 merge).
 
 Detailed evidence and dispositions are archived at
 [`archive/backlog/v1-roadmap-intake-2026-06-08.md`](archive/backlog/v1-roadmap-intake-2026-06-08.md).
