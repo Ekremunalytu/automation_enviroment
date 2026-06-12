@@ -6,7 +6,7 @@
 
 `Owner: ekrem`
 
-`Status: IN PROGRESS — S1 + S3 + S4 + S5 + S7 landed; S2 (gated, alembic) pending. Close-out (S6) is a gated PR.`
+`Status: IN PROGRESS — S0 + S1 + S2 + S3 + S4 + S5 + S7 landed (S2 implemented 2026-06-12, alembic migration applied to the dev DB; S0 active-stream pointer flip done 2026-06-12 — phase.json + canonical doc preambles now name reliability-self-defense; commit pending). Only close-out S6 (gated PR) remains.`
 
 > Scope locked to **tight Stream 1** (per the 2026-06-08 planning session):
 > reliability/self-defense only. The broader "Week24 trust floor" addendum
@@ -26,9 +26,9 @@ precedes any catch-rate/provenance work.
 
 | Sub-item | Closes | Status | Commit / note |
 |---|---|---|---|
-| **S0** doc-reconcile + active-stream pointer flip | — | partial | tracker (this file) + backlog/roadmap updated; **active-stream pointer flip (`phase.json` / `CLAUDE.md` / `REFACTOR_STATUS.md` header) is GATED — held for explicit go-ahead** |
+| **S0** doc-reconcile + active-stream pointer flip | — | ✅ done | `2026-06-12` (commit pending) — `phase.json` `active_stream` flipped `podman-airgapped-deploy` → `reliability-self-defense` (tracker → this file); the `Active stream:` banner refreshed across all canonical preamble docs (CLAUDE.md / AGENTS.md / AGENT_CONTEXT.md / REFACTOR_STATUS.md / REFACTOR_OPTIMIZATION.md / POST_POC_BACKLOG.md / documents/README.md / active-work/README.md / v1-roadmap.md / root README.md) + `Last Updated` bumped. `last_merged_weekly` stays W22 (W23 not yet merged). Doc-preamble parity/consistency/manifest gates green |
 | **S1** kill F-1 PEM ReDoS at source | B1 | ✅ done | `729d0d3` — `redact_secrets` routes private_key through a linear marker-pairing scanner (`_redact_private_key_spans`, no span cap); report-path timing + oversize-span regressions; direct `redact_secrets` ReDoS + semantics unit tests |
-| **S2** heartbeat + reaper + terminal-write guard | B3 | ⏳ pending | **GATED** — adds nullable `last_heartbeat_at` (alembic migration needs explicit go-ahead before creation/run) |
+| **S2** heartbeat + reaper + terminal-write guard | B3 | ✅ done | `2026-06-12` (commit pending) — migration `c3f8a1d7e9b2` adds nullable `last_heartbeat_at` (additive, no index/data motion; applied to dev DB `extrace`). Closes the same-boot gap `recover_interrupted_jobs` misses (it only reaps a *different* boot). **(1) heartbeat:** dedicated DB heartbeat thread spans claim→terminal (`job_service.run_job_heartbeat` → `touch_analysis_job_heartbeat`, targeted `UPDATE … WHERE status='running'`), independent of the per-phase monitoring heartbeat so a slow reset/install is not mistaken for a hang. **(2) reaper:** `reap_stale_running_analysis_jobs` fails same-boot `running` rows where `now - COALESCE(last_heartbeat_at, started_at) > EXTRACE_STALE_JOB_TIMEOUT_S` (default 120s), re-locked + re-checked under `with_for_update` before `_interrupt_job` (error_code `stale_heartbeat_reaped`); cancelling/queued/other-boot left alone. Triggered three ways (user-chosen "both"): submit (before `reserve_job`), status poll (`GET /analyze/{id}`), and a background daemon (`start_stale_job_reaper`, gated by `EXTRACE_SKIP_STALE_REAPER`, started in `create_app`). **(3) terminal-write guard:** `run_analysis_job` boundary `except Exception` writes a terminal state (cancel-aware) then re-raises — the AGENTS-rule-6 `[FOLLOWUP analysis-thread-supervisor]` landing site (`# arch-allow: thread-supervisor`) — so an out-of-taxonomy crash releases the slot immediately instead of wedging. No new pydantic contract (operational-only column). Tunables `EXTRACE_{HEARTBEAT_INTERVAL,STALE_JOB_TIMEOUT,REAPER_SWEEP_INTERVAL}_S` + `EXTRACE_SKIP_STALE_REAPER` documented in `.env.example`. |
 | **S3 / F-2** offline `.vsix` pre-read size gate | — | ✅ done | `e3a8af6` — pre-read `st_size` gate on the operator-tuned `vsix_max_uncompressed_size` (no new knob); ingest → structured 422, list → skip; router resolves the threshold; integration + direct unit regressions |
 | **S3 / F-3** import-graph relative-import resolution | — | ✅ done | `818c6be` — `_resolve_relative_import` in `boundaries.py` + `executor.py` + `facades.py` (roadmap-named `facades.py:38` copy was **dead/unused**; real gate is the other two); resolver fixture test; no real violation surfaced (relative imports cannot cross a top-level boundary — completeness fix) |
 | **S4** stop false-clean UI tone | B4 | ✅ done | `verdictColors.ts` rebuilt as the canonical v3-native 5-state verdict palette (`verdictTone`/`verdictAction`/`VERDICT_STYLES`/`VERDICT_LEGEND`); `ReportsPage.tsx` header badge + score cell + rationale chips now tone through it, with a recommended-action note + compact verdict-scale legend; INCONCLUSIVE → `neutral` (grey STOP), `clean_with_notes` → `accent`, only `clean` → `ok` (`CLEAN_TONE`). Run-health analogue extracted to `simulation/runHealth.ts` (`automationHealthTone`, was already inconclusive→neutral; now named + tested). Unit tests pin the 5-state distinct-tone bijection + "inconclusive/clean_with_notes never render the clean tone"; ReportsPage render test asserts the INCONCLUSIVE badge + non-clean action note + legend |
@@ -46,13 +46,30 @@ Bucketed, evidence-cited, blocking flags noted. Mirrors `v1-roadmap.md` §6.
 | F-2 unbounded offline `.vsix` read | Low | **RESOLVED** — S3 `e3a8af6` |
 | F-3 import-graph gate skips relative imports | Low | **RESOLVED** — S3 `818c6be` |
 | `[BUG verdict-color-inconclusive-renders-clean]` | High (safety) | **RESOLVED** — S4 |
-| `[BUG wedged-job-no-same-boot-recovery]` | High (operability) | **OPEN** — S2 (blocking) |
+| `[BUG wedged-job-no-same-boot-recovery]` | High (operability) | **RESOLVED** — S2 `2026-06-12` (heartbeat + same-boot stale-running reaper + terminal-write guard; commit pending) |
 | ext-host log-parse / strace ReDoS sweep | uncharacterized | **RESOLVED** — S5 (audit: family line-anchored/linear; the one unanchored greedy-prefix pattern bounded `{1,256}` + per-line cap; 1M-char line minutes→~32 ms) |
 
 ## Verification (as of this update)
 
 - S1: 78 redaction tests + 4 new direct `redact_secrets` tests green; adversarial
   200-unmatched-BEGIN payload ~6 ms (was ~360 ms). ruff/format/mypy/bandit clean.
+- S2: full suite **2671 passed, 11 skipped, 13 deselected** (no failures) on the
+  S2 branch state. New coverage: 7 CRUD lifecycle tests (heartbeat stamp +
+  same-boot reaper: stale-reap, fresh-skip, started_at fallback, other-boot skip,
+  cancelling skip), 8 reaper/heartbeat thread+wrapper tests
+  (`test_stale_job_reaper.py`), 1 alembic round-trip (`c3f8a1d7e9b2`), 1
+  terminal-write-guard reraise test, 2 `create_app` reaper-gate tests, 2 endpoint
+  sweep tests. Updated the lifecycle `__all__` surface pin + the
+  AGENTS-rule-6 no-bare-except gate (pragma) both green. ruff/format/mypy/bandit
+  (`-c pyproject.toml`) clean on all changed files. Migration applied live to dev
+  DB `extrace` (column present, nullable). **Live anchor** — UI-driven scan
+  `af40dd9bd2f4` (`dbaeumer.vscode-eslint@3.0.29`, 2026-06-12, api rebuilt with
+  S2): `completed`, no error; `last_heartbeat_at` populated with a **215s
+  heartbeat span over a 218s run** (ticked across reset/install/monitor with no
+  gap → the reaper would not false-fire a slow-but-healthy run); reaper did not
+  fire (`error_code` None, not `stale_heartbeat_reaped`). Prior jobs all show
+  `last_heartbeat_at = NULL` (pre-S2 code), so the populated value is itself the
+  proof the deployed api carries S2.
 - S3: 265 marketplace tests + 332 architecture tests green; F-3 surfaced **no real
   import-boundary violation**. ruff/format/mypy/bandit/markdownlint clean.
 - S4: full UI suite green — 23 files / 131 tests (10 new `verdictColors` unit tests,

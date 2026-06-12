@@ -1,10 +1,10 @@
 # Post-PoC Backlog
 
-`Last Updated: 2026-06-08`
+`Last Updated: 2026-06-12`
 
 `Last merged weekly: W22 — closed synthetically on the week22 branch, merged to main via PR #31 week22 -> main 2026-05-28 via 1399f82.`
 
-`Active stream: podman-airgapped-deploy — merged to main from feat/podman-airgapped-deploy; air-gapped Podman deployment and human-readable documentation. Tracker: deploy/podman/README.md.`
+`Active stream: reliability-self-defense (v1.0 trust floor, Stream 1) — in progress on the week23 branch; closes v1.0 bars B1/B3/B4 plus self-defense fixes F-2/F-3. Tracker: documents/active-work/W23-reliability-self-defense.md.`
 
 `Sources of truth: documents/REFACTOR_STATUS.md (state) · documents/POST_POC_BACKLOG.md (deferred) · documents/REFACTOR_OPTIMIZATION.md §20 (last weekly plan) · documents/phase.json (weekly pointer + active stream).`
 
@@ -1136,7 +1136,8 @@ turns ExTrace into a real, daily-usable single-operator defensive tool (user
 direction `2026-06-08`, after the project report was delivered). Built from a
 7-dimension real-tool gap assessment; every file/line claim verified against
 `main` @ `441cb72`. Stream 1 (`reliability-self-defense`) is **in progress on
-`week23`** (S1 + S3 + S4 + S5 landed; S2 pending — gated alembic) — see
+`week23`** (S1 + S2 + S3 + S4 + S5 + S7 landed; close-out S6 + pointer-flip S0
+gated) — see
 [`active-work/W23-reliability-self-defense.md`](active-work/W23-reliability-self-defense.md).
 The formal active-stream pointer flip (`phase.json` / `CLAUDE.md` /
 `REFACTOR_STATUS.md` header) is **held pending explicit go-ahead**.
@@ -1145,14 +1146,37 @@ Detailed evidence and dispositions are archived at
 [`archive/backlog/v1-roadmap-intake-2026-06-08.md`](archive/backlog/v1-roadmap-intake-2026-06-08.md).
 Stable IDs below map to the roadmap streams (see `v1-roadmap.md` §7).
 
-- **Stream 1 — reliability-self-defense (in progress on `week23`):** `[BUG report-builder-unbounded-pem-redact]` ✅ S1 `729d0d3`, `[BUG wedged-job-no-same-boot-recovery]` ⏳ S2 (alembic — gated, pending), `[FOLLOWUP offline-vsix-size-bound]` ✅ S3/F-2 `e3a8af6`, `[BUG import-graph-relative-import-gate-gap]` ✅ S3/F-3 `818c6be`, `[BUG verdict-color-inconclusive-renders-clean]` ✅ S4 (canonical v3 verdict palette; INCONCLUSIVE → neutral STOP), `[FOLLOWUP exthost-logparse-redos-bounds-sweep]` ✅ S5 (audit: family line-anchored/linear; one unanchored greedy-prefix pattern bounded `{1,256}` + 16 KiB per-line cap).
+- **Stream 1 — reliability-self-defense (in progress on `week23`):** `[BUG report-builder-unbounded-pem-redact]` ✅ S1 `729d0d3`, `[BUG wedged-job-no-same-boot-recovery]` ✅ S2 `2026-06-12` (migration `c3f8a1d7e9b2` nullable `last_heartbeat_at`; same-boot heartbeat + stale-running reaper + terminal-write guard; commit pending), `[FOLLOWUP offline-vsix-size-bound]` ✅ S3/F-2 `e3a8af6`, `[BUG import-graph-relative-import-gate-gap]` ✅ S3/F-3 `818c6be`, `[BUG verdict-color-inconclusive-renders-clean]` ✅ S4 (canonical v3 verdict palette; INCONCLUSIVE → neutral STOP), `[FOLLOWUP exthost-logparse-redos-bounds-sweep]` ✅ S5 (audit: family line-anchored/linear; one unanchored greedy-prefix pattern bounded `{1,256}` + 16 KiB per-line cap).
 - **Stream 2 — reliability-multi-analyze:** `[FOLLOWUP sandbox-reset-stale-state-multi-analyze]` (existing; do not duplicate).
 - **Stream 3 — verdict-provenance-reproducibility:** `[GOAL vsix-content-sha256-provenance]`, `[GOAL verdict-reproducibility-anchor]`.
 - **Stream 4 — operator-report-export:** `[GOAL report-export-artifact]`, `[FOLLOWUP vsix-entry-log-sanitization]` (existing; do not duplicate), offline skip-reason UX.
-- **Stream 5 — release-identity-ops:** `[CLEANUP version-identity-coherence]`, `[GOAL api-health-db-probe]`, `[GOAL podman-backup-restore]`.
+- **Stream 5 — release-identity-ops:** `[CLEANUP version-identity-coherence]`, `[GOAL api-health-db-probe]`, `[GOAL podman-backup-restore]` (live-on-Fedora acceptance deferred via `[FOLLOWUP fedora-host-live-validation]` below — code still lands on dev/CI).
 - **Stream 6 — measured-catch-rate:** `[GOAL measured-catch-rate-corpus]`, `[GOAL benign-false-positive-gate]`, `[GOAL platform-blind-verdict-annotation]`, `[GOAL adr-0015-e1-e2-evasion-detection]`.
 - **Stream 7 — sequential-batch-corpus (post-v1.0):** `[GOAL sequential-batch-corpus]`.
 - **Stream 8 — linux-host-hardening-evasion (post-v1.0):** `[GOAL container-hardening-ratchet-down]`, `[GOAL adr-0015-e3-e5-evasion-detection]`, `[FOLLOWUP harness-secret-distribution-redesign]` (existing; do not duplicate).
+
+### Fedora-gated live-validation — deferred (user direction `2026-06-12`)
+
+`[FOLLOWUP fedora-host-live-validation]` (new) — the parts of the roadmap that
+need a **physical Fedora host** are explicitly deferred here so they never block
+stream code from landing. Resolves `v1-roadmap.md` §10 Open Question 1 by
+deferral, not by acquiring the box. Scope:
+
+- **Stream 5 (`release-identity-ops`)** — `extrace-ctl.sh backup`/`restore` and
+  `/api/health` real-host proof. The **code lands and is validated on the macOS
+  dev host / CI** (endpoint unit + integration tests, backup/restore round-trip
+  against the dev DB). Only the **on-real-host live acceptance** (Podman on
+  Fedora, upgrade-survives-history smoke) is deferred to this item. Stream 5 is
+  **not blocked** — it ships with dev/CI validation and a documented "live-host
+  proof pending" note.
+- **Stream 8 (`linux-host-hardening-evasion`, post-v1.0)** — kernel/seccomp
+  ratchet-down validation (`read_only` + tmpfs + custom seccomp from ADR 0013
+  §Deferred / W22-6) needs live kernel smoke on Fedora. Already post-v1.0;
+  remains deferred until the box is in hand.
+
+**Pull-back trigger:** Fedora box physically available → run the live smokes,
+stamp Stream 5 live-acceptance, schedule Stream 8. **Severity/Confidence:**
+N/A (planning-gate) / High. Lane: `[deploy]` + `[executor]`.
 
 ## Closed/Archived Groups
 

@@ -1,10 +1,10 @@
 # ExTrace v1.0 Roadmap — From Finished Prototype To A Tool An Analyst Trusts Daily
 
-`Last Updated: 2026-06-08`
+`Last Updated: 2026-06-12`
 
 `Last merged weekly: W22 — closed synthetically on the week22 branch, merged to main via PR #31 week22 -> main 2026-05-28 via 1399f82.`
 
-`Active stream: podman-airgapped-deploy — merged to main from feat/podman-airgapped-deploy; air-gapped Podman deployment and human-readable documentation. Tracker: deploy/podman/README.md.`
+`Active stream: reliability-self-defense (v1.0 trust floor, Stream 1) — in progress on the week23 branch; closes v1.0 bars B1/B3/B4 plus self-defense fixes F-2/F-3. Tracker: documents/active-work/W23-reliability-self-defense.md.`
 
 `Sources of truth: documents/REFACTOR_STATUS.md (state) · documents/POST_POC_BACKLOG.md (deferred) · documents/REFACTOR_OPTIMIZATION.md §20 (last weekly plan) · documents/phase.json (weekly pointer + active stream).`
 
@@ -225,10 +225,14 @@ trustworthy.
 
 ## 10. Open Questions (resolve before sequencing the later streams)
 
-1. **Is the Fedora box physically in hand?** Gates the _live_ acceptance of
+1. **Is the Fedora box physically in hand?** ~~Gates the _live_ acceptance of
    Stream 5 (backup/restore, health on the real host) and Stream 8 (container
-   ratchet-down kernel/seccomp validation). The macOS dev host can land the
-   _code_ but not the live proof.
+   ratchet-down kernel/seccomp validation).~~ **RESOLVED-BY-DEFERRAL
+   (`2026-06-12`, user direction):** the Fedora-host-dependent _live-validation_
+   is deferred to `POST_POC_BACKLOG.md` → `[FOLLOWUP fedora-host-live-validation]`
+   and no longer blocks. Stream 5 lands its code + dev/CI validation now (live
+   on-host proof pending); Stream 8 stays post-v1.0. The macOS dev host lands the
+   _code_; the live proof is tracked separately, not gating.
 2. **Is there a labeled malicious/benign extension set to measure catch-rate?**
    Gates Stream 6. v1 needs only a small multi-variant synthetic/declawed set
    beyond the 8 canaries + the real benign extensions already in `extensions/`.
