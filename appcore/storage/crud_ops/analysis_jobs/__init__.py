@@ -8,6 +8,9 @@ gated by ``test_analysis_jobs_facade_stays_thin`` against re-growth.
 """
 
 from .lifecycle import (
+    STALE_HEARTBEAT_REAP_ERROR_CODE as STALE_HEARTBEAT_REAP_ERROR_CODE,
+)
+from .lifecycle import (
     JobNotCancellableError as JobNotCancellableError,
 )
 from .lifecycle import (
@@ -41,7 +44,13 @@ from .lifecycle import (
     get_analysis_job as get_analysis_job,
 )
 from .lifecycle import (
+    reap_stale_running_analysis_jobs as reap_stale_running_analysis_jobs,
+)
+from .lifecycle import (
     recover_interrupted_analysis_jobs as recover_interrupted_analysis_jobs,
+)
+from .lifecycle import (
+    touch_analysis_job_heartbeat as touch_analysis_job_heartbeat,
 )
 from .lifecycle import (
     update_analysis_job as update_analysis_job,
@@ -54,6 +63,7 @@ from .steps import (
 )
 
 __all__ = [
+    "STALE_HEARTBEAT_REAP_ERROR_CODE",
     "JobNotCancellableError",
     "WorkerEntryClaim",
     "WorkerEntryOutcome",
@@ -65,8 +75,10 @@ __all__ = [
     "finalize_cancelled_analysis_job",
     "get_active_analysis_job",
     "get_analysis_job",
+    "reap_stale_running_analysis_jobs",
     "recover_interrupted_analysis_jobs",
     "reject_analysis_job_static",
+    "touch_analysis_job_heartbeat",
     "update_analysis_job",
     "update_analysis_job_step",
 ]

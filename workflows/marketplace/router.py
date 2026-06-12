@@ -411,6 +411,12 @@ def start_analysis_job(
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
+    # S2 (W23 B3): before reserving the single-active slot, sweep any same-boot
+    # `running` job whose heartbeat has gone stale. Without this a hung/crashed
+    # prior worker would hold the slot and 409-block every fresh submit until an
+    # API restart. No-op unless a running job is actually past the stale timeout.
+    job_service.reap_stale_running_jobs(db=db)
+
     try:
         job = job_service.reserve_job(request, db=db)
     except ActiveAnalysisJobError as exc:
@@ -458,6 +464,12 @@ def get_analysis_job(
     job_id: str,
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
+    # S2 (W23 B3): a status poll is the operator noticing the job. Sweep stale
+    # same-boot `running` jobs first so a wedged run self-heals to terminal
+    # `failed` in the view (and releases the single-active slot) instead of
+    # appearing stuck `running` forever. No-op unless past the stale timeout.
+    job_service.reap_stale_running_jobs(db=db)
+
     try:
         snapshot = job_service.get_job_snapshot(job_id, db=db)
     except KeyError as exc:

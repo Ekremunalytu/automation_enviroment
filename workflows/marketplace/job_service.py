@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import os
+import threading
 import time
 from collections.abc import Callable
 from copy import deepcopy
 from typing import Any, TypeVar
 from uuid import uuid4
 
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from appcore.api.config import settings
@@ -30,6 +31,7 @@ from appcore.contracts.schemas import (
     AnalyzeResponse,
 )
 from appcore.db.session import SessionLocal
+from appcore.logging import get_extrace_logger
 from appcore.storage.crud import (
     JobNotCancellableError,
     cancel_analysis_job,
@@ -39,16 +41,48 @@ from appcore.storage.crud import (
     finalize_cancelled_analysis_job,
     get_active_analysis_job,
     get_analysis_job,
+    reap_stale_running_analysis_jobs,
     recover_interrupted_analysis_jobs,
     reject_analysis_job_static,
+    touch_analysis_job_heartbeat,
     update_analysis_job,
     update_analysis_job_step,
 )
 from appcore.storage.models import AnalysisJob
 from packages.marketplace_identity import safe_marketplace_slug
 
+logger = get_extrace_logger("extrace.workflows.marketplace.job_service")
+
 _PROCESS_BOOT_ID = uuid4().hex
 T = TypeVar("T")
+
+
+def _env_float(name: str, default: float) -> float:
+    """Read a positive float tunable from the environment, falling back safely."""
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    try:
+        value = float(raw)
+    except ValueError:
+        return default
+    return value if value > 0 else default
+
+
+# S2 (W23 B3, same-boot wedged-job recovery) tunables — env-overridable with
+# sane single-operator defaults; no new pydantic settings group (operational
+# knobs, mirrors the ``EXTRACE_*`` os.getenv pattern in main.py).
+#
+# - HEARTBEAT_INTERVAL: how often the worker stamps ``last_heartbeat_at`` while
+#   a job is running. Matches the existing monitoring-heartbeat cadence.
+# - STALE_JOB_TIMEOUT: a running job whose heartbeat (or started_at fallback)
+#   predates ``now - timeout`` is treated as wedged. Conservative so a slow
+#   phase is never false-reaped; the dedicated heartbeat thread ticks every
+#   ~5s independent of phase, so 120s = ~24 missed ticks.
+# - REAPER_SWEEP_INTERVAL: how often the background reaper thread sweeps.
+_HEARTBEAT_INTERVAL_S = _env_float("EXTRACE_HEARTBEAT_INTERVAL_S", 5.0)
+_STALE_JOB_TIMEOUT_S = _env_float("EXTRACE_STALE_JOB_TIMEOUT_S", 120.0)
+_REAPER_SWEEP_INTERVAL_S = _env_float("EXTRACE_REAPER_SWEEP_INTERVAL_S", 30.0)
 
 
 class ActiveAnalysisJobError(RuntimeError):
@@ -458,6 +492,116 @@ def recover_interrupted_jobs(db: Session | None = None) -> int:
     return _run_in_session(db, operation)
 
 
+# S2 (W23 B3): the operator-facing detail stamped on a reaped wedged job.
+_STALE_REAP_DETAIL = (
+    "Analysis job stopped sending heartbeats and was recovered so the queue "
+    "could continue. The worker hung or crashed; start a new run."
+)
+
+
+def touch_job_heartbeat(job_id: str, db: Session | None = None) -> int:
+    """Stamp the liveness heartbeat for a running job (S2 / W23 B3).
+
+    Worker-facing wrapper around ``crud.touch_analysis_job_heartbeat``. Returns
+    the affected row count (0 when the job is gone or no longer ``running``).
+    """
+
+    def operation(session: Session) -> int:
+        return touch_analysis_job_heartbeat(session, job_id)
+
+    return _run_in_session(db, operation)
+
+
+def reap_stale_running_jobs(db: Session | None = None) -> int:
+    """Recover same-boot ``running`` jobs whose heartbeat has gone stale.
+
+    Worker-facing wrapper around ``crud.reap_stale_running_analysis_jobs``,
+    bound to this process's boot id and the configured stale timeout. Invoked
+    from the submit + status surfaces and the background reaper thread so a
+    hung/crashed worker releases the single-active slot without an API restart
+    (closes v1.0 bar B3). Returns the number of rows reaped.
+    """
+
+    def operation(session: Session) -> int:
+        return reap_stale_running_analysis_jobs(
+            session,
+            _PROCESS_BOOT_ID,
+            stale_after_s=_STALE_JOB_TIMEOUT_S,
+            detail=_STALE_REAP_DETAIL,
+        )
+
+    return _run_in_session(db, operation)
+
+
+def run_job_heartbeat(
+    job_id: str,
+    stop_event: threading.Event,
+    *,
+    interval_s: float = _HEARTBEAT_INTERVAL_S,
+) -> None:
+    """Heartbeat-thread loop: stamp ``last_heartbeat_at`` until stopped (S2).
+
+    Spanning claim → terminal on a dedicated thread (NOT the per-phase
+    monitoring heartbeat) so the stale-running reaper can tell a hung worker
+    from a slow ``reset_sandbox`` / ``install_extension`` phase. Best-effort:
+    a transient DB error or a vanished row must never crash the thread — the
+    reaper falls back to ``started_at`` when ``last_heartbeat_at`` is NULL.
+    Ticks immediately, then every ``interval_s`` until ``stop_event`` is set.
+    """
+    while not stop_event.is_set():
+        try:
+            touch_job_heartbeat(job_id)
+        except (SQLAlchemyError, KeyError):
+            logger.debug("heartbeat tick skipped for job %s.", job_id)
+        stop_event.wait(interval_s)
+
+
+def _stale_reaper_loop(
+    stop_event: threading.Event,
+    interval_s: float,
+    sweep: Callable[[], int],
+) -> None:
+    """Background reaper loop: periodically sweep stale same-boot running jobs.
+
+    Sleeps first so spawning the thread is side-effect-free (a freshly started
+    process has nothing stale yet, and tests that immediately stop the event
+    never touch the DB). A DB outage degrades to a logged skip, never a crash.
+    """
+    while not stop_event.is_set():
+        stop_event.wait(interval_s)
+        if stop_event.is_set():
+            break
+        try:
+            sweep()
+        except SQLAlchemyError:
+            logger.debug("stale-job reaper sweep skipped (DB unavailable).")
+
+
+def start_stale_job_reaper(
+    stop_event: threading.Event | None = None,
+    *,
+    interval_s: float = _REAPER_SWEEP_INTERVAL_S,
+    sweep: Callable[[], int] | None = None,
+) -> threading.Thread:
+    """Spawn the daemon background reaper thread (S2 / W23 B3).
+
+    Started at app boot (``main.create_app``) so a same-boot wedged worker is
+    auto-recovered even if the operator never re-submits. Daemon — dies with the
+    process; the returned thread + the ``stop_event`` make it deterministically
+    stoppable in tests. ``sweep`` is injectable for testing the loop without a DB.
+    """
+    event = stop_event if stop_event is not None else threading.Event()
+    target_sweep = sweep if sweep is not None else reap_stale_running_jobs
+    thread = threading.Thread(
+        target=_stale_reaper_loop,
+        args=(event, interval_s, target_sweep),
+        name="extrace-stale-job-reaper",
+        daemon=True,
+    )
+    thread.start()
+    return thread
+
+
 __all__ = [
     "ActiveAnalysisJobError",
     "JobNotCancellableError",
@@ -474,10 +618,14 @@ __all__ = [
     "get_persisted_job_snapshot",
     "is_job_cancelled",
     "now",
+    "reap_stale_running_jobs",
     "recover_interrupted_jobs",
     "reject_static_job",
     "reserve_job",
+    "run_job_heartbeat",
+    "start_stale_job_reaper",
     "store_job",
+    "touch_job_heartbeat",
     "update_job",
     "update_job_step",
 ]

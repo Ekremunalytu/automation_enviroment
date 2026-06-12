@@ -17,7 +17,10 @@ from appcore.logging import (
 from executor.runtime_fingerprint import executor_fingerprint_short
 from workflows.activation_reports.router import router as activation_reports_router
 from workflows.extension_catalog.router import router as extension_catalog_router
-from workflows.marketplace.job_service import recover_interrupted_jobs
+from workflows.marketplace.job_service import (
+    recover_interrupted_jobs,
+    start_stale_job_reaper,
+)
 from workflows.marketplace.router import router as marketplace_router
 from workflows.security_settings.router import router as security_settings_router
 
@@ -34,6 +37,20 @@ def validate_runtime_settings() -> None:
 def should_recover_interrupted_jobs() -> bool:
     """Allow tooling to build the app without touching job storage."""
     return os.getenv("EXTRACE_SKIP_JOB_RECOVERY", "").lower() not in {
+        "1",
+        "true",
+        "yes",
+    }
+
+
+def should_run_stale_reaper() -> bool:
+    """Gate the S2 (W23 B3) background stale-running-job reaper thread.
+
+    Defaults ON. Tooling/tests set ``EXTRACE_SKIP_STALE_REAPER`` so building the
+    app never spawns the daemon sweep thread (it would otherwise tick against
+    the DB for the life of the test session).
+    """
+    return os.getenv("EXTRACE_SKIP_STALE_REAPER", "").lower() not in {
         "1",
         "true",
         "yes",
@@ -113,6 +130,12 @@ def create_app(*, recover_jobs: bool = True) -> FastAPI:
                 "Marketplace analysis job storage is unavailable; run migrations "
                 "and verify DB connectivity before starting the API."
             ) from exc
+        # S2 (W23 B3): start the background stale-running-job reaper so a worker
+        # that hangs or crashes within this same API boot is auto-recovered
+        # (single-active slot released) without an operator restart. Daemon
+        # thread; gated off in tooling/tests via EXTRACE_SKIP_STALE_REAPER.
+        if should_run_stale_reaper():
+            start_stale_job_reaper()
 
     # Prime the dynamic blacklist matcher override from the operator DB (best-
     # effort; never blocks startup if the DB is unavailable).
