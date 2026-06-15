@@ -6,7 +6,7 @@
 
 `Owner: ekrem`
 
-`Status: IN PROGRESS — branch opened 2026-06-15 off main 8250db0. H0 (doc-reconcile + active-stream flip) underway. Non-bar stream: closes no v1.0 bar; it removes operator-trust defects (decorative/dead console controls implying a backend effect that does not exist).`
+`Status: READY FOR CLOSE-OUT — all sub-items H0–H1b landed on week24 (272e9f8 H0 · 111bf6b H1 · fc57c59 H2 · 844df3d H3 · 200933c H1b). UI suite 153 green; tsc/eslint/ui-boundaries/ui-types-check clean; doc-preamble parity/consistency/manifest/readme-pointer arch gates green; browser-verified via the ui-dev vite preview against the live API (Settings honesty + live theme/density/time-zone, light↔dark switch with no dark islands, System API card real "OK" healthy tone + MOCK markers). H4 close-out PR (week24 -> main) PENDING explicit user go-ahead. Non-bar stream: closes no v1.0 bar; it removes operator-trust defects (decorative/dead console controls implying a backend effect that does not exist).`
 
 > Scope locked to **UI + docs only** (per the 2026-06-15 planning session):
 > **NO backend / DB / detection / executor. No Alembic migration. No
@@ -47,12 +47,12 @@ enforced"** — making them "work" client-side would be a new lie.
 
 | Sub-item | Closes | Status | Note |
 |---|---|---|---|
-| **H0** doc-reconcile + active-stream flip | — | 🔄 in progress | `phase.json` `active_stream` flipped `reliability-self-defense` → `operator-console-honesty` (tracker → this file); `last_merged_weekly` stays W22. `Active stream:` banner + `Last Updated` refreshed across canonical preambles. Doc-preamble parity/consistency/manifest/readme-pointer gates must stay green. No DB. |
-| **H1** honest Settings | — | ⬜ todo | `SettingsPage.tsx`: backend-enforcement controls → `disabled` + "Not yet enforced" (generalize the `DangerRow` disabled pattern; add `disabled` to `ToggleRow`/`Segmented`/`Field` path); poolSize → read-only "Single active · serial"; fix intro copy; remove the general Save/Discard footer; fix the pre-existing `:472` `react-hooks/set-state-in-effect` lint error. Update `SettingsPage.test.tsx`. |
-| **H2** honest System + health case-bug | — | ⬜ todo | `SystemPage.tsx`: render `isStub` MOCK markers on stub tiles/panels; rename `executor` card → `API` (update `data-testid` + test); fix tone case-bug (`status.toLowerCase() === "ok"`), update test to mock the real `"OK"`; mark INVENTORY mock; soften the headline. Update `SystemPage.test.tsx`. |
-| **H3** real Dark/Light theme | — | ⬜ todo | `components/v3/tokens.ts`: convert `V3` hex → `var(--v3-*)` refs (40 consumers unchanged); theme stylesheet (`data-theme`: shift5 dark / parchment light / terminal) + provider from the persisted `theme` setting; re-enable the theme control. Audit + variable-ize hardcoded non-V3 colors (`SystemPage:297` `#000`, inline `rgba`). Provider + token unit tests. |
-| **H1b** wire timeZone + density | — | ⬜ todo | New `lib/format/timestamp.ts` `formatTimestamp(value,{timeZone})` reading the operator timeZone; route the ~6–8 ad-hoc render sites; re-enable timeZone control. Thread density into real table/ledger row-heights; re-enable density control. Helper unit tests. **Optional trim point.** |
-| **H4** close-out PR | — | ⬜ todo | Tracker freeze; pre-close checklist resolved/waived. **PR `week24 -> main` only on explicit user go-ahead.** |
+| **H0** doc-reconcile + active-stream flip | — | ✅ done (272e9f8) | `phase.json` `active_stream` flipped `reliability-self-defense` → `operator-console-honesty` (tracker → this file); `last_merged_weekly` stays W22. `Active stream:` banner + `Last Updated` refreshed across all canonical preambles. Doc-preamble parity/consistency/manifest/readme-pointer + token-budget + cross-doc arch gates green (87 tests). No DB. |
+| **H1** honest Settings | — | ✅ done (111bf6b) | `SettingsPage.tsx`: backend-enforcement controls → `disabled` + "Not yet enforced" `Badge` (`ToggleRow`/`Segmented`/`Field` gained `disabled`/`note`); poolSize → read-only "Single active · serial" `ReadonlyRow`; honest intro; general Save/Discard footer + the whole `localStorage` machinery removed; the pre-existing `:472` `react-hooks/set-state-in-effect` fixed via render-time draft sync. `SettingsPage.test.tsx` updated. |
+| **H2** honest System + health case-bug | — | ✅ done (fc57c59) | `SystemPage.tsx`: `MOCK` markers on stub tiles + a "Mock data — not measured" panel note + mock log dot; `executor` card renamed `API` (`data-testid` `service-tile-api`); INVENTORY badged Mock; headline → "Appliance status.". Case-bug fixed via a pure, unit-tested `apiHealthTone` helper (`systemHealth.ts`) — `status.toLowerCase() === "ok"`; the test now mocks the real `"OK"`. Browser-verified: live API card shows "OK" healthy. |
+| **H3** real Dark/Light theme | — | ✅ done (844df3d) | `tokens.ts`: `V3` now references the **existing** `index.css` CSS vars (`var(--paper)` …) — repointed, not a new namespace — so 40 consumers are untouched. `index.css` gains `:root[data-palette="parchment"\|"terminal"]` blocks (default shift5 = bare `:root`, so dark is pixel-identical). `lib/theme/theme.ts` (`useSyncExternalStore`) persists + paints `<html data-palette>`; `main.tsx` `initTheme()`. Theme control live. Two `#000` islands (AppShell, System log) → `var(--paper)`. **Caveat:** ECharts canvas configs keep hex (cannot read CSS vars) — dark; deferred. Theme + token unit tests. Browser-verified light↔dark. |
+| **H1b** wire timeZone + density | — | ✅ done (200933c) | `lib/settings/presentation.ts` (store + `useDensity`/`useTimeZone` + `resolveTimeZone`); `main.tsx` `initPresentation()`. **timeZone:** `resolveTimeZone()` ("local" → undefined, so the default is identical to prior behavior) injected into all 4 timestamp formatters (`adapters/report.ts`, `adapters/job.ts`, `ReportsPage` modified-stamp, System log); control re-enabled as a curated IANA `<select>`. **density:** a `--v3-row-pad-y` CSS var driven by `<html data-density>` sets the `EvidenceLedger` row height; control re-enabled. Descriptions narrowed to exactly what is wired. Presentation-store unit tests. |
+| **H4** close-out PR | — | 🔄 verification done; PR gated | Close-out gate green (UI 153 tests · tsc · eslint · ui-boundaries · ui-types-check · doc-preamble arch gates · markdownlint); browser-verified. Tracker frozen. **PR `week24 -> main` opens only on explicit user go-ahead.** |
 
 ## Out of scope / deferred
 
@@ -72,19 +72,42 @@ Bucketed, evidence-cited, blocking flags noted. Resolve/waive before close-out.
 
 | Item | Severity | Disposition |
 |---|---|---|
-| Pre-existing `SettingsPage.tsx:472` `react-hooks/set-state-in-effect` ESLint error (`SecuritySection` draft-reset effect) | Low (not in `make check-all`; W24 close-out gate requires `eslint` green) | **Fix in H1** — we edit this file anyway; verify the threshold form still resets on load / post-save echo |
-| H1b is the widest-touch / highest-regression sub-item | — | sequenced last; trim candidate if the week runs long |
+| Pre-existing `SettingsPage.tsx:472` `react-hooks/set-state-in-effect` ESLint error (`SecuritySection` draft-reset effect) | Low (not in `make check-all`; W24 close-out gate requires `eslint` green) | **RESOLVED — H1 (111bf6b)**: render-time draft sync replaces the effect; threshold form still resets on load / post-save echo (SecuritySection deep-link + error tests green) |
+| H1b is the widest-touch / highest-regression sub-item | — | **RESOLVED — H1b (200933c)** delivered in a contained, honest form; default zone "local" keeps adapter tests unchanged; UI suite 153 green |
 
-## Verification (running)
+### Known limitations (honest carve-outs; not blocking)
 
-- Close-out gate: `cd ui && npm run test` (Settings/System tests updated) ·
-  `npm run build` (`tsc -b && vite build`, real typecheck) · `npm run lint`
-  (incl. the `:472` fix) · `make ui-boundaries` · `make ui-types-check` (DTOs
-  unchanged) · `make check-all` (doc-preamble/canonical-preamble/
-  README-phase-pointer/phase-manifest arch tests green after H0) ·
-  `markdownlint` + `markdown-link-check` on changed docs.
-- Browser-verify via the `ui-dev` vite preview on :5173 (automation_ui is an
-  nginx static build, no HMR) with the API up on :8000.
+- **Theme — ECharts charts stay dark.** Canvas configs (e.g.
+  `InspectorSections` relations tree) cannot read CSS variables, so they keep
+  resolved hex and render on the dark palette under any theme. Runtime chart
+  re-theming is deferred (would need `getComputedStyle` resolution + redraw on
+  theme change).
+- **Density is scoped to the `EvidenceLedger`** (the primary ledger); the
+  control description says exactly that. Extending `--v3-row-pad-y` to other
+  tables is a later pass.
+- **Time-zone reactivity is render-time.** Adapter-baked timestamps adopt the
+  zone on the next data (re)load / poll; component-rendered stamps update on the
+  next render. The control claims "Timestamps render in this zone", which holds.
+
+## Verification (complete)
+
+- **UI suite 153 green** (27 files; +22 over the pre-W24 131: Settings/System
+  rewrites, `apiHealthTone`, theme store, token map, presentation store).
+- `tsc -b` clean · `eslint` clean (incl. the `:472` fix) · `make ui-boundaries`
+  clean · `make ui-types-check` clean (no DTO change).
+- Doc gates: doc-preamble parity/consistency, phase-manifest schema,
+  README-phase-pointer, token-budget, cross-doc parity — all green;
+  `markdownlint` + Markdown-Link-Check green (pre-commit) on the changed docs.
+- **Browser-verified** via the `ui-dev` vite preview on :5173 against the live
+  API (:8000, `/api/health` → `"OK"`): Settings shows disabled enforcement
+  controls + "Not yet enforced", live theme/density/time-zone, no save footer;
+  light (parchment) ↔ dark (shift5) switch persists with **no dark islands**
+  (the formerly-`#000` sidebar themes); System shows the real **API** card with
+  the **OK healthy** tone + `MOCK` markers on the three stub cards + INVENTORY.
+  No console/server errors.
+- **Not run** (UI-only stream, no backend change): the full `make check-all`
+  Python suite / Docker. The doc-preamble arch gates that `check-all` includes
+  were run directly and are green.
 
 ## Operational notes
 
