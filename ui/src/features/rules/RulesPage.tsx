@@ -22,7 +22,7 @@ import type {
   DetectionFindingView,
   StaticFindingView,
 } from "../../lib/types/view-models";
-import { catalogEntries, ruleCatalogEntry, type RuleStream } from "../reports/ruleCatalog";
+import { catalogEntries, ruleCatalogEntry, type RuleStream } from "../../lib/rules/ruleCatalog";
 import { RuleDraftSection } from "./RuleDraftSection";
 
 type RulesMode = "registry" | "draft" | "blacklist";

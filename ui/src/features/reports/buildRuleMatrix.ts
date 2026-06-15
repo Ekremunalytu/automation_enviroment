@@ -19,7 +19,7 @@ import {
   type RuleCatalogEntry,
   type RuleSeverity,
   type RuleStream,
-} from "./ruleCatalog";
+} from "../../lib/rules/ruleCatalog";
 
 export type RuleStatus = "fired" | "silent" | "error" | "unknown";
 

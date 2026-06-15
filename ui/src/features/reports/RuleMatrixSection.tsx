@@ -18,7 +18,7 @@ import {
   type RuleStatus,
   type ToolCell,
 } from "./buildRuleMatrix";
-import type { RuleSeverity } from "./ruleCatalog";
+import type { RuleSeverity } from "../../lib/rules/ruleCatalog";
 
 // MITRE ATT&CK-Navigator-style matrix of detection rules. Two bands (dynamic
 // behavioral + static pre-check); each band groups rules into threat-family

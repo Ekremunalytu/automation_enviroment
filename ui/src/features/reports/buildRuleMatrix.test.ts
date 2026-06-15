@@ -6,7 +6,7 @@ import type {
   StaticReportView,
 } from "../../lib/types/view-models";
 import { buildRuleMatrix } from "./buildRuleMatrix";
-import { catalogRuleIds, ruleCatalogEntry } from "./ruleCatalog";
+import { catalogRuleIds, ruleCatalogEntry } from "../../lib/rules/ruleCatalog";
 
 function makeReport(partial: {
   detection?: DetectionReportView | null;
