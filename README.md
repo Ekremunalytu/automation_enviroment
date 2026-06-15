@@ -131,6 +131,24 @@ make demo-canary
 For a shorter operator path, read
 [documents/operator-quickstart.md](documents/operator-quickstart.md).
 
+### Optional: code-intelligence tooling
+
+This workspace can use LSP-backed symbol navigation (go-to-definition,
+find-references, call hierarchy) through two local Claude Code plugins,
+`pyright-lsp` (Python) and `typescript-lsp` (UI). They are per-operator
+developer/agent conveniences — not required to build, test, or run ExTrace,
+and not provisioned by the repo.
+
+```bash
+claude plugin install pyright-lsp typescript-lsp
+# Python cross-file resolution also needs a repo-root pyrightconfig.json:
+#   {"venvPath": ".", "venv": ".venv"}
+```
+
+`mypy` remains the authoritative Python type-checker; pyright only powers
+navigation. Note: the first `find-references` of a session can return
+same-file-only results — retry it once.
+
 ## Air-Gapped Podman Deployment
 
 This branch adds a deployment path for a **headless, air-gapped x86 Fedora
