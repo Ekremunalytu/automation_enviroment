@@ -52,6 +52,7 @@ import type {
   StimulusPassView,
 } from "../types/view-models";
 import { adaptStaticReport } from "./job";
+import { resolveTimeZone } from "../settings/presentation";
 
 function labelize(value: string, fallback = "Unknown") {
   if (!value) return fallback;
@@ -73,6 +74,7 @@ function formatTimestamp(value: string) {
     second: "2-digit",
     fractionalSecondDigits: 3,
     hour12: false,
+    timeZone: resolveTimeZone(),
   });
 }
 

@@ -10,6 +10,7 @@ import {
   V3,
 } from "../../components/v3";
 import { apiClient } from "../../lib/api/client";
+import { resolveTimeZone } from "../../lib/settings/presentation";
 import { apiHealthTone, type Tone } from "./systemHealth";
 
 type ServiceCard = {
@@ -132,7 +133,7 @@ export function SystemPage() {
         ? [
             `health.fetch · ${health.data.status}`,
             `service · ${health.data.service}`,
-            `sampled at ${new Date().toLocaleTimeString()}`,
+            `sampled at ${new Date().toLocaleTimeString([], { timeZone: resolveTimeZone() })}`,
             "polling every 5s",
           ]
         : ["awaiting first response"],

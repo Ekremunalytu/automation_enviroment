@@ -33,6 +33,17 @@
     --danger-bg: #2a1612;
     --ok-bd: #2a4a36;
     --warn-bd: #5c4a22;
+
+    /* Density — table/ledger row vertical padding, driven by data-density. */
+    --v3-row-pad-y: 12px;
+  }
+
+  :root[data-density="compact"] {
+    --v3-row-pad-y: 7px;
+  }
+
+  :root[data-density="spacious"] {
+    --v3-row-pad-y: 18px;
   }
 
   /* Parchment — light theme. Dark ink on warm off-white paper. */

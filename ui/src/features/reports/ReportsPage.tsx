@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 
 import { FilterRail, type EvidenceFilterState } from "../../components/evidence/FilterRail";
 import { EvidenceLedger } from "../../components/evidence/EvidenceLedger";
+import { resolveTimeZone } from "../../lib/settings/presentation";
 import { Inspector } from "../../components/evidence/Inspector";
 import { LogStreamsPanel } from "../../components/evidence/LogStreamsPanel";
 import { RiskRadarPanel } from "../../components/evidence/RiskRadarPanel";
@@ -76,6 +77,7 @@ function formatModified(value?: number | null) {
     day: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: resolveTimeZone(),
   });
 }
 

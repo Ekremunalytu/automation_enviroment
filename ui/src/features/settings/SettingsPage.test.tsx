@@ -48,11 +48,10 @@ describe("SettingsPage", () => {
 
     expect(screen.getByText(/Configure/u)).toBeInTheDocument();
     expect(screen.getByText(/the appliance/u)).toBeInTheDocument();
-    // Honest intro: only the security thresholds are enforced; the rest are
-    // shown disabled until backend enforcement lands.
-    expect(
-      screen.getByText(/Only the VSIX security thresholds are\s+enforced today/u),
-    ).toBeInTheDocument();
+    // Honest intro: appearance applies live in-browser; backend-effect controls
+    // are disabled; only the security thresholds are enforced server-side.
+    expect(screen.getByText(/theme, density, and time/u)).toBeInTheDocument();
+    expect(screen.getByText(/applies live in this browser/u)).toBeInTheDocument();
     expect(screen.getByText(/not yet wired to a backend/u)).toBeInTheDocument();
     expect(screen.queryByText(/Backend pending/u)).not.toBeInTheDocument();
     for (const label of ["General", "Executor", "Security", "Telemetry", "Danger"]) {
@@ -86,13 +85,14 @@ describe("SettingsPage", () => {
     expect(screen.getByText("Single active · serial")).toBeInTheDocument();
   });
 
-  it("has a live theme control and a still-disabled density control", () => {
+  it("has live appearance controls (theme, density, time zone)", () => {
     renderPage();
 
-    // General is the default section. Theme is a real apply-on-change control
-    // as of H3; density stays disabled until H1b wires real row-height.
+    // General is the default section. As of H3/H1b these presentation controls
+    // are real, apply-on-change, browser-local — not "Not yet enforced".
     expect(screen.getByRole("button", { name: "Shift5" })).toBeEnabled();
-    expect(screen.getByRole("button", { name: "Comfortable" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Comfortable" })).toBeEnabled();
+    expect(screen.getByLabelText("Time zone")).toBeEnabled();
   });
 
   it("drops the general Save/Discard footer (nothing to persist on these sections)", () => {

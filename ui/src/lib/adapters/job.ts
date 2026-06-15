@@ -9,6 +9,7 @@ import type {
   StaticFindingView,
   StaticReportView,
 } from "../types/view-models";
+import { resolveTimeZone } from "../settings/presentation";
 
 const STEP_TITLES: Record<string, string> = {
   reset_sandbox: "Resetting sandbox state",
@@ -45,6 +46,7 @@ function formatDate(epoch?: number | null) {
     minute: "2-digit",
     second: "2-digit",
     hour12: false,
+    timeZone: resolveTimeZone(),
   });
 }
 

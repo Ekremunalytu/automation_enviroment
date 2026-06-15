@@ -16,6 +16,13 @@ import { ApiError } from "../../lib/api/http";
 import { apiClient } from "../../lib/api/client";
 import type { VsixThresholdsUpdateRequestDto } from "../../lib/types/contracts";
 import { THEMES, useTheme, type ThemeId } from "../../lib/theme/theme";
+import {
+  DENSITIES,
+  TIME_ZONES,
+  useDensity,
+  useTimeZone,
+  type DensityId,
+} from "../../lib/settings/presentation";
 
 const VSIX_THRESHOLDS_QUERY_KEY = ["security-thresholds"] as const;
 const VSIX_KEYS = {
@@ -30,13 +37,10 @@ const VSIX_KEYS = {
 // effect it does not have. Backend enforcement (auto-analyze, strict net,
 // retention, …) is deferred to a later stream; server-side persistence of
 // the operator settings is Stream 9 (`operator-settings-ops`).
-type DensityId = "compact" | "comfortable" | "spacious";
 type RetentionId = "7" | "30" | "90" | "inf";
 
 const PREVIEW = {
   operatorName: "",
-  timeZone: "UTC+03:00 · Istanbul",
-  density: "comfortable" as DensityId,
   jobTimeout: "600s",
   retention: "30" as RetentionId,
   buffer: "2048 events",
@@ -71,6 +75,8 @@ export function SettingsPage() {
     isSectionId(sectionFromUrl) ? sectionFromUrl : "general",
   );
   const [theme, setTheme] = useTheme();
+  const [density, setDensity] = useDensity();
+  const [timeZone, setTimeZone] = useTimeZone();
 
   const setSection = (next: SectionId) => {
     setSectionState(next);
@@ -99,11 +105,11 @@ export function SettingsPage() {
           <br />
           the appliance.
         </PageTitle>
-        <p style={{ fontSize: 15, color: V3.ink3, marginTop: 18, maxWidth: 580, lineHeight: 1.6 }}>
-          Single-operator preferences. Only the VSIX security thresholds are
-          enforced today — persisted by the local API. The console, executor,
-          and telemetry controls below are not yet wired to a backend and are
-          shown disabled until that enforcement lands.
+        <p style={{ fontSize: 15, color: V3.ink3, marginTop: 18, maxWidth: 600, lineHeight: 1.6 }}>
+          Single-operator preferences. Appearance — theme, density, and time
+          zone — applies live in this browser. The executor, telemetry, and
+          profile controls are not yet wired to a backend and are shown
+          disabled; only the VSIX security thresholds are enforced server-side.
         </p>
       </header>
 
@@ -196,16 +202,8 @@ export function SettingsPage() {
                 />
                 <FormRow
                   k="Time zone"
-                  desc="All timestamps render in this zone."
-                  note={<NotEnforced />}
-                  control={
-                    <Field
-                      mono
-                      value={PREVIEW.timeZone}
-                      inputProps={{ disabled: true }}
-                      inputStyle={{ minWidth: 280, ...DISABLED_INPUT }}
-                    />
-                  }
+                  desc="Timestamps render in this zone."
+                  control={<TimeZoneSelect value={timeZone} onChange={setTimeZone} />}
                 />
               </Group>
               <Group label="Appearance">
@@ -222,17 +220,12 @@ export function SettingsPage() {
                 />
                 <FormRow
                   k="Density"
-                  desc="Row height across tables and ledgers."
-                  note={<NotEnforced />}
+                  desc="Row height in the evidence ledger."
                   control={
                     <Segmented<DensityId>
-                      value={PREVIEW.density}
-                      disabled
-                      options={[
-                        ["compact", "Compact"],
-                        ["comfortable", "Comfortable"],
-                        ["spacious", "Spacious"],
-                      ]}
+                      value={density}
+                      onChange={setDensity}
+                      options={DENSITIES.map((d) => [d.id, d.label] as [DensityId, string])}
                     />
                   }
                 />
@@ -638,6 +631,38 @@ function SecuritySection() {
 
 function NotEnforced() {
   return <Badge tone="neutral">Not yet enforced</Badge>;
+}
+
+function TimeZoneSelect({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <select
+      aria-label="Time zone"
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      style={{
+        background: V3.paper2,
+        color: V3.ink,
+        border: `1px solid ${V3.rule}`,
+        borderRadius: 0,
+        padding: "11px 13px",
+        fontFamily: "'JetBrains Mono', monospace",
+        fontSize: 13,
+        minWidth: 240,
+      }}
+    >
+      {TIME_ZONES.map((zone) => (
+        <option key={zone.id} value={zone.id}>
+          {zone.label}
+        </option>
+      ))}
+    </select>
+  );
 }
 
 function Group({ label, children }: { label: string; children: ReactNode }) {
