@@ -142,7 +142,8 @@ install-dev:
 install-hooks: install-dev
 	$(VENV)/pre-commit install
 	$(VENV)/pre-commit install --hook-type commit-msg
-	@echo "✅ Pre-commit hooks installed!"
+	$(VENV)/pre-commit install --hook-type pre-push
+	@echo "✅ Pre-commit hooks installed (commit, commit-msg, pre-push)!"
 
 # =============================================================================
 # CODE QUALITY

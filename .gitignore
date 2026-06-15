@@ -62,6 +62,9 @@ node_modules[ .]*
 # Linting & Type Checking
 .mypy_cache/
 .ruff_cache/
+# Local-only pyright LSP config (large-codebase nav pilot). mypy stays the
+# authoritative type-checker; this only feeds the pyright editor/agent plugin.
+pyrightconfig.json
 
 # Logs
 *.log

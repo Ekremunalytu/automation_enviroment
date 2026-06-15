@@ -23,6 +23,11 @@
 default_language_version:
   python: python3.12
 
+# Install all declared stages on a plain ``pre-commit install`` so the
+# pre-push gate (``make check-all``) cannot silently go unwired. ``make
+# install-hooks`` installs the same set explicitly.
+default_install_hook_types: [pre-commit, commit-msg, pre-push]
+
 repos:
   # ============================================================
   # GENERAL HOOKS
