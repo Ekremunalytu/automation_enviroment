@@ -1,6 +1,6 @@
 # Post-PoC Backlog
 
-`Last Updated: 2026-06-12`
+`Last Updated: 2026-06-15`
 
 `Last merged weekly: W22 — closed synthetically on the week22 branch, merged to main via PR #31 week22 -> main 2026-05-28 via 1399f82.`
 
@@ -1154,6 +1154,10 @@ Stable IDs below map to the roadmap streams (see `v1-roadmap.md` §7).
 - **Stream 6 — measured-catch-rate:** `[GOAL measured-catch-rate-corpus]`, `[GOAL benign-false-positive-gate]`, `[GOAL platform-blind-verdict-annotation]`, `[GOAL adr-0015-e1-e2-evasion-detection]`.
 - **Stream 7 — sequential-batch-corpus (post-v1.0):** `[GOAL sequential-batch-corpus]`.
 - **Stream 8 — linux-host-hardening-evasion (post-v1.0):** `[GOAL container-hardening-ratchet-down]`, `[GOAL adr-0015-e3-e5-evasion-detection]`, `[FOLLOWUP harness-secret-distribution-redesign]` (existing; do not duplicate).
+- **Operator-console-honesty (sequenced before Stream 2; non-bar):** `[CLEANUP settings-decorative-controls-honesty]`, `[CLEANUP system-mock-status-honesty]`, `[GOAL light-dark-theme]` (stretch; non-blocking).
+- **Stream 9 — operator-settings-ops (post-v1.0):** `[GOAL operator-settings-server-persistence]`, `[GOAL telemetry-retention-purge]`, `[GOAL danger-zone-destructive-actions]`.
+- **Stream 10 — operator-disposition (post-v1.0):** `[GOAL benign-domain-disposition]` (raw versus adjusted reporting; annotation only; excluded from the B8 raw gate).
+- **Stream 11 — network-egress-enforcement (post-v1.0):** `[GOAL mitmproxy-tls-interception]`, `[GOAL egress-allowlist-enforcement]` (ADR + spike gated; depends on Stream 9).
 
 ### Fedora-gated live-validation — deferred (user direction `2026-06-12`)
 

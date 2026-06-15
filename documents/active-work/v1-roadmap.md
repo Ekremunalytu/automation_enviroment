@@ -1,6 +1,6 @@
 # ExTrace v1.0 Roadmap — From Finished Prototype To A Tool An Analyst Trusts Daily
 
-`Last Updated: 2026-06-12`
+`Last Updated: 2026-06-15`
 
 `Last merged weekly: W22 — closed synthetically on the week22 branch, merged to main via PR #31 week22 -> main 2026-05-28 via 1399f82.`
 
@@ -8,7 +8,7 @@
 
 `Sources of truth: documents/REFACTOR_STATUS.md (state) · documents/POST_POC_BACKLOG.md (deferred) · documents/REFACTOR_OPTIMIZATION.md §20 (last weekly plan) · documents/phase.json (weekly pointer + active stream).`
 
-`Phase: Stream 1 (reliability-self-defense) MERGED to main via PR #35 (week23 -> main, 653d807) 2026-06-12. Streams 2-8 remain forward-planned; none open yet.`
+`Phase: Stream 1 (reliability-self-defense) MERGED to main via PR #35 (week23 -> main, 653d807) 2026-06-12. A new non-bar honesty stream (operator-console-honesty) is sequenced AHEAD of Stream 2 per user direction 2026-06-15 (plan in §5 "Next-Stream Plan"); Streams 2-8 keep their frozen numbers + bar→ID mappings and shift one week label; three post-v1.0 streams (operator-settings-ops, operator-disposition, network-egress-enforcement/mitmproxy) are added. All forward-planned; none open yet.`
 
 `Owner: ekrem`
 
@@ -92,6 +92,7 @@ batch.
 | # | Stream | Theme | Closes | v1.0? |
 |---|---|---|---|---|
 | **1** | `reliability-self-defense` | Un-hangable, un-wedgeable, never silently false-clean | B1, B3, B4 (+ F-2/F-3) | yes |
+| **★** | `operator-console-honesty` | Stop the console lying: dead/decorative Settings+System controls made honest | — (UI-only honesty) | non-bar |
 | **2** | `reliability-multi-analyze` | Same appliance survives analyze #2, #3 on one container | B2 | yes |
 | **3** | `verdict-provenance-reproducibility` (spine) | Same VSIX twice → same verdict; verdict bound to bytes | B5, B6 | yes |
 | **4** | `operator-report-export` | Verdict can leave the tool as an actionable artifact | B9 | yes |
@@ -99,11 +100,23 @@ batch.
 | **6** | `measured-catch-rate` (mission core) | Detection asserted → measured; blind spots can't read CLEAN | B7, B8 | yes |
 | **7** | `sequential-batch-corpus` | Point at a set, walk away, results table | — | post-v1.0 |
 | **8** | `linux-host-hardening-evasion` | Shrink executor blast radius (Fedora-unblocked); extend evasion | — | post-v1.0 |
+| **9** | `operator-settings-ops` | Server-persist settings; telemetry retention/purge; danger wipe/reset | — | post-v1.0 |
+| **10** | `operator-disposition` | Operator marks benign-domain findings (raw vs adjusted; never deletes) | — | post-v1.0 |
+| **11** | `network-egress-enforcement` (mitmproxy) | Real egress allow/deny + decrypted HTTP(S) evidence | — | post-v1.0 |
 
 **Spine decision:** Stream 3 (reproducibility/provenance) precedes Stream 6
 (measurement) — four downstream streams depend on a non-flickering, build-
 attributable anchor. Getting that order wrong is the one mistake that lets the
 project measure, calibrate, and scale on sand.
+
+**Sequencing update (2026-06-15, user direction).** A non-bar
+`operator-console-honesty` stream (★) is sequenced **first**; Streams 2-8 keep
+their frozen numbers + bar→ID mappings and shift one week label. Streams 9-11 are
+new post-v1.0 additions. Week-label cadence:
+`W24 operator-console-honesty` → `W25 Stream 2 / B2` → `W26 Stream 3 / B5,B6 (spine)`
+→ `W27 Stream 4 / B9` → `W28 Stream 5 / B10` → `W29 Stream 6 / B7,B8 → v1.0` →
+post-v1.0 (Streams 7, 8, 9, 10, 11). Full detail + the mitmproxy ADR/spike gate are
+in §5 "Next-Stream Plan (2026-06-15)".
 
 ## 5. First Stream In Detail — `reliability-self-defense`
 
@@ -164,6 +177,134 @@ have targeted regressions, `make test-security` includes any new security tests,
 and the final PR states whether DB schema changed. Until then, this section is a
 planning addendum only.
 
+### Next-Stream Plan (2026-06-15) — supersedes the Week24 Addendum above
+
+> **Authored 2026-06-15. Supersedes the "Week24 Roadmap Addendum" subsection
+> above** (those trust-floor items shipped as W23 / Stream 1). It inserts a new
+> **non-bar** honesty stream ahead of Stream 2 (user direction), shifts the week
+> labels of Streams 2-8 (numbers + bar→ID mappings stay frozen), and adds mitmproxy
+> as the post-v1.0 egress mechanism. Load-bearing implementation claims were
+> re-verified against `main` @ `9471ffe`. **None open yet** — opening (branch, `phase.json`
+> active-stream flip, canonical-preamble refresh, ADR creation) is a separate H0
+> step gated on explicit go-ahead.
+
+**Why an honesty stream first.** The console ships decorative/dead controls that
+imply a backend effect with no consumer — an operator-trust defect. Verified on
+`main @ 9471ffe`: Settings GENERAL/EXECUTOR/TELEMETRY write only `localStorage`;
+only `SecuritySection` is backend-wired; DANGER actions are disabled with
+"Persistence API unavailable"; `timeZone`/`density`/`operatorName` have no
+consumer outside `SettingsPage`. `SystemPage` renders mock cards as `synced`/`live`
+while its `isStub` marker is not rendered, and labels the API-only `/api/health`
+result as the executor card. Backend `APISettings.HEALTH_STATUS="OK"` also
+mismatches the UI's exact lowercase comparison.
+
+#### ★ W24 — `operator-console-honesty` (UI-only; NO backend / DB / detection / executor)
+
+| Sub-item | Files | Acceptance |
+|---|---|---|
+| **H0** doc-reconcile + week-shift | tracker + `phase.json` active-stream + this roadmap | UI/docs-only; no DB touch |
+| **H1** honest Settings | `SettingsPage.tsx` | every consumer-less control (autoAnalyze, strictNet, retention, verboseLogs, retainArtifacts, buffer, operatorName, timeZone, density, **theme**) → `disabled` + "Not yet enforced"; **pool size removed** or "Single active · serial" read-only (Non-Goal §8: no parallel sandboxes); fix the intro copy; remove/condition the general Save/Discard footer (SecuritySection keeps its own) |
+| **H2** honest System | `SystemPage.tsx` | render `isStub` on every mock card (status/metrics/logs → "mock / not measured"); rename the `executor` card → `API`, real executor "not measured"; **normalize health status case-insensitively**, test with the real `"OK"`; soften the "All systems operational" headline |
+| **H4** close-out PR | tracker freeze | gated on explicit go-ahead |
+
+**Stretch (non-blocking):** H3 real Dark/Light theme (palette → CSS-variable;
+re-enables the theme control); H1b `timeZone`→timestamp render +
+`density`→row-height.
+**Close-out gate:** `make ui-types-check` (even though DTOs are unchanged) + UI
+lint + boundary-lint + Settings/System/Rules UI tests; `git diff --check`;
+markdownlint + markdown-link-check on changed docs; and the doc-preamble,
+canonical-preamble, README-phase-pointer, and phase-manifest architecture tests
+must all be green.
+
+#### Post-v1.0 streams added by this plan
+
+- **Stream 9 `operator-settings-ops`** — server-persist the operator settings
+  (extend the `operator_settings` key-value store: `value` nullable + `value_text`
+  sibling + CHECK-exactly-one + Pydantic key registry; `OperatorSetting.value` is
+  int-only today) + telemetry retention/purge + DANGER wipe/reset
+  (**factory-reset is hard-blocked until B10 backup/restore exists**).
+- **Stream 10 `operator-disposition`** — operator marks benign-domain findings
+  "operator-allowed"; **never deletes a finding or verdict**; the FP report shows
+  **two metrics** (raw detection result + disposition-adjusted result). Roadmap §8
+  classes triage/disposition as post-v1.0 ergonomics; it must **not** touch the B8
+  gate, which measures **raw** detection/FP only.
+- **Stream 11 `network-egress-enforcement` (mitmproxy)** — see below.
+
+#### Stream 11 — `network-egress-enforcement`: mitmproxy as the interception engine (ADR + spike gated)
+
+Today network observation is **passive tshark/dumpcap only** (`binary_paths.py`,
+ADR 0013); there is **no egress enforcement** — `executor.control` is a
+method-delegation boundary, not a network filter, and the executor sits on the
+default Docker bridge with direct outbound (no custom `networks:` /
+`internal:true` in `docker-compose.yml`; `cap_add: NET_RAW` only, no `NET_ADMIN`).
+A forward proxy alone does **not** enforce egress.
+
+> **mitmproxy is chosen as the interception engine. Implementation does not start
+> until an ADR + a small network spike finalize enforcement topology, CA lifecycle,
+> protocol coverage, and fail-closed behavior. The ADR
+> (`documents/adrs/00XX-mitmproxy-egress-interception.md`) stays `Proposed` until
+> the spike concludes — never `Accepted` before.**
+
+**ADR + spike must resolve:**
+
+- **Enforcement topology** — _(a) explicit-proxy_ (move the executor to an
+  `internal: true` network, dual-home mitmproxy, non-proxy traffic fail-closed —
+  closest to today's flat-bridge + NET_RAW-only posture, aligned with ADR 0013
+  minimal-capability; **preferred**) vs _(b) transparent-gateway_ (routing/firewall;
+  `NET_ADMIN` confined to a **separate gateway container**, never the executor).
+- **CA lifecycle** — private key only on the proxy volume; the executor gets only
+  the public CA cert; never baked into repo/image; generated per-install. Stream 11
+  extends the B10 backup/restore mechanism delivered in W28 to include the CA
+  volume; that extension is Stream 11 scope, not a W28 scope change.
+- **Protocol coverage / evidence states** — explicit states `intercepted` /
+  `blocked` / `direct_bypass_attempt` / `tls_pinning_or_trust_failure` /
+  `uninspectable_protocol`. **Absence of a decrypted body is never CLEAN evidence**
+  (B7). Fail-closed is disaggregated: TLS pinning/trust failure → connection fails
+  and is recorded; proxy-unsupported protocol → fail-closed blocked; direct bypass
+  attempt → recorded via tshark/network telemetry.
+- **tshark ↔ mitmproxy correlation** — tshark sees the executor netns (packets),
+  mitmproxy sees proxy flows; define how DNS / UDP / QUIC / failed-SYN /
+  proxy-upstream are disambiguated so there is no double-count or false evasion.
+  tshark stays.
+- **Podman / air-gapped parity** — the new proxy image enters `build-bundle.sh`, is
+  managed by `extrace-ctl.sh`, digest/version-pinned, carried in the offline bundle.
+
+**Spike success criteria (all must hold):** (1) executor cannot reach the internet
+directly; (2) allowed HTTP/HTTPS works through the proxy; (3) a forbidden domain is
+blocked; (4) a connection ignoring proxy env fails closed; (5) a TLS-pinned sample
+is not falsely CLEAN; (6) traffic fails closed when the proxy stops; (7) identical
+result under Docker Compose **and** Podman; (8) **no `NET_ADMIN` added to the
+executor**.
+
+**This makes real** the `strictNet` toggle and the `egress_allowlist` (both
+honestly disabled "Not yet enforced" in W24). Depends on Stream 9
+(`operator-settings-ops`) for allowlist persistence: **Stream 9 → Stream 11**.
+
+#### Corrected design decisions
+
+- **Pool size** removed as a control (Non-Goal: no parallel sandboxes;
+  single-active queue / B3).
+- **Whitelist** split into Stream 10 `operator-disposition` (finding annotation,
+  marks not deletes) + `egress_allowlist` (network policy, in Stream 11 mitmproxy).
+  The naive "blacklist mirror" was unsafe: the operator override reaches only the
+  dynamic `a7` rule, the static `s4` is seed-only in `domain_indicators.py`, and
+  `_common.is_benign_domain` already suppresses findings — so an
+  operator-editable list that fully deletes critical findings is a trust hole.
+- **W25 / B2** is root-cause-first: `reset_executor_sandbox_state`
+  in `executor/host.py` **already retries the reload once** (the
+  `reload_vscode.py` script itself has no script-local retry); the real work is a detailed rc=1
+  root-cause + a **real same-container repro** (the mock lifecycle harness cannot
+  prove it alone), with a cleanup pass **only if state-accumulation is proven**. The
+  rc=1 root cause (`[FOLLOWUP sandbox-reset-stale-state-multi-analyze]`) remains a
+  hypothesis (DevTools-state vs CDP-readiness/race both open).
+- **W27 / B9** export carries no operator identity (download-focused GET); operator
+  name persistence belongs to Stream 9.
+- **W28 / B10** stays exactly its original scope (health DB probe + version identity
+  + backup/restore); retention/settings/danger went to Stream 9, egress to Stream 11
+  — no re-bloat.
+- **W29 / B8** gate measures **raw** detection/FP only; disposition (Stream 10) is
+  informational and post-v1.0.
+
 ## 6. Pre-Close Checklist — Fresh Audit Findings (2026-06-08)
 
 Recorded so they are never lost; bucketed, evidence-cited, none-blocking flagged
@@ -191,6 +332,10 @@ the detailed intake snapshot is archived at
 - **Stream 6** — `[GOAL measured-catch-rate-corpus]`, `[GOAL benign-false-positive-gate]`, `[GOAL platform-blind-verdict-annotation]`, `[GOAL adr-0015-e1-e2-evasion-detection]`.
 - **Stream 7** (post-v1.0) — `[GOAL sequential-batch-corpus]`.
 - **Stream 8** (post-v1.0) — `[GOAL container-hardening-ratchet-down]` (ADR 0013 §Deferred; W22-6 deferred-to-user), `[GOAL adr-0015-e3-e5-evasion-detection]`, `[FOLLOWUP harness-secret-distribution-redesign]` (existing).
+- **★ operator-console-honesty** (sequenced first, non-bar) — `[CLEANUP settings-decorative-controls-honesty]`, `[CLEANUP system-mock-status-honesty]`, `[GOAL light-dark-theme]` (stretch; non-blocking).
+- **Stream 9 operator-settings-ops** (post-v1.0) — `[GOAL operator-settings-server-persistence]`, `[GOAL telemetry-retention-purge]`, `[GOAL danger-zone-destructive-actions]`.
+- **Stream 10 operator-disposition** (post-v1.0) — `[GOAL benign-domain-disposition]` (raw vs adjusted; never deletes; NOT in the B8 gate).
+- **Stream 11 network-egress-enforcement** (post-v1.0, mitmproxy) — `[GOAL mitmproxy-tls-interception]` (ADR + spike gated; ADR stays `Proposed`), `[GOAL egress-allowlist-enforcement]`; depends on Stream 9.
 
 ## 8. Non-Goals (scope honesty)
 
