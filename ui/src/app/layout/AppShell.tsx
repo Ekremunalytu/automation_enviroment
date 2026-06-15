@@ -98,7 +98,7 @@ export function AppShell({ children }: PropsWithChildren) {
           top: 0,
           height: "100vh",
           borderRight: `1px solid ${V3.rule}`,
-          background: "#000",
+          background: V3.paper,
           display: "flex",
           flexDirection: "column",
           overflow: "hidden",

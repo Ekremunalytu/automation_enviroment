@@ -15,6 +15,7 @@ import {
 import { ApiError } from "../../lib/api/http";
 import { apiClient } from "../../lib/api/client";
 import type { VsixThresholdsUpdateRequestDto } from "../../lib/types/contracts";
+import { THEMES, useTheme, type ThemeId } from "../../lib/theme/theme";
 
 const VSIX_THRESHOLDS_QUERY_KEY = ["security-thresholds"] as const;
 const VSIX_KEYS = {
@@ -29,14 +30,12 @@ const VSIX_KEYS = {
 // effect it does not have. Backend enforcement (auto-analyze, strict net,
 // retention, …) is deferred to a later stream; server-side persistence of
 // the operator settings is Stream 9 (`operator-settings-ops`).
-type ThemeId = "shift5" | "parchment" | "terminal";
 type DensityId = "compact" | "comfortable" | "spacious";
 type RetentionId = "7" | "30" | "90" | "inf";
 
 const PREVIEW = {
   operatorName: "",
   timeZone: "UTC+03:00 · Istanbul",
-  theme: "shift5" as ThemeId,
   density: "comfortable" as DensityId,
   jobTimeout: "600s",
   retention: "30" as RetentionId,
@@ -71,6 +70,7 @@ export function SettingsPage() {
   const [section, setSectionState] = useState<SectionId>(
     isSectionId(sectionFromUrl) ? sectionFromUrl : "general",
   );
+  const [theme, setTheme] = useTheme();
 
   const setSection = (next: SectionId) => {
     setSectionState(next);
@@ -211,17 +211,12 @@ export function SettingsPage() {
               <Group label="Appearance">
                 <FormRow
                   k="Theme"
-                  desc="Visual treatment of the console."
-                  note={<NotEnforced />}
+                  desc="Visual treatment of the console. Applies immediately."
                   control={
                     <Segmented<ThemeId>
-                      value={PREVIEW.theme}
-                      disabled
-                      options={[
-                        ["shift5", "Shift5"],
-                        ["parchment", "Parchment"],
-                        ["terminal", "Terminal"],
-                      ]}
+                      value={theme}
+                      onChange={setTheme}
+                      options={THEMES.map((t) => [t.id, t.label] as [ThemeId, string])}
                     />
                   }
                 />

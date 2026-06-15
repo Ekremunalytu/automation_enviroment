@@ -86,12 +86,12 @@ describe("SettingsPage", () => {
     expect(screen.getByText("Single active · serial")).toBeInTheDocument();
   });
 
-  it("disables the not-yet-real appearance controls (theme/density)", () => {
+  it("has a live theme control and a still-disabled density control", () => {
     renderPage();
 
-    // General is the default section. Theme + density are presentation
-    // controls that do nothing yet — disabled until W24 H3/H1b wire them.
-    expect(screen.getByRole("button", { name: "Shift5" })).toBeDisabled();
+    // General is the default section. Theme is a real apply-on-change control
+    // as of H3; density stays disabled until H1b wires real row-height.
+    expect(screen.getByRole("button", { name: "Shift5" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "Comfortable" })).toBeDisabled();
   });
 

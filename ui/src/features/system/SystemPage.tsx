@@ -339,7 +339,7 @@ export function SystemPage() {
           <div
             style={{
               border: `1px solid ${V3.rule}`,
-              background: "#000",
+              background: V3.paper,
               padding: "18px 20px",
             }}
           >
