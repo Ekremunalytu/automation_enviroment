@@ -322,10 +322,26 @@ the detailed intake snapshot is archived at
 | ext-host log-parse / strace ReDoS sweep | uncharacterized | Stream 1 / S5 — **RESOLVED** (week23: family line-anchored/linear; one unanchored greedy-prefix pattern bounded `{1,256}` + 16 KiB per-line cap; 1M-char line minutes→~32 ms) | `extension_host_log_parse.py`, `extension_host_strace_parse.py` |
 | `[FOLLOWUP vsix-entry-log-sanitization]` (raw entry names in logs) | Med/High | **Stream 4** (alongside offline skip-reason UX, same files) | `client.py:269/319` |
 
+### Fresh Audit Findings (`extrace-audit` 2026-06-15)
+
+Second read-only `/extrace-audit` pass against `main` @ `9471ffe` (code identical at
+`d3b20ea`). Verdict **Mostly healthy with risks** — no Critical/High, no hard-rule
+violation, 16/16 ADRs aligned, all 18 guard-drift flags adjudicated benign. Full
+detail + stable IDs in `POST_POC_BACKLOG.md` "Newly Captured (extrace-audit
+2026-06-15)". None blocking; the redaction item is the highest-leverage fix.
+
+| Finding | Severity | Disposition | Evidence |
+|---|---|---|---|
+| Redaction enforced per-field, not at a chokepoint — 3 ungated extension-controlled report sinks (`LogStreamEntry.message/activation_event`, `FileEvent.path/summary`, `ProcessEvent.command/cwd`); sibling network producer redacts the same class | Medium (F1/F2), Info (F3) | `[BUG report-field-redaction-completeness]` — small + isolated; can ride any stream close-out | `scenario_accountant.py:574-576`, `filesystem.py:108-120` (vs `network.py:109-110`), `extension_host_strace_parse.py:71,88,97`, serialize `report_builder.py:384,408-411`; no AST gate |
+| Stale CDP terminate-needle no-ops on the CDP-off default boot (reliability, not exposure) | Low | `[BUG reset-cdp-needle-stale]` → **Stream 2 / B2** (same-container reset); overlap closed-regression vs W14-3 | `reset_state.py:32/63/179` vs `launch_vscode.sh:27,96-99` |
+| Pragma-ratchet test docstring says baseline 6/3-files; enforced constants are 7/4-files (gate correct) | Info | `[CLEANUP pragma-ratchet-docstring]` — trivial doc fix | `tests/architecture/test_bare_binary_pragma_ratchet.py:20-33` vs `:51-58` |
+| `EventAttemptRecord` lacks `validate_assignment` → `confirmation_source` set-sites skip the validator (benign: hardcoded valid literals) | Info | `[CLEANUP event-attempt-validate-assignment]` — hardening hygiene | `contracts.py:223` (vs `ContentSample`), set-sites `reconciliation.py:348,363` |
+| Container-isolation runtime gates skip on non-Docker dev host (runtime cap/flat-mode verified at compose/AST level only) | N/A (coverage-env) | already covered by `[FOLLOWUP fedora-host-live-validation]` + Stream 8 `[GOAL container-hardening-ratchet-down]` | `test_container_entrypoint.py`, `test_compose_isolation_invariants.py` |
+
 ## 7. Stream → Stable ID Map
 
 - **Stream 1** — `[BUG report-builder-unbounded-pem-redact]`, `[BUG wedged-job-no-same-boot-recovery]`, `[FOLLOWUP offline-vsix-size-bound]`, `[BUG import-graph-relative-import-gate-gap]`, `[BUG verdict-color-inconclusive-renders-clean]`, `[FOLLOWUP exthost-logparse-redos-bounds-sweep]`.
-- **Stream 2** — `[FOLLOWUP sandbox-reset-stale-state-multi-analyze]` (existing).
+- **Stream 2** — `[FOLLOWUP sandbox-reset-stale-state-multi-analyze]` (existing), `[BUG reset-cdp-needle-stale]` (audit 2026-06-15).
 - **Stream 3** — `[GOAL vsix-content-sha256-provenance]`, `[GOAL verdict-reproducibility-anchor]`.
 - **Stream 4** — `[GOAL report-export-artifact]`, `[FOLLOWUP vsix-entry-log-sanitization]` (existing), offline skip-reason UX.
 - **Stream 5** — `[CLEANUP version-identity-coherence]`, `[GOAL api-health-db-probe]`, `[GOAL podman-backup-restore]`.
@@ -336,6 +352,7 @@ the detailed intake snapshot is archived at
 - **Stream 9 operator-settings-ops** (post-v1.0) — `[GOAL operator-settings-server-persistence]`, `[GOAL telemetry-retention-purge]`, `[GOAL danger-zone-destructive-actions]`.
 - **Stream 10 operator-disposition** (post-v1.0) — `[GOAL benign-domain-disposition]` (raw vs adjusted; never deletes; NOT in the B8 gate).
 - **Stream 11 network-egress-enforcement** (post-v1.0, mitmproxy) — `[GOAL mitmproxy-tls-interception]` (ADR + spike gated; ADR stays `Proposed`), `[GOAL egress-allowlist-enforcement]`; depends on Stream 9.
+- **Audit captures (extrace-audit 2026-06-15; non-stream)** — `[BUG report-field-redaction-completeness]` (CRSC-2; can ride any close-out), `[CLEANUP pragma-ratchet-docstring]`, `[CLEANUP event-attempt-validate-assignment]`. (`[BUG reset-cdp-needle-stale]` lives under Stream 2 above.)
 
 ## 8. Non-Goals (scope honesty)
 
