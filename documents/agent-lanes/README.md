@@ -1,6 +1,6 @@
 # Agent Lanes
 
-`Last Updated: 2026-04-29`
+`Last Updated: 2026-06-15`
 
 Use these files after `AGENTS.md` and `documents/AGENT_CONTEXT.md`. Open only
 the lane that matches the task.
@@ -15,6 +15,9 @@ the lane that matches the task.
   runtime capture, runbooks.
 - `security-detection.md` — detection contracts, rules, malicious fixtures,
   security ADRs.
+- `static-analysis-pre-check.md` — pre-execution static gate: the
+  `automation_static_analyzer` container, in-house static rules + Semgrep,
+  block-and-warn decision fronting the dynamic sandbox.
 - `ui.md` — React/Vite analyst console, generated TS contracts, UI tests.
 - `docs-maintenance.md` — documentation drift, README/ADR/runbook updates.
 

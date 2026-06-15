@@ -134,7 +134,8 @@ already in `ActivationReport`.
 - Authoritative schema lives under `packages/analysis_contracts/detection/`.
 - Owned by the backend, validated with Pydantic v2, consumed by UI via
   generated TypeScript types (see Week 4D UI refactor plan in
-  `REFACTOR_OPTIMIZATION.md` §2.6).
+  the [`REFACTOR_OPTIMIZATION` full snapshot](../archive/plans/REFACTOR_OPTIMIZATION_full_2026-06-15.md)
+  §2.6).
 - The existing `ActivationReport` is **not** modified to embed findings;
   the two reports travel together (`report_bundle`) so quality and
   detection concerns stay decoupled.

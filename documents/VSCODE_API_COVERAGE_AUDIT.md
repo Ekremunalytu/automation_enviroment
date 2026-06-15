@@ -214,8 +214,9 @@ candidates are detection-surface deepening, not capability matrix fills:
   `cdp_fingerprint`, `timing_probe`, `platform_identity`,
   `process_introspection`); V2 implementation roadmap — W23+ scope per
   ADR 0015 §Implementation Roadmap.
-- **Static-analysis pre-check stream** (deferred; design intent in
-  `documents/active-work/extrace-static-stream-handoff.md`). Pre-execution
+- **Static-analysis pre-check stream** (closed and merged via PR #33
+  `70e4364`; final tracker:
+  `documents/active-work/static-analysis-pre-check-stream.md`). Pre-execution
   signal layer (manifest red flags, typosquats, embedded binaries, JS
   literal `eval` / `Function` / `child_process`) with block-and-warn
   semantics, separate `automation_static_analyzer` Docker service,

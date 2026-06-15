@@ -5,6 +5,8 @@
 `Branch: week21 (per user direction 2026-05-27; W11-W20 paterni preserved — sub-iter commits land on week21, close-out merges into main via week21 -> main PR PENDING USER APPROVAL)`
 `Owner: ekrem`
 
+**Post-merge note (2026-06-15):** PR #30 `week21 -> main` **MERGED** `2026-05-28` via `5dc18aa` (recorded canonically in `phase.json` history + the README phase-pointer gate). The "PENDING USER APPROVAL" phrasing below is the frozen pre-merge close-out state, not current.
+
 > **Authored 2026-05-27** as the W21 scope skeleton against `main` HEAD
 > `64a3c3d` (W20 close-out PR #29 merge `2026-05-26 23:10:21Z`). Stable
 > IDs `W21-1..W21-4` are reserved by the iteration plan at

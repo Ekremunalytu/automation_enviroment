@@ -1,6 +1,6 @@
 # Risk Register
 
-`Last Updated: 2026-05-13`
+`Last Updated: 2026-06-15`
 
 This register reflects the current post-W13 close-out architecture and the
 remaining post-PoC hardening risks.
@@ -11,8 +11,8 @@ remaining post-PoC hardening risks.
 
 Files:
 
-- `executor/flows/playwright/entrypoint_runner.py`
-- `executor/flows/playwright/health_summary.py`
+- `executor/flows/playwright/entrypoint/runner.py`
+- `executor/flows/playwright/health/summary.py`
 - `packages/analysis_contracts/report_invariants.py`
 - `workflows/marketplace/analysis_service.py`
 
@@ -20,10 +20,10 @@ Why it matters:
 
 - The product promise depends on requested scenarios being reported honestly as
   executed, failed, or skipped with an explainable reason.
-- W6 added the scenario truth ledger, but the current backlog still tracks
-  `[BUG scenario-dropout-upstream-root-cause]` as W14-1 BLOCKER triage.
-  Planner/runtime/report drift would immediately mislead analysts if this
-  surface regresses.
+- W6 added the scenario truth ledger; `[BUG scenario-dropout-upstream-root-cause]`
+  closed via W14-1 (BLOCKER→HIGH + conservation guard) with the upstream
+  emit-site split closed at W16-1. Planner/runtime/report drift would still
+  immediately mislead analysts if this surface regresses.
 
 ### P1 - Runtime capture remains intentionally bounded
 
@@ -59,8 +59,8 @@ Why it matters:
 
 Files:
 
-- `executor/flows/playwright/stimulus_materializers.py`
-- `executor/flows/playwright/stimulus_passes.py`
+- `executor/flows/playwright/stimulus/materializers.py`
+- `executor/flows/playwright/stimulus/passes.py`
 - `workflows/marketplace/trigger_service.py`
 
 Why it matters:
@@ -163,7 +163,7 @@ Why it matters:
 - Accepted because the observation pipeline depends on these caps; document
   the trade-off here so the next reviewer doesn't have to re-derive it.
 
-### P2 - Background analysis thread can drop uncaught exception types silently
+### P2 - Background analysis thread: out-of-taxonomy exceptions (wedge largely closed by W23 B3)
 
 Files:
 
@@ -172,17 +172,18 @@ Files:
 
 Why it matters:
 
-- `run_analysis_job` enumerates the exception types it converts into
-  `fail_job` calls. Any other exception (e.g. a future `RuntimeError`,
-  `httpx.HTTPError`, `ConnectionResetError`) propagates out of the daemon
-  thread and the job row stays in `running` until process restart triggers
-  `recover_interrupted_jobs`.
-- Cancellation, single-active-job enforcement, and UI status all rely on
-  the row being moved out of `running` promptly; a silent drop blocks the
-  next analysis until restart.
-- Tracked for follow-up in `POST_POC_BACKLOG.md` under
-  `[FOLLOWUP analysis-thread-supervisor]` (structural complement to the
-  existing `7.1.4 narrow the broad except` item).
+- W23 B3 (`reliability-self-defense`, merged PR #35 `653d807`) closed the
+  same-boot wedge: a `last_heartbeat_at` column + a stale-running reaper
+  recover a hung/crashed `running` row without an API restart, and the
+  `run_analysis_job` boundary guard now writes a terminal state then
+  re-raises (the `# arch-allow: thread-supervisor` site) — so an
+  out-of-taxonomy crash releases the single-active slot immediately instead
+  of wedging the queue until restart.
+- Residual (narrowed): a NEW stage exception outside `ANALYZE_ERROR_TYPES`
+  still needs to join the taxonomy + HTTP map + a routing test so its
+  terminal state carries the right error code — the boundary guard prevents
+  the wedge but not the taxonomy gap. Tracked in `POST_POC_BACKLOG.md` under
+  `[FOLLOWUP analysis-thread-supervisor]`.
 
 ## Accepted Risks
 

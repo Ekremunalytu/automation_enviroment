@@ -1,14 +1,14 @@
-# Static Analysis Pre-Check Stream (Active Work Tracker)
+# Static Analysis Pre-Check Stream (Frozen Tracker)
 
-`Last Updated: 2026-06-01 — ES-5 close-out: static report surfaced to API (AnalyzeJobStatusResponse.static_report / AnalyzeResponse.static_report) + UI (SimulationPage static pre-check panel) + TS DTOs; ALLOW/WARN now persists static_report_path; feature flag flipped ON after live Docker smoke evidence; ADR 0016 → Accepted. On branch static.`
+`Last Updated: 2026-06-15 — ES-0..ES-5 closed and merged to main via PR #33 (70e4364) on 2026-06-01; static report surfaced to API + UI, ALLOW/WARN persists static_report_path, feature flag ON, ADR 0016 Accepted.`
 
-`Status: ES-5 DONE (all sub-iters complete). Pre-close checklist below resolved. Close-out PR static -> main PENDING USER APPROVAL. Single-branch model per user direction 2026-05-29.`
+`Status: FROZEN — all sub-iters complete; pre-close checklist resolved; PR #33 merged.`
 
-`Branch: static (cut from main; all ES-0..ES-5 sub-iter commits land directly on it). Close-out PR static -> main PENDING USER APPROVAL.`
+`Branch: static (historical; merged to main via PR #33 and deleted after close-out).`
 
 `Owner: ekrem`
 
-This is the canonical active-work tracker for the Static Analysis
+This is the frozen canonical tracker for the Static Analysis
 Pre-Check Stream. It fronts the dynamic sandbox with a pre-execution
 static stage (block-and-warn) so known-bad extensions are rejected
 before any sandbox spin. The four locked design decisions and the

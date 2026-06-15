@@ -16,8 +16,9 @@ Lane shape and overall test guide:
 - `test_rule_coverage.py` — dynamic production registry coverage for A1-A8
   plus the demo canary; PoC T1 classes still cover A1/A2/A4/A6.
 - `test_canary_end_to_end.py` — wires a canary fixture through the rule
-  runner. Code comment references `REFACTOR_OPTIMIZATION.md §10.7`
-  (PoC acceptance bar) — anchor preserved in slim canonical.
+  runner. Code comment references the archived
+  [`REFACTOR_OPTIMIZATION.md` §10.7](../archive/plans/REFACTOR_OPTIMIZATION_full_2026-06-15.md)
+  PoC acceptance bar; that retired subsection lives in the full snapshot.
 - `test_detection_report_invariants.py` — cross-layer evidence-link
   contract: `DetectionFinding.evidence.event_id` ↔
   `ActivationReport.evidence_events[]`.

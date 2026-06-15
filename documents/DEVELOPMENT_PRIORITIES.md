@@ -1,14 +1,14 @@
 # Development Priorities
 
-`Last Updated: 2026-05-28 — W22 closed synthetically on week22 and merged to main via PR #31 week22 -> main 1399f82; W21 closed and merged via PR #30 5dc18aa.`
+`Last Updated: 2026-06-15 — W22 closed synthetically on week22 and merged to main via PR #31 week22 -> main 1399f82. Active stream: reliability-self-defense merged via PR #35 (653d807); next forward arc in active-work/v1-roadmap.md.`
 
 This is the short priority list for current work. It assumes the project stays
 a single-user sandbox appliance on one machine or one Docker host.
 
 If any older planning note clashes with the active refactor track, follow
 `REFACTOR_STATUS.md` for current closure state and
-`REFACTOR_OPTIMIZATION.md` for plan history (§11 W8-W13, §12-§19 W14-W21 closed,
-§20 active W22). Multi-iter roadmap: `active-work/W18-W22-roadmap.md`.
+`REFACTOR_OPTIMIZATION.md` for plan history (§11 W8-W13, §12-§20 W14-W22 all
+closed). Multi-iter roadmap: `active-work/W18-W22-roadmap.md`.
 Post-PoC deferrals live in `POST_POC_BACKLOG.md`.
 Keep changes biased toward cleanliness, stability, and overall code quality.
 
@@ -17,8 +17,10 @@ Keep changes biased toward cleanliness, stability, and overall code quality.
 **Acceptance bar: PoC.** The window targeted a demonstrable
 proof-of-concept that catches basic malicious extensions, not a full-featured
 production security product. Full scope stays in the plan; PoC framing selected
-Must vs Stretch. See `REFACTOR_OPTIMIZATION.md` §10 for Must/Stretch split and
-§10.7 for the PoC acceptance checklist (**11/11 green as of 2026-04-23**).
+Must vs Stretch. See the
+[`REFACTOR_OPTIMIZATION` full snapshot](archive/plans/REFACTOR_OPTIMIZATION_full_2026-06-15.md)
+§10 for the Must/Stretch split and §10.7 for the PoC acceptance checklist
+(**11/11 green as of 2026-04-23**).
 
 - **W0 (spec, complete):** security foundations written as ADRs 0002-0004 with
   PoC-priority annotations.

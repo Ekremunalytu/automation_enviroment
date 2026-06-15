@@ -232,7 +232,8 @@ fixture `extensions/malicious/t1-demo-runnable-canary/` carries:
 - ADR 0003 §3, §4, §5 — Severity/Confidence, evidence linking invariant,
   verdict rollup with error dominance.
 - ADR 0004 — T1 canary policy.
-- `documents/REFACTOR_OPTIMIZATION.md` §10.7 — PoC acceptance checklist.
+- [`REFACTOR_OPTIMIZATION` full snapshot](archive/plans/REFACTOR_OPTIMIZATION_full_2026-06-15.md)
+  §10.7 — PoC acceptance checklist.
 - [`tests/security/rules/test_a1_credential_read_then_network.py`](../tests/security/rules/test_a1_credential_read_then_network.py)
   — per-rule fire test.
 - [`tests/security/test_detection_report_invariants.py`](../tests/security/test_detection_report_invariants.py)

@@ -1,11 +1,12 @@
 # Pipeline Roadmap
 
-`Last Updated: 2026-06-04 — W22 remains the last merged weekly close-out (PR #31 week22 -> main 1399f82); active stream is security-development.`
+`Last Updated: 2026-06-15 — W22 remains the last merged weekly close-out (PR #31 week22 -> main 1399f82); active stream is reliability-self-defense (merged to main via PR #35 653d807).`
 
 This is the short staged view of the analysis pipeline. For current pullable
 work, use `POST_POC_BACKLOG.md` plus the active tracker; for active priorities,
 use `DEVELOPMENT_PRIORITIES.md`; for the closed PoC window, use
-`REFACTOR_OPTIMIZATION.md` §10.
+the [`REFACTOR_OPTIMIZATION` full snapshot](archive/plans/REFACTOR_OPTIMIZATION_full_2026-06-15.md)
+§10.
 
 Week 4 closure was validated on `2026-04-20`. W5 detection foundations
 (contracts, A1/A2/A4/A6 rules, T1 canaries, `make test-security`) landed

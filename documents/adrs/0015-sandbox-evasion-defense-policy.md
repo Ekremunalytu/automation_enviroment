@@ -34,10 +34,12 @@ Two W22-window facts now make a scoped re-evaluation timely:
    `coverage_summary.missing_capabilities` reaches 0. The next
    limiting factor for analysis fidelity is no longer breadth — it
    is targeted adversarial behavior.
-2. **Container hardening (W22-6) reduces the side-channel surface.**
-   `read_only: true` + custom seccomp filter together remove some of
+2. **Container hardening (W22-6) *would* reduce the side-channel surface — but it was deferred.**
+   `read_only: true` + a custom seccomp filter would together remove some of
    the cheapest evasion probes (process introspection via `/proc`,
-   syscalls used by `unshare`/`mount` detection).
+   syscalls used by `unshare`/`mount` detection). W22-6 was deferred-to-user
+   (now post-v1.0 Stream 8 `[GOAL container-hardening-ratchet-down]`); today
+   only `cap_drop: [ALL]` + `no-new-privileges: true` are enforced.
 
 ADR 0002 §3's "follow-up ADR" mechanism is the entry point. This
 ADR is that follow-up. **It does not yet add runtime defenses; it
@@ -139,8 +141,10 @@ schema is W23+ scope.
 - VS Code `engines.vscode` constraint — not touched by this ADR
   (no new VS Code API surfaces; all defenses live below the
   Extension Host).
-- `docker/seccomp.json` (W22-6) — already constrains `/proc`
-  visibility; no additional seccomp rules required for E5.
+- `docker/seccomp.json` (W22-6) — **deferred, not yet shipped** (no
+  `seccomp.json` exists; the ratchet-down is post-v1.0 Stream 8). Until it
+  lands, E5 relies only on `cap_drop: [ALL]` + `no-new-privileges: true`; the
+  `/proc`-visibility hardening is planned, not in force.
 
 ## Consequences
 

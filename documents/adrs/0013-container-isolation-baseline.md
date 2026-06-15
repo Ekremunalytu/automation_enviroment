@@ -300,8 +300,9 @@ rationale in this ADR before re-running.
 - W21-4 primary commit lands this ADR + the docker-compose.yml diff
   + `tests/architecture/test_compose_isolation_invariants.py`.
 - W21-4 self-stamp commit records the live-run smoke anchor.
-- W22+ ratchet-down lane: `read_only: true` + tmpfs mounts +
-  custom `docker/seccomp.json` profile.
+- Ratchet-down lane (W22-6 deferred-to-user; now post-v1.0 Stream 8
+  `[GOAL container-hardening-ratchet-down]`): `read_only: true` + tmpfs
+  mounts + custom `docker/seccomp.json` profile. **Not yet shipped.**
 
 ## References
 

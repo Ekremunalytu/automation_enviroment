@@ -1,6 +1,6 @@
 # ExTrace Architecture
 
-`Last Updated: 2026-06-04 — W22 remains the last merged weekly close-out (PR #31 week22 -> main 1399f82); active stream is security-development.`
+`Last Updated: 2026-06-15 — W22 remains the last merged weekly close-out (PR #31 week22 -> main 1399f82); active stream is reliability-self-defense (merged to main via PR #35 653d807).`
 
 System shape, runtime surfaces, and module map. **Slim canonical** —
 detailed request flows under

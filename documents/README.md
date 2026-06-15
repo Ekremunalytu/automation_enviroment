@@ -1,6 +1,6 @@
 # Documents Guide
 
-`Last Updated: 2026-06-12 — W22 remains the last merged weekly close-out (PR #31 week22 -> main 1399f82). Active stream: reliability-self-defense (v1.0 trust floor, Stream 1) merged to main via PR #35 (653d807); tracker: active-work/W23-reliability-self-defense.md.`
+`Last Updated: 2026-06-15 — W22 remains the last merged weekly close-out (PR #31 week22 -> main 1399f82). Active stream: reliability-self-defense (v1.0 trust floor, Stream 1) merged to main via PR #35 (653d807); tracker: active-work/W23-reliability-self-defense.md.`
 
 This folder is split into a small canonical core, specialized reference docs,
 and a frozen archive. **Do not preload the entire folder.** Open subsystem
@@ -11,14 +11,16 @@ Current status: [`REFACTOR_STATUS.md`](REFACTOR_STATUS.md). Deferrals:
 [`REFACTOR_OPTIMIZATION.md`](REFACTOR_OPTIMIZATION.md) §11; W14-W18 plans:
 §12-§16; W19-W22 plans: §17-§20. Last merged weekly: W22 (PR #31,
 1399f82). Active stream tracker:
-[`../deploy/podman/README.md`](../deploy/podman/README.md).
-Previous custom detection-rule stream:
+[`active-work/W23-reliability-self-defense.md`](active-work/W23-reliability-self-defense.md).
+Previous streams: podman-airgapped-deploy
+[`../deploy/podman/README.md`](../deploy/podman/README.md);
+custom detection-rule
 [`detection-design/README.md`](detection-design/README.md).
 W18-W22 roadmap:
 [`active-work/W18-W22-roadmap.md`](active-work/W18-W22-roadmap.md).
 Closed stable-ID trackers live under [`active-work/`](active-work/).
 
-Security posture is fixed by ADRs 0002-0005 plus ADRs 0007-0012. ADR 0007
+Security posture is fixed by ADRs 0002-0005 plus ADRs 0007-0016. ADR 0007
 loopback defaults are pinned by
 [`tests/architecture/test_default_bindings.py`](../tests/architecture/test_default_bindings.py);
 status is owned by [`REFACTOR_STATUS.md`](REFACTOR_STATUS.md).
@@ -73,10 +75,12 @@ Short and intentionally not on the default read path.
   [`REFACTOR_EXECUTION_PLAN.md`](REFACTOR_EXECUTION_PLAN.md) and
   [`REFACTOR_EXPANSION_NOTES.md`](REFACTOR_EXPANSION_NOTES.md) are
   read-only/off-path unless retracing that earlier plan.
-- ADRs (`adrs/0001`-`0012`) — binding decisions on appliance model,
+- ADRs (`adrs/0001`-`0016`) — binding decisions on appliance model,
   threat model, detection taxonomy, malicious-fixture policy,
-  packages charter, local network binding, and container package-mode
-  invocation. Read the ADR only when the task touches the boundary it governs.
+  packages charter, local network binding, container package-mode
+  invocation, heartbeat relocation, container-isolation baseline,
+  chat/LM-tool policy, sandbox-evasion defense, and the static
+  pre-check stage. Read the ADR only when the task touches the boundary it governs.
 
 ## Active Work And Archive
 

@@ -1,6 +1,6 @@
 # ExTrace
 
-`Last Updated: 2026-06-12`
+`Last Updated: 2026-06-15`
 
 `Last merged weekly: W22 — closed synthetically on the week22 branch, merged to main via PR #31 week22 -> main 2026-05-28 via 1399f82.`
 
@@ -228,10 +228,13 @@ Weekly close-out ledger:
 
 Latest merged named stream:
 
-- `podman-airgapped-deploy` from `feat/podman-airgapped-deploy`
-- Adds the Podman air-gapped deployment bundle.
-- Reworks the public documentation so a human reader can understand the system
-  before opening agent-optimized planning docs.
+- `reliability-self-defense`, merged via PR #35 (`653d807`) on `2026-06-12`.
+- Closed v1.0 trust-floor bars B1/B3/B4 plus self-defense fixes F-2/F-3.
+- Tracker: `documents/active-work/W23-reliability-self-defense.md`.
+
+Earlier named streams include `podman-airgapped-deploy` (air-gapped deployment
+bundle + human-readable documentation), `security-development`,
+`extension-trigger-matrix`, and Static Analysis Pre-Check.
 
 Detailed status is intentionally not duplicated here:
 

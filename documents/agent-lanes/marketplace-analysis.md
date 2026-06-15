@@ -33,7 +33,7 @@ async analysis jobs, cancellation, trigger planning, and report handoff.
   prefix set (`scenario:`, `command:`, `extra:`, `fixture:`, `harness:`).
   When adding a new executor verb, extend exactly one of those frozensets
   AND add the matching dispatcher branch in
-  `executor/flows/playwright/stimulus/attempts.py::_dispatch_action` —
+  `executor/flows/playwright/stimulus/attempts.py::execute_attempt` —
   emitting an unregistered action is a producer-side bug, not a runtime
   fallthrough.
 

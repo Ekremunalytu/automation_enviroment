@@ -165,8 +165,9 @@ host-bound CDP port without the `debug` profile.
 
 ### Follow-On
 
-- Implemented as `REFACTOR_OPTIMIZATION.md` §11.5 item 7 (W8-7) in the
-  W8-W13 external-review integration window.
+- Implemented as §11.5 item 7 (W8-7) in the
+  [`REFACTOR_OPTIMIZATION` full snapshot](../archive/plans/REFACTOR_OPTIMIZATION_full_2026-06-15.md),
+  within the W8-W13 external-review integration window.
 - README and AGENTS.md update points: the API surface section, the
   "Service Endpoints" block in the root `README.md`, and the
   `documents/runbooks/` index.

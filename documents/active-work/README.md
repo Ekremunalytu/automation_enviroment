@@ -1,6 +1,6 @@
 # Active Work
 
-`Last Updated: 2026-06-12`
+`Last Updated: 2026-06-15`
 
 `Last merged weekly: W22 — closed synthetically on the week22 branch, merged to main via PR #31 week22 -> main 2026-05-28 via 1399f82.`
 
@@ -30,8 +30,10 @@ points to it.
     daily-usable single-operator defensive tool.** User direction
     `2026-06-08` after the project report was delivered. Supersedes the
     completed `W18-W22-roadmap.md` window. Carries the v1.0 bar (B1-B10),
-    the 8 named streams (Streams 1-6 = v1.0; 7-8 = post-v1.0), the first
-    stream (`reliability-self-defense`) in detail, and the fresh-audit
+    the 11 named streams plus a non-bar ★ operator-console-honesty
+    stream (Streams 1-6 = v1.0; 7-11 = post-v1.0; ★ = UI-only honesty,
+    sequenced ahead of Stream 2), the first stream
+    (`reliability-self-defense`) in detail, and the fresh-audit
     pre-close checklist. **Stream 1 (`reliability-self-defense`) shipped —
     merged to main via PR #35 (`653d807`) on `2026-06-12`**;
     `podman-airgapped-deploy` is the prior stream. New stable IDs recorded in
@@ -53,29 +55,27 @@ points to it.
     **631 passed**. Slim canonical:
     [`REFACTOR_OPTIMIZATION.md §20`](../REFACTOR_OPTIMIZATION.md).
 - `../detection-design/README.md`
-  - **Previous named stream — `security-development` on branch
-    `security-development` (`2026-06-04`).** Custom detection-rule expansion for
+  - **Merged named stream — `security-development`, merged to main via PR #34 (`f1dde63`) on `2026-06-04`.** Custom detection-rule expansion for
     the apollyon / securezeron / kagema / GlassWorm / snyk-labs / nf3xn /
     ecm3401 / nextsecurity / snowshono classes (static rules now `s1`-`s20`,
     dynamic A1-A8). The directory is self-contained and tracks safety policy,
     shipped static/dynamic rules, rule-layer reconciliation, and per-class specs.
 - `../../deploy/podman/README.md`
-  - **Latest merged named stream — `podman-airgapped-deploy`, merged to main
+  - **Earlier merged named stream — `podman-airgapped-deploy`, merged to main
     from `feat/podman-airgapped-deploy` (`2026-06-08`).** Air-gapped Podman
     deployment bundle for a headless x86 Fedora Server plus human-readable
     documentation entry points. This stream does not advance the weekly W22
     pointer.
 - `extrace-static-stream-handoff.md`
   - **Frozen design-intent reference — branch `extrace-static`
-    abandoned `2026-05-28`; static-analysis pre-check stream
-    deferred to a future iter.** Preserves the four locked design
+    abandoned `2026-05-28`; the replacement Static Analysis Pre-Check stream
+    later closed and merged via PR #33 (`70e4364`) on `2026-06-01`.** Preserves
+    the four locked design
     decisions (block-and-warn semantics, separate
     `automation_static_analyzer` Docker service, schema-first
-    contract landing, in-house Python rules + Semgrep MVP) and the
-    ES-0..ES-5 sub-iter slate. Operator resumes serially off
-    `main` when picking the work up — single worktree, single
-    Docker stack. Companion to W19-X-handoff / W20-handoff /
-    W21-handoff handoff convention.
+    contract landing, in-house Python rules + Semgrep MVP) and the original
+    ES-0..ES-5 sub-iter slate. Final implementation evidence lives in
+    [`static-analysis-pre-check-stream.md`](static-analysis-pre-check-stream.md).
 - `W20-coverage-promotion-easy-wins.md`
   - **Frozen phase — W20-0..W20-5 all closed on the `week20`
     branch per user direction `2026-05-26`; W11-W19 paterni
