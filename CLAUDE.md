@@ -1,10 +1,10 @@
 # CLAUDE.md
 
-`Last Updated: 2026-06-12`
+`Last Updated: 2026-06-15`
 
 `Last merged weekly: W22 — closed synthetically on the week22 branch, merged to main via PR #31 week22 -> main 2026-05-28 via 1399f82.`
 
-`Active stream: reliability-self-defense (v1.0 trust floor, Stream 1) — merged to main via PR #35 (week23 -> main, 653d807); closed v1.0 bars B1/B3/B4 plus self-defense fixes F-2/F-3. Tracker: documents/active-work/W23-reliability-self-defense.md.`
+`Active stream: operator-console-honesty (UI-only console-honesty stream, sequenced ahead of Stream 2 per 2026-06-15 direction) — opened on week24 (off main 8250db0); makes decorative/dead Settings + System controls honest (no backend/DB/detection/executor). Prior stream reliability-self-defense merged to main via PR #35 (week23 -> main, 653d807). Tracker: documents/active-work/W24-operator-console-honesty.md.`
 
 `Sources of truth: documents/REFACTOR_STATUS.md (state) · documents/POST_POC_BACKLOG.md (deferred) · documents/REFACTOR_OPTIMIZATION.md §20 (last weekly plan) · documents/phase.json (weekly pointer + active stream).`
 

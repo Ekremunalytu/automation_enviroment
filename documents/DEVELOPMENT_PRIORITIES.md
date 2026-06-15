@@ -1,6 +1,6 @@
 # Development Priorities
 
-`Last Updated: 2026-06-15 — W22 closed synthetically on week22 and merged to main via PR #31 week22 -> main 1399f82. Active stream: reliability-self-defense merged via PR #35 (653d807); next forward arc in active-work/v1-roadmap.md.`
+`Last Updated: 2026-06-15 — W22 closed synthetically on week22 and merged to main via PR #31 week22 -> main 1399f82. Active stream: operator-console-honesty (UI-only) opened on week24; prior stream reliability-self-defense merged via PR #35 (653d807); next forward arc in active-work/v1-roadmap.md.`
 
 This is the short priority list for current work. It assumes the project stays
 a single-user sandbox appliance on one machine or one Docker host.

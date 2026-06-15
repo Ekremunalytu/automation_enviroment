@@ -18,8 +18,8 @@
     { "id": "W21", "pr": 30, "branch": "week21 -> main", "sha": "5dc18aa" }
   ],
   "active_stream": {
-    "id": "reliability-self-defense",
-    "tracker": "documents/active-work/W23-reliability-self-defense.md"
+    "id": "operator-console-honesty",
+    "tracker": "documents/active-work/W24-operator-console-honesty.md"
   },
-  "updated": "2026-06-12"
+  "updated": "2026-06-15"
 }
