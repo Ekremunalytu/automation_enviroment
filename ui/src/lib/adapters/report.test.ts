@@ -6,6 +6,7 @@ import {
   buildRiskRadarAxes,
   getInspectorView,
 } from "./report";
+import { DEFAULT_TIME_ZONE, setTimeZone } from "../settings/presentation";
 import type { ActivationReportDto, ReportBundleDto } from "../types/contracts";
 
 describe("adaptReport", () => {
@@ -1059,5 +1060,47 @@ describe("adaptBundle static fold", () => {
   it("leaves staticReport null when the bundle carries no static_report", () => {
     const report = adaptBundle(baseBundle, "activation_report_x.json");
     expect(report.staticReport).toBeNull();
+  });
+});
+
+describe("time-zone wiring (presentation store -> timestampDisplay)", () => {
+  // One canonical evidence event at a mid-day instant so neither zone wraps
+  // past midnight; all other report fields are optional for adaptReport.
+  function singleEventReport() {
+    return {
+      evidence_events: [
+        {
+          event_id: "network-1",
+          kind: "network",
+          timestamp: "2026-04-13T10:00:00Z",
+          rel_time_s: 0,
+          collector: "tshark",
+          actor: "extension",
+          extension_id: "ms.test",
+          summary: "Outbound request",
+        },
+      ],
+    } as unknown as ActivationReportDto;
+  }
+
+  afterEach(() => {
+    // Reset the module singleton so the default-zone tests in this file are
+    // unaffected by execution order.
+    setTimeZone(DEFAULT_TIME_ZONE);
+  });
+
+  it("renders evidence timestamps in the store's selected time zone", () => {
+    setTimeZone("UTC");
+    const utc = adaptReport(singleEventReport(), "tz").evidence[0]?.timestampDisplay ?? "";
+
+    setTimeZone("Asia/Tokyo");
+    const tokyo = adaptReport(singleEventReport(), "tz").evidence[0]?.timestampDisplay ?? "";
+
+    // Same instant, different wall-clock: UTC 10:00 vs Tokyo (+9) 19:00.
+    expect(utc.startsWith("10")).toBe(true);
+    expect(tokyo.startsWith("19")).toBe(true);
+    // Regression guard: drop `timeZone: resolveTimeZone()` from formatTimestamp
+    // and both collapse to the browser-local zone, so this inequality breaks.
+    expect(utc).not.toBe(tokyo);
   });
 });

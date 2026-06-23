@@ -8,7 +8,7 @@
   :root {
     color-scheme: dark;
     font-family: "Manrope", sans-serif;
-    background: #0a0a0a;
+    background: var(--paper);
 
     --paper: #0a0a0a;
     --paper-2: #141414;
@@ -31,6 +31,75 @@
     --warn-bg: #2a200f;
     --danger: #ff5c42;
     --danger-bg: #2a1612;
+    --ok-bd: #2a4a36;
+    --warn-bd: #5c4a22;
+
+    /* Density — table/ledger row vertical padding, driven by data-density. */
+    --v3-row-pad-y: 12px;
+  }
+
+  :root[data-density="compact"] {
+    --v3-row-pad-y: 7px;
+  }
+
+  :root[data-density="spacious"] {
+    --v3-row-pad-y: 18px;
+  }
+
+  /* Parchment — light theme. Dark ink on warm off-white paper. */
+  :root[data-palette="parchment"] {
+    color-scheme: light;
+    --paper: #f5f2ea;
+    --paper-2: #ece8dd;
+    --paper-3: #e3ded0;
+    --card: #faf8f2;
+    --bone: #3c3a34;
+    --bone-2: #4d4a42;
+    --coral: #d8431d;
+    --coral-deep: #b8381a;
+    --coral-soft: #fbe2da;
+    --ink: #1b1a16;
+    --ink-2: #3a382f;
+    --ink-3: #6c6759;
+    --ink-4: #9a9486;
+    --rule: #ddd6c7;
+    --rule-2: #cbc4b3;
+    --ok: #2f7a4a;
+    --ok-bg: #e2efe5;
+    --warn: #8a6516;
+    --warn-bg: #f3ead2;
+    --danger: #c5391b;
+    --danger-bg: #fbe3dc;
+    --ok-bd: #b6d6bf;
+    --warn-bd: #e3d3a3;
+  }
+
+  /* Terminal — phosphor green on black. The coral accent becomes green. */
+  :root[data-palette="terminal"] {
+    color-scheme: dark;
+    --paper: #050805;
+    --paper-2: #0a120a;
+    --paper-3: #0f1d0f;
+    --card: #060e06;
+    --bone: #6cffa0;
+    --bone-2: #4ad17f;
+    --coral: #2bff88;
+    --coral-deep: #1fcc6b;
+    --coral-soft: #0c2a18;
+    --ink: #c8ffd8;
+    --ink-2: #7fd89a;
+    --ink-3: #4f9e68;
+    --ink-4: #2f6342;
+    --rule: #163322;
+    --rule-2: #20502f;
+    --ok: #2bff88;
+    --ok-bg: #08240f;
+    --warn: #ffcc44;
+    --warn-bg: #241d06;
+    --danger: #ff5a44;
+    --danger-bg: #240b08;
+    --ok-bd: #18452a;
+    --warn-bd: #463810;
   }
 
   * {

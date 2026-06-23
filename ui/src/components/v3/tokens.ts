@@ -1,28 +1,38 @@
+// The V3 palette, as CSS-variable references. The concrete hex values live in
+// `src/index.css`: `:root` holds the default "shift5" (dark) palette, and the
+// `:root[data-palette="parchment"|"terminal"]` blocks override it. A single
+// `data-palette` attribute on <html> (set by `lib/theme/theme.ts` from the
+// operator's Settings → Appearance → Theme choice) therefore re-themes every
+// inline `style={{ ... }}` consumer (40+ files) without touching them.
+//
+// NOTE: canvas-rendered charts (ECharts) cannot resolve `var(--…)`, so a few
+// chart configs keep resolved hex and stay on the dark palette — see the W24
+// H3 caveat in the tracker.
 export const V3 = {
-  paper: "#0a0a0a",
-  paper2: "#141414",
-  paper3: "#1c1c1c",
-  card: "#0f0f0f",
-  bone: "#d6d4d0",
-  bone2: "#c5c2bd",
-  coral: "#ff5c42",
-  coralDeep: "#e84a31",
-  coralSoft: "#ffe4dd",
-  ink: "#f4f1ea",
-  ink2: "#cfcbc2",
-  ink3: "#8a8780",
-  ink4: "#5a5750",
-  rule: "#2b2b2b",
-  rule2: "#3a3a3a",
-  accent: "#ff5c42",
-  accentInk: "#0a0a0a",
-  accentBg: "#1c1c1c",
-  danger: "#ff5c42",
-  dangerBg: "#2a1612",
-  warn: "#d4a85a",
-  warnBg: "#2a200f",
-  ok: "#7ab088",
-  okBg: "#13231a",
+  paper: "var(--paper)",
+  paper2: "var(--paper-2)",
+  paper3: "var(--paper-3)",
+  card: "var(--card)",
+  bone: "var(--bone)",
+  bone2: "var(--bone-2)",
+  coral: "var(--coral)",
+  coralDeep: "var(--coral-deep)",
+  coralSoft: "var(--coral-soft)",
+  ink: "var(--ink)",
+  ink2: "var(--ink-2)",
+  ink3: "var(--ink-3)",
+  ink4: "var(--ink-4)",
+  rule: "var(--rule)",
+  rule2: "var(--rule-2)",
+  accent: "var(--coral)",
+  accentInk: "var(--paper)",
+  accentBg: "var(--paper-3)",
+  danger: "var(--danger)",
+  dangerBg: "var(--danger-bg)",
+  warn: "var(--warn)",
+  warnBg: "var(--warn-bg)",
+  ok: "var(--ok)",
+  okBg: "var(--ok-bg)",
 } as const;
 
 export type V3Tone = "neutral" | "accent" | "ok" | "warn" | "danger";
@@ -30,8 +40,8 @@ export type V3Tone = "neutral" | "accent" | "ok" | "warn" | "danger";
 export const BADGE_TONE: Record<V3Tone, { bg: string; fg: string; bd: string }> = {
   neutral: { bg: V3.paper3, fg: V3.ink2, bd: V3.rule2 },
   accent: { bg: V3.coralSoft, fg: V3.coralDeep, bd: V3.coral },
-  ok: { bg: V3.okBg, fg: V3.ok, bd: "#2a4a36" },
-  warn: { bg: V3.warnBg, fg: V3.warn, bd: "#5c4a22" },
+  ok: { bg: V3.okBg, fg: V3.ok, bd: "var(--ok-bd)" },
+  warn: { bg: V3.warnBg, fg: V3.warn, bd: "var(--warn-bd)" },
   danger: { bg: V3.coral, fg: V3.paper, bd: V3.coral },
 };
 

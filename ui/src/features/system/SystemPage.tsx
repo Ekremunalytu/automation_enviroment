@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import {
+  Badge,
   Eyebrow,
   GhostButton,
   PageTitle,
@@ -9,8 +10,8 @@ import {
   V3,
 } from "../../components/v3";
 import { apiClient } from "../../lib/api/client";
-
-type Tone = "ok" | "neutral" | "accent" | "warn" | "danger";
+import { resolveTimeZone } from "../../lib/settings/presentation";
+import { apiHealthTone, type Tone } from "./systemHealth";
 
 type ServiceCard = {
   id: string;
@@ -100,7 +101,7 @@ function toneDot(tone: Tone): string {
 }
 
 export function SystemPage() {
-  const [selected, setSelected] = useState<string>("executor");
+  const [selected, setSelected] = useState<string>("api");
 
   const health = useQuery({
     queryKey: ["system-health"],
@@ -109,14 +110,17 @@ export function SystemPage() {
     retry: 1,
   });
 
-  const executorService: ServiceCard = {
-    id: "executor",
-    name: "executor",
+  // The one real card: it polls /api/health (the local API container), NOT
+  // the executor sandbox — so it is labelled "API", not "executor". Tone is
+  // computed case-insensitively (the backend emits "OK"); see systemHealth.ts.
+  const apiService: ServiceCard = {
+    id: "api",
+    name: "API",
     status: health.isError ? "down" : health.data?.status ?? (health.isLoading ? "checking" : "unknown"),
-    tone: health.isError ? "danger" : health.data?.status === "ok" ? "ok" : "warn",
+    tone: apiHealthTone({ isError: health.isError, status: health.data?.status }),
     detail: health.data?.service
-      ? `Live · ${health.data.service}`
-      : "Dockerized VS Code · Playwright · Xvfb",
+      ? `Live · ${health.data.service} · /api/health`
+      : "Local API health probe · /api/health",
     metrics: [
       ["status", health.data?.status ?? "—"],
       ["service", health.data?.service ?? "—"],
@@ -129,7 +133,7 @@ export function SystemPage() {
         ? [
             `health.fetch · ${health.data.status}`,
             `service · ${health.data.service}`,
-            `sampled at ${new Date().toLocaleTimeString()}`,
+            `sampled at ${new Date().toLocaleTimeString([], { timeZone: resolveTimeZone() })}`,
             "polling every 5s",
           ]
         : ["awaiting first response"],
@@ -137,7 +141,7 @@ export function SystemPage() {
   };
 
   const services: ServiceCard[] = [
-    executorService,
+    apiService,
     ...STUB_SERVICES.map((service) => ({ ...service, isStub: true })),
   ];
 
@@ -150,14 +154,15 @@ export function SystemPage() {
           <Eyebrow>System status</Eyebrow>
         </div>
         <PageTitle style={{ marginTop: 18 }}>
-          All systems
+          Appliance
           <br />
-          operational.
+          status.
         </PageTitle>
-        <p style={{ fontSize: 15, color: V3.ink3, marginTop: 18, maxWidth: 580, lineHeight: 1.6 }}>
-          Live state of the appliance. Only the executor service polls the real{" "}
+        <p style={{ fontSize: 15, color: V3.ink3, marginTop: 18, maxWidth: 600, lineHeight: 1.6 }}>
+          Only the API card reflects a real measurement — the local{" "}
           <code style={{ fontFamily: "'JetBrains Mono', monospace", color: V3.coral }}>/api/health</code>{" "}
-          endpoint; catalog, sandbox, and telemetry render mock values until [BACKLOG ui-v3-6]
+          probe. Catalog, sandbox, and telemetry render mock values, and the
+          executor sandbox&apos;s own health is not yet measured, until [BACKLOG ui-v3-6]
           delivers per-service health and telemetry endpoints.
         </p>
       </header>
@@ -196,7 +201,30 @@ export function SystemPage() {
                 position: "relative",
               }}
             >
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8 }}>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: service.isStub ? "space-between" : "flex-end",
+                  gap: 8,
+                }}
+              >
+                {service.isStub ? (
+                  <span
+                    data-testid={`service-mock-${service.id}`}
+                    style={{
+                      fontFamily: "'JetBrains Mono', monospace",
+                      fontSize: 9,
+                      fontWeight: 700,
+                      letterSpacing: "0.16em",
+                      color: sel ? "rgba(0, 0, 0, 0.7)" : V3.warn,
+                      border: `1px solid ${sel ? "rgba(0, 0, 0, 0.4)" : V3.warn}`,
+                      padding: "2px 5px",
+                    }}
+                  >
+                    MOCK
+                  </span>
+                ) : null}
                 <span
                   aria-hidden
                   style={{
@@ -257,6 +285,24 @@ export function SystemPage() {
           </div>
           <SectionTitle>{svc.detail}</SectionTitle>
 
+          {svc.isStub ? (
+            <div
+              role="note"
+              style={{
+                border: `1px solid ${V3.warn}`,
+                background: V3.warnBg,
+                color: V3.warn,
+                padding: "10px 14px",
+                fontFamily: "'JetBrains Mono', monospace",
+                fontSize: 12,
+                lineHeight: 1.5,
+              }}
+            >
+              Mock data — not measured. The metrics and live log below are
+              placeholders until [BACKLOG ui-v3-6] delivers a real {svc.name} probe.
+            </div>
+          ) : null}
+
           <div
             style={{
               display: "grid",
@@ -294,7 +340,7 @@ export function SystemPage() {
           <div
             style={{
               border: `1px solid ${V3.rule}`,
-              background: "#000",
+              background: V3.paper,
               padding: "18px 20px",
             }}
           >
@@ -307,7 +353,7 @@ export function SystemPage() {
                     width: 6,
                     height: 6,
                     borderRadius: "50%",
-                    background: V3.coral,
+                    background: svc.isStub ? V3.ink3 : V3.coral,
                   }}
                 />
                 <span
@@ -319,7 +365,7 @@ export function SystemPage() {
                     textTransform: "uppercase",
                   }}
                 >
-                  streaming
+                  {svc.isStub ? "mock" : "streaming"}
                 </span>
               </span>
             </div>
@@ -363,9 +409,14 @@ export function SystemPage() {
               padding: "18px 20px",
               borderBottom: `1px solid ${V3.rule}`,
               background: V3.paper3,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 12,
             }}
           >
             <Eyebrow>Inventory</Eyebrow>
+            <Badge tone="warn">Mock</Badge>
           </div>
           {INVENTORY.map(([k, v]) => (
             <div

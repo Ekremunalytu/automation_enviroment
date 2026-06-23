@@ -1,14 +1,6 @@
 # ExTrace
 
-`Last Updated: 2026-06-15`
-
-`Last merged weekly: W22 — closed synthetically on the week22 branch, merged to main via PR #31 week22 -> main 2026-05-28 via 1399f82.`
-
-`Active stream: reliability-self-defense (v1.0 trust floor, Stream 1) — merged to main via PR #35 (week23 -> main, 653d807); closed v1.0 bars B1/B3/B4 plus self-defense fixes F-2/F-3. Tracker: documents/active-work/W23-reliability-self-defense.md.`
-
-`Sources of truth: documents/REFACTOR_STATUS.md (state) · documents/POST_POC_BACKLOG.md (deferred) · documents/REFACTOR_OPTIMIZATION.md §20 (last weekly plan) · documents/phase.json (weekly pointer + active stream).`
-
-ExTrace is a sandboxed analysis platform for suspicious VS Code extensions.
+**ExTrace is a sandboxed analysis platform for suspicious VS Code extensions.**
 It downloads or ingests an extension, inspects its manifest and source tree,
 runs it inside an isolated VS Code environment, and produces evidence that an
 analyst can review.
@@ -17,6 +9,49 @@ The project is intentionally shaped as a **single-operator security appliance**,
 not a public multi-tenant web service. The default setup binds to loopback,
 keeps extension samples and reports on the operator machine, and runs sandbox
 execution in containers.
+
+> **New here?** Read [What ExTrace Is](#what-extrace-is) for the mental model,
+> then jump to the [Quick Start](#quick-start) to run it locally. For a fuller
+> human-readable walkthrough, see
+> [documents/how-it-works.md](documents/how-it-works.md).
+
+---
+
+## Table of Contents
+
+- [What ExTrace Is](#what-extrace-is)
+- [What It Does](#what-it-does)
+- [How It Works](#how-it-works)
+- [A Typical Analysis, Step by Step](#a-typical-analysis-step-by-step)
+- [Quick Start](#quick-start)
+- [Safety Model](#safety-model)
+- [Project Layout](#project-layout)
+- [API Surface](#api-surface)
+- [Air-Gapped Podman Deployment](#air-gapped-podman-deployment)
+- [Documentation Map](#documentation-map)
+- [Project Status & Governance](#project-status--governance)
+
+---
+
+## What ExTrace Is
+
+VS Code extensions run with broad access to your machine: they can read files,
+spawn processes, and reach the network. That makes a malicious extension a real
+threat — and makes it hard to judge one just by reading its description.
+
+ExTrace exists to help a security analyst answer a simple question — *"is this
+extension safe to trust?"* — with **evidence instead of guesswork**. It looks at
+what an extension *declares*, what its *source code* looks like, and what it
+*actually does when it runs*, then bundles all of that into a structured report.
+
+**Who it is for:** a single analyst running a local or lab appliance. It is
+*not* a public malware-scanning service, and it does not try to be one. The
+output is an **evidence bundle for a human to review**, not an automatic
+"safe / malware" verdict.
+
+Keep one principle in mind throughout: **every extension, report, log line, and
+VSIX payload is treated as adversarial.** See the [Safety Model](#safety-model)
+for how that assumption shapes the design.
 
 ## What It Does
 
@@ -77,48 +112,62 @@ Core services:
 For a fuller human overview, read
 [documents/how-it-works.md](documents/how-it-works.md).
 
-## Safety Model
+## A Typical Analysis, Step by Step
 
-Treat every extension, report, log line, and VSIX payload as adversarial.
+Here is what one analysis run looks like from start to finish:
 
-- Services bind to `127.0.0.1` by default.
-- LAN exposure is opt-in and must follow
-  [documents/runbooks/lan-exposure.md](documents/runbooks/lan-exposure.md).
-- Sandbox execution stays containerized.
-- The static analyzer runs without network access.
-- Live malware samples must not be committed to this repository.
-- Synthetic fixtures and declawed canaries are allowed for tests.
-- Reports are evidence, not proof of safety.
+1. **Get the extension in.** Point ExTrace at an extension folder, a `.vsix`
+   file, or a Marketplace extension downloaded through the API. (Tests use
+   synthetic fixtures — real malicious samples are never committed to this
+   repo.)
+2. **Extract and inspect statically.** ExTrace unpacks the manifest and source
+   tree and runs the static pre-check rules. These can *warn* or *block* before
+   anything is ever executed.
+3. **Plan the triggers.** ExTrace works out how to provoke the extension —
+   which activation events and contributed commands to fire.
+4. **Run it in the sandbox.** A real VS Code session boots inside a container,
+   driven by Playwright. ExTrace attempts activation, runs commands, and records
+   what actually happened.
+5. **Read the evidence.** You get a **static report** (what the source
+   *suggested*), an **activation report** (what the runtime *observed*), and
+   **job metadata** (whether the run started, completed, failed, or was
+   cancelled) — reviewable in the UI or via the API.
 
-The binding decision is recorded in
-[documents/adrs/0007-local-network-binding.md](documents/adrs/0007-local-network-binding.md).
+A key habit when reading results: **"the command ran" is not the same as
+"the behavior was verified."** Reports deliberately separate *attempted* stimuli
+from *verified* evidence, and surface health signals and verification gaps so
+you know how much to trust a given run.
 
-## Quick Start For Local Development
+## Quick Start
 
-Prerequisites:
+This section gets ExTrace running on your own machine for local development.
+For a run-focused (not internals-focused) path, see
+[documents/operator-quickstart.md](documents/operator-quickstart.md).
+
+**Prerequisites:**
 
 - Python 3.11+
 - Docker / Docker Compose
 - PostgreSQL 16 compatible runtime
 - Node 20+ for UI work
 
-Common setup:
+**Set up and run:**
 
 ```bash
-make install-dev
-make up
-make migrate
-make dev
+make install-dev   # install dev dependencies
+make up            # start the service containers
+make migrate       # apply database migrations
+make dev           # run the development stack
 ```
 
-Default local endpoints:
+**Default local endpoints:**
 
 - API: `http://127.0.0.1:8000`
 - Swagger: `http://127.0.0.1:8000/docs`
 - Web UI: `http://127.0.0.1:3000`
 - noVNC executor view: `http://127.0.0.1:6080/vnc.html`
 
-Useful validation commands:
+**Useful validation commands:**
 
 ```bash
 make test-local
@@ -127,9 +176,6 @@ make check-all
 make sim-target TARGET=publisher.name
 make demo-canary
 ```
-
-For a shorter operator path, read
-[documents/operator-quickstart.md](documents/operator-quickstart.md).
 
 ### Optional: code-intelligence tooling
 
@@ -149,30 +195,21 @@ claude plugin install pyright-lsp typescript-lsp
 navigation. Note: the first `find-references` of a session can return
 same-file-only results — retry it once.
 
-## Air-Gapped Podman Deployment
+## Safety Model
 
-This branch adds a deployment path for a **headless, air-gapped x86 Fedora
-Server** running **rootful Podman** with no compose or internet access on the
-target.
+Treat every extension, report, log line, and VSIX payload as adversarial.
 
-High-level flow:
+- Services bind to `127.0.0.1` by default.
+- LAN exposure is opt-in and must follow
+  [documents/runbooks/lan-exposure.md](documents/runbooks/lan-exposure.md).
+- Sandbox execution stays containerized.
+- The static analyzer runs without network access.
+- Live malware samples must not be committed to this repository.
+- Synthetic fixtures and declawed canaries are allowed for tests.
+- Reports are evidence, not proof of safety.
 
-1. Build all images on an internet-connected machine.
-2. Export them into one bundle.
-3. Copy the bundle to the Fedora Server.
-4. Run the stack with plain `podman` through the included controller.
-
-Start here:
-
-- [deploy/podman/README.md](deploy/podman/README.md) — full air-gapped Podman
-  deployment guide.
-- [deploy/podman/build-bundle.sh](deploy/podman/build-bundle.sh) — build-box
-  bundle builder.
-- [deploy/podman/extrace-ctl.sh](deploy/podman/extrace-ctl.sh) — server-side
-  Podman controller.
-
-Prefer SSH tunnels for remote access to the headless server. Bind services on a
-LAN only after rotating secrets and applying the LAN exposure runbook.
+The binding decision is recorded in
+[documents/adrs/0007-local-network-binding.md](documents/adrs/0007-local-network-binding.md).
 
 ## Project Layout
 
@@ -223,11 +260,78 @@ Full route and request-flow reference:
 
 - [documents/api-and-flows.md](documents/api-and-flows.md)
 
-## Current Status
+## Air-Gapped Podman Deployment
 
-The weekly refactor line is closed through **W22**. W22 was merged to `main`
-through PR #31 (`week22 -> main`, `1399f82`) on 2026-05-28. Later work lands as
-named feature streams without advancing the weekly pointer.
+This branch adds a deployment path for a **headless, air-gapped x86 Fedora
+Server** running **rootful Podman** with no compose or internet access on the
+target.
+
+High-level flow:
+
+1. Build all images on an internet-connected machine.
+2. Export them into one bundle.
+3. Copy the bundle to the Fedora Server.
+4. Run the stack with plain `podman` through the included controller.
+
+Start here:
+
+- [deploy/podman/README.md](deploy/podman/README.md) — full air-gapped Podman
+  deployment guide.
+- [deploy/podman/build-bundle.sh](deploy/podman/build-bundle.sh) — build-box
+  bundle builder.
+- [deploy/podman/extrace-ctl.sh](deploy/podman/extrace-ctl.sh) — server-side
+  Podman controller.
+
+Prefer SSH tunnels for remote access to the headless server. Bind services on a
+LAN only after rotating secrets and applying the LAN exposure runbook.
+
+## Documentation Map
+
+The README is the front door. From here, follow the path that matches what you
+are trying to do.
+
+**For people running or learning the system:**
+
+- [documents/human-guide.md](documents/human-guide.md) — human documentation
+  index.
+- [documents/how-it-works.md](documents/how-it-works.md) — readable architecture
+  and data flow.
+- [documents/api-and-flows.md](documents/api-and-flows.md) — backend routes and
+  request flows.
+- [documents/operator-quickstart.md](documents/operator-quickstart.md) — local
+  and air-gapped operating paths.
+- [documents/risks.md](documents/risks.md) — risk register and accepted
+  tradeoffs.
+
+**For maintainers and agents changing the system:**
+
+- [AGENTS.md](AGENTS.md) — hard rules.
+- [documents/AGENT_CONTEXT.md](documents/AGENT_CONTEXT.md) — task routing.
+- [documents/agent-lanes/](documents/agent-lanes/) — lane-specific read paths.
+- [documents/README.md](documents/README.md) — canonical document guide.
+- [documents/adrs/](documents/adrs/) — architecture decisions.
+- [documents/runbooks/](documents/runbooks/) — operational recovery runbooks.
+
+The detailed historical trackers remain in `documents/active-work/` and
+`documents/archive/`. They are preserved for evidence and stable IDs, but they
+are no longer the first thing a normal reader should open.
+
+## Project Status & Governance
+
+> This section is maintainer/agent bookkeeping. If you are just getting
+> started, you can safely skip it — nothing here is needed to run or understand
+> ExTrace.
+
+**Repository pointers (machine- and agent-facing):**
+
+- `Last Updated: 2026-06-15`
+- `Last merged weekly: W22 — closed synthetically on the week22 branch, merged to main via PR #31 week22 -> main 2026-05-28 via 1399f82.`
+- `Active stream: operator-console-honesty (UI-only console-honesty stream, sequenced ahead of Stream 2 per 2026-06-15 direction) — opened on week24 (off main 8250db0); makes decorative/dead Settings + System controls honest (no backend/DB/detection/executor). Prior stream reliability-self-defense merged to main via PR #35 (week23 -> main, 653d807). Tracker: documents/active-work/W24-operator-console-honesty.md.`
+- `Sources of truth: documents/REFACTOR_STATUS.md (state) · documents/POST_POC_BACKLOG.md (deferred) · documents/REFACTOR_OPTIMIZATION.md §20 (last weekly plan) · documents/phase.json (weekly pointer + active stream).`
+
+**Current status.** The weekly refactor line is closed through **W22**. W22 was
+merged to `main` through PR #31 (`week22 -> main`, `1399f82`) on 2026-05-28.
+Later work lands as named feature streams without advancing the weekly pointer.
 
 Weekly close-out ledger:
 
@@ -264,31 +368,3 @@ Detailed status is intentionally not duplicated here:
   weekly planning record.
 - [documents/phase.json](documents/phase.json) — machine-readable weekly
   pointer and active stream.
-
-## Documentation Map
-
-For people:
-
-- [documents/human-guide.md](documents/human-guide.md) — human documentation
-  index.
-- [documents/how-it-works.md](documents/how-it-works.md) — readable architecture
-  and data flow.
-- [documents/api-and-flows.md](documents/api-and-flows.md) — backend routes and
-  request flows.
-- [documents/operator-quickstart.md](documents/operator-quickstart.md) — local
-  and air-gapped operating paths.
-- [documents/risks.md](documents/risks.md) — risk register and accepted
-  tradeoffs.
-
-For maintainers and agents:
-
-- [AGENTS.md](AGENTS.md) — hard rules.
-- [documents/AGENT_CONTEXT.md](documents/AGENT_CONTEXT.md) — task routing.
-- [documents/agent-lanes/](documents/agent-lanes/) — lane-specific read paths.
-- [documents/README.md](documents/README.md) — canonical document guide.
-- [documents/adrs/](documents/adrs/) — architecture decisions.
-- [documents/runbooks/](documents/runbooks/) — operational recovery runbooks.
-
-The detailed historical trackers remain in `documents/active-work/` and
-`documents/archive/`. They are preserved for evidence and stable IDs, but they
-are no longer the first thing a normal reader should open.

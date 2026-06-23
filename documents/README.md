@@ -1,6 +1,6 @@
 # Documents Guide
 
-`Last Updated: 2026-06-15 — W22 remains the last merged weekly close-out (PR #31 week22 -> main 1399f82). Active stream: reliability-self-defense (v1.0 trust floor, Stream 1) merged to main via PR #35 (653d807); tracker: active-work/W23-reliability-self-defense.md.`
+`Last Updated: 2026-06-15 — W22 remains the last merged weekly close-out (PR #31 week22 -> main 1399f82). Active stream: operator-console-honesty (UI-only console-honesty, sequenced ahead of Stream 2) opened on week24; prior stream reliability-self-defense merged via PR #35 (653d807); tracker: active-work/W24-operator-console-honesty.md.`
 
 This folder is split into a small canonical core, specialized reference docs,
 and a frozen archive. **Do not preload the entire folder.** Open subsystem

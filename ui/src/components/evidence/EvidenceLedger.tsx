@@ -106,7 +106,7 @@ export function EvidenceLedger({
                   display: "grid",
                   gridTemplateColumns: "56px minmax(120px, 160px) minmax(0, 1fr) 100px 90px 28px",
                   gap: 12,
-                  padding: "12px 16px",
+                  padding: "var(--v3-row-pad-y) 16px",
                   alignItems: "center",
                   borderBottom: index < events.length - 1 || (selected && expandSelected) ? `1px solid ${V3.rule}` : "none",
                   borderLeft: selected ? `3px solid ${V3.coral}` : "3px solid transparent",
