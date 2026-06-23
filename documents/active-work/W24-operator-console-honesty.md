@@ -73,7 +73,7 @@ Bucketed, evidence-cited, blocking flags noted. Resolve/waive before close-out.
 | Item | Severity | Disposition |
 |---|---|---|
 | Pre-existing `SettingsPage.tsx:472` `react-hooks/set-state-in-effect` ESLint error (`SecuritySection` draft-reset effect) | Low (not in `make check-all`; W24 close-out gate requires `eslint` green) | **RESOLVED — H1 (111bf6b)**: render-time draft sync replaces the effect; threshold form still resets on load / post-save echo (SecuritySection deep-link + error tests green) |
-| H1b is the widest-touch / highest-regression sub-item | — | **RESOLVED — H1b (200933c)** delivered in a contained, honest form; default zone "local" keeps adapter tests unchanged; UI suite 153 green |
+| H1b is the widest-touch / highest-regression sub-item | — | **RESOLVED — H1b (200933c)** delivered in a contained, honest form; default zone "local" keeps adapter tests unchanged; UI suite green (count in Verification) |
 
 ### Known limitations (honest carve-outs; not blocking)
 
