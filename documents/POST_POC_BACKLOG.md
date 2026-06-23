@@ -1,10 +1,10 @@
 # Post-PoC Backlog
 
-`Last Updated: 2026-06-15`
+`Last Updated: 2026-06-23`
 
 `Last merged weekly: W22 — closed synthetically on the week22 branch, merged to main via PR #31 week22 -> main 2026-05-28 via 1399f82.`
 
-`Active stream: operator-console-honesty (UI-only console-honesty stream, sequenced ahead of Stream 2 per 2026-06-15 direction) — opened on week24 (off main 8250db0); makes decorative/dead Settings + System controls honest (no backend/DB/detection/executor). Prior stream reliability-self-defense merged to main via PR #35 (week23 -> main, 653d807). Tracker: documents/active-work/W24-operator-console-honesty.md.`
+`Active stream: none currently open — operator-console-honesty (UI-only console-honesty stream) merged to main via PR #36 (week24 -> main, 1e3fba6) on 2026-06-23; it made decorative/dead Settings + System controls honest (no backend/DB/detection/executor). The phase.json active_stream pointer still names operator-console-honesty and repoints at the next stream's H0 (named-stream convention). Prior stream reliability-self-defense merged to main via PR #35 (week23 -> main, 653d807). Tracker: documents/active-work/W24-operator-console-honesty.md.`
 
 `Sources of truth: documents/REFACTOR_STATUS.md (state) · documents/POST_POC_BACKLOG.md (deferred) · documents/REFACTOR_OPTIMIZATION.md §20 (last weekly plan) · documents/phase.json (weekly pointer + active stream).`
 
@@ -1154,7 +1154,7 @@ Stable IDs below map to the roadmap streams (see `v1-roadmap.md` §7).
 - **Stream 6 — measured-catch-rate:** `[GOAL measured-catch-rate-corpus]`, `[GOAL benign-false-positive-gate]`, `[GOAL platform-blind-verdict-annotation]`, `[GOAL adr-0015-e1-e2-evasion-detection]`.
 - **Stream 7 — sequential-batch-corpus (post-v1.0):** `[GOAL sequential-batch-corpus]`.
 - **Stream 8 — linux-host-hardening-evasion (post-v1.0):** `[GOAL container-hardening-ratchet-down]`, `[GOAL adr-0015-e3-e5-evasion-detection]`, `[FOLLOWUP harness-secret-distribution-redesign]` (existing; do not duplicate).
-- **Operator-console-honesty (sequenced before Stream 2; non-bar):** `[CLEANUP settings-decorative-controls-honesty]`, `[CLEANUP system-mock-status-honesty]`, `[GOAL light-dark-theme]` (stretch; non-blocking).
+- **Operator-console-honesty (merged to main via PR #36 `1e3fba6`; non-bar):** `[CLEANUP settings-decorative-controls-honesty]` ✅ H1, `[CLEANUP system-mock-status-honesty]` ✅ H2 (+ `/api/health` tone case-bug fix), `[GOAL light-dark-theme]` ✅ H3 (delivered; ECharts canvas charts stay dark — deferred, see tracker). Also wired timeZone + density (H1b). Tracker: `active-work/W24-operator-console-honesty.md`.
 - **Stream 9 — operator-settings-ops (post-v1.0):** `[GOAL operator-settings-server-persistence]`, `[GOAL telemetry-retention-purge]`, `[GOAL danger-zone-destructive-actions]`.
 - **Stream 10 — operator-disposition (post-v1.0):** `[GOAL benign-domain-disposition]` (raw versus adjusted reporting; annotation only; excluded from the B8 raw gate).
 - **Stream 11 — network-egress-enforcement (post-v1.0):** `[GOAL mitmproxy-tls-interception]`, `[GOAL egress-allowlist-enforcement]` (ADR + spike gated; depends on Stream 9).
