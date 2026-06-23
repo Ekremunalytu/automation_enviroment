@@ -1,4 +1,5 @@
 import { adaptJob, adaptStaticReport, computeProgressPct } from "./job";
+import { DEFAULT_TIME_ZONE, setTimeZone } from "../settings/presentation";
 import type {
   AnalyzeJobStatusDto,
   AnalyzeJobStepDto,
@@ -363,5 +364,31 @@ describe("adaptStaticReport", () => {
     expect(view.partial).toBe(false);
     expect(view.toolStatuses).toEqual([]);
     expect(view.findings).toEqual([]);
+  });
+});
+
+describe("time-zone wiring (presentation store -> lastUpdatedLabel)", () => {
+  // 2026-04-13T10:00:00Z — mid-day so neither zone wraps past midnight.
+  const UTC_EPOCH = 1713002400;
+
+  afterEach(() => {
+    // The store is a module singleton; reset so the default-zone tests in this
+    // file (which assume the browser-local zone) are unaffected by order.
+    setTimeZone(DEFAULT_TIME_ZONE);
+  });
+
+  it("formats lastUpdatedLabel in the store's selected time zone", () => {
+    setTimeZone("UTC");
+    const utc = adaptJob(baseDto({ updated_at: UTC_EPOCH })).lastUpdatedLabel;
+
+    setTimeZone("Asia/Tokyo");
+    const tokyo = adaptJob(baseDto({ updated_at: UTC_EPOCH })).lastUpdatedLabel;
+
+    // Same instant, different wall-clock: UTC 10:00 vs Tokyo (+9) 19:00.
+    expect(utc.startsWith("10")).toBe(true);
+    expect(tokyo.startsWith("19")).toBe(true);
+    // Regression guard: drop `timeZone: resolveTimeZone()` from formatDate and
+    // both collapse to the browser-local zone, so this inequality breaks.
+    expect(utc).not.toBe(tokyo);
   });
 });
