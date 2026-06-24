@@ -17,7 +17,7 @@ include .env
 export
 endif
 
-.PHONY: help install install-dev install-hooks lint lint-check markdownlint format typecheck \
+.PHONY: help env install install-dev install-hooks lint lint-check markdownlint format typecheck \
         security test test-unit test-integration test-smoke test-security test-security-ci-guard test-security-live test-cov test-local test-ci check check-all all clean \
         dev dev-lan run build rebuild up up-debug down logs ps restart status \
         migrate migrate-create venv-check \
@@ -41,6 +41,7 @@ help:
 	@echo "║                    🔮 ExTrace Development Commands                 ║"
 	@echo "╠═══════════════════════════════════════════════════════════════════╣"
 	@echo "║                         📦 Setup                                   ║"
+	@echo "║  env            │ Create .env from .env.example (if missing)      ║"
 	@echo "║  install        │ Install production dependencies                 ║"
 	@echo "║  install-dev    │ Install dev dependencies                        ║"
 	@echo "║  install-hooks  │ Install pre-commit hooks                        ║"
@@ -132,10 +133,18 @@ venv-check:
 # INSTALLATION
 # =============================================================================
 
-install:
+env:
+	@if [ -f .env ]; then \
+		echo "ℹ️  .env already exists — leaving it untouched."; \
+	else \
+		cp .env.example .env; \
+		echo "✅ Created .env from .env.example (edit values as needed)."; \
+	fi
+
+install: env
 	$(VENV)/pip install -r docker/api/requirements.txt
 
-install-dev:
+install-dev: env
 	$(VENV)/pip install -r docker/api/requirements.txt
 	$(VENV)/pip install -r requirements-dev.txt
 
@@ -191,10 +200,10 @@ security:
 # DEV SERVER
 # =============================================================================
 
-dev:
+dev: env
 	$(VENV)/uvicorn main:app --reload --host 127.0.0.1
 
-dev-lan:
+dev-lan: env
 	@echo "⚠️  ADR 0007 — LAN binding requested. Read documents/runbooks/lan-exposure.md first."
 	EXTRACE_ALLOW_LAN=1 $(VENV)/uvicorn main:app --reload --host $${API_HOST:-0.0.0.0}
 
@@ -361,12 +370,12 @@ all: format lint typecheck test
 # DOCKER — Short Commands
 # =============================================================================
 
-build:
+build: env
 	@echo "🔨 Building all Docker images..."
 	@BUILDKIT_PROGRESS=plain docker-compose build 2>&1
 	@echo "✅ Build complete!"
 
-rebuild:
+rebuild: env
 	@echo "🔨 Rebuilding all Docker images (no cache)..."
 	@BUILDKIT_PROGRESS=plain docker-compose build --no-cache 2>&1
 	@echo "🔄 Recreating containers to pick up the new images..."
@@ -374,13 +383,13 @@ rebuild:
 	@docker-compose ps --format "$(COMPOSE_PS_FORMAT)"
 	@echo "✅ Rebuild + recreate complete!"
 
-up:
+up: env
 	@echo "🚀 Starting all containers..."
 	@docker-compose up -d
 	@docker-compose ps --format "$(COMPOSE_PS_FORMAT)"
 	@echo "✅ All containers running!"
 
-up-debug:
+up-debug: env
 	@echo "🐛 Starting containers with debug profile (CDP port 9222 exposed)..."
 	@# W14-3 (M14b): explicitly set EXECUTOR_CDP_PORT so the executor's
 	@# in-container VS Code attaches the --remote-debugging-port flag.
@@ -418,7 +427,7 @@ status: ps
 # DATABASE
 # =============================================================================
 
-migrate:
+migrate: env
 	@echo "🔄 Running Alembic migrations..."
 	$(VENV)/alembic upgrade head
 	@echo "✅ Migrations complete!"
