@@ -17,7 +17,7 @@ include .env
 export
 endif
 
-.PHONY: help env install install-dev install-hooks lint lint-check markdownlint format typecheck \
+.PHONY: help env fix-eol venv-wsl install install-dev install-hooks lint lint-check markdownlint format typecheck \
         security test test-unit test-integration test-smoke test-security test-security-ci-guard test-security-live test-cov test-local test-ci check check-all all clean \
         dev dev-lan run build rebuild up up-debug down logs ps restart status \
         migrate migrate-create venv-check \
@@ -42,6 +42,8 @@ help:
 	@echo "╠═══════════════════════════════════════════════════════════════════╣"
 	@echo "║                         📦 Setup                                   ║"
 	@echo "║  env            │ Create .env from .env.example (if missing)      ║"
+	@echo "║  fix-eol        │ Repair CRLF -> LF scripts (Windows/WSL clone)    ║"
+	@echo "║  venv-wsl       │ Recreate a Windows-layout .venv (auto on WSL)    ║"
 	@echo "║  install        │ Install production dependencies                 ║"
 	@echo "║  install-dev    │ Install dev dependencies                        ║"
 	@echo "║  install-hooks  │ Install pre-commit hooks                        ║"
@@ -141,10 +143,42 @@ env:
 		echo "✅ Created .env from .env.example (edit values as needed)."; \
 	fi
 
-install: env
+# WSL / Windows-checkout helper. If the repo was cloned on Windows the tracked
+# shell scripts can land as CRLF, which breaks the Linux-container entrypoints
+# ("exec docker-entrypoint.sh: no such file or directory"). `.gitattributes`
+# enforces LF on fresh checkouts; this target repairs a working tree that
+# already has CRLF (run once after pulling .gitattributes, then rebuild images).
+fix-eol:
+	@echo "🔧 Normalizing CRLF -> LF on tracked shell/template scripts..."
+	@changed=0; \
+	for f in $$(git ls-files '*.sh' '*.bash' '*.template'); do \
+		if file "$$f" | grep -q CRLF; then \
+			sed -i 's/\r$$//' "$$f" && echo "  fixed: $$f" && changed=1; \
+		fi; \
+	done; \
+	if [ "$$changed" = "0" ]; then echo "  (no CRLF found — nothing to do)"; fi
+	@echo "✅ Line endings normalized. Rebuild affected images: make rebuild"
+
+# Windows/WSL guard, runs before install / install-dev. A .venv created by a
+# Windows Python has a Scripts/ layout (python.exe, no bin/python) that the
+# Makefile's $(VENV)=.venv/bin paths cannot use, so install-dev's
+# `.venv/bin/pip` fails. When that exact layout is detected the venv is
+# recreated with the Linux interpreter. The guard is inert on macOS/Linux —
+# a native .venv has no Scripts/ dir, so nothing here runs and those setups
+# are left untouched.
+venv-wsl:
+	@if [ -d ".venv/Scripts" ] && [ ! -e ".venv/bin/python" ]; then \
+		echo "🪟 Windows-layout .venv detected (no .venv/bin) — recreating as a Linux venv..."; \
+		rm -rf .venv; \
+		python3 -m venv .venv; \
+		./.venv/bin/python -m pip install --upgrade pip; \
+		echo "✅ Linux .venv ready at .venv/bin."; \
+	fi
+
+install: env venv-wsl
 	$(VENV)/pip install -r docker/api/requirements.txt
 
-install-dev: env
+install-dev: env venv-wsl
 	$(VENV)/pip install -r docker/api/requirements.txt
 	$(VENV)/pip install -r requirements-dev.txt
 

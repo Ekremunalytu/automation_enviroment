@@ -1,0 +1,31 @@
+# Line-ending policy (cross-platform / WSL safety).
+#
+# Git stores text with LF; without this, a clone on Windows (or a Windows
+# checkout used through WSL) can carry CRLF into shell scripts and break the
+# Linux-container entrypoints with errors like:
+#   exec /usr/local/bin/docker-entrypoint.sh: no such file or directory
+#   40-write-env.sh: not found
+# Pinning eol=lf on the files executed inside containers / by /bin/sh fixes
+# this for every contributor regardless of their core.autocrlf setting.
+
+# Normalize all text files to LF in the repo; native on checkout by default.
+* text=auto
+
+# MUST stay LF — run inside Linux containers or by a POSIX shell.
+*.sh        text eol=lf
+*.bash      text eol=lf
+*.template  text eol=lf
+*.py        text eol=lf
+Dockerfile  text eol=lf
+Makefile    text eol=lf
+
+# Binary assets — never normalize.
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.pdf   binary
+*.vsix  binary
+*.zip   binary
+*.gz    binary
