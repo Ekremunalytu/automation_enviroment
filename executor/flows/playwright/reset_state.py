@@ -29,7 +29,26 @@ LOGS_DIR = VSCODE_DATA_DIR / "logs"
 CHROMIUM_CONFIG_DIR = Path("/home/executor/.config/Code")
 _SINGLETON_LOCK_NAMES = ("SingletonLock", "SingletonCookie", "SingletonSocket")
 
-_VSCODE_PROCESS_NEEDLE = "--remote-debugging-port"
+_PROC_ROOT = Path("/proc")
+
+# Launch signature used to find the main VS Code process to terminate between
+# analyses. ``launch_vscode.sh`` always passes ``--extensionDevelopmentPath``
+# (the harness extension) and ONLY the main process carries it — the renderer/
+# utility/gpu children and the integrated-terminal bash shells do not — so it
+# identifies the right process in EVERY config, including the CDP-off Podman/
+# air-gapped deploy where ``--remote-debugging-port`` is absent from argv.
+#
+# This replaced the old ``--remote-debugging-port`` needle, which was broken two
+# ways: (1) it only appeared when CDP was opt-in ON (W14-3), so it matched
+# nothing in CDP-off deploys; and (2) it was passed to ``pgrep -f`` WITHOUT a
+# ``--`` separator, so pgrep parsed the ``--``-prefixed pattern as an unknown
+# option (exit 2) → ``_find_vscode_pids`` returned ``[]`` and
+# ``terminate_vscode`` silently no-op'd even with CDP ON. The stale VS Code
+# instance (and its orphaned terminal shells) then survived every reset and
+# accumulated across analyses, deterministically failing the 2nd same-container
+# analyze at reload. See [FOLLOWUP sandbox-reset-stale-state-multi-analyze] +
+# [BUG reset-cdp-needle-stale] (B2 / reliability-multi-analyze).
+_VSCODE_PROCESS_NEEDLE = "--extensionDevelopmentPath"
 _VSCODE_TERMINATE_GRACE_SECONDS = 5.0
 _VSCODE_TERMINATE_POLL_INTERVAL = 0.25
 _VSCODE_LAUNCH_SCRIPT = Path(
@@ -56,11 +75,17 @@ def _clear_directory(path: Path) -> int:
 
 
 def _find_vscode_pids() -> list[int]:
-    """Return PIDs of VS Code processes this executor started, if any."""
+    """Return PIDs of the main VS Code process(es) this executor launched.
+
+    The ``--`` separator is REQUIRED: ``_VSCODE_PROCESS_NEEDLE`` is a
+    ``--``-prefixed flag, so ``pgrep -f <needle>`` parses it as an (unknown)
+    option and exits 2, silently matching nothing. ``pgrep -f -- <needle>``
+    forces it to be treated as the search pattern.
+    """
     try:
         # arch-allow: bare-binary-path  # W8-4-followup: see POST_POC_BACKLOG.md
         result = subprocess.run(
-            ["pgrep", "-f", _VSCODE_PROCESS_NEEDLE],
+            ["pgrep", "-f", "--", _VSCODE_PROCESS_NEEDLE],
             capture_output=True,
             text=True,
             timeout=5,
@@ -76,6 +101,68 @@ def _find_vscode_pids() -> list[int]:
         except ValueError:
             continue
     return pids
+
+
+def _read_proc_table() -> list[tuple[int, int]]:
+    """Return ``(pid, ppid)`` for every live process by scanning ``/proc``.
+
+    Pure ``/proc`` reads (no ``ps``/``pgrep`` subprocess), so terminate can walk
+    the process tree without adding another bare-binary call. Used to reap the
+    descendants of the main VS Code process — notably the integrated-terminal
+    bash shells, which ``setsid`` into their own sessions/process groups and
+    would otherwise orphan to PID 1 and accumulate across analyses.
+    """
+    table: list[tuple[int, int]] = []
+    try:
+        entries = [entry.name for entry in _PROC_ROOT.iterdir() if entry.name.isdigit()]
+    except OSError:
+        return table
+    for name in entries:
+        try:
+            stat = (_PROC_ROOT / name / "stat").read_text(encoding="utf-8")
+        except OSError:
+            # Process exited mid-scan, or the /proc entry is unreadable — skip.
+            continue
+        # /proc/<pid>/stat: "<pid> (<comm>) <state> <ppid> ...". comm may hold
+        # spaces and parentheses, so parse the fields after the final ')'.
+        rparen = stat.rfind(")")
+        if rparen == -1:
+            continue
+        fields = stat[rparen + 1 :].split()
+        if len(fields) < 2:
+            continue
+        try:
+            table.append((int(name), int(fields[1])))  # fields[1] == ppid
+        except ValueError:
+            continue
+    return table
+
+
+def _process_tree(
+    roots: list[int],
+    table: list[tuple[int, int]] | None = None,
+) -> list[int]:
+    """Return ``roots`` plus every transitive descendant (breadth-first).
+
+    The order is root-first and deterministic; an already-seen PID is skipped
+    so a malformed/cyclic ``/proc`` snapshot cannot loop forever.
+    """
+    if table is None:
+        table = _read_proc_table()
+    children: dict[int, list[int]] = {}
+    for pid, ppid in table:
+        children.setdefault(ppid, []).append(pid)
+    ordered: list[int] = []
+    seen: set[int] = set()
+    queue = list(roots)
+    while queue:
+        pid = queue.pop(0)
+        if pid in seen:
+            continue
+        seen.add(pid)
+        ordered.append(pid)
+        queue.extend(children.get(pid, ()))
+    return ordered
 
 
 def _process_alive(pid: int) -> bool:
@@ -104,13 +191,17 @@ def terminate_vscode(
     grace_seconds: float = _VSCODE_TERMINATE_GRACE_SECONDS,
     poll_interval: float = _VSCODE_TERMINATE_POLL_INTERVAL,
 ) -> list[int]:
-    """SIGTERM every VS Code process, fall back to SIGKILL after the grace.
+    """SIGTERM the VS Code process tree, fall back to SIGKILL after the grace.
 
-    Returns the list of PIDs that were signalled (empty list is a no-op).
+    Reaps the main process AND its descendants (renderer/utility/gpu children
+    plus the orphan-prone integrated-terminal shells) so no VS Code state
+    survives into the next analyze. Returns every PID that was signalled (an
+    empty list is a no-op).
     """
-    pids = _find_vscode_pids()
-    if not pids:
+    roots = _find_vscode_pids()
+    if not roots:
         return []
+    pids = _process_tree(roots)
 
     for pid in pids:
         _send_signal(pid, signal.SIGTERM)

@@ -94,6 +94,7 @@ def test_terminate_vscode_sigterms_live_processes_then_returns_pids(
         return False
 
     monkeypatch.setattr(reset_state, "_find_vscode_pids", fake_find)
+    monkeypatch.setattr(reset_state, "_process_tree", lambda roots, table=None: roots)
     monkeypatch.setattr(reset_state, "_send_signal", fake_send)
     monkeypatch.setattr(reset_state, "_process_alive", fake_alive)
     monkeypatch.setattr(reset_state.time, "sleep", lambda _seconds: None)
@@ -123,6 +124,7 @@ def test_terminate_vscode_escalates_to_sigkill_when_processes_survive(
         return True
 
     monkeypatch.setattr(reset_state, "_find_vscode_pids", fake_find)
+    monkeypatch.setattr(reset_state, "_process_tree", lambda roots, table=None: roots)
     monkeypatch.setattr(reset_state, "_send_signal", fake_send)
     monkeypatch.setattr(reset_state, "_process_alive", fake_alive)
     monkeypatch.setattr(reset_state.time, "sleep", lambda _seconds: None)
@@ -373,3 +375,123 @@ def test_reset_executor_state_recovery_handles_partial_singleton_lock_set(
     assert summary["removed_singleton_locks"] == 2
     assert summary["relaunched_vscode_pid"] == 1234
     assert sorted(p.name for p in config_dir.iterdir()) == []
+
+
+# ---------------------------------------------------------------------------
+# B2 / reliability-multi-analyze: same-container reset must actually reap the
+# previous VS Code process tree. Regressions guarded below:
+#   1. the pgrep call passes `--` so the `--`-prefixed needle is a pattern,
+#      not an unknown option (the root cause: terminate silently no-op'd);
+#   2. the needle is CDP-independent (works in the CDP-off Podman deploy);
+#   3. terminate walks the PPID tree so the orphan-prone integrated-terminal
+#      shells are reaped, not left to accumulate across analyses.
+# ---------------------------------------------------------------------------
+
+
+def test_find_vscode_pids_passes_separator_so_needle_is_a_pattern(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Regression: ``pgrep -f`` must receive ``--`` before the needle.
+
+    Without it, ``pgrep -f --extensionDevelopmentPath`` parses the pattern as
+    an unknown option (exit 2) and ``_find_vscode_pids`` returns ``[]``, so
+    ``terminate_vscode`` silently no-ops in EVERY config — the proven root
+    cause of the 2nd-analyze sandbox-reset failure.
+    """
+    captured: dict[str, list[str]] = {}
+
+    def fake_run(cmd, capture_output, text, timeout):  # type: ignore[no-untyped-def]
+        captured["cmd"] = cmd
+        return subprocess.CompletedProcess(cmd, returncode=0, stdout="101\n", stderr="")
+
+    monkeypatch.setattr(reset_state.subprocess, "run", fake_run)
+
+    assert reset_state._find_vscode_pids() == [101]
+
+    cmd = captured["cmd"]
+    assert "--" in cmd, f"pgrep call must include the `--` separator: {cmd}"
+    assert cmd.index("--") < cmd.index(reset_state._VSCODE_PROCESS_NEEDLE), (
+        "the needle must come AFTER `--` so pgrep treats it as a pattern"
+    )
+
+
+def test_vscode_needle_is_cdp_independent() -> None:
+    """The needle must not depend on the opt-in CDP flag, which is absent in
+    the CDP-off Podman/air-gapped deploy (``-e EXECUTOR_CDP_PORT=``)."""
+    assert "remote-debugging-port" not in reset_state._VSCODE_PROCESS_NEEDLE
+    assert reset_state._VSCODE_PROCESS_NEEDLE == "--extensionDevelopmentPath"
+
+
+def test_process_tree_reaps_main_and_descendant_terminals() -> None:
+    """The PPID walk must reach the integrated-terminal shells.
+
+    Modelled on a live executor snapshot: main(101) -> node-utility(2104) ->
+    two bash terminals (2127, 2257). The terminals ``setsid`` into their own
+    sessions, so a process-group kill of 101 would miss them; the tree walk
+    catches them. Unrelated PID 999 must NOT be included.
+    """
+    table = [
+        (101, 1),  # main VS Code
+        (103, 101),  # zygote child
+        (2104, 101),  # node utility child
+        (2127, 2104),  # bash terminal (own session in reality)
+        (2257, 2104),  # bash terminal
+        (999, 1),  # unrelated process
+    ]
+
+    tree = reset_state._process_tree([101], table=table)
+
+    assert tree[0] == 101, "root must come first"
+    assert set(tree) == {101, 103, 2104, 2127, 2257}
+    assert 999 not in tree
+
+
+def test_read_proc_table_parses_ppid_after_complex_comm(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """``/proc/<pid>/stat`` ``comm`` can contain spaces and parentheses, so the
+    ppid must be parsed from the fields AFTER the final ')'."""
+    proc = tmp_path / "proc"
+    proc.mkdir()
+    (proc / "101").mkdir()
+    (proc / "101" / "stat").write_text("101 (code) S 1 101 101 0 -1 4194560 0\n")
+    (proc / "2127").mkdir()
+    # comm itself contains spaces and an extra ')'
+    (proc / "2127" / "stat").write_text("2127 (bash (login) x) S 2104 2127 2127 0\n")
+    (proc / "self").mkdir()  # non-numeric entry must be ignored
+    (proc / "self" / "stat").write_text("garbage line without parens\n")
+
+    monkeypatch.setattr(reset_state, "_PROC_ROOT", proc)
+
+    table = dict(reset_state._read_proc_table())
+
+    assert table[101] == 1
+    assert table[2127] == 2104  # ppid correct despite parens/spaces in comm
+    assert len(table) == 2  # "self" skipped by the isdigit() filter
+
+
+def test_terminate_vscode_signals_entire_process_tree(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """terminate_vscode must SIGTERM the main process AND its descendants
+    (the orphan-prone terminals), not just the pgrep-matched root."""
+    signalled: list[int] = []
+
+    monkeypatch.setattr(reset_state, "_find_vscode_pids", lambda: [101])
+    monkeypatch.setattr(
+        reset_state,
+        "_read_proc_table",
+        lambda: [(101, 1), (2104, 101), (2127, 2104), (2257, 2104), (999, 1)],
+    )
+    monkeypatch.setattr(
+        reset_state, "_send_signal", lambda pid, sig: signalled.append(pid)
+    )
+    monkeypatch.setattr(reset_state, "_process_alive", lambda _pid: False)
+    monkeypatch.setattr(reset_state.time, "sleep", lambda _seconds: None)
+
+    result = reset_state.terminate_vscode(grace_seconds=0.01, poll_interval=0.001)
+
+    assert set(result) == {101, 2104, 2127, 2257}
+    assert set(signalled) == {101, 2104, 2127, 2257}
+    assert 999 not in signalled  # unrelated process is never touched
