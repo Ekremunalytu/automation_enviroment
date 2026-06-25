@@ -1223,6 +1223,42 @@ root-causes:
 | `[BUG analyze-timeout-no-incontainer-kill]` (new) | The host-side `_AUTOMATION_TIMEOUT` killed the `docker exec` client but not the in-container entrypoint; its W22 SIGTERM handler cannot unwind a CPU-bound C-stage, and `_cleanup_stale_entrypoint_processes()` sent only one SIGTERM → a timed-out analyze burned ~100% CPU past its deadline and wedged the next run. Fix: cleanup escalates SIGTERM → grace(10s) → SIGKILL (`host.py`, baked in `automation_api`). Lane: `[executor]`. | **RESOLVED 2026-06-25** — `tests/executor/test_host_entrypoint_cleanup.py`; live: copilot re-run completed 160s, no zombie. |
 | `[GOAL stimulus-early-giveup-nonresponsive-target]` (new) | A non-responsive target (copilot-chat: ~558 trigger attempts, no auth/network → zero effect) drove the interaction phase past the 1800s budget. Fix: `run_stimulus_plan` gives up after 60 consecutive attempts with no cheap target reaction (in-memory file/network events, NOT the expensive `capture_runtime_snapshot`), marking the remainder skipped (`skipped_after_early_giveup`); any real reaction resets the counter. Lane: `[executor]`. | **RESOLVED 2026-06-25** — `tests/executor/test_stimulus_early_giveup.py` + 153 regression; deployed-executor proof. |
 
+## Newly Captured (extrace-audit 2026-06-25)
+
+A read-only `/extrace-audit` pass against `main` @ `8a0057d` (multi-agent: 3
+investigation passes → adversarial critic → 4 verifiers → consolidation).
+**No new findings** — every surfaced item is already tracked below, and the
+newest code (W23 `reliability-self-defense`, the analyze-resilience fixes, and
+the `operator-console-honesty` UI work) introduced **zero new regressions**.
+Overall verdict: **Mostly healthy with risks** — 0 Critical / 0 High, no
+hard-rule violation, all 16 ADRs aligned. Recorded here only as a
+re-confirmation of already-open items at current HEAD (line numbers re-verified;
+stable IDs unchanged). The first investigation pass mis-marked CRSC-2 redaction
+"verified-clean"; the adversarial verification round overturned it by reading the
+_un-enumerated sibling sinks_ — the methodological catch this format exists for.
+
+| Stable ID | Re-confirmation @ `8a0057d` |
+|---|---|
+| `[BUG report-field-redaction-completeness]` | **Still-open.** F1 `monitor/scenario_accountant.py:576` (`activation_event`), F2 `runtime_capture/filesystem.py:112` (`FileEvent.path/secondary_path/summary/flags`; sibling `runtime_capture/network.py:109-110` redacts the identical field class), F3 `runtime_capture/extension_host_strace_parse.py:61` (`ProcessEvent.command/cwd`; sibling `arguments_preview` redacted at `:108`). The **three AST gates are still absent** (only `test_arguments_preview_redaction.py` / `test_network_uri_summary_redaction.py` / `test_network_body_preview_redaction.py` exist). Severity F1+F2 Medium, F3 Info (narrow: extension must self-plant a `db_url`/`AKIA…` token into a captured path/command/log). Fix can ride any stream close-out as pre-close hygiene; prefer routing the three clusters through `redact_secrets` at the `report_builder` serialization chokepoint so future sinks inherit it, + the 3 missing AST gates. |
+| `[CLEANUP pragma-ratchet-docstring]` | **Still-open.** `tests/architecture/test_bare_binary_pragma_ratchet.py:29` docstring says "6 pragmas / 3 files"; enforced constants (`:51` `_BASELINE_PRAGMA_COUNT=7`, `:53-58` 4 files incl. `vscode/__init__.py:1`) are correct/stricter. Info, docstring-only one-line fix. |
+| `[CLEANUP event-attempt-validate-assignment]` | **Still-open.** `EventAttemptRecord` (`contracts.py:223`) inherits `StrictContractModel` (`:47`, `extra="forbid"`, no `validate_assignment=True`); attribute-set sites `health/reconciliation.py:348,363` bypass `_validate_confirmation_source` (`contracts.py:266-274`). Benign today (both literals in-set), latent only for a future out-of-set assignment. Info; fix = set `validate_assignment=True` (consistent with `ContentSample`) or stamp the two set-sites through the validator. |
+
+**Verified clean (NOT findings):** the analyze-resilience fixes
+(`[BUG analyze-timeout-no-incontainer-kill]`,
+`[GOAL stimulus-early-giveup-nonresponsive-target]`, both RESOLVED below —
+typed exceptions, argv discipline, observability, taxonomy parity all hold);
+W23 same-boot wedged-job reaper + migration `c3f8a1d7e9b2`; the PEM
+multiline-redaction linear scanner (`evidence.py:169-219`); the offline-VSIX
+pre-read size gate (`offline.py:172-194`); the extension-host log-parse ReDoS
+bounds (`{1,256}` + 16 KiB per-line cap); and the Makefile env auto-create
+(create-if-missing, no overwrite) + Windows/WSL guards.
+
+**Record-only (benign, no action):** `phase.json` `active_stream` still names the
+closed `operator-console-honesty` stream — the documented named-stream close-out
+convention (the next stream's H0 repoints it). The compose-isolation cap test's
+`NET_RAW`/`SYS_PTRACE` assertion removal was a **tightening** to exact-5-cap
+matching (W21 `5dc18aa` → ES-0 `70e4364`), not a weakening.
+
 ## Closed/Archived Groups
 
 Full close evidence in the latest archive snapshot for:
