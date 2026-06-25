@@ -1,14 +1,14 @@
 # ExTrace v1.0 Roadmap — From Finished Prototype To A Tool An Analyst Trusts Daily
 
-`Last Updated: 2026-06-15`
+`Last Updated: 2026-06-25`
 
 `Last merged weekly: W22 — closed synthetically on the week22 branch, merged to main via PR #31 week22 -> main 2026-05-28 via 1399f82.`
 
-`Active stream: operator-console-honesty (UI-only console-honesty stream, sequenced ahead of Stream 2 per 2026-06-15 direction) — opened on week24 (off main 8250db0); makes decorative/dead Settings + System controls honest (no backend/DB/detection/executor). Prior stream reliability-self-defense merged to main via PR #35 (week23 -> main, 653d807). Tracker: documents/active-work/W24-operator-console-honesty.md.`
+`Active stream: verdict-provenance-reproducibility (Stream 3 — B5 + B6, the spine) — opened on week26 (off main 27dc7f1, 2026-06-25); binds the verdict to vsix_sha256 and makes run_quality reproducible (ADR 0017 Proposed; ADR 0016 additive --vsix-sha256 flag). Prior stream operator-console-honesty (UI-only console-honesty) merged to main via PR #36 (week24 -> main, 1e3fba6) on 2026-06-23. Tracker: documents/active-work/W26-verdict-provenance-reproducibility.md.`
 
 `Sources of truth: documents/REFACTOR_STATUS.md (state) · documents/POST_POC_BACKLOG.md (deferred) · documents/REFACTOR_OPTIMIZATION.md §20 (last weekly plan) · documents/phase.json (weekly pointer + active stream).`
 
-`Phase: Stream 1 (reliability-self-defense) MERGED to main via PR #35 (week23 -> main, 653d807) 2026-06-12. A new non-bar honesty stream (operator-console-honesty) is sequenced AHEAD of Stream 2 per user direction 2026-06-15 (plan in §5 "Next-Stream Plan"); Streams 2-8 keep their frozen numbers + bar→ID mappings and shift one week label; three post-v1.0 streams (operator-settings-ops, operator-disposition, network-egress-enforcement/mitmproxy) are added. operator-console-honesty is now OPEN on week24 (off main 8250db0, 2026-06-15); Streams 2-11 stay forward-planned, none open yet.`
+`Phase: Stream 1 (reliability-self-defense) MERGED to main via PR #35 (week23 -> main, 653d807) 2026-06-12. A new non-bar honesty stream (operator-console-honesty) is sequenced AHEAD of Stream 2 per user direction 2026-06-15 (plan in §5 "Next-Stream Plan"); Streams 2-8 keep their frozen numbers + bar→ID mappings and shift one week label; three post-v1.0 streams (operator-settings-ops, operator-disposition, network-egress-enforcement/mitmproxy) are added. operator-console-honesty MERGED to main via PR #36 (week24 -> main, 1e3fba6) 2026-06-23; Stream 2 (reliability-multi-analyze / B2) landed direct-to-main as reliability hardening (4437d1e + A/B fixes; see active-work/reliability-analyze-resilience.md — its lifecycle-harness test rides along in Stream 3); Stream 3 (verdict-provenance-reproducibility, B5+B6, the spine) is now OPEN on week26 (off main 27dc7f1, 2026-06-25); remaining Streams 4-11 stay forward-planned, none open yet.`
 
 `Owner: ekrem`
 
