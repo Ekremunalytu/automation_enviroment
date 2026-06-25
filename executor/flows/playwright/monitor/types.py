@@ -134,6 +134,12 @@ class ActivationReport:
     log_file_path: str = ""
     log_offsets_snapshot: dict[str, int] = field(default_factory=dict, repr=False)
     target_extension_id: str = ""
+    # W26 / Stream 3 (B5): SHA-256 of the analyzed .vsix archive, set from the
+    # ``--vsix-sha256`` entrypoint arg in ``setup_monitor`` and stamped into the
+    # report at the ``build_report_data`` emit boundary (sibling to
+    # ``executor_fingerprint``). Default-empty for fixtures built without
+    # ``setup_monitor``.
+    vsix_sha256: str = ""
     monitoring_start: float = 0.0
     monitoring_end: float = 0.0
     monitoring_started_monotonic: float = field(default=0.0, repr=False)

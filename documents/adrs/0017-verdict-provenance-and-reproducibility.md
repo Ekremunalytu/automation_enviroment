@@ -37,14 +37,19 @@ that verdict block everything downstream (measurement, export, batch):
 
 ## Decision
 
-### B5 — one hash, computed once, threaded to three consumers, agreement-asserted
+### B5 — one hash, computed once at analyze-start, threaded to three consumers, agreement-asserted
 
-`vsix_sha256 = hashlib.sha256(vsix_bytes).hexdigest()` (canonical 64-char
-lowercase) is computed **once** at the shared ingest chokepoint
-`workflows/marketplace/client.persist_and_extract_vsix_bytes` — the single tail
-of the online-download and offline-intake paths, where `vsix_bytes` is always in
-hand *before* the idempotent extraction short-circuit. It is surfaced to the
-orchestrator and threaded to three consumers, each of which **stamps its own
+`vsix_sha256 = hashlib.sha256(<staged .vsix bytes>).hexdigest()` (canonical
+64-char lowercase) is computed **once at analyze-start** — in
+`start_analysis_job`, from the `ensure_vsix_exists(request)` path, i.e. the exact
+archive *this run is about to scan* — streamed in chunks to bound memory (the
+archive is already size-gated at ingest). Computing at analyze-start rather than
+at the ingest chokepoint (`persist_and_extract_vsix_bytes`) is deliberate: the
+analyze flow does not re-enter the ingest path (it reads an already-staged
+`.vsix`), and hashing the bytes the run actually consumes binds the verdict to
+*those* bytes — catching any post-ingest replacement and avoiding an
+Extension-catalog schema change. It is threaded to the worker, persisted on
+`AnalysisJob`, and fanned out to three consumers, each of which **stamps its own
 output**:
 
 1. **`AnalysisJob`** — a new nullable `vsix_sha256` column, written through the
@@ -61,11 +66,15 @@ output**:
    `executor/static_host.py` invocation contract (ADR 0016 frozen it at four
    flags; this ADR amends it to five — additive, optional, backward-compatible).
 
-The orchestrator then **asserts agreement**: `intake == dynamic-report-stamp ==
-static-report-stamp`. Agreement is not assumed by construction — it is checked at
-runtime, so a mis-wired thread surfaces as a loud defect rather than a silently
-wrong provenance claim. This directly satisfies the roadmap's "dynamic / static /
-bundle outputs agree for the same analyzed bytes".
+The orchestrator then **checks agreement**: `analyze-start ==
+dynamic-report-stamp == static-report-stamp`. Agreement is not assumed by
+construction — it is verified, so a mis-wired thread surfaces rather than
+producing a silently wrong provenance claim. The runtime check is **non-raising**
+(it logs an ERROR on a non-empty disagreeing stamp): a raise inside the analyze
+worker would escape its closed error taxonomy (`ANALYZE_ERROR_TYPES`) and wedge
+the single-active queue, so the runtime path logs and the **hard agreement
+assertion lives in the S7 provenance test**. This satisfies the roadmap's
+"dynamic / static / bundle outputs agree for the same analyzed bytes".
 
 Contract tests accept legacy blank/default values (`""`) but require new producer
 paths to emit a canonical hash — same backward-compatibility posture as

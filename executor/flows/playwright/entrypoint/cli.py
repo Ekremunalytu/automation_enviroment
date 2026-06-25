@@ -43,6 +43,15 @@ def build_parser(*, default_report_path: str) -> argparse.ArgumentParser:
         help="Publisher.name identifier for the extension under analysis.",
     )
     parser.add_argument(
+        "--vsix-sha256",
+        type=str,
+        default="",
+        help=(
+            "SHA-256 of the analyzed .vsix archive (B5 provenance). Stamped into "
+            "the report so the verdict is bound to the bytes scanned."
+        ),
+    )
+    parser.add_argument(
         "--skip-automation",
         action="store_true",
         help="Start monitoring but intentionally skip scenario execution.",

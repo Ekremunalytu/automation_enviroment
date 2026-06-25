@@ -491,6 +491,7 @@ def run_playwright_automation(
     reload_before_run: bool = False,
     target_extension_id: str | None = None,
     harness_python_secret: str | None = None,
+    vsix_sha256: str = "",
 ) -> str:
     effective_scenario = None
     if not skip_automation:
@@ -517,6 +518,11 @@ def run_playwright_automation(
         cmd.append("--reload-before-run")
     if target_extension_id:
         cmd.extend(["--target-extension-id", target_extension_id])
+    # W26 / Stream 3 (B5): thread the analyzed .vsix SHA-256 into the executor so
+    # the report is stamped with the bytes scanned. Omitted when empty so the
+    # entrypoint default ("") applies and the argv stays minimal.
+    if vsix_sha256:
+        cmd.extend(["--vsix-sha256", vsix_sha256])
     if trigger_container_path:
         cmd.extend(["--triggers", trigger_container_path])
         if effective_scenario and effective_scenario != "all":

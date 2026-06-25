@@ -30,10 +30,19 @@ ANALYZE_PAYLOAD = {
 
 
 def _vsix_path_exists(exists: bool = True):
-    """Return a mock Path whose .exists() returns the given value."""
+    """Return a mock Path whose .exists() returns the given value.
+
+    W26 / Stream 3 (B5): ``start_analysis_job`` now streams ``open("rb")`` over
+    the staged .vsix to compute ``vsix_sha256`` at analyze-start. Back the mock's
+    ``open("rb")`` with a fixed byte payload (then EOF) so the streamed hash reads
+    real bytes from the mock instead of a MagicMock.
+    """
     mock_path = MagicMock(spec=Path)
     mock_path.exists.return_value = exists
     mock_path.name = "ms-python.python-2025.0.0.vsix"
+    _chunks = iter([b"mock-vsix-bytes"])
+    handle = mock_path.open.return_value.__enter__.return_value
+    handle.read.side_effect = lambda *args, **kwargs: next(_chunks, b"")
     return mock_path
 
 
@@ -278,6 +287,7 @@ def test_theme_fixture_analysis_uses_scenario_zero_flow(
             reload_before_run: bool = False,
             target_extension_id: str | None = None,
             harness_python_secret: str | None = None,
+            vsix_sha256: str = "",
         ) -> str:
             assert scenario is None
             assert trigger_container_path is None
@@ -285,6 +295,9 @@ def test_theme_fixture_analysis_uses_scenario_zero_flow(
             assert reload_before_run is True
             assert target_extension_id == f"{publisher}.{name}"
             assert harness_python_secret is None
+            # W26 / Stream 3 (B5): the analyze-start hash (64-char lowercase
+            # sha256 of the staged .vsix) is threaded to the dynamic producer.
+            assert len(vsix_sha256) == 64
             resolved_report_path = tmp_path / Path(report_path).name
             resolved_report_path.write_text(
                 json.dumps(report_payload, indent=2),

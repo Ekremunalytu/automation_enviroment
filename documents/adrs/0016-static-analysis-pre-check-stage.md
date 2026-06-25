@@ -200,10 +200,30 @@ Parallel-worktree streams on a shared-Docker project add `container_name`
 collisions, port juggling, and two-stack overhead that exceed the
 parallelism benefit. Resume serially on one branch (`static`), one stack.
 
+## Amendments
+
+### A1 — additive `--vsix-sha256` flag (W26 / Stream 3, ADR 0017)
+
+The container invocation contract (`executor/static_host.py` →
+`python -m static_runtime`) was frozen at **four flags** (`--vsix-dir`,
+`--report-path`, `--rules-version`, `--timeout-budget-s`) under Decision 3
+(schema-first contract landing). W26 / Stream 3 (B5 verdict provenance) adds an
+**optional 5th flag `--vsix-sha256`**: the SHA-256 of the analyzed `.vsix`
+archive, recorded on `StaticDetectionReport.vsix_sha256` so the static output is
+bound to the same bytes the dynamic report carries (the orchestrator log-checks
+agreement). The flag is **additive and optional** (`required=False`,
+`default=""`, appended to the argv only when non-empty), so the frozen 4-flag
+surface stays callable and every prior caller / fixture / test is unchanged. No
+new container capability, network, or boundary import is introduced. Design +
+rationale: ADR 0017. Status of this amendment tracks ADR 0017 (Proposed until the
+Stream 3 close-out).
+
 ## References
 
 - `documents/active-work/extrace-static-stream-handoff.md` — frozen
   design intent + the four locked decisions + the ES-1 regression note.
+- `documents/adrs/0017-verdict-provenance-and-reproducibility.md` — the
+  W26 amendment adding the additive `--vsix-sha256` flag (B5 provenance).
 - `documents/adrs/0002-threat-model.md` §3 — evasion classes the static
   stage hardens against.
 - `documents/adrs/0003-detection-taxonomy.md` — finding taxonomy the

@@ -29,12 +29,14 @@ class StaticAnalyzerControl:
         report_path: str,
         rules_version: str,
         timeout_budget_s: int,
+        vsix_sha256: str = "",
     ) -> str:
         return _run_static_analysis_in_container(
             vsix_dir=vsix_dir,
             report_path=report_path,
             rules_version=rules_version,
             timeout_budget_s=timeout_budget_s,
+            vsix_sha256=vsix_sha256,
         )
 
     def cancel(self) -> None:

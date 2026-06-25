@@ -283,6 +283,7 @@ class _FakeStaticControl:
         report_path: str,
         rules_version: str,
         timeout_budget_s: int,
+        vsix_sha256: str = "",
     ) -> str:
         self.calls.append(
             {
@@ -290,6 +291,7 @@ class _FakeStaticControl:
                 "report_path": report_path,
                 "rules_version": rules_version,
                 "timeout_budget_s": timeout_budget_s,
+                "vsix_sha256": vsix_sha256,
             }
         )
         host_path = self._output_dir / Path(report_path).name

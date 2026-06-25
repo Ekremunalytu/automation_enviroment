@@ -52,6 +52,16 @@ def build_parser() -> argparse.ArgumentParser:
         type=int,
         help="Soft wall-clock budget (seconds) for the static pass.",
     )
+    # W26 / Stream 3 (B5, ADR 0016 amendment): additive 5th flag — the SHA-256 of
+    # the analyzed .vsix archive, recorded in the StaticDetectionReport so the
+    # static output is bound to the same bytes the dynamic report carries.
+    # Optional/defaulted ("") so the frozen 4-flag invocation stays callable.
+    parser.add_argument(
+        "--vsix-sha256",
+        required=False,
+        default="",
+        help="SHA-256 of the analyzed .vsix archive (B5 provenance).",
+    )
     return parser
 
 
@@ -61,18 +71,20 @@ def run_static_detection(
     report_path: str,
     rules_version: str,
     timeout_budget_s: int,
+    vsix_sha256: str = "",
 ) -> StaticDetectionReport:
     """Produce a static detection report and persist it to ``report_path``.
 
     Runs the in-house rule engine over ``vsix_dir`` and writes the resulting
     ``StaticDetectionReport`` JSON to ``report_path`` (parent dirs created). The
-    signature + on-disk JSON shape are the ES-2 contract; only the body (now the
-    real runner instead of the empty-report stub) changed at ES-3a.
+    signature + on-disk JSON shape are the ES-2 contract; ES-3a swapped in the
+    real runner; W26 adds the additive ``vsix_sha256`` provenance (ADR 0016).
     """
     report = run_static_detection_engine(
         vsix_dir=vsix_dir,
         rules_version=rules_version,
         timeout_budget_s=timeout_budget_s,
+        vsix_sha256=vsix_sha256,
     )
     destination = Path(report_path)
     destination.parent.mkdir(parents=True, exist_ok=True)
@@ -87,6 +99,7 @@ def main(argv: list[str] | None = None) -> int:
         report_path=args.report_path,
         rules_version=args.rules_version,
         timeout_budget_s=args.timeout_budget_s,
+        vsix_sha256=args.vsix_sha256,
     )
     return 0
 

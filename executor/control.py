@@ -42,6 +42,7 @@ class ExecutorControl:
         reload_before_run: bool = False,
         target_extension_id: str | None = None,
         harness_python_secret: str | None = None,
+        vsix_sha256: str = "",
     ) -> str:
         return _run_playwright_automation(
             report_path=report_path,
@@ -51,6 +52,7 @@ class ExecutorControl:
             reload_before_run=reload_before_run,
             target_extension_id=target_extension_id,
             harness_python_secret=harness_python_secret,
+            vsix_sha256=vsix_sha256,
         )
 
     def consume_harness_python_secret(self) -> str | None:

@@ -425,6 +425,10 @@ def build_report_data(
         # first resolve; subsequent writes during the same process
         # lifetime return the cached dict without re-running `git`.
         "executor_fingerprint": executor_fingerprint(),
+        # W26 / Stream 3 (B5): the analyzed .vsix SHA-256 threaded in via
+        # ``--vsix-sha256`` and carried on the in-memory report. Stamped here so
+        # the dynamic report on disk is bound to the exact bytes scanned.
+        "vsix_sha256": getattr(report, "vsix_sha256", ""),
     }
 
 

@@ -29,7 +29,13 @@ from pydantic import (
 # file I/O can be attributed to the target extension via process lineage
 # instead of timestamp proximity alone. Optional/defaulted, so reading a
 # pre-2.2 report stays backward-compatible.
-ACTIVATION_REPORT_SCHEMA_VERSION = "2.2"
+# W26 / Stream 3 (B5 verdict-provenance): 2.2 -> 2.3 — additive
+# ActivationReport.vsix_sha256 (the SHA-256 of the analyzed .vsix archive,
+# computed at analyze-start and threaded into the executor via
+# `--vsix-sha256`), so a dynamic report is bound to the exact bytes scanned.
+# Optional/defaulted (""), so reading a pre-2.3 report stays
+# backward-compatible; the dynamic producer stamps it on every new write.
+ACTIVATION_REPORT_SCHEMA_VERSION = "2.3"
 
 
 # W11-3: Top-level outcome classification for the entrypoint runner. The
@@ -541,6 +547,15 @@ class ActivationReport(StrictContractModel):
     # the field is additive-optional and does not change the legacy
     # contract's required shape.
     executor_fingerprint: dict[str, str] = Field(default_factory=dict)
+    # W26 / Stream 3 (B5 `[GOAL vsix-content-sha256-provenance]`): the
+    # SHA-256 of the analyzed .vsix archive (canonical 64-char lowercase),
+    # computed once at analyze-start over the exact bytes this run scans and
+    # threaded into the executor via `--vsix-sha256`. Stamped at the
+    # report-builder emit boundary (sibling to ``executor_fingerprint``), so a
+    # verdict is bound to the bytes (two byte-different same-version VSIX are
+    # not conflated). Default-empty so legacy fixtures still validate; the
+    # producer populates it on every new write. Bumped schema_version to 2.3.
+    vsix_sha256: str = ""
     # W16-3: top-level field sync drift closeout. Pre-W16-3 these five
     # analyst-facing scalars existed on the in-memory ActivationReport
     # (executor/flows/playwright/monitor/types.py) but had no contract

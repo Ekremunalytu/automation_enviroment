@@ -535,6 +535,7 @@ export interface ActivationReportDto {
   runner_exit_code?: number | null;
   runner_status?: "success" | "error" | "unknown";
   executor_fingerprint?: Record<string, string>;
+  vsix_sha256?: string;
   target_extension_id?: string;
   monitoring_start?: number;
   monitoring_end?: number;
@@ -711,6 +712,7 @@ export interface StaticDetectionReportDto {
   severity_counts?: StaticSeverityCountsDto;
   partial?: boolean;
   generated_at?: string;
+  vsix_sha256?: string;
 }
 
 export interface StaticAnalysisReportDto {

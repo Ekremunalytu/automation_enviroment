@@ -407,7 +407,7 @@ def start_analysis_job(
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     try:
-        ensure_vsix_exists(request)
+        vsix_path = ensure_vsix_exists(request)
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
@@ -430,11 +430,17 @@ def start_analysis_job(
             ),
         ) from exc
 
+    # W26 / Stream 3 (B5): hash the exact .vsix this run will scan, at
+    # analyze-start, and thread it to the worker so both producers stamp it and
+    # the verdict is bound to the bytes. Computed after the slot is reserved so a
+    # 409 (active job) does not pay the streamed hash.
+    vsix_sha256 = marketplace_client.compute_vsix_sha256(vsix_path)
+
     worker = threading.Thread(
         daemon=False,
         name=f"analysis-{job['job_id'][:8]}",
         target=run_analysis_job,
-        args=(job["job_id"], request.model_copy(deep=True)),
+        args=(job["job_id"], request.model_copy(deep=True), vsix_sha256),
     )
     worker.start()
     return job_service.get_job_snapshot(job["job_id"], db=db)
