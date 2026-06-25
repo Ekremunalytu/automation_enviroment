@@ -144,6 +144,10 @@ class AnalysisJobCreateSnapshot(BaseModel):
     # the non-terminal `cancelling` state and this column records when the
     # drain was requested. Stays `None` for jobs that complete normally.
     requested_cancel_at: float | None = Field(default=None, ge=0)
+    # W26 / Stream 3 (B5): SHA-256 of the analyzed .vsix archive, stamped on the
+    # row at creation so the job is bound to the bytes scanned. `None` for legacy
+    # rows / callers that do not supply it.
+    vsix_sha256: str | None = None
 
     @model_validator(mode="after")
     def validate_steps(self) -> AnalysisJobCreateSnapshot:

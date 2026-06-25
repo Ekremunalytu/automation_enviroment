@@ -411,6 +411,12 @@ def start_analysis_job(
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
+    # W26 / Stream 3 (B5): hash the exact .vsix this run will scan, at
+    # analyze-start, so the row (created by reserve_job) and both report
+    # producers (via the worker) are all bound to the same bytes. Streamed, so a
+    # bounded archive costs milliseconds.
+    vsix_sha256 = marketplace_client.compute_vsix_sha256(vsix_path)
+
     # S2 (W23 B3): before reserving the single-active slot, sweep any same-boot
     # `running` job whose heartbeat has gone stale. Without this a hung/crashed
     # prior worker would hold the slot and 409-block every fresh submit until an
@@ -418,7 +424,7 @@ def start_analysis_job(
     job_service.reap_stale_running_jobs(db=db)
 
     try:
-        job = job_service.reserve_job(request, db=db)
+        job = job_service.reserve_job(request, db=db, vsix_sha256=vsix_sha256)
     except ActiveAnalysisJobError as exc:
         active_job = exc.active_job
         raise HTTPException(
@@ -429,12 +435,6 @@ def start_analysis_job(
                 f"{active_job['job_id']} to finish before starting a new run."
             ),
         ) from exc
-
-    # W26 / Stream 3 (B5): hash the exact .vsix this run will scan, at
-    # analyze-start, and thread it to the worker so both producers stamp it and
-    # the verdict is bound to the bytes. Computed after the slot is reserved so a
-    # 409 (active job) does not pay the streamed hash.
-    vsix_sha256 = marketplace_client.compute_vsix_sha256(vsix_path)
 
     worker = threading.Thread(
         daemon=False,
