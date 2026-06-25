@@ -760,7 +760,7 @@ def test_reset_executor_sandbox_state_with_reload(
     assert call_cmd[-2] == "-m"
     assert call_cmd[-1] == "executor.flows.playwright.reset_state"
     mock_exec_allow_partial.assert_called_once_with(
-        [PKILL_PATH, "-f", "executor.flows.playwright.entrypoint"],
+        [PKILL_PATH, "-TERM", "-f", "executor.flows.playwright.entrypoint"],
         timeout=5,
     )
     mock_reload.assert_called_once_with()
@@ -792,7 +792,7 @@ def test_reset_executor_sandbox_state_retries_reload_once(
     assert "[reset] sandbox ready" in output
     assert "[reload] Done" in output
     mock_exec_allow_partial.assert_called_once_with(
-        [PKILL_PATH, "-f", "executor.flows.playwright.entrypoint"],
+        [PKILL_PATH, "-TERM", "-f", "executor.flows.playwright.entrypoint"],
         timeout=5,
     )
     mock_sleep.assert_called_once_with(2)
@@ -819,7 +819,7 @@ def test_reset_executor_sandbox_state_without_reload(
 
     assert output == "[reset] sandbox ready"
     mock_exec_allow_partial.assert_called_once_with(
-        [PKILL_PATH, "-f", "executor.flows.playwright.entrypoint"],
+        [PKILL_PATH, "-TERM", "-f", "executor.flows.playwright.entrypoint"],
         timeout=5,
     )
     mock_reload.assert_not_called()

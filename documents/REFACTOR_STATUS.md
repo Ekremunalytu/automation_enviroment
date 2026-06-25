@@ -110,6 +110,14 @@ the same convention the static stream followed.
   GlassWorm / snyk-labs / nf3xn / ecm3401 / nextsecurity / snowshono) and the
   living status board:
   [`detection-design/README.md`](detection-design/README.md).
+- **Reliability — analyze resilience (direct-to-main, `2026-06-24/25`).** Three
+  reliability fixes from real appliance failures: same-container multi-analyze
+  reset (`reset_state.py` terminate tree-reaping; root cause was a malformed
+  `pgrep` missing its `--` separator, not stale DevTools; `4437d1e`),
+  analyze-timeout in-container **SIGKILL escalation** (`host.py`), and **adaptive
+  early-give-up** for non-responsive targets (`stimulus/passes.py`).
+  Live-verified (copilot-chat re-run: 160s, no zombie). Tracker:
+  [`active-work/reliability-analyze-resilience.md`](active-work/reliability-analyze-resilience.md).
 
 ## W13 Status Summary
 

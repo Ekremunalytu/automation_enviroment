@@ -24,6 +24,46 @@ from .types import (
     SkippedScenarioRecord,
 )
 
+# Adaptive early-give-up for the layered plan. When the target extension
+# produces NO observable reaction (cheap, in-memory target file/network event
+# counts) across this many consecutive trigger attempts, it is non-responsive
+# in the sandbox — e.g. GitHub.copilot-chat, which needs GitHub auth + network
+# it cannot reach — and driving the remaining hundreds of attempts only burns
+# wall-clock toward the automation timeout (each attempt waits a flat
+# effect-settle; ~558 attempts ran ~28 min on copilot-chat, blowing the 1800s
+# ceiling). Stop early and let the run finalize with honest, degraded coverage.
+# Generous threshold: any single target reaction resets the counter, so a benign
+# extension that reacts to *any* trigger never trips it. 0 disables the feature.
+_NO_REACTION_GIVEUP_ATTEMPTS = 60
+_EARLY_GIVEUP_REASON = "skipped_after_early_giveup"
+_EARLY_GIVEUP_DETAIL = (
+    "The target extension produced no observable reaction across "
+    f"{_NO_REACTION_GIVEUP_ATTEMPTS}+ consecutive trigger attempts; the "
+    "remaining layered plan was skipped to avoid exhausting the automation "
+    "time budget on a non-responsive extension."
+)
+
+
+def _cheap_target_reaction_count(monitor: Any | None) -> int:
+    """Count target-attributed file+network events from in-memory report state.
+
+    Deliberately avoids ``monitor.capture_runtime_snapshot()`` (renderer
+    round-trip + full exthost-log reparse), which a prior per-attempt early-exit
+    proved far too slow (see ``wait_helpers._wait_for_duration``). Reads only
+    the already-streamed, target-filtered report properties, so it is safe to
+    call after every attempt.
+    """
+    report = getattr(monitor, "report", None)
+    if report is None:
+        return 0
+    total = 0
+    for attr in ("target_file_events", "target_network_events"):
+        try:
+            total += len(getattr(report, attr, ()) or ())
+        except TypeError:
+            continue
+    return total
+
 
 def run_stimulus_plan(
     page: Page,
@@ -62,6 +102,9 @@ def run_stimulus_plan(
         pass_list.append(pass_data)
 
     fatal_crash = False
+    give_up = False
+    attempts_since_reaction = 0
+    last_reaction_count = _cheap_target_reaction_count(monitor)
     for pass_index, pass_data in enumerate(pass_list):
         stage_id = str(pass_data.get("pass_id", "")).strip()
         label = str(pass_data.get("label", stage_id))
@@ -109,6 +152,7 @@ def run_stimulus_plan(
             if attempt is None:
                 continue
             processed_attempt_ids.add(str(attempt_id))
+            executed_ok = False
             blocked_reason = blocked_attempts.get(str(attempt_id))
             if blocked_reason is not None:
                 pass_failed = True
@@ -208,6 +252,7 @@ def run_stimulus_plan(
                         status="attempted_only"
                     )
                 _record_scenario_coverage(covered_scenarios, attempt)
+                executed_ok = True
                 if monitor is not None:
                     monitor.record_event_attempt_end(
                         attempt["attempt_id"],
@@ -286,6 +331,31 @@ def run_stimulus_plan(
                     )
                 break
 
+            if executed_ok:
+                reaction_now = _cheap_target_reaction_count(monitor)
+                if reaction_now > last_reaction_count:
+                    last_reaction_count = reaction_now
+                    attempts_since_reaction = 0
+                else:
+                    attempts_since_reaction += 1
+                if (
+                    _NO_REACTION_GIVEUP_ATTEMPTS
+                    and attempts_since_reaction >= _NO_REACTION_GIVEUP_ATTEMPTS
+                ):
+                    give_up = True
+                    if monitor is not None:
+                        monitor.record_automation_event(
+                            "stimulus_early_giveup",
+                            (
+                                "No target reaction after "
+                                f"{attempts_since_reaction} consecutive attempts; "
+                                "skipping the remaining layered plan (extension "
+                                "non-responsive in this sandbox)."
+                            ),
+                            status="failed",
+                        )
+                    break
+
         if monitor is not None:
             monitor.record_stimulus_pass_event(
                 "end",
@@ -297,13 +367,28 @@ def run_stimulus_plan(
             )
 
         if fatal_crash:
-            _abort_remaining_attempts_after_crash(
+            _abort_remaining_attempts(
                 pass_list,
                 pass_index,
                 attempts_by_id=attempts_by_id,
                 processed_attempt_ids=processed_attempt_ids,
                 scenario_reasons=scenario_reasons,
                 monitor=monitor,
+                reason_code=automation.ABORTED_AFTER_FATAL_UI_CRASH_REASON,
+                detail=_ABORTED_AFTER_FATAL_UI_CRASH_DETAIL,
+            )
+            break
+
+        if give_up:
+            _abort_remaining_attempts(
+                pass_list,
+                pass_index,
+                attempts_by_id=attempts_by_id,
+                processed_attempt_ids=processed_attempt_ids,
+                scenario_reasons=scenario_reasons,
+                monitor=monitor,
+                reason_code=_EARLY_GIVEUP_REASON,
+                detail=_EARLY_GIVEUP_DETAIL,
             )
             break
 
@@ -457,7 +542,7 @@ _ABORTED_AFTER_FATAL_UI_CRASH_DETAIL = (
 )
 
 
-def _abort_remaining_attempts_after_crash(
+def _abort_remaining_attempts(
     pass_list: list[dict[str, Any]],
     start_index: int,
     *,
@@ -465,8 +550,10 @@ def _abort_remaining_attempts_after_crash(
     processed_attempt_ids: set[str],
     scenario_reasons: dict[str, tuple[str, str]],
     monitor: Any | None,
+    reason_code: str,
+    detail: str,
 ) -> None:
-    """Mark every not-yet-attempted trigger as aborted after a fatal crash.
+    """Mark every not-yet-attempted trigger as skipped (fatal crash or give-up).
 
     Mirrors ``automation._mark_remaining_scenarios_aborted`` for the layered
     path. Once ``is_fatal_ui_error`` confirms the renderer is dead we stop
@@ -491,18 +578,16 @@ def _abort_remaining_attempts_after_crash(
             _record_scenario_reason(
                 scenario_reasons,
                 _related_scenarios(attempt),
-                reason_code=automation.ABORTED_AFTER_FATAL_UI_CRASH_REASON,
-                detail=_ABORTED_AFTER_FATAL_UI_CRASH_DETAIL,
+                reason_code=reason_code,
+                detail=detail,
             )
             if monitor is not None:
                 monitor.record_event_attempt_end(
                     attempt["attempt_id"],
                     status="blocked",
                     pass_name=stage_id,
-                    blocked_reason_code=(
-                        automation.ABORTED_AFTER_FATAL_UI_CRASH_REASON
-                    ),
-                    result_details=_ABORTED_AFTER_FATAL_UI_CRASH_DETAIL,
+                    blocked_reason_code=reason_code,
+                    result_details=detail,
                 )
 
 

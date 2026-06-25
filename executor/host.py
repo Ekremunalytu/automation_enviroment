@@ -351,6 +351,9 @@ _RESET_TIMEOUT = 90
 _AUTOMATION_TIMEOUT = 1800
 _DEFAULT_SCENARIO = "coding_session"
 _RELOAD_CLEANUP_TIMEOUT = 5
+# Grace window between SIGTERM (graceful W22 finalize) and the SIGKILL escalation
+# for a lingering analyze entrypoint. See _cleanup_stale_entrypoint_processes.
+_ENTRYPOINT_TERM_GRACE_SECONDS = 10
 
 
 def _cleanup_stale_reload_processes() -> None:
@@ -364,9 +367,39 @@ def _cleanup_stale_reload_processes() -> None:
 
 
 def _cleanup_stale_entrypoint_processes() -> None:
+    """Terminate a lingering analyze entrypoint, escalating to SIGKILL.
+
+    A single SIGTERM is not enough. ``entrypoint/__main__.py`` installs a
+    SIGTERM handler that converts the *first* SIGTERM into a SystemExit-based
+    graceful unwind (W22 report finalization). That SystemExit is only raised
+    between bytecode instructions, so an entrypoint wedged in a CPU-bound C call
+    (e.g. a slow report-build / regex stage on a large analyzed extension such
+    as ``GitHub.copilot-chat``) does NOT exit on the first SIGTERM — it keeps
+    burning CPU and holding the single-active sandbox long past the automation
+    timeout, wedging the next analyze. The W22 design relies on a *second*
+    SIGTERM (the handler resets to ``SIG_DFL``) to hard-kill, but the old
+    single-shot ``pkill`` never sent one.
+
+    Give the handler a bounded grace window to unwind+finalize, then SIGKILL
+    any survivor — uncatchable, so it fires even mid-C-call. When no entrypoint
+    is running (the common reset-before-next-analyze case) the first ``pkill``
+    matches nothing and we return immediately, paying no grace delay.
+    """
+    try:
+        result = _docker_exec_allow_partial(
+            [PKILL_PATH, "-TERM", "-f", settings.executor.ENTRYPOINT_MODULE],
+            timeout=_RELOAD_CLEANUP_TIMEOUT,
+        )
+    except ExecutorError:
+        return
+    # pkill rc: 0 == signalled >=1 process, 1 == none matched. Only escalate
+    # (and pay the grace delay) when an entrypoint was actually running.
+    if result.returncode != 0:
+        return
+    time.sleep(_ENTRYPOINT_TERM_GRACE_SECONDS)
     try:
         _docker_exec_allow_partial(
-            [PKILL_PATH, "-f", settings.executor.ENTRYPOINT_MODULE],
+            [PKILL_PATH, "-KILL", "-f", settings.executor.ENTRYPOINT_MODULE],
             timeout=_RELOAD_CLEANUP_TIMEOUT,
         )
     except ExecutorError:
