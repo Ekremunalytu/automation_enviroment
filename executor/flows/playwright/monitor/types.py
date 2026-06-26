@@ -135,13 +135,10 @@ class ActivationReport:
     log_file_path: str = ""
     log_offsets_snapshot: dict[str, int] = field(default_factory=dict, repr=False)
     # W26 / Stream 3 (B6): finalization freezes the exthost-log-capture health
-    # view here so every automation_health / run_quality / log_health read
-    # returns ONE consistent snapshot instead of re-stat()ing the live
-    # filesystem on each property access — closing both the cross-run flicker of
-    # ``extension_host_log_missing`` and the intra-finalize inconsistency across
-    # the multiple property reads in print_summary + save. ``None`` = unfrozen
-    # (fixture / pre-stop paths fall back to a live read). In-memory only — not a
-    # report contract field, so it is never serialized.
+    # view here so all run_quality / automation_health / log_health reads return
+    # one consistent snapshot (no live re-stat per access, which flickered
+    # ``extension_host_log_missing``). ``None`` = unfrozen (fixture / pre-stop
+    # paths fall back to a live read). In-memory only; never serialized.
     log_capture_health_snapshot: dict[str, Any] | None = field(default=None, repr=False)
     target_extension_id: str = ""
     # W26 / Stream 3 (B5): SHA-256 of the analyzed .vsix archive, set from the
@@ -280,9 +277,7 @@ class ActivationReport:
 
     @property
     def run_quality_reason_partition(self) -> dict[str, list[str]]:
-        # W26 / Stream 3 (B6): behavioral vs harness-health (+ residual_variance
-        # band) split of the run-quality reason codes. Shares the same
-        # ``automation_health`` the quality discriminator uses.
+        # W26 / Stream 3 (B6): behavioral / harness_health / residual_variance.
         return build_run_quality_partition(self, self.automation_health)
 
     @property

@@ -13,7 +13,7 @@ import ast
 from pathlib import Path
 from types import SimpleNamespace
 
-from executor.flows.playwright.health.summary import (
+from executor.flows.playwright.health.run_quality_partition import (
     _BEHAVIORAL_REASON_CODES,
     _RESIDUAL_VARIANCE_REASON_CODES,
     build_run_quality_partition,
