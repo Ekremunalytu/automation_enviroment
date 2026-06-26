@@ -2,7 +2,7 @@
 
 `Last Updated: 2026-06-26`
 
-`Status: OPEN on week26 (off main 27dc7f1). Implementation COMPLETE — S0-S7 + all ride-alongs landed (commits 5a2227d..8fa52ce). B5 (S1-S4: vsix_sha256 spine + DB) + B6 (S5-S6: partition + finalization determinism) closed; RA1 (redaction completeness) + RA2 (B2 lifecycle test) + RA3a/RA3b (cleanups) done; B2 acceptance formally closed via RA2. ADR 0017 (Proposed) records the design; ADR 0016 has the additive --vsix-sha256 amendment. The S6 design was refined by a 2026-06-26 multi-agent verification workflow (found the live-FS-read primary driver; deferred the attribution tie-break). The 4 doc-governance gates stay green. Awaiting close-out: full make check-all + make test-security + the close-out PR (gated on explicit user go-ahead).`
+`Status: OPEN on week26 (off main 27dc7f1). Implementation COMPLETE + branch-review-remediated. S0-S7 + all ride-alongs landed (5a2227d..8fa52ce); a 2026-06-26 adversarial multi-agent branch review then surfaced 8 verified findings, all resolved (e3a1054, 8dd6da3, e9e5ef1 — see "Branch-review remediation" below). B5 (S1-S4: vsix_sha256 spine + DB; sync /marketplace/analyze surface bound too per review B5-2) + B6 (S5-S6: partition + finalization determinism) closed. The one BLOCKING review finding (B6-1) was the freeze landing one step too late — signal_summary (the persisted verdict) baked from the pre-freeze live-FS read; fixed by freezing log_capture_health_snapshot BEFORE _refresh_derived_state() with a stop()-level regression guard. RA1 (redaction completeness, +2 sibling sinks RA1-3/RA1-4) + RA2 (B2 lifecycle test) + RA3a/RA3b done; B2 acceptance formally closed via RA2. ADR 0017 (Proposed) records the design; ADR 0016 has the additive --vsix-sha256 amendment. The 4 doc-governance gates stay green. Awaiting close-out: full make check-all + make test-security + the close-out PR (gated on explicit user go-ahead).`
 
 Stream 3 of the v1.0 roadmap (`documents/active-work/v1-roadmap.md` §4). The
 **spine**: four downstream streams (B7/B8 measurement, export, release-identity,
@@ -63,20 +63,36 @@ the `run_quality` **anchor** and its attribution inputs, not the verdict:
   labeled `residual_variance` band so non-deterministic harness timing reads as a
   named state, not a silent `degraded`/`inconclusive` flip
   (`executor/flows/playwright/health/summary.py`).
-- **S6** — kill the true finalization-time non-determinism: the
-  competitor-tie-break in `_classify_event_attribution` /
-  `_nearest_activation_matches` (wall-clock delta thresholds with a
-  non-deterministic tie-break) gets a **deterministic stable tie-break**; the
-  fixed 2.0s startup grace in `runtime_state.py` becomes a **bounded
-  wait-on-condition** so log/activation flush timing stops perturbing the
-  partition (`attribution/events.py`, `monitor/runtime_state.py`).
+- **S6** — kill the true finalization-time non-determinism. The **primary**
+  driver (found by the 2026-06-26 verification workflow) is the live-FS re-read:
+  `ActivationReport._log_capture_health` re-`stat()`-ed the exthost log on every
+  property access, so `extension_host_log_missing` flickered run-to-run and the
+  multiple reads in `print_summary` + `save` could disagree within one report.
+  Fix: **freeze** `log_capture_health_snapshot` once in `stop()` and have the
+  property return it (live read only on the unfrozen fixture path). The fixed
+  2.0s startup grace in `runtime_state.py` becomes a **bounded wait-on-condition**
+  (read-only poll on the activation-flush predicate) so flush timing stops
+  perturbing the partition, and `_RESIDUAL_VARIANCE_REASON_CODES` is narrowed to
+  the four reachable codes with a reachability guard
+  (`monitor/types.py`, `monitor/runtime_state.py`, `health/summary.py`,
+  `health/run_quality_partition.py`).
+
+  > **Freeze ordering (branch-review B6-1, 2026-06-26):** the freeze must run
+  > **before** `_refresh_derived_state()`, not after. Refresh computes
+  > `signal_summary` — the persisted, operator-facing verdict — from
+  > `automation_health` + `run_quality`, both of which funnel through
+  > `_log_capture_health`. Freezing after refresh left the verdict baked from the
+  > pre-freeze live read (flickering) while the top-level `run_quality` read the
+  > frozen snapshot — non-reproducible verdict + intra-report contradiction.
+  > Pinned by `test_stop_binds_signal_summary_verdict_to_frozen_snapshot`.
 
   > Corrected root cause (adversarial-verified): the flicker is **not**
   > `_cheap_target_reaction_count` (that field reads `is_target_extension_event`,
   > default `False`, set `True` only at finalization → always-zero mid-loop →
   > the W25 early-give-up is deterministic). Do **not** "fix" it as the flicker
-  > source. The real source is finalization-time attribution + activation/log
-  > flush timing.
+  > source. The attribution equal-delta tie-break is real non-determinism but is
+  > **deferred** (does not affect run_quality; can shift a B5 verdict) — see the
+  > Deferred section.
 
 ## Sub-items
 
@@ -88,7 +104,7 @@ the `run_quality` **anchor** and its attribution inputs, not the verdict:
 | **S3** B5 static contract + producer + agreement | `packages/analysis_contracts/static_detection/report.py` (`StaticDetectionReport.vsix_sha256: str = ""`); `executor/static_host.py` (additive `--vsix-sha256` flag); `static_runtime/entrypoint.py` (parser + thread); `static_runtime/static_runner.py` (`run_static_detection_engine(vsix_sha256=...)` stamp); ADR `0016` additive-flag amendment; generated TS DTO; orchestrator agreement-assertion in `analysis_execution.py` | static report carries the same hash; static container invocation contract gains one additive optional flag (boundary change → ADR 0016); orchestrator asserts dynamic == static == intake; `make ui-types-check` |
 | **S4** B5 DB persistence | `appcore/storage/model_defs/analysis_job.py` (nullable `vsix_sha256` after `last_heartbeat_at`); `appcore/contracts/schema_defs/analysis_jobs.py` (create-snapshot field); `appcore/storage/crud_ops/analysis_jobs/lifecycle.py` (`create_analysis_job` CRUD facade, `**snapshot.model_dump()`); `workflows/marketplace/job_service.py` (`reserve_job` threads the S1 hash into the snapshot) + `router.py` (`start_analysis_job` passes it); new alembic revision (additive-nullable, head off the current head) | **GATED — migration shown before run.** the row carries the analyzed-bytes hash at creation; two byte-different VSIX → two distinct `vsix_sha256` rows; `alembic-upgrade extrace` (5432) then `make check-all` (dev-DB gotcha) |
 | **S5** B6 run_quality partition | `executor/flows/playwright/health/summary.py` (`_REASON_LABELS`, `build_run_quality`, discriminator) | `run_quality_reasons` partitioned behavioral vs harness-health; `residual_variance` is a labeled band; the partition is a pure function of stable inputs |
-| **S6** B6 finalization determinism (refined by the 2026-06-26 verification workflow) | `monitor/types.py` + `monitor/runtime_state.py` (freeze `log_capture_health_snapshot` once at end of `stop()`; property falls back to live read) — the **primary** anchor-flicker + intra-finalize inconsistency fix; `monitor/runtime_state.py` (bounded poll on the target-activation-flushed predicate replaces the fixed 2.0s grace); `health/summary.py` (narrow `_RESIDUAL_VARIANCE_REASON_CODES` to the 4 reachable codes + reachability guard) | identical-input N-run determinism; the frozen snapshot makes all run_quality reads agree; the grace early-exits on a real signal; the band matches reachability. **Attribution tie-break deferred** (see followup below) |
+| **S6** B6 finalization determinism (refined by the 2026-06-26 verification workflow; freeze ordering corrected by the branch review, B6-1) | `monitor/types.py` + `monitor/runtime_state.py` (freeze `log_capture_health_snapshot` in `stop()` **before** `_refresh_derived_state()` so the persisted verdict `signal_summary` reads the frozen snapshot too, not a pre-freeze live read; property falls back to live read only on the unfrozen fixture path) — the **primary** anchor-flicker + intra-finalize inconsistency fix; `monitor/runtime_state.py` (bounded poll on the target-activation-flushed predicate replaces the fixed 2.0s grace); `health/summary.py` + `health/run_quality_partition.py` (narrow `_RESIDUAL_VARIANCE_REASON_CODES` to the 4 reachable codes + reachability guard) | identical-input N-run determinism; the frozen snapshot makes all run_quality **and the verdict** reads agree; the grace early-exits on a real signal; the band matches reachability. Pinned by `test_stop_binds_signal_summary_verdict_to_frozen_snapshot`. **Attribution tie-break deferred** (see followup below) |
 | **S7** tests + verification | `tests/executor/`, `tests/contracts/`, `tests/storage/`, lifecycle harness | N-run determinism test on the reference target; byte-different-VSIX-not-conflated provenance test; static/dynamic agreement test; B2 lifecycle-harness test (ride-along RA2); `make test-security` includes any new security test |
 
 ## Pre-close checklist (resolve/waive before close-out)
@@ -116,6 +132,24 @@ adds the missing harness assertion.)
 | **RA3a** | `[CLEANUP pragma-ratchet-docstring]` — docstring said 6/3-files, enforced 7/4-files | `tests/architecture/test_bare_binary_pragma_ratchet.py` | **DONE** (92626df) |
 | **RA3b** | `[CLEANUP event-attempt-validate-assignment]` — `EventAttemptRecord` lacked `validate_assignment` | `packages/analysis_contracts/contracts.py` | **DONE** (92626df) |
 
+### Branch-review remediation (2026-06-26 adversarial multi-agent review)
+
+After implementation, a 6-dimension multi-agent branch review (review → adversarial
+refute → synthesize) over `main...HEAD` surfaced **9 raw findings; 8 survived
+independent refutation** (1 high/blocking, 4 medium, 3 low). All resolved before
+close-out — the user approved comprehensive (fix-all) scope (2026-06-26).
+
+| ID | Sev | Finding | Disposition |
+|---|---|---|---|
+| **B6-1** | high (blocking) | `signal_summary` (the persisted verdict) was baked from the **pre-freeze live-FS read**: the snapshot froze AFTER `_refresh_derived_state()`, which computes `signal_summary` from `automation_health`+`run_quality` (both via `_log_capture_health`). Verdict flickered run-to-run + could contradict top-level `run_quality`. | **FIXED** `e3a1054` — freeze moved before `_refresh_derived_state()`; `test_stop_binds_signal_summary_verdict_to_frozen_snapshot` (teeth-verified: fails on the pre-fix order) |
+| **B5-2** | medium | Sync `POST /marketplace/analyze` called `execute_analysis_request` with no hash → both producers stamped `vsix_sha256=""` (unbound verdict) on a documented live surface. | **FIXED** `8dd6da3` — hash computed in `analyze_extension` inside the taxonomy try (missing .vsix still 404); `test_sync_analyze_binds_vsix_sha256_to_bytes` |
+| **RA1-3** | medium | Extension-controlled `activation_event`/`message` reached persisted `log_entries` un-redacted via `lifecycle.py` `record_automation_event` — a sibling sink the RA1 AST gate did not cover. | **FIXED** `e9e5ef1` — both routed through `redact_secrets`; `lifecycle.py` added to the gate `_TARGETS`; behavioral test |
+| **RA1-4** | medium | `FileEvent.flags = args` stored the raw strace arg blob (a superset of the redacted `path`), re-exposing a secret-shaped path substring on the same row. | **FIXED** `e9e5ef1` — `flags` routed through `redact_secrets`; `flags` added to the gate `FileEvent` field set; behavioral test |
+| **Tests-3** | medium | No test pinned the dynamic `vsix_sha256` write path end to end (arg → report → on-disk key); a key/attribute rename would silently skip the dynamic agreement branch. | **FIXED** `e3a1054` — `test_dynamic_report_save_stamps_vsix_sha256_top_level_key` exercises the real emit boundary + extra=forbid round-trip |
+| **Docs-S6** | low | The S6 design-summary prose claimed a deterministic attribution tie-break that was deferred (contradicted the sub-items table + ADR 0017). | **FIXED** (this commit) — prose rewritten to the implemented design (freeze-before-refresh primary fix; tie-break deferred) |
+| **Docs** | low | `[FOLLOWUP attribution-tiebreak-determinism]` said "Logged for POST_POC_BACKLOG.md" but was absent there. | **FIXED** (this commit) — past-tense claim corrected to a close-out action; the backlog's per-stream entry is commit-stamped, so it lands post-merge with this stream's pull-forward table (named-stream convention), recorded here meanwhile |
+| **Tests** | low | `test_run_quality_and_partition_are_reproducible` was tautological (pre-froze a snapshot, read a pure property twice; passed on `main`). | **FIXED** `e3a1054` — removed; reproducibility now pinned at the `stop()` level + `test_log_capture_health_snapshot` + `test_run_quality_partition` |
+
 ### Deferred (recorded, not done this stream)
 
 - **`[FOLLOWUP attribution-tiebreak-determinism]`** — `_nearest_activation_matches`
@@ -129,7 +163,11 @@ adds the missing harness assertion.)
   sort there WILL change correlated grouping on previously-flickering
   overlapping-activation fixtures and **can shift a verdict**, so it must land as a
   B5 fix coordinated with the signal owner (re-run the signal-engine golden /
-  verdict fixtures), NOT bundled into B6. Logged for `POST_POC_BACKLOG.md`.
+  verdict fixtures), NOT bundled into B6. Recorded here; its
+  `POST_POC_BACKLOG.md` pull-forward entry lands at close-out with this stream's
+  table (post-merge, per the named-stream convention — the backlog's per-stream
+  rows are commit-stamped, so the entry is created when the close-out commit
+  exists, not on the open branch).
 
 ## Regression surface
 
