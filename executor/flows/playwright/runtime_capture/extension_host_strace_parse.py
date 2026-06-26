@@ -58,17 +58,19 @@ def parse_strace_process_event_line(
             pid=child_pid,
             ppid=current_pid,
             operation="spawn",
-            command=call,
+            command=redact_secrets(call),
             arguments_preview=_bounded_arguments_preview(args),
-            cwd=current_cwd,
-            summary=f"Spawned child process {child_pid} from pid {current_pid}.",
+            cwd=redact_secrets(current_cwd),
+            summary=redact_secrets(
+                f"Spawned child process {child_pid} from pid {current_pid}."
+            ),
         )
 
     quoted_items = re.findall(r'"([^"]*)"', args)
     if call in {"execve", "execveat"}:
         if not quoted_items:
             return None
-        command = quoted_items[0]
+        command = redact_secrets(quoted_items[0])
         arguments_preview = _bounded_arguments_preview(" ".join(quoted_items[1:]))
         return ProcessEvent(
             timestamp=timestamp,
@@ -78,8 +80,8 @@ def parse_strace_process_event_line(
             operation="exec",
             command=command,
             arguments_preview=arguments_preview,
-            cwd=current_cwd,
-            summary=f"Executed {command} in pid {current_pid}.",
+            cwd=redact_secrets(current_cwd),
+            summary=redact_secrets(f"Executed {command} in pid {current_pid}."),
         )
 
     if call == "chdir":
@@ -92,10 +94,10 @@ def parse_strace_process_event_line(
             pid=current_pid,
             ppid=current_ppid,
             operation="chdir",
-            command="chdir",
+            command=redact_secrets("chdir"),
             arguments_preview="",
-            cwd=quoted_items[0],
-            summary=f"Changed working directory to {quoted_items[0]}.",
+            cwd=redact_secrets(quoted_items[0]),
+            summary=redact_secrets(f"Changed working directory to {quoted_items[0]}."),
         )
 
     return None

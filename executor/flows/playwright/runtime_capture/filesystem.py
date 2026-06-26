@@ -10,6 +10,7 @@ from collections.abc import Callable
 from datetime import datetime
 
 from executor.binary_paths import INOTIFYWAIT_PATH
+from packages.analysis_contracts.evidence import redact_secrets
 
 from ._shared import (
     _FILE_WATCH_PATHS,
@@ -109,14 +110,18 @@ def parse_strace_file_event_line(
         timestamp=timestamp,
         rel_time_s=rel_time_s,
         operation=operation,
-        path=primary_path,
-        secondary_path=secondary_path,
+        # [BUG report-field-redaction-completeness]: extension-controlled paths
+        # route through redact_secrets like the sibling NetworkEvent path/summary
+        # (no-op on normal paths; masks a secret-shaped substring). Sensitivity is
+        # still computed on the RAW path.
+        path=redact_secrets(primary_path),
+        secondary_path=redact_secrets(secondary_path),
         source="extension",
         observer="strace",
         pid=pid,
         flags=args,
         sensitive=_is_sensitive_path(primary_path),
-        summary=summary,
+        summary=redact_secrets(summary),
     )
 
 
@@ -153,11 +158,11 @@ def parse_inotify_file_event_line(
         timestamp=timestamp,
         rel_time_s=rel_time_s,
         operation=operation,
-        path=path,
+        path=redact_secrets(path),
         source="automation",
         observer="inotify",
         sensitive=_is_sensitive_path(path),
-        summary=f"{operation}: {path}",
+        summary=redact_secrets(f"{operation}: {path}"),
     )
 
 
