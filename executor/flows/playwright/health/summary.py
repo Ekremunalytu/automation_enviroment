@@ -51,6 +51,39 @@ _SCENARIO_ZERO_REASON = (
     "No automation scenario was required for this non-executable fixture."
 )
 
+# W26 / Stream 3 (B6 `[GOAL verdict-reproducibility-anchor]`): partition the
+# run-quality reason CODES so the operator (and a reproducibility test) can tell
+# what the *extension* did (behavioral — stable for the same bytes) from how
+# cleanly the *sandbox/harness* ran (harness-health — can vary with timing).
+#
+# ``residual_variance`` is the timing-sensitive subset of harness-health: the
+# reasons whose presence depends on log/activation flush + attribution timing,
+# i.e. the true flicker surface S6 hardens. Surfacing them as a labeled band
+# means residual harness timing reads as a *named* state, not a silent
+# ``run_quality`` demotion that looks like a changed verdict on re-run.
+_BEHAVIORAL_REASON_CODES = frozenset(
+    {
+        "target_extension_not_observed",
+        "target_activation_missing",
+        "scenario_failures_present",
+        "skipped_scenarios_present",
+        "extra_trigger_failures_present",
+        "verification_gap_present",
+    }
+)
+# Subset of the harness-health bucket (everything not behavioral) that is
+# timing-sensitive and therefore the residual-variance band.
+_RESIDUAL_VARIANCE_REASON_CODES = frozenset(
+    {
+        "extension_host_log_missing",
+        "extension_host_output_missing",
+        "target_stream_missing",
+        "strong_target_attribution_missing",
+        "harness_ready_marker_stale",
+        "harness_activation_timeout",
+    }
+)
+
 
 def automation_reason_to_text(code: str) -> str:
     return _REASON_LABELS.get(code, code.replace("_", " "))
@@ -514,6 +547,38 @@ def build_run_quality(
     if official_unresolved > 0:
         return "medium", reasons
     return "high", reasons
+
+
+def build_run_quality_partition(
+    report: Any,
+    automation_health: dict[str, Any] | None = None,
+) -> dict[str, list[str]]:
+    """Partition the automation-health reason CODES (B6, W26 / Stream 3).
+
+    Returns ``{"behavioral": [...], "harness_health": [...], "residual_variance":
+    [...]}`` — the same reason codes ``build_run_quality`` consumes, bucketed by
+    whether they describe the *extension's* behavior (stable for the same bytes)
+    or the *harness's* health (can vary with timing). ``residual_variance`` is
+    the timing-sensitive subset of ``harness_health`` (the flicker surface S6
+    hardens), surfaced as a labeled band rather than a silent ``run_quality``
+    demotion. Pure over the supplied/derived ``automation_health`` reason codes,
+    so the partition is reproducible whenever the health reasons are; order
+    follows the (deterministic) reasons list.
+    """
+    execution_mode = str(getattr(report, "trigger_execution_mode", "")).strip()
+    if execution_mode == "skip_automation":
+        return {"behavioral": [], "harness_health": [], "residual_variance": []}
+    health = automation_health or build_automation_health(
+        report,
+        extension_host_log_found=bool(getattr(report, "log_file_path", "")),
+        extension_host_log_present=bool(getattr(report, "log_file_path", "")),
+    )
+    codes = [str(code) for code in health.get("reasons", []) or []]
+    return {
+        "behavioral": [c for c in codes if c in _BEHAVIORAL_REASON_CODES],
+        "harness_health": [c for c in codes if c not in _BEHAVIORAL_REASON_CODES],
+        "residual_variance": [c for c in codes if c in _RESIDUAL_VARIANCE_REASON_CODES],
+    }
 
 
 def summarize_event_attempts_for_report(report: Any, *, track: str) -> dict[str, Any]:

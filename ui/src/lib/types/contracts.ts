@@ -501,6 +501,7 @@ export interface ActivationReportDto {
   heuristic_verification_gap?: number;
   run_quality?: string;
   run_quality_reasons?: string[];
+  run_quality_reason_partition?: Record<string, string[]>;
   log_health?: LogHealthDto;
   attribution_summary?: AttributionSummaryDto;
   risk_signals?: RiskSignalDto[];

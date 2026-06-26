@@ -29,12 +29,15 @@ from pydantic import (
 # file I/O can be attributed to the target extension via process lineage
 # instead of timestamp proximity alone. Optional/defaulted, so reading a
 # pre-2.2 report stays backward-compatible.
-# W26 / Stream 3 (B5 verdict-provenance): 2.2 -> 2.3 — additive
-# ActivationReport.vsix_sha256 (the SHA-256 of the analyzed .vsix archive,
-# computed at analyze-start and threaded into the executor via
-# `--vsix-sha256`), so a dynamic report is bound to the exact bytes scanned.
-# Optional/defaulted (""), so reading a pre-2.3 report stays
-# backward-compatible; the dynamic producer stamps it on every new write.
+# W26 / Stream 3: 2.2 -> 2.3 — two additive-optional fields, both defaulted so
+# reading a pre-2.3 report stays backward-compatible:
+#   - vsix_sha256 (B5 verdict-provenance): SHA-256 of the analyzed .vsix archive,
+#     computed at analyze-start and threaded into the executor via
+#     `--vsix-sha256`, so a dynamic report is bound to the exact bytes scanned.
+#   - run_quality_reason_partition (B6 verdict-reproducibility): the run-quality
+#     reason codes bucketed behavioral / harness_health / residual_variance, so
+#     timing-driven harness variance reads as a labeled band rather than a silent
+#     run_quality flip. Both are stamped by the producer on every new write.
 ACTIVATION_REPORT_SCHEMA_VERSION = "2.3"
 
 
@@ -491,6 +494,14 @@ class ActivationReport(StrictContractModel):
     heuristic_verification_gap: int = 0
     run_quality: str = ""
     run_quality_reasons: list[str] = Field(default_factory=list)
+    # W26 / Stream 3 (B6 `[GOAL verdict-reproducibility-anchor]`): the run-quality
+    # reason codes bucketed into ``behavioral`` (what the extension did — stable
+    # for the same bytes), ``harness_health`` (how cleanly the sandbox ran), and
+    # ``residual_variance`` (the timing-sensitive harness-health subset). Lets a
+    # reproducibility check and the operator see residual harness timing as a
+    # labeled band, not a silent ``run_quality`` flip. Default-empty so legacy
+    # reports validate; the producer stamps it at the emit boundary.
+    run_quality_reason_partition: dict[str, list[str]] = Field(default_factory=dict)
     log_health: dict[str, Any] = Field(default_factory=dict)
     attribution_summary: dict[str, Any] = Field(default_factory=dict)
     risk_signals: list[RiskSignal] = Field(default_factory=list)

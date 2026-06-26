@@ -342,6 +342,11 @@ def build_report_data(
         "heuristic_verification_gap": getattr(report, "heuristic_verification_gap", 0),
         "run_quality": run_quality,
         "run_quality_reasons": _run_quality_reasons(report),
+        # W26 / Stream 3 (B6): behavioral vs harness-health (+ residual_variance)
+        # split of the run-quality reason codes.
+        "run_quality_reason_partition": dict(
+            getattr(report, "run_quality_reason_partition", {}) or {}
+        ),
         "automation_health": automation_health,
         "log_health": log_health,
         "attribution_summary": attribution_summary,

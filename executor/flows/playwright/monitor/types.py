@@ -18,6 +18,7 @@ from ..health import (
     build_automation_health,
     build_log_health,
     build_run_quality,
+    build_run_quality_partition,
     count_target_activations,
     is_background_activation,
 )
@@ -267,6 +268,13 @@ class ActivationReport:
     def run_quality_reasons(self) -> list[str]:
         _, reasons = build_run_quality(self, self.automation_health)
         return reasons
+
+    @property
+    def run_quality_reason_partition(self) -> dict[str, list[str]]:
+        # W26 / Stream 3 (B6): behavioral vs harness-health (+ residual_variance
+        # band) split of the run-quality reason codes. Shares the same
+        # ``automation_health`` the quality discriminator uses.
+        return build_run_quality_partition(self, self.automation_health)
 
     @property
     def supported_heuristic_attempted_capabilities(self) -> list[str]:
