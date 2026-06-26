@@ -205,6 +205,36 @@ def test_analyze_vsix_not_found_404(client: TestClient) -> None:
     assert "VSIX file not found" in response.json()["detail"]
 
 
+def test_sync_analyze_binds_vsix_sha256_to_bytes(client: TestClient) -> None:
+    """B5 (review B5-2): the sync /marketplace/analyze entry binds the verdict to
+    the analyzed bytes — it computes the hash from the staged .vsix and threads a
+    non-empty ``vsix_sha256`` into ``execute_analysis_request``, not the empty
+    (unbound) stamp the async path alone used to provide."""
+    import hashlib
+
+    captured: dict[str, str] = {}
+
+    def _capture(request, db, *args, vsix_sha256: str = "", **kwargs):
+        captured["hash"] = vsix_sha256
+        raise FileNotFoundError("stop after capturing the threaded hash")
+
+    with (
+        patch(
+            "workflows.marketplace.analysis_service.marketplace_client.get_vsix_path",
+            return_value=_vsix_path_exists(True),
+        ),
+        patch(
+            "workflows.marketplace.router.execute_analysis_request",
+            side_effect=_capture,
+        ),
+    ):
+        response = client.post("/api/marketplace/analyze", json=ANALYZE_PAYLOAD)
+
+    assert response.status_code == 404  # the sentinel FileNotFoundError, post-capture
+    assert captured["hash"] == hashlib.sha256(b"mock-vsix-bytes").hexdigest()
+    assert len(captured["hash"]) == 64
+
+
 def test_analyze_install_failure_502(client: TestClient) -> None:
     """ExecutorError during install returns 502."""
     with (

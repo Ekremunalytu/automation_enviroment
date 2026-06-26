@@ -545,6 +545,14 @@ def analyze_extension(
     # ``tests/architecture/test_analyze_error_taxonomy_parity.py`` pins both
     # surfaces to the same source-of-truth tuples.
     try:
-        return execute_analysis_request(request, db)
+        # W26 / Stream 3 (B5, review B5-2): bind the sync surface's verdict to the
+        # analyzed bytes too. The async start_analysis_job path hashes at reserve
+        # time; this entry must hash here, inside the taxonomy try so a missing
+        # .vsix still maps to 404 (FileNotFoundError) instead of falling through to
+        # execute_analysis_request's empty (unbound) stamp. ensure_vsix_exists only
+        # resolves+stats (no staging); execute_analysis_request re-checks it.
+        vsix_path = ensure_vsix_exists(request)
+        vsix_sha256 = marketplace_client.compute_vsix_sha256(vsix_path)
+        return execute_analysis_request(request, db, vsix_sha256=vsix_sha256)
     except ANALYZE_ERROR_TYPES as exc:
         raise analyze_error_to_http_response(exc) from exc
