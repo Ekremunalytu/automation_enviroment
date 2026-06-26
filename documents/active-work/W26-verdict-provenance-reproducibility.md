@@ -1,8 +1,8 @@
 # W26 — verdict-provenance-reproducibility (Stream 3, the spine)
 
-`Last Updated: 2026-06-25`
+`Last Updated: 2026-06-26`
 
-`Status: OPEN on week26 (off main 27dc7f1, 2026-06-25). Closes v1.0 bars B5 (verdict bound to the bytes) + B6 (verdict reproducible). Named-stream convention: this branch's H0 (S0) flips documents/phase.json active_stream from operator-console-honesty -> verdict-provenance-reproducibility and refreshes the canonical preambles. ADR 0017 (Proposed) records the provenance/reproducibility design; ADR 0016 gets an additive 5th-flag amendment for the static container's --vsix-sha256.`
+`Status: OPEN on week26 (off main 27dc7f1). Implementation COMPLETE — S0-S7 + all ride-alongs landed (commits 5a2227d..8fa52ce). B5 (S1-S4: vsix_sha256 spine + DB) + B6 (S5-S6: partition + finalization determinism) closed; RA1 (redaction completeness) + RA2 (B2 lifecycle test) + RA3a/RA3b (cleanups) done; B2 acceptance formally closed via RA2. ADR 0017 (Proposed) records the design; ADR 0016 has the additive --vsix-sha256 amendment. The S6 design was refined by a 2026-06-26 multi-agent verification workflow (found the live-FS-read primary driver; deferred the attribution tie-break). The 4 doc-governance gates stay green. Awaiting close-out: full make check-all + make test-security + the close-out PR (gated on explicit user go-ahead).`
 
 Stream 3 of the v1.0 roadmap (`documents/active-work/v1-roadmap.md` §4). The
 **spine**: four downstream streams (B7/B8 measurement, export, release-identity,
@@ -111,10 +111,10 @@ adds the missing harness assertion.)
 
 | ID | Item | Files | Disposition |
 |---|---|---|---|
-| **RA1** | `[BUG report-field-redaction-completeness]` — 3 ungated extension-controlled report sinks | `monitor/scenario_accountant.py:~576` (`activation_event`), `runtime_capture/filesystem.py:108-120` (`FileEvent.path/summary`), `runtime_capture/extension_host_strace_parse.py:71,88,97` (`ProcessEvent.command/cwd`); redact at the chokepoint like sibling `network.py:109-110`; add 3 AST gates | fix + gate this stream |
-| **RA2** | B2 lifecycle-harness test (the missing test for the landed B2 fix) | lifecycle harness under `tests/executor/` | land this stream → formally closes B2 |
-| **RA3a** | `[CLEANUP pragma-ratchet-docstring]` — docstring says 6/3-files, enforced 7/4-files | `tests/architecture/test_bare_binary_pragma_ratchet.py:20-33` | trivial doc fix |
-| **RA3b** | `[CLEANUP event-attempt-validate-assignment]` — `EventAttemptRecord` lacks `validate_assignment` | `packages/analysis_contracts/contracts.py:~223` | hardening hygiene |
+| **RA1** | `[BUG report-field-redaction-completeness]` — 3 ungated extension-controlled report sinks | `monitor/scenario_accountant.py` (`message`/`activation_event`), `runtime_capture/filesystem.py` (`FileEvent.path/secondary_path/summary`), `runtime_capture/extension_host_strace_parse.py` (`ProcessEvent.command/cwd/summary`); routed through `redact_secrets` like sibling `network.py`; AST gate `test_runtime_capture_field_redaction.py` | **DONE** (f04b8ce) |
+| **RA2** | B2 lifecycle test (the missing test for the landed B2 fix) | `tests/workflows/marketplace/test_b2_multi_analyze_install.py` | **DONE** (8fa52ce) → formally closes B2 |
+| **RA3a** | `[CLEANUP pragma-ratchet-docstring]` — docstring said 6/3-files, enforced 7/4-files | `tests/architecture/test_bare_binary_pragma_ratchet.py` | **DONE** (92626df) |
+| **RA3b** | `[CLEANUP event-attempt-validate-assignment]` — `EventAttemptRecord` lacked `validate_assignment` | `packages/analysis_contracts/contracts.py` | **DONE** (92626df) |
 
 ### Deferred (recorded, not done this stream)
 
