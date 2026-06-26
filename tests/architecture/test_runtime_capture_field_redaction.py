@@ -12,6 +12,12 @@ sinks surfaced extension-controlled strings verbatim —
   - ``LogStreamEntry.message`` / ``activation_event``
     (``monitor/scenario_accountant.py``).
 
+W26 / Stream 3 (branch-review 2026-06-26) added two sibling sinks the original
+gate missed: ``FileEvent.flags`` (the raw strace arg blob — a superset of the
+redacted paths, ``filesystem.py``) and the ``LogStreamEntry`` built by
+``record_automation_event`` (``monitor/lifecycle.py``), which lands in the same
+persisted ``log_entries`` as the scenario_accountant path.
+
 ``redact_secrets`` is a no-op on ordinary paths/commands and masks only
 secret-shaped substrings (PEM / bearer / api_key / db_url / aws), so routing
 these fields through it is forensic-preserving defense-in-depth. This gate pins
@@ -38,11 +44,21 @@ _TARGETS = [
     ),
     (
         "executor/flows/playwright/runtime_capture/filesystem.py",
+        # W26 / Stream 3 (RA1, review RA1-4): ``flags`` stores the raw strace arg
+        # blob — a superset of the redacted paths — so it must redact too.
         "FileEvent",
-        {"path", "secondary_path", "summary"},
+        {"path", "secondary_path", "summary", "flags"},
     ),
     (
         "executor/flows/playwright/monitor/scenario_accountant.py",
+        "LogStreamEntry",
+        {"message", "activation_event"},
+    ),
+    (
+        # W26 / Stream 3 (RA1, review RA1-3): sibling LogStreamEntry sink — the
+        # record_automation_event convergence point that lands in the SAME
+        # persisted log_entries the scenario_accountant path redacts.
+        "executor/flows/playwright/monitor/lifecycle.py",
         "LogStreamEntry",
         {"message", "activation_event"},
     ),

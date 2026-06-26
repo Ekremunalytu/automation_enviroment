@@ -119,7 +119,13 @@ def parse_strace_file_event_line(
         source="extension",
         observer="strace",
         pid=pid,
-        flags=args,
+        # W26 / Stream 3 (RA1, review RA1-4): ``args`` is the raw strace arg blob
+        # and a strict superset of the quoted paths just redacted into
+        # ``path``/``secondary_path`` (line 80 extracts those FROM it). Left raw it
+        # would re-expose, on the SAME row, any secret-shaped substring the path
+        # redaction just masked — so route it through redact_secrets too (no-op on
+        # ordinary args).
+        flags=redact_secrets(args),
         sensitive=_is_sensitive_path(primary_path),
         summary=redact_secrets(summary),
     )
