@@ -230,6 +230,15 @@ _VALID_CONFIRMATION_SOURCES: frozenset[str] = frozenset(
 
 
 class EventAttemptRecord(StrictContractModel):
+    # [CLEANUP event-attempt-validate-assignment] (audit 2026-06-15): without
+    # validate_assignment the ``status`` / ``confirmation_source`` field
+    # validators run only at construction, so post-construction set-sites
+    # (reconciliation.py, scenario_accountant.py) bypassed them. Enabling it
+    # extends the SAME lifecycle/source invariant the constructor already
+    # enforces to assignments — a no-op for today's valid-literal set-sites,
+    # a guard against a future invalid assignment slipping through.
+    model_config = ConfigDict(extra="forbid", validate_assignment=True)
+
     attempt_id: str
     declared_event: str
     activation_event: str
