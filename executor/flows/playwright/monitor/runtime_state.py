@@ -285,17 +285,23 @@ class MonitorRuntime:
             target_extension_id=self._report.target_extension_id,
             monitoring_start=self._report.monitoring_start,
         )
-        self._refresh_derived_state()
-        # W26 / Stream 3 (B6): freeze the exthost-log-capture health view AFTER
-        # the grace + discovery merge + refresh, so run_quality /
-        # automation_health / log_health all read one consistent FS snapshot
-        # rather than re-stat()ing the live filesystem on every property access
-        # (which flickered ``extension_host_log_missing`` run-to-run and could
-        # disagree across the multiple reads in print_summary + save).
+        # W26 / Stream 3 (B6): freeze the exthost-log-capture health view BEFORE
+        # refresh_derived_state, so every derived consumer reads ONE consistent
+        # FS snapshot. The critical consumer is build_signal_summary (the
+        # persisted verdict), which refresh computes from automation_health +
+        # run_quality — both of which funnel through ``_log_capture_health``.
+        # Freezing after refresh (the pre-2026-06-26 order) left signal_summary
+        # baked from a live re-stat() of the filesystem while the top-level
+        # run_quality read the frozen snapshot, so the verdict flickered
+        # run-to-run on byte-identical input and could disagree with the
+        # top-level run_quality within one report. Safe to freeze here: nothing
+        # between the startup-flush wait and this point writes exthost.log, so
+        # the snapshot value is identical to the old post-refresh position.
         self._report.log_capture_health_snapshot = summarize_extension_host_logs(
             self._report.log_offsets_snapshot,
             api.find_exthost_logs(),
         )
+        self._refresh_derived_state()
         # W11-4: surface intermediate-state promotions
         # (``activation_seen`` / ``target_log_seen``) on the live
         # automation timeline. Runs after ``refresh_derived_state``

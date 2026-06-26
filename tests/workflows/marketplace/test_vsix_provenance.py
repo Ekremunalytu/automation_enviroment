@@ -1,14 +1,19 @@
-"""W26 / Stream 3 (S7): B5 provenance + B6 reproducibility tests.
+"""W26 / Stream 3 (S7): B5 provenance tests.
 
 B5: the analyzed-bytes hash distinguishes byte-different VSIX (not conflated),
-is stamped on the static report, and the orchestrator log-checks dynamic/static
-agreement. B6: the run_quality anchor + partition are reproducible given
-identical inputs.
+is stamped on the static report, flows through the dynamic emit boundary to the
+top-level on-disk key, and the orchestrator log-checks dynamic/static agreement.
+B6 reproducibility is pinned at the stop() level in
+``tests/executor/test_playwright_monitor_lifecycle.py``
+(``test_stop_binds_signal_summary_verdict_to_frozen_snapshot`` — the verdict
+reads the frozen snapshot) plus ``test_log_capture_health_snapshot`` and
+``test_run_quality_partition``.
 """
 
 from __future__ import annotations
 
 import hashlib
+import json
 from pathlib import Path
 
 import workflows.marketplace.analysis_service as analysis_service
@@ -130,27 +135,29 @@ def test_agreement_tolerates_empty_producer_stamp(monkeypatch) -> None:
     assert not errors
 
 
-# ---- B6: run_quality anchor + partition are reproducible --------------------
+# ---- B5: dynamic producer stamps the hash through the emit boundary ---------
 
 
-def test_run_quality_and_partition_are_reproducible() -> None:
-    # Same report state (frozen log-capture snapshot, no mutation) must yield the
-    # same run_quality + partition across repeated evaluation — the unit-level
-    # form of "same VSIX run twice -> same verdict anchor".
+def test_dynamic_report_save_stamps_vsix_sha256_top_level_key(tmp_path: Path) -> None:
+    # B5 (Tests-3): the dynamic emit boundary (report.save -> build_report_data ->
+    # save_report_payload) stamps the threaded hash as the top-level "vsix_sha256"
+    # key, and it survives the extra=forbid contract round-trip. This pins the
+    # report -> on-disk key the orchestrator agreement check reads; a key/attribute
+    # rename (which the dict-injecting agreement tests cannot catch) breaks it.
     report = ActivationReport()
     report.target_extension_id = "pub.ext"
-    report.log_capture_health_snapshot = {
-        "extension_host_log_found": False,
-        "extension_host_log_present": False,
-    }
+    report.vsix_sha256 = "d" * 64
+    out = report.save(tmp_path / "report.json", announce=False)
+    data = json.loads(Path(out).read_text(encoding="utf-8"))
+    assert data["vsix_sha256"] == "d" * 64
 
-    first = (report.run_quality, report.run_quality_reason_partition)
-    second = (report.run_quality, report.run_quality_reason_partition)
-    assert first == second
-    # residual_variance only ever holds the four reachable codes.
-    assert set(report.run_quality_reason_partition["residual_variance"]) <= {
-        "extension_host_log_missing",
-        "extension_host_output_missing",
-        "target_stream_missing",
-        "strong_target_attribution_missing",
-    }
+
+def test_dynamic_report_save_defaults_vsix_sha256_empty(tmp_path: Path) -> None:
+    # The unstamped path (legacy / skip) persists the empty-string sentinel the
+    # agreement check tolerates — never a missing key (which extra=forbid + the
+    # agreement read would mishandle).
+    report = ActivationReport()
+    report.target_extension_id = "pub.ext"
+    out = report.save(tmp_path / "report.json", announce=False)
+    data = json.loads(Path(out).read_text(encoding="utf-8"))
+    assert data["vsix_sha256"] == ""
