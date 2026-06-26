@@ -90,13 +90,34 @@ stop the **anchor** flicker:
   `residual_variance` band so bounded non-deterministic harness timing reads as a
   *named* state instead of silently tipping the discriminator to
   `degraded`/`inconclusive`.
-- **Remove the two finalization non-determinism sources**: (a) the
-  competitor-tie-break in `_classify_event_attribution` /
-  `_nearest_activation_matches` (wall-clock-delta thresholds whose tie-break is
-  non-deterministic) gets a deterministic stable tie-break; (b) the fixed 2.0s
-  startup grace in `monitor/runtime_state.py` becomes a bounded
-  wait-on-condition, so activation/log flush timing stops perturbing the
-  partition.
+- **Remove the finalization non-determinism sources.** A multi-agent
+  adversarial verification pass (2026-06-26) confirmed the real run_quality
+  flicker drivers and corrected the initial design:
+  - **(primary) live-FS read in the anchor** — `ActivationReport._log_capture_health`
+    was a plain property that re-`stat()`ed the exthost log on *every* access, so
+    `extension_host_log_missing` flickered run-to-run AND the ~6 property reads
+    across `print_summary` + `save` could derive `run_quality` /
+    `run_quality_reasons` / `run_quality_reason_partition` from *different* FS
+    snapshots in one report. Fix: freeze the capture-health view once at the end
+    of `stop()` (after the grace + discovery merge + refresh) onto an in-memory
+    `log_capture_health_snapshot`; the property returns the snapshot when frozen,
+    else a live read (fallback mandatory for `log_health` + fixture paths).
+  - **startup grace** — the fixed `sleep(2.0)` raced the async exthost.log flush
+    that decides `target_extension_observed`; replaced by a bounded poll that
+    re-parses the logs read-only and early-exits the instant the target's
+    activation appears, keeping a 2.0s deadline as the (strict-superset) upper
+    bound.
+  - **band correction** — `harness_ready_marker_stale` / `harness_activation_timeout`
+    are never appended to `automation_health.reasons` (they surface as a
+    behavioral `skipped_scenarios_present`), so `_RESIDUAL_VARIANCE_REASON_CODES`
+    is narrowed to the four reachable codes, guarded by a reachability test.
+  - **deferred (NOT B6)** — the `_nearest_activation_matches` equal-delta
+    tie-break is real non-determinism but was confirmed *not* to affect
+    run_quality (status is delta-driven; only `related_activation_event` flips,
+    whose consumer is the B5 signal/correlation path). A stable sort there would
+    change `correlated_groups` grouping and can shift a B5 verdict, so it is
+    recorded as `[FOLLOWUP attribution-tiebreak-determinism]` for the signal
+    owner, not bundled into B6.
 
 > **Corrected root cause (adversarial-verified, 2026-06).** The flicker is **not**
 > `_cheap_target_reaction_count`. That field reads `is_target_extension_event`,

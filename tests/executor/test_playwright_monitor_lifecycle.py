@@ -148,7 +148,17 @@ def test_extension_monitor_stop_reconciles_startup_activation_from_output(
             "'esbenp.prettier-vscode' because of 'onStartupFinished'\n"
         ),
     )
-    monkeypatch.setattr(monitor.time, "sleep", lambda seconds: waited.append(seconds))
+    # W26 / Stream 3 (B6): the grace is now a bounded poll (monotonic deadline +
+    # sleep), so advance a fake monotonic clock on each poll sleep instead of
+    # leaving sleep a no-op against the real clock (which would spin).
+    clock = {"t": 1000.0}
+
+    def _fake_sleep(seconds: float) -> None:
+        waited.append(seconds)
+        clock["t"] += seconds
+
+    monkeypatch.setattr(monitor.time, "sleep", _fake_sleep)
+    monkeypatch.setattr(monitor.time, "monotonic", lambda: clock["t"])
     monkeypatch.setattr(
         monitor,
         "NetworkCapture",
@@ -197,7 +207,11 @@ def test_extension_monitor_stop_reconciles_startup_activation_from_output(
 
     report = mon.stop()
 
-    assert waited == [2.0]
+    # W26 / Stream 3 (B6): the activation arrives via OUTPUT (not the exthost
+    # log), so the bounded grace poll never early-exits and runs to its 2.0s
+    # deadline in 0.1s steps — a strict superset of the old fixed 2.0s wait.
+    assert waited and set(waited) == {0.1}
+    assert abs(sum(waited) - 2.0) < 1e-6
     assert [entry.extension_id for entry in report.activated] == [
         "esbenp.prettier-vscode"
     ]

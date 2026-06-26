@@ -72,15 +72,21 @@ _BEHAVIORAL_REASON_CODES = frozenset(
     }
 )
 # Subset of the harness-health bucket (everything not behavioral) that is
-# timing-sensitive and therefore the residual-variance band.
+# timing-sensitive and therefore the residual-variance band. Restricted to the
+# codes ``build_automation_health`` can actually append to ``health["reasons"]``
+# (the partition filters only that list). ``harness_ready_marker_stale`` and
+# ``harness_activation_timeout`` are deliberately NOT here: they only ever
+# surface as an event-attempt ``failure_reason_code`` that lands on a
+# ``SkippedScenarioRecord`` -> the behavioral ``skipped_scenarios_present`` code,
+# never into ``health["reasons"]``. A reachability test
+# (``test_run_quality_partition``) pins this so the band cannot readmit an
+# unreachable code.
 _RESIDUAL_VARIANCE_REASON_CODES = frozenset(
     {
         "extension_host_log_missing",
         "extension_host_output_missing",
         "target_stream_missing",
         "strong_target_attribution_missing",
-        "harness_ready_marker_stale",
-        "harness_activation_timeout",
     }
 )
 

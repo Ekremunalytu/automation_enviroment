@@ -134,6 +134,15 @@ class ActivationReport:
     harness_handshake_required: bool = field(default=False, repr=False)
     log_file_path: str = ""
     log_offsets_snapshot: dict[str, int] = field(default_factory=dict, repr=False)
+    # W26 / Stream 3 (B6): finalization freezes the exthost-log-capture health
+    # view here so every automation_health / run_quality / log_health read
+    # returns ONE consistent snapshot instead of re-stat()ing the live
+    # filesystem on each property access — closing both the cross-run flicker of
+    # ``extension_host_log_missing`` and the intra-finalize inconsistency across
+    # the multiple property reads in print_summary + save. ``None`` = unfrozen
+    # (fixture / pre-stop paths fall back to a live read). In-memory only — not a
+    # report contract field, so it is never serialized.
+    log_capture_health_snapshot: dict[str, Any] | None = field(default=None, repr=False)
     target_extension_id: str = ""
     # W26 / Stream 3 (B5): SHA-256 of the analyzed .vsix archive, set from the
     # ``--vsix-sha256`` entrypoint arg in ``setup_monitor`` and stamped into the
@@ -301,6 +310,11 @@ class ActivationReport:
 
     @property
     def _log_capture_health(self) -> dict[str, Any]:
+        # W26 / Stream 3 (B6): prefer the finalization-frozen snapshot so all
+        # downstream reads (automation_health / run_quality / log_health) agree;
+        # fall back to a live read when unfrozen (fixture / pre-stop paths).
+        if self.log_capture_health_snapshot is not None:
+            return self.log_capture_health_snapshot
         log_paths = resolve_monitor_api().find_exthost_logs()
         return summarize_extension_host_logs(self.log_offsets_snapshot, log_paths)
 

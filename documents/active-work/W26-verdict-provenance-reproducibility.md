@@ -88,7 +88,7 @@ the `run_quality` **anchor** and its attribution inputs, not the verdict:
 | **S3** B5 static contract + producer + agreement | `packages/analysis_contracts/static_detection/report.py` (`StaticDetectionReport.vsix_sha256: str = ""`); `executor/static_host.py` (additive `--vsix-sha256` flag); `static_runtime/entrypoint.py` (parser + thread); `static_runtime/static_runner.py` (`run_static_detection_engine(vsix_sha256=...)` stamp); ADR `0016` additive-flag amendment; generated TS DTO; orchestrator agreement-assertion in `analysis_execution.py` | static report carries the same hash; static container invocation contract gains one additive optional flag (boundary change → ADR 0016); orchestrator asserts dynamic == static == intake; `make ui-types-check` |
 | **S4** B5 DB persistence | `appcore/storage/model_defs/analysis_job.py` (nullable `vsix_sha256` after `last_heartbeat_at`); `appcore/contracts/schema_defs/analysis_jobs.py` (create-snapshot field); `appcore/storage/crud_ops/analysis_jobs/lifecycle.py` (`create_analysis_job` CRUD facade, `**snapshot.model_dump()`); `workflows/marketplace/job_service.py` (`reserve_job` threads the S1 hash into the snapshot) + `router.py` (`start_analysis_job` passes it); new alembic revision (additive-nullable, head off the current head) | **GATED — migration shown before run.** the row carries the analyzed-bytes hash at creation; two byte-different VSIX → two distinct `vsix_sha256` rows; `alembic-upgrade extrace` (5432) then `make check-all` (dev-DB gotcha) |
 | **S5** B6 run_quality partition | `executor/flows/playwright/health/summary.py` (`_REASON_LABELS`, `build_run_quality`, discriminator) | `run_quality_reasons` partitioned behavioral vs harness-health; `residual_variance` is a labeled band; the partition is a pure function of stable inputs |
-| **S6** B6 finalization determinism | `executor/flows/playwright/attribution/events.py` (deterministic stable tie-break); `executor/flows/playwright/monitor/runtime_state.py` (bounded wait-on-condition replaces the fixed 2.0s grace) | identical-input N-run determinism; no competitor tie-break or grace-timing flip perturbs the partition |
+| **S6** B6 finalization determinism (refined by the 2026-06-26 verification workflow) | `monitor/types.py` + `monitor/runtime_state.py` (freeze `log_capture_health_snapshot` once at end of `stop()`; property falls back to live read) — the **primary** anchor-flicker + intra-finalize inconsistency fix; `monitor/runtime_state.py` (bounded poll on the target-activation-flushed predicate replaces the fixed 2.0s grace); `health/summary.py` (narrow `_RESIDUAL_VARIANCE_REASON_CODES` to the 4 reachable codes + reachability guard) | identical-input N-run determinism; the frozen snapshot makes all run_quality reads agree; the grace early-exits on a real signal; the band matches reachability. **Attribution tie-break deferred** (see followup below) |
 | **S7** tests + verification | `tests/executor/`, `tests/contracts/`, `tests/storage/`, lifecycle harness | N-run determinism test on the reference target; byte-different-VSIX-not-conflated provenance test; static/dynamic agreement test; B2 lifecycle-harness test (ride-along RA2); `make test-security` includes any new security test |
 
 ## Pre-close checklist (resolve/waive before close-out)
@@ -115,6 +115,21 @@ adds the missing harness assertion.)
 | **RA2** | B2 lifecycle-harness test (the missing test for the landed B2 fix) | lifecycle harness under `tests/executor/` | land this stream → formally closes B2 |
 | **RA3a** | `[CLEANUP pragma-ratchet-docstring]` — docstring says 6/3-files, enforced 7/4-files | `tests/architecture/test_bare_binary_pragma_ratchet.py:20-33` | trivial doc fix |
 | **RA3b** | `[CLEANUP event-attempt-validate-assignment]` — `EventAttemptRecord` lacks `validate_assignment` | `packages/analysis_contracts/contracts.py:~223` | hardening hygiene |
+
+### Deferred (recorded, not done this stream)
+
+- **`[FOLLOWUP attribution-tiebreak-determinism]`** — `_nearest_activation_matches`
+  (`attribution/events.py:88-93`) breaks equal-delta ties by iteration order
+  (strict `<`). The 2026-06-26 verification workflow confirmed this is real
+  non-determinism but **does not affect run_quality** (status is delta-driven;
+  the tied candidates share a delta, so `target_attributed` / `competing_candidate`
+  is invariant — only `related_activation_event` / `related_extension_id` flip).
+  Their sole consumer is `packages/analysis_engine/signals/policy.py`
+  `correlated_groups` keying — the **B5 signal/verdict** path. A stable total-order
+  sort there WILL change correlated grouping on previously-flickering
+  overlapping-activation fixtures and **can shift a verdict**, so it must land as a
+  B5 fix coordinated with the signal owner (re-run the signal-engine golden /
+  verdict fixtures), NOT bundled into B6. Logged for `POST_POC_BACKLOG.md`.
 
 ## Regression surface
 
