@@ -1,10 +1,10 @@
 # Post-PoC Backlog
 
-`Last Updated: 2026-06-23`
+`Last Updated: 2026-07-27`
 
 `Last merged weekly: W22 — closed synthetically on the week22 branch, merged to main via PR #31 week22 -> main 2026-05-28 via 1399f82.`
 
-`Active stream: verdict-provenance-reproducibility (Stream 3 — B5 verdict-bound-to-bytes + B6 verdict-reproducibility; the spine; week label W26) — opened on week26 (off main 27dc7f1, 2026-06-25). Closes B5+B6; ADR 0017 (Proposed) records the design, ADR 0016 gets an additive --vsix-sha256 flag. Prior stream operator-console-honesty (UI-only console-honesty) merged to main via PR #36 (week24 -> main, 1e3fba6) on 2026-06-23. Tracker: documents/active-work/W26-verdict-provenance-reproducibility.md.`
+`Latest merged named stream: verdict-provenance-reproducibility (Stream 3 — B5+B6; week label W26) — merged to main via PR #38 (week26 -> main, bfb2d2d) on 2026-07-27. ADR 0017 is Accepted + Implemented; no successor stream is open. Next execution gate: containment safety from documents/active-work/v1-roadmap.md §4. Tracker: documents/active-work/W26-verdict-provenance-reproducibility.md.`
 
 `Sources of truth: documents/REFACTOR_STATUS.md (state) · documents/POST_POC_BACKLOG.md (deferred) · documents/REFACTOR_OPTIMIZATION.md §20 (last weekly plan) · documents/phase.json (weekly pointer + active stream).`
 
@@ -1148,7 +1148,7 @@ Stable IDs below map to the roadmap streams (see `v1-roadmap.md` §7).
 
 - **Stream 1 — reliability-self-defense (merged to main via PR #35 `653d807`):** `[BUG report-builder-unbounded-pem-redact]` ✅ S1 `729d0d3`, `[BUG wedged-job-no-same-boot-recovery]` ✅ S2 `2026-06-12` (migration `c3f8a1d7e9b2` nullable `last_heartbeat_at`; same-boot heartbeat + stale-running reaper + terminal-write guard; `744b3e1`/`eb79f79`), `[FOLLOWUP offline-vsix-size-bound]` ✅ S3/F-2 `e3a8af6`, `[BUG import-graph-relative-import-gate-gap]` ✅ S3/F-3 `818c6be`, `[BUG verdict-color-inconclusive-renders-clean]` ✅ S4 (canonical v3 verdict palette; INCONCLUSIVE → neutral STOP), `[FOLLOWUP exthost-logparse-redos-bounds-sweep]` ✅ S5 (audit: family line-anchored/linear; one unanchored greedy-prefix pattern bounded `{1,256}` + 16 KiB per-line cap).
 - **Stream 2 — reliability-multi-analyze:** `[FOLLOWUP sandbox-reset-stale-state-multi-analyze]` (existing; do not duplicate).
-- **Stream 3 — verdict-provenance-reproducibility:** `[GOAL vsix-content-sha256-provenance]`, `[GOAL verdict-reproducibility-anchor]`; `[FOLLOWUP attribution-tiebreak-determinism]` (equal-delta attribution iteration order can change the B5 signal/correlation grouping; coordinate with the signal owner and rerun golden/verdict fixtures).
+- **Stream 3 — verdict-provenance-reproducibility (merged via PR #38 `bfb2d2d`):** `[GOAL vsix-content-sha256-provenance]` ✅, `[GOAL verdict-reproducibility-anchor]` ✅; `[FOLLOWUP attribution-tiebreak-determinism]` remains open (equal-delta attribution iteration order can change the B5 signal/correlation grouping; coordinate with the signal owner and rerun golden/verdict fixtures).
 - **Stream 4 — operator-report-export:** `[GOAL report-export-artifact]`, `[FOLLOWUP vsix-entry-log-sanitization]` (existing; do not duplicate), offline skip-reason UX.
 - **Stream 5 — release-identity-ops:** `[CLEANUP version-identity-coherence]`, `[GOAL api-health-db-probe]`, `[GOAL podman-backup-restore]` (live-on-Fedora acceptance deferred via `[FOLLOWUP fedora-host-live-validation]` below — code still lands on dev/CI).
 - **Stream 6 — measured-catch-rate:** `[GOAL measured-catch-rate-corpus]`, `[GOAL benign-false-positive-gate]`, `[GOAL platform-blind-verdict-annotation]`, `[GOAL adr-0015-e1-e2-evasion-detection]`, `[GOAL measured-layer-contribution]`, `[GOAL static-primary-threat-directed-dynamic]`.

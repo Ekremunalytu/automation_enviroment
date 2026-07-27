@@ -1,10 +1,10 @@
 # Active Work
 
-`Last Updated: 2026-06-15`
+`Last Updated: 2026-07-27`
 
 `Last merged weekly: W22 — closed synthetically on the week22 branch, merged to main via PR #31 week22 -> main 2026-05-28 via 1399f82.`
 
-`Active stream: operator-console-honesty (UI-only console-honesty stream, sequenced ahead of Stream 2 per 2026-06-15 direction) — opened on week24 (off main 8250db0); makes decorative/dead Settings + System controls honest (no backend/DB/detection/executor). Prior stream reliability-self-defense merged to main via PR #35 (week23 -> main, 653d807). Tracker: documents/active-work/W24-operator-console-honesty.md.`
+`Latest merged named stream: verdict-provenance-reproducibility (Stream 3 — B5+B6; week label W26) — merged to main via PR #38 (week26 -> main, bfb2d2d) on 2026-07-27. No successor stream is open; next execution gate is containment safety. Tracker: documents/active-work/W26-verdict-provenance-reproducibility.md.`
 
 `Sources of truth: documents/REFACTOR_STATUS.md (state) · documents/POST_POC_BACKLOG.md (deferred) · documents/REFACTOR_OPTIMIZATION.md §20 (last weekly plan) · documents/phase.json (weekly pointer + active stream).`
 

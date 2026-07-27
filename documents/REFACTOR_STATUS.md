@@ -1,6 +1,6 @@
 # Refactor Status
 
-`Last Updated: 2026-06-23 — W22 closed synthetically on week22 and merged to main via PR #31 week22 -> main 1399f82. W21 closed and merged via PR #30 week21 -> main 2026-05-28 via 5dc18aa. Prior close-outs: W20 PR #29 week20 -> main 64a3c3d · W19 PR #28 week19 -> main c879603 · W18 PR #26 week18 -> main 9874e79 · W17 PR #25 week17 -> main bff565d · W16 PR #23 week16 -> main 1b6d43f · W15 PR #22 week15 -> main 6161472 · W14 PR #21 week14 -> main 4e03c8d · W13 PR #20 week13 -> main 772deb3. Active stream: verdict-provenance-reproducibility (Stream 3 — B5+B6 spine; week label W26) opened on week26 off main 27dc7f1 2026-06-25; prior stream operator-console-honesty (UI-only console-honesty) merged via PR #36 week24 -> main 1e3fba6 on 2026-06-23; tracker active-work/W26-verdict-provenance-reproducibility.md.`
+`Last Updated: 2026-07-27 — W22 closed synthetically on week22 and merged to main via PR #31 week22 -> main 1399f82. W21 closed and merged via PR #30 week21 -> main 2026-05-28 via 5dc18aa. Prior close-outs: W20 PR #29 week20 -> main 64a3c3d · W19 PR #28 week19 -> main c879603 · W18 PR #26 week18 -> main 9874e79 · W17 PR #25 week17 -> main bff565d · W16 PR #23 week16 -> main 1b6d43f · W15 PR #22 week15 -> main 6161472 · W14 PR #21 week14 -> main 4e03c8d · W13 PR #20 week13 -> main 772deb3. Latest merged named stream: verdict-provenance-reproducibility (Stream 3 — B5+B6 spine; week label W26), merged via PR #38 week26 -> main bfb2d2d on 2026-07-27. ADR 0017 is Accepted + Implemented; no successor stream is open. Next execution gate: containment safety from active-work/v1-roadmap.md §4. Tracker: active-work/W26-verdict-provenance-reproducibility.md.`
 
 Active status board for current closure state. **Slim canonical** — verbose
 phase evidence is frozen under dated snapshots:
@@ -118,6 +118,13 @@ the same convention the static stream followed.
   early-give-up** for non-responsive targets (`stimulus/passes.py`).
   Live-verified (copilot-chat re-run: 160s, no zombie). Tracker:
   [`active-work/reliability-analyze-resilience.md`](active-work/reliability-analyze-resilience.md).
+- **`verdict-provenance-reproducibility` (Stream 3 / W26) — merged via PR #38
+  (`bfb2d2d`) on `2026-07-27`.** B5 binds DB, static report, and dynamic report
+  to the analyzed VSIX SHA-256; B6 freezes capture health before verdict
+  derivation and partitions run-quality reasons. Final gates: `make check-all`
+  2726 passed, 11 skipped, 13 deselected; `make test-security` 326 passed.
+  Tracker:
+  [`active-work/W26-verdict-provenance-reproducibility.md`](active-work/W26-verdict-provenance-reproducibility.md).
 
 ## W13 Status Summary
 

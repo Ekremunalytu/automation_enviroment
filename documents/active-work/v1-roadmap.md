@@ -4,11 +4,11 @@
 
 `Last merged weekly: W22 — closed synthetically on the week22 branch, merged to main via PR #31 week22 -> main 2026-05-28 via 1399f82.`
 
-`Active stream: verdict-provenance-reproducibility (Stream 3 — B5 + B6, the spine) — close-out ready on week26 (off main 27dc7f1): implementation, branch-review remediation, make check-all, and make test-security are green; merge is still pending. It binds the verdict to vsix_sha256 and makes run_quality reproducible (ADR 0017 Proposed until merge; ADR 0016 additive --vsix-sha256 flag). Prior stream operator-console-honesty (UI-only console-honesty) merged to main via PR #36 (week24 -> main, 1e3fba6) on 2026-06-23. Tracker: documents/active-work/W26-verdict-provenance-reproducibility.md.`
+`Latest merged named stream: verdict-provenance-reproducibility (Stream 3 — B5+B6, the spine) — merged to main via PR #38 (week26 -> main, bfb2d2d) on 2026-07-27. It binds the verdict to vsix_sha256 and makes run_quality reproducible (ADR 0017 Accepted + Implemented; ADR 0016 additive --vsix-sha256 flag accepted). No successor stream is open. Tracker: documents/active-work/W26-verdict-provenance-reproducibility.md.`
 
 `Sources of truth: documents/REFACTOR_STATUS.md (state) · documents/POST_POC_BACKLOG.md (deferred) · documents/REFACTOR_OPTIMIZATION.md §20 (last weekly plan) · documents/phase.json (weekly pointer + active stream).`
 
-`Phase: Stream 1 (reliability-self-defense) MERGED to main via PR #35 (week23 -> main, 653d807) 2026-06-12. operator-console-honesty MERGED via PR #36 (week24 -> main, 1e3fba6) 2026-06-23. Stream 2 (reliability-multi-analyze / B2) landed direct-to-main as reliability hardening (4437d1e + A/B fixes). Stream 3 (verdict-provenance-reproducibility, B5+B6, the spine) is CLOSE-OUT READY on week26: all required gates passed 2026-07-27; PR/merge remains. The 2026-07-27 strategy revision preserves frozen stream numbers as cross-reference IDs but supersedes their execution order: containment and measured detection now precede export/release operations.`
+`Phase: Stream 1 (reliability-self-defense) MERGED to main via PR #35 (week23 -> main, 653d807) 2026-06-12. operator-console-honesty MERGED via PR #36 (week24 -> main, 1e3fba6) 2026-06-23. Stream 2 (reliability-multi-analyze / B2) landed direct-to-main as reliability hardening (4437d1e + A/B fixes). Stream 3 (verdict-provenance-reproducibility, B5+B6, the spine) MERGED via PR #38 (week26 -> main, bfb2d2d) 2026-07-27. The 2026-07-27 strategy revision preserves frozen stream numbers as cross-reference IDs but supersedes their execution order: containment and measured detection now precede export/release operations.`
 
 `Owner: ekrem`
 
@@ -148,6 +148,37 @@ not churn. This section controls execution order. Product positioning is
 deliberately bounded: ExTrace does not prove an extension is clean; it combines
 static risk signals with behavior observed under controlled conditions into an
 evidence-backed risk assessment.
+
+### Live validation evidence — ESLint 3.0.34 (2026-07-27)
+
+A post-merge appliance scan of `dbaeumer.vscode-eslint` `3.0.34` completed in
+213 seconds without a job error. The staged VSIX, DB row, static report, and
+dynamic report agreed on SHA-256
+`ca708f1739dee184b858d8d04a61a4cbe7b621a13748bc63e859232b22cf700b`,
+confirming the B5 provenance spine on a real marketplace flow.
+
+The run also validates the revised roadmap order:
+
+- **Static precision is not yet product-grade.** The gate warned on 7 medium
+  findings across 5 rule families. Capability signals for `postinstall`,
+  `child_process`, and raw networking merit review, but `s3` classified three
+  PNG assets as native binaries and `s5` treated documentation/license HTTP
+  links as suspicious endpoints. Measurement must separate true capability
+  risk from source-context false positives.
+- **Dynamic silence was not a clean bill of health.** The target activated and
+  7 event attempts verified, with no target-owned network, file, or process
+  event and no dynamic rule firing. However, `run_quality=low`,
+  `automation_health=degraded`, and all 5 requested scenarios were skipped
+  (2 represented through layered attempts; 3 had no matching attempt).
+- **Honest aggregate:** `signal_summary=needs_review` with score 14. The
+  layer-local dynamic `clean` verdict must never override low-quality execution
+  or the static `warn` gate in operator-facing product language. The correct
+  statement is “no malicious behavior observed under these conditions;
+  review required,” not “extension proven clean.”
+
+The JSON artifacts remain local under `output/` and are intentionally not
+committed; this section records only the bounded, non-sensitive evidence needed
+to drive containment, measurement, and static/dynamic aggregation work.
 
 ## 5. First Stream In Detail — `reliability-self-defense`
 

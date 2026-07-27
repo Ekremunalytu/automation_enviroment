@@ -1,10 +1,10 @@
 # AGENTS.md
 
-`Last Updated: 2026-06-23`
+`Last Updated: 2026-07-27`
 
 `Last merged weekly: W22 — closed synthetically on the week22 branch, merged to main via PR #31 week22 -> main 2026-05-28 via 1399f82.`
 
-`Active stream: verdict-provenance-reproducibility (Stream 3 — B5 verdict-bound-to-bytes + B6 verdict-reproducibility; the spine; week label W26) — opened on week26 (off main 27dc7f1, 2026-06-25). Closes B5+B6; ADR 0017 (Proposed) records the design, ADR 0016 gets an additive --vsix-sha256 flag. Prior stream operator-console-honesty (UI-only console-honesty) merged to main via PR #36 (week24 -> main, 1e3fba6) on 2026-06-23. Tracker: documents/active-work/W26-verdict-provenance-reproducibility.md.`
+`Latest merged named stream: verdict-provenance-reproducibility (Stream 3 — B5+B6; week label W26) — merged to main via PR #38 (week26 -> main, bfb2d2d) on 2026-07-27. ADR 0017 is Accepted + Implemented; no successor stream is open. Next execution gate: containment safety from documents/active-work/v1-roadmap.md §4. Tracker: documents/active-work/W26-verdict-provenance-reproducibility.md.`
 
 `Sources of truth: documents/REFACTOR_STATUS.md (state) · documents/POST_POC_BACKLOG.md (deferred) · documents/REFACTOR_OPTIMIZATION.md §20 (last weekly plan) · documents/phase.json (weekly pointer + active stream).`
 
@@ -32,11 +32,12 @@
   `documents/active-work/W22-coverage-promotion-hard-tier.md`. Plan:
   `documents/REFACTOR_OPTIMIZATION.md §20`.
 - **Post-W22 named streams** do not advance the weekly pointer. Static
-  Analysis Pre-Check is closed/merged via PR #33; `extension-trigger-matrix`
-  is merged; `security-development` merged via PR #34; and
-  `reliability-self-defense` merged via PR #35. The latest merged named stream
-  is `reliability-self-defense`, tracked by
-  `documents/active-work/W23-reliability-self-defense.md`.
+  Analysis Pre-Check merged via PR #33; `extension-trigger-matrix` merged;
+  `security-development` merged via PR #34; `reliability-self-defense` merged
+  via PR #35; `operator-console-honesty` merged via PR #36; and
+  `verdict-provenance-reproducibility` merged via PR #38 (`bfb2d2d`). The
+  latest tracker is
+  `documents/active-work/W26-verdict-provenance-reproducibility.md`.
 - ADRs live in `documents/adrs/`. ADR 0007 local-network-binding is
   Accepted and implemented (loopback defaults + `EXTRACE_ALLOW_LAN`
   pinned by `test_default_bindings.py`).

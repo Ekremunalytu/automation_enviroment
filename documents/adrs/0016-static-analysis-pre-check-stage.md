@@ -215,8 +215,8 @@ agreement). The flag is **additive and optional** (`required=False`,
 `default=""`, appended to the argv only when non-empty), so the frozen 4-flag
 surface stays callable and every prior caller / fixture / test is unchanged. No
 new container capability, network, or boundary import is introduced. Design +
-rationale: ADR 0017. Status of this amendment tracks ADR 0017 (Proposed until the
-Stream 3 close-out).
+rationale: ADR 0017. The amendment is Accepted + Implemented with ADR 0017 after
+Stream 3 merged via PR #38 (`bfb2d2d`) on 2026-07-27.
 
 ## References
 

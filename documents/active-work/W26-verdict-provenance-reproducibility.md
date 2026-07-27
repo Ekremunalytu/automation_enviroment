@@ -2,7 +2,7 @@
 
 `Last Updated: 2026-07-27`
 
-`Status: CLOSE-OUT READY on week26 (off main 27dc7f1). Implementation COMPLETE + branch-review-remediated. S0-S7 + all ride-alongs landed (5a2227d..8fa52ce); a 2026-06-26 adversarial multi-agent branch review then surfaced 8 verified findings, all resolved (e3a1054, 8dd6da3, e9e5ef1 — see "Branch-review remediation" below). B5 (S1-S4: vsix_sha256 spine + DB; sync /marketplace/analyze surface bound too per review B5-2) + B6 (S5-S6: partition + finalization determinism) closed. The one BLOCKING review finding (B6-1) was the freeze landing one step too late — signal_summary (the persisted verdict) baked from the pre-freeze live-FS read; fixed by freezing log_capture_health_snapshot BEFORE _refresh_derived_state() with a stop()-level regression guard. RA1 (redaction completeness, +2 sibling sinks RA1-3/RA1-4) + RA2 (B2 lifecycle test) + RA3a/RA3b done; B2 acceptance formally closed via RA2. ADR 0017 remains Proposed until merge; ADR 0016 has the additive --vsix-sha256 amendment. Final gates passed 2026-07-27: make check-all (2726 passed, 11 skipped, 13 deselected) and make test-security (326 passed). Awaiting only PR review/merge.`
+`Status: MERGED to main via PR #38 (week26 -> main, bfb2d2d) on 2026-07-27. Implementation COMPLETE + branch-review-remediated. S0-S7 + all ride-alongs landed (5a2227d..8fa52ce); a 2026-06-26 adversarial multi-agent branch review then surfaced 8 verified findings, all resolved (e3a1054, 8dd6da3, e9e5ef1 — see "Branch-review remediation" below). B5 (S1-S4: vsix_sha256 spine + DB; sync /marketplace/analyze surface bound too per review B5-2) + B6 (S5-S6: partition + finalization determinism) closed. The one BLOCKING review finding (B6-1) was the freeze landing one step too late — signal_summary (the persisted verdict) baked from the pre-freeze live-FS read; fixed by freezing log_capture_health_snapshot BEFORE _refresh_derived_state() with a stop()-level regression guard. RA1 (redaction completeness, +2 sibling sinks RA1-3/RA1-4) + RA2 (B2 lifecycle test) + RA3a/RA3b done; B2 acceptance formally closed via RA2. ADR 0017 is Accepted + Implemented; ADR 0016 carries the accepted additive --vsix-sha256 amendment. Final gates passed 2026-07-27: make check-all (2726 passed, 11 skipped, 13 deselected) and make test-security (326 passed).`
 
 Stream 3 of the v1.0 roadmap (`documents/active-work/v1-roadmap.md` §4). The
 **spine**: four downstream streams (B7/B8 measurement, export, release-identity,
@@ -177,7 +177,8 @@ close-out — the user approved comprehensive (fix-all) scope (2026-06-26).
   runnable demo, and safety README are consumed by security, activation,
   end-to-end canary, and fixture-hygiene tests; no fixture deletion belongs in
   the close-out PR.
-- Merge state — not yet merged. ADR 0017 stays Proposed until the PR lands.
+- Merge state — PR #38 merged to main as `bfb2d2d`; ADR 0017 is Accepted +
+  Implemented.
 
 ## Regression surface
 

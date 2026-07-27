@@ -1,10 +1,9 @@
 # ADR 0017 — Verdict Provenance & Reproducibility
 
-- Status: **Proposed** (2026-06-25). Authored at Stream 3 (`verdict-provenance-
-  reproducibility`) H0. Stays `Proposed` until the stream's S2–S6 implementation
-  + N-run determinism evidence land; flips to `Accepted + Implemented` at
-  close-out.
-- Date: 2026-06-25 (Proposed)
+- Status: **Accepted + Implemented** (2026-07-27). Stream 3
+  (`verdict-provenance-reproducibility`) merged to main via PR #38
+  (`bfb2d2d`) after S2-S6, provenance, and determinism gates passed.
+- Date: 2026-06-25 (Proposed); 2026-07-27 (Accepted + Implemented)
 - Authors: ekrem + Claude
 - Driving stream: `verdict-provenance-reproducibility` (v1.0 Stream 3, the
   spine) — closes bars B5 + B6.
@@ -166,10 +165,10 @@ stop the **anchor** flicker:
   — guarded by an N-run determinism test on the reference target and an
   `attribution_summary` regression check.
 
-## Status flip criteria
+## Acceptance evidence
 
-Flip to `Accepted + Implemented` at stream close-out when: both report contracts
-carry `vsix_sha256`; the orchestrator agreement-assertion is live; the
-`AnalysisJob` column + migration land; the `run_quality` partition + finalization
-determinism ship; and the N-run determinism + byte-different-not-conflated tests
-are green.
+Both report contracts carry `vsix_sha256`; the orchestrator agreement check is
+live; the `AnalysisJob` column + migration landed; the `run_quality` partition
+and deterministic finalization shipped; and the N-run determinism +
+byte-different-not-conflated tests passed. Stream close-out merged through pull
+request #38 (`bfb2d2d`) on 2026-07-27.
