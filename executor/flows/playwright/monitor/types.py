@@ -18,6 +18,7 @@ from ..health import (
     build_automation_health,
     build_log_health,
     build_run_quality,
+    build_run_quality_partition,
     count_target_activations,
     is_background_activation,
 )
@@ -133,7 +134,19 @@ class ActivationReport:
     harness_handshake_required: bool = field(default=False, repr=False)
     log_file_path: str = ""
     log_offsets_snapshot: dict[str, int] = field(default_factory=dict, repr=False)
+    # W26 / Stream 3 (B6): finalization freezes the exthost-log-capture health
+    # view here so all run_quality / automation_health / log_health reads return
+    # one consistent snapshot (no live re-stat per access, which flickered
+    # ``extension_host_log_missing``). ``None`` = unfrozen (fixture / pre-stop
+    # paths fall back to a live read). In-memory only; never serialized.
+    log_capture_health_snapshot: dict[str, Any] | None = field(default=None, repr=False)
     target_extension_id: str = ""
+    # W26 / Stream 3 (B5): SHA-256 of the analyzed .vsix archive, set from the
+    # ``--vsix-sha256`` entrypoint arg in ``setup_monitor`` and stamped into the
+    # report at the ``build_report_data`` emit boundary (sibling to
+    # ``executor_fingerprint``). Default-empty for fixtures built without
+    # ``setup_monitor``.
+    vsix_sha256: str = ""
     monitoring_start: float = 0.0
     monitoring_end: float = 0.0
     monitoring_started_monotonic: float = field(default=0.0, repr=False)
@@ -263,6 +276,11 @@ class ActivationReport:
         return reasons
 
     @property
+    def run_quality_reason_partition(self) -> dict[str, list[str]]:
+        # W26 / Stream 3 (B6): behavioral / harness_health / residual_variance.
+        return build_run_quality_partition(self, self.automation_health)
+
+    @property
     def supported_heuristic_attempted_capabilities(self) -> list[str]:
         return _filter_supported_capabilities(
             self.heuristic_attempted_capabilities,
@@ -287,6 +305,11 @@ class ActivationReport:
 
     @property
     def _log_capture_health(self) -> dict[str, Any]:
+        # W26 / Stream 3 (B6): prefer the finalization-frozen snapshot so all
+        # downstream reads (automation_health / run_quality / log_health) agree;
+        # fall back to a live read when unfrozen (fixture / pre-stop paths).
+        if self.log_capture_health_snapshot is not None:
+            return self.log_capture_health_snapshot
         log_paths = resolve_monitor_api().find_exthost_logs()
         return summarize_extension_host_logs(self.log_offsets_snapshot, log_paths)
 

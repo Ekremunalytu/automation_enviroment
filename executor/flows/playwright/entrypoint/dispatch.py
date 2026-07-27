@@ -141,6 +141,13 @@ def setup_monitor(page, args, trigger_payload, bait_files_created, *, deps):
         report_path=args.report_path,
         target_extension_id=args.target_extension_id,
     )
+    # W26 / Stream 3 (B5): carry the analyzed .vsix SHA-256 (threaded in via
+    # ``--vsix-sha256``) on the report so ``build_report_data`` can stamp it at
+    # the emit boundary, binding the dynamic verdict to the bytes scanned.
+    # ``getattr`` default keeps setup_monitor robust for test fakes that build a
+    # minimal ``args`` (the real entrypoint always sets it via the argparse
+    # default "").
+    mon.report.vsix_sha256 = getattr(args, "vsix_sha256", "")
     # W13-1 (Codex H6): consume the per-launch HMAC secret
     # ``launch_vscode.sh`` wrote (and unlink it) before the analyzed
     # target VSIX has any chance to read /results. The value is held

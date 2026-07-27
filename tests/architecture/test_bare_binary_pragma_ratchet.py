@@ -17,7 +17,8 @@ and per-file distribution so any growth fails CI and forces an
 explicit migration to absolute paths (W8-4 spirit) or an explicit
 baseline bump in this file.
 
-Baseline as of W14-6 (`2026-05-13` on `week14`, post sub-commit 6):
+Enforced baseline (source of truth: the ``_BASELINE_PRAGMA_COUNT`` /
+``_EXPECTED_PRAGMA_DISTRIBUTION`` constants below, verified against the tree):
 
 - ``executor/flows/playwright/vscode/editor.py`` — 3 pragmas
   (xdotool invocations: window focus + key send + window list).
@@ -25,12 +26,15 @@ Baseline as of W14-6 (`2026-05-13` on `week14`, post sub-commit 6):
   (pgrep / bash invocations during sandbox reset).
 - ``executor/flows/playwright/monitor/runtime.py`` — 1 pragma
   (``ps`` invocation in runtime probe).
+- ``executor/flows/playwright/vscode/__init__.py`` — 1 pragma
+  (xdotool invocation in the vscode package init).
 
-Total: **6 pragmas**. Sub-commit 6 lowered the baseline from 7 → 6 by
-migrating ``runtime_capture/extension_host_capture.py``'s inotifywait
-site to ``executor.binary_paths.INOTIFYWAIT_PATH`` (the line-186
-pragma was removed in the same commit; ``inotify-tools`` is installed
-in the executor container at the canonical Debian path).
+Total: **7 pragmas across 4 files**. (History: W14-6 sub-commit 6 lowered the
+count from 7 → 6 by migrating ``runtime_capture/extension_host_capture.py``'s
+inotifywait site to ``executor.binary_paths.INOTIFYWAIT_PATH``; a later change
+re-introduced one xdotool pragma in ``vscode/__init__.py``, so the enforced
+baseline is again 7. The constants — not this prose — are authoritative; this
+gate fails if the tree drifts from them.)
 
 Pragma reduction is the desired direction. If a future PR migrates
 one of these sites to ``executor.binary_paths.*`` constants (or adds

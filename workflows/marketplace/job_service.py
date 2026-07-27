@@ -165,6 +165,7 @@ def create_job_snapshot(
     *,
     owner_boot_id: str | None = None,
     owner_pid: int | None = None,
+    vsix_sha256: str | None = None,
 ) -> dict[str, Any]:
     created_at = now()
     job_id = uuid4().hex
@@ -190,6 +191,8 @@ def create_job_snapshot(
         started_at=None,
         finished_at=None,
         updated_at=created_at,
+        # W26 / Stream 3 (B5): bind the row to the analyzed bytes at creation.
+        vsix_sha256=vsix_sha256,
     )
     return snapshot.model_dump(mode="python")
 
@@ -238,8 +241,11 @@ def store_job(job: dict[str, Any], db: Session | None = None) -> dict[str, Any]:
 def reserve_job(
     request: AnalyzeRequest,
     db: Session | None = None,
+    vsix_sha256: str | None = None,
 ) -> dict[str, Any]:
-    snapshot = AnalysisJobCreateSnapshot.model_validate(create_job_snapshot(request))
+    snapshot = AnalysisJobCreateSnapshot.model_validate(
+        create_job_snapshot(request, vsix_sha256=vsix_sha256)
+    )
 
     def operation(session: Session) -> dict[str, Any]:
         active_job = get_active_analysis_job(session)

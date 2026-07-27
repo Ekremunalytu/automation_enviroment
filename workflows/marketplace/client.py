@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import io
 import os
 import shutil
@@ -157,6 +158,25 @@ def get_vsix_path(publisher: str, name: str, version: str) -> Path:
     """Return the expected path for a raw .vsix file on disk."""
     slug = safe_marketplace_slug(publisher, name, version)
     return Path(settings.project.EXTENSION_DIR) / f"{slug}.vsix"
+
+
+_VSIX_HASH_CHUNK_BYTES = 65536
+
+
+def compute_vsix_sha256(vsix_path: Path) -> str:
+    """Streamed SHA-256 of a staged ``.vsix`` archive (canonical 64-char lowercase).
+
+    W26 / Stream 3 (B5 ``[GOAL vsix-content-sha256-provenance]``). Computed at
+    analyze-start over the exact bytes the run is about to scan, so the verdict
+    is bound to *those* bytes. Read in fixed chunks to bound memory — the archive
+    is already size-gated at ingest, but the provenance path must never load an
+    attacker-influenced blob whole.
+    """
+    digest = hashlib.sha256()
+    with vsix_path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(_VSIX_HASH_CHUNK_BYTES), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def _artifact_name(publisher: str, name: str, version: str) -> str:

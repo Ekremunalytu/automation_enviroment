@@ -63,8 +63,16 @@ ANALYZE_PAYLOAD = {
 
 
 def _vsix_path_exists(exists: bool = True) -> MagicMock:
+    # W26 / Stream 3 (B5, review B5-2): the sync /marketplace/analyze entry now
+    # streams ``open("rb")`` over the staged .vsix to compute ``vsix_sha256``
+    # before ``execute_analysis_request``. Back the mock's read with a fixed byte
+    # payload (then EOF) so the hash reads real bytes and the taxonomy error the
+    # test injects (not a TypeError from hashing a MagicMock) is what surfaces.
     mock_path = MagicMock(spec=Path)
     mock_path.exists.return_value = exists
+    _chunks = iter([b"mock-vsix-bytes"])
+    handle = mock_path.open.return_value.__enter__.return_value
+    handle.read.side_effect = lambda *args, **kwargs: next(_chunks, b"")
     return mock_path
 
 

@@ -107,6 +107,7 @@ def run_static_detection_engine(
     rules_version: str,
     timeout_budget_s: int,
     semgrep_enabled: bool = True,
+    vsix_sha256: str = "",
 ) -> StaticDetectionReport:
     """Run the in-house rules + Semgrep over ``vsix_dir`` and return a report.
 
@@ -140,6 +141,8 @@ def run_static_detection_engine(
         tool_executions=tool_executions,
         severity_counts=_rollup_severity(findings),
         partial=partial,
+        # W26 / Stream 3 (B5): bind the static report to the analyzed bytes.
+        vsix_sha256=vsix_sha256,
     )
 
 

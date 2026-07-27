@@ -342,6 +342,11 @@ def build_report_data(
         "heuristic_verification_gap": getattr(report, "heuristic_verification_gap", 0),
         "run_quality": run_quality,
         "run_quality_reasons": _run_quality_reasons(report),
+        # W26 / Stream 3 (B6): behavioral vs harness-health (+ residual_variance)
+        # split of the run-quality reason codes.
+        "run_quality_reason_partition": dict(
+            getattr(report, "run_quality_reason_partition", {}) or {}
+        ),
         "automation_health": automation_health,
         "log_health": log_health,
         "attribution_summary": attribution_summary,
@@ -425,6 +430,10 @@ def build_report_data(
         # first resolve; subsequent writes during the same process
         # lifetime return the cached dict without re-running `git`.
         "executor_fingerprint": executor_fingerprint(),
+        # W26 / Stream 3 (B5): the analyzed .vsix SHA-256 threaded in via
+        # ``--vsix-sha256`` and carried on the in-memory report. Stamped here so
+        # the dynamic report on disk is bound to the exact bytes scanned.
+        "vsix_sha256": getattr(report, "vsix_sha256", ""),
     }
 
 

@@ -39,6 +39,8 @@ import time
 from collections.abc import Callable
 from typing import Any
 
+from packages.analysis_contracts.evidence import redact_secrets
+
 from ..attribution import (
     format_epoch_timestamp,
     relative_time,
@@ -363,7 +365,7 @@ class ScenarioAccountant:
                 rel_time_s=relative_time(now, self._report.monitoring_start),
                 stream="automation",
                 kind="scenario",
-                message=message,
+                message=redact_secrets(message),
                 scenario_name=name,
                 status=status or ("running" if action == "start" else "completed"),
             )
@@ -571,9 +573,9 @@ class ScenarioAccountant:
                     if is_target
                     else "other_extension_host",
                     kind="activation",
-                    message=message,
+                    message=redact_secrets(message),
                     extension_id=entry.extension_id,
-                    activation_event=entry.activation_event,
+                    activation_event=redact_secrets(entry.activation_event),
                     scenario_name=scenario_name,
                     status="completed" if entry.success else "failed",
                     is_target_extension=is_target,

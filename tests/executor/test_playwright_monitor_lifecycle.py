@@ -3,7 +3,10 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import executor.flows.playwright.monitor.types as types_mod
 from executor.flows.playwright import monitor
+from executor.flows.playwright.attribution import build_signal_summary
+from executor.flows.playwright.monitor import runtime_state
 from packages.analysis_contracts import TriggerPayload
 
 
@@ -148,7 +151,17 @@ def test_extension_monitor_stop_reconciles_startup_activation_from_output(
             "'esbenp.prettier-vscode' because of 'onStartupFinished'\n"
         ),
     )
-    monkeypatch.setattr(monitor.time, "sleep", lambda seconds: waited.append(seconds))
+    # W26 / Stream 3 (B6): the grace is now a bounded poll (monotonic deadline +
+    # sleep), so advance a fake monotonic clock on each poll sleep instead of
+    # leaving sleep a no-op against the real clock (which would spin).
+    clock = {"t": 1000.0}
+
+    def _fake_sleep(seconds: float) -> None:
+        waited.append(seconds)
+        clock["t"] += seconds
+
+    monkeypatch.setattr(monitor.time, "sleep", _fake_sleep)
+    monkeypatch.setattr(monitor.time, "monotonic", lambda: clock["t"])
     monkeypatch.setattr(
         monitor,
         "NetworkCapture",
@@ -197,7 +210,11 @@ def test_extension_monitor_stop_reconciles_startup_activation_from_output(
 
     report = mon.stop()
 
-    assert waited == [2.0]
+    # W26 / Stream 3 (B6): the activation arrives via OUTPUT (not the exthost
+    # log), so the bounded grace poll never early-exits and runs to its 2.0s
+    # deadline in 0.1s steps — a strict superset of the old fixed 2.0s wait.
+    assert waited and set(waited) == {0.1}
+    assert abs(sum(waited) - 2.0) < 1e-6
     assert [entry.extension_id for entry in report.activated] == [
         "esbenp.prettier-vscode"
     ]
@@ -206,6 +223,98 @@ def test_extension_monitor_stop_reconciles_startup_activation_from_output(
     assert "target_extension_not_observed" not in report.automation_health["reasons"]
     assert "target_activation_missing" not in report.automation_health["reasons"]
     assert report.run_quality != "inconclusive"
+
+
+def test_stop_binds_signal_summary_verdict_to_frozen_snapshot(monkeypatch) -> None:
+    """W26 / Stream 3 (B6, 2026-06-26): the persisted verdict reads the frozen view.
+
+    Regression guard for the freeze-ordering bug the branch-review workflow found.
+    ``signal_summary`` (the operator-facing verdict) is computed inside
+    ``_refresh_derived_state`` from ``automation_health`` + ``run_quality``, both of
+    which funnel through ``_log_capture_health``. If the log-capture snapshot is
+    frozen AFTER refresh, the verdict is baked from a live FS re-``stat()`` (which
+    flickers run-to-run) while the top-level ``run_quality`` reads the frozen
+    snapshot — so the verdict is non-reproducible and can contradict the top-level
+    quality within one report. Freezing BEFORE refresh binds the verdict to the
+    same frozen snapshot. We make the freeze value disagree with a live read and
+    assert the stored verdict equals the verdict recomputed from the frozen report
+    (and that a live snapshot would NOT produce that verdict, so the guard has
+    teeth and fails if the freeze is moved back after ``_refresh_derived_state``).
+    """
+
+    class DummyPage:
+        pass
+
+    frozen = {"extension_host_log_found": True, "extension_host_log_present": True}
+    live = {"extension_host_log_found": False, "extension_host_log_present": False}
+
+    monkeypatch.setattr(monitor, "_snapshot_log_offsets", lambda: {})
+    monkeypatch.setattr(
+        monitor, "parse_all_exthost_logs", lambda start_offsets=None: []
+    )
+    monkeypatch.setattr(monitor, "find_exthost_logs", lambda: [])
+    monkeypatch.setattr(monitor, "get_running_extensions", lambda page: [])
+    monkeypatch.setattr(monitor, "read_extension_host_output", lambda page=None: "")
+    # The freeze (runtime_state) and the live fallback (types) read the SAME helper
+    # from ``..capture`` but via separate module references — patch them to
+    # disagree so we can tell which one the verdict was baked from.
+    monkeypatch.setattr(
+        runtime_state,
+        "summarize_extension_host_logs",
+        lambda offsets, paths: dict(frozen),
+    )
+    monkeypatch.setattr(
+        types_mod, "summarize_extension_host_logs", lambda offsets, paths: dict(live)
+    )
+    # Bounded grace poll → advance a fake monotonic clock so it never spins.
+    clock = {"t": 1000.0}
+
+    def _fake_sleep(seconds: float) -> None:
+        clock["t"] += seconds
+
+    monkeypatch.setattr(monitor.time, "sleep", _fake_sleep)
+    monkeypatch.setattr(monitor.time, "monotonic", lambda: clock["t"])
+    monkeypatch.setattr(
+        monitor,
+        "NetworkCapture",
+        lambda monitoring_start, on_event=None: _FakeNetworkCapture(
+            monitoring_start, on_event, []
+        ),
+    )
+    monkeypatch.setattr(
+        monitor,
+        "FileSystemCapture",
+        lambda monitoring_start, on_event=None: _FakeFileCapture(
+            monitoring_start, on_event, []
+        ),
+    )
+    monkeypatch.setattr(
+        monitor,
+        "ExtensionHostFileCapture",
+        lambda monitoring_start, on_event=None: _FakeFileCapture(
+            monitoring_start, on_event, []
+        ),
+    )
+
+    # Target never appears -> not observed -> signal_summary embeds run_quality,
+    # so the snapshot difference propagates into the verdict.
+    mon = monitor.ExtensionMonitor(DummyPage(), target_extension_id="absent.target")
+    mon.start()
+    report = mon.stop()
+
+    assert report.log_capture_health_snapshot == frozen  # the freeze ran
+    assert report.target_extension_observed is False
+
+    stored_verdict = report.signal_summary
+    frozen_verdict = build_signal_summary(report)  # frozen snapshot is set -> uses it
+    # Teeth: a live snapshot yields a DIFFERENT verdict, so the ordering matters.
+    report.log_capture_health_snapshot = dict(live)
+    live_verdict = build_signal_summary(report)
+    report.log_capture_health_snapshot = frozen
+    assert live_verdict != frozen_verdict, "vacuous: frozen and live verdicts coincide"
+    # The invariant: the persisted verdict is bound to the FROZEN snapshot the
+    # top-level run_quality reads, not the pre-freeze live read.
+    assert stored_verdict == frozen_verdict
 
 
 def test_extension_monitor_persists_live_report_with_network_events(

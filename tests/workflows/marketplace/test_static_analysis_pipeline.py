@@ -41,6 +41,7 @@ class _RecordingControl:
         report_path: str,
         rules_version: str,
         timeout_budget_s: int,
+        vsix_sha256: str = "",
     ) -> str:
         self.calls.append(
             {
@@ -48,6 +49,7 @@ class _RecordingControl:
                 "report_path": report_path,
                 "rules_version": rules_version,
                 "timeout_budget_s": timeout_budget_s,
+                "vsix_sha256": vsix_sha256,
             }
         )
         return "static-stdout"
@@ -110,14 +112,18 @@ def test_run_static_analysis_forwards_exec_kwargs(tmp_path: Path) -> None:
         rules_version="9.9.9",
         timeout_budget_s=45,
         control=control,
+        vsix_sha256="a" * 64,
     )
 
+    # W26 / Stream 3 (B5): the analyzed-bytes hash is forwarded to the container
+    # invocation alongside the frozen four kwargs.
     assert control.calls == [
         {
             "vsix_dir": "/extensions-input/job",
             "report_path": "/results/static_report_job.json",
             "rules_version": "9.9.9",
             "timeout_budget_s": 45,
+            "vsix_sha256": "a" * 64,
         }
     ]
 

@@ -243,6 +243,7 @@ def _run_static_gate(
     *,
     static_report_name: str,
     cancel_check: Callable[[], bool] | None = None,
+    vsix_sha256: str = "",
 ) -> StaticAnalysisReport:
     """ES-3b static pre-check stage: run the analyzer container, then the gate.
 
@@ -264,6 +265,7 @@ def _run_static_gate(
             rules_version=settings.static_analysis.RULES_VERSION,
             timeout_budget_s=settings.static_analysis.TIMEOUT_BUDGET_S,
             control=control,
+            vsix_sha256=vsix_sha256,
         )
 
     static_report = _run_static_analysis_stage(
@@ -275,6 +277,44 @@ def _run_static_gate(
     return _apply_static_gate_decision(
         reporter, static_report, host_report_path=host_report_path
     )
+
+
+def _check_vsix_provenance_agreement(
+    *,
+    expected: str,
+    dynamic_payload: dict[str, object] | None,
+    static_report: StaticAnalysisReport | None,
+) -> None:
+    """Log an ERROR if a non-empty producer stamp disagrees with ``expected`` (B5).
+
+    W26 / Stream 3. Deliberately non-raising: a raise here would escape
+    ``run_analysis_job``'s closed error taxonomy and wedge the single-active
+    queue. Skipped when ``expected`` is empty (legacy path) or a producer left
+    its stamp empty (skip path); only a non-empty *different* stamp — an
+    unambiguous wiring defect — is flagged. The hard agreement assertion lives
+    in the S7 provenance test.
+    """
+    if not expected:
+        return
+    mismatches: list[str] = []
+    if dynamic_payload is not None:
+        dynamic_stamp = dynamic_payload.get("vsix_sha256")
+        if (
+            isinstance(dynamic_stamp, str)
+            and dynamic_stamp
+            and dynamic_stamp != expected
+        ):
+            mismatches.append(f"dynamic report stamped {dynamic_stamp!r}")
+    if static_report is not None:
+        static_stamp = static_report.detection_report.vsix_sha256
+        if static_stamp and static_stamp != expected:
+            mismatches.append(f"static report stamped {static_stamp!r}")
+    if mismatches:
+        logger.error(
+            "B5 vsix_sha256 provenance disagreement (expected %r): %s",
+            expected,
+            "; ".join(mismatches),
+        )
 
 
 def execute_analysis_request(
@@ -297,6 +337,7 @@ def execute_analysis_request(
     on_cancel_signal: Callable[[], None] | None = None,
     static_analyzer_control: StaticAnalyzerControl | None = None,
     static_report_name: str | None = None,
+    vsix_sha256: str = "",
 ) -> AnalyzeResponse:
     if executor_control is None:
         executor_control = default_executor_control
@@ -328,6 +369,7 @@ def execute_analysis_request(
                 static_report_name or f"static_report_{uuid4().hex}.json"
             ),
             cancel_check=cancel_check,
+            vsix_sha256=vsix_sha256,
         )
         _raise_if_cancelled(cancel_check)
     _reset_sandbox(reporter, executor_control, cancel_check=cancel_check)
@@ -366,6 +408,20 @@ def execute_analysis_request(
         cancel_check=cancel_check,
         on_cancel_signal=on_cancel_signal,
         harness_python_secret=harness_python_secret,
+        vsix_sha256=vsix_sha256,
+    )
+
+    # W26 / Stream 3 (B5): the dynamic + static producers each stamped the hash
+    # they were handed. Log-check (never raise — a raise here would escape the
+    # analyze worker's closed error taxonomy and wedge the single-active queue;
+    # the hard assertion lives in the S7 provenance test) that both agree with
+    # the analyze-start value, so a mis-wired thread leaves a loud ERROR in the
+    # logs rather than a silently wrong provenance claim. Only flags a non-empty
+    # producer stamp that differs from the expected hash.
+    _check_vsix_provenance_agreement(
+        expected=vsix_sha256,
+        dynamic_payload=_load_report_payload(report_name),
+        static_report=static_report,
     )
 
     return AnalyzeResponse(
@@ -459,7 +515,9 @@ def analyze_error_to_http_response(exc: Exception) -> HTTPException:
     )
 
 
-def run_analysis_job(job_id: str, request: AnalyzeRequest) -> None:
+def run_analysis_job(
+    job_id: str, request: AnalyzeRequest, vsix_sha256: str = ""
+) -> None:
     # W13-13 (CLOSE-GATE codex-second-opinion-F3) + W16-2 (AGENTS.md:57
     # facade compliance): the worker-entry seam is owned by the
     # lifecycle CRUD facade. ``claim_queued_analysis_job_at_worker_entry``
@@ -576,6 +634,7 @@ def run_analysis_job(job_id: str, request: AnalyzeRequest) -> None:
                 report_name=report_name,
                 cancel_check=cancel_check,
                 static_report_name=static_report_name,
+                vsix_sha256=vsix_sha256,
             )
         except AnalysisCancelledError:
             # W13-3 (Codex H4): worker observed the cancel signal at one of

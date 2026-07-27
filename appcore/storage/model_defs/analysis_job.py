@@ -55,6 +55,14 @@ class AnalysisJob(Base):
     # job snapshot Pydantic contracts; written via a targeted UPDATE and read
     # directly off the ORM by the reaper.
     last_heartbeat_at: Mapped[float | None] = mapped_column(Float, nullable=True)
+    # W26 / Stream 3 (B5 `[GOAL vsix-content-sha256-provenance]`): SHA-256 of the
+    # analyzed .vsix archive (canonical 64-char lowercase), computed at
+    # analyze-start and stamped on the row at creation via the create snapshot so
+    # a completed job's verdict is provably bound to the bytes scanned. Two
+    # byte-different same-version VSIX yield two distinct rows. Nullable: legacy
+    # rows predate the column, and a row created before the hash is known (none
+    # today — ``reserve_job`` receives it) leaves it NULL.
+    vsix_sha256: Mapped[str | None] = mapped_column(String, nullable=True)
 
     __table_args__ = (
         Index("ix_analysis_jobs_status", "status"),

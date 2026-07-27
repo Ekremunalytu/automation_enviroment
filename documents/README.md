@@ -1,6 +1,6 @@
 # Documents Guide
 
-`Last Updated: 2026-06-15 — W22 remains the last merged weekly close-out (PR #31 week22 -> main 1399f82). Active stream: operator-console-honesty (UI-only console-honesty, sequenced ahead of Stream 2) opened on week24; prior stream reliability-self-defense merged via PR #35 (653d807); tracker: active-work/W24-operator-console-honesty.md.`
+`Last Updated: 2026-06-25 — W22 remains the last merged weekly close-out (PR #31 week22 -> main 1399f82). Active stream: verdict-provenance-reproducibility (Stream 3 — B5+B6 spine; week label W26) opened on week26; prior stream operator-console-honesty merged via PR #36 (1e3fba6); tracker: active-work/W26-verdict-provenance-reproducibility.md.`
 
 This folder is split into a small canonical core, specialized reference docs,
 and a frozen archive. **Do not preload the entire folder.** Open subsystem

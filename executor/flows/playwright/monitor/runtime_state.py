@@ -25,6 +25,7 @@ from typing import Any
 from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import Page
 
+from ..capture import summarize_extension_host_logs
 from ..runtime_capture._shared import _log
 from ..runtime_capture.events import FileEvent, NetworkEvent, ProcessEvent
 from ..signals.output import (
@@ -45,6 +46,12 @@ PersistCallback = Callable[[bool], None]
 RecordAutomationEventCallback = Callable[..., None]
 NoArgCallback = Callable[[], None]
 SetDiscoveryStrategyOutcomesCallback = Callable[[dict[str, str]], None]
+
+# W26 / Stream 3 (B6): bounded startup-grace wait. The deadline preserves the
+# old fixed 2.0s upper bound (a never-flushing run waits no less than before);
+# the poll interval lets a flushed run early-exit deterministically.
+_STARTUP_GRACE_DEADLINE_S = 2.0
+_STARTUP_GRACE_POLL_INTERVAL_S = 0.1
 
 
 class MonitorRuntime:
@@ -229,8 +236,8 @@ class MonitorRuntime:
             self._report.file_events.extend(extension_events)
 
         if _requires_startup_grace(self._report):
-            _log("Waiting 2.0s for startup-only activation evidence to flush...")
-            api.time.sleep(2.0)
+            _log("Waiting (bounded) for the target's startup activation to flush...")
+            self._wait_for_startup_activation_flush()
 
         self._report.monitoring_end = time.time()
         self._report.monitoring_ended_monotonic = api.time.monotonic()
@@ -278,6 +285,22 @@ class MonitorRuntime:
             target_extension_id=self._report.target_extension_id,
             monitoring_start=self._report.monitoring_start,
         )
+        # W26 / Stream 3 (B6): freeze the exthost-log-capture health view BEFORE
+        # refresh_derived_state, so every derived consumer reads ONE consistent
+        # FS snapshot. The critical consumer is build_signal_summary (the
+        # persisted verdict), which refresh computes from automation_health +
+        # run_quality — both of which funnel through ``_log_capture_health``.
+        # Freezing after refresh (the pre-2026-06-26 order) left signal_summary
+        # baked from a live re-stat() of the filesystem while the top-level
+        # run_quality read the frozen snapshot, so the verdict flickered
+        # run-to-run on byte-identical input and could disagree with the
+        # top-level run_quality within one report. Safe to freeze here: nothing
+        # between the startup-flush wait and this point writes exthost.log, so
+        # the snapshot value is identical to the old post-refresh position.
+        self._report.log_capture_health_snapshot = summarize_extension_host_logs(
+            self._report.log_offsets_snapshot,
+            api.find_exthost_logs(),
+        )
         self._refresh_derived_state()
         # W11-4: surface intermediate-state promotions
         # (``activation_seen`` / ``target_log_seen``) on the live
@@ -290,6 +313,35 @@ class MonitorRuntime:
         self._persist(True)
 
         return self._report
+
+    def _wait_for_startup_activation_flush(self) -> None:
+        """Bounded wait for the target's startup activation to flush to exthost.log.
+
+        W26 / Stream 3 (B6): replaces a fixed ``api.time.sleep(2.0)`` that raced
+        the async exthost.log flush — so ``target_extension_observed`` (and the
+        run_quality reasons it drives) flipped run-to-run on byte-identical
+        input. Polls a READ-ONLY re-parse of the logs and early-exits the instant
+        the target's activation appears (deterministic when the line lands within
+        the deadline); the deadline preserves the old 2.0s upper bound so a
+        never-flushing run waits no less than before. Mirrors
+        ``_wait_for_extension_host_pid``. Read-only: the real strategy-1 parse at
+        ``_stop_exthost_log_parse`` still owns assigning ``report.activated``.
+        """
+        api = resolve_monitor_api()
+        target_id = self._report.target_extension_id
+        deadline = api.time.monotonic() + _STARTUP_GRACE_DEADLINE_S
+        while True:
+            try:
+                entries = api.parse_all_exthost_logs(start_offsets=self._log_offsets)
+            except (OSError, ValueError):
+                entries = []
+            if any(
+                getattr(entry, "extension_id", "") == target_id for entry in entries
+            ):
+                return
+            if api.time.monotonic() >= deadline:
+                return
+            api.time.sleep(_STARTUP_GRACE_POLL_INTERVAL_S)
 
     # ------------------------------------------------------------------
     # W11-6 — per-strategy stop helpers

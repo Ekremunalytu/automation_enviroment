@@ -30,10 +30,19 @@ ANALYZE_PAYLOAD = {
 
 
 def _vsix_path_exists(exists: bool = True):
-    """Return a mock Path whose .exists() returns the given value."""
+    """Return a mock Path whose .exists() returns the given value.
+
+    W26 / Stream 3 (B5): ``start_analysis_job`` now streams ``open("rb")`` over
+    the staged .vsix to compute ``vsix_sha256`` at analyze-start. Back the mock's
+    ``open("rb")`` with a fixed byte payload (then EOF) so the streamed hash reads
+    real bytes from the mock instead of a MagicMock.
+    """
     mock_path = MagicMock(spec=Path)
     mock_path.exists.return_value = exists
     mock_path.name = "ms-python.python-2025.0.0.vsix"
+    _chunks = iter([b"mock-vsix-bytes"])
+    handle = mock_path.open.return_value.__enter__.return_value
+    handle.read.side_effect = lambda *args, **kwargs: next(_chunks, b"")
     return mock_path
 
 
@@ -196,6 +205,36 @@ def test_analyze_vsix_not_found_404(client: TestClient) -> None:
     assert "VSIX file not found" in response.json()["detail"]
 
 
+def test_sync_analyze_binds_vsix_sha256_to_bytes(client: TestClient) -> None:
+    """B5 (review B5-2): the sync /marketplace/analyze entry binds the verdict to
+    the analyzed bytes — it computes the hash from the staged .vsix and threads a
+    non-empty ``vsix_sha256`` into ``execute_analysis_request``, not the empty
+    (unbound) stamp the async path alone used to provide."""
+    import hashlib
+
+    captured: dict[str, str] = {}
+
+    def _capture(request, db, *args, vsix_sha256: str = "", **kwargs):
+        captured["hash"] = vsix_sha256
+        raise FileNotFoundError("stop after capturing the threaded hash")
+
+    with (
+        patch(
+            "workflows.marketplace.analysis_service.marketplace_client.get_vsix_path",
+            return_value=_vsix_path_exists(True),
+        ),
+        patch(
+            "workflows.marketplace.router.execute_analysis_request",
+            side_effect=_capture,
+        ),
+    ):
+        response = client.post("/api/marketplace/analyze", json=ANALYZE_PAYLOAD)
+
+    assert response.status_code == 404  # the sentinel FileNotFoundError, post-capture
+    assert captured["hash"] == hashlib.sha256(b"mock-vsix-bytes").hexdigest()
+    assert len(captured["hash"]) == 64
+
+
 def test_analyze_install_failure_502(client: TestClient) -> None:
     """ExecutorError during install returns 502."""
     with (
@@ -278,6 +317,7 @@ def test_theme_fixture_analysis_uses_scenario_zero_flow(
             reload_before_run: bool = False,
             target_extension_id: str | None = None,
             harness_python_secret: str | None = None,
+            vsix_sha256: str = "",
         ) -> str:
             assert scenario is None
             assert trigger_container_path is None
@@ -285,6 +325,9 @@ def test_theme_fixture_analysis_uses_scenario_zero_flow(
             assert reload_before_run is True
             assert target_extension_id == f"{publisher}.{name}"
             assert harness_python_secret is None
+            # W26 / Stream 3 (B5): the analyze-start hash (64-char lowercase
+            # sha256 of the staged .vsix) is threaded to the dynamic producer.
+            assert len(vsix_sha256) == 64
             resolved_report_path = tmp_path / Path(report_path).name
             resolved_report_path.write_text(
                 json.dumps(report_payload, indent=2),

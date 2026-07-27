@@ -433,6 +433,7 @@ def run_monitoring(
     cancel_check: Callable[[], bool] | None = None,
     on_cancel_signal: Callable[[], None] | None = None,
     harness_python_secret: str | None = None,
+    vsix_sha256: str = "",
 ) -> tuple[str, str]:
     total_scenarios = len(trigger_plan.selected_scenarios)
     reporter.emit(
@@ -491,6 +492,7 @@ def run_monitoring(
             reload_before_run=True,
             target_extension_id=f"{request.publisher}.{request.name}",
             harness_python_secret=harness_python_secret,
+            vsix_sha256=vsix_sha256,
         )
     except ExecutorError as exc:
         if cancel_triggered.is_set():

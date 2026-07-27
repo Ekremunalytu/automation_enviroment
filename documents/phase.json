@@ -18,8 +18,8 @@
     { "id": "W21", "pr": 30, "branch": "week21 -> main", "sha": "5dc18aa" }
   ],
   "active_stream": {
-    "id": "operator-console-honesty",
-    "tracker": "documents/active-work/W24-operator-console-honesty.md"
+    "id": "verdict-provenance-reproducibility",
+    "tracker": "documents/active-work/W26-verdict-provenance-reproducibility.md"
   },
-  "updated": "2026-06-23"
+  "updated": "2026-06-25"
 }

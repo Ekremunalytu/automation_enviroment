@@ -407,9 +407,15 @@ def start_analysis_job(
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     try:
-        ensure_vsix_exists(request)
+        vsix_path = ensure_vsix_exists(request)
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    # W26 / Stream 3 (B5): hash the exact .vsix this run will scan, at
+    # analyze-start, so the row (created by reserve_job) and both report
+    # producers (via the worker) are all bound to the same bytes. Streamed, so a
+    # bounded archive costs milliseconds.
+    vsix_sha256 = marketplace_client.compute_vsix_sha256(vsix_path)
 
     # S2 (W23 B3): before reserving the single-active slot, sweep any same-boot
     # `running` job whose heartbeat has gone stale. Without this a hung/crashed
@@ -418,7 +424,7 @@ def start_analysis_job(
     job_service.reap_stale_running_jobs(db=db)
 
     try:
-        job = job_service.reserve_job(request, db=db)
+        job = job_service.reserve_job(request, db=db, vsix_sha256=vsix_sha256)
     except ActiveAnalysisJobError as exc:
         active_job = exc.active_job
         raise HTTPException(
@@ -434,7 +440,7 @@ def start_analysis_job(
         daemon=False,
         name=f"analysis-{job['job_id'][:8]}",
         target=run_analysis_job,
-        args=(job["job_id"], request.model_copy(deep=True)),
+        args=(job["job_id"], request.model_copy(deep=True), vsix_sha256),
     )
     worker.start()
     return job_service.get_job_snapshot(job["job_id"], db=db)
@@ -539,6 +545,14 @@ def analyze_extension(
     # ``tests/architecture/test_analyze_error_taxonomy_parity.py`` pins both
     # surfaces to the same source-of-truth tuples.
     try:
-        return execute_analysis_request(request, db)
+        # W26 / Stream 3 (B5, review B5-2): bind the sync surface's verdict to the
+        # analyzed bytes too. The async start_analysis_job path hashes at reserve
+        # time; this entry must hash here, inside the taxonomy try so a missing
+        # .vsix still maps to 404 (FileNotFoundError) instead of falling through to
+        # execute_analysis_request's empty (unbound) stamp. ensure_vsix_exists only
+        # resolves+stats (no staging); execute_analysis_request re-checks it.
+        vsix_path = ensure_vsix_exists(request)
+        vsix_sha256 = marketplace_client.compute_vsix_sha256(vsix_path)
+        return execute_analysis_request(request, db, vsix_sha256=vsix_sha256)
     except ANALYZE_ERROR_TYPES as exc:
         raise analyze_error_to_http_response(exc) from exc

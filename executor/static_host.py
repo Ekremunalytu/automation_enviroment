@@ -80,6 +80,7 @@ def run_static_analysis_in_container(
     report_path: str,
     rules_version: str,
     timeout_budget_s: int,
+    vsix_sha256: str = "",
 ) -> str:
     """Invoke ``python -m static_runtime`` inside the static-analyzer container.
 
@@ -108,6 +109,10 @@ def run_static_analysis_in_container(
         "--timeout-budget-s",
         str(timeout_budget_s),
     ]
+    # W26 / Stream 3 (B5, ADR 0016 amendment): additive 5th flag, appended only
+    # when present so the frozen 4-flag invocation contract stays callable.
+    if vsix_sha256:
+        cmd.extend(["--vsix-sha256", vsix_sha256])
     exec_timeout = max(
         settings.static_analyzer.DOCKER_EXEC_TIMEOUT, timeout_budget_s + 5
     )

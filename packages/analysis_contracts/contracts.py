@@ -29,7 +29,16 @@ from pydantic import (
 # file I/O can be attributed to the target extension via process lineage
 # instead of timestamp proximity alone. Optional/defaulted, so reading a
 # pre-2.2 report stays backward-compatible.
-ACTIVATION_REPORT_SCHEMA_VERSION = "2.2"
+# W26 / Stream 3: 2.2 -> 2.3 — two additive-optional fields, both defaulted so
+# reading a pre-2.3 report stays backward-compatible:
+#   - vsix_sha256 (B5 verdict-provenance): SHA-256 of the analyzed .vsix archive,
+#     computed at analyze-start and threaded into the executor via
+#     `--vsix-sha256`, so a dynamic report is bound to the exact bytes scanned.
+#   - run_quality_reason_partition (B6 verdict-reproducibility): the run-quality
+#     reason codes bucketed behavioral / harness_health / residual_variance, so
+#     timing-driven harness variance reads as a labeled band rather than a silent
+#     run_quality flip. Both are stamped by the producer on every new write.
+ACTIVATION_REPORT_SCHEMA_VERSION = "2.3"
 
 
 # W11-3: Top-level outcome classification for the entrypoint runner. The
@@ -221,6 +230,15 @@ _VALID_CONFIRMATION_SOURCES: frozenset[str] = frozenset(
 
 
 class EventAttemptRecord(StrictContractModel):
+    # [CLEANUP event-attempt-validate-assignment] (audit 2026-06-15): without
+    # validate_assignment the ``status`` / ``confirmation_source`` field
+    # validators run only at construction, so post-construction set-sites
+    # (reconciliation.py, scenario_accountant.py) bypassed them. Enabling it
+    # extends the SAME lifecycle/source invariant the constructor already
+    # enforces to assignments — a no-op for today's valid-literal set-sites,
+    # a guard against a future invalid assignment slipping through.
+    model_config = ConfigDict(extra="forbid", validate_assignment=True)
+
     attempt_id: str
     declared_event: str
     activation_event: str
@@ -485,6 +503,14 @@ class ActivationReport(StrictContractModel):
     heuristic_verification_gap: int = 0
     run_quality: str = ""
     run_quality_reasons: list[str] = Field(default_factory=list)
+    # W26 / Stream 3 (B6 `[GOAL verdict-reproducibility-anchor]`): the run-quality
+    # reason codes bucketed into ``behavioral`` (what the extension did — stable
+    # for the same bytes), ``harness_health`` (how cleanly the sandbox ran), and
+    # ``residual_variance`` (the timing-sensitive harness-health subset). Lets a
+    # reproducibility check and the operator see residual harness timing as a
+    # labeled band, not a silent ``run_quality`` flip. Default-empty so legacy
+    # reports validate; the producer stamps it at the emit boundary.
+    run_quality_reason_partition: dict[str, list[str]] = Field(default_factory=dict)
     log_health: dict[str, Any] = Field(default_factory=dict)
     attribution_summary: dict[str, Any] = Field(default_factory=dict)
     risk_signals: list[RiskSignal] = Field(default_factory=list)
@@ -541,6 +567,15 @@ class ActivationReport(StrictContractModel):
     # the field is additive-optional and does not change the legacy
     # contract's required shape.
     executor_fingerprint: dict[str, str] = Field(default_factory=dict)
+    # W26 / Stream 3 (B5 `[GOAL vsix-content-sha256-provenance]`): the
+    # SHA-256 of the analyzed .vsix archive (canonical 64-char lowercase),
+    # computed once at analyze-start over the exact bytes this run scans and
+    # threaded into the executor via `--vsix-sha256`. Stamped at the
+    # report-builder emit boundary (sibling to ``executor_fingerprint``), so a
+    # verdict is bound to the bytes (two byte-different same-version VSIX are
+    # not conflated). Default-empty so legacy fixtures still validate; the
+    # producer populates it on every new write. Bumped schema_version to 2.3.
+    vsix_sha256: str = ""
     # W16-3: top-level field sync drift closeout. Pre-W16-3 these five
     # analyst-facing scalars existed on the in-memory ActivationReport
     # (executor/flows/playwright/monitor/types.py) but had no contract

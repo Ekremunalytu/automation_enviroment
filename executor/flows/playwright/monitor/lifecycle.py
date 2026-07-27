@@ -10,6 +10,8 @@ from typing import Any
 
 from playwright.sync_api import Page
 
+from packages.analysis_contracts.evidence import redact_secrets
+
 from ..attribution import (
     format_epoch_timestamp,
     relative_time,
@@ -231,15 +233,22 @@ class ExtensionMonitor:
     ) -> None:
         now = time.time()
         stream = "ui_blockers" if kind.startswith("ui_blocker") else "automation"
+        # W26 / Stream 3 (RA1, review RA1-3): message + activation_event are
+        # extension-controlled (activation_event flows from package.json
+        # activationEvents; message embeds it), and this is a sibling sink to the
+        # redacted scenario_accountant path that lands in the SAME persisted
+        # log_entries. Route both through redact_secrets at construction (no-op on
+        # ordinary text; idempotent) so a secret-shaped substring cannot reach the
+        # persisted/UI-surfaced row un-redacted.
         self.report.log_entries.append(
             LogStreamEntry(
                 timestamp=format_epoch_timestamp(now),
                 rel_time_s=relative_time(now, self.report.monitoring_start),
                 stream=stream,
                 kind=kind,
-                message=message,
+                message=redact_secrets(message),
                 scenario_name=scenario_name,
-                activation_event=activation_event,
+                activation_event=redact_secrets(activation_event),
                 status=status,
             )
         )

@@ -60,6 +60,14 @@ class StaticDetectionReport(StrictContractModel):
     # knows the report's coverage is incomplete rather than confidently clean.
     partial: bool = False
     generated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    # W26 / Stream 3 (B5 `[GOAL vsix-content-sha256-provenance]`): SHA-256 of the
+    # analyzed .vsix archive (canonical 64-char lowercase), threaded into the
+    # hardened static container via the additive ``--vsix-sha256`` flag (ADR 0016
+    # amendment) and stamped by the runner. Lets the static report be bound to
+    # the same bytes the dynamic report carries; the orchestrator asserts they
+    # agree. Default-empty so legacy reports validate; schema_version stays "2"
+    # (additive-optional, no strict version-match validator on this contract).
+    vsix_sha256: str = ""
 
 
 __all__ = [

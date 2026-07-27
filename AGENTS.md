@@ -4,7 +4,7 @@
 
 `Last merged weekly: W22 — closed synthetically on the week22 branch, merged to main via PR #31 week22 -> main 2026-05-28 via 1399f82.`
 
-`Active stream: none currently open — operator-console-honesty (UI-only console-honesty stream) merged to main via PR #36 (week24 -> main, 1e3fba6) on 2026-06-23; it made decorative/dead Settings + System controls honest (no backend/DB/detection/executor). The phase.json active_stream pointer still names operator-console-honesty and repoints at the next stream's H0 (named-stream convention). Prior stream reliability-self-defense merged to main via PR #35 (week23 -> main, 653d807). Tracker: documents/active-work/W24-operator-console-honesty.md.`
+`Active stream: verdict-provenance-reproducibility (Stream 3 — B5 verdict-bound-to-bytes + B6 verdict-reproducibility; the spine; week label W26) — opened on week26 (off main 27dc7f1, 2026-06-25). Closes B5+B6; ADR 0017 (Proposed) records the design, ADR 0016 gets an additive --vsix-sha256 flag. Prior stream operator-console-honesty (UI-only console-honesty) merged to main via PR #36 (week24 -> main, 1e3fba6) on 2026-06-23. Tracker: documents/active-work/W26-verdict-provenance-reproducibility.md.`
 
 `Sources of truth: documents/REFACTOR_STATUS.md (state) · documents/POST_POC_BACKLOG.md (deferred) · documents/REFACTOR_OPTIMIZATION.md §20 (last weekly plan) · documents/phase.json (weekly pointer + active stream).`
 

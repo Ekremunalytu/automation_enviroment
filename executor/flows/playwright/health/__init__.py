@@ -7,6 +7,7 @@ from .reconciliation import (
     reconcile_coverage_verification,
     reconcile_event_attempts,
 )
+from .run_quality_partition import build_run_quality_partition
 from .summary import (
     automation_reason_to_text,
     build_automation_health,
@@ -23,6 +24,7 @@ __all__ = [
     "build_automation_health",
     "build_log_health",
     "build_run_quality",
+    "build_run_quality_partition",
     "count_target_activations",
     "derive_verified_capabilities",
     "is_background_activation",

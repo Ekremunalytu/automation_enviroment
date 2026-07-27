@@ -136,6 +136,7 @@ def run_static_analysis(
     rules_version: str,
     timeout_budget_s: int,
     control: StaticAnalyzerControl = default_static_analyzer_control,
+    vsix_sha256: str = "",
 ) -> StaticAnalysisReport:
     """Run the static analyzer container and fold in the gate outcome.
 
@@ -143,13 +144,15 @@ def run_static_analysis(
     shared ``/results`` mount); ``host_report_path`` is where the host reads the
     emitted JSON back. The orchestrator stage derives both from config and
     injects the live ``control``; they are explicit params here so this core
-    stays settings-free and unit-testable.
+    stays settings-free and unit-testable. ``vsix_sha256`` (W26 / B5) is threaded
+    into the container so the emitted report is bound to the analyzed bytes.
     """
     control.run_static_analysis(
         vsix_dir=vsix_dir,
         report_path=report_path,
         rules_version=rules_version,
         timeout_budget_s=timeout_budget_s,
+        vsix_sha256=vsix_sha256,
     )
     try:
         raw = Path(host_report_path).read_text(encoding="utf-8")
