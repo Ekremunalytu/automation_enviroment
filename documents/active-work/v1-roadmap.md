@@ -1,14 +1,14 @@
 # ExTrace v1.0 Roadmap — From Finished Prototype To A Tool An Analyst Trusts Daily
 
-`Last Updated: 2026-06-25`
+`Last Updated: 2026-07-27`
 
 `Last merged weekly: W22 — closed synthetically on the week22 branch, merged to main via PR #31 week22 -> main 2026-05-28 via 1399f82.`
 
-`Active stream: verdict-provenance-reproducibility (Stream 3 — B5 + B6, the spine) — opened on week26 (off main 27dc7f1, 2026-06-25); binds the verdict to vsix_sha256 and makes run_quality reproducible (ADR 0017 Proposed; ADR 0016 additive --vsix-sha256 flag). Prior stream operator-console-honesty (UI-only console-honesty) merged to main via PR #36 (week24 -> main, 1e3fba6) on 2026-06-23. Tracker: documents/active-work/W26-verdict-provenance-reproducibility.md.`
+`Active stream: verdict-provenance-reproducibility (Stream 3 — B5 + B6, the spine) — close-out ready on week26 (off main 27dc7f1): implementation, branch-review remediation, make check-all, and make test-security are green; merge is still pending. It binds the verdict to vsix_sha256 and makes run_quality reproducible (ADR 0017 Proposed until merge; ADR 0016 additive --vsix-sha256 flag). Prior stream operator-console-honesty (UI-only console-honesty) merged to main via PR #36 (week24 -> main, 1e3fba6) on 2026-06-23. Tracker: documents/active-work/W26-verdict-provenance-reproducibility.md.`
 
 `Sources of truth: documents/REFACTOR_STATUS.md (state) · documents/POST_POC_BACKLOG.md (deferred) · documents/REFACTOR_OPTIMIZATION.md §20 (last weekly plan) · documents/phase.json (weekly pointer + active stream).`
 
-`Phase: Stream 1 (reliability-self-defense) MERGED to main via PR #35 (week23 -> main, 653d807) 2026-06-12. A new non-bar honesty stream (operator-console-honesty) is sequenced AHEAD of Stream 2 per user direction 2026-06-15 (plan in §5 "Next-Stream Plan"); Streams 2-8 keep their frozen numbers + bar→ID mappings and shift one week label; three post-v1.0 streams (operator-settings-ops, operator-disposition, network-egress-enforcement/mitmproxy) are added. operator-console-honesty MERGED to main via PR #36 (week24 -> main, 1e3fba6) 2026-06-23; Stream 2 (reliability-multi-analyze / B2) landed direct-to-main as reliability hardening (4437d1e + A/B fixes; see active-work/reliability-analyze-resilience.md — its lifecycle-harness test rides along in Stream 3); Stream 3 (verdict-provenance-reproducibility, B5+B6, the spine) is now OPEN on week26 (off main 27dc7f1, 2026-06-25); remaining Streams 4-11 stay forward-planned, none open yet.`
+`Phase: Stream 1 (reliability-self-defense) MERGED to main via PR #35 (week23 -> main, 653d807) 2026-06-12. operator-console-honesty MERGED via PR #36 (week24 -> main, 1e3fba6) 2026-06-23. Stream 2 (reliability-multi-analyze / B2) landed direct-to-main as reliability hardening (4437d1e + A/B fixes). Stream 3 (verdict-provenance-reproducibility, B5+B6, the spine) is CLOSE-OUT READY on week26: all required gates passed 2026-07-27; PR/merge remains. The 2026-07-27 strategy revision preserves frozen stream numbers as cross-reference IDs but supersedes their execution order: containment and measured detection now precede export/release operations.`
 
 `Owner: ekrem`
 
@@ -79,9 +79,10 @@ three prioritization judges); B8-B10 are the **credibility/operability floor**.
 | **B9** | Verdict can leave the tool | One backend endpoint returns a self-contained verdict+findings+mitigations+evidence artifact (JSON now, printable HTML next), downloadable offline with `Content-Disposition`; Export button on ReportsPage. |
 | **B10** | Honest install & identity | `/api/health` probes DB (`SELECT 1`) + api container healthcheck; one coherent version source, git-tagged, stamped into every report; `extrace-ctl.sh backup`/`restore` so scan history survives an upgrade mistake. |
 
-**v1.0 = B1-B10 closed (Streams 1-6). B8-B10 are gated AFTER the trust core**
-because measuring/scaling on a flickering, un-provable verdict manufactures false
-confidence.
+**v1.0 = B1-B10 closed plus the containment safety gate below.** B7/B8
+measurement now precedes B9/B10 export/release operations: measurement on a
+flickering verdict is false confidence, but packaging a product before proving
+containment and detection contribution is equally unsafe.
 
 ## 4. Phased Roadmap — Named Streams
 
@@ -97,12 +98,12 @@ batch.
 | **3** | `verdict-provenance-reproducibility` (spine) | Same VSIX twice → same verdict; verdict bound to bytes | B5, B6 | yes |
 | **4** | `operator-report-export` | Verdict can leave the tool as an actionable artifact | B9 | yes |
 | **5** | `release-identity-ops` | Know the build, trust the green light, never lose history | B10 | yes |
-| **6** | `measured-catch-rate` (mission core) | Detection asserted → measured; blind spots can't read CLEAN | B7, B8 | yes |
+| **6** | `measured-catch-rate` (mission core) | Detection asserted → measured; static/dynamic contribution separated; blind spots can't read CLEAN | B7, B8 | yes |
 | **7** | `sequential-batch-corpus` | Point at a set, walk away, results table | — | post-v1.0 |
-| **8** | `linux-host-hardening-evasion` | Shrink executor blast radius (Fedora-unblocked); extend evasion | — | post-v1.0 |
+| **8** | `linux-host-hardening-evasion` | Shrink executor blast radius; disposable per-analysis sandbox; extend evasion | — | safety slice before v1.0 |
 | **9** | `operator-settings-ops` | Server-persist settings; telemetry retention/purge; danger wipe/reset | — | post-v1.0 |
 | **10** | `operator-disposition` | Operator marks benign-domain findings (raw vs adjusted; never deletes) | — | post-v1.0 |
-| **11** | `network-egress-enforcement` (mitmproxy) | Real egress allow/deny + decrypted HTTP(S) evidence | — | post-v1.0 |
+| **11** | `network-egress-enforcement` (mitmproxy) | Fail-closed egress + decrypted HTTP(S) evidence | — | safety slice before v1.0 |
 
 **Spine decision:** Stream 3 (reproducibility/provenance) precedes Stream 6
 (measurement) — four downstream streams depend on a non-flickering, build-
@@ -112,11 +113,41 @@ project measure, calibrate, and scale on sand.
 **Sequencing update (2026-06-15, user direction).** A non-bar
 `operator-console-honesty` stream (★) is sequenced **first**; Streams 2-8 keep
 their frozen numbers + bar→ID mappings and shift one week label. Streams 9-11 are
-new post-v1.0 additions. Week-label cadence:
-`W24 operator-console-honesty` → `W25 Stream 2 / B2` → `W26 Stream 3 / B5,B6 (spine)`
-→ `W27 Stream 4 / B9` → `W28 Stream 5 / B10` → `W29 Stream 6 / B7,B8 → v1.0` →
-post-v1.0 (Streams 7, 8, 9, 10, 11). Full detail + the mitmproxy ADR/spike gate are
-in §5 "Next-Stream Plan (2026-06-15)".
+stable cross-reference IDs, not priority ranks.
+
+### Execution-order revision (2026-07-27)
+
+The earlier `W27 export → W28 release → W29 measurement` cadence is
+**superseded**. ExTrace remains a hybrid analyzer, but the product strategy is
+now **static-primary, dynamic-evidence**:
+
+1. **Containment safety gate** — pull the safety slices of Streams 8 and 11
+   forward: one disposable sandbox and sample-specific temporary volume per
+   analysis, immutable image, internal-only network, controlled proxy/sinkhole,
+   direct-egress fail-closed, and teardown after the run. A long-lived reusable
+   container may remain an optimization, never the security boundary.
+2. **Measured detection baseline (Stream 6 / B7+B8)** — run a labeled,
+   multi-variant declawed corpus plus a materially larger benign set; report
+   per-family recall, raw false-positive rate, inconclusive rate, runtime, and
+   the incremental contribution of static-only, dynamic-only, and combined
+   analysis.
+3. **Static-primary + threat-directed dynamic (Stream 6 strategy slice)** —
+   expand manifest/activation analysis, AST and interprocedural taint,
+   obfuscation/loader/native/WASM coverage, dependency inventory, publisher
+   provenance, and version-diff analysis. Static findings produce a bounded
+   dynamic plan: targeted triggers, seeded secrets/C2, time acceleration, and
+   platform-specific routing. Broad UI stimulus remains fallback evidence, not
+   the default engine.
+4. **Operator report export (Stream 4 / B9)** — export only after the product can
+   state what was measured, what was contained, and which layer contributed.
+5. **Release identity and operations (Stream 5 / B10)** — finish version,
+   health, backup, and restore mechanics; then declare v1.0.
+
+The numeric stream IDs remain frozen so ADRs, tests, and backlog references do
+not churn. This section controls execution order. Product positioning is
+deliberately bounded: ExTrace does not prove an extension is clean; it combines
+static risk signals with behavior observed under controlled conditions into an
+evidence-backed risk assessment.
 
 ## 5. First Stream In Detail — `reliability-self-defense`
 
@@ -216,7 +247,7 @@ markdownlint + markdown-link-check on changed docs; and the doc-preamble,
 canonical-preamble, README-phase-pointer, and phase-manifest architecture tests
 must all be green.
 
-#### Post-v1.0 streams added by this plan
+#### Additional streams added by this plan
 
 - **Stream 9 `operator-settings-ops`** — server-persist the operator settings
   (extend the `operator_settings` key-value store: `value` nullable + `value_text`
@@ -228,9 +259,11 @@ must all be green.
   **two metrics** (raw detection result + disposition-adjusted result). Roadmap §8
   classes triage/disposition as post-v1.0 ergonomics; it must **not** touch the B8
   gate, which measures **raw** detection/FP only.
-- **Stream 11 `network-egress-enforcement` (mitmproxy)** — see below.
+- **Stream 11 `network-egress-enforcement` (mitmproxy)** — its minimal
+  fail-closed containment slice is promoted before v1.0; operator-managed
+  allowlists and broader protocol ergonomics remain later work.
 
-#### Stream 11 — `network-egress-enforcement`: mitmproxy as the interception engine (ADR + spike gated)
+#### Stream 11 — `network-egress-enforcement`: promoted containment gate (ADR + spike gated)
 
 Today network observation is **passive tshark/dumpcap only** (`binary_paths.py`,
 ADR 0013); there is **no egress enforcement** — `executor.control` is a
@@ -253,9 +286,9 @@ A forward proxy alone does **not** enforce egress.
   minimal-capability; **preferred**) vs _(b) transparent-gateway_ (routing/firewall;
   `NET_ADMIN` confined to a **separate gateway container**, never the executor).
 - **CA lifecycle** — private key only on the proxy volume; the executor gets only
-  the public CA cert; never baked into repo/image; generated per-install. Stream 11
-  extends the B10 backup/restore mechanism delivered in W28 to include the CA
-  volume; that extension is Stream 11 scope, not a W28 scope change.
+  the public CA cert; never baked into repo/image; generated per-install. The
+  later operator-managed CA lifecycle extends B10 backup/restore; the pre-v1
+  safety gate may use an ephemeral per-run CA.
 - **Protocol coverage / evidence states** — explicit states `intercepted` /
   `blocked` / `direct_bypass_attempt` / `tls_pinning_or_trust_failure` /
   `uninspectable_protocol`. **Absence of a decrypted body is never CLEAN evidence**
@@ -276,9 +309,9 @@ is not falsely CLEAN; (6) traffic fails closed when the proxy stops; (7) identic
 result under Docker Compose **and** Podman; (8) **no `NET_ADMIN` added to the
 executor**.
 
-**This makes real** the `strictNet` toggle and the `egress_allowlist` (both
-honestly disabled "Not yet enforced" in W24). Depends on Stream 9
-(`operator-settings-ops`) for allowlist persistence: **Stream 9 → Stream 11**.
+The pre-v1 slice is a fixed, fail-closed policy and does **not** depend on Stream
+9. Making the `strictNet` toggle and operator-managed `egress_allowlist` real
+still depends on Stream 9 persistence and remains a later operational slice.
 
 #### Corrected design decisions
 
@@ -297,13 +330,12 @@ honestly disabled "Not yet enforced" in W24). Depends on Stream 9
   prove it alone), with a cleanup pass **only if state-accumulation is proven**. The
   rc=1 root cause (`[FOLLOWUP sandbox-reset-stale-state-multi-analyze]`) remains a
   hypothesis (DevTools-state vs CDP-readiness/race both open).
-- **W27 / B9** export carries no operator identity (download-focused GET); operator
+- **B9** export carries no operator identity (download-focused GET); operator
   name persistence belongs to Stream 9.
-- **W28 / B10** stays exactly its original scope (health DB probe + version identity
-  + backup/restore); retention/settings/danger went to Stream 9, egress to Stream 11
-  — no re-bloat.
-- **W29 / B8** gate measures **raw** detection/FP only; disposition (Stream 10) is
-  informational and post-v1.0.
+- **B10** stays exactly its original scope (health DB probe + version identity
+  + backup/restore); retention/settings/danger stay in Stream 9.
+- **B8** measures **raw** detection/FP only; disposition (Stream 10) is
+  informational and post-v1.0. Its execution now precedes B9/B10.
 
 ## 6. Pre-Close Checklist — Fresh Audit Findings (2026-06-08)
 
@@ -345,13 +377,21 @@ detail + stable IDs in `POST_POC_BACKLOG.md` "Newly Captured (extrace-audit
 - **Stream 3** — `[GOAL vsix-content-sha256-provenance]`, `[GOAL verdict-reproducibility-anchor]`.
 - **Stream 4** — `[GOAL report-export-artifact]`, `[FOLLOWUP vsix-entry-log-sanitization]` (existing), offline skip-reason UX.
 - **Stream 5** — `[CLEANUP version-identity-coherence]`, `[GOAL api-health-db-probe]`, `[GOAL podman-backup-restore]`.
-- **Stream 6** — `[GOAL measured-catch-rate-corpus]`, `[GOAL benign-false-positive-gate]`, `[GOAL platform-blind-verdict-annotation]`, `[GOAL adr-0015-e1-e2-evasion-detection]`.
+- **Stream 6** — `[GOAL measured-catch-rate-corpus]`, `[GOAL benign-false-positive-gate]`, `[GOAL platform-blind-verdict-annotation]`, `[GOAL adr-0015-e1-e2-evasion-detection]`, `[GOAL measured-layer-contribution]`, `[GOAL static-primary-threat-directed-dynamic]`.
 - **Stream 7** (post-v1.0) — `[GOAL sequential-batch-corpus]`.
-- **Stream 8** (post-v1.0) — `[GOAL container-hardening-ratchet-down]` (ADR 0013 §Deferred; W22-6 deferred-to-user), `[GOAL adr-0015-e3-e5-evasion-detection]`, `[FOLLOWUP harness-secret-distribution-redesign]` (existing).
+- **Stream 8** — `[GOAL per-analysis-disposable-sandbox]` (pre-v1 safety
+  slice), `[GOAL container-hardening-ratchet-down]` (ADR 0013 §Deferred;
+  kernel/seccomp live proof remains Fedora-gated), `[GOAL
+  adr-0015-e3-e5-evasion-detection]`, `[FOLLOWUP
+  harness-secret-distribution-redesign]` (existing).
 - **★ operator-console-honesty** (sequenced first, non-bar) — `[CLEANUP settings-decorative-controls-honesty]`, `[CLEANUP system-mock-status-honesty]`, `[GOAL light-dark-theme]` (stretch; non-blocking).
 - **Stream 9 operator-settings-ops** (post-v1.0) — `[GOAL operator-settings-server-persistence]`, `[GOAL telemetry-retention-purge]`, `[GOAL danger-zone-destructive-actions]`.
 - **Stream 10 operator-disposition** (post-v1.0) — `[GOAL benign-domain-disposition]` (raw vs adjusted; never deletes; NOT in the B8 gate).
-- **Stream 11 network-egress-enforcement** (post-v1.0, mitmproxy) — `[GOAL mitmproxy-tls-interception]` (ADR + spike gated; ADR stays `Proposed`), `[GOAL egress-allowlist-enforcement]`; depends on Stream 9.
+- **Stream 11 network-egress-enforcement** — `[GOAL
+  mitmproxy-tls-interception]` + `[GOAL direct-egress-fail-closed]` (pre-v1
+  safety slice; ADR + spike gated; ADR stays `Proposed`), `[GOAL
+  egress-allowlist-enforcement]` (later operator-managed slice; depends on
+  Stream 9).
 - **Audit captures (extrace-audit 2026-06-15; non-stream)** — `[BUG report-field-redaction-completeness]` (CRSC-2; can ride any close-out), `[CLEANUP pragma-ratchet-docstring]`, `[CLEANUP event-attempt-validate-assignment]`. (`[BUG reset-cdp-needle-stale]` lives under Stream 2 above.)
 
 ## 8. Non-Goals (scope honesty)
@@ -364,9 +404,11 @@ Staying "a real single-operator tool" means we will **NOT** build:
   One operator, one appliance, loopback-default (ADR 0007/0011).
 - No SIEM/CEF/STIX/syslog/webhook emitters — the self-contained export artifact
   (B9) is the integration bridge.
-- No "real malware" corpus — v1 corpus stays strictly synthetic/declawed
-  (ADR 0004 + detection-design SAFETY); multi-variant near-misses, not live
-  samples.
+- No live malware in the repository, developer workstation, or ordinary CI
+  (ADR 0004 + detection-design SAFETY). v1 regression gates stay
+  synthetic/declawed. A product-level detection claim additionally requires an
+  externally managed, access-controlled validation corpus that runs only inside
+  the disposable containment environment and never lands in source control.
 - No full ADR-0015 E1-E5 _masking_ suite at v1 — detection recorders only
   (E1/E2 in v1, E3-E5 post-v1.0).
 - Deferred-not-cut ergonomics (post-v1.0): triage/disposition state, report diff,
@@ -377,15 +419,12 @@ Staying "a real single-operator tool" means we will **NOT** build:
 
 ## 9. Biggest Risk
 
-Shipping a tool that is **broad but not trustworthy** — declaring v1.0 on
-detection breadth while the per-run verdict remains un-provable, un-reproducible,
-and silently-false-clean. Breadth _looks_ finished; the trust defects are small
-and invisible until an analyst gets burned (a malicious extension that hangs
-report build, a re-published malicious update conflated with a clean one, a failed
-run rendered green, a verdict that flips on re-run, an evasive sample read as
-CLEAN). Trust, once lost, does not come back from more rules. The sequence
-mitigates this structurally by refusing to measure or scale before the verdict is
-trustworthy.
+Shipping a tool that is **broad but not trustworthy** — a reproducible report is
+still not a security product if the sandbox permits uncontrolled egress or the
+detection claim is based only on hand-authored canaries. Trust requires three
+things in order: attributable/reproducible verdicts, fail-closed containment,
+and measured detection contribution. The revised sequence refuses to package
+or market the result before all three are evidenced.
 
 ## 10. Open Questions (resolve before sequencing the later streams)
 
@@ -398,8 +437,10 @@ trustworthy.
    on-host proof pending); Stream 8 stays post-v1.0. The macOS dev host lands the
    _code_; the live proof is tracked separately, not gating.
 2. **Is there a labeled malicious/benign extension set to measure catch-rate?**
-   Gates Stream 6. v1 needs only a small multi-variant synthetic/declawed set
-   beyond the 8 canaries + the real benign extensions already in `extensions/`.
+   Gates Stream 6. Engineering acceptance needs a multi-variant
+   synthetic/declawed set beyond the 8 canaries plus a materially larger benign
+   set. Any product-level claim additionally needs the externally managed,
+   isolated validation corpus defined in §8.
 
 ## 11. Source
 

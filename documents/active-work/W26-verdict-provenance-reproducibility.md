@@ -1,8 +1,8 @@
 # W26 — verdict-provenance-reproducibility (Stream 3, the spine)
 
-`Last Updated: 2026-06-26`
+`Last Updated: 2026-07-27`
 
-`Status: OPEN on week26 (off main 27dc7f1). Implementation COMPLETE + branch-review-remediated. S0-S7 + all ride-alongs landed (5a2227d..8fa52ce); a 2026-06-26 adversarial multi-agent branch review then surfaced 8 verified findings, all resolved (e3a1054, 8dd6da3, e9e5ef1 — see "Branch-review remediation" below). B5 (S1-S4: vsix_sha256 spine + DB; sync /marketplace/analyze surface bound too per review B5-2) + B6 (S5-S6: partition + finalization determinism) closed. The one BLOCKING review finding (B6-1) was the freeze landing one step too late — signal_summary (the persisted verdict) baked from the pre-freeze live-FS read; fixed by freezing log_capture_health_snapshot BEFORE _refresh_derived_state() with a stop()-level regression guard. RA1 (redaction completeness, +2 sibling sinks RA1-3/RA1-4) + RA2 (B2 lifecycle test) + RA3a/RA3b done; B2 acceptance formally closed via RA2. ADR 0017 (Proposed) records the design; ADR 0016 has the additive --vsix-sha256 amendment. The 4 doc-governance gates stay green. Awaiting close-out: full make check-all + make test-security + the close-out PR (gated on explicit user go-ahead).`
+`Status: CLOSE-OUT READY on week26 (off main 27dc7f1). Implementation COMPLETE + branch-review-remediated. S0-S7 + all ride-alongs landed (5a2227d..8fa52ce); a 2026-06-26 adversarial multi-agent branch review then surfaced 8 verified findings, all resolved (e3a1054, 8dd6da3, e9e5ef1 — see "Branch-review remediation" below). B5 (S1-S4: vsix_sha256 spine + DB; sync /marketplace/analyze surface bound too per review B5-2) + B6 (S5-S6: partition + finalization determinism) closed. The one BLOCKING review finding (B6-1) was the freeze landing one step too late — signal_summary (the persisted verdict) baked from the pre-freeze live-FS read; fixed by freezing log_capture_health_snapshot BEFORE _refresh_derived_state() with a stop()-level regression guard. RA1 (redaction completeness, +2 sibling sinks RA1-3/RA1-4) + RA2 (B2 lifecycle test) + RA3a/RA3b done; B2 acceptance formally closed via RA2. ADR 0017 remains Proposed until merge; ADR 0016 has the additive --vsix-sha256 amendment. Final gates passed 2026-07-27: make check-all (2726 passed, 11 skipped, 13 deselected) and make test-security (326 passed). Awaiting only PR review/merge.`
 
 Stream 3 of the v1.0 roadmap (`documents/active-work/v1-roadmap.md` §4). The
 **spine**: four downstream streams (B7/B8 measurement, export, release-identity,
@@ -164,10 +164,20 @@ close-out — the user approved comprehensive (fix-all) scope (2026-06-26).
   overlapping-activation fixtures and **can shift a verdict**, so it must land as a
   B5 fix coordinated with the signal owner (re-run the signal-engine golden /
   verdict fixtures), NOT bundled into B6. Recorded here; its
-  `POST_POC_BACKLOG.md` pull-forward entry lands at close-out with this stream's
-  table (post-merge, per the named-stream convention — the backlog's per-stream
-  rows are commit-stamped, so the entry is created when the close-out commit
-  exists, not on the open branch).
+  `POST_POC_BACKLOG.md` pull-forward entry lands in this close-out commit so the
+  risk remains visible after the tracker freezes.
+
+## Close-out evidence (2026-07-27)
+
+- `make check-all` — PASS: Ruff, mypy (519 source files), Bandit, UI contract
+  and boundary checks, markdownlint, and pytest (`2726 passed, 11 skipped,
+  13 deselected`).
+- `make test-security` — PASS: `326 passed`.
+- Fixture corpus — retained. The tracked benign fixtures, T1 malicious canaries,
+  runnable demo, and safety README are consumed by security, activation,
+  end-to-end canary, and fixture-hygiene tests; no fixture deletion belongs in
+  the close-out PR.
+- Merge state — not yet merged. ADR 0017 stays Proposed until the PR lands.
 
 ## Regression surface
 

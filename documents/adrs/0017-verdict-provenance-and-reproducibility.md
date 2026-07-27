@@ -98,10 +98,12 @@ stop the **anchor** flicker:
     `extension_host_log_missing` flickered run-to-run AND the ~6 property reads
     across `print_summary` + `save` could derive `run_quality` /
     `run_quality_reasons` / `run_quality_reason_partition` from *different* FS
-    snapshots in one report. Fix: freeze the capture-health view once at the end
-    of `stop()` (after the grace + discovery merge + refresh) onto an in-memory
-    `log_capture_health_snapshot`; the property returns the snapshot when frozen,
-    else a live read (fallback mandatory for `log_health` + fixture paths).
+    snapshots in one report. Fix: freeze the capture-health view once in
+    `stop()` after the grace + discovery merge but **before**
+    `_refresh_derived_state()`, so `signal_summary` and the top-level quality
+    fields consume the same in-memory `log_capture_health_snapshot`; the
+    property returns the snapshot when frozen, else a live read (fallback
+    mandatory for `log_health` + fixture paths).
   - **startup grace** — the fixed `sleep(2.0)` raced the async exthost.log flush
     that decides `target_extension_observed`; replaced by a bounded poll that
     re-parses the logs read-only and early-exits the instant the target's
