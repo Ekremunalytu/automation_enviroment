@@ -29,6 +29,7 @@ from appcore.contracts.schemas import (
 from appcore.logging import get_extrace_logger
 from packages.analysis_contracts import ExtensionIdentity
 from packages.marketplace_identity import MarketplaceIdentityError
+from workflows.executor_settings import load_dynamic_analysis_enabled
 from workflows.extension_catalog.manifest_reader import PackageJsonReadError
 from workflows.extension_catalog.service import (
     ExtensionManifestMismatchError,
@@ -63,6 +64,24 @@ settings = app_settings
 logger = get_extrace_logger("extrace.workflows.marketplace.router")
 
 router = APIRouter(prefix="/api", tags=["marketplace"])
+
+
+def _require_dynamic_analysis_enabled(db: Session) -> None:
+    """Reject dynamic-analysis entry points while the operator toggle is off."""
+    if load_dynamic_analysis_enabled(db):
+        return
+
+    logger.info("dynamic_analysis_blocked preference=off")
+    raise HTTPException(
+        status_code=409,
+        detail={
+            "error": "dynamic_analysis_disabled",
+            "message": (
+                "Dynamic analysis is disabled. Enable it in "
+                "Settings > Executor before starting a sandbox run."
+            ),
+        },
+    )
 
 
 def _package_json_error_detail(exc: PackageJsonReadError) -> str:
@@ -406,6 +425,8 @@ def start_analysis_job(
     request: AnalyzeRequest,
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
+    _require_dynamic_analysis_enabled(db)
+
     try:
         vsix_path = ensure_vsix_exists(request)
     except FileNotFoundError as exc:
@@ -537,6 +558,8 @@ def analyze_extension(
     request: AnalyzeRequest,
     db: Session = Depends(get_db),
 ) -> AnalyzeResponse:
+    _require_dynamic_analysis_enabled(db)
+
     # W15-1 (Codex 2026-05-10 M10 close-out): single except clause over the
     # closed ``ANALYZE_ERROR_TYPES`` taxonomy so the sync entry and the
     # async ``run_analysis_job`` worker handle the same exception classes.

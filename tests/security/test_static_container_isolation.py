@@ -112,3 +112,19 @@ def test_static_analyzer_publishes_no_ports() -> None:
     assert not _service().get("ports"), (
         f"static_analyzer must not publish host ports. Got: {_service().get('ports')!r}."
     )
+
+
+def test_static_analyzer_healthcheck_is_local_runtime_readiness() -> None:
+    """Healthcheck loads the runner and probes only the two mounted paths."""
+    healthcheck = _service().get("healthcheck") or {}
+    test_command = healthcheck.get("test") or []
+
+    assert test_command[:3] == ["CMD", "/usr/local/bin/python", "-c"], (
+        "static_analyzer healthcheck must use exec-form Python without a shell. "
+        f"Got: {test_command!r}."
+    )
+    command = str(test_command[3]) if len(test_command) > 3 else ""
+    assert "static_runtime.entrypoint" in command
+    assert "/extensions-input" in command
+    assert "TemporaryFile(dir='/results')" in command
+    assert not any(token in command.casefold() for token in ("http", "curl", "wget"))

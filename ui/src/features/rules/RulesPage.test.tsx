@@ -115,6 +115,13 @@ describe("RulesPage", () => {
     renderPage();
 
     expect(screen.getByText("Detection registry")).toBeInTheDocument();
+    expect(screen.queryByText("Rules")).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Findings ·/u)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Fired ·/u)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Errored ·/u)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/Review rule execution/u),
+    ).not.toBeInTheDocument();
     expect(screen.getByText("Loading rules")).toBeInTheDocument();
   });
 
@@ -150,6 +157,11 @@ describe("RulesPage", () => {
 
     expect(await screen.findByText("Credential file read")).toBeInTheDocument();
     expect(screen.getAllByText(/extrace.audit.noop/u).length).toBeGreaterThan(0);
+    expect(screen.getByText("Registry controls")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Rule id or title")).toBeInTheDocument();
+    expect(screen.getByRole("tablist", { name: "Stream filter" })).toBeInTheDocument();
+    expect(screen.getByRole("tablist", { name: "Severity filter" })).toBeInTheDocument();
+    expect(screen.getByRole("tablist", { name: "Status filter" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /credential file read/iu }));
     expect(screen.getByText("Mitigation hint")).toBeInTheDocument();

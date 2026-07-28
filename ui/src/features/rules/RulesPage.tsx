@@ -288,11 +288,6 @@ export function RulesPage() {
     });
   }, [rows, search, severity, status, stream]);
 
-  const findingsCount =
-    (report?.detection?.findings.length ?? 0) + (report?.staticReport?.findings.length ?? 0);
-  const firedCount = rows.filter((row) => row.status === "fired").length;
-  const errorCount = rows.filter((row) => row.status === "error").length;
-
   const setParam = (key: string, value: string) => {
     startTransition(() => {
       const next = new URLSearchParams(searchParams);
@@ -317,16 +312,7 @@ export function RulesPage() {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
       <header style={{ paddingBottom: 24, borderBottom: `1px solid ${V3.rule}` }}>
-        <Eyebrow>Rules</Eyebrow>
-        <PageTitle style={{ marginTop: 14, fontSize: 44, lineHeight: 1 }}>Detection registry</PageTitle>
-        <p style={{ fontSize: 13.5, color: V3.ink3, marginTop: 14, maxWidth: 720, lineHeight: 1.6 }}>
-          Review rule execution, fired findings, and linked evidence without crowding the report or simulation inspector.
-        </p>
-        <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginTop: 18 }}>
-          <MonoMetric label="Findings" value={findingsCount} />
-          <MonoMetric label="Fired" value={firedCount} />
-          <MonoMetric label="Errored" value={errorCount} />
-        </div>
+        <PageTitle style={{ fontSize: 44, lineHeight: 1 }}>Detection registry</PageTitle>
       </header>
 
       <Tabs<RulesMode>
@@ -389,37 +375,52 @@ function RegistryMode({
 }) {
   return (
     <>
-      <Panel padded={false}>
+      <Panel
+        label="Registry controls"
+        right={
+          <Eyebrow>
+            {filteredRows.length} / {rows.length} visible
+          </Eyebrow>
+        }
+      >
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "minmax(260px, 1fr) minmax(0, 1.1fr)",
             gap: 18,
-            alignItems: "end",
-            padding: "16px 18px",
           }}
         >
           <Field
-            label="Search"
+            label="Find rule"
             mono
-            placeholder="search rule id / title"
+            placeholder="Rule id or title"
             value={search}
             onChange={(value) => setParam("q", value)}
+            style={{ maxWidth: 520 }}
           />
-          <div style={{ display: "flex", flexDirection: "column", gap: 12, minWidth: 0 }}>
-            <Tabs<StreamFilter>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns:
+                "repeat(auto-fit, minmax(min(100%, 240px), 1fr))",
+              gap: 12,
+            }}
+          >
+            <FilterStrip<StreamFilter>
+              label="Stream"
               ariaLabel="Stream filter"
               tabs={STREAM_TABS}
               value={stream}
               onChange={(next) => setParam("stream", next)}
             />
-            <Tabs<SeverityFilter>
+            <FilterStrip<SeverityFilter>
+              label="Severity"
               ariaLabel="Severity filter"
               tabs={SEVERITY_TABS}
               value={severity}
               onChange={(next) => setParam("severity", next)}
             />
-            <Tabs<StatusFilter>
+            <FilterStrip<StatusFilter>
+              label="Execution"
               ariaLabel="Status filter"
               tabs={STATUS_TABS}
               value={status}
@@ -456,6 +457,82 @@ function RegistryMode({
         )}
       </Panel>
     </>
+  );
+}
+
+function FilterStrip<V extends string>({
+  label,
+  ariaLabel,
+  tabs,
+  value,
+  onChange,
+}: {
+  label: string;
+  ariaLabel: string;
+  tabs: TabSpec<V>[];
+  value: V;
+  onChange: (value: V) => void;
+}) {
+  return (
+    <div
+      style={{
+        minWidth: 0,
+        border: `1px solid ${V3.rule}`,
+        background: V3.paper,
+      }}
+    >
+      <div
+        style={{
+          padding: "9px 11px",
+          borderBottom: `1px solid ${V3.rule}`,
+          background: V3.paper3,
+        }}
+      >
+        <Eyebrow>{label}</Eyebrow>
+      </div>
+      <div
+        role="tablist"
+        aria-label={ariaLabel}
+        style={{
+          display: "grid",
+          gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))`,
+        }}
+      >
+        {tabs.map((tab, index) => {
+          const active = tab.value === value;
+          return (
+            <button
+              key={tab.value}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              onClick={() => onChange(tab.value)}
+              style={{
+                minWidth: 0,
+                padding: "10px 3px",
+                border: "none",
+                borderRight:
+                  index < tabs.length - 1
+                    ? `1px solid ${V3.rule}`
+                    : "none",
+                background: active ? V3.coral : "transparent",
+                color: active ? V3.paper : V3.ink3,
+                cursor: "pointer",
+                fontFamily: "'JetBrains Mono', monospace",
+                fontSize: 8.5,
+                fontWeight: active ? 700 : 500,
+                letterSpacing: "0.04em",
+                lineHeight: 1.25,
+                textTransform: "uppercase",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {tab.label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -681,22 +758,6 @@ function BlacklistDomainsPanel({ report }: { report: ActivationReportView | unde
         </div>
       ) : null}
     </Panel>
-  );
-}
-
-function MonoMetric({ label, value }: { label: string; value: number }) {
-  return (
-    <span
-      style={{
-        fontFamily: "'JetBrains Mono', monospace",
-        fontSize: 11,
-        color: V3.ink3,
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-      }}
-    >
-      {label} · {value}
-    </span>
   );
 }
 

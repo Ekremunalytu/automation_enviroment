@@ -1,6 +1,6 @@
 # Security Tests
 
-`Last Updated: 2026-06-04`
+`Last Updated: 2026-07-28`
 
 `tests/security/`, `tests/executor/security/`, and
 `tests/platform/security/` (the last two for subsystem-local W8 work).
@@ -25,6 +25,9 @@ Lane shape and overall test guide:
 - `test_rule_validation.py` — rule loader / shape assertions.
 - `test_benign_silence.py` — benign baselines stay zero-finding
   (post-W6 `signal_policy` thresholds).
+- `test_static_container_isolation.py` — static analyzer network/capability/
+  mount isolation plus an exec-form, local-only readiness healthcheck that
+  imports the shipped runner and probes only the mounted input/results paths.
 - `rules/test_a{1,2,3,4,5,6,7,8}_*.py` — per-class rule detection tests.
 - `rules/test_rule_attribution.py` — target-only attribution gating.
 

@@ -37,7 +37,11 @@ function fmtInstalls(n: number): string {
 
 const QUICK_QUERIES = ["python", "copilot", "eslint", "prettier"];
 
-export function OnlineIntakePanel() {
+export function OnlineIntakePanel({
+  dynamicAnalysisEnabled = false,
+}: {
+  dynamicAnalysisEnabled?: boolean;
+}) {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const queryParam = searchParams.get("q") || "";
@@ -132,6 +136,13 @@ export function OnlineIntakePanel() {
               metrics: result.vsix_metrics,
             });
           }
+          if (dynamicAnalysisEnabled) {
+            analyzeMutation.mutate({
+              publisher: result.publisher,
+              name: result.name,
+              version: result.version,
+            });
+          }
         },
         onError: (error) => {
           // Threshold-breach 422 → render the dedicated popup instead of
@@ -167,7 +178,6 @@ export function OnlineIntakePanel() {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 40 }}>
       <section>
-        <Eyebrow style={{ marginBottom: 12 }}>Search marketplace</Eyebrow>
         <form
           onSubmit={onSubmit}
           style={{
@@ -332,11 +342,7 @@ export function OnlineIntakePanel() {
         ) : null}
 
         {!queryParam ? (
-          <EmptyState
-            eyebrow="Ready"
-            title="No query yet"
-            body="Enter an extension name or keyword above to populate results from the marketplace catalog."
-          />
+          <EmptyState eyebrow="Ready" title="No query yet" />
         ) : searchQuery.isLoading ? (
           <EmptyState eyebrow="Searching" title="Fetching results" body="Marketplace metadata is loading." />
         ) : searchQuery.isError ? (
@@ -355,6 +361,7 @@ export function OnlineIntakePanel() {
                   extension={extension}
                   isReady={isReady}
                   busy={busy}
+                  dynamicAnalysisEnabled={dynamicAnalysisEnabled}
                   onDownload={() => onDownload(extension.publisher, extension.name, extension.version)}
                   onAnalyze={() =>
                     analyzeMutation.mutate({
@@ -382,11 +389,19 @@ type ResultCardProps = {
   extension: MarketplaceExtensionDto;
   isReady: boolean;
   busy: boolean;
+  dynamicAnalysisEnabled: boolean;
   onDownload: () => void;
   onAnalyze: () => void;
 };
 
-function ResultCard({ extension, isReady, busy, onDownload, onAnalyze }: ResultCardProps) {
+function ResultCard({
+  extension,
+  isReady,
+  busy,
+  dynamicAnalysisEnabled,
+  onDownload,
+  onAnalyze,
+}: ResultCardProps) {
   const [hover, setHover] = useState(false);
 
   return (
@@ -458,8 +473,15 @@ function ResultCard({ extension, isReady, busy, onDownload, onAnalyze }: ResultC
             {busy ? "Downloading…" : "Download"}
           </SolidButton>
         ) : (
-          <SolidButton disabled={busy} onClick={onAnalyze}>
-            {busy ? "Starting…" : "Analyze"}
+          <SolidButton
+            disabled={busy || !dynamicAnalysisEnabled}
+            onClick={onAnalyze}
+          >
+            {busy
+              ? "Starting…"
+              : dynamicAnalysisEnabled
+                ? "Analyze"
+                : "Dynamic scan off"}
           </SolidButton>
         )}
         {isReady ? (

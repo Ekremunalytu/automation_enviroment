@@ -872,7 +872,8 @@ Closed: `[FOLLOWUP evidence-event-kind-raw-context-invariant]` — W14-4
 - `[FOLLOWUP vsix-integrity-in-activation-report]`
 - `[FOLLOWUP vsix-thresholds-extra-keys]`
 - `[BACKLOG ui-v3-5]` — Settings persistence API partially closed for
-  Security thresholds; other localStorage sections client-only.
+  Security thresholds and the executor `dynamic_analysis_enabled` preference;
+  appearance sections remain browser-local.
 - `[CLEANUP ui-v3-9]`
 - `[CLEANUP ui-v3-14]`
 

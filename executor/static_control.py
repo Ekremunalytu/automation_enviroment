@@ -4,6 +4,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from executor.config import settings
+from executor.runtime_status import (
+    ContainerRuntimeStatus,
+    inspect_container_runtime,
+)
 from executor.static_host import StaticAnalyzerError
 from executor.static_host import (
     cancel_static_analysis_in_container as _cancel_static_analysis_in_container,
@@ -47,6 +52,10 @@ class StaticAnalyzerControl:
         analyze cancel path (``ExecutorControl`` teardown reset).
         """
         _cancel_static_analysis_in_container()
+
+    def runtime_status(self) -> ContainerRuntimeStatus:
+        """Return a bounded, read-only snapshot of the static container."""
+        return inspect_container_runtime(settings.static_analyzer.CONTAINER_NAME)
 
 
 default_static_analyzer_control = StaticAnalyzerControl()

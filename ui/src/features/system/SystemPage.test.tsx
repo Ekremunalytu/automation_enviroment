@@ -6,9 +6,65 @@ import { apiClient } from "../../lib/api/client";
 
 vi.mock("../../lib/api/client", () => ({
   apiClient: {
-    getHealth: vi.fn(),
+    getSystemHealth: vi.fn(),
   },
 }));
+
+const measuredHealth = {
+  observed_at: "2026-07-28T11:00:00Z",
+  services: [
+    {
+      id: "api",
+      name: "API",
+      health: "ok" as const,
+      status: "OK",
+      detail: "ExTrace API · v1.0.0",
+      source: "/api/system/health · current process",
+      metrics: [
+        { label: "status", value: "OK" },
+        { label: "uptime", value: "4m 12s" },
+      ],
+      observations: ["Aggregate health request served by the API process"],
+    },
+    {
+      id: "catalog",
+      name: "Catalog",
+      health: "ok" as const,
+      status: "online",
+      detail: "12 persisted extension records",
+      source: "PostgreSQL · extensions table",
+      metrics: [
+        { label: "extensions", value: "12" },
+        { label: "database", value: "postgresql" },
+      ],
+      observations: ["Database query completed"],
+    },
+    {
+      id: "sandbox",
+      name: "Sandbox",
+      health: "degraded" as const,
+      status: "starting",
+      detail: "Isolated dynamic-analysis executor",
+      source: "Docker Engine · container state",
+      metrics: [{ label: "state", value: "running" }],
+      observations: ["Health check: starting"],
+    },
+    {
+      id: "static",
+      name: "Static",
+      health: "ok" as const,
+      status: "running",
+      detail: "Network-isolated static pre-check",
+      source: "Docker Engine · container state",
+      metrics: [{ label: "state", value: "running" }],
+      observations: ["Container state: running"],
+    },
+  ],
+  inventory: [
+    { label: "hostname", value: "api-container" },
+    { label: "platform", value: "linux/x86_64" },
+  ],
+};
 
 function renderPage() {
   const queryClient = new QueryClient({
@@ -25,64 +81,53 @@ function renderPage() {
 describe("SystemPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // The real backend emits HEALTH_STATUS = "OK" (uppercase). Mock the real
-    // shape so the case-insensitive tone path is exercised end-to-end.
-    vi.mocked(apiClient.getHealth).mockResolvedValue({
-      status: "OK",
-      service: "extension-catalog-api",
-    });
+    vi.mocked(apiClient.getSystemHealth).mockResolvedValue(measuredHealth);
   });
 
-  it("renders the honest header and lists the API + three mock tiles", async () => {
+  it("renders the live runtime header without the removed helper copy", async () => {
     renderPage();
 
-    expect(await screen.findByText(/Appliance/u)).toBeInTheDocument();
-    expect(screen.getByText(/status\./u)).toBeInTheDocument();
-    expect(screen.queryByText(/Backend pending/u)).not.toBeInTheDocument();
+    expect(screen.getByText("Runtime pulse.")).toBeInTheDocument();
+    expect(
+      await screen.findByLabelText("Measured services"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("System status")).not.toBeInTheDocument();
+    expect(screen.queryByText("Appliance status.")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/Only the API card reflects a real measurement/u),
+    ).not.toBeInTheDocument();
+  });
 
-    // The mislabelled "executor" card is now honestly "API" (it polls
-    // /api/health, not the executor sandbox).
-    expect(screen.getByTestId("service-tile-api")).toBeInTheDocument();
-    expect(screen.queryByTestId("service-tile-executor")).not.toBeInTheDocument();
+  it("renders only measured services and no mock markers", async () => {
+    renderPage();
+
+    expect(await screen.findByTestId("service-tile-api")).toBeInTheDocument();
     expect(screen.getByTestId("service-tile-catalog")).toBeInTheDocument();
     expect(screen.getByTestId("service-tile-sandbox")).toBeInTheDocument();
-    expect(screen.getByTestId("service-tile-telemetry")).toBeInTheDocument();
+    expect(screen.getByTestId("service-tile-static")).toBeInTheDocument();
+    expect(screen.queryByText("MOCK")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("service-tile-telemetry")).not.toBeInTheDocument();
+    expect(screen.queryByText("Measured service")).not.toBeInTheDocument();
+    expect(screen.queryByText("ExTrace API · v1.0.0")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/Source · \/api\/system\/health/u),
+    ).not.toBeInTheDocument();
 
     await waitFor(() => {
-      expect(apiClient.getHealth).toHaveBeenCalled();
+      expect(apiClient.getSystemHealth).toHaveBeenCalled();
     });
   });
 
-  it("marks the mock services as MOCK and leaves the real API card unmarked", () => {
+  it("switches service detail to real catalog measurements", async () => {
     renderPage();
 
-    // The fabricated catalog/sandbox/telemetry cards now carry a MOCK marker;
-    // the real API card does not.
-    expect(screen.getByTestId("service-mock-catalog")).toBeInTheDocument();
-    expect(screen.getByTestId("service-mock-sandbox")).toBeInTheDocument();
-    expect(screen.getByTestId("service-mock-telemetry")).toBeInTheDocument();
-    expect(screen.queryByTestId("service-mock-api")).not.toBeInTheDocument();
+    fireEvent.click(await screen.findByTestId("service-tile-catalog"));
 
-    expect(
-      screen.getByText(/catalog, sandbox, and telemetry render mock values/iu),
-    ).toBeInTheDocument();
-  });
-
-  it("shows a mock-data note only when a stub service is selected", () => {
-    renderPage();
-
-    // Default selection is the real API card — no mock note.
-    expect(screen.queryByText(/Mock data — not measured/u)).not.toBeInTheDocument();
-
-    // Selecting a stub card surfaces the explicit not-measured note.
-    fireEvent.click(screen.getByTestId("service-tile-catalog"));
-    expect(screen.getByText(/Mock data — not measured/u)).toBeInTheDocument();
-  });
-
-  it("surfaces the real /api/health service on the default-selected API card", async () => {
-    renderPage();
-    expect(
-      await screen.findByText(/Live · extension-catalog-api · \/api\/health/u),
-    ).toBeInTheDocument();
+    expect(screen.queryByText("12 persisted extension records")).not.toBeInTheDocument();
+    expect(screen.queryByText(/PostgreSQL · extensions table/u)).not.toBeInTheDocument();
+    expect(screen.getByText("12")).toBeInTheDocument();
+    expect(screen.getByText("postgresql")).toBeInTheDocument();
+    expect(screen.getByText("Database query completed")).toBeInTheDocument();
+    expect(screen.getByText("api-container")).toBeInTheDocument();
   });
 });

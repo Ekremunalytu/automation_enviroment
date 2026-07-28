@@ -1,12 +1,11 @@
 """Operator-tunable runtime settings (key-value pairs).
 
-This table backs operator-facing controls that the analysis pipeline reads
-at request time — currently the VSIX hardening thresholds
-(`MAX_UNCOMPRESSED_SIZE`, `MAX_COMPRESSION_RATIO`, `MAX_FILE_COUNT`).
+This table backs operator-facing controls read at request time — the VSIX
+hardening thresholds and integer-encoded executor preferences.
 
 Design notes (2026-05-09):
-- Single integer column keeps the schema small while covering today's
-  three threshold settings. If a future setting needs strings or floats
+- Single integer column keeps the schema small while covering thresholds and
+  boolean flags encoded as 0/1. If a future setting needs strings or floats
   we'd add a typed sibling column rather than overloading ``value``.
 - ``key`` is the primary key; the canonical key list lives in
   ``workflows/security_settings/defaults.py`` so seed and validation

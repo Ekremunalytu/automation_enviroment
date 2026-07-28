@@ -15,9 +15,8 @@ import {
   EmptyState,
   Eyebrow,
   Field,
+  FONT_MONO,
   GhostButton,
-  KVRow,
-  MetricCell,
   PageTitle,
   Panel,
   Tabs,
@@ -196,7 +195,6 @@ export function ReportsPage() {
   // severity fallback. inconclusive/clean_with_notes must not read as the
   // clean (green) tone.
   const headerTone = verdictTone(verdict);
-  const recommendedAction = verdict ? verdictAction(verdict) : null;
   const inspectorTone: "accent" | "warn" | "danger" = inspector
     ? inspector.event.sensitive
       ? "danger"
@@ -208,146 +206,130 @@ export function ReportsPage() {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>
       <header style={{ paddingBottom: 24, borderBottom: `1px solid ${V3.rule}` }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-          {verdict ? (
-            <Badge tone={headerTone}>
-              Verdict · {verdict.toUpperCase()}
-            </Badge>
-          ) : null}
-          <VerdictLegend />
-        </div>
-        {recommendedAction ? (
-          <p
-            role="note"
-            aria-label="Recommended action"
-            style={{
-              margin: "12px 0 0",
-              maxWidth: 760,
-              fontSize: 13.5,
-              lineHeight: 1.55,
-              color: V3.ink2,
-            }}
-          >
-            {recommendedAction}
-          </p>
-        ) : null}
-        <PageTitle style={{ marginTop: 14, fontSize: 44, lineHeight: 1, wordBreak: "break-word" }}>Security report</PageTitle>
-        <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginTop: 18 }}>
-          <span
-            style={{
-              fontFamily: "'JetBrains Mono', monospace",
-              fontSize: 11,
-              color: V3.ink3,
-              letterSpacing: "0.08em",
-              textTransform: "uppercase",
-            }}
-          >
-            Findings · {report?.detection?.findings.length ?? 0}
-          </span>
-          <span
-            style={{
-              fontFamily: "'JetBrains Mono', monospace",
-              fontSize: 11,
-              color: V3.ink3,
-              letterSpacing: "0.08em",
-              textTransform: "uppercase",
-            }}
-          >
-            File · {report?.metadataFilename || "loading"}
-          </span>
-          <span
-            style={{
-              fontFamily: "'JetBrains Mono', monospace",
-              fontSize: 11,
-              color: V3.ink3,
-              letterSpacing: "0.08em",
-              textTransform: "uppercase",
-            }}
-          >
-            Visible · {formatNumber(filteredEvents.length)} events
-          </span>
-        </div>
+        <PageTitle style={{ fontSize: 44, lineHeight: 1, wordBreak: "break-word" }}>Security report</PageTitle>
       </header>
 
-      <Panel padded={false}>
-        <div
-          style={{
-            display: "flex",
-            flexWrap: "wrap",
-            gap: 14,
-            alignItems: "end",
-            padding: "16px 18px",
-            borderBottom: `1px solid ${V3.rule}`,
-            background: V3.paper3,
-          }}
-        >
-          <label style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0, flex: "1 1 220px" }}>
-            <Eyebrow>Report</Eyebrow>
-            <select
-              value={reportParam}
-              onChange={(event) => {
-                const next = new URLSearchParams(searchParams);
-                next.set("report", event.target.value);
-                setSearchParams(next, { replace: true });
-              }}
+      <section aria-label="Report workspace">
+        <Panel padded={false}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 18,
+              padding: "12px 16px",
+              borderBottom: `1px solid ${V3.rule}`,
+              background: V3.paper3,
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+              <span aria-hidden style={{ width: 18, height: 2, background: V3.coral }} />
+              <Eyebrow>Run control</Eyebrow>
+            </div>
+            <span
+              title={activeReport?.filename || "Latest report"}
               style={{
-                background: V3.paper2,
-                color: V3.ink,
-                border: `1px solid ${V3.rule}`,
-                borderRadius: 0,
-                padding: "11px 12px",
-                fontFamily: "'JetBrains Mono', monospace",
-                fontSize: 12,
                 minWidth: 0,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                color: V3.ink3,
+                fontFamily: FONT_MONO,
+                fontSize: 10,
+                letterSpacing: "0.04em",
               }}
             >
-              <option value="latest">Latest report</option>
-              {(reportsQuery.data || []).map((item) => (
-                <option key={item.filename} value={item.filename}>
-                  {item.filename}
-                </option>
-              ))}
-            </select>
-          </label>
+              {activeReport?.filename || "Latest report"}
+            </span>
+          </div>
 
-          <Field
-            label="Search"
-            placeholder="host, path, extension, summary…"
-            value={filters.search}
-            onChange={(value) => updateFilters({ ...filters, search: value })}
-            mono
-            style={{ flex: "2 1 280px", minWidth: 0 }}
-          />
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 220px), 1fr))",
+              gap: 12,
+              alignItems: "end",
+              padding: 16,
+            }}
+          >
+            <label style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
+              <Eyebrow>Report source</Eyebrow>
+              <select
+                value={reportParam}
+                onChange={(event) => {
+                  const next = new URLSearchParams(searchParams);
+                  next.set("report", event.target.value);
+                  setSearchParams(next, { replace: true });
+                }}
+                style={{
+                  width: "100%",
+                  minWidth: 0,
+                  background: V3.paper,
+                  color: V3.ink,
+                  border: `1px solid ${V3.rule2}`,
+                  borderRadius: 0,
+                  padding: "11px 12px",
+                  fontFamily: FONT_MONO,
+                  fontSize: 12,
+                }}
+              >
+                <option value="latest">Latest report</option>
+                {(reportsQuery.data || []).map((item) => (
+                  <option key={item.filename} value={item.filename}>
+                    {item.filename}
+                  </option>
+                ))}
+              </select>
+            </label>
 
-          <GhostButton ariaLabel="Filters" onClick={() => setFiltersOpen(true)} style={{ flex: "0 0 auto" }}>
-            Filters {activeFilterCount ? `(${activeFilterCount})` : ""}
-          </GhostButton>
-        </div>
+            <Field
+              label="Search evidence"
+              placeholder="host, path, extension, summary…"
+              value={filters.search}
+              onChange={(value) => updateFilters({ ...filters, search: value })}
+              mono
+              style={{ minWidth: 0 }}
+            />
 
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 150px), 1fr))",
-            borderBottom: `1px solid ${V3.rule}`,
-          }}
-        >
-          <Cell label="Total events" value={formatNumber(report?.summary.totalEvents ?? 0)} />
-          <Cell label="Sensitive" value={formatNumber(report?.summary.sensitiveEvents ?? 0)} tone="danger" />
-          <Cell label="Network" value={formatNumber(report?.summary.networkEvents ?? 0)} tone="warn" />
-          <Cell label="Score" value={`${report?.summary.signalSummaryScore ?? 0}`} tone={headerTone} />
-        </div>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 220px), 1fr))",
-            gap: 22,
-            padding: "14px 18px",
-          }}
-        >
-          <KVRow k="Last updated" v={formatModified(activeReport?.modified)} />
-          <KVRow k="Run quality" v={report?.summary.runQuality ?? "—"} mono={false} />
-        </div>
-      </Panel>
+            <GhostButton
+              ariaLabel="Filters"
+              onClick={() => setFiltersOpen(true)}
+              style={{ justifySelf: "start" }}
+            >
+              Filters {activeFilterCount ? `(${activeFilterCount})` : ""}
+            </GhostButton>
+          </div>
+
+          <div
+            aria-label="Report summary"
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 120px), 1fr))",
+              borderTop: `1px solid ${V3.rule}`,
+              background: V3.paper3,
+            }}
+          >
+            <ReportReadout label="Events" value={formatNumber(report?.summary.totalEvents ?? 0)} />
+            <ReportReadout
+              label="Sensitive"
+              value={formatNumber(report?.summary.sensitiveEvents ?? 0)}
+              tone="danger"
+            />
+            <ReportReadout
+              label="Network"
+              value={formatNumber(report?.summary.networkEvents ?? 0)}
+              tone="warn"
+            />
+            <ReportReadout
+              label="Score"
+              value={`${report?.summary.signalSummaryScore ?? 0}`}
+              tone={headerTone}
+            />
+            <ReportReadout label="Quality" value={report?.summary.runQuality ?? "—"} />
+            <ReportReadout label="Updated" value={formatModified(activeReport?.modified)} compact />
+          </div>
+        </Panel>
+      </section>
 
       {report ? (
         <RiskRadarPanel
@@ -468,25 +450,56 @@ export function ReportsPage() {
   );
 }
 
-type CellProps = {
+type ReportReadoutProps = {
   label: string;
   value: string;
   tone?: V3Tone;
+  compact?: boolean;
 };
 
-function Cell({ label, value, tone = "neutral" }: CellProps) {
+function ReportReadout({
+  label,
+  value,
+  tone = "neutral",
+  compact = false,
+}: ReportReadoutProps) {
+  const toneColor =
+    tone === "danger"
+      ? V3.coral
+      : tone === "warn"
+        ? V3.warn
+        : tone === "ok"
+          ? V3.ok
+          : tone === "accent"
+            ? V3.coral
+            : V3.ink;
   return (
     <div
       style={{
-        padding: "20px 22px",
+        minWidth: 0,
+        padding: "12px 14px",
         borderRight: `1px solid ${V3.rule}`,
+        borderBottom: `1px solid ${V3.rule}`,
       }}
     >
-      <MetricCell
-        label={label}
-        value={<span style={{ fontSize: 28, letterSpacing: 0 }}>{value}</span>}
-        tone={tone}
-      />
+      <Eyebrow>{label}</Eyebrow>
+      <div
+        title={value}
+        style={{
+          marginTop: 7,
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+          color: toneColor,
+          fontFamily: compact ? FONT_MONO : undefined,
+          fontSize: compact ? 10.5 : 19,
+          fontWeight: compact ? 500 : 650,
+          lineHeight: 1.2,
+          letterSpacing: compact ? "-0.01em" : 0,
+        }}
+      >
+        {value}
+      </div>
     </div>
   );
 }
@@ -516,10 +529,12 @@ function OverviewSection({
   report: ReportModel;
 }) {
   const rationale = report.detection?.verdictRationale;
+  const verdict = report.detection?.verdict;
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+      {verdict ? <VerdictOverviewBand verdict={verdict} /> : null}
       {rationale ? (
-        <RationalePanel rationale={rationale} verdict={report.detection?.verdict} />
+        <RationalePanel rationale={rationale} verdict={verdict} />
       ) : null}
       <VerdictSummaryPanel detection={report.detection} />
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 320px), 1fr))", gap: 20 }}>
@@ -527,6 +542,60 @@ function OverviewSection({
         <BreakdownPanel label="Risk mix" rows={buildRiskRows(report)} />
       </div>
     </div>
+  );
+}
+
+function VerdictOverviewBand({ verdict }: { verdict: string }) {
+  const action = verdictAction(verdict);
+  return (
+    <section
+      aria-label="Verdict overview"
+      style={{
+        border: `1px solid ${V3.rule}`,
+        background: V3.paper2,
+      }}
+    >
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 260px), 1fr))",
+        }}
+      >
+        <div
+          style={{
+            padding: "18px 20px",
+            borderRight: `1px solid ${V3.rule}`,
+            borderBottom: `1px solid ${V3.rule}`,
+          }}
+        >
+          <Eyebrow>Current verdict</Eyebrow>
+          <div style={{ marginTop: 12 }}>
+            <Badge tone={verdictTone(verdict)} style={{ padding: "6px 10px", fontSize: 11 }}>
+              Verdict · {verdict.toUpperCase()}
+            </Badge>
+          </div>
+        </div>
+        <div style={{ padding: "18px 20px", borderBottom: `1px solid ${V3.rule}` }}>
+          <Eyebrow>Operator action</Eyebrow>
+          <p
+            role="note"
+            aria-label="Recommended action"
+            style={{
+              margin: "10px 0 0",
+              maxWidth: 680,
+              fontSize: 13.5,
+              lineHeight: 1.55,
+              color: V3.ink2,
+            }}
+          >
+            {action}
+          </p>
+        </div>
+      </div>
+      <div style={{ padding: "13px 20px", background: V3.paper3 }}>
+        <VerdictLegend />
+      </div>
+    </section>
   );
 }
 
@@ -559,24 +628,75 @@ function RationalePanel({ rationale, verdict }: { rationale: string; verdict?: s
   }
 
   return (
-    <Panel label="Verdict rationale">
-      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+    <Panel
+      label="Verdict rationale"
+      right={
+        <Badge tone={chipTone}>
+          {codes.length} verdict signal{codes.length === 1 ? "" : "s"}
+        </Badge>
+      }
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
         {lead ? (
           <p style={{ fontSize: 13.5, color: V3.ink2, lineHeight: 1.6, margin: 0, maxWidth: 820 }}>
             {lead.charAt(0).toUpperCase() + lead.slice(1)}
           </p>
         ) : null}
-        <div>
-          <Eyebrow>
-            {codes.length} signal{codes.length === 1 ? "" : "s"}
-          </Eyebrow>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 10 }}>
-            {codes.map((code) => (
-              <span key={code} title={code}>
-                <Badge tone={chipTone}>{code.replaceAll("_", " ")}</Badge>
+        <div
+          role="list"
+          aria-label="Verdict signals"
+          style={{
+            display: "grid",
+            gridTemplateColumns:
+              "repeat(auto-fit, minmax(min(100%, 260px), 1fr))",
+            borderTop: `1px solid ${V3.rule}`,
+            borderLeft: `1px solid ${V3.rule}`,
+          }}
+        >
+          {codes.map((code, index) => (
+            <div
+              key={code}
+              role="listitem"
+              title={code}
+              style={{
+                display: "grid",
+                gridTemplateColumns: "34px minmax(0, 1fr)",
+                minHeight: 64,
+                borderRight: `1px solid ${V3.rule}`,
+                borderBottom: `1px solid ${V3.rule}`,
+                background: V3.paper,
+              }}
+            >
+              <span
+                aria-hidden
+                style={{
+                  display: "grid",
+                  placeItems: "center",
+                  borderRight: `1px solid ${V3.rule}`,
+                  color: V3.coral,
+                  fontFamily: "'JetBrains Mono', monospace",
+                  fontSize: 10,
+                  fontWeight: 700,
+                }}
+              >
+                {String(index + 1).padStart(2, "0")}
               </span>
-            ))}
-          </div>
+              <span
+                style={{
+                  alignSelf: "center",
+                  padding: "12px 14px",
+                  color: V3.ink2,
+                  fontFamily: "'JetBrains Mono', monospace",
+                  fontSize: 11,
+                  lineHeight: 1.45,
+                  letterSpacing: "0.04em",
+                  textTransform: "uppercase",
+                }}
+              >
+                {code.replaceAll("_", " ")}
+              </span>
+            </div>
+          ))}
         </div>
       </div>
     </Panel>

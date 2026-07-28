@@ -155,35 +155,10 @@ export function AppShell({ children }: PropsWithChildren) {
           </span>
         </button>
 
-        {!effectiveCollapsed ? (
-          <div
-            style={{
-              padding: "18px 22px 8px",
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-            }}
-          >
-            <span style={{ width: 14, height: 1, background: V3.coral }} />
-            <span
-              style={{
-                fontFamily: "'JetBrains Mono', monospace",
-                fontSize: 10,
-                fontWeight: 500,
-                letterSpacing: "0.18em",
-                textTransform: "uppercase",
-                color: V3.ink4,
-              }}
-            >
-              Index
-            </span>
-          </div>
-        ) : null}
-
         <nav
           aria-label="Primary"
           style={{
-            padding: effectiveCollapsed ? "14px 10px" : "4px 14px",
+            padding: effectiveCollapsed ? "14px 10px" : "18px 14px 4px",
             display: "flex",
             flexDirection: "column",
             gap: 0,

@@ -19,6 +19,7 @@ describe("AppShell", () => {
 
     expect(screen.getByText("ExTrace")).toBeInTheDocument();
     expect(screen.getByRole("navigation", { name: "Primary" })).toBeInTheDocument();
+    expect(screen.queryByText("Index")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^Simulation/i })).toHaveAttribute("aria-current", "page");
     expect(screen.getByRole("button", { name: /^Reports/i })).not.toHaveAttribute("aria-current");
   });

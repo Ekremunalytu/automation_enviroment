@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from sqlalchemy import select
+from datetime import datetime
+
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session, defer, joinedload, load_only, selectinload
 
 from appcore.storage.models import (
@@ -88,9 +90,20 @@ def get_db_extensions_base_info(db: Session) -> list[Extension]:
     return list(db.scalars(stmt).all())
 
 
+def get_extension_inventory_summary(db: Session) -> tuple[int, datetime | None]:
+    """Return the persisted extension count and most recent catalog write."""
+    stmt = select(
+        func.count(Extension.id),
+        func.max(func.coalesce(Extension.updated_at, Extension.created_at)),
+    )
+    count, latest_write = db.execute(stmt).one()
+    return int(count or 0), latest_write
+
+
 __all__ = [
     "get_db_extensions_base_info",
     "get_extension_by_id",
+    "get_extension_inventory_summary",
     "get_extensions_all_info",
     "search_extension_by_name",
 ]

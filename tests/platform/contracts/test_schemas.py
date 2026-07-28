@@ -6,6 +6,10 @@ from appcore.contracts.schema_defs.analysis_jobs import (
     AnalysisJobStepRecord,
     AnalysisJobStepUpdate,
 )
+from appcore.contracts.schema_defs.executor_settings import (
+    ExecutorPreferencesResponse,
+    ExecutorPreferencesUpdateRequest,
+)
 from appcore.contracts.schema_defs.marketplace import AnalyzeJobStepProgress
 from appcore.contracts.schema_defs.security_settings import (
     ThresholdBoundsResponse,
@@ -300,3 +304,14 @@ def test_thresholds_update_request_defaults_values_to_empty_dict() -> None:
 def test_thresholds_update_request_rejects_overlong_updated_by() -> None:
     with pytest.raises(ValidationError):
         ThresholdsUpdateRequest(updated_by="x" * 129)
+
+
+def test_executor_preferences_contract_requires_a_strict_boolean() -> None:
+    response = ExecutorPreferencesResponse(dynamic_analysis_enabled=False)
+    assert response.model_dump(mode="json") == {"dynamic_analysis_enabled": False}
+
+    request = ExecutorPreferencesUpdateRequest(dynamic_analysis_enabled=True)
+    assert request.dynamic_analysis_enabled is True
+
+    with pytest.raises(ValidationError):
+        ExecutorPreferencesUpdateRequest(dynamic_analysis_enabled=1)

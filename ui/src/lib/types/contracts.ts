@@ -574,6 +574,42 @@ export interface VsixExtractionMetricsDto {
   rejected_entry_count: number;
 }
 
+export interface ExecutorPreferencesResponseDto {
+  dynamic_analysis_enabled: boolean;
+}
+
+export interface ExecutorPreferencesUpdateRequestDto {
+  dynamic_analysis_enabled: boolean;
+  updated_by?: string | null;
+}
+
+export interface SystemMetricDto {
+  label: string;
+  value: string;
+}
+
+export interface SystemServiceHealthDto {
+  id: string;
+  name: string;
+  health: "ok" | "degraded" | "down" | "unknown";
+  status: string;
+  detail: string;
+  source: string;
+  metrics: SystemMetricDto[];
+  observations: string[];
+}
+
+export interface SystemInventoryItemDto {
+  label: string;
+  value: string;
+}
+
+export interface SystemHealthResponseDto {
+  observed_at: string;
+  services: SystemServiceHealthDto[];
+  inventory: SystemInventoryItemDto[];
+}
+
 export interface VsixThresholdBoundsDto {
   min_value: number;
   max_value: number;

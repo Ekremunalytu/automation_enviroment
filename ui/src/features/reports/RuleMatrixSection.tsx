@@ -170,27 +170,19 @@ function MatrixCellButton({
 
 function MatrixBand({
   title,
-  subtitle,
   right,
-  intro,
   groups,
   emptyTitle,
   onSelect,
 }: {
   title: string;
-  subtitle: string;
   right?: ReactNode;
-  intro?: ReactNode;
   groups: FamilyGroup[];
   emptyTitle: string;
   onSelect: (cell: MatrixCell) => void;
 }) {
   return (
     <Panel label={title} right={right}>
-      <p style={{ margin: "0 0 14px", maxWidth: 760, color: V3.ink3, fontSize: 13, lineHeight: 1.6 }}>
-        {subtitle}
-      </p>
-      {intro}
       {groups.length ? (
         <div
           style={{
@@ -265,11 +257,13 @@ function Legend() {
   );
 }
 
-function ToolCoverage({ cells }: { cells: ToolCell[] }) {
+function ToolStatuses({ cells }: { cells: ToolCell[] }) {
   if (!cells.length) return null;
   return (
-    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
-      <Eyebrow>Tool coverage</Eyebrow>
+    <div
+      aria-label="Static analysis tools"
+      style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}
+    >
       {cells.map((tool) => {
         const tone: V3Tone =
           tool.status === "ok"
@@ -278,7 +272,7 @@ function ToolCoverage({ cells }: { cells: ToolCell[] }) {
               ? "danger"
               : "warn";
         return (
-          <Badge key={tool.tool} tone={tone}>
+          <Badge key={tool.tool} tone={tone} style={{ padding: "4px 7px" }}>
             {tool.tool} · {tool.status}
             {tool.errorCount ? ` · ${tool.errorCount} err` : ""}
           </Badge>
@@ -399,7 +393,6 @@ export function RuleMatrixSection({ report }: { report: ActivationReportView }) 
 
       <MatrixBand
         title="Dynamic · behavioral"
-        subtitle="Behavioral rules the detection engine evaluated against this run's evidence. Every registered rule reports fired or silent — silent means it ran and matched nothing."
         right={
           <Eyebrow>
             {matrix.counts.dynamicFired}/{matrix.counts.dynamicTotal} fired
@@ -413,13 +406,14 @@ export function RuleMatrixSection({ report }: { report: ActivationReportView }) 
       {matrix.hasStatic ? (
         <MatrixBand
           title="Static · pre-check"
-          subtitle="Static pre-check rules from the manifest / file-tree / Semgrep gate. In-house rules show fired or silent; external tool matches surface when they fired."
           right={
-            <Eyebrow>
-              {matrix.counts.staticFired}/{matrix.counts.staticTotal} fired
-            </Eyebrow>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", justifyContent: "flex-end" }}>
+              <Eyebrow>
+                {matrix.counts.staticFired}/{matrix.counts.staticTotal} fired
+              </Eyebrow>
+              <ToolStatuses cells={matrix.toolCells} />
+            </div>
           }
-          intro={<ToolCoverage cells={matrix.toolCells} />}
           groups={matrix.static}
           emptyTitle="No static rules"
           onSelect={setSelected}

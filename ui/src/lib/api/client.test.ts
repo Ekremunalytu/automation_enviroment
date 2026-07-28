@@ -38,4 +38,46 @@ describe("apiClient URL discipline (W15-5 I2)", () => {
     const [calledUrl] = fetchSpy.mock.calls[0];
     expect(String(calledUrl)).toBe("/api/health");
   });
+
+  it("reads the measured appliance snapshot through the system health API", async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(
+        jsonResponse({ observed_at: "", services: [], inventory: [] }),
+      );
+
+    await apiClient.getSystemHealth();
+
+    expect(fetchSpy).toHaveBeenCalledWith(
+      "/api/system/health",
+      expect.objectContaining({ signal: undefined }),
+    );
+  });
+
+  it("reads and updates the executor preference through the settings API", async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockImplementation(async () =>
+        jsonResponse({ dynamic_analysis_enabled: false }),
+      );
+
+    await apiClient.getExecutorPreferences();
+    await apiClient.updateExecutorPreferences({
+      dynamic_analysis_enabled: true,
+    });
+
+    expect(fetchSpy).toHaveBeenNthCalledWith(
+      1,
+      "/api/settings/executor/preferences",
+      expect.objectContaining({ signal: undefined }),
+    );
+    expect(fetchSpy).toHaveBeenNthCalledWith(
+      2,
+      "/api/settings/executor/preferences",
+      expect.objectContaining({
+        method: "PUT",
+        body: JSON.stringify({ dynamic_analysis_enabled: true }),
+      }),
+    );
+  });
 });

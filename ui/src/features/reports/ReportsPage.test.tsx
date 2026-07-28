@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { ReportsPage } from "./ReportsPage";
 import { apiClient } from "../../lib/api/client";
@@ -328,12 +328,21 @@ describe("ReportsPage", () => {
     renderPage("/reports?report=latest&tab=overview");
 
     expect(await screen.findByText("Security report")).toBeInTheDocument();
-    expect(await screen.findByText("Verdict · MALICIOUS")).toBeInTheDocument();
+    expect(screen.getByLabelText("Report workspace")).toBeInTheDocument();
+    expect(screen.getByText("Run control")).toBeInTheDocument();
+    const verdictOverview = await screen.findByLabelText("Verdict overview");
+    expect(within(verdictOverview).getByText("Verdict · MALICIOUS")).toBeInTheDocument();
+    expect(within(verdictOverview).getByLabelText("Verdict scale")).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Security report" }).closest("header"),
+    ).not.toHaveTextContent("Verdict");
     expect(screen.getByText("critical finding with high confidence")).toBeInTheDocument();
     expect(screen.getByText("Credential file read followed by outbound request")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /credential file read followed by outbound request/iu })).toBeInTheDocument();
     expect(screen.getByText("Composite score")).toBeInTheDocument();
-    expect(screen.getByText("Findings · 1")).toBeInTheDocument();
+    expect(screen.queryByText("Findings · 1")).not.toBeInTheDocument();
+    expect(screen.queryByText(/File ·/u)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Visible ·/u)).not.toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Overview" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Interactions" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Timeline" })).toBeInTheDocument();
@@ -400,6 +409,11 @@ describe("ReportsPage", () => {
     renderPage("/reports?report=latest&tab=overview");
 
     expect(await screen.findByText("Verdict · INCONCLUSIVE")).toBeInTheDocument();
+    expect(
+      screen.getByRole("list", { name: "Verdict signals" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("1 verdict signal")).toBeInTheDocument();
+    expect(screen.getByText("extension host log missing")).toBeInTheDocument();
 
     // The recommended-action note must tell the operator this is NOT clean.
     const note = await screen.findByRole("note", { name: "Recommended action" });
@@ -435,7 +449,7 @@ describe("ReportsPage", () => {
   it("opens the Inspector drawer on deep-link and routes 'Draft rule from event' to /rules", async () => {
     renderPage("/reports?report=latest&tab=ledger&event=file-1");
 
-    await screen.findByText("Findings · 1");
+    await screen.findByText("Security report");
     expect(await screen.findByRole("dialog")).toBeInTheDocument();
     const draftButton = await screen.findByRole(
       "button",

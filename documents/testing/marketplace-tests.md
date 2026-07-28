@@ -1,6 +1,6 @@
 # Marketplace + Workflow Tests
 
-`Last Updated: 2026-05-05`
+`Last Updated: 2026-07-28`
 
 `tests/workflows/` — workflow router/service/parser/job_service tests.
 Lane shape: [`../TESTING.md`](../TESTING.md). Layer file map:
@@ -25,6 +25,9 @@ Lane shape: [`../TESTING.md`](../TESTING.md). Layer file map:
 - `test_router.py` — `/api/marketplace/search|download|analyze[/start]`
   - cancel endpoint surface. Code comment at line 2009 references
   `[FOLLOWUP simulation-progress-cancel]`.
+- `conftest.py` — keeps legacy marketplace router tests explicit by enabling
+  dynamic analysis in their isolated dependency override; the default-off
+  behavior is tested separately under `tests/workflows/executor_settings/`.
 - `test_client.py` — `download_and_extract_vsix` + retry behavior.
 - `test_vsix_hardening.py` — W8-1 zip-bomb / entry-traversal guard
   (5 cases: normal, oversize, ratio, file-count, path-traversal).
@@ -40,6 +43,18 @@ Lane shape: [`../TESTING.md`](../TESTING.md). Layer file map:
   `feat/w8-2-and-reviewer-feedback-gaps`).
 - `test_triggers.py` — trigger selection + failure handling.
 - `test_job_service.py` — job lifecycle + `is_job_cancelled` polling.
+
+## Operator Preferences And System Health
+
+- `tests/workflows/executor_settings/test_router.py` — default-off behavior,
+  strict boolean validation, persistence, and 409 enforcement at both
+  synchronous and background analysis entry points.
+- `tests/workflows/system_health/test_router.py` — aggregate API response
+  contract.
+- `tests/workflows/system_health/test_service.py` — measured API/catalog/
+  container mapping and partial-failure behavior.
+- `tests/executor/test_runtime_status.py` — bounded Docker inspection,
+  healthcheck normalization, and daemon-output redaction.
 
 ## Architecture Tests Touching Marketplace
 

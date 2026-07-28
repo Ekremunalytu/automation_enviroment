@@ -32,6 +32,7 @@ from appcore.storage.crud_ops.operator_settings import (
 from appcore.storage.crud_ops.reads import (
     get_db_extensions_base_info,
     get_extension_by_id,
+    get_extension_inventory_summary,
     get_extensions_all_info,
     search_extension_by_name,
 )
@@ -63,6 +64,7 @@ __all__ = [
     "get_extension_capabilities",
     "get_extension_contributes_all",
     "get_extension_contributes_commands",
+    "get_extension_inventory_summary",
     "get_extension_scripts",
     "get_extensions_all_info",
     "get_operator_setting",
