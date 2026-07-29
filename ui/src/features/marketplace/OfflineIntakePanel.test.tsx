@@ -98,17 +98,18 @@ describe("Offline intake tab", () => {
     });
   });
 
-  it("lists staged packages and blocks Analyze while the preference is off", async () => {
+  it("lists staged packages and keeps static analysis available while dynamic is off", async () => {
     renderPage("/marketplace?tab=offline");
 
     expect(await screen.findByText("Python (offline)")).toBeInTheDocument();
     expect(await screen.findByText("Prettier (offline)")).toBeInTheDocument();
     expect(screen.getByText(/2 packages staged/u)).toBeInTheDocument();
 
-    // The already-ingested package stays blocked; the fresh one can still ingest.
+    // The already-ingested package can run the static-only pipeline; the fresh
+    // one can still ingest.
     expect(
-      screen.getByRole("button", { name: "Dynamic scan off" }),
-    ).toBeDisabled();
+      screen.getByRole("button", { name: "Run static scan" }),
+    ).toBeEnabled();
     expect(screen.getByRole("button", { name: "Ingest" })).toBeInTheDocument();
   });
 
@@ -124,13 +125,12 @@ describe("Offline intake tab", () => {
       );
     });
 
-    // Both rows are staged, but analysis remains blocked while the toggle is off.
     await waitFor(() => {
-      const blocked = screen.getAllByRole("button", {
-        name: "Dynamic scan off",
-      });
-      expect(blocked).toHaveLength(2);
-      for (const button of blocked) expect(button).toBeDisabled();
+      expect(apiClient.startAnalysisJob).toHaveBeenCalledWith(
+        "esbenp",
+        "prettier-vscode",
+        "10.1.0",
+      );
     });
   });
 

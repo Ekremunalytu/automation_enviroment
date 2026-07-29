@@ -1,6 +1,6 @@
 # Marketplace + Workflow Tests
 
-`Last Updated: 2026-07-28`
+`Last Updated: 2026-07-29`
 
 `tests/workflows/` — workflow router/service/parser/job_service tests.
 Lane shape: [`../TESTING.md`](../TESTING.md). Layer file map:
@@ -27,7 +27,8 @@ Lane shape: [`../TESTING.md`](../TESTING.md). Layer file map:
   `[FOLLOWUP simulation-progress-cancel]`.
 - `conftest.py` — keeps legacy marketplace router tests explicit by enabling
   dynamic analysis in their isolated dependency override; the default-off
-  behavior is tested separately under `tests/workflows/executor_settings/`.
+  static-only behavior is tested separately under
+  `tests/workflows/executor_settings/`.
 - `test_client.py` — `download_and_extract_vsix` + retry behavior.
 - `test_vsix_hardening.py` — W8-1 zip-bomb / entry-traversal guard
   (5 cases: normal, oversize, ratio, file-count, path-traversal).
@@ -47,8 +48,8 @@ Lane shape: [`../TESTING.md`](../TESTING.md). Layer file map:
 ## Operator Preferences And System Health
 
 - `tests/workflows/executor_settings/test_router.py` — default-off behavior,
-  strict boolean validation, persistence, and 409 enforcement at both
-  synchronous and background analysis entry points.
+  strict boolean validation, persistence, and proof that both synchronous and
+  background analysis entry points still reach the artifact/static pipeline.
 - `tests/workflows/system_health/test_router.py` — aggregate API response
   contract.
 - `tests/workflows/system_health/test_service.py` — measured API/catalog/

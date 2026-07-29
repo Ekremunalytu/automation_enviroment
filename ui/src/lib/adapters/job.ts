@@ -51,7 +51,7 @@ function formatDate(epoch?: number | null) {
 }
 
 function stepFraction(step: AnalyzeJobStepDto): number {
-  if (step.status === "completed") return 1;
+  if (step.status === "completed" || step.status === "skipped") return 1;
   if (
     step.status === "running" &&
     step.progress &&
@@ -92,6 +92,10 @@ function buildProgressLabel(steps: AnalyzeJobStepDto[]): string {
   const total = steps.length;
   const completedCount = steps.filter((step) => step.status === "completed").length;
   if (completedCount === total) return "All steps complete";
+  const settledCount = steps.filter(
+    (step) => step.status === "completed" || step.status === "skipped",
+  ).length;
+  if (settledCount === total) return "All applicable steps complete";
 
   const terminalIdx = steps.findIndex(
     (step) => step.status === "failed" || step.status === "cancelled",
@@ -171,7 +175,9 @@ export function adaptJob(dto: AnalyzeJobStatusDto): SimulationViewModel {
       ? `${formatStep(monitoringStep.name)}: scenario ${monitoringStep.progress.completed}/${monitoringStep.progress.total}`
       : null;
   const warmupCopy =
-    dto.status === "running" && !dto.report_path
+    dto.status === "completed" && dto.static_report && !dto.report_path
+      ? "Static analysis completed. Dynamic sandbox analysis was skipped because it is disabled."
+      : dto.status === "running" && !dto.report_path
       ? "Executor is still warming up. Trigger resolution and report bootstrapping are in flight."
       : dto.status === "queued"
         ? "Job is queued and waiting for the sandbox pipeline to start."
@@ -191,7 +197,14 @@ export function adaptJob(dto: AnalyzeJobStatusDto): SimulationViewModel {
     title: `${dto.publisher}.${dto.name}@${dto.version}`,
     status: dto.status,
     progressLabel: buildProgressLabel(steps),
-    currentStepLabel: formatStep(dto.current_step || steps.find((step) => step.status === "running")?.name || null),
+    currentStepLabel:
+      dto.status === "completed"
+        ? "Complete"
+        : formatStep(
+            dto.current_step ||
+              steps.find((step) => step.status === "running")?.name ||
+              null,
+          ),
     progressPct,
     warmupCopy,
     lastUpdatedLabel: formatDate(dto.updated_at),

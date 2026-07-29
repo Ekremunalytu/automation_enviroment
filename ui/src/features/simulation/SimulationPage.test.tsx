@@ -81,6 +81,43 @@ describe("SimulationPage", () => {
     expect(screen.queryByText("Covered")).not.toBeInTheDocument();
   });
 
+  it("shows a truthful terminal empty state for a static-only job", async () => {
+    vi.mocked(apiClient.getAnalysisJob).mockResolvedValueOnce({
+      job_id: "job-static-only",
+      status: "completed",
+      publisher: "ms",
+      name: "lint",
+      version: "1.0.0",
+      message: "Static analysis completed.",
+      steps: [
+        { name: "static_analysis", status: "completed", message: "Static analysis completed." },
+        { name: "decision_gate", status: "completed", message: "Static gate warned." },
+        { name: "reset_sandbox", status: "skipped", message: "Dynamic analysis disabled." },
+        { name: "install_extension", status: "skipped", message: "Dynamic analysis disabled." },
+        { name: "build_triggers", status: "skipped", message: "Dynamic analysis disabled." },
+        { name: "run_monitoring", status: "skipped", message: "Dynamic analysis disabled." },
+        { name: "finalize_report", status: "skipped", message: "Dynamic analysis disabled." },
+      ],
+      created_at: 1713002400,
+      updated_at: 1713002410,
+      report_path: null,
+      static_report: {
+        detection_report: {},
+        gate_outcome: {
+          decision: "warn",
+          warned_by: ["extrace.s1.suspicious_capabilities"],
+        },
+      },
+    });
+
+    renderPage("/simulation?job=job-static-only&tab=live");
+
+    expect(await screen.findByText("Dynamic sandbox skipped")).toBeInTheDocument();
+    expect(screen.getByText("0 visible events · dynamic sandbox skipped")).toBeInTheDocument();
+    expect(screen.getByText("Complete")).toBeInTheDocument();
+    expect(screen.queryByText("Run is warming up")).not.toBeInTheDocument();
+  });
+
   it("renders the live strip, filter drawer, and keeps tab state in the URL", async () => {
     vi.mocked(apiClient.getAnalysisJob).mockResolvedValueOnce({
       job_id: "job-2",

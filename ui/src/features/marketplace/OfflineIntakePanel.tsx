@@ -104,13 +104,11 @@ export function OfflineIntakePanel({
         // Refresh so the server-side already_ingested flag reconciles with
         // the optimistic local flip.
         void listQuery.refetch();
-        if (dynamicAnalysisEnabled) {
-          analyzeMutation.mutate({
-            publisher: result.publisher,
-            name: result.name,
-            version: result.version,
-          });
-        }
+        analyzeMutation.mutate({
+          publisher: result.publisher,
+          name: result.name,
+          version: result.version,
+        });
       },
       onError: (error) => {
         if (error instanceof ApiError && isThresholdBreach(error.detail)) {
@@ -359,14 +357,14 @@ function OfflineCard({
           </SolidButton>
         ) : (
           <SolidButton
-            disabled={busy || !dynamicAnalysisEnabled}
+            disabled={busy}
             onClick={onAnalyze}
           >
             {busy
               ? "Starting…"
               : dynamicAnalysisEnabled
                 ? "Analyze"
-                : "Dynamic scan off"}
+                : "Run static scan"}
           </SolidButton>
         )}
         {isReady ? (

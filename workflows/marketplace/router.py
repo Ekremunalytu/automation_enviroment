@@ -66,24 +66,6 @@ logger = get_extrace_logger("extrace.workflows.marketplace.router")
 router = APIRouter(prefix="/api", tags=["marketplace"])
 
 
-def _require_dynamic_analysis_enabled(db: Session) -> None:
-    """Reject dynamic-analysis entry points while the operator toggle is off."""
-    if load_dynamic_analysis_enabled(db):
-        return
-
-    logger.info("dynamic_analysis_blocked preference=off")
-    raise HTTPException(
-        status_code=409,
-        detail={
-            "error": "dynamic_analysis_disabled",
-            "message": (
-                "Dynamic analysis is disabled. Enable it in "
-                "Settings > Executor before starting a sandbox run."
-            ),
-        },
-    )
-
-
 def _package_json_error_detail(exc: PackageJsonReadError) -> str:
     if exc.reason == "missing":
         detail = f"Downloaded extension package.json is missing: {exc.path}"
@@ -425,7 +407,7 @@ def start_analysis_job(
     request: AnalyzeRequest,
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
-    _require_dynamic_analysis_enabled(db)
+    dynamic_analysis_enabled = load_dynamic_analysis_enabled(db)
 
     try:
         vsix_path = ensure_vsix_exists(request)
@@ -461,7 +443,12 @@ def start_analysis_job(
         daemon=False,
         name=f"analysis-{job['job_id'][:8]}",
         target=run_analysis_job,
-        args=(job["job_id"], request.model_copy(deep=True), vsix_sha256),
+        args=(
+            job["job_id"],
+            request.model_copy(deep=True),
+            vsix_sha256,
+            dynamic_analysis_enabled,
+        ),
     )
     worker.start()
     return job_service.get_job_snapshot(job["job_id"], db=db)
@@ -558,7 +545,7 @@ def analyze_extension(
     request: AnalyzeRequest,
     db: Session = Depends(get_db),
 ) -> AnalyzeResponse:
-    _require_dynamic_analysis_enabled(db)
+    dynamic_analysis_enabled = load_dynamic_analysis_enabled(db)
 
     # W15-1 (Codex 2026-05-10 M10 close-out): single except clause over the
     # closed ``ANALYZE_ERROR_TYPES`` taxonomy so the sync entry and the
@@ -576,6 +563,11 @@ def analyze_extension(
         # resolves+stats (no staging); execute_analysis_request re-checks it.
         vsix_path = ensure_vsix_exists(request)
         vsix_sha256 = marketplace_client.compute_vsix_sha256(vsix_path)
-        return execute_analysis_request(request, db, vsix_sha256=vsix_sha256)
+        return execute_analysis_request(
+            request,
+            db,
+            vsix_sha256=vsix_sha256,
+            dynamic_analysis_enabled=dynamic_analysis_enabled,
+        )
     except ANALYZE_ERROR_TYPES as exc:
         raise analyze_error_to_http_response(exc) from exc

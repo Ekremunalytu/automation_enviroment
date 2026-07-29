@@ -92,6 +92,14 @@ from workflows.marketplace.trigger_service import TriggerPlan, build_trigger_pay
 
 logger = get_extrace_logger("extrace.workflows.marketplace.analysis_service")
 
+_DYNAMIC_ANALYSIS_STEP_NAMES: tuple[AnalysisJobStepName, ...] = (
+    "reset_sandbox",
+    "install_extension",
+    "build_triggers",
+    "run_monitoring",
+    "finalize_report",
+)
+
 
 # W15-1 (Codex 2026-05-10 M10 close-out): the analyze pipeline raises this
 # closed taxonomy into both the sync ``POST /api/marketplace/analyze``
@@ -338,6 +346,7 @@ def execute_analysis_request(
     static_analyzer_control: StaticAnalyzerControl | None = None,
     static_report_name: str | None = None,
     vsix_sha256: str = "",
+    dynamic_analysis_enabled: bool = True,
 ) -> AnalyzeResponse:
     if executor_control is None:
         executor_control = default_executor_control
@@ -372,6 +381,36 @@ def execute_analysis_request(
             vsix_sha256=vsix_sha256,
         )
         _raise_if_cancelled(cancel_check)
+    if not dynamic_analysis_enabled:
+        if static_report is None:
+            raise ValueError(
+                "Analysis cannot run because both static and dynamic analysis "
+                "are disabled."
+            )
+        for step_name in _DYNAMIC_ANALYSIS_STEP_NAMES:
+            reporter.emit(
+                step_name,
+                "skipped",
+                "Skipped because dynamic analysis is disabled.",
+            )
+        _check_vsix_provenance_agreement(
+            expected=vsix_sha256,
+            dynamic_payload=None,
+            static_report=static_report,
+        )
+        return AnalyzeResponse(
+            status="success",
+            publisher=request.publisher,
+            name=request.name,
+            version=request.version,
+            message=(
+                f"Static analysis completed for "
+                f"{request.publisher}.{request.name}@{request.version}. "
+                "Dynamic sandbox analysis was skipped because it is disabled."
+            ),
+            report_path=None,
+            static_report=static_report,
+        )
     _reset_sandbox(reporter, executor_control, cancel_check=cancel_check)
     _raise_if_cancelled(cancel_check)
     # W13-11 (Codex F1 close-pass for W13-1 H6): host-side eager-consume
@@ -516,7 +555,10 @@ def analyze_error_to_http_response(exc: Exception) -> HTTPException:
 
 
 def run_analysis_job(
-    job_id: str, request: AnalyzeRequest, vsix_sha256: str = ""
+    job_id: str,
+    request: AnalyzeRequest,
+    vsix_sha256: str = "",
+    dynamic_analysis_enabled: bool = True,
 ) -> None:
     # W13-13 (CLOSE-GATE codex-second-opinion-F3) + W16-2 (AGENTS.md:57
     # facade compliance): the worker-entry seam is owned by the
@@ -635,6 +677,7 @@ def run_analysis_job(
                 cancel_check=cancel_check,
                 static_report_name=static_report_name,
                 vsix_sha256=vsix_sha256,
+                dynamic_analysis_enabled=dynamic_analysis_enabled,
             )
         except AnalysisCancelledError:
             # W13-3 (Codex H4): worker observed the cancel signal at one of

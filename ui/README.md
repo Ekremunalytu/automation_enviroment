@@ -36,11 +36,12 @@ Key behavior:
 
 - report and simulation state are driven by URL search params
 - dynamic analysis defaults off and is operator-controlled through
-  `GET|PUT /api/settings/executor/preferences`; both synchronous and
-  background marketplace analysis endpoints reject starts with HTTP 409 while
-  disabled
-- Marketplace download/ingest does not implicitly start a sandbox run when the
-  preference is off; explicit Analyze controls show `Dynamic scan off`
+  `GET|PUT /api/settings/executor/preferences`; when disabled, synchronous and
+  background marketplace analysis still run the static pre-check and explicitly
+  skip the five dynamic sandbox stages
+- Marketplace download/ingest starts the applicable analysis pipeline; ready
+  packages expose `Run static scan` while dynamic analysis is off and `Analyze`
+  when both static and dynamic stages are available
 - System data is read-only and measured from the API process, PostgreSQL
   catalog summary, and bounded Docker container inspection; the UI does not
   synthesize mock service values
@@ -90,6 +91,9 @@ make ui-boundaries
 
 ## Recent Changes
 
+- 2026-07-29: dynamic-analysis off no longer blocks marketplace analysis.
+  Static pre-checks run to completion, dynamic sandbox steps are marked skipped,
+  and the simulation view reports a truthful static-only completion.
 - 2026-07-28: operator-console general fixes added a persisted, default-off
   dynamic-analysis preference; enforced the off-state in UI and both analysis
   APIs; replaced System mock cards with aggregate measured health; added a

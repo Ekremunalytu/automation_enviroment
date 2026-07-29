@@ -136,13 +136,11 @@ export function OnlineIntakePanel({
               metrics: result.vsix_metrics,
             });
           }
-          if (dynamicAnalysisEnabled) {
-            analyzeMutation.mutate({
-              publisher: result.publisher,
-              name: result.name,
-              version: result.version,
-            });
-          }
+          analyzeMutation.mutate({
+            publisher: result.publisher,
+            name: result.name,
+            version: result.version,
+          });
         },
         onError: (error) => {
           // Threshold-breach 422 → render the dedicated popup instead of
@@ -474,14 +472,14 @@ function ResultCard({
           </SolidButton>
         ) : (
           <SolidButton
-            disabled={busy || !dynamicAnalysisEnabled}
+            disabled={busy}
             onClick={onAnalyze}
           >
             {busy
               ? "Starting…"
               : dynamicAnalysisEnabled
                 ? "Analyze"
-                : "Dynamic scan off"}
+                : "Run static scan"}
           </SolidButton>
         )}
         {isReady ? (

@@ -10,7 +10,7 @@ import pytest
 
 @pytest.fixture(autouse=True)
 def enable_dynamic_analysis_for_existing_marketplace_tests() -> Generator[None]:
-    """Preserve pre-toggle test intent; dedicated tests pin the off gate."""
+    """Preserve full-pipeline test intent; dedicated tests pin static-only mode."""
     with patch(
         "workflows.marketplace.router.load_dynamic_analysis_enabled",
         return_value=True,

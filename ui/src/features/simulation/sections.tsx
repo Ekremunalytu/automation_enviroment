@@ -14,6 +14,7 @@ export function LiveEvidenceWorkspace({
   inspector,
   inspectorTab,
   model,
+  staticOnly,
   detection,
   onInspectorTabChange,
   onSelectEvent,
@@ -24,14 +25,15 @@ export function LiveEvidenceWorkspace({
   inspectorTab: InspectorTab;
   detection: ActivationReportView["detection"];
   model: SimulationViewModel | null;
+  staticOnly: boolean;
   onInspectorTabChange: (next: InspectorTab) => void;
   onSelectEvent: (eventId: string) => void;
 }) {
   if (!filteredEvents.length) {
     return (
       <EmptyState
-        eyebrow="Warmup"
-        title="Run is warming up"
+        eyebrow={staticOnly ? "Static only" : "Warmup"}
+        title={staticOnly ? "Dynamic sandbox skipped" : "Run is warming up"}
         body={model?.warmupCopy || "Waiting for the sandbox run to emit telemetry."}
       />
     );

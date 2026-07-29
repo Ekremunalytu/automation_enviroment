@@ -167,6 +167,18 @@ describe("computeProgressPct", () => {
     expect(computeProgressPct(steps, { staticDone: true })).toBe(100);
   });
 
+  it("reaches 100% when dynamic steps are intentionally skipped after static analysis", () => {
+    const steps = canonicalSteps({
+      reset_sandbox: { status: "skipped" },
+      install_extension: { status: "skipped" },
+      build_triggers: { status: "skipped" },
+      run_monitoring: { status: "skipped" },
+      finalize_report: { status: "skipped" },
+    });
+
+    expect(computeProgressPct(steps, { staticDone: true })).toBe(100);
+  });
+
   it("falls back to the step-only denominator when static is pending/absent", () => {
     // A run that never carries a static report must still top out at 100% on the
     // step weights alone — staticDone:false keeps the legacy denominator of 100.
@@ -183,6 +195,35 @@ describe("computeProgressPct", () => {
 });
 
 describe("adaptJob", () => {
+  it("explains a completed static-only job without promising dynamic evidence", () => {
+    const staticReport: StaticAnalysisReportDto = {
+      detection_report: {},
+      gate_outcome: {
+        decision: "allow",
+        allow_reason: "No blocking static findings.",
+      },
+    };
+    const model = adaptJob(
+      baseDto({
+        status: "completed",
+        report_path: null,
+        static_report: staticReport,
+        steps: canonicalSteps({
+          reset_sandbox: { status: "skipped" },
+          install_extension: { status: "skipped" },
+          build_triggers: { status: "skipped" },
+          run_monitoring: { status: "skipped" },
+          finalize_report: { status: "skipped" },
+        }),
+      }),
+    );
+
+    expect(model.progressPct).toBe(100);
+    expect(model.progressLabel).toBe("All applicable steps complete");
+    expect(model.currentStepLabel).toBe("Complete");
+    expect(model.warmupCopy).toContain("Dynamic sandbox analysis was skipped");
+  });
+
   it("builds warmup copy and weighted progress for running jobs without a report", () => {
     const model = adaptJob(
       baseDto({

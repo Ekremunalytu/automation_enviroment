@@ -112,6 +112,8 @@ export function SimulationPage() {
   const job = jobQuery.data;
   const report = reportQuery.data;
   const model = job ? adaptJob(job) : null;
+  const isStaticOnly =
+    job?.status === "completed" && Boolean(job.static_report) && !job.report_path;
 
   const cancelMutation = useMutation({
     mutationFn: () => {
@@ -345,7 +347,11 @@ export function SimulationPage() {
             }}
           >
             {filteredEvents.length} visible events
-            {report ? ` from ${report.summary.totalEvents} total` : " while the run warms up"}
+            {report
+              ? ` from ${report.summary.totalEvents} total`
+              : isStaticOnly
+                ? " · dynamic sandbox skipped"
+                : " while the run warms up"}
           </div>
         </div>
         {report?.evidence.length ? (
@@ -515,6 +521,7 @@ export function SimulationPage() {
         inspector={inspector}
         inspectorTab={inspectorTab}
         model={model}
+        staticOnly={isStaticOnly}
         onInspectorTabChange={(next) => {
           startTransition(() => {
             const params = new URLSearchParams(searchParams);

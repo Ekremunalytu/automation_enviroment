@@ -84,7 +84,7 @@ describe("MarketplacePage", () => {
     });
   });
 
-  it("renders the v3 layout and keeps analysis blocked after download while off", async () => {
+  it("renders the v3 layout and starts the static-only pipeline after download while off", async () => {
     renderPage("/marketplace?q=python");
 
     expect(await screen.findByText("Find, download, analyze.")).toBeInTheDocument();
@@ -102,11 +102,14 @@ describe("MarketplacePage", () => {
     expect(screen.queryByText("RISK TBD")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Download" }));
-    const blocked = await screen.findByRole("button", {
-      name: "Dynamic scan off",
+    await waitFor(() => {
+      expect(apiClient.startAnalysisJob).toHaveBeenCalledWith(
+        "ms",
+        "python",
+        "1.0.0",
+      );
     });
-    expect(blocked).toBeDisabled();
-    expect(apiClient.startAnalysisJob).not.toHaveBeenCalled();
+    expect(await screen.findByText("Simulation route")).toBeInTheDocument();
   });
 
   it("ignores a rapid second download click for the same artifact", async () => {
@@ -142,23 +145,23 @@ describe("MarketplacePage", () => {
     });
 
     await waitFor(() => {
-      expect(
-        screen.getByRole("button", { name: "Dynamic scan off" }),
-      ).toBeDisabled();
+      expect(apiClient.startAnalysisJob).toHaveBeenCalledTimes(1);
     });
   });
 
-  it("keeps dynamic analysis off after download by default", async () => {
+  it("keeps a static scan action available if automatic job start fails", async () => {
+    vi.mocked(apiClient.startAnalysisJob).mockRejectedValue(
+      new Error("queue unavailable"),
+    );
     renderPage("/marketplace?q=python");
 
     fireEvent.click(await screen.findByRole("button", { name: "Download" }));
 
-    const blocked = await screen.findByRole("button", {
-      name: "Dynamic scan off",
+    const staticScan = await screen.findByRole("button", {
+      name: "Run static scan",
     });
-    expect(blocked).toBeDisabled();
-    fireEvent.click(blocked);
-    expect(apiClient.startAnalysisJob).not.toHaveBeenCalled();
+    expect(staticScan).toBeEnabled();
+    expect(await screen.findByText("Analysis could not be started.")).toBeInTheDocument();
   });
 
   it("starts dynamic analysis after download when the preference is on", async () => {

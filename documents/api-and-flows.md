@@ -66,11 +66,12 @@ Notes:
 - `POST /api/marketplace/analyze` is the direct request/response path.
 - `POST /api/marketplace/analyze/start` is the background path used by the UI.
 - Dynamic analysis defaults off. Both routes read
-  `dynamic_analysis_enabled` at request time and return HTTP 409 with
-  `dynamic_analysis_disabled` until the operator enables it through
-  `PUT /api/settings/executor/preferences`.
-- Marketplace search, download, catalog ingest, and static pre-check are not
-  disabled by this preference.
+  `dynamic_analysis_enabled` at request time. While off, the static pre-check
+  still runs and the five dynamic sandbox steps are recorded as `skipped`;
+  enabling it through `PUT /api/settings/executor/preferences` selects the full
+  static + dynamic pipeline for subsequent requests.
+- Marketplace search, download, catalog ingest, and static pre-check remain
+  available regardless of this preference.
 - Only one background analysis should run at a time in the intended sandbox
   deployment.
 - Startup fails fast if the `analysis_jobs` storage path is unavailable or the

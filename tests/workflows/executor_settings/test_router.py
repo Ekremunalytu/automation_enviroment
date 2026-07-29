@@ -23,7 +23,7 @@ def test_dynamic_analysis_defaults_to_off(db_client: TestClient) -> None:
         "/api/marketplace/analyze/start",
     ],
 )
-def test_dynamic_analysis_endpoints_are_blocked_while_off(
+def test_analysis_endpoints_reach_vsix_validation_while_dynamic_is_off(
     db_client: TestClient,
     endpoint: str,
 ) -> None:
@@ -32,14 +32,10 @@ def test_dynamic_analysis_endpoints_are_blocked_while_off(
         json={"publisher": "example", "name": "blocked", "version": "1.0.0"},
     )
 
-    assert response.status_code == 409
-    assert response.json()["detail"] == {
-        "error": "dynamic_analysis_disabled",
-        "message": (
-            "Dynamic analysis is disabled. Enable it in "
-            "Settings > Executor before starting a sandbox run."
-        ),
-    }
+    # Dynamic-off selects the static-only pipeline; it no longer rejects the
+    # request before the artifact/static stages. The missing artifact proves
+    # routing reached the existing VSIX validation boundary.
+    assert response.status_code == 404
 
 
 def test_dynamic_analysis_preference_persists(db_client: TestClient) -> None:
