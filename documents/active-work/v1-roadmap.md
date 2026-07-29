@@ -143,6 +143,12 @@ now **static-primary, dynamic-evidence**:
 5. **Release identity and operations (Stream 5 / B10)** — finish version,
    health, backup, and restore mechanics; then declare v1.0.
 
+The detailed non-active implementation proposal for the measured/static-primary
+slice is
+[`static-analysis-improvement-roadmap.md`](static-analysis-improvement-roadmap.md).
+Its stable `SAR-0` through `SAR-7` packages refine Stream 6 without opening a
+successor stream or changing the containment-first execution order.
+
 The numeric stream IDs remain frozen so ADRs, tests, and backlog references do
 not churn. This section controls execution order. Product positioning is
 deliberately bounded: ExTrace does not prove an extension is clean; it combines
@@ -408,7 +414,7 @@ detail + stable IDs in `POST_POC_BACKLOG.md` "Newly Captured (extrace-audit
 - **Stream 3** — `[GOAL vsix-content-sha256-provenance]`, `[GOAL verdict-reproducibility-anchor]`.
 - **Stream 4** — `[GOAL report-export-artifact]`, `[FOLLOWUP vsix-entry-log-sanitization]` (existing), offline skip-reason UX.
 - **Stream 5** — `[CLEANUP version-identity-coherence]`, `[GOAL api-health-db-probe]`, `[GOAL podman-backup-restore]`.
-- **Stream 6** — `[GOAL measured-catch-rate-corpus]`, `[GOAL benign-false-positive-gate]`, `[GOAL platform-blind-verdict-annotation]`, `[GOAL adr-0015-e1-e2-evasion-detection]`, `[GOAL measured-layer-contribution]`, `[GOAL static-primary-threat-directed-dynamic]`.
+- **Stream 6** — `[GOAL measured-catch-rate-corpus]`, `[GOAL benign-false-positive-gate]`, `[GOAL platform-blind-verdict-annotation]`, `[GOAL adr-0015-e1-e2-evasion-detection]`, `[GOAL measured-layer-contribution]`, `[GOAL static-primary-threat-directed-dynamic]`; detailed non-active implementation packages: [`SAR-0`–`SAR-7`](static-analysis-improvement-roadmap.md).
 - **Stream 7** (post-v1.0) — `[GOAL sequential-batch-corpus]`.
 - **Stream 8** — `[GOAL per-analysis-disposable-sandbox]` (pre-v1 safety
   slice), `[GOAL container-hardening-ratchet-down]` (ADR 0013 §Deferred;

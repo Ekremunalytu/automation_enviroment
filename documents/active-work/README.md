@@ -40,6 +40,14 @@ points to it.
     the next gate.** New stable IDs are recorded in
     [`POST_POC_BACKLOG.md`](../POST_POC_BACKLOG.md) "Newly Captured
     (v1.0 roadmap intake 2026-06-08)".
+- `static-analysis-improvement-roadmap.md`
+  - **PROPOSED, non-active Stream 6 implementation roadmap.** Defines the
+    stable `SAR-0`–`SAR-7` sequence: baseline and labeled-corpus measurement,
+    artifact-context precision, AST/taint, manifest/dependency/version diff,
+    native/WASM/archive inspection, bounded threat-directed dynamic hints,
+    and measured policy calibration. It does not open a successor stream;
+    `phase.json.active_stream` remains `null`, and containment safety remains
+    the next product execution gate.
 - `W22-coverage-promotion-hard-tier.md`
   - **Closed phase — closed synthetically on the `week22` branch
     `2026-05-28` and merged to main via PR #31 `week22 -> main` `1399f82`.** W22

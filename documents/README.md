@@ -71,6 +71,10 @@ Short and intentionally not on the default read path.
   [`PIPELINE_ROADMAP.md`](PIPELINE_ROADMAP.md), `automation_todo.md`,
   [`ARCHITECTURE_AUDIT.md`](ARCHITECTURE_AUDIT.md), and [`review.md`](review.md)
   stay off the default read path.
+- [`active-work/static-analysis-improvement-roadmap.md`](active-work/static-analysis-improvement-roadmap.md)
+  is the comprehensive non-active proposal for measured static-analysis
+  precision, deeper AST/artifact coverage, and threat-directed dynamic
+  handoff. It refines Stream 6 without changing `phase.json`.
 - Historical Week 1-4 planning snapshots
   [`REFACTOR_EXECUTION_PLAN.md`](REFACTOR_EXECUTION_PLAN.md) and
   [`REFACTOR_EXPANSION_NOTES.md`](REFACTOR_EXPANSION_NOTES.md) are
